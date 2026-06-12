@@ -62,7 +62,7 @@ export default function Home() {
               福岡の
               <span className="text-pink-600">メンズエステ</span>
               <br />
-              エリアから探せる口コミポータル
+              あなたとお店をマッチング
             </h1>
 
             <p className="text-slate-500 text-sm max-w-md mx-auto mb-10 leading-relaxed">
