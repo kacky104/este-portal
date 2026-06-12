@@ -59,10 +59,10 @@ export default function Home() {
             </p>
 
             <h1 className="mb-5 leading-snug">
-              <span className="block text-2xl sm:text-3xl font-bold tracking-widest text-slate-500">
+              <span className="block text-xl sm:text-2xl font-bold tracking-widest text-slate-500">
                 福岡メンズエステポータル
               </span>
-              <span className="block text-4xl sm:text-5xl font-extrabold tracking-tight bg-gradient-to-r from-pink-500 via-rose-400 to-orange-400 bg-clip-text text-transparent">
+              <span className="block text-3xl sm:text-4xl font-extrabold tracking-tight bg-gradient-to-r from-pink-500 via-rose-400 to-orange-400 bg-clip-text text-transparent">
                 あなたとお店をマッチング
               </span>
             </h1>
