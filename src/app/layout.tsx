@@ -13,9 +13,9 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "福岡メンズエステポータル | 駅チカ・エリア検索",
+  title: "福岡メンズエステポータル｜あなたとお店をマッチング",
   description:
-    "福岡の人気メンズエステサロンを駅・エリアから簡単検索。博多・天神・西新など主要駅近くのおすすめサロンを口コミ評価とともにご紹介。",
+    "福岡の人気メンズエステ店を博多・天神などエリアから簡単検索。近くのおすすめサロンを口コミ評価とともにご紹介。",
 };
 
 export default function RootLayout({
