@@ -58,10 +58,13 @@ export default function Home() {
               <span className="w-6 h-px bg-pink-300" />
             </p>
 
-            <h1 className="text-3xl sm:text-4xl font-bold text-slate-900 mb-5 leading-snug">
-              福岡メンズエステポータル
-              <br />
-              あなたとお店をマッチング
+            <h1 className="mb-5 leading-snug">
+              <span className="block text-2xl sm:text-3xl font-bold tracking-widest text-slate-500">
+                福岡メンズエステポータル
+              </span>
+              <span className="block text-4xl sm:text-5xl font-extrabold tracking-tight bg-gradient-to-r from-pink-500 via-rose-400 to-orange-400 bg-clip-text text-transparent">
+                あなたとお店をマッチング
+              </span>
             </h1>
 
             <p className="text-slate-500 text-sm max-w-md mx-auto mb-10 leading-relaxed">
