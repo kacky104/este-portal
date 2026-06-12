@@ -59,8 +59,7 @@ export default function Home() {
             </p>
 
             <h1 className="text-3xl sm:text-4xl font-bold text-slate-900 mb-5 leading-snug">
-              福岡の
-              <span className="text-pink-600">メンズエステ</span>
+              福岡メンズエステポータル
               <br />
               あなたとお店をマッチング
             </h1>
