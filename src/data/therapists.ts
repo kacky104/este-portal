@@ -290,3 +290,25 @@ export const THERAPISTS: Therapist[] = [
     comment: "夜のご予約も歓迎。六本松の隠れ家でお待ちしています♡",
   },
 ];
+
+export function isCurrentlyWorking(workHours: string): boolean {
+  const now = new Date();
+  const utcMinutes = now.getUTCHours() * 60 + now.getUTCMinutes();
+  const jstMinutes = (utcMinutes + 9 * 60) % (24 * 60);
+
+  const [startStr, endStr] = workHours.split("〜");
+  const startMinutes = parseTimeToMinutes(startStr);
+  const endMinutes = parseTimeToMinutes(endStr);
+
+  if (startMinutes <= endMinutes) {
+    return jstMinutes >= startMinutes && jstMinutes < endMinutes;
+  } else {
+    return jstMinutes >= startMinutes || jstMinutes < endMinutes;
+  }
+}
+
+function parseTimeToMinutes(timeStr: string): number {
+  const cleaned = timeStr.replace("翌", "").trim();
+  const [hours, minutes] = cleaned.split(":").map(Number);
+  return hours * 60 + minutes;
+}
