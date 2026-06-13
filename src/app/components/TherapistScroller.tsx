@@ -17,15 +17,20 @@ const AVATAR_GRADIENTS = [
 
 const AVATAR_SYMBOLS = ['✿', '❀', '✾', '♡', '✦', '❋', '✽', '❁'];
 
-// 【バグ完全修正】日本時間を正確に取得し、出勤状況をミリ秒を使わずに判定する関数
+// 日本時間を正確に取得し、出勤状況を判定する関数
 function checkDutyStatus(workHours: string): { isOnDuty: boolean; startHourStr: string } {
+  // デフォルト値を用意（データがおかしい場合の安全策）
+  let startHourStr = '12:00';
+
   if (!workHours || !workHours.includes('〜')) {
-    return { isOnDuty: false, startHourStr: '' };
+    return { isOnDuty: false, startHourStr };
   }
 
   // 1. 文字列をバラして開始・終了の「分」を求める
   const [startStr, endStr] = workHours.split('〜');
-  const [startHour, startMin] = startStr.trim().split(':').map(Number);
+  startHourStr = startStr.trim(); // "19:00" などの文字列をそのまま保持
+
+  const [startHour, startMin] = startHourStr.split(':').map(Number);
   const [endHour, endMin] = endStr.trim().split(':').map(Number);
 
   const startInMinutes = startHour * 60 + startMin;
@@ -36,9 +41,9 @@ function checkDutyStatus(workHours: string): { isOnDuty: boolean; startHourStr: 
     endInMinutes += 24 * 60;
   }
 
-  // 2. Intl API を使用して、世界のどこ（Vercelサーバー）でも「今の日本時間」の時と分を確実に抽出する
+  // 2. サーバーの場所に依存せず、確実に「今の日本時間」の時と分を抽出
   const options = { timeZone: 'Asia/Tokyo', hour: '2-digit', minute: '2-digit', hour12: false } as const;
-  const jstString = new Intl.DateTimeFormat('ja-JP', options).format(new Date()); // "18:25" のような文字列
+  const jstString = new Intl.DateTimeFormat('ja-JP', options).format(new Date()); // "18:25" などの文字列
   const [currentHour, currentMinute] = jstString.split(':').map(Number);
 
   const currentTimeInMinutes = currentHour * 60 + currentMinute;
@@ -46,20 +51,20 @@ function checkDutyStatus(workHours: string): { isOnDuty: boolean; startHourStr: 
   // 3. 現在の日本時間がシフトの範囲内か判定
   const isOnDuty = currentTimeInMinutes >= startInMinutes && currentTimeInMinutes <= endInMinutes;
 
-  return { isOnDuty, startHourStr: startStr.trim() };
+  return { isOnDuty, startHourStr };
 }
 
 function TherapistCard({ therapist, index }: { therapist: Therapist; index: number }) {
   const gradient = AVATAR_GRADIENTS[index % AVATAR_GRADIENTS.length];
   const symbol = AVATAR_SYMBOLS[index % AVATAR_SYMBOLS.length];
 
-  // 初期状態は仮で「出勤中」にしない状態（ハイドレーションエラー対策）
+  // 初期状態は仮で「出勤前」の安全な仮状態にする
   const [status, setStatus] = useState<{ isOnDuty: boolean; startHourStr: string }>({
     isOnDuty: false,
-    startHourStr: therapist.workHours.split('〜')[0]?.trim() || ''
+    startHourStr: '12:00'
   });
 
-  // 画面が読み込まれた瞬間に「日本の現在時刻」で状態をカチッと上書きする
+  // 画面がユーザーのブラウザで読み込まれた瞬間に、日本時間で状態を上書き
   useEffect(() => {
     setStatus(checkDutyStatus(therapist.workHours));
   }, [therapist.workHours]);
@@ -84,7 +89,7 @@ function TherapistCard({ therapist, index }: { therapist: Therapist; index: numb
           {symbol}
         </span>
 
-        {/* 動的なステータスバッジ（日本時間と完全連動） */}
+        {/* 動的なステータスバッジ */}
         {status.isOnDuty ? (
           <span className="absolute top-2 right-2 flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-white text-emerald-500 border border-emerald-100 animate-pulse">
             <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 inline-block" />
@@ -125,7 +130,7 @@ function TherapistCard({ therapist, index }: { therapist: Therapist; index: numb
 export function TherapistScroller() {
   const [activeTherapists, setActiveTherapists] = useState<Therapist[]>([]);
 
-  // クライアント側（ユーザーのブラウザ）で読み込まれた時にだけ、日本時間でリストを絞り込む
+  // クライアント側（ブラウザ）で読み込まれた時に、日本時間でリストを完全に絞り込む
   useEffect(() => {
     const filtered = THERAPISTS.filter(t => checkDutyStatus(t.workHours).isOnDuty);
     setActiveTherapists(filtered);
