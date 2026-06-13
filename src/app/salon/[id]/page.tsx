@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { SALONS } from "@/app/lib/salonData";
-import { SalonTherapists } from "@/app/components/SalonTherapists";
+import { SalonTherapists } from "@/components/SalonTherapists";
 
 export default async function SalonPage({
   params,
