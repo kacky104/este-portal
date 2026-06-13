@@ -5,89 +5,62 @@ import { THERAPISTS, type Therapist } from '@/data/therapists';
 
 const GRADIENTS = ['from-pink-300 to-rose-400', 'from-fuchsia-300 to-pink-400', 'from-rose-300 to-pink-500', 'from-pink-400 to-fuchsia-400'];
 const SYMBOLS = ['✿', '❀', '✾', '♡', '✦', '❋'];
-const WEEKS = ['月', '火', '水', '木', '金', '土', '日'];
 
-// シフト時間を計算用の分数に変換する補助関数
+// ダミーの週間詳細スケジュール
+const DETAIL_SCHEDULE = [
+  { day: '月', active: true,  start: '12:00', end: '21:00' },
+  { day: '火', active: true,  start: '12:00', end: '21:00' },
+  { day: '水', active: false, start: '',       end: ''       },
+  { day: '木', active: true,  start: '16:00', end: '翌2:00' },
+  { day: '金', active: true,  start: '19:00', end: '翌4:00' },
+  { day: '土', active: true,  start: '15:00', end: '23:00'  },
+  { day: '日', active: false, start: '',       end: ''       },
+];
+
 function parseHours(hours: string): { start: number; end: number } | null {
   if (!hours) return null;
   const clean = hours.replace(/[〜～~]/g, '-').replace(/翌/g, '');
   if (!clean.includes('-')) return null;
-
   const [startStr, endStr] = clean.split('-').map(t => t.trim());
   const [startH, startM] = startStr.split(':').map(Number);
   const [endH, endM] = endStr.split(':').map(Number);
-
   const start = startH * 60 + (startM || 0);
   let end = endH * 60 + (endM || 0);
-
-  // 深夜をまたぐシフト（例：19:00〜翌4:00）への対応
-  if (end < start || hours.includes('翌')) {
-    end += 1440;
-  }
+  if (end < start || hours.includes('翌')) end += 1440;
   return { start, end };
 }
 
-// 出勤・受付終了・休日の状態を判定する関数
 function getDutyStatus(hours: string): 'ON_DUTY' | 'ENDED' | 'OFF_DUTY' {
   const times = parseHours(hours);
   if (!times) return 'OFF_DUTY';
-
-  // 確実に現在の「日本時間」を取得
   const jst = new Intl.DateTimeFormat('ja-JP', { timeZone: 'Asia/Tokyo', hour: '2-digit', minute: '2-digit', hour12: false }).format(new Date());
   const [curH, curM] = jst.split(':').map(Number);
   let curMin = curH * 60 + curM;
-
-  // 現在の時間が、深夜営業の枠内（24時以降）にいる場合の補正
-  if (curMin < times.start && curMin <= (times.end - 1440)) {
-    curMin += 1440;
-  }
-
-  // 1. 出勤時間内の場合
-  if (curMin >= times.start && curMin <= times.end) {
-    return 'ON_DUTY';
-  }
-
-  // 2. 出勤時間を過ぎている場合（受付終了）
-  if (curMin > times.end) {
-    return 'ENDED';
-  }
-
-  // 3. まだ出勤時間前の場合
+  if (curMin < times.start && curMin <= (times.end - 1440)) curMin += 1440;
+  if (curMin >= times.start && curMin <= times.end) return 'ON_DUTY';
+  if (curMin > times.end) return 'ENDED';
   return 'OFF_DUTY';
 }
 
-// ① 女の子の縦並びカード
 function TherapistGridCard({ therapist, index, onOpen }: { therapist: Therapist; index: number; onOpen: (t: Therapist, g: string, s: string) => void }) {
   const grad = GRADIENTS[index % GRADIENTS.length];
   const sym = SYMBOLS[index % SYMBOLS.length];
   const [status, setStatus] = useState<'ON_DUTY' | 'ENDED' | 'OFF_DUTY'>('OFF_DUTY');
-
-  useEffect(() => {
-    setStatus(getDutyStatus(therapist.workHours));
-  }, [therapist.workHours]);
+  useEffect(() => { setStatus(getDutyStatus(therapist.workHours)); }, [therapist.workHours]);
 
   return (
     <button onClick={() => onOpen(therapist, grad, sym)} type="button" className="text-left w-full rounded-2xl border border-pink-50 bg-white shadow-sm hover:border-pink-200 hover:-translate-y-0.5 transition-all duration-300 overflow-hidden flex h-28">
-      {/* 左側：アバター */}
       <div className={`relative w-28 bg-gradient-to-br ${grad} flex items-center justify-center flex-shrink-0`}>
         <div className="w-14 h-14 rounded-full bg-white/30 flex items-center justify-center text-white font-bold text-xl">{therapist.name.charAt(0)}</div>
         <span className="absolute bottom-1 right-2 text-white/40 text-sm">{sym}</span>
       </div>
-
-      {/* 右側：テキスト情報 */}
       <div className="p-3 flex-1 flex flex-col justify-between min-w-0">
         <div>
           <div className="flex items-center gap-1.5 mb-0.5">
             <p className="font-bold text-sm text-slate-900 truncate">{therapist.name}</p>
-            {status === 'ON_DUTY' && (
-              <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-emerald-50 text-emerald-500 border border-emerald-100 flex-shrink-0 animate-pulse">本日出勤</span>
-            )}
-            {status === 'ENDED' && (
-              <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-rose-50 text-rose-500 border border-rose-100 flex-shrink-0">受付終了</span>
-            )}
-            {status === 'OFF_DUTY' && (
-              <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-slate-50 text-slate-400 border border-slate-100 flex-shrink-0">休日</span>
-            )}
+            {status === 'ON_DUTY' && <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-emerald-50 text-emerald-500 border border-emerald-100 flex-shrink-0 animate-pulse">本日出勤</span>}
+            {status === 'ENDED'   && <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-rose-50 text-rose-500 border border-rose-100 flex-shrink-0">受付終了</span>}
+            {status === 'OFF_DUTY' && <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-slate-50 text-slate-400 border border-slate-100 flex-shrink-0">休日</span>}
           </div>
           <p className="text-[10px] text-pink-500 font-medium mb-1 flex items-center gap-0.5">🕒 {therapist.workHours}</p>
           <p className="text-[10px] text-slate-500 line-clamp-2 leading-relaxed break-all">{therapist.comment}</p>
@@ -97,7 +70,6 @@ function TherapistGridCard({ therapist, index, onOpen }: { therapist: Therapist;
   );
 }
 
-// ② プロフィールモーダル（ポップアップ窓）
 function ProfileModal({ therapist, grad, sym, onClose }: { therapist: Therapist | null; grad: string; sym: string; onClose: () => void }) {
   if (!therapist) return null;
   return (
@@ -127,10 +99,18 @@ function ProfileModal({ therapist, grad, sym, onClose }: { therapist: Therapist 
           <div className="space-y-1.5">
             <h4 className="font-bold text-slate-400">📅 今週のスケジュール</h4>
             <div className="grid grid-cols-7 gap-1 text-center">
-              {WEEKS.map((day, idx) => (
-                <div key={day} className={`p-1.5 rounded-lg border ${idx !== 2 && idx !== 6 ? 'bg-pink-50/30 border-pink-100 text-pink-600' : 'bg-slate-50 border-slate-100 text-slate-300'}`}>
-                  <div className="font-bold mb-0.5">{day}</div>
-                  <div className="text-[8px] scale-90">{(idx !== 2 && idx !== 6) ? '出勤' : '休み'}</div>
+              {DETAIL_SCHEDULE.map((s) => (
+                <div key={s.day} className={`p-1 rounded-lg border flex flex-col justify-between min-h-[52px] ${s.active ? 'bg-pink-50/30 border-pink-100 text-pink-600' : 'bg-slate-50 border-slate-100 text-slate-300'}`}>
+                  <div className="font-bold text-[10px] border-b border-pink-100/30 pb-0.5">{s.day}</div>
+                  {s.active ? (
+                    <div className="text-[8px] font-black leading-tight py-0.5 flex flex-col justify-center flex-1 origin-center scale-95 tracking-tighter">
+                      <span>{s.start}</span>
+                      <span className="text-[6px] text-pink-300 -my-0.5">▼</span>
+                      <span>{s.end}</span>
+                    </div>
+                  ) : (
+                    <div className="text-[8px] py-2 text-slate-300 flex-1 flex items-center justify-center">休み</div>
+                  )}
                 </div>
               ))}
             </div>
@@ -141,64 +121,40 @@ function ProfileModal({ therapist, grad, sym, onClose }: { therapist: Therapist 
   );
 }
 
-// ③ メイン：特定のサロンIDかつ【本日出勤中】のセラピストだけを表示
 export function SalonTherapists({ salonId }: { salonId: string }) {
   const [list, setList] = useState<Therapist[]>([]);
   const [select, setSelect] = useState<Therapist | null>(null);
   const [grad, setGrad] = useState('');
   const [sym, setSym] = useState('');
-
-  useEffect(() => {
-    const filtered = THERAPISTS.filter(t => t.salonId === Number(salonId) && getDutyStatus(t.workHours) === 'ON_DUTY');
-    setList(filtered);
-  }, [salonId]);
+  useEffect(() => { setList(THERAPISTS.filter(t => t.salonId === Number(salonId) && getDutyStatus(t.workHours) === 'ON_DUTY')); }, [salonId]);
 
   if (list.length === 0) {
-    return (
-      <div className="text-center py-8 text-xs text-slate-400 border border-dashed border-pink-100 rounded-2xl bg-pink-50/10">
-        只今、案内可能なセラピストはおりません ✿
-      </div>
-    );
+    return <div className="text-center py-8 text-xs text-slate-400 border border-dashed border-pink-100 rounded-2xl bg-pink-50/10">只今、案内可能なセラピストはおりません ✿</div>;
   }
-
   return (
     <div className="space-y-3">
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-        {list.map((t, i) => (
-          <TherapistGridCard key={t.id} therapist={t} index={i} onOpen={(target, g, s) => { setSelect(target); setGrad(g); setSym(s); }} />
-        ))}
+        {list.map((t, i) => <TherapistGridCard key={t.id} therapist={t} index={i} onOpen={(target, g, s) => { setSelect(target); setGrad(g); setSym(s); }} />)}
       </div>
       <ProfileModal therapist={select} grad={grad} sym={sym} onClose={() => setSelect(null)} />
     </div>
   );
 }
 
-// ④ メイン：在籍セラピスト全員を表示（終了した子は「受付終了」になる）
 export function SalonAllTherapists({ salonId }: { salonId: string }) {
   const [list, setList] = useState<Therapist[]>([]);
   const [select, setSelect] = useState<Therapist | null>(null);
   const [grad, setGrad] = useState('');
   const [sym, setSym] = useState('');
-
-  useEffect(() => {
-    const filtered = THERAPISTS.filter(t => t.salonId === Number(salonId));
-    setList(filtered);
-  }, [salonId]);
+  useEffect(() => { setList(THERAPISTS.filter(t => t.salonId === Number(salonId))); }, [salonId]);
 
   if (list.length === 0) {
-    return (
-      <div className="text-center py-8 text-xs text-slate-400 border border-dashed border-pink-100 rounded-2xl bg-pink-50/10">
-        在籍セラピストの情報は準備中です ✿
-      </div>
-    );
+    return <div className="text-center py-8 text-xs text-slate-400 border border-dashed border-pink-100 rounded-2xl bg-pink-50/10">在籍セラピストの情報は準備中です ✿</div>;
   }
-
   return (
     <div className="space-y-3">
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-        {list.map((t, i) => (
-          <TherapistGridCard key={t.id} therapist={t} index={i} onOpen={(target, g, s) => { setSelect(target); setGrad(g); setSym(s); }} />
-        ))}
+        {list.map((t, i) => <TherapistGridCard key={t.id} therapist={t} index={i} onOpen={(target, g, s) => { setSelect(target); setGrad(g); setSym(s); }} />)}
       </div>
       <ProfileModal therapist={select} grad={grad} sym={sym} onClose={() => setSelect(null)} />
     </div>
