@@ -6,36 +6,39 @@ import { THERAPISTS, type Therapist } from '@/data/therapists';
 
 const GRADIENTS = ['from-pink-300 to-rose-400', 'from-fuchsia-300 to-pink-400', 'from-rose-300 to-pink-500', 'from-pink-400 to-fuchsia-400'];
 const SYMBOLS = ['✿', '❀', '✾', '♡', '✦', '❋'];
-const WEEKS = ['月', '火', '水', '木', '金', '土', '日'];
 
-// 出勤判定（深夜対応）
+// ダミーの週間詳細スケジュール
+const DETAIL_SCHEDULE = [
+  { day: '月', active: true,  start: '12:00', end: '21:00' },
+  { day: '火', active: true,  start: '12:00', end: '21:00' },
+  { day: '水', active: false, start: '',       end: ''       },
+  { day: '木', active: true,  start: '16:00', end: '翌2:00' },
+  { day: '金', active: true,  start: '19:00', end: '翌4:00' },
+  { day: '土', active: true,  start: '15:00', end: '23:00'  },
+  { day: '日', active: false, start: '',       end: ''       },
+];
+
 function isDuty(hours: string): boolean {
   if (!hours) return false;
   const clean = hours.replace(/[〜～~]/g, '-').replace(/翌/g, '');
   if (!clean.includes('-')) return false;
-
   const [start, end] = clean.split('-').map(t => {
     const [h, m] = t.trim().split(':').map(Number);
     return h * 60 + (m || 0);
   });
-
   let endMin = end;
   if (endMin < start || hours.includes('翌')) endMin += 1440;
-
   const jst = new Intl.DateTimeFormat('ja-JP', { timeZone: 'Asia/Tokyo', hour: '2-digit', minute: '2-digit', hour12: false }).format(new Date());
   const [curH, curM] = jst.split(':').map(Number);
   let curMin = curH * 60 + curM;
-
   if (curMin < start && curMin <= (endMin - 1440)) curMin += 1440;
   return curMin >= start && curMin <= endMin;
 }
 
-// ① 女の子ミニカード
 function Card({ therapist, index, onOpen }: { therapist: Therapist; index: number; onOpen: (t: Therapist, g: string, s: string) => void }) {
   const grad = GRADIENTS[index % GRADIENTS.length];
   const sym = SYMBOLS[index % SYMBOLS.length];
   const [onDuty, setOnDuty] = useState(false);
-
   useEffect(() => { setOnDuty(isDuty(therapist.workHours)); }, [therapist.workHours]);
 
   return (
@@ -59,7 +62,6 @@ function Card({ therapist, index, onOpen }: { therapist: Therapist; index: numbe
   );
 }
 
-// ② プロフィールモーダル（ポップアップ窓）
 function Modal({ therapist, grad, sym, onClose }: { therapist: Therapist | null; grad: string; sym: string; onClose: () => void }) {
   if (!therapist) return null;
   return (
@@ -90,10 +92,18 @@ function Modal({ therapist, grad, sym, onClose }: { therapist: Therapist | null;
           <div className="space-y-1.5">
             <h4 className="font-bold text-slate-400">📅 今週のスケジュール</h4>
             <div className="grid grid-cols-7 gap-1 text-center">
-              {WEEKS.map((day, idx) => (
-                <div key={day} className={`p-1.5 rounded-lg border ${idx !== 2 && idx !== 6 ? 'bg-pink-50/30 border-pink-100 text-pink-600' : 'bg-slate-50 border-slate-100 text-slate-300'}`}>
-                  <div className="font-bold mb-0.5">{day}</div>
-                  <div className="text-[8px] scale-90">{(idx !== 2 && idx !== 6) ? '出勤' : '休み'}</div>
+              {DETAIL_SCHEDULE.map((s) => (
+                <div key={s.day} className={`p-1 rounded-lg border flex flex-col justify-between min-h-[52px] ${s.active ? 'bg-pink-50/30 border-pink-100 text-pink-600' : 'bg-slate-50 border-slate-100 text-slate-300'}`}>
+                  <div className="font-bold text-[10px] border-b border-pink-100/30 pb-0.5">{s.day}</div>
+                  {s.active ? (
+                    <div className="text-[8px] font-black leading-tight py-0.5 flex flex-col justify-center flex-1 origin-center scale-95 tracking-tighter">
+                      <span>{s.start}</span>
+                      <span className="text-[6px] text-pink-300 -my-0.5">▼</span>
+                      <span>{s.end}</span>
+                    </div>
+                  ) : (
+                    <div className="text-[8px] py-2 text-slate-300 flex-1 flex items-center justify-center">休み</div>
+                  )}
                 </div>
               ))}
             </div>
@@ -109,13 +119,11 @@ function Modal({ therapist, grad, sym, onClose }: { therapist: Therapist | null;
   );
 }
 
-// ③ メインコンポーネント
 export function TherapistScroller() {
   const [list, setList] = useState<Therapist[]>([]);
   const [select, setSelect] = useState<Therapist | null>(null);
   const [grad, setGrad] = useState('');
   const [sym, setSym] = useState('');
-
   useEffect(() => { setList(THERAPISTS.filter(t => isDuty(t.workHours))); }, []);
 
   if (list.length === 0) {
