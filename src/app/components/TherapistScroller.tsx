@@ -3,11 +3,11 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { THERAPISTS, type Therapist } from '@/data/therapists';
+import { DIARIES } from '@/data/diaries';
 
 const GRADIENTS = ['from-pink-300 to-rose-400', 'from-fuchsia-300 to-pink-400', 'from-rose-300 to-pink-500', 'from-pink-400 to-fuchsia-400'];
 const SYMBOLS = ['✿', '❀', '✾', '♡', '✦', '❋'];
 
-// ダミーの週間詳細スケジュール
 const DETAIL_SCHEDULE = [
   { day: '月', active: true,  start: '12:00', end: '21:00' },
   { day: '火', active: true,  start: '12:00', end: '21:00' },
@@ -64,6 +64,9 @@ function Card({ therapist, index, onOpen }: { therapist: Therapist; index: numbe
 
 function Modal({ therapist, grad, sym, onClose }: { therapist: Therapist | null; grad: string; sym: string; onClose: () => void }) {
   if (!therapist) return null;
+
+  const latestDiary = DIARIES.find(d => d.therapistName === therapist.name);
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-sm">
       <div className="absolute inset-0" onClick={onClose} />
@@ -85,6 +88,26 @@ function Modal({ therapist, grad, sym, onClose }: { therapist: Therapist | null;
             <div className="flex justify-between"><span className="text-slate-400">スタイル</span><span className="text-slate-800 font-medium">T160 B85(D) W58 H85</span></div>
             <div className="flex justify-between"><span className="text-slate-400">出勤時間</span><span className="text-pink-600 font-bold">{therapist.workHours}</span></div>
           </div>
+
+          {/* 最新日記リンク */}
+          {latestDiary && (
+            <div className="bg-gradient-to-r from-rose-50 to-pink-50 border border-pink-100 rounded-xl p-2.5 flex items-center justify-between gap-2">
+              <div className="min-w-0">
+                <p className="text-[9px] font-black text-pink-500 tracking-wider flex items-center gap-1">
+                  <span>📷</span> LATEST DIARY
+                </p>
+                <p className="font-bold text-slate-800 text-[11px] truncate mt-0.5">「{latestDiary.title}」</p>
+              </div>
+              <Link
+                href={`/diary/${latestDiary.id}`}
+                onClick={onClose}
+                className="bg-white hover:bg-pink-50 text-pink-500 border border-pink-200 font-bold text-[10px] px-3 py-1.5 rounded-lg whitespace-nowrap transition-colors flex items-center gap-0.5 flex-shrink-0"
+              >
+                読む 📖
+              </Link>
+            </div>
+          )}
+
           <div className="space-y-1">
             <h4 className="font-bold text-slate-400">💬 メッセージ</h4>
             <p className="text-slate-600 bg-slate-50 p-3 rounded-xl leading-relaxed">{therapist.comment}</p>
