@@ -101,13 +101,13 @@ export default async function SalonPage({
           <div className="lg:col-span-2 space-y-6">
 
             {/* Today's therapists */}
-            <section className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
-              <div className="flex items-center gap-2.5 mb-4">
-                <div className="w-1 h-5 rounded-full bg-gradient-to-b from-pink-500 to-pink-700" />
-                <h3 className="font-bold text-slate-900">本日の出勤セラピスト</h3>
+            <div className="mt-8 bg-white rounded-3xl p-5 border border-pink-100/60 shadow-sm">
+              <div className="flex items-center gap-2 mb-4">
+                <span className="text-lg">✨</span>
+                <h2 className="text-base font-bold text-slate-900">所属セラピスト・出勤情報</h2>
               </div>
               <SalonTherapists salonId={id} />
-            </section>
+            </div>
 
             {/* About */}
             <section className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
