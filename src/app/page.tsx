@@ -2,13 +2,7 @@ import Link from "next/link";
 import { ShuffledSalons } from "./components/ShuffledSalons";
 import { TherapistScroller } from "./components/TherapistScroller";
 import { SALONS } from "./lib/salonData";
-import { DIARIES } from "@/data/diaries";
-
-const DIARY_GRADIENTS = [
-  'from-pink-300 to-rose-400',
-  'from-fuchsia-300 to-pink-400',
-  'from-rose-300 to-pink-500',
-];
+import { DiarySection } from "./components/DiarySection";
 
 const AREAS = [
   "福岡全域",
@@ -25,14 +19,6 @@ const salons = SALONS.map(({ id, name, rating, reviewCount, tags, price, area, h
 }));
 
 export default function Home() {
-  const recentDiaries = [...DIARIES]
-    .sort((a, b) => {
-      const aTime = new Date(`${a.date.replace(/\//g, '-')}T${a.time}`).getTime();
-      const bTime = new Date(`${b.date.replace(/\//g, '-')}T${b.time}`).getTime();
-      return bTime - aTime;
-    })
-    .slice(0, 3);
-
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900">
 
@@ -125,7 +111,7 @@ export default function Home() {
         </section>
 
         {/* ─── Latest diaries ──────────────────────────────────── */}
-        <section className="py-10 bg-slate-50 border-t border-pink-50">
+        <section className="py-10 bg-white border-t border-pink-50">
           <div className="max-w-5xl mx-auto px-4">
             <div className="flex items-center justify-between mb-1.5">
               <div className="flex items-center gap-3">
@@ -137,29 +123,7 @@ export default function Home() {
               </Link>
             </div>
             <p className="text-xs text-slate-400 pl-7 mb-6">セラピストたちの最新投稿をチェック</p>
-            <div className="grid sm:grid-cols-3 gap-4">
-              {recentDiaries.map((diary, i) => (
-                <Link key={diary.id} href={`/diary/${diary.id}`} className="group bg-white rounded-2xl border border-pink-50 shadow-sm hover:border-pink-200 hover:-translate-y-0.5 transition-all duration-300 overflow-hidden flex flex-col">
-                  <div className={`h-20 bg-gradient-to-br ${DIARY_GRADIENTS[i % DIARY_GRADIENTS.length]} flex items-center justify-center relative`}>
-                    <div className="w-12 h-12 rounded-full bg-white/30 flex items-center justify-center text-white font-bold text-xl">
-                      {diary.therapistName.charAt(0)}
-                    </div>
-                    <span className="absolute top-2 right-2 text-[10px] font-semibold px-2 py-0.5 rounded-full bg-white/90 text-pink-600">
-                      {diary.salonName}
-                    </span>
-                  </div>
-                  <div className="p-4 flex-1 flex flex-col gap-1.5">
-                    <div className="flex items-center gap-1.5">
-                      <span className="font-bold text-sm text-slate-900">{diary.therapistName}</span>
-                      <span className="text-[10px] text-slate-400">{diary.date}</span>
-                    </div>
-                    <p className="font-bold text-sm text-slate-800 line-clamp-1">{diary.title}</p>
-                    <p className="text-[11px] text-slate-500 leading-relaxed line-clamp-2 flex-1">{diary.content}</p>
-                    <span className="text-[10px] text-pink-500 font-semibold group-hover:underline mt-1">続きを読む →</span>
-                  </div>
-                </Link>
-              ))}
-            </div>
+            <DiarySection />
           </div>
         </section>
 
