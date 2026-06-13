@@ -29,8 +29,8 @@ function isDuty(hours: string): boolean {
   return curMin >= start && curMin <= endMin;
 }
 
-// ① 女の子の縦並びカード
-function TherapistGridCard({ therapist, index, onOpen }: { therapist: Therapist; index: number; onOpen: (t: Therapist, g: string, s: string) => void }) {
+// ① 女の子の縦並びカード（共通部品）
+function TherapistGridCard({ therapist, index, onOpen, showStatus = false }: { therapist: Therapist; index: number; onOpen: (t: Therapist, g: string, s: string) => void; showStatus?: boolean }) {
   const grad = GRADIENTS[index % GRADIENTS.length];
   const sym = SYMBOLS[index % SYMBOLS.length];
   const [onDuty, setOnDuty] = useState(false);
@@ -39,21 +39,23 @@ function TherapistGridCard({ therapist, index, onOpen }: { therapist: Therapist;
 
   return (
     <button onClick={() => onOpen(therapist, grad, sym)} type="button" className="text-left w-full rounded-2xl border border-pink-50 bg-white shadow-sm hover:border-pink-200 hover:-translate-y-0.5 transition-all duration-300 overflow-hidden flex h-28">
-      {/* 左側：アバター */}
       <div className={`relative w-28 bg-gradient-to-br ${grad} flex items-center justify-center flex-shrink-0`}>
         <div className="w-14 h-14 rounded-full bg-white/30 flex items-center justify-center text-white font-bold text-xl">{therapist.name.charAt(0)}</div>
         <span className="absolute bottom-1 right-2 text-white/40 text-sm">{sym}</span>
       </div>
 
-      {/* 右側：テキスト情報 */}
       <div className="p-3 flex-1 flex flex-col justify-between min-w-0">
         <div>
           <div className="flex items-center gap-1.5 mb-0.5">
             <p className="font-bold text-sm text-slate-900 truncate">{therapist.name}</p>
-            {onDuty ? (
-              <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-emerald-50 text-emerald-500 border border-emerald-100 flex-shrink-0 animate-pulse">● 出勤中</span>
+            {showStatus ? (
+              onDuty ? (
+                <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-emerald-50 text-emerald-500 border border-emerald-100 flex-shrink-0 animate-pulse">● 出勤中</span>
+              ) : (
+                <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-slate-50 text-slate-400 border border-slate-100 flex-shrink-0">待機中</span>
+              )
             ) : (
-              <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-slate-50 text-slate-400 border border-slate-100 flex-shrink-0">待機中</span>
+              <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-pink-50 text-pink-500 border border-pink-100 flex-shrink-0">在籍</span>
             )}
           </div>
           <p className="text-[10px] text-pink-500 font-medium mb-1 flex items-center gap-0.5">🕒 {therapist.workHours}</p>
@@ -64,7 +66,7 @@ function TherapistGridCard({ therapist, index, onOpen }: { therapist: Therapist;
   );
 }
 
-// ② プロフィールモーダル（ポップアップ窓）
+// ② プロフィールモーダル（共通部品）
 function ProfileModal({ therapist, grad, sym, onClose }: { therapist: Therapist | null; grad: string; sym: string; onClose: () => void }) {
   if (!therapist) return null;
   return (
@@ -108,8 +110,40 @@ function ProfileModal({ therapist, grad, sym, onClose }: { therapist: Therapist 
   );
 }
 
-// ③ メイン：特定のサロンIDに所属するセラピストだけを表示する一覧
+// 🌸 【既存機能】特定のサロンIDかつ【本日出勤中】のセラピストだけを表示
 export function SalonTherapists({ salonId }: { salonId: string }) {
+  const [list, setList] = useState<Therapist[]>([]);
+  const [select, setSelect] = useState<Therapist | null>(null);
+  const [grad, setGrad] = useState('');
+  const [sym, setSym] = useState('');
+
+  useEffect(() => {
+    const filtered = THERAPISTS.filter(t => t.salonId === Number(salonId) && isDuty(t.workHours));
+    setList(filtered);
+  }, [salonId]);
+
+  if (list.length === 0) {
+    return (
+      <div className="text-center py-8 text-xs text-slate-400 border border-dashed border-pink-100 rounded-2xl bg-pink-50/10">
+        只今、案内可能なセラピストはおりません ✿
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-3">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        {list.map((t, i) => (
+          <TherapistGridCard key={t.id} therapist={t} index={i} showStatus={true} onOpen={(target, g, s) => { setSelect(target); setGrad(g); setSym(s); }} />
+        ))}
+      </div>
+      <ProfileModal therapist={select} grad={grad} sym={sym} onClose={() => setSelect(null)} />
+    </div>
+  );
+}
+
+// 🌸 【新機能】出勤状況に関係なく、そのサロンの「在籍セラピスト全員」を表示する一覧
+export function SalonAllTherapists({ salonId }: { salonId: string }) {
   const [list, setList] = useState<Therapist[]>([]);
   const [select, setSelect] = useState<Therapist | null>(null);
   const [grad, setGrad] = useState('');
@@ -123,7 +157,7 @@ export function SalonTherapists({ salonId }: { salonId: string }) {
   if (list.length === 0) {
     return (
       <div className="text-center py-8 text-xs text-slate-400 border border-dashed border-pink-100 rounded-2xl bg-pink-50/10">
-        現在、登録されている出勤予定のセラピストはいません ✿
+        在籍セラピストの情報は準備中です ✿
       </div>
     );
   }
@@ -132,12 +166,7 @@ export function SalonTherapists({ salonId }: { salonId: string }) {
     <div className="space-y-3">
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         {list.map((t, i) => (
-          <TherapistGridCard
-            key={t.id}
-            therapist={t}
-            index={i}
-            onOpen={(target, g, s) => { setSelect(target); setGrad(g); setSym(s); }}
-          />
+          <TherapistGridCard key={t.id} therapist={t} index={i} showStatus={false} onOpen={(target, g, s) => { setSelect(target); setGrad(g); setSym(s); }} />
         ))}
       </div>
       <ProfileModal therapist={select} grad={grad} sym={sym} onClose={() => setSelect(null)} />
