@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { SALONS } from "@/app/lib/salonData";
+import { THERAPISTS } from "@/data/therapists";
 
 export default async function SalonPage({
   params,
@@ -11,6 +12,8 @@ export default async function SalonPage({
   const salon = SALONS.find((s) => s.id === Number(id));
 
   if (!salon) notFound();
+
+  const todayTherapists = THERAPISTS.filter((t) => t.salonId === salon.id);
 
   const filledStars = Math.floor(salon.rating);
 
@@ -163,6 +166,73 @@ export default async function SalonPage({
                   <p className="text-sm text-slate-600 leading-relaxed">{salon.therapistProfile}</p>
                 </div>
               </div>
+            </section>
+
+            {/* Today's therapists */}
+            <section className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
+              <div className="flex items-center gap-2.5 mb-4">
+                <div className="w-1 h-5 rounded-full bg-gradient-to-b from-pink-500 to-pink-700" />
+                <h3 className="font-bold text-slate-900">本日の出勤セラピスト</h3>
+                {todayTherapists.length > 0 && (
+                  <span className="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-pink-50 text-pink-500 border border-pink-200">
+                    {todayTherapists.length}名出勤
+                  </span>
+                )}
+              </div>
+
+              {todayTherapists.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-8 text-slate-400">
+                  <span className="text-3xl mb-3" aria-hidden="true">🌸</span>
+                  <p className="text-sm">本日の出勤情報はございません</p>
+                </div>
+              ) : (
+                <div className="grid sm:grid-cols-2 gap-3">
+                  {todayTherapists.map((therapist, i) => {
+                    const gradients = [
+                      'from-pink-300 to-rose-400',
+                      'from-fuchsia-300 to-pink-400',
+                      'from-rose-300 to-pink-500',
+                      'from-pink-400 to-fuchsia-400',
+                    ];
+                    const symbols = ['✿', '❀', '✾', '♡'];
+                    const gradient = gradients[i % gradients.length];
+                    const symbol = symbols[i % symbols.length];
+                    return (
+                      <div
+                        key={therapist.id}
+                        className="flex items-start gap-3.5 rounded-xl border border-pink-100 bg-pink-50/40 p-4"
+                      >
+                        {/* Avatar */}
+                        <div className={`w-12 h-12 rounded-full bg-gradient-to-br ${gradient} flex-shrink-0 flex items-center justify-center shadow-sm relative`}>
+                          <span className="text-white font-bold text-base leading-none">
+                            {therapist.name.charAt(0)}
+                          </span>
+                          <span className="absolute -bottom-0.5 -right-0.5 text-[11px] leading-none" aria-hidden="true">
+                            {symbol}
+                          </span>
+                        </div>
+                        {/* Info */}
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 mb-1">
+                            <span className="font-bold text-sm text-slate-900">{therapist.name}</span>
+                            <span className="flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full bg-white text-emerald-500 border border-emerald-100">
+                              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 inline-block" />
+                              出勤中
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-1 mb-1.5">
+                            <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-pink-400 flex-shrink-0">
+                              <circle cx="12" cy="12" r="10" /><path d="M12 6v6l4 2" />
+                            </svg>
+                            <span className="text-[11px] text-pink-500 font-medium">{therapist.workHours}</span>
+                          </div>
+                          <p className="text-xs text-slate-500 leading-relaxed line-clamp-2">{therapist.comment}</p>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
             </section>
           </div>
 
