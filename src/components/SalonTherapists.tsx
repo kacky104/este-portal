@@ -7,35 +7,64 @@ const GRADIENTS = ['from-pink-300 to-rose-400', 'from-fuchsia-300 to-pink-400', 
 const SYMBOLS = ['✿', '❀', '✾', '♡', '✦', '❋'];
 const WEEKS = ['月', '火', '水', '木', '金', '土', '日'];
 
-// 出勤判定（深夜対応）
-function isDuty(hours: string): boolean {
-  if (!hours) return false;
+// シフト時間を計算用の分数に変換する補助関数
+function parseHours(hours: string): { start: number; end: number } | null {
+  if (!hours) return null;
   const clean = hours.replace(/[〜～~]/g, '-').replace(/翌/g, '');
-  if (!clean.includes('-')) return false;
+  if (!clean.includes('-')) return null;
 
-  const [start, end] = clean.split('-').map(t => {
-    const [h, m] = t.trim().split(':').map(Number);
-    return h * 60 + (m || 0);
-  });
+  const [startStr, endStr] = clean.split('-').map(t => t.trim());
+  const [startH, startM] = startStr.split(':').map(Number);
+  const [endH, endM] = endStr.split(':').map(Number);
 
-  let endMin = end;
-  if (endMin < start || hours.includes('翌')) endMin += 1440;
+  const start = startH * 60 + (startM || 0);
+  let end = endH * 60 + (endM || 0);
 
+  // 深夜をまたぐシフト（例：19:00〜翌4:00）への対応
+  if (end < start || hours.includes('翌')) {
+    end += 1440;
+  }
+  return { start, end };
+}
+
+// 出勤・受付終了・休日の状態を判定する関数
+function getDutyStatus(hours: string): 'ON_DUTY' | 'ENDED' | 'OFF_DUTY' {
+  const times = parseHours(hours);
+  if (!times) return 'OFF_DUTY';
+
+  // 確実に現在の「日本時間」を取得
   const jst = new Intl.DateTimeFormat('ja-JP', { timeZone: 'Asia/Tokyo', hour: '2-digit', minute: '2-digit', hour12: false }).format(new Date());
   const [curH, curM] = jst.split(':').map(Number);
   let curMin = curH * 60 + curM;
 
-  if (curMin < start && curMin <= (endMin - 1440)) curMin += 1440;
-  return curMin >= start && curMin <= endMin;
+  // 現在の時間が、深夜営業の枠内（24時以降）にいる場合の補正
+  if (curMin < times.start && curMin <= (times.end - 1440)) {
+    curMin += 1440;
+  }
+
+  // 1. 出勤時間内の場合
+  if (curMin >= times.start && curMin <= times.end) {
+    return 'ON_DUTY';
+  }
+
+  // 2. 出勤時間を過ぎている場合（受付終了）
+  if (curMin > times.end) {
+    return 'ENDED';
+  }
+
+  // 3. まだ出勤時間前の場合
+  return 'OFF_DUTY';
 }
 
 // ① 女の子の縦並びカード
 function TherapistGridCard({ therapist, index, onOpen }: { therapist: Therapist; index: number; onOpen: (t: Therapist, g: string, s: string) => void }) {
   const grad = GRADIENTS[index % GRADIENTS.length];
   const sym = SYMBOLS[index % SYMBOLS.length];
-  const [onDuty, setOnDuty] = useState(false);
+  const [status, setStatus] = useState<'ON_DUTY' | 'ENDED' | 'OFF_DUTY'>('OFF_DUTY');
 
-  useEffect(() => { setOnDuty(isDuty(therapist.workHours)); }, [therapist.workHours]);
+  useEffect(() => {
+    setStatus(getDutyStatus(therapist.workHours));
+  }, [therapist.workHours]);
 
   return (
     <button onClick={() => onOpen(therapist, grad, sym)} type="button" className="text-left w-full rounded-2xl border border-pink-50 bg-white shadow-sm hover:border-pink-200 hover:-translate-y-0.5 transition-all duration-300 overflow-hidden flex h-28">
@@ -50,9 +79,13 @@ function TherapistGridCard({ therapist, index, onOpen }: { therapist: Therapist;
         <div>
           <div className="flex items-center gap-1.5 mb-0.5">
             <p className="font-bold text-sm text-slate-900 truncate">{therapist.name}</p>
-            {onDuty ? (
+            {status === 'ON_DUTY' && (
               <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-emerald-50 text-emerald-500 border border-emerald-100 flex-shrink-0 animate-pulse">● 本日出勤</span>
-            ) : (
+            )}
+            {status === 'ENDED' && (
+              <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-rose-50 text-rose-500 border border-rose-100 flex-shrink-0">受付終了</span>
+            )}
+            {status === 'OFF_DUTY' && (
               <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-slate-50 text-slate-400 border border-slate-100 flex-shrink-0">休日</span>
             )}
           </div>
@@ -116,7 +149,7 @@ export function SalonTherapists({ salonId }: { salonId: string }) {
   const [sym, setSym] = useState('');
 
   useEffect(() => {
-    const filtered = THERAPISTS.filter(t => t.salonId === Number(salonId) && isDuty(t.workHours));
+    const filtered = THERAPISTS.filter(t => t.salonId === Number(salonId) && getDutyStatus(t.workHours) === 'ON_DUTY');
     setList(filtered);
   }, [salonId]);
 
@@ -140,7 +173,7 @@ export function SalonTherapists({ salonId }: { salonId: string }) {
   );
 }
 
-// ④ メイン：出勤状況に関係なく、そのサロンの「在籍セラピスト全員」を表示
+// ④ メイン：在籍セラピスト全員を表示（終了した子は「受付終了」になる）
 export function SalonAllTherapists({ salonId }: { salonId: string }) {
   const [list, setList] = useState<Therapist[]>([]);
   const [select, setSelect] = useState<Therapist | null>(null);
