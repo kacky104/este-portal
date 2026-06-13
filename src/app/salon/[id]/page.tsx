@@ -160,21 +160,6 @@ export default async function SalonPage({
               <p className="text-[11px] text-slate-400 mt-4">※ 表示料金はすべて税込み価格です。</p>
             </section>
 
-            {/* Therapists */}
-            <section className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
-              <SectionHeading>セラピスト紹介</SectionHeading>
-              <div className="flex items-start gap-4 mb-4">
-                <div className="w-14 h-14 rounded-full bg-gradient-to-br from-pink-100 to-rose-100 border-2 border-pink-200 flex items-center justify-center flex-shrink-0">
-                  <span className="text-2xl text-pink-400" aria-hidden="true">👩</span>
-                </div>
-                <div>
-                  <p className="text-sm font-bold text-slate-800 mb-0.5">{salon.therapistCount}</p>
-                  <p className="text-xs text-pink-600 font-medium mb-2">{salon.therapistTypes}</p>
-                  <p className="text-sm text-slate-600 leading-relaxed">{salon.therapistProfile}</p>
-                </div>
-              </div>
-            </section>
-
             {/* All therapists */}
             <div className="mt-8 bg-white rounded-3xl p-5 border border-pink-100/60 shadow-sm">
               <div className="flex items-center gap-2 mb-4">
