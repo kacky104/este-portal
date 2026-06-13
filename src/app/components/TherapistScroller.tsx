@@ -17,19 +17,13 @@ const AVATAR_GRADIENTS = [
 
 const AVATAR_SYMBOLS = ['✿', '❀', '✾', '♡', '✦', '❋', '✽', '❁'];
 
-// 日本時間（JST）で現在出勤中かどうかを判定する関数
+// 【バグ完全修正】日本時間を正確に取得し、出勤状況をミリ秒を使わずに判定する関数
 function checkDutyStatus(workHours: string): { isOnDuty: boolean; startHourStr: string } {
   if (!workHours || !workHours.includes('〜')) {
     return { isOnDuty: false, startHourStr: '' };
   }
 
-  // Vercel（海外サーバー）でも確実に日本時間を取得する
-  const nowJST = new Date(new Date().getTime() + (9 * 60 * 60 * 1000));
-  const currentHour = nowJST.getUTCHours();
-  const currentMinute = nowJST.getUTCMinutes();
-  const currentTimeInMinutes = currentHour * 60 + currentMinute;
-
-  // 「12:00〜21:00」をバラす
+  // 1. 文字列をバラして開始・終了の「分」を求める
   const [startStr, endStr] = workHours.split('〜');
   const [startHour, startMin] = startStr.trim().split(':').map(Number);
   const [endHour, endMin] = endStr.trim().split(':').map(Number);
@@ -37,12 +31,19 @@ function checkDutyStatus(workHours: string): { isOnDuty: boolean; startHourStr: 
   const startInMinutes = startHour * 60 + startMin;
   let endInMinutes = endHour * 60 + endMin;
 
-  // 深夜をまたぐシフト（例：16:00〜02:00）の対応
+  // 深夜をまたぐシフト（例：16:00〜02:00）への対応
   if (endInMinutes < startInMinutes) {
     endInMinutes += 24 * 60;
   }
 
-  // 現在時刻がシフト内にあるか判定
+  // 2. Intl API を使用して、世界のどこ（Vercelサーバー）でも「今の日本時間」の時と分を確実に抽出する
+  const options = { timeZone: 'Asia/Tokyo', hour: '2-digit', minute: '2-digit', hour12: false } as const;
+  const jstString = new Intl.DateTimeFormat('ja-JP', options).format(new Date()); // "18:25" のような文字列
+  const [currentHour, currentMinute] = jstString.split(':').map(Number);
+
+  const currentTimeInMinutes = currentHour * 60 + currentMinute;
+
+  // 3. 現在の日本時間がシフトの範囲内か判定
   const isOnDuty = currentTimeInMinutes >= startInMinutes && currentTimeInMinutes <= endInMinutes;
 
   return { isOnDuty, startHourStr: startStr.trim() };
@@ -52,8 +53,16 @@ function TherapistCard({ therapist, index }: { therapist: Therapist; index: numb
   const gradient = AVATAR_GRADIENTS[index % AVATAR_GRADIENTS.length];
   const symbol = AVATAR_SYMBOLS[index % AVATAR_SYMBOLS.length];
 
-  // 出勤状態をチェック
-  const { isOnDuty, startHourStr } = checkDutyStatus(therapist.workHours);
+  // 初期状態は仮で「出勤中」にしない状態（ハイドレーションエラー対策）
+  const [status, setStatus] = useState<{ isOnDuty: boolean; startHourStr: string }>({
+    isOnDuty: false,
+    startHourStr: therapist.workHours.split('〜')[0]?.trim() || ''
+  });
+
+  // 画面が読み込まれた瞬間に「日本の現在時刻」で状態をカチッと上書きする
+  useEffect(() => {
+    setStatus(checkDutyStatus(therapist.workHours));
+  }, [therapist.workHours]);
 
   return (
     <Link
@@ -62,7 +71,6 @@ function TherapistCard({ therapist, index }: { therapist: Therapist; index: numb
     >
       {/* Avatar area */}
       <div className={`relative h-28 bg-gradient-to-br ${gradient} flex items-center justify-center`}>
-        {/* Decorative soft circle */}
         <div className="absolute inset-0 flex items-center justify-center">
           <div className="w-20 h-20 rounded-full bg-white/20 flex items-center justify-center">
             <div className="w-16 h-16 rounded-full bg-white/30 flex items-center justify-center">
@@ -72,20 +80,19 @@ function TherapistCard({ therapist, index }: { therapist: Therapist; index: numb
             </div>
           </div>
         </div>
-        {/* Decorative symbol */}
         <span className="absolute bottom-2 right-3 text-white/50 text-xl select-none" aria-hidden="true">
           {symbol}
         </span>
 
-        {/* Dynamic Status badge */}
-        {isOnDuty ? (
+        {/* 動的なステータスバッジ（日本時間と完全連動） */}
+        {status.isOnDuty ? (
           <span className="absolute top-2 right-2 flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-white text-emerald-500 border border-emerald-100 animate-pulse">
             <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 inline-block" />
             出勤中
           </span>
         ) : (
           <span className="absolute top-2 right-2 flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-100 text-slate-500 border border-slate-200">
-            {startHourStr}〜
+            {status.startHourStr}〜
           </span>
         )}
       </div>
@@ -118,23 +125,22 @@ function TherapistCard({ therapist, index }: { therapist: Therapist; index: numb
 export function TherapistScroller() {
   const [activeTherapists, setActiveTherapists] = useState<Therapist[]>([]);
 
-  // サーバーとクライアントでの時間表示のミスマッチ（Hydration Error）を防ぐための処理
+  // クライアント側（ユーザーのブラウザ）で読み込まれた時にだけ、日本時間でリストを絞り込む
   useEffect(() => {
-    // 今まさに出勤している女の子だけに絞り込む
     const filtered = THERAPISTS.filter(t => checkDutyStatus(t.workHours).isOnDuty);
     setActiveTherapists(filtered);
   }, []);
 
   if (activeTherapists.length === 0) {
     return (
-      <div className="text-center py-6 text-xs text-slate-400 border border-dashed border-pink-100 rounded-2xl bg-pink-50/20">
+      <div className="text-center py-6 text-xs text-slate-400 border border-dashed border-pink-100 rounded-2xl bg-pink-50/20 w-full mx-4">
         現在、出勤時間外のセラピストのみです ✿
       </div>
     );
   }
 
   return (
-    <div className="flex gap-3 overflow-x-auto pb-4 scrollbar-pink">
+    <div className="flex gap-3 overflow-x-auto pb-4 scrollbar-pink w-full">
       {activeTherapists.map((therapist, i) => (
         <TherapistCard key={therapist.id} therapist={therapist} index={i} />
       ))}
