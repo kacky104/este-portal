@@ -4,154 +4,93 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { THERAPISTS, type Therapist } from '@/data/therapists';
 
-const AVATAR_GRADIENTS = [
-  'from-pink-300 to-rose-400',
-  'from-fuchsia-300 to-pink-400',
-  'from-rose-300 to-pink-500',
-  'from-pink-400 to-fuchsia-400',
-  'from-red-300 to-rose-400',
-  'from-pink-300 to-pink-500',
-  'from-fuchsia-400 to-rose-300',
-  'from-rose-300 to-fuchsia-400',
-];
+const AVATAR_GRADIENTS = ['from-pink-300 to-rose-400', 'from-fuchsia-300 to-pink-400'];
 
-const AVATAR_SYMBOLS = ['✿', '❀', '✾', '♡', '✦', '❋', '✽', '❁'];
-
-// あらゆる種類の波線記号を検知して安全に出勤判定をする関数
-function checkDutyStatus(workHours: string): { isOnDuty: boolean; startHourStr: string } {
-  // 1. どんな波線（〜、～、~）が使われていても、すべて「-」に統一する
-  const normalizedHours = (workHours || '')
-    .replace(/〜/g, '-')
-    .replace(/～/g, '-')
-    .replace(/~/g, '-');
-
-  // 分割できないデータの場合は出勤オフにする
-  if (!normalizedHours.includes('-')) {
-    return { isOnDuty: false, startHourStr: '12:00' };
-  }
-
-  // 2. 開始時間と終了時間を取得
-  const [startStr, endStr] = normalizedHours.split('-');
-  const startHourStr = startStr.trim();
-
-  const [startHour, startMin] = startHourStr.split(':').map(Number);
-  const [endHour, endMin] = endStr.trim().split(':').map(Number);
-
-  const startInMinutes = startHour * 60 + (startMin || 0);
-  let endInMinutes = endHour * 60 + (endMin || 0);
-
-  // 深夜をまたぐシフト（例：16:00〜02:00）への対応
-  if (endInMinutes < startInMinutes) {
-    endInMinutes += 24 * 60;
-  }
-
-  // 3. サーバー環境（Vercel）に左右されず、現在の「日本時間」を確実に取得
-  const options = { timeZone: 'Asia/Tokyo', hour: '2-digit', minute: '2-digit', hour12: false } as const;
-  const jstString = new Intl.DateTimeFormat('ja-JP', options).format(new Date());
-  const [currentHour, currentMinute] = jstString.split(':').map(Number);
-
-  const currentTimeInMinutes = currentHour * 60 + currentMinute;
-
-  // 4. 判定
-  const isOnDuty = currentTimeInMinutes >= startInMinutes && currentTimeInMinutes <= endInMinutes;
-
-  return { isOnDuty, startHourStr };
-}
-
-function TherapistCard({ therapist, index }: { therapist: Therapist; index: number }) {
-  const gradient = AVATAR_GRADIENTS[index % AVATAR_GRADIENTS.length];
-  const symbol = AVATAR_SYMBOLS[index % AVATAR_SYMBOLS.length];
-
-  // 初期状態は仮で「出勤オフ」の状態にしておく（ハイドレーションエラーを徹底防止）
-  const [status, setStatus] = useState<{ isOnDuty: boolean; startHourStr: string }>({
-    isOnDuty: false,
-    startHourStr: therapist.workHours.split(/〜|～|~/)[0]?.trim() || '12:00'
+function TherapistCard({ therapist }: { therapist: Therapist }) {
+  // ブラウザ上の「生の現在時刻」と「判定結果」を画面に生々しく出すための状態
+  const [debugInfo, setDebugInfo] = useState({
+    currentTimeStr: '取得中...',
+    parsedShift: '解析中...',
+    finalResult: '判定中...',
+    isOnDuty: true // 変わらない原因を探るため、初期値はあえて出勤中にします
   });
 
-  // ブラウザで読み込まれた瞬間に、日本時間ベースの正確なステータスへ更新
   useEffect(() => {
-    setStatus(checkDutyStatus(therapist.workHours));
+    // 1. ブラウザが認識している「今の日本時間」をそのまま取得
+    const options = { timeZone: 'Asia/Tokyo', hour: '2-digit', minute: '2-digit', hour12: false } as const;
+    const jstString = new Intl.DateTimeFormat('ja-JP', options).format(new Date());
+    const [currentHour, currentMinute] = jstString.split(':').map(Number);
+    const currentTimeInMinutes = currentHour * 60 + currentMinute;
+
+    // 2. 文字列のセパレーターをあらゆる文字でスプリット（ハイフン、波線、読点、スペースなど）
+    const parts = therapist.workHours.split(/[〜～~~\-—−－\s]+/);
+
+    let isOnDuty = false;
+    let parsedShift = '失敗';
+
+    if (parts.length >= 2) {
+      const startStr = parts[0].trim();
+      const endStr = parts[1].trim();
+      parsedShift = `${startStr} と ${endStr}`;
+
+      const [startHour, startMin] = startStr.split(':').map(Number);
+      const [endHour, endMin] = endStr.split(':').map(Number);
+
+      const startInMinutes = startHour * 60 + (startMin || 0);
+      let endInMinutes = endHour * 60 + (endMin || 0);
+
+      if (endInMinutes < startInMinutes) {
+        endInMinutes += 24 * 60;
+      }
+
+      isOnDuty = currentTimeInMinutes >= startInMinutes && currentTimeInMinutes <= endInMinutes;
+    } else {
+      parsedShift = `分割失敗(パーツ数:${parts.length})`;
+    }
+
+    setDebugInfo({
+      currentTimeStr: `${jstString} (${currentTimeInMinutes}分)`,
+      parsedShift: parsedShift,
+      finalResult: isOnDuty ? '出勤中と判定！' : '【時間外】と判定！',
+      isOnDuty: isOnDuty
+    });
   }, [therapist.workHours]);
 
   return (
-    <Link
-      href={`/salon/${therapist.salonId}`}
-      className="group flex-shrink-0 w-44 rounded-2xl border border-pink-100 bg-white shadow-sm hover:border-pink-300 hover:-translate-y-1 hover:shadow-lg hover:shadow-pink-500/10 transition-all duration-300 overflow-hidden"
-    >
-      {/* Avatar area */}
-      <div className={`relative h-28 bg-gradient-to-br ${gradient} flex items-center justify-center`}>
-        <div className="absolute inset-0 flex items-center justify-center">
-          <div className="w-20 h-20 rounded-full bg-white/20 flex items-center justify-center">
-            <div className="w-16 h-16 rounded-full bg-white/30 flex items-center justify-center">
-              <span className="text-white/90 font-bold text-2xl leading-none select-none">
-                {therapist.name.charAt(0)}
-              </span>
-            </div>
-          </div>
-        </div>
-        <span className="absolute bottom-2 right-3 text-white/50 text-xl select-none" aria-hidden="true">
-          {symbol}
-        </span>
+    <div className="flex-shrink-0 w-44 rounded-2xl border border-red-300 bg-amber-50 p-2 text-[11px] text-slate-800 shadow-md">
+      <p className="font-bold text-pink-600 text-xs">{therapist.name} さん</p>
+      <p className="text-slate-500">元データ: 「{therapist.workHours}」</p>
 
-        {/* 動的なステータスバッジ */}
-        {status.isOnDuty ? (
-          <span className="absolute top-2 right-2 flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-white text-emerald-500 border border-emerald-100 animate-pulse">
-            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 inline-block" />
-            出勤中
-          </span>
+      {/* 🔍 ここが超重要情報です */}
+      <div className="mt-2 p-1.5 bg-white rounded border border-amber-200 text-[10px] font-mono leading-tight text-red-600">
+        <div>⏰ 日本今ここ: {debugInfo.currentTimeStr}</div>
+        <div>🧩 分割結果: {debugInfo.parsedShift}</div>
+        <div>🏁 最終結論: <span className="font-bold bg-amber-200 px-1">{debugInfo.finalResult}</span></div>
+      </div>
+
+      <div className="mt-2 text-center">
+        {debugInfo.isOnDuty ? (
+          <span className="px-2 py-0.5 rounded-full bg-emerald-500 text-white font-bold">🟢出勤中バッジ</span>
         ) : (
-          <span className="absolute top-2 right-2 flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-100 text-slate-500 border border-slate-200">
-            {status.startHourStr}〜
-          </span>
+          <span className="px-2 py-0.5 rounded-full bg-slate-400 text-white font-bold">⚪時間外バッジ</span>
         )}
       </div>
-
-      {/* Info */}
-      <div className="p-3">
-        <p className="font-bold text-sm text-slate-900 group-hover:text-pink-600 transition-colors mb-0.5">
-          {therapist.name}
-        </p>
-        <p className="text-[10px] text-slate-400 truncate mb-2">{therapist.salonName}</p>
-
-        {/* Work hours */}
-        <div className="flex items-center gap-1 mb-2">
-          <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-pink-400 flex-shrink-0">
-            <circle cx="12" cy="12" r="10" />
-            <path d="M12 6v6l4 2" />
-          </svg>
-          <span className="text-[10px] text-pink-500 font-medium">{therapist.workHours}</span>
-        </div>
-
-        {/* Comment */}
-        <p className="text-[10px] text-slate-500 leading-relaxed line-clamp-2">
-          {therapist.comment}
-        </p>
-      </div>
-    </Link>
+    </div>
   );
 }
 
 export function TherapistScroller() {
-  const [activeTherapists, setActiveTherapists] = useState<Therapist[]>([]);
+  const [list, setList] = useState<Therapist[]>([]);
 
-  // クライアント側（ブラウザ）で読み込まれた時に、日本時間でリストを完全に絞り込む
   useEffect(() => {
-    const filtered = THERAPISTS.filter(t => checkDutyStatus(t.workHours).isOnDuty);
-    setActiveTherapists(filtered);
+    // 原因を探すため、一時的に全員を強制表示してログを見ます
+    setList(THERAPISTS);
   }, []);
 
-  if (activeTherapists.length === 0) {
-    return (
-      <div className="text-center py-6 text-xs text-slate-400 border border-dashed border-pink-100 rounded-2xl bg-pink-50/20 w-full mx-4">
-        現在、出勤時間外のセラピストのみです ✿
-      </div>
-    );
-  }
-
   return (
-    <div className="flex gap-3 overflow-x-auto pb-4 scrollbar-pink w-full">
-      {activeTherapists.map((therapist, i) => (
-        <TherapistCard key={therapist.id} therapist={therapist} index={i} />
+    <div className="flex gap-3 overflow-x-auto pb-4 w-full bg-slate-100 p-2 rounded-xl">
+      {list.map((therapist) => (
+        <TherapistCard key={therapist.id} therapist={therapist} />
       ))}
     </div>
   );
