@@ -18,7 +18,7 @@ const AVATAR_GRADIENTS = [
 const AVATAR_SYMBOLS = ['✿', '❀', '✾', '♡', '✦', '❋', '✽', '❁'];
 
 // 「翌」や深夜時間を正しく計算して出勤判定する関数
-function checkDutyStatus(workHours: string): { isOnDuty: boolean; startHourStr: string } {
+export function checkDutyStatus(workHours: string): { isOnDuty: boolean; startHourStr: string } {
   if (!workHours) {
     return { isOnDuty: false, startHourStr: '12:00' };
   }
