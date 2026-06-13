@@ -17,3 +17,37 @@ body {
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
 }
+
+/* ── Therapist scroller: custom pink scrollbar ────────── */
+
+/* Mobile: hide scrollbar */
+.scrollbar-pink {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.scrollbar-pink::-webkit-scrollbar {
+  display: none;
+}
+
+/* Desktop (md+): show custom scrollbar */
+@media (min-width: 768px) {
+  .scrollbar-pink {
+    scrollbar-width: thin;
+    scrollbar-color: #f472b6 #fdf2f8;
+  }
+  .scrollbar-pink::-webkit-scrollbar {
+    display: block;
+    height: 6px;
+  }
+  .scrollbar-pink::-webkit-scrollbar-track {
+    background: #fdf2f8;
+    border-radius: 9999px;
+  }
+  .scrollbar-pink::-webkit-scrollbar-thumb {
+    background: #f472b6;
+    border-radius: 9999px;
+  }
+  .scrollbar-pink::-webkit-scrollbar-thumb:hover {
+    background: #ec4899;
+  }
+}

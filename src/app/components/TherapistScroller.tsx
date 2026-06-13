@@ -75,10 +75,7 @@ function TherapistCard({ therapist, index }: { therapist: Therapist; index: numb
 
 export function TherapistScroller() {
   return (
-    <div
-      className="flex gap-3 overflow-x-auto pb-3"
-      style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' } as React.CSSProperties}
-    >
+    <div className="flex gap-3 overflow-x-auto pb-4 scrollbar-pink">
       {THERAPISTS.map((therapist, i) => (
         <TherapistCard key={therapist.id} therapist={therapist} index={i} />
       ))}
