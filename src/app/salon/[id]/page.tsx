@@ -117,48 +117,56 @@ export default async function SalonPage({
             </section>
 
             {/* Courses */}
-            <section className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
-              <SectionHeading>コースメニュー・料金表</SectionHeading>
-
-              {/* Group courses by name */}
-              {(() => {
-                const grouped = salon.courses.reduce<Record<string, typeof salon.courses>>(
-                  (acc, c) => {
-                    (acc[c.name] ??= []).push(c);
-                    return acc;
-                  },
-                  {}
-                );
-                return Object.entries(grouped).map(([name, items]) => (
-                  <div key={name} className="mb-5 last:mb-0">
-                    <h4 className="text-sm font-semibold text-slate-800 mb-2 flex items-center gap-2">
-                      <span className="w-1.5 h-1.5 rounded-full bg-pink-500 flex-shrink-0" />
-                      {name}
-                    </h4>
-                    <div className="rounded-xl overflow-hidden border border-slate-100">
-                      <table className="w-full text-sm">
-                        <thead className="bg-pink-50">
-                          <tr>
-                            <th className="text-left py-2 px-4 text-pink-700 font-semibold text-xs">時間</th>
-                            <th className="text-right py-2 px-4 text-pink-700 font-semibold text-xs">料金</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {items.map((item, i) => (
-                            <tr key={i} className={i % 2 === 0 ? "bg-white" : "bg-slate-50"}>
-                              <td className="py-2.5 px-4 text-slate-700 font-medium">{item.duration}</td>
-                              <td className="py-2.5 px-4 text-pink-600 font-bold text-right">{item.price}</td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
+            <div className="mt-8 bg-white rounded-3xl p-6 border border-pink-100/70 shadow-sm relative overflow-hidden">
+              <div className="absolute -top-12 -right-12 w-32 h-32 bg-pink-50/40 rounded-full blur-2xl pointer-events-none" />
+              <div className="flex items-center gap-2 mb-5 relative z-10">
+                <span className="text-xl">✨</span>
+                <h2 className="text-base font-bold text-slate-900 tracking-wide">コース料金システム</h2>
+              </div>
+              <div className="space-y-3.5 relative z-10">
+                {salon.courses.map((course, i) => {
+                  const mins = course.duration.replace('分', '');
+                  const priceNum = course.price.replace('¥', '');
+                  const isRecommend = i === Math.floor(salon.courses.length / 2);
+                  if (isRecommend) {
+                    return (
+                      <div key={i} className="relative flex items-center justify-between p-4 rounded-2xl bg-gradient-to-r from-pink-500/5 to-fuchsia-500/5 border-2 border-pink-200 hover:border-pink-300 shadow-sm shadow-pink-500/5 transition-all duration-300">
+                        <span className="absolute -top-2 left-4 text-[9px] font-black px-2 py-0.5 rounded-full bg-gradient-to-r from-pink-500 to-fuchsia-500 text-white shadow-sm tracking-wider">
+                          RECOMMEND ✨
+                        </span>
+                        <div className="flex items-center gap-3">
+                          <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-pink-400 to-rose-400 flex flex-col items-center justify-center flex-shrink-0 shadow-sm shadow-pink-500/20">
+                            <span className="text-base font-extrabold text-white leading-none">{mins}</span>
+                            <span className="text-[9px] font-bold text-pink-100 mt-0.5">MIN</span>
+                          </div>
+                          <h3 className="font-bold text-sm text-pink-600">{course.name}</h3>
+                        </div>
+                        <div className="text-right">
+                          <span className="text-xs font-bold text-pink-500 mr-0.5">¥</span>
+                          <span className="text-xl font-black text-pink-600 tracking-tight">{priceNum}</span>
+                        </div>
+                      </div>
+                    );
+                  }
+                  return (
+                    <div key={i} className="flex items-center justify-between p-4 rounded-2xl bg-gradient-to-r from-pink-50/30 to-transparent border border-pink-50 hover:border-pink-200 transition-all duration-300">
+                      <div className="flex items-center gap-3">
+                        <div className="w-12 h-12 rounded-xl bg-pink-50 border border-pink-100 flex flex-col items-center justify-center flex-shrink-0">
+                          <span className="text-base font-extrabold text-pink-500 leading-none">{mins}</span>
+                          <span className="text-[9px] font-bold text-pink-400 mt-0.5">MIN</span>
+                        </div>
+                        <h3 className="font-bold text-sm text-slate-800">{course.name}</h3>
+                      </div>
+                      <div className="text-right">
+                        <span className="text-xs font-bold text-slate-400 mr-0.5">¥</span>
+                        <span className="text-lg font-black text-slate-900 tracking-tight">{priceNum}</span>
+                      </div>
                     </div>
-                  </div>
-                ));
-              })()}
-
-              <p className="text-[11px] text-slate-400 mt-4">※ 表示料金はすべて税込み価格です。</p>
-            </section>
+                  );
+                })}
+              </div>
+              <p className="text-[11px] text-slate-400 mt-4 relative z-10">※ 表示料金はすべて税込み価格です。</p>
+            </div>
 
             {/* All therapists */}
             <div className="mt-8 bg-white rounded-3xl p-5 border border-pink-100/60 shadow-sm">
