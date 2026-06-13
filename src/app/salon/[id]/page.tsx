@@ -102,72 +102,6 @@ export default async function SalonPage({
           {/* Left: main content */}
           <div className="lg:col-span-2 space-y-6">
 
-            {/* About */}
-            <section className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
-              <SectionHeading>サロンについて</SectionHeading>
-              <p className="text-slate-600 text-sm leading-relaxed mb-4">{salon.description}</p>
-              <p className="text-slate-600 text-sm leading-relaxed">{salon.appeal}</p>
-            </section>
-
-            {/* Courses */}
-            <section className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
-              <SectionHeading>コースメニュー・料金表</SectionHeading>
-
-              {/* Group courses by name */}
-              {(() => {
-                const grouped = salon.courses.reduce<Record<string, typeof salon.courses>>(
-                  (acc, c) => {
-                    (acc[c.name] ??= []).push(c);
-                    return acc;
-                  },
-                  {}
-                );
-                return Object.entries(grouped).map(([name, items]) => (
-                  <div key={name} className="mb-5 last:mb-0">
-                    <h4 className="text-sm font-semibold text-slate-800 mb-2 flex items-center gap-2">
-                      <span className="w-1.5 h-1.5 rounded-full bg-pink-500 flex-shrink-0" />
-                      {name}
-                    </h4>
-                    <div className="rounded-xl overflow-hidden border border-slate-100">
-                      <table className="w-full text-sm">
-                        <thead className="bg-pink-50">
-                          <tr>
-                            <th className="text-left py-2 px-4 text-pink-700 font-semibold text-xs">時間</th>
-                            <th className="text-right py-2 px-4 text-pink-700 font-semibold text-xs">料金</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {items.map((item, i) => (
-                            <tr key={i} className={i % 2 === 0 ? "bg-white" : "bg-slate-50"}>
-                              <td className="py-2.5 px-4 text-slate-700 font-medium">{item.duration}</td>
-                              <td className="py-2.5 px-4 text-pink-600 font-bold text-right">{item.price}</td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-                  </div>
-                ));
-              })()}
-
-              <p className="text-[11px] text-slate-400 mt-4">※ 表示料金はすべて税込み価格です。</p>
-            </section>
-
-            {/* Therapists */}
-            <section className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
-              <SectionHeading>セラピスト紹介</SectionHeading>
-              <div className="flex items-start gap-4 mb-4">
-                <div className="w-14 h-14 rounded-full bg-gradient-to-br from-pink-100 to-rose-100 border-2 border-pink-200 flex items-center justify-center flex-shrink-0">
-                  <span className="text-2xl text-pink-400" aria-hidden="true">👩</span>
-                </div>
-                <div>
-                  <p className="text-sm font-bold text-slate-800 mb-0.5">{salon.therapistCount}</p>
-                  <p className="text-xs text-pink-600 font-medium mb-2">{salon.therapistTypes}</p>
-                  <p className="text-sm text-slate-600 leading-relaxed">{salon.therapistProfile}</p>
-                </div>
-              </div>
-            </section>
-
             {/* Today's therapists */}
             <section className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
               <div className="flex items-center gap-2.5 mb-4">
@@ -233,6 +167,72 @@ export default async function SalonPage({
                   })}
                 </div>
               )}
+            </section>
+
+            {/* About */}
+            <section className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
+              <SectionHeading>サロンについて</SectionHeading>
+              <p className="text-slate-600 text-sm leading-relaxed mb-4">{salon.description}</p>
+              <p className="text-slate-600 text-sm leading-relaxed">{salon.appeal}</p>
+            </section>
+
+            {/* Courses */}
+            <section className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
+              <SectionHeading>コースメニュー・料金表</SectionHeading>
+
+              {/* Group courses by name */}
+              {(() => {
+                const grouped = salon.courses.reduce<Record<string, typeof salon.courses>>(
+                  (acc, c) => {
+                    (acc[c.name] ??= []).push(c);
+                    return acc;
+                  },
+                  {}
+                );
+                return Object.entries(grouped).map(([name, items]) => (
+                  <div key={name} className="mb-5 last:mb-0">
+                    <h4 className="text-sm font-semibold text-slate-800 mb-2 flex items-center gap-2">
+                      <span className="w-1.5 h-1.5 rounded-full bg-pink-500 flex-shrink-0" />
+                      {name}
+                    </h4>
+                    <div className="rounded-xl overflow-hidden border border-slate-100">
+                      <table className="w-full text-sm">
+                        <thead className="bg-pink-50">
+                          <tr>
+                            <th className="text-left py-2 px-4 text-pink-700 font-semibold text-xs">時間</th>
+                            <th className="text-right py-2 px-4 text-pink-700 font-semibold text-xs">料金</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {items.map((item, i) => (
+                            <tr key={i} className={i % 2 === 0 ? "bg-white" : "bg-slate-50"}>
+                              <td className="py-2.5 px-4 text-slate-700 font-medium">{item.duration}</td>
+                              <td className="py-2.5 px-4 text-pink-600 font-bold text-right">{item.price}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                ));
+              })()}
+
+              <p className="text-[11px] text-slate-400 mt-4">※ 表示料金はすべて税込み価格です。</p>
+            </section>
+
+            {/* Therapists */}
+            <section className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
+              <SectionHeading>セラピスト紹介</SectionHeading>
+              <div className="flex items-start gap-4 mb-4">
+                <div className="w-14 h-14 rounded-full bg-gradient-to-br from-pink-100 to-rose-100 border-2 border-pink-200 flex items-center justify-center flex-shrink-0">
+                  <span className="text-2xl text-pink-400" aria-hidden="true">👩</span>
+                </div>
+                <div>
+                  <p className="text-sm font-bold text-slate-800 mb-0.5">{salon.therapistCount}</p>
+                  <p className="text-xs text-pink-600 font-medium mb-2">{salon.therapistTypes}</p>
+                  <p className="text-sm text-slate-600 leading-relaxed">{salon.therapistProfile}</p>
+                </div>
+              </div>
             </section>
           </div>
 
