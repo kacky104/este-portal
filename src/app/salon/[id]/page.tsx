@@ -2,7 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { SALONS } from "@/app/lib/salonData";
 import { THERAPISTS } from "@/data/therapists";
-import { checkDutyStatus } from "@/app/components/TherapistScroller";
+import { checkDutyStatus } from "@/lib/dutyStatus";
 
 export default async function SalonPage({
   params,

@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { THERAPISTS, type Therapist } from '@/data/therapists';
+import { checkDutyStatus } from '@/lib/dutyStatus';
 
 const AVATAR_GRADIENTS = [
   'from-pink-300 to-rose-400',
@@ -17,56 +18,6 @@ const AVATAR_GRADIENTS = [
 
 const AVATAR_SYMBOLS = ['✿', '❀', '✾', '♡', '✦', '❋', '✽', '❁'];
 
-// 「翌」や深夜時間を正しく計算して出勤判定する関数
-export function checkDutyStatus(workHours: string): { isOnDuty: boolean; startHourStr: string } {
-  if (!workHours) {
-    return { isOnDuty: false, startHourStr: '12:00' };
-  }
-
-  // 1. どんな波線（〜、～、~）が使われていてもハイフンに統一
-  const normalized = workHours.replace(/〜/g, '-').replace(/～/g, '-').replace(/~/g, '-');
-  if (!normalized.includes('-')) {
-    return { isOnDuty: false, startHourStr: '12:00' };
-  }
-
-  // 2. 開始と終了にバラす
-  const [startRaw, endRaw] = normalized.split('-');
-  const startHourStr = startRaw.trim();
-
-  // 【最重要】「翌」という文字が入っていたら取り除く
-  const endClean = endRaw.replace(/翌/g, '').trim();
-
-  // 3. 時と分を数字にする
-  const [startHour, startMin] = startHourStr.split(':').map(Number);
-  const [endHour, endMin] = endClean.split(':').map(Number);
-
-  const startInMinutes = startHour * 60 + (startMin || 0);
-  let endInMinutes = endHour * 60 + (endMin || 0);
-
-  // 4. 深夜をまたぐシフト（例：19:00〜翌4:00）の計算
-  // 終了時間が開始時間より小さい、または元データに「翌」があれば24時間分（1440分）を足す
-  if (endInMinutes < startInMinutes || endRaw.includes('翌')) {
-    endInMinutes += 24 * 60;
-  }
-
-  // 5. 確実に現在の「日本時間」を取得
-  const options = { timeZone: 'Asia/Tokyo', hour: '2-digit', minute: '2-digit', hour12: false } as const;
-  const jstString = new Intl.DateTimeFormat('ja-JP', options).format(new Date());
-  const [currentHour, currentMinute] = jstString.split(':').map(Number);
-
-  let currentTimeInMinutes = currentHour * 60 + currentMinute;
-
-  // もし今が深夜（例: 朝の1:00や2:00など）で、お店のシフト（19:00〜翌4:00）の続きにいる場合
-  // 現在時刻にも24時間を足して比較できるようにする
-  if (currentTimeInMinutes < startInMinutes && currentTimeInMinutes <= (endInMinutes - 24 * 60)) {
-    currentTimeInMinutes += 24 * 60;
-  }
-
-  // 6. 判定
-  const isOnDuty = currentTimeInMinutes >= startInMinutes && currentTimeInMinutes <= endInMinutes;
-
-  return { isOnDuty, startHourStr };
-}
 
 function TherapistCard({ therapist, index }: { therapist: Therapist; index: number }) {
   const gradient = AVATAR_GRADIENTS[index % AVATAR_GRADIENTS.length];
