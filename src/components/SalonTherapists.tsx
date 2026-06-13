@@ -80,7 +80,7 @@ function TherapistGridCard({ therapist, index, onOpen }: { therapist: Therapist;
           <div className="flex items-center gap-1.5 mb-0.5">
             <p className="font-bold text-sm text-slate-900 truncate">{therapist.name}</p>
             {status === 'ON_DUTY' && (
-              <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-emerald-50 text-emerald-500 border border-emerald-100 flex-shrink-0 animate-pulse">● 本日出勤</span>
+              <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-emerald-50 text-emerald-500 border border-emerald-100 flex-shrink-0 animate-pulse">本日出勤</span>
             )}
             {status === 'ENDED' && (
               <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-rose-50 text-rose-500 border border-rose-100 flex-shrink-0">受付終了</span>
