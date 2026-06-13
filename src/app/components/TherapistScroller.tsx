@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { THERAPISTS, type Therapist } from '@/data/therapists';
-import { checkDutyStatus } from '@/lib/dutyStatus';
+import { checkDutyStatus, type DutyStatus } from '@/lib/dutyStatus';
 
 const AVATAR_GRADIENTS = [
   'from-pink-300 to-rose-400',
@@ -24,9 +24,10 @@ function TherapistCard({ therapist, index }: { therapist: Therapist; index: numb
   const symbol = AVATAR_SYMBOLS[index % AVATAR_SYMBOLS.length];
 
   // 最初は「出勤前」の安全な仮状態にする（画面バグ・エラー防止）
-  const [status, setStatus] = useState<{ isOnDuty: boolean; startHourStr: string }>({
+  const [status, setStatus] = useState<{ isOnDuty: boolean; startHourStr: string; status: DutyStatus }>({
     isOnDuty: false,
-    startHourStr: '12:00'
+    startHourStr: '12:00',
+    status: 'before',
   });
 
   // 画面がユーザーのブラウザで開かれた瞬間に日本時間でカチッと判定
@@ -55,14 +56,20 @@ function TherapistCard({ therapist, index }: { therapist: Therapist; index: numb
         </span>
 
         {/* 動的なステータスバッジ */}
-        {status.isOnDuty ? (
+        {status.status === 'onDuty' ? (
           <span className="absolute top-2 right-2 flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-white text-emerald-500 border border-emerald-100 animate-pulse">
             <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 inline-block" />
             出勤中
           </span>
-        ) : (
-          <span className="absolute top-2 right-2 flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-100 text-slate-500 border border-slate-200">
+        ) : status.status === 'before' ? (
+          <span className="absolute top-2 right-2 flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-white text-slate-400 border border-slate-200">
+            <span className="w-1.5 h-1.5 rounded-full bg-slate-300 inline-block" />
             {status.startHourStr}〜
+          </span>
+        ) : (
+          <span className="absolute top-2 right-2 flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-white text-slate-400 border border-slate-200">
+            <span className="w-1.5 h-1.5 rounded-full bg-slate-300 inline-block" />
+            受付終了
           </span>
         )}
       </div>

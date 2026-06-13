@@ -150,16 +150,31 @@ export default async function SalonPage({
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-2 mb-1">
                             <span className="font-bold text-sm text-slate-900">{therapist.name}</span>
-                            {checkDutyStatus(therapist.workHours).isOnDuty ? (
-                              <span className="flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full bg-white text-emerald-500 border border-emerald-100">
-                                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 inline-block" />
-                                出勤中
-                              </span>
-                            ) : (
-                              <span className="flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full bg-slate-100 text-slate-500 border border-slate-200">
-                                本日出勤予定
-                              </span>
-                            )}
+                            {(() => {
+                              const { status } = checkDutyStatus(therapist.workHours);
+                              if (status === 'onDuty') {
+                                return (
+                                  <span className="flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full bg-white text-emerald-500 border border-emerald-100">
+                                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 inline-block" />
+                                    出勤中
+                                  </span>
+                                );
+                              } else if (status === 'before') {
+                                return (
+                                  <span className="flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full bg-white text-slate-400 border border-slate-200">
+                                    <span className="w-1.5 h-1.5 rounded-full bg-slate-300 inline-block" />
+                                    本日出勤予定
+                                  </span>
+                                );
+                              } else {
+                                return (
+                                  <span className="flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full bg-white text-slate-400 border border-slate-200">
+                                    <span className="w-1.5 h-1.5 rounded-full bg-slate-300 inline-block" />
+                                    受付終了
+                                  </span>
+                                );
+                              }
+                            })()}
                           </div>
                           <div className="flex items-center gap-1 mb-1.5">
                             <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-pink-400 flex-shrink-0">
