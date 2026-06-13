@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { ShuffledSalons } from "./components/ShuffledSalons";
+import { TherapistScroller } from "./components/TherapistScroller";
 import { SALONS } from "./lib/salonData";
 
 const AREAS = [
@@ -86,6 +87,25 @@ export default function Home() {
                 </div>
               ))}
             </div>
+          </div>
+        </section>
+
+        {/* ─── Today's therapists ──────────────────────────────── */}
+        <section className="py-10 bg-white border-t border-pink-50">
+          <div className="max-w-5xl mx-auto px-4">
+            <div className="flex items-center justify-between mb-1.5">
+              <div className="flex items-center gap-3">
+                <div className="w-1 h-6 rounded-full bg-gradient-to-b from-pink-400 to-rose-500" />
+                <h2 className="text-xl font-bold text-slate-900">本日の出勤セラピスト</h2>
+                <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-pink-50 text-pink-500 border border-pink-200">
+                  本日出勤
+                </span>
+              </div>
+            </div>
+            <p className="text-xs text-slate-400 pl-7 mb-6">
+              スクロールして全員を確認できます ｜ カードをタップするとサロン詳細ページへ移動します
+            </p>
+            <TherapistScroller />
           </div>
         </section>
 
