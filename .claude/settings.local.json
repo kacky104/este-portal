@@ -16,7 +16,10 @@
       "PowerShell($r = Invoke-WebRequest -Uri \"http://localhost:3000/salon/1\" -UseBasicParsing; $body = $r.Content; \\($body -match \"極楽の宙\"\\) -and \\($body -match \"アロマリラクゼーション\"\\) -and \\($body -match \"8,000\"\\) -and \\($body -match \"サロン一覧へ戻る\"\\) -and \\($body -match \"博多・住吉\"\\))",
       "PowerShell($r = Invoke-WebRequest -Uri \"http://localhost:3000/salon/7\" -UseBasicParsing; $body = $r.Content; \\($body -match \"La Mer Blanc\"\\) -and \\($body -match \"出張専門\"\\) -and \\($body -match \"9,000\"\\); $r10 = Invoke-WebRequest -Uri \"http://localhost:3000/salon/10\" -UseBasicParsing; $body10 = $r10.Content; \\($body10 -match \"Spa Maison\"\\) -and \\($body10 -match \"スウェディッシュ\"\\))",
       "PowerShell($r = Invoke-WebRequest -Uri \"http://localhost:3000/salon/99\" -UseBasicParsing -ErrorAction SilentlyContinue; if \\($r\\) { $r.StatusCode } else { \"404 or error \\(expected\\)\" })",
-      "PowerShell(Stop-Process *)"
+      "PowerShell(Stop-Process *)",
+      "Bash(git commit *)",
+      "Bash(git push *)",
+      "Bash(git add *)"
     ]
   }
 }

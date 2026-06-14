@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { SALONS } from "@/app/lib/salonData";
 import { SalonTherapists, SalonAllTherapists } from "@/components/SalonTherapists";
+import { SalonDiarySection } from "@/components/DiarySection";
 
 export default async function SalonPage({
   params,
@@ -175,6 +176,15 @@ export default async function SalonPage({
                 <h2 className="text-base font-bold text-slate-900">在籍セラピスト一覧</h2>
               </div>
               <SalonAllTherapists salonId={id} />
+            </div>
+
+            {/* Diary section */}
+            <div className="mt-8 bg-white rounded-3xl p-5 border border-pink-100/60 shadow-sm">
+              <div className="flex items-center gap-2 mb-4">
+                <span className="text-lg">📷</span>
+                <h2 className="text-base font-bold text-slate-900">所属セラピストの写メ日記</h2>
+              </div>
+              <SalonDiarySection salonId={id} />
             </div>
           </div>
 

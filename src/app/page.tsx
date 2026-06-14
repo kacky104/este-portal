@@ -2,7 +2,7 @@ import Link from "next/link";
 import { ShuffledSalons } from "./components/ShuffledSalons";
 import { TherapistScroller } from "./components/TherapistScroller";
 import { SALONS } from "./lib/salonData";
-import { DiarySection } from "./components/DiarySection";
+import { DiarySection } from "@/components/DiarySection";
 
 const AREAS = [
   "福岡全域",

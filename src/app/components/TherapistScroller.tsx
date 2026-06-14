@@ -64,7 +64,6 @@ function Card({ therapist, index, onOpen }: { therapist: Therapist; index: numbe
 
 function Modal({ therapist, grad, sym, onClose }: { therapist: Therapist | null; grad: string; sym: string; onClose: () => void }) {
   if (!therapist) return null;
-
   const latestDiary = DIARIES.find(d => d.therapistName === therapist.name);
 
   return (
@@ -88,26 +87,17 @@ function Modal({ therapist, grad, sym, onClose }: { therapist: Therapist | null;
             <div className="flex justify-between"><span className="text-slate-400">スタイル</span><span className="text-slate-800 font-medium">T160 B85(D) W58 H85</span></div>
             <div className="flex justify-between"><span className="text-slate-400">出勤時間</span><span className="text-pink-600 font-bold">{therapist.workHours}</span></div>
           </div>
-
-          {/* 最新日記リンク */}
           {latestDiary && (
-            <div className="bg-gradient-to-r from-rose-50 to-pink-50 border border-pink-100 rounded-xl p-2.5 flex items-center justify-between gap-2">
+            <div className="bg-gradient-to-r from-rose-50 to-pink-50 border border-pink-100 rounded-xl p-2.5 flex items-center justify-between gap-2 shadow-xs">
               <div className="min-w-0">
-                <p className="text-[9px] font-black text-pink-500 tracking-wider flex items-center gap-1">
-                  <span>📷</span> LATEST DIARY
+                <p className="text-[10px] font-black text-pink-500 tracking-wider flex items-center gap-1">
+                  <span>📷</span> 最新の写メ日記
                 </p>
                 <p className="font-bold text-slate-800 text-[11px] truncate mt-0.5">「{latestDiary.title}」</p>
               </div>
-              <Link
-                href={`/diary/${latestDiary.id}`}
-                onClick={onClose}
-                className="bg-white hover:bg-pink-50 text-pink-500 border border-pink-200 font-bold text-[10px] px-3 py-1.5 rounded-lg whitespace-nowrap transition-colors flex items-center gap-0.5 flex-shrink-0"
-              >
-                読む 📖
-              </Link>
+              <Link href={`/diary/${latestDiary.id}`} onClick={onClose} className="bg-white hover:bg-pink-50 text-pink-500 border border-pink-200 font-bold text-[10px] px-3 py-1.5 rounded-lg whitespace-nowrap shadow-xs flex-shrink-0">読む 📖</Link>
             </div>
           )}
-
           <div className="space-y-1">
             <h4 className="font-bold text-slate-400">💬 メッセージ</h4>
             <p className="text-slate-600 bg-slate-50 p-3 rounded-xl leading-relaxed">{therapist.comment}</p>
@@ -120,9 +110,7 @@ function Modal({ therapist, grad, sym, onClose }: { therapist: Therapist | null;
                   <div className="font-bold text-[10px] border-b border-pink-100/30 pb-0.5">{s.day}</div>
                   {s.active ? (
                     <div className="text-[8px] font-black leading-tight py-0.5 flex flex-col justify-center flex-1 origin-center scale-95 tracking-tighter">
-                      <span>{s.start}</span>
-                      <span className="text-[6px] text-pink-300 -my-0.5">▼</span>
-                      <span>{s.end}</span>
+                      <span>{s.start}</span><span className="text-[6px] text-pink-300 -my-0.5">▼</span><span>{s.end}</span>
                     </div>
                   ) : (
                     <div className="text-[8px] py-2 text-slate-300 flex-1 flex items-center justify-center">休み</div>
@@ -152,7 +140,6 @@ export function TherapistScroller() {
   if (list.length === 0) {
     return <div className="text-center py-6 text-xs text-slate-400 border border-dashed border-pink-100 rounded-2xl bg-pink-50/20 w-full mx-4">現在、出勤時間外のセラピストのみです ✿</div>;
   }
-
   return (
     <>
       <div className="flex gap-3 overflow-x-auto pb-4 scrollbar-pink w-full">
