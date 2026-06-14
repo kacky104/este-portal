@@ -19,7 +19,8 @@
       "PowerShell(Stop-Process *)",
       "Bash(git commit *)",
       "Bash(git push *)",
-      "Bash(git add *)"
+      "Bash(git add *)",
+      "PowerShell(taskkill *)"
     ]
   }
 }

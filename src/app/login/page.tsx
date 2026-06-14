@@ -2,21 +2,41 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { createClient } from '@supabase/supabase-js';
+
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
+const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
+const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
 export default function LoginPage() {
   const router = useRouter();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
 
-  const handleLogin = (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
+    setLoading(true);
 
-    if (email === 'test@example.com' && password === 'password123') {
-      router.push('/admin');
-    } else {
-      setError('メールアドレスまたはパスワードが間違っています。');
+    try {
+      // 🌸 以前あった「if (email === 'test@example.com')」というダミーコードを完全に消去しました！
+      // 🌸 これにより、100%確実にSupabaseの会員名簿（本物）との通信だけで合否を決めます。
+      const { data, error: authError } = await supabase.auth.signInWithPassword({
+        email: email,
+        password: password,
+      });
+
+      if (authError) {
+        setError('メールアドレスまたはパスワードが正しくありません。');
+      } else if (data.user) {
+        router.push('/admin');
+      }
+    } catch (err) {
+      setError('通信エラーが発生しました。');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -29,57 +49,27 @@ export default function LoginPage() {
         <div className="text-center space-y-1 relative z-10">
           <span className="text-3xl">🔑</span>
           <h1 className="text-lg font-black text-slate-900 tracking-wide">サロン専用ログイン</h1>
-          <p className="text-[10px] text-slate-400">以下のテスト用IDでログインできます</p>
-          <div className="bg-slate-50 p-2 rounded-xl text-[9px] text-slate-500 font-mono text-left space-y-0.5 border border-slate-100 mt-2">
-            <div>ID: test@example.com</div>
-            <div>PW: password123</div>
-          </div>
+          <p className="text-[10px] text-slate-400">本物のSupabase Authで厳重に守られています</p>
         </div>
 
         <form onSubmit={handleLogin} className="space-y-4 relative z-10">
-          {error && (
-            <div className="p-3 rounded-xl bg-rose-50 border border-rose-100 text-rose-500 text-[11px] font-medium text-center">
-              ⚠️ {error}
-            </div>
-          )}
+          {error && <div className="p-3 rounded-xl bg-rose-50 border border-rose-100 text-rose-500 text-[11px] font-medium text-center">⚠️ {error}</div>}
 
           <div className="space-y-1">
             <label className="text-[11px] font-bold text-slate-400 block px-1">ログインID</label>
-            <input
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="test@example.com"
-              required
-              className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:border-pink-400 focus:outline-hidden text-xs bg-slate-50/50"
-            />
+            <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="salon@example.com" required disabled={loading} className="w-full px-4 py-3 rounded-xl border border-slate-200 text-xs bg-slate-50/50" />
           </div>
 
           <div className="space-y-1">
             <label className="text-[11px] font-bold text-slate-400 block px-1">パスワード</label>
-            <input
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              placeholder="••••••••"
-              required
-              className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:border-pink-400 focus:outline-hidden text-xs bg-slate-50/50"
-            />
+            <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="••••••••" required disabled={loading} className="w-full px-4 py-3 rounded-xl border border-slate-200 text-xs bg-slate-50/50" />
           </div>
 
-          <button
-            type="submit"
-            className="w-full py-3 rounded-xl bg-gradient-to-r from-pink-500 to-fuchsia-500 text-white font-bold text-xs shadow-md hover:opacity-90 active:scale-[0.98] transition-all pt-3.5"
-          >
-            ログインする 🔓
+          <button type="submit" disabled={loading} className="w-full py-3 rounded-xl bg-gradient-to-r from-pink-500 to-fuchsia-500 text-white font-bold text-xs shadow-md flex items-center justify-center gap-1 pt-3.5">
+            {loading ? '認証中...' : 'ログインする 🔓'}
           </button>
         </form>
-
-        <div className="text-center pt-2 relative z-10">
-          <p className="text-[10px] text-slate-400">※アカウント発行はポータル管理人まで</p>
-        </div>
       </div>
     </div>
   );
 }
-// supabase-auth-open
