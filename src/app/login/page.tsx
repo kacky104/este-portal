@@ -2,6 +2,12 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { createClient } from '@supabase/supabase-js';
+
+// 🌸 あなた専用のSupabaseの住所を確実にプログラムに紐付けます
+const supabaseUrl = 'https://supabase.co';
+const supabaseAnonKey = 'sb_publishable_FuaCt_l4aJjh0wLQV8QlmQ_RNC1nSdC';
+const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
 export default function LoginPage() {
   const router = useRouter();
@@ -10,16 +16,30 @@ export default function LoginPage() {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
-  const handleLogin = (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
     setLoading(true);
 
-    // 🌸 複雑な暗号化バグを完全に無視して、ボタンが押されたら100%無条件で管理画面へ進ませます！
-    setTimeout(() => {
-      router.push('/admin');
+    try {
+      // 🌸 100%完全に、Supabaseの会員名簿（本物）とのリアルタイム通信のみでログインを判定します。
+      const { data, error: authError } = await supabase.auth.signInWithPassword({
+        email: email,
+        password: password,
+      });
+
+      if (authError) {
+        // IDやパスワードが1文字でも違っていたら、厳格にエラーを出して弾きます
+        setError('メールアドレスまたはパスワードが正しくありません。');
+      } else if (data.user) {
+        // 🔓 完全に一致した時だけ、管理画面（/admin）への進入を許可します
+        router.push('/admin');
+      }
+    } catch (err) {
+      setError('通信エラーが発生しました。インターネット環境をお確かめください。');
+    } finally {
       setLoading(false);
-    }, 400);
+    }
   };
 
   return (
@@ -31,13 +51,15 @@ export default function LoginPage() {
         <div className="text-center space-y-1 relative z-10">
           <span className="text-3xl">🔑</span>
           <h1 className="text-lg font-black text-slate-900 tracking-wide">サロン専用ログイン</h1>
-          <p className="text-[10px] text-slate-400">認証システムを安全にバイパスしています</p>
+          <p className="text-[10px] text-slate-400">本物のSupabase Authで厳重に守られています</p>
         </div>
 
         <form onSubmit={handleLogin} className="space-y-4 relative z-10">
+          {error && <div className="p-3 rounded-xl bg-rose-50 border border-rose-100 text-rose-500 text-[11px] font-medium text-center">⚠️ {error}</div>}
+
           <div className="space-y-1">
             <label className="text-[11px] font-bold text-slate-400 block px-1">ログインID</label>
-            <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="aaa@aaa.com" required disabled={loading} className="w-full px-4 py-3 rounded-xl border border-slate-200 text-xs bg-slate-50/50" />
+            <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="salon@example.com" required disabled={loading} className="w-full px-4 py-3 rounded-xl border border-slate-200 text-xs bg-slate-50/50" />
           </div>
 
           <div className="space-y-1">
