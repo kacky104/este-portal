@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { ShuffledSalons } from "./components/ShuffledSalons";
 import { TherapistScroller } from "./components/TherapistScroller";
-import { SALONS } from "./lib/salonData";
+import { createClient } from "./lib/supabase/server";
 import { DiarySection } from "@/components/DiarySection";
 
 const AREAS = [
@@ -14,11 +14,23 @@ const AREAS = [
   "出張",
 ] as const;
 
-const salons = SALONS.map(({ id, name, rating, reviewCount, tags, price, area, hours, description }) => ({
-  id, name, rating, reviewCount, tags, price, area, hours, description,
-}));
+export default async function Home() {
+  const supabase = await createClient();
+  const { data: rows } = await supabase
+    .from('salons')
+    .select('id, name, rating, review_count, tags, price, area, hours, description');
 
-export default function Home() {
+  const salons = (rows ?? []).map(row => ({
+    id:          row.id as number,
+    name:        (row.name as string) ?? '',
+    rating:      (row.rating as number) ?? 0,
+    reviewCount: (row.review_count as number) ?? 0,
+    tags:        (row.tags as string[]) ?? [],
+    price:       (row.price as string) ?? '',
+    area:        (row.area as string) ?? '',
+    hours:       (row.hours as string) ?? '',
+    description: (row.description as string) ?? '',
+  }));
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900">
 

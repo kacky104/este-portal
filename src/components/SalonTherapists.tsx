@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { THERAPISTS, type Therapist } from '@/data/therapists';
+import { createClient } from '@/app/lib/supabase/client';
 import { DIARIES } from '@/data/diaries';
 
 const GRADS = ['from-pink-300 to-rose-400', 'from-fuchsia-300 to-pink-400', 'from-rose-300 to-pink-500'];
@@ -16,6 +16,14 @@ const SCHED = [
   { day: '土', active: true,  start: '15:00', end: '23:00'  },
   { day: '日', active: false, start: '',       end: ''       },
 ];
+
+type Therapist = {
+  id: string;
+  name: string;
+  workHours: string;
+  comment: string;
+  area: string;
+};
 
 function getStatus(hours: string): 'ON' | 'END' | 'OFF' {
   if (!hours) return 'OFF';
@@ -119,12 +127,29 @@ function ProfileModal({ therapist, grad, sym, onClose }: { therapist: Therapist 
   );
 }
 
-export function SalonTherapists({ salonId }: { salonId: string }) {
+export function SalonTherapists({ salonId }: { salonId: number }) {
   const [list, setList] = useState<Therapist[]>([]);
   const [sel, setSel] = useState<Therapist | null>(null);
   const [gr, setGr] = useState('');
   const [sy, setSy] = useState('');
-  useEffect(() => { setList(THERAPISTS.filter(t => t.salonId === Number(salonId) && getStatus(t.workHours) === 'ON')); }, [salonId]);
+
+  useEffect(() => {
+    (async () => {
+      const supabase = createClient();
+      const { data } = await supabase
+        .from('therapists')
+        .select('id, name, work_hours, area, comment')
+        .eq('salon_id', salonId);
+      const mapped: Therapist[] = (data ?? []).map(t => ({
+        id:        String(t.id),
+        name:      (t.name as string) ?? '',
+        workHours: (t.work_hours as string) ?? '',
+        area:      (t.area as string) ?? '',
+        comment:   (t.comment as string) ?? '',
+      }));
+      setList(mapped.filter(t => getStatus(t.workHours) === 'ON'));
+    })();
+  }, [salonId]);
 
   if (list.length === 0) return <div className="text-center py-8 text-xs text-slate-400 border border-dashed border-pink-100 rounded-2xl bg-pink-50/10">只今、案内可能なセラピストはおりません ✿</div>;
   return (
@@ -137,12 +162,29 @@ export function SalonTherapists({ salonId }: { salonId: string }) {
   );
 }
 
-export function SalonAllTherapists({ salonId }: { salonId: string }) {
+export function SalonAllTherapists({ salonId }: { salonId: number }) {
   const [list, setList] = useState<Therapist[]>([]);
   const [sel, setSel] = useState<Therapist | null>(null);
   const [gr, setGr] = useState('');
   const [sy, setSy] = useState('');
-  useEffect(() => { setList(THERAPISTS.filter(t => t.salonId === Number(salonId))); }, [salonId]);
+
+  useEffect(() => {
+    (async () => {
+      const supabase = createClient();
+      const { data } = await supabase
+        .from('therapists')
+        .select('id, name, work_hours, area, comment')
+        .eq('salon_id', salonId);
+      const mapped: Therapist[] = (data ?? []).map(t => ({
+        id:        String(t.id),
+        name:      (t.name as string) ?? '',
+        workHours: (t.work_hours as string) ?? '',
+        area:      (t.area as string) ?? '',
+        comment:   (t.comment as string) ?? '',
+      }));
+      setList(mapped);
+    })();
+  }, [salonId]);
 
   if (list.length === 0) return <div className="text-center py-8 text-xs text-slate-400 border border-dashed border-pink-100 rounded-2xl bg-pink-50/10">在籍セラピストの情報は準備中です ✿</div>;
   return (

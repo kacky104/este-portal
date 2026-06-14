@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { THERAPISTS, type Therapist } from '@/data/therapists';
+import { createClient } from '@/app/lib/supabase/client';
 import { DIARIES } from '@/data/diaries';
 
 const GRADIENTS = ['from-pink-300 to-rose-400', 'from-fuchsia-300 to-pink-400', 'from-rose-300 to-pink-500', 'from-pink-400 to-fuchsia-400'];
@@ -17,6 +17,16 @@ const DETAIL_SCHEDULE = [
   { day: '土', active: true,  start: '15:00', end: '23:00'  },
   { day: '日', active: false, start: '',       end: ''       },
 ];
+
+type TherapistItem = {
+  id: string;
+  name: string;
+  salonId: number;
+  salonName: string;
+  workHours: string;
+  comment: string;
+  area: string;
+};
 
 function isDuty(hours: string): boolean {
   if (!hours) return false;
@@ -35,7 +45,7 @@ function isDuty(hours: string): boolean {
   return curMin >= start && curMin <= endMin;
 }
 
-function Card({ therapist, index, onOpen }: { therapist: Therapist; index: number; onOpen: (t: Therapist, g: string, s: string) => void }) {
+function Card({ therapist, index, onOpen }: { therapist: TherapistItem; index: number; onOpen: (t: TherapistItem, g: string, s: string) => void }) {
   const grad = GRADIENTS[index % GRADIENTS.length];
   const sym = SYMBOLS[index % SYMBOLS.length];
   const [onDuty, setOnDuty] = useState(false);
@@ -62,7 +72,7 @@ function Card({ therapist, index, onOpen }: { therapist: Therapist; index: numbe
   );
 }
 
-function Modal({ therapist, grad, sym, onClose }: { therapist: Therapist | null; grad: string; sym: string; onClose: () => void }) {
+function Modal({ therapist, grad, sym, onClose }: { therapist: TherapistItem | null; grad: string; sym: string; onClose: () => void }) {
   if (!therapist) return null;
   const latestDiary = DIARIES.find(d => d.therapistName === therapist.name);
 
@@ -131,11 +141,47 @@ function Modal({ therapist, grad, sym, onClose }: { therapist: Therapist | null;
 }
 
 export function TherapistScroller() {
-  const [list, setList] = useState<Therapist[]>([]);
-  const [select, setSelect] = useState<Therapist | null>(null);
+  const [list, setList] = useState<TherapistItem[]>([]);
+  const [select, setSelect] = useState<TherapistItem | null>(null);
   const [grad, setGrad] = useState('');
   const [sym, setSym] = useState('');
-  useEffect(() => { setList(THERAPISTS.filter(t => isDuty(t.workHours))); }, []);
+
+  useEffect(() => {
+    (async () => {
+      const supabase = createClient();
+
+      const { data: therapistData } = await supabase
+        .from('therapists')
+        .select('id, name, work_hours, area, comment, salon_id');
+
+      const salonIds = [...new Set(
+        (therapistData ?? []).map(t => t.salon_id as number).filter(Boolean)
+      )];
+
+      let salonMap: Record<number, string> = {};
+      if (salonIds.length > 0) {
+        const { data: salonData } = await supabase
+          .from('salons')
+          .select('id, name')
+          .in('id', salonIds);
+        salonMap = Object.fromEntries(
+          (salonData ?? []).map(s => [s.id as number, (s.name as string) ?? ''])
+        );
+      }
+
+      const mapped: TherapistItem[] = (therapistData ?? []).map(t => ({
+        id:        String(t.id),
+        name:      (t.name as string) ?? '',
+        salonId:   t.salon_id as number,
+        salonName: salonMap[t.salon_id as number] ?? '',
+        workHours: (t.work_hours as string) ?? '',
+        area:      (t.area as string) ?? '',
+        comment:   (t.comment as string) ?? '',
+      }));
+
+      setList(mapped.filter(t => isDuty(t.workHours)));
+    })();
+  }, []);
 
   if (list.length === 0) {
     return <div className="text-center py-6 text-xs text-slate-400 border border-dashed border-pink-100 rounded-2xl bg-pink-50/20 w-full mx-4">現在、出勤時間外のセラピストのみです ✿</div>;

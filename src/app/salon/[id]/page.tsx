@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { SALONS } from "@/app/lib/salonData";
+import { createClient } from "@/app/lib/supabase/server";
 import { SalonTherapists, SalonAllTherapists } from "@/components/SalonTherapists";
 import { SalonDiarySection } from "@/components/DiarySection";
 
@@ -10,16 +10,41 @@ export default async function SalonPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const salon = SALONS.find((s) => s.id === Number(id));
 
-  if (!salon) notFound();
+  const supabase = await createClient();
+  const { data: row, error } = await supabase
+    .from('salons')
+    .select('id, name, rating, review_count, tags, price, area, hours, description, appeal, phone, address, access, closed_days, note, courses')
+    .eq('id', Number(id))
+    .single();
+
+  if (error || !row) notFound();
+
+  const salon = {
+    id:          row.id as number,
+    name:        (row.name as string) ?? '',
+    rating:      (row.rating as number) ?? 0,
+    reviewCount: (row.review_count as number) ?? 0,
+    tags:        (row.tags as string[]) ?? [],
+    price:       (row.price as string) ?? '',
+    area:        (row.area as string) ?? '',
+    hours:       (row.hours as string) ?? '',
+    description: (row.description as string) ?? '',
+    appeal:      (row.appeal as string) ?? '',
+    courses:     ((row.courses as { name: string; duration: string; price: string }[] | null) ?? []),
+    phone:       (row.phone as string) ?? '',
+    address:     (row.address as string) ?? '',
+    access:      (row.access as string) ?? '',
+    closedDays:  (row.closed_days as string) ?? '',
+    note:        (row.note as string | undefined) ?? undefined,
+  };
 
   const filledStars = Math.floor(salon.rating);
 
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900">
 
-      {/* ─── Header ─────────────────────────────────────── */}
+      {/* ─── Header ─────────────────────────────────────────── */}
       <header className="sticky top-0 z-50 bg-white/90 backdrop-blur-md border-b border-slate-200 shadow-sm">
         <div className="max-w-4xl mx-auto px-4 h-14 flex items-center justify-between">
           <Link href="/" className="flex items-center gap-3">
@@ -107,7 +132,7 @@ export default async function SalonPage({
                 <span className="text-lg">💖</span>
                 <h2 className="text-base font-bold text-slate-900">本日出勤のセラピスト</h2>
               </div>
-              <SalonTherapists salonId={id} />
+              <SalonTherapists salonId={Number(id)} />
             </div>
 
             {/* About */}
@@ -117,57 +142,59 @@ export default async function SalonPage({
               <p className="text-slate-600 text-sm leading-relaxed">{salon.appeal}</p>
             </section>
 
-            {/* Courses */}
-            <div className="mt-8 bg-white rounded-3xl p-6 border border-pink-100/70 shadow-sm relative overflow-hidden">
-              <div className="absolute -top-12 -right-12 w-32 h-32 bg-pink-50/40 rounded-full blur-2xl pointer-events-none" />
-              <div className="flex items-center gap-2 mb-5 relative z-10">
-                <span className="text-xl">✨</span>
-                <h2 className="text-base font-bold text-slate-900 tracking-wide">コース料金システム</h2>
-              </div>
-              <div className="space-y-3.5 relative z-10">
-                {salon.courses.map((course, i) => {
-                  const mins = course.duration.replace('分', '');
-                  const priceNum = course.price.replace('¥', '');
-                  const isRecommend = i === Math.floor(salon.courses.length / 2);
-                  if (isRecommend) {
-                    return (
-                      <div key={i} className="relative flex items-center justify-between p-4 rounded-2xl bg-gradient-to-r from-pink-500/5 to-fuchsia-500/5 border-2 border-pink-200 hover:border-pink-300 shadow-sm shadow-pink-500/5 transition-all duration-300">
-                        <span className="absolute -top-2 left-4 text-[9px] font-black px-2 py-0.5 rounded-full bg-gradient-to-r from-pink-500 to-fuchsia-500 text-white shadow-sm tracking-wider">
-                          RECOMMEND ✨
-                        </span>
-                        <div className="flex items-center gap-3">
-                          <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-pink-400 to-rose-400 flex flex-col items-center justify-center flex-shrink-0 shadow-sm shadow-pink-500/20">
-                            <span className="text-base font-extrabold text-white leading-none">{mins}</span>
-                            <span className="text-[9px] font-bold text-pink-100 mt-0.5">MIN</span>
+            {/* Courses — shown only when DB data is available */}
+            {salon.courses.length > 0 && (
+              <div className="mt-8 bg-white rounded-3xl p-6 border border-pink-100/70 shadow-sm relative overflow-hidden">
+                <div className="absolute -top-12 -right-12 w-32 h-32 bg-pink-50/40 rounded-full blur-2xl pointer-events-none" />
+                <div className="flex items-center gap-2 mb-5 relative z-10">
+                  <span className="text-xl">✨</span>
+                  <h2 className="text-base font-bold text-slate-900 tracking-wide">コース料金システム</h2>
+                </div>
+                <div className="space-y-3.5 relative z-10">
+                  {salon.courses.map((course, i) => {
+                    const mins = course.duration.replace('分', '');
+                    const priceNum = course.price.replace('¥', '');
+                    const isRecommend = i === Math.floor(salon.courses.length / 2);
+                    if (isRecommend) {
+                      return (
+                        <div key={i} className="relative flex items-center justify-between p-4 rounded-2xl bg-gradient-to-r from-pink-500/5 to-fuchsia-500/5 border-2 border-pink-200 hover:border-pink-300 shadow-sm shadow-pink-500/5 transition-all duration-300">
+                          <span className="absolute -top-2 left-4 text-[9px] font-black px-2 py-0.5 rounded-full bg-gradient-to-r from-pink-500 to-fuchsia-500 text-white shadow-sm tracking-wider">
+                            RECOMMEND ✨
+                          </span>
+                          <div className="flex items-center gap-3">
+                            <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-pink-400 to-rose-400 flex flex-col items-center justify-center flex-shrink-0 shadow-sm shadow-pink-500/20">
+                              <span className="text-base font-extrabold text-white leading-none">{mins}</span>
+                              <span className="text-[9px] font-bold text-pink-100 mt-0.5">MIN</span>
+                            </div>
+                            <h3 className="font-bold text-sm text-pink-600">{course.name}</h3>
                           </div>
-                          <h3 className="font-bold text-sm text-pink-600">{course.name}</h3>
+                          <div className="text-right">
+                            <span className="text-xs font-bold text-pink-500 mr-0.5">¥</span>
+                            <span className="text-xl font-black text-pink-600 tracking-tight">{priceNum}</span>
+                          </div>
+                        </div>
+                      );
+                    }
+                    return (
+                      <div key={i} className="flex items-center justify-between p-4 rounded-2xl bg-gradient-to-r from-pink-50/30 to-transparent border border-pink-50 hover:border-pink-200 transition-all duration-300">
+                        <div className="flex items-center gap-3">
+                          <div className="w-12 h-12 rounded-xl bg-pink-50 border border-pink-100 flex flex-col items-center justify-center flex-shrink-0">
+                            <span className="text-base font-extrabold text-pink-500 leading-none">{mins}</span>
+                            <span className="text-[9px] font-bold text-pink-400 mt-0.5">MIN</span>
+                          </div>
+                          <h3 className="font-bold text-sm text-slate-800">{course.name}</h3>
                         </div>
                         <div className="text-right">
-                          <span className="text-xs font-bold text-pink-500 mr-0.5">¥</span>
-                          <span className="text-xl font-black text-pink-600 tracking-tight">{priceNum}</span>
+                          <span className="text-xs font-bold text-slate-400 mr-0.5">¥</span>
+                          <span className="text-lg font-black text-slate-900 tracking-tight">{priceNum}</span>
                         </div>
                       </div>
                     );
-                  }
-                  return (
-                    <div key={i} className="flex items-center justify-between p-4 rounded-2xl bg-gradient-to-r from-pink-50/30 to-transparent border border-pink-50 hover:border-pink-200 transition-all duration-300">
-                      <div className="flex items-center gap-3">
-                        <div className="w-12 h-12 rounded-xl bg-pink-50 border border-pink-100 flex flex-col items-center justify-center flex-shrink-0">
-                          <span className="text-base font-extrabold text-pink-500 leading-none">{mins}</span>
-                          <span className="text-[9px] font-bold text-pink-400 mt-0.5">MIN</span>
-                        </div>
-                        <h3 className="font-bold text-sm text-slate-800">{course.name}</h3>
-                      </div>
-                      <div className="text-right">
-                        <span className="text-xs font-bold text-slate-400 mr-0.5">¥</span>
-                        <span className="text-lg font-black text-slate-900 tracking-tight">{priceNum}</span>
-                      </div>
-                    </div>
-                  );
-                })}
+                  })}
+                </div>
+                <p className="text-[11px] text-slate-400 mt-4 relative z-10">※ 表示料金はすべて税込み価格です。</p>
               </div>
-              <p className="text-[11px] text-slate-400 mt-4 relative z-10">※ 表示料金はすべて税込み価格です。</p>
-            </div>
+            )}
 
             {/* All therapists */}
             <div className="mt-8 bg-white rounded-3xl p-5 border border-pink-100/60 shadow-sm">
@@ -175,7 +202,7 @@ export default async function SalonPage({
                 <span className="text-lg">👩‍🦰</span>
                 <h2 className="text-base font-bold text-slate-900">在籍セラピスト一覧</h2>
               </div>
-              <SalonAllTherapists salonId={id} />
+              <SalonAllTherapists salonId={Number(id)} />
             </div>
 
             {/* Diary section */}
@@ -202,31 +229,11 @@ export default async function SalonPage({
             <section className="bg-white rounded-2xl border border-slate-200 shadow-sm p-5">
               <SectionHeading>店舗基本情報</SectionHeading>
               <dl className="space-y-3.5 text-sm">
-                <InfoRow
-                  icon={<PhoneIcon />}
-                  label="電話番号"
-                  value={salon.phone}
-                />
-                <InfoRow
-                  icon={<ClockIcon />}
-                  label="営業時間"
-                  value={salon.hours}
-                />
-                <InfoRow
-                  icon={<CalendarIcon />}
-                  label="定休日"
-                  value={salon.closedDays}
-                />
-                <InfoRow
-                  icon={<MapIcon />}
-                  label="住所"
-                  value={salon.address}
-                />
-                <InfoRow
-                  icon={<TrainIcon />}
-                  label="アクセス"
-                  value={salon.access}
-                />
+                <InfoRow icon={<PhoneIcon />}    label="電話番号" value={salon.phone} />
+                <InfoRow icon={<ClockIcon />}    label="営業時間" value={salon.hours} />
+                <InfoRow icon={<CalendarIcon />} label="定休日"   value={salon.closedDays} />
+                <InfoRow icon={<MapIcon />}      label="住所"     value={salon.address} />
+                <InfoRow icon={<TrainIcon />}    label="アクセス" value={salon.access} />
               </dl>
             </section>
 

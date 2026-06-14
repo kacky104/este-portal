@@ -20,7 +20,11 @@
       "Bash(git commit *)",
       "Bash(git push *)",
       "Bash(git add *)",
-      "PowerShell(taskkill *)"
+      "PowerShell(taskkill *)",
+      "PowerShell(npm run *)",
+      "PowerShell(Start-Sleep -Seconds 3; $null)",
+      "PowerShell(Invoke-WebRequest -Uri http://localhost:3001/mypage -UseBasicParsing -TimeoutSec 10 | Select-Object StatusCode, StatusDescription)",
+      "mcp__ide__getDiagnostics"
     ]
   }
 }

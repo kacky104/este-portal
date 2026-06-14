@@ -2,12 +2,9 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { createClient } from '@supabase/supabase-js';
+import { createClient } from '@/app/lib/supabase/client';
 
-// 🌸 あなた専用のSupabaseの住所を確実にプログラムに紐付けます
-const supabaseUrl = 'https://supabase.co';
-const supabaseAnonKey = 'sb_publishable_FuaCt_l4aJjh0wLQV8QlmQ_RNC1nSdC';
-const supabase = createClient(supabaseUrl, supabaseAnonKey);
+const supabase = createClient();
 
 export default function LoginPage() {
   const router = useRouter();
@@ -33,7 +30,7 @@ export default function LoginPage() {
         setError('メールアドレスまたはパスワードが正しくありません。');
       } else if (data.user) {
         // 🔓 完全に一致した時だけ、管理画面（/admin）への進入を許可します
-        router.push('/admin');
+        router.push('/mypage');
       }
     } catch (err) {
       setError('通信エラーが発生しました。インターネット環境をお確かめください。');
