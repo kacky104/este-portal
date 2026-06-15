@@ -5,7 +5,6 @@ import Link from 'next/link';
 import { createClient } from '@/app/lib/supabase/client';
 
 const GRADIENTS = ['from-pink-300 to-rose-400', 'from-fuchsia-300 to-pink-400', 'from-rose-300 to-pink-500', 'from-pink-400 to-fuchsia-400'];
-const SYMBOLS   = ['✿', '❀', '✾', '♡', '✦', '❋'];
 
 // ── helpers ───────────────────────────────────────────────────
 
@@ -68,21 +67,22 @@ function buildDisplayHours(start: string | null, end: string | null): string {
 // ── types ─────────────────────────────────────────────────────
 
 type TherapistItem = {
-  id:        string;
-  name:      string;
-  salonId:   number;
-  salonName: string;
-  workHours: string;
-  comment:   string;
-  area:      string;
-  today:     TodaySchedule;
+  id:              string;
+  name:            string;
+  salonId:         number;
+  salonName:       string;
+  workHours:       string;
+  comment:         string;
+  area:            string;
+  age:             string;
+  profileImageUrl: string | null;
+  today:           TodaySchedule;
 };
 
 // ── Card ──────────────────────────────────────────────────────
 
 function Card({ therapist, index }: { therapist: TherapistItem; index: number }) {
   const grad = GRADIENTS[index % GRADIENTS.length];
-  const sym  = SYMBOLS[index % SYMBOLS.length];
   const [ss, setSS] = useState<StatusResult | null>(null);
   useEffect(() => { setSS(getScheduleStatus(therapist.today)); }, [therapist.today]);
 
@@ -91,24 +91,42 @@ function Card({ therapist, index }: { therapist: TherapistItem; index: number })
   return (
     <Link
       href={`/therapist/${therapist.id}`}
-      className="text-left flex-shrink-0 w-44 rounded-2xl border border-pink-100 bg-white shadow-sm hover:border-pink-300 hover:-translate-y-1 transition-all duration-300 overflow-hidden"
+      className="relative flex-shrink-0 w-44 h-64 rounded-2xl overflow-hidden shadow-md hover:-translate-y-1 hover:shadow-xl transition-all duration-300"
     >
-      <div className={`relative h-28 bg-gradient-to-br ${grad} flex items-center justify-center`}>
-        <div className="w-16 h-16 rounded-full bg-white/30 flex items-center justify-center text-white font-bold text-2xl">
-          {therapist.name.charAt(0)}
+      {/* background: photo or gradient fallback */}
+      {therapist.profileImageUrl ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          src={therapist.profileImageUrl}
+          alt={therapist.name}
+          className="absolute inset-0 w-full h-full object-cover"
+        />
+      ) : (
+        <div className={`absolute inset-0 bg-gradient-to-br ${grad} flex items-center justify-center`}>
+          <span className="text-white/30 font-bold text-6xl">{therapist.name.charAt(0)}</span>
         </div>
-        <span className="absolute bottom-2 right-3 text-white/50 text-xl">{sym}</span>
-        {ss && (
-          <span className={`absolute top-2 right-2 text-[10px] font-bold px-2 py-0.5 rounded-full ${ss.cardBadge}`}>
-            {ss.label}
-          </span>
+      )}
+
+      {/* bottom gradient overlay */}
+      <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/20 to-transparent" />
+
+      {/* status badge — top right */}
+      {ss && (
+        <span className={`absolute top-2 right-2 text-[10px] font-bold px-2 py-0.5 rounded-full ${ss.cardBadge}`}>
+          {ss.label}
+        </span>
+      )}
+
+      {/* text overlay — bottom */}
+      <div className="absolute bottom-0 left-0 right-0 p-3 text-white">
+        <p className="font-bold text-sm leading-tight mb-0.5 drop-shadow">{therapist.name}</p>
+        {therapist.age && (
+          <p className="text-[10px] text-white/80 mb-0.5">{therapist.age}歳</p>
         )}
-      </div>
-      <div className="p-3">
-        <p className="font-bold text-sm text-slate-900 mb-0.5">{therapist.name}</p>
-        <p className="text-[10px] text-slate-400 truncate mb-1.5">{therapist.salonName}</p>
-        <p className="text-[10px] text-pink-500 font-medium mb-1.5">🕒 {displayHours || therapist.workHours || '—'}</p>
-        <p className="text-[10px] text-slate-500 line-clamp-2 leading-relaxed">{therapist.comment}</p>
+        <p className="text-[10px] text-white/70 truncate mb-1">{therapist.salonName}</p>
+        {(displayHours || therapist.workHours) && (
+          <p className="text-[10px] text-pink-200 font-medium">🕒 {displayHours || therapist.workHours}</p>
+        )}
       </div>
     </Link>
   );
@@ -125,7 +143,7 @@ export function TherapistScroller() {
 
       const { data: therapistData } = await supabase
         .from('therapists')
-        .select('id, name, work_hours, area, comment, salon_id');
+        .select('id, name, work_hours, area, comment, salon_id, profile_image_url, age');
 
       const salonIds = [...new Set(
         (therapistData ?? []).map(t => t.salon_id as number).filter(Boolean)
@@ -165,14 +183,16 @@ export function TherapistScroller() {
       });
 
       const mapped: TherapistItem[] = (therapistData ?? []).map(t => ({
-        id:        String(t.id),
-        name:      (t.name      as string) ?? '',
-        salonId:   t.salon_id   as number,
-        salonName: salonMap[t.salon_id as number] ?? '',
-        workHours: (t.work_hours as string) ?? '',
-        area:      (t.area      as string) ?? '',
-        comment:   (t.comment   as string) ?? '',
-        today:     schedMap[t.id as number] ?? { is_active: false, start_time: null, end_time: null },
+        id:              String(t.id),
+        name:            (t.name              as string) ?? '',
+        salonId:         t.salon_id           as number,
+        salonName:       salonMap[t.salon_id  as number] ?? '',
+        workHours:       (t.work_hours        as string) ?? '',
+        area:            (t.area              as string) ?? '',
+        comment:         (t.comment           as string) ?? '',
+        age:             (t.age               as string) ?? '',
+        profileImageUrl: (t.profile_image_url as string | null) ?? null,
+        today:           schedMap[t.id as number] ?? { is_active: false, start_time: null, end_time: null },
       }));
 
       setList(mapped.filter(t => getScheduleStatus(t.today).status === 'onDuty'));
