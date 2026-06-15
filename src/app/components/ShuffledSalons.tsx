@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
+import { createClient } from '@/app/lib/supabase/client';
 
 export type Salon = {
   id: number;
@@ -14,6 +15,10 @@ export type Salon = {
   hours: string;
   description: string;
 };
+
+function getTodayJST(): string {
+  return new Intl.DateTimeFormat('sv-SE', { timeZone: 'Asia/Tokyo' }).format(new Date());
+}
 
 function StarRating({ rating }: { rating: number }) {
   const full = Math.floor(rating);
@@ -32,32 +37,63 @@ function StarRating({ rating }: { rating: number }) {
   );
 }
 
-function SalonCard({ salon }: { salon: Salon }) {
+function SalonCard({ salon, images }: { salon: Salon; images: string[] }) {
+  const [imgIdx, setImgIdx] = useState(0);
+  const currentImg = images.length > 0 ? images[imgIdx] : null;
+
+  const handleMouseEnter = () => {
+    if (images.length > 1) {
+      setImgIdx(i => (i + 1) % images.length);
+    }
+  };
+
   return (
     <Link
       href={`/salon/${salon.id}`}
       className="group relative overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm hover:border-pink-300 hover:-translate-y-1 hover:shadow-lg hover:shadow-pink-500/10 transition-all duration-300 flex flex-col"
+      onMouseEnter={handleMouseEnter}
     >
       {/* Pink shimmer top line */}
       <div className="h-px bg-gradient-to-r from-transparent via-pink-400/60 to-transparent" />
 
       {/* Thumbnail */}
       <div className="h-36 bg-gradient-to-br from-pink-100 via-rose-50 to-pink-50 relative overflow-hidden flex items-center justify-center">
-        <span
-          className="absolute text-9xl text-pink-300/25 select-none pointer-events-none"
-          aria-hidden="true"
-        >
-          ♨
-        </span>
-        {/* Area badge – top left */}
+        {currentImg ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            key={imgIdx}
+            src={currentImg}
+            alt={salon.name}
+            className="absolute inset-0 w-full h-full object-cover animate-img-fade"
+          />
+        ) : (
+          <span
+            className="absolute text-9xl text-pink-300/25 select-none pointer-events-none"
+            aria-hidden="true"
+          >
+            ♨
+          </span>
+        )}
+        {/* Area badge */}
         <span className="absolute top-3 left-3 z-10 text-xs font-semibold px-2.5 py-1 rounded-full bg-white text-pink-600 border border-pink-200 shadow-sm">
           {salon.area}
         </span>
-        {/* Rating badge – top right */}
+        {/* Rating badge */}
         <span className="absolute top-3 right-3 z-10 flex items-center gap-1 text-xs font-bold px-2.5 py-1 rounded-full bg-white text-pink-600 border border-pink-100 shadow-sm">
           <span style={{ fontSize: '12px' }}>★</span>
           {salon.rating}
         </span>
+        {/* Dot indicators for multiple therapist images */}
+        {images.length > 1 && (
+          <div className="absolute bottom-2 right-2 z-10 flex gap-1">
+            {images.map((_, i) => (
+              <div
+                key={i}
+                className={`w-1.5 h-1.5 rounded-full transition-all duration-200 ${i === imgIdx ? 'bg-white' : 'bg-white/40'}`}
+              />
+            ))}
+          </div>
+        )}
       </div>
 
       <div className="p-5 flex flex-col flex-1">
@@ -69,13 +105,8 @@ function SalonCard({ salon }: { salon: Salon }) {
         {/* Hours */}
         <div className="flex items-center gap-1.5 text-xs mb-3">
           <svg
-            width="10"
-            height="10"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            className="text-slate-400 flex-shrink-0"
+            width="10" height="10" viewBox="0 0 24 24" fill="none"
+            stroke="currentColor" strokeWidth="2" className="text-slate-400 flex-shrink-0"
           >
             <circle cx="12" cy="12" r="10" />
             <path d="M12 6v6l4 2" />
@@ -152,9 +183,11 @@ export function ShuffledSalons({
   salons: Salon[];
   areas: string[];
 }) {
-  const [list, setList] = useState<Salon[]>([]);
+  const [list, setList]             = useState<Salon[]>([]);
   const [activeArea, setActiveArea] = useState('福岡全域');
+  const [therapistImages, setTherapistImages] = useState<Record<number, string[]>>({});
 
+  // shuffle on mount
   useEffect(() => {
     const arr = [...salons];
     for (let i = arr.length - 1; i > 0; i--) {
@@ -163,6 +196,55 @@ export function ShuffledSalons({
     }
     setList(arr);
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // fetch therapist images
+  useEffect(() => {
+    if (salons.length === 0) return;
+    (async () => {
+      const supabase = createClient();
+      const salonIds = salons.map(s => s.id);
+
+      const { data: therapistRows } = await supabase
+        .from('therapists')
+        .select('id, salon_id, profile_image_url')
+        .in('salon_id', salonIds)
+        .not('profile_image_url', 'is', null);
+
+      if (!therapistRows || therapistRows.length === 0) return;
+
+      const today        = getTodayJST();
+      const therapistIds = therapistRows.map(t => t.id);
+
+      const { data: schedRows } = await supabase
+        .from('therapist_schedules')
+        .select('therapist_id')
+        .in('therapist_id', therapistIds)
+        .eq('schedule_date', today)
+        .eq('is_active', true);
+
+      const onDutySet = new Set((schedRows ?? []).map(r => r.therapist_id));
+
+      // group by salon, on-duty therapists first
+      const bySalon: Record<number, { url: string; onDuty: boolean }[]> = {};
+      for (const t of therapistRows) {
+        const sid = t.salon_id as number;
+        if (!bySalon[sid]) bySalon[sid] = [];
+        bySalon[sid].push({
+          url:    t.profile_image_url as string,
+          onDuty: onDutySet.has(t.id),
+        });
+      }
+
+      const imagesMap: Record<number, string[]> = {};
+      for (const [sid, items] of Object.entries(bySalon)) {
+        imagesMap[Number(sid)] = items
+          .sort((a, b) => Number(b.onDuty) - Number(a.onDuty))
+          .map(item => item.url);
+      }
+
+      setTherapistImages(imagesMap);
+    })();
+  }, [salons]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const areaCount = (area: string) =>
     area === '福岡全域'
@@ -182,7 +264,7 @@ export function ShuffledSalons({
         style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' } as React.CSSProperties}
       >
         {areas.map((area) => {
-          const count = areaCount(area);
+          const count  = areaCount(area);
           const active = activeArea === area;
           return (
             <button
@@ -197,9 +279,7 @@ export function ShuffledSalons({
               {area}
               <span
                 className={`text-[11px] rounded-full px-1.5 py-px font-bold ${
-                  active
-                    ? 'bg-white/25 text-white'
-                    : 'bg-slate-100 text-slate-500'
+                  active ? 'bg-white/25 text-white' : 'bg-slate-100 text-slate-500'
                 }`}
               >
                 {count}
@@ -208,7 +288,6 @@ export function ShuffledSalons({
           );
         })}
       </div>
-      {/* Result count */}
       <p className="text-xs text-slate-400 mt-2">
         {activeArea === '福岡全域'
           ? `全${filtered.length}件のサロンを表示しています`
@@ -217,15 +296,13 @@ export function ShuffledSalons({
     </div>
   );
 
-  /* ── Loading (before shuffle) ── */
+  /* ── Loading ── */
   if (list.length === 0) {
     return (
       <>
         {tabs}
         <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-5">
-          {salons.map((s) => (
-            <SalonCardSkeleton key={s.id} />
-          ))}
+          {salons.map((s) => <SalonCardSkeleton key={s.id} />)}
         </div>
       </>
     );
@@ -237,17 +314,8 @@ export function ShuffledSalons({
       <>
         {tabs}
         <div className="flex flex-col items-center justify-center py-24 text-slate-400">
-          <svg
-            width="40"
-            height="40"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="1.5"
-            className="mb-4 opacity-40"
-          >
-            <circle cx="11" cy="11" r="8" />
-            <path d="M21 21l-4.35-4.35" />
+          <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="mb-4 opacity-40">
+            <circle cx="11" cy="11" r="8" /><path d="M21 21l-4.35-4.35" />
           </svg>
           <p className="text-sm">このエリアの掲載サロンはまだありません</p>
         </div>
@@ -261,7 +329,11 @@ export function ShuffledSalons({
       {tabs}
       <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-5">
         {filtered.map((salon) => (
-          <SalonCard key={salon.id} salon={salon} />
+          <SalonCard
+            key={salon.id}
+            salon={salon}
+            images={therapistImages[salon.id] ?? []}
+          />
         ))}
       </div>
     </>
