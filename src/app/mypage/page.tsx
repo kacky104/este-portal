@@ -282,19 +282,23 @@ export default function MyPage() {
   };
 
   const updateDay = (therapistId: string, dateStr: string, patch: Partial<DaySchedule>) => {
-    setSchedules(prev => ({
-      ...prev,
-      [therapistId]: {
-        ...prev[therapistId],
-        [dateStr]: {
-          is_active: false,
-          start_time: null,
-          end_time: null,
-          ...prev[therapistId]?.[dateStr],
-          ...patch,
+    setSchedules(prev => {
+      const current: DaySchedule = prev[therapistId]?.[dateStr] ?? {
+        is_active: false,
+        start_time: null,
+        end_time: null,
+      };
+      return {
+        ...prev,
+        [therapistId]: {
+          ...prev[therapistId],
+          [dateStr]: {
+            ...current,
+            ...patch,
+          },
         },
-      },
-    }));
+      };
+    });
   };
 
   const handleSalonSave = async () => {
