@@ -125,7 +125,7 @@ function Card({ therapist, index }: { therapist: TherapistItem; index: number })
         )}
         <p className="hidden sm:block text-[10px] text-white/70 truncate mb-1">{therapist.salonName}</p>
         {(displayHours || therapist.workHours) && (
-          <p className="text-[9px] sm:text-[10px] text-pink-200 font-medium">🕒 {displayHours || therapist.workHours}</p>
+          <p className="text-[11px] sm:text-[10px] text-pink-200 font-medium">🕒 {displayHours || therapist.workHours}</p>
         )}
       </div>
     </Link>
