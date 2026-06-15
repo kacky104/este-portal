@@ -1,0 +1,336 @@
+import Link from 'next/link';
+import { notFound } from 'next/navigation';
+import { createClient } from '@/app/lib/supabase/server';
+
+// ── helpers ───────────────────────────────────────────────────
+
+function getDateRangeJST(days: number): string[] {
+  const result: string[] = [];
+  const fmt = new Intl.DateTimeFormat('sv-SE', { timeZone: 'Asia/Tokyo' });
+  const now = new Date();
+  for (let i = 0; i < days; i++) {
+    const d = new Date(now);
+    d.setDate(d.getDate() + i);
+    result.push(fmt.format(d));
+  }
+  return result;
+}
+
+function parseBodyType(raw: string | null) {
+  if (!raw) return null;
+  const hMatch   = raw.match(/T(\d+)/);
+  const bMatch   = raw.match(/B(\d+)\(([A-Za-z]+)\)/);
+  const wMatch   = raw.match(/W(\d+)/);
+  const hipMatch = raw.match(/H(\d+)/);
+  return {
+    height: hMatch?.[1]   ?? null,
+    bust:   bMatch?.[1]   ?? null,
+    cup:    bMatch?.[2]   ?? null,
+    waist:  wMatch?.[1]   ?? null,
+    hip:    hipMatch?.[1] ?? null,
+  };
+}
+
+function formatDate(dateStr: string): string {
+  const d = new Date(dateStr + 'T00:00:00+09:00');
+  const weekday = ['日', '月', '火', '水', '木', '金', '土'][d.getDay()];
+  return `${d.getMonth() + 1}/${d.getDate()}(${weekday})`;
+}
+
+function formatTime(t: string | null): string {
+  if (!t) return '';
+  const [h, m] = t.split(':').map(Number);
+  const pad = (n: number) => String(n).padStart(2, '0');
+  return `${h}:${pad(m || 0)}`;
+}
+
+function buildDisplayHours(start: string | null, end: string | null): string {
+  if (!start || !end) return '';
+  const [sh, sm] = start.split(':').map(Number);
+  const [eh, em] = end.split(':').map(Number);
+  const pad    = (n: number) => String(n).padStart(2, '0');
+  const prefix = (eh * 60 + (em || 0)) < (sh * 60 + (sm || 0)) ? '翌' : '';
+  return `${sh}:${pad(sm || 0)}〜${prefix}${eh}:${pad(em || 0)}`;
+}
+
+// ── page ──────────────────────────────────────────────────────
+
+export default async function TherapistPublicPage({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}) {
+  const { id } = await params;
+
+  const supabase = await createClient();
+
+  const { data: tRow, error: tError } = await supabase
+    .from('therapists')
+    .select('id, name, profile_image_url, age, body_type, profile_text, work_hours, comment, area, salon_id')
+    .eq('id', id)
+    .single();
+
+  if (tError || !tRow) notFound();
+
+  const { data: salonRow } = await supabase
+    .from('salons')
+    .select('id, name, area, hours, address')
+    .eq('id', tRow.salon_id as number)
+    .single();
+
+  const dates = getDateRangeJST(7);
+
+  const { data: schedRows } = await supabase
+    .from('therapist_schedules')
+    .select('schedule_date, is_active, start_time, end_time')
+    .eq('therapist_id', id)
+    .in('schedule_date', dates)
+    .order('schedule_date', { ascending: true });
+
+  const schedMap: Record<string, { is_active: boolean; start_time: string | null; end_time: string | null }> = {};
+  (schedRows ?? []).forEach(row => {
+    schedMap[String(row.schedule_date)] = {
+      is_active:  Boolean(row.is_active),
+      start_time: row.start_time ? String(row.start_time).slice(0, 5) : null,
+      end_time:   row.end_time   ? String(row.end_time).slice(0, 5)   : null,
+    };
+  });
+
+  const therapist = {
+    id:              String(tRow.id),
+    name:            (tRow.name as string) ?? '',
+    profileImageUrl: (tRow.profile_image_url as string | null) ?? null,
+    age:             (tRow.age as string | null) ?? null,
+    bodyType:        parseBodyType(tRow.body_type as string | null),
+    profileText:     (tRow.profile_text as string | null) ?? null,
+    workHours:       (tRow.work_hours as string | null) ?? null,
+    comment:         (tRow.comment as string | null) ?? null,
+    area:            (tRow.area as string | null) ?? null,
+    salonId:         tRow.salon_id as number,
+  };
+
+  const salon = salonRow
+    ? {
+        id:      salonRow.id as number,
+        name:    (salonRow.name as string) ?? '',
+        area:    (salonRow.area as string) ?? '',
+        hours:   (salonRow.hours as string) ?? '',
+        address: (salonRow.address as string) ?? '',
+      }
+    : null;
+
+  return (
+    <div className="min-h-screen bg-slate-50 text-slate-900">
+
+      {/* ─── Header ─────────────────────────────────────────── */}
+      <header className="sticky top-0 z-50 bg-white/90 backdrop-blur-md border-b border-slate-200 shadow-sm">
+        <div className="max-w-4xl mx-auto px-4 h-14 flex items-center justify-between">
+          <Link href="/" className="flex items-center gap-3">
+            <div className="w-7 h-7 rounded-lg bg-pink-50 border border-pink-200 flex items-center justify-center flex-shrink-0">
+              <span className="text-pink-500 font-bold text-sm leading-none">◆</span>
+            </div>
+            <span className="font-bold text-[15px] tracking-wide text-pink-600">
+              福岡メンズエステポータル
+            </span>
+          </Link>
+        </div>
+      </header>
+
+      <main className="max-w-4xl mx-auto px-4 py-8">
+
+        {/* ─── Back button ─────────────────────────────── */}
+        <Link
+          href="/"
+          className="inline-flex items-center gap-1.5 text-sm text-slate-500 hover:text-pink-600 transition-colors mb-6"
+        >
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <path d="M19 12H5M12 5l-7 7 7 7" />
+          </svg>
+          トップへ戻る
+        </Link>
+
+        {/* ─── Hero card ───────────────────────────────── */}
+        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden mb-6">
+          <div className="h-48 bg-gradient-to-br from-pink-100 via-rose-50 to-pink-50 relative flex items-center justify-center">
+            {therapist.profileImageUrl ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={therapist.profileImageUrl}
+                alt={therapist.name}
+                className="w-full h-full object-cover"
+              />
+            ) : (
+              <div className="w-24 h-24 rounded-full bg-gradient-to-br from-pink-300 to-rose-400 flex items-center justify-center text-white font-bold text-4xl shadow-lg">
+                {therapist.name.charAt(0)}
+              </div>
+            )}
+            {therapist.area && (
+              <span className="absolute top-4 left-4 text-xs font-semibold px-3 py-1 rounded-full bg-white text-pink-600 border border-pink-200 shadow-sm">
+                {therapist.area}
+              </span>
+            )}
+          </div>
+
+          <div className="p-6">
+            <h1 className="text-2xl font-bold text-slate-900 mb-1">{therapist.name}</h1>
+            {therapist.age && (
+              <p className="text-sm text-slate-500 mb-4">{therapist.age}歳</p>
+            )}
+
+            {/* Body type */}
+            {therapist.bodyType && (
+              <div className="flex flex-wrap gap-2 mb-4">
+                {therapist.bodyType.height && (
+                  <BodyBadge label="T" value={`${therapist.bodyType.height}cm`} />
+                )}
+                {therapist.bodyType.bust && therapist.bodyType.cup && (
+                  <BodyBadge label="B" value={`${therapist.bodyType.bust}(${therapist.bodyType.cup})`} />
+                )}
+                {therapist.bodyType.waist && (
+                  <BodyBadge label="W" value={`${therapist.bodyType.waist}cm`} />
+                )}
+                {therapist.bodyType.hip && (
+                  <BodyBadge label="H" value={`${therapist.bodyType.hip}cm`} />
+                )}
+              </div>
+            )}
+
+            {therapist.workHours && (
+              <div className="flex items-center gap-2 text-sm text-slate-500">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-slate-400 flex-shrink-0">
+                  <circle cx="12" cy="12" r="10" /><path d="M12 6v6l4 2" />
+                </svg>
+                <span>{therapist.workHours}</span>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* ─── Two-column layout ───────────────────────── */}
+        <div className="grid lg:grid-cols-3 gap-6">
+
+          {/* Left: main content */}
+          <div className="lg:col-span-2 space-y-6">
+
+            {/* Profile text */}
+            {therapist.profileText && (
+              <section className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
+                <SectionHeading>プロフィール</SectionHeading>
+                <p className="text-slate-600 text-sm leading-relaxed whitespace-pre-wrap">
+                  {therapist.profileText}
+                </p>
+              </section>
+            )}
+
+            {therapist.comment && (
+              <section className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
+                <SectionHeading>ひとことコメント</SectionHeading>
+                <p className="text-slate-600 text-sm leading-relaxed">{therapist.comment}</p>
+              </section>
+            )}
+
+            {/* Schedule */}
+            <section className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
+              <SectionHeading>出勤スケジュール（7日間）</SectionHeading>
+              <div className="space-y-2">
+                {dates.map(date => {
+                  const sched = schedMap[date];
+                  const isActive = sched?.is_active ?? false;
+                  const hours    = isActive
+                    ? buildDisplayHours(sched.start_time, sched.end_time)
+                    : null;
+                  return (
+                    <div
+                      key={date}
+                      className={`flex items-center justify-between px-4 py-2.5 rounded-xl text-sm ${
+                        isActive
+                          ? 'bg-pink-50 border border-pink-100'
+                          : 'bg-slate-50 border border-slate-100'
+                      }`}
+                    >
+                      <span className={`font-medium ${isActive ? 'text-slate-800' : 'text-slate-400'}`}>
+                        {formatDate(date)}
+                      </span>
+                      {isActive ? (
+                        <span className="text-pink-600 font-bold text-xs">
+                          🕒 {hours || `${formatTime(sched.start_time)}〜${formatTime(sched.end_time)}`}
+                        </span>
+                      ) : (
+                        <span className="text-slate-400 text-xs">お休み</span>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </section>
+          </div>
+
+          {/* Right: sidebar */}
+          <div className="space-y-6">
+
+            {/* Salon link */}
+            {salon && (
+              <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-5">
+                <p className="text-[11px] font-bold text-slate-400 mb-3 uppercase tracking-wide">所属サロン</p>
+                <p className="font-bold text-slate-900 mb-1">{salon.name}</p>
+                {salon.area && (
+                  <p className="text-xs text-slate-500 mb-3">📍 {salon.area}</p>
+                )}
+                {salon.hours && (
+                  <p className="text-xs text-slate-500 mb-4">🕒 {salon.hours}</p>
+                )}
+                <Link
+                  href={`/salon/${salon.id}`}
+                  className="flex items-center justify-center gap-2 w-full py-2.5 rounded-xl bg-pink-600 text-white text-xs font-bold hover:bg-pink-700 transition-colors"
+                >
+                  サロン詳細を見る
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                    <path d="M5 12h14M12 5l7 7-7 7" />
+                  </svg>
+                </Link>
+              </div>
+            )}
+
+            {/* Back CTA */}
+            <Link
+              href="/"
+              className="flex items-center justify-center gap-2 w-full py-3 rounded-xl border border-pink-300 text-pink-600 text-sm font-medium hover:bg-pink-50 transition-colors"
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M19 12H5M12 5l-7 7 7-7" />
+              </svg>
+              一覧へ戻る
+            </Link>
+          </div>
+        </div>
+      </main>
+
+      {/* ─── Footer ──────────────────────────────────────── */}
+      <footer className="border-t border-slate-200 bg-white py-6 mt-12">
+        <div className="max-w-4xl mx-auto px-4 text-center text-xs text-slate-400">
+          © 2026 福岡メンズエステポータル. All rights reserved.
+        </div>
+      </footer>
+    </div>
+  );
+}
+
+/* ── helper components ─────────────────────────────────── */
+
+function SectionHeading({ children }: { children: React.ReactNode }) {
+  return (
+    <div className="flex items-center gap-2.5 mb-4">
+      <div className="w-1 h-5 rounded-full bg-gradient-to-b from-pink-500 to-pink-700" />
+      <h3 className="font-bold text-slate-900">{children}</h3>
+    </div>
+  );
+}
+
+function BodyBadge({ label, value }: { label: string; value: string }) {
+  return (
+    <span className="inline-flex items-center gap-1 text-xs px-3 py-1 rounded-full bg-pink-50 border border-pink-200 text-pink-700">
+      <span className="font-bold text-pink-500">{label}</span>
+      {value}
+    </span>
+  );
+}
