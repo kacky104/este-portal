@@ -6,23 +6,31 @@ import { useRouter } from 'next/navigation';
 import { createClient } from '@/app/lib/supabase/client';
 
 export type Salon = {
-  id: number;
-  name: string;
-  rating: number;
+  id:          number;
+  name:        string;
+  rating:      number;
   reviewCount: number;
-  tags: string[];
-  price: string;
-  area: string;
-  hours: string;
+  tags:        string[];
+  price:       string;
+  area:        string;
+  hours:       string;
   description: string;
 };
 
 type TherapistThumb = {
-  id:       string;
-  name:     string;
-  imageUrl: string | null;
-  onDuty:   boolean;
+  id:        string;
+  name:      string;
+  imageUrl:  string | null;
+  workHours: string;
+  onDuty:    boolean;
 };
+
+const GRADIENTS = [
+  'from-pink-300 to-rose-400',
+  'from-fuchsia-300 to-pink-400',
+  'from-rose-300 to-pink-500',
+  'from-pink-400 to-fuchsia-400',
+];
 
 function getTodayJST(): string {
   return new Intl.DateTimeFormat('sv-SE', { timeZone: 'Asia/Tokyo' }).format(new Date());
@@ -41,97 +49,71 @@ function StarRating({ rating }: { rating: number }) {
   );
 }
 
-// ── Therapist thumbnail row ───────────────────────────────────
+// ── Therapist mini card (matches TherapistScroller Card design) ──
 
-function TherapistThumbs({ therapists }: { therapists: TherapistThumb[] }) {
-  if (therapists.length === 0) return null;
+function TherapistMiniCard({ therapist, index }: { therapist: TherapistThumb; index: number }) {
+  const grad = GRADIENTS[index % GRADIENTS.length];
   return (
-    <div
-      className="flex gap-1.5 overflow-x-auto pb-0.5"
-      style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' } as React.CSSProperties}
+    <Link
+      href={`/therapist/${therapist.id}`}
+      className="relative flex-shrink-0 w-[105px] h-[153px] rounded-2xl overflow-hidden shadow-md hover:-translate-y-1 hover:shadow-xl transition-all duration-300"
       onClick={e => e.stopPropagation()}
     >
-      {therapists.map(t => (
-        <Link
-          key={t.id}
-          href={`/therapist/${t.id}`}
-          className="relative flex-shrink-0 w-11 h-11 rounded-lg overflow-hidden border border-slate-100 hover:border-pink-300 transition-colors"
-        >
-          {t.imageUrl ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img src={t.imageUrl} alt={t.name} className="w-full h-full object-cover" />
-          ) : (
-            <div className="w-full h-full bg-gradient-to-br from-pink-200 to-rose-300 flex items-center justify-center text-white font-bold text-sm">
-              {t.name.charAt(0)}
-            </div>
-          )}
-          {t.onDuty && (
-            <span className="absolute bottom-0 left-0 right-0 text-center text-[7px] font-bold bg-emerald-500/90 text-white leading-tight py-px">
-              出勤中
-            </span>
-          )}
-        </Link>
-      ))}
-    </div>
+      {/* background */}
+      {therapist.imageUrl ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img src={therapist.imageUrl} alt={therapist.name} className="absolute inset-0 w-full h-full object-cover" />
+      ) : (
+        <div className={`absolute inset-0 bg-gradient-to-br ${grad} flex items-center justify-center`}>
+          <span className="text-white/30 font-bold text-3xl">{therapist.name.charAt(0)}</span>
+        </div>
+      )}
+
+      {/* bottom gradient overlay */}
+      <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/20 to-transparent" />
+
+      {/* on-duty badge */}
+      {therapist.onDuty && (
+        <span className="absolute top-1.5 right-1.5 text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-white text-emerald-500 border border-emerald-100 animate-pulse">
+          出勤中
+        </span>
+      )}
+
+      {/* text overlay */}
+      <div className="absolute bottom-0 left-0 right-0 p-2 text-white">
+        <p className="font-bold text-[11px] leading-tight drop-shadow line-clamp-1">{therapist.name}</p>
+        {therapist.workHours && (
+          <p className="text-[9px] text-pink-200 font-medium mt-0.5">🕒 {therapist.workHours}</p>
+        )}
+      </div>
+    </Link>
   );
 }
 
 // ── Salon card ────────────────────────────────────────────────
 
 function SalonCard({ salon, therapists }: { salon: Salon; therapists: TherapistThumb[] }) {
-  const router  = useRouter();
-  const [imgIdx, setImgIdx] = useState(0);
-
-  const images    = therapists.filter(t => t.imageUrl).map(t => t.imageUrl as string);
-  const currentImg = images.length > 0 ? images[imgIdx] : null;
-
-  const handleMouseEnter = () => {
-    if (images.length > 1) setImgIdx(i => (i + 1) % images.length);
-  };
+  const router = useRouter();
 
   return (
     <div
-      className="group relative overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm hover:border-pink-300 hover:-translate-y-1 hover:shadow-lg hover:shadow-pink-500/10 transition-all duration-300 flex flex-col cursor-pointer"
+      className="group rounded-2xl border border-slate-200 bg-white shadow-sm hover:border-pink-300 hover:-translate-y-1 hover:shadow-lg hover:shadow-pink-500/10 transition-all duration-300 flex flex-col cursor-pointer overflow-hidden"
       onClick={() => router.push(`/salon/${salon.id}`)}
-      onMouseEnter={handleMouseEnter}
     >
       {/* Pink shimmer top line */}
       <div className="h-px bg-gradient-to-r from-transparent via-pink-400/60 to-transparent" />
 
-      {/* Thumbnail */}
-      <div className="h-36 bg-gradient-to-br from-pink-100 via-rose-50 to-pink-50 relative overflow-hidden flex items-center justify-center">
-        {currentImg ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
-            key={imgIdx}
-            src={currentImg}
-            alt={salon.name}
-            className="absolute inset-0 w-full h-full object-cover animate-img-fade"
-          />
-        ) : (
-          <span className="absolute text-9xl text-pink-300/25 select-none pointer-events-none" aria-hidden="true">♨</span>
-        )}
-        <span className="absolute top-3 left-3 z-10 text-xs font-semibold px-2.5 py-1 rounded-full bg-white text-pink-600 border border-pink-200 shadow-sm">
-          {salon.area}
-        </span>
-        <span className="absolute top-3 right-3 z-10 flex items-center gap-1 text-xs font-bold px-2.5 py-1 rounded-full bg-white text-pink-600 border border-pink-100 shadow-sm">
-          <span style={{ fontSize: '12px' }}>★</span>
-          {salon.rating}
-        </span>
-        {images.length > 1 && (
-          <div className="absolute bottom-2 right-2 z-10 flex gap-1">
-            {images.map((_, i) => (
-              <div key={i} className={`w-1.5 h-1.5 rounded-full transition-all duration-200 ${i === imgIdx ? 'bg-white' : 'bg-white/40'}`} />
-            ))}
-          </div>
-        )}
-      </div>
-
       <div className="p-5 flex flex-col flex-1">
-        {/* Name */}
-        <h3 className="font-bold text-[15px] text-slate-900 group-hover:text-pink-700 transition-colors mb-3 leading-snug">
-          {salon.name}
-        </h3>
+
+        {/* Name + area */}
+        <div className="flex items-start justify-between gap-2 mb-2">
+          <h3 className="font-bold text-[15px] text-slate-900 group-hover:text-pink-700 transition-colors leading-snug">
+            {salon.name}
+          </h3>
+          <span className="flex-shrink-0 text-xs font-semibold px-2.5 py-0.5 rounded-full bg-pink-50 text-pink-600 border border-pink-200 mt-0.5">
+            {salon.area}
+          </span>
+        </div>
 
         {/* Hours */}
         <div className="flex items-center gap-1.5 text-xs mb-3">
@@ -142,31 +124,39 @@ function SalonCard({ salon, therapists }: { salon: Salon; therapists: TherapistT
         </div>
 
         {/* Stars + count */}
-        <div className="flex items-center gap-2 mb-4">
+        <div className="flex items-center gap-2 mb-3">
           <StarRating rating={salon.rating} />
           <span className="text-pink-600 font-bold text-sm">{salon.rating}</span>
           <span className="text-slate-400 text-xs">({salon.reviewCount}件)</span>
         </div>
 
         {/* Tags */}
-        <div className="flex flex-wrap gap-1.5 mb-3">
-          {salon.tags.map((tag) => (
+        <div className="flex flex-wrap gap-1.5 mb-4">
+          {salon.tags.map(tag => (
             <span key={tag} className="text-xs px-2.5 py-0.5 rounded-full bg-pink-50 text-pink-700 border border-pink-200">
               {tag}
             </span>
           ))}
         </div>
 
-        {/* Therapist thumbnails */}
+        {/* Therapist mini cards */}
         {therapists.length > 0 && (
-          <div className="mb-4 pt-2 border-t border-slate-100">
-            <p className="text-[10px] text-slate-400 font-medium mb-1.5">在籍セラピスト</p>
-            <TherapistThumbs therapists={therapists} />
+          <div className="mb-4">
+            <p className="text-[10px] text-slate-400 font-medium mb-2">在籍セラピスト</p>
+            <div
+              className="flex gap-[3px] overflow-x-auto pb-1"
+              style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' } as React.CSSProperties}
+              onClick={e => e.stopPropagation()}
+            >
+              {therapists.map((t, i) => (
+                <TherapistMiniCard key={t.id} therapist={t} index={i} />
+              ))}
+            </div>
           </div>
         )}
 
         {/* Description */}
-        <p className="text-xs text-slate-500 leading-relaxed line-clamp-3 flex-1 mb-4">
+        <p className="text-xs text-slate-500 leading-relaxed line-clamp-2 flex-1 mb-4">
           {salon.description}
         </p>
 
@@ -189,18 +179,23 @@ function SalonCard({ salon, therapists }: { salon: Salon; therapists: TherapistT
 
 function SalonCardSkeleton() {
   return (
-    <div className="rounded-2xl border border-slate-200 bg-white animate-pulse shadow-sm">
-      <div className="h-36 bg-pink-50 rounded-t-2xl" />
+    <div className="rounded-2xl border border-slate-200 bg-white animate-pulse shadow-sm overflow-hidden">
+      <div className="h-px bg-pink-100" />
       <div className="p-5 space-y-3.5">
-        <div className="h-4 bg-slate-200 rounded-lg w-3/4" />
+        <div className="flex justify-between gap-2">
+          <div className="h-4 bg-slate-200 rounded-lg w-2/3" />
+          <div className="h-5 w-16 bg-slate-200 rounded-full flex-shrink-0" />
+        </div>
         <div className="h-3 bg-slate-200 rounded-lg w-1/2" />
-        <div className="h-3 bg-slate-200 rounded-lg w-2/3" />
+        <div className="h-3 bg-slate-200 rounded-lg w-1/3" />
         <div className="flex gap-1.5">
           <div className="h-5 w-16 bg-slate-200 rounded-full" />
           <div className="h-5 w-14 bg-slate-200 rounded-full" />
         </div>
-        <div className="flex gap-1.5 pt-2">
-          {[1,2,3,4].map(i => <div key={i} className="w-11 h-11 bg-slate-200 rounded-lg flex-shrink-0" />)}
+        <div className="flex gap-[3px]">
+          {[1, 2, 3].map(i => (
+            <div key={i} className="w-[105px] h-[153px] bg-slate-200 rounded-2xl flex-shrink-0" />
+          ))}
         </div>
         <div className="space-y-2">
           <div className="h-3 bg-slate-200 rounded-lg" />
@@ -228,16 +223,16 @@ export function ShuffledSalons({ salons, areas }: { salons: Salon[]; areas: stri
     setList(arr);
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // fetch therapist thumbnails (all therapists, with today's schedule)
+  // fetch therapist data for all salons
   useEffect(() => {
     if (salons.length === 0) return;
     (async () => {
-      const supabase  = createClient();
-      const salonIds  = salons.map(s => s.id);
+      const supabase = createClient();
+      const salonIds = salons.map(s => s.id);
 
       const { data: therapistRows } = await supabase
         .from('therapists')
-        .select('id, name, salon_id, profile_image_url')
+        .select('id, name, salon_id, profile_image_url, work_hours')
         .in('salon_id', salonIds);
 
       if (!therapistRows || therapistRows.length === 0) return;
@@ -254,16 +249,16 @@ export function ShuffledSalons({ salons, areas }: { salons: Salon[]; areas: stri
 
       const onDutySet = new Set((schedRows ?? []).map(r => r.therapist_id));
 
-      // group by salon, on-duty first
       const bySalon: Record<number, TherapistThumb[]> = {};
       for (const t of therapistRows) {
         const sid = t.salon_id as number;
         if (!bySalon[sid]) bySalon[sid] = [];
         bySalon[sid].push({
-          id:       String(t.id),
-          name:     (t.name as string) ?? '',
-          imageUrl: (t.profile_image_url as string | null) ?? null,
-          onDuty:   onDutySet.has(t.id),
+          id:        String(t.id),
+          name:      (t.name       as string) ?? '',
+          imageUrl:  (t.profile_image_url as string | null) ?? null,
+          workHours: (t.work_hours as string) ?? '',
+          onDuty:    onDutySet.has(t.id),
         });
       }
 
@@ -289,7 +284,7 @@ export function ShuffledSalons({ salons, areas }: { salons: Salon[]; areas: stri
         className="flex gap-2 overflow-x-auto pb-2"
         style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' } as React.CSSProperties}
       >
-        {areas.map((area) => {
+        {areas.map(area => {
           const count  = areaCount(area);
           const active = activeArea === area;
           return (
@@ -318,7 +313,6 @@ export function ShuffledSalons({ salons, areas }: { salons: Salon[]; areas: stri
     </div>
   );
 
-  /* ── Loading ── */
   if (list.length === 0) {
     return (
       <>
@@ -330,7 +324,6 @@ export function ShuffledSalons({ salons, areas }: { salons: Salon[]; areas: stri
     );
   }
 
-  /* ── Empty state ── */
   if (filtered.length === 0) {
     return (
       <>
@@ -345,7 +338,6 @@ export function ShuffledSalons({ salons, areas }: { salons: Salon[]; areas: stri
     );
   }
 
-  /* ── Salon grid ── */
   return (
     <>
       {tabs}
