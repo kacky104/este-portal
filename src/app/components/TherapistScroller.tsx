@@ -91,7 +91,7 @@ function Card({ therapist, index }: { therapist: TherapistItem; index: number })
   return (
     <Link
       href={`/therapist/${therapist.id}`}
-      className="relative flex-shrink-0 w-20 h-[116px] sm:w-44 sm:h-64 rounded-2xl overflow-hidden shadow-md hover:-translate-y-1 hover:shadow-xl transition-all duration-300"
+      className="relative flex-shrink-0 w-24 h-[140px] sm:w-44 sm:h-64 rounded-2xl overflow-hidden shadow-md hover:-translate-y-1 hover:shadow-xl transition-all duration-300"
     >
       {/* background: photo or gradient fallback */}
       {therapist.profileImageUrl ? (
@@ -208,7 +208,7 @@ export function TherapistScroller() {
   }
 
   return (
-    <div className="flex gap-3 overflow-x-auto pb-4 scrollbar-pink w-full">
+    <div className="flex gap-1.5 sm:gap-3 overflow-x-auto pb-4 scrollbar-pink w-full">
       {list.map((t, i) => <Card key={t.id} therapist={t} index={i} />)}
     </div>
   );
