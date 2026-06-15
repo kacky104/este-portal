@@ -112,7 +112,7 @@ export function SalonDiarySection({ salonId }: { salonId: string }) {
   }
 
   return (
-    <div className="w-full">
+    <div className="w-full overflow-x-hidden">
       <div className="flex gap-3 overflow-x-auto pb-4 scrollbar-pink w-full">
         {list.map((diary) => (
           <DiaryCard key={diary.id} diary={diary} onSelect={() => setSelectedName(diary.therapistName)} />

@@ -58,7 +58,7 @@ export default async function SalonPage({
         </div>
       </header>
 
-      <main className="max-w-4xl mx-auto px-4 py-8">
+      <main className="max-w-4xl mx-auto px-4 py-8 overflow-x-hidden">
 
         {/* ─── Back button ─────────────────────────────── */}
         <Link
@@ -273,7 +273,7 @@ function InfoRow({
         <span className="mt-px">{icon}</span>
         {label}
       </dt>
-      <dd className="text-slate-700 text-[13px] leading-relaxed">{value}</dd>
+      <dd className="text-slate-700 text-[13px] leading-relaxed min-w-0 break-words">{value}</dd>
     </div>
   );
 }
