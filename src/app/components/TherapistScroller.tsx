@@ -91,7 +91,7 @@ function Card({ therapist, index }: { therapist: TherapistItem; index: number })
   return (
     <Link
       href={`/therapist/${therapist.id}`}
-      className="relative flex-shrink-0 w-24 h-[140px] sm:w-44 sm:h-64 rounded-2xl overflow-hidden shadow-md hover:-translate-y-1 hover:shadow-xl transition-all duration-300"
+      className="relative flex-shrink-0 w-[105px] h-[153px] sm:w-44 sm:h-64 rounded-2xl overflow-hidden shadow-md hover:-translate-y-1 hover:shadow-xl transition-all duration-300"
     >
       {/* background: photo or gradient fallback */}
       {therapist.profileImageUrl ? (
