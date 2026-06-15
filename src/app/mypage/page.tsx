@@ -1,10 +1,115 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/app/lib/supabase/client';
+import { TimeRangePicker } from '@/components/TimeRangePicker';
 
 const supabase = createClient();
+
+const WEEKDAYS = ['日', '月', '火', '水', '木', '金', '土'];
+
+function toDateStr(d: Date): string {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+}
+
+function formatDateLabel(dateStr: string): string {
+  const d = new Date(dateStr + 'T00:00:00');
+  return `${d.getMonth() + 1}/${d.getDate()}(${WEEKDAYS[d.getDay()]})`;
+}
+
+function toPickerValue(start: string | null, end: string | null): string {
+  if (!start || !end) return '';
+  const [sh, sm] = start.split(':').map(Number);
+  const [eh, em] = end.split(':').map(Number);
+  const pad = (n: number) => String(n).padStart(2, '0');
+  const prefix = (eh * 60 + em) < (sh * 60 + sm) ? '翌' : '';
+  return `${sh}:${pad(sm)}〜${prefix}${eh}:${pad(em)}`;
+}
+
+function fromPickerValue(value: string): { start: string | null; end: string | null } {
+  if (!value) return { start: null, end: null };
+  const clean = value.replace(/翌/g, '');
+  const parts = clean.split('〜');
+  if (parts.length < 2) return { start: null, end: null };
+  const norm = (t: string) => {
+    const [h, m] = t.trim().split(':').map(Number);
+    return `${String(h).padStart(2, '0')}:${String(isNaN(m) ? 0 : m).padStart(2, '0')}`;
+  };
+  return { start: norm(parts[0]), end: norm(parts[1]) };
+}
+
+type BodyParts = { height: string; bust: string; cup: string; waist: string; hip: string };
+
+function parseBodyType(raw: string | null): BodyParts {
+  if (!raw) return { height: '', bust: '', cup: '', waist: '', hip: '' };
+  const hMatch   = raw.match(/T(\d+)/);
+  const bMatch   = raw.match(/B(\d+)\(([A-Za-z]+)\)/);
+  const wMatch   = raw.match(/W(\d+)/);
+  const hipMatch = raw.match(/H(\d+)/);
+  return {
+    height: hMatch?.[1]   ?? '',
+    bust:   bMatch?.[1]   ?? '',
+    cup:    bMatch?.[2]   ?? '',
+    waist:  wMatch?.[1]   ?? '',
+    hip:    hipMatch?.[1] ?? '',
+  };
+}
+
+function buildBodyType(p: BodyParts): string {
+  const parts: string[] = [];
+  if (p.height) parts.push(`T${p.height}`);
+  if (p.bust && p.cup) parts.push(`B${p.bust}(${p.cup.toUpperCase()})`);
+  else if (p.bust) parts.push(`B${p.bust}`);
+  if (p.waist) parts.push(`W${p.waist}`);
+  if (p.hip)   parts.push(`H${p.hip}`);
+  return parts.join(' ');
+}
+
+type CourseItem  = { duration: string; price: string };
+type CourseGroup = { name: string; items: CourseItem[] };
+
+function parseCourseGroups(raw: unknown): CourseGroup[] {
+  if (!Array.isArray(raw) || raw.length === 0) return [{ name: '', items: [{ duration: '', price: '' }] }];
+  const map = new Map<string, CourseItem[]>();
+  for (const entry of raw as Record<string, string>[]) {
+    const name       = String(entry.name ?? '');
+    const durMatch   = String(entry.duration ?? '').match(/(\d+)/);
+    const priceMatch = String(entry.price    ?? '').match(/([\d,]+)/);
+    if (!map.has(name)) map.set(name, []);
+    map.get(name)!.push({
+      duration: durMatch?.[1]   ?? '',
+      price:    priceMatch?.[1]?.replace(/,/g, '') ?? '',
+    });
+  }
+  return Array.from(map.entries()).map(([name, items]) => ({ name, items }));
+}
+
+function buildCoursesJson(groups: CourseGroup[]): Array<{ name: string; duration: string; price: string }> {
+  const result: Array<{ name: string; duration: string; price: string }> = [];
+  for (const g of groups) {
+    for (const item of g.items) {
+      const priceNum = parseInt(item.price.replace(/[^\d]/g, ''), 10);
+      const priceStr = isNaN(priceNum) ? item.price : `¥${priceNum.toLocaleString('ja-JP')}`;
+      result.push({ name: g.name, duration: item.duration ? `${item.duration}分` : '', price: priceStr });
+    }
+  }
+  return result;
+}
+
+function buildRepresentativePrice(groups: CourseGroup[]): string {
+  const item = groups[0]?.items[0];
+  if (!item?.duration && !item?.price) return '';
+  const priceNum = parseInt((item.price ?? '').replace(/[^\d]/g, ''), 10);
+  const priceStr = isNaN(priceNum) ? '' : `¥${priceNum.toLocaleString('ja-JP')}`;
+  const parts: string[] = [];
+  if (item.duration) parts.push(`${item.duration}分`);
+  if (priceStr)      parts.push(priceStr);
+  return parts.join(' ');
+}
 
 type Salon = {
   id: string;
@@ -25,6 +130,7 @@ type Salon = {
   access: string | null;
   closed_days: string | null;
   note: string | null;
+  courses: unknown;
 };
 
 type Therapist = {
@@ -33,6 +139,16 @@ type Therapist = {
   work_hours: string | null;
   area: string | null;
   comment: string | null;
+  profile_image_url: string | null;
+  age: string | null;
+  body_type: string | null;
+  profile_text: string | null;
+};
+
+type DaySchedule = {
+  is_active: boolean;
+  start_time: string | null;
+  end_time: string | null;
 };
 
 export default function MyPage() {
@@ -41,10 +157,45 @@ export default function MyPage() {
   const [therapists, setTherapists] = useState<Therapist[]>([]);
   const [salonForm, setSalonForm] = useState<Partial<Salon>>({});
   const [therapistForms, setTherapistForms] = useState<Record<string, Partial<Therapist>>>({});
+  const [schedules, setSchedules] = useState<Record<string, Record<string, DaySchedule>>>({});
   const [loadError, setLoadError] = useState('');
   const [toast, setToast] = useState('');
   const [saving, setSaving] = useState(false);
   const [savingTherapist, setSavingTherapist] = useState<string | null>(null);
+  const [savingSchedule, setSavingSchedule] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState<'salon' | 'schedule' | 'profile'>('salon');
+  const [expandedSections, setExpandedSections] = useState<Set<string>>(new Set());
+  const [bodyParts, setBodyParts] = useState<Record<string, BodyParts>>({});
+  const [newTherapistName, setNewTherapistName] = useState('');
+  const [addingTherapist, setAddingTherapist] = useState(false);
+  const [addError, setAddError] = useState('');
+  const [deletingTherapist, setDeletingTherapist] = useState<string | null>(null);
+  const [courseGroups, setCourseGroups] = useState<CourseGroup[]>([{ name: '', items: [{ duration: '', price: '' }] }]);
+
+  const toggleSection = (key: string) => {
+    setExpandedSections(prev => {
+      const next = new Set(prev);
+      next.has(key) ? next.delete(key) : next.add(key);
+      return next;
+    });
+  };
+
+  const updateBodyPart = (therapistId: string, key: keyof BodyParts, value: string) => {
+    setBodyParts(prev => {
+      const updated = { ...prev[therapistId], [key]: value };
+      setTherapistForms(f => ({ ...f, [therapistId]: { ...f[therapistId], body_type: buildBodyType(updated) } }));
+      return { ...prev, [therapistId]: updated };
+    });
+  };
+
+  const sevenDays = useMemo(() => {
+    const today = new Date();
+    return Array.from({ length: 7 }, (_, i) => {
+      const d = new Date(today);
+      d.setDate(today.getDate() + i);
+      return toDateStr(d);
+    });
+  }, []);
 
   useEffect(() => {
     (async () => {
@@ -56,7 +207,7 @@ export default function MyPage() {
 
       const { data: salonData, error: salonError } = await supabase
         .from('salons')
-        .select('id, name, rating, review_count, tags, price, area, hours, description, appeal, therapist_count, therapist_types, therapist_profile, phone, address, access, closed_days, note')
+        .select('id, name, rating, review_count, tags, price, area, hours, description, appeal, therapist_count, therapist_types, therapist_profile, phone, address, access, closed_days, note, courses')
         .eq('owner_id', user.id)
         .single();
 
@@ -67,23 +218,83 @@ export default function MyPage() {
 
       setSalon(salonData);
       setSalonForm(salonData);
+      setCourseGroups(parseCourseGroups(salonData.courses));
 
       const { data: therapistData } = await supabase
         .from('therapists')
-        .select('id, name, work_hours, area, comment')
+        .select('id, name, work_hours, area, comment, profile_image_url, age, body_type, profile_text')
         .eq('salon_id', salonData.id);
 
       const list = therapistData ?? [];
       setTherapists(list);
+
       const forms: Record<string, Partial<Therapist>> = {};
-      list.forEach((t) => { forms[t.id] = { work_hours: t.work_hours, comment: t.comment }; });
+      list.forEach((t) => {
+        forms[t.id] = {
+          work_hours: t.work_hours,
+          comment: t.comment,
+          profile_image_url: t.profile_image_url,
+          age: t.age,
+          body_type: t.body_type,
+          profile_text: t.profile_text,
+        };
+      });
       setTherapistForms(forms);
+
+      const parts: Record<string, BodyParts> = {};
+      list.forEach(item => { parts[item.id] = parseBodyType(item.body_type); });
+      setBodyParts(parts);
+
+      if (list.length > 0) {
+        const today = new Date();
+        const todayStr = toDateStr(today);
+        const lastDay = new Date(today);
+        lastDay.setDate(today.getDate() + 6);
+        const lastStr = toDateStr(lastDay);
+
+        const { data: schedData } = await supabase
+          .from('therapist_schedules')
+          .select('therapist_id, schedule_date, is_active, start_time, end_time')
+          .in('therapist_id', list.map(t => t.id))
+          .gte('schedule_date', todayStr)
+          .lte('schedule_date', lastStr);
+
+        const schedMap: Record<string, Record<string, DaySchedule>> = {};
+        list.forEach(t => { schedMap[t.id] = {}; });
+        (schedData ?? []).forEach(row => {
+          const tid = String(row.therapist_id);
+          if (schedMap[tid]) {
+            schedMap[tid][row.schedule_date as string] = {
+              is_active: Boolean(row.is_active),
+              start_time: row.start_time ? String(row.start_time).slice(0, 5) : null,
+              end_time: row.end_time ? String(row.end_time).slice(0, 5) : null,
+            };
+          }
+        });
+        setSchedules(schedMap);
+      }
     })();
   }, [router]);
 
   const showToast = (msg: string) => {
     setToast(msg);
     setTimeout(() => setToast(''), 3000);
+  };
+
+  const updateDay = (therapistId: string, dateStr: string, patch: Partial<DaySchedule>) => {
+    setSchedules(prev => ({
+      ...prev,
+      [therapistId]: {
+        ...prev[therapistId],
+        [dateStr]: {
+          is_active: false,
+          start_time: null,
+          end_time: null,
+          ...prev[therapistId]?.[dateStr],
+          ...patch,
+        },
+      },
+    }));
   };
 
   const handleSalonSave = async () => {
@@ -93,7 +304,8 @@ export default function MyPage() {
       .from('salons')
       .update({
         name: salonForm.name,
-        price: salonForm.price,
+        courses: buildCoursesJson(courseGroups),
+        price: buildRepresentativePrice(courseGroups),
         hours: salonForm.hours,
         description: salonForm.description,
         appeal: salonForm.appeal,
@@ -105,26 +317,140 @@ export default function MyPage() {
       })
       .eq('id', salon.id);
     setSaving(false);
-    if (error) {
-      showToast('保存に失敗しました');
-    } else {
-      showToast('保存しました');
-    }
+    showToast(error ? '保存に失敗しました' : '保存しました');
   };
 
-  const handleTherapistSave = async (id: string) => {
+  const handleProfileSave = async (id: string) => {
     setSavingTherapist(id);
     const form = therapistForms[id];
     const { error } = await supabase
       .from('therapists')
-      .update({ work_hours: form.work_hours, comment: form.comment })
+      .update({
+        profile_image_url: form.profile_image_url ?? null,
+        age:               form.age ?? null,
+        body_type:         form.body_type ?? null,
+        profile_text:      form.profile_text ?? null,
+      })
       .eq('id', id);
     setSavingTherapist(null);
+    showToast(error ? '保存に失敗しました' : 'プロフィールを保存しました');
+  };
+
+  const handleWorkHoursSave = async (id: string) => {
+    setSavingTherapist(id);
+    const form = therapistForms[id];
+    const { error } = await supabase
+      .from('therapists')
+      .update({ work_hours: form.work_hours })
+      .eq('id', id);
+    setSavingTherapist(null);
+    showToast(error ? '保存に失敗しました' : 'デフォルト出勤時間を保存しました');
+  };
+
+  const handleScheduleSave = async (therapistId: string) => {
+    setSavingSchedule(therapistId);
+    const rows = sevenDays.map(dateStr => {
+      const s = schedules[therapistId]?.[dateStr] ?? { is_active: false, start_time: null, end_time: null };
+      return {
+        therapist_id: therapistId,
+        schedule_date: dateStr,
+        is_active: s.is_active,
+        start_time: s.is_active ? s.start_time : null,
+        end_time: s.is_active ? s.end_time : null,
+      };
+    });
+    const { error } = await supabase
+      .from('therapist_schedules')
+      .upsert(rows, { onConflict: 'therapist_id,schedule_date' });
+    setSavingSchedule(null);
+    showToast(error ? '保存に失敗しました' : 'スケジュールを保存しました');
+  };
+
+  const handleTherapistAdd = async () => {
+    if (!salon || !newTherapistName.trim()) return;
+    setAddingTherapist(true);
+    setAddError('');
+
+    const { error } = await supabase.from('therapists').insert({
+      salon_id:          salon.id,
+      name:              newTherapistName.trim(),
+      area:              salon.area ?? null,
+      work_hours:        null,
+      comment:           null,
+      profile_image_url: null,
+      profile_text:      null,
+      age:               null,
+      body_type:         null,
+    });
+
     if (error) {
-      showToast('保存に失敗しました');
-    } else {
-      showToast('保存しました');
+      setAddError(
+        error.code === '42501'
+          ? 'RLSポリシーにより追加が拒否されました。Supabase ダッシュボードで therapists テーブルへの INSERT ポリシーを確認してください。'
+          : `追加に失敗しました: ${error.message}`
+      );
+      setAddingTherapist(false);
+      return;
     }
+
+    // 一覧を再取得（既存フォームの未保存データは保持）
+    const { data: therapistData } = await supabase
+      .from('therapists')
+      .select('id, name, work_hours, area, comment, profile_image_url, age, body_type, profile_text')
+      .eq('salon_id', salon.id);
+
+    const list = therapistData ?? [];
+    setTherapists(list);
+
+    const existingIds = new Set(Object.keys(therapistForms));
+    const newForms: Record<string, Partial<Therapist>> = {};
+    const newParts: Record<string, BodyParts> = {};
+    list.forEach((t) => {
+      if (!existingIds.has(String(t.id))) {
+        newForms[t.id] = {
+          work_hours: t.work_hours, comment: t.comment,
+          profile_image_url: t.profile_image_url, age: t.age,
+          body_type: t.body_type, profile_text: t.profile_text,
+        };
+        newParts[t.id] = parseBodyType(t.body_type);
+      }
+    });
+    setTherapistForms(prev => ({ ...prev, ...newForms }));
+    setBodyParts(prev => ({ ...prev, ...newParts }));
+
+    setNewTherapistName('');
+    setAddingTherapist(false);
+    showToast('セラピストを追加しました');
+  };
+
+  const handleTherapistDelete = async (id: string, name: string | null) => {
+    const displayName = name ?? 'このセラピスト';
+    if (!window.confirm(`「${displayName}」を削除しますか？\nこの操作は取り消せません。`)) return;
+
+    setDeletingTherapist(id);
+
+    // ON DELETE CASCADE 未設定の場合も安全なよう schedules を先に削除
+    await supabase.from('therapist_schedules').delete().eq('therapist_id', id);
+
+    const { error } = await supabase.from('therapists').delete().eq('id', id);
+    setDeletingTherapist(null);
+
+    if (error) {
+      showToast(`削除に失敗しました: ${error.message}`);
+      return;
+    }
+
+    setTherapists(prev => prev.filter(t => t.id !== id));
+    setTherapistForms(prev => { const n = { ...prev }; delete n[id]; return n; });
+    setBodyParts(prev => { const n = { ...prev }; delete n[id]; return n; });
+    setSchedules(prev => { const n = { ...prev }; delete n[id]; return n; });
+    setExpandedSections(prev => {
+      const n = new Set(prev);
+      n.delete(`${id}-profile`);
+      n.delete(`${id}-schedule`);
+      return n;
+    });
+    showToast('セラピストを削除しました');
   };
 
   const handleSignOut = async () => {
@@ -161,17 +487,42 @@ export default function MyPage() {
         </div>
       )}
 
-      <header className="bg-white border-b border-slate-100 sticky top-0 z-40">
-        <div className="max-w-2xl mx-auto px-4 py-3 flex items-center justify-between">
-          <h1 className="text-base font-black text-slate-800 tracking-wide">マイページ</h1>
-          <button onClick={handleSignOut} className="text-xs text-slate-400 hover:text-rose-400 font-medium transition-colors">
-            ログアウト
-          </button>
+      <div className="sticky top-0 z-40 bg-white shadow-sm">
+        <header className="border-b border-slate-100">
+          <div className="max-w-2xl mx-auto px-4 py-3 flex items-center justify-between">
+            <h1 className="text-base font-black text-slate-800 tracking-wide">マイページ</h1>
+            <button onClick={handleSignOut} className="text-xs text-slate-400 hover:text-rose-400 font-medium transition-colors">
+              ログアウト
+            </button>
+          </div>
+        </header>
+
+        {/* タブナビゲーション */}
+        <div className="max-w-2xl mx-auto px-4 flex">
+          {([
+            ['salon',    '店舗情報'],
+            ['schedule', '出勤設定'],
+            ['profile',  'セラピスト情報'],
+          ] as const).map(([key, label]) => (
+            <button
+              key={key}
+              onClick={() => setActiveTab(key)}
+              className={`flex-1 py-2.5 text-[11px] font-bold border-b-2 transition-colors ${
+                activeTab === key
+                  ? 'text-pink-600 border-pink-500'
+                  : 'text-slate-400 border-transparent hover:text-slate-600 hover:border-slate-200'
+              }`}
+            >
+              {label}
+            </button>
+          ))}
         </div>
-      </header>
+      </div>
 
       <main className="max-w-2xl mx-auto px-4 py-6 space-y-6">
-        <div className="bg-white rounded-3xl border border-slate-100 shadow-sm p-5 space-y-4">
+
+        {/* ── サロン情報編集 ── */}
+        <div className={`bg-white rounded-3xl border border-slate-100 shadow-sm p-5 space-y-4 ${activeTab === 'salon' ? '' : 'hidden'}`}>
           <h2 className="text-sm font-black text-slate-700">サロン情報の編集</h2>
 
           <div>
@@ -179,12 +530,84 @@ export default function MyPage() {
             <input className={inputClass} value={salonForm.name ?? ''} onChange={(e) => setSalonForm((p) => ({ ...p, name: e.target.value }))} />
           </div>
           <div>
-            <label className={labelClass}>料金</label>
-            <input className={inputClass} value={salonForm.price ?? ''} onChange={(e) => setSalonForm((p) => ({ ...p, price: e.target.value }))} />
+            <label className={labelClass}>コースメニュー</label>
+            <div className="space-y-3">
+              {courseGroups.map((group, gi) => (
+                <div key={gi} className="rounded-2xl border border-pink-100 bg-pink-50/20 p-3 space-y-2">
+                  {/* コース名 */}
+                  <div className="flex items-center gap-2">
+                    <input
+                      className="flex-1 px-3 py-2 rounded-xl border border-pink-200 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-pink-200 font-bold placeholder:font-normal"
+                      placeholder="コース名（例: アロマリラクゼーション）"
+                      value={group.name}
+                      onChange={(e) => setCourseGroups(prev => prev.map((g, i) => i === gi ? { ...g, name: e.target.value } : g))}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setCourseGroups(prev => prev.filter((_, i) => i !== gi))}
+                      className="px-2.5 py-1.5 rounded-lg border border-rose-200 text-rose-400 text-xs font-bold bg-rose-50 hover:bg-rose-100 transition-colors flex-shrink-0"
+                    >
+                      このコースを削除
+                    </button>
+                  </div>
+                  {/* 時間・金額の行 */}
+                  <div className="space-y-1.5 pl-1">
+                    {group.items.map((item, ii) => (
+                      <div key={ii} className="flex items-center gap-2">
+                        <input
+                          type="number"
+                          min={0}
+                          placeholder="60"
+                          value={item.duration}
+                          onChange={(e) => setCourseGroups(prev => prev.map((g, gi2) => gi2 === gi ? { ...g, items: g.items.map((it, ii2) => ii2 === ii ? { ...it, duration: e.target.value } : it) } : g))}
+                          className="w-20 px-3 py-1.5 rounded-xl border border-slate-200 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-pink-200 text-center"
+                        />
+                        <span className="text-xs text-slate-500 flex-shrink-0">分 / ¥</span>
+                        <input
+                          type="number"
+                          min={0}
+                          placeholder="8000"
+                          value={item.price}
+                          onChange={(e) => setCourseGroups(prev => prev.map((g, gi2) => gi2 === gi ? { ...g, items: g.items.map((it, ii2) => ii2 === ii ? { ...it, price: e.target.value } : it) } : g))}
+                          className="flex-1 px-3 py-1.5 rounded-xl border border-slate-200 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-pink-200"
+                        />
+                        <span className="text-xs text-slate-500 flex-shrink-0">円</span>
+                        {group.items.length > 1 && (
+                          <button
+                            type="button"
+                            onClick={() => setCourseGroups(prev => prev.map((g, gi2) => gi2 === gi ? { ...g, items: g.items.filter((_, ii2) => ii2 !== ii) } : g))}
+                            className="w-7 h-7 flex items-center justify-center rounded-lg border border-slate-200 text-slate-400 hover:text-rose-400 hover:border-rose-200 text-sm font-bold transition-colors flex-shrink-0"
+                          >
+                            ×
+                          </button>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setCourseGroups(prev => prev.map((g, i) => i === gi ? { ...g, items: [...g.items, { duration: '', price: '' }] } : g))}
+                    className="text-xs font-bold text-pink-500 hover:text-pink-600 transition-colors pl-1"
+                  >
+                    + 時間を追加
+                  </button>
+                </div>
+              ))}
+            </div>
+            <button
+              type="button"
+              onClick={() => setCourseGroups(prev => [...prev, { name: '', items: [{ duration: '', price: '' }] }])}
+              className="mt-3 text-xs font-bold text-pink-500 hover:text-pink-600 transition-colors"
+            >
+              + コースを追加
+            </button>
           </div>
           <div>
             <label className={labelClass}>営業時間</label>
-            <input className={inputClass} value={salonForm.hours ?? ''} onChange={(e) => setSalonForm((p) => ({ ...p, hours: e.target.value }))} />
+            <div className="flex gap-2">
+              <input className={inputClass} value={salonForm.hours ?? ''} onChange={(e) => setSalonForm((p) => ({ ...p, hours: e.target.value }))} />
+              <TimeRangePicker value={salonForm.hours ?? ''} onChange={(v) => setSalonForm((p) => ({ ...p, hours: v }))} />
+            </div>
           </div>
           <div>
             <label className={labelClass}>定休日</label>
@@ -222,44 +645,296 @@ export default function MyPage() {
           </div>
         </div>
 
-        <div className="bg-white rounded-3xl border border-slate-100 shadow-sm p-5 space-y-4">
-          <h2 className="text-sm font-black text-slate-700">セラピスト出勤情報</h2>
-
+        {/* ── タブ2: 出勤設定 ── */}
+        <div className={`space-y-3 ${activeTab === 'schedule' ? '' : 'hidden'}`}>
           {therapists.length === 0 && (
-            <p className="text-xs text-slate-400">登録されているセラピストがいません</p>
+            <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5">
+              <p className="text-xs text-slate-400">登録されているセラピストがいません</p>
+            </div>
           )}
 
-          {therapists.map((t) => (
-            <div key={t.id} className="rounded-2xl border border-slate-100 bg-pink-50/30 p-4 space-y-3">
-              <p className="text-sm font-bold text-slate-700">{t.name ?? '(名前未設定)'}</p>
-              <div>
-                <label className={labelClass}>出勤時間</label>
-                <input
-                  className={inputClass}
-                  value={therapistForms[t.id]?.work_hours ?? ''}
-                  onChange={(e) => setTherapistForms((p) => ({ ...p, [t.id]: { ...p[t.id], work_hours: e.target.value } }))}
-                />
-              </div>
-              <div>
-                <label className={labelClass}>コメント</label>
-                <input
-                  className={inputClass}
-                  value={therapistForms[t.id]?.comment ?? ''}
-                  onChange={(e) => setTherapistForms((p) => ({ ...p, [t.id]: { ...p[t.id], comment: e.target.value } }))}
-                />
-              </div>
-              <div className="flex justify-end">
+          {therapists.map((t) => {
+            const isOpen = expandedSections.has(`${t.id}-schedule`);
+            return (
+              <div key={t.id} className="bg-white rounded-2xl border border-pink-100 shadow-sm overflow-hidden">
+
                 <button
-                  className={saveBtn}
-                  onClick={() => handleTherapistSave(t.id)}
-                  disabled={savingTherapist === t.id}
+                  type="button"
+                  onClick={() => toggleSection(`${t.id}-schedule`)}
+                  className="w-full flex items-center justify-between px-5 py-4 hover:bg-pink-50/40 transition-colors"
                 >
-                  {savingTherapist === t.id ? '保存中...' : '保存'}
+                  <span className="text-sm font-bold text-slate-700">{t.name ?? '(名前未設定)'}</span>
+                  <svg
+                    className={`w-4 h-4 text-pink-400 transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`}
+                    fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}
+                  >
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+                  </svg>
                 </button>
+
+                <div className={isOpen ? 'px-5 pb-5 pt-2 space-y-4 border-t border-pink-100' : 'hidden'}>
+
+                  {/* デフォルト出勤時間 */}
+                  <div>
+                    <label className={labelClass}>デフォルト出勤時間</label>
+                    <div className="flex gap-2">
+                      <input
+                        className={inputClass}
+                        value={therapistForms[t.id]?.work_hours ?? ''}
+                        onChange={(e) => setTherapistForms((p) => ({ ...p, [t.id]: { ...p[t.id], work_hours: e.target.value } }))}
+                      />
+                      <TimeRangePicker
+                        value={therapistForms[t.id]?.work_hours ?? ''}
+                        onChange={(v) => setTherapistForms((p) => ({ ...p, [t.id]: { ...p[t.id], work_hours: v } }))}
+                      />
+                    </div>
+                    <div className="flex justify-end mt-2">
+                      <button
+                        className={saveBtn}
+                        onClick={() => handleWorkHoursSave(t.id)}
+                        disabled={savingTherapist === t.id}
+                      >
+                        {savingTherapist === t.id ? '保存中...' : 'デフォルト時間を保存'}
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* 7日間スケジュール */}
+                  <div className="space-y-2">
+                    <p className="text-[11px] font-bold text-slate-400">7日間スケジュール</p>
+
+                    {sevenDays.map((dateStr, idx) => {
+                      const day = schedules[t.id]?.[dateStr] ?? { is_active: false, start_time: null, end_time: null };
+                      const pickerVal = toPickerValue(day.start_time, day.end_time);
+                      return (
+                        <div
+                          key={dateStr}
+                          className={`rounded-xl border px-3 py-2.5 space-y-2 transition-colors ${
+                            day.is_active ? 'border-pink-200 bg-pink-50/30' : 'border-slate-100 bg-slate-50/50'
+                          }`}
+                        >
+                          <div className="flex items-center justify-between">
+                            <span className={`text-xs font-bold ${idx === 0 ? 'text-pink-600' : 'text-slate-600'}`}>
+                              {idx === 0 ? '今日 ' : ''}{formatDateLabel(dateStr)}
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() => updateDay(t.id, dateStr, { is_active: !day.is_active })}
+                              className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                                day.is_active ? 'bg-pink-500' : 'bg-slate-200'
+                              }`}
+                            >
+                              <span className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform ${
+                                day.is_active ? 'translate-x-6' : 'translate-x-1'
+                              }`} />
+                              <span className="sr-only">{day.is_active ? '出勤' : '休み'}</span>
+                            </button>
+                          </div>
+                          {day.is_active && (
+                            <div className="flex items-center gap-2">
+                              <input
+                                className="flex-1 px-3 py-1.5 rounded-lg border border-slate-200 text-xs bg-white focus:outline-none focus:ring-2 focus:ring-pink-200"
+                                placeholder="例: 12:00〜21:00"
+                                value={pickerVal}
+                                onChange={e => {
+                                  const { start, end } = fromPickerValue(e.target.value);
+                                  updateDay(t.id, dateStr, { start_time: start, end_time: end });
+                                }}
+                              />
+                              <TimeRangePicker
+                                value={pickerVal}
+                                onChange={v => {
+                                  const { start, end } = fromPickerValue(v);
+                                  updateDay(t.id, dateStr, { start_time: start, end_time: end });
+                                }}
+                              />
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+
+                    <div className="flex justify-end pt-1">
+                      <button
+                        className={saveBtn}
+                        onClick={() => handleScheduleSave(t.id)}
+                        disabled={savingSchedule === t.id}
+                      >
+                        {savingSchedule === t.id ? '保存中...' : 'スケジュールを保存'}
+                      </button>
+                    </div>
+                  </div>
+                </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
+
+        {/* ── タブ3: セラピスト情報 ── */}
+        <div className={`space-y-3 ${activeTab === 'profile' ? '' : 'hidden'}`}>
+
+          {/* 新規セラピスト追加フォーム */}
+          <div className="bg-white rounded-2xl border border-pink-100 shadow-sm p-5 space-y-3">
+            <h3 className="text-xs font-black text-pink-600">新規セラピスト追加</h3>
+            <div>
+              <label className={labelClass}>名前 <span className="text-rose-400">*</span></label>
+              <input
+                className={inputClass}
+                placeholder="例: 桜木 あいな"
+                value={newTherapistName}
+                onChange={(e) => { setNewTherapistName(e.target.value); setAddError(''); }}
+              />
+            </div>
+            {addError && (
+              <p className="text-xs text-rose-500 bg-rose-50 border border-rose-100 rounded-xl px-3 py-2 leading-relaxed">
+                {addError}
+              </p>
+            )}
+            <div className="flex justify-end">
+              <button
+                className={saveBtn}
+                onClick={handleTherapistAdd}
+                disabled={addingTherapist || !newTherapistName.trim()}
+              >
+                {addingTherapist ? '追加中...' : '+ セラピストを追加'}
+              </button>
+            </div>
+          </div>
+
+          {therapists.length === 0 && (
+            <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5">
+              <p className="text-xs text-slate-400">登録されているセラピストがいません</p>
+            </div>
+          )}
+
+          {therapists.map((t) => {
+            const isOpen = expandedSections.has(`${t.id}-profile`);
+            return (
+              <div key={t.id} className="bg-white rounded-2xl border border-pink-100 shadow-sm overflow-hidden">
+
+                <button
+                  type="button"
+                  onClick={() => toggleSection(`${t.id}-profile`)}
+                  className="w-full flex items-center justify-between px-5 py-4 hover:bg-pink-50/40 transition-colors"
+                >
+                  <span className="text-sm font-bold text-slate-700">{t.name ?? '(名前未設定)'}</span>
+                  <svg
+                    className={`w-4 h-4 text-pink-400 transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`}
+                    fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}
+                  >
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+                  </svg>
+                </button>
+
+                <div className={isOpen ? 'px-5 pb-5 pt-2 space-y-4 border-t border-pink-100' : 'hidden'}>
+
+                  {/* プロフィール画像URL */}
+                  <div>
+                    <label className={labelClass}>プロフィール画像URL</label>
+                    <input
+                      className={inputClass}
+                      placeholder="https://..."
+                      value={therapistForms[t.id]?.profile_image_url ?? ''}
+                      onChange={(e) => setTherapistForms((p) => ({ ...p, [t.id]: { ...p[t.id], profile_image_url: e.target.value } }))}
+                    />
+                    {therapistForms[t.id]?.profile_image_url && (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        src={therapistForms[t.id]?.profile_image_url ?? ''}
+                        alt="プレビュー"
+                        className="mt-2 h-20 w-20 object-cover rounded-xl border border-pink-100"
+                        onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }}
+                      />
+                    )}
+                  </div>
+
+                  {/* 年齢 */}
+                  <div>
+                    <label className={labelClass}>年齢</label>
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="number"
+                        min="18"
+                        max="99"
+                        className={inputClass}
+                        placeholder="22"
+                        value={(therapistForms[t.id]?.age ?? '').replace(/[^0-9]/g, '') || ''}
+                        onChange={(e) => setTherapistForms((p) => ({ ...p, [t.id]: { ...p[t.id], age: e.target.value } }))}
+                      />
+                      <span className="text-sm text-slate-500 font-medium flex-shrink-0">歳</span>
+                    </div>
+                  </div>
+
+                  {/* スタイル */}
+                  <div>
+                    <label className={labelClass}>スタイル</label>
+                    <div className="grid grid-cols-5 gap-2">
+                      {(
+                        [
+                          { key: 'height', label: 'T',   placeholder: '160', type: 'number' },
+                          { key: 'bust',   label: 'B',   placeholder: '85',  type: 'number' },
+                          { key: 'cup',    label: 'CUP', placeholder: 'D',   type: 'text'   },
+                          { key: 'waist',  label: 'W',   placeholder: '58',  type: 'number' },
+                          { key: 'hip',    label: 'H',   placeholder: '85',  type: 'number' },
+                        ] as { key: keyof BodyParts; label: string; placeholder: string; type: string }[]
+                      ).map(({ key, label, placeholder, type }) => (
+                        <div key={key} className="flex flex-col items-center gap-0.5">
+                          <span className="text-[10px] font-bold text-slate-400">{label}</span>
+                          <input
+                            type={type}
+                            placeholder={placeholder}
+                            value={bodyParts[t.id]?.[key] ?? ''}
+                            onChange={(e) => updateBodyPart(t.id, key, e.target.value)}
+                            className="w-full px-1.5 py-2 rounded-xl border border-slate-200 text-xs bg-slate-50/50 focus:outline-none focus:ring-2 focus:ring-pink-200 text-center"
+                          />
+                        </div>
+                      ))}
+                    </div>
+                    {therapistForms[t.id]?.body_type && (
+                      <p className="mt-1.5 text-[10px] text-slate-400">
+                        保存値: <span className="font-mono text-slate-600">{therapistForms[t.id]?.body_type}</span>
+                      </p>
+                    )}
+                  </div>
+
+                  {/* 詳細プロフィール */}
+                  <div>
+                    <label className={labelClass}>詳細プロフィール</label>
+                    <textarea
+                      rows={4}
+                      className={textareaClass}
+                      placeholder="セラピストの自己紹介文を入力してください"
+                      value={therapistForms[t.id]?.profile_text ?? ''}
+                      onChange={(e) => setTherapistForms((p) => ({ ...p, [t.id]: { ...p[t.id], profile_text: e.target.value } }))}
+                    />
+                  </div>
+
+                  <div className="flex justify-end pt-1">
+                    <button
+                      className={saveBtn}
+                      onClick={() => handleProfileSave(t.id)}
+                      disabled={savingTherapist === t.id}
+                    >
+                      {savingTherapist === t.id ? '保存中...' : 'プロフィールを保存'}
+                    </button>
+                  </div>
+
+                  <div className="pt-3 border-t border-slate-100">
+                    <button
+                      type="button"
+                      onClick={() => handleTherapistDelete(t.id, t.name)}
+                      disabled={deletingTherapist === t.id}
+                      className="px-4 py-1.5 rounded-xl border border-rose-200 text-rose-500 text-xs font-bold bg-rose-50 hover:bg-rose-100 transition-colors disabled:opacity-50"
+                    >
+                      {deletingTherapist === t.id ? '削除中...' : 'このセラピストを削除'}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+
       </main>
     </div>
   );

@@ -3,6 +3,7 @@ import { ShuffledSalons } from "./components/ShuffledSalons";
 import { TherapistScroller } from "./components/TherapistScroller";
 import { createClient } from "./lib/supabase/server";
 import { DiarySection } from "@/components/DiarySection";
+import HeaderImageSlider from "@/components/HeaderImageSlider";
 
 const AREAS = [
   "福岡全域",
@@ -60,6 +61,11 @@ export default async function Home() {
       </header>
 
       <main>
+        {/* ─── Header Image Slider ─────────────────────────────── */}
+        <section className="max-w-5xl mx-auto px-4 pt-6 pb-2">
+          <HeaderImageSlider />
+        </section>
+
         {/* ─── Hero ────────────────────────────────────────────── */}
         <section className="relative overflow-hidden bg-white pt-16 pb-14">
           <div className="absolute inset-0 bg-[radial-gradient(ellipse_70%_50%_at_50%_-10%,rgba(236,72,153,0.06),transparent)]" />
