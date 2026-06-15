@@ -70,12 +70,13 @@ function buildDisplayHours(start: string | null, end: string | null): string {
 // ── types ─────────────────────────────────────────────────────
 
 type Therapist = {
-  id:        string;
-  name:      string;
-  workHours: string;
-  comment:   string;
-  area:      string;
-  today:     TodaySchedule;
+  id:              string;
+  name:            string;
+  workHours:       string;
+  comment:         string;
+  area:            string;
+  profileImageUrl: string | null;
+  today:           TodaySchedule;
 };
 
 // ── shared schedule fetch ──────────────────────────────────────
@@ -118,11 +119,22 @@ function GridCard({ therapist, index }: {
       href={`/therapist/${therapist.id}`}
       className="text-left w-full rounded-2xl border border-pink-50 bg-white shadow-sm flex h-28 overflow-hidden hover:border-pink-200 hover:shadow-md transition-all duration-200"
     >
-      <div className={`relative w-28 bg-gradient-to-br ${grad} flex items-center justify-center flex-shrink-0`}>
-        <div className="w-14 h-14 rounded-full bg-white/30 flex items-center justify-center text-white font-bold text-xl">
-          {therapist.name.charAt(0)}
-        </div>
-        <span className="absolute bottom-1 right-2 text-white/40 text-sm">{sym}</span>
+      <div className={`relative w-28 bg-gradient-to-br ${grad} flex items-center justify-center flex-shrink-0 overflow-hidden`}>
+        {therapist.profileImageUrl ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={therapist.profileImageUrl}
+            alt={therapist.name}
+            className="absolute inset-0 w-full h-full object-cover"
+          />
+        ) : (
+          <>
+            <div className="w-14 h-14 rounded-full bg-white/30 flex items-center justify-center text-white font-bold text-xl">
+              {therapist.name.charAt(0)}
+            </div>
+            <span className="absolute bottom-1 right-2 text-white/40 text-sm">{sym}</span>
+          </>
+        )}
       </div>
       <div className="p-3 flex-1 flex flex-col justify-between min-w-0 text-xs">
         <div>
@@ -156,19 +168,20 @@ export function SalonTherapists({ salonId }: { salonId: number }) {
       const supabase = createClient();
       const { data: rows } = await supabase
         .from('therapists')
-        .select('id, name, work_hours, area, comment')
+        .select('id, name, work_hours, area, comment, profile_image_url')
         .eq('salon_id', salonId);
 
       const rawIds = (rows ?? []).map(t => t.id);
       const schedMap = await fetchScheduleMap(rawIds);
 
       const mapped: Therapist[] = (rows ?? []).map(t => ({
-        id:        String(t.id),
-        name:      (t.name as string) ?? '',
-        workHours: (t.work_hours as string) ?? '',
-        area:      (t.area as string) ?? '',
-        comment:   (t.comment as string) ?? '',
-        today:     schedMap[t.id as number] ?? { is_active: false, start_time: null, end_time: null },
+        id:              String(t.id),
+        name:            (t.name as string) ?? '',
+        workHours:       (t.work_hours as string) ?? '',
+        area:            (t.area as string) ?? '',
+        comment:         (t.comment as string) ?? '',
+        profileImageUrl: (t.profile_image_url as string | null) ?? null,
+        today:           schedMap[t.id as number] ?? { is_active: false, start_time: null, end_time: null },
       }));
 
       setList(mapped.filter(t => getScheduleStatus(t.today).status === 'onDuty'));
@@ -199,19 +212,20 @@ export function SalonAllTherapists({ salonId }: { salonId: number }) {
       const supabase = createClient();
       const { data: rows } = await supabase
         .from('therapists')
-        .select('id, name, work_hours, area, comment')
+        .select('id, name, work_hours, area, comment, profile_image_url')
         .eq('salon_id', salonId);
 
       const rawIds = (rows ?? []).map(t => t.id);
       const schedMap = await fetchScheduleMap(rawIds);
 
       const mapped: Therapist[] = (rows ?? []).map(t => ({
-        id:        String(t.id),
-        name:      (t.name as string) ?? '',
-        workHours: (t.work_hours as string) ?? '',
-        area:      (t.area as string) ?? '',
-        comment:   (t.comment as string) ?? '',
-        today:     schedMap[t.id as number] ?? { is_active: false, start_time: null, end_time: null },
+        id:              String(t.id),
+        name:            (t.name as string) ?? '',
+        workHours:       (t.work_hours as string) ?? '',
+        area:            (t.area as string) ?? '',
+        comment:         (t.comment as string) ?? '',
+        profileImageUrl: (t.profile_image_url as string | null) ?? null,
+        today:           schedMap[t.id as number] ?? { is_active: false, start_time: null, end_time: null },
       }));
 
       setList(mapped);
