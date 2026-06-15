@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/app/lib/supabase/client';
@@ -90,6 +90,67 @@ function TherapistMiniCard({ therapist, index }: { therapist: TherapistThumb; in
   );
 }
 
+// ── Therapist mini cards row (hover auto-scroll + view-all) ──
+
+function TherapistMiniCardsRow({ therapists, salonId }: { therapists: TherapistThumb[]; salonId: number }) {
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const rafRef    = useRef<number | null>(null);
+
+  const startScroll = () => {
+    const step = () => {
+      const el = scrollRef.current;
+      if (!el) return;
+      if (el.scrollLeft + el.clientWidth >= el.scrollWidth - 1) return;
+      el.scrollLeft += 1.5;
+      rafRef.current = requestAnimationFrame(step);
+    };
+    rafRef.current = requestAnimationFrame(step);
+  };
+
+  const stopScroll = () => {
+    if (rafRef.current !== null) {
+      cancelAnimationFrame(rafRef.current);
+      rafRef.current = null;
+    }
+  };
+
+  const displayed = therapists.slice(0, 10);
+
+  return (
+    <div
+      ref={scrollRef}
+      className="flex gap-[3px] overflow-x-auto pb-1"
+      style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' } as React.CSSProperties}
+      onMouseEnter={startScroll}
+      onMouseLeave={stopScroll}
+      onClick={e => e.stopPropagation()}
+    >
+      {displayed.map((t, i) => (
+        <TherapistMiniCard key={t.id} therapist={t} index={i} />
+      ))}
+
+      {/* View-all button */}
+      <Link
+        href={`/salon/${salonId}`}
+        className="relative flex-shrink-0 w-[105px] h-[153px] rounded-2xl overflow-hidden border border-pink-200 bg-gradient-to-b from-pink-50 to-fuchsia-100 flex flex-col items-center justify-center gap-2 hover:from-pink-100 hover:to-fuchsia-200 transition-colors shadow-sm"
+        onClick={e => e.stopPropagation()}
+      >
+        <div className="w-10 h-10 rounded-full bg-white/70 flex items-center justify-center shadow-sm">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="text-pink-500">
+            <rect x="3" y="3" width="7" height="7" rx="1" />
+            <rect x="14" y="3" width="7" height="7" rx="1" />
+            <rect x="3" y="14" width="7" height="7" rx="1" />
+            <rect x="14" y="14" width="7" height="7" rx="1" />
+          </svg>
+        </div>
+        <p className="text-[11px] font-bold text-pink-600 text-center leading-snug">
+          一覧を<br />見る
+        </p>
+      </Link>
+    </div>
+  );
+}
+
 // ── Salon card ────────────────────────────────────────────────
 
 function SalonCard({ salon, therapists }: { salon: Salon; therapists: TherapistThumb[] }) {
@@ -143,15 +204,7 @@ function SalonCard({ salon, therapists }: { salon: Salon; therapists: TherapistT
         {therapists.length > 0 && (
           <div className="mb-4">
             <p className="text-[10px] text-slate-400 font-medium mb-2">在籍セラピスト</p>
-            <div
-              className="flex gap-[3px] overflow-x-auto pb-1"
-              style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' } as React.CSSProperties}
-              onClick={e => e.stopPropagation()}
-            >
-              {therapists.map((t, i) => (
-                <TherapistMiniCard key={t.id} therapist={t} index={i} />
-              ))}
-            </div>
+            <TherapistMiniCardsRow therapists={therapists} salonId={salon.id} />
           </div>
         )}
 
