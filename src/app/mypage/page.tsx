@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import { createClient } from '@/app/lib/supabase/client';
 import { TimeRangePicker } from '@/components/TimeRangePicker';
 
@@ -40,33 +41,6 @@ function fromPickerValue(value: string): { start: string | null; end: string | n
     return `${String(h).padStart(2, '0')}:${String(isNaN(m) ? 0 : m).padStart(2, '0')}`;
   };
   return { start: norm(parts[0]), end: norm(parts[1]) };
-}
-
-type BodyParts = { height: string; bust: string; cup: string; waist: string; hip: string };
-
-function parseBodyType(raw: string | null): BodyParts {
-  if (!raw) return { height: '', bust: '', cup: '', waist: '', hip: '' };
-  const hMatch   = raw.match(/T(\d+)/);
-  const bMatch   = raw.match(/B(\d+)\(([A-Za-z]+)\)/);
-  const wMatch   = raw.match(/W(\d+)/);
-  const hipMatch = raw.match(/H(\d+)/);
-  return {
-    height: hMatch?.[1]   ?? '',
-    bust:   bMatch?.[1]   ?? '',
-    cup:    bMatch?.[2]   ?? '',
-    waist:  wMatch?.[1]   ?? '',
-    hip:    hipMatch?.[1] ?? '',
-  };
-}
-
-function buildBodyType(p: BodyParts): string {
-  const parts: string[] = [];
-  if (p.height) parts.push(`T${p.height}`);
-  if (p.bust && p.cup) parts.push(`B${p.bust}(${p.cup.toUpperCase()})`);
-  else if (p.bust) parts.push(`B${p.bust}`);
-  if (p.waist) parts.push(`W${p.waist}`);
-  if (p.hip)   parts.push(`H${p.hip}`);
-  return parts.join(' ');
 }
 
 type CourseItem  = { duration: string; price: string };
@@ -165,7 +139,6 @@ export default function MyPage() {
   const [savingSchedule, setSavingSchedule] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<'salon' | 'schedule' | 'profile'>('salon');
   const [expandedSections, setExpandedSections] = useState<Set<string>>(new Set());
-  const [bodyParts, setBodyParts] = useState<Record<string, BodyParts>>({});
   const [newTherapistName, setNewTherapistName] = useState('');
   const [addingTherapist, setAddingTherapist] = useState(false);
   const [addError, setAddError] = useState('');
@@ -177,14 +150,6 @@ export default function MyPage() {
       const next = new Set(prev);
       next.has(key) ? next.delete(key) : next.add(key);
       return next;
-    });
-  };
-
-  const updateBodyPart = (therapistId: string, key: keyof BodyParts, value: string) => {
-    setBodyParts(prev => {
-      const updated = { ...prev[therapistId], [key]: value };
-      setTherapistForms(f => ({ ...f, [therapistId]: { ...f[therapistId], body_type: buildBodyType(updated) } }));
-      return { ...prev, [therapistId]: updated };
     });
   };
 
@@ -240,10 +205,6 @@ export default function MyPage() {
         };
       });
       setTherapistForms(forms);
-
-      const parts: Record<string, BodyParts> = {};
-      list.forEach(item => { parts[item.id] = parseBodyType(item.body_type); });
-      setBodyParts(parts);
 
       if (list.length > 0) {
         const today = new Date();
@@ -324,22 +285,6 @@ export default function MyPage() {
     showToast(error ? '保存に失敗しました' : '保存しました');
   };
 
-  const handleProfileSave = async (id: string) => {
-    setSavingTherapist(id);
-    const form = therapistForms[id];
-    const { error } = await supabase
-      .from('therapists')
-      .update({
-        profile_image_url: form.profile_image_url ?? null,
-        age:               form.age ?? null,
-        body_type:         form.body_type ?? null,
-        profile_text:      form.profile_text ?? null,
-      })
-      .eq('id', id);
-    setSavingTherapist(null);
-    showToast(error ? '保存に失敗しました' : 'プロフィールを保存しました');
-  };
-
   const handleWorkHoursSave = async (id: string) => {
     setSavingTherapist(id);
     const form = therapistForms[id];
@@ -408,7 +353,6 @@ export default function MyPage() {
 
     const existingIds = new Set(Object.keys(therapistForms));
     const newForms: Record<string, Partial<Therapist>> = {};
-    const newParts: Record<string, BodyParts> = {};
     list.forEach((t) => {
       if (!existingIds.has(String(t.id))) {
         newForms[t.id] = {
@@ -416,11 +360,9 @@ export default function MyPage() {
           profile_image_url: t.profile_image_url, age: t.age,
           body_type: t.body_type, profile_text: t.profile_text,
         };
-        newParts[t.id] = parseBodyType(t.body_type);
       }
     });
     setTherapistForms(prev => ({ ...prev, ...newForms }));
-    setBodyParts(prev => ({ ...prev, ...newParts }));
 
     setNewTherapistName('');
     setAddingTherapist(false);
@@ -446,11 +388,9 @@ export default function MyPage() {
 
     setTherapists(prev => prev.filter(t => t.id !== id));
     setTherapistForms(prev => { const n = { ...prev }; delete n[id]; return n; });
-    setBodyParts(prev => { const n = { ...prev }; delete n[id]; return n; });
     setSchedules(prev => { const n = { ...prev }; delete n[id]; return n; });
     setExpandedSections(prev => {
       const n = new Set(prev);
-      n.delete(`${id}-profile`);
       n.delete(`${id}-schedule`);
       return n;
     });
@@ -811,132 +751,44 @@ export default function MyPage() {
             </div>
           )}
 
-          {therapists.map((t) => {
-            const isOpen = expandedSections.has(`${t.id}-profile`);
-            return (
-              <div key={t.id} className="bg-white rounded-2xl border border-pink-100 shadow-sm overflow-hidden">
-
-                <button
-                  type="button"
-                  onClick={() => toggleSection(`${t.id}-profile`)}
-                  className="w-full flex items-center justify-between px-5 py-4 hover:bg-pink-50/40 transition-colors"
-                >
+          {therapists.map((t) => (
+            <div key={t.id} className="bg-white rounded-2xl border border-pink-100 shadow-sm overflow-hidden">
+              <div className="flex items-center justify-between px-5 py-4">
+                <div className="flex items-center gap-3">
+                  {t.profile_image_url ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={t.profile_image_url}
+                      alt=""
+                      className="w-10 h-10 object-cover rounded-xl border border-pink-100"
+                    />
+                  ) : (
+                    <div className="w-10 h-10 rounded-xl border border-slate-200 bg-slate-50 flex items-center justify-center text-slate-300 text-[10px]">
+                      なし
+                    </div>
+                  )}
                   <span className="text-sm font-bold text-slate-700">{t.name ?? '(名前未設定)'}</span>
-                  <svg
-                    className={`w-4 h-4 text-pink-400 transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`}
-                    fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <Link
+                    href={`/mypage/therapist/${t.id}`}
+                    className="px-4 py-1.5 rounded-xl border border-pink-300 text-pink-600 text-xs font-bold hover:bg-pink-50 transition-colors"
                   >
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
-                  </svg>
-                </button>
-
-                <div className={isOpen ? 'px-5 pb-5 pt-2 space-y-4 border-t border-pink-100' : 'hidden'}>
-
-                  {/* プロフィール画像URL */}
-                  <div>
-                    <label className={labelClass}>プロフィール画像URL</label>
-                    <input
-                      className={inputClass}
-                      placeholder="https://..."
-                      value={therapistForms[t.id]?.profile_image_url ?? ''}
-                      onChange={(e) => setTherapistForms((p) => ({ ...p, [t.id]: { ...p[t.id], profile_image_url: e.target.value } }))}
-                    />
-                    {therapistForms[t.id]?.profile_image_url && (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img
-                        src={therapistForms[t.id]?.profile_image_url ?? ''}
-                        alt="プレビュー"
-                        className="mt-2 h-20 w-20 object-cover rounded-xl border border-pink-100"
-                        onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }}
-                      />
-                    )}
-                  </div>
-
-                  {/* 年齢 */}
-                  <div>
-                    <label className={labelClass}>年齢</label>
-                    <div className="flex items-center gap-2">
-                      <input
-                        type="number"
-                        min="18"
-                        max="99"
-                        className={inputClass}
-                        placeholder="22"
-                        value={(therapistForms[t.id]?.age ?? '').replace(/[^0-9]/g, '') || ''}
-                        onChange={(e) => setTherapistForms((p) => ({ ...p, [t.id]: { ...p[t.id], age: e.target.value } }))}
-                      />
-                      <span className="text-sm text-slate-500 font-medium flex-shrink-0">歳</span>
-                    </div>
-                  </div>
-
-                  {/* スタイル */}
-                  <div>
-                    <label className={labelClass}>スタイル</label>
-                    <div className="grid grid-cols-5 gap-2">
-                      {(
-                        [
-                          { key: 'height', label: 'T',   placeholder: '160', type: 'number' },
-                          { key: 'bust',   label: 'B',   placeholder: '85',  type: 'number' },
-                          { key: 'cup',    label: 'CUP', placeholder: 'D',   type: 'text'   },
-                          { key: 'waist',  label: 'W',   placeholder: '58',  type: 'number' },
-                          { key: 'hip',    label: 'H',   placeholder: '85',  type: 'number' },
-                        ] as { key: keyof BodyParts; label: string; placeholder: string; type: string }[]
-                      ).map(({ key, label, placeholder, type }) => (
-                        <div key={key} className="flex flex-col items-center gap-0.5">
-                          <span className="text-[10px] font-bold text-slate-400">{label}</span>
-                          <input
-                            type={type}
-                            placeholder={placeholder}
-                            value={bodyParts[t.id]?.[key] ?? ''}
-                            onChange={(e) => updateBodyPart(t.id, key, e.target.value)}
-                            className="w-full px-1.5 py-2 rounded-xl border border-slate-200 text-xs bg-slate-50/50 focus:outline-none focus:ring-2 focus:ring-pink-200 text-center"
-                          />
-                        </div>
-                      ))}
-                    </div>
-                    {therapistForms[t.id]?.body_type && (
-                      <p className="mt-1.5 text-[10px] text-slate-400">
-                        保存値: <span className="font-mono text-slate-600">{therapistForms[t.id]?.body_type}</span>
-                      </p>
-                    )}
-                  </div>
-
-                  {/* 詳細プロフィール */}
-                  <div>
-                    <label className={labelClass}>詳細プロフィール</label>
-                    <textarea
-                      rows={4}
-                      className={textareaClass}
-                      placeholder="セラピストの自己紹介文を入力してください"
-                      value={therapistForms[t.id]?.profile_text ?? ''}
-                      onChange={(e) => setTherapistForms((p) => ({ ...p, [t.id]: { ...p[t.id], profile_text: e.target.value } }))}
-                    />
-                  </div>
-
-                  <div className="flex justify-end pt-1">
-                    <button
-                      className={saveBtn}
-                      onClick={() => handleProfileSave(t.id)}
-                      disabled={savingTherapist === t.id}
-                    >
-                      {savingTherapist === t.id ? '保存中...' : 'プロフィールを保存'}
-                    </button>
-                  </div>
-
-                  <div className="pt-3 border-t border-slate-100">
-                    <button
-                      type="button"
-                      onClick={() => handleTherapistDelete(t.id, t.name)}
-                      disabled={deletingTherapist === t.id}
-                      className="px-4 py-1.5 rounded-xl border border-rose-200 text-rose-500 text-xs font-bold bg-rose-50 hover:bg-rose-100 transition-colors disabled:opacity-50"
-                    >
-                      {deletingTherapist === t.id ? '削除中...' : 'このセラピストを削除'}
-                    </button>
-                  </div>
+                    プロフィールを編集
+                  </Link>
+                  <button
+                    type="button"
+                    onClick={() => handleTherapistDelete(t.id, t.name)}
+                    disabled={deletingTherapist === t.id}
+                    className="px-3 py-1.5 rounded-xl border border-rose-200 text-rose-500 text-xs font-bold bg-rose-50 hover:bg-rose-100 transition-colors disabled:opacity-50"
+                  >
+                    {deletingTherapist === t.id ? '削除中...' : '削除'}
+                  </button>
                 </div>
               </div>
-            );
-          })}
+            </div>
+          ))}
         </div>
 
       </main>
