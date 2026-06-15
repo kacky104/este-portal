@@ -1,8 +1,9 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import Link from 'next/link';
 import { DIARIES, type Diary } from '@/data/diaries';
+
+// ── Modal ─────────────────────────────────────────────────────
 
 function DiaryListModal({ therapistName, onClose }: { therapistName: string; onClose: () => void }) {
   const filteredDiaries = DIARIES.filter(d => d.therapistName === therapistName);
@@ -31,39 +32,68 @@ function DiaryListModal({ therapistName, onClose }: { therapistName: string; onC
   );
 }
 
+// ── Diary card (full-image overlay) ──────────────────────────
+
+function DiaryCard({ diary, onSelect }: { diary: Diary; onSelect: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={onSelect}
+      className="relative text-left group flex-shrink-0 w-52 h-72 rounded-2xl overflow-hidden shadow-sm hover:-translate-y-1 hover:shadow-lg transition-all duration-300"
+    >
+      {/* Full image background */}
+      <img
+        src={diary.imageUrl}
+        alt={diary.therapistName}
+        className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+      />
+
+      {/* Gradient: dark top → transparent → dark bottom */}
+      <div className="absolute inset-0 bg-gradient-to-b from-black/65 via-black/10 to-black/70" />
+
+      {/* Top: title + content */}
+      <div className="absolute top-0 left-0 right-0 p-3">
+        <p className="text-[9px] text-white/60 mb-1">{diary.date} {diary.time}</p>
+        <h3 className="font-bold text-xs text-white line-clamp-1 mb-1">「{diary.title}」</h3>
+        <p className="text-[10px] text-white/80 leading-relaxed line-clamp-3">{diary.content}</p>
+      </div>
+
+      {/* Bottom: therapist + salon + CTA */}
+      <div className="absolute bottom-0 left-0 right-0 p-3 flex items-end justify-between">
+        <div className="min-w-0">
+          <p className="text-xs font-bold text-white drop-shadow">{diary.therapistName}</p>
+          <p className="text-[10px] text-white/60 truncate">📍 {diary.salonName}</p>
+        </div>
+        <span className="flex-shrink-0 text-[10px] text-pink-300 font-bold ml-2">日記一覧 →</span>
+      </div>
+    </button>
+  );
+}
+
+// ── DiarySection (top page) ───────────────────────────────────
+
 export function DiarySection() {
   const [selectedName, setSelectedName] = useState<string | null>(null);
   return (
     <div className="w-full space-y-3">
       <div className="flex items-center justify-between px-1">
-        <div className="flex items-center gap-1.5"><span className="text-lg">📷</span><h2 className="text-base font-bold text-slate-900 tracking-wide">セラピスト写メ日記</h2></div>
+        <div className="flex items-center gap-1.5">
+          <span className="text-lg">📷</span>
+          <h2 className="text-base font-bold text-slate-900 tracking-wide">セラピスト写メ日記</h2>
+        </div>
         <span className="text-[10px] text-pink-500 font-bold bg-pink-50 px-2 py-0.5 rounded-full">毎日更新中</span>
       </div>
       <div className="flex gap-3 overflow-x-auto pb-4 scrollbar-pink w-full">
         {DIARIES.map((diary) => (
-          <button key={diary.id} onClick={() => setSelectedName(diary.therapistName)} type="button" className="text-left group flex-shrink-0 w-52 rounded-2xl border border-pink-50 bg-white shadow-sm hover:border-pink-200 hover:-translate-y-1 transition-all duration-300 overflow-hidden flex flex-col justify-between">
-            <div>
-              <div className="h-32 bg-slate-100 relative overflow-hidden flex items-center justify-center">
-                <img src={diary.imageUrl} alt={diary.therapistName} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
-                <span className="absolute bottom-2 left-2 px-2 py-0.5 rounded-lg bg-black/40 text-white text-[10px] font-bold">{diary.therapistName}</span>
-                <span className="absolute top-2 right-2 text-[9px] text-slate-500 bg-white/80 px-1.5 py-0.5 rounded-md font-medium">{diary.time}</span>
-              </div>
-              <div className="p-3 space-y-1">
-                <h3 className="font-bold text-xs text-slate-800 line-clamp-1 group-hover:text-pink-600">{diary.title}</h3>
-                <p className="text-[10px] text-slate-500 leading-relaxed line-clamp-2 break-all">{diary.content}</p>
-              </div>
-            </div>
-            <div className="px-3 pb-3 pt-1 border-t border-dashed border-slate-50 flex items-center justify-between text-[9px] text-slate-400 w-full">
-              <span className="truncate max-w-[120px]">📍 {diary.salonName}</span>
-              <span className="text-pink-400 font-bold">日記一覧 →</span>
-            </div>
-          </button>
+          <DiaryCard key={diary.id} diary={diary} onSelect={() => setSelectedName(diary.therapistName)} />
         ))}
       </div>
       {selectedName && <DiaryListModal therapistName={selectedName} onClose={() => setSelectedName(null)} />}
     </div>
   );
 }
+
+// ── SalonDiarySection (salon detail page) ────────────────────
 
 export function SalonDiarySection({ salonId }: { salonId: string }) {
   const [selectedName, setSelectedName] = useState<string | null>(null);
@@ -82,25 +112,10 @@ export function SalonDiarySection({ salonId }: { salonId: string }) {
   }
 
   return (
-    <div className="w-full space-y-3">
+    <div className="w-full">
       <div className="flex gap-3 overflow-x-auto pb-4 scrollbar-pink w-full">
         {list.map((diary) => (
-          <button key={diary.id} onClick={() => setSelectedName(diary.therapistName)} type="button" className="text-left group flex-shrink-0 w-52 rounded-2xl border border-pink-50 bg-white shadow-sm hover:border-pink-200 hover:-translate-y-1 transition-all duration-300 overflow-hidden flex flex-col justify-between">
-            <div>
-              <div className="h-32 bg-slate-100 relative overflow-hidden flex items-center justify-center">
-                <img src={diary.imageUrl} alt={diary.therapistName} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
-                <span className="absolute bottom-2 left-2 px-2 py-0.5 rounded-lg bg-black/40 text-white text-[10px] font-bold">{diary.therapistName}</span>
-                <span className="absolute top-2 right-2 text-[9px] text-slate-500 bg-white/80 px-1.5 py-0.5 rounded-md font-medium">{diary.time}</span>
-              </div>
-              <div className="p-3 space-y-1">
-                <h3 className="font-bold text-xs text-slate-800 line-clamp-1 group-hover:text-pink-600">{diary.title}</h3>
-                <p className="text-[10px] text-slate-500 leading-relaxed line-clamp-2 break-all">{diary.content}</p>
-              </div>
-            </div>
-            <div className="px-3 pb-3 pt-1 border-t border-dashed border-slate-50 flex justify-end text-[9px] text-slate-400 w-full">
-              <span className="text-pink-400 font-bold">この子の履歴を見る →</span>
-            </div>
-          </button>
+          <DiaryCard key={diary.id} diary={diary} onSelect={() => setSelectedName(diary.therapistName)} />
         ))}
       </div>
       {selectedName && <DiaryListModal therapistName={selectedName} onClose={() => setSelectedName(null)} />}
