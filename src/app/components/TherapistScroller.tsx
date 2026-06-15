@@ -91,7 +91,7 @@ function Card({ therapist, index }: { therapist: TherapistItem; index: number })
   return (
     <Link
       href={`/therapist/${therapist.id}`}
-      className="relative flex-shrink-0 w-44 h-64 rounded-2xl overflow-hidden shadow-md hover:-translate-y-1 hover:shadow-xl transition-all duration-300"
+      className="relative flex-shrink-0 w-20 h-[116px] sm:w-44 sm:h-64 rounded-2xl overflow-hidden shadow-md hover:-translate-y-1 hover:shadow-xl transition-all duration-300"
     >
       {/* background: photo or gradient fallback */}
       {therapist.profileImageUrl ? (
@@ -103,7 +103,7 @@ function Card({ therapist, index }: { therapist: TherapistItem; index: number })
         />
       ) : (
         <div className={`absolute inset-0 bg-gradient-to-br ${grad} flex items-center justify-center`}>
-          <span className="text-white/30 font-bold text-6xl">{therapist.name.charAt(0)}</span>
+          <span className="text-white/30 font-bold text-3xl sm:text-6xl">{therapist.name.charAt(0)}</span>
         </div>
       )}
 
@@ -112,20 +112,20 @@ function Card({ therapist, index }: { therapist: TherapistItem; index: number })
 
       {/* status badge — top right */}
       {ss && (
-        <span className={`absolute top-2 right-2 text-[10px] font-bold px-2 py-0.5 rounded-full ${ss.cardBadge}`}>
+        <span className={`absolute top-1.5 right-1.5 text-[7px] sm:text-[10px] font-bold px-1 sm:px-2 py-0.5 rounded-full ${ss.cardBadge}`}>
           {ss.label}
         </span>
       )}
 
       {/* text overlay — bottom */}
-      <div className="absolute bottom-0 left-0 right-0 p-3 text-white">
-        <p className="font-bold text-sm leading-tight mb-0.5 drop-shadow">{therapist.name}</p>
+      <div className="absolute bottom-0 left-0 right-0 p-1.5 sm:p-3 text-white">
+        <p className="font-bold text-[9px] sm:text-sm leading-tight mb-0.5 drop-shadow line-clamp-1">{therapist.name}</p>
         {therapist.age && (
-          <p className="text-[10px] text-white/80 mb-0.5">{therapist.age}歳</p>
+          <p className="hidden sm:block text-[10px] text-white/80 mb-0.5">{therapist.age}歳</p>
         )}
-        <p className="text-[10px] text-white/70 truncate mb-1">{therapist.salonName}</p>
+        <p className="hidden sm:block text-[10px] text-white/70 truncate mb-1">{therapist.salonName}</p>
         {(displayHours || therapist.workHours) && (
-          <p className="text-[10px] text-pink-200 font-medium">🕒 {displayHours || therapist.workHours}</p>
+          <p className="text-[7px] sm:text-[10px] text-pink-200 font-medium">🕒 {displayHours || therapist.workHours}</p>
         )}
       </div>
     </Link>
