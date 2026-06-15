@@ -300,7 +300,13 @@ export default function TherapistEditPage() {
           />
         </div>
 
-        <div className="flex justify-end pb-4">
+       <div className="flex justify-between items-center pb-4">
+          <Link
+            href="/mypage"
+            className="px-5 py-2 rounded-xl border border-slate-200 text-slate-500 text-xs font-bold hover:border-pink-300 hover:text-pink-500 transition-colors"
+          >
+            ← マイページに戻る
+          </Link>
           <button className={saveBtn} onClick={handleSave} disabled={saving}>
             {saving ? '保存中...' : '保存'}
           </button>
