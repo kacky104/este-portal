@@ -83,7 +83,7 @@ function TherapistMiniCard({ therapist, index }: { therapist: TherapistThumb; in
       <div className="absolute bottom-0 left-0 right-0 p-2 text-white">
         <p className="font-bold text-[11px] leading-tight drop-shadow line-clamp-1">{therapist.name}</p>
         {therapist.workHours && (
-          <p className="text-[9px] text-pink-200 font-medium mt-0.5">🕒 {therapist.workHours}</p>
+          <p className="text-[11px] text-pink-200 font-medium mt-0.5">{therapist.workHours}</p>
         )}
       </div>
     </Link>
