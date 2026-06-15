@@ -112,20 +112,20 @@ function Card({ therapist, index }: { therapist: TherapistItem; index: number })
 
       {/* status badge — top right */}
       {ss && (
-        <span className={`absolute top-1.5 right-1.5 text-[7px] sm:text-[10px] font-bold px-1 sm:px-2 py-0.5 rounded-full ${ss.cardBadge}`}>
+        <span className={`absolute top-1.5 right-1.5 text-[9px] sm:text-[10px] font-bold px-1.5 sm:px-2 py-0.5 rounded-full ${ss.cardBadge}`}>
           {ss.label}
         </span>
       )}
 
       {/* text overlay — bottom */}
       <div className="absolute bottom-0 left-0 right-0 p-1.5 sm:p-3 text-white">
-        <p className="font-bold text-[9px] sm:text-sm leading-tight mb-0.5 drop-shadow line-clamp-1">{therapist.name}</p>
+        <p className="font-bold text-[11px] sm:text-sm leading-tight mb-0.5 drop-shadow line-clamp-1">{therapist.name}</p>
         {therapist.age && (
           <p className="hidden sm:block text-[10px] text-white/80 mb-0.5">{therapist.age}歳</p>
         )}
         <p className="hidden sm:block text-[10px] text-white/70 truncate mb-1">{therapist.salonName}</p>
         {(displayHours || therapist.workHours) && (
-          <p className="text-[7px] sm:text-[10px] text-pink-200 font-medium">🕒 {displayHours || therapist.workHours}</p>
+          <p className="text-[9px] sm:text-[10px] text-pink-200 font-medium">🕒 {displayHours || therapist.workHours}</p>
         )}
       </div>
     </Link>
@@ -208,7 +208,7 @@ export function TherapistScroller() {
   }
 
   return (
-    <div className="flex gap-1.5 sm:gap-3 overflow-x-auto pb-4 scrollbar-pink w-full">
+    <div className="flex gap-[3px] sm:gap-3 overflow-x-auto pb-4 scrollbar-pink w-full">
       {list.map((t, i) => <Card key={t.id} therapist={t} index={i} />)}
     </div>
   );
