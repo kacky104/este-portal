@@ -158,22 +158,6 @@ export default async function Home() {
             <p className="text-slate-500 text-sm max-w-md mx-auto mb-10 leading-relaxed">
               博多・天神・北九州・久留米など、福岡全域のエリアから口コミ評価の高い人気サロンをご紹介。あなたにぴったりのサロンを見つけてください。
             </p>
-
-            <div className="inline-flex flex-wrap justify-center gap-px rounded-2xl border border-slate-200 bg-white overflow-hidden shadow-sm">
-              {[
-                ["掲載サロン", "68件"],
-                ["口コミ総数", "2,400件以上"],
-                ["対応エリア", "福岡全域"],
-              ].map(([label, val], i) => (
-                <div
-                  key={label}
-                  className={`flex flex-col items-center px-6 py-3 ${i > 0 ? "border-l border-slate-200" : ""}`}
-                >
-                  <span className="text-[11px] text-slate-400 mb-0.5">{label}</span>
-                  <span className="text-sm font-bold text-slate-700">{val}</span>
-                </div>
-              ))}
-            </div>
           </div>
         </section>
 
@@ -259,6 +243,24 @@ export default async function Home() {
                   <path d="M5 12h14M12 5l7 7-7 7" />
                 </svg>
               </Link>
+            </div>
+
+            <div className="flex justify-center mt-6">
+              <div className="inline-flex flex-wrap justify-center gap-px rounded-2xl border border-slate-200 bg-white overflow-hidden shadow-sm">
+                {[
+                  ["掲載サロン", "68件"],
+                  ["口コミ総数", "2,400件以上"],
+                  ["対応エリア", "福岡全域"],
+                ].map(([label, val], i) => (
+                  <div
+                    key={label}
+                    className={`flex flex-col items-center px-6 py-3 ${i > 0 ? "border-l border-slate-200" : ""}`}
+                  >
+                    <span className="text-[11px] text-slate-400 mb-0.5">{label}</span>
+                    <span className="text-sm font-bold text-slate-700">{val}</span>
+                  </div>
+                ))}
+              </div>
             </div>
           </div>
         </section>
