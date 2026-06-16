@@ -287,14 +287,16 @@ export default function MyPage() {
     }
 
     setUploadingImage(true);
-    const ext  = file.name.split('.').pop() ?? 'jpg';
-    const path = `${salon.id}/${Date.now()}.${ext}`;
+    const ext      = file.name.split('.').pop() ?? 'jpg';
+    const salonId  = Number(salon.id);
+    const path     = `${salonId}/${Date.now()}.${ext}`;
 
     const { error: uploadError } = await supabase.storage
       .from('salon-images')
       .upload(path, file, { upsert: false });
 
     if (uploadError) {
+      console.error('[salon-images] storage upload error:', uploadError);
       showToast(`アップロードに失敗しました: ${uploadError.message}`);
       setUploadingImage(false);
       e.target.value = '';
@@ -309,7 +311,7 @@ export default function MyPage() {
 
     const { data: inserted, error: dbErr } = await supabase
       .from('salon_images')
-      .insert({ salon_id: salon.id, image_url: publicUrl, display_order: nextOrder })
+      .insert({ salon_id: salonId, image_url: publicUrl, display_order: nextOrder })
       .select('id, image_url, display_order')
       .single();
 
@@ -317,7 +319,10 @@ export default function MyPage() {
     e.target.value = '';
 
     if (dbErr || !inserted) {
-      showToast('DB保存に失敗しました');
+      console.error('[salon-images] db insert error:', dbErr);
+      showToast(`DB保存に失敗しました: ${dbErr?.message ?? '不明なエラー'}`);
+      // ストレージにアップロード済みのファイルをロールバック
+      await supabase.storage.from('salon-images').remove([path]);
       return;
     }
 
