@@ -63,7 +63,7 @@ export function FeaturedSalonSlider({ salons }: { salons: FeaturedSalon[] }) {
             const grad        = GRADS[i % GRADS.length];
 
             return (
-              <div key={salon.salonId} className="w-full flex-shrink-0 relative h-52 sm:h-64">
+              <div key={salon.salonId} className="w-full flex-shrink-0 relative h-72 sm:h-96">
                 {/* Background */}
                 {bgImage ? (
                   // eslint-disable-next-line @next/next/no-img-element
