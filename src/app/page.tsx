@@ -155,7 +155,7 @@ export default async function Home() {
               </span>
             </h1>
 
-            <p className="text-slate-500 text-sm max-w-md mx-auto mb-10 leading-relaxed">
+            <p className="text-slate-500 text-sm max-w-xl mx-auto mb-10 leading-relaxed">
               博多・天神・北九州・久留米など、福岡全域のエリアから口コミ評価の高い人気サロンをご紹介。あなたにぴったりのサロンを見つけてください。
             </p>
           </div>
