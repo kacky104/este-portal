@@ -71,7 +71,7 @@ export default async function Home() {
       (featuredSalonData ?? []).map(s => [s.id as number, s])
     );
 
-    featuredSalons = featuredIds
+    const built = featuredIds
       .filter(id => salonInfoMap[id])
       .map(salonId => {
         const s = salonInfoMap[salonId];
@@ -91,6 +91,13 @@ export default async function Home() {
             .slice(0, 4),
         };
       });
+
+    // ページ読み込みのたびにランダムシャッフル
+    for (let i = built.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [built[i], built[j]] = [built[j], built[i]];
+    }
+    featuredSalons = built;
   }
 
   return (
