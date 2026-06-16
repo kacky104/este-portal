@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { createClient } from "@/app/lib/supabase/server";
 import { SalonTherapists, SalonAllTherapists } from "@/components/SalonTherapists";
 import { SalonDiarySection } from "@/components/DiarySection";
+import SalonHeaderSlider from "@/components/SalonHeaderSlider";
 
 export default async function SalonPage({
   params,
@@ -19,6 +20,15 @@ export default async function SalonPage({
     .single();
 
   if (error || !row) notFound();
+
+  const { data: imageRows } = await supabase
+    .from('salon_images')
+    .select('image_url')
+    .eq('salon_id', Number(id))
+    .order('display_order', { ascending: true })
+    .limit(3);
+
+  const salonImages = (imageRows ?? []).map(r => r.image_url as string);
 
   const salon = {
     id:          row.id as number,
@@ -73,13 +83,8 @@ export default async function SalonPage({
 
         {/* ─── Hero ────────────────────────────────────── */}
         <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden mb-6">
-          {/* Thumbnail banner */}
-          <div className="h-48 bg-gradient-to-br from-pink-100 via-rose-50 to-pink-50 relative flex items-center justify-center">
-            <span className="text-[120px] text-pink-300/20 select-none" aria-hidden="true">♨</span>
-            <span className="absolute top-4 left-4 text-xs font-semibold px-3 py-1 rounded-full bg-white text-pink-600 border border-pink-200 shadow-sm">
-              {salon.area}
-            </span>
-          </div>
+          {/* ヘッダー画像スライダー */}
+          <SalonHeaderSlider images={salonImages} />
 
           <div className="p-6">
             <h1 className="text-2xl font-bold text-slate-900 mb-3">{salon.name}</h1>

@@ -85,6 +85,12 @@ function buildRepresentativePrice(groups: CourseGroup[]): string {
   return parts.join(' ');
 }
 
+type SalonImage = {
+  id:            string;
+  image_url:     string;
+  display_order: number;
+};
+
 type Salon = {
   id: string;
   name: string;
@@ -144,6 +150,8 @@ export default function MyPage() {
   const [addError, setAddError] = useState('');
   const [deletingTherapist, setDeletingTherapist] = useState<string | null>(null);
   const [courseGroups, setCourseGroups] = useState<CourseGroup[]>([{ name: '', items: [{ duration: '', price: '' }] }]);
+  const [salonImages,    setSalonImages]    = useState<SalonImage[]>([]);
+  const [uploadingImage, setUploadingImage] = useState(false);
 
   const toggleSection = (key: string) => {
     setExpandedSections(prev => {
@@ -184,6 +192,13 @@ export default function MyPage() {
       setSalon(salonData);
       setSalonForm(salonData);
       setCourseGroups(parseCourseGroups(salonData.courses));
+
+      const { data: imageData } = await supabase
+        .from('salon_images')
+        .select('id, image_url, display_order')
+        .eq('salon_id', salonData.id)
+        .order('display_order', { ascending: true });
+      setSalonImages(imageData ?? []);
 
       const { data: therapistData } = await supabase
         .from('therapists')
@@ -260,6 +275,86 @@ export default function MyPage() {
         },
       };
     });
+  };
+
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !salon) return;
+
+    if (file.size > 5 * 1024 * 1024) { showToast('5MB以下の画像を選択してください'); return; }
+    if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) {
+      showToast('JPEG・PNG・WebPのみ対応しています'); return;
+    }
+
+    setUploadingImage(true);
+    const ext  = file.name.split('.').pop() ?? 'jpg';
+    const path = `${salon.id}/${Date.now()}.${ext}`;
+
+    const { error: uploadError } = await supabase.storage
+      .from('salon-images')
+      .upload(path, file, { upsert: false });
+
+    if (uploadError) {
+      showToast(`アップロードに失敗しました: ${uploadError.message}`);
+      setUploadingImage(false);
+      e.target.value = '';
+      return;
+    }
+
+    const { data: { publicUrl } } = supabase.storage.from('salon-images').getPublicUrl(path);
+
+    const nextOrder = salonImages.length > 0
+      ? Math.max(...salonImages.map(i => i.display_order)) + 1
+      : 0;
+
+    const { data: inserted, error: dbErr } = await supabase
+      .from('salon_images')
+      .insert({ salon_id: salon.id, image_url: publicUrl, display_order: nextOrder })
+      .select('id, image_url, display_order')
+      .single();
+
+    setUploadingImage(false);
+    e.target.value = '';
+
+    if (dbErr || !inserted) {
+      showToast('DB保存に失敗しました');
+      return;
+    }
+
+    setSalonImages(prev => [...prev, inserted as SalonImage]);
+    showToast('画像をアップロードしました');
+  };
+
+  const handleImageDelete = async (id: string, imageUrl: string) => {
+    if (!window.confirm('この画像を削除しますか？')) return;
+
+    // ストレージから削除（パスを URL から抽出）
+    const marker = '/salon-images/';
+    const markerIdx = imageUrl.indexOf(marker);
+    if (markerIdx !== -1) {
+      const storagePath = imageUrl.slice(markerIdx + marker.length);
+      await supabase.storage.from('salon-images').remove([storagePath]);
+    }
+
+    await supabase.from('salon_images').delete().eq('id', id);
+    setSalonImages(prev => prev.filter(img => img.id !== id));
+    showToast('画像を削除しました');
+  };
+
+  const handleImageMove = async (index: number, direction: 'up' | 'down') => {
+    const swapIdx = direction === 'up' ? index - 1 : index + 1;
+    if (swapIdx < 0 || swapIdx >= salonImages.length) return;
+
+    const reordered = [...salonImages];
+    [reordered[index], reordered[swapIdx]] = [reordered[swapIdx], reordered[index]];
+    const updated = reordered.map((img, i) => ({ ...img, display_order: i }));
+    setSalonImages(updated);
+
+    await Promise.all(
+      updated.map(img =>
+        supabase.from('salon_images').update({ display_order: img.display_order }).eq('id', img.id)
+      )
+    );
   };
 
   const handleSalonSave = async () => {
@@ -580,6 +675,70 @@ export default function MyPage() {
           <div>
             <label className={labelClass}>備考</label>
             <textarea rows={2} className={textareaClass} value={salonForm.note ?? ''} onChange={(e) => setSalonForm((p) => ({ ...p, note: e.target.value }))} />
+          </div>
+
+          {/* ── サロン画像 ── */}
+          <div className="border-t border-slate-100 pt-4 space-y-3">
+            <div className="flex items-center justify-between">
+              <label className={labelClass}>サロン画像（最大3枚）</label>
+              <span className="text-[10px] text-slate-400">{salonImages.length} / 3</span>
+            </div>
+
+            {salonImages.length > 0 && (
+              <div className="space-y-2">
+                {salonImages.map((img, i) => (
+                  <div key={img.id} className="flex items-center gap-3 bg-slate-50/60 rounded-xl border border-slate-100 p-2">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={img.image_url}
+                      alt=""
+                      className="w-20 h-14 object-cover rounded-lg border border-slate-200 flex-shrink-0"
+                    />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-[10px] text-slate-400 truncate">
+                        {img.image_url.split('/').pop()}
+                      </p>
+                    </div>
+                    <div className="flex gap-1 flex-shrink-0">
+                      <button
+                        type="button"
+                        onClick={() => handleImageMove(i, 'up')}
+                        disabled={i === 0}
+                        className="w-7 h-7 rounded-lg border border-slate-200 text-slate-400 text-xs flex items-center justify-center hover:border-pink-300 hover:text-pink-500 disabled:opacity-30 transition-colors"
+                      >↑</button>
+                      <button
+                        type="button"
+                        onClick={() => handleImageMove(i, 'down')}
+                        disabled={i === salonImages.length - 1}
+                        className="w-7 h-7 rounded-lg border border-slate-200 text-slate-400 text-xs flex items-center justify-center hover:border-pink-300 hover:text-pink-500 disabled:opacity-30 transition-colors"
+                      >↓</button>
+                      <button
+                        type="button"
+                        onClick={() => handleImageDelete(img.id, img.image_url)}
+                        className="w-7 h-7 rounded-lg border border-rose-100 text-rose-400 text-xs flex items-center justify-center hover:bg-rose-50 transition-colors"
+                      >✕</button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {salonImages.length < 3 && (
+              <label className={`flex items-center gap-2 cursor-pointer w-full py-2.5 px-4 rounded-xl border-2 border-dashed text-xs font-bold transition-colors ${
+                uploadingImage
+                  ? 'border-pink-200 text-pink-300 cursor-not-allowed'
+                  : 'border-pink-200 text-pink-500 hover:border-pink-400 hover:bg-pink-50/50'
+              }`}>
+                <input
+                  type="file"
+                  accept="image/jpeg,image/png,image/webp"
+                  className="hidden"
+                  disabled={uploadingImage}
+                  onChange={handleImageUpload}
+                />
+                {uploadingImage ? 'アップロード中...' : '+ 画像を追加（JPEG / PNG / WebP, 最大5MB）'}
+              </label>
+            )}
           </div>
 
           <div className="pt-1 flex justify-end">
