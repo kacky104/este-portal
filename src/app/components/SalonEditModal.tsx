@@ -28,6 +28,9 @@ type Props = {
   onSaved: (msg: string) => void;
 };
 
+// クライアントはコンポーネント初期化時に一度だけ生成（認証セッションを確実に引き継ぐ）
+const supabase = createClient();
+
 export default function SalonEditModal({ salon, onClose, onSaved }: Props) {
   const [form, setForm] = useState({
     name:        salon.name        ?? '',
@@ -51,8 +54,8 @@ export default function SalonEditModal({ salon, onClose, onSaved }: Props) {
     if (!form.name.trim()) { setError('店舗名は必須です'); return; }
     setSaving(true);
     setError('');
-    const supabase = createClient();
-    const { error: dbErr } = await supabase
+
+    const { data, error: dbErr } = await supabase
       .from('salons')
       .update({
         name:        form.name.trim(),
@@ -65,10 +68,18 @@ export default function SalonEditModal({ salon, onClose, onSaved }: Props) {
         closed_days: form.closed_days.trim(),
         owner_id:    form.owner_id.trim() || null,
       })
-      .eq('id', salon.id);
+      .eq('id', salon.id)
+      .select('id');   // 影響行を取得してRLSブロックを検出
+
     setSaving(false);
+
     if (dbErr) {
+      console.error('[SalonEdit] update error:', dbErr);
       setError(`保存に失敗しました: ${dbErr.message}`);
+    } else if (!data || data.length === 0) {
+      // RLSポリシーが存在しない/権限不足のとき影響行数0で error:null になる
+      console.warn('[SalonEdit] update affected 0 rows — check RLS policy on salons table');
+      setError('更新できませんでした。RLSポリシーを確認してください。\n(supabase/migrations/20260616_salons_rls_update.sql を実行してください)');
     } else {
       onSaved('サロン情報を更新しました ✓');
     }
