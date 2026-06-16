@@ -169,14 +169,13 @@ export default async function Home() {
         {featuredSalons.length > 0 && (
           <section className="py-10 bg-white border-t border-pink-50">
             <div className="max-w-5xl mx-auto px-4">
-              <div className="flex items-center gap-3 mb-1.5">
+              <div className="flex items-center gap-3 mb-4">
                 <div className="w-1 h-6 rounded-full bg-gradient-to-b from-pink-400 to-rose-500" />
                 <h2 className="text-xl font-bold text-slate-900">ピックアップサロン</h2>
                 <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-pink-50 text-pink-500 border border-pink-200">
                   おすすめ
                 </span>
               </div>
-              <p className="text-xs text-slate-400 pl-7 mb-6">編集部が厳選した注目のサロンをご紹介します</p>
               <FeaturedSalonSlider salons={featuredSalons} />
             </div>
           </section>
