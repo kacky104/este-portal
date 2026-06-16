@@ -141,7 +141,6 @@ export default function MyPage() {
   const [loadError, setLoadError] = useState('');
   const [toast, setToast] = useState('');
   const [saving, setSaving] = useState(false);
-  const [savingTherapist, setSavingTherapist] = useState<string | null>(null);
   const [savingSchedule, setSavingSchedule] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<'salon' | 'schedule' | 'profile'>('salon');
   const [expandedSections, setExpandedSections] = useState<Set<string>>(new Set());
@@ -211,7 +210,6 @@ export default function MyPage() {
       const forms: Record<string, Partial<Therapist>> = {};
       list.forEach((t) => {
         forms[t.id] = {
-          work_hours: t.work_hours,
           comment: t.comment,
           profile_image_url: t.profile_image_url,
           age: t.age,
@@ -385,17 +383,6 @@ export default function MyPage() {
     showToast(error ? '保存に失敗しました' : '保存しました');
   };
 
-  const handleWorkHoursSave = async (id: string) => {
-    setSavingTherapist(id);
-    const form = therapistForms[id];
-    const { error } = await supabase
-      .from('therapists')
-      .update({ work_hours: form.work_hours })
-      .eq('id', id);
-    setSavingTherapist(null);
-    showToast(error ? '保存に失敗しました' : 'デフォルト出勤時間を保存しました');
-  };
-
   const handleScheduleSave = async (therapistId: string) => {
     setSavingSchedule(therapistId);
     const rows = sevenDays.map(dateStr => {
@@ -456,7 +443,7 @@ export default function MyPage() {
     list.forEach((t) => {
       if (!existingIds.has(String(t.id))) {
         newForms[t.id] = {
-          work_hours: t.work_hours, comment: t.comment,
+          comment: t.comment,
           profile_image_url: t.profile_image_url, age: t.age,
           body_type: t.body_type, profile_text: t.profile_text,
         };
@@ -781,31 +768,6 @@ export default function MyPage() {
                 </button>
 
                 <div className={isOpen ? 'px-5 pb-5 pt-2 space-y-4 border-t border-pink-100' : 'hidden'}>
-
-                  {/* デフォルト出勤時間 */}
-                  <div>
-                    <label className={labelClass}>デフォルト出勤時間</label>
-                    <div className="flex gap-2">
-                      <input
-                        className={inputClass}
-                        value={therapistForms[t.id]?.work_hours ?? ''}
-                        onChange={(e) => setTherapistForms((p) => ({ ...p, [t.id]: { ...p[t.id], work_hours: e.target.value } }))}
-                      />
-                      <TimeRangePicker
-                        value={therapistForms[t.id]?.work_hours ?? ''}
-                        onChange={(v) => setTherapistForms((p) => ({ ...p, [t.id]: { ...p[t.id], work_hours: v } }))}
-                      />
-                    </div>
-                    <div className="flex justify-end mt-2">
-                      <button
-                        className={saveBtn}
-                        onClick={() => handleWorkHoursSave(t.id)}
-                        disabled={savingTherapist === t.id}
-                      >
-                        {savingTherapist === t.id ? '保存中...' : 'デフォルト時間を保存'}
-                      </button>
-                    </div>
-                  </div>
 
                   {/* 7日間スケジュール */}
                   <div className="space-y-2">
