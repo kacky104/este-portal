@@ -40,12 +40,15 @@ export default async function Home() {
 
   const { data: featuredRows, error: featuredErr } = await supabase
     .from('featured_salons')
-    .select('salon_id, display_order')
+    .select('salon_id, display_order, image_url')
     .order('display_order', { ascending: true })
     .limit(5);
 
   if (!featuredErr && featuredRows && featuredRows.length > 0) {
     const featuredIds = featuredRows.map(r => r.salon_id as number);
+    const imageUrlMap = Object.fromEntries(
+      featuredRows.map(r => [r.salon_id as number, (r.image_url as string | null) ?? null])
+    );
 
     const [{ data: featuredSalonData }, { data: therapistData }] = await Promise.all([
       supabase.from('salons').select('id, name, area, price, rating').in('id', featuredIds),
@@ -85,6 +88,7 @@ export default async function Home() {
           area:            (s.area   as string) ?? '',
           price:           (s.price  as string) ?? '',
           rating:          (s.rating as number) ?? 0,
+          imageUrl:        imageUrlMap[salonId] ?? undefined,
           therapistImages: sorted
             .map(t => t.profile_image_url as string | null)
             .filter((u): u is string => Boolean(u))

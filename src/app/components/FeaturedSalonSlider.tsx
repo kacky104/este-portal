@@ -10,6 +10,7 @@ export type FeaturedSalon = {
   price:            string;
   rating:           number;
   therapistImages:  string[];
+  imageUrl?:        string;
 };
 
 const GRADS = [
@@ -58,7 +59,7 @@ export function FeaturedSalonSlider({ salons }: { salons: FeaturedSalon[] }) {
         >
           {salons.map((salon, i) => {
             const filledStars = Math.floor(salon.rating);
-            const bgImage     = salon.therapistImages[0];
+            const bgImage     = salon.imageUrl ?? salon.therapistImages[0];
             const grad        = GRADS[i % GRADS.length];
 
             return (
