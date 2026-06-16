@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { createClient } from '@/app/lib/supabase/client';
 import { TimeRangePicker } from '@/components/TimeRangePicker';
 import HeaderSliderManager from '@/app/components/HeaderSliderManager';
+import FeaturedSalonsManager from '@/app/components/FeaturedSalonsManager';
 
 const supabase = createClient();
 const ADMIN_UUID = '63aca737-b399-4fb2-bf92-8a3816955d69';
@@ -187,6 +188,15 @@ export default function AdminDashboard() {
 
         {/* ── トップページ画像スライダー設定 ── */}
         <HeaderSliderManager />
+
+        {/* ── ピックアップサロン設定 ── */}
+        <FeaturedSalonsManager
+          allSalons={salons.map(s => ({
+            id:   s.id,
+            name: s.name   ?? '',
+            area: s.area   ?? '',
+          }))}
+        />
 
         {/* ── 新規サロン追加フォーム ── */}
         <div className="bg-white rounded-3xl border border-slate-100 shadow-sm p-6">

@@ -4,6 +4,7 @@ import { TherapistScroller } from "./components/TherapistScroller";
 import { createClient } from "./lib/supabase/server";
 import { DiarySection } from "@/components/DiarySection";
 import HeaderImageSlider from "@/components/HeaderImageSlider";
+import { FeaturedSalonSlider, type FeaturedSalon } from "./components/FeaturedSalonSlider";
 
 const AREAS = [
   "福岡全域",
@@ -32,6 +33,66 @@ export default async function Home() {
     hours:       (row.hours as string) ?? '',
     description: (row.description as string) ?? '',
   }));
+
+  // ── ピックアップサロン取得 ──────────────────────────────
+  const todayJST = new Intl.DateTimeFormat('sv-SE', { timeZone: 'Asia/Tokyo' }).format(new Date());
+  let featuredSalons: FeaturedSalon[] = [];
+
+  const { data: featuredRows, error: featuredErr } = await supabase
+    .from('featured_salons')
+    .select('salon_id, display_order')
+    .order('display_order', { ascending: true })
+    .limit(5);
+
+  if (!featuredErr && featuredRows && featuredRows.length > 0) {
+    const featuredIds = featuredRows.map(r => r.salon_id as number);
+
+    const [{ data: featuredSalonData }, { data: therapistData }] = await Promise.all([
+      supabase.from('salons').select('id, name, area, price, rating').in('id', featuredIds),
+      supabase.from('therapists').select('id, salon_id, profile_image_url')
+        .in('salon_id', featuredIds)
+        .not('profile_image_url', 'is', null),
+    ]);
+
+    // 本日出勤セット
+    const therapistIds = (therapistData ?? []).map(t => t.id);
+    let onDutySet = new Set<unknown>();
+    if (therapistIds.length > 0) {
+      const { data: schedData } = await supabase
+        .from('therapist_schedules')
+        .select('therapist_id')
+        .in('therapist_id', therapistIds)
+        .eq('schedule_date', todayJST)
+        .eq('is_active', true);
+      onDutySet = new Set((schedData ?? []).map(r => r.therapist_id));
+    }
+
+    const salonInfoMap = Object.fromEntries(
+      (featuredSalonData ?? []).map(s => [s.id as number, s])
+    );
+
+    featuredSalons = featuredIds
+      .filter(id => salonInfoMap[id])
+      .map(salonId => {
+        const s = salonInfoMap[salonId];
+        const therapists = (therapistData ?? []).filter(t => (t.salon_id as number) === salonId);
+        const sorted = [...therapists].sort((a, b) =>
+          (onDutySet.has(a.id) ? 0 : 1) - (onDutySet.has(b.id) ? 0 : 1)
+        );
+        return {
+          salonId,
+          salonName:       (s.name   as string) ?? '',
+          area:            (s.area   as string) ?? '',
+          price:           (s.price  as string) ?? '',
+          rating:          (s.rating as number) ?? 0,
+          therapistImages: sorted
+            .map(t => t.profile_image_url as string | null)
+            .filter((u): u is string => Boolean(u))
+            .slice(0, 4),
+        };
+      });
+  }
+
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900">
 
@@ -108,6 +169,22 @@ export default async function Home() {
             </div>
           </div>
         </section>
+
+        {/* ─── Pickup Salons ───────────────────────────────────── */}
+        {featuredSalons.length > 0 && (
+          <section className="py-10 bg-white border-t border-pink-50">
+            <div className="max-w-5xl mx-auto px-4">
+              <div className="flex items-center gap-3 mb-4">
+                <div className="w-1 h-6 rounded-full bg-gradient-to-b from-pink-400 to-rose-500" />
+                <h2 className="text-xl font-bold text-slate-900">ピックアップサロン</h2>
+                <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-pink-50 text-pink-500 border border-pink-200">
+                  おすすめ
+                </span>
+              </div>
+              <FeaturedSalonSlider salons={featuredSalons} />
+            </div>
+          </section>
+        )}
 
         {/* ─── Today's therapists ──────────────────────────────── */}
         <section className="py-10 bg-white border-t border-pink-50">
