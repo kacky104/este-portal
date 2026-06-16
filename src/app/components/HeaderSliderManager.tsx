@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { createClient } from '@/app/lib/supabase/client';
 
 type SliderImage = {
@@ -15,7 +15,7 @@ export default function HeaderSliderManager() {
   const [uploading, setUploading] = useState(false);
   const [loading, setLoading] = useState(true);
 
-  const fetchImages = async () => {
+  const fetchImages = useCallback(async () => {
     const { data, error } = await supabase
       .from('header_slider_images')
       .select('*')
@@ -23,11 +23,11 @@ export default function HeaderSliderManager() {
 
     if (!error && data) setImages(data);
     setLoading(false);
-  };
+  }, [supabase]);
 
   useEffect(() => {
     fetchImages();
-  }, []);
+  }, [fetchImages]);
 
   const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -76,18 +76,29 @@ export default function HeaderSliderManager() {
   const handleDelete = async (image: SliderImage) => {
     if (!confirm('この画像を削除しますか?')) return;
 
-    const fileName = image.image_url.split('/').pop();
-    if (fileName) {
-      await supabase.storage.from('header-slider').remove([fileName]);
+    // ストレージからファイルを削除
+    const url = new URL(image.image_url);
+    const pathParts = url.pathname.split('/header-slider/');
+    const storagePath = pathParts[1];
+    if (storagePath) {
+      const { error: storageError } = await supabase.storage
+        .from('header-slider')
+        .remove([storagePath]);
+      if (storageError) {
+        console.error('Storage delete error:', storageError);
+      }
     }
 
-    const { error } = await supabase
+    // DBレコードを削除（count: 'exact' でサイレント失敗を検出）
+    const { error, count } = await supabase
       .from('header_slider_images')
-      .delete()
+      .delete({ count: 'exact' })
       .eq('id', image.id);
 
     if (error) {
       alert('削除に失敗しました: ' + error.message);
+    } else if (count === 0) {
+      alert('削除できませんでした。権限が不足している可能性があります。\nSupabaseのRLSポリシーを確認してください。');
     } else {
       await fetchImages();
     }
