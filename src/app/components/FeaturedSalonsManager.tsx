@@ -146,9 +146,24 @@ export default function FeaturedSalonsManager({ allSalons }: { allSalons: SalonO
       .from(BUCKET)
       .upload(path, file, { upsert: true, contentType: file.type });
 
-    if (!uploadError) {
-      const { data: { publicUrl } } = supabase.storage.from(BUCKET).getPublicUrl(path);
-      await supabase.from('featured_salons').update({ image_url: publicUrl }).eq('id', itemId);
+    if (uploadError) {
+      console.error('Storage upload error:', uploadError);
+      alert(`画像のアップロードに失敗しました。\n${uploadError.message}\n\nSupabaseのストレージポリシーを確認してください。`);
+      e.target.value = '';
+      uploadTargetId.current = null;
+      setSaving(false);
+      return;
+    }
+
+    const { data: { publicUrl } } = supabase.storage.from(BUCKET).getPublicUrl(path);
+    const { error: updateError } = await supabase
+      .from('featured_salons')
+      .update({ image_url: publicUrl })
+      .eq('id', itemId);
+
+    if (updateError) {
+      console.error('DB update error:', updateError);
+      alert(`画像URLの保存に失敗しました。\n${updateError.message}`);
     }
 
     e.target.value = '';
