@@ -58,8 +58,7 @@ export function FeaturedSalonSlider({ salons }: { salons: FeaturedSalon[] }) {
           }}
         >
           {salons.map((salon, i) => {
-            const filledStars = Math.floor(salon.rating);
-            const bgImage     = salon.imageUrl ?? salon.therapistImages[0];
+            const bgImage = salon.imageUrl ?? salon.therapistImages[0];
             const grad        = GRADS[i % GRADS.length];
 
             return (
@@ -88,24 +87,9 @@ export function FeaturedSalonSlider({ salons }: { salons: FeaturedSalon[] }) {
 
                 {/* Bottom content */}
                 <div className="absolute bottom-0 left-0 right-0 p-4 sm:p-5">
-                  <p className="font-black text-lg sm:text-xl text-white drop-shadow mb-1.5 line-clamp-1">
+                  <p className="font-black text-lg sm:text-xl text-white drop-shadow mb-4 line-clamp-1">
                     {salon.salonName}
                   </p>
-
-                  <div className="flex items-center gap-2.5 mb-3">
-                    <div className="flex items-center gap-0.5">
-                      {Array.from({ length: 5 }).map((_, j) => (
-                        <span key={j} className={`text-sm leading-none ${j < filledStars ? 'text-yellow-400' : 'text-white/30'}`}>★</span>
-                      ))}
-                    </div>
-                    <span className="text-white/80 text-xs font-semibold">{salon.rating.toFixed(1)}</span>
-                    {salon.price && (
-                      <>
-                        <span className="text-white/30 text-xs">|</span>
-                        <span className="text-white/90 text-xs font-bold">{salon.price}</span>
-                      </>
-                    )}
-                  </div>
 
                   <div className="flex items-center justify-between">
                     {/* Therapist thumbnails */}
