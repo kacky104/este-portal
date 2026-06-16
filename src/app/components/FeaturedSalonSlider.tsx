@@ -87,7 +87,7 @@ export function FeaturedSalonSlider({ salons }: { salons: FeaturedSalon[] }) {
 
                 {/* Bottom content */}
                 <div className="absolute bottom-0 left-0 right-0 p-4 sm:p-5">
-                  <p className="font-black text-lg sm:text-xl text-white drop-shadow mb-4 line-clamp-1">
+                  <p className="font-black text-xl sm:text-2xl text-white drop-shadow mb-4 line-clamp-1">
                     {salon.salonName}
                   </p>
 
