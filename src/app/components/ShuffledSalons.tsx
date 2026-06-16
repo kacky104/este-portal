@@ -168,7 +168,7 @@ function SalonCard({ salon, therapists }: { salon: Salon; therapists: TherapistT
 
         {/* Name + area */}
         <div className="flex items-start justify-between gap-2 mb-2">
-          <h3 className="font-bold text-[15px] text-slate-900 group-hover:text-pink-700 transition-colors leading-snug">
+          <h3 className="font-bold text-lg text-slate-900 group-hover:text-pink-700 transition-colors leading-snug">
             {salon.name}
           </h3>
           <span className="flex-shrink-0 text-xs font-semibold px-2.5 py-0.5 rounded-full bg-pink-50 text-pink-600 border border-pink-200 mt-0.5">
