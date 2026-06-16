@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback } from 'react';
 import Image from 'next/image';
 import { createClient } from '@/app/lib/supabase/client';
 
-const AUTOPLAY_INTERVAL = 5000;
+const AUTOPLAY_INTERVAL = 3000;
 
 export default function HeaderImageSlider() {
   const supabase = createClient();
