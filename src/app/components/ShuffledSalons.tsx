@@ -90,48 +90,27 @@ function TherapistMiniCard({ therapist, index }: { therapist: TherapistThumb; in
   );
 }
 
-// ── Therapist mini cards row (drag-to-scroll) ──
+// ── Therapist mini cards row (hover auto-scroll / touch swipe) ──
 
 function TherapistMiniCardsRow({ therapists, salonId }: { therapists: TherapistThumb[]; salonId: number }) {
-  const scrollRef     = useRef<HTMLDivElement>(null);
-  const isDown        = useRef(false);
-  const startX        = useRef(0);
-  const scrollStartX  = useRef(0);
-  const didDrag       = useRef(false);
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const rafRef    = useRef<number | null>(null);
 
-  const onMouseDown = (e: React.MouseEvent<HTMLDivElement>) => {
-    const el = scrollRef.current;
-    if (!el) return;
-    isDown.current      = true;
-    didDrag.current     = false;
-    startX.current      = e.pageX - el.getBoundingClientRect().left;
-    scrollStartX.current = el.scrollLeft;
-    el.style.cursor     = 'grabbing';
-    el.style.userSelect = 'none';
+  const startScroll = () => {
+    const step = () => {
+      const el = scrollRef.current;
+      if (!el) return;
+      if (el.scrollLeft + el.clientWidth >= el.scrollWidth - 1) return;
+      el.scrollLeft += 1.2;
+      rafRef.current = requestAnimationFrame(step);
+    };
+    rafRef.current = requestAnimationFrame(step);
   };
 
-  const onMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
-    if (!isDown.current) return;
-    const el = scrollRef.current;
-    if (!el) return;
-    const x    = e.pageX - el.getBoundingClientRect().left;
-    const walk = x - startX.current;
-    if (Math.abs(walk) > 4) didDrag.current = true;
-    el.scrollLeft = scrollStartX.current - walk;
-  };
-
-  const onMouseUp = () => {
-    isDown.current = false;
-    const el = scrollRef.current;
-    if (el) { el.style.cursor = 'grab'; el.style.userSelect = ''; }
-  };
-
-  // キャプチャフェーズでドラッグ後のリンク遷移を阻止
-  const onClickCapture = (e: React.MouseEvent) => {
-    if (didDrag.current) {
-      e.stopPropagation();
-      e.preventDefault();
-      didDrag.current = false;
+  const stopScroll = () => {
+    if (rafRef.current !== null) {
+      cancelAnimationFrame(rafRef.current);
+      rafRef.current = null;
     }
   };
 
@@ -141,12 +120,9 @@ function TherapistMiniCardsRow({ therapists, salonId }: { therapists: TherapistT
     <div
       ref={scrollRef}
       className="flex gap-[3px] overflow-x-auto pb-1"
-      style={{ scrollbarWidth: 'none', msOverflowStyle: 'none', cursor: 'grab' } as React.CSSProperties}
-      onMouseDown={onMouseDown}
-      onMouseMove={onMouseMove}
-      onMouseUp={onMouseUp}
-      onMouseLeave={onMouseUp}
-      onClickCapture={onClickCapture}
+      style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' } as React.CSSProperties}
+      onMouseEnter={startScroll}
+      onMouseLeave={stopScroll}
       onClick={e => e.stopPropagation()}
     >
       {displayed.map((t, i) => (
