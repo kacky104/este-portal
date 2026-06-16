@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/app/lib/supabase/client';
+import { checkDutyStatus } from '@/lib/dutyStatus';
 
 export type Salon = {
   id:          number;
@@ -72,12 +73,36 @@ function TherapistMiniCard({ therapist, index }: { therapist: TherapistThumb; in
       {/* bottom gradient overlay */}
       <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/20 to-transparent" />
 
-      {/* on-duty badge */}
-      {therapist.onDuty && (
-        <span className="absolute top-1.5 right-1.5 text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-white text-emerald-500 border border-emerald-100 animate-pulse">
-          出勤中
-        </span>
-      )}
+      {/* duty status badge */}
+      {(() => {
+        if (!therapist.onDuty || !therapist.workHours) {
+          return (
+            <span className="absolute top-1.5 right-1.5 text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-white/90 text-slate-400 border border-slate-200">
+              お休み
+            </span>
+          );
+        }
+        const { status } = checkDutyStatus(therapist.workHours);
+        if (status === 'onDuty') {
+          return (
+            <span className="absolute top-1.5 right-1.5 text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-white text-emerald-500 border border-emerald-100 animate-pulse">
+              出勤中
+            </span>
+          );
+        }
+        if (status === 'before') {
+          return (
+            <span className="absolute top-1.5 right-1.5 text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-white/90 text-blue-500 border border-blue-100">
+              出勤予定
+            </span>
+          );
+        }
+        return (
+          <span className="absolute top-1.5 right-1.5 text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-white/90 text-slate-400 border border-slate-200">
+            受付終了
+          </span>
+        );
+      })()}
 
       {/* text overlay */}
       <div className="absolute bottom-0 left-0 right-0 p-2 text-white">
@@ -295,22 +320,33 @@ export function ShuffledSalons({ salons, areas }: { salons: Salon[]; areas: stri
 
       const { data: schedRows } = await supabase
         .from('therapist_schedules')
-        .select('therapist_id')
+        .select('therapist_id, start_time, end_time')
         .in('therapist_id', therapistIds)
         .eq('schedule_date', today)
         .eq('is_active', true);
 
       const onDutySet = new Set((schedRows ?? []).map(r => r.therapist_id));
 
+      // スケジュールの実際の時間を "HH:MM〜HH:MM" 形式でマップ化
+      const schedHoursMap: Record<string, string> = {};
+      for (const row of schedRows ?? []) {
+        const start = row.start_time ? String(row.start_time).slice(0, 5) : null;
+        const end   = row.end_time   ? String(row.end_time).slice(0, 5)   : null;
+        if (start && end) {
+          schedHoursMap[String(row.therapist_id)] = `${start}〜${end}`;
+        }
+      }
+
       const bySalon: Record<number, TherapistThumb[]> = {};
       for (const t of therapistRows) {
         const sid = t.salon_id as number;
+        const tid = String(t.id);
         if (!bySalon[sid]) bySalon[sid] = [];
         bySalon[sid].push({
-          id:        String(t.id),
-          name:      (t.name       as string) ?? '',
+          id:        tid,
+          name:      (t.name as string) ?? '',
           imageUrl:  (t.profile_image_url as string | null) ?? null,
-          workHours: (t.work_hours as string) ?? '',
+          workHours: schedHoursMap[tid] ?? (t.work_hours as string) ?? '',
           onDuty:    onDutySet.has(t.id),
         });
       }
