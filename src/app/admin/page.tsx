@@ -6,6 +6,7 @@ import { createClient } from '@/app/lib/supabase/client';
 import { TimeRangePicker } from '@/components/TimeRangePicker';
 import HeaderSliderManager from '@/app/components/HeaderSliderManager';
 import FeaturedSalonsManager from '@/app/components/FeaturedSalonsManager';
+import SalonEditModal, { type SalonForEdit } from '@/app/components/SalonEditModal';
 
 const supabase = createClient();
 const ADMIN_UUID = '63aca737-b399-4fb2-bf92-8a3816955d69';
@@ -13,12 +14,17 @@ const ADMIN_UUID = '63aca737-b399-4fb2-bf92-8a3816955d69';
 const AREAS = ['福岡全域', '博多・住吉', '中洲・天神・薬院', '北九州・小倉', '久留米', '福岡県その他', '出張'] as const;
 
 type Salon = {
-  id: number;
-  name: string | null;
-  area: string | null;
-  price: string | null;
-  rating: number | null;
-  owner_id: string | null;
+  id:          number;
+  name:        string | null;
+  area:        string | null;
+  price:       string | null;
+  rating:      number | null;
+  owner_id:    string | null;
+  hours:       string | null;
+  phone:       string | null;
+  address:     string | null;
+  access:      string | null;
+  closed_days: string | null;
 };
 
 type AuthState = 'loading' | 'forbidden' | 'authorized';
@@ -44,6 +50,7 @@ export default function AdminDashboard() {
   const [adding, setAdding] = useState(false);
   const [addError, setAddError] = useState('');
   const [toast, setToast] = useState('');
+  const [editingSalon, setEditingSalon] = useState<SalonForEdit | null>(null);
 
   const showToast = (msg: string) => {
     setToast(msg);
@@ -53,7 +60,7 @@ export default function AdminDashboard() {
   const fetchSalons = useCallback(async () => {
     const { data, error } = await supabase
       .from('salons')
-      .select('id, name, area, price, rating, owner_id')
+      .select('id, name, area, price, rating, owner_id, hours, phone, address, access, closed_days')
       .order('id', { ascending: true });
     if (error) {
       setFetchError('サロンデータの取得に失敗しました');
@@ -302,6 +309,7 @@ export default function AdminDashboard() {
                     <th className="text-left px-4 py-3 text-[11px] font-bold text-slate-400">料金</th>
                     <th className="text-left px-4 py-3 text-[11px] font-bold text-slate-400 w-16">評価</th>
                     <th className="text-left px-4 py-3 text-[11px] font-bold text-slate-400">オーナーUUID</th>
+                    <th className="px-4 py-3 w-16" />
                   </tr>
                 </thead>
                 <tbody>
@@ -324,6 +332,14 @@ export default function AdminDashboard() {
                       <td className="px-4 py-3 text-[10px] text-slate-400 font-mono break-all">
                         {salon.owner_id ?? <span className="text-slate-300">未設定</span>}
                       </td>
+                      <td className="px-4 py-3 text-right">
+                        <button
+                          onClick={() => setEditingSalon(salon)}
+                          className="text-[11px] font-bold px-3 py-1 rounded-lg border border-pink-200 text-pink-600 hover:bg-pink-50 hover:border-pink-300 transition-colors"
+                        >
+                          編集
+                        </button>
+                      </td>
                     </tr>
                   ))}
                 </tbody>
@@ -332,6 +348,19 @@ export default function AdminDashboard() {
           )}
         </div>
       </main>
+
+      {/* ── サロン編集モーダル ── */}
+      {editingSalon && (
+        <SalonEditModal
+          salon={editingSalon}
+          onClose={() => setEditingSalon(null)}
+          onSaved={(msg) => {
+            setEditingSalon(null);
+            showToast(msg);
+            fetchSalons();
+          }}
+        />
+      )}
     </div>
   );
 }
