@@ -72,8 +72,8 @@ export function FeaturedSalonSlider({ salons }: { salons: FeaturedSalon[] }) {
                 )}
 
                 {/* Overlay */}
-                <div className="absolute inset-0 bg-gradient-to-r from-black/20 via-black/5 to-transparent" />
-                <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent" />
+                <div className="absolute inset-0 bg-gradient-to-r from-black/10 via-transparent to-transparent" />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/30 via-transparent to-transparent" />
 
                 {/* PICKUP badge */}
                 <span className="absolute top-4 left-4 text-[11px] font-black text-white bg-pink-500 px-3 py-1 rounded-full shadow-lg tracking-wide">
