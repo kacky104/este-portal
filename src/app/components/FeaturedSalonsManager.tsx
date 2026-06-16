@@ -27,28 +27,47 @@ export default function FeaturedSalonsManager({ allSalons }: { allSalons: SalonO
   const [saving,           setSaving]          = useState(false);
   const [errorMsg,         setErrorMsg]        = useState('');
 
-  const salonMap = Object.fromEntries(allSalons.map(s => [s.id, s]));
-
   const fetchFeatured = useCallback(async () => {
-    const { data, error } = await supabase
+    const sb = createClient();
+
+    const { data: featuredData, error } = await sb
       .from('featured_salons')
       .select('id, salon_id, display_order')
       .order('display_order', { ascending: true });
 
     if (error) {
       setErrorMsg('テーブルがまだ作成されていない可能性があります。SQLマイグレーションを実行してください。');
-    } else {
-      setErrorMsg('');
-      setItems((data ?? []).map(row => ({
-        id:           row.id           as string,
-        salonId:      row.salon_id     as number,
-        salonName:    salonMap[row.salon_id as number]?.name ?? `Salon ${row.salon_id}`,
-        salonArea:    salonMap[row.salon_id as number]?.area ?? '',
-        displayOrder: row.display_order as number,
-      })));
+      setLoading(false);
+      return;
     }
+
+    const rows = featuredData ?? [];
+
+    // salon_id からサロン名を直接取得
+    let nameMap: Record<number, { name: string; area: string }> = {};
+    const salonIds = [...new Set(rows.map(r => r.salon_id as number))];
+    if (salonIds.length > 0) {
+      const { data: salonData } = await sb
+        .from('salons')
+        .select('id, name, area')
+        .in('id', salonIds);
+      nameMap = Object.fromEntries(
+        (salonData ?? []).map(s => [
+          s.id as number,
+          { name: (s.name as string) ?? '', area: (s.area as string) ?? '' },
+        ])
+      );
+    }
+
+    setErrorMsg('');
+    setItems(rows.map(row => ({
+      id:           row.id           as string,
+      salonId:      row.salon_id     as number,
+      salonName:    nameMap[row.salon_id as number]?.name ?? '',
+      salonArea:    nameMap[row.salon_id as number]?.area ?? '',
+      displayOrder: row.display_order as number,
+    })));
     setLoading(false);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => { fetchFeatured(); }, [fetchFeatured]);
