@@ -192,7 +192,7 @@ export default function FeaturedSalonsManager({ allSalons }: { allSalons: SalonO
       <div className="flex items-center justify-between mb-5">
         <div className="flex items-center gap-2">
           <h2 className="text-sm font-black text-slate-700">ピックアップサロン設定</h2>
-          <span className="text-[10px] text-slate-400">推奨画像サイズ: 横1200px × 縦480px</span>
+          <span className="text-[10px] text-slate-400">推奨画像サイズ: 横1440px × 縦540px</span>
         </div>
         <span className="text-xs text-slate-400">{items.length} / {MAX_FEATURED}件</span>
       </div>

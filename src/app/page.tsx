@@ -139,7 +139,7 @@ export default async function Home() {
         </section>
 
         {/* ─── Hero ────────────────────────────────────────────── */}
-        <section className="relative overflow-hidden bg-white pt-16 pb-14">
+        <section className="relative overflow-hidden bg-white pt-5 pb-5">
           <div className="absolute inset-0 bg-[radial-gradient(ellipse_70%_50%_at_50%_-10%,rgba(236,72,153,0.06),transparent)]" />
           <div className="absolute bottom-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-pink-300/50 to-transparent" />
 
@@ -159,7 +159,7 @@ export default async function Home() {
               </span>
             </h1>
 
-            <p className="text-slate-500 text-sm max-w-xl mx-auto mb-10 leading-relaxed">
+            <p className="text-slate-500 text-sm max-w-xl mx-auto mb-3 leading-relaxed">
               博多・天神・北九州・久留米など、福岡全域のエリアから口コミ評価の高い人気サロンをご紹介。あなたにぴったりのサロンを見つけてください。
             </p>
           </div>
