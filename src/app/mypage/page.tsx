@@ -6,7 +6,7 @@ import Link from 'next/link';
 import { createClient } from '@/app/lib/supabase/client';
 import { TimeRangePicker } from '@/components/TimeRangePicker';
 import { SALON_THEMES, type ThemeKey } from '@/app/lib/themes';
-import { getBusinessDateJST } from '@/lib/dutyStatus';
+import { getBusinessDateJST, getBusinessDateRangeJST } from '@/lib/dutyStatus';
 
 const supabase = createClient();
 
@@ -24,13 +24,6 @@ async function fetchTherapistList(salonId: string): Promise<Therapist[]> {
     .select('id, name, work_hours, area, comment, profile_image_url, age, body_type, profile_text')
     .eq('salon_id', salonId);
   return (fb ?? []).map(t => ({ ...(t as Omit<Therapist, 'is_available_now' | 'available_until'>), is_available_now: false, available_until: null }));
-}
-
-function toDateStr(d: Date): string {
-  const y = d.getFullYear();
-  const m = String(d.getMonth() + 1).padStart(2, '0');
-  const day = String(d.getDate()).padStart(2, '0');
-  return `${y}-${m}-${day}`;
 }
 
 function formatDateLabel(dateStr: string): string {
@@ -211,15 +204,9 @@ export default function MyPage() {
     });
   };
 
-  // 編集グリッドは従来通りカレンダー日付（今日〜+6日）を使う。
-  const sevenDays = useMemo(() => {
-    const today = new Date();
-    return Array.from({ length: 7 }, (_, i) => {
-      const d = new Date(today);
-      d.setDate(today.getDate() + i);
-      return toDateStr(d);
-    });
-  }, []);
+  // 営業日基準（午前5時始まり）の7日間。
+  // 0:00〜4:59 は前日を1日目、5:00以降は当日を1日目として表示する。
+  const sevenDays = useMemo(() => getBusinessDateRangeJST(7), []);
 
   useEffect(() => {
     (async () => {
@@ -278,10 +265,7 @@ export default function MyPage() {
       setTherapistForms(forms);
 
       if (list.length > 0) {
-        // 編集グリッド（カレンダー7日分）に加え、「今すぐ」判定用の営業日（深夜は前日）も
-        // 取得できるよう、開始日は営業日とカレンダー初日の早い方にする。
-        const businessToday = getBusinessDateJST();
-        const todayStr = businessToday < sevenDays[0] ? businessToday : sevenDays[0];
+        const todayStr = sevenDays[0];
         const lastStr  = sevenDays[sevenDays.length - 1];
 
         const { data: schedData } = await supabase
