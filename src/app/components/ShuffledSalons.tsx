@@ -206,7 +206,7 @@ function SalonCard({ salon, therapists }: { salon: Salon; therapists: TherapistT
         </h3>
 
         {/* 2. 評価・エリア・タグなどの情報 */}
-        <div className="mb-4">
+        <div className="mb-2">
           {/* Hours + 出勤中バッジ */}
           <div className="flex items-center gap-2 text-xs mb-2 flex-wrap">
             <div className="flex items-center gap-1.5">
