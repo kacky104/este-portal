@@ -2,6 +2,7 @@ import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { createClient } from '@/app/lib/supabase/server';
 import { getBusinessDateRangeJST } from '@/lib/dutyStatus';
+import { getTheme } from '@/app/lib/themes';
 
 // ── helpers ───────────────────────────────────────────────────
 
@@ -63,9 +64,30 @@ export default async function TherapistPublicPage({
 
   const { data: salonRow } = await supabase
     .from('salons')
-    .select('id, name, area, hours, address')
+    .select('id, name, area, hours, address, theme')
     .eq('id', tRow.salon_id as number)
     .single();
+
+  // 所属サロンと同じテーマ壁紙を背景に適用
+  const theme = getTheme((salonRow?.theme as string | null) ?? null);
+  const { data: wallpaperRow } = await supabase
+    .from('theme_wallpapers')
+    .select('image_url')
+    .eq('theme_key', theme.key)
+    .maybeSingle();
+  const wallpaperUrl = (wallpaperRow?.image_url as string | undefined) ?? null;
+
+  // 壁紙をテーマ背景色で薄く覆い読みやすさを確保。モバイル対応のため固定配置レイヤーで実装。
+  const bgLayerStyle: React.CSSProperties = {
+    backgroundColor: theme.bg,
+    ...(wallpaperUrl
+      ? {
+          backgroundImage: `linear-gradient(${theme.bg}D9, ${theme.bg}D9), url(${wallpaperUrl})`,
+          backgroundSize: 'cover',
+          backgroundPosition: 'center',
+        }
+      : {}),
+  };
 
   const dates = getBusinessDateRangeJST(7);
 
@@ -109,7 +131,10 @@ export default async function TherapistPublicPage({
     : null;
 
   return (
-    <div className="min-h-screen bg-slate-50 text-slate-900">
+    <div className="relative min-h-screen overflow-x-hidden" style={{ color: theme.text }}>
+
+      {/* 背景レイヤー（所属サロンと同じテーマ壁紙＋色オーバーレイ）— モバイル対応のため固定配置 */}
+      <div aria-hidden className="fixed inset-0 -z-10" style={bgLayerStyle} />
 
       {/* ─── Header ─────────────────────────────────────────── */}
       <header className="sticky top-0 z-50 bg-white/90 backdrop-blur-md border-b border-slate-200 shadow-sm">
