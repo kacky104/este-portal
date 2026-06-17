@@ -366,7 +366,6 @@ export default function MyPage() {
     const { error } = await supabase
       .from('salons')
       .update({
-        name: salonForm.name,
         courses: buildCoursesJson(courseGroups),
         price: buildRepresentativePrice(courseGroups),
         hours: salonForm.hours,
@@ -558,7 +557,10 @@ export default function MyPage() {
 
           <div>
             <label className={labelClass}>サロン名</label>
-            <input className={inputClass} value={salonForm.name ?? ''} onChange={(e) => setSalonForm((p) => ({ ...p, name: e.target.value }))} />
+            <div className="w-full px-3 py-2 rounded-lg border border-slate-200 bg-slate-100 text-slate-500 text-sm cursor-not-allowed">
+              {salonForm.name ?? ''}
+            </div>
+            <p className="mt-1 text-[11px] text-slate-400">※ サロン名の変更は管理者のみ行えます。変更が必要な場合はお問い合わせください。</p>
           </div>
           <div>
             <label className={labelClass}>コースメニュー</label>
