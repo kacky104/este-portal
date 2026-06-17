@@ -77,6 +77,7 @@ type Therapist = {
   profileImageUrl: string | null;
   today:           TodaySchedule;
   isAvailableNow:  boolean;
+  availableUntil:  string | null;
 };
 
 // ── shared schedule fetch ──────────────────────────────────────
@@ -148,7 +149,7 @@ function GridCard({ therapist, index }: {
         <div>
           <div className="flex items-center gap-1.5 mb-0.5 flex-wrap">
             <p className="font-bold text-slate-900 truncate">{therapist.name}</p>
-            {therapist.isAvailableNow && (
+            {therapist.isAvailableNow && therapist.availableUntil && new Date(therapist.availableUntil) > new Date() && (
               <span style={{ background: 'linear-gradient(to right, #ec4899, #f97316)', color: 'white', fontSize: '11px', fontWeight: 700, padding: '2px 8px', borderRadius: '20px' }}>
                 今すぐ
               </span>
@@ -183,7 +184,7 @@ export function SalonTherapists({ salonId }: { salonId: number }) {
       const supabase = createClient();
       const { data: rows } = await supabase
         .from('therapists')
-        .select('id, name, work_hours, area, comment, profile_image_url, is_available_now')
+        .select('id, name, work_hours, area, comment, profile_image_url, is_available_now, available_until')
         .eq('salon_id', salonId);
 
       console.log('[SalonTherapists] therapist rows:', rows?.map(r => ({ id: r.id, name: r.name })));
@@ -207,6 +208,7 @@ export function SalonTherapists({ salonId }: { salonId: number }) {
           profileImageUrl: (t.profile_image_url as string | null) ?? null,
           today:           todaySchedule,
           isAvailableNow:  Boolean(t.is_available_now),
+          availableUntil:  (t.available_until as string | null) ?? null,
         };
       });
 
@@ -238,7 +240,7 @@ export function SalonAllTherapists({ salonId }: { salonId: number }) {
       const supabase = createClient();
       const { data: rows } = await supabase
         .from('therapists')
-        .select('id, name, work_hours, area, comment, profile_image_url, is_available_now')
+        .select('id, name, work_hours, area, comment, profile_image_url, is_available_now, available_until')
         .eq('salon_id', salonId);
 
       const rawIds = (rows ?? []).map(t => t.id);
@@ -253,6 +255,7 @@ export function SalonAllTherapists({ salonId }: { salonId: number }) {
         profileImageUrl: (t.profile_image_url as string | null) ?? null,
         today:           schedMap[String(t.id)] ?? { is_active: false, start_time: null, end_time: null },
         isAvailableNow:  Boolean(t.is_available_now),
+        availableUntil:  (t.available_until as string | null) ?? null,
       }));
 
       setList(mapped);

@@ -25,6 +25,7 @@ type TherapistThumb = {
   workHours:      string;
   onDuty:         boolean;
   isAvailableNow: boolean;
+  availableUntil: string | null;
 };
 
 const GRADIENTS = [
@@ -81,7 +82,7 @@ function TherapistMiniCard({ therapist, index }: { therapist: TherapistThumb; in
       <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-black/10 to-transparent" />
 
       {/* 今すぐバッジ — top left */}
-      {therapist.isAvailableNow && (
+      {therapist.isAvailableNow && therapist.availableUntil && new Date(therapist.availableUntil) > new Date() && (
         <span className="absolute top-1.5 left-1.5" style={{ background: 'linear-gradient(to right, #ec4899, #f97316)', color: 'white', fontSize: '11px', fontWeight: 700, padding: '2px 8px', borderRadius: '20px' }}>
           今すぐ
         </span>
@@ -315,7 +316,7 @@ export function ShuffledSalons({ salons, areas }: { salons: Salon[]; areas: stri
 
       const { data: therapistRowsWithAvail, error: tErr } = await supabase
         .from('therapists')
-        .select('id, name, salon_id, profile_image_url, work_hours, is_available_now')
+        .select('id, name, salon_id, profile_image_url, work_hours, is_available_now, available_until')
         .in('salon_id', salonIds);
 
       let therapistRows = therapistRowsWithAvail;
@@ -324,7 +325,7 @@ export function ShuffledSalons({ salons, areas }: { salons: Salon[]; areas: stri
           .from('therapists')
           .select('id, name, salon_id, profile_image_url, work_hours')
           .in('salon_id', salonIds);
-        therapistRows = (fb ?? []).map(t => ({ ...t, is_available_now: false }));
+        therapistRows = (fb ?? []).map(t => ({ ...t, is_available_now: false, available_until: null }));
       }
 
       if (!therapistRows || therapistRows.length === 0) return;
@@ -365,6 +366,7 @@ export function ShuffledSalons({ salons, areas }: { salons: Salon[]; areas: stri
           workHours:      schedHoursMap[tid] ?? (t.work_hours as string) ?? '',
           onDuty:         onDutySet.has(tid),
           isAvailableNow: Boolean((t as { is_available_now?: unknown }).is_available_now),
+          availableUntil: ((t as { available_until?: unknown }).available_until as string | null) ?? null,
         });
       }
 

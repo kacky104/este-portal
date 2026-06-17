@@ -13,15 +13,15 @@ const WEEKDAYS = ['日', '月', '火', '水', '木', '金', '土'];
 async function fetchTherapistList(salonId: string): Promise<Therapist[]> {
   const { data, error } = await supabase
     .from('therapists')
-    .select('id, name, work_hours, area, comment, profile_image_url, age, body_type, profile_text, is_available_now')
+    .select('id, name, work_hours, area, comment, profile_image_url, age, body_type, profile_text, is_available_now, available_until')
     .eq('salon_id', salonId);
   if (!error) return (data ?? []) as Therapist[];
-  console.warn('[mypage] is_available_now クエリ失敗（カラム未作成の可能性）:', error.message);
+  console.warn('[mypage] クエリ失敗（カラム未作成の可能性）:', error.message);
   const { data: fb } = await supabase
     .from('therapists')
     .select('id, name, work_hours, area, comment, profile_image_url, age, body_type, profile_text')
     .eq('salon_id', salonId);
-  return (fb ?? []).map(t => ({ ...(t as Omit<Therapist, 'is_available_now'>), is_available_now: false }));
+  return (fb ?? []).map(t => ({ ...(t as Omit<Therapist, 'is_available_now' | 'available_until'>), is_available_now: false, available_until: null }));
 }
 
 function toDateStr(d: Date): string {
@@ -138,6 +138,7 @@ type Therapist = {
   body_type: string | null;
   profile_text: string | null;
   is_available_now: boolean;
+  available_until: string | null;
 };
 
 type DaySchedule = {
@@ -168,6 +169,7 @@ export default function MyPage() {
   const [uploadingImage, setUploadingImage] = useState(false);
   const [availableNow, setAvailableNow] = useState<Record<string, boolean>>({});
   const [savingAvailable, setSavingAvailable] = useState(false);
+  const [now, setNow] = useState(() => new Date());
 
   const toggleSection = (key: string) => {
     setExpandedSections(prev => {
@@ -264,6 +266,11 @@ export default function MyPage() {
       }
     })();
   }, [router]);
+
+  useEffect(() => {
+    const timer = setInterval(() => setNow(new Date()), 60000);
+    return () => clearInterval(timer);
+  }, []);
 
   const showToast = (msg: string) => {
     setToast(msg);
@@ -521,12 +528,21 @@ export default function MyPage() {
 
   const handleAvailableNowSave = async () => {
     setSavingAvailable(true);
+    const availableUntil = new Date(Date.now() + 30 * 60 * 1000).toISOString();
     for (const t of therapists) {
       const sid = String(t.id);
+      const isChecked = availableNow[sid] ?? false;
       await supabase
         .from('therapists')
-        .update({ is_available_now: availableNow[sid] ?? false })
+        .update({
+          is_available_now: isChecked,
+          available_until: isChecked ? availableUntil : null,
+        })
         .eq('id', t.id);
+    }
+    if (salon) {
+      const refreshed = await fetchTherapistList(String(salon.id));
+      setTherapists(refreshed);
     }
     setSavingAvailable(false);
     showToast('「今すぐ」設定を保存しました');
@@ -901,9 +917,8 @@ export default function MyPage() {
             </div>
             {(() => {
               const todayStr = sevenDays[0];
-              const nowDate = new Date();
-              const jstH = Number(new Intl.DateTimeFormat('sv-SE', { timeZone: 'Asia/Tokyo', hour: '2-digit', hour12: false }).format(nowDate));
-              const jstM = Number(new Intl.DateTimeFormat('sv-SE', { timeZone: 'Asia/Tokyo', minute: '2-digit' }).format(nowDate));
+              const jstH = Number(new Intl.DateTimeFormat('sv-SE', { timeZone: 'Asia/Tokyo', hour: '2-digit', hour12: false }).format(now));
+              const jstM = Number(new Intl.DateTimeFormat('sv-SE', { timeZone: 'Asia/Tokyo', minute: '2-digit' }).format(now));
               const nowMin = jstH * 60 + jstM;
               const onDutyTherapists = therapists.filter(t => {
                 const sched = schedules[String(t.id)]?.[todayStr];
@@ -916,6 +931,8 @@ export default function MyPage() {
                   ? nowMin >= startMin || nowMin <= endMin
                   : nowMin >= startMin && nowMin <= endMin;
               });
+              const checkedCount = onDutyTherapists.filter(t => availableNow[String(t.id)]).length;
+              const atLimit = checkedCount >= 5;
               if (onDutyTherapists.length === 0) {
                 return (
                   <p className="text-xs text-slate-400 text-center py-6 border border-dashed border-slate-200 rounded-2xl">
@@ -925,14 +942,26 @@ export default function MyPage() {
               }
               return (
                 <div className="space-y-2">
+                  {atLimit && (
+                    <p className="text-xs text-rose-500 font-bold text-center py-2 bg-rose-50 border border-rose-100 rounded-xl">
+                      今すぐは最大5名までです
+                    </p>
+                  )}
                   {onDutyTherapists.map(t => {
                     const sid = String(t.id);
+                    const isChecked = availableNow[sid] ?? false;
+                    const remainingMin = t.available_until
+                      ? Math.floor((new Date(t.available_until).getTime() - now.getTime()) / 60000)
+                      : 0;
                     return (
-                      <label key={sid} className="flex items-center gap-3 p-3 rounded-2xl border border-slate-100 bg-slate-50/50 cursor-pointer hover:border-pink-200 transition-colors">
+                      <label key={sid} className={`flex items-center gap-3 p-3 rounded-2xl border bg-slate-50/50 transition-colors ${
+                        !isChecked && atLimit ? 'border-slate-100 opacity-50 cursor-not-allowed' : 'border-slate-100 cursor-pointer hover:border-pink-200'
+                      }`}>
                         <input
                           type="checkbox"
                           className="w-4 h-4 accent-pink-500 flex-shrink-0"
-                          checked={availableNow[sid] ?? false}
+                          checked={isChecked}
+                          disabled={!isChecked && atLimit}
                           onChange={e => setAvailableNow(prev => ({ ...prev, [sid]: e.target.checked }))}
                         />
                         {t.profile_image_url ? (
@@ -950,8 +979,11 @@ export default function MyPage() {
                               {schedules[sid][todayStr].start_time?.slice(0, 5)}〜{schedules[sid][todayStr].end_time?.slice(0, 5)}
                             </p>
                           )}
+                          {isChecked && remainingMin > 0 && (
+                            <p className="text-[11px] text-pink-500 font-bold">残り{remainingMin}分</p>
+                          )}
                         </div>
-                        {(availableNow[sid]) && (
+                        {isChecked && (
                           <span style={{ background: 'linear-gradient(to right, #ec4899, #f97316)', color: 'white', fontSize: '11px', fontWeight: 700, padding: '2px 8px', borderRadius: '20px', flexShrink: 0 }}>
                             今すぐ
                           </span>
