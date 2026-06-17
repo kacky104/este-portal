@@ -91,7 +91,10 @@ export default async function SalonPage({
 
         {/* ─── Block 2: サロン情報 ──────────────────────── */}
         <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 mb-6">
-          <h1 className="text-2xl font-bold text-slate-900 mb-3">{salon.name}</h1>
+          <h1
+            className="font-bold text-slate-900 mb-3 whitespace-nowrap overflow-hidden"
+            style={{ fontSize: 'clamp(15px, 4vw, 24px)', textOverflow: 'ellipsis' }}
+          >{salon.name}</h1>
 
           {/* Rating row */}
           <div className="flex flex-wrap items-center gap-3 mb-4">
