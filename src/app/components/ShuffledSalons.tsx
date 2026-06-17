@@ -55,6 +55,12 @@ function StarRating({ rating }: { rating: number }) {
 
 function TherapistMiniCard({ therapist, index }: { therapist: TherapistThumb; index: number }) {
   const grad = GRADIENTS[index % GRADIENTS.length];
+  const dutyStatus = !therapist.onDuty
+    ? 'off'
+    : !therapist.workHours
+      ? 'onDuty'
+      : checkDutyStatus(therapist.workHours).status;
+
   return (
     <Link
       href={`/therapist/${therapist.id}`}
@@ -81,49 +87,32 @@ function TherapistMiniCard({ therapist, index }: { therapist: TherapistThumb; in
         </span>
       )}
 
-      {/* duty status badge */}
-      {(() => {
-        if (!therapist.onDuty) {
-          return (
-            <span className="absolute top-1.5 right-1.5 text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-white/90 text-slate-400 border border-slate-200">
-              お休み
-            </span>
-          );
-        }
-        // onDuty=true だが workHours が空の場合は出勤中として扱う
-        if (!therapist.workHours) {
-          return (
-            <span className="absolute top-1.5 right-1.5 text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-white text-emerald-500 border border-emerald-100 animate-pulse">
-              出勤中
-            </span>
-          );
-        }
-        const { status } = checkDutyStatus(therapist.workHours);
-        if (status === 'onDuty') {
-          return (
-            <span className="absolute top-1.5 right-1.5 text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-white text-emerald-500 border border-emerald-100 animate-pulse">
-              出勤中
-            </span>
-          );
-        }
-        if (status === 'before') {
-          return (
-            <span className="absolute top-1.5 right-1.5 text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-white/90 text-blue-500 border border-blue-100">
-              出勤予定
-            </span>
-          );
-        }
-        return (
-          <span className="absolute top-1.5 right-1.5 text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-white/90 text-slate-400 border border-slate-200">
-            受付終了
-          </span>
-        );
-      })()}
+      {/* duty status badge — top right */}
+      {dutyStatus === 'off' && (
+        <span className="absolute top-1.5 right-1.5 text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-white/90 text-slate-400 border border-slate-200">
+          お休み
+        </span>
+      )}
+      {dutyStatus === 'onDuty' && (
+        <span className="absolute top-1.5 right-1.5 text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-white text-emerald-500 border border-emerald-100 animate-pulse">
+          出勤中
+        </span>
+      )}
+      {dutyStatus === 'before' && (
+        <span className="absolute top-1.5 right-1.5 text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-white/90 text-blue-500 border border-blue-100">
+          出勤予定
+        </span>
+      )}
+      {dutyStatus === 'after' && (
+        <span className="absolute top-1.5 right-1.5 text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-white/90 text-slate-400 border border-slate-200">
+          受付終了
+        </span>
+      )}
 
       {/* text overlay */}
       <div className="absolute bottom-0 left-0 right-0 p-2 text-white">
         <p className="font-bold text-[11px] leading-tight drop-shadow line-clamp-1">{therapist.name}</p>
-        {therapist.workHours && (
+        {therapist.workHours && (dutyStatus === 'onDuty' || dutyStatus === 'before') && (
           <p className="text-[13px] text-pink-200 font-medium mt-0.5 text-center">{therapist.workHours}</p>
         )}
       </div>
