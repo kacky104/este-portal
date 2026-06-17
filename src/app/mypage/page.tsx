@@ -952,7 +952,7 @@ export default function MyPage() {
                           )}
                         </div>
                         {(availableNow[sid]) && (
-                          <span style={{ background: '#ec4899', color: 'white', fontSize: '11px', fontWeight: 700, padding: '2px 8px', borderRadius: '20px', flexShrink: 0 }}>
+                          <span style={{ background: 'linear-gradient(to right, #ec4899, #f97316)', color: 'white', fontSize: '11px', fontWeight: 700, padding: '2px 8px', borderRadius: '20px', flexShrink: 0 }}>
                             今すぐ
                           </span>
                         )}

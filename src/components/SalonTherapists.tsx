@@ -149,7 +149,7 @@ function GridCard({ therapist, index }: {
           <div className="flex items-center gap-1.5 mb-0.5 flex-wrap">
             <p className="font-bold text-slate-900 truncate">{therapist.name}</p>
             {therapist.isAvailableNow && (
-              <span style={{ background: '#ec4899', color: 'white', fontSize: '11px', fontWeight: 700, padding: '2px 8px', borderRadius: '20px' }}>
+              <span style={{ background: 'linear-gradient(to right, #ec4899, #f97316)', color: 'white', fontSize: '11px', fontWeight: 700, padding: '2px 8px', borderRadius: '20px' }}>
                 今すぐ
               </span>
             )}

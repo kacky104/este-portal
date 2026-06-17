@@ -19,11 +19,12 @@ export type Salon = {
 };
 
 type TherapistThumb = {
-  id:        string;
-  name:      string;
-  imageUrl:  string | null;
-  workHours: string;
-  onDuty:    boolean;
+  id:             string;
+  name:           string;
+  imageUrl:       string | null;
+  workHours:      string;
+  onDuty:         boolean;
+  isAvailableNow: boolean;
 };
 
 const GRADIENTS = [
@@ -72,6 +73,13 @@ function TherapistMiniCard({ therapist, index }: { therapist: TherapistThumb; in
 
       {/* bottom gradient overlay */}
       <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-black/10 to-transparent" />
+
+      {/* 今すぐバッジ — top left */}
+      {therapist.isAvailableNow && (
+        <span className="absolute top-1.5 left-1.5" style={{ background: 'linear-gradient(to right, #ec4899, #f97316)', color: 'white', fontSize: '11px', fontWeight: 700, padding: '2px 8px', borderRadius: '20px' }}>
+          今すぐ
+        </span>
+      )}
 
       {/* duty status badge */}
       {(() => {
@@ -316,10 +324,19 @@ export function ShuffledSalons({ salons, areas }: { salons: Salon[]; areas: stri
       const supabase = createClient();
       const salonIds = salons.map(s => s.id);
 
-      const { data: therapistRows } = await supabase
+      const { data: therapistRowsWithAvail, error: tErr } = await supabase
         .from('therapists')
-        .select('id, name, salon_id, profile_image_url, work_hours')
+        .select('id, name, salon_id, profile_image_url, work_hours, is_available_now')
         .in('salon_id', salonIds);
+
+      let therapistRows = therapistRowsWithAvail;
+      if (tErr) {
+        const { data: fb } = await supabase
+          .from('therapists')
+          .select('id, name, salon_id, profile_image_url, work_hours')
+          .in('salon_id', salonIds);
+        therapistRows = (fb ?? []).map(t => ({ ...t, is_available_now: false }));
+      }
 
       if (!therapistRows || therapistRows.length === 0) return;
 
@@ -353,11 +370,12 @@ export function ShuffledSalons({ salons, areas }: { salons: Salon[]; areas: stri
         const tid = String(t.id);
         if (!bySalon[sid]) bySalon[sid] = [];
         bySalon[sid].push({
-          id:        tid,
-          name:      (t.name as string) ?? '',
-          imageUrl:  (t.profile_image_url as string | null) ?? null,
-          workHours: schedHoursMap[tid] ?? (t.work_hours as string) ?? '',
-          onDuty:    onDutySet.has(tid),
+          id:             tid,
+          name:           (t.name as string) ?? '',
+          imageUrl:       (t.profile_image_url as string | null) ?? null,
+          workHours:      schedHoursMap[tid] ?? (t.work_hours as string) ?? '',
+          onDuty:         onDutySet.has(tid),
+          isAvailableNow: Boolean((t as { is_available_now?: unknown }).is_available_now),
         });
       }
 

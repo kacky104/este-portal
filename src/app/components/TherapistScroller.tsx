@@ -113,7 +113,7 @@ function Card({ therapist, index }: { therapist: TherapistItem; index: number })
 
       {/* 今すぐバッジ — top left */}
       {therapist.isAvailableNow && (
-        <span className="absolute top-1.5 left-1.5 text-[9px] sm:text-[10px] font-bold px-2 py-0.5 rounded-full" style={{ background: '#ec4899', color: 'white', fontSize: '11px', fontWeight: 700, padding: '2px 8px', borderRadius: '20px' }}>
+        <span className="absolute top-1.5 left-1.5" style={{ background: 'linear-gradient(to right, #ec4899, #f97316)', color: 'white', fontSize: '11px', fontWeight: 700, padding: '2px 8px', borderRadius: '20px' }}>
           今すぐ
         </span>
       )}
