@@ -199,6 +199,7 @@ export default function MyPage() {
   const [availableNow, setAvailableNow] = useState<Record<string, boolean>>({});
   const [savingAvailable, setSavingAvailable] = useState(false);
   const [now, setNow] = useState(() => new Date());
+  const [themeWallpapers, setThemeWallpapers] = useState<Record<string, string>>({});
 
   const toggleSection = (key: string) => {
     setExpandedSections(prev => {
@@ -247,6 +248,13 @@ export default function MyPage() {
         .eq('salon_id', salonData.id)
         .order('display_order', { ascending: true });
       setSalonImages(imageData ?? []);
+
+      const { data: wallpaperData } = await supabase
+        .from('theme_wallpapers')
+        .select('theme_key, image_url');
+      const wpMap: Record<string, string> = {};
+      (wallpaperData ?? []).forEach((w: { theme_key: string; image_url: string }) => { wpMap[w.theme_key] = w.image_url; });
+      setThemeWallpapers(wpMap);
 
       const list = await fetchTherapistList(String(salonData.id));
       setTherapists(list);
@@ -717,29 +725,43 @@ export default function MyPage() {
             <p className="mt-1 text-[11px] text-slate-400">※ サロン名の変更は管理者のみ行えます。変更が必要な場合はお問い合わせください。</p>
           </div>
 
-          {/* ── テーマカラー ── */}
+          {/* ── テーマ（壁紙） ── */}
           <div>
-            <label className={labelClass}>テーマカラー</label>
-            <p className="mb-2 text-[11px] text-slate-400">サロン詳細ページ全体の背景色・文字色が切り替わります。</p>
-            <div className="grid grid-cols-3 gap-2">
+            <label className={labelClass}>テーマ（背景壁紙）</label>
+            <p className="mb-2 text-[11px] text-slate-400">サロン詳細ページの背景に敷かれる壁紙を選べます。壁紙未設定のテーマは背景色のみになります。</p>
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
               {SALON_THEMES.map((t) => {
                 const selected = (salonForm.theme ?? 'white') === t.key;
+                const wallpaper = themeWallpapers[t.key];
                 return (
                   <button
                     key={t.key}
                     type="button"
                     onClick={() => setSalonForm((p) => ({ ...p, theme: t.key as ThemeKey }))}
-                    className={`flex items-center gap-2 px-3 py-2 rounded-xl border text-xs font-bold transition-colors ${
-                      selected
-                        ? 'border-pink-500 ring-2 ring-pink-200 text-pink-600'
-                        : 'border-slate-200 text-slate-500 hover:border-pink-300'
+                    className={`group rounded-2xl border-2 overflow-hidden text-left transition-colors ${
+                      selected ? 'border-pink-500 ring-2 ring-pink-200' : 'border-slate-200 hover:border-pink-300'
                     }`}
                   >
-                    <span
-                      className="w-5 h-5 rounded-full flex-shrink-0"
-                      style={{ backgroundColor: t.bg, border: `1px solid ${t.swatchBorder}` }}
-                    />
-                    {t.label}
+                    {/* プレビュー */}
+                    <div className="relative w-full" style={{ aspectRatio: '16/9', backgroundColor: t.bg }}>
+                      {wallpaper && (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img src={wallpaper} alt="" className="absolute inset-0 w-full h-full object-cover" />
+                      )}
+                      {selected && (
+                        <span className="absolute top-1.5 right-1.5 w-5 h-5 rounded-full bg-pink-500 text-white text-[11px] font-bold flex items-center justify-center shadow">
+                          ✓
+                        </span>
+                      )}
+                    </div>
+                    {/* ラベル */}
+                    <div className={`flex items-center gap-1.5 px-2.5 py-1.5 ${selected ? 'bg-pink-50' : 'bg-white'}`}>
+                      <span
+                        className="w-3.5 h-3.5 rounded-full flex-shrink-0"
+                        style={{ backgroundColor: t.bg, border: `1px solid ${t.swatchBorder}` }}
+                      />
+                      <span className={`text-xs font-bold ${selected ? 'text-pink-600' : 'text-slate-600'}`}>{t.label}</span>
+                    </div>
                   </button>
                 );
               })}

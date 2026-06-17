@@ -7,6 +7,7 @@ import { TimeRangePicker } from '@/components/TimeRangePicker';
 import HeaderSliderManager from '@/app/components/HeaderSliderManager';
 import FeaturedSalonsManager from '@/app/components/FeaturedSalonsManager';
 import SalonEditModal, { type SalonForEdit } from '@/app/components/SalonEditModal';
+import ThemeWallpaperManager from '@/app/components/ThemeWallpaperManager';
 
 const supabase = createClient();
 const ADMIN_UUID = '63aca737-b399-4fb2-bf92-8a3816955d69';
@@ -204,6 +205,9 @@ export default function AdminDashboard() {
             area: s.area   ?? '',
           }))}
         />
+
+        {/* ── テーマ壁紙設定 ── */}
+        <ThemeWallpaperManager onToast={showToast} />
 
         {/* ── 新規サロン追加フォーム ── */}
         <div className="bg-white rounded-3xl border border-slate-100 shadow-sm p-6">

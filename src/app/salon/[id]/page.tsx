@@ -55,10 +55,31 @@ export default async function SalonPage({
 
   const theme = getTheme(row.theme as string | null);
 
+  const { data: wallpaperRow } = await supabase
+    .from('theme_wallpapers')
+    .select('image_url')
+    .eq('theme_key', theme.key)
+    .maybeSingle();
+  const wallpaperUrl = (wallpaperRow?.image_url as string | undefined) ?? null;
+
+  // 壁紙画像をテーマ背景色で薄く覆い、読みやすさを確保
+  const rootStyle: React.CSSProperties = {
+    backgroundColor: theme.bg,
+    color: theme.text,
+    ...(wallpaperUrl
+      ? {
+          backgroundImage: `linear-gradient(${theme.bg}D9, ${theme.bg}D9), url(${wallpaperUrl})`,
+          backgroundSize: 'cover',
+          backgroundPosition: 'center',
+          backgroundAttachment: 'fixed',
+        }
+      : {}),
+  };
+
   const filledStars = Math.floor(salon.rating);
 
   return (
-    <div className="min-h-screen" style={{ backgroundColor: theme.bg, color: theme.text }}>
+    <div className="min-h-screen" style={rootStyle}>
 
       {/* ─── Header ─────────────────────────────────────────── */}
       <header className="sticky top-0 z-50 backdrop-blur-md border-b shadow-sm" style={{ backgroundColor: `${theme.card}E6`, borderColor: theme.cardBorder }}>
