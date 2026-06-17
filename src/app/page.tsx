@@ -205,7 +205,7 @@ export default async function Home() {
               <h2 className="text-xl font-bold text-slate-900">掲載サロン一覧</h2>
             </div>
             <p className="text-xs text-slate-400 pl-7 mb-8">
-              2026年6月 更新 ｜ 表示順はページ読み込みのたびにシャッフルされます
+              表示順はページ読み込みのたびにシャッフルされます
             </p>
 
             <ShuffledSalons salons={salons} areas={[...AREAS]} />
