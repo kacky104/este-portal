@@ -3,19 +3,12 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { createClient } from '@/app/lib/supabase/client';
-import { getBusinessDateJST } from '@/lib/dutyStatus';
+import { getBusinessDateJST, getScheduleWindowStatus } from '@/lib/dutyStatus';
 
 const GRADS = ['from-pink-300 to-rose-400', 'from-fuchsia-300 to-pink-400', 'from-rose-300 to-pink-500'];
 const SYMS  = ['✿', '❀', '✾', '♡', '✦'];
 
 // ── helpers ──────────────────────────────────────────────────
-
-function getNowJSTMinutes(): number {
-  const nowDate = new Date();
-  const h = Number(new Intl.DateTimeFormat('sv-SE', { timeZone: 'Asia/Tokyo', hour: '2-digit', hour12: false }).format(nowDate));
-  const m = Number(new Intl.DateTimeFormat('sv-SE', { timeZone: 'Asia/Tokyo', minute: '2-digit' }).format(nowDate));
-  return h * 60 + m;
-}
 
 type ScheduleStatus = 'off' | 'onDuty' | 'before' | 'after';
 
@@ -32,26 +25,13 @@ type StatusResult = {
 };
 
 function getScheduleStatus(s: TodaySchedule): StatusResult {
-  if (!s.is_active || !s.start_time || !s.end_time) {
-    return { status: 'off', label: '本日はお休み', badgeCls: 'bg-slate-100 text-slate-400' };
+  const status = s.is_active ? getScheduleWindowStatus(s.start_time, s.end_time) : 'off';
+  switch (status) {
+    case 'onDuty': return { status, label: '出勤中',       badgeCls: 'bg-emerald-50 text-emerald-600 animate-pulse' };
+    case 'before': return { status, label: '本日出勤予定', badgeCls: 'bg-slate-100 text-slate-500' };
+    case 'after':  return { status, label: '受付終了',     badgeCls: 'bg-rose-50 text-rose-400' };
+    default:       return { status: 'off', label: '本日はお休み', badgeCls: 'bg-slate-100 text-slate-400' };
   }
-  const [sh, sm] = s.start_time.split(':').map(Number);
-  const [eh, em] = s.end_time.split(':').map(Number);
-  const startMin = sh * 60 + (sm || 0);
-  const endMin   = eh * 60 + (em || 0);
-  const isOvernight = endMin < startMin;
-  const now = getNowJSTMinutes();
-
-  if (isOvernight) {
-    return (now >= startMin || now <= endMin)
-      ? { status: 'onDuty', label: '出勤中',       badgeCls: 'bg-emerald-50 text-emerald-600 animate-pulse' }
-      : { status: 'before', label: '本日出勤予定', badgeCls: 'bg-slate-100 text-slate-500' };
-  }
-  if (now >= startMin && now <= endMin)
-    return { status: 'onDuty', label: '出勤中',       badgeCls: 'bg-emerald-50 text-emerald-600 animate-pulse' };
-  if (now < startMin)
-    return { status: 'before', label: '本日出勤予定', badgeCls: 'bg-slate-100 text-slate-500' };
-  return { status: 'after', label: '受付終了',   badgeCls: 'bg-rose-50 text-rose-400' };
 }
 
 function buildDisplayHours(start: string | null, end: string | null): string {

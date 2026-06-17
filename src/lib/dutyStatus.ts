@@ -32,6 +32,47 @@ export function getBusinessDateRangeJST(days: number): string[] {
   return Array.from({ length: days }, (_, i) => getBusinessDateJST(i));
 }
 
+/** 現在の日本時間を「0時からの経過分」で返す（0〜1439）。 */
+export function getNowJSTMinutes(): number {
+  const now = new Date();
+  const h = Number(new Intl.DateTimeFormat('sv-SE', { timeZone: 'Asia/Tokyo', hour: '2-digit', hour12: false }).format(now));
+  const m = Number(new Intl.DateTimeFormat('sv-SE', { timeZone: 'Asia/Tokyo', minute: '2-digit' }).format(now));
+  return h * 60 + m;
+}
+
+/** 0時起点の分を「営業日（午前5時始まり）の経過分」に変換する（0 = 05:00）。 */
+function toBusinessElapsed(minutes: number): number {
+  return (minutes - DAY_START_HOUR * 60 + 1440) % 1440;
+}
+
+export type ScheduleWindowStatus = 'off' | 'onDuty' | 'before' | 'after';
+
+/**
+ * 出勤の開始・終了時刻（"HH:MM"）と現在時刻から、営業日内での前後を判定する。
+ * 5時始まりの経過分で比較するため、深夜0〜5時に前日の昼帯シフトが
+ * 「終了済み（after）」と正しく判定される。終了 <= 開始の場合は深夜またぎとして扱う。
+ */
+export function getScheduleWindowStatus(
+  startTime: string | null,
+  endTime: string | null
+): ScheduleWindowStatus {
+  if (!startTime || !endTime) return 'off';
+
+  const [sh, sm] = startTime.split(':').map(Number);
+  const [eh, em] = endTime.split(':').map(Number);
+  const startMin = sh * 60 + (sm || 0);
+  const endMin   = eh * 60 + (em || 0);
+
+  const startE = toBusinessElapsed(startMin);
+  let   endE   = toBusinessElapsed(endMin);
+  if (endE <= startE) endE += 1440;            // 深夜またぎ（翌日の5時以降まで）
+
+  const nowE = toBusinessElapsed(getNowJSTMinutes());
+
+  if (nowE >= startE && nowE <= endE) return 'onDuty';
+  return nowE < startE ? 'before' : 'after';
+}
+
 export type DutyStatus = 'before' | 'onDuty' | 'after';
 
 export function checkDutyStatus(workHours: string): {
@@ -50,41 +91,10 @@ export function checkDutyStatus(workHours: string): {
   const [startRaw, endRaw] = normalized.split('-');
   const startHourStr = startRaw.trim();
   const endClean = endRaw.replace(/翌/g, '').trim();
-  const isOvernightShift = endRaw.includes('翌');
 
-  // 2. 時と分を数字にする
-  const [startHour, startMin] = startHourStr.split(':').map(Number);
-  const [endHour, endMin] = endClean.split(':').map(Number);
+  // 5時始まりの経過分で前後を判定（深夜またぎ・前日昼帯の終了も正しく扱う）
+  const window = getScheduleWindowStatus(startHourStr, endClean);
+  const status: DutyStatus = window === 'onDuty' ? 'onDuty' : window === 'after' ? 'after' : 'before';
 
-  const startInMinutes = startHour * 60 + (startMin || 0);
-  const endInMinutes = endHour * 60 + (endMin || 0);
-
-  // 3. 現在の日本時間を取得（sv-SE ロケールで HH:MM 形式を保証）
-  const nowDate = new Date();
-  const jstHour   = Number(new Intl.DateTimeFormat('sv-SE', { timeZone: 'Asia/Tokyo', hour: '2-digit', hour12: false }).format(nowDate));
-  const jstMinute = Number(new Intl.DateTimeFormat('sv-SE', { timeZone: 'Asia/Tokyo', minute: '2-digit' }).format(nowDate));
-  const now = jstHour * 60 + jstMinute;
-
-  // 4. 判定
-  let isOnDuty: boolean;
-  let status: DutyStatus;
-
-  if (isOvernightShift || endInMinutes < startInMinutes) {
-    // 深夜またぎシフト: 開始以降 OR 終了以前 → 出勤中
-    isOnDuty = now >= startInMinutes || now <= endInMinutes;
-    // 出勤時間外はすべて「これから始まるシフト」として before 扱い
-    status = isOnDuty ? 'onDuty' : 'before';
-  } else {
-    // 通常シフト
-    isOnDuty = now >= startInMinutes && now <= endInMinutes;
-    if (isOnDuty) {
-      status = 'onDuty';
-    } else if (now < startInMinutes) {
-      status = 'before';
-    } else {
-      status = 'after';
-    }
-  }
-
-  return { isOnDuty, startHourStr, status };
+  return { isOnDuty: window === 'onDuty', startHourStr, status };
 }

@@ -6,7 +6,7 @@ import Link from 'next/link';
 import { createClient } from '@/app/lib/supabase/client';
 import { TimeRangePicker } from '@/components/TimeRangePicker';
 import { SALON_THEMES, type ThemeKey } from '@/app/lib/themes';
-import { getBusinessDateJST, getBusinessDateRangeJST } from '@/lib/dutyStatus';
+import { getBusinessDateJST } from '@/lib/dutyStatus';
 
 const supabase = createClient();
 
@@ -24,6 +24,13 @@ async function fetchTherapistList(salonId: string): Promise<Therapist[]> {
     .select('id, name, work_hours, area, comment, profile_image_url, age, body_type, profile_text')
     .eq('salon_id', salonId);
   return (fb ?? []).map(t => ({ ...(t as Omit<Therapist, 'is_available_now' | 'available_until'>), is_available_now: false, available_until: null }));
+}
+
+function toDateStr(d: Date): string {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
 }
 
 function formatDateLabel(dateStr: string): string {
@@ -203,8 +210,15 @@ export default function MyPage() {
     });
   };
 
-  // 営業日は午前5時始まり（深夜営業対応）。0:00〜4:59 は前日扱い。
-  const sevenDays = useMemo(() => getBusinessDateRangeJST(7), []);
+  // 編集グリッドは従来通りカレンダー日付（今日〜+6日）を使う。
+  const sevenDays = useMemo(() => {
+    const today = new Date();
+    return Array.from({ length: 7 }, (_, i) => {
+      const d = new Date(today);
+      d.setDate(today.getDate() + i);
+      return toDateStr(d);
+    });
+  }, []);
 
   useEffect(() => {
     (async () => {
@@ -263,8 +277,11 @@ export default function MyPage() {
       setTherapistForms(forms);
 
       if (list.length > 0) {
-        const todayStr = getBusinessDateJST(0);
-        const lastStr  = getBusinessDateJST(6);
+        // 編集グリッド（カレンダー7日分）に加え、「今すぐ」判定用の営業日（深夜は前日）も
+        // 取得できるよう、開始日は営業日とカレンダー初日の早い方にする。
+        const businessToday = getBusinessDateJST();
+        const todayStr = businessToday < sevenDays[0] ? businessToday : sevenDays[0];
+        const lastStr  = sevenDays[sevenDays.length - 1];
 
         const { data: schedData } = await supabase
           .from('therapist_schedules')
@@ -1126,7 +1143,8 @@ export default function MyPage() {
               <p className="text-[11px] text-slate-400">本日出勤中のセラピストに「今すぐ」フラグを設定できます。チェックを入れて保存するとサイト上にバッジが表示されます。30分後に自動で解除されます。</p>
             </div>
             {(() => {
-              const todayStr = sevenDays[0];
+              // 「今すぐ」判定は営業日基準（深夜0〜5時は前日のスケジュールを参照）
+              const todayStr = getBusinessDateJST();
               const jstH = Number(new Intl.DateTimeFormat('sv-SE', { timeZone: 'Asia/Tokyo', hour: '2-digit', hour12: false }).format(now));
               const jstM = Number(new Intl.DateTimeFormat('sv-SE', { timeZone: 'Asia/Tokyo', minute: '2-digit' }).format(now));
               const nowMin = jstH * 60 + jstM;
