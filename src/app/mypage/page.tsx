@@ -123,6 +123,7 @@ type Therapist = {
   age: string | null;
   body_type: string | null;
   profile_text: string | null;
+  is_available_now: boolean;
 };
 
 type DaySchedule = {
@@ -142,7 +143,7 @@ export default function MyPage() {
   const [toast, setToast] = useState('');
   const [saving, setSaving] = useState(false);
   const [savingSchedule, setSavingSchedule] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<'salon' | 'schedule' | 'profile'>('salon');
+  const [activeTab, setActiveTab] = useState<'salon' | 'schedule' | 'profile' | 'available'>('salon');
   const [expandedSections, setExpandedSections] = useState<Set<string>>(new Set());
   const [newTherapistName, setNewTherapistName] = useState('');
   const [addingTherapist, setAddingTherapist] = useState(false);
@@ -151,6 +152,8 @@ export default function MyPage() {
   const [courseGroups, setCourseGroups] = useState<CourseGroup[]>([{ name: '', items: [{ duration: '', price: '' }] }]);
   const [salonImages,    setSalonImages]    = useState<SalonImage[]>([]);
   const [uploadingImage, setUploadingImage] = useState(false);
+  const [availableNow, setAvailableNow] = useState<Record<string, boolean>>({});
+  const [savingAvailable, setSavingAvailable] = useState(false);
 
   const toggleSection = (key: string) => {
     setExpandedSections(prev => {
@@ -201,11 +204,14 @@ export default function MyPage() {
 
       const { data: therapistData } = await supabase
         .from('therapists')
-        .select('id, name, work_hours, area, comment, profile_image_url, age, body_type, profile_text')
+        .select('id, name, work_hours, area, comment, profile_image_url, age, body_type, profile_text, is_available_now')
         .eq('salon_id', salonData.id);
 
       const list = therapistData ?? [];
       setTherapists(list);
+      const initAvail: Record<string, boolean> = {};
+      list.forEach(t => { initAvail[String(t.id)] = Boolean(t.is_available_now); });
+      setAvailableNow(initAvail);
 
       const forms: Record<string, Partial<Therapist>> = {};
       list.forEach((t) => {
@@ -431,7 +437,7 @@ export default function MyPage() {
     // 一覧を再取得（既存フォームの未保存データは保持）
     const { data: therapistData } = await supabase
       .from('therapists')
-      .select('id, name, work_hours, area, comment, profile_image_url, age, body_type, profile_text')
+      .select('id, name, work_hours, area, comment, profile_image_url, age, body_type, profile_text, is_available_now')
       .eq('salon_id', salon.id);
 
     const list = therapistData ?? [];
@@ -495,7 +501,7 @@ export default function MyPage() {
     if (salon) {
       const { data: refreshed } = await supabase
         .from('therapists')
-        .select('id, name, work_hours, area, comment, profile_image_url, age, body_type, profile_text')
+        .select('id, name, work_hours, area, comment, profile_image_url, age, body_type, profile_text, is_available_now')
         .eq('salon_id', salon.id);
       console.log('[delete] refreshed list length=', refreshed?.length);
       setTherapists(refreshed ?? []);
@@ -510,6 +516,19 @@ export default function MyPage() {
       return n;
     });
     showToast('セラピストを削除しました');
+  };
+
+  const handleAvailableNowSave = async () => {
+    setSavingAvailable(true);
+    for (const t of therapists) {
+      const sid = String(t.id);
+      await supabase
+        .from('therapists')
+        .update({ is_available_now: availableNow[sid] ?? false })
+        .eq('id', t.id);
+    }
+    setSavingAvailable(false);
+    showToast('「今すぐ」設定を保存しました');
   };
 
   const handleSignOut = async () => {
@@ -559,9 +578,10 @@ export default function MyPage() {
         {/* タブナビゲーション */}
         <div className="max-w-2xl mx-auto px-4 flex">
           {([
-            ['salon',    '店舗情報'],
-            ['schedule', '出勤設定'],
-            ['profile',  'セラピスト情報'],
+            ['salon',     '店舗情報'],
+            ['schedule',  '出勤設定'],
+            ['available', '今すぐ'],
+            ['profile',   'セラピスト情報'],
           ] as const).map(([key, label]) => (
             <button
               key={key}
@@ -871,7 +891,89 @@ export default function MyPage() {
           })}
         </div>
 
-        {/* ── タブ3: セラピスト情報 ── */}
+        {/* ── タブ3: 今すぐ ── */}
+        <div className={`${activeTab === 'available' ? '' : 'hidden'}`}>
+          <div className="bg-white rounded-3xl border border-slate-100 shadow-sm p-5 space-y-4">
+            <div>
+              <h2 className="text-sm font-black text-slate-700 mb-1">今すぐ対応可能なセラピスト</h2>
+              <p className="text-[11px] text-slate-400">本日出勤中のセラピストに「今すぐ」フラグを設定できます。チェックを入れて保存するとサイト上にバッジが表示されます。</p>
+            </div>
+            {(() => {
+              const todayStr = sevenDays[0];
+              const nowDate = new Date();
+              const jstH = Number(new Intl.DateTimeFormat('sv-SE', { timeZone: 'Asia/Tokyo', hour: '2-digit', hour12: false }).format(nowDate));
+              const jstM = Number(new Intl.DateTimeFormat('sv-SE', { timeZone: 'Asia/Tokyo', minute: '2-digit' }).format(nowDate));
+              const nowMin = jstH * 60 + jstM;
+              const onDutyTherapists = therapists.filter(t => {
+                const sched = schedules[String(t.id)]?.[todayStr];
+                if (!sched?.is_active || !sched.start_time || !sched.end_time) return false;
+                const [sh, sm] = sched.start_time.split(':').map(Number);
+                const [eh, em] = sched.end_time.split(':').map(Number);
+                const startMin = sh * 60 + (sm || 0);
+                const endMin   = eh * 60 + (em || 0);
+                return endMin < startMin
+                  ? nowMin >= startMin || nowMin <= endMin
+                  : nowMin >= startMin && nowMin <= endMin;
+              });
+              if (onDutyTherapists.length === 0) {
+                return (
+                  <p className="text-xs text-slate-400 text-center py-6 border border-dashed border-slate-200 rounded-2xl">
+                    現在、出勤中のセラピストはいません
+                  </p>
+                );
+              }
+              return (
+                <div className="space-y-2">
+                  {onDutyTherapists.map(t => {
+                    const sid = String(t.id);
+                    return (
+                      <label key={sid} className="flex items-center gap-3 p-3 rounded-2xl border border-slate-100 bg-slate-50/50 cursor-pointer hover:border-pink-200 transition-colors">
+                        <input
+                          type="checkbox"
+                          className="w-4 h-4 accent-pink-500 flex-shrink-0"
+                          checked={availableNow[sid] ?? false}
+                          onChange={e => setAvailableNow(prev => ({ ...prev, [sid]: e.target.checked }))}
+                        />
+                        {t.profile_image_url ? (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img src={t.profile_image_url} alt="" className="w-9 h-9 rounded-xl object-cover border border-pink-100 flex-shrink-0" />
+                        ) : (
+                          <div className="w-9 h-9 rounded-xl bg-pink-100 flex items-center justify-center text-pink-400 text-xs font-bold flex-shrink-0">
+                            {(t.name ?? '?').charAt(0)}
+                          </div>
+                        )}
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-bold text-slate-700 truncate">{t.name ?? '(名前未設定)'}</p>
+                          {schedules[sid]?.[todayStr]?.start_time && (
+                            <p className="text-[11px] text-slate-400">
+                              {schedules[sid][todayStr].start_time?.slice(0, 5)}〜{schedules[sid][todayStr].end_time?.slice(0, 5)}
+                            </p>
+                          )}
+                        </div>
+                        {(availableNow[sid]) && (
+                          <span style={{ background: '#ec4899', color: 'white', fontSize: '11px', fontWeight: 700, padding: '2px 8px', borderRadius: '20px', flexShrink: 0 }}>
+                            今すぐ
+                          </span>
+                        )}
+                      </label>
+                    );
+                  })}
+                </div>
+              );
+            })()}
+            <div className="flex justify-end pt-2">
+              <button
+                onClick={handleAvailableNowSave}
+                disabled={savingAvailable}
+                className={saveBtn}
+              >
+                {savingAvailable ? '保存中...' : '保存する'}
+              </button>
+            </div>
+          </div>
+        </div>
+
+        {/* ── タブ4: セラピスト情報 ── */}
         <div className={`space-y-3 ${activeTab === 'profile' ? '' : 'hidden'}`}>
 
           {/* 新規セラピスト追加フォーム */}

@@ -77,6 +77,7 @@ type TherapistItem = {
   age:             string;
   profileImageUrl: string | null;
   today:           TodaySchedule;
+  isAvailableNow:  boolean;
 };
 
 // ── Card ──────────────────────────────────────────────────────
@@ -109,6 +110,13 @@ function Card({ therapist, index }: { therapist: TherapistItem; index: number })
 
       {/* bottom gradient overlay */}
       <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/20 to-transparent" />
+
+      {/* 今すぐバッジ — top left */}
+      {therapist.isAvailableNow && (
+        <span className="absolute top-1.5 left-1.5 text-[9px] sm:text-[10px] font-bold px-2 py-0.5 rounded-full" style={{ background: '#ec4899', color: 'white', fontSize: '11px', fontWeight: 700, padding: '2px 8px', borderRadius: '20px' }}>
+          今すぐ
+        </span>
+      )}
 
       {/* status badge — top right */}
       {ss && (
@@ -143,7 +151,7 @@ export function TherapistScroller() {
 
       const { data: therapistData } = await supabase
         .from('therapists')
-        .select('id, name, work_hours, area, comment, salon_id, profile_image_url, age');
+        .select('id, name, work_hours, area, comment, salon_id, profile_image_url, age, is_available_now');
 
       const salonIds = [...new Set(
         (therapistData ?? []).map(t => t.salon_id as number).filter(Boolean)
@@ -193,6 +201,7 @@ export function TherapistScroller() {
         age:             (t.age               as string) ?? '',
         profileImageUrl: (t.profile_image_url as string | null) ?? null,
         today:           schedMap[t.id as number] ?? { is_active: false, start_time: null, end_time: null },
+        isAvailableNow:  Boolean(t.is_available_now),
       }));
 
       setList(mapped.filter(t => getScheduleStatus(t.today).status === 'onDuty'));

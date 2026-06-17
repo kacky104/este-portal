@@ -76,6 +76,7 @@ type Therapist = {
   area:            string;
   profileImageUrl: string | null;
   today:           TodaySchedule;
+  isAvailableNow:  boolean;
 };
 
 // ── shared schedule fetch ──────────────────────────────────────
@@ -145,8 +146,13 @@ function GridCard({ therapist, index }: {
       </div>
       <div className="p-3 flex-1 flex flex-col justify-between min-w-0 text-xs">
         <div>
-          <div className="flex items-center gap-1.5 mb-0.5">
+          <div className="flex items-center gap-1.5 mb-0.5 flex-wrap">
             <p className="font-bold text-slate-900 truncate">{therapist.name}</p>
+            {therapist.isAvailableNow && (
+              <span style={{ background: '#ec4899', color: 'white', fontSize: '11px', fontWeight: 700, padding: '2px 8px', borderRadius: '20px' }}>
+                今すぐ
+              </span>
+            )}
             {ss && (
               <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full ${ss.badgeCls}`}>
                 {ss.label}
@@ -177,7 +183,7 @@ export function SalonTherapists({ salonId }: { salonId: number }) {
       const supabase = createClient();
       const { data: rows } = await supabase
         .from('therapists')
-        .select('id, name, work_hours, area, comment, profile_image_url')
+        .select('id, name, work_hours, area, comment, profile_image_url, is_available_now')
         .eq('salon_id', salonId);
 
       console.log('[SalonTherapists] therapist rows:', rows?.map(r => ({ id: r.id, name: r.name })));
@@ -200,6 +206,7 @@ export function SalonTherapists({ salonId }: { salonId: number }) {
           comment:         (t.comment as string) ?? '',
           profileImageUrl: (t.profile_image_url as string | null) ?? null,
           today:           todaySchedule,
+          isAvailableNow:  Boolean(t.is_available_now),
         };
       });
 
@@ -245,6 +252,7 @@ export function SalonAllTherapists({ salonId }: { salonId: number }) {
         comment:         (t.comment as string) ?? '',
         profileImageUrl: (t.profile_image_url as string | null) ?? null,
         today:           schedMap[String(t.id)] ?? { is_active: false, start_time: null, end_time: null },
+        isAvailableNow:  Boolean(t.is_available_now),
       }));
 
       setList(mapped);
