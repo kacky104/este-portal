@@ -333,7 +333,7 @@ export function ShuffledSalons({ salons, areas }: { salons: Salon[]; areas: stri
         .eq('schedule_date', today)
         .eq('is_active', true);
 
-      const onDutySet = new Set((schedRows ?? []).map(r => r.therapist_id));
+      const onDutySet = new Set((schedRows ?? []).map(r => String(r.therapist_id)));
 
       // スケジュールの実際の時間を "HH:MM〜HH:MM" 形式でマップ化
       const schedHoursMap: Record<string, string> = {};
@@ -355,7 +355,7 @@ export function ShuffledSalons({ salons, areas }: { salons: Salon[]; areas: stri
           name:      (t.name as string) ?? '',
           imageUrl:  (t.profile_image_url as string | null) ?? null,
           workHours: schedHoursMap[tid] ?? (t.work_hours as string) ?? '',
-          onDuty:    onDutySet.has(t.id),
+          onDuty:    onDutySet.has(tid),
         });
       }
 
