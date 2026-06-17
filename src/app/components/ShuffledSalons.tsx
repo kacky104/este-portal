@@ -5,6 +5,8 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/app/lib/supabase/client';
 import { checkDutyStatus, getBusinessDateJST } from '@/lib/dutyStatus';
+import { isNewFaceActive } from '@/lib/newFace';
+import { NewBadge } from '@/components/NewBadge';
 
 export type Salon = {
   id:          number;
@@ -26,6 +28,8 @@ type TherapistThumb = {
   onDuty:         boolean;
   isAvailableNow: boolean;
   availableUntil: string | null;
+  isNewFace:      boolean;
+  newFaceSince:   string | null;
 };
 
 const GRADIENTS = [
@@ -108,7 +112,10 @@ function TherapistMiniCard({ therapist, index }: { therapist: TherapistThumb; in
 
       {/* text overlay */}
       <div className="absolute bottom-0 left-0 right-0 p-2 text-white">
-        <p className="font-bold text-[11px] leading-tight drop-shadow line-clamp-1">{therapist.name}</p>
+        <div className="flex items-center gap-1 min-w-0">
+          <p className="font-bold text-[11px] leading-tight drop-shadow line-clamp-1 min-w-0">{therapist.name}</p>
+          {isNewFaceActive(therapist.isNewFace, therapist.newFaceSince) && <NewBadge />}
+        </div>
         {therapist.workHours && (dutyStatus === 'onDuty' || dutyStatus === 'before') && (
           <p className="text-[13px] text-pink-200 font-medium mt-0.5 text-center">{therapist.workHours}</p>
         )}
@@ -312,7 +319,7 @@ export function ShuffledSalons({ salons, areas }: { salons: Salon[]; areas: stri
 
       const { data: therapistRowsWithAvail, error: tErr } = await supabase
         .from('therapists')
-        .select('id, name, salon_id, profile_image_url, work_hours, is_available_now, available_until')
+        .select('id, name, salon_id, profile_image_url, work_hours, is_available_now, available_until, is_new_face, new_face_since')
         .in('salon_id', salonIds);
 
       let therapistRows = therapistRowsWithAvail;
@@ -321,7 +328,7 @@ export function ShuffledSalons({ salons, areas }: { salons: Salon[]; areas: stri
           .from('therapists')
           .select('id, name, salon_id, profile_image_url, work_hours')
           .in('salon_id', salonIds);
-        therapistRows = (fb ?? []).map(t => ({ ...t, is_available_now: false, available_until: null }));
+        therapistRows = (fb ?? []).map(t => ({ ...t, is_available_now: false, available_until: null, is_new_face: false, new_face_since: null }));
       }
 
       if (!therapistRows || therapistRows.length === 0) return;
@@ -363,6 +370,8 @@ export function ShuffledSalons({ salons, areas }: { salons: Salon[]; areas: stri
           onDuty:         onDutySet.has(tid),
           isAvailableNow: Boolean((t as { is_available_now?: unknown }).is_available_now),
           availableUntil: ((t as { available_until?: unknown }).available_until as string | null) ?? null,
+          isNewFace:      Boolean((t as { is_new_face?: unknown }).is_new_face),
+          newFaceSince:   ((t as { new_face_since?: unknown }).new_face_since as string | null) ?? null,
         });
       }
 

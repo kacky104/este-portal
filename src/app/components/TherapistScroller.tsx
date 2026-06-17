@@ -4,6 +4,8 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { createClient } from '@/app/lib/supabase/client';
 import { getBusinessDateJST, getScheduleWindowStatus } from '@/lib/dutyStatus';
+import { isNewFaceActive } from '@/lib/newFace';
+import { NewBadge } from '@/components/NewBadge';
 
 const GRADIENTS = ['from-pink-300 to-rose-400', 'from-fuchsia-300 to-pink-400', 'from-rose-300 to-pink-500', 'from-pink-400 to-fuchsia-400'];
 
@@ -55,6 +57,8 @@ type TherapistItem = {
   today:           TodaySchedule;
   isAvailableNow:  boolean;
   availableUntil:  string | null;
+  isNewFace:       boolean;
+  newFaceSince:    string | null;
 };
 
 // ── Card ──────────────────────────────────────────────────────
@@ -104,7 +108,10 @@ function Card({ therapist, index }: { therapist: TherapistItem; index: number })
 
       {/* text overlay — bottom */}
       <div className="absolute bottom-0 left-0 right-0 p-1.5 sm:p-3 text-white">
-        <p className="font-bold text-[11px] sm:text-sm leading-tight mb-0.5 drop-shadow line-clamp-1">{therapist.name}</p>
+        <div className="flex items-center gap-1 mb-0.5 min-w-0">
+          <p className="font-bold text-[11px] sm:text-sm leading-tight drop-shadow line-clamp-1 min-w-0">{therapist.name}</p>
+          {isNewFaceActive(therapist.isNewFace, therapist.newFaceSince) && <NewBadge />}
+        </div>
         {therapist.age && (
           <p className="hidden sm:block text-[10px] text-white/80 mb-0.5">{therapist.age}歳</p>
         )}
@@ -128,7 +135,7 @@ export function TherapistScroller() {
 
       const { data: therapistData } = await supabase
         .from('therapists')
-        .select('id, name, work_hours, area, comment, salon_id, profile_image_url, age, is_available_now, available_until');
+        .select('id, name, work_hours, area, comment, salon_id, profile_image_url, age, is_available_now, available_until, is_new_face, new_face_since');
 
       const salonIds = [...new Set(
         (therapistData ?? []).map(t => t.salon_id as number).filter(Boolean)
@@ -180,6 +187,8 @@ export function TherapistScroller() {
         today:           schedMap[t.id as number] ?? { is_active: false, start_time: null, end_time: null },
         isAvailableNow:  Boolean(t.is_available_now),
         availableUntil:  (t.available_until   as string | null) ?? null,
+        isNewFace:       Boolean(t.is_new_face),
+        newFaceSince:    (t.new_face_since     as string | null) ?? null,
       }));
 
       setList(mapped.filter(t => getScheduleStatus(t.today).status === 'onDuty'));

@@ -188,6 +188,7 @@ export default function MyPage() {
   const [activeTab, setActiveTab] = useState<'salon' | 'schedule' | 'profile' | 'available'>('salon');
   const [expandedSections, setExpandedSections] = useState<Set<string>>(new Set());
   const [newTherapistName, setNewTherapistName] = useState('');
+  const [newTherapistIsNew, setNewTherapistIsNew] = useState(false);
   const [addingTherapist, setAddingTherapist] = useState(false);
   const [addError, setAddError] = useState('');
   const [deletingTherapist, setDeletingTherapist] = useState<string | null>(null);
@@ -536,6 +537,8 @@ export default function MyPage() {
       profile_text:      null,
       age:               null,
       body_type:         null,
+      is_new_face:       newTherapistIsNew,
+      new_face_since:    newTherapistIsNew ? new Date().toISOString() : null,
     });
 
     if (error) {
@@ -566,6 +569,7 @@ export default function MyPage() {
     setTherapistForms(prev => ({ ...prev, ...newForms }));
 
     setNewTherapistName('');
+    setNewTherapistIsNew(false);
     setAddingTherapist(false);
     showToast('セラピストを追加しました');
   };
@@ -1245,6 +1249,17 @@ export default function MyPage() {
                 onChange={(e) => { setNewTherapistName(e.target.value); setAddError(''); }}
               />
             </div>
+            <label className="flex items-center gap-2 cursor-pointer select-none">
+              <input
+                type="checkbox"
+                className="w-4 h-4 accent-green-500 flex-shrink-0"
+                checked={newTherapistIsNew}
+                onChange={(e) => setNewTherapistIsNew(e.target.checked)}
+              />
+              <span className="text-xs font-bold text-slate-600">新人マークを付ける</span>
+              <span style={{ background: '#22c55e', color: 'white', fontSize: '11px', fontWeight: 700, padding: '2px 8px', borderRadius: '20px' }}>NEW</span>
+              <span className="text-[10px] text-slate-400">（30日間表示）</span>
+            </label>
             {addError && (
               <p className="text-xs text-rose-500 bg-rose-50 border border-rose-100 rounded-xl px-3 py-2 leading-relaxed">
                 {addError}
