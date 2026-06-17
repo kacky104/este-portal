@@ -191,55 +191,55 @@ function SalonCard({ salon, therapists }: { salon: Salon; therapists: TherapistT
 
       <div className="p-5 flex flex-col flex-1">
 
-        {/* Name + area */}
-        <div className="flex items-start justify-between gap-2 mb-2">
-          <h3 className="font-bold text-lg text-slate-900 group-hover:text-pink-700 transition-colors leading-snug">
-            {salon.name}
-          </h3>
-          <span className="flex-shrink-0 text-xs font-semibold px-2.5 py-0.5 rounded-full bg-pink-50 text-pink-600 border border-pink-200 mt-0.5">
-            {salon.area}
-          </span>
-        </div>
+        {/* 1. サロン名のみ */}
+        <h3 className="font-bold text-lg text-slate-900 group-hover:text-pink-700 transition-colors leading-snug mb-3">
+          {salon.name}
+        </h3>
 
-        {/* Hours */}
-        <div className="flex items-center gap-1.5 text-xs mb-3">
-          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-slate-400 flex-shrink-0">
-            <circle cx="12" cy="12" r="10" /><path d="M12 6v6l4 2" />
-          </svg>
-          <span className="text-slate-500">{salon.hours}</span>
-        </div>
+        {/* 2. 評価・エリア・タグなどの情報 */}
+        <div className="mb-4">
+          {/* Hours */}
+          <div className="flex items-center gap-1.5 text-xs mb-2">
+            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-slate-400 flex-shrink-0">
+              <circle cx="12" cy="12" r="10" /><path d="M12 6v6l4 2" />
+            </svg>
+            <span className="text-slate-500">{salon.hours}</span>
+          </div>
 
-        {/* Stars + count */}
-        <div className="flex items-center gap-2 mb-3">
-          <StarRating rating={salon.rating} />
-          <span className="text-pink-600 font-bold text-sm">{salon.rating}</span>
-          <span className="text-slate-400 text-xs">({salon.reviewCount}件)</span>
-        </div>
-
-        {/* Tags */}
-        <div className="flex flex-wrap gap-1.5 mb-4">
-          {salon.tags.map(tag => (
-            <span key={tag} className="text-xs px-2.5 py-0.5 rounded-full bg-pink-50 text-pink-700 border border-pink-200">
-              {tag}
+          {/* Stars + count + area */}
+          <div className="flex items-center gap-2 mb-2">
+            <StarRating rating={salon.rating} />
+            <span className="text-pink-600 font-bold text-sm">{salon.rating}</span>
+            <span className="text-slate-400 text-xs">({salon.reviewCount}件)</span>
+            <span className="flex-shrink-0 text-xs font-semibold px-2.5 py-0.5 rounded-full bg-pink-50 text-pink-600 border border-pink-200">
+              {salon.area}
             </span>
-          ))}
+          </div>
+
+          {/* Tags */}
+          <div className="flex flex-wrap gap-1.5 mb-2">
+            {salon.tags.map(tag => (
+              <span key={tag} className="text-xs px-2.5 py-0.5 rounded-full bg-pink-50 text-pink-700 border border-pink-200">
+                {tag}
+              </span>
+            ))}
+          </div>
+
+          {/* Description */}
+          <p className="text-xs text-slate-500 leading-relaxed line-clamp-2 flex-1">
+            {salon.description}
+          </p>
         </div>
 
-        {/* Therapist mini cards */}
+        {/* 3. セラピスト写真の横スクロール */}
         {therapists.length > 0 && (
           <div className="mb-4">
-            <p className="text-[10px] text-slate-400 font-medium mb-2">在籍セラピスト</p>
             <TherapistMiniCardsRow therapists={therapists} salonId={salon.id} />
           </div>
         )}
 
-        {/* Description */}
-        <p className="text-xs text-slate-500 leading-relaxed line-clamp-2 flex-1 mb-4">
-          {salon.description}
-        </p>
-
         {/* Price + CTA */}
-        <div className="flex items-center justify-between pt-3.5 border-t border-slate-200">
+        <div className="flex items-center justify-between pt-3.5 border-t border-slate-200 mt-auto">
           <div>
             <p className="text-[11px] text-slate-400 mb-0.5">料金目安</p>
             <p className="text-pink-600 font-bold text-sm">{salon.price}</p>
