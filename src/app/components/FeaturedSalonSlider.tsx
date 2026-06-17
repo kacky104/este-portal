@@ -83,7 +83,7 @@ export function FeaturedSalonSlider({ salons }: { salons: FeaturedSalon[] }) {
                 {/* Area badge */}
                 <span
                   className="absolute top-4 right-4 text-[11px] font-semibold backdrop-blur-sm px-3 py-1 rounded-full border"
-                  style={{ color: '#f97316', backgroundColor: 'rgba(249, 115, 22, 0.15)', borderColor: '#f97316' }}
+                  style={{ color: '#ffffff', backgroundColor: 'rgba(249, 115, 22, 0.15)', borderColor: '#f97316' }}
                 >
                   📍 {salon.area}
                 </span>
