@@ -204,7 +204,7 @@ export default async function Home() {
               <div className="w-1 h-6 rounded-full bg-gradient-to-b from-pink-500 to-pink-700" />
               <h2 className="text-xl font-bold text-slate-900">掲載サロン一覧</h2>
             </div>
-            <p className="text-xs text-slate-400 pl-7 mb-8">
+            <p className="text-xs text-slate-400 mb-8">
               表示順はページ読み込みのたびにシャッフルされます
             </p>
 
