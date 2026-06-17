@@ -811,6 +811,7 @@ export default function MyPage() {
               <label className={labelClass}>サロン画像（最大3枚）</label>
               <span className="text-[10px] text-slate-400">{salonImages.length} / 3</span>
             </div>
+            <p className="text-[11px] text-slate-400">推奨サイズ：横 1600px × 縦 530px</p>
 
             {salonImages.length > 0 && (
               <div className="space-y-2">
