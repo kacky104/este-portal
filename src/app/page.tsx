@@ -104,29 +104,16 @@ export default async function Home() {
     featuredSalons = built;
   }
 
-  // 本日出勤中・出勤予定セラピストの合計人数
+  // 本日出勤セラピスト総数（off以外 = is_active かつ start/end が存在するすべて）
   const { data: todaySchedules } = await supabase
     .from('therapist_schedules')
     .select('start_time, end_time')
     .eq('schedule_date', todayJST)
     .eq('is_active', true);
 
-  const nowJSTMin = (() => {
-    const d = new Date();
-    const h = Number(new Intl.DateTimeFormat('sv-SE', { timeZone: 'Asia/Tokyo', hour: '2-digit', hour12: false }).format(d));
-    const m = Number(new Intl.DateTimeFormat('sv-SE', { timeZone: 'Asia/Tokyo', minute: '2-digit' }).format(d));
-    return h * 60 + m;
-  })();
-
-  const todayTherapistCount = (todaySchedules ?? []).filter(s => {
-    if (!s.start_time || !s.end_time) return false;
-    const [sh, sm] = (s.start_time as string).split(':').map(Number);
-    const [eh, em] = (s.end_time as string).split(':').map(Number);
-    const startMin = sh * 60 + (sm || 0);
-    const endMin   = eh * 60 + (em || 0);
-    const isOvernight = endMin < startMin;
-    return isOvernight || nowJSTMin <= endMin;
-  }).length;
+  const todayTherapistCount = (todaySchedules ?? []).filter(
+    s => Boolean(s.start_time) && Boolean(s.end_time)
+  ).length;
 
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900">
