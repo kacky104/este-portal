@@ -104,6 +104,30 @@ export default async function Home() {
     featuredSalons = built;
   }
 
+  // 本日出勤中・出勤予定セラピストの合計人数
+  const { data: todaySchedules } = await supabase
+    .from('therapist_schedules')
+    .select('start_time, end_time')
+    .eq('schedule_date', todayJST)
+    .eq('is_active', true);
+
+  const nowJSTMin = (() => {
+    const d = new Date();
+    const h = Number(new Intl.DateTimeFormat('sv-SE', { timeZone: 'Asia/Tokyo', hour: '2-digit', hour12: false }).format(d));
+    const m = Number(new Intl.DateTimeFormat('sv-SE', { timeZone: 'Asia/Tokyo', minute: '2-digit' }).format(d));
+    return h * 60 + m;
+  })();
+
+  const todayTherapistCount = (todaySchedules ?? []).filter(s => {
+    if (!s.start_time || !s.end_time) return false;
+    const [sh, sm] = (s.start_time as string).split(':').map(Number);
+    const [eh, em] = (s.end_time as string).split(':').map(Number);
+    const startMin = sh * 60 + (sm || 0);
+    const endMin   = eh * 60 + (em || 0);
+    const isOvernight = endMin < startMin;
+    return isOvernight || nowJSTMin <= endMin;
+  }).length;
+
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900">
 
@@ -188,9 +212,11 @@ export default async function Home() {
               <div className="flex items-center gap-3">
                 <div className="w-1 h-6 rounded-full bg-gradient-to-b from-pink-400 to-rose-500" />
                 <h2 className="text-xl font-bold text-slate-900">本日の出勤セラピスト</h2>
-                <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-pink-50 text-pink-500 border border-pink-200">
-                  本日出勤
-                </span>
+                <div className="flex items-baseline gap-0.5">
+                  <span style={{ color: '#ec4899', fontWeight: 600, fontSize: '13px' }}>本日の出勤数</span>
+                  <span style={{ background: 'linear-gradient(to right, #ec4899, #f97316)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', fontWeight: 700, fontSize: '18px' }}>{todayTherapistCount}</span>
+                  <span style={{ color: '#ec4899', fontWeight: 600, fontSize: '13px' }}>人</span>
+                </div>
               </div>
             </div>
             <TherapistScroller />
