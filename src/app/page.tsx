@@ -193,9 +193,6 @@ export default async function Home() {
                 </span>
               </div>
             </div>
-            <p className="text-xs text-slate-400 pl-7 mb-6">
-              スクロールして全員を確認できます ｜ カードをタップするとサロン詳細ページへ移動します
-            </p>
             <TherapistScroller />
           </div>
         </section>
