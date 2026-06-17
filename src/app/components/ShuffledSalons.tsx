@@ -394,11 +394,6 @@ export function ShuffledSalons({ salons, areas }: { salons: Salon[]; areas: stri
           );
         })}
       </div>
-      <p className="text-xs text-slate-400 mt-2">
-        {activeArea === '福岡全域'
-          ? `全${filtered.length}件のサロンを表示しています`
-          : `「${activeArea}」エリアの${filtered.length}件を表示しています`}
-      </p>
     </div>
   );
 
