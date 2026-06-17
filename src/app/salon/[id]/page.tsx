@@ -78,7 +78,7 @@ export default async function SalonPage({
   const filledStars = Math.floor(salon.rating);
 
   return (
-    <div className="relative min-h-screen" style={{ color: theme.text }}>
+    <div className="relative min-h-screen overflow-x-hidden" style={{ color: theme.text }}>
 
       {/* 背景レイヤー（壁紙＋テーマ色オーバーレイ）— モバイル対応のため固定配置 */}
       <div aria-hidden className="fixed inset-0 -z-10" style={bgLayerStyle} />
@@ -135,15 +135,15 @@ export default async function SalonPage({
           </div>
 
           {/* Hours + closed days */}
-          <div className="flex items-center gap-2 text-sm" style={{ color: theme.body }}>
+          <div className="flex flex-wrap items-center gap-2 text-sm max-w-full" style={{ color: theme.body }}>
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="flex-shrink-0 opacity-60">
               <circle cx="12" cy="12" r="10" /><path d="M12 6v6l4 2" />
             </svg>
-            <span>{salon.hours}</span>
+            <span className="min-w-0 break-words">{salon.hours}</span>
             {salon.closedDays && (
               <>
                 <span className="opacity-40">｜</span>
-                <span>定休：{salon.closedDays}</span>
+                <span className="min-w-0 break-words">定休：{salon.closedDays}</span>
               </>
             )}
           </div>
@@ -153,7 +153,7 @@ export default async function SalonPage({
         <div className="grid lg:grid-cols-3 gap-6">
 
           {/* Left: main content */}
-          <div className="lg:col-span-2 space-y-6">
+          <div className="lg:col-span-2 space-y-6 min-w-0">
 
             {/* Today's therapists */}
             <div className="mt-8 rounded-3xl p-5 border shadow-sm" style={{ backgroundColor: theme.card, borderColor: theme.cardBorder }}>
@@ -167,8 +167,8 @@ export default async function SalonPage({
             {/* About */}
             <section className="rounded-2xl border shadow-sm p-6" style={{ backgroundColor: theme.card, borderColor: theme.cardBorder }}>
               <SectionHeading color={theme.heading}>サロンについて</SectionHeading>
-              <p className="text-sm leading-relaxed mb-4" style={{ color: theme.body }}>{salon.description}</p>
-              <p className="text-sm leading-relaxed" style={{ color: theme.body }}>{salon.appeal}</p>
+              <p className="text-sm leading-relaxed mb-4 break-words max-w-full whitespace-pre-wrap" style={{ color: theme.body }}>{salon.description}</p>
+              <p className="text-sm leading-relaxed break-words max-w-full whitespace-pre-wrap" style={{ color: theme.body }}>{salon.appeal}</p>
             </section>
 
             {/* Courses — shown only when DB data is available */}
@@ -186,13 +186,13 @@ export default async function SalonPage({
                     <div key={name}>
                       <div className="flex items-center gap-2 mb-2">
                         <span className="w-2 h-2 rounded-full bg-pink-400 flex-shrink-0" />
-                        <h3 className="text-sm font-bold" style={{ color: theme.heading }}>{name}</h3>
+                        <h3 className="text-sm font-bold min-w-0 break-words" style={{ color: theme.heading }}>{name}</h3>
                       </div>
                       <div className="pl-4 space-y-1.5">
                         {items.map((item, i) => (
-                          <div key={i} className="flex items-center justify-between text-sm border-b pb-1 last:border-0 last:pb-0" style={{ borderColor: theme.cardBorder }}>
-                            <span style={{ color: theme.body }}>{item.duration}</span>
-                            <span className="font-bold text-pink-600">{item.price}</span>
+                          <div key={i} className="flex items-center justify-between gap-3 text-sm border-b pb-1 last:border-0 last:pb-0" style={{ borderColor: theme.cardBorder }}>
+                            <span className="min-w-0 break-words" style={{ color: theme.body }}>{item.duration}</span>
+                            <span className="font-bold text-pink-600 flex-shrink-0 break-words text-right">{item.price}</span>
                           </div>
                         ))}
                       </div>
@@ -223,12 +223,12 @@ export default async function SalonPage({
           </div>
 
           {/* Right: shop info */}
-          <div className="space-y-6">
+          <div className="space-y-6 min-w-0">
 
             {/* Price summary */}
-            <div className="bg-pink-600 rounded-2xl p-5 text-white">
+            <div className="bg-pink-600 rounded-2xl p-5 text-white max-w-full">
               <p className="text-xs font-semibold opacity-80 mb-1">料金目安</p>
-              <p className="text-2xl font-bold">{salon.price}</p>
+              <p className="text-2xl font-bold break-words max-w-full">{salon.price}</p>
               <p className="text-xs opacity-70 mt-1">※ コースにより異なります</p>
             </div>
 
@@ -246,9 +246,9 @@ export default async function SalonPage({
 
             {/* Note */}
             {salon.note && (
-              <div className="rounded-xl border border-pink-100 bg-pink-50 p-4 text-xs text-pink-800 leading-relaxed">
+              <div className="rounded-xl border border-pink-100 bg-pink-50 p-4 text-xs text-pink-800 leading-relaxed max-w-full">
                 <p className="font-semibold mb-1">ご利用にあたって</p>
-                <p>{salon.note}</p>
+                <p className="break-words max-w-full whitespace-pre-wrap">{salon.note}</p>
               </div>
             )}
 
