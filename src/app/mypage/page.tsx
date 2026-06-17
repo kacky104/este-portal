@@ -149,6 +149,7 @@ type Salon = {
   closed_days: string | null;
   note: string | null;
   courses: unknown;
+  theme: string | null;
 };
 
 type Therapist = {
