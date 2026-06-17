@@ -61,7 +61,7 @@ export default async function SalonPage({
     <div className="min-h-screen" style={{ backgroundColor: theme.bg, color: theme.text }}>
 
       {/* ─── Header ─────────────────────────────────────────── */}
-      <header className="sticky top-0 z-50 bg-white/90 backdrop-blur-md border-b border-slate-200 shadow-sm">
+      <header className="sticky top-0 z-50 backdrop-blur-md border-b shadow-sm" style={{ backgroundColor: `${theme.card}E6`, borderColor: theme.cardBorder }}>
         <div className="max-w-4xl mx-auto px-4 h-14 flex items-center justify-between">
           <Link href="/" className="flex items-center gap-3">
             <div className="w-7 h-7 rounded-lg bg-pink-50 border border-pink-200 flex items-center justify-center flex-shrink-0">
@@ -79,7 +79,8 @@ export default async function SalonPage({
         {/* ─── Back button ─────────────────────────────── */}
         <Link
           href="/"
-          className="inline-flex items-center gap-1.5 text-sm text-slate-500 hover:text-pink-600 transition-colors mb-6"
+          className="inline-flex items-center gap-1.5 text-sm hover:opacity-70 transition-opacity mb-6"
+          style={{ color: theme.body }}
         >
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
             <path d="M19 12H5M12 5l-7 7 7 7" />
@@ -88,15 +89,15 @@ export default async function SalonPage({
         </Link>
 
         {/* ─── Block 1: 画像スライダー ─────────────────── */}
-        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden mb-4">
+        <div className="rounded-2xl border shadow-sm overflow-hidden mb-4" style={{ backgroundColor: theme.card, borderColor: theme.cardBorder }}>
           <SalonHeaderSlider images={salonImages} />
         </div>
 
         {/* ─── Block 2: サロン情報 ──────────────────────── */}
-        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 mb-6">
+        <div className="rounded-2xl border shadow-sm p-6 mb-6" style={{ backgroundColor: theme.card, borderColor: theme.cardBorder }}>
           <h1
-            className="font-bold text-slate-900 mb-3 whitespace-nowrap overflow-hidden"
-            style={{ fontSize: 'clamp(15px, 4vw, 24px)', textOverflow: 'ellipsis' }}
+            className="font-bold mb-3 whitespace-nowrap overflow-hidden"
+            style={{ fontSize: 'clamp(15px, 4vw, 24px)', textOverflow: 'ellipsis', color: theme.heading }}
           >{salon.name}</h1>
 
           {/* Rating row */}
@@ -107,18 +108,18 @@ export default async function SalonPage({
               ))}
             </div>
             <span className="text-pink-600 font-bold text-lg">{salon.rating}</span>
-            <span className="text-slate-400 text-sm">({salon.reviewCount}件の口コミ)</span>
+            <span className="text-sm" style={{ color: theme.body }}>({salon.reviewCount}件の口コミ)</span>
           </div>
 
           {/* Hours + closed days */}
-          <div className="flex items-center gap-2 text-sm text-slate-500">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-slate-400 flex-shrink-0">
+          <div className="flex items-center gap-2 text-sm" style={{ color: theme.body }}>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="flex-shrink-0 opacity-60">
               <circle cx="12" cy="12" r="10" /><path d="M12 6v6l4 2" />
             </svg>
             <span>{salon.hours}</span>
             {salon.closedDays && (
               <>
-                <span className="text-slate-300">｜</span>
+                <span className="opacity-40">｜</span>
                 <span>定休：{salon.closedDays}</span>
               </>
             )}
@@ -132,25 +133,25 @@ export default async function SalonPage({
           <div className="lg:col-span-2 space-y-6">
 
             {/* Today's therapists */}
-            <div className="mt-8 bg-white rounded-3xl p-5 border border-pink-100/60 shadow-sm">
+            <div className="mt-8 rounded-3xl p-5 border shadow-sm" style={{ backgroundColor: theme.card, borderColor: theme.cardBorder }}>
               <div className="flex items-center gap-2 mb-4">
                 <span className="text-lg">💖</span>
-                <h2 className="text-base font-bold text-slate-900">本日出勤のセラピスト</h2>
+                <h2 className="text-base font-bold" style={{ color: theme.heading }}>本日出勤のセラピスト</h2>
               </div>
               <SalonTherapists salonId={Number(id)} />
             </div>
 
             {/* About */}
-            <section className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
-              <SectionHeading>サロンについて</SectionHeading>
-              <p className="text-slate-600 text-sm leading-relaxed mb-4">{salon.description}</p>
-              <p className="text-slate-600 text-sm leading-relaxed">{salon.appeal}</p>
+            <section className="rounded-2xl border shadow-sm p-6" style={{ backgroundColor: theme.card, borderColor: theme.cardBorder }}>
+              <SectionHeading color={theme.heading}>サロンについて</SectionHeading>
+              <p className="text-sm leading-relaxed mb-4" style={{ color: theme.body }}>{salon.description}</p>
+              <p className="text-sm leading-relaxed" style={{ color: theme.body }}>{salon.appeal}</p>
             </section>
 
             {/* Courses — shown only when DB data is available */}
             {salon.courses.length > 0 && (
-              <section className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
-                <SectionHeading>コースメニュー・料金表</SectionHeading>
+              <section className="rounded-2xl border shadow-sm p-6" style={{ backgroundColor: theme.card, borderColor: theme.cardBorder }}>
+                <SectionHeading color={theme.heading}>コースメニュー・料金表</SectionHeading>
                 <div className="space-y-5">
                   {Array.from(
                     salon.courses.reduce((map, c) => {
@@ -162,12 +163,12 @@ export default async function SalonPage({
                     <div key={name}>
                       <div className="flex items-center gap-2 mb-2">
                         <span className="w-2 h-2 rounded-full bg-pink-400 flex-shrink-0" />
-                        <h3 className="text-sm font-bold text-slate-800">{name}</h3>
+                        <h3 className="text-sm font-bold" style={{ color: theme.heading }}>{name}</h3>
                       </div>
                       <div className="pl-4 space-y-1.5">
                         {items.map((item, i) => (
-                          <div key={i} className="flex items-center justify-between text-sm border-b border-slate-50 pb-1 last:border-0 last:pb-0">
-                            <span className="text-slate-500">{item.duration}</span>
+                          <div key={i} className="flex items-center justify-between text-sm border-b pb-1 last:border-0 last:pb-0" style={{ borderColor: theme.cardBorder }}>
+                            <span style={{ color: theme.body }}>{item.duration}</span>
                             <span className="font-bold text-pink-600">{item.price}</span>
                           </div>
                         ))}
@@ -175,24 +176,24 @@ export default async function SalonPage({
                     </div>
                   ))}
                 </div>
-                <p className="text-[11px] text-slate-400 mt-5">※ 表示料金はすべて税込み価格です。</p>
+                <p className="text-[11px] mt-5 opacity-70" style={{ color: theme.body }}>※ 表示料金はすべて税込み価格です。</p>
               </section>
             )}
 
             {/* All therapists */}
-            <div className="mt-8 bg-white rounded-3xl p-5 border border-pink-100/60 shadow-sm">
+            <div className="mt-8 rounded-3xl p-5 border shadow-sm" style={{ backgroundColor: theme.card, borderColor: theme.cardBorder }}>
               <div className="flex items-center gap-2 mb-4">
                 <span className="text-lg">👩‍🦰</span>
-                <h2 className="text-base font-bold text-slate-900">在籍セラピスト一覧</h2>
+                <h2 className="text-base font-bold" style={{ color: theme.heading }}>在籍セラピスト一覧</h2>
               </div>
               <SalonAllTherapists salonId={Number(id)} />
             </div>
 
             {/* Diary section */}
-            <div className="mt-8 bg-white rounded-3xl p-5 border border-pink-100/60 shadow-sm">
+            <div className="mt-8 rounded-3xl p-5 border shadow-sm" style={{ backgroundColor: theme.card, borderColor: theme.cardBorder }}>
               <div className="flex items-center gap-2 mb-4">
                 <span className="text-lg">📷</span>
-                <h2 className="text-base font-bold text-slate-900">所属セラピストの写メ日記</h2>
+                <h2 className="text-base font-bold" style={{ color: theme.heading }}>所属セラピストの写メ日記</h2>
               </div>
               <SalonDiarySection salonId={id} />
             </div>
@@ -209,14 +210,14 @@ export default async function SalonPage({
             </div>
 
             {/* Shop info */}
-            <section className="bg-white rounded-2xl border border-slate-200 shadow-sm p-5">
-              <SectionHeading>店舗基本情報</SectionHeading>
+            <section className="rounded-2xl border shadow-sm p-5" style={{ backgroundColor: theme.card, borderColor: theme.cardBorder }}>
+              <SectionHeading color={theme.heading}>店舗基本情報</SectionHeading>
               <dl className="space-y-3.5 text-sm">
-                <InfoRow icon={<PhoneIcon />}    label="電話番号" value={salon.phone} />
-                <InfoRow icon={<ClockIcon />}    label="営業時間" value={salon.hours} />
-                <InfoRow icon={<CalendarIcon />} label="定休日"   value={salon.closedDays} />
-                <InfoRow icon={<MapIcon />}      label="住所"     value={salon.address} />
-                <InfoRow icon={<TrainIcon />}    label="アクセス" value={salon.access} />
+                <InfoRow icon={<PhoneIcon />}    label="電話番号" value={salon.phone}      labelColor={theme.body} valueColor={theme.heading} />
+                <InfoRow icon={<ClockIcon />}    label="営業時間" value={salon.hours}      labelColor={theme.body} valueColor={theme.heading} />
+                <InfoRow icon={<CalendarIcon />} label="定休日"   value={salon.closedDays} labelColor={theme.body} valueColor={theme.heading} />
+                <InfoRow icon={<MapIcon />}      label="住所"     value={salon.address}    labelColor={theme.body} valueColor={theme.heading} />
+                <InfoRow icon={<TrainIcon />}    label="アクセス" value={salon.access}     labelColor={theme.body} valueColor={theme.heading} />
               </dl>
             </section>
 
@@ -243,8 +244,8 @@ export default async function SalonPage({
       </main>
 
       {/* ─── Footer ──────────────────────────────────────── */}
-      <footer className="border-t border-slate-200 bg-white py-6 mt-12">
-        <div className="max-w-4xl mx-auto px-4 text-center text-xs text-slate-400">
+      <footer className="border-t py-6 mt-12" style={{ backgroundColor: theme.card, borderColor: theme.cardBorder }}>
+        <div className="max-w-4xl mx-auto px-4 text-center text-xs opacity-70" style={{ color: theme.body }}>
           © 2026 福岡メンズエステポータル. All rights reserved.
         </div>
       </footer>
@@ -254,11 +255,11 @@ export default async function SalonPage({
 
 /* ── Helper components ─────────────────────────────────── */
 
-function SectionHeading({ children }: { children: React.ReactNode }) {
+function SectionHeading({ children, color }: { children: React.ReactNode; color?: string }) {
   return (
     <div className="flex items-center gap-2.5 mb-4">
       <div className="w-1 h-5 rounded-full bg-gradient-to-b from-pink-500 to-pink-700" />
-      <h3 className="font-bold text-slate-900">{children}</h3>
+      <h3 className="font-bold" style={color ? { color } : undefined}>{children}</h3>
     </div>
   );
 }
@@ -267,18 +268,22 @@ function InfoRow({
   icon,
   label,
   value,
+  labelColor,
+  valueColor,
 }: {
   icon: React.ReactNode;
   label: string;
   value: string;
+  labelColor?: string;
+  valueColor?: string;
 }) {
   return (
     <div className="flex gap-3">
-      <dt className="flex items-start gap-1.5 text-slate-400 flex-shrink-0 w-20 text-[11px] pt-0.5">
+      <dt className="flex items-start gap-1.5 flex-shrink-0 w-20 text-[11px] pt-0.5" style={{ color: labelColor ?? '#94a3b8' }}>
         <span className="mt-px">{icon}</span>
         {label}
       </dt>
-      <dd className="text-slate-700 text-[13px] leading-relaxed min-w-0 break-words">{value}</dd>
+      <dd className="text-[13px] leading-relaxed min-w-0 break-words" style={{ color: valueColor ?? '#334155' }}>{value}</dd>
     </div>
   );
 }
