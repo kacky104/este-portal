@@ -2,15 +2,25 @@
 
 import { useState, useEffect, useRef } from 'react';
 
+type SlideItem = { pc: string; mobile: string | null };
+
 type Props = {
-  images: string[];
+  images: SlideItem[];
 };
 
 export default function SalonHeaderSlider({ images }: Props) {
-  const [current, setCurrent] = useState(0);
-  const [paused,  setPaused]  = useState(false);
+  const [current,  setCurrent]  = useState(0);
+  const [paused,   setPaused]   = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
   const touchStartX = useRef<number | null>(null);
   const count = images.length;
+
+  useEffect(() => {
+    const check = () => setIsMobile(window.innerWidth < 640);
+    check();
+    window.addEventListener('resize', check);
+    return () => window.removeEventListener('resize', check);
+  }, []);
 
   useEffect(() => {
     if (count <= 1 || paused) return;
@@ -32,10 +42,11 @@ export default function SalonHeaderSlider({ images }: Props) {
 
   // 1枚: スライダーなし
   if (count === 1) {
+    const src = isMobile && images[0].mobile ? images[0].mobile : images[0].pc;
     return (
       <div className="h-56 sm:h-72 relative overflow-hidden">
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src={images[0]} alt="" className="absolute inset-0 w-full h-full object-cover" />
+        <img src={src} alt="" className="absolute inset-0 w-full h-full object-cover" />
       </div>
     );
   }
@@ -60,12 +71,15 @@ export default function SalonHeaderSlider({ images }: Props) {
         className="flex h-full transition-transform duration-500 ease-in-out"
         style={{ transform: `translateX(-${current * 100}%)` }}
       >
-        {images.map((url, i) => (
+        {images.map((item, i) => {
+          const src = isMobile && item.mobile ? item.mobile : item.pc;
+          return (
           <div key={i} className="w-full flex-shrink-0 relative h-full">
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={url} alt="" className="absolute inset-0 w-full h-full object-cover" />
+            <img src={src} alt="" className="absolute inset-0 w-full h-full object-cover" />
           </div>
-        ))}
+          );
+        })}
       </div>
 
       {/* 左矢印 */}

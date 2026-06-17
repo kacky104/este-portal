@@ -23,12 +23,15 @@ export default async function SalonPage({
 
   const { data: imageRows } = await supabase
     .from('salon_images')
-    .select('image_url')
+    .select('image_url, mobile_image_url')
     .eq('salon_id', Number(id))
     .order('display_order', { ascending: true })
     .limit(3);
 
-  const salonImages = (imageRows ?? []).map(r => r.image_url as string);
+  const salonImages = (imageRows ?? []).map(r => ({
+    pc:     r.image_url        as string,
+    mobile: (r.mobile_image_url as string | null) ?? null,
+  }));
 
   const salon = {
     id:          row.id as number,
