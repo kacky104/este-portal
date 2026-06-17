@@ -225,10 +225,6 @@ function SalonCard({ salon, therapists }: { salon: Salon; therapists: TherapistT
             ))}
           </div>
 
-          {/* Description */}
-          <p className="text-xs text-slate-500 leading-relaxed line-clamp-2 flex-1">
-            {salon.description}
-          </p>
         </div>
 
         {/* 3. セラピスト写真の横スクロール */}
