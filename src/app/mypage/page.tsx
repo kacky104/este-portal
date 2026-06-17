@@ -460,24 +460,44 @@ export default function MyPage() {
     if (!window.confirm(`「${displayName}」を削除しますか？\nこの操作は取り消せません。`)) return;
 
     setDeletingTherapist(id);
+    console.log('[delete] start id=', id, 'type=', typeof id);
 
     // ON DELETE CASCADE 未設定の場合も安全なよう schedules を先に削除
-    await supabase.from('therapist_schedules').delete().eq('therapist_id', id);
+    const { error: schedErr } = await supabase
+      .from('therapist_schedules')
+      .delete()
+      .eq('therapist_id', id);
+    console.log('[delete] therapist_schedules result: error=', schedErr);
 
-    const { error } = await supabase.from('therapists').delete().eq('id', id);
+    // .select() を付けて実際に削除された行を取得（RLSブロック時は0行返る）
+    const { data: deleted, error } = await supabase
+      .from('therapists')
+      .delete()
+      .eq('id', id)
+      .select('id');
+    console.log('[delete] therapists result: deleted=', deleted, 'error=', error);
+
     setDeletingTherapist(null);
 
     if (error) {
+      console.error('[delete] error:', error);
       showToast(`削除に失敗しました: ${error.message}`);
       return;
     }
 
-    // 削除後にDBから再フェッチして確実にUI反映（型不一致によるfilter誤動作を防ぐ）
+    if (!deleted || deleted.length === 0) {
+      console.warn('[delete] 0 rows deleted — RLSポリシーにより削除が拒否された可能性があります');
+      showToast('削除できませんでした（権限エラーの可能性があります）');
+      return;
+    }
+
+    // 削除後にDBから再フェッチして確実にUI反映
     if (salon) {
       const { data: refreshed } = await supabase
         .from('therapists')
         .select('id, name, work_hours, area, comment, profile_image_url, age, body_type, profile_text')
         .eq('salon_id', salon.id);
+      console.log('[delete] refreshed list length=', refreshed?.length);
       setTherapists(refreshed ?? []);
     }
 
