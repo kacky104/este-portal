@@ -153,9 +153,11 @@ function GridCard({ therapist, index }: {
               </span>
             )}
           </div>
-          <p className="text-[10px] text-pink-500 font-medium mb-1">
-            🕒 {displayHours || therapist.workHours || '—'}
-          </p>
+          {ss && ss.status !== 'off' && (
+            <p className="text-[10px] text-pink-500 font-medium mb-1">
+              🕒 {displayHours || therapist.workHours || '—'}
+            </p>
+          )}
           <p className="text-[10px] text-slate-500 line-clamp-2 leading-relaxed break-all">
             {therapist.comment}
           </p>
