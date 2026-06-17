@@ -75,10 +75,18 @@ function TherapistMiniCard({ therapist, index }: { therapist: TherapistThumb; in
 
       {/* duty status badge */}
       {(() => {
-        if (!therapist.onDuty || !therapist.workHours) {
+        if (!therapist.onDuty) {
           return (
             <span className="absolute top-1.5 right-1.5 text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-white/90 text-slate-400 border border-slate-200">
               お休み
+            </span>
+          );
+        }
+        // onDuty=true だが workHours が空の場合は出勤中として扱う
+        if (!therapist.workHours) {
+          return (
+            <span className="absolute top-1.5 right-1.5 text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-white text-emerald-500 border border-emerald-100 animate-pulse">
+              出勤中
             </span>
           );
         }
@@ -326,14 +334,16 @@ export function ShuffledSalons({ salons, areas }: { salons: Salon[]; areas: stri
       const today        = getTodayJST();
       const therapistIds = therapistRows.map(t => t.id);
 
-      const { data: schedRows } = await supabase
+      const { data: schedRowsRaw } = await supabase
         .from('therapist_schedules')
-        .select('therapist_id, start_time, end_time')
+        .select('therapist_id, start_time, end_time, is_active')
         .in('therapist_id', therapistIds)
-        .eq('schedule_date', today)
-        .eq('is_active', true);
+        .eq('schedule_date', today);
 
-      const onDutySet = new Set((schedRows ?? []).map(r => String(r.therapist_id)));
+      // is_active をクライアント側でフィルター（DB型の不一致を回避）
+      const schedRows = (schedRowsRaw ?? []).filter(r => Boolean(r.is_active));
+
+      const onDutySet = new Set(schedRows.map(r => String(r.therapist_id)));
 
       // スケジュールの実際の時間を "HH:MM〜HH:MM" 形式でマップ化
       const schedHoursMap: Record<string, string> = {};
