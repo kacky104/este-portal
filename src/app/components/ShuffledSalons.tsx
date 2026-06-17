@@ -180,6 +180,7 @@ function TherapistMiniCardsRow({ therapists, salonId }: { therapists: TherapistT
 
 function SalonCard({ salon, therapists }: { salon: Salon; therapists: TherapistThumb[] }) {
   const router = useRouter();
+  const onDutyCount = therapists.filter(t => t.onDuty).length;
 
   return (
     <div
@@ -198,12 +199,23 @@ function SalonCard({ salon, therapists }: { salon: Salon; therapists: TherapistT
 
         {/* 2. 評価・エリア・タグなどの情報 */}
         <div className="mb-4">
-          {/* Hours */}
-          <div className="flex items-center gap-1.5 text-xs mb-2">
-            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-slate-400 flex-shrink-0">
-              <circle cx="12" cy="12" r="10" /><path d="M12 6v6l4 2" />
-            </svg>
-            <span className="text-slate-500">{salon.hours}</span>
+          {/* Hours + 出勤中バッジ */}
+          <div className="flex items-center gap-2 text-xs mb-2 flex-wrap">
+            <div className="flex items-center gap-1.5">
+              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-slate-400 flex-shrink-0">
+                <circle cx="12" cy="12" r="10" /><path d="M12 6v6l4 2" />
+              </svg>
+              <span className="text-slate-500">{salon.hours}</span>
+            </div>
+            <span className="inline-flex items-center gap-1" style={{ background: '#fef3c7', color: '#92400e', borderRadius: '20px', padding: '3px 10px', fontSize: '12px' }}>
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ color: '#92400e', flexShrink: 0 }}>
+                <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+                <circle cx="9" cy="7" r="4" />
+                <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
+                <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+              </svg>
+              出勤中 <span style={{ color: '#ec4899', fontSize: '15px', fontWeight: 700 }}>{onDutyCount}</span>名
+            </span>
           </div>
 
           {/* Stars + count + area */}
