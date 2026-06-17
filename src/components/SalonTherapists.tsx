@@ -238,7 +238,7 @@ export function SalonAllTherapists({ salonId }: { salonId: number }) {
       const supabase = createClient();
       const { data: rows } = await supabase
         .from('therapists')
-        .select('id, name, work_hours, area, comment, profile_image_url')
+        .select('id, name, work_hours, area, comment, profile_image_url, is_available_now')
         .eq('salon_id', salonId);
 
       const rawIds = (rows ?? []).map(t => t.id);
