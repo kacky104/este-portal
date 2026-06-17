@@ -81,11 +81,11 @@ export function FeaturedSalonSlider({ salons }: { salons: FeaturedSalon[] }) {
                 </span>
 
                 {/* Area badge */}
-                <span className="absolute top-4 right-4 inline-flex items-center gap-1 text-[11px] font-semibold text-white bg-white/20 backdrop-blur-sm px-3 py-1 rounded-full border border-white/30">
-                  <svg width="11" height="11" viewBox="0 0 24 24" fill="#f97316" className="flex-shrink-0" aria-hidden>
-                    <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5a2.5 2.5 0 110-5 2.5 2.5 0 010 5z" />
-                  </svg>
-                  {salon.area}
+                <span
+                  className="absolute top-4 right-4 text-[11px] font-semibold backdrop-blur-sm px-3 py-1 rounded-full border"
+                  style={{ color: '#f97316', backgroundColor: 'rgba(249, 115, 22, 0.15)', borderColor: '#f97316' }}
+                >
+                  📍 {salon.area}
                 </span>
 
                 {/* Bottom content */}
