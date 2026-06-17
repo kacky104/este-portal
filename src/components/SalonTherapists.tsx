@@ -14,10 +14,9 @@ function getTodayJST(): string {
 }
 
 function getNowJSTMinutes(): number {
-  const s = new Intl.DateTimeFormat('ja-JP', {
-    timeZone: 'Asia/Tokyo', hour: '2-digit', minute: '2-digit', hour12: false,
-  }).format(new Date());
-  const [h, m] = s.split(':').map(Number);
+  const nowDate = new Date();
+  const h = Number(new Intl.DateTimeFormat('sv-SE', { timeZone: 'Asia/Tokyo', hour: '2-digit', hour12: false }).format(nowDate));
+  const m = Number(new Intl.DateTimeFormat('sv-SE', { timeZone: 'Asia/Tokyo', minute: '2-digit' }).format(nowDate));
   return h * 60 + m;
 }
 
@@ -81,22 +80,30 @@ type Therapist = {
 
 // ── shared schedule fetch ──────────────────────────────────────
 
-async function fetchScheduleMap(rawIds: unknown[]): Promise<Record<number, TodaySchedule>> {
+async function fetchScheduleMap(rawIds: unknown[]): Promise<Record<string, TodaySchedule>> {
   if (rawIds.length === 0) return {};
   const supabase = createClient();
-  const { data } = await supabase
+  const today = getTodayJST();
+  console.log('[fetchScheduleMap] today:', today, 'rawIds:', rawIds);
+
+  const { data, error } = await supabase
     .from('therapist_schedules')
     .select('therapist_id, is_active, start_time, end_time')
     .in('therapist_id', rawIds)
-    .eq('schedule_date', getTodayJST());
+    .eq('schedule_date', today);
 
-  const map: Record<number, TodaySchedule> = {};
+  console.log('[fetchScheduleMap] rows returned:', data?.length ?? 0, 'error:', error);
+  console.log('[fetchScheduleMap] raw data:', JSON.stringify(data));
+
+  const map: Record<string, TodaySchedule> = {};
   (data ?? []).forEach(row => {
-    map[row.therapist_id as number] = {
+    const key = String(row.therapist_id);
+    map[key] = {
       is_active:  Boolean(row.is_active),
       start_time: row.start_time ? String(row.start_time).slice(0, 5) : null,
       end_time:   row.end_time   ? String(row.end_time).slice(0, 5)   : null,
     };
+    console.log('[fetchScheduleMap] mapped key:', key, '→', map[key]);
   });
   return map;
 }
@@ -171,18 +178,28 @@ export function SalonTherapists({ salonId }: { salonId: number }) {
         .select('id, name, work_hours, area, comment, profile_image_url')
         .eq('salon_id', salonId);
 
+      console.log('[SalonTherapists] therapist rows:', rows?.map(r => ({ id: r.id, name: r.name })));
+
       const rawIds = (rows ?? []).map(t => t.id);
       const schedMap = await fetchScheduleMap(rawIds);
 
-      const mapped: Therapist[] = (rows ?? []).map(t => ({
-        id:              String(t.id),
-        name:            (t.name as string) ?? '',
-        workHours:       (t.work_hours as string) ?? '',
-        area:            (t.area as string) ?? '',
-        comment:         (t.comment as string) ?? '',
-        profileImageUrl: (t.profile_image_url as string | null) ?? null,
-        today:           schedMap[t.id as number] ?? { is_active: false, start_time: null, end_time: null },
-      }));
+      console.log('[SalonTherapists] schedMap keys:', Object.keys(schedMap));
+
+      const mapped: Therapist[] = (rows ?? []).map(t => {
+        const key = String(t.id);
+        const todaySchedule = schedMap[key] ?? { is_active: false, start_time: null, end_time: null };
+        const status = getScheduleStatus(todaySchedule);
+        console.log(`[SalonTherapists] ${t.name as string} key=${key} today=`, todaySchedule, '→ status:', status.status);
+        return {
+          id:              key,
+          name:            (t.name as string) ?? '',
+          workHours:       (t.work_hours as string) ?? '',
+          area:            (t.area as string) ?? '',
+          comment:         (t.comment as string) ?? '',
+          profileImageUrl: (t.profile_image_url as string | null) ?? null,
+          today:           todaySchedule,
+        };
+      });
 
       setList(mapped.filter(t => getScheduleStatus(t.today).status === 'onDuty'));
     })();
@@ -225,7 +242,7 @@ export function SalonAllTherapists({ salonId }: { salonId: number }) {
         area:            (t.area as string) ?? '',
         comment:         (t.comment as string) ?? '',
         profileImageUrl: (t.profile_image_url as string | null) ?? null,
-        today:           schedMap[t.id as number] ?? { is_active: false, start_time: null, end_time: null },
+        today:           schedMap[String(t.id)] ?? { is_active: false, start_time: null, end_time: null },
       }));
 
       setList(mapped);
