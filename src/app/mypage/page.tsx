@@ -472,12 +472,21 @@ export default function MyPage() {
       return;
     }
 
-    setTherapists(prev => prev.filter(t => t.id !== id));
-    setTherapistForms(prev => { const n = { ...prev }; delete n[id]; return n; });
-    setSchedules(prev => { const n = { ...prev }; delete n[id]; return n; });
+    // 削除後にDBから再フェッチして確実にUI反映（型不一致によるfilter誤動作を防ぐ）
+    if (salon) {
+      const { data: refreshed } = await supabase
+        .from('therapists')
+        .select('id, name, work_hours, area, comment, profile_image_url, age, body_type, profile_text')
+        .eq('salon_id', salon.id);
+      setTherapists(refreshed ?? []);
+    }
+
+    const sid = String(id);
+    setTherapistForms(prev => { const n = { ...prev }; delete n[sid]; return n; });
+    setSchedules(prev => { const n = { ...prev }; delete n[sid]; return n; });
     setExpandedSections(prev => {
       const n = new Set(prev);
-      n.delete(`${id}-schedule`);
+      n.delete(`${sid}-schedule`);
       return n;
     });
     showToast('セラピストを削除しました');
