@@ -167,7 +167,7 @@ export default async function Home() {
 
         {/* ─── Pickup Salons ───────────────────────────────────── */}
         {featuredSalons.length > 0 && (
-          <section className="py-10 bg-white border-t border-pink-50">
+          <section className="py-5 sm:py-10 bg-white border-t border-pink-50">
             <div className="max-w-5xl mx-auto px-4">
               <div className="flex items-center gap-3 mb-4">
                 <div className="w-1 h-6 rounded-full bg-gradient-to-b from-pink-400 to-rose-500" />
