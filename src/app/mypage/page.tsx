@@ -59,11 +59,13 @@ function fromPickerValue(value: string): { start: string | null; end: string | n
 
 type CourseItem  = { duration: string; price: string };
 type CourseGroup = { name: string; items: CourseItem[] };
+type OtherItem   = { label: string; price: string };
 
 function parseCourseGroups(raw: unknown): CourseGroup[] {
   if (!Array.isArray(raw) || raw.length === 0) return [{ name: '', items: [{ duration: '', price: '' }] }];
   const map = new Map<string, CourseItem[]>();
   for (const entry of raw as Record<string, string>[]) {
+    if (entry.name === 'その他') continue;
     const name       = String(entry.name ?? '');
     const durMatch   = String(entry.duration ?? '').match(/(\d+)/);
     const priceMatch = String(entry.price    ?? '').match(/([\d,]+)/);
@@ -73,10 +75,25 @@ function parseCourseGroups(raw: unknown): CourseGroup[] {
       price:    priceMatch?.[1]?.replace(/,/g, '') ?? '',
     });
   }
-  return Array.from(map.entries()).map(([name, items]) => ({ name, items }));
+  const result = Array.from(map.entries()).map(([name, items]) => ({ name, items }));
+  return result.length > 0 ? result : [{ name: '', items: [{ duration: '', price: '' }] }];
 }
 
-function buildCoursesJson(groups: CourseGroup[]): Array<{ name: string; duration: string; price: string }> {
+function parseOtherItems(raw: unknown): OtherItem[] {
+  if (!Array.isArray(raw)) return [{ label: '', price: '' }];
+  const items = (raw as Record<string, string>[])
+    .filter(e => e.name === 'その他')
+    .map(e => ({
+      label: String(e.duration ?? ''),
+      price: String(e.price ?? '').replace(/[^\d]/g, ''),
+    }));
+  return items.length > 0 ? items : [{ label: '', price: '' }];
+}
+
+function buildCoursesJson(
+  groups: CourseGroup[],
+  otherItems: OtherItem[]
+): Array<{ name: string; duration: string; price: string }> {
   const result: Array<{ name: string; duration: string; price: string }> = [];
   for (const g of groups) {
     for (const item of g.items) {
@@ -84,6 +101,12 @@ function buildCoursesJson(groups: CourseGroup[]): Array<{ name: string; duration
       const priceStr = isNaN(priceNum) ? item.price : `¥${priceNum.toLocaleString('ja-JP')}`;
       result.push({ name: g.name, duration: item.duration ? `${item.duration}分` : '', price: priceStr });
     }
+  }
+  for (const item of otherItems) {
+    if (!item.label && !item.price) continue;
+    const priceNum = parseInt(item.price.replace(/[^\d]/g, ''), 10);
+    const priceStr = isNaN(priceNum) ? item.price : `¥${priceNum.toLocaleString('ja-JP')}`;
+    result.push({ name: 'その他', duration: item.label, price: priceStr });
   }
   return result;
 }
@@ -165,6 +188,7 @@ export default function MyPage() {
   const [addError, setAddError] = useState('');
   const [deletingTherapist, setDeletingTherapist] = useState<string | null>(null);
   const [courseGroups, setCourseGroups] = useState<CourseGroup[]>([{ name: '', items: [{ duration: '', price: '' }] }]);
+  const [otherItems,   setOtherItems]   = useState<OtherItem[]>([{ label: '', price: '' }]);
   const [salonImages,    setSalonImages]    = useState<SalonImage[]>([]);
   const [uploadingImage, setUploadingImage] = useState(false);
   const [availableNow, setAvailableNow] = useState<Record<string, boolean>>({});
@@ -210,6 +234,7 @@ export default function MyPage() {
       setSalon(salonData);
       setSalonForm(salonData);
       setCourseGroups(parseCourseGroups(salonData.courses));
+      setOtherItems(parseOtherItems(salonData.courses));
 
       const { data: imageData } = await supabase
         .from('salon_images')
@@ -388,7 +413,7 @@ export default function MyPage() {
     const { error } = await supabase
       .from('salons')
       .update({
-        courses: buildCoursesJson(courseGroups),
+        courses: buildCoursesJson(courseGroups, otherItems),
         price: buildRepresentativePrice(courseGroups),
         hours: salonForm.hours,
         description: salonForm.description,
@@ -700,6 +725,49 @@ export default function MyPage() {
             >
               + コースを追加
             </button>
+            {/* その他メニュー追加 */}
+            <div className="mt-4 rounded-2xl border border-pink-100 bg-pink-50/20 p-3 space-y-2">
+              <p className="text-xs font-bold text-slate-600">その他メニュー追加</p>
+              <div className="space-y-1.5">
+                {otherItems.map((item, i) => (
+                  <div key={i} className="flex items-center gap-2">
+                    <input
+                      type="text"
+                      placeholder="メニュー名（例：ハンド60分）"
+                      value={item.label}
+                      onChange={(e) => setOtherItems(prev => prev.map((it, ii) => ii === i ? { ...it, label: e.target.value } : it))}
+                      className="flex-1 px-3 py-1.5 rounded-xl border border-slate-200 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-pink-200"
+                    />
+                    <span className="text-xs text-slate-500 flex-shrink-0">/ ¥</span>
+                    <input
+                      type="number"
+                      min={0}
+                      placeholder="料金"
+                      value={item.price}
+                      onChange={(e) => setOtherItems(prev => prev.map((it, ii) => ii === i ? { ...it, price: e.target.value } : it))}
+                      className="w-28 px-3 py-1.5 rounded-xl border border-slate-200 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-pink-200"
+                    />
+                    <span className="text-xs text-slate-500 flex-shrink-0">円</span>
+                    {otherItems.length > 1 && (
+                      <button
+                        type="button"
+                        onClick={() => setOtherItems(prev => prev.filter((_, ii) => ii !== i))}
+                        className="w-7 h-7 flex items-center justify-center rounded-lg border border-slate-200 text-slate-400 hover:text-rose-400 hover:border-rose-200 text-sm font-bold transition-colors flex-shrink-0"
+                      >
+                        ×
+                      </button>
+                    )}
+                  </div>
+                ))}
+              </div>
+              <button
+                type="button"
+                onClick={() => setOtherItems(prev => [...prev, { label: '', price: '' }])}
+                className="text-xs font-bold text-pink-500 hover:text-pink-600 transition-colors"
+              >
+                + その他メニューを追加
+              </button>
+            </div>
           </div>
           <div>
             <label className={labelClass}>営業時間</label>
