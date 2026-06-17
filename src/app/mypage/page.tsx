@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { createClient } from '@/app/lib/supabase/client';
 import { TimeRangePicker } from '@/components/TimeRangePicker';
+import { SALON_THEMES, type ThemeKey } from '@/app/lib/themes';
 
 const supabase = createClient();
 
@@ -226,7 +227,7 @@ export default function MyPage() {
 
       const { data: salonData, error: salonError } = await supabase
         .from('salons')
-        .select('id, name, rating, review_count, tags, price, area, hours, description, appeal, therapist_count, therapist_types, therapist_profile, phone, address, access, closed_days, note, courses')
+        .select('id, name, rating, review_count, tags, price, area, hours, description, appeal, therapist_count, therapist_types, therapist_profile, phone, address, access, closed_days, note, courses, theme')
         .eq('owner_id', user.id)
         .single();
 
@@ -484,6 +485,7 @@ export default function MyPage() {
         access: salonForm.access,
         closed_days: salonForm.closed_days,
         note: salonForm.note,
+        theme: salonForm.theme ?? 'white',
       })
       .eq('id', salon.id);
     setSaving(false);
@@ -714,6 +716,36 @@ export default function MyPage() {
             </div>
             <p className="mt-1 text-[11px] text-slate-400">※ サロン名の変更は管理者のみ行えます。変更が必要な場合はお問い合わせください。</p>
           </div>
+
+          {/* ── テーマカラー ── */}
+          <div>
+            <label className={labelClass}>テーマカラー</label>
+            <p className="mb-2 text-[11px] text-slate-400">サロン詳細ページ全体の背景色・文字色が切り替わります。</p>
+            <div className="grid grid-cols-3 gap-2">
+              {SALON_THEMES.map((t) => {
+                const selected = (salonForm.theme ?? 'white') === t.key;
+                return (
+                  <button
+                    key={t.key}
+                    type="button"
+                    onClick={() => setSalonForm((p) => ({ ...p, theme: t.key as ThemeKey }))}
+                    className={`flex items-center gap-2 px-3 py-2 rounded-xl border text-xs font-bold transition-colors ${
+                      selected
+                        ? 'border-pink-500 ring-2 ring-pink-200 text-pink-600'
+                        : 'border-slate-200 text-slate-500 hover:border-pink-300'
+                    }`}
+                  >
+                    <span
+                      className="w-5 h-5 rounded-full flex-shrink-0"
+                      style={{ backgroundColor: t.bg, border: `1px solid ${t.swatchBorder}` }}
+                    />
+                    {t.label}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
           <div>
             <label className={labelClass}>コースメニュー</label>
             <div className="space-y-3">

@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { createClient } from "@/app/lib/supabase/server";
+import { getTheme } from "@/app/lib/themes";
 import { SalonTherapists, SalonAllTherapists } from "@/components/SalonTherapists";
 import { SalonDiarySection } from "@/components/DiarySection";
 import SalonHeaderSlider from "@/components/SalonHeaderSlider";
@@ -15,7 +16,7 @@ export default async function SalonPage({
   const supabase = await createClient();
   const { data: row, error } = await supabase
     .from('salons')
-    .select('id, name, rating, review_count, tags, price, area, hours, description, appeal, phone, address, access, closed_days, note, courses')
+    .select('id, name, rating, review_count, tags, price, area, hours, description, appeal, phone, address, access, closed_days, note, courses, theme')
     .eq('id', Number(id))
     .single();
 
@@ -52,10 +53,12 @@ export default async function SalonPage({
     note:        (row.note as string | undefined) ?? undefined,
   };
 
+  const theme = getTheme(row.theme as string | null);
+
   const filledStars = Math.floor(salon.rating);
 
   return (
-    <div className="min-h-screen bg-slate-50 text-slate-900">
+    <div className="min-h-screen" style={{ backgroundColor: theme.bg, color: theme.text }}>
 
       {/* ─── Header ─────────────────────────────────────────── */}
       <header className="sticky top-0 z-50 bg-white/90 backdrop-blur-md border-b border-slate-200 shadow-sm">
