@@ -733,7 +733,7 @@ export default function MyPage() {
                   <div key={i} className="flex items-center gap-2">
                     <input
                       type="text"
-                      placeholder="メニュー名（例：ハンド60分）"
+                      placeholder="メニュー名（例：延長30分）"
                       value={item.label}
                       onChange={(e) => setOtherItems(prev => prev.map((it, ii) => ii === i ? { ...it, label: e.target.value } : it))}
                       className="flex-1 px-3 py-1.5 rounded-xl border border-slate-200 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-pink-200"
