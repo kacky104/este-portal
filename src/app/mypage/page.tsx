@@ -932,7 +932,7 @@ export default function MyPage() {
                   : nowMin >= startMin && nowMin <= endMin;
               });
               const checkedCount = onDutyTherapists.filter(t => availableNow[String(t.id)]).length;
-              const atLimit = checkedCount >= 5;
+              const atLimit = checkedCount >= 3;
               if (onDutyTherapists.length === 0) {
                 return (
                   <p className="text-xs text-slate-400 text-center py-6 border border-dashed border-slate-200 rounded-2xl">
@@ -944,7 +944,7 @@ export default function MyPage() {
                 <div className="space-y-2">
                   {atLimit && (
                     <p className="text-xs text-rose-500 font-bold text-center py-2 bg-rose-50 border border-rose-100 rounded-xl">
-                      今すぐは最大5名までです
+                      今すぐは最大3名までです
                     </p>
                   )}
                   {onDutyTherapists.map(t => {
