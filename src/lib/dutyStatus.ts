@@ -25,11 +25,11 @@ export function checkDutyStatus(workHours: string): {
   const startInMinutes = startHour * 60 + (startMin || 0);
   const endInMinutes = endHour * 60 + (endMin || 0);
 
-  // 3. Intl API で現在の日本時間を取得
-  const options = { timeZone: 'Asia/Tokyo', hour: '2-digit', minute: '2-digit', hour12: false } as const;
-  const jstString = new Intl.DateTimeFormat('ja-JP', options).format(new Date());
-  const [currentHour, currentMinute] = jstString.split(':').map(Number);
-  const now = currentHour * 60 + currentMinute;
+  // 3. 現在の日本時間を取得（sv-SE ロケールで HH:MM 形式を保証）
+  const nowDate = new Date();
+  const jstHour   = Number(new Intl.DateTimeFormat('sv-SE', { timeZone: 'Asia/Tokyo', hour: '2-digit', hour12: false }).format(nowDate));
+  const jstMinute = Number(new Intl.DateTimeFormat('sv-SE', { timeZone: 'Asia/Tokyo', minute: '2-digit' }).format(nowDate));
+  const now = jstHour * 60 + jstMinute;
 
   // 4. 判定
   let isOnDuty: boolean;
