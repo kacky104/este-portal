@@ -914,10 +914,6 @@ export default function MyPage() {
             <textarea rows={4} className={textareaClass} value={salonForm.description ?? ''} onChange={(e) => setSalonForm((p) => ({ ...p, description: e.target.value }))} />
           </div>
           <div>
-            <label className={labelClass}>アピールポイント</label>
-            <textarea rows={3} className={textareaClass} value={salonForm.appeal ?? ''} onChange={(e) => setSalonForm((p) => ({ ...p, appeal: e.target.value }))} />
-          </div>
-          <div>
             <label className={labelClass}>備考</label>
             <textarea rows={2} className={textareaClass} value={salonForm.note ?? ''} onChange={(e) => setSalonForm((p) => ({ ...p, note: e.target.value }))} />
           </div>
