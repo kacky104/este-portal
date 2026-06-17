@@ -182,7 +182,7 @@ export default async function Home() {
         )}
 
         {/* ─── Today's therapists ──────────────────────────────── */}
-        <section className="py-10 bg-white border-t border-pink-50">
+        <section className="py-5 sm:py-10 bg-white border-t border-pink-50">
           <div className="max-w-5xl mx-auto px-4">
             <div className="flex items-center justify-between mb-1.5">
               <div className="flex items-center gap-3">
