@@ -10,6 +10,20 @@ const supabase = createClient();
 
 const WEEKDAYS = ['日', '月', '火', '水', '木', '金', '土'];
 
+async function fetchTherapistList(salonId: string): Promise<Therapist[]> {
+  const { data, error } = await supabase
+    .from('therapists')
+    .select('id, name, work_hours, area, comment, profile_image_url, age, body_type, profile_text, is_available_now')
+    .eq('salon_id', salonId);
+  if (!error) return (data ?? []) as Therapist[];
+  console.warn('[mypage] is_available_now クエリ失敗（カラム未作成の可能性）:', error.message);
+  const { data: fb } = await supabase
+    .from('therapists')
+    .select('id, name, work_hours, area, comment, profile_image_url, age, body_type, profile_text')
+    .eq('salon_id', salonId);
+  return (fb ?? []).map(t => ({ ...(t as Omit<Therapist, 'is_available_now'>), is_available_now: false }));
+}
+
 function toDateStr(d: Date): string {
   const y = d.getFullYear();
   const m = String(d.getMonth() + 1).padStart(2, '0');
@@ -202,12 +216,7 @@ export default function MyPage() {
         .order('display_order', { ascending: true });
       setSalonImages(imageData ?? []);
 
-      const { data: therapistData } = await supabase
-        .from('therapists')
-        .select('id, name, work_hours, area, comment, profile_image_url, age, body_type, profile_text, is_available_now')
-        .eq('salon_id', salonData.id);
-
-      const list = therapistData ?? [];
+      const list = await fetchTherapistList(String(salonData.id));
       setTherapists(list);
       const initAvail: Record<string, boolean> = {};
       list.forEach(t => { initAvail[String(t.id)] = Boolean(t.is_available_now); });
@@ -435,12 +444,7 @@ export default function MyPage() {
     }
 
     // 一覧を再取得（既存フォームの未保存データは保持）
-    const { data: therapistData } = await supabase
-      .from('therapists')
-      .select('id, name, work_hours, area, comment, profile_image_url, age, body_type, profile_text, is_available_now')
-      .eq('salon_id', salon.id);
-
-    const list = therapistData ?? [];
+    const list = await fetchTherapistList(String(salon.id));
     setTherapists(list);
 
     const existingIds = new Set(Object.keys(therapistForms));
@@ -499,12 +503,9 @@ export default function MyPage() {
 
     // 削除後にDBから再フェッチして確実にUI反映
     if (salon) {
-      const { data: refreshed } = await supabase
-        .from('therapists')
-        .select('id, name, work_hours, area, comment, profile_image_url, age, body_type, profile_text, is_available_now')
-        .eq('salon_id', salon.id);
-      console.log('[delete] refreshed list length=', refreshed?.length);
-      setTherapists(refreshed ?? []);
+      const refreshed = await fetchTherapistList(String(salon.id));
+      console.log('[delete] refreshed list length=', refreshed.length);
+      setTherapists(refreshed);
     }
 
     const sid = String(id);
