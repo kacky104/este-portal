@@ -236,14 +236,6 @@ function SalonCard({ salon, therapists }: { salon: Salon; therapists: TherapistT
             </span>
           </div>
 
-          {/* Tags */}
-          <div className="flex flex-wrap gap-1.5 mb-2">
-            {salon.tags.map(tag => (
-              <span key={tag} className="text-xs px-2.5 py-0.5 rounded-full bg-pink-50 text-pink-700 border border-pink-200">
-                {tag}
-              </span>
-            ))}
-          </div>
 
         </div>
 
