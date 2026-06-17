@@ -198,7 +198,7 @@ export default async function Home() {
         </section>
 
         {/* ─── Salon list ──────────────────────────────────────── */}
-        <section id="salons" className="py-12">
+        <section id="salons" className="pt-6 pb-12">
           <div className="max-w-5xl mx-auto px-4">
             <div className="flex items-center gap-3 mb-1.5">
               <div className="w-1 h-6 rounded-full bg-gradient-to-b from-pink-500 to-pink-700" />
