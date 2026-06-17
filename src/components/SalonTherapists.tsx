@@ -3,15 +3,12 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { createClient } from '@/app/lib/supabase/client';
+import { getBusinessDateJST } from '@/lib/dutyStatus';
 
 const GRADS = ['from-pink-300 to-rose-400', 'from-fuchsia-300 to-pink-400', 'from-rose-300 to-pink-500'];
 const SYMS  = ['✿', '❀', '✾', '♡', '✦'];
 
 // ── helpers ──────────────────────────────────────────────────
-
-function getTodayJST(): string {
-  return new Intl.DateTimeFormat('sv-SE', { timeZone: 'Asia/Tokyo' }).format(new Date());
-}
 
 function getNowJSTMinutes(): number {
   const nowDate = new Date();
@@ -85,7 +82,7 @@ type Therapist = {
 async function fetchScheduleMap(rawIds: unknown[]): Promise<Record<string, TodaySchedule>> {
   if (rawIds.length === 0) return {};
   const supabase = createClient();
-  const today = getTodayJST();
+  const today = getBusinessDateJST();
   console.log('[fetchScheduleMap] today:', today, 'rawIds:', rawIds);
 
   const { data, error } = await supabase

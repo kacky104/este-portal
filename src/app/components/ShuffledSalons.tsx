@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/app/lib/supabase/client';
-import { checkDutyStatus } from '@/lib/dutyStatus';
+import { checkDutyStatus, getBusinessDateJST } from '@/lib/dutyStatus';
 
 export type Salon = {
   id:          number;
@@ -34,10 +34,6 @@ const GRADIENTS = [
   'from-rose-300 to-pink-500',
   'from-pink-400 to-fuchsia-400',
 ];
-
-function getTodayJST(): string {
-  return new Intl.DateTimeFormat('sv-SE', { timeZone: 'Asia/Tokyo' }).format(new Date());
-}
 
 function StarRating({ rating }: { rating: number }) {
   const full = Math.floor(rating);
@@ -330,7 +326,7 @@ export function ShuffledSalons({ salons, areas }: { salons: Salon[]; areas: stri
 
       if (!therapistRows || therapistRows.length === 0) return;
 
-      const today        = getTodayJST();
+      const today        = getBusinessDateJST();
       const therapistIds = therapistRows.map(t => t.id);
 
       const { data: schedRowsRaw } = await supabase

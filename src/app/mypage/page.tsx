@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { createClient } from '@/app/lib/supabase/client';
 import { TimeRangePicker } from '@/components/TimeRangePicker';
 import { SALON_THEMES, type ThemeKey } from '@/app/lib/themes';
+import { getBusinessDateJST, getBusinessDateRangeJST } from '@/lib/dutyStatus';
 
 const supabase = createClient();
 
@@ -23,13 +24,6 @@ async function fetchTherapistList(salonId: string): Promise<Therapist[]> {
     .select('id, name, work_hours, area, comment, profile_image_url, age, body_type, profile_text')
     .eq('salon_id', salonId);
   return (fb ?? []).map(t => ({ ...(t as Omit<Therapist, 'is_available_now' | 'available_until'>), is_available_now: false, available_until: null }));
-}
-
-function toDateStr(d: Date): string {
-  const y = d.getFullYear();
-  const m = String(d.getMonth() + 1).padStart(2, '0');
-  const day = String(d.getDate()).padStart(2, '0');
-  return `${y}-${m}-${day}`;
 }
 
 function formatDateLabel(dateStr: string): string {
@@ -209,14 +203,8 @@ export default function MyPage() {
     });
   };
 
-  const sevenDays = useMemo(() => {
-    const today = new Date();
-    return Array.from({ length: 7 }, (_, i) => {
-      const d = new Date(today);
-      d.setDate(today.getDate() + i);
-      return toDateStr(d);
-    });
-  }, []);
+  // 営業日は午前5時始まり（深夜営業対応）。0:00〜4:59 は前日扱い。
+  const sevenDays = useMemo(() => getBusinessDateRangeJST(7), []);
 
   useEffect(() => {
     (async () => {
@@ -275,11 +263,8 @@ export default function MyPage() {
       setTherapistForms(forms);
 
       if (list.length > 0) {
-        const today = new Date();
-        const todayStr = toDateStr(today);
-        const lastDay = new Date(today);
-        lastDay.setDate(today.getDate() + 6);
-        const lastStr = toDateStr(lastDay);
+        const todayStr = getBusinessDateJST(0);
+        const lastStr  = getBusinessDateJST(6);
 
         const { data: schedData } = await supabase
           .from('therapist_schedules')

@@ -5,6 +5,7 @@ import { createClient } from "./lib/supabase/server";
 import { DiarySection } from "@/components/DiarySection";
 import HeaderImageSlider from "@/components/HeaderImageSlider";
 import { FeaturedSalonSlider, type FeaturedSalon } from "./components/FeaturedSalonSlider";
+import { getBusinessDateJST } from "@/lib/dutyStatus";
 
 const AREAS = [
   "福岡全域",
@@ -35,7 +36,7 @@ export default async function Home() {
   }));
 
   // ── ピックアップサロン取得 ──────────────────────────────
-  const todayJST = new Intl.DateTimeFormat('sv-SE', { timeZone: 'Asia/Tokyo' }).format(new Date());
+  const todayJST = getBusinessDateJST();
   let featuredSalons: FeaturedSalon[] = [];
 
   const { data: featuredRows, error: featuredErr } = await supabase

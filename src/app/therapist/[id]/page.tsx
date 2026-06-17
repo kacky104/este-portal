@@ -1,20 +1,9 @@
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { createClient } from '@/app/lib/supabase/server';
+import { getBusinessDateRangeJST } from '@/lib/dutyStatus';
 
 // ── helpers ───────────────────────────────────────────────────
-
-function getDateRangeJST(days: number): string[] {
-  const result: string[] = [];
-  const fmt = new Intl.DateTimeFormat('sv-SE', { timeZone: 'Asia/Tokyo' });
-  const now = new Date();
-  for (let i = 0; i < days; i++) {
-    const d = new Date(now);
-    d.setDate(d.getDate() + i);
-    result.push(fmt.format(d));
-  }
-  return result;
-}
 
 function parseBodyType(raw: string | null) {
   if (!raw) return null;
@@ -78,7 +67,7 @@ export default async function TherapistPublicPage({
     .eq('id', tRow.salon_id as number)
     .single();
 
-  const dates = getDateRangeJST(7);
+  const dates = getBusinessDateRangeJST(7);
 
   const { data: schedRows } = await supabase
     .from('therapist_schedules')

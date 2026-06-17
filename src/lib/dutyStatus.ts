@@ -1,3 +1,37 @@
+// 1日（営業日）の始まりを午前5時とする。深夜営業のサロンに対応するため、
+// 午前0:00〜4:59 は「前日」のスケジュールを参照する。
+export const DAY_START_HOUR = 5;
+
+/**
+ * 現在の日本時間を基準に、「営業日」を YYYY-MM-DD 形式で返す。
+ * JST が午前5時より前の場合は前日扱いとする。
+ * @param offsetDays 営業日からのオフセット日数（0=当日, 1=翌営業日 ...）
+ */
+export function getBusinessDateJST(offsetDays = 0): string {
+  const now = new Date();
+  const jstHour = Number(
+    new Intl.DateTimeFormat('sv-SE', { timeZone: 'Asia/Tokyo', hour: '2-digit', hour12: false }).format(now)
+  );
+  // 現在のJST日付（YYYY-MM-DD）
+  const todayStr = new Intl.DateTimeFormat('sv-SE', { timeZone: 'Asia/Tokyo' }).format(now);
+  const [y, m, d] = todayStr.split('-').map(Number);
+
+  // 午前5時より前なら1日戻す。月またぎを正しく扱うため UTC 正午基準で加減算。
+  const shift = jstHour < DAY_START_HOUR ? -1 : 0;
+  const base = new Date(Date.UTC(y, m - 1, d));
+  base.setUTCDate(base.getUTCDate() + shift + offsetDays);
+
+  const yy = base.getUTCFullYear();
+  const mm = String(base.getUTCMonth() + 1).padStart(2, '0');
+  const dd = String(base.getUTCDate()).padStart(2, '0');
+  return `${yy}-${mm}-${dd}`;
+}
+
+/** 営業日基準で連続する days 日分の日付配列を返す（[当日, 翌日, ...]）。 */
+export function getBusinessDateRangeJST(days: number): string[] {
+  return Array.from({ length: days }, (_, i) => getBusinessDateJST(i));
+}
+
 export type DutyStatus = 'before' | 'onDuty' | 'after';
 
 export function checkDutyStatus(workHours: string): {

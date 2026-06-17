@@ -3,14 +3,11 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { createClient } from '@/app/lib/supabase/client';
+import { getBusinessDateJST } from '@/lib/dutyStatus';
 
 const GRADIENTS = ['from-pink-300 to-rose-400', 'from-fuchsia-300 to-pink-400', 'from-rose-300 to-pink-500', 'from-pink-400 to-fuchsia-400'];
 
 // ── helpers ───────────────────────────────────────────────────
-
-function getTodayJST(): string {
-  return new Intl.DateTimeFormat('sv-SE', { timeZone: 'Asia/Tokyo' }).format(new Date());
-}
 
 function getNowJSTMinutes(): number {
   const s = new Intl.DateTimeFormat('ja-JP', {
@@ -170,7 +167,7 @@ export function TherapistScroller() {
       }
 
       const rawIds = (therapistData ?? []).map(t => t.id);
-      const today  = getTodayJST();
+      const today  = getBusinessDateJST();
 
       let schedRows: Array<{ therapist_id: unknown; is_active: unknown; start_time: unknown; end_time: unknown }> = [];
       if (rawIds.length > 0) {
