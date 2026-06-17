@@ -81,47 +81,38 @@ export default async function SalonPage({
           サロン一覧へ戻る
         </Link>
 
-        {/* ─── Hero ────────────────────────────────────── */}
-        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden mb-6">
-          {/* ヘッダー画像スライダー */}
+        {/* ─── Block 1: 画像スライダー ─────────────────── */}
+        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden mb-4">
           <SalonHeaderSlider images={salonImages} />
+        </div>
 
-          <div className="p-6">
-            <h1 className="text-2xl font-bold text-slate-900 mb-3">{salon.name}</h1>
+        {/* ─── Block 2: サロン情報 ──────────────────────── */}
+        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 mb-6">
+          <h1 className="text-2xl font-bold text-slate-900 mb-3">{salon.name}</h1>
 
-            {/* Rating row */}
-            <div className="flex flex-wrap items-center gap-3 mb-4">
-              <div className="flex items-center gap-1">
-                {Array.from({ length: 5 }, (_, i) => (
-                  <span key={i} className={i < filledStars ? "text-pink-500" : "text-slate-300"} style={{ fontSize: "18px" }}>★</span>
-                ))}
-              </div>
-              <span className="text-pink-600 font-bold text-lg">{salon.rating}</span>
-              <span className="text-slate-400 text-sm">({salon.reviewCount}件の口コミ)</span>
-            </div>
-
-            {/* Tags */}
-            <div className="flex flex-wrap gap-2 mb-4">
-              {salon.tags.map((tag) => (
-                <span key={tag} className="text-xs px-3 py-1 rounded-full bg-pink-50 text-pink-700 border border-pink-200">
-                  {tag}
-                </span>
+          {/* Rating row */}
+          <div className="flex flex-wrap items-center gap-3 mb-4">
+            <div className="flex items-center gap-1">
+              {Array.from({ length: 5 }, (_, i) => (
+                <span key={i} className={i < filledStars ? "text-pink-500" : "text-slate-300"} style={{ fontSize: "18px" }}>★</span>
               ))}
             </div>
+            <span className="text-pink-600 font-bold text-lg">{salon.rating}</span>
+            <span className="text-slate-400 text-sm">({salon.reviewCount}件の口コミ)</span>
+          </div>
 
-            {/* Hours */}
-            <div className="flex items-center gap-2 text-sm text-slate-500">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-slate-400 flex-shrink-0">
-                <circle cx="12" cy="12" r="10" /><path d="M12 6v6l4 2" />
-              </svg>
-              <span>{salon.hours}</span>
-              {salon.closedDays && (
-                <>
-                  <span className="text-slate-300">｜</span>
-                  <span>定休：{salon.closedDays}</span>
-                </>
-              )}
-            </div>
+          {/* Hours + closed days */}
+          <div className="flex items-center gap-2 text-sm text-slate-500">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-slate-400 flex-shrink-0">
+              <circle cx="12" cy="12" r="10" /><path d="M12 6v6l4 2" />
+            </svg>
+            <span>{salon.hours}</span>
+            {salon.closedDays && (
+              <>
+                <span className="text-slate-300">｜</span>
+                <span>定休：{salon.closedDays}</span>
+              </>
+            )}
           </div>
         </div>
 
