@@ -24,9 +24,39 @@ export type DaySchedule = {
 
 const WEEKDAYS = ['日', '月', '火', '水', '木', '金', '土'];
 
+// 2026年 日本の祝日（振替休日・国民の休日を含む）
+const HOLIDAYS_2026 = new Set([
+  '2026-01-01', // 元日
+  '2026-01-12', // 成人の日
+  '2026-02-11', // 建国記念の日
+  '2026-02-23', // 天皇誕生日
+  '2026-03-20', // 春分の日
+  '2026-04-29', // 昭和の日
+  '2026-05-03', // 憲法記念日
+  '2026-05-04', // みどりの日
+  '2026-05-05', // こどもの日
+  '2026-05-06', // 振替休日（5/3が日曜のため）
+  '2026-07-20', // 海の日
+  '2026-08-11', // 山の日
+  '2026-09-21', // 敬老の日
+  '2026-09-22', // 国民の休日
+  '2026-09-23', // 秋分の日
+  '2026-10-12', // スポーツの日
+  '2026-11-03', // 文化の日
+  '2026-11-23', // 勤労感謝の日
+]);
+
 function dateParts(dateStr: string): { md: string; wd: string } {
   const d = new Date(dateStr + 'T00:00:00');
   return { md: `${d.getMonth() + 1}/${d.getDate()}`, wd: WEEKDAYS[d.getDay()] };
+}
+
+// 曜日・祝日に応じた文字色（日曜・祝日=赤、土曜=青、平日=null＝デフォルト）
+function dayColor(dateStr: string): string | null {
+  const dow = new Date(dateStr + 'T00:00:00').getDay();
+  if (dow === 0 || HOLIDAYS_2026.has(dateStr)) return '#dc2626';
+  if (dow === 6) return '#2563eb';
+  return null;
 }
 
 function displayHours(start: string, end: string): string {
@@ -109,6 +139,8 @@ export function WeeklySchedule({
         {dates.map((d) => {
           const { md, wd } = dateParts(d);
           const active = d === selected;
+          // 選択中（ピンク背景）は白文字を優先。それ以外は土日祝の色を適用。
+          const textColor = active ? undefined : dayColor(d) ?? undefined;
           return (
             <button
               key={d}
@@ -121,8 +153,8 @@ export function WeeklySchedule({
                   : { backgroundColor: theme.card, borderColor: theme.cardBorder, color: theme.body }
               }
             >
-              <span className="text-xs sm:text-sm font-bold leading-none">{md}</span>
-              <span className="text-[11px] leading-none">{wd}</span>
+              <span className="text-xs sm:text-sm font-bold leading-none" style={{ color: textColor }}>{md}</span>
+              <span className="text-[11px] leading-none" style={{ color: textColor }}>{wd}</span>
             </button>
           );
         })}
