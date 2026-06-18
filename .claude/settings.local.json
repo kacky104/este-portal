@@ -24,7 +24,47 @@
       "PowerShell(npm run *)",
       "PowerShell(Start-Sleep -Seconds 3; $null)",
       "PowerShell(Invoke-WebRequest -Uri http://localhost:3001/mypage -UseBasicParsing -TimeoutSec 10 | Select-Object StatusCode, StatusDescription)",
-      "mcp__ide__getDiagnostics"
+      "mcp__ide__getDiagnostics",
+      "PowerShell(git *)",
+      "PowerShell(npx tsc --noEmit 2>&1 | Select-Object -First 40)",
+      "PowerShell(npx tsc --noEmit 2>&1 | Select-Object -First 20)",
+      "PowerShell(npx tsc --noEmit 2>&1 | Select-Object -First 30)",
+      "Bash(grep -E \"\\(supabase\\\\.co|SUPABASE|sb_publishable|eyJ[A-Za-z0-9+/=]{20,}|anon|service_role\\)\")",
+      "PowerShell(npx tsc --noEmit 2>&1 | Select-Object -First 10)",
+      "Skill(update-config)",
+      "PowerShell(& 'C:\\\\Users\\\\joltc\\\\AppData\\\\Local\\\\Temp\\\\hook-test.ps1')",
+      "Bash(curl -sf \"http://localhost:3000/\")",
+      "PowerShell($r = Invoke-WebRequest -Uri \"http://localhost:3000/\" -UseBasicParsing; $body = $r.Content; $idx = $body.IndexOf\\(\"ラビリンス\"\\); if \\($idx -gt 0\\) { $body.Substring\\([Math]::Max\\(0,$idx-200\\), 400\\) } else { \"ラビリンス not found\" })",
+      "PowerShell($r = Invoke-WebRequest -Uri \"http://localhost:3000/\" -UseBasicParsing; $body = $r.Content; $positions = @\\(\\); $i = 0; while \\(\\($i = $body.IndexOf\\(\"お休み\", $i\\)\\) -ge 0\\) { $positions += $i; $i++ }; foreach \\($p in $positions\\) { Write-Output \"--- pos $p ---\"; Write-Output $body.Substring\\([Math]::Max\\(0,$p-150\\), 300\\) })",
+      "PowerShell(supabase *)",
+      "Bash(gh run *)",
+      "Bash(gh api *)",
+      "Bash(python -c \"import sys,json; data=json.load\\(sys.stdin\\); [print\\(r['name'], r['conclusion'], r.get\\('output',{}\\).get\\('summary',''\\)\\) for r in data.get\\('check_runs',[]\\)]\")",
+      "PowerShell(Set-Location 'C:\\\\Users\\\\joltc\\\\Desktop\\\\este-portal'; $result = npx eslint src --ext .ts,.tsx 2>&1; $exitCode = $LASTEXITCODE; Write-Host \"Exit: $exitCode\"; $result | Where-Object { $_ -match \"error\" -and $_ -notmatch \"warning\" } | Select-Object -First 20)",
+      "PowerShell(Out-File *)",
+      "Bash(taskkill *)",
+      "Bash(rm -rf .next)",
+      "Bash(echo \"EXIT CODE: $?\")",
+      "Read(//tmp/**)",
+      "Bash(echo \"EXIT: $?\")",
+      "Bash(echo \"BUILD EXIT: $?\")",
+      "Bash(node \"C:/Users/joltc/Desktop/este-portal/_check_avail.mjs\")",
+      "Bash(npx eslint *)"
+    ]
+  },
+  "hooks": {
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "$r = git -C 'C:\\Users\\joltc\\Desktop\\este-portal' status --porcelain src 2>$null; if ($r) { git -C 'C:\\Users\\joltc\\Desktop\\este-portal' add src/; $msg = 'Auto-deploy: ' + (Get-Date -Format 'yyyyMMdd-HHmm'); git -C 'C:\\Users\\joltc\\Desktop\\este-portal' commit -m $msg; git -C 'C:\\Users\\joltc\\Desktop\\este-portal' push origin main }",
+            "shell": "powershell",
+            "timeout": 60,
+            "statusMessage": "Vercelへ自動デプロイ中..."
+          }
+        ]
+      }
     ]
   }
 }

@@ -1,23 +1,45 @@
-import Link from "next/link";
-import { DIARIES } from "@/data/diaries";
-
-const GRADIENTS = [
-  'from-pink-300 to-rose-400',
-  'from-fuchsia-300 to-pink-400',
-  'from-rose-300 to-pink-500',
-  'from-pink-400 to-fuchsia-400',
-];
+import Link from 'next/link';
+import { createClient } from '@/app/lib/supabase/server';
 
 export const metadata = {
   title: '写メ日記 | 福岡メンズエステポータル',
   description: '福岡のメンズエステサロンに在籍するセラピストたちの写メ日記一覧です。',
 };
 
-export default function DiaryListPage() {
-  const sorted = [...DIARIES].sort((a, b) => {
-    const aTime = new Date(`${a.date.replace(/\//g, '-')}T${a.time}`).getTime();
-    const bTime = new Date(`${b.date.replace(/\//g, '-')}T${b.time}`).getTime();
-    return bTime - aTime;
+function formatDate(iso: string): string {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return '';
+  return new Intl.DateTimeFormat('ja-JP', {
+    timeZone: 'Asia/Tokyo', year: 'numeric', month: '2-digit', day: '2-digit',
+  }).format(d);
+}
+
+type DiaryRow = {
+  id: number; images: string[] | null; title: string | null; content: string | null; created_at: string;
+  therapists: { name: string | null } | { name: string | null }[] | null;
+  salons: { name: string | null } | { name: string | null }[] | null;
+};
+
+export default async function DiaryListPage() {
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from('diary_posts')
+    .select('id, images, title, content, created_at, therapists(name), salons(name)')
+    .order('created_at', { ascending: false })
+    .limit(60);
+
+  const diaries = ((data ?? []) as unknown as DiaryRow[]).map((r) => {
+    const t = Array.isArray(r.therapists) ? r.therapists[0] : r.therapists;
+    const s = Array.isArray(r.salons) ? r.salons[0] : r.salons;
+    return {
+      id: r.id,
+      image: (r.images ?? [])[0] ?? null,
+      title: r.title ?? '',
+      content: r.content ?? '',
+      createdAt: r.created_at,
+      therapistName: t?.name ?? '',
+      salonName: s?.name ?? '',
+    };
   });
 
   return (
@@ -57,39 +79,43 @@ export default function DiaryListPage() {
         </div>
 
         {/* Diary grid */}
-        {sorted.length === 0 ? (
+        {diaries.length === 0 ? (
           <div className="text-center py-16 text-slate-400 text-sm border border-dashed border-pink-100 rounded-3xl bg-pink-50/10">
             日記はまだありません ✿
           </div>
         ) : (
           <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {sorted.map((diary, i) => {
-              const grad = GRADIENTS[i % GRADIENTS.length];
-              return (
-                <Link key={diary.id} href={`/diary/${diary.id}`} className="group bg-white rounded-2xl border border-pink-50 shadow-sm hover:border-pink-200 hover:-translate-y-0.5 transition-all duration-300 overflow-hidden flex flex-col">
-                  {/* Avatar banner */}
-                  <div className={`h-24 bg-gradient-to-br ${grad} flex items-center justify-center relative`}>
-                    <div className="w-14 h-14 rounded-full bg-white/30 flex items-center justify-center text-white font-bold text-2xl">
+            {diaries.map((diary) => (
+              <Link key={diary.id} href={`/diary/${diary.id}`} className="group bg-white rounded-2xl border border-pink-50 shadow-sm hover:border-pink-200 hover:-translate-y-0.5 transition-all duration-300 overflow-hidden flex flex-col">
+                {/* 画像 */}
+                <div className="h-40 bg-slate-100 relative">
+                  {diary.image ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={diary.image} alt={diary.therapistName} className="absolute inset-0 w-full h-full object-cover" />
+                  ) : (
+                    <div className="absolute inset-0 flex items-center justify-center bg-gradient-to-br from-pink-300 to-rose-400 text-white font-bold text-2xl">
                       {diary.therapistName.charAt(0)}
                     </div>
+                  )}
+                  {diary.salonName && (
                     <span className="absolute top-2 right-2 text-[10px] font-semibold px-2 py-0.5 rounded-full bg-white/90 text-pink-600">
                       {diary.salonName}
                     </span>
-                  </div>
+                  )}
+                </div>
 
-                  {/* Body */}
-                  <div className="p-4 flex-1 flex flex-col gap-2">
-                    <div className="flex items-center gap-1.5">
-                      <span className="font-bold text-sm text-slate-900">{diary.therapistName}</span>
-                      <span className="text-[10px] text-slate-400">{diary.date} {diary.time}</span>
-                    </div>
-                    <h2 className="font-bold text-sm text-slate-800 line-clamp-1">{diary.title}</h2>
-                    <p className="text-[11px] text-slate-500 leading-relaxed line-clamp-3 flex-1">{diary.content}</p>
-                    <span className="text-[10px] text-pink-500 font-semibold group-hover:underline mt-1">続きを読む →</span>
+                {/* Body */}
+                <div className="p-4 flex-1 flex flex-col gap-2">
+                  <div className="flex items-center gap-1.5">
+                    <span className="font-bold text-sm text-slate-900">{diary.therapistName}</span>
+                    <span className="text-[10px] text-slate-400">{formatDate(diary.createdAt)} 更新</span>
                   </div>
-                </Link>
-              );
-            })}
+                  {diary.title && <h2 className="font-bold text-sm text-slate-800 line-clamp-1">{diary.title}</h2>}
+                  {diary.content && <p className="text-[11px] text-slate-500 leading-relaxed line-clamp-3 flex-1">{diary.content}</p>}
+                  <span className="text-[10px] text-pink-500 font-semibold group-hover:underline mt-1">続きを読む →</span>
+                </div>
+              </Link>
+            ))}
           </div>
         )}
       </main>
