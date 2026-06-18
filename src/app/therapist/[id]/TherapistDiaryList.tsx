@@ -52,7 +52,7 @@ export function TherapistDiaryList({ posts, name }: { posts: DiaryPostView[]; na
   return (
     <div
       ref={scrollRef}
-      className="flex gap-3 overflow-x-auto pb-2 scrollbar-pink"
+      className="flex gap-3 overflow-x-auto max-w-full min-w-0 pb-2 scrollbar-pink"
       onMouseEnter={startAuto}
       onMouseLeave={stopAuto}
     >

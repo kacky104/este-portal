@@ -334,7 +334,7 @@ export default async function TherapistPublicPage({
         <div className="grid lg:grid-cols-3 gap-6">
 
           {/* Left: main content */}
-          <div className="lg:col-span-2 space-y-6">
+          <div className="lg:col-span-2 space-y-6 min-w-0">
 
             {/* Profile text */}
             {therapist.profileText && (
@@ -390,7 +390,7 @@ export default async function TherapistPublicPage({
 
             {/* 写メ日記 */}
             {diaryPosts.length > 0 && (
-              <section className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
+              <section className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 overflow-x-hidden min-w-0">
                 <SectionHeading>写メ日記</SectionHeading>
                 <TherapistDiaryList posts={diaryPosts} name={therapist.name} />
               </section>
