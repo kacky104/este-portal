@@ -62,8 +62,6 @@ export default async function DiaryDetailPage({
   });
 
   const therapistName = list[0].therapistName;
-  const salonName = list[0].salonName;
-  const salonId = list[0].salonId;
 
   // サロンのテーマ壁紙を背景に適用
   const theme = getTheme(list[0].themeKey);
@@ -163,13 +161,10 @@ export default async function DiaryDetailPage({
                     <p className="text-sm text-slate-700 leading-relaxed whitespace-pre-wrap break-all">{d.content}</p>
                   )}
 
-                  {/* セラピスト名・サロン名リンク */}
-                  <div className="border-t border-slate-100 pt-4 space-y-2">
+                  {/* セラピスト名リンク */}
+                  <div className="border-t border-slate-100 pt-4">
                     <Link href={`/therapist/${therapistId}`} className="flex items-center gap-2 text-sm font-bold text-pink-600 hover:underline">
                       <span>👤</span>{therapistName || 'セラピスト'}
-                    </Link>
-                    <Link href={`/salon/${salonId}`} className="flex items-center gap-2 text-sm text-slate-500 hover:text-pink-600 transition-colors">
-                      <span>📍</span>{salonName || 'サロン'}
                     </Link>
                   </div>
                 </div>
