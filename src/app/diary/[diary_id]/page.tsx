@@ -136,14 +136,7 @@ export default async function DiaryDetailPage({
                 <div className="p-5 sm:p-6 space-y-4">
 
                   {/* 投稿日時 */}
-                  <div className="flex items-center justify-between gap-2">
-                    <p style={{ fontSize: '13px', color: '#999' }}>📅 {formatDate(d.createdAt)} 更新</p>
-                    {isCurrent && (
-                      <span className="flex-shrink-0 text-[10px] font-bold text-pink-600 bg-pink-50 border border-pink-200 px-2 py-0.5 rounded-full">
-                        表示中
-                      </span>
-                    )}
-                  </div>
+                  <p style={{ fontSize: '13px', color: '#999' }}>📅 {formatDate(d.createdAt)} 更新</p>
 
                   {/* 画像（コンテナ幅いっぱい・cover） */}
                   {d.image && (
