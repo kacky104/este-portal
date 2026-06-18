@@ -135,8 +135,13 @@ export default async function DiaryDetailPage({
               >
                 <div className="p-5 sm:p-6 space-y-4">
 
-                  {/* 投稿日時 */}
-                  <p style={{ fontSize: '13px', color: '#999' }}>📅 {formatDate(d.createdAt)} 更新</p>
+                  {/* セラピスト名（左） + 投稿日時 */}
+                  <div className="flex items-center gap-2 min-w-0">
+                    <Link href={`/therapist/${therapistId}`} className="text-sm font-bold text-pink-600 hover:underline truncate min-w-0">
+                      {therapistName || 'セラピスト'}
+                    </Link>
+                    <p className="flex-shrink-0" style={{ fontSize: '13px', color: '#999' }}>📅 {formatDate(d.createdAt)} 更新</p>
+                  </div>
 
                   {/* 画像（コンテナ幅いっぱい・cover） */}
                   {d.image && (
@@ -153,13 +158,6 @@ export default async function DiaryDetailPage({
                   {d.content && (
                     <p className="text-sm text-slate-700 leading-relaxed whitespace-pre-wrap break-all">{d.content}</p>
                   )}
-
-                  {/* セラピスト名リンク */}
-                  <div className="border-t border-slate-100 pt-4">
-                    <Link href={`/therapist/${therapistId}`} className="flex items-center gap-2 text-sm font-bold text-pink-600 hover:underline">
-                      <span>👤</span>{therapistName || 'セラピスト'}
-                    </Link>
-                  </div>
                 </div>
               </article>
             );
