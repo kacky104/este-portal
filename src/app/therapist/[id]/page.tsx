@@ -174,8 +174,8 @@ export default async function TherapistPublicPage({
         </Link>
 
         {/* ─── 画像スライダー（カードから独立した透明ブロック） ─── */}
-        {/* 高さ：スマホ=20rem、md以上はその2倍の40rem */}
-        <div className="relative h-80 md:h-[40rem] mb-6">
+        {/* スマホ：-mx-4でmainのpx-4を打ち消し画面いっぱい(w-full)に。高さ500px / md以上700px */}
+        <div className="relative -mx-4 md:mx-0 h-[500px] md:h-[700px] mb-6">
           {images.length > 0 ? (
             <TherapistImageSlider images={images} name={therapist.name} />
           ) : (
