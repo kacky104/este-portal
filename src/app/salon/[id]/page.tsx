@@ -155,12 +155,29 @@ export default async function SalonPage({
               </div>
             </div>
 
-            {/* About */}
-            <section className="rounded-2xl border shadow-sm p-6" style={{ backgroundColor: theme.card, borderColor: theme.cardBorder }}>
-              <SectionHeading color={theme.heading}>サロンについて</SectionHeading>
-              <p className="text-sm leading-relaxed mb-4 break-words max-w-full whitespace-pre-wrap" style={{ color: theme.body }}>{salon.description}</p>
-              <p className="text-sm leading-relaxed break-words max-w-full whitespace-pre-wrap" style={{ color: theme.body }}>{salon.appeal}</p>
-            </section>
+            {/* Diary section */}
+            <div className="mt-8 rounded-3xl p-5 border shadow-sm" style={{ backgroundColor: theme.card, borderColor: theme.cardBorder }}>
+              <div className="flex items-center justify-between gap-2 mb-4">
+                <div className="flex items-center gap-2 min-w-0">
+                  <span className="text-lg">📷</span>
+                  <h2 className="text-base font-bold truncate" style={{ color: theme.heading }}>セラピスト写メ日記</h2>
+                </div>
+                <Link
+                  href={`/salon/${id}/diary`}
+                  className="inline-block text-sm font-bold flex-shrink-0"
+                  style={{
+                    background: 'linear-gradient(to right, #ec4899, #f97316)',
+                    WebkitBackgroundClip: 'text',
+                    backgroundClip: 'text',
+                    WebkitTextFillColor: 'transparent',
+                    color: 'transparent',
+                  }}
+                >
+                  全部見る →
+                </Link>
+              </div>
+              <SalonDiarySection salonId={id} />
+            </div>
 
             {/* Courses — shown only when DB data is available */}
             {salon.courses.length > 0 && (
@@ -222,29 +239,12 @@ export default async function SalonPage({
             {/* New face therapists（該当0人のときはセクションごと非表示） */}
             <SalonNewFaceTherapists salonId={Number(id)} theme={theme} />
 
-            {/* Diary section */}
-            <div className="mt-8 rounded-3xl p-5 border shadow-sm" style={{ backgroundColor: theme.card, borderColor: theme.cardBorder }}>
-              <div className="flex items-center justify-between gap-2 mb-4">
-                <div className="flex items-center gap-2 min-w-0">
-                  <span className="text-lg">📷</span>
-                  <h2 className="text-base font-bold truncate" style={{ color: theme.heading }}>セラピスト写メ日記</h2>
-                </div>
-                <Link
-                  href={`/salon/${id}/diary`}
-                  className="inline-block text-sm font-bold flex-shrink-0"
-                  style={{
-                    background: 'linear-gradient(to right, #ec4899, #f97316)',
-                    WebkitBackgroundClip: 'text',
-                    backgroundClip: 'text',
-                    WebkitTextFillColor: 'transparent',
-                    color: 'transparent',
-                  }}
-                >
-                  全部見る →
-                </Link>
-              </div>
-              <SalonDiarySection salonId={id} />
-            </div>
+            {/* About */}
+            <section className="rounded-2xl border shadow-sm p-6" style={{ backgroundColor: theme.card, borderColor: theme.cardBorder }}>
+              <SectionHeading color={theme.heading}>サロンについて</SectionHeading>
+              <p className="text-sm leading-relaxed mb-4 break-words max-w-full whitespace-pre-wrap" style={{ color: theme.body }}>{salon.description}</p>
+              <p className="text-sm leading-relaxed break-words max-w-full whitespace-pre-wrap" style={{ color: theme.body }}>{salon.appeal}</p>
+            </section>
           </div>
 
           {/* Right: shop info */}
