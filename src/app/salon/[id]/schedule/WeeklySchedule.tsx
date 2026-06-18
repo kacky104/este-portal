@@ -4,6 +4,7 @@ import { useState } from 'react';
 import Link from 'next/link';
 import type { SalonTheme } from '@/app/lib/themes';
 import { isNewFaceActive } from '@/lib/newFace';
+import { getScheduleWindowStatus } from '@/lib/dutyStatus';
 import { NewBadge } from '@/components/NewBadge';
 
 export type DaySchedule = {
@@ -32,10 +33,21 @@ function displayHours(start: string, end: string): string {
   return `${start}〜${overnight ? '翌' : ''}${end}`;
 }
 
-function TherapistCard({ t }: { t: DaySchedule }) {
+// 出勤ステータスのバッジ表示（本日のみライブ判定。未来日は一律「出勤予定」）
+function statusBadge(t: DaySchedule, isToday: boolean): { label: string; cls: string } {
+  const status = isToday ? getScheduleWindowStatus(t.startTime, t.endTime) : 'before';
+  switch (status) {
+    case 'onDuty': return { label: '出勤中',       cls: 'bg-emerald-50 text-emerald-600 animate-pulse' };
+    case 'after':  return { label: '受付終了',     cls: 'bg-rose-50 text-rose-400' };
+    default:       return { label: '出勤予定',     cls: 'bg-slate-100 text-slate-500' };
+  }
+}
+
+function TherapistCard({ t, isToday }: { t: DaySchedule; isToday: boolean }) {
   const availableNow =
     t.isAvailableNow && t.availableUntil != null && new Date(t.availableUntil) > new Date();
   const isNew = isNewFaceActive(t.isNewFace, t.newFaceSince);
+  const badge = statusBadge(t, isToday);
 
   return (
     <Link
@@ -59,6 +71,9 @@ function TherapistCard({ t }: { t: DaySchedule }) {
               今すぐ
             </span>
           )}
+          <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full whitespace-nowrap ${badge.cls}`}>
+            {badge.label}
+          </span>
         </div>
         <p className="text-xs font-medium text-pink-600">🕒 {displayHours(t.startTime, t.endTime)}</p>
       </div>
@@ -77,6 +92,7 @@ export function WeeklySchedule({
 }) {
   const [selected, setSelected] = useState(dates[0]);
   const list = byDate[selected] ?? [];
+  const isToday = selected === dates[0];
 
   return (
     <div>
@@ -112,7 +128,7 @@ export function WeeklySchedule({
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           {list.map((t) => (
-            <TherapistCard key={t.id} t={t} />
+            <TherapistCard key={t.id} t={t} isToday={isToday} />
           ))}
         </div>
       )}
