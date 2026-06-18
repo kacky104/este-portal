@@ -171,7 +171,7 @@ export default async function TherapistPublicPage({
               <img
                 src={therapist.profileImageUrl}
                 alt={therapist.name}
-                className="w-full h-full object-cover"
+                className="w-full h-full object-contain object-top"
               />
             ) : (
               <div className="w-24 h-24 rounded-full bg-gradient-to-br from-pink-300 to-rose-400 flex items-center justify-center text-white font-bold text-4xl shadow-lg">
