@@ -124,16 +124,22 @@ export function MyDiaryList({
 
   const handleSave = async (id: string) => {
     setSavingId(id);
-    const { error } = await supabase
+    // .select() で実際に更新された行を取得。RLSでブロックされると0行が返る。
+    const { data: updated, error } = await supabase
       .from('diary_posts')
       .update({
         title: editTitle.trim() || null,
         content: editBody.trim() || null,
         images: editImage ? [editImage] : [],
       })
-      .eq('id', id);
+      .eq('id', id)
+      .select('id');
     setSavingId(null);
     if (error) { onToast(`保存に失敗しました: ${error.message}`); return; }
+    if (!updated || updated.length === 0) {
+      onToast('保存できませんでした（権限エラーの可能性があります）');
+      return;
+    }
     cancelEdit();
     onToast('日記を更新しました');
     loadPosts();
