@@ -19,10 +19,11 @@ export default async function DiaryDetailPage({
   const { diary_id } = await params;
   const supabase = await createClient();
 
+  // id は UUID / bigint どちらの可能性もあるため文字列のまま渡す（Number() 変換しない）
   const { data: row, error } = await supabase
     .from('diary_posts')
     .select('id, images, title, content, created_at, therapist_id, salon_id, therapists(name), salons(name, theme)')
-    .eq('id', Number(diary_id))
+    .eq('id', diary_id)
     .single();
 
   if (error || !row) notFound();
