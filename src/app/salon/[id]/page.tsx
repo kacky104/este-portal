@@ -256,7 +256,7 @@ export default async function SalonPage({
               <div className="flex items-center justify-between gap-2 mb-4">
                 <div className="flex items-center gap-2 min-w-0">
                   <span className="text-lg">📷</span>
-                  <h2 className="text-base font-bold truncate" style={{ color: theme.heading }}>所属セラピストの写メ日記</h2>
+                  <h2 className="text-base font-bold truncate" style={{ color: theme.heading }}>セラピスト写メ日記</h2>
                 </div>
                 <Link
                   href={`/salon/${id}/diary`}
