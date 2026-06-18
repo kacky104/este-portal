@@ -253,9 +253,24 @@ export default async function SalonPage({
 
             {/* Diary section */}
             <div className="mt-8 rounded-3xl p-5 border shadow-sm" style={{ backgroundColor: theme.card, borderColor: theme.cardBorder }}>
-              <div className="flex items-center gap-2 mb-4">
-                <span className="text-lg">📷</span>
-                <h2 className="text-base font-bold" style={{ color: theme.heading }}>所属セラピストの写メ日記</h2>
+              <div className="flex items-center justify-between gap-2 mb-4">
+                <div className="flex items-center gap-2 min-w-0">
+                  <span className="text-lg">📷</span>
+                  <h2 className="text-base font-bold truncate" style={{ color: theme.heading }}>所属セラピストの写メ日記</h2>
+                </div>
+                <Link
+                  href={`/salon/${id}/diary`}
+                  className="inline-block text-sm font-bold flex-shrink-0"
+                  style={{
+                    background: 'linear-gradient(to right, #ec4899, #f97316)',
+                    WebkitBackgroundClip: 'text',
+                    backgroundClip: 'text',
+                    WebkitTextFillColor: 'transparent',
+                    color: 'transparent',
+                  }}
+                >
+                  全部見る →
+                </Link>
               </div>
               <SalonDiarySection salonId={id} />
             </div>

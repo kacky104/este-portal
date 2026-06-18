@@ -18,15 +18,6 @@ type DiaryView = {
   salonName:     string;
 };
 
-// ピンク→オレンジのグラデーション文字
-const gradientText: React.CSSProperties = {
-  background: 'linear-gradient(to right, #ec4899, #f97316)',
-  WebkitBackgroundClip: 'text',
-  backgroundClip: 'text',
-  WebkitTextFillColor: 'transparent',
-  color: 'transparent',
-};
-
 function formatDateTime(iso: string): string {
   const d = new Date(iso);
   if (Number.isNaN(d.getTime())) return '';
@@ -186,13 +177,6 @@ export function SalonDiarySection({ salonId }: { salonId: string }) {
           <DiaryCard key={diary.id} diary={diary} emphasized />
         ))}
       </div>
-      {(list ?? []).length > 0 && (
-        <div className="text-right mt-1">
-          <Link href={`/salon/${salonId}/diary`} className="inline-block text-sm font-bold" style={gradientText}>
-            全部見る →
-          </Link>
-        </div>
-      )}
     </div>
   );
 }
