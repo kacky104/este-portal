@@ -199,15 +199,33 @@ export default async function TherapistPublicPage({
 
       <main className="max-w-4xl mx-auto px-4 py-8">
 
-        {/* ─── Back button ─────────────────────────────── */}
+        {/* ─── パンくずリスト：トップ › サロン名 › セラピスト名 ─── */}
+        <nav aria-label="パンくずリスト" className="flex items-center gap-1.5 text-sm text-slate-500 mb-3">
+          <Link href="/" className="hover:text-pink-600 transition-colors flex-shrink-0">
+            トップ
+          </Link>
+          <span aria-hidden className="text-slate-300 flex-shrink-0">›</span>
+          <Link
+            href={`/salon/${therapist.salonId}`}
+            className="hover:text-pink-600 transition-colors truncate max-w-[35%]"
+          >
+            {salon?.name ?? 'サロン'}
+          </Link>
+          <span aria-hidden className="text-slate-300 flex-shrink-0">›</span>
+          <span aria-current="page" className="text-slate-800 font-medium truncate">
+            {therapist.name}
+          </span>
+        </nav>
+
+        {/* ─── サロンへ戻る ─────────────────────────────── */}
         <Link
-          href="/"
+          href={`/salon/${therapist.salonId}`}
           className="inline-flex items-center gap-1.5 text-sm text-slate-500 hover:text-pink-600 transition-colors mb-6"
         >
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
             <path d="M19 12H5M12 5l-7 7 7 7" />
           </svg>
-          トップへ戻る
+          サロンへ戻る
         </Link>
 
         {/* ─── 画像スライダー（カードから独立した透明ブロック） ─── */}
