@@ -295,7 +295,7 @@ export default function TherapistEditPage() {
           </div>
 
           <p className="text-[10px] text-slate-400">
-            JPEG / PNG / WebP、5MBまで。1枚目がメイン画像として一覧などに表示されます。
+            推奨：縦長（3:4）1080×1440px／JPEG・PNG・WebP、5MBまで。1枚目がメイン画像として一覧などに表示されます。
           </p>
         </div>
 
