@@ -1480,15 +1480,15 @@ export default function MyPage() {
 
                 {/* タイトル（最大20文字） */}
                 <div>
-                  <label className={labelClass}>タイトル（最大20文字）</label>
+                  <label className={labelClass}>タイトル（最大10文字）</label>
                   <input
                     className={inputClass}
                     placeholder="タイトルを入力"
-                    maxLength={20}
+                    maxLength={10}
                     value={diaryTitle}
                     onChange={(e) => setDiaryTitle(e.target.value)}
                   />
-                  <p className="text-[10px] text-slate-400 text-right mt-0.5">{diaryTitle.length} / 20</p>
+                  <p className="text-[10px] text-slate-400 text-right mt-0.5">{diaryTitle.length} / 10</p>
                 </div>
 
                 {/* 本文 */}

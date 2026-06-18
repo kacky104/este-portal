@@ -11,7 +11,7 @@ const supabase = createClient();
 type DiaryView = {
   id:            number;
   image:         string | null;   // 1枚目のサムネイル
-  comment:       string | null;
+  title:         string | null;
   createdAt:     string;
   therapistId:   string;
   therapistName: string;
@@ -40,7 +40,7 @@ function formatDate(iso: string): string {
 async function fetchDiaries(opts: { salonId?: string; limit?: number }): Promise<DiaryView[]> {
   let query = supabase
     .from('diary_posts')
-    .select('id, images, content, created_at, therapists!inner(id, name, salon_id, salons(name))')
+    .select('id, images, title, created_at, therapists!inner(id, name, salon_id, salons(name))')
     .order('created_at', { ascending: false })
     .limit(opts.limit ?? 30);
 
@@ -50,7 +50,7 @@ async function fetchDiaries(opts: { salonId?: string; limit?: number }): Promise
 
   return (data ?? []).map((row) => {
     const r = row as unknown as {
-      id: number; images: string[] | null; content: string | null; created_at: string;
+      id: number; images: string[] | null; title: string | null; created_at: string;
       therapists: { id: number; name: string | null; salons: { name: string | null } | { name: string | null }[] | null }
                 | { id: number; name: string | null; salons: { name: string | null } | { name: string | null }[] | null }[]
                 | null;
@@ -61,7 +61,7 @@ async function fetchDiaries(opts: { salonId?: string; limit?: number }): Promise
     return {
       id:            r.id,
       image:         imgs[0] ?? null,
-      comment:       r.content ?? null,
+      title:         r.title ?? null,
       createdAt:     r.created_at,
       therapistId:   String(t?.id ?? ''),
       therapistName: t?.name ?? '',
@@ -104,12 +104,12 @@ function DiaryCard({ diary, emphasized = false }: { diary: DiaryView; emphasized
         <p className="text-white/70 mb-1" style={{ fontSize: emphasized ? '18px' : '9px' }}>
           {emphasized ? `${formatDate(diary.createdAt)} 更新` : formatDateTime(diary.createdAt)}
         </p>
-        {diary.comment && (
+        {diary.title && (
           <p
             className="text-white/90 leading-relaxed line-clamp-3"
             style={{ fontSize: emphasized ? '20px' : '10px' }}
           >
-            {diary.comment}
+            {diary.title}
           </p>
         )}
       </div>

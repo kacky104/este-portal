@@ -6,7 +6,7 @@ import Link from 'next/link';
 export type DiaryPostView = {
   id: number;
   images: string[];
-  comment: string | null;
+  title: string | null;
   created_at: string;
 };
 
@@ -80,8 +80,8 @@ export function TherapistDiaryList({ posts, name }: { posts: DiaryPostView[]; na
               <p style={{ fontSize: '12px', color: '#999' }} className="mb-0.5">
                 {formatDate(post.created_at)} 更新
               </p>
-              {post.comment && (
-                <p style={clamp2} className="text-slate-600 leading-snug">{post.comment}</p>
+              {post.title && (
+                <p style={clamp2} className="text-slate-600 leading-snug">{post.title}</p>
               )}
             </div>
           </Link>

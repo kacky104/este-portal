@@ -100,13 +100,13 @@ export default async function TherapistPublicPage({
   // 写メ日記（新しい順）
   const { data: diaryRows } = await supabase
     .from('diary_posts')
-    .select('id, images, content, created_at')
+    .select('id, images, title, created_at')
     .eq('therapist_id', Number(id))
     .order('created_at', { ascending: false });
   const diaryPosts: DiaryPostView[] = (diaryRows ?? []).map((p) => ({
     id: p.id as number,
     images: (p.images as string[] | null) ?? [],
-    comment: (p.content as string | null) ?? null,
+    title: (p.title as string | null) ?? null,
     created_at: String(p.created_at),
   }));
 
