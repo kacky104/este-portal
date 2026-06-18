@@ -208,6 +208,26 @@ export default function MyPage() {
   // 0:00〜4:59 は前日を1日目、5:00以降は当日を1日目として表示する。
   const sevenDays = useMemo(() => getBusinessDateRangeJST(7), []);
 
+  // 本日出勤中のセラピスト（営業日基準・深夜跨ぎ対応）。
+  // 「今すぐ」は出勤中のセラピストにしか付けられないため、表示・保存の両方で参照する。
+  const onDutyTherapists = useMemo(() => {
+    const todayStr = getBusinessDateJST();
+    const jstH = Number(new Intl.DateTimeFormat('sv-SE', { timeZone: 'Asia/Tokyo', hour: '2-digit', hour12: false }).format(now));
+    const jstM = Number(new Intl.DateTimeFormat('sv-SE', { timeZone: 'Asia/Tokyo', minute: '2-digit' }).format(now));
+    const nowMin = jstH * 60 + jstM;
+    return therapists.filter(t => {
+      const sched = schedules[String(t.id)]?.[todayStr];
+      if (!sched?.is_active || !sched.start_time || !sched.end_time) return false;
+      const [sh, sm] = sched.start_time.split(':').map(Number);
+      const [eh, em] = sched.end_time.split(':').map(Number);
+      const startMin = sh * 60 + (sm || 0);
+      const endMin   = eh * 60 + (em || 0);
+      return endMin < startMin
+        ? nowMin >= startMin || nowMin <= endMin
+        : nowMin >= startMin && nowMin <= endMin;
+    });
+  }, [therapists, schedules, now]);
+
   useEffect(() => {
     (async () => {
       const { data: { user } } = await supabase.auth.getUser();
@@ -614,21 +634,33 @@ export default function MyPage() {
 
   const handleAvailableNowSave = async () => {
     setSavingAvailable(true);
+    // 「今すぐ」を付けられるのは「本日出勤中」かつ「チェック済み」のセラピストのみ。最大3名。
+    // 出勤外・期限切れの古いフラグはここで確実にfalseへリセットする（3名制限の抜け穴対策）。
+    const liveIds = new Set(
+      onDutyTherapists
+        .map(t => String(t.id))
+        .filter(sid => availableNow[sid])
+        .slice(0, 3)
+    );
     const availableUntil = new Date(Date.now() + 30 * 60 * 1000).toISOString();
     for (const t of therapists) {
       const sid = String(t.id);
-      const isChecked = availableNow[sid] ?? false;
+      const isLive = liveIds.has(sid);
       await supabase
         .from('therapists')
         .update({
-          is_available_now: isChecked,
-          available_until: isChecked ? availableUntil : null,
+          is_available_now: isLive,
+          available_until: isLive ? availableUntil : null,
         })
         .eq('id', t.id);
     }
     if (salon) {
       const refreshed = await fetchTherapistList(String(salon.id));
       setTherapists(refreshed);
+      // ローカルのチェック状態もDBに合わせて同期（出勤外・期限切れの取りこぼしを解除）
+      const sync: Record<string, boolean> = {};
+      refreshed.forEach(t => { sync[String(t.id)] = Boolean(t.is_available_now); });
+      setAvailableNow(sync);
     }
     setSavingAvailable(false);
     showToast('「今すぐ」設定を保存しました');
@@ -1131,20 +1163,6 @@ export default function MyPage() {
             {(() => {
               // 「今すぐ」判定は営業日基準（深夜0〜5時は前日のスケジュールを参照）
               const todayStr = getBusinessDateJST();
-              const jstH = Number(new Intl.DateTimeFormat('sv-SE', { timeZone: 'Asia/Tokyo', hour: '2-digit', hour12: false }).format(now));
-              const jstM = Number(new Intl.DateTimeFormat('sv-SE', { timeZone: 'Asia/Tokyo', minute: '2-digit' }).format(now));
-              const nowMin = jstH * 60 + jstM;
-              const onDutyTherapists = therapists.filter(t => {
-                const sched = schedules[String(t.id)]?.[todayStr];
-                if (!sched?.is_active || !sched.start_time || !sched.end_time) return false;
-                const [sh, sm] = sched.start_time.split(':').map(Number);
-                const [eh, em] = sched.end_time.split(':').map(Number);
-                const startMin = sh * 60 + (sm || 0);
-                const endMin   = eh * 60 + (em || 0);
-                return endMin < startMin
-                  ? nowMin >= startMin || nowMin <= endMin
-                  : nowMin >= startMin && nowMin <= endMin;
-              });
               const checkedCount = onDutyTherapists.filter(t => availableNow[String(t.id)]).length;
               const atLimit = checkedCount >= 3;
               if (onDutyTherapists.length === 0) {
