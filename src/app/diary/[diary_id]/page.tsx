@@ -166,8 +166,21 @@ export default async function DiaryDetailPage({
                     </div>
                   )}
 
-                  {/* 題名 */}
-                  {d.title && <h2 className="text-xl sm:text-2xl font-bold text-slate-900">{d.title}</h2>}
+                  {/* 題名（ピックアップサロンと同じピンク→オレンジのグラデーション文字） */}
+                  {d.title && (
+                    <h2
+                      className="text-xl sm:text-2xl font-bold w-fit"
+                      style={{
+                        background: 'linear-gradient(to right, #ec4899, #f97316)',
+                        WebkitBackgroundClip: 'text',
+                        backgroundClip: 'text',
+                        WebkitTextFillColor: 'transparent',
+                        color: 'transparent',
+                      }}
+                    >
+                      {d.title}
+                    </h2>
+                  )}
 
                   {/* 本文（5行超は「続きを見る」で展開） */}
                   {d.content && <ExpandableText text={d.content} />}
