@@ -123,9 +123,11 @@ export default async function SalonDiaryPage({
                   )}
                 </div>
                 <div className="p-2.5">
-                  <p style={{ fontSize: '11px', color: '#999' }}>{formatDate(d.createdAt)} 更新</p>
+                  <p className="flex items-baseline gap-1.5 min-w-0">
+                    <span className="text-[11px] text-pink-600 font-bold truncate">{d.therapistName}</span>
+                    <span className="flex-shrink-0" style={{ fontSize: '11px', color: '#999' }}>{formatDate(d.createdAt)} 更新</span>
+                  </p>
                   {d.title && <h2 className="text-sm font-bold text-slate-800 line-clamp-2 mt-0.5 break-all">{d.title}</h2>}
-                  <p className="text-[11px] text-pink-600 font-bold mt-1 truncate">{d.therapistName}</p>
                 </div>
               </Link>
             ))}
