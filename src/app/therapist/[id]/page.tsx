@@ -3,6 +3,9 @@ import { notFound } from 'next/navigation';
 import { createClient } from '@/app/lib/supabase/server';
 import { getBusinessDateRangeJST } from '@/lib/dutyStatus';
 import { getTheme } from '@/app/lib/themes';
+import { checkDutyStatus } from '@/lib/dutyStatus';
+import { isNewFaceActive } from '@/lib/newFace';
+import { NewBadge } from '@/components/NewBadge';
 import { TherapistImageSlider } from './TherapistImageSlider';
 
 // ── helpers ───────────────────────────────────────────────────
@@ -57,7 +60,7 @@ export default async function TherapistPublicPage({
 
   const { data: tRow, error: tError } = await supabase
     .from('therapists')
-    .select('id, name, profile_image_url, profile_images, age, body_type, profile_text, work_hours, comment, area, salon_id')
+    .select('id, name, profile_image_url, profile_images, age, body_type, profile_text, work_hours, comment, area, salon_id, is_new_face, new_face_since')
     .eq('id', id)
     .single();
 
@@ -120,6 +123,8 @@ export default async function TherapistPublicPage({
     comment:         (tRow.comment as string | null) ?? null,
     area:            (tRow.area as string | null) ?? null,
     salonId:         tRow.salon_id as number,
+    isNewFace:       Boolean(tRow.is_new_face),
+    newFaceSince:    (tRow.new_face_since as string | null) ?? null,
   };
 
   const salon = salonRow
@@ -139,6 +144,38 @@ export default async function TherapistPublicPage({
       : therapist.profileImageUrl
         ? [therapist.profileImageUrl]
         : [];
+
+  // 中央画像へ重ねるバッジ
+  // 出勤ステータス：onDuty=出勤中(緑)、before=出勤予定(オレンジ)。after は非表示。
+  const duty = checkDutyStatus(therapist.workHours ?? '');
+  const dutyBadge =
+    duty.status === 'onDuty'
+      ? { label: '出勤中', bg: '#22c55e' }
+      : duty.status === 'before'
+        ? { label: '出勤予定', bg: '#f97316' }
+        : null;
+  const dutyBadgeNode = dutyBadge ? (
+    <span
+      style={{
+        background: dutyBadge.bg,
+        color: '#ffffff',
+        fontSize: '12px',
+        fontWeight: 700,
+        padding: '4px 12px',
+        borderRadius: '9999px',
+        whiteSpace: 'nowrap',
+        boxShadow: '0 1px 4px rgba(0,0,0,0.3)',
+      }}
+    >
+      {dutyBadge.label}
+    </span>
+  ) : null;
+
+  // NEW バッジ：is_new_face かつ new_face_since から30日以内
+  const showNew = isNewFaceActive(therapist.isNewFace, therapist.newFaceSince);
+  const newBadgeNode = showNew ? (
+    <NewBadge className="shadow-[0_1px_4px_rgba(0,0,0,0.3)]" />
+  ) : null;
 
   return (
     <div className="relative min-h-screen overflow-x-hidden" style={{ color: theme.text }}>
@@ -177,7 +214,12 @@ export default async function TherapistPublicPage({
         {/* スマホ：-mx-4でmainのpx-4を打ち消し画面いっぱい(w-full)に。高さ500px / md以上700px */}
         <div className="relative -mx-4 md:mx-0 h-[500px] md:h-[700px] mb-6">
           {images.length > 0 ? (
-            <TherapistImageSlider images={images} name={therapist.name} />
+            <TherapistImageSlider
+              images={images}
+              name={therapist.name}
+              overlayTopLeft={dutyBadgeNode}
+              overlayTopRight={newBadgeNode}
+            />
           ) : (
             <div className="w-full h-full flex items-center justify-center">
               <div className="w-24 h-24 rounded-full bg-gradient-to-br from-pink-300 to-rose-400 flex items-center justify-center text-white font-bold text-4xl shadow-lg">

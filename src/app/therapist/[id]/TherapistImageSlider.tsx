@@ -1,27 +1,51 @@
 'use client';
 
-import { useRef, useState } from 'react';
+import { useRef, useState, type ReactNode } from 'react';
 
 // センターモード（カバーフロー）スライダー。
 // 中央の画像を約60%幅で大きく表示し、前後の画像を左右に約20%ずつ見切れた状態で表示。
 // スワイプ／ドラッグ、左右の画像クリック、矢印ボタンで切り替え可能。
 // 画像が1枚のみのときはスライダーUI無しで中央に表示する。
-export function TherapistImageSlider({ images, name }: { images: string[]; name: string }) {
+// overlayTopLeft / overlayTopRight は中央（アクティブ）画像の上に重ねるバッジ。
+export function TherapistImageSlider({
+  images,
+  name,
+  overlayTopLeft,
+  overlayTopRight,
+}: {
+  images: string[];
+  name: string;
+  overlayTopLeft?: ReactNode;
+  overlayTopRight?: ReactNode;
+}) {
   const [idx, setIdx] = useState(0);
   const dragStartX = useRef<number | null>(null);
 
   if (images.length === 0) return null;
 
+  // 中央画像に重ねるバッジ（左上・右上）
+  const overlays = (
+    <>
+      {overlayTopLeft && (
+        <div className="absolute top-3 left-3 z-30 pointer-events-none">{overlayTopLeft}</div>
+      )}
+      {overlayTopRight && (
+        <div className="absolute top-3 right-3 z-30 pointer-events-none">{overlayTopRight}</div>
+      )}
+    </>
+  );
+
   // ── 1枚のみ：スライダー無しで中央表示 ───────────────
   if (images.length === 1) {
     return (
-      <div className="w-full h-full flex items-center justify-center">
+      <div className="relative w-full h-full flex items-center justify-center">
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
           src={images[0]}
           alt={name}
           className="max-w-full max-h-full object-contain"
         />
+        {overlays}
       </div>
     );
   }
@@ -87,6 +111,7 @@ export function TherapistImageSlider({ images, name }: { images: string[]; name:
               // 中央側の端へ寄せて10%の見切れに画像が映るようにする。
               style={{ objectPosition: isActive ? 'center' : offset < 0 ? 'right' : 'left' }}
             />
+            {isActive && overlays}
           </div>
         );
       })}
