@@ -37,6 +37,17 @@ function getScheduleStatus(s: TodaySchedule): StatusResult {
   }
 }
 
+// 入店日表示用（new_face_since → "2026年6月18日入店"）。JST基準でフォーマット。
+function formatJoinDate(since: string | null): string {
+  if (!since) return '';
+  const d = new Date(since);
+  if (Number.isNaN(d.getTime())) return '';
+  const text = new Intl.DateTimeFormat('ja-JP', {
+    timeZone: 'Asia/Tokyo', year: 'numeric', month: 'long', day: 'numeric',
+  }).format(d);
+  return `${text}入店`;
+}
+
 function buildDisplayHours(start: string | null, end: string | null): string {
   if (!start || !end) return '';
   const [sh, sm] = start.split(':').map(Number);
@@ -94,9 +105,10 @@ async function fetchScheduleMap(rawIds: unknown[]): Promise<Record<string, Today
 
 // ── GridCard ──────────────────────────────────────────────────
 
-function GridCard({ therapist, index }: {
-  therapist: Therapist;
-  index:     number;
+function GridCard({ therapist, index, showJoinDate = false }: {
+  therapist:    Therapist;
+  index:        number;
+  showJoinDate?: boolean;   // 新人紹介セクションのみ true（入店日を表示）
 }) {
   const grad = GRADS[index % GRADS.length];
   const sym  = SYMS[index % SYMS.length];
@@ -143,6 +155,11 @@ function GridCard({ therapist, index }: {
               </span>
             )}
           </div>
+          {showJoinDate && isNewFaceActive(therapist.isNewFace, therapist.newFaceSince) && therapist.newFaceSince && (
+            <p className="mb-0.5" style={{ fontSize: '12px', color: '#9ca3af' }}>
+              {formatJoinDate(therapist.newFaceSince)}
+            </p>
+          )}
           {ss && ss.status !== 'off' && (
             <p className="text-[10px] text-pink-500 font-medium mb-1">
               🕒 {displayHours || therapist.workHours || '—'}
@@ -350,7 +367,7 @@ export function SalonNewFaceTherapists({
   const cards = (
     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
       {shown.map((t, i) => (
-        <GridCard key={t.id} therapist={t} index={i} />
+        <GridCard key={t.id} therapist={t} index={i} showJoinDate />
       ))}
     </div>
   );
