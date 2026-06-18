@@ -240,7 +240,7 @@ export function SalonTherapists({ salonId }: { salonId: number }) {
 
 // ── SalonAllTherapists (全員表示) ──────────────────────────────
 
-export function SalonAllTherapists({ salonId }: { salonId: number }) {
+export function SalonAllTherapists({ salonId, limit }: { salonId: number; limit?: number }) {
   const [list, setList] = useState<Therapist[]>([]);
 
   useEffect(() => {
@@ -277,9 +277,10 @@ export function SalonAllTherapists({ salonId }: { salonId: number }) {
       在籍セラピストの情報は準備中です ✿
     </div>
   );
+  const shown = limit ? list.slice(0, limit) : list;
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-      {list.map((t, i) => (
+      {shown.map((t, i) => (
         <GridCard key={t.id} therapist={t} index={i} />
       ))}
     </div>

@@ -229,7 +229,23 @@ export default async function SalonPage({
                 <span className="text-lg">👩‍🦰</span>
                 <h2 className="text-base font-bold" style={{ color: theme.heading }}>在籍セラピスト一覧</h2>
               </div>
-              <SalonAllTherapists salonId={Number(id)} />
+              <SalonAllTherapists salonId={Number(id)} limit={4} />
+
+              <div className="mt-4 text-center">
+                <Link
+                  href={`/salon/${id}/therapists`}
+                  className="inline-flex items-center justify-center text-white shadow-sm hover:opacity-90 transition-opacity"
+                  style={{
+                    background: 'linear-gradient(to right, #ec4899, #f97316)',
+                    color: '#ffffff',
+                    borderRadius: '9999px',
+                    padding: '10px 24px',
+                    fontWeight: 600,
+                  }}
+                >
+                  すべて見る
+                </Link>
+              </div>
             </div>
 
             {/* Diary section */}
