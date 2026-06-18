@@ -3,6 +3,7 @@ import { notFound } from 'next/navigation';
 import { createClient } from '@/app/lib/supabase/server';
 import { getTheme } from '@/app/lib/themes';
 import { ScrollToCurrent } from './ScrollToCurrent';
+import { ExpandableText } from './ExpandableText';
 
 function formatDate(iso: string): string {
   const d = new Date(iso);
@@ -154,10 +155,8 @@ export default async function DiaryDetailPage({
                   {/* 題名 */}
                   {d.title && <h2 className="text-xl sm:text-2xl font-bold text-slate-900">{d.title}</h2>}
 
-                  {/* 本文 */}
-                  {d.content && (
-                    <p className="text-sm text-slate-700 leading-relaxed whitespace-pre-wrap break-all">{d.content}</p>
-                  )}
+                  {/* 本文（5行超は「続きを見る」で展開） */}
+                  {d.content && <ExpandableText text={d.content} />}
                 </div>
               </article>
             );
