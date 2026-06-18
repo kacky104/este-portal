@@ -4,7 +4,6 @@ import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { createClient } from '@/app/lib/supabase/client';
-import { DiaryEditor } from './DiaryEditor';
 
 const supabase = createClient();
 
@@ -360,9 +359,6 @@ export default function TherapistEditPage() {
             onChange={(e) => setForm((p) => ({ ...p, profile_text: e.target.value }))}
           />
         </div>
-
-        {/* 写メ日記 */}
-        <DiaryEditor therapistId={therapist.id} salonId={therapist.salon_id} />
 
        <div className="flex justify-between items-center pb-4">
           <Link
