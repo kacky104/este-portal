@@ -41,12 +41,14 @@ export function TherapistImageSlider({ images, name }: { images: string[]; name:
   };
 
   return (
-    <div
-      className="relative w-full h-full overflow-hidden select-none touch-pan-y"
-      onPointerDown={onPointerDown}
-      onPointerUp={onPointerUp}
-      onPointerLeave={() => (dragStartX.current = null)}
-    >
+    <div className="w-full h-full flex flex-col">
+      {/* カルーセル本体 */}
+      <div
+        className="relative flex-1 overflow-hidden select-none touch-pan-y"
+        onPointerDown={onPointerDown}
+        onPointerUp={onPointerUp}
+        onPointerLeave={() => (dragStartX.current = null)}
+      >
       {images.map((url, i) => {
         // 円環状の最短オフセット（端と端をつなげて自然に回す）
         let offset = i - idx;
@@ -107,18 +109,22 @@ export function TherapistImageSlider({ images, name }: { images: string[]; name:
         </svg>
       </button>
 
-      {/* ドットインジケータ */}
-      <div className="absolute bottom-2 left-1/2 -translate-x-1/2 z-30 flex gap-1.5">
-        {images.map((_, i) => (
+      </div>
+
+      {/* サムネイル（画像に被らないようカルーセル下に表示） */}
+      <div className="flex gap-2 justify-center flex-wrap pt-3 pb-1">
+        {images.map((url, i) => (
           <button
             key={i}
             type="button"
             onClick={() => setIdx(i)}
             aria-label={`${i + 1}枚目を表示`}
-            className={`w-2 h-2 rounded-full transition-colors ${
-              i === idx ? 'bg-pink-500' : 'bg-white/70 border border-pink-200'
-            }`}
-          />
+            className="w-12 h-12 rounded-md overflow-hidden flex-shrink-0 transition-all"
+            style={{ border: i === idx ? '2px solid #ec4899' : '2px solid transparent' }}
+          >
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={url} alt="" className="w-full h-full object-cover" />
+          </button>
         ))}
       </div>
     </div>
