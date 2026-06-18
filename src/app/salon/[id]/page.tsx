@@ -171,7 +171,7 @@ export default async function SalonPage({
                   href={`/salon/${id}/schedule`}
                   className="inline-flex items-center justify-center text-white shadow-sm hover:opacity-90 transition-opacity"
                   style={{
-                    background: 'linear-gradient(to right, #ec4899, #f472b6)',
+                    background: 'linear-gradient(to right, #ec4899, #f97316)',
                     color: '#ffffff',
                     borderRadius: '9999px',
                     padding: '10px 24px',
