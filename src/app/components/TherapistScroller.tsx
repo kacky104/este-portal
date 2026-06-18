@@ -112,9 +112,6 @@ function Card({ therapist, index }: { therapist: TherapistItem; index: number })
           <p className="font-bold text-[11px] sm:text-sm leading-tight drop-shadow line-clamp-1 min-w-0">{therapist.name}</p>
           {isNewFaceActive(therapist.isNewFace, therapist.newFaceSince) && <NewBadge />}
         </div>
-        {therapist.age && (
-          <p className="hidden sm:block text-[10px] text-white/80 mb-0.5">{therapist.age}歳</p>
-        )}
         {(displayHours || therapist.workHours) && (
           <p className="text-[13px] text-pink-200 font-medium mt-0.5 text-center">{displayHours || therapist.workHours}</p>
         )}
