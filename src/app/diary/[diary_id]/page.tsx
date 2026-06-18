@@ -139,10 +139,9 @@ export default async function DiaryDetailPage({
                   isCurrent ? 'border-pink-400 ring-2 ring-pink-300' : 'border-slate-200'
                 }`}
               >
-                <div className="p-5 sm:p-6 space-y-4">
-
-                  {/* セラピストアイコン + 名前（左） + 投稿日時 */}
-                  <div className="flex items-center gap-2 min-w-0">
+                {/* セラピストアイコン + 名前（左） + 投稿日時（上下の余白を最小に） */}
+                <div className="px-5 sm:px-6 pt-2 pb-1">
+                  <div className="flex items-center gap-2 min-w-0 leading-none">
                     <Link href={`/therapist/${therapistId}`} className="w-8 h-8 rounded-full overflow-hidden border-2 border-pink-100 shadow-sm flex-shrink-0 bg-gradient-to-br from-pink-300 to-rose-400 flex items-center justify-center">
                       {therapistImage ? (
                         // eslint-disable-next-line @next/next/no-img-element
@@ -156,7 +155,9 @@ export default async function DiaryDetailPage({
                     </Link>
                     <p className="flex-shrink-0" style={{ fontSize: '13px', color: '#999' }}>📅 {formatDate(d.createdAt)} 更新</p>
                   </div>
+                </div>
 
+                <div className="px-5 sm:px-6 pb-5 sm:pb-6 space-y-4">
                   {/* 画像（コンテナ幅いっぱい・cover） */}
                   {d.image && (
                     <div className="-mx-5 sm:-mx-6">
