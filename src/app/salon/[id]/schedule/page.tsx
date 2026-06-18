@@ -48,7 +48,7 @@ export default async function SalonSchedulePage({
 
   const { data: therapistRows } = await supabase
     .from('therapists')
-    .select('id, name, profile_image_url, is_available_now, available_until, is_new_face, new_face_since, body_type')
+    .select('id, name, age, profile_image_url, is_available_now, available_until, is_new_face, new_face_since, body_type')
     .eq('salon_id', Number(id));
 
   const therapists = therapistRows ?? [];
@@ -83,6 +83,7 @@ export default async function SalonSchedulePage({
     byDate[dateStr].push({
       id:             String(t.id),
       name:           (t.name as string) ?? '',
+      age:            (t.age as string | null) ?? null,
       imageUrl:       (t.profile_image_url as string | null) ?? null,
       startTime:      start,
       endTime:        end,

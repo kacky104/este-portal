@@ -11,6 +11,7 @@ import { NewBadge } from '@/components/NewBadge';
 export type DaySchedule = {
   id:             string;
   name:           string;
+  age:            string | null;
   imageUrl:       string | null;
   startTime:      string;   // "HH:MM"
   endTime:        string;   // "HH:MM"
@@ -68,6 +69,7 @@ function TherapistCard({ t, isToday }: { t: DaySchedule; isToday: boolean }) {
       <div className="p-3 flex-1 flex flex-col justify-center min-w-0">
         <div className="flex items-center gap-1.5 mb-1 flex-wrap">
           <p className="font-bold text-sm truncate min-w-0 text-slate-900">{t.name}</p>
+          {t.age && <span className="text-[11px] text-slate-500 flex-shrink-0">({t.age})</span>}
           {isNew && <NewBadge />}
           {availableNow && (
             <span style={{ background: 'linear-gradient(to right, #ec4899, #f97316)', color: 'white', fontSize: '11px', fontWeight: 700, padding: '2px 8px', borderRadius: '20px', whiteSpace: 'nowrap' }}>
