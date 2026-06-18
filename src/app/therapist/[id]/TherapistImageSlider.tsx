@@ -61,8 +61,8 @@ export function TherapistImageSlider({ images, name }: { images: string[]; name:
           <div
             key={i}
             onClick={() => !isActive && setIdx(i)}
-            // 幅：スマホ(md未満)=50%で両隣25%ずつ（25+50+25=100%）、md以上=60%
-            className={`absolute top-0 left-1/2 h-full p-3 transition-all duration-300 ease-out w-1/2 md:w-[60%] ${
+            // 幅：スマホ(md未満)=80%で両隣10%ずつ（10+80+10=100%）、md以上=60%
+            className={`absolute top-0 left-1/2 h-full p-3 transition-all duration-300 ease-out w-4/5 md:w-[60%] ${
               isActive ? 'z-20' : 'z-10 cursor-pointer'
             }`}
             style={{

@@ -173,8 +173,8 @@ export default async function TherapistPublicPage({
           トップへ戻る
         </Link>
 
-        {/* ─── 画像スライダー（カードから独立した黒背景ブロック） ─── */}
-        <div className="relative h-80 bg-black mb-6">
+        {/* ─── 画像スライダー（カードから独立した透明ブロック） ─── */}
+        <div className="relative h-80 mb-6">
           {images.length > 0 ? (
             <TherapistImageSlider images={images} name={therapist.name} />
           ) : (
