@@ -3,6 +3,7 @@ import { notFound } from 'next/navigation';
 import { createClient } from '@/app/lib/supabase/server';
 import { getBusinessDateRangeJST } from '@/lib/dutyStatus';
 import { getTheme } from '@/app/lib/themes';
+import { TherapistImageSlider } from './TherapistImageSlider';
 
 // ── helpers ───────────────────────────────────────────────────
 
@@ -56,7 +57,7 @@ export default async function TherapistPublicPage({
 
   const { data: tRow, error: tError } = await supabase
     .from('therapists')
-    .select('id, name, profile_image_url, age, body_type, profile_text, work_hours, comment, area, salon_id')
+    .select('id, name, profile_image_url, profile_images, age, body_type, profile_text, work_hours, comment, area, salon_id')
     .eq('id', id)
     .single();
 
@@ -111,6 +112,7 @@ export default async function TherapistPublicPage({
     id:              String(tRow.id),
     name:            (tRow.name as string) ?? '',
     profileImageUrl: (tRow.profile_image_url as string | null) ?? null,
+    profileImages:   (tRow.profile_images as string[] | null) ?? null,
     age:             (tRow.age as string | null) ?? null,
     bodyType:        parseBodyType(tRow.body_type as string | null),
     profileText:     (tRow.profile_text as string | null) ?? null,
@@ -129,6 +131,14 @@ export default async function TherapistPublicPage({
         address: (salonRow.address as string) ?? '',
       }
     : null;
+
+  // 表示用画像：profile_images を優先、無ければ既存の単一画像を1枚目として扱う（互換性）
+  const images =
+    therapist.profileImages && therapist.profileImages.length > 0
+      ? therapist.profileImages.filter(Boolean)
+      : therapist.profileImageUrl
+        ? [therapist.profileImageUrl]
+        : [];
 
   return (
     <div className="relative min-h-screen overflow-x-hidden" style={{ color: theme.text }}>
@@ -166,20 +176,15 @@ export default async function TherapistPublicPage({
         {/* ─── Hero card ───────────────────────────────── */}
         <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden mb-6">
           <div className="h-48 bg-gradient-to-br from-pink-100 via-rose-50 to-pink-50 relative flex items-center justify-center">
-            {therapist.profileImageUrl ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img
-                src={therapist.profileImageUrl}
-                alt={therapist.name}
-                className="w-full h-full object-contain object-top"
-              />
+            {images.length > 0 ? (
+              <TherapistImageSlider images={images} name={therapist.name} />
             ) : (
               <div className="w-24 h-24 rounded-full bg-gradient-to-br from-pink-300 to-rose-400 flex items-center justify-center text-white font-bold text-4xl shadow-lg">
                 {therapist.name.charAt(0)}
               </div>
             )}
             {therapist.area && (
-              <span className="absolute top-4 left-4 text-xs font-semibold px-3 py-1 rounded-full bg-white text-pink-600 border border-pink-200 shadow-sm">
+              <span className="absolute top-4 left-4 z-10 text-xs font-semibold px-3 py-1 rounded-full bg-white text-pink-600 border border-pink-200 shadow-sm">
                 {therapist.area}
               </span>
             )}

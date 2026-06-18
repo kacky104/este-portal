@@ -39,10 +39,13 @@ type Therapist = {
   salon_id: number;
   name: string | null;
   profile_image_url: string | null;
+  profile_images: string[] | null;
   age: string | null;
   body_type: string | null;
   profile_text: string | null;
 };
+
+const MAX_IMAGES = 5;
 
 export default function TherapistEditPage() {
   const router = useRouter();
@@ -51,10 +54,11 @@ export default function TherapistEditPage() {
 
   const [therapist, setTherapist] = useState<Therapist | null>(null);
   const [form, setForm] = useState<Partial<Therapist>>({});
+  const [images, setImages] = useState<string[]>([]);
   const [bodyParts, setBodyParts] = useState<BodyParts>({ height: '', bust: '', cup: '', waist: '', hip: '' });
   const [loadError, setLoadError] = useState('');
   const [saving, setSaving] = useState(false);
-  const [uploading, setUploading] = useState(false);
+  const [uploadingSlot, setUploadingSlot] = useState<number | null>(null);
   const [toast, setToast] = useState('');
 
   const showToast = (msg: string) => {
@@ -72,7 +76,7 @@ export default function TherapistEditPage() {
 
       const { data: tData, error: tError } = await supabase
         .from('therapists')
-        .select('id, salon_id, name, profile_image_url, age, body_type, profile_text')
+        .select('id, salon_id, name, profile_image_url, profile_images, age, body_type, profile_text')
         .eq('id', therapistId)
         .single();
 
@@ -96,6 +100,14 @@ export default function TherapistEditPage() {
 
       setTherapist(tData);
       setForm(tData);
+      // 複数画像：profile_images を優先、無ければ既存の単一画像を1枚目として扱う（互換性）
+      const initialImages =
+        Array.isArray(tData.profile_images) && tData.profile_images.length > 0
+          ? tData.profile_images.filter(Boolean)
+          : tData.profile_image_url
+            ? [tData.profile_image_url]
+            : [];
+      setImages(initialImages.slice(0, MAX_IMAGES));
       setBodyParts(parseBodyType(tData.body_type));
     })();
   }, [therapistId, router]);
@@ -108,11 +120,12 @@ export default function TherapistEditPage() {
     });
   };
 
-  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  // slot が画像数と同じ＝末尾への追加、それ未満＝そのスロットの差し替え
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>, slot: number) => {
     const file = e.target.files?.[0];
     if (!file || !therapist) return;
 
-    setUploading(true);
+    setUploadingSlot(slot);
 
     const ext = file.name.split('.').pop();
     const fileName = `${therapist.id}-${Date.now()}.${ext}`;
@@ -123,7 +136,7 @@ export default function TherapistEditPage() {
 
     if (uploadError) {
       showToast('アップロードに失敗しました: ' + uploadError.message);
-      setUploading(false);
+      setUploadingSlot(null);
       e.target.value = '';
       return;
     }
@@ -132,10 +145,19 @@ export default function TherapistEditPage() {
       .from('therapist-photos')
       .getPublicUrl(fileName);
 
-    setForm(f => ({ ...f, profile_image_url: urlData.publicUrl }));
-    setUploading(false);
+    setImages(prev => {
+      const next = [...prev];
+      if (slot < next.length) next[slot] = urlData.publicUrl; // 差し替え
+      else next.push(urlData.publicUrl);                       // 追加
+      return next.slice(0, MAX_IMAGES);
+    });
+    setUploadingSlot(null);
     e.target.value = '';
     showToast('画像をアップロードしました(保存ボタンを押して反映してください)');
+  };
+
+  const handleImageRemove = (slot: number) => {
+    setImages(prev => prev.filter((_, i) => i !== slot));
   };
 
   const handleSave = async () => {
@@ -145,7 +167,9 @@ export default function TherapistEditPage() {
     const { error } = await supabase
       .from('therapists')
       .update({
-        profile_image_url: form.profile_image_url ?? null,
+        // profile_image_url は1枚目を保存して既存表示との互換性を維持
+        profile_image_url: images[0] ?? null,
+        profile_images:    images,
         age:               form.age ?? null,
         body_type:         form.body_type ?? null,
         profile_text:      form.profile_text ?? null,
@@ -205,38 +229,74 @@ export default function TherapistEditPage() {
 
       <main className="max-w-2xl mx-auto px-4 py-6 space-y-5">
 
-        {/* プロフィール画像 */}
+        {/* プロフィール画像（最大5枚） */}
         <div className="bg-white rounded-3xl border border-slate-100 shadow-sm p-5 space-y-3">
-          <h2 className="text-sm font-black text-slate-700">プロフィール画像</h2>
+          <div className="flex items-center justify-between">
+            <h2 className="text-sm font-black text-slate-700">プロフィール画像</h2>
+            <span className="text-[10px] text-slate-400">{images.length} / {MAX_IMAGES}枚</span>
+          </div>
 
-          <div className="flex items-center gap-4">
-            {form.profile_image_url ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img
-                src={form.profile_image_url}
-                alt="プロフィール画像"
-                className="w-24 h-24 object-cover rounded-2xl border border-pink-100"
-              />
-            ) : (
-              <div className="w-24 h-24 rounded-2xl border border-slate-200 bg-slate-50 flex items-center justify-center text-slate-300 text-xs">
-                画像なし
+          <div className="grid grid-cols-3 sm:grid-cols-5 gap-3">
+            {/* 既存スロット：プレビュー＋変更／削除 */}
+            {images.map((url, i) => (
+              <div key={i} className="space-y-1.5">
+                <div className="relative aspect-square rounded-2xl border border-pink-100 overflow-hidden bg-slate-50">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={url} alt={`プロフィール画像${i + 1}`} className="w-full h-full object-cover" />
+                  {i === 0 && (
+                    <span className="absolute top-1 left-1 bg-pink-600 text-white text-[9px] font-bold px-1.5 py-0.5 rounded-full">
+                      メイン
+                    </span>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => handleImageRemove(i)}
+                    aria-label="削除"
+                    className="absolute top-1 right-1 w-5 h-5 rounded-full bg-black/55 text-white text-xs flex items-center justify-center hover:bg-black/75 transition-colors"
+                  >
+                    ×
+                  </button>
+                </div>
+                <label className="block text-center bg-white border border-slate-200 text-slate-500 text-[10px] font-bold py-1 rounded-lg cursor-pointer hover:border-pink-300 hover:text-pink-500 transition-colors">
+                  {uploadingSlot === i ? '...' : '変更'}
+                  <input
+                    type="file"
+                    accept="image/jpeg,image/png,image/webp"
+                    onChange={(e) => handleImageUpload(e, i)}
+                    disabled={uploadingSlot !== null}
+                    className="hidden"
+                  />
+                </label>
+              </div>
+            ))}
+
+            {/* 追加スロット（5枚未満のとき1つだけ表示） */}
+            {images.length < MAX_IMAGES && (
+              <div className="space-y-1.5">
+                <label className="flex flex-col items-center justify-center aspect-square rounded-2xl border-2 border-dashed border-pink-200 bg-pink-50/40 text-pink-400 cursor-pointer hover:bg-pink-50 transition-colors">
+                  {uploadingSlot === images.length ? (
+                    <span className="text-[10px] font-bold">アップ中...</span>
+                  ) : (
+                    <>
+                      <span className="text-2xl leading-none">＋</span>
+                      <span className="text-[10px] font-bold mt-0.5">追加</span>
+                    </>
+                  )}
+                  <input
+                    type="file"
+                    accept="image/jpeg,image/png,image/webp"
+                    onChange={(e) => handleImageUpload(e, images.length)}
+                    disabled={uploadingSlot !== null}
+                    className="hidden"
+                  />
+                </label>
               </div>
             )}
-
-            <div className="space-y-1">
-              <label className="inline-block bg-white border border-pink-300 text-pink-600 px-4 py-2 rounded-xl cursor-pointer text-xs font-bold hover:bg-pink-50 transition-colors">
-                {uploading ? 'アップロード中...' : '画像を選択'}
-                <input
-                  type="file"
-                  accept="image/jpeg,image/png,image/webp"
-                  onChange={handleImageUpload}
-                  disabled={uploading}
-                  className="hidden"
-                />
-              </label>
-              <p className="text-[10px] text-slate-400">JPEG / PNG / WebP、5MBまで</p>
-            </div>
           </div>
+
+          <p className="text-[10px] text-slate-400">
+            JPEG / PNG / WebP、5MBまで。1枚目がメイン画像として一覧などに表示されます。
+          </p>
         </div>
 
         {/* 年齢 */}
