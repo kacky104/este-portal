@@ -173,23 +173,26 @@ export default async function TherapistPublicPage({
           トップへ戻る
         </Link>
 
-        {/* ─── Hero card ───────────────────────────────── */}
-        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden mb-6">
-          <div className="h-72 bg-gradient-to-br from-pink-100 via-rose-50 to-pink-50 relative flex items-center justify-center">
-            {images.length > 0 ? (
-              <TherapistImageSlider images={images} name={therapist.name} />
-            ) : (
+        {/* ─── 画像スライダー（カードから独立した黒背景ブロック） ─── */}
+        <div className="relative h-80 bg-black mb-6">
+          {images.length > 0 ? (
+            <TherapistImageSlider images={images} name={therapist.name} />
+          ) : (
+            <div className="w-full h-full flex items-center justify-center">
               <div className="w-24 h-24 rounded-full bg-gradient-to-br from-pink-300 to-rose-400 flex items-center justify-center text-white font-bold text-4xl shadow-lg">
                 {therapist.name.charAt(0)}
               </div>
-            )}
-            {therapist.area && (
-              <span className="absolute top-4 left-4 z-30 text-xs font-semibold px-3 py-1 rounded-full bg-white text-pink-600 border border-pink-200 shadow-sm">
-                {therapist.area}
-              </span>
-            )}
-          </div>
+            </div>
+          )}
+          {therapist.area && (
+            <span className="absolute top-4 left-4 z-30 text-xs font-semibold px-3 py-1 rounded-full bg-white text-pink-600 border border-pink-200 shadow-sm">
+              {therapist.area}
+            </span>
+          )}
+        </div>
 
+        {/* ─── プロフィール情報カード ───────────────────── */}
+        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden mb-6">
           <div className="p-6">
             <h1 className="text-2xl font-bold text-slate-900 mb-1">{therapist.name}</h1>
             {therapist.age && (

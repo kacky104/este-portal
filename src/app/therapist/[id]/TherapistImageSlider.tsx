@@ -15,12 +15,12 @@ export function TherapistImageSlider({ images, name }: { images: string[]; name:
   // ── 1枚のみ：スライダー無しで中央表示 ───────────────
   if (images.length === 1) {
     return (
-      <div className="w-full h-full flex items-center justify-center p-3">
+      <div className="w-full h-full flex items-center justify-center">
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
           src={images[0]}
           alt={name}
-          className="max-w-[80%] max-h-full object-contain rounded-2xl shadow-md"
+          className="max-w-full max-h-full object-contain"
         />
       </div>
     );
@@ -76,7 +76,7 @@ export function TherapistImageSlider({ images, name }: { images: string[]; name:
               src={url}
               alt={isActive ? name : ''}
               draggable={false}
-              className="w-full h-full object-cover rounded-2xl shadow-md"
+              className="w-full h-full object-contain"
             />
           </div>
         );
