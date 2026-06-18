@@ -199,20 +199,29 @@ export default async function TherapistPublicPage({
 
       <main className="max-w-4xl mx-auto px-4 py-8">
 
-        {/* ─── パンくずリスト：トップ › サロン名 › セラピスト名 ─── */}
-        <nav aria-label="パンくずリスト" className="flex items-center gap-1.5 text-sm text-slate-500 mb-3">
-          <Link href="/" className="hover:text-pink-600 transition-colors flex-shrink-0">
-            トップ
+        {/* ─── パンくずリスト（ステップ形式）：🏠トップ ❯ サロン名 ❯ セラピスト名 ─── */}
+        <nav aria-label="パンくずリスト" className="flex items-center gap-1.5 mb-3">
+          <Link
+            href="/"
+            className="hover:opacity-80 transition-opacity flex-shrink-0 whitespace-nowrap"
+            style={{ background: '#f3f4f6', color: '#666', fontSize: '12px', padding: '6px 14px', borderRadius: '4px 0 0 4px' }}
+          >
+            🏠 トップ
           </Link>
-          <span aria-hidden className="text-slate-300 flex-shrink-0">›</span>
+          <span aria-hidden className="flex-shrink-0" style={{ color: '#999', fontSize: '12px' }}>❯</span>
           <Link
             href={`/salon/${therapist.salonId}`}
-            className="hover:text-pink-600 transition-colors truncate max-w-[35%]"
+            className="hover:opacity-80 transition-opacity inline-block max-w-[35%] truncate align-middle"
+            style={{ background: '#f3f4f6', color: '#666', fontSize: '12px', padding: '6px 14px' }}
           >
             {salon?.name ?? 'サロン'}
           </Link>
-          <span aria-hidden className="text-slate-300 flex-shrink-0">›</span>
-          <span aria-current="page" className="text-slate-800 font-medium truncate">
+          <span aria-hidden className="flex-shrink-0" style={{ color: '#999', fontSize: '12px' }}>❯</span>
+          <span
+            aria-current="page"
+            className="inline-block max-w-[40%] truncate align-middle"
+            style={{ background: 'linear-gradient(to right, #ec4899, #f97316)', color: 'white', fontSize: '12px', padding: '6px 14px', borderRadius: '0 4px 4px 0' }}
+          >
             {therapist.name}
           </span>
         </nav>
