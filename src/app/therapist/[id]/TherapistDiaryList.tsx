@@ -19,6 +19,16 @@ function formatDateTime(iso: string): string {
   }).format(d);
 }
 
+// カード用：日付のみ（例「2026/06/18」）
+function formatDate(iso: string): string {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return '';
+  return new Intl.DateTimeFormat('ja-JP', {
+    timeZone: 'Asia/Tokyo',
+    year: 'numeric', month: '2-digit', day: '2-digit',
+  }).format(d);
+}
+
 // 2行クランプ用スタイル
 const clamp2: React.CSSProperties = {
   display: '-webkit-box',
@@ -87,8 +97,8 @@ export function TherapistDiaryList({ posts, name }: { posts: DiaryPostView[]; na
               </div>
               {/* テキストエリア */}
               <div className="p-2 bg-white">
-                <p style={{ fontSize: '10px', color: '#999' }} className="mb-0.5">
-                  {formatDateTime(post.created_at)}
+                <p style={{ fontSize: '12px', color: '#999' }} className="mb-0.5">
+                  {formatDate(post.created_at)} 更新
                 </p>
                 {post.comment && (
                   <p style={clamp2} className="text-slate-600 leading-snug">{post.comment}</p>
