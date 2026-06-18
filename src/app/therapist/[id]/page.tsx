@@ -175,7 +175,7 @@ export default async function TherapistPublicPage({
 
         {/* ─── Hero card ───────────────────────────────── */}
         <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden mb-6">
-          <div className="h-48 bg-gradient-to-br from-pink-100 via-rose-50 to-pink-50 relative flex items-center justify-center">
+          <div className="h-72 bg-gradient-to-br from-pink-100 via-rose-50 to-pink-50 relative flex items-center justify-center">
             {images.length > 0 ? (
               <TherapistImageSlider images={images} name={therapist.name} />
             ) : (
@@ -184,7 +184,7 @@ export default async function TherapistPublicPage({
               </div>
             )}
             {therapist.area && (
-              <span className="absolute top-4 left-4 z-10 text-xs font-semibold px-3 py-1 rounded-full bg-white text-pink-600 border border-pink-200 shadow-sm">
+              <span className="absolute top-4 left-4 z-30 text-xs font-semibold px-3 py-1 rounded-full bg-white text-pink-600 border border-pink-200 shadow-sm">
                 {therapist.area}
               </span>
             )}
