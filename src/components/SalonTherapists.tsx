@@ -159,7 +159,7 @@ function GridCard({ therapist, index, showJoinDate = false }: {
             )}
           </div>
           {bodySizes && (
-            <p className="mb-0.5 text-slate-500" style={{ fontSize: '12px' }}>
+            <p className="mb-0.5 text-slate-500 md:whitespace-nowrap md:overflow-hidden md:text-ellipsis" style={{ fontSize: '12px' }}>
               {bodySizes}
             </p>
           )}

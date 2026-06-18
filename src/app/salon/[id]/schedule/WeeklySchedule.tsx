@@ -79,7 +79,7 @@ function TherapistCard({ t, isToday }: { t: DaySchedule; isToday: boolean }) {
           </span>
         </div>
         {bodySizes && (
-          <p className="text-slate-500 mb-0.5" style={{ fontSize: '12px' }}>{bodySizes}</p>
+          <p className="text-slate-500 mb-0.5 md:whitespace-nowrap md:overflow-hidden md:text-ellipsis" style={{ fontSize: '12px' }}>{bodySizes}</p>
         )}
         <p className="text-xs font-medium text-pink-600">🕒 {displayHours(t.startTime, t.endTime)}</p>
       </div>
