@@ -7,6 +7,7 @@ import { createClient } from '@/app/lib/supabase/client';
 import { TimeRangePicker } from '@/components/TimeRangePicker';
 import { SALON_THEMES, type ThemeKey } from '@/app/lib/themes';
 import { getBusinessDateJST, getBusinessDateRangeJST } from '@/lib/dutyStatus';
+import { MyDiaryList } from './MyDiaryList';
 
 const supabase = createClient();
 
@@ -202,6 +203,7 @@ export default function MyPage() {
   const [diaryBody, setDiaryBody] = useState('');
   const [diaryUploading, setDiaryUploading] = useState(false);
   const [diaryPosting, setDiaryPosting] = useState(false);
+  const [diaryReload, setDiaryReload] = useState(0);
 
   const toggleSection = (key: string) => {
     setExpandedSections(prev => {
@@ -725,6 +727,7 @@ export default function MyPage() {
     setDiaryImage(null);
     setDiaryTitle('');
     setDiaryBody('');
+    setDiaryReload((n) => n + 1);
     showToast('写メ日記を投稿しました');
   };
 
@@ -1517,6 +1520,9 @@ export default function MyPage() {
                 </div>
               </div>
             )}
+
+            {/* 投稿済み日記一覧 */}
+            <MyDiaryList salonId={Number(salon.id)} reloadSignal={diaryReload} onToast={showToast} />
           </div>
         </div>
 
