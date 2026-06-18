@@ -703,17 +703,20 @@ export default function MyPage() {
 
       <main className="max-w-2xl mx-auto px-4 py-6 space-y-6">
 
+        {/* ── 店名（最上部・独立ブロック） ── */}
+        <div className="bg-white rounded-3xl border border-slate-100 shadow-sm p-5 text-center">
+          <h2
+            className="font-black text-slate-800 whitespace-nowrap overflow-hidden"
+            style={{ fontSize: 'clamp(16px, 4vw, 24px)', textOverflow: 'ellipsis' }}
+          >
+            {salonForm.name ?? ''}
+          </h2>
+          <p className="mt-1 text-[11px] text-slate-400">※ サロン名の変更は管理者のみ行えます。変更が必要な場合はお問い合わせください。</p>
+        </div>
+
         {/* ── サロン情報編集 ── */}
         <div className={`bg-white rounded-3xl border border-slate-100 shadow-sm p-5 space-y-4 ${activeTab === 'salon' ? '' : 'hidden'}`}>
           <h2 className="text-sm font-black text-slate-700">サロン情報の編集</h2>
-
-          <div>
-            <label className={labelClass}>サロン名</label>
-            <div className="w-full px-3 py-2 rounded-lg border border-slate-200 bg-slate-100 text-slate-500 text-sm cursor-not-allowed">
-              {salonForm.name ?? ''}
-            </div>
-            <p className="mt-1 text-[11px] text-slate-400">※ サロン名の変更は管理者のみ行えます。変更が必要な場合はお問い合わせください。</p>
-          </div>
 
           {/* ── テーマ（壁紙） ── */}
           <div>
