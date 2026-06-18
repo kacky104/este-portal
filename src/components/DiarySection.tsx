@@ -74,15 +74,17 @@ async function fetchDiaries(opts: { salonId?: string; limit?: number }): Promise
 
 // 写メ日記カード（クリックで /diary/[id] へ遷移）
 function DiaryCard({ diary, emphasized = false }: { diary: DiaryView; emphasized?: boolean }) {
-  // emphasized（サロンページ用）：日付・題名を2倍、オーバーレイを半分の濃さに
+  // emphasized（サロンページ用）：オーバーレイを薄く。
+  // カードはスマホで2枚半・PCで3枚半見えるよう小さめサイズに。
   const overlayCls = emphasized
     ? 'bg-gradient-to-b from-black/32 via-black/5 to-black/35'
     : 'bg-gradient-to-b from-black/65 via-black/10 to-black/70';
+  const sizeCls = emphasized ? 'w-[120px] h-44 md:w-[150px] md:h-56' : 'w-52 h-72';
 
   return (
     <Link
       href={`/diary/${diary.id}`}
-      className="relative text-left group flex-shrink-0 w-52 h-72 rounded-2xl overflow-hidden shadow-sm hover:-translate-y-1 hover:shadow-lg transition-all duration-300 bg-gradient-to-br from-pink-300 to-rose-400"
+      className={`relative text-left group flex-shrink-0 ${sizeCls} rounded-2xl overflow-hidden shadow-sm hover:-translate-y-1 hover:shadow-lg transition-all duration-300 bg-gradient-to-br from-pink-300 to-rose-400`}
     >
       {diary.image ? (
         // eslint-disable-next-line @next/next/no-img-element
@@ -101,13 +103,13 @@ function DiaryCard({ diary, emphasized = false }: { diary: DiaryView; emphasized
 
       {/* Top: date + comment */}
       <div className="absolute top-0 left-0 right-0 p-3">
-        <p className="text-white/70 mb-1" style={{ fontSize: emphasized ? '18px' : '9px' }}>
+        <p className="text-white/70 mb-1" style={{ fontSize: emphasized ? '11px' : '9px' }}>
           {emphasized ? `${formatDate(diary.createdAt)} 更新` : formatDateTime(diary.createdAt)}
         </p>
         {diary.title && (
           <p
             className="text-white/90 leading-relaxed line-clamp-3"
-            style={{ fontSize: emphasized ? '20px' : '10px' }}
+            style={{ fontSize: emphasized ? '13px' : '10px' }}
           >
             {diary.title}
           </p>
