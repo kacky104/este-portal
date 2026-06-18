@@ -362,7 +362,7 @@ export default function TherapistEditPage() {
         </div>
 
         {/* 写メ日記 */}
-        <DiaryEditor therapistId={therapist.id} />
+        <DiaryEditor therapistId={therapist.id} salonId={therapist.salon_id} />
 
        <div className="flex justify-between items-center pb-4">
           <Link

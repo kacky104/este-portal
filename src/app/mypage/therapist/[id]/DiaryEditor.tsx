@@ -23,7 +23,7 @@ function formatDateTime(iso: string): string {
   }).format(d);
 }
 
-export function DiaryEditor({ therapistId }: { therapistId: string }) {
+export function DiaryEditor({ therapistId, salonId }: { therapistId: string; salonId: number }) {
   const [posts, setPosts] = useState<DiaryPost[]>([]);
   const [images, setImages] = useState<string[]>([]);
   const [comment, setComment] = useState('');
@@ -90,6 +90,7 @@ export function DiaryEditor({ therapistId }: { therapistId: string }) {
     setPosting(true);
     const { error } = await supabase.from('diary_posts').insert({
       therapist_id: Number(therapistId),
+      salon_id: salonId,
       images,
       content: comment.trim() || null,
     });
