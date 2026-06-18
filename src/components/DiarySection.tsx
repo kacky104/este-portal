@@ -101,13 +101,10 @@ function DiaryCard({ diary, emphasized = false }: { diary: DiaryView; emphasized
 
       <div className={`absolute inset-0 ${overlayCls}`} />
 
-      {/* Top: セラピスト名 日付（1行） + タイトル */}
+      {/* Top: 日付 + タイトル */}
       <div className="absolute top-0 left-0 right-0 p-3">
-        <p className="mb-1 flex items-baseline gap-1.5 min-w-0" style={{ fontSize: emphasized ? '11px' : '9px' }}>
-          <span className="font-bold text-white drop-shadow truncate">{diary.therapistName}</span>
-          <span className="text-white/70 flex-shrink-0">
-            {emphasized ? `${formatDate(diary.createdAt)} 更新` : formatDateTime(diary.createdAt)}
-          </span>
+        <p className="text-white/70 mb-1" style={{ fontSize: emphasized ? '11px' : '9px' }}>
+          {emphasized ? `${formatDate(diary.createdAt)} 更新` : formatDateTime(diary.createdAt)}
         </p>
         {diary.title && (
           <p
@@ -119,8 +116,11 @@ function DiaryCard({ diary, emphasized = false }: { diary: DiaryView; emphasized
         )}
       </div>
 
-      {/* Bottom: CTA */}
-      <div className="absolute bottom-0 left-0 right-0 p-3 flex justify-end">
+      {/* Bottom: セラピスト名（左） + CTA（右） */}
+      <div className="absolute bottom-0 left-0 right-0 p-3 flex items-end justify-between gap-2">
+        <span className="font-bold text-white drop-shadow truncate min-w-0" style={{ fontSize: emphasized ? '11px' : '10px' }}>
+          {diary.therapistName}
+        </span>
         <span className="flex-shrink-0 text-[10px] text-pink-300 font-bold">日記を見る →</span>
       </div>
     </Link>
