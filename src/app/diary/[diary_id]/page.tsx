@@ -142,12 +142,12 @@ export default async function DiaryDetailPage({
                 {/* セラピストアイコン + 名前（左） + 投稿日時（上下の余白を最小に） */}
                 <div className="px-5 sm:px-6 pt-2 pb-1">
                   <div className="flex items-center gap-2 min-w-0 leading-none">
-                    <Link href={`/therapist/${therapistId}`} className="w-8 h-8 rounded-full overflow-hidden border-2 border-pink-100 shadow-sm flex-shrink-0 bg-gradient-to-br from-pink-300 to-rose-400 flex items-center justify-center">
+                    <Link href={`/therapist/${therapistId}`} className="w-14 h-14 rounded-full overflow-hidden border-2 border-pink-100 shadow-sm flex-shrink-0 bg-gradient-to-br from-pink-300 to-rose-400 flex items-center justify-center">
                       {therapistImage ? (
                         // eslint-disable-next-line @next/next/no-img-element
                         <img src={therapistImage} alt={therapistName} className="w-full h-full object-cover" />
                       ) : (
-                        <span className="text-white text-xs font-bold">{(therapistName || '?').charAt(0)}</span>
+                        <span className="text-white text-xl font-bold">{(therapistName || '?').charAt(0)}</span>
                       )}
                     </Link>
                     <Link href={`/therapist/${therapistId}`} className="text-sm font-bold text-pink-600 hover:underline truncate min-w-0">
