@@ -48,7 +48,7 @@ export default async function SalonSchedulePage({
 
   const { data: therapistRows } = await supabase
     .from('therapists')
-    .select('id, name, profile_image_url, is_available_now, available_until, is_new_face, new_face_since')
+    .select('id, name, profile_image_url, is_available_now, available_until, is_new_face, new_face_since, body_type')
     .eq('salon_id', Number(id));
 
   const therapists = therapistRows ?? [];
@@ -90,6 +90,7 @@ export default async function SalonSchedulePage({
       availableUntil: (t.available_until as string | null) ?? null,
       isNewFace:      Boolean(t.is_new_face),
       newFaceSince:   (t.new_face_since as string | null) ?? null,
+      bodyType:       (t.body_type as string | null) ?? null,
     });
   }
 

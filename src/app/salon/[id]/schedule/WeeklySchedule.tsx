@@ -4,6 +4,7 @@ import { useState } from 'react';
 import Link from 'next/link';
 import type { SalonTheme } from '@/app/lib/themes';
 import { isNewFaceActive } from '@/lib/newFace';
+import { formatBodySizes } from '@/lib/bodyType';
 import { getScheduleWindowStatus } from '@/lib/dutyStatus';
 import { NewBadge } from '@/components/NewBadge';
 
@@ -17,6 +18,7 @@ export type DaySchedule = {
   availableUntil: string | null;
   isNewFace:      boolean;
   newFaceSince:   string | null;
+  bodyType:       string | null;
 };
 
 const WEEKDAYS = ['日', '月', '火', '水', '木', '金', '土'];
@@ -48,6 +50,7 @@ function TherapistCard({ t, isToday }: { t: DaySchedule; isToday: boolean }) {
     t.isAvailableNow && t.availableUntil != null && new Date(t.availableUntil) > new Date();
   const isNew = isNewFaceActive(t.isNewFace, t.newFaceSince);
   const badge = statusBadge(t, isToday);
+  const bodySizes = formatBodySizes(t.bodyType);
 
   return (
     <Link
@@ -75,6 +78,9 @@ function TherapistCard({ t, isToday }: { t: DaySchedule; isToday: boolean }) {
             {badge.label}
           </span>
         </div>
+        {bodySizes && (
+          <p className="text-slate-500 mb-0.5" style={{ fontSize: '12px' }}>{bodySizes}</p>
+        )}
         <p className="text-xs font-medium text-pink-600">🕒 {displayHours(t.startTime, t.endTime)}</p>
       </div>
     </Link>

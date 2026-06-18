@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { createClient } from '@/app/lib/supabase/client';
 import { getBusinessDateJST, getScheduleWindowStatus } from '@/lib/dutyStatus';
 import { isNewFaceActive } from '@/lib/newFace';
+import { formatBodySizes } from '@/lib/bodyType';
 import { NewBadge } from '@/components/NewBadge';
 import type { SalonTheme } from '@/app/lib/themes';
 
@@ -71,6 +72,7 @@ type Therapist = {
   availableUntil:  string | null;
   isNewFace:       boolean;
   newFaceSince:    string | null;
+  bodyType:        string | null;
 };
 
 // ── shared schedule fetch ──────────────────────────────────────
@@ -116,6 +118,7 @@ function GridCard({ therapist, index, showJoinDate = false }: {
   useEffect(() => { setSS(getScheduleStatus(therapist.today)); }, [therapist.today]);
 
   const displayHours = buildDisplayHours(therapist.today.start_time, therapist.today.end_time);
+  const bodySizes    = formatBodySizes(therapist.bodyType);
 
   return (
     <Link
@@ -155,6 +158,11 @@ function GridCard({ therapist, index, showJoinDate = false }: {
               </span>
             )}
           </div>
+          {bodySizes && (
+            <p className="mb-0.5 text-slate-500" style={{ fontSize: '12px' }}>
+              {bodySizes}
+            </p>
+          )}
           {showJoinDate && isNewFaceActive(therapist.isNewFace, therapist.newFaceSince) && therapist.newFaceSince && (
             <p className="mb-0.5" style={{ fontSize: '12px', color: '#15803d' }}>
               {formatJoinDate(therapist.newFaceSince)}
@@ -184,7 +192,7 @@ export function SalonTherapists({ salonId }: { salonId: number }) {
       const supabase = createClient();
       const { data: rows } = await supabase
         .from('therapists')
-        .select('id, name, work_hours, area, comment, profile_image_url, is_available_now, available_until, is_new_face, new_face_since')
+        .select('id, name, work_hours, area, comment, profile_image_url, is_available_now, available_until, is_new_face, new_face_since, body_type')
         .eq('salon_id', salonId);
 
       console.log('[SalonTherapists] therapist rows:', rows?.map(r => ({ id: r.id, name: r.name })));
@@ -211,6 +219,7 @@ export function SalonTherapists({ salonId }: { salonId: number }) {
           availableUntil:  (t.available_until as string | null) ?? null,
           isNewFace:       Boolean(t.is_new_face),
           newFaceSince:    (t.new_face_since as string | null) ?? null,
+          bodyType:        (t.body_type as string | null) ?? null,
         };
       });
 
@@ -266,7 +275,7 @@ export function SalonAllTherapists({ salonId, limit }: { salonId: number; limit?
       const supabase = createClient();
       const { data: rows } = await supabase
         .from('therapists')
-        .select('id, name, work_hours, area, comment, profile_image_url, is_available_now, available_until, is_new_face, new_face_since')
+        .select('id, name, work_hours, area, comment, profile_image_url, is_available_now, available_until, is_new_face, new_face_since, body_type')
         .eq('salon_id', salonId);
 
       const rawIds = (rows ?? []).map(t => t.id);
@@ -284,6 +293,7 @@ export function SalonAllTherapists({ salonId, limit }: { salonId: number; limit?
         availableUntil:  (t.available_until as string | null) ?? null,
         isNewFace:       Boolean(t.is_new_face),
         newFaceSince:    (t.new_face_since as string | null) ?? null,
+        bodyType:        (t.body_type as string | null) ?? null,
       }));
 
       setList(mapped);
@@ -326,7 +336,7 @@ export function SalonNewFaceTherapists({
       const supabase = createClient();
       const { data: rows } = await supabase
         .from('therapists')
-        .select('id, name, work_hours, area, comment, profile_image_url, is_available_now, available_until, is_new_face, new_face_since')
+        .select('id, name, work_hours, area, comment, profile_image_url, is_available_now, available_until, is_new_face, new_face_since, body_type')
         .eq('salon_id', salonId);
 
       const rawIds = (rows ?? []).map(t => t.id);
@@ -344,6 +354,7 @@ export function SalonNewFaceTherapists({
         availableUntil:  (t.available_until as string | null) ?? null,
         isNewFace:       Boolean(t.is_new_face),
         newFaceSince:    (t.new_face_since as string | null) ?? null,
+        bodyType:        (t.body_type as string | null) ?? null,
       }));
 
       // is_new_face かつ new_face_since から30日以内のみ。new_face_since が新しい順。
