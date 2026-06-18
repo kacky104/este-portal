@@ -34,16 +34,17 @@ export default async function DiaryDetailPage({
   // 同じセラピストの全日記を新しい順（上=新しい / 下=古い）で取得
   const { data: rows } = await supabase
     .from('diary_posts')
-    .select('id, images, title, content, created_at, salon_id, therapists(name), salons(name, theme)')
+    .select('id, images, title, content, created_at, salon_id, therapists(name, profile_image_url), salons(name, theme)')
     .eq('therapist_id', therapistId)
     .order('created_at', { ascending: false });
 
   if (!rows || rows.length === 0) notFound();
 
+  type TRel = { name: string | null; profile_image_url: string | null };
   type Row = {
     id: number | string; images: string[] | null; title: string | null; content: string | null;
     created_at: string; salon_id: number | string;
-    therapists: { name: string | null } | { name: string | null }[] | null;
+    therapists: TRel | TRel[] | null;
     salons: { name: string | null; theme: string | null } | { name: string | null; theme: string | null }[] | null;
   };
   const list = (rows as unknown as Row[]).map((r) => {
@@ -62,6 +63,10 @@ export default async function DiaryDetailPage({
     };
   });
 
+  const firstT = Array.isArray((rows as unknown as Row[])[0].therapists)
+    ? ((rows as unknown as Row[])[0].therapists as TRel[])[0]
+    : ((rows as unknown as Row[])[0].therapists as TRel | null);
+  const therapistImage = firstT?.profile_image_url ?? null;
   const therapistName = list[0].therapistName;
 
   // サロンのテーマ壁紙を背景に適用
@@ -136,8 +141,16 @@ export default async function DiaryDetailPage({
               >
                 <div className="p-5 sm:p-6 space-y-4">
 
-                  {/* セラピスト名（左） + 投稿日時 */}
+                  {/* セラピストアイコン + 名前（左） + 投稿日時 */}
                   <div className="flex items-center gap-2 min-w-0">
+                    <Link href={`/therapist/${therapistId}`} className="w-8 h-8 rounded-full overflow-hidden border-2 border-pink-100 shadow-sm flex-shrink-0 bg-gradient-to-br from-pink-300 to-rose-400 flex items-center justify-center">
+                      {therapistImage ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img src={therapistImage} alt={therapistName} className="w-full h-full object-cover" />
+                      ) : (
+                        <span className="text-white text-xs font-bold">{(therapistName || '?').charAt(0)}</span>
+                      )}
+                    </Link>
                     <Link href={`/therapist/${therapistId}`} className="text-sm font-bold text-pink-600 hover:underline truncate min-w-0">
                       {therapistName || 'セラピスト'}
                     </Link>
