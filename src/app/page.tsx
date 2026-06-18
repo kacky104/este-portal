@@ -2,7 +2,6 @@ import Link from "next/link";
 import { ShuffledSalons } from "./components/ShuffledSalons";
 import { TherapistScroller } from "./components/TherapistScroller";
 import { createClient } from "./lib/supabase/server";
-import { DiarySection } from "@/components/DiarySection";
 import HeaderImageSlider from "@/components/HeaderImageSlider";
 import { FeaturedSalonSlider, type FeaturedSalon } from "./components/FeaturedSalonSlider";
 import { getBusinessDateJST } from "@/lib/dutyStatus";
@@ -260,23 +259,6 @@ export default async function Home() {
                 ))}
               </div>
             </div>
-          </div>
-        </section>
-
-        {/* ─── Latest diaries ──────────────────────────────────── */}
-        <section className="py-10 bg-white border-t border-pink-50">
-          <div className="max-w-5xl mx-auto px-4">
-            <div className="flex items-center justify-between mb-1.5">
-              <div className="flex items-center gap-3">
-                <div className="w-1 h-6 rounded-full bg-gradient-to-b from-pink-400 to-rose-500" />
-                <h2 className="text-xl font-bold text-slate-900">最新の写メ日記</h2>
-              </div>
-              <Link href="/diary" className="text-xs text-pink-500 font-semibold hover:underline">
-                もっと見る →
-              </Link>
-            </div>
-            <p className="text-xs text-slate-400 pl-7 mb-6">セラピストたちの最新投稿をチェック</p>
-            <DiarySection />
           </div>
         </section>
       </main>
