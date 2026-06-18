@@ -32,7 +32,7 @@ function displayHours(start: string, end: string): string {
   return `${start}〜${overnight ? '翌' : ''}${end}`;
 }
 
-function TherapistCard({ t, theme }: { t: DaySchedule; theme: SalonTheme }) {
+function TherapistCard({ t }: { t: DaySchedule }) {
   const availableNow =
     t.isAvailableNow && t.availableUntil != null && new Date(t.availableUntil) > new Date();
   const isNew = isNewFaceActive(t.isNewFace, t.newFaceSince);
@@ -40,8 +40,7 @@ function TherapistCard({ t, theme }: { t: DaySchedule; theme: SalonTheme }) {
   return (
     <Link
       href={`/therapist/${t.id}`}
-      className="rounded-2xl border shadow-sm flex h-28 overflow-hidden hover:shadow-md transition-all duration-200"
-      style={{ backgroundColor: theme.card, borderColor: theme.cardBorder }}
+      className="rounded-2xl border border-slate-200 bg-white shadow-sm flex h-28 overflow-hidden hover:shadow-md transition-all duration-200"
     >
       <div className="relative w-28 flex-shrink-0 overflow-hidden bg-gradient-to-br from-pink-300 to-rose-400 flex items-center justify-center">
         {t.imageUrl ? (
@@ -53,7 +52,7 @@ function TherapistCard({ t, theme }: { t: DaySchedule; theme: SalonTheme }) {
       </div>
       <div className="p-3 flex-1 flex flex-col justify-center min-w-0">
         <div className="flex items-center gap-1.5 mb-1 flex-wrap">
-          <p className="font-bold text-sm truncate min-w-0" style={{ color: theme.heading }}>{t.name}</p>
+          <p className="font-bold text-sm truncate min-w-0 text-slate-900">{t.name}</p>
           {isNew && <NewBadge />}
           {availableNow && (
             <span style={{ background: 'linear-gradient(to right, #ec4899, #f97316)', color: 'white', fontSize: '11px', fontWeight: 700, padding: '2px 8px', borderRadius: '20px', whiteSpace: 'nowrap' }}>
@@ -113,7 +112,7 @@ export function WeeklySchedule({
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           {list.map((t) => (
-            <TherapistCard key={t.id} t={t} theme={theme} />
+            <TherapistCard key={t.id} t={t} />
           ))}
         </div>
       )}
