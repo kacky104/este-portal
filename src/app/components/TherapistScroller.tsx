@@ -115,9 +115,11 @@ function Card({ therapist, index }: { therapist: TherapistItem; index: number })
         {therapist.age && (
           <p className="hidden sm:block text-[10px] text-white/80 mb-0.5">{therapist.age}歳</p>
         )}
-        <p className="hidden sm:block text-[10px] text-white/70 truncate mb-1">{therapist.salonName}</p>
         {(displayHours || therapist.workHours) && (
           <p className="text-[13px] text-pink-200 font-medium mt-0.5 text-center">{displayHours || therapist.workHours}</p>
+        )}
+        {therapist.salonName && (
+          <p className="text-[9px] sm:text-[10px] text-white/70 truncate text-center mt-0.5">{therapist.salonName}</p>
         )}
       </div>
     </Link>
