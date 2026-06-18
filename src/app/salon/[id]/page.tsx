@@ -102,8 +102,7 @@ export default async function SalonPage({
         {/* ─── Back button ─────────────────────────────── */}
         <Link
           href="/"
-          className="inline-flex items-center gap-1.5 text-sm hover:opacity-70 transition-opacity mb-6"
-          style={{ color: theme.body }}
+          className="inline-flex items-center gap-1.5 mb-6 px-4 py-2 rounded-full text-sm font-bold text-white shadow-sm bg-gradient-to-r from-pink-500 to-orange-500 hover:from-pink-600 hover:to-orange-600 transition-colors"
         >
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
             <path d="M19 12H5M12 5l-7 7 7 7" />
