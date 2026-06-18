@@ -196,7 +196,27 @@ export function SalonTherapists({ salonId }: { salonId: number }) {
         };
       });
 
-      setList(mapped.filter(t => getScheduleStatus(t.today).status === 'onDuty'));
+      // 表示順: 1.今すぐ → 2.出勤中・出勤予定(開始時間が早い順) → 3.受付終了 → 4.お休み
+      const availableNowActive = (t: Therapist) =>
+        t.isAvailableNow && t.availableUntil != null && new Date(t.availableUntil) > new Date();
+      const rank = (t: Therapist): number => {
+        if (availableNowActive(t)) return 0;
+        const s = getScheduleStatus(t.today).status;
+        if (s === 'onDuty' || s === 'before') return 1;
+        if (s === 'after') return 2;
+        return 3; // off（お休み）
+      };
+      const sorted = [...mapped].sort((a, b) => {
+        const ra = rank(a), rb = rank(b);
+        if (ra !== rb) return ra - rb;
+        if (ra === 1) {
+          const sa = a.today.start_time ?? '99:99';
+          const sb = b.today.start_time ?? '99:99';
+          return sa.localeCompare(sb);
+        }
+        return 0;
+      });
+      setList(sorted);
     })();
   }, [salonId]);
 
