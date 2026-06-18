@@ -156,7 +156,7 @@ function GridCard({ therapist, index, showJoinDate = false }: {
             )}
           </div>
           {showJoinDate && isNewFaceActive(therapist.isNewFace, therapist.newFaceSince) && therapist.newFaceSince && (
-            <p className="mb-0.5" style={{ fontSize: '12px', color: '#9ca3af' }}>
+            <p className="mb-0.5" style={{ fontSize: '12px', color: '#15803d' }}>
               {formatJoinDate(therapist.newFaceSince)}
             </p>
           )}
