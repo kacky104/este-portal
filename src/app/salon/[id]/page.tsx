@@ -111,6 +111,14 @@ export default async function SalonPage({
           サロン一覧へ戻る
         </Link>
 
+        {/* ─── Block 0: 店名（最上部・独立ブロック） ─────── */}
+        <div className="rounded-2xl border shadow-sm p-5 mb-4 text-center" style={{ backgroundColor: theme.card, borderColor: theme.cardBorder }}>
+          <h1
+            className="font-bold whitespace-nowrap overflow-hidden"
+            style={{ fontSize: 'clamp(16px, 4vw, 24px)', textOverflow: 'ellipsis', color: theme.heading }}
+          >{salon.name}</h1>
+        </div>
+
         {/* ─── Block 1: 画像スライダー ─────────────────── */}
         <div className="rounded-2xl border shadow-sm overflow-hidden mb-4" style={{ backgroundColor: theme.card, borderColor: theme.cardBorder }}>
           <SalonHeaderSlider images={salonImages} />
@@ -118,10 +126,6 @@ export default async function SalonPage({
 
         {/* ─── Block 2: サロン情報 ──────────────────────── */}
         <div className="rounded-2xl border shadow-sm p-6 mb-6" style={{ backgroundColor: theme.card, borderColor: theme.cardBorder }}>
-          <h1
-            className="font-bold mb-3 whitespace-nowrap overflow-hidden"
-            style={{ fontSize: 'clamp(15px, 4vw, 24px)', textOverflow: 'ellipsis', color: theme.heading }}
-          >{salon.name}</h1>
 
           {/* Rating row */}
           <div className="flex flex-wrap items-center gap-3 mb-4">
