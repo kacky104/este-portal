@@ -108,11 +108,11 @@ export default async function DiaryDetailPage({
             {/* 投稿日時 */}
             <p style={{ fontSize: '13px', color: '#999' }}>📅 {formatDate(r.created_at)} 更新</p>
 
-            {/* 画像（大きく中央表示・contain） */}
+            {/* 画像（コンテナ幅いっぱい・cover。カードの左右paddingを相殺して全幅表示） */}
             {image && (
-              <div className="bg-slate-100 rounded-xl overflow-hidden flex items-center justify-center">
+              <div className="-mx-5 sm:-mx-6">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={image} alt={r.title ?? therapistName} className="w-full max-h-[60vh] object-contain" />
+                <img src={image} alt={r.title ?? therapistName} className="block w-full max-h-[70vh] object-cover" />
               </div>
             )}
 
