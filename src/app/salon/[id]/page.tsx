@@ -167,18 +167,20 @@ export default async function SalonPage({
               </div>
               <SalonTherapists salonId={Number(id)} />
 
-              <Link
-                href={`/salon/${id}/schedule`}
-                className="mt-4 block w-full text-center text-sm font-bold hover:opacity-80 transition-opacity"
-                style={{
-                  background: 'linear-gradient(to right, #ec4899, #f97316)',
-                  WebkitBackgroundClip: 'text',
-                  backgroundClip: 'text',
-                  WebkitTextFillColor: 'transparent',
-                }}
-              >
-                全て見る →
-              </Link>
+              <div className="mt-4 text-center">
+                <Link
+                  href={`/salon/${id}/schedule`}
+                  className="inline-block text-sm font-bold hover:opacity-80 transition-opacity"
+                  style={{
+                    background: 'linear-gradient(to right, #ec4899, #f97316)',
+                    WebkitBackgroundClip: 'text',
+                    backgroundClip: 'text',
+                    WebkitTextFillColor: 'transparent',
+                  }}
+                >
+                  全て見る →
+                </Link>
+              </div>
             </div>
 
             {/* About */}
