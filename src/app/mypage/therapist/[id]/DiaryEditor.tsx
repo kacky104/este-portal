@@ -40,14 +40,14 @@ export function DiaryEditor({ therapistId }: { therapistId: string }) {
   const loadPosts = useCallback(async () => {
     const { data } = await supabase
       .from('diary_posts')
-      .select('id, images, comment, created_at')
+      .select('id, images, content, created_at')
       .eq('therapist_id', Number(therapistId))
       .order('created_at', { ascending: false });
     setPosts(
       (data ?? []).map((p) => ({
         id: p.id as number,
         images: (p.images as string[] | null) ?? [],
-        comment: (p.comment as string | null) ?? null,
+        comment: (p.content as string | null) ?? null,
         created_at: String(p.created_at),
       }))
     );
@@ -91,7 +91,7 @@ export function DiaryEditor({ therapistId }: { therapistId: string }) {
     const { error } = await supabase.from('diary_posts').insert({
       therapist_id: Number(therapistId),
       images,
-      comment: comment.trim() || null,
+      content: comment.trim() || null,
     });
     setPosting(false);
     if (error) {

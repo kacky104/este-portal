@@ -1,6 +1,6 @@
 -- 写メ日記（diary_posts）用ストレージバケットと RLS 設定
 -- Supabase ダッシュボードの SQL Editor で実行してください。
--- diary_posts テーブルは作成済み（id, therapist_id, images text[], comment, created_at）。
+-- diary_posts テーブルは作成済み（id, therapist_id, images text[], content, created_at）。
 
 -- ============================================================
 -- 1. diary-images バケット作成 / 設定更新（Public・5MB・画像のみ）

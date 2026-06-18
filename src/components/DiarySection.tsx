@@ -31,7 +31,7 @@ function formatDateTime(iso: string): string {
 async function fetchDiaries(opts: { salonId?: string; limit?: number }): Promise<DiaryView[]> {
   let query = supabase
     .from('diary_posts')
-    .select('id, images, comment, created_at, therapists!inner(id, name, salon_id, salons(name))')
+    .select('id, images, content, created_at, therapists!inner(id, name, salon_id, salons(name))')
     .order('created_at', { ascending: false })
     .limit(opts.limit ?? 30);
 
@@ -41,7 +41,7 @@ async function fetchDiaries(opts: { salonId?: string; limit?: number }): Promise
 
   return (data ?? []).map((row) => {
     const r = row as unknown as {
-      id: number; images: string[] | null; comment: string | null; created_at: string;
+      id: number; images: string[] | null; content: string | null; created_at: string;
       therapists: { id: number; name: string | null; salons: { name: string | null } | { name: string | null }[] | null }
                 | { id: number; name: string | null; salons: { name: string | null } | { name: string | null }[] | null }[]
                 | null;
@@ -52,7 +52,7 @@ async function fetchDiaries(opts: { salonId?: string; limit?: number }): Promise
     return {
       id:            r.id,
       image:         imgs[0] ?? null,
-      comment:       r.comment ?? null,
+      comment:       r.content ?? null,
       createdAt:     r.created_at,
       therapistId:   String(t?.id ?? ''),
       therapistName: t?.name ?? '',
