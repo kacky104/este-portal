@@ -37,7 +37,6 @@ export default async function DiaryDetailPage({
   const therapist = Array.isArray(r.therapists) ? r.therapists[0] : r.therapists;
   const salon = Array.isArray(r.salons) ? r.salons[0] : r.salons;
   const therapistName = therapist?.name ?? '';
-  const salonName = salon?.name ?? '';
   const image = (r.images ?? [])[0] ?? null;
 
   // サロンのテーマ壁紙を背景に適用
@@ -88,11 +87,7 @@ export default async function DiaryDetailPage({
             トップ
           </Link>
           <span aria-hidden className="flex-shrink-0" style={{ color: '#999' }}>›</span>
-          <Link href={`/salon/${r.salon_id}`} className="hover:opacity-80 transition-opacity inline-block max-w-[28%] truncate align-middle" style={{ color: '#ec4899' }}>
-            {salonName || 'サロン'}
-          </Link>
-          <span aria-hidden className="flex-shrink-0" style={{ color: '#999' }}>›</span>
-          <Link href={`/therapist/${r.therapist_id}`} className="hover:opacity-80 transition-opacity inline-block max-w-[28%] truncate align-middle" style={{ color: '#ec4899' }}>
+          <Link href={`/therapist/${r.therapist_id}`} className="hover:opacity-80 transition-opacity inline-block max-w-[40%] truncate align-middle" style={{ color: '#ec4899' }}>
             {therapistName || 'セラピスト'}
           </Link>
           <span aria-hidden className="flex-shrink-0" style={{ color: '#999' }}>›</span>
@@ -128,19 +123,13 @@ export default async function DiaryDetailPage({
               </p>
             )}
 
-            {/* セラピスト名・サロン名リンク */}
-            <div className="border-t border-slate-100 pt-4 space-y-2">
+            {/* セラピスト名リンク */}
+            <div className="border-t border-slate-100 pt-4">
               <Link
                 href={`/therapist/${r.therapist_id}`}
                 className="flex items-center gap-2 text-sm font-bold text-pink-600 hover:underline"
               >
                 <span>👤</span>{therapistName || 'セラピスト'}
-              </Link>
-              <Link
-                href={`/salon/${r.salon_id}`}
-                className="flex items-center gap-2 text-sm text-slate-500 hover:text-pink-600 transition-colors"
-              >
-                <span>📍</span>{salonName || 'サロン'}
               </Link>
             </div>
           </div>

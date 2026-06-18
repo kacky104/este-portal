@@ -116,11 +116,10 @@ function DiaryCard({ diary, emphasized = false }: { diary: DiaryView; emphasized
         )}
       </div>
 
-      {/* Bottom: therapist + salon */}
+      {/* Bottom: therapist */}
       <div className="absolute bottom-0 left-0 right-0 p-3 flex items-end justify-between">
         <div className="min-w-0">
-          <p className="text-xs font-bold text-white drop-shadow">{diary.therapistName}</p>
-          {diary.salonName && <p className="text-[10px] text-white/60 truncate">📍 {diary.salonName}</p>}
+          <p className="text-xs font-bold text-white drop-shadow truncate">{diary.therapistName}</p>
         </div>
         <span className="flex-shrink-0 text-[10px] text-pink-300 font-bold ml-2">日記を見る →</span>
       </div>
