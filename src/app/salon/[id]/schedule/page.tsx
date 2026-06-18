@@ -2,7 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { createClient } from "@/app/lib/supabase/server";
 import { getTheme } from "@/app/lib/themes";
-import { getBusinessDateRangeJST } from "@/lib/dutyStatus";
+import { getBusinessDateRangeJST, getScheduleWindowStatus } from "@/lib/dutyStatus";
 import { WeeklySchedule, type DaySchedule } from "./WeeklySchedule";
 
 export default async function SalonSchedulePage({
@@ -92,9 +92,29 @@ export default async function SalonSchedulePage({
     });
   }
 
-  // 出勤開始が早い順に並べる
+  // 並び順は個別サロンページと統一:
+  //   1. 今すぐ（is_available_now かつ available_until が未来）
+  //   2. 出勤中・出勤予定（開始時間が早い順）
+  //   3. 受付終了
+  // ステータスは「本日」のみライブ判定。未来日は全員「出勤予定」なので開始時間順のみ。
+  const todayStr = dates[0];
+  const availableNowActive = (t: DaySchedule) =>
+    t.isAvailableNow && t.availableUntil != null && new Date(t.availableUntil) > new Date();
+  const rankToday = (t: DaySchedule): number => {
+    if (availableNowActive(t)) return 0;
+    const s = getScheduleWindowStatus(t.startTime, t.endTime);
+    return s === 'after' ? 2 : 1; // onDuty / before → 1, after（受付終了）→ 2
+  };
   for (const d of dates) {
-    byDate[d].sort((a, b) => a.startTime.localeCompare(b.startTime));
+    if (d === todayStr) {
+      byDate[d].sort((a, b) => {
+        const ra = rankToday(a), rb = rankToday(b);
+        if (ra !== rb) return ra - rb;
+        return a.startTime.localeCompare(b.startTime);
+      });
+    } else {
+      byDate[d].sort((a, b) => a.startTime.localeCompare(b.startTime));
+    }
   }
 
   const salonName = (salonRow.name as string) ?? '';
