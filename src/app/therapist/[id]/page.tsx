@@ -227,20 +227,26 @@ export default async function TherapistPublicPage({
               </div>
             </div>
           )}
-          {therapist.area && (
-            <span className="absolute top-4 left-4 z-30 text-xs font-semibold px-3 py-1 rounded-full bg-white text-pink-600 border border-pink-200 shadow-sm">
-              {therapist.area}
-            </span>
-          )}
         </div>
 
         {/* ─── プロフィール情報カード ───────────────────── */}
         <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden mb-6">
           <div className="p-6">
             <h1 className="text-2xl font-bold text-slate-900 mb-1">{therapist.name}</h1>
-            {therapist.age && (
-              <p className="text-sm text-slate-500 mb-4">{therapist.age}歳</p>
-            )}
+            <div className="flex items-center gap-2 mb-4">
+              {therapist.age && (
+                <span className="text-sm text-slate-500">{therapist.age}歳</span>
+              )}
+              {therapist.area && (
+                <span className="inline-flex items-center gap-1 text-xs font-semibold px-3 py-1 rounded-full bg-pink-50 text-pink-600 border border-pink-200">
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="flex-shrink-0">
+                    <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z" />
+                    <circle cx="12" cy="10" r="3" />
+                  </svg>
+                  {therapist.area}
+                </span>
+              )}
+            </div>
 
             {/* Body type */}
             {therapist.bodyType && (
