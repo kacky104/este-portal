@@ -4,6 +4,7 @@ import { createClient } from "@/app/lib/supabase/server";
 import { getTheme } from "@/app/lib/themes";
 import { getBusinessDateRangeJST, getScheduleWindowStatus } from "@/lib/dutyStatus";
 import { WeeklySchedule, type DaySchedule } from "./WeeklySchedule";
+import { SalonNewFaceTherapists } from "@/components/SalonTherapists";
 
 export default async function SalonSchedulePage({
   params,
@@ -162,6 +163,9 @@ export default async function SalonSchedulePage({
         </div>
 
         <WeeklySchedule dates={dates} byDate={byDate} theme={theme} />
+
+        {/* 新人紹介（緑バー・全件表示。該当0人ならセクションごと非表示） */}
+        <SalonNewFaceTherapists salonId={Number(id)} theme={theme} header="bar" maxItems={null} />
       </main>
     </div>
   );

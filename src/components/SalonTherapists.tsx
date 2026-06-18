@@ -290,7 +290,17 @@ export function SalonAllTherapists({ salonId, limit }: { salonId: number; limit?
 
 // ── SalonNewFaceTherapists (新人紹介) ──────────────────────────
 
-export function SalonNewFaceTherapists({ salonId, theme }: { salonId: number; theme: SalonTheme }) {
+export function SalonNewFaceTherapists({
+  salonId,
+  theme,
+  header = 'card',
+  maxItems = 4,
+}: {
+  salonId: number;
+  theme: SalonTheme;
+  header?: 'card' | 'bar';   // 'card': テーマ背景ブロック+見出し / 'bar': 緑色のタイトルバー
+  maxItems?: number | null;  // number: その人数まで表示し超過時「すべて見る」/ null: 全件表示・ボタンなし
+}) {
   // null = 取得前、[] = 該当0人。どちらもセクションを描画しない。
   const [list, setList] = useState<Therapist[] | null>(null);
 
@@ -334,35 +344,60 @@ export function SalonNewFaceTherapists({ salonId, theme }: { salonId: number; th
   // 該当0人（または取得前）はセクション自体を非表示
   if (!list || list.length === 0) return null;
 
-  const shown = list.slice(0, 4);
+  const shown = maxItems != null ? list.slice(0, maxItems) : list;
+  const showAllButton = maxItems != null && list.length > maxItems;
+
+  const cards = (
+    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+      {shown.map((t, i) => (
+        <GridCard key={t.id} therapist={t} index={i} />
+      ))}
+    </div>
+  );
+
+  const allButton = showAllButton && (
+    <div className="mt-4 text-center">
+      <Link
+        href={`/salon/${salonId}/therapists`}
+        className="inline-flex items-center justify-center text-white shadow-sm hover:opacity-90 transition-opacity"
+        style={{
+          background: 'linear-gradient(to right, #ec4899, #f97316)',
+          color: '#ffffff',
+          borderRadius: '9999px',
+          padding: '10px 24px',
+          fontWeight: 600,
+        }}
+      >
+        すべて見る
+      </Link>
+    </div>
+  );
+
+  // 緑色タイトルバー版（週間出勤予定ページ用）
+  if (header === 'bar') {
+    return (
+      <div className="mt-8">
+        <div
+          className="w-full rounded-xl mb-3"
+          style={{ background: '#22c55e', color: 'white', padding: '12px 24px', fontWeight: 700 }}
+        >
+          🌸 新人紹介
+        </div>
+        {cards}
+        {allButton}
+      </div>
+    );
+  }
+
+  // テーマ背景ブロック版（個別サロンページ用）
   return (
     <div className="mt-8 rounded-3xl p-5 border shadow-sm" style={{ backgroundColor: theme.card, borderColor: theme.cardBorder }}>
       <div className="flex items-center gap-2 mb-4">
         <span className="text-lg">🌸</span>
         <h2 className="text-base font-bold" style={{ color: theme.heading }}>新人紹介</h2>
       </div>
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-        {shown.map((t, i) => (
-          <GridCard key={t.id} therapist={t} index={i} />
-        ))}
-      </div>
-      {list.length > 4 && (
-        <div className="mt-4 text-center">
-          <Link
-            href={`/salon/${salonId}/therapists`}
-            className="inline-flex items-center justify-center text-white shadow-sm hover:opacity-90 transition-opacity"
-            style={{
-              background: 'linear-gradient(to right, #ec4899, #f97316)',
-              color: '#ffffff',
-              borderRadius: '9999px',
-              padding: '10px 24px',
-              fontWeight: 600,
-            }}
-          >
-            すべて見る
-          </Link>
-        </div>
-      )}
+      {cards}
+      {allButton}
     </div>
   );
 }
