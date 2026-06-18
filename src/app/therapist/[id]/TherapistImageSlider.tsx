@@ -77,6 +77,9 @@ export function TherapistImageSlider({ images, name }: { images: string[]; name:
               alt={isActive ? name : ''}
               draggable={false}
               className="w-full h-full object-contain"
+              // 両隣はcontainで中央寄せされ端の見切れが空白になるため、
+              // 中央側の端へ寄せて10%の見切れに画像が映るようにする。
+              style={{ objectPosition: isActive ? 'center' : offset < 0 ? 'right' : 'left' }}
             />
           </div>
         );
