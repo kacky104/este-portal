@@ -7,6 +7,7 @@ import { checkDutyStatus } from '@/lib/dutyStatus';
 import { isNewFaceActive } from '@/lib/newFace';
 import { NewBadge } from '@/components/NewBadge';
 import { TherapistImageSlider } from './TherapistImageSlider';
+import { TherapistDiaryList, type DiaryPostView } from './TherapistDiaryList';
 
 // ── helpers ───────────────────────────────────────────────────
 
@@ -95,6 +96,19 @@ export default async function TherapistPublicPage({
         }
       : {}),
   };
+
+  // 写メ日記（新しい順）
+  const { data: diaryRows } = await supabase
+    .from('diary_posts')
+    .select('id, images, comment, created_at')
+    .eq('therapist_id', Number(id))
+    .order('created_at', { ascending: false });
+  const diaryPosts: DiaryPostView[] = (diaryRows ?? []).map((p) => ({
+    id: p.id as number,
+    images: (p.images as string[] | null) ?? [],
+    comment: (p.comment as string | null) ?? null,
+    created_at: String(p.created_at),
+  }));
 
   const dates = getBusinessDateRangeJST(7);
 
@@ -373,6 +387,14 @@ export default async function TherapistPublicPage({
                 })}
               </div>
             </section>
+
+            {/* 写メ日記 */}
+            {diaryPosts.length > 0 && (
+              <section className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
+                <SectionHeading>写メ日記</SectionHeading>
+                <TherapistDiaryList posts={diaryPosts} name={therapist.name} />
+              </section>
+            )}
           </div>
 
           {/* Right: sidebar */}
