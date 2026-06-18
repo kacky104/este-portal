@@ -104,8 +104,8 @@ export function WeeklySchedule({
 
   return (
     <div>
-      {/* 日付アイコン（横並び） */}
-      <div className="flex gap-2 overflow-x-auto pb-2 mb-5" style={{ scrollbarWidth: 'none' }}>
+      {/* 日付アイコン（7日分を画面幅に均等分割） */}
+      <div className="flex gap-1 pb-2 mb-5">
         {dates.map((d) => {
           const { md, wd } = dateParts(d);
           const active = d === selected;
@@ -114,14 +114,14 @@ export function WeeklySchedule({
               key={d}
               type="button"
               onClick={() => setSelected(d)}
-              className="flex-shrink-0 w-14 py-2 rounded-2xl border flex flex-col items-center gap-0.5 transition-colors"
+              className="flex-1 min-w-0 px-0.5 py-2 rounded-2xl border flex flex-col items-center gap-0.5 transition-colors"
               style={
                 active
                   ? { backgroundColor: '#ec4899', borderColor: '#ec4899', color: '#ffffff' }
                   : { backgroundColor: theme.card, borderColor: theme.cardBorder, color: theme.body }
               }
             >
-              <span className="text-sm font-bold leading-none">{md}</span>
+              <span className="text-xs sm:text-sm font-bold leading-none">{md}</span>
               <span className="text-[11px] leading-none">{wd}</span>
             </button>
           );
