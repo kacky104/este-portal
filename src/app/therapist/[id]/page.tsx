@@ -211,7 +211,7 @@ export default async function TherapistPublicPage({
       <main className="max-w-4xl mx-auto px-4 py-8">
 
         {/* ─── パンくずリスト（シンプル矢印形式）：トップ › サロン名 › セラピスト名 ─── */}
-        <nav aria-label="パンくずリスト" className="flex items-center gap-1.5 mb-3" style={{ fontSize: '13px' }}>
+        <nav aria-label="パンくずリスト" className="flex items-center gap-1.5 mb-6" style={{ fontSize: '13px' }}>
           <Link
             href="/"
             className="hover:opacity-80 transition-opacity flex-shrink-0 whitespace-nowrap"
@@ -248,17 +248,6 @@ export default async function TherapistPublicPage({
             {therapist.name}
           </span>
         </nav>
-
-        {/* ─── サロンへ戻る ─────────────────────────────── */}
-        <Link
-          href={`/salon/${therapist.salonId}`}
-          className="inline-flex items-center gap-1.5 text-sm text-slate-500 hover:text-pink-600 transition-colors mb-6"
-        >
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-            <path d="M19 12H5M12 5l-7 7 7 7" />
-          </svg>
-          サロンへ戻る
-        </Link>
 
         {/* ─── 画像スライダー（カードから独立した透明ブロック） ─── */}
         {/* スマホ：-mx-4でmainのpx-4を打ち消し画面いっぱい(w-full)に。高さ500px / md以上700px */}
