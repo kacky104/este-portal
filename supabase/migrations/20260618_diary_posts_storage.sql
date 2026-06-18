@@ -59,7 +59,7 @@ BEGIN
             SELECT 1 FROM public.therapists t
             JOIN public.salons s ON s.id = t.salon_id
             WHERE s.owner_id = auth.uid()
-              AND t.id::text = split_part(name, '/', 1)
+              AND t.id::text = split_part(storage.objects.name, '/', 1)
           )
         )
     $p$;
@@ -84,7 +84,7 @@ BEGIN
             SELECT 1 FROM public.therapists t
             JOIN public.salons s ON s.id = t.salon_id
             WHERE s.owner_id = auth.uid()
-              AND t.id::text = split_part(name, '/', 1)
+              AND t.id::text = split_part(storage.objects.name, '/', 1)
           )
         )
     $p$;
