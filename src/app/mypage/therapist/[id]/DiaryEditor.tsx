@@ -4,7 +4,7 @@ import { useEffect, useState, useCallback } from 'react';
 import { createClient } from '@/app/lib/supabase/client';
 
 const supabase = createClient();
-const MAX_DIARY_IMAGES = 5;
+const MAX_DIARY_IMAGES = 1;
 
 type DiaryPost = {
   id: number;
