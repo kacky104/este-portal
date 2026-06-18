@@ -18,6 +18,15 @@ type DiaryView = {
   salonName:     string;
 };
 
+// ピンク→オレンジのグラデーション文字
+const gradientText: React.CSSProperties = {
+  background: 'linear-gradient(to right, #ec4899, #f97316)',
+  WebkitBackgroundClip: 'text',
+  backgroundClip: 'text',
+  WebkitTextFillColor: 'transparent',
+  color: 'transparent',
+};
+
 function formatDateTime(iso: string): string {
   const d = new Date(iso);
   if (Number.isNaN(d.getTime())) return '';
@@ -157,8 +166,9 @@ export function DiarySection() {
 export function SalonDiarySection({ salonId }: { salonId: string }) {
   const [list, setList] = useState<DiaryView[] | null>(null);
 
+  // 新着6件のみサムネ横スクロール表示
   useEffect(() => {
-    fetchDiaries({ salonId, limit: 30 }).then(setList);
+    fetchDiaries({ salonId, limit: 6 }).then(setList);
   }, [salonId]);
 
   if (list && list.length === 0) {
@@ -170,12 +180,19 @@ export function SalonDiarySection({ salonId }: { salonId: string }) {
   }
 
   return (
-    <div className="w-full overflow-x-hidden">
-      <div className="flex gap-3 overflow-x-auto pb-4 scrollbar-pink w-full">
+    <div className="w-full overflow-x-hidden min-w-0">
+      <div className="flex gap-3 overflow-x-auto pb-4 scrollbar-pink w-full max-w-full min-w-0">
         {(list ?? []).map((diary) => (
           <DiaryCard key={diary.id} diary={diary} emphasized />
         ))}
       </div>
+      {(list ?? []).length > 0 && (
+        <div className="text-right mt-1">
+          <Link href={`/salon/${salonId}/diary`} className="inline-block text-sm font-bold" style={gradientText}>
+            全部見る →
+          </Link>
+        </div>
+      )}
     </div>
   );
 }

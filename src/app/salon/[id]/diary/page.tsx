@@ -1,0 +1,137 @@
+import Link from 'next/link';
+import { notFound } from 'next/navigation';
+import { createClient } from '@/app/lib/supabase/server';
+import { getTheme } from '@/app/lib/themes';
+
+function formatDate(iso: string): string {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return '';
+  return new Intl.DateTimeFormat('ja-JP', {
+    timeZone: 'Asia/Tokyo', year: 'numeric', month: '2-digit', day: '2-digit',
+  }).format(d);
+}
+
+type DiaryRow = {
+  id: number | string;
+  images: string[] | null;
+  title: string | null;
+  created_at: string;
+  therapists: { name: string | null } | { name: string | null }[] | null;
+};
+
+export default async function SalonDiaryPage({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}) {
+  const { id } = await params;
+  const supabase = await createClient();
+
+  const { data: salonRow, error } = await supabase
+    .from('salons')
+    .select('id, name, theme')
+    .eq('id', Number(id))
+    .single();
+  if (error || !salonRow) notFound();
+
+  const theme = getTheme(salonRow.theme as string | null);
+  const { data: wallpaperRow } = await supabase
+    .from('theme_wallpapers')
+    .select('image_url')
+    .eq('theme_key', theme.key)
+    .maybeSingle();
+  const wallpaperUrl = (wallpaperRow?.image_url as string | undefined) ?? null;
+
+  const bgLayerStyle: React.CSSProperties = {
+    backgroundColor: theme.bg,
+    ...(wallpaperUrl
+      ? {
+          backgroundImage: `linear-gradient(${theme.bg}D9, ${theme.bg}D9), url(${wallpaperUrl})`,
+          backgroundSize: 'cover',
+          backgroundPosition: 'center',
+        }
+      : {}),
+  };
+
+  // そのサロンの全セラピストの写メ日記（新しい順）
+  const { data: diaryRows } = await supabase
+    .from('diary_posts')
+    .select('id, images, title, created_at, therapists(name)')
+    .eq('salon_id', Number(id))
+    .order('created_at', { ascending: false });
+
+  const diaries = ((diaryRows ?? []) as unknown as DiaryRow[]).map((r) => {
+    const t = Array.isArray(r.therapists) ? r.therapists[0] : r.therapists;
+    return {
+      id: r.id,
+      image: (r.images ?? [])[0] ?? null,
+      title: r.title ?? '',
+      createdAt: r.created_at,
+      therapistName: t?.name ?? '',
+    };
+  });
+
+  const salonName = (salonRow.name as string) ?? '';
+
+  return (
+    <div className="relative min-h-screen overflow-x-hidden" style={{ color: theme.text }}>
+      <div aria-hidden className="fixed inset-0 -z-10" style={bgLayerStyle} />
+
+      <header className="sticky top-0 z-50 backdrop-blur-md border-b shadow-sm" style={{ backgroundColor: `${theme.card}E6`, borderColor: theme.cardBorder }}>
+        <div className="max-w-4xl mx-auto px-4 h-14 flex items-center">
+          <Link href="/" className="flex items-center gap-3">
+            <div className="w-7 h-7 rounded-lg bg-pink-50 border border-pink-200 flex items-center justify-center flex-shrink-0">
+              <span className="text-pink-500 font-bold text-sm leading-none">◆</span>
+            </div>
+            <span className="font-bold text-[15px] tracking-wide text-pink-600">福岡メンズエステポータル</span>
+          </Link>
+        </div>
+      </header>
+
+      <main className="max-w-4xl mx-auto px-4 py-8">
+
+        {/* パンくず：トップ › サロン名 › 写メ日記 */}
+        <nav aria-label="パンくずリスト" className="flex items-center gap-1.5 mb-6" style={{ fontSize: '13px' }}>
+          <Link href="/" className="hover:opacity-80 transition-opacity flex-shrink-0 whitespace-nowrap" style={{ color: '#ec4899' }}>トップ</Link>
+          <span aria-hidden className="flex-shrink-0" style={{ color: '#999' }}>›</span>
+          <Link href={`/salon/${id}`} className="hover:opacity-80 transition-opacity inline-block max-w-[40%] truncate align-middle" style={{ color: '#ec4899' }}>{salonName || 'サロン'}</Link>
+          <span aria-hidden className="flex-shrink-0" style={{ color: '#999' }}>›</span>
+          <span aria-current="page" className="flex-shrink-0 whitespace-nowrap" style={{ color: '#333', fontWeight: 600 }}>写メ日記</span>
+        </nav>
+
+        <div className="mb-6 text-center">
+          <h1 className="font-bold" style={{ fontSize: 'clamp(16px, 4vw, 24px)', color: theme.heading }}>{salonName}</h1>
+          <p className="text-sm mt-1" style={{ color: theme.body }}>写メ日記一覧</p>
+        </div>
+
+        {diaries.length === 0 ? (
+          <p className="text-center text-sm py-10 rounded-2xl border border-dashed" style={{ color: theme.body, borderColor: theme.cardBorder }}>
+            写メ日記はまだありません
+          </p>
+        ) : (
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
+            {diaries.map((d) => (
+              <Link key={d.id} href={`/diary/${d.id}`} className="group bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden hover:shadow-md transition-shadow">
+                <div className="aspect-square bg-slate-100">
+                  {d.image ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={d.image} alt={d.title || d.therapistName} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-pink-300 to-rose-400 text-white font-bold text-2xl">
+                      {d.therapistName.charAt(0)}
+                    </div>
+                  )}
+                </div>
+                <div className="p-2.5">
+                  <p style={{ fontSize: '11px', color: '#999' }}>{formatDate(d.createdAt)} 更新</p>
+                  {d.title && <h2 className="text-sm font-bold text-slate-800 line-clamp-2 mt-0.5 break-all">{d.title}</h2>}
+                  <p className="text-[11px] text-pink-600 font-bold mt-1 truncate">{d.therapistName}</p>
+                </div>
+              </Link>
+            ))}
+          </div>
+        )}
+      </main>
+    </div>
+  );
+}

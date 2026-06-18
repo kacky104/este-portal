@@ -388,11 +388,26 @@ export default async function TherapistPublicPage({
               </div>
             </section>
 
-            {/* 写メ日記 */}
+            {/* 写メ日記（新着6件 + 全部見る） */}
             {diaryPosts.length > 0 && (
               <section className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 overflow-x-hidden min-w-0">
                 <SectionHeading>写メ日記</SectionHeading>
-                <TherapistDiaryList posts={diaryPosts} name={therapist.name} />
+                <TherapistDiaryList posts={diaryPosts.slice(0, 6)} name={therapist.name} />
+                <div className="text-right mt-1">
+                  <Link
+                    href={`/therapist/${id}/diary`}
+                    className="inline-block text-sm font-bold"
+                    style={{
+                      background: 'linear-gradient(to right, #ec4899, #f97316)',
+                      WebkitBackgroundClip: 'text',
+                      backgroundClip: 'text',
+                      WebkitTextFillColor: 'transparent',
+                      color: 'transparent',
+                    }}
+                  >
+                    全部見る →
+                  </Link>
+                </div>
               </section>
             )}
           </div>
