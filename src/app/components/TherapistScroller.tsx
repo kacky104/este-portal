@@ -191,7 +191,13 @@ export function TherapistScroller() {
         newFaceSince:    (t.new_face_since     as string | null) ?? null,
       }));
 
-      setList(mapped.filter(t => getScheduleStatus(t.today).status === 'onDuty'));
+      const isAvailableNowActive = (t: TherapistItem) =>
+        t.isAvailableNow && t.availableUntil != null && new Date(t.availableUntil) > new Date();
+
+      const onDuty = mapped.filter(t => getScheduleStatus(t.today).status === 'onDuty');
+      // 「今すぐ」フラグのセラピストを先頭に表示
+      onDuty.sort((a, b) => Number(isAvailableNowActive(b)) - Number(isAvailableNowActive(a)));
+      setList(onDuty);
     })();
   }, []);
 

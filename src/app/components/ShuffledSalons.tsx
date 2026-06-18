@@ -375,9 +375,16 @@ export function ShuffledSalons({ salons, areas }: { salons: Salon[]; areas: stri
         });
       }
 
+      const isAvailableNowActive = (t: TherapistThumb) =>
+        t.isAvailableNow && t.availableUntil != null && new Date(t.availableUntil) > new Date();
+
       const result: Record<number, TherapistThumb[]> = {};
       for (const [sid, items] of Object.entries(bySalon)) {
-        result[Number(sid)] = items.sort((a, b) => Number(b.onDuty) - Number(a.onDuty));
+        // 「今すぐ」フラグを最優先、次に出勤中を優先
+        result[Number(sid)] = items.sort((a, b) =>
+          Number(isAvailableNowActive(b)) - Number(isAvailableNowActive(a)) ||
+          Number(b.onDuty) - Number(a.onDuty)
+        );
       }
 
       setSalonTherapists(result);
