@@ -127,7 +127,20 @@ export default async function SalonDiaryPage({
                     <span className="text-[11px] text-pink-600 font-bold truncate">{d.therapistName}</span>
                     <span className="flex-shrink-0" style={{ fontSize: '11px', color: '#999' }}>{formatDate(d.createdAt)} 更新</span>
                   </p>
-                  {d.title && <h2 className="text-sm font-bold text-slate-800 line-clamp-2 mt-0.5 break-all">{d.title}</h2>}
+                  {d.title && (
+                    <h2
+                      className="text-sm font-bold line-clamp-2 mt-0.5 break-all"
+                      style={{
+                        background: 'linear-gradient(to right, #ec4899, #f97316)',
+                        WebkitBackgroundClip: 'text',
+                        backgroundClip: 'text',
+                        WebkitTextFillColor: 'transparent',
+                        color: 'transparent',
+                      }}
+                    >
+                      {d.title}
+                    </h2>
+                  )}
                 </div>
               </Link>
             ))}
