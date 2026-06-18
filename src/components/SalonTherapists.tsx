@@ -216,8 +216,11 @@ export function SalonTherapists({ salonId }: { salonId: number }) {
         }
         return 0;
       });
-      // 個別サロンページでは最大4人まで表示（続きは「全て見る」から週間出勤予定へ）
-      setList(sorted.slice(0, 4));
+      // 「本日出勤」ブロックは 今すぐ / 出勤中・出勤予定 / 受付終了 を表示。
+      // 受付終了になっても非表示にせずカードを出し続ける。お休み(off)のみ除外。
+      const visible = sorted.filter(t => availableNowActive(t) || getScheduleStatus(t.today).status !== 'off');
+      // 個別サロンページでは最大4人まで表示（続きは「すべて見る」から週間出勤予定へ）
+      setList(visible.slice(0, 4));
     })();
   }, [salonId]);
 
