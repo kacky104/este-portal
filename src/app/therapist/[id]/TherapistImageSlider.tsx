@@ -69,6 +69,9 @@ export function TherapistImageSlider({ images, name }: { images: string[]; name:
             }`}
             style={{
               transform: `translateX(calc(-50% + ${offset * 100}%)) scale(${isActive ? 1 : 0.82})`,
+              // 縮小の基点を中央側の端に固定し、見切れ部分が痩せて消えないようにする
+              // （左隣は右端基点・右隣は左端基点）。スマホの狭い見切れ(7.5%)対策。
+              transformOrigin: isActive ? 'center' : offset < 0 ? 'right center' : 'left center',
               opacity: visible ? (isActive ? 1 : 0.65) : 0,
               pointerEvents: visible ? 'auto' : 'none',
             }}
