@@ -2,7 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { createClient } from "@/app/lib/supabase/server";
 import { getTheme } from "@/app/lib/themes";
-import { SalonTherapists, SalonAllTherapists } from "@/components/SalonTherapists";
+import { SalonTherapists, SalonAllTherapists, SalonNewFaceTherapists } from "@/components/SalonTherapists";
 import { SalonDiarySection } from "@/components/DiarySection";
 import SalonHeaderSlider from "@/components/SalonHeaderSlider";
 
@@ -247,6 +247,9 @@ export default async function SalonPage({
                 </Link>
               </div>
             </div>
+
+            {/* New face therapists（該当0人のときはセクションごと非表示） */}
+            <SalonNewFaceTherapists salonId={Number(id)} theme={theme} />
 
             {/* Diary section */}
             <div className="mt-8 rounded-3xl p-5 border shadow-sm" style={{ backgroundColor: theme.card, borderColor: theme.cardBorder }}>

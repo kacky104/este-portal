@@ -6,6 +6,7 @@ import { createClient } from '@/app/lib/supabase/client';
 import { getBusinessDateJST, getScheduleWindowStatus } from '@/lib/dutyStatus';
 import { isNewFaceActive } from '@/lib/newFace';
 import { NewBadge } from '@/components/NewBadge';
+import type { SalonTheme } from '@/app/lib/themes';
 
 const GRADS = ['from-pink-300 to-rose-400', 'from-fuchsia-300 to-pink-400', 'from-rose-300 to-pink-500'];
 const SYMS  = ['✿', '❀', '✾', '♡', '✦'];
@@ -283,6 +284,85 @@ export function SalonAllTherapists({ salonId, limit }: { salonId: number; limit?
       {shown.map((t, i) => (
         <GridCard key={t.id} therapist={t} index={i} />
       ))}
+    </div>
+  );
+}
+
+// ── SalonNewFaceTherapists (新人紹介) ──────────────────────────
+
+export function SalonNewFaceTherapists({ salonId, theme }: { salonId: number; theme: SalonTheme }) {
+  // null = 取得前、[] = 該当0人。どちらもセクションを描画しない。
+  const [list, setList] = useState<Therapist[] | null>(null);
+
+  useEffect(() => {
+    (async () => {
+      const supabase = createClient();
+      const { data: rows } = await supabase
+        .from('therapists')
+        .select('id, name, work_hours, area, comment, profile_image_url, is_available_now, available_until, is_new_face, new_face_since')
+        .eq('salon_id', salonId);
+
+      const rawIds = (rows ?? []).map(t => t.id);
+      const schedMap = await fetchScheduleMap(rawIds);
+
+      const mapped: Therapist[] = (rows ?? []).map(t => ({
+        id:              String(t.id),
+        name:            (t.name as string) ?? '',
+        workHours:       (t.work_hours as string) ?? '',
+        area:            (t.area as string) ?? '',
+        comment:         (t.comment as string) ?? '',
+        profileImageUrl: (t.profile_image_url as string | null) ?? null,
+        today:           schedMap[String(t.id)] ?? { is_active: false, start_time: null, end_time: null },
+        isAvailableNow:  Boolean(t.is_available_now),
+        availableUntil:  (t.available_until as string | null) ?? null,
+        isNewFace:       Boolean(t.is_new_face),
+        newFaceSince:    (t.new_face_since as string | null) ?? null,
+      }));
+
+      // is_new_face かつ new_face_since から30日以内のみ。new_face_since が新しい順。
+      const newFaces = mapped
+        .filter(t => isNewFaceActive(t.isNewFace, t.newFaceSince))
+        .sort((a, b) => {
+          const ta = a.newFaceSince ? new Date(a.newFaceSince).getTime() : 0;
+          const tb = b.newFaceSince ? new Date(b.newFaceSince).getTime() : 0;
+          return tb - ta;
+        });
+      setList(newFaces);
+    })();
+  }, [salonId]);
+
+  // 該当0人（または取得前）はセクション自体を非表示
+  if (!list || list.length === 0) return null;
+
+  const shown = list.slice(0, 4);
+  return (
+    <div className="mt-8 rounded-3xl p-5 border shadow-sm" style={{ backgroundColor: theme.card, borderColor: theme.cardBorder }}>
+      <div className="flex items-center gap-2 mb-4">
+        <span className="text-lg">🌸</span>
+        <h2 className="text-base font-bold" style={{ color: theme.heading }}>新人紹介</h2>
+      </div>
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        {shown.map((t, i) => (
+          <GridCard key={t.id} therapist={t} index={i} />
+        ))}
+      </div>
+      {list.length > 4 && (
+        <div className="mt-4 text-center">
+          <Link
+            href={`/salon/${salonId}/therapists`}
+            className="inline-flex items-center justify-center text-white shadow-sm hover:opacity-90 transition-opacity"
+            style={{
+              background: 'linear-gradient(to right, #ec4899, #f97316)',
+              color: '#ffffff',
+              borderRadius: '9999px',
+              padding: '10px 24px',
+              fontWeight: 600,
+            }}
+          >
+            すべて見る
+          </Link>
+        </div>
+      )}
     </div>
   );
 }
