@@ -108,10 +108,11 @@ async function fetchScheduleMap(rawIds: unknown[]): Promise<Record<string, Today
 
 // ── GridCard ──────────────────────────────────────────────────
 
-function GridCard({ therapist, index, showJoinDate = false }: {
+function GridCard({ therapist, index, showJoinDate = false, from }: {
   therapist:    Therapist;
   index:        number;
   showJoinDate?: boolean;   // 新人紹介セクションのみ true（入店日を表示）
+  from?:        string;     // パンくず用 ?from= パラメータ
 }) {
   const grad = GRADS[index % GRADS.length];
   const sym  = SYMS[index % SYMS.length];
@@ -123,7 +124,7 @@ function GridCard({ therapist, index, showJoinDate = false }: {
 
   return (
     <Link
-      href={`/therapist/${therapist.id}`}
+      href={from ? `/therapist/${therapist.id}?from=${from}` : `/therapist/${therapist.id}`}
       className="text-left w-full rounded-2xl border border-pink-50 bg-white shadow-sm flex h-28 overflow-hidden hover:border-pink-200 hover:shadow-md transition-all duration-200"
     >
       <div className={`relative w-28 bg-gradient-to-br ${grad} flex items-center justify-center flex-shrink-0 overflow-hidden`}>
@@ -270,7 +271,7 @@ export function SalonTherapists({ salonId }: { salonId: number }) {
 
 // ── SalonAllTherapists (全員表示) ──────────────────────────────
 
-export function SalonAllTherapists({ salonId, limit }: { salonId: number; limit?: number }) {
+export function SalonAllTherapists({ salonId, limit, from }: { salonId: number; limit?: number; from?: string }) {
   const [list, setList] = useState<Therapist[]>([]);
 
   useEffect(() => {
@@ -313,7 +314,7 @@ export function SalonAllTherapists({ salonId, limit }: { salonId: number; limit?
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
       {shown.map((t, i) => (
-        <GridCard key={t.id} therapist={t} index={i} />
+        <GridCard key={t.id} therapist={t} index={i} from={from} />
       ))}
     </div>
   );
@@ -326,11 +327,13 @@ export function SalonNewFaceTherapists({
   theme,
   header = 'card',
   maxItems = 4,
+  from,
 }: {
   salonId: number;
   theme: SalonTheme;
   header?: 'card' | 'bar';   // 'card': テーマ背景ブロック+見出し / 'bar': 緑色のタイトルバー
   maxItems?: number | null;  // number: その人数まで表示し超過時「すべて見る」/ null: 全件表示・ボタンなし
+  from?: string;             // パンくず用 ?from= パラメータ
 }) {
   // null = 取得前、[] = 該当0人。どちらもセクションを描画しない。
   const [list, setList] = useState<Therapist[] | null>(null);
@@ -383,7 +386,7 @@ export function SalonNewFaceTherapists({
   const cards = (
     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
       {shown.map((t, i) => (
-        <GridCard key={t.id} therapist={t} index={i} showJoinDate />
+        <GridCard key={t.id} therapist={t} index={i} showJoinDate from={from} />
       ))}
     </div>
   );

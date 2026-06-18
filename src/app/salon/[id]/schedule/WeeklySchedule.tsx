@@ -85,7 +85,7 @@ function TherapistCard({ t, isToday }: { t: DaySchedule; isToday: boolean }) {
 
   return (
     <Link
-      href={`/therapist/${t.id}`}
+      href={`/therapist/${t.id}?from=schedule`}
       className="rounded-2xl border border-slate-200 bg-white shadow-sm flex h-28 overflow-hidden hover:shadow-md transition-all duration-200"
     >
       <div className="relative w-28 flex-shrink-0 overflow-hidden bg-gradient-to-br from-pink-300 to-rose-400 flex items-center justify-center">

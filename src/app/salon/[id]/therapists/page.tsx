@@ -86,7 +86,7 @@ export default async function SalonTherapistsPage({
         </div>
 
         {/* 全在籍セラピスト（写真・名前・今すぐ・NEW・出勤ステータス付きカード） */}
-        <SalonAllTherapists salonId={Number(id)} />
+        <SalonAllTherapists salonId={Number(id)} from="therapists" />
       </main>
     </div>
   );

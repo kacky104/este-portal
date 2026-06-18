@@ -51,10 +51,13 @@ function buildDisplayHours(start: string | null, end: string | null): string {
 
 export default async function TherapistPublicPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ id: string }>;
+  searchParams: Promise<{ from?: string }>;
 }) {
   const { id } = await params;
+  const { from } = await searchParams;
 
   const supabase = await createClient();
 
@@ -177,6 +180,14 @@ export default async function TherapistPublicPage({
     <NewBadge className="shadow-[0_1px_4px_rgba(0,0,0,0.3)]" />
   ) : null;
 
+  // パンくずの中間項目を ?from= で動的に切り替え
+  const fromCrumb =
+    from === 'schedule'
+      ? { label: '出勤情報', href: `/salon/${therapist.salonId}/schedule` }
+      : from === 'therapists'
+        ? { label: 'セラピスト一覧', href: `/salon/${therapist.salonId}/therapists` }
+        : null;
+
   return (
     <div className="relative min-h-screen overflow-x-hidden" style={{ color: theme.text }}>
 
@@ -216,6 +227,18 @@ export default async function TherapistPublicPage({
           >
             {salon?.name ?? 'サロン'}
           </Link>
+          {fromCrumb && (
+            <>
+              <span aria-hidden className="flex-shrink-0" style={{ color: '#999' }}>›</span>
+              <Link
+                href={fromCrumb.href}
+                className="hover:opacity-80 transition-opacity flex-shrink-0 whitespace-nowrap"
+                style={{ color: '#ec4899' }}
+              >
+                {fromCrumb.label}
+              </Link>
+            </>
+          )}
           <span aria-hidden className="flex-shrink-0" style={{ color: '#999' }}>›</span>
           <span
             aria-current="page"
