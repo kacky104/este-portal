@@ -216,7 +216,8 @@ export function SalonTherapists({ salonId }: { salonId: number }) {
         }
         return 0;
       });
-      setList(sorted);
+      // 個別サロンページでは最大4人まで表示（続きは「全て見る」から週間出勤予定へ）
+      setList(sorted.slice(0, 4));
     })();
   }, [salonId]);
 
