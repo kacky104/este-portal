@@ -63,8 +63,8 @@ export function TherapistImageSlider({ images, name }: { images: string[]; name:
           <div
             key={i}
             onClick={() => !isActive && setIdx(i)}
-            // 幅：PC・スマホ共通で中央70%・両隣各15%（15+70+15=100%）。p-pxで画像間のgapを約2pxに。
-            className={`absolute top-0 left-1/2 h-full p-px transition-all duration-300 ease-out w-[70%] ${
+            // 幅：スマホ(md未満)=85%(両隣各7.5%)、md以上=70%(両隣各15%)。p-pxで画像間のgapを約2pxに。
+            className={`absolute top-0 left-1/2 h-full p-px transition-all duration-300 ease-out w-[85%] md:w-[70%] ${
               isActive ? 'z-20' : 'z-10 cursor-pointer'
             }`}
             style={{
