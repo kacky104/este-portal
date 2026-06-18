@@ -180,6 +180,22 @@ export default async function SalonPage({
                   全て見る →
                 </Link>
               </div>
+
+              <div className="mt-4 text-center">
+                <Link
+                  href={`/salon/${id}/schedule`}
+                  className="inline-flex items-center justify-center text-white shadow-sm hover:opacity-90 transition-opacity"
+                  style={{
+                    background: 'linear-gradient(to right, #ec4899, #f472b6)',
+                    color: '#ffffff',
+                    borderRadius: '9999px',
+                    padding: '10px 24px',
+                    fontWeight: 600,
+                  }}
+                >
+                  週間出勤予定を見る
+                </Link>
+              </div>
             </div>
 
             {/* About */}
