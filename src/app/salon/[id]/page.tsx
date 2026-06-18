@@ -169,21 +169,6 @@ export default async function SalonPage({
               <div className="mt-4 text-center">
                 <Link
                   href={`/salon/${id}/schedule`}
-                  className="inline-block text-sm font-bold hover:opacity-80 transition-opacity"
-                  style={{
-                    background: 'linear-gradient(to right, #ec4899, #f97316)',
-                    WebkitBackgroundClip: 'text',
-                    backgroundClip: 'text',
-                    WebkitTextFillColor: 'transparent',
-                  }}
-                >
-                  全て見る →
-                </Link>
-              </div>
-
-              <div className="mt-4 text-center">
-                <Link
-                  href={`/salon/${id}/schedule`}
                   className="inline-flex items-center justify-center text-white shadow-sm hover:opacity-90 transition-opacity"
                   style={{
                     background: 'linear-gradient(to right, #ec4899, #f472b6)',
@@ -193,7 +178,7 @@ export default async function SalonPage({
                     fontWeight: 600,
                   }}
                 >
-                  週間出勤予定を見る
+                  すべて見る
                 </Link>
               </div>
             </div>
