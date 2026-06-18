@@ -27,6 +27,15 @@ function formatDateTime(iso: string): string {
   }).format(d);
 }
 
+// 日付のみ（例「2026/06/18」）
+function formatDate(iso: string): string {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return '';
+  return new Intl.DateTimeFormat('ja-JP', {
+    timeZone: 'Asia/Tokyo', year: 'numeric', month: '2-digit', day: '2-digit',
+  }).format(d);
+}
+
 // diary_posts ＋ therapists（名前・サロン）を結合して取得
 async function fetchDiaries(opts: { salonId?: string; limit?: number }): Promise<DiaryView[]> {
   let query = supabase
@@ -63,7 +72,12 @@ async function fetchDiaries(opts: { salonId?: string; limit?: number }): Promise
 
 // ── Diary card（画像全面・テキストオーバーレイ。セラピストページへリンク） ──
 
-function DiaryCard({ diary }: { diary: DiaryView }) {
+function DiaryCard({ diary, emphasized = false }: { diary: DiaryView; emphasized?: boolean }) {
+  // emphasized（サロンページ用）：日付・題名を2倍、オーバーレイを半分の濃さに
+  const overlayCls = emphasized
+    ? 'bg-gradient-to-b from-black/32 via-black/5 to-black/35'
+    : 'bg-gradient-to-b from-black/65 via-black/10 to-black/70';
+
   return (
     <Link
       href={`/therapist/${diary.therapistId}`}
@@ -82,13 +96,20 @@ function DiaryCard({ diary }: { diary: DiaryView }) {
         </div>
       )}
 
-      <div className="absolute inset-0 bg-gradient-to-b from-black/65 via-black/10 to-black/70" />
+      <div className={`absolute inset-0 ${overlayCls}`} />
 
       {/* Top: date + comment */}
       <div className="absolute top-0 left-0 right-0 p-3">
-        <p className="text-[9px] text-white/60 mb-1">{formatDateTime(diary.createdAt)}</p>
+        <p className="text-white/70 mb-1" style={{ fontSize: emphasized ? '18px' : '9px' }}>
+          {emphasized ? `${formatDate(diary.createdAt)} 更新` : formatDateTime(diary.createdAt)}
+        </p>
         {diary.comment && (
-          <p className="text-[10px] text-white/85 leading-relaxed line-clamp-3">{diary.comment}</p>
+          <p
+            className="text-white/90 leading-relaxed line-clamp-3"
+            style={{ fontSize: emphasized ? '20px' : '10px' }}
+          >
+            {diary.comment}
+          </p>
         )}
       </div>
 
@@ -151,7 +172,7 @@ export function SalonDiarySection({ salonId }: { salonId: string }) {
     <div className="w-full overflow-x-hidden">
       <div className="flex gap-3 overflow-x-auto pb-4 scrollbar-pink w-full">
         {(list ?? []).map((diary) => (
-          <DiaryCard key={diary.id} diary={diary} />
+          <DiaryCard key={diary.id} diary={diary} emphasized />
         ))}
       </div>
     </div>
