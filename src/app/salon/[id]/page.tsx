@@ -166,6 +166,17 @@ export default async function SalonPage({
                 <h2 className="text-base font-bold" style={{ color: theme.heading }}>本日出勤のセラピスト</h2>
               </div>
               <SalonTherapists salonId={Number(id)} />
+
+              <Link
+                href={`/salon/${id}/schedule`}
+                className="mt-4 flex items-center justify-center gap-1.5 w-full py-2.5 rounded-xl text-sm font-bold text-white shadow-sm hover:opacity-90 transition-opacity"
+                style={{ background: 'linear-gradient(to right, #ec4899, #f97316)' }}
+              >
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <rect x="3" y="4" width="18" height="18" rx="2" /><path d="M16 2v4M8 2v4M3 10h18" />
+                </svg>
+                週間出勤予定を見る
+              </Link>
             </div>
 
             {/* About */}
