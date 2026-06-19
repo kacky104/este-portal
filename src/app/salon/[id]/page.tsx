@@ -172,8 +172,10 @@ export default async function SalonPage({
           {/* Left: main content */}
           <div className="lg:col-span-2 space-y-6 min-w-0">
 
-            {/* クイックナビ（装飾のみ・3カード横並び）。将来クリックでセクションへスクロール等を足せるよう各カードは独立要素にしておく。
-                白背景＋薄ピンク枠線＋ピンク文字でテーマ非依存に視認可能。モバイルでも3カラム維持。 */}
+            {/* クイックナビ（装飾のみ・2行×3カード）。将来クリックやバッジを足せるよう各カードは独立要素にしておく。
+                テーマ連動カラーで全テーマ視認可能。モバイルでも3カラム維持。段間は space-y で1段目と同間隔。 */}
+            <div className="space-y-2 sm:space-y-3">
+            {/* 1段目：本日出勤 / 料金 / 写メ日記 */}
             <div className="grid grid-cols-3 gap-2 sm:gap-3">
               {/* 本日出勤（週間出勤予定ページへのリンク） */}
               <Link href={`/salon/${id}/schedule`} className="relative flex flex-col items-center justify-center gap-1.5 rounded-lg border px-1.5 py-3 sm:py-4 shadow-sm cursor-pointer hover:shadow-md hover:brightness-95 transition-all" style={{ backgroundColor: qn.bg, borderColor: qn.border }}>
@@ -215,6 +217,39 @@ export default async function SalonPage({
                 </svg>
                 <span className="text-[11px] sm:text-sm font-bold leading-none whitespace-nowrap" style={{ color: qn.text }}>写メ日記</span>
               </div>
+            </div>
+
+            {/* 2段目：今すぐ / クーポン / 口コミ（装飾のみ） */}
+            <div className="grid grid-cols-3 gap-2 sm:gap-3">
+              {/* 今すぐ（顔＋ハート） */}
+              <div className="flex flex-col items-center justify-center gap-1.5 rounded-lg border px-1.5 py-3 sm:py-4 shadow-sm" style={{ backgroundColor: qn.bg, borderColor: qn.border }}>
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="flex-shrink-0" style={{ color: qn.icon }}>
+                  <circle cx="12" cy="12" r="9" />
+                  <path d="M9 9.5h.01" />
+                  <path d="M15 9.5h.01" />
+                  <path d="M12 17c1.5 -1.2 2.6 -2.1 2.6 -3.2a1.3 1.3 0 0 0 -2.6 -0.6a1.3 1.3 0 0 0 -2.6 0.6c0 1.1 1.1 2 2.6 3.2z" />
+                </svg>
+                <span className="text-[11px] sm:text-sm font-bold leading-none whitespace-nowrap" style={{ color: qn.text }}>今すぐ</span>
+              </div>
+              {/* クーポン（チケット） */}
+              <div className="flex flex-col items-center justify-center gap-1.5 rounded-lg border px-1.5 py-3 sm:py-4 shadow-sm" style={{ backgroundColor: qn.bg, borderColor: qn.border }}>
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="flex-shrink-0" style={{ color: qn.icon }}>
+                  <path d="M15 5l0 2" />
+                  <path d="M15 11l0 2" />
+                  <path d="M15 17l0 2" />
+                  <path d="M5 5h14a2 2 0 0 1 2 2v3a2 2 0 0 0 0 4v3a2 2 0 0 1 -2 2h-14a2 2 0 0 1 -2 -2v-3a2 2 0 0 0 0 -4v-3a2 2 0 0 1 2 -2" />
+                </svg>
+                <span className="text-[11px] sm:text-sm font-bold leading-none whitespace-nowrap" style={{ color: qn.text }}>クーポン</span>
+              </div>
+              {/* 口コミ（メッセージ） */}
+              <div className="flex flex-col items-center justify-center gap-1.5 rounded-lg border px-1.5 py-3 sm:py-4 shadow-sm" style={{ backgroundColor: qn.bg, borderColor: qn.border }}>
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="flex-shrink-0" style={{ color: qn.icon }}>
+                  <path d="M21 14l-3 -3h-7a1 1 0 0 1 -1 -1v-6a1 1 0 0 1 1 -1h9a1 1 0 0 1 1 1v10" />
+                  <path d="M14 15v2a1 1 0 0 1 -1 1h-7l-3 3v-10a1 1 0 0 1 1 -1h2" />
+                </svg>
+                <span className="text-[11px] sm:text-sm font-bold leading-none whitespace-nowrap" style={{ color: qn.text }}>口コミ</span>
+              </div>
+            </div>
             </div>
 
             {/* Today's therapists */}
