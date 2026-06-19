@@ -167,18 +167,26 @@ export default async function SalonImasuguPage({
                     </span>
                   </div>
 
-                  {/* 情報 */}
+                  {/* 情報（名前(年齢)・スリーサイズ・出勤時間を1行に横並び。狭い場合はスリーサイズを…で省略） */}
                   <div className="p-4 flex flex-col gap-2 flex-1">
-                    <div className="flex items-baseline gap-1.5 min-w-0">
-                      <p className="font-bold text-lg truncate" style={{ color: theme.heading }}>{name || "(名前未設定)"}</p>
-                      {age && <span className="text-sm flex-shrink-0" style={{ color: theme.body }}>({age})</span>}
+                    <div className="flex items-baseline gap-x-2 min-w-0 text-sm">
+                      <span className="flex items-baseline gap-1 flex-shrink-0">
+                        <span className="font-bold text-base" style={{ color: theme.heading }}>{name || "(名前未設定)"}</span>
+                        {age && <span style={{ color: theme.body }}>({age})</span>}
+                      </span>
+                      {bodySizes && (
+                        <>
+                          <span className="flex-shrink-0" style={{ color: theme.body, opacity: 0.4 }}>・</span>
+                          <span className="truncate min-w-0" style={{ color: theme.body }}>{bodySizes}</span>
+                        </>
+                      )}
+                      {hours && (
+                        <>
+                          <span className="flex-shrink-0" style={{ color: theme.body, opacity: 0.4 }}>・</span>
+                          <span className="font-medium text-pink-600 whitespace-nowrap flex-shrink-0">🕒 {hours}</span>
+                        </>
+                      )}
                     </div>
-                    {bodySizes && (
-                      <p className="text-sm" style={{ color: theme.body }}>{bodySizes}</p>
-                    )}
-                    {hours && (
-                      <p className="text-sm font-medium text-pink-600">🕒 {hours}</p>
-                    )}
                     <Link
                       href={`/therapist/${tid}`}
                       className="mt-auto inline-flex items-center justify-center text-white shadow-sm hover:opacity-90 transition-opacity"
