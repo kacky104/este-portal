@@ -64,6 +64,16 @@ export default async function SalonSchedulePage({
     schedRows = data ?? [];
   }
 
+  // 写メ日記の有無を1クエリでまとめて取得（diary_posts を1件以上持つ therapist_id の集合）
+  let diaryIds = new Set<string>();
+  if (therapists.length > 0) {
+    const { data: diaryRows } = await supabase
+      .from('diary_posts')
+      .select('therapist_id')
+      .in('therapist_id', therapists.map(t => t.id));
+    diaryIds = new Set((diaryRows ?? []).map(r => String(r.therapist_id)));
+  }
+
   // 日付ごとに出勤予定セラピストを構築
   const byDate: Record<string, DaySchedule[]> = {};
   for (const d of dates) byDate[d] = [];
@@ -92,6 +102,7 @@ export default async function SalonSchedulePage({
       isNewFace:      Boolean(t.is_new_face),
       newFaceSince:   (t.new_face_since as string | null) ?? null,
       bodyType:       (t.body_type as string | null) ?? null,
+      hasDiary:       diaryIds.has(String(t.id)),
     });
   }
 

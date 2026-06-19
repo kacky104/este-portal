@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import type { SalonTheme } from '@/app/lib/themes';
 import { isNewFaceActive } from '@/lib/newFace';
 import { formatBodySizes } from '@/lib/bodyType';
@@ -20,6 +21,7 @@ export type DaySchedule = {
   isNewFace:      boolean;
   newFaceSince:   string | null;
   bodyType:       string | null;
+  hasDiary:       boolean;
 };
 
 const WEEKDAYS = ['日', '月', '火', '水', '木', '金', '土'];
@@ -77,6 +79,7 @@ function statusBadge(t: DaySchedule, isToday: boolean): { label: string; cls: st
 }
 
 function TherapistCard({ t, isToday }: { t: DaySchedule; isToday: boolean }) {
+  const router = useRouter();
   const availableNow =
     t.isAvailableNow && t.availableUntil != null && new Date(t.availableUntil) > new Date();
   const isNew = isNewFaceActive(t.isNewFace, t.newFaceSince);
@@ -114,6 +117,24 @@ function TherapistCard({ t, isToday }: { t: DaySchedule; isToday: boolean }) {
           <p className="text-slate-500 mb-0.5 md:whitespace-nowrap md:overflow-hidden md:text-ellipsis" style={{ fontSize: '12px' }}>{bodySizes}</p>
         )}
         <p className="text-xs font-medium text-pink-600">🕒 {displayHours(t.startTime, t.endTime)}</p>
+        {/* 写メ日記バッジ（日記が1件以上ある子のみ）。カード全体は /therapist/[id] へのリンクのため、
+            ここは preventDefault + stopPropagation で日記一覧ページへ遷移させる。 */}
+        {t.hasDiary && (
+          <span
+            role="link"
+            tabIndex={0}
+            onClick={(e) => { e.preventDefault(); e.stopPropagation(); router.push(`/therapist/${t.id}/diary`); }}
+            onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); e.stopPropagation(); router.push(`/therapist/${t.id}/diary`); } }}
+            className="inline-flex items-center gap-1.5 mt-1 rounded-full bg-pink-50 text-pink-600 font-bold hover:bg-pink-100 transition-colors cursor-pointer self-start"
+            style={{ fontSize: '18px', padding: '4.5px 15px' }}
+          >
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="flex-shrink-0">
+              <path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z" />
+              <circle cx="12" cy="13" r="3" />
+            </svg>
+            写メ日記
+          </span>
+        )}
       </div>
     </Link>
   );
