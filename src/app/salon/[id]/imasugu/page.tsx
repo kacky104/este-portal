@@ -160,25 +160,27 @@ export default async function SalonImasuguPage({
                       <span className="text-white/70 font-bold text-5xl">{(name || "?").charAt(0)}</span>
                     )}
                     <span
-                      className="absolute top-2.5 left-2.5"
+                      className="absolute top-2.5 left-2.5 z-10"
                       style={{ background: "linear-gradient(to right, #ec4899, #f97316)", color: "white", fontSize: "13px", fontWeight: 700, padding: "4px 12px", borderRadius: "20px", whiteSpace: "nowrap" }}
                     >
                       今すぐ
                     </span>
+                    {/* 名前(年齢)オーバーレイ（写真左下）。写真色に依存せず読めるよう下→上の黒スクリム＋白文字＋影。 */}
+                    <div
+                      className="absolute inset-x-0 bottom-0 px-3 pt-10 pb-2 z-10 pointer-events-none"
+                      style={{ background: "linear-gradient(to top, rgba(0,0,0,0.78), rgba(0,0,0,0.35) 45%, rgba(0,0,0,0))" }}
+                    >
+                      <p className="font-bold text-white truncate" style={{ fontSize: "18px", textShadow: "0 1px 3px rgba(0,0,0,0.7)" }}>
+                        {name || "(名前未設定)"}{age ? ` (${age})` : ""}
+                      </p>
+                    </div>
                   </div>
 
-                  {/* 情報（名前(年齢)・スリーサイズ・出勤時間を1行に横並び。狭い場合はスリーサイズを…で省略） */}
+                  {/* 情報（スリーサイズ・出勤時間を1行に横並び。名前(年齢)は写真内オーバーレイへ移動） */}
                   <div className="p-4 flex flex-col gap-2 flex-1">
                     <div className="flex items-baseline gap-x-2 min-w-0 text-sm">
-                      <span className="flex items-baseline gap-1 flex-shrink-0">
-                        <span className="font-bold text-base" style={{ color: theme.heading }}>{name || "(名前未設定)"}</span>
-                        {age && <span style={{ color: theme.body }}>({age})</span>}
-                      </span>
                       {bodySizes && (
-                        <>
-                          <span className="flex-shrink-0" style={{ color: theme.body, opacity: 0.4 }}>・</span>
-                          <span className="whitespace-nowrap flex-shrink-0" style={{ color: theme.body }}>{bodySizes}</span>
-                        </>
+                        <span className="whitespace-nowrap flex-shrink-0" style={{ color: theme.body }}>{bodySizes}</span>
                       )}
                       {hours && (
                         <span className="font-medium text-pink-600 whitespace-nowrap flex-shrink-0 ml-2">🕒 {hours}</span>
