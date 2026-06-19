@@ -125,10 +125,10 @@ function TherapistCard({ t, isToday }: { t: DaySchedule; isToday: boolean }) {
             tabIndex={0}
             onClick={(e) => { e.preventDefault(); e.stopPropagation(); router.push(`/therapist/${t.id}/diary`); }}
             onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); e.stopPropagation(); router.push(`/therapist/${t.id}/diary`); } }}
-            className="inline-flex items-center gap-1.5 mt-1 rounded-full bg-pink-50 text-pink-600 font-bold hover:bg-pink-100 transition-colors cursor-pointer self-start"
-            style={{ fontSize: '18px', padding: '4.5px 15px' }}
+            className="inline-flex items-center gap-1 mt-1 rounded-md border border-pink-500 text-pink-600 font-bold hover:bg-pink-50 transition-colors cursor-pointer self-start"
+            style={{ fontSize: '11px', padding: '3px 9px' }}
           >
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="flex-shrink-0">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="flex-shrink-0">
               <path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z" />
               <circle cx="12" cy="13" r="3" />
             </svg>
