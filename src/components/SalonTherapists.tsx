@@ -158,18 +158,22 @@ function GridCard({ therapist, index, showJoinDate = false, from }: {
             <span className="absolute bottom-1 right-2 text-white/40 text-sm">{sym}</span>
           </>
         )}
+        {/* 今すぐバッジ（写真右上オーバーレイ）。表示条件は従来どおり今すぐフラグの子のみ。 */}
+        {therapist.isAvailableNow && therapist.availableUntil && new Date(therapist.availableUntil) > new Date() && (
+          <span className="absolute top-1.5 right-1.5 z-10" style={{ background: 'linear-gradient(to right, #ec4899, #f97316)', color: 'white', fontSize: '10px', fontWeight: 700, padding: '2px 6px', borderRadius: '20px', whiteSpace: 'nowrap' }}>
+            今すぐ
+          </span>
+        )}
+        {/* NEWバッジ（写真左下オーバーレイ）。表示条件は従来どおり新規30日以内の子のみ。 */}
+        {isNewFaceActive(therapist.isNewFace, therapist.newFaceSince) && (
+          <NewBadge className="absolute bottom-1.5 left-1.5 z-10" />
+        )}
       </div>
       <div className="p-3 flex-1 flex flex-col justify-between min-w-0 text-xs">
         <div>
           <div className="flex items-center gap-1.5 mb-0.5 flex-wrap">
             <p className="font-bold text-slate-900 truncate">{therapist.name}</p>
             {therapist.age && <span className="text-[11px] text-slate-500 flex-shrink-0">({therapist.age})</span>}
-            {isNewFaceActive(therapist.isNewFace, therapist.newFaceSince) && <NewBadge />}
-            {therapist.isAvailableNow && therapist.availableUntil && new Date(therapist.availableUntil) > new Date() && (
-              <span style={{ background: 'linear-gradient(to right, #ec4899, #f97316)', color: 'white', fontSize: '11px', fontWeight: 700, padding: '2px 8px', borderRadius: '20px' }}>
-                今すぐ
-              </span>
-            )}
             {ss && (
               <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full ${ss.badgeCls}`}>
                 {ss.label}

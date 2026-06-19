@@ -98,17 +98,19 @@ function TherapistCard({ t, isToday }: { t: DaySchedule; isToday: boolean }) {
         ) : (
           <span className="text-white/70 font-bold text-2xl">{t.name.charAt(0)}</span>
         )}
+        {/* 今すぐバッジ（写真右上オーバーレイ）。表示条件は従来どおり今すぐフラグの子のみ。 */}
+        {availableNow && (
+          <span className="absolute top-1.5 right-1.5 z-10" style={{ background: 'linear-gradient(to right, #ec4899, #f97316)', color: 'white', fontSize: '10px', fontWeight: 700, padding: '2px 6px', borderRadius: '20px', whiteSpace: 'nowrap' }}>
+            今すぐ
+          </span>
+        )}
+        {/* NEWバッジ（写真左下オーバーレイ）。表示条件は従来どおり新規30日以内の子のみ。 */}
+        {isNew && <NewBadge className="absolute bottom-1.5 left-1.5 z-10" />}
       </div>
       <div className="p-3 flex-1 flex flex-col justify-center min-w-0">
         <div className="flex items-center gap-1.5 mb-1 flex-wrap">
           <p className="font-bold text-sm truncate min-w-0 text-slate-900">{t.name}</p>
           {t.age && <span className="text-[11px] text-slate-500 flex-shrink-0">({t.age})</span>}
-          {isNew && <NewBadge />}
-          {availableNow && (
-            <span style={{ background: 'linear-gradient(to right, #ec4899, #f97316)', color: 'white', fontSize: '11px', fontWeight: 700, padding: '2px 8px', borderRadius: '20px', whiteSpace: 'nowrap' }}>
-              今すぐ
-            </span>
-          )}
           <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full whitespace-nowrap ${badge.cls}`}>
             {badge.label}
           </span>
