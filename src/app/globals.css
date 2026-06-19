@@ -60,3 +60,61 @@ body {
     background: #ec4899;
   }
 }
+
+/* ── サロン店名ブロックの初回キラリ演出（1回のみ） ───────── */
+.salon-name-banner {
+  position: relative;
+  overflow: hidden;
+}
+/* 店名テキストの静止時の色（インラインstyleで上書きしないこと。.play 側の指定を勝たせるため） */
+.salon-name-text {
+  color: var(--sn-heading);
+}
+
+/* 外枠を斜めに通り抜ける光の帯（左上→右下） */
+.salon-name-banner.play::after {
+  content: "";
+  position: absolute;
+  top: -60%;
+  left: 0;
+  width: 45%;
+  height: 220%;
+  pointer-events: none;
+  background: linear-gradient(120deg, transparent, rgba(236, 72, 153, 0.55), rgba(249, 115, 22, 0.55), transparent);
+  transform: rotate(20deg) translateX(-160%);
+  animation: sn-frame-sweep 1.2s ease-out 1;
+}
+@keyframes sn-frame-sweep {
+  from { transform: rotate(20deg) translateX(-160%); }
+  to   { transform: rotate(20deg) translateX(420%); }
+}
+
+/* 店名の文字を通過する光の帯（同じ向き・タイミング）。終了時はヘッディング色に戻す（forwards） */
+.salon-name-banner.play .salon-name-text {
+  color: transparent;
+  -webkit-text-fill-color: transparent;
+  background-image: linear-gradient(120deg, var(--sn-heading) 0 42%, #ec4899 48%, #f97316 56%, var(--sn-heading) 62% 100%);
+  background-size: 250% 100%;
+  background-position: 150% 0;
+  -webkit-background-clip: text;
+  background-clip: text;
+  animation: sn-text-sweep 1.2s ease-out 1 forwards;
+}
+@keyframes sn-text-sweep {
+  from { background-position: 150% 0; }
+  to   { background-position: -80% 0; }
+}
+
+/* 動きを抑える設定では演出を無効化（静止状態のまま） */
+@media (prefers-reduced-motion: reduce) {
+  .salon-name-banner.play::after {
+    display: none;
+    animation: none;
+  }
+  .salon-name-banner.play .salon-name-text {
+    animation: none;
+    background: none;
+    color: var(--sn-heading);
+    -webkit-text-fill-color: currentColor;
+  }
+}

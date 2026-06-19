@@ -27,6 +27,7 @@ const HEART_COLORS: Record<ThemeKey, { fill: string; num: string }> = {
 import { SalonTherapists, SalonAllTherapists, SalonNewFaceTherapists } from "@/components/SalonTherapists";
 import { SalonDiarySection } from "@/components/DiarySection";
 import SalonHeaderSlider from "@/components/SalonHeaderSlider";
+import { SalonNameBanner } from "./SalonNameBanner";
 
 export default async function SalonPage({
   params,
@@ -167,13 +168,8 @@ export default async function SalonPage({
           </span>
         </nav>
 
-        {/* ─── Block 0: 店名（最上部・独立ブロック） ─────── */}
-        <div className="rounded-2xl border shadow-sm p-5 mb-4 text-center" style={{ backgroundColor: theme.card, borderColor: theme.cardBorder }}>
-          <h1
-            className="font-bold whitespace-nowrap overflow-hidden"
-            style={{ fontSize: 'clamp(16px, 4vw, 24px)', textOverflow: 'ellipsis', color: theme.heading }}
-          >{salon.name}</h1>
-        </div>
+        {/* ─── Block 0: 店名（最上部・独立ブロック／初回キラリ演出） ─────── */}
+        <SalonNameBanner name={salon.name} cardBg={theme.card} cardBorder={theme.cardBorder} heading={theme.heading} />
 
         {/* ─── Block 1: 画像スライダー ─────────────────── */}
         <div className="rounded-2xl border shadow-sm overflow-hidden mb-4" style={{ backgroundColor: theme.card, borderColor: theme.cardBorder }}>
