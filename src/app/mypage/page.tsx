@@ -13,6 +13,13 @@ const supabase = createClient();
 
 const WEEKDAYS = ['日', '月', '火', '水', '木', '金', '土'];
 
+// 「今すぐ」が現時点で有効か（公開サイトのバッジ表示と同じ時刻ベース判定）。
+// is_available_now=true かつ available_until が未来のときのみ true。
+// 期限切れ（available_until が過去 / NULL）は cron の実行を待たず false 扱いにする。
+function isAvailableNowLive(t: { is_available_now?: boolean | null; available_until?: string | null }): boolean {
+  return Boolean(t.is_available_now) && t.available_until != null && new Date(t.available_until) > new Date();
+}
+
 async function fetchTherapistList(salonId: string): Promise<Therapist[]> {
   const { data, error } = await supabase
     .from('therapists')
@@ -278,7 +285,7 @@ export default function MyPage() {
       const list = await fetchTherapistList(String(salonData.id));
       setTherapists(list);
       const initAvail: Record<string, boolean> = {};
-      list.forEach(t => { initAvail[String(t.id)] = Boolean(t.is_available_now); });
+      list.forEach(t => { initAvail[String(t.id)] = isAvailableNowLive(t); });
       setAvailableNow(initAvail);
 
       const forms: Record<string, Partial<Therapist>> = {};
@@ -668,7 +675,7 @@ export default function MyPage() {
       setTherapists(refreshed);
       // ローカルのチェック状態もDBに合わせて同期（出勤外・期限切れの取りこぼしを解除）
       const sync: Record<string, boolean> = {};
-      refreshed.forEach(t => { sync[String(t.id)] = Boolean(t.is_available_now); });
+      refreshed.forEach(t => { sync[String(t.id)] = isAvailableNowLive(t); });
       setAvailableNow(sync);
     }
     setSavingAvailable(false);
