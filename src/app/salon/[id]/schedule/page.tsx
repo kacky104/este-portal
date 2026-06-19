@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { createClient } from "@/app/lib/supabase/server";
-import { getTheme } from "@/app/lib/themes";
+import { getTheme, breadcrumbCurrentColor } from "@/app/lib/themes";
 import { getBusinessDateRangeJST, getScheduleWindowStatus } from "@/lib/dutyStatus";
 import { WeeklySchedule, type DaySchedule } from "./WeeklySchedule";
 import { SalonNewFaceTherapists } from "@/components/SalonTherapists";
@@ -165,7 +165,7 @@ export default async function SalonSchedulePage({
             {salonName || 'サロン'}
           </Link>
           <span aria-hidden className="flex-shrink-0" style={{ color: '#999' }}>›</span>
-          <span aria-current="page" className="flex-shrink-0 whitespace-nowrap" style={{ color: '#333', fontWeight: 600 }}>週間出勤予定</span>
+          <span aria-current="page" className="flex-shrink-0 whitespace-nowrap" style={{ color: breadcrumbCurrentColor(theme.key), fontWeight: 600 }}>週間出勤予定</span>
         </nav>
 
         {/* タイトル */}

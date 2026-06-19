@@ -35,3 +35,9 @@ const DEFAULT_THEME = SALON_THEMES[0];
 export function getTheme(key: string | null | undefined): SalonTheme {
   return SALON_THEMES.find(t => t.key === key) ?? DEFAULT_THEME;
 }
+
+// パンくずの「現在地（リンクなし最終項目）」の文字色をテーマ連動で返す。
+// 黒テーマは暗背景で #333 が埋もれるため明るい色に。それ以外は従来の濃色（#333）。
+export function breadcrumbCurrentColor(key: string | null | undefined): string {
+  return key === 'black' ? '#F0F0F0' : '#333';
+}

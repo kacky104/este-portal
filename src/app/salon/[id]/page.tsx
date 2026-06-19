@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { createClient } from "@/app/lib/supabase/server";
-import { getTheme, type ThemeKey } from "@/app/lib/themes";
+import { getTheme, breadcrumbCurrentColor, type ThemeKey } from "@/app/lib/themes";
 import { getBusinessDateJST } from "@/lib/dutyStatus";
 
 // クイックナビ3カード専用の配色（テーマ連動）。テーマ色の薄い地＋同系の濃いアイコン/文字でコントラストを確保。
@@ -162,7 +162,7 @@ export default async function SalonPage({
             トップ
           </Link>
           <span aria-hidden className="flex-shrink-0" style={{ color: '#999' }}>›</span>
-          <span aria-current="page" className="inline-block max-w-[60%] truncate align-middle" style={{ color: '#333', fontWeight: 600 }}>
+          <span aria-current="page" className="inline-block max-w-[60%] truncate align-middle" style={{ color: breadcrumbCurrentColor(theme.key), fontWeight: 600 }}>
             {salon.name || 'サロン'}
           </span>
         </nav>

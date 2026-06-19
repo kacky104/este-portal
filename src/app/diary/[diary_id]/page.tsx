@@ -1,7 +1,7 @@
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { createClient } from '@/app/lib/supabase/server';
-import { getTheme } from '@/app/lib/themes';
+import { getTheme, breadcrumbCurrentColor } from '@/app/lib/themes';
 import { ScrollToCurrent } from './ScrollToCurrent';
 import { ExpandableText } from './ExpandableText';
 
@@ -151,7 +151,7 @@ export default async function DiaryDetailPage({
             写メ日記一覧
           </Link>
           <span aria-hidden className="flex-shrink-0" style={{ color: '#999' }}>›</span>
-          <span aria-current="page" className="inline-block max-w-[30%] truncate align-middle" style={{ color: '#333', fontWeight: 600 }}>{currentTitle}</span>
+          <span aria-current="page" className="inline-block max-w-[30%] truncate align-middle" style={{ color: breadcrumbCurrentColor(theme.key), fontWeight: 600 }}>{currentTitle}</span>
         </nav>
 
         {/* ─── 同じセラピストの全日記（縦に連続表示） ─── */}

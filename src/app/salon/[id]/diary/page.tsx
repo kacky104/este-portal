@@ -1,7 +1,7 @@
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { createClient } from '@/app/lib/supabase/server';
-import { getTheme } from '@/app/lib/themes';
+import { getTheme, breadcrumbCurrentColor } from '@/app/lib/themes';
 
 function formatDate(iso: string): string {
   const d = new Date(iso);
@@ -96,7 +96,7 @@ export default async function SalonDiaryPage({
           <span aria-hidden className="flex-shrink-0" style={{ color: '#999' }}>›</span>
           <Link href={`/salon/${id}`} className="hover:opacity-80 transition-opacity inline-block max-w-[40%] truncate align-middle" style={{ color: '#ec4899' }}>{salonName || 'サロン'}</Link>
           <span aria-hidden className="flex-shrink-0" style={{ color: '#999' }}>›</span>
-          <span aria-current="page" className="flex-shrink-0 whitespace-nowrap" style={{ color: '#333', fontWeight: 600 }}>写メ日記</span>
+          <span aria-current="page" className="flex-shrink-0 whitespace-nowrap" style={{ color: breadcrumbCurrentColor(theme.key), fontWeight: 600 }}>写メ日記</span>
         </nav>
 
         <div className="mb-6 text-center">

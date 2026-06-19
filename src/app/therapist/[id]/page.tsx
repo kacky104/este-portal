@@ -2,7 +2,7 @@ import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { createClient } from '@/app/lib/supabase/server';
 import { getBusinessDateRangeJST } from '@/lib/dutyStatus';
-import { getTheme } from '@/app/lib/themes';
+import { getTheme, breadcrumbCurrentColor } from '@/app/lib/themes';
 import { checkDutyStatus } from '@/lib/dutyStatus';
 import { isNewFaceActive } from '@/lib/newFace';
 import { NewBadge } from '@/components/NewBadge';
@@ -257,7 +257,7 @@ export default async function TherapistPublicPage({
           <span
             aria-current="page"
             className="inline-block max-w-[40%] truncate align-middle"
-            style={{ color: '#333', fontWeight: 600 }}
+            style={{ color: breadcrumbCurrentColor(theme.key), fontWeight: 600 }}
           >
             {therapist.name}
           </span>
