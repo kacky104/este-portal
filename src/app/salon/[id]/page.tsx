@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { createClient } from "@/app/lib/supabase/server";
 import { getTheme, type ThemeKey } from "@/app/lib/themes";
+import { getBusinessDateJST } from "@/lib/dutyStatus";
 
 // クイックナビ3カード専用の配色（テーマ連動）。テーマ色の薄い地＋同系の濃いアイコン/文字でコントラストを確保。
 // 黒のみ暗い地＋ゴールド。未設定/不明テーマは getTheme が white に正規化するためフォールバックも white。
@@ -12,6 +13,16 @@ const QUICKNAV_COLORS: Record<ThemeKey, { bg: string; border: string; icon: stri
   blue:   { bg: '#E6F1FB', border: '#85B7EB', icon: '#185FA5', text: '#0C447C' },
   red:    { bg: '#FCEBEB', border: '#F09595', icon: '#A32D2D', text: '#791F1F' },
   purple: { bg: '#EEEDFE', border: '#AFA9EC', icon: '#3C3489', text: '#26215C' },
+};
+
+// 本日出勤数のハートバッジ専用の配色（テーマ連動）。fill=ハートの塗り / num=数字色（黒のみ濃い文字）。
+const HEART_COLORS: Record<ThemeKey, { fill: string; num: string }> = {
+  white:  { fill: '#3A3A38', num: '#ffffff' },
+  black:  { fill: '#D4AF52', num: '#2B2A26' },
+  pink:   { fill: '#D4537E', num: '#ffffff' },
+  blue:   { fill: '#2576CC', num: '#ffffff' },
+  red:    { fill: '#D63A3A', num: '#ffffff' },
+  purple: { fill: '#6258C7', num: '#ffffff' },
 };
 import { SalonTherapists, SalonAllTherapists, SalonNewFaceTherapists } from "@/components/SalonTherapists";
 import { SalonDiarySection } from "@/components/DiarySection";
@@ -66,6 +77,26 @@ export default async function SalonPage({
 
   const theme = getTheme(row.theme as string | null);
   const qn = QUICKNAV_COLORS[theme.key];
+  const heart = HEART_COLORS[theme.key];
+
+  // 本日出勤セラピスト数（GridCardの「N名」と同一ロジック：当日の is_active スケジュールを持つ人数）。
+  const { data: salonTherapistRows } = await supabase
+    .from('therapists')
+    .select('id')
+    .eq('salon_id', Number(id));
+  const therapistIds = (salonTherapistRows ?? []).map(t => t.id);
+  let onDutyCount = 0;
+  if (therapistIds.length > 0) {
+    const today = getBusinessDateJST();
+    const { data: schedRows } = await supabase
+      .from('therapist_schedules')
+      .select('therapist_id, is_active')
+      .in('therapist_id', therapistIds)
+      .eq('schedule_date', today);
+    onDutyCount = new Set(
+      (schedRows ?? []).filter(r => Boolean(r.is_active)).map(r => String(r.therapist_id))
+    ).size;
+  }
 
   const { data: wallpaperRow } = await supabase
     .from('theme_wallpapers')
@@ -145,7 +176,19 @@ export default async function SalonPage({
                 白背景＋薄ピンク枠線＋ピンク文字でテーマ非依存に視認可能。モバイルでも3カラム維持。 */}
             <div className="grid grid-cols-3 gap-2 sm:gap-3">
               {/* 本日出勤（週間出勤予定ページへのリンク） */}
-              <Link href={`/salon/${id}/schedule`} className="flex flex-col items-center justify-center gap-1.5 rounded-lg border px-1.5 py-3 sm:py-4 shadow-sm cursor-pointer hover:shadow-md hover:brightness-95 transition-all" style={{ backgroundColor: qn.bg, borderColor: qn.border }}>
+              <Link href={`/salon/${id}/schedule`} className="relative flex flex-col items-center justify-center gap-1.5 rounded-lg border px-1.5 py-3 sm:py-4 shadow-sm cursor-pointer hover:shadow-md hover:brightness-95 transition-all" style={{ backgroundColor: qn.bg, borderColor: qn.border }}>
+                {/* 本日出勤人数のハートバッジ（1名以上のときのみ右上にはみ出して表示）。Link内のためタップでも遷移する。 */}
+                {onDutyCount > 0 && (
+                  <svg
+                    width="50" height="50" viewBox="0 0 100 100"
+                    className="absolute drop-shadow"
+                    style={{ top: '-12px', right: '-12px' }}
+                    aria-label={`本日出勤 ${onDutyCount}名`}
+                  >
+                    <path d="M50 86 C50 86 14 60 14 34 C14 21 25 13 35 13 C43 13 48 19 50 25 C52 19 57 13 65 13 C75 13 86 21 86 34 C86 60 50 86 50 86 Z" fill={heart.fill} />
+                    <text x="50" y="43" textAnchor="middle" dominantBaseline="central" fill={heart.num} fontWeight="600" fontSize={onDutyCount >= 10 ? 26 : 34}>{onDutyCount}</text>
+                  </svg>
+                )}
                 <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="flex-shrink-0" style={{ color: qn.icon }}>
                   <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
                   <circle cx="9" cy="7" r="4" />
