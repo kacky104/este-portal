@@ -65,14 +65,20 @@ body {
 .salon-name-banner {
   position: relative;
   overflow: hidden;
+  /* キラリ演出の再生回数。2回にしたい場合はこの値を 2 にするだけ（半端な回数にしないこと）。 */
+  --sn-iter: 1;
 }
 /* 店名テキストの静止時の色（インラインstyleで上書きしないこと。.play 側の指定を勝たせるため） */
 .salon-name-text {
   color: var(--sn-heading);
 }
 
-/* 枠線(border)だけを走る光。mask で内側(content-box)を除外し、背景フィルは光らせない。
-   ピンク多め＋オレンジは終わり際に少しだけ。左上→右下へ約2.3秒で1回スイープ。 */
+/* 帯は背景画像3倍幅(300%)の中央(約42〜66%)だけに置き、no-repeat でタイル複製による“2本目”を防止。
+   background-position を 100%→0% へ動かすと、帯は開始時は完全に外(右下外)、終了時も完全に外(左上外)
+   になり、1回の通過で「入って→抜けて→消える」が過不足なく1セットになる。
+   枠線と文字は同一keyframe・同一duration/delay/easingで完全同期。 */
+
+/* 枠線(border)だけを走る光。mask で内側(content-box)を除外し、背景フィルは光らせない。ピンク多め＋末尾に薄オレンジ。 */
 .salon-name-banner.play::before {
   content: "";
   position: absolute;
@@ -82,43 +88,46 @@ body {
   pointer-events: none;
   background-image: linear-gradient(
     120deg,
-    transparent 38%,
-    rgba(236, 72, 153, 0.9) 50%,
-    rgba(236, 72, 153, 0.9) 62%,
-    rgba(249, 115, 22, 0.85) 69%,
-    transparent 76%
+    transparent 0 42%,
+    rgba(236, 72, 153, 0.9) 47%,
+    rgba(236, 72, 153, 0.9) 57%,
+    rgba(249, 115, 22, 0.85) 62%,
+    transparent 66% 100%
   );
-  background-size: 250% 100%;
-  background-position: 150% 0;
+  background-size: 300% 100%;
+  background-repeat: no-repeat;
+  background-position: 100% 0;
   -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
           mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
   -webkit-mask-composite: xor;
           mask-composite: exclude;
-  animation: sn-sweep 2.3s ease-out 1;
+  animation: sn-sweep 2.3s ease-out var(--sn-iter, 1);
 }
 
-/* 店名の文字を通過する光（同じ向き・同じ速さ）。非帯部はヘッディング色。ピンク多め＋末尾に薄オレンジ。 */
+/* 店名の文字を通過する光（枠線と同一keyframe・同一タイミング）。非帯部はヘッディング色。 */
 .salon-name-banner.play .salon-name-text {
   color: transparent;
   -webkit-text-fill-color: transparent;
   background-image: linear-gradient(
     120deg,
     var(--sn-heading) 0 42%,
-    #ec4899 50%,
-    #ec4899 62%,
-    #f97316 69%,
-    var(--sn-heading) 76% 100%
+    #ec4899 47%,
+    #ec4899 57%,
+    #f97316 62%,
+    var(--sn-heading) 66% 100%
   );
-  background-size: 250% 100%;
-  background-position: 150% 0;
+  background-size: 300% 100%;
+  background-repeat: no-repeat;
+  background-position: 100% 0;
   -webkit-background-clip: text;
           background-clip: text;
-  animation: sn-sweep 2.3s ease-out 1;
+  animation: sn-sweep 2.3s ease-out var(--sn-iter, 1);
 }
 
+/* 1セット＝完全な1通過。開始(100%)・終了(0%)とも帯は要素外なので、複数回でも継ぎ目なく繰り返せる。 */
 @keyframes sn-sweep {
-  from { background-position: 150% 0; }
-  to   { background-position: -80% 0; }
+  from { background-position: 100% 0; }
+  to   { background-position: 0% 0; }
 }
 
 /* 動きを抑える設定では演出を無効化（静止状態のまま） */
