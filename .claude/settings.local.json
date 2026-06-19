@@ -56,7 +56,8 @@
       "Bash(curl -s http://localhost:3000/salons)",
       "Bash(python -c ' *)",
       "Bash(curl -s \"http://localhost:3000/salon/6\" -o /tmp/qnlink.html)",
-      "Bash(grep -oE 'href=\"/salon/6/schedule\"[^@]{0,600}?本日出勤' /tmp/qnlink.html)"
+      "Bash(grep -oE 'href=\"/salon/6/schedule\"[^@]{0,600}?本日出勤' /tmp/qnlink.html)",
+      "Bash(curl -s \"http://localhost:3000/salon/6/imasugu\" -o /tmp/im6.html)"
     ]
   },
   "hooks": {
