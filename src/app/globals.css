@@ -143,3 +143,51 @@ body {
     -webkit-text-fill-color: currentColor;
   }
 }
+
+/* ── /imasugu 上段の大きい今すぐカード：外枠(border)だけを常時キラリ（ループ） ──────────
+   店名ブロックと同じ mask リング方式で「枠線だけ」を発光（内側背景・写真・文字は対象外）。
+   1周内で「スイープ→静止」を行い、静止区間では帯が枠外＝通常の枠色に戻る（色残り防止）。
+   リズムは --imasugu-shine-duration と keyframe の % で調整可能。 */
+.imasugu-card-shine {
+  position: relative;
+  /* キラリの周期（スイープ＋待ち）。ゆっくりめ。リズム調整はこの値とkeyframeの%で。 */
+  --imasugu-shine-duration: 4.5s;
+}
+.imasugu-card-shine::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 20; /* 写真・名前オーバーレイより前面で、枠の縁に光を出す */
+  border-radius: inherit;
+  padding: 2px; /* 光らせる枠の太さ（演出中のみ・静止枠線は別レイヤー） */
+  pointer-events: none;
+  background-image: linear-gradient(
+    120deg,
+    transparent 0 42%,
+    rgba(236, 72, 153, 0.95) 47%,
+    rgba(236, 72, 153, 0.95) 57%,
+    rgba(249, 115, 22, 0.9) 62%,
+    transparent 66% 100%
+  );
+  background-size: 300% 100%;
+  background-repeat: no-repeat;
+  background-position: 100% 0;
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+          mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+          mask-composite: exclude;
+  animation: imasugu-frame-shine var(--imasugu-shine-duration, 4.5s) ease-out infinite;
+}
+/* 0〜45%でスイープ（左外→右外を1回通過）、45〜100%は帯が枠外で静止（＝通常の枠色）。
+   開始(100%)・静止/終了(0%)とも帯は完全に枠外なので、ループ周回の継ぎ目で色が残らない。 */
+@keyframes imasugu-frame-shine {
+  0%   { background-position: 100% 0; }
+  45%  { background-position: 0% 0; }
+  100% { background-position: 0% 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .imasugu-card-shine::before {
+    display: none;
+    animation: none;
+  }
+}

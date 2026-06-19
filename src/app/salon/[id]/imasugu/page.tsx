@@ -148,7 +148,7 @@ export default async function SalonImasuguPage({
               return (
                 <div
                   key={tid}
-                  className="rounded-2xl border shadow-sm overflow-hidden flex flex-col"
+                  className="imasugu-card-shine rounded-2xl border shadow-sm overflow-hidden flex flex-col"
                   style={{ backgroundColor: theme.card, borderColor: theme.cardBorder }}
                 >
                   {/* 写真（大きめ）＋今すぐバッジ */}
