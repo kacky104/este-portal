@@ -129,6 +129,39 @@ export default async function SalonPage({
           {/* Left: main content */}
           <div className="lg:col-span-2 space-y-6 min-w-0">
 
+            {/* クイックナビ（装飾のみ・3カード横並び）。将来クリックでセクションへスクロール等を足せるよう各カードは独立要素にしておく。
+                白背景＋薄ピンク枠線＋ピンク文字でテーマ非依存に視認可能。モバイルでも3カラム維持。 */}
+            <div className="grid grid-cols-3 gap-2 sm:gap-3">
+              {/* 本日出勤 */}
+              <div className="flex flex-col items-center justify-center gap-1.5 rounded-lg border border-pink-200 bg-white text-pink-600 px-1.5 py-3 sm:py-4 shadow-sm">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="flex-shrink-0">
+                  <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
+                  <circle cx="9" cy="7" r="4" />
+                  <path d="M16 11l2 2 4-4" />
+                </svg>
+                <span className="text-[11px] sm:text-sm font-bold leading-none whitespace-nowrap">本日出勤</span>
+              </div>
+              {/* 料金 */}
+              <div className="flex flex-col items-center justify-center gap-1.5 rounded-lg border border-pink-200 bg-white text-pink-600 px-1.5 py-3 sm:py-4 shadow-sm">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="flex-shrink-0">
+                  <path d="M12 13L7 5" />
+                  <path d="M12 13l5-8" />
+                  <path d="M12 13v6" />
+                  <path d="M8 14h8" />
+                  <path d="M8 17h8" />
+                </svg>
+                <span className="text-[11px] sm:text-sm font-bold leading-none whitespace-nowrap">料金</span>
+              </div>
+              {/* 写メ日記 */}
+              <div className="flex flex-col items-center justify-center gap-1.5 rounded-lg border border-pink-200 bg-white text-pink-600 px-1.5 py-3 sm:py-4 shadow-sm">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="flex-shrink-0">
+                  <path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z" />
+                  <circle cx="12" cy="13" r="3" />
+                </svg>
+                <span className="text-[11px] sm:text-sm font-bold leading-none whitespace-nowrap">写メ日記</span>
+              </div>
+            </div>
+
             {/* Today's therapists */}
             <div className="mt-8 rounded-3xl p-5 border shadow-sm" style={{ backgroundColor: theme.card, borderColor: theme.cardBorder }}>
               <div className="flex items-center gap-2 mb-4">
