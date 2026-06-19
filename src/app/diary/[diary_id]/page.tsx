@@ -77,8 +77,10 @@ export default async function DiaryDetailPage({
     };
   });
 
-  // パンくず（セラピストフィード時）用：現在の日記のセラピスト名
-  const therapistName = list.find((d) => d.id === String(diary_id))?.therapistName ?? list[0].therapistName;
+  // パンくず用：現在の日記のエントリ（サロン名・題名・セラピスト名を参照）
+  const currentEntry = list.find((d) => d.id === String(diary_id)) ?? list[0];
+  const salonName = currentEntry.salonName || list[0].salonName;
+  const currentTitle = currentEntry.title || '写メ日記';
 
   // サロンのテーマ壁紙を背景に適用
   const theme = getTheme(list[0].themeKey);
@@ -125,21 +127,31 @@ export default async function DiaryDetailPage({
 
       <main className="max-w-2xl mx-auto px-4 py-8">
 
-        {/* ─── パンくずリスト：トップ › セラピスト名 › 写メ日記 ─── */}
+        {/* ─── パンくずリスト：トップ › サロン名 › 写メ日記一覧 › 題名 ─── */}
+        {/* 「写メ日記一覧」のリンク先は来た経路で切替（フィード判定 fromSalon と整合）：
+            from=salon → お店全体の一覧 /salon/[id]/diary、それ以外 → そのセラピストの一覧 /therapist/[id]/diary */}
         <nav aria-label="パンくずリスト" className="flex items-center gap-1.5 mb-6" style={{ fontSize: '13px' }}>
           <Link href="/" className="hover:opacity-80 transition-opacity flex-shrink-0 whitespace-nowrap" style={{ color: '#ec4899' }}>
             トップ
           </Link>
           <span aria-hidden className="flex-shrink-0" style={{ color: '#999' }}>›</span>
           <Link
-            href={fromSalon ? `/salon/${salonId}/diary` : `/therapist/${therapistId}`}
-            className="hover:opacity-80 transition-opacity inline-block max-w-[45%] truncate align-middle"
+            href={`/salon/${salonId}`}
+            className="hover:opacity-80 transition-opacity inline-block max-w-[30%] truncate align-middle"
             style={{ color: '#ec4899' }}
           >
-            {fromSalon ? (list[0].salonName || 'サロン') : (therapistName || 'セラピスト')}
+            {salonName || 'サロン'}
           </Link>
           <span aria-hidden className="flex-shrink-0" style={{ color: '#999' }}>›</span>
-          <span aria-current="page" className="flex-shrink-0 whitespace-nowrap" style={{ color: '#333', fontWeight: 600 }}>写メ日記</span>
+          <Link
+            href={fromSalon ? `/salon/${salonId}/diary` : `/therapist/${therapistId}/diary`}
+            className="hover:opacity-80 transition-opacity flex-shrink-0 whitespace-nowrap"
+            style={{ color: '#ec4899' }}
+          >
+            写メ日記一覧
+          </Link>
+          <span aria-hidden className="flex-shrink-0" style={{ color: '#999' }}>›</span>
+          <span aria-current="page" className="inline-block max-w-[30%] truncate align-middle" style={{ color: '#333', fontWeight: 600 }}>{currentTitle}</span>
         </nav>
 
         {/* ─── 同じセラピストの全日記（縦に連続表示） ─── */}
