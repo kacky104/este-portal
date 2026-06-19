@@ -4,6 +4,7 @@ import { createClient } from "@/app/lib/supabase/server";
 import { getTheme } from "@/app/lib/themes";
 import { getBusinessDateJST } from "@/lib/dutyStatus";
 import { formatBodySizes } from "@/lib/bodyType";
+import { SalonOnDutyExcludingNow } from "@/components/SalonTherapists";
 
 // "HH:MM〜HH:MM"（日跨ぎは終了側に「翌」）。GridCard の buildDisplayHours と同じ整形。
 function buildDisplayHours(start: string | null, end: string | null): string {
@@ -191,6 +192,9 @@ export default async function SalonImasuguPage({
             })}
           </div>
         )}
+
+        {/* 下段：本日出勤のうち「今すぐ」を除いた残り（出勤中→出勤予定→受付終了）。0名ならセクションごと非表示。 */}
+        <SalonOnDutyExcludingNow salonId={Number(id)} theme={theme} />
       </main>
     </div>
   );

@@ -310,6 +310,94 @@ export function SalonTherapists({ salonId }: { salonId: number }) {
   );
 }
 
+// ── SalonOnDutyExcludingNow（本日出勤のうち「今すぐ」を除いた残り。/imasugu 下段用） ──
+// 既存 SalonTherapists の取得・今すぐ判定・並び順ロジックを流用。
+//   表示対象: 本日出勤(off以外) かつ 今すぐ以外（今すぐの子は上段の大カードで表示するため除外）。
+//   並び順  : 出勤中・出勤予定(開始時間順) → 受付終了。0名なら null（セクションごと非表示）。
+export function SalonOnDutyExcludingNow({ salonId, theme }: { salonId: number; theme: SalonTheme }) {
+  // null = 取得前 / [] = 該当0人。どちらもセクションを描画しない。
+  const [list, setList] = useState<Therapist[] | null>(null);
+
+  useEffect(() => {
+    (async () => {
+      const supabase = createClient();
+      const { data: rows } = await supabase
+        .from('therapists')
+        .select('id, name, age, work_hours, area, comment, profile_image_url, is_available_now, available_until, is_new_face, new_face_since, body_type')
+        .eq('salon_id', salonId);
+
+      const rawIds = (rows ?? []).map(t => t.id);
+      const [schedMap, diarySet] = await Promise.all([
+        fetchScheduleMap(rawIds),
+        fetchDiarySet(rawIds),
+      ]);
+
+      const mapped: Therapist[] = (rows ?? []).map(t => {
+        const key = String(t.id);
+        const todaySchedule = schedMap[key] ?? { is_active: false, start_time: null, end_time: null };
+        return {
+          id:              key,
+          name:            (t.name as string) ?? '',
+          workHours:       (t.work_hours as string) ?? '',
+          area:            (t.area as string) ?? '',
+          comment:         (t.comment as string) ?? '',
+          profileImageUrl: (t.profile_image_url as string | null) ?? null,
+          today:           todaySchedule,
+          isAvailableNow:  Boolean(t.is_available_now),
+          availableUntil:  (t.available_until as string | null) ?? null,
+          isNewFace:       Boolean(t.is_new_face),
+          newFaceSince:    (t.new_face_since as string | null) ?? null,
+          bodyType:        (t.body_type as string | null) ?? null,
+          age:             (t.age as string | null) ?? null,
+          hasDiary:        diarySet.has(key),
+        };
+      });
+
+      // 既存「本日出勤」と同じ並び順ロジックを流用。
+      const availableNowActive = (t: Therapist) =>
+        t.isAvailableNow && t.availableUntil != null && new Date(t.availableUntil) > new Date();
+      const rank = (t: Therapist): number => {
+        if (availableNowActive(t)) return 0;
+        const s = getScheduleStatus(t.today).status;
+        if (s === 'onDuty' || s === 'before') return 1;
+        if (s === 'after') return 2;
+        return 3; // off（お休み）
+      };
+      const sorted = [...mapped].sort((a, b) => {
+        const ra = rank(a), rb = rank(b);
+        if (ra !== rb) return ra - rb;
+        if (ra === 1) {
+          const sa = a.today.start_time ?? '99:99';
+          const sb = b.today.start_time ?? '99:99';
+          return sa.localeCompare(sb);
+        }
+        return 0;
+      });
+      // 本日出勤(off以外) かつ 今すぐ以外。今すぐの子は上段の大カードに表示するため重複除外。
+      const visible = sorted.filter(t =>
+        getScheduleStatus(t.today).status !== 'off' && !availableNowActive(t)
+      );
+      setList(visible);
+    })();
+  }, [salonId]);
+
+  if (!list || list.length === 0) return null;
+
+  return (
+    <div className="mt-8 rounded-3xl p-5 border shadow-sm" style={{ backgroundColor: theme.card, borderColor: theme.cardBorder }}>
+      <div className="flex items-center gap-2 mb-4">
+        <span className="text-lg">💖</span>
+        <h2 className="text-base font-bold" style={{ color: theme.heading }}>本日出勤のセラピスト</h2>
+      </div>
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        {list.map((t, i) => (
+          <GridCard key={t.id} therapist={t} index={i} />
+        ))}
+      </div>
+    </div>
+  );
+}
+
 // ── SalonAllTherapists (全員表示) ──────────────────────────────
 
 export function SalonAllTherapists({ salonId, limit, from }: { salonId: number; limit?: number; from?: string }) {
