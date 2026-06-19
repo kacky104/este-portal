@@ -133,7 +133,7 @@ export default async function SalonImasuguPage({
         </div>
 
         {imasugu.length === 0 ? (
-          <p className="text-center text-sm py-12 rounded-2xl border border-dashed" style={{ color: theme.body, borderColor: theme.cardBorder }}>
+          <p className="text-center text-base py-12 rounded-2xl" style={{ color: theme.body }}>
             お店にお問い合わせください
           </p>
         ) : (
