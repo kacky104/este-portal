@@ -31,6 +31,8 @@ export function SalonNameBanner({
     <div
       className={`salon-name-banner rounded-2xl border shadow-sm p-5 mb-4 text-center${play ? ' play' : ''}`}
       style={{ backgroundColor: cardBg, borderColor: cardBorder, '--sn-heading': heading } as React.CSSProperties}
+      // アニメ完了で .play を外し、文字を必ず静止色（単色ヘッディング）へ戻す（黒テーマの色残り防止）。
+      onAnimationEnd={() => setPlay(false)}
     >
       <h1
         className="salon-name-text font-bold whitespace-nowrap overflow-hidden"
