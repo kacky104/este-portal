@@ -177,14 +177,11 @@ export default async function SalonImasuguPage({
                       {bodySizes && (
                         <>
                           <span className="flex-shrink-0" style={{ color: theme.body, opacity: 0.4 }}>・</span>
-                          <span className="truncate min-w-0" style={{ color: theme.body }}>{bodySizes}</span>
+                          <span className="whitespace-nowrap flex-shrink-0" style={{ color: theme.body }}>{bodySizes}</span>
                         </>
                       )}
                       {hours && (
-                        <>
-                          <span className="flex-shrink-0" style={{ color: theme.body, opacity: 0.4 }}>・</span>
-                          <span className="font-medium text-pink-600 whitespace-nowrap flex-shrink-0">🕒 {hours}</span>
-                        </>
+                        <span className="font-medium text-pink-600 whitespace-nowrap flex-shrink-0 ml-2">🕒 {hours}</span>
                       )}
                     </div>
                     <Link
