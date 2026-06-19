@@ -49,7 +49,12 @@
       "Bash(echo \"EXIT: $?\")",
       "Bash(echo \"BUILD EXIT: $?\")",
       "Bash(node \"C:/Users/joltc/Desktop/este-portal/_check_avail.mjs\")",
-      "Bash(npx eslint *)"
+      "Bash(npx eslint *)",
+      "Bash(python -c \"import sys,json; d=json.load\\(sys.stdin\\); print\\(json.dumps\\(d.get\\('scripts',{}\\),ensure_ascii=False\\)\\)\")",
+      "Bash(echo \"started pid $!\")",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\" http://localhost:3000)",
+      "Bash(curl -s http://localhost:3000/salons)",
+      "Bash(python -c ' *)"
     ]
   },
   "hooks": {

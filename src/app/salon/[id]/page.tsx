@@ -99,17 +99,16 @@ export default async function SalonPage({
 
       <main className="max-w-4xl mx-auto px-4 py-8 overflow-x-hidden">
 
-        {/* ─── Back button ─────────────────────────────── */}
-        <Link
-          href="/"
-          className="inline-flex items-center gap-1.5 text-sm hover:opacity-70 transition-opacity mb-6"
-          style={{ color: theme.body }}
-        >
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-            <path d="M19 12H5M12 5l-7 7 7 7" />
-          </svg>
-          サロン一覧へ戻る
-        </Link>
+        {/* ─── パンくずリスト：トップ › サロン名（他ページと同形式） ─── */}
+        <nav aria-label="パンくずリスト" className="flex items-center gap-1.5 mb-6" style={{ fontSize: '13px' }}>
+          <Link href="/" className="hover:opacity-80 transition-opacity flex-shrink-0 whitespace-nowrap" style={{ color: '#ec4899' }}>
+            トップ
+          </Link>
+          <span aria-hidden className="flex-shrink-0" style={{ color: '#999' }}>›</span>
+          <span aria-current="page" className="inline-block max-w-[60%] truncate align-middle" style={{ color: '#333', fontWeight: 600 }}>
+            {salon.name || 'サロン'}
+          </span>
+        </nav>
 
         {/* ─── Block 0: 店名（最上部・独立ブロック） ─────── */}
         <div className="rounded-2xl border shadow-sm p-5 mb-4 text-center" style={{ backgroundColor: theme.card, borderColor: theme.cardBorder }}>
@@ -277,16 +276,6 @@ export default async function SalonPage({
               </div>
             )}
 
-            {/* Back CTA */}
-            <Link
-              href="/"
-              className="flex items-center justify-center gap-2 w-full py-3 rounded-xl border border-pink-300 text-pink-600 text-sm font-medium hover:bg-pink-50 transition-colors"
-            >
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <path d="M19 12H5M12 5l-7 7 7 7" />
-              </svg>
-              一覧へ戻る
-            </Link>
           </div>
         </div>
 
