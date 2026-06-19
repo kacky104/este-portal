@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { createClient } from '@/app/lib/supabase/client';
 import { getBusinessDateJST, getScheduleWindowStatus } from '@/lib/dutyStatus';
 import { isNewFaceActive } from '@/lib/newFace';
@@ -74,6 +75,7 @@ type Therapist = {
   isNewFace:       boolean;
   newFaceSince:    string | null;
   bodyType:        string | null;
+  hasDiary:        boolean;
 };
 
 // ── shared schedule fetch ──────────────────────────────────────
@@ -106,6 +108,18 @@ async function fetchScheduleMap(rawIds: unknown[]): Promise<Record<string, Today
   return map;
 }
 
+// ── 写メ日記の有無を1クエリでまとめて取得 ──────────────────────
+// 対象セラピストのうち diary_posts を1件以上持つ therapist_id を Set で返す（N+1回避）。
+async function fetchDiarySet(rawIds: unknown[]): Promise<Set<string>> {
+  if (rawIds.length === 0) return new Set();
+  const supabase = createClient();
+  const { data } = await supabase
+    .from('diary_posts')
+    .select('therapist_id')
+    .in('therapist_id', rawIds);
+  return new Set((data ?? []).map(r => String(r.therapist_id)));
+}
+
 // ── GridCard ──────────────────────────────────────────────────
 
 function GridCard({ therapist, index, showJoinDate = false, from }: {
@@ -116,6 +130,7 @@ function GridCard({ therapist, index, showJoinDate = false, from }: {
 }) {
   const grad = GRADS[index % GRADS.length];
   const sym  = SYMS[index % SYMS.length];
+  const router = useRouter();
   const [ss, setSS] = useState<StatusResult | null>(null);
   useEffect(() => { setSS(getScheduleStatus(therapist.today)); }, [therapist.today]);
 
@@ -176,6 +191,24 @@ function GridCard({ therapist, index, showJoinDate = false, from }: {
               🕒 {displayHours || therapist.workHours || '—'}
             </p>
           )}
+          {/* 写メ日記バッジ（日記が1件以上ある子のみ）。カード全体は /therapist/[id] へのリンクのため、
+              ここは preventDefault + stopPropagation で日記一覧ページへ遷移させる。 */}
+          {therapist.hasDiary && (
+            <span
+              role="link"
+              tabIndex={0}
+              onClick={(e) => { e.preventDefault(); e.stopPropagation(); router.push(`/therapist/${therapist.id}/diary`); }}
+              onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); e.stopPropagation(); router.push(`/therapist/${therapist.id}/diary`); } }}
+              className="inline-flex items-center gap-1 mb-1 rounded-full bg-pink-50 text-pink-600 font-bold hover:bg-pink-100 transition-colors cursor-pointer"
+              style={{ fontSize: '12px', padding: '3px 10px' }}
+            >
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="flex-shrink-0">
+                <path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z" />
+                <circle cx="12" cy="13" r="3" />
+              </svg>
+              写メ日記
+            </span>
+          )}
           <p className="text-[10px] text-slate-500 line-clamp-2 leading-relaxed break-all">
             {therapist.comment}
           </p>
@@ -201,7 +234,10 @@ export function SalonTherapists({ salonId }: { salonId: number }) {
       console.log('[SalonTherapists] therapist rows:', rows?.map(r => ({ id: r.id, name: r.name })));
 
       const rawIds = (rows ?? []).map(t => t.id);
-      const schedMap = await fetchScheduleMap(rawIds);
+      const [schedMap, diarySet] = await Promise.all([
+        fetchScheduleMap(rawIds),
+        fetchDiarySet(rawIds),
+      ]);
 
       console.log('[SalonTherapists] schedMap keys:', Object.keys(schedMap));
 
@@ -224,6 +260,7 @@ export function SalonTherapists({ salonId }: { salonId: number }) {
           newFaceSince:    (t.new_face_since as string | null) ?? null,
           bodyType:        (t.body_type as string | null) ?? null,
           age:             (t.age as string | null) ?? null,
+          hasDiary:        diarySet.has(key),
         };
       });
 
@@ -283,7 +320,10 @@ export function SalonAllTherapists({ salonId, limit, from }: { salonId: number; 
         .eq('salon_id', salonId);
 
       const rawIds = (rows ?? []).map(t => t.id);
-      const schedMap = await fetchScheduleMap(rawIds);
+      const [schedMap, diarySet] = await Promise.all([
+        fetchScheduleMap(rawIds),
+        fetchDiarySet(rawIds),
+      ]);
 
       const mapped: Therapist[] = (rows ?? []).map(t => ({
         id:              String(t.id),
@@ -299,6 +339,7 @@ export function SalonAllTherapists({ salonId, limit, from }: { salonId: number; 
         newFaceSince:    (t.new_face_since as string | null) ?? null,
         bodyType:        (t.body_type as string | null) ?? null,
         age:             (t.age as string | null) ?? null,
+        hasDiary:        diarySet.has(String(t.id)),
       }));
 
       setList(mapped);
@@ -347,7 +388,10 @@ export function SalonNewFaceTherapists({
         .eq('salon_id', salonId);
 
       const rawIds = (rows ?? []).map(t => t.id);
-      const schedMap = await fetchScheduleMap(rawIds);
+      const [schedMap, diarySet] = await Promise.all([
+        fetchScheduleMap(rawIds),
+        fetchDiarySet(rawIds),
+      ]);
 
       const mapped: Therapist[] = (rows ?? []).map(t => ({
         id:              String(t.id),
@@ -363,6 +407,7 @@ export function SalonNewFaceTherapists({
         newFaceSince:    (t.new_face_since as string | null) ?? null,
         bodyType:        (t.body_type as string | null) ?? null,
         age:             (t.age as string | null) ?? null,
+        hasDiary:        diarySet.has(String(t.id)),
       }));
 
       // is_new_face かつ new_face_since から30日以内のみ。new_face_since が新しい順。
