@@ -144,15 +144,15 @@ export default async function SalonPage({
             {/* クイックナビ（装飾のみ・3カード横並び）。将来クリックでセクションへスクロール等を足せるよう各カードは独立要素にしておく。
                 白背景＋薄ピンク枠線＋ピンク文字でテーマ非依存に視認可能。モバイルでも3カラム維持。 */}
             <div className="grid grid-cols-3 gap-2 sm:gap-3">
-              {/* 本日出勤 */}
-              <div className="flex flex-col items-center justify-center gap-1.5 rounded-lg border px-1.5 py-3 sm:py-4 shadow-sm" style={{ backgroundColor: qn.bg, borderColor: qn.border }}>
+              {/* 本日出勤（週間出勤予定ページへのリンク） */}
+              <Link href={`/salon/${id}/schedule`} className="flex flex-col items-center justify-center gap-1.5 rounded-lg border px-1.5 py-3 sm:py-4 shadow-sm cursor-pointer hover:shadow-md hover:brightness-95 transition-all" style={{ backgroundColor: qn.bg, borderColor: qn.border }}>
                 <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="flex-shrink-0" style={{ color: qn.icon }}>
                   <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
                   <circle cx="9" cy="7" r="4" />
                   <path d="M16 11l2 2 4-4" />
                 </svg>
                 <span className="text-[11px] sm:text-sm font-bold leading-none whitespace-nowrap" style={{ color: qn.text }}>本日出勤</span>
-              </div>
+              </Link>
               {/* 料金 */}
               <div className="flex flex-col items-center justify-center gap-1.5 rounded-lg border px-1.5 py-3 sm:py-4 shadow-sm" style={{ backgroundColor: qn.bg, borderColor: qn.border }}>
                 <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="flex-shrink-0" style={{ color: qn.icon }}>
