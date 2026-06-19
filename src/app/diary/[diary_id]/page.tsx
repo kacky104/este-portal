@@ -15,35 +15,45 @@ function formatDate(iso: string): string {
 
 export default async function DiaryDetailPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ diary_id: string }>;
+  searchParams: Promise<{ from?: string }>;
 }) {
   const { diary_id } = await params;
+  const { from } = await searchParams;
   const supabase = await createClient();
 
-  // 現在の日記から投稿者(セラピスト)を特定（id は UUID/bigint 両対応で文字列のまま照合）
+  // 現在の日記から投稿者(セラピスト)と所属サロンを特定（id は UUID/bigint 両対応で文字列のまま照合）
   const { data: current, error } = await supabase
     .from('diary_posts')
-    .select('therapist_id')
+    .select('therapist_id, salon_id')
     .eq('id', diary_id)
     .single();
   if (error || !current) notFound();
 
   const therapistId = (current as { therapist_id: number | string }).therapist_id;
+  const salonId = (current as { salon_id: number | string }).salon_id;
 
-  // 同じセラピストの全日記を新しい順（上=新しい / 下=古い）で取得
-  const { data: rows } = await supabase
+  // フィード対象を「どこから来たか」で切り替える。
+  //   from=salon: 同じサロン(salon_id)の全セラピストの日記
+  //   それ以外  : 従来どおり同じセラピスト(therapist_id)の日記（デフォルト挙動を維持）
+  // 並び順はどちらも新しい順（上=新しい / 下=古い）で統一。
+  const fromSalon = from === 'salon';
+  const feedQuery = supabase
     .from('diary_posts')
-    .select('id, images, title, content, created_at, salon_id, therapists(name, profile_image_url), salons(name, theme)')
-    .eq('therapist_id', therapistId)
+    .select('id, images, title, content, created_at, salon_id, therapist_id, therapists(name, profile_image_url), salons(name, theme)')
     .order('created_at', { ascending: false });
+  const { data: rows } = fromSalon
+    ? await feedQuery.eq('salon_id', salonId)
+    : await feedQuery.eq('therapist_id', therapistId);
 
   if (!rows || rows.length === 0) notFound();
 
   type TRel = { name: string | null; profile_image_url: string | null };
   type Row = {
     id: number | string; images: string[] | null; title: string | null; content: string | null;
-    created_at: string; salon_id: number | string;
+    created_at: string; salon_id: number | string; therapist_id: number | string;
     therapists: TRel | TRel[] | null;
     salons: { name: string | null; theme: string | null } | { name: string | null; theme: string | null }[] | null;
   };
@@ -57,17 +67,18 @@ export default async function DiaryDetailPage({
       content: r.content ?? null,
       createdAt: r.created_at,
       salonId: String(r.salon_id),
+      // 各記事のヘッダー／リンクは「その記事自身」のセラピストを使う。
+      // セラピストフィード時は全行同一なので従来挙動と変わらない。
+      therapistId: String(r.therapist_id),
       therapistName: t?.name ?? '',
+      therapistImage: t?.profile_image_url ?? null,
       salonName: s?.name ?? '',
       themeKey: s?.theme ?? null,
     };
   });
 
-  const firstT = Array.isArray((rows as unknown as Row[])[0].therapists)
-    ? ((rows as unknown as Row[])[0].therapists as TRel[])[0]
-    : ((rows as unknown as Row[])[0].therapists as TRel | null);
-  const therapistImage = firstT?.profile_image_url ?? null;
-  const therapistName = list[0].therapistName;
+  // パンくず（セラピストフィード時）用：現在の日記のセラピスト名
+  const therapistName = list.find((d) => d.id === String(diary_id))?.therapistName ?? list[0].therapistName;
 
   // サロンのテーマ壁紙を背景に適用
   const theme = getTheme(list[0].themeKey);
@@ -120,8 +131,12 @@ export default async function DiaryDetailPage({
             トップ
           </Link>
           <span aria-hidden className="flex-shrink-0" style={{ color: '#999' }}>›</span>
-          <Link href={`/therapist/${therapistId}`} className="hover:opacity-80 transition-opacity inline-block max-w-[45%] truncate align-middle" style={{ color: '#ec4899' }}>
-            {therapistName || 'セラピスト'}
+          <Link
+            href={fromSalon ? `/salon/${salonId}/diary` : `/therapist/${therapistId}`}
+            className="hover:opacity-80 transition-opacity inline-block max-w-[45%] truncate align-middle"
+            style={{ color: '#ec4899' }}
+          >
+            {fromSalon ? (list[0].salonName || 'サロン') : (therapistName || 'セラピスト')}
           </Link>
           <span aria-hidden className="flex-shrink-0" style={{ color: '#999' }}>›</span>
           <span aria-current="page" className="flex-shrink-0 whitespace-nowrap" style={{ color: '#333', fontWeight: 600 }}>写メ日記</span>
@@ -142,16 +157,16 @@ export default async function DiaryDetailPage({
                 {/* セラピストアイコン + 名前（左） + 投稿日時（上下の余白を最小に） */}
                 <div className="px-5 sm:px-6 pt-2 pb-1">
                   <div className="flex items-center gap-2 min-w-0 leading-none">
-                    <Link href={`/therapist/${therapistId}`} className="w-14 h-14 rounded-full overflow-hidden border-2 border-pink-100 shadow-sm flex-shrink-0 bg-gradient-to-br from-pink-300 to-rose-400 flex items-center justify-center">
-                      {therapistImage ? (
+                    <Link href={`/therapist/${d.therapistId}`} className="w-14 h-14 rounded-full overflow-hidden border-2 border-pink-100 shadow-sm flex-shrink-0 bg-gradient-to-br from-pink-300 to-rose-400 flex items-center justify-center">
+                      {d.therapistImage ? (
                         // eslint-disable-next-line @next/next/no-img-element
-                        <img src={therapistImage} alt={therapistName} className="w-full h-full object-cover" />
+                        <img src={d.therapistImage} alt={d.therapistName} className="w-full h-full object-cover" />
                       ) : (
-                        <span className="text-white text-xl font-bold">{(therapistName || '?').charAt(0)}</span>
+                        <span className="text-white text-xl font-bold">{(d.therapistName || '?').charAt(0)}</span>
                       )}
                     </Link>
-                    <Link href={`/therapist/${therapistId}`} className="text-sm font-bold text-pink-600 hover:underline truncate min-w-0">
-                      {therapistName || 'セラピスト'}
+                    <Link href={`/therapist/${d.therapistId}`} className="text-sm font-bold text-pink-600 hover:underline truncate min-w-0">
+                      {d.therapistName || 'セラピスト'}
                     </Link>
                     <p className="flex-shrink-0" style={{ fontSize: '13px', color: '#999' }}>📅 {formatDate(d.createdAt)} 更新</p>
                   </div>
@@ -162,7 +177,7 @@ export default async function DiaryDetailPage({
                   {d.image && (
                     <div className="-mx-5 sm:-mx-6">
                       {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img src={d.image} alt={d.title ?? therapistName} className="block w-full max-h-[70vh] object-cover" />
+                      <img src={d.image} alt={d.title ?? d.therapistName} className="block w-full max-h-[70vh] object-cover" />
                     </div>
                   )}
 
