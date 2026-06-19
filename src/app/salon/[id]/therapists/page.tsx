@@ -65,17 +65,18 @@ export default async function SalonTherapistsPage({
 
       <main className="max-w-4xl mx-auto px-4 py-8">
 
-        {/* 戻るリンク */}
-        <Link
-          href={`/salon/${id}`}
-          className="inline-flex items-center gap-1.5 text-sm hover:opacity-70 transition-opacity mb-6"
-          style={{ color: theme.body }}
-        >
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-            <path d="M19 12H5M12 5l-7 7 7 7" />
-          </svg>
-          サロンへ戻る
-        </Link>
+        {/* ─── パンくずリスト：トップ › サロン名 › セラピスト一覧（他ページと同形式） ─── */}
+        <nav aria-label="パンくずリスト" className="flex items-center gap-1.5 mb-6" style={{ fontSize: '13px' }}>
+          <Link href="/" className="hover:opacity-80 transition-opacity flex-shrink-0 whitespace-nowrap" style={{ color: '#ec4899' }}>
+            トップ
+          </Link>
+          <span aria-hidden className="flex-shrink-0" style={{ color: '#999' }}>›</span>
+          <Link href={`/salon/${id}`} className="hover:opacity-80 transition-opacity inline-block max-w-[45%] truncate align-middle" style={{ color: '#ec4899' }}>
+            {salonName || 'サロン'}
+          </Link>
+          <span aria-hidden className="flex-shrink-0" style={{ color: '#999' }}>›</span>
+          <span aria-current="page" className="flex-shrink-0 whitespace-nowrap" style={{ color: '#333', fontWeight: 600 }}>セラピスト一覧</span>
+        </nav>
 
         {/* タイトル */}
         <div className="mb-6 text-center">
