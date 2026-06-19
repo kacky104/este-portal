@@ -159,16 +159,17 @@ body {
   inset: 0;
   z-index: 20; /* 写真・名前オーバーレイより前面で、枠の縁に光を出す */
   border-radius: inherit;
-  padding: 2px; /* 光らせる枠の太さ（演出中のみ・静止枠線は別レイヤー） */
+  padding: 3px; /* 光らせる枠の太さ（演出中のみ・静止枠線は別レイヤー） */
   pointer-events: none;
-  /* ピンク多め＋末尾に薄オレンジの帯。中央付近に細めに置き、待機位置で完全に枠外へ追い出せるようにする。 */
+  /* ピンク多め＋末尾に薄オレンジの幅広の帯。太めにすることで、帯が枠を通過する間ずっと枠が光る
+     （細い帯だと芯がカード中央=mask除外領域にある間は枠が光らず一瞬しか見えないため）。 */
   background-image: linear-gradient(
     120deg,
-    transparent 0 42%,
-    rgba(236, 72, 153, 0.95) 45%,
-    rgba(236, 72, 153, 0.95) 55%,
-    rgba(249, 115, 22, 0.9) 59%,
-    transparent 62% 100%
+    transparent 0 26%,
+    rgba(236, 72, 153, 0.95) 36%,
+    rgba(236, 72, 153, 0.95) 58%,
+    rgba(249, 115, 22, 0.9) 66%,
+    transparent 76% 100%
   );
   background-size: 200% 100%;
   background-repeat: no-repeat;
@@ -179,13 +180,15 @@ body {
           mask-composite: exclude;
   animation: imasugu-frame-shine var(--imasugu-shine-duration, 4.5s) ease-in-out infinite;
 }
-/* 前半(0〜40%)で帯が左上の完全外→右下の完全外へ抜けきり、後半(40〜100%)は枠外で待機（＝通常の枠色のみ）。
-   開始(200%)・待機/終了(-100%)とも、斜め(120deg)の帯の角まで含めて完全に枠外なので、
-   待機中も周回の継ぎ目も残像・色残りが一切出ない。ease-in-out で滑らかに（カクッと止まらない）。 */
+/* 開始(200%)で帯は左上の完全外。0〜55%で枠を横切り（ここで枠がはっきり光る）→さらに右下の
+   完全外(-260%)まで抜けきる。55〜100%は枠外で待機（＝通常の枠色のみ）。待機位置(-260%)は横長
+   (デスクトップ)カードでも斜め(120deg)帯の右下の角まで含めて完全に枠外へ出る十分な移動量で、
+   アスペクト比(幅広/縦長)に関わらず待機中に帯がカードへ一切重ならず残像・色残りが出ない。
+   ease-in-out で滑らかにループ。 */
 @keyframes imasugu-frame-shine {
   0%   { background-position: 200% 0; }
-  40%  { background-position: -100% 0; }
-  100% { background-position: -100% 0; }
+  55%  { background-position: -260% 0; }
+  100% { background-position: -260% 0; }
 }
 @media (prefers-reduced-motion: reduce) {
   .imasugu-card-shine::before {
