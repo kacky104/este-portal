@@ -1,7 +1,18 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { createClient } from "@/app/lib/supabase/server";
-import { getTheme } from "@/app/lib/themes";
+import { getTheme, type ThemeKey } from "@/app/lib/themes";
+
+// クイックナビ3カード専用の配色（テーマ連動）。テーマ色の薄い地＋同系の濃いアイコン/文字でコントラストを確保。
+// 黒のみ暗い地＋ゴールド。未設定/不明テーマは getTheme が white に正規化するためフォールバックも white。
+const QUICKNAV_COLORS: Record<ThemeKey, { bg: string; border: string; icon: string; text: string }> = {
+  white:  { bg: '#F4F3EF', border: '#CFCDC6', icon: '#3A3A38', text: '#3A3A38' },
+  black:  { bg: '#2B2A26', border: '#6B5A2E', icon: '#D4AF52', text: '#E6C878' },
+  pink:   { bg: '#FBEAF0', border: '#ED93B1', icon: '#993556', text: '#72243E' },
+  blue:   { bg: '#E6F1FB', border: '#85B7EB', icon: '#185FA5', text: '#0C447C' },
+  red:    { bg: '#FCEBEB', border: '#F09595', icon: '#A32D2D', text: '#791F1F' },
+  purple: { bg: '#EEEDFE', border: '#AFA9EC', icon: '#3C3489', text: '#26215C' },
+};
 import { SalonTherapists, SalonAllTherapists, SalonNewFaceTherapists } from "@/components/SalonTherapists";
 import { SalonDiarySection } from "@/components/DiarySection";
 import SalonHeaderSlider from "@/components/SalonHeaderSlider";
@@ -54,6 +65,7 @@ export default async function SalonPage({
   };
 
   const theme = getTheme(row.theme as string | null);
+  const qn = QUICKNAV_COLORS[theme.key];
 
   const { data: wallpaperRow } = await supabase
     .from('theme_wallpapers')
@@ -133,32 +145,32 @@ export default async function SalonPage({
                 白背景＋薄ピンク枠線＋ピンク文字でテーマ非依存に視認可能。モバイルでも3カラム維持。 */}
             <div className="grid grid-cols-3 gap-2 sm:gap-3">
               {/* 本日出勤 */}
-              <div className="flex flex-col items-center justify-center gap-1.5 rounded-lg border border-pink-200 bg-white text-pink-600 px-1.5 py-3 sm:py-4 shadow-sm">
-                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="flex-shrink-0">
+              <div className="flex flex-col items-center justify-center gap-1.5 rounded-lg border px-1.5 py-3 sm:py-4 shadow-sm" style={{ backgroundColor: qn.bg, borderColor: qn.border }}>
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="flex-shrink-0" style={{ color: qn.icon }}>
                   <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
                   <circle cx="9" cy="7" r="4" />
                   <path d="M16 11l2 2 4-4" />
                 </svg>
-                <span className="text-[11px] sm:text-sm font-bold leading-none whitespace-nowrap">本日出勤</span>
+                <span className="text-[11px] sm:text-sm font-bold leading-none whitespace-nowrap" style={{ color: qn.text }}>本日出勤</span>
               </div>
               {/* 料金 */}
-              <div className="flex flex-col items-center justify-center gap-1.5 rounded-lg border border-pink-200 bg-white text-pink-600 px-1.5 py-3 sm:py-4 shadow-sm">
-                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="flex-shrink-0">
+              <div className="flex flex-col items-center justify-center gap-1.5 rounded-lg border px-1.5 py-3 sm:py-4 shadow-sm" style={{ backgroundColor: qn.bg, borderColor: qn.border }}>
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="flex-shrink-0" style={{ color: qn.icon }}>
                   <path d="M12 13L7 5" />
                   <path d="M12 13l5-8" />
                   <path d="M12 13v6" />
                   <path d="M8 14h8" />
                   <path d="M8 17h8" />
                 </svg>
-                <span className="text-[11px] sm:text-sm font-bold leading-none whitespace-nowrap">料金</span>
+                <span className="text-[11px] sm:text-sm font-bold leading-none whitespace-nowrap" style={{ color: qn.text }}>料金</span>
               </div>
               {/* 写メ日記 */}
-              <div className="flex flex-col items-center justify-center gap-1.5 rounded-lg border border-pink-200 bg-white text-pink-600 px-1.5 py-3 sm:py-4 shadow-sm">
-                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="flex-shrink-0">
+              <div className="flex flex-col items-center justify-center gap-1.5 rounded-lg border px-1.5 py-3 sm:py-4 shadow-sm" style={{ backgroundColor: qn.bg, borderColor: qn.border }}>
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="flex-shrink-0" style={{ color: qn.icon }}>
                   <path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z" />
                   <circle cx="12" cy="13" r="3" />
                 </svg>
-                <span className="text-[11px] sm:text-sm font-bold leading-none whitespace-nowrap">写メ日記</span>
+                <span className="text-[11px] sm:text-sm font-bold leading-none whitespace-nowrap" style={{ color: qn.text }}>写メ日記</span>
               </div>
             </div>
 
