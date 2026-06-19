@@ -198,16 +198,15 @@ export default async function SalonPage({
                 </svg>
                 <span className="text-[11px] sm:text-sm font-bold leading-none whitespace-nowrap" style={{ color: qn.text }}>本日出勤</span>
               </Link>
-              {/* 料金 */}
+              {/* 今すぐ（顔＋ハート） */}
               <div className="flex flex-col items-center justify-center gap-1.5 rounded-lg border px-1.5 py-3 sm:py-4 shadow-sm" style={{ backgroundColor: qn.bg, borderColor: qn.border }}>
                 <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="flex-shrink-0" style={{ color: qn.icon }}>
-                  <path d="M12 13L7 5" />
-                  <path d="M12 13l5-8" />
-                  <path d="M12 13v6" />
-                  <path d="M8 14h8" />
-                  <path d="M8 17h8" />
+                  <circle cx="12" cy="12" r="9" />
+                  <path d="M9 9.5h.01" />
+                  <path d="M15 9.5h.01" />
+                  <path d="M12 17c1.5 -1.2 2.6 -2.1 2.6 -3.2a1.3 1.3 0 0 0 -2.6 -0.6a1.3 1.3 0 0 0 -2.6 0.6c0 1.1 1.1 2 2.6 3.2z" />
                 </svg>
-                <span className="text-[11px] sm:text-sm font-bold leading-none whitespace-nowrap" style={{ color: qn.text }}>料金</span>
+                <span className="text-[11px] sm:text-sm font-bold leading-none whitespace-nowrap" style={{ color: qn.text }}>今すぐ</span>
               </div>
               {/* 写メ日記 */}
               <div className="flex flex-col items-center justify-center gap-1.5 rounded-lg border px-1.5 py-3 sm:py-4 shadow-sm" style={{ backgroundColor: qn.bg, borderColor: qn.border }}>
@@ -221,15 +220,16 @@ export default async function SalonPage({
 
             {/* 2段目：今すぐ / クーポン / 口コミ（装飾のみ） */}
             <div className="grid grid-cols-3 gap-2 sm:gap-3">
-              {/* 今すぐ（顔＋ハート） */}
+              {/* 料金（¥） */}
               <div className="flex flex-col items-center justify-center gap-1.5 rounded-lg border px-1.5 py-3 sm:py-4 shadow-sm" style={{ backgroundColor: qn.bg, borderColor: qn.border }}>
                 <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="flex-shrink-0" style={{ color: qn.icon }}>
-                  <circle cx="12" cy="12" r="9" />
-                  <path d="M9 9.5h.01" />
-                  <path d="M15 9.5h.01" />
-                  <path d="M12 17c1.5 -1.2 2.6 -2.1 2.6 -3.2a1.3 1.3 0 0 0 -2.6 -0.6a1.3 1.3 0 0 0 -2.6 0.6c0 1.1 1.1 2 2.6 3.2z" />
+                  <path d="M12 13L7 5" />
+                  <path d="M12 13l5-8" />
+                  <path d="M12 13v6" />
+                  <path d="M8 14h8" />
+                  <path d="M8 17h8" />
                 </svg>
-                <span className="text-[11px] sm:text-sm font-bold leading-none whitespace-nowrap" style={{ color: qn.text }}>今すぐ</span>
+                <span className="text-[11px] sm:text-sm font-bold leading-none whitespace-nowrap" style={{ color: qn.text }}>料金</span>
               </div>
               {/* クーポン（チケット） */}
               <div className="flex flex-col items-center justify-center gap-1.5 rounded-lg border px-1.5 py-3 sm:py-4 shadow-sm" style={{ backgroundColor: qn.bg, borderColor: qn.border }}>
