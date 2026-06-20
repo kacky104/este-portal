@@ -362,13 +362,11 @@ export default async function TherapistPublicPage({
                     {therapist.age && <span className="ml-0.5">（{therapist.age}）</span>}
                   </h1>
                   {isWorkingToday ? (
-                    <div className="flex flex-col items-end justify-center gap-1 flex-shrink-0">
+                    // 出勤バッジは出勤時間の中央（左右対称な「12:00〜21:00」の "〜" の位置）の真上に来るよう中央寄せ。
+                    <div className="flex flex-col items-center justify-center gap-1 flex-shrink-0">
                       {statusBadgeNode}
                       {todayShiftHours && (
-                        <span className="inline-flex items-center gap-1 text-sm font-medium text-slate-500">
-                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-slate-400 flex-shrink-0">
-                            <circle cx="12" cy="12" r="10" /><path d="M12 6v6l4 2" />
-                          </svg>
+                        <span className="text-sm font-medium text-slate-500 whitespace-nowrap">
                           {todayShiftHours}
                         </span>
                       )}
