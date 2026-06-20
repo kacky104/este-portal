@@ -1772,6 +1772,7 @@ export default function MyPage() {
                 {/* 画像（1枚） */}
                 <div>
                   <label className={labelClass}>画像（1枚）</label>
+                  <p className="text-[10px] text-slate-400 mb-1.5">推奨：800×450px（横長）／ JPEG・PNG・WebP・5MB以下</p>
                   {diaryImage ? (
                     <div className="relative w-32 h-32 rounded-xl overflow-hidden border border-pink-100 bg-slate-50">
                       {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -2086,6 +2087,7 @@ export default function MyPage() {
             </div>
             <div>
               <label className={labelClass}>画像（任意・1枚）</label>
+              <p className="text-[10px] text-slate-400 mb-1.5">推奨：800×450px（横長）／ JPEG・PNG・WebP・5MB以下</p>
               {newAnnouncement.image_url ? (
                 <div className="relative w-32 h-32 rounded-xl overflow-hidden border border-pink-100 bg-slate-50">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -2197,6 +2199,7 @@ export default function MyPage() {
                   </div>
                   <div>
                     <label className={labelClass}>画像（任意・1枚）</label>
+                    <p className="text-[10px] text-slate-400 mb-1.5">推奨：800×450px（横長）／ JPEG・PNG・WebP・5MB以下</p>
                     {(form.image_url as string | null) ? (
                       <div className="relative w-32 h-32 rounded-xl overflow-hidden border border-pink-100 bg-slate-50">
                         {/* eslint-disable-next-line @next/next/no-img-element */}
