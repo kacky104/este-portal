@@ -266,10 +266,13 @@ function SalonCard({ salon, therapists, showAge = false, areaNextToDuty = false,
         {/* Rating (top page) or Price + CTA */}
         <div className="flex items-center justify-between pt-3.5 border-t border-slate-200 mt-auto">
           {ratingAtBottom ? (
-            <div className="flex items-center gap-2">
-              <StarRating rating={salon.rating} />
-              <span className="text-pink-600 font-bold text-sm">{salon.rating}</span>
-              <span className="text-slate-400 text-xs">({salon.reviewCount}件)</span>
+            <div>
+              <div className="flex items-center gap-2 mb-0.5">
+                <StarRating rating={salon.rating} />
+                <span className="text-pink-600 font-bold text-sm">{salon.rating}</span>
+                <span className="text-slate-400 text-xs">({salon.reviewCount}件)</span>
+              </div>
+              <p className="text-pink-600 font-bold text-sm">{salon.price}</p>
             </div>
           ) : (
             <div>
