@@ -64,7 +64,7 @@ export default async function TherapistPublicPage({
 
   const { data: tRow, error: tError } = await supabase
     .from('therapists')
-    .select('id, name, profile_image_url, profile_images, age, body_type, profile_text, work_hours, comment, area, salon_id, is_new_face, new_face_since')
+    .select('id, name, profile_image_url, profile_images, age, body_type, profile_text, work_hours, comment, area, salon_id, is_new_face, new_face_since, is_available_now, available_until')
     .eq('id', id)
     .single();
 
@@ -196,6 +196,24 @@ export default async function TherapistPublicPage({
     </span>
   ) : null;
 
+  // 出勤時間の横に出すステータスバッジ（今すぐ/出勤中/出勤予定/受付終了/お休み）。
+  // 「今すぐ」を最優先（is_available_now かつ available_until が未来）。今すぐ表示時は出勤中は出さない。
+  // 今すぐ・出勤中は点滅（animate-pulse）。それ以外は本日のスケジュール窓に従う。
+  const availableNow =
+    Boolean(tRow.is_available_now) &&
+    tRow.available_until != null &&
+    new Date(tRow.available_until as string) > new Date();
+  const statusBadge: { label: string; bg: string; color: string; blink: boolean } =
+    availableNow
+      ? { label: '今すぐ', bg: 'linear-gradient(to right, #ec4899, #f97316)', color: '#ffffff', blink: true }
+      : todayWindow === 'onDuty'
+        ? { label: '出勤中', bg: '#22c55e', color: '#ffffff', blink: true }
+        : todayWindow === 'before'
+          ? { label: '出勤予定', bg: '#f97316', color: '#ffffff', blink: false }
+          : todayWindow === 'after'
+            ? { label: '受付終了', bg: '#94a3b8', color: '#ffffff', blink: false }
+            : { label: 'お休み', bg: '#e2e8f0', color: '#475569', blink: false };
+
   // NEW バッジ：is_new_face かつ new_face_since から30日以内
   const showNew = isNewFaceActive(therapist.isNewFace, therapist.newFaceSince);
   const newBadgeNode = showNew ? (
@@ -295,7 +313,7 @@ export default async function TherapistPublicPage({
           <div className="p-6">
             {/* 名前のすぐ右に年齢を（23）形式で表示（トップページのセラピストカードと同書式）。年齢未設定なら名前のみ。 */}
             {/* 出勤時間は年齢の横に表示する（下部の重複表示は削除）。 */}
-            <div className="flex items-baseline flex-wrap gap-x-2 mb-4">
+            <div className="flex items-center flex-wrap gap-x-2 gap-y-1 mb-4">
               <h1 className="text-2xl font-bold text-slate-900">
                 {therapist.name}
                 {therapist.age && <span className="ml-0.5">（{therapist.age}）</span>}
@@ -308,6 +326,13 @@ export default async function TherapistPublicPage({
                   {therapist.workHours}
                 </span>
               )}
+              {/* 出勤ステータスバッジ（今すぐ/出勤中は点滅） */}
+              <span
+                className={`inline-flex items-center rounded-full text-[11px] font-bold px-2.5 py-0.5 whitespace-nowrap ${statusBadge.blink ? 'animate-pulse' : ''}`}
+                style={{ background: statusBadge.bg, color: statusBadge.color, boxShadow: '0 1px 2px rgba(0,0,0,0.12)' }}
+              >
+                {statusBadge.label}
+              </span>
             </div>
 
             {/* Body type */}
