@@ -356,14 +356,14 @@ export default async function SalonPage({
               </div>
             </CollapsibleSection>
 
-            {/* New face therapists（該当0人のときはセクションごと非表示） */}
-            <SalonNewFaceTherapists salonId={Number(id)} theme={theme} />
-
-            {/* About（折り畳み式） */}
+            {/* About（折り畳み式・在籍セラピスト一覧の下） */}
             <CollapsibleSection theme={theme} className="rounded-2xl border shadow-sm p-6" title="サロンについて">
               <p className="text-sm leading-relaxed mb-4 break-words max-w-full whitespace-pre-wrap" style={{ color: theme.body }}>{salon.description}</p>
               <p className="text-sm leading-relaxed break-words max-w-full whitespace-pre-wrap" style={{ color: theme.body }}>{salon.appeal}</p>
             </CollapsibleSection>
+
+            {/* New face therapists（該当0人のときはセクションごと非表示） */}
+            <SalonNewFaceTherapists salonId={Number(id)} theme={theme} />
           </div>
 
           {/* Right: shop info */}
