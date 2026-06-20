@@ -205,10 +205,24 @@ export default async function Home() {
                   <span style={{ color: '#ec4899', fontWeight: 600, fontSize: '13px' }}>人</span>
                 </div>
               </div>
+              {/* デスクトップのみ：タイトル行の右端に「全部表示 →」 */}
+              <Link
+                href="/working"
+                className="hidden sm:inline-flex items-center gap-1 text-sm font-bold flex-shrink-0"
+                style={{
+                  background: 'linear-gradient(to right, #ec4899, #f97316)',
+                  WebkitBackgroundClip: 'text',
+                  backgroundClip: 'text',
+                  WebkitTextFillColor: 'transparent',
+                  color: 'transparent',
+                }}
+              >
+                全部表示 →
+              </Link>
             </div>
             <TherapistScroller showAge />
-            {/* 本日出勤中セラピスト一覧ページへの導線 */}
-            <div className="text-right mt-1">
+            {/* 本日出勤中セラピスト一覧ページへの導線（モバイルのみ：カードの下） */}
+            <div className="text-right mt-1 sm:hidden">
               <Link
                 href="/working"
                 className="inline-flex items-center gap-1 text-sm font-bold"
