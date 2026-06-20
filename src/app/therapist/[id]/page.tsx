@@ -9,6 +9,7 @@ import { NewBadge } from '@/components/NewBadge';
 import { TherapistImageSlider } from './TherapistImageSlider';
 import { TherapistDiaryList, type DiaryPostView } from './TherapistDiaryList';
 import { CollapsibleProfile } from './CollapsibleProfile';
+import { AutoFitName } from './AutoFitName';
 
 // ── helpers ───────────────────────────────────────────────────
 
@@ -486,13 +487,16 @@ export default async function TherapistPublicPage({
             {salon && (
               <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-5">
                 <p className="text-[11px] font-bold text-slate-400 mb-3 uppercase tracking-wide">所属サロン</p>
-                <p className="font-bold text-slate-900 mb-1">{salon.name}</p>
-                {salon.area && (
-                  <p className="text-xs text-slate-500 mb-3">📍 {salon.area}</p>
-                )}
-                {salon.hours && (
-                  <p className="text-xs text-slate-500 mb-4">🕒 {salon.hours}</p>
-                )}
+                {/* 店名（右隣に営業時間、その右に地域）。店名は2行になる場合フォントを縮めて1行に収める。 */}
+                <div className="flex items-center gap-2 mb-4">
+                  <AutoFitName name={salon.name} className="flex-1" />
+                  {salon.hours && (
+                    <span className="text-xs text-slate-500 flex-shrink-0 whitespace-nowrap">🕒 {salon.hours}</span>
+                  )}
+                  {salon.area && (
+                    <span className="text-xs text-slate-500 flex-shrink-0 whitespace-nowrap">📍 {salon.area}</span>
+                  )}
+                </div>
                 <Link
                   href={`/salon/${salon.id}`}
                   className="flex items-center justify-center gap-2 w-full py-2.5 rounded-xl bg-pink-600 text-white text-xs font-bold hover:bg-pink-700 transition-colors"
