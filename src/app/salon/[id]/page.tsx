@@ -297,8 +297,8 @@ export default async function SalonPage({
                 </svg>
                 <span className="text-[11px] sm:text-sm font-bold leading-none whitespace-nowrap" style={{ color: qn.text }}>料金</span>
               </Link>
-              {/* クーポン（チケット） */}
-              <div className="flex flex-col items-center justify-center gap-1.5 rounded-lg border px-1.5 py-3 sm:py-4 shadow-sm" style={{ backgroundColor: qn.bg, borderColor: qn.border }}>
+              {/* クーポン（チケット・掲載型クーポン一覧ページへのリンク） */}
+              <Link href={`/salon/${id}/coupon`} className="flex flex-col items-center justify-center gap-1.5 rounded-lg border px-1.5 py-3 sm:py-4 shadow-sm cursor-pointer hover:shadow-md hover:brightness-95 transition-all" style={{ backgroundColor: qn.bg, borderColor: qn.border }}>
                 <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="flex-shrink-0" style={{ color: qn.icon }}>
                   <path d="M15 5l0 2" />
                   <path d="M15 11l0 2" />
@@ -306,7 +306,7 @@ export default async function SalonPage({
                   <path d="M5 5h14a2 2 0 0 1 2 2v3a2 2 0 0 0 0 4v3a2 2 0 0 1 -2 2h-14a2 2 0 0 1 -2 -2v-3a2 2 0 0 0 0 -4v-3a2 2 0 0 1 2 -2" />
                 </svg>
                 <span className="text-[11px] sm:text-sm font-bold leading-none whitespace-nowrap" style={{ color: qn.text }}>クーポン</span>
-              </div>
+              </Link>
               {/* 口コミ（メッセージ） */}
               <div className="flex flex-col items-center justify-center gap-1.5 rounded-lg border px-1.5 py-3 sm:py-4 shadow-sm" style={{ backgroundColor: qn.bg, borderColor: qn.border }}>
                 <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="flex-shrink-0" style={{ color: qn.icon }}>
