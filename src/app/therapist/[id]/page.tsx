@@ -334,9 +334,8 @@ export default async function TherapistPublicPage({
           <div className="lg:col-span-2 space-y-6 min-w-0">
 
             {/* ─── プロフィール情報カード（デスクトップでプロフィール等と同じ左カラム幅に揃える） ─── */}
-            {/* 枠内の上下余白は p-6 の1/4（py-1.5）に。左右は px-6 のまま。 */}
             <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-              <div className="px-6 py-1.5">
+              <div className="p-6">
                 {/* ── 名前＋出勤情報（デスクトップ：従来どおり。名前の横にバッジ、その下に出勤時間=work_hours を常時表示） ── */}
                 <div className="hidden md:block mb-1">
                   <div className="flex items-center flex-wrap gap-x-2 gap-y-1">
@@ -403,7 +402,7 @@ export default async function TherapistPublicPage({
 
             {/* 写メ日記（新着6件 + 全部見る）— プロフィールの上に表示 */}
             {diaryPosts.length > 0 && (
-              <section className="bg-white rounded-2xl border border-slate-200 shadow-sm px-6 py-1.5 overflow-x-hidden min-w-0">
+              <section className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 overflow-x-hidden min-w-0">
                 <div className="flex items-center justify-between gap-2 mb-1.5">
                   <div className="flex items-center gap-2.5 min-w-0">
                     <div className="w-1 h-5 rounded-full bg-gradient-to-b from-pink-500 to-pink-700 flex-shrink-0" />
