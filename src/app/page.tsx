@@ -205,7 +205,7 @@ export default async function Home() {
                   <span style={{ color: '#ec4899', fontWeight: 600, fontSize: '13px' }}>人</span>
                 </div>
               </div>
-              {/* デスクトップのみ：タイトル行の右端に「全部表示 →」 */}
+              {/* デスクトップのみ：タイトル行の右端に「一覧を見る →」 */}
               <Link
                 href="/working"
                 className="hidden sm:inline-flex items-center gap-1 text-sm font-bold flex-shrink-0"
@@ -217,7 +217,7 @@ export default async function Home() {
                   color: 'transparent',
                 }}
               >
-                全部表示 →
+                一覧を見る →
               </Link>
             </div>
             <TherapistScroller showAge />
@@ -234,7 +234,7 @@ export default async function Home() {
                   color: 'transparent',
                 }}
               >
-                全部表示 →
+                一覧を見る →
               </Link>
             </div>
           </div>
