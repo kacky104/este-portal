@@ -429,7 +429,7 @@ export default async function SalonPage({
             <div className="!mt-1.5 md:!mt-3 rounded-3xl px-5 py-2.5 border shadow-sm" style={{ backgroundColor: theme.card, borderColor: theme.cardBorder }}>
               <div className="flex items-center justify-between gap-2 mb-4">
                 <div className="flex items-center gap-2 min-w-0">
-                  <span className="text-lg">📷</span>
+                  <span className="w-1 h-5 rounded-full bg-gradient-to-b from-pink-500 to-pink-700 flex-shrink-0" />
                   <h2 className="text-base font-bold truncate" style={{ color: theme.heading }}>セラピスト写メ日記</h2>
                 </div>
                 <Link
