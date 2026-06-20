@@ -55,7 +55,7 @@ function StarRating({ rating }: { rating: number }) {
 
 // ── Therapist mini card (matches TherapistScroller Card design) ──
 
-function TherapistMiniCard({ therapist, index, showAge = false }: { therapist: TherapistThumb; index: number; showAge?: boolean }) {
+function TherapistMiniCard({ therapist, index, showAge = false, compact = false }: { therapist: TherapistThumb; index: number; showAge?: boolean; compact?: boolean }) {
   const grad = GRADIENTS[index % GRADIENTS.length];
   const dutyStatus = !therapist.onDuty
     ? 'off'
@@ -66,7 +66,7 @@ function TherapistMiniCard({ therapist, index, showAge = false }: { therapist: T
   return (
     <Link
       href={`/therapist/${therapist.id}`}
-      className="relative flex-shrink-0 w-[105px] h-[153px] rounded-2xl overflow-hidden shadow-md hover:-translate-y-1 hover:shadow-xl transition-all duration-300"
+      className={`relative flex-shrink-0 ${compact ? 'w-[92px] h-[134px]' : 'w-[105px] h-[153px]'} rounded-2xl overflow-hidden shadow-md hover:-translate-y-1 hover:shadow-xl transition-all duration-300`}
       onClick={e => e.stopPropagation()}
     >
       {/* background */}
@@ -124,7 +124,7 @@ function TherapistMiniCard({ therapist, index, showAge = false }: { therapist: T
           {!showAge && isNewFaceActive(therapist.isNewFace, therapist.newFaceSince) && <NewBadge />}
         </div>
         {therapist.workHours && (dutyStatus === 'onDuty' || dutyStatus === 'before') && (
-          <p className="text-[13px] text-pink-200 font-medium mt-0.5 text-center">{therapist.workHours}</p>
+          <p className={`text-pink-200 font-medium mt-0.5 text-center ${compact ? 'text-[11px] whitespace-nowrap' : 'text-[13px]'}`}>{therapist.workHours}</p>
         )}
       </div>
     </Link>
@@ -133,7 +133,7 @@ function TherapistMiniCard({ therapist, index, showAge = false }: { therapist: T
 
 // ── Therapist mini cards row (hover auto-scroll / touch swipe) ──
 
-function TherapistMiniCardsRow({ therapists, salonId, showAge = false }: { therapists: TherapistThumb[]; salonId: number; showAge?: boolean }) {
+function TherapistMiniCardsRow({ therapists, salonId, showAge = false, compact = false }: { therapists: TherapistThumb[]; salonId: number; showAge?: boolean; compact?: boolean }) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const rafRef    = useRef<number | null>(null);
 
@@ -167,13 +167,13 @@ function TherapistMiniCardsRow({ therapists, salonId, showAge = false }: { thera
       onClick={e => e.stopPropagation()}
     >
       {displayed.map((t, i) => (
-        <TherapistMiniCard key={t.id} therapist={t} index={i} showAge={showAge} />
+        <TherapistMiniCard key={t.id} therapist={t} index={i} showAge={showAge} compact={compact} />
       ))}
 
       {/* View-all button */}
       <Link
         href={`/salon/${salonId}`}
-        className="relative flex-shrink-0 w-[105px] h-[153px] rounded-2xl overflow-hidden border border-pink-200 bg-gradient-to-b from-pink-50 to-fuchsia-100 flex flex-col items-center justify-center gap-2 hover:from-pink-100 hover:to-fuchsia-200 transition-colors shadow-sm"
+        className={`relative flex-shrink-0 ${compact ? 'w-[92px] h-[134px]' : 'w-[105px] h-[153px]'} rounded-2xl overflow-hidden border border-pink-200 bg-gradient-to-b from-pink-50 to-fuchsia-100 flex flex-col items-center justify-center gap-2 hover:from-pink-100 hover:to-fuchsia-200 transition-colors shadow-sm`}
         onClick={e => e.stopPropagation()}
       >
         <div className="w-10 h-10 rounded-full bg-white/70 flex items-center justify-center shadow-sm">
@@ -194,7 +194,7 @@ function TherapistMiniCardsRow({ therapists, salonId, showAge = false }: { thera
 
 // ── Salon card ────────────────────────────────────────────────
 
-function SalonCard({ salon, therapists, showAge = false, areaNextToDuty = false, ratingAtBottom = false }: { salon: Salon; therapists: TherapistThumb[]; showAge?: boolean; areaNextToDuty?: boolean; ratingAtBottom?: boolean }) {
+function SalonCard({ salon, therapists, showAge = false, areaNextToDuty = false, ratingAtBottom = false, compactTherapists = false }: { salon: Salon; therapists: TherapistThumb[]; showAge?: boolean; areaNextToDuty?: boolean; ratingAtBottom?: boolean; compactTherapists?: boolean }) {
   const router = useRouter();
   const onDutyCount = therapists.filter(t => t.onDuty).length;
 
@@ -259,7 +259,7 @@ function SalonCard({ salon, therapists, showAge = false, areaNextToDuty = false,
         {/* 3. セラピスト写真の横スクロール */}
         {therapists.length > 0 && (
           <div className="mb-4">
-            <TherapistMiniCardsRow therapists={therapists} salonId={salon.id} showAge={showAge} />
+            <TherapistMiniCardsRow therapists={therapists} salonId={salon.id} showAge={showAge} compact={compactTherapists} />
           </div>
         )}
 
@@ -322,7 +322,7 @@ function SalonCardSkeleton() {
 
 // ── ShuffledSalons ────────────────────────────────────────────
 
-export function ShuffledSalons({ salons, areas, showAge = false, areaNextToDuty = false, ratingAtBottom = false }: { salons: Salon[]; areas: string[]; showAge?: boolean; areaNextToDuty?: boolean; ratingAtBottom?: boolean }) {
+export function ShuffledSalons({ salons, areas, showAge = false, areaNextToDuty = false, ratingAtBottom = false, compactTherapists = false }: { salons: Salon[]; areas: string[]; showAge?: boolean; areaNextToDuty?: boolean; ratingAtBottom?: boolean; compactTherapists?: boolean }) {
   const [list,            setList]            = useState<Salon[]>([]);
   const [activeArea,      setActiveArea]      = useState('福岡全域');
   const [salonTherapists, setSalonTherapists] = useState<Record<number, TherapistThumb[]>>({});
@@ -493,6 +493,7 @@ export function ShuffledSalons({ salons, areas, showAge = false, areaNextToDuty 
             showAge={showAge}
             areaNextToDuty={areaNextToDuty}
             ratingAtBottom={ratingAtBottom}
+            compactTherapists={compactTherapists}
           />
         ))}
       </div>
