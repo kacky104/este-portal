@@ -75,6 +75,78 @@ async function fetchAnnouncementList(salonId: number): Promise<Announcement[]> {
   return (data ?? []) as Announcement[];
 }
 
+// タブのアイコン（既存サイトと同系統の tabler/lucide 風アウトラインアイコン）。
+function tabIcon(key: 'salon' | 'schedule' | 'available' | 'profile' | 'diary' | 'coupon' | 'news') {
+  const common = {
+    width: 14, height: 14, viewBox: '0 0 24 24', fill: 'none',
+    stroke: 'currentColor', strokeWidth: 2,
+    strokeLinecap: 'round' as const, strokeLinejoin: 'round' as const,
+    className: 'flex-shrink-0',
+  };
+  switch (key) {
+    case 'salon': // 店舗（building-store）
+      return (
+        <svg {...common}>
+          <path d="M3 21h18" />
+          <path d="M4 7l1.5 -3h13l1.5 3" />
+          <path d="M4 7v3a2 2 0 0 0 4 0a2 2 0 0 0 4 0a2 2 0 0 0 4 0a2 2 0 0 0 4 0v-3" />
+          <path d="M5 21v-9" />
+          <path d="M19 21v-9" />
+          <path d="M9 21v-4a2 2 0 0 1 2 -2h2a2 2 0 0 1 2 2v4" />
+        </svg>
+      );
+    case 'schedule': // 出勤（calendar）
+      return (
+        <svg {...common}>
+          <rect x="3" y="4" width="18" height="18" rx="2" />
+          <path d="M16 2v4M8 2v4M3 10h18" />
+        </svg>
+      );
+    case 'available': // 今すぐ（clock）
+      return (
+        <svg {...common}>
+          <circle cx="12" cy="12" r="10" />
+          <path d="M12 6v6l4 2" />
+        </svg>
+      );
+    case 'profile': // セラピスト（users group）
+      return (
+        <svg {...common}>
+          <path d="M17 21v-2a4 4 0 0 0 -4 -4H5a4 4 0 0 0 -4 4v2" />
+          <circle cx="9" cy="7" r="4" />
+          <path d="M23 21v-2a4 4 0 0 0 -3 -3.87" />
+          <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+        </svg>
+      );
+    case 'diary': // 日記（photo）
+      return (
+        <svg {...common}>
+          <rect x="3" y="3" width="18" height="18" rx="2" />
+          <circle cx="9" cy="9" r="2" />
+          <path d="M21 15l-5 -5L5 21" />
+        </svg>
+      );
+    case 'coupon': // クーポン（ticket）
+      return (
+        <svg {...common}>
+          <path d="M15 5l0 2" />
+          <path d="M15 11l0 2" />
+          <path d="M15 17l0 2" />
+          <path d="M5 5h14a2 2 0 0 1 2 2v3a2 2 0 0 0 0 4v3a2 2 0 0 1 -2 2h-14a2 2 0 0 1 -2 -2v-3a2 2 0 0 0 0 -4v-3a2 2 0 0 1 2 -2" />
+        </svg>
+      );
+    case 'news': // お知らせ（bell）
+      return (
+        <svg {...common}>
+          <path d="M10 5a2 2 0 0 1 4 0a7 7 0 0 1 4 6v3a4 4 0 0 0 2 3h-16a4 4 0 0 0 2 -3v-3a7 7 0 0 1 4 -6" />
+          <path d="M9 17v1a3 3 0 0 0 6 0v-1" />
+        </svg>
+      );
+    default:
+      return null;
+  }
+}
+
 // 公開日時の表示整形（JST・"2026年6月20日 19:12"）。
 function formatPublishedAt(iso: string): string {
   const d = new Date(iso);
@@ -1116,29 +1188,34 @@ export default function MyPage() {
           </div>
         </header>
 
-        {/* タブナビゲーション */}
-        <div className="max-w-2xl mx-auto px-4 flex">
+        {/* タブナビゲーション（アイコン＋短縮ラベルのチップ。横に並びきらなければ折り返す） */}
+        <div className="max-w-2xl mx-auto px-3 py-2 flex flex-wrap justify-center gap-1.5">
           {([
-            ['salon',     '店舗情報'],
-            ['schedule',  '出勤設定'],
+            ['salon',     '店舗'],
+            ['schedule',  '出勤'],
             ['available', '今すぐ'],
-            ['profile',   'セラピスト情報'],
-            ['diary',     '写メ日記'],
+            ['profile',   'セラピスト'],
+            ['diary',     '日記'],
             ['coupon',    'クーポン'],
             ['news',      'お知らせ'],
-          ] as const).map(([key, label]) => (
-            <button
-              key={key}
-              onClick={() => setActiveTab(key)}
-              className={`flex-1 py-2.5 text-[11px] font-bold border-b-2 transition-colors ${
-                activeTab === key
-                  ? 'text-pink-600 border-pink-500'
-                  : 'text-slate-400 border-transparent hover:text-slate-600 hover:border-slate-200'
-              }`}
-            >
-              {label}
-            </button>
-          ))}
+          ] as const).map(([key, label]) => {
+            const selected = activeTab === key;
+            return (
+              <button
+                key={key}
+                onClick={() => setActiveTab(key)}
+                aria-pressed={selected}
+                className={`inline-flex items-center gap-1 px-3 py-1.5 rounded-full border text-[11px] font-bold transition-colors ${
+                  selected
+                    ? 'bg-pink-50 text-pink-600 border-pink-300'
+                    : 'bg-white text-slate-400 border-slate-200 hover:text-slate-600 hover:border-slate-300'
+                }`}
+              >
+                {tabIcon(key)}
+                {label}
+              </button>
+            );
+          })}
         </div>
       </div>
 
