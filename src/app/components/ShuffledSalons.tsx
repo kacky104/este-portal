@@ -113,12 +113,15 @@ function TherapistMiniCard({ therapist, index, showAge = false }: { therapist: T
 
       {/* text overlay */}
       <div className="absolute bottom-0 left-0 right-0 p-2 text-white">
+        {showAge && isNewFaceActive(therapist.isNewFace, therapist.newFaceSince) && (
+          <div className="mb-0.5"><NewBadge /></div>
+        )}
         <div className="flex items-center gap-1 min-w-0">
           <p className="font-bold text-[11px] leading-tight drop-shadow line-clamp-1 min-w-0">{therapist.name}</p>
           {showAge && therapist.age && (
             <span className="font-bold text-[11px] leading-tight drop-shadow flex-shrink-0">（{therapist.age}）</span>
           )}
-          {isNewFaceActive(therapist.isNewFace, therapist.newFaceSince) && <NewBadge />}
+          {!showAge && isNewFaceActive(therapist.isNewFace, therapist.newFaceSince) && <NewBadge />}
         </div>
         {therapist.workHours && (dutyStatus === 'onDuty' || dutyStatus === 'before') && (
           <p className="text-[13px] text-pink-200 font-medium mt-0.5 text-center">{therapist.workHours}</p>
