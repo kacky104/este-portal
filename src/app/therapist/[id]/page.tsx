@@ -214,6 +214,23 @@ export default async function TherapistPublicPage({
             ? { label: '受付終了', bg: '#94a3b8', color: '#ffffff', blink: false }
             : { label: 'お休み', bg: '#e2e8f0', color: '#475569', blink: false };
 
+  // 共通のステータスバッジ要素（デスクトップ／モバイル両レイアウトで再利用）
+  const statusBadgeNode = (
+    <span
+      className={`inline-flex items-center rounded-full text-[11px] font-bold px-2.5 py-0.5 whitespace-nowrap ${statusBadge.blink ? 'animate-pulse' : ''}`}
+      style={{ background: statusBadge.bg, color: statusBadge.color, boxShadow: '0 1px 2px rgba(0,0,0,0.12)' }}
+    >
+      {statusBadge.label}
+    </span>
+  );
+
+  // モバイルレイアウト用：本日が出勤日か（7日間スケジュールと同じ todayWindow 基準）と、本日のシフト時間。
+  const isWorkingToday = todayWindow !== 'off';
+  const todayShiftHours =
+    todaySched?.is_active && todaySched.start_time && todaySched.end_time
+      ? buildDisplayHours(todaySched.start_time, todaySched.end_time)
+      : null;
+
   // NEW バッジ：is_new_face かつ new_face_since から30日以内
   const showNew = isNewFaceActive(therapist.isNewFace, therapist.newFaceSince);
   const newBadgeNode = showNew ? (
@@ -317,21 +334,14 @@ export default async function TherapistPublicPage({
             {/* ─── プロフィール情報カード（デスクトップでプロフィール等と同じ左カラム幅に揃える） ─── */}
             <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
               <div className="p-6">
-                {/* 名前のすぐ右に年齢を（23）形式で表示（トップページのセラピストカードと同書式）。年齢未設定なら名前のみ。 */}
-                {/* 出勤ステータスバッジは出勤時間の上に表示。出勤時間は受付終了でも常に表示し続ける。 */}
-                <div className="mb-4">
+                {/* ── 名前＋出勤情報（デスクトップ：従来どおり。名前の横にバッジ、その下に出勤時間=work_hours を常時表示） ── */}
+                <div className="hidden md:block mb-4">
                   <div className="flex items-center flex-wrap gap-x-2 gap-y-1">
                     <h1 className="text-2xl font-bold text-slate-900">
                       {therapist.name}
                       {therapist.age && <span className="ml-0.5">（{therapist.age}）</span>}
                     </h1>
-                    {/* 出勤ステータスバッジ（今すぐ/出勤中は点滅） */}
-                    <span
-                      className={`inline-flex items-center rounded-full text-[11px] font-bold px-2.5 py-0.5 whitespace-nowrap ${statusBadge.blink ? 'animate-pulse' : ''}`}
-                      style={{ background: statusBadge.bg, color: statusBadge.color, boxShadow: '0 1px 2px rgba(0,0,0,0.12)' }}
-                    >
-                      {statusBadge.label}
-                    </span>
+                    {statusBadgeNode}
                   </div>
                   {therapist.workHours && (
                     <span className="inline-flex items-center gap-1 text-sm font-medium text-slate-500 mt-1.5">
@@ -340,6 +350,33 @@ export default async function TherapistPublicPage({
                       </svg>
                       {therapist.workHours}
                     </span>
+                  )}
+                </div>
+
+                {/* ── 名前＋出勤情報（モバイルのみ） ── */}
+                {/* 名前の横の領域を、出勤日は「バッジ／今日のシフト時間」の2段、お休みは「お休みバッジ中央寄せ」に。
+                    判定・出勤時間は 7日間スケジュールと同じデータ源（todayWindow / todaySched）を使用。 */}
+                <div className="md:hidden flex items-stretch gap-3 mb-4">
+                  <h1 className="text-2xl font-bold text-slate-900 min-w-0 flex-1 self-center break-words">
+                    {therapist.name}
+                    {therapist.age && <span className="ml-0.5">（{therapist.age}）</span>}
+                  </h1>
+                  {isWorkingToday ? (
+                    <div className="flex flex-col items-end justify-center gap-1 flex-shrink-0">
+                      {statusBadgeNode}
+                      {todayShiftHours && (
+                        <span className="inline-flex items-center gap-1 text-sm font-medium text-slate-500">
+                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-slate-400 flex-shrink-0">
+                            <circle cx="12" cy="12" r="10" /><path d="M12 6v6l4 2" />
+                          </svg>
+                          {todayShiftHours}
+                        </span>
+                      )}
+                    </div>
+                  ) : (
+                    <div className="flex items-center justify-center flex-shrink-0">
+                      {statusBadgeNode}
+                    </div>
                   )}
                 </div>
 
