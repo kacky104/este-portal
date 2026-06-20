@@ -378,10 +378,7 @@ export function SalonTherapists({ salonId }: { salonId: number }) {
     </div>
   );
   return (
-    <div
-      className="flex gap-[3px] overflow-x-auto pb-1"
-      style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' } as React.CSSProperties}
-    >
+    <div className="flex gap-[3px] overflow-x-auto pb-4 scrollbar-pink">
       {list.map((t, i) => (
         <MiniCard key={t.id} therapist={t} index={i} />
       ))}
