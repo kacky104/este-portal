@@ -217,7 +217,8 @@ function SalonCard({ salon, therapists, showAge = false, areaNextToDuty = false,
         </h3>
 
         {/* 2. 評価・エリア・タグなどの情報 */}
-        <div className="mb-2">
+        {/* トップページ（compactTherapists）はセラピストカード上の余白を半分（mb-2→mb-1）に */}
+        <div className={compactTherapists ? 'mb-1' : 'mb-2'}>
           {/* Hours + 出勤中バッジ */}
           <div className="flex items-center gap-2 text-xs mb-2 flex-wrap">
             <div className="flex items-center gap-1.5">
@@ -260,8 +261,9 @@ function SalonCard({ salon, therapists, showAge = false, areaNextToDuty = false,
         </div>
 
         {/* 3. セラピスト写真の横スクロール */}
+        {/* トップページ（compactTherapists）はセラピストカード下の余白を半分（mb-4→mb-2）に */}
         {therapists.length > 0 && (
-          <div className="mb-4">
+          <div className={compactTherapists ? 'mb-2' : 'mb-4'}>
             <TherapistMiniCardsRow therapists={therapists} salonId={salon.id} showAge={showAge} compact={compactTherapists} />
           </div>
         )}
