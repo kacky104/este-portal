@@ -284,7 +284,7 @@ export default async function SalonPage({
             <div className="mt-8 rounded-3xl p-5 border shadow-sm" style={{ backgroundColor: theme.card, borderColor: theme.cardBorder }}>
               <div className="flex items-center gap-2 mb-4">
                 <span className="text-lg">💖</span>
-                <h2 className="text-base font-bold" style={{ color: theme.heading }}>本日の出勤<span className="text-xl font-extrabold mx-0.5" style={{ color: '#ec4899' }}>{todayScheduledCount}</span>人</h2>
+                <h2 className="text-base font-bold" style={{ color: theme.heading }}>本日の出勤セラピスト<span className="text-2xl font-extrabold mx-1" style={{ color: '#ec4899' }}>{todayScheduledCount}</span>人</h2>
               </div>
               <SalonTherapists salonId={Number(id)} />
 
