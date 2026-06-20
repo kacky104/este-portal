@@ -376,6 +376,19 @@ export default async function SalonPage({
               <p className="text-xs opacity-70 mt-1">※ コースにより異なります</p>
             </div>
 
+            {/* Rating（評価・口コミ件数。店舗基本情報の上） */}
+            <div className="rounded-2xl border shadow-sm p-5" style={{ backgroundColor: theme.card, borderColor: theme.cardBorder }}>
+              <div className="flex flex-wrap items-center gap-3">
+                <div className="flex items-center gap-1">
+                  {Array.from({ length: 5 }, (_, i) => (
+                    <span key={i} className={i < filledStars ? "text-pink-500" : "text-slate-300"} style={{ fontSize: "18px" }}>★</span>
+                  ))}
+                </div>
+                <span className="text-pink-600 font-bold text-lg">{salon.rating}</span>
+                <span className="text-sm" style={{ color: theme.body }}>({salon.reviewCount}件の口コミ)</span>
+              </div>
+            </div>
+
             {/* Shop info（スマホのみ折り畳み・デスクトップは常時展開） */}
             <CollapsibleSection theme={theme} className="rounded-2xl border shadow-sm p-5" title="店舗基本情報" mobileOnly>
               <dl className="space-y-3.5 text-sm">
@@ -396,22 +409,6 @@ export default async function SalonPage({
             )}
 
           </div>
-        </div>
-
-        {/* ─── Block: 評価・営業時間（ページ下部へ移動） ─────── */}
-        <div className="rounded-2xl border shadow-sm p-6 mt-6" style={{ backgroundColor: theme.card, borderColor: theme.cardBorder }}>
-
-          {/* Rating row */}
-          <div className="flex flex-wrap items-center gap-3 mb-4">
-            <div className="flex items-center gap-1">
-              {Array.from({ length: 5 }, (_, i) => (
-                <span key={i} className={i < filledStars ? "text-pink-500" : "text-slate-300"} style={{ fontSize: "18px" }}>★</span>
-              ))}
-            </div>
-            <span className="text-pink-600 font-bold text-lg">{salon.rating}</span>
-            <span className="text-sm" style={{ color: theme.body }}>({salon.reviewCount}件の口コミ)</span>
-          </div>
-
         </div>
       </main>
 
