@@ -100,7 +100,7 @@ export default async function SalonPricePage({
           {courses.length === 0 ? (
             <p className="text-center py-8 text-sm" style={{ color: theme.body }}>準備中</p>
           ) : (
-            <CoursesContent courses={courses} theme={theme} />
+            <CoursesContent courses={courses} theme={theme} large />
           )}
         </section>
       </main>
