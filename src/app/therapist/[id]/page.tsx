@@ -425,24 +425,7 @@ export default async function TherapistPublicPage({
               </section>
             )}
 
-            {/* Profile text */}
-            {therapist.profileText && (
-              <section className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
-                <SectionHeading>プロフィール</SectionHeading>
-                <p className="text-slate-600 text-sm leading-relaxed whitespace-pre-wrap">
-                  {therapist.profileText}
-                </p>
-              </section>
-            )}
-
-            {therapist.comment && (
-              <section className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
-                <SectionHeading>ひとことコメント</SectionHeading>
-                <p className="text-slate-600 text-sm leading-relaxed">{therapist.comment}</p>
-              </section>
-            )}
-
-            {/* Schedule */}
+            {/* Schedule（プロフィールの上に表示） */}
             <section className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
               <SectionHeading>出勤スケジュール（7日間）</SectionHeading>
               <div className="space-y-2">
@@ -476,6 +459,24 @@ export default async function TherapistPublicPage({
                 })}
               </div>
             </section>
+
+            {/* Profile text */}
+            {therapist.profileText && (
+              <section className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
+                <SectionHeading>プロフィール</SectionHeading>
+                <p className="text-slate-600 text-sm leading-relaxed whitespace-pre-wrap">
+                  {therapist.profileText}
+                </p>
+              </section>
+            )}
+
+            {therapist.comment && (
+              <section className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
+                <SectionHeading>ひとことコメント</SectionHeading>
+                <p className="text-slate-600 text-sm leading-relaxed">{therapist.comment}</p>
+              </section>
+            )}
+
           </div>
 
           {/* Right: sidebar */}
