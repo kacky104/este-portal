@@ -318,27 +318,29 @@ export default async function TherapistPublicPage({
             <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
               <div className="p-6">
                 {/* 名前のすぐ右に年齢を（23）形式で表示（トップページのセラピストカードと同書式）。年齢未設定なら名前のみ。 */}
-                {/* 出勤時間は年齢の横に表示する（下部の重複表示は削除）。 */}
-                <div className="flex items-center flex-wrap gap-x-2 gap-y-1 mb-4">
-                  <h1 className="text-2xl font-bold text-slate-900">
-                    {therapist.name}
-                    {therapist.age && <span className="ml-0.5">（{therapist.age}）</span>}
-                  </h1>
+                {/* 出勤ステータスバッジは出勤時間の上に表示。出勤時間は受付終了でも常に表示し続ける。 */}
+                <div className="mb-4">
+                  <div className="flex items-center flex-wrap gap-x-2 gap-y-1">
+                    <h1 className="text-2xl font-bold text-slate-900">
+                      {therapist.name}
+                      {therapist.age && <span className="ml-0.5">（{therapist.age}）</span>}
+                    </h1>
+                    {/* 出勤ステータスバッジ（今すぐ/出勤中は点滅） */}
+                    <span
+                      className={`inline-flex items-center rounded-full text-[11px] font-bold px-2.5 py-0.5 whitespace-nowrap ${statusBadge.blink ? 'animate-pulse' : ''}`}
+                      style={{ background: statusBadge.bg, color: statusBadge.color, boxShadow: '0 1px 2px rgba(0,0,0,0.12)' }}
+                    >
+                      {statusBadge.label}
+                    </span>
+                  </div>
                   {therapist.workHours && (
-                    <span className="inline-flex items-center gap-1 text-sm font-medium text-slate-500">
+                    <span className="inline-flex items-center gap-1 text-sm font-medium text-slate-500 mt-1.5">
                       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-slate-400 flex-shrink-0">
                         <circle cx="12" cy="12" r="10" /><path d="M12 6v6l4 2" />
                       </svg>
                       {therapist.workHours}
                     </span>
                   )}
-                  {/* 出勤ステータスバッジ（今すぐ/出勤中は点滅） */}
-                  <span
-                    className={`inline-flex items-center rounded-full text-[11px] font-bold px-2.5 py-0.5 whitespace-nowrap ${statusBadge.blink ? 'animate-pulse' : ''}`}
-                    style={{ background: statusBadge.bg, color: statusBadge.color, boxShadow: '0 1px 2px rgba(0,0,0,0.12)' }}
-                  >
-                    {statusBadge.label}
-                  </span>
                 </div>
 
                 {/* Body type */}
