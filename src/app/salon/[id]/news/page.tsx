@@ -53,7 +53,7 @@ export default async function SalonNewsPage({
   // 公開お知らせを published_at の新しい順に取得（RLS でも is_published=true のみ）
   const { data: rows } = await supabase
     .from('announcements')
-    .select('id, title, content, published_at')
+    .select('id, title, content, published_at, image_url')
     .eq('salon_id', Number(id))
     .eq('is_published', true)
     .order('published_at', { ascending: false });
@@ -63,6 +63,7 @@ export default async function SalonNewsPage({
     title:       (r.title as string) ?? '',
     content:     (r.content as string | null) ?? '',
     publishedAt: (r.published_at as string) ?? '',
+    imageUrl:    (r.image_url as string | null) ?? null,
   }));
 
   return (
@@ -122,6 +123,12 @@ export default async function SalonNewsPage({
                   <h2 className="font-bold text-base min-w-0 break-words" style={{ color: theme.heading }}>{a.title}</h2>
                 </div>
                 <p className="text-xs mb-3" style={{ color: theme.body }}>{formatDate(a.publishedAt)}</p>
+                {a.imageUrl && (
+                  <div className="mb-3 rounded-xl overflow-hidden border" style={{ borderColor: theme.cardBorder }}>
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={a.imageUrl} alt={a.title} className="w-full h-auto max-h-96 object-contain bg-black/5" />
+                  </div>
+                )}
                 {a.content && (
                   <p className="text-sm leading-relaxed break-words whitespace-pre-wrap" style={{ color: theme.body }}>{a.content}</p>
                 )}

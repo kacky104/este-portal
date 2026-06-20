@@ -62,12 +62,13 @@ type Announcement = {
   content: string | null;
   is_published: boolean;
   published_at: string;
+  image_url: string | null;
 };
 
 async function fetchAnnouncementList(salonId: number): Promise<Announcement[]> {
   const { data, error } = await supabase
     .from('announcements')
-    .select('id, title, content, is_published, published_at')
+    .select('id, title, content, is_published, published_at, image_url')
     .eq('salon_id', salonId)
     .order('published_at', { ascending: false });
   if (error) console.warn('[mypage] お知らせ取得失敗:', error.message);
@@ -271,10 +272,12 @@ export default function MyPage() {
   // お知らせ管理タブ
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
   const [announcementForms, setAnnouncementForms] = useState<Record<string, Partial<Announcement>>>({});
-  const [newAnnouncement, setNewAnnouncement] = useState<{ title: string; content: string; is_published: boolean }>({ title: '', content: '', is_published: true });
+  const [newAnnouncement, setNewAnnouncement] = useState<{ title: string; content: string; is_published: boolean; image_url: string | null }>({ title: '', content: '', is_published: true, image_url: null });
   const [addingAnnouncement, setAddingAnnouncement] = useState(false);
   const [savingAnnouncement, setSavingAnnouncement] = useState<string | null>(null);
   const [deletingAnnouncement, setDeletingAnnouncement] = useState<string | null>(null);
+  const [uploadingNewAnnouncementImage, setUploadingNewAnnouncementImage] = useState(false);
+  const [uploadingAnnouncementImageId, setUploadingAnnouncementImageId] = useState<string | null>(null);
 
   const toggleSection = (key: string) => {
     setExpandedSections(prev => {
@@ -354,7 +357,7 @@ export default function MyPage() {
       setAnnouncements(announcementList);
       const announcementFormMap: Record<string, Partial<Announcement>> = {};
       announcementList.forEach(a => {
-        announcementFormMap[a.id] = { title: a.title, content: a.content, is_published: a.is_published };
+        announcementFormMap[a.id] = { title: a.title, content: a.content, is_published: a.is_published, image_url: a.image_url };
       });
       setAnnouncementForms(announcementFormMap);
 
@@ -922,11 +925,49 @@ export default function MyPage() {
     showToast('クーポンを削除しました');
   };
 
+  // お知らせ：画像アップロード（新規フォーム用。announcement-images バケット・1枚）
+  const handleNewAnnouncementImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !salon) return;
+    const err = validateImageFile(file);
+    if (err) { showToast(err); return; }
+    setUploadingNewAnnouncementImage(true);
+    const ext  = file.name.split('.').pop() ?? 'jpg';
+    const path = `${Number(salon.id)}/${Date.now()}.${ext}`;
+    const { error } = await supabase.storage.from('announcement-images').upload(path, file);
+    if (error) {
+      showToast(`アップロードに失敗しました: ${error.message}`);
+      setUploadingNewAnnouncementImage(false); e.target.value = ''; return;
+    }
+    const { data: { publicUrl } } = supabase.storage.from('announcement-images').getPublicUrl(path);
+    setNewAnnouncement(p => ({ ...p, image_url: publicUrl }));
+    setUploadingNewAnnouncementImage(false); e.target.value = '';
+  };
+
+  // お知らせ：画像アップロード（編集フォーム用。保存ボタンで image_url が確定保存される）
+  const handleAnnouncementImageUpload = async (id: string, e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !salon) return;
+    const err = validateImageFile(file);
+    if (err) { showToast(err); return; }
+    setUploadingAnnouncementImageId(id);
+    const ext  = file.name.split('.').pop() ?? 'jpg';
+    const path = `${Number(salon.id)}/${Date.now()}.${ext}`;
+    const { error } = await supabase.storage.from('announcement-images').upload(path, file);
+    if (error) {
+      showToast(`アップロードに失敗しました: ${error.message}`);
+      setUploadingAnnouncementImageId(null); e.target.value = ''; return;
+    }
+    const { data: { publicUrl } } = supabase.storage.from('announcement-images').getPublicUrl(path);
+    setAnnouncementForms(prev => ({ ...prev, [id]: { ...prev[id], image_url: publicUrl } }));
+    setUploadingAnnouncementImageId(null); e.target.value = '';
+  };
+
   // お知らせ：フォーム再構築（一覧取得後の同期用）
   const rebuildAnnouncementForms = (list: Announcement[]) => {
     const map: Record<string, Partial<Announcement>> = {};
     list.forEach(a => {
-      map[a.id] = { title: a.title, content: a.content, is_published: a.is_published };
+      map[a.id] = { title: a.title, content: a.content, is_published: a.is_published, image_url: a.image_url };
     });
     setAnnouncementForms(map);
   };
@@ -940,6 +981,7 @@ export default function MyPage() {
       title:        newAnnouncement.title.trim(),
       content:      newAnnouncement.content.trim(),
       is_published: newAnnouncement.is_published,
+      image_url:    newAnnouncement.image_url || null,
     });
     if (error) {
       setAddingAnnouncement(false);
@@ -953,7 +995,7 @@ export default function MyPage() {
     const list = await fetchAnnouncementList(Number(salon.id));
     setAnnouncements(list);
     rebuildAnnouncementForms(list);
-    setNewAnnouncement({ title: '', content: '', is_published: true });
+    setNewAnnouncement({ title: '', content: '', is_published: true, image_url: null });
     setAddingAnnouncement(false);
     showToast('お知らせを追加しました');
   };
@@ -969,15 +1011,17 @@ export default function MyPage() {
     setSavingAnnouncement(id);
     const content = ((form.content ?? '') as string).trim();
     const is_published = form.is_published ?? true;
+    const image_url = (form.image_url as string | null) ?? null;
     const { error } = await supabase.from('announcements').update({
       title: form.title.trim(),
       content,
       is_published,
+      image_url,
     }).eq('id', id);
     setSavingAnnouncement(null);
     if (error) { showToast(`保存に失敗しました: ${error.message}`); return; }
     setAnnouncements(prev => prev.map(a => a.id === id
-      ? { ...a, title: form.title!.trim(), content, is_published }
+      ? { ...a, title: form.title!.trim(), content, is_published, image_url }
       : a));
     showToast('お知らせを保存しました');
   };
@@ -2040,6 +2084,41 @@ export default function MyPage() {
                 onChange={(e) => setNewAnnouncement(p => ({ ...p, content: e.target.value }))}
               />
             </div>
+            <div>
+              <label className={labelClass}>画像（任意・1枚）</label>
+              {newAnnouncement.image_url ? (
+                <div className="relative w-32 h-32 rounded-xl overflow-hidden border border-pink-100 bg-slate-50">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={newAnnouncement.image_url} alt="お知らせ画像" className="w-full h-full object-cover" />
+                  <button
+                    type="button"
+                    onClick={() => setNewAnnouncement(p => ({ ...p, image_url: null }))}
+                    aria-label="削除"
+                    className="absolute top-1 right-1 w-6 h-6 rounded-full bg-black/55 text-white text-xs flex items-center justify-center hover:bg-black/75"
+                  >
+                    ×
+                  </button>
+                </div>
+              ) : (
+                <label className="flex flex-col items-center justify-center w-32 h-32 rounded-xl border-2 border-dashed border-pink-200 bg-pink-50/40 text-pink-400 cursor-pointer hover:bg-pink-50 transition-colors">
+                  {uploadingNewAnnouncementImage ? (
+                    <span className="text-[10px] font-bold">アップ中...</span>
+                  ) : (
+                    <>
+                      <span className="text-2xl leading-none">＋</span>
+                      <span className="text-[10px] font-bold mt-0.5">画像を追加</span>
+                    </>
+                  )}
+                  <input
+                    type="file"
+                    accept="image/jpeg,image/png,image/webp"
+                    onChange={handleNewAnnouncementImageUpload}
+                    disabled={uploadingNewAnnouncementImage}
+                    className="hidden"
+                  />
+                </label>
+              )}
+            </div>
             <label className="flex items-center gap-2 cursor-pointer select-none">
               <input
                 type="checkbox"
@@ -2115,6 +2194,42 @@ export default function MyPage() {
                       value={(form.content as string | null) ?? ''}
                       onChange={(e) => setAnnouncementForms(prev => ({ ...prev, [a.id]: { ...prev[a.id], content: e.target.value } }))}
                     />
+                  </div>
+                  <div>
+                    <label className={labelClass}>画像（任意・1枚）</label>
+                    {(form.image_url as string | null) ? (
+                      <div className="relative w-32 h-32 rounded-xl overflow-hidden border border-pink-100 bg-slate-50">
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img src={form.image_url as string} alt="お知らせ画像" className="w-full h-full object-cover" />
+                        <button
+                          type="button"
+                          onClick={() => setAnnouncementForms(prev => ({ ...prev, [a.id]: { ...prev[a.id], image_url: null } }))}
+                          aria-label="削除"
+                          className="absolute top-1 right-1 w-6 h-6 rounded-full bg-black/55 text-white text-xs flex items-center justify-center hover:bg-black/75"
+                        >
+                          ×
+                        </button>
+                      </div>
+                    ) : (
+                      <label className="flex flex-col items-center justify-center w-32 h-32 rounded-xl border-2 border-dashed border-pink-200 bg-pink-50/40 text-pink-400 cursor-pointer hover:bg-pink-50 transition-colors">
+                        {uploadingAnnouncementImageId === a.id ? (
+                          <span className="text-[10px] font-bold">アップ中...</span>
+                        ) : (
+                          <>
+                            <span className="text-2xl leading-none">＋</span>
+                            <span className="text-[10px] font-bold mt-0.5">画像を追加</span>
+                          </>
+                        )}
+                        <input
+                          type="file"
+                          accept="image/jpeg,image/png,image/webp"
+                          onChange={(e) => handleAnnouncementImageUpload(a.id, e)}
+                          disabled={uploadingAnnouncementImageId === a.id}
+                          className="hidden"
+                        />
+                      </label>
+                    )}
+                    <p className="text-[10px] text-slate-400 mt-1">※ 画像の差し替え・削除は「保存」で確定します。</p>
                   </div>
                   <div className="flex justify-end">
                     <button
