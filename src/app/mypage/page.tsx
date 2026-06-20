@@ -276,6 +276,7 @@ export default function MyPage() {
   const [addingAnnouncement, setAddingAnnouncement] = useState(false);
   const [savingAnnouncement, setSavingAnnouncement] = useState<string | null>(null);
   const [deletingAnnouncement, setDeletingAnnouncement] = useState<string | null>(null);
+  const [repostingAnnouncement, setRepostingAnnouncement] = useState<string | null>(null);
   const [uploadingNewAnnouncementImage, setUploadingNewAnnouncementImage] = useState(false);
   const [uploadingAnnouncementImageId, setUploadingAnnouncementImageId] = useState<string | null>(null);
 
@@ -1036,6 +1037,23 @@ export default function MyPage() {
     setAnnouncements(prev => prev.map(a => a.id === id ? { ...a, is_published: next } : a));
     setAnnouncementForms(prev => ({ ...prev, [id]: { ...prev[id], is_published: next } }));
     showToast(next ? '公開にしました' : '非公開にしました');
+  };
+
+  // お知らせ：再投稿（published_at を現在時刻に更新し一覧の先頭へ。元の投稿日時は上書きされ、新しい投稿として扱われる）
+  const handleAnnouncementRepost = async (id: string) => {
+    if (!window.confirm('このお知らせを再投稿しますか？\n投稿日時が現在時刻に更新され、一覧の先頭に表示されます。\n（元の投稿日時は失われ、再び新着「NEW!!」扱いになります）')) return;
+    setRepostingAnnouncement(id);
+    const newIso = new Date().toISOString();
+    const { error } = await supabase.from('announcements').update({ published_at: newIso }).eq('id', id);
+    setRepostingAnnouncement(null);
+    if (error) { showToast(`再投稿に失敗しました: ${error.message}`); return; }
+    // 同じ行の published_at を更新し、新しい順で再ソート（元の古い投稿は残らない）
+    setAnnouncements(prev =>
+      prev
+        .map(a => a.id === id ? { ...a, published_at: newIso } : a)
+        .sort((x, y) => new Date(y.published_at).getTime() - new Date(x.published_at).getTime())
+    );
+    showToast('再投稿しました');
   };
 
   // お知らせ：削除（確認あり）
@@ -2151,8 +2169,8 @@ export default function MyPage() {
               const form = announcementForms[a.id] ?? {};
               return (
                 <div key={a.id} className="bg-white rounded-2xl border border-pink-100 shadow-sm p-5 space-y-3">
-                  {/* ヘッダー：公開状態・公開日時・ワンタップ切替・削除 */}
-                  <div className="flex items-center justify-between gap-2">
+                  {/* ヘッダー：公開状態・公開日時・ワンタップ切替・再投稿・削除 */}
+                  <div className="flex flex-wrap items-center justify-between gap-2">
                     <div className="flex items-center gap-2 min-w-0">
                       <span className={`text-[11px] font-bold px-2.5 py-1 rounded-full flex-shrink-0 ${
                         a.is_published ? 'bg-pink-50 text-pink-600' : 'bg-slate-100 text-slate-400'
@@ -2161,13 +2179,28 @@ export default function MyPage() {
                       </span>
                       <span className="text-[10px] text-slate-400 truncate">{formatPublishedAt(a.published_at)}</span>
                     </div>
-                    <div className="flex items-center gap-2 flex-shrink-0">
+                    <div className="flex flex-wrap items-center gap-2 justify-end">
                       <button
                         type="button"
                         onClick={() => handleAnnouncementTogglePublish(a.id)}
                         className="px-3 py-1.5 rounded-xl border border-pink-300 text-pink-600 text-xs font-bold hover:bg-pink-50 transition-colors"
                       >
                         {a.is_published ? '非公開にする' : '公開にする'}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleAnnouncementRepost(a.id)}
+                        disabled={repostingAnnouncement === a.id}
+                        title="投稿日時を現在時刻に更新して再投稿します"
+                        className="inline-flex items-center gap-1 px-3 py-1.5 rounded-xl border border-emerald-300 text-emerald-600 text-xs font-bold bg-emerald-50 hover:bg-emerald-100 transition-colors disabled:opacity-50"
+                      >
+                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="flex-shrink-0">
+                          <path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8" />
+                          <path d="M21 3v5h-5" />
+                          <path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16" />
+                          <path d="M3 21v-5h5" />
+                        </svg>
+                        {repostingAnnouncement === a.id ? '処理中...' : '再投稿'}
                       </button>
                       <button
                         type="button"
