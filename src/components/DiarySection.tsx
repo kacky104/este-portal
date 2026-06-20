@@ -137,6 +137,24 @@ function DiaryCard({ diary, emphasized = false }: { diary: DiaryView; emphasized
   );
 }
 
+// ── DiaryViewAllCard（横スクロール末尾の「全部見る」カード。クリックで遷移） ──
+
+function DiaryViewAllCard({ href }: { href: string }) {
+  return (
+    <Link
+      href={href}
+      className="relative flex-shrink-0 w-[105px] h-[153px] md:w-[150px] md:h-56 rounded-2xl overflow-hidden border border-pink-200 bg-gradient-to-b from-pink-50 to-fuchsia-100 flex flex-col items-center justify-center gap-2 hover:from-pink-100 hover:to-fuchsia-200 transition-colors shadow-sm"
+    >
+      <div className="w-10 h-10 rounded-full bg-white/70 flex items-center justify-center shadow-sm">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="text-pink-500">
+          <path d="M5 12h14M12 5l7 7-7 7" />
+        </svg>
+      </div>
+      <p className="text-[12px] font-bold text-pink-600 text-center leading-snug">全部見る</p>
+    </Link>
+  );
+}
+
 // ── DiarySection（トップページ：全サロンの最新投稿） ───────────
 
 export function DiarySection() {
@@ -168,9 +186,9 @@ export function DiarySection() {
 export function SalonDiarySection({ salonId }: { salonId: string }) {
   const [list, setList] = useState<DiaryView[] | null>(null);
 
-  // 新着6件のみサムネ横スクロール表示
+  // 新着7件のみサムネ横スクロール表示（8枚目は「全部見る」カード）
   useEffect(() => {
-    fetchDiaries({ salonId, limit: 6 }).then(setList);
+    fetchDiaries({ salonId, limit: 7 }).then(setList);
   }, [salonId]);
 
   if (list && list.length === 0) {
@@ -187,6 +205,7 @@ export function SalonDiarySection({ salonId }: { salonId: string }) {
         {(list ?? []).map((diary) => (
           <DiaryCard key={diary.id} diary={diary} emphasized />
         ))}
+        {list && list.length > 0 && <DiaryViewAllCard href={`/salon/${salonId}/diary`} />}
       </div>
     </div>
   );

@@ -298,6 +298,24 @@ function MiniCard({ therapist, index }: { therapist: Therapist; index: number })
   );
 }
 
+// ── ViewAllCard（横スクロール末尾の「全部見る」カード。クリックで遷移） ──
+
+function ViewAllCard({ href }: { href: string }) {
+  return (
+    <Link
+      href={href}
+      className="relative flex-shrink-0 w-[105px] h-[153px] md:w-[150px] md:h-56 rounded-2xl overflow-hidden border border-pink-200 bg-gradient-to-b from-pink-50 to-fuchsia-100 flex flex-col items-center justify-center gap-2 hover:from-pink-100 hover:to-fuchsia-200 transition-colors shadow-sm"
+    >
+      <div className="w-10 h-10 rounded-full bg-white/70 flex items-center justify-center shadow-sm">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="text-pink-500">
+          <path d="M5 12h14M12 5l7 7-7 7" />
+        </svg>
+      </div>
+      <p className="text-[12px] font-bold text-pink-600 text-center leading-snug">全部見る</p>
+    </Link>
+  );
+}
+
 // ── SalonTherapists (出勤中のみ) ───────────────────────────────
 
 export function SalonTherapists({ salonId }: { salonId: number }) {
@@ -367,8 +385,8 @@ export function SalonTherapists({ salonId }: { salonId: number }) {
       // 「本日出勤」ブロックは 今すぐ / 出勤中・出勤予定 / 受付終了 を表示。
       // 受付終了になっても非表示にせずカードを出し続ける。お休み(off)のみ除外。
       const visible = sorted.filter(t => availableNowActive(t) || getScheduleStatus(t.today).status !== 'off');
-      // 横スクロール表示。最大10人まで（続きは見出し右の「全部見る →」から週間出勤予定へ）
-      setList(visible.slice(0, 10));
+      // 横スクロール表示。最大7人まで（8枚目は「全部見る」カードで週間出勤予定へ）
+      setList(visible.slice(0, 7));
     })();
   }, [salonId]);
 
@@ -382,6 +400,7 @@ export function SalonTherapists({ salonId }: { salonId: number }) {
       {list.map((t, i) => (
         <MiniCard key={t.id} therapist={t} index={i} />
       ))}
+      <ViewAllCard href={`/salon/${salonId}/schedule`} />
     </div>
   );
 }
