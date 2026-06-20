@@ -206,7 +206,7 @@ export default async function Home() {
                 </div>
               </div>
             </div>
-            <TherapistScroller />
+            <TherapistScroller showAge />
           </div>
         </section>
 

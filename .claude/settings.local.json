@@ -57,7 +57,21 @@
       "Bash(python -c ' *)",
       "Bash(curl -s \"http://localhost:3000/salon/6\" -o /tmp/qnlink.html)",
       "Bash(grep -oE 'href=\"/salon/6/schedule\"[^@]{0,600}?本日出勤' /tmp/qnlink.html)",
-      "Bash(curl -s \"http://localhost:3000/salon/6/imasugu\" -o /tmp/im6.html)"
+      "Bash(curl -s \"http://localhost:3000/salon/6/imasugu\" -o /tmp/im6.html)",
+      "Bash(curl -s \"http://localhost:3000/salon/6\" -o /tmp/g6.html)",
+      "Bash(grep -rlo 'lg\\\\\\\\:grid-cols-3\\\\|grid-template-columns:repeat\\(3' .next/static/css/)",
+      "Bash(grep -rho '\\\\.lg\\\\\\\\:grid-cols-3{[^}]*}' .next/static/css/)",
+      "Bash(curl -s \"http://localhost:3000/salon/6\" -o /tmp/bc6.html)",
+      "Bash(curl -s \"http://localhost:3000/salon/2\" -o /tmp/bc2.html)",
+      "Bash(sed -i 's/background-position: 100% 0;/background-position: 0% 0;/g' src/app/globals.css)",
+      "Bash(perl -0pi -e 's/\\\\@keyframes sn-sweep \\\\{\\\\s*from \\\\{ background-position: 100% 0; \\\\}\\\\s*to   \\\\{ background-position: 0% 0; \\\\}\\\\s*\\\\}/\\\\@keyframes sn-sweep {\\\\n  from { background-position: 0% 0; }\\\\n  to   { background-position: 100% 0; }\\\\n}/s' src/app/globals.css)",
+      "Bash(break)",
+      "Bash(sed -i 's/--imasugu-shine-duration: 20s;/--imasugu-shine-duration: 4.5s;/' src/app/globals.css)",
+      "Bash(rm -f z_*.png w_*.png x_*.png y_*.png vs_*.png v_*.png)",
+      "Bash(git check-ignore *)",
+      "Bash(curl -s -o /dev/null -w \"imasugu HTTP %{http_code}\\\\n\" http://localhost:3000/salon/1/imasugu)",
+      "Bash(curl -s -o /dev/null -w \"schedule HTTP %{http_code}\\\\n\" http://localhost:3000/salon/1/schedule)",
+      "PowerShell(npx tsc --noEmit -p tsconfig.json)"
     ]
   },
   "hooks": {

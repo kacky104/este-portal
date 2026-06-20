@@ -63,7 +63,7 @@ type TherapistItem = {
 
 // ── Card ──────────────────────────────────────────────────────
 
-function Card({ therapist, index }: { therapist: TherapistItem; index: number }) {
+function Card({ therapist, index, showAge = false }: { therapist: TherapistItem; index: number; showAge?: boolean }) {
   const grad = GRADIENTS[index % GRADIENTS.length];
   const [ss, setSS] = useState<StatusResult | null>(null);
   useEffect(() => { setSS(getScheduleStatus(therapist.today)); }, [therapist.today]);
@@ -110,6 +110,9 @@ function Card({ therapist, index }: { therapist: TherapistItem; index: number })
       <div className="absolute bottom-0 left-0 right-0 p-1.5 sm:p-3 text-white">
         <div className="flex items-center gap-1 mb-0.5 min-w-0">
           <p className="font-bold text-[11px] sm:text-sm leading-tight drop-shadow line-clamp-1 min-w-0">{therapist.name}</p>
+          {showAge && therapist.age && (
+            <span className="font-bold text-[11px] sm:text-sm leading-tight drop-shadow flex-shrink-0">（{therapist.age}）</span>
+          )}
           {isNewFaceActive(therapist.isNewFace, therapist.newFaceSince) && <NewBadge />}
         </div>
         {(displayHours || therapist.workHours) && (
@@ -125,7 +128,7 @@ function Card({ therapist, index }: { therapist: TherapistItem; index: number })
 
 // ── TherapistScroller ─────────────────────────────────────────
 
-export function TherapistScroller() {
+export function TherapistScroller({ showAge = false }: { showAge?: boolean } = {}) {
   const [list, setList] = useState<TherapistItem[]>([]);
 
   useEffect(() => {
@@ -210,7 +213,7 @@ export function TherapistScroller() {
 
   return (
     <div className="flex gap-[3px] sm:gap-3 overflow-x-auto pb-4 scrollbar-pink w-full">
-      {list.map((t, i) => <Card key={t.id} therapist={t} index={i} />)}
+      {list.map((t, i) => <Card key={t.id} therapist={t} index={i} showAge={showAge} />)}
     </div>
   );
 }
