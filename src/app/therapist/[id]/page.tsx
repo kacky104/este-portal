@@ -361,6 +361,32 @@ export default async function TherapistPublicPage({
               </div>
             </div>
 
+            {/* 写メ日記（新着6件 + 全部見る）— プロフィールの上に表示 */}
+            {diaryPosts.length > 0 && (
+              <section className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 overflow-x-hidden min-w-0">
+                <div className="flex items-center justify-between gap-2 mb-4">
+                  <div className="flex items-center gap-2.5 min-w-0">
+                    <div className="w-1 h-5 rounded-full bg-gradient-to-b from-pink-500 to-pink-700 flex-shrink-0" />
+                    <h3 className="font-bold text-slate-900 truncate">写メ日記</h3>
+                  </div>
+                  <Link
+                    href={`/therapist/${id}/diary`}
+                    className="inline-block text-sm font-bold flex-shrink-0"
+                    style={{
+                      background: 'linear-gradient(to right, #ec4899, #f97316)',
+                      WebkitBackgroundClip: 'text',
+                      backgroundClip: 'text',
+                      WebkitTextFillColor: 'transparent',
+                      color: 'transparent',
+                    }}
+                  >
+                    全部見る →
+                  </Link>
+                </div>
+                <TherapistDiaryList posts={diaryPosts.slice(0, 6)} name={therapist.name} />
+              </section>
+            )}
+
             {/* Profile text */}
             {therapist.profileText && (
               <section className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
@@ -412,32 +438,6 @@ export default async function TherapistPublicPage({
                 })}
               </div>
             </section>
-
-            {/* 写メ日記（新着6件 + 全部見る） */}
-            {diaryPosts.length > 0 && (
-              <section className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 overflow-x-hidden min-w-0">
-                <div className="flex items-center justify-between gap-2 mb-4">
-                  <div className="flex items-center gap-2.5 min-w-0">
-                    <div className="w-1 h-5 rounded-full bg-gradient-to-b from-pink-500 to-pink-700 flex-shrink-0" />
-                    <h3 className="font-bold text-slate-900 truncate">写メ日記</h3>
-                  </div>
-                  <Link
-                    href={`/therapist/${id}/diary`}
-                    className="inline-block text-sm font-bold flex-shrink-0"
-                    style={{
-                      background: 'linear-gradient(to right, #ec4899, #f97316)',
-                      WebkitBackgroundClip: 'text',
-                      backgroundClip: 'text',
-                      WebkitTextFillColor: 'transparent',
-                      color: 'transparent',
-                    }}
-                  >
-                    全部見る →
-                  </Link>
-                </div>
-                <TherapistDiaryList posts={diaryPosts.slice(0, 6)} name={therapist.name} />
-              </section>
-            )}
           </div>
 
           {/* Right: sidebar */}
