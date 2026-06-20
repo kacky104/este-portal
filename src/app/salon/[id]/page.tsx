@@ -401,8 +401,8 @@ export default async function SalonPage({
             </div>
             </div>
 
-            {/* Today's therapists */}
-            <div className="mt-8 rounded-3xl p-5 border shadow-sm" style={{ backgroundColor: theme.card, borderColor: theme.cardBorder }}>
+            {/* Today's therapists（枠内の上下余白を半分に：p-5→px-5 py-2.5） */}
+            <div className="mt-8 rounded-3xl px-5 py-2.5 border shadow-sm" style={{ backgroundColor: theme.card, borderColor: theme.cardBorder }}>
               <div className="flex items-center justify-between gap-2 mb-4">
                 <div className="flex items-center gap-2 min-w-0">
                   <span className="text-lg">💖</span>
@@ -425,8 +425,8 @@ export default async function SalonPage({
               <SalonTherapists salonId={Number(id)} />
             </div>
 
-            {/* Diary section（本日の出勤との隙間を半分に：space-y を上書き） */}
-            <div className="!mt-1.5 md:!mt-3 rounded-3xl p-5 border shadow-sm" style={{ backgroundColor: theme.card, borderColor: theme.cardBorder }}>
+            {/* Diary section（本日の出勤との隙間を半分に：space-y を上書き。枠内の上下余白も半分に：p-5→px-5 py-2.5） */}
+            <div className="!mt-1.5 md:!mt-3 rounded-3xl px-5 py-2.5 border shadow-sm" style={{ backgroundColor: theme.card, borderColor: theme.cardBorder }}>
               <div className="flex items-center justify-between gap-2 mb-4">
                 <div className="flex items-center gap-2 min-w-0">
                   <span className="text-lg">📷</span>
