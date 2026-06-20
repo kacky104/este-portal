@@ -215,7 +215,21 @@ export function TherapistScroller({ showAge = false }: { showAge?: boolean } = {
 
   return (
     <div className="flex gap-[3px] sm:gap-3 overflow-x-auto pb-4 scrollbar-pink w-full">
-      {list.map((t, i) => <Card key={t.id} therapist={t} index={i} showAge={showAge} />)}
+      {/* 出勤中セラピストは最大35枚まで表示 */}
+      {list.slice(0, 35).map((t, i) => <Card key={t.id} therapist={t} index={i} showAge={showAge} />)}
+      {/* 末尾：本日出勤中セラピスト一覧ページへの「一覧を見る」カード */}
+      <Link
+        href="/working"
+        className="flex-shrink-0 w-[105px] h-[153px] sm:w-44 sm:h-64 rounded-2xl overflow-hidden shadow-md hover:-translate-y-1 hover:shadow-xl transition-all duration-300 flex flex-col items-center justify-center gap-2"
+        style={{ background: 'linear-gradient(to bottom right, #ec4899, #f97316)' }}
+      >
+        <span className="flex items-center justify-center w-9 h-9 sm:w-12 sm:h-12 rounded-full bg-white/20">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="sm:w-7 sm:h-7">
+            <path d="M5 12h14M12 5l7 7-7 7" />
+          </svg>
+        </span>
+        <span className="text-white font-bold text-xs sm:text-sm">一覧を見る</span>
+      </Link>
     </div>
   );
 }
