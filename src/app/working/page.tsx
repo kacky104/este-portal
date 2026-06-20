@@ -36,7 +36,7 @@ export default function WorkingPage() {
         <div className="mb-8">
           <h1 className="text-2xl font-bold text-slate-900 mb-1">本日出勤中のセラピスト</h1>
           <p className="text-xs text-slate-400">
-            今すぐ → 出勤中 → 出勤予定 の順 ｜ 並びはページ読み込みのたびにシャッフルされます
+            今すぐ → 出勤中 → 出勤予定 の順（今すぐは残り時間が少ない順、出勤中・出勤予定は出勤開始が早い順）
           </p>
         </div>
 

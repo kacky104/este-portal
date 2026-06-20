@@ -6,16 +6,6 @@ import { getBusinessDateJST } from '@/lib/dutyStatus';
 // トップページの「出勤中」ブロックと同じカード・同じ判定ロジックを流用（改変しない）
 import { Card, getScheduleStatus, type TherapistItem } from '@/app/components/TherapistScroller';
 
-// 既存（ShuffledSalons）と同じ Fisher-Yates シャッフル。マウント毎に実行されるためリロードのたびに順番が変わる。
-function shuffle<T>(arr: T[]): T[] {
-  const a = [...arr];
-  for (let i = a.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [a[i], a[j]] = [a[j], a[i]];
-  }
-  return a;
-}
-
 export function WorkingTherapists() {
   const [list, setList] = useState<TherapistItem[]>([]);
   const [loaded, setLoaded] = useState(false);
@@ -87,20 +77,28 @@ export function WorkingTherapists() {
         t.isAvailableNow && t.availableUntil != null && new Date(t.availableUntil) > new Date();
 
       // ── 表示順（優先順：今すぐ > 出勤中 > 出勤予定。受付終了/お休みは非表示） ──
+      // 今日の出勤開始時刻（"HH:MM"）を分に変換。未設定は末尾扱い。
+      const startMinutes = (t: TherapistItem): number => {
+        const s = t.today.start_time;
+        if (!s) return Number.MAX_SAFE_INTEGER;
+        const [h, m] = s.split(':').map(Number);
+        return h * 60 + (m || 0);
+      };
+
       // 1. 今すぐ：残り時間が少ない順（available_until が近い順）
       const imasugu = mapped
         .filter(isAvailableNowActive)
         .sort((a, b) => new Date(a.availableUntil!).getTime() - new Date(b.availableUntil!).getTime());
 
-      // 2. 出勤中（今すぐ該当を除く）：表示のたびシャッフル
-      const onDuty = shuffle(
-        mapped.filter(t => !isAvailableNowActive(t) && getScheduleStatus(t.today).status === 'onDuty')
-      );
+      // 2. 出勤中（今すぐ該当を除く）：今日の出勤開始時刻が早い順
+      const onDuty = mapped
+        .filter(t => !isAvailableNowActive(t) && getScheduleStatus(t.today).status === 'onDuty')
+        .sort((a, b) => startMinutes(a) - startMinutes(b));
 
-      // 3. 出勤予定（今すぐ該当を除く）：表示のたびシャッフル
-      const before = shuffle(
-        mapped.filter(t => !isAvailableNowActive(t) && getScheduleStatus(t.today).status === 'before')
-      );
+      // 3. 出勤予定（今すぐ該当を除く）：今日の出勤開始時刻が早い順
+      const before = mapped
+        .filter(t => !isAvailableNowActive(t) && getScheduleStatus(t.today).status === 'before')
+        .sort((a, b) => startMinutes(a) - startMinutes(b));
 
       setList([...imasugu, ...onDuty, ...before]);
       setLoaded(true);
