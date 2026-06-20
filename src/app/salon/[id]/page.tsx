@@ -133,6 +133,17 @@ export default async function SalonPage({
     diaryRecentCount = count ?? 0;
   }
 
+  // 発行中クーポン枚数（公開ページ /salon/[id]/coupon と同一ロジック：
+  // is_published=true かつ 有効期限が未来 or 無期限）。
+  const couponTodayJST = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Tokyo' }).format(new Date());
+  const { count: couponCountRaw } = await supabase
+    .from('coupons')
+    .select('id', { count: 'exact', head: true })
+    .eq('salon_id', Number(id))
+    .eq('is_published', true)
+    .or(`valid_until.is.null,valid_until.gte.${couponTodayJST}`);
+  const couponCount = couponCountRaw ?? 0;
+
   const { data: wallpaperRow } = await supabase
     .from('theme_wallpapers')
     .select('image_url')
@@ -306,7 +317,19 @@ export default async function SalonPage({
                 <span className="text-[11px] sm:text-sm font-bold leading-none whitespace-nowrap" style={{ color: qn.text }}>口コミ</span>
               </div>
               {/* クーポン（チケット・掲載型クーポン一覧ページへのリンク） */}
-              <Link href={`/salon/${id}/coupon`} className="flex flex-col items-center justify-center gap-1.5 rounded-lg border px-1.5 py-3 sm:py-4 shadow-sm cursor-pointer hover:shadow-md hover:brightness-95 transition-all" style={{ backgroundColor: qn.bg, borderColor: qn.border }}>
+              <Link href={`/salon/${id}/coupon`} className="relative flex flex-col items-center justify-center gap-1.5 rounded-lg border px-1.5 py-3 sm:py-4 shadow-sm cursor-pointer hover:shadow-md hover:brightness-95 transition-all" style={{ backgroundColor: qn.bg, borderColor: qn.border }}>
+                {/* 発行中クーポン枚数のハートバッジ（1枚以上のときのみ右上にはみ出して表示）。本日出勤カードと同一デザイン。Link内のためタップでも遷移する。 */}
+                {couponCount > 0 && (
+                  <svg
+                    width="50" height="50" viewBox="0 0 100 100"
+                    className="absolute drop-shadow"
+                    style={{ top: '-12px', right: '-12px' }}
+                    aria-label={`発行中クーポン ${couponCount}枚`}
+                  >
+                    <path d="M50 86 C50 86 14 60 14 34 C14 21 25 13 35 13 C43 13 48 19 50 25 C52 19 57 13 65 13 C75 13 86 21 86 34 C86 60 50 86 50 86 Z" fill={heart.fill} />
+                    <text x="50" y="43" textAnchor="middle" dominantBaseline="central" fill={heart.num} fontWeight="600" fontSize={couponCount >= 10 ? 26 : 34}>{couponCount}</text>
+                  </svg>
+                )}
                 <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="flex-shrink-0" style={{ color: qn.icon }}>
                   <path d="M15 5l0 2" />
                   <path d="M15 11l0 2" />
