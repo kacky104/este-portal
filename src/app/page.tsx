@@ -225,8 +225,7 @@ export default async function Home() {
             <div className="mt-2 flex justify-center sm:hidden">
               <Link
                 href="/working"
-                className="inline-flex items-center gap-1 px-5 py-2 rounded-full text-white text-sm font-bold shadow-sm"
-                style={{ background: 'linear-gradient(to right, #ec4899, #f97316)' }}
+                className="inline-flex items-center gap-1 px-6 py-2 rounded-full bg-pink-600 hover:bg-pink-700 text-white text-sm font-bold shadow-sm transition-colors"
               >
                 一覧を見る →
               </Link>
