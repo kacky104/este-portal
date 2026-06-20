@@ -1373,7 +1373,7 @@ export default function MyPage() {
           <div className="bg-white rounded-3xl border border-slate-100 shadow-sm p-5 space-y-4">
             <div>
               <h2 className="text-sm font-black text-slate-700 mb-1">今すぐ対応可能なセラピスト</h2>
-              <p className="text-[11px] text-slate-400">本日出勤中のセラピストに「今すぐ」フラグを設定できます。チェックを入れて保存するとサイト上にバッジが表示されます。30分後に自動で解除されます。</p>
+              <p className="text-[11px] text-slate-400">本日出勤中のセラピストに「今すぐ」フラグを設定できます。チェックを入れて保存するとサイト上にバッジが表示されます。30分後に自動で解除されますが、この画面上ではリロードするまでチェックは残ります。</p>
             </div>
             {(() => {
               // 「今すぐ」判定は営業日基準（深夜0〜5時は前日のスケジュールを参照）
