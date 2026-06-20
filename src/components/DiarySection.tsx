@@ -117,13 +117,22 @@ function DiaryCard({ diary, emphasized = false }: { diary: DiaryView; emphasized
         )}
       </div>
 
-      {/* Bottom: セラピスト名（左） + CTA（右） */}
-      <div className="absolute bottom-0 left-0 right-0 p-3 flex items-end justify-between gap-2">
-        <span className="font-bold text-white drop-shadow truncate min-w-0" style={{ fontSize: emphasized ? '11px' : '10px' }}>
-          {diary.therapistName}
-        </span>
-        <span className="flex-shrink-0 text-[10px] text-pink-300 font-bold">日記を見る →</span>
-      </div>
+      {/* Bottom: セラピスト名 + CTA。emphasized（サロンページ・小カード）は縦並びで名前を上に。 */}
+      {emphasized ? (
+        <div className="absolute bottom-0 left-0 right-0 p-3">
+          <p className="font-bold text-white drop-shadow truncate" style={{ fontSize: '11px' }}>
+            {diary.therapistName}
+          </p>
+          <span className="block text-[10px] text-pink-300 font-bold">日記を見る →</span>
+        </div>
+      ) : (
+        <div className="absolute bottom-0 left-0 right-0 p-3 flex items-end justify-between gap-2">
+          <span className="font-bold text-white drop-shadow truncate min-w-0" style={{ fontSize: '10px' }}>
+            {diary.therapistName}
+          </span>
+          <span className="flex-shrink-0 text-[10px] text-pink-300 font-bold">日記を見る →</span>
+        </div>
+      )}
     </Link>
   );
 }
@@ -174,7 +183,7 @@ export function SalonDiarySection({ salonId }: { salonId: string }) {
 
   return (
     <div className="w-full overflow-x-hidden min-w-0">
-      <div className="flex gap-3 overflow-x-auto pb-4 scrollbar-pink w-full max-w-full min-w-0">
+      <div className="flex gap-[3px] overflow-x-auto pb-4 scrollbar-pink w-full max-w-full min-w-0">
         {(list ?? []).map((diary) => (
           <DiaryCard key={diary.id} diary={diary} emphasized />
         ))}
