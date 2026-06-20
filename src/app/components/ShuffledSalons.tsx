@@ -194,7 +194,7 @@ function TherapistMiniCardsRow({ therapists, salonId, showAge = false }: { thera
 
 // ── Salon card ────────────────────────────────────────────────
 
-function SalonCard({ salon, therapists, showAge = false, areaNextToDuty = false }: { salon: Salon; therapists: TherapistThumb[]; showAge?: boolean; areaNextToDuty?: boolean }) {
+function SalonCard({ salon, therapists, showAge = false, areaNextToDuty = false, ratingAtBottom = false }: { salon: Salon; therapists: TherapistThumb[]; showAge?: boolean; areaNextToDuty?: boolean; ratingAtBottom?: boolean }) {
   const router = useRouter();
   const onDutyCount = therapists.filter(t => t.onDuty).length;
 
@@ -240,16 +240,18 @@ function SalonCard({ salon, therapists, showAge = false, areaNextToDuty = false 
           </div>
 
           {/* Stars + count + area */}
-          <div className="flex items-center gap-2 mb-2">
-            <StarRating rating={salon.rating} />
-            <span className="text-pink-600 font-bold text-sm">{salon.rating}</span>
-            <span className="text-slate-400 text-xs">({salon.reviewCount}件)</span>
-            {!areaNextToDuty && (
-              <span className="flex-shrink-0 text-xs font-semibold px-2.5 py-0.5 rounded-full bg-pink-50 text-pink-600 border border-pink-200">
-                {salon.area}
-              </span>
-            )}
-          </div>
+          {!ratingAtBottom && (
+            <div className="flex items-center gap-2 mb-2">
+              <StarRating rating={salon.rating} />
+              <span className="text-pink-600 font-bold text-sm">{salon.rating}</span>
+              <span className="text-slate-400 text-xs">({salon.reviewCount}件)</span>
+              {!areaNextToDuty && (
+                <span className="flex-shrink-0 text-xs font-semibold px-2.5 py-0.5 rounded-full bg-pink-50 text-pink-600 border border-pink-200">
+                  {salon.area}
+                </span>
+              )}
+            </div>
+          )}
 
 
         </div>
@@ -261,12 +263,20 @@ function SalonCard({ salon, therapists, showAge = false, areaNextToDuty = false 
           </div>
         )}
 
-        {/* Price + CTA */}
+        {/* Rating (top page) or Price + CTA */}
         <div className="flex items-center justify-between pt-3.5 border-t border-slate-200 mt-auto">
-          <div>
-            <p className="text-[11px] text-slate-400 mb-0.5">料金目安</p>
-            <p className="text-pink-600 font-bold text-sm">{salon.price}</p>
-          </div>
+          {ratingAtBottom ? (
+            <div className="flex items-center gap-2">
+              <StarRating rating={salon.rating} />
+              <span className="text-pink-600 font-bold text-sm">{salon.rating}</span>
+              <span className="text-slate-400 text-xs">({salon.reviewCount}件)</span>
+            </div>
+          ) : (
+            <div>
+              <p className="text-[11px] text-slate-400 mb-0.5">料金目安</p>
+              <p className="text-pink-600 font-bold text-sm">{salon.price}</p>
+            </div>
+          )}
           <span className="px-4 py-2 rounded-xl bg-pink-600 text-white font-bold text-xs group-hover:bg-pink-500 transition-colors shadow-sm shadow-pink-500/20">
             詳しく見る →
           </span>
@@ -309,7 +319,7 @@ function SalonCardSkeleton() {
 
 // ── ShuffledSalons ────────────────────────────────────────────
 
-export function ShuffledSalons({ salons, areas, showAge = false, areaNextToDuty = false }: { salons: Salon[]; areas: string[]; showAge?: boolean; areaNextToDuty?: boolean }) {
+export function ShuffledSalons({ salons, areas, showAge = false, areaNextToDuty = false, ratingAtBottom = false }: { salons: Salon[]; areas: string[]; showAge?: boolean; areaNextToDuty?: boolean; ratingAtBottom?: boolean }) {
   const [list,            setList]            = useState<Salon[]>([]);
   const [activeArea,      setActiveArea]      = useState('福岡全域');
   const [salonTherapists, setSalonTherapists] = useState<Record<number, TherapistThumb[]>>({});
@@ -479,6 +489,7 @@ export function ShuffledSalons({ salons, areas, showAge = false, areaNextToDuty 
             therapists={salonTherapists[salon.id] ?? []}
             showAge={showAge}
             areaNextToDuty={areaNextToDuty}
+            ratingAtBottom={ratingAtBottom}
           />
         ))}
       </div>
