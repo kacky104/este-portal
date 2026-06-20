@@ -115,8 +115,10 @@ export function WorkingTherapists() {
     );
   }
 
+  // スマホ（<640px）のみ：gap を詰め、カードをセル幅いっぱい（元の比率）にして少し大きく表示。
+  // デスクトップ（sm以上）は上書きせず従来どおり。カードコンポーネント自体は変更しない。
   return (
-    <div className="grid grid-cols-3 lg:grid-cols-5 gap-2 sm:gap-3 justify-items-center">
+    <div className="grid grid-cols-3 lg:grid-cols-5 gap-1 sm:gap-3 justify-items-center max-sm:[&>a]:!w-full max-sm:[&>a]:!h-auto max-sm:[&>a]:!aspect-[105/153]">
       {list.map((t, i) => <Card key={t.id} therapist={t} index={i} showAge />)}
     </div>
   );
