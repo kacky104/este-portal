@@ -318,8 +318,8 @@ export default async function SalonPage({
               <SalonTherapists salonId={Number(id)} />
             </div>
 
-            {/* Diary section */}
-            <div className="mt-8 rounded-3xl p-5 border shadow-sm" style={{ backgroundColor: theme.card, borderColor: theme.cardBorder }}>
+            {/* Diary section（本日の出勤との隙間を半分に：space-y を上書き） */}
+            <div className="!mt-1.5 md:!mt-3 rounded-3xl p-5 border shadow-sm" style={{ backgroundColor: theme.card, borderColor: theme.cardBorder }}>
               <div className="flex items-center justify-between gap-2 mb-4">
                 <div className="flex items-center gap-2 min-w-0">
                   <span className="text-lg">📷</span>
@@ -348,7 +348,7 @@ export default async function SalonPage({
             )}
 
             {/* All therapists（折り畳み式） */}
-            <CollapsibleSection theme={theme} className="mt-8 rounded-2xl p-6 border shadow-sm" title="在籍セラピスト一覧">
+            <CollapsibleSection theme={theme} className="!mt-1.5 md:!mt-3 rounded-2xl p-6 border shadow-sm" title="在籍セラピスト一覧">
               <SalonAllTherapists salonId={Number(id)} limit={4} />
 
               <div className="mt-4 text-center">
