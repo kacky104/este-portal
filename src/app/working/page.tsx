@@ -32,12 +32,20 @@ export default function WorkingPage() {
           トップへ戻る
         </Link>
 
-        {/* Heading */}
-        <div className="mb-8">
-          <h1 className="text-2xl font-bold text-slate-900 mb-1">本日出勤中のセラピスト</h1>
-          <p className="text-xs text-slate-400">
-            今すぐ → 出勤中 → 出勤予定 の順（今すぐは残り時間が少ない順、出勤中・出勤予定は出勤開始が早い順）
-          </p>
+        {/* Heading（中央寄せ・オレンジ→ピンクのグラデーション文字） */}
+        <div className="mb-8 text-center">
+          <h1
+            className="text-2xl font-bold inline-block"
+            style={{
+              background: 'linear-gradient(to right, #F59E0B, #EC4899)',
+              WebkitBackgroundClip: 'text',
+              backgroundClip: 'text',
+              WebkitTextFillColor: 'transparent',
+              color: 'transparent',
+            }}
+          >
+            本日出勤中のセラピスト
+          </h1>
         </div>
 
         <WorkingTherapists />
