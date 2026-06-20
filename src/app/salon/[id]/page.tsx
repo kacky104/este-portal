@@ -143,6 +143,17 @@ export default async function SalonPage({
 
   const filledStars = Math.floor(salon.rating);
 
+  // 店舗基本情報の中身（スマホ=サロンについての下／デスクトップ=右サイドバー の2箇所で共用）
+  const shopInfoRows = (
+    <dl className="space-y-3.5 text-sm">
+      <InfoRow icon={<PhoneIcon />}    label="電話番号" value={salon.phone}      labelColor={theme.body} valueColor={theme.heading} />
+      <InfoRow icon={<ClockIcon />}    label="営業時間" value={salon.hours}      labelColor={theme.body} valueColor={theme.heading} />
+      <InfoRow icon={<CalendarIcon />} label="定休日"   value={salon.closedDays} labelColor={theme.body} valueColor={theme.heading} />
+      <InfoRow icon={<MapIcon />}      label="住所"     value={salon.address}    labelColor={theme.body} valueColor={theme.heading} />
+      <InfoRow icon={<TrainIcon />}    label="アクセス" value={salon.access}     labelColor={theme.body} valueColor={theme.heading} />
+    </dl>
+  );
+
   return (
     <div className="relative min-h-screen overflow-x-hidden" style={{ color: theme.text }}>
 
@@ -362,6 +373,11 @@ export default async function SalonPage({
               <p className="text-sm leading-relaxed break-words max-w-full whitespace-pre-wrap" style={{ color: theme.body }}>{salon.appeal}</p>
             </CollapsibleSection>
 
+            {/* Shop info（スマホのみ：サロンについての下に表示・折り畳み。デスクトップは右サイドバーに表示） */}
+            <CollapsibleSection theme={theme} className="lg:hidden rounded-2xl border shadow-sm p-5" title="店舗基本情報">
+              {shopInfoRows}
+            </CollapsibleSection>
+
             {/* New face therapists（該当0人のときはセクションごと非表示） */}
             <SalonNewFaceTherapists salonId={Number(id)} theme={theme} />
           </div>
@@ -389,15 +405,9 @@ export default async function SalonPage({
               </div>
             </div>
 
-            {/* Shop info（スマホのみ折り畳み・デスクトップは常時展開） */}
-            <CollapsibleSection theme={theme} className="rounded-2xl border shadow-sm p-5" title="店舗基本情報" mobileOnly>
-              <dl className="space-y-3.5 text-sm">
-                <InfoRow icon={<PhoneIcon />}    label="電話番号" value={salon.phone}      labelColor={theme.body} valueColor={theme.heading} />
-                <InfoRow icon={<ClockIcon />}    label="営業時間" value={salon.hours}      labelColor={theme.body} valueColor={theme.heading} />
-                <InfoRow icon={<CalendarIcon />} label="定休日"   value={salon.closedDays} labelColor={theme.body} valueColor={theme.heading} />
-                <InfoRow icon={<MapIcon />}      label="住所"     value={salon.address}    labelColor={theme.body} valueColor={theme.heading} />
-                <InfoRow icon={<TrainIcon />}    label="アクセス" value={salon.access}     labelColor={theme.body} valueColor={theme.heading} />
-              </dl>
+            {/* Shop info（デスクトップのみ：右サイドバーに常時展開で表示。スマホは左カラムのサロンについての下） */}
+            <CollapsibleSection theme={theme} className="hidden lg:block rounded-2xl border shadow-sm p-5" title="店舗基本情報" mobileOnly>
+              {shopInfoRows}
             </CollapsibleSection>
 
             {/* Note */}
