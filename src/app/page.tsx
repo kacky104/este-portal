@@ -221,16 +221,6 @@ export default async function Home() {
               </Link>
             </div>
             <TherapistScroller showAge />
-            {/* 本日出勤中セラピスト一覧ページへの導線（モバイルのみ：カードの下・中央寄せのピル型バッジ） */}
-            <div className="mt-1 flex justify-center sm:hidden">
-              <Link
-                href="/working"
-                className="inline-flex items-center gap-1 px-6 py-1 rounded-full text-white text-sm font-bold shadow-sm"
-                style={{ background: 'linear-gradient(to right, #F59E0B, #EC4899)' }}
-              >
-                一覧を見る
-              </Link>
-            </div>
           </div>
         </section>
 
