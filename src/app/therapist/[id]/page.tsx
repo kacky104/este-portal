@@ -402,7 +402,7 @@ export default async function TherapistPublicPage({
             {/* 写メ日記（新着6件 + 全部見る）— プロフィールの上に表示 */}
             {diaryPosts.length > 0 && (
               <section className="bg-white rounded-2xl border border-slate-200 shadow-sm px-6 py-1.5 overflow-x-hidden min-w-0">
-                <div className="flex items-center justify-between gap-2 mb-4">
+                <div className="flex items-center justify-between gap-2 mb-1.5">
                   <div className="flex items-center gap-2.5 min-w-0">
                     <div className="w-1 h-5 rounded-full bg-gradient-to-b from-pink-500 to-pink-700 flex-shrink-0" />
                     <h3 className="font-bold text-slate-900 truncate">写メ日記</h3>
