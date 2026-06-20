@@ -335,7 +335,7 @@ export default async function TherapistPublicPage({
             <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
               <div className="p-6">
                 {/* ── 名前＋出勤情報（デスクトップ：従来どおり。名前の横にバッジ、その下に出勤時間=work_hours を常時表示） ── */}
-                <div className="hidden md:block mb-4">
+                <div className="hidden md:block mb-1">
                   <div className="flex items-center flex-wrap gap-x-2 gap-y-1">
                     <h1 className="text-2xl font-bold text-slate-900">
                       {therapist.name}
@@ -356,7 +356,7 @@ export default async function TherapistPublicPage({
                 {/* ── 名前＋出勤情報（モバイルのみ） ── */}
                 {/* 名前の横の領域を、出勤日は「バッジ／今日のシフト時間」の2段、お休みは「お休みバッジ中央寄せ」に。
                     判定・出勤時間は 7日間スケジュールと同じデータ源（todayWindow / todaySched）を使用。 */}
-                <div className="md:hidden flex items-stretch gap-2.5 mb-4">
+                <div className="md:hidden flex items-stretch gap-2.5 mb-1">
                   <h1 className="text-2xl font-bold text-slate-900 min-w-0 self-center break-words">
                     {therapist.name}
                     {therapist.age && <span className="ml-0.5">（{therapist.age}）</span>}
