@@ -59,13 +59,21 @@ export default async function SalonNewsPage({
     .eq('is_published', true)
     .order('published_at', { ascending: false });
 
-  const announcements = (rows ?? []).map(r => ({
-    id:        String(r.id),
-    title:     (r.title as string) ?? '',
-    content:   (r.content as string | null) ?? '',
-    dateLabel: formatDate((r.published_at as string) ?? ''),
-    imageUrl:  (r.image_url as string | null) ?? null,
-  }));
+  // 新着バッジ（NEW!!）の判定：published_at が現在から48時間以内なら新着。
+  const newCutoffMs = Date.now() - 48 * 60 * 60 * 1000;
+
+  const announcements = (rows ?? []).map(r => {
+    const publishedAt = (r.published_at as string) ?? '';
+    const publishedMs = publishedAt ? new Date(publishedAt).getTime() : NaN;
+    return {
+      id:        String(r.id),
+      title:     (r.title as string) ?? '',
+      content:   (r.content as string | null) ?? '',
+      dateLabel: formatDate(publishedAt),
+      imageUrl:  (r.image_url as string | null) ?? null,
+      isNew:     !Number.isNaN(publishedMs) && publishedMs >= newCutoffMs,
+    };
+  });
 
   return (
     <div className="relative min-h-screen overflow-x-hidden" style={{ color: theme.text }}>

@@ -11,6 +11,7 @@ export type NewsItem = {
   dateLabel: string;
   content: string;
   imageUrl: string | null;
+  isNew: boolean;
 };
 
 export function NewsAccordion({ items, theme }: { items: NewsItem[]; theme: SalonTheme }) {
@@ -45,6 +46,14 @@ function NewsCard({ item, theme }: { item: NewsItem; theme: SalonTheme }) {
           />
         )}
         <div className="flex-1 min-w-0">
+          {item.isNew && (
+            <span
+              className="inline-block mb-1 px-2 py-0.5 rounded-full text-[10px] font-extrabold text-white tracking-wide shadow-sm"
+              style={{ background: 'linear-gradient(to right, #ec4899, #f97316)' }}
+            >
+              NEW!!
+            </span>
+          )}
           <div className="flex items-center gap-2.5 mb-1">
             <span className="w-1 h-5 rounded-full bg-gradient-to-b from-pink-500 to-pink-700 flex-shrink-0" />
             <h2 className="font-bold text-base min-w-0 break-words" style={{ color: theme.heading }}>{item.title}</h2>
