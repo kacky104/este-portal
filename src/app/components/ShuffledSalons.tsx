@@ -23,6 +23,7 @@ export type Salon = {
 type TherapistThumb = {
   id:             string;
   name:           string;
+  age:            string;
   imageUrl:       string | null;
   workHours:      string;
   onDuty:         boolean;
@@ -54,7 +55,7 @@ function StarRating({ rating }: { rating: number }) {
 
 // ── Therapist mini card (matches TherapistScroller Card design) ──
 
-function TherapistMiniCard({ therapist, index }: { therapist: TherapistThumb; index: number }) {
+function TherapistMiniCard({ therapist, index, showAge = false }: { therapist: TherapistThumb; index: number; showAge?: boolean }) {
   const grad = GRADIENTS[index % GRADIENTS.length];
   const dutyStatus = !therapist.onDuty
     ? 'off'
@@ -114,6 +115,9 @@ function TherapistMiniCard({ therapist, index }: { therapist: TherapistThumb; in
       <div className="absolute bottom-0 left-0 right-0 p-2 text-white">
         <div className="flex items-center gap-1 min-w-0">
           <p className="font-bold text-[11px] leading-tight drop-shadow line-clamp-1 min-w-0">{therapist.name}</p>
+          {showAge && therapist.age && (
+            <span className="font-bold text-[11px] leading-tight drop-shadow flex-shrink-0">（{therapist.age}）</span>
+          )}
           {isNewFaceActive(therapist.isNewFace, therapist.newFaceSince) && <NewBadge />}
         </div>
         {therapist.workHours && (dutyStatus === 'onDuty' || dutyStatus === 'before') && (
@@ -126,7 +130,7 @@ function TherapistMiniCard({ therapist, index }: { therapist: TherapistThumb; in
 
 // ── Therapist mini cards row (hover auto-scroll / touch swipe) ──
 
-function TherapistMiniCardsRow({ therapists, salonId }: { therapists: TherapistThumb[]; salonId: number }) {
+function TherapistMiniCardsRow({ therapists, salonId, showAge = false }: { therapists: TherapistThumb[]; salonId: number; showAge?: boolean }) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const rafRef    = useRef<number | null>(null);
 
@@ -160,7 +164,7 @@ function TherapistMiniCardsRow({ therapists, salonId }: { therapists: TherapistT
       onClick={e => e.stopPropagation()}
     >
       {displayed.map((t, i) => (
-        <TherapistMiniCard key={t.id} therapist={t} index={i} />
+        <TherapistMiniCard key={t.id} therapist={t} index={i} showAge={showAge} />
       ))}
 
       {/* View-all button */}
@@ -187,7 +191,7 @@ function TherapistMiniCardsRow({ therapists, salonId }: { therapists: TherapistT
 
 // ── Salon card ────────────────────────────────────────────────
 
-function SalonCard({ salon, therapists }: { salon: Salon; therapists: TherapistThumb[] }) {
+function SalonCard({ salon, therapists, showAge = false }: { salon: Salon; therapists: TherapistThumb[]; showAge?: boolean }) {
   const router = useRouter();
   const onDutyCount = therapists.filter(t => t.onDuty).length;
 
@@ -243,7 +247,7 @@ function SalonCard({ salon, therapists }: { salon: Salon; therapists: TherapistT
         {/* 3. セラピスト写真の横スクロール */}
         {therapists.length > 0 && (
           <div className="mb-4">
-            <TherapistMiniCardsRow therapists={therapists} salonId={salon.id} />
+            <TherapistMiniCardsRow therapists={therapists} salonId={salon.id} showAge={showAge} />
           </div>
         )}
 
@@ -295,7 +299,7 @@ function SalonCardSkeleton() {
 
 // ── ShuffledSalons ────────────────────────────────────────────
 
-export function ShuffledSalons({ salons, areas }: { salons: Salon[]; areas: string[] }) {
+export function ShuffledSalons({ salons, areas, showAge = false }: { salons: Salon[]; areas: string[]; showAge?: boolean }) {
   const [list,            setList]            = useState<Salon[]>([]);
   const [activeArea,      setActiveArea]      = useState('福岡全域');
   const [salonTherapists, setSalonTherapists] = useState<Record<number, TherapistThumb[]>>({});
@@ -319,14 +323,14 @@ export function ShuffledSalons({ salons, areas }: { salons: Salon[]; areas: stri
 
       const { data: therapistRowsWithAvail, error: tErr } = await supabase
         .from('therapists')
-        .select('id, name, salon_id, profile_image_url, work_hours, is_available_now, available_until, is_new_face, new_face_since')
+        .select('id, name, age, salon_id, profile_image_url, work_hours, is_available_now, available_until, is_new_face, new_face_since')
         .in('salon_id', salonIds);
 
       let therapistRows = therapistRowsWithAvail;
       if (tErr) {
         const { data: fb } = await supabase
           .from('therapists')
-          .select('id, name, salon_id, profile_image_url, work_hours')
+          .select('id, name, age, salon_id, profile_image_url, work_hours')
           .in('salon_id', salonIds);
         therapistRows = (fb ?? []).map(t => ({ ...t, is_available_now: false, available_until: null, is_new_face: false, new_face_since: null }));
       }
@@ -365,6 +369,7 @@ export function ShuffledSalons({ salons, areas }: { salons: Salon[]; areas: stri
         bySalon[sid].push({
           id:             tid,
           name:           (t.name as string) ?? '',
+          age:            (t.age as string) ?? '',
           imageUrl:       (t.profile_image_url as string | null) ?? null,
           workHours:      schedHoursMap[tid] ?? (t.work_hours as string) ?? '',
           onDuty:         onDutySet.has(tid),
@@ -462,6 +467,7 @@ export function ShuffledSalons({ salons, areas }: { salons: Salon[]; areas: stri
             key={salon.id}
             salon={salon}
             therapists={salonTherapists[salon.id] ?? []}
+            showAge={showAge}
           />
         ))}
       </div>
