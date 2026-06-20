@@ -79,7 +79,8 @@ function DiaryCard({ diary, emphasized = false }: { diary: DiaryView; emphasized
   const overlayCls = emphasized
     ? 'bg-gradient-to-b from-black/32 via-black/5 to-black/35'
     : 'bg-gradient-to-b from-black/65 via-black/10 to-black/70';
-  const sizeCls = emphasized ? 'w-[120px] h-44 md:w-[150px] md:h-56' : 'w-52 h-72';
+  // emphasized（サロンページ用）：スマホでは「本日の出勤セラピスト」ミニカードと同サイズ（105×153）。PCは従来どおり。
+  const sizeCls = emphasized ? 'w-[105px] h-[153px] md:w-[150px] md:h-56' : 'w-52 h-72';
 
   return (
     <Link
