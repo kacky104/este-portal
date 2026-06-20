@@ -194,7 +194,7 @@ function TherapistMiniCardsRow({ therapists, salonId, showAge = false }: { thera
 
 // ── Salon card ────────────────────────────────────────────────
 
-function SalonCard({ salon, therapists, showAge = false, areaNextToDuty = false, ratingAtBottom = false }: { salon: Salon; therapists: TherapistThumb[]; showAge?: boolean; areaNextToDuty?: boolean; ratingAtBottom?: boolean }) {
+function SalonCard({ salon, therapists, showAge = false, areaNextToDuty = false, ratingAtBottom = false, tightPadding = false }: { salon: Salon; therapists: TherapistThumb[]; showAge?: boolean; areaNextToDuty?: boolean; ratingAtBottom?: boolean; tightPadding?: boolean }) {
   const router = useRouter();
   const onDutyCount = therapists.filter(t => t.onDuty).length;
 
@@ -206,7 +206,7 @@ function SalonCard({ salon, therapists, showAge = false, areaNextToDuty = false,
       {/* Pink shimmer top line */}
       <div className="h-px bg-gradient-to-r from-transparent via-pink-400/60 to-transparent" />
 
-      <div className="p-5 flex flex-col flex-1">
+      <div className={`py-5 flex flex-col flex-1 ${tightPadding ? 'px-3' : 'px-5'}`}>
 
         {/* 1. サロン名のみ */}
         <h3 className="font-bold text-lg text-slate-900 group-hover:text-pink-700 transition-colors leading-snug mb-3">
@@ -322,7 +322,7 @@ function SalonCardSkeleton() {
 
 // ── ShuffledSalons ────────────────────────────────────────────
 
-export function ShuffledSalons({ salons, areas, showAge = false, areaNextToDuty = false, ratingAtBottom = false }: { salons: Salon[]; areas: string[]; showAge?: boolean; areaNextToDuty?: boolean; ratingAtBottom?: boolean }) {
+export function ShuffledSalons({ salons, areas, showAge = false, areaNextToDuty = false, ratingAtBottom = false, tightPadding = false }: { salons: Salon[]; areas: string[]; showAge?: boolean; areaNextToDuty?: boolean; ratingAtBottom?: boolean; tightPadding?: boolean }) {
   const [list,            setList]            = useState<Salon[]>([]);
   const [activeArea,      setActiveArea]      = useState('福岡全域');
   const [salonTherapists, setSalonTherapists] = useState<Record<number, TherapistThumb[]>>({});
@@ -493,6 +493,7 @@ export function ShuffledSalons({ salons, areas, showAge = false, areaNextToDuty 
             showAge={showAge}
             areaNextToDuty={areaNextToDuty}
             ratingAtBottom={ratingAtBottom}
+            tightPadding={tightPadding}
           />
         ))}
       </div>
