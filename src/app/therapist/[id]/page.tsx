@@ -356,8 +356,8 @@ export default async function TherapistPublicPage({
                 {/* ── 名前＋出勤情報（モバイルのみ） ── */}
                 {/* 名前の横の領域を、出勤日は「バッジ／今日のシフト時間」の2段、お休みは「お休みバッジ中央寄せ」に。
                     判定・出勤時間は 7日間スケジュールと同じデータ源（todayWindow / todaySched）を使用。 */}
-                <div className="md:hidden flex items-stretch gap-3 mb-4">
-                  <h1 className="text-2xl font-bold text-slate-900 min-w-0 flex-1 self-center break-words">
+                <div className="md:hidden flex items-stretch gap-2.5 mb-4">
+                  <h1 className="text-2xl font-bold text-slate-900 min-w-0 self-center break-words">
                     {therapist.name}
                     {therapist.age && <span className="ml-0.5">（{therapist.age}）</span>}
                   </h1>
