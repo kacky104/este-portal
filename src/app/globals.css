@@ -198,3 +198,54 @@ body {
     animation: none;
   }
 }
+
+/* ── 出勤中の標準セラピストカード(GridCard / 週間出勤予定の TherapistCard)：外枠だけ緑キラリ（回転ループ） ──
+   実装方式は今すぐ大カードの外枠キラリと同系統。::before のオーバーレイ＋mask-composite(xor)で
+   「枠線リングだけ」を描画し、写真・名前・各バッジ・背景には一切被せない。
+   こちらは回転 conic-gradient を @property の角度アニメで連続回転させる。
+   適用箇所は enableWorkingShimmer かつ「出勤中」のカードのみ（schedule の出勤中／imasugu 下段の出勤中）。 */
+@property --working-shine-angle {
+  syntax: "<angle>";
+  inherits: false;
+  initial-value: 0deg;
+}
+.therapist-working-shimmer {
+  position: relative;
+  /* キラリの周期。 */
+  --working-shine-duration: 2s;
+}
+.therapist-working-shimmer::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 20; /* 写真・今すぐ/NEW バッジ(z-10)より前面で、枠の縁に光を出す */
+  border-radius: inherit;
+  padding: 3px; /* 光らせる枠の太さ */
+  pointer-events: none;
+  /* 緑主体＋弧の中央にライムをほんの少し。点灯弧は約70°、残り(70deg〜360deg)は透明。 */
+  background-image: conic-gradient(
+    from var(--working-shine-angle),
+    rgba(34, 197, 94, 0) 0deg,
+    rgba(34, 197, 94, 1) 18deg,
+    rgba(132, 204, 22, 1) 35deg,
+    rgba(34, 197, 94, 1) 52deg,
+    rgba(34, 197, 94, 0) 70deg,
+    transparent 70deg 360deg
+  );
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+          mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+          mask-composite: exclude;
+  /* にじみ（光彩）。枠の形に沿った外向きグローで、芯のリングはシャープに保つ。 */
+  filter: drop-shadow(0 0 9px rgba(34, 197, 94, 1));
+  animation: working-kirari var(--working-shine-duration, 2s) linear infinite;
+}
+@keyframes working-kirari {
+  to { --working-shine-angle: 360deg; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .therapist-working-shimmer::before {
+    display: none;
+    animation: none;
+  }
+}

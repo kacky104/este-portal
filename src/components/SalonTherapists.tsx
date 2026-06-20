@@ -122,11 +122,12 @@ async function fetchDiarySet(rawIds: unknown[]): Promise<Set<string>> {
 
 // ── GridCard ──────────────────────────────────────────────────
 
-function GridCard({ therapist, index, showJoinDate = false, from }: {
+function GridCard({ therapist, index, showJoinDate = false, from, enableWorkingShimmer = false }: {
   therapist:    Therapist;
   index:        number;
   showJoinDate?: boolean;   // 新人紹介セクションのみ true（入店日を表示）
   from?:        string;     // パンくず用 ?from= パラメータ
+  enableWorkingShimmer?: boolean;   // 出勤中カードの外枠を緑キラリ（schedule / imasugu下段のみ true）
 }) {
   const grad = GRADS[index % GRADS.length];
   const sym  = SYMS[index % SYMS.length];
@@ -136,11 +137,13 @@ function GridCard({ therapist, index, showJoinDate = false, from }: {
 
   const displayHours = buildDisplayHours(therapist.today.start_time, therapist.today.end_time);
   const bodySizes    = formatBodySizes(therapist.bodyType);
+  // 出勤中バッジと同一条件（status==='onDuty'）。enableWorkingShimmer の時だけ外枠を緑キラリ。
+  const working = enableWorkingShimmer && ss?.status === 'onDuty';
 
   return (
     <Link
       href={from ? `/therapist/${therapist.id}?from=${from}` : `/therapist/${therapist.id}`}
-      className="text-left w-full rounded-2xl border border-pink-50 bg-white shadow-sm flex h-28 overflow-hidden hover:border-pink-200 hover:shadow-md transition-all duration-200"
+      className={`text-left w-full rounded-2xl border border-pink-50 bg-white shadow-sm flex h-28 overflow-hidden hover:border-pink-200 hover:shadow-md transition-all duration-200${working ? ' therapist-working-shimmer' : ''}`}
     >
       <div className={`relative w-28 bg-gradient-to-br ${grad} flex items-center justify-center flex-shrink-0 overflow-hidden`}>
         {therapist.profileImageUrl ? (
@@ -391,7 +394,7 @@ export function SalonOnDutyExcludingNow({ salonId, theme }: { salonId: number; t
       </div>
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         {list.map((t, i) => (
-          <GridCard key={t.id} therapist={t} index={i} />
+          <GridCard key={t.id} therapist={t} index={i} enableWorkingShimmer />
         ))}
       </div>
     </div>

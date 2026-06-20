@@ -85,11 +85,13 @@ function TherapistCard({ t, isToday }: { t: DaySchedule; isToday: boolean }) {
   const isNew = isNewFaceActive(t.isNewFace, t.newFaceSince);
   const badge = statusBadge(t, isToday);
   const bodySizes = formatBodySizes(t.bodyType);
+  // 出勤中バッジと同一条件（本日タブの onDuty のみ）。出勤中カードの外枠を緑キラリ。
+  const working = isToday && getScheduleWindowStatus(t.startTime, t.endTime) === 'onDuty';
 
   return (
     <Link
       href={`/therapist/${t.id}?from=schedule`}
-      className="rounded-2xl border border-slate-200 bg-white shadow-sm flex h-28 overflow-hidden hover:shadow-md transition-all duration-200"
+      className={`rounded-2xl border border-slate-200 bg-white shadow-sm flex h-28 overflow-hidden hover:shadow-md transition-all duration-200${working ? ' therapist-working-shimmer' : ''}`}
     >
       <div className="relative w-28 flex-shrink-0 overflow-hidden bg-gradient-to-br from-pink-300 to-rose-400 flex items-center justify-center">
         {t.imageUrl ? (
