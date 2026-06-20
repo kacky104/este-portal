@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { createClient } from '@/app/lib/supabase/client';
 import { TimeRangePicker } from '@/components/TimeRangePicker';
 import { SALON_THEMES, type ThemeKey } from '@/app/lib/themes';
+import { COUPON_COLORS, getCouponColor, DEFAULT_COUPON_COLOR_KEY, type CouponColorKey } from '@/app/lib/couponColors';
 import { getBusinessDateJST, getBusinessDateRangeJST } from '@/lib/dutyStatus';
 import { MyDiaryList } from './MyDiaryList';
 
@@ -42,12 +43,13 @@ type Coupon = {
   valid_until: string | null;
   is_published: boolean;
   sort_order: number;
+  color: string;
 };
 
 async function fetchCouponList(salonId: number): Promise<Coupon[]> {
   const { data, error } = await supabase
     .from('coupons')
-    .select('id, title, discount, conditions, valid_until, is_published, sort_order')
+    .select('id, title, discount, conditions, valid_until, is_published, sort_order, color')
     .eq('salon_id', salonId)
     .order('sort_order', { ascending: true });
   if (error) console.warn('[mypage] クーポン取得失敗:', error.message);
@@ -234,7 +236,7 @@ export default function MyPage() {
   // クーポン管理タブ
   const [coupons, setCoupons] = useState<Coupon[]>([]);
   const [couponForms, setCouponForms] = useState<Record<string, Partial<Coupon>>>({});
-  const [newCoupon, setNewCoupon] = useState<{ title: string; discount: string; conditions: string; valid_until: string; is_published: boolean }>({ title: '', discount: '', conditions: '', valid_until: '', is_published: true });
+  const [newCoupon, setNewCoupon] = useState<{ title: string; discount: string; conditions: string; valid_until: string; is_published: boolean; color: CouponColorKey }>({ title: '', discount: '', conditions: '', valid_until: '', is_published: true, color: DEFAULT_COUPON_COLOR_KEY });
   const [addingCoupon, setAddingCoupon] = useState(false);
   const [savingCoupon, setSavingCoupon] = useState<string | null>(null);
   const [deletingCoupon, setDeletingCoupon] = useState<string | null>(null);
@@ -308,7 +310,7 @@ export default function MyPage() {
       couponList.forEach(c => {
         couponFormMap[c.id] = {
           title: c.title, discount: c.discount, conditions: c.conditions,
-          valid_until: c.valid_until, is_published: c.is_published,
+          valid_until: c.valid_until, is_published: c.is_published, color: c.color,
         };
       });
       setCouponForms(couponFormMap);
@@ -782,7 +784,7 @@ export default function MyPage() {
     list.forEach(c => {
       map[c.id] = {
         title: c.title, discount: c.discount, conditions: c.conditions,
-        valid_until: c.valid_until, is_published: c.is_published,
+        valid_until: c.valid_until, is_published: c.is_published, color: c.color,
       };
     });
     setCouponForms(map);
@@ -800,6 +802,7 @@ export default function MyPage() {
       conditions:   newCoupon.conditions.trim() || null,
       valid_until:  newCoupon.valid_until || null,
       is_published: newCoupon.is_published,
+      color:        newCoupon.color,
       sort_order:   nextOrder,
     });
     if (error) {
@@ -814,7 +817,7 @@ export default function MyPage() {
     const list = await fetchCouponList(Number(salon.id));
     setCoupons(list);
     rebuildCouponForms(list);
-    setNewCoupon({ title: '', discount: '', conditions: '', valid_until: '', is_published: true });
+    setNewCoupon({ title: '', discount: '', conditions: '', valid_until: '', is_published: true, color: DEFAULT_COUPON_COLOR_KEY });
     setAddingCoupon(false);
     showToast('クーポンを追加しました');
   };
@@ -831,17 +834,19 @@ export default function MyPage() {
     const conditions = ((form.conditions ?? '') as string).trim() || null;
     const valid_until = form.valid_until || null;
     const is_published = form.is_published ?? true;
+    const color = (form.color as string) || DEFAULT_COUPON_COLOR_KEY;
     const { error } = await supabase.from('coupons').update({
       title:        form.title.trim(),
       discount:     form.discount.trim(),
       conditions,
       valid_until,
       is_published,
+      color,
     }).eq('id', id);
     setSavingCoupon(null);
     if (error) { showToast(`保存に失敗しました: ${error.message}`); return; }
     setCoupons(prev => prev.map(c => c.id === id
-      ? { ...c, title: form.title!.trim(), discount: form.discount!.trim(), conditions, valid_until, is_published }
+      ? { ...c, title: form.title!.trim(), discount: form.discount!.trim(), conditions, valid_until, is_published, color }
       : c));
     showToast('クーポンを保存しました');
   };
@@ -1713,6 +1718,32 @@ export default function MyPage() {
                 onChange={(e) => setNewCoupon(p => ({ ...p, valid_until: e.target.value }))}
               />
             </div>
+            <div>
+              <label className={labelClass}>背景色</label>
+              <div className="flex flex-wrap gap-2">
+                {COUPON_COLORS.map((cc) => {
+                  const selected = newCoupon.color === cc.key;
+                  return (
+                    <button
+                      key={cc.key}
+                      type="button"
+                      onClick={() => setNewCoupon(p => ({ ...p, color: cc.key }))}
+                      aria-label={cc.label}
+                      title={cc.label}
+                      className={`relative w-10 h-10 rounded-xl border-2 transition-transform ${
+                        selected ? 'border-pink-500 ring-2 ring-pink-200 scale-105' : 'border-slate-200 hover:border-pink-300'
+                      }`}
+                      style={{ background: cc.background }}
+                    >
+                      {selected && (
+                        <span className="absolute inset-0 flex items-center justify-center text-sm font-bold" style={{ color: cc.text }}>✓</span>
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+              <p className="text-[10px] text-slate-400 mt-1">選択中：{getCouponColor(newCoupon.color).label}</p>
+            </div>
             <label className="flex items-center gap-2 cursor-pointer select-none">
               <input
                 type="checkbox"
@@ -1743,13 +1774,20 @@ export default function MyPage() {
               const form = couponForms[c.id] ?? {};
               return (
                 <div key={c.id} className="bg-white rounded-2xl border border-pink-100 shadow-sm p-5 space-y-3">
-                  {/* ヘッダー：公開状態・ワンタップ切替・削除 */}
+                  {/* ヘッダー：色プレビュー・公開状態・ワンタップ切替・削除 */}
                   <div className="flex items-center justify-between gap-2">
-                    <span className={`text-[11px] font-bold px-2.5 py-1 rounded-full ${
-                      c.is_published ? 'bg-pink-50 text-pink-600' : 'bg-slate-100 text-slate-400'
-                    }`}>
-                      {c.is_published ? '公開中' : '非公開'}
-                    </span>
+                    <div className="flex items-center gap-2">
+                      <span
+                        className="w-6 h-6 rounded-lg border border-slate-200 flex-shrink-0"
+                        style={{ background: getCouponColor(c.color).background }}
+                        title={getCouponColor(c.color).label}
+                      />
+                      <span className={`text-[11px] font-bold px-2.5 py-1 rounded-full ${
+                        c.is_published ? 'bg-pink-50 text-pink-600' : 'bg-slate-100 text-slate-400'
+                      }`}>
+                        {c.is_published ? '公開中' : '非公開'}
+                      </span>
+                    </div>
                     <div className="flex items-center gap-2">
                       <button
                         type="button"
@@ -1802,6 +1840,32 @@ export default function MyPage() {
                       value={(form.valid_until as string | null) ?? ''}
                       onChange={(e) => setCouponForms(prev => ({ ...prev, [c.id]: { ...prev[c.id], valid_until: e.target.value } }))}
                     />
+                  </div>
+                  <div>
+                    <label className={labelClass}>背景色</label>
+                    <div className="flex flex-wrap gap-2">
+                      {COUPON_COLORS.map((cc) => {
+                        const selected = ((form.color as string) ?? DEFAULT_COUPON_COLOR_KEY) === cc.key;
+                        return (
+                          <button
+                            key={cc.key}
+                            type="button"
+                            onClick={() => setCouponForms(prev => ({ ...prev, [c.id]: { ...prev[c.id], color: cc.key } }))}
+                            aria-label={cc.label}
+                            title={cc.label}
+                            className={`relative w-10 h-10 rounded-xl border-2 transition-transform ${
+                              selected ? 'border-pink-500 ring-2 ring-pink-200 scale-105' : 'border-slate-200 hover:border-pink-300'
+                            }`}
+                            style={{ background: cc.background }}
+                          >
+                            {selected && (
+                              <span className="absolute inset-0 flex items-center justify-center text-sm font-bold" style={{ color: cc.text }}>✓</span>
+                            )}
+                          </button>
+                        );
+                      })}
+                    </div>
+                    <p className="text-[10px] text-slate-400 mt-1">選択中：{getCouponColor((form.color as string) ?? DEFAULT_COUPON_COLOR_KEY).label}</p>
                   </div>
                   <div className="flex justify-end">
                     <button
