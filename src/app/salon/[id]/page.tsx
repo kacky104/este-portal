@@ -196,10 +196,11 @@ export default async function SalonPage({
         </div>
 
         {/* ─── Two-column layout ───────────────────────── */}
-        <div className="grid lg:grid-cols-3 gap-6">
+        {/* スマホはブロック間の隙間を半分（space-y-3 / gap-3）。md+ は従来どおり。 */}
+        <div className="grid lg:grid-cols-3 gap-3 md:gap-6">
 
           {/* Left: main content */}
-          <div className="lg:col-span-2 space-y-6 min-w-0">
+          <div className="lg:col-span-2 space-y-3 md:space-y-6 min-w-0">
 
             {/* クイックナビ（装飾のみ・2行×3カード）。将来クリックやバッジを足せるよう各カードは独立要素にしておく。
                 テーマ連動カラーで全テーマ視認可能。モバイルでも3カラム維持。段間は space-y で1段目と同間隔。 */}
@@ -383,7 +384,7 @@ export default async function SalonPage({
           </div>
 
           {/* Right: shop info */}
-          <div className="space-y-6 min-w-0">
+          <div className="space-y-3 md:space-y-6 min-w-0">
 
             {/* Price summary */}
             <div className="bg-pink-600 rounded-2xl p-5 text-white max-w-full">
