@@ -486,17 +486,20 @@ export default async function TherapistPublicPage({
             {/* Salon link */}
             {salon && (
               <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-5">
-                <p className="text-[11px] font-bold text-slate-400 mb-3 uppercase tracking-wide">所属サロン</p>
-                {/* 店名（右隣に営業時間、その右に地域）。店名は2行になる場合フォントを縮めて1行に収める。 */}
-                <div className="flex items-center gap-2 mb-4">
-                  <AutoFitName name={salon.name} className="flex-1" />
-                  {salon.hours && (
-                    <span className="text-xs text-slate-500 flex-shrink-0 whitespace-nowrap">🕒 {salon.hours}</span>
-                  )}
-                  {salon.area && (
-                    <span className="text-xs text-slate-500 flex-shrink-0 whitespace-nowrap">📍 {salon.area}</span>
-                  )}
+                {/* 「所属サロン」ラベルの右隣に営業時間・地域を表示 */}
+                <div className="flex items-center justify-between gap-2 mb-2">
+                  <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wide flex-shrink-0">所属サロン</p>
+                  <div className="flex items-center gap-2 min-w-0">
+                    {salon.hours && (
+                      <span className="text-xs text-slate-500 whitespace-nowrap truncate">🕒 {salon.hours}</span>
+                    )}
+                    {salon.area && (
+                      <span className="text-xs text-slate-500 whitespace-nowrap flex-shrink-0">📍 {salon.area}</span>
+                    )}
+                  </div>
                 </div>
+                {/* 店名（2行になる場合フォントを縮めて1行に収める） */}
+                <AutoFitName name={salon.name} className="mb-4" />
                 <Link
                   href={`/salon/${salon.id}`}
                   className="flex items-center justify-center gap-2 w-full py-2.5 rounded-xl bg-pink-600 text-white text-xs font-bold hover:bg-pink-700 transition-colors"
