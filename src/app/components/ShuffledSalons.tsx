@@ -209,7 +209,8 @@ function SalonCard({ salon, therapists, showAge = false, areaNextToDuty = false,
       {/* Pink shimmer top line */}
       <div className="h-px bg-gradient-to-r from-transparent via-pink-400/60 to-transparent" />
 
-      <div className="p-5 flex flex-col flex-1">
+      {/* トップページ（compactTherapists）はカード下の余白を約1/3（pb 20px→7px）に */}
+      <div className={`${compactTherapists ? 'px-5 pt-5 pb-[7px]' : 'p-5'} flex flex-col flex-1`}>
 
         {/* 1. サロン名のみ */}
         <h3 className="font-bold text-lg text-slate-900 group-hover:text-pink-700 transition-colors leading-snug mb-3">
@@ -269,7 +270,8 @@ function SalonCard({ salon, therapists, showAge = false, areaNextToDuty = false,
         )}
 
         {/* Rating (top page) or Price + CTA */}
-        <div className="flex items-center justify-between pt-3.5 border-t border-slate-200 mt-auto">
+        {/* トップページ（compactTherapists）はこのブロック上の余白を約1/3（pt 14px→5px）に */}
+        <div className={`flex items-center justify-between ${compactTherapists ? 'pt-[5px]' : 'pt-3.5'} border-t border-slate-200 mt-auto`}>
           {ratingAtBottom ? (
             <div>
               <div className="flex items-center gap-2 mb-0.5">
