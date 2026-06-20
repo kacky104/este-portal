@@ -90,15 +90,21 @@ export default async function SalonPage({
 
   // 本日出勤セラピスト数（GridCardの「N名」と同一ロジック：当日の is_active スケジュールを持つ人数）。
   let onDutyCount = 0;
+  // 本日の出勤総数（出勤予定・出勤中・受付終了の合計＝お休み除く。is_active かつ start/end が存在する人数）。
+  let todayScheduledCount = 0;
   if (therapistIds.length > 0) {
     const today = getBusinessDateJST();
     const { data: schedRows } = await supabase
       .from('therapist_schedules')
-      .select('therapist_id, is_active')
+      .select('therapist_id, is_active, start_time, end_time')
       .in('therapist_id', therapistIds)
       .eq('schedule_date', today);
-    onDutyCount = new Set(
-      (schedRows ?? []).filter(r => Boolean(r.is_active)).map(r => String(r.therapist_id))
+    const activeRows = (schedRows ?? []).filter(r => Boolean(r.is_active));
+    onDutyCount = new Set(activeRows.map(r => String(r.therapist_id))).size;
+    todayScheduledCount = new Set(
+      activeRows
+        .filter(r => Boolean(r.start_time) && Boolean(r.end_time))
+        .map(r => String(r.therapist_id))
     ).size;
   }
 
@@ -278,7 +284,7 @@ export default async function SalonPage({
             <div className="mt-8 rounded-3xl p-5 border shadow-sm" style={{ backgroundColor: theme.card, borderColor: theme.cardBorder }}>
               <div className="flex items-center gap-2 mb-4">
                 <span className="text-lg">💖</span>
-                <h2 className="text-base font-bold" style={{ color: theme.heading }}>本日出勤のセラピスト</h2>
+                <h2 className="text-base font-bold" style={{ color: theme.heading }}>本日の出勤{todayScheduledCount}人</h2>
               </div>
               <SalonTherapists salonId={Number(id)} />
 
