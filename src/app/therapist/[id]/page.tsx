@@ -8,6 +8,7 @@ import { isNewFaceActive } from '@/lib/newFace';
 import { NewBadge } from '@/components/NewBadge';
 import { TherapistImageSlider } from './TherapistImageSlider';
 import { TherapistDiaryList, type DiaryPostView } from './TherapistDiaryList';
+import { CollapsibleProfile } from './CollapsibleProfile';
 
 // ── helpers ───────────────────────────────────────────────────
 
@@ -460,14 +461,13 @@ export default async function TherapistPublicPage({
               </div>
             </section>
 
-            {/* Profile text */}
+            {/* Profile text（折り畳み：クリックで開閉。サロン個別ページの折り畳みと同デザイン） */}
             {therapist.profileText && (
-              <section className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
-                <SectionHeading>プロフィール</SectionHeading>
+              <CollapsibleProfile title="プロフィール">
                 <p className="text-slate-600 text-sm leading-relaxed whitespace-pre-wrap">
                   {therapist.profileText}
                 </p>
-              </section>
+              </CollapsibleProfile>
             )}
 
             {therapist.comment && (
