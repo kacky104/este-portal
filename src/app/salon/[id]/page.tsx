@@ -28,6 +28,7 @@ import { SalonTherapists, SalonAllTherapists, SalonNewFaceTherapists } from "@/c
 import { SalonDiarySection } from "@/components/DiarySection";
 import SalonHeaderSlider from "@/components/SalonHeaderSlider";
 import { SalonNameBanner } from "./SalonNameBanner";
+import { CollapsibleCourses } from "./CollapsibleCourses";
 
 export default async function SalonPage({
   params,
@@ -328,36 +329,9 @@ export default async function SalonPage({
               <SalonDiarySection salonId={id} />
             </div>
 
-            {/* Courses — shown only when DB data is available */}
+            {/* Courses — shown only when DB data is available（折り畳み式） */}
             {salon.courses.length > 0 && (
-              <section className="rounded-2xl border shadow-sm p-6" style={{ backgroundColor: theme.card, borderColor: theme.cardBorder }}>
-                <SectionHeading color={theme.heading}>コースメニュー・料金表</SectionHeading>
-                <div className="space-y-5">
-                  {Array.from(
-                    salon.courses.reduce((map, c) => {
-                      if (!map.has(c.name)) map.set(c.name, []);
-                      map.get(c.name)!.push(c);
-                      return map;
-                    }, new Map<string, { name: string; duration: string; price: string }[]>())
-                  ).map(([name, items]) => (
-                    <div key={name}>
-                      <div className="flex items-center gap-2 mb-2">
-                        <span className="w-2 h-2 rounded-full bg-pink-400 flex-shrink-0" />
-                        <h3 className="text-sm font-bold min-w-0 break-words" style={{ color: theme.heading }}>{name}</h3>
-                      </div>
-                      <div className="pl-4 space-y-1.5">
-                        {items.map((item, i) => (
-                          <div key={i} className="flex items-center justify-between gap-3 text-sm border-b pb-1 last:border-0 last:pb-0" style={{ borderColor: theme.cardBorder }}>
-                            <span className="min-w-0 break-words" style={{ color: theme.body }}>{item.duration}</span>
-                            <span className="font-bold text-pink-600 flex-shrink-0 break-words text-right">{item.price}</span>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-                <p className="text-[11px] mt-5 opacity-70" style={{ color: theme.body }}>※ 表示料金はすべて税込み価格です。</p>
-              </section>
+              <CollapsibleCourses courses={salon.courses} theme={theme} />
             )}
 
             {/* All therapists */}
