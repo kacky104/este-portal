@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { createClient } from "@/app/lib/supabase/server";
 import { getTheme, breadcrumbCurrentColor } from "@/app/lib/themes";
+import { NewsAccordion } from "../NewsAccordion";
 
 function formatDate(iso: string): string {
   const d = new Date(iso);
@@ -59,11 +60,11 @@ export default async function SalonNewsPage({
     .order('published_at', { ascending: false });
 
   const announcements = (rows ?? []).map(r => ({
-    id:          String(r.id),
-    title:       (r.title as string) ?? '',
-    content:     (r.content as string | null) ?? '',
-    publishedAt: (r.published_at as string) ?? '',
-    imageUrl:    (r.image_url as string | null) ?? null,
+    id:        String(r.id),
+    title:     (r.title as string) ?? '',
+    content:   (r.content as string | null) ?? '',
+    dateLabel: formatDate((r.published_at as string) ?? ''),
+    imageUrl:  (r.image_url as string | null) ?? null,
   }));
 
   return (
@@ -115,26 +116,7 @@ export default async function SalonNewsPage({
             お知らせはまだありません
           </div>
         ) : (
-          <div className="space-y-4">
-            {announcements.map(a => (
-              <article key={a.id} className="rounded-2xl border shadow-sm p-6" style={{ backgroundColor: theme.card, borderColor: theme.cardBorder }}>
-                <div className="flex items-center gap-2.5 mb-2">
-                  <span className="w-1 h-5 rounded-full bg-gradient-to-b from-pink-500 to-pink-700 flex-shrink-0" />
-                  <h2 className="font-bold text-base min-w-0 break-words" style={{ color: theme.heading }}>{a.title}</h2>
-                </div>
-                <p className="text-xs mb-3" style={{ color: theme.body }}>{formatDate(a.publishedAt)}</p>
-                {a.imageUrl && (
-                  <div className="mb-3 rounded-xl overflow-hidden border" style={{ borderColor: theme.cardBorder }}>
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img src={a.imageUrl} alt={a.title} className="w-full h-auto max-h-96 object-contain bg-black/5" />
-                  </div>
-                )}
-                {a.content && (
-                  <p className="text-sm leading-relaxed break-words whitespace-pre-wrap" style={{ color: theme.body }}>{a.content}</p>
-                )}
-              </article>
-            ))}
-          </div>
+          <NewsAccordion items={announcements} theme={theme} />
         )}
       </main>
     </div>
