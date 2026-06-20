@@ -3,7 +3,7 @@ import { notFound } from 'next/navigation';
 import { createClient } from '@/app/lib/supabase/server';
 import { getBusinessDateRangeJST } from '@/lib/dutyStatus';
 import { getTheme, breadcrumbCurrentColor } from '@/app/lib/themes';
-import { checkDutyStatus } from '@/lib/dutyStatus';
+import { getScheduleWindowStatus } from '@/lib/dutyStatus';
 import { isNewFaceActive } from '@/lib/newFace';
 import { NewBadge } from '@/components/NewBadge';
 import { TherapistImageSlider } from './TherapistImageSlider';
@@ -163,12 +163,20 @@ export default async function TherapistPublicPage({
         : [];
 
   // 中央画像へ重ねるバッジ
-  // 出勤ステータス：onDuty=出勤中(緑)、before=出勤予定(オレンジ)。after は非表示。
-  const duty = checkDutyStatus(therapist.workHours ?? '');
+  // 出勤ステータス：onDuty=出勤中(緑)、before=出勤予定(オレンジ)。after / お休み は非表示。
+  // サイト標準（サロン一覧/詳細の本日出勤）に合わせ、まず「本日の出勤スケジュール（is_active）」で
+  // ゲートし、出勤日のみ その日の実スケジュール時刻で時間帯を判定する。
+  // 静的な work_hours は使わない（お休みでも出勤予定が出る不具合の原因だったため）。
+  const todaySched = schedMap[dates[0]]; // dates[0] = 営業日基準の本日
+  const todayWindow: 'off' | 'onDuty' | 'before' | 'after' = !todaySched?.is_active
+    ? 'off'
+    : todaySched.start_time && todaySched.end_time
+      ? getScheduleWindowStatus(todaySched.start_time, todaySched.end_time)
+      : 'onDuty'; // 出勤日だが時刻未設定 → 出勤中扱い（サイト標準と同じ）
   const dutyBadge =
-    duty.status === 'onDuty'
+    todayWindow === 'onDuty'
       ? { label: '出勤中', bg: '#22c55e' }
-      : duty.status === 'before'
+      : todayWindow === 'before'
         ? { label: '出勤予定', bg: '#f97316' }
         : null;
   const dutyBadgeNode = dutyBadge ? (
