@@ -225,6 +225,79 @@ function GridCard({ therapist, index, showJoinDate = false, from, enableWorkingS
   );
 }
 
+// ── MiniCard（トップページの個別サロンカード内セラピストカードと同レイアウト） ──
+// 横スクロール用の縦長カード（写真背景＋名前/年齢/出勤時間オーバーレイ＋各バッジ）。
+
+function MiniCard({ therapist, index }: { therapist: Therapist; index: number }) {
+  const grad = GRADS[index % GRADS.length];
+  const [ss, setSS] = useState<StatusResult | null>(null);
+  useEffect(() => { setSS(getScheduleStatus(therapist.today)); }, [therapist.today]);
+
+  const displayHours = buildDisplayHours(therapist.today.start_time, therapist.today.end_time);
+  const availableNow =
+    therapist.isAvailableNow && therapist.availableUntil != null && new Date(therapist.availableUntil) > new Date();
+
+  return (
+    <Link
+      href={`/therapist/${therapist.id}`}
+      className="relative flex-shrink-0 w-[105px] h-[153px] rounded-2xl overflow-hidden shadow-md hover:-translate-y-1 hover:shadow-xl transition-all duration-300"
+    >
+      {/* background */}
+      {therapist.profileImageUrl ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img src={therapist.profileImageUrl} alt={therapist.name} className="absolute inset-0 w-full h-full object-cover" />
+      ) : (
+        <div className={`absolute inset-0 bg-gradient-to-br ${grad} flex items-center justify-center`}>
+          <span className="text-white/30 font-bold text-3xl">{therapist.name.charAt(0)}</span>
+        </div>
+      )}
+
+      {/* bottom gradient overlay */}
+      <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-black/10 to-transparent" />
+
+      {/* 今すぐバッジ — top left */}
+      {availableNow && (
+        <span className="absolute top-1.5 left-1.5" style={{ background: 'linear-gradient(to right, #ec4899, #f97316)', color: 'white', fontSize: '11px', fontWeight: 700, padding: '2px 8px', borderRadius: '20px' }}>
+          今すぐ
+        </span>
+      )}
+
+      {/* duty status badge — top right */}
+      {ss?.status === 'onDuty' && (
+        <span className="absolute top-1.5 right-1.5 text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-white text-emerald-500 border border-emerald-100 animate-pulse">
+          出勤中
+        </span>
+      )}
+      {ss?.status === 'before' && (
+        <span className="absolute top-1.5 right-1.5 text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-white/90 text-blue-500 border border-blue-100">
+          出勤予定
+        </span>
+      )}
+      {ss?.status === 'after' && (
+        <span className="absolute top-1.5 right-1.5 text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-white/90 text-slate-400 border border-slate-200">
+          受付終了
+        </span>
+      )}
+
+      {/* text overlay */}
+      <div className="absolute bottom-0 left-0 right-0 p-2 text-white">
+        {isNewFaceActive(therapist.isNewFace, therapist.newFaceSince) && (
+          <div className="mb-0.5"><NewBadge /></div>
+        )}
+        <div className="flex items-center gap-1 min-w-0">
+          <p className="font-bold text-[11px] leading-tight drop-shadow line-clamp-1 min-w-0">{therapist.name}</p>
+          {therapist.age && (
+            <span className="font-bold text-[11px] leading-tight drop-shadow flex-shrink-0">（{therapist.age}）</span>
+          )}
+        </div>
+        {(ss?.status === 'onDuty' || ss?.status === 'before') && (displayHours || therapist.workHours) && (
+          <p className="text-[13px] text-pink-200 font-medium mt-0.5 text-center whitespace-nowrap">{displayHours || therapist.workHours}</p>
+        )}
+      </div>
+    </Link>
+  );
+}
+
 // ── SalonTherapists (出勤中のみ) ───────────────────────────────
 
 export function SalonTherapists({ salonId }: { salonId: number }) {
@@ -294,8 +367,8 @@ export function SalonTherapists({ salonId }: { salonId: number }) {
       // 「本日出勤」ブロックは 今すぐ / 出勤中・出勤予定 / 受付終了 を表示。
       // 受付終了になっても非表示にせずカードを出し続ける。お休み(off)のみ除外。
       const visible = sorted.filter(t => availableNowActive(t) || getScheduleStatus(t.today).status !== 'off');
-      // 個別サロンページでは最大4人まで表示（続きは「すべて見る」から週間出勤予定へ）
-      setList(visible.slice(0, 4));
+      // 横スクロール表示。最大10人まで（続きは見出し右の「全部見る →」から週間出勤予定へ）
+      setList(visible.slice(0, 10));
     })();
   }, [salonId]);
 
@@ -305,9 +378,12 @@ export function SalonTherapists({ salonId }: { salonId: number }) {
     </div>
   );
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+    <div
+      className="flex gap-[3px] overflow-x-auto pb-1"
+      style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' } as React.CSSProperties}
+    >
       {list.map((t, i) => (
-        <GridCard key={t.id} therapist={t} index={i} />
+        <MiniCard key={t.id} therapist={t} index={i} />
       ))}
     </div>
   );

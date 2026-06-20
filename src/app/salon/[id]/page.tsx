@@ -282,27 +282,26 @@ export default async function SalonPage({
 
             {/* Today's therapists */}
             <div className="mt-8 rounded-3xl p-5 border shadow-sm" style={{ backgroundColor: theme.card, borderColor: theme.cardBorder }}>
-              <div className="flex items-center gap-2 mb-4">
-                <span className="text-lg">💖</span>
-                <h2 className="text-base font-bold" style={{ color: theme.heading }}>本日の出勤セラピスト<span className="text-2xl font-extrabold mx-1" style={{ color: '#ec4899' }}>{todayScheduledCount}</span>人</h2>
-              </div>
-              <SalonTherapists salonId={Number(id)} />
-
-              <div className="mt-4 text-center">
+              <div className="flex items-center justify-between gap-2 mb-4">
+                <div className="flex items-center gap-2 min-w-0">
+                  <span className="text-lg">💖</span>
+                  <h2 className="text-base font-bold" style={{ color: theme.heading }}>本日の出勤セラピスト<span className="text-2xl font-extrabold mx-1" style={{ color: '#ec4899' }}>{todayScheduledCount}</span>人</h2>
+                </div>
                 <Link
                   href={`/salon/${id}/schedule`}
-                  className="inline-flex items-center justify-center text-white shadow-sm hover:opacity-90 transition-opacity"
+                  className="inline-block text-sm font-bold flex-shrink-0"
                   style={{
                     background: 'linear-gradient(to right, #ec4899, #f97316)',
-                    color: '#ffffff',
-                    borderRadius: '9999px',
-                    padding: '10px 24px',
-                    fontWeight: 600,
+                    WebkitBackgroundClip: 'text',
+                    backgroundClip: 'text',
+                    WebkitTextFillColor: 'transparent',
+                    color: 'transparent',
                   }}
                 >
-                  すべて見る
+                  全部見る →
                 </Link>
               </div>
+              <SalonTherapists salonId={Number(id)} />
             </div>
 
             {/* Diary section */}
