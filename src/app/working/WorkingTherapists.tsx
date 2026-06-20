@@ -76,7 +76,7 @@ export function WorkingTherapists() {
       const isAvailableNowActive = (t: TherapistItem) =>
         t.isAvailableNow && t.availableUntil != null && new Date(t.availableUntil) > new Date();
 
-      // ── 表示順（優先順：今すぐ > 出勤中 > 出勤予定。受付終了/お休みは非表示） ──
+      // ── 表示対象：今すぐ・出勤中のみ（出勤予定・受付終了・お休みは非表示。優先順：今すぐ > 出勤中） ──
       // 今日の出勤開始時刻（"HH:MM"）を分に変換。未設定は末尾扱い。
       const startMinutes = (t: TherapistItem): number => {
         const s = t.today.start_time;
@@ -95,12 +95,7 @@ export function WorkingTherapists() {
         .filter(t => !isAvailableNowActive(t) && getScheduleStatus(t.today).status === 'onDuty')
         .sort((a, b) => startMinutes(a) - startMinutes(b));
 
-      // 3. 出勤予定（今すぐ該当を除く）：今日の出勤開始時刻が早い順
-      const before = mapped
-        .filter(t => !isAvailableNowActive(t) && getScheduleStatus(t.today).status === 'before')
-        .sort((a, b) => startMinutes(a) - startMinutes(b));
-
-      setList([...imasugu, ...onDuty, ...before]);
+      setList([...imasugu, ...onDuty]);
       setLoaded(true);
     })();
   }, []);
