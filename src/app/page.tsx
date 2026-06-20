@@ -198,9 +198,9 @@ export default async function Home() {
             <div className="flex items-center justify-between mb-1.5">
               <div className="flex items-center gap-3">
                 <div className="w-1 h-6 rounded-full bg-gradient-to-b from-pink-400 to-rose-500" />
-                <h2 className="text-xl font-bold text-slate-900">本日出勤中のセラピスト</h2>
+                <h2 className="text-xl font-bold text-slate-900">出勤中のセラピスト</h2>
                 <div className="flex items-baseline gap-0.5">
-                  <span style={{ color: '#ec4899', fontWeight: 600, fontSize: '13px' }}>出勤総数</span>
+                  <span style={{ color: '#ec4899', fontWeight: 600, fontSize: '13px' }}>本日出勤総数</span>
                   <span style={{ background: 'linear-gradient(to right, #ec4899, #f97316)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', fontWeight: 700, fontSize: '18px' }}>{todayTherapistCount}</span>
                   <span style={{ color: '#ec4899', fontWeight: 600, fontSize: '13px' }}>人</span>
                 </div>
