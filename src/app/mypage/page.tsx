@@ -56,6 +56,34 @@ async function fetchCouponList(salonId: number): Promise<Coupon[]> {
   return (data ?? []) as Coupon[];
 }
 
+type Announcement = {
+  id: string;
+  title: string;
+  content: string | null;
+  is_published: boolean;
+  published_at: string;
+};
+
+async function fetchAnnouncementList(salonId: number): Promise<Announcement[]> {
+  const { data, error } = await supabase
+    .from('announcements')
+    .select('id, title, content, is_published, published_at')
+    .eq('salon_id', salonId)
+    .order('published_at', { ascending: false });
+  if (error) console.warn('[mypage] お知らせ取得失敗:', error.message);
+  return (data ?? []) as Announcement[];
+}
+
+// 公開日時の表示整形（JST・"2026年6月20日 19:12"）。
+function formatPublishedAt(iso: string): string {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return '';
+  return new Intl.DateTimeFormat('ja-JP', {
+    timeZone: 'Asia/Tokyo', year: 'numeric', month: 'long', day: 'numeric',
+    hour: '2-digit', minute: '2-digit',
+  }).format(d);
+}
+
 function formatDateLabel(dateStr: string): string {
   const d = new Date(dateStr + 'T00:00:00');
   return `${d.getMonth() + 1}/${d.getDate()}(${WEEKDAYS[d.getDay()]})`;
@@ -208,7 +236,7 @@ export default function MyPage() {
   const [toast, setToast] = useState('');
   const [saving, setSaving] = useState(false);
   const [savingSchedule, setSavingSchedule] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<'salon' | 'schedule' | 'profile' | 'available' | 'diary' | 'coupon'>('salon');
+  const [activeTab, setActiveTab] = useState<'salon' | 'schedule' | 'profile' | 'available' | 'diary' | 'coupon' | 'news'>('salon');
   const [expandedSections, setExpandedSections] = useState<Set<string>>(new Set());
   const [newTherapistName, setNewTherapistName] = useState('');
   const [newTherapistIsNew, setNewTherapistIsNew] = useState(false);
@@ -240,6 +268,13 @@ export default function MyPage() {
   const [addingCoupon, setAddingCoupon] = useState(false);
   const [savingCoupon, setSavingCoupon] = useState<string | null>(null);
   const [deletingCoupon, setDeletingCoupon] = useState<string | null>(null);
+  // お知らせ管理タブ
+  const [announcements, setAnnouncements] = useState<Announcement[]>([]);
+  const [announcementForms, setAnnouncementForms] = useState<Record<string, Partial<Announcement>>>({});
+  const [newAnnouncement, setNewAnnouncement] = useState<{ title: string; content: string; is_published: boolean }>({ title: '', content: '', is_published: true });
+  const [addingAnnouncement, setAddingAnnouncement] = useState(false);
+  const [savingAnnouncement, setSavingAnnouncement] = useState<string | null>(null);
+  const [deletingAnnouncement, setDeletingAnnouncement] = useState<string | null>(null);
 
   const toggleSection = (key: string) => {
     setExpandedSections(prev => {
@@ -314,6 +349,14 @@ export default function MyPage() {
         };
       });
       setCouponForms(couponFormMap);
+
+      const announcementList = await fetchAnnouncementList(Number(salonData.id));
+      setAnnouncements(announcementList);
+      const announcementFormMap: Record<string, Partial<Announcement>> = {};
+      announcementList.forEach(a => {
+        announcementFormMap[a.id] = { title: a.title, content: a.content, is_published: a.is_published };
+      });
+      setAnnouncementForms(announcementFormMap);
 
       const { data: wallpaperData } = await supabase
         .from('theme_wallpapers')
@@ -879,6 +922,94 @@ export default function MyPage() {
     showToast('クーポンを削除しました');
   };
 
+  // お知らせ：フォーム再構築（一覧取得後の同期用）
+  const rebuildAnnouncementForms = (list: Announcement[]) => {
+    const map: Record<string, Partial<Announcement>> = {};
+    list.forEach(a => {
+      map[a.id] = { title: a.title, content: a.content, is_published: a.is_published };
+    });
+    setAnnouncementForms(map);
+  };
+
+  // お知らせ：新規追加（published_at は DB の default now() で自動設定）
+  const handleAnnouncementAdd = async () => {
+    if (!salon || !newAnnouncement.title.trim() || !newAnnouncement.content.trim()) return;
+    setAddingAnnouncement(true);
+    const { error } = await supabase.from('announcements').insert({
+      salon_id:     Number(salon.id),
+      title:        newAnnouncement.title.trim(),
+      content:      newAnnouncement.content.trim(),
+      is_published: newAnnouncement.is_published,
+    });
+    if (error) {
+      setAddingAnnouncement(false);
+      showToast(
+        error.code === '42501'
+          ? 'RLSポリシーにより追加が拒否されました。Supabaseでannouncementsのオーナー用INSERTポリシーを確認してください。'
+          : `追加に失敗しました: ${error.message}`
+      );
+      return;
+    }
+    const list = await fetchAnnouncementList(Number(salon.id));
+    setAnnouncements(list);
+    rebuildAnnouncementForms(list);
+    setNewAnnouncement({ title: '', content: '', is_published: true });
+    setAddingAnnouncement(false);
+    showToast('お知らせを追加しました');
+  };
+
+  // お知らせ：編集内容を保存
+  const handleAnnouncementSave = async (id: string) => {
+    const form = announcementForms[id];
+    if (!form) return;
+    if (!form.title?.trim() || !((form.content ?? '') as string).trim()) {
+      showToast('タイトルと本文は必須です');
+      return;
+    }
+    setSavingAnnouncement(id);
+    const content = ((form.content ?? '') as string).trim();
+    const is_published = form.is_published ?? true;
+    const { error } = await supabase.from('announcements').update({
+      title: form.title.trim(),
+      content,
+      is_published,
+    }).eq('id', id);
+    setSavingAnnouncement(null);
+    if (error) { showToast(`保存に失敗しました: ${error.message}`); return; }
+    setAnnouncements(prev => prev.map(a => a.id === id
+      ? { ...a, title: form.title!.trim(), content, is_published }
+      : a));
+    showToast('お知らせを保存しました');
+  };
+
+  // お知らせ：公開/非公開のワンタップ切替（即時保存）
+  const handleAnnouncementTogglePublish = async (id: string) => {
+    const target = announcements.find(a => a.id === id);
+    if (!target) return;
+    const next = !target.is_published;
+    const { error } = await supabase.from('announcements').update({ is_published: next }).eq('id', id);
+    if (error) { showToast(`変更に失敗しました: ${error.message}`); return; }
+    setAnnouncements(prev => prev.map(a => a.id === id ? { ...a, is_published: next } : a));
+    setAnnouncementForms(prev => ({ ...prev, [id]: { ...prev[id], is_published: next } }));
+    showToast(next ? '公開にしました' : '非公開にしました');
+  };
+
+  // お知らせ：削除（確認あり）
+  const handleAnnouncementDelete = async (id: string) => {
+    if (!window.confirm('このお知らせを削除しますか？\nこの操作は取り消せません。')) return;
+    setDeletingAnnouncement(id);
+    const { data: deleted, error } = await supabase.from('announcements').delete().eq('id', id).select('id');
+    setDeletingAnnouncement(null);
+    if (error) { showToast(`削除に失敗しました: ${error.message}`); return; }
+    if (!deleted || deleted.length === 0) {
+      showToast('削除できませんでした（権限エラーの可能性があります）');
+      return;
+    }
+    setAnnouncements(prev => prev.filter(a => a.id !== id));
+    setAnnouncementForms(prev => { const n = { ...prev }; delete n[id]; return n; });
+    showToast('お知らせを削除しました');
+  };
+
   const handleSignOut = async () => {
     await supabase.auth.signOut();
     router.push('/login');
@@ -932,6 +1063,7 @@ export default function MyPage() {
             ['profile',   'セラピスト情報'],
             ['diary',     '写メ日記'],
             ['coupon',    'クーポン'],
+            ['news',      'お知らせ'],
           ] as const).map(([key, label]) => (
             <button
               key={key}
@@ -1875,6 +2007,122 @@ export default function MyPage() {
                       disabled={savingCoupon === c.id}
                     >
                       {savingCoupon === c.id ? '保存中...' : '保存'}
+                    </button>
+                  </div>
+                </div>
+              );
+            })
+          )}
+        </div>
+
+        {/* ── タブ7: お知らせ ── */}
+        <div className={`space-y-4 ${activeTab === 'news' ? '' : 'hidden'}`}>
+
+          {/* 新規追加フォーム */}
+          <div className="bg-white rounded-3xl border border-pink-100 shadow-sm p-5 space-y-3">
+            <h3 className="text-xs font-black text-pink-600">お知らせを新規追加</h3>
+            <div>
+              <label className={labelClass}>タイトル <span className="text-rose-400">*</span></label>
+              <input
+                className={inputClass}
+                placeholder="例: 5月の営業日のお知らせ"
+                value={newAnnouncement.title}
+                onChange={(e) => setNewAnnouncement(p => ({ ...p, title: e.target.value }))}
+              />
+            </div>
+            <div>
+              <label className={labelClass}>本文 <span className="text-rose-400">*</span></label>
+              <textarea
+                rows={5}
+                className={textareaClass}
+                placeholder="お知らせの本文を入力してください。"
+                value={newAnnouncement.content}
+                onChange={(e) => setNewAnnouncement(p => ({ ...p, content: e.target.value }))}
+              />
+            </div>
+            <label className="flex items-center gap-2 cursor-pointer select-none">
+              <input
+                type="checkbox"
+                className="w-4 h-4 accent-pink-500 flex-shrink-0"
+                checked={newAnnouncement.is_published}
+                onChange={(e) => setNewAnnouncement(p => ({ ...p, is_published: e.target.checked }))}
+              />
+              <span className="text-xs font-bold text-slate-600">公開する（オフにすると非公開で保存）</span>
+            </label>
+            <div className="flex justify-end">
+              <button
+                className={saveBtn}
+                onClick={handleAnnouncementAdd}
+                disabled={addingAnnouncement || !newAnnouncement.title.trim() || !newAnnouncement.content.trim()}
+              >
+                {addingAnnouncement ? '追加中...' : '+ お知らせを追加'}
+              </button>
+            </div>
+          </div>
+
+          {/* お知らせ一覧（公開・非公開含む。published_at の新しい順） */}
+          {announcements.length === 0 ? (
+            <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5">
+              <p className="text-xs text-slate-400">登録されているお知らせがありません</p>
+            </div>
+          ) : (
+            announcements.map((a) => {
+              const form = announcementForms[a.id] ?? {};
+              return (
+                <div key={a.id} className="bg-white rounded-2xl border border-pink-100 shadow-sm p-5 space-y-3">
+                  {/* ヘッダー：公開状態・公開日時・ワンタップ切替・削除 */}
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-2 min-w-0">
+                      <span className={`text-[11px] font-bold px-2.5 py-1 rounded-full flex-shrink-0 ${
+                        a.is_published ? 'bg-pink-50 text-pink-600' : 'bg-slate-100 text-slate-400'
+                      }`}>
+                        {a.is_published ? '公開中' : '非公開'}
+                      </span>
+                      <span className="text-[10px] text-slate-400 truncate">{formatPublishedAt(a.published_at)}</span>
+                    </div>
+                    <div className="flex items-center gap-2 flex-shrink-0">
+                      <button
+                        type="button"
+                        onClick={() => handleAnnouncementTogglePublish(a.id)}
+                        className="px-3 py-1.5 rounded-xl border border-pink-300 text-pink-600 text-xs font-bold hover:bg-pink-50 transition-colors"
+                      >
+                        {a.is_published ? '非公開にする' : '公開にする'}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleAnnouncementDelete(a.id)}
+                        disabled={deletingAnnouncement === a.id}
+                        className="px-3 py-1.5 rounded-xl border border-rose-200 text-rose-500 text-xs font-bold bg-rose-50 hover:bg-rose-100 transition-colors disabled:opacity-50"
+                      >
+                        {deletingAnnouncement === a.id ? '削除中...' : '削除'}
+                      </button>
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className={labelClass}>タイトル <span className="text-rose-400">*</span></label>
+                    <input
+                      className={inputClass}
+                      value={form.title ?? ''}
+                      onChange={(e) => setAnnouncementForms(prev => ({ ...prev, [a.id]: { ...prev[a.id], title: e.target.value } }))}
+                    />
+                  </div>
+                  <div>
+                    <label className={labelClass}>本文 <span className="text-rose-400">*</span></label>
+                    <textarea
+                      rows={5}
+                      className={textareaClass}
+                      value={(form.content as string | null) ?? ''}
+                      onChange={(e) => setAnnouncementForms(prev => ({ ...prev, [a.id]: { ...prev[a.id], content: e.target.value } }))}
+                    />
+                  </div>
+                  <div className="flex justify-end">
+                    <button
+                      className={saveBtn}
+                      onClick={() => handleAnnouncementSave(a.id)}
+                      disabled={savingAnnouncement === a.id}
+                    >
+                      {savingAnnouncement === a.id ? '保存中...' : '保存'}
                     </button>
                   </div>
                 </div>
