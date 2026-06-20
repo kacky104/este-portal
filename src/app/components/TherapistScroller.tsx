@@ -23,7 +23,7 @@ type StatusResult = {
   cardBadge: string;
 };
 
-function getScheduleStatus(s: TodaySchedule): StatusResult {
+export function getScheduleStatus(s: TodaySchedule): StatusResult {
   const status = s.is_active ? getScheduleWindowStatus(s.start_time, s.end_time) : 'off';
   switch (status) {
     case 'onDuty': return { status, label: '● 出勤中',     cardBadge: 'bg-white text-emerald-500 border border-emerald-100 animate-pulse' };
@@ -44,7 +44,7 @@ function buildDisplayHours(start: string | null, end: string | null): string {
 
 // ── types ─────────────────────────────────────────────────────
 
-type TherapistItem = {
+export type TherapistItem = {
   id:              string;
   name:            string;
   salonId:         number;
@@ -63,7 +63,7 @@ type TherapistItem = {
 
 // ── Card ──────────────────────────────────────────────────────
 
-function Card({ therapist, index, showAge = false }: { therapist: TherapistItem; index: number; showAge?: boolean }) {
+export function Card({ therapist, index, showAge = false }: { therapist: TherapistItem; index: number; showAge?: boolean }) {
   const grad = GRADIENTS[index % GRADIENTS.length];
   const [ss, setSS] = useState<StatusResult | null>(null);
   useEffect(() => { setSS(getScheduleStatus(therapist.today)); }, [therapist.today]);
