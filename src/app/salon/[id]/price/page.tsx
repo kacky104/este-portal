@@ -90,8 +90,8 @@ export default async function SalonPricePage({
           <p className="text-sm mt-1" style={{ color: theme.body }}>コースメニュー・料金表</p>
         </div>
 
-        {/* コース・料金表 */}
-        <section className="rounded-2xl border shadow-sm p-6" style={{ backgroundColor: theme.card, borderColor: theme.cardBorder }}>
+        {/* コース・料金表（デスクトップは枠を中身幅に合わせて中央寄せ） */}
+        <section className="rounded-2xl border shadow-sm p-6 md:max-w-[680px] md:mx-auto" style={{ backgroundColor: theme.card, borderColor: theme.cardBorder }}>
           <div className="flex items-center gap-2.5 mb-4">
             <span className="w-1 h-5 rounded-full bg-gradient-to-b from-pink-500 to-pink-700 flex-shrink-0" />
             <h2 className="font-bold" style={{ color: theme.heading }}>コースメニュー・料金表</h2>
