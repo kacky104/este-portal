@@ -34,6 +34,26 @@ async function fetchTherapistList(salonId: string): Promise<Therapist[]> {
   return (fb ?? []).map(t => ({ ...(t as Omit<Therapist, 'is_available_now' | 'available_until'>), is_available_now: false, available_until: null }));
 }
 
+type Coupon = {
+  id: string;
+  title: string;
+  discount: string;
+  conditions: string | null;
+  valid_until: string | null;
+  is_published: boolean;
+  sort_order: number;
+};
+
+async function fetchCouponList(salonId: number): Promise<Coupon[]> {
+  const { data, error } = await supabase
+    .from('coupons')
+    .select('id, title, discount, conditions, valid_until, is_published, sort_order')
+    .eq('salon_id', salonId)
+    .order('sort_order', { ascending: true });
+  if (error) console.warn('[mypage] クーポン取得失敗:', error.message);
+  return (data ?? []) as Coupon[];
+}
+
 function formatDateLabel(dateStr: string): string {
   const d = new Date(dateStr + 'T00:00:00');
   return `${d.getMonth() + 1}/${d.getDate()}(${WEEKDAYS[d.getDay()]})`;
@@ -186,7 +206,7 @@ export default function MyPage() {
   const [toast, setToast] = useState('');
   const [saving, setSaving] = useState(false);
   const [savingSchedule, setSavingSchedule] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<'salon' | 'schedule' | 'profile' | 'available' | 'diary'>('salon');
+  const [activeTab, setActiveTab] = useState<'salon' | 'schedule' | 'profile' | 'available' | 'diary' | 'coupon'>('salon');
   const [expandedSections, setExpandedSections] = useState<Set<string>>(new Set());
   const [newTherapistName, setNewTherapistName] = useState('');
   const [newTherapistIsNew, setNewTherapistIsNew] = useState(false);
@@ -211,6 +231,13 @@ export default function MyPage() {
   const [diaryUploading, setDiaryUploading] = useState(false);
   const [diaryPosting, setDiaryPosting] = useState(false);
   const [diaryReload, setDiaryReload] = useState(0);
+  // クーポン管理タブ
+  const [coupons, setCoupons] = useState<Coupon[]>([]);
+  const [couponForms, setCouponForms] = useState<Record<string, Partial<Coupon>>>({});
+  const [newCoupon, setNewCoupon] = useState<{ title: string; discount: string; conditions: string; valid_until: string; is_published: boolean }>({ title: '', discount: '', conditions: '', valid_until: '', is_published: true });
+  const [addingCoupon, setAddingCoupon] = useState(false);
+  const [savingCoupon, setSavingCoupon] = useState<string | null>(null);
+  const [deletingCoupon, setDeletingCoupon] = useState<string | null>(null);
 
   const toggleSection = (key: string) => {
     setExpandedSections(prev => {
@@ -274,6 +301,17 @@ export default function MyPage() {
         .eq('salon_id', salonData.id)
         .order('display_order', { ascending: true });
       setSalonImages(imageData ?? []);
+
+      const couponList = await fetchCouponList(Number(salonData.id));
+      setCoupons(couponList);
+      const couponFormMap: Record<string, Partial<Coupon>> = {};
+      couponList.forEach(c => {
+        couponFormMap[c.id] = {
+          title: c.title, discount: c.discount, conditions: c.conditions,
+          valid_until: c.valid_until, is_published: c.is_published,
+        };
+      });
+      setCouponForms(couponFormMap);
 
       const { data: wallpaperData } = await supabase
         .from('theme_wallpapers')
@@ -738,6 +776,104 @@ export default function MyPage() {
     showToast('写メ日記を投稿しました');
   };
 
+  // クーポン：フォーム再構築（一覧取得後の同期用）
+  const rebuildCouponForms = (list: Coupon[]) => {
+    const map: Record<string, Partial<Coupon>> = {};
+    list.forEach(c => {
+      map[c.id] = {
+        title: c.title, discount: c.discount, conditions: c.conditions,
+        valid_until: c.valid_until, is_published: c.is_published,
+      };
+    });
+    setCouponForms(map);
+  };
+
+  // クーポン：新規追加（sort_order は既存最大+1で自動採番）
+  const handleCouponAdd = async () => {
+    if (!salon || !newCoupon.title.trim() || !newCoupon.discount.trim()) return;
+    setAddingCoupon(true);
+    const nextOrder = coupons.length > 0 ? Math.max(...coupons.map(c => c.sort_order)) + 1 : 0;
+    const { error } = await supabase.from('coupons').insert({
+      salon_id:     Number(salon.id),
+      title:        newCoupon.title.trim(),
+      discount:     newCoupon.discount.trim(),
+      conditions:   newCoupon.conditions.trim() || null,
+      valid_until:  newCoupon.valid_until || null,
+      is_published: newCoupon.is_published,
+      sort_order:   nextOrder,
+    });
+    if (error) {
+      setAddingCoupon(false);
+      showToast(
+        error.code === '42501'
+          ? 'RLSポリシーにより追加が拒否されました。Supabaseでcouponsのオーナー用INSERTポリシーを確認してください。'
+          : `追加に失敗しました: ${error.message}`
+      );
+      return;
+    }
+    const list = await fetchCouponList(Number(salon.id));
+    setCoupons(list);
+    rebuildCouponForms(list);
+    setNewCoupon({ title: '', discount: '', conditions: '', valid_until: '', is_published: true });
+    setAddingCoupon(false);
+    showToast('クーポンを追加しました');
+  };
+
+  // クーポン：編集内容を保存
+  const handleCouponSave = async (id: string) => {
+    const form = couponForms[id];
+    if (!form) return;
+    if (!form.title?.trim() || !form.discount?.trim()) {
+      showToast('タイトルと割引内容は必須です');
+      return;
+    }
+    setSavingCoupon(id);
+    const conditions = ((form.conditions ?? '') as string).trim() || null;
+    const valid_until = form.valid_until || null;
+    const is_published = form.is_published ?? true;
+    const { error } = await supabase.from('coupons').update({
+      title:        form.title.trim(),
+      discount:     form.discount.trim(),
+      conditions,
+      valid_until,
+      is_published,
+    }).eq('id', id);
+    setSavingCoupon(null);
+    if (error) { showToast(`保存に失敗しました: ${error.message}`); return; }
+    setCoupons(prev => prev.map(c => c.id === id
+      ? { ...c, title: form.title!.trim(), discount: form.discount!.trim(), conditions, valid_until, is_published }
+      : c));
+    showToast('クーポンを保存しました');
+  };
+
+  // クーポン：公開/非公開のワンタップ切替（即時保存）
+  const handleCouponTogglePublish = async (id: string) => {
+    const target = coupons.find(c => c.id === id);
+    if (!target) return;
+    const next = !target.is_published;
+    const { error } = await supabase.from('coupons').update({ is_published: next }).eq('id', id);
+    if (error) { showToast(`変更に失敗しました: ${error.message}`); return; }
+    setCoupons(prev => prev.map(c => c.id === id ? { ...c, is_published: next } : c));
+    setCouponForms(prev => ({ ...prev, [id]: { ...prev[id], is_published: next } }));
+    showToast(next ? '公開にしました' : '非公開にしました');
+  };
+
+  // クーポン：削除（確認あり）
+  const handleCouponDelete = async (id: string) => {
+    if (!window.confirm('このクーポンを削除しますか？\nこの操作は取り消せません。')) return;
+    setDeletingCoupon(id);
+    const { data: deleted, error } = await supabase.from('coupons').delete().eq('id', id).select('id');
+    setDeletingCoupon(null);
+    if (error) { showToast(`削除に失敗しました: ${error.message}`); return; }
+    if (!deleted || deleted.length === 0) {
+      showToast('削除できませんでした（権限エラーの可能性があります）');
+      return;
+    }
+    setCoupons(prev => prev.filter(c => c.id !== id));
+    setCouponForms(prev => { const n = { ...prev }; delete n[id]; return n; });
+    showToast('クーポンを削除しました');
+  };
+
   const handleSignOut = async () => {
     await supabase.auth.signOut();
     router.push('/login');
@@ -790,6 +926,7 @@ export default function MyPage() {
             ['available', '今すぐ'],
             ['profile',   'セラピスト情報'],
             ['diary',     '写メ日記'],
+            ['coupon',    'クーポン'],
           ] as const).map(([key, label]) => (
             <button
               key={key}
@@ -1531,6 +1668,154 @@ export default function MyPage() {
             {/* 投稿済み日記一覧 */}
             <MyDiaryList salonId={Number(salon.id)} reloadSignal={diaryReload} onToast={showToast} />
           </div>
+        </div>
+
+        {/* ── タブ6: クーポン ── */}
+        <div className={`space-y-4 ${activeTab === 'coupon' ? '' : 'hidden'}`}>
+
+          {/* 新規追加フォーム */}
+          <div className="bg-white rounded-3xl border border-pink-100 shadow-sm p-5 space-y-3">
+            <h3 className="text-xs font-black text-pink-600">クーポンを新規追加</h3>
+            <div>
+              <label className={labelClass}>タイトル <span className="text-rose-400">*</span></label>
+              <input
+                className={inputClass}
+                placeholder="例: 新規様限定クーポン"
+                value={newCoupon.title}
+                onChange={(e) => setNewCoupon(p => ({ ...p, title: e.target.value }))}
+              />
+            </div>
+            <div>
+              <label className={labelClass}>割引内容 <span className="text-rose-400">*</span></label>
+              <input
+                className={inputClass}
+                placeholder="例: ¥1,000 OFF"
+                value={newCoupon.discount}
+                onChange={(e) => setNewCoupon(p => ({ ...p, discount: e.target.value }))}
+              />
+            </div>
+            <div>
+              <label className={labelClass}>利用条件</label>
+              <textarea
+                rows={2}
+                className={textareaClass}
+                placeholder="例: 60分以上のコースをご利用の方限定。他クーポンとの併用不可。"
+                value={newCoupon.conditions}
+                onChange={(e) => setNewCoupon(p => ({ ...p, conditions: e.target.value }))}
+              />
+            </div>
+            <div>
+              <label className={labelClass}>有効期限</label>
+              <input
+                type="date"
+                className={inputClass}
+                value={newCoupon.valid_until}
+                onChange={(e) => setNewCoupon(p => ({ ...p, valid_until: e.target.value }))}
+              />
+            </div>
+            <label className="flex items-center gap-2 cursor-pointer select-none">
+              <input
+                type="checkbox"
+                className="w-4 h-4 accent-pink-500 flex-shrink-0"
+                checked={newCoupon.is_published}
+                onChange={(e) => setNewCoupon(p => ({ ...p, is_published: e.target.checked }))}
+              />
+              <span className="text-xs font-bold text-slate-600">公開する（オフにすると非公開で保存）</span>
+            </label>
+            <div className="flex justify-end">
+              <button
+                className={saveBtn}
+                onClick={handleCouponAdd}
+                disabled={addingCoupon || !newCoupon.title.trim() || !newCoupon.discount.trim()}
+              >
+                {addingCoupon ? '追加中...' : '+ クーポンを追加'}
+              </button>
+            </div>
+          </div>
+
+          {/* クーポン一覧（公開・非公開含む） */}
+          {coupons.length === 0 ? (
+            <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5">
+              <p className="text-xs text-slate-400">登録されているクーポンがありません</p>
+            </div>
+          ) : (
+            coupons.map((c) => {
+              const form = couponForms[c.id] ?? {};
+              return (
+                <div key={c.id} className="bg-white rounded-2xl border border-pink-100 shadow-sm p-5 space-y-3">
+                  {/* ヘッダー：公開状態・ワンタップ切替・削除 */}
+                  <div className="flex items-center justify-between gap-2">
+                    <span className={`text-[11px] font-bold px-2.5 py-1 rounded-full ${
+                      c.is_published ? 'bg-pink-50 text-pink-600' : 'bg-slate-100 text-slate-400'
+                    }`}>
+                      {c.is_published ? '公開中' : '非公開'}
+                    </span>
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => handleCouponTogglePublish(c.id)}
+                        className="px-3 py-1.5 rounded-xl border border-pink-300 text-pink-600 text-xs font-bold hover:bg-pink-50 transition-colors"
+                      >
+                        {c.is_published ? '非公開にする' : '公開にする'}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleCouponDelete(c.id)}
+                        disabled={deletingCoupon === c.id}
+                        className="px-3 py-1.5 rounded-xl border border-rose-200 text-rose-500 text-xs font-bold bg-rose-50 hover:bg-rose-100 transition-colors disabled:opacity-50"
+                      >
+                        {deletingCoupon === c.id ? '削除中...' : '削除'}
+                      </button>
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className={labelClass}>タイトル <span className="text-rose-400">*</span></label>
+                    <input
+                      className={inputClass}
+                      value={form.title ?? ''}
+                      onChange={(e) => setCouponForms(prev => ({ ...prev, [c.id]: { ...prev[c.id], title: e.target.value } }))}
+                    />
+                  </div>
+                  <div>
+                    <label className={labelClass}>割引内容 <span className="text-rose-400">*</span></label>
+                    <input
+                      className={inputClass}
+                      value={form.discount ?? ''}
+                      onChange={(e) => setCouponForms(prev => ({ ...prev, [c.id]: { ...prev[c.id], discount: e.target.value } }))}
+                    />
+                  </div>
+                  <div>
+                    <label className={labelClass}>利用条件</label>
+                    <textarea
+                      rows={2}
+                      className={textareaClass}
+                      value={(form.conditions as string | null) ?? ''}
+                      onChange={(e) => setCouponForms(prev => ({ ...prev, [c.id]: { ...prev[c.id], conditions: e.target.value } }))}
+                    />
+                  </div>
+                  <div>
+                    <label className={labelClass}>有効期限</label>
+                    <input
+                      type="date"
+                      className={inputClass}
+                      value={(form.valid_until as string | null) ?? ''}
+                      onChange={(e) => setCouponForms(prev => ({ ...prev, [c.id]: { ...prev[c.id], valid_until: e.target.value } }))}
+                    />
+                  </div>
+                  <div className="flex justify-end">
+                    <button
+                      className={saveBtn}
+                      onClick={() => handleCouponSave(c.id)}
+                      disabled={savingCoupon === c.id}
+                    >
+                      {savingCoupon === c.id ? '保存中...' : '保存'}
+                    </button>
+                  </div>
+                </div>
+              );
+            })
+          )}
         </div>
 
       </main>
