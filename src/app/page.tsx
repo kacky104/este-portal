@@ -221,18 +221,12 @@ export default async function Home() {
               </Link>
             </div>
             <TherapistScroller showAge />
-            {/* 本日出勤中セラピスト一覧ページへの導線（モバイルのみ：カードの下） */}
-            <div className="text-right mt-1 sm:hidden">
+            {/* 本日出勤中セラピスト一覧ページへの導線（モバイルのみ：カードの下・中央寄せのピル型バッジ） */}
+            <div className="mt-2 flex justify-center sm:hidden">
               <Link
                 href="/working"
-                className="inline-flex items-center gap-1 text-sm font-bold"
-                style={{
-                  background: 'linear-gradient(to right, #ec4899, #f97316)',
-                  WebkitBackgroundClip: 'text',
-                  backgroundClip: 'text',
-                  WebkitTextFillColor: 'transparent',
-                  color: 'transparent',
-                }}
+                className="inline-flex items-center gap-1 px-5 py-2 rounded-full text-white text-sm font-bold shadow-sm"
+                style={{ background: 'linear-gradient(to right, #ec4899, #f97316)' }}
               >
                 一覧を見る →
               </Link>
