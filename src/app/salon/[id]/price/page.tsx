@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { createClient } from "@/app/lib/supabase/server";
 import { getTheme, breadcrumbCurrentColor } from "@/app/lib/themes";
+import { CoursesContent, type Course } from "../CoursesContent";
 
 export default async function SalonPricePage({
   params,
@@ -43,13 +44,8 @@ export default async function SalonPricePage({
 
   const salonName = (salonRow.name as string) ?? '';
 
-  // 既存ブロックと同一の JSON 読み方（name / duration / price。description は任意）。
-  const courses = ((salonRow.courses as { name: string; duration: string; price: string; description?: string }[] | null) ?? []).map(c => ({
-    name:        c.name ?? '',
-    duration:    c.duration ?? '',
-    price:       c.price ?? '',
-    description: c.description ?? '',
-  }));
+  // 既存ブロックと同一の JSON 読み方（name / duration / price）。
+  const courses = ((salonRow.courses as Course[] | null) ?? []);
 
   return (
     <div className="relative min-h-screen overflow-x-hidden" style={{ color: theme.text }}>
@@ -104,31 +100,8 @@ export default async function SalonPricePage({
           {courses.length === 0 ? (
             <p className="text-center py-8 text-sm" style={{ color: theme.body }}>準備中</p>
           ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm border-collapse">
-                <thead>
-                  <tr className="border-b" style={{ borderColor: theme.cardBorder }}>
-                    <th className="text-left font-bold py-2 pr-3 whitespace-nowrap" style={{ color: theme.heading }}>コース名</th>
-                    <th className="text-left font-bold py-2 px-3 whitespace-nowrap" style={{ color: theme.heading }}>時間</th>
-                    <th className="text-right font-bold py-2 px-3 whitespace-nowrap" style={{ color: theme.heading }}>料金</th>
-                    <th className="text-left font-bold py-2 pl-3" style={{ color: theme.heading }}>説明</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {courses.map((c, i) => (
-                    <tr key={i} className="border-b last:border-0 align-top" style={{ borderColor: theme.cardBorder }}>
-                      <td className="py-2.5 pr-3 font-bold break-words" style={{ color: theme.heading }}>{c.name}</td>
-                      <td className="py-2.5 px-3 whitespace-nowrap" style={{ color: theme.body }}>{c.duration}</td>
-                      <td className="py-2.5 px-3 text-right font-bold text-pink-600 whitespace-nowrap">{c.price}</td>
-                      <td className="py-2.5 pl-3 leading-relaxed break-words whitespace-pre-wrap" style={{ color: theme.body }}>{c.description}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+            <CoursesContent courses={courses} theme={theme} />
           )}
-
-          <p className="text-[11px] mt-5 opacity-70" style={{ color: theme.body }}>※ 表示料金はすべて税込み価格です。</p>
         </section>
       </main>
     </div>
