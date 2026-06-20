@@ -194,7 +194,7 @@ function TherapistMiniCardsRow({ therapists, salonId, showAge = false }: { thera
 
 // ── Salon card ────────────────────────────────────────────────
 
-function SalonCard({ salon, therapists, showAge = false }: { salon: Salon; therapists: TherapistThumb[]; showAge?: boolean }) {
+function SalonCard({ salon, therapists, showAge = false, areaNextToDuty = false }: { salon: Salon; therapists: TherapistThumb[]; showAge?: boolean; areaNextToDuty?: boolean }) {
   const router = useRouter();
   const onDutyCount = therapists.filter(t => t.onDuty).length;
 
@@ -232,6 +232,11 @@ function SalonCard({ salon, therapists, showAge = false }: { salon: Salon; thera
               </svg>
               出勤 <span style={{ color: '#ec4899', fontSize: '15px', fontWeight: 700 }}>{onDutyCount}</span>名
             </span>
+            {areaNextToDuty && (
+              <span className="flex-shrink-0 text-xs font-semibold px-2.5 py-0.5 rounded-full bg-pink-50 text-pink-600 border border-pink-200">
+                {salon.area}
+              </span>
+            )}
           </div>
 
           {/* Stars + count + area */}
@@ -239,9 +244,11 @@ function SalonCard({ salon, therapists, showAge = false }: { salon: Salon; thera
             <StarRating rating={salon.rating} />
             <span className="text-pink-600 font-bold text-sm">{salon.rating}</span>
             <span className="text-slate-400 text-xs">({salon.reviewCount}件)</span>
-            <span className="flex-shrink-0 text-xs font-semibold px-2.5 py-0.5 rounded-full bg-pink-50 text-pink-600 border border-pink-200">
-              {salon.area}
-            </span>
+            {!areaNextToDuty && (
+              <span className="flex-shrink-0 text-xs font-semibold px-2.5 py-0.5 rounded-full bg-pink-50 text-pink-600 border border-pink-200">
+                {salon.area}
+              </span>
+            )}
           </div>
 
 
@@ -302,7 +309,7 @@ function SalonCardSkeleton() {
 
 // ── ShuffledSalons ────────────────────────────────────────────
 
-export function ShuffledSalons({ salons, areas, showAge = false }: { salons: Salon[]; areas: string[]; showAge?: boolean }) {
+export function ShuffledSalons({ salons, areas, showAge = false, areaNextToDuty = false }: { salons: Salon[]; areas: string[]; showAge?: boolean; areaNextToDuty?: boolean }) {
   const [list,            setList]            = useState<Salon[]>([]);
   const [activeArea,      setActiveArea]      = useState('福岡全域');
   const [salonTherapists, setSalonTherapists] = useState<Record<number, TherapistThumb[]>>({});
@@ -471,6 +478,7 @@ export function ShuffledSalons({ salons, areas, showAge = false }: { salons: Sal
             salon={salon}
             therapists={salonTherapists[salon.id] ?? []}
             showAge={showAge}
+            areaNextToDuty={areaNextToDuty}
           />
         ))}
       </div>
