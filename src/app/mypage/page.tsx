@@ -1681,6 +1681,7 @@ export default function MyPage() {
           {/* 新規追加フォーム */}
           <div className="bg-white rounded-3xl border border-pink-100 shadow-sm p-5 space-y-3">
             <h3 className="text-xs font-black text-pink-600">クーポンを新規追加</h3>
+            <p className="text-[10px] text-slate-400">有効期限が過ぎると自動で非表示になります。</p>
             <div>
               <label className={labelClass}>タイトル <span className="text-rose-400">*</span></label>
               <input
