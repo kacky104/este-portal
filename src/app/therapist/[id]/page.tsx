@@ -294,10 +294,21 @@ export default async function TherapistPublicPage({
         <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden mb-6">
           <div className="p-6">
             {/* 名前のすぐ右に年齢を（23）形式で表示（トップページのセラピストカードと同書式）。年齢未設定なら名前のみ。 */}
-            <h1 className="text-2xl font-bold text-slate-900 mb-4">
-              {therapist.name}
-              {therapist.age && <span className="ml-0.5">（{therapist.age}）</span>}
-            </h1>
+            {/* 出勤時間は年齢の横に表示する（下部の重複表示は削除）。 */}
+            <div className="flex items-baseline flex-wrap gap-x-2 mb-4">
+              <h1 className="text-2xl font-bold text-slate-900">
+                {therapist.name}
+                {therapist.age && <span className="ml-0.5">（{therapist.age}）</span>}
+              </h1>
+              {therapist.workHours && (
+                <span className="inline-flex items-center gap-1 text-sm font-medium text-slate-500">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-slate-400 flex-shrink-0">
+                    <circle cx="12" cy="12" r="10" /><path d="M12 6v6l4 2" />
+                  </svg>
+                  {therapist.workHours}
+                </span>
+              )}
+            </div>
 
             {/* Body type */}
             {therapist.bodyType && (
@@ -317,14 +328,6 @@ export default async function TherapistPublicPage({
               </div>
             )}
 
-            {therapist.workHours && (
-              <div className="flex items-center gap-2 text-sm text-slate-500">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-slate-400 flex-shrink-0">
-                  <circle cx="12" cy="12" r="10" /><path d="M12 6v6l4 2" />
-                </svg>
-                <span>{therapist.workHours}</span>
-              </div>
-            )}
           </div>
         </div>
 
