@@ -29,6 +29,7 @@ import { SalonDiarySection } from "@/components/DiarySection";
 import SalonHeaderSlider from "@/components/SalonHeaderSlider";
 import { SalonNameBanner } from "./SalonNameBanner";
 import { CollapsibleCourses } from "./CollapsibleCourses";
+import { CollapsibleSection } from "./CollapsibleSection";
 
 export default async function SalonPage({
   params,
@@ -334,12 +335,8 @@ export default async function SalonPage({
               <CollapsibleCourses courses={salon.courses} theme={theme} />
             )}
 
-            {/* All therapists */}
-            <div className="mt-8 rounded-3xl p-5 border shadow-sm" style={{ backgroundColor: theme.card, borderColor: theme.cardBorder }}>
-              <div className="flex items-center gap-2 mb-4">
-                <span className="text-lg">👩‍🦰</span>
-                <h2 className="text-base font-bold" style={{ color: theme.heading }}>在籍セラピスト一覧</h2>
-              </div>
+            {/* All therapists（折り畳み式） */}
+            <CollapsibleSection theme={theme} className="mt-8 rounded-3xl p-5 border shadow-sm" title="在籍セラピスト一覧" variant="emoji" emoji="👩‍🦰">
               <SalonAllTherapists salonId={Number(id)} limit={4} />
 
               <div className="mt-4 text-center">
@@ -357,17 +354,16 @@ export default async function SalonPage({
                   すべて見る
                 </Link>
               </div>
-            </div>
+            </CollapsibleSection>
 
             {/* New face therapists（該当0人のときはセクションごと非表示） */}
             <SalonNewFaceTherapists salonId={Number(id)} theme={theme} />
 
-            {/* About */}
-            <section className="rounded-2xl border shadow-sm p-6" style={{ backgroundColor: theme.card, borderColor: theme.cardBorder }}>
-              <SectionHeading color={theme.heading}>サロンについて</SectionHeading>
+            {/* About（折り畳み式） */}
+            <CollapsibleSection theme={theme} className="rounded-2xl border shadow-sm p-6" title="サロンについて">
               <p className="text-sm leading-relaxed mb-4 break-words max-w-full whitespace-pre-wrap" style={{ color: theme.body }}>{salon.description}</p>
               <p className="text-sm leading-relaxed break-words max-w-full whitespace-pre-wrap" style={{ color: theme.body }}>{salon.appeal}</p>
-            </section>
+            </CollapsibleSection>
           </div>
 
           {/* Right: shop info */}
@@ -380,9 +376,8 @@ export default async function SalonPage({
               <p className="text-xs opacity-70 mt-1">※ コースにより異なります</p>
             </div>
 
-            {/* Shop info */}
-            <section className="rounded-2xl border shadow-sm p-5" style={{ backgroundColor: theme.card, borderColor: theme.cardBorder }}>
-              <SectionHeading color={theme.heading}>店舗基本情報</SectionHeading>
+            {/* Shop info（スマホのみ折り畳み・デスクトップは常時展開） */}
+            <CollapsibleSection theme={theme} className="rounded-2xl border shadow-sm p-5" title="店舗基本情報" mobileOnly>
               <dl className="space-y-3.5 text-sm">
                 <InfoRow icon={<PhoneIcon />}    label="電話番号" value={salon.phone}      labelColor={theme.body} valueColor={theme.heading} />
                 <InfoRow icon={<ClockIcon />}    label="営業時間" value={salon.hours}      labelColor={theme.body} valueColor={theme.heading} />
@@ -390,7 +385,7 @@ export default async function SalonPage({
                 <InfoRow icon={<MapIcon />}      label="住所"     value={salon.address}    labelColor={theme.body} valueColor={theme.heading} />
                 <InfoRow icon={<TrainIcon />}    label="アクセス" value={salon.access}     labelColor={theme.body} valueColor={theme.heading} />
               </dl>
-            </section>
+            </CollapsibleSection>
 
             {/* Note */}
             {salon.note && (
@@ -444,15 +439,6 @@ export default async function SalonPage({
 }
 
 /* ── Helper components ─────────────────────────────────── */
-
-function SectionHeading({ children, color }: { children: React.ReactNode; color?: string }) {
-  return (
-    <div className="flex items-center gap-2.5 mb-4">
-      <div className="w-1 h-5 rounded-full bg-gradient-to-b from-pink-500 to-pink-700" />
-      <h3 className="font-bold" style={color ? { color } : undefined}>{children}</h3>
-    </div>
-  );
-}
 
 function InfoRow({
   icon,
