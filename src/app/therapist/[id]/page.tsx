@@ -487,7 +487,7 @@ export default async function TherapistPublicPage({
             {salon && (
               <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-5">
                 {/* モバイル：「所属サロン」ラベルの右隣に営業時間・地域。デスクトップ：ラベルの下に表示 */}
-                <div className="flex flex-row items-center justify-between gap-2 lg:flex-col lg:items-start lg:gap-1 mb-2">
+                <div className="flex flex-row items-center gap-2 lg:flex-col lg:items-start lg:gap-1 mb-2">
                   <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wide flex-shrink-0">所属サロン</p>
                   <div className="flex items-center gap-2 min-w-0">
                     {salon.hours && (
