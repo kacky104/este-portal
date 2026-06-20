@@ -348,7 +348,7 @@ export default async function SalonPage({
             )}
 
             {/* All therapists（折り畳み式） */}
-            <CollapsibleSection theme={theme} className="mt-8 rounded-2xl p-5 border shadow-sm" title="在籍セラピスト一覧">
+            <CollapsibleSection theme={theme} className="mt-8 rounded-2xl p-6 border shadow-sm" title="在籍セラピスト一覧">
               <SalonAllTherapists salonId={Number(id)} limit={4} />
 
               <div className="mt-4 text-center">
@@ -375,7 +375,7 @@ export default async function SalonPage({
             </CollapsibleSection>
 
             {/* Shop info（スマホのみ：サロンについての下に表示・折り畳み。デスクトップは右サイドバーに表示） */}
-            <CollapsibleSection theme={theme} className="lg:hidden rounded-2xl border shadow-sm p-5" title="店舗基本情報">
+            <CollapsibleSection theme={theme} className="lg:hidden rounded-2xl border shadow-sm p-6" title="店舗基本情報">
               {shopInfoRows}
             </CollapsibleSection>
 
