@@ -23,6 +23,8 @@ export function CoursesContent({ courses, theme, large = false }: { courses: Cou
   const dotCls   = large ? 'w-2.5 h-2.5' : 'w-2 h-2';
   const nameCls  = large ? 'text-[21px]' : 'text-sm';
   const rowsGap  = large ? 'space-y-2.5' : 'space-y-1.5';
+  // large（/price）のみ、デスクトップで行の最大幅を制限しラベルと料金を近づける（モバイルは全幅維持）。
+  const rowsWidth = large ? ' md:max-w-[640px]' : '';
   const rowCls   = large ? 'text-[21px] pb-2' : 'text-sm pb-1';
   const noteCls  = large ? 'text-[17px]' : 'text-[11px]';
 
@@ -35,7 +37,7 @@ export function CoursesContent({ courses, theme, large = false }: { courses: Cou
               <span className={`${dotCls} rounded-full bg-pink-400 flex-shrink-0`} />
               <h3 className={`${nameCls} font-bold min-w-0 break-words`} style={{ color: theme.heading }}>{name}</h3>
             </div>
-            <div className={`pl-4 ${rowsGap}`}>
+            <div className={`pl-4 ${rowsGap}${rowsWidth}`}>
               {items.map((item, i) => (
                 <div key={i} className={`flex items-center justify-between gap-3 ${rowCls} border-b last:border-0 last:pb-0`} style={{ borderColor: theme.cardBorder }}>
                   <span className="min-w-0 break-words" style={{ color: theme.body }}>{item.duration}</span>
