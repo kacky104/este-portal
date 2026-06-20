@@ -336,7 +336,7 @@ export default async function SalonPage({
             )}
 
             {/* All therapists（折り畳み式） */}
-            <CollapsibleSection theme={theme} className="mt-8 rounded-3xl p-5 border shadow-sm" title="在籍セラピスト一覧" variant="emoji" emoji="👩‍🦰">
+            <CollapsibleSection theme={theme} className="mt-8 rounded-2xl p-5 border shadow-sm" title="在籍セラピスト一覧" variant="emoji" emoji="👩‍🦰">
               <SalonAllTherapists salonId={Number(id)} limit={4} />
 
               <div className="mt-4 text-center">
