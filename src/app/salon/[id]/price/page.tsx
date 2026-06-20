@@ -3,16 +3,6 @@ import { notFound } from "next/navigation";
 import { createClient } from "@/app/lib/supabase/server";
 import { getTheme, breadcrumbCurrentColor } from "@/app/lib/themes";
 
-function formatPrice(price: number | null): string {
-  if (price == null) return '';
-  return `¥${new Intl.NumberFormat('ja-JP').format(price)}`;
-}
-
-function formatDuration(min: number | null): string {
-  if (min == null) return '';
-  return `${min}分`;
-}
-
 export default async function SalonPricePage({
   params,
 }: {
@@ -21,9 +11,10 @@ export default async function SalonPricePage({
   const { id } = await params;
   const supabase = await createClient();
 
+  // データ源は salons.courses(JSON)。既存「コースメニュー・料金表」ブロックと同じ読み方・フィールド対応。
   const { data: salonRow, error } = await supabase
     .from('salons')
-    .select('id, name, theme')
+    .select('id, name, theme, courses')
     .eq('id', Number(id))
     .single();
 
@@ -52,20 +43,12 @@ export default async function SalonPricePage({
 
   const salonName = (salonRow.name as string) ?? '';
 
-  // 公開コースを sort_order の昇順に取得（RLS でも is_published=true のみ）
-  const { data: rows } = await supabase
-    .from('courses')
-    .select('id, name, duration_min, price, description, sort_order')
-    .eq('salon_id', Number(id))
-    .eq('is_published', true)
-    .order('sort_order', { ascending: true });
-
-  const courses = (rows ?? []).map(r => ({
-    id:          String(r.id),
-    name:        (r.name as string) ?? '',
-    durationMin: (r.duration_min as number | null) ?? null,
-    price:       (r.price as number | null) ?? null,
-    description: (r.description as string | null) ?? '',
+  // 既存ブロックと同一の JSON 読み方（name / duration / price。description は任意）。
+  const courses = ((salonRow.courses as { name: string; duration: string; price: string; description?: string }[] | null) ?? []).map(c => ({
+    name:        c.name ?? '',
+    duration:    c.duration ?? '',
+    price:       c.price ?? '',
+    description: c.description ?? '',
   }));
 
   return (
@@ -132,11 +115,11 @@ export default async function SalonPricePage({
                   </tr>
                 </thead>
                 <tbody>
-                  {courses.map(c => (
-                    <tr key={c.id} className="border-b last:border-0 align-top" style={{ borderColor: theme.cardBorder }}>
+                  {courses.map((c, i) => (
+                    <tr key={i} className="border-b last:border-0 align-top" style={{ borderColor: theme.cardBorder }}>
                       <td className="py-2.5 pr-3 font-bold break-words" style={{ color: theme.heading }}>{c.name}</td>
-                      <td className="py-2.5 px-3 whitespace-nowrap" style={{ color: theme.body }}>{formatDuration(c.durationMin)}</td>
-                      <td className="py-2.5 px-3 text-right font-bold text-pink-600 whitespace-nowrap">{formatPrice(c.price)}</td>
+                      <td className="py-2.5 px-3 whitespace-nowrap" style={{ color: theme.body }}>{c.duration}</td>
+                      <td className="py-2.5 px-3 text-right font-bold text-pink-600 whitespace-nowrap">{c.price}</td>
                       <td className="py-2.5 pl-3 leading-relaxed break-words whitespace-pre-wrap" style={{ color: theme.body }}>{c.description}</td>
                     </tr>
                   ))}
