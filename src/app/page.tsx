@@ -222,10 +222,10 @@ export default async function Home() {
             </div>
             <TherapistScroller showAge />
             {/* 本日出勤中セラピスト一覧ページへの導線（モバイルのみ：カードの下・中央寄せのピル型バッジ） */}
-            <div className="mt-2 flex justify-center sm:hidden">
+            <div className="mt-1 flex justify-center sm:hidden">
               <Link
                 href="/working"
-                className="inline-flex items-center gap-1 px-6 py-1 rounded-full bg-pink-600 hover:bg-pink-700 text-white text-sm font-bold shadow-sm transition-colors"
+                className="inline-flex items-center gap-1 px-6 py-2 rounded-full bg-pink-600 hover:bg-pink-700 text-white text-sm font-bold shadow-sm transition-colors"
               >
                 一覧を見る →
               </Link>
