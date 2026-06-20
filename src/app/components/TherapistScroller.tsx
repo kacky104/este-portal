@@ -92,18 +92,17 @@ function Card({ therapist, index, showAge = false }: { therapist: TherapistItem;
       {/* bottom gradient overlay */}
       <div className="absolute inset-0 bg-gradient-to-t from-black/35 via-black/10 to-transparent" />
 
-      {/* 今すぐバッジ — top left */}
-      {therapist.isAvailableNow && therapist.availableUntil && new Date(therapist.availableUntil) > new Date() && (
-        <span className="absolute top-1.5 left-1.5" style={{ background: 'linear-gradient(to right, #ec4899, #f97316)', color: 'white', fontSize: '11px', fontWeight: 700, padding: '2px 8px', borderRadius: '20px' }}>
+      {/* 右上バッジ：今すぐの子は出勤中等を出さず、今すぐを点滅表示。それ以外は出勤状況バッジ。 */}
+      {therapist.isAvailableNow && therapist.availableUntil && new Date(therapist.availableUntil) > new Date() ? (
+        <span className="absolute top-1.5 right-1.5 animate-pulse" style={{ background: 'linear-gradient(to right, #ec4899, #f97316)', color: 'white', fontSize: '11px', fontWeight: 700, padding: '2px 8px', borderRadius: '20px' }}>
           今すぐ
         </span>
-      )}
-
-      {/* status badge — top right */}
-      {ss && (
-        <span className={`absolute top-1.5 right-1.5 text-[9px] sm:text-[10px] font-bold px-1.5 sm:px-2 py-0.5 rounded-full ${ss.cardBadge}`}>
-          {ss.label}
-        </span>
+      ) : (
+        ss && (
+          <span className={`absolute top-1.5 right-1.5 text-[9px] sm:text-[10px] font-bold px-1.5 sm:px-2 py-0.5 rounded-full ${ss.cardBadge}`}>
+            {ss.label}
+          </span>
+        )
       )}
 
       {/* text overlay — bottom */}

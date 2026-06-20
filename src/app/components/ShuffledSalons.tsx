@@ -62,6 +62,8 @@ function TherapistMiniCard({ therapist, index, showAge = false, compact = false 
     : !therapist.workHours
       ? 'onDuty'
       : checkDutyStatus(therapist.workHours).status;
+  const availableNow =
+    therapist.isAvailableNow && therapist.availableUntil != null && new Date(therapist.availableUntil) > new Date();
 
   return (
     <Link
@@ -82,33 +84,34 @@ function TherapistMiniCard({ therapist, index, showAge = false, compact = false 
       {/* bottom gradient overlay */}
       <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-black/10 to-transparent" />
 
-      {/* 今すぐバッジ — top left */}
-      {therapist.isAvailableNow && therapist.availableUntil && new Date(therapist.availableUntil) > new Date() && (
-        <span className="absolute top-1.5 left-1.5" style={{ background: 'linear-gradient(to right, #ec4899, #f97316)', color: 'white', fontSize: '11px', fontWeight: 700, padding: '2px 8px', borderRadius: '20px' }}>
+      {/* 右上バッジ：今すぐの子は出勤状況バッジを出さず、今すぐを点滅表示。それ以外は出勤状況バッジ。 */}
+      {availableNow ? (
+        <span className="absolute top-1.5 right-1.5 animate-pulse" style={{ background: 'linear-gradient(to right, #ec4899, #f97316)', color: 'white', fontSize: '11px', fontWeight: 700, padding: '2px 8px', borderRadius: '20px' }}>
           今すぐ
         </span>
-      )}
-
-      {/* duty status badge — top right */}
-      {dutyStatus === 'off' && (
-        <span className="absolute top-1.5 right-1.5 text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-white/90 text-slate-400 border border-slate-200">
-          お休み
-        </span>
-      )}
-      {dutyStatus === 'onDuty' && (
-        <span className="absolute top-1.5 right-1.5 text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-white text-emerald-500 border border-emerald-100 animate-pulse">
-          出勤中
-        </span>
-      )}
-      {dutyStatus === 'before' && (
-        <span className="absolute top-1.5 right-1.5 text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-white/90 text-blue-500 border border-blue-100">
-          出勤予定
-        </span>
-      )}
-      {dutyStatus === 'after' && (
-        <span className="absolute top-1.5 right-1.5 text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-white/90 text-slate-400 border border-slate-200">
-          受付終了
-        </span>
+      ) : (
+        <>
+          {dutyStatus === 'off' && (
+            <span className="absolute top-1.5 right-1.5 text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-white/90 text-slate-400 border border-slate-200">
+              お休み
+            </span>
+          )}
+          {dutyStatus === 'onDuty' && (
+            <span className="absolute top-1.5 right-1.5 text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-white text-emerald-500 border border-emerald-100 animate-pulse">
+              出勤中
+            </span>
+          )}
+          {dutyStatus === 'before' && (
+            <span className="absolute top-1.5 right-1.5 text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-white/90 text-blue-500 border border-blue-100">
+              出勤予定
+            </span>
+          )}
+          {dutyStatus === 'after' && (
+            <span className="absolute top-1.5 right-1.5 text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-white/90 text-slate-400 border border-slate-200">
+              受付終了
+            </span>
+          )}
+        </>
       )}
 
       {/* text overlay */}
