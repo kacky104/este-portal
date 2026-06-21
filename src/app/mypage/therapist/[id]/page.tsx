@@ -70,7 +70,7 @@ export default function TherapistEditPage() {
     (async () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) {
-        router.push('/login?redirectTo=' + encodeURIComponent(window.location.pathname));
+        router.push('/owner/login?redirectTo=' + encodeURIComponent(window.location.pathname));
         return;
       }
 

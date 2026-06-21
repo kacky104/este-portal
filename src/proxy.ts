@@ -32,15 +32,13 @@ export async function proxy(request: NextRequest) {
 
   const path = request.nextUrl.pathname;
 
-  // /owner/dashboard 以下はログイン必須
+  // /owner/dashboard（旧モック画面）以下はログイン必須
   if (path.startsWith("/owner/dashboard") && !user) {
     return NextResponse.redirect(new URL("/owner/login", request.url));
   }
 
-  // ログイン済みなら /owner/login へのアクセスをダッシュボードへリダイレクト
-  if (path === "/owner/login" && user) {
-    return NextResponse.redirect(new URL("/owner/dashboard", request.url));
-  }
+  // 注: /owner/login はオーナー判定（自店舗の有無）でページ側が /mypage へ振り分けるため、
+  // ミドルウェアでの一律リダイレクトは行わない。
 
   return supabaseResponse;
 }

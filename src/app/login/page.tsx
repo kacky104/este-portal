@@ -10,43 +10,19 @@ import {
   getSession,
   onAuthChange,
 } from '@/lib/auth';
-import { createClient } from '@/app/lib/supabase/client';
 
 // redirectTo は同一オリジンの相対パスのみ許可（オープンリダイレクト防止）。
+// 会員ログインのデフォルト遷移はトップ（オーナー振り分けは /owner/login 側で実施）。
 function safeRedirect(raw: string | null): string {
   if (!raw) return '/';
   if (!raw.startsWith('/') || raw.startsWith('//')) return '/';
   return raw;
 }
 
-// 明示の redirectTo が無いときのデフォルト遷移先。
-// 自店舗を持つオーナーは /mypage、それ以外（閲覧者）はトップへ。
-async function ownerAwareDestination(): Promise<string> {
-  try {
-    const supabase = createClient();
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return '/';
-    const { data } = await supabase
-      .from('salons')
-      .select('id')
-      .eq('owner_id', user.id)
-      .limit(1)
-      .maybeSingle();
-    return data ? '/mypage' : '/';
-  } catch {
-    return '/';
-  }
-}
-
 function LoginInner() {
   const router = useRouter();
   const params = useSearchParams();
-  const explicitRedirect = params.get('redirectTo');
-  const dest = safeRedirect(explicitRedirect);
-
-  // ログイン後/「戻る」リンクの実効遷移先。明示指定が無ければオーナー判定で /mypage or トップ。
-  const [effectiveDest, setEffectiveDest] = useState(dest);
-  const resolveDest = async () => (explicitRedirect ? dest : await ownerAwareDestination());
+  const dest = safeRedirect(params.get('redirectTo'));
 
   const [mode, setMode] = useState<'login' | 'signup'>('login');
   const [email, setEmail] = useState('');
@@ -61,17 +37,14 @@ function LoginInner() {
 
   useEffect(() => {
     let mounted = true;
-    getSession().then(async s => {
-      if (!mounted) return;
-      setCurrentEmail(s?.user.email ?? null);
-      if (s) setEffectiveDest(await resolveDest()); // 既ログイン時の「戻る」先を確定
-      if (mounted) setChecking(false);
+    getSession().then(s => {
+      if (mounted) { setCurrentEmail(s?.user.email ?? null); setChecking(false); }
     });
     const off = onAuthChange(s => {
       if (mounted) setCurrentEmail(s?.user.email ?? null);
     });
     return () => { mounted = false; off(); };
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  }, []);
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -90,14 +63,13 @@ function LoginInner() {
           return;
         }
         // メール確認OFF環境では即ログイン状態。引き継ぎはストアが自動処理。
-        router.push(await resolveDest());
+        router.push(dest);
         router.refresh();
       } else {
         const res = await signInWithEmail(email.trim(), password);
         if (!res.ok) { setError(res.error ?? 'ログインに失敗しました。'); return; }
-        // 端末の保存はログインで自動的にDBへ引き継がれる（saveStore）。
-        // 明示の戻り先が無ければ、オーナーは /mypage、閲覧者はトップへ。
-        router.push(await resolveDest());
+        // 端末の保存はログインで自動的にDBへ引き継がれる（saveStore）。会員はトップ（または redirectTo）へ。
+        router.push(dest);
         router.refresh();
       }
     } catch {
@@ -137,10 +109,10 @@ function LoginInner() {
               <span className="font-bold text-slate-900">{currentEmail}</span> でログイン中です。
             </p>
             <Link
-              href={effectiveDest}
+              href={dest}
               className="block w-full py-3 rounded-xl bg-pink-600 text-white font-bold text-sm hover:bg-pink-700 transition-colors"
             >
-              {effectiveDest === '/mypage' ? '管理画面へ' : effectiveDest === '/' ? 'トップへ戻る' : 'ページへ戻る'}
+              {dest === '/' ? 'トップへ戻る' : 'ページへ戻る'}
             </Link>
             <Link href="/saved" className="block text-sm text-pink-600 hover:underline">保存した一覧を見る</Link>
             <button
