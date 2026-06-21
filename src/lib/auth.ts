@@ -26,7 +26,15 @@ export async function signUpWithEmail(
   password: string
 ): Promise<{ ok: boolean; needsConfirm?: boolean; alreadyRegistered?: boolean; error?: string }> {
   const supabase = createClient();
-  const { data, error } = await supabase.auth.signUp({ email, password });
+  // 確認リンクの戻り先を実行環境に合わせる（local→localhost / 本番→本番ドメイン）。
+  // ※ Supabase の Redirect URLs 許可リストに各オリジン（/** 付き）の登録が前提。
+  const emailRedirectTo =
+    typeof window !== 'undefined' ? `${window.location.origin}/` : undefined;
+  const { data, error } = await supabase.auth.signUp({
+    email,
+    password,
+    options: emailRedirectTo ? { emailRedirectTo } : undefined,
+  });
   if (error) return { ok: false, error: jpAuthError(error.message) };
   // メール確認ON＋列挙対策により、既存メールでの signUp は user は返るが identities が空配列になる。
   // これを「登録済み」とみなす（実際には確認メールは送られない）。
