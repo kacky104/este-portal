@@ -325,7 +325,10 @@ export function SalonCard({ salon, therapists, showAge = false, areaNextToDuty =
 
   return (
     <div
-      className="group rounded-2xl border border-slate-200 bg-white shadow-sm hover:border-pink-300 hover:-translate-y-1 hover:shadow-lg hover:shadow-pink-500/10 transition-all duration-300 flex flex-col cursor-pointer overflow-hidden"
+      className={`group rounded-2xl border border-slate-200 bg-white shadow-sm hover:border-pink-300 hover:-translate-y-1 hover:shadow-lg hover:shadow-pink-500/10 transition-all duration-300 flex flex-col cursor-pointer overflow-hidden${
+        // デスクトップ(lg)はセラピストカード7枚ぶん（7×92+6×3=662）＋左右パディング40 = 702px
+        wideDesktop ? ' lg:w-[702px] lg:max-w-full' : ''
+      }`}
       onClick={() => router.push(`/salon/${salon.id}`)}
     >
       {/* Pink shimmer top line */}
@@ -455,8 +458,8 @@ export function ShuffledSalons({ salons, areas, showAge = false, areaNextToDuty 
   return (
     <>
       {tabs}
-      {/* wideDesktop（トップ）はデスクトップ(lg)で1列の幅広カードに。タブレット(sm)までは2列。 */}
-      <div className={`grid sm:grid-cols-2 ${wideDesktop ? 'lg:grid-cols-1' : 'lg:grid-cols-3'} gap-5`}>
+      {/* wideDesktop（トップ）はデスクトップ(lg)で1列・中央寄せ。カード幅はセラピスト7枚ぶん(702px)。タブレット(sm)までは2列。 */}
+      <div className={`grid sm:grid-cols-2 ${wideDesktop ? 'lg:grid-cols-1 lg:justify-items-center' : 'lg:grid-cols-3'} gap-5`}>
         {filtered.map(salon => (
           <SalonCard
             key={salon.id}
