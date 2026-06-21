@@ -24,11 +24,14 @@ function jpAuthError(message: string): string {
 export async function signUpWithEmail(
   email: string,
   password: string
-): Promise<{ ok: boolean; needsConfirm?: boolean; error?: string }> {
+): Promise<{ ok: boolean; needsConfirm?: boolean; alreadyRegistered?: boolean; error?: string }> {
   const supabase = createClient();
   const { data, error } = await supabase.auth.signUp({ email, password });
   if (error) return { ok: false, error: jpAuthError(error.message) };
-  return { ok: true, needsConfirm: !data.session };
+  // メール確認ON＋列挙対策により、既存メールでの signUp は user は返るが identities が空配列になる。
+  // これを「登録済み」とみなす（実際には確認メールは送られない）。
+  const alreadyRegistered = !!data.user && (data.user.identities?.length ?? 0) === 0;
+  return { ok: true, alreadyRegistered, needsConfirm: !data.session };
 }
 
 /** ログイン。 */

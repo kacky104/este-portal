@@ -70,6 +70,13 @@ function LoginInner() {
       if (mode === 'signup') {
         const res = await signUpWithEmail(email.trim(), password);
         if (!res.ok) { setError(res.error ?? '登録に失敗しました。'); return; }
+        if (res.alreadyRegistered) {
+          // 既存メール（確認メールは届かない）。ログインへ誘導。
+          setError('このメールアドレスは既に登録済みです。ログインしてください。');
+          setMode('login');
+          setPassword('');
+          return;
+        }
         if (res.needsConfirm) {
           setInfo(`${email.trim()} に確認メールを送信しました。メール内のリンクから登録を完了し、その後ログインしてください。`);
           setMode('login');
