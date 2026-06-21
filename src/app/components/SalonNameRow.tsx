@@ -119,8 +119,9 @@ export function SalonNameRow({
           aria-pressed={isSavedNow}
           className="flex-shrink-0 inline-flex items-center justify-center rounded-full transition-colors"
           style={{
-            width: 29,
-            height: 29,
+            width: 33,
+            height: 33,
+            transform: 'translateY(-3px)', // 行中央から見た目だけ少し上へ（レイアウトは保持）
             background: isSavedNow ? LIGHT.saved.bg : LIGHT.unsaved.bg,
             border: `1.5px solid ${
               isSavedNow
@@ -133,8 +134,8 @@ export function SalonNameRow({
         >
           {/* ブックマーク：未保存はグレー輪郭（ホバーでピンク）、保存済みは白の塗り */}
           <svg
-            width="16"
-            height="16"
+            width="18"
+            height="18"
             viewBox="0 0 24 24"
             fill={isSavedNow ? LIGHT.saved.icon : 'none'}
             stroke={
