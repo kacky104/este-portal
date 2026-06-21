@@ -344,7 +344,8 @@ export default async function TherapistPublicPage({
                   <SaveButton
                     kind="therapist"
                     item={{ id: Number(therapist.id), name: therapist.name, salonId: therapist.salonId }}
-                    size={34}
+                    size={36}
+                    variant="sakura"
                   />
                 </div>
 

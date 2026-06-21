@@ -20,33 +20,31 @@ const PawGlyph = () => (
   </g>
 );
 
-// ── バリアント別の配色・アイコン・演出 ──────────────────────────
-// bookmark: ブックマーク（輪郭線）＋ピンク＋キラッ（3個・裏面）。セラピスト保存ボタン等。
-// paw     : 肉球（塗り）＋ピンク＋肉球バースト（8個・前面）。トップ/保存ページのサロンカード。
-const VARIANTS = {
-  bookmark: {
-    unsaved: { bg: '#FFFFFF', border: '#E5E7EB', borderHover: '#F9A8D4', icon: '#9CA3AF', iconHover: '#EC4899' },
-    saved:   { bg: '#EC4899', border: '#EC4899', icon: '#FFFFFF' },
-    render: 'stroke' as const,
-    path: 'M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z',
-    strokeWidth: 2,
-    effect: 'sparkle' as const,
-  },
-  paw: {
-    unsaved: { bg: '#FFFFFF', border: '#E5E7EB', borderHover: '#F9A8D4', icon: '#9CA3AF', iconHover: '#EC4899' },
-    saved:   { bg: '#EC4899', border: '#EC4899', icon: '#FFFFFF' },
-    render: 'paw' as const,
-    effect: 'pawburst' as const,
-  },
-} as const;
+// 桜グリフ（花びら1枚を72°ずつ回転した5枚の塗りで構成）。
+const SAKURA_PETAL = 'M12 12C9 12 7.5 6.5 9 4 10 2.5 11 4.5 12 5.5 13 4.5 14 2.5 15 4 16.5 6.5 15 12 12 12Z';
+const SakuraGlyph = () => (
+  <g fill="currentColor">
+    {[0, 72, 144, 216, 288].map(deg => (
+      <path key={deg} d={SAKURA_PETAL} transform={`rotate(${deg} 12 12)`} />
+    ))}
+  </g>
+);
 
-// キラッ（sparkle・bookmark用）の飛び先オフセット（中心からの相対）。
-const SMALL_STAR_PATH = 'M12 2l2.9 6.3 6.9.6-5.2 4.6 1.6 6.8L12 17.3 5.8 20.9l1.6-6.8L2.2 9.5l6.9-.6z';
-const SPARKS = [
-  { x: -16, y: -14 },
-  { x:  16, y: -14 },
-  { x:   0, y: -20 },
-] as const;
+// 単一花びら（フラッター粒用）。
+const PetalGlyph = () => <path d="M12 4C8 8 8 16 12 20 16 16 16 8 12 4Z" fill="currentColor" />;
+
+// ── バリアント別の配色・アイコン・演出 ──────────────────────────
+// paw    : 肉球（塗り）＋ピンク＋肉球バースト（8個）。トップ/保存ページのサロンカード（kind=salon）。
+// sakura : 桜（塗り）＋ピンク＋花びら舞い散り（8枚）。セラピスト保存ボタン（kind=therapist）。
+// 配色は共通（白丸/薄グレー枠/グレー → 保存でピンク地+白）。演出粒はどちらも前面。
+const COLORS = {
+  unsaved: { bg: '#FFFFFF', border: '#E5E7EB', borderHover: '#F9A8D4', icon: '#9CA3AF', iconHover: '#EC4899' },
+  saved:   { bg: '#EC4899', border: '#EC4899', icon: '#FFFFFF' },
+} as const;
+const VARIANTS = {
+  paw:    { ...COLORS, glyph: 'paw'    as const, effect: 'pawburst' as const },
+  sakura: { ...COLORS, glyph: 'sakura' as const, effect: 'flutter'  as const },
+} as const;
 
 // バースト（paw用）：8個を放射状に。角度は 2π/8 ごと＋わずかなジッター、
 // 飛距離 30〜39px（円の外まで確実に出す）。肉球は回転控えめ（最終 ~40deg）。
@@ -61,6 +59,18 @@ const BURST_PARTICLES = Array.from({ length: 8 }, (_, i) => {
   };
 });
 
+// 花びら舞い散り（sakura用）：8枚を放射状に。飛距離 30〜40px、ひらひら回転（-40〜160deg程度）。
+const FLUTTER_ROT = [120, -30, 95, 40, 150, -40, 65, 110];
+const FLUTTER_PARTICLES = Array.from({ length: 8 }, (_, i) => {
+  const angle = (Math.PI * 2 / 8) * i + BURST_JITTER[i];
+  const dist  = 30 + (i % 4) * 3.3; // 30 / 33.3 / 36.6 / 39.9
+  return {
+    x:   Math.round(Math.cos(angle) * dist),
+    y:   Math.round(Math.sin(angle) * dist),
+    rot: FLUTTER_ROT[i],
+  };
+});
+
 export type SaveItem = { id: number; name: string; salonId?: number };
 
 // 汎用の保存ボタン（円・案4のポップ演出・hover配色）。
@@ -69,12 +79,12 @@ export function SaveButton({
   kind,
   item,
   size = 33,
-  variant = 'bookmark',
+  variant = 'paw',
 }: {
   kind: 'salon' | 'therapist';
   item: SaveItem;
   size?: number;
-  variant?: 'bookmark' | 'paw';
+  variant?: 'paw' | 'sakura';
 }) {
   const buttonRef = useRef<HTMLButtonElement>(null);
 
@@ -132,39 +142,38 @@ export function SaveButton({
   return (
     // ラッパ：演出をボタンの裏側〜周囲に出すため relative + overflow:visible。
     <span className="relative inline-flex flex-shrink-0" style={{ overflow: 'visible' }}>
-      {/* 演出：保存した瞬間のみ。key で再マウントして毎回最初から再生。
-          sparkle は裏面（z-index下）、pawburst は前面（z-index上）。 */}
+      {/* 演出：保存した瞬間のみ。key で単一ラッパを再マウントして毎回最初から再生。
+          粒はボタンより前面（z-index上）。transform のみで動きレイアウト不変。 */}
       {burst > 0 && (
         <span
           key={`fx-${burst}`}
           aria-hidden="true"
           className="absolute inset-0"
-          style={{ zIndex: cfg.effect === 'pawburst' ? 2 : 0, overflow: 'visible', pointerEvents: 'none' }}
+          style={{ zIndex: 2, overflow: 'visible', pointerEvents: 'none', color: '#EC4899' }}
         >
-          {cfg.effect === 'sparkle'
-            ? SPARKS.map((s, i) => (
-                <svg
-                  key={i}
-                  className="save-spark"
-                  width="9"
-                  height="9"
-                  viewBox="0 0 24 24"
-                  fill="#F472B6"
-                  style={{ ['--spark-x']: `${s.x}px`, ['--spark-y']: `${s.y}px` } as React.CSSProperties}
-                >
-                  <path d={SMALL_STAR_PATH} />
-                </svg>
-              ))
-            : BURST_PARTICLES.map((s, i) => (
+          {cfg.effect === 'pawburst'
+            ? BURST_PARTICLES.map((s, i) => (
                 <svg
                   key={i}
                   className="save-burst-star"
                   width="11"
                   height="11"
                   viewBox="0 0 24 24"
-                  style={{ color: '#EC4899', ['--burst-x']: `${s.x}px`, ['--burst-y']: `${s.y}px`, ['--burst-rot']: `${s.rot}deg` } as React.CSSProperties}
+                  style={{ ['--burst-x']: `${s.x}px`, ['--burst-y']: `${s.y}px`, ['--burst-rot']: `${s.rot}deg` } as React.CSSProperties}
                 >
                   <PawGlyph />
+                </svg>
+              ))
+            : FLUTTER_PARTICLES.map((s, i) => (
+                <svg
+                  key={i}
+                  className="save-flutter-petal"
+                  width="12"
+                  height="12"
+                  viewBox="0 0 24 24"
+                  style={{ ['--flutter-x']: `${s.x}px`, ['--flutter-y']: `${s.y}px`, ['--flutter-rot']: `${s.rot}deg` } as React.CSSProperties}
+                >
+                  <PetalGlyph />
                 </svg>
               ))}
         </span>
@@ -194,34 +203,21 @@ export function SaveButton({
           }`,
         }}
       >
-        {/* アイコン色：未保存はグレー（ホバーで色付き）、保存済みは白。 */}
-        {(() => {
-          const iconColor = isSavedNow
-            ? cfg.saved.icon
-            : hovered
-              ? cfg.unsaved.iconHover
-              : cfg.unsaved.icon;
-          return cfg.render === 'paw' ? (
-            // 肉球は塗り（currentColor）で表現。
-            <svg width={iconSize} height={iconSize} viewBox="0 0 24 24" style={{ color: iconColor }}>
-              <PawGlyph />
-            </svg>
-          ) : (
-            // ブックマークは輪郭のみ（stroke）。
-            <svg
-              width={iconSize}
-              height={iconSize}
-              viewBox="0 0 24 24"
-              fill={isSavedNow ? cfg.saved.icon : 'none'}
-              stroke={iconColor}
-              strokeWidth={cfg.strokeWidth}
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            >
-              <path d={cfg.path} />
-            </svg>
-          );
-        })()}
+        {/* アイコンは塗り（currentColor）。未保存はグレー（ホバーで色付き）、保存済みは白。 */}
+        <svg
+          width={iconSize}
+          height={iconSize}
+          viewBox="0 0 24 24"
+          style={{
+            color: isSavedNow
+              ? cfg.saved.icon
+              : hovered
+                ? cfg.unsaved.iconHover
+                : cfg.unsaved.icon,
+          }}
+        >
+          {cfg.glyph === 'paw' ? <PawGlyph /> : <SakuraGlyph />}
+        </svg>
       </button>
     </span>
   );

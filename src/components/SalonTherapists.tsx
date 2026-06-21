@@ -287,6 +287,7 @@ export function GridCard({ therapist, index, showJoinDate = false, from, enableW
           kind="therapist"
           item={{ id: Number(therapist.id), name: therapist.name, salonId: therapist.salonId ?? 0 }}
           size={30}
+          variant="sakura"
         />
       </div>
     </div>

@@ -299,9 +299,30 @@ body {
   animation: save-burst 0.58s ease-out forwards;
 }
 
+/* 花びら舞い散り：ピンクの花びらをひらひら回転させながら放射状に（桜バリアントの保存演出）。 */
+@keyframes save-flutter {
+  from {
+    transform: translate(-50%, -50%) scale(0.3) rotate(0deg);
+    opacity: 1;
+  }
+  to {
+    transform: translate(calc(-50% + var(--flutter-x)), calc(-50% + var(--flutter-y)))
+      scale(1.05) rotate(var(--flutter-rot, 90deg));
+    opacity: 0;
+  }
+}
+.save-flutter-petal {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  pointer-events: none;
+  animation: save-flutter 0.72s ease-out forwards;
+}
+
 /* 動きを抑える設定では演出を無効化（即座に最終状態） */
 @media (prefers-reduced-motion: reduce) {
   .save-pop { animation: none; }
   .save-spark { animation: none; opacity: 0; }
   .save-burst-star { animation: none; opacity: 0; }
+  .save-flutter-petal { animation: none; opacity: 0; }
 }
