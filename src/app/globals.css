@@ -251,7 +251,7 @@ body {
 }
 
 /* ── 保存ボタンのクリック演出（保存した瞬間のみ：ポンっと弾む＋キラッ）案4 ──────────
-   pop = ブックマークアイコンの弾み、spark = ボタン中心から外へ飛ぶ小さな星。
+   pop = ブックマークボタンの円ごと弾む、spark = ボタン中心から外へ飛ぶ小さな星。
    どちらも transform/opacity のみで動き、カードのレイアウトをずらさない。 */
 @keyframes save-pop {
   0%   { transform: scale(1); }
@@ -259,7 +259,7 @@ body {
   70%  { transform: scale(0.92); }
   100% { transform: scale(1); }
 }
-.save-icon-pop {
+.save-pop {
   animation: save-pop 0.42s ease;
   transform-origin: center;
 }
@@ -281,6 +281,6 @@ body {
 
 /* 動きを抑える設定では演出を無効化（即座に最終状態） */
 @media (prefers-reduced-motion: reduce) {
-  .save-icon-pop { animation: none; }
+  .save-pop { animation: none; }
   .save-spark { animation: none; opacity: 0; }
 }

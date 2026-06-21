@@ -153,14 +153,17 @@ export function SalonNameRow({
             </span>
           )}
 
+          {/* 円（ボタン）ごと弾ませる。key={burst} で保存時に再マウントし pop を再生
+              （初期 burst=0 では演出なし）。scale は transform のみでレイアウト不変。 */}
           <button
+            key={burst}
             type="button"
             onClick={handleToggle}
             onMouseEnter={() => setHovered(true)}
             onMouseLeave={() => setHovered(false)}
             aria-label={isSavedNow ? 'お気に入りから削除' : 'お気に入りに保存'}
             aria-pressed={isSavedNow}
-            className="relative inline-flex items-center justify-center rounded-full transition-colors"
+            className={`relative inline-flex items-center justify-center rounded-full transition-colors${burst > 0 ? ' save-pop' : ''}`}
             style={{
               width: 33,
               height: 33,
@@ -175,11 +178,8 @@ export function SalonNameRow({
               }`,
             }}
           >
-            {/* ブックマーク：未保存はグレー輪郭（ホバーでピンク）、保存済みは白の塗り。
-                key={burst} で保存時に再マウントし pop アニメを再生（初期 burst=0 では演出なし）。 */}
+            {/* ブックマーク：未保存はグレー輪郭（ホバーでピンク）、保存済みは白の塗り */}
             <svg
-              key={burst}
-              className={burst > 0 ? 'save-icon-pop' : undefined}
               width="18"
               height="18"
               viewBox="0 0 24 24"
