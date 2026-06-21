@@ -8,6 +8,7 @@ import { getBusinessDateJST, getScheduleWindowStatus } from '@/lib/dutyStatus';
 import { isNewFaceActive } from '@/lib/newFace';
 import { formatBodySizes } from '@/lib/bodyType';
 import { NewBadge } from '@/components/NewBadge';
+import { SaveButton } from '@/app/components/SaveButton';
 import type { SalonTheme } from '@/app/lib/themes';
 
 const GRADS = ['from-pink-300 to-rose-400', 'from-fuchsia-300 to-pink-400', 'from-rose-300 to-pink-500'];
@@ -61,7 +62,7 @@ function buildDisplayHours(start: string | null, end: string | null): string {
 
 // ── types ─────────────────────────────────────────────────────
 
-type Therapist = {
+export type Therapist = {
   id:              string;
   name:            string;
   age:             string | null;
@@ -76,7 +77,12 @@ type Therapist = {
   newFaceSince:    string | null;
   bodyType:        string | null;
   hasDiary:        boolean;
+  salonId?:        number;   // 保存ボタン用（/saved のセラピストカードで使用）
 };
+
+// セラピストカードの取得列（全コンポーネントで共有）。
+const THERAPIST_SELECT =
+  'id, name, age, work_hours, area, comment, profile_image_url, is_available_now, available_until, is_new_face, new_face_since, body_type, salon_id';
 
 // ── shared schedule fetch ──────────────────────────────────────
 
@@ -120,14 +126,59 @@ async function fetchDiarySet(rawIds: unknown[]): Promise<Set<string>> {
   return new Set((data ?? []).map(r => String(r.therapist_id)));
 }
 
+// ── 行→Therapist 変換（取得ロジックを共有して二重実装しない） ──
+function buildTherapist(
+  t: Record<string, unknown>,
+  schedMap: Record<string, TodaySchedule>,
+  diarySet: Set<string>
+): Therapist {
+  const key = String(t.id);
+  return {
+    id:              key,
+    name:            (t.name as string) ?? '',
+    workHours:       (t.work_hours as string) ?? '',
+    area:            (t.area as string) ?? '',
+    comment:         (t.comment as string) ?? '',
+    profileImageUrl: (t.profile_image_url as string | null) ?? null,
+    today:           schedMap[key] ?? { is_active: false, start_time: null, end_time: null },
+    isAvailableNow:  Boolean(t.is_available_now),
+    availableUntil:  (t.available_until as string | null) ?? null,
+    isNewFace:       Boolean(t.is_new_face),
+    newFaceSince:    (t.new_face_since as string | null) ?? null,
+    bodyType:        (t.body_type as string | null) ?? null,
+    age:             (t.age as string | null) ?? null,
+    hasDiary:        diarySet.has(key),
+    salonId:         (t.salon_id as number | null) ?? undefined,
+  };
+}
+
+// 指定 ID 群のセラピストを取得（/saved のセラピストセクション用）。
+// 既存の取得ロジック（THERAPIST_SELECT・fetchScheduleMap・fetchDiarySet・buildTherapist）を流用。
+export async function fetchTherapistsByIds(ids: number[]): Promise<Therapist[]> {
+  if (ids.length === 0) return [];
+  const supabase = createClient();
+  const { data: rows } = await supabase
+    .from('therapists')
+    .select(THERAPIST_SELECT)
+    .in('id', ids);
+
+  const rawIds = (rows ?? []).map(t => t.id);
+  const [schedMap, diarySet] = await Promise.all([
+    fetchScheduleMap(rawIds),
+    fetchDiarySet(rawIds),
+  ]);
+  return (rows ?? []).map(t => buildTherapist(t as Record<string, unknown>, schedMap, diarySet));
+}
+
 // ── GridCard ──────────────────────────────────────────────────
 
-function GridCard({ therapist, index, showJoinDate = false, from, enableWorkingShimmer = false }: {
+export function GridCard({ therapist, index, showJoinDate = false, from, enableWorkingShimmer = false, showSaveButton = false }: {
   therapist:    Therapist;
   index:        number;
   showJoinDate?: boolean;   // 新人紹介セクションのみ true（入店日を表示）
   from?:        string;     // パンくず用 ?from= パラメータ
   enableWorkingShimmer?: boolean;   // 出勤中カードの外枠を緑キラリ（schedule / imasugu下段のみ true）
+  showSaveButton?: boolean;  // /saved のセラピストカードのみ true（写真左上に保存ボタン）
 }) {
   const grad = GRADS[index % GRADS.length];
   const sym  = SYMS[index % SYMS.length];
@@ -140,7 +191,7 @@ function GridCard({ therapist, index, showJoinDate = false, from, enableWorkingS
   // 出勤中バッジと同一条件（status==='onDuty'）。enableWorkingShimmer の時だけ外枠を緑キラリ。
   const working = enableWorkingShimmer && ss?.status === 'onDuty';
 
-  return (
+  const card = (
     <Link
       href={from ? `/therapist/${therapist.id}?from=${from}` : `/therapist/${therapist.id}`}
       className={`text-left w-full rounded-2xl border border-pink-50 bg-white shadow-sm flex h-28 overflow-hidden hover:border-pink-200 hover:shadow-md transition-all duration-200${working ? ' therapist-working-shimmer' : ''}`}
@@ -222,6 +273,23 @@ function GridCard({ therapist, index, showJoinDate = false, from, enableWorkingS
         </div>
       </div>
     </Link>
+  );
+
+  if (!showSaveButton) return card;
+
+  // /saved のセラピストカードのみ：写真の左上に保存ボタンを重ねる（右上の出勤バッジと干渉しない）。
+  // Link の外側に置くことで anchor 内の button ネストとスパークのクリップを避ける。
+  return (
+    <div className="relative">
+      {card}
+      <div className="absolute top-1.5 left-1.5 z-20">
+        <SaveButton
+          kind="therapist"
+          item={{ id: Number(therapist.id), name: therapist.name, salonId: therapist.salonId ?? 0 }}
+          size={30}
+        />
+      </div>
+    </div>
   );
 }
 

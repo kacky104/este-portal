@@ -3,10 +3,11 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { getSavedCount, SAVED_SALONS_EVENT } from '@/lib/savedSalons';
+import { getSavedTherapistCount, SAVED_THERAPISTS_EVENT } from '@/lib/savedTherapists';
 
 // 共通ヘッダー右側のお気に入りブックマーク。
-// クリックで /saved（保存したお店一覧）へ遷移する。
-// 件数バッジは 0件で非表示、'saved-salons-changed' と 'storage' でライブ更新。
+// クリックで /saved（保存した店舗＋セラピスト）へ遷移する。
+// 件数バッジ＝保存店舗数＋保存セラピスト数。0件で非表示、各イベント／storage でライブ更新。
 export function SavedSalonsMenu() {
   // ハイドレーション対策：初期は0件で描画し、マウント後に localStorage を反映。
   const [mounted, setMounted] = useState(false);
@@ -14,12 +15,14 @@ export function SavedSalonsMenu() {
 
   useEffect(() => {
     setMounted(true);
-    const sync = () => setCount(getSavedCount());
+    const sync = () => setCount(getSavedCount() + getSavedTherapistCount());
     sync();
     window.addEventListener(SAVED_SALONS_EVENT, sync);
+    window.addEventListener(SAVED_THERAPISTS_EVENT, sync);
     window.addEventListener('storage', sync);
     return () => {
       window.removeEventListener(SAVED_SALONS_EVENT, sync);
+      window.removeEventListener(SAVED_THERAPISTS_EVENT, sync);
       window.removeEventListener('storage', sync);
     };
   }, []);

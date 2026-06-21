@@ -11,6 +11,7 @@ import { TherapistDiaryList, type DiaryPostView } from './TherapistDiaryList';
 import { CollapsibleProfile } from './CollapsibleProfile';
 import { AutoFitName } from './AutoFitName';
 import { SavedSalonsMenu } from '@/app/components/SavedSalonsMenu';
+import { SaveButton } from '@/app/components/SaveButton';
 
 // ── helpers ───────────────────────────────────────────────────
 
@@ -337,9 +338,18 @@ export default async function TherapistPublicPage({
 
             {/* ─── プロフィール情報カード（デスクトップでプロフィール等と同じ左カラム幅に揃える） ─── */}
             <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-              <div className="p-6">
+              <div className="p-6 relative">
+                {/* 保存ボタン（プロフィール情報ブロックの右上）。名前等の領域とは pr で干渉回避。 */}
+                <div className="absolute top-2.5 right-2.5 z-10">
+                  <SaveButton
+                    kind="therapist"
+                    item={{ id: Number(therapist.id), name: therapist.name, salonId: therapist.salonId }}
+                    size={34}
+                  />
+                </div>
+
                 {/* ── 名前＋出勤情報（デスクトップ：従来どおり。名前の横にバッジ、その下に出勤時間=work_hours を常時表示） ── */}
-                <div className="hidden md:block mb-1">
+                <div className="hidden md:block mb-1 pr-12">
                   <div className="flex items-center flex-wrap gap-x-2 gap-y-1">
                     <h1 className="text-2xl font-bold text-slate-900">
                       {therapist.name}
@@ -360,7 +370,7 @@ export default async function TherapistPublicPage({
                 {/* ── 名前＋出勤情報（モバイルのみ） ── */}
                 {/* 名前の横の領域を、出勤日は「バッジ／今日のシフト時間」の2段、お休みは「お休みバッジ中央寄せ」に。
                     判定・出勤時間は 7日間スケジュールと同じデータ源（todayWindow / todaySched）を使用。 */}
-                <div className="md:hidden flex items-stretch gap-2.5 mb-1">
+                <div className="md:hidden flex items-stretch gap-2.5 mb-1 pr-12">
                   <h1 className="text-2xl font-bold text-slate-900 min-w-0 self-center break-words">
                     {therapist.name}
                     {therapist.age && <span className="ml-0.5">（{therapist.age}）</span>}
