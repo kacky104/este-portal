@@ -27,6 +27,13 @@ const LIGHT = {
   },
 } as const;
 
+// キラッ（スパーク）の飛び先オフセット（ボタン中心からの相対）。
+const SPARKS = [
+  { x: -16, y: -14 },
+  { x:  16, y: -14 },
+  { x:   0, y: -20 },
+] as const;
+
 // 店名行：店名（左・可変幅・1行自動縮小）＋ 保存ボタン（右・固定）。
 // 店名は white-space: nowrap で1行を維持し、収まらない場合はフォントを下げる。
 // 下限でも収まらないときだけ「…」省略を許可する。
@@ -48,6 +55,8 @@ export function SalonNameRow({
   const [mounted, setMounted] = useState(false);
   const [saved, setSaved] = useState(false);
   const [hovered, setHovered] = useState(false);
+  // 保存した瞬間のクリック演出。保存済みに切り替わったときだけ +1 して再生。
+  const [burst, setBurst] = useState(0);
 
   useEffect(() => {
     setMounted(true);
@@ -88,7 +97,10 @@ export function SalonNameRow({
     // カードが Link/クリックで包まれているため、遷移を必ず抑止する。
     e.preventDefault();
     e.stopPropagation();
-    setSaved(toggleSaved({ id: salonId, name: salonName }));
+    const next = toggleSaved({ id: salonId, name: salonName });
+    setSaved(next);
+    // 保存済みになった瞬間だけ演出（解除時は出さない）。連打追従のため毎回 +1。
+    if (next) setBurst(b => b + 1);
   };
 
   const isSavedNow = mounted && saved;
@@ -110,48 +122,83 @@ export function SalonNameRow({
       </div>
 
       {showSaveButton && (
-        <button
-          type="button"
-          onClick={handleToggle}
-          onMouseEnter={() => setHovered(true)}
-          onMouseLeave={() => setHovered(false)}
-          aria-label={isSavedNow ? 'お気に入りから削除' : 'お気に入りに保存'}
-          aria-pressed={isSavedNow}
-          className="flex-shrink-0 inline-flex items-center justify-center rounded-full transition-colors"
-          style={{
-            width: 33,
-            height: 33,
-            transform: 'translateY(-3px)', // 行中央から見た目だけ少し上へ（レイアウトは保持）
-            background: isSavedNow ? LIGHT.saved.bg : LIGHT.unsaved.bg,
-            border: `1.5px solid ${
-              isSavedNow
-                ? LIGHT.saved.border
-                : hovered
-                  ? LIGHT.unsaved.borderHover
-                  : LIGHT.unsaved.border
-            }`,
-          }}
+        // ラッパ：演出をボタンの裏側〜周囲に出すため relative + overflow:visible。
+        // translateY はここに移し、スパークの中心がボタン中心と揃うようにする（見た目の位置は不変）。
+        <span
+          className="relative inline-flex flex-shrink-0"
+          style={{ transform: 'translateY(-3px)', overflow: 'visible' }}
         >
-          {/* ブックマーク：未保存はグレー輪郭（ホバーでピンク）、保存済みは白の塗り */}
-          <svg
-            width="18"
-            height="18"
-            viewBox="0 0 24 24"
-            fill={isSavedNow ? LIGHT.saved.icon : 'none'}
-            stroke={
-              isSavedNow
-                ? LIGHT.saved.icon
-                : hovered
-                  ? LIGHT.unsaved.iconHover
-                  : LIGHT.unsaved.icon
-            }
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
+          {/* キラッ：保存した瞬間のみ。key={burst} で再マウントしてアニメを毎回最初から再生。
+              z-index はボタンより下（裏側〜周囲に出る）。 */}
+          {burst > 0 && (
+            <span
+              key={burst}
+              aria-hidden
+              className="absolute inset-0"
+              style={{ zIndex: 0, overflow: 'visible', pointerEvents: 'none' }}
+            >
+              {SPARKS.map((s, i) => (
+                <svg
+                  key={i}
+                  className="save-spark"
+                  width="9"
+                  height="9"
+                  viewBox="0 0 24 24"
+                  fill="#F472B6"
+                  style={{ ['--spark-x']: `${s.x}px`, ['--spark-y']: `${s.y}px` } as React.CSSProperties}
+                >
+                  <path d="M12 2l2 6 6 2-6 2-2 6-2-6-6-2 6-2z" />
+                </svg>
+              ))}
+            </span>
+          )}
+
+          <button
+            type="button"
+            onClick={handleToggle}
+            onMouseEnter={() => setHovered(true)}
+            onMouseLeave={() => setHovered(false)}
+            aria-label={isSavedNow ? 'お気に入りから削除' : 'お気に入りに保存'}
+            aria-pressed={isSavedNow}
+            className="relative inline-flex items-center justify-center rounded-full transition-colors"
+            style={{
+              width: 33,
+              height: 33,
+              zIndex: 1,
+              background: isSavedNow ? LIGHT.saved.bg : LIGHT.unsaved.bg,
+              border: `1.5px solid ${
+                isSavedNow
+                  ? LIGHT.saved.border
+                  : hovered
+                    ? LIGHT.unsaved.borderHover
+                    : LIGHT.unsaved.border
+              }`,
+            }}
           >
-            <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z" />
-          </svg>
-        </button>
+            {/* ブックマーク：未保存はグレー輪郭（ホバーでピンク）、保存済みは白の塗り。
+                key={burst} で保存時に再マウントし pop アニメを再生（初期 burst=0 では演出なし）。 */}
+            <svg
+              key={burst}
+              className={burst > 0 ? 'save-icon-pop' : undefined}
+              width="18"
+              height="18"
+              viewBox="0 0 24 24"
+              fill={isSavedNow ? LIGHT.saved.icon : 'none'}
+              stroke={
+                isSavedNow
+                  ? LIGHT.saved.icon
+                  : hovered
+                    ? LIGHT.unsaved.iconHover
+                    : LIGHT.unsaved.icon
+              }
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z" />
+            </svg>
+          </button>
+        </span>
       )}
     </div>
   );
