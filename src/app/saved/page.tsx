@@ -12,6 +12,9 @@ import { SavedSalonsMenu } from '@/app/components/SavedSalonsMenu';
 import { GridCard, fetchTherapistsByIds, type Therapist } from '@/components/SalonTherapists';
 
 export default function SavedPage() {
+  // 表示中タブ（既定: 保存した店舗）
+  const [tab, setTab] = useState<'salons' | 'therapists'>('salons');
+
   // ── 保存した店舗 ──────────────────────────────────────────
   const [salonIds, setSalonIds]       = useState<number[]>([]);
   const [salonsSynced, setSalonsSynced] = useState(false);
@@ -109,7 +112,6 @@ export default function SavedPage() {
   const salonTherapists = useSalonTherapists(salons);
 
   const loading = loadingSalons || loadingTherapists;
-  const bothEmpty = !loading && salons.length === 0 && therapists.length === 0;
 
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900">
@@ -145,38 +147,41 @@ export default function SavedPage() {
             </svg>
             <p className="text-sm">読み込み中...</p>
           </div>
-        ) : bothEmpty ? (
-          <div className="flex flex-col items-center justify-center py-24 text-center">
-            <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#E5E7EB" strokeWidth="1.5" className="mb-4">
-              <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z" />
-            </svg>
-            <p className="text-sm text-slate-400 mb-6">保存した店舗・セラピストはまだありません</p>
-            <Link
-              href="/salons"
-              className="inline-flex items-center gap-2 px-6 py-2.5 rounded-full border border-pink-300 text-pink-600 text-sm font-medium hover:bg-pink-50 hover:border-pink-400 transition-all"
-            >
-              サロン一覧を見る
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <path d="M5 12h14M12 5l7 7-7 7" />
-              </svg>
-            </Link>
-          </div>
         ) : (
-          <div className="space-y-12">
+          <>
+            {/* ─── タブ（保存した店舗／保存したセラピスト） ─── */}
+            <div
+              className="flex gap-2 mb-8 overflow-x-auto"
+              style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' } as React.CSSProperties}
+            >
+              {([
+                ['salons', '保存した店舗', salons.length],
+                ['therapists', '保存したセラピスト', therapists.length],
+              ] as const).map(([key, label, count]) => {
+                const active = tab === key;
+                return (
+                  <button
+                    key={key}
+                    onClick={() => setTab(key)}
+                    className={`flex-shrink-0 inline-flex items-center gap-1.5 px-5 py-2 rounded-full text-sm font-medium transition-all ${
+                      active
+                        ? 'bg-pink-600 text-white shadow-md shadow-pink-500/25'
+                        : 'border border-slate-200 bg-white text-slate-500 hover:border-pink-300 hover:text-pink-600 shadow-sm'
+                    }`}
+                  >
+                    {label}
+                    <span className={`text-[11px] rounded-full px-1.5 py-px font-bold ${active ? 'bg-white/25 text-white' : 'bg-slate-100 text-slate-500'}`}>
+                      {count}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
 
-            {/* ─── 保存した店舗 ─────────────────────────────── */}
-            <section>
-              <div className="flex items-center gap-3 mb-6">
-                <div className="w-1 h-6 rounded-full bg-gradient-to-b from-pink-500 to-pink-700" />
-                <h2 className="text-xl font-bold text-slate-900">保存した店舗</h2>
-                {salons.length > 0 && (
-                  <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-pink-50 text-pink-500 border border-pink-200">
-                    {salons.length}件
-                  </span>
-                )}
-              </div>
-              {salons.length === 0 ? (
-                <p className="text-sm text-slate-400 py-8 text-center border border-dashed border-slate-200 rounded-2xl bg-white/40">
+            {/* ─── タブ内容（アクティブな一覧のみ表示） ─── */}
+            {tab === 'salons' ? (
+              salons.length === 0 ? (
+                <p className="text-sm text-slate-400 py-12 text-center border border-dashed border-slate-200 rounded-2xl bg-white/40">
                   保存した店舗はまだありません
                 </p>
               ) : (
@@ -194,22 +199,10 @@ export default function SavedPage() {
                     />
                   ))}
                 </div>
-              )}
-            </section>
-
-            {/* ─── 保存したセラピスト ───────────────────────── */}
-            <section>
-              <div className="flex items-center gap-3 mb-6">
-                <div className="w-1 h-6 rounded-full bg-gradient-to-b from-pink-400 to-rose-500" />
-                <h2 className="text-xl font-bold text-slate-900">保存したセラピスト</h2>
-                {therapists.length > 0 && (
-                  <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-pink-50 text-pink-500 border border-pink-200">
-                    {therapists.length}件
-                  </span>
-                )}
-              </div>
-              {therapists.length === 0 ? (
-                <p className="text-sm text-slate-400 py-8 text-center border border-dashed border-slate-200 rounded-2xl bg-white/40">
+              )
+            ) : (
+              therapists.length === 0 ? (
+                <p className="text-sm text-slate-400 py-12 text-center border border-dashed border-slate-200 rounded-2xl bg-white/40">
                   保存したセラピストはまだありません
                 </p>
               ) : (
@@ -218,9 +211,9 @@ export default function SavedPage() {
                     <GridCard key={t.id} therapist={t} index={i} showSaveButton />
                   ))}
                 </div>
-              )}
-            </section>
-          </div>
+              )
+            )}
+          </>
         )}
       </main>
 
