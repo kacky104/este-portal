@@ -11,6 +11,7 @@ import { TherapistDiaryList, type DiaryPostView } from './TherapistDiaryList';
 import { CollapsibleProfile } from './CollapsibleProfile';
 import { AutoFitName } from './AutoFitName';
 import { SavedSalonsMenu } from '@/app/components/SavedSalonsMenu';
+import { AccountMenu } from '@/app/components/AccountMenu';
 import { SaveButton } from '@/app/components/SaveButton';
 
 // ── helpers ───────────────────────────────────────────────────
@@ -266,7 +267,10 @@ export default async function TherapistPublicPage({
               福岡メンズエステポータル
             </span>
           </Link>
-          <SavedSalonsMenu />
+          <div className="flex items-center gap-2">
+            <SavedSalonsMenu />
+            <AccountMenu />
+          </div>
         </div>
       </header>
 

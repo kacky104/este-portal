@@ -2,6 +2,7 @@ import Link from 'next/link';
 import { createClient } from '@/app/lib/supabase/server';
 import { ShuffledSalons } from '@/app/components/ShuffledSalons';
 import { SavedSalonsMenu } from '@/app/components/SavedSalonsMenu';
+import { AccountMenu } from '@/app/components/AccountMenu';
 import { fetchSalons } from '@/app/lib/salons';
 
 const AREAS = [
@@ -32,7 +33,10 @@ export default async function SalonsPage() {
               福岡メンズエステポータル
             </span>
           </Link>
-          <SavedSalonsMenu />
+          <div className="flex items-center gap-2">
+            <SavedSalonsMenu />
+            <AccountMenu />
+          </div>
         </div>
       </header>
 

@@ -5,6 +5,7 @@ import { createClient } from "./lib/supabase/server";
 import HeaderImageSlider from "@/components/HeaderImageSlider";
 import { FeaturedSalonSlider, type FeaturedSalon } from "./components/FeaturedSalonSlider";
 import { SavedSalonsMenu } from "./components/SavedSalonsMenu";
+import { AccountMenu } from "./components/AccountMenu";
 import { fetchSalons } from "./lib/salons";
 import { getBusinessDateJST } from "@/lib/dutyStatus";
 
@@ -129,7 +130,10 @@ export default async function Home() {
                 新着情報
               </Link>
             </nav>
-            <SavedSalonsMenu />
+            <div className="flex items-center gap-2">
+              <SavedSalonsMenu />
+              <AccountMenu />
+            </div>
           </div>
         </div>
       </header>

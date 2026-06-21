@@ -9,6 +9,7 @@ import { getSavedTherapists, SAVED_THERAPISTS_EVENT } from '@/lib/savedTherapist
 import { SalonCard } from '@/app/components/ShuffledSalons';
 import { useSalonTherapists } from '@/app/components/useSalonTherapists';
 import { SavedSalonsMenu } from '@/app/components/SavedSalonsMenu';
+import { AccountMenu } from '@/app/components/AccountMenu';
 import { GridCard, fetchTherapistsByIds, type Therapist } from '@/components/SalonTherapists';
 
 export default function SavedPage() {
@@ -127,7 +128,10 @@ export default function SavedPage() {
               福岡メンズエステポータル
             </span>
           </Link>
-          <SavedSalonsMenu />
+          <div className="flex items-center gap-2">
+            <SavedSalonsMenu />
+            <AccountMenu />
+          </div>
         </div>
       </header>
 

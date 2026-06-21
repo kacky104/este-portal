@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { WorkingTherapists } from './WorkingTherapists';
 import { SavedSalonsMenu } from '@/app/components/SavedSalonsMenu';
+import { AccountMenu } from '@/app/components/AccountMenu';
 
 export default function WorkingPage() {
   return (
@@ -17,7 +18,10 @@ export default function WorkingPage() {
               福岡メンズエステポータル
             </span>
           </Link>
-          <SavedSalonsMenu />
+          <div className="flex items-center gap-2">
+            <SavedSalonsMenu />
+            <AccountMenu />
+          </div>
         </div>
       </header>
 
