@@ -349,23 +349,23 @@ export default async function TherapistPublicPage({
                   />
                 </div>
 
-                {/* ── 名前＋出勤情報（デスクトップ：従来どおり。名前の横にバッジ、その下に出勤時間=work_hours を常時表示） ── */}
+                {/* ── 名前＋出勤情報（デスクトップ：名前・年齢の右横に出勤時間=work_hours、その横にバッジ） ── */}
                 <div className="hidden md:block mb-1 pr-12">
                   <div className="flex items-center flex-wrap gap-x-2 gap-y-1">
                     <h1 className="text-2xl font-bold text-slate-900">
                       {therapist.name}
                       {therapist.age && <span className="ml-0.5">（{therapist.age}）</span>}
                     </h1>
+                    {therapist.workHours && (
+                      <span className="inline-flex items-center gap-1 text-sm font-medium text-slate-500">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-slate-400 flex-shrink-0">
+                          <circle cx="12" cy="12" r="10" /><path d="M12 6v6l4 2" />
+                        </svg>
+                        {therapist.workHours}
+                      </span>
+                    )}
                     {statusBadgeNode}
                   </div>
-                  {therapist.workHours && (
-                    <span className="inline-flex items-center gap-1 text-sm font-medium text-slate-500 mt-1.5">
-                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-slate-400 flex-shrink-0">
-                        <circle cx="12" cy="12" r="10" /><path d="M12 6v6l4 2" />
-                      </svg>
-                      {therapist.workHours}
-                    </span>
-                  )}
                 </div>
 
                 {/* ── 名前＋出勤情報（モバイルのみ） ── */}

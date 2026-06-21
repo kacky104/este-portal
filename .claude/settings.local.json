@@ -79,7 +79,9 @@
       "Bash(node -e \"console.log\\(require.resolve\\('@supabase/supabase-js'\\)\\)\")",
       "Bash(curl -s -o /dev/null -w '/ -> %{http_code}\\\\n' http://localhost:3000/)",
       "Bash(grep -vE \"set-state-in-effect|setState|cascading|react.dev|Effects are|Update external|Subscribe for|Calling setState|^\\\\s*\\\\*|^\\\\s*$|^\\\\s+[0-9]+ \\\\|\")",
-      "Bash(grep -E \"\\\\.css$\")"
+      "Bash(grep -E \"\\\\.css$\")",
+      "Bash(curl -s -o /dev/null -w '%{http_code}' http://localhost:3000/therapist/1)",
+      "Bash(echo \"/therapist/1 -> $\\(curl -s -o /dev/null -w '%{http_code}' http://localhost:3000/therapist/1\\)\")"
     ]
   },
   "hooks": {
