@@ -9,7 +9,10 @@ function jpAuthError(message: string): string {
   if (m.includes('invalid login credentials')) return 'メールアドレスまたはパスワードが正しくありません。';
   if (m.includes('email not confirmed')) return 'メール確認が完了していません。届いた確認メールのリンクから登録を完了してください。';
   if (m.includes('already registered') || m.includes('already been registered') || m.includes('user already')) return 'このメールアドレスは既に登録されています。ログインをお試しください。';
-  if (m.includes('password should be at least')) return 'パスワードは6文字以上で入力してください。';
+  // パスワードポリシー違反（弱いパスワード）。実ポリシー＝英字＋数字を含む8文字以上。
+  if (m.includes('weak password') || m.includes('password is too') || m.includes('password should') || m.includes('should contain')) {
+    return 'パスワードは英字と数字を含む8文字以上で入力してください。';
+  }
   if (m.includes('unable to validate email') || m.includes('invalid email')) return 'メールアドレスの形式が正しくありません。';
   if (m.includes('signups not allowed')) return '現在、新規登録は受け付けていません。';
   if (m.includes('rate limit') || m.includes('too many')) return '試行回数が多すぎます。しばらく時間をおいてからお試しください。';

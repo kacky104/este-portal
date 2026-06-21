@@ -19,6 +19,15 @@ function safeRedirect(raw: string | null): string {
   return raw;
 }
 
+// Supabase の実パスワードポリシーに合わせる：英字と数字を含む8文字以上。
+const PASSWORD_HINT = '英字と数字を含む8文字以上';
+const PASSWORD_ERROR = 'パスワードは英字と数字を含む8文字以上で入力してください。';
+// 要件を満たさない場合にエラー文言、満たせば null。
+function validateSignupPassword(pw: string): string | null {
+  if (pw.length < 8 || !/[A-Za-z]/.test(pw) || !/[0-9]/.test(pw)) return PASSWORD_ERROR;
+  return null;
+}
+
 function LoginInner() {
   const router = useRouter();
   const params = useSearchParams();
@@ -51,6 +60,11 @@ function LoginInner() {
     setError('');
     setInfo('');
     if (!email || !password) { setError('メールアドレスとパスワードを入力してください。'); return; }
+    // 新規登録のみ：送信前にパスワード要件を検証（実ポリシー＝英字＋数字を含む8文字以上）。
+    if (mode === 'signup') {
+      const pwErr = validateSignupPassword(password);
+      if (pwErr) { setError(pwErr); return; }
+    }
     setLoading(true);
     try {
       if (mode === 'signup') {
@@ -170,7 +184,7 @@ function LoginInner() {
 
               <div className="space-y-1">
                 <label className="text-[11px] font-bold text-slate-400 block px-1">
-                  パスワード{mode === 'signup' && <span className="font-normal text-slate-300">（6文字以上）</span>}
+                  パスワード{mode === 'signup' && <span className="font-normal text-slate-300">（{PASSWORD_HINT}）</span>}
                 </label>
                 <input
                   type="password"
@@ -179,7 +193,7 @@ function LoginInner() {
                   onChange={e => setPassword(e.target.value)}
                   placeholder="••••••••"
                   required
-                  minLength={6}
+                  minLength={mode === 'signup' ? 8 : undefined}
                   disabled={loading}
                   className="w-full px-4 py-3 rounded-xl border border-slate-200 text-sm bg-slate-50/50 focus:outline-none focus:ring-2 focus:ring-pink-400 focus:border-transparent"
                 />
