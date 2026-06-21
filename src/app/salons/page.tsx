@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { createClient } from '@/app/lib/supabase/server';
 import { ShuffledSalons } from '@/app/components/ShuffledSalons';
+import { SavedSalonsMenu } from '@/app/components/SavedSalonsMenu';
 
 const AREAS = [
   '福岡全域',
@@ -44,6 +45,7 @@ export default async function SalonsPage() {
               福岡メンズエステポータル
             </span>
           </Link>
+          <SavedSalonsMenu />
         </div>
       </header>
 

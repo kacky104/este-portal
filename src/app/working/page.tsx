@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import { WorkingTherapists } from './WorkingTherapists';
+import { SavedSalonsMenu } from '@/app/components/SavedSalonsMenu';
 
 export default function WorkingPage() {
   return (
@@ -16,6 +17,7 @@ export default function WorkingPage() {
               福岡メンズエステポータル
             </span>
           </Link>
+          <SavedSalonsMenu />
         </div>
       </header>
 

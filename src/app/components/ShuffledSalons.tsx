@@ -7,6 +7,7 @@ import { createClient } from '@/app/lib/supabase/client';
 import { checkDutyStatus, getBusinessDateJST } from '@/lib/dutyStatus';
 import { isNewFaceActive } from '@/lib/newFace';
 import { NewBadge } from '@/components/NewBadge';
+import { SalonNameRow } from './SalonNameRow';
 
 export type Salon = {
   id:          number;
@@ -197,7 +198,7 @@ function TherapistMiniCardsRow({ therapists, salonId, showAge = false, compact =
 
 // ── Salon card ────────────────────────────────────────────────
 
-function SalonCard({ salon, therapists, showAge = false, areaNextToDuty = false, ratingAtBottom = false, compactTherapists = false }: { salon: Salon; therapists: TherapistThumb[]; showAge?: boolean; areaNextToDuty?: boolean; ratingAtBottom?: boolean; compactTherapists?: boolean }) {
+function SalonCard({ salon, therapists, showAge = false, areaNextToDuty = false, ratingAtBottom = false, compactTherapists = false, showSaveButton = false }: { salon: Salon; therapists: TherapistThumb[]; showAge?: boolean; areaNextToDuty?: boolean; ratingAtBottom?: boolean; compactTherapists?: boolean; showSaveButton?: boolean }) {
   const router = useRouter();
   const onDutyCount = therapists.filter(t => t.onDuty).length;
 
@@ -212,10 +213,14 @@ function SalonCard({ salon, therapists, showAge = false, areaNextToDuty = false,
       {/* トップページ（compactTherapists）はカード下の余白を約1/3（pb 20px→7px）に */}
       <div className={`${compactTherapists ? 'px-5 pt-5 pb-[7px]' : 'p-5'} flex flex-col flex-1`}>
 
-        {/* 1. サロン名のみ */}
-        <h3 className="font-bold text-lg text-slate-900 group-hover:text-pink-700 transition-colors leading-snug mb-3">
-          {salon.name}
-        </h3>
+        {/* 1. サロン名（＋トップページのみ保存ボタン）。1行自動縮小。 */}
+        {showSaveButton ? (
+          <SalonNameRow salonId={salon.id} salonName={salon.name} showSaveButton />
+        ) : (
+          <h3 className="font-bold text-lg text-slate-900 group-hover:text-pink-700 transition-colors leading-snug mb-3">
+            {salon.name}
+          </h3>
+        )}
 
         {/* 2. 評価・エリア・タグなどの情報 */}
         {/* トップページ（compactTherapists）はセラピストカード上の余白を半分（mb-2→mb-1）に */}
@@ -329,7 +334,7 @@ function SalonCardSkeleton() {
 
 // ── ShuffledSalons ────────────────────────────────────────────
 
-export function ShuffledSalons({ salons, areas, showAge = false, areaNextToDuty = false, ratingAtBottom = false, compactTherapists = false }: { salons: Salon[]; areas: string[]; showAge?: boolean; areaNextToDuty?: boolean; ratingAtBottom?: boolean; compactTherapists?: boolean }) {
+export function ShuffledSalons({ salons, areas, showAge = false, areaNextToDuty = false, ratingAtBottom = false, compactTherapists = false, showSaveButton = false }: { salons: Salon[]; areas: string[]; showAge?: boolean; areaNextToDuty?: boolean; ratingAtBottom?: boolean; compactTherapists?: boolean; showSaveButton?: boolean }) {
   const [list,            setList]            = useState<Salon[]>([]);
   const [activeArea,      setActiveArea]      = useState('福岡全域');
   const [salonTherapists, setSalonTherapists] = useState<Record<number, TherapistThumb[]>>({});
@@ -501,6 +506,7 @@ export function ShuffledSalons({ salons, areas, showAge = false, areaNextToDuty 
             areaNextToDuty={areaNextToDuty}
             ratingAtBottom={ratingAtBottom}
             compactTherapists={compactTherapists}
+            showSaveButton={showSaveButton}
           />
         ))}
       </div>

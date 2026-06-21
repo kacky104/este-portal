@@ -4,6 +4,7 @@ import { TherapistScroller } from "./components/TherapistScroller";
 import { createClient } from "./lib/supabase/server";
 import HeaderImageSlider from "@/components/HeaderImageSlider";
 import { FeaturedSalonSlider, type FeaturedSalon } from "./components/FeaturedSalonSlider";
+import { SavedSalonsMenu } from "./components/SavedSalonsMenu";
 import { getBusinessDateJST } from "@/lib/dutyStatus";
 
 const AREAS = [
@@ -129,17 +130,20 @@ export default async function Home() {
               福岡メンズエステポータル
             </span>
           </Link>
-          <nav className="hidden sm:flex items-center gap-6 text-sm text-slate-500">
-            <Link href="#salons" className="hover:text-pink-600 transition-colors">
-              サロン一覧
-            </Link>
-            <Link href="#salons" className="hover:text-pink-600 transition-colors">
-              エリアから探す
-            </Link>
-            <Link href="#" className="hover:text-pink-600 transition-colors">
-              新着情報
-            </Link>
-          </nav>
+          <div className="flex items-center gap-5">
+            <nav className="hidden sm:flex items-center gap-6 text-sm text-slate-500">
+              <Link href="#salons" className="hover:text-pink-600 transition-colors">
+                サロン一覧
+              </Link>
+              <Link href="#salons" className="hover:text-pink-600 transition-colors">
+                エリアから探す
+              </Link>
+              <Link href="#" className="hover:text-pink-600 transition-colors">
+                新着情報
+              </Link>
+            </nav>
+            <SavedSalonsMenu />
+          </div>
         </div>
       </header>
 
@@ -235,7 +239,7 @@ export default async function Home() {
               表示順はページ読み込みのたびにシャッフルされます
             </p>
 
-            <ShuffledSalons salons={salons} areas={[...AREAS]} showAge areaNextToDuty ratingAtBottom compactTherapists />
+            <ShuffledSalons salons={salons} areas={[...AREAS]} showAge areaNextToDuty ratingAtBottom compactTherapists showSaveButton />
 
             <div className="text-center mt-10">
               <Link

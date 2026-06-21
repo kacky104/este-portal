@@ -10,6 +10,7 @@ import { TherapistImageSlider } from './TherapistImageSlider';
 import { TherapistDiaryList, type DiaryPostView } from './TherapistDiaryList';
 import { CollapsibleProfile } from './CollapsibleProfile';
 import { AutoFitName } from './AutoFitName';
+import { SavedSalonsMenu } from '@/app/components/SavedSalonsMenu';
 
 // ── helpers ───────────────────────────────────────────────────
 
@@ -264,6 +265,7 @@ export default async function TherapistPublicPage({
               福岡メンズエステポータル
             </span>
           </Link>
+          <SavedSalonsMenu />
         </div>
       </header>
 

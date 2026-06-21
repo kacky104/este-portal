@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import { createClient } from '@/app/lib/supabase/server';
+import { SavedSalonsMenu } from '@/app/components/SavedSalonsMenu';
 
 export const metadata = {
   title: '写メ日記 | 福岡メンズエステポータル',
@@ -56,6 +57,7 @@ export default async function DiaryListPage() {
               福岡メンズエステポータル
             </span>
           </Link>
+          <SavedSalonsMenu />
         </div>
       </header>
 
