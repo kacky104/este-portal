@@ -8,44 +8,56 @@ import {
   SAVED_THERAPISTS_EVENT,
 } from '@/lib/savedTherapists';
 
+// 肉球グリフ（複数楕円の塗りで構成）。アイコンと飛び散る粒で共用。
+// 輪郭線だと楕円の重なりが汚く見えるため、塗り（fill）で表現する。
+const PawGlyph = () => (
+  <g fill="currentColor">
+    <ellipse cx="12" cy="17" rx="5.2" ry="4.6" />
+    <ellipse cx="5.8" cy="11" rx="1.9" ry="2.5" transform="rotate(-18 5.8 11)" />
+    <ellipse cx="9.7" cy="7.6" rx="2" ry="2.7" transform="rotate(-7 9.7 7.6)" />
+    <ellipse cx="14.3" cy="7.6" rx="2" ry="2.7" transform="rotate(7 14.3 7.6)" />
+    <ellipse cx="18.2" cy="11" rx="1.9" ry="2.5" transform="rotate(18 18.2 11)" />
+  </g>
+);
+
 // ── バリアント別の配色・アイコン・演出 ──────────────────────────
-// bookmark: 従来のブックマーク＋ピンク＋キラッ（3個）。セラピスト保存ボタン等。
-// star    : 5角星＋ゴールド＋スターバースト（8個）。トップ/保存ページのサロンカード。
+// bookmark: ブックマーク（輪郭線）＋ピンク＋キラッ（3個・裏面）。セラピスト保存ボタン等。
+// paw     : 肉球（塗り）＋ピンク＋肉球バースト（8個・前面）。トップ/保存ページのサロンカード。
 const VARIANTS = {
   bookmark: {
     unsaved: { bg: '#FFFFFF', border: '#E5E7EB', borderHover: '#F9A8D4', icon: '#9CA3AF', iconHover: '#EC4899' },
     saved:   { bg: '#EC4899', border: '#EC4899', icon: '#FFFFFF' },
+    render: 'stroke' as const,
     path: 'M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z',
     strokeWidth: 2,
     effect: 'sparkle' as const,
   },
-  star: {
-    unsaved: { bg: '#FFFFFF', border: '#E5E7EB', borderHover: '#FCD34D', icon: '#9CA3AF', iconHover: '#F59E0B' },
-    saved:   { bg: '#F59E0B', border: '#F59E0B', icon: '#FFFFFF' },
-    path: 'M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z',
-    strokeWidth: 1.6,
-    effect: 'burst' as const,
+  paw: {
+    unsaved: { bg: '#FFFFFF', border: '#E5E7EB', borderHover: '#F9A8D4', icon: '#9CA3AF', iconHover: '#EC4899' },
+    saved:   { bg: '#EC4899', border: '#EC4899', icon: '#FFFFFF' },
+    render: 'paw' as const,
+    effect: 'pawburst' as const,
   },
 } as const;
 
 // キラッ（sparkle・bookmark用）の飛び先オフセット（中心からの相対）。
+const SMALL_STAR_PATH = 'M12 2l2.9 6.3 6.9.6-5.2 4.6 1.6 6.8L12 17.3 5.8 20.9l1.6-6.8L2.2 9.5l6.9-.6z';
 const SPARKS = [
   { x: -16, y: -14 },
   { x:  16, y: -14 },
   { x:   0, y: -20 },
 ] as const;
 
-// スターバースト（star用）：8個を放射状に。角度は 2π/8 ごと＋わずかなジッター、
-// 飛距離 30〜39px（円の外まで確実に出す）。回転は末尾でバリエーション。
-const SMALL_STAR_PATH = 'M12 2l2.9 6.3 6.9.6-5.2 4.6 1.6 6.8L12 17.3 5.8 20.9l1.6-6.8L2.2 9.5l6.9-.6z';
+// バースト（paw用）：8個を放射状に。角度は 2π/8 ごと＋わずかなジッター、
+// 飛距離 30〜39px（円の外まで確実に出す）。肉球は回転控えめ（最終 ~40deg）。
 const BURST_JITTER = [0.12, -0.16, 0.09, -0.06, 0.14, -0.11, 0.07, -0.1];
-const BURST_STARS = Array.from({ length: 8 }, (_, i) => {
+const BURST_PARTICLES = Array.from({ length: 8 }, (_, i) => {
   const angle = (Math.PI * 2 / 8) * i + BURST_JITTER[i];
   const dist  = 30 + (i % 4) * 3; // 30 / 33 / 36 / 39 を循環
   return {
     x:   Math.round(Math.cos(angle) * dist),
     y:   Math.round(Math.sin(angle) * dist),
-    rot: 160 + i * 25,
+    rot: 24 + i * 4, // 控えめな回転（~24〜52deg）
   };
 });
 
@@ -62,7 +74,7 @@ export function SaveButton({
   kind: 'salon' | 'therapist';
   item: SaveItem;
   size?: number;
-  variant?: 'bookmark' | 'star';
+  variant?: 'bookmark' | 'paw';
 }) {
   const buttonRef = useRef<HTMLButtonElement>(null);
 
@@ -120,13 +132,14 @@ export function SaveButton({
   return (
     // ラッパ：演出をボタンの裏側〜周囲に出すため relative + overflow:visible。
     <span className="relative inline-flex flex-shrink-0" style={{ overflow: 'visible' }}>
-      {/* 演出：保存した瞬間のみ。key で再マウントして毎回最初から再生。z-index はボタンより下。 */}
+      {/* 演出：保存した瞬間のみ。key で再マウントして毎回最初から再生。
+          sparkle は裏面（z-index下）、pawburst は前面（z-index上）。 */}
       {burst > 0 && (
         <span
           key={`fx-${burst}`}
           aria-hidden="true"
           className="absolute inset-0"
-          style={{ zIndex: 0, overflow: 'visible', pointerEvents: 'none' }}
+          style={{ zIndex: cfg.effect === 'pawburst' ? 2 : 0, overflow: 'visible', pointerEvents: 'none' }}
         >
           {cfg.effect === 'sparkle'
             ? SPARKS.map((s, i) => (
@@ -142,17 +155,16 @@ export function SaveButton({
                   <path d={SMALL_STAR_PATH} />
                 </svg>
               ))
-            : BURST_STARS.map((s, i) => (
+            : BURST_PARTICLES.map((s, i) => (
                 <svg
                   key={i}
                   className="save-burst-star"
-                  width="10"
-                  height="10"
+                  width="11"
+                  height="11"
                   viewBox="0 0 24 24"
-                  fill="#F59E0B"
-                  style={{ ['--burst-x']: `${s.x}px`, ['--burst-y']: `${s.y}px`, ['--burst-rot']: `${s.rot}deg` } as React.CSSProperties}
+                  style={{ color: '#EC4899', ['--burst-x']: `${s.x}px`, ['--burst-y']: `${s.y}px`, ['--burst-rot']: `${s.rot}deg` } as React.CSSProperties}
                 >
-                  <path d={SMALL_STAR_PATH} />
+                  <PawGlyph />
                 </svg>
               ))}
         </span>
@@ -182,25 +194,34 @@ export function SaveButton({
           }`,
         }}
       >
-        {/* アイコン：未保存は輪郭のみ（ホバーで色付き）、保存済みは白の塗り */}
-        <svg
-          width={iconSize}
-          height={iconSize}
-          viewBox="0 0 24 24"
-          fill={isSavedNow ? cfg.saved.icon : 'none'}
-          stroke={
-            isSavedNow
-              ? cfg.saved.icon
-              : hovered
-                ? cfg.unsaved.iconHover
-                : cfg.unsaved.icon
-          }
-          strokeWidth={cfg.strokeWidth}
-          strokeLinecap="round"
-          strokeLinejoin="round"
-        >
-          <path d={cfg.path} />
-        </svg>
+        {/* アイコン色：未保存はグレー（ホバーで色付き）、保存済みは白。 */}
+        {(() => {
+          const iconColor = isSavedNow
+            ? cfg.saved.icon
+            : hovered
+              ? cfg.unsaved.iconHover
+              : cfg.unsaved.icon;
+          return cfg.render === 'paw' ? (
+            // 肉球は塗り（currentColor）で表現。
+            <svg width={iconSize} height={iconSize} viewBox="0 0 24 24" style={{ color: iconColor }}>
+              <PawGlyph />
+            </svg>
+          ) : (
+            // ブックマークは輪郭のみ（stroke）。
+            <svg
+              width={iconSize}
+              height={iconSize}
+              viewBox="0 0 24 24"
+              fill={isSavedNow ? cfg.saved.icon : 'none'}
+              stroke={iconColor}
+              strokeWidth={cfg.strokeWidth}
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <path d={cfg.path} />
+            </svg>
+          );
+        })()}
       </button>
     </span>
   );

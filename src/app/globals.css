@@ -296,7 +296,7 @@ body {
   left: 50%;
   top: 50%;
   pointer-events: none;
-  animation: save-burst 0.5s ease-out forwards;
+  animation: save-burst 0.58s ease-out forwards;
 }
 
 /* 動きを抑える設定では演出を無効化（即座に最終状態） */

@@ -70,7 +70,7 @@ export function SalonNameRow({
       {showSaveButton && (
         // translateY で行中央から見た目だけ少し上へ（レイアウトは保持）。
         <span className="flex-shrink-0 inline-flex" style={{ transform: 'translateY(-3px)' }}>
-          <SaveButton kind="salon" item={{ id: salonId, name: salonName }} variant="star" />
+          <SaveButton kind="salon" item={{ id: salonId, name: salonName }} variant="paw" />
         </span>
       )}
     </div>
