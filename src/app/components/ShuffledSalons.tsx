@@ -3,36 +3,14 @@
 import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { createClient } from '@/app/lib/supabase/client';
-import { checkDutyStatus, getBusinessDateJST } from '@/lib/dutyStatus';
+import { checkDutyStatus } from '@/lib/dutyStatus';
 import { isNewFaceActive } from '@/lib/newFace';
 import { NewBadge } from '@/components/NewBadge';
 import { SalonNameRow } from './SalonNameRow';
+import { useSalonTherapists, type TherapistThumb } from './useSalonTherapists';
+import type { Salon } from '@/app/lib/salons';
 
-export type Salon = {
-  id:          number;
-  name:        string;
-  rating:      number;
-  reviewCount: number;
-  tags:        string[];
-  price:       string;
-  area:        string;
-  hours:       string;
-  description: string;
-};
-
-type TherapistThumb = {
-  id:             string;
-  name:           string;
-  age:            string;
-  imageUrl:       string | null;
-  workHours:      string;
-  onDuty:         boolean;
-  isAvailableNow: boolean;
-  availableUntil: string | null;
-  isNewFace:      boolean;
-  newFaceSince:   string | null;
-};
+export type { Salon };
 
 const GRADIENTS = [
   'from-pink-300 to-rose-400',
@@ -198,7 +176,7 @@ function TherapistMiniCardsRow({ therapists, salonId, showAge = false, compact =
 
 // ── Salon card ────────────────────────────────────────────────
 
-function SalonCard({ salon, therapists, showAge = false, areaNextToDuty = false, ratingAtBottom = false, compactTherapists = false, showSaveButton = false }: { salon: Salon; therapists: TherapistThumb[]; showAge?: boolean; areaNextToDuty?: boolean; ratingAtBottom?: boolean; compactTherapists?: boolean; showSaveButton?: boolean }) {
+export function SalonCard({ salon, therapists, showAge = false, areaNextToDuty = false, ratingAtBottom = false, compactTherapists = false, showSaveButton = false }: { salon: Salon; therapists: TherapistThumb[]; showAge?: boolean; areaNextToDuty?: boolean; ratingAtBottom?: boolean; compactTherapists?: boolean; showSaveButton?: boolean }) {
   const router = useRouter();
   const onDutyCount = therapists.filter(t => t.onDuty).length;
 
@@ -337,7 +315,9 @@ function SalonCardSkeleton() {
 export function ShuffledSalons({ salons, areas, showAge = false, areaNextToDuty = false, ratingAtBottom = false, compactTherapists = false, showSaveButton = false }: { salons: Salon[]; areas: string[]; showAge?: boolean; areaNextToDuty?: boolean; ratingAtBottom?: boolean; compactTherapists?: boolean; showSaveButton?: boolean }) {
   const [list,            setList]            = useState<Salon[]>([]);
   const [activeArea,      setActiveArea]      = useState('福岡全域');
-  const [salonTherapists, setSalonTherapists] = useState<Record<number, TherapistThumb[]>>({});
+
+  // セラピストサムネイル取得は共有フックに集約（保存ページと同一ロジック）
+  const salonTherapists = useSalonTherapists(salons);
 
   // shuffle on mount
   useEffect(() => {
@@ -348,88 +328,6 @@ export function ShuffledSalons({ salons, areas, showAge = false, areaNextToDuty 
     }
     setList(arr);
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
-
-  // fetch therapist data for all salons
-  useEffect(() => {
-    if (salons.length === 0) return;
-    (async () => {
-      const supabase = createClient();
-      const salonIds = salons.map(s => s.id);
-
-      const { data: therapistRowsWithAvail, error: tErr } = await supabase
-        .from('therapists')
-        .select('id, name, age, salon_id, profile_image_url, work_hours, is_available_now, available_until, is_new_face, new_face_since')
-        .in('salon_id', salonIds);
-
-      let therapistRows = therapistRowsWithAvail;
-      if (tErr) {
-        const { data: fb } = await supabase
-          .from('therapists')
-          .select('id, name, age, salon_id, profile_image_url, work_hours')
-          .in('salon_id', salonIds);
-        therapistRows = (fb ?? []).map(t => ({ ...t, is_available_now: false, available_until: null, is_new_face: false, new_face_since: null }));
-      }
-
-      if (!therapistRows || therapistRows.length === 0) return;
-
-      const today        = getBusinessDateJST();
-      const therapistIds = therapistRows.map(t => t.id);
-
-      const { data: schedRowsRaw } = await supabase
-        .from('therapist_schedules')
-        .select('therapist_id, start_time, end_time, is_active')
-        .in('therapist_id', therapistIds)
-        .eq('schedule_date', today);
-
-      // is_active をクライアント側でフィルター（DB型の不一致を回避）
-      const schedRows = (schedRowsRaw ?? []).filter(r => Boolean(r.is_active));
-
-      const onDutySet = new Set(schedRows.map(r => String(r.therapist_id)));
-
-      // スケジュールの実際の時間を "HH:MM〜HH:MM" 形式でマップ化
-      const schedHoursMap: Record<string, string> = {};
-      for (const row of schedRows ?? []) {
-        const start = row.start_time ? String(row.start_time).slice(0, 5) : null;
-        const end   = row.end_time   ? String(row.end_time).slice(0, 5)   : null;
-        if (start && end) {
-          schedHoursMap[String(row.therapist_id)] = `${start}〜${end}`;
-        }
-      }
-
-      const bySalon: Record<number, TherapistThumb[]> = {};
-      for (const t of therapistRows) {
-        const sid = t.salon_id as number;
-        const tid = String(t.id);
-        if (!bySalon[sid]) bySalon[sid] = [];
-        bySalon[sid].push({
-          id:             tid,
-          name:           (t.name as string) ?? '',
-          age:            (t.age as string) ?? '',
-          imageUrl:       (t.profile_image_url as string | null) ?? null,
-          workHours:      schedHoursMap[tid] ?? (t.work_hours as string) ?? '',
-          onDuty:         onDutySet.has(tid),
-          isAvailableNow: Boolean((t as { is_available_now?: unknown }).is_available_now),
-          availableUntil: ((t as { available_until?: unknown }).available_until as string | null) ?? null,
-          isNewFace:      Boolean((t as { is_new_face?: unknown }).is_new_face),
-          newFaceSince:   ((t as { new_face_since?: unknown }).new_face_since as string | null) ?? null,
-        });
-      }
-
-      const isAvailableNowActive = (t: TherapistThumb) =>
-        t.isAvailableNow && t.availableUntil != null && new Date(t.availableUntil) > new Date();
-
-      const result: Record<number, TherapistThumb[]> = {};
-      for (const [sid, items] of Object.entries(bySalon)) {
-        // 「今すぐ」フラグを最優先、次に出勤中を優先
-        result[Number(sid)] = items.sort((a, b) =>
-          Number(isAvailableNowActive(b)) - Number(isAvailableNowActive(a)) ||
-          Number(b.onDuty) - Number(a.onDuty)
-        );
-      }
-
-      setSalonTherapists(result);
-    })();
-  }, [salons]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const areaCount = (area: string) =>
     area === '福岡全域' ? salons.length : salons.filter(s => s.area === area).length;

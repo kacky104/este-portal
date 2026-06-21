@@ -2,6 +2,7 @@ import Link from 'next/link';
 import { createClient } from '@/app/lib/supabase/server';
 import { ShuffledSalons } from '@/app/components/ShuffledSalons';
 import { SavedSalonsMenu } from '@/app/components/SavedSalonsMenu';
+import { fetchSalons } from '@/app/lib/salons';
 
 const AREAS = [
   '福岡全域',
@@ -15,21 +16,7 @@ const AREAS = [
 
 export default async function SalonsPage() {
   const supabase = await createClient();
-  const { data: rows } = await supabase
-    .from('salons')
-    .select('id, name, rating, review_count, tags, price, area, hours, description');
-
-  const salons = (rows ?? []).map(row => ({
-    id:          row.id as number,
-    name:        (row.name as string) ?? '',
-    rating:      (row.rating as number) ?? 0,
-    reviewCount: (row.review_count as number) ?? 0,
-    tags:        (row.tags as string[]) ?? [],
-    price:       (row.price as string) ?? '',
-    area:        (row.area as string) ?? '',
-    hours:       (row.hours as string) ?? '',
-    description: (row.description as string) ?? '',
-  }));
+  const salons = await fetchSalons(supabase);
 
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900">

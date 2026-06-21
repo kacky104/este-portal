@@ -5,6 +5,7 @@ import { createClient } from "./lib/supabase/server";
 import HeaderImageSlider from "@/components/HeaderImageSlider";
 import { FeaturedSalonSlider, type FeaturedSalon } from "./components/FeaturedSalonSlider";
 import { SavedSalonsMenu } from "./components/SavedSalonsMenu";
+import { fetchSalons } from "./lib/salons";
 import { getBusinessDateJST } from "@/lib/dutyStatus";
 
 const AREAS = [
@@ -19,21 +20,7 @@ const AREAS = [
 
 export default async function Home() {
   const supabase = await createClient();
-  const { data: rows } = await supabase
-    .from('salons')
-    .select('id, name, rating, review_count, tags, price, area, hours, description');
-
-  const salons = (rows ?? []).map(row => ({
-    id:          row.id as number,
-    name:        (row.name as string) ?? '',
-    rating:      (row.rating as number) ?? 0,
-    reviewCount: (row.review_count as number) ?? 0,
-    tags:        (row.tags as string[]) ?? [],
-    price:       (row.price as string) ?? '',
-    area:        (row.area as string) ?? '',
-    hours:       (row.hours as string) ?? '',
-    description: (row.description as string) ?? '',
-  }));
+  const salons = await fetchSalons(supabase);
 
   // ── ピックアップサロン取得 ──────────────────────────────
   const todayJST = getBusinessDateJST();
