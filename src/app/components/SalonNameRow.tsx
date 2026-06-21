@@ -48,6 +48,7 @@ export function SalonNameRow({
 }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const textRef = useRef<HTMLSpanElement>(null);
+  const buttonRef = useRef<HTMLButtonElement>(null);
   const [size, setSize] = useState(MAX);
   const [allowEllipsis, setAllowEllipsis] = useState(false);
 
@@ -93,6 +94,17 @@ export function SalonNameRow({
     return () => window.removeEventListener('resize', fit);
   }, [salonName]);
 
+  // 円（ボタン）のポップ。ボタンは再マウントせず、burst が増えるたびに
+  // クラスを付け直し＋強制リフローでアニメを毎回最初から再生する（連打対応）。
+  useEffect(() => {
+    if (burst === 0) return;
+    const el = buttonRef.current;
+    if (!el) return;
+    el.classList.remove('save-pop');
+    void el.offsetWidth; // 強制リフローでアニメをリセット
+    el.classList.add('save-pop');
+  }, [burst]);
+
   const handleToggle = (e: React.MouseEvent) => {
     // カードが Link/クリックで包まれているため、遷移を必ず抑止する。
     e.preventDefault();
@@ -132,9 +144,9 @@ export function SalonNameRow({
               z-index はボタンより下（裏側〜周囲に出る）。 */}
           {burst > 0 && (
             <span
-              key={burst}
-              aria-hidden
-              className="absolute inset-0"
+              key={`sparks-${burst}`}
+              aria-hidden="true"
+              className="save-sparkles absolute inset-0"
               style={{ zIndex: 0, overflow: 'visible', pointerEvents: 'none' }}
             >
               {SPARKS.map((s, i) => (
@@ -153,17 +165,17 @@ export function SalonNameRow({
             </span>
           )}
 
-          {/* 円（ボタン）ごと弾ませる。key={burst} で保存時に再マウントし pop を再生
+          {/* 円（ボタン）ごと弾ませる。再マウントはせず、ref＋useEffect で pop を再生
               （初期 burst=0 では演出なし）。scale は transform のみでレイアウト不変。 */}
           <button
-            key={burst}
+            ref={buttonRef}
             type="button"
             onClick={handleToggle}
             onMouseEnter={() => setHovered(true)}
             onMouseLeave={() => setHovered(false)}
             aria-label={isSavedNow ? 'お気に入りから削除' : 'お気に入りに保存'}
             aria-pressed={isSavedNow}
-            className={`relative inline-flex items-center justify-center rounded-full transition-colors${burst > 0 ? ' save-pop' : ''}`}
+            className="relative inline-flex items-center justify-center rounded-full transition-colors"
             style={{
               width: 33,
               height: 33,
