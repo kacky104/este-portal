@@ -8,41 +8,61 @@ import {
   SAVED_THERAPISTS_EVENT,
 } from '@/lib/savedTherapists';
 
-// 保存ボタンの配色。白×ピンク（LIGHT）。将来テーマ別に差し替え可能。
-const LIGHT = {
-  unsaved: {
-    bg:          '#FFFFFF',
-    border:      '#E5E7EB', // 薄グレー
-    borderHover: '#F9A8D4', // ピンク（薄）
-    icon:        '#9CA3AF', // グレー
-    iconHover:   '#EC4899', // ピンク
+// ── バリアント別の配色・アイコン・演出 ──────────────────────────
+// bookmark: 従来のブックマーク＋ピンク＋キラッ（3個）。セラピスト保存ボタン等。
+// star    : 5角星＋ゴールド＋スターバースト（8個）。トップ/保存ページのサロンカード。
+const VARIANTS = {
+  bookmark: {
+    unsaved: { bg: '#FFFFFF', border: '#E5E7EB', borderHover: '#F9A8D4', icon: '#9CA3AF', iconHover: '#EC4899' },
+    saved:   { bg: '#EC4899', border: '#EC4899', icon: '#FFFFFF' },
+    path: 'M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z',
+    strokeWidth: 2,
+    effect: 'sparkle' as const,
   },
-  saved: {
-    bg:     '#EC4899', // 主要ピンク
-    border: '#EC4899',
-    icon:   '#FFFFFF', // 白の塗り＋白の線
+  star: {
+    unsaved: { bg: '#FFFFFF', border: '#E5E7EB', borderHover: '#FCD34D', icon: '#9CA3AF', iconHover: '#F59E0B' },
+    saved:   { bg: '#F59E0B', border: '#F59E0B', icon: '#FFFFFF' },
+    path: 'M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z',
+    strokeWidth: 1.6,
+    effect: 'burst' as const,
   },
 } as const;
 
-// キラッ（スパーク）の飛び先オフセット（ボタン中心からの相対）。
+// キラッ（sparkle・bookmark用）の飛び先オフセット（中心からの相対）。
 const SPARKS = [
   { x: -16, y: -14 },
   { x:  16, y: -14 },
   { x:   0, y: -20 },
 ] as const;
 
+// スターバースト（star用）：8個を放射状に。角度は 2π/8 ごと＋わずかなジッター、
+// 飛距離 30〜39px（円の外まで確実に出す）。回転は末尾でバリエーション。
+const SMALL_STAR_PATH = 'M12 2l2.9 6.3 6.9.6-5.2 4.6 1.6 6.8L12 17.3 5.8 20.9l1.6-6.8L2.2 9.5l6.9-.6z';
+const BURST_JITTER = [0.12, -0.16, 0.09, -0.06, 0.14, -0.11, 0.07, -0.1];
+const BURST_STARS = Array.from({ length: 8 }, (_, i) => {
+  const angle = (Math.PI * 2 / 8) * i + BURST_JITTER[i];
+  const dist  = 30 + (i % 4) * 3; // 30 / 33 / 36 / 39 を循環
+  return {
+    x:   Math.round(Math.cos(angle) * dist),
+    y:   Math.round(Math.sin(angle) * dist),
+    rot: 160 + i * 25,
+  };
+});
+
 export type SaveItem = { id: number; name: string; salonId?: number };
 
-// 汎用の保存ブックマークボタン（円・案4のポップ＋スパーク演出・hover配色）。
-// kind に応じて savedSalons / savedTherapists を呼び分ける。
+// 汎用の保存ボタン（円・案4のポップ演出・hover配色）。
+// kind に応じて savedSalons / savedTherapists を呼び分け、variant で見た目・演出を切り替える。
 export function SaveButton({
   kind,
   item,
   size = 33,
+  variant = 'bookmark',
 }: {
   kind: 'salon' | 'therapist';
   item: SaveItem;
   size?: number;
+  variant?: 'bookmark' | 'star';
 }) {
   const buttonRef = useRef<HTMLButtonElement>(null);
 
@@ -93,34 +113,48 @@ export function SaveButton({
     if (next) setBurst(b => b + 1);
   };
 
+  const cfg = VARIANTS[variant];
   const isSavedNow = mounted && saved;
   const iconSize = Math.round(size * (18 / 33)); // 既定33pxでアイコン18px相当
 
   return (
     // ラッパ：演出をボタンの裏側〜周囲に出すため relative + overflow:visible。
     <span className="relative inline-flex flex-shrink-0" style={{ overflow: 'visible' }}>
-      {/* キラッ：保存した瞬間のみ。key={`sparks-${burst}`} で再マウントして毎回最初から再生。
-          z-index はボタンより下（裏側〜周囲に出る）。 */}
+      {/* 演出：保存した瞬間のみ。key で再マウントして毎回最初から再生。z-index はボタンより下。 */}
       {burst > 0 && (
         <span
-          key={`sparks-${burst}`}
+          key={`fx-${burst}`}
           aria-hidden="true"
-          className="save-sparkles absolute inset-0"
+          className="absolute inset-0"
           style={{ zIndex: 0, overflow: 'visible', pointerEvents: 'none' }}
         >
-          {SPARKS.map((s, i) => (
-            <svg
-              key={i}
-              className="save-spark"
-              width="9"
-              height="9"
-              viewBox="0 0 24 24"
-              fill="#F472B6"
-              style={{ ['--spark-x']: `${s.x}px`, ['--spark-y']: `${s.y}px` } as React.CSSProperties}
-            >
-              <path d="M12 2l2 6 6 2-6 2-2 6-2-6-6-2 6-2z" />
-            </svg>
-          ))}
+          {cfg.effect === 'sparkle'
+            ? SPARKS.map((s, i) => (
+                <svg
+                  key={i}
+                  className="save-spark"
+                  width="9"
+                  height="9"
+                  viewBox="0 0 24 24"
+                  fill="#F472B6"
+                  style={{ ['--spark-x']: `${s.x}px`, ['--spark-y']: `${s.y}px` } as React.CSSProperties}
+                >
+                  <path d={SMALL_STAR_PATH} />
+                </svg>
+              ))
+            : BURST_STARS.map((s, i) => (
+                <svg
+                  key={i}
+                  className="save-burst-star"
+                  width="10"
+                  height="10"
+                  viewBox="0 0 24 24"
+                  fill="#F59E0B"
+                  style={{ ['--burst-x']: `${s.x}px`, ['--burst-y']: `${s.y}px`, ['--burst-rot']: `${s.rot}deg` } as React.CSSProperties}
+                >
+                  <path d={SMALL_STAR_PATH} />
+                </svg>
+              ))}
         </span>
       )}
 
@@ -138,34 +172,34 @@ export function SaveButton({
           width: size,
           height: size,
           zIndex: 1,
-          background: isSavedNow ? LIGHT.saved.bg : LIGHT.unsaved.bg,
+          background: isSavedNow ? cfg.saved.bg : cfg.unsaved.bg,
           border: `1.5px solid ${
             isSavedNow
-              ? LIGHT.saved.border
+              ? cfg.saved.border
               : hovered
-                ? LIGHT.unsaved.borderHover
-                : LIGHT.unsaved.border
+                ? cfg.unsaved.borderHover
+                : cfg.unsaved.border
           }`,
         }}
       >
-        {/* ブックマーク：未保存はグレー輪郭（ホバーでピンク）、保存済みは白の塗り */}
+        {/* アイコン：未保存は輪郭のみ（ホバーで色付き）、保存済みは白の塗り */}
         <svg
           width={iconSize}
           height={iconSize}
           viewBox="0 0 24 24"
-          fill={isSavedNow ? LIGHT.saved.icon : 'none'}
+          fill={isSavedNow ? cfg.saved.icon : 'none'}
           stroke={
             isSavedNow
-              ? LIGHT.saved.icon
+              ? cfg.saved.icon
               : hovered
-                ? LIGHT.unsaved.iconHover
-                : LIGHT.unsaved.icon
+                ? cfg.unsaved.iconHover
+                : cfg.unsaved.icon
           }
-          strokeWidth="2"
+          strokeWidth={cfg.strokeWidth}
           strokeLinecap="round"
           strokeLinejoin="round"
         >
-          <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z" />
+          <path d={cfg.path} />
         </svg>
       </button>
     </span>
