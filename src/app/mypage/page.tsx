@@ -388,7 +388,7 @@ export default function MyPage() {
     (async () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) {
-        router.push('/login');
+        router.push('/login?redirectTo=' + encodeURIComponent(window.location.pathname));
         return;
       }
 

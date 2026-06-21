@@ -74,7 +74,7 @@ export default function AdminDashboard() {
   useEffect(() => {
     (async () => {
       const { data: { user } } = await supabase.auth.getUser();
-      if (!user) { router.push('/login'); return; }
+      if (!user) { router.push('/login?redirectTo=' + encodeURIComponent(window.location.pathname)); return; }
       if (user.id !== ADMIN_UUID) { setAuthState('forbidden'); return; }
       setAuthState('authorized');
       await fetchSalons();
