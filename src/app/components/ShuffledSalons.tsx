@@ -237,10 +237,12 @@ export function SalonCard({ salon, therapists, showAge = false, areaNextToDuty =
         </h3>
       )}
 
-      {/* 2. 評価・エリア・タグなどの情報 */}
-      <div className={compactTherapists ? 'mb-1' : 'mb-2'}>
+      {/* 2. 評価・エリア・タグなどの情報。
+          compactTherapists（トップ/保存）はバッジ行（出勤数・地域）の上下余白を半分に
+          （上: 店名 mb-3=12px を -mt-1.5 で 6px に、下: バッジ行 mb-1=4px ＋ ブロック mb-0.5=2px の計6px）。 */}
+      <div className={compactTherapists ? 'mb-0.5 -mt-1.5' : 'mb-2'}>
         {/* Hours + 出勤中バッジ（営業時間は ratingAtBottom=トップ/保存では下の料金横に移動するためここでは非表示） */}
-        <div className="flex items-center gap-2 text-xs mb-2 flex-wrap">
+        <div className={`flex items-center gap-2 text-xs flex-wrap ${compactTherapists ? 'mb-1' : 'mb-2'}`}>
           {!ratingAtBottom && (
             <div className="flex items-center gap-1.5">
               <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-slate-400 flex-shrink-0">
