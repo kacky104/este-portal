@@ -10,6 +10,23 @@ const useIsomorphicLayoutEffect =
 const MAX = 18; // 既定サイズ（元の text-lg = 18px）
 const MIN = 11; // 下限
 
+// 保存ボタンの配色。白×ピンクのトップページ向け（LIGHT）。
+// 将来、黒テーマ用の配色を足す場合はこのオブジェクトを差し替える。
+const LIGHT = {
+  unsaved: {
+    bg:          '#FFFFFF',
+    border:      '#E5E7EB', // 薄グレー
+    borderHover: '#F9A8D4', // ピンク（薄）
+    icon:        '#9CA3AF', // グレー
+    iconHover:   '#EC4899', // ピンク
+  },
+  saved: {
+    bg:     '#EC4899', // 主要ピンク（「詳しく見る→」と同系）
+    border: '#EC4899',
+    icon:   '#FFFFFF', // 白の塗り＋白の線
+  },
+} as const;
+
 // 店名行：店名（左・可変幅・1行自動縮小）＋ 保存ボタン（右・固定）。
 // 店名は white-space: nowrap で1行を維持し、収まらない場合はフォントを下げる。
 // 下限でも収まらないときだけ「…」省略を許可する。
@@ -30,6 +47,7 @@ export function SalonNameRow({
   // ハイドレーション対策：初期は未保存扱いで描画し、マウント後に反映する。
   const [mounted, setMounted] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [hovered, setHovered] = useState(false);
 
   useEffect(() => {
     setMounted(true);
@@ -95,23 +113,37 @@ export function SalonNameRow({
         <button
           type="button"
           onClick={handleToggle}
+          onMouseEnter={() => setHovered(true)}
+          onMouseLeave={() => setHovered(false)}
           aria-label={isSavedNow ? 'お気に入りから削除' : 'お気に入りに保存'}
           aria-pressed={isSavedNow}
           className="flex-shrink-0 inline-flex items-center justify-center rounded-full transition-colors"
           style={{
             width: 29,
             height: 29,
-            background: isSavedNow ? '#E2B85A' : '#161412',
-            border: `1px solid ${isSavedNow ? '#E2B85A' : '#3A352A'}`,
+            background: isSavedNow ? LIGHT.saved.bg : LIGHT.unsaved.bg,
+            border: `1.5px solid ${
+              isSavedNow
+                ? LIGHT.saved.border
+                : hovered
+                  ? LIGHT.unsaved.borderHover
+                  : LIGHT.unsaved.border
+            }`,
           }}
         >
-          {/* ブックマーク：未保存はゴールド輪郭、保存済みは暗色の塗り */}
+          {/* ブックマーク：未保存はグレー輪郭（ホバーでピンク）、保存済みは白の塗り */}
           <svg
             width="16"
             height="16"
             viewBox="0 0 24 24"
-            fill={isSavedNow ? '#161412' : 'none'}
-            stroke={isSavedNow ? '#161412' : '#E2B85A'}
+            fill={isSavedNow ? LIGHT.saved.icon : 'none'}
+            stroke={
+              isSavedNow
+                ? LIGHT.saved.icon
+                : hovered
+                  ? LIGHT.unsaved.iconHover
+                  : LIGHT.unsaved.icon
+            }
             strokeWidth="2"
             strokeLinecap="round"
             strokeLinejoin="round"
