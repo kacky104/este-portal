@@ -7,6 +7,7 @@ import { checkDutyStatus } from '@/lib/dutyStatus';
 import { isNewFaceActive } from '@/lib/newFace';
 import { NewBadge } from '@/components/NewBadge';
 import { SalonNameRow } from './SalonNameRow';
+import { SaveButton } from './SaveButton';
 import { useSalonTherapists, type TherapistThumb } from './useSalonTherapists';
 import type { Salon } from '@/app/lib/salons';
 
@@ -176,9 +177,151 @@ function TherapistMiniCardsRow({ therapists, salonId, showAge = false, compact =
 
 // ── Salon card ────────────────────────────────────────────────
 
-export function SalonCard({ salon, therapists, showAge = false, areaNextToDuty = false, ratingAtBottom = false, compactTherapists = false, showSaveButton = false }: { salon: Salon; therapists: TherapistThumb[]; showAge?: boolean; areaNextToDuty?: boolean; ratingAtBottom?: boolean; compactTherapists?: boolean; showSaveButton?: boolean }) {
+export function SalonCard({ salon, therapists, showAge = false, areaNextToDuty = false, ratingAtBottom = false, compactTherapists = false, showSaveButton = false, wideDesktop = false }: { salon: Salon; therapists: TherapistThumb[]; showAge?: boolean; areaNextToDuty?: boolean; ratingAtBottom?: boolean; compactTherapists?: boolean; showSaveButton?: boolean; wideDesktop?: boolean }) {
   const router = useRouter();
   const onDutyCount = therapists.filter(t => t.onDuty).length;
+
+  // 共通の小要素（モバイル/デスクトップ両レイアウトで使い回し）
+  const hoursEl = (
+    <span className="inline-flex items-center gap-1 text-xs text-slate-500">
+      <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-slate-400 flex-shrink-0">
+        <circle cx="12" cy="12" r="10" /><path d="M12 6v6l4 2" />
+      </svg>
+      {salon.hours}
+    </span>
+  );
+  const dutyBadge = (
+    <span className="inline-flex items-center gap-1 flex-shrink-0" style={{ background: '#fef3c7', color: '#92400e', borderRadius: '20px', padding: '3px 10px', fontSize: '12px' }}>
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ color: '#92400e', flexShrink: 0 }}>
+        <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+        <circle cx="9" cy="7" r="4" />
+        <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
+        <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+      </svg>
+      出勤 <span style={{ color: '#ec4899', fontSize: '15px', fontWeight: 700 }}>{onDutyCount}</span>名
+    </span>
+  );
+  const areaBadge = (
+    <span className="flex-shrink-0 text-xs font-semibold px-2.5 py-0.5 rounded-full bg-pink-50 text-pink-600 border border-pink-200">
+      {salon.area}
+    </span>
+  );
+  const ratingEl = (
+    <div className="flex items-center gap-1.5">
+      <StarRating rating={salon.rating} />
+      <span className="text-pink-600 font-bold text-sm">{salon.rating}</span>
+      <span className="text-slate-400 text-xs">({salon.reviewCount}件)</span>
+    </div>
+  );
+  const priceEl = <p className="text-pink-600 font-bold text-sm">{salon.price}</p>;
+  const detailBtn = (
+    <span className="flex-shrink-0 px-4 py-2 rounded-xl bg-pink-600 text-white font-bold text-xs group-hover:bg-pink-500 transition-colors shadow-sm shadow-pink-500/20">
+      詳しく見る →
+    </span>
+  );
+  const therapistThumbs = therapists.length > 0 ? (
+    <div className={compactTherapists ? 'mb-2' : 'mb-4'}>
+      <TherapistMiniCardsRow therapists={therapists} salonId={salon.id} showAge={showAge} compact={compactTherapists} />
+    </div>
+  ) : null;
+
+  // ── 従来（モバイル/タブレット）の縦積みレイアウト ──
+  const stackedLayout = (
+    <div className={`flex flex-col flex-1${wideDesktop ? ' lg:hidden' : ''}`}>
+      {/* 1. サロン名（＋トップページのみ保存ボタン）。1行自動縮小。 */}
+      {showSaveButton ? (
+        <SalonNameRow salonId={salon.id} salonName={salon.name} showSaveButton />
+      ) : (
+        <h3 className="font-bold text-lg text-slate-900 group-hover:text-pink-700 transition-colors leading-snug mb-3">
+          {salon.name}
+        </h3>
+      )}
+
+      {/* 2. 評価・エリア・タグなどの情報 */}
+      <div className={compactTherapists ? 'mb-1' : 'mb-2'}>
+        {/* Hours + 出勤中バッジ（営業時間は ratingAtBottom=トップ/保存では下の料金横に移動するためここでは非表示） */}
+        <div className="flex items-center gap-2 text-xs mb-2 flex-wrap">
+          {!ratingAtBottom && (
+            <div className="flex items-center gap-1.5">
+              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-slate-400 flex-shrink-0">
+                <circle cx="12" cy="12" r="10" /><path d="M12 6v6l4 2" />
+              </svg>
+              <span className="text-slate-500">{salon.hours}</span>
+            </div>
+          )}
+          {dutyBadge}
+          {areaNextToDuty && areaBadge}
+        </div>
+
+        {/* Stars + count + area */}
+        {!ratingAtBottom && (
+          <div className="flex items-center gap-2 mb-2">
+            <StarRating rating={salon.rating} />
+            <span className="text-pink-600 font-bold text-sm">{salon.rating}</span>
+            <span className="text-slate-400 text-xs">({salon.reviewCount}件)</span>
+            {!areaNextToDuty && areaBadge}
+          </div>
+        )}
+      </div>
+
+      {/* 3. セラピスト写真の横スクロール */}
+      {therapistThumbs}
+
+      {/* Rating (top page) or Price + CTA */}
+      <div className={`flex items-center justify-between ${compactTherapists ? 'pt-[5px]' : 'pt-3.5'} border-t border-slate-200 mt-auto`}>
+        {ratingAtBottom ? (
+          <div className="min-w-0">
+            <div className="flex items-center gap-2 mb-0.5">
+              <StarRating rating={salon.rating} />
+              <span className="text-pink-600 font-bold text-sm">{salon.rating}</span>
+              <span className="text-slate-400 text-xs">({salon.reviewCount}件)</span>
+            </div>
+            {/* 料金の右隣に営業時間 */}
+            <div className="flex items-center gap-2 flex-wrap">
+              <p className="text-pink-600 font-bold text-sm">{salon.price}</p>
+              {hoursEl}
+            </div>
+          </div>
+        ) : (
+          <div>
+            <p className="text-[11px] text-slate-400 mb-0.5">料金目安</p>
+            <p className="text-pink-600 font-bold text-sm">{salon.price}</p>
+          </div>
+        )}
+        {detailBtn}
+      </div>
+    </div>
+  );
+
+  // ── デスクトップ1列・幅広レイアウト（lg のみ。トップページ wideDesktop 時） ──
+  const wideLayout = wideDesktop && (
+    <div className="hidden lg:flex lg:flex-col flex-1">
+      {/* 1段目: 店名 → 営業時間 → 出勤数 → 地域 →（右端）保存ボタン */}
+      <div className="flex items-center gap-2.5 flex-wrap mb-2.5">
+        <h3 className="font-bold text-lg text-slate-900 group-hover:text-pink-700 transition-colors leading-snug min-w-0 truncate">
+          {salon.name}
+        </h3>
+        {hoursEl}
+        {dutyBadge}
+        {areaBadge}
+        {showSaveButton && (
+          <span className="ml-auto flex-shrink-0">
+            <SaveButton kind="salon" item={{ id: salon.id, name: salon.name }} variant="paw" />
+          </span>
+        )}
+      </div>
+
+      {/* 2段目: ☆評価 → 料金 →（右端）詳しく見る。上に細い区切り線 */}
+      <div className="flex items-center gap-3 flex-wrap pt-2.5 mb-3 border-t border-slate-200/70">
+        {ratingEl}
+        {priceEl}
+        <span className="ml-auto">{detailBtn}</span>
+      </div>
+
+      {/* 3段目: セラピストサムネ列 */}
+      {therapistThumbs}
+    </div>
+  );
 
   return (
     <div
@@ -190,101 +333,8 @@ export function SalonCard({ salon, therapists, showAge = false, areaNextToDuty =
 
       {/* トップページ（compactTherapists）はカード下の余白を約1/3（pb 20px→7px）に */}
       <div className={`${compactTherapists ? 'px-5 pt-5 pb-[7px]' : 'p-5'} flex flex-col flex-1`}>
-
-        {/* 1. サロン名（＋トップページのみ保存ボタン）。1行自動縮小。 */}
-        {showSaveButton ? (
-          <SalonNameRow salonId={salon.id} salonName={salon.name} showSaveButton />
-        ) : (
-          <h3 className="font-bold text-lg text-slate-900 group-hover:text-pink-700 transition-colors leading-snug mb-3">
-            {salon.name}
-          </h3>
-        )}
-
-        {/* 2. 評価・エリア・タグなどの情報 */}
-        {/* トップページ（compactTherapists）はセラピストカード上の余白を半分（mb-2→mb-1）に */}
-        <div className={compactTherapists ? 'mb-1' : 'mb-2'}>
-          {/* Hours + 出勤中バッジ（営業時間は ratingAtBottom=トップ/保存では下の料金横に移動するためここでは非表示） */}
-          <div className="flex items-center gap-2 text-xs mb-2 flex-wrap">
-            {!ratingAtBottom && (
-              <div className="flex items-center gap-1.5">
-                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-slate-400 flex-shrink-0">
-                  <circle cx="12" cy="12" r="10" /><path d="M12 6v6l4 2" />
-                </svg>
-                <span className="text-slate-500">{salon.hours}</span>
-              </div>
-            )}
-            <span className="inline-flex items-center gap-1" style={{ background: '#fef3c7', color: '#92400e', borderRadius: '20px', padding: '3px 10px', fontSize: '12px' }}>
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ color: '#92400e', flexShrink: 0 }}>
-                <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
-                <circle cx="9" cy="7" r="4" />
-                <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
-                <path d="M16 3.13a4 4 0 0 1 0 7.75" />
-              </svg>
-              出勤 <span style={{ color: '#ec4899', fontSize: '15px', fontWeight: 700 }}>{onDutyCount}</span>名
-            </span>
-            {areaNextToDuty && (
-              <span className="flex-shrink-0 text-xs font-semibold px-2.5 py-0.5 rounded-full bg-pink-50 text-pink-600 border border-pink-200">
-                {salon.area}
-              </span>
-            )}
-          </div>
-
-          {/* Stars + count + area */}
-          {!ratingAtBottom && (
-            <div className="flex items-center gap-2 mb-2">
-              <StarRating rating={salon.rating} />
-              <span className="text-pink-600 font-bold text-sm">{salon.rating}</span>
-              <span className="text-slate-400 text-xs">({salon.reviewCount}件)</span>
-              {!areaNextToDuty && (
-                <span className="flex-shrink-0 text-xs font-semibold px-2.5 py-0.5 rounded-full bg-pink-50 text-pink-600 border border-pink-200">
-                  {salon.area}
-                </span>
-              )}
-            </div>
-          )}
-
-
-        </div>
-
-        {/* 3. セラピスト写真の横スクロール */}
-        {/* トップページ（compactTherapists）はセラピストカード下の余白を半分（mb-4→mb-2）に */}
-        {therapists.length > 0 && (
-          <div className={compactTherapists ? 'mb-2' : 'mb-4'}>
-            <TherapistMiniCardsRow therapists={therapists} salonId={salon.id} showAge={showAge} compact={compactTherapists} />
-          </div>
-        )}
-
-        {/* Rating (top page) or Price + CTA */}
-        {/* トップページ（compactTherapists）はこのブロック上の余白を約1/3（pt 14px→5px）に */}
-        <div className={`flex items-center justify-between ${compactTherapists ? 'pt-[5px]' : 'pt-3.5'} border-t border-slate-200 mt-auto`}>
-          {ratingAtBottom ? (
-            <div className="min-w-0">
-              <div className="flex items-center gap-2 mb-0.5">
-                <StarRating rating={salon.rating} />
-                <span className="text-pink-600 font-bold text-sm">{salon.rating}</span>
-                <span className="text-slate-400 text-xs">({salon.reviewCount}件)</span>
-              </div>
-              {/* 料金の右隣に営業時間 */}
-              <div className="flex items-center gap-2 flex-wrap">
-                <p className="text-pink-600 font-bold text-sm">{salon.price}</p>
-                <span className="inline-flex items-center gap-1 text-xs text-slate-500">
-                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-slate-400 flex-shrink-0">
-                    <circle cx="12" cy="12" r="10" /><path d="M12 6v6l4 2" />
-                  </svg>
-                  {salon.hours}
-                </span>
-              </div>
-            </div>
-          ) : (
-            <div>
-              <p className="text-[11px] text-slate-400 mb-0.5">料金目安</p>
-              <p className="text-pink-600 font-bold text-sm">{salon.price}</p>
-            </div>
-          )}
-          <span className="px-4 py-2 rounded-xl bg-pink-600 text-white font-bold text-xs group-hover:bg-pink-500 transition-colors shadow-sm shadow-pink-500/20">
-            詳しく見る →
-          </span>
-        </div>
+        {stackedLayout}
+        {wideLayout}
       </div>
     </div>
   );
@@ -323,7 +373,7 @@ function SalonCardSkeleton() {
 
 // ── ShuffledSalons ────────────────────────────────────────────
 
-export function ShuffledSalons({ salons, areas, showAge = false, areaNextToDuty = false, ratingAtBottom = false, compactTherapists = false, showSaveButton = false }: { salons: Salon[]; areas: string[]; showAge?: boolean; areaNextToDuty?: boolean; ratingAtBottom?: boolean; compactTherapists?: boolean; showSaveButton?: boolean }) {
+export function ShuffledSalons({ salons, areas, showAge = false, areaNextToDuty = false, ratingAtBottom = false, compactTherapists = false, showSaveButton = false, wideDesktop = false }: { salons: Salon[]; areas: string[]; showAge?: boolean; areaNextToDuty?: boolean; ratingAtBottom?: boolean; compactTherapists?: boolean; showSaveButton?: boolean; wideDesktop?: boolean }) {
   const [list,            setList]            = useState<Salon[]>([]);
   const [activeArea,      setActiveArea]      = useState('福岡全域');
 
@@ -405,7 +455,8 @@ export function ShuffledSalons({ salons, areas, showAge = false, areaNextToDuty 
   return (
     <>
       {tabs}
-      <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-5">
+      {/* wideDesktop（トップ）はデスクトップ(lg)で1列の幅広カードに。タブレット(sm)までは2列。 */}
+      <div className={`grid sm:grid-cols-2 ${wideDesktop ? 'lg:grid-cols-1' : 'lg:grid-cols-3'} gap-5`}>
         {filtered.map(salon => (
           <SalonCard
             key={salon.id}
@@ -416,6 +467,7 @@ export function ShuffledSalons({ salons, areas, showAge = false, areaNextToDuty 
             ratingAtBottom={ratingAtBottom}
             compactTherapists={compactTherapists}
             showSaveButton={showSaveButton}
+            wideDesktop={wideDesktop}
           />
         ))}
       </div>

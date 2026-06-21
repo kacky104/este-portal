@@ -226,7 +226,7 @@ export default async function Home() {
               表示順はページ読み込みのたびにシャッフルされます
             </p>
 
-            <ShuffledSalons salons={salons} areas={[...AREAS]} showAge areaNextToDuty ratingAtBottom compactTherapists showSaveButton />
+            <ShuffledSalons salons={salons} areas={[...AREAS]} showAge areaNextToDuty ratingAtBottom compactTherapists showSaveButton wideDesktop />
 
             <div className="text-center mt-10">
               <Link
