@@ -91,7 +91,10 @@
       "Bash(node -e 'console.log\\(\\(702*1.413\\).toFixed\\(1\\)\\)')",
       "Bash(echo \"calc: 702*1.413 = $\\(node -e 'console.log\\(\\(702*1.413\\).toFixed\\(1\\)\\)'\\)px ; content = 1024-32 = 992px\")",
       "Bash(node -e 'console.log\\(\\(512*1.413\\).toFixed\\(0\\)\\)')",
-      "Bash(echo \"card: 512*1.413 = $\\(node -e 'console.log\\(\\(512*1.413\\).toFixed\\(0\\)\\)'\\)px\")"
+      "Bash(echo \"card: 512*1.413 = $\\(node -e 'console.log\\(\\(512*1.413\\).toFixed\\(0\\)\\)'\\)px\")",
+      "Bash(curl -s -o /dev/null -w 'Location: %{redirect_url}\\\\n' \"http://localhost:3000/auth/callback\")",
+      "Bash(curl -s -o /dev/null -w 'Location: %{redirect_url}\\\\n' \"http://localhost:3000/auth/callback?error=access_denied&error_description=Email+link+is+invalid+or+has+expired\")",
+      "Bash(curl -s -o /dev/null -w 'Location: %{redirect_url}\\\\n' \"http://localhost:3000/auth/callback?code=invalidcode123\")"
     ]
   },
   "hooks": {
