@@ -151,7 +151,7 @@ export default async function Home() {
             {/* eyebrow */}
             <p className="inline-flex items-center gap-2 text-xs font-semibold text-slate-400 tracking-[0.2em] mb-4">
               <span className="w-6 h-px bg-slate-300" />
-              福岡メンズエステポータル
+              福岡に特化したメンズエステポータルサイト
               <span className="w-6 h-px bg-slate-300" />
             </p>
 
