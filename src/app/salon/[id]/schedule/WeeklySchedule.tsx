@@ -111,7 +111,7 @@ function TherapistCard({ t, isToday, salonId }: { t: DaySchedule; isToday: boole
         {/* NEWバッジ（写真左下オーバーレイ）。表示条件は従来どおり新規30日以内の子のみ。 */}
         {isNew && <NewBadge className="absolute bottom-1.5 left-1.5 z-10" />}
       </div>
-      <div className="p-3 flex-1 flex flex-col justify-center min-w-0">
+      <div className="p-3 flex-1 flex flex-col justify-start min-w-0">
         <div className="flex items-center gap-1.5 mb-1 flex-wrap">
           <p className="font-bold text-sm truncate min-w-0 text-slate-900">{t.name}</p>
           {t.age && <span className="text-[11px] text-slate-500 flex-shrink-0">({t.age})</span>}
