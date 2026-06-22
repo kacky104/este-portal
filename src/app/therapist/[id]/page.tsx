@@ -256,8 +256,8 @@ export default async function TherapistPublicPage({
       {/* 背景レイヤー（所属サロンと同じテーマ壁紙＋色オーバーレイ）— モバイル対応のため固定配置 */}
       <div aria-hidden className="fixed inset-0 -z-10" style={bgLayerStyle} />
 
-      {/* ─── Header ─────────────────────────────────────────── */}
-      <header className="sticky top-0 z-50 bg-white/90 backdrop-blur-md border-b border-slate-200 shadow-sm">
+      {/* ─── Header（所属サロンのテーマ色と連動。他のテーマ対応ページと同じ仕組み） ─── */}
+      <header className="sticky top-0 z-50 backdrop-blur-md border-b shadow-sm" style={{ backgroundColor: `${theme.card}E6`, borderColor: theme.cardBorder }}>
         <div className="max-w-4xl mx-auto px-4 h-14 flex items-center justify-between">
           <Link href="/" className="flex items-center gap-3">
             <div className="w-7 h-7 rounded-lg bg-pink-50 border border-pink-200 flex items-center justify-center flex-shrink-0">
