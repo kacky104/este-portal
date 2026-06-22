@@ -418,7 +418,7 @@ export default async function TherapistPublicPage({
 
                 {/* 特徴バッジ（スリーサイズの下。色/ラベルは therapistBadges を参照。空なら非表示） */}
                 {therapist.featureBadges.length > 0 && (
-                  <div className="flex flex-wrap gap-1.5 mt-2.5">
+                  <div className="flex flex-wrap gap-1.5 mt-2.5 justify-center sm:justify-start">
                     {therapist.featureBadges.map((label) => {
                       const c = getBadgeColors(label);
                       if (!c) return null;
