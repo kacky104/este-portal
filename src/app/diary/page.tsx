@@ -4,7 +4,7 @@ import { SavedSalonsMenu } from '@/app/components/SavedSalonsMenu';
 import { AccountMenu } from '@/app/components/AccountMenu';
 
 export const metadata = {
-  title: '写メ日記 | 福岡メンズエステポータル',
+  title: '写メ日記 | フクエス ～福岡メンズエステポータル～',
   description: '福岡のメンズエステサロンに在籍するセラピストたちの写メ日記一覧です。',
 };
 
@@ -54,7 +54,7 @@ export default async function DiaryListPage() {
             <div className="w-7 h-7 rounded-lg bg-pink-50 border border-pink-200 flex items-center justify-center flex-shrink-0">
               <span className="text-pink-500 font-bold text-sm leading-none">◆</span>
             </div>
-            <span className="flex items-baseline gap-1"><span className="font-bold text-[22px] tracking-wide text-pink-500 leading-none">フクエス</span><span className="hidden min-[420px]:inline text-[12px] font-normal text-slate-400 leading-none">～福岡メンズエステポータル～</span></span>
+            <span className="flex items-baseline gap-1"><span className="font-bold text-[22px] tracking-wide leading-none inline-block" style={{ background: 'linear-gradient(95deg,#FB923C,#DB2777)', WebkitBackgroundClip: 'text', backgroundClip: 'text', WebkitTextFillColor: 'transparent', color: 'transparent' }}>フクエス</span><span className="hidden min-[420px]:inline-block text-[12px] font-normal leading-none" style={{ background: 'linear-gradient(95deg,#10B981,#84CC16)', WebkitBackgroundClip: 'text', backgroundClip: 'text', WebkitTextFillColor: 'transparent', color: 'transparent' }}>～福岡メンズエステポータル～</span></span>
           </Link>
           <div className="flex items-center gap-2">
             <SavedSalonsMenu />
@@ -127,7 +127,7 @@ export default async function DiaryListPage() {
       {/* Footer */}
       <footer className="border-t border-slate-200 bg-white py-6 mt-12">
         <div className="max-w-4xl mx-auto px-4 text-center text-xs text-slate-400">
-          © 2026 福岡メンズエステポータル. All rights reserved.
+          © 2026 フクエス. All rights reserved.
         </div>
       </footer>
     </div>

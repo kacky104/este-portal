@@ -110,7 +110,7 @@ function LoginInner() {
             <div className="w-8 h-8 rounded-lg bg-pink-50 border border-pink-200 flex items-center justify-center">
               <span className="text-pink-500 font-bold leading-none">◆</span>
             </div>
-            <span className="flex items-baseline gap-1"><span className="font-bold text-[22px] tracking-wide text-pink-500 leading-none">フクエス</span><span className="hidden min-[420px]:inline text-[12px] font-normal text-slate-400 leading-none">～福岡メンズエステポータル～</span></span>
+            <span className="flex items-baseline gap-1"><span className="font-bold text-[22px] tracking-wide leading-none inline-block" style={{ background: 'linear-gradient(95deg,#FB923C,#DB2777)', WebkitBackgroundClip: 'text', backgroundClip: 'text', WebkitTextFillColor: 'transparent', color: 'transparent' }}>フクエス</span><span className="hidden min-[420px]:inline-block text-[12px] font-normal leading-none" style={{ background: 'linear-gradient(95deg,#10B981,#84CC16)', WebkitBackgroundClip: 'text', backgroundClip: 'text', WebkitTextFillColor: 'transparent', color: 'transparent' }}>～福岡メンズエステポータル～</span></span>
           </Link>
         </div>
 

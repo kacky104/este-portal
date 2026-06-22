@@ -14,7 +14,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "福岡メンズエステポータル｜あなたとお店をマッチング",
+  title: "フクエス ～福岡メンズエステポータル～｜あなたとお店をマッチング",
   description:
     "福岡の人気メンズエステ店を博多・天神などエリアから簡単検索。近くのおすすめサロンを口コミ評価とともにご紹介。",
 };

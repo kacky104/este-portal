@@ -201,7 +201,7 @@ export default async function SalonPage({
             <div className="w-7 h-7 rounded-lg bg-pink-50 border border-pink-200 flex items-center justify-center flex-shrink-0">
               <span className="text-pink-500 font-bold text-sm leading-none">◆</span>
             </div>
-            <span className="flex items-baseline gap-1"><span className="font-bold text-[22px] tracking-wide text-pink-500 leading-none">フクエス</span><span className="hidden min-[420px]:inline text-[12px] font-normal text-slate-400 leading-none">～福岡メンズエステポータル～</span></span>
+            <span className="flex items-baseline gap-1"><span className="font-bold text-[22px] tracking-wide leading-none inline-block" style={{ background: 'linear-gradient(95deg,#FB923C,#DB2777)', WebkitBackgroundClip: 'text', backgroundClip: 'text', WebkitTextFillColor: 'transparent', color: 'transparent' }}>フクエス</span><span className="hidden min-[420px]:inline-block text-[12px] font-normal leading-none" style={{ background: 'linear-gradient(95deg,#10B981,#84CC16)', WebkitBackgroundClip: 'text', backgroundClip: 'text', WebkitTextFillColor: 'transparent', color: 'transparent' }}>～福岡メンズエステポータル～</span></span>
           </Link>
         </div>
       </header>
@@ -531,7 +531,7 @@ export default async function SalonPage({
       {/* ─── Footer ──────────────────────────────────────── */}
       <footer className="border-t py-6 mt-12" style={{ backgroundColor: theme.card, borderColor: theme.cardBorder }}>
         <div className="max-w-4xl mx-auto px-4 text-center text-xs opacity-70" style={{ color: theme.body }}>
-          © 2026 福岡メンズエステポータル. All rights reserved.
+          © 2026 フクエス. All rights reserved.
         </div>
       </footer>
     </div>
