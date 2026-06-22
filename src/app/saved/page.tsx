@@ -222,7 +222,7 @@ export default function SavedPage() {
               ) : (
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   {therapists.map((t, i) => (
-                    <GridCard key={t.id} therapist={t} index={i} showSaveButton />
+                    <GridCard key={t.id} therapist={t} index={i} showSaveButton saveButtonPos="card-right" />
                   ))}
                 </div>
               )
