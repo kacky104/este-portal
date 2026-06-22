@@ -74,7 +74,7 @@ export default async function SalonDiaryPage({
   const salonName = (salonRow.name as string) ?? '';
 
   return (
-    <div className="relative min-h-screen overflow-x-hidden" style={{ color: theme.text }}>
+    <div className="relative min-h-screen overflow-x-clip" style={{ color: theme.text }}>
       <div aria-hidden className="fixed inset-0 -z-10" style={bgLayerStyle} />
 
       <header className="sticky top-0 z-50 backdrop-blur-md border-b shadow-sm" style={{ backgroundColor: `${theme.card}E6`, borderColor: theme.cardBorder }}>

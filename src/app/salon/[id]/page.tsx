@@ -189,7 +189,7 @@ export default async function SalonPage({
   );
 
   return (
-    <div className="relative min-h-screen overflow-x-hidden" style={{ color: theme.text }}>
+    <div className="relative min-h-screen overflow-x-clip" style={{ color: theme.text }}>
 
       {/* 背景レイヤー（壁紙＋テーマ色オーバーレイ）— モバイル対応のため固定配置 */}
       <div aria-hidden className="fixed inset-0 -z-10" style={bgLayerStyle} />
