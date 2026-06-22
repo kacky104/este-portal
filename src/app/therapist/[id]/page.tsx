@@ -263,9 +263,7 @@ export default async function TherapistPublicPage({
             <div className="w-7 h-7 rounded-lg bg-pink-50 border border-pink-200 flex items-center justify-center flex-shrink-0">
               <span className="text-pink-500 font-bold text-sm leading-none">◆</span>
             </div>
-            <span className="font-bold text-[15px] tracking-wide text-pink-600">
-              福岡メンズエステポータル
-            </span>
+            <span className="flex items-baseline gap-1"><span className="font-bold text-[22px] tracking-wide text-pink-500 leading-none">フクエス</span><span className="hidden min-[420px]:inline text-[12px] font-normal text-slate-400 leading-none">～福岡メンズエステポータル～</span></span>
           </Link>
           <div className="flex items-center gap-2">
             <SavedSalonsMenu />

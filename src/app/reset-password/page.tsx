@@ -79,7 +79,7 @@ export default function ResetPasswordPage() {
         <div className="absolute -bottom-10 -right-10 w-24 h-24 bg-fuchsia-100/40 rounded-full blur-xl" />
 
         <div className="text-center mb-6 relative z-10">
-          <span className="font-bold text-[15px] tracking-wide text-pink-600">福岡メンズエステポータル</span>
+          <span className="flex items-baseline gap-1"><span className="font-bold text-[22px] tracking-wide text-pink-500 leading-none">フクエス</span><span className="hidden min-[420px]:inline text-[12px] font-normal text-slate-400 leading-none">～福岡メンズエステポータル～</span></span>
           <h1 className="text-lg font-black text-slate-900 mt-2">新しいパスワードの設定</h1>
         </div>
 
