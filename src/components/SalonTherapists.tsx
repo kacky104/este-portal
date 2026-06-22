@@ -172,13 +172,14 @@ export async function fetchTherapistsByIds(ids: number[]): Promise<Therapist[]> 
 
 // ── GridCard ──────────────────────────────────────────────────
 
-export function GridCard({ therapist, index, showJoinDate = false, from, enableWorkingShimmer = false, showSaveButton = false }: {
+export function GridCard({ therapist, index, showJoinDate = false, from, enableWorkingShimmer = false, showSaveButton = false, saveButtonPos = 'photo-left' }: {
   therapist:    Therapist;
   index:        number;
   showJoinDate?: boolean;   // 新人紹介セクションのみ true（入店日を表示）
   from?:        string;     // パンくず用 ?from= パラメータ
   enableWorkingShimmer?: boolean;   // 出勤中カードの外枠を緑キラリ（schedule / imasugu下段のみ true）
-  showSaveButton?: boolean;  // /saved のセラピストカードのみ true（写真左上に保存ボタン）
+  showSaveButton?: boolean;  // 保存ボタンを表示（/saved・在籍一覧）
+  saveButtonPos?: 'photo-left' | 'card-right';  // 'photo-left'=/saved（写真左上）/ 'card-right'=在籍一覧（カード右上）
 }) {
   const grad = GRADS[index % GRADS.length];
   const sym  = SYMS[index % SYMS.length];
@@ -277,12 +278,13 @@ export function GridCard({ therapist, index, showJoinDate = false, from, enableW
 
   if (!showSaveButton) return card;
 
-  // /saved のセラピストカードのみ：写真の左上に保存ボタンを重ねる（右上の出勤バッジと干渉しない）。
-  // Link の外側に置くことで anchor 内の button ネストとスパークのクリップを避ける。
+  // 保存ボタンは Link の外側に重ねる（anchor 内の button ネストとスパークのクリップを避ける）。
+  // photo-left=/saved（写真左上・出勤バッジと干渉しない） / card-right=在籍一覧（カード右上）。
+  const posClass = saveButtonPos === 'card-right' ? 'top-2 right-2' : 'top-1.5 left-1.5';
   return (
     <div className="relative">
       {card}
-      <div className="absolute top-1.5 left-1.5 z-20">
+      <div className={`absolute ${posClass} z-20`}>
         <SaveButton
           kind="therapist"
           item={{ id: Number(therapist.id), name: therapist.name, salonId: therapist.salonId ?? 0 }}
@@ -564,7 +566,7 @@ export function SalonOnDutyExcludingNow({ salonId, theme }: { salonId: number; t
 
 // ── SalonAllTherapists (全員表示) ──────────────────────────────
 
-export function SalonAllTherapists({ salonId, limit, from }: { salonId: number; limit?: number; from?: string }) {
+export function SalonAllTherapists({ salonId, limit, from, showSaveButton = false }: { salonId: number; limit?: number; from?: string; showSaveButton?: boolean }) {
   const [list, setList] = useState<Therapist[]>([]);
 
   useEffect(() => {
@@ -596,6 +598,7 @@ export function SalonAllTherapists({ salonId, limit, from }: { salonId: number; 
         bodyType:        (t.body_type as string | null) ?? null,
         age:             (t.age as string | null) ?? null,
         hasDiary:        diarySet.has(String(t.id)),
+        salonId,  // 保存ボタン用（このサロンに在籍）
       }));
 
       setList(mapped);
@@ -611,7 +614,7 @@ export function SalonAllTherapists({ salonId, limit, from }: { salonId: number; 
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
       {shown.map((t, i) => (
-        <GridCard key={t.id} therapist={t} index={i} from={from} />
+        <GridCard key={t.id} therapist={t} index={i} from={from} showSaveButton={showSaveButton} saveButtonPos="card-right" />
       ))}
     </div>
   );
