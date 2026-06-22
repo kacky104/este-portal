@@ -497,24 +497,50 @@ export function ShuffledSalons({ salons, areas, showAge = false, areaNextToDuty 
     );
   }
 
+  const cards = filtered.map(salon => (
+    <SalonCard
+      key={salon.id}
+      salon={salon}
+      therapists={salonTherapists[salon.id] ?? []}
+      showAge={showAge}
+      areaNextToDuty={areaNextToDuty}
+      ratingAtBottom={ratingAtBottom}
+      compactTherapists={compactTherapists}
+      showSaveButton={showSaveButton}
+      wideDesktop={wideDesktop}
+    />
+  ));
+
+  // デスクトップのトップ（wideDesktop）：左にカード列（左寄せ・約723px）、右の余白に縦長ブロック。
+  // 外側 flex の items-stretch で縦長ブロックの高さがカード列に揃う＝下端が最後尾カードに一致。
+  if (wideDesktop) {
+    return (
+      <>
+        {tabs}
+        <div className="lg:flex lg:gap-5 lg:items-stretch">
+          <div className="grid sm:grid-cols-2 lg:grid-cols-1 lg:justify-items-start lg:flex-shrink-0 gap-5">
+            {cards}
+          </div>
+          {/* 右の縦長ブロック（lg のみ表示・幅は余白いっぱい）。中身は後から差し替え可。 */}
+          <aside className="hidden lg:flex lg:flex-1 flex-col rounded-2xl border border-pink-100 bg-gradient-to-b from-pink-50 via-white to-fuchsia-50/40 overflow-hidden shadow-sm">
+            <div className="p-6 text-center">
+              <div className="w-12 h-12 mx-auto rounded-full bg-white border border-pink-200 flex items-center justify-center shadow-sm mb-3">
+                <span className="text-pink-500 text-xl leading-none">◆</span>
+              </div>
+              <p className="text-sm font-bold text-pink-600 mb-1">PR</p>
+              <p className="text-[11px] text-slate-400 leading-relaxed">この枠は準備中です</p>
+            </div>
+          </aside>
+        </div>
+      </>
+    );
+  }
+
   return (
     <>
       {tabs}
-      {/* wideDesktop（トップ）はデスクトップ(lg)で1列・左寄せ（左端をタブ行/見出しと一致）。カード幅は zoom で約992px。タブレット(sm)までは2列。 */}
-      <div className={`grid sm:grid-cols-2 ${wideDesktop ? 'lg:grid-cols-1 lg:justify-items-start' : 'lg:grid-cols-3'} gap-5`}>
-        {filtered.map(salon => (
-          <SalonCard
-            key={salon.id}
-            salon={salon}
-            therapists={salonTherapists[salon.id] ?? []}
-            showAge={showAge}
-            areaNextToDuty={areaNextToDuty}
-            ratingAtBottom={ratingAtBottom}
-            compactTherapists={compactTherapists}
-            showSaveButton={showSaveButton}
-            wideDesktop={wideDesktop}
-          />
-        ))}
+      <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-5">
+        {cards}
       </div>
     </>
   );
