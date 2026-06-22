@@ -60,6 +60,31 @@ export async function signOut(): Promise<void> {
   await supabase.auth.signOut();
 }
 
+/**
+ * パスワード再設定メールの送信。
+ * 戻り先は /auth/callback?next=/reset-password（確認メールと同じ着地ルートを共有）。
+ * メール列挙対策のため、UI 側は結果に関わらず同じ案内を出すこと。
+ */
+export async function requestPasswordReset(email: string): Promise<{ ok: boolean; error?: string }> {
+  const supabase = createClient();
+  const redirectTo =
+    typeof window !== 'undefined' ? `${window.location.origin}/auth/callback?next=/reset-password` : undefined;
+  const { error } = await supabase.auth.resetPasswordForEmail(
+    email,
+    redirectTo ? { redirectTo } : undefined
+  );
+  if (error) return { ok: false, error: jpAuthError(error.message) };
+  return { ok: true };
+}
+
+/** ログイン中（リカバリーセッション含む）のパスワード更新。 */
+export async function updatePassword(password: string): Promise<{ ok: boolean; error?: string }> {
+  const supabase = createClient();
+  const { error } = await supabase.auth.updateUser({ password });
+  if (error) return { ok: false, error: jpAuthError(error.message) };
+  return { ok: true };
+}
+
 /** 現在のセッション取得。 */
 export async function getSession(): Promise<Session | null> {
   const supabase = createClient();

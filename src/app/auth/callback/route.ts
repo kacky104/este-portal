@@ -30,8 +30,12 @@ export async function GET(request: Request) {
   const isLocal = process.env.NODE_ENV === 'development';
   const base = !isLocal && forwardedHost ? `https://${forwardedHost}` : url.origin;
 
+  // リカバリー（パスワード再設定）失敗は /forgot-password へ、それ以外は /login へ誘導。
+  const isRecovery = type === 'recovery' || next.startsWith('/reset-password');
   const fail = (reason: string) =>
-    NextResponse.redirect(`${base}/login?error=${encodeURIComponent(reason)}`);
+    NextResponse.redirect(
+      `${base}${isRecovery ? '/forgot-password' : '/login'}?error=${encodeURIComponent(reason)}`
+    );
 
   // Supabase 側でのエラー（期限切れ・不正トークン等）はそのまま案内へ。
   if (errParam) return fail(errDesc || errParam);

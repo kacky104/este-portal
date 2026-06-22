@@ -10,6 +10,7 @@ import {
   getSession,
   onAuthChange,
 } from '@/lib/auth';
+import { PASSWORD_HINT, validatePassword } from '@/lib/password';
 
 // redirectTo は同一オリジンの相対パスのみ許可（オープンリダイレクト防止）。
 // 会員ログインのデフォルト遷移はトップ（オーナー振り分けは /owner/login 側で実施）。
@@ -17,15 +18,6 @@ function safeRedirect(raw: string | null): string {
   if (!raw) return '/';
   if (!raw.startsWith('/') || raw.startsWith('//')) return '/';
   return raw;
-}
-
-// Supabase の実パスワードポリシーに合わせる：英字と数字を含む8文字以上。
-const PASSWORD_HINT = '英字と数字を含む8文字以上';
-const PASSWORD_ERROR = 'パスワードは英字と数字を含む8文字以上で入力してください。';
-// 要件を満たさない場合にエラー文言、満たせば null。
-function validateSignupPassword(pw: string): string | null {
-  if (pw.length < 8 || !/[A-Za-z]/.test(pw) || !/[0-9]/.test(pw)) return PASSWORD_ERROR;
-  return null;
 }
 
 function LoginInner() {
@@ -63,7 +55,7 @@ function LoginInner() {
     if (!email || !password) { setError('メールアドレスとパスワードを入力してください。'); return; }
     // 新規登録のみ：送信前にパスワード要件を検証（実ポリシー＝英字＋数字を含む8文字以上）。
     if (mode === 'signup') {
-      const pwErr = validateSignupPassword(password);
+      const pwErr = validatePassword(password);
       if (pwErr) { setError(pwErr); return; }
     }
     setLoading(true);
@@ -225,7 +217,9 @@ function LoginInner() {
               {mode === 'login' && (
                 <p>
                   パスワードをお忘れの方：
-                  <span className="text-slate-400">（再設定は準備中です）</span>
+                  <Link href="/forgot-password" className="text-pink-600 font-medium hover:underline ml-1">
+                    再設定はこちら →
+                  </Link>
                 </p>
               )}
             </div>
