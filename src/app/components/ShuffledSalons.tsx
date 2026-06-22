@@ -461,8 +461,8 @@ export function ShuffledSalons({ salons, areas, showAge = false, areaNextToDuty 
   return (
     <>
       {tabs}
-      {/* wideDesktop（トップ）はデスクトップ(lg)で1列・中央寄せ。カード幅はセラピスト7枚ぶん(702px)。タブレット(sm)までは2列。 */}
-      <div className={`grid sm:grid-cols-2 ${wideDesktop ? 'lg:grid-cols-1 lg:justify-items-center' : 'lg:grid-cols-3'} gap-5`}>
+      {/* wideDesktop（トップ）はデスクトップ(lg)で1列・左寄せ（左端をタブ行/見出しと一致）。カード幅は zoom で約992px。タブレット(sm)までは2列。 */}
+      <div className={`grid sm:grid-cols-2 ${wideDesktop ? 'lg:grid-cols-1 lg:justify-items-start' : 'lg:grid-cols-3'} gap-5`}>
         {filtered.map(salon => (
           <SalonCard
             key={salon.id}
