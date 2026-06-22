@@ -94,7 +94,9 @@
       "Bash(echo \"card: 512*1.413 = $\\(node -e 'console.log\\(\\(512*1.413\\).toFixed\\(0\\)\\)'\\)px\")",
       "Bash(curl -s -o /dev/null -w 'Location: %{redirect_url}\\\\n' \"http://localhost:3000/auth/callback\")",
       "Bash(curl -s -o /dev/null -w 'Location: %{redirect_url}\\\\n' \"http://localhost:3000/auth/callback?error=access_denied&error_description=Email+link+is+invalid+or+has+expired\")",
-      "Bash(curl -s -o /dev/null -w 'Location: %{redirect_url}\\\\n' \"http://localhost:3000/auth/callback?code=invalidcode123\")"
+      "Bash(curl -s -o /dev/null -w 'Location: %{redirect_url}\\\\n' \"http://localhost:3000/auth/callback?code=invalidcode123\")",
+      "Bash(curl -s -o /dev/null -w '%{redirect_url}\\\\n' \"http://localhost:3000/auth/callback?error=access_denied&error_description=expired\")",
+      "Bash(curl -s -o /dev/null -w '%{http_code}\\\\n' \"http://localhost:3000/reset-password\")"
     ]
   },
   "hooks": {
