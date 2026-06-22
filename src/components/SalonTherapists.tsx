@@ -516,6 +516,7 @@ export function SalonOnDutyExcludingNow({ salonId, theme }: { salonId: number; t
           bodyType:        (t.body_type as string | null) ?? null,
           age:             (t.age as string | null) ?? null,
           hasDiary:        diarySet.has(key),
+          salonId,  // 保存ボタン用（このサロンに在籍）
         };
       });
 
@@ -557,7 +558,7 @@ export function SalonOnDutyExcludingNow({ salonId, theme }: { salonId: number; t
       </div>
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         {list.map((t, i) => (
-          <GridCard key={t.id} therapist={t} index={i} enableWorkingShimmer />
+          <GridCard key={t.id} therapist={t} index={i} enableWorkingShimmer showSaveButton saveButtonPos="card-right" />
         ))}
       </div>
     </div>

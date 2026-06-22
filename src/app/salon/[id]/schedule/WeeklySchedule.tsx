@@ -8,6 +8,7 @@ import { isNewFaceActive } from '@/lib/newFace';
 import { formatBodySizes } from '@/lib/bodyType';
 import { getScheduleWindowStatus } from '@/lib/dutyStatus';
 import { NewBadge } from '@/components/NewBadge';
+import { SaveButton } from '@/app/components/SaveButton';
 
 export type DaySchedule = {
   id:             string;
@@ -78,7 +79,7 @@ function statusBadge(t: DaySchedule, isToday: boolean): { label: string; cls: st
   }
 }
 
-function TherapistCard({ t, isToday }: { t: DaySchedule; isToday: boolean }) {
+function TherapistCard({ t, isToday, salonId }: { t: DaySchedule; isToday: boolean; salonId: number }) {
   const router = useRouter();
   const availableNow =
     t.isAvailableNow && t.availableUntil != null && new Date(t.availableUntil) > new Date();
@@ -89,6 +90,7 @@ function TherapistCard({ t, isToday }: { t: DaySchedule; isToday: boolean }) {
   const working = isToday && getScheduleWindowStatus(t.startTime, t.endTime) === 'onDuty';
 
   return (
+    <div className="relative">
     <Link
       href={`/therapist/${t.id}?from=schedule`}
       className={`rounded-2xl border border-slate-200 bg-white shadow-sm flex h-28 overflow-hidden hover:shadow-md transition-all duration-200${working ? ' therapist-working-shimmer' : ''}`}
@@ -141,6 +143,16 @@ function TherapistCard({ t, isToday }: { t: DaySchedule; isToday: boolean }) {
         )}
       </div>
     </Link>
+      {/* 保存ボタン（カード右上）。Link の外側に重ね、anchor 内ネストとスパーククリップを回避。 */}
+      <div className="absolute top-2 right-2 z-20">
+        <SaveButton
+          kind="therapist"
+          item={{ id: Number(t.id), name: t.name, salonId }}
+          size={30}
+          variant="sakura"
+        />
+      </div>
+    </div>
   );
 }
 
@@ -148,10 +160,12 @@ export function WeeklySchedule({
   dates,
   byDate,
   theme,
+  salonId,
 }: {
   dates: string[];
   byDate: Record<string, DaySchedule[]>;
   theme: SalonTheme;
+  salonId: number;
 }) {
   const [selected, setSelected] = useState(dates[0]);
   const list = byDate[selected] ?? [];
@@ -193,7 +207,7 @@ export function WeeklySchedule({
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           {list.map((t) => (
-            <TherapistCard key={t.id} t={t} isToday={isToday} />
+            <TherapistCard key={t.id} t={t} isToday={isToday} salonId={salonId} />
           ))}
         </div>
       )}

@@ -174,7 +174,7 @@ export default async function SalonSchedulePage({
           <p className="text-sm mt-1" style={{ color: theme.body }}>週間出勤予定</p>
         </div>
 
-        <WeeklySchedule dates={dates} byDate={byDate} theme={theme} />
+        <WeeklySchedule dates={dates} byDate={byDate} theme={theme} salonId={Number(id)} />
 
         {/* 新人紹介（緑バー・全件表示。該当0人ならセクションごと非表示） */}
         <SalonNewFaceTherapists salonId={Number(id)} theme={theme} header="bar" maxItems={null} from="schedule" />
