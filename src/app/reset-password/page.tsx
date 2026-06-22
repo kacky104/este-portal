@@ -4,7 +4,28 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { getSession, onAuthChange, updatePassword } from '@/lib/auth';
-import { PASSWORD_HINT, validatePassword } from '@/lib/password';
+import { PASSWORD_HINT, PASSWORD_ERROR, validatePassword } from '@/lib/password';
+
+// updateUser のサーバーエラーを種類ごとに日本語へ。
+// クライアントの形式検証（validatePassword）は送信前に済ませているため、
+// ここでの「形式不足」は基本的に出ない（保険として残す）。
+function passwordUpdateError(res: { error?: string; code?: string }): string {
+  const code = res.code ?? '';
+  const m = (res.error ?? '').toLowerCase();
+  if (code === 'same_password' || m.includes('different from the old') || m.includes('should be different')) {
+    return '新しいパスワードは、現在のパスワードと異なるものを設定してください。';
+  }
+  if (
+    code === 'weak_password' ||
+    m.includes('should be at least') ||
+    m.includes('should contain') ||
+    m.includes('weak password') ||
+    m.includes('password is too')
+  ) {
+    return PASSWORD_ERROR;
+  }
+  return 'パスワードの変更に失敗しました。時間をおいて再度お試しください。';
+}
 
 export default function ResetPasswordPage() {
   const router = useRouter();
@@ -40,7 +61,7 @@ export default function ResetPasswordPage() {
     setLoading(true);
     try {
       const res = await updatePassword(password);
-      if (!res.ok) { setError(res.error ?? 'パスワードの変更に失敗しました。'); return; }
+      if (!res.ok) { setError(passwordUpdateError(res)); return; }
       setDone(true);
       // 変更後はログイン済み状態。少し見せてからトップへ。
       setTimeout(() => { router.push('/'); router.refresh(); }, 1600);

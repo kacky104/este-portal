@@ -77,11 +77,17 @@ export async function requestPasswordReset(email: string): Promise<{ ok: boolean
   return { ok: true };
 }
 
-/** ログイン中（リカバリーセッション含む）のパスワード更新。 */
-export async function updatePassword(password: string): Promise<{ ok: boolean; error?: string }> {
+/**
+ * ログイン中（リカバリーセッション含む）のパスワード更新。
+ * エラーは整形せず生の message と code を返す（呼び出し側で種類ごとに出し分けるため。
+ * 汎用整形だと「現在と同じパスワード」が形式エラーに誤マッピングされる）。
+ */
+export async function updatePassword(
+  password: string
+): Promise<{ ok: boolean; error?: string; code?: string }> {
   const supabase = createClient();
   const { error } = await supabase.auth.updateUser({ password });
-  if (error) return { ok: false, error: jpAuthError(error.message) };
+  if (error) return { ok: false, error: error.message, code: (error as { code?: string }).code };
   return { ok: true };
 }
 
