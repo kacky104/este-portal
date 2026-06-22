@@ -118,52 +118,65 @@ export default async function SalonCouponPage({
           <p className="text-sm mt-1" style={{ color: theme.body }}>クーポン</p>
         </div>
 
-        {/* クーポン一覧（縦型クーポン券） */}
+        {/* クーポン一覧（案B：グラデ見出し型・縦に並べる） */}
         {coupons.length === 0 ? (
           <div className="text-center py-12 text-sm rounded-2xl border" style={{ color: theme.body, backgroundColor: theme.card, borderColor: theme.cardBorder }}>
             現在ご利用いただけるクーポンはありません
           </div>
         ) : (
-          <div className="grid gap-4 sm:grid-cols-2 max-w-2xl mx-auto">
+          <div className="flex flex-col gap-5 max-w-xl mx-auto">
             {coupons.map(c => {
-              // 券の背景色プリセット（未設定/不明値は pink デフォルトにフォールバック）
+              // 券の色プリセット（未設定/不明値は pink デフォルトにフォールバック。色は couponColors が唯一のソース）
               const cc = getCouponColor(c.color);
               return (
-              <div
-                key={c.id}
-                className="rounded-2xl border-2 shadow-sm p-5 flex flex-col"
-                style={{ background: cc.background, color: cc.text, borderColor: cc.border ?? 'transparent' }}
-              >
-                {/* 上部タグ「クーポン」（文字色を薄めて使う） */}
-                <div className="flex items-center gap-1.5 mb-3" style={{ opacity: 0.85 }}>
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="flex-shrink-0">
-                    <path d="M15 5l0 2" />
-                    <path d="M15 11l0 2" />
-                    <path d="M15 17l0 2" />
-                    <path d="M5 5h14a2 2 0 0 1 2 2v3a2 2 0 0 0 0 4v3a2 2 0 0 1 -2 2h-14a2 2 0 0 1 -2 -2v-3a2 2 0 0 0 0 -4v-3a2 2 0 0 1 2 -2" />
-                  </svg>
-                  <span className="text-xs font-bold tracking-wide">クーポン</span>
+                <div key={c.id} className="rounded-[20px] bg-white shadow-md overflow-hidden flex flex-col">
+                  {/* 上部カラー帯（~60px、プリセット色 → やや暗めの同系グラデ） */}
+                  <div
+                    className="relative flex items-center px-5 min-h-[64px] py-3"
+                    style={{ background: `linear-gradient(135deg, rgba(0,0,0,0.05) 0%, rgba(0,0,0,0.36) 100%), ${cc.background}` }}
+                  >
+                    <h3
+                      className="font-bold text-white text-base break-words pr-20"
+                      style={{ textShadow: '0 1px 3px rgba(0,0,0,0.5)' }}
+                    >
+                      {c.title}
+                    </h3>
+                    {/* 点線の丸スタンプ風（右）：フクエス／を見た！ */}
+                    <div
+                      className="absolute right-4 top-1/2 -translate-y-1/2 w-12 h-12 rounded-full border-2 border-dashed flex flex-col items-center justify-center text-white text-center leading-none"
+                      style={{ borderColor: 'rgba(255,255,255,0.85)', textShadow: '0 1px 2px rgba(0,0,0,0.45)' }}
+                    >
+                      <span className="text-[9px] font-bold">フクエス</span>
+                      <span className="text-[9px] font-bold mt-0.5">を見た！</span>
+                    </div>
+                  </div>
+
+                  {/* 本文 */}
+                  <div className="p-5 flex flex-col gap-2">
+                    {/* 割引額（大きく・濃いトーン） */}
+                    <p className="text-2xl font-extrabold leading-tight break-words" style={{ color: cc.accent }}>
+                      {c.discount}
+                    </p>
+
+                    {/* 説明（条件） */}
+                    {c.conditions && (
+                      <p className="text-sm text-slate-500 leading-relaxed break-words whitespace-pre-wrap">{c.conditions}</p>
+                    )}
+
+                    {/* 有効期限 */}
+                    {c.validUntil && (
+                      <p className="text-xs text-slate-400">有効期限：{formatValidUntil(c.validUntil)}まで</p>
+                    )}
+
+                    {/* 点線区切り＋必須文言（全クーポン共通・固定表示） */}
+                    <div className="mt-1 border-t border-dashed border-slate-200" />
+                    <p className="text-xs text-slate-500 leading-relaxed">
+                      ご利用の際は
+                      <span className="font-bold" style={{ color: cc.accent }}>『フクエスを見た！』</span>
+                      と必ずお伝えください
+                    </p>
+                  </div>
                 </div>
-
-                {/* 割引内容（大きく強調・券の文字色） */}
-                <p className="text-2xl font-extrabold leading-tight break-words mb-1">{c.discount}</p>
-
-                {/* タイトル */}
-                <p className="text-base font-bold break-words">{c.title}</p>
-
-                {/* 破線の区切り（文字色を薄めて使う） */}
-                <div className="my-3 border-t border-dashed" style={{ borderColor: 'currentColor', opacity: 0.3 }} />
-
-                {/* 条件（あれば） */}
-                {c.conditions && (
-                  <p className="text-sm leading-relaxed break-words whitespace-pre-wrap">{c.conditions}</p>
-                )}
-
-                {/* 有効期限（あれば。文字色を薄めて使う） */}
-                {c.validUntil && (
-                  <p className="text-xs mt-2" style={{ opacity: 0.8 }}>有効期限：{formatValidUntil(c.validUntil)}まで</p>
-                )}
-              </div>
               );
             })}
           </div>

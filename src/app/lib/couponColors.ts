@@ -22,16 +22,18 @@ export type CouponColor = {
   text: string;
   /** 任意：券の枠線色（black のみ使用） */
   border?: string;
+  /** 濃いトーン：白背景でも読めるアクセント色（割引額・『フクエスを見た！』強調用） */
+  accent: string;
 };
 
 export const COUPON_COLORS: CouponColor[] = [
-  { key: 'gold',        label: 'ゴールド',        background: 'linear-gradient(135deg,#E8C766,#C49A2C)', text: '#3A2A06' },
-  { key: 'orange_pink', label: 'オレンジ→ピンク', background: 'linear-gradient(120deg,#F59E0B,#EC4899)', text: '#FFFFFF' },
-  { key: 'red',         label: 'レッド',          background: '#D8332B', text: '#FFFFFF' },
-  { key: 'blue',        label: 'ブルー',          background: '#2D7FE0', text: '#FFFFFF' },
-  { key: 'green',       label: 'グリーン',        background: '#1C9E63', text: '#FFFFFF' },
-  { key: 'pink',        label: 'ピンク',          background: '#E0478F', text: '#FFFFFF' },
-  { key: 'black',       label: 'ブラック',        background: '#161412', text: '#E2B85A', border: '#3A352A' },
+  { key: 'gold',        label: 'ゴールド',        background: 'linear-gradient(135deg,#E8C766,#C49A2C)', text: '#3A2A06', accent: '#9A7A1C' },
+  { key: 'orange_pink', label: 'オレンジ→ピンク', background: 'linear-gradient(120deg,#F59E0B,#EC4899)', text: '#FFFFFF', accent: '#DB2777' },
+  { key: 'red',         label: 'レッド',          background: '#D8332B', text: '#FFFFFF', accent: '#C0271F' },
+  { key: 'blue',        label: 'ブルー',          background: '#2D7FE0', text: '#FFFFFF', accent: '#1D4ED8' },
+  { key: 'green',       label: 'グリーン',        background: '#1C9E63', text: '#FFFFFF', accent: '#117A4C' },
+  { key: 'pink',        label: 'ピンク',          background: '#E0478F', text: '#FFFFFF', accent: '#BE185D' },
+  { key: 'black',       label: 'ブラック',        background: '#161412', text: '#E2B85A', border: '#3A352A', accent: '#161412' },
 ];
 
 export const DEFAULT_COUPON_COLOR_KEY: CouponColorKey = 'pink';

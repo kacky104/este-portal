@@ -103,7 +103,11 @@
       "Bash(curl -s -o /dev/null -w '%{http_code}' http://localhost:3000/salon/1/schedule)",
       "Bash(echo \"/salon/1/schedule -> $\\(curl -s -o /dev/null -w '%{http_code}' http://localhost:3000/salon/1/schedule\\)\")",
       "Bash(curl -s -o /dev/null -w '%{http_code}' http://localhost:3000/mypage/therapist/1)",
-      "Bash(echo \"/mypage/therapist/1 -> $\\(curl -s -o /dev/null -w '%{http_code}' http://localhost:3000/mypage/therapist/1\\)\")"
+      "Bash(echo \"/mypage/therapist/1 -> $\\(curl -s -o /dev/null -w '%{http_code}' http://localhost:3000/mypage/therapist/1\\)\")",
+      "Bash(curl -s -o /dev/null -w '%{http_code}' http://localhost:3000/salon/1/coupon)",
+      "Bash(echo \"/salon/1/coupon -> $\\(curl -s -o /dev/null -w '%{http_code}' http://localhost:3000/salon/1/coupon\\)\")",
+      "Bash(curl -s -o /dev/null -w '%{http_code}' http://localhost:3000/mypage)",
+      "Bash(echo \"/mypage -> $\\(curl -s -o /dev/null -w '%{http_code}' http://localhost:3000/mypage\\)\")"
     ]
   },
   "hooks": {
