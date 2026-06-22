@@ -298,14 +298,12 @@ export function SalonCard({ salon, therapists, showAge = false, areaNextToDuty =
   // ── デスクトップ1列・幅広レイアウト（lg のみ。トップページ wideDesktop 時） ──
   const wideLayout = wideDesktop && (
     <div className="hidden lg:flex lg:flex-col flex-1">
-      {/* 1段目: 店名 → 営業時間 → 出勤数 → 地域 →（右端）保存ボタン */}
+      {/* 1段目: 店名 → 営業時間 →（右端）保存ボタン */}
       <div className="flex items-center gap-2.5 flex-wrap mb-2.5">
         <h3 className="font-bold text-lg text-slate-900 group-hover:text-pink-700 transition-colors leading-snug min-w-0 truncate">
           {salon.name}
         </h3>
         {hoursEl}
-        {dutyBadge}
-        {areaBadge}
         {showSaveButton && (
           <span className="ml-auto flex-shrink-0">
             <SaveButton kind="salon" item={{ id: salon.id, name: salon.name }} variant="paw" />
@@ -313,10 +311,12 @@ export function SalonCard({ salon, therapists, showAge = false, areaNextToDuty =
         )}
       </div>
 
-      {/* 2段目: ☆評価 → 料金 →（右端）詳しく見る。上に細い区切り線 */}
+      {/* 2段目: ☆評価 → 料金 → 出勤数 → 地域 →（右端）詳しく見る。上に細い区切り線 */}
       <div className="flex items-center gap-3 flex-wrap pt-2.5 mb-3 border-t border-slate-200/70">
         {ratingEl}
         {priceEl}
+        {dutyBadge}
+        {areaBadge}
         <span className="ml-auto">{detailBtn}</span>
       </div>
 
