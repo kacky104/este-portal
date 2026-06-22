@@ -89,7 +89,9 @@
       "Bash(curl -s -o /dev/null -w '%{http_code}' http://localhost:3000/login)",
       "Bash(echo \"/login -> $\\(curl -s -o /dev/null -w '%{http_code}' http://localhost:3000/login\\)\")",
       "Bash(node -e 'console.log\\(\\(702*1.413\\).toFixed\\(1\\)\\)')",
-      "Bash(echo \"calc: 702*1.413 = $\\(node -e 'console.log\\(\\(702*1.413\\).toFixed\\(1\\)\\)'\\)px ; content = 1024-32 = 992px\")"
+      "Bash(echo \"calc: 702*1.413 = $\\(node -e 'console.log\\(\\(702*1.413\\).toFixed\\(1\\)\\)'\\)px ; content = 1024-32 = 992px\")",
+      "Bash(node -e 'console.log\\(\\(512*1.413\\).toFixed\\(0\\)\\)')",
+      "Bash(echo \"card: 512*1.413 = $\\(node -e 'console.log\\(\\(512*1.413\\).toFixed\\(0\\)\\)'\\)px\")"
     ]
   },
   "hooks": {

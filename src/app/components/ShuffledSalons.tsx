@@ -328,9 +328,9 @@ export function SalonCard({ salon, therapists, showAge = false, areaNextToDuty =
   return (
     <div
       className={`group rounded-2xl border border-slate-200 bg-white shadow-sm hover:border-pink-300 hover:-translate-y-1 hover:shadow-lg hover:shadow-pink-500/10 transition-all duration-300 flex flex-col cursor-pointer overflow-hidden${
-        // デスクトップ(lg)はセラピストカード7枚ぶん（7×92+6×3=662）＋左右パディング40 = 702px。
-        // salon-card-zoom で lg のみ比率そのまま拡大（702px×係数＝約900px）。モバイル/タブレットは無効。
-        wideDesktop ? ' lg:w-[702px] lg:max-w-full salon-card-zoom' : ''
+        // デスクトップ(lg)はセラピストカード5枚ぶん（5×92+4×3=472）＋左右パディング40 = 512px。
+        // salon-card-zoom で lg のみ比率そのまま拡大（512px×1.413≒723px）。左寄せのため右側に余白。モバイル/タブレットは無効。
+        wideDesktop ? ' lg:w-[512px] lg:max-w-full salon-card-zoom' : ''
       }`}
       onClick={() => router.push(`/salon/${salon.id}`)}
     >
