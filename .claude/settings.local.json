@@ -99,7 +99,9 @@
       "Bash(curl -s -o /dev/null -w '%{http_code}\\\\n' \"http://localhost:3000/reset-password\")",
       "Bash(curl -s -o /dev/null -w '%{http_code}' http://localhost:3000/reset-password)",
       "Bash(echo \"/reset-password -> $\\(curl -s -o /dev/null -w '%{http_code}' http://localhost:3000/reset-password\\)\")",
-      "Bash(node *)"
+      "Bash(node *)",
+      "Bash(curl -s -o /dev/null -w '%{http_code}' http://localhost:3000/salon/1/schedule)",
+      "Bash(echo \"/salon/1/schedule -> $\\(curl -s -o /dev/null -w '%{http_code}' http://localhost:3000/salon/1/schedule\\)\")"
     ]
   },
   "hooks": {

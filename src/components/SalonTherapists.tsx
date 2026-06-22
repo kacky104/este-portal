@@ -629,12 +629,14 @@ export function SalonNewFaceTherapists({
   header = 'card',
   maxItems = 4,
   from,
+  showSaveButton = false,
 }: {
   salonId: number;
   theme: SalonTheme;
   header?: 'card' | 'bar';   // 'card': テーマ背景ブロック+見出し / 'bar': 緑色のタイトルバー
   maxItems?: number | null;  // number: その人数まで表示し超過時「すべて見る」/ null: 全件表示・ボタンなし
   from?: string;             // パンくず用 ?from= パラメータ
+  showSaveButton?: boolean;  // 保存ボタン（カード右上）を表示
 }) {
   // null = 取得前、[] = 該当0人。どちらもセクションを描画しない。
   const [list, setList] = useState<Therapist[] | null>(null);
@@ -668,6 +670,7 @@ export function SalonNewFaceTherapists({
         bodyType:        (t.body_type as string | null) ?? null,
         age:             (t.age as string | null) ?? null,
         hasDiary:        diarySet.has(String(t.id)),
+        salonId,  // 保存ボタン用（このサロンに在籍）
       }));
 
       // is_new_face かつ new_face_since から30日以内のみ。new_face_since が新しい順。
@@ -691,7 +694,7 @@ export function SalonNewFaceTherapists({
   const cards = (
     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
       {shown.map((t, i) => (
-        <GridCard key={t.id} therapist={t} index={i} showJoinDate from={from} />
+        <GridCard key={t.id} therapist={t} index={i} showJoinDate from={from} showSaveButton={showSaveButton} saveButtonPos="card-right" />
       ))}
     </div>
   );

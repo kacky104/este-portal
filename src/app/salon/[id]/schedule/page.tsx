@@ -180,7 +180,7 @@ export default async function SalonSchedulePage({
         <WeeklySchedule dates={dates} byDate={byDate} theme={theme} salonId={Number(id)} />
 
         {/* 新人紹介（緑バー・全件表示。該当0人ならセクションごと非表示） */}
-        <SalonNewFaceTherapists salonId={Number(id)} theme={theme} header="bar" maxItems={null} from="schedule" />
+        <SalonNewFaceTherapists salonId={Number(id)} theme={theme} header="bar" maxItems={null} from="schedule" showSaveButton />
       </main>
     </div>
   );
