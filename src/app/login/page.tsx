@@ -36,7 +36,8 @@ function LoginInner() {
   const [mode, setMode] = useState<'login' | 'signup'>('login');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [error, setError] = useState('');
+  // メール確認コールバックからのエラー（?error=...）は初期表示する。
+  const [error, setError] = useState(params.get('error') ? 'メール確認に失敗しました。リンクの有効期限切れの可能性があります。再度お試しください。' : '');
   const [info, setInfo] = useState('');
   const [loading, setLoading] = useState(false);
 

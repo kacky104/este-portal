@@ -79,8 +79,15 @@ export function initSaveStore() {
       // ログイン時：端末の保存を DB へマージ → クリア → DB を読み込む
       mergeLocalToDb(sess.user.id).then(loadDbCache);
     } else if (event === 'INITIAL_SESSION') {
-      if (sess) loadDbCache();
-      else emitAll(); // 未ログイン（localStorage）モード確定
+      if (sess) {
+        // 確認後オートログイン等で、端末に未マージの保存が残っていればマージしてから読み込む。
+        // 通常のログイン済み再訪は localStorage が空のためマージは走らない（再マージ防止）。
+        const hasLocal = readLocalSalons().length > 0 || readLocalTherapists().length > 0;
+        if (hasLocal) mergeLocalToDb(sess.user.id).then(loadDbCache);
+        else loadDbCache();
+      } else {
+        emitAll(); // 未ログイン（localStorage）モード確定
+      }
     } else if (event === 'SIGNED_OUT') {
       dbReady = false;
       dbSalonIds = [];

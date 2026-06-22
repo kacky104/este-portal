@@ -27,9 +27,10 @@ export async function signUpWithEmail(
 ): Promise<{ ok: boolean; needsConfirm?: boolean; alreadyRegistered?: boolean; error?: string }> {
   const supabase = createClient();
   // 確認リンクの戻り先を実行環境に合わせる（local→localhost / 本番→本番ドメイン）。
+  // /auth/callback でセッション交換（exchangeCodeForSession）し、確認完了＝自動ログインにする。
   // ※ Supabase の Redirect URLs 許可リストに各オリジン（/** 付き）の登録が前提。
   const emailRedirectTo =
-    typeof window !== 'undefined' ? `${window.location.origin}/` : undefined;
+    typeof window !== 'undefined' ? `${window.location.origin}/auth/callback` : undefined;
   const { data, error } = await supabase.auth.signUp({
     email,
     password,
