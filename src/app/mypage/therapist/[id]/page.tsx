@@ -4,6 +4,14 @@ import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { createClient } from '@/app/lib/supabase/client';
+import {
+  BADGE_CATEGORY_ORDER,
+  BADGE_CATEGORY_LABELS,
+  BADGE_CATEGORY_COLORS,
+  BADGES_BY_CATEGORY,
+  MAX_BADGES,
+  sanitizeBadges,
+} from '@/lib/therapistBadges';
 
 const supabase = createClient();
 
@@ -43,6 +51,7 @@ type Therapist = {
   age: string | null;
   body_type: string | null;
   profile_text: string | null;
+  feature_badges: string[] | null;
 };
 
 const MAX_IMAGES = 5;
@@ -56,6 +65,7 @@ export default function TherapistEditPage() {
   const [form, setForm] = useState<Partial<Therapist>>({});
   const [images, setImages] = useState<string[]>([]);
   const [bodyParts, setBodyParts] = useState<BodyParts>({ height: '', bust: '', cup: '', waist: '', hip: '' });
+  const [badges, setBadges] = useState<string[]>([]);
   const [loadError, setLoadError] = useState('');
   const [saving, setSaving] = useState(false);
   const [uploadingSlot, setUploadingSlot] = useState<number | null>(null);
@@ -76,7 +86,7 @@ export default function TherapistEditPage() {
 
       const { data: tData, error: tError } = await supabase
         .from('therapists')
-        .select('id, salon_id, name, profile_image_url, profile_images, age, body_type, profile_text')
+        .select('id, salon_id, name, profile_image_url, profile_images, age, body_type, profile_text, feature_badges')
         .eq('id', therapistId)
         .single();
 
@@ -109,6 +119,8 @@ export default function TherapistEditPage() {
             : [];
       setImages(initialImages.slice(0, MAX_IMAGES));
       setBodyParts(parseBodyType(tData.body_type));
+      // 現在の特徴バッジをプリフィル（不正値除去・最大3つに正規化）
+      setBadges(sanitizeBadges(tData.feature_badges));
     })();
   }, [therapistId, router]);
 
@@ -160,6 +172,15 @@ export default function TherapistEditPage() {
     setImages(prev => prev.filter((_, i) => i !== slot));
   };
 
+  // 特徴バッジの選択トグル（最大 MAX_BADGES。上限到達後は未選択を追加しない）。
+  const toggleBadge = (label: string) => {
+    setBadges(prev => {
+      if (prev.includes(label)) return prev.filter(b => b !== label);
+      if (prev.length >= MAX_BADGES) return prev;
+      return [...prev, label];
+    });
+  };
+
   const handleSave = async () => {
     if (!therapist) return;
     setSaving(true);
@@ -173,6 +194,8 @@ export default function TherapistEditPage() {
         age:               form.age ?? null,
         body_type:         form.body_type ?? null,
         profile_text:      form.profile_text ?? null,
+        // 念のため保存前に正規化（既知バッジのみ・最大3つ）
+        feature_badges:    sanitizeBadges(badges),
       })
       .eq('id', therapist.id);
 
@@ -358,6 +381,60 @@ export default function TherapistEditPage() {
             value={form.profile_text ?? ''}
             onChange={(e) => setForm((p) => ({ ...p, profile_text: e.target.value }))}
           />
+        </div>
+
+        {/* 特徴バッジ（最大3つ） */}
+        <div className="bg-white rounded-3xl border border-slate-100 shadow-sm p-5 space-y-4">
+          <div className="flex items-center justify-between">
+            <h2 className="text-sm font-black text-slate-700">
+              特徴バッジ
+              <span className="text-[11px] font-normal text-slate-400 ml-1">（最大{MAX_BADGES}つ）</span>
+            </h2>
+            <span className="text-[11px] font-bold text-slate-500">{badges.length} / {MAX_BADGES} 選択中</span>
+          </div>
+
+          {BADGE_CATEGORY_ORDER.map((cat) => {
+            const colors = BADGE_CATEGORY_COLORS[cat];
+            const atMax = badges.length >= MAX_BADGES;
+            return (
+              <div key={cat}>
+                <p className="text-[11px] font-bold text-slate-400 mb-1.5">{BADGE_CATEGORY_LABELS[cat]}</p>
+                <div className="flex flex-wrap gap-1.5">
+                  {BADGES_BY_CATEGORY[cat].map((label) => {
+                    const selected = badges.includes(label);
+                    const disabled = !selected && atMax;
+                    return (
+                      <button
+                        key={label}
+                        type="button"
+                        disabled={disabled}
+                        onClick={() => toggleBadge(label)}
+                        className={`relative inline-flex items-center px-3 py-1.5 rounded-full text-xs font-bold border-2 transition-colors ${disabled ? 'opacity-40 cursor-not-allowed' : 'cursor-pointer'}`}
+                        style={
+                          selected
+                            ? { backgroundColor: colors.fill, color: colors.text, borderColor: colors.text }
+                            : { backgroundColor: '#F9FAFB', color: '#9CA3AF', borderColor: '#E5E7EB' }
+                        }
+                        aria-pressed={selected}
+                      >
+                        {label}
+                        {selected && (
+                          <span
+                            className="absolute -top-1.5 -right-1.5 w-4 h-4 rounded-full flex items-center justify-center"
+                            style={{ backgroundColor: colors.text, color: '#ffffff' }}
+                          >
+                            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                              <path d="M20 6L9 17l-5-5" />
+                            </svg>
+                          </span>
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            );
+          })}
         </div>
 
        <div className="flex justify-between items-center pb-4">
