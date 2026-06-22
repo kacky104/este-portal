@@ -175,6 +175,47 @@ function TherapistMiniCardsRow({ therapists, salonId, showAge = false, compact =
   );
 }
 
+// ── 店名の1行自動縮小（デスクトップ wideLayout 用） ──
+// 店名行が2行になりそうなとき、利用可能幅に収まるまでフォントを段階的に下げて1行を保つ。
+// flex 行の中で min-w-0 により自分の幅が縮むので、その幅に対して文字幅を測って縮小する。
+function WideAutoFitName({ name }: { name: string }) {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const textRef = useRef<HTMLSpanElement>(null);
+  const MAX = 18; // 既定（text-lg 相当。zoom で表示はさらに拡大される）
+  const MIN = 11;
+  const [size, setSize] = useState(MAX);
+
+  useEffect(() => {
+    const fit = () => {
+      const c = containerRef.current;
+      const t = textRef.current;
+      if (!c || !t) return;
+      let s = MAX;
+      t.style.fontSize = `${s}px`;
+      while (t.scrollWidth > c.clientWidth && s > MIN) {
+        s -= 0.5;
+        t.style.fontSize = `${s}px`;
+      }
+      setSize(s);
+    };
+    fit();
+    window.addEventListener('resize', fit);
+    return () => window.removeEventListener('resize', fit);
+  }, [name]);
+
+  return (
+    <div ref={containerRef} className="min-w-0 overflow-hidden">
+      <span
+        ref={textRef}
+        className="inline-block max-w-full whitespace-nowrap font-bold text-slate-900 group-hover:text-pink-700 transition-colors leading-snug"
+        style={{ fontSize: `${size}px`, overflow: 'hidden', textOverflow: 'ellipsis' }}
+      >
+        {name}
+      </span>
+    </div>
+  );
+}
+
 // ── Salon card ────────────────────────────────────────────────
 
 export function SalonCard({ salon, therapists, showAge = false, areaNextToDuty = false, ratingAtBottom = false, compactTherapists = false, showSaveButton = false, wideDesktop = false }: { salon: Salon; therapists: TherapistThumb[]; showAge?: boolean; areaNextToDuty?: boolean; ratingAtBottom?: boolean; compactTherapists?: boolean; showSaveButton?: boolean; wideDesktop?: boolean }) {
@@ -298,11 +339,9 @@ export function SalonCard({ salon, therapists, showAge = false, areaNextToDuty =
   // ── デスクトップ1列・幅広レイアウト（lg のみ。トップページ wideDesktop 時） ──
   const wideLayout = wideDesktop && (
     <div className="hidden lg:flex lg:flex-col flex-1">
-      {/* 1段目: 店名 → 営業時間 → 地域 →（右端）保存ボタン */}
-      <div className="flex items-center gap-2.5 flex-wrap mb-2.5">
-        <h3 className="font-bold text-lg text-slate-900 group-hover:text-pink-700 transition-colors leading-snug min-w-0 truncate">
-          {salon.name}
-        </h3>
+      {/* 1段目: 店名（長い場合はフォント自動縮小で1行維持）→ 営業時間 → 地域 →（右端）保存ボタン */}
+      <div className="flex items-center gap-2.5 mb-2.5">
+        <WideAutoFitName name={salon.name} />
         {hoursEl}
         {areaBadge}
         {showSaveButton && (
