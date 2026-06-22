@@ -30,6 +30,18 @@ export default function SavedPage() {
   const therapistAttempted = useRef<Set<number>>(new Set());
   const [loadingTherapists, setLoadingTherapists] = useState(true);
 
+  // ヘッダーのバッジ等からの #therapists / #salons でタブを切替（ハッシュ連動）。
+  useEffect(() => {
+    const applyHash = () => {
+      const h = window.location.hash;
+      if (h === '#therapists') setTab('therapists');
+      else if (h === '#salons') setTab('salons');
+    };
+    applyHash();
+    window.addEventListener('hashchange', applyHash);
+    return () => window.removeEventListener('hashchange', applyHash);
+  }, []);
+
   // localStorage の保存ID購読（保存順の逆＝最近が先頭）。解除に即応。
   useEffect(() => {
     const sync = () => {
