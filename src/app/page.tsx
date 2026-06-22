@@ -155,9 +155,20 @@ export default async function Home() {
               <span className="w-6 h-px bg-slate-300" />
             </p>
 
-            {/* リード文 */}
-            <p className="text-[18px] sm:text-[22px] text-slate-900 leading-snug">
-              福岡でメンズエステを探すなら
+            {/* リード文（緑系グラデ：ヘッダーのサブと同系） */}
+            <p className="text-[18px] sm:text-[22px] leading-snug">
+              <span
+                className="inline-block font-medium"
+                style={{
+                  background: 'linear-gradient(95deg,#10B981,#84CC16)',
+                  WebkitBackgroundClip: 'text',
+                  backgroundClip: 'text',
+                  WebkitTextFillColor: 'transparent',
+                  color: 'transparent',
+                }}
+              >
+                福岡でメンズエステを探すなら
+              </span>
             </p>
 
             {/* ブランド名（h1は1つ。フクエスはヘッダーと同じ橙→マゼンタのグラデ） */}
@@ -174,14 +185,14 @@ export default async function Home() {
               フクエス
             </h1>
 
-            {/* アピール（タグライン） */}
+            {/* アピール（タグライン）：あなた=橙 / お店=マゼンタ、他は通常色 */}
             <p className="text-[18px] sm:text-[22px] font-medium text-slate-900 leading-snug mb-3">
-              あなたとお店をマッチング
+              <span style={{ color: '#FB923C' }}>あなた</span>と<span style={{ color: '#DB2777' }}>お店</span>をマッチング
             </p>
 
-            {/* 説明文 */}
+            {/* 説明文（句点なし。モバイルは「福岡全域から」で改行、デスクトップは読点で1行） */}
             <p className="text-slate-400 text-sm max-w-xl mx-auto mb-3 leading-relaxed">
-              博多・天神・北九州・久留米など福岡全域から、口コミ評価の高い人気サロンをご紹介します。
+              博多・天神・北九州・久留米など福岡全域から<span className="hidden sm:inline">、</span><br className="sm:hidden" />口コミ評価の高い人気サロンをご紹介
             </p>
           </div>
         </section>
