@@ -82,19 +82,24 @@ const FLUTTER_PARTICLES = Array.from({ length: 8 }, (_, i) => {
 });
 
 // ── バリアント別の配色・グリフ・粒 ──
-// 配色は共通（白丸/薄グレー枠/グレー → 保存でピンク地+白）。
-const COLORS = {
+// 未保存は共通（白丸/薄グレー枠/グレー塗り）。保存・ホバー枠・粒の色を variant 別に持つ。
+// paw（店舗）＝ピンク、sakura（セラピスト）＝紫。
+const PINK = {
   unsaved: { bg: '#FFFFFF', border: '#E5E7EB', borderHover: '#F9A8D4', icon: '#9CA3AF', iconHover: '#EC4899' },
   saved:   { bg: '#EC4899', border: '#EC4899', icon: '#FFFFFF' },
+} as const;
+const PURPLE = {
+  unsaved: { bg: '#FFFFFF', border: '#E5E7EB', borderHover: '#D8B4FE', icon: '#9CA3AF', iconHover: '#EC4899' },
+  saved:   { bg: '#A855F7', border: '#A855F7', icon: '#FFFFFF' },
 } as const;
 const VARIANTS = {
   paw: {
     Glyph: PawGlyph, Particle: PawGlyph, particles: BURST_PARTICLES,
-    particleSize: 11, animClass: 'save-fx-burst',
+    particleSize: 11, animClass: 'save-fx-burst', colors: PINK, particleColor: '#EC4899',
   },
   sakura: {
     Glyph: SakuraGlyph, Particle: PetalGlyph, particles: FLUTTER_PARTICLES,
-    particleSize: 12, animClass: 'save-fx-flutter',
+    particleSize: 12, animClass: 'save-fx-flutter', colors: PURPLE, particleColor: '#A855F7',
   },
 } as const;
 
@@ -170,9 +175,10 @@ export function SaveButton({
   };
 
   const cfg = VARIANTS[variant];
+  const c = cfg.colors;
   const isSavedNow = mounted && saved;
   const iconSize = Math.round(size * (18 / 33)); // 既定33pxでアイコン18px相当
-  const iconColor = isSavedNow ? COLORS.saved.icon : hovered ? COLORS.unsaved.iconHover : COLORS.unsaved.icon;
+  const iconColor = isSavedNow ? c.saved.icon : hovered ? c.unsaved.iconHover : c.unsaved.icon;
 
   return (
     // ラッパ：演出をボタンの周囲に出すため relative + overflow:visible。
@@ -184,7 +190,7 @@ export function SaveButton({
           key={fxKey}
           aria-hidden="true"
           className="absolute inset-0"
-          style={{ zIndex: 2, overflow: 'visible', pointerEvents: 'none', color: '#EC4899' }}
+          style={{ zIndex: 2, overflow: 'visible', pointerEvents: 'none', color: cfg.particleColor }}
         >
           {cfg.particles.map((p, i) => (
             <svg
@@ -215,13 +221,13 @@ export function SaveButton({
           width: size,
           height: size,
           zIndex: 1,
-          background: isSavedNow ? COLORS.saved.bg : COLORS.unsaved.bg,
+          background: isSavedNow ? c.saved.bg : c.unsaved.bg,
           border: `1.5px solid ${
             isSavedNow
-              ? COLORS.saved.border
+              ? c.saved.border
               : hovered
-                ? COLORS.unsaved.borderHover
-                : COLORS.unsaved.border
+                ? c.unsaved.borderHover
+                : c.unsaved.border
           }`,
         }}
       >
