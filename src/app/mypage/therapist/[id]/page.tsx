@@ -398,7 +398,15 @@ export default function TherapistEditPage() {
             const atMax = badges.length >= MAX_BADGES;
             return (
               <div key={cat}>
-                <p className="text-[11px] font-bold text-slate-400 mb-1.5">{BADGE_CATEGORY_LABELS[cat]}</p>
+                <p className="text-[11px] font-bold text-slate-400 mb-1.5 flex items-center gap-1.5">
+                  {BADGE_CATEGORY_LABELS[cat]}
+                  {/* カテゴリの色見本（fill=背景 / border=枠線。色は therapistBadges を参照） */}
+                  <span
+                    aria-hidden
+                    className="inline-block w-4 h-2.5 rounded-full border"
+                    style={{ backgroundColor: colors.fill, borderColor: colors.border }}
+                  />
+                </p>
                 <div className="flex flex-wrap gap-1.5">
                   {BADGES_BY_CATEGORY[cat].map((label) => {
                     const selected = badges.includes(label);
