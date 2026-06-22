@@ -13,6 +13,7 @@ import { AutoFitName } from './AutoFitName';
 import { SavedSalonsMenu } from '@/app/components/SavedSalonsMenu';
 import { AccountMenu } from '@/app/components/AccountMenu';
 import { SaveButton } from '@/app/components/SaveButton';
+import { sanitizeBadges, getBadgeColors } from '@/lib/therapistBadges';
 
 // ── helpers ───────────────────────────────────────────────────
 
@@ -69,7 +70,7 @@ export default async function TherapistPublicPage({
 
   const { data: tRow, error: tError } = await supabase
     .from('therapists')
-    .select('id, name, profile_image_url, profile_images, age, body_type, profile_text, work_hours, comment, area, salon_id, is_new_face, new_face_since, is_available_now, available_until')
+    .select('id, name, profile_image_url, profile_images, age, body_type, profile_text, work_hours, comment, area, salon_id, is_new_face, new_face_since, is_available_now, available_until, feature_badges')
     .eq('id', id)
     .single();
 
@@ -147,6 +148,8 @@ export default async function TherapistPublicPage({
     salonId:         tRow.salon_id as number,
     isNewFace:       Boolean(tRow.is_new_face),
     newFaceSince:    (tRow.new_face_since as string | null) ?? null,
+    // 特徴バッジ（既知のみ・重複除去・最大3つに正規化。色/ラベルは therapistBadges が唯一のソース）
+    featureBadges:   sanitizeBadges(tRow.feature_badges),
   };
 
   const salon = salonRow
@@ -410,6 +413,25 @@ export default async function TherapistPublicPage({
                     {therapist.bodyType.hip && (
                       <BodyBadge label="H" value={`${therapist.bodyType.hip}cm`} />
                     )}
+                  </div>
+                )}
+
+                {/* 特徴バッジ（スリーサイズの下。色/ラベルは therapistBadges を参照。空なら非表示） */}
+                {therapist.featureBadges.length > 0 && (
+                  <div className="flex flex-wrap gap-1.5 mt-2.5">
+                    {therapist.featureBadges.map((label) => {
+                      const c = getBadgeColors(label);
+                      if (!c) return null;
+                      return (
+                        <span
+                          key={label}
+                          className="inline-flex items-center px-3 py-1 rounded-full text-xs font-bold border"
+                          style={{ backgroundColor: c.fill, color: c.text, borderColor: c.border }}
+                        >
+                          {label}
+                        </span>
+                      );
+                    })}
                   </div>
                 )}
               </div>
