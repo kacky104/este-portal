@@ -148,23 +148,32 @@ export default async function Home() {
           <div className="absolute bottom-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-pink-300/50 to-transparent" />
 
           <div className="relative max-w-5xl mx-auto px-4 text-center">
-            <p className="inline-flex items-center gap-2 text-xs font-semibold text-pink-400 tracking-[0.2em] uppercase mb-5">
-              <span className="w-6 h-px bg-pink-300" />
-              Fukuoka Mens Esthetics Portal
-              <span className="w-6 h-px bg-pink-300" />
+            <p className="inline-flex items-center gap-2 text-xs font-semibold text-slate-400 tracking-[0.2em] mb-5">
+              <span className="w-6 h-px bg-slate-300" />
+              福岡メンズエステポータル
+              <span className="w-6 h-px bg-slate-300" />
             </p>
 
-            <h1 className="mb-5 leading-snug">
-              <span className="block text-xl font-black text-slate-900 tracking-tight flex items-center justify-center flex-wrap gap-1.5 text-center w-full">
-                <span className="text-pink-500">福岡に特化した</span>メンズエステポータルサイト
+            {/* ブランド宣言型の見出し（h1は1つ。フクエスはヘッダーと同じ橙→マゼンタのグラデ） */}
+            <h1 className="mb-5 leading-tight tracking-tight font-medium text-slate-900">
+              <span className="text-[24px] sm:text-[30px]">福岡のメンズエステは、</span>
+              <span
+                className="inline-block align-baseline text-[34px] sm:text-[40px] font-extrabold"
+                style={{
+                  background: 'linear-gradient(95deg,#FB923C,#DB2777)',
+                  WebkitBackgroundClip: 'text',
+                  backgroundClip: 'text',
+                  WebkitTextFillColor: 'transparent',
+                  color: 'transparent',
+                }}
+              >
+                フクエス
               </span>
-              <span className="block text-3xl sm:text-4xl font-extrabold tracking-tight bg-gradient-to-r from-pink-500 via-rose-400 to-orange-400 bg-clip-text text-transparent">
-                あなたとお店をマッチング
-              </span>
+              <span className="text-[24px] sm:text-[30px]">。</span>
             </h1>
 
             <p className="text-slate-500 text-sm max-w-xl mx-auto mb-3 leading-relaxed">
-              博多・天神・北九州・久留米など、福岡全域のエリアから口コミ評価の高い人気サロンをご紹介。あなたにぴったりのサロンを見つけてください。
+              あなたとお店をマッチング。博多・天神・北九州・久留米など福岡全域から、口コミ評価の高い人気サロンをご紹介します。
             </p>
           </div>
         </section>
