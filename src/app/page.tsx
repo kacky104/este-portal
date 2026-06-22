@@ -148,32 +148,40 @@ export default async function Home() {
           <div className="absolute bottom-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-pink-300/50 to-transparent" />
 
           <div className="relative max-w-5xl mx-auto px-4 text-center">
-            <p className="inline-flex items-center gap-2 text-xs font-semibold text-slate-400 tracking-[0.2em] mb-5">
+            {/* eyebrow */}
+            <p className="inline-flex items-center gap-2 text-xs font-semibold text-slate-400 tracking-[0.2em] mb-4">
               <span className="w-6 h-px bg-slate-300" />
               福岡メンズエステポータル
               <span className="w-6 h-px bg-slate-300" />
             </p>
 
-            {/* ブランド宣言型の見出し（h1は1つ。フクエスはヘッダーと同じ橙→マゼンタのグラデ） */}
-            <h1 className="mb-5 leading-tight tracking-tight font-medium text-slate-900">
-              <span className="text-[24px] sm:text-[30px]">福岡のメンズエステは、</span>
-              <span
-                className="inline-block align-baseline text-[34px] sm:text-[40px] font-extrabold"
-                style={{
-                  background: 'linear-gradient(95deg,#FB923C,#DB2777)',
-                  WebkitBackgroundClip: 'text',
-                  backgroundClip: 'text',
-                  WebkitTextFillColor: 'transparent',
-                  color: 'transparent',
-                }}
-              >
-                フクエス
-              </span>
-              <span className="text-[24px] sm:text-[30px]">。</span>
+            {/* リード文 */}
+            <p className="text-[18px] sm:text-[22px] text-slate-900 leading-snug">
+              福岡でメンズエステを探すなら
+            </p>
+
+            {/* ブランド名（h1は1つ。フクエスはヘッダーと同じ橙→マゼンタのグラデ） */}
+            <h1
+              className="inline-block text-[44px] sm:text-[56px] font-extrabold leading-tight tracking-tight mb-1"
+              style={{
+                background: 'linear-gradient(95deg,#FB923C,#DB2777)',
+                WebkitBackgroundClip: 'text',
+                backgroundClip: 'text',
+                WebkitTextFillColor: 'transparent',
+                color: 'transparent',
+              }}
+            >
+              フクエス
             </h1>
 
-            <p className="text-slate-500 text-sm max-w-xl mx-auto mb-3 leading-relaxed">
-              あなたとお店をマッチング。博多・天神・北九州・久留米など福岡全域から、口コミ評価の高い人気サロンをご紹介します。
+            {/* アピール（タグライン） */}
+            <p className="text-[18px] sm:text-[22px] font-medium text-slate-900 leading-snug mb-3">
+              あなたとお店をマッチング
+            </p>
+
+            {/* 説明文 */}
+            <p className="text-slate-400 text-sm max-w-xl mx-auto mb-3 leading-relaxed">
+              博多・天神・北九州・久留米など福岡全域から、口コミ評価の高い人気サロンをご紹介します。
             </p>
           </div>
         </section>
