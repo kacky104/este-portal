@@ -96,7 +96,9 @@
       "Bash(curl -s -o /dev/null -w 'Location: %{redirect_url}\\\\n' \"http://localhost:3000/auth/callback?error=access_denied&error_description=Email+link+is+invalid+or+has+expired\")",
       "Bash(curl -s -o /dev/null -w 'Location: %{redirect_url}\\\\n' \"http://localhost:3000/auth/callback?code=invalidcode123\")",
       "Bash(curl -s -o /dev/null -w '%{redirect_url}\\\\n' \"http://localhost:3000/auth/callback?error=access_denied&error_description=expired\")",
-      "Bash(curl -s -o /dev/null -w '%{http_code}\\\\n' \"http://localhost:3000/reset-password\")"
+      "Bash(curl -s -o /dev/null -w '%{http_code}\\\\n' \"http://localhost:3000/reset-password\")",
+      "Bash(curl -s -o /dev/null -w '%{http_code}' http://localhost:3000/reset-password)",
+      "Bash(echo \"/reset-password -> $\\(curl -s -o /dev/null -w '%{http_code}' http://localhost:3000/reset-password\\)\")"
     ]
   },
   "hooks": {
