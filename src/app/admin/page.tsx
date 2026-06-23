@@ -10,6 +10,7 @@ import SalonEditModal, { type SalonForEdit } from '@/app/components/SalonEditMod
 import ThemeWallpaperManager from '@/app/components/ThemeWallpaperManager';
 import { ADMIN_UUID } from '@/app/lib/admin';
 import { areaLabel } from '@/app/lib/areaLabel';
+import { revalidateTopAndAreas } from '@/app/lib/revalidateTop';
 
 const supabase = createClient();
 
@@ -27,6 +28,8 @@ type Salon = {
   address:     string | null;
   access:      string | null;
   closed_days: string | null;
+  show_on_top: boolean | null;
+  dispatch_type: 'none' | 'available' | 'only' | null;
 };
 
 type AuthState = 'loading' | 'forbidden' | 'authorized';
@@ -51,6 +54,9 @@ export default function AdminDashboard() {
   const [form, setForm] = useState(EMPTY_FORM);
   const [adding, setAdding] = useState(false);
   const [addError, setAddError] = useState('');
+  // area とは独立した別軸のフラグ（文字列フォームとは別 state で型安全に管理）。
+  const [showOnTop, setShowOnTop] = useState(true);
+  const [dispatchType, setDispatchType] = useState<'none' | 'available' | 'only'>('none');
   const [toast, setToast] = useState('');
   const [editingSalon, setEditingSalon] = useState<SalonForEdit | null>(null);
 
@@ -62,7 +68,7 @@ export default function AdminDashboard() {
   const fetchSalons = useCallback(async () => {
     const { data, error } = await supabase
       .from('salons')
-      .select('id, name, area, price, rating, owner_id, hours, phone, address, access, closed_days')
+      .select('id, name, area, price, rating, owner_id, hours, phone, address, access, closed_days, show_on_top, dispatch_type')
       .order('id', { ascending: true });
     if (error) {
       setFetchError('サロンデータの取得に失敗しました');
@@ -103,6 +109,8 @@ export default function AdminDashboard() {
       access:            form.access.trim(),
       closed_days:       form.closed_days.trim(),
       owner_id:          form.owner_id.trim() || null,
+      show_on_top:       showOnTop,
+      dispatch_type:     dispatchType,
       rating:            0,
       review_count:      0,
       courses:           [],
@@ -121,6 +129,9 @@ export default function AdminDashboard() {
       setAddError(`追加に失敗しました: ${error.message}`);
     } else {
       setForm(EMPTY_FORM);
+      setShowOnTop(true);
+      setDispatchType('none');
+      revalidateTopAndAreas(); // 新規サロンをトップ＋地域ページ（出張含む）に反映
       showToast('サロンを追加しました');
       await fetchSalons();
     }
@@ -276,6 +287,31 @@ export default function AdminDashboard() {
               </div>
             </div>
 
+            {/* 掲載・出張区分（area とは独立した別軸） */}
+            <div className="flex flex-wrap items-center gap-5 pt-1">
+              <label className="flex items-center gap-2 text-xs font-medium text-slate-600 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={showOnTop}
+                  onChange={e => setShowOnTop(e.target.checked)}
+                  className="w-4 h-4 accent-pink-500"
+                />
+                トップに表示
+              </label>
+              <div className="flex items-center gap-2">
+                <label className="text-xs font-medium text-slate-600">出張</label>
+                <select
+                  value={dispatchType}
+                  onChange={e => setDispatchType(e.target.value as 'none' | 'available' | 'only')}
+                  className="px-3 py-2 rounded-xl border border-slate-200 text-xs bg-slate-50/50 focus:outline-none focus:ring-2 focus:ring-pink-200"
+                >
+                  <option value="none">出張なし</option>
+                  <option value="available">出張あり</option>
+                  <option value="only">出張専門</option>
+                </select>
+              </div>
+            </div>
+
             {addError && (
               <p className="text-xs text-rose-500 bg-rose-50 border border-rose-100 rounded-xl px-3 py-2">{addError}</p>
             )}
@@ -311,6 +347,7 @@ export default function AdminDashboard() {
                     <th className="text-left px-4 py-3 text-[11px] font-bold text-slate-400 w-14">ID</th>
                     <th className="text-left px-4 py-3 text-[11px] font-bold text-slate-400">サロン名</th>
                     <th className="text-left px-4 py-3 text-[11px] font-bold text-slate-400">エリア</th>
+                    <th className="text-left px-4 py-3 text-[11px] font-bold text-slate-400">状態</th>
                     <th className="text-left px-4 py-3 text-[11px] font-bold text-slate-400">料金</th>
                     <th className="text-left px-4 py-3 text-[11px] font-bold text-slate-400 w-16">評価</th>
                     <th className="text-left px-4 py-3 text-[11px] font-bold text-slate-400">オーナーUUID</th>
@@ -329,6 +366,21 @@ export default function AdminDashboard() {
                         <span className="text-[11px] px-2.5 py-0.5 rounded-full bg-pink-50 text-pink-600 border border-pink-100 font-medium">
                           {salon.area ? areaLabel(salon.area) : '—'}
                         </span>
+                      </td>
+                      <td className="px-4 py-3">
+                        <div className="flex flex-wrap gap-1">
+                          {salon.show_on_top === false ? (
+                            <span className="text-[10px] px-2 py-0.5 rounded-full bg-slate-100 text-slate-400 border border-slate-200 font-medium">非掲載</span>
+                          ) : (
+                            <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-600 border border-emerald-100 font-medium">トップ</span>
+                          )}
+                          {salon.dispatch_type === 'available' && (
+                            <span className="text-[10px] px-2 py-0.5 rounded-full bg-blue-50 text-blue-600 border border-blue-200 font-medium">出張</span>
+                          )}
+                          {salon.dispatch_type === 'only' && (
+                            <span className="text-[10px] px-2 py-0.5 rounded-full bg-blue-100 text-blue-700 border border-blue-300 font-medium">出張専門</span>
+                          )}
+                        </div>
                       </td>
                       <td className="px-4 py-3 text-xs text-slate-600">{salon.price ?? '—'}</td>
                       <td className="px-4 py-3 text-xs font-bold text-pink-600">

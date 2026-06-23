@@ -9,7 +9,7 @@ import { getFeaturedSalons } from '@/app/lib/featured';
 import { SavedSalonsMenu } from '@/app/components/SavedSalonsMenu';
 import { AccountMenu } from '@/app/components/AccountMenu';
 import { NotificationBell } from '@/app/components/NotificationBell';
-import { areaFromSlug, AREA_ORDER, AREA_SLUGS_LIST } from '@/app/lib/areas';
+import { areaFromSlug, AREA_ORDER, AREA_SLUGS_LIST, DISPATCH_AREA } from '@/app/lib/areas';
 import { areaLabel } from '@/app/lib/areaLabel';
 
 // ISR：10分ごとに再生成。Next 16 では revalidate を効かせるため generateStaticParams が必須。
@@ -102,7 +102,7 @@ export default async function AreaPage({ params }: { params: Promise<{ slug: str
           </p>
         </div>
 
-        <ShuffledSalons salons={salons} areas={[...AREA_ORDER]} currentArea={area} tabsAsLinks showAge areaNextToDuty ratingAtBottom compactTherapists showSaveButton wideDesktop />
+        <ShuffledSalons salons={salons} areas={[...AREA_ORDER]} currentArea={area} tabsAsLinks includeDispatch={area === DISPATCH_AREA} showAge areaNextToDuty ratingAtBottom compactTherapists showSaveButton wideDesktop />
       </main>
 
       {/* ─── Footer ──────────────────────────────────────── */}

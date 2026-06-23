@@ -35,7 +35,7 @@ export default async function Home() {
   // ── 互いに依存しない3処理を並列実行（往復の積み上がりを解消） ──
   // ピックアップは area=null の共通セット（＝トップ用）。地域ページは各エリアの設定を使う。
   const [salons, featuredSalons, todaySchedRes] = await Promise.all([
-    fetchSalons(supabase),
+    fetchSalons(supabase, { showOnTopOnly: true }), // トップは show_on_top=true のみ表示
     getFeaturedSalons(supabase, null),
     supabase
       .from('therapist_schedules')

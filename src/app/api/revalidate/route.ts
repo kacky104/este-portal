@@ -24,12 +24,14 @@ export async function POST(req: Request) {
   // ボディは任意。無し/不正でも従来どおりトップを無効化する（後方互換）。
   let salonId: number | string | undefined;
   let area: string | undefined;
+  let areasAll = false;
   let top = true;
   try {
-    const body = (await req.json()) as { salonId?: number | string; top?: boolean; area?: string } | null;
+    const body = (await req.json()) as { salonId?: number | string; top?: boolean; area?: string; areasAll?: boolean } | null;
     if (body && typeof body === "object") {
       if (body.salonId != null) salonId = body.salonId;
       if (body.area != null) area = body.area;
+      if (body.areasAll === true) areasAll = true;
       if (body.top === false) top = false;
     }
   } catch {
@@ -49,6 +51,12 @@ export async function POST(req: Request) {
     const path = areaHref(area);
     revalidatePath(path);
     revalidated.push(path);
+  }
+
+  if (areasAll) {
+    // 全 /area/<slug> ページ（出張含む）をまとめて無効化（動的ルート単位）。
+    revalidatePath("/area/[slug]", "page");
+    revalidated.push("/area/[slug]");
   }
 
   if (top) {

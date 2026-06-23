@@ -6,6 +6,9 @@
 
 export const ALL_AREA = '福岡全域';
 
+// 出張エリアのキー（DB値）。slug は 'dispatch'。dispatch_type が none 以外のサロンを OR で出す判定に使う。
+export const DISPATCH_AREA = '出張';
+
 // 表示順（全域を先頭に、トップ／一覧と同じ並び）。
 export const AREA_ORDER = [
   ALL_AREA,

@@ -244,10 +244,25 @@ export function SalonCard({ salon, therapists, showAge = false, areaNextToDuty =
       出勤 <span style={{ color: '#ec4899', fontSize: '15px', fontWeight: 700 }}>{onDutyCount}</span>名
     </span>
   );
-  const areaBadge = (
-    <span className="flex-shrink-0 text-xs font-semibold px-2.5 py-0.5 rounded-full bg-pink-50 text-pink-600 border border-pink-200">
-      {areaLabel(salon.area)}
+  // 出張バッジ：拠点エリアバッジの右隣に出す。地域バッジ(ピンク)と区別できる青系。
+  // available は薄め、only はそれより濃い青で区別。
+  const dispatchBadge = salon.dispatchType !== 'none' ? (
+    <span className={`flex-shrink-0 text-xs font-semibold px-2.5 py-0.5 rounded-full ${
+      salon.dispatchType === 'only'
+        ? 'bg-blue-100 text-blue-700 border border-blue-300'
+        : 'bg-blue-50 text-blue-600 border border-blue-200'
+    }`}>
+      {salon.dispatchType === 'only' ? '出張のみ' : '出張'}
     </span>
+  ) : null;
+  // 地域バッジ＋出張バッジをまとめて1要素に（areaBadge を出す全箇所で出張バッジも揃う）。
+  const areaBadge = (
+    <>
+      <span className="flex-shrink-0 text-xs font-semibold px-2.5 py-0.5 rounded-full bg-pink-50 text-pink-600 border border-pink-200">
+        {areaLabel(salon.area)}
+      </span>
+      {dispatchBadge}
+    </>
   );
   const ratingEl = (
     <div className="flex items-center gap-1.5">
@@ -420,7 +435,7 @@ function SalonCardSkeleton() {
 
 // ── ShuffledSalons ────────────────────────────────────────────
 
-export function ShuffledSalons({ salons, areas, showAge = false, areaNextToDuty = false, ratingAtBottom = false, compactTherapists = false, showSaveButton = false, wideDesktop = false, tabsAsLinks = false, currentArea }: { salons: Salon[]; areas: string[]; showAge?: boolean; areaNextToDuty?: boolean; ratingAtBottom?: boolean; compactTherapists?: boolean; showSaveButton?: boolean; wideDesktop?: boolean; tabsAsLinks?: boolean; currentArea?: string }) {
+export function ShuffledSalons({ salons, areas, showAge = false, areaNextToDuty = false, ratingAtBottom = false, compactTherapists = false, showSaveButton = false, wideDesktop = false, tabsAsLinks = false, currentArea, includeDispatch = false }: { salons: Salon[]; areas: string[]; showAge?: boolean; areaNextToDuty?: boolean; ratingAtBottom?: boolean; compactTherapists?: boolean; showSaveButton?: boolean; wideDesktop?: boolean; tabsAsLinks?: boolean; currentArea?: string; includeDispatch?: boolean }) {
   const [list,            setList]            = useState<Salon[]>([]);
   const [activeArea,      setActiveArea]      = useState('福岡全域');
   // tabsAsLinks 時はページ自体が絞り込み対象を表すため、currentArea を選択中エリアとして使う
@@ -440,11 +455,16 @@ export function ShuffledSalons({ salons, areas, showAge = false, areaNextToDuty 
     setList(arr);
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // エリア一致判定。includeDispatch 時（出張ページ）は、選択中の出張エリアに限り
+  // dispatch_type が none 以外（available/only）のサロンも OR で含める。
+  const matchesArea = (s: Salon, area: string) =>
+    s.area === area || (includeDispatch && area === activeAreaEffective && s.dispatchType !== 'none');
+
   const areaCount = (area: string) =>
-    area === '福岡全域' ? salons.length : salons.filter(s => s.area === area).length;
+    area === '福岡全域' ? salons.length : salons.filter(s => matchesArea(s, area)).length;
 
   const filtered =
-    activeAreaEffective === '福岡全域' ? list : list.filter(s => s.area === activeAreaEffective);
+    activeAreaEffective === '福岡全域' ? list : list.filter(s => matchesArea(s, activeAreaEffective));
 
   /* ── Area filter tabs ── */
   const tabs = (

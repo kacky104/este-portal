@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { createClient } from '@/app/lib/supabase/client';
-import { revalidateSalon } from '@/app/lib/revalidateTop';
+import { revalidateSalon, revalidateTopAndAreas } from '@/app/lib/revalidateTop';
 import { TimeRangePicker } from '@/components/TimeRangePicker';
 import { areaLabel } from '@/app/lib/areaLabel';
 
@@ -22,6 +22,8 @@ export type SalonForEdit = {
   access:      string | null;
   closed_days: string | null;
   owner_id:    string | null;
+  show_on_top: boolean | null;
+  dispatch_type: 'none' | 'available' | 'only' | null;
 };
 
 type Props = {
@@ -47,6 +49,9 @@ export default function SalonEditModal({ salon, onClose, onSaved }: Props) {
   });
   const [saving, setSaving] = useState(false);
   const [error,  setError]  = useState('');
+  // area とは独立した別軸のフラグ（boolean なので文字列フォームとは別 state で管理）。
+  const [showOnTop,    setShowOnTop]    = useState(salon.show_on_top ?? true);
+  const [dispatchType, setDispatchType] = useState<'none' | 'available' | 'only'>(salon.dispatch_type ?? 'none');
 
   const set = (key: keyof typeof form) =>
     (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) =>
@@ -69,6 +74,8 @@ export default function SalonEditModal({ salon, onClose, onSaved }: Props) {
         access:      form.access.trim(),
         closed_days: form.closed_days.trim(),
         owner_id:    form.owner_id.trim() || null,
+        show_on_top: showOnTop,
+        dispatch_type: dispatchType,
       })
       .eq('id', salon.id)
       .select('id');   // 影響行を取得してRLSブロックを検出
@@ -83,7 +90,8 @@ export default function SalonEditModal({ salon, onClose, onSaved }: Props) {
       console.warn('[SalonEdit] update affected 0 rows — check RLS policy on salons table');
       setError('更新できませんでした。RLSポリシーを確認してください。\n(supabase/migrations/20260616_salons_rls_update.sql を実行してください)');
     } else {
-      revalidateSalon(salon.id); // 成功時：このサロンの詳細＋トップのISRを即時更新
+      revalidateSalon(salon.id);   // このサロンの詳細＋トップを更新
+      revalidateTopAndAreas();     // 掲載/出張フラグ・エリア変更を地域ページ（出張含む）にも反映
       onSaved('サロン情報を更新しました ✓');
     }
   };
@@ -155,6 +163,31 @@ export default function SalonEditModal({ salon, onClose, onSaved }: Props) {
               </select>
             </div>
             {textField('料金', 'price', '例: 60分 ¥8,000〜')}
+          </div>
+
+          {/* 掲載・出張区分（area とは独立した別軸） */}
+          <div className="flex flex-wrap items-center gap-5">
+            <label className="flex items-center gap-2 text-xs font-medium text-slate-600 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={showOnTop}
+                onChange={e => setShowOnTop(e.target.checked)}
+                className="w-4 h-4 accent-pink-500"
+              />
+              トップに表示
+            </label>
+            <div className="flex items-center gap-2">
+              <label className="text-xs font-medium text-slate-600">出張</label>
+              <select
+                value={dispatchType}
+                onChange={e => setDispatchType(e.target.value as 'none' | 'available' | 'only')}
+                className="px-3 py-2 rounded-xl border border-slate-200 text-xs bg-slate-50/50 focus:outline-none focus:ring-2 focus:ring-pink-200"
+              >
+                <option value="none">出張なし</option>
+                <option value="available">出張あり</option>
+                <option value="only">出張専門</option>
+              </select>
+            </div>
           </div>
 
           {/* 営業時間 */}

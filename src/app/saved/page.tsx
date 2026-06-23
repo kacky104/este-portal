@@ -79,7 +79,7 @@ export default function SavedPage() {
     if (missing.length === 0) { setLoadingSalons(false); return; }
     let cancelled = false;
     (async () => {
-      const data = await fetchSalons(createClient(), missing);
+      const data = await fetchSalons(createClient(), { ids: missing });
       if (cancelled) return;
       missing.forEach(id => salonAttempted.current.add(id));
       setSalonsById(prev => {
