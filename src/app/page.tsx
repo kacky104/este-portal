@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { ShuffledSalons } from "./components/ShuffledSalons";
 import { TherapistScroller } from "./components/TherapistScroller";
-import { createClient } from "./lib/supabase/server";
+import { createPublicClient } from "./lib/supabase/public";
 import HeaderImageSlider from "@/components/HeaderImageSlider";
 import { FeaturedSalonSlider, type FeaturedSalon } from "./components/FeaturedSalonSlider";
 import { SavedSalonsMenu } from "./components/SavedSalonsMenu";
@@ -19,19 +19,35 @@ const AREAS = [
   "出張",
 ] as const;
 
+// ISR：トップは10分キャッシュ（並び順のランダム化はクライアント側で行うため固定HTMLでよい）。
+// オーナー編集時は /api/revalidate から revalidatePath('/') で即時更新する。
+export const revalidate = 600;
+
 export default async function Home() {
-  const supabase = await createClient();
-  const salons = await fetchSalons(supabase);
-
-  // ── ピックアップサロン取得 ──────────────────────────────
+  // cookie を読まない匿名クライアント（ISR を効かせるため。公開データ専用）。
+  const supabase = createPublicClient();
   const todayJST = getBusinessDateJST();
-  let featuredSalons: FeaturedSalon[] = [];
 
-  const { data: featuredRows, error: featuredErr } = await supabase
-    .from('featured_salons')
-    .select('salon_id, display_order, image_url')
-    .order('display_order', { ascending: true })
-    .limit(5);
+  // ── 互いに依存しない3クエリを並列実行（往復の積み上がりを解消） ──
+  const [salons, featuredRes, todaySchedRes] = await Promise.all([
+    fetchSalons(supabase),
+    supabase
+      .from('featured_salons')
+      .select('salon_id, display_order, image_url')
+      .order('display_order', { ascending: true })
+      .limit(5),
+    supabase
+      .from('therapist_schedules')
+      .select('start_time, end_time')
+      .eq('schedule_date', todayJST)
+      .eq('is_active', true),
+  ]);
+
+  const { data: featuredRows, error: featuredErr } = featuredRes;
+  const todaySchedules = todaySchedRes.data;
+
+  // ── ピックアップサロン取得（featuredRows に依存する後段） ──
+  let featuredSalons: FeaturedSalon[] = [];
 
   if (!featuredErr && featuredRows && featuredRows.length > 0) {
     const featuredIds = featuredRows.map(r => r.salon_id as number);
@@ -85,21 +101,12 @@ export default async function Home() {
         };
       });
 
-    // ページ読み込みのたびにランダムシャッフル
-    for (let i = built.length - 1; i > 0; i--) {
-      const j = Math.floor(Math.random() * (i + 1));
-      [built[i], built[j]] = [built[j], built[i]];
-    }
+    // 並び順のランダム化は FeaturedSalonSlider（クライアント）でマウント後に行う（固定順で返す）。
     featuredSalons = built;
   }
 
-  // 本日出勤セラピスト総数（off以外 = is_active かつ start/end が存在するすべて）
-  const { data: todaySchedules } = await supabase
-    .from('therapist_schedules')
-    .select('start_time, end_time')
-    .eq('schedule_date', todayJST)
-    .eq('is_active', true);
-
+  // 本日出勤セラピスト総数（off以外 = is_active かつ start/end が存在するすべて）。
+  // クエリは上の Promise.all で並列取得済み（todaySchedRes）。
   const todayTherapistCount = (todaySchedules ?? []).filter(
     s => Boolean(s.start_time) && Boolean(s.end_time)
   ).length;

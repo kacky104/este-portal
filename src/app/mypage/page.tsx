@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { createClient } from '@/app/lib/supabase/client';
+import { revalidateTop } from '@/app/lib/revalidateTop';
 import { TimeRangePicker } from '@/components/TimeRangePicker';
 import { SALON_THEMES, type ThemeKey } from '@/app/lib/themes';
 import { COUPON_COLORS, getCouponColor, DEFAULT_COUPON_COLOR_KEY, type CouponColorKey } from '@/app/lib/couponColors';
@@ -561,6 +562,7 @@ export default function MyPage() {
       await supabase.storage.from('salon-images').remove([path]); return;
     }
     setSalonImages(prev => [...prev, { ...inserted as SalonImage, mobile_image_url: null }]);
+    revalidateTop(); // 成功時：トップのISRを即時更新
     showToast('画像スロットを追加しました');
   };
 
@@ -591,6 +593,7 @@ export default function MyPage() {
     }
     storageRemove(oldUrl);
     setSalonImages(prev => prev.map(img => img.id === imgId ? { ...img, image_url: publicUrl } : img));
+    revalidateTop();
     showToast('PC用画像を変更しました');
   };
 
@@ -621,6 +624,7 @@ export default function MyPage() {
     }
     if (oldMobileUrl) storageRemove(oldMobileUrl);
     setSalonImages(prev => prev.map(img => img.id === imgId ? { ...img, mobile_image_url: publicUrl } : img));
+    revalidateTop();
     showToast('スマホ用画像をアップロードしました');
   };
 
@@ -630,6 +634,7 @@ export default function MyPage() {
     storageRemove(mobileUrl);
     await supabase.from('salon_images').update({ mobile_image_url: null }).eq('id', imgId);
     setSalonImages(prev => prev.map(img => img.id === imgId ? { ...img, mobile_image_url: null } : img));
+    revalidateTop();
     showToast('スマホ用画像を削除しました');
   };
 
@@ -640,6 +645,7 @@ export default function MyPage() {
     if (mobileImageUrl) storageRemove(mobileImageUrl);
     await supabase.from('salon_images').delete().eq('id', id);
     setSalonImages(prev => prev.filter(img => img.id !== id));
+    revalidateTop();
     showToast('画像スロットを削除しました');
   };
 
@@ -657,6 +663,7 @@ export default function MyPage() {
         supabase.from('salon_images').update({ display_order: img.display_order }).eq('id', img.id)
       )
     );
+    revalidateTop();
   };
 
   const handleSalonSave = async () => {
@@ -679,6 +686,7 @@ export default function MyPage() {
       })
       .eq('id', salon.id);
     setSaving(false);
+    if (!error) revalidateTop(); // 成功時：トップのISRを即時更新
     showToast(error ? '保存に失敗しました' : '保存しました');
   };
 
@@ -698,6 +706,7 @@ export default function MyPage() {
       .from('therapist_schedules')
       .upsert(rows, { onConflict: 'therapist_id,schedule_date' });
     setSavingSchedule(null);
+    if (!error) revalidateTop();
     showToast(error ? '保存に失敗しました' : 'スケジュールを保存しました');
   };
 
@@ -750,6 +759,7 @@ export default function MyPage() {
     setNewTherapistName('');
     setNewTherapistIsNew(false);
     setAddingTherapist(false);
+    revalidateTop();
     showToast('セラピストを追加しました');
   };
 
@@ -804,6 +814,7 @@ export default function MyPage() {
       n.delete(`${sid}-schedule`);
       return n;
     });
+    revalidateTop();
     showToast('セラピストを削除しました');
   };
 
@@ -838,6 +849,7 @@ export default function MyPage() {
       setAvailableNow(sync);
     }
     setSavingAvailable(false);
+    revalidateTop();
     showToast('「今すぐ」設定を保存しました');
   };
 
@@ -894,6 +906,7 @@ export default function MyPage() {
     setDiaryTitle('');
     setDiaryBody('');
     setDiaryReload((n) => n + 1);
+    revalidateTop();
     showToast('写メ日記を投稿しました');
   };
 
@@ -938,6 +951,7 @@ export default function MyPage() {
     rebuildCouponForms(list);
     setNewCoupon({ title: '', discount: '', conditions: '', valid_until: '', is_published: true, color: DEFAULT_COUPON_COLOR_KEY });
     setAddingCoupon(false);
+    revalidateTop();
     showToast('クーポンを追加しました');
   };
 
@@ -967,6 +981,7 @@ export default function MyPage() {
     setCoupons(prev => prev.map(c => c.id === id
       ? { ...c, title: form.title!.trim(), discount: form.discount!.trim(), conditions, valid_until, is_published, color }
       : c));
+    revalidateTop();
     showToast('クーポンを保存しました');
   };
 
@@ -979,6 +994,7 @@ export default function MyPage() {
     if (error) { showToast(`変更に失敗しました: ${error.message}`); return; }
     setCoupons(prev => prev.map(c => c.id === id ? { ...c, is_published: next } : c));
     setCouponForms(prev => ({ ...prev, [id]: { ...prev[id], is_published: next } }));
+    revalidateTop();
     showToast(next ? '公開にしました' : '非公開にしました');
   };
 
@@ -995,6 +1011,7 @@ export default function MyPage() {
     }
     setCoupons(prev => prev.filter(c => c.id !== id));
     setCouponForms(prev => { const n = { ...prev }; delete n[id]; return n; });
+    revalidateTop();
     showToast('クーポンを削除しました');
   };
 
@@ -1070,6 +1087,7 @@ export default function MyPage() {
     rebuildAnnouncementForms(list);
     setNewAnnouncement({ title: '', content: '', is_published: true, image_url: null });
     setAddingAnnouncement(false);
+    revalidateTop();
     showToast('お知らせを追加しました');
   };
 
@@ -1096,6 +1114,7 @@ export default function MyPage() {
     setAnnouncements(prev => prev.map(a => a.id === id
       ? { ...a, title: form.title!.trim(), content, is_published, image_url }
       : a));
+    revalidateTop();
     showToast('お知らせを保存しました');
   };
 
@@ -1108,6 +1127,7 @@ export default function MyPage() {
     if (error) { showToast(`変更に失敗しました: ${error.message}`); return; }
     setAnnouncements(prev => prev.map(a => a.id === id ? { ...a, is_published: next } : a));
     setAnnouncementForms(prev => ({ ...prev, [id]: { ...prev[id], is_published: next } }));
+    revalidateTop();
     showToast(next ? '公開にしました' : '非公開にしました');
   };
 
@@ -1125,6 +1145,7 @@ export default function MyPage() {
         .map(a => a.id === id ? { ...a, published_at: newIso } : a)
         .sort((x, y) => new Date(y.published_at).getTime() - new Date(x.published_at).getTime())
     );
+    revalidateTop();
     showToast('再投稿しました');
   };
 
@@ -1141,6 +1162,7 @@ export default function MyPage() {
     }
     setAnnouncements(prev => prev.filter(a => a.id !== id));
     setAnnouncementForms(prev => { const n = { ...prev }; delete n[id]; return n; });
+    revalidateTop();
     showToast('お知らせを削除しました');
   };
 

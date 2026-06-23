@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { createClient } from '@/app/lib/supabase/client';
+import { revalidateTop } from '@/app/lib/revalidateTop';
 
 type SliderImage = {
   id: string;
@@ -66,6 +67,7 @@ export default function HeaderSliderManager() {
     if (insertError) {
       alert('登録に失敗しました: ' + insertError.message);
     } else {
+      revalidateTop(); // 成功時：トップのISRを即時更新
       await fetchImages();
     }
 
@@ -100,6 +102,7 @@ export default function HeaderSliderManager() {
     } else if (count === 0) {
       alert('削除できませんでした。権限が不足している可能性があります。\nSupabaseのRLSポリシーを確認してください。');
     } else {
+      revalidateTop();
       await fetchImages();
     }
   };
@@ -121,6 +124,7 @@ export default function HeaderSliderManager() {
       .update({ display_order: current.display_order })
       .eq('id', target.id);
 
+    revalidateTop();
     await fetchImages();
   };
 

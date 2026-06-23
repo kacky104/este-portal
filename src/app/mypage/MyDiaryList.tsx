@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useCallback } from 'react';
 import { createClient } from '@/app/lib/supabase/client';
+import { revalidateTop } from '@/app/lib/revalidateTop';
 
 const supabase = createClient();
 const TITLE_MAX = 10;
@@ -141,6 +142,7 @@ export function MyDiaryList({
       return;
     }
     cancelEdit();
+    revalidateTop(); // 成功時：トップのISRを即時更新
     onToast('日記を更新しました');
     loadPosts();
   };
@@ -162,6 +164,7 @@ export function MyDiaryList({
 
     setDeletingId(null);
     setPosts((prev) => prev.filter((p) => p.id !== post.id));
+    revalidateTop(); // 削除成功時：トップのISRを即時更新
     onToast('投稿を削除しました');
   };
 

@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { createClient } from '@/app/lib/supabase/client';
+import { revalidateTop } from '@/app/lib/revalidateTop';
 
 const MAX_FEATURED = 5;
 const BUCKET = 'featured-salon-images';
@@ -88,6 +89,7 @@ export default function FeaturedSalonsManager({ allSalons }: { allSalons: SalonO
     setSaving(false);
     if (!error) {
       setSelectedSalonId('');
+      revalidateTop(); // 成功時：トップのISRを即時更新
       await fetchFeatured();
     }
   };
@@ -96,6 +98,7 @@ export default function FeaturedSalonsManager({ allSalons }: { allSalons: SalonO
     setSaving(true);
     await supabase.from('featured_salons').delete().eq('id', id);
     setSaving(false);
+    revalidateTop();
     await fetchFeatured();
   };
 
@@ -114,6 +117,7 @@ export default function FeaturedSalonsManager({ allSalons }: { allSalons: SalonO
     );
     setSaving(false);
     setItems(reordered.map((item, i) => ({ ...item, displayOrder: i + 1 })));
+    revalidateTop();
   };
 
   const triggerImageUpload = (itemId: string) => {
@@ -169,6 +173,7 @@ export default function FeaturedSalonsManager({ allSalons }: { allSalons: SalonO
     e.target.value = '';
     uploadTargetId.current = null;
     setSaving(false);
+    if (!updateError) revalidateTop();
     await fetchFeatured();
   };
 
@@ -181,6 +186,7 @@ export default function FeaturedSalonsManager({ allSalons }: { allSalons: SalonO
     }
     await supabase.from('featured_salons').update({ image_url: null }).eq('id', item.id);
     setSaving(false);
+    revalidateTop();
     await fetchFeatured();
   };
 

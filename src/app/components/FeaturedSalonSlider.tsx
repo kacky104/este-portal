@@ -24,21 +24,34 @@ const GRADS = [
 const AUTO_PLAY_MS = 4500;
 
 export function FeaturedSalonSlider({ salons }: { salons: FeaturedSalon[] }) {
+  // サーバーの初回HTMLは「渡された順（固定）」でレンダリングし、マウント後（useEffect）に
+  // シャッフルして並べ替える（ハイドレーション不一致を避けつつ「開くたびに順番が変わる」を維持）。
+  const [displaySalons, setDisplaySalons] = useState<FeaturedSalon[]>(salons);
   const [current, setCurrent] = useState(0);
   const [paused, setPaused]   = useState(false);
   const touchStartX = useRef<number>(0);
 
-  const prev = useCallback(() => setCurrent(c => (c - 1 + salons.length) % salons.length), [salons.length]);
-  const next = useCallback(() => setCurrent(c => (c + 1) % salons.length),                [salons.length]);
+  useEffect(() => {
+    const arr = [...salons];
+    for (let i = arr.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [arr[i], arr[j]] = [arr[j], arr[i]];
+    }
+    setDisplaySalons(arr);
+    setCurrent(0);
+  }, [salons]);
+
+  const prev = useCallback(() => setCurrent(c => (c - 1 + displaySalons.length) % displaySalons.length), [displaySalons.length]);
+  const next = useCallback(() => setCurrent(c => (c + 1) % displaySalons.length),                [displaySalons.length]);
 
   // Auto-play
   useEffect(() => {
-    if (paused || salons.length <= 1) return;
-    const id = setInterval(() => setCurrent(c => (c + 1) % salons.length), AUTO_PLAY_MS);
+    if (paused || displaySalons.length <= 1) return;
+    const id = setInterval(() => setCurrent(c => (c + 1) % displaySalons.length), AUTO_PLAY_MS);
     return () => clearInterval(id);
-  }, [paused, salons.length]);
+  }, [paused, displaySalons.length]);
 
-  if (salons.length === 0) return null;
+  if (displaySalons.length === 0) return null;
 
   return (
     <div
@@ -57,7 +70,7 @@ export function FeaturedSalonSlider({ salons }: { salons: FeaturedSalon[] }) {
             if (Math.abs(delta) > 50) { delta < 0 ? next() : prev(); }
           }}
         >
-          {salons.map((salon, i) => {
+          {displaySalons.map((salon, i) => {
             const bgImage = salon.imageUrl ?? salon.therapistImages[0];
             const grad        = GRADS[i % GRADS.length];
 
@@ -129,7 +142,7 @@ export function FeaturedSalonSlider({ salons }: { salons: FeaturedSalon[] }) {
       </div>
 
       {/* ── Arrow buttons ──────────────────────────────────── */}
-      {salons.length > 1 && (
+      {displaySalons.length > 1 && (
         <>
           <button
             onClick={prev}
@@ -153,9 +166,9 @@ export function FeaturedSalonSlider({ salons }: { salons: FeaturedSalon[] }) {
       )}
 
       {/* ── Dot indicators ─────────────────────────────────── */}
-      {salons.length > 1 && (
+      {displaySalons.length > 1 && (
         <div className="flex justify-center items-center gap-2 mt-3">
-          {salons.map((_, i) => (
+          {displaySalons.map((_, i) => (
             <button
               key={i}
               onClick={() => setCurrent(i)}

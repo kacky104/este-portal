@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { createClient } from '@/app/lib/supabase/client';
+import { revalidateTop } from '@/app/lib/revalidateTop';
 import {
   BADGE_CATEGORY_ORDER,
   BADGE_CATEGORY_LABELS,
@@ -200,6 +201,7 @@ export default function TherapistEditPage() {
       .eq('id', therapist.id);
 
     setSaving(false);
+    if (!error) revalidateTop(); // 成功時：トップのISRを即時更新
     showToast(error ? '保存に失敗しました' : '保存しました');
   };
 
