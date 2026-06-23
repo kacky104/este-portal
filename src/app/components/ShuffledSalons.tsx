@@ -446,7 +446,7 @@ export function ShuffledSalons({ salons, areas, showAge = false, areaNextToDuty 
   const tabs = (
     <div className="mb-8">
       <div
-        className="flex gap-2 overflow-x-auto pb-2"
+        className="flex flex-wrap justify-center gap-1 pb-2 sm:flex-nowrap sm:justify-start sm:gap-2 sm:overflow-x-auto"
         style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' } as React.CSSProperties}
       >
         {areas.map(area => {
@@ -456,14 +456,14 @@ export function ShuffledSalons({ salons, areas, showAge = false, areaNextToDuty 
             <button
               key={area}
               onClick={() => setActiveArea(area)}
-              className={`flex-shrink-0 flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-medium transition-all ${
+              className={`flex-shrink-0 flex items-center gap-0.5 px-1.5 py-1 rounded-full text-[10px] font-medium transition-all sm:gap-1.5 sm:px-4 sm:py-2 sm:text-sm ${
                 active
                   ? 'bg-pink-600 text-white shadow-md shadow-pink-500/25'
                   : 'border border-slate-200 bg-white text-slate-600 hover:border-pink-300 hover:text-pink-600 shadow-sm'
               }`}
             >
               {areaLabel(area)}
-              <span className={`text-[11px] rounded-full px-1.5 py-px font-bold ${active ? 'bg-white/25 text-white' : 'bg-slate-100 text-slate-500'}`}>
+              <span className={`text-[10px] rounded-full px-1 py-px font-bold sm:text-[11px] sm:px-1.5 ${active ? 'bg-white/25 text-white' : 'bg-slate-100 text-slate-500'}`}>
                 {count}
               </span>
             </button>
