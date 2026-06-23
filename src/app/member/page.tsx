@@ -134,7 +134,7 @@ export default async function MemberPage() {
               <span className="w-7 h-7 rounded-full bg-pink-50 flex items-center justify-center flex-shrink-0" style={{ color: '#EC4899' }}>
                 <svg width="16" height="16" viewBox="0 0 24 24"><PawGlyph /></svg>
               </span>
-              <span className="text-xs sm:text-sm font-medium text-slate-500">保存したサロン</span>
+              <span className="text-xs sm:text-sm font-medium text-slate-500">保存サロン</span>
             </div>
             <div className="flex items-baseline justify-between gap-2">
               <p className="font-bold leading-none">
@@ -156,7 +156,7 @@ export default async function MemberPage() {
               <span className="w-7 h-7 rounded-full bg-purple-50 flex items-center justify-center flex-shrink-0" style={{ color: '#A855F7' }}>
                 <svg width="16" height="16" viewBox="0 0 24 24"><SakuraGlyph /></svg>
               </span>
-              <span className="text-xs sm:text-sm font-medium text-slate-500">保存したセラピスト</span>
+              <span className="text-xs sm:text-sm font-medium text-slate-500">保存セラピスト</span>
             </div>
             <div className="flex items-baseline justify-between gap-2">
               <p className="font-bold leading-none">
