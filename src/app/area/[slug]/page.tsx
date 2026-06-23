@@ -83,7 +83,7 @@ export default async function AreaPage({ params }: { params: Promise<{ slug: str
           </p>
         </div>
 
-        <ShuffledSalons salons={salons} areas={[...AREA_ORDER]} currentArea={area} tabsAsLinks />
+        <ShuffledSalons salons={salons} areas={[...AREA_ORDER]} currentArea={area} tabsAsLinks showAge areaNextToDuty ratingAtBottom compactTherapists showSaveButton wideDesktop />
       </main>
 
       {/* ─── Footer ──────────────────────────────────────── */}
