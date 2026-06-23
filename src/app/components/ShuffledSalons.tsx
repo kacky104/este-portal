@@ -11,6 +11,7 @@ import { SalonNameRow } from './SalonNameRow';
 import { SaveButton } from './SaveButton';
 import { useSalonTherapists, type TherapistThumb } from './useSalonTherapists';
 import { areaLabel } from '../lib/areaLabel';
+import { areaHref } from '../lib/areas';
 import type { Salon } from '@/app/lib/salons';
 
 export type { Salon };
@@ -419,9 +420,12 @@ function SalonCardSkeleton() {
 
 // ── ShuffledSalons ────────────────────────────────────────────
 
-export function ShuffledSalons({ salons, areas, showAge = false, areaNextToDuty = false, ratingAtBottom = false, compactTherapists = false, showSaveButton = false, wideDesktop = false }: { salons: Salon[]; areas: string[]; showAge?: boolean; areaNextToDuty?: boolean; ratingAtBottom?: boolean; compactTherapists?: boolean; showSaveButton?: boolean; wideDesktop?: boolean }) {
+export function ShuffledSalons({ salons, areas, showAge = false, areaNextToDuty = false, ratingAtBottom = false, compactTherapists = false, showSaveButton = false, wideDesktop = false, tabsAsLinks = false, currentArea }: { salons: Salon[]; areas: string[]; showAge?: boolean; areaNextToDuty?: boolean; ratingAtBottom?: boolean; compactTherapists?: boolean; showSaveButton?: boolean; wideDesktop?: boolean; tabsAsLinks?: boolean; currentArea?: string }) {
   const [list,            setList]            = useState<Salon[]>([]);
   const [activeArea,      setActiveArea]      = useState('福岡全域');
+  // tabsAsLinks 時はページ自体が絞り込み対象を表すため、currentArea を選択中エリアとして使う
+  // （クリックは別ページへの遷移＝Link。内部の activeArea state は使わない）。
+  const activeAreaEffective = currentArea ?? activeArea;
 
   // セラピストサムネイル取得は共有フックに集約（保存ページと同一ロジック）
   const salonTherapists = useSalonTherapists(salons);
@@ -440,7 +444,7 @@ export function ShuffledSalons({ salons, areas, showAge = false, areaNextToDuty 
     area === '福岡全域' ? salons.length : salons.filter(s => s.area === area).length;
 
   const filtered =
-    activeArea === '福岡全域' ? list : list.filter(s => s.area === activeArea);
+    activeAreaEffective === '福岡全域' ? list : list.filter(s => s.area === activeAreaEffective);
 
   /* ── Area filter tabs ── */
   const tabs = (
@@ -451,21 +455,27 @@ export function ShuffledSalons({ salons, areas, showAge = false, areaNextToDuty 
       >
         {areas.map(area => {
           const count  = areaCount(area);
-          const active = activeArea === area;
-          return (
-            <button
-              key={area}
-              onClick={() => setActiveArea(area)}
-              className={`flex-shrink-0 flex items-center px-2 py-1 rounded-full text-sm font-medium transition-all sm:gap-1.5 sm:px-4 sm:py-2 ${
-                active
-                  ? 'bg-pink-600 text-white shadow-md shadow-pink-500/25'
-                  : 'border border-slate-200 bg-white text-slate-600 hover:border-pink-300 hover:text-pink-600 shadow-sm'
-              }`}
-            >
+          const active = activeAreaEffective === area;
+          const cls = `flex-shrink-0 flex items-center px-2 py-1 rounded-full text-sm font-medium transition-all sm:gap-1.5 sm:px-4 sm:py-2 ${
+            active
+              ? 'bg-pink-600 text-white shadow-md shadow-pink-500/25'
+              : 'border border-slate-200 bg-white text-slate-600 hover:border-pink-300 hover:text-pink-600 shadow-sm'
+          }`;
+          const inner = (
+            <>
               {areaLabel(area)}
               <span className={`hidden sm:inline-flex sm:items-center text-[11px] rounded-full px-1.5 py-px font-bold ${active ? 'bg-white/25 text-white' : 'bg-slate-100 text-slate-500'}`}>
                 {count}
               </span>
+            </>
+          );
+          return tabsAsLinks ? (
+            <Link key={area} href={areaHref(area)} className={cls} aria-current={active ? 'page' : undefined}>
+              {inner}
+            </Link>
+          ) : (
+            <button key={area} onClick={() => setActiveArea(area)} className={cls}>
+              {inner}
             </button>
           );
         })}

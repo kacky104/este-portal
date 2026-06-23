@@ -9,6 +9,7 @@ import { AccountMenu } from "./components/AccountMenu";
 import { NotificationBell } from "./components/NotificationBell";
 import { fetchSalons } from "./lib/salons";
 import { getBusinessDateJST } from "@/lib/dutyStatus";
+import { ALL_AREA } from "./lib/areas";
 
 // フィルタ判定／DB連動キー（変更不可）。画面表示はすべて areaLabel() を通す。
 const AREAS = [
@@ -265,7 +266,7 @@ export default async function Home() {
               表示順はページ読み込みのたびにシャッフルされます
             </p>
 
-            <ShuffledSalons salons={salons} areas={[...AREAS]} showAge areaNextToDuty ratingAtBottom compactTherapists showSaveButton wideDesktop />
+            <ShuffledSalons salons={salons} areas={[...AREAS]} currentArea={ALL_AREA} tabsAsLinks showAge areaNextToDuty ratingAtBottom compactTherapists showSaveButton wideDesktop />
 
             <div className="text-center mt-10">
               <Link
