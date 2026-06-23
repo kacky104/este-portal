@@ -3,13 +3,14 @@ import { ShuffledSalons } from "./components/ShuffledSalons";
 import { TherapistScroller } from "./components/TherapistScroller";
 import { createPublicClient } from "./lib/supabase/public";
 import HeaderImageSlider from "@/components/HeaderImageSlider";
-import { FeaturedSalonSlider, type FeaturedSalon } from "./components/FeaturedSalonSlider";
+import { FeaturedSalonSlider } from "./components/FeaturedSalonSlider";
 import { SavedSalonsMenu } from "./components/SavedSalonsMenu";
 import { AccountMenu } from "./components/AccountMenu";
 import { NotificationBell } from "./components/NotificationBell";
 import { fetchSalons } from "./lib/salons";
 import { getBusinessDateJST } from "@/lib/dutyStatus";
 import { ALL_AREA } from "./lib/areas";
+import { getFeaturedSalons } from "./lib/featured";
 
 // フィルタ判定／DB連動キー（変更不可）。画面表示はすべて areaLabel() を通す。
 const AREAS = [
@@ -31,14 +32,11 @@ export default async function Home() {
   const supabase = createPublicClient();
   const todayJST = getBusinessDateJST();
 
-  // ── 互いに依存しない3クエリを並列実行（往復の積み上がりを解消） ──
-  const [salons, featuredRes, todaySchedRes] = await Promise.all([
+  // ── 互いに依存しない3処理を並列実行（往復の積み上がりを解消） ──
+  // ピックアップは area=null の共通セット（＝トップ用）。地域ページは各エリアの設定を使う。
+  const [salons, featuredSalons, todaySchedRes] = await Promise.all([
     fetchSalons(supabase),
-    supabase
-      .from('featured_salons')
-      .select('salon_id, display_order, image_url')
-      .order('display_order', { ascending: true })
-      .limit(5),
+    getFeaturedSalons(supabase, null),
     supabase
       .from('therapist_schedules')
       .select('start_time, end_time')
@@ -46,67 +44,7 @@ export default async function Home() {
       .eq('is_active', true),
   ]);
 
-  const { data: featuredRows, error: featuredErr } = featuredRes;
   const todaySchedules = todaySchedRes.data;
-
-  // ── ピックアップサロン取得（featuredRows に依存する後段） ──
-  let featuredSalons: FeaturedSalon[] = [];
-
-  if (!featuredErr && featuredRows && featuredRows.length > 0) {
-    const featuredIds = featuredRows.map(r => r.salon_id as number);
-    const imageUrlMap = Object.fromEntries(
-      featuredRows.map(r => [r.salon_id as number, (r.image_url as string | null) ?? null])
-    );
-
-    const [{ data: featuredSalonData }, { data: therapistData }] = await Promise.all([
-      supabase.from('salons').select('id, name, area, price, rating').in('id', featuredIds),
-      supabase.from('therapists').select('id, salon_id, profile_image_url')
-        .in('salon_id', featuredIds)
-        .not('profile_image_url', 'is', null),
-    ]);
-
-    // 本日出勤セット
-    const therapistIds = (therapistData ?? []).map(t => t.id);
-    let onDutySet = new Set<unknown>();
-    if (therapistIds.length > 0) {
-      const { data: schedData } = await supabase
-        .from('therapist_schedules')
-        .select('therapist_id')
-        .in('therapist_id', therapistIds)
-        .eq('schedule_date', todayJST)
-        .eq('is_active', true);
-      onDutySet = new Set((schedData ?? []).map(r => r.therapist_id));
-    }
-
-    const salonInfoMap = Object.fromEntries(
-      (featuredSalonData ?? []).map(s => [s.id as number, s])
-    );
-
-    const built = featuredIds
-      .filter(id => salonInfoMap[id])
-      .map(salonId => {
-        const s = salonInfoMap[salonId];
-        const therapists = (therapistData ?? []).filter(t => (t.salon_id as number) === salonId);
-        const sorted = [...therapists].sort((a, b) =>
-          (onDutySet.has(a.id) ? 0 : 1) - (onDutySet.has(b.id) ? 0 : 1)
-        );
-        return {
-          salonId,
-          salonName:       (s.name   as string) ?? '',
-          area:            (s.area   as string) ?? '',
-          price:           (s.price  as string) ?? '',
-          rating:          (s.rating as number) ?? 0,
-          imageUrl:        imageUrlMap[salonId] ?? undefined,
-          therapistImages: sorted
-            .map(t => t.profile_image_url as string | null)
-            .filter((u): u is string => Boolean(u))
-            .slice(0, 4),
-        };
-      });
-
-    // 並び順のランダム化は FeaturedSalonSlider（クライアント）でマウント後に行う（固定順で返す）。
-    featuredSalons = built;
-  }
 
   // 本日出勤セラピスト総数（off以外 = is_active かつ start/end が存在するすべて）。
   // クエリは上の Promise.all で並列取得済み（todaySchedRes）。

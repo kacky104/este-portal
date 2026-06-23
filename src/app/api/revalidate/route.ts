@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/app/lib/supabase/server";
+import { areaHref } from "@/app/lib/areas";
 
 // ISR キャッシュを即時更新するエンドポイント。
 // 認証で保護：cookie のログインセッションから getUser し、認証済みユーザー（オーナー/管理者）
@@ -22,11 +23,13 @@ export async function POST(req: Request) {
 
   // ボディは任意。無し/不正でも従来どおりトップを無効化する（後方互換）。
   let salonId: number | string | undefined;
+  let area: string | undefined;
   let top = true;
   try {
-    const body = (await req.json()) as { salonId?: number | string; top?: boolean } | null;
+    const body = (await req.json()) as { salonId?: number | string; top?: boolean; area?: string } | null;
     if (body && typeof body === "object") {
       if (body.salonId != null) salonId = body.salonId;
+      if (body.area != null) area = body.area;
       if (body.top === false) top = false;
     }
   } catch {
@@ -39,6 +42,13 @@ export async function POST(req: Request) {
     // 本体＋配下サブページを一括無効化。
     revalidatePath(`/salon/${salonId}`, "layout");
     revalidated.push(`/salon/${salonId}`);
+  }
+
+  if (area != null && area.trim() !== "") {
+    // 該当の地域ページ（/area/<slug>）を無効化。
+    const path = areaHref(area);
+    revalidatePath(path);
+    revalidated.push(path);
   }
 
   if (top) {

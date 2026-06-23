@@ -2,7 +2,7 @@
 // ログイン cookie は同一オリジンの fetch で自動同送されるため、トークンの受け渡しは不要。
 // 失敗（ネットワーク/権限等）は握りつぶし、ユーザー操作は止めない。
 
-type RevalidateBody = { salonId?: number | string; top?: boolean };
+type RevalidateBody = { salonId?: number | string; top?: boolean; area?: string };
 
 async function postRevalidate(body?: RevalidateBody): Promise<void> {
   try {
@@ -21,6 +21,16 @@ async function postRevalidate(body?: RevalidateBody): Promise<void> {
 // トップ(/)のみを無効化（従来どおり）。
 export async function revalidateTop(): Promise<void> {
   await postRevalidate();
+}
+
+// ピックアップ編集後に、対象セットのページだけを無効化する。
+// area === null … トップ(/)、それ以外 … /area/<slug>（トップは無効化しない）。
+export async function revalidateFeaturedArea(area: string | null): Promise<void> {
+  if (area === null) {
+    await revalidateTop();
+    return;
+  }
+  await postRevalidate({ area, top: false });
 }
 
 // 指定サロンの詳細ページ配下（本体＋サブページ）を無効化する。

@@ -2,7 +2,9 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { createClient } from '@/app/lib/supabase/client';
-import { revalidateTop } from '@/app/lib/revalidateTop';
+import { revalidateFeaturedArea } from '@/app/lib/revalidateTop';
+import { AREA_ORDER, ALL_AREA } from '@/app/lib/areas';
+import { areaLabel } from '@/app/lib/areaLabel';
 
 const MAX_FEATURED = 5;
 const BUCKET = 'featured-salon-images';
@@ -22,10 +24,17 @@ type SalonOption = {
   area: string;
 };
 
+// 設定対象セットの選択肢：トップ共通（null）＋ 全域以外の6エリア。
+const AREA_TABS: { label: string; value: string | null }[] = [
+  { label: 'トップ(共通)', value: null },
+  ...AREA_ORDER.filter(a => a !== ALL_AREA).map(a => ({ label: areaLabel(a), value: a })),
+];
+
 export default function FeaturedSalonsManager({ allSalons }: { allSalons: SalonOption[] }) {
   const supabase = createClient();
   const [items,            setItems]           = useState<FeaturedItem[]>([]);
   const [selectedSalonId,  setSelectedSalonId] = useState<number | ''>('');
+  const [selectedArea,     setSelectedArea]    = useState<string | null>(null);
   const [loading,          setLoading]         = useState(true);
   const [saving,           setSaving]          = useState(false);
   const [errorMsg,         setErrorMsg]        = useState('');
@@ -34,12 +43,16 @@ export default function FeaturedSalonsManager({ allSalons }: { allSalons: SalonO
   const uploadTargetId  = useRef<string | null>(null);
 
   const fetchFeatured = useCallback(async () => {
+    setLoading(true);
     const sb = createClient();
 
-    const { data: featuredData, error } = await sb
+    const baseQuery = sb
       .from('featured_salons')
       .select('id, salon_id, display_order, image_url')
       .order('display_order', { ascending: true });
+    const { data: featuredData, error } = await (
+      selectedArea === null ? baseQuery.is('area', null) : baseQuery.eq('area', selectedArea)
+    );
 
     if (error) {
       setErrorMsg('テーブルがまだ作成されていない可能性があります。SQLマイグレーションを実行してください。');
@@ -74,7 +87,7 @@ export default function FeaturedSalonsManager({ allSalons }: { allSalons: SalonO
       imageUrl:     (row.image_url as string | null) ?? null,
     })));
     setLoading(false);
-  }, []);
+  }, [selectedArea]);
 
   useEffect(() => { fetchFeatured(); }, [fetchFeatured]);
 
@@ -82,14 +95,17 @@ export default function FeaturedSalonsManager({ allSalons }: { allSalons: SalonO
     if (selectedSalonId === '' || items.length >= MAX_FEATURED) return;
     const nextOrder = items.length + 1;
     setSaving(true);
+    // トップ共通（null）は area キーを送らない＝マイグレーション前でも従来どおり動く。
+    // 地域別（値あり）は area 列が必要なため、マイグレーション後に有効。
     const { error } = await supabase.from('featured_salons').insert({
       salon_id:      selectedSalonId,
       display_order: nextOrder,
+      ...(selectedArea !== null ? { area: selectedArea } : {}),
     });
     setSaving(false);
     if (!error) {
       setSelectedSalonId('');
-      revalidateTop(); // 成功時：トップのISRを即時更新
+      revalidateFeaturedArea(selectedArea); // 成功時：対象ページのISRを即時更新
       await fetchFeatured();
     }
   };
@@ -98,7 +114,7 @@ export default function FeaturedSalonsManager({ allSalons }: { allSalons: SalonO
     setSaving(true);
     await supabase.from('featured_salons').delete().eq('id', id);
     setSaving(false);
-    revalidateTop();
+    revalidateFeaturedArea(selectedArea);
     await fetchFeatured();
   };
 
@@ -117,7 +133,7 @@ export default function FeaturedSalonsManager({ allSalons }: { allSalons: SalonO
     );
     setSaving(false);
     setItems(reordered.map((item, i) => ({ ...item, displayOrder: i + 1 })));
-    revalidateTop();
+    revalidateFeaturedArea(selectedArea);
   };
 
   const triggerImageUpload = (itemId: string) => {
@@ -173,7 +189,7 @@ export default function FeaturedSalonsManager({ allSalons }: { allSalons: SalonO
     e.target.value = '';
     uploadTargetId.current = null;
     setSaving(false);
-    if (!updateError) revalidateTop();
+    if (!updateError) revalidateFeaturedArea(selectedArea);
     await fetchFeatured();
   };
 
@@ -186,7 +202,7 @@ export default function FeaturedSalonsManager({ allSalons }: { allSalons: SalonO
     }
     await supabase.from('featured_salons').update({ image_url: null }).eq('id', item.id);
     setSaving(false);
-    revalidateTop();
+    revalidateFeaturedArea(selectedArea);
     await fetchFeatured();
   };
 
@@ -202,6 +218,32 @@ export default function FeaturedSalonsManager({ allSalons }: { allSalons: SalonO
         </div>
         <span className="text-xs text-slate-400">{items.length} / {MAX_FEATURED}件</span>
       </div>
+
+      {/* 設定対象セットの切り替え（トップ共通 / 各地域ページ） */}
+      <div className="flex flex-wrap gap-1.5 mb-5">
+        {AREA_TABS.map(tab => {
+          const active = selectedArea === tab.value;
+          return (
+            <button
+              key={tab.label}
+              onClick={() => { if (!active) { setSelectedSalonId(''); setSelectedArea(tab.value); } }}
+              disabled={saving}
+              className={`px-3 py-1.5 rounded-full text-xs font-bold transition-colors disabled:opacity-40 ${
+                active
+                  ? 'bg-pink-500 text-white shadow-sm'
+                  : 'border border-slate-200 bg-white text-slate-500 hover:border-pink-300 hover:text-pink-500'
+              }`}
+            >
+              {tab.label}
+            </button>
+          );
+        })}
+      </div>
+      <p className="text-[11px] text-slate-400 mb-4">
+        {selectedArea === null
+          ? 'トップページ（/）に表示される共通のピックアップです。'
+          : `「${areaLabel(selectedArea)}」の地域ページに表示されるピックアップです。`}
+      </p>
 
       {/* hidden file input */}
       <input

@@ -4,6 +4,8 @@ import { notFound } from 'next/navigation';
 import { createPublicClient } from '@/app/lib/supabase/public';
 import { fetchSalons } from '@/app/lib/salons';
 import { ShuffledSalons } from '@/app/components/ShuffledSalons';
+import { FeaturedSalonSlider } from '@/app/components/FeaturedSalonSlider';
+import { getFeaturedSalons } from '@/app/lib/featured';
 import { SavedSalonsMenu } from '@/app/components/SavedSalonsMenu';
 import { AccountMenu } from '@/app/components/AccountMenu';
 import { NotificationBell } from '@/app/components/NotificationBell';
@@ -40,7 +42,10 @@ export default async function AreaPage({ params }: { params: Promise<{ slug: str
 
   // cookie を読まない匿名クライアント（ISR を効かせるため。公開データ専用）。
   const supabase = createPublicClient();
-  const salons = await fetchSalons(supabase);
+  const [salons, featuredSalons] = await Promise.all([
+    fetchSalons(supabase),
+    getFeaturedSalons(supabase, area), // このエリア専用のピックアップ（未設定なら空＝枠ごと非表示）
+  ]);
   const label = areaLabel(area);
 
   return (
@@ -74,6 +79,20 @@ export default async function AreaPage({ params }: { params: Promise<{ slug: str
           </svg>
           トップへ戻る
         </Link>
+
+        {/* ─── Pickup Salons（このエリア専用・未設定なら非表示） ─── */}
+        {featuredSalons.length > 0 && (
+          <section className="mb-10">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-1 h-6 rounded-full bg-gradient-to-b from-pink-400 to-rose-500" />
+              <h2 className="text-xl font-bold" style={{ background: 'linear-gradient(to right, #ec4899, #f97316)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text' }}>ピックアップサロン</h2>
+              <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-pink-50 text-pink-500 border border-pink-200">
+                おすすめ
+              </span>
+            </div>
+            <FeaturedSalonSlider salons={featuredSalons} />
+          </section>
+        )}
 
         {/* Heading */}
         <div className="mb-8">
