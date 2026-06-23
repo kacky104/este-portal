@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { createClient } from '@/app/lib/supabase/client';
-import { revalidateTop } from '@/app/lib/revalidateTop';
+import { revalidateSalon } from '@/app/lib/revalidateTop';
 import { TimeRangePicker } from '@/components/TimeRangePicker';
 
 const AREAS = [
@@ -82,7 +82,7 @@ export default function SalonEditModal({ salon, onClose, onSaved }: Props) {
       console.warn('[SalonEdit] update affected 0 rows — check RLS policy on salons table');
       setError('更新できませんでした。RLSポリシーを確認してください。\n(supabase/migrations/20260616_salons_rls_update.sql を実行してください)');
     } else {
-      revalidateTop(); // 成功時：トップのISRを即時更新
+      revalidateSalon(salon.id); // 成功時：このサロンの詳細＋トップのISRを即時更新
       onSaved('サロン情報を更新しました ✓');
     }
   };

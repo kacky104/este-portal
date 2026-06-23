@@ -2,7 +2,7 @@ import Link from 'next/link';
 import { SavedSalonsMenu } from '@/app/components/SavedSalonsMenu';
 import { AccountMenu } from '@/app/components/AccountMenu';
 import { notFound } from 'next/navigation';
-import { createClient } from '@/app/lib/supabase/server';
+import { createPublicClient } from '@/app/lib/supabase/public';
 import { getTheme, breadcrumbCurrentColor } from '@/app/lib/themes';
 
 function formatDate(iso: string): string {
@@ -21,19 +21,33 @@ type DiaryRow = {
   therapists: { name: string | null } | { name: string | null }[] | null;
 };
 
+// ISR：10分ごとに再生成（保存時は /api/revalidate で即時無効化）。
+export const revalidate = 600;
+
 export default async function SalonDiaryPage({
   params,
 }: {
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const supabase = await createClient();
+  const supabase = createPublicClient();
 
-  const { data: salonRow, error } = await supabase
-    .from('salons')
-    .select('id, name, theme')
-    .eq('id', Number(id))
-    .single();
+  // salons と写メ日記一覧は互いに独立なので並列取得。
+  const [
+    { data: salonRow, error },
+    { data: diaryRows },
+  ] = await Promise.all([
+    supabase
+      .from('salons')
+      .select('id, name, theme')
+      .eq('id', Number(id))
+      .single(),
+    supabase
+      .from('diary_posts')
+      .select('id, images, title, created_at, therapists(name)')
+      .eq('salon_id', Number(id))
+      .order('created_at', { ascending: false }),
+  ]);
   if (error || !salonRow) notFound();
 
   const theme = getTheme(salonRow.theme as string | null);
@@ -55,13 +69,7 @@ export default async function SalonDiaryPage({
       : {}),
   };
 
-  // そのサロンの全セラピストの写メ日記（新しい順）
-  const { data: diaryRows } = await supabase
-    .from('diary_posts')
-    .select('id, images, title, created_at, therapists(name)')
-    .eq('salon_id', Number(id))
-    .order('created_at', { ascending: false });
-
+  // そのサロンの全セラピストの写メ日記（新しい順）。第1段で取得済み。
   const diaries = ((diaryRows ?? []) as unknown as DiaryRow[]).map((r) => {
     const t = Array.isArray(r.therapists) ? r.therapists[0] : r.therapists;
     return {

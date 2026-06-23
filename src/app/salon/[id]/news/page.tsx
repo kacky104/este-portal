@@ -2,7 +2,7 @@ import Link from "next/link";
 import { SavedSalonsMenu } from '@/app/components/SavedSalonsMenu';
 import { AccountMenu } from '@/app/components/AccountMenu';
 import { notFound } from "next/navigation";
-import { createClient } from "@/app/lib/supabase/server";
+import { createPublicClient } from "@/app/lib/supabase/public";
 import { getTheme, breadcrumbCurrentColor } from "@/app/lib/themes";
 import { NewsAccordion } from "../NewsAccordion";
 
@@ -14,19 +14,34 @@ function formatDate(iso: string): string {
   }).format(d);
 }
 
+// ISR：10分ごとに再生成（保存時は /api/revalidate で即時無効化）。
+export const revalidate = 600;
+
 export default async function SalonNewsPage({
   params,
 }: {
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const supabase = await createClient();
+  const supabase = createPublicClient();
 
-  const { data: salonRow, error } = await supabase
-    .from('salons')
-    .select('id, name, theme')
-    .eq('id', Number(id))
-    .single();
+  // salons とお知らせ一覧は互いに独立なので並列取得。
+  const [
+    { data: salonRow, error },
+    { data: rows },
+  ] = await Promise.all([
+    supabase
+      .from('salons')
+      .select('id, name, theme')
+      .eq('id', Number(id))
+      .single(),
+    supabase
+      .from('announcements')
+      .select('id, title, content, published_at, image_url')
+      .eq('salon_id', Number(id))
+      .eq('is_published', true)
+      .order('published_at', { ascending: false }),
+  ]);
 
   if (error || !salonRow) notFound();
 
@@ -52,14 +67,6 @@ export default async function SalonNewsPage({
   };
 
   const salonName = (salonRow.name as string) ?? '';
-
-  // 公開お知らせを published_at の新しい順に取得（RLS でも is_published=true のみ）
-  const { data: rows } = await supabase
-    .from('announcements')
-    .select('id, title, content, published_at, image_url')
-    .eq('salon_id', Number(id))
-    .eq('is_published', true)
-    .order('published_at', { ascending: false });
 
   // 新着バッジ（NEW!!）の判定：published_at が現在から48時間以内なら新着。
   const newCutoffMs = Date.now() - 48 * 60 * 60 * 1000;

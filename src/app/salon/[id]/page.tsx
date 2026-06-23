@@ -2,7 +2,7 @@ import Link from "next/link";
 import { SavedSalonsMenu } from '@/app/components/SavedSalonsMenu';
 import { AccountMenu } from '@/app/components/AccountMenu';
 import { notFound } from "next/navigation";
-import { createClient } from "@/app/lib/supabase/server";
+import { createPublicClient } from "@/app/lib/supabase/public";
 import { getTheme, breadcrumbCurrentColor, type ThemeKey } from "@/app/lib/themes";
 import { getBusinessDateJST } from "@/lib/dutyStatus";
 
@@ -33,6 +33,16 @@ import { SalonNameBanner } from "./SalonNameBanner";
 import { CollapsibleCourses } from "./CollapsibleCourses";
 import { CollapsibleSection } from "./CollapsibleSection";
 
+// ISR：10分ごとに再生成（保存時は /api/revalidate で即時無効化）。
+export const revalidate = 600;
+
+// ビルド時に全サロンの詳細ページを事前生成（dynamicParams=true のままなので新規サロンは初回アクセスで生成）。
+export async function generateStaticParams() {
+  const supabase = createPublicClient();
+  const { data } = await supabase.from('salons').select('id');
+  return (data ?? []).map((s) => ({ id: String(s.id) }));
+}
+
 export default async function SalonPage({
   params,
 }: {
@@ -40,21 +50,48 @@ export default async function SalonPage({
 }) {
   const { id } = await params;
 
-  const supabase = await createClient();
-  const { data: row, error } = await supabase
-    .from('salons')
-    .select('id, name, rating, review_count, tags, price, area, hours, description, appeal, phone, address, access, closed_days, note, courses, theme')
-    .eq('id', Number(id))
-    .single();
+  const supabase = createPublicClient();
+
+  // 第1段：id だけに依存する独立クエリを並列取得。
+  const couponTodayJST = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Tokyo' }).format(new Date());
+  const announcementCutoff = new Date(Date.now() - 48 * 60 * 60 * 1000).toISOString();
+  const [
+    { data: row, error },
+    { data: imageRows },
+    { data: salonTherapistRows },
+    { count: couponCountRaw },
+    { count: announcementCountRaw },
+  ] = await Promise.all([
+    supabase
+      .from('salons')
+      .select('id, name, rating, review_count, tags, price, area, hours, description, appeal, phone, address, access, closed_days, note, courses, theme')
+      .eq('id', Number(id))
+      .single(),
+    supabase
+      .from('salon_images')
+      .select('image_url, mobile_image_url')
+      .eq('salon_id', Number(id))
+      .order('display_order', { ascending: true })
+      .limit(3),
+    supabase
+      .from('therapists')
+      .select('id, is_available_now, available_until')
+      .eq('salon_id', Number(id)),
+    supabase
+      .from('coupons')
+      .select('id', { count: 'exact', head: true })
+      .eq('salon_id', Number(id))
+      .eq('is_published', true)
+      .or(`valid_until.is.null,valid_until.gte.${couponTodayJST}`),
+    supabase
+      .from('announcements')
+      .select('id', { count: 'exact', head: true })
+      .eq('salon_id', Number(id))
+      .eq('is_published', true)
+      .gte('published_at', announcementCutoff),
+  ]);
 
   if (error || !row) notFound();
-
-  const { data: imageRows } = await supabase
-    .from('salon_images')
-    .select('image_url, mobile_image_url')
-    .eq('salon_id', Number(id))
-    .order('display_order', { ascending: true })
-    .limit(3);
 
   const salonImages = (imageRows ?? []).map(r => ({
     pc:     r.image_url        as string,
@@ -84,26 +121,43 @@ export default async function SalonPage({
   const qn = QUICKNAV_COLORS[theme.key];
   const heart = HEART_COLORS[theme.key];
 
-  // 在籍セラピストを取得（本日出勤数・今すぐ数の集計に使用）。
-  const { data: salonTherapistRows } = await supabase
-    .from('therapists')
-    .select('id, is_available_now, available_until')
-    .eq('salon_id', Number(id));
+  // 在籍セラピスト（本日出勤数・今すぐ数の集計に使用）。第1段で取得済み。
   const therapistRowsForCount = salonTherapistRows ?? [];
   const therapistIds = therapistRowsForCount.map(t => t.id);
 
-  // 本日出勤セラピスト数（GridCardの「N名」と同一ロジック：当日の is_active スケジュールを持つ人数）。
-  let onDutyCount = 0;
-  // 本日の出勤総数（出勤予定・出勤中・受付終了の合計＝お休み除く。is_active かつ start/end が存在する人数）。
-  let todayScheduledCount = 0;
-  if (therapistIds.length > 0) {
-    const today = getBusinessDateJST();
-    const { data: schedRows } = await supabase
+  // 発行中クーポン枚数（公開ページ /salon/[id]/coupon と同一ロジック）。第1段で取得済み。
+  const couponCount = couponCountRaw ?? 0;
+  // お知らせの48時間以内投稿数（公開ページ /salon/[id]/news の「NEW!!」と同一ロジック）。第1段で取得済み。
+  const announcementRecentCount = announcementCountRaw ?? 0;
+
+  // 第2段：第1段の結果（therapistIds / theme.key）に依存するクエリを並列取得。
+  // therapistIds が空のときは .in('therapist_id', []) が0件を返すため、件数は従来どおり0になる。
+  const today = getBusinessDateJST();
+  const diaryCutoff = new Date(Date.now() - 48 * 60 * 60 * 1000).toISOString();
+  const [schedRes, diaryRes, wallpaperRes] = await Promise.all([
+    supabase
       .from('therapist_schedules')
       .select('therapist_id, is_active, start_time, end_time')
       .in('therapist_id', therapistIds)
-      .eq('schedule_date', today);
-    const activeRows = (schedRows ?? []).filter(r => Boolean(r.is_active));
+      .eq('schedule_date', today),
+    supabase
+      .from('diary_posts')
+      .select('id', { count: 'exact', head: true })
+      .in('therapist_id', therapistIds)
+      .gte('created_at', diaryCutoff),
+    supabase
+      .from('theme_wallpapers')
+      .select('image_url')
+      .eq('theme_key', theme.key)
+      .maybeSingle(),
+  ]);
+
+  // 本日出勤セラピスト数（GridCardの「N名」と同一ロジック：当日の is_active スケジュールを持つ人数）。
+  // 本日の出勤総数（出勤予定・出勤中・受付終了の合計＝お休み除く。is_active かつ start/end が存在する人数）。
+  let onDutyCount = 0;
+  let todayScheduledCount = 0;
+  {
+    const activeRows = (schedRes.data ?? []).filter(r => Boolean(r.is_active));
     onDutyCount = new Set(activeRows.map(r => String(r.therapist_id))).size;
     todayScheduledCount = new Set(
       activeRows
@@ -124,44 +178,9 @@ export default async function SalonPage({
   );
 
   // 写メ日記の48時間以内投稿数（このサロン所属セラピストの diary_posts を created_at で集計）。
-  let diaryRecentCount = 0;
-  if (therapistIds.length > 0) {
-    const cutoff = new Date(Date.now() - 48 * 60 * 60 * 1000).toISOString();
-    const { count } = await supabase
-      .from('diary_posts')
-      .select('id', { count: 'exact', head: true })
-      .in('therapist_id', therapistIds)
-      .gte('created_at', cutoff);
-    diaryRecentCount = count ?? 0;
-  }
+  const diaryRecentCount = diaryRes.count ?? 0;
 
-  // 発行中クーポン枚数（公開ページ /salon/[id]/coupon と同一ロジック：
-  // is_published=true かつ 有効期限が未来 or 無期限）。
-  const couponTodayJST = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Tokyo' }).format(new Date());
-  const { count: couponCountRaw } = await supabase
-    .from('coupons')
-    .select('id', { count: 'exact', head: true })
-    .eq('salon_id', Number(id))
-    .eq('is_published', true)
-    .or(`valid_until.is.null,valid_until.gte.${couponTodayJST}`);
-  const couponCount = couponCountRaw ?? 0;
-
-  // お知らせの48時間以内投稿数（公開ページ /salon/[id]/news の新着「NEW!!」と同一ロジック：
-  // is_published=true かつ published_at が直近48時間以内）。
-  const announcementCutoff = new Date(Date.now() - 48 * 60 * 60 * 1000).toISOString();
-  const { count: announcementCountRaw } = await supabase
-    .from('announcements')
-    .select('id', { count: 'exact', head: true })
-    .eq('salon_id', Number(id))
-    .eq('is_published', true)
-    .gte('published_at', announcementCutoff);
-  const announcementRecentCount = announcementCountRaw ?? 0;
-
-  const { data: wallpaperRow } = await supabase
-    .from('theme_wallpapers')
-    .select('image_url')
-    .eq('theme_key', theme.key)
-    .maybeSingle();
+  const wallpaperRow = wallpaperRes.data;
   const wallpaperUrl = (wallpaperRow?.image_url as string | undefined) ?? null;
 
   // 壁紙画像をテーマ背景色で薄く覆い、読みやすさを確保。

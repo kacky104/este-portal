@@ -1,11 +1,33 @@
-// オーナー/管理者の保存成功後に呼び、トップ(/)の ISR キャッシュを即時更新する。
+// オーナー/管理者の保存成功後に呼び、ISR キャッシュを即時更新するヘルパー群。
 // ログイン cookie は同一オリジンの fetch で自動同送されるため、トークンの受け渡しは不要。
 // 失敗（ネットワーク/権限等）は握りつぶし、ユーザー操作は止めない。
-export async function revalidateTop(): Promise<void> {
+
+type RevalidateBody = { salonId?: number | string; top?: boolean };
+
+async function postRevalidate(body?: RevalidateBody): Promise<void> {
   try {
-    await fetch("/api/revalidate", { method: "POST" });
+    await fetch("/api/revalidate", {
+      method: "POST",
+      ...(body
+        ? { headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) }
+        : {}),
+    });
   } catch (e) {
     // 失敗してもユーザー操作は継続。ログのみ。
-    console.warn("[revalidateTop] failed:", e);
+    console.warn("[revalidate] failed:", e);
   }
+}
+
+// トップ(/)のみを無効化（従来どおり）。
+export async function revalidateTop(): Promise<void> {
+  await postRevalidate();
+}
+
+// 指定サロンの詳細ページ配下（本体＋サブページ）を無効化する。
+// サロン情報はトップのカード表示にも影響しうるため、既定でトップ(/)も無効化する。
+export async function revalidateSalon(
+  salonId: number | string,
+  opts?: { top?: boolean },
+): Promise<void> {
+  await postRevalidate({ salonId, top: opts?.top ?? true });
 }

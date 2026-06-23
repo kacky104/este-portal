@@ -2,9 +2,12 @@ import Link from "next/link";
 import { SavedSalonsMenu } from '@/app/components/SavedSalonsMenu';
 import { AccountMenu } from '@/app/components/AccountMenu';
 import { notFound } from "next/navigation";
-import { createClient } from "@/app/lib/supabase/server";
+import { createPublicClient } from "@/app/lib/supabase/public";
 import { getTheme, breadcrumbCurrentColor } from "@/app/lib/themes";
 import { CoursesContent, type Course } from "../CoursesContent";
+
+// ISR：10分ごとに再生成（保存時は /api/revalidate で即時無効化）。
+export const revalidate = 600;
 
 export default async function SalonPricePage({
   params,
@@ -12,7 +15,7 @@ export default async function SalonPricePage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const supabase = await createClient();
+  const supabase = createPublicClient();
 
   // データ源は salons.courses(JSON)。既存「コースメニュー・料金表」ブロックと同じ読み方・フィールド対応。
   const { data: salonRow, error } = await supabase

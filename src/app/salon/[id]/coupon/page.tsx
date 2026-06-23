@@ -2,7 +2,7 @@ import Link from "next/link";
 import { SavedSalonsMenu } from '@/app/components/SavedSalonsMenu';
 import { AccountMenu } from '@/app/components/AccountMenu';
 import { notFound } from "next/navigation";
-import { createClient } from "@/app/lib/supabase/server";
+import { createPublicClient } from "@/app/lib/supabase/public";
 import { getTheme, breadcrumbCurrentColor } from "@/app/lib/themes";
 import { getCouponColor } from "@/app/lib/couponColors";
 
@@ -15,19 +15,34 @@ function formatValidUntil(d: string): string {
   }).format(dt);
 }
 
+// ISR：10分ごとに再生成（保存時は /api/revalidate で即時無効化）。
+export const revalidate = 600;
+
 export default async function SalonCouponPage({
   params,
 }: {
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const supabase = await createClient();
+  const supabase = createPublicClient();
 
-  const { data: salonRow, error } = await supabase
-    .from('salons')
-    .select('id, name, theme')
-    .eq('id', Number(id))
-    .single();
+  // salons とクーポン一覧は互いに独立なので並列取得。
+  const [
+    { data: salonRow, error },
+    { data: rows },
+  ] = await Promise.all([
+    supabase
+      .from('salons')
+      .select('id, name, theme')
+      .eq('id', Number(id))
+      .single(),
+    supabase
+      .from('coupons')
+      .select('id, title, discount, conditions, valid_until, sort_order, color')
+      .eq('salon_id', Number(id))
+      .eq('is_published', true)
+      .order('sort_order', { ascending: true }),
+  ]);
 
   if (error || !salonRow) notFound();
 
@@ -53,14 +68,6 @@ export default async function SalonCouponPage({
   };
 
   const salonName = (salonRow.name as string) ?? '';
-
-  // 公開クーポンを sort_order 昇順で取得（RLS でも is_published=true のみ）
-  const { data: rows } = await supabase
-    .from('coupons')
-    .select('id, title, discount, conditions, valid_until, sort_order, color')
-    .eq('salon_id', Number(id))
-    .eq('is_published', true)
-    .order('sort_order', { ascending: true });
 
   // 今日（JST）の日付文字列。valid_until が過去のものは非表示（NULL は常に表示）。
   const todayJST = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Tokyo' }).format(new Date());

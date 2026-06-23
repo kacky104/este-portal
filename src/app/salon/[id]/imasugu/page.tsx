@@ -2,7 +2,7 @@ import Link from "next/link";
 import { SavedSalonsMenu } from '@/app/components/SavedSalonsMenu';
 import { AccountMenu } from '@/app/components/AccountMenu';
 import { notFound } from "next/navigation";
-import { createClient } from "@/app/lib/supabase/server";
+import { createPublicClient } from "@/app/lib/supabase/public";
 import { getTheme, breadcrumbCurrentColor } from "@/app/lib/themes";
 import { getBusinessDateJST } from "@/lib/dutyStatus";
 import { formatBodySizes } from "@/lib/bodyType";
@@ -18,30 +18,65 @@ function buildDisplayHours(start: string | null, end: string | null): string {
   return `${sh}:${pad(sm || 0)}〜${prefix}${eh}:${pad(em || 0)}`;
 }
 
+// ISR：10分ごとに再生成（保存時は /api/revalidate で即時無効化）。
+export const revalidate = 600;
+
 export default async function SalonImasuguPage({
   params,
 }: {
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const supabase = await createClient();
+  const supabase = createPublicClient();
 
-  const { data: salonRow, error } = await supabase
-    .from("salons")
-    .select("id, name, theme")
-    .eq("id", Number(id))
-    .single();
+  // 第1段：salons と在籍セラピストは互いに独立なので並列取得。
+  const [
+    { data: salonRow, error },
+    { data: therapistRows },
+  ] = await Promise.all([
+    supabase
+      .from("salons")
+      .select("id, name, theme")
+      .eq("id", Number(id))
+      .single(),
+    supabase
+      .from("therapists")
+      .select("id, name, age, work_hours, body_type, profile_image_url, is_available_now, available_until")
+      .eq("salon_id", Number(id)),
+  ]);
 
   if (error || !salonRow) notFound();
 
   const theme = getTheme(salonRow.theme as string | null);
 
-  const { data: wallpaperRow } = await supabase
-    .from("theme_wallpapers")
-    .select("image_url")
-    .eq("theme_key", theme.key)
-    .maybeSingle();
-  const wallpaperUrl = (wallpaperRow?.image_url as string | undefined) ?? null;
+  // 時刻ベースで「今すぐ」を判定（is_available_now=true かつ available_until が未来）。最大3名。
+  const nowMs = Date.now();
+  const imasugu = (therapistRows ?? [])
+    .filter(
+      (t) =>
+        Boolean(t.is_available_now) &&
+        t.available_until != null &&
+        new Date(t.available_until as string).getTime() > nowMs,
+    )
+    .slice(0, 3);
+
+  // 第2段：壁紙（theme.key 依存）と当日スケジュール（imasugu の id 依存）を並列取得。
+  // imasugu が空のときは .in が0件を返すため、scheduleMap は従来どおり空になる。
+  const today = getBusinessDateJST();
+  const [wallpaperRes, schedRes] = await Promise.all([
+    supabase
+      .from("theme_wallpapers")
+      .select("image_url")
+      .eq("theme_key", theme.key)
+      .maybeSingle(),
+    supabase
+      .from("therapist_schedules")
+      .select("therapist_id, start_time, end_time, is_active")
+      .in("therapist_id", imasugu.map((t) => t.id))
+      .eq("schedule_date", today),
+  ]);
+
+  const wallpaperUrl = (wallpaperRes.data?.image_url as string | undefined) ?? null;
 
   // 他のサロン配下ページと同じ背景レイヤー（壁紙＋テーマ色オーバーレイ、モバイル対応の固定配置）
   const bgLayerStyle: React.CSSProperties = {
@@ -55,39 +90,15 @@ export default async function SalonImasuguPage({
       : {}),
   };
 
-  // 在籍セラピストを取得し、時刻ベースで「今すぐ」を判定（is_available_now=true かつ available_until が未来）。最大3名。
-  const { data: therapistRows } = await supabase
-    .from("therapists")
-    .select("id, name, age, work_hours, body_type, profile_image_url, is_available_now, available_until")
-    .eq("salon_id", Number(id));
-
-  const nowMs = Date.now();
-  const imasugu = (therapistRows ?? [])
-    .filter(
-      (t) =>
-        Boolean(t.is_available_now) &&
-        t.available_until != null &&
-        new Date(t.available_until as string).getTime() > nowMs,
-    )
-    .slice(0, 3);
-
-  // 出勤時間表示用に当日のスケジュールを取得
+  // 出勤時間表示用に当日のスケジュールを構築
   const scheduleMap: Record<string, { start: string | null; end: string | null }> = {};
-  if (imasugu.length > 0) {
-    const today = getBusinessDateJST();
-    const { data: schedRows } = await supabase
-      .from("therapist_schedules")
-      .select("therapist_id, start_time, end_time, is_active")
-      .in("therapist_id", imasugu.map((t) => t.id))
-      .eq("schedule_date", today);
-    (schedRows ?? []).forEach((r) => {
-      if (!r.is_active) return;
-      scheduleMap[String(r.therapist_id)] = {
-        start: r.start_time ? String(r.start_time).slice(0, 5) : null,
-        end: r.end_time ? String(r.end_time).slice(0, 5) : null,
-      };
-    });
-  }
+  (schedRes.data ?? []).forEach((r) => {
+    if (!r.is_active) return;
+    scheduleMap[String(r.therapist_id)] = {
+      start: r.start_time ? String(r.start_time).slice(0, 5) : null,
+      end: r.end_time ? String(r.end_time).slice(0, 5) : null,
+    };
+  });
 
   const salonName = (salonRow.name as string) ?? "";
 
