@@ -279,7 +279,7 @@ export default function FeaturedSalonsManager({ allSalons }: { allSalons: SalonO
                     <span className="text-xs font-black text-pink-400 w-4 flex-shrink-0">{i + 1}</span>
                     <div className="flex-1 min-w-0">
                       <p className="text-xs font-bold text-slate-800 truncate">{item.salonName}</p>
-                      <p className="text-[10px] text-slate-400">{item.salonArea}</p>
+                      <p className="text-[10px] text-slate-400">{areaLabel(item.salonArea)}</p>
                     </div>
                     <div className="flex gap-1 flex-shrink-0">
                       <button
@@ -350,7 +350,7 @@ export default function FeaturedSalonsManager({ allSalons }: { allSalons: SalonO
               >
                 <option value="">サロンを選択...</option>
                 {availableSalons.map(s => (
-                  <option key={s.id} value={s.id}>{s.name}（{s.area}）</option>
+                  <option key={s.id} value={s.id}>{s.name}（{areaLabel(s.area)}）</option>
                 ))}
               </select>
               <button

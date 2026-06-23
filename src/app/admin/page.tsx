@@ -9,6 +9,7 @@ import FeaturedSalonsManager from '@/app/components/FeaturedSalonsManager';
 import SalonEditModal, { type SalonForEdit } from '@/app/components/SalonEditModal';
 import ThemeWallpaperManager from '@/app/components/ThemeWallpaperManager';
 import { ADMIN_UUID } from '@/app/lib/admin';
+import { areaLabel } from '@/app/lib/areaLabel';
 
 const supabase = createClient();
 
@@ -236,7 +237,7 @@ export default function AdminDashboard() {
                   onChange={e => setForm(p => ({ ...p, area: e.target.value }))}
                   className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs bg-slate-50/50 focus:outline-none focus:ring-2 focus:ring-pink-200"
                 >
-                  {AREAS.map(a => <option key={a} value={a}>{a}</option>)}
+                  {AREAS.map(a => <option key={a} value={a}>{areaLabel(a)}</option>)}
                 </select>
               </div>
 
@@ -326,7 +327,7 @@ export default function AdminDashboard() {
                       <td className="px-4 py-3 text-xs font-bold text-slate-800">{salon.name ?? '—'}</td>
                       <td className="px-4 py-3">
                         <span className="text-[11px] px-2.5 py-0.5 rounded-full bg-pink-50 text-pink-600 border border-pink-100 font-medium">
-                          {salon.area ?? '—'}
+                          {salon.area ? areaLabel(salon.area) : '—'}
                         </span>
                       </td>
                       <td className="px-4 py-3 text-xs text-slate-600">{salon.price ?? '—'}</td>

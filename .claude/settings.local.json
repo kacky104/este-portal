@@ -113,7 +113,10 @@
       "Bash(git checkout *)",
       "Bash(curl -s https://fukues.com/area/hakata-eki)",
       "Bash(curl -s https://fukues.com/)",
-      "Bash(grep -iE \"/area|/salon/\\\\[id\\\\]|/diary| / |^├ ○ /$|admin|/salons\")"
+      "Bash(grep -iE \"/area|/salon/\\\\[id\\\\]|/diary| / |^├ ○ /$|admin|/salons\")",
+      "Bash(curl -s -o /dev/null -w \"status=%{http_code}\\\\n\" https://fukues.com/)",
+      "Bash(curl -s -o /dev/null -w \"status=%{http_code} redirect_to=%{redirect_url}\\\\n\" https://fukues.com/admin)",
+      "Bash(curl -s -o /dev/null -w \"status=%{http_code}\\\\n\" https://fukues.com/area/hakata-eki)"
     ]
   },
   "hooks": {

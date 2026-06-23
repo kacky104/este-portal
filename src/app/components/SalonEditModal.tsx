@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { createClient } from '@/app/lib/supabase/client';
 import { revalidateSalon } from '@/app/lib/revalidateTop';
 import { TimeRangePicker } from '@/components/TimeRangePicker';
+import { areaLabel } from '@/app/lib/areaLabel';
 
 const AREAS = [
   '福岡全域', '博多・住吉', '中洲・天神・薬院',
@@ -150,7 +151,7 @@ export default function SalonEditModal({ salon, onClose, onSaved }: Props) {
                 onChange={set('area')}
                 className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs bg-slate-50/50 focus:outline-none focus:ring-2 focus:ring-pink-200"
               >
-                {AREAS.map(a => <option key={a} value={a}>{a}</option>)}
+                {AREAS.map(a => <option key={a} value={a}>{areaLabel(a)}</option>)}
               </select>
             </div>
             {textField('料金', 'price', '例: 60分 ¥8,000〜')}
