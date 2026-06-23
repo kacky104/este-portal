@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { createClient } from '@/app/lib/supabase/server';
+import { createPublicClient } from '@/app/lib/supabase/public';
 import { SavedSalonsMenu } from '@/app/components/SavedSalonsMenu';
 import { AccountMenu } from '@/app/components/AccountMenu';
 import { NotificationBell } from '@/app/components/NotificationBell';
@@ -8,6 +8,9 @@ export const metadata = {
   title: '写メ日記 | フクエス ～福岡メンズエステポータル～',
   description: '福岡のメンズエステサロンに在籍するセラピストたちの写メ日記一覧です。',
 };
+
+// ISR：1分ごとに再生成（新着日記の鮮度優先）。cookie を読まない createPublicClient を使うため動的化されない。
+export const revalidate = 60;
 
 function formatDate(iso: string): string {
   const d = new Date(iso);
@@ -24,7 +27,7 @@ type DiaryRow = {
 };
 
 export default async function DiaryListPage() {
-  const supabase = await createClient();
+  const supabase = createPublicClient();
   const { data } = await supabase
     .from('diary_posts')
     .select('id, images, title, content, created_at, therapists(name), salons(name)')
