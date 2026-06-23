@@ -180,7 +180,7 @@ export default async function SalonCouponPage({
                     <p className="text-xs text-slate-500 leading-relaxed">
                       ご利用の際は
                       <span className="font-bold" style={{ color: cc.accent }}>『フクエスを見た！』</span>
-                      と必ずお伝えください
+                      とお伝えください
                     </p>
                   </div>
                 </div>
