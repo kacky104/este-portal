@@ -8,9 +8,9 @@ import HeaderSliderManager from '@/app/components/HeaderSliderManager';
 import FeaturedSalonsManager from '@/app/components/FeaturedSalonsManager';
 import SalonEditModal, { type SalonForEdit } from '@/app/components/SalonEditModal';
 import ThemeWallpaperManager from '@/app/components/ThemeWallpaperManager';
+import { ADMIN_UUID } from '@/app/lib/admin';
 
 const supabase = createClient();
-const ADMIN_UUID = '63aca737-b399-4fb2-bf92-8a3816955d69';
 
 const AREAS = ['福岡全域', '博多・住吉', '中洲・天神・薬院', '北九州・小倉', '久留米', '福岡県その他', '出張'] as const;
 
