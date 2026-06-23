@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import Image from 'next/image';
+import { areaLabel } from '@/app/lib/areaLabel';
 import { useState, useEffect, useRef, useCallback } from 'react';
 
 export type FeaturedSalon = {
@@ -105,7 +106,7 @@ export function FeaturedSalonSlider({ salons }: { salons: FeaturedSalon[] }) {
                   className="absolute top-4 right-4 text-[11px] font-semibold backdrop-blur-sm px-3 py-1 rounded-full border"
                   style={{ color: '#ffffff', backgroundColor: 'rgba(249, 115, 22, 0.15)', borderColor: '#f97316' }}
                 >
-                  📍 {salon.area}
+                  📍 {areaLabel(salon.area)}
                 </span>
 
                 {/* Bottom content */}

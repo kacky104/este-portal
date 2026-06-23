@@ -6,15 +6,15 @@ import { AccountMenu } from '@/app/components/AccountMenu';
 import { NotificationBell } from '@/app/components/NotificationBell';
 import { fetchSalons } from '@/app/lib/salons';
 
-// value：フィルタ判定／DB連動キー。label：画面表示用（当ページは従来表示を維持）。
+// フィルタ判定／DB連動キー。画面表示はすべて areaLabel() を通す。
 const AREAS = [
-  { value: '福岡全域', label: '福岡全域' },
-  { value: '博多・住吉', label: '博多・住吉' },
-  { value: '中洲・天神・薬院', label: '中洲・天神・薬院' },
-  { value: '北九州・小倉', label: '北九州・小倉' },
-  { value: '久留米', label: '久留米' },
-  { value: '福岡県その他', label: '福岡県その他' },
-  { value: '出張', label: '出張' },
+  '福岡全域',
+  '博多・住吉',
+  '中洲・天神・薬院',
+  '北九州・小倉',
+  '久留米',
+  '福岡県その他',
+  '出張',
 ] as const;
 
 export default async function SalonsPage() {

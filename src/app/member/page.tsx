@@ -1,6 +1,7 @@
 import { redirect } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
+import { areaLabel } from '@/app/lib/areaLabel';
 import { createClient } from '@/app/lib/supabase/server';
 import { SavedSalonsMenu } from '@/app/components/SavedSalonsMenu';
 import { AccountMenu } from '@/app/components/AccountMenu';
@@ -201,7 +202,7 @@ export default async function MemberPage() {
                   </div>
                   <div className="p-2.5">
                     <p className="text-sm font-bold text-slate-700 line-clamp-1 group-hover:text-pink-600 transition-colors">{salon.name}</p>
-                    {salon.area && <p className="text-[11px] text-slate-400 line-clamp-1 mt-0.5">{salon.area}</p>}
+                    {salon.area && <p className="text-[11px] text-slate-400 line-clamp-1 mt-0.5">{areaLabel(salon.area)}</p>}
                   </div>
                 </Link>
               ))}

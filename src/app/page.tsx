@@ -10,15 +10,15 @@ import { NotificationBell } from "./components/NotificationBell";
 import { fetchSalons } from "./lib/salons";
 import { getBusinessDateJST } from "@/lib/dutyStatus";
 
-// value：フィルタ判定／DB連動キー（変更不可）。label：画面に表示する文字列のみ。
+// フィルタ判定／DB連動キー（変更不可）。画面表示はすべて areaLabel() を通す。
 const AREAS = [
-  { value: "福岡全域", label: "福岡市全域" },
-  { value: "博多・住吉", label: "博多駅周辺" },
-  { value: "中洲・天神・薬院", label: "中洲・天神・薬院" },
-  { value: "北九州・小倉", label: "北九州・小倉" },
-  { value: "久留米", label: "久留米" },
-  { value: "福岡県その他", label: "福岡県その他" },
-  { value: "出張", label: "出張" },
+  "福岡全域",
+  "博多・住吉",
+  "中洲・天神・薬院",
+  "北九州・小倉",
+  "久留米",
+  "福岡県その他",
+  "出張",
 ] as const;
 
 // ISR：トップは10分キャッシュ（並び順のランダム化はクライアント側で行うため固定HTMLでよい）。

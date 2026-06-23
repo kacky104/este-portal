@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/app/lib/supabase/server";
+import { areaLabel } from "@/app/lib/areaLabel";
 import { logout } from "@/app/actions/auth";
 import { SALONS } from "@/app/lib/salonData";
 
@@ -57,7 +58,7 @@ export default async function DashboardPage() {
               {(
                 [
                   ["サロン名", salon.name],
-                  ["エリア", salon.area],
+                  ["エリア", areaLabel(salon.area)],
                   ["営業時間", salon.hours],
                   ["電話番号", salon.phone],
                   ["住所", salon.address],

@@ -1,5 +1,6 @@
 import { Suspense } from 'react';
 import Link from 'next/link';
+import { areaLabel } from '@/app/lib/areaLabel';
 import { notFound } from 'next/navigation';
 import { createPublicClient } from '@/app/lib/supabase/public';
 import { FromCrumb } from './FromCrumb';
@@ -526,7 +527,7 @@ export default async function TherapistPublicPage({
                       <span className="text-xs text-slate-500 whitespace-nowrap truncate">🕒 {salon.hours}</span>
                     )}
                     {salon.area && (
-                      <span className="text-xs text-slate-500 whitespace-nowrap flex-shrink-0">📍 {salon.area}</span>
+                      <span className="text-xs text-slate-500 whitespace-nowrap flex-shrink-0">📍 {areaLabel(salon.area)}</span>
                     )}
                   </div>
                 </div>
