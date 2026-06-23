@@ -136,12 +136,12 @@ export default async function MemberPage() {
               </span>
               <span className="text-xs sm:text-sm font-medium text-slate-500">保存サロン</span>
             </div>
-            <div className="relative flex items-center justify-center">
-              <p className="font-bold leading-none text-center">
+            <div className="flex items-center justify-end gap-3">
+              <p className="font-bold leading-none">
                 <span className="text-4xl sm:text-5xl" style={{ color: '#DB2777' }}>{salonCount}</span>
                 <span className="text-sm text-slate-400 ml-1">件</span>
               </p>
-              <span className="absolute right-0 inline-flex items-center gap-1 text-xs font-medium text-pink-600 group-hover:gap-1.5 transition-all">
+              <span className="inline-flex items-center gap-1 text-xs font-medium text-pink-600 group-hover:gap-1.5 transition-all">
                 見る <span aria-hidden>→</span>
               </span>
             </div>
@@ -158,12 +158,12 @@ export default async function MemberPage() {
               </span>
               <span className="text-xs sm:text-sm font-medium text-slate-500">保存セラピスト</span>
             </div>
-            <div className="relative flex items-center justify-center">
-              <p className="font-bold leading-none text-center">
+            <div className="flex items-center justify-end gap-3">
+              <p className="font-bold leading-none">
                 <span className="text-4xl sm:text-5xl" style={{ color: '#9333EA' }}>{therapistCount}</span>
                 <span className="text-sm text-slate-400 ml-1">人</span>
               </p>
-              <span className="absolute right-0 inline-flex items-center gap-1 text-xs font-medium text-purple-600 group-hover:gap-1.5 transition-all">
+              <span className="inline-flex items-center gap-1 text-xs font-medium text-purple-600 group-hover:gap-1.5 transition-all">
                 見る <span aria-hidden>→</span>
               </span>
             </div>
