@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import Image from 'next/image';
 import { useState, useEffect, useRef, useCallback } from 'react';
 
 export type FeaturedSalon = {
@@ -78,8 +79,14 @@ export function FeaturedSalonSlider({ salons }: { salons: FeaturedSalon[] }) {
               <div key={salon.salonId} className="w-full flex-shrink-0 relative h-52 sm:h-96">
                 {/* Background */}
                 {bgImage ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img src={bgImage} alt={salon.salonName} className="absolute inset-0 w-full h-full object-cover" />
+                  <Image
+                    src={bgImage}
+                    alt={salon.salonName}
+                    fill
+                    className="object-cover"
+                    sizes="(max-width: 1024px) 100vw, 992px"
+                    priority={i === 0}
+                  />
                 ) : (
                   <div className={`absolute inset-0 bg-gradient-to-br ${grad}`} />
                 )}
@@ -111,9 +118,8 @@ export function FeaturedSalonSlider({ salons }: { salons: FeaturedSalon[] }) {
                     {/* Therapist thumbnails */}
                     <div className="flex -space-x-2">
                       {salon.therapistImages.slice(0, 4).map((img, j) => (
-                        <div key={j} className="w-8 h-8 rounded-full border-2 border-white/80 overflow-hidden shadow-sm">
-                          {/* eslint-disable-next-line @next/next/no-img-element */}
-                          <img src={img} alt="" className="w-full h-full object-cover" />
+                        <div key={j} className="relative w-8 h-8 rounded-full border-2 border-white/80 overflow-hidden shadow-sm">
+                          <Image src={img} alt={salon.salonName} fill className="object-cover" sizes="32px" />
                         </div>
                       ))}
                       {salon.therapistImages.length === 0 && (

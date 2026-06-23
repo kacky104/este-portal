@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import Image from 'next/image';
 import Link from 'next/link';
 import { createClient } from '@/app/lib/supabase/client';
 import { getBusinessDateJST, getScheduleWindowStatus } from '@/lib/dutyStatus';
@@ -77,11 +78,12 @@ export function Card({ therapist, index, showAge = false }: { therapist: Therapi
     >
       {/* background: photo or gradient fallback */}
       {therapist.profileImageUrl ? (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img
+        <Image
           src={therapist.profileImageUrl}
           alt={therapist.name}
-          className="absolute inset-0 w-full h-full object-cover"
+          fill
+          className="object-cover"
+          sizes="(max-width: 640px) 105px, 176px"
         />
       ) : (
         <div className={`absolute inset-0 bg-gradient-to-br ${grad} flex items-center justify-center`}>

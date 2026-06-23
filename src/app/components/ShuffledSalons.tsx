@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
+import Image from 'next/image';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { checkDutyStatus } from '@/lib/dutyStatus';
@@ -53,8 +54,7 @@ function TherapistMiniCard({ therapist, index, showAge = false, compact = false 
     >
       {/* background */}
       {therapist.imageUrl ? (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img src={therapist.imageUrl} alt={therapist.name} className="absolute inset-0 w-full h-full object-cover" />
+        <Image src={therapist.imageUrl} alt={therapist.name} fill className="object-cover" sizes="120px" />
       ) : (
         <div className={`absolute inset-0 bg-gradient-to-br ${grad} flex items-center justify-center`}>
           <span className="text-white/30 font-bold text-3xl">{therapist.name.charAt(0)}</span>
