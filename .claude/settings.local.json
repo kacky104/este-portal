@@ -108,7 +108,8 @@
       "Bash(echo \"/salon/1/coupon -> $\\(curl -s -o /dev/null -w '%{http_code}' http://localhost:3000/salon/1/coupon\\)\")",
       "Bash(curl -s -o /dev/null -w '%{http_code}' http://localhost:3000/mypage)",
       "Bash(echo \"/mypage -> $\\(curl -s -o /dev/null -w '%{http_code}' http://localhost:3000/mypage\\)\")",
-      "Bash(grep -nE \"const handle[A-Za-z]+ = async|showToast\\\\\\(|\\\\.from\\\\\\('coupons'\\\\\\)|\\\\.from\\\\\\('announcements'\\\\\\)|\\\\.from\\\\\\('salons'\\\\\\)\\\\s*$|\\\\.from\\\\\\('salon_images'\\\\\\)|\\\\.from\\\\\\('salons'\\\\\\)\" src/app/mypage/page.tsx)"
+      "Bash(grep -nE \"const handle[A-Za-z]+ = async|showToast\\\\\\(|\\\\.from\\\\\\('coupons'\\\\\\)|\\\\.from\\\\\\('announcements'\\\\\\)|\\\\.from\\\\\\('salons'\\\\\\)\\\\s*$|\\\\.from\\\\\\('salon_images'\\\\\\)|\\\\.from\\\\\\('salons'\\\\\\)\" src/app/mypage/page.tsx)",
+      "PowerShell($c = Get-Content \"C:\\\\Users\\\\joltc\\\\.claude\\\\projects\\\\C--Users-joltc-Desktop-este-portal\\\\f1c1d20c-a1b3-4f89-82ab-e95ea4764373\\\\tool-results\\\\b3bzewxp0.txt\" -Raw; if \\($c -match \"\\(?im\\)\\\\d+\\\\s+problems?|error\"\\) { Write-Output \"HAS_ERROR_KEYWORD\" } ; \"--- member mentions ---\"; \\(Select-String -Path \"C:\\\\Users\\\\joltc\\\\.claude\\\\projects\\\\C--Users-joltc-Desktop-este-portal\\\\f1c1d20c-a1b3-4f89-82ab-e95ea4764373\\\\tool-results\\\\b3bzewxp0.txt\" -Pattern \"member|\\\\bproblem\" \\).Line; \"--- summary line ---\"; \\(Get-Content \"C:\\\\Users\\\\joltc\\\\.claude\\\\projects\\\\C--Users-joltc-Desktop-este-portal\\\\f1c1d20c-a1b3-4f89-82ab-e95ea4764373\\\\tool-results\\\\b3bzewxp0.txt\" | Select-String -Pattern \"problem|✖\"\\).Line)"
     ]
   },
   "hooks": {

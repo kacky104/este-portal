@@ -91,9 +91,20 @@ export function AccountMenu() {
             <p className="text-sm text-slate-700 font-medium truncate">{email}</p>
           </div>
           <Link
-            href="/saved"
+            href="/member"
             onClick={() => setOpen(false)}
             className="flex items-center gap-2 px-3 py-2.5 text-sm text-slate-700 hover:bg-slate-50 transition-colors"
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#DB2777" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="flex-shrink-0">
+              <circle cx="12" cy="8" r="4" />
+              <path d="M4 21v-1a6 6 0 0 1 6-6h4a6 6 0 0 1 6 6v1" />
+            </svg>
+            マイページ
+          </Link>
+          <Link
+            href="/saved"
+            onClick={() => setOpen(false)}
+            className="flex items-center gap-2 px-3 py-2.5 text-sm text-slate-700 hover:bg-slate-50 transition-colors border-t border-slate-100"
           >
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#E2B85A" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="flex-shrink-0">
               <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z" />

@@ -43,7 +43,8 @@ function ensureFxStyles() {
 }
 
 // ── グリフ（すべて塗りで表現。輪郭線だと重なりが汚いため） ──
-const PawGlyph = () => (
+// 店舗＝肉球（paw）／セラピスト＝桜（sakura）の唯一のソース。会員ダッシュボード等でも参照する。
+export const PawGlyph = () => (
   <g fill="currentColor">
     <ellipse cx="12" cy="17" rx="5.2" ry="4.6" />
     <ellipse cx="5.8" cy="11" rx="1.9" ry="2.5" transform="rotate(-18 5.8 11)" />
@@ -54,7 +55,7 @@ const PawGlyph = () => (
 );
 
 const SAKURA_PETAL = 'M12 12C9 12 7.5 6.5 9 4 10 2.5 11 4.5 12 5.5 13 4.5 14 2.5 15 4 16.5 6.5 15 12 12 12Z';
-const SakuraGlyph = () => (
+export const SakuraGlyph = () => (
   <g fill="currentColor">
     {[0, 72, 144, 216, 288].map(deg => (
       <path key={deg} d={SAKURA_PETAL} transform={`rotate(${deg} 12 12)`} />
