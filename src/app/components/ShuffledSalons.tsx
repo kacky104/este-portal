@@ -418,7 +418,7 @@ function SalonCardSkeleton() {
 
 // ── ShuffledSalons ────────────────────────────────────────────
 
-export function ShuffledSalons({ salons, areas, showAge = false, areaNextToDuty = false, ratingAtBottom = false, compactTherapists = false, showSaveButton = false, wideDesktop = false }: { salons: Salon[]; areas: string[]; showAge?: boolean; areaNextToDuty?: boolean; ratingAtBottom?: boolean; compactTherapists?: boolean; showSaveButton?: boolean; wideDesktop?: boolean }) {
+export function ShuffledSalons({ salons, areas, showAge = false, areaNextToDuty = false, ratingAtBottom = false, compactTherapists = false, showSaveButton = false, wideDesktop = false }: { salons: Salon[]; areas: { value: string; label: string }[]; showAge?: boolean; areaNextToDuty?: boolean; ratingAtBottom?: boolean; compactTherapists?: boolean; showSaveButton?: boolean; wideDesktop?: boolean }) {
   const [list,            setList]            = useState<Salon[]>([]);
   const [activeArea,      setActiveArea]      = useState('福岡全域');
 
@@ -449,19 +449,19 @@ export function ShuffledSalons({ salons, areas, showAge = false, areaNextToDuty 
         style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' } as React.CSSProperties}
       >
         {areas.map(area => {
-          const count  = areaCount(area);
-          const active = activeArea === area;
+          const count  = areaCount(area.value);
+          const active = activeArea === area.value;
           return (
             <button
-              key={area}
-              onClick={() => setActiveArea(area)}
+              key={area.value}
+              onClick={() => setActiveArea(area.value)}
               className={`flex-shrink-0 flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-medium transition-all ${
                 active
                   ? 'bg-pink-600 text-white shadow-md shadow-pink-500/25'
                   : 'border border-slate-200 bg-white text-slate-600 hover:border-pink-300 hover:text-pink-600 shadow-sm'
               }`}
             >
-              {area}
+              {area.label}
               <span className={`text-[11px] rounded-full px-1.5 py-px font-bold ${active ? 'bg-white/25 text-white' : 'bg-slate-100 text-slate-500'}`}>
                 {count}
               </span>
