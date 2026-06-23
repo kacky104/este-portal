@@ -1,6 +1,8 @@
+import { Suspense } from 'react';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
-import { createClient } from '@/app/lib/supabase/server';
+import { createPublicClient } from '@/app/lib/supabase/public';
+import { FromCrumb } from './FromCrumb';
 import { getBusinessDateRangeJST } from '@/lib/dutyStatus';
 import { getTheme, breadcrumbCurrentColor } from '@/app/lib/themes';
 import { getScheduleWindowStatus } from '@/lib/dutyStatus';
@@ -58,17 +60,23 @@ function buildDisplayHours(start: string | null, end: string | null): string {
 
 // ── page ──────────────────────────────────────────────────────
 
+// ISR：10分ごとに再生成（保存時は /api/revalidate で /salon/[id] 配下を 'layout' 無効化）。
+export const revalidate = 600;
+
+// 事前生成はせず、初回アクセス時にその場生成→以降キャッシュ（ランタイムISR）。
+// Next 16 では revalidate を効かせるため generateStaticParams（空配列）が必須。dynamicParams は既定 true。
+export async function generateStaticParams() {
+  return [];
+}
+
 export default async function TherapistPublicPage({
   params,
-  searchParams,
 }: {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ from?: string }>;
 }) {
   const { id } = await params;
-  const { from } = await searchParams;
 
-  const supabase = await createClient();
+  const supabase = createPublicClient();
 
   const { data: tRow, error: tError } = await supabase
     .from('therapists')
@@ -247,14 +255,6 @@ export default async function TherapistPublicPage({
     <NewBadge className="shadow-[0_1px_4px_rgba(0,0,0,0.3)]" />
   ) : null;
 
-  // パンくずの中間項目を ?from= で動的に切り替え
-  const fromCrumb =
-    from === 'schedule'
-      ? { label: '出勤情報', href: `/salon/${therapist.salonId}/schedule` }
-      : from === 'therapists'
-        ? { label: 'セラピスト一覧', href: `/salon/${therapist.salonId}/therapists` }
-        : null;
-
   return (
     <div className="relative min-h-screen overflow-x-clip" style={{ color: theme.text }}>
 
@@ -299,18 +299,9 @@ export default async function TherapistPublicPage({
           >
             {salon?.name ?? 'サロン'}
           </Link>
-          {fromCrumb && (
-            <>
-              <span aria-hidden className="flex-shrink-0" style={{ color: '#999' }}>›</span>
-              <Link
-                href={fromCrumb.href}
-                className="hover:opacity-80 transition-opacity flex-shrink-0 whitespace-nowrap"
-                style={{ color: '#ec4899' }}
-              >
-                {fromCrumb.label}
-              </Link>
-            </>
-          )}
+          <Suspense fallback={null}>
+            <FromCrumb salonId={therapist.salonId} />
+          </Suspense>
           <span aria-hidden className="flex-shrink-0" style={{ color: '#999' }}>›</span>
           <span
             aria-current="page"

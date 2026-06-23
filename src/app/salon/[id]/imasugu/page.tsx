@@ -22,6 +22,12 @@ function buildDisplayHours(start: string | null, end: string | null): string {
 // ISR：10分ごとに再生成（保存時は /api/revalidate で即時無効化）。
 export const revalidate = 600;
 
+// 事前生成はせず、初回アクセス時にその場生成→以降キャッシュ（ランタイムISR）。
+// Next 16 では revalidate を効かせるため generateStaticParams（空配列）が必須。dynamicParams は既定 true。
+export async function generateStaticParams() {
+  return [];
+}
+
 export default async function SalonImasuguPage({
   params,
 }: {

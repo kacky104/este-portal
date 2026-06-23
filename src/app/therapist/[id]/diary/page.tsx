@@ -1,7 +1,16 @@
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
-import { createClient } from '@/app/lib/supabase/server';
+import { createPublicClient } from '@/app/lib/supabase/public';
 import { getTheme, breadcrumbCurrentColor } from '@/app/lib/themes';
+
+// ISR：10分ごとに再生成（保存時は /api/revalidate で /salon/[id] 配下を 'layout' 無効化）。
+export const revalidate = 600;
+
+// 事前生成はせず、初回アクセス時にその場生成→以降キャッシュ（ランタイムISR）。
+// Next 16 では revalidate を効かせるため generateStaticParams（空配列）が必須。dynamicParams は既定 true。
+export async function generateStaticParams() {
+  return [];
+}
 
 function formatDate(iso: string): string {
   const d = new Date(iso);
@@ -24,13 +33,20 @@ export default async function TherapistDiaryPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const supabase = await createClient();
+  const supabase = createPublicClient();
 
-  const { data: tRow, error } = await supabase
-    .from('therapists')
-    .select('id, name, salon_id')
-    .eq('id', id)
-    .single();
+  // therapist 本体と写メ日記は id だけに依存するので並列取得。
+  const [
+    { data: tRow, error },
+    { data: diaryRows },
+  ] = await Promise.all([
+    supabase.from('therapists').select('id, name, salon_id').eq('id', id).single(),
+    supabase
+      .from('diary_posts')
+      .select('id, images, title, created_at')
+      .eq('therapist_id', Number(id))
+      .order('created_at', { ascending: false }),
+  ]);
   if (error || !tRow) notFound();
 
   const { data: salonRow } = await supabase
@@ -58,13 +74,7 @@ export default async function TherapistDiaryPage({
       : {}),
   };
 
-  // そのセラピストの写メ日記（新しい順）
-  const { data: diaryRows } = await supabase
-    .from('diary_posts')
-    .select('id, images, title, created_at')
-    .eq('therapist_id', Number(id))
-    .order('created_at', { ascending: false });
-
+  // 写メ日記（新しい順）は上の Promise.all で取得済み。
   const diaries = ((diaryRows ?? []) as unknown as DiaryRow[]).map((r) => ({
     id: r.id,
     image: (r.images ?? [])[0] ?? null,
