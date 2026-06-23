@@ -136,7 +136,7 @@ export default async function MemberPage() {
               </span>
               <span className="text-xs sm:text-sm font-medium text-slate-500">保存サロン</span>
             </div>
-            <div className="flex items-baseline justify-start gap-3">
+            <div className="flex items-baseline justify-center gap-3">
               <p className="font-bold leading-none">
                 <span className="text-4xl sm:text-5xl" style={{ color: '#DB2777' }}>{salonCount}</span>
                 <span className="text-sm text-slate-400 ml-1">件</span>
@@ -158,7 +158,7 @@ export default async function MemberPage() {
               </span>
               <span className="text-xs sm:text-sm font-medium text-slate-500">保存セラピスト</span>
             </div>
-            <div className="flex items-baseline justify-start gap-3">
+            <div className="flex items-baseline justify-center gap-3">
               <p className="font-bold leading-none">
                 <span className="text-4xl sm:text-5xl" style={{ color: '#9333EA' }}>{therapistCount}</span>
                 <span className="text-sm text-slate-400 ml-1">人</span>
