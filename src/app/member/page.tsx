@@ -128,41 +128,45 @@ export default async function MemberPage() {
           {/* サロン */}
           <Link
             href="/saved#salons"
-            className="group rounded-2xl border border-pink-100 bg-white p-4 sm:p-5 shadow-sm hover:border-pink-300 hover:shadow-md transition-all"
+            className="group flex flex-col justify-center gap-3 rounded-2xl border border-pink-100 bg-white p-4 sm:p-5 shadow-sm hover:border-pink-300 hover:shadow-md transition-all"
           >
-            <div className="flex items-center gap-2 mb-2">
+            <div className="flex items-center gap-2">
               <span className="w-7 h-7 rounded-full bg-pink-50 flex items-center justify-center flex-shrink-0" style={{ color: '#EC4899' }}>
                 <svg width="16" height="16" viewBox="0 0 24 24"><PawGlyph /></svg>
               </span>
               <span className="text-xs sm:text-sm font-medium text-slate-500">保存したサロン</span>
             </div>
-            <p className="font-bold leading-none">
-              <span className="text-3xl sm:text-4xl" style={{ color: '#DB2777' }}>{salonCount}</span>
-              <span className="text-sm text-slate-400 ml-1">件</span>
-            </p>
-            <span className="mt-2 inline-flex items-center gap-1 text-xs font-medium text-pink-600 group-hover:gap-1.5 transition-all">
-              見る <span aria-hidden>→</span>
-            </span>
+            <div className="flex items-baseline justify-between gap-2">
+              <p className="font-bold leading-none">
+                <span className="text-3xl sm:text-4xl" style={{ color: '#DB2777' }}>{salonCount}</span>
+                <span className="text-sm text-slate-400 ml-1">件</span>
+              </p>
+              <span className="inline-flex items-center gap-1 text-xs font-medium text-pink-600 group-hover:gap-1.5 transition-all">
+                見る <span aria-hidden>→</span>
+              </span>
+            </div>
           </Link>
 
           {/* セラピスト */}
           <Link
             href="/saved#therapists"
-            className="group rounded-2xl border border-purple-100 bg-white p-4 sm:p-5 shadow-sm hover:border-purple-300 hover:shadow-md transition-all"
+            className="group flex flex-col justify-center gap-3 rounded-2xl border border-purple-100 bg-white p-4 sm:p-5 shadow-sm hover:border-purple-300 hover:shadow-md transition-all"
           >
-            <div className="flex items-center gap-2 mb-2">
+            <div className="flex items-center gap-2">
               <span className="w-7 h-7 rounded-full bg-purple-50 flex items-center justify-center flex-shrink-0" style={{ color: '#A855F7' }}>
                 <svg width="16" height="16" viewBox="0 0 24 24"><SakuraGlyph /></svg>
               </span>
               <span className="text-xs sm:text-sm font-medium text-slate-500">保存したセラピスト</span>
             </div>
-            <p className="font-bold leading-none">
-              <span className="text-3xl sm:text-4xl" style={{ color: '#9333EA' }}>{therapistCount}</span>
-              <span className="text-sm text-slate-400 ml-1">人</span>
-            </p>
-            <span className="mt-2 inline-flex items-center gap-1 text-xs font-medium text-purple-600 group-hover:gap-1.5 transition-all">
-              見る <span aria-hidden>→</span>
-            </span>
+            <div className="flex items-baseline justify-between gap-2">
+              <p className="font-bold leading-none">
+                <span className="text-3xl sm:text-4xl" style={{ color: '#9333EA' }}>{therapistCount}</span>
+                <span className="text-sm text-slate-400 ml-1">人</span>
+              </p>
+              <span className="inline-flex items-center gap-1 text-xs font-medium text-purple-600 group-hover:gap-1.5 transition-all">
+                見る <span aria-hidden>→</span>
+              </span>
+            </div>
           </Link>
         </section>
 
