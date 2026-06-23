@@ -264,9 +264,22 @@ export default async function MemberPage() {
               </p>
             </Link>
 
-            {/* 残り2枠は準備中のまま据え置き */}
+            {/* 閲覧履歴：フェーズ3で有効化（/member/history へのリンク） */}
+            <Link
+              href="/member/history"
+              className="group rounded-2xl border border-pink-100 bg-white p-4 shadow-sm hover:border-pink-300 hover:shadow-md transition-all"
+            >
+              <div className="flex items-start justify-between gap-2">
+                <p className="text-sm font-bold text-slate-700">閲覧履歴</p>
+                <span className="flex-shrink-0 inline-flex items-center gap-1 text-[11px] font-medium text-pink-600 group-hover:gap-1.5 transition-all">
+                  見る <span aria-hidden>→</span>
+                </span>
+              </div>
+              <p className="text-xs text-slate-400 mt-1.5">最近見たサロン・セラピスト</p>
+            </Link>
+
+            {/* 残り1枠は準備中のまま据え置き */}
             {[
-              { title: '閲覧履歴', desc: '最近見たサロン・セラピスト' },
               { title: '通知・新着フォロー', desc: '保存サロンの新着・出勤を通知' },
             ].map(f => (
               <div

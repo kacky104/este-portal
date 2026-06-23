@@ -32,6 +32,7 @@ import SalonHeaderSlider from "@/components/SalonHeaderSlider";
 import { SalonNameBanner } from "./SalonNameBanner";
 import { CollapsibleCourses } from "./CollapsibleCourses";
 import { CollapsibleSection } from "./CollapsibleSection";
+import { ViewHistoryLogger } from "@/app/components/ViewHistoryLogger";
 
 // ISR：10分ごとに再生成（保存時は /api/revalidate で即時無効化）。
 export const revalidate = 600;
@@ -211,6 +212,9 @@ export default async function SalonPage({
 
   return (
     <div className="relative min-h-screen overflow-x-clip" style={{ color: theme.text }}>
+
+      {/* 会員の閲覧履歴を記録（クライアント側・ログイン中のみ。ISRキャッシュには影響しない） */}
+      <ViewHistoryLogger itemType="salon" itemId={Number(id)} />
 
       {/* 背景レイヤー（壁紙＋テーマ色オーバーレイ）— モバイル対応のため固定配置 */}
       <div aria-hidden className="fixed inset-0 -z-10" style={bgLayerStyle} />
