@@ -2,6 +2,7 @@ import Link from 'next/link';
 import { createClient } from '@/app/lib/supabase/server';
 import { SavedSalonsMenu } from '@/app/components/SavedSalonsMenu';
 import { AccountMenu } from '@/app/components/AccountMenu';
+import { NotificationBell } from '@/app/components/NotificationBell';
 
 export const metadata = {
   title: '写メ日記 | フクエス ～福岡メンズエステポータル～',
@@ -58,7 +59,7 @@ export default async function DiaryListPage() {
           </Link>
           <div className="flex items-center gap-2">
             <SavedSalonsMenu />
-            <AccountMenu />
+            <NotificationBell /><AccountMenu />
           </div>
         </div>
       </header>

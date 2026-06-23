@@ -3,6 +3,7 @@ import { createClient } from '@/app/lib/supabase/server';
 import { ShuffledSalons } from '@/app/components/ShuffledSalons';
 import { SavedSalonsMenu } from '@/app/components/SavedSalonsMenu';
 import { AccountMenu } from '@/app/components/AccountMenu';
+import { NotificationBell } from '@/app/components/NotificationBell';
 import { fetchSalons } from '@/app/lib/salons';
 
 const AREAS = [
@@ -33,7 +34,7 @@ export default async function SalonsPage() {
           </Link>
           <div className="flex items-center gap-2">
             <SavedSalonsMenu />
-            <AccountMenu />
+            <NotificationBell /><AccountMenu />
           </div>
         </div>
       </header>

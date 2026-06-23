@@ -2,6 +2,7 @@ import Link from 'next/link';
 import { WorkingTherapists } from './WorkingTherapists';
 import { SavedSalonsMenu } from '@/app/components/SavedSalonsMenu';
 import { AccountMenu } from '@/app/components/AccountMenu';
+import { NotificationBell } from '@/app/components/NotificationBell';
 
 export default function WorkingPage() {
   return (
@@ -18,7 +19,7 @@ export default function WorkingPage() {
           </Link>
           <div className="flex items-center gap-2">
             <SavedSalonsMenu />
-            <AccountMenu />
+            <NotificationBell /><AccountMenu />
           </div>
         </div>
       </header>

@@ -3,6 +3,7 @@ import Link from 'next/link';
 import { createClient } from '@/app/lib/supabase/server';
 import { SavedSalonsMenu } from '@/app/components/SavedSalonsMenu';
 import { AccountMenu } from '@/app/components/AccountMenu';
+import { NotificationBell } from '@/app/components/NotificationBell';
 import { ProfileForm } from './ProfileForm';
 
 // 会員個別の内容（ログイン必須）のため ISR はかけず動的のままにする。
@@ -38,7 +39,7 @@ export default async function ProfilePage() {
           </Link>
           <div className="flex items-center gap-2">
             <SavedSalonsMenu />
-            <AccountMenu />
+            <NotificationBell /><AccountMenu />
           </div>
         </div>
       </header>

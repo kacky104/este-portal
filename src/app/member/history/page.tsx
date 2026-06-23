@@ -4,6 +4,7 @@ import Image from 'next/image';
 import { createClient } from '@/app/lib/supabase/server';
 import { SavedSalonsMenu } from '@/app/components/SavedSalonsMenu';
 import { AccountMenu } from '@/app/components/AccountMenu';
+import { NotificationBell } from '@/app/components/NotificationBell';
 
 // 会員個別の内容（ログイン必須）のため ISR はかけず動的のままにする。
 export const dynamic = 'force-dynamic';
@@ -93,7 +94,7 @@ export default async function HistoryPage() {
           </Link>
           <div className="flex items-center gap-2">
             <SavedSalonsMenu />
-            <AccountMenu />
+            <NotificationBell /><AccountMenu />
           </div>
         </div>
       </header>

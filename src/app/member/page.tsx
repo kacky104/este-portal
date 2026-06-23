@@ -4,6 +4,7 @@ import Image from 'next/image';
 import { createClient } from '@/app/lib/supabase/server';
 import { SavedSalonsMenu } from '@/app/components/SavedSalonsMenu';
 import { AccountMenu } from '@/app/components/AccountMenu';
+import { NotificationBell } from '@/app/components/NotificationBell';
 import { PawGlyph, SakuraGlyph } from '@/app/components/SaveButton';
 
 // 会員個別の内容（ログイン必須・保存状況に依存）のため ISR はかけず動的のままにする。
@@ -108,7 +109,7 @@ export default async function MemberPage() {
           </Link>
           <div className="flex items-center gap-2">
             <SavedSalonsMenu />
-            <AccountMenu />
+            <NotificationBell /><AccountMenu />
           </div>
         </div>
       </header>
@@ -278,22 +279,19 @@ export default async function MemberPage() {
               <p className="text-xs text-slate-400 mt-1.5">最近見たサロン・セラピスト</p>
             </Link>
 
-            {/* 残り1枠は準備中のまま据え置き */}
-            {[
-              { title: '通知・新着フォロー', desc: '保存サロンの新着・出勤を通知' },
-            ].map(f => (
-              <div
-                key={f.title}
-                aria-disabled="true"
-                className="rounded-2xl border border-dashed border-slate-200 bg-white/50 p-4 opacity-70 cursor-not-allowed select-none"
-              >
-                <div className="flex items-start justify-between gap-2">
-                  <p className="text-sm font-bold text-slate-500">{f.title}</p>
-                  <span className="flex-shrink-0 text-[10px] font-bold text-slate-400 bg-slate-100 rounded-full px-2 py-0.5">準備中</span>
-                </div>
-                <p className="text-xs text-slate-400 mt-1.5">{f.desc}</p>
+            {/* 通知・新着：フェーズ4で有効化（/member/notifications へのリンク） */}
+            <Link
+              href="/member/notifications"
+              className="group rounded-2xl border border-pink-100 bg-white p-4 shadow-sm hover:border-pink-300 hover:shadow-md transition-all"
+            >
+              <div className="flex items-start justify-between gap-2">
+                <p className="text-sm font-bold text-slate-700">通知・新着フォロー</p>
+                <span className="flex-shrink-0 inline-flex items-center gap-1 text-[11px] font-medium text-pink-600 group-hover:gap-1.5 transition-all">
+                  見る <span aria-hidden>→</span>
+                </span>
               </div>
-            ))}
+              <p className="text-xs text-slate-400 mt-1.5">保存サロンの新着（クーポン・お知らせ）</p>
+            </Link>
           </div>
         </section>
       </main>

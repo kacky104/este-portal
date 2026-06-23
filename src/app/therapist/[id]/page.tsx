@@ -12,6 +12,7 @@ import { CollapsibleProfile } from './CollapsibleProfile';
 import { AutoFitName } from './AutoFitName';
 import { SavedSalonsMenu } from '@/app/components/SavedSalonsMenu';
 import { AccountMenu } from '@/app/components/AccountMenu';
+import { NotificationBell } from '@/app/components/NotificationBell';
 import { SaveButton } from '@/app/components/SaveButton';
 import { ViewHistoryLogger } from '@/app/components/ViewHistoryLogger';
 import { sanitizeBadges, getBadgeColors } from '@/lib/therapistBadges';
@@ -274,7 +275,7 @@ export default async function TherapistPublicPage({
           </Link>
           <div className="flex items-center gap-2">
             <SavedSalonsMenu />
-            <AccountMenu />
+            <NotificationBell /><AccountMenu />
           </div>
         </div>
       </header>
