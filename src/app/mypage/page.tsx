@@ -2048,7 +2048,7 @@ export default function MyPage() {
               />
               <span className="text-xs font-bold text-slate-600">公開する（オフにすると非公開で保存）</span>
             </label>
-            <div className="flex justify-end">
+            <div className="flex flex-col items-end gap-1.5">
               <button
                 className={saveBtn}
                 onClick={handleCouponAdd}
@@ -2056,6 +2056,7 @@ export default function MyPage() {
               >
                 {addingCoupon ? '追加中...' : '+ クーポンを追加'}
               </button>
+              <p className="text-[11px] text-slate-400">※新規発行時のみ、保存している会員に通知されます（編集では通知されません）</p>
             </div>
           </div>
 
@@ -2247,7 +2248,7 @@ export default function MyPage() {
               />
               <span className="text-xs font-bold text-slate-600">公開する（オフにすると非公開で保存）</span>
             </label>
-            <div className="flex justify-end">
+            <div className="flex flex-col items-end gap-1.5">
               <button
                 className={saveBtn}
                 onClick={handleAnnouncementAdd}
@@ -2255,6 +2256,7 @@ export default function MyPage() {
               >
                 {addingAnnouncement ? '追加中...' : '+ お知らせを追加'}
               </button>
+              <p className="text-[11px] text-slate-400">※新規投稿時のみ、保存している会員に通知されます（編集では通知されません）</p>
             </div>
           </div>
 
