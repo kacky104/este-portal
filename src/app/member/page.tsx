@@ -23,11 +23,17 @@ export default async function MemberPage() {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect('/login?redirectTo=/member');
 
-  // ── 保存アイテムを一括取得（新しい順）。実体は既存の saved_items（saveStore と同一スキーマ）。 ──
-  const { data: savedRows } = await supabase
-    .from('saved_items')
-    .select('item_type, item_id, created_at')
-    .order('created_at', { ascending: false });
+  // ── 保存アイテム＋プロフィール（ニックネーム）を並列取得（互いに独立）。実体は既存の saved_items / profiles。 ──
+  const [savedRes, profileRes] = await Promise.all([
+    supabase
+      .from('saved_items')
+      .select('item_type, item_id, created_at')
+      .order('created_at', { ascending: false }),
+    supabase.from('profiles').select('nickname').eq('id', user.id).maybeSingle(),
+  ]);
+
+  const savedRows = savedRes.data;
+  const nickname = ((profileRes.data?.nickname as string | null) ?? '').trim();
 
   const rows = (savedRows ?? []) as { item_type: string; item_id: number | string }[];
   const salonIds = rows.filter(r => r.item_type === 'salon').map(r => Number(r.item_id));
@@ -116,7 +122,7 @@ export default async function MemberPage() {
             className="text-2xl sm:text-3xl font-bold leading-tight inline-block"
             style={{ background: 'linear-gradient(95deg,#FB923C,#DB2777)', WebkitBackgroundClip: 'text', backgroundClip: 'text', WebkitTextFillColor: 'transparent', color: 'transparent' }}
           >
-            マイページ
+            {nickname ? `${nickname}さん` : 'マイページ'}
           </h1>
           {user.email && (
             <p className="text-xs text-slate-400 mt-1.5 truncate">{user.email}</p>
@@ -242,8 +248,24 @@ export default async function MemberPage() {
             これからの機能
           </h2>
           <div className="grid gap-3 sm:grid-cols-3">
+            {/* プロフィール編集：フェーズ2で有効化（/member/profile へのリンク） */}
+            <Link
+              href="/member/profile"
+              className="group rounded-2xl border border-pink-100 bg-white p-4 shadow-sm hover:border-pink-300 hover:shadow-md transition-all"
+            >
+              <div className="flex items-start justify-between gap-2">
+                <p className="text-sm font-bold text-slate-700">プロフィール編集</p>
+                <span className="flex-shrink-0 inline-flex items-center gap-1 text-[11px] font-medium text-pink-600 group-hover:gap-1.5 transition-all">
+                  {nickname ? '編集' : '設定'} <span aria-hidden>→</span>
+                </span>
+              </div>
+              <p className="text-xs text-slate-400 mt-1.5">
+                {nickname ? 'プロフィールを編集' : 'ニックネームを設定'}
+              </p>
+            </Link>
+
+            {/* 残り2枠は準備中のまま据え置き */}
             {[
-              { title: 'プロフィール編集', desc: 'ニックネーム・アイコンを設定' },
               { title: '閲覧履歴', desc: '最近見たサロン・セラピスト' },
               { title: '通知・新着フォロー', desc: '保存サロンの新着・出勤を通知' },
             ].map(f => (
