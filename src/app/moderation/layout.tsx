@@ -1,6 +1,6 @@
 import { redirect } from 'next/navigation';
 import { createClient } from '@/app/lib/supabase/server';
-import { ADMIN_UUID } from '@/app/lib/admin';
+import { MODERATOR_UUIDS } from '@/app/lib/admin';
 
 // /moderation 配下の口コミ審査用ガード（'use client' は付けない＝サーバーコンポーネント）。
 // admin/layout.tsx と全く同じ構造のサーバーサイド認可ガード。
@@ -17,9 +17,9 @@ export default async function ModerationLayout({ children }: { children: React.R
   // 未ログインはログインページへ。
   if (!user) redirect('/login');
 
-  // ログイン済みでも管理者UIDでなければトップへ退避。
-  // children をレンダリングする前に弾くため、非管理者には審査UIの内容が一切送られない。
-  if (user.id !== ADMIN_UUID) redirect('/');
+  // ログイン済みでもモデレーター許可リストに含まれなければトップへ退避。
+  // children をレンダリングする前に弾くため、許可外には審査UIの内容が一切送られない。
+  if (!MODERATOR_UUIDS.includes(user.id)) redirect('/');
 
   return <>{children}</>;
 }

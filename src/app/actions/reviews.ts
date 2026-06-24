@@ -3,14 +3,14 @@
 import { revalidatePath } from 'next/cache';
 import { createClient } from '@/app/lib/supabase/server';
 import { createServiceClient } from '@/app/lib/supabase/service';
-import { ADMIN_UUID } from '@/app/lib/admin';
+import { ADMIN_UUID, MODERATOR_UUIDS } from '@/app/lib/admin';
 
 // 口コミ（therapist_reviews）の Server Actions。
 //
 // ★ 認可・クライアント使い分け（厳守）
 // - 投稿（submitReview）は service_role を絶対に使わない。server/cookie 版 createClient で
 //   セッション付き insert（RLS が効く）。status は送らず DB default 'pending'。
-// - 承認/却下/削除のみ assertAdmin 通過後に createServiceClient を使う。
+// - 承認/却下/削除のみ assertModerator（モデレーター許可リスト）通過後に createServiceClient を使う。
 
 // /therapist/[id] の ISR キャッシュを即時更新。
 function revalidateTherapist(therapistId: number | string): void {
@@ -24,6 +24,8 @@ function revalidateSalon(salonId: number | string): void {
 
 // ログインユーザーが管理者本人かをサーバー側で検証。通過しなければ throw し、
 // 以降の service_role 操作には絶対に到達させない。
+// ※現状は審査アクションが assertModerator を使うため未参照だが、将来の管理者専用操作のために残置。
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 async function assertAdmin(): Promise<string> {
   const supabase = await createClient();
   const {
@@ -31,6 +33,18 @@ async function assertAdmin(): Promise<string> {
   } = await supabase.auth.getUser();
   if (!user) throw new Error('ログインが必要です');
   if (user.id !== ADMIN_UUID) throw new Error('管理者権限がありません');
+  return user.id;
+}
+
+// ログインユーザーがモデレーター許可リストに含まれるかをサーバー側で検証。
+// 通過しなければ throw し、以降の service_role 操作には絶対に到達させない。
+async function assertModerator(): Promise<string> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) throw new Error('ログインが必要です');
+  if (!MODERATOR_UUIDS.includes(user.id)) throw new Error('審査権限がありません');
   return user.id;
 }
 
@@ -136,7 +150,7 @@ async function getSalonIdOfTherapist(
 // 承認：assertAdmin 通過後に service_role で status='approved' / reviewed_at=now()。
 // 承認で公開ページ・店舗集計が変わるため、therapist と salon の両方を revalidate。
 export async function approveReview(reviewId: string): Promise<void> {
-  await assertAdmin();
+  await assertModerator();
   const svc = createServiceClient();
 
   const { data: row, error: selErr } = await svc
@@ -160,7 +174,7 @@ export async function approveReview(reviewId: string): Promise<void> {
 
 // 却下：assertAdmin 通過後に service_role で status='rejected' / reviewed_at=now()。
 export async function rejectReview(reviewId: string): Promise<void> {
-  await assertAdmin();
+  await assertModerator();
   const svc = createServiceClient();
 
   const { data: row } = await svc
@@ -186,7 +200,7 @@ export async function rejectReview(reviewId: string): Promise<void> {
 // 削除：assertAdmin 通過後に service_role で該当行を取得（therapist_id を控える）→ delete → revalidate。
 // 削除で店舗集計も変わるため salon も revalidate。
 export async function deleteReview(reviewId: string): Promise<void> {
-  await assertAdmin();
+  await assertModerator();
   const svc = createServiceClient();
 
   const { data: row } = await svc
