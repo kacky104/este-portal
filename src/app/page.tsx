@@ -155,6 +155,9 @@ export default async function Home() {
                 <div className="w-1 h-6 rounded-full bg-gradient-to-b from-pink-400 to-rose-500" />
                 {/* 短いタイトルは基準サイズ(1.25rem)のまま、長いタイトルだけ画面幅に応じて必要分だけ縮める */}
                 <h2 className="font-bold whitespace-nowrap leading-tight" style={{ background: 'linear-gradient(to right, #ec4899, #f97316)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text', fontSize: `min(1.25rem, calc((100vw - 56px) / ${pickupTitle.length}))` }}>{pickupTitle}</h2>
+                <span className="flex-shrink-0 text-xs font-semibold px-2.5 py-1 rounded-full bg-pink-50 text-pink-500 border border-pink-200">
+                  おすすめ
+                </span>
               </div>
               <FeaturedSalonSlider salons={featuredSalons} />
             </div>
