@@ -267,7 +267,6 @@ export function GridCard({ therapist, index, showJoinDate = false, from, enableW
               </span>
             )}
           </div>
-          <FeatureBadges badges={therapist.featureBadges} className="mb-1" />
           {/* スリーサイズ行：スマホ(md未満)のみ出勤バッジをスリーサイズの左横に並べる（1行・はみ出しは省略） */}
           {(ss || bodySizes) && (
             <div className="flex items-center gap-1.5 mb-0.5 min-w-0">
@@ -283,6 +282,7 @@ export function GridCard({ therapist, index, showJoinDate = false, from, enableW
               )}
             </div>
           )}
+          <FeatureBadges badges={therapist.featureBadges} className="mb-1" />
           {showJoinDate && isNewFaceActive(therapist.isNewFace, therapist.newFaceSince) && therapist.newFaceSince && (
             <p className="mb-0.5" style={{ fontSize: '12px', color: '#15803d' }}>
               {formatJoinDate(therapist.newFaceSince)}
