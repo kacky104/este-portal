@@ -107,7 +107,7 @@ export default async function AreaPage({ params }: { params: Promise<{ slug: str
           showSaveButton
           wideDesktop
           heading={
-            <div className="mb-8">
+            <div className="mb-4">
               <h1 className="text-2xl font-bold text-slate-900 mb-1">{label}のメンズエステ</h1>
               <p className="text-xs text-slate-400">
                 表示順はページ読み込みのたびにシャッフルされます
