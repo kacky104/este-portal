@@ -8,6 +8,7 @@ import { getTheme, breadcrumbCurrentColor } from "@/app/lib/themes";
 import { getBusinessDateRangeJST, getScheduleWindowStatus } from "@/lib/dutyStatus";
 import { WeeklySchedule, type DaySchedule } from "./WeeklySchedule";
 import { SalonNewFaceTherapists } from "@/components/SalonTherapists";
+import { sanitizeBadges } from "@/lib/therapistBadges";
 
 // ISR：10分ごとに再生成（保存時は /api/revalidate で即時無効化）。
 export const revalidate = 600;
@@ -38,7 +39,7 @@ export default async function SalonSchedulePage({
       .single(),
     supabase
       .from('therapists')
-      .select('id, name, age, profile_image_url, is_available_now, available_until, is_new_face, new_face_since, body_type')
+      .select('id, name, age, profile_image_url, is_available_now, available_until, is_new_face, new_face_since, body_type, feature_badges')
       .eq('salon_id', Number(id)),
   ]);
 
@@ -120,6 +121,7 @@ export default async function SalonSchedulePage({
       newFaceSince:   (t.new_face_since as string | null) ?? null,
       bodyType:       (t.body_type as string | null) ?? null,
       hasDiary:       diaryIds.has(String(t.id)),
+      featureBadges:  sanitizeBadges(t.feature_badges),
     });
   }
 

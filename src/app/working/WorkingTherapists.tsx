@@ -5,6 +5,7 @@ import { createClient } from '@/app/lib/supabase/client';
 import { getBusinessDateJST } from '@/lib/dutyStatus';
 // トップページの「出勤中」ブロックと同じカード・同じ判定ロジックを流用（改変しない）
 import { Card, getScheduleStatus, type TherapistItem } from '@/app/components/TherapistScroller';
+import { sanitizeBadges } from '@/lib/therapistBadges';
 
 export function WorkingTherapists() {
   const [list, setList] = useState<TherapistItem[]>([]);
@@ -17,7 +18,7 @@ export function WorkingTherapists() {
       // ── トップページの出勤中ブロックと同じデータ取得（同じスコープ：全サロン対象） ──
       const { data: therapistData } = await supabase
         .from('therapists')
-        .select('id, name, work_hours, area, comment, salon_id, profile_image_url, age, is_available_now, available_until, is_new_face, new_face_since');
+        .select('id, name, work_hours, area, comment, salon_id, profile_image_url, age, is_available_now, available_until, is_new_face, new_face_since, feature_badges');
 
       const salonIds = [...new Set(
         (therapistData ?? []).map(t => t.salon_id as number).filter(Boolean)
@@ -71,6 +72,7 @@ export function WorkingTherapists() {
         availableUntil:  (t.available_until   as string | null) ?? null,
         isNewFace:       Boolean(t.is_new_face),
         newFaceSince:    (t.new_face_since     as string | null) ?? null,
+        featureBadges:   sanitizeBadges(t.feature_badges),
       }));
 
       const isAvailableNowActive = (t: TherapistItem) =>

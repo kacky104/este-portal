@@ -8,6 +8,8 @@ import { getBusinessDateJST, getScheduleWindowStatus } from '@/lib/dutyStatus';
 import { isNewFaceActive } from '@/lib/newFace';
 import { formatBodySizes } from '@/lib/bodyType';
 import { NewBadge } from '@/components/NewBadge';
+import { FeatureBadges } from '@/components/FeatureBadges';
+import { sanitizeBadges } from '@/lib/therapistBadges';
 import { SaveButton } from '@/app/components/SaveButton';
 import type { SalonTheme } from '@/app/lib/themes';
 
@@ -77,12 +79,13 @@ export type Therapist = {
   newFaceSince:    string | null;
   bodyType:        string | null;
   hasDiary:        boolean;
+  featureBadges:   string[]; // 特徴バッジ（最大3）
   salonId?:        number;   // 保存ボタン用（/saved のセラピストカードで使用）
 };
 
 // セラピストカードの取得列（全コンポーネントで共有）。
 const THERAPIST_SELECT =
-  'id, name, age, work_hours, area, comment, profile_image_url, is_available_now, available_until, is_new_face, new_face_since, body_type, salon_id';
+  'id, name, age, work_hours, area, comment, profile_image_url, is_available_now, available_until, is_new_face, new_face_since, body_type, feature_badges, salon_id';
 
 // ── shared schedule fetch ──────────────────────────────────────
 
@@ -148,6 +151,7 @@ function buildTherapist(
     bodyType:        (t.body_type as string | null) ?? null,
     age:             (t.age as string | null) ?? null,
     hasDiary:        diarySet.has(key),
+    featureBadges:   sanitizeBadges(t.feature_badges),
     salonId:         (t.salon_id as number | null) ?? undefined,
   };
 }
@@ -235,6 +239,7 @@ export function GridCard({ therapist, index, showJoinDate = false, from, enableW
               </span>
             )}
           </div>
+          <FeatureBadges badges={therapist.featureBadges} className="mb-1" />
           {bodySizes && (
             <p className="mb-0.5 text-slate-500 md:whitespace-nowrap md:overflow-hidden md:text-ellipsis" style={{ fontSize: '12px' }}>
               {bodySizes}
@@ -361,6 +366,7 @@ function MiniCard({ therapist, index }: { therapist: Therapist; index: number })
             <span className="font-bold text-[11px] leading-tight drop-shadow flex-shrink-0">（{therapist.age}）</span>
           )}
         </div>
+        <FeatureBadges badges={therapist.featureBadges} className="justify-center mt-0.5" />
         {(ss?.status === 'onDuty' || ss?.status === 'before') && (displayHours || therapist.workHours) && (
           <p className="text-[13px] text-pink-200 font-medium mt-0.5 text-center whitespace-nowrap">{displayHours || therapist.workHours}</p>
         )}
@@ -397,7 +403,7 @@ export function SalonTherapists({ salonId }: { salonId: number }) {
       const supabase = createClient();
       const { data: rows } = await supabase
         .from('therapists')
-        .select('id, name, age, work_hours, area, comment, profile_image_url, is_available_now, available_until, is_new_face, new_face_since, body_type')
+        .select('id, name, age, work_hours, area, comment, profile_image_url, is_available_now, available_until, is_new_face, new_face_since, body_type, feature_badges')
         .eq('salon_id', salonId);
 
       console.log('[SalonTherapists] therapist rows:', rows?.map(r => ({ id: r.id, name: r.name })));
@@ -430,6 +436,7 @@ export function SalonTherapists({ salonId }: { salonId: number }) {
           bodyType:        (t.body_type as string | null) ?? null,
           age:             (t.age as string | null) ?? null,
           hasDiary:        diarySet.has(key),
+          featureBadges:   sanitizeBadges(t.feature_badges),
         };
       });
 
@@ -489,7 +496,7 @@ export function SalonOnDutyExcludingNow({ salonId, theme }: { salonId: number; t
       const supabase = createClient();
       const { data: rows } = await supabase
         .from('therapists')
-        .select('id, name, age, work_hours, area, comment, profile_image_url, is_available_now, available_until, is_new_face, new_face_since, body_type')
+        .select('id, name, age, work_hours, area, comment, profile_image_url, is_available_now, available_until, is_new_face, new_face_since, body_type, feature_badges')
         .eq('salon_id', salonId);
 
       const rawIds = (rows ?? []).map(t => t.id);
@@ -516,6 +523,7 @@ export function SalonOnDutyExcludingNow({ salonId, theme }: { salonId: number; t
           bodyType:        (t.body_type as string | null) ?? null,
           age:             (t.age as string | null) ?? null,
           hasDiary:        diarySet.has(key),
+          featureBadges:   sanitizeBadges(t.feature_badges),
           salonId,  // 保存ボタン用（このサロンに在籍）
         };
       });
@@ -575,7 +583,7 @@ export function SalonAllTherapists({ salonId, limit, from, showSaveButton = fals
       const supabase = createClient();
       const { data: rows } = await supabase
         .from('therapists')
-        .select('id, name, age, work_hours, area, comment, profile_image_url, is_available_now, available_until, is_new_face, new_face_since, body_type')
+        .select('id, name, age, work_hours, area, comment, profile_image_url, is_available_now, available_until, is_new_face, new_face_since, body_type, feature_badges')
         .eq('salon_id', salonId);
 
       const rawIds = (rows ?? []).map(t => t.id);
@@ -599,6 +607,7 @@ export function SalonAllTherapists({ salonId, limit, from, showSaveButton = fals
         bodyType:        (t.body_type as string | null) ?? null,
         age:             (t.age as string | null) ?? null,
         hasDiary:        diarySet.has(String(t.id)),
+        featureBadges:   sanitizeBadges(t.feature_badges),
         salonId,  // 保存ボタン用（このサロンに在籍）
       }));
 
@@ -646,7 +655,7 @@ export function SalonNewFaceTherapists({
       const supabase = createClient();
       const { data: rows } = await supabase
         .from('therapists')
-        .select('id, name, age, work_hours, area, comment, profile_image_url, is_available_now, available_until, is_new_face, new_face_since, body_type')
+        .select('id, name, age, work_hours, area, comment, profile_image_url, is_available_now, available_until, is_new_face, new_face_since, body_type, feature_badges')
         .eq('salon_id', salonId);
 
       const rawIds = (rows ?? []).map(t => t.id);
@@ -670,6 +679,7 @@ export function SalonNewFaceTherapists({
         bodyType:        (t.body_type as string | null) ?? null,
         age:             (t.age as string | null) ?? null,
         hasDiary:        diarySet.has(String(t.id)),
+        featureBadges:   sanitizeBadges(t.feature_badges),
         salonId,  // 保存ボタン用（このサロンに在籍）
       }));
 

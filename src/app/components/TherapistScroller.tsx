@@ -7,6 +7,8 @@ import { createClient } from '@/app/lib/supabase/client';
 import { getBusinessDateJST, getScheduleWindowStatus } from '@/lib/dutyStatus';
 import { isNewFaceActive } from '@/lib/newFace';
 import { NewBadge } from '@/components/NewBadge';
+import { FeatureBadges } from '@/components/FeatureBadges';
+import { sanitizeBadges } from '@/lib/therapistBadges';
 
 const GRADIENTS = ['from-pink-300 to-rose-400', 'from-fuchsia-300 to-pink-400', 'from-rose-300 to-pink-500', 'from-pink-400 to-fuchsia-400'];
 
@@ -60,6 +62,7 @@ export type TherapistItem = {
   availableUntil:  string | null;
   isNewFace:       boolean;
   newFaceSince:    string | null;
+  featureBadges:   string[];
 };
 
 // ── Card ──────────────────────────────────────────────────────
@@ -119,6 +122,7 @@ export function Card({ therapist, index, showAge = false }: { therapist: Therapi
           )}
           {!showAge && isNewFaceActive(therapist.isNewFace, therapist.newFaceSince) && <NewBadge />}
         </div>
+        <FeatureBadges badges={therapist.featureBadges} className="justify-center mt-0.5" />
         {(displayHours || therapist.workHours) && (
           <p className="text-[13px] text-pink-200 font-medium mt-0.5 text-center">{displayHours || therapist.workHours}</p>
         )}
@@ -141,7 +145,7 @@ export function TherapistScroller({ showAge = false }: { showAge?: boolean } = {
 
       const { data: therapistData } = await supabase
         .from('therapists')
-        .select('id, name, work_hours, area, comment, salon_id, profile_image_url, age, is_available_now, available_until, is_new_face, new_face_since');
+        .select('id, name, work_hours, area, comment, salon_id, profile_image_url, age, is_available_now, available_until, is_new_face, new_face_since, feature_badges');
 
       const salonIds = [...new Set(
         (therapistData ?? []).map(t => t.salon_id as number).filter(Boolean)
@@ -195,6 +199,7 @@ export function TherapistScroller({ showAge = false }: { showAge?: boolean } = {
         availableUntil:  (t.available_until   as string | null) ?? null,
         isNewFace:       Boolean(t.is_new_face),
         newFaceSince:    (t.new_face_since     as string | null) ?? null,
+        featureBadges:   sanitizeBadges(t.feature_badges),
       }));
 
       const isAvailableNowActive = (t: TherapistItem) =>
