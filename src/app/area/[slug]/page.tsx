@@ -85,7 +85,7 @@ export default async function AreaPage({ params }: { params: Promise<{ slug: str
           <section className="mb-10">
             <div className="flex items-center gap-3 mb-4">
               <div className="w-1 h-6 rounded-full bg-gradient-to-b from-pink-400 to-rose-500" />
-              <h2 className="text-xl font-bold" style={{ background: 'linear-gradient(to right, #ec4899, #f97316)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text' }}>ピックアップサロン</h2>
+              <h2 className="text-xl font-bold" style={{ background: 'linear-gradient(to right, #ec4899, #f97316)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text' }}>{area === DISPATCH_AREA ? '出張対応' : label}のピックアップサロン</h2>
               <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-pink-50 text-pink-500 border border-pink-200">
                 おすすめ
               </span>
