@@ -35,6 +35,7 @@ import { SalonNameBanner } from "./SalonNameBanner";
 import { CollapsibleCourses } from "./CollapsibleCourses";
 import { CollapsibleSection } from "./CollapsibleSection";
 import { ViewHistoryLogger } from "@/app/components/ViewHistoryLogger";
+import { ImasuguCountBadge } from "@/app/components/ImasuguCountBadge";
 
 // ISR：10分ごとに再生成（保存時は /api/revalidate で即時無効化）。
 export const revalidate = 600;
@@ -78,7 +79,7 @@ export default async function SalonPage({
       .limit(3),
     supabase
       .from('therapists')
-      .select('id, is_available_now, available_until')
+      .select('id')
       .eq('salon_id', Number(id)),
     supabase
       .from('coupons')
@@ -124,7 +125,9 @@ export default async function SalonPage({
   const qn = QUICKNAV_COLORS[theme.key];
   const heart = HEART_COLORS[theme.key];
 
-  // 在籍セラピスト（本日出勤数・今すぐ数の集計に使用）。第1段で取得済み。
+  // 在籍セラピスト（本日出勤数の集計に使用）。第1段で取得済み。
+  // ※「今すぐ数」は時刻ベース判定のためサーバー（ISRキャッシュ対象）では計算せず、
+  //   クライアントの ImasuguCountBadge でマウント時の現在時刻で算出する。
   const therapistRowsForCount = salonTherapistRows ?? [];
   const therapistIds = therapistRowsForCount.map(t => t.id);
 
@@ -168,17 +171,6 @@ export default async function SalonPage({
         .map(r => String(r.therapist_id))
     ).size;
   }
-
-  // 今すぐ数（時刻ベース：is_available_now=true かつ available_until が未来）。最大3名。
-  const nowMsForImasugu = Date.now();
-  const imasuguCount = Math.min(
-    3,
-    therapistRowsForCount.filter(t =>
-      Boolean(t.is_available_now) &&
-      t.available_until != null &&
-      new Date(t.available_until as string).getTime() > nowMsForImasugu
-    ).length
-  );
 
   // 写メ日記の48時間以内投稿数（このサロン所属セラピストの diary_posts を created_at で集計）。
   const diaryRecentCount = diaryRes.count ?? 0;
@@ -290,18 +282,8 @@ export default async function SalonPage({
               </Link>
               {/* 今すぐ（顔＋ハート・今すぐ一覧ページへのリンク） */}
               <Link href={`/salon/${id}/imasugu`} className="relative flex flex-col items-center justify-center gap-1.5 rounded-lg border px-1.5 py-3 sm:py-4 shadow-sm cursor-pointer hover:shadow-md hover:brightness-95 transition-all" style={{ backgroundColor: qn.bg, borderColor: qn.border }}>
-                {/* 今すぐ人数のハートバッジ（1名以上のときのみ右上にはみ出して表示）。本日出勤カードと同一デザイン。Link内のためタップでも遷移する。 */}
-                {imasuguCount > 0 && (
-                  <svg
-                    width="50" height="50" viewBox="0 0 100 100"
-                    className="absolute drop-shadow"
-                    style={{ top: '-12px', right: '-12px' }}
-                    aria-label={`今すぐ ${imasuguCount}名`}
-                  >
-                    <path d="M50 86 C50 86 14 60 14 34 C14 21 25 13 35 13 C43 13 48 19 50 25 C52 19 57 13 65 13 C75 13 86 21 86 34 C86 60 50 86 50 86 Z" fill={heart.fill} />
-                    <text x="50" y="43" textAnchor="middle" dominantBaseline="central" fill={heart.num} fontWeight="600" fontSize={imasuguCount >= 10 ? 26 : 34}>{imasuguCount}</text>
-                  </svg>
-                )}
+                {/* 今すぐ人数のハートバッジ（時刻ベース判定のためクライアントで算出。0名なら非表示）。本日出勤カードと同一デザイン。 */}
+                <ImasuguCountBadge salonId={Number(id)} fill={heart.fill} num={heart.num} />
                 <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="flex-shrink-0" style={{ color: qn.icon }}>
                   <circle cx="12" cy="12" r="9" />
                   <path d="M9 9.5h.01" />
