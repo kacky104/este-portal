@@ -37,6 +37,8 @@ import { CollapsibleCourses } from "./CollapsibleCourses";
 import { CollapsibleSection } from "./CollapsibleSection";
 import { ViewHistoryLogger } from "@/app/components/ViewHistoryLogger";
 import { ImasuguCountBadge } from "@/app/components/ImasuguCountBadge";
+import { getSalonReviewStats } from "@/app/lib/reviews";
+import { Stars } from "@/app/components/Stars";
 
 // ISR：10分ごとに再生成（保存時は /api/revalidate で即時無効化）。
 export const revalidate = 600;
@@ -192,7 +194,9 @@ export default async function SalonPage({
       : {}),
   };
 
-  const filledStars = Math.floor(salon.rating);
+  // 店舗の口コミ評価（在籍セラピストへの承認済み口コミを束ねて計算）。
+  // getSalonReviewStats は内部で createPublicClient を使う（cookies() を呼ばない）ため ISR を壊さない。
+  const salonReviewStats = await getSalonReviewStats(Number(id));
 
   // 店舗基本情報の中身（スマホ=サロンについての下／デスクトップ=右サイドバー の2箇所で共用）
   const shopInfoRows = (
@@ -504,17 +508,32 @@ export default async function SalonPage({
               <p className="text-xs opacity-70 mt-1">※ コースにより異なります</p>
             </div>
 
-            {/* Rating（評価・口コミ件数。店舗基本情報の上） */}
+            {/* Rating（口コミ評価＝承認済み口コミの計算値。店舗基本情報の上） */}
             <div className="rounded-2xl border shadow-sm p-5" style={{ backgroundColor: theme.card, borderColor: theme.cardBorder }}>
-              <div className="flex flex-wrap items-center gap-3">
-                <div className="flex items-center gap-1">
-                  {Array.from({ length: 5 }, (_, i) => (
-                    <span key={i} className={i < filledStars ? "text-pink-500" : "text-slate-300"} style={{ fontSize: "18px" }}>★</span>
-                  ))}
+              {salonReviewStats.count === 0 || salonReviewStats.avgOverall === null ? (
+                <p className="text-sm" style={{ color: theme.body }}>口コミはまだありません</p>
+              ) : (
+                <div className="space-y-3">
+                  {/* 総合 */}
+                  <div className="flex flex-wrap items-center gap-3">
+                    <Stars value={salonReviewStats.avgOverall} size={18} />
+                    <span className="text-pink-600 font-bold text-lg">{salonReviewStats.avgOverall.toFixed(1)}</span>
+                    <span className="text-sm" style={{ color: theme.body }}>（{salonReviewStats.count}件の口コミ）</span>
+                  </div>
+                  {/* 3軸内訳（小さく） */}
+                  <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs" style={{ color: theme.body }}>
+                    {salonReviewStats.avgService !== null && (
+                      <span className="inline-flex items-center gap-1">接客 <Stars value={salonReviewStats.avgService} size={11} /> {salonReviewStats.avgService.toFixed(1)}</span>
+                    )}
+                    {salonReviewStats.avgTechnique !== null && (
+                      <span className="inline-flex items-center gap-1">施術 <Stars value={salonReviewStats.avgTechnique} size={11} /> {salonReviewStats.avgTechnique.toFixed(1)}</span>
+                    )}
+                    {salonReviewStats.avgReception !== null && (
+                      <span className="inline-flex items-center gap-1">受付 <Stars value={salonReviewStats.avgReception} size={11} /> {salonReviewStats.avgReception.toFixed(1)}</span>
+                    )}
+                  </div>
                 </div>
-                <span className="text-pink-600 font-bold text-lg">{salon.rating}</span>
-                <span className="text-sm" style={{ color: theme.body }}>({salon.reviewCount}件の口コミ)</span>
-              </div>
+              )}
             </div>
 
             {/* Shop info（デスクトップのみ：右サイドバーに常時展開で表示。スマホは左カラムのサロンについての下） */}

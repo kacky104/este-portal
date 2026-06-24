@@ -5,17 +5,22 @@ import { useRouter } from 'next/navigation';
 import { approveReview, rejectReview, deleteReview } from '@/app/actions/reviews';
 import { Stars } from '@/app/components/Stars';
 
-// 1件分の未承認口コミの表示＋承認/却下ボタン（クライアント）。
-// <form> タグは使わず onClick で Server Action を呼ぶ。処理中はボタン無効化、
-// 完了したらその行を一覧から消す（楽観的に hidden ＋ router.refresh() でサーバー再取得）。
+// 審査カードの表示用データ（pending / approved 共通の形）。
+// rating は3軸＋総合（overall）。来店日（visitedOn）も持つ。
 export type PendingReviewView = {
   reviewId: string;
-  rating: number;
+  ratingService: number;
+  ratingTechnique: number;
+  ratingReception: number;
+  overall: number;
+  visitedOn: string; // 'YYYY-MM-DD'
   body: string;
   nickname: string;
   therapistName: string;
   createdAt: string; // ISO
 };
+
+export type ApprovedReviewView = PendingReviewView;
 
 function formatJaDateTime(s: string): string {
   return new Date(s).toLocaleString('ja-JP', {
@@ -27,13 +32,68 @@ function formatJaDateTime(s: string): string {
   });
 }
 
-export function ReviewModeration({
-  reviewId,
-  rating,
+function formatVisited(s: string): string {
+  const [y, m, d] = s.split('-');
+  if (!y || !m || !d) return '';
+  return `${Number(y)}/${Number(m)}/${Number(d)} 来店`;
+}
+
+// 総合星＋3軸内訳＋来店日（pending/approved 共通の表示部）。
+function ReviewBody({
+  ratingService,
+  ratingTechnique,
+  ratingReception,
+  overall,
+  visitedOn,
   body,
   nickname,
-  therapistName,
   createdAt,
+}: Omit<PendingReviewView, 'reviewId' | 'therapistName'>) {
+  return (
+    <>
+      {/* 総合星・投稿者・投稿日時 */}
+      <div className="flex items-center justify-between gap-2">
+        <div className="flex items-center gap-2 min-w-0">
+          <Stars value={overall} size={16} />
+          <span className="text-sm font-bold text-slate-700 tabular-nums">{overall.toFixed(1)}</span>
+          <span className="text-sm text-slate-500 truncate">／ {nickname}</span>
+        </div>
+        <span className="text-xs text-slate-400 flex-shrink-0">{formatJaDateTime(createdAt)}</span>
+      </div>
+
+      {/* 3軸内訳＋来店日 */}
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+        <AxisMini label="接客" value={ratingService} />
+        <AxisMini label="施術" value={ratingTechnique} />
+        <AxisMini label="受付" value={ratingReception} />
+        {visitedOn && (
+          <span className="text-[11px] text-pink-500 font-medium">{formatVisited(visitedOn)}</span>
+        )}
+      </div>
+
+      {/* 本文 */}
+      <p className="text-sm text-slate-600 leading-relaxed whitespace-pre-wrap break-words">{body}</p>
+    </>
+  );
+}
+
+function AxisMini({ label, value }: { label: string; value: number }) {
+  return (
+    <span className="inline-flex items-center gap-1">
+      <span className="text-[11px] text-slate-400">{label}</span>
+      <Stars value={value} size={11} />
+      <span className="text-[11px] font-bold text-slate-500 tabular-nums">{value.toFixed(1)}</span>
+    </span>
+  );
+}
+
+// 1件分の未承認口コミの表示＋承認/却下ボタン（クライアント）。
+// <form> タグは使わず onClick で Server Action を呼ぶ。処理中はボタン無効化、
+// 完了したらその行を一覧から消す（楽観的に hidden ＋ router.refresh() でサーバー再取得）。
+export function ReviewModeration({
+  reviewId,
+  therapistName,
+  ...rest
 }: PendingReviewView) {
   const router = useRouter();
   const [busy, setBusy] = useState(false);
@@ -65,20 +125,7 @@ export function ReviewModeration({
         <span className="truncate">{therapistName}</span>
       </div>
 
-      {/* ★・投稿者・投稿日時 */}
-      <div className="flex items-center justify-between gap-2">
-        <div className="flex items-center gap-2 min-w-0">
-          <Stars value={rating} size={16} />
-          <span className="text-sm font-bold text-slate-700 tabular-nums">{rating.toFixed(1)}</span>
-          <span className="text-sm text-slate-500 truncate">／ {nickname}</span>
-        </div>
-        <span className="text-xs text-slate-400 flex-shrink-0">{formatJaDateTime(createdAt)}</span>
-      </div>
-
-      {/* 本文 */}
-      <p className="text-sm text-slate-600 leading-relaxed whitespace-pre-wrap break-words">
-        {body}
-      </p>
+      <ReviewBody {...rest} />
 
       {error && (
         <p className="text-xs text-rose-500 bg-rose-50 border border-rose-100 rounded-xl px-3 py-2">
@@ -111,17 +158,11 @@ export function ReviewModeration({
 }
 
 // 承認済み（公開中）口コミ1件の表示＋削除ボタン（クライアント）。
-// 表示は ReviewModeration と同形（同じ流儀）だが、ボタンは「削除」1つだけ。
 // 削除は取り返しがつかないため、必ず window.confirm で確認してから deleteReview を呼ぶ。
-export type ApprovedReviewView = PendingReviewView;
-
 export function ApprovedReviewModeration({
   reviewId,
-  rating,
-  body,
-  nickname,
   therapistName,
-  createdAt,
+  ...rest
 }: ApprovedReviewView) {
   const router = useRouter();
   const [busy, setBusy] = useState(false);
@@ -155,20 +196,7 @@ export function ApprovedReviewModeration({
         <span className="truncate text-slate-700">{therapistName}</span>
       </div>
 
-      {/* ★・投稿者・投稿日時 */}
-      <div className="flex items-center justify-between gap-2">
-        <div className="flex items-center gap-2 min-w-0">
-          <Stars value={rating} size={16} />
-          <span className="text-sm font-bold text-slate-700 tabular-nums">{rating.toFixed(1)}</span>
-          <span className="text-sm text-slate-500 truncate">／ {nickname}</span>
-        </div>
-        <span className="text-xs text-slate-400 flex-shrink-0">{formatJaDateTime(createdAt)}</span>
-      </div>
-
-      {/* 本文 */}
-      <p className="text-sm text-slate-600 leading-relaxed whitespace-pre-wrap break-words">
-        {body}
-      </p>
+      <ReviewBody {...rest} />
 
       {error && (
         <p className="text-xs text-rose-500 bg-rose-50 border border-rose-100 rounded-xl px-3 py-2">

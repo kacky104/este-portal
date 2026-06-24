@@ -7,20 +7,23 @@ import { ADMIN_UUID } from '@/app/lib/admin';
 
 // 口コミ（therapist_reviews）の Server Actions。
 //
-// ★ 認可・クライアント使い分けの厳守ルール（最重要）
-// - 投稿（submitReview）は service_role を絶対に使わない。ユーザーのセッション付き authenticated
-//   クライアント（server/cookie版 createClient）で insert する。これで RLS が効き、なりすまし・
-//   status='approved' の直接挿入が DB 層で防がれる。
-// - 承認・却下・削除だけ service_role（createServiceClient）を使う。その前に必ず assertAdmin で
-//   管理者本人であることを検証してから実行する（assertAdmin を通過した場合のみ service_role を触る）。
+// ★ 認可・クライアント使い分け（厳守）
+// - 投稿（submitReview）は service_role を絶対に使わない。server/cookie 版 createClient で
+//   セッション付き insert（RLS が効く）。status は送らず DB default 'pending'。
+// - 承認/却下/削除のみ assertAdmin 通過後に createServiceClient を使う。
 
-// /therapist/[id] の ISR キャッシュを即時更新する小ヘルパー。
+// /therapist/[id] の ISR キャッシュを即時更新。
 function revalidateTherapist(therapistId: number | string): void {
   revalidatePath(`/therapist/${therapistId}`);
 }
 
-// ログインユーザーが管理者本人かをサーバー側で検証（VIPレターの assertOwner の管理者版）。
-// 通過しなければ throw し、以降の service_role 操作には絶対に到達させない。
+// /salon/[id] の ISR キャッシュを即時更新（店舗集計の反映用）。
+function revalidateSalon(salonId: number | string): void {
+  revalidatePath(`/salon/${salonId}`);
+}
+
+// ログインユーザーが管理者本人かをサーバー側で検証。通過しなければ throw し、
+// 以降の service_role 操作には絶対に到達させない。
 async function assertAdmin(): Promise<string> {
   const supabase = await createClient();
   const {
@@ -36,46 +39,102 @@ function isValidRating(r: number): boolean {
   return Number.isFinite(r) && r >= 0.5 && r <= 5.0 && Math.round(r * 2) === r * 2;
 }
 
-// 口コミを投稿（会員本人・authenticated クライアントで insert・status は DB default 'pending'）。
-// 未ログイン/バリデーションNG は throw（クライアント側で誘導・検証済みだが二重防御）。
-export async function submitReview({
-  therapistId,
-  rating,
-  body,
-}: {
+// 'YYYY-MM-DD' として妥当か（実在日かつ書式一致）。
+function isValidDateString(s: string): boolean {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(s)) return false;
+  const d = new Date(s + 'T00:00:00+09:00');
+  if (Number.isNaN(d.getTime())) return false;
+  // 正規化して入力と一致するか（例: 2026-02-31 を弾く）。JSTで判定。
+  const norm = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Tokyo' }).format(d);
+  return norm === s;
+}
+
+// JST の今日（'YYYY-MM-DD'）。
+function todayJST(): string {
+  return new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Tokyo' }).format(new Date());
+}
+
+type SubmitInput = {
+  salonId: number;
   therapistId: number;
-  rating: number;
+  ratingService: number;
+  ratingTechnique: number;
+  ratingReception: number;
+  visitedOn: string; // 'YYYY-MM-DD'
   body: string;
-}): Promise<void> {
+};
+
+// 口コミを投稿（会員本人・authenticated クライアントで insert）。
+// 未ログイン/バリデーションNG/改ざんは throw（クライアント側で誘導・検証済みだが二重防御）。
+export async function submitReview(input: SubmitInput): Promise<void> {
+  const { salonId, therapistId, ratingService, ratingTechnique, ratingReception, visitedOn, body } =
+    input;
+
   const supabase = await createClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();
   if (!user) throw new Error('口コミの投稿にはログインが必要です');
 
-  if (!Number.isFinite(therapistId)) throw new Error('対象のセラピストが不正です');
-  if (!isValidRating(rating)) throw new Error('評価は0.5〜5.0の0.5刻みで選んでください');
+  // 入力バリデーション。
+  if (!Number.isFinite(therapistId) || !Number.isFinite(salonId)) {
+    throw new Error('対象が不正です');
+  }
+  if (!isValidRating(ratingService) || !isValidRating(ratingTechnique) || !isValidRating(ratingReception)) {
+    throw new Error('評価は各項目とも0.5〜5.0の0.5刻みで選んでください');
+  }
   const text = (body ?? '').trim();
   if (text.length < 1 || text.length > 2000) {
     throw new Error('本文は1〜2000文字で入力してください');
   }
+  if (!isValidDateString(visitedOn)) {
+    throw new Error('来店日が正しくありません');
+  }
+  if (visitedOn > todayJST()) {
+    throw new Error('来店日は今日以前の日付を選んでください');
+  }
 
-  // 同じ authenticated クライアントで insert（service_role は使わない）。
+  // therapistId が salonId に属し、かつ is_active=true かをサーバー側で検証（フォーム改ざん対策）。
+  // service_role ではなく通常クライアントの読みでよい（公開情報）。
+  const { data: th, error: thErr } = await supabase
+    .from('therapists')
+    .select('salon_id, is_active')
+    .eq('id', therapistId)
+    .maybeSingle();
+  if (thErr || !th) throw new Error('対象のセラピストが見つかりません');
+  if ((th.salon_id as number) !== salonId || !(th.is_active as boolean)) {
+    throw new Error('対象のセラピストが正しくありません');
+  }
+
+  // 同じ authenticated クライアントで insert（service_role 不使用）。
   // user_id はログインユーザーの id、status は送らず DB default 'pending' に任せる。
   const { error } = await supabase.from('therapist_reviews').insert({
     therapist_id: therapistId,
     user_id: user.id,
-    rating,
+    rating_service: ratingService,
+    rating_technique: ratingTechnique,
+    rating_reception: ratingReception,
+    visited_on: visitedOn,
     body: text,
   });
   if (error) throw new Error(error.message);
 
-  // 承認前は公開ページに出ないため必須ではないが、整合のため呼ぶ。
+  // 承認前は公開ページに出ないが、整合のため両ページを revalidate。
   revalidateTherapist(therapistId);
+  revalidateSalon(salonId);
 }
 
-// 承認：assertAdmin 通過後に service_role で status='approved' / reviewed_at=now() に更新し、
-// 公開ページを revalidate（承認で反映させるため therapist_id を取得してから無効化）。
+// therapist_id から salon_id を引く（service_role）。見つからなければ null。
+async function getSalonIdOfTherapist(
+  svc: ReturnType<typeof createServiceClient>,
+  therapistId: number,
+): Promise<number | null> {
+  const { data } = await svc.from('therapists').select('salon_id').eq('id', therapistId).maybeSingle();
+  return data ? ((data.salon_id as number | null) ?? null) : null;
+}
+
+// 承認：assertAdmin 通過後に service_role で status='approved' / reviewed_at=now()。
+// 承認で公開ページ・店舗集計が変わるため、therapist と salon の両方を revalidate。
 export async function approveReview(reviewId: string): Promise<void> {
   await assertAdmin();
   const svc = createServiceClient();
@@ -86,6 +145,7 @@ export async function approveReview(reviewId: string): Promise<void> {
     .eq('id', reviewId)
     .single();
   if (selErr || !row) throw new Error('対象の口コミが見つかりません');
+  const therapistId = row.therapist_id as number;
 
   const { error } = await svc
     .from('therapist_reviews')
@@ -93,11 +153,12 @@ export async function approveReview(reviewId: string): Promise<void> {
     .eq('id', reviewId);
   if (error) throw new Error(error.message);
 
-  revalidateTherapist(row.therapist_id as number);
+  revalidateTherapist(therapistId);
+  const salonId = await getSalonIdOfTherapist(svc, therapistId);
+  if (salonId != null) revalidateSalon(salonId);
 }
 
-// 却下：assertAdmin 通過後に service_role で status='rejected' / reviewed_at=now() に更新。
-// 出ていないものが消えるだけだが整合のため revalidate してよい。
+// 却下：assertAdmin 通過後に service_role で status='rejected' / reviewed_at=now()。
 export async function rejectReview(reviewId: string): Promise<void> {
   await assertAdmin();
   const svc = createServiceClient();
@@ -114,10 +175,16 @@ export async function rejectReview(reviewId: string): Promise<void> {
     .eq('id', reviewId);
   if (error) throw new Error(error.message);
 
-  if (row) revalidateTherapist(row.therapist_id as number);
+  if (row) {
+    const therapistId = row.therapist_id as number;
+    revalidateTherapist(therapistId);
+    const salonId = await getSalonIdOfTherapist(svc, therapistId);
+    if (salonId != null) revalidateSalon(salonId);
+  }
 }
 
 // 削除：assertAdmin 通過後に service_role で該当行を取得（therapist_id を控える）→ delete → revalidate。
+// 削除で店舗集計も変わるため salon も revalidate。
 export async function deleteReview(reviewId: string): Promise<void> {
   await assertAdmin();
   const svc = createServiceClient();
@@ -131,5 +198,10 @@ export async function deleteReview(reviewId: string): Promise<void> {
   const { error } = await svc.from('therapist_reviews').delete().eq('id', reviewId);
   if (error) throw new Error(error.message);
 
-  if (row) revalidateTherapist(row.therapist_id as number);
+  if (row) {
+    const therapistId = row.therapist_id as number;
+    revalidateTherapist(therapistId);
+    const salonId = await getSalonIdOfTherapist(svc, therapistId);
+    if (salonId != null) revalidateSalon(salonId);
+  }
 }

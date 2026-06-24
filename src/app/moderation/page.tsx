@@ -19,7 +19,7 @@ export default async function ModerationPage() {
 
   const { data: rows } = await svc
     .from('therapist_reviews')
-    .select('id, therapist_id, user_id, rating, body, created_at')
+    .select('id, therapist_id, user_id, rating_service, rating_technique, rating_reception, visited_on, body, created_at')
     .eq('status', 'pending')
     .order('created_at', { ascending: false });
 
@@ -28,7 +28,7 @@ export default async function ModerationPage() {
   // 承認済み（公開中）も取得（誤承認の削除導線用）。
   const { data: approvedRows } = await svc
     .from('therapist_reviews')
-    .select('id, therapist_id, user_id, rating, body, created_at')
+    .select('id, therapist_id, user_id, rating_service, rating_technique, rating_reception, visited_on, body, created_at')
     .eq('status', 'approved')
     .order('created_at', { ascending: false });
   const approved = approvedRows ?? [];
@@ -56,14 +56,24 @@ export default async function ModerationPage() {
   }
 
   // pending / approved を共通の表示用形（PendingReviewView と同形）に変換。
-  const toView = (r: (typeof allRows)[number]): PendingReviewView => ({
-    reviewId: String(r.id),
-    rating: Number(r.rating),
-    body: (r.body as string) ?? '',
-    nickname: nameMap.get(r.user_id as string) ?? 'ゲスト',
-    therapistName: therapistMap.get(r.therapist_id as number) ?? `セラピスト#${r.therapist_id}`,
-    createdAt: String(r.created_at),
-  });
+  // 総合（overall）は保存せず3軸から計算（小数1位）。
+  const toView = (r: (typeof allRows)[number]): PendingReviewView => {
+    const s = Number(r.rating_service);
+    const t = Number(r.rating_technique);
+    const rc = Number(r.rating_reception);
+    return {
+      reviewId: String(r.id),
+      ratingService: s,
+      ratingTechnique: t,
+      ratingReception: rc,
+      overall: Math.round(((s + t + rc) / 3) * 10) / 10,
+      visitedOn: String(r.visited_on),
+      body: (r.body as string) ?? '',
+      nickname: nameMap.get(r.user_id as string) ?? 'ゲスト',
+      therapistName: therapistMap.get(r.therapist_id as number) ?? `セラピスト#${r.therapist_id}`,
+      createdAt: String(r.created_at),
+    };
+  };
 
   const views: PendingReviewView[] = pending.map(toView);
   const approvedViews: ApprovedReviewView[] = approved.map(toView);

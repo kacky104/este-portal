@@ -123,7 +123,9 @@
       "Bash(grep -iE \"Compiled|Failed|Error:|error |✓ Generating|/salon/\\\\[id\\\\]|^├ ○ /$|/working\")",
       "Bash(grep -nE \"</main>|activeTab === 'news'|^      </div>$|VIPレター\" src/app/mypage/page.tsx)",
       "Bash(awk -F: '$1>2180')",
-      "PowerShell(npx eslint src/app/moderation/ReviewModeration.tsx src/app/moderation/page.tsx 2>&1 | Select-Object -First 40; Write-Host \"Exit: $LASTEXITCODE\")"
+      "PowerShell(npx eslint src/app/moderation/ReviewModeration.tsx src/app/moderation/page.tsx 2>&1 | Select-Object -First 40; Write-Host \"Exit: $LASTEXITCODE\")",
+      "PowerShell(npx eslint src/app/lib/reviews.ts src/app/actions/reviews.ts src/app/components/StarRatingInput.tsx src/app/components/ReviewSummary.tsx src/app/components/ReviewList.tsx \"src/app/salon/[id]/review/new/page.tsx\" \"src/app/salon/[id]/review/new/SalonReviewForm.tsx\" \"src/app/salon/[id]/page.tsx\" \"src/app/therapist/[id]/page.tsx\" src/app/moderation/page.tsx src/app/moderation/ReviewModeration.tsx 2>&1 | Select-Object -First 60; Write-Host \"Exit: $LASTEXITCODE\")",
+      "PowerShell(npx eslint \"src/app/salon/[id]/review/new/SalonReviewForm.tsx\" 2>&1 | Select-String -Pattern \"no-unused-vars|salonName|error\"; Write-Host \"Exit: $LASTEXITCODE\")"
     ]
   },
   "hooks": {}
