@@ -165,7 +165,7 @@ export default async function Home() {
         )}
 
         {/* ─── Today's therapists ──────────────────────────────── */}
-        <section className="py-5 sm:py-10 bg-white border-t border-pink-50">
+        <section className="pt-5 pb-2.5 sm:py-10 bg-white border-t border-pink-50">
           <div className="max-w-5xl mx-auto px-4">
             <div className="flex items-center justify-between mb-1.5">
               <div className="flex items-center gap-3">
@@ -197,7 +197,7 @@ export default async function Home() {
         </section>
 
         {/* ─── Salon list ──────────────────────────────────────── */}
-        <section id="salons" className="pt-6 sm:pt-12 pb-12">
+        <section id="salons" className="pt-3 sm:pt-12 pb-12">
           <div className="max-w-5xl mx-auto px-4">
             {/* 地域バッジ列を最上部に出し、その下に見出し＋説明文→カード（heading で順序制御） */}
             <ShuffledSalons
