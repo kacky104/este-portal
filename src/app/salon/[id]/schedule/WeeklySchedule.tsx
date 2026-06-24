@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import type { SalonTheme } from '@/app/lib/themes';
@@ -91,6 +91,25 @@ function TherapistCard({ t, isToday, salonId }: { t: DaySchedule; isToday: boole
   // 出勤中バッジと同一条件（本日タブの onDuty のみ）。出勤中カードの外枠を緑キラリ。
   const working = isToday && getScheduleWindowStatus(t.startTime, t.endTime) === 'onDuty';
 
+  // 「名前(年齢) 出勤バッジ 出勤時間」を1行に。溢れるカードだけ名前＋年齢を縮める（一律縮小しない）。
+  const nameRowRef  = useRef<HTMLDivElement>(null);
+  const nameWrapRef = useRef<HTMLSpanElement>(null);
+  useEffect(() => {
+    const row = nameRowRef.current, nameWrap = nameWrapRef.current;
+    if (!row || !nameWrap) return;
+    const fit = () => {
+      nameWrap.style.fontSize = '';                 // まず基準サイズで計測
+      if (row.scrollWidth <= row.clientWidth + 1) return;
+      const base = parseFloat(getComputedStyle(nameWrap).fontSize) || 14;
+      const factor = Math.max(0.7, row.clientWidth / row.scrollWidth);
+      nameWrap.style.fontSize = `${base * factor}px`;
+    };
+    fit();
+    const ro = new ResizeObserver(fit);
+    ro.observe(row);
+    return () => ro.disconnect();
+  }, [t.name, t.age, t.startTime, t.endTime, badge.label]);
+
   return (
     <div className="relative">
     <Link
@@ -114,18 +133,22 @@ function TherapistCard({ t, isToday, salonId }: { t: DaySchedule; isToday: boole
         {isNew && <NewBadge className="absolute bottom-1.5 left-1.5 z-10" />}
       </div>
       <div className="p-3 flex-1 flex flex-col justify-start min-w-0">
-        <div className="flex items-center gap-1.5 mb-1 flex-wrap">
-          <p className="font-bold text-sm truncate min-w-0 text-slate-900">{t.name}</p>
-          {t.age && <span className="text-[11px] text-slate-500 flex-shrink-0">({t.age})</span>}
-          <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full whitespace-nowrap ${badge.cls}`}>
+        <div ref={nameRowRef} className="flex items-center gap-1.5 mb-1 flex-nowrap min-w-0 overflow-hidden">
+          <span ref={nameWrapRef} className="flex items-baseline gap-1 flex-shrink-0 text-sm">
+            <span className="font-bold text-slate-900 whitespace-nowrap">{t.name}</span>
+            {t.age && <span className="text-[0.9em] text-slate-500 whitespace-nowrap">({t.age})</span>}
+          </span>
+          <span className={`flex-shrink-0 text-[10px] font-bold px-1.5 py-0.5 rounded-full whitespace-nowrap ${badge.cls}`}>
             {badge.label}
+          </span>
+          <span className="flex-shrink-0 text-xs font-medium text-pink-600 whitespace-nowrap">
+            {displayHours(t.startTime, t.endTime)}
           </span>
         </div>
         {bodySizes && (
           <p className="text-slate-500 mb-0.5 md:whitespace-nowrap md:overflow-hidden md:text-ellipsis" style={{ fontSize: '12px' }}>{bodySizes}</p>
         )}
         <FeatureBadges badges={t.featureBadges} className="mb-1" />
-        <p className="text-xs font-medium text-pink-600">{displayHours(t.startTime, t.endTime)}</p>
         {/* 写メ日記バッジ（日記が1件以上ある子のみ）。カード全体は /therapist/[id] へのリンクのため、
             ここは preventDefault + stopPropagation で日記一覧ページへ遷移させる。 */}
         {t.hasDiary && (
