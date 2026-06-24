@@ -519,6 +519,27 @@ export default async function TherapistPublicPage({
               </section>
             )}
 
+            {/* ─── 口コミ（承認済みのみ公開・3軸評価） ─── */}
+            <section className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 space-y-5">
+              <div className="flex items-center justify-between gap-2">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-1 h-5 rounded-full bg-gradient-to-b from-orange-400 to-pink-600" />
+                  <h3 className="font-bold text-slate-900">口コミ</h3>
+                </div>
+                {/* 投稿は所属店舗の投稿ページへ（セラピストを選んで投稿） */}
+                <Link
+                  href={`/salon/${therapist.salonId}/review/new`}
+                  className="inline-block text-sm font-bold text-white px-4 py-2 rounded-xl shadow-sm flex-shrink-0"
+                  style={{ background: 'linear-gradient(95deg,#FB923C,#DB2777)' }}
+                >
+                  口コミを書く
+                </Link>
+              </div>
+
+              <ReviewSummary stats={reviewStats} />
+              <ReviewList reviews={reviews} />
+            </section>
+
           </div>
 
           {/* Right: sidebar */}
@@ -565,27 +586,6 @@ export default async function TherapistPublicPage({
             </Link>
           </div>
         </div>
-
-        {/* ─── 口コミ（承認済みのみ公開・3軸評価） ─── */}
-        <section className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 mt-6 space-y-5">
-          <div className="flex items-center justify-between gap-2">
-            <div className="flex items-center gap-2.5">
-              <div className="w-1 h-5 rounded-full bg-gradient-to-b from-orange-400 to-pink-600" />
-              <h3 className="font-bold text-slate-900">口コミ</h3>
-            </div>
-            {/* 投稿は所属店舗の投稿ページへ（セラピストを選んで投稿） */}
-            <Link
-              href={`/salon/${therapist.salonId}/review/new`}
-              className="inline-block text-sm font-bold text-white px-4 py-2 rounded-xl shadow-sm flex-shrink-0"
-              style={{ background: 'linear-gradient(95deg,#FB923C,#DB2777)' }}
-            >
-              口コミを書く
-            </Link>
-          </div>
-
-          <ReviewSummary stats={reviewStats} />
-          <ReviewList reviews={reviews} />
-        </section>
       </main>
 
       {/* ─── Footer ──────────────────────────────────────── */}
