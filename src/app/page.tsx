@@ -197,7 +197,7 @@ export default async function Home() {
         </section>
 
         {/* ─── Salon list ──────────────────────────────────────── */}
-        <section id="salons" className="pt-3 sm:pt-12 pb-12">
+        <section id="salons" className="pt-8 pb-12">
           <div className="max-w-5xl mx-auto px-4">
             {/* 地域バッジ列を最上部に出し、その下に見出し＋説明文→カード（heading で順序制御） */}
             <ShuffledSalons
