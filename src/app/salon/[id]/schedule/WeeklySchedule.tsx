@@ -138,16 +138,23 @@ function TherapistCard({ t, isToday, salonId }: { t: DaySchedule; isToday: boole
             <span className="font-bold text-slate-900 whitespace-nowrap">{t.name}</span>
             {t.age && <span className="text-[0.9em] text-slate-500 whitespace-nowrap">({t.age})</span>}
           </span>
-          <span className={`flex-shrink-0 text-[10px] font-bold px-1.5 py-0.5 rounded-full whitespace-nowrap ${badge.cls}`}>
+          {/* 出勤バッジ：デスクトップ(md以上)は名前行に表示（スマホはスリーサイズ行へ） */}
+          <span className={`hidden md:inline-flex items-center flex-shrink-0 text-[10px] font-bold px-1.5 py-0.5 rounded-full whitespace-nowrap ${badge.cls}`}>
             {badge.label}
           </span>
           <span className="flex-shrink-0 text-xs font-medium text-pink-600 whitespace-nowrap">
             {displayHours(t.startTime, t.endTime)}
           </span>
         </div>
-        {bodySizes && (
-          <p className="text-slate-500 mb-0.5 md:whitespace-nowrap md:overflow-hidden md:text-ellipsis" style={{ fontSize: '12px' }}>{bodySizes}</p>
-        )}
+        {/* スリーサイズ行：スマホ(md未満)のみ出勤バッジをスリーサイズの左横に並べる（1行・はみ出しは省略） */}
+        <div className="flex items-center gap-1.5 mb-0.5 min-w-0">
+          <span className={`md:hidden flex-shrink-0 text-[10px] font-bold px-1.5 py-0.5 rounded-full whitespace-nowrap ${badge.cls}`}>
+            {badge.label}
+          </span>
+          {bodySizes && (
+            <span className="text-slate-500 truncate min-w-0" style={{ fontSize: '12px' }}>{bodySizes}</span>
+          )}
+        </div>
         <FeatureBadges badges={t.featureBadges} className="mb-1" />
         {/* 写メ日記バッジ（日記が1件以上ある子のみ）。カード全体は /therapist/[id] へのリンクのため、
             ここは preventDefault + stopPropagation で日記一覧ページへ遷移させる。 */}

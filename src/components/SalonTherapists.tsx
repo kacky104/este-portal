@@ -255,6 +255,12 @@ export function GridCard({ therapist, index, showJoinDate = false, from, enableW
               <span className="font-bold text-slate-900 whitespace-nowrap">{therapist.name}</span>
               {therapist.age && <span className="text-[0.9em] text-slate-500 whitespace-nowrap">({therapist.age})</span>}
             </span>
+            {/* 出勤バッジ：デスクトップ(md以上)は名前行に表示（スマホはスリーサイズ行へ） */}
+            {ss && (
+              <span className={`hidden md:inline-flex items-center flex-shrink-0 text-[9px] font-bold px-1.5 py-0.5 rounded-full ${ss.badgeCls}`}>
+                {ss.label}
+              </span>
+            )}
             {ss && ss.status !== 'off' && (
               <span className="flex-shrink-0 text-[10px] text-pink-500 font-medium whitespace-nowrap">
                 {displayHours || therapist.workHours || '—'}
@@ -262,11 +268,11 @@ export function GridCard({ therapist, index, showJoinDate = false, from, enableW
             )}
           </div>
           <FeatureBadges badges={therapist.featureBadges} className="mb-1" />
-          {/* スリーサイズ行：出勤ステータスバッジをスリーサイズの左横に並べる（1行・はみ出しは省略） */}
+          {/* スリーサイズ行：スマホ(md未満)のみ出勤バッジをスリーサイズの左横に並べる（1行・はみ出しは省略） */}
           {(ss || bodySizes) && (
             <div className="flex items-center gap-1.5 mb-0.5 min-w-0">
               {ss && (
-                <span className={`flex-shrink-0 text-[9px] font-bold px-1.5 py-0.5 rounded-full ${ss.badgeCls}`}>
+                <span className={`md:hidden flex-shrink-0 text-[9px] font-bold px-1.5 py-0.5 rounded-full ${ss.badgeCls}`}>
                   {ss.label}
                 </span>
               )}
