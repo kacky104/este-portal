@@ -28,6 +28,16 @@ export default async function NotificationsPage() {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect('/login?redirectTo=/member/notifications');
 
+  // ── ニックネーム未設定なら設定へ誘導（必須化） ──
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('nickname')
+    .eq('id', user.id)
+    .maybeSingle();
+  if (!profile?.nickname || profile.nickname.trim() === '') {
+    redirect('/member/profile');
+  }
+
   // ── 新着フィードを取得（認証済みクライアント・RLS尊重）。表示後に既読化する。 ──
   const { items } = await getNotificationFeed(supabase);
 

@@ -22,6 +22,16 @@ export default async function HistoryPage() {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect('/login?redirectTo=/member/history');
 
+  // ── ニックネーム未設定なら設定へ誘導（必須化） ──
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('nickname')
+    .eq('id', user.id)
+    .maybeSingle();
+  if (!profile?.nickname || profile.nickname.trim() === '') {
+    redirect('/member/profile');
+  }
+
   // ── 本人の閲覧履歴を「最近見た順」で取得（RLS が効いた認証済みクライアントで）。 ──
   const { data: historyRows } = await supabase
     .from('view_history')

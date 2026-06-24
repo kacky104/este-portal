@@ -19,6 +19,16 @@ export default async function VipLettersPage() {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect('/login?redirectTo=/member/vip-letters');
 
+  // ── ニックネーム未設定なら設定へ誘導（必須化） ──
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('nickname')
+    .eq('id', user.id)
+    .maybeSingle();
+  if (!profile?.nickname || profile.nickname.trim() === '') {
+    redirect('/member/profile');
+  }
+
   // 自分宛のVIPレター（RLS：本人が recipient のもののみ）。
   const letters = await getMemberVipLetters(supabase);
 

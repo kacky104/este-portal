@@ -39,6 +39,9 @@ export default async function MemberPage() {
   const savedRows = savedRes.data;
   const nickname = ((profileRes.data?.nickname as string | null) ?? '').trim();
 
+  // ── ニックネーム未設定なら設定へ誘導（必須化）。既存取得の nickname を再利用（二重取得しない）。 ──
+  if (!nickname) redirect('/member/profile');
+
   const rows = (savedRows ?? []) as { item_type: string; item_id: number | string }[];
   const salonIds = rows.filter(r => r.item_type === 'salon').map(r => Number(r.item_id));
   const therapistIds = rows.filter(r => r.item_type === 'therapist').map(r => Number(r.item_id));
