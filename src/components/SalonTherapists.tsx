@@ -598,7 +598,7 @@ export function SalonOnDutyExcludingNow({ salonId, theme }: { salonId: number; t
       </div>
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         {list.map((t, i) => (
-          <GridCard key={t.id} therapist={t} index={i} enableWorkingShimmer showSaveButton saveButtonPos="card-right" />
+          <GridCard key={t.id} therapist={t} index={i} enableWorkingShimmer />
         ))}
       </div>
     </div>
