@@ -7,7 +7,6 @@ import { createClient } from '@/app/lib/supabase/client';
 import { getBusinessDateJST, getScheduleWindowStatus } from '@/lib/dutyStatus';
 import { isNewFaceActive } from '@/lib/newFace';
 import { NewBadge } from '@/components/NewBadge';
-import { FeatureBadges } from '@/components/FeatureBadges';
 import { sanitizeBadges } from '@/lib/therapistBadges';
 
 const GRADIENTS = ['from-pink-300 to-rose-400', 'from-fuchsia-300 to-pink-400', 'from-rose-300 to-pink-500', 'from-pink-400 to-fuchsia-400'];
@@ -122,7 +121,6 @@ export function Card({ therapist, index, showAge = false }: { therapist: Therapi
           )}
           {!showAge && isNewFaceActive(therapist.isNewFace, therapist.newFaceSince) && <NewBadge />}
         </div>
-        <FeatureBadges badges={therapist.featureBadges} className="justify-center mt-0.5" />
         {(displayHours || therapist.workHours) && (
           <p className="text-[13px] text-pink-200 font-medium mt-0.5 text-center">{displayHours || therapist.workHours}</p>
         )}

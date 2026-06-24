@@ -388,7 +388,6 @@ function MiniCard({ therapist, index }: { therapist: Therapist; index: number })
             <span className="font-bold text-[11px] leading-tight drop-shadow flex-shrink-0">（{therapist.age}）</span>
           )}
         </div>
-        <FeatureBadges badges={therapist.featureBadges} className="justify-center mt-0.5" />
         {(ss?.status === 'onDuty' || ss?.status === 'before') && (displayHours || therapist.workHours) && (
           <p className="text-[13px] text-pink-200 font-medium mt-0.5 text-center whitespace-nowrap">{displayHours || therapist.workHours}</p>
         )}
