@@ -11,7 +11,7 @@ import { SalonNameRow } from './SalonNameRow';
 import { SaveButton } from './SaveButton';
 import { useSalonTherapists, type TherapistThumb } from './useSalonTherapists';
 import { areaLabel } from '../lib/areaLabel';
-import { areaHref } from '../lib/areas';
+import { areaHref, DISPATCH_AREA } from '../lib/areas';
 import type { Salon } from '@/app/lib/salons';
 
 export type { Salon };
@@ -244,23 +244,21 @@ export function SalonCard({ salon, therapists, showAge = false, areaNextToDuty =
       出勤 <span style={{ color: '#ec4899', fontSize: '15px', fontWeight: 700 }}>{onDutyCount}</span>名
     </span>
   );
-  // 出張バッジ：拠点エリアバッジの右隣に出す。地域バッジ(ピンク)と区別できる青系。
-  // available は薄め、only はそれより濃い青で区別。
-  const dispatchBadge = salon.dispatchType !== 'none' ? (
-    <span className={`flex-shrink-0 text-xs font-semibold px-2.5 py-0.5 rounded-full ${
-      salon.dispatchType === 'only'
-        ? 'bg-blue-100 text-blue-700 border border-blue-300'
-        : 'bg-blue-50 text-blue-600 border border-blue-200'
-    }`}>
-      {salon.dispatchType === 'only' ? '出張のみ' : '出張'}
+  // 出張バッジ：only（出張のみ）のときだけ出す（青）。available/none では出さない。
+  const dispatchBadge = salon.dispatchType === 'only' ? (
+    <span className="flex-shrink-0 text-xs font-semibold px-2.5 py-0.5 rounded-full bg-blue-100 text-blue-700 border border-blue-300">
+      出張のみ
     </span>
   ) : null;
-  // 地域バッジ＋出張バッジをまとめて1要素に（areaBadge を出す全箇所で出張バッジも揃う）。
+  // 地域バッジ（ピンク）＋出張バッジをまとめて1要素に（areaBadge を出す全箇所で揃う）。
+  // エリアが「出張」のサロンは拠点地域が無いので地域バッジは出さない。
   const areaBadge = (
     <>
-      <span className="flex-shrink-0 text-xs font-semibold px-2.5 py-0.5 rounded-full bg-pink-50 text-pink-600 border border-pink-200">
-        {areaLabel(salon.area)}
-      </span>
+      {salon.area !== DISPATCH_AREA && (
+        <span className="flex-shrink-0 text-xs font-semibold px-2.5 py-0.5 rounded-full bg-pink-50 text-pink-600 border border-pink-200">
+          {areaLabel(salon.area)}
+        </span>
+      )}
       {dispatchBadge}
     </>
   );
