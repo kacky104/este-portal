@@ -93,15 +93,28 @@ export default async function AreaPage({ params }: { params: Promise<{ slug: str
           </section>
         )}
 
-        {/* Heading */}
-        <div className="mb-8">
-          <h1 className="text-2xl font-bold text-slate-900 mb-1">{label}のメンズエステ</h1>
-          <p className="text-xs text-slate-400">
-            {label}エリアの掲載サロン一覧 ｜ 表示順はページ読み込みのたびにシャッフルされます
-          </p>
-        </div>
-
-        <ShuffledSalons salons={salons} areas={[...AREA_ORDER]} currentArea={area} tabsAsLinks includeDispatch={area === DISPATCH_AREA} showAge areaNextToDuty ratingAtBottom compactTherapists showSaveButton wideDesktop />
+        {/* 地域バッジ列を最上部に出し、その下に見出し＋説明文→カード（heading で順序制御） */}
+        <ShuffledSalons
+          salons={salons}
+          areas={[...AREA_ORDER]}
+          currentArea={area}
+          tabsAsLinks
+          includeDispatch={area === DISPATCH_AREA}
+          showAge
+          areaNextToDuty
+          ratingAtBottom
+          compactTherapists
+          showSaveButton
+          wideDesktop
+          heading={
+            <div className="mb-8">
+              <h1 className="text-2xl font-bold text-slate-900 mb-1">{label}のメンズエステ</h1>
+              <p className="text-xs text-slate-400">
+                {label}エリアの掲載サロン一覧 ｜ 表示順はページ読み込みのたびにシャッフルされます
+              </p>
+            </div>
+          }
+        />
       </main>
 
       {/* ─── Footer ──────────────────────────────────────── */}

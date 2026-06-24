@@ -53,15 +53,19 @@ export default async function SalonsPage() {
           トップへ戻る
         </Link>
 
-        {/* Heading */}
-        <div className="mb-8">
-          <h1 className="text-2xl font-bold text-slate-900 mb-1">掲載サロン一覧</h1>
-          <p className="text-xs text-slate-400">
-            全{salons.length}件 ｜ 表示順はページ読み込みのたびにシャッフルされます
-          </p>
-        </div>
-
-        <ShuffledSalons salons={salons} areas={[...AREAS]} />
+        {/* 地域バッジ列を最上部に出し、その下に見出し＋説明文→カード（heading で順序制御） */}
+        <ShuffledSalons
+          salons={salons}
+          areas={[...AREAS]}
+          heading={
+            <div className="mb-8">
+              <h1 className="text-2xl font-bold text-slate-900 mb-1">掲載サロン一覧</h1>
+              <p className="text-xs text-slate-400">
+                全{salons.length}件 ｜ 表示順はページ読み込みのたびにシャッフルされます
+              </p>
+            </div>
+          }
+        />
       </main>
 
       {/* ─── Footer ──────────────────────────────────────── */}

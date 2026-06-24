@@ -433,7 +433,7 @@ function SalonCardSkeleton() {
 
 // ── ShuffledSalons ────────────────────────────────────────────
 
-export function ShuffledSalons({ salons, areas, showAge = false, areaNextToDuty = false, ratingAtBottom = false, compactTherapists = false, showSaveButton = false, wideDesktop = false, tabsAsLinks = false, currentArea, includeDispatch = false }: { salons: Salon[]; areas: string[]; showAge?: boolean; areaNextToDuty?: boolean; ratingAtBottom?: boolean; compactTherapists?: boolean; showSaveButton?: boolean; wideDesktop?: boolean; tabsAsLinks?: boolean; currentArea?: string; includeDispatch?: boolean }) {
+export function ShuffledSalons({ salons, areas, showAge = false, areaNextToDuty = false, ratingAtBottom = false, compactTherapists = false, showSaveButton = false, wideDesktop = false, tabsAsLinks = false, currentArea, includeDispatch = false, heading }: { salons: Salon[]; areas: string[]; showAge?: boolean; areaNextToDuty?: boolean; ratingAtBottom?: boolean; compactTherapists?: boolean; showSaveButton?: boolean; wideDesktop?: boolean; tabsAsLinks?: boolean; currentArea?: string; includeDispatch?: boolean; heading?: React.ReactNode }) {
   const [list,            setList]            = useState<Salon[]>([]);
   const [activeArea,      setActiveArea]      = useState('福岡全域');
   // tabsAsLinks 時はページ自体が絞り込み対象を表すため、currentArea を選択中エリアとして使う
@@ -501,10 +501,18 @@ export function ShuffledSalons({ salons, areas, showAge = false, areaNextToDuty 
     </div>
   );
 
+  // 地域バッジ列（tabs）を最上部に置き、その下に見出し（heading）→ カード一覧の順で表示する。
+  const tabsAndHeading = (
+    <>
+      {tabs}
+      {heading}
+    </>
+  );
+
   if (list.length === 0) {
     return (
       <>
-        {tabs}
+        {tabsAndHeading}
         <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-5">
           {salons.map(s => <SalonCardSkeleton key={s.id} />)}
         </div>
@@ -515,7 +523,7 @@ export function ShuffledSalons({ salons, areas, showAge = false, areaNextToDuty 
   if (filtered.length === 0) {
     return (
       <>
-        {tabs}
+        {tabsAndHeading}
         <div className="flex flex-col items-center justify-center py-24 text-slate-400">
           <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="mb-4 opacity-40">
             <circle cx="11" cy="11" r="8" /><path d="M21 21l-4.35-4.35" />
@@ -545,7 +553,7 @@ export function ShuffledSalons({ salons, areas, showAge = false, areaNextToDuty 
   if (wideDesktop) {
     return (
       <>
-        {tabs}
+        {tabsAndHeading}
         <div className="lg:flex lg:gap-5 lg:items-stretch">
           <div className="grid sm:grid-cols-2 lg:grid-cols-1 lg:justify-items-start lg:flex-shrink-0 gap-5">
             {cards}
@@ -567,7 +575,7 @@ export function ShuffledSalons({ salons, areas, showAge = false, areaNextToDuty 
 
   return (
     <>
-      {tabs}
+      {tabsAndHeading}
       <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-5">
         {cards}
       </div>

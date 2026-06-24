@@ -199,15 +199,30 @@ export default async function Home() {
         {/* ─── Salon list ──────────────────────────────────────── */}
         <section id="salons" className="pt-6 sm:pt-12 pb-12">
           <div className="max-w-5xl mx-auto px-4">
-            <div className="flex items-center gap-3 mb-1.5">
-              <div className="w-1 h-6 rounded-full bg-gradient-to-b from-pink-500 to-pink-700" />
-              <h2 className="text-xl font-bold text-slate-900">掲載サロン一覧</h2>
-            </div>
-            <p className="text-xs text-slate-400 mb-8">
-              表示順はページ読み込みのたびにシャッフルされます
-            </p>
-
-            <ShuffledSalons salons={salons} areas={[...AREAS]} currentArea={ALL_AREA} tabsAsLinks showAge areaNextToDuty ratingAtBottom compactTherapists showSaveButton wideDesktop />
+            {/* 地域バッジ列を最上部に出し、その下に見出し＋説明文→カード（heading で順序制御） */}
+            <ShuffledSalons
+              salons={salons}
+              areas={[...AREAS]}
+              currentArea={ALL_AREA}
+              tabsAsLinks
+              showAge
+              areaNextToDuty
+              ratingAtBottom
+              compactTherapists
+              showSaveButton
+              wideDesktop
+              heading={
+                <>
+                  <div className="flex items-center gap-3 mb-1.5">
+                    <div className="w-1 h-6 rounded-full bg-gradient-to-b from-pink-500 to-pink-700" />
+                    <h2 className="text-xl font-bold text-slate-900">掲載サロン一覧</h2>
+                  </div>
+                  <p className="text-xs text-slate-400 mb-8">
+                    表示順はページ読み込みのたびにシャッフルされます
+                  </p>
+                </>
+              }
+            />
 
             <div className="text-center mt-10">
               <Link
