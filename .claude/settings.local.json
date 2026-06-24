@@ -122,7 +122,8 @@
       "Bash(grep -iE \"Compiled|Failed|Error:|error |✓ Generating|/area|^├ ○ /$|/salons\")",
       "Bash(grep -iE \"Compiled|Failed|Error:|error |✓ Generating|/salon/\\\\[id\\\\]|^├ ○ /$|/working\")",
       "Bash(grep -nE \"</main>|activeTab === 'news'|^      </div>$|VIPレター\" src/app/mypage/page.tsx)",
-      "Bash(awk -F: '$1>2180')"
+      "Bash(awk -F: '$1>2180')",
+      "PowerShell(npx eslint src/app/moderation/ReviewModeration.tsx src/app/moderation/page.tsx 2>&1 | Select-Object -First 40; Write-Host \"Exit: $LASTEXITCODE\")"
     ]
   },
   "hooks": {}

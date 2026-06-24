@@ -1,7 +1,12 @@
 import Link from 'next/link';
 import { Logo } from '@/app/components/Logo';
 import { createServiceClient } from '@/app/lib/supabase/service';
-import { ReviewModeration, type PendingReviewView } from './ReviewModeration';
+import {
+  ReviewModeration,
+  ApprovedReviewModeration,
+  type PendingReviewView,
+  type ApprovedReviewView,
+} from './ReviewModeration';
 
 // 口コミ審査画面（管理者専用）。layout.tsx のサーバーガードと合わせた二層防御。
 // 未承認（status='pending'）は RLS 上 admin 本人でも見えないため、取得は service_role で行う。
@@ -20,8 +25,19 @@ export default async function ModerationPage() {
 
   const pending = rows ?? [];
 
+  // 承認済み（公開中）も取得（誤承認の削除導線用）。
+  const { data: approvedRows } = await svc
+    .from('therapist_reviews')
+    .select('id, therapist_id, user_id, rating, body, created_at')
+    .eq('status', 'approved')
+    .order('created_at', { ascending: false });
+  const approved = approvedRows ?? [];
+
+  // nickname / therapist 名は pending・approved 両方の id をまとめて1回ずつ引く（クエリ回数は増やさない）。
+  const allRows = [...pending, ...approved];
+
   // 投稿者 nickname を別クエリで解決（無ければ「ゲスト」）。
-  const userIds = [...new Set(pending.map((r) => r.user_id as string))];
+  const userIds = [...new Set(allRows.map((r) => r.user_id as string))];
   const nameMap = new Map<string, string>();
   if (userIds.length > 0) {
     const { data: profiles } = await svc.from('profiles').select('id, nickname').in('id', userIds);
@@ -32,21 +48,25 @@ export default async function ModerationPage() {
   }
 
   // 対象セラピスト名を別クエリで解決。
-  const therapistIds = [...new Set(pending.map((r) => r.therapist_id as number))];
+  const therapistIds = [...new Set(allRows.map((r) => r.therapist_id as number))];
   const therapistMap = new Map<number, string>();
   if (therapistIds.length > 0) {
     const { data: ths } = await svc.from('therapists').select('id, name').in('id', therapistIds);
     (ths ?? []).forEach((t) => therapistMap.set(t.id as number, (t.name as string) ?? ''));
   }
 
-  const views: PendingReviewView[] = pending.map((r) => ({
+  // pending / approved を共通の表示用形（PendingReviewView と同形）に変換。
+  const toView = (r: (typeof allRows)[number]): PendingReviewView => ({
     reviewId: String(r.id),
     rating: Number(r.rating),
     body: (r.body as string) ?? '',
     nickname: nameMap.get(r.user_id as string) ?? 'ゲスト',
     therapistName: therapistMap.get(r.therapist_id as number) ?? `セラピスト#${r.therapist_id}`,
     createdAt: String(r.created_at),
-  }));
+  });
+
+  const views: PendingReviewView[] = pending.map(toView);
+  const approvedViews: ApprovedReviewView[] = approved.map(toView);
 
   return (
     <div className="min-h-screen bg-slate-50">
@@ -76,6 +96,27 @@ export default async function ModerationPage() {
           <div className="space-y-4">
             {views.map((v) => (
               <ReviewModeration key={v.reviewId} {...v} />
+            ))}
+          </div>
+        )}
+
+        {/* ─── 承認済み（公開中）一覧：誤承認を削除する導線 ─── */}
+        <div className="flex items-center gap-2.5 mb-1 mt-10">
+          <div className="w-1 h-6 rounded-full bg-gradient-to-b from-orange-400 to-pink-600" />
+          <h2 className="text-xl font-bold text-slate-900">承認済みの口コミ</h2>
+        </div>
+        <p className="text-sm text-slate-500 mb-6">
+          公開中 {approvedViews.length} 件。削除すると公開ページから消えます（元に戻せません）。
+        </p>
+
+        {approvedViews.length === 0 ? (
+          <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-8 text-center text-slate-400 text-sm">
+            公開中の口コミはありません。
+          </div>
+        ) : (
+          <div className="space-y-4">
+            {approvedViews.map((v) => (
+              <ApprovedReviewModeration key={v.reviewId} {...v} />
             ))}
           </div>
         )}
