@@ -125,7 +125,7 @@ function TherapistCard({ t, isToday, salonId }: { t: DaySchedule; isToday: boole
           <p className="text-slate-500 mb-0.5 md:whitespace-nowrap md:overflow-hidden md:text-ellipsis" style={{ fontSize: '12px' }}>{bodySizes}</p>
         )}
         <FeatureBadges badges={t.featureBadges} className="mb-1" />
-        <p className="text-xs font-medium text-pink-600">🕒 {displayHours(t.startTime, t.endTime)}</p>
+        <p className="text-xs font-medium text-pink-600">{displayHours(t.startTime, t.endTime)}</p>
         {/* 写メ日記バッジ（日記が1件以上ある子のみ）。カード全体は /therapist/[id] へのリンクのため、
             ここは preventDefault + stopPropagation で日記一覧ページへ遷移させる。 */}
         {t.hasDiary && (

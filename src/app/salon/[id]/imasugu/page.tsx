@@ -202,7 +202,7 @@ export default async function SalonImasuguPage({
                         <span className="whitespace-nowrap flex-shrink-0" style={{ color: theme.body }}>{bodySizes}</span>
                       )}
                       {hours && (
-                        <span className="font-medium text-pink-600 whitespace-nowrap flex-shrink-0 ml-2">🕒 {hours}</span>
+                        <span className="font-medium text-pink-600 whitespace-nowrap flex-shrink-0 ml-2">{hours}</span>
                       )}
                     </div>
                     <Link

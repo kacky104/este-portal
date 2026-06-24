@@ -262,7 +262,7 @@ export function GridCard({ therapist, index, showJoinDate = false, from, enableW
             )}
             {ss && ss.status !== 'off' && (
               <span className="flex-shrink-0 text-[10px] text-pink-500 font-medium whitespace-nowrap">
-                🕒 {displayHours || therapist.workHours || '—'}
+                {displayHours || therapist.workHours || '—'}
               </span>
             )}
           </div>
