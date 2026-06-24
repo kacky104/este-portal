@@ -7,6 +7,7 @@ import { FeaturedSalonSlider } from "./components/FeaturedSalonSlider";
 import { SavedSalonsMenu } from "./components/SavedSalonsMenu";
 import { AccountMenu } from "./components/AccountMenu";
 import { NotificationBell } from "./components/NotificationBell";
+import { VipLetterIcon } from "./components/VipLetterIcon";
 import { fetchSalons } from "./lib/salons";
 import { getBusinessDateJST } from "@/lib/dutyStatus";
 import { ALL_AREA } from "./lib/areas";
@@ -80,7 +81,7 @@ export default async function Home() {
             </nav>
             <div className="flex items-center gap-2">
               <SavedSalonsMenu />
-              <NotificationBell /><AccountMenu />
+              <VipLetterIcon /><NotificationBell /><AccountMenu />
             </div>
           </div>
         </div>

@@ -3,6 +3,7 @@ import { createPublicClient } from '@/app/lib/supabase/public';
 import { SavedSalonsMenu } from '@/app/components/SavedSalonsMenu';
 import { AccountMenu } from '@/app/components/AccountMenu';
 import { NotificationBell } from '@/app/components/NotificationBell';
+import { VipLetterIcon } from '@/app/components/VipLetterIcon';
 
 export const metadata = {
   title: '写メ日記 | フクエス ～福岡メンズエステポータル～',
@@ -62,7 +63,7 @@ export default async function DiaryListPage() {
           </Link>
           <div className="flex items-center gap-2">
             <SavedSalonsMenu />
-            <NotificationBell /><AccountMenu />
+            <VipLetterIcon /><NotificationBell /><AccountMenu />
           </div>
         </div>
       </header>

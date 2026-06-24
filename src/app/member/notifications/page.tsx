@@ -4,6 +4,7 @@ import { createClient } from '@/app/lib/supabase/server';
 import { SavedSalonsMenu } from '@/app/components/SavedSalonsMenu';
 import { AccountMenu } from '@/app/components/AccountMenu';
 import { NotificationBell } from '@/app/components/NotificationBell';
+import { VipLetterIcon } from '@/app/components/VipLetterIcon';
 import { getNotificationFeed } from '@/app/lib/notifications';
 import { MarkNotificationsRead } from './MarkNotificationsRead';
 
@@ -46,7 +47,7 @@ export default async function NotificationsPage() {
           </Link>
           <div className="flex items-center gap-2">
             <SavedSalonsMenu />
-            <NotificationBell />
+            <VipLetterIcon /><NotificationBell />
             <AccountMenu />
           </div>
         </div>

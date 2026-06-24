@@ -5,26 +5,21 @@ import { SavedSalonsMenu } from '@/app/components/SavedSalonsMenu';
 import { AccountMenu } from '@/app/components/AccountMenu';
 import { NotificationBell } from '@/app/components/NotificationBell';
 import { VipLetterIcon } from '@/app/components/VipLetterIcon';
-import { ProfileForm } from './ProfileForm';
+import { getMemberVipLetters } from '@/app/lib/vipLetters';
+import { VipLetterList } from './VipLetterList';
 
 // 会員個別の内容（ログイン必須）のため ISR はかけず動的のままにする。
 export const dynamic = 'force-dynamic';
 
-export default async function ProfilePage() {
+export default async function VipLettersPage() {
   const supabase = await createClient();
 
   // ── ログインガード（サーバー側） ──
   const { data: { user } } = await supabase.auth.getUser();
-  if (!user) redirect('/login?redirectTo=/member/profile');
+  if (!user) redirect('/login?redirectTo=/member/vip-letters');
 
-  // ── 本人の profiles 行を取得（RLS が効いた認証済みクライアントで）。無ければ空欄。 ──
-  const { data: profile } = await supabase
-    .from('profiles')
-    .select('nickname')
-    .eq('id', user.id)
-    .maybeSingle();
-
-  const initialNickname = (profile?.nickname as string | null) ?? '';
+  // 自分宛のVIPレター（RLS：本人が recipient のもののみ）。
+  const letters = await getMemberVipLetters(supabase);
 
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900">
@@ -40,31 +35,31 @@ export default async function ProfilePage() {
           </Link>
           <div className="flex items-center gap-2">
             <SavedSalonsMenu />
-            <VipLetterIcon /><NotificationBell /><AccountMenu />
+            <VipLetterIcon /><NotificationBell />
+            <AccountMenu />
           </div>
         </div>
       </header>
 
-      <main className="max-w-xl mx-auto px-4 py-8 sm:py-10">
+      <main className="max-w-2xl mx-auto px-4 py-8 sm:py-10">
 
         {/* パンくず */}
         <nav className="flex items-center gap-1.5 text-[13px] text-slate-400 mb-6" aria-label="パンくずリスト">
           <Link href="/member" className="hover:text-pink-600 transition-colors">マイページ</Link>
           <span className="text-slate-300">›</span>
-          <span className="text-slate-600 font-medium">プロフィール編集</span>
+          <span className="text-slate-600 font-medium">VIPレター</span>
         </nav>
 
         {/* 見出し */}
         <h1
-          className="text-2xl font-bold leading-tight inline-block mb-6"
+          className="text-2xl font-bold leading-tight inline-block mb-2"
           style={{ background: 'linear-gradient(95deg,#FB923C,#DB2777)', WebkitBackgroundClip: 'text', backgroundClip: 'text', WebkitTextFillColor: 'transparent', color: 'transparent' }}
         >
-          プロフィール編集
+          VIPレター
         </h1>
+        <p className="text-xs text-slate-400 mb-8">保存しているお店から届いた特別なメッセージ</p>
 
-        <div className="rounded-2xl border border-slate-100 bg-white p-5 sm:p-6 shadow-sm">
-          <ProfileForm userId={user.id} initialNickname={initialNickname} />
-        </div>
+        <VipLetterList letters={letters} />
       </main>
 
       {/* ─── Footer ─── */}

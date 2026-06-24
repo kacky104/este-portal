@@ -11,6 +11,7 @@ import { useSalonTherapists } from '@/app/components/useSalonTherapists';
 import { SavedSalonsMenu } from '@/app/components/SavedSalonsMenu';
 import { AccountMenu } from '@/app/components/AccountMenu';
 import { NotificationBell } from '@/app/components/NotificationBell';
+import { VipLetterIcon } from '@/app/components/VipLetterIcon';
 import { GridCard, fetchTherapistsByIds, type Therapist } from '@/components/SalonTherapists';
 
 export default function SavedPage() {
@@ -141,7 +142,7 @@ export default function SavedPage() {
           </Link>
           <div className="flex items-center gap-2">
             <SavedSalonsMenu />
-            <NotificationBell /><AccountMenu />
+            <VipLetterIcon /><NotificationBell /><AccountMenu />
           </div>
         </div>
       </header>

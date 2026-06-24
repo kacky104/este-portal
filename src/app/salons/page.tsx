@@ -4,6 +4,7 @@ import { ShuffledSalons } from '@/app/components/ShuffledSalons';
 import { SavedSalonsMenu } from '@/app/components/SavedSalonsMenu';
 import { AccountMenu } from '@/app/components/AccountMenu';
 import { NotificationBell } from '@/app/components/NotificationBell';
+import { VipLetterIcon } from '@/app/components/VipLetterIcon';
 import { fetchSalons } from '@/app/lib/salons';
 
 // フィルタ判定／DB連動キー。画面表示はすべて areaLabel() を通す。
@@ -35,7 +36,7 @@ export default async function SalonsPage() {
           </Link>
           <div className="flex items-center gap-2">
             <SavedSalonsMenu />
-            <NotificationBell /><AccountMenu />
+            <VipLetterIcon /><NotificationBell /><AccountMenu />
           </div>
         </div>
       </header>

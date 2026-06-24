@@ -6,6 +6,7 @@ import { createClient } from '@/app/lib/supabase/server';
 import { SavedSalonsMenu } from '@/app/components/SavedSalonsMenu';
 import { AccountMenu } from '@/app/components/AccountMenu';
 import { NotificationBell } from '@/app/components/NotificationBell';
+import { VipLetterIcon } from '@/app/components/VipLetterIcon';
 import { PawGlyph, SakuraGlyph } from '@/app/components/SaveButton';
 
 // 会員個別の内容（ログイン必須・保存状況に依存）のため ISR はかけず動的のままにする。
@@ -110,7 +111,7 @@ export default async function MemberPage() {
           </Link>
           <div className="flex items-center gap-2">
             <SavedSalonsMenu />
-            <NotificationBell /><AccountMenu />
+            <VipLetterIcon /><NotificationBell /><AccountMenu />
           </div>
         </div>
       </header>
@@ -292,6 +293,20 @@ export default async function MemberPage() {
                 </span>
               </div>
               <p className="text-xs text-slate-400 mt-1.5">保存サロンの新着（クーポン・お知らせ）</p>
+            </Link>
+
+            {/* VIPレター受信ボックス（保存店から届く特別メッセージ） */}
+            <Link
+              href="/member/vip-letters"
+              className="group rounded-2xl border border-pink-100 bg-white p-4 shadow-sm hover:border-pink-300 hover:shadow-md transition-all"
+            >
+              <div className="flex items-start justify-between gap-2">
+                <p className="text-sm font-bold text-slate-700">VIPレター</p>
+                <span className="flex-shrink-0 inline-flex items-center gap-1 text-[11px] font-medium text-pink-600 group-hover:gap-1.5 transition-all">
+                  見る <span aria-hidden>→</span>
+                </span>
+              </div>
+              <p className="text-xs text-slate-400 mt-1.5">保存しているお店から届く特別メッセージ</p>
             </Link>
           </div>
         </section>

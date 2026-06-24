@@ -9,6 +9,7 @@ import { getFeaturedSalons } from '@/app/lib/featured';
 import { SavedSalonsMenu } from '@/app/components/SavedSalonsMenu';
 import { AccountMenu } from '@/app/components/AccountMenu';
 import { NotificationBell } from '@/app/components/NotificationBell';
+import { VipLetterIcon } from '@/app/components/VipLetterIcon';
 import { areaFromSlug, AREA_ORDER, AREA_SLUGS_LIST, DISPATCH_AREA } from '@/app/lib/areas';
 import { areaLabel } from '@/app/lib/areaLabel';
 
@@ -63,7 +64,7 @@ export default async function AreaPage({ params }: { params: Promise<{ slug: str
           </Link>
           <div className="flex items-center gap-2">
             <SavedSalonsMenu />
-            <NotificationBell /><AccountMenu />
+            <VipLetterIcon /><NotificationBell /><AccountMenu />
           </div>
         </div>
       </header>
