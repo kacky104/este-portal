@@ -52,6 +52,8 @@ export default async function Home() {
     s => Boolean(s.start_time) && Boolean(s.end_time)
   ).length;
 
+  const pickupTitle = "福岡のピックアップサロン";
+
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900">
 
@@ -151,7 +153,8 @@ export default async function Home() {
             <div className="max-w-5xl mx-auto px-4">
               <div className="flex items-center gap-3 mb-4">
                 <div className="w-1 h-6 rounded-full bg-gradient-to-b from-pink-400 to-rose-500" />
-                <h2 className="text-base sm:text-xl font-bold whitespace-nowrap" style={{ background: 'linear-gradient(to right, #ec4899, #f97316)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text' }}>福岡のピックアップサロン</h2>
+                {/* 短いタイトルは基準サイズ(1.25rem)のまま、長いタイトルだけ画面幅に応じて必要分だけ縮める */}
+                <h2 className="font-bold whitespace-nowrap leading-tight" style={{ background: 'linear-gradient(to right, #ec4899, #f97316)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text', fontSize: `min(1.25rem, calc((100vw - 56px) / ${pickupTitle.length}))` }}>{pickupTitle}</h2>
               </div>
               <FeaturedSalonSlider salons={featuredSalons} />
             </div>
