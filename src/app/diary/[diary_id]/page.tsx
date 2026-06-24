@@ -1,5 +1,6 @@
 import { Suspense } from 'react';
 import Link from 'next/link';
+import { Logo } from '@/app/components/Logo';
 import { notFound } from 'next/navigation';
 import { createPublicClient } from '@/app/lib/supabase/public';
 import { getTheme, breadcrumbCurrentColor } from '@/app/lib/themes';
@@ -79,12 +80,7 @@ export default async function DiaryDetailPage({
       {/* ─── Header ─────────────────────────────────────────── */}
       <header className="sticky top-0 z-50 backdrop-blur-md border-b shadow-sm" style={{ backgroundColor: `${theme.card}E6`, borderColor: theme.cardBorder }}>
         <div className="max-w-4xl mx-auto px-4 h-14 flex items-center">
-          <Link href="/" className="flex items-center gap-3">
-            <div className="w-7 h-7 rounded-lg bg-pink-50 border border-pink-200 flex items-center justify-center flex-shrink-0">
-              <span className="text-pink-500 font-bold text-sm leading-none">◆</span>
-            </div>
-            <span className="flex items-baseline gap-1"><span className="font-bold text-[22px] tracking-wide leading-none inline-block" style={{ background: 'linear-gradient(95deg,#FB923C,#DB2777)', WebkitBackgroundClip: 'text', backgroundClip: 'text', WebkitTextFillColor: 'transparent', color: 'transparent' }}>フクエス</span><span className="hidden min-[420px]:inline-block text-[12px] font-normal leading-none" style={{ background: 'linear-gradient(95deg,#10B981,#84CC16)', WebkitBackgroundClip: 'text', backgroundClip: 'text', WebkitTextFillColor: 'transparent', color: 'transparent' }}>～福岡メンズエステポータル～</span></span>
-          </Link>
+          <Logo />
         </div>
       </header>
 

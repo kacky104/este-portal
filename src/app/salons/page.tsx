@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import { Logo } from '@/app/components/Logo';
 import { createClient } from '@/app/lib/supabase/server';
 import { ShuffledSalons } from '@/app/components/ShuffledSalons';
 import { SavedSalonsMenu } from '@/app/components/SavedSalonsMenu';
@@ -28,12 +29,7 @@ export default async function SalonsPage() {
       {/* ─── Header ─────────────────────────────────────────── */}
       <header className="sticky top-0 z-50 bg-white/90 backdrop-blur-md border-b border-slate-200 shadow-sm">
         <div className="max-w-5xl mx-auto px-4 h-14 flex items-center justify-between">
-          <Link href="/" className="flex items-center gap-3">
-            <div className="w-7 h-7 rounded-lg bg-pink-50 border border-pink-200 flex items-center justify-center flex-shrink-0">
-              <span className="text-pink-500 font-bold text-sm leading-none">◆</span>
-            </div>
-            <span className="flex items-baseline gap-1"><span className="font-bold text-[22px] tracking-wide leading-none inline-block" style={{ background: 'linear-gradient(95deg,#FB923C,#DB2777)', WebkitBackgroundClip: 'text', backgroundClip: 'text', WebkitTextFillColor: 'transparent', color: 'transparent' }}>フクエス</span><span className="hidden min-[420px]:inline-block text-[12px] font-normal leading-none" style={{ background: 'linear-gradient(95deg,#10B981,#84CC16)', WebkitBackgroundClip: 'text', backgroundClip: 'text', WebkitTextFillColor: 'transparent', color: 'transparent' }}>～福岡メンズエステポータル～</span></span>
-          </Link>
+          <Logo />
           <div className="flex items-center gap-2">
             <SavedSalonsMenu />
             <VipLetterIcon /><NotificationBell /><AccountMenu />
