@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useLayoutEffect, useRef } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/app/lib/supabase/client';
@@ -196,6 +196,26 @@ export function GridCard({ therapist, index, showJoinDate = false, from, enableW
   // 出勤中バッジと同一条件（status==='onDuty'）。enableWorkingShimmer の時だけ外枠を緑キラリ。
   const working = enableWorkingShimmer && ss?.status === 'onDuty';
 
+  // 「名前(年齢) 出勤バッジ 出勤時間」を1行に並べる。行が溢れるカードだけ名前＋年齢の
+  // フォントを縮めて1行に収める（短いカードは元サイズ維持＝一律縮小しない）。
+  const nameRowRef  = useRef<HTMLDivElement>(null);
+  const nameWrapRef = useRef<HTMLSpanElement>(null);
+  useLayoutEffect(() => {
+    const row = nameRowRef.current, nameWrap = nameWrapRef.current;
+    if (!row || !nameWrap) return;
+    const fit = () => {
+      nameWrap.style.fontSize = '';                 // まず基準サイズに戻して計測
+      if (row.scrollWidth <= row.clientWidth + 1) return; // 収まる→そのまま
+      const base = parseFloat(getComputedStyle(nameWrap).fontSize) || 12;
+      const factor = Math.max(0.7, row.clientWidth / row.scrollWidth);
+      nameWrap.style.fontSize = `${base * factor}px`;
+    };
+    fit();
+    const ro = new ResizeObserver(fit);
+    ro.observe(row);
+    return () => ro.disconnect();
+  }, [therapist.name, therapist.age, displayHours, ss]);
+
   const card = (
     <Link
       href={from ? `/therapist/${therapist.id}?from=${from}` : `/therapist/${therapist.id}`}
@@ -230,12 +250,19 @@ export function GridCard({ therapist, index, showJoinDate = false, from, enableW
       </div>
       <div className="p-3 flex-1 flex flex-col justify-between min-w-0 text-xs">
         <div>
-          <div className="flex items-center gap-1.5 mb-0.5 flex-wrap">
-            <p className="font-bold text-slate-900 truncate">{therapist.name}</p>
-            {therapist.age && <span className="text-[11px] text-slate-500 flex-shrink-0">({therapist.age})</span>}
+          <div ref={nameRowRef} className="flex items-center gap-1.5 mb-0.5 flex-nowrap min-w-0 overflow-hidden">
+            <span ref={nameWrapRef} className="flex items-baseline gap-1 flex-shrink-0">
+              <span className="font-bold text-slate-900 whitespace-nowrap">{therapist.name}</span>
+              {therapist.age && <span className="text-[0.9em] text-slate-500 whitespace-nowrap">({therapist.age})</span>}
+            </span>
             {ss && (
-              <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full ${ss.badgeCls}`}>
+              <span className={`flex-shrink-0 text-[9px] font-bold px-1.5 py-0.5 rounded-full ${ss.badgeCls}`}>
                 {ss.label}
+              </span>
+            )}
+            {ss && ss.status !== 'off' && (
+              <span className="flex-shrink-0 text-[10px] text-pink-500 font-medium whitespace-nowrap">
+                🕒 {displayHours || therapist.workHours || '—'}
               </span>
             )}
           </div>
@@ -248,11 +275,6 @@ export function GridCard({ therapist, index, showJoinDate = false, from, enableW
           {showJoinDate && isNewFaceActive(therapist.isNewFace, therapist.newFaceSince) && therapist.newFaceSince && (
             <p className="mb-0.5" style={{ fontSize: '12px', color: '#15803d' }}>
               {formatJoinDate(therapist.newFaceSince)}
-            </p>
-          )}
-          {ss && ss.status !== 'off' && (
-            <p className="text-[10px] text-pink-500 font-medium mb-1">
-              🕒 {displayHours || therapist.workHours || '—'}
             </p>
           )}
           {/* 写メ日記バッジ（日記が1件以上ある子のみ）。カード全体は /therapist/[id] へのリンクのため、
