@@ -110,7 +110,7 @@ export default async function AreaPage({ params }: { params: Promise<{ slug: str
             <div className="mb-8">
               <h1 className="text-2xl font-bold text-slate-900 mb-1">{label}のメンズエステ</h1>
               <p className="text-xs text-slate-400">
-                {label}エリアの掲載サロン一覧 ｜ 表示順はページ読み込みのたびにシャッフルされます
+                表示順はページ読み込みのたびにシャッフルされます
               </p>
             </div>
           }
