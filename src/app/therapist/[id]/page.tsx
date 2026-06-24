@@ -21,6 +21,10 @@ import { VipLetterIcon } from '@/app/components/VipLetterIcon';
 import { SaveButton } from '@/app/components/SaveButton';
 import { ViewHistoryLogger } from '@/app/components/ViewHistoryLogger';
 import { sanitizeBadges, getBadgeColors } from '@/lib/therapistBadges';
+import { getReviewStats, getApprovedReviews } from '@/app/lib/reviews';
+import { ReviewSummary } from '@/app/components/ReviewSummary';
+import { ReviewList } from '@/app/components/ReviewList';
+import { ReviewForm } from '@/app/components/ReviewForm';
 
 // ── helpers ───────────────────────────────────────────────────
 
@@ -257,6 +261,14 @@ export default async function TherapistPublicPage({
   const newBadgeNode = showNew ? (
     <NewBadge className="shadow-[0_1px_4px_rgba(0,0,0,0.3)]" />
   ) : null;
+
+  // 口コミ（承認済みのみ・公開）。getReviewStats/getApprovedReviews は内部で createPublicClient を
+  // 使う（cookies() を呼ばない）ため、既存の ISR を壊さない。
+  const therapistId = Number(id);
+  const [reviewStats, reviews] = await Promise.all([
+    getReviewStats(therapistId),
+    getApprovedReviews(therapistId),
+  ]);
 
   return (
     <div className="relative min-h-screen overflow-x-clip" style={{ color: theme.text }}>
@@ -554,6 +566,22 @@ export default async function TherapistPublicPage({
             </Link>
           </div>
         </div>
+
+        {/* ─── 口コミ（承認済みのみ公開・投稿は会員のみ） ─── */}
+        <section className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 mt-6 space-y-5">
+          <div className="flex items-center gap-2.5">
+            <div className="w-1 h-5 rounded-full bg-gradient-to-b from-orange-400 to-pink-600" />
+            <h3 className="font-bold text-slate-900">口コミ</h3>
+          </div>
+
+          <ReviewSummary average={reviewStats.average} count={reviewStats.count} />
+          <ReviewList reviews={reviews} />
+
+          <div className="pt-3 border-t border-slate-100">
+            <h4 className="text-sm font-bold text-slate-700 mb-3">口コミを投稿する</h4>
+            <ReviewForm therapistId={therapistId} />
+          </div>
+        </section>
       </main>
 
       {/* ─── Footer ──────────────────────────────────────── */}

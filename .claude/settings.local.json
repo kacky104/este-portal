@@ -116,22 +116,14 @@
       "Bash(grep -iE \"/area|/salon/\\\\[id\\\\]|/diary| / |^├ ○ /$|admin|/salons\")",
       "Bash(curl -s -o /dev/null -w \"status=%{http_code}\\\\n\" https://fukues.com/)",
       "Bash(curl -s -o /dev/null -w \"status=%{http_code} redirect_to=%{redirect_url}\\\\n\" https://fukues.com/admin)",
-      "Bash(curl -s -o /dev/null -w \"status=%{http_code}\\\\n\" https://fukues.com/area/hakata-eki)"
+      "Bash(curl -s -o /dev/null -w \"status=%{http_code}\\\\n\" https://fukues.com/area/hakata-eki)",
+      "Bash(grep -iE \"Compiled|Failed|Error:|error |✓ Generating|/area|^├ ƒ /$|/admin\")",
+      "Bash(python -c \"import sys,json; d=json.load\\(sys.stdin\\); print\\('state:', d.get\\('state'\\)\\); [print\\(' -', s.get\\('context'\\), s.get\\('state'\\), s.get\\('target_url',''\\)\\) for s in d.get\\('statuses',[]\\)]\")",
+      "Bash(grep -iE \"Compiled|Failed|Error:|error |✓ Generating|/area|^├ ○ /$|/salons\")",
+      "Bash(grep -iE \"Compiled|Failed|Error:|error |✓ Generating|/salon/\\\\[id\\\\]|^├ ○ /$|/working\")",
+      "Bash(grep -nE \"</main>|activeTab === 'news'|^      </div>$|VIPレター\" src/app/mypage/page.tsx)",
+      "Bash(awk -F: '$1>2180')"
     ]
   },
-  "hooks": {
-    "Stop": [
-      {
-        "hooks": [
-          {
-            "type": "command",
-            "command": "$r = git -C 'C:\\Users\\joltc\\Desktop\\este-portal' status --porcelain src 2>$null; if ($r) { git -C 'C:\\Users\\joltc\\Desktop\\este-portal' add src/; $msg = 'Auto-deploy: ' + (Get-Date -Format 'yyyyMMdd-HHmm'); git -C 'C:\\Users\\joltc\\Desktop\\este-portal' commit -m $msg; git -C 'C:\\Users\\joltc\\Desktop\\este-portal' push origin main }",
-            "shell": "powershell",
-            "timeout": 60,
-            "statusMessage": "Vercelへ自動デプロイ中..."
-          }
-        ]
-      }
-    ]
-  }
+  "hooks": {}
 }
