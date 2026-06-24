@@ -1,7 +1,7 @@
 // セラピストカード用の特徴バッジ表示（小型）。
 // 色は therapistBadges.ts の getBadgeColors（カテゴリ別）を流用。詳細ページ/編集UIと同じ配色。
 // 純粋な表示コンポーネント（フック・cookie 不使用）なのでサーバー/クライアント両方から使える。
-import { getBadgeColors } from '@/lib/therapistBadges';
+import { getBadgeColors, MAX_BADGES } from '@/lib/therapistBadges';
 
 export function FeatureBadges({
   badges,
@@ -10,7 +10,7 @@ export function FeatureBadges({
   badges?: string[] | null;
   className?: string;
 }) {
-  const list = (badges ?? []).slice(0, 3);
+  const list = (badges ?? []).slice(0, MAX_BADGES);
   if (list.length === 0) return null;
 
   return (
