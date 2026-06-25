@@ -36,7 +36,7 @@ export const BADGES_BY_CATEGORY: Record<BadgeCategory, string[]> = {
 };
 
 // 1セラピストあたりの最大選択数。
-export const MAX_BADGES = 4;
+export const MAX_BADGES = 3;
 
 // ラベル → カテゴリ の逆引き表。
 const LABEL_TO_CATEGORY: Record<string, BadgeCategory> = (() => {
