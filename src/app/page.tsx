@@ -229,26 +229,7 @@ export default async function Home() {
               }
             />
 
-            <div className="text-center mt-10">
-              <Link
-                href="/salons"
-                className="inline-flex items-center gap-2 px-8 py-3 rounded-full border border-pink-300 text-pink-600 text-sm font-medium hover:bg-pink-50 hover:border-pink-400 transition-all"
-              >
-                サロンをすべて見る
-                <svg
-                  width="14"
-                  height="14"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                >
-                  <path d="M5 12h14M12 5l7 7-7 7" />
-                </svg>
-              </Link>
-            </div>
-
-            <div className="flex justify-center mt-6">
+            <div className="flex justify-center mt-10">
               <div className="inline-flex justify-center rounded-2xl border border-slate-200 bg-white overflow-hidden shadow-sm">
                 {/* 口コミ総数（実数＝全サロンの review_count 合計）。 */}
                 <div className="flex flex-col items-center px-6 py-3">
