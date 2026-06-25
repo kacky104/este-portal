@@ -23,6 +23,8 @@ export type ApprovedReview = {
   visitedOn: string; // 'YYYY-MM-DD'
   createdAt: string;
   nickname: string; // 無ければ 'ゲスト'
+  therapistName?: string; // サロン単位の一覧で「○○さんへの口コミ」表示に使う。セラピスト単位の取得では付与しない。
+  therapistImage?: string | null; // サロン単位の一覧で丸アイコン表示に使う。セラピスト単位の取得では付与しない。
 };
 
 export type ReviewStats = {
@@ -180,6 +182,64 @@ export async function getSalonReviewStats(salonId: number): Promise<ReviewStats>
   if (error || !data) return empty;
 
   return statsFromRows(data as unknown as ReviewRow[]);
+}
+
+// サロン単位の承認済み口コミ一覧（在籍 is_active=true セラピストへの承認済みを新しい順）。
+// 各口コミに対象セラピスト名（therapistName）を付与する。getApprovedReviews/getSalonReviewStats のロジックを組み合わせ。
+export async function getSalonApprovedReviews(salonId: number): Promise<ApprovedReview[]> {
+  if (!Number.isFinite(salonId)) return [];
+  const supabase = createPublicClient();
+
+  // 1. 在籍（is_active=true）セラピストの id, name, 画像 → id→{name, image} マップ。
+  const { data: therapists } = await supabase
+    .from('therapists')
+    .select('id, name, profile_image_url')
+    .eq('salon_id', salonId)
+    .eq('is_active', true);
+  const therapistRows = therapists ?? [];
+  if (therapistRows.length === 0) return [];
+  const byId = new Map<number, { name: string; image: string | null }>();
+  therapistRows.forEach((t) =>
+    byId.set(t.id as number, {
+      name: (t.name as string) ?? '',
+      image: (t.profile_image_url as string | null) ?? null,
+    }),
+  );
+  const ids = [...byId.keys()];
+
+  // 2. その therapist_id 群への承認済み口コミ（新しい順）。
+  const { data, error } = await supabase
+    .from('therapist_reviews')
+    .select(REVIEW_COLUMNS)
+    .in('therapist_id', ids)
+    .eq('status', 'approved')
+    .order('created_at', { ascending: false });
+  if (error || !data || data.length === 0) return [];
+  const rows = data as unknown as ReviewRow[];
+
+  // 3. nickname を別クエリ解決（無ければ 'ゲスト'）。
+  const userIds = [...new Set(rows.map((r) => r.user_id))];
+  const nameMap = await fetchNicknameMap(supabase, userIds);
+
+  return rows.map((r) => {
+    const s = Number(r.rating_service);
+    const t = Number(r.rating_technique);
+    const rc = Number(r.rating_reception);
+    return {
+      id: String(r.id),
+      therapistId: r.therapist_id,
+      ratingService: s,
+      ratingTechnique: t,
+      ratingReception: rc,
+      overall: overallOf(s, t, rc),
+      body: r.body ?? '',
+      visitedOn: String(r.visited_on),
+      createdAt: String(r.created_at),
+      nickname: nameMap.get(r.user_id) ?? 'ゲスト',
+      therapistName: byId.get(r.therapist_id)?.name ?? '',
+      therapistImage: byId.get(r.therapist_id)?.image ?? null,
+    };
+  });
 }
 
 // 投稿フォームの選択肢用：在籍（is_active=true）セラピストを name 昇順で返す。

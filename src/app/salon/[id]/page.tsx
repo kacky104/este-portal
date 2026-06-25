@@ -327,14 +327,26 @@ export default async function SalonPage({
                 </svg>
                 <span className="text-[11px] sm:text-sm font-bold leading-none whitespace-nowrap" style={{ color: qn.text }}>料金</span>
               </Link>
-              {/* 口コミ（メッセージ） */}
-              <div className="flex flex-col items-center justify-center gap-1.5 rounded-lg border px-1.5 py-3 sm:py-4 shadow-sm" style={{ backgroundColor: qn.bg, borderColor: qn.border }}>
+              {/* 口コミ（メッセージ・店舗の口コミ一覧ページへのリンク） */}
+              <Link href={`/salon/${id}/reviews`} className="relative flex flex-col items-center justify-center gap-1.5 rounded-lg border px-1.5 py-3 sm:py-4 shadow-sm cursor-pointer hover:shadow-md hover:brightness-95 transition-all" style={{ backgroundColor: qn.bg, borderColor: qn.border }}>
+                {/* 承認済み口コミ総数のハートバッジ（1件以上のときのみ右上にはみ出して表示）。本日出勤カードと同一デザイン。 */}
+                {salonReviewStats.count > 0 && (
+                  <svg
+                    width="50" height="50" viewBox="0 0 100 100"
+                    className="absolute drop-shadow"
+                    style={{ top: '-12px', right: '-12px' }}
+                    aria-label={`口コミ ${salonReviewStats.count}件`}
+                  >
+                    <path d="M50 86 C50 86 14 60 14 34 C14 21 25 13 35 13 C43 13 48 19 50 25 C52 19 57 13 65 13 C75 13 86 21 86 34 C86 60 50 86 50 86 Z" fill={heart.fill} />
+                    <text x="50" y="43" textAnchor="middle" dominantBaseline="central" fill={heart.num} fontWeight="600" fontSize={salonReviewStats.count >= 10 ? 26 : 34}>{salonReviewStats.count}</text>
+                  </svg>
+                )}
                 <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="flex-shrink-0" style={{ color: qn.icon }}>
                   <path d="M21 14l-3 -3h-7a1 1 0 0 1 -1 -1v-6a1 1 0 0 1 1 -1h9a1 1 0 0 1 1 1v10" />
                   <path d="M14 15v2a1 1 0 0 1 -1 1h-7l-3 3v-10a1 1 0 0 1 1 -1h2" />
                 </svg>
                 <span className="text-[11px] sm:text-sm font-bold leading-none whitespace-nowrap" style={{ color: qn.text }}>口コミ</span>
-              </div>
+              </Link>
               {/* クーポン（チケット・掲載型クーポン一覧ページへのリンク） */}
               <Link href={`/salon/${id}/coupon`} className="relative flex flex-col items-center justify-center gap-1.5 rounded-lg border px-1.5 py-3 sm:py-4 shadow-sm cursor-pointer hover:shadow-md hover:brightness-95 transition-all" style={{ backgroundColor: qn.bg, borderColor: qn.border }}>
                 {/* 発行中クーポン枚数のハートバッジ（1枚以上のときのみ右上にはみ出して表示）。本日出勤カードと同一デザイン。Link内のためタップでも遷移する。 */}
