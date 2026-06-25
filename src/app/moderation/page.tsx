@@ -1,12 +1,13 @@
+import { Suspense } from 'react';
 import Link from 'next/link';
 import { Logo } from '@/app/components/Logo';
 import { createServiceClient } from '@/app/lib/supabase/service';
 import {
   ReviewModeration,
-  ApprovedReviewModeration,
   type PendingReviewView,
   type ApprovedReviewView,
 } from './ReviewModeration';
+import { ApprovedReviewsPaginated } from './ApprovedReviewsPaginated';
 
 // 口コミ審査画面（管理者専用）。layout.tsx のサーバーガードと合わせた二層防御。
 // 未承認（status='pending'）は RLS 上 admin 本人でも見えないため、取得は service_role で行う。
@@ -138,11 +139,10 @@ export default async function ModerationPage() {
             公開中の口コミはありません。
           </div>
         ) : (
-          <div className="space-y-4">
-            {approvedViews.map((v) => (
-              <ApprovedReviewModeration key={v.reviewId} {...v} />
-            ))}
-          </div>
+          // 承認済みは溜まり続けるため 50件ずつページング（URL同期）。useSearchParams のため Suspense でラップ。
+          <Suspense fallback={null}>
+            <ApprovedReviewsPaginated reviews={approvedViews} pageSize={50} />
+          </Suspense>
         )}
       </main>
     </div>
