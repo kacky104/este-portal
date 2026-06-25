@@ -1352,14 +1352,14 @@ export default function MyPage() {
                   {/* 時間・金額の行 */}
                   <div className="space-y-1.5 pl-1">
                     {group.items.map((item, ii) => (
-                      <div key={ii} className="flex items-center gap-2">
+                      <div key={ii} className="flex items-center gap-1.5 w-full">
                         <input
                           type="number"
                           min={0}
                           placeholder="60"
                           value={item.duration}
                           onChange={(e) => setCourseGroups(prev => prev.map((g, gi2) => gi2 === gi ? { ...g, items: g.items.map((it, ii2) => ii2 === ii ? { ...it, duration: e.target.value } : it) } : g))}
-                          className="w-20 px-3 py-1.5 rounded-xl border border-slate-200 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-pink-200 text-center"
+                          className="w-16 flex-shrink-0 px-2 py-1.5 rounded-xl border border-slate-200 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-pink-200 text-center"
                         />
                         <span className="text-xs text-slate-500 flex-shrink-0">分 / ¥</span>
                         <input
@@ -1368,7 +1368,7 @@ export default function MyPage() {
                           placeholder="8000"
                           value={item.price}
                           onChange={(e) => setCourseGroups(prev => prev.map((g, gi2) => gi2 === gi ? { ...g, items: g.items.map((it, ii2) => ii2 === ii ? { ...it, price: e.target.value } : it) } : g))}
-                          className="flex-1 px-3 py-1.5 rounded-xl border border-slate-200 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-pink-200"
+                          className="flex-1 min-w-0 px-2 py-1.5 rounded-xl border border-slate-200 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-pink-200"
                         />
                         <span className="text-xs text-slate-500 flex-shrink-0">円</span>
                         {group.items.length > 1 && (
@@ -1405,13 +1405,13 @@ export default function MyPage() {
               <p className="text-xs font-bold text-slate-600">その他メニュー追加</p>
               <div className="space-y-1.5">
                 {otherItems.map((item, i) => (
-                  <div key={i} className="flex items-center gap-2">
+                  <div key={i} className="flex items-center gap-1.5 w-full">
                     <input
                       type="text"
                       placeholder="メニュー名（例：延長30分）"
                       value={item.label}
                       onChange={(e) => setOtherItems(prev => prev.map((it, ii) => ii === i ? { ...it, label: e.target.value } : it))}
-                      className="flex-1 px-3 py-1.5 rounded-xl border border-slate-200 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-pink-200"
+                      className="flex-1 min-w-0 px-2 py-1.5 rounded-xl border border-slate-200 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-pink-200"
                     />
                     <span className="text-xs text-slate-500 flex-shrink-0">/ ¥</span>
                     <input
@@ -1420,7 +1420,7 @@ export default function MyPage() {
                       placeholder="料金"
                       value={item.price}
                       onChange={(e) => setOtherItems(prev => prev.map((it, ii) => ii === i ? { ...it, price: e.target.value } : it))}
-                      className="w-28 px-3 py-1.5 rounded-xl border border-slate-200 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-pink-200"
+                      className="w-20 flex-shrink-0 min-w-0 px-2 py-1.5 rounded-xl border border-slate-200 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-pink-200"
                     />
                     <span className="text-xs text-slate-500 flex-shrink-0">円</span>
                     {otherItems.length > 1 && (
