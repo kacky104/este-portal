@@ -90,26 +90,19 @@ export function AccountMenu() {
             <p className="text-[11px] text-slate-400">ログイン中</p>
             <p className="text-sm text-slate-700 font-medium truncate">{email}</p>
           </div>
+          {/* マイページ：メニュー内で一番押したくなる控えめな華やかさ（淡ピンク地＋丸地アイコン＋ブランド色文字） */}
           <Link
             href="/member"
             onClick={() => setOpen(false)}
-            className="flex items-center gap-2 px-3 py-2.5 text-sm text-slate-700 hover:bg-slate-50 transition-colors"
+            className="flex items-center gap-2.5 px-3 py-2.5 text-sm font-semibold text-pink-700 bg-pink-50/70 hover:bg-pink-100/80 transition-colors"
           >
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#DB2777" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="flex-shrink-0">
-              <circle cx="12" cy="8" r="4" />
-              <path d="M4 21v-1a6 6 0 0 1 6-6h4a6 6 0 0 1 6 6v1" />
-            </svg>
+            <span className="flex-shrink-0 w-7 h-7 rounded-full bg-gradient-to-br from-pink-100 to-fuchsia-100 flex items-center justify-center">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#DB2777" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="12" cy="8" r="4" />
+                <path d="M4 21v-1a6 6 0 0 1 6-6h4a6 6 0 0 1 6 6v1" />
+              </svg>
+            </span>
             マイページ
-          </Link>
-          <Link
-            href="/saved"
-            onClick={() => setOpen(false)}
-            className="flex items-center gap-2 px-3 py-2.5 text-sm text-slate-700 hover:bg-slate-50 transition-colors border-t border-slate-100"
-          >
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#E2B85A" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="flex-shrink-0">
-              <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z" />
-            </svg>
-            保存した一覧
           </Link>
           <button
             type="button"
