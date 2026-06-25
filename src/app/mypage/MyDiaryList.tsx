@@ -1,11 +1,13 @@
 'use client';
 
 import { useEffect, useState, useCallback } from 'react';
+import { useSearchParams, useRouter, usePathname } from 'next/navigation';
 import { createClient } from '@/app/lib/supabase/client';
 import { revalidateSalon } from '@/app/lib/revalidateTop';
 
 const supabase = createClient();
 const TITLE_MAX = 10;
+const PAGE_SIZE = 50; // 1ページあたりの投稿数（DBから range で50件だけ取得）
 
 type MyDiaryPost = {
   id: string;            // diary_posts.id（UUID/bigint いずれも文字列で扱う）
@@ -50,6 +52,7 @@ export function MyDiaryList({
   onToast: (msg: string) => void;
 }) {
   const [posts, setPosts] = useState<MyDiaryPost[]>([]);
+  const [total, setTotal] = useState(0); // 総件数（COUNT専用クエリで取得）
 
   // 編集中の状態
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -61,12 +64,45 @@ export function MyDiaryList({
   const [savingId, setSavingId] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
+  // ── ページネーション（?page= とURL同期。口コミの ApprovedReviewsPaginated と同じ操作感） ──
+  const searchParams = useSearchParams();
+  const router = useRouter();
+  const pathname = usePathname();
+
+  // ?page= を読み、数値でなければ 1。総ページ数によるクランプは loadPosts 側で行う。
+  const rawPage = Number(searchParams.get('page'));
+  const page = Number.isFinite(rawPage) && rawPage >= 1 ? Math.floor(rawPage) : 1;
+
+  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+
+  // ページ移動：1ページ目は素のパス、それ以外は ?page=n。先頭へは飛ばさない（scroll:false）。
+  const goTo = useCallback((n: number, pages: number) => {
+    const target = Math.min(Math.max(1, n), pages);
+    router.replace(target === 1 ? pathname : `${pathname}?page=${target}`, { scroll: false });
+  }, [router, pathname]);
+
   const loadPosts = useCallback(async () => {
+    // 総件数を COUNT 専用クエリで取得（head:true で行は取らずカウントのみ）
+    const { count } = await supabase
+      .from('diary_posts')
+      .select('id', { count: 'exact', head: true })
+      .eq('salon_id', salonId);
+    const totalCount = count ?? 0;
+    setTotal(totalCount);
+
+    // 現在ページが総ページ数を超えていたら最終ページに丸めてURLを差し替え（削除で空ページに残らない）
+    const pages = Math.max(1, Math.ceil(totalCount / PAGE_SIZE));
+    if (page > pages) { goTo(pages, pages); return; } // URL変更→再フェッチで正しいページを表示
+
+    // 該当ページの50件だけを range で取得
+    const from = (page - 1) * PAGE_SIZE;
+    const to = from + PAGE_SIZE - 1;
     const { data } = await supabase
       .from('diary_posts')
       .select('id, images, title, content, created_at, therapist_id, therapists(name)')
       .eq('salon_id', salonId)
-      .order('created_at', { ascending: false });
+      .order('created_at', { ascending: false })
+      .range(from, to);
 
     setPosts(
       ((data ?? []) as unknown as Array<{
@@ -86,7 +122,7 @@ export function MyDiaryList({
         };
       })
     );
-  }, [salonId]);
+  }, [salonId, page, goTo]);
 
   useEffect(() => { loadPosts(); }, [loadPosts, reloadSignal]);
 
@@ -163,16 +199,19 @@ export function MyDiaryList({
     if (paths.length > 0) await supabase.storage.from('diary-images').remove(paths);
 
     setDeletingId(null);
-    setPosts((prev) => prev.filter((p) => p.id !== post.id));
     revalidateSalon(salonId, { top: false }); // 写メ日記はサロン詳細のみ（トップには出ない）
     onToast('投稿を削除しました');
+    loadPosts(); // 再フェッチで件数・ページを更新（最終ページの最後の1件を消したら前ページへ丸める）
   };
+
+  const btnClass =
+    'px-4 py-2 rounded-xl border border-pink-300 text-pink-600 text-sm font-bold hover:bg-pink-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors';
 
   return (
     <div className="border-t border-slate-100 pt-4 space-y-3">
-      <p className="text-[11px] font-bold text-slate-400">投稿済み日記（{posts.length}件）</p>
+      <p className="text-[11px] font-bold text-slate-400">投稿済み日記（{total}件）</p>
 
-      {posts.length === 0 ? (
+      {total === 0 ? (
         <p className="text-xs text-slate-400 text-center py-6">まだ投稿がありません</p>
       ) : (
         posts.map((post) => (
@@ -289,6 +328,20 @@ export function MyDiaryList({
             )}
           </div>
         ))
+      )}
+
+      {totalPages > 1 && (
+        <div className="flex items-center justify-center gap-4 pt-2">
+          <button type="button" onClick={() => goTo(page - 1, totalPages)} disabled={page <= 1} className={btnClass}>
+            ← 前へ
+          </button>
+          <span className="text-sm font-bold text-slate-500 tabular-nums">
+            {page} / {totalPages}
+          </span>
+          <button type="button" onClick={() => goTo(page + 1, totalPages)} disabled={page >= totalPages} className={btnClass}>
+            次へ →
+          </button>
+        </div>
       )}
     </div>
   );
