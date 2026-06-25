@@ -256,13 +256,13 @@ export default async function MemberPage() {
               className="group rounded-2xl border border-pink-100 bg-white p-4 shadow-sm hover:border-pink-300 hover:shadow-md transition-all"
             >
               <div className="flex items-start justify-between gap-2">
-                <p className="text-sm font-bold text-slate-700">プロフィール編集</p>
+                <p className="text-sm font-bold text-slate-700">プロフィール</p>
                 <span className="flex-shrink-0 inline-flex items-center gap-1 text-[11px] font-medium text-pink-600 group-hover:gap-1.5 transition-all">
-                  {nickname ? '編集' : '設定'} <span aria-hidden>→</span>
+                  {nickname ? '開く' : '設定'} <span aria-hidden>→</span>
                 </span>
               </div>
               <p className="text-xs text-slate-400 mt-1.5">
-                {nickname ? 'プロフィールを編集' : 'ニックネームを設定'}
+                {nickname ? 'プロフィールの確認・編集' : 'ニックネームを設定'}
               </p>
             </Link>
 
