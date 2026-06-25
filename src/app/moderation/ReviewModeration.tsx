@@ -17,6 +17,7 @@ export type PendingReviewView = {
   body: string;
   nickname: string;
   therapistName: string;
+  salonName: string;
   createdAt: string; // ISO
 };
 
@@ -48,7 +49,7 @@ function ReviewBody({
   body,
   nickname,
   createdAt,
-}: Omit<PendingReviewView, 'reviewId' | 'therapistName'>) {
+}: Omit<PendingReviewView, 'reviewId' | 'therapistName' | 'salonName'>) {
   return (
     <>
       {/* 総合星・投稿者・投稿日時 */}
@@ -93,6 +94,7 @@ function AxisMini({ label, value }: { label: string; value: number }) {
 export function ReviewModeration({
   reviewId,
   therapistName,
+  salonName,
   ...rest
 }: PendingReviewView) {
   const router = useRouter();
@@ -119,9 +121,10 @@ export function ReviewModeration({
 
   return (
     <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-5 space-y-3">
-      {/* 対象セラピスト名 */}
-      <div className="flex items-center gap-2 text-xs font-bold text-pink-600">
-        <span className="px-2 py-0.5 rounded-full bg-pink-50 border border-pink-100">対象</span>
+      {/* 対象：サロン名（トーン控えめ）→ セラピスト名（主役） */}
+      <div className="flex items-center gap-2 text-xs font-bold text-pink-600 min-w-0">
+        <span className="px-2 py-0.5 rounded-full bg-pink-50 border border-pink-100 flex-shrink-0">対象</span>
+        {salonName && <span className="truncate text-slate-500 font-medium">{salonName}</span>}
         <span className="truncate">{therapistName}</span>
       </div>
 
@@ -162,6 +165,7 @@ export function ReviewModeration({
 export function ApprovedReviewModeration({
   reviewId,
   therapistName,
+  salonName,
   ...rest
 }: ApprovedReviewView) {
   const router = useRouter();
@@ -189,10 +193,11 @@ export function ApprovedReviewModeration({
 
   return (
     <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-5 space-y-3">
-      {/* 対象セラピスト名＋公開中バッジ（pending と見分けやすく緑系） */}
-      <div className="flex items-center gap-2 text-xs font-bold">
-        <span className="px-2 py-0.5 rounded-full bg-pink-50 border border-pink-100 text-pink-600">対象</span>
-        <span className="px-2 py-0.5 rounded-full bg-emerald-50 border border-emerald-100 text-emerald-600">公開中</span>
+      {/* 対象＋公開中バッジ → サロン名（トーン控えめ）→ セラピスト名（主役） */}
+      <div className="flex items-center gap-2 text-xs font-bold min-w-0">
+        <span className="px-2 py-0.5 rounded-full bg-pink-50 border border-pink-100 text-pink-600 flex-shrink-0">対象</span>
+        <span className="px-2 py-0.5 rounded-full bg-emerald-50 border border-emerald-100 text-emerald-600 flex-shrink-0">公開中</span>
+        {salonName && <span className="truncate text-slate-500 font-medium">{salonName}</span>}
         <span className="truncate text-slate-700">{therapistName}</span>
       </div>
 

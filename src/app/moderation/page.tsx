@@ -47,12 +47,25 @@ export default async function ModerationPage() {
     });
   }
 
-  // 対象セラピスト名を別クエリで解決。
+  // 対象セラピスト名・所属サロンを別クエリで解決（therapists は1回で名前＋salon_idを取得）。
   const therapistIds = [...new Set(allRows.map((r) => r.therapist_id as number))];
   const therapistMap = new Map<number, string>();
+  const therapistSalonMap = new Map<number, number>(); // therapist_id → salon_id
   if (therapistIds.length > 0) {
-    const { data: ths } = await svc.from('therapists').select('id, name').in('id', therapistIds);
-    (ths ?? []).forEach((t) => therapistMap.set(t.id as number, (t.name as string) ?? ''));
+    const { data: ths } = await svc.from('therapists').select('id, name, salon_id').in('id', therapistIds);
+    (ths ?? []).forEach((t) => {
+      therapistMap.set(t.id as number, (t.name as string) ?? '');
+      const sid = t.salon_id as number | null;
+      if (sid != null) therapistSalonMap.set(t.id as number, sid);
+    });
+  }
+
+  // 対象サロン名を別クエリで解決（salon_id 群をまとめて1回引く）。
+  const salonIds = [...new Set([...therapistSalonMap.values()])];
+  const salonNameMap = new Map<number, string>();
+  if (salonIds.length > 0) {
+    const { data: salons } = await svc.from('salons').select('id, name').in('id', salonIds);
+    (salons ?? []).forEach((s) => salonNameMap.set(s.id as number, (s.name as string) ?? ''));
   }
 
   // pending / approved を共通の表示用形（PendingReviewView と同形）に変換。
@@ -71,6 +84,7 @@ export default async function ModerationPage() {
       body: (r.body as string) ?? '',
       nickname: nameMap.get(r.user_id as string) ?? 'ゲスト',
       therapistName: therapistMap.get(r.therapist_id as number) ?? `セラピスト#${r.therapist_id}`,
+      salonName: salonNameMap.get(therapistSalonMap.get(r.therapist_id as number) ?? -1) ?? '',
       createdAt: String(r.created_at),
     };
   };
