@@ -467,9 +467,6 @@ export function ShuffledSalons({ salons, areas, showAge = false, areaNextToDuty 
   const matchesArea = (s: Salon, area: string) =>
     s.area === area || (includeDispatch && area === activeAreaEffective && s.dispatchType !== 'none');
 
-  const areaCount = (area: string) =>
-    area === '福岡全域' ? salons.length : salons.filter(s => matchesArea(s, area)).length;
-
   const filtered =
     activeAreaEffective === '福岡全域' ? list : list.filter(s => matchesArea(s, activeAreaEffective));
 
@@ -481,21 +478,13 @@ export function ShuffledSalons({ salons, areas, showAge = false, areaNextToDuty 
         style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' } as React.CSSProperties}
       >
         {areas.map(area => {
-          const count  = areaCount(area);
           const active = activeAreaEffective === area;
           const cls = `flex-shrink-0 flex items-center px-2 py-1 rounded-full text-sm font-medium transition-all sm:gap-1.5 sm:px-4 sm:py-2 ${
             active
               ? 'bg-pink-600 text-white shadow-md shadow-pink-500/25'
               : 'border border-slate-200 bg-white text-slate-600 hover:border-pink-300 hover:text-pink-600 shadow-sm'
           }`;
-          const inner = (
-            <>
-              {areaLabel(area)}
-              <span className={`hidden sm:inline-flex sm:items-center text-[11px] rounded-full px-1.5 py-px font-bold ${active ? 'bg-white/25 text-white' : 'bg-slate-100 text-slate-500'}`}>
-                {count}
-              </span>
-            </>
-          );
+          const inner = areaLabel(area);
           return tabsAsLinks ? (
             <Link key={area} href={areaHref(area)} className={cls} aria-current={active ? 'page' : undefined}>
               {inner}
