@@ -243,14 +243,14 @@ export default async function MemberPage() {
           </section>
         )}
 
-        {/* ─── これからの機能（準備中プレースホルダー） ─── */}
+        {/* ─── 会員メニュー（実装済み機能への導線） ─── */}
         <section className="mb-4">
           <h2 className="flex items-center gap-2 text-base font-bold text-slate-700 mb-4">
-            <span className="w-1 h-5 rounded-full bg-slate-300" />
-            これからの機能
+            <span className="w-1 h-5 rounded-full" style={{ background: '#EC4899' }} />
+            会員メニュー
           </h2>
           <div className="grid gap-3 sm:grid-cols-3">
-            {/* プロフィール編集：フェーズ2で有効化（/member/profile へのリンク） */}
+            {/* プロフィール編集（ニックネーム設定/編集の入口） */}
             <Link
               href="/member/profile"
               className="group rounded-2xl border border-pink-100 bg-white p-4 shadow-sm hover:border-pink-300 hover:shadow-md transition-all"
@@ -266,7 +266,7 @@ export default async function MemberPage() {
               </p>
             </Link>
 
-            {/* 閲覧履歴：フェーズ3で有効化（/member/history へのリンク） */}
+            {/* 閲覧履歴（最近見たサロン・セラピスト） */}
             <Link
               href="/member/history"
               className="group rounded-2xl border border-pink-100 bg-white p-4 shadow-sm hover:border-pink-300 hover:shadow-md transition-all"
@@ -280,7 +280,7 @@ export default async function MemberPage() {
               <p className="text-xs text-slate-400 mt-1.5">最近見たサロン・セラピスト</p>
             </Link>
 
-            {/* 通知・新着：フェーズ4で有効化（/member/notifications へのリンク） */}
+            {/* 通知・新着フォロー（保存サロンの新着クーポン・お知らせ） */}
             <Link
               href="/member/notifications"
               className="group rounded-2xl border border-pink-100 bg-white p-4 shadow-sm hover:border-pink-300 hover:shadow-md transition-all"
