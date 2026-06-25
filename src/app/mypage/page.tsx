@@ -282,7 +282,6 @@ type Salon = {
   address: string | null;
   access: string | null;
   closed_days: string | null;
-  note: string | null;
   courses: unknown;
   theme: string | null;
   official_url: string | null;
@@ -404,7 +403,7 @@ export default function MyPage() {
 
       const { data: salonData, error: salonError } = await supabase
         .from('salons')
-        .select('id, name, rating, review_count, tags, price, area, hours, description, appeal, therapist_count, therapist_types, therapist_profile, phone, address, access, closed_days, note, courses, theme, official_url')
+        .select('id, name, rating, review_count, tags, price, area, hours, description, appeal, therapist_count, therapist_types, therapist_profile, phone, address, access, closed_days, courses, theme, official_url')
         .eq('owner_id', user.id)
         .single();
 
@@ -706,7 +705,6 @@ export default function MyPage() {
         address: salonForm.address,
         access: salonForm.access,
         closed_days: salonForm.closed_days,
-        note: salonForm.note,
         theme: salonForm.theme ?? 'white',
         official_url: officialUrl,
       })
@@ -1480,11 +1478,7 @@ export default function MyPage() {
           </div>
           <div>
             <label className={labelClass}>サロン紹介</label>
-            <textarea rows={4} className={textareaClass} value={salonForm.description ?? ''} onChange={(e) => setSalonForm((p) => ({ ...p, description: e.target.value }))} />
-          </div>
-          <div>
-            <label className={labelClass}>備考</label>
-            <textarea rows={2} className={textareaClass} value={salonForm.note ?? ''} onChange={(e) => setSalonForm((p) => ({ ...p, note: e.target.value }))} />
+            <textarea rows={6} className={textareaClass} value={salonForm.description ?? ''} onChange={(e) => setSalonForm((p) => ({ ...p, description: e.target.value }))} />
           </div>
 
           {/* ── サロン画像 ── */}
