@@ -44,6 +44,14 @@ function TrainIcon() {
     </svg>
   );
 }
+function LinkIcon() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+      <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
+      <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" />
+    </svg>
+  );
+}
 
 function InfoRow({
   icon, label, value, labelColor, valueColor,
@@ -81,7 +89,7 @@ export default async function SalonInfoPage({
 
   const { data: salonRow, error } = await supabase
     .from('salons')
-    .select('id, name, theme, phone, hours, closed_days, address, access')
+    .select('id, name, theme, phone, hours, closed_days, address, access, official_url')
     .eq('id', Number(id))
     .single();
 
@@ -114,6 +122,7 @@ export default async function SalonInfoPage({
   const closedDays = (salonRow.closed_days as string) ?? '';
   const address    = (salonRow.address as string) ?? '';
   const access     = (salonRow.access as string) ?? '';
+  const officialUrl = (salonRow.official_url as string | null) ?? null;
 
   return (
     <div className="relative min-h-screen overflow-x-clip" style={{ color: theme.text }}>
@@ -164,6 +173,26 @@ export default async function SalonInfoPage({
             <InfoRow icon={<CalendarIcon />} label="定休日"   value={closedDays} labelColor={theme.body} valueColor={theme.heading} />
             <InfoRow icon={<MapIcon />}      label="住所"     value={address}    labelColor={theme.body} valueColor={theme.heading} />
             <InfoRow icon={<TrainIcon />}    label="アクセス" value={access}     labelColor={theme.body} valueColor={theme.heading} />
+            {/* 公式サイト：未設定なら行ごと非表示。長いURLでも break-all で折り返して崩れない。 */}
+            {officialUrl && (
+              <div className="flex gap-3">
+                <dt className="flex items-start gap-1.5 flex-shrink-0 w-24 text-xs pt-0.5" style={{ color: theme.body }}>
+                  <span className="mt-px"><LinkIcon /></span>
+                  公式サイト
+                </dt>
+                <dd className="text-sm leading-relaxed min-w-0 break-all">
+                  <a
+                    href={officialUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="underline hover:opacity-80 break-all"
+                    style={{ color: '#ec4899' }}
+                  >
+                    {officialUrl}
+                  </a>
+                </dd>
+              </div>
+            )}
           </dl>
         </section>
       </main>

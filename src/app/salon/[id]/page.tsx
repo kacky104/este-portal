@@ -71,7 +71,7 @@ export default async function SalonPage({
   ] = await Promise.all([
     supabase
       .from('salons')
-      .select('id, name, rating, review_count, tags, price, area, hours, description, appeal, phone, address, access, closed_days, note, courses, theme')
+      .select('id, name, rating, review_count, tags, price, area, hours, description, appeal, phone, address, access, closed_days, note, courses, theme, official_url')
       .eq('id', Number(id))
       .single(),
     supabase
@@ -122,6 +122,7 @@ export default async function SalonPage({
     access:      (row.access as string) ?? '',
     closedDays:  (row.closed_days as string) ?? '',
     note:        (row.note as string | undefined) ?? undefined,
+    officialUrl: (row.official_url as string | null) ?? null,
   };
 
   const theme = getTheme(row.theme as string | null);
@@ -206,6 +207,26 @@ export default async function SalonPage({
       <InfoRow icon={<CalendarIcon />} label="定休日"   value={salon.closedDays} labelColor={theme.body} valueColor={theme.heading} />
       <InfoRow icon={<MapIcon />}      label="住所"     value={salon.address}    labelColor={theme.body} valueColor={theme.heading} />
       <InfoRow icon={<TrainIcon />}    label="アクセス" value={salon.access}     labelColor={theme.body} valueColor={theme.heading} />
+      {/* 公式サイト：未設定なら行ごと非表示。長いURLでも break-all で折り返して崩れない。 */}
+      {salon.officialUrl && (
+        <div className="flex gap-3">
+          <dt className="flex items-start gap-1.5 flex-shrink-0 w-20 text-[11px] pt-0.5" style={{ color: theme.body }}>
+            <span className="mt-px"><LinkIcon /></span>
+            公式サイト
+          </dt>
+          <dd className="text-[13px] leading-relaxed min-w-0 break-all">
+            <a
+              href={salon.officialUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="underline hover:opacity-80 break-all"
+              style={{ color: '#ec4899' }}
+            >
+              {salon.officialUrl}
+            </a>
+          </dd>
+        </div>
+      )}
     </dl>
   );
 
@@ -637,6 +658,15 @@ function TrainIcon() {
   return (
     <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
       <rect x="4" y="2" width="16" height="16" rx="2" /><path d="M9 18v3M15 18v3M9 21h6M4 10h16" />
+    </svg>
+  );
+}
+
+function LinkIcon() {
+  return (
+    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
+      <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" />
     </svg>
   );
 }

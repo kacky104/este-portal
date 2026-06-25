@@ -285,6 +285,7 @@ type Salon = {
   note: string | null;
   courses: unknown;
   theme: string | null;
+  official_url: string | null;
 };
 
 type Therapist = {
@@ -403,7 +404,7 @@ export default function MyPage() {
 
       const { data: salonData, error: salonError } = await supabase
         .from('salons')
-        .select('id, name, rating, review_count, tags, price, area, hours, description, appeal, therapist_count, therapist_types, therapist_profile, phone, address, access, closed_days, note, courses, theme')
+        .select('id, name, rating, review_count, tags, price, area, hours, description, appeal, therapist_count, therapist_types, therapist_profile, phone, address, access, closed_days, note, courses, theme, official_url')
         .eq('owner_id', user.id)
         .single();
 
@@ -677,6 +678,22 @@ export default function MyPage() {
   const handleSalonSave = async () => {
     if (!salon) return;
     setSaving(true);
+
+    // 公式サイトURLの検証・正規化：空欄は null。入力ありは http/https のみ許可（new URL でパース）。
+    const raw = (salonForm.official_url ?? '').trim();
+    let officialUrl: string | null = null;
+    if (raw) {
+      try {
+        const u = new URL(raw);
+        if (u.protocol !== 'http:' && u.protocol !== 'https:') throw new Error('bad protocol');
+        officialUrl = raw;
+      } catch {
+        setSaving(false);
+        showToast('正しいURL（https://〜）を入力してください');
+        return;
+      }
+    }
+
     const { error } = await supabase
       .from('salons')
       .update({
@@ -691,6 +708,7 @@ export default function MyPage() {
         closed_days: salonForm.closed_days,
         note: salonForm.note,
         theme: salonForm.theme ?? 'white',
+        official_url: officialUrl,
       })
       .eq('id', salon.id);
     setSaving(false);
@@ -1448,6 +1466,17 @@ export default function MyPage() {
           <div>
             <label className={labelClass}>アクセス</label>
             <input className={inputClass} value={salonForm.access ?? ''} onChange={(e) => setSalonForm((p) => ({ ...p, access: e.target.value }))} />
+          </div>
+          <div>
+            <label className={labelClass}>公式サイトURL（任意）</label>
+            <input
+              type="url"
+              placeholder="https://example.com"
+              className={inputClass}
+              value={salonForm.official_url ?? ''}
+              onChange={(e) => setSalonForm((p) => ({ ...p, official_url: e.target.value }))}
+            />
+            <p className="text-[10px] text-slate-400 mt-1">https:// から始まる正しいURLを入力してください。空欄なら表示されません。</p>
           </div>
           <div>
             <label className={labelClass}>サロン紹介</label>
