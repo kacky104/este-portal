@@ -36,7 +36,7 @@ export default async function Home() {
 
   // ── 互いに依存しない3処理を並列実行（往復の積み上がりを解消） ──
   // ピックアップは area=null の共通セット（＝トップ用）。地域ページは各エリアの設定を使う。
-  const [salons, featuredSalons, todaySchedRes] = await Promise.all([
+  const [salons, featuredSalons, todaySchedRes, reviewCountRes] = await Promise.all([
     fetchSalons(supabase, { showOnTopOnly: true }), // トップは show_on_top=true のみ表示
     getFeaturedSalons(supabase, null),
     supabase
@@ -44,9 +44,17 @@ export default async function Home() {
       .select('start_time, end_time')
       .eq('schedule_date', todayJST)
       .eq('is_active', true),
+    // サイト全体の口コミ総数：全サロンの review_count（キャッシュ列）合計。
+    supabase.from('salons').select('review_count'),
   ]);
 
   const todaySchedules = todaySchedRes.data;
+
+  // 全サロンの review_count を合計（口コミ総数の実数）。
+  const totalReviewCount = (reviewCountRes.data ?? []).reduce(
+    (sum, s) => sum + (Number(s.review_count) || 0),
+    0,
+  );
 
   // 本日出勤セラピスト総数（off以外 = is_active かつ start/end が存在するすべて）。
   // クエリは上の Promise.all で並列取得済み（todaySchedRes）。
@@ -241,20 +249,12 @@ export default async function Home() {
             </div>
 
             <div className="flex justify-center mt-6">
-              <div className="inline-flex flex-wrap justify-center gap-px rounded-2xl border border-slate-200 bg-white overflow-hidden shadow-sm">
-                {[
-                  ["掲載サロン", "68件"],
-                  ["口コミ総数", "2,400件以上"],
-                  ["対応エリア", "福岡全域"],
-                ].map(([label, val], i) => (
-                  <div
-                    key={label}
-                    className={`flex flex-col items-center px-6 py-3 ${i > 0 ? "border-l border-slate-200" : ""}`}
-                  >
-                    <span className="text-[11px] text-slate-400 mb-0.5">{label}</span>
-                    <span className="text-sm font-bold text-slate-700">{val}</span>
-                  </div>
-                ))}
+              <div className="inline-flex justify-center rounded-2xl border border-slate-200 bg-white overflow-hidden shadow-sm">
+                {/* 口コミ総数（実数＝全サロンの review_count 合計）。 */}
+                <div className="flex flex-col items-center px-6 py-3">
+                  <span className="text-[11px] text-slate-400 mb-0.5">口コミ総数</span>
+                  <span className="text-sm font-bold text-slate-700">{totalReviewCount.toLocaleString()}件</span>
+                </div>
               </div>
             </div>
           </div>

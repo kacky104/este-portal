@@ -4,6 +4,7 @@ import { revalidatePath } from 'next/cache';
 import { createClient } from '@/app/lib/supabase/server';
 import { createServiceClient } from '@/app/lib/supabase/service';
 import { ADMIN_UUID, MODERATOR_UUIDS } from '@/app/lib/admin';
+import { syncSalonRating } from '@/app/lib/reviews';
 
 // 口コミ（therapist_reviews）の Server Actions。
 //
@@ -167,8 +168,10 @@ export async function approveReview(reviewId: string): Promise<void> {
     .eq('id', reviewId);
   if (error) throw new Error(error.message);
 
-  revalidateTherapist(therapistId);
+  // salons のキャッシュ列を最新化してから revalidate（同期後の値を反映させるため）。
   const salonId = await getSalonIdOfTherapist(svc, therapistId);
+  if (salonId != null) await syncSalonRating(salonId);
+  revalidateTherapist(therapistId);
   if (salonId != null) revalidateSalon(salonId);
 }
 
@@ -191,8 +194,9 @@ export async function rejectReview(reviewId: string): Promise<void> {
 
   if (row) {
     const therapistId = row.therapist_id as number;
-    revalidateTherapist(therapistId);
     const salonId = await getSalonIdOfTherapist(svc, therapistId);
+    if (salonId != null) await syncSalonRating(salonId);
+    revalidateTherapist(therapistId);
     if (salonId != null) revalidateSalon(salonId);
   }
 }
@@ -214,8 +218,9 @@ export async function deleteReview(reviewId: string): Promise<void> {
 
   if (row) {
     const therapistId = row.therapist_id as number;
-    revalidateTherapist(therapistId);
     const salonId = await getSalonIdOfTherapist(svc, therapistId);
+    if (salonId != null) await syncSalonRating(salonId);
+    revalidateTherapist(therapistId);
     if (salonId != null) revalidateSalon(salonId);
   }
 }

@@ -11,6 +11,7 @@
 //    3軸平均・総合平均・総件数を計算で出す（salons に評価列は作らない）。
 
 import { createPublicClient } from '@/app/lib/supabase/public';
+import { createServiceClient } from '@/app/lib/supabase/service';
 
 export type ApprovedReview = {
   id: string;
@@ -240,6 +241,43 @@ export async function getSalonApprovedReviews(salonId: number): Promise<Approved
       therapistImage: byId.get(r.therapist_id)?.image ?? null,
     };
   });
+}
+
+// 承認済み口コミからサロンの rating/review_count を計算し salons に焼き込む（キャッシュ列同期）。
+// 評価の定義は getSalonReviewStats と同一（is_active セラピストの承認済み口コミの総合平均・件数）。
+// 同じ計算ヘルパー（overallOf/avg1 → statsFromRows）を使い回し、カードと詳細で値がズレないようにする。
+// salons への書き込みは service_role が必要なため createServiceClient を使う。
+// 承認/却下/削除アクションから、DB更新が成功した後に呼ぶ。
+export async function syncSalonRating(salonId: number): Promise<void> {
+  if (!Number.isFinite(salonId)) return;
+  const svc = createServiceClient();
+
+  // 1. 在籍（is_active=true）セラピストの id 群。
+  const { data: therapists } = await svc
+    .from('therapists')
+    .select('id')
+    .eq('salon_id', salonId)
+    .eq('is_active', true);
+  const ids = (therapists ?? []).map((t) => t.id as number);
+
+  // 2. その therapist_id 群の承認済み口コミ3軸（0人/0件なら空配列＝rating0/count0）。
+  let rows: ReviewRow[] = [];
+  if (ids.length > 0) {
+    const { data } = await svc
+      .from('therapist_reviews')
+      .select('rating_service, rating_technique, rating_reception')
+      .in('therapist_id', ids)
+      .eq('status', 'approved');
+    rows = (data ?? []) as unknown as ReviewRow[];
+  }
+
+  // 3. getSalonReviewStats と同一の計算（statsFromRows）で総合平均・件数。
+  const stats = statsFromRows(rows);
+  const rating = stats.avgOverall ?? 0; // 0件は 0
+  const reviewCount = stats.count;
+
+  // 4. salons の既存 rating/review_count 列に焼き込む（新規列は作らない）。
+  await svc.from('salons').update({ rating, review_count: reviewCount }).eq('id', salonId);
 }
 
 // 投稿フォームの選択肢用：在籍（is_active=true）セラピストを name 昇順で返す。

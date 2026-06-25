@@ -36,6 +36,21 @@ function StarRating({ rating }: { rating: number }) {
   );
 }
 
+// 口コミ評価の表示（カード共通）。0件は「口コミなし」、1件以上は ★＋数値（小数1位）＋件数。
+// 各表示箇所の flex コンテナ内に並べる前提で、要素を Fragment で返す。
+function RatingDisplay({ rating, reviewCount }: { rating: number; reviewCount: number }) {
+  if (reviewCount === 0) {
+    return <span className="text-slate-400 text-xs">口コミなし</span>;
+  }
+  return (
+    <>
+      <StarRating rating={rating} />
+      <span className="text-pink-600 font-bold text-sm">{rating.toFixed(1)}</span>
+      <span className="text-slate-400 text-xs">({reviewCount}件)</span>
+    </>
+  );
+}
+
 // ── Therapist mini card (matches TherapistScroller Card design) ──
 
 function TherapistMiniCard({ therapist, index, showAge = false, compact = false }: { therapist: TherapistThumb; index: number; showAge?: boolean; compact?: boolean }) {
@@ -264,9 +279,7 @@ export function SalonCard({ salon, therapists, showAge = false, areaNextToDuty =
   );
   const ratingEl = (
     <div className="flex items-center gap-1.5">
-      <StarRating rating={salon.rating} />
-      <span className="text-pink-600 font-bold text-sm">{salon.rating}</span>
-      <span className="text-slate-400 text-xs">({salon.reviewCount}件)</span>
+      <RatingDisplay rating={salon.rating} reviewCount={salon.reviewCount} />
     </div>
   );
   const priceEl = <p className="text-pink-600 font-bold text-sm">{salon.price}</p>;
@@ -314,9 +327,7 @@ export function SalonCard({ salon, therapists, showAge = false, areaNextToDuty =
         {/* Stars + count + area */}
         {!ratingAtBottom && (
           <div className="flex items-center gap-2 mb-2">
-            <StarRating rating={salon.rating} />
-            <span className="text-pink-600 font-bold text-sm">{salon.rating}</span>
-            <span className="text-slate-400 text-xs">({salon.reviewCount}件)</span>
+            <RatingDisplay rating={salon.rating} reviewCount={salon.reviewCount} />
             {!areaNextToDuty && areaBadge}
           </div>
         )}
@@ -330,9 +341,7 @@ export function SalonCard({ salon, therapists, showAge = false, areaNextToDuty =
         {ratingAtBottom ? (
           <div className="min-w-0">
             <div className="flex items-center gap-2 mb-0.5">
-              <StarRating rating={salon.rating} />
-              <span className="text-pink-600 font-bold text-sm">{salon.rating}</span>
-              <span className="text-slate-400 text-xs">({salon.reviewCount}件)</span>
+              <RatingDisplay rating={salon.rating} reviewCount={salon.reviewCount} />
             </div>
             {/* 料金の右隣に営業時間 */}
             <div className="flex items-center gap-2 flex-wrap">
