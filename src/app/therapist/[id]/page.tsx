@@ -537,7 +537,25 @@ export default async function TherapistPublicPage({
               </div>
 
               <ReviewSummary stats={reviewStats} />
-              <ReviewList reviews={reviews} />
+              {/* 詳細ページでは最新1件のみ表示（getApprovedReviews は新しい順）。2件以上あれば専用ページへ。 */}
+              <ReviewList reviews={reviews.slice(0, 1)} />
+              {reviews.length > 1 && (
+                <div className="text-right">
+                  <Link
+                    href={`/therapist/${id}/reviews`}
+                    className="inline-block text-sm font-bold"
+                    style={{
+                      background: 'linear-gradient(to right, #ec4899, #f97316)',
+                      WebkitBackgroundClip: 'text',
+                      backgroundClip: 'text',
+                      WebkitTextFillColor: 'transparent',
+                      color: 'transparent',
+                    }}
+                  >
+                    すべての口コミを見る →
+                  </Link>
+                </div>
+              )}
             </section>
 
           </div>

@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import Link from "next/link";
 import { Logo } from '@/app/components/Logo';
 import { SavedSalonsMenu } from '@/app/components/SavedSalonsMenu';
@@ -9,6 +10,7 @@ import { createPublicClient } from "@/app/lib/supabase/public";
 import { getTheme, breadcrumbCurrentColor } from "@/app/lib/themes";
 import { getSalonApprovedReviews } from "@/app/lib/reviews";
 import { ReviewList } from "@/app/components/ReviewList";
+import { PaginatedReviewList } from "@/app/components/PaginatedReviewList";
 
 // ISR：10分ごとに再生成（保存時は /api/revalidate で即時無効化）。
 export const revalidate = 600;
@@ -110,8 +112,12 @@ export default async function SalonReviewsPage({
         ) : (
           <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
             {/* 口コミは白いカードの中に表示（セラピスト詳細と同じ体裁）。
-                テーマ色カードだと黒テーマで slate 系の文字が沈むため、ここだけ白固定にする。 */}
-            <ReviewList reviews={reviews} />
+                テーマ色カードだと黒テーマで slate 系の文字が沈むため、ここだけ白固定にする。
+                一覧はページネーション（20件/ページ・URL同期）。ページ番号読み取りはクライアント側のみ＝ISR維持。
+                useSearchParams のため Suspense でラップ。 */}
+            <Suspense fallback={<ReviewList reviews={reviews.slice(0, 20)} />}>
+              <PaginatedReviewList reviews={reviews} pageSize={20} />
+            </Suspense>
           </div>
         )}
       </main>
