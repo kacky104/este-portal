@@ -28,6 +28,7 @@ export function CastTabs({
   imasuguUntil,
   ownerImasuguOn,
   ownerImasuguUntil,
+  today,
 }: {
   therapistId: string;
   therapistName: string;
@@ -36,6 +37,7 @@ export function CastTabs({
   imasuguUntil: string | null;
   ownerImasuguOn: boolean;
   ownerImasuguUntil: string | null;
+  today: { is_active: boolean; start_time: string | null; end_time: string | null };
 }) {
   const [activeTab, setActiveTab] = useState<CastTab>('diary');
 
@@ -76,6 +78,7 @@ export function CastTabs({
           initialUntil={imasuguUntil}
           ownerOn={ownerImasuguOn}
           ownerUntil={ownerImasuguUntil}
+          today={today}
         />
       )}
     </div>

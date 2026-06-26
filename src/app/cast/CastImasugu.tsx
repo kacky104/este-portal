@@ -7,6 +7,9 @@
 import { useEffect, useState } from 'react';
 import { setCastImasugu } from '@/app/actions/castImasugu';
 import { isFrameLive } from '@/lib/imasugu';
+import { getScheduleStatus } from '@/app/components/TherapistScroller';
+
+type TodaySchedule = { is_active: boolean; start_time: string | null; end_time: string | null };
 
 // 受付中か（キャスト枠が有効か）：フラグON かつ 期限が未来。
 function isCastImasuguLive(on: boolean, until: string | null): boolean {
@@ -26,11 +29,13 @@ export function CastImasugu({
   initialUntil,
   ownerOn,
   ownerUntil,
+  today,
 }: {
   initialOn: boolean;
   initialUntil: string | null;
   ownerOn: boolean;
   ownerUntil: string | null;
+  today: TodaySchedule;
 }) {
   // until を真実の状態として持つ（ON/OFFは until の有無＋未来かで判定）。
   const [until, setUntil] = useState<string | null>(
@@ -52,8 +57,16 @@ export function CastImasugu({
     : 0;
   // 排他制御：オーナー枠がライブなら本人は設定できない（お店が設定中）。
   const ownerLive = isFrameLive(ownerOn, ownerUntil, new Date(now));
+  // 出勤中判定：オーナー側と同じ getScheduleStatus(today).status === 'onDuty'。
+  // getScheduleStatus は内部で現在JST時刻を参照するため、now（1分ごと更新）の再描画で再評価される。
+  void now;
+  const onDuty = getScheduleStatus(today).status === 'onDuty';
+  // 新規にONできる条件：出勤中 かつ オーナー枠が設定中でない。
+  const canTurnOn = onDuty && !ownerLive;
 
   const handle = async (on: boolean) => {
+    // 出勤時間外・オーナー設定中のときは ON を呼ばせない（OFF＝自分の枠の解除は常に許可）。
+    if (on && !canTurnOn) return;
     setLoading(true);
     setError('');
     try {
@@ -101,6 +114,26 @@ export function CastImasugu({
             お店が設定した「今すぐ」が有効な間は、本人からの設定はできません。<br />
             お店の設定は時間が経つと自動で解除されます。
           </p>
+        </div>
+      ) : !onDuty ? (
+        // 出勤時間外（出勤前・退勤後・本日出勤なし）：本人は設定できない。
+        <div className="space-y-3 text-center">
+          <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-slate-100 border border-slate-200">
+            <span className="w-2 h-2 rounded-full bg-slate-400" />
+            <span className="text-sm font-bold text-slate-500">出勤時間外です</span>
+          </div>
+          <p className="text-[12px] text-slate-400 leading-relaxed">
+            出勤時間内のみ「今すぐ」を受付できます。<br />
+            出勤予定の時間になってから設定してください。
+          </p>
+          <button
+            type="button"
+            disabled
+            className="w-full py-3 rounded-xl text-white text-sm font-bold shadow-sm opacity-50 cursor-not-allowed"
+            style={{ background: 'linear-gradient(to right, #ec4899, #f97316)' }}
+          >
+            今すぐ受付中にする
+          </button>
         </div>
       ) : (
         <div className="space-y-4 text-center">

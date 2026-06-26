@@ -3,6 +3,7 @@
 import { createClient } from '@/app/lib/supabase/server';
 import { createServiceClient } from '@/app/lib/supabase/service';
 import { isOwnerLiveRow } from '@/lib/imasugu';
+import { getBusinessDateJST, getScheduleWindowStatus } from '@/lib/dutyStatus';
 
 // セラピスト本人の「今すぐ受付中」（キャスト枠）を更新するサーバー専用処理。
 // therapists には「本人（user_id = auth.uid()）の UPDATE」を許す RLS が無いため、
@@ -25,16 +26,36 @@ export async function setCastImasugu(
 
   const svc = createServiceClient();
 
-  // 排他制御：ON にしようとしたとき、オーナー枠が現在ライブなら拒否（相手の枠は上書きしない）。
-  // UIロック（CastImasugu）が効いていても念のためサーバー側で二重ガード。OFF（解除）は常に許可。
+  // ON にしようとしたときのサーバー側ガード。UIロック（CastImasugu）が効いていても二重ガードする。
+  // OFF（解除）は常に許可（自分のキャスト枠を切るだけ）。
   if (on) {
     const { data: row } = await svc
       .from('therapists')
-      .select('is_available_now, available_until')
+      .select('id, is_available_now, available_until')
       .eq('user_id', user.id)
       .maybeSingle();
-    if (row && isOwnerLiveRow(row)) {
+    if (!row) return { ok: false, error: '対象のセラピストが見つかりません' };
+
+    // 排他制御：オーナー枠が現在ライブなら拒否（相手の枠は上書きしない）。
+    if (isOwnerLiveRow(row)) {
       return { ok: false, error: 'お店が「今すぐ」を設定中のため、本人からは設定できません。' };
+    }
+
+    // 出勤中ガード：本日（営業日基準）のスケジュールが is_active かつ 出勤時間帯内のときのみ ON 可。
+    // 判定は公開側と同じ共有関数 getScheduleWindowStatus を使い、二重実装の食い違いを避ける。
+    const { data: sched } = await svc
+      .from('therapist_schedules')
+      .select('is_active, start_time, end_time')
+      .eq('therapist_id', row.id)
+      .eq('schedule_date', getBusinessDateJST())
+      .maybeSingle();
+    const onDuty = Boolean(sched?.is_active)
+      && getScheduleWindowStatus(
+        sched?.start_time ? String(sched.start_time).slice(0, 5) : null,
+        sched?.end_time   ? String(sched.end_time).slice(0, 5)   : null,
+      ) === 'onDuty';
+    if (!onDuty) {
+      return { ok: false, error: '出勤時間内のみ受付できます' };
     }
   }
 

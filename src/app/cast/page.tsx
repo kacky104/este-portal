@@ -2,6 +2,7 @@ import { redirect } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
 import { createClient } from '@/app/lib/supabase/server';
+import { getBusinessDateJST } from '@/lib/dutyStatus';
 import { CastSignOutButton } from './CastSignOutButton';
 import { CastThemeProvider } from './CastTheme';
 import { CastTabs } from './CastTabs';
@@ -30,6 +31,27 @@ export default async function CastHomePage() {
       .eq('id', therapist.salon_id)
       .maybeSingle();
     salonName = (salon?.name as string | null) ?? null;
+  }
+
+  // 本日（営業日基準）の出勤スケジュール。「今すぐ」タブの出勤中判定に使う
+  // （オーナー側 getScheduleStatus(today) と同じ {is_active, start_time, end_time} の形）。
+  let today: { is_active: boolean; start_time: string | null; end_time: string | null } = {
+    is_active: false, start_time: null, end_time: null,
+  };
+  if (therapist?.id != null) {
+    const { data: sched } = await supabase
+      .from('therapist_schedules')
+      .select('is_active, start_time, end_time')
+      .eq('therapist_id', therapist.id)
+      .eq('schedule_date', getBusinessDateJST())
+      .maybeSingle();
+    if (sched) {
+      today = {
+        is_active:  Boolean(sched.is_active),
+        start_time: sched.start_time ? String(sched.start_time).slice(0, 5) : null,
+        end_time:   sched.end_time   ? String(sched.end_time).slice(0, 5)   : null,
+      };
+    }
   }
 
   return (
@@ -91,6 +113,7 @@ export default async function CastHomePage() {
               imasuguUntil={(therapist.available_until_cast as string | null) ?? null}
               ownerImasuguOn={Boolean(therapist.is_available_now)}
               ownerImasuguUntil={(therapist.available_until as string | null) ?? null}
+              today={today}
             />
           </div>
         ) : (
