@@ -47,7 +47,9 @@ export function CastImasugu({
   }, []);
 
   const live = until != null && new Date(until).getTime() > now;
-  const remainingMin = live ? Math.max(0, Math.ceil((new Date(until!).getTime() - now) / 60000)) : 0;
+  const remainingMin = live
+    ? Math.min(30, Math.max(0, Math.ceil((new Date(until!).getTime() - now) / 60000)))
+    : 0;
   // 排他制御：オーナー枠がライブなら本人は設定できない（お店が設定中）。
   const ownerLive = isFrameLive(ownerOn, ownerUntil, new Date(now));
 
