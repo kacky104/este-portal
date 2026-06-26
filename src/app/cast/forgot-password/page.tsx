@@ -2,6 +2,7 @@
 
 import { Suspense, useState } from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
 import { useSearchParams } from 'next/navigation';
 import { requestPasswordReset } from '@/lib/auth';
 
@@ -42,9 +43,7 @@ function CastForgotPasswordInner() {
     <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center p-4">
       <div className="w-full max-w-sm rounded-2xl bg-white shadow-sm border border-slate-200 p-8">
         <div className="text-center mb-6">
-          <div className="inline-flex items-center justify-center w-12 h-12 rounded-xl bg-pink-50 border border-pink-200 mb-4">
-            <span className="text-pink-500 font-bold text-xl leading-none">◆</span>
-          </div>
+          <Image src="/logo.png" alt="フクエス" width={48} height={48} priority className="w-12 h-12 mx-auto mb-4" />
           <h1 className="text-lg font-bold text-slate-900">パスワード再設定</h1>
           <p className="text-sm text-slate-500 mt-1">フクエス セラピスト専用ページ</p>
         </div>
