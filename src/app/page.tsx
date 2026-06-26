@@ -72,17 +72,6 @@ export default async function Home() {
         <div className="max-w-5xl mx-auto px-4 h-14 flex items-center justify-between">
           <Logo />
           <div className="flex items-center gap-5">
-            <nav className="hidden sm:flex items-center gap-6 text-sm text-slate-500">
-              <Link href="#salons" className="hover:text-pink-600 transition-colors">
-                サロン一覧
-              </Link>
-              <Link href="#salons" className="hover:text-pink-600 transition-colors">
-                エリアから探す
-              </Link>
-              <Link href="#" className="hover:text-pink-600 transition-colors">
-                新着情報
-              </Link>
-            </nav>
             <div className="flex items-center gap-2">
               <SavedSalonsMenu />
               <VipLetterIcon /><NotificationBell /><AccountMenu />
