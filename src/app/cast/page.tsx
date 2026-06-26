@@ -3,7 +3,8 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { createClient } from '@/app/lib/supabase/server';
 import { CastSignOutButton } from './CastSignOutButton';
-import { CastDiary } from './CastDiary';
+import { CastThemeProvider } from './CastTheme';
+import { CastTabs } from './CastTabs';
 
 // キャスト管理トップ（フェーズ1：最小実装）。
 // ガードはページ内 redirect 方式（proxy.ts は触らない）。
@@ -16,7 +17,7 @@ export default async function CastHomePage() {
 
   const { data: therapist } = await supabase
     .from('therapists')
-    .select('id, name, salon_id, profile_image_url')
+    .select('id, name, salon_id, profile_image_url, cast_theme')
     .eq('user_id', user.id)
     .maybeSingle();
 
@@ -32,7 +33,7 @@ export default async function CastHomePage() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-50">
+    <CastThemeProvider initialTheme={(therapist?.cast_theme as string | null) ?? null}>
       <header className="bg-white border-b border-slate-100">
         <div className="max-w-2xl mx-auto px-4 py-3 flex items-center justify-between">
           <span className="flex items-baseline gap-1">
@@ -81,8 +82,8 @@ export default async function CastHomePage() {
               {salonName && <p className="text-xs text-slate-400 font-medium">{salonName}</p>}
             </div>
 
-            {/* 写メ日記：本人の日記だけを投稿・編集・削除（therapist_id は本人固定） */}
-            <CastDiary
+            {/* 3タブ（写メ日記／着せ替え／今すぐ）。挨拶ブロックは上に常時表示のまま。 */}
+            <CastTabs
               therapistId={String(therapist.id)}
               therapistName={therapist.name ?? ''}
               salonId={Number(therapist.salon_id)}
@@ -106,6 +107,6 @@ export default async function CastHomePage() {
           </div>
         )}
       </main>
-    </div>
+    </CastThemeProvider>
   );
 }
