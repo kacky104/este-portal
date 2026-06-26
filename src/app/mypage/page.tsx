@@ -11,7 +11,7 @@ import { COUPON_COLORS, getCouponColor, DEFAULT_COUPON_COLOR_KEY, type CouponCol
 import { VipLetterForm } from '@/app/components/VipLetterForm';
 import { getBusinessDateJST, getBusinessDateRangeJST } from '@/lib/dutyStatus';
 import { MyDiaryList } from './MyDiaryList';
-import { inviteCast, resendCastInvite, unlinkCast } from '@/app/actions/castInvite';
+import { inviteCast, resendCastInvite, unlinkCast, cancelCastInvite } from '@/app/actions/castInvite';
 
 const supabase = createClient();
 
@@ -874,6 +874,17 @@ export default function MyPage() {
     setInviteBusyId(null);
     if (!res.ok) { showToast(res.error); return; }
     showToast(res.warning ?? '招待メールを再送しました');
+  };
+
+  const handleCancelInvite = async (therapistId: string, email: string) => {
+    if (!salon) return;
+    if (!window.confirm(`招待を取り消します。このメールアドレス（${email}）の登録も削除されます。\nよろしいですか？`)) return;
+    setInviteBusyId(therapistId);
+    const res = await cancelCastInvite({ therapistId, salonId: Number(salon.id) });
+    setInviteBusyId(null);
+    if (!res.ok) { showToast(res.error); return; }
+    await refreshTherapists();
+    showToast(res.warning ?? '招待を取り消しました');
   };
 
   const handleUnlinkCast = async (therapistId: string) => {
@@ -1939,6 +1950,14 @@ export default function MyPage() {
                         className="px-3 py-1 rounded-lg border border-pink-300 text-pink-600 text-[11px] font-bold hover:bg-pink-50 transition-colors disabled:opacity-50"
                       >
                         {inviteBusyId === t.id ? '送信中...' : '招待を再送'}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleCancelInvite(t.id, t.invited_email!)}
+                        disabled={inviteBusyId === t.id}
+                        className="px-3 py-1 rounded-lg border border-rose-200 text-rose-500 text-[11px] font-bold hover:bg-rose-50 hover:border-rose-300 transition-colors disabled:opacity-50"
+                      >
+                        {inviteBusyId === t.id ? '処理中...' : '招待を取り消す'}
                       </button>
                     </div>
                     <div className="flex flex-wrap items-center gap-2 pt-1">

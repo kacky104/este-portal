@@ -87,6 +87,25 @@ async function sendInvite(svc: Svc, email: string): Promise<ActionResult> {
   return { ok: true, email };
 }
 
+// admin API でメールアドレス一致の Auth ユーザー id を特定する。
+// supabase-js には getUserByEmail が無いため listUsers をページングし、メール完全一致（小文字比較）で探す。
+// 見つからなければ null（既に削除済み等）。一致しないユーザーは絶対に返さない＝誤削除防止。
+async function findAuthUserIdByEmail(svc: Svc, email: string): Promise<string | null> {
+  const target = email.trim().toLowerCase();
+  if (!target) return null;
+  const perPage = 1000;
+  // 安全のため最大ページ数を制限（perPage=1000 × 50 = 5万ユーザーまで）。
+  for (let page = 1; page <= 50; page++) {
+    const { data, error } = await svc.auth.admin.listUsers({ page, perPage });
+    if (error) return null;
+    const users = data?.users ?? [];
+    const found = users.find(u => (u.email ?? '').trim().toLowerCase() === target);
+    if (found) return found.id;
+    if (users.length < perPage) break; // 最終ページ
+  }
+  return null;
+}
+
 /** 招待する：invited_email を保存し、招待メールを送信。 */
 export async function inviteCast(input: { therapistId: string; salonId: number; email: string }): Promise<ActionResult> {
   const auth = await assertOwner(input.salonId);
@@ -120,6 +139,48 @@ export async function resendCastInvite(input: { therapistId: string; salonId: nu
   if (!email) return { ok: false, error: '招待先メールアドレスがありません。先に招待してください' };
 
   return sendInvite(svc, email);
+}
+
+/**
+ * 招待を取り消す：「招待中・本人未ログイン（invited_email あり かつ user_id=null）」のセラピストのみ対象。
+ *
+ * - invited_email 一致の Auth ユーザー（パスワード未設定のまま残る招待ユーザー）を admin API で削除し、
+ *   同じメールでの再招待時に「既に登録済み」エラーが出ないようにする。
+ * - therapists.invited_email を null に戻し、/mypage 表示を「未招待」へ。
+ * - 本人ログイン済み（user_id あり）のセラピストには使えない（失効は unlinkCast を使う）。Auth 誤削除防止。
+ * - 順序：Auth ユーザー削除 → invited_email クリア。Auth が見つからない/削除失敗でも握って、
+ *   invited_email クリアは必ず完了させる（中途半端な「招待中だがユーザー消失」状態を残さない）。
+ */
+export async function cancelCastInvite(input: { therapistId: string; salonId: number }): Promise<ActionResult> {
+  const auth = await assertOwner(input.salonId);
+  if ('error' in auth) return { ok: false, error: auth.error };
+
+  const svc = createServiceClient();
+  const t = await getTherapistInSalon(svc, input.therapistId, input.salonId);
+  if (!t) return { ok: false, error: 'セラピストが見つかりません' };
+  // 対象の厳密限定：本人ログイン済みは取り消し不可（Auth削除を絶対にさせない）。
+  if (t.user_id) return { ok: false, error: '本人ログイン済みのため取り消せません。失効する場合は「紐付け解除」を使用してください' };
+  const email = (t.invited_email ?? '').trim();
+  if (!email) return { ok: false, error: '招待先メールアドレスがありません（既に未招待です）' };
+
+  // 1) invited_email 一致の Auth ユーザーを削除（見つからない・失敗しても握って続行）。
+  let warning: string | undefined;
+  try {
+    const uid = await findAuthUserIdByEmail(svc, email);
+    if (uid) {
+      const { error: delErr } = await svc.auth.admin.deleteUser(uid);
+      if (delErr) warning = `招待は取り消しましたが、Authユーザーの削除に失敗しました: ${delErr.message}`;
+    }
+    // uid が無い場合は既に削除済み等。invited_email クリアへ進む。
+  } catch {
+    warning = '招待は取り消しましたが、Authユーザーの削除中にエラーが発生しました。';
+  }
+
+  // 2) therapists.invited_email を null に戻す（中途半端な状態を残さない）。
+  const { error: upErr } = await svc.from('therapists').update({ invited_email: null }).eq('id', input.therapistId);
+  if (upErr) return { ok: false, error: `招待の取り消しに失敗しました: ${upErr.message}` };
+
+  return { ok: true, email, warning };
 }
 
 /**
