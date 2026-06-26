@@ -11,6 +11,7 @@ import { COUPON_COLORS, getCouponColor, DEFAULT_COUPON_COLOR_KEY, type CouponCol
 import { VipLetterForm } from '@/app/components/VipLetterForm';
 import { getBusinessDateJST, getBusinessDateRangeJST } from '@/lib/dutyStatus';
 import { MyDiaryList } from './MyDiaryList';
+import { inviteCast, resendCastInvite, unlinkCast } from '@/app/actions/castInvite';
 
 const supabase = createClient();
 
@@ -26,7 +27,7 @@ function isAvailableNowLive(t: { is_available_now?: boolean | null; available_un
 async function fetchTherapistList(salonId: string): Promise<Therapist[]> {
   const { data, error } = await supabase
     .from('therapists')
-    .select('id, name, work_hours, area, comment, profile_image_url, age, body_type, profile_text, is_available_now, available_until')
+    .select('id, name, work_hours, area, comment, profile_image_url, age, body_type, profile_text, is_available_now, available_until, user_id, invited_email')
     .eq('salon_id', salonId);
   if (!error) return (data ?? []) as Therapist[];
   console.warn('[mypage] クエリ失敗（カラム未作成の可能性）:', error.message);
@@ -34,7 +35,7 @@ async function fetchTherapistList(salonId: string): Promise<Therapist[]> {
     .from('therapists')
     .select('id, name, work_hours, area, comment, profile_image_url, age, body_type, profile_text')
     .eq('salon_id', salonId);
-  return (fb ?? []).map(t => ({ ...(t as Omit<Therapist, 'is_available_now' | 'available_until'>), is_available_now: false, available_until: null }));
+  return (fb ?? []).map(t => ({ ...(t as Omit<Therapist, 'is_available_now' | 'available_until' | 'user_id' | 'invited_email'>), is_available_now: false, available_until: null, user_id: null, invited_email: null }));
 }
 
 type Coupon = {
@@ -299,6 +300,8 @@ type Therapist = {
   profile_text: string | null;
   is_available_now: boolean;
   available_until: string | null;
+  user_id: string | null;
+  invited_email: string | null;
 };
 
 type DaySchedule = {
@@ -325,6 +328,9 @@ export default function MyPage() {
   const [addingTherapist, setAddingTherapist] = useState(false);
   const [addError, setAddError] = useState('');
   const [deletingTherapist, setDeletingTherapist] = useState<string | null>(null);
+  // キャスト招待：行ごとの入力メール・処理中ID
+  const [inviteEmails, setInviteEmails] = useState<Record<string, string>>({});
+  const [inviteBusyId, setInviteBusyId] = useState<string | null>(null);
   const [courseGroups, setCourseGroups] = useState<CourseGroup[]>([{ name: '', items: [{ duration: '', price: '' }] }]);
   const [otherItems,   setOtherItems]   = useState<OtherItem[]>([{ label: '', price: '' }]);
   const [salonImages,    setSalonImages]    = useState<SalonImage[]>([]);
@@ -840,6 +846,45 @@ export default function MyPage() {
     });
     if (salon) revalidateSalon(salon.id);
     showToast('セラピストを削除しました');
+  };
+
+  // ── キャスト招待（本人化） ──
+  const refreshTherapists = async () => {
+    if (!salon) return;
+    setTherapists(await fetchTherapistList(String(salon.id)));
+  };
+
+  const handleInviteCast = async (therapistId: string) => {
+    if (!salon) return;
+    const email = (inviteEmails[therapistId] ?? '').trim();
+    if (!email) { showToast('招待先のメールアドレスを入力してください'); return; }
+    setInviteBusyId(therapistId);
+    const res = await inviteCast({ therapistId, salonId: Number(salon.id), email });
+    setInviteBusyId(null);
+    if (!res.ok) { showToast(res.error); return; }
+    setInviteEmails(prev => ({ ...prev, [therapistId]: '' }));
+    await refreshTherapists();
+    showToast(res.warning ?? '招待メールを送信しました');
+  };
+
+  const handleResendInvite = async (therapistId: string) => {
+    if (!salon) return;
+    setInviteBusyId(therapistId);
+    const res = await resendCastInvite({ therapistId, salonId: Number(salon.id) });
+    setInviteBusyId(null);
+    if (!res.ok) { showToast(res.error); return; }
+    showToast(res.warning ?? '招待メールを再送しました');
+  };
+
+  const handleUnlinkCast = async (therapistId: string) => {
+    if (!salon) return;
+    if (!window.confirm('このセラピストの本人ログイン紐付けを解除しますか？\n（Authアカウント自体は削除されません。在籍状態にも影響しません）')) return;
+    setInviteBusyId(therapistId);
+    const res = await unlinkCast({ therapistId, salonId: Number(salon.id) });
+    setInviteBusyId(null);
+    if (!res.ok) { showToast(res.error); return; }
+    await refreshTherapists();
+    showToast('本人ログインの紐付けを解除しました');
   };
 
   const handleAvailableNowSave = async () => {
@@ -1861,6 +1906,85 @@ export default function MyPage() {
                     {deletingTherapist === t.id ? '削除中...' : '削除'}
                   </button>
                 </div>
+              </div>
+
+              {/* ── キャスト招待（本人ログイン用） ── */}
+              <div className="border-t border-pink-50 px-5 py-3 bg-pink-50/20 space-y-2">
+                {t.user_id ? (
+                  // 本人化済み
+                  <div className="flex items-center justify-between gap-2 flex-wrap">
+                    <span className="text-[11px] font-bold text-emerald-600">
+                      ✓ 本人ログイン済み{t.invited_email ? `（${t.invited_email}）` : ''}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => handleUnlinkCast(t.id)}
+                      disabled={inviteBusyId === t.id}
+                      className="px-3 py-1 rounded-lg border border-slate-200 text-slate-500 text-[11px] font-bold hover:border-rose-300 hover:text-rose-500 transition-colors disabled:opacity-50"
+                    >
+                      {inviteBusyId === t.id ? '処理中...' : '紐付け解除'}
+                    </button>
+                  </div>
+                ) : t.invited_email ? (
+                  // 招待済み・本人未ログイン
+                  <div className="space-y-2">
+                    <span className="text-[11px] font-bold text-amber-600">
+                      ⏳ 招待中（{t.invited_email}）— 本人のログイン待ち
+                    </span>
+                    <div className="flex flex-wrap gap-2">
+                      <button
+                        type="button"
+                        onClick={() => handleResendInvite(t.id)}
+                        disabled={inviteBusyId === t.id}
+                        className="px-3 py-1 rounded-lg border border-pink-300 text-pink-600 text-[11px] font-bold hover:bg-pink-50 transition-colors disabled:opacity-50"
+                      >
+                        {inviteBusyId === t.id ? '送信中...' : '招待を再送'}
+                      </button>
+                    </div>
+                    <div className="flex flex-wrap items-center gap-2 pt-1">
+                      <input
+                        type="email"
+                        inputMode="email"
+                        placeholder="別のメールで招待し直す"
+                        value={inviteEmails[t.id] ?? ''}
+                        onChange={(e) => setInviteEmails(prev => ({ ...prev, [t.id]: e.target.value }))}
+                        className="flex-1 min-w-0 px-3 py-1.5 rounded-xl border border-slate-200 text-xs bg-white focus:outline-none focus:ring-2 focus:ring-pink-200"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => handleInviteCast(t.id)}
+                        disabled={inviteBusyId === t.id}
+                        className="px-3 py-1.5 rounded-xl border border-pink-300 text-pink-600 text-[11px] font-bold bg-white hover:bg-pink-50 transition-colors disabled:opacity-50 flex-shrink-0"
+                      >
+                        招待
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  // 未招待
+                  <div className="space-y-1.5">
+                    <span className="text-[11px] font-bold text-slate-400">未招待</span>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <input
+                        type="email"
+                        inputMode="email"
+                        placeholder="本人のメールアドレスを入力"
+                        value={inviteEmails[t.id] ?? ''}
+                        onChange={(e) => setInviteEmails(prev => ({ ...prev, [t.id]: e.target.value }))}
+                        className="flex-1 min-w-0 px-3 py-1.5 rounded-xl border border-slate-200 text-xs bg-white focus:outline-none focus:ring-2 focus:ring-pink-200"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => handleInviteCast(t.id)}
+                        disabled={inviteBusyId === t.id}
+                        className="px-4 py-1.5 rounded-xl text-white text-[11px] font-bold shadow-sm disabled:opacity-50 flex-shrink-0"
+                        style={{ background: 'linear-gradient(to right, #ec4899, #f97316)' }}
+                      >
+                        {inviteBusyId === t.id ? '送信中...' : '招待する'}
+                      </button>
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           ))}

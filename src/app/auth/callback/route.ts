@@ -30,12 +30,13 @@ export async function GET(request: Request) {
   const isLocal = process.env.NODE_ENV === 'development';
   const base = !isLocal && forwardedHost ? `https://${forwardedHost}` : url.origin;
 
-  // リカバリー（パスワード再設定）失敗は /forgot-password へ、それ以外は /login へ誘導。
+  // 失敗時の誘導先：キャスト招待（type=invite / next=/cast 配下）は /cast/login、
+  // リカバリー（パスワード再設定）は /forgot-password、それ以外は /login。
+  const isCast = type === 'invite' || next.startsWith('/cast');
   const isRecovery = type === 'recovery' || next.startsWith('/reset-password');
+  const failBase = isCast ? '/cast/login' : isRecovery ? '/forgot-password' : '/login';
   const fail = (reason: string) =>
-    NextResponse.redirect(
-      `${base}${isRecovery ? '/forgot-password' : '/login'}?error=${encodeURIComponent(reason)}`
-    );
+    NextResponse.redirect(`${base}${failBase}?error=${encodeURIComponent(reason)}`);
 
   // Supabase 側でのエラー（期限切れ・不正トークン等）はそのまま案内へ。
   if (errParam) return fail(errDesc || errParam);
