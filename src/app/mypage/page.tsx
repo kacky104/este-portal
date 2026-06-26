@@ -922,11 +922,16 @@ export default function MyPage() {
       if (isCastLiveRow(t, now)) continue;
       const sid = String(t.id);
       const isLive = liveIds.has(sid);
+      // 既にオーナー枠がライブだった子は available_until を維持（保存のたびの巻き戻し防止）。
+      // 新規にオンにする子だけ now+30分。保存前の判定は state（t）の値で行う。
+      const until = isLive
+        ? (isAvailableNowLive(t) && t.available_until ? t.available_until : availableUntil)
+        : null;
       await supabase
         .from('therapists')
         .update({
           is_available_now: isLive,
-          available_until: isLive ? availableUntil : null,
+          available_until: until,
         })
         .eq('id', t.id);
     }

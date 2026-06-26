@@ -6,7 +6,7 @@ import { getBusinessDateJST } from '@/lib/dutyStatus';
 // トップページの「出勤中」ブロックと同じカード・同じ判定ロジックを流用（改変しない）
 import { Card, getScheduleStatus, type TherapistItem } from '@/app/components/TherapistScroller';
 import { sanitizeBadges } from '@/lib/therapistBadges';
-import { isImasuguLiveCamel } from '@/lib/imasugu';
+import { isImasuguLiveCamel, imasuguUntilCamel } from '@/lib/imasugu';
 
 export function WorkingTherapists() {
   const [list, setList] = useState<TherapistItem[]>([]);
@@ -89,10 +89,10 @@ export function WorkingTherapists() {
         return h * 60 + (m || 0);
       };
 
-      // 1. 今すぐ：残り時間が少ない順（available_until が近い順）
+      // 1. 今すぐ：残り時間が少ない順（ライブ枠の有効期限の昇順。owner/cast 和集合対応）
       const imasugu = mapped
         .filter(isAvailableNowActive)
-        .sort((a, b) => new Date(a.availableUntil!).getTime() - new Date(b.availableUntil!).getTime());
+        .sort((a, b) => imasuguUntilCamel(a) - imasuguUntilCamel(b));
 
       // 2. 出勤中（今すぐ該当を除く）：今日の出勤開始時刻が早い順
       const onDuty = mapped

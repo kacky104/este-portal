@@ -8,7 +8,7 @@ import { getBusinessDateJST, getScheduleWindowStatus } from '@/lib/dutyStatus';
 import { isNewFaceActive } from '@/lib/newFace';
 import { NewBadge } from '@/components/NewBadge';
 import { sanitizeBadges } from '@/lib/therapistBadges';
-import { isImasuguLiveCamel } from '@/lib/imasugu';
+import { isImasuguLiveCamel, imasuguUntilCamel } from '@/lib/imasugu';
 
 const GRADIENTS = ['from-pink-300 to-rose-400', 'from-fuchsia-300 to-pink-400', 'from-rose-300 to-pink-500', 'from-pink-400 to-fuchsia-400'];
 
@@ -208,8 +208,11 @@ export function TherapistScroller({ showAge = false }: { showAge?: boolean } = {
       const isAvailableNowActive = (t: TherapistItem) => isImasuguLiveCamel(t);
 
       const onDuty = mapped.filter(t => getScheduleStatus(t.today).status === 'onDuty');
-      // 「今すぐ」フラグのセラピストを先頭に表示
-      onDuty.sort((a, b) => Number(isAvailableNowActive(b)) - Number(isAvailableNowActive(a)));
+      // 「今すぐ」フラグのセラピストを先頭に表示。今すぐ同士は残り時間少ない順（有効期限昇順）。
+      onDuty.sort((a, b) =>
+        Number(isAvailableNowActive(b)) - Number(isAvailableNowActive(a)) ||
+        (isAvailableNowActive(a) && isAvailableNowActive(b) ? imasuguUntilCamel(a) - imasuguUntilCamel(b) : 0)
+      );
       setList(onDuty);
     })();
   }, []);

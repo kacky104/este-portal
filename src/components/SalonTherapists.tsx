@@ -11,7 +11,7 @@ import { NewBadge } from '@/components/NewBadge';
 import { FeatureBadges } from '@/components/FeatureBadges';
 import { sanitizeBadges } from '@/lib/therapistBadges';
 import { SaveButton } from '@/app/components/SaveButton';
-import { isImasuguLiveCamel } from '@/lib/imasugu';
+import { isImasuguLiveCamel, imasuguUntilCamel } from '@/lib/imasugu';
 import type { SalonTheme } from '@/app/lib/themes';
 
 const GRADS = ['from-pink-300 to-rose-400', 'from-fuchsia-300 to-pink-400', 'from-rose-300 to-pink-500'];
@@ -490,6 +490,8 @@ export function SalonTherapists({ salonId }: { salonId: number }) {
       const sorted = [...mapped].sort((a, b) => {
         const ra = rank(a), rb = rank(b);
         if (ra !== rb) return ra - rb;
+        // 今すぐ（rank 0）同士は残り時間少ない順（有効期限昇順）。
+        if (ra === 0) return imasuguUntilCamel(a) - imasuguUntilCamel(b);
         if (ra === 1) {
           const sa = a.today.start_time ?? '99:99';
           const sb = b.today.start_time ?? '99:99';
@@ -579,6 +581,8 @@ export function SalonOnDutyExcludingNow({ salonId, theme }: { salonId: number; t
       const sorted = [...mapped].sort((a, b) => {
         const ra = rank(a), rb = rank(b);
         if (ra !== rb) return ra - rb;
+        // 今すぐ（rank 0）同士は残り時間少ない順（有効期限昇順）。
+        if (ra === 0) return imasuguUntilCamel(a) - imasuguUntilCamel(b);
         if (ra === 1) {
           const sa = a.today.start_time ?? '99:99';
           const sb = b.today.start_time ?? '99:99';

@@ -71,3 +71,48 @@ export function isImasuguLiveCamel(
 ): boolean {
   return isImasuguLiveValues(t.isAvailableNow, t.availableUntil, t.isAvailableNowCast, t.availableUntilCast, now);
 }
+
+// ── 有効期限（ソート用）─────────────────────────────────────────
+// 「今すぐ」の並び順（残り時間が少ない順＝有効期限の昇順）に使う。
+// その人がライブな枠の期限（ミリ秒）を返す。owner枠ライブ→available_until、cast枠ライブ→available_until_cast、
+// 両方ライブ→早い方（Math.min）、非ライブ→ +Infinity（末尾扱い）。a - b の昇順比較に使える。
+
+/** 中核：4値からライブ枠の期限（ミリ秒）を返す。非ライブは +Infinity。 */
+export function imasuguUntilValues(
+  ownerOn: unknown,
+  ownerUntil: string | null | undefined,
+  castOn: unknown,
+  castUntil: string | null | undefined,
+  now: Date = new Date(),
+): number {
+  const candidates: number[] = [];
+  if (liveOne(ownerOn, ownerUntil, now)) candidates.push(new Date(ownerUntil as string).getTime());
+  if (liveOne(castOn, castUntil, now)) candidates.push(new Date(castUntil as string).getTime());
+  return candidates.length > 0 ? Math.min(...candidates) : Number.POSITIVE_INFINITY;
+}
+
+/** snake_case 生行版。 */
+export function imasuguUntilRow(
+  t: {
+    is_available_now?: boolean | null;
+    available_until?: string | null;
+    is_available_now_cast?: boolean | null;
+    available_until_cast?: string | null;
+  },
+  now: Date = new Date(),
+): number {
+  return imasuguUntilValues(t.is_available_now, t.available_until, t.is_available_now_cast, t.available_until_cast, now);
+}
+
+/** camelCase マップ済み版。 */
+export function imasuguUntilCamel(
+  t: {
+    isAvailableNow?: boolean | null;
+    availableUntil?: string | null;
+    isAvailableNowCast?: boolean | null;
+    availableUntilCast?: string | null;
+  },
+  now: Date = new Date(),
+): number {
+  return imasuguUntilValues(t.isAvailableNow, t.availableUntil, t.isAvailableNowCast, t.availableUntilCast, now);
+}

@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { createClient } from '@/app/lib/supabase/client';
 import { getBusinessDateJST } from '@/lib/dutyStatus';
 import { formatBodySizes } from '@/lib/bodyType';
-import { isImasuguLiveRow } from '@/lib/imasugu';
+import { isImasuguLiveRow, imasuguUntilRow } from '@/lib/imasugu';
 
 // "HH:MM〜HH:MM"（日跨ぎは終了側に「翌」）。
 function buildDisplayHours(start: string | null, end: string | null): string {
@@ -54,8 +54,10 @@ export function ImasuguList({
           .eq('salon_id', salonId);
 
         const now = new Date();
+        // 今すぐ抽出後、残り時間が少ない順（有効期限の昇順。ライブ枠の期限を見る）。
         const imasugu = (rows ?? [])
-          .filter(t => isImasuguLiveRow(t, now));
+          .filter(t => isImasuguLiveRow(t, now))
+          .sort((a, b) => imasuguUntilRow(a, now) - imasuguUntilRow(b, now));
 
         // 出勤時間表示用に当日スケジュールを取得。
         const ids = imasugu.map(t => t.id);

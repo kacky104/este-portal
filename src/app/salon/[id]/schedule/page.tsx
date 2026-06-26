@@ -11,7 +11,7 @@ import { getBusinessDateRangeJST, getScheduleWindowStatus } from "@/lib/dutyStat
 import { WeeklySchedule, type DaySchedule } from "./WeeklySchedule";
 import { SalonNewFaceTherapists } from "@/components/SalonTherapists";
 import { sanitizeBadges } from "@/lib/therapistBadges";
-import { isImasuguLiveCamel } from "@/lib/imasugu";
+import { isImasuguLiveCamel, imasuguUntilCamel } from "@/lib/imasugu";
 
 // ISR：10分ごとに再生成（保存時は /api/revalidate で即時無効化）。
 export const revalidate = 600;
@@ -147,6 +147,8 @@ export default async function SalonSchedulePage({
       byDate[d].sort((a, b) => {
         const ra = rankToday(a), rb = rankToday(b);
         if (ra !== rb) return ra - rb;
+        // 本日の今すぐ（rankToday 0）同士は残り時間少ない順（有効期限昇順）。その他は出勤開始時刻順。
+        if (ra === 0) return imasuguUntilCamel(a) - imasuguUntilCamel(b);
         return a.startTime.localeCompare(b.startTime);
       });
     } else {
