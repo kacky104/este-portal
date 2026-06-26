@@ -1982,7 +1982,9 @@ export default function MyPage() {
                 ) : (
                   // 未招待
                   <div className="space-y-1.5">
-                    <span className="text-[11px] font-bold text-slate-400">未招待</span>
+                    <p className="text-[11px] font-bold text-slate-400">
+                      未招待<span className="font-normal text-slate-400/90">：セラピスト本人用のアカウントに招待します</span>
+                    </p>
                     <div className="flex flex-wrap items-center gap-2">
                       <input
                         type="email"
