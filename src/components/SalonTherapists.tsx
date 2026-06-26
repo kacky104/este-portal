@@ -11,6 +11,7 @@ import { NewBadge } from '@/components/NewBadge';
 import { FeatureBadges } from '@/components/FeatureBadges';
 import { sanitizeBadges } from '@/lib/therapistBadges';
 import { SaveButton } from '@/app/components/SaveButton';
+import { isImasuguLiveCamel } from '@/lib/imasugu';
 import type { SalonTheme } from '@/app/lib/themes';
 
 const GRADS = ['from-pink-300 to-rose-400', 'from-fuchsia-300 to-pink-400', 'from-rose-300 to-pink-500'];
@@ -75,6 +76,8 @@ export type Therapist = {
   today:           TodaySchedule;
   isAvailableNow:  boolean;
   availableUntil:  string | null;
+  isAvailableNowCast: boolean;
+  availableUntilCast: string | null;
   isNewFace:       boolean;
   newFaceSince:    string | null;
   bodyType:        string | null;
@@ -85,7 +88,7 @@ export type Therapist = {
 
 // セラピストカードの取得列（全コンポーネントで共有）。
 const THERAPIST_SELECT =
-  'id, name, age, work_hours, area, comment, profile_image_url, is_available_now, available_until, is_new_face, new_face_since, body_type, feature_badges, salon_id';
+  'id, name, age, work_hours, area, comment, profile_image_url, is_available_now, available_until, is_available_now_cast, available_until_cast, is_new_face, new_face_since, body_type, feature_badges, salon_id';
 
 // ── shared schedule fetch ──────────────────────────────────────
 
@@ -146,6 +149,8 @@ function buildTherapist(
     today:           schedMap[key] ?? { is_active: false, start_time: null, end_time: null },
     isAvailableNow:  Boolean(t.is_available_now),
     availableUntil:  (t.available_until as string | null) ?? null,
+    isAvailableNowCast: Boolean(t.is_available_now_cast),
+    availableUntilCast: (t.available_until_cast as string | null) ?? null,
     isNewFace:       Boolean(t.is_new_face),
     newFaceSince:    (t.new_face_since as string | null) ?? null,
     bodyType:        (t.body_type as string | null) ?? null,
@@ -238,7 +243,7 @@ export function GridCard({ therapist, index, showJoinDate = false, from, enableW
           </>
         )}
         {/* 今すぐバッジ（写真右上オーバーレイ）。表示条件は従来どおり今すぐフラグの子のみ。 */}
-        {therapist.isAvailableNow && therapist.availableUntil && new Date(therapist.availableUntil) > new Date() && (
+        {isImasuguLiveCamel(therapist) && (
           <span className="absolute top-1.5 right-1.5 z-10" style={{ background: 'linear-gradient(to right, #ec4899, #f97316)', color: 'white', fontSize: '10px', fontWeight: 700, padding: '2px 6px', borderRadius: '20px', whiteSpace: 'nowrap' }}>
             今すぐ
           </span>
@@ -343,8 +348,7 @@ function MiniCard({ therapist, index }: { therapist: Therapist; index: number })
   useEffect(() => { setSS(getScheduleStatus(therapist.today)); }, [therapist.today]);
 
   const displayHours = buildDisplayHours(therapist.today.start_time, therapist.today.end_time);
-  const availableNow =
-    therapist.isAvailableNow && therapist.availableUntil != null && new Date(therapist.availableUntil) > new Date();
+  const availableNow = isImasuguLiveCamel(therapist);
 
   return (
     <Link
@@ -435,7 +439,7 @@ export function SalonTherapists({ salonId }: { salonId: number }) {
       const supabase = createClient();
       const { data: rows } = await supabase
         .from('therapists')
-        .select('id, name, age, work_hours, area, comment, profile_image_url, is_available_now, available_until, is_new_face, new_face_since, body_type, feature_badges')
+        .select('id, name, age, work_hours, area, comment, profile_image_url, is_available_now, available_until, is_available_now_cast, available_until_cast, is_new_face, new_face_since, body_type, feature_badges')
         .eq('salon_id', salonId);
 
       console.log('[SalonTherapists] therapist rows:', rows?.map(r => ({ id: r.id, name: r.name })));
@@ -463,6 +467,8 @@ export function SalonTherapists({ salonId }: { salonId: number }) {
           today:           todaySchedule,
           isAvailableNow:  Boolean(t.is_available_now),
           availableUntil:  (t.available_until as string | null) ?? null,
+          isAvailableNowCast: Boolean(t.is_available_now_cast),
+          availableUntilCast: (t.available_until_cast as string | null) ?? null,
           isNewFace:       Boolean(t.is_new_face),
           newFaceSince:    (t.new_face_since as string | null) ?? null,
           bodyType:        (t.body_type as string | null) ?? null,
@@ -473,8 +479,7 @@ export function SalonTherapists({ salonId }: { salonId: number }) {
       });
 
       // 表示順: 1.今すぐ → 2.出勤中・出勤予定(開始時間が早い順) → 3.受付終了 → 4.お休み
-      const availableNowActive = (t: Therapist) =>
-        t.isAvailableNow && t.availableUntil != null && new Date(t.availableUntil) > new Date();
+      const availableNowActive = (t: Therapist) => isImasuguLiveCamel(t);
       const rank = (t: Therapist): number => {
         if (availableNowActive(t)) return 0;
         const s = getScheduleStatus(t.today).status;
@@ -528,7 +533,7 @@ export function SalonOnDutyExcludingNow({ salonId, theme }: { salonId: number; t
       const supabase = createClient();
       const { data: rows } = await supabase
         .from('therapists')
-        .select('id, name, age, work_hours, area, comment, profile_image_url, is_available_now, available_until, is_new_face, new_face_since, body_type, feature_badges')
+        .select('id, name, age, work_hours, area, comment, profile_image_url, is_available_now, available_until, is_available_now_cast, available_until_cast, is_new_face, new_face_since, body_type, feature_badges')
         .eq('salon_id', salonId);
 
       const rawIds = (rows ?? []).map(t => t.id);
@@ -550,6 +555,8 @@ export function SalonOnDutyExcludingNow({ salonId, theme }: { salonId: number; t
           today:           todaySchedule,
           isAvailableNow:  Boolean(t.is_available_now),
           availableUntil:  (t.available_until as string | null) ?? null,
+          isAvailableNowCast: Boolean(t.is_available_now_cast),
+          availableUntilCast: (t.available_until_cast as string | null) ?? null,
           isNewFace:       Boolean(t.is_new_face),
           newFaceSince:    (t.new_face_since as string | null) ?? null,
           bodyType:        (t.body_type as string | null) ?? null,
@@ -561,8 +568,7 @@ export function SalonOnDutyExcludingNow({ salonId, theme }: { salonId: number; t
       });
 
       // 既存「本日出勤」と同じ並び順ロジックを流用。
-      const availableNowActive = (t: Therapist) =>
-        t.isAvailableNow && t.availableUntil != null && new Date(t.availableUntil) > new Date();
+      const availableNowActive = (t: Therapist) => isImasuguLiveCamel(t);
       const rank = (t: Therapist): number => {
         if (availableNowActive(t)) return 0;
         const s = getScheduleStatus(t.today).status;
@@ -615,7 +621,7 @@ export function SalonAllTherapists({ salonId, limit, from, showSaveButton = fals
       const supabase = createClient();
       const { data: rows } = await supabase
         .from('therapists')
-        .select('id, name, age, work_hours, area, comment, profile_image_url, is_available_now, available_until, is_new_face, new_face_since, body_type, feature_badges')
+        .select('id, name, age, work_hours, area, comment, profile_image_url, is_available_now, available_until, is_available_now_cast, available_until_cast, is_new_face, new_face_since, body_type, feature_badges')
         .eq('salon_id', salonId);
 
       const rawIds = (rows ?? []).map(t => t.id);
@@ -634,6 +640,8 @@ export function SalonAllTherapists({ salonId, limit, from, showSaveButton = fals
         today:           schedMap[String(t.id)] ?? { is_active: false, start_time: null, end_time: null },
         isAvailableNow:  Boolean(t.is_available_now),
         availableUntil:  (t.available_until as string | null) ?? null,
+        isAvailableNowCast: Boolean(t.is_available_now_cast),
+        availableUntilCast: (t.available_until_cast as string | null) ?? null,
         isNewFace:       Boolean(t.is_new_face),
         newFaceSince:    (t.new_face_since as string | null) ?? null,
         bodyType:        (t.body_type as string | null) ?? null,
@@ -687,7 +695,7 @@ export function SalonNewFaceTherapists({
       const supabase = createClient();
       const { data: rows } = await supabase
         .from('therapists')
-        .select('id, name, age, work_hours, area, comment, profile_image_url, is_available_now, available_until, is_new_face, new_face_since, body_type, feature_badges')
+        .select('id, name, age, work_hours, area, comment, profile_image_url, is_available_now, available_until, is_available_now_cast, available_until_cast, is_new_face, new_face_since, body_type, feature_badges')
         .eq('salon_id', salonId);
 
       const rawIds = (rows ?? []).map(t => t.id);
@@ -706,6 +714,8 @@ export function SalonNewFaceTherapists({
         today:           schedMap[String(t.id)] ?? { is_active: false, start_time: null, end_time: null },
         isAvailableNow:  Boolean(t.is_available_now),
         availableUntil:  (t.available_until as string | null) ?? null,
+        isAvailableNowCast: Boolean(t.is_available_now_cast),
+        availableUntilCast: (t.available_until_cast as string | null) ?? null,
         isNewFace:       Boolean(t.is_new_face),
         newFaceSince:    (t.new_face_since as string | null) ?? null,
         bodyType:        (t.body_type as string | null) ?? null,

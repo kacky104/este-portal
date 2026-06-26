@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { createClient } from '@/app/lib/supabase/client';
 import { getBusinessDateJST } from '@/lib/dutyStatus';
+import { isImasuguLiveCamel } from '@/lib/imasugu';
 import type { Salon } from '@/app/lib/salons';
 
 export type TherapistThumb = {
@@ -14,6 +15,8 @@ export type TherapistThumb = {
   onDuty:         boolean;
   isAvailableNow: boolean;
   availableUntil: string | null;
+  isAvailableNowCast: boolean;
+  availableUntilCast: string | null;
   isNewFace:      boolean;
   newFaceSince:   string | null;
 };
@@ -37,7 +40,7 @@ export function useSalonTherapists(
 
       const { data: therapistRowsWithAvail, error: tErr } = await supabase
         .from('therapists')
-        .select('id, name, age, salon_id, profile_image_url, work_hours, is_available_now, available_until, is_new_face, new_face_since')
+        .select('id, name, age, salon_id, profile_image_url, work_hours, is_available_now, available_until, is_available_now_cast, available_until_cast, is_new_face, new_face_since')
         .in('salon_id', salonIds);
 
       let therapistRows = therapistRowsWithAvail;
@@ -46,7 +49,7 @@ export function useSalonTherapists(
           .from('therapists')
           .select('id, name, age, salon_id, profile_image_url, work_hours')
           .in('salon_id', salonIds);
-        therapistRows = (fb ?? []).map(t => ({ ...t, is_available_now: false, available_until: null, is_new_face: false, new_face_since: null }));
+        therapistRows = (fb ?? []).map(t => ({ ...t, is_available_now: false, available_until: null, is_available_now_cast: false, available_until_cast: null, is_new_face: false, new_face_since: null }));
       }
 
       if (!therapistRows || therapistRows.length === 0) {
@@ -92,13 +95,14 @@ export function useSalonTherapists(
           onDuty:         onDutySet.has(tid),
           isAvailableNow: Boolean((t as { is_available_now?: unknown }).is_available_now),
           availableUntil: ((t as { available_until?: unknown }).available_until as string | null) ?? null,
+          isAvailableNowCast: Boolean((t as { is_available_now_cast?: unknown }).is_available_now_cast),
+          availableUntilCast: ((t as { available_until_cast?: unknown }).available_until_cast as string | null) ?? null,
           isNewFace:      Boolean((t as { is_new_face?: unknown }).is_new_face),
           newFaceSince:   ((t as { new_face_since?: unknown }).new_face_since as string | null) ?? null,
         });
       }
 
-      const isAvailableNowActive = (t: TherapistThumb) =>
-        t.isAvailableNow && t.availableUntil != null && new Date(t.availableUntil) > new Date();
+      const isAvailableNowActive = (t: TherapistThumb) => isImasuguLiveCamel(t);
 
       const result: Record<number, TherapistThumb[]> = {};
       for (const [sid, items] of Object.entries(bySalon)) {

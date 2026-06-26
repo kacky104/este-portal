@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { createClient } from '@/app/lib/supabase/client';
+import { isImasuguLiveRow } from '@/lib/imasugu';
 
 // サロン詳細の「今すぐ」件数ハートバッジ。
 // 「今すぐ」は is_available_now=true かつ available_until が未来か、という時刻ベース判定（30分で自動失効）。
@@ -17,18 +18,13 @@ export function ImasuguCountBadge({ salonId, fill, num }: { salonId: number; fil
         const supabase = createClient();
         const { data } = await supabase
           .from('therapists')
-          .select('is_available_now, available_until')
+          .select('is_available_now, available_until, is_available_now_cast, available_until_cast')
           .eq('salon_id', salonId);
         if (!active) return;
-        const now = Date.now();
-        const c = Math.min(
-          3,
-          (data ?? []).filter(t =>
-            Boolean(t.is_available_now) &&
-            t.available_until != null &&
-            new Date(t.available_until as string).getTime() > now,
-          ).length,
-        );
+        const now = new Date();
+        // オーナー枠 OR キャスト枠の和集合。1人=1行なので二重カウントは起きない。
+        // クランプを外し、今すぐ中の実数を表示する。
+        const c = (data ?? []).filter(t => isImasuguLiveRow(t, now)).length;
         setCount(c);
       } catch {
         // 失敗時はバッジを出さないだけ（操作を妨げない）。

@@ -10,6 +10,7 @@
 import { useState } from 'react';
 import { CastDiary } from './CastDiary';
 import { CastThemePicker } from './CastTheme';
+import { CastImasugu } from './CastImasugu';
 
 type CastTab = 'diary' | 'theme' | 'now';
 
@@ -23,10 +24,14 @@ export function CastTabs({
   therapistId,
   therapistName,
   salonId,
+  imasuguOn,
+  imasuguUntil,
 }: {
   therapistId: string;
   therapistName: string;
   salonId: number;
+  imasuguOn: boolean;
+  imasuguUntil: string | null;
 }) {
   const [activeTab, setActiveTab] = useState<CastTab>('diary');
 
@@ -61,14 +66,7 @@ export function CastTabs({
 
       {activeTab === 'theme' && <CastThemePicker />}
 
-      {activeTab === 'now' && (
-        <div className="bg-white rounded-3xl border border-pink-100 shadow-sm p-8 text-center space-y-2">
-          <p className="text-sm font-bold text-slate-500">「今すぐ」</p>
-          <p className="text-xs text-slate-400 leading-relaxed">
-            準備中です。近日公開予定です。
-          </p>
-        </div>
-      )}
+      {activeTab === 'now' && <CastImasugu initialOn={imasuguOn} initialUntil={imasuguUntil} />}
     </div>
   );
 }

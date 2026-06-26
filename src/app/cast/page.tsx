@@ -17,7 +17,7 @@ export default async function CastHomePage() {
 
   const { data: therapist } = await supabase
     .from('therapists')
-    .select('id, name, salon_id, profile_image_url, cast_theme')
+    .select('id, name, salon_id, profile_image_url, cast_theme, is_available_now_cast, available_until_cast')
     .eq('user_id', user.id)
     .maybeSingle();
 
@@ -87,6 +87,8 @@ export default async function CastHomePage() {
               therapistId={String(therapist.id)}
               therapistName={therapist.name ?? ''}
               salonId={Number(therapist.salon_id)}
+              imasuguOn={Boolean(therapist.is_available_now_cast)}
+              imasuguUntil={(therapist.available_until_cast as string | null) ?? null}
             />
           </div>
         ) : (

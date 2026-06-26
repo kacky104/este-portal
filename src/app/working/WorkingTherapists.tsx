@@ -6,6 +6,7 @@ import { getBusinessDateJST } from '@/lib/dutyStatus';
 // トップページの「出勤中」ブロックと同じカード・同じ判定ロジックを流用（改変しない）
 import { Card, getScheduleStatus, type TherapistItem } from '@/app/components/TherapistScroller';
 import { sanitizeBadges } from '@/lib/therapistBadges';
+import { isImasuguLiveCamel } from '@/lib/imasugu';
 
 export function WorkingTherapists() {
   const [list, setList] = useState<TherapistItem[]>([]);
@@ -18,7 +19,7 @@ export function WorkingTherapists() {
       // ── トップページの出勤中ブロックと同じデータ取得（同じスコープ：全サロン対象） ──
       const { data: therapistData } = await supabase
         .from('therapists')
-        .select('id, name, work_hours, area, comment, salon_id, profile_image_url, age, is_available_now, available_until, is_new_face, new_face_since, feature_badges');
+        .select('id, name, work_hours, area, comment, salon_id, profile_image_url, age, is_available_now, available_until, is_available_now_cast, available_until_cast, is_new_face, new_face_since, feature_badges');
 
       const salonIds = [...new Set(
         (therapistData ?? []).map(t => t.salon_id as number).filter(Boolean)
@@ -70,13 +71,14 @@ export function WorkingTherapists() {
         today:           schedMap[t.id as number] ?? { is_active: false, start_time: null, end_time: null },
         isAvailableNow:  Boolean(t.is_available_now),
         availableUntil:  (t.available_until   as string | null) ?? null,
+        isAvailableNowCast: Boolean(t.is_available_now_cast),
+        availableUntilCast: (t.available_until_cast as string | null) ?? null,
         isNewFace:       Boolean(t.is_new_face),
         newFaceSince:    (t.new_face_since     as string | null) ?? null,
         featureBadges:   sanitizeBadges(t.feature_badges),
       }));
 
-      const isAvailableNowActive = (t: TherapistItem) =>
-        t.isAvailableNow && t.availableUntil != null && new Date(t.availableUntil) > new Date();
+      const isAvailableNowActive = (t: TherapistItem) => isImasuguLiveCamel(t);
 
       // ── 表示対象：今すぐ・出勤中のみ（出勤予定・受付終了・お休みは非表示。優先順：今すぐ > 出勤中） ──
       // 今日の出勤開始時刻（"HH:MM"）を分に変換。未設定は末尾扱い。

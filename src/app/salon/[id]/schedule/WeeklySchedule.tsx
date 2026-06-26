@@ -10,6 +10,7 @@ import { getScheduleWindowStatus } from '@/lib/dutyStatus';
 import { NewBadge } from '@/components/NewBadge';
 import { FeatureBadges } from '@/components/FeatureBadges';
 import { SaveButton } from '@/app/components/SaveButton';
+import { isImasuguLiveCamel } from '@/lib/imasugu';
 
 export type DaySchedule = {
   id:             string;
@@ -20,6 +21,8 @@ export type DaySchedule = {
   endTime:        string;   // "HH:MM"
   isAvailableNow: boolean;
   availableUntil: string | null;
+  isAvailableNowCast: boolean;
+  availableUntilCast: string | null;
   isNewFace:      boolean;
   newFaceSince:   string | null;
   bodyType:       string | null;
@@ -83,8 +86,7 @@ function statusBadge(t: DaySchedule, isToday: boolean): { label: string; cls: st
 
 function TherapistCard({ t, isToday, salonId }: { t: DaySchedule; isToday: boolean; salonId: number }) {
   const router = useRouter();
-  const availableNow =
-    t.isAvailableNow && t.availableUntil != null && new Date(t.availableUntil) > new Date();
+  const availableNow = isImasuguLiveCamel(t);
   const isNew = isNewFaceActive(t.isNewFace, t.newFaceSince);
   const badge = statusBadge(t, isToday);
   const bodySizes = formatBodySizes(t.bodyType);

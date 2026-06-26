@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { createClient } from '@/app/lib/supabase/client';
 import { getBusinessDateJST } from '@/lib/dutyStatus';
 import { formatBodySizes } from '@/lib/bodyType';
+import { isImasuguLiveRow } from '@/lib/imasugu';
 
 // "HH:MM〜HH:MM"（日跨ぎは終了側に「翌」）。
 function buildDisplayHours(start: string | null, end: string | null): string {
@@ -49,17 +50,12 @@ export function ImasuguList({
         const supabase = createClient();
         const { data: rows } = await supabase
           .from('therapists')
-          .select('id, name, age, work_hours, body_type, profile_image_url, is_available_now, available_until')
+          .select('id, name, age, work_hours, body_type, profile_image_url, is_available_now, available_until, is_available_now_cast, available_until_cast')
           .eq('salon_id', salonId);
 
-        const now = Date.now();
+        const now = new Date();
         const imasugu = (rows ?? [])
-          .filter(t =>
-            Boolean(t.is_available_now) &&
-            t.available_until != null &&
-            new Date(t.available_until as string).getTime() > now,
-          )
-          .slice(0, 3);
+          .filter(t => isImasuguLiveRow(t, now));
 
         // 出勤時間表示用に当日スケジュールを取得。
         const ids = imasugu.map(t => t.id);

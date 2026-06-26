@@ -11,6 +11,7 @@ import { getBusinessDateRangeJST, getScheduleWindowStatus } from "@/lib/dutyStat
 import { WeeklySchedule, type DaySchedule } from "./WeeklySchedule";
 import { SalonNewFaceTherapists } from "@/components/SalonTherapists";
 import { sanitizeBadges } from "@/lib/therapistBadges";
+import { isImasuguLiveCamel } from "@/lib/imasugu";
 
 // ISR：10分ごとに再生成（保存時は /api/revalidate で即時無効化）。
 export const revalidate = 600;
@@ -41,7 +42,7 @@ export default async function SalonSchedulePage({
       .single(),
     supabase
       .from('therapists')
-      .select('id, name, age, profile_image_url, is_available_now, available_until, is_new_face, new_face_since, body_type, feature_badges')
+      .select('id, name, age, profile_image_url, is_available_now, available_until, is_available_now_cast, available_until_cast, is_new_face, new_face_since, body_type, feature_badges')
       .eq('salon_id', Number(id)),
   ]);
 
@@ -119,6 +120,8 @@ export default async function SalonSchedulePage({
       endTime:        end,
       isAvailableNow: Boolean(t.is_available_now),
       availableUntil: (t.available_until as string | null) ?? null,
+      isAvailableNowCast: Boolean(t.is_available_now_cast),
+      availableUntilCast: (t.available_until_cast as string | null) ?? null,
       isNewFace:      Boolean(t.is_new_face),
       newFaceSince:   (t.new_face_since as string | null) ?? null,
       bodyType:       (t.body_type as string | null) ?? null,
@@ -133,8 +136,7 @@ export default async function SalonSchedulePage({
   //   3. 受付終了
   // ステータスは「本日」のみライブ判定。未来日は全員「出勤予定」なので開始時間順のみ。
   const todayStr = dates[0];
-  const availableNowActive = (t: DaySchedule) =>
-    t.isAvailableNow && t.availableUntil != null && new Date(t.availableUntil) > new Date();
+  const availableNowActive = (t: DaySchedule) => isImasuguLiveCamel(t);
   const rankToday = (t: DaySchedule): number => {
     if (availableNowActive(t)) return 0;
     const s = getScheduleWindowStatus(t.startTime, t.endTime);

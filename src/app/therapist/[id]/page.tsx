@@ -9,6 +9,7 @@ import { getBusinessDateRangeJST } from '@/lib/dutyStatus';
 import { getTheme, breadcrumbCurrentColor } from '@/app/lib/themes';
 import { getScheduleWindowStatus } from '@/lib/dutyStatus';
 import { isNewFaceActive } from '@/lib/newFace';
+import { isImasuguLiveRow } from '@/lib/imasugu';
 import { NewBadge } from '@/components/NewBadge';
 import { TherapistImageSlider } from './TherapistImageSlider';
 import { TherapistDiaryList, type DiaryPostView } from './TherapistDiaryList';
@@ -86,7 +87,7 @@ export default async function TherapistPublicPage({
 
   const { data: tRow, error: tError } = await supabase
     .from('therapists')
-    .select('id, name, profile_image_url, profile_images, age, body_type, profile_text, work_hours, comment, area, salon_id, is_new_face, new_face_since, is_available_now, available_until, feature_badges')
+    .select('id, name, profile_image_url, profile_images, age, body_type, profile_text, work_hours, comment, area, salon_id, is_new_face, new_face_since, is_available_now, available_until, is_available_now_cast, available_until_cast, feature_badges')
     .eq('id', id)
     .single();
 
@@ -223,10 +224,7 @@ export default async function TherapistPublicPage({
   // 出勤時間の横に出すステータスバッジ（今すぐ/出勤中/出勤予定/受付終了/お休み）。
   // 「今すぐ」を最優先（is_available_now かつ available_until が未来）。今すぐ表示時は出勤中は出さない。
   // 今すぐ・出勤中は点滅（animate-pulse）。それ以外は本日のスケジュール窓に従う。
-  const availableNow =
-    Boolean(tRow.is_available_now) &&
-    tRow.available_until != null &&
-    new Date(tRow.available_until as string) > new Date();
+  const availableNow = isImasuguLiveRow(tRow);
   const statusBadge: { label: string; bg: string; color: string; blink: boolean } =
     availableNow
       ? { label: '今すぐ', bg: 'linear-gradient(to right, #ec4899, #f97316)', color: '#ffffff', blink: true }

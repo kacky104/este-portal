@@ -8,6 +8,7 @@ import { getBusinessDateJST, getScheduleWindowStatus } from '@/lib/dutyStatus';
 import { isNewFaceActive } from '@/lib/newFace';
 import { NewBadge } from '@/components/NewBadge';
 import { sanitizeBadges } from '@/lib/therapistBadges';
+import { isImasuguLiveCamel } from '@/lib/imasugu';
 
 const GRADIENTS = ['from-pink-300 to-rose-400', 'from-fuchsia-300 to-pink-400', 'from-rose-300 to-pink-500', 'from-pink-400 to-fuchsia-400'];
 
@@ -59,6 +60,8 @@ export type TherapistItem = {
   today:           TodaySchedule;
   isAvailableNow:  boolean;
   availableUntil:  string | null;
+  isAvailableNowCast: boolean;
+  availableUntilCast: string | null;
   isNewFace:       boolean;
   newFaceSince:    string | null;
   featureBadges:   string[];
@@ -97,7 +100,7 @@ export function Card({ therapist, index, showAge = false }: { therapist: Therapi
       <div className="absolute inset-0 bg-gradient-to-t from-black/35 via-black/10 to-transparent" />
 
       {/* 右上バッジ：今すぐの子は出勤中等を出さず、今すぐを点滅表示。それ以外は出勤状況バッジ。 */}
-      {therapist.isAvailableNow && therapist.availableUntil && new Date(therapist.availableUntil) > new Date() ? (
+      {isImasuguLiveCamel(therapist) ? (
         <span className="absolute top-1.5 right-1.5 animate-pulse" style={{ background: 'linear-gradient(to right, #ec4899, #f97316)', color: 'white', fontSize: '11px', fontWeight: 700, padding: '2px 8px', borderRadius: '20px' }}>
           今すぐ
         </span>
@@ -143,7 +146,7 @@ export function TherapistScroller({ showAge = false }: { showAge?: boolean } = {
 
       const { data: therapistData } = await supabase
         .from('therapists')
-        .select('id, name, work_hours, area, comment, salon_id, profile_image_url, age, is_available_now, available_until, is_new_face, new_face_since, feature_badges');
+        .select('id, name, work_hours, area, comment, salon_id, profile_image_url, age, is_available_now, available_until, is_available_now_cast, available_until_cast, is_new_face, new_face_since, feature_badges');
 
       const salonIds = [...new Set(
         (therapistData ?? []).map(t => t.salon_id as number).filter(Boolean)
@@ -195,13 +198,14 @@ export function TherapistScroller({ showAge = false }: { showAge?: boolean } = {
         today:           schedMap[t.id as number] ?? { is_active: false, start_time: null, end_time: null },
         isAvailableNow:  Boolean(t.is_available_now),
         availableUntil:  (t.available_until   as string | null) ?? null,
+        isAvailableNowCast: Boolean(t.is_available_now_cast),
+        availableUntilCast: (t.available_until_cast as string | null) ?? null,
         isNewFace:       Boolean(t.is_new_face),
         newFaceSince:    (t.new_face_since     as string | null) ?? null,
         featureBadges:   sanitizeBadges(t.feature_badges),
       }));
 
-      const isAvailableNowActive = (t: TherapistItem) =>
-        t.isAvailableNow && t.availableUntil != null && new Date(t.availableUntil) > new Date();
+      const isAvailableNowActive = (t: TherapistItem) => isImasuguLiveCamel(t);
 
       const onDuty = mapped.filter(t => getScheduleStatus(t.today).status === 'onDuty');
       // 「今すぐ」フラグのセラピストを先頭に表示

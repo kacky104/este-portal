@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { checkDutyStatus } from '@/lib/dutyStatus';
 import { isNewFaceActive } from '@/lib/newFace';
+import { isImasuguLiveCamel } from '@/lib/imasugu';
 import { NewBadge } from '@/components/NewBadge';
 import { SalonNameRow } from './SalonNameRow';
 import { SaveButton } from './SaveButton';
@@ -60,8 +61,7 @@ function TherapistMiniCard({ therapist, index, showAge = false, compact = false 
     : !therapist.workHours
       ? 'onDuty'
       : checkDutyStatus(therapist.workHours).status;
-  const availableNow =
-    therapist.isAvailableNow && therapist.availableUntil != null && new Date(therapist.availableUntil) > new Date();
+  const availableNow = isImasuguLiveCamel(therapist);
 
   return (
     <Link
