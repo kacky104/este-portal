@@ -98,9 +98,14 @@ export default async function ModerationPage() {
       <header className="sticky top-0 z-50 bg-white/90 backdrop-blur-md border-b border-slate-200 shadow-sm">
         <div className="max-w-3xl mx-auto px-4 h-14 flex items-center justify-between">
           <Logo />
-          <Link href="/admin" className="text-sm font-medium text-slate-500 hover:text-pink-600 transition-colors">
-            管理トップ
-          </Link>
+          <div className="flex items-center gap-4">
+            <Link href="/" target="_blank" rel="noopener noreferrer" className="text-sm font-medium text-slate-500 hover:text-pink-600 transition-colors">
+              サイトを見る
+            </Link>
+            <Link href="/admin" className="text-sm font-medium text-slate-500 hover:text-pink-600 transition-colors">
+              管理トップ
+            </Link>
+          </div>
         </div>
       </header>
 

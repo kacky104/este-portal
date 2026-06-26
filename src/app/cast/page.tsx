@@ -39,7 +39,17 @@ export default async function CastHomePage() {
             <span className="font-bold text-[20px] tracking-wide leading-none inline-block" style={{ background: 'linear-gradient(95deg,#FB923C,#DB2777)', WebkitBackgroundClip: 'text', backgroundClip: 'text', WebkitTextFillColor: 'transparent', color: 'transparent' }}>フクエス</span>
             <span className="text-[12px] font-normal leading-none text-slate-400">セラピスト</span>
           </span>
-          <CastSignOutButton />
+          <div className="flex items-center gap-2">
+            <Link
+              href="/"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="px-4 py-2 rounded-xl border border-slate-200 text-slate-500 text-xs font-bold hover:border-pink-300 hover:text-pink-600 transition-colors"
+            >
+              サイトを見る
+            </Link>
+            <CastSignOutButton />
+          </div>
         </div>
       </header>
 

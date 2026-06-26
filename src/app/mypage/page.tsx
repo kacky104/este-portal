@@ -1284,9 +1284,14 @@ export default function MyPage() {
         <header className="border-b border-slate-100">
           <div className="max-w-2xl mx-auto px-4 py-3 flex items-center justify-between">
             <h1 className="text-base font-black text-slate-800 tracking-wide">マイページ</h1>
-            <button onClick={handleSignOut} className="text-xs text-slate-400 hover:text-rose-400 font-medium transition-colors">
-              ログアウト
-            </button>
+            <div className="flex items-center gap-4">
+              <Link href="/" target="_blank" rel="noopener noreferrer" className="text-xs text-slate-400 hover:text-pink-600 font-medium transition-colors">
+                サイトを見る
+              </Link>
+              <button onClick={handleSignOut} className="text-xs text-slate-400 hover:text-rose-400 font-medium transition-colors">
+                ログアウト
+              </button>
+            </div>
           </div>
         </header>
 

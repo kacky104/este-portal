@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState, useCallback } from 'react';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/app/lib/supabase/client';
 import { TimeRangePicker } from '@/components/TimeRangePicker';
@@ -195,12 +196,22 @@ export default function AdminDashboard() {
             </div>
             <h1 className="text-base font-black text-slate-800 tracking-wide">管理者ダッシュボード</h1>
           </div>
-          <button
-            onClick={handleSignOut}
-            className="text-xs text-slate-400 hover:text-rose-400 font-medium transition-colors"
-          >
-            ログアウト
-          </button>
+          <div className="flex items-center gap-4">
+            <Link
+              href="/"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-xs text-slate-400 hover:text-pink-600 font-medium transition-colors"
+            >
+              サイトを見る
+            </Link>
+            <button
+              onClick={handleSignOut}
+              className="text-xs text-slate-400 hover:text-rose-400 font-medium transition-colors"
+            >
+              ログアウト
+            </button>
+          </div>
         </div>
       </header>
 
