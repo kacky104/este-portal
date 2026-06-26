@@ -10,6 +10,7 @@ import { SALON_THEMES, type ThemeKey } from '@/app/lib/themes';
 import { COUPON_COLORS, getCouponColor, DEFAULT_COUPON_COLOR_KEY, type CouponColorKey } from '@/app/lib/couponColors';
 import { VipLetterForm } from '@/app/components/VipLetterForm';
 import { getBusinessDateJST, getBusinessDateRangeJST } from '@/lib/dutyStatus';
+import { isCastLiveRow } from '@/lib/imasugu';
 import { MyDiaryList } from './MyDiaryList';
 import { inviteCast, resendCastInvite, unlinkCast, cancelCastInvite } from '@/app/actions/castInvite';
 
@@ -27,7 +28,7 @@ function isAvailableNowLive(t: { is_available_now?: boolean | null; available_un
 async function fetchTherapistList(salonId: string): Promise<Therapist[]> {
   const { data, error } = await supabase
     .from('therapists')
-    .select('id, name, work_hours, area, comment, profile_image_url, age, body_type, profile_text, is_available_now, available_until, user_id, invited_email')
+    .select('id, name, work_hours, area, comment, profile_image_url, age, body_type, profile_text, is_available_now, available_until, is_available_now_cast, available_until_cast, user_id, invited_email')
     .eq('salon_id', salonId);
   if (!error) return (data ?? []) as Therapist[];
   console.warn('[mypage] クエリ失敗（カラム未作成の可能性）:', error.message);
@@ -35,7 +36,7 @@ async function fetchTherapistList(salonId: string): Promise<Therapist[]> {
     .from('therapists')
     .select('id, name, work_hours, area, comment, profile_image_url, age, body_type, profile_text')
     .eq('salon_id', salonId);
-  return (fb ?? []).map(t => ({ ...(t as Omit<Therapist, 'is_available_now' | 'available_until' | 'user_id' | 'invited_email'>), is_available_now: false, available_until: null, user_id: null, invited_email: null }));
+  return (fb ?? []).map(t => ({ ...(t as Omit<Therapist, 'is_available_now' | 'available_until' | 'is_available_now_cast' | 'available_until_cast' | 'user_id' | 'invited_email'>), is_available_now: false, available_until: null, is_available_now_cast: false, available_until_cast: null, user_id: null, invited_email: null }));
 }
 
 type Coupon = {
@@ -300,6 +301,8 @@ type Therapist = {
   profile_text: string | null;
   is_available_now: boolean;
   available_until: string | null;
+  is_available_now_cast: boolean;
+  available_until_cast: string | null;
   user_id: string | null;
   invited_email: string | null;
 };
@@ -902,14 +905,21 @@ export default function MyPage() {
     setSavingAvailable(true);
     // 「今すぐ」を付けられるのは「本日出勤中」かつ「チェック済み」のセラピストのみ。最大3名。
     // 出勤外・期限切れの古いフラグはここで確実にfalseへリセットする（3名制限の抜け穴対策）。
+    // 排他制御：キャスト枠がライブのセラピストはオーナーが選べない（UIで無効化済み）。
+    // 念のためここでも liveIds から除外し、かつ一括リセットの対象からも外して
+    // オーナー枠（is_available_now / available_until）を一切触らない（キャスト枠列には絶対書き込まない）。
+    const now = new Date();
     const liveIds = new Set(
       onDutyTherapists
+        .filter(t => !isCastLiveRow(t))
         .map(t => String(t.id))
         .filter(sid => availableNow[sid])
         .slice(0, 3)
     );
     const availableUntil = new Date(Date.now() + 30 * 60 * 1000).toISOString();
     for (const t of therapists) {
+      // キャスト本人が受付中の枠は触らない（オーナーは相手の枠を上書き・解除しない）。
+      if (isCastLiveRow(t, now)) continue;
       const sid = String(t.id);
       const isLive = liveIds.has(sid);
       await supabase
@@ -1783,18 +1793,20 @@ export default function MyPage() {
                   {onDutyTherapists.map(t => {
                     const sid = String(t.id);
                     const isChecked = availableNow[sid] ?? false;
+                    // 排他制御：キャスト本人が受付中の枠はオーナーが選べない（グレーアウト）。
+                    const castLive = isCastLiveRow(t, now);
                     const remainingMin = t.available_until
                       ? Math.floor((new Date(t.available_until).getTime() - now.getTime()) / 60000)
                       : 0;
                     return (
                       <label key={sid} className={`flex items-center gap-3 p-3 rounded-2xl border bg-slate-50/50 transition-colors ${
-                        !isChecked && atLimit ? 'border-slate-100 opacity-50 cursor-not-allowed' : 'border-slate-100 cursor-pointer hover:border-pink-200'
+                        castLive || (!isChecked && atLimit) ? 'border-slate-100 opacity-50 cursor-not-allowed' : 'border-slate-100 cursor-pointer hover:border-pink-200'
                       }`}>
                         <input
                           type="checkbox"
                           className="w-4 h-4 accent-pink-500 flex-shrink-0"
                           checked={isChecked}
-                          disabled={!isChecked && atLimit}
+                          disabled={castLive || (!isChecked && atLimit)}
                           onChange={e => setAvailableNow(prev => ({ ...prev, [sid]: e.target.checked }))}
                         />
                         {t.profile_image_url ? (
@@ -1819,6 +1831,11 @@ export default function MyPage() {
                         {isChecked && (
                           <span style={{ background: 'linear-gradient(to right, #ec4899, #f97316)', color: 'white', fontSize: '11px', fontWeight: 700, padding: '2px 8px', borderRadius: '20px', flexShrink: 0 }}>
                             今すぐ
+                          </span>
+                        )}
+                        {castLive && (
+                          <span className="text-[11px] font-bold text-pink-600 bg-pink-50 border border-pink-200 rounded-full px-2 py-0.5 flex-shrink-0 whitespace-nowrap">
+                            本人が受付中
                           </span>
                         )}
                       </label>

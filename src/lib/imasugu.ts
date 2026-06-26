@@ -14,6 +14,27 @@ function liveOne(on: unknown, until: string | null | undefined, now: Date): bool
   return on === true && until != null && new Date(until).getTime() > now.getTime();
 }
 
+/** 枠単体のライブ判定（排他制御で「片方の枠がライブか」を見るのに使う）。 */
+export function isFrameLive(on: unknown, until: string | null | undefined, now: Date = new Date()): boolean {
+  return liveOne(on, until, now);
+}
+
+/** snake_case 生行のオーナー枠ライブ判定。 */
+export function isOwnerLiveRow(
+  t: { is_available_now?: boolean | null; available_until?: string | null },
+  now: Date = new Date(),
+): boolean {
+  return liveOne(t.is_available_now, t.available_until, now);
+}
+
+/** snake_case 生行のキャスト枠ライブ判定。 */
+export function isCastLiveRow(
+  t: { is_available_now_cast?: boolean | null; available_until_cast?: string | null },
+  now: Date = new Date(),
+): boolean {
+  return liveOne(t.is_available_now_cast, t.available_until_cast, now);
+}
+
 /** 中核：オーナー枠 OR キャスト枠。 */
 export function isImasuguLiveValues(
   ownerOn: unknown,

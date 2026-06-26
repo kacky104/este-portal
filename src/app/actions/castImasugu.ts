@@ -2,6 +2,7 @@
 
 import { createClient } from '@/app/lib/supabase/server';
 import { createServiceClient } from '@/app/lib/supabase/service';
+import { isOwnerLiveRow } from '@/lib/imasugu';
 
 // セラピスト本人の「今すぐ受付中」（キャスト枠）を更新するサーバー専用処理。
 // therapists には「本人（user_id = auth.uid()）の UPDATE」を許す RLS が無いため、
@@ -22,10 +23,24 @@ export async function setCastImasugu(
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return { ok: false, error: 'ログインが必要です' };
 
+  const svc = createServiceClient();
+
+  // 排他制御：ON にしようとしたとき、オーナー枠が現在ライブなら拒否（相手の枠は上書きしない）。
+  // UIロック（CastImasugu）が効いていても念のためサーバー側で二重ガード。OFF（解除）は常に許可。
+  if (on) {
+    const { data: row } = await svc
+      .from('therapists')
+      .select('is_available_now, available_until')
+      .eq('user_id', user.id)
+      .maybeSingle();
+    if (row && isOwnerLiveRow(row)) {
+      return { ok: false, error: 'お店が「今すぐ」を設定中のため、本人からは設定できません。' };
+    }
+  }
+
   // ON：30分後まで有効。OFF：即失効（null）。
   const availableUntil = on ? new Date(Date.now() + THIRTY_MIN_MS).toISOString() : null;
 
-  const svc = createServiceClient();
   const { data: updated, error } = await svc
     .from('therapists')
     .update({

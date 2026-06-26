@@ -26,12 +26,16 @@ export function CastTabs({
   salonId,
   imasuguOn,
   imasuguUntil,
+  ownerImasuguOn,
+  ownerImasuguUntil,
 }: {
   therapistId: string;
   therapistName: string;
   salonId: number;
   imasuguOn: boolean;
   imasuguUntil: string | null;
+  ownerImasuguOn: boolean;
+  ownerImasuguUntil: string | null;
 }) {
   const [activeTab, setActiveTab] = useState<CastTab>('diary');
 
@@ -66,7 +70,14 @@ export function CastTabs({
 
       {activeTab === 'theme' && <CastThemePicker />}
 
-      {activeTab === 'now' && <CastImasugu initialOn={imasuguOn} initialUntil={imasuguUntil} />}
+      {activeTab === 'now' && (
+        <CastImasugu
+          initialOn={imasuguOn}
+          initialUntil={imasuguUntil}
+          ownerOn={ownerImasuguOn}
+          ownerUntil={ownerImasuguUntil}
+        />
+      )}
     </div>
   );
 }

@@ -6,6 +6,7 @@
 
 import { useEffect, useState } from 'react';
 import { setCastImasugu } from '@/app/actions/castImasugu';
+import { isFrameLive } from '@/lib/imasugu';
 
 // 受付中か（キャスト枠が有効か）：フラグON かつ 期限が未来。
 function isCastImasuguLive(on: boolean, until: string | null): boolean {
@@ -23,9 +24,13 @@ function formatTime(iso: string): string {
 export function CastImasugu({
   initialOn,
   initialUntil,
+  ownerOn,
+  ownerUntil,
 }: {
   initialOn: boolean;
   initialUntil: string | null;
+  ownerOn: boolean;
+  ownerUntil: string | null;
 }) {
   // until を真実の状態として持つ（ON/OFFは until の有無＋未来かで判定）。
   const [until, setUntil] = useState<string | null>(
@@ -43,6 +48,8 @@ export function CastImasugu({
 
   const live = until != null && new Date(until).getTime() > now;
   const remainingMin = live ? Math.max(0, Math.ceil((new Date(until!).getTime() - now) / 60000)) : 0;
+  // 排他制御：オーナー枠がライブなら本人は設定できない（お店が設定中）。
+  const ownerLive = isFrameLive(ownerOn, ownerUntil, new Date(now));
 
   const handle = async (on: boolean) => {
     setLoading(true);
@@ -80,6 +87,18 @@ export function CastImasugu({
           >
             {loading ? '処理中...' : '受付を終了する'}
           </button>
+        </div>
+      ) : ownerLive ? (
+        // オーナーが今すぐ設定中：本人は操作不可（相手の枠は本人が解除しない）。
+        <div className="space-y-3 text-center">
+          <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-slate-100 border border-slate-200">
+            <span className="w-2 h-2 rounded-full bg-slate-400" />
+            <span className="text-sm font-bold text-slate-500">お店が「今すぐ」を設定中です</span>
+          </div>
+          <p className="text-[12px] text-slate-400 leading-relaxed">
+            お店が設定した「今すぐ」が有効な間は、本人からの設定はできません。<br />
+            お店の設定は時間が経つと自動で解除されます。
+          </p>
         </div>
       ) : (
         <div className="space-y-4 text-center">
