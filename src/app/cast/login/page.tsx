@@ -172,9 +172,14 @@ function CastLoginInner() {
               </button>
             </form>
 
-            <div className="mt-5 text-center">
+            <div className="mt-5 text-center space-y-2">
               <p className="text-[11px] text-slate-400 leading-relaxed">
                 初めての方は、オーナーから届いた招待メールのリンクからパスワードを設定してください。
+              </p>
+              <p className="text-[12px]">
+                <Link href="/cast/forgot-password" className="text-pink-600 font-medium hover:underline">
+                  パスワードをお忘れの方はこちら →
+                </Link>
               </p>
             </div>
           </>

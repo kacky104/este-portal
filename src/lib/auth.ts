@@ -62,13 +62,21 @@ export async function signOut(): Promise<void> {
 
 /**
  * パスワード再設定メールの送信。
- * 戻り先は /auth/callback?next=/reset-password（確認メールと同じ着地ルートを共有）。
+ * 戻り先は /auth/callback?next=<next>（確認メールと同じ着地ルートを共有）。
+ * next の既定は会員用の /reset-password（引数なし呼び出しは従来どおりの挙動）。
+ * セラピスト用は next='/cast/reset-password' を渡すことで、再設定後に /cast 系へ戻せる
+ * （callback は next を汎用処理し、next が /cast 配下なら失敗時は /cast/login に誘導する）。
  * メール列挙対策のため、UI 側は結果に関わらず同じ案内を出すこと。
  */
-export async function requestPasswordReset(email: string): Promise<{ ok: boolean; error?: string }> {
+export async function requestPasswordReset(
+  email: string,
+  next: string = '/reset-password'
+): Promise<{ ok: boolean; error?: string }> {
   const supabase = createClient();
   const redirectTo =
-    typeof window !== 'undefined' ? `${window.location.origin}/auth/callback?next=/reset-password` : undefined;
+    typeof window !== 'undefined'
+      ? `${window.location.origin}/auth/callback?next=${encodeURIComponent(next)}`
+      : undefined;
   const { error } = await supabase.auth.resetPasswordForEmail(
     email,
     redirectTo ? { redirectTo } : undefined
