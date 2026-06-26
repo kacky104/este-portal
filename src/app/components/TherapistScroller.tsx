@@ -9,6 +9,7 @@ import { isNewFaceActive } from '@/lib/newFace';
 import { NewBadge } from '@/components/NewBadge';
 import { sanitizeBadges } from '@/lib/therapistBadges';
 import { isImasuguLiveCamel, imasuguUntilCamel } from '@/lib/imasugu';
+import { seededShuffle, thirtyMinSeed } from '@/lib/shuffle';
 
 const GRADIENTS = ['from-pink-300 to-rose-400', 'from-fuchsia-300 to-pink-400', 'from-rose-300 to-pink-500', 'from-pink-400 to-fuchsia-400'];
 
@@ -206,14 +207,26 @@ export function TherapistScroller({ showAge = false }: { showAge?: boolean } = {
       }));
 
       const isAvailableNowActive = (t: TherapistItem) => isImasuguLiveCamel(t);
+      // 出勤開始時刻（分換算）。未設定は末尾扱い。
+      const startMinutes = (t: TherapistItem): number => {
+        const s = t.today.start_time;
+        if (!s) return Number.MAX_SAFE_INTEGER;
+        const [h, m] = s.split(':').map(Number);
+        return h * 60 + (m || 0);
+      };
 
       const onDuty = mapped.filter(t => getScheduleStatus(t.today).status === 'onDuty');
-      // 「今すぐ」フラグのセラピストを先頭に表示。今すぐ同士は残り時間少ない順（有効期限昇順）。
-      onDuty.sort((a, b) =>
-        Number(isAvailableNowActive(b)) - Number(isAvailableNowActive(a)) ||
-        (isAvailableNowActive(a) && isAvailableNowActive(b) ? imasuguUntilCamel(a) - imasuguUntilCamel(b) : 0)
-      );
-      setList(onDuty);
+      // 1. 今すぐ：残り時間少ない順（有効期限昇順。既存ロジック維持）。
+      const imasugu = onDuty
+        .filter(isAvailableNowActive)
+        .sort((a, b) => imasuguUntilCamel(a) - imasuguUntilCamel(b));
+      // 2. 非今すぐの出勤中：開始時刻 昇順＋同時刻内は30分seedシャッフル。
+      //    先にシャッフル→開始時刻で安定ソート（同時刻の相対順はシャッフル結果が残る）。
+      const rest = seededShuffle(
+        onDuty.filter(t => !isAvailableNowActive(t)),
+        thirtyMinSeed(),
+      ).sort((a, b) => startMinutes(a) - startMinutes(b));
+      setList([...imasugu, ...rest]);
     })();
   }, []);
 

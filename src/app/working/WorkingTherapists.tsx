@@ -7,6 +7,7 @@ import { getBusinessDateJST } from '@/lib/dutyStatus';
 import { Card, getScheduleStatus, type TherapistItem } from '@/app/components/TherapistScroller';
 import { sanitizeBadges } from '@/lib/therapistBadges';
 import { isImasuguLiveCamel, imasuguUntilCamel } from '@/lib/imasugu';
+import { seededShuffle, thirtyMinSeed } from '@/lib/shuffle';
 
 export function WorkingTherapists() {
   const [list, setList] = useState<TherapistItem[]>([]);
@@ -94,10 +95,12 @@ export function WorkingTherapists() {
         .filter(isAvailableNowActive)
         .sort((a, b) => imasuguUntilCamel(a) - imasuguUntilCamel(b));
 
-      // 2. 出勤中（今すぐ該当を除く）：今日の出勤開始時刻が早い順
-      const onDuty = mapped
-        .filter(t => !isAvailableNowActive(t) && getScheduleStatus(t.today).status === 'onDuty')
-        .sort((a, b) => startMinutes(a) - startMinutes(b));
+      // 2. 出勤中（今すぐ該当を除く）：開始時刻が早い順＋同時刻内は30分seedシャッフル。
+      //    先にシャッフル→開始時刻で安定ソート（同時刻の相対順はシャッフル結果が残る）。
+      const onDuty = seededShuffle(
+        mapped.filter(t => !isAvailableNowActive(t) && getScheduleStatus(t.today).status === 'onDuty'),
+        thirtyMinSeed(),
+      ).sort((a, b) => startMinutes(a) - startMinutes(b));
 
       setList([...imasugu, ...onDuty]);
       setLoaded(true);
