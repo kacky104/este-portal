@@ -2,6 +2,7 @@ import { redirect } from 'next/navigation';
 import Link from 'next/link';
 import { createClient } from '@/app/lib/supabase/server';
 import { CastSignOutButton } from './CastSignOutButton';
+import { CastDiary } from './CastDiary';
 
 // キャスト管理トップ（フェーズ1：最小実装）。
 // ガードはページ内 redirect 方式（proxy.ts は触らない）。
@@ -32,13 +33,18 @@ export default async function CastHomePage() {
 
       <main className="max-w-2xl mx-auto px-4 py-8">
         {therapist ? (
-          <div className="bg-white rounded-3xl border border-pink-100 shadow-sm p-6 space-y-3 text-center">
-            <p className="text-xs font-bold text-pink-500">こんにちは</p>
-            <h1 className="text-xl font-black text-slate-800">{therapist.name ?? '(名前未設定)'} さん</h1>
-            <p className="text-sm text-slate-500 leading-relaxed">
-              セラピスト管理ページ（準備中）です。<br />
-              写メ日記・「今すぐ」などの機能は順次ご利用いただけるようになります。
-            </p>
+          <div className="space-y-5">
+            <div className="bg-white rounded-3xl border border-pink-100 shadow-sm p-6 space-y-1 text-center">
+              <p className="text-xs font-bold text-pink-500">こんにちは</p>
+              <h1 className="text-xl font-black text-slate-800">{therapist.name ?? '(名前未設定)'} さん</h1>
+            </div>
+
+            {/* 写メ日記：本人の日記だけを投稿・編集・削除（therapist_id は本人固定） */}
+            <CastDiary
+              therapistId={String(therapist.id)}
+              therapistName={therapist.name ?? ''}
+              salonId={Number(therapist.salon_id)}
+            />
           </div>
         ) : (
           // ログインはできたが紐づくキャストが無い別種アカウント
