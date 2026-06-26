@@ -83,7 +83,7 @@ export default function CastWelcomePage() {
         <div className="text-center mb-6 relative z-10">
           <span className="flex items-baseline justify-center gap-1">
             <span className="font-bold text-[22px] tracking-wide leading-none inline-block" style={{ background: 'linear-gradient(95deg,#FB923C,#DB2777)', WebkitBackgroundClip: 'text', backgroundClip: 'text', WebkitTextFillColor: 'transparent', color: 'transparent' }}>フクエス</span>
-            <span className="text-[12px] font-normal leading-none text-slate-400">キャスト</span>
+            <span className="text-[12px] font-normal leading-none text-slate-400">セラピスト</span>
           </span>
           <h1 className="text-lg font-black text-slate-900 mt-2">ようこそ！パスワードを設定してください</h1>
         </div>
@@ -98,7 +98,7 @@ export default function CastWelcomePage() {
               </svg>
             </div>
             <p className="text-sm text-slate-700 font-medium">パスワードを設定しました。</p>
-            <p className="text-xs text-slate-400">キャストページへ移動します...</p>
+            <p className="text-xs text-slate-400">セラピストページへ移動します...</p>
           </div>
         ) : !hasSession ? (
           // 招待セッションが無い（直接アクセス・期限切れ等）
@@ -111,7 +111,7 @@ export default function CastWelcomePage() {
               href="/cast/login"
               className="block w-full py-3 rounded-xl bg-pink-600 text-white font-bold text-sm hover:bg-pink-700 transition-colors"
             >
-              キャストログインへ
+              セラピストログインへ
             </Link>
           </div>
         ) : (

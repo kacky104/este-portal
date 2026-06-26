@@ -24,7 +24,7 @@ export default async function CastHomePage() {
         <div className="max-w-2xl mx-auto px-4 py-3 flex items-center justify-between">
           <span className="flex items-baseline gap-1">
             <span className="font-bold text-[20px] tracking-wide leading-none inline-block" style={{ background: 'linear-gradient(95deg,#FB923C,#DB2777)', WebkitBackgroundClip: 'text', backgroundClip: 'text', WebkitTextFillColor: 'transparent', color: 'transparent' }}>フクエス</span>
-            <span className="text-[12px] font-normal leading-none text-slate-400">キャスト</span>
+            <span className="text-[12px] font-normal leading-none text-slate-400">セラピスト</span>
           </span>
           <CastSignOutButton />
         </div>
@@ -36,7 +36,7 @@ export default async function CastHomePage() {
             <p className="text-xs font-bold text-pink-500">こんにちは</p>
             <h1 className="text-xl font-black text-slate-800">{therapist.name ?? '(名前未設定)'} さん</h1>
             <p className="text-sm text-slate-500 leading-relaxed">
-              キャスト管理ページ（準備中）です。<br />
+              セラピスト管理ページ（準備中）です。<br />
               写メ日記・「今すぐ」などの機能は順次ご利用いただけるようになります。
             </p>
           </div>
@@ -44,7 +44,7 @@ export default async function CastHomePage() {
           // ログインはできたが紐づくキャストが無い別種アカウント
           <div className="bg-white rounded-3xl border border-slate-100 shadow-sm p-6 space-y-4 text-center">
             <p className="text-sm text-slate-700 leading-relaxed">
-              このアカウントに紐づくキャスト情報が見つかりません。
+              このアカウントに紐づくセラピスト情報が見つかりません。
             </p>
             <p className="text-xs text-slate-400 leading-relaxed">
               オーナーからの招待メールに記載のアドレスでログインしているかご確認ください。

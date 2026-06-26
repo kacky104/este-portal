@@ -95,7 +95,7 @@ function CastLoginInner() {
           <div className="inline-flex items-center justify-center w-12 h-12 rounded-xl bg-pink-50 border border-pink-200 mb-4">
             <span className="text-pink-500 font-bold text-xl leading-none">◆</span>
           </div>
-          <h1 className="text-xl font-bold text-slate-900">キャストログイン</h1>
+          <h1 className="text-xl font-bold text-slate-900">セラピストログイン</h1>
           <p className="text-sm text-slate-500 mt-1">フクエス セラピスト専用ページ</p>
         </div>
 
@@ -108,7 +108,7 @@ function CastLoginInner() {
           <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-8 space-y-4 text-center">
             <p className="text-sm text-slate-700 leading-relaxed">
               {currentEmail && <span className="font-bold">{currentEmail}</span>}
-              <br />このアカウントに紐づくキャスト情報が見つかりません。
+              <br />このアカウントに紐づくセラピスト情報が見つかりません。
             </p>
             <p className="text-xs text-slate-400 leading-relaxed">
               オーナーからの招待メールに記載のアドレスでログインしているかご確認ください。お心当たりがない場合はオーナーに招待をご依頼ください。
