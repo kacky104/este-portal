@@ -1,5 +1,6 @@
 import { redirect } from 'next/navigation';
 import Link from 'next/link';
+import Image from 'next/image';
 import { createClient } from '@/app/lib/supabase/server';
 import { CastSignOutButton } from './CastSignOutButton';
 import { CastDiary } from './CastDiary';
@@ -15,9 +16,20 @@ export default async function CastHomePage() {
 
   const { data: therapist } = await supabase
     .from('therapists')
-    .select('id, name, salon_id')
+    .select('id, name, salon_id, profile_image_url')
     .eq('user_id', user.id)
     .maybeSingle();
+
+  // 所属サロン名（挨拶ブロックのサブ情報）。本人セッションのクライアントで salons から取得。
+  let salonName: string | null = null;
+  if (therapist?.salon_id != null) {
+    const { data: salon } = await supabase
+      .from('salons')
+      .select('name')
+      .eq('id', therapist.salon_id)
+      .maybeSingle();
+    salonName = (salon?.name as string | null) ?? null;
+  }
 
   return (
     <div className="min-h-screen bg-slate-50">
@@ -34,9 +46,29 @@ export default async function CastHomePage() {
       <main className="max-w-2xl mx-auto px-4 py-8">
         {therapist ? (
           <div className="space-y-5">
-            <div className="bg-white rounded-3xl border border-pink-100 shadow-sm p-6 space-y-1 text-center">
-              <p className="text-xs font-bold text-pink-500">こんにちは</p>
+            <div className="bg-white rounded-3xl border border-pink-100 shadow-sm p-6 space-y-2 text-center">
+              {/* 円形プロフィール画像（スタイルはピックアップサロンのセラピスト円形サムネを踏襲：白枠＋影） */}
+              {therapist.profile_image_url ? (
+                <div className="relative w-24 h-24 mx-auto rounded-full border-2 border-white overflow-hidden shadow-md ring-1 ring-pink-100">
+                  <Image
+                    src={therapist.profile_image_url}
+                    alt={therapist.name ?? 'セラピスト'}
+                    fill
+                    className="object-cover"
+                    sizes="96px"
+                  />
+                </div>
+              ) : (
+                // 画像未設定時の控えめなプレースホルダー（淡ピンク円＋イニシャル）
+                <div className="w-24 h-24 mx-auto rounded-full border-2 border-white shadow-md ring-1 ring-pink-100 bg-pink-50 flex items-center justify-center">
+                  <span className="text-2xl font-black text-pink-300">
+                    {(therapist.name ?? '').charAt(0) || '♡'}
+                  </span>
+                </div>
+              )}
+              <p className="text-xs font-bold text-pink-500 pt-1">こんにちは</p>
               <h1 className="text-xl font-black text-slate-800">{therapist.name ?? '(名前未設定)'} さん</h1>
+              {salonName && <p className="text-xs text-slate-400 font-medium">{salonName}</p>}
             </div>
 
             {/* 写メ日記：本人の日記だけを投稿・編集・削除（therapist_id は本人固定） */}
