@@ -57,20 +57,28 @@ export default async function WorkingPage({
           トップへ戻る
         </Link>
 
-        {/* Heading（中央寄せ・オレンジ→ピンクのグラデーション文字） */}
+        {/* Heading（中央寄せ）。?area 指定時はエリア名（ピンク）で改行し2行に分ける。
+            未指定（全エリア）は従来どおりオレンジ→ピンクのグラデーション1行。 */}
         <div className="mb-8 text-center">
-          <h1
-            className="text-2xl font-bold inline-block"
-            style={{
-              background: 'linear-gradient(to right, #F59E0B, #EC4899)',
-              WebkitBackgroundClip: 'text',
-              backgroundClip: 'text',
-              WebkitTextFillColor: 'transparent',
-              color: 'transparent',
-            }}
-          >
-            {headingArea ? `${headingArea}の本日出勤中のセラピスト` : '本日出勤中のセラピスト'}
-          </h1>
+          {headingArea ? (
+            <h1 className="text-2xl font-bold leading-tight">
+              <span className="block text-pink-600">{headingArea}</span>
+              <span className="block text-slate-900">現在出勤中のセラピスト</span>
+            </h1>
+          ) : (
+            <h1
+              className="text-2xl font-bold inline-block"
+              style={{
+                background: 'linear-gradient(to right, #F59E0B, #EC4899)',
+                WebkitBackgroundClip: 'text',
+                backgroundClip: 'text',
+                WebkitTextFillColor: 'transparent',
+                color: 'transparent',
+              }}
+            >
+              本日出勤中のセラピスト
+            </h1>
+          )}
         </div>
 
         <WorkingTherapists filterSalonIds={filterSalonIds} />
