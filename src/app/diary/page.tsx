@@ -5,6 +5,7 @@ import { SavedSalonsMenu } from '@/app/components/SavedSalonsMenu';
 import { AccountMenu } from '@/app/components/AccountMenu';
 import { NotificationBell } from '@/app/components/NotificationBell';
 import { VipLetterIcon } from '@/app/components/VipLetterIcon';
+import { formatDiaryDate } from '@/lib/diaryDate';
 
 export const metadata = {
   title: '写メ日記 | フクエス ～福岡メンズエステポータル～',
@@ -13,14 +14,6 @@ export const metadata = {
 
 // ISR：1分ごとに再生成（新着日記の鮮度優先）。cookie を読まない createPublicClient を使うため動的化されない。
 export const revalidate = 60;
-
-function formatDate(iso: string): string {
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return '';
-  return new Intl.DateTimeFormat('ja-JP', {
-    timeZone: 'Asia/Tokyo', year: 'numeric', month: '2-digit', day: '2-digit',
-  }).format(d);
-}
 
 type DiaryRow = {
   id: number; images: string[] | null; title: string | null; content: string | null; created_at: string;
@@ -113,7 +106,7 @@ export default async function DiaryListPage() {
                 <div className="p-4 flex-1 flex flex-col gap-2">
                   <div className="flex items-center gap-1.5">
                     <span className="font-bold text-sm text-slate-900">{diary.therapistName}</span>
-                    <span className="text-[10px] text-slate-400">{formatDate(diary.createdAt)} 更新</span>
+                    <span className="text-[10px] text-slate-400">{formatDiaryDate(diary.createdAt)}</span>
                   </div>
                   {diary.title && <h2 className="font-bold text-sm text-slate-800 line-clamp-1">{diary.title}</h2>}
                   {diary.content && <p className="text-[11px] text-slate-500 leading-relaxed line-clamp-3 flex-1">{diary.content}</p>}

@@ -2,6 +2,7 @@
 
 import { useRef, useEffect } from 'react';
 import Link from 'next/link';
+import { formatDiaryDate } from '@/lib/diaryDate';
 
 export type DiaryPostView = {
   id: number;
@@ -9,16 +10,6 @@ export type DiaryPostView = {
   title: string | null;
   created_at: string;
 };
-
-// カード用：日付のみ（例「2026/06/18」）
-function formatDate(iso: string): string {
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return '';
-  return new Intl.DateTimeFormat('ja-JP', {
-    timeZone: 'Asia/Tokyo',
-    year: 'numeric', month: '2-digit', day: '2-digit',
-  }).format(d);
-}
 
 // 2行クランプ用スタイル
 const clamp2: React.CSSProperties = {
@@ -78,7 +69,7 @@ export function TherapistDiaryList({ posts, name }: { posts: DiaryPostView[]; na
             {/* テキストエリア */}
             <div className="p-2 bg-white">
               <p style={{ fontSize: '12px', color: '#999' }} className="mb-0.5">
-                {formatDate(post.created_at)} 更新
+                {formatDiaryDate(post.created_at)}
               </p>
               {post.title && (
                 <p style={clamp2} className="text-slate-600 leading-snug">{post.title}</p>

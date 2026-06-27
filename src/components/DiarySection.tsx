@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { createClient } from '@/app/lib/supabase/client';
+import { formatDiaryDate } from '@/lib/diaryDate';
 
 const supabase = createClient();
 
@@ -24,15 +25,6 @@ function formatDateTime(iso: string): string {
   return new Intl.DateTimeFormat('ja-JP', {
     timeZone: 'Asia/Tokyo', month: 'numeric', day: 'numeric',
     hour: '2-digit', minute: '2-digit',
-  }).format(d);
-}
-
-// 日付のみ（例「2026/06/18」）
-function formatDate(iso: string): string {
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return '';
-  return new Intl.DateTimeFormat('ja-JP', {
-    timeZone: 'Asia/Tokyo', year: 'numeric', month: '2-digit', day: '2-digit',
   }).format(d);
 }
 
@@ -105,7 +97,7 @@ function DiaryCard({ diary, emphasized = false }: { diary: DiaryView; emphasized
       {/* Top: 日付 + タイトル */}
       <div className="absolute top-0 left-0 right-0 p-3">
         <p className="text-white/70 mb-1" style={{ fontSize: emphasized ? '11px' : '9px' }}>
-          {emphasized ? `${formatDate(diary.createdAt)} 更新` : formatDateTime(diary.createdAt)}
+          {emphasized ? formatDiaryDate(diary.createdAt) : formatDateTime(diary.createdAt)}
         </p>
         {diary.title && (
           <p

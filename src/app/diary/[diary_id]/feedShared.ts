@@ -59,11 +59,3 @@ export async function fetchDiaryFeed(
     : await query.eq('therapist_id', opts.therapistId);
   return mapDiaryRows(data);
 }
-
-export function formatDiaryDate(iso: string): string {
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return '';
-  return new Intl.DateTimeFormat('ja-JP', {
-    timeZone: 'Asia/Tokyo', year: 'numeric', month: '2-digit', day: '2-digit',
-  }).format(d);
-}

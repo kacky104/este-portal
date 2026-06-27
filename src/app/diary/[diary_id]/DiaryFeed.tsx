@@ -5,7 +5,8 @@ import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { createClient } from '@/app/lib/supabase/client';
 import { ExpandableText } from './ExpandableText';
-import { fetchDiaryFeed, formatDiaryDate, type DiaryEntry } from './feedShared';
+import { fetchDiaryFeed, type DiaryEntry } from './feedShared';
+import { formatDiaryDate } from '@/lib/diaryDate';
 
 // 写メ日記フィード（縦に連続表示）。
 // 既定（therapist フィード）はサーバーで取得済みの initialList を SSR 表示（ISR キャッシュ対象）。
@@ -68,7 +69,7 @@ export function DiaryFeed({
                 <Link href={`/therapist/${d.therapistId}`} className="text-sm font-bold text-pink-600 hover:underline truncate min-w-0">
                   {d.therapistName || 'セラピスト'}
                 </Link>
-                <p className="flex-shrink-0" style={{ fontSize: '13px', color: '#999' }}>📅 {formatDiaryDate(d.createdAt)} 更新</p>
+                <p className="flex-shrink-0" style={{ fontSize: '13px', color: '#999' }}>📅 {formatDiaryDate(d.createdAt)}</p>
               </div>
             </div>
 

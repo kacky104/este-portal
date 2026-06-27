@@ -7,14 +7,7 @@ import { VipLetterIcon } from '@/app/components/VipLetterIcon';
 import { notFound } from 'next/navigation';
 import { createPublicClient } from '@/app/lib/supabase/public';
 import { getTheme, breadcrumbCurrentColor } from '@/app/lib/themes';
-
-function formatDate(iso: string): string {
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return '';
-  return new Intl.DateTimeFormat('ja-JP', {
-    timeZone: 'Asia/Tokyo', year: 'numeric', month: '2-digit', day: '2-digit',
-  }).format(d);
-}
+import { formatDiaryDate } from '@/lib/diaryDate';
 
 type DiaryRow = {
   id: number | string;
@@ -127,7 +120,7 @@ export default async function SalonDiaryPage({
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-1.5 sm:gap-3">
             {diaries.map((d) => (
               <Link key={d.id} href={`/diary/${d.id}?from=salon`} className="group bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden hover:shadow-md transition-shadow">
-                <div className="aspect-square bg-slate-100">
+                <div className="aspect-square bg-slate-100 relative">
                   {d.image ? (
                     // eslint-disable-next-line @next/next/no-img-element
                     <img src={d.image} alt={d.title || d.therapistName} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
@@ -136,11 +129,24 @@ export default async function SalonDiaryPage({
                       {d.therapistName.charAt(0)}
                     </div>
                   )}
+                  {/* スマホのみ：画像内オーバーレイ（下部スクリム＋白文字）。sm以上は非表示。 */}
+                  <div className="sm:hidden absolute inset-x-0 bottom-0 px-2 pt-6 pb-2 bg-gradient-to-t from-black/70 via-black/25 to-transparent">
+                    <p className="flex items-baseline gap-1 min-w-0" style={{ textShadow: '0 1px 2px rgba(0,0,0,0.6)' }}>
+                      <span className="text-[10px] font-bold text-white truncate">{d.therapistName}</span>
+                      <span className="flex-shrink-0 text-[10px] text-white/85">{formatDiaryDate(d.createdAt)}</span>
+                    </p>
+                    {d.title && (
+                      <h2 className="text-[11px] font-bold text-white line-clamp-2 mt-0.5 break-all" style={{ textShadow: '0 1px 2px rgba(0,0,0,0.6)' }}>
+                        {d.title}
+                      </h2>
+                    )}
+                  </div>
                 </div>
-                <div className="p-2.5">
+                {/* sm以上：従来どおり画像下にテキスト（スクリムなし）。スマホでは非表示。 */}
+                <div className="p-2.5 hidden sm:block">
                   <p className="flex items-baseline gap-1.5 min-w-0">
                     <span className="text-[11px] text-pink-600 font-bold truncate">{d.therapistName}</span>
-                    <span className="flex-shrink-0" style={{ fontSize: '11px', color: '#999' }}>{formatDate(d.createdAt)} 更新</span>
+                    <span className="flex-shrink-0" style={{ fontSize: '11px', color: '#999' }}>{formatDiaryDate(d.createdAt)}</span>
                   </p>
                   {d.title && (
                     <h2
