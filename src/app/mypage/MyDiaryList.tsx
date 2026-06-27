@@ -7,7 +7,7 @@ import { revalidateSalon } from '@/app/lib/revalidateTop';
 
 const supabase = createClient();
 const TITLE_MAX = 10;
-const PAGE_SIZE = 50; // 1ページあたりの投稿数（DBから range で50件だけ取得）
+const PAGE_SIZE = 30; // 1ページあたりの投稿数（DBから range で30件だけ取得）
 
 type MyDiaryPost = {
   id: string;            // diary_posts.id（UUID/bigint いずれも文字列で扱う）
