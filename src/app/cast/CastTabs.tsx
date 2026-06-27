@@ -16,8 +16,8 @@ type CastTab = 'diary' | 'theme' | 'now';
 
 const TABS: ReadonlyArray<readonly [CastTab, string]> = [
   ['diary', '写メ日記'],
-  ['theme', '着せ替え'],
   ['now', '今すぐ'],
+  ['theme', '着せ替え'],
 ];
 
 export function CastTabs({
