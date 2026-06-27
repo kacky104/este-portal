@@ -100,7 +100,7 @@ export default async function AreaPage({ params }: { params: Promise<{ slug: str
         <section className="mb-10">
           <div className="flex items-center gap-3 mb-4">
             <div className="w-1 h-6 rounded-full bg-gradient-to-b from-pink-400 to-rose-500" />
-            <h2 className="text-xl font-bold text-slate-900">本日出勤中のセラピスト</h2>
+            <h2 className="text-xl font-bold text-slate-900"><span className="text-pink-600">{area === DISPATCH_AREA ? '出張対応' : label}</span>で現在出勤中</h2>
           </div>
           <TherapistScroller showAge filterSalonIds={areaSalonIds} workingHref={`/working?area=${slug}`} />
         </section>
