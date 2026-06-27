@@ -249,8 +249,10 @@ export function SaveButton({
         {cfg.brandIcon ? (
           // 実ロゴ画像をそのまま表示（SVG再現は廃止）。ボタン全面に contain で配置。
           // 背後はボタン地色（未保存=白／保存済み=グラデ）。内側透過のため保存済みはグラデが透ける。
+          // 保存済みは肉球だけ白に反転した logo-saved.png に差し替え（背景グラデに肉球が埋もれないように）。
+          //   logo-saved.png：リング＝グラデ維持／肉球＝白／内側＝透過（logo.png と同一256pxジオメトリ）。
           <Image
-            src="/logo.png"
+            src={isSavedNow ? '/logo-saved.png' : '/logo.png'}
             alt=""
             aria-hidden="true"
             width={size}
