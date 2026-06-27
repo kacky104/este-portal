@@ -84,29 +84,31 @@ const FLUTTER_PARTICLES = Array.from({ length: 8 }, (_, i) => {
 });
 
 // ── バリアント別の配色・グリフ・粒 ──
-// 未保存は共通（白丸/薄グレー枠/グレー塗り）。保存・ホバー枠・粒の色を variant 別に持つ。
-// paw（店舗）＝フクエスのブランドグラデ（オレンジ→マゼンタ）、sakura（セラピスト）＝紫。
-// paw のアイコン色は VARIANTS.brandIcon=true 側でブランドグラデのSVG塗りに差し替えるため、
-// ここの icon/iconHover は paw では実質未使用（型の互換のため残す）。
-const BRAND_GRADIENT = 'linear-gradient(95deg,#FB923C,#DB2777)';
+// paw（店舗）＝オレンジ→マゼンタ、sakura（セラピスト）＝ピンク→パープル。
+// どちらも実ロゴ画像（リング＋肉球・内側透過）を表示し、保存済みは背景円のグラデが内側に透ける。
+// 背景円の色：未保存＝白／保存済み＝各バリアントのブランドグラデ。border/icon 等は型互換のため残す。
+const BRAND_GRADIENT = 'linear-gradient(95deg,#FB923C,#DB2777)';            // 店舗
+const THERAPIST_GRADIENT = 'linear-gradient(95deg,#F0558D,#6A55BF)';        // セラピスト（左ピンク→右パープル）
 const PINK = {
   unsaved: { bg: '#FFFFFF', border: '#E5E7EB', borderHover: '#FDBA74', icon: '#9CA3AF', iconHover: '#DB2777' },
   saved:   { bg: BRAND_GRADIENT, border: '#DB2777', icon: '#FFFFFF' },
 } as const;
 const PURPLE = {
   unsaved: { bg: '#FFFFFF', border: '#E5E7EB', borderHover: '#D8B4FE', icon: '#9CA3AF', iconHover: '#EC4899' },
-  saved:   { bg: '#A855F7', border: '#A855F7', icon: '#FFFFFF' },
+  saved:   { bg: THERAPIST_GRADIENT, border: '#6A55BF', icon: '#FFFFFF' },
 } as const;
 const VARIANTS = {
   paw: {
     Glyph: PawGlyph, Particle: PawGlyph, particles: BURST_PARTICLES,
     particleSize: 11, animClass: 'save-fx-burst', colors: PINK, particleColor: '#DB2777',
     brandIcon: true,
+    images: { unsaved: '/logo.png', saved: '/logo-saved.png' },
   },
   sakura: {
     Glyph: SakuraGlyph, Particle: PetalGlyph, particles: FLUTTER_PARTICLES,
     particleSize: 12, animClass: 'save-fx-flutter', colors: PURPLE, particleColor: '#A855F7',
-    brandIcon: false,
+    brandIcon: true,
+    images: { unsaved: '/logo-therapist.png', saved: '/logo-therapist-saved.png' },
   },
 } as const;
 
@@ -132,7 +134,6 @@ export function SaveButton({
   // ハイドレーション対策：初期は未保存扱いで描画し、マウント後に反映する。
   const [mounted, setMounted] = useState(false);
   const [saved, setSaved] = useState(false);
-  const [hovered, setHovered] = useState(false);
   // 保存した瞬間のクリック演出。保存済みに切り替わったときだけ +1。
   const [fxKey, setFxKey] = useState(0);
   const [fxOn, setFxOn] = useState(false); // 粒の表示中フラグ（740ms後に false にして必ず除去）
@@ -184,8 +185,6 @@ export function SaveButton({
   const cfg = VARIANTS[variant];
   const c = cfg.colors;
   const isSavedNow = mounted && saved;
-  const iconSize = Math.round(size * (18 / 33)); // 既定33pxでアイコン18px相当
-  const iconColor = isSavedNow ? c.saved.icon : hovered ? c.unsaved.iconHover : c.unsaved.icon;
 
   return (
     // ラッパ：演出をボタンの周囲に出すため relative + overflow:visible。
@@ -219,8 +218,6 @@ export function SaveButton({
         ref={buttonRef}
         type="button"
         onClick={handleToggle}
-        onMouseEnter={() => setHovered(true)}
-        onMouseLeave={() => setHovered(false)}
         aria-label={isSavedNow ? 'お気に入りから削除' : 'お気に入りに保存'}
         aria-pressed={isSavedNow}
         className="relative inline-flex items-center justify-center rounded-full transition-colors"
@@ -228,45 +225,26 @@ export function SaveButton({
           width: size,
           height: size,
           zIndex: 1,
-          // brandIcon（店舗）はボタン自体を「背後の円」として使う：
-          //   未保存＝白い円、保存済み＝ブランドグラデで塗った円。
-          //   その上に実ロゴ画像 /logo.png（内側透過：リング＋肉球のみ不透明）を重ねるため、
-          //   保存済みは内側の透過部にグラデが透けて「内側が塗られた＝保存済み」に見える。
-          // ロゴのリングが輪郭を担うので CSS の枠線は持たない。
+          // ボタン自体を「背後の円」として使う：未保存＝白／保存済み＝各バリアントのブランドグラデ。
+          // その上に実ロゴ画像（内側透過：リング＋肉球のみ不透明）を重ねるため、保存済みは内側の
+          // 透過部にグラデが透けて「内側が塗られた＝保存済み」に見える。リングが輪郭を担うので枠線なし。
           background: isSavedNow ? c.saved.bg : c.unsaved.bg,
-          border: cfg.brandIcon
-            ? 'none'
-            : `1.5px solid ${
-                isSavedNow
-                  ? c.saved.border
-                  : hovered
-                    ? c.unsaved.borderHover
-                    : c.unsaved.border
-              }`,
-          overflow: cfg.brandIcon ? 'hidden' : undefined, // 背後円を円形にクリップ
+          border: 'none',
+          overflow: 'hidden', // 背後円を円形にクリップ
         }}
       >
-        {cfg.brandIcon ? (
-          // 実ロゴ画像をそのまま表示（SVG再現は廃止）。ボタン全面に contain で配置。
-          // 背後はボタン地色（未保存=白／保存済み=グラデ）。内側透過のため保存済みはグラデが透ける。
-          // 保存済みは肉球だけ白に反転した logo-saved.png に差し替え（背景グラデに肉球が埋もれないように）。
-          //   logo-saved.png：リング＝グラデ維持／肉球＝白／内側＝透過（logo.png と同一256pxジオメトリ）。
-          <Image
-            src={isSavedNow ? '/logo-saved.png' : '/logo.png'}
-            alt=""
-            aria-hidden="true"
-            width={size}
-            height={size}
-            draggable={false}
-            className="block select-none pointer-events-none"
-            style={{ width: size, height: size, objectFit: 'contain' }}
-          />
-        ) : (
-          // sakura（セラピスト）は従来どおり：CSS円の中に currentColor のグリフ。
-          <svg width={iconSize} height={iconSize} viewBox="0 0 24 24" style={{ color: iconColor }}>
-            <cfg.Glyph />
-          </svg>
-        )}
+        {/* 実ロゴ画像（リング＋肉球・内側透過）。未保存＝グラデ肉球／保存済み＝白抜き肉球に差し替え。
+            paw=オレンジ→マゼンタ、sakura=ピンク→パープル。各バリアントの画像ペアを使う。 */}
+        <Image
+          src={cfg.images[isSavedNow ? 'saved' : 'unsaved']}
+          alt=""
+          aria-hidden="true"
+          width={size}
+          height={size}
+          draggable={false}
+          className="block select-none pointer-events-none"
+          style={{ width: size, height: size, objectFit: 'contain' }}
+        />
       </button>
     </span>
   );
