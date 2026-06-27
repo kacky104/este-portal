@@ -4,6 +4,7 @@ import { notFound } from 'next/navigation';
 import { createPublicClient } from '@/app/lib/supabase/public';
 import { getTheme, breadcrumbCurrentColor } from '@/app/lib/themes';
 import { formatDiaryDate } from '@/lib/diaryDate';
+import { DiaryTherapistAvatar } from '@/components/DiaryTherapistAvatar';
 
 // ISR：10分ごとに再生成（保存時は /api/revalidate で /salon/[id] 配下を 'layout' 無効化）。
 export const revalidate = 600;
@@ -34,7 +35,7 @@ export default async function TherapistDiaryPage({
     { data: tRow, error },
     { data: diaryRows },
   ] = await Promise.all([
-    supabase.from('therapists').select('id, name, salon_id').eq('id', id).single(),
+    supabase.from('therapists').select('id, name, salon_id, profile_image_url').eq('id', id).single(),
     supabase
       .from('diary_posts')
       .select('id, images, title, created_at')
@@ -77,6 +78,7 @@ export default async function TherapistDiaryPage({
   }));
 
   const therapistName = (tRow.name as string) ?? '';
+  const therapistImage = (tRow.profile_image_url as string | null) ?? null;
   const salonName = (salonRow?.name as string) ?? '';
 
   return (
@@ -126,31 +128,41 @@ export default async function TherapistDiaryPage({
                   )}
                   {/* スマホのみ：画像内オーバーレイ（下部スクリム＋白文字）。sm以上は非表示。 */}
                   <div className="sm:hidden absolute inset-x-0 bottom-0 px-2 pt-6 pb-2 bg-gradient-to-t from-black/70 via-black/25 to-transparent">
-                    <p className="text-[10px] text-white/85" style={{ textShadow: '0 1px 2px rgba(0,0,0,0.6)' }}>{formatDiaryDate(d.createdAt)}</p>
-                    {d.title && (
-                      <h2 className="text-[11px] font-bold text-white line-clamp-2 mt-0.5 break-all" style={{ textShadow: '0 1px 2px rgba(0,0,0,0.6)' }}>
-                        {d.title}
-                      </h2>
-                    )}
+                    <div className="flex items-start gap-1.5">
+                      <DiaryTherapistAvatar src={therapistImage} name={therapistName} size={28} />
+                      <div className="min-w-0 flex-1">
+                        <p className="text-[10px] text-white/85" style={{ textShadow: '0 1px 2px rgba(0,0,0,0.6)' }}>{formatDiaryDate(d.createdAt)}</p>
+                        {d.title && (
+                          <h2 className="text-[11px] font-bold text-white line-clamp-2 mt-0.5 break-all" style={{ textShadow: '0 1px 2px rgba(0,0,0,0.6)' }}>
+                            {d.title}
+                          </h2>
+                        )}
+                      </div>
+                    </div>
                   </div>
                 </div>
                 {/* sm以上：従来どおり画像下にテキスト（スクリムなし）。スマホでは非表示。 */}
                 <div className="p-2.5 hidden sm:block">
-                  <p style={{ fontSize: '11px', color: '#999' }}>{formatDiaryDate(d.createdAt)}</p>
-                  {d.title && (
-                    <h2
-                      className="text-sm font-bold line-clamp-2 mt-0.5 break-all"
-                      style={{
-                        background: 'linear-gradient(to right, #ec4899, #f97316)',
-                        WebkitBackgroundClip: 'text',
-                        backgroundClip: 'text',
-                        WebkitTextFillColor: 'transparent',
-                        color: 'transparent',
-                      }}
-                    >
-                      {d.title}
-                    </h2>
-                  )}
+                  <div className="flex items-start gap-2">
+                    <DiaryTherapistAvatar src={therapistImage} name={therapistName} size={32} />
+                    <div className="min-w-0 flex-1">
+                      <p style={{ fontSize: '11px', color: '#999' }}>{formatDiaryDate(d.createdAt)}</p>
+                      {d.title && (
+                        <h2
+                          className="text-sm font-bold line-clamp-2 mt-0.5 break-all"
+                          style={{
+                            background: 'linear-gradient(to right, #ec4899, #f97316)',
+                            WebkitBackgroundClip: 'text',
+                            backgroundClip: 'text',
+                            WebkitTextFillColor: 'transparent',
+                            color: 'transparent',
+                          }}
+                        >
+                          {d.title}
+                        </h2>
+                      )}
+                    </div>
+                  </div>
                 </div>
               </Link>
             ))}

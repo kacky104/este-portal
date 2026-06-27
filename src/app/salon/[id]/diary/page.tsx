@@ -8,13 +8,15 @@ import { notFound } from 'next/navigation';
 import { createPublicClient } from '@/app/lib/supabase/public';
 import { getTheme, breadcrumbCurrentColor } from '@/app/lib/themes';
 import { formatDiaryDate } from '@/lib/diaryDate';
+import { DiaryTherapistAvatar } from '@/components/DiaryTherapistAvatar';
 
+type TherapistRef = { name: string | null; profile_image_url: string | null };
 type DiaryRow = {
   id: number | string;
   images: string[] | null;
   title: string | null;
   created_at: string;
-  therapists: { name: string | null } | { name: string | null }[] | null;
+  therapists: TherapistRef | TherapistRef[] | null;
 };
 
 // ISR：10分ごとに再生成（保存時は /api/revalidate で即時無効化）。
@@ -46,7 +48,7 @@ export default async function SalonDiaryPage({
       .single(),
     supabase
       .from('diary_posts')
-      .select('id, images, title, created_at, therapists(name)')
+      .select('id, images, title, created_at, therapists(name, profile_image_url)')
       .eq('salon_id', Number(id))
       .order('created_at', { ascending: false }),
   ]);
@@ -80,6 +82,7 @@ export default async function SalonDiaryPage({
       title: r.title ?? '',
       createdAt: r.created_at,
       therapistName: t?.name ?? '',
+      therapistImage: t?.profile_image_url ?? null,
     };
   });
 
@@ -131,37 +134,47 @@ export default async function SalonDiaryPage({
                   )}
                   {/* スマホのみ：画像内オーバーレイ（下部スクリム＋白文字）。sm以上は非表示。 */}
                   <div className="sm:hidden absolute inset-x-0 bottom-0 px-2 pt-6 pb-2 bg-gradient-to-t from-black/70 via-black/25 to-transparent">
-                    <p className="flex items-baseline gap-1 min-w-0" style={{ textShadow: '0 1px 2px rgba(0,0,0,0.6)' }}>
-                      <span className="text-[10px] font-bold text-white truncate">{d.therapistName}</span>
-                      <span className="flex-shrink-0 text-[10px] text-white/85">{formatDiaryDate(d.createdAt)}</span>
-                    </p>
-                    {d.title && (
-                      <h2 className="text-[11px] font-bold text-white line-clamp-2 mt-0.5 break-all" style={{ textShadow: '0 1px 2px rgba(0,0,0,0.6)' }}>
-                        {d.title}
-                      </h2>
-                    )}
+                    <div className="flex items-start gap-1.5">
+                      <DiaryTherapistAvatar src={d.therapistImage} name={d.therapistName} size={28} />
+                      <div className="min-w-0 flex-1">
+                        <p className="flex items-baseline gap-1 min-w-0" style={{ textShadow: '0 1px 2px rgba(0,0,0,0.6)' }}>
+                          <span className="text-[10px] font-bold text-white truncate">{d.therapistName}</span>
+                          <span className="flex-shrink-0 text-[10px] text-white/85">{formatDiaryDate(d.createdAt)}</span>
+                        </p>
+                        {d.title && (
+                          <h2 className="text-[11px] font-bold text-white line-clamp-2 mt-0.5 break-all" style={{ textShadow: '0 1px 2px rgba(0,0,0,0.6)' }}>
+                            {d.title}
+                          </h2>
+                        )}
+                      </div>
+                    </div>
                   </div>
                 </div>
                 {/* sm以上：従来どおり画像下にテキスト（スクリムなし）。スマホでは非表示。 */}
                 <div className="p-2.5 hidden sm:block">
-                  <p className="flex items-baseline gap-1.5 min-w-0">
-                    <span className="text-[11px] text-pink-600 font-bold truncate">{d.therapistName}</span>
-                    <span className="flex-shrink-0" style={{ fontSize: '11px', color: '#999' }}>{formatDiaryDate(d.createdAt)}</span>
-                  </p>
-                  {d.title && (
-                    <h2
-                      className="text-sm font-bold line-clamp-2 mt-0.5 break-all"
-                      style={{
-                        background: 'linear-gradient(to right, #ec4899, #f97316)',
-                        WebkitBackgroundClip: 'text',
-                        backgroundClip: 'text',
-                        WebkitTextFillColor: 'transparent',
-                        color: 'transparent',
-                      }}
-                    >
-                      {d.title}
-                    </h2>
-                  )}
+                  <div className="flex items-start gap-2">
+                    <DiaryTherapistAvatar src={d.therapistImage} name={d.therapistName} size={32} />
+                    <div className="min-w-0 flex-1">
+                      <p className="flex items-baseline gap-1.5 min-w-0">
+                        <span className="text-[11px] text-pink-600 font-bold truncate">{d.therapistName}</span>
+                        <span className="flex-shrink-0" style={{ fontSize: '11px', color: '#999' }}>{formatDiaryDate(d.createdAt)}</span>
+                      </p>
+                      {d.title && (
+                        <h2
+                          className="text-sm font-bold line-clamp-2 mt-0.5 break-all"
+                          style={{
+                            background: 'linear-gradient(to right, #ec4899, #f97316)',
+                            WebkitBackgroundClip: 'text',
+                            backgroundClip: 'text',
+                            WebkitTextFillColor: 'transparent',
+                            color: 'transparent',
+                          }}
+                        >
+                          {d.title}
+                        </h2>
+                      )}
+                    </div>
+                  </div>
                 </div>
               </Link>
             ))}
