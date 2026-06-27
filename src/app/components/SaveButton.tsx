@@ -234,28 +234,55 @@ export function SaveButton({
           width: size,
           height: size,
           zIndex: 1,
-          background: isSavedNow ? c.saved.bg : c.unsaved.bg,
-          border: `1.5px solid ${
-            isSavedNow
-              ? c.saved.border
-              : hovered
-                ? c.unsaved.borderHover
-                : c.unsaved.border
-          }`,
+          // brandIcon（店舗ロゴ）はリング・地色をSVG側で描くので、ボタンの地色・枠線は持たない。
+          background: cfg.brandIcon ? 'transparent' : (isSavedNow ? c.saved.bg : c.unsaved.bg),
+          border: cfg.brandIcon
+            ? 'none'
+            : `1.5px solid ${
+                isSavedNow
+                  ? c.saved.border
+                  : hovered
+                    ? c.unsaved.borderHover
+                    : c.unsaved.border
+              }`,
         }}
       >
-        {/* アイコン塗り：paw はブランドグラデ（defsのlinearGradient）、sakura は currentColor。 */}
-        <svg width={iconSize} height={iconSize} viewBox="0 0 24 24" style={{ color: iconColor }}>
-          {cfg.brandIcon && (
+        {cfg.brandIcon ? (
+          // フクエス正式ロゴ（グラデのリング＋肉球）。
+          //   未保存   ＝ 白い内側＋グラデのリング＋グラデ肉球。
+          //   保存済み ＝ グラデのベタ塗り円＋白抜き肉球（リングは塗りに溶かす方針を採用）。
+          // 肉球は既存 PawGlyph を流用し、内側に余白を取って中央配置（12/24 ≒ 内径の約59%）。
+          <svg width={size} height={size} viewBox="0 0 24 24" aria-hidden="true">
             <defs>
               <linearGradient id={gradId} x1="0" y1="0" x2="1" y2="1">
                 <stop offset="0%" stopColor="#FB923C" />
                 <stop offset="100%" stopColor="#DB2777" />
               </linearGradient>
             </defs>
-          )}
-          <cfg.Glyph fill={iconFill} />
-        </svg>
+            {isSavedNow ? (
+              <>
+                <circle cx="12" cy="12" r="11.8" fill={`url(#${gradId})`} />
+                <svg x="6" y="6" width="12" height="12" viewBox="0 0 24 24">
+                  <PawGlyph fill="#FFFFFF" />
+                </svg>
+              </>
+            ) : (
+              <>
+                {/* 白い内側（どの背景でもロゴらしい抜け感を出す）＋細いグラデのリング。 */}
+                <circle cx="12" cy="12" r="11.8" fill="#FFFFFF" />
+                <circle cx="12" cy="12" r="11" fill="none" stroke={`url(#${gradId})`} strokeWidth="1.6" />
+                <svg x="6" y="6" width="12" height="12" viewBox="0 0 24 24">
+                  <PawGlyph fill={`url(#${gradId})`} />
+                </svg>
+              </>
+            )}
+          </svg>
+        ) : (
+          // sakura（セラピスト）は従来どおり：CSS円の中に currentColor のグリフ。
+          <svg width={iconSize} height={iconSize} viewBox="0 0 24 24" style={{ color: iconColor }}>
+            <cfg.Glyph fill={iconFill} />
+          </svg>
+        )}
       </button>
     </span>
   );
