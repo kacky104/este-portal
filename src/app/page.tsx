@@ -1,4 +1,5 @@
 import Link from "next/link";
+import Image from "next/image";
 import { Logo } from '@/app/components/Logo';
 import { ShuffledSalons } from "./components/ShuffledSalons";
 import { TherapistScroller } from "./components/TherapistScroller";
@@ -236,25 +237,35 @@ export default async function Home() {
         <div className="max-w-5xl mx-auto px-4">
           <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
             <div className="flex items-center gap-2.5">
-              <div className="w-5 h-5 rounded-md bg-pink-50 border border-pink-200 flex items-center justify-center">
-                <span className="text-pink-500 text-[10px] font-bold leading-none">◆</span>
-              </div>
+              {/* ヘッダーと同じフクエスのロゴ（肉球） */}
+              <Image src="/logo.png" alt="フクエス" width={20} height={20} className="w-5 h-5 flex-shrink-0" />
               <span className="text-slate-500 text-sm font-medium">
                 フクエス ～福岡メンズエステポータル～
               </span>
             </div>
             <nav className="flex gap-5 text-xs text-slate-400">
-              {["利用規約", "プライバシーポリシー", "掲載について", "お問い合わせ"].map(
-                (label) => (
-                  <Link
-                    key={label}
-                    href="#"
-                    className="hover:text-pink-600 transition-colors"
-                  >
-                    {label}
-                  </Link>
-                )
-              )}
+              {[
+                { label: "利用規約" },
+                // プライバシーポリシーはスマホのみ半角カナ表示（PCは全角）。href は変えない。
+                { label: "プライバシーポリシー", mobile: "ﾌﾟﾗｲﾊﾞｼｰﾎﾟﾘｼｰ" },
+                { label: "掲載について" },
+                { label: "お問い合わせ" },
+              ].map(({ label, mobile }) => (
+                <Link
+                  key={label}
+                  href="#"
+                  className="hover:text-pink-600 transition-colors whitespace-nowrap"
+                >
+                  {mobile ? (
+                    <>
+                      <span className="sm:hidden">{mobile}</span>
+                      <span className="hidden sm:inline">{label}</span>
+                    </>
+                  ) : (
+                    label
+                  )}
+                </Link>
+              ))}
             </nav>
           </div>
           <p className="text-center text-xs text-slate-300 mt-6">
