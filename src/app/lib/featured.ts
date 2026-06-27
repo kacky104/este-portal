@@ -1,6 +1,7 @@
 import type { FeaturedSalon } from '@/app/components/FeaturedSalonSlider';
 import { createPublicClient } from '@/app/lib/supabase/public';
 import { getBusinessDateJST } from '@/lib/dutyStatus';
+import { cheapestCoursePrice } from '@/lib/coursePrice';
 
 type PublicClient = ReturnType<typeof createPublicClient>;
 
@@ -49,7 +50,7 @@ export async function getFeaturedSalons(
   );
 
   const [{ data: featuredSalonData }, { data: therapistData }] = await Promise.all([
-    supabase.from('salons').select('id, name, area, price, rating').in('id', featuredIds),
+    supabase.from('salons').select('id, name, area, price, rating, courses').in('id', featuredIds),
     supabase.from('therapists').select('id, salon_id, profile_image_url')
       .in('salon_id', featuredIds)
       .not('profile_image_url', 'is', null),
@@ -85,7 +86,8 @@ export async function getFeaturedSalons(
         salonId,
         salonName:       (s.name   as string) ?? '',
         area:            (s.area   as string) ?? '',
-        price:           (s.price  as string) ?? '',
+        // カード料金＝コースメニュー最安（salons一覧と同じ算出）。不可なら従来 price カラムにフォールバック。
+        price:           cheapestCoursePrice(s.courses) || ((s.price  as string) ?? ''),
         rating:          (s.rating as number) ?? 0,
         imageUrl:        imageUrlMap[salonId] ?? undefined,
         therapistImages: sorted
