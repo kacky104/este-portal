@@ -76,13 +76,8 @@ export function XTimeline({
 
   return (
     <div className="py-2">
-      {/* 投稿コンポーザ（approved の therapist/shop のみ） */}
+      {/* 投稿コンポーザ（therapist/shop かつ BANでないとき。承認ゲートは廃止） */}
       {eng.canPost && me && <XComposer me={me} onPosted={onPosted} />}
-      {me && me.status === 'pending' && (me.kind === 'shop' || me.kind === 'therapist') && (
-        <div className="mb-3 p-3 rounded-xl bg-amber-50 border border-amber-100 text-amber-700 text-[12px] leading-relaxed">
-          アカウントが承認されると投稿できます。
-        </div>
-      )}
 
       {/* タブ */}
       <div className="sticky top-14 z-30 -mx-4 px-4 bg-white/90 backdrop-blur-md border-b border-slate-200">

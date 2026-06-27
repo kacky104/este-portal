@@ -1,7 +1,7 @@
 import { notFound } from 'next/navigation';
 import { createClient } from '@/app/lib/supabase/server';
 import { ADMIN_UUID } from '@/app/lib/admin';
-import { XAdmin, type PendingShop, type ModPost, type ModProfile } from './XAdmin';
+import { XAdmin, type ShopRow, type ModPost, type ModProfile } from './XAdmin';
 
 export const dynamic = 'force-dynamic';
 
@@ -14,14 +14,14 @@ export default async function XAdminPage() {
   // 運営のみ。非運営には管理URLの存在を隠すため 404。
   if (!user || user.id !== ADMIN_UUID) notFound();
 
-  // 承認待ち店舗・最近の投稿・最近のプロフィールをまとめて取得。
-  const [pendingRes, postRes, profRes] = await Promise.all([
+  // 認証バッジ管理用の店舗一覧・最近の投稿・最近のプロフィール（BAN/削除用）をまとめて取得。
+  const [shopRes, postRes, profRes] = await Promise.all([
     supabase
       .from('x_profiles')
-      .select('id, handle, display_name, bio, avatar_url, created_at')
+      .select('id, handle, display_name, avatar_url, is_verified, status, created_at')
       .eq('kind', 'shop')
-      .eq('status', 'pending')
-      .order('created_at', { ascending: false }),
+      .order('created_at', { ascending: false })
+      .limit(200),
     supabase
       .from('x_posts')
       .select('id, author_profile_id, body, images, created_at')
@@ -29,12 +29,12 @@ export default async function XAdminPage() {
       .limit(50),
     supabase
       .from('x_profiles')
-      .select('id, handle, display_name, kind, status, created_at')
+      .select('id, handle, display_name, kind, status, is_verified, created_at')
       .order('created_at', { ascending: false })
       .limit(50),
   ]);
 
-  const pending = (pendingRes.data ?? []) as PendingShop[];
+  const shops = (shopRes.data ?? []) as ShopRow[];
   const profiles = (profRes.data ?? []) as ModProfile[];
 
   // 投稿に投稿主名を辞書引きで合流（N+1回避）。モデレーションなので全 status 対象。
@@ -69,5 +69,5 @@ export default async function XAdminPage() {
     authorName: authorDict.get(r.author_profile_id)?.display_name ?? '(不明)',
   }));
 
-  return <XAdmin pending={pending} posts={posts} profiles={profiles} />;
+  return <XAdmin shops={shops} posts={posts} profiles={profiles} />;
 }

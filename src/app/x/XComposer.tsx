@@ -98,6 +98,7 @@ export function XComposer({ me, onPosted }: { me: XProfile; onPosted: (post: XPo
         displayName: me.display_name,
         kind: me.kind,
         avatarUrl: me.avatar_url,
+        isVerified: me.is_verified,
       },
     });
     setBody('');

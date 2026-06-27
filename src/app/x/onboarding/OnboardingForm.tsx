@@ -16,7 +16,7 @@ const BIO_MAX = 160;
 const KINDS: { key: XKind; label: string; desc: string }[] = [
   { key: 'user', label: 'ユーザー', desc: '見る・フォローする専用（投稿はできません）' },
   { key: 'therapist', label: 'セラピスト', desc: '投稿できます／フォロワーを集められます（フォローはしません）' },
-  { key: 'shop', label: 'お店', desc: '投稿・フォロー・フォロワーすべて可能（運営の承認後に利用開始）' },
+  { key: 'shop', label: 'お店', desc: '投稿・フォロー・フォロワーすべて可能（運営確認で認証バッジが付きます）' },
 ];
 
 type HandleState = 'idle' | 'bad' | 'checking' | 'ok' | 'taken';
@@ -40,7 +40,7 @@ export function OnboardingForm({ userId }: { userId: string }) {
   const [handleState, setHandleState] = useState<HandleState>('idle');
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
-  const [done, setDone] = useState<null | 'approved' | 'pending'>(null);
+  const [done, setDone] = useState<null | 'user' | 'therapist' | 'shop'>(null);
 
   // ── handle のリアルタイム検証（形式→重複） ──
   useEffect(() => {
@@ -133,12 +133,10 @@ export function OnboardingForm({ userId }: { userId: string }) {
       return;
     }
 
-    // 結果の status で分岐（shop は pending、user/therapist は approved がトリガで入る）。
-    const status = (data?.status as string) ?? (kind === 'shop' ? 'pending' : 'approved');
-    if (status === 'pending') {
-      setDone('pending');
-    } else {
-      setDone('approved');
+    // 新設計：全 kind が即 approved。承認待ちは無い。shop だけ認証バッジの案内を出す。
+    void data; // status は参照しない（承認ゲート廃止）
+    setDone(kind);
+    if (kind !== 'shop') {
       setTimeout(() => {
         router.replace('/x');
         router.refresh();
@@ -147,14 +145,13 @@ export function OnboardingForm({ userId }: { userId: string }) {
   };
 
   // ── 完了画面 ──
-  if (done === 'pending') {
+  if (done === 'shop') {
     return (
       <div className="py-10 text-center">
-        <div className="text-4xl mb-4">🏬</div>
-        <h2 className="text-xl font-black mb-2">アカウントを作成しました</h2>
-        <div className="mx-auto max-w-sm p-4 rounded-2xl bg-amber-50 border border-amber-100 text-amber-700 text-[13px] leading-relaxed">
-          店舗アカウントは<strong>運営の承認待ち</strong>です。承認されると投稿・フォローが可能になります。
-          審査完了までしばらくお待ちください。
+        <div className="text-4xl mb-4">🎉</div>
+        <h2 className="text-xl font-black mb-2">お店アカウントを開設しました</h2>
+        <div className="mx-auto max-w-sm p-4 rounded-2xl bg-indigo-50 border border-indigo-100 text-indigo-700 text-[13px] leading-relaxed">
+          すぐに投稿・フォローを始められます。運営が確認すると<strong>認証バッジ</strong>が付きます。
         </div>
         <button
           type="button"
@@ -165,12 +162,12 @@ export function OnboardingForm({ userId }: { userId: string }) {
           className="mt-6 inline-block px-8 py-3 rounded-xl text-white font-bold text-sm shadow-md hover:opacity-95 transition-opacity"
           style={{ background: 'linear-gradient(100deg,#6366F1,#8B5CF6)' }}
         >
-          fukuX トップへ
+          fukuX を始める
         </button>
       </div>
     );
   }
-  if (done === 'approved') {
+  if (done) {
     return (
       <div className="py-16 text-center">
         <div className="text-4xl mb-4">🎉</div>
@@ -336,8 +333,8 @@ export function OnboardingForm({ userId }: { userId: string }) {
         {submitting ? '作成中...' : 'アカウントを開設する'}
       </button>
       {kind === 'shop' && (
-        <p className="text-[11px] text-amber-600 text-center -mt-2">
-          ※ お店アカウントは開設後、運営の承認が必要です。
+        <p className="text-[11px] text-slate-400 text-center -mt-2">
+          ※ 開設後すぐに利用できます。運営が確認すると認証バッジが付きます。
         </p>
       )}
     </div>

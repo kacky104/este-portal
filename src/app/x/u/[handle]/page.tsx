@@ -8,7 +8,8 @@ import { XProfileView } from '../../XProfileView';
 // 閲覧者のログイン状態でフォロー状態が変わるため動的レンダリング。
 export const dynamic = 'force-dynamic';
 
-const PROFILE_COLS = 'id, auth_user_id, kind, status, handle, display_name, bio, avatar_url, header_url';
+const PROFILE_COLS =
+  'id, auth_user_id, kind, status, handle, display_name, bio, avatar_url, header_url, is_verified';
 
 type ProfileRow = {
   id: string;
@@ -20,6 +21,7 @@ type ProfileRow = {
   bio: string | null;
   avatar_url: string | null;
   header_url: string | null;
+  is_verified: boolean;
 };
 
 // LIKE のワイルドカード（% _ \）をエスケープし、ilike で大文字小文字無視の「完全一致」にする。
@@ -53,6 +55,7 @@ export default async function XProfilePage({ params }: { params: Promise<{ handl
     bio: t.bio,
     avatar_url: t.avatar_url,
     header_url: t.header_url,
+    is_verified: t.is_verified,
   };
 
   const isOwnProfile = !!viewer.profile && viewer.profile.id === target.id;
@@ -90,6 +93,7 @@ export default async function XProfilePage({ params }: { params: Promise<{ handl
     displayName: target.display_name,
     kind: target.kind,
     avatarUrl: target.avatar_url,
+    isVerified: target.is_verified,
   };
   const posts: XPost[] = (
     (postRes.data ?? []) as Array<{

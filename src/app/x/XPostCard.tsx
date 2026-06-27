@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { XTimeAgo } from './XTimeAgo';
+import { VerifiedBadge } from './VerifiedBadge';
 import type { XPost } from './xPosts';
 
 const KIND_LABEL: Record<string, string> = {
@@ -79,6 +80,7 @@ export function XPostCard({
             <Link href={`/x/u/${a.handle}`} className="font-bold text-sm text-slate-900 truncate max-w-[40%] hover:underline">
               {a.displayName}
             </Link>
+            {a.kind === 'shop' && a.isVerified && <VerifiedBadge />}
             <Link href={`/x/u/${a.handle}`} className="text-xs text-slate-400 truncate hover:underline">
               @{a.handle}
             </Link>

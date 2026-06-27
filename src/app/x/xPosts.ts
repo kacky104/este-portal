@@ -24,6 +24,7 @@ export type XPostAuthor = {
   displayName: string;
   kind: XKind;
   avatarUrl: string | null;
+  isVerified: boolean; // 認証バッジ（shop のみ運用）
 };
 
 export type XPost = {
@@ -45,7 +46,7 @@ type PostRow = {
 };
 
 // 取得した投稿行に投稿主プロフィールを辞書引きで合流（N+1回避：プロフィールは1クエリでまとめて取得）。
-// approved 以外（pending/rejected）の投稿主の投稿は除外する。
+// 新設計：BAN(status='rejected') の投稿主の投稿のみ除外（それ以外は表示）。
 type AnyClient = ReturnType<typeof createPublicClient>;
 async function attachAuthors(client: AnyClient, rows: PostRow[]): Promise<XPost[]> {
   const ids = [...new Set(rows.map((r) => r.author_profile_id).filter(Boolean))];
@@ -53,12 +54,12 @@ async function attachAuthors(client: AnyClient, rows: PostRow[]): Promise<XPost[
 
   const { data: profs } = await client
     .from('x_profiles')
-    .select('id, handle, display_name, kind, avatar_url, status')
+    .select('id, handle, display_name, kind, avatar_url, status, is_verified')
     .in('id', ids);
 
   const dict = new Map<
     string,
-    { handle: string; display_name: string; kind: XKind; avatar_url: string | null; status: string }
+    { handle: string; display_name: string; kind: XKind; avatar_url: string | null; status: string; is_verified: boolean }
   >();
   (profs ?? []).forEach((p) =>
     dict.set(p.id as string, {
@@ -66,14 +67,15 @@ async function attachAuthors(client: AnyClient, rows: PostRow[]): Promise<XPost[
       display_name: (p.display_name as string) ?? '',
       kind: (p.kind as XKind) ?? 'user',
       avatar_url: (p.avatar_url as string | null) ?? null,
-      status: (p.status as string) ?? 'pending',
+      status: (p.status as string) ?? 'approved',
+      is_verified: Boolean(p.is_verified),
     })
   );
 
   const out: XPost[] = [];
   for (const r of rows) {
     const a = dict.get(r.author_profile_id);
-    if (!a || a.status !== 'approved') continue; // approved の投稿主のみ表示
+    if (!a || a.status === 'rejected') continue; // BAN(凍結)の投稿主のみ除外
     out.push({
       id: String(r.id),
       body: r.body ?? null,
@@ -86,6 +88,7 @@ async function attachAuthors(client: AnyClient, rows: PostRow[]): Promise<XPost[
         displayName: a.display_name,
         kind: a.kind,
         avatarUrl: a.avatar_url,
+        isVerified: a.is_verified,
       },
     });
   }

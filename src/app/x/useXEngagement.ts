@@ -35,11 +35,11 @@ export function useXEngagement(opts: {
   const [followingSet, setFollowingSet] = useState<Set<string>>(new Set(initialFolloweeIds));
   const [followPending, setFollowPending] = useState<Set<string>>(new Set());
 
-  // ── 権限（DB側RLSと一致） ──
-  const approved = !!me && me.status === 'approved';
-  const canPost = approved && (me!.kind === 'therapist' || me!.kind === 'shop');
-  const canLike = approved;
-  const canFollow = approved && (me!.kind === 'user' || me!.kind === 'shop');
+  // ── 権限（DB側 x_me_can_act() と一致：BAN(status='rejected')でなければ可） ──
+  const notBanned = !!me && me.status !== 'rejected';
+  const canPost = notBanned && (me!.kind === 'therapist' || me!.kind === 'shop');
+  const canLike = notBanned;
+  const canFollow = notBanned && (me!.kind === 'user' || me!.kind === 'shop');
 
   const likeState = useCallback(
     (post: XPost): LikeState => likes[post.id] ?? { liked: false, count: post.likeCount },
@@ -74,7 +74,7 @@ export function useXEngagement(opts: {
         return;
       }
       if (!canLike) {
-        onToast('アカウントが承認されるといいねできます');
+        onToast('このアカウントはご利用が制限されています');
         return;
       }
       if (likePending.has(post.id)) return;
@@ -150,7 +150,7 @@ export function useXEngagement(opts: {
   );
 
   return {
-    approved,
+    notBanned,
     canPost,
     canLike,
     canFollow,

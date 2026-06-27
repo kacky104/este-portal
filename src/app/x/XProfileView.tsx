@@ -5,6 +5,7 @@ import Link from 'next/link';
 import type { XProfile } from './xProfile';
 import type { XPost } from './xPosts';
 import { XPostCard } from './XPostCard';
+import { VerifiedBadge } from './VerifiedBadge';
 import { useXEngagement } from './useXEngagement';
 
 const KIND_LABEL: Record<string, string> = {
@@ -111,6 +112,7 @@ export function XProfileView({
           <div className="mt-2">
             <div className="flex items-center gap-2">
               <h1 className="text-xl font-black text-slate-900 truncate">{target.display_name}</h1>
+              {target.kind === 'shop' && target.is_verified && <VerifiedBadge size={18} />}
               <span className="text-[10px] font-bold text-indigo-500 bg-indigo-50 rounded-full px-1.5 py-0.5 flex-shrink-0">
                 {KIND_LABEL[target.kind] ?? target.kind}
               </span>
@@ -132,15 +134,10 @@ export function XProfileView({
               )}
             </div>
 
-            {/* 本人向け：承認状態の注記 */}
-            {isOwnProfile && target.status === 'pending' && (
-              <div className="mt-3 p-3 rounded-xl bg-amber-50 border border-amber-100 text-amber-700 text-[12px] leading-relaxed">
-                運営の承認待ちです。承認されると投稿・フォローが利用できるようになります。
-              </div>
-            )}
+            {/* 本人向け：BAN(凍結)時の注記 */}
             {isOwnProfile && target.status === 'rejected' && (
               <div className="mt-3 p-3 rounded-xl bg-rose-50 border border-rose-100 text-rose-600 text-[12px] leading-relaxed">
-                このアカウントは却下されました。プロフィールは他のユーザーには表示されません。
+                このアカウントは運営により凍結されています。投稿・フォローはできず、プロフィールは他のユーザーに表示されません。
               </div>
             )}
           </div>
