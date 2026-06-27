@@ -1,0 +1,264 @@
+'use client';
+
+import { useState } from 'react';
+import Link from 'next/link';
+import { createClient } from '@/app/lib/supabase/client';
+import { XTimeAgo } from '../XTimeAgo';
+
+const supabase = createClient();
+
+export type PendingShop = {
+  id: string;
+  handle: string;
+  display_name: string;
+  bio: string | null;
+  avatar_url: string | null;
+  created_at: string;
+};
+export type ModPost = {
+  id: string;
+  body: string | null;
+  images: string[];
+  createdAt: string;
+  authorHandle: string;
+  authorName: string;
+};
+export type ModProfile = {
+  id: string;
+  handle: string;
+  display_name: string;
+  kind: string;
+  status: string;
+  created_at: string;
+};
+
+const KIND_LABEL: Record<string, string> = { user: 'ユーザー', therapist: 'セラピスト', shop: 'お店' };
+const STATUS_LABEL: Record<string, string> = { approved: '承認済み', pending: '承認待ち', rejected: '却下' };
+
+export function XAdmin({
+  pending: initialPending,
+  posts: initialPosts,
+  profiles: initialProfiles,
+}: {
+  pending: PendingShop[];
+  posts: ModPost[];
+  profiles: ModProfile[];
+}) {
+  const [tab, setTab] = useState<'pending' | 'posts' | 'profiles'>('pending');
+  const [pending, setPending] = useState(initialPending);
+  const [posts, setPosts] = useState(initialPosts);
+  const [profiles, setProfiles] = useState(initialProfiles);
+  const [busy, setBusy] = useState<string | null>(null);
+  const [toast, setToast] = useState('');
+
+  const showToast = (msg: string) => {
+    setToast(msg);
+    window.setTimeout(() => setToast(''), 2800);
+  };
+
+  // 承認 / 却下：x_profiles.status を更新（運営は通常クライアントから RLS/トリガを通過して更新可）。
+  const decide = async (id: string, status: 'approved' | 'rejected') => {
+    if (busy) return;
+    setBusy(id);
+    const { error } = await supabase.from('x_profiles').update({ status }).eq('id', id);
+    setBusy(null);
+    if (error) {
+      showToast(`更新に失敗しました：${error.message}`);
+      return;
+    }
+    setPending((list) => list.filter((p) => p.id !== id));
+    // プロフィール一覧側の表示も更新（あれば）。
+    setProfiles((list) => list.map((p) => (p.id === id ? { ...p, status } : p)));
+    showToast(status === 'approved' ? '承認しました' : '却下しました');
+  };
+
+  const deletePost = async (id: string) => {
+    if (busy) return;
+    if (!window.confirm('この投稿を削除しますか？\nこの操作は取り消せません。')) return;
+    setBusy(id);
+    const { error } = await supabase.from('x_posts').delete().eq('id', id);
+    setBusy(null);
+    if (error) {
+      showToast(`削除に失敗しました：${error.message}`);
+      return;
+    }
+    setPosts((list) => list.filter((p) => p.id !== id));
+    showToast('投稿を削除しました');
+  };
+
+  const deleteProfile = async (id: string, name: string) => {
+    if (busy) return;
+    if (!window.confirm(`プロフィール「${name}」を削除しますか？\nこの操作は取り消せません（投稿等も連動して消える場合があります）。`)) return;
+    setBusy(id);
+    const { error } = await supabase.from('x_profiles').delete().eq('id', id);
+    setBusy(null);
+    if (error) {
+      showToast(`削除に失敗しました：${error.message}`);
+      return;
+    }
+    setProfiles((list) => list.filter((p) => p.id !== id));
+    setPending((list) => list.filter((p) => p.id !== id));
+    showToast('プロフィールを削除しました');
+  };
+
+  return (
+    <div className="py-6">
+      <h1 className="text-xl font-black tracking-tight mb-1">運営パネル</h1>
+      <p className="text-xs text-slate-400 mb-4">fukuX の承認・モデレーション</p>
+
+      {/* タブ */}
+      <div className="flex gap-1 p-1 mb-5 rounded-xl bg-slate-100">
+        {(
+          [
+            ['pending', `承認待ち${pending.length ? `（${pending.length}）` : ''}`],
+            ['posts', '投稿'],
+            ['profiles', 'プロフィール'],
+          ] as const
+        ).map(([key, label]) => (
+          <button
+            key={key}
+            type="button"
+            onClick={() => setTab(key)}
+            className={`flex-1 py-2 rounded-lg text-xs font-bold transition-colors ${
+              tab === key ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-400 hover:text-slate-600'
+            }`}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+
+      {/* ── 承認待ち店舗 ── */}
+      {tab === 'pending' && (
+        <div className="space-y-3">
+          {pending.length === 0 ? (
+            <p className="text-center text-sm text-slate-400 py-12">承認待ちの店舗はありません</p>
+          ) : (
+            pending.map((p) => (
+              <div key={p.id} className="border border-slate-200 rounded-2xl p-3">
+                <div className="flex items-start gap-3">
+                  <span className="relative w-11 h-11 rounded-full overflow-hidden border border-slate-100 bg-gradient-to-br from-indigo-300 to-sky-300 flex items-center justify-center flex-shrink-0">
+                    {p.avatar_url ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img src={p.avatar_url} alt={p.display_name} className="w-full h-full object-cover" />
+                    ) : (
+                      <span className="text-white font-bold">{p.display_name.charAt(0) || '?'}</span>
+                    )}
+                  </span>
+                  <div className="flex-1 min-w-0">
+                    <Link href={`/x/u/${p.handle}`} className="font-bold text-sm text-slate-900 hover:underline">
+                      {p.display_name}
+                    </Link>
+                    <p className="text-xs text-slate-400">
+                      @{p.handle} · <XTimeAgo iso={p.created_at} />
+                    </p>
+                    {p.bio && <p className="text-[12px] text-slate-600 mt-1 leading-relaxed break-words">{p.bio}</p>}
+                  </div>
+                </div>
+                <div className="flex justify-end gap-2 mt-2">
+                  <button
+                    type="button"
+                    onClick={() => decide(p.id, 'rejected')}
+                    disabled={busy === p.id}
+                    className="px-4 py-1.5 rounded-lg border border-rose-200 text-rose-500 text-xs font-bold bg-rose-50 hover:bg-rose-100 transition-colors disabled:opacity-50"
+                  >
+                    却下
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => decide(p.id, 'approved')}
+                    disabled={busy === p.id}
+                    className="px-5 py-1.5 rounded-lg text-white text-xs font-bold shadow-sm disabled:opacity-50"
+                    style={{ background: 'linear-gradient(100deg,#6366F1,#8B5CF6)' }}
+                  >
+                    承認
+                  </button>
+                </div>
+              </div>
+            ))
+          )}
+        </div>
+      )}
+
+      {/* ── 投稿モデレーション ── */}
+      {tab === 'posts' && (
+        <div className="divide-y divide-slate-100">
+          {posts.length === 0 ? (
+            <p className="text-center text-sm text-slate-400 py-12">投稿はありません</p>
+          ) : (
+            posts.map((p) => (
+              <div key={p.id} className="py-3 flex items-start gap-3">
+                <div className="flex-1 min-w-0">
+                  <p className="text-xs text-slate-400">
+                    <span className="font-bold text-slate-600">{p.authorName}</span> @{p.authorHandle} ·{' '}
+                    <XTimeAgo iso={p.createdAt} />
+                  </p>
+                  {p.body && <p className="text-sm text-slate-800 mt-0.5 break-words line-clamp-3">{p.body}</p>}
+                  {p.images.length > 0 && <p className="text-[11px] text-slate-400 mt-0.5">🖼 画像{p.images.length}枚</p>}
+                </div>
+                <button
+                  type="button"
+                  onClick={() => deletePost(p.id)}
+                  disabled={busy === p.id}
+                  className="flex-shrink-0 px-3 py-1 rounded-lg border border-rose-200 text-rose-500 text-[11px] font-bold bg-rose-50 hover:bg-rose-100 transition-colors disabled:opacity-50"
+                >
+                  削除
+                </button>
+              </div>
+            ))
+          )}
+        </div>
+      )}
+
+      {/* ── プロフィールモデレーション ── */}
+      {tab === 'profiles' && (
+        <div className="divide-y divide-slate-100">
+          {profiles.length === 0 ? (
+            <p className="text-center text-sm text-slate-400 py-12">プロフィールはありません</p>
+          ) : (
+            profiles.map((p) => (
+              <div key={p.id} className="py-3 flex items-center gap-3">
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-1.5">
+                    <Link href={`/x/u/${p.handle}`} className="font-bold text-sm text-slate-900 hover:underline truncate">
+                      {p.display_name}
+                    </Link>
+                    <span className="text-[10px] font-bold text-indigo-500 bg-indigo-50 rounded-full px-1.5 py-0.5">
+                      {KIND_LABEL[p.kind] ?? p.kind}
+                    </span>
+                    <span
+                      className={`text-[10px] font-bold rounded-full px-1.5 py-0.5 ${
+                        p.status === 'approved'
+                          ? 'text-emerald-600 bg-emerald-50'
+                          : p.status === 'pending'
+                            ? 'text-amber-600 bg-amber-50'
+                            : 'text-rose-500 bg-rose-50'
+                      }`}
+                    >
+                      {STATUS_LABEL[p.status] ?? p.status}
+                    </span>
+                  </div>
+                  <p className="text-xs text-slate-400">@{p.handle}</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => deleteProfile(p.id, p.display_name)}
+                  disabled={busy === p.id}
+                  className="flex-shrink-0 px-3 py-1 rounded-lg border border-rose-200 text-rose-500 text-[11px] font-bold bg-rose-50 hover:bg-rose-100 transition-colors disabled:opacity-50"
+                >
+                  削除
+                </button>
+              </div>
+            ))
+          )}
+        </div>
+      )}
+
+      {toast && (
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 px-4 py-2.5 rounded-xl bg-slate-900/90 text-white text-sm font-bold shadow-lg">
+          {toast}
+        </div>
+      )}
+    </div>
+  );
+}

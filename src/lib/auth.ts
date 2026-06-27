@@ -20,17 +20,24 @@ function jpAuthError(message: string): string {
   return 'エラーが発生しました。時間をおいて再度お試しください。';
 }
 
-/** 新規登録。Confirm email が ON のとき session は返らない（needsConfirm=true）。 */
+/**
+ * 新規登録。Confirm email が ON のとき session は返らない（needsConfirm=true）。
+ * next: 確認メールのリンクから着地後（/auth/callback）に遷移させたい相対パス（既定は callback の '/'）。
+ *       fukuX のサインアップは next='/x/onboarding' を渡して開設フローへ戻す。会員フローは未指定で従来どおり。
+ */
 export async function signUpWithEmail(
   email: string,
-  password: string
+  password: string,
+  next?: string
 ): Promise<{ ok: boolean; needsConfirm?: boolean; alreadyRegistered?: boolean; error?: string }> {
   const supabase = createClient();
   // 確認リンクの戻り先を実行環境に合わせる（local→localhost / 本番→本番ドメイン）。
   // /auth/callback でセッション交換（exchangeCodeForSession）し、確認完了＝自動ログインにする。
   // ※ Supabase の Redirect URLs 許可リストに各オリジン（/** 付き）の登録が前提。
   const emailRedirectTo =
-    typeof window !== 'undefined' ? `${window.location.origin}/auth/callback` : undefined;
+    typeof window !== 'undefined'
+      ? `${window.location.origin}/auth/callback${next ? `?next=${encodeURIComponent(next)}` : ''}`
+      : undefined;
   const { data, error } = await supabase.auth.signUp({
     email,
     password,
