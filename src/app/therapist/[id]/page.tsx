@@ -9,7 +9,8 @@ import { getBusinessDateRangeJST } from '@/lib/dutyStatus';
 import { getTheme, breadcrumbCurrentColor } from '@/app/lib/themes';
 import { getScheduleWindowStatus } from '@/lib/dutyStatus';
 import { isNewFaceActive } from '@/lib/newFace';
-import { isImasuguLiveRow } from '@/lib/imasugu';
+import { deriveTherapistStatusBadge } from '@/lib/therapistStatusBadge';
+import { TherapistStatusBadge } from '@/components/TherapistStatusBadge';
 import { NewBadge } from '@/components/NewBadge';
 import { TherapistImageSlider } from './TherapistImageSlider';
 import { TherapistDiaryList, type DiaryPostView } from './TherapistDiaryList';
@@ -221,29 +222,21 @@ export default async function TherapistPublicPage({
     </span>
   ) : null;
 
-  // 出勤時間の横に出すステータスバッジ（今すぐ/出勤中/出勤予定/受付終了/お休み）。
-  // 「今すぐ」を最優先（is_available_now かつ available_until が未来）。今すぐ表示時は出勤中は出さない。
-  // 今すぐ・出勤中は点滅（animate-pulse）。それ以外は本日のスケジュール窓に従う。
-  const availableNow = isImasuguLiveRow(tRow);
-  const statusBadge: { label: string; bg: string; color: string; blink: boolean } =
-    availableNow
-      ? { label: '今すぐ', bg: 'linear-gradient(to right, #ec4899, #f97316)', color: '#ffffff', blink: true }
-      : todayWindow === 'onDuty'
-        ? { label: '出勤中', bg: '#22c55e', color: '#ffffff', blink: true }
-        : todayWindow === 'before'
-          ? { label: '出勤予定', bg: '#f97316', color: '#ffffff', blink: false }
-          : todayWindow === 'after'
-            ? { label: '受付終了', bg: '#94a3b8', color: '#ffffff', blink: false }
-            : { label: 'お休み', bg: '#e2e8f0', color: '#475569', blink: false };
-
-  // 共通のステータスバッジ要素（デスクトップ／モバイル両レイアウトで再利用）
+  // 名前隣のステータスバッジ（今すぐ/出勤中/出勤予定/受付終了/お休み）。「今すぐ」最優先。
+  // 今すぐの有効期限（available_until）は時刻依存のため、PC/スマホ共通のクライアントコンポーネント
+  // TherapistStatusBadge がマウント時の現在時刻で再判定する（ISRキャッシュ焼き付き＆PC/スマホの食い違いを防止）。
+  // サーバー初期描画用に同じ純関数でフォールバック値（initial）を作る。今すぐ判定はオーナー枠＋キャスト枠の和集合。
+  const badgeProps = {
+    ownerOn: Boolean(tRow.is_available_now),
+    ownerUntil: (tRow.available_until as string | null) ?? null,
+    castOn: Boolean(tRow.is_available_now_cast),
+    castUntil: (tRow.available_until_cast as string | null) ?? null,
+    todayIsActive: Boolean(todaySched?.is_active),
+    todayStart: (todaySched?.start_time as string | null) ?? null,
+    todayEnd: (todaySched?.end_time as string | null) ?? null,
+  };
   const statusBadgeNode = (
-    <span
-      className={`inline-flex items-center rounded-full text-[11px] font-bold px-2.5 py-0.5 whitespace-nowrap ${statusBadge.blink ? 'animate-pulse' : ''}`}
-      style={{ background: statusBadge.bg, color: statusBadge.color, boxShadow: '0 1px 2px rgba(0,0,0,0.12)' }}
-    >
-      {statusBadge.label}
-    </span>
+    <TherapistStatusBadge {...badgeProps} initial={deriveTherapistStatusBadge({ ...badgeProps, now: new Date() })} />
   );
 
   // モバイルレイアウト用：本日が出勤日か（7日間スケジュールと同じ todayWindow 基準）と、本日のシフト時間。
