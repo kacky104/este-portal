@@ -63,7 +63,18 @@ export default async function WorkingPage({
           {headingArea ? (
             <h1 className="text-2xl font-bold leading-tight">
               <span className="block text-pink-600">{headingArea}</span>
-              <span className="block text-slate-900">現在出勤中のセラピスト</span>
+              <span
+                className="block"
+                style={{
+                  background: 'linear-gradient(to right, #F59E0B, #EC4899)',
+                  WebkitBackgroundClip: 'text',
+                  backgroundClip: 'text',
+                  WebkitTextFillColor: 'transparent',
+                  color: 'transparent',
+                }}
+              >
+                現在出勤中のセラピスト
+              </span>
             </h1>
           ) : (
             <h1
