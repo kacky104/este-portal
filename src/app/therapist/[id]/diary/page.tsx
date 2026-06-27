@@ -10,14 +10,9 @@ import { DiaryPagination } from '@/components/DiaryPagination';
 
 const PAGE_SIZE = 32;
 
-// ISR：10分ごとに再生成（保存時は /api/revalidate で /salon/[id] 配下を 'layout' 無効化）。
-export const revalidate = 600;
-
-// 事前生成はせず、初回アクセス時にその場生成→以降キャッシュ（ランタイムISR）。
-// Next 16 では revalidate を効かせるため generateStaticParams（空配列）が必須。dynamicParams は既定 true。
-export async function generateStaticParams() {
-  return [];
-}
+// ?page ページネーション（searchParams）をサーバーで読むため、リクエスト毎に動的レンダリングする。
+// ISR（revalidate + generateStaticParams）のまま searchParams を読むと DYNAMIC_SERVER_USAGE で500になるため force-dynamic を明示。
+export const dynamic = 'force-dynamic';
 
 type DiaryRow = {
   id: number | string;
