@@ -1,6 +1,7 @@
 'use client';
 
-import { useEffect, useId, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import Image from 'next/image';
 import { isSaved as isSalonSaved, toggleSaved as toggleSalon, SAVED_SALONS_EVENT } from '@/lib/savedSalons';
 import {
   isTherapistSaved,
@@ -185,13 +186,6 @@ export function SaveButton({
   const isSavedNow = mounted && saved;
   const iconSize = Math.round(size * (18 / 33)); // 既定33pxでアイコン18px相当
   const iconColor = isSavedNow ? c.saved.icon : hovered ? c.unsaved.iconHover : c.unsaved.icon;
-  // paw（店舗）はブランドグラデのSVG塗りに差し替える：
-  //   未保存＝白丸にグラデ肉球（url(#grad)）／保存済み＝グラデ丸に白抜き肉球。
-  // 同一ページに複数描画されるため linearGradient の id は useId で一意化する。
-  const gradId = useId();
-  const iconFill = cfg.brandIcon
-    ? (isSavedNow ? '#FFFFFF' : `url(#${gradId})`)
-    : undefined; // sakura は従来どおり currentColor（iconColor）で描画。
 
   return (
     // ラッパ：演出をボタンの周囲に出すため relative + overflow:visible。
@@ -234,8 +228,12 @@ export function SaveButton({
           width: size,
           height: size,
           zIndex: 1,
-          // brandIcon（店舗ロゴ）はリング・地色をSVG側で描くので、ボタンの地色・枠線は持たない。
-          background: cfg.brandIcon ? 'transparent' : (isSavedNow ? c.saved.bg : c.unsaved.bg),
+          // brandIcon（店舗）はボタン自体を「背後の円」として使う：
+          //   未保存＝白い円、保存済み＝ブランドグラデで塗った円。
+          //   その上に実ロゴ画像 /logo.png（内側透過：リング＋肉球のみ不透明）を重ねるため、
+          //   保存済みは内側の透過部にグラデが透けて「内側が塗られた＝保存済み」に見える。
+          // ロゴのリングが輪郭を担うので CSS の枠線は持たない。
+          background: isSavedNow ? c.saved.bg : c.unsaved.bg,
           border: cfg.brandIcon
             ? 'none'
             : `1.5px solid ${
@@ -245,42 +243,26 @@ export function SaveButton({
                     ? c.unsaved.borderHover
                     : c.unsaved.border
               }`,
+          overflow: cfg.brandIcon ? 'hidden' : undefined, // 背後円を円形にクリップ
         }}
       >
         {cfg.brandIcon ? (
-          // フクエス正式ロゴ（グラデのリング＋肉球）。
-          //   未保存   ＝ 白い内側＋グラデのリング＋グラデ肉球。
-          //   保存済み ＝ グラデのベタ塗り円＋白抜き肉球（リングは塗りに溶かす方針を採用）。
-          // 肉球は既存 PawGlyph を流用し、内側に余白を取って中央配置（12/24 ≒ 内径の約59%）。
-          <svg width={size} height={size} viewBox="0 0 24 24" aria-hidden="true">
-            <defs>
-              <linearGradient id={gradId} x1="0" y1="0" x2="1" y2="1">
-                <stop offset="0%" stopColor="#FB923C" />
-                <stop offset="100%" stopColor="#DB2777" />
-              </linearGradient>
-            </defs>
-            {isSavedNow ? (
-              <>
-                <circle cx="12" cy="12" r="11.8" fill={`url(#${gradId})`} />
-                <svg x="6" y="6" width="12" height="12" viewBox="0 0 24 24">
-                  <PawGlyph fill="#FFFFFF" />
-                </svg>
-              </>
-            ) : (
-              <>
-                {/* 白い内側（どの背景でもロゴらしい抜け感を出す）＋細いグラデのリング。 */}
-                <circle cx="12" cy="12" r="11.8" fill="#FFFFFF" />
-                <circle cx="12" cy="12" r="11" fill="none" stroke={`url(#${gradId})`} strokeWidth="1.6" />
-                <svg x="6" y="6" width="12" height="12" viewBox="0 0 24 24">
-                  <PawGlyph fill={`url(#${gradId})`} />
-                </svg>
-              </>
-            )}
-          </svg>
+          // 実ロゴ画像をそのまま表示（SVG再現は廃止）。ボタン全面に contain で配置。
+          // 背後はボタン地色（未保存=白／保存済み=グラデ）。内側透過のため保存済みはグラデが透ける。
+          <Image
+            src="/logo.png"
+            alt=""
+            aria-hidden="true"
+            width={size}
+            height={size}
+            draggable={false}
+            className="block select-none pointer-events-none"
+            style={{ width: size, height: size, objectFit: 'contain' }}
+          />
         ) : (
           // sakura（セラピスト）は従来どおり：CSS円の中に currentColor のグリフ。
           <svg width={iconSize} height={iconSize} viewBox="0 0 24 24" style={{ color: iconColor }}>
-            <cfg.Glyph fill={iconFill} />
+            <cfg.Glyph />
           </svg>
         )}
       </button>
