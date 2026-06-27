@@ -1,3 +1,5 @@
+import { SaveButton } from '@/app/components/SaveButton';
+
 // サロン詳細ページの主要アクション（ネット予約／電話をする）。
 //
 // ── 今回は「見た目のみ」。後日データを繋ぐ“口”だけ用意する ──
@@ -8,9 +10,22 @@
 //  - phone      : 電話番号。指定時は tel: リンク（スマホは発信／PCも tel: で対応）。
 //                 未設定のときは無効プレビュー表示。本番運用では「未設定なら非表示」想定。
 //
-// 現状は呼び出し側が props を渡していないため、両ボタンとも「押しても何も起きない」プレビュー。
+// 現状は予約/電話の props を渡していないため、両ボタンとも「押しても何も起きない」プレビュー。
 // データ接続時は <SalonActionButtons reserveUrl={...} phone={salon.phone} /> と渡すだけで機能する。
-export function SalonActionButtons({ reserveUrl, phone }: { reserveUrl?: string | null; phone?: string | null }) {
+//
+// salonId / salonName を渡すと、右端にサロン保存ボタン（SaveButton paw）を表示する。
+// 保存状態は SaveButton 側が localStorage で自己完結管理するため、ここでの初期状態取得は不要。
+export function SalonActionButtons({
+  reserveUrl,
+  phone,
+  salonId,
+  salonName,
+}: {
+  reserveUrl?: string | null;
+  phone?: string | null;
+  salonId?: number;
+  salonName?: string;
+}) {
   const base =
     'flex-1 inline-flex items-center justify-center gap-2 rounded-xl px-4 py-3.5 text-sm font-bold shadow-sm transition-all';
 
@@ -55,6 +70,13 @@ export function SalonActionButtons({ reserveUrl, phone }: { reserveUrl?: string 
         <button type="button" aria-disabled="true" className={`${base} bg-white cursor-default`} style={phoneStyle}>
           {phoneIcon}電話をする
         </button>
+      )}
+
+      {/* ── サロン保存ボタン（右端・既存 SaveButton paw を流用。状態は SaveButton 側で自己完結） ── */}
+      {salonId != null && (
+        <span className="flex-shrink-0 inline-flex items-center">
+          <SaveButton kind="salon" item={{ id: salonId, name: salonName ?? '' }} variant="paw" />
+        </span>
       )}
     </div>
   );

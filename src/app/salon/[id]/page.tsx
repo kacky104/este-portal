@@ -269,9 +269,10 @@ export default async function SalonPage({
           <SalonHeaderSlider images={salonImages} />
         </div>
 
-        {/* ─── 主要アクション（ネット予約 / 電話をする）。今回は見た目のみ・データ未連携 ───
-            データ接続時は <SalonActionButtons reserveUrl={予約URL} phone={salon.phone} /> を渡すだけ。 */}
-        <SalonActionButtons />
+        {/* ─── 主要アクション（ネット予約 / 電話をする）＋ 右端にサロン保存ボタン ───
+            予約/電話は今回見た目のみ・データ未連携。保存ボタンは既存 SaveButton を配線（localStorage 自己完結）。
+            データ接続時は <SalonActionButtons reserveUrl={予約URL} phone={salon.phone} … /> を渡すだけ。 */}
+        <SalonActionButtons salonId={Number(id)} salonName={salon.name} />
 
         {/* ─── Two-column layout ───────────────────────── */}
         {/* スマホはブロック間の隙間を半分（space-y-3 / gap-3）。md+ は従来どおり。 */}
