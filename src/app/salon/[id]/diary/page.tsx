@@ -10,6 +10,9 @@ import { getTheme, breadcrumbCurrentColor } from '@/app/lib/themes';
 import { formatDiaryDate } from '@/lib/diaryDate';
 import { DiaryTherapistAvatar } from '@/components/DiaryTherapistAvatar';
 import { DiaryNewBadge } from '@/components/DiaryNewBadge';
+import { DiaryPagination } from '@/components/DiaryPagination';
+
+const PAGE_SIZE = 32;
 
 type TherapistRef = { name: string | null; profile_image_url: string | null };
 type DiaryRow = {
@@ -31,16 +34,23 @@ export async function generateStaticParams() {
 
 export default async function SalonDiaryPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ id: string }>;
+  searchParams: Promise<{ page?: string | string[] }>;
 }) {
   const { id } = await params;
+  const sp = await searchParams;
+  const pageParam = Array.isArray(sp.page) ? sp.page[0] : sp.page;
+  const page = Math.max(1, Math.floor(Number(pageParam)) || 1);
+  const offset = (page - 1) * PAGE_SIZE;
   const supabase = createPublicClient();
 
   // salons と写メ日記一覧は互いに独立なので並列取得。
+  // 日記は range で1ページ32件＋count: 'exact' で総件数を同時取得。
   const [
     { data: salonRow, error },
-    { data: diaryRows },
+    { data: diaryRows, count },
   ] = await Promise.all([
     supabase
       .from('salons')
@@ -49,11 +59,14 @@ export default async function SalonDiaryPage({
       .single(),
     supabase
       .from('diary_posts')
-      .select('id, images, title, created_at, therapists(name, profile_image_url)')
+      .select('id, images, title, created_at, therapists(name, profile_image_url)', { count: 'exact' })
       .eq('salon_id', Number(id))
-      .order('created_at', { ascending: false }),
+      .order('created_at', { ascending: false })
+      .range(offset, offset + PAGE_SIZE - 1),
   ]);
   if (error || !salonRow) notFound();
+
+  const totalPages = Math.max(1, Math.ceil((count ?? 0) / PAGE_SIZE));
 
   const theme = getTheme(salonRow.theme as string | null);
   const { data: wallpaperRow } = await supabase
@@ -183,6 +196,8 @@ export default async function SalonDiaryPage({
             ))}
           </div>
         )}
+
+        <DiaryPagination basePath={`/salon/${id}/diary`} page={page} totalPages={totalPages} />
       </main>
     </div>
   );

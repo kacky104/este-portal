@@ -6,6 +6,9 @@ import { getTheme, breadcrumbCurrentColor } from '@/app/lib/themes';
 import { formatDiaryDate } from '@/lib/diaryDate';
 import { DiaryTherapistAvatar } from '@/components/DiaryTherapistAvatar';
 import { DiaryNewBadge } from '@/components/DiaryNewBadge';
+import { DiaryPagination } from '@/components/DiaryPagination';
+
+const PAGE_SIZE = 32;
 
 // ISR：10分ごとに再生成（保存時は /api/revalidate で /salon/[id] 配下を 'layout' 無効化）。
 export const revalidate = 600;
@@ -25,25 +28,35 @@ type DiaryRow = {
 
 export default async function TherapistDiaryPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ id: string }>;
+  searchParams: Promise<{ page?: string | string[] }>;
 }) {
   const { id } = await params;
+  const sp = await searchParams;
+  const pageParam = Array.isArray(sp.page) ? sp.page[0] : sp.page;
+  const page = Math.max(1, Math.floor(Number(pageParam)) || 1);
+  const offset = (page - 1) * PAGE_SIZE;
   const supabase = createPublicClient();
 
   // therapist 本体と写メ日記は id だけに依存するので並列取得。
+  // 日記は range で1ページ32件＋count: 'exact' で総件数を同時取得。
   const [
     { data: tRow, error },
-    { data: diaryRows },
+    { data: diaryRows, count },
   ] = await Promise.all([
     supabase.from('therapists').select('id, name, salon_id, profile_image_url').eq('id', id).single(),
     supabase
       .from('diary_posts')
-      .select('id, images, title, created_at')
+      .select('id, images, title, created_at', { count: 'exact' })
       .eq('therapist_id', Number(id))
-      .order('created_at', { ascending: false }),
+      .order('created_at', { ascending: false })
+      .range(offset, offset + PAGE_SIZE - 1),
   ]);
   if (error || !tRow) notFound();
+
+  const totalPages = Math.max(1, Math.ceil((count ?? 0) / PAGE_SIZE));
 
   const { data: salonRow } = await supabase
     .from('salons')
@@ -169,6 +182,8 @@ export default async function TherapistDiaryPage({
             ))}
           </div>
         )}
+
+        <DiaryPagination basePath={`/therapist/${id}/diary`} page={page} totalPages={totalPages} />
       </main>
     </div>
   );

@@ -7,6 +7,9 @@ import { NotificationBell } from '@/app/components/NotificationBell';
 import { VipLetterIcon } from '@/app/components/VipLetterIcon';
 import { formatDiaryDate } from '@/lib/diaryDate';
 import { DiaryNewBadge } from '@/components/DiaryNewBadge';
+import { DiaryPagination } from '@/components/DiaryPagination';
+
+const PAGE_SIZE = 32;
 
 export const metadata = {
   title: '写メ日記 | フクエス ～福岡メンズエステポータル～',
@@ -22,13 +25,25 @@ type DiaryRow = {
   salons: { name: string | null } | { name: string | null }[] | null;
 };
 
-export default async function DiaryListPage() {
+export default async function DiaryListPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ page?: string | string[] }>;
+}) {
+  const sp = await searchParams;
+  const pageParam = Array.isArray(sp.page) ? sp.page[0] : sp.page;
+  const page = Math.max(1, Math.floor(Number(pageParam)) || 1);
+  const offset = (page - 1) * PAGE_SIZE;
+
   const supabase = createPublicClient();
-  const { data } = await supabase
+  // range で1ページ32件取得＋count: 'exact' で総件数を同時取得（ページ数算出に使う）。
+  const { data, count } = await supabase
     .from('diary_posts')
-    .select('id, images, title, content, created_at, therapists(name), salons(name)')
+    .select('id, images, title, content, created_at, therapists(name), salons(name)', { count: 'exact' })
     .order('created_at', { ascending: false })
-    .limit(60);
+    .range(offset, offset + PAGE_SIZE - 1);
+
+  const totalPages = Math.max(1, Math.ceil((count ?? 0) / PAGE_SIZE));
 
   const diaries = ((data ?? []) as unknown as DiaryRow[]).map((r) => {
     const t = Array.isArray(r.therapists) ? r.therapists[0] : r.therapists;
@@ -118,6 +133,8 @@ export default async function DiaryListPage() {
             ))}
           </div>
         )}
+
+        <DiaryPagination basePath="/diary" page={page} totalPages={totalPages} />
       </main>
 
       {/* Footer */}
