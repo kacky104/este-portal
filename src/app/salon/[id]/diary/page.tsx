@@ -124,7 +124,7 @@ export default async function SalonDiaryPage({
             写メ日記はまだありません
           </p>
         ) : (
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-1.5 sm:gap-3">
             {diaries.map((d) => (
               <Link key={d.id} href={`/diary/${d.id}?from=salon`} className="group bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden hover:shadow-md transition-shadow">
                 <div className="aspect-square bg-slate-100">
