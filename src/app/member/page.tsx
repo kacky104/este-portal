@@ -8,7 +8,6 @@ import { SavedSalonsMenu } from '@/app/components/SavedSalonsMenu';
 import { AccountMenu } from '@/app/components/AccountMenu';
 import { NotificationBell } from '@/app/components/NotificationBell';
 import { VipLetterIcon } from '@/app/components/VipLetterIcon';
-import { PawGlyph, SakuraGlyph } from '@/app/components/SaveButton';
 
 // 会員個別の内容（ログイン必須・保存状況に依存）のため ISR はかけず動的のままにする。
 // cookie を読む createClient() の時点で動的になるが、意図を明示しておく。
@@ -139,9 +138,7 @@ export default async function MemberPage() {
             className="group flex flex-col justify-center gap-3 rounded-2xl border border-pink-100 bg-white p-4 sm:p-5 shadow-sm hover:border-pink-300 hover:shadow-md transition-all"
           >
             <div className="flex items-center gap-2">
-              <span className="w-7 h-7 rounded-full bg-pink-50 flex items-center justify-center flex-shrink-0" style={{ color: '#EC4899' }}>
-                <svg width="16" height="16" viewBox="0 0 24 24"><PawGlyph /></svg>
-              </span>
+              <Image src="/logo.png" alt="" aria-hidden width={28} height={28} className="w-7 h-7 flex-shrink-0" />
               <span className="text-xs sm:text-sm font-medium text-slate-500">保存サロン</span>
             </div>
             <div className="flex items-baseline justify-center gap-3">
@@ -161,9 +158,7 @@ export default async function MemberPage() {
             className="group flex flex-col justify-center gap-3 rounded-2xl border border-purple-100 bg-white p-4 sm:p-5 shadow-sm hover:border-purple-300 hover:shadow-md transition-all"
           >
             <div className="flex items-center gap-2">
-              <span className="w-7 h-7 rounded-full bg-purple-50 flex items-center justify-center flex-shrink-0" style={{ color: '#A855F7' }}>
-                <svg width="16" height="16" viewBox="0 0 24 24"><SakuraGlyph /></svg>
-              </span>
+              <Image src="/logo-therapist.png" alt="" aria-hidden width={28} height={28} className="w-7 h-7 flex-shrink-0" />
               <span className="text-xs sm:text-sm font-medium text-slate-500">保存セラピスト</span>
             </div>
             <div className="flex items-baseline justify-center gap-3">
