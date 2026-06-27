@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useId, useRef, useState } from 'react';
 import { isSaved as isSalonSaved, toggleSaved as toggleSalon, SAVED_SALONS_EVENT } from '@/lib/savedSalons';
 import {
   isTherapistSaved,
@@ -44,8 +44,8 @@ function ensureFxStyles() {
 
 // ── グリフ（すべて塗りで表現。輪郭線だと重なりが汚いため） ──
 // 店舗＝肉球（paw）／セラピスト＝桜（sakura）の唯一のソース。会員ダッシュボード等でも参照する。
-export const PawGlyph = () => (
-  <g fill="currentColor">
+export const PawGlyph = ({ fill = 'currentColor' }: { fill?: string } = {}) => (
+  <g fill={fill}>
     <ellipse cx="12" cy="17" rx="5.2" ry="4.6" />
     <ellipse cx="5.8" cy="11" rx="1.9" ry="2.5" transform="rotate(-18 5.8 11)" />
     <ellipse cx="9.7" cy="7.6" rx="2" ry="2.7" transform="rotate(-7 9.7 7.6)" />
@@ -55,8 +55,8 @@ export const PawGlyph = () => (
 );
 
 const SAKURA_PETAL = 'M12 12C9 12 7.5 6.5 9 4 10 2.5 11 4.5 12 5.5 13 4.5 14 2.5 15 4 16.5 6.5 15 12 12 12Z';
-export const SakuraGlyph = () => (
-  <g fill="currentColor">
+export const SakuraGlyph = ({ fill = 'currentColor' }: { fill?: string } = {}) => (
+  <g fill={fill}>
     {[0, 72, 144, 216, 288].map(deg => (
       <path key={deg} d={SAKURA_PETAL} transform={`rotate(${deg} 12 12)`} />
     ))}
@@ -84,10 +84,13 @@ const FLUTTER_PARTICLES = Array.from({ length: 8 }, (_, i) => {
 
 // ── バリアント別の配色・グリフ・粒 ──
 // 未保存は共通（白丸/薄グレー枠/グレー塗り）。保存・ホバー枠・粒の色を variant 別に持つ。
-// paw（店舗）＝ピンク、sakura（セラピスト）＝紫。
+// paw（店舗）＝フクエスのブランドグラデ（オレンジ→マゼンタ）、sakura（セラピスト）＝紫。
+// paw のアイコン色は VARIANTS.brandIcon=true 側でブランドグラデのSVG塗りに差し替えるため、
+// ここの icon/iconHover は paw では実質未使用（型の互換のため残す）。
+const BRAND_GRADIENT = 'linear-gradient(95deg,#FB923C,#DB2777)';
 const PINK = {
-  unsaved: { bg: '#FFFFFF', border: '#E5E7EB', borderHover: '#F9A8D4', icon: '#9CA3AF', iconHover: '#EC4899' },
-  saved:   { bg: '#EC4899', border: '#EC4899', icon: '#FFFFFF' },
+  unsaved: { bg: '#FFFFFF', border: '#E5E7EB', borderHover: '#FDBA74', icon: '#9CA3AF', iconHover: '#DB2777' },
+  saved:   { bg: BRAND_GRADIENT, border: '#DB2777', icon: '#FFFFFF' },
 } as const;
 const PURPLE = {
   unsaved: { bg: '#FFFFFF', border: '#E5E7EB', borderHover: '#D8B4FE', icon: '#9CA3AF', iconHover: '#EC4899' },
@@ -96,11 +99,13 @@ const PURPLE = {
 const VARIANTS = {
   paw: {
     Glyph: PawGlyph, Particle: PawGlyph, particles: BURST_PARTICLES,
-    particleSize: 11, animClass: 'save-fx-burst', colors: PINK, particleColor: '#EC4899',
+    particleSize: 11, animClass: 'save-fx-burst', colors: PINK, particleColor: '#DB2777',
+    brandIcon: true,
   },
   sakura: {
     Glyph: SakuraGlyph, Particle: PetalGlyph, particles: FLUTTER_PARTICLES,
     particleSize: 12, animClass: 'save-fx-flutter', colors: PURPLE, particleColor: '#A855F7',
+    brandIcon: false,
   },
 } as const;
 
@@ -180,6 +185,13 @@ export function SaveButton({
   const isSavedNow = mounted && saved;
   const iconSize = Math.round(size * (18 / 33)); // 既定33pxでアイコン18px相当
   const iconColor = isSavedNow ? c.saved.icon : hovered ? c.unsaved.iconHover : c.unsaved.icon;
+  // paw（店舗）はブランドグラデのSVG塗りに差し替える：
+  //   未保存＝白丸にグラデ肉球（url(#grad)）／保存済み＝グラデ丸に白抜き肉球。
+  // 同一ページに複数描画されるため linearGradient の id は useId で一意化する。
+  const gradId = useId();
+  const iconFill = cfg.brandIcon
+    ? (isSavedNow ? '#FFFFFF' : `url(#${gradId})`)
+    : undefined; // sakura は従来どおり currentColor（iconColor）で描画。
 
   return (
     // ラッパ：演出をボタンの周囲に出すため relative + overflow:visible。
@@ -232,9 +244,17 @@ export function SaveButton({
           }`,
         }}
       >
-        {/* アイコンは塗り（currentColor）。未保存はグレー（ホバーで色付き）、保存済みは白。 */}
+        {/* アイコン塗り：paw はブランドグラデ（defsのlinearGradient）、sakura は currentColor。 */}
         <svg width={iconSize} height={iconSize} viewBox="0 0 24 24" style={{ color: iconColor }}>
-          <cfg.Glyph />
+          {cfg.brandIcon && (
+            <defs>
+              <linearGradient id={gradId} x1="0" y1="0" x2="1" y2="1">
+                <stop offset="0%" stopColor="#FB923C" />
+                <stop offset="100%" stopColor="#DB2777" />
+              </linearGradient>
+            </defs>
+          )}
+          <cfg.Glyph fill={iconFill} />
         </svg>
       </button>
     </span>
