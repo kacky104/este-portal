@@ -33,6 +33,7 @@ import { SalonTherapists, SalonAllTherapists, SalonNewFaceTherapists } from "@/c
 import { SalonDiarySection } from "@/components/DiarySection";
 import SalonHeaderSlider from "@/components/SalonHeaderSlider";
 import { SalonNameBanner } from "./SalonNameBanner";
+import { SalonActionButtons } from "./SalonActionButtons";
 import { CollapsibleCourses } from "./CollapsibleCourses";
 import { CollapsibleSection } from "./CollapsibleSection";
 import { ViewHistoryLogger } from "@/app/components/ViewHistoryLogger";
@@ -267,6 +268,10 @@ export default async function SalonPage({
         <div className="rounded-2xl border shadow-sm overflow-hidden mb-4" style={{ backgroundColor: theme.card, borderColor: theme.cardBorder }}>
           <SalonHeaderSlider images={salonImages} />
         </div>
+
+        {/* ─── 主要アクション（ネット予約 / 電話をする）。今回は見た目のみ・データ未連携 ───
+            データ接続時は <SalonActionButtons reserveUrl={予約URL} phone={salon.phone} /> を渡すだけ。 */}
+        <SalonActionButtons />
 
         {/* ─── Two-column layout ───────────────────────── */}
         {/* スマホはブロック間の隙間を半分（space-y-3 / gap-3）。md+ は従来どおり。 */}
