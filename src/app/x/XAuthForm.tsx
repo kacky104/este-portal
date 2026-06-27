@@ -26,6 +26,17 @@ export function XAuthForm({ initialMode }: { initialMode: 'login' | 'signup' }) 
   const [error, setError] = useState('');
   const [info, setInfo] = useState('');
   const [loading, setLoading] = useState(false);
+  // 既存メアド（＝フクエス会員など）でサインアップを試みたときの「ログインへ誘導」表示フラグ。
+  const [alreadyExists, setAlreadyExists] = useState(false);
+
+  // サインアップ→ログインへ、入力済みメールを保持したまま切替（状態でメアド引き継ぎ）。
+  const goLogin = () => {
+    setMode('login');
+    setAlreadyExists(false);
+    setError('');
+    setInfo('');
+    setPassword('');
+  };
 
   // 既ログインなら状態表示＋「fukuXへ進む」。
   const [currentEmail, setCurrentEmail] = useState<string | null>(null);
@@ -52,6 +63,7 @@ export function XAuthForm({ initialMode }: { initialMode: 'login' | 'signup' }) 
     e.preventDefault();
     setError('');
     setInfo('');
+    setAlreadyExists(false);
     if (!email || !password) {
       setError('メールアドレスとパスワードを入力してください。');
       return;
@@ -68,21 +80,28 @@ export function XAuthForm({ initialMode }: { initialMode: 'login' | 'signup' }) 
       if (mode === 'signup') {
         // 確認メールの着地先を /x/onboarding に（既存 callback の next 機構をそのまま利用）。
         const res = await signUpWithEmail(email.trim(), password, DEST);
+
+        // 「登録済みらしき応答」は一律ログインへ倒す（メッセージ文字列だけに依存しない）：
+        //  (b) 曖昧応答＝列挙対策で alreadyRegistered フラグ（本プロジェクトの実挙動）／
+        //  (a) 明示エラー＝「既に登録」系メッセージ。どちらでも親切誘導に変換。
+        const looksRegistered =
+          res.alreadyRegistered === true ||
+          (!res.ok && /既に登録|already regist|already been regist|user already/i.test(res.error ?? ''));
+        if (looksRegistered) {
+          setAlreadyExists(true);
+          setPassword('');
+          return;
+        }
         if (!res.ok) {
           setError(res.error ?? '登録に失敗しました。');
           return;
         }
-        if (res.alreadyRegistered) {
-          setError('このメールアドレスは既に登録済みです。ログインしてください。');
-          setMode('login');
-          setPassword('');
-          return;
-        }
         if (res.needsConfirm) {
+          // 新規メール＝確認メール送信。ただし列挙対策で既存メールでも同応答になり得るため、
+          // 「すでに登録済みならログイン」も併記した両対応の文言にする。
           setInfo(
-            `${email.trim()} に確認メールを送信しました。メール内のリンクから登録を完了すると、アカウント開設に進めます。`
+            `${email.trim()} に確認メールを送信しました。メール内のリンクから登録を完了すると、アカウント開設に進めます。すでにアカウントをお持ちの場合は、下の「ログイン」からそのままお進みください。`
           );
-          setMode('login');
           setPassword('');
           return;
         }
@@ -159,6 +178,7 @@ export function XAuthForm({ initialMode }: { initialMode: 'login' | 'signup' }) 
                     setMode(m);
                     setError('');
                     setInfo('');
+                    setAlreadyExists(false);
                   }}
                   className={`flex-1 py-2 rounded-lg text-sm font-bold transition-colors ${
                     mode === m ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-400 hover:text-slate-600'
@@ -169,10 +189,38 @@ export function XAuthForm({ initialMode }: { initialMode: 'login' | 'signup' }) 
               ))}
             </div>
 
+            {/* サインアップ時：フクエス会員はログインでOK、という案内を常時表示 */}
+            {mode === 'signup' && !alreadyExists && (
+              <div className="mb-4 p-3 rounded-xl bg-indigo-50 border border-indigo-100 text-[12px] text-indigo-700 leading-relaxed">
+                フクエス会員の方は<strong>新規登録は不要</strong>です。同じメールアドレスとパスワードで、そのままログインできます。
+                <button type="button" onClick={goLogin} className="block mt-1 font-bold underline hover:opacity-80">
+                  ログインはこちら →
+                </button>
+              </div>
+            )}
+
+            {/* 既存メアドでサインアップを試みたとき：行き止まりにせずログインへ誘導（メアドは保持） */}
+            {alreadyExists && (
+              <div className="mb-4 p-3 rounded-xl bg-indigo-50 border border-indigo-200 text-[12px] text-indigo-700 leading-relaxed">
+                このメールアドレスは<strong>すでにご利用可能</strong>です（フクエスのアカウントなど）。ログインして fukuX を始めましょう。
+                <button
+                  type="button"
+                  onClick={goLogin}
+                  className="mt-2 w-full py-2 rounded-lg text-white font-bold text-sm hover:opacity-95 transition-opacity"
+                  style={{ background: 'linear-gradient(100deg,#6366F1,#8B5CF6)' }}
+                >
+                  ログインへ進む（{email.trim()}）
+                </button>
+              </div>
+            )}
+
             <form onSubmit={submit} className="space-y-4">
               {info && (
                 <div className="p-3 rounded-xl bg-emerald-50 border border-emerald-100 text-emerald-600 text-[12px] leading-relaxed">
                   {info}
+                  <button type="button" onClick={goLogin} className="block mt-1 font-bold text-indigo-600 underline hover:opacity-80">
+                    ログインへ進む →
+                  </button>
                 </div>
               )}
               {error && (
@@ -187,7 +235,10 @@ export function XAuthForm({ initialMode }: { initialMode: 'login' | 'signup' }) 
                   type="email"
                   autoComplete="email"
                   value={email}
-                  onChange={(e) => setEmail(e.target.value)}
+                  onChange={(e) => {
+                    setEmail(e.target.value);
+                    if (alreadyExists) setAlreadyExists(false);
+                  }}
                   placeholder="you@example.com"
                   required
                   disabled={loading}
@@ -226,12 +277,15 @@ export function XAuthForm({ initialMode }: { initialMode: 'login' | 'signup' }) 
             <div className="mt-5 space-y-2 text-[11px] text-slate-400 leading-relaxed">
               {mode === 'signup' && <p>登録後、確認メールが届きます。メール内のリンクで登録を完了してください。</p>}
               {mode === 'login' && (
-                <p>
-                  パスワードをお忘れの方：
-                  <Link href="/forgot-password" className="text-indigo-600 font-medium hover:underline ml-1">
-                    再設定はこちら →
-                  </Link>
-                </p>
+                <>
+                  <p>fukuX が初めての方も、ログインすると続けてアカウント開設に進めます。</p>
+                  <p>
+                    パスワードをお忘れの方：
+                    <Link href="/forgot-password" className="text-indigo-600 font-medium hover:underline ml-1">
+                      再設定はこちら →
+                    </Link>
+                  </p>
+                </>
               )}
             </div>
           </>
