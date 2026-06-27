@@ -241,11 +241,11 @@ export function SalonCard({ salon, therapists, showAge = false, areaNextToDuty =
 
   // 共通の小要素（モバイル/デスクトップ両レイアウトで使い回し）
   const hoursEl = (
-    <span className="inline-flex items-center gap-1 text-xs text-slate-500">
+    <span className="inline-flex items-center gap-1 text-xs text-slate-500 min-w-0">
       <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-slate-400 flex-shrink-0">
         <circle cx="12" cy="12" r="10" /><path d="M12 6v6l4 2" />
       </svg>
-      {salon.hours}
+      <span className="truncate">{salon.hours}</span>
     </span>
   );
   const dutyBadge = (
@@ -282,7 +282,7 @@ export function SalonCard({ salon, therapists, showAge = false, areaNextToDuty =
       <RatingDisplay rating={salon.rating} reviewCount={salon.reviewCount} />
     </div>
   );
-  const priceEl = <p className="text-pink-600 font-bold text-sm">{salon.price}</p>;
+  const priceEl = <p className="text-pink-600 font-bold text-sm whitespace-nowrap flex-shrink-0">{salon.price}</p>;
   const detailBtn = (
     <span className="flex-shrink-0 px-4 py-2 rounded-xl bg-pink-600 text-white font-bold text-xs group-hover:bg-pink-500 transition-colors shadow-sm shadow-pink-500/20">
       詳しく見る →
@@ -343,16 +343,16 @@ export function SalonCard({ salon, therapists, showAge = false, areaNextToDuty =
             <div className="flex items-center gap-2 mb-0.5">
               <RatingDisplay rating={salon.rating} reviewCount={salon.reviewCount} />
             </div>
-            {/* 料金の右隣に営業時間 */}
-            <div className="flex items-center gap-2 flex-wrap">
-              <p className="text-pink-600 font-bold text-sm">{salon.price}</p>
+            {/* 料金の右隣に営業時間（1行固定：料金はフル表示、営業時間が縮む/省略） */}
+            <div className="flex items-center gap-2 min-w-0 flex-nowrap">
+              <p className="text-pink-600 font-bold text-sm whitespace-nowrap flex-shrink-0">{salon.price}</p>
               {hoursEl}
             </div>
           </div>
         ) : (
           <div>
             <p className="text-[11px] text-slate-400 mb-0.5">料金目安</p>
-            <p className="text-pink-600 font-bold text-sm">{salon.price}</p>
+            <p className="text-pink-600 font-bold text-sm whitespace-nowrap">{salon.price}</p>
           </div>
         )}
         {detailBtn}
@@ -375,12 +375,13 @@ export function SalonCard({ salon, therapists, showAge = false, areaNextToDuty =
         )}
       </div>
 
-      {/* 2段目: ☆評価 → 料金 → 出勤数 →（右端）詳しく見る。上に細い区切り線 */}
-      <div className="flex items-center gap-3 flex-wrap pt-2.5 mb-3 border-t border-slate-200/70">
-        {ratingEl}
+      {/* 2段目: ☆評価 → 料金 → 出勤数 →（右端）詳しく見る。上に細い区切り線。
+          1行固定（折り返さない）：料金・出勤はフル表示、評価側が min-w-0 で縮む。 */}
+      <div className="flex items-center gap-3 min-w-0 flex-nowrap pt-2.5 mb-3 border-t border-slate-200/70">
+        <div className="min-w-0 flex items-center gap-1.5 overflow-hidden">{ratingEl}</div>
         {priceEl}
         {dutyBadge}
-        <span className="ml-auto">{detailBtn}</span>
+        <span className="ml-auto flex-shrink-0">{detailBtn}</span>
       </div>
 
       {/* 3段目: セラピストサムネ列 */}
