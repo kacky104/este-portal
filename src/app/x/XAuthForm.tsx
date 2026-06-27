@@ -189,16 +189,6 @@ export function XAuthForm({ initialMode }: { initialMode: 'login' | 'signup' }) 
               ))}
             </div>
 
-            {/* サインアップ時：フクエス会員はログインでOK、という案内を常時表示 */}
-            {mode === 'signup' && !alreadyExists && (
-              <div className="mb-4 p-3 rounded-xl bg-indigo-50 border border-indigo-100 text-[12px] text-indigo-700 leading-relaxed">
-                フクエス会員の方は<strong>新規登録は不要</strong>です。同じメールアドレスとパスワードで、そのままログインできます。
-                <button type="button" onClick={goLogin} className="block mt-1 font-bold underline hover:opacity-80">
-                  ログインはこちら →
-                </button>
-              </div>
-            )}
-
             {/* 既存メアドでサインアップを試みたとき：行き止まりにせずログインへ誘導（メアドは保持） */}
             {alreadyExists && (
               <div className="mb-4 p-3 rounded-xl bg-indigo-50 border border-indigo-200 text-[12px] text-indigo-700 leading-relaxed">
@@ -275,7 +265,17 @@ export function XAuthForm({ initialMode }: { initialMode: 'login' | 'signup' }) 
             </form>
 
             <div className="mt-5 space-y-2 text-[11px] text-slate-400 leading-relaxed">
-              {mode === 'signup' && <p>登録後、確認メールが届きます。メール内のリンクで登録を完了してください。</p>}
+              {mode === 'signup' && (
+                <>
+                  <p>登録後、確認メールが届きます。メール内のリンクで登録を完了してください。</p>
+                  <p>
+                    すでにアカウントをお持ちの方は
+                    <button type="button" onClick={goLogin} className="text-indigo-600 font-medium hover:underline ml-1">
+                      ログイン
+                    </button>
+                  </p>
+                </>
+              )}
               {mode === 'login' && (
                 <>
                   <p>fukuX が初めての方も、ログインすると続けてアカウント開設に進めます。</p>
