@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { createClient } from '@/app/lib/supabase/client';
 import { formatDiaryDate } from '@/lib/diaryDate';
+import { DiaryNewBadge } from '@/components/DiaryNewBadge';
 
 const supabase = createClient();
 
@@ -98,6 +99,7 @@ function DiaryCard({ diary, emphasized = false }: { diary: DiaryView; emphasized
       <div className="absolute top-0 left-0 right-0 p-3">
         <p className="text-white/70 mb-1" style={{ fontSize: emphasized ? '11px' : '9px' }}>
           {emphasized ? formatDiaryDate(diary.createdAt) : formatDateTime(diary.createdAt)}
+          <DiaryNewBadge iso={diary.createdAt} />
         </p>
         {diary.title && (
           <p

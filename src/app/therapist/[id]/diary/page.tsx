@@ -5,6 +5,7 @@ import { createPublicClient } from '@/app/lib/supabase/public';
 import { getTheme, breadcrumbCurrentColor } from '@/app/lib/themes';
 import { formatDiaryDate } from '@/lib/diaryDate';
 import { DiaryTherapistAvatar } from '@/components/DiaryTherapistAvatar';
+import { DiaryNewBadge } from '@/components/DiaryNewBadge';
 
 // ISR：10分ごとに再生成（保存時は /api/revalidate で /salon/[id] 配下を 'layout' 無効化）。
 export const revalidate = 600;
@@ -131,7 +132,7 @@ export default async function TherapistDiaryPage({
                     <div className="flex items-start gap-1.5">
                       <DiaryTherapistAvatar src={therapistImage} name={therapistName} size={28} />
                       <div className="min-w-0 flex-1">
-                        <p className="text-[10px] text-white/85" style={{ textShadow: '0 1px 2px rgba(0,0,0,0.6)' }}>{formatDiaryDate(d.createdAt)}</p>
+                        <p className="text-[10px] text-white/85" style={{ textShadow: '0 1px 2px rgba(0,0,0,0.6)' }}>{formatDiaryDate(d.createdAt)}<DiaryNewBadge iso={d.createdAt} /></p>
                         {d.title && (
                           <h2 className="text-[11px] font-bold text-white line-clamp-2 mt-0.5 break-all" style={{ textShadow: '0 1px 2px rgba(0,0,0,0.6)' }}>
                             {d.title}
@@ -146,7 +147,7 @@ export default async function TherapistDiaryPage({
                   <div className="flex items-start gap-2">
                     <DiaryTherapistAvatar src={therapistImage} name={therapistName} size={32} />
                     <div className="min-w-0 flex-1">
-                      <p style={{ fontSize: '11px', color: '#999' }}>{formatDiaryDate(d.createdAt)}</p>
+                      <p style={{ fontSize: '11px', color: '#999' }}>{formatDiaryDate(d.createdAt)}<DiaryNewBadge iso={d.createdAt} /></p>
                       {d.title && (
                         <h2
                           className="text-sm font-bold line-clamp-2 mt-0.5 break-all"

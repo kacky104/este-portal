@@ -3,6 +3,7 @@
 import { useRef, useEffect } from 'react';
 import Link from 'next/link';
 import { formatDiaryDate } from '@/lib/diaryDate';
+import { DiaryNewBadge } from '@/components/DiaryNewBadge';
 
 export type DiaryPostView = {
   id: number;
@@ -69,7 +70,7 @@ export function TherapistDiaryList({ posts, name }: { posts: DiaryPostView[]; na
               {/* スマホのみ：更新日・タイトルを画像内オーバーレイ（下部スクリム＋白文字）。2列グリッド側と同じ見え方。 */}
               <div className="sm:hidden absolute inset-x-0 bottom-0 px-2 pt-6 pb-2 bg-gradient-to-t from-black/70 via-black/25 to-transparent">
                 <p className="text-[10px] text-white/85" style={{ textShadow: '0 1px 2px rgba(0,0,0,0.6)' }}>
-                  {formatDiaryDate(post.created_at)}
+                  {formatDiaryDate(post.created_at)}<DiaryNewBadge iso={post.created_at} />
                 </p>
                 {post.title && (
                   <p className="text-[11px] font-bold text-white line-clamp-2 mt-0.5 break-all" style={{ textShadow: '0 1px 2px rgba(0,0,0,0.6)' }}>
@@ -81,7 +82,7 @@ export function TherapistDiaryList({ posts, name }: { posts: DiaryPostView[]; na
             {/* PC/タブレットのみ：従来どおり画像下にテキスト（スクリムなし）。スマホでは非表示。 */}
             <div className="p-2 bg-white hidden sm:block">
               <p style={{ fontSize: '12px', color: '#999' }} className="mb-0.5">
-                {formatDiaryDate(post.created_at)}
+                {formatDiaryDate(post.created_at)}<DiaryNewBadge iso={post.created_at} />
               </p>
               {post.title && (
                 <p style={clamp2} className="text-slate-600 leading-snug">{post.title}</p>

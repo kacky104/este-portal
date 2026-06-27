@@ -6,6 +6,7 @@ import { AccountMenu } from '@/app/components/AccountMenu';
 import { NotificationBell } from '@/app/components/NotificationBell';
 import { VipLetterIcon } from '@/app/components/VipLetterIcon';
 import { formatDiaryDate } from '@/lib/diaryDate';
+import { DiaryNewBadge } from '@/components/DiaryNewBadge';
 
 export const metadata = {
   title: '写メ日記 | フクエス ～福岡メンズエステポータル～',
@@ -107,6 +108,7 @@ export default async function DiaryListPage() {
                   <div className="flex items-center gap-1.5">
                     <span className="font-bold text-sm text-slate-900">{diary.therapistName}</span>
                     <span className="text-[10px] text-slate-400">{formatDiaryDate(diary.createdAt)}</span>
+                    <DiaryNewBadge iso={diary.createdAt} />
                   </div>
                   {diary.title && <h2 className="font-bold text-sm text-slate-800 line-clamp-1">{diary.title}</h2>}
                   {diary.content && <p className="text-[11px] text-slate-500 leading-relaxed line-clamp-3 flex-1">{diary.content}</p>}

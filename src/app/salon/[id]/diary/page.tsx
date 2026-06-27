@@ -9,6 +9,7 @@ import { createPublicClient } from '@/app/lib/supabase/public';
 import { getTheme, breadcrumbCurrentColor } from '@/app/lib/themes';
 import { formatDiaryDate } from '@/lib/diaryDate';
 import { DiaryTherapistAvatar } from '@/components/DiaryTherapistAvatar';
+import { DiaryNewBadge } from '@/components/DiaryNewBadge';
 
 type TherapistRef = { name: string | null; profile_image_url: string | null };
 type DiaryRow = {
@@ -140,6 +141,7 @@ export default async function SalonDiaryPage({
                         <p className="flex items-baseline gap-1 min-w-0" style={{ textShadow: '0 1px 2px rgba(0,0,0,0.6)' }}>
                           <span className="text-[10px] font-bold text-white truncate">{d.therapistName}</span>
                           <span className="flex-shrink-0 text-[10px] text-white/85">{formatDiaryDate(d.createdAt)}</span>
+                          <DiaryNewBadge iso={d.createdAt} />
                         </p>
                         {d.title && (
                           <h2 className="text-[11px] font-bold text-white line-clamp-2 mt-0.5 break-all" style={{ textShadow: '0 1px 2px rgba(0,0,0,0.6)' }}>
@@ -158,6 +160,7 @@ export default async function SalonDiaryPage({
                       <p className="flex items-baseline gap-1.5 min-w-0">
                         <span className="text-[11px] text-pink-600 font-bold truncate">{d.therapistName}</span>
                         <span className="flex-shrink-0" style={{ fontSize: '11px', color: '#999' }}>{formatDiaryDate(d.createdAt)}</span>
+                        <DiaryNewBadge iso={d.createdAt} />
                       </p>
                       {d.title && (
                         <h2
