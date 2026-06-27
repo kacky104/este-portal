@@ -138,16 +138,19 @@ export function Card({ therapist, index, showAge = false }: { therapist: Therapi
 
 // ── TherapistScroller ─────────────────────────────────────────
 
-export function TherapistScroller({ showAge = false }: { showAge?: boolean } = {}) {
+export function TherapistScroller({ showAge = false, filterSalonIds, workingHref = '/working' }: { showAge?: boolean; filterSalonIds?: number[]; workingHref?: string } = {}) {
   const [list, setList] = useState<TherapistItem[]>([]);
 
   useEffect(() => {
     (async () => {
       const supabase = createClient();
 
-      const { data: therapistData } = await supabase
+      // 地域ページ：そのエリアのサロン所属者のみに絞る（filterSalonIds 指定時）。未指定（トップ）は全件。
+      let query = supabase
         .from('therapists')
         .select('id, name, work_hours, area, comment, salon_id, profile_image_url, age, is_available_now, available_until, is_available_now_cast, available_until_cast, is_new_face, new_face_since, feature_badges');
+      if (filterSalonIds) query = query.in('salon_id', filterSalonIds);
+      const { data: therapistData } = await query;
 
       const salonIds = [...new Set(
         (therapistData ?? []).map(t => t.salon_id as number).filter(Boolean)
@@ -228,7 +231,7 @@ export function TherapistScroller({ showAge = false }: { showAge?: boolean } = {
       ).sort((a, b) => startMinutes(a) - startMinutes(b));
       setList([...imasugu, ...rest]);
     })();
-  }, []);
+  }, [filterSalonIds?.join(',')]); // eslint-disable-line react-hooks/exhaustive-deps
 
   if (list.length === 0) {
     return (
@@ -242,9 +245,9 @@ export function TherapistScroller({ showAge = false }: { showAge?: boolean } = {
     <div className="flex gap-[3px] sm:gap-3 overflow-x-auto pb-4 scrollbar-pink w-full">
       {/* 出勤中セラピストは最大35枚まで表示 */}
       {list.slice(0, 35).map((t, i) => <Card key={t.id} therapist={t} index={i} showAge={showAge} />)}
-      {/* 末尾：本日出勤中セラピスト一覧ページへの「一覧を見る」カード */}
+      {/* 末尾：本日出勤中セラピスト一覧ページへの「一覧を見る」カード（地域ページは ?area= 付きに） */}
       <Link
-        href="/working"
+        href={workingHref}
         className="flex-shrink-0 w-[105px] h-[153px] sm:w-44 sm:h-64 rounded-2xl overflow-hidden shadow-md hover:-translate-y-1 hover:shadow-xl transition-all duration-300 flex flex-col items-center justify-center gap-2"
         style={{ background: 'linear-gradient(to bottom right, #ec4899, #f97316)' }}
       >

@@ -9,7 +9,7 @@ import { sanitizeBadges } from '@/lib/therapistBadges';
 import { isImasuguLiveCamel, imasuguUntilCamel } from '@/lib/imasugu';
 import { seededShuffle, thirtyMinSeed } from '@/lib/shuffle';
 
-export function WorkingTherapists() {
+export function WorkingTherapists({ filterSalonIds }: { filterSalonIds?: number[] } = {}) {
   const [list, setList] = useState<TherapistItem[]>([]);
   const [loaded, setLoaded] = useState(false);
 
@@ -17,10 +17,12 @@ export function WorkingTherapists() {
     (async () => {
       const supabase = createClient();
 
-      // ── トップページの出勤中ブロックと同じデータ取得（同じスコープ：全サロン対象） ──
-      const { data: therapistData } = await supabase
+      // ── トップと同じデータ取得。filterSalonIds 指定時のみ そのエリアのサロン所属者に絞る（未指定=全サロン）。 ──
+      let query = supabase
         .from('therapists')
         .select('id, name, work_hours, area, comment, salon_id, profile_image_url, age, is_available_now, available_until, is_available_now_cast, available_until_cast, is_new_face, new_face_since, feature_badges');
+      if (filterSalonIds) query = query.in('salon_id', filterSalonIds);
+      const { data: therapistData } = await query;
 
       const salonIds = [...new Set(
         (therapistData ?? []).map(t => t.salon_id as number).filter(Boolean)
@@ -105,7 +107,7 @@ export function WorkingTherapists() {
       setList([...imasugu, ...onDuty]);
       setLoaded(true);
     })();
-  }, []);
+  }, [filterSalonIds?.join(',')]); // eslint-disable-line react-hooks/exhaustive-deps
 
   if (loaded && list.length === 0) {
     return (

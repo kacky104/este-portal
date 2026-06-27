@@ -5,8 +5,31 @@ import { SavedSalonsMenu } from '@/app/components/SavedSalonsMenu';
 import { AccountMenu } from '@/app/components/AccountMenu';
 import { NotificationBell } from '@/app/components/NotificationBell';
 import { VipLetterIcon } from '@/app/components/VipLetterIcon';
+import { createPublicClient } from '@/app/lib/supabase/public';
+import { fetchSalons } from '@/app/lib/salons';
+import { areaFromSlug, salonInArea, DISPATCH_AREA } from '@/app/lib/areas';
+import { areaLabel } from '@/app/lib/areaLabel';
 
-export default function WorkingPage() {
+export default async function WorkingPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ area?: string | string[] }>;
+}) {
+  // ?area=<slug> 指定時は、そのエリアのサロン所属者だけに絞る（地域ページの「一覧を見る」から遷移）。
+  // 未指定（トップの「一覧を見る」）は従来どおり全エリア。判定は地域ページ・スライダーと同じ salonInArea。
+  const sp = await searchParams;
+  const slug = Array.isArray(sp.area) ? sp.area[0] : sp.area;
+  const areaValue = slug ? areaFromSlug(slug) : null;
+
+  let filterSalonIds: number[] | undefined;
+  let headingArea: string | null = null;
+  if (areaValue) {
+    const supabase = createPublicClient();
+    const salons = await fetchSalons(supabase);
+    filterSalonIds = salons.filter((s) => salonInArea(s, areaValue)).map((s) => s.id);
+    headingArea = areaValue === DISPATCH_AREA ? '出張対応' : areaLabel(areaValue);
+  }
+
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900">
 
@@ -46,11 +69,11 @@ export default function WorkingPage() {
               color: 'transparent',
             }}
           >
-            本日出勤中のセラピスト
+            {headingArea ? `${headingArea}の本日出勤中のセラピスト` : '本日出勤中のセラピスト'}
           </h1>
         </div>
 
-        <WorkingTherapists />
+        <WorkingTherapists filterSalonIds={filterSalonIds} />
       </main>
 
       {/* ─── Footer ──────────────────────────────────────── */}

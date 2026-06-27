@@ -37,6 +37,19 @@ export function areaHref(areaValue: string): string {
   return slug ? `/area/${slug}` : '/';
 }
 
+/**
+ * サロンが指定エリアに属するか（ShuffledSalons の matchesArea と同一判定）。
+ * 福岡全域は全件 true。出張エリアは dispatch_type が none 以外（available/only）も含める。
+ * それ以外は area 完全一致。地域ページ／出勤一覧のセラピスト絞り込みで salon→area を判定するのに使う。
+ */
+export function salonInArea(
+  salon: { area: string; dispatchType: string },
+  area: string,
+): boolean {
+  if (area === ALL_AREA) return true;
+  return salon.area === area || (area === DISPATCH_AREA && salon.dispatchType !== 'none');
+}
+
 /** URLスラッグ → エリア値（不明なら null）。 */
 export function areaFromSlug(slug: string): string | null {
   for (const [value, s] of Object.entries(AREA_SLUGS)) {

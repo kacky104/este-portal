@@ -5,13 +5,14 @@ import { notFound } from 'next/navigation';
 import { createPublicClient } from '@/app/lib/supabase/public';
 import { fetchSalons } from '@/app/lib/salons';
 import { ShuffledSalons } from '@/app/components/ShuffledSalons';
+import { TherapistScroller } from '@/app/components/TherapistScroller';
 import { FeaturedSalonSlider } from '@/app/components/FeaturedSalonSlider';
 import { getFeaturedSalons } from '@/app/lib/featured';
 import { SavedSalonsMenu } from '@/app/components/SavedSalonsMenu';
 import { AccountMenu } from '@/app/components/AccountMenu';
 import { NotificationBell } from '@/app/components/NotificationBell';
 import { VipLetterIcon } from '@/app/components/VipLetterIcon';
-import { areaFromSlug, AREA_ORDER, AREA_SLUGS_LIST, DISPATCH_AREA } from '@/app/lib/areas';
+import { areaFromSlug, AREA_ORDER, AREA_SLUGS_LIST, DISPATCH_AREA, salonInArea } from '@/app/lib/areas';
 import { areaLabel } from '@/app/lib/areaLabel';
 
 // ISR：10分ごとに再生成。Next 16 では revalidate を効かせるため generateStaticParams が必須。
@@ -51,6 +52,10 @@ export default async function AreaPage({ params }: { params: Promise<{ slug: str
   const label = areaLabel(area);
   const pickupTitle = `${area === DISPATCH_AREA ? '出張対応' : label}のピックアップサロン`;
 
+  // このエリアに属するサロンの id（出勤中セラピストスライダー＆「一覧を見る」の絞り込みに使う）。
+  // 判定は共有の salonInArea（ShuffledSalons の matchesArea と同一）。サロン一覧と同じ所属になる。
+  const areaSalonIds = salons.filter((s) => salonInArea(s, area)).map((s) => s.id);
+
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900">
 
@@ -89,6 +94,16 @@ export default async function AreaPage({ params }: { params: Promise<{ slug: str
             <FeaturedSalonSlider salons={featuredSalons} />
           </section>
         )}
+
+        {/* ─── 本日出勤中のセラピスト（このエリアのサロン所属者のみ）。トップと同じ TherapistScroller を再利用 ───
+            時刻依存（出勤中・今すぐ）の判定は TherapistScroller がクライアントのマウント時に行う＝ISR焼き付き回避。 */}
+        <section className="mb-10">
+          <div className="flex items-center gap-3 mb-4">
+            <div className="w-1 h-6 rounded-full bg-gradient-to-b from-pink-400 to-rose-500" />
+            <h2 className="text-xl font-bold text-slate-900">本日出勤中のセラピスト</h2>
+          </div>
+          <TherapistScroller showAge filterSalonIds={areaSalonIds} workingHref={`/working?area=${slug}`} />
+        </section>
 
         {/* 地域バッジ列を最上部に出し、その下に見出し＋説明文→カード（heading で順序制御） */}
         <ShuffledSalons
