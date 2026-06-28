@@ -17,12 +17,7 @@ export default function XLayout({ children }: { children: React.ReactNode }) {
       {/* ─── fukuX ヘッダー（独自・最小ナビ） ─── */}
       <header className="sticky top-0 z-50 bg-white/85 backdrop-blur-md border-b border-slate-200">
         <div className="max-w-2xl mx-auto px-4 h-14 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <XLogo />
-            <span className="text-[10px] font-bold text-indigo-500 bg-indigo-50 rounded-full px-1.5 py-0.5 leading-none">
-              β
-            </span>
-          </div>
+          <XLogo />
           {/* 最小ナビ：運営リンク（運営UUID時のみ）＋フクエス本体へ戻る導線 */}
           <div className="flex items-center gap-3">
             <XHeaderShopLink />
