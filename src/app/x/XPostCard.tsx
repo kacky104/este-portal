@@ -87,6 +87,15 @@ export function XPostCard({
             <span className="text-[10px] font-bold text-indigo-500 bg-indigo-50 rounded-full px-1.5 py-0.5">
               {KIND_LABEL[a.kind] ?? a.kind}
             </span>
+            {/* セラピストが店舗所属なら所属先を小さく表示（店舗プロフィールへリンク） */}
+            {a.affiliatedShop && (
+              <Link
+                href={`/x/u/${a.affiliatedShop.handle}`}
+                className="text-[10px] font-bold text-emerald-600 bg-emerald-50 rounded-full px-1.5 py-0.5 hover:bg-emerald-100 transition-colors truncate max-w-[40%]"
+              >
+                {a.affiliatedShop.displayName}所属
+              </Link>
+            )}
             <span className="text-xs text-slate-300">·</span>
             <XTimeAgo iso={post.createdAt} className="text-xs text-slate-400" />
           </div>

@@ -99,6 +99,8 @@ export function XComposer({ me, onPosted }: { me: XProfile; onPosted: (post: XPo
         kind: me.kind,
         avatarUrl: me.avatar_url,
         isVerified: me.is_verified,
+        // 投稿直後の楽観表示では所属バッジは付けない（リロード/サーバー再取得で反映される）。
+        affiliatedShop: null,
       },
     });
     setBody('');

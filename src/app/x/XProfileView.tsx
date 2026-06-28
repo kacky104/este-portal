@@ -1,8 +1,10 @@
 'use client';
 
 import { useState } from 'react';
+import Link from 'next/link';
 import type { XProfile } from './xProfile';
 import type { XPost } from './xPosts';
+import type { ShopMini, TherapistMini } from './xAffiliation';
 import { XPostCard } from './XPostCard';
 import { VerifiedBadge } from './VerifiedBadge';
 import { XAuthGateModal } from './XAuthGateModal';
@@ -24,6 +26,8 @@ export function XProfileView({
   posts,
   initialLikedIds,
   initialFollowing,
+  affiliatedShop,
+  affiliatedTherapists,
 }: {
   target: XProfile;
   viewerProfile: XProfile | null;
@@ -34,6 +38,8 @@ export function XProfileView({
   posts: XPost[];
   initialLikedIds: string[];
   initialFollowing: boolean;
+  affiliatedShop: ShopMini | null; // target が therapist のとき所属先（無ければ null）
+  affiliatedTherapists: TherapistMini[]; // target が shop のとき所属セラピスト一覧
 }) {
   const [toast, setToast] = useState('');
   const [gateOpen, setGateOpen] = useState(false); // 未ログイン／未開設アクション時のモーダル
@@ -113,6 +119,25 @@ export function XProfileView({
               </span>
             </div>
             <p className="text-sm text-slate-400">@{target.handle}</p>
+
+            {/* 所属バッジ（therapist の確定所属先。店舗プロフィールへリンク） */}
+            {target.kind === 'therapist' && affiliatedShop && (
+              <Link
+                href={`/x/u/${affiliatedShop.handle}`}
+                className="inline-flex items-center gap-1 mt-2 text-xs font-bold text-emerald-700 bg-emerald-50 border border-emerald-100 rounded-full pl-1 pr-2.5 py-1 hover:bg-emerald-100 transition-colors"
+              >
+                <span className="relative w-5 h-5 rounded-full overflow-hidden bg-gradient-to-br from-emerald-300 to-teal-300 flex items-center justify-center flex-shrink-0">
+                  {affiliatedShop.avatarUrl ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={affiliatedShop.avatarUrl} alt={affiliatedShop.displayName} className="w-full h-full object-cover" />
+                  ) : (
+                    <span className="text-white text-[10px] font-bold">{affiliatedShop.displayName.charAt(0) || '?'}</span>
+                  )}
+                </span>
+                {affiliatedShop.displayName}所属
+              </Link>
+            )}
+
             {target.bio && <p className="text-sm text-slate-700 leading-relaxed whitespace-pre-wrap break-words mt-2">{target.bio}</p>}
 
             {/* 数値（kind が持ち得る数だけ表示） */}
@@ -138,6 +163,44 @@ export function XProfileView({
           </div>
         </div>
       </div>
+
+      {/* ─── 所属セラピスト一覧（店舗プロフィールのみ） ─── */}
+      {target.kind === 'shop' && (
+        <div className="mt-5">
+          <h2 className="text-sm font-black text-slate-800 mb-2">
+            所属セラピスト
+            {affiliatedTherapists.length > 0 && (
+              <span className="ml-1.5 text-xs font-bold text-slate-400 tabular-nums">{affiliatedTherapists.length}</span>
+            )}
+          </h2>
+          {affiliatedTherapists.length === 0 ? (
+            <p className="text-xs text-slate-400 py-2">所属セラピストはまだいません</p>
+          ) : (
+            <div className="space-y-1">
+              {affiliatedTherapists.map((th) => (
+                <Link
+                  key={th.id}
+                  href={`/x/u/${th.handle}`}
+                  className="flex items-center gap-2.5 p-2 rounded-xl hover:bg-slate-50 transition-colors"
+                >
+                  <span className="relative w-9 h-9 rounded-full overflow-hidden border border-slate-100 bg-gradient-to-br from-indigo-300 to-sky-300 flex items-center justify-center flex-shrink-0">
+                    {th.avatarUrl ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img src={th.avatarUrl} alt={th.displayName} className="w-full h-full object-cover" />
+                    ) : (
+                      <span className="text-white text-xs font-bold">{th.displayName.charAt(0) || '?'}</span>
+                    )}
+                  </span>
+                  <div className="min-w-0">
+                    <p className="text-sm font-bold text-slate-900 truncate">{th.displayName}</p>
+                    <p className="text-xs text-slate-400 truncate">@{th.handle}</p>
+                  </div>
+                </Link>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
 
       {/* ─── 投稿一覧 ─── */}
       <div className="mt-4 border-t border-slate-100">

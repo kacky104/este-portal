@@ -1,6 +1,7 @@
 import { createPublicClient } from '@/app/lib/supabase/public';
 import { createClient } from '@/app/lib/supabase/server';
 import { seededShuffle, thirtyMinSeed } from '@/lib/shuffle';
+import { fetchShopMiniByIds } from './xAffiliation';
 import type { XKind } from './xProfile';
 
 // ── fukuX 投稿の取得・整形（サーバー専用） ──────────────────────────────
@@ -25,6 +26,8 @@ export type XPostAuthor = {
   kind: XKind;
   avatarUrl: string | null;
   isVerified: boolean; // 認証バッジ（shop のみ運用）
+  // セラピストが店舗に所属していれば所属先の最小情報（投稿カードの「○○店所属」表示用）。なければ null。
+  affiliatedShop: { handle: string; displayName: string } | null;
 };
 
 export type XPost = {
@@ -54,12 +57,20 @@ async function attachAuthors(client: AnyClient, rows: PostRow[]): Promise<XPost[
 
   const { data: profs } = await client
     .from('x_profiles')
-    .select('id, handle, display_name, kind, avatar_url, status, is_verified')
+    .select('id, handle, display_name, kind, avatar_url, status, is_verified, affiliated_shop_id')
     .in('id', ids);
 
   const dict = new Map<
     string,
-    { handle: string; display_name: string; kind: XKind; avatar_url: string | null; status: string; is_verified: boolean }
+    {
+      handle: string;
+      display_name: string;
+      kind: XKind;
+      avatar_url: string | null;
+      status: string;
+      is_verified: boolean;
+      affiliated_shop_id: string | null;
+    }
   >();
   (profs ?? []).forEach((p) =>
     dict.set(p.id as string, {
@@ -69,13 +80,21 @@ async function attachAuthors(client: AnyClient, rows: PostRow[]): Promise<XPost[
       avatar_url: (p.avatar_url as string | null) ?? null,
       status: (p.status as string) ?? 'approved',
       is_verified: Boolean(p.is_verified),
+      affiliated_shop_id: (p.affiliated_shop_id as string | null) ?? null,
     })
+  );
+
+  // 所属先店舗の最小情報を1クエリでまとめて引く（N+1回避：所属店舗idを集約して in 取得）。
+  const shopDict = await fetchShopMiniByIds(
+    client,
+    [...dict.values()].map((a) => a.affiliated_shop_id)
   );
 
   const out: XPost[] = [];
   for (const r of rows) {
     const a = dict.get(r.author_profile_id);
     if (!a || a.status === 'rejected') continue; // BAN(凍結)の投稿主のみ除外
+    const shop = a.affiliated_shop_id ? shopDict.get(a.affiliated_shop_id) : undefined;
     out.push({
       id: String(r.id),
       body: r.body ?? null,
@@ -89,6 +108,7 @@ async function attachAuthors(client: AnyClient, rows: PostRow[]): Promise<XPost[
         kind: a.kind,
         avatarUrl: a.avatar_url,
         isVerified: a.is_verified,
+        affiliatedShop: shop ? { handle: shop.handle, displayName: shop.displayName } : null,
       },
     });
   }

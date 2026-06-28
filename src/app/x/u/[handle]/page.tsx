@@ -3,13 +3,19 @@ import { createClient } from '@/app/lib/supabase/server';
 import { ADMIN_UUID } from '@/app/lib/admin';
 import { getXContext, type XProfile, type XKind, type XStatus } from '../../xProfile';
 import { fetchMyLikedPostIds, type XPost } from '../../xPosts';
+import {
+  fetchShopMini,
+  fetchAffiliatedTherapists,
+  type ShopMini,
+  type TherapistMini,
+} from '../../xAffiliation';
 import { XProfileView } from '../../XProfileView';
 
 // 閲覧者のログイン状態でフォロー状態が変わるため動的レンダリング。
 export const dynamic = 'force-dynamic';
 
 const PROFILE_COLS =
-  'id, auth_user_id, kind, status, handle, display_name, bio, avatar_url, header_url, is_verified';
+  'id, auth_user_id, kind, status, handle, display_name, bio, avatar_url, header_url, is_verified, affiliated_shop_id';
 
 type ProfileRow = {
   id: string;
@@ -22,6 +28,7 @@ type ProfileRow = {
   avatar_url: string | null;
   header_url: string | null;
   is_verified: boolean;
+  affiliated_shop_id: string | null;
 };
 
 // LIKE のワイルドカード（% _ \）をエスケープし、ilike で大文字小文字無視の「完全一致」にする。
@@ -86,7 +93,18 @@ export default async function XProfilePage({ params }: { params: Promise<{ handl
   const followerCount = wantsFollowers ? (followerRes.count ?? 0) : null;
   const followingCount = wantsFollowing ? (followingRes.count ?? 0) : null;
 
+  // 所属情報：therapist は所属先店舗（1件）、shop は所属セラピスト一覧を解決。
+  const [affiliatedShop, affiliatedTherapists]: [ShopMini | null, TherapistMini[]] = await Promise.all([
+    target.kind === 'therapist'
+      ? fetchShopMini(supabase, t.affiliated_shop_id)
+      : Promise.resolve(null),
+    target.kind === 'shop'
+      ? fetchAffiliatedTherapists(supabase, target.id)
+      : Promise.resolve([] as TherapistMini[]),
+  ]);
+
   // 投稿は全て target が投稿主なので辞書引き不要（author を直接付与）。
+  // target が所属ありセラピストなら、本人の投稿カードにも所属バッジが出るよう author に付与。
   const author = {
     id: target.id,
     handle: target.handle,
@@ -94,6 +112,9 @@ export default async function XProfilePage({ params }: { params: Promise<{ handl
     kind: target.kind,
     avatarUrl: target.avatar_url,
     isVerified: target.is_verified,
+    affiliatedShop: affiliatedShop
+      ? { handle: affiliatedShop.handle, displayName: affiliatedShop.displayName }
+      : null,
   };
   const posts: XPost[] = (
     (postRes.data ?? []) as Array<{
@@ -142,6 +163,8 @@ export default async function XProfilePage({ params }: { params: Promise<{ handl
       posts={posts}
       initialLikedIds={initialLikedIds}
       initialFollowing={initialFollowing}
+      affiliatedShop={affiliatedShop}
+      affiliatedTherapists={affiliatedTherapists}
     />
   );
 }

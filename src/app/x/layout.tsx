@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 import { XLogo } from './XLogo';
 import { XHeaderAdminLink } from './XHeaderAdminLink';
+import { XHeaderShopLink } from './XHeaderShopLink';
 
 // fukuX 専用シェル。既存フクエスの共通ヘッダー（Logo/各メニュー）は出さず、独自ヘッダーにする。
 // ルートレイアウト（Cookie認証・<Wallpaper/>）は継承される。Wallpaper は /x 配下を除外済み（肉球壁紙なし）。
@@ -24,6 +25,7 @@ export default function XLayout({ children }: { children: React.ReactNode }) {
           </div>
           {/* 最小ナビ：運営リンク（運営UUID時のみ）＋フクエス本体へ戻る導線 */}
           <div className="flex items-center gap-3">
+            <XHeaderShopLink />
             <XHeaderAdminLink />
             <Link
               href="/"
