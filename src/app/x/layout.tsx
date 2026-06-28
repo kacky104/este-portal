@@ -16,7 +16,7 @@ export default function XLayout({ children }: { children: React.ReactNode }) {
       <div
         aria-hidden
         className="fixed inset-0 z-0"
-        style={{ background: 'linear-gradient(160deg,#EC4899 0%,#C026D3 50%,#A855F7 100%)' }}
+        style={{ background: 'linear-gradient(160deg,#A855F7 0%,#C026D3 50%,#EC4899 100%)' }}
       />
 
       <div className="relative z-10">
