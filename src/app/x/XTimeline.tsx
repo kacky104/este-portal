@@ -4,7 +4,7 @@ import { useMemo, useState } from 'react';
 import Link from 'next/link';
 import type { XProfile } from './xProfile';
 import type { XPost } from './xPosts';
-import { XComposer } from './XComposer';
+import { XComposeFab } from './XComposeFab';
 import { XPostCard } from './XPostCard';
 import { XAuthGateModal } from './XAuthGateModal';
 import { useXEngagement } from './useXEngagement';
@@ -81,9 +81,6 @@ export function XTimeline({
 
   return (
     <div className="py-2">
-      {/* 投稿コンポーザ（therapist/shop かつ BANでないとき。承認ゲートは廃止） */}
-      {eng.canPost && me && <XComposer me={me} myAffiliatedShop={myAffiliatedShop ?? null} onPosted={onPosted} />}
-
       {/* タブ */}
       <div className="sticky top-14 z-30 -mx-4 px-4 bg-white/90 backdrop-blur-md border-b border-slate-200">
         <div className="flex">
@@ -144,6 +141,11 @@ export function XTimeline({
       )}
 
       <XAuthGateModal open={gateOpen} loggedIn={loggedIn} onClose={() => setGateOpen(false)} />
+
+      {/* 右下の投稿FAB（therapist/shop かつ approved のときのみ）。タップで投稿モーダル。 */}
+      {eng.canPost && me && (
+        <XComposeFab me={me} myAffiliatedShop={myAffiliatedShop ?? null} onPosted={onPosted} />
+      )}
     </div>
   );
 }
