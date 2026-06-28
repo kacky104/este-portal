@@ -168,12 +168,33 @@ export async function cancelCastInvite(input: { therapistId: string; salonId: nu
   try {
     const uid = await findAuthUserIdByEmail(svc, email);
     if (uid) {
-      const { error: delErr } = await svc.auth.admin.deleteUser(uid);
-      if (delErr) warning = `招待は取り消しましたが、Authユーザーの削除に失敗しました: ${delErr.message}`;
+      // fukuX(x_profiles) がこの auth ユーザーを使っているか確認。
+      // 使っていれば auth.users を消すと ON DELETE CASCADE で fukuX プロフィールが
+      // 道連れに消えるため、削除をスキップして invited_email クリアのみに留める。
+      const { count: xCount, error: xErr } = await svc
+        .from('x_profiles')
+        .select('auth_user_id', { count: 'exact', head: true })
+        .eq('auth_user_id', uid);
+
+      if (xErr) {
+        // 確認に失敗したら安全側に倒して削除しない（消すより残す方が安全）。
+        warning =
+          '招待は取り消しましたが、安全確認のためAuthユーザーは削除しませんでした。';
+      } else if ((xCount ?? 0) > 0) {
+        // fukuX 利用者：絶対に消さない。
+        warning =
+          'このメールアドレスはfukuXアカウントと共有のため、Authユーザーは削除しませんでした（招待のみ取り消し）。';
+      } else {
+        // 純粋な招待捨てユーザー：従来通り削除。
+        const { error: delErr } = await svc.auth.admin.deleteUser(uid);
+        if (delErr) {
+          warning = `招待は取り消しましたが、Authユーザーの削除に失敗しました: ${delErr.message}`;
+        }
+      }
     }
     // uid が無い場合は既に削除済み等。invited_email クリアへ進む。
   } catch {
-    warning = '招待は取り消しましたが、Authユーザーの削除中にエラーが発生しました。';
+    warning = '招待は取り消しましたが、Auth処理中にエラーが発生しました。';
   }
 
   // 2) therapists.invited_email を null に戻す（中途半端な状態を残さない）。
