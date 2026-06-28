@@ -119,6 +119,35 @@ export async function inviteCast(input: { therapistId: string; salonId: number; 
   if (!t) return { ok: false, error: 'セラピストが見つかりません' };
   if (t.user_id) return { ok: false, error: 'このセラピストは既に本人ログイン済みです' };
 
+  // 同一メールの重複招待ガード：このメールが【自分以外の】セラピスト行で
+  // 既に使われていないか確認する。本人ログイン済み(user_id 非null)でも
+  // 招待中(invited_email 一致)でも、別人の行で使われていればブロックする。
+  // 自分自身(input.therapistId)の行は除外＝同じ行への再招待・上書きは許可。
+  const { data: dupRows, error: dupErr } = await svc
+    .from('therapists')
+    .select('id, user_id, invited_email')
+    .or(`user_id.not.is.null,invited_email.ilike.${email}`)
+    .neq('id', input.therapistId);
+
+  if (dupErr) {
+    return { ok: false, error: `重複確認に失敗しました: ${dupErr.message}` };
+  }
+
+  const emailLower = email.toLowerCase();
+  const conflict = (dupRows ?? []).some((r) => {
+    const invited = (r.invited_email ?? '').trim().toLowerCase();
+    // 別人が同じメールで「招待中」または「本人ログイン済み」かを判定。
+    // user_id 非null の行は、そのメールで実アカウントを持っている可能性。
+    return invited === emailLower;
+  });
+
+  if (conflict) {
+    return {
+      ok: false,
+      error: 'このメールアドレスは既に別のセラピストに使われています。別のメールアドレスを指定してください。',
+    };
+  }
+
   const { error: upErr } = await svc.from('therapists').update({ invited_email: email }).eq('id', input.therapistId);
   if (upErr) return { ok: false, error: `招待先の保存に失敗しました: ${upErr.message}` };
 
