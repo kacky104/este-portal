@@ -109,7 +109,7 @@ export function XTimeline({
         )
       ) : !loggedIn ? (
         <div className="py-14 text-center">
-          <p className="text-sm text-white/90 mb-4 leading-relaxed px-6 drop-shadow-sm">
+          <p className="x-rescue-muted text-sm text-white/90 mb-4 leading-relaxed px-6 drop-shadow-sm">
             ログインすると、フォローしたセラピスト・お店の新着がここに表示されます。
           </p>
           <div className="flex justify-center gap-2">
@@ -122,7 +122,7 @@ export function XTimeline({
             </Link>
             <Link
               href="/x/login"
-              className="inline-block px-6 py-2.5 rounded-xl border border-white/70 text-white font-bold text-sm hover:bg-white/10 transition-colors"
+              className="x-rescue-outline inline-block px-6 py-2.5 rounded-xl border border-white/70 text-white font-bold text-sm hover:bg-white/10 transition-colors"
             >
               ログイン
             </Link>
@@ -153,7 +153,7 @@ export function XTimeline({
 function Empty({ text }: { text: string }) {
   return (
     <div className="py-16 text-center">
-      <p className="text-sm text-white/90 leading-relaxed px-6 drop-shadow-sm">{text}</p>
+      <p className="x-rescue-muted text-sm text-white/90 leading-relaxed px-6 drop-shadow-sm">{text}</p>
     </div>
   );
 }

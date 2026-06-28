@@ -8,6 +8,7 @@ import { getSession, onAuthChange, signOut } from '@/lib/auth';
 import { createClient } from '@/app/lib/supabase/client';
 import { ADMIN_UUID } from '@/app/lib/admin';
 import { VerifiedBadge } from './VerifiedBadge';
+import { XThemeToggle } from './XThemeToggle';
 
 const supabase = createClient();
 
@@ -231,6 +232,10 @@ export function XHeader() {
                 <DrawerLink href="/" onClick={() => setOpen(false)} label="フクエス本体へ" muted />
               </>
             )}
+
+            {/* 背景テーマ切替（グラデ⇄白）。未ログインでも操作可。localStorage 保存。 */}
+            <div className="my-2 border-t border-slate-100" />
+            <XThemeToggle />
           </nav>
         </aside>
       </div>

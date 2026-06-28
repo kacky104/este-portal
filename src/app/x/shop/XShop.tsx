@@ -163,7 +163,7 @@ export function XShop({
   };
 
   return (
-    <div className="my-6 p-5 rounded-2xl bg-white/[0.94] shadow-[0_4px_16px_rgba(168,85,247,0.25)]">
+    <div className="x-card my-6 p-5 rounded-2xl bg-white/[0.94] shadow-[0_4px_16px_rgba(168,85,247,0.25)]">
       <h1 className="text-xl font-black tracking-tight mb-1">店舗管理</h1>
       <p className="text-xs text-slate-400 mb-5">セラピストの所属申請・所属管理</p>
 

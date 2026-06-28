@@ -1,0 +1,34 @@
+/* fukuX 背景テーマ（グラデ ⇄ 白）。
+   data-x-theme は /x ルート（#x-root）にのみ付与され、セレクタも .x-* に限定するため
+   フクエス本体（/x 外）には一切影響しない。既定（gradient / 属性なし）は前タスクの見た目。 */
+
+/* ── 固定背景レイヤー：既定はグラデ（パープル→ピンク, 160deg） ── */
+.x-bg {
+  background: linear-gradient(160deg, #a855f7 0%, #c026d3 50%, #ec4899 100%);
+}
+
+/* ── 白テーマ：グラデ導入前の素白へ戻す ── */
+[data-x-theme='white'] .x-bg {
+  background: #ffffff;
+}
+
+/* カード面：白テーマでは浮遊（半透過白＋紫影）をやめ、白＋淡い枠線・影なしに戻す */
+[data-x-theme='white'] .x-card {
+  background-color: #ffffff;
+  box-shadow: none;
+  border: 1px solid rgb(241 245 249); /* slate-100 */
+}
+
+/* 救済した白文字を、白テーマでは元の濃色へ戻す（白背景でも読めるように） */
+[data-x-theme='white'] .x-rescue-muted {
+  color: rgb(100 116 139); /* slate-500 */
+  filter: none; /* drop-shadow を打ち消し */
+}
+[data-x-theme='white'] .x-rescue-link {
+  color: rgb(148 163 184); /* slate-400 */
+  filter: none;
+}
+[data-x-theme='white'] .x-rescue-outline {
+  border-color: rgb(226 232 240); /* slate-200 */
+  color: rgb(71 85 105); /* slate-600 */
+}
