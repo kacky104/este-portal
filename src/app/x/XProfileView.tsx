@@ -9,6 +9,7 @@ import { XPostCard } from './XPostCard';
 import { VerifiedBadge } from './VerifiedBadge';
 import { XAuthGateModal } from './XAuthGateModal';
 import { XImageLightbox } from './XImageLightbox';
+import { XComposeFab } from './XComposeFab';
 import { useXEngagement } from './useXEngagement';
 
 const KIND_LABEL: Record<string, string> = {
@@ -254,6 +255,12 @@ export function XProfileView({
 
       {/* avatar / header の全体表示ライトボックス */}
       <XImageLightbox src={lightboxSrc} alt={target.display_name} onClose={() => setLightboxSrc(null)} />
+
+      {/* 右下の投稿FAB（閲覧者が therapist/shop かつ approved のときのみ）。
+          プロフィール投稿一覧へのリアルタイム反映はせず、成功トーストのみ（リロードで反映）。 */}
+      {eng.canPost && viewerProfile && (
+        <XComposeFab me={viewerProfile} onPosted={() => showToast('投稿しました')} />
+      )}
     </div>
   );
 }
