@@ -6,6 +6,7 @@ import type { XProfile } from './xProfile';
 import type { XPost } from './xPosts';
 import { XComposer } from './XComposer';
 import { XPostCard } from './XPostCard';
+import { XAuthGateModal } from './XAuthGateModal';
 import { useXEngagement } from './useXEngagement';
 
 export function XTimeline({
@@ -26,6 +27,7 @@ export function XTimeline({
   const [tab, setTab] = useState<'recommended' | 'following'>('recommended');
   const [toast, setToast] = useState('');
   const [myNewPosts, setMyNewPosts] = useState<XPost[]>([]);
+  const [gateOpen, setGateOpen] = useState(false); // 未ログイン／未開設アクション時のモーダル
 
   const showToast = (msg: string) => {
     setToast(msg);
@@ -39,6 +41,7 @@ export function XTimeline({
     initialLikedIds,
     initialFolloweeIds,
     onToast: showToast,
+    onAuthRequired: () => setGateOpen(true),
   });
 
   // 投稿成功 → おすすめ先頭に差し込み＋いいねマップ登録。
@@ -107,14 +110,24 @@ export function XTimeline({
         )
       ) : !loggedIn ? (
         <div className="py-14 text-center">
-          <p className="text-sm text-slate-500 mb-4">フォロー中の投稿を見るにはログインが必要です</p>
-          <Link
-            href="/x/login"
-            className="inline-block px-6 py-2.5 rounded-xl text-white font-bold text-sm shadow-md hover:opacity-95 transition-opacity"
-            style={{ background: 'linear-gradient(100deg,#6366F1,#8B5CF6)' }}
-          >
-            ログイン
-          </Link>
+          <p className="text-sm text-slate-500 mb-4 leading-relaxed px-6">
+            ログインすると、フォローしたセラピスト・お店の新着がここに表示されます。
+          </p>
+          <div className="flex justify-center gap-2">
+            <Link
+              href="/x/signup"
+              className="inline-block px-6 py-2.5 rounded-xl text-white font-bold text-sm shadow-md hover:opacity-95 transition-opacity"
+              style={{ background: 'linear-gradient(100deg,#6366F1,#8B5CF6)' }}
+            >
+              新規登録
+            </Link>
+            <Link
+              href="/x/login"
+              className="inline-block px-6 py-2.5 rounded-xl border border-slate-200 text-slate-600 font-bold text-sm hover:border-indigo-300 hover:text-indigo-600 transition-colors"
+            >
+              ログイン
+            </Link>
+          </div>
         </div>
       ) : following.length === 0 ? (
         <Empty text="気になるセラピスト・お店をフォローすると、ここに新着が表示されます" />
@@ -127,6 +140,8 @@ export function XTimeline({
           {toast}
         </div>
       )}
+
+      <XAuthGateModal open={gateOpen} loggedIn={loggedIn} onClose={() => setGateOpen(false)} />
     </div>
   );
 }

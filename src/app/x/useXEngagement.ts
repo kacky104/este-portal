@@ -17,8 +17,10 @@ export function useXEngagement(opts: {
   initialLikedIds: string[];
   initialFolloweeIds: string[];
   onToast: (msg: string) => void;
+  // 未ログイン／未開設（me が無い）でアクションしたときに呼ぶ。親がアカウント作成モーダルを開く。
+  onAuthRequired?: () => void;
 }) {
-  const { me, posts, initialLikedIds, initialFolloweeIds, onToast } = opts;
+  const { me, posts, initialLikedIds, initialFolloweeIds, onToast, onAuthRequired } = opts;
 
   // いいね状態（post_id → {liked,count}）。複数リストの投稿を1マップで管理。
   const [likes, setLikes] = useState<Record<string, LikeState>>(() => {
@@ -70,7 +72,7 @@ export function useXEngagement(opts: {
   const toggleLike = useCallback(
     async (post: XPost) => {
       if (!me) {
-        onToast('いいねするにはログインしてください');
+        onAuthRequired?.(); // 未ログイン／未開設 → アカウント作成モーダル
         return;
       }
       if (!canLike) {
@@ -98,14 +100,14 @@ export function useXEngagement(opts: {
         onToast('いいねに失敗しました');
       }
     },
-    [me, canLike, likePending, likes, onToast]
+    [me, canLike, likePending, likes, onToast, onAuthRequired]
   );
 
   // ── フォロートグル（楽観→失敗ロールバック） ──
   const toggleFollow = useCallback(
     async (authorId: string) => {
       if (!me) {
-        onToast('フォローするにはログインしてください');
+        onAuthRequired?.(); // 未ログイン／未開設 → アカウント作成モーダル
         return;
       }
       if (!canFollow) {
@@ -146,7 +148,7 @@ export function useXEngagement(opts: {
         onToast('フォロー操作に失敗しました');
       }
     },
-    [me, canFollow, followPending, followingSet, onToast]
+    [me, canFollow, followPending, followingSet, onToast, onAuthRequired]
   );
 
   return {

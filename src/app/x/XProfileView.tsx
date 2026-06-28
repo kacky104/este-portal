@@ -1,11 +1,11 @@
 'use client';
 
 import { useState } from 'react';
-import Link from 'next/link';
 import type { XProfile } from './xProfile';
 import type { XPost } from './xPosts';
 import { XPostCard } from './XPostCard';
 import { VerifiedBadge } from './VerifiedBadge';
+import { XAuthGateModal } from './XAuthGateModal';
 import { useXEngagement } from './useXEngagement';
 
 const KIND_LABEL: Record<string, string> = {
@@ -36,6 +36,7 @@ export function XProfileView({
   initialFollowing: boolean;
 }) {
   const [toast, setToast] = useState('');
+  const [gateOpen, setGateOpen] = useState(false); // 未ログイン／未開設アクション時のモーダル
   const showToast = (msg: string) => {
     setToast(msg);
     window.setTimeout(() => setToast(''), 2600);
@@ -48,6 +49,7 @@ export function XProfileView({
     initialLikedIds,
     initialFolloweeIds: initialFollowing ? [target.id] : [],
     onToast: showToast,
+    onAuthRequired: () => setGateOpen(true),
   });
 
   const showFollowBtn = eng.showFollowFor(target); // target が therapist/shop・自分以外・自分が therapist でない
@@ -83,6 +85,7 @@ export function XProfileView({
                   プロフィール編集（準備中）
                 </span>
               ) : showFollowBtn ? (
+                // 未ログイン／未開設でも表示し、押下時に toggleFollow → onAuthRequired でモーダルを開く。
                 <button
                   type="button"
                   onClick={() => eng.toggleFollow(target.id)}
@@ -96,14 +99,6 @@ export function XProfileView({
                 >
                   {following ? 'フォロー中' : 'フォロー'}
                 </button>
-              ) : !loggedIn && (target.kind === 'therapist' || target.kind === 'shop') ? (
-                <Link
-                  href="/x/login"
-                  className="text-sm font-bold px-5 py-1.5 rounded-full text-white"
-                  style={{ background: 'linear-gradient(100deg,#6366F1,#8B5CF6)' }}
-                >
-                  フォロー
-                </Link>
               ) : null}
             </div>
           </div>
@@ -176,6 +171,8 @@ export function XProfileView({
           {toast}
         </div>
       )}
+
+      <XAuthGateModal open={gateOpen} loggedIn={loggedIn} onClose={() => setGateOpen(false)} />
     </div>
   );
 }
