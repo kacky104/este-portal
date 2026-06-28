@@ -1,6 +1,7 @@
 import { notFound } from 'next/navigation';
 import { createClient } from '@/app/lib/supabase/server';
 import { ADMIN_UUID } from '@/app/lib/admin';
+import { getXAccountEmails } from '@/app/actions/xAdmin';
 import { XAdmin, type ShopRow, type ModPost, type ModProfile } from './XAdmin';
 
 export const dynamic = 'force-dynamic';
@@ -29,13 +30,34 @@ export default async function XAdminPage() {
       .limit(50),
     supabase
       .from('x_profiles')
-      .select('id, handle, display_name, kind, status, is_verified, created_at')
+      .select('id, auth_user_id, handle, display_name, kind, status, is_verified, created_at')
       .order('created_at', { ascending: false })
       .limit(50),
   ]);
 
   const shops = (shopRes.data ?? []) as ShopRow[];
-  const profiles = (profRes.data ?? []) as ModProfile[];
+  // 一覧表示用（auth_user_id はメール解決にのみ使い、クライアントへは渡さない）。
+  const profileRows = (profRes.data ?? []) as Array<ModProfile & { auth_user_id: string }>;
+  const profiles: ModProfile[] = profileRows.map((p) => ({
+    id: p.id,
+    handle: p.handle,
+    display_name: p.display_name,
+    kind: p.kind,
+    status: p.status,
+    is_verified: p.is_verified,
+    created_at: p.created_at,
+  }));
+
+  // 「アカウント」タブのログインメールを service_role で取得（運営のみ・DB保存なし）。
+  // auth_user_id → email の辞書を引いてから profile.id → email に詰め替えてクライアントに渡す
+  // （クライアントには auth_user_id を渡さず、必要な email のみを最小限で渡す）。
+  const authIds = [...new Set(profileRows.map((p) => p.auth_user_id).filter(Boolean))];
+  const emailByAuthId = await getXAccountEmails(authIds);
+  const emails: Record<string, string> = {};
+  for (const p of profileRows) {
+    const e = emailByAuthId[p.auth_user_id];
+    if (e) emails[p.id] = e;
+  }
 
   // 投稿に投稿主名を辞書引きで合流（N+1回避）。モデレーションなので全 status 対象。
   type PostRow = {
@@ -69,5 +91,5 @@ export default async function XAdminPage() {
     authorName: authorDict.get(r.author_profile_id)?.display_name ?? '(不明)',
   }));
 
-  return <XAdmin shops={shops} posts={posts} profiles={profiles} />;
+  return <XAdmin shops={shops} posts={posts} profiles={profiles} emails={emails} />;
 }

@@ -16,7 +16,16 @@ function validateImageFile(file: File): string | null {
 }
 
 // 投稿コンポーザ。表示条件（approved の therapist/shop）は親で判定済み＝ここでは出ている時点で投稿可能。
-export function XComposer({ me, onPosted }: { me: XProfile; onPosted: (post: XPost) => void }) {
+// myAffiliatedShop: 自分（セラピスト）の所属先（あれば）。投稿直後の楽観カードに所属バッジを出すために使う。
+export function XComposer({
+  me,
+  myAffiliatedShop,
+  onPosted,
+}: {
+  me: XProfile;
+  myAffiliatedShop?: { handle: string; displayName: string } | null;
+  onPosted: (post: XPost) => void;
+}) {
   const [body, setBody] = useState('');
   const [images, setImages] = useState<string[]>([]);
   const [uploading, setUploading] = useState(false);
@@ -99,8 +108,8 @@ export function XComposer({ me, onPosted }: { me: XProfile; onPosted: (post: XPo
         kind: me.kind,
         avatarUrl: me.avatar_url,
         isVerified: me.is_verified,
-        // 投稿直後の楽観表示では所属バッジは付けない（リロード/サーバー再取得で反映される）。
-        affiliatedShop: null,
+        // 自分が店舗所属セラピストなら、投稿直後の楽観カードにも所属バッジを出す。
+        affiliatedShop: myAffiliatedShop ?? null,
       },
     });
     setBody('');

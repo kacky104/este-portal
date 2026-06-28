@@ -41,10 +41,12 @@ export function XAdmin({
   shops: initialShops,
   posts: initialPosts,
   profiles: initialProfiles,
+  emails,
 }: {
   shops: ShopRow[];
   posts: ModPost[];
   profiles: ModProfile[];
+  emails: Record<string, string>; // profile.id → ログインメール（運営のみ・/x/admin 限定で表示）
 }) {
   const [tab, setTab] = useState<'verify' | 'accounts' | 'posts'>('verify');
   const [shops, setShops] = useState(initialShops);
@@ -228,6 +230,10 @@ export function XAdmin({
                       )}
                     </div>
                     <p className="text-xs text-slate-400">@{p.handle}</p>
+                    {/* ログインメール（運営パネル限定表示）。未取得時は — */}
+                    <p className="text-[11px] text-slate-400 break-all mt-0.5">
+                      ✉ {emails[p.id] ?? '—'}
+                    </p>
                   </div>
                   <button
                     type="button"

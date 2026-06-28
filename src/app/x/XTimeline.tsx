@@ -16,6 +16,7 @@ export function XTimeline({
   following,
   initialLikedIds,
   initialFolloweeIds,
+  myAffiliatedShop,
 }: {
   me: XProfile | null;
   loggedIn: boolean;
@@ -23,6 +24,7 @@ export function XTimeline({
   following: XPost[];
   initialLikedIds: string[];
   initialFolloweeIds: string[];
+  myAffiliatedShop?: { handle: string; displayName: string } | null;
 }) {
   const [tab, setTab] = useState<'recommended' | 'following'>('recommended');
   const [toast, setToast] = useState('');
@@ -80,7 +82,7 @@ export function XTimeline({
   return (
     <div className="py-2">
       {/* 投稿コンポーザ（therapist/shop かつ BANでないとき。承認ゲートは廃止） */}
-      {eng.canPost && me && <XComposer me={me} onPosted={onPosted} />}
+      {eng.canPost && me && <XComposer me={me} myAffiliatedShop={myAffiliatedShop ?? null} onPosted={onPosted} />}
 
       {/* タブ */}
       <div className="sticky top-14 z-30 -mx-4 px-4 bg-white/90 backdrop-blur-md border-b border-slate-200">

@@ -87,9 +87,12 @@ export function XProfileView({
 
             <div className="mb-1">
               {isOwnProfile ? (
-                <span className="inline-block text-xs font-bold px-4 py-1.5 rounded-full border border-slate-200 text-slate-400">
-                  プロフィール編集（準備中）
-                </span>
+                <Link
+                  href="/x/settings"
+                  className="inline-block text-xs font-bold px-4 py-1.5 rounded-full border border-slate-200 text-slate-600 hover:border-indigo-300 hover:text-indigo-600 transition-colors"
+                >
+                  プロフィール編集
+                </Link>
               ) : showFollowBtn ? (
                 // 未ログイン／未開設でも表示し、押下時に toggleFollow → onAuthRequired でモーダルを開く。
                 <button

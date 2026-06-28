@@ -63,6 +63,7 @@ export default async function XProfilePage({ params }: { params: Promise<{ handl
     avatar_url: t.avatar_url,
     header_url: t.header_url,
     is_verified: t.is_verified,
+    affiliated_shop_id: t.affiliated_shop_id,
   };
 
   const isOwnProfile = !!viewer.profile && viewer.profile.id === target.id;

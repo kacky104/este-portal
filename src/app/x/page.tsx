@@ -9,6 +9,7 @@ import {
 } from './xPosts';
 import { XTimeline } from './XTimeline';
 import { XAffiliationBanner, type IncomingRequest } from './XAffiliationBanner';
+import { fetchShopMini } from './xAffiliation';
 
 // ログイン状態・自分の x_profiles・フォロー中/いいね状態を読むため動的レンダリング（ISRにはしない）。
 export const dynamic = 'force-dynamic';
@@ -32,20 +33,22 @@ export default async function XHomePage() {
   }
 
   // セラピスト本人宛の所属申請（pending）を取得し、承認/却下バナーを出す。
+  // あわせて自分の所属先（あれば）を解決し、投稿直後の楽観カードにも所属バッジを出せるようにする。
   let incoming: IncomingRequest[] = [];
-  let alreadyAffiliated = false;
+  const alreadyAffiliated = !!(profile?.affiliated_shop_id ?? null);
+  let myAffiliatedShop: { handle: string; displayName: string } | null = null;
   if (profile?.kind === 'therapist') {
     const supabase = await createClient();
-    const [reqRes, meRes] = await Promise.all([
+    const [reqRes, shopMini] = await Promise.all([
       supabase
         .from('x_affiliation_requests')
         .select('id, shop_profile_id, created_at')
         .eq('therapist_profile_id', profile.id)
         .eq('status', 'pending')
         .order('created_at', { ascending: false }),
-      supabase.from('x_profiles').select('affiliated_shop_id').eq('id', profile.id).maybeSingle(),
+      fetchShopMini(supabase, profile.affiliated_shop_id),
     ]);
-    alreadyAffiliated = !!(meRes.data?.affiliated_shop_id as string | null | undefined);
+    myAffiliatedShop = shopMini ? { handle: shopMini.handle, displayName: shopMini.displayName } : null;
 
     const reqRows = (reqRes.data ?? []) as Array<{ id: number | string; shop_profile_id: string; created_at: string }>;
     const shopIds = [...new Set(reqRows.map((r) => r.shop_profile_id).filter(Boolean))];
@@ -129,6 +132,7 @@ export default async function XHomePage() {
         following={following}
         initialLikedIds={likedIds}
         initialFolloweeIds={followeeIds}
+        myAffiliatedShop={myAffiliatedShop}
       />
     </div>
   );

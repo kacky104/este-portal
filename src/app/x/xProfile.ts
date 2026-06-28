@@ -16,10 +16,11 @@ export type XProfile = {
   avatar_url: string | null;
   header_url: string | null;
   is_verified: boolean; // 運営確認済みバッジ（現状 shop のみ運用）。行動可否には無関係＝表示のみ。
+  affiliated_shop_id: string | null; // 確定所属先（therapist のみ持ち得る）。読み取り専用＝書き換えは RPC 経由。
 };
 
 const XPROFILE_COLUMNS =
-  'id, auth_user_id, kind, status, handle, display_name, bio, avatar_url, header_url, is_verified';
+  'id, auth_user_id, kind, status, handle, display_name, bio, avatar_url, header_url, is_verified, affiliated_shop_id';
 
 // ログインユーザーと、その x_profiles（未作成なら null）をサーバー側でまとめて取得する。
 // /x・/x/onboarding の分岐に使う。RLS の select は公開だが、自分の行は auth_user_id で引く。
