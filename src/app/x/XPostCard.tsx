@@ -1,8 +1,10 @@
 'use client';
 
+import { useState } from 'react';
 import Link from 'next/link';
 import { XTimeAgo } from './XTimeAgo';
 import { VerifiedBadge } from './VerifiedBadge';
+import { XImageLightbox } from './XImageLightbox';
 import type { XPost } from './xPosts';
 
 const KIND_LABEL: Record<string, string> = {
@@ -12,7 +14,17 @@ const KIND_LABEL: Record<string, string> = {
 };
 
 // 画像1〜4枚のグリッド（写メ日記のグリッド作法を参考に。1枚=単独、2/4枚=2列、3枚=先頭大）。
-function ImageGrid({ images, alt }: { images: string[]; alt: string }) {
+// 各画像クリックでライトボックス（全画面拡大）を開く。XImageLightbox は単一画像用のため、
+// クリックした1枚だけを表示する（複数画像の前後ナビは別タスク）。
+function ImageGrid({
+  images,
+  alt,
+  onImageClick,
+}: {
+  images: string[];
+  alt: string;
+  onImageClick: (src: string) => void;
+}) {
   if (images.length === 0) return null;
   const cls =
     images.length === 1
@@ -23,15 +35,21 @@ function ImageGrid({ images, alt }: { images: string[]; alt: string }) {
   return (
     <div className={`mt-2 grid ${cls} gap-1 rounded-xl overflow-hidden`}>
       {images.slice(0, 4).map((src, i) => (
-        <div
+        <button
+          type="button"
           key={i}
-          className={`relative bg-slate-100 ${
+          onClick={(e) => {
+            e.stopPropagation();
+            onImageClick(src);
+          }}
+          aria-label={`${alt}の画像${i + 1}を拡大表示`}
+          className={`relative bg-slate-100 cursor-zoom-in p-0 border-0 block w-full ${
             images.length === 3 && i === 0 ? 'row-span-2 aspect-[1/2]' : 'aspect-square'
           }`}
         >
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src={src} alt={`${alt}-${i + 1}`} className="absolute inset-0 w-full h-full object-cover" />
-        </div>
+        </button>
       ))}
     </div>
   );
@@ -59,6 +77,8 @@ export function XPostCard({
   onToggleFollow: (authorId: string) => void;
 }) {
   const a = post.author;
+  // 投稿画像の全画面拡大（クリックした1枚を表示）。XImageLightbox は単一画像用。
+  const [lightboxSrc, setLightboxSrc] = useState<string | null>(null);
   return (
     <article className="py-4 border-b border-slate-100">
       {/* ヘッダー：アバター・名前・@handle・kind・時刻・フォロー（名前/アバターはプロフィールへリンク） */}
@@ -127,7 +147,7 @@ export function XPostCard({
 
       {/* 画像 */}
       <div className="ml-[50px]">
-        <ImageGrid images={post.images} alt={a.displayName} />
+        <ImageGrid images={post.images} alt={a.displayName} onImageClick={setLightboxSrc} />
       </div>
 
       {/* いいね */}
@@ -147,6 +167,9 @@ export function XPostCard({
           <span className="tabular-nums font-medium">{likeCount}</span>
         </button>
       </div>
+
+      {/* 投稿画像の全画面拡大ライトボックス */}
+      <XImageLightbox src={lightboxSrc} alt={a.displayName} onClose={() => setLightboxSrc(null)} />
     </article>
   );
 }
