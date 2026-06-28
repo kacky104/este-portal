@@ -8,6 +8,7 @@ import type { ShopMini, TherapistMini } from './xAffiliation';
 import { XPostCard } from './XPostCard';
 import { VerifiedBadge } from './VerifiedBadge';
 import { XAuthGateModal } from './XAuthGateModal';
+import { XImageLightbox } from './XImageLightbox';
 import { useXEngagement } from './useXEngagement';
 
 const KIND_LABEL: Record<string, string> = {
@@ -43,6 +44,7 @@ export function XProfileView({
 }) {
   const [toast, setToast] = useState('');
   const [gateOpen, setGateOpen] = useState(false); // 未ログイン／未開設アクション時のモーダル
+  const [lightboxSrc, setLightboxSrc] = useState<string | null>(null); // avatar/header の全体表示
   const showToast = (msg: string) => {
     setToast(msg);
     window.setTimeout(() => setToast(''), 2600);
@@ -66,11 +68,16 @@ export function XProfileView({
     <div>
       {/* ─── ヘッダー ─── */}
       <div className="-mx-4">
-        {/* バナー（header_url があれば） */}
+        {/* バナー（header_url があればタップで全体表示） */}
         <div className="h-28 bg-gradient-to-br from-indigo-100 to-sky-100 relative">
           {target.header_url && (
             // eslint-disable-next-line @next/next/no-img-element
-            <img src={target.header_url} alt="" className="w-full h-full object-cover" />
+            <img
+              src={target.header_url}
+              alt=""
+              onClick={() => setLightboxSrc(target.header_url)}
+              className="w-full h-full object-cover cursor-pointer"
+            />
           )}
         </div>
 
@@ -79,7 +86,12 @@ export function XProfileView({
             <span className="relative w-20 h-20 rounded-full overflow-hidden border-4 border-white shadow-sm bg-gradient-to-br from-indigo-300 to-sky-300 flex items-center justify-center">
               {target.avatar_url ? (
                 // eslint-disable-next-line @next/next/no-img-element
-                <img src={target.avatar_url} alt={target.display_name} className="w-full h-full object-cover" />
+                <img
+                  src={target.avatar_url}
+                  alt={target.display_name}
+                  onClick={() => setLightboxSrc(target.avatar_url)}
+                  className="w-full h-full object-cover cursor-pointer"
+                />
               ) : (
                 <span className="text-white font-bold text-2xl">{target.display_name.charAt(0) || '?'}</span>
               )}
@@ -239,6 +251,9 @@ export function XProfileView({
       )}
 
       <XAuthGateModal open={gateOpen} loggedIn={loggedIn} onClose={() => setGateOpen(false)} />
+
+      {/* avatar / header の全体表示ライトボックス */}
+      <XImageLightbox src={lightboxSrc} alt={target.display_name} onClose={() => setLightboxSrc(null)} />
     </div>
   );
 }
