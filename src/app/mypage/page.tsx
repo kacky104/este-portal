@@ -881,7 +881,7 @@ export default function MyPage() {
 
   const handleCancelInvite = async (therapistId: string, email: string) => {
     if (!salon) return;
-    if (!window.confirm(`招待を取り消します。このメールアドレス（${email}）の登録も削除されます。\nよろしいですか？`)) return;
+    if (!window.confirm(`招待を取り消します（${email}）。本人未ログインの仮登録は削除されますが、fukuX 利用中のアカウントは保持されます。\nよろしいですか？`)) return;
     setInviteBusyId(therapistId);
     const res = await cancelCastInvite({ therapistId, salonId: Number(salon.id) });
     setInviteBusyId(null);
