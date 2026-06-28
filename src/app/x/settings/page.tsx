@@ -22,7 +22,7 @@ export default async function XSettingsPage() {
   }
 
   return (
-    <div className="py-8">
+    <div className="my-6 p-6 rounded-2xl bg-white/[0.94] shadow-[0_4px_16px_rgba(168,85,247,0.25)]">
       <h1 className="text-2xl font-black tracking-tight mb-1">プロフィール設定</h1>
       <p className="text-sm text-slate-500 mb-6">表示名・自己紹介・画像を編集できます。</p>
       <XSettingsForm profile={profile} email={email} affiliatedShop={affiliatedShop} />

@@ -67,8 +67,8 @@ export function XProfileView({
 
   return (
     <div>
-      {/* ─── ヘッダー ─── */}
-      <div className="-mx-4">
+      {/* ─── ヘッダー（浮遊カード） ─── */}
+      <div className="mt-3 rounded-2xl overflow-hidden bg-white/[0.94] shadow-[0_4px_16px_rgba(168,85,247,0.25)]">
         {/* バナー（header_url があればタップで全体表示） */}
         <div className="h-28 bg-gradient-to-br from-indigo-100 to-sky-100 relative">
           {target.header_url && (
@@ -82,7 +82,7 @@ export function XProfileView({
           )}
         </div>
 
-        <div className="px-4">
+        <div className="px-4 pb-4">
           <div className="flex items-end justify-between -mt-9">
             <span className="relative w-20 h-20 rounded-full overflow-hidden border-4 border-white shadow-sm bg-gradient-to-br from-indigo-300 to-sky-300 flex items-center justify-center">
               {target.avatar_url ? (
@@ -180,9 +180,9 @@ export function XProfileView({
         </div>
       </div>
 
-      {/* ─── 所属セラピスト一覧（店舗プロフィールのみ） ─── */}
+      {/* ─── 所属セラピスト一覧（店舗プロフィールのみ・浮遊カード） ─── */}
       {target.kind === 'shop' && (
-        <div className="mt-5">
+        <div className="mt-3 rounded-2xl bg-white/[0.94] shadow-[0_4px_16px_rgba(168,85,247,0.25)] p-4">
           <h2 className="text-sm font-black text-slate-800 mb-2">
             所属セラピスト
             {affiliatedTherapists.length > 0 && (
@@ -218,11 +218,11 @@ export function XProfileView({
         </div>
       )}
 
-      {/* ─── 投稿一覧 ─── */}
-      <div className="mt-4 border-t border-slate-100">
+      {/* ─── 投稿一覧（各カードが浮遊） ─── */}
+      <div className="mt-3 space-y-3">
         {posts.length === 0 ? (
           <div className="py-16 text-center">
-            <p className="text-sm text-slate-400">まだ投稿がありません</p>
+            <p className="text-sm text-white/90 drop-shadow-sm">まだ投稿がありません</p>
           </div>
         ) : (
           posts.map((p) => {

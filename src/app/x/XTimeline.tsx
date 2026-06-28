@@ -105,11 +105,11 @@ export function XTimeline({
         recommendedView.length === 0 ? (
           <Empty text="まだ投稿がありません" />
         ) : (
-          <div>{renderList(recommendedView)}</div>
+          <div className="space-y-3 pt-3">{renderList(recommendedView)}</div>
         )
       ) : !loggedIn ? (
         <div className="py-14 text-center">
-          <p className="text-sm text-slate-500 mb-4 leading-relaxed px-6">
+          <p className="text-sm text-white/90 mb-4 leading-relaxed px-6 drop-shadow-sm">
             ログインすると、フォローしたセラピスト・お店の新着がここに表示されます。
           </p>
           <div className="flex justify-center gap-2">
@@ -122,7 +122,7 @@ export function XTimeline({
             </Link>
             <Link
               href="/x/login"
-              className="inline-block px-6 py-2.5 rounded-xl border border-slate-200 text-slate-600 font-bold text-sm hover:border-indigo-300 hover:text-indigo-600 transition-colors"
+              className="inline-block px-6 py-2.5 rounded-xl border border-white/70 text-white font-bold text-sm hover:bg-white/10 transition-colors"
             >
               ログイン
             </Link>
@@ -131,7 +131,7 @@ export function XTimeline({
       ) : following.length === 0 ? (
         <Empty text="気になるセラピスト・お店をフォローすると、ここに新着が表示されます" />
       ) : (
-        <div>{renderList(following)}</div>
+        <div className="space-y-3 pt-3">{renderList(following)}</div>
       )}
 
       {toast && (
@@ -153,7 +153,7 @@ export function XTimeline({
 function Empty({ text }: { text: string }) {
   return (
     <div className="py-16 text-center">
-      <p className="text-sm text-slate-400 leading-relaxed px-6">{text}</p>
+      <p className="text-sm text-white/90 leading-relaxed px-6 drop-shadow-sm">{text}</p>
     </div>
   );
 }

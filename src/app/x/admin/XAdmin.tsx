@@ -127,7 +127,7 @@ export function XAdmin({
   const shownShops = onlyUnverified ? shops.filter((s) => !s.is_verified) : shops;
 
   return (
-    <div className="py-6">
+    <div className="my-6 p-5 rounded-2xl bg-white/[0.94] shadow-[0_4px_16px_rgba(168,85,247,0.25)]">
       <h1 className="text-xl font-black tracking-tight mb-1">運営パネル</h1>
       <p className="text-xs text-slate-400 mb-4">fukuX の認証バッジ・凍結・モデレーション</p>
 

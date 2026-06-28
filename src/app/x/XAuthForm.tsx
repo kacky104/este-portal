@@ -292,7 +292,7 @@ export function XAuthForm({ initialMode }: { initialMode: 'login' | 'signup' }) 
         )}
       </div>
 
-      <Link href="/x" className="mt-6 text-xs text-slate-400 hover:text-indigo-500 transition-colors">
+      <Link href="/x" className="mt-6 text-xs text-white/80 hover:text-white transition-colors drop-shadow-sm">
         ← fukuX トップへ
       </Link>
     </div>

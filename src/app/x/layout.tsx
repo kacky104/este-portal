@@ -10,11 +10,21 @@ export const metadata: Metadata = {
 
 export default function XLayout({ children }: { children: React.ReactNode }) {
   return (
-    <div className="min-h-screen bg-white text-slate-900">
-      {/* ─── fukuX ヘッダー（左=アバター/ドロワー・中央=肉球ロゴ・右=スペーサー） ─── */}
-      <XHeader />
+    <div className="relative min-h-screen text-slate-900">
+      {/* fukuX 専用：濃いめピンク→パープルの固定グラデ背景。スクロール追従しない固定レイヤーで、
+          短いページでも下端まで途切れない。/x 配下のこのレイアウト内に閉じており、本体（/x 外）には影響しない。 */}
+      <div
+        aria-hidden
+        className="fixed inset-0 z-0"
+        style={{ background: 'linear-gradient(160deg,#EC4899 0%,#C026D3 50%,#A855F7 100%)' }}
+      />
 
-      <main className="max-w-2xl mx-auto px-4 pb-20">{children}</main>
+      <div className="relative z-10">
+        {/* ─── fukuX ヘッダー（左=アバター/ドロワー・中央=肉球ロゴ・右=スペーサー） ─── */}
+        <XHeader />
+
+        <main className="max-w-2xl mx-auto px-4 pb-20">{children}</main>
+      </div>
     </div>
   );
 }
