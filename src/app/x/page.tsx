@@ -32,12 +32,16 @@ export default async function XHomePage() {
     likedIds = await fetchMyLikedPostIds(profile.id, allIds);
   }
 
+  // 凍結(BAN=status='rejected')中の本人かどうか。凍結中はアクション系UI（コンポーザは canPost で抑止済み）に加え、
+  // 所属申請バナーも出さない（承認/却下RPCはどのみちRLS/ガードで弾かれるため）。
+  const isFrozen = profile?.status === 'rejected';
+
   // セラピスト本人宛の所属申請（pending）を取得し、承認/却下バナーを出す。
   // あわせて自分の所属先（あれば）を解決し、投稿直後の楽観カードにも所属バッジを出せるようにする。
   let incoming: IncomingRequest[] = [];
   const alreadyAffiliated = !!(profile?.affiliated_shop_id ?? null);
   let myAffiliatedShop: { handle: string; displayName: string } | null = null;
-  if (profile?.kind === 'therapist') {
+  if (profile?.kind === 'therapist' && !isFrozen) {
     const supabase = await createClient();
     const [reqRes, shopMini] = await Promise.all([
       supabase
@@ -80,6 +84,26 @@ export default async function XHomePage() {
 
   return (
     <div>
+      {/* 凍結(BAN)中の本人への通知。理由は表示しない。ログイン/開設バナーより優先して最上部に出す。 */}
+      {isFrozen && (
+        <div className="mt-4 mb-1 p-5 rounded-2xl bg-slate-50 border border-slate-200">
+          <div className="flex items-start gap-3">
+            <span className="flex-shrink-0 w-9 h-9 rounded-full bg-amber-50 border border-amber-100 flex items-center justify-center text-amber-500">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+                <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+              </svg>
+            </span>
+            <div>
+              <p className="text-sm font-bold text-slate-800">このアカウントは現在ご利用いただけません</p>
+              <p className="text-[12px] text-slate-500 mt-1 leading-relaxed">
+                運営により利用を停止されています。投稿・いいね・フォローはご利用いただけません。
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* ログイン済みだが未開設：閲覧はできる。投稿/フォローには開設が必要なので案内バナーを出す。 */}
       {userId && !profile && (
         <div className="mt-4 mb-1 p-4 rounded-2xl bg-gradient-to-br from-indigo-50 to-sky-50 border border-indigo-100">
