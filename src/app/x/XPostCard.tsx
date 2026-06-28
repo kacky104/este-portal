@@ -14,8 +14,8 @@ const KIND_LABEL: Record<string, string> = {
 };
 
 // 画像1〜4枚のグリッド（写メ日記のグリッド作法を参考に。1枚=単独、2/4枚=2列、3枚=先頭大）。
-// 各画像クリックでライトボックス（全画面拡大）を開く。XImageLightbox は単一画像用のため、
-// クリックした1枚だけを表示する（複数画像の前後ナビは別タスク）。
+// 各画像クリックでライトボックス（全画面拡大）を開く。クリックした画像のインデックスを渡し、
+// 複数枚なら拡大したまま左右ナビできる（XImageLightbox 側で対応）。
 function ImageGrid({
   images,
   alt,
@@ -23,7 +23,7 @@ function ImageGrid({
 }: {
   images: string[];
   alt: string;
-  onImageClick: (src: string) => void;
+  onImageClick: (index: number) => void;
 }) {
   if (images.length === 0) return null;
   const cls =
@@ -40,7 +40,7 @@ function ImageGrid({
           key={i}
           onClick={(e) => {
             e.stopPropagation();
-            onImageClick(src);
+            onImageClick(i);
           }}
           aria-label={`${alt}の画像${i + 1}を拡大表示`}
           className={`relative bg-slate-100 cursor-zoom-in p-0 border-0 block w-full ${
@@ -77,8 +77,8 @@ export function XPostCard({
   onToggleFollow: (authorId: string) => void;
 }) {
   const a = post.author;
-  // 投稿画像の全画面拡大（クリックした1枚を表示）。XImageLightbox は単一画像用。
-  const [lightboxSrc, setLightboxSrc] = useState<string | null>(null);
+  // 投稿画像の全画面拡大。クリックした画像のインデックスを保持（null で閉じ）。複数枚は左右ナビ可。
+  const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
   return (
     <article className="py-4 border-b border-slate-100">
       {/* ヘッダー：アバター・名前・@handle・kind・時刻・フォロー（名前/アバターはプロフィールへリンク） */}
@@ -147,7 +147,7 @@ export function XPostCard({
 
       {/* 画像 */}
       <div className="ml-[50px]">
-        <ImageGrid images={post.images} alt={a.displayName} onImageClick={setLightboxSrc} />
+        <ImageGrid images={post.images} alt={a.displayName} onImageClick={setLightboxIndex} />
       </div>
 
       {/* いいね */}
@@ -168,8 +168,15 @@ export function XPostCard({
         </button>
       </div>
 
-      {/* 投稿画像の全画面拡大ライトボックス */}
-      <XImageLightbox src={lightboxSrc} alt={a.displayName} onClose={() => setLightboxSrc(null)} />
+      {/* 投稿画像の全画面拡大ライトボックス（複数枚は左右ナビ） */}
+      {lightboxIndex !== null && (
+        <XImageLightbox
+          images={post.images}
+          startIndex={lightboxIndex}
+          alt={a.displayName}
+          onClose={() => setLightboxIndex(null)}
+        />
+      )}
     </article>
   );
 }
