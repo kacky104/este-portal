@@ -78,10 +78,10 @@ export default async function XProfilePage({ params }: { params: Promise<{ handl
 
   const [followerRes, followingRes, postRes] = await Promise.all([
     wantsFollowers
-      ? supabase.from('x_follows').select('id', { count: 'exact', head: true }).eq('followee_profile_id', target.id)
+      ? supabase.from('x_follows').select('followee_profile_id', { count: 'exact', head: true }).eq('followee_profile_id', target.id)
       : Promise.resolve({ count: null }),
     wantsFollowing
-      ? supabase.from('x_follows').select('id', { count: 'exact', head: true }).eq('follower_profile_id', target.id)
+      ? supabase.from('x_follows').select('follower_profile_id', { count: 'exact', head: true }).eq('follower_profile_id', target.id)
       : Promise.resolve({ count: null }),
     supabase
       .from('x_posts')
@@ -141,7 +141,7 @@ export default async function XProfilePage({ params }: { params: Promise<{ handl
     if (!isOwnProfile && wantsFollowers) {
       const { data: f } = await supabase
         .from('x_follows')
-        .select('id')
+        .select('follower_profile_id')
         .eq('follower_profile_id', viewer.profile.id)
         .eq('followee_profile_id', target.id)
         .maybeSingle();
