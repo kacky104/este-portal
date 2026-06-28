@@ -26,12 +26,29 @@ function ImageGrid({
   onImageClick: (index: number) => void;
 }) {
   if (images.length === 0) return null;
-  const cls =
-    images.length === 1
-      ? 'grid-cols-1'
-      : images.length === 3
-        ? 'grid-cols-2'
-        : 'grid-cols-2';
+
+  // 1枚のときは正方形トリミングをやめ、元のアスペクト比のまま表示（縦長対策に max-h で頭打ち）。
+  if (images.length === 1) {
+    return (
+      <div className="mt-2 rounded-xl overflow-hidden">
+        <button
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation();
+            onImageClick(0);
+          }}
+          aria-label={`${alt}の画像1を拡大表示`}
+          className="relative bg-slate-100 cursor-zoom-in p-0 border-0 block w-full"
+        >
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={images[0]} alt={`${alt}-1`} className="w-full h-auto max-h-[80vh] object-contain" />
+        </button>
+      </div>
+    );
+  }
+
+  // 複数枚（2〜4枚）は従来どおり正方形グリッド（3枚=先頭大）。
+  const cls = 'grid-cols-2';
   return (
     <div className={`mt-2 grid ${cls} gap-1 rounded-xl overflow-hidden`}>
       {images.slice(0, 4).map((src, i) => (
