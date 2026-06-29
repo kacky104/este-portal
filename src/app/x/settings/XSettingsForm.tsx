@@ -52,7 +52,8 @@ export function XSettingsForm({
   const [cup, setCup] = useState(profile.cup ?? '');
   const [waist, setWaist] = useState(profile.waist?.toString() ?? '');
   const [hip, setHip] = useState(profile.hip?.toString() ?? '');
-  // 住所（お店アカウントのみ・任意）。
+  // 年齢・スリーサイズはセラピストのみ、住所はお店のみ。
+  const isTherapist = profile.kind === 'therapist';
   const isShop = profile.kind === 'shop';
   const [address, setAddress] = useState(profile.address ?? '');
   const [avatarUrl, setAvatarUrl] = useState<string | null>(profile.avatar_url);
@@ -140,12 +141,17 @@ export function XSettingsForm({
         avatar_url: avatarUrl,
         header_url: headerUrl,
         link_url: linkUrl,
-        age: toIntOrNull(age),
-        height: toIntOrNull(height),
-        bust: toIntOrNull(bust),
-        cup: cup.trim() || null,
-        waist: toIntOrNull(waist),
-        hip: toIntOrNull(hip),
+        // 年齢・スリーサイズはセラピストのみ保存対象（他種別では欄を出さず、キーも送らない＝null上書き防止）。
+        ...(isTherapist
+          ? {
+              age: toIntOrNull(age),
+              height: toIntOrNull(height),
+              bust: toIntOrNull(bust),
+              cup: cup.trim() || null,
+              waist: toIntOrNull(waist),
+              hip: toIntOrNull(hip),
+            }
+          : {}),
         // 住所はお店アカウントのみ保存対象（他種別では欄を出さず、キーも送らない）。
         ...(isShop ? { address: address.trim() || null } : {}),
       })
@@ -299,7 +305,8 @@ export function XSettingsForm({
         </div>
       )}
 
-      {/* ── 年齢・スリーサイズ（すべて任意・プロフィールに表示されます）── text-base(16px) で iOS 自動ズーム抑止 */}
+      {/* ── 年齢・スリーサイズ（セラピストアカウントのみ・すべて任意）── text-base(16px) で iOS 自動ズーム抑止 */}
+      {isTherapist && (
       <div className="rounded-2xl border border-slate-200 bg-slate-50/60 p-4">
         <p className="text-[11px] font-bold text-slate-400 mb-3 px-1">年齢・スリーサイズ（任意）</p>
         <div className="grid grid-cols-2 gap-3">
@@ -323,6 +330,7 @@ export function XSettingsForm({
         </div>
         <p className="text-[10px] text-slate-400 mt-2 px-1">入力した項目だけ「@ID」の横に表示されます。空欄の項目は表示されません。</p>
       </div>
+      )}
 
       {/* ── 変更不可（読み取り専用）：ID・種別・ログインメール ── */}
       <div className="rounded-2xl border border-slate-200 bg-slate-50/60 p-4 space-y-3">

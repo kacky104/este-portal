@@ -199,7 +199,7 @@ export function XProfileView({
                   <span className="break-words">{target.address}</span>
                 </span>
               )}
-              {measurements.length > 0 && (
+              {target.kind === 'therapist' && measurements.length > 0 && (
                 <p className="text-xs text-slate-500 tabular-nums">{measurements.join(' ')}</p>
               )}
             </div>
