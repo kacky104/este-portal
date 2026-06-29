@@ -177,9 +177,28 @@ export function XProfileView({
                 </Link>
               )}
             </div>
-            {/* @handle と 年齢・スリーサイズ を同じ行に（狭幅は折り返してもレイアウトが崩れない）。 */}
+            {/* @handle と 住所（お店のみ）・年齢・スリーサイズ を同じ行に（狭幅は折り返してもレイアウトが崩れない）。 */}
             <div className="flex flex-wrap items-center gap-x-2">
               <p className="text-sm text-slate-400">@{target.handle}</p>
+              {/* 住所：お店アカウントのみ・address があるときだけ。Lucide MapPin 相当のインラインSVG＋住所。 */}
+              {target.kind === 'shop' && target.address && (
+                <span className="inline-flex items-center gap-x-1 text-xs text-slate-500">
+                  <svg
+                    className="h-3.5 w-3.5 flex-shrink-0"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    aria-hidden="true"
+                  >
+                    <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" />
+                    <circle cx="12" cy="10" r="3" />
+                  </svg>
+                  <span className="break-words">{target.address}</span>
+                </span>
+              )}
               {measurements.length > 0 && (
                 <p className="text-xs text-slate-500 tabular-nums">{measurements.join(' ')}</p>
               )}

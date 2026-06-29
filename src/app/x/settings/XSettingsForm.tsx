@@ -52,6 +52,9 @@ export function XSettingsForm({
   const [cup, setCup] = useState(profile.cup ?? '');
   const [waist, setWaist] = useState(profile.waist?.toString() ?? '');
   const [hip, setHip] = useState(profile.hip?.toString() ?? '');
+  // 住所（お店アカウントのみ・任意）。
+  const isShop = profile.kind === 'shop';
+  const [address, setAddress] = useState(profile.address ?? '');
   const [avatarUrl, setAvatarUrl] = useState<string | null>(profile.avatar_url);
   const [headerUrl, setHeaderUrl] = useState<string | null>(profile.header_url);
 
@@ -143,6 +146,8 @@ export function XSettingsForm({
         cup: cup.trim() || null,
         waist: toIntOrNull(waist),
         hip: toIntOrNull(hip),
+        // 住所はお店アカウントのみ保存対象（他種別では欄を出さず、キーも送らない）。
+        ...(isShop ? { address: address.trim() || null } : {}),
       })
       .eq('id', profile.id);
     setSaving(false);
@@ -278,6 +283,21 @@ export function XSettingsForm({
         />
         <p className="text-[10px] text-slate-400 mt-1 px-1">http:// または https:// のリンク（プロフィールに表示されます）</p>
       </div>
+
+      {/* ── 住所（お店アカウントのみ・任意）── text-base(16px) で iOS 自動ズーム抑止 */}
+      {isShop && (
+        <div>
+          <label className="text-[11px] font-bold text-slate-400 block mb-1.5 px-1">住所（任意）</label>
+          <input
+            type="text"
+            value={address}
+            onChange={(e) => setAddress(e.target.value)}
+            placeholder="例: 博多区住吉"
+            className="w-full px-4 py-3 rounded-xl border border-slate-200 text-base text-slate-900 placeholder:text-slate-400 bg-slate-50/50 focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:border-transparent"
+          />
+          <p className="text-[10px] text-slate-400 mt-1 px-1">プロフィールの @ID の横に表示されます。</p>
+        </div>
+      )}
 
       {/* ── 年齢・スリーサイズ（すべて任意・プロフィールに表示されます）── text-base(16px) で iOS 自動ズーム抑止 */}
       <div className="rounded-2xl border border-slate-200 bg-slate-50/60 p-4">
