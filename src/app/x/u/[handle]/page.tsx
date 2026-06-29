@@ -10,6 +10,7 @@ import {
   type TherapistMini,
 } from '../../xAffiliation';
 import { XProfileView } from '../../XProfileView';
+import { getLinkedTherapistForXProfile, type LinkedTherapist } from '@/app/lib/xLink';
 
 // 閲覧者のログイン状態でフォロー状態が変わるため動的レンダリング。
 export const dynamic = 'force-dynamic';
@@ -98,14 +99,19 @@ export default async function XProfilePage({ params }: { params: Promise<{ handl
   const followingCount = wantsFollowing ? (followingRes.count ?? 0) : null;
 
   // 所属情報：therapist は所属先店舗（1件）、shop は所属セラピスト一覧を解決。
-  const [affiliatedShop, affiliatedTherapists]: [ShopMini | null, TherapistMini[]] = await Promise.all([
-    target.kind === 'therapist'
-      ? fetchShopMini(supabase, t.affiliated_shop_id)
-      : Promise.resolve(null),
-    target.kind === 'shop'
-      ? fetchAffiliatedTherapists(supabase, target.id)
-      : Promise.resolve([] as TherapistMini[]),
-  ]);
+  // あわせて therapist は本体（フクエス）の連携セラピストを解決（is_active な場合のみ誘導リンク）。
+  const [affiliatedShop, affiliatedTherapists, portalLink]: [ShopMini | null, TherapistMini[], LinkedTherapist | null] =
+    await Promise.all([
+      target.kind === 'therapist'
+        ? fetchShopMini(supabase, t.affiliated_shop_id)
+        : Promise.resolve(null),
+      target.kind === 'shop'
+        ? fetchAffiliatedTherapists(supabase, target.id)
+        : Promise.resolve([] as TherapistMini[]),
+      target.kind === 'therapist'
+        ? getLinkedTherapistForXProfile(target.auth_user_id)
+        : Promise.resolve(null),
+    ]);
 
   // 投稿は全て target が投稿主なので辞書引き不要（author を直接付与）。
   // target が所属ありセラピストなら、本人の投稿カードにも所属バッジが出るよう author に付与。
@@ -180,6 +186,7 @@ export default async function XProfilePage({ params }: { params: Promise<{ handl
       initialFollowing={initialFollowing}
       affiliatedShop={affiliatedShop}
       affiliatedTherapists={affiliatedTherapists}
+      portalLink={portalLink}
     />
   );
 }

@@ -26,6 +26,8 @@ import { sanitizeBadges, getBadgeColors } from '@/lib/therapistBadges';
 import { getReviewStats, getApprovedReviews } from '@/app/lib/reviews';
 import { ReviewSummary } from '@/app/components/ReviewSummary';
 import { ReviewList } from '@/app/components/ReviewList';
+import { getLinkedXProfileForTherapist } from '@/app/lib/xLink';
+import { VerifiedBadge } from '@/app/x/VerifiedBadge';
 
 // ── helpers ───────────────────────────────────────────────────
 
@@ -88,7 +90,7 @@ export default async function TherapistPublicPage({
 
   const { data: tRow, error: tError } = await supabase
     .from('therapists')
-    .select('id, name, profile_image_url, profile_images, age, body_type, profile_text, work_hours, comment, area, salon_id, is_new_face, new_face_since, is_available_now, available_until, is_available_now_cast, available_until_cast, feature_badges')
+    .select('id, name, profile_image_url, profile_images, age, body_type, profile_text, work_hours, comment, area, salon_id, is_new_face, new_face_since, is_available_now, available_until, is_available_now_cast, available_until_cast, feature_badges, user_id')
     .eq('id', id)
     .single();
 
@@ -255,9 +257,12 @@ export default async function TherapistPublicPage({
   // 口コミ（承認済みのみ・公開）。getReviewStats/getApprovedReviews は内部で createPublicClient を
   // 使う（cookies() を呼ばない）ため、既存の ISR を壊さない。
   const therapistId = Number(id);
-  const [reviewStats, reviews] = await Promise.all([
+  // fukuX 連携：このセラピストが fukuX(x_profiles) に approved で居れば誘導カードを出す。
+  // 公開読み取り（createPublicClient）なので ISR を壊さない。連携は頻繁に変わらずキャッシュ焼き付きも許容。
+  const [reviewStats, reviews, xLink] = await Promise.all([
     getReviewStats(therapistId),
     getApprovedReviews(therapistId),
+    getLinkedXProfileForTherapist((tRow.user_id as string | null) ?? null),
   ]);
 
   return (
@@ -432,6 +437,42 @@ export default async function TherapistPublicPage({
                 )}
               </div>
             </div>
+
+            {/* ─── fukuX 連携（このセラピストが fukuX に approved で居るときのみ） ─── */}
+            {xLink && (
+              <a
+                href={`/x/u/${xLink.handle}`}
+                className="block bg-white rounded-2xl border border-slate-200 shadow-sm p-5 hover:border-indigo-300 transition-colors"
+              >
+                <div className="flex items-center gap-2.5 mb-3">
+                  <div className="w-1 h-5 rounded-full bg-gradient-to-b from-indigo-500 to-sky-500 flex-shrink-0" />
+                  <h3 className="font-bold text-slate-900">fukuXで投稿中</h3>
+                </div>
+                <div className="flex items-center gap-3">
+                  <span className="relative w-12 h-12 rounded-full overflow-hidden border border-slate-100 bg-gradient-to-br from-indigo-300 to-sky-300 flex items-center justify-center flex-shrink-0">
+                    {xLink.avatarUrl ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img src={xLink.avatarUrl} alt={xLink.displayName ?? xLink.handle} className="w-full h-full object-cover" />
+                    ) : (
+                      <span className="text-white font-bold text-lg">{(xLink.displayName ?? xLink.handle).charAt(0) || '?'}</span>
+                    )}
+                  </span>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-1.5">
+                      <span className="font-bold text-slate-900 truncate">{xLink.displayName ?? `@${xLink.handle}`}</span>
+                      {xLink.isVerified && <VerifiedBadge kind="therapist" />}
+                    </div>
+                    <p className="text-xs text-slate-400 truncate">@{xLink.handle}</p>
+                  </div>
+                  <span className="inline-flex items-center gap-1 text-xs font-bold text-indigo-600 flex-shrink-0">
+                    見る
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                      <path d="M5 12h14M12 5l7 7-7 7" />
+                    </svg>
+                  </span>
+                </div>
+              </a>
+            )}
 
             {/* 写メ日記（新着6件 + 全部見る）— プロフィールの上に表示 */}
             {diaryPosts.length > 0 && (
