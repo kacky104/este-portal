@@ -3,16 +3,18 @@
 import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
-import { useRouter } from 'next/navigation';
+import { useRouter, usePathname } from 'next/navigation';
 import { getSession, onAuthChange, signOut } from '@/lib/auth';
 import { createClient } from '@/app/lib/supabase/client';
 import { ADMIN_UUID } from '@/app/lib/admin';
 import { VerifiedBadge } from './VerifiedBadge';
 import { XThemeToggle } from './XThemeToggle';
+import { NOTIF_READ_EVENT } from './xNotificationsShared';
 
 const supabase = createClient();
 
 type MyProfile = {
+  id: string;
   handle: string;
   display_name: string;
   avatar_url: string | null;
@@ -55,21 +57,24 @@ function Avatar({ profile, size = 36 }: { profile: MyProfile | null; size?: numb
 // 左=自分のアバター（ドロワートリガー）／中央=肉球ロゴ（最上部へスムーズスクロール）／右=スペーサー。
 export function XHeader() {
   const router = useRouter();
+  const pathname = usePathname();
   const [open, setOpen] = useState(false);
   const [userId, setUserId] = useState<string | null>(null);
   const [profile, setProfile] = useState<MyProfile | null>(null);
+  const [unread, setUnread] = useState(0); // 通知の未読件数（ベルの赤バッジ用）
 
   // セッションの auth_user_id から自分の x_profiles を取得（ドロワーのメニュー出し分けに使用）。
   const load = useCallback(async (uid: string | undefined) => {
     if (!uid) {
       setUserId(null);
       setProfile(null);
+      setUnread(0);
       return;
     }
     setUserId(uid);
     const { data } = await supabase
       .from('x_profiles')
-      .select('handle, display_name, avatar_url, kind, is_verified, status')
+      .select('id, handle, display_name, avatar_url, kind, is_verified, status')
       .eq('auth_user_id', uid)
       .maybeSingle();
     setProfile((data as MyProfile | null) ?? null);
@@ -103,6 +108,35 @@ export function XHeader() {
       window.removeEventListener('keydown', onKey);
     };
   }, [open]);
+
+  // 未読件数の取得（recipient=自分・is_read=false の count）。時間/ログイン依存のためクライアントでマウント時に取得し、
+  // 画面遷移（pathname 変化）のたびに再取得する。Realtime購読はしない（将来拡張）。
+  const profileId = profile?.id;
+  useEffect(() => {
+    if (!profileId) {
+      setUnread(0);
+      return;
+    }
+    let alive = true;
+    (async () => {
+      const { count } = await supabase
+        .from('x_notifications')
+        .select('id', { count: 'exact', head: true })
+        .eq('recipient_profile_id', profileId)
+        .eq('is_read', false);
+      if (alive) setUnread(count ?? 0);
+    })();
+    return () => {
+      alive = false;
+    };
+  }, [profileId, pathname]);
+
+  // 通知一覧ページで一括既読化したら、即座にバッジを消す（遷移を待たずに 0 化）。
+  useEffect(() => {
+    const clear = () => setUnread(0);
+    window.addEventListener(NOTIF_READ_EVENT, clear);
+    return () => window.removeEventListener(NOTIF_READ_EVENT, clear);
+  }, []);
 
   const isAdmin = !!userId && userId === ADMIN_UUID;
   const isVerifiedShop = profile?.kind === 'shop' && profile.is_verified;
@@ -143,8 +177,26 @@ export function XHeader() {
             <Image src="/fukux-mark.png" alt="fukuX" width={36} height={36} priority className="object-contain" />
           </button>
 
-          {/* 右：スペーサー（中央ロゴを視覚的に中央に保つ） */}
-          <div className="justify-self-end" aria-hidden />
+          {/* 右：通知ベル（ログイン＋開設済みのみ）。未読>0で赤バッジ。アバター(36px)と幅が揃い中央ロゴを保つ。 */}
+          <div className="justify-self-end">
+            {profile && (
+              <Link
+                href="/x/notifications"
+                aria-label={unread > 0 ? `通知（未読${unread}件）` : '通知'}
+                className="relative flex items-center justify-center w-9 h-9 rounded-full text-slate-600 hover:bg-slate-100 active:scale-95 transition"
+              >
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
+                  <path d="M13.73 21a2 2 0 0 1-3.46 0" />
+                </svg>
+                {unread > 0 && (
+                  <span className="absolute -top-0.5 -right-0.5 min-w-[18px] h-[18px] px-1 rounded-full bg-rose-500 text-white text-[10px] font-bold flex items-center justify-center tabular-nums shadow-sm">
+                    {unread > 99 ? '99+' : unread}
+                  </span>
+                )}
+              </Link>
+            )}
+          </div>
         </div>
       </header>
 
