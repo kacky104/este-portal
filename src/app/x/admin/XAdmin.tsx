@@ -221,7 +221,7 @@ export function XAdmin({
                       <Link href={`/x/u/${p.handle}`} className="font-bold text-sm text-slate-900 hover:underline truncate">
                         {p.display_name}
                       </Link>
-                      {p.kind === 'shop' && p.is_verified && <VerifiedBadge />}
+                      {(p.kind === 'shop' || p.kind === 'therapist') && p.is_verified && <VerifiedBadge kind={p.kind} />}
                       <span className="text-[10px] font-bold text-indigo-500 bg-indigo-50 rounded-full px-1.5 py-0.5">
                         {KIND_LABEL[p.kind] ?? p.kind}
                       </span>

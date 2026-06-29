@@ -369,7 +369,7 @@ export function XSearch() {
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-1.5 flex-wrap">
                       <span className="font-bold text-sm text-slate-900 truncate max-w-[50%]">{u.displayName}</span>
-                      {u.kind === 'shop' && u.isVerified && <VerifiedBadge />}
+                      {(u.kind === 'shop' || u.kind === 'therapist') && u.isVerified && <VerifiedBadge kind={u.kind} />}
                       <span className="text-[10px] font-bold text-indigo-500 bg-indigo-50 rounded-full px-1.5 py-0.5">
                         {KIND_LABEL[u.kind] ?? u.kind}
                       </span>

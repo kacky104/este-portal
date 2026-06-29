@@ -137,7 +137,9 @@ export function XProfileView({
           <div className="mt-2">
             <div className="flex items-center gap-2">
               <h1 className="text-xl font-black text-slate-900 truncate">{target.display_name}</h1>
-              {target.kind === 'shop' && target.is_verified && <VerifiedBadge size={18} />}
+              {(target.kind === 'shop' || target.kind === 'therapist') && target.is_verified && (
+                <VerifiedBadge size={18} kind={target.kind} />
+              )}
               <span className="text-[10px] font-bold text-indigo-500 bg-indigo-50 rounded-full px-1.5 py-0.5 flex-shrink-0">
                 {KIND_LABEL[target.kind] ?? target.kind}
               </span>

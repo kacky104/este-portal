@@ -154,7 +154,7 @@ export function XPostCard({
             <Link href={`/x/u/${a.handle}`} className="font-bold text-sm text-slate-900 truncate max-w-[40%] hover:underline">
               {a.displayName}
             </Link>
-            {a.kind === 'shop' && a.isVerified && <VerifiedBadge />}
+            {(a.kind === 'shop' || a.kind === 'therapist') && a.isVerified && <VerifiedBadge kind={a.kind} />}
             <Link href={`/x/u/${a.handle}`} className="text-xs text-slate-400 truncate hover:underline">
               @{a.handle}
             </Link>

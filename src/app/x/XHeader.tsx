@@ -258,7 +258,9 @@ export function XHeader() {
                 <span className={`text-[10px] font-bold rounded-full px-1.5 py-0.5 ${KIND_BADGE[profile.kind] ?? 'bg-slate-100 text-slate-600'}`}>
                   {KIND_LABEL[profile.kind] ?? profile.kind}
                 </span>
-                {isVerifiedShop && <VerifiedBadge />}
+                {(profile.kind === 'shop' || profile.kind === 'therapist') && profile.is_verified && (
+                  <VerifiedBadge kind={profile.kind} />
+                )}
                 {affiliatedShop && (
                   <span className="text-[10px] font-bold text-emerald-600 bg-emerald-50 rounded-full px-1.5 py-0.5 truncate max-w-[45%]">
                     {affiliatedShop.displayName}所属

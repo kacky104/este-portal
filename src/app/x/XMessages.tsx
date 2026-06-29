@@ -174,7 +174,9 @@ export function XMessages() {
                   <span className={`text-sm truncate ${it.unread ? 'font-bold text-slate-900' : 'font-bold text-slate-800'}`}>
                     {it.other?.displayName || '（不明なユーザー）'}
                   </span>
-                  {it.other?.kind === 'shop' && it.other?.isVerified && <VerifiedBadge />}
+                  {(it.other?.kind === 'shop' || it.other?.kind === 'therapist') && it.other?.isVerified && (
+                    <VerifiedBadge kind={it.other.kind} />
+                  )}
                   <XTimeAgo iso={it.lastAt} className="ml-auto text-xs text-slate-400 flex-shrink-0" />
                 </div>
                 <p className={`text-xs truncate ${it.unread ? 'text-slate-700 font-medium' : 'text-slate-400'}`}>
