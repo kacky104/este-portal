@@ -6,6 +6,7 @@ import { XTimeAgo } from './XTimeAgo';
 import { VerifiedBadge } from './VerifiedBadge';
 import { XImageLightbox } from './XImageLightbox';
 import { XHashtagText } from './XHashtagText';
+import { safeHref, linkDomain } from './xLink';
 import type { XPost } from './xPosts';
 
 const KIND_LABEL: Record<string, string> = {
@@ -166,6 +167,23 @@ export function XPostCard({
           text={post.body}
           className="text-sm text-slate-800 leading-relaxed whitespace-pre-wrap break-words mt-2 ml-[50px]"
         />
+      )}
+
+      {/* リンク（任意・http/https のみ）。ドメイン名を新タブで開く。カードの他タップと競合しないよう stopPropagation。 */}
+      {safeHref(post.linkUrl) && (
+        <a
+          href={safeHref(post.linkUrl)!}
+          target="_blank"
+          rel="noopener noreferrer"
+          onClick={(e) => e.stopPropagation()}
+          className="ml-[50px] mt-2 inline-flex items-center gap-1.5 max-w-full text-sm font-medium text-indigo-600 hover:underline"
+        >
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="flex-shrink-0">
+            <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
+            <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" />
+          </svg>
+          <span className="truncate">{linkDomain(post.linkUrl!)}</span>
+        </a>
       )}
 
       {/* 画像 */}

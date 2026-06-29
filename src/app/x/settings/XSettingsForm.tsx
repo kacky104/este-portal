@@ -4,6 +4,7 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/app/lib/supabase/client';
+import { normalizeLinkUrl } from '../xLink';
 import type { XProfile } from '../xProfile';
 import type { ShopMini } from '../xAffiliation';
 
@@ -35,6 +36,7 @@ export function XSettingsForm({
 
   const [displayName, setDisplayName] = useState(profile.display_name);
   const [bio, setBio] = useState(profile.bio ?? '');
+  const [link, setLink] = useState(profile.link_url ?? '');
   const [avatarUrl, setAvatarUrl] = useState<string | null>(profile.avatar_url);
   const [headerUrl, setHeaderUrl] = useState<string | null>(profile.header_url);
 
@@ -102,6 +104,12 @@ export function XSettingsForm({
       setError('表示名は1〜30文字で入力してください');
       return;
     }
+    // リンク検証（http/https のみ・スキーム無しは https:// 補完・危険スキームは弾く）。空は null。
+    const { url: linkUrl, error: linkErr } = normalizeLinkUrl(link);
+    if (linkErr) {
+      setError(linkErr);
+      return;
+    }
     if (busy) return;
     setSaving(true);
     setError('');
@@ -113,6 +121,7 @@ export function XSettingsForm({
         bio: bio.trim() || null,
         avatar_url: avatarUrl,
         header_url: headerUrl,
+        link_url: linkUrl,
       })
       .eq('id', profile.id);
     setSaving(false);
@@ -230,6 +239,23 @@ export function XSettingsForm({
         <p className="text-[11px] text-slate-400 mt-1 text-right">
           {bio.length}/{BIO_MAX}
         </p>
+      </div>
+
+      {/* ── リンク（任意・http/https のみ）── text-base(16px) で iOS 自動ズーム抑止 */}
+      <div>
+        <label className="text-[11px] font-bold text-slate-400 block mb-1.5 px-1">リンク（任意）</label>
+        <input
+          type="url"
+          inputMode="url"
+          value={link}
+          onChange={(e) => setLink(e.target.value)}
+          placeholder="https://example.com"
+          autoCapitalize="none"
+          autoCorrect="off"
+          spellCheck={false}
+          className="w-full px-4 py-3 rounded-xl border border-slate-200 text-base bg-slate-50/50 focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:border-transparent"
+        />
+        <p className="text-[10px] text-slate-400 mt-1 px-1">http:// または https:// のリンク（プロフィールに表示されます）</p>
       </div>
 
       {/* ── 変更不可（読み取り専用）：ID・種別・ログインメール ── */}

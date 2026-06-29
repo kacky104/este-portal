@@ -15,7 +15,7 @@ import { XProfileView } from '../../XProfileView';
 export const dynamic = 'force-dynamic';
 
 const PROFILE_COLS =
-  'id, auth_user_id, kind, status, handle, display_name, bio, avatar_url, header_url, is_verified, affiliated_shop_id';
+  'id, auth_user_id, kind, status, handle, display_name, bio, avatar_url, header_url, is_verified, affiliated_shop_id, link_url';
 
 type ProfileRow = {
   id: string;
@@ -29,6 +29,7 @@ type ProfileRow = {
   header_url: string | null;
   is_verified: boolean;
   affiliated_shop_id: string | null;
+  link_url: string | null;
 };
 
 // LIKE のワイルドカード（% _ \）をエスケープし、ilike で大文字小文字無視の「完全一致」にする。
@@ -64,6 +65,7 @@ export default async function XProfilePage({ params }: { params: Promise<{ handl
     header_url: t.header_url,
     is_verified: t.is_verified,
     affiliated_shop_id: t.affiliated_shop_id,
+    link_url: t.link_url,
   };
 
   const isOwnProfile = !!viewer.profile && viewer.profile.id === target.id;
@@ -85,7 +87,7 @@ export default async function XProfilePage({ params }: { params: Promise<{ handl
       : Promise.resolve({ count: null }),
     supabase
       .from('x_posts')
-      .select('id, body, images, like_count, reply_count, replies_disabled, created_at')
+      .select('id, body, images, like_count, reply_count, replies_disabled, link_url, created_at')
       .eq('author_profile_id', target.id)
       .is('parent_post_id', null) // プロフィールの投稿一覧にもリプライは出さない
       .order('created_at', { ascending: false })
@@ -126,6 +128,7 @@ export default async function XProfilePage({ params }: { params: Promise<{ handl
       like_count: number | null;
       reply_count: number | null;
       replies_disabled: boolean | null;
+      link_url: string | null;
       created_at: string;
     }>
   ).map((r) => ({
@@ -135,6 +138,7 @@ export default async function XProfilePage({ params }: { params: Promise<{ handl
     likeCount: r.like_count ?? 0,
     replyCount: r.reply_count ?? 0,
     repliesDisabled: Boolean(r.replies_disabled),
+    linkUrl: r.link_url ?? null,
     createdAt: r.created_at,
     author,
   }));

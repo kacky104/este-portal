@@ -16,7 +16,7 @@ import type { XPost } from './xPosts';
 const sb = createClient();
 
 const REPLY_COLS =
-  'id, author_profile_id, body, images, like_count, reply_count, replies_disabled, created_at';
+  'id, author_profile_id, body, images, like_count, reply_count, replies_disabled, link_url, created_at';
 
 type ReplyRow = {
   id: string | number;
@@ -26,6 +26,7 @@ type ReplyRow = {
   like_count: number | null;
   reply_count: number | null;
   replies_disabled: boolean | null;
+  link_url: string | null;
   created_at: string;
 };
 
@@ -88,6 +89,7 @@ async function fetchReplyThread(parentId: string): Promise<XPost[]> {
       likeCount: r.like_count ?? 0,
       replyCount: r.reply_count ?? 0,
       repliesDisabled: Boolean(r.replies_disabled),
+      linkUrl: r.link_url ?? null,
       createdAt: r.created_at,
       author: {
         id: r.author_profile_id,

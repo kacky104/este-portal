@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { createClient } from '@/app/lib/supabase/client';
+import { normalizeLinkUrl } from './xLink';
 import type { XProfile } from './xProfile';
 import type { XPost } from './xPosts';
 
@@ -35,6 +36,7 @@ export function XComposer({
 
   const [body, setBody] = useState('');
   const [images, setImages] = useState<string[]>([]);
+  const [link, setLink] = useState('');
   const [uploading, setUploading] = useState(false);
   const [posting, setPosting] = useState(false);
   const [error, setError] = useState('');
@@ -83,14 +85,21 @@ export function XComposer({
 
   const submit = async () => {
     if (!canPost) return;
+    // リンク検証（http/https のみ・スキーム無しは https:// 補完・危険スキームは弾く）。空はリンク無し。
+    const { url: linkUrl, error: linkErr } = normalizeLinkUrl(link);
+    if (linkErr) {
+      setError(linkErr);
+      return;
+    }
     setPosting(true);
     setError('');
     // insert ペイロード：リプライ時は parent_post_id を、通常投稿で therapist/shop のときのみ replies_disabled を付与。
-    // reply_count は触らない（DBトリガが親側を自動増減する）。
+    // reply_count は触らない（DBトリガが親側を自動増減する）。link_url は検証済みのみ（空は null）。
     const payload: Record<string, unknown> = {
       author_profile_id: me.id,
       body: trimmed || null,
       images,
+      link_url: linkUrl,
     };
     if (isReply) payload.parent_post_id = parentPostId;
     else if (canToggleReplies) payload.replies_disabled = repliesDisabled;
@@ -120,6 +129,7 @@ export function XComposer({
       likeCount: (data?.like_count as number) ?? 0,
       replyCount: (data?.reply_count as number) ?? 0,
       repliesDisabled: Boolean(data?.replies_disabled),
+      linkUrl,
       createdAt: (data?.created_at as string) ?? new Date().toISOString(),
       author: {
         id: me.id,
@@ -134,6 +144,7 @@ export function XComposer({
     });
     setBody('');
     setImages([]);
+    setLink('');
   };
 
   return (
@@ -171,6 +182,25 @@ export function XComposer({
           ))}
         </div>
       )}
+
+      {/* リンク（任意・http/https のみ）。text-base(16px) で iOS 自動ズーム抑止。 */}
+      <div className="mt-2 flex items-center gap-2 rounded-xl border border-slate-200 bg-slate-50/50 px-3 focus-within:ring-2 focus-within:ring-indigo-300 focus-within:border-transparent">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-slate-400 flex-shrink-0">
+          <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
+          <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" />
+        </svg>
+        <input
+          type="url"
+          inputMode="url"
+          value={link}
+          onChange={(e) => setLink(e.target.value)}
+          placeholder="リンク（任意）https://example.com"
+          autoCapitalize="none"
+          autoCorrect="off"
+          spellCheck={false}
+          className="flex-1 py-2.5 text-base bg-transparent focus:outline-none"
+        />
+      </div>
 
       {/* リプライ不可トグル（通常投稿・therapist/shop のみ） */}
       {canToggleReplies && (
