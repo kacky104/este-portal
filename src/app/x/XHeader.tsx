@@ -177,8 +177,20 @@ export function XHeader() {
             <Image src="/fukux-mark.png" alt="fukuX" width={36} height={36} priority className="object-contain" />
           </button>
 
-          {/* 右：通知ベル（ログイン＋開設済みのみ）。未読>0で赤バッジ。アバター(36px)と幅が揃い中央ロゴを保つ。 */}
-          <div className="justify-self-end">
+          {/* 右：検索（誰でも）＋通知ベル（ログイン＋開設済みのみ）。grid 1fr/auto/1fr のため中央ロゴは保たれる。 */}
+          <div className="justify-self-end flex items-center gap-0.5">
+            {/* ユーザー検索（公開・要ログインなし） */}
+            <Link
+              href="/x/search"
+              aria-label="ユーザーを検索"
+              className="flex items-center justify-center w-9 h-9 rounded-full text-slate-600 hover:bg-slate-100 active:scale-95 transition"
+            >
+              <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="11" cy="11" r="8" />
+                <path d="m21 21-4.3-4.3" />
+              </svg>
+            </Link>
+
             {profile && (
               <Link
                 href="/x/notifications"
