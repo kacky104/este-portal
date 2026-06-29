@@ -4,13 +4,13 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { createClient } from '@/app/lib/supabase/client';
-import { getSession } from '@/lib/auth';
 import { fetchShopMiniByIds } from './xAffiliation';
 import { VerifiedBadge } from './VerifiedBadge';
 import { XPostCard } from './XPostCard';
 import { XAuthGateModal } from './XAuthGateModal';
 import { useXEngagement } from './useXEngagement';
-import type { XProfile, XKind } from './xProfile';
+import { useMe } from './XMeProvider';
+import type { XKind } from './xProfile';
 import type { XPost } from './xPosts';
 
 const sb = createClient();
@@ -18,8 +18,6 @@ const LIMIT = 50;
 
 const KIND_LABEL: Record<string, string> = { user: 'ユーザー', therapist: 'セラピスト', shop: 'お店' };
 
-const PROFILE_COLS =
-  'id, auth_user_id, kind, status, handle, display_name, bio, avatar_url, header_url, is_verified, affiliated_shop_id';
 const POST_COLS =
   'id, author_profile_id, body, images, like_count, reply_count, replies_disabled, created_at';
 
@@ -190,8 +188,8 @@ export function XSearch() {
   const [loading, setLoading] = useState(false);
   const [searched, setSearched] = useState(false);
 
-  const [me, setMe] = useState<XProfile | null>(null);
-  const [loggedIn, setLoggedIn] = useState(false);
+  const { me, userId } = useMe(); // 自分は共通Contextから（重複取得を排除）
+  const loggedIn = !!userId;
   const [gateOpen, setGateOpen] = useState(false);
   const [toast, setToast] = useState('');
   const showToast = (m: string) => {
@@ -215,23 +213,7 @@ export function XSearch() {
     if (urlTab) setTab(urlTab);
   }, [urlQ, urlTab]);
 
-  // 自分の profile をマウント時に取得（投稿結果のいいね/フォロー状態の seed に使う）。
-  useEffect(() => {
-    let alive = true;
-    (async () => {
-      const session = await getSession();
-      const uid = session?.user.id;
-      if (!uid) return;
-      const { data } = await sb.from('x_profiles').select(PROFILE_COLS).eq('auth_user_id', uid).maybeSingle();
-      if (alive) {
-        setLoggedIn(true);
-        setMe((data as XProfile | null) ?? null);
-      }
-    })();
-    return () => {
-      alive = false;
-    };
-  }, []);
+  // （自分の profile は共通Context から取得済み。投稿結果のいいね/フォロー seed にそのまま使う。）
 
   // キーワード or タブ変更で検索（デバウンス）。選択中タブのみ検索する。
   useEffect(() => {

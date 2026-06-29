@@ -3,10 +3,10 @@
 import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { createClient } from '@/app/lib/supabase/client';
-import { getSession } from '@/lib/auth';
 import { XTimeAgo } from './XTimeAgo';
 import { VerifiedBadge } from './VerifiedBadge';
 import { XListSkeleton } from './XSkeleton';
+import { useMe } from './XMeProvider';
 import { DM_READ_EVENT, type DmOtherProfile } from './xDmShared';
 
 const sb = createClient();
@@ -17,8 +17,8 @@ type Msg = { id: string; body: string; createdAt: string; mine: boolean };
 export function XThread({ conversationId }: { conversationId: string }) {
   const convNum = Number(conversationId);
 
+  const { me, userId, loading: meLoading } = useMe(); // 自分は共通Contextから（重複取得を排除）
   const [loading, setLoading] = useState(true);
-  const [loggedIn, setLoggedIn] = useState(false);
   const [accessible, setAccessible] = useState<boolean | null>(null); // null=判定前
   const [other, setOther] = useState<DmOtherProfile | null>(null);
   const [messages, setMessages] = useState<Msg[]>([]);
@@ -53,27 +53,17 @@ export function XThread({ conversationId }: { conversationId: string }) {
     }));
   };
 
-  // 初回ロード：viewer → 会話（RLSで非メンバーは0件）→ 相手解決 → メッセージ → 既読化。
+  // 初回ロード：会話（RLSで非メンバーは0件）→ 相手解決 → メッセージ → 既読化。
+  // 自分(me)は Context から即得られるため、会話取得を待ちなく開始できる。
   useEffect(() => {
+    if (meLoading) return;
+    if (!me) {
+      setLoading(false);
+      return;
+    }
     let alive = true;
     (async () => {
-      const session = await getSession();
-      const uid = session?.user.id;
-      if (!uid) {
-        if (alive) {
-          setLoggedIn(false);
-          setLoading(false);
-        }
-        return;
-      }
-      const { data: prof } = await sb.from('x_profiles').select('id').eq('auth_user_id', uid).maybeSingle();
-      const myId = (prof?.id as string | undefined) ?? null;
-      if (!alive) return;
-      setLoggedIn(true);
-      if (!myId) {
-        setLoading(false);
-        return;
-      }
+      const myId = me.id;
       myIdRef.current = myId;
 
       // RLS：自分が参加者でない会話は返らない（=他人の会話IDを叩いてもデータは出ない）。
@@ -118,7 +108,7 @@ export function XThread({ conversationId }: { conversationId: string }) {
     return () => {
       alive = false;
     };
-  }, [convNum]);
+  }, [convNum, me, meLoading]);
 
   // 軽いポーリング：新着があれば反映。相手からの新着が来たら既読化。
   useEffect(() => {
@@ -186,9 +176,9 @@ export function XThread({ conversationId }: { conversationId: string }) {
         ← メッセージ一覧
       </Link>
 
-      {loading ? (
+      {meLoading || loading ? (
         <XListSkeleton rows={5} variant="row" />
-      ) : !loggedIn ? (
+      ) : !userId ? (
         <div className="x-card rounded-2xl bg-white/[0.94] shadow-[0_4px_16px_rgba(109,40,217,0.3)] p-6 text-center">
           <p className="text-sm text-slate-600 mb-4 leading-relaxed">メッセージを見るにはログインしてください。</p>
           <Link

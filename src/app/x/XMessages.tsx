@@ -3,10 +3,10 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { createClient } from '@/app/lib/supabase/client';
-import { getSession } from '@/lib/auth';
 import { XTimeAgo } from './XTimeAgo';
 import { VerifiedBadge } from './VerifiedBadge';
 import { XListSkeleton } from './XSkeleton';
+import { useMe } from './XMeProvider';
 import type { DmOtherProfile } from './xDmShared';
 
 const sb = createClient();
@@ -28,30 +28,19 @@ type ConvItem = {
 
 // 会話一覧（要ログイン）。RLS により自分が参加する会話だけが返る。last_message_at 降順。
 export function XMessages() {
+  const { me, userId, loading: meLoading } = useMe(); // 自分は共通Contextから（重複取得を排除）
   const [loading, setLoading] = useState(true);
-  const [loggedIn, setLoggedIn] = useState(false);
   const [items, setItems] = useState<ConvItem[]>([]);
 
   useEffect(() => {
+    if (meLoading) return;
+    if (!me) {
+      setLoading(false);
+      return;
+    }
     let alive = true;
     (async () => {
-      const session = await getSession();
-      const uid = session?.user.id;
-      if (!uid) {
-        if (alive) {
-          setLoggedIn(false);
-          setLoading(false);
-        }
-        return;
-      }
-      const { data: prof } = await sb.from('x_profiles').select('id').eq('auth_user_id', uid).maybeSingle();
-      const myId = (prof?.id as string | undefined) ?? null;
-      if (!alive) return;
-      setLoggedIn(true);
-      if (!myId) {
-        setLoading(false);
-        return;
-      }
+      const myId = me.id;
 
       // 自分の会話（RLSで自分のものだけ）。
       const { data: convRows } = await sb
@@ -138,15 +127,15 @@ export function XMessages() {
     return () => {
       alive = false;
     };
-  }, []);
+  }, [me, meLoading]);
 
   return (
     <div className="py-3">
       <h1 className="x-rescue-muted text-lg font-black text-white drop-shadow-sm mb-3 px-1">メッセージ</h1>
 
-      {loading ? (
+      {meLoading || loading ? (
         <XListSkeleton rows={6} variant="row" />
-      ) : !loggedIn ? (
+      ) : !userId ? (
         <div className="x-card rounded-2xl bg-white/[0.94] shadow-[0_4px_16px_rgba(109,40,217,0.3)] p-6 text-center">
           <p className="text-sm text-slate-600 mb-4 leading-relaxed">メッセージを見るにはログインしてください。</p>
           <Link

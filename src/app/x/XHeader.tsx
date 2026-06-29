@@ -4,28 +4,21 @@ import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { useRouter, usePathname } from 'next/navigation';
-import { getSession, onAuthChange, signOut } from '@/lib/auth';
+import { signOut } from '@/lib/auth';
 import { createClient } from '@/app/lib/supabase/client';
 import { ADMIN_UUID } from '@/app/lib/admin';
 import { VerifiedBadge } from './VerifiedBadge';
 import { XThemeToggle } from './XThemeToggle';
 import { XLogo } from './XLogo';
-import { fetchShopMiniByIds } from './xAffiliation';
+import { useMe } from './XMeProvider';
 import { NOTIF_READ_EVENT } from './xNotificationsShared';
 import { DM_READ_EVENT } from './xDmShared';
+import type { XProfile } from './xProfile';
 
 const supabase = createClient();
 
-type MyProfile = {
-  id: string;
-  handle: string;
-  display_name: string;
-  avatar_url: string | null;
-  kind: 'user' | 'therapist' | 'shop';
-  is_verified: boolean;
-  status: string;
-  affiliated_shop_id: string | null;
-};
+// アバター表示に必要な最小フィールド（XProfile はこれを満たす）。
+type AvatarProfile = Pick<XProfile, 'avatar_url' | 'display_name'>;
 
 const KIND_LABEL: Record<string, string> = { user: 'ユーザー', therapist: 'セラピスト', shop: 'お店' };
 // 種別バッジの基調色（オンボーディングと統一：ユーザー=青/セラピスト=赤/お店=黄）。
@@ -39,7 +32,7 @@ const KIND_BADGE: Record<string, string> = {
 // 既存タイムライン/プロフィールのアバター作法に合わせたフォールバック：
 // avatar_url があれば画像、無ければ display_name 先頭文字＋インディゴ系グラデ背景。
 // ゲスト（未ログイン/未開設）は人物アイコン。
-function Avatar({ profile, size = 36 }: { profile: MyProfile | null; size?: number }) {
+function Avatar({ profile, size = 36 }: { profile: AvatarProfile | null; size?: number }) {
   const dim = { width: size, height: size };
   return (
     <span
@@ -70,56 +63,10 @@ export function XHeader() {
   const router = useRouter();
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
-  const [userId, setUserId] = useState<string | null>(null);
-  const [email, setEmail] = useState<string | null>(null); // ログイン中のメール（ドロワー本人確認用）
-  const [profile, setProfile] = useState<MyProfile | null>(null);
-  const [affiliatedShop, setAffiliatedShop] = useState<{ handle: string; displayName: string } | null>(null);
+  // 自分(me)は共通 Context から取得（遷移ごとの重複取得を排除）。profile=me で従来の参照名を維持。
+  const { me: profile, userId, email, affiliatedShop } = useMe();
   const [unread, setUnread] = useState(0); // 通知の未読件数（ベルの赤バッジ用）
   const [dmUnread, setDmUnread] = useState(0); // DMの未読総数（封筒の赤バッジ用）
-
-  // セッションの auth_user_id から自分の x_profiles を取得（ドロワーのメニュー出し分けに使用）。
-  // email はセッションから受け取り、所属先（セラピストのみ）はバッジ表示用に解決する。
-  const load = useCallback(async (uid: string | undefined, mail: string | null) => {
-    if (!uid) {
-      setUserId(null);
-      setEmail(null);
-      setProfile(null);
-      setAffiliatedShop(null);
-      setUnread(0);
-      setDmUnread(0);
-      return;
-    }
-    setUserId(uid);
-    setEmail(mail);
-    const { data } = await supabase
-      .from('x_profiles')
-      .select('id, handle, display_name, avatar_url, kind, is_verified, status, affiliated_shop_id')
-      .eq('auth_user_id', uid)
-      .maybeSingle();
-    const p = (data as MyProfile | null) ?? null;
-    setProfile(p);
-    if (p && p.kind === 'therapist' && p.affiliated_shop_id) {
-      const dict = await fetchShopMiniByIds(supabase, [p.affiliated_shop_id]);
-      const s = dict.get(p.affiliated_shop_id);
-      setAffiliatedShop(s ? { handle: s.handle, displayName: s.displayName } : null);
-    } else {
-      setAffiliatedShop(null);
-    }
-  }, []);
-
-  useEffect(() => {
-    let mounted = true;
-    getSession().then((s) => {
-      if (mounted) load(s?.user.id, s?.user.email ?? null);
-    });
-    const off = onAuthChange((s) => {
-      if (mounted) load(s?.user.id, s?.user.email ?? null);
-    });
-    return () => {
-      mounted = false;
-      off();
-    };
-  }, [load]);
 
   // ドロワー表示中は body スクロールロック＋Escで閉じる。
   useEffect(() => {

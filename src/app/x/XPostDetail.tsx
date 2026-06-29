@@ -3,20 +3,18 @@
 import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { createClient } from '@/app/lib/supabase/client';
-import { getSession } from '@/lib/auth';
 import { fetchShopMiniByIds } from './xAffiliation';
 import { XPostCard } from './XPostCard';
 import { XComposer } from './XComposer';
 import { XAuthGateModal } from './XAuthGateModal';
 import { XListSkeleton } from './XSkeleton';
 import { useXEngagement } from './useXEngagement';
-import type { XProfile, XKind } from './xProfile';
+import { useMe } from './XMeProvider';
+import type { XKind } from './xProfile';
 import type { XPost } from './xPosts';
 
 const sb = createClient();
 
-const PROFILE_COLS =
-  'id, auth_user_id, kind, status, handle, display_name, bio, avatar_url, header_url, is_verified, affiliated_shop_id';
 const REPLY_COLS =
   'id, author_profile_id, body, images, like_count, reply_count, replies_disabled, created_at';
 
@@ -108,8 +106,8 @@ async function fetchReplyThread(parentId: string): Promise<XPost[]> {
 // 投稿詳細（スレッド）。親投稿はサーバー（ISR）取得済みを props で受け取り、
 // 本人依存・動的なもの（自分の profile / リプライ一覧 / いいね・フォロー状態）はマウント時にクライアント取得する。
 export function XPostDetail({ parent }: { parent: XPost }) {
-  const [me, setMe] = useState<XProfile | null>(null);
-  const [loggedIn, setLoggedIn] = useState(false);
+  const { me, userId, loading: meLoading } = useMe(); // 自分は共通Contextから（重複取得を排除）
+  const loggedIn = !!userId;
   const [replies, setReplies] = useState<XPost[]>([]);
   const [loaded, setLoaded] = useState(false);
   const [gateOpen, setGateOpen] = useState(false);
@@ -131,25 +129,12 @@ export function XPostDetail({ parent }: { parent: XPost }) {
   });
   const { seedPosts, seedFollowees, registerPost } = eng;
 
-  // マウント時：viewer → リプライ → いいね/フォロー状態 をまとめて取得し engagement に投入。
+  // マウント時：リプライ取得 →（ログイン時）いいね/フォロー状態を投入。
+  // 自分(me)は Context から即得られるので、リプライ取得を待ちなく開始できる（B：いいね/フォローは並列）。
   useEffect(() => {
+    if (meLoading) return; // me 確定を待つ（未ログインと断定しない）
     let alive = true;
     (async () => {
-      const session = await getSession();
-      const uid = session?.user.id;
-      let profile: XProfile | null = null;
-      if (uid) {
-        const { data } = await sb
-          .from('x_profiles')
-          .select(PROFILE_COLS)
-          .eq('auth_user_id', uid)
-          .maybeSingle();
-        profile = (data as XProfile | null) ?? null;
-      }
-      if (!alive) return;
-      setLoggedIn(!!uid);
-      setMe(profile);
-
       const thread = await fetchReplyThread(parent.id);
       if (!alive) return;
       setReplies(thread);
@@ -157,22 +142,16 @@ export function XPostDetail({ parent }: { parent: XPost }) {
 
       const allPosts = [parent, ...thread];
       let likedIds: string[] = [];
-      if (profile) {
+      if (me) {
         const ids = allPosts.map((p) => p.id);
-        const { data: likes } = await sb
-          .from('x_likes')
-          .select('post_id')
-          .eq('profile_id', profile.id)
-          .in('post_id', ids);
-        likedIds = (likes ?? []).map((l) => String(l.post_id));
-
         const authorIds = [...new Set(allPosts.map((p) => p.author.id))];
-        const { data: follows } = await sb
-          .from('x_follows')
-          .select('followee_profile_id')
-          .eq('follower_profile_id', profile.id)
-          .in('followee_profile_id', authorIds);
-        if (alive) seedFollowees((follows ?? []).map((f) => String(f.followee_profile_id)));
+        // いいね状態とフォロー状態は互いに独立＝並列取得（B）。
+        const [likeRes, followRes] = await Promise.all([
+          sb.from('x_likes').select('post_id').eq('profile_id', me.id).in('post_id', ids),
+          sb.from('x_follows').select('followee_profile_id').eq('follower_profile_id', me.id).in('followee_profile_id', authorIds),
+        ]);
+        likedIds = (likeRes.data ?? []).map((l) => String(l.post_id));
+        if (alive) seedFollowees((followRes.data ?? []).map((f) => String(f.followee_profile_id)));
       }
       if (!alive) return;
       seedPosts(allPosts, likedIds);
@@ -181,7 +160,7 @@ export function XPostDetail({ parent }: { parent: XPost }) {
     return () => {
       alive = false;
     };
-  }, [parent, seedPosts, seedFollowees]);
+  }, [parent, me, meLoading, seedPosts, seedFollowees]);
 
   // リプライ送信成功：一覧末尾へ追加＋件数更新＋いいねマップ登録（reply_count はトリガが親側を増やす）。
   const onReplied = useCallback(

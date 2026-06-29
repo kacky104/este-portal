@@ -4,10 +4,10 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { createClient } from '@/app/lib/supabase/client';
-import { getSession } from '@/lib/auth';
 import { XTimeAgo } from './XTimeAgo';
 import { VerifiedBadge } from './VerifiedBadge';
 import { XListSkeleton } from './XSkeleton';
+import { useMe } from './XMeProvider';
 import {
   NOTIF_READ_EVENT,
   notificationHref,
@@ -77,31 +77,20 @@ function NotifAvatar({ actor }: { actor: XNotificationActor }) {
 // 取得時点の is_read をスナップショットとして未読ハイライトに使い、裏で一括既読RPCを叩く（バッジは即クリア）。
 export function XNotifications() {
   const router = useRouter();
+  const { me, userId, loading: meLoading } = useMe(); // 自分は共通Contextから（重複取得を排除）
   const [loading, setLoading] = useState(true);
-  const [loggedIn, setLoggedIn] = useState(false);
   const [items, setItems] = useState<XNotification[]>([]);
 
   useEffect(() => {
+    if (meLoading) return; // me 取得中は待つ（未ログインと断定しない）
+    if (!me) {
+      // 未ログイン or 未開設（通知の受信者になり得ない）。
+      setLoading(false);
+      return;
+    }
     let alive = true;
     (async () => {
-      const session = await getSession();
-      const uid = session?.user.id;
-      if (!uid) {
-        if (alive) {
-          setLoggedIn(false);
-          setLoading(false);
-        }
-        return;
-      }
-      const { data: prof } = await sb.from('x_profiles').select('id').eq('auth_user_id', uid).maybeSingle();
-      const myId = (prof?.id as string | undefined) ?? null;
-      if (!alive) return;
-      setLoggedIn(true);
-      if (!myId) {
-        // ログイン済みだが未開設＝通知の受信者になり得ない。
-        setLoading(false);
-        return;
-      }
+      const myId = me.id;
 
       // 自分宛・新しい順・上限取得。
       const { data: rows } = await sb
@@ -166,7 +155,7 @@ export function XNotifications() {
     return () => {
       alive = false;
     };
-  }, []);
+  }, [me, meLoading]);
 
   // 行タップ：個別既読RPC（冪等）→ 遷移。
   const onRowClick = async (n: XNotification) => {
@@ -182,9 +171,9 @@ export function XNotifications() {
     <div className="py-3">
       <h1 className="x-rescue-muted text-lg font-black text-white drop-shadow-sm mb-3 px-1">通知</h1>
 
-      {loading ? (
+      {meLoading || loading ? (
         <XListSkeleton rows={6} variant="row" />
-      ) : !loggedIn ? (
+      ) : !userId ? (
         <div className="x-card rounded-2xl bg-white/[0.94] shadow-[0_4px_16px_rgba(109,40,217,0.3)] p-6 text-center">
           <p className="text-sm text-slate-600 mb-4 leading-relaxed">通知を見るにはログインしてください。</p>
           <Link

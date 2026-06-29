@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import { XHeader } from './XHeader';
+import { XMeProvider } from './XMeProvider';
 import './x-theme.css';
 
 // fukuX 専用シェル。既存フクエスの共通ヘッダー（Logo/各メニュー）は出さず、独自ヘッダーにする。
@@ -28,10 +29,13 @@ export default function XLayout({ children }: { children: React.ReactNode }) {
       <div aria-hidden className="x-bg fixed inset-0 z-0" />
 
       <div className="relative z-10">
-        {/* ─── fukuX ヘッダー（左=アバター/ドロワー・中央=肉球ロゴ・右=スペーサー） ─── */}
-        <XHeader />
+        {/* 自分(me)をクライアントで一元取得・配布（遷移ごとの重複取得を排除。ISRには焼かない）。 */}
+        <XMeProvider>
+          {/* ─── fukuX ヘッダー（左=アバター/ドロワー・中央=肉球ロゴ・右=スペーサー） ─── */}
+          <XHeader />
 
-        <main className="max-w-2xl mx-auto px-4 pb-20">{children}</main>
+          <main className="max-w-2xl mx-auto px-4 pb-20">{children}</main>
+        </XMeProvider>
       </div>
     </div>
   );
