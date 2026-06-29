@@ -3,13 +3,24 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { createClient } from '@/app/lib/supabase/client';
+import { getSession } from '@/lib/auth';
 import { fetchShopMiniByIds } from './xAffiliation';
 import { VerifiedBadge } from './VerifiedBadge';
+import { XPostCard } from './XPostCard';
+import { XAuthGateModal } from './XAuthGateModal';
+import { useXEngagement } from './useXEngagement';
+import type { XProfile, XKind } from './xProfile';
+import type { XPost } from './xPosts';
 
 const sb = createClient();
 const LIMIT = 50;
 
 const KIND_LABEL: Record<string, string> = { user: 'ユーザー', therapist: 'セラピスト', shop: 'お店' };
+
+const PROFILE_COLS =
+  'id, auth_user_id, kind, status, handle, display_name, bio, avatar_url, header_url, is_verified, affiliated_shop_id';
+const POST_COLS =
+  'id, author_profile_id, body, images, like_count, reply_count, replies_disabled, created_at';
 
 // ilike のワイルドカード（% _ \）をエスケープし、入力を「部分一致の literal」として扱う。
 // .or() は使わず handle / display_name を別々の .ilike() で引いてマージするため、
@@ -76,17 +87,146 @@ async function searchProfiles(raw: string): Promise<Hit[]> {
   });
 }
 
-// ユーザー検索（公開・要ログインなし）。入力はデバウンス（300ms）で検索。空文字では検索しない。
+type PostRow = {
+  id: string | number;
+  author_profile_id: string;
+  body: string | null;
+  images: string[] | null;
+  like_count: number | null;
+  reply_count: number | null;
+  replies_disabled: boolean | null;
+  created_at: string;
+};
+
+// 投稿本文検索：x_posts.body を部分一致（ilike）。通常投稿のみ（parent_post_id IS NULL）・新しい順・上限。
+// 著者を1クエリ合流し rejected(BAN) 著者の投稿は除外（既存 attachAuthors と同方針）。所属バッジも解決。
+async function searchPosts(raw: string): Promise<XPost[]> {
+  const kw = raw.trim();
+  if (!kw) return [];
+  const pattern = `%${escapeLike(kw)}%`;
+
+  const { data: rows } = await sb
+    .from('x_posts')
+    .select(POST_COLS)
+    .ilike('body', pattern)
+    .is('parent_post_id', null)
+    .order('created_at', { ascending: false })
+    .limit(LIMIT);
+  const list = (rows ?? []) as PostRow[];
+  if (list.length === 0) return [];
+
+  const authorIds = [...new Set(list.map((r) => r.author_profile_id).filter(Boolean))];
+  const { data: profs } = await sb
+    .from('x_profiles')
+    .select('id, handle, display_name, kind, avatar_url, status, is_verified, affiliated_shop_id')
+    .in('id', authorIds);
+
+  const dict = new Map<
+    string,
+    {
+      handle: string;
+      display_name: string;
+      kind: XKind;
+      avatar_url: string | null;
+      status: string;
+      is_verified: boolean;
+      affiliated_shop_id: string | null;
+    }
+  >();
+  (profs ?? []).forEach((p) =>
+    dict.set(p.id as string, {
+      handle: (p.handle as string) ?? '',
+      display_name: (p.display_name as string) ?? '',
+      kind: ((p.kind as string) ?? 'user') as XKind,
+      avatar_url: (p.avatar_url as string | null) ?? null,
+      status: (p.status as string) ?? 'approved',
+      is_verified: Boolean(p.is_verified),
+      affiliated_shop_id: (p.affiliated_shop_id as string | null) ?? null,
+    })
+  );
+
+  const shopDict = await fetchShopMiniByIds(sb, [...dict.values()].map((a) => a.affiliated_shop_id));
+
+  const out: XPost[] = [];
+  for (const r of list) {
+    const a = dict.get(r.author_profile_id);
+    if (!a || a.status === 'rejected') continue; // BAN 著者の投稿は除外
+    const shop = a.affiliated_shop_id ? shopDict.get(a.affiliated_shop_id) : undefined;
+    out.push({
+      id: String(r.id),
+      body: r.body ?? null,
+      images: r.images ?? [],
+      likeCount: r.like_count ?? 0,
+      replyCount: r.reply_count ?? 0,
+      repliesDisabled: Boolean(r.replies_disabled),
+      createdAt: r.created_at,
+      author: {
+        id: r.author_profile_id,
+        handle: a.handle,
+        displayName: a.display_name,
+        kind: a.kind,
+        avatarUrl: a.avatar_url,
+        isVerified: a.is_verified,
+        affiliatedShop: shop ? { handle: shop.handle, displayName: shop.displayName } : null,
+      },
+    });
+  }
+  return out;
+}
+
+// ユーザー / 投稿 の検索（公開・要ログインなし）。入力はデバウンス（300ms）。空文字では検索しない。
+// キーワードはタブ間で共有。投稿タブはいいね/フォロー操作のため engagement を持つ（未ログインは認証モーダル）。
 export function XSearch() {
+  const [tab, setTab] = useState<'users' | 'posts'>('users');
   const [q, setQ] = useState('');
-  const [results, setResults] = useState<Hit[]>([]);
+  const [userResults, setUserResults] = useState<Hit[]>([]);
+  const [postResults, setPostResults] = useState<XPost[]>([]);
   const [loading, setLoading] = useState(false);
   const [searched, setSearched] = useState(false);
 
+  const [me, setMe] = useState<XProfile | null>(null);
+  const [loggedIn, setLoggedIn] = useState(false);
+  const [gateOpen, setGateOpen] = useState(false);
+  const [toast, setToast] = useState('');
+  const showToast = (m: string) => {
+    setToast(m);
+    window.setTimeout(() => setToast(''), 2600);
+  };
+
+  const eng = useXEngagement({
+    me,
+    posts: [],
+    initialLikedIds: [],
+    initialFolloweeIds: [],
+    onToast: showToast,
+    onAuthRequired: () => setGateOpen(true),
+  });
+  const { seedPosts, seedFollowees } = eng;
+
+  // 自分の profile をマウント時に取得（投稿結果のいいね/フォロー状態の seed に使う）。
+  useEffect(() => {
+    let alive = true;
+    (async () => {
+      const session = await getSession();
+      const uid = session?.user.id;
+      if (!uid) return;
+      const { data } = await sb.from('x_profiles').select(PROFILE_COLS).eq('auth_user_id', uid).maybeSingle();
+      if (alive) {
+        setLoggedIn(true);
+        setMe((data as XProfile | null) ?? null);
+      }
+    })();
+    return () => {
+      alive = false;
+    };
+  }, []);
+
+  // キーワード or タブ変更で検索（デバウンス）。選択中タブのみ検索する。
   useEffect(() => {
     const kw = q.trim();
     if (!kw) {
-      setResults([]);
+      setUserResults([]);
+      setPostResults([]);
       setSearched(false);
       setLoading(false);
       return;
@@ -94,21 +234,57 @@ export function XSearch() {
     setLoading(true);
     let cancelled = false;
     const t = setTimeout(async () => {
-      const hits = await searchProfiles(kw);
-      if (cancelled) return;
-      setResults(hits);
-      setLoading(false);
-      setSearched(true);
+      if (tab === 'users') {
+        const hits = await searchProfiles(kw);
+        if (cancelled) return;
+        setUserResults(hits);
+      } else {
+        const posts = await searchPosts(kw);
+        if (cancelled) return;
+        setPostResults(posts);
+        // ログイン時は結果投稿のいいね/フォロー状態を seed（未ログインは未いいね・未フォロー表示）。
+        if (me) {
+          const ids = posts.map((p) => p.id);
+          const authorIds = [...new Set(posts.map((p) => p.author.id))];
+          const [likeRes, followRes] = await Promise.all([
+            sb.from('x_likes').select('post_id').eq('profile_id', me.id).in('post_id', ids),
+            sb.from('x_follows').select('followee_profile_id').eq('follower_profile_id', me.id).in('followee_profile_id', authorIds),
+          ]);
+          if (cancelled) return;
+          seedFollowees((followRes.data ?? []).map((f) => String(f.followee_profile_id)));
+          seedPosts(posts, (likeRes.data ?? []).map((l) => String(l.post_id)));
+        } else {
+          seedPosts(posts, []);
+        }
+      }
+      if (!cancelled) {
+        setLoading(false);
+        setSearched(true);
+      }
     }, 300);
     return () => {
       cancelled = true;
       clearTimeout(t);
     };
-  }, [q]);
+  }, [q, tab, me, seedPosts, seedFollowees]);
+
+  const cardProps = (p: XPost) => {
+    const ls = eng.likeState(p);
+    return {
+      liked: ls.liked,
+      likeCount: ls.count,
+      following: eng.isFollowing(p.author.id),
+      showFollow: eng.showFollowFor(p.author),
+      likePending: eng.likePendingFor(p.id),
+      followPending: eng.followPendingFor(p.author.id),
+      onToggleLike: eng.toggleLike,
+      onToggleFollow: eng.toggleFollow,
+    };
+  };
 
   return (
     <div className="py-3">
-      <h1 className="x-rescue-muted text-lg font-black text-white drop-shadow-sm mb-3 px-1">ユーザーを検索</h1>
+      <h1 className="x-rescue-muted text-lg font-black text-white drop-shadow-sm mb-3 px-1">検索</h1>
 
       {/* 入力欄（白カード面＝両テーマで読める） */}
       <div className="x-card rounded-2xl bg-white/[0.94] shadow-[0_4px_16px_rgba(109,40,217,0.3)] p-3">
@@ -141,54 +317,96 @@ export function XSearch() {
         </div>
       </div>
 
+      {/* タブ（ユーザー / 投稿）。キーワードはタブ間で共有。 */}
+      <div className="mt-3 flex gap-1 p-1 rounded-xl bg-slate-100">
+        {(
+          [
+            ['users', 'ユーザー'],
+            ['posts', '投稿'],
+          ] as const
+        ).map(([key, label]) => (
+          <button
+            key={key}
+            type="button"
+            onClick={() => setTab(key)}
+            aria-pressed={tab === key}
+            className={`flex-1 py-2 rounded-lg text-sm font-bold transition-colors ${
+              tab === key ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'
+            }`}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+
       {/* 結果 */}
       <div className="mt-3">
         {!q.trim() ? (
           <p className="x-rescue-muted text-sm text-white/90 text-center py-10 drop-shadow-sm">
-            表示名や @ID（一部でOK）でユーザーを探せます
+            表示名・@ID・投稿本文（一部でOK）で検索できます
           </p>
         ) : loading ? (
           <p className="x-rescue-muted text-sm text-white/90 text-center py-10 drop-shadow-sm">検索中...</p>
-        ) : results.length === 0 && searched ? (
+        ) : tab === 'users' ? (
+          userResults.length === 0 && searched ? (
+            <p className="x-rescue-muted text-sm text-white/90 text-center py-10 drop-shadow-sm">
+              該当するユーザーが見つかりません
+            </p>
+          ) : (
+            <div className="space-y-2">
+              {userResults.map((u) => (
+                <Link
+                  key={u.id}
+                  href={`/x/u/${u.handle}`}
+                  className="x-card flex items-center gap-3 rounded-2xl bg-white/[0.94] shadow-[0_4px_16px_rgba(109,40,217,0.3)] p-3 hover:brightness-[0.98] transition"
+                >
+                  <span className="relative w-11 h-11 rounded-full overflow-hidden border border-slate-100 bg-gradient-to-br from-indigo-300 to-sky-300 flex items-center justify-center flex-shrink-0">
+                    {u.avatarUrl ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img src={u.avatarUrl} alt={u.displayName} className="w-full h-full object-cover" />
+                    ) : (
+                      <span className="text-white font-bold">{u.displayName.charAt(0) || '?'}</span>
+                    )}
+                  </span>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      <span className="font-bold text-sm text-slate-900 truncate max-w-[50%]">{u.displayName}</span>
+                      {u.kind === 'shop' && u.isVerified && <VerifiedBadge />}
+                      <span className="text-[10px] font-bold text-indigo-500 bg-indigo-50 rounded-full px-1.5 py-0.5">
+                        {KIND_LABEL[u.kind] ?? u.kind}
+                      </span>
+                      {u.affiliatedShop && (
+                        <span className="text-[10px] font-bold text-emerald-600 bg-emerald-50 rounded-full px-1.5 py-0.5 truncate max-w-[45%]">
+                          {u.affiliatedShop.displayName}所属
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-xs text-slate-400 truncate">@{u.handle}</p>
+                  </div>
+                </Link>
+              ))}
+            </div>
+          )
+        ) : postResults.length === 0 && searched ? (
           <p className="x-rescue-muted text-sm text-white/90 text-center py-10 drop-shadow-sm">
-            該当するユーザーが見つかりません
+            該当する投稿が見つかりません
           </p>
         ) : (
-          <div className="space-y-2">
-            {results.map((u) => (
-              <Link
-                key={u.id}
-                href={`/x/u/${u.handle}`}
-                className="x-card flex items-center gap-3 rounded-2xl bg-white/[0.94] shadow-[0_4px_16px_rgba(109,40,217,0.3)] p-3 hover:brightness-[0.98] transition"
-              >
-                <span className="relative w-11 h-11 rounded-full overflow-hidden border border-slate-100 bg-gradient-to-br from-indigo-300 to-sky-300 flex items-center justify-center flex-shrink-0">
-                  {u.avatarUrl ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img src={u.avatarUrl} alt={u.displayName} className="w-full h-full object-cover" />
-                  ) : (
-                    <span className="text-white font-bold">{u.displayName.charAt(0) || '?'}</span>
-                  )}
-                </span>
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-1.5 flex-wrap">
-                    <span className="font-bold text-sm text-slate-900 truncate max-w-[50%]">{u.displayName}</span>
-                    {u.kind === 'shop' && u.isVerified && <VerifiedBadge />}
-                    <span className="text-[10px] font-bold text-indigo-500 bg-indigo-50 rounded-full px-1.5 py-0.5">
-                      {KIND_LABEL[u.kind] ?? u.kind}
-                    </span>
-                    {u.affiliatedShop && (
-                      <span className="text-[10px] font-bold text-emerald-600 bg-emerald-50 rounded-full px-1.5 py-0.5 truncate max-w-[45%]">
-                        {u.affiliatedShop.displayName}所属
-                      </span>
-                    )}
-                  </div>
-                  <p className="text-xs text-slate-400 truncate">@{u.handle}</p>
-                </div>
-              </Link>
+          <div className="space-y-3">
+            {postResults.map((p) => (
+              <XPostCard key={p.id} post={p} {...cardProps(p)} />
             ))}
           </div>
         )}
       </div>
+
+      {toast && (
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 px-4 py-2.5 rounded-xl bg-slate-900/90 text-white text-sm font-bold shadow-lg">
+          {toast}
+        </div>
+      )}
+
+      <XAuthGateModal open={gateOpen} loggedIn={loggedIn} onClose={() => setGateOpen(false)} />
     </div>
   );
 }
