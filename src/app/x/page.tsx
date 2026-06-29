@@ -11,6 +11,7 @@ import {
 import { XTimeline } from './XTimeline';
 import { XAffiliationBanner, type IncomingRequest } from './XAffiliationBanner';
 import { fetchShopMini } from './xAffiliation';
+import { fetchFollowUsers, type FollowUser } from './xFollows';
 
 // ログイン状態・自分の x_profiles・フォロー中/いいね状態を読むため動的レンダリング（ISRにはしない）。
 export const dynamic = 'force-dynamic';
@@ -34,6 +35,13 @@ export default async function XHomePage() {
       fetchMyLikedPostIds(profile.id, allIds),
       fetchMySavedPostIds(profile.id, allIds),
     ]);
+  }
+
+  // セラピスト本人：タイムライン2つ目タブを「フォロワー一覧」に置き換えるため、自分のフォロワーを取得。
+  // （セラピストはフォローしない仕様＝フォロー中フィードが常に空のため）。
+  let myFollowers: FollowUser[] = [];
+  if (profile?.kind === 'therapist') {
+    myFollowers = await fetchFollowUsers(profile.id, 'followers');
   }
 
   // 凍結(BAN=status='rejected')中の本人かどうか。凍結中はアクション系UI（コンポーザは canPost で抑止済み）に加え、
@@ -161,6 +169,7 @@ export default async function XHomePage() {
         initialLikedIds={likedIds}
         initialFolloweeIds={followeeIds}
         initialSavedIds={savedIds}
+        myFollowers={myFollowers}
         myAffiliatedShop={myAffiliatedShop}
       />
     </div>

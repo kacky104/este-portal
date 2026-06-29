@@ -7,7 +7,9 @@ import type { XPost } from './xPosts';
 import { XComposeFab } from './XComposeFab';
 import { XPostCard } from './XPostCard';
 import { XAuthGateModal } from './XAuthGateModal';
+import { XFollowRows } from './XFollowRows';
 import { useXEngagement } from './useXEngagement';
+import type { FollowUser } from './xFollows';
 
 export function XTimeline({
   me,
@@ -17,6 +19,7 @@ export function XTimeline({
   initialLikedIds,
   initialFolloweeIds,
   initialSavedIds,
+  myFollowers,
   myAffiliatedShop,
 }: {
   me: XProfile | null;
@@ -26,9 +29,15 @@ export function XTimeline({
   initialLikedIds: string[];
   initialFolloweeIds: string[];
   initialSavedIds: string[];
+  // セラピスト本人のフォロワー一覧（2つ目タブを「フォロワー」に置き換えて表示）。それ以外は未使用。
+  myFollowers?: FollowUser[];
   myAffiliatedShop?: { handle: string; displayName: string } | null;
 }) {
   const [tab, setTab] = useState<'recommended' | 'following'>('recommended');
+  // セラピスト本人はフォローしない仕様＝「フォロー中」フィードが常に空。代わりに2つ目タブを
+  // 「フォロワー（自分をフォローしている人の一覧）」に置き換える。user/shop/未ログインは従来どおり。
+  const isTherapist = me?.kind === 'therapist';
+  const followers = myFollowers ?? [];
   const [toast, setToast] = useState('');
   const [myNewPosts, setMyNewPosts] = useState<XPost[]>([]);
   const [gateOpen, setGateOpen] = useState(false); // 未ログイン／未開設アクション時のモーダル
@@ -90,7 +99,7 @@ export function XTimeline({
       {/* タブ */}
       <div className="sticky top-14 z-30 -mx-4 px-4 bg-white/90 backdrop-blur-md border-b border-slate-200">
         <div className="flex">
-          {([['recommended', 'おすすめ'], ['following', 'フォロー中']] as const).map(([key, label]) => (
+          {([['recommended', 'おすすめ'], ['following', isTherapist ? 'フォロワー' : 'フォロー中']] as const).map(([key, label]) => (
             <button
               key={key}
               type="button"
@@ -113,6 +122,14 @@ export function XTimeline({
         ) : (
           <div className="space-y-3 pt-3">{renderList(recommendedView)}</div>
         )
+      ) : isTherapist ? (
+        // セラピスト：2つ目タブ＝自分のフォロワー一覧（人リスト）。フォローされた新しい順。
+        <div className="pt-3">
+          <p className="x-rescue-muted text-sm font-bold text-white/90 drop-shadow-sm mb-2 px-1">
+            {followers.length}人のフォロワー
+          </p>
+          <XFollowRows users={followers} emptyText="まだフォロワーがいません" />
+        </div>
       ) : !loggedIn ? (
         <div className="py-14 text-center">
           <p className="x-rescue-muted text-sm text-white/90 mb-4 leading-relaxed px-6 drop-shadow-sm">
