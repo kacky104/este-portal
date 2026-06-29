@@ -36,26 +36,16 @@ export const getXContext = cache(
     profile: XProfile | null;
   }> => {
     const supabase = await createClient();
-    // [xperf] TEMP 計測：getUser / x_profiles の所要時間を Vercel ログに出す（表示は不変）。数値取得後に除去する。
-    const t0 = performance.now();
     const {
       data: { user },
     } = await supabase.auth.getUser();
-    const tUser = performance.now();
-    if (!user) {
-      console.log(`[xperf] getUser=${(tUser - t0).toFixed(0)}ms (no session)`);
-      return { userId: null, email: null, profile: null };
-    }
+    if (!user) return { userId: null, email: null, profile: null };
 
     const { data } = await supabase
       .from('x_profiles')
       .select(XPROFILE_COLUMNS)
       .eq('auth_user_id', user.id)
       .maybeSingle();
-    const tProfile = performance.now();
-    console.log(
-      `[xperf] getUser=${(tUser - t0).toFixed(0)}ms profile=${(tProfile - tUser).toFixed(0)}ms total=${(tProfile - t0).toFixed(0)}ms`
-    );
 
     return {
       userId: user.id,
