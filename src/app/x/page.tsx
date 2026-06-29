@@ -15,12 +15,10 @@ import { fetchShopMini } from './xAffiliation';
 export const dynamic = 'force-dynamic';
 
 export default async function XHomePage() {
-  const { userId, profile } = await getXContext();
-
   // 閲覧はログイン不要（SNS標準）。未ログイン・未開設でもおすすめタイムラインを見せ、
   // アクション（いいね/フォロー/投稿）時にアカウント作成モーダルへ誘導する。
-  // おすすめ（公開・ログイン不要）。フォロー中・いいね状態はログイン時のみ取得。
-  const recommended = await fetchRecommended();
+  // getXContext（認証＋自分profile）と fetchRecommended（profile非依存）は独立なので並列化。
+  const [{ userId, profile }, recommended] = await Promise.all([getXContext(), fetchRecommended()]);
 
   let following: Awaited<ReturnType<typeof fetchFollowingPosts>> = [];
   let followeeIds: string[] = [];

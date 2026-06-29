@@ -40,15 +40,15 @@ export default async function XProfilePage({ params }: { params: Promise<{ handl
   const { handle } = await params;
   const decoded = decodeURIComponent(handle);
 
-  const viewer = await getXContext();
   const supabase = await createClient();
 
+  // viewer（認証＋自分profile）と target プロフィール取得は独立（target は handle 依存・viewer 非依存）なので並列化。
   // handle は lower 一致（@Sera と @sera を同一視）。RLS の SELECT は rejected を本人/運営以外に見せない。
-  const { data: row } = await supabase
-    .from('x_profiles')
-    .select(PROFILE_COLS)
-    .ilike('handle', escapeLike(decoded))
-    .maybeSingle();
+  const [viewer, rowRes] = await Promise.all([
+    getXContext(),
+    supabase.from('x_profiles').select(PROFILE_COLS).ilike('handle', escapeLike(decoded)).maybeSingle(),
+  ]);
+  const { data: row } = rowRes;
   const t = row as ProfileRow | null;
   if (!t || t.handle.toLowerCase() !== decoded.toLowerCase()) notFound();
 
