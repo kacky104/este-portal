@@ -30,7 +30,8 @@ function validateImageFile(file: File): string | null {
 export function OnboardingForm({ userId }: { userId: string }) {
   const router = useRouter();
 
-  const [kind, setKind] = useState<XKind>('user');
+  const [step, setStep] = useState<1 | 2>(1); // 入力フローの2分割（URLは変えず同ページ内で切替）
+  const [kind, setKind] = useState<XKind | null>(null); // 既定は未選択（step1 の「次へ」を押せなくする）
   const [handle, setHandle] = useState('');
   const [displayName, setDisplayName] = useState('');
   const [bio, setBio] = useState('');
@@ -95,10 +96,10 @@ export function OnboardingForm({ userId }: { userId: string }) {
   };
 
   const displayOk = displayName.trim().length >= 1 && displayName.trim().length <= DISPLAY_MAX;
-  const canSubmit = handleState === 'ok' && displayOk && !submitting && !avatarUploading;
+  const canSubmit = kind !== null && handleState === 'ok' && displayOk && !submitting && !avatarUploading;
 
   const submit = async () => {
-    if (!canSubmit) return;
+    if (!canSubmit || !kind) return;
     setSubmitting(true);
     setError('');
     // status はトリガが自動設定するため送らない。auth_user_id は本人UID固定（RLSが auth.uid() 一致を要求）。
@@ -195,14 +196,23 @@ export function OnboardingForm({ userId }: { userId: string }) {
 
   return (
     <div className="space-y-6">
+      {/* ステップインジケーター（1/2） */}
+      <div className="flex items-center gap-2">
+        <StepDot n={1} label="種別" current={step === 1} done={step > 1} />
+        <span className={`flex-1 h-0.5 rounded-full ${step > 1 ? 'bg-indigo-400' : 'bg-slate-200'}`} />
+        <StepDot n={2} label="プロフィール" current={step === 2} done={false} />
+      </div>
+
       {error && (
         <div className="p-3 rounded-xl bg-rose-50 border border-rose-100 text-rose-500 text-[12px] font-medium text-center">
           ⚠️ {error}
         </div>
       )}
 
-      {/* ① 種別選択 */}
-      <div>
+      {step === 1 ? (
+        <div className="space-y-6">
+          {/* ① 種別選択 */}
+          <div>
         <p className="text-[11px] font-bold text-slate-400 mb-2 px-1">アカウント種別</p>
         <div className="space-y-2">
           {KINDS.map((k) => {
@@ -215,25 +225,43 @@ export function OnboardingForm({ userId }: { userId: string }) {
                 aria-pressed={selected}
                 className={`w-full text-left p-3.5 rounded-2xl border transition-all ${
                   selected
-                    ? 'border-indigo-400 bg-indigo-50/60 ring-1 ring-indigo-300'
+                    ? 'border-transparent bg-gradient-to-br from-indigo-50 to-fuchsia-50 ring-2 ring-indigo-400 shadow-sm'
                     : 'border-slate-200 bg-white hover:border-indigo-200'
                 }`}
               >
                 <div className="flex items-center gap-2">
                   <span
-                    className={`w-4 h-4 rounded-full border-2 flex-shrink-0 ${
-                      selected ? 'border-indigo-500 bg-indigo-500' : 'border-slate-300'
+                    className={`w-5 h-5 rounded-full flex items-center justify-center flex-shrink-0 transition-colors ${
+                      selected ? 'bg-indigo-500 text-white' : 'border-2 border-slate-300'
                     }`}
-                  />
-                  <span className="font-bold text-sm text-slate-900">{k.label}</span>
+                  >
+                    {selected && (
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M20 6 9 17l-5-5" />
+                      </svg>
+                    )}
+                  </span>
+                  <span className={`font-bold text-sm ${selected ? 'text-indigo-700' : 'text-slate-900'}`}>{k.label}</span>
                 </div>
-                <p className="text-[12px] text-slate-500 mt-1 ml-6 leading-relaxed">{k.desc}</p>
+                <p className="text-[12px] text-slate-500 mt-1 ml-7 leading-relaxed">{k.desc}</p>
               </button>
             );
           })}
         </div>
-      </div>
+          </div>
 
+          <button
+            type="button"
+            onClick={() => kind && setStep(2)}
+            disabled={!kind}
+            className="w-full py-3.5 rounded-xl text-white font-bold text-sm shadow-md hover:opacity-95 transition-opacity disabled:opacity-40 disabled:cursor-not-allowed"
+            style={{ background: 'linear-gradient(100deg,#6366F1,#8B5CF6)' }}
+          >
+            次へ
+          </button>
+        </div>
+      ) : (
+        <div className="space-y-6">
       {/* ② アバター（任意） */}
       <div>
         <p className="text-[11px] font-bold text-slate-400 mb-2 px-1">アイコン画像（任意）</p>
@@ -285,7 +313,7 @@ export function OnboardingForm({ userId }: { userId: string }) {
             autoCapitalize="none"
             autoCorrect="off"
             spellCheck={false}
-            className="flex-1 py-3 pr-3 bg-transparent text-sm focus:outline-none"
+            className="flex-1 py-3 pr-3 bg-transparent text-base focus:outline-none"
           />
         </div>
         <p className={`text-[11px] mt-1 ${handleHint.cls}`}>{handleHint.text}</p>
@@ -300,7 +328,7 @@ export function OnboardingForm({ userId }: { userId: string }) {
           onChange={(e) => setDisplayName(e.target.value)}
           placeholder="表示名を入力"
           maxLength={DISPLAY_MAX}
-          className="w-full px-4 py-3 rounded-xl border border-slate-200 text-sm bg-slate-50/50 focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:border-transparent"
+          className="w-full px-4 py-3 rounded-xl border border-slate-200 text-base bg-slate-50/50 focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:border-transparent"
         />
         <p className="text-[11px] text-slate-400 mt-1 text-right">
           {displayName.length}/{DISPLAY_MAX}
@@ -316,27 +344,62 @@ export function OnboardingForm({ userId }: { userId: string }) {
           onChange={(e) => setBio(e.target.value)}
           placeholder="自己紹介を入力"
           maxLength={BIO_MAX}
-          className="w-full px-4 py-3 rounded-xl border border-slate-200 text-sm bg-slate-50/50 focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:border-transparent resize-none"
+          className="w-full px-4 py-3 rounded-xl border border-slate-200 text-base bg-slate-50/50 focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:border-transparent resize-none"
         />
         <p className="text-[11px] text-slate-400 mt-1 text-right">
           {bio.length}/{BIO_MAX}
         </p>
       </div>
 
-      <button
-        type="button"
-        onClick={submit}
-        disabled={!canSubmit}
-        className="w-full py-3.5 rounded-xl text-white font-bold text-sm shadow-md hover:opacity-95 transition-opacity disabled:opacity-40 disabled:cursor-not-allowed"
-        style={{ background: 'linear-gradient(100deg,#6366F1,#8B5CF6)' }}
-      >
-        {submitting ? '作成中...' : 'アカウントを開設する'}
-      </button>
+      <div className="flex items-center gap-2">
+        <button
+          type="button"
+          onClick={() => setStep(1)}
+          className="px-5 py-3.5 rounded-xl border border-slate-200 text-slate-500 font-bold text-sm hover:border-slate-300 transition-colors"
+        >
+          戻る
+        </button>
+        <button
+          type="button"
+          onClick={submit}
+          disabled={!canSubmit}
+          className="flex-1 py-3.5 rounded-xl text-white font-bold text-sm shadow-md hover:opacity-95 transition-opacity disabled:opacity-40 disabled:cursor-not-allowed"
+          style={{ background: 'linear-gradient(100deg,#6366F1,#8B5CF6)' }}
+        >
+          {submitting ? '作成中...' : 'アカウントを開設する'}
+        </button>
+      </div>
       {kind === 'shop' && (
         <p className="text-[11px] text-slate-400 text-center -mt-2">
           ※ 開設後すぐに利用できます。運営が確認すると認証バッジが付きます。
         </p>
       )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ステップインジケーターの丸（番号 or 完了チェック）＋ラベル。
+function StepDot({ n, label, current, done }: { n: number; label: string; current: boolean; done: boolean }) {
+  const active = current || done;
+  return (
+    <div className="flex items-center gap-1.5">
+      <span
+        className={`w-6 h-6 rounded-full flex items-center justify-center text-[11px] font-bold flex-shrink-0 ${
+          active ? 'text-white' : 'bg-slate-100 text-slate-400'
+        }`}
+        style={active ? { background: 'linear-gradient(100deg,#6366F1,#8B5CF6)' } : undefined}
+      >
+        {done ? (
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M20 6 9 17l-5-5" />
+          </svg>
+        ) : (
+          n
+        )}
+      </span>
+      <span className={`text-[11px] font-bold ${current ? 'text-indigo-600' : 'text-slate-400'}`}>{label}</span>
     </div>
   );
 }
