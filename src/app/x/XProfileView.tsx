@@ -133,36 +133,35 @@ export function XProfileView({
             </div>
           </div>
 
-          {/* 名前・handle・kind */}
+          {/* 名前・kind・所属（同じ行に横並び。狭幅は折り返し） */}
           <div className="mt-2">
-            <div className="flex items-center gap-2">
-              <h1 className="text-xl font-black text-slate-900 truncate">{target.display_name}</h1>
+            <div className="flex items-center gap-2 flex-wrap">
+              <h1 className="text-xl font-black text-slate-900 truncate max-w-full">{target.display_name}</h1>
               {(target.kind === 'shop' || target.kind === 'therapist') && target.is_verified && (
                 <VerifiedBadge size={18} kind={target.kind} />
               )}
               <span className="text-[10px] font-bold text-indigo-500 bg-indigo-50 rounded-full px-1.5 py-0.5 flex-shrink-0">
                 {KIND_LABEL[target.kind] ?? target.kind}
               </span>
+              {/* 所属バッジ（therapist の確定所属先。種別バッジの右隣・店舗プロフィールへリンク） */}
+              {target.kind === 'therapist' && affiliatedShop && (
+                <Link
+                  href={`/x/u/${affiliatedShop.handle}`}
+                  className="inline-flex items-center gap-1 max-w-full text-xs font-bold text-emerald-700 bg-emerald-50 border border-emerald-100 rounded-full pl-1 pr-2.5 py-1 hover:bg-emerald-100 transition-colors"
+                >
+                  <span className="relative w-5 h-5 rounded-full overflow-hidden bg-gradient-to-br from-emerald-300 to-teal-300 flex items-center justify-center flex-shrink-0">
+                    {affiliatedShop.avatarUrl ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img src={affiliatedShop.avatarUrl} alt={affiliatedShop.displayName} className="w-full h-full object-cover" />
+                    ) : (
+                      <span className="text-white text-[10px] font-bold">{affiliatedShop.displayName.charAt(0) || '?'}</span>
+                    )}
+                  </span>
+                  <span className="truncate">{affiliatedShop.displayName}所属</span>
+                </Link>
+              )}
             </div>
             <p className="text-sm text-slate-400">@{target.handle}</p>
-
-            {/* 所属バッジ（therapist の確定所属先。店舗プロフィールへリンク） */}
-            {target.kind === 'therapist' && affiliatedShop && (
-              <Link
-                href={`/x/u/${affiliatedShop.handle}`}
-                className="inline-flex items-center gap-1 mt-2 text-xs font-bold text-emerald-700 bg-emerald-50 border border-emerald-100 rounded-full pl-1 pr-2.5 py-1 hover:bg-emerald-100 transition-colors"
-              >
-                <span className="relative w-5 h-5 rounded-full overflow-hidden bg-gradient-to-br from-emerald-300 to-teal-300 flex items-center justify-center flex-shrink-0">
-                  {affiliatedShop.avatarUrl ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img src={affiliatedShop.avatarUrl} alt={affiliatedShop.displayName} className="w-full h-full object-cover" />
-                  ) : (
-                    <span className="text-white text-[10px] font-bold">{affiliatedShop.displayName.charAt(0) || '?'}</span>
-                  )}
-                </span>
-                {affiliatedShop.displayName}所属
-              </Link>
-            )}
 
             {target.bio && <p className="text-sm text-slate-700 leading-relaxed whitespace-pre-wrap break-words mt-2">{target.bio}</p>}
 
