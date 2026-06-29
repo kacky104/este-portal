@@ -14,7 +14,7 @@ export default async function XOnboardingPage() {
   if (profile) redirect('/x');
 
   return (
-    <div className="x-card my-6 p-6 rounded-2xl bg-white/[0.94] shadow-[0_4px_16px_rgba(109,40,217,0.3)]">
+    <div className="x-card my-6 p-6 rounded-2xl bg-white/70 backdrop-blur-md border border-white/40 shadow-[0_4px_16px_rgba(109,40,217,0.3)]">
       <h1 className="text-2xl font-black tracking-tight mb-1 bg-gradient-to-r from-indigo-600 to-fuchsia-600 bg-clip-text text-transparent w-fit">
         アカウントを開設
       </h1>

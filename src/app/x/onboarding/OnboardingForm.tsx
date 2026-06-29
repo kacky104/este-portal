@@ -12,11 +12,91 @@ const HANDLE_RE = /^[A-Za-z0-9_]{3,20}$/;
 const DISPLAY_MAX = 30;
 const BIO_MAX = 160;
 
-// 種別と権限の一言説明（DB側はRLSで強制済み。ここはUI表示のみ）。
-const KINDS: { key: XKind; label: string; desc: string }[] = [
-  { key: 'user', label: 'ユーザー', desc: '見る・フォローする専用（投稿はできません）' },
-  { key: 'therapist', label: 'セラピスト', desc: '投稿できます／フォロワーを集められます（フォローはしません）' },
-  { key: 'shop', label: 'お店', desc: '投稿・フォロー・フォロワーすべて可能（運営確認で認証バッジが付きます）' },
+// 種別アイコン（Tabler outline 相当の自前SVG）。currentColor を継承＝アイコン円の文字色で塗る。
+const IconUser = (
+  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+    <circle cx="12" cy="7" r="4" />
+  </svg>
+);
+const IconTherapist = (
+  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
+  </svg>
+);
+const IconShop = (
+  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M3 9l1.5-5h15L21 9" />
+    <path d="M5 9v10a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V9" />
+    <path d="M9 20v-6h6v6" />
+  </svg>
+);
+
+// 種別ごとに基調色・アイコン・状態別クラスを持つ。Tailwind は静的クラス必須なので各色を直書きで束ねる。
+// 通常＝淡い基調色のアイコン円／選択＝基調色で強調（枠・淡背景・チェック）／ホバー＝基調色グラデ＋アイコン拡大。
+type KindMeta = {
+  key: XKind;
+  label: string;
+  desc: string;
+  icon: React.ReactNode;
+  iconWrap: string;
+  iconWrapSel: string;
+  hoverIcon: string; // group-hover（未選択時のみ付与）
+  selectedCard: string;
+  selLabel: string;
+  check: string;
+  hoverCard: string; // 未選択時のホバー（グラデ）
+  hoverLabel: string;
+  hoverDesc: string;
+};
+
+const KINDS: KindMeta[] = [
+  {
+    key: 'user',
+    label: 'ユーザー',
+    desc: '見る・フォローする専用（投稿はできません）',
+    icon: IconUser,
+    iconWrap: 'bg-blue-100 text-blue-600',
+    iconWrapSel: 'bg-blue-500 text-white',
+    hoverIcon: 'group-hover:bg-white/25 group-hover:text-white',
+    selectedCard: 'border-transparent bg-blue-50 ring-2 ring-blue-400 shadow-sm',
+    selLabel: 'text-blue-700',
+    check: 'bg-blue-500 text-white',
+    hoverCard: 'border-slate-200 bg-white hover:border-transparent hover:bg-gradient-to-br hover:from-blue-500 hover:to-blue-700',
+    hoverLabel: 'group-hover:text-white',
+    hoverDesc: 'group-hover:text-white/90',
+  },
+  {
+    key: 'therapist',
+    label: 'セラピスト',
+    desc: '投稿できます／フォロワーを集められます（フォローはしません）',
+    icon: IconTherapist,
+    iconWrap: 'bg-rose-100 text-rose-600',
+    iconWrapSel: 'bg-rose-500 text-white',
+    hoverIcon: 'group-hover:bg-white/25 group-hover:text-white',
+    selectedCard: 'border-transparent bg-rose-50 ring-2 ring-rose-400 shadow-sm',
+    selLabel: 'text-rose-700',
+    check: 'bg-rose-500 text-white',
+    hoverCard: 'border-slate-200 bg-white hover:border-transparent hover:bg-gradient-to-br hover:from-rose-400 hover:to-red-600',
+    hoverLabel: 'group-hover:text-white',
+    hoverDesc: 'group-hover:text-white/90',
+  },
+  {
+    key: 'shop',
+    label: 'お店',
+    desc: '投稿・フォロー・フォロワーすべて可能（運営確認で認証バッジが付きます）',
+    icon: IconShop,
+    iconWrap: 'bg-amber-100 text-amber-600',
+    iconWrapSel: 'bg-amber-500 text-white',
+    // 黄は白文字が読みにくいので、ホバーは淡めアンバー＋濃色文字で可読性を確保。
+    hoverIcon: 'group-hover:bg-white/50 group-hover:text-amber-700',
+    selectedCard: 'border-transparent bg-amber-50 ring-2 ring-amber-400 shadow-sm',
+    selLabel: 'text-amber-700',
+    check: 'bg-amber-500 text-white',
+    hoverCard: 'border-slate-200 bg-white hover:border-transparent hover:bg-gradient-to-br hover:from-amber-200 hover:to-amber-400',
+    hoverLabel: 'group-hover:text-amber-900',
+    hoverDesc: 'group-hover:text-amber-900',
+  },
 ];
 
 type HandleState = 'idle' | 'bad' | 'checking' | 'ok' | 'taken';
@@ -223,27 +303,39 @@ export function OnboardingForm({ userId }: { userId: string }) {
                 type="button"
                 onClick={() => setKind(k.key)}
                 aria-pressed={selected}
-                className={`w-full text-left p-3.5 rounded-2xl border transition-all ${
-                  selected
-                    ? 'border-transparent bg-gradient-to-br from-indigo-50 to-fuchsia-50 ring-2 ring-indigo-400 shadow-sm'
-                    : 'border-slate-200 bg-white hover:border-indigo-200'
+                className={`group w-full text-left p-3.5 rounded-2xl border transition-all duration-200 ${
+                  selected ? k.selectedCard : k.hoverCard
                 }`}
               >
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-3">
+                  {/* 基調色アイコン（ホバーで拡大） */}
                   <span
-                    className={`w-5 h-5 rounded-full flex items-center justify-center flex-shrink-0 transition-colors ${
-                      selected ? 'bg-indigo-500 text-white' : 'border-2 border-slate-300'
+                    className={`w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 transition-all duration-200 group-hover:scale-110 ${
+                      selected ? k.iconWrapSel : `${k.iconWrap} ${k.hoverIcon}`
                     }`}
                   >
-                    {selected && (
-                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
-                        <path d="M20 6 9 17l-5-5" />
-                      </svg>
-                    )}
+                    {k.icon}
                   </span>
-                  <span className={`font-bold text-sm ${selected ? 'text-indigo-700' : 'text-slate-900'}`}>{k.label}</span>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-1.5">
+                      <span
+                        className={`font-bold text-sm ${selected ? k.selLabel : `text-slate-900 ${k.hoverLabel}`}`}
+                      >
+                        {k.label}
+                      </span>
+                      {selected && (
+                        <span className={`w-4 h-4 rounded-full flex items-center justify-center flex-shrink-0 ${k.check}`}>
+                          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round">
+                            <path d="M20 6 9 17l-5-5" />
+                          </svg>
+                        </span>
+                      )}
+                    </div>
+                    <p className={`text-[12px] mt-0.5 leading-relaxed ${selected ? 'text-slate-600' : `text-slate-500 ${k.hoverDesc}`}`}>
+                      {k.desc}
+                    </p>
+                  </div>
                 </div>
-                <p className="text-[12px] text-slate-500 mt-1 ml-7 leading-relaxed">{k.desc}</p>
               </button>
             );
           })}
