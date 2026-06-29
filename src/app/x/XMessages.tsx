@@ -6,6 +6,7 @@ import { createClient } from '@/app/lib/supabase/client';
 import { getSession } from '@/lib/auth';
 import { XTimeAgo } from './XTimeAgo';
 import { VerifiedBadge } from './VerifiedBadge';
+import { XListSkeleton } from './XSkeleton';
 import type { DmOtherProfile } from './xDmShared';
 
 const sb = createClient();
@@ -144,7 +145,7 @@ export function XMessages() {
       <h1 className="x-rescue-muted text-lg font-black text-white drop-shadow-sm mb-3 px-1">メッセージ</h1>
 
       {loading ? (
-        <p className="x-rescue-muted text-sm text-white/90 text-center py-10 drop-shadow-sm">読み込み中...</p>
+        <XListSkeleton rows={6} variant="row" />
       ) : !loggedIn ? (
         <div className="x-card rounded-2xl bg-white/[0.94] shadow-[0_4px_16px_rgba(109,40,217,0.3)] p-6 text-center">
           <p className="text-sm text-slate-600 mb-4 leading-relaxed">メッセージを見るにはログインしてください。</p>

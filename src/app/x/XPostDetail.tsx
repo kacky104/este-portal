@@ -8,6 +8,7 @@ import { fetchShopMiniByIds } from './xAffiliation';
 import { XPostCard } from './XPostCard';
 import { XComposer } from './XComposer';
 import { XAuthGateModal } from './XAuthGateModal';
+import { XListSkeleton } from './XSkeleton';
 import { useXEngagement } from './useXEngagement';
 import type { XProfile, XKind } from './xProfile';
 import type { XPost } from './xPosts';
@@ -251,7 +252,7 @@ export function XPostDetail({ parent }: { parent: XPost }) {
       {/* リプライ一覧（フラット・時系列） */}
       <div className="mt-3 space-y-3">
         {!loaded ? (
-          <p className="x-rescue-muted text-sm text-white/90 text-center py-8 drop-shadow-sm">読み込み中...</p>
+          <XListSkeleton rows={2} variant="post" />
         ) : replies.length === 0 ? (
           <p className="x-rescue-muted text-sm text-white/90 text-center py-8 drop-shadow-sm">
             まだリプライがありません
