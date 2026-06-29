@@ -21,16 +21,24 @@ export function XComposer({
   me,
   myAffiliatedShop,
   onPosted,
+  parentPostId,
 }: {
   me: XProfile;
   myAffiliatedShop?: { handle: string; displayName: string } | null;
   onPosted: (post: XPost) => void;
+  // 指定時はリプライ作成モード（parent_post_id をセット・リプライ不可トグルは出さない）。
+  parentPostId?: string;
 }) {
+  const isReply = !!parentPostId;
+  // リプライ不可トグルは「通常投稿」かつ自分が therapist/shop のときだけ表示（user には出さない＝DB側ガードと二重防御）。
+  const canToggleReplies = !isReply && (me.kind === 'therapist' || me.kind === 'shop');
+
   const [body, setBody] = useState('');
   const [images, setImages] = useState<string[]>([]);
   const [uploading, setUploading] = useState(false);
   const [posting, setPosting] = useState(false);
   const [error, setError] = useState('');
+  const [repliesDisabled, setRepliesDisabled] = useState(false);
 
   const onPick = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files ?? []);
@@ -77,29 +85,41 @@ export function XComposer({
     if (!canPost) return;
     setPosting(true);
     setError('');
+    // insert ペイロード：リプライ時は parent_post_id を、通常投稿で therapist/shop のときのみ replies_disabled を付与。
+    // reply_count は触らない（DBトリガが親側を自動増減する）。
+    const payload: Record<string, unknown> = {
+      author_profile_id: me.id,
+      body: trimmed || null,
+      images,
+    };
+    if (isReply) payload.parent_post_id = parentPostId;
+    else if (canToggleReplies) payload.replies_disabled = repliesDisabled;
+
     const { data, error: insErr } = await supabase
       .from('x_posts')
-      .insert({
-        author_profile_id: me.id,
-        body: trimmed || null,
-        images,
-      })
-      .select('id, like_count, created_at')
+      .insert(payload)
+      .select('id, like_count, reply_count, replies_disabled, created_at')
       .single();
     setPosting(false);
 
     if (insErr) {
-      // RLS違反（未承認shop等）も握りつぶさずメッセージ化。
-      setError(`投稿できませんでした：${insErr.message}`);
+      // RLS違反（未承認shop／親がリプライ不可になっていた等）も握りつぶさずメッセージ化。
+      setError(
+        isReply
+          ? `リプライできませんでした：${insErr.message}`
+          : `投稿できませんでした：${insErr.message}`
+      );
       return;
     }
 
-    // 成功：タイムライン先頭へ反映するための XPost を組み立てて親へ。
+    // 成功：一覧へ反映するための XPost を組み立てて親へ。
     onPosted({
       id: String(data?.id),
       body: trimmed || null,
       images,
       likeCount: (data?.like_count as number) ?? 0,
+      replyCount: (data?.reply_count as number) ?? 0,
+      repliesDisabled: Boolean(data?.replies_disabled),
       createdAt: (data?.created_at as string) ?? new Date().toISOString(),
       author: {
         id: me.id,
@@ -127,7 +147,7 @@ export function XComposer({
         rows={3}
         value={body}
         onChange={(e) => setBody(e.target.value)}
-        placeholder="いまどうしてる？"
+        placeholder={isReply ? '返信を入力' : 'いまどうしてる？'}
         maxLength={BODY_MAX}
         className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm bg-slate-50/50 focus:outline-none focus:ring-2 focus:ring-indigo-300 focus:border-transparent resize-none"
       />
@@ -150,6 +170,19 @@ export function XComposer({
             </div>
           ))}
         </div>
+      )}
+
+      {/* リプライ不可トグル（通常投稿・therapist/shop のみ） */}
+      {canToggleReplies && (
+        <label className="mt-2 flex items-center gap-2 text-[12px] font-medium text-slate-500 cursor-pointer select-none">
+          <input
+            type="checkbox"
+            checked={repliesDisabled}
+            onChange={(e) => setRepliesDisabled(e.target.checked)}
+            className="accent-indigo-500"
+          />
+          リプライを許可しない
+        </label>
       )}
 
       <div className="mt-2 flex items-center justify-between">
@@ -185,7 +218,7 @@ export function XComposer({
           className="px-5 py-2 rounded-full text-white font-bold text-sm shadow-sm disabled:opacity-40 disabled:cursor-not-allowed transition-opacity"
           style={{ background: 'linear-gradient(100deg,#6366F1,#8B5CF6)' }}
         >
-          {posting ? '投稿中...' : '投稿する'}
+          {posting ? (isReply ? '送信中...' : '投稿中...') : isReply ? '返信する' : '投稿する'}
         </button>
       </div>
     </div>

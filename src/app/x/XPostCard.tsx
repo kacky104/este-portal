@@ -82,6 +82,7 @@ export function XPostCard({
   followPending,
   onToggleLike,
   onToggleFollow,
+  showReplyLink = true,
 }: {
   post: XPost;
   liked: boolean;
@@ -92,6 +93,9 @@ export function XPostCard({
   followPending: boolean;
   onToggleLike: (post: XPost) => void;
   onToggleFollow: (authorId: string) => void;
+  // タイムライン/プロフィールでは true（タップで投稿詳細へ）。投稿詳細ページ内のカードでは false にして
+  // リプライ件数を静的表示にする（リプライへの個別返信導線を作らず＝1階層フラットを維持）。
+  showReplyLink?: boolean;
 }) {
   const a = post.author;
   // 投稿画像の全画面拡大。クリックした画像のインデックスを保持（null で閉じ）。複数枚は左右ナビ可。
@@ -167,8 +171,8 @@ export function XPostCard({
         <ImageGrid images={post.images} alt={a.displayName} onImageClick={setLightboxIndex} />
       </div>
 
-      {/* いいね */}
-      <div className="mt-2 ml-[50px] flex items-center">
+      {/* いいね・リプライ */}
+      <div className="mt-2 ml-[50px] flex items-center gap-5">
         <button
           type="button"
           onClick={() => onToggleLike(post)}
@@ -183,6 +187,27 @@ export function XPostCard({
           </svg>
           <span className="tabular-nums font-medium">{likeCount}</span>
         </button>
+
+        {/* リプライ数。一覧ではタップで投稿詳細へ。詳細ページ内では静的表示（深い返信導線を作らない）。 */}
+        {showReplyLink ? (
+          <Link
+            href={`/x/post/${post.id}`}
+            className="inline-flex items-center gap-1.5 text-sm text-slate-400 hover:text-indigo-500 transition-colors"
+            aria-label="リプライを見る"
+          >
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z" />
+            </svg>
+            <span className="tabular-nums font-medium">{post.replyCount}</span>
+          </Link>
+        ) : (
+          <span className="inline-flex items-center gap-1.5 text-sm text-slate-400" aria-label="リプライ数">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z" />
+            </svg>
+            <span className="tabular-nums font-medium">{post.replyCount}</span>
+          </span>
+        )}
       </div>
 
       {/* 投稿画像の全画面拡大ライトボックス（複数枚は左右ナビ） */}

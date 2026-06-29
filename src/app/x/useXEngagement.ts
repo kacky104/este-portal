@@ -53,6 +53,28 @@ export function useXEngagement(opts: {
     setLikes((m) => (m[post.id] ? m : { ...m, [post.id]: { liked: false, count: post.likeCount } }));
   }, []);
 
+  // マウント後に取得した投稿群（投稿詳細ページの親＋リプライ）をまとめて初期投入する。
+  // likedIds に含まれる id は liked=true で投入。初期ロード用途のため対象 id は上書きする。
+  const seedPosts = useCallback((newPosts: XPost[], likedIds: string[] = []) => {
+    const likedSet = new Set(likedIds);
+    setLikes((m) => {
+      const next = { ...m };
+      newPosts.forEach((p) => {
+        next[p.id] = { liked: likedSet.has(p.id), count: p.likeCount };
+      });
+      return next;
+    });
+  }, []);
+
+  // マウント後に取得した「フォロー中の followee id」をまとめて投入（詳細ページの著者フォロー状態反映用）。
+  const seedFollowees = useCallback((ids: string[]) => {
+    setFollowingSet((s) => {
+      const n = new Set(s);
+      ids.forEach((id) => n.add(id));
+      return n;
+    });
+  }, []);
+
   const isFollowing = useCallback((authorId: string) => followingSet.has(authorId), [followingSet]);
 
   // フォローボタンの表示可否：投稿主が therapist/shop かつ自分以外、かつ自分が therapist でない
@@ -162,6 +184,8 @@ export function useXEngagement(opts: {
     likePendingFor: (id: string) => likePending.has(id),
     followPendingFor: (id: string) => followPending.has(id),
     registerPost,
+    seedPosts,
+    seedFollowees,
     toggleLike,
     toggleFollow,
   };

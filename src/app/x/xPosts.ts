@@ -17,7 +17,8 @@ import type { XKind } from './xProfile';
 // 将来の肥大に備え、おすすめ／フォロー中とも「直近この件数だけ」created_at desc で取得してから処理する。
 export const RECOMMENDED_LIMIT = 500;
 
-const POST_COLS = 'id, author_profile_id, body, images, like_count, created_at';
+// reply_count / replies_disabled はリプライ機能用（reply_count はトリガ自動増減・アプリは手動更新しない）。
+const POST_COLS = 'id, author_profile_id, body, images, like_count, reply_count, replies_disabled, created_at';
 
 export type XPostAuthor = {
   id: string;
@@ -35,6 +36,8 @@ export type XPost = {
   body: string | null;
   images: string[];
   likeCount: number;
+  replyCount: number; // この投稿が持つリプライ数（トリガ自動更新）
+  repliesDisabled: boolean; // リプライ受付不可（therapist/shop が自投稿で設定可）
   createdAt: string;
   author: XPostAuthor;
 };
@@ -45,6 +48,8 @@ type PostRow = {
   body: string | null;
   images: string[] | null;
   like_count: number | null;
+  reply_count: number | null;
+  replies_disabled: boolean | null;
   created_at: string;
 };
 
@@ -100,6 +105,8 @@ async function attachAuthors(client: AnyClient, rows: PostRow[]): Promise<XPost[
       body: r.body ?? null,
       images: r.images ?? [],
       likeCount: r.like_count ?? 0,
+      replyCount: r.reply_count ?? 0,
+      repliesDisabled: Boolean(r.replies_disabled),
       createdAt: r.created_at,
       author: {
         id: r.author_profile_id,
@@ -122,6 +129,7 @@ export async function fetchRecommended(): Promise<XPost[]> {
   const { data } = await client
     .from('x_posts')
     .select(POST_COLS)
+    .is('parent_post_id', null) // リプライ（parent_post_id 有り）はタイムラインに出さない
     .order('created_at', { ascending: false })
     .limit(RECOMMENDED_LIMIT);
   const posts = await attachAuthors(client, (data ?? []) as PostRow[]);
@@ -146,9 +154,20 @@ export async function fetchFollowingPosts(followeeIds: string[]): Promise<XPost[
     .from('x_posts')
     .select(POST_COLS)
     .in('author_profile_id', followeeIds)
+    .is('parent_post_id', null) // リプライはフォロー中タブにも出さない
     .order('created_at', { ascending: false })
     .limit(RECOMMENDED_LIMIT);
   return attachAuthors(supabase, (data ?? []) as PostRow[]);
+}
+
+// 投稿詳細ページ用：単一投稿を公開クライアントで取得（ISRキャッシュ可）。見つからなければ null。
+// リプライ一覧・いいね/フォロー状態など本人依存・動的な部分はクライアント側でマウント時に取得する。
+export async function fetchPostById(id: string): Promise<XPost | null> {
+  const client = createPublicClient();
+  const { data } = await client.from('x_posts').select(POST_COLS).eq('id', id).maybeSingle();
+  if (!data) return null;
+  const out = await attachAuthors(client, [data as PostRow]);
+  return out[0] ?? null;
 }
 
 // 指定の投稿群のうち自分がいいね済みの post_id 一覧（いいね状態のUI反映用）。
