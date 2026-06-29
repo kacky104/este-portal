@@ -329,7 +329,7 @@ export function CastDiary({
         <div>
           <label className="text-[11px] font-bold text-slate-500 block mb-1">タイトル（最大{TITLE_MAX}文字）</label>
           <input
-            className="w-full px-3 py-2 rounded-xl border border-slate-200 text-sm bg-slate-50/50 focus:outline-none focus:ring-2 focus:ring-pink-200"
+            className="w-full px-3 py-2 rounded-xl border border-slate-200 text-sm text-slate-900 placeholder:text-slate-400 bg-slate-50/50 focus:outline-none focus:ring-2 focus:ring-pink-200"
             placeholder="タイトルを入力"
             maxLength={TITLE_MAX}
             value={diaryTitle}
@@ -343,7 +343,7 @@ export function CastDiary({
           <label className="text-[11px] font-bold text-slate-500 block mb-1">本文</label>
           <textarea
             rows={5}
-            className="w-full px-3 py-2 rounded-xl border border-slate-200 text-sm bg-slate-50/50 focus:outline-none focus:ring-2 focus:ring-pink-200 resize-none"
+            className="w-full px-3 py-2 rounded-xl border border-slate-200 text-sm text-slate-900 placeholder:text-slate-400 bg-slate-50/50 focus:outline-none focus:ring-2 focus:ring-pink-200 resize-none"
             placeholder="本文を入力"
             value={diaryBody}
             onChange={(e) => setDiaryBody(e.target.value)}
@@ -424,7 +424,7 @@ export function CastDiary({
                     {/* タイトル */}
                     <div>
                       <input
-                        className="w-full px-3 py-2 rounded-xl border border-slate-200 text-sm bg-slate-50/50 focus:outline-none focus:ring-2 focus:ring-pink-200"
+                        className="w-full px-3 py-2 rounded-xl border border-slate-200 text-sm text-slate-900 placeholder:text-slate-400 bg-slate-50/50 focus:outline-none focus:ring-2 focus:ring-pink-200"
                         placeholder="タイトルを入力"
                         maxLength={TITLE_MAX}
                         value={editTitle}
@@ -436,7 +436,7 @@ export function CastDiary({
                     {/* 本文 */}
                     <textarea
                       rows={4}
-                      className="w-full px-3 py-2 rounded-xl border border-slate-200 text-sm bg-slate-50/50 focus:outline-none focus:ring-2 focus:ring-pink-200 resize-none"
+                      className="w-full px-3 py-2 rounded-xl border border-slate-200 text-sm text-slate-900 placeholder:text-slate-400 bg-slate-50/50 focus:outline-none focus:ring-2 focus:ring-pink-200 resize-none"
                       placeholder="本文を入力"
                       value={editBody}
                       onChange={(e) => setEditBody(e.target.value)}
