@@ -25,6 +25,31 @@ export function seededShuffle<T>(array: readonly T[], seed: number): T[] {
   return arr;
 }
 
+/**
+ * seed から決定論的な「重み付きシャッフル」をした新配列を返す（入力は破壊しない）。
+ * weightOf が大きい要素ほど前に来やすいが、確定ではない（重み1の要素も上位に来得る）。
+ *
+ * 方式：Efraimidis–Spirakis の重み付き順序付け。各要素に key = u^(1/weight)（u は seed PRNG の [0,1)）
+ * を割り当て、key の降順に並べる。weight が大きいほど key が大きくなりやすく前に来る。
+ * weight が全要素 1.0 なら key = u となり、一様シャッフルと同じ分布（＝従来挙動）になる。
+ * 同じ seed・同じ入力・同じ重みなら必ず同じ並び（純粋関数・副作用なし＝30分シードの再現性を保てる）。
+ */
+export function seededWeightedShuffle<T>(
+  array: readonly T[],
+  seed: number,
+  weightOf: (item: T) => number
+): T[] {
+  const rand = mulberry32(seed);
+  return array
+    .map((item) => {
+      const w = Math.max(weightOf(item), 1e-9); // 0/負の重みは極小に丸めて 1/w の発散を防ぐ
+      const key = Math.pow(rand(), 1 / w); // u^(1/w)：重み大ほど 1 に寄りやすい
+      return { item, key };
+    })
+    .sort((a, b) => b.key - a.key)
+    .map((x) => x.item);
+}
+
 /** 現在時刻（ミリ秒）から30分スロットの seed を作る。同じ30分の間は同じ値、30分ごとに変わる。 */
 export function thirtyMinSeed(nowMs: number = Date.now()): number {
   return Math.floor(nowMs / (30 * 60 * 1000));

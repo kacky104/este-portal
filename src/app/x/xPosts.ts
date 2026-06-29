@@ -1,6 +1,6 @@
 import { createPublicClient } from '@/app/lib/supabase/public';
 import { createClient } from '@/app/lib/supabase/server';
-import { seededShuffle, thirtyMinSeed } from '@/lib/shuffle';
+import { seededWeightedShuffle, thirtyMinSeed } from '@/lib/shuffle';
 import { fetchShopMiniByIds } from './xAffiliation';
 import type { XKind } from './xProfile';
 
@@ -128,8 +128,15 @@ async function attachAuthors(client: AnyClient, rows: PostRow[]): Promise<XPost[
   return out;
 }
 
-// おすすめ（公開）：直近 RECOMMENDED_LIMIT 件を取得→30分シードで決定的シャッフル。
-// 同じ30分枠の間は並びが固定（リロードで暴れない）。seededShuffle/thirtyMinSeed は src/lib/shuffle.ts。
+// 承認済みセラピストの優遇倍率（おすすめのみ）。is_verified なセラピストの投稿をこの倍率だけ
+// 「上位に来やすく」する重み付きシャッフル。1.0 で無効＝従来の一様シャッフルと同じ分布。
+// 上げるほど更に出やすくなる（完全固定ではない＝未承認も上位に来得る）。テスト運用で調整可。
+const VERIFIED_THERAPIST_WEIGHT = 2.0;
+
+// おすすめ（公開）：直近 RECOMMENDED_LIMIT 件を取得→30分シードで決定的な重み付きシャッフル。
+// 承認済みセラピスト（kind='therapist' かつ is_verified）の投稿に重みを与えて上位に来やすくする。
+// 同じ30分枠の間は並びが固定（リロードで暴れない）。重み計算も30分シードの PRNG から決定的に生成。
+// 承認済みセラピストが居ない／全員未承認なら全要素 weight=1.0 ＝従来どおりの一様シャッフルになる。
 export async function fetchRecommended(): Promise<XPost[]> {
   const client = createPublicClient();
   const { data } = await client
@@ -139,7 +146,9 @@ export async function fetchRecommended(): Promise<XPost[]> {
     .order('created_at', { ascending: false })
     .limit(RECOMMENDED_LIMIT);
   const posts = await attachAuthors(client, (data ?? []) as PostRow[]);
-  return seededShuffle(posts, thirtyMinSeed());
+  return seededWeightedShuffle(posts, thirtyMinSeed(), (p) =>
+    p.author.kind === 'therapist' && p.author.isVerified ? VERIFIED_THERAPIST_WEIGHT : 1.0
+  );
 }
 
 // 自分がフォローしている profile id 一覧（follow 状態のUI反映＋フォロー中タブの両方に使う）。
