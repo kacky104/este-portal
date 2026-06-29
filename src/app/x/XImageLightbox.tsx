@@ -27,7 +27,9 @@ export function XImageLightbox({
 
   const [current, setCurrent] = useState(startIndex);
   const touchStartX = useRef<number | null>(null);
+  const touchStartY = useRef<number | null>(null);
   const swipedRef = useRef(false); // スワイプ（閾値超え）したら背景タップ閉じを抑制
+  const [dragY, setDragY] = useState(0); // 下スワイプ中の画像追従量（閾値未満で離すと0に戻る）
 
   // 開くたびに startIndex へ同期（前回位置が残らないように）。常に範囲内へ clamp。
   useEffect(() => {
@@ -63,19 +65,46 @@ export function XImageLightbox({
   const goPrev = () => setCurrent((c) => Math.max(0, c - 1));
   const goNext = () => setCurrent((c) => Math.min(count - 1, c + 1));
 
+  // 横スワイプ＝前後の画像送り（複数枚）／下スワイプ＝閉じる、を縦横の主成分で振り分ける。
+  const H_THRESHOLD = 45; // 横スワイプ（画像送り）確定の閾値
+  const V_THRESHOLD = 80; // 下スワイプ（閉じる）確定の閾値（誤爆しにくいやや大きめ）
+
   const onTouchStart = (e: React.TouchEvent) => {
     touchStartX.current = e.touches[0]?.clientX ?? null;
+    touchStartY.current = e.touches[0]?.clientY ?? null;
     swipedRef.current = false;
+    setDragY(0);
+  };
+  const onTouchMove = (e: React.TouchEvent) => {
+    if (touchStartX.current === null || touchStartY.current === null) return;
+    const dx = (e.touches[0]?.clientX ?? touchStartX.current) - touchStartX.current;
+    const dy = (e.touches[0]?.clientY ?? touchStartY.current) - touchStartY.current;
+    // 下方向かつ縦が横より大きいときだけ画像を指に追従させる（横＝画像送りには干渉しない）。
+    setDragY(dy > 0 && Math.abs(dy) > Math.abs(dx) ? dy : 0);
   };
   const onTouchEnd = (e: React.TouchEvent) => {
-    if (touchStartX.current === null) return;
+    if (touchStartX.current === null || touchStartY.current === null) return;
     const deltaX = (e.changedTouches[0]?.clientX ?? touchStartX.current) - touchStartX.current;
+    const deltaY = (e.changedTouches[0]?.clientY ?? touchStartY.current) - touchStartY.current;
     touchStartX.current = null;
-    const THRESHOLD = 45;
-    if (Math.abs(deltaX) < THRESHOLD) return; // タップ扱い
-    swipedRef.current = true; // スワイプ確定：このあとの click（背景閉じ）を抑制
-    if (deltaX > 0) goPrev();
-    else goNext();
+    touchStartY.current = null;
+
+    // 横が主成分＝前後の画像送り（従来どおり）。
+    if (Math.abs(deltaX) > Math.abs(deltaY) && Math.abs(deltaX) > H_THRESHOLD) {
+      swipedRef.current = true; // 背景タップ閉じの合成クリックを抑制
+      setDragY(0);
+      if (deltaX > 0) goPrev();
+      else goNext();
+      return;
+    }
+    // 下方向が主成分＝閉じる（上スワイプは割り当てない）。
+    if (deltaY > V_THRESHOLD && deltaY > Math.abs(deltaX)) {
+      swipedRef.current = true;
+      onClose();
+      return;
+    }
+    // どちらの閾値にも満たない＝タップ扱い：追従を元に戻す。
+    setDragY(0);
   };
 
   return (
@@ -142,8 +171,17 @@ export function XImageLightbox({
         alt={alt}
         onClick={(e) => e.stopPropagation()}
         onTouchStart={onTouchStart}
+        onTouchMove={onTouchMove}
         onTouchEnd={onTouchEnd}
-        className="max-w-full max-h-full object-contain rounded-lg shadow-2xl select-none"
+        // 下スワイプ中は画像が指に追従＋わずかにフェード。離して閾値未満なら transition で元位置へ戻る。
+        style={
+          dragY
+            ? { transform: `translateY(${dragY}px)`, opacity: Math.max(0.4, 1 - dragY / 500) }
+            : undefined
+        }
+        className={`max-w-full max-h-full object-contain rounded-lg shadow-2xl select-none ${
+          dragY ? '' : 'transition-transform duration-200'
+        }`}
         draggable={false}
       />
 
