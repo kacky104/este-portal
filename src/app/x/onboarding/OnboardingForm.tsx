@@ -54,7 +54,7 @@ const KINDS: KindMeta[] = [
   {
     key: 'user',
     label: 'ユーザー',
-    desc: '見る・フォローする専用（投稿はできません）',
+    desc: 'お気に入りのセラピストを見つけて、フォローできます。',
     icon: IconUser,
     iconWrap: 'bg-blue-100 text-blue-600',
     iconWrapSel: 'bg-blue-500 text-white',
@@ -69,7 +69,7 @@ const KINDS: KindMeta[] = [
   {
     key: 'therapist',
     label: 'セラピスト',
-    desc: '投稿できます／フォロワーを集められます（フォローはしません）',
+    desc: '自分の良さを発信して、ファンを集めましょう。',
     icon: IconTherapist,
     iconWrap: 'bg-rose-100 text-rose-600',
     iconWrapSel: 'bg-rose-500 text-white',
@@ -84,7 +84,7 @@ const KINDS: KindMeta[] = [
   {
     key: 'shop',
     label: 'お店',
-    desc: '投稿・フォロー・フォロワーすべて可能（運営確認で認証バッジが付きます）',
+    desc: 'お店の情報を発信、ユーザーやセラピストと交流をして人気店にしましょう。',
     icon: IconShop,
     iconWrap: 'bg-amber-100 text-amber-600',
     iconWrapSel: 'bg-amber-500 text-white',
