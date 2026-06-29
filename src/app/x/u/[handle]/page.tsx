@@ -10,13 +10,12 @@ import {
   type TherapistMini,
 } from '../../xAffiliation';
 import { XProfileView } from '../../XProfileView';
-import { getLinkedTherapistForXProfile, type LinkedTherapist } from '@/app/lib/xLink';
 
 // 閲覧者のログイン状態でフォロー状態が変わるため動的レンダリング。
 export const dynamic = 'force-dynamic';
 
 const PROFILE_COLS =
-  'id, auth_user_id, kind, status, handle, display_name, bio, avatar_url, header_url, is_verified, affiliated_shop_id, link_url';
+  'id, auth_user_id, kind, status, handle, display_name, bio, avatar_url, header_url, is_verified, affiliated_shop_id, link_url, age, height, bust, cup, waist, hip';
 
 type ProfileRow = {
   id: string;
@@ -31,6 +30,12 @@ type ProfileRow = {
   is_verified: boolean;
   affiliated_shop_id: string | null;
   link_url: string | null;
+  age: number | null;
+  height: number | null;
+  bust: number | null;
+  cup: string | null;
+  waist: number | null;
+  hip: number | null;
 };
 
 // LIKE のワイルドカード（% _ \）をエスケープし、ilike で大文字小文字無視の「完全一致」にする。
@@ -67,6 +72,12 @@ export default async function XProfilePage({ params }: { params: Promise<{ handl
     is_verified: t.is_verified,
     affiliated_shop_id: t.affiliated_shop_id,
     link_url: t.link_url,
+    age: t.age,
+    height: t.height,
+    bust: t.bust,
+    cup: t.cup,
+    waist: t.waist,
+    hip: t.hip,
   };
 
   const isOwnProfile = !!viewer.profile && viewer.profile.id === target.id;
@@ -99,8 +110,7 @@ export default async function XProfilePage({ params }: { params: Promise<{ handl
   const followingCount = wantsFollowing ? (followingRes.count ?? 0) : null;
 
   // 所属情報：therapist は所属先店舗（1件）、shop は所属セラピスト一覧を解決。
-  // あわせて therapist は本体（フクエス）の連携セラピストを解決（is_active な場合のみ誘導リンク）。
-  const [affiliatedShop, affiliatedTherapists, portalLink]: [ShopMini | null, TherapistMini[], LinkedTherapist | null] =
+  const [affiliatedShop, affiliatedTherapists]: [ShopMini | null, TherapistMini[]] =
     await Promise.all([
       target.kind === 'therapist'
         ? fetchShopMini(supabase, t.affiliated_shop_id)
@@ -108,9 +118,6 @@ export default async function XProfilePage({ params }: { params: Promise<{ handl
       target.kind === 'shop'
         ? fetchAffiliatedTherapists(supabase, target.id)
         : Promise.resolve([] as TherapistMini[]),
-      target.kind === 'therapist'
-        ? getLinkedTherapistForXProfile(target.auth_user_id)
-        : Promise.resolve(null),
     ]);
 
   // 投稿は全て target が投稿主なので辞書引き不要（author を直接付与）。
@@ -186,7 +193,6 @@ export default async function XProfilePage({ params }: { params: Promise<{ handl
       initialFollowing={initialFollowing}
       affiliatedShop={affiliatedShop}
       affiliatedTherapists={affiliatedTherapists}
-      portalLink={portalLink}
     />
   );
 }

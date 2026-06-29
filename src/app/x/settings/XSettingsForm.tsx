@@ -15,6 +15,14 @@ const BIO_MAX = 160;
 
 const KIND_LABEL: Record<string, string> = { user: 'ユーザー', therapist: 'セラピスト', shop: 'お店' };
 
+// 数値入力欄の値を保存用に変換：空文字は null（0 にしない）。数値として妥当なら整数化。
+function toIntOrNull(s: string): number | null {
+  const t = s.trim();
+  if (t === '') return null;
+  const n = Number(t);
+  return Number.isFinite(n) ? Math.trunc(n) : null;
+}
+
 function validateImageFile(file: File): string | null {
   if (file.size > 5 * 1024 * 1024) return '5MB以下の画像を選択してください';
   if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) return 'JPEG・PNG・WebPのみ対応しています';
@@ -37,6 +45,13 @@ export function XSettingsForm({
   const [displayName, setDisplayName] = useState(profile.display_name);
   const [bio, setBio] = useState(profile.bio ?? '');
   const [link, setLink] = useState(profile.link_url ?? '');
+  // 年齢・スリーサイズ（すべて任意）。数値欄は文字列で保持し、保存時に null/整数へ変換。
+  const [age, setAge] = useState(profile.age?.toString() ?? '');
+  const [height, setHeight] = useState(profile.height?.toString() ?? '');
+  const [bust, setBust] = useState(profile.bust?.toString() ?? '');
+  const [cup, setCup] = useState(profile.cup ?? '');
+  const [waist, setWaist] = useState(profile.waist?.toString() ?? '');
+  const [hip, setHip] = useState(profile.hip?.toString() ?? '');
   const [avatarUrl, setAvatarUrl] = useState<string | null>(profile.avatar_url);
   const [headerUrl, setHeaderUrl] = useState<string | null>(profile.header_url);
 
@@ -122,6 +137,12 @@ export function XSettingsForm({
         avatar_url: avatarUrl,
         header_url: headerUrl,
         link_url: linkUrl,
+        age: toIntOrNull(age),
+        height: toIntOrNull(height),
+        bust: toIntOrNull(bust),
+        cup: cup.trim() || null,
+        waist: toIntOrNull(waist),
+        hip: toIntOrNull(hip),
       })
       .eq('id', profile.id);
     setSaving(false);
@@ -258,6 +279,31 @@ export function XSettingsForm({
         <p className="text-[10px] text-slate-400 mt-1 px-1">http:// または https:// のリンク（プロフィールに表示されます）</p>
       </div>
 
+      {/* ── 年齢・スリーサイズ（すべて任意・プロフィールに表示されます）── text-base(16px) で iOS 自動ズーム抑止 */}
+      <div className="rounded-2xl border border-slate-200 bg-slate-50/60 p-4">
+        <p className="text-[11px] font-bold text-slate-400 mb-3 px-1">年齢・スリーサイズ（任意）</p>
+        <div className="grid grid-cols-2 gap-3">
+          <NumberField label="年齢" unit="歳" value={age} onChange={setAge} />
+          <NumberField label="身長 T" unit="cm" value={height} onChange={setHeight} />
+          <NumberField label="バスト B" unit="cm" value={bust} onChange={setBust} />
+          <div>
+            <label className="text-[11px] font-bold text-slate-400 block mb-1.5 px-1">カップ</label>
+            <input
+              type="text"
+              value={cup}
+              onChange={(e) => setCup(e.target.value)}
+              placeholder="例: F"
+              maxLength={4}
+              autoCapitalize="characters"
+              className="w-full px-4 py-3 rounded-xl border border-slate-200 text-base text-slate-900 placeholder:text-slate-400 bg-white focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:border-transparent"
+            />
+          </div>
+          <NumberField label="ウエスト W" unit="cm" value={waist} onChange={setWaist} />
+          <NumberField label="ヒップ H" unit="cm" value={hip} onChange={setHip} />
+        </div>
+        <p className="text-[10px] text-slate-400 mt-2 px-1">入力した項目だけ「@ID」の横に表示されます。空欄の項目は表示されません。</p>
+      </div>
+
       {/* ── 変更不可（読み取り専用）：ID・種別・ログインメール ── */}
       <div className="rounded-2xl border border-slate-200 bg-slate-50/60 p-4 space-y-3">
         <p className="text-[11px] font-bold text-slate-400">変更できない項目</p>
@@ -308,6 +354,36 @@ export function XSettingsForm({
           {toast}
         </div>
       )}
+    </div>
+  );
+}
+
+// 数値入力欄（年齢・スリーサイズ用）。text-base(16px) で iOS の自動ズームを抑止。
+function NumberField({
+  label,
+  unit,
+  value,
+  onChange,
+}: {
+  label: string;
+  unit: string;
+  value: string;
+  onChange: (v: string) => void;
+}) {
+  return (
+    <div>
+      <label className="text-[11px] font-bold text-slate-400 block mb-1.5 px-1">{label}</label>
+      <div className="relative">
+        <input
+          type="number"
+          inputMode="numeric"
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          min={0}
+          className="w-full px-4 py-3 pr-10 rounded-xl border border-slate-200 text-base text-slate-900 placeholder:text-slate-400 bg-white focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:border-transparent"
+        />
+        <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-slate-400 pointer-events-none">{unit}</span>
+      </div>
     </div>
   );
 }

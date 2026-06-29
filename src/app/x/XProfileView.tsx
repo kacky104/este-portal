@@ -33,7 +33,6 @@ export function XProfileView({
   initialFollowing,
   affiliatedShop,
   affiliatedTherapists,
-  portalLink,
 }: {
   target: XProfile;
   viewerProfile: XProfile | null;
@@ -47,8 +46,6 @@ export function XProfileView({
   initialFollowing: boolean;
   affiliatedShop: ShopMini | null; // target が therapist のとき所属先（無ければ null）
   affiliatedTherapists: TherapistMini[]; // target が shop のとき所属セラピスト一覧
-  // 本体（フクエス）の連携セラピスト（therapist かつ is_active のとき）。無ければ null＝何も出さない。
-  portalLink?: { id: number; name: string } | null;
 }) {
   const [toast, setToast] = useState('');
   const [gateOpen, setGateOpen] = useState(false); // 未ログイン／未開設アクション時のモーダル
@@ -72,6 +69,15 @@ export function XProfileView({
   const showFollowBtn = eng.showFollowFor(target); // target が therapist/shop・自分以外・自分が therapist でない
   const following = eng.isFollowing(target.id);
   const followPending = eng.followPendingFor(target.id);
+
+  // 年齢・スリーサイズ（@handle の右横に表示）。各値が無ければその項目だけ省略、全部空なら何も出さない。
+  // カップはバストがある時だけ B89（F） の形で付ける。
+  const measurements: string[] = [];
+  if (target.age != null) measurements.push(`${target.age}歳`);
+  if (target.height != null) measurements.push(`T${target.height}`);
+  if (target.bust != null) measurements.push(target.cup ? `B${target.bust}（${target.cup}）` : `B${target.bust}`);
+  if (target.waist != null) measurements.push(`W${target.waist}`);
+  if (target.hip != null) measurements.push(`H${target.hip}`);
 
   return (
     <div>
@@ -167,23 +173,15 @@ export function XProfileView({
                 </Link>
               )}
             </div>
-            <p className="text-sm text-slate-400">@{target.handle}</p>
+            {/* @handle と 年齢・スリーサイズ を同じ行に（狭幅は折り返してもレイアウトが崩れない）。 */}
+            <div className="flex flex-wrap items-center gap-x-2">
+              <p className="text-sm text-slate-400">@{target.handle}</p>
+              {measurements.length > 0 && (
+                <p className="text-xs text-slate-500 tabular-nums">{measurements.join(' ')}</p>
+              )}
+            </div>
 
             {target.bio && <p className="text-sm text-slate-700 leading-relaxed whitespace-pre-wrap break-words mt-2">{target.bio}</p>}
-
-            {/* 本体（フクエス）の連携セラピストへの誘導（therapist かつ is_active のときのみ・サイト内遷移） */}
-            {portalLink && (
-              <a
-                href={`/therapist/${portalLink.id}`}
-                className="mt-2 inline-flex items-center gap-1.5 max-w-full text-sm font-medium text-indigo-600 hover:underline"
-              >
-                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="flex-shrink-0">
-                  <circle cx="12" cy="8" r="4" />
-                  <path d="M4 21v-1a6 6 0 0 1 6-6h4a6 6 0 0 1 6 6v1" />
-                </svg>
-                <span className="truncate">フクエスのプロフィールを見る</span>
-              </a>
-            )}
 
             {/* リンク（任意・http/https のみ）。ドメイン名を新タブで開く。 */}
             {safeHref(target.link_url) && (
