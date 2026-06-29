@@ -9,6 +9,8 @@ import { createClient } from '@/app/lib/supabase/client';
 import { ADMIN_UUID } from '@/app/lib/admin';
 import { VerifiedBadge } from './VerifiedBadge';
 import { XThemeToggle } from './XThemeToggle';
+import { XLogo } from './XLogo';
+import { fetchShopMiniByIds } from './xAffiliation';
 import { NOTIF_READ_EVENT } from './xNotificationsShared';
 import { DM_READ_EVENT } from './xDmShared';
 
@@ -22,9 +24,17 @@ type MyProfile = {
   kind: 'user' | 'therapist' | 'shop';
   is_verified: boolean;
   status: string;
+  affiliated_shop_id: string | null;
 };
 
 const KIND_LABEL: Record<string, string> = { user: 'ユーザー', therapist: 'セラピスト', shop: 'お店' };
+// 種別バッジの基調色（オンボーディングと統一：ユーザー=青/セラピスト=赤/お店=黄）。
+// 黄は薄色だと読みにくいので濃いめアンバー地＋濃色文字で可読性を確保。
+const KIND_BADGE: Record<string, string> = {
+  user: 'bg-blue-50 text-blue-700',
+  therapist: 'bg-rose-50 text-rose-700',
+  shop: 'bg-amber-100 text-amber-800',
+};
 
 // 既存タイムライン/プロフィールのアバター作法に合わせたフォールバック：
 // avatar_url があれば画像、無ければ display_name 先頭文字＋インディゴ系グラデ背景。
@@ -61,35 +71,49 @@ export function XHeader() {
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
   const [userId, setUserId] = useState<string | null>(null);
+  const [email, setEmail] = useState<string | null>(null); // ログイン中のメール（ドロワー本人確認用）
   const [profile, setProfile] = useState<MyProfile | null>(null);
+  const [affiliatedShop, setAffiliatedShop] = useState<{ handle: string; displayName: string } | null>(null);
   const [unread, setUnread] = useState(0); // 通知の未読件数（ベルの赤バッジ用）
   const [dmUnread, setDmUnread] = useState(0); // DMの未読総数（封筒の赤バッジ用）
 
   // セッションの auth_user_id から自分の x_profiles を取得（ドロワーのメニュー出し分けに使用）。
-  const load = useCallback(async (uid: string | undefined) => {
+  // email はセッションから受け取り、所属先（セラピストのみ）はバッジ表示用に解決する。
+  const load = useCallback(async (uid: string | undefined, mail: string | null) => {
     if (!uid) {
       setUserId(null);
+      setEmail(null);
       setProfile(null);
+      setAffiliatedShop(null);
       setUnread(0);
       setDmUnread(0);
       return;
     }
     setUserId(uid);
+    setEmail(mail);
     const { data } = await supabase
       .from('x_profiles')
-      .select('id, handle, display_name, avatar_url, kind, is_verified, status')
+      .select('id, handle, display_name, avatar_url, kind, is_verified, status, affiliated_shop_id')
       .eq('auth_user_id', uid)
       .maybeSingle();
-    setProfile((data as MyProfile | null) ?? null);
+    const p = (data as MyProfile | null) ?? null;
+    setProfile(p);
+    if (p && p.kind === 'therapist' && p.affiliated_shop_id) {
+      const dict = await fetchShopMiniByIds(supabase, [p.affiliated_shop_id]);
+      const s = dict.get(p.affiliated_shop_id);
+      setAffiliatedShop(s ? { handle: s.handle, displayName: s.displayName } : null);
+    } else {
+      setAffiliatedShop(null);
+    }
   }, []);
 
   useEffect(() => {
     let mounted = true;
     getSession().then((s) => {
-      if (mounted) load(s?.user.id);
+      if (mounted) load(s?.user.id, s?.user.email ?? null);
     });
     const off = onAuthChange((s) => {
-      if (mounted) load(s?.user.id);
+      if (mounted) load(s?.user.id, s?.user.email ?? null);
     });
     return () => {
       mounted = false;
@@ -270,31 +294,35 @@ export function XHeader() {
           role="dialog"
           aria-modal="true"
         >
-          {/* 上部：ログイン済みなら自分の情報 */}
-          {loggedIn && profile ? (
-            <Link
-              href={`/x/u/${profile.handle}`}
-              onClick={() => setOpen(false)}
-              className="flex items-center gap-3 p-4 border-b border-slate-100 hover:bg-slate-50 transition-colors"
-            >
-              <Avatar profile={profile} size={48} />
-              <div className="min-w-0">
-                <div className="flex items-center gap-1">
-                  <p className="font-bold text-sm text-slate-900 truncate">{profile.display_name}</p>
-                  {isVerifiedShop && <VerifiedBadge />}
-                </div>
-                <p className="text-xs text-slate-400 truncate">@{profile.handle}</p>
-                <span className="inline-block mt-1 text-[10px] font-bold text-indigo-500 bg-indigo-50 rounded-full px-1.5 py-0.5">
+          {/* 上部ヘッダー（ドロワーは常時白地）：①ロゴ＋キャッチ（常時）②@handle＋バッジ ③メール（ログイン時） */}
+          <div className="p-4 border-b border-slate-100">
+            {/* ①ロゴ＋キャッチ。ロゴタップで /x へ＝ドロワーを閉じる。 */}
+            <div className="flex items-center gap-2 flex-wrap">
+              <span onClick={() => setOpen(false)} className="inline-flex">
+                <XLogo size="md" />
+              </span>
+              <span className="text-[11px] text-slate-400 font-medium">～メンズエステ専用SNS～</span>
+            </div>
+
+            {/* ②@handle＋種別/認証/所属バッジ（開設済みのみ） */}
+            {loggedIn && profile && (
+              <div className="flex items-center gap-1.5 flex-wrap mt-2">
+                <span className="text-xs font-bold text-slate-500 truncate max-w-[45%]">@{profile.handle}</span>
+                <span className={`text-[10px] font-bold rounded-full px-1.5 py-0.5 ${KIND_BADGE[profile.kind] ?? 'bg-slate-100 text-slate-600'}`}>
                   {KIND_LABEL[profile.kind] ?? profile.kind}
                 </span>
+                {isVerifiedShop && <VerifiedBadge />}
+                {affiliatedShop && (
+                  <span className="text-[10px] font-bold text-emerald-600 bg-emerald-50 rounded-full px-1.5 py-0.5 truncate max-w-[45%]">
+                    {affiliatedShop.displayName}所属
+                  </span>
+                )}
               </div>
-            </Link>
-          ) : (
-            <div className="p-4 border-b border-slate-100">
-              <p className="font-black text-base text-slate-900">fukuX</p>
-              <p className="text-xs text-slate-400 mt-0.5">メンズエステ専用SNS</p>
-            </div>
-          )}
+            )}
+
+            {/* ③ログイン中メール（本人確認用・はみ出さないよう truncate） */}
+            {loggedIn && email && <p className="text-[11px] text-slate-400 mt-1 truncate">{email}</p>}
+          </div>
 
           {/* メニュー */}
           <nav className="flex-1 overflow-y-auto p-2">
