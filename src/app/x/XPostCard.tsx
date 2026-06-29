@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { XTimeAgo } from './XTimeAgo';
 import { VerifiedBadge } from './VerifiedBadge';
 import { XImageLightbox } from './XImageLightbox';
+import { XHashtagText } from './XHashtagText';
 import type { XPost } from './xPosts';
 
 const KIND_LABEL: Record<string, string> = {
@@ -159,11 +160,12 @@ export function XPostCard({
         )}
       </div>
 
-      {/* 本文 */}
+      {/* 本文（#タグ はリンク化） */}
       {post.body && (
-        <p className="text-sm text-slate-800 leading-relaxed whitespace-pre-wrap break-words mt-2 ml-[50px]">
-          {post.body}
-        </p>
+        <XHashtagText
+          text={post.body}
+          className="text-sm text-slate-800 leading-relaxed whitespace-pre-wrap break-words mt-2 ml-[50px]"
+        />
       )}
 
       {/* 画像 */}

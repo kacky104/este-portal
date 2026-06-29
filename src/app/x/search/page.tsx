@@ -1,9 +1,14 @@
+import { Suspense } from 'react';
 import { XSearch } from '../XSearch';
 
-// ユーザー検索は公開情報。入力に応じた取得はすべて XSearch（クライアント）がデバウンスして行うため、
-// この server page は薄いラッパー（cookie を読まない・要ログインにしない）。
-export const metadata = { title: 'ユーザー検索｜fukuX' };
+// ユーザー/投稿検索は公開情報。取得はすべて XSearch（クライアント）がデバウンスして行う薄いラッパー。
+// XSearch は useSearchParams（?q=/?tab=）を使うため Suspense 境界で包む（Next 16 の静的レンダリング要件）。
+export const metadata = { title: '検索｜fukuX' };
 
 export default function XSearchPage() {
-  return <XSearch />;
+  return (
+    <Suspense fallback={null}>
+      <XSearch />
+    </Suspense>
+  );
 }

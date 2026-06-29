@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
+import { useSearchParams } from 'next/navigation';
 import { createClient } from '@/app/lib/supabase/client';
 import { getSession } from '@/lib/auth';
 import { fetchShopMiniByIds } from './xAffiliation';
@@ -177,8 +178,13 @@ async function searchPosts(raw: string): Promise<XPost[]> {
 // ユーザー / 投稿 の検索（公開・要ログインなし）。入力はデバウンス（300ms）。空文字では検索しない。
 // キーワードはタブ間で共有。投稿タブはいいね/フォロー操作のため engagement を持つ（未ログインは認証モーダル）。
 export function XSearch() {
-  const [tab, setTab] = useState<'users' | 'posts'>('users');
-  const [q, setQ] = useState('');
+  // URL クエリ ?q= / ?tab= で初期キーワード・初期タブを受け取る（#タグ タップからの遷移先）。
+  const params = useSearchParams();
+  const urlQ = params.get('q') ?? '';
+  const urlTab = params.get('tab') === 'posts' ? 'posts' : params.get('tab') === 'users' ? 'users' : null;
+
+  const [tab, setTab] = useState<'users' | 'posts'>(urlTab ?? 'users');
+  const [q, setQ] = useState(urlQ);
   const [userResults, setUserResults] = useState<Hit[]>([]);
   const [postResults, setPostResults] = useState<XPost[]>([]);
   const [loading, setLoading] = useState(false);
@@ -202,6 +208,12 @@ export function XSearch() {
     onAuthRequired: () => setGateOpen(true),
   });
   const { seedPosts, seedFollowees } = eng;
+
+  // URL クエリが変わったら（例：検索結果内の #タグ をタップ）キーワード・タブを同期する。
+  useEffect(() => {
+    if (urlQ) setQ(urlQ);
+    if (urlTab) setTab(urlTab);
+  }, [urlQ, urlTab]);
 
   // 自分の profile をマウント時に取得（投稿結果のいいね/フォロー状態の seed に使う）。
   useEffect(() => {
