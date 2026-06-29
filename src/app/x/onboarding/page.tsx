@@ -16,17 +16,17 @@ export default async function XOnboardingPage() {
 
   return (
     <div className="x-card my-6 p-6 rounded-2xl bg-white/70 backdrop-blur-md border border-white/40 shadow-[0_4px_16px_rgba(109,40,217,0.3)]">
-      {/* 見出し＋横長ロゴ（fukuX と一目で分かるように）。狭幅はロゴが下に回り込む。 */}
-      <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-2 mb-6">
-        <div>
-          <h1 className="text-2xl font-black tracking-tight mb-1 bg-gradient-to-r from-indigo-600 to-fuchsia-600 bg-clip-text text-transparent w-fit">
+      {/* 見出し＋横長ロゴ（タイトルと同じ行の右隣）。サブテキストは行の下。狭幅で収まらない時のみ折り返す。 */}
+      <div className="mb-6">
+        <div className="flex flex-row flex-wrap items-center gap-2.5">
+          <h1 className="text-2xl font-black tracking-tight bg-gradient-to-r from-indigo-600 to-fuchsia-600 bg-clip-text text-transparent w-fit">
             アカウントを開設
           </h1>
-          <p className="text-sm text-slate-500">種別を選んで、プロフィールを設定しましょう。</p>
+          <div className="flex-shrink-0">
+            <XLogo size="md" />
+          </div>
         </div>
-        <div className="flex-shrink-0 self-start sm:self-end">
-          <XLogo size="lg" />
-        </div>
+        <p className="text-sm text-slate-500 mt-1">種別を選んで、プロフィールを設定しましょう。</p>
       </div>
       <OnboardingForm userId={userId} />
     </div>
