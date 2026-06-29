@@ -1,3 +1,4 @@
+import { cache } from 'react';
 import { createClient } from '@/app/lib/supabase/server';
 
 // fukuX のアカウント種別。'user'=見る/フォロー専用・'therapist'=投稿/フォロワー・'shop'=全機能（即利用可・運営確認で認証バッジ）。
@@ -24,26 +25,32 @@ const XPROFILE_COLUMNS =
 
 // ログインユーザーと、その x_profiles（未作成なら null）をサーバー側でまとめて取得する。
 // /x・/x/onboarding の分岐に使う。RLS の select は公開だが、自分の行は auth_user_id で引く。
-export async function getXContext(): Promise<{
-  userId: string | null;
-  email: string | null;
-  profile: XProfile | null;
-}> {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) return { userId: null, email: null, profile: null };
+//
+// React cache() でラップ＝同一リクエスト内で何度呼んでも getUser＋x_profiles は1回だけ実行される。
+// これにより /x レイアウト（me を Provider に seed）とページが両方呼んでも getUser が二重にならない。
+// 戻り値・引数・取得内容は不変（呼び出し側の変更不要）。
+export const getXContext = cache(
+  async (): Promise<{
+    userId: string | null;
+    email: string | null;
+    profile: XProfile | null;
+  }> => {
+    const supabase = await createClient();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    if (!user) return { userId: null, email: null, profile: null };
 
-  const { data } = await supabase
-    .from('x_profiles')
-    .select(XPROFILE_COLUMNS)
-    .eq('auth_user_id', user.id)
-    .maybeSingle();
+    const { data } = await supabase
+      .from('x_profiles')
+      .select(XPROFILE_COLUMNS)
+      .eq('auth_user_id', user.id)
+      .maybeSingle();
 
-  return {
-    userId: user.id,
-    email: user.email ?? null,
-    profile: (data as XProfile | null) ?? null,
-  };
-}
+    return {
+      userId: user.id,
+      email: user.email ?? null,
+      profile: (data as XProfile | null) ?? null,
+    };
+  }
+);

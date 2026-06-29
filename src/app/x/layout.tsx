@@ -1,6 +1,9 @@
 import type { Metadata } from 'next';
 import { XHeader } from './XHeader';
-import { XMeProvider } from './XMeProvider';
+import { XMeProvider, type MeSeed } from './XMeProvider';
+import { getXContext } from './xProfile';
+import { createClient } from '@/app/lib/supabase/server';
+import { fetchShopMini } from './xAffiliation';
 import './x-theme.css';
 
 // fukuX 専用シェル。既存フクエスの共通ヘッダー（Logo/各メニュー）は出さず、独自ヘッダーにする。
@@ -14,7 +17,19 @@ export const metadata: Metadata = {
 // 値が 'white' のときだけ属性を書き換える（既定の 'gradient' は SSR 出力と一致）。/x 内に閉じる。
 const THEME_INIT = `try{var t=localStorage.getItem('fukux-theme');if(t==='white'){document.getElementById('x-root').setAttribute('data-x-theme','white');}}catch(e){}`;
 
-export default function XLayout({ children }: { children: React.ReactNode }) {
+export default async function XLayout({ children }: { children: React.ReactNode }) {
+  // me をサーバーで取得して Provider に seed（リロード時のクライアント二重取得・待ちを解消）。
+  // getXContext は cache() 済み＝各ページの呼び出しと getUser を共有（1リクエスト1回）。
+  // ※ seed は props で渡すだけ＝ISRキャッシュには焼かない（ISR凍結回避を維持）。レイアウトは動的化する。
+  const { userId, email, profile } = await getXContext();
+  let affiliatedShop: MeSeed['affiliatedShop'] = null;
+  if (profile?.kind === 'therapist' && profile.affiliated_shop_id) {
+    const supabase = await createClient();
+    const shop = await fetchShopMini(supabase, profile.affiliated_shop_id);
+    affiliatedShop = shop ? { handle: shop.handle, displayName: shop.displayName } : null;
+  }
+  const seed: MeSeed = { me: profile, userId, email, affiliatedShop };
+
   return (
     <div
       id="x-root"
@@ -29,8 +44,8 @@ export default function XLayout({ children }: { children: React.ReactNode }) {
       <div aria-hidden className="x-bg fixed inset-0 z-0" />
 
       <div className="relative z-10">
-        {/* 自分(me)をクライアントで一元取得・配布（遷移ごとの重複取得を排除。ISRには焼かない）。 */}
-        <XMeProvider>
+        {/* 自分(me)を一元配布（遷移=Provider生存で再取得なし／リロード=サーバーseedで待ちなし。ISRには焼かない）。 */}
+        <XMeProvider seed={seed}>
           {/* ─── fukuX ヘッダー（左=アバター/ドロワー・中央=肉球ロゴ・右=スペーサー） ─── */}
           <XHeader />
 

@@ -1,6 +1,6 @@
 'use client';
 
-import { createContext, useCallback, useContext, useEffect, useState } from 'react';
+import { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react';
 import { createClient } from '@/app/lib/supabase/client';
 import { getSession, onAuthChange } from '@/lib/auth';
 import { fetchShopMiniByIds } from './xAffiliation';
@@ -36,12 +36,26 @@ export function useMe(): MeContextValue {
   return ctx;
 }
 
-export function XMeProvider({ children }: { children: React.ReactNode }) {
-  const [me, setMe] = useState<XProfile | null>(null);
-  const [userId, setUserId] = useState<string | null>(null);
-  const [email, setEmail] = useState<string | null>(null);
-  const [affiliatedShop, setAffiliatedShop] = useState<{ handle: string; displayName: string } | null>(null);
-  const [loading, setLoading] = useState(true);
+// /x レイアウト（サーバー）が getXContext で取得した me を seed として渡す。
+// seed があればリロード時にクライアントが取り直さない（loading=false で開始＝待ちが消える）。
+export type MeSeed = {
+  me: XProfile | null;
+  userId: string | null;
+  email: string | null;
+  affiliatedShop: { handle: string; displayName: string } | null;
+};
+
+export function XMeProvider({ children, seed }: { children: React.ReactNode; seed?: MeSeed }) {
+  const [me, setMe] = useState<XProfile | null>(seed?.me ?? null);
+  const [userId, setUserId] = useState<string | null>(seed?.userId ?? null);
+  const [email, setEmail] = useState<string | null>(seed?.email ?? null);
+  const [affiliatedShop, setAffiliatedShop] = useState<{ handle: string; displayName: string } | null>(
+    seed?.affiliatedShop ?? null
+  );
+  // seed があれば確定値を持っているので loading=false で開始（リロード時の me 取得待ちを解消）。
+  const [loading, setLoading] = useState(seed === undefined);
+  // onAuthChange は購読時に INITIAL_SESSION を1回発火する。seed 済みで同一ユーザーならその初回再取得を抑止。
+  const seededRef = useRef(seed !== undefined);
 
   const load = useCallback(async (uid: string | undefined, mail: string | null) => {
     if (!uid) {
@@ -73,17 +87,28 @@ export function XMeProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     let mounted = true;
-    getSession().then((s) => {
-      if (mounted) load(s?.user.id, s?.user.email ?? null);
-    });
+    // seed が無いときだけ初回取得（seed があれば既に確定値を持っている）。
+    if (seed === undefined) {
+      getSession().then((s) => {
+        if (mounted) load(s?.user.id, s?.user.email ?? null);
+      });
+    }
+    // ログイン/ログアウト切替は購読で反映。ただし seed 済みの初回イベント（INITIAL_SESSION）が
+    // 同一ユーザーなら取り直さない＝リロード時の二重取得を回避（別ユーザー＝切替時のみ load）。
     const off = onAuthChange((s) => {
-      if (mounted) load(s?.user.id, s?.user.email ?? null);
+      if (!mounted) return;
+      const uid = s?.user.id;
+      if (seededRef.current) {
+        seededRef.current = false;
+        if ((uid ?? null) === (seed?.userId ?? null)) return;
+      }
+      load(uid, s?.user.email ?? null);
     });
     return () => {
       mounted = false;
       off();
     };
-  }, [load]);
+  }, [load, seed]);
 
   return (
     <MeContext.Provider value={{ me, userId, email, affiliatedShop, loading, refresh }}>
