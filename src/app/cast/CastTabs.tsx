@@ -24,6 +24,7 @@ export function CastTabs({
   therapistId,
   therapistName,
   salonId,
+  xProfileId,
   imasuguOn,
   imasuguUntil,
   ownerImasuguOn,
@@ -33,6 +34,7 @@ export function CastTabs({
   therapistId: string;
   therapistName: string;
   salonId: number;
+  xProfileId: string | null; // 連携 fukuX プロフィール id（非連携は null）。日記の fukuX 同時投稿に使う
   imasuguOn: boolean;
   imasuguUntil: string | null;
   ownerImasuguOn: boolean;
@@ -67,7 +69,7 @@ export function CastTabs({
 
       {/* タブ中身 */}
       {activeTab === 'diary' && (
-        <CastDiary therapistId={therapistId} therapistName={therapistName} salonId={salonId} />
+        <CastDiary therapistId={therapistId} therapistName={therapistName} salonId={salonId} xProfileId={xProfileId} />
       )}
 
       {activeTab === 'theme' && <CastThemePicker />}

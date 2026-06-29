@@ -6,6 +6,7 @@ import { getBusinessDateJST } from '@/lib/dutyStatus';
 import { CastSignOutButton } from './CastSignOutButton';
 import { CastThemeProvider } from './CastTheme';
 import { CastTabs } from './CastTabs';
+import { getLinkedXProfileForTherapist } from '@/app/lib/xLink';
 
 // キャスト管理トップ（フェーズ1：最小実装）。
 // ガードはページ内 redirect 方式（proxy.ts は触らない）。
@@ -21,6 +22,15 @@ export default async function CastHomePage() {
     .select('id, name, salon_id, profile_image_url, cast_theme, is_available_now_cast, available_until_cast, is_available_now, available_until')
     .eq('user_id', user.id)
     .maybeSingle();
+
+  // fukuX 連携：このセラピストの auth に approved な x_profiles(therapist) があれば、
+  // 写メ日記を fukuX にも同時投稿できる。連携プロフィールの id（フォーク投稿の author_profile_id 用）を算出。
+  // 非連携（user_id に対応する x_profiles が無い／非approved）なら null＝チェックボックス自体を出さない。
+  let xProfileId: string | null = null;
+  if (therapist) {
+    const linked = await getLinkedXProfileForTherapist(user.id);
+    xProfileId = linked?.profileId ?? null;
+  }
 
   // 所属サロン名（挨拶ブロックのサブ情報）。本人セッションのクライアントで salons から取得。
   let salonName: string | null = null;
@@ -109,6 +119,7 @@ export default async function CastHomePage() {
               therapistId={String(therapist.id)}
               therapistName={therapist.name ?? ''}
               salonId={Number(therapist.salon_id)}
+              xProfileId={xProfileId}
               imasuguOn={Boolean(therapist.is_available_now_cast)}
               imasuguUntil={(therapist.available_until_cast as string | null) ?? null}
               ownerImasuguOn={Boolean(therapist.is_available_now)}

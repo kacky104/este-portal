@@ -51,10 +51,12 @@ export function CastDiary({
   therapistId,
   therapistName,
   salonId,
+  xProfileId,
 }: {
   therapistId: string; // 本人の therapist.id（固定）
   therapistName: string;
   salonId: number;
+  xProfileId: string | null; // 連携 fukuX プロフィール id（非連携は null＝同時投稿UIを出さない）
 }) {
   // ── 簡易トースト（/cast はサーバーコンポーネントで showToast が無いためローカルで持つ） ──
   const [toast, setToast] = useState('');
@@ -69,6 +71,7 @@ export function CastDiary({
   const [diaryBody, setDiaryBody] = useState('');
   const [diaryUploading, setDiaryUploading] = useState(false);
   const [diaryPosting, setDiaryPosting] = useState(false);
+  const [crosspostX, setCrosspostX] = useState(false); // fukuX 同時投稿（デフォルトOFF・連携時のみ表示）
 
   // ── 一覧 ──
   const [posts, setPosts] = useState<CastDiaryPost[]>([]);
@@ -167,11 +170,34 @@ export function CastDiary({
       title:        diaryTitle.trim() || null,
       content:      diaryBody.trim() || null,
     });
+    if (error) { setDiaryPosting(false); showToast(`投稿に失敗しました: ${error.message}`); return; }
+
+    // ── fukuX 同時投稿（チェックON かつ連携あり時のみ・ワンタイムのフォーク）──
+    // 日記の保存は上で成功済み。fukuX への投稿は付随処理＝失敗しても日記投稿は成功扱い（best-effort）。
+    // 同じ認証クライアントで insert＝x_posts の INSERT ポリシー(author_profile_id = x_my_profile_id())を
+    // 正規に通る（service_role 不使用＝なりすまし不能）。編集・削除は同期しない。
+    if (crosspostX && xProfileId) {
+      const titlePart = diaryTitle.trim();
+      const contentPart = diaryBody.trim();
+      // body = タイトル行 + 改行 + 本文（片方のみ・両方空も許容）
+      const body =
+        titlePart && contentPart ? `${titlePart}\n\n${contentPart}` : (titlePart || contentPart);
+      const xImages = diaryImage ? [diaryImage] : [];
+      if (body.length > 0 || xImages.length > 0) {
+        const { error: xErr } = await supabase.from('x_posts').insert({
+          author_profile_id: xProfileId, // 本人の fukuX プロフィール id（uuid）
+          body: body || null,            // 空なら null（fukuX の画像のみ投稿と同じ作法）
+          images: xImages,               // diary と同じフルURL配列をそのままコピー
+        });
+        if (xErr) console.error('crosspost to x_posts failed:', xErr); // 握りつぶしてログのみ
+      }
+    }
+
     setDiaryPosting(false);
-    if (error) { showToast(`投稿に失敗しました: ${error.message}`); return; }
     setDiaryImage(null);
     setDiaryTitle('');
     setDiaryBody('');
+    setCrosspostX(false); // 毎回デフォルトOFFに戻す（都度オプトイン）
     revalidateSalon(salonId, { top: false }); // 公開側（サロン詳細・セラピスト日記）を更新（best-effort）
     showToast('写メ日記を投稿しました');
     loadPosts();
@@ -323,6 +349,21 @@ export function CastDiary({
             onChange={(e) => setDiaryBody(e.target.value)}
           />
         </div>
+
+        {/* fukuX 同時投稿（連携 approved セラピストのみ表示・デフォルトOFF） */}
+        {xProfileId && (
+          <label className="flex items-center gap-2 cursor-pointer select-none pt-0.5">
+            <input
+              type="checkbox"
+              checked={crosspostX}
+              onChange={(e) => setCrosspostX(e.target.checked)}
+              className="w-4 h-4 rounded border-slate-300 text-pink-500 focus:ring-pink-200"
+            />
+            <span className="text-[12px] font-bold text-slate-600">
+              fukuX にも投稿する
+            </span>
+          </label>
+        )}
 
         <div className="flex justify-end">
           <button

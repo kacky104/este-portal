@@ -13,6 +13,7 @@ import { createPublicClient } from '@/app/lib/supabase/public';
 const PUBLIC_X_STATUSES = ['approved'];
 
 export type LinkedXProfile = {
+  profileId: string; // x_profiles.id（uuid）。日記→fukuX フォーク時の author_profile_id に使う
   handle: string;
   displayName: string | null;
   avatarUrl: string | null;
@@ -29,7 +30,7 @@ export async function getLinkedXProfileForTherapist(
   const supabase = createPublicClient();
   const { data, error } = await supabase
     .from('x_profiles')
-    .select('handle, display_name, avatar_url, is_verified, status, kind')
+    .select('id, handle, display_name, avatar_url, is_verified, status, kind')
     .eq('auth_user_id', userId)
     .eq('kind', 'therapist')
     .limit(1); // 同一authに複数therapistプロフィールは想定しないが maybeSingle の例外を避けるため limit(1)
@@ -41,6 +42,7 @@ export async function getLinkedXProfileForTherapist(
   if (!p.status || !PUBLIC_X_STATUSES.includes(p.status as string)) return null;
 
   return {
+    profileId: p.id as string,
     handle: p.handle as string,
     displayName: (p.display_name as string | null) ?? null,
     avatarUrl: (p.avatar_url as string | null) ?? null,
