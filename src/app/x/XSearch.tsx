@@ -117,6 +117,7 @@ export function XSearch() {
             <circle cx="11" cy="11" r="8" />
             <path d="m21 21-4.3-4.3" />
           </svg>
+          {/* text-base(16px)：iOS Safari はフォーカス時 font-size<16px だと自動ズームするため 16px に固定 */}
           <input
             value={q}
             onChange={(e) => setQ(e.target.value)}
@@ -125,7 +126,7 @@ export function XSearch() {
             autoCapitalize="none"
             autoCorrect="off"
             spellCheck={false}
-            className="flex-1 py-2.5 px-2 text-sm bg-transparent focus:outline-none"
+            className="flex-1 py-2.5 px-2 text-base bg-transparent focus:outline-none"
           />
           {q && (
             <button
