@@ -184,7 +184,7 @@ export function XNotifications() {
       {loading ? (
         <p className="x-rescue-muted text-sm text-white/90 text-center py-10 drop-shadow-sm">読み込み中...</p>
       ) : !loggedIn ? (
-        <div className="x-card rounded-2xl bg-white/[0.94] shadow-[0_4px_16px_rgba(168,85,247,0.25)] p-6 text-center">
+        <div className="x-card rounded-2xl bg-white/[0.94] shadow-[0_4px_16px_rgba(109,40,217,0.3)] p-6 text-center">
           <p className="text-sm text-slate-600 mb-4 leading-relaxed">通知を見るにはログインしてください。</p>
           <Link
             href="/x/login"
@@ -203,7 +203,7 @@ export function XNotifications() {
               key={n.id}
               type="button"
               onClick={() => onRowClick(n)}
-              className={`x-card w-full text-left rounded-2xl bg-white/[0.94] shadow-[0_4px_16px_rgba(168,85,247,0.25)] p-3 flex items-center gap-3 hover:brightness-[0.98] transition ${
+              className={`x-card w-full text-left rounded-2xl bg-white/[0.94] shadow-[0_4px_16px_rgba(109,40,217,0.3)] p-3 flex items-center gap-3 hover:brightness-[0.98] transition ${
                 n.isRead ? '' : 'ring-1 ring-indigo-300'
               }`}
             >

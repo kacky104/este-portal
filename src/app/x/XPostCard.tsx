@@ -101,7 +101,7 @@ export function XPostCard({
   // 投稿画像の全画面拡大。クリックした画像のインデックスを保持（null で閉じ）。複数枚は左右ナビ可。
   const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
   return (
-    <article className="x-card rounded-2xl bg-white/[0.94] shadow-[0_4px_16px_rgba(168,85,247,0.25)] p-4">
+    <article className="x-card rounded-2xl bg-white/[0.94] shadow-[0_4px_16px_rgba(109,40,217,0.3)] p-4">
       {/* ヘッダー：アバター・名前・@handle・kind・時刻・フォロー（名前/アバターはプロフィールへリンク） */}
       <div className="flex items-start gap-2.5">
         <Link

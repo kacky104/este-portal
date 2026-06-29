@@ -68,7 +68,7 @@ export function XProfileView({
   return (
     <div>
       {/* ─── ヘッダー（浮遊カード） ─── */}
-      <div className="x-card mt-3 rounded-2xl overflow-hidden bg-white/[0.94] shadow-[0_4px_16px_rgba(168,85,247,0.25)]">
+      <div className="x-card mt-3 rounded-2xl overflow-hidden bg-white/[0.94] shadow-[0_4px_16px_rgba(109,40,217,0.3)]">
         {/* バナー（header_url があればタップで全体表示） */}
         <div className="h-28 bg-gradient-to-br from-indigo-100 to-sky-100 relative">
           {target.header_url && (
@@ -182,7 +182,7 @@ export function XProfileView({
 
       {/* ─── 所属セラピスト一覧（店舗プロフィールのみ・浮遊カード） ─── */}
       {target.kind === 'shop' && (
-        <div className="x-card mt-3 rounded-2xl bg-white/[0.94] shadow-[0_4px_16px_rgba(168,85,247,0.25)] p-4">
+        <div className="x-card mt-3 rounded-2xl bg-white/[0.94] shadow-[0_4px_16px_rgba(109,40,217,0.3)] p-4">
           <h2 className="text-sm font-black text-slate-800 mb-2">
             所属セラピスト
             {affiliatedTherapists.length > 0 && (
