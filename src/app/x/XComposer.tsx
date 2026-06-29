@@ -23,24 +23,28 @@ export function XComposer({
   myAffiliatedShop,
   onPosted,
   parentPostId,
+  editPost,
 }: {
   me: XProfile;
   myAffiliatedShop?: { handle: string; displayName: string } | null;
   onPosted: (post: XPost) => void;
   // 指定時はリプライ作成モード（parent_post_id をセット・リプライ不可トグルは出さない）。
   parentPostId?: string;
+  // 指定時は編集モード（新規 insert ではなく対象投稿を update・各値を初期表示）。
+  editPost?: XPost;
 }) {
   const isReply = !!parentPostId;
-  // リプライ不可トグルは「通常投稿」かつ自分が therapist/shop のときだけ表示（user には出さない＝DB側ガードと二重防御）。
+  const isEdit = !!editPost;
+  // リプライ不可トグルは「通常投稿/通常投稿の編集」かつ自分が therapist/shop のときだけ表示（user には出さない＝DB側ガードと二重防御）。
   const canToggleReplies = !isReply && (me.kind === 'therapist' || me.kind === 'shop');
 
-  const [body, setBody] = useState('');
-  const [images, setImages] = useState<string[]>([]);
-  const [link, setLink] = useState('');
+  const [body, setBody] = useState(editPost?.body ?? '');
+  const [images, setImages] = useState<string[]>(editPost?.images ?? []);
+  const [link, setLink] = useState(editPost?.linkUrl ?? '');
   const [uploading, setUploading] = useState(false);
   const [posting, setPosting] = useState(false);
   const [error, setError] = useState('');
-  const [repliesDisabled, setRepliesDisabled] = useState(false);
+  const [repliesDisabled, setRepliesDisabled] = useState(editPost?.repliesDisabled ?? false);
 
   const onPick = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files ?? []);
@@ -93,7 +97,37 @@ export function XComposer({
     }
     setPosting(true);
     setError('');
-    // insert ペイロード：リプライ時は parent_post_id を、通常投稿で therapist/shop のときのみ replies_disabled を付与。
+
+    // ── 編集モード：対象投稿を update（edited_at=now）。author/id/createdAt は維持。 ──
+    if (editPost) {
+      const editedAt = new Date().toISOString();
+      const upd: Record<string, unknown> = {
+        body: trimmed || null,
+        images,
+        link_url: linkUrl,
+        edited_at: editedAt,
+      };
+      if (canToggleReplies) upd.replies_disabled = repliesDisabled;
+      const { error: upErr } = await supabase.from('x_posts').update(upd).eq('id', editPost.id);
+      setPosting(false);
+      if (upErr) {
+        setError(`編集できませんでした：${upErr.message}`);
+        return;
+      }
+      // 反映用：元の投稿に編集後の値を上書きして親へ返す（author/id/createdAt は不変）。
+      onPosted({
+        ...editPost,
+        body: trimmed || null,
+        images,
+        linkUrl,
+        repliesDisabled: canToggleReplies ? repliesDisabled : editPost.repliesDisabled,
+        editedAt,
+      });
+      return;
+    }
+
+    // ── 新規（投稿/リプライ）：insert ──
+    // リプライ時は parent_post_id を、通常投稿で therapist/shop のときのみ replies_disabled を付与。
     // reply_count は触らない（DBトリガが親側を自動増減する）。link_url は検証済みのみ（空は null）。
     const payload: Record<string, unknown> = {
       author_profile_id: me.id,
@@ -130,6 +164,7 @@ export function XComposer({
       replyCount: (data?.reply_count as number) ?? 0,
       repliesDisabled: Boolean(data?.replies_disabled),
       linkUrl,
+      editedAt: null,
       createdAt: (data?.created_at as string) ?? new Date().toISOString(),
       author: {
         id: me.id,
@@ -248,7 +283,17 @@ export function XComposer({
           className="px-5 py-2 rounded-full text-white font-bold text-sm shadow-sm disabled:opacity-40 disabled:cursor-not-allowed transition-opacity"
           style={{ background: 'linear-gradient(100deg,#6366F1,#8B5CF6)' }}
         >
-          {posting ? (isReply ? '送信中...' : '投稿中...') : isReply ? '返信する' : '投稿する'}
+          {posting
+            ? isEdit
+              ? '保存中...'
+              : isReply
+                ? '送信中...'
+                : '投稿中...'
+            : isEdit
+              ? '保存する'
+              : isReply
+                ? '返信する'
+                : '投稿する'}
         </button>
       </div>
     </div>

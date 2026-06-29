@@ -19,7 +19,7 @@ const LIMIT = 50;
 const KIND_LABEL: Record<string, string> = { user: 'ユーザー', therapist: 'セラピスト', shop: 'お店' };
 
 const POST_COLS =
-  'id, author_profile_id, body, images, like_count, reply_count, replies_disabled, link_url, created_at';
+  'id, author_profile_id, body, images, like_count, reply_count, replies_disabled, link_url, edited_at, created_at';
 
 // ilike のワイルドカード（% _ \）をエスケープし、入力を「部分一致の literal」として扱う。
 // .or() は使わず handle / display_name を別々の .ilike() で引いてマージするため、
@@ -95,6 +95,7 @@ type PostRow = {
   reply_count: number | null;
   replies_disabled: boolean | null;
   link_url: string | null;
+  edited_at: string | null;
   created_at: string;
 };
 
@@ -160,6 +161,7 @@ async function searchPosts(raw: string): Promise<XPost[]> {
       replyCount: r.reply_count ?? 0,
       repliesDisabled: Boolean(r.replies_disabled),
       linkUrl: r.link_url ?? null,
+      editedAt: r.edited_at ?? null,
       createdAt: r.created_at,
       author: {
         id: r.author_profile_id,

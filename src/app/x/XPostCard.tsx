@@ -2,12 +2,17 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
+import { createClient } from '@/app/lib/supabase/client';
 import { XTimeAgo } from './XTimeAgo';
 import { VerifiedBadge } from './VerifiedBadge';
 import { XImageLightbox } from './XImageLightbox';
 import { XHashtagText } from './XHashtagText';
+import { XComposer } from './XComposer';
+import { useMe } from './XMeProvider';
 import { safeHref, linkDomain } from './xLink';
 import type { XPost } from './xPosts';
+
+const sb = createClient();
 
 const KIND_LABEL: Record<string, string> = {
   user: 'ユーザー',
@@ -100,8 +105,34 @@ export function XPostCard({
   showReplyLink?: boolean;
 }) {
   const a = post.author;
+  const { me } = useMe();
+  const isOwn = !!me && me.id === a.id; // 自分の投稿＝編集/削除メニューを出す
+
   // 投稿画像の全画面拡大。クリックした画像のインデックスを保持（null で閉じ）。複数枚は左右ナビ可。
   const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
+  // 編集/削除のローカル状態（親の再配線なしで自己完結：編集は override で上書き、削除は非表示）。
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [editing, setEditing] = useState(false);
+  const [deleted, setDeleted] = useState(false);
+  const [override, setOverride] = useState<
+    Pick<XPost, 'body' | 'images' | 'linkUrl' | 'repliesDisabled' | 'editedAt'> | null
+  >(null);
+  // 表示は override 反映後の値（body/images/link/編集済みが編集で変わる。author/id/createdAt/replyCount は不変）。
+  const view = override ? { ...post, ...override } : post;
+
+  const onDelete = async () => {
+    setMenuOpen(false);
+    if (!window.confirm('この投稿を削除しますか？\nこの操作は取り消せません。リプライやいいねも一緒に削除されます。')) return;
+    const { error } = await sb.from('x_posts').delete().eq('id', post.id);
+    if (error) {
+      window.alert(`削除できませんでした：${error.message}`);
+      return;
+    }
+    setDeleted(true);
+  };
+
+  if (deleted) return null;
+
   return (
     <article className="x-card rounded-2xl bg-white/[0.94] shadow-[0_4px_16px_rgba(109,40,217,0.3)] p-4">
       {/* ヘッダー：アバター・名前・@handle・kind・時刻・フォロー（名前/アバターはプロフィールへリンク） */}
@@ -141,6 +172,8 @@ export function XPostCard({
             )}
             <span className="text-xs text-slate-300">·</span>
             <XTimeAgo iso={post.createdAt} className="text-xs text-slate-400" />
+            {/* 編集済み表示 */}
+            {view.editedAt && <span className="text-[10px] text-slate-400">(編集済み)</span>}
           </div>
         </div>
 
@@ -159,20 +192,78 @@ export function XPostCard({
             {following ? 'フォロー中' : 'フォロー'}
           </button>
         )}
+
+        {/* 自分の投稿のみ：…メニュー（編集/削除）。カード遷移と競合しないよう stopPropagation。 */}
+        {isOwn && (
+          <div className="relative flex-shrink-0">
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                setMenuOpen((o) => !o);
+              }}
+              aria-label="投稿メニュー"
+              className="w-8 h-8 -mr-1 -mt-1 rounded-full text-slate-400 hover:bg-slate-100 hover:text-slate-600 flex items-center justify-center transition-colors"
+            >
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+                <circle cx="5" cy="12" r="2" />
+                <circle cx="12" cy="12" r="2" />
+                <circle cx="19" cy="12" r="2" />
+              </svg>
+            </button>
+            {menuOpen && (
+              <>
+                {/* 画面どこかをタップで閉じる */}
+                <button
+                  type="button"
+                  aria-label="メニューを閉じる"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setMenuOpen(false);
+                  }}
+                  className="fixed inset-0 z-10 cursor-default"
+                />
+                <div className="absolute right-0 top-9 z-20 w-32 rounded-xl bg-white shadow-lg border border-slate-100 py-1 overflow-hidden">
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setMenuOpen(false);
+                      setEditing(true);
+                    }}
+                    className="w-full text-left px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
+                  >
+                    編集
+                  </button>
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onDelete();
+                    }}
+                    className="w-full text-left px-3 py-2 text-sm font-medium text-rose-500 hover:bg-rose-50"
+                  >
+                    削除
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
+        )}
       </div>
 
       {/* 本文（#タグ はリンク化） */}
-      {post.body && (
+      {view.body && (
         <XHashtagText
-          text={post.body}
+          text={view.body}
           className="text-sm text-slate-800 leading-relaxed whitespace-pre-wrap break-words mt-2 ml-[50px]"
         />
       )}
 
       {/* リンク（任意・http/https のみ）。ドメイン名を新タブで開く。カードの他タップと競合しないよう stopPropagation。 */}
-      {safeHref(post.linkUrl) && (
+      {safeHref(view.linkUrl) && (
         <a
-          href={safeHref(post.linkUrl)!}
+          href={safeHref(view.linkUrl)!}
           target="_blank"
           rel="noopener noreferrer"
           onClick={(e) => e.stopPropagation()}
@@ -182,13 +273,13 @@ export function XPostCard({
             <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
             <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" />
           </svg>
-          <span className="truncate">{linkDomain(post.linkUrl!)}</span>
+          <span className="truncate">{linkDomain(view.linkUrl!)}</span>
         </a>
       )}
 
       {/* 画像 */}
       <div className="ml-[50px]">
-        <ImageGrid images={post.images} alt={a.displayName} onImageClick={setLightboxIndex} />
+        <ImageGrid images={view.images} alt={a.displayName} onImageClick={setLightboxIndex} />
       </div>
 
       {/* いいね・リプライ */}
@@ -233,11 +324,51 @@ export function XPostCard({
       {/* 投稿画像の全画面拡大ライトボックス（複数枚は左右ナビ） */}
       {lightboxIndex !== null && (
         <XImageLightbox
-          images={post.images}
+          images={view.images}
           startIndex={lightboxIndex}
           alt={a.displayName}
           onClose={() => setLightboxIndex(null)}
         />
+      )}
+
+      {/* 編集モーダル（自分の投稿のみ・XComposer を編集モードで再利用） */}
+      {editing && me && (
+        <div
+          className="fixed inset-0 z-[70] flex items-end sm:items-center justify-center p-4 bg-slate-950/50 backdrop-blur-sm"
+          onClick={() => setEditing(false)}
+        >
+          <div
+            className="relative w-full max-w-lg rounded-3xl bg-white shadow-2xl border border-slate-100 p-5 max-h-[90vh] overflow-y-auto"
+            onClick={(e) => e.stopPropagation()}
+            role="dialog"
+            aria-modal="true"
+          >
+            <button
+              type="button"
+              onClick={() => setEditing(false)}
+              aria-label="閉じる"
+              className="absolute top-3 right-3 w-8 h-8 rounded-full text-slate-400 hover:bg-slate-100 flex items-center justify-center"
+            >
+              ✕
+            </button>
+            <h2 className="text-sm font-black text-slate-800 mb-1">投稿を編集</h2>
+            <XComposer
+              me={me}
+              editPost={view}
+              myAffiliatedShop={a.affiliatedShop}
+              onPosted={(updated) => {
+                setOverride({
+                  body: updated.body,
+                  images: updated.images,
+                  linkUrl: updated.linkUrl,
+                  repliesDisabled: updated.repliesDisabled,
+                  editedAt: updated.editedAt,
+                });
+                setEditing(false);
+              }}
+            />
+          </div>
+        </div>
       )}
     </article>
   );

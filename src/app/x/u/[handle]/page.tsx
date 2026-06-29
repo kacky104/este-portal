@@ -87,7 +87,7 @@ export default async function XProfilePage({ params }: { params: Promise<{ handl
       : Promise.resolve({ count: null }),
     supabase
       .from('x_posts')
-      .select('id, body, images, like_count, reply_count, replies_disabled, link_url, created_at')
+      .select('id, body, images, like_count, reply_count, replies_disabled, link_url, edited_at, created_at')
       .eq('author_profile_id', target.id)
       .is('parent_post_id', null) // プロフィールの投稿一覧にもリプライは出さない
       .order('created_at', { ascending: false })
@@ -129,6 +129,7 @@ export default async function XProfilePage({ params }: { params: Promise<{ handl
       reply_count: number | null;
       replies_disabled: boolean | null;
       link_url: string | null;
+      edited_at: string | null;
       created_at: string;
     }>
   ).map((r) => ({
@@ -139,6 +140,7 @@ export default async function XProfilePage({ params }: { params: Promise<{ handl
     replyCount: r.reply_count ?? 0,
     repliesDisabled: Boolean(r.replies_disabled),
     linkUrl: r.link_url ?? null,
+    editedAt: r.edited_at ?? null,
     createdAt: r.created_at,
     author,
   }));

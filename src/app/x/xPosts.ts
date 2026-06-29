@@ -17,8 +17,8 @@ import type { XKind } from './xProfile';
 // 将来の肥大に備え、おすすめ／フォロー中とも「直近この件数だけ」created_at desc で取得してから処理する。
 export const RECOMMENDED_LIMIT = 500;
 
-// reply_count / replies_disabled はリプライ機能用（reply_count はトリガ自動増減・アプリは手動更新しない）。link_url は投稿の外部リンク。
-const POST_COLS = 'id, author_profile_id, body, images, like_count, reply_count, replies_disabled, link_url, created_at';
+// reply_count / replies_disabled はリプライ機能用（reply_count はトリガ自動増減・アプリは手動更新しない）。link_url は投稿の外部リンク。edited_at は編集済み表示用。
+const POST_COLS = 'id, author_profile_id, body, images, like_count, reply_count, replies_disabled, link_url, edited_at, created_at';
 
 export type XPostAuthor = {
   id: string;
@@ -39,6 +39,7 @@ export type XPost = {
   replyCount: number; // この投稿が持つリプライ数（トリガ自動更新）
   repliesDisabled: boolean; // リプライ受付不可（therapist/shop が自投稿で設定可）
   linkUrl: string | null; // 投稿の外部リンク（http/https のみ・任意）
+  editedAt: string | null; // 編集済みなら最終編集時刻（null=未編集）
   createdAt: string;
   author: XPostAuthor;
 };
@@ -52,6 +53,7 @@ type PostRow = {
   reply_count: number | null;
   replies_disabled: boolean | null;
   link_url: string | null;
+  edited_at: string | null;
   created_at: string;
 };
 
@@ -110,6 +112,7 @@ async function attachAuthors(client: AnyClient, rows: PostRow[]): Promise<XPost[
       replyCount: r.reply_count ?? 0,
       repliesDisabled: Boolean(r.replies_disabled),
       linkUrl: r.link_url ?? null,
+      editedAt: r.edited_at ?? null,
       createdAt: r.created_at,
       author: {
         id: r.author_profile_id,
