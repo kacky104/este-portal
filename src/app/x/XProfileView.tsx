@@ -181,17 +181,17 @@ export function XProfileView({
               </a>
             )}
 
-            {/* 数値（kind が持ち得る数だけ表示） */}
+            {/* 数値（kind が持ち得る数だけ表示）。タップでフォロー中／フォロワー一覧へ。 */}
             <div className="flex items-center gap-4 mt-3 text-sm">
               {followingCount !== null && (
-                <span className="text-slate-500">
+                <Link href={`/x/u/${target.handle}/following`} className="text-slate-500 hover:underline">
                   <strong className="text-slate-900 tabular-nums">{followingCount}</strong> フォロー中
-                </span>
+                </Link>
               )}
               {followerCount !== null && (
-                <span className="text-slate-500">
+                <Link href={`/x/u/${target.handle}/followers`} className="text-slate-500 hover:underline">
                   <strong className="text-slate-900 tabular-nums">{followerCount}</strong> フォロワー
-                </span>
+                </Link>
               )}
             </div>
 
