@@ -16,6 +16,7 @@ export function XTimeline({
   following,
   initialLikedIds,
   initialFolloweeIds,
+  initialSavedIds,
   myAffiliatedShop,
 }: {
   me: XProfile | null;
@@ -24,6 +25,7 @@ export function XTimeline({
   following: XPost[];
   initialLikedIds: string[];
   initialFolloweeIds: string[];
+  initialSavedIds: string[];
   myAffiliatedShop?: { handle: string; displayName: string } | null;
 }) {
   const [tab, setTab] = useState<'recommended' | 'following'>('recommended');
@@ -42,6 +44,7 @@ export function XTimeline({
     posts: useMemo(() => [...recommended, ...following], [recommended, following]),
     initialLikedIds,
     initialFolloweeIds,
+    initialSavedIds,
     onToast: showToast,
     onAuthRequired: () => setGateOpen(true),
   });
@@ -75,6 +78,9 @@ export function XTimeline({
           followPending={eng.followPendingFor(p.author.id)}
           onToggleLike={eng.toggleLike}
           onToggleFollow={eng.toggleFollow}
+          saved={eng.isSaved(p.id)}
+          savePending={eng.savePendingFor(p.id)}
+          onToggleSave={eng.toggleSave}
         />
       );
     });

@@ -2,7 +2,7 @@ import { notFound } from 'next/navigation';
 import { createClient } from '@/app/lib/supabase/server';
 import { ADMIN_UUID } from '@/app/lib/admin';
 import { getXContext, type XProfile, type XKind, type XStatus } from '../../xProfile';
-import { fetchMyLikedPostIds, type XPost } from '../../xPosts';
+import { fetchMyLikedPostIds, fetchMySavedPostIds, type XPost } from '../../xPosts';
 import {
   fetchShopMini,
   fetchAffiliatedTherapists,
@@ -145,9 +145,10 @@ export default async function XProfilePage({ params }: { params: Promise<{ handl
     author,
   }));
 
-  // 閲覧者のフォロー状態・いいね状態（ログイン＋自分のprofileがある時のみ）。
+  // 閲覧者のフォロー状態・いいね状態・保存状態（ログイン＋自分のprofileがある時のみ）。
   let initialFollowing = false;
   let initialLikedIds: string[] = [];
+  let initialSavedIds: string[] = [];
   if (viewer.profile) {
     if (!isOwnProfile && wantsFollowers) {
       const { data: f } = await supabase
@@ -158,10 +159,11 @@ export default async function XProfilePage({ params }: { params: Promise<{ handl
         .maybeSingle();
       initialFollowing = !!f;
     }
-    initialLikedIds = await fetchMyLikedPostIds(
-      viewer.profile.id,
-      posts.map((p) => p.id)
-    );
+    const postIds = posts.map((p) => p.id);
+    [initialLikedIds, initialSavedIds] = await Promise.all([
+      fetchMyLikedPostIds(viewer.profile.id, postIds),
+      fetchMySavedPostIds(viewer.profile.id, postIds),
+    ]);
   }
 
   return (
@@ -174,6 +176,7 @@ export default async function XProfilePage({ params }: { params: Promise<{ handl
       followingCount={followingCount}
       posts={posts}
       initialLikedIds={initialLikedIds}
+      initialSavedIds={initialSavedIds}
       initialFollowing={initialFollowing}
       affiliatedShop={affiliatedShop}
       affiliatedTherapists={affiliatedTherapists}

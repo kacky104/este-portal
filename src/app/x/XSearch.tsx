@@ -209,7 +209,7 @@ export function XSearch() {
     onToast: showToast,
     onAuthRequired: () => setGateOpen(true),
   });
-  const { seedPosts, seedFollowees } = eng;
+  const { seedPosts, seedFollowees, seedSaved } = eng;
 
   // URL クエリが変わったら（例：検索結果内の #タグ をタップ）キーワード・タブを同期する。
   useEffect(() => {
@@ -244,12 +244,14 @@ export function XSearch() {
         if (me) {
           const ids = posts.map((p) => p.id);
           const authorIds = [...new Set(posts.map((p) => p.author.id))];
-          const [likeRes, followRes] = await Promise.all([
+          const [likeRes, followRes, saveRes] = await Promise.all([
             sb.from('x_likes').select('post_id').eq('profile_id', me.id).in('post_id', ids),
             sb.from('x_follows').select('followee_profile_id').eq('follower_profile_id', me.id).in('followee_profile_id', authorIds),
+            sb.from('x_post_saves').select('post_id').eq('profile_id', me.id).in('post_id', ids),
           ]);
           if (cancelled) return;
           seedFollowees((followRes.data ?? []).map((f) => String(f.followee_profile_id)));
+          seedSaved((saveRes.data ?? []).map((s) => String(s.post_id)));
           seedPosts(posts, (likeRes.data ?? []).map((l) => String(l.post_id)));
         } else {
           seedPosts(posts, []);
@@ -264,7 +266,7 @@ export function XSearch() {
       cancelled = true;
       clearTimeout(t);
     };
-  }, [q, tab, me, seedPosts, seedFollowees]);
+  }, [q, tab, me, seedPosts, seedFollowees, seedSaved]);
 
   const cardProps = (p: XPost) => {
     const ls = eng.likeState(p);
@@ -277,6 +279,9 @@ export function XSearch() {
       followPending: eng.followPendingFor(p.author.id),
       onToggleLike: eng.toggleLike,
       onToggleFollow: eng.toggleFollow,
+      saved: eng.isSaved(p.id),
+      savePending: eng.savePendingFor(p.id),
+      onToggleSave: eng.toggleSave,
     };
   };
 

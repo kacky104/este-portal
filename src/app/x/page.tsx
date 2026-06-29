@@ -6,6 +6,7 @@ import {
   fetchMyFolloweeIds,
   fetchFollowingPosts,
   fetchMyLikedPostIds,
+  fetchMySavedPostIds,
 } from './xPosts';
 import { XTimeline } from './XTimeline';
 import { XAffiliationBanner, type IncomingRequest } from './XAffiliationBanner';
@@ -23,11 +24,16 @@ export default async function XHomePage() {
   let following: Awaited<ReturnType<typeof fetchFollowingPosts>> = [];
   let followeeIds: string[] = [];
   let likedIds: string[] = [];
+  let savedIds: string[] = [];
   if (profile) {
     followeeIds = await fetchMyFolloweeIds(profile.id);
     following = await fetchFollowingPosts(followeeIds);
     const allIds = [...new Set([...recommended, ...following].map((p) => p.id))];
-    likedIds = await fetchMyLikedPostIds(profile.id, allIds);
+    // いいね済み・保存済みの post_id をまとめて取得（互いに独立＝並列・N+1回避）。
+    [likedIds, savedIds] = await Promise.all([
+      fetchMyLikedPostIds(profile.id, allIds),
+      fetchMySavedPostIds(profile.id, allIds),
+    ]);
   }
 
   // 凍結(BAN=status='rejected')中の本人かどうか。凍結中はアクション系UI（コンポーザは canPost で抑止済み）に加え、
@@ -154,6 +160,7 @@ export default async function XHomePage() {
         following={following}
         initialLikedIds={likedIds}
         initialFolloweeIds={followeeIds}
+        initialSavedIds={savedIds}
         myAffiliatedShop={myAffiliatedShop}
       />
     </div>

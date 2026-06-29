@@ -196,3 +196,40 @@ export async function fetchMyLikedPostIds(myProfileId: string, postIds: string[]
     .in('post_id', postIds);
   return (data ?? []).map((l) => String(l.post_id));
 }
+
+// 指定の投稿群のうち自分が保存（ブックマーク）済みの post_id 一覧（保存ボタンの初期塗り用・まとめ取り＝N+1回避）。
+// x_post_saves は RLS で自分の行のみ select 可。
+export async function fetchMySavedPostIds(myProfileId: string, postIds: string[]): Promise<string[]> {
+  if (postIds.length === 0) return [];
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from('x_post_saves')
+    .select('post_id')
+    .eq('profile_id', myProfileId)
+    .in('post_id', postIds);
+  return (data ?? []).map((s) => String(s.post_id));
+}
+
+// 自分が保存した post_id（保存の新しい順）。/x/saved の取得起点。RLSで自分の行のみ。
+export async function fetchMySavedPostIdsOrdered(myProfileId: string): Promise<string[]> {
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from('x_post_saves')
+    .select('post_id, created_at')
+    .eq('profile_id', myProfileId)
+    .order('created_at', { ascending: false })
+    .limit(RECOMMENDED_LIMIT);
+  return (data ?? []).map((s) => String(s.post_id));
+}
+
+// 指定 id 群の投稿を取得し、与えた id の順序を保って返す（/x/saved 用・著者は attachAuthors で合流）。
+// in() は順不同なので ids の順に並べ直す。削除済み投稿・BAN著者の投稿は自然に欠落（保存はCASCADEで消える）。
+export async function fetchPostsByIds(ids: string[]): Promise<XPost[]> {
+  if (ids.length === 0) return [];
+  const client = createPublicClient();
+  const { data } = await client.from('x_posts').select(POST_COLS).in('id', ids);
+  const rows = (data ?? []) as PostRow[];
+  const byId = new Map(rows.map((r) => [String(r.id), r]));
+  const ordered = ids.map((id) => byId.get(id)).filter((r): r is PostRow => !!r);
+  return attachAuthors(client, ordered);
+}

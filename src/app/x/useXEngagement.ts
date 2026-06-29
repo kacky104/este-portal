@@ -16,11 +16,12 @@ export function useXEngagement(opts: {
   posts: XPost[];
   initialLikedIds: string[];
   initialFolloweeIds: string[];
+  initialSavedIds?: string[]; // 自分が保存済みの post_id（保存ボタンの初期塗り用・まとめ取り）
   onToast: (msg: string) => void;
   // 未ログイン／未開設（me が無い）でアクションしたときに呼ぶ。親がアカウント作成モーダルを開く。
   onAuthRequired?: () => void;
 }) {
-  const { me, posts, initialLikedIds, initialFolloweeIds, onToast, onAuthRequired } = opts;
+  const { me, posts, initialLikedIds, initialFolloweeIds, initialSavedIds, onToast, onAuthRequired } = opts;
 
   // いいね状態（post_id → {liked,count}）。複数リストの投稿を1マップで管理。
   const [likes, setLikes] = useState<Record<string, LikeState>>(() => {
@@ -37,11 +38,16 @@ export function useXEngagement(opts: {
   const [followingSet, setFollowingSet] = useState<Set<string>>(new Set(initialFolloweeIds));
   const [followPending, setFollowPending] = useState<Set<string>>(new Set());
 
+  // 保存（ブックマーク）状態（保存済み post_id 集合）。保存は完全プライベート（RLSで自分のみ）。
+  const [savedSet, setSavedSet] = useState<Set<string>>(new Set(initialSavedIds ?? []));
+  const [savePending, setSavePending] = useState<Set<string>>(new Set());
+
   // ── 権限（DB側 x_me_can_act() と一致：BAN(status='rejected')でなければ可） ──
   const notBanned = !!me && me.status !== 'rejected';
   const canPost = notBanned && (me!.kind === 'therapist' || me!.kind === 'shop');
   const canLike = notBanned;
   const canFollow = notBanned && (me!.kind === 'user' || me!.kind === 'shop');
+  const canSave = notBanned; // 保存はいいねと同様に（凍結でなければ）誰でも可
 
   const likeState = useCallback(
     (post: XPost): LikeState => likes[post.id] ?? { liked: false, count: post.likeCount },
@@ -75,7 +81,17 @@ export function useXEngagement(opts: {
     });
   }, []);
 
+  // マウント後に取得した「保存済み post_id」をまとめて投入（検索・詳細などクライアント取得分の保存状態反映用）。
+  const seedSaved = useCallback((ids: string[]) => {
+    setSavedSet((s) => {
+      const n = new Set(s);
+      ids.forEach((id) => n.add(id));
+      return n;
+    });
+  }, []);
+
   const isFollowing = useCallback((authorId: string) => followingSet.has(authorId), [followingSet]);
+  const isSaved = useCallback((postId: string) => savedSet.has(postId), [savedSet]);
 
   // フォローボタンの表示可否：投稿主が therapist/shop かつ自分以外、かつ自分が therapist でない
   // （未ログイン・user/shop には出してクリックで誘導。therapist 閲覧者には出さない）。
@@ -173,20 +189,69 @@ export function useXEngagement(opts: {
     [me, canFollow, followPending, followingSet, onToast, onAuthRequired]
   );
 
+  // ── 保存トグル（楽観→失敗ロールバック）。x_post_saves(profile_id, post_id)。RLSで自分のみ。 ──
+  const toggleSave = useCallback(
+    async (post: XPost) => {
+      if (!me) {
+        onAuthRequired?.(); // 未ログイン／未開設 → アカウント作成モーダル
+        return;
+      }
+      if (!canSave) {
+        onToast('このアカウントでは保存できません');
+        return;
+      }
+      if (savePending.has(post.id)) return;
+
+      const wasSaved = savedSet.has(post.id);
+      setSavedSet((s) => {
+        const n = new Set(s);
+        if (wasSaved) n.delete(post.id);
+        else n.add(post.id);
+        return n;
+      });
+      setSavePending((s) => new Set(s).add(post.id));
+
+      const { error } = wasSaved
+        ? await supabase.from('x_post_saves').delete().eq('profile_id', me.id).eq('post_id', post.id)
+        : await supabase.from('x_post_saves').insert({ profile_id: me.id, post_id: post.id });
+
+      setSavePending((s) => {
+        const n = new Set(s);
+        n.delete(post.id);
+        return n;
+      });
+      if (error) {
+        setSavedSet((s) => {
+          const n = new Set(s);
+          if (wasSaved) n.add(post.id);
+          else n.delete(post.id);
+          return n;
+        });
+        onToast(wasSaved ? '保存の解除に失敗しました' : '保存に失敗しました');
+      }
+    },
+    [me, canSave, savePending, savedSet, onToast, onAuthRequired]
+  );
+
   return {
     notBanned,
     canPost,
     canLike,
     canFollow,
+    canSave,
     likeState,
     isFollowing,
+    isSaved,
     showFollowFor,
     likePendingFor: (id: string) => likePending.has(id),
     followPendingFor: (id: string) => followPending.has(id),
+    savePendingFor: (id: string) => savePending.has(id),
     registerPost,
     seedPosts,
     seedFollowees,
+    seedSaved,
     toggleLike,
     toggleFollow,
+    toggleSave,
   };
 }

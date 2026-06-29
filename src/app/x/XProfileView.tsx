@@ -29,6 +29,7 @@ export function XProfileView({
   followingCount,
   posts,
   initialLikedIds,
+  initialSavedIds,
   initialFollowing,
   affiliatedShop,
   affiliatedTherapists,
@@ -41,6 +42,7 @@ export function XProfileView({
   followingCount: number | null;
   posts: XPost[];
   initialLikedIds: string[];
+  initialSavedIds: string[];
   initialFollowing: boolean;
   affiliatedShop: ShopMini | null; // target が therapist のとき所属先（無ければ null）
   affiliatedTherapists: TherapistMini[]; // target が shop のとき所属セラピスト一覧
@@ -59,6 +61,7 @@ export function XProfileView({
     posts,
     initialLikedIds,
     initialFolloweeIds: initialFollowing ? [target.id] : [],
+    initialSavedIds,
     onToast: showToast,
     onAuthRequired: () => setGateOpen(true),
   });
@@ -264,6 +267,9 @@ export function XProfileView({
                 followPending={followPending}
                 onToggleLike={eng.toggleLike}
                 onToggleFollow={eng.toggleFollow}
+                saved={eng.isSaved(p.id)}
+                savePending={eng.savePendingFor(p.id)}
+                onToggleSave={eng.toggleSave}
               />
             );
           })

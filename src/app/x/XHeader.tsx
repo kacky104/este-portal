@@ -278,6 +278,7 @@ export function XHeader() {
             {loggedIn && profile ? (
               <>
                 <DrawerLink href={`/x/u/${profile.handle}`} onClick={() => setOpen(false)} label="マイプロフィール" />
+                <DrawerLink href="/x/saved" onClick={() => setOpen(false)} label="保存した投稿" accent="amber" />
                 <DrawerLink href="/x/settings" onClick={() => setOpen(false)} label="プロフィール編集" />
                 {isVerifiedShop && <DrawerLink href="/x/shop" onClick={() => setOpen(false)} label="店舗管理" accent="emerald" />}
                 {isAdmin && <DrawerLink href="/x/admin" onClick={() => setOpen(false)} label="運営パネル" accent="indigo" />}
@@ -335,7 +336,7 @@ function DrawerLink({
   href: string;
   label: string;
   onClick?: () => void;
-  accent?: 'indigo' | 'emerald';
+  accent?: 'indigo' | 'emerald' | 'amber';
   muted?: boolean;
 }) {
   const color =
@@ -343,9 +344,11 @@ function DrawerLink({
       ? 'text-emerald-600'
       : accent === 'indigo'
         ? 'text-indigo-600'
-        : muted
-          ? 'text-slate-400'
-          : 'text-slate-700';
+        : accent === 'amber'
+          ? 'text-amber-600'
+          : muted
+            ? 'text-slate-400'
+            : 'text-slate-700';
   return (
     <Link
       href={href}

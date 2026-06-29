@@ -131,7 +131,7 @@ export function XPostDetail({ parent }: { parent: XPost }) {
     onToast: showToast,
     onAuthRequired: () => setGateOpen(true),
   });
-  const { seedPosts, seedFollowees, registerPost } = eng;
+  const { seedPosts, seedFollowees, seedSaved, registerPost } = eng;
 
   // マウント時：リプライ取得 →（ログイン時）いいね/フォロー状態を投入。
   // 自分(me)は Context から即得られるので、リプライ取得を待ちなく開始できる（B：いいね/フォローは並列）。
@@ -149,13 +149,17 @@ export function XPostDetail({ parent }: { parent: XPost }) {
       if (me) {
         const ids = allPosts.map((p) => p.id);
         const authorIds = [...new Set(allPosts.map((p) => p.author.id))];
-        // いいね状態とフォロー状態は互いに独立＝並列取得（B）。
-        const [likeRes, followRes] = await Promise.all([
+        // いいね・フォロー・保存状態は互いに独立＝並列取得（B）。
+        const [likeRes, followRes, saveRes] = await Promise.all([
           sb.from('x_likes').select('post_id').eq('profile_id', me.id).in('post_id', ids),
           sb.from('x_follows').select('followee_profile_id').eq('follower_profile_id', me.id).in('followee_profile_id', authorIds),
+          sb.from('x_post_saves').select('post_id').eq('profile_id', me.id).in('post_id', ids),
         ]);
         likedIds = (likeRes.data ?? []).map((l) => String(l.post_id));
-        if (alive) seedFollowees((followRes.data ?? []).map((f) => String(f.followee_profile_id)));
+        if (alive) {
+          seedFollowees((followRes.data ?? []).map((f) => String(f.followee_profile_id)));
+          seedSaved((saveRes.data ?? []).map((s) => String(s.post_id)));
+        }
       }
       if (!alive) return;
       seedPosts(allPosts, likedIds);
@@ -164,7 +168,7 @@ export function XPostDetail({ parent }: { parent: XPost }) {
     return () => {
       alive = false;
     };
-  }, [parent, me, meLoading, seedPosts, seedFollowees]);
+  }, [parent, me, meLoading, seedPosts, seedFollowees, seedSaved]);
 
   // リプライ送信成功：一覧末尾へ追加＋件数更新＋いいねマップ登録（reply_count はトリガが親側を増やす）。
   const onReplied = useCallback(
@@ -188,6 +192,9 @@ export function XPostDetail({ parent }: { parent: XPost }) {
       followPending: eng.followPendingFor(p.author.id),
       onToggleLike: eng.toggleLike,
       onToggleFollow: eng.toggleFollow,
+      saved: eng.isSaved(p.id),
+      savePending: eng.savePendingFor(p.id),
+      onToggleSave: eng.toggleSave,
     };
   };
 

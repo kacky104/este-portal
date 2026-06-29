@@ -89,6 +89,9 @@ export function XPostCard({
   followPending,
   onToggleLike,
   onToggleFollow,
+  saved,
+  savePending,
+  onToggleSave,
   showReplyLink = true,
 }: {
   post: XPost;
@@ -100,6 +103,10 @@ export function XPostCard({
   followPending: boolean;
   onToggleLike: (post: XPost) => void;
   onToggleFollow: (authorId: string) => void;
+  // 保存（ブックマーク）。onToggleSave を渡したときだけ保存ボタンを描画する（未指定の呼び出し元は従来どおり非表示）。
+  saved?: boolean;
+  savePending?: boolean;
+  onToggleSave?: (post: XPost) => void;
   // タイムライン/プロフィールでは true（タップで投稿詳細へ）。投稿詳細ページ内のカードでは false にして
   // リプライ件数を静的表示にする（リプライへの個別返信導線を作らず＝1階層フラットを維持）。
   showReplyLink?: boolean;
@@ -318,6 +325,28 @@ export function XPostCard({
             </svg>
             <span className="tabular-nums font-medium">{post.replyCount}</span>
           </span>
+        )}
+
+        {/* 保存（ブックマーク）。onToggleSave が渡されたときだけ表示。保存済み=amber塗り・未保存=枠線。
+            右端に寄せる（ml-auto）。カードの他タップ（詳細遷移）と競合しないよう stopPropagation。 */}
+        {onToggleSave && (
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              onToggleSave(post);
+            }}
+            disabled={savePending}
+            aria-pressed={!!saved}
+            aria-label={saved ? '保存を解除' : '保存する'}
+            className={`ml-auto inline-flex items-center text-sm transition-colors disabled:opacity-50 ${
+              saved ? 'text-amber-500' : 'text-slate-400 hover:text-amber-500'
+            }`}
+          >
+            <svg width="18" height="18" viewBox="0 0 24 24" fill={saved ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z" />
+            </svg>
+          </button>
         )}
       </div>
 
