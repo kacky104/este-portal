@@ -15,7 +15,7 @@ import { XProfileView } from '../../XProfileView';
 export const dynamic = 'force-dynamic';
 
 const PROFILE_COLS =
-  'id, auth_user_id, kind, status, handle, display_name, bio, avatar_url, header_url, is_verified, affiliated_shop_id, link_url, age, height, bust, cup, waist, hip';
+  'id, auth_user_id, kind, status, handle, display_name, bio, avatar_url, header_url, is_verified, affiliated_shop_id, link_url, age, height, bust, cup, waist, hip, created_at';
 
 type ProfileRow = {
   id: string;
@@ -36,6 +36,7 @@ type ProfileRow = {
   cup: string | null;
   waist: number | null;
   hip: number | null;
+  created_at: string | null;
 };
 
 // LIKE のワイルドカード（% _ \）をエスケープし、ilike で大文字小文字無視の「完全一致」にする。
@@ -78,6 +79,7 @@ export default async function XProfilePage({ params }: { params: Promise<{ handl
     cup: t.cup,
     waist: t.waist,
     hip: t.hip,
+    created_at: t.created_at,
   };
 
   const isOwnProfile = !!viewer.profile && viewer.profile.id === target.id;

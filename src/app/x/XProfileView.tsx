@@ -12,6 +12,7 @@ import { XImageLightbox } from './XImageLightbox';
 import { XComposeFab } from './XComposeFab';
 import { XMessageButton } from './XMessageButton';
 import { safeHref, linkDomain } from './xLink';
+import { formatFukuxStartDate } from './xDate';
 import { useXEngagement } from './useXEngagement';
 
 const KIND_LABEL: Record<string, string> = {
@@ -78,6 +79,9 @@ export function XProfileView({
   if (target.bust != null) measurements.push(target.cup ? `B${target.bust}（${target.cup}）` : `B${target.bust}`);
   if (target.waist != null) measurements.push(`W${target.waist}`);
   if (target.hip != null) measurements.push(`H${target.hip}`);
+
+  // fukuX開始日（プロフィール作成日・変更不可）。リンク行の右隣に表示。
+  const startDate = formatFukuxStartDate(target.created_at);
 
   return (
     <div>
@@ -183,20 +187,26 @@ export function XProfileView({
 
             {target.bio && <p className="text-sm text-slate-700 leading-relaxed whitespace-pre-wrap break-words mt-2">{target.bio}</p>}
 
-            {/* リンク（任意・http/https のみ）。ドメイン名を新タブで開く。 */}
-            {safeHref(target.link_url) && (
-              <a
-                href={safeHref(target.link_url)!}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="mt-2 inline-flex items-center gap-1.5 max-w-full text-sm font-medium text-indigo-600 hover:underline"
-              >
-                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="flex-shrink-0">
-                  <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
-                  <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" />
-                </svg>
-                <span className="truncate">{linkDomain(target.link_url!)}</span>
-              </a>
+            {/* リンク（任意・http/https のみ）と fukuX開始日（作成日・変更不可）を同じ行に。
+                リンクが無くても開始日は単独で表示する（狭幅は折り返し）。 */}
+            {(safeHref(target.link_url) || startDate) && (
+              <div className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1">
+                {safeHref(target.link_url) && (
+                  <a
+                    href={safeHref(target.link_url)!}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1.5 max-w-full text-sm font-medium text-indigo-600 hover:underline"
+                  >
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="flex-shrink-0">
+                      <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
+                      <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" />
+                    </svg>
+                    <span className="truncate">{linkDomain(target.link_url!)}</span>
+                  </a>
+                )}
+                {startDate && <span className="text-xs text-slate-500">{startDate}</span>}
+              </div>
             )}
 
             {/* 数値（kind が持ち得る数だけ表示）。タップでフォロー中／フォロワー一覧へ。 */}
