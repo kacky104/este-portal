@@ -10,6 +10,7 @@ import { ADMIN_UUID } from '@/app/lib/admin';
 import { VerifiedBadge } from './VerifiedBadge';
 import { XThemeToggle } from './XThemeToggle';
 import { NOTIF_READ_EVENT } from './xNotificationsShared';
+import { DM_READ_EVENT } from './xDmShared';
 
 const supabase = createClient();
 
@@ -62,6 +63,7 @@ export function XHeader() {
   const [userId, setUserId] = useState<string | null>(null);
   const [profile, setProfile] = useState<MyProfile | null>(null);
   const [unread, setUnread] = useState(0); // 通知の未読件数（ベルの赤バッジ用）
+  const [dmUnread, setDmUnread] = useState(0); // DMの未読総数（封筒の赤バッジ用）
 
   // セッションの auth_user_id から自分の x_profiles を取得（ドロワーのメニュー出し分けに使用）。
   const load = useCallback(async (uid: string | undefined) => {
@@ -69,6 +71,7 @@ export function XHeader() {
       setUserId(null);
       setProfile(null);
       setUnread(0);
+      setDmUnread(0);
       return;
     }
     setUserId(uid);
@@ -138,6 +141,25 @@ export function XHeader() {
     return () => window.removeEventListener(NOTIF_READ_EVENT, clear);
   }, []);
 
+  // DM未読総数（x_unread_dm_count RPC）。通知バッジと同方針でマウント時＋遷移時に取得。
+  // 1会話の既読では全体が0とは限らないため、DM_READ_EVENT では set(0) ではなく再取得する。
+  const fetchDmCount = useCallback(async () => {
+    if (!profileId) {
+      setDmUnread(0);
+      return;
+    }
+    const { data } = await supabase.rpc('x_unread_dm_count');
+    setDmUnread(typeof data === 'number' ? data : 0);
+  }, [profileId]);
+  useEffect(() => {
+    fetchDmCount();
+  }, [fetchDmCount, pathname]);
+  useEffect(() => {
+    const refetch = () => fetchDmCount();
+    window.addEventListener(DM_READ_EVENT, refetch);
+    return () => window.removeEventListener(DM_READ_EVENT, refetch);
+  }, [fetchDmCount]);
+
   const isAdmin = !!userId && userId === ADMIN_UUID;
   const isVerifiedShop = profile?.kind === 'shop' && profile.is_verified;
   const loggedIn = !!userId;
@@ -190,6 +212,25 @@ export function XHeader() {
                 <path d="m21 21-4.3-4.3" />
               </svg>
             </Link>
+
+            {/* DM（ログイン＋開設済みのみ）。未読総数>0で赤バッジ。 */}
+            {profile && (
+              <Link
+                href="/x/messages"
+                aria-label={dmUnread > 0 ? `メッセージ（未読${dmUnread}件）` : 'メッセージ'}
+                className="relative flex items-center justify-center w-9 h-9 rounded-full text-slate-600 hover:bg-slate-100 active:scale-95 transition"
+              >
+                <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <rect x="2" y="4" width="20" height="16" rx="2" />
+                  <path d="m22 7-10 5L2 7" />
+                </svg>
+                {dmUnread > 0 && (
+                  <span className="absolute -top-0.5 -right-0.5 min-w-[18px] h-[18px] px-1 rounded-full bg-rose-500 text-white text-[10px] font-bold flex items-center justify-center tabular-nums shadow-sm">
+                    {dmUnread > 99 ? '99+' : dmUnread}
+                  </span>
+                )}
+              </Link>
+            )}
 
             {profile && (
               <Link

@@ -10,6 +10,7 @@ import { VerifiedBadge } from './VerifiedBadge';
 import { XAuthGateModal } from './XAuthGateModal';
 import { XImageLightbox } from './XImageLightbox';
 import { XComposeFab } from './XComposeFab';
+import { XMessageButton } from './XMessageButton';
 import { useXEngagement } from './useXEngagement';
 
 const KIND_LABEL: Record<string, string> = {
@@ -98,7 +99,7 @@ export function XProfileView({
               )}
             </span>
 
-            <div className="mb-1">
+            <div className="mb-1 flex items-center gap-2">
               {isOwnProfile ? (
                 <Link
                   href="/x/settings"
@@ -106,22 +107,28 @@ export function XProfileView({
                 >
                   プロフィール編集
                 </Link>
-              ) : showFollowBtn ? (
-                // 未ログイン／未開設でも表示し、押下時に toggleFollow → onAuthRequired でモーダルを開く。
-                <button
-                  type="button"
-                  onClick={() => eng.toggleFollow(target.id)}
-                  disabled={followPending}
-                  className={`text-sm font-bold px-5 py-1.5 rounded-full transition-colors disabled:opacity-50 ${
-                    following
-                      ? 'border border-slate-200 text-slate-500 hover:border-rose-200 hover:text-rose-500'
-                      : 'text-white'
-                  }`}
-                  style={following ? undefined : { background: 'linear-gradient(100deg,#6366F1,#8B5CF6)' }}
-                >
-                  {following ? 'フォロー中' : 'フォロー'}
-                </button>
-              ) : null}
+              ) : (
+                <>
+                  {/* メッセージ（フォロー関係が1本でもあるときのみ表示・条件は内部で判定） */}
+                  <XMessageButton viewerProfile={viewerProfile} target={target} isOwnProfile={isOwnProfile} />
+                  {showFollowBtn && (
+                    // 未ログイン／未開設でも表示し、押下時に toggleFollow → onAuthRequired でモーダルを開く。
+                    <button
+                      type="button"
+                      onClick={() => eng.toggleFollow(target.id)}
+                      disabled={followPending}
+                      className={`text-sm font-bold px-5 py-1.5 rounded-full transition-colors disabled:opacity-50 ${
+                        following
+                          ? 'border border-slate-200 text-slate-500 hover:border-rose-200 hover:text-rose-500'
+                          : 'text-white'
+                      }`}
+                      style={following ? undefined : { background: 'linear-gradient(100deg,#6366F1,#8B5CF6)' }}
+                    >
+                      {following ? 'フォロー中' : 'フォロー'}
+                    </button>
+                  )}
+                </>
+              )}
             </div>
           </div>
 
