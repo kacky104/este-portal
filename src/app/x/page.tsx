@@ -136,7 +136,7 @@ export default async function XHomePage() {
       {/* 未ログイン向けの小バナー（おすすめは見られる。投稿/フォローはログイン後） */}
       {!userId && (
         <div className="mt-4 mb-1 p-4 rounded-2xl bg-gradient-to-br from-indigo-50 to-sky-50 border border-indigo-100">
-          <p className="text-sm font-bold text-slate-800">メンズエステ専用SNS「fukuX」</p>
+          <p className="text-sm font-bold text-slate-800">メンズエステ専用SNS「fukuX～フクエックス～」</p>
           <p className="text-[12px] text-slate-500 mt-0.5 mb-3">
             お気に入りのセラピスト・お店をフォローして新着をチェックしよう。
           </p>
