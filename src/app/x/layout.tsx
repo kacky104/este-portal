@@ -11,6 +11,16 @@ import './x-theme.css';
 export const metadata: Metadata = {
   title: 'fukuX｜メンズエステ専用SNS',
   description: 'メンズエステ専用SNS「fukuX」。セラピスト・お店・ファンがつながる。',
+  // fukuX(/x 配下)だけ丸ロゴ(肉球)をファビコンに。ネストmetadataは最も近い定義が優先されるため、
+  // root の icons(フクエス本体)は /x 外でそのまま維持される。
+  icons: {
+    icon: [
+      { url: '/favicon-fukux-32.png', sizes: '32x32', type: 'image/png' },
+      { url: '/favicon-fukux-16.png', sizes: '16x16', type: 'image/png' },
+      { url: '/fukux-mark.png', sizes: '200x200', type: 'image/png' },
+    ],
+    apple: [{ url: '/fukux-mark.png' }],
+  },
 };
 
 // FOUC対策：ハイドレーション前に localStorage のテーマを #x-root へ即時反映する小スクリプト。
