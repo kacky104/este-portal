@@ -557,10 +557,14 @@ export function ShuffledSalons({ salons, areas, showAge = false, areaNextToDuty 
           <div className="grid sm:grid-cols-2 lg:grid-cols-1 lg:justify-items-start lg:flex-shrink-0 gap-5">
             {cards}
           </div>
-          {/* 右の縦長ブロック（lg のみ表示・幅は余白いっぱい）。中身は後から差し替え可。 */}
-          <aside className="hidden lg:flex lg:flex-1 flex-col rounded-2xl border border-pink-100 bg-gradient-to-b from-pink-50 via-white to-fuchsia-50/40 overflow-hidden shadow-sm">
-            {/* fukuX バナー（枠の一番上・全幅）。クリックで /x へ。アスペクト比1200:630を維持して歪ませない。 */}
-            <Link href="/x" className="block" aria-label="fukuX メンズエステ専用SNS">
+          {/* 右の縦長カラム（lg のみ表示・幅は余白いっぱい）。fukuXバナー＋「準備中」ブロックを縦に積む。 */}
+          <div className="hidden lg:flex lg:flex-1 flex-col gap-5">
+            {/* fukuX バナー（独立ブロック・「準備中」の直前）。クリックで /x へ。アスペクト比1200:630維持で歪ませない。 */}
+            <Link
+              href="/x"
+              aria-label="fukuX メンズエステ専用SNS"
+              className="block rounded-2xl border border-pink-100 overflow-hidden shadow-sm"
+            >
               <Image
                 src="/ogp-fukux.png"
                 alt="fukuX メンズエステ専用SNS"
@@ -569,14 +573,17 @@ export function ShuffledSalons({ salons, areas, showAge = false, areaNextToDuty 
                 className="w-full h-auto"
               />
             </Link>
-            <div className="p-6 text-center">
-              <div className="w-12 h-12 mx-auto rounded-full bg-white border border-pink-200 flex items-center justify-center shadow-sm mb-3">
-                <span className="text-pink-500 text-xl leading-none">◆</span>
+            {/* 既存「PRこの枠は準備中です」ブロック（中身・見た目とも不変。flex-1 で残り高さを埋める）。 */}
+            <aside className="flex-1 flex flex-col rounded-2xl border border-pink-100 bg-gradient-to-b from-pink-50 via-white to-fuchsia-50/40 overflow-hidden shadow-sm">
+              <div className="p-6 text-center">
+                <div className="w-12 h-12 mx-auto rounded-full bg-white border border-pink-200 flex items-center justify-center shadow-sm mb-3">
+                  <span className="text-pink-500 text-xl leading-none">◆</span>
+                </div>
+                <p className="text-sm font-bold text-pink-600 mb-1">PR</p>
+                <p className="text-[11px] text-slate-400 leading-relaxed">この枠は準備中です</p>
               </div>
-              <p className="text-sm font-bold text-pink-600 mb-1">PR</p>
-              <p className="text-[11px] text-slate-400 leading-relaxed">この枠は準備中です</p>
-            </div>
-          </aside>
+            </aside>
+          </div>
         </div>
       </>
     );
