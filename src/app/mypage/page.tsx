@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { createClient } from '@/app/lib/supabase/client';
-import { revalidateSalon } from '@/app/lib/revalidateTop';
+import { revalidateSalon, revalidateTherapist } from '@/app/lib/revalidateTop';
 import { TimeRangePicker } from '@/components/TimeRangePicker';
 import { SALON_THEMES, type ThemeKey } from '@/app/lib/themes';
 import { COUPON_COLORS, getCouponColor, DEFAULT_COUPON_COLOR_KEY, type CouponColorKey } from '@/app/lib/couponColors';
@@ -739,7 +739,12 @@ export default function MyPage() {
       .from('therapist_schedules')
       .upsert(rows, { onConflict: 'therapist_id,schedule_date' });
     setSavingSchedule(null);
-    if (!error && salon) revalidateSalon(salon.id);
+    if (!error) {
+      // 店舗ページ＋トップ（既存）に加え、当該セラピストの公開ページ /therapist/[id] も即時再検証。
+      // これが無いと出勤表は revalidate=600 の時間経過まで古いキャッシュのまま固着する。
+      if (salon) revalidateSalon(salon.id);
+      revalidateTherapist(therapistId);
+    }
     showToast(error ? '保存に失敗しました' : 'スケジュールを保存しました');
   };
 

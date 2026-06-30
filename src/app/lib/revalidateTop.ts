@@ -2,7 +2,7 @@
 // ログイン cookie は同一オリジンの fetch で自動同送されるため、トークンの受け渡しは不要。
 // 失敗（ネットワーク/権限等）は握りつぶし、ユーザー操作は止めない。
 
-type RevalidateBody = { salonId?: number | string; top?: boolean; area?: string; areasAll?: boolean };
+type RevalidateBody = { salonId?: number | string; therapistId?: number | string; top?: boolean; area?: string; areasAll?: boolean };
 
 async function postRevalidate(body?: RevalidateBody): Promise<void> {
   try {
@@ -45,4 +45,12 @@ export async function revalidateSalon(
   opts?: { top?: boolean },
 ): Promise<void> {
   await postRevalidate({ salonId, top: opts?.top ?? true });
+}
+
+// 指定セラピストの公開ページ配下（本体＋/diary・/reviews）を無効化する。
+// 出勤保存後の即時反映用。トップは別途 revalidateSalon が担うため既定では無効化しない（top: false）。
+export async function revalidateTherapist(
+  therapistId: number | string,
+): Promise<void> {
+  await postRevalidate({ therapistId, top: false });
 }
