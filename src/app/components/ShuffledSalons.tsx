@@ -559,6 +559,16 @@ export function ShuffledSalons({ salons, areas, showAge = false, areaNextToDuty 
           </div>
           {/* 右の縦長ブロック（lg のみ表示・幅は余白いっぱい）。中身は後から差し替え可。 */}
           <aside className="hidden lg:flex lg:flex-1 flex-col rounded-2xl border border-pink-100 bg-gradient-to-b from-pink-50 via-white to-fuchsia-50/40 overflow-hidden shadow-sm">
+            {/* fukuX バナー（枠の一番上・全幅）。クリックで /x へ。アスペクト比1200:630を維持して歪ませない。 */}
+            <Link href="/x" className="block" aria-label="fukuX メンズエステ専用SNS">
+              <Image
+                src="/ogp-fukux.png"
+                alt="fukuX メンズエステ専用SNS"
+                width={1200}
+                height={630}
+                className="w-full h-auto"
+              />
+            </Link>
             <div className="p-6 text-center">
               <div className="w-12 h-12 mx-auto rounded-full bg-white border border-pink-200 flex items-center justify-center shadow-sm mb-3">
                 <span className="text-pink-500 text-xl leading-none">◆</span>
