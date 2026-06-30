@@ -291,34 +291,38 @@ export function XProfileView({
       )}
 
       {/* ─── 投稿一覧（各カードが浮遊） ─── */}
-      <div className="mt-3 space-y-3">
-        {posts.length === 0 ? (
-          <div className="py-16 text-center">
-            <p className="x-rescue-muted text-sm text-white/90 drop-shadow-sm">まだ投稿がありません</p>
-          </div>
-        ) : (
-          posts.map((p) => {
-            const ls = eng.likeState(p);
-            return (
-              <XPostCard
-                key={p.id}
-                post={p}
-                liked={ls.liked}
-                likeCount={ls.count}
-                following={following}
-                showFollow={false} /* プロフィール上部にフォローボタンがあるため各投稿では出さない */
-                likePending={eng.likePendingFor(p.id)}
-                followPending={followPending}
-                onToggleLike={eng.toggleLike}
-                onToggleFollow={eng.toggleFollow}
-                saved={eng.isSaved(p.id)}
-                savePending={eng.savePendingFor(p.id)}
-                onToggleSave={eng.toggleSave}
-              />
-            );
-          })
-        )}
-      </div>
+      {/* ユーザーアカウントは投稿不可のため、投稿セクション（空表示「まだ投稿がありません」含む）ごと描画しない。
+          セラピスト・お店は従来どおり（空のときの空表示も維持）。 */}
+      {target.kind !== 'user' && (
+        <div className="mt-3 space-y-3">
+          {posts.length === 0 ? (
+            <div className="py-16 text-center">
+              <p className="x-rescue-muted text-sm text-white/90 drop-shadow-sm">まだ投稿がありません</p>
+            </div>
+          ) : (
+            posts.map((p) => {
+              const ls = eng.likeState(p);
+              return (
+                <XPostCard
+                  key={p.id}
+                  post={p}
+                  liked={ls.liked}
+                  likeCount={ls.count}
+                  following={following}
+                  showFollow={false} /* プロフィール上部にフォローボタンがあるため各投稿では出さない */
+                  likePending={eng.likePendingFor(p.id)}
+                  followPending={followPending}
+                  onToggleLike={eng.toggleLike}
+                  onToggleFollow={eng.toggleFollow}
+                  saved={eng.isSaved(p.id)}
+                  savePending={eng.savePendingFor(p.id)}
+                  onToggleSave={eng.toggleSave}
+                />
+              );
+            })
+          )}
+        </div>
+      )}
 
       {toast && (
         <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 px-4 py-2.5 rounded-xl bg-slate-900/90 text-white text-sm font-bold shadow-lg">
