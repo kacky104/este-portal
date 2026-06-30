@@ -282,7 +282,6 @@ export function XHeader() {
                 {isVerifiedShop && <DrawerLink href="/x/shop" onClick={() => setOpen(false)} label="店舗管理" accent="emerald" />}
                 {isAdmin && <DrawerLink href="/x/admin" onClick={() => setOpen(false)} label="運営パネル" accent="indigo" />}
                 <div className="my-2 border-t border-slate-100" />
-                <DrawerLink href="/" onClick={() => setOpen(false)} label="フクエス本体へ" muted />
                 <button
                   type="button"
                   onClick={handleLogout}
@@ -296,7 +295,6 @@ export function XHeader() {
               <>
                 <DrawerLink href="/x/onboarding" onClick={() => setOpen(false)} label="アカウントを開設" accent="indigo" />
                 <div className="my-2 border-t border-slate-100" />
-                <DrawerLink href="/" onClick={() => setOpen(false)} label="フクエス本体へ" muted />
                 <button
                   type="button"
                   onClick={handleLogout}
@@ -310,8 +308,6 @@ export function XHeader() {
               <>
                 <DrawerLink href="/x/login" onClick={() => setOpen(false)} label="ログイン" />
                 <DrawerLink href="/x/signup" onClick={() => setOpen(false)} label="新規登録" accent="indigo" />
-                <div className="my-2 border-t border-slate-100" />
-                <DrawerLink href="/" onClick={() => setOpen(false)} label="フクエス本体へ" muted />
               </>
             )}
 
