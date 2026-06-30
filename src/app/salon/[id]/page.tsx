@@ -72,7 +72,7 @@ export default async function SalonPage({
   ] = await Promise.all([
     supabase
       .from('salons')
-      .select('id, name, rating, review_count, tags, price, area, hours, description, appeal, phone, address, access, closed_days, note, courses, theme, official_url')
+      .select('id, name, rating, review_count, tags, price, area, hours, description, appeal, phone, address, access, closed_days, note, courses, theme, official_url, fukux_url')
       .eq('id', Number(id))
       .single(),
     supabase
@@ -124,6 +124,7 @@ export default async function SalonPage({
     closedDays:  (row.closed_days as string) ?? '',
     note:        (row.note as string | undefined) ?? undefined,
     officialUrl: (row.official_url as string | null) ?? null,
+    fukuxUrl:    (row.fukux_url as string | null) ?? null,
   };
 
   const theme = getTheme(row.theme as string | null);
@@ -224,6 +225,26 @@ export default async function SalonPage({
               style={{ color: '#ec4899' }}
             >
               {salon.officialUrl}
+            </a>
+          </dd>
+        </div>
+      )}
+      {/* fukuX：未設定なら行ごと非表示。ブランド紫でリンク表示。 */}
+      {salon.fukuxUrl && (
+        <div className="flex gap-3">
+          <dt className="flex items-start gap-1.5 flex-shrink-0 w-20 text-[11px] pt-0.5" style={{ color: theme.body }}>
+            <span className="mt-px"><LinkIcon /></span>
+            fukuX
+          </dt>
+          <dd className="text-[13px] leading-relaxed min-w-0 break-all">
+            <a
+              href={salon.fukuxUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="underline hover:opacity-80 break-all"
+              style={{ color: '#7E22CE' }}
+            >
+              {salon.fukuxUrl}
             </a>
           </dd>
         </div>

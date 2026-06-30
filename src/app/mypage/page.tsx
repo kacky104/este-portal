@@ -287,6 +287,7 @@ type Salon = {
   courses: unknown;
   theme: string | null;
   official_url: string | null;
+  fukux_url: string | null;
 };
 
 type Therapist = {
@@ -412,7 +413,7 @@ export default function MyPage() {
 
       const { data: salonData, error: salonError } = await supabase
         .from('salons')
-        .select('id, name, rating, review_count, tags, price, area, hours, description, appeal, therapist_count, therapist_types, therapist_profile, phone, address, access, closed_days, courses, theme, official_url')
+        .select('id, name, rating, review_count, tags, price, area, hours, description, appeal, therapist_count, therapist_types, therapist_profile, phone, address, access, closed_days, courses, theme, official_url, fukux_url')
         .eq('owner_id', user.id)
         .single();
 
@@ -702,6 +703,21 @@ export default function MyPage() {
       }
     }
 
+    // fukuX URL の検証・正規化：公式サイトURLと同じ扱い（空欄は null、http/https のみ許可）。
+    const fukuxRaw = (salonForm.fukux_url ?? '').trim();
+    let fukuxUrl: string | null = null;
+    if (fukuxRaw) {
+      try {
+        const u = new URL(fukuxRaw);
+        if (u.protocol !== 'http:' && u.protocol !== 'https:') throw new Error('bad protocol');
+        fukuxUrl = fukuxRaw;
+      } catch {
+        setSaving(false);
+        showToast('正しいURL（https://〜）を入力してください');
+        return;
+      }
+    }
+
     const { error } = await supabase
       .from('salons')
       .update({
@@ -716,6 +732,7 @@ export default function MyPage() {
         closed_days: salonForm.closed_days,
         theme: salonForm.theme ?? 'white',
         official_url: officialUrl,
+        fukux_url: fukuxUrl,
       })
       .eq('id', salon.id);
     setSaving(false);
@@ -1554,6 +1571,17 @@ export default function MyPage() {
               className={inputClass}
               value={salonForm.official_url ?? ''}
               onChange={(e) => setSalonForm((p) => ({ ...p, official_url: e.target.value }))}
+            />
+            <p className="text-[10px] text-slate-400 mt-1">https:// から始まる正しいURLを入力してください。空欄なら表示されません。</p>
+          </div>
+          <div>
+            <label className={labelClass}>fukuX URL（任意）</label>
+            <input
+              type="url"
+              placeholder="https://fukues.com/x/..."
+              className={inputClass}
+              value={salonForm.fukux_url ?? ''}
+              onChange={(e) => setSalonForm((p) => ({ ...p, fukux_url: e.target.value }))}
             />
             <p className="text-[10px] text-slate-400 mt-1">https:// から始まる正しいURLを入力してください。空欄なら表示されません。</p>
           </div>
