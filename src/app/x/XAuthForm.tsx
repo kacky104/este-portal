@@ -140,7 +140,7 @@ export function XAuthForm({ initialMode }: { initialMode: 'login' | 'signup' }) 
         {/* ロゴ */}
         <div className="text-center mb-6">
           <XLogo size="lg" />
-          <p className="text-[12px] text-slate-400 mt-2">メンズエステ専用SNS</p>
+          <p className="text-[12px] text-slate-400 mt-2">メンズエステ専用SNS～フクエックス～</p>
         </div>
 
         {checking ? (
