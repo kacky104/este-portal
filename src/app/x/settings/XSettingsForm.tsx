@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/app/lib/supabase/client';
 import { normalizeLinkUrl } from '../xLink';
+import { deleteMyXAccount } from '@/app/actions/xAccount';
 import type { XProfile } from '../xProfile';
 import type { ShopMini } from '../xAffiliation';
 
@@ -68,6 +69,13 @@ export function XSettingsForm({
   // 自主脱退（解除）の状態。解除済みならボタンを消す。
   const [shop, setShop] = useState<ShopMini | null>(affiliatedShop);
   const [removing, setRemoving] = useState(false);
+
+  // アカウント削除（危険操作）の状態。二段階確認＋@handle 入力一致でのみ確定可。
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const [confirmText, setConfirmText] = useState('');
+  const [deleting, setDeleting] = useState(false);
+  // 入力が自分の handle と一致（先頭 @ は許容・大小無視）したときだけ確定ボタンを活性化。
+  const confirmOk = confirmText.trim().replace(/^@/, '').toLowerCase() === profile.handle.toLowerCase();
 
   const showToast = (msg: string) => {
     setToast(msg);
@@ -182,6 +190,22 @@ export function XSettingsForm({
     setShop(null);
     showToast('所属を解除しました');
     router.refresh();
+  };
+
+  // アカウント削除の確定。多重実行防止（deleting ガード＋ボタン disabled）。
+  // 成功後はサインアウトせず（auth は本体と共有）、プロフィール無しでも見られる /x へハード遷移。
+  // ハードナビゲーションにすることで、削除済み（x_profiles 無し）状態をサーバーから取り直す。
+  const handleDeleteAccount = async () => {
+    if (deleting || !confirmOk) return;
+    setDeleting(true);
+    setError('');
+    const res = await deleteMyXAccount();
+    if (!res.ok) {
+      setDeleting(false);
+      setError(res.error);
+      return;
+    }
+    window.location.assign('/x');
   };
 
   return (
@@ -376,6 +400,73 @@ export function XSettingsForm({
           </button>
         </div>
       )}
+
+      {/* ── アカウント削除（危険操作・ページ最下部）。二段階確認＋@handle 入力一致で確定。 ── */}
+      <div className="mt-2 rounded-2xl border-2 border-rose-300 bg-rose-50/60 p-4">
+        <p className="text-sm font-black text-rose-700">アカウント削除</p>
+
+        {!deleteOpen ? (
+          <>
+            <p className="text-[12px] text-slate-600 mt-1 mb-3 leading-relaxed">
+              fukuX アカウントを削除します。
+            </p>
+            <button
+              type="button"
+              onClick={() => {
+                setError('');
+                setDeleteOpen(true);
+              }}
+              className="px-4 py-2 rounded-lg border border-rose-300 text-rose-600 bg-white text-xs font-bold hover:bg-rose-100 transition-colors"
+            >
+              アカウントを削除する
+            </button>
+          </>
+        ) : (
+          <div className="mt-2">
+            <p className="text-[12px] text-slate-700 leading-relaxed">
+              fukuX アカウントを削除すると、
+              <span className="font-bold">プロフィール・投稿・フォロー・いいね・保存・メッセージ・通知</span>
+              がすべて削除され、<span className="font-bold text-rose-700">二度と復元できません</span>。
+            </p>
+
+            <label className="block text-[12px] font-bold text-slate-600 mt-3 mb-1">
+              確認のため、あなたのID <span className="text-rose-600 font-black">@{profile.handle}</span> を入力してください
+            </label>
+            <input
+              type="text"
+              value={confirmText}
+              onChange={(e) => setConfirmText(e.target.value)}
+              placeholder={`@${profile.handle}`}
+              autoCapitalize="none"
+              autoCorrect="off"
+              spellCheck={false}
+              className="w-full px-4 py-3 rounded-xl border border-rose-200 text-base text-slate-900 placeholder:text-slate-400 bg-white focus:outline-none focus:ring-2 focus:ring-rose-300"
+            />
+
+            <div className="flex items-center gap-2 mt-3">
+              <button
+                type="button"
+                onClick={handleDeleteAccount}
+                disabled={!confirmOk || deleting}
+                className="px-4 py-2.5 rounded-lg bg-rose-600 text-white text-xs font-bold hover:bg-rose-700 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+              >
+                {deleting ? '削除中...' : '完全に削除する'}
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setDeleteOpen(false);
+                  setConfirmText('');
+                }}
+                disabled={deleting}
+                className="px-4 py-2.5 rounded-lg border border-slate-200 text-slate-500 text-xs font-bold hover:border-slate-300 transition-colors disabled:opacity-50"
+              >
+                キャンセル
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
 
       {toast && (
         <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 px-4 py-2.5 rounded-xl bg-slate-900/90 text-white text-sm font-bold shadow-lg">
