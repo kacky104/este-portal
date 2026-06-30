@@ -27,9 +27,11 @@ export default async function CastHomePage() {
   // 写メ日記を fukuX にも同時投稿できる。連携プロフィールの id（フォーク投稿の author_profile_id 用）を算出。
   // 非連携（user_id に対応する x_profiles が無い／非approved）なら null＝チェックボックス自体を出さない。
   let xProfileId: string | null = null;
+  let xHandle: string | null = null; // 連携 fukuX の handle（タブ「fukuX」のリンク先。未連携/未設定は null＝タブを出さない）
   if (therapist) {
     const linked = await getLinkedXProfileForTherapist(user.id);
     xProfileId = linked?.profileId ?? null;
+    xHandle = linked?.handle ?? null;
   }
 
   // 所属サロン名（挨拶ブロックのサブ情報）。本人セッションのクライアントで salons から取得。
@@ -120,6 +122,7 @@ export default async function CastHomePage() {
               therapistName={therapist.name ?? ''}
               salonId={Number(therapist.salon_id)}
               xProfileId={xProfileId}
+              xHandle={xHandle}
               imasuguOn={Boolean(therapist.is_available_now_cast)}
               imasuguUntil={(therapist.available_until_cast as string | null) ?? null}
               ownerImasuguOn={Boolean(therapist.is_available_now)}

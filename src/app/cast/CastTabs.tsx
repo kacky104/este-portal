@@ -8,6 +8,8 @@
 // テーマ背景はページ全体（CastThemeProvider）に効くため、タブを切り替えても維持される。
 
 import { useState } from 'react';
+import Link from 'next/link';
+import Image from 'next/image';
 import { CastDiary } from './CastDiary';
 import { CastThemePicker } from './CastTheme';
 import { CastImasugu } from './CastImasugu';
@@ -25,6 +27,7 @@ export function CastTabs({
   therapistName,
   salonId,
   xProfileId,
+  xHandle,
   imasuguOn,
   imasuguUntil,
   ownerImasuguOn,
@@ -35,6 +38,7 @@ export function CastTabs({
   therapistName: string;
   salonId: number;
   xProfileId: string | null; // 連携 fukuX プロフィール id（非連携は null）。日記の fukuX 同時投稿に使う
+  xHandle: string | null; // 連携 fukuX の handle（あるときだけ「fukuX」タブを別ページリンクとして出す）
   imasuguOn: boolean;
   imasuguUntil: string | null;
   ownerImasuguOn: boolean;
@@ -65,6 +69,18 @@ export function CastTabs({
             </button>
           );
         })}
+
+        {/* fukuX タブ（連携 handle があるときだけ）。他タブと違い選択状態は持たず、押すと本人の
+            fukuX プロフィール /x/u/[handle] へページ遷移する（同ページ内切替ではない）。 */}
+        {xHandle && (
+          <Link
+            href={`/x/u/${xHandle}`}
+            className="inline-flex items-center gap-1 px-4 py-1.5 rounded-full border text-[12px] font-bold transition-colors bg-white text-slate-400 border-slate-200 hover:text-slate-600 hover:border-slate-300"
+          >
+            <Image src="/fukux-mark.png" alt="" width={14} height={14} className="object-contain" />
+            fukuX
+          </Link>
+        )}
       </div>
 
       {/* タブ中身 */}
