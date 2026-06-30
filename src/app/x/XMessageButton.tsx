@@ -70,7 +70,7 @@ export function XMessageButton({
         type="button"
         onClick={start}
         disabled={busy}
-        className="text-sm font-bold px-4 py-1.5 rounded-full border border-indigo-300 text-indigo-600 hover:bg-indigo-50 transition-colors disabled:opacity-50"
+        className="whitespace-nowrap shrink-0 text-sm font-bold px-3 py-1.5 rounded-full border border-indigo-300 text-indigo-600 hover:bg-indigo-50 transition-colors disabled:opacity-50"
       >
         {busy ? '…' : 'メッセージ'}
       </button>

@@ -41,7 +41,7 @@ export function XPostNotifyBell({
       disabled={pending}
       aria-label={on ? '投稿通知をオフにする' : '投稿通知をオンにする'}
       aria-pressed={on}
-      className={`inline-flex items-center justify-center w-9 h-9 rounded-full border transition-colors disabled:opacity-50 ${
+      className={`inline-flex items-center justify-center shrink-0 w-9 h-9 rounded-full border transition-colors disabled:opacity-50 ${
         on
           ? 'border-transparent text-white'
           : 'border-slate-200 text-slate-500 hover:border-indigo-300 hover:text-indigo-600'

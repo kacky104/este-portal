@@ -122,11 +122,11 @@ export function XProfileView({
               )}
             </span>
 
-            <div className="mb-1 flex items-center gap-2">
+            <div className="mb-1 flex flex-nowrap items-center gap-2">
               {isOwnProfile ? (
                 <Link
                   href="/x/settings"
-                  className="inline-block text-xs font-bold px-4 py-1.5 rounded-full border border-slate-200 text-slate-600 hover:border-indigo-300 hover:text-indigo-600 transition-colors"
+                  className="inline-block whitespace-nowrap shrink-0 text-xs font-bold px-4 py-1.5 rounded-full border border-slate-200 text-slate-600 hover:border-indigo-300 hover:text-indigo-600 transition-colors"
                 >
                   プロフィール編集
                 </Link>
@@ -140,7 +140,7 @@ export function XProfileView({
                       type="button"
                       onClick={() => eng.toggleFollow(target.id)}
                       disabled={followPending}
-                      className={`text-sm font-bold px-5 py-1.5 rounded-full transition-colors disabled:opacity-50 ${
+                      className={`whitespace-nowrap shrink-0 text-sm font-bold px-3 py-1.5 rounded-full transition-colors disabled:opacity-50 ${
                         following
                           ? 'border border-slate-200 text-slate-500 hover:border-rose-200 hover:text-rose-500'
                           : 'text-white'
