@@ -10,11 +10,15 @@ export function XFollowList({
   title,
   users,
   emptyText,
+  sukiEnabled = false,
+  initialSukiIds = [],
 }: {
   targetHandle: string;
   title: string;
   users: FollowUser[];
   emptyText: string;
+  sukiEnabled?: boolean;
+  initialSukiIds?: string[];
 }) {
   return (
     <div className="py-3">
@@ -26,7 +30,7 @@ export function XFollowList({
       </Link>
       <h1 className="x-rescue-muted text-base font-black text-white drop-shadow-sm mb-3">{title}</h1>
 
-      <XFollowRows users={users} emptyText={emptyText} />
+      <XFollowRows users={users} emptyText={emptyText} sukiEnabled={sukiEnabled} initialSukiIds={initialSukiIds} />
     </div>
   );
 }

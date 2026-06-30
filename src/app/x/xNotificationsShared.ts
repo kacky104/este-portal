@@ -5,7 +5,7 @@
 // （Realtime購読はしない方針。ページ遷移時の再取得＋このイベントで十分。）
 export const NOTIF_READ_EVENT = 'fukux:notifications-read';
 
-export type XNotificationType = 'like' | 'reply' | 'follow';
+export type XNotificationType = 'like' | 'reply' | 'follow' | 'suki';
 
 export type XNotificationActor = {
   id: string;
@@ -26,9 +26,9 @@ export type XNotification = {
   actor: XNotificationActor;
 };
 
-// type 別の遷移先。like/reply は対象（親）投稿の詳細、follow は actor プロフィール。
+// type 別の遷移先。like/reply は対象（親）投稿の詳細、follow/suki は actor プロフィール。
 export function notificationHref(n: XNotification): string {
-  if (n.type === 'follow') return `/x/u/${n.actor.handle}`;
+  if (n.type === 'follow' || n.type === 'suki') return `/x/u/${n.actor.handle}`;
   if (n.postId) return `/x/post/${n.postId}`;
   return `/x/u/${n.actor.handle}`; // 念のためのフォールバック
 }
@@ -42,6 +42,8 @@ export function notificationSuffix(type: XNotificationType): string {
       return ' さんがあなたの投稿に返信しました';
     case 'follow':
       return ' さんがあなたをフォローしました';
+    case 'suki':
+      return ' さんからスキされました';
     default:
       return '';
   }

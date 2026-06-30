@@ -7,6 +7,7 @@ import { createClient } from '@/app/lib/supabase/client';
 import { XTimeAgo } from './XTimeAgo';
 import { VerifiedBadge } from './VerifiedBadge';
 import { XListSkeleton } from './XSkeleton';
+import { SukiIcon } from './SukiIcon';
 import { useMe } from './XMeProvider';
 import {
   NOTIF_READ_EVENT,
@@ -30,9 +31,15 @@ type NotifRow = {
   actor_profile_id: string;
 };
 
-// type 別の小アイコン（アバター右下に重ねる）。like=ハート / reply=吹き出し / follow=人＋。
+// type 別の小アイコン（アバター右下に重ねる）。like=ハート / reply=吹き出し / follow=人＋ / suki=唇。
 function TypeIcon({ type }: { type: XNotificationType }) {
   const base = 'absolute -bottom-1 -right-1 w-5 h-5 rounded-full flex items-center justify-center text-white shadow-sm';
+  if (type === 'suki')
+    return (
+      <span className={`${base} bg-pink-500`}>
+        <SukiIcon className="w-3 h-3" />
+      </span>
+    );
   if (type === 'like')
     return (
       <span className={`${base} bg-rose-500`}>
