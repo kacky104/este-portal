@@ -219,6 +219,21 @@ export default async function Home() {
               }
             />
 
+            {/* fukuX バナー（スマホのみ・「口コミ総数」の直前）。PCは右カラム(ShuffledSalons)に既出のため lg:hidden で二重表示回避。 */}
+            <Link
+              href="/x"
+              aria-label="fukuX メンズエステ専用SNS"
+              className="lg:hidden block rounded-2xl border border-pink-100 overflow-hidden shadow-sm mt-10"
+            >
+              <Image
+                src="/ogp-fukux.png"
+                alt="fukuX メンズエステ専用SNS"
+                width={1200}
+                height={630}
+                className="w-full h-auto"
+              />
+            </Link>
+
             <div className="flex justify-center mt-10">
               <div className="inline-flex justify-center rounded-2xl border border-slate-200 bg-white overflow-hidden shadow-sm">
                 {/* 口コミ総数（実数＝全サロンの review_count 合計）。 */}
