@@ -170,8 +170,22 @@ export function XHeader() {
             <Image src="/fukux-mark.png" alt="fukuX" width={36} height={36} priority className="object-contain" />
           </button>
 
-          {/* 右：検索（誰でも）＋通知ベル（ログイン＋開設済みのみ）。grid 1fr/auto/1fr のため中央ロゴは保たれる。 */}
+          {/* 右：ホーム＋検索（誰でも）＋メール/通知ベル（ログイン＋開設済みのみ）。grid 1fr/auto/1fr のため中央ロゴは保たれる。 */}
           <div className="justify-self-end flex items-center gap-0.5">
+            {/* ホーム（おすすめタイムライン /x へ・公開）。現在地が /x のとき色を強調。 */}
+            <Link
+              href="/x"
+              aria-label="ホーム"
+              className={`flex items-center justify-center w-9 h-9 rounded-full hover:bg-slate-100 active:scale-95 transition ${
+                pathname === '/x' ? 'text-indigo-600' : 'text-slate-600'
+              }`}
+            >
+              <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
+                <polyline points="9 22 9 12 15 12 15 22" />
+              </svg>
+            </Link>
+
             {/* ユーザー検索（公開・要ログインなし） */}
             <Link
               href="/x/search"
