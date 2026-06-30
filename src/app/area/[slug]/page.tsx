@@ -109,6 +109,7 @@ export default async function AreaPage({ params }: { params: Promise<{ slug: str
         <ShuffledSalons
           salons={salons}
           areas={[...AREA_ORDER]}
+          shuffleSalt={`area:${slug}`}
           currentArea={area}
           tabsAsLinks
           includeDispatch={area === DISPATCH_AREA}
@@ -122,7 +123,7 @@ export default async function AreaPage({ params }: { params: Promise<{ slug: str
             <div className="mb-4">
               <h1 className="text-xl font-bold text-slate-900 mb-1">{area === DISPATCH_AREA ? '出張対応' : label}のメンズエステ</h1>
               <p className="text-xs text-slate-400">
-                表示順はページ読み込みのたびにシャッフルされます
+                表示順は30分ごとに入れ替わります
               </p>
             </div>
           }

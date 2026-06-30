@@ -198,6 +198,7 @@ export default async function Home() {
             <ShuffledSalons
               salons={salons}
               areas={[...AREAS]}
+              shuffleSalt="home"
               currentArea={ALL_AREA}
               tabsAsLinks
               showAge
@@ -213,7 +214,7 @@ export default async function Home() {
                     <h2 className="text-xl font-bold text-slate-900">掲載サロン一覧</h2>
                   </div>
                   <p className="text-xs text-slate-400 mb-4">
-                    表示順はページ読み込みのたびにシャッフルされます
+                    表示順は30分ごとに入れ替わります
                   </p>
                 </>
               }

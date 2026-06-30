@@ -54,11 +54,12 @@ export default async function SalonsPage() {
         <ShuffledSalons
           salons={salons}
           areas={[...AREAS]}
+          shuffleSalt="salons"
           heading={
             <div className="mb-8">
               <h1 className="text-2xl font-bold text-slate-900 mb-1">掲載サロン一覧</h1>
               <p className="text-xs text-slate-400">
-                全{salons.length}件 ｜ 表示順はページ読み込みのたびにシャッフルされます
+                全{salons.length}件 ｜ 表示順は30分ごとに入れ替わります
               </p>
             </div>
           }

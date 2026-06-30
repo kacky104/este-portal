@@ -13,6 +13,7 @@ import { SaveButton } from './SaveButton';
 import { useSalonTherapists, type TherapistThumb } from './useSalonTherapists';
 import { areaLabel } from '../lib/areaLabel';
 import { areaHref, DISPATCH_AREA } from '../lib/areas';
+import { shuffleEvery30min } from '@/lib/shuffle';
 import type { Salon } from '@/app/lib/salons';
 
 export type { Salon };
@@ -443,7 +444,7 @@ function SalonCardSkeleton() {
 
 // ── ShuffledSalons ────────────────────────────────────────────
 
-export function ShuffledSalons({ salons, areas, showAge = false, areaNextToDuty = false, ratingAtBottom = false, compactTherapists = false, showSaveButton = false, wideDesktop = false, tabsAsLinks = false, currentArea, includeDispatch = false, heading }: { salons: Salon[]; areas: string[]; showAge?: boolean; areaNextToDuty?: boolean; ratingAtBottom?: boolean; compactTherapists?: boolean; showSaveButton?: boolean; wideDesktop?: boolean; tabsAsLinks?: boolean; currentArea?: string; includeDispatch?: boolean; heading?: React.ReactNode }) {
+export function ShuffledSalons({ salons, areas, showAge = false, areaNextToDuty = false, ratingAtBottom = false, compactTherapists = false, showSaveButton = false, wideDesktop = false, tabsAsLinks = false, currentArea, includeDispatch = false, heading, shuffleSalt = '' }: { salons: Salon[]; areas: string[]; showAge?: boolean; areaNextToDuty?: boolean; ratingAtBottom?: boolean; compactTherapists?: boolean; showSaveButton?: boolean; wideDesktop?: boolean; tabsAsLinks?: boolean; currentArea?: string; includeDispatch?: boolean; heading?: React.ReactNode; shuffleSalt?: string }) {
   const [list,            setList]            = useState<Salon[]>([]);
   const [activeArea,      setActiveArea]      = useState('福岡全域');
   // tabsAsLinks 時はページ自体が絞り込み対象を表すため、currentArea を選択中エリアとして使う
@@ -453,14 +454,11 @@ export function ShuffledSalons({ salons, areas, showAge = false, areaNextToDuty 
   // セラピストサムネイル取得は共有フックに集約（保存ページと同一ロジック）
   const salonTherapists = useSalonTherapists(salons);
 
-  // shuffle on mount
+  // shuffle on mount：30分ごとに1度だけ並びが変わる決定的シャッフル（同じ30分は誰がリロードしても同じ、
+  // :00/:30 で入れ替わる）。salt でトップ/地域/各エリアを独立に回す。クライアント mount で確定するため
+  // ISR キャッシュ（revalidate=600）を凍結させない（初期 list=[] で SSR とクライアント初期描画は一致＝不一致なし）。
   useEffect(() => {
-    const arr = [...salons];
-    for (let i = arr.length - 1; i > 0; i--) {
-      const j = Math.floor(Math.random() * (i + 1));
-      [arr[i], arr[j]] = [arr[j], arr[i]];
-    }
-    setList(arr);
+    setList(shuffleEvery30min(salons, shuffleSalt));
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // エリア一致判定。includeDispatch 時（出張ページ）は、選択中の出張エリアに限り

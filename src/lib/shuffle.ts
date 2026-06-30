@@ -54,3 +54,22 @@ export function seededWeightedShuffle<T>(
 export function thirtyMinSeed(nowMs: number = Date.now()): number {
   return Math.floor(nowMs / (30 * 60 * 1000));
 }
+
+/** salt 文字列を 32bit ハッシュに（ページごとに並びを変えたい時用・FNV-1a）。 */
+function hashString(s: string): number {
+  let h = 2166136261;
+  for (let i = 0; i < s.length; i++) {
+    h = Math.imul(h ^ s.charCodeAt(i), 16777619);
+  }
+  return h >>> 0;
+}
+
+/**
+ * 30分ごとに1度だけ並びが変わる決定的シャッフル（入力は破壊しない）。
+ * 同じ30分・同じ salt・同じ入力なら必ず同じ並び＝誰がリロードしても同じ、:00/:30 で入れ替わる。
+ * salt を渡すと同じ30分でも別の並びになる（トップ/地域/各エリアを独立に回したい時に使う）。
+ * 30分スロットはエポック基準（Date.now）なので JST でも :00/:30 にちょうど揃う。
+ */
+export function shuffleEvery30min<T>(items: readonly T[], salt = ""): T[] {
+  return seededShuffle(items, (thirtyMinSeed() ^ hashString(salt)) >>> 0);
+}
