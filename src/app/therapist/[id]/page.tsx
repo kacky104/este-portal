@@ -6,6 +6,7 @@ import { notFound } from 'next/navigation';
 import { createPublicClient } from '@/app/lib/supabase/public';
 import { FromCrumb } from './FromCrumb';
 import { getBusinessDateRangeJST } from '@/lib/dutyStatus';
+import { formatDate, formatTime, buildDisplayHours } from '@/lib/scheduleFormat';
 import { getTheme, breadcrumbCurrentColor } from '@/app/lib/themes';
 import { getScheduleWindowStatus } from '@/lib/dutyStatus';
 import { isNewFaceActive } from '@/lib/newFace';
@@ -46,27 +47,8 @@ function parseBodyType(raw: string | null) {
   };
 }
 
-function formatDate(dateStr: string): string {
-  const d = new Date(dateStr + 'T00:00:00+09:00');
-  const weekday = ['日', '月', '火', '水', '木', '金', '土'][d.getDay()];
-  return `${d.getMonth() + 1}/${d.getDate()}(${weekday})`;
-}
-
-function formatTime(t: string | null): string {
-  if (!t) return '';
-  const [h, m] = t.split(':').map(Number);
-  const pad = (n: number) => String(n).padStart(2, '0');
-  return `${h}:${pad(m || 0)}`;
-}
-
-function buildDisplayHours(start: string | null, end: string | null): string {
-  if (!start || !end) return '';
-  const [sh, sm] = start.split(':').map(Number);
-  const [eh, em] = end.split(':').map(Number);
-  const pad    = (n: number) => String(n).padStart(2, '0');
-  const prefix = (eh * 60 + (em || 0)) < (sh * 60 + (sm || 0)) ? '翌' : '';
-  return `${sh}:${pad(sm || 0)}〜${prefix}${eh}:${pad(em || 0)}`;
-}
+// 出勤スケジュール整形（formatDate / formatTime / buildDisplayHours）は
+// fukuX 側 /x/u/[handle] と共有するため src/lib/scheduleFormat.ts へ切り出し済み。
 
 // ── page ──────────────────────────────────────────────────────
 

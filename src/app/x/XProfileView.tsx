@@ -11,6 +11,7 @@ import { XAuthGateModal } from './XAuthGateModal';
 import { XImageLightbox } from './XImageLightbox';
 import { XComposeFab } from './XComposeFab';
 import { XMessageButton } from './XMessageButton';
+import { XProfileSchedule } from './XProfileSchedule';
 import { safeHref, linkDomain } from './xLink';
 import { formatFukuxStartDate } from './xDate';
 import { useXEngagement } from './useXEngagement';
@@ -34,6 +35,7 @@ export function XProfileView({
   initialFollowing,
   affiliatedShop,
   affiliatedTherapists,
+  scheduleTherapistId,
 }: {
   target: XProfile;
   viewerProfile: XProfile | null;
@@ -47,6 +49,7 @@ export function XProfileView({
   initialFollowing: boolean;
   affiliatedShop: ShopMini | null; // target が therapist のとき所属先（無ければ null）
   affiliatedTherapists: TherapistMini[]; // target が shop のとき所属セラピスト一覧
+  scheduleTherapistId: number | null; // 紐づく本体 therapist id（セラピスト＋連携時のみ。無ければスケジュール非表示）
 }) {
   const [toast, setToast] = useState('');
   const [gateOpen, setGateOpen] = useState(false); // 未ログイン／未開設アクション時のモーダル
@@ -251,6 +254,9 @@ export function XProfileView({
           </div>
         </div>
       </div>
+
+      {/* ─── 出勤スケジュール（7日間）：紐づく本体セラピストがある時のみ・プロフィール欄の直下 ─── */}
+      {scheduleTherapistId != null && <XProfileSchedule therapistId={scheduleTherapistId} />}
 
       {/* ─── 所属セラピスト一覧（店舗プロフィールのみ・浮遊カード） ─── */}
       {target.kind === 'shop' && (

@@ -10,6 +10,7 @@ import {
   type TherapistMini,
 } from '../../xAffiliation';
 import { XProfileView } from '../../XProfileView';
+import { getLinkedTherapistForXProfile } from '@/app/lib/xLink';
 
 // 閲覧者のログイン状態でフォロー状態が変わるため動的レンダリング。
 export const dynamic = 'force-dynamic';
@@ -114,15 +115,20 @@ export default async function XProfilePage({ params }: { params: Promise<{ handl
   const followingCount = wantsFollowing ? (followingRes.count ?? 0) : null;
 
   // 所属情報：therapist は所属先店舗（1件）、shop は所属セラピスト一覧を解決。
-  const [affiliatedShop, affiliatedTherapists]: [ShopMini | null, TherapistMini[]] =
-    await Promise.all([
-      target.kind === 'therapist'
-        ? fetchShopMini(supabase, t.affiliated_shop_id)
-        : Promise.resolve(null),
-      target.kind === 'shop'
-        ? fetchAffiliatedTherapists(supabase, target.id)
-        : Promise.resolve([] as TherapistMini[]),
-    ]);
+  // linkedTherapist：セラピストなら紐づく本体 therapist を解決（出勤スケジュールブロック用）。
+  // therapist id 自体は日付非依存なのでサーバー解決でISRに焼いてよい（日付依存の取得・表示は子のクライアント側）。
+  const [affiliatedShop, affiliatedTherapists, linkedTherapist] = await Promise.all([
+    target.kind === 'therapist'
+      ? fetchShopMini(supabase, t.affiliated_shop_id)
+      : Promise.resolve(null),
+    target.kind === 'shop'
+      ? fetchAffiliatedTherapists(supabase, target.id)
+      : Promise.resolve([] as TherapistMini[]),
+    target.kind === 'therapist'
+      ? getLinkedTherapistForXProfile(target.auth_user_id)
+      : Promise.resolve(null),
+  ]);
+  const scheduleTherapistId = linkedTherapist?.id ?? null; // 紐づく therapist が無ければ null＝ブロック非表示
 
   // 投稿は全て target が投稿主なので辞書引き不要（author を直接付与）。
   // target が所属ありセラピストなら、本人の投稿カードにも所属バッジが出るよう author に付与。
@@ -197,6 +203,7 @@ export default async function XProfilePage({ params }: { params: Promise<{ handl
       initialFollowing={initialFollowing}
       affiliatedShop={affiliatedShop}
       affiliatedTherapists={affiliatedTherapists}
+      scheduleTherapistId={scheduleTherapistId}
     />
   );
 }
