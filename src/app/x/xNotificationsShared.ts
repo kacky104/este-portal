@@ -5,7 +5,7 @@
 // （Realtime購読はしない方針。ページ遷移時の再取得＋このイベントで十分。）
 export const NOTIF_READ_EVENT = 'fukux:notifications-read';
 
-export type XNotificationType = 'like' | 'reply' | 'follow' | 'suki';
+export type XNotificationType = 'like' | 'reply' | 'follow' | 'suki' | 'post';
 
 export type XNotificationActor = {
   id: string;
@@ -19,7 +19,7 @@ export type XNotificationActor = {
 export type XNotification = {
   id: string;
   type: XNotificationType;
-  postId: string | null; // like=対象投稿 / reply=親投稿 / follow=null
+  postId: string | null; // like=対象投稿 / reply=親投稿 / post=投稿 / follow・suki=null
   replyPostId: string | null; // reply のときのリプライ投稿ID
   isRead: boolean; // 表示ハイライト用のスナップショット（取得時点の値）
   createdAt: string;
@@ -44,6 +44,8 @@ export function notificationSuffix(type: XNotificationType): string {
       return ' さんがあなたをフォローしました';
     case 'suki':
       return ' さんからスキされました';
+    case 'post':
+      return ' さんが投稿しました';
     default:
       return '';
   }

@@ -31,9 +31,18 @@ type NotifRow = {
   actor_profile_id: string;
 };
 
-// type 別の小アイコン（アバター右下に重ねる）。like=ハート / reply=吹き出し / follow=人＋ / suki=唇。
+// type 別の小アイコン（アバター右下に重ねる）。like=ハート / reply=吹き出し / follow=人＋ / suki=唇 / post=ベル。
 function TypeIcon({ type }: { type: XNotificationType }) {
   const base = 'absolute -bottom-1 -right-1 w-5 h-5 rounded-full flex items-center justify-center text-white shadow-sm';
+  if (type === 'post')
+    return (
+      <span className={`${base} bg-indigo-500`}>
+        <svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor">
+          <path d="M12 2a6 6 0 0 0-6 6c0 3.6-1 5.3-1.7 6.2-.4.5-.6.8-.6 1.3 0 .7.6 1.2 1.5 1.2h13.6c.9 0 1.5-.5 1.5-1.2 0-.5-.2-.8-.6-1.3C18.9 13.3 18 11.6 18 8a6 6 0 0 0-6-6z" />
+          <path d="M10 19a2 2 0 0 0 4 0z" />
+        </svg>
+      </span>
+    );
   if (type === 'suki')
     return (
       <span className={`${base} bg-pink-500`}>

@@ -170,17 +170,19 @@ export default async function XProfilePage({ params }: { params: Promise<{ handl
 
   // 閲覧者のフォロー状態・いいね状態・保存状態（ログイン＋自分のprofileがある時のみ）。
   let initialFollowing = false;
+  let initialNotifyPosts = false; // フォロー行の投稿通知フラグ（既定OFF）。フォロー中ベルの初期状態。
   let initialLikedIds: string[] = [];
   let initialSavedIds: string[] = [];
   if (viewer.profile) {
     if (!isOwnProfile && wantsFollowers) {
       const { data: f } = await supabase
         .from('x_follows')
-        .select('follower_profile_id')
+        .select('follower_profile_id, notify_posts')
         .eq('follower_profile_id', viewer.profile.id)
         .eq('followee_profile_id', target.id)
         .maybeSingle();
       initialFollowing = !!f;
+      initialNotifyPosts = !!(f?.notify_posts);
     }
     const postIds = posts.map((p) => p.id);
     [initialLikedIds, initialSavedIds] = await Promise.all([
@@ -201,6 +203,7 @@ export default async function XProfilePage({ params }: { params: Promise<{ handl
       initialLikedIds={initialLikedIds}
       initialSavedIds={initialSavedIds}
       initialFollowing={initialFollowing}
+      initialNotifyPosts={initialNotifyPosts}
       affiliatedShop={affiliatedShop}
       affiliatedTherapists={affiliatedTherapists}
       scheduleTherapistId={scheduleTherapistId}

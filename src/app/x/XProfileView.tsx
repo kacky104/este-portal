@@ -11,6 +11,7 @@ import { XAuthGateModal } from './XAuthGateModal';
 import { XImageLightbox } from './XImageLightbox';
 import { XComposeFab } from './XComposeFab';
 import { XMessageButton } from './XMessageButton';
+import { XPostNotifyBell } from './XPostNotifyBell';
 import { XProfileSchedule } from './XProfileSchedule';
 import { safeHref, linkDomain } from './xLink';
 import { formatFukuxStartDate } from './xDate';
@@ -33,6 +34,7 @@ export function XProfileView({
   initialLikedIds,
   initialSavedIds,
   initialFollowing,
+  initialNotifyPosts,
   affiliatedShop,
   affiliatedTherapists,
   scheduleTherapistId,
@@ -47,6 +49,7 @@ export function XProfileView({
   initialLikedIds: string[];
   initialSavedIds: string[];
   initialFollowing: boolean;
+  initialNotifyPosts: boolean;
   affiliatedShop: ShopMini | null; // target が therapist のとき所属先（無ければ null）
   affiliatedTherapists: TherapistMini[]; // target が shop のとき所属セラピスト一覧
   scheduleTherapistId: number | null; // 紐づく本体 therapist id（セラピスト＋連携時のみ。無ければスケジュール非表示）
@@ -146,6 +149,10 @@ export function XProfileView({
                     >
                       {following ? 'フォロー中' : 'フォロー'}
                     </button>
+                  )}
+                  {/* 投稿通知ベル：相手が therapist/shop（showFollowBtn）かつ「フォロー中」のときだけ。既定OFF＝オプトイン。 */}
+                  {showFollowBtn && following && (
+                    <XPostNotifyBell targetProfileId={target.id} initialOn={initialNotifyPosts} onToast={showToast} />
                   )}
                 </>
               )}
