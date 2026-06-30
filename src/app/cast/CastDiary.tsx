@@ -72,6 +72,7 @@ export function CastDiary({
   const [diaryUploading, setDiaryUploading] = useState(false);
   const [diaryPosting, setDiaryPosting] = useState(false);
   const [crosspostX, setCrosspostX] = useState(false); // fukuX 同時投稿（デフォルトOFF・連携時のみ表示）
+  const [crosspostXNoReplies, setCrosspostXNoReplies] = useState(false); // fukuX投稿のリプライ禁止（fukuX ON時のみ表示・デフォルトOFF）
 
   // ── 一覧 ──
   const [posts, setPosts] = useState<CastDiaryPost[]>([]);
@@ -188,6 +189,7 @@ export function CastDiary({
           author_profile_id: xProfileId, // 本人の fukuX プロフィール id（uuid）
           body: body || null,            // 空なら null（fukuX の画像のみ投稿と同じ作法）
           images: xImages,               // diary と同じフルURL配列をそのままコピー
+          replies_disabled: crosspostXNoReplies, // リプライ禁止チェック（fukuX ON時のみ操作可・OFFなら false）
         });
         if (xErr) console.error('crosspost to x_posts failed:', xErr); // 握りつぶしてログのみ
       }
@@ -198,6 +200,7 @@ export function CastDiary({
     setDiaryTitle('');
     setDiaryBody('');
     setCrosspostX(false); // 毎回デフォルトOFFに戻す（都度オプトイン）
+    setCrosspostXNoReplies(false); // リプライ禁止チェックも都度OFFへ
     revalidateSalon(salonId, { top: false }); // 公開側（サロン詳細・セラピスト日記）を更新（best-effort）
     showToast('写メ日記を投稿しました');
     loadPosts();
@@ -350,19 +353,40 @@ export function CastDiary({
           />
         </div>
 
-        {/* fukuX 同時投稿（連携 approved セラピストのみ表示・デフォルトOFF） */}
+        {/* fukuX 同時投稿（連携 approved セラピストのみ表示・デフォルトOFF）。
+            ON のときだけ「リプライできないようにする」を出す（OFFに戻したら隠れた true が残らないようリセット）。 */}
         {xProfileId && (
-          <label className="flex items-center gap-2 cursor-pointer select-none pt-0.5">
-            <input
-              type="checkbox"
-              checked={crosspostX}
-              onChange={(e) => setCrosspostX(e.target.checked)}
-              className="w-4 h-4 rounded border-slate-300 text-pink-500 focus:ring-pink-200"
-            />
-            <span className="text-[12px] font-bold text-slate-600">
-              fukuX にも投稿する
-            </span>
-          </label>
+          <div className="space-y-2 pt-0.5">
+            <label className="flex items-center gap-2 cursor-pointer select-none">
+              <input
+                type="checkbox"
+                checked={crosspostX}
+                onChange={(e) => {
+                  const on = e.target.checked;
+                  setCrosspostX(on);
+                  if (!on) setCrosspostXNoReplies(false); // fukuX OFF でリプライ禁止もリセット
+                }}
+                className="w-4 h-4 rounded border-slate-300 text-pink-500 focus:ring-pink-200"
+              />
+              <span className="text-[12px] font-bold text-slate-600">
+                fukuX にも投稿する
+              </span>
+            </label>
+
+            {crosspostX && (
+              <label className="flex items-center gap-2 cursor-pointer select-none pl-6">
+                <input
+                  type="checkbox"
+                  checked={crosspostXNoReplies}
+                  onChange={(e) => setCrosspostXNoReplies(e.target.checked)}
+                  className="w-4 h-4 rounded border-slate-300 text-pink-500 focus:ring-pink-200"
+                />
+                <span className="text-[12px] font-bold text-slate-600">
+                  リプライできないようにする
+                </span>
+              </label>
+            )}
+          </div>
         )}
 
         <div className="flex justify-end">
