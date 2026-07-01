@@ -2,14 +2,16 @@
 
 import { useState, useCallback } from 'react';
 import { createClient } from '@/app/lib/supabase/client';
+import { toggleRepost as toggleRepostAction } from './xRepostActions';
 import type { XProfile } from './xProfile';
 import type { XPost, XPostAuthor } from './xPosts';
 
-// fukuX のいいね／フォローの状態管理＋楽観更新を、タイムライン・プロフィールページで共有するフック。
+// fukuX のいいね／フォロー／リポストの状態管理＋楽観更新を、タイムライン・プロフィールページで共有するフック。
 // 権限判定（kind/status）も集約し、DB側RLSとUI出し分けを一致させる。
 const supabase = createClient();
 
 type LikeState = { liked: boolean; count: number };
+type RepostState = { reposted: boolean; count: number };
 
 export function useXEngagement(opts: {
   me: XProfile | null;
@@ -17,11 +19,23 @@ export function useXEngagement(opts: {
   initialLikedIds: string[];
   initialFolloweeIds: string[];
   initialSavedIds?: string[]; // 自分が保存済みの post_id（保存ボタンの初期塗り用・まとめ取り）
+  initialRepostedIds?: string[]; // 自分がリポスト済みの post_id（リポストボタンの初期塗り用・まとめ取り）
+  initialRepostCounts?: Record<string, number>; // post_id → リポスト件数（まとめ取り）
   onToast: (msg: string) => void;
   // 未ログイン／未開設（me が無い）でアクションしたときに呼ぶ。親がアカウント作成モーダルを開く。
   onAuthRequired?: () => void;
 }) {
-  const { me, posts, initialLikedIds, initialFolloweeIds, initialSavedIds, onToast, onAuthRequired } = opts;
+  const {
+    me,
+    posts,
+    initialLikedIds,
+    initialFolloweeIds,
+    initialSavedIds,
+    initialRepostedIds,
+    initialRepostCounts,
+    onToast,
+    onAuthRequired,
+  } = opts;
 
   // いいね状態（post_id → {liked,count}）。複数リストの投稿を1マップで管理。
   const [likes, setLikes] = useState<Record<string, LikeState>>(() => {
@@ -33,6 +47,17 @@ export function useXEngagement(opts: {
     return m;
   });
   const [likePending, setLikePending] = useState<Set<string>>(new Set());
+
+  // リポスト状態（post_id → {reposted,count}）。いいねと同じ持ち方。件数は初期マップ（まとめ取り）由来。
+  const [reposts, setReposts] = useState<Record<string, RepostState>>(() => {
+    const repostedSet = new Set(initialRepostedIds ?? []);
+    const m: Record<string, RepostState> = {};
+    posts.forEach((p) => {
+      if (!m[p.id]) m[p.id] = { reposted: repostedSet.has(p.id), count: initialRepostCounts?.[p.id] ?? 0 };
+    });
+    return m;
+  });
+  const [repostPending, setRepostPending] = useState<Set<string>>(new Set());
 
   // フォロー状態（followee profile id 集合）。
   const [followingSet, setFollowingSet] = useState<Set<string>>(new Set(initialFolloweeIds));
@@ -54,9 +79,15 @@ export function useXEngagement(opts: {
     [likes]
   );
 
-  // 動的に増えた投稿（コンポーザ投稿）をいいねマップに登録。
+  const repostState = useCallback(
+    (post: XPost): RepostState => reposts[post.id] ?? { reposted: false, count: initialRepostCounts?.[post.id] ?? 0 },
+    [reposts, initialRepostCounts]
+  );
+
+  // 動的に増えた投稿（コンポーザ投稿）をいいね／リポストのマップに登録（初期値は未いいね・未リポスト・件数0）。
   const registerPost = useCallback((post: XPost) => {
     setLikes((m) => (m[post.id] ? m : { ...m, [post.id]: { liked: false, count: post.likeCount } }));
+    setReposts((m) => (m[post.id] ? m : { ...m, [post.id]: { reposted: false, count: 0 } }));
   }, []);
 
   // マウント後に取得した投稿群（投稿詳細ページの親＋リプライ）をまとめて初期投入する。
@@ -139,6 +170,41 @@ export function useXEngagement(opts: {
       }
     },
     [me, canLike, likePending, likes, onToast, onAuthRequired]
+  );
+
+  // ── リポストトグル（いいねと同じ作法：楽観→失敗ロールバック。挿入/削除は server action 経由） ──
+  const toggleRepost = useCallback(
+    async (post: XPost) => {
+      if (!me) {
+        onAuthRequired?.(); // 未ログイン／未開設 → いいねと同じくアカウント作成モーダル
+        return;
+      }
+      if (!canLike) {
+        // いいねと同じ権限（凍結でなければ可・全種別）。
+        onToast('このアカウントはご利用が制限されています');
+        return;
+      }
+      if (post.author.id === me.id) return; // self ガード（UIでも非表示だが二重防御）
+      if (repostPending.has(post.id)) return;
+
+      const prev = reposts[post.id] ?? { reposted: false, count: 0 };
+      const next: RepostState = { reposted: !prev.reposted, count: prev.count + (prev.reposted ? -1 : 1) };
+      setReposts((m) => ({ ...m, [post.id]: next }));
+      setRepostPending((s) => new Set(s).add(post.id));
+
+      const res = await toggleRepostAction(Number(post.id), next.reposted);
+
+      setRepostPending((s) => {
+        const n = new Set(s);
+        n.delete(post.id);
+        return n;
+      });
+      if (!res.ok) {
+        setReposts((m) => ({ ...m, [post.id]: prev }));
+        onToast(res.error);
+      }
+    },
+    [me, canLike, repostPending, reposts, onToast, onAuthRequired]
   );
 
   // ── フォロートグル（楽観→失敗ロールバック） ──
@@ -240,10 +306,12 @@ export function useXEngagement(opts: {
     canFollow,
     canSave,
     likeState,
+    repostState,
     isFollowing,
     isSaved,
     showFollowFor,
     likePendingFor: (id: string) => likePending.has(id),
+    repostPendingFor: (id: string) => repostPending.has(id),
     followPendingFor: (id: string) => followPending.has(id),
     savePendingFor: (id: string) => savePending.has(id),
     registerPost,
@@ -251,6 +319,7 @@ export function useXEngagement(opts: {
     seedFollowees,
     seedSaved,
     toggleLike,
+    toggleRepost,
     toggleFollow,
     toggleSave,
   };

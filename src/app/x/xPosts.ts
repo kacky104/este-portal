@@ -197,6 +197,29 @@ export async function fetchMyLikedPostIds(myProfileId: string, postIds: string[]
   return (data ?? []).map((l) => String(l.post_id));
 }
 
+// 指定投稿群の「自分がリポスト済みの post_id」と「post_idごとのリポスト件数」をまとめ取得（N+1回避）。
+// x_reposts は select 公開（RLS: using(true)）。件数はDBに非正規化列が無いため、対象投稿のリポスト行を
+// 1クエリで引いてJSで集計する（fukuX規模では十分）。myProfileId が null（未ログイン）なら reposted は空。
+export async function fetchRepostMeta(
+  myProfileId: string | null,
+  postIds: string[]
+): Promise<{ repostedIds: string[]; counts: Record<string, number> }> {
+  if (postIds.length === 0) return { repostedIds: [], counts: {} };
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from('x_reposts')
+    .select('post_id, reposter_profile_id')
+    .in('post_id', postIds);
+  const counts: Record<string, number> = {};
+  const repostedIds: string[] = [];
+  ((data ?? []) as Array<{ post_id: number | string; reposter_profile_id: string }>).forEach((r) => {
+    const pid = String(r.post_id);
+    counts[pid] = (counts[pid] ?? 0) + 1;
+    if (myProfileId && r.reposter_profile_id === myProfileId) repostedIds.push(pid);
+  });
+  return { repostedIds, counts };
+}
+
 // 指定の投稿群のうち自分が保存（ブックマーク）済みの post_id 一覧（保存ボタンの初期塗り用・まとめ取り＝N+1回避）。
 // x_post_saves は RLS で自分の行のみ select 可。
 export async function fetchMySavedPostIds(myProfileId: string, postIds: string[]): Promise<string[]> {

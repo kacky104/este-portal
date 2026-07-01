@@ -33,6 +33,8 @@ export function XProfileView({
   posts,
   initialLikedIds,
   initialSavedIds,
+  initialRepostedIds,
+  initialRepostCounts,
   initialFollowing,
   initialNotifyPosts,
   affiliatedShop,
@@ -48,6 +50,8 @@ export function XProfileView({
   posts: XPost[];
   initialLikedIds: string[];
   initialSavedIds: string[];
+  initialRepostedIds: string[];
+  initialRepostCounts: Record<string, number>;
   initialFollowing: boolean;
   initialNotifyPosts: boolean;
   affiliatedShop: ShopMini | null; // target が therapist のとき所属先（無ければ null）
@@ -69,6 +73,8 @@ export function XProfileView({
     initialLikedIds,
     initialFolloweeIds: initialFollowing ? [target.id] : [],
     initialSavedIds,
+    initialRepostedIds,
+    initialRepostCounts,
     onToast: showToast,
     onAuthRequired: () => setGateOpen(true),
   });
@@ -315,6 +321,7 @@ export function XProfileView({
           ) : (
             posts.map((p) => {
               const ls = eng.likeState(p);
+              const rs = eng.repostState(p);
               return (
                 <XPostCard
                   key={p.id}
@@ -330,6 +337,10 @@ export function XProfileView({
                   saved={eng.isSaved(p.id)}
                   savePending={eng.savePendingFor(p.id)}
                   onToggleSave={eng.toggleSave}
+                  reposted={rs.reposted}
+                  repostCount={rs.count}
+                  repostPending={eng.repostPendingFor(p.id)}
+                  onToggleRepost={eng.toggleRepost}
                 />
               );
             })

@@ -7,6 +7,7 @@ import {
   fetchFollowingPosts,
   fetchMyLikedPostIds,
   fetchMySavedPostIds,
+  fetchRepostMeta,
 } from './xPosts';
 import { XTimeline } from './XTimeline';
 import { XAffiliationBanner, type IncomingRequest } from './XAffiliationBanner';
@@ -26,10 +27,20 @@ export default async function XHomePage() {
   let followeeIds: string[] = [];
   let likedIds: string[] = [];
   let savedIds: string[] = [];
+  let repostedIds: string[] = [];
+  let repostCounts: Record<string, number> = {};
   if (profile) {
     followeeIds = await fetchMyFolloweeIds(profile.id);
     following = await fetchFollowingPosts(followeeIds);
-    const allIds = [...new Set([...recommended, ...following].map((p) => p.id))];
+  }
+  const allIds = [...new Set([...recommended, ...following].map((p) => p.id))];
+  // リポスト件数は公開情報＝未ログインでも表示。自分のリポスト済みは profile があるときだけ入る。
+  {
+    const meta = await fetchRepostMeta(profile?.id ?? null, allIds);
+    repostedIds = meta.repostedIds;
+    repostCounts = meta.counts;
+  }
+  if (profile) {
     // いいね済み・保存済みの post_id をまとめて取得（互いに独立＝並列・N+1回避）。
     [likedIds, savedIds] = await Promise.all([
       fetchMyLikedPostIds(profile.id, allIds),
@@ -169,6 +180,8 @@ export default async function XHomePage() {
         initialLikedIds={likedIds}
         initialFolloweeIds={followeeIds}
         initialSavedIds={savedIds}
+        initialRepostedIds={repostedIds}
+        initialRepostCounts={repostCounts}
         myFollowers={myFollowers}
         myAffiliatedShop={myAffiliatedShop}
       />

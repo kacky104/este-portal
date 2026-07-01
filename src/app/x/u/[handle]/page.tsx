@@ -2,7 +2,7 @@ import { notFound } from 'next/navigation';
 import { createClient } from '@/app/lib/supabase/server';
 import { ADMIN_UUID } from '@/app/lib/admin';
 import { getXContext, type XProfile, type XKind, type XStatus } from '../../xProfile';
-import { fetchMyLikedPostIds, fetchMySavedPostIds, type XPost } from '../../xPosts';
+import { fetchMyLikedPostIds, fetchMySavedPostIds, fetchRepostMeta, type XPost } from '../../xPosts';
 import {
   fetchShopMini,
   fetchAffiliatedTherapists,
@@ -191,6 +191,12 @@ export default async function XProfilePage({ params }: { params: Promise<{ handl
     ]);
   }
 
+  // リポスト件数は公開情報＝未ログインでも表示。自分のリポスト済みは viewer.profile があるときだけ入る。
+  const { repostedIds: initialRepostedIds, counts: initialRepostCounts } = await fetchRepostMeta(
+    viewer.profile?.id ?? null,
+    posts.map((p) => p.id)
+  );
+
   return (
     <XProfileView
       target={target}
@@ -202,6 +208,8 @@ export default async function XProfilePage({ params }: { params: Promise<{ handl
       posts={posts}
       initialLikedIds={initialLikedIds}
       initialSavedIds={initialSavedIds}
+      initialRepostedIds={initialRepostedIds}
+      initialRepostCounts={initialRepostCounts}
       initialFollowing={initialFollowing}
       initialNotifyPosts={initialNotifyPosts}
       affiliatedShop={affiliatedShop}

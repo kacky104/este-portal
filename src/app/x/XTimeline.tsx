@@ -19,6 +19,8 @@ export function XTimeline({
   initialLikedIds,
   initialFolloweeIds,
   initialSavedIds,
+  initialRepostedIds,
+  initialRepostCounts,
   myFollowers,
   myAffiliatedShop,
 }: {
@@ -29,6 +31,8 @@ export function XTimeline({
   initialLikedIds: string[];
   initialFolloweeIds: string[];
   initialSavedIds: string[];
+  initialRepostedIds: string[];
+  initialRepostCounts: Record<string, number>;
   // セラピスト本人のフォロワー一覧（2つ目タブを「フォロワー」に置き換えて表示）。それ以外は未使用。
   myFollowers?: FollowUser[];
   myAffiliatedShop?: { handle: string; displayName: string } | null;
@@ -54,6 +58,8 @@ export function XTimeline({
     initialLikedIds,
     initialFolloweeIds,
     initialSavedIds,
+    initialRepostedIds,
+    initialRepostCounts,
     onToast: showToast,
     onAuthRequired: () => setGateOpen(true),
   });
@@ -75,6 +81,7 @@ export function XTimeline({
   const renderList = (list: XPost[]) =>
     list.map((p) => {
       const ls = eng.likeState(p);
+      const rs = eng.repostState(p);
       return (
         <XPostCard
           key={p.id}
@@ -90,6 +97,10 @@ export function XTimeline({
           saved={eng.isSaved(p.id)}
           savePending={eng.savePendingFor(p.id)}
           onToggleSave={eng.toggleSave}
+          reposted={rs.reposted}
+          repostCount={rs.count}
+          repostPending={eng.repostPendingFor(p.id)}
+          onToggleRepost={eng.toggleRepost}
         />
       );
     });

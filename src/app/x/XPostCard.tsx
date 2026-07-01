@@ -8,6 +8,7 @@ import { VerifiedBadge } from './VerifiedBadge';
 import { XImageLightbox } from './XImageLightbox';
 import { XHashtagText } from './XHashtagText';
 import { XComposer } from './XComposer';
+import { RepostIcon } from './RepostIcon';
 import { useMe } from './XMeProvider';
 import { safeHref, linkDomain } from './xLink';
 import type { XPost } from './xPosts';
@@ -92,6 +93,11 @@ export function XPostCard({
   saved,
   savePending,
   onToggleSave,
+  reposted = false,
+  repostCount = 0,
+  repostPending = false,
+  onToggleRepost,
+  repostLabel,
   showReplyLink = true,
 }: {
   post: XPost;
@@ -107,6 +113,14 @@ export function XPostCard({
   saved?: boolean;
   savePending?: boolean;
   onToggleSave?: (post: XPost) => void;
+  // リポスト。onToggleRepost を渡したときだけリポストボタンを描画する（未指定の呼び出し元は従来どおり非表示）。
+  // 自分の投稿にはボタンを出さない（isOwn で判定）。件数の出し方はいいねに一致（常に数字を表示）。
+  reposted?: boolean;
+  repostCount?: number;
+  repostPending?: boolean;
+  onToggleRepost?: (post: XPost) => void;
+  // 値があればカード上部に「RepostIcon 小＋グレーテキストで {repostLabel}」を描画（例:「◯◯ さんがリポスト」）。
+  repostLabel?: string;
   // タイムライン/プロフィールでは true（タップで投稿詳細へ）。投稿詳細ページ内のカードでは false にして
   // リプライ件数を静的表示にする（リプライへの個別返信導線を作らず＝1階層フラットを維持）。
   showReplyLink?: boolean;
@@ -142,6 +156,14 @@ export function XPostCard({
 
   return (
     <article className="x-card rounded-2xl bg-white/[0.94] shadow-[0_4px_16px_rgba(109,40,217,0.3)] p-4">
+      {/* リポストラベル（値があるときだけ）：カード上部に RepostIcon 小＋グレーテキスト。本文に合わせて軽くインデント。 */}
+      {repostLabel && (
+        <div className="flex items-center gap-1.5 text-xs text-slate-400 mb-2 ml-[50px]">
+          <RepostIcon size={14} className="flex-shrink-0" />
+          <span className="truncate">{repostLabel}</span>
+        </div>
+      )}
+
       {/* ヘッダー：アバター・名前・@handle・kind・時刻・フォロー（名前/アバターはプロフィールへリンク） */}
       <div className="flex items-start gap-2.5">
         <Link
@@ -325,6 +347,28 @@ export function XPostCard({
             </svg>
             <span className="tabular-nums font-medium">{post.replyCount}</span>
           </span>
+        )}
+
+        {/* リポスト。onToggleRepost が渡っていれば常に表示（件数も）。いいねと同じ作法。
+            リポスト済み=緑(#10B981=emerald-500)・未=グレー。件数は常に数字表示（いいねに一致）。
+            自分の投稿（isOwn）は「表示・無効」：グレー固定・トグルホバー無し・押しても無反応（トーストも出さない）。
+            件数（何人がリポストしたか）は自分の投稿でも表示する。self ガードは server action 側にも残す。 */}
+        {onToggleRepost && (
+          <button
+            type="button"
+            onClick={isOwn ? undefined : () => onToggleRepost(post)}
+            disabled={isOwn || repostPending}
+            aria-pressed={!isOwn && reposted}
+            aria-label={isOwn ? 'リポスト数' : reposted ? 'リポストを解除' : 'リポスト'}
+            className={`inline-flex items-center gap-1.5 text-sm transition-colors ${
+              isOwn
+                ? 'text-slate-400 cursor-default disabled:opacity-100'
+                : `disabled:opacity-50 ${reposted ? 'text-emerald-500' : 'text-slate-400 hover:text-emerald-500'}`
+            }`}
+          >
+            <RepostIcon size={18} />
+            <span className="tabular-nums font-medium">{repostCount}</span>
+          </button>
         )}
 
         {/* 保存（ブックマーク）。onToggleSave が渡されたときだけ表示。保存済み=amber塗り・未保存=枠線。
