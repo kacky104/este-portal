@@ -13,6 +13,7 @@ import { getBusinessDateJST, getBusinessDateRangeJST } from '@/lib/dutyStatus';
 import { isCastLiveRow } from '@/lib/imasugu';
 import { MyDiaryList } from './MyDiaryList';
 import { inviteCast, resendCastInvite, unlinkCast, cancelCastInvite } from '@/app/actions/castInvite';
+import { PAYMENT_CARD_OPTIONS } from '@/app/lib/paymentCards';
 
 const supabase = createClient();
 
@@ -288,6 +289,8 @@ type Salon = {
   theme: string | null;
   official_url: string | null;
   fukux_url: string | null;
+  payment_url: string | null;
+  payment_cards: string[] | null;
 };
 
 type Therapist = {
@@ -413,7 +416,7 @@ export default function MyPage() {
 
       const { data: salonData, error: salonError } = await supabase
         .from('salons')
-        .select('id, name, rating, review_count, tags, price, area, hours, description, appeal, therapist_count, therapist_types, therapist_profile, phone, address, access, closed_days, courses, theme, official_url, fukux_url')
+        .select('id, name, rating, review_count, tags, price, area, hours, description, appeal, therapist_count, therapist_types, therapist_profile, phone, address, access, closed_days, courses, theme, official_url, fukux_url, payment_url, payment_cards')
         .eq('owner_id', user.id)
         .single();
 
@@ -684,6 +687,17 @@ export default function MyPage() {
     if (salon) revalidateSalon(salon.id);
   };
 
+  // クレジットカード決済：対応カードのチェックをトグル（payment_cards 配列で管理）。
+  const togglePaymentCard = (slug: string) => {
+    setSalonForm((p) => {
+      const current = p.payment_cards ?? [];
+      return {
+        ...p,
+        payment_cards: current.includes(slug) ? current.filter((s) => s !== slug) : [...current, slug],
+      };
+    });
+  };
+
   const handleSalonSave = async () => {
     if (!salon) return;
     setSaving(true);
@@ -718,6 +732,18 @@ export default function MyPage() {
       }
     }
 
+    // クレカ決済URL：空欄は null。入力ありは http(s):// 始まりのみ許可（外部リンクなので簡易検証）。
+    const payRaw = (salonForm.payment_url ?? '').trim();
+    let paymentUrl: string | null = null;
+    if (payRaw) {
+      if (!/^https?:\/\//i.test(payRaw)) {
+        setSaving(false);
+        showToast('決済URLは http:// または https:// から始めてください');
+        return;
+      }
+      paymentUrl = payRaw;
+    }
+
     const { error } = await supabase
       .from('salons')
       .update({
@@ -733,6 +759,8 @@ export default function MyPage() {
         theme: salonForm.theme ?? 'white',
         official_url: officialUrl,
         fukux_url: fukuxUrl,
+        payment_url: paymentUrl,
+        payment_cards: salonForm.payment_cards ?? [],
       })
       .eq('id', salon.id);
     setSaving(false);
@@ -1584,6 +1612,46 @@ export default function MyPage() {
               onChange={(e) => setSalonForm((p) => ({ ...p, fukux_url: e.target.value }))}
             />
             <p className="text-[10px] text-slate-400 mt-1">https:// から始まる正しいURLを入力してください。空欄なら表示されません。</p>
+          </div>
+          {/* ── クレジットカード決済（外部リンク・対応カード選択） ── */}
+          <div>
+            <label className={labelClass}>クレジットカード決済URL（任意）</label>
+            <input
+              type="url"
+              placeholder="https://example.com/pay"
+              className={inputClass}
+              value={salonForm.payment_url ?? ''}
+              onChange={(e) => setSalonForm((p) => ({ ...p, payment_url: e.target.value }))}
+            />
+            <p className="text-[10px] text-slate-400 mt-1">
+              他社の決済ページURLを設定すると、料金ページに「クレジットカード決済」欄が表示されます。空欄なら表示されません。フクエスは決済処理には関与しません。
+            </p>
+            <div className="mt-3">
+              <p className="text-[11px] font-bold text-slate-500 mb-1.5">対応カードブランド</p>
+              <div className="flex flex-wrap gap-2">
+                {PAYMENT_CARD_OPTIONS.map((card) => {
+                  const checked = (salonForm.payment_cards ?? []).includes(card.slug);
+                  return (
+                    <label
+                      key={card.slug}
+                      className={`flex items-center gap-1.5 text-xs font-bold rounded-lg border px-2.5 py-1.5 cursor-pointer transition-colors ${
+                        checked
+                          ? 'border-pink-300 bg-pink-50 text-pink-600'
+                          : 'border-slate-200 text-slate-500 hover:bg-slate-50'
+                      }`}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={checked}
+                        onChange={() => togglePaymentCard(card.slug)}
+                        className="accent-pink-500"
+                      />
+                      {card.label}
+                    </label>
+                  );
+                })}
+              </div>
+            </div>
           </div>
           <div>
             <label className={labelClass}>サロン紹介</label>

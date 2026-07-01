@@ -8,6 +8,7 @@ import { notFound } from "next/navigation";
 import { createPublicClient } from "@/app/lib/supabase/public";
 import { getTheme, breadcrumbCurrentColor } from "@/app/lib/themes";
 import { CoursesContent, type Course } from "../CoursesContent";
+import { PaymentSection } from "../PaymentSection";
 
 // ISR：10分ごとに再生成（保存時は /api/revalidate で即時無効化）。
 export const revalidate = 600;
@@ -29,7 +30,7 @@ export default async function SalonPricePage({
   // データ源は salons.courses(JSON)。既存「コースメニュー・料金表」ブロックと同じ読み方・フィールド対応。
   const { data: salonRow, error } = await supabase
     .from('salons')
-    .select('id, name, theme, courses')
+    .select('id, name, theme, courses, payment_url, payment_cards')
     .eq('id', Number(id))
     .single();
 
@@ -60,6 +61,10 @@ export default async function SalonPricePage({
 
   // 既存ブロックと同一の JSON 読み方（name / duration / price）。
   const courses = ((salonRow.courses as Course[] | null) ?? []);
+
+  // クレジットカード決済（外部リンク）。payment_url 未設定ならセクションごと非表示。
+  const paymentUrl = ((salonRow.payment_url as string | null) ?? '').trim();
+  const paymentCards = ((salonRow.payment_cards as string[] | null) ?? []);
 
   return (
     <div className="relative min-h-screen overflow-x-clip" style={{ color: theme.text }}>
@@ -111,6 +116,11 @@ export default async function SalonPricePage({
             <CoursesContent courses={courses} theme={theme} large />
           )}
         </section>
+
+        {/* クレジットカード決済（外部リンク）。payment_url 未設定なら描画しない。 */}
+        {paymentUrl && (
+          <PaymentSection paymentUrl={paymentUrl} paymentCards={paymentCards} theme={theme} />
+        )}
       </main>
     </div>
   );
