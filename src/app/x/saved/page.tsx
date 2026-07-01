@@ -5,6 +5,7 @@ import {
   fetchPostsByIds,
   fetchMyLikedPostIds,
   fetchMyFolloweeIds,
+  fetchRepostMeta,
 } from '../xPosts';
 import { XSavedList } from '../XSavedList';
 
@@ -54,9 +55,10 @@ export default async function XSavedPage() {
   const savedIds = await fetchMySavedPostIdsOrdered(profile.id);
   const posts = await fetchPostsByIds(savedIds);
   const livePostIds = posts.map((p) => p.id); // 削除済み等で欠落した分を除いた実在id
-  const [likedIds, followeeIds] = await Promise.all([
+  const [likedIds, followeeIds, repostMeta] = await Promise.all([
     fetchMyLikedPostIds(profile.id, livePostIds),
     fetchMyFolloweeIds(profile.id),
+    fetchRepostMeta(profile.id, livePostIds),
   ]);
 
   return (
@@ -67,6 +69,8 @@ export default async function XSavedPage() {
       initialLikedIds={likedIds}
       initialSavedIds={livePostIds}
       initialFolloweeIds={followeeIds}
+      initialRepostedIds={repostMeta.repostedIds}
+      initialRepostCounts={repostMeta.counts}
     />
   );
 }

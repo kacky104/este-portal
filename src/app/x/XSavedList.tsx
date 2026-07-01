@@ -17,6 +17,8 @@ export function XSavedList({
   initialLikedIds,
   initialSavedIds,
   initialFolloweeIds,
+  initialRepostedIds,
+  initialRepostCounts,
 }: {
   me: XProfile | null;
   loggedIn: boolean;
@@ -24,6 +26,8 @@ export function XSavedList({
   initialLikedIds: string[];
   initialSavedIds: string[];
   initialFolloweeIds: string[];
+  initialRepostedIds: string[];
+  initialRepostCounts: Record<string, number>;
 }) {
   const [toast, setToast] = useState('');
   const [gateOpen, setGateOpen] = useState(false);
@@ -38,6 +42,8 @@ export function XSavedList({
     initialLikedIds,
     initialFolloweeIds,
     initialSavedIds,
+    initialRepostedIds,
+    initialRepostCounts,
     onToast: showToast,
     onAuthRequired: () => setGateOpen(true),
   });
@@ -63,6 +69,7 @@ export function XSavedList({
         <div className="space-y-3">
           {visible.map((p) => {
             const ls = eng.likeState(p);
+            const rs = eng.repostState(p);
             return (
               <XPostCard
                 key={p.id}
@@ -78,6 +85,10 @@ export function XSavedList({
                 saved={eng.isSaved(p.id)}
                 savePending={eng.savePendingFor(p.id)}
                 onToggleSave={eng.toggleSave}
+                reposted={rs.reposted}
+                repostCount={rs.count}
+                repostPending={eng.repostPendingFor(p.id)}
+                onToggleRepost={eng.toggleRepost}
               />
             );
           })}

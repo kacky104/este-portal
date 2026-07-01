@@ -209,7 +209,7 @@ export function XSearch() {
     onToast: showToast,
     onAuthRequired: () => setGateOpen(true),
   });
-  const { seedPosts, seedFollowees, seedSaved } = eng;
+  const { seedPosts, seedFollowees, seedSaved, seedReposts } = eng;
 
   // URL クエリが変わったら（例：検索結果内の #タグ をタップ）キーワード・タブを同期する。
   useEffect(() => {
@@ -256,6 +256,22 @@ export function XSearch() {
         } else {
           seedPosts(posts, []);
         }
+
+        // リポスト件数（公開）＋自分のリポスト済み（ログイン時）を seed。件数は全結果に 0 を敷いてから加算。
+        const rIds = posts.map((p) => p.id);
+        const { data: rr } = await sb.from('x_reposts').select('post_id, reposter_profile_id').in('post_id', rIds);
+        if (cancelled) return;
+        const rCounts: Record<string, number> = {};
+        posts.forEach((p) => {
+          rCounts[p.id] = 0;
+        });
+        const rReposted: string[] = [];
+        (rr ?? []).forEach((x) => {
+          const pid = String(x.post_id);
+          rCounts[pid] = (rCounts[pid] ?? 0) + 1;
+          if (me && String(x.reposter_profile_id) === me.id) rReposted.push(pid);
+        });
+        seedReposts(rCounts, rReposted);
       }
       if (!cancelled) {
         setLoading(false);
@@ -266,10 +282,11 @@ export function XSearch() {
       cancelled = true;
       clearTimeout(t);
     };
-  }, [q, tab, me, seedPosts, seedFollowees, seedSaved]);
+  }, [q, tab, me, seedPosts, seedFollowees, seedSaved, seedReposts]);
 
   const cardProps = (p: XPost) => {
     const ls = eng.likeState(p);
+    const rs = eng.repostState(p);
     return {
       liked: ls.liked,
       likeCount: ls.count,
@@ -282,6 +299,10 @@ export function XSearch() {
       saved: eng.isSaved(p.id),
       savePending: eng.savePendingFor(p.id),
       onToggleSave: eng.toggleSave,
+      reposted: rs.reposted,
+      repostCount: rs.count,
+      repostPending: eng.repostPendingFor(p.id),
+      onToggleRepost: eng.toggleRepost,
     };
   };
 
