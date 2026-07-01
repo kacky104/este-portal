@@ -3,7 +3,7 @@
 import { useMemo, useState } from 'react';
 import Link from 'next/link';
 import type { XProfile } from './xProfile';
-import type { XPost } from './xPosts';
+import type { XPost, FeedItem } from './xPosts';
 import { XComposeFab } from './XComposeFab';
 import { XPostCard } from './XPostCard';
 import { XAuthGateModal } from './XAuthGateModal';
@@ -15,7 +15,7 @@ export function XTimeline({
   me,
   loggedIn,
   recommended,
-  following,
+  followingFeed,
   initialLikedIds,
   initialFolloweeIds,
   initialSavedIds,
@@ -27,7 +27,7 @@ export function XTimeline({
   me: XProfile | null;
   loggedIn: boolean;
   recommended: XPost[];
-  following: XPost[];
+  followingFeed: FeedItem[]; // フォロー中タブ：投稿＋リポストをマージ済み（サーバで sortAt 降順・重複排除）
   initialLikedIds: string[];
   initialFolloweeIds: string[];
   initialSavedIds: string[];
@@ -54,7 +54,10 @@ export function XTimeline({
   // いいね/フォローの状態・権限・操作は共通フックに集約（プロフィールページと共有）。
   const eng = useXEngagement({
     me,
-    posts: useMemo(() => [...recommended, ...following], [recommended, following]),
+    posts: useMemo(
+      () => [...recommended, ...followingFeed.map((f) => f.post)],
+      [recommended, followingFeed]
+    ),
     initialLikedIds,
     initialFolloweeIds,
     initialSavedIds,
@@ -78,32 +81,40 @@ export function XTimeline({
     return [...myNewPosts, ...recommended].filter((p) => (seen.has(p.id) ? false : (seen.add(p.id), true)));
   }, [myNewPosts, recommended]);
 
-  const renderList = (list: XPost[]) =>
-    list.map((p) => {
-      const ls = eng.likeState(p);
-      const rs = eng.repostState(p);
-      return (
-        <XPostCard
-          key={p.id}
-          post={p}
-          liked={ls.liked}
-          likeCount={ls.count}
-          following={eng.isFollowing(p.author.id)}
-          showFollow={eng.showFollowFor(p.author)}
-          likePending={eng.likePendingFor(p.id)}
-          followPending={eng.followPendingFor(p.author.id)}
-          onToggleLike={eng.toggleLike}
-          onToggleFollow={eng.toggleFollow}
-          saved={eng.isSaved(p.id)}
-          savePending={eng.savePendingFor(p.id)}
-          onToggleSave={eng.toggleSave}
-          reposted={rs.reposted}
-          repostCount={rs.count}
-          repostPending={eng.repostPendingFor(p.id)}
-          onToggleRepost={eng.toggleRepost}
-        />
-      );
-    });
+  // 1枚のカードを描画（repostLabel を渡せばカード上部にリポストラベルが出る）。
+  const renderCard = (p: XPost, repostLabel?: string) => {
+    const ls = eng.likeState(p);
+    const rs = eng.repostState(p);
+    return (
+      <XPostCard
+        key={p.id}
+        post={p}
+        liked={ls.liked}
+        likeCount={ls.count}
+        following={eng.isFollowing(p.author.id)}
+        showFollow={eng.showFollowFor(p.author)}
+        likePending={eng.likePendingFor(p.id)}
+        followPending={eng.followPendingFor(p.author.id)}
+        onToggleLike={eng.toggleLike}
+        onToggleFollow={eng.toggleFollow}
+        saved={eng.isSaved(p.id)}
+        savePending={eng.savePendingFor(p.id)}
+        onToggleSave={eng.toggleSave}
+        reposted={rs.reposted}
+        repostCount={rs.count}
+        repostPending={eng.repostPendingFor(p.id)}
+        onToggleRepost={eng.toggleRepost}
+        repostLabel={repostLabel}
+      />
+    );
+  };
+
+  // おすすめ（通常投稿のみ・リポスト無し）。
+  const renderList = (list: XPost[]) => list.map((p) => renderCard(p));
+
+  // フォロー中（投稿＋リポスト）。リポストは「◯◯ さんがリポスト」ラベル付き。
+  const renderFeed = (list: FeedItem[]) =>
+    list.map((it) => renderCard(it.post, it.kind === 'repost' ? `${it.reposterName} さんがリポスト` : undefined));
 
   return (
     <div className="py-2">
@@ -162,10 +173,10 @@ export function XTimeline({
             </Link>
           </div>
         </div>
-      ) : following.length === 0 ? (
+      ) : followingFeed.length === 0 ? (
         <Empty text="気になるセラピスト・お店をフォローすると、ここに新着が表示されます" />
       ) : (
-        <div className="space-y-3 pt-3">{renderList(following)}</div>
+        <div className="space-y-3 pt-3">{renderFeed(followingFeed)}</div>
       )}
 
       {toast && (

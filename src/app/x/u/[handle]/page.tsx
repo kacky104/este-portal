@@ -2,7 +2,14 @@ import { notFound } from 'next/navigation';
 import { createClient } from '@/app/lib/supabase/server';
 import { ADMIN_UUID } from '@/app/lib/admin';
 import { getXContext, type XProfile, type XKind, type XStatus } from '../../xProfile';
-import { fetchMyLikedPostIds, fetchMySavedPostIds, fetchRepostMeta, type XPost } from '../../xPosts';
+import {
+  fetchMyLikedPostIds,
+  fetchMySavedPostIds,
+  fetchRepostMeta,
+  fetchRepostsByReposters,
+  mergePostsAndReposts,
+  type XPost,
+} from '../../xPosts';
 import {
   fetchShopMini,
   fetchAffiliatedTherapists,
@@ -168,6 +175,12 @@ export default async function XProfilePage({ params }: { params: Promise<{ handl
     author,
   }));
 
+  // このプロフィール本人がリポストしたトップレベル投稿を取得し、自投稿とマージ（sortAt降順・同一post_idは最新1件）。
+  // 元投稿の著者は他人なので attachAuthors 済み（fetchRepostsByReposters 内）。ラベルは本人の表示名。
+  const repostItems = await fetchRepostsByReposters([target.id]);
+  const feed = mergePostsAndReposts(posts, repostItems);
+  const feedPostIds = [...new Set(feed.map((f) => f.post.id))];
+
   // 閲覧者のフォロー状態・いいね状態・保存状態（ログイン＋自分のprofileがある時のみ）。
   let initialFollowing = false;
   let initialNotifyPosts = false; // フォロー行の投稿通知フラグ（既定OFF）。フォロー中ベルの初期状態。
@@ -184,17 +197,17 @@ export default async function XProfilePage({ params }: { params: Promise<{ handl
       initialFollowing = !!f;
       initialNotifyPosts = !!(f?.notify_posts);
     }
-    const postIds = posts.map((p) => p.id);
+    // フィード全体（自投稿＋リポストの元投稿）に対していいね/保存の初期状態をまとめ取得。
     [initialLikedIds, initialSavedIds] = await Promise.all([
-      fetchMyLikedPostIds(viewer.profile.id, postIds),
-      fetchMySavedPostIds(viewer.profile.id, postIds),
+      fetchMyLikedPostIds(viewer.profile.id, feedPostIds),
+      fetchMySavedPostIds(viewer.profile.id, feedPostIds),
     ]);
   }
 
   // リポスト件数は公開情報＝未ログインでも表示。自分のリポスト済みは viewer.profile があるときだけ入る。
   const { repostedIds: initialRepostedIds, counts: initialRepostCounts } = await fetchRepostMeta(
     viewer.profile?.id ?? null,
-    posts.map((p) => p.id)
+    feedPostIds
   );
 
   return (
@@ -205,7 +218,7 @@ export default async function XProfilePage({ params }: { params: Promise<{ handl
       isOwnProfile={isOwnProfile}
       followerCount={followerCount}
       followingCount={followingCount}
-      posts={posts}
+      feed={feed}
       initialLikedIds={initialLikedIds}
       initialSavedIds={initialSavedIds}
       initialRepostedIds={initialRepostedIds}

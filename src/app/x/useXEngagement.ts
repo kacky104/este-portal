@@ -121,6 +121,19 @@ export function useXEngagement(opts: {
     });
   }, []);
 
+  // マウント後に取得した「リポスト件数＋自分のリポスト済み」を投入（投稿詳細などクライアント取得分の反映用）。
+  // counts の各 post_id を上書き。repostedIds に含まれれば reposted=true。
+  const seedReposts = useCallback((counts: Record<string, number>, repostedIds: string[]) => {
+    const repostedSet = new Set(repostedIds);
+    setReposts((m) => {
+      const next = { ...m };
+      Object.keys(counts).forEach((pid) => {
+        next[pid] = { reposted: repostedSet.has(pid), count: counts[pid] };
+      });
+      return next;
+    });
+  }, []);
+
   const isFollowing = useCallback((authorId: string) => followingSet.has(authorId), [followingSet]);
   const isSaved = useCallback((postId: string) => savedSet.has(postId), [savedSet]);
 
@@ -318,6 +331,7 @@ export function useXEngagement(opts: {
     seedPosts,
     seedFollowees,
     seedSaved,
+    seedReposts,
     toggleLike,
     toggleRepost,
     toggleFollow,

@@ -8,6 +8,9 @@ import {
   fetchMyLikedPostIds,
   fetchMySavedPostIds,
   fetchRepostMeta,
+  fetchRepostsByReposters,
+  mergePostsAndReposts,
+  type FeedItem,
 } from './xPosts';
 import { XTimeline } from './XTimeline';
 import { XAffiliationBanner, type IncomingRequest } from './XAffiliationBanner';
@@ -23,7 +26,7 @@ export default async function XHomePage() {
   // getXContext（認証＋自分profile）と fetchRecommended（profile非依存）は独立なので並列化。
   const [{ userId, profile }, recommended] = await Promise.all([getXContext(), fetchRecommended()]);
 
-  let following: Awaited<ReturnType<typeof fetchFollowingPosts>> = [];
+  let followingFeed: FeedItem[] = []; // フォロー中タブ：フォロー先の投稿＋フォロー先がリポストした投稿をマージ
   let followeeIds: string[] = [];
   let likedIds: string[] = [];
   let savedIds: string[] = [];
@@ -31,9 +34,15 @@ export default async function XHomePage() {
   let repostCounts: Record<string, number> = {};
   if (profile) {
     followeeIds = await fetchMyFolloweeIds(profile.id);
-    following = await fetchFollowingPosts(followeeIds);
+    // フォロー先のトップレベル投稿と、フォロー先がリポストした投稿を並行取得しマージ（sortAt降順・重複排除）。
+    const [followingPosts, followingReposts] = await Promise.all([
+      fetchFollowingPosts(followeeIds),
+      fetchRepostsByReposters(followeeIds),
+    ]);
+    followingFeed = mergePostsAndReposts(followingPosts, followingReposts);
   }
-  const allIds = [...new Set([...recommended, ...following].map((p) => p.id))];
+  // おすすめにはリポストを流さない（従来の投稿のみ）。meta/いいね/保存は両タブの全post_idを対象に。
+  const allIds = [...new Set([...recommended.map((p) => p.id), ...followingFeed.map((f) => f.post.id)])];
   // リポスト件数は公開情報＝未ログインでも表示。自分のリポスト済みは profile があるときだけ入る。
   {
     const meta = await fetchRepostMeta(profile?.id ?? null, allIds);
@@ -176,7 +185,7 @@ export default async function XHomePage() {
         me={profile}
         loggedIn={!!userId}
         recommended={recommended}
-        following={following}
+        followingFeed={followingFeed}
         initialLikedIds={likedIds}
         initialFolloweeIds={followeeIds}
         initialSavedIds={savedIds}

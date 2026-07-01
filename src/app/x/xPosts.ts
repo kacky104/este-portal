@@ -161,6 +161,72 @@ export async function fetchMyFolloweeIds(myProfileId: string): Promise<string[]>
   return [...new Set((data ?? []).map((f) => f.followee_profile_id as string))];
 }
 
+// ── リポストのフィード反映（プロフィール／フォロー中TL用） ─────────────────────────
+// フィードの1アイテム：通常投稿（kind='post'）か、リポスト（kind='repost'・元投稿＋リポスト者名）。
+// sortAt は並べ替えキー（post=投稿日時 / repost=リポスト日時）。
+export type FeedItem =
+  | { kind: 'post'; sortAt: string; post: XPost }
+  | { kind: 'repost'; sortAt: string; post: XPost; reposterName: string };
+
+// 指定 reposter 群がリポストした「トップレベル元投稿」を repost.created_at desc で取得し、
+// 元投稿に著者を合流（attachAuthors がリプライ/BAN著者を自然に除外）。リポスト者の表示名も付ける。
+export type RepostFeedItem = { post: XPost; repostedAt: string; reposterProfileId: string; reposterName: string };
+export async function fetchRepostsByReposters(reposterIds: string[]): Promise<RepostFeedItem[]> {
+  if (reposterIds.length === 0) return [];
+  const client = createPublicClient();
+  const { data: rerows } = await client
+    .from('x_reposts')
+    .select('post_id, created_at, reposter_profile_id')
+    .in('reposter_profile_id', reposterIds)
+    .order('created_at', { ascending: false })
+    .limit(RECOMMENDED_LIMIT);
+  const rrows = (rerows ?? []) as Array<{ post_id: number | string; created_at: string; reposter_profile_id: string }>;
+  if (rrows.length === 0) return [];
+
+  // 元投稿（トップレベルのみ）をまとめ取得し著者合流。トップレベル以外・削除・BAN著者は byId に載らない＝除外される。
+  const postIds = [...new Set(rrows.map((r) => String(r.post_id)))];
+  const { data: postRows } = await client
+    .from('x_posts')
+    .select(POST_COLS)
+    .in('id', postIds)
+    .is('parent_post_id', null);
+  const posts = await attachAuthors(client, (postRows ?? []) as PostRow[]);
+  const byId = new Map(posts.map((p) => [p.id, p]));
+
+  // リポスト者の表示名（ラベル用）をまとめ取得。
+  const reposterUniq = [...new Set(rrows.map((r) => r.reposter_profile_id).filter(Boolean))];
+  const { data: reposterProfs } = await client
+    .from('x_profiles')
+    .select('id, display_name')
+    .in('id', reposterUniq);
+  const nameById = new Map<string, string>();
+  (reposterProfs ?? []).forEach((p) => nameById.set(p.id as string, (p.display_name as string) ?? ''));
+
+  const out: RepostFeedItem[] = [];
+  for (const r of rrows) {
+    const post = byId.get(String(r.post_id));
+    if (!post) continue; // トップレベルでない/削除/BAN著者 → 除外
+    out.push({
+      post,
+      repostedAt: r.created_at,
+      reposterProfileId: r.reposter_profile_id,
+      reposterName: nameById.get(r.reposter_profile_id) ?? '',
+    });
+  }
+  return out;
+}
+
+// 通常投稿とリポストをマージして sortAt 降順。同一 post_id は sortAt 最新の1件のみ残す（重複排除の既定）。
+export function mergePostsAndReposts(posts: XPost[], reposts: RepostFeedItem[]): FeedItem[] {
+  const items: FeedItem[] = [
+    ...posts.map((p) => ({ kind: 'post' as const, sortAt: p.createdAt, post: p })),
+    ...reposts.map((r) => ({ kind: 'repost' as const, sortAt: r.repostedAt, post: r.post, reposterName: r.reposterName })),
+  ];
+  items.sort((a, b) => new Date(b.sortAt).getTime() - new Date(a.sortAt).getTime());
+  const seen = new Set<string>();
+  return items.filter((it) => (seen.has(it.post.id) ? false : (seen.add(it.post.id), true)));
+}
+
 // フォロー中タブ：フォロー先の投稿を新着順。フォロー0なら空配列。
 export async function fetchFollowingPosts(followeeIds: string[]): Promise<XPost[]> {
   if (followeeIds.length === 0) return [];

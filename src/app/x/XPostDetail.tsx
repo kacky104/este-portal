@@ -131,7 +131,7 @@ export function XPostDetail({ parent }: { parent: XPost }) {
     onToast: showToast,
     onAuthRequired: () => setGateOpen(true),
   });
-  const { seedPosts, seedFollowees, seedSaved, registerPost } = eng;
+  const { seedPosts, seedFollowees, seedSaved, seedReposts, registerPost } = eng;
 
   // マウント時：リプライ取得 →（ログイン時）いいね/フォロー状態を投入。
   // 自分(me)は Context から即得られるので、リプライ取得を待ちなく開始できる（B：いいね/フォローは並列）。
@@ -143,6 +143,16 @@ export function XPostDetail({ parent }: { parent: XPost }) {
       if (!alive) return;
       setReplies(thread);
       setReplyCount(thread.length);
+
+      // 親投稿のリポスト件数＋自分のリポスト済み（公開読み取り。リプライはリポスト対象外なので親のみ）。
+      const { data: rr } = await sb.from('x_reposts').select('reposter_profile_id').eq('post_id', parent.id);
+      const rrows = rr ?? [];
+      if (alive) {
+        seedReposts(
+          { [parent.id]: rrows.length },
+          me ? (rrows.some((x) => String(x.reposter_profile_id) === me.id) ? [parent.id] : []) : []
+        );
+      }
 
       const allPosts = [parent, ...thread];
       let likedIds: string[] = [];
@@ -168,7 +178,7 @@ export function XPostDetail({ parent }: { parent: XPost }) {
     return () => {
       alive = false;
     };
-  }, [parent, me, meLoading, seedPosts, seedFollowees, seedSaved]);
+  }, [parent, me, meLoading, seedPosts, seedFollowees, seedSaved, seedReposts]);
 
   // リプライ送信成功：一覧末尾へ追加＋件数更新＋いいねマップ登録（reply_count はトリガが親側を増やす）。
   const onReplied = useCallback(
@@ -208,8 +218,17 @@ export function XPostDetail({ parent }: { parent: XPost }) {
         ← もどる
       </Link>
 
-      {/* 親投稿 */}
-      <XPostCard post={parent} showReplyLink={false} {...cardProps(parent)} />
+      {/* 親投稿（トップレベル＝リポスト可能なのでリポストボタンも配線。ラベルは不要＝元投稿そのものの表示）。
+          リプライはリポスト対象外のため cardProps のみでリポストボタンは出さない。 */}
+      <XPostCard
+        post={parent}
+        showReplyLink={false}
+        {...cardProps(parent)}
+        reposted={eng.repostState(parent).reposted}
+        repostCount={eng.repostState(parent).count}
+        repostPending={eng.repostPendingFor(parent.id)}
+        onToggleRepost={eng.toggleRepost}
+      />
 
       {/* リプライ作成 or 受付不可案内（白カード面＝両テーマで読める） */}
       <div className="x-card mt-3 rounded-2xl bg-white/[0.94] shadow-[0_4px_16px_rgba(109,40,217,0.3)] p-4">

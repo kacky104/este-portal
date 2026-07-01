@@ -1,9 +1,9 @@
 'use client';
 
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import Link from 'next/link';
 import type { XProfile } from './xProfile';
-import type { XPost } from './xPosts';
+import type { XPost, FeedItem } from './xPosts';
 import type { ShopMini, TherapistMini } from './xAffiliation';
 import { XPostCard } from './XPostCard';
 import { VerifiedBadge } from './VerifiedBadge';
@@ -30,7 +30,7 @@ export function XProfileView({
   isOwnProfile,
   followerCount,
   followingCount,
-  posts,
+  feed,
   initialLikedIds,
   initialSavedIds,
   initialRepostedIds,
@@ -47,7 +47,7 @@ export function XProfileView({
   isOwnProfile: boolean;
   followerCount: number | null;
   followingCount: number | null;
-  posts: XPost[];
+  feed: FeedItem[]; // 通常投稿＋リポストをマージ済み（サーバで sortAt 降順・重複排除済み）
   initialLikedIds: string[];
   initialSavedIds: string[];
   initialRepostedIds: string[];
@@ -65,6 +65,9 @@ export function XProfileView({
     setToast(msg);
     window.setTimeout(() => setToast(''), 2600);
   };
+
+  // フックのいいね/リポスト状態はフィード内の各投稿（重複排除済み）を種にする。
+  const posts = useMemo(() => feed.map((f) => f.post), [feed]);
 
   // いいね／フォローは共通フックで（タイムラインと同一ロジック）。
   const eng = useXEngagement({
@@ -309,17 +312,18 @@ export function XProfileView({
         </div>
       )}
 
-      {/* ─── 投稿一覧（各カードが浮遊） ─── */}
-      {/* ユーザーアカウントは投稿不可のため、投稿セクション（空表示「まだ投稿がありません」含む）ごと描画しない。
-          セラピスト・お店は従来どおり（空のときの空表示も維持）。 */}
-      {target.kind !== 'user' && (
+      {/* ─── 投稿＋リポスト一覧（各カードが浮遊） ─── */}
+      {/* ユーザーは投稿不可だがリポストは可能。投稿ゼロでもリポストがあればフィードを描画する。
+          セラピスト・お店は従来どおり（空のときの空表示も維持）。ユーザーでフィード空なら丸ごと非描画。 */}
+      {(target.kind !== 'user' || feed.length > 0) && (
         <div className="mt-3 space-y-3">
-          {posts.length === 0 ? (
+          {feed.length === 0 ? (
             <div className="py-16 text-center">
               <p className="x-rescue-muted text-sm text-white/90 drop-shadow-sm">まだ投稿がありません</p>
             </div>
           ) : (
-            posts.map((p) => {
+            feed.map((item) => {
+              const p = item.post;
               const ls = eng.likeState(p);
               const rs = eng.repostState(p);
               return (
@@ -328,8 +332,8 @@ export function XProfileView({
                   post={p}
                   liked={ls.liked}
                   likeCount={ls.count}
-                  following={following}
-                  showFollow={false} /* プロフィール上部にフォローボタンがあるため各投稿では出さない */
+                  following={eng.isFollowing(p.author.id)}
+                  showFollow={false} /* プロフィール上部にフォローボタンがあるため各投稿では出さない（リポスト元にも出さない） */
                   likePending={eng.likePendingFor(p.id)}
                   followPending={followPending}
                   onToggleLike={eng.toggleLike}
@@ -341,6 +345,7 @@ export function XProfileView({
                   repostCount={rs.count}
                   repostPending={eng.repostPendingFor(p.id)}
                   onToggleRepost={eng.toggleRepost}
+                  repostLabel={item.kind === 'repost' ? `${item.reposterName} さんがリポスト` : undefined}
                 />
               );
             })
