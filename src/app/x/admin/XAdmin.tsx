@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { createClient } from '@/app/lib/supabase/client';
 import { XTimeAgo } from '../XTimeAgo';
 import { VerifiedBadge } from '../VerifiedBadge';
+import { searchXPostsByDate } from '@/app/actions/xAdminSearch';
 
 const supabase = createClient();
 
@@ -55,6 +56,10 @@ export function XAdmin({
   const [onlyUnverified, setOnlyUnverified] = useState(false);
   const [busy, setBusy] = useState<string | null>(null);
   const [toast, setToast] = useState('');
+  const [searchFrom, setSearchFrom] = useState(''); // datetime-local の値
+  const [searchTo, setSearchTo] = useState('');
+  const [searching, setSearching] = useState(false);
+  const [searchActive, setSearchActive] = useState(false); // 検索結果表示中フラグ
 
   const showToast = (msg: string) => {
     setToast(msg);
@@ -122,6 +127,30 @@ export function XAdmin({
     setProfiles((list) => list.filter((p) => p.id !== id));
     setShops((list) => list.filter((s) => s.id !== id));
     showToast('プロフィールを削除しました');
+  };
+
+  const runSearch = async () => {
+    if (!searchFrom && !searchTo) {
+      showToast('日時を指定してください');
+      return;
+    }
+    setSearching(true);
+    const res = await searchXPostsByDate(searchFrom || null, searchTo || null);
+    setSearching(false);
+    if (!res.ok) {
+      showToast(`検索に失敗しました：${res.error ?? ''}`);
+      return;
+    }
+    setPosts(res.posts);
+    setSearchActive(true);
+    showToast(`${res.posts.length}件見つかりました`);
+  };
+
+  const clearSearch = () => {
+    setPosts(initialPosts); // 初期50件に復元（props をそのまま使う）
+    setSearchActive(false);
+    setSearchFrom('');
+    setSearchTo('');
   };
 
   const shownShops = onlyUnverified ? shops.filter((s) => !s.is_verified) : shops;
@@ -264,10 +293,62 @@ export function XAdmin({
 
       {/* ── 投稿モデレーション ── */}
       {tab === 'posts' && (
-        <div className="divide-y divide-slate-100">
-          {posts.length === 0 ? (
-            <p className="text-center text-sm text-slate-400 py-12">投稿はありません</p>
-          ) : (
+        <div>
+          {/* 日時範囲検索 */}
+          <div className="mb-4 p-3 rounded-2xl bg-slate-50 border border-slate-200">
+            <p className="text-xs font-bold text-slate-500 mb-2">投稿日時で検索（日本時間）</p>
+            <div className="flex flex-wrap items-end gap-2">
+              <label className="flex flex-col gap-1 text-[11px] font-bold text-slate-400">
+                開始
+                <input
+                  type="datetime-local"
+                  value={searchFrom}
+                  onChange={(e) => setSearchFrom(e.target.value)}
+                  className="text-xs border border-slate-200 rounded-lg px-2 py-1 text-slate-700"
+                />
+              </label>
+              <label className="flex flex-col gap-1 text-[11px] font-bold text-slate-400">
+                終了
+                <input
+                  type="datetime-local"
+                  value={searchTo}
+                  onChange={(e) => setSearchTo(e.target.value)}
+                  className="text-xs border border-slate-200 rounded-lg px-2 py-1 text-slate-700"
+                />
+              </label>
+              <button
+                type="button"
+                onClick={runSearch}
+                disabled={searching}
+                className="text-xs font-bold px-4 py-1.5 rounded-lg text-white disabled:opacity-50"
+                style={{ background: 'linear-gradient(100deg,#6366F1,#8B5CF6)' }}
+              >
+                {searching ? '検索中…' : '検索'}
+              </button>
+              {searchActive && (
+                <button
+                  type="button"
+                  onClick={clearSearch}
+                  className="text-xs font-bold px-3 py-1.5 rounded-lg border border-slate-200 text-slate-500 hover:bg-slate-100"
+                >
+                  検索解除
+                </button>
+              )}
+            </div>
+            {searchActive && (
+              <p className="text-[11px] text-indigo-500 font-bold mt-2">
+                検索結果を表示中（最大100件・新しい順）
+              </p>
+            )}
+          </div>
+
+          {/* 投稿リスト */}
+          <div className="divide-y divide-slate-100">
+            {posts.length === 0 ? (
+              <p className="text-center text-sm text-slate-400 py-12">
+                {searchActive ? '該当する投稿はありません' : '投稿はありません'}
+              </p>
+            ) : (
             posts.map((p) => (
               <div key={p.id} className="py-3 flex items-start gap-3">
                 <div className="flex-1 min-w-0">
@@ -289,6 +370,7 @@ export function XAdmin({
               </div>
             ))
           )}
+          </div>
         </div>
       )}
 
