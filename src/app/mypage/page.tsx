@@ -81,7 +81,7 @@ async function fetchAnnouncementList(salonId: number): Promise<Announcement[]> {
 }
 
 // タブのアイコン（既存サイトと同系統の tabler/lucide 風アウトラインアイコン）。
-function tabIcon(key: 'salon' | 'schedule' | 'available' | 'profile' | 'diary' | 'coupon' | 'news' | 'vipletter') {
+function tabIcon(key: 'salon' | 'schedule' | 'available' | 'profile' | 'diary' | 'coupon' | 'news' | 'vipletter' | 'booking') {
   const common = {
     width: 14, height: 14, viewBox: '0 0 24 24', fill: 'none',
     stroke: 'currentColor', strokeWidth: 2,
@@ -105,6 +105,14 @@ function tabIcon(key: 'salon' | 'schedule' | 'available' | 'profile' | 'diary' |
         <svg {...common}>
           <rect x="3" y="4" width="18" height="18" rx="2" />
           <path d="M16 2v4M8 2v4M3 10h18" />
+        </svg>
+      );
+    case 'booking': // ネット予約（calendar-check）
+      return (
+        <svg {...common}>
+          <rect x="3" y="4" width="18" height="18" rx="2" />
+          <path d="M16 2v4M8 2v4M3 10h18" />
+          <path d="M9 15l2 2l4 -4" />
         </svg>
       );
     case 'available': // 今すぐ（clock）
@@ -359,7 +367,7 @@ export default function MyPage() {
   const [toast, setToast] = useState('');
   const [saving, setSaving] = useState(false);
   const [savingSchedule, setSavingSchedule] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<'salon' | 'schedule' | 'profile' | 'available' | 'diary' | 'coupon' | 'news' | 'vipletter'>('salon');
+  const [activeTab, setActiveTab] = useState<'salon' | 'schedule' | 'profile' | 'available' | 'diary' | 'coupon' | 'news' | 'vipletter' | 'booking'>('salon');
   const [expandedSections, setExpandedSections] = useState<Set<string>>(new Set());
   const [newTherapistName, setNewTherapistName] = useState('');
   const [newTherapistIsNew, setNewTherapistIsNew] = useState(false);
@@ -1444,6 +1452,7 @@ export default function MyPage() {
             ['coupon',    'クーポン'],
             ['news',      'お知らせ'],
             ['vipletter', 'VIPレター'],
+            ['booking',   'ネット予約'],
           ] as const).map(([key, label]) => {
             const selected = activeTab === key;
             return (
@@ -1726,95 +1735,6 @@ export default function MyPage() {
               </div>
             </div>
           </div>
-          {/* ── ネット予約設定 ── */}
-          <div className="border border-pink-100 rounded-xl p-3 bg-pink-50/20 space-y-2.5">
-            <label className={labelClass}>ネット予約</label>
-            <label className="flex items-center gap-2 text-sm font-bold text-slate-600 cursor-pointer select-none">
-              <input
-                type="checkbox"
-                checked={Boolean(salonForm.booking_enabled)}
-                onChange={(e) => setSalonForm((p) => ({ ...p, booking_enabled: e.target.checked }))}
-                className="accent-pink-500 w-4 h-4"
-              />
-              ネット予約を受け付ける
-            </label>
-            <div>
-              <label className="block text-[11px] font-bold text-slate-500 mb-1">予約通知先メール</label>
-              <input
-                type="email"
-                placeholder="reservation@example.com"
-                className={inputClass}
-                value={salonForm.booking_email ?? ''}
-                onChange={(e) => setSalonForm((p) => ({ ...p, booking_email: e.target.value }))}
-              />
-              <p className="text-[10px] text-slate-400 mt-1">
-                新しい予約が入ったときの通知先です。ネット予約を受け付ける場合は必須。
-              </p>
-            </div>
-            <p className="text-[10px] text-slate-400 leading-relaxed">
-              ※ ネット予約は「指名予約」のみ受け付けます。フリー（指名なし）をご希望のお客様には、
-              料金ページ等でお電話でのご予約をご案内ください。
-            </p>
-
-            {/* 予約で受け付けるコース（料金ページの courses とは独立） */}
-            <div className="border-t border-pink-100 pt-2.5">
-              <label className="block text-[11px] font-bold text-slate-500 mb-1">予約で受け付けるコース</label>
-              <p className="text-[10px] text-slate-400 leading-relaxed mb-2">
-                ここに登録したコースがネット予約の選択肢になります。料金ページとは別に設定できます（ネット予約限定メニューも登録できます）。
-              </p>
-              {bookingCourses.length > 0 && (
-                <div className="space-y-2 mb-2">
-                  {bookingCourses.map((c, i) => (
-                    <div key={i} className="flex items-center gap-1.5">
-                      <input
-                        type="text"
-                        placeholder="コース名"
-                        className={`${inputClass} flex-1 min-w-0`}
-                        value={c.name}
-                        onChange={(e) => updateBookingCourse(i, { name: e.target.value })}
-                      />
-                      <div className="flex items-center gap-1 flex-shrink-0">
-                        <input
-                          type="number"
-                          min={15}
-                          step={15}
-                          placeholder="60"
-                          className={`${inputClass} w-16 text-right`}
-                          value={c.duration_min}
-                          onChange={(e) =>
-                            updateBookingCourse(i, { duration_min: e.target.value === '' ? '' : Number(e.target.value) })
-                          }
-                        />
-                        <span className="text-[11px] text-slate-400">分</span>
-                      </div>
-                      <input
-                        type="text"
-                        placeholder="¥12,000"
-                        className={`${inputClass} w-24 flex-shrink-0`}
-                        value={c.price}
-                        onChange={(e) => updateBookingCourse(i, { price: e.target.value })}
-                      />
-                      <button
-                        type="button"
-                        onClick={() => removeBookingCourse(i)}
-                        aria-label="コースを削除"
-                        className="flex-shrink-0 w-7 h-7 flex items-center justify-center rounded-lg text-slate-400 hover:text-rose-500 hover:bg-rose-50 transition-colors"
-                      >
-                        ×
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              )}
-              <button
-                type="button"
-                onClick={addBookingCourse}
-                className="text-xs font-bold text-pink-500 hover:text-pink-600 transition-colors"
-              >
-                ＋コースを追加
-              </button>
-            </div>
-          </div>
           <div>
             <label className={labelClass}>サロン紹介</label>
             <textarea rows={6} className={textareaClass} value={salonForm.description ?? ''} onChange={(e) => setSalonForm((p) => ({ ...p, description: e.target.value }))} />
@@ -1923,6 +1843,113 @@ export default function MyPage() {
                 {uploadingNewSlot ? 'アップロード中...' : '+ 新しいスロットを追加（PC用画像、JPEG / PNG / WebP, 最大5MB）'}
               </label>
             )}
+          </div>
+
+          <div className="pt-1 flex justify-end">
+            <button className={saveBtn} onClick={handleSalonSave} disabled={saving}>
+              {saving ? '保存中...' : '保存'}
+            </button>
+          </div>
+        </div>
+
+        {/* ── タブ: ネット予約設定 ── */}
+        <div className={`bg-white rounded-3xl border border-slate-100 shadow-sm p-5 space-y-4 ${activeTab === 'booking' ? '' : 'hidden'}`}>
+          <h2 className="text-sm font-black text-slate-700">ネット予約の設定</h2>
+
+          <div className="border border-pink-100 rounded-xl p-3 bg-pink-50/20 space-y-2.5">
+            <label className="flex items-center gap-2 text-sm font-bold text-slate-600 cursor-pointer select-none">
+              <input
+                type="checkbox"
+                checked={Boolean(salonForm.booking_enabled)}
+                onChange={(e) => setSalonForm((p) => ({ ...p, booking_enabled: e.target.checked }))}
+                className="accent-pink-500 w-4 h-4"
+              />
+              ネット予約を受け付ける
+            </label>
+            <div>
+              <label className="block text-[11px] font-bold text-slate-500 mb-1">予約通知先メール</label>
+              <input
+                type="email"
+                placeholder="reservation@example.com"
+                className={inputClass}
+                value={salonForm.booking_email ?? ''}
+                onChange={(e) => setSalonForm((p) => ({ ...p, booking_email: e.target.value }))}
+              />
+              <p className="text-[10px] text-slate-400 mt-1">
+                新しい予約が入ったときの通知先です。ネット予約を受け付ける場合は必須。
+              </p>
+            </div>
+            <p className="text-[10px] text-slate-400 leading-relaxed">
+              ※ ネット予約は「指名予約」のみ受け付けます。フリー（指名なし）をご希望のお客様には、
+              料金ページ等でお電話でのご予約をご案内ください。
+            </p>
+          </div>
+
+          {/* 予約で受け付けるコース（料金ページの courses とは独立） */}
+          <div className="border border-pink-100 rounded-xl p-3 bg-pink-50/20 space-y-2">
+            <label className="block text-[11px] font-bold text-slate-500">予約で受け付けるコース</label>
+            <p className="text-[10px] text-slate-400 leading-relaxed">
+              ここに登録したコースがネット予約の選択肢になります。料金ページとは別に設定できます（ネット予約限定メニューも登録できます）。
+            </p>
+            {bookingCourses.length > 0 && (
+              <div className="space-y-2">
+                {bookingCourses.map((c, i) => {
+                  // 行内 input は inputClass（w-full を含む）を使わない。
+                  // w-full が w-20/flex-1 と衝突すると、Tailwind の解決順で幅が暴れ料金欄が潰れるため、
+                  // ここは明示クラスで flex 幅（none / 1 / min-w-0）を確定させる。
+                  const rowInput = 'rounded-xl border border-slate-200 px-3 py-2 text-sm bg-slate-50/50 focus:outline-none focus:ring-2 focus:ring-pink-200';
+                  return (
+                    <div key={i} className="flex flex-col gap-2 rounded-xl border border-slate-200 bg-white/60 p-3">
+                      {/* 1段目：コース名（フル幅） */}
+                      <input
+                        type="text"
+                        value={c.name}
+                        onChange={(e) => updateBookingCourse(i, { name: e.target.value })}
+                        placeholder="例）スタンダードアロマ"
+                        className={`w-full ${rowInput}`}
+                      />
+                      {/* 2段目：所要時間 / 分 / 料金 / × を横並び */}
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="number"
+                          min={15}
+                          step={15}
+                          value={c.duration_min}
+                          onChange={(e) =>
+                            updateBookingCourse(i, { duration_min: e.target.value === '' ? '' : Number(e.target.value) })
+                          }
+                          placeholder="60"
+                          className={`w-20 flex-none text-right ${rowInput}`}
+                        />
+                        <span className="text-sm text-slate-500 flex-none">分</span>
+                        <input
+                          type="text"
+                          value={c.price}
+                          onChange={(e) => updateBookingCourse(i, { price: e.target.value })}
+                          placeholder="例）¥9,000"
+                          className={`flex-1 min-w-0 ${rowInput}`}
+                        />
+                        <button
+                          type="button"
+                          onClick={() => removeBookingCourse(i)}
+                          className="flex-none text-slate-400 hover:text-rose-500 px-2 text-lg leading-none"
+                          aria-label="削除"
+                        >
+                          ×
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+            <button
+              type="button"
+              onClick={addBookingCourse}
+              className="text-xs font-bold text-pink-500 hover:text-pink-600 transition-colors"
+            >
+              ＋コースを追加
+            </button>
           </div>
 
           <div className="pt-1 flex justify-end">
