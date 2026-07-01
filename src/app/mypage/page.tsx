@@ -198,6 +198,22 @@ function fromPickerValue(value: string): { start: string | null; end: string | n
 type CourseItem  = { duration: string; price: string };
 type CourseGroup = { name: string; items: CourseItem[] };
 type OtherItem   = { label: string; price: string };
+// ネット予約専用コース（料金ページの courses とは独立。salons.booking_courses に保存）。
+// 入力中は duration_min を空文字許容し、保存時に数値化する。
+type BookingCourseForm = { name: string; duration_min: number | ''; price: string };
+
+// salons.booking_courses(JSON) → フォーム用に整形（既存店で null/未定義なら空配列）。
+function parseBookingCourses(raw: unknown): BookingCourseForm[] {
+  if (!Array.isArray(raw)) return [];
+  return (raw as Record<string, unknown>[]).map((c) => {
+    const n = Number(c.duration_min);
+    return {
+      name: String(c.name ?? ''),
+      duration_min: Number.isFinite(n) && n > 0 ? n : '',
+      price: String(c.price ?? ''),
+    };
+  });
+}
 
 function parseCourseGroups(raw: unknown): CourseGroup[] {
   if (!Array.isArray(raw) || raw.length === 0) return [{ name: '', items: [{ duration: '', price: '' }] }];
@@ -231,20 +247,32 @@ function parseOtherItems(raw: unknown): OtherItem[] {
 function buildCoursesJson(
   groups: CourseGroup[],
   otherItems: OtherItem[]
-): Array<{ name: string; duration: string; price: string }> {
-  const result: Array<{ name: string; duration: string; price: string }> = [];
+): Array<{ name: string; duration: string; price: string; duration_min: number | null }> {
+  // ネット予約の枠計算用にコース時間を数値(分)でも保持する。
+  // item.duration はフォーム内で数字化済み（"60"）。数字が取れなければ null（"その他"や表記揺れ）。
+  const toDurationMin = (raw: string): number | null => {
+    const n = parseInt(String(raw).replace(/[^\d]/g, ''), 10);
+    return isNaN(n) ? null : n;
+  };
+  const result: Array<{ name: string; duration: string; price: string; duration_min: number | null }> = [];
   for (const g of groups) {
     for (const item of g.items) {
       const priceNum = parseInt(item.price.replace(/[^\d]/g, ''), 10);
       const priceStr = isNaN(priceNum) ? item.price : `¥${priceNum.toLocaleString('ja-JP')}`;
-      result.push({ name: g.name, duration: item.duration ? `${item.duration}分` : '', price: priceStr });
+      result.push({
+        name: g.name,
+        duration: item.duration ? `${item.duration}分` : '',
+        price: priceStr,
+        duration_min: toDurationMin(item.duration),
+      });
     }
   }
   for (const item of otherItems) {
     if (!item.label && !item.price) continue;
     const priceNum = parseInt(item.price.replace(/[^\d]/g, ''), 10);
     const priceStr = isNaN(priceNum) ? item.price : `¥${priceNum.toLocaleString('ja-JP')}`;
-    result.push({ name: 'その他', duration: item.label, price: priceStr });
+    // 「その他」は時間ではないラベル（指名料等）なので常に null。
+    result.push({ name: 'その他', duration: item.label, price: priceStr, duration_min: null });
   }
   return result;
 }
@@ -291,6 +319,9 @@ type Salon = {
   fukux_url: string | null;
   payment_url: string | null;
   payment_cards: string[] | null;
+  booking_enabled: boolean | null;
+  booking_email: string | null;
+  booking_courses: unknown;
 };
 
 type Therapist = {
@@ -340,6 +371,7 @@ export default function MyPage() {
   const [inviteBusyId, setInviteBusyId] = useState<string | null>(null);
   const [courseGroups, setCourseGroups] = useState<CourseGroup[]>([{ name: '', items: [{ duration: '', price: '' }] }]);
   const [otherItems,   setOtherItems]   = useState<OtherItem[]>([{ label: '', price: '' }]);
+  const [bookingCourses, setBookingCourses] = useState<BookingCourseForm[]>([]);
   const [salonImages,    setSalonImages]    = useState<SalonImage[]>([]);
   const [uploadingNewSlot,  setUploadingNewSlot]  = useState(false);
   const [uploadingPcId,     setUploadingPcId]     = useState<string | null>(null);
@@ -416,7 +448,7 @@ export default function MyPage() {
 
       const { data: salonData, error: salonError } = await supabase
         .from('salons')
-        .select('id, name, rating, review_count, tags, price, area, hours, description, appeal, therapist_count, therapist_types, therapist_profile, phone, address, access, closed_days, courses, theme, official_url, fukux_url, payment_url, payment_cards')
+        .select('id, name, rating, review_count, tags, price, area, hours, description, appeal, therapist_count, therapist_types, therapist_profile, phone, address, access, closed_days, courses, theme, official_url, fukux_url, payment_url, payment_cards, booking_enabled, booking_email, booking_courses')
         .eq('owner_id', user.id)
         .single();
 
@@ -429,6 +461,7 @@ export default function MyPage() {
       setSalonForm(salonData);
       setCourseGroups(parseCourseGroups(salonData.courses));
       setOtherItems(parseOtherItems(salonData.courses));
+      setBookingCourses(parseBookingCourses(salonData.booking_courses));
 
       const { data: imageData } = await supabase
         .from('salon_images')
@@ -698,6 +731,12 @@ export default function MyPage() {
     });
   };
 
+  // 予約コース：行の追加・削除・各フィールド編集。
+  const addBookingCourse = () => setBookingCourses((prev) => [...prev, { name: '', duration_min: '', price: '' }]);
+  const removeBookingCourse = (index: number) => setBookingCourses((prev) => prev.filter((_, i) => i !== index));
+  const updateBookingCourse = (index: number, patch: Partial<BookingCourseForm>) =>
+    setBookingCourses((prev) => prev.map((c, i) => (i === index ? { ...c, ...patch } : c)));
+
   const handleSalonSave = async () => {
     if (!salon) return;
     setSaving(true);
@@ -744,6 +783,37 @@ export default function MyPage() {
       paymentUrl = payRaw;
     }
 
+    // ネット予約：受付ON時は通知先メール必須（簡易チェック＝@を含む程度）。空欄は null。
+    const bookingEnabled = Boolean(salonForm.booking_enabled);
+    const bookingEmail = (salonForm.booking_email ?? '').trim() || null;
+    if (bookingEnabled) {
+      if (!bookingEmail || !bookingEmail.includes('@')) {
+        setSaving(false);
+        showToast('ネット予約を受け付けるには、通知先メールアドレスを入力してください');
+        return;
+      }
+    }
+
+    // 予約コース：完全空行（名前も時間も空）は除外。登録意図のある行は name 必須＋所要時間=正の整数。
+    const bookingCoursesClean: { name: string; duration_min: number; price: string }[] = [];
+    for (const c of bookingCourses) {
+      const name = c.name.trim();
+      const durEmpty = c.duration_min === '' || c.duration_min === null;
+      if (!name && durEmpty) continue; // 空行は無視
+      if (!name) {
+        setSaving(false);
+        showToast('予約コース名を入力してください');
+        return;
+      }
+      const dur = Number(c.duration_min);
+      if (!Number.isInteger(dur) || dur <= 0) {
+        setSaving(false);
+        showToast(`予約コース「${name}」の所要時間は正の整数（分）で入力してください`);
+        return;
+      }
+      bookingCoursesClean.push({ name, duration_min: dur, price: c.price.trim() });
+    }
+
     const { error } = await supabase
       .from('salons')
       .update({
@@ -761,6 +831,9 @@ export default function MyPage() {
         fukux_url: fukuxUrl,
         payment_url: paymentUrl,
         payment_cards: salonForm.payment_cards ?? [],
+        booking_enabled: bookingEnabled,
+        booking_email: bookingEmail,
+        booking_courses: bookingCoursesClean,
       })
       .eq('id', salon.id);
     setSaving(false);
@@ -1651,6 +1724,95 @@ export default function MyPage() {
                   );
                 })}
               </div>
+            </div>
+          </div>
+          {/* ── ネット予約設定 ── */}
+          <div className="border border-pink-100 rounded-xl p-3 bg-pink-50/20 space-y-2.5">
+            <label className={labelClass}>ネット予約</label>
+            <label className="flex items-center gap-2 text-sm font-bold text-slate-600 cursor-pointer select-none">
+              <input
+                type="checkbox"
+                checked={Boolean(salonForm.booking_enabled)}
+                onChange={(e) => setSalonForm((p) => ({ ...p, booking_enabled: e.target.checked }))}
+                className="accent-pink-500 w-4 h-4"
+              />
+              ネット予約を受け付ける
+            </label>
+            <div>
+              <label className="block text-[11px] font-bold text-slate-500 mb-1">予約通知先メール</label>
+              <input
+                type="email"
+                placeholder="reservation@example.com"
+                className={inputClass}
+                value={salonForm.booking_email ?? ''}
+                onChange={(e) => setSalonForm((p) => ({ ...p, booking_email: e.target.value }))}
+              />
+              <p className="text-[10px] text-slate-400 mt-1">
+                新しい予約が入ったときの通知先です。ネット予約を受け付ける場合は必須。
+              </p>
+            </div>
+            <p className="text-[10px] text-slate-400 leading-relaxed">
+              ※ ネット予約は「指名予約」のみ受け付けます。フリー（指名なし）をご希望のお客様には、
+              料金ページ等でお電話でのご予約をご案内ください。
+            </p>
+
+            {/* 予約で受け付けるコース（料金ページの courses とは独立） */}
+            <div className="border-t border-pink-100 pt-2.5">
+              <label className="block text-[11px] font-bold text-slate-500 mb-1">予約で受け付けるコース</label>
+              <p className="text-[10px] text-slate-400 leading-relaxed mb-2">
+                ここに登録したコースがネット予約の選択肢になります。料金ページとは別に設定できます（ネット予約限定メニューも登録できます）。
+              </p>
+              {bookingCourses.length > 0 && (
+                <div className="space-y-2 mb-2">
+                  {bookingCourses.map((c, i) => (
+                    <div key={i} className="flex items-center gap-1.5">
+                      <input
+                        type="text"
+                        placeholder="コース名"
+                        className={`${inputClass} flex-1 min-w-0`}
+                        value={c.name}
+                        onChange={(e) => updateBookingCourse(i, { name: e.target.value })}
+                      />
+                      <div className="flex items-center gap-1 flex-shrink-0">
+                        <input
+                          type="number"
+                          min={15}
+                          step={15}
+                          placeholder="60"
+                          className={`${inputClass} w-16 text-right`}
+                          value={c.duration_min}
+                          onChange={(e) =>
+                            updateBookingCourse(i, { duration_min: e.target.value === '' ? '' : Number(e.target.value) })
+                          }
+                        />
+                        <span className="text-[11px] text-slate-400">分</span>
+                      </div>
+                      <input
+                        type="text"
+                        placeholder="¥12,000"
+                        className={`${inputClass} w-24 flex-shrink-0`}
+                        value={c.price}
+                        onChange={(e) => updateBookingCourse(i, { price: e.target.value })}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => removeBookingCourse(i)}
+                        aria-label="コースを削除"
+                        className="flex-shrink-0 w-7 h-7 flex items-center justify-center rounded-lg text-slate-400 hover:text-rose-500 hover:bg-rose-50 transition-colors"
+                      >
+                        ×
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+              <button
+                type="button"
+                onClick={addBookingCourse}
+                className="text-xs font-bold text-pink-500 hover:text-pink-600 transition-colors"
+              >
+                ＋コースを追加
+              </button>
             </div>
           </div>
           <div>

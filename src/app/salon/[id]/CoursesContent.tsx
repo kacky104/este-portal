@@ -1,7 +1,8 @@
 import type { SalonTheme } from '@/app/lib/themes';
 
 // salons.courses(JSON) の1要素。duration＝行ラベル（例「70分」「指名料」「極液」）、price＝表示用料金文字列（例「¥11,000」）。
-export type Course = { name: string; duration: string; price: string; description?: string };
+// duration_min＝ネット予約の枠計算用の数値(分)。時間としてパースできた行のみ数値、それ以外は null/未設定（内部用・表示には使わない）。
+export type Course = { name: string; duration: string; price: string; description?: string; duration_min?: number | null };
 
 // コースメニュー・料金表の「内容描画部分」。
 // 同名コースをカテゴリとしてグループ化し、ピンク●＋カテゴリ名／各行（ラベル左・料金右・区切り線）／税込注記を描画する。
