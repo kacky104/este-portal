@@ -9,6 +9,7 @@ import HeaderSliderManager from '@/app/components/HeaderSliderManager';
 import FeaturedSalonsManager from '@/app/components/FeaturedSalonsManager';
 import SalonEditModal, { type SalonForEdit } from '@/app/components/SalonEditModal';
 import ThemeWallpaperManager from '@/app/components/ThemeWallpaperManager';
+import AdminJobsManager from '@/app/components/AdminJobsManager';
 import { ADMIN_UUID } from '@/app/lib/admin';
 import { areaLabel } from '@/app/lib/areaLabel';
 import { revalidateTopAndAreas, revalidateSalon } from '@/app/lib/revalidateTop';
@@ -260,6 +261,9 @@ export default function AdminDashboard() {
 
         {/* ── テーマ壁紙設定 ── */}
         <ThemeWallpaperManager onToast={showToast} />
+
+        {/* ── 求人管理（フクエスワーク） ── */}
+        <AdminJobsManager onToast={showToast} />
 
         {/* ── 新規サロン追加フォーム ── */}
         <div className="bg-white rounded-3xl border border-slate-100 shadow-sm p-6">

@@ -9,6 +9,7 @@ import { TimeRangePicker } from '@/components/TimeRangePicker';
 import { SALON_THEMES, type ThemeKey } from '@/app/lib/themes';
 import { COUPON_COLORS, getCouponColor, DEFAULT_COUPON_COLOR_KEY, type CouponColorKey } from '@/app/lib/couponColors';
 import { VipLetterForm } from '@/app/components/VipLetterForm';
+import { JobsTab } from '@/app/mypage/JobsTab';
 import { getBusinessDateJST, getBusinessDateRangeJST } from '@/lib/dutyStatus';
 import { isCastLiveRow } from '@/lib/imasugu';
 import { MyDiaryList } from './MyDiaryList';
@@ -83,7 +84,7 @@ async function fetchAnnouncementList(salonId: number): Promise<Announcement[]> {
 }
 
 // タブのアイコン（既存サイトと同系統の tabler/lucide 風アウトラインアイコン）。
-function tabIcon(key: 'salon' | 'schedule' | 'available' | 'profile' | 'diary' | 'coupon' | 'news' | 'vipletter' | 'booking') {
+function tabIcon(key: 'salon' | 'schedule' | 'available' | 'profile' | 'diary' | 'coupon' | 'news' | 'vipletter' | 'booking' | 'jobs') {
   const common = {
     width: 14, height: 14, viewBox: '0 0 24 24', fill: 'none',
     stroke: 'currentColor', strokeWidth: 2,
@@ -115,6 +116,14 @@ function tabIcon(key: 'salon' | 'schedule' | 'available' | 'profile' | 'diary' |
           <rect x="3" y="4" width="18" height="18" rx="2" />
           <path d="M16 2v4M8 2v4M3 10h18" />
           <path d="M9 15l2 2l4 -4" />
+        </svg>
+      );
+    case 'jobs': // 求人（briefcase）
+      return (
+        <svg {...common}>
+          <rect x="3" y="7" width="18" height="13" rx="2" />
+          <path d="M8 7V5a2 2 0 0 1 2 -2h4a2 2 0 0 1 2 2v2" />
+          <path d="M3 13h18" />
         </svg>
       );
     case 'available': // 今すぐ（clock）
@@ -393,7 +402,7 @@ export default function MyPage() {
   const [toast, setToast] = useState('');
   const [saving, setSaving] = useState(false);
   const [savingSchedule, setSavingSchedule] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<'salon' | 'schedule' | 'profile' | 'available' | 'diary' | 'coupon' | 'news' | 'vipletter' | 'booking'>('salon');
+  const [activeTab, setActiveTab] = useState<'salon' | 'schedule' | 'profile' | 'available' | 'diary' | 'coupon' | 'news' | 'vipletter' | 'booking' | 'jobs'>('salon');
   const [expandedSections, setExpandedSections] = useState<Set<string>>(new Set());
   const [newTherapistName, setNewTherapistName] = useState('');
   const [newTherapistIsNew, setNewTherapistIsNew] = useState(false);
@@ -1517,6 +1526,7 @@ export default function MyPage() {
             ['news',      'お知らせ'],
             ['vipletter', 'VIPレター'],
             ['booking',   'ネット予約'],
+            ['jobs',      '求人'],
           ] as const).map(([key, label]) => {
             const selected = activeTab === key;
             return (
@@ -3017,6 +3027,17 @@ export default function MyPage() {
         <div className={`space-y-4 ${activeTab === 'vipletter' ? '' : 'hidden'}`}>
           {salon ? (
             <VipLetterForm salonId={Number(salon.id)} />
+          ) : (
+            <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5">
+              <p className="text-xs text-slate-400">サロン情報を読み込み中です…</p>
+            </div>
+          )}
+        </div>
+
+        {/* ── 求人タブ（フクエスワーク・最後尾） ── */}
+        <div className={`space-y-4 ${activeTab === 'jobs' ? '' : 'hidden'}`}>
+          {salon ? (
+            <JobsTab salonId={Number(salon.id)} />
           ) : (
             <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5">
               <p className="text-xs text-slate-400">サロン情報を読み込み中です…</p>
