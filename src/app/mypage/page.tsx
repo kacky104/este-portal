@@ -14,6 +14,8 @@ import { isCastLiveRow } from '@/lib/imasugu';
 import { MyDiaryList } from './MyDiaryList';
 import { inviteCast, resendCastInvite, unlinkCast, cancelCastInvite } from '@/app/actions/castInvite';
 import { PAYMENT_CARD_OPTIONS } from '@/app/lib/paymentCards';
+import { getSalonBookings, type OwnerBooking } from '@/app/actions/booking';
+import { callbackPrefLabel } from '@/app/lib/booking/callbackPref';
 
 const supabase = createClient();
 
@@ -180,6 +182,30 @@ function formatPublishedAt(iso: string): string {
 function formatDateLabel(dateStr: string): string {
   const d = new Date(dateStr + 'T00:00:00');
   return `${d.getMonth() + 1}/${d.getDate()}(${WEEKDAYS[d.getDay()]})`;
+}
+
+// 予約枠（UTC timestamptz）を JST の "M/D(曜) HH:MM〜HH:MM" に整形する。
+function formatBookingSlot(startISO: string, endISO: string): string {
+  const parts = (iso: string) => {
+    const d = new Date(iso);
+    const md = new Intl.DateTimeFormat('ja-JP', { timeZone: 'Asia/Tokyo', month: 'numeric', day: 'numeric' }).format(d);
+    const wd = new Intl.DateTimeFormat('ja-JP', { timeZone: 'Asia/Tokyo', weekday: 'short' }).format(d);
+    const hm = new Intl.DateTimeFormat('en-GB', { timeZone: 'Asia/Tokyo', hour: '2-digit', minute: '2-digit', hour12: false }).format(d);
+    return { md, wd, hm };
+  };
+  const s = parts(startISO);
+  const e = parts(endISO);
+  return `${s.md}(${s.wd}) ${s.hm}〜${e.hm}`;
+}
+
+// 予約ステータスの表示ラベル（フェーズ2aは 'new' のみ入る想定）。
+function bookingStatusLabel(status: string): { label: string; cls: string } {
+  switch (status) {
+    case 'new': return { label: '新規リクエスト', cls: 'bg-pink-100 text-pink-700' };
+    case 'confirmed': return { label: '確定', cls: 'bg-emerald-100 text-emerald-700' };
+    case 'cancelled': return { label: 'キャンセル', cls: 'bg-slate-100 text-slate-500' };
+    default: return { label: status, cls: 'bg-slate-100 text-slate-500' };
+  }
 }
 
 function toPickerValue(start: string | null, end: string | null): string {
@@ -380,6 +406,10 @@ export default function MyPage() {
   const [courseGroups, setCourseGroups] = useState<CourseGroup[]>([{ name: '', items: [{ duration: '', price: '' }] }]);
   const [otherItems,   setOtherItems]   = useState<OtherItem[]>([{ label: '', price: '' }]);
   const [bookingCourses, setBookingCourses] = useState<BookingCourseForm[]>([]);
+  // ネット予約の受付一覧（service_role でサーバー取得・表示のみ）。
+  const [bookings, setBookings] = useState<OwnerBooking[]>([]);
+  const [bookingsLoading, setBookingsLoading] = useState(false);
+  const [bookingsError, setBookingsError] = useState('');
   const [salonImages,    setSalonImages]    = useState<SalonImage[]>([]);
   const [uploadingNewSlot,  setUploadingNewSlot]  = useState(false);
   const [uploadingPcId,     setUploadingPcId]     = useState<string | null>(null);
@@ -470,6 +500,18 @@ export default function MyPage() {
       setCourseGroups(parseCourseGroups(salonData.courses));
       setOtherItems(parseOtherItems(salonData.courses));
       setBookingCourses(parseBookingCourses(salonData.booking_courses));
+
+      // ネット予約の受付一覧を取得（オーナー検証＋service_role はサーバーアクション側）。
+      // 失敗時はエラーを握り潰さず表示する（silent 0件を防ぐ）。
+      setBookingsLoading(true);
+      setBookingsError('');
+      getSalonBookings(Number(salonData.id))
+        .then((res) => {
+          if (res.ok) setBookings(res.bookings);
+          else setBookingsError(res.error);
+        })
+        .catch((e) => setBookingsError(e instanceof Error ? e.message : String(e)))
+        .finally(() => setBookingsLoading(false));
 
       const { data: imageData } = await supabase
         .from('salon_images')
@@ -1853,7 +1895,50 @@ export default function MyPage() {
         </div>
 
         {/* ── タブ: ネット予約設定 ── */}
-        <div className={`bg-white rounded-3xl border border-slate-100 shadow-sm p-5 space-y-4 ${activeTab === 'booking' ? '' : 'hidden'}`}>
+        <div className={`space-y-4 ${activeTab === 'booking' ? '' : 'hidden'}`}>
+
+        {/* 予約一覧（新しい順・表示のみ。ステータス変更/削除は後日） */}
+        <div className="bg-white rounded-3xl border border-slate-100 shadow-sm p-5 space-y-3">
+          <div className="flex items-center justify-between">
+            <h2 className="text-sm font-black text-slate-700">予約一覧</h2>
+            <span className="text-[11px] text-slate-400">{bookings.length}件</span>
+          </div>
+          {bookingsError ? (
+            <p className="text-xs text-rose-600">予約一覧の取得に失敗しました：{bookingsError}</p>
+          ) : bookingsLoading ? (
+            <p className="text-xs text-slate-400">読み込み中...</p>
+          ) : bookings.length === 0 ? (
+            <p className="text-xs text-slate-400">まだネット予約はありません。</p>
+          ) : (
+            <div className="space-y-2">
+              {bookings.map((b) => {
+                const st = bookingStatusLabel(b.status);
+                return (
+                  <div key={b.id} className="rounded-xl border border-slate-200 p-3 space-y-1.5">
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="text-sm font-bold text-slate-700">{formatBookingSlot(b.slotStart, b.slotEnd)}</span>
+                      <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full flex-shrink-0 ${st.cls}`}>{st.label}</span>
+                    </div>
+                    <div className="flex flex-wrap gap-x-3 gap-y-0.5 text-xs text-slate-500">
+                      <span><span className="text-slate-400">指名：</span>{b.therapistName}</span>
+                      <span><span className="text-slate-400">コース：</span>{b.courseName}（{b.courseMin}分）</span>
+                    </div>
+                    <div className="flex flex-wrap gap-x-3 gap-y-0.5 text-xs text-slate-600">
+                      <span><span className="text-slate-400">お客様：</span>{b.customerName}</span>
+                      <span><span className="text-slate-400">電話：</span><a href={`tel:${b.customerTel}`} className="text-pink-600 underline">{b.customerTel}</a></span>
+                      <span><span className="text-slate-400">折り返し希望：</span>{callbackPrefLabel(b.callbackPref)}</span>
+                    </div>
+                    {b.note && (
+                      <p className="text-xs text-slate-500 whitespace-pre-wrap break-words"><span className="text-slate-400">備考：</span>{b.note}</p>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+
+        <div className="bg-white rounded-3xl border border-slate-100 shadow-sm p-5 space-y-4">
           <h2 className="text-sm font-black text-slate-700">ネット予約の設定</h2>
 
           <div className="border border-pink-100 rounded-xl p-3 bg-pink-50/20 space-y-2.5">
@@ -1957,6 +2042,7 @@ export default function MyPage() {
               {saving ? '保存中...' : '保存'}
             </button>
           </div>
+        </div>
         </div>
 
         {/* ── タブ2: 出勤設定 ── */}

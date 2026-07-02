@@ -1,27 +1,27 @@
+import Link from 'next/link';
 import { SaveButton } from '@/app/components/SaveButton';
 
 // サロン詳細ページの主要アクション（ネット予約／電話をする）。
 //
-// ── 今回は「見た目のみ」。後日データを繋ぐ“口”だけ用意する ──
-//  - reserveUrl : ネット予約URL。指定時は <a href> で予約ページへ（外部想定で target=_blank）。
-//                 未設定（undefined / null）のときは無効プレビュー表示。
-//                 ※本番運用では「未設定なら非表示」にする想定（呼び出し側で出し分け、または
-//                   このコンポーネント先頭で reserveUrl も phone も無ければ null を返す等）。
+//  - bookingEnabled : ネット予約フェーズ1の内部予約フローへの導線。true のとき
+//                     「ネット予約」ボタンを /salon/[id]/book への内部リンクにする。
+//                     false（未受付）のときは従来どおり無効プレビュー表示。
+//  - reserveUrl : 外部ネット予約URL（将来用）。bookingEnabled より優先度は低い。
+//                 指定時は <a href> で外部予約ページへ（target=_blank）。
 //  - phone      : 電話番号。指定時は tel: リンク（スマホは発信／PCも tel: で対応）。
-//                 未設定のときは無効プレビュー表示。本番運用では「未設定なら非表示」想定。
-//
-// 現状は予約/電話の props を渡していないため、両ボタンとも「押しても何も起きない」プレビュー。
-// データ接続時は <SalonActionButtons reserveUrl={...} phone={salon.phone} /> と渡すだけで機能する。
+//                 未設定のときは無効プレビュー表示。
 //
 // salonId / salonName を渡すと、右端にサロン保存ボタン（SaveButton paw）を表示する。
 // 保存状態は SaveButton 側が localStorage で自己完結管理するため、ここでの初期状態取得は不要。
 export function SalonActionButtons({
   reserveUrl,
+  bookingEnabled,
   phone,
   salonId,
   salonName,
 }: {
   reserveUrl?: string | null;
+  bookingEnabled?: boolean;
   phone?: string | null;
   salonId?: number;
   salonName?: string;
@@ -46,37 +46,53 @@ export function SalonActionButtons({
     </svg>
   );
 
+  // ネット予約の遷移先：受付ON（内部フロー）＞外部URL＞無効プレビュー の優先順。
+  const bookHref = bookingEnabled && salonId != null ? `/salon/${salonId}/book` : null;
+
   return (
-    <div className="flex items-stretch gap-2.5 sm:gap-3 mb-4">
-      {/* ── ネット予約（主CTA） ── */}
-      {reserveUrl ? (
-        <a href={reserveUrl} target="_blank" rel="noopener noreferrer" className={`${base} text-white hover:brightness-105`} style={reserveStyle}>
-          {calendarIcon}ネット予約
-        </a>
-      ) : (
-        // reserveUrl 未設定：今は無効（押下しても何も起きない）。データ接続後は href を差し込むだけ。
-        <button type="button" aria-disabled="true" className={`${base} text-white cursor-default`} style={reserveStyle}>
-          {calendarIcon}ネット予約
-        </button>
-      )}
+    <div className="mb-4">
+      <div className="flex items-stretch gap-2.5 sm:gap-3">
+        {/* ── ネット予約（主CTA） ── */}
+        {bookHref ? (
+          <Link href={bookHref} className={`${base} text-white hover:brightness-105`} style={reserveStyle}>
+            {calendarIcon}ネット予約
+          </Link>
+        ) : reserveUrl ? (
+          <a href={reserveUrl} target="_blank" rel="noopener noreferrer" className={`${base} text-white hover:brightness-105`} style={reserveStyle}>
+            {calendarIcon}ネット予約
+          </a>
+        ) : (
+          // 予約受付OFFかつ外部URL未設定：無効プレビュー（押下しても何も起きない）。
+          <button type="button" aria-disabled="true" className={`${base} text-white cursor-default`} style={reserveStyle}>
+            {calendarIcon}ネット予約
+          </button>
+        )}
 
-      {/* ── 電話をする（副CTA） ── */}
-      {phone ? (
-        <a href={`tel:${phone}`} className={`${base} bg-white hover:bg-pink-50`} style={phoneStyle}>
-          {phoneIcon}電話をする
-        </a>
-      ) : (
-        // phone 未設定：今は無効。データ接続後は tel: の番号を差し込むだけ。
-        <button type="button" aria-disabled="true" className={`${base} bg-white cursor-default`} style={phoneStyle}>
-          {phoneIcon}電話をする
-        </button>
-      )}
+        {/* ── 電話をする（副CTA） ── */}
+        {phone ? (
+          <a href={`tel:${phone}`} className={`${base} bg-white hover:bg-pink-50`} style={phoneStyle}>
+            {phoneIcon}電話をする
+          </a>
+        ) : (
+          // phone 未設定：今は無効。データ接続後は tel: の番号を差し込むだけ。
+          <button type="button" aria-disabled="true" className={`${base} bg-white cursor-default`} style={phoneStyle}>
+            {phoneIcon}電話をする
+          </button>
+        )}
 
-      {/* ── サロン保存ボタン（右端・既存 SaveButton paw を流用。状態は SaveButton 側で自己完結） ── */}
-      {salonId != null && (
-        <span className="flex-shrink-0 inline-flex items-center">
-          <SaveButton kind="salon" item={{ id: salonId, name: salonName ?? '' }} variant="paw" />
-        </span>
+        {/* ── サロン保存ボタン（右端・既存 SaveButton paw を流用。状態は SaveButton 側で自己完結） ── */}
+        {salonId != null && (
+          <span className="flex-shrink-0 inline-flex items-center">
+            <SaveButton kind="salon" item={{ id: salonId, name: salonName ?? '' }} variant="paw" />
+          </span>
+        )}
+      </div>
+
+      {/* ネット予約受付中のみ：指名予約のみである旨の固定案内（フリーは電話へ）。 */}
+      {bookHref && (
+        <p className="text-[11px] text-slate-400 mt-1.5 text-center">
+          ネット予約は「指名予約」のみです。フリー（指名なし）ご希望の場合はお電話ください。
+        </p>
       )}
     </div>
   );
