@@ -103,10 +103,12 @@ async function fetchOverlappingBookings(
 ): Promise<{ slot_start: string; slot_end: string }[]> {
   const svc = createServiceClient();
   // 重なり判定：booking.slot_start < windowEnd かつ booking.slot_end > windowStart。
+  // status='cancelled' は枠を塞がない（＝キャンセルで枠が解放される）ため除外する。
   const { data, error } = await svc
     .from('salon_bookings')
     .select('slot_start, slot_end')
     .eq('therapist_id', therapistId)
+    .neq('status', 'cancelled')
     .lt('slot_start', endUtc.toISOString())
     .gt('slot_end', startUtc.toISOString());
   if (error || !data) return [];
@@ -274,7 +276,18 @@ export async function createBooking(input: CreateBookingInput): Promise<CreateBo
     return { ok: false, error: target.state === 'full' ? 'slot_taken' : 'invalid' };
   }
 
-  // 7) INSERT（UNIQUE(therapist_id, slot_start) 違反=23505 は「直前に埋まった」として返す）。
+  // 7) INSERT 前に、同一 (therapist_id, slot_start) の cancelled 行があれば削除する。
+  //    UNIQUE(therapist_id, slot_start) が残っているため、キャンセル済み枠を再予約すると
+  //    23505 で弾かれてしまう。cancelled 行だけ先に消してキャンセル枠を再利用可能にする。
+  //    （new/confirmed の行があった場合は上の重なり再検証で既に slot_taken 済み。）
+  await svc
+    .from('salon_bookings')
+    .delete()
+    .eq('therapist_id', therapistId)
+    .eq('slot_start', slotStart.toISOString())
+    .eq('status', 'cancelled');
+
+  // INSERT（UNIQUE(therapist_id, slot_start) 違反=23505 は「直前に埋まった」として返す）。
   const slotEnd = new Date(slotStart.getTime() + courseMin * 60 * 1000);
   const { error: insErr } = await svc.from('salon_bookings').insert({
     salon_id: salonId,
@@ -388,4 +401,75 @@ export async function getSalonBookings(
   }));
 
   return { ok: true, bookings };
+}
+
+// ── 予約管理（ステータス変更・削除）：オーナー本人 or 運営のみ ──
+
+const BOOKING_STATUSES = ['new', 'confirmed', 'cancelled'] as const;
+type BookingStatus = (typeof BOOKING_STATUSES)[number];
+
+// 指定予約のオーナー本人（または運営）であることを検証し、その予約の salon_id を返す。
+// service_role で予約→salon を辿り、ログインユーザーが salon.owner_id と一致するか確認する。
+async function assertBookingOwner(
+  bookingId: string,
+): Promise<{ ok: true; svc: ReturnType<typeof createServiceClient> } | { ok: false; error: string }> {
+  if (!bookingId) return { ok: false, error: '対象予約が不正です' };
+
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { ok: false, error: 'ログインが必要です' };
+
+  const svc = createServiceClient();
+  const { data: booking, error: bErr } = await svc
+    .from('salon_bookings')
+    .select('salon_id')
+    .eq('id', bookingId)
+    .maybeSingle();
+  if (bErr || !booking) return { ok: false, error: '予約が見つかりません' };
+
+  const { data: salon, error: sErr } = await svc
+    .from('salons')
+    .select('owner_id')
+    .eq('id', Number(booking.salon_id))
+    .maybeSingle();
+  if (sErr || !salon) return { ok: false, error: 'サロンが見つかりません' };
+  const ownerId = (salon.owner_id as string | null) ?? null;
+  if (ownerId !== user.id && user.id !== ADMIN_UUID) {
+    return { ok: false, error: 'この予約を操作する権限がありません' };
+  }
+  return { ok: true, svc };
+}
+
+/** 予約のステータスを変更する（new/confirmed/cancelled）。オーナー本人 or 運営のみ。 */
+export async function updateBookingStatus(
+  bookingId: string,
+  nextStatus: string,
+): Promise<{ ok: boolean; error?: string }> {
+  if (!BOOKING_STATUSES.includes(nextStatus as BookingStatus)) {
+    return { ok: false, error: 'ステータスが不正です' };
+  }
+  const auth = await assertBookingOwner(bookingId);
+  if (!auth.ok) return { ok: false, error: auth.error };
+
+  const { error } = await auth.svc
+    .from('salon_bookings')
+    .update({ status: nextStatus })
+    .eq('id', bookingId);
+  if (error) return { ok: false, error: error.message };
+  return { ok: true };
+}
+
+/** 予約レコードを物理削除する（枠も解放される）。オーナー本人 or 運営のみ。 */
+export async function deleteBooking(
+  bookingId: string,
+): Promise<{ ok: boolean; error?: string }> {
+  const auth = await assertBookingOwner(bookingId);
+  if (!auth.ok) return { ok: false, error: auth.error };
+
+  const { error } = await auth.svc
+    .from('salon_bookings')
+    .delete()
+    .eq('id', bookingId);
+  if (error) return { ok: false, error: error.message };
+  return { ok: true };
 }

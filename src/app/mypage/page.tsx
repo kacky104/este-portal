@@ -14,7 +14,7 @@ import { isCastLiveRow } from '@/lib/imasugu';
 import { MyDiaryList } from './MyDiaryList';
 import { inviteCast, resendCastInvite, unlinkCast, cancelCastInvite } from '@/app/actions/castInvite';
 import { PAYMENT_CARD_OPTIONS } from '@/app/lib/paymentCards';
-import { getSalonBookings, type OwnerBooking } from '@/app/actions/booking';
+import { getSalonBookings, updateBookingStatus, deleteBooking, type OwnerBooking } from '@/app/actions/booking';
 import { callbackPrefLabel } from '@/app/lib/booking/callbackPref';
 
 const supabase = createClient();
@@ -410,6 +410,7 @@ export default function MyPage() {
   const [bookings, setBookings] = useState<OwnerBooking[]>([]);
   const [bookingsLoading, setBookingsLoading] = useState(false);
   const [bookingsError, setBookingsError] = useState('');
+  const [bookingBusyId, setBookingBusyId] = useState<string | null>(null);
   const [salonImages,    setSalonImages]    = useState<SalonImage[]>([]);
   const [uploadingNewSlot,  setUploadingNewSlot]  = useState(false);
   const [uploadingPcId,     setUploadingPcId]     = useState<string | null>(null);
@@ -786,6 +787,27 @@ export default function MyPage() {
   const removeBookingCourse = (index: number) => setBookingCourses((prev) => prev.filter((_, i) => i !== index));
   const updateBookingCourse = (index: number, patch: Partial<BookingCourseForm>) =>
     setBookingCourses((prev) => prev.map((c, i) => (i === index ? { ...c, ...patch } : c)));
+
+  // 予約管理：ステータス変更（確定/キャンセル/新規に戻す）。成功時はローカルstateを書き換え。
+  const handleBookingStatus = async (bookingId: string, nextStatus: 'new' | 'confirmed' | 'cancelled') => {
+    setBookingBusyId(bookingId);
+    const res = await updateBookingStatus(bookingId, nextStatus);
+    setBookingBusyId(null);
+    if (!res.ok) { showToast(res.error ?? 'ステータス変更に失敗しました'); return; }
+    setBookings((prev) => prev.map((b) => (b.id === bookingId ? { ...b, status: nextStatus } : b)));
+    showToast(nextStatus === 'confirmed' ? '予約を確定にしました' : nextStatus === 'cancelled' ? '予約をキャンセルにしました' : '予約を新規に戻しました');
+  };
+
+  // 予約管理：レコード削除（枠も解放される・取り消せないので確認）。成功時は一覧から除去。
+  const handleBookingDelete = async (bookingId: string) => {
+    if (!window.confirm('この予約を削除しますか？\nこの操作は取り消せません。')) return;
+    setBookingBusyId(bookingId);
+    const res = await deleteBooking(bookingId);
+    setBookingBusyId(null);
+    if (!res.ok) { showToast(res.error ?? '削除に失敗しました'); return; }
+    setBookings((prev) => prev.filter((b) => b.id !== bookingId));
+    showToast('予約を削除しました');
+  };
 
   const handleSalonSave = async () => {
     if (!salon) return;
@@ -1913,8 +1935,12 @@ export default function MyPage() {
             <div className="space-y-2">
               {bookings.map((b) => {
                 const st = bookingStatusLabel(b.status);
+                const busy = bookingBusyId === b.id;
+                const isCancelled = b.status === 'cancelled';
+                // 操作ボタンの共通スタイル。
+                const btnBase = 'text-[11px] font-bold px-2.5 py-1 rounded-lg border transition-colors disabled:opacity-50';
                 return (
-                  <div key={b.id} className="rounded-xl border border-slate-200 p-3 space-y-1.5">
+                  <div key={b.id} className={`rounded-xl border border-slate-200 p-3 space-y-1.5 ${isCancelled ? 'opacity-60' : ''}`}>
                     <div className="flex items-center justify-between gap-2">
                       <span className="text-sm font-bold text-slate-700">{formatBookingSlot(b.slotStart, b.slotEnd)}</span>
                       <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full flex-shrink-0 ${st.cls}`}>{st.label}</span>
@@ -1931,6 +1957,23 @@ export default function MyPage() {
                     {b.note && (
                       <p className="text-xs text-slate-500 whitespace-pre-wrap break-words"><span className="text-slate-400">備考：</span>{b.note}</p>
                     )}
+                    {/* 操作ボタン（ステータスに応じて出し分け・削除は常時可） */}
+                    <div className="flex flex-wrap gap-2 pt-1.5 border-t border-slate-100">
+                      {b.status === 'new' && (
+                        <button type="button" disabled={busy} onClick={() => handleBookingStatus(b.id, 'confirmed')}
+                          className={`${btnBase} border-emerald-300 text-emerald-700 hover:bg-emerald-50`}>確定にする</button>
+                      )}
+                      {(b.status === 'new' || b.status === 'confirmed') && (
+                        <button type="button" disabled={busy} onClick={() => handleBookingStatus(b.id, 'cancelled')}
+                          className={`${btnBase} border-slate-300 text-slate-500 hover:bg-slate-50`}>キャンセル</button>
+                      )}
+                      {b.status === 'cancelled' && (
+                        <button type="button" disabled={busy} onClick={() => handleBookingStatus(b.id, 'new')}
+                          className={`${btnBase} border-pink-300 text-pink-600 hover:bg-pink-50`}>新規に戻す</button>
+                      )}
+                      <button type="button" disabled={busy} onClick={() => handleBookingDelete(b.id)}
+                        className={`${btnBase} border-rose-200 text-rose-500 hover:bg-rose-50`}>削除</button>
+                    </div>
                   </div>
                 );
               })}
