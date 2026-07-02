@@ -6,7 +6,13 @@ import { createServiceClient } from '@/app/lib/supabase/service';
 import { ADMIN_UUID } from '@/app/lib/admin';
 import { sendApplicationMail } from '@/app/lib/jobs/sendApplicationMail';
 // 'use server' ファイルは async 関数以外を export できないため、定数・型は非serverモジュールから import する。
-import { APPLICATION_STATUSES, type ApplicationStatus } from '@/app/lib/jobs';
+import {
+  APPLICATION_STATUSES,
+  type ApplicationStatus,
+  MAX_JOB_FEATURES,
+  isValidFeatureSlug,
+  sanitizeFeatures,
+} from '@/app/lib/jobs';
 
 // フクエスワーク（セラピスト求人）フェーズ2のサーバーアクション群。
 //
@@ -24,7 +30,7 @@ import { APPLICATION_STATUSES, type ApplicationStatus } from '@/app/lib/jobs';
 const EMPLOYMENT_TYPES = ['CONTRACTOR', 'PART_TIME', 'FULL_TIME', 'OTHER'] as const;
 
 const JOB_COLUMNS =
-  'id, salon_id, title, description, employment_type, salary_text, salary_min, salary_max, work_hours, requirements, benefits, access, notify_email, is_active, published_at, updated_at';
+  'id, salon_id, title, description, employment_type, salary_text, salary_min, salary_max, work_hours, requirements, benefits, access, notify_email, features, is_active, published_at, updated_at';
 
 export type JobFormInput = {
   title: string;
@@ -38,6 +44,7 @@ export type JobFormInput = {
   benefits: string;
   access: string;
   notify_email: string;
+  features: string[];
 };
 
 export type MyJob = {
@@ -54,6 +61,7 @@ export type MyJob = {
   benefits: string;
   access: string;
   notify_email: string;
+  features: string[];
   is_active: boolean;
   published_at: string | null;
   updated_at: string | null;
@@ -79,6 +87,7 @@ function mapJob(row: Record<string, unknown>): MyJob {
     benefits: (row.benefits as string | null) ?? '',
     access: (row.access as string | null) ?? '',
     notify_email: (row.notify_email as string | null) ?? '',
+    features: sanitizeFeatures(row.features),
     is_active: Boolean(row.is_active),
     published_at: (row.published_at as string | null) ?? null,
     updated_at: (row.updated_at as string | null) ?? null,
@@ -89,9 +98,11 @@ function mapJob(row: Record<string, unknown>): MyJob {
 function revalidateJobsPublic(salonId?: number): void {
   revalidatePath('/jobs');
   revalidatePath('/jobs/[id]', 'page');
+  // 特徴タグページ（全slug一括）。タグ付け替えでどのタグページにも影響しうるため全体を再検証。
+  revalidatePath('/jobs/tag/[slug]', 'page');
   revalidatePath('/salon/[id]', 'page');
   if (salonId != null) revalidatePath(`/salon/${salonId}`, 'layout');
-  // sitemap にも求人URLが含まれるため更新。
+  // sitemap にも求人URL／タグページが含まれるため更新。
   revalidatePath('/sitemap.xml');
 }
 
@@ -152,6 +163,7 @@ type CleanJob = {
   benefits: string | null;
   access: string | null;
   notify_email: string | null;
+  features: string[];
 };
 
 function validate(input: JobFormInput): { ok: true; clean: CleanJob } | Err {
@@ -186,6 +198,19 @@ function validate(input: JobFormInput): { ok: true; clean: CleanJob } | Err {
     return { ok: false, error: '応募通知メールの形式が正しくありません' };
   }
 
+  // 特徴タグ：配列＋各slugホワイトリスト＋重複除去＋最大件数。不正slugは拒否（サイレント除外しない）。
+  const rawFeatures = Array.isArray(input.features) ? input.features.map((s) => String(s)) : [];
+  const features: string[] = [];
+  for (const slug of rawFeatures) {
+    if (!isValidFeatureSlug(slug)) {
+      return { ok: false, error: '不正な特徴タグが含まれています' };
+    }
+    if (!features.includes(slug)) features.push(slug);
+  }
+  if (features.length > MAX_JOB_FEATURES) {
+    return { ok: false, error: `特徴タグは最大${MAX_JOB_FEATURES}個までです` };
+  }
+
   return {
     ok: true,
     clean: {
@@ -200,6 +225,7 @@ function validate(input: JobFormInput): { ok: true; clean: CleanJob } | Err {
       benefits: trimOrNull(input.benefits),
       access: trimOrNull(input.access),
       notify_email: notifyEmail,
+      features,
     },
   };
 }

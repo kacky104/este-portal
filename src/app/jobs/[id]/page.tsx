@@ -2,7 +2,7 @@ import Link from 'next/link';
 import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import { areaLabel } from '@/app/lib/areaLabel';
-import { fetchJobById, employmentTypeLabel, type JobDetail } from '@/app/lib/jobs';
+import { fetchJobById, employmentTypeLabel, featureLabel, type JobDetail } from '@/app/lib/jobs';
 import { ApplyForm } from './ApplyForm';
 
 const SITE_URL = 'https://fukues.com';
@@ -175,6 +175,28 @@ export default async function JobDetailPage({
             <JobField label="住所" value={job.salon.address} />
           </dl>
         </div>
+
+        {/* 特徴タグ（全タグ・各チップは絞り込みページへの内部リンク） */}
+        {job.features.length > 0 && (
+          <div className="rounded-2xl border border-emerald-100 bg-white p-5 shadow-sm mt-4">
+            <div className="flex items-center gap-2.5 mb-3">
+              <span className="w-1 h-5 rounded-full" style={{ background: 'linear-gradient(to bottom,#10B981,#84CC16)' }} />
+              <h2 className="font-bold text-slate-900">この求人の特徴</h2>
+            </div>
+            <div className="flex flex-wrap gap-1.5">
+              {job.features.map((slug) => (
+                <Link
+                  key={slug}
+                  href={`/jobs/tag/${slug}`}
+                  className="text-xs font-bold px-3 py-1 rounded-full border transition-colors hover:bg-emerald-50"
+                  style={{ borderColor: '#A7F3D0', color: '#059669' }}
+                >
+                  {featureLabel(slug)}
+                </Link>
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* 仕事内容（改行保持） */}
         {job.description && (

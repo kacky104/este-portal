@@ -1,6 +1,6 @@
 import type { MetadataRoute } from 'next';
 import { createPublicClient } from '@/app/lib/supabase/public';
-import { fetchActiveJobsForSitemap } from '@/app/lib/jobs';
+import { fetchActiveJobsForSitemap, fetchFeatureSlugsWithActiveJobs } from '@/app/lib/jobs';
 
 const SITE_URL = 'https://fukues.com';
 
@@ -13,10 +13,12 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const supabase = createPublicClient();
 
   // 公開サロン／公開サロン所属セラピスト／掲載中求人を並列取得。失敗時は空配列（サイトマップは壊さない）。
-  const [salonsRes, therapistsRes, jobs] = await Promise.all([
+  const [salonsRes, therapistsRes, jobs, featureSlugs] = await Promise.all([
     supabase.from('salons').select('id').eq('is_hidden', false),
     supabase.from('therapists').select('id, salons!inner(is_hidden)').eq('salons.is_hidden', false),
     fetchActiveJobsForSitemap(),
+    // 求人が1件以上あるタグのみ（0件＝noindexページはsitemapに入れない）。
+    fetchFeatureSlugsWithActiveJobs(),
   ]);
 
   const now = new Date();
@@ -50,5 +52,13 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     priority: 0.6,
   }));
 
-  return [...staticEntries, ...salonEntries, ...therapistEntries, ...jobEntries];
+  // 特徴タグページ（求人ありのタグのみ）。
+  const tagEntries: MetadataRoute.Sitemap = featureSlugs.map((slug) => ({
+    url: `${SITE_URL}/jobs/tag/${slug}`,
+    lastModified: now,
+    changeFrequency: 'daily',
+    priority: 0.7,
+  }));
+
+  return [...staticEntries, ...salonEntries, ...therapistEntries, ...jobEntries, ...tagEntries];
 }

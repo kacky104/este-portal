@@ -1,6 +1,8 @@
 'use client';
 
+import { useState } from 'react';
 import type { MyJob } from '@/app/actions/jobs';
+import { JOB_FEATURE_GROUPS, featureLabel, MAX_JOB_FEATURES } from '@/app/lib/jobs';
 
 // 求人フォームの共通フィールド（mypage求人タブ／admin求人管理で共用）。
 // 表示専用のコントロールド・コンポーネント。保存やバリデーションは呼び出し側（サーバーアクション）が担う。
@@ -17,6 +19,7 @@ export type JobFormState = {
   benefits: string;
   access: string;
   notify_email: string;
+  features: string[];
 };
 
 // 雇用形態の選択肢（DB値＝schema.org値。デフォルトは業務委託）。
@@ -39,6 +42,7 @@ export const EMPTY_JOB_FORM: JobFormState = {
   benefits: '',
   access: '',
   notify_email: '',
+  features: [],
 };
 
 // MyJob（サーバー取得）→ フォーム状態（数値は文字列化・空欄化）。
@@ -55,6 +59,7 @@ export function jobToForm(job: MyJob): JobFormState {
     benefits: job.benefits,
     access: job.access,
     notify_email: job.notify_email,
+    features: [...job.features],
   };
 }
 
@@ -77,6 +82,24 @@ export function JobFields({
   value: JobFormState;
   onChange: (patch: Partial<JobFormState>) => void;
 }) {
+  // 最大数に達した状態で未選択タグを押したときの警告（クライアント側）。
+  const [featureWarn, setFeatureWarn] = useState(false);
+  const atMax = value.features.length >= MAX_JOB_FEATURES;
+
+  const toggleFeature = (slug: string) => {
+    if (value.features.includes(slug)) {
+      setFeatureWarn(false);
+      onChange({ features: value.features.filter((s) => s !== slug) });
+    } else {
+      if (atMax) {
+        setFeatureWarn(true);
+        return;
+      }
+      setFeatureWarn(false);
+      onChange({ features: [...value.features, slug] });
+    }
+  };
+
   return (
     <div className="space-y-4">
       {/* タイトル（必須） */}
@@ -190,6 +213,47 @@ export function JobFields({
           value={value.access}
           onChange={(e) => onChange({ access: e.target.value })}
         />
+      </div>
+
+      {/* 特徴タグ（任意・最大6個）。選んだタグの絞り込みページ /jobs/tag/[slug] に掲載される。 */}
+      <div>
+        <Label>特徴タグ（任意・最大{MAX_JOB_FEATURES}個）</Label>
+        <p className="text-[10px] text-slate-400 mb-2">
+          選んだタグの絞り込みページに掲載されます。現在 {value.features.length}/{MAX_JOB_FEATURES} 個
+        </p>
+        <div className="space-y-3">
+          {JOB_FEATURE_GROUPS.map((g) => (
+            <div key={g.title}>
+              <p className="text-[11px] font-bold text-slate-500 mb-1.5">{g.title}</p>
+              <div className="flex flex-wrap gap-x-3 gap-y-1.5">
+                {g.slugs.map((slug) => {
+                  const checked = value.features.includes(slug);
+                  const disabled = !checked && atMax; // 上限到達時は未選択を不可
+                  return (
+                    <label
+                      key={slug}
+                      className={`inline-flex items-center gap-1 text-xs select-none ${
+                        disabled ? 'text-slate-300 cursor-not-allowed' : 'text-slate-600 cursor-pointer'
+                      }`}
+                    >
+                      <input
+                        type="checkbox"
+                        className="accent-emerald-500 w-3.5 h-3.5"
+                        checked={checked}
+                        disabled={disabled}
+                        onChange={() => toggleFeature(slug)}
+                      />
+                      {featureLabel(slug)}
+                    </label>
+                  );
+                })}
+              </div>
+            </div>
+          ))}
+        </div>
+        {featureWarn && (
+          <p className="text-[10px] text-rose-500 mt-2">特徴タグは最大{MAX_JOB_FEATURES}個までです。</p>
+        )}
       </div>
 
       {/* 応募通知メール（任意）。空欄ならネット予約の通知先（salons.booking_email）に届く。 */}

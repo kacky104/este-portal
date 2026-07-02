@@ -27,6 +27,64 @@ export function employmentTypeLabel(value: string | null | undefined): string {
 export const APPLICATION_STATUSES = ['new', 'contacted', 'closed'] as const;
 export type ApplicationStatus = (typeof APPLICATION_STATUSES)[number];
 
+// ── 特徴タグ マスタ ───────────────────────────────────
+// DB（salon_jobs.features text[]）には slug のみ保存。表示は常にこのマスタ経由（表記ゆれ防止）。
+export const JOB_FEATURES = [
+  // 経験・年齢
+  { slug: 'mikeiken',           label: '未経験歓迎' },
+  { slug: 'keikensha',          label: '経験者優遇' },
+  { slug: '20dai',              label: '20代活躍中' },
+  { slug: '30dai',              label: '30代活躍中' },
+  { slug: '40dai',              label: '40代以上歓迎' },
+  // 働き方
+  { slug: 'jiyu-shukkin',       label: '自由出勤' },
+  { slug: 'shu1',               label: '週1日〜OK' },
+  { slug: 'w-work',             label: 'Wワーク歓迎' },
+  { slug: 'tanjikan',           label: '短時間OK' },
+  { slug: 'taiken',             label: '体験入店OK' },
+  // 待遇・お金
+  { slug: 'hibarai',            label: '日払いOK' },
+  { slug: 'high-back',          label: '高バック率' },
+  { slug: 'norma-nashi',        label: 'ノルマ・罰金なし' },
+  { slug: 'hosho',              label: '保証制度あり' },
+  // 環境・安心
+  { slug: 'koshitsu-taiki',     label: '個室待機' },
+  { slug: 'sogei',              label: '送迎あり' },
+  { slug: 'jitaku-haken-nashi', label: '自宅派遣なし' },
+] as const;
+
+export const MAX_JOB_FEATURES = 6;
+
+// 「特徴から探す」／フォームのカテゴリ表示用グルーピング（slug は JOB_FEATURES と一致）。
+export const JOB_FEATURE_GROUPS: { title: string; slugs: string[] }[] = [
+  { title: '経験・年齢', slugs: ['mikeiken', 'keikensha', '20dai', '30dai', '40dai'] },
+  { title: '働き方',     slugs: ['jiyu-shukkin', 'shu1', 'w-work', 'tanjikan', 'taiken'] },
+  { title: '待遇・お金', slugs: ['hibarai', 'high-back', 'norma-nashi', 'hosho'] },
+  { title: '環境・安心', slugs: ['koshitsu-taiki', 'sogei', 'jitaku-haken-nashi'] },
+];
+
+const FEATURE_LABEL_BY_SLUG: Record<string, string> = Object.fromEntries(
+  JOB_FEATURES.map((f) => [f.slug, f.label]),
+);
+
+// slug → 表示ラベル（未知slugはそのまま返す＝防御的）。
+export function featureLabel(slug: string): string {
+  return FEATURE_LABEL_BY_SLUG[slug] ?? slug;
+}
+
+// slug がマスタに存在するか（ホワイトリスト検証）。
+export function isValidFeatureSlug(slug: string): boolean {
+  return Object.prototype.hasOwnProperty.call(FEATURE_LABEL_BY_SLUG, slug);
+}
+
+// DBから読んだ features を表示用に正規化（配列化・ホワイトリスト・重複除去・マスタ順に整列）。
+export function sanitizeFeatures(raw: unknown): string[] {
+  if (!Array.isArray(raw)) return [];
+  const set = new Set(raw.map((s) => String(s)).filter((s) => isValidFeatureSlug(s)));
+  // マスタ順に並べ替えて表記の一貫性を保つ。
+  return JOB_FEATURES.map((f) => f.slug).filter((slug) => set.has(slug));
+}
+
 // ── 型 ───────────────────────────────────────────────
 export type JobSalon = {
   id: number;
@@ -40,6 +98,7 @@ export type JobListItem = {
   salaryText: string;
   employmentType: string;
   publishedAt: string | null;
+  features: string[];
   salon: JobSalon;
 };
 
@@ -56,6 +115,7 @@ export type JobDetail = {
   description: string | null;
   salaryMin: number | null;
   salaryMax: number | null;
+  features: string[];
   salon: {
     id: number;
     name: string;
@@ -78,28 +138,49 @@ export async function fetchActiveJobs(): Promise<JobListItem[]> {
   const supabase = createPublicClient();
   const { data } = await supabase
     .from('salon_jobs')
-    .select('id, title, salary_text, employment_type, published_at, salons!inner(id, name, area, is_hidden)')
+    .select('id, title, salary_text, employment_type, published_at, features, salons!inner(id, name, area, is_hidden)')
     .eq('is_active', true)
     .eq('salons.is_hidden', false)
     .order('published_at', { ascending: false });
 
   return (data ?? [])
-    .map((row) => {
-      const salon = pickSalon<{ id: number; name: string; area: string | null }>(row.salons);
-      if (!salon) return null;
-      return {
-        id: row.id as number,
-        title: (row.title as string) ?? '',
-        salaryText: (row.salary_text as string | null) ?? '',
-        employmentType: (row.employment_type as string | null) ?? 'OTHER',
-        publishedAt: (row.published_at as string | null) ?? null,
-        salon: {
-          id: salon.id,
-          name: salon.name ?? '',
-          area: salon.area ?? '',
-        },
-      } as JobListItem;
-    })
+    .map((row) => mapJobListItem(row))
+    .filter((j): j is JobListItem => j !== null);
+}
+
+// 一覧行 → JobListItem（fetchActiveJobs / fetchActiveJobsByFeature で共用）。
+function mapJobListItem(row: Record<string, unknown>): JobListItem | null {
+  const salon = pickSalon<{ id: number; name: string; area: string | null }>(row.salons);
+  if (!salon) return null;
+  return {
+    id: row.id as number,
+    title: (row.title as string) ?? '',
+    salaryText: (row.salary_text as string | null) ?? '',
+    employmentType: (row.employment_type as string | null) ?? 'OTHER',
+    publishedAt: (row.published_at as string | null) ?? null,
+    features: sanitizeFeatures(row.features),
+    salon: {
+      id: salon.id,
+      name: salon.name ?? '',
+      area: salon.area ?? '',
+    },
+  };
+}
+
+// ── 特徴タグ絞り込み一覧用（/jobs/tag/[slug]） ──
+export async function fetchActiveJobsByFeature(slug: string): Promise<JobListItem[]> {
+  if (!isValidFeatureSlug(slug)) return [];
+  const supabase = createPublicClient();
+  const { data } = await supabase
+    .from('salon_jobs')
+    .select('id, title, salary_text, employment_type, published_at, features, salons!inner(id, name, area, is_hidden)')
+    .eq('is_active', true)
+    .eq('salons.is_hidden', false)
+    .contains('features', [slug])
+    .order('published_at', { ascending: false });
+
+  return (data ?? [])
+    .map((row) => mapJobListItem(row))
     .filter((j): j is JobListItem => j !== null);
 }
 
@@ -109,7 +190,7 @@ export async function fetchJobById(id: number): Promise<JobDetail | null> {
   const { data, error } = await supabase
     .from('salon_jobs')
     .select(
-      'id, title, salary_text, employment_type, published_at, work_hours, requirements, benefits, access, description, salary_min, salary_max, salons!inner(id, name, area, address, phone, is_hidden)'
+      'id, title, salary_text, employment_type, published_at, work_hours, requirements, benefits, access, description, salary_min, salary_max, features, salons!inner(id, name, area, address, phone, is_hidden)'
     )
     .eq('id', id)
     .eq('is_active', true)
@@ -140,6 +221,7 @@ export async function fetchJobById(id: number): Promise<JobDetail | null> {
     description: (data.description as string | null) ?? null,
     salaryMin: (data.salary_min as number | null) ?? null,
     salaryMax: (data.salary_max as number | null) ?? null,
+    features: sanitizeFeatures(data.features),
     salon: {
       id: salon.id,
       name: salon.name ?? '',
@@ -185,5 +267,23 @@ export async function fetchActiveJobsForSitemap(): Promise<
     id: row.id as number,
     updatedAt: (row.updated_at as string | null) ?? null,
   }));
+}
+
+// ── sitemap 用：掲載中求人が1件以上ある特徴タグの slug 集合 ──
+// 0件（＝noindex）のタグページは sitemap に入れないため、実在するタグだけ返す。
+export async function fetchFeatureSlugsWithActiveJobs(): Promise<string[]> {
+  const supabase = createPublicClient();
+  const { data } = await supabase
+    .from('salon_jobs')
+    .select('features, salons!inner(is_hidden)')
+    .eq('is_active', true)
+    .eq('salons.is_hidden', false);
+
+  const present = new Set<string>();
+  (data ?? []).forEach((row) => {
+    sanitizeFeatures((row as Record<string, unknown>).features).forEach((slug) => present.add(slug));
+  });
+  // マスタ順で返す。
+  return JOB_FEATURES.map((f) => f.slug).filter((slug) => present.has(slug));
 }
 

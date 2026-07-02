@@ -1,7 +1,8 @@
 import Link from 'next/link';
 import type { Metadata } from 'next';
-import { areaLabel } from '@/app/lib/areaLabel';
-import { fetchActiveJobs, employmentTypeLabel } from '@/app/lib/jobs';
+import { fetchActiveJobs } from '@/app/lib/jobs';
+import { JobCard } from './JobCard';
+import { FeatureBrowse } from './FeatureBrowse';
 
 // ISR：10分ごとに再生成（SEO目的。求人は頻繁に変わらないためキャッシュで十分）。
 export const revalidate = 600;
@@ -47,6 +48,11 @@ export default async function JobsPage() {
         <p className="text-sm text-slate-500 mt-1.5">福岡のメンズエステで働くセラピスト求人</p>
       </div>
 
+      {/* 特徴から探す（タグ絞り込みページへの内部リンク網） */}
+      <div className="mb-6">
+        <FeatureBrowse />
+      </div>
+
       {jobs.length === 0 ? (
         <div className="rounded-2xl border border-emerald-100 bg-white p-10 text-center text-slate-500 text-sm shadow-sm">
           現在募集中の求人はありません
@@ -55,38 +61,7 @@ export default async function JobsPage() {
         <ul className="space-y-3">
           {jobs.map((job) => (
             <li key={job.id}>
-              <Link
-                href={`/jobs/${job.id}`}
-                className="block rounded-2xl border border-emerald-100 bg-white p-4 shadow-sm hover:border-emerald-300 hover:shadow-md transition-all"
-              >
-                {/* 雇用形態バッジ */}
-                <div className="flex items-center gap-2 mb-2">
-                  <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-bold text-white" style={{ background: 'linear-gradient(95deg,#10B981,#84CC16)' }}>
-                    {employmentTypeLabel(job.employmentType)}
-                  </span>
-                </div>
-
-                {/* 求人タイトル */}
-                <h2 className="font-bold text-slate-900 leading-snug break-words">{job.title}</h2>
-
-                {/* 店名＋エリア */}
-                <p className="text-xs text-slate-500 mt-1.5 flex items-center gap-1.5 flex-wrap">
-                  <span className="font-medium text-slate-600 break-words">{job.salon.name}</span>
-                  {job.salon.area && (
-                    <span className="inline-flex items-center gap-0.5 text-slate-400">
-                      <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                        <path d="M21 10c0 7-9 13-9 13S3 17 3 10a9 9 0 0118 0z" /><circle cx="12" cy="10" r="3" />
-                      </svg>
-                      {areaLabel(job.salon.area)}
-                    </span>
-                  )}
-                </p>
-
-                {/* 給与 */}
-                {job.salaryText && (
-                  <p className="text-sm font-bold mt-2 break-words" style={{ color: '#059669' }}>{job.salaryText}</p>
-                )}
-              </Link>
+              <JobCard job={job} />
             </li>
           ))}
         </ul>
