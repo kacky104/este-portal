@@ -1994,6 +1994,10 @@ export default function MyPage() {
               />
               ネット予約を受け付ける
             </label>
+            <p className="text-[10px] text-slate-400 leading-relaxed">
+              ネット予約を受け付けると、サロン詳細ページに「ネット予約」ボタンが表示されます。
+              （「予約で受け付けるコース」を1つ以上登録する必要があります）
+            </p>
             <div>
               <label className="block text-[11px] font-bold text-slate-500 mb-1">予約通知先メール</label>
               <input
@@ -2018,6 +2022,9 @@ export default function MyPage() {
             <label className="block text-[11px] font-bold text-slate-500">予約で受け付けるコース</label>
             <p className="text-[10px] text-slate-400 leading-relaxed">
               ここに登録したコースがネット予約の選択肢になります。料金ページとは別に設定できます（ネット予約限定メニューも登録できます）。
+            </p>
+            <p className="text-[10px] text-slate-400 leading-relaxed">
+              ※ 指名料やオプション料金などの追加料金は、ここでは設定しません。ご予約が入った際に、折り返しのお電話でお客様に総額をお伝えする運用です。
             </p>
             {bookingCourses.length > 0 && (
               <div className="space-y-2">

@@ -72,7 +72,7 @@ export default async function SalonPage({
   ] = await Promise.all([
     supabase
       .from('salons')
-      .select('id, name, rating, review_count, tags, price, area, hours, description, appeal, phone, address, access, closed_days, note, courses, theme, official_url, fukux_url, booking_enabled')
+      .select('id, name, rating, review_count, tags, price, area, hours, description, appeal, phone, address, access, closed_days, note, courses, theme, official_url, fukux_url, booking_enabled, booking_courses')
       .eq('id', Number(id))
       .single(),
     supabase
@@ -125,7 +125,12 @@ export default async function SalonPage({
     note:        (row.note as string | undefined) ?? undefined,
     officialUrl: (row.official_url as string | null) ?? null,
     fukuxUrl:    (row.fukux_url as string | null) ?? null,
-    bookingEnabled: Boolean(row.booking_enabled),
+    // ネット予約ボタンは「受付ON かつ 予約コースが1件以上」の店だけ表示する
+    // （コース未登録だと予約フローでコースを選べず客が詰まるため）。
+    bookingEnabled:
+      Boolean(row.booking_enabled) &&
+      Array.isArray(row.booking_courses) &&
+      row.booking_courses.length > 0,
   };
 
   const theme = getTheme(row.theme as string | null);
