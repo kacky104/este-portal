@@ -76,7 +76,7 @@ export default async function CastHomePage() {
           </span>
           <div className="flex items-center gap-2">
             <Link
-              href="/"
+              href={therapist?.id != null ? `/therapist/${therapist.id}` : '/'}
               target="_blank"
               rel="noopener noreferrer"
               className="px-4 py-2 rounded-xl border border-slate-200 text-slate-500 text-xs font-bold hover:border-pink-300 hover:text-pink-600 transition-colors"
