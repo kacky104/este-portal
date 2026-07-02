@@ -181,18 +181,3 @@ export async function fetchActiveJobsForSitemap(): Promise<
   }));
 }
 
-// ── 掲載日など日付の静的表示（YYYY/MM/DD・Asia/Tokyo） ──
-// サーバーで「経過日数」などの相対表現は焼き込まない（ISRキャッシュ焼き付き防止）。
-export function formatJobDate(iso: string | null): string {
-  if (!iso) return '';
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return '';
-  return new Intl.DateTimeFormat('ja-JP', {
-    timeZone: 'Asia/Tokyo',
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-  })
-    .format(d)
-    .replace(/-/g, '/');
-}

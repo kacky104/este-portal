@@ -2,7 +2,7 @@ import Link from 'next/link';
 import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import { areaLabel } from '@/app/lib/areaLabel';
-import { fetchJobById, employmentTypeLabel, formatJobDate, type JobDetail } from '@/app/lib/jobs';
+import { fetchJobById, employmentTypeLabel, type JobDetail } from '@/app/lib/jobs';
 
 const SITE_URL = 'https://fukues.com';
 
@@ -137,15 +137,12 @@ export default async function JobDetailPage({
           </span>
         </nav>
 
-        {/* ヘッダーカード：雇用形態・タイトル・店名・掲載日 */}
+        {/* ヘッダーカード：雇用形態・タイトル・店名 */}
         <div className="rounded-2xl border border-emerald-100 bg-white p-5 shadow-sm">
-          <div className="flex items-center justify-between gap-2 mb-2.5">
+          <div className="flex items-center gap-2 mb-2.5">
             <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-bold text-white" style={{ background: 'linear-gradient(95deg,#10B981,#84CC16)' }}>
               {employmentTypeLabel(job.employmentType)}
             </span>
-            {job.publishedAt && (
-              <span className="text-[11px] text-slate-400 flex-shrink-0">掲載日 {formatJobDate(job.publishedAt)}</span>
-            )}
           </div>
 
           <h1 className="text-xl sm:text-2xl font-extrabold text-slate-900 leading-snug break-words">{job.title}</h1>

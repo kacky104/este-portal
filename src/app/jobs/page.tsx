@@ -1,7 +1,7 @@
 import Link from 'next/link';
 import type { Metadata } from 'next';
 import { areaLabel } from '@/app/lib/areaLabel';
-import { fetchActiveJobs, employmentTypeLabel, formatJobDate } from '@/app/lib/jobs';
+import { fetchActiveJobs, employmentTypeLabel } from '@/app/lib/jobs';
 
 // ISR：10分ごとに再生成（SEO目的。求人は頻繁に変わらないためキャッシュで十分）。
 export const revalidate = 600;
@@ -59,14 +59,11 @@ export default async function JobsPage() {
                 href={`/jobs/${job.id}`}
                 className="block rounded-2xl border border-emerald-100 bg-white p-4 shadow-sm hover:border-emerald-300 hover:shadow-md transition-all"
               >
-                {/* 雇用形態バッジ＋掲載日 */}
-                <div className="flex items-center justify-between gap-2 mb-2">
+                {/* 雇用形態バッジ */}
+                <div className="flex items-center gap-2 mb-2">
                   <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-bold text-white" style={{ background: 'linear-gradient(95deg,#10B981,#84CC16)' }}>
                     {employmentTypeLabel(job.employmentType)}
                   </span>
-                  {job.publishedAt && (
-                    <span className="text-[11px] text-slate-400 flex-shrink-0">{formatJobDate(job.publishedAt)}</span>
-                  )}
                 </div>
 
                 {/* 求人タイトル */}
