@@ -6,7 +6,8 @@ import { createServiceClient } from '@/app/lib/supabase/service';
 import { ADMIN_UUID } from '@/app/lib/admin';
 import { getBusinessDateJST } from '@/lib/dutyStatus';
 import { buildSlots, scheduleWindowUtc, type Slot } from '@/app/lib/booking/slots';
-import { normalizeCallbackPref } from '@/app/lib/booking/callbackPref';
+import { normalizeCallbackPref, callbackPrefLabel } from '@/app/lib/booking/callbackPref';
+import { sendBookingMail } from '@/app/lib/booking/sendBookingMail';
 
 // ネット予約フェーズ1（客向け予約フロー）のサーバーアクション群。
 //
@@ -171,6 +172,16 @@ function jstDateOf(d: Date): string {
   return new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Tokyo' }).format(d);
 }
 
+// 予約枠を JST の "M/D(曜) HH:MM〜HH:MM" に整形（通知メール本文用）。
+function formatSlotLabelJST(startISO: string, endISO: string): string {
+  const s = new Date(startISO);
+  const e = new Date(endISO);
+  const md = new Intl.DateTimeFormat('ja-JP', { timeZone: 'Asia/Tokyo', month: 'numeric', day: 'numeric' }).format(s);
+  const wd = new Intl.DateTimeFormat('ja-JP', { timeZone: 'Asia/Tokyo', weekday: 'short' }).format(s);
+  const hm = (d: Date) => new Intl.DateTimeFormat('en-GB', { timeZone: 'Asia/Tokyo', hour: '2-digit', minute: '2-digit', hour12: false }).format(d);
+  return `${md}(${wd}) ${hm(s)}〜${hm(e)}`;
+}
+
 /**
  * 予約を確定INSERTする。クライアントの申告は一切信用せず、サーバー側で全項目を再検証する。
  */
@@ -199,7 +210,7 @@ export async function createBooking(input: CreateBookingInput): Promise<CreateBo
   // 1) サロンの予約可否＋予約コースを確認（course の改ざん防止）。
   const { data: salon, error: salonErr } = await svc
     .from('salons')
-    .select('booking_enabled, booking_courses')
+    .select('name, booking_enabled, booking_email, booking_courses')
     .eq('id', salonId)
     .maybeSingle();
   if (salonErr || !salon) return { ok: false, error: 'invalid' };
@@ -212,7 +223,7 @@ export async function createBooking(input: CreateBookingInput): Promise<CreateBo
   // 2) セラピストが当該サロン所属＆is_active か。
   const { data: therapist, error: thErr } = await svc
     .from('therapists')
-    .select('salon_id, is_active')
+    .select('salon_id, is_active, name')
     .eq('id', therapistId)
     .maybeSingle();
   if (thErr || !therapist) return { ok: false, error: 'invalid' };
@@ -283,7 +294,22 @@ export async function createBooking(input: CreateBookingInput): Promise<CreateBo
     return { ok: false, error: insErr.message };
   }
 
-  // TODO(ステップ2b): ここで salon.booking_email へ Resend で予約通知メールを送信する。
+  // 予約成立後、店の通知先メールへ Resend で予約通知を送信する。
+  // sendBookingMail は内部で失敗を握る（例外を投げない）ため、予約成功の返却には影響しない。
+  // booking_email が空/null の場合は sendBookingMail 側で送信スキップ（エラーにしない）。
+  await sendBookingMail({
+    to: (salon.booking_email as string | null) ?? '',
+    salonName: (salon.name as string | null) ?? '',
+    slotLabel: formatSlotLabelJST(slotStart.toISOString(), slotEnd.toISOString()),
+    therapistName: (therapist.name as string | null) ?? '',
+    courseName,
+    courseMin,
+    customerName,
+    customerTel,
+    callbackLabel: callbackPrefLabel(callbackPref),
+    note: note || null,
+  });
+
   return { ok: true };
 }
 
