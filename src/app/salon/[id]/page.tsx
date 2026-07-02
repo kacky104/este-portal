@@ -72,7 +72,7 @@ export default async function SalonPage({
   ] = await Promise.all([
     supabase
       .from('salons')
-      .select('id, name, rating, review_count, tags, price, area, hours, description, appeal, phone, address, access, closed_days, note, courses, theme, official_url, fukux_url, booking_enabled, booking_courses')
+      .select('id, name, rating, review_count, tags, price, area, hours, description, appeal, phone, address, access, closed_days, note, courses, theme, official_url, fukux_url')
       .eq('id', Number(id))
       .single(),
     supabase
@@ -125,12 +125,6 @@ export default async function SalonPage({
     note:        (row.note as string | undefined) ?? undefined,
     officialUrl: (row.official_url as string | null) ?? null,
     fukuxUrl:    (row.fukux_url as string | null) ?? null,
-    // ネット予約ボタンは「受付ON かつ 予約コースが1件以上」の店だけ表示する
-    // （コース未登録だと予約フローでコースを選べず客が詰まるため）。
-    bookingEnabled:
-      Boolean(row.booking_enabled) &&
-      Array.isArray(row.booking_courses) &&
-      row.booking_courses.length > 0,
   };
 
   const theme = getTheme(row.theme as string | null);
@@ -297,9 +291,9 @@ export default async function SalonPage({
         </div>
 
         {/* ─── 主要アクション（ネット予約 / 電話をする）＋ 右端にサロン保存ボタン ───
-            ネット予約は booking_enabled=true のとき /salon/[id]/book への内部リンク（指名予約フロー）。
+            ネット予約ボタンは常時表示・/salon/[id]/book への内部リンク（受付可否は book ページで判定）。
             電話は phone を配線。保存ボタンは既存 SaveButton（localStorage 自己完結）。 */}
-        <SalonActionButtons salonId={Number(id)} salonName={salon.name} bookingEnabled={salon.bookingEnabled} phone={salon.phone || null} />
+        <SalonActionButtons salonId={Number(id)} salonName={salon.name} phone={salon.phone || null} />
 
         {/* ─── Two-column layout ───────────────────────── */}
         {/* スマホはブロック間の隙間を半分（space-y-3 / gap-3）。md+ は従来どおり。 */}

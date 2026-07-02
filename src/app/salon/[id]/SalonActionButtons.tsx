@@ -3,10 +3,9 @@ import { SaveButton } from '@/app/components/SaveButton';
 
 // サロン詳細ページの主要アクション（ネット予約／電話をする）。
 //
-//  - bookingEnabled : ネット予約フェーズ1の内部予約フローへの導線。true のとき
-//                     「ネット予約」ボタンを /salon/[id]/book への内部リンクにする。
-//                     false（未受付）のときは従来どおり無効プレビュー表示。
-//  - reserveUrl : 外部ネット予約URL（将来用）。bookingEnabled より優先度は低い。
+//  - ネット予約ボタンは常時表示。salonId があれば /salon/[id]/book への内部リンクにする
+//    （受付可否＝booking_enabled＋コース有無は book ページ側で判定・案内する）。
+//  - reserveUrl : 外部ネット予約URL（将来用）。salonId 未指定時のフォールバック。
 //                 指定時は <a href> で外部予約ページへ（target=_blank）。
 //  - phone      : 電話番号。指定時は tel: リンク（スマホは発信／PCも tel: で対応）。
 //                 未設定のときは無効プレビュー表示。
@@ -15,13 +14,11 @@ import { SaveButton } from '@/app/components/SaveButton';
 // 保存状態は SaveButton 側が localStorage で自己完結管理するため、ここでの初期状態取得は不要。
 export function SalonActionButtons({
   reserveUrl,
-  bookingEnabled,
   phone,
   salonId,
   salonName,
 }: {
   reserveUrl?: string | null;
-  bookingEnabled?: boolean;
   phone?: string | null;
   salonId?: number;
   salonName?: string;
@@ -46,8 +43,9 @@ export function SalonActionButtons({
     </svg>
   );
 
-  // ネット予約の遷移先：受付ON（内部フロー）＞外部URL＞無効プレビュー の優先順。
-  const bookHref = bookingEnabled && salonId != null ? `/salon/${salonId}/book` : null;
+  // ネット予約の遷移先：salonId があれば常に内部の予約ページへ（受付可否は book 側で判定）。
+  // salonId 無し時のみ外部 reserveUrl をフォールバックに使う。
+  const bookHref = salonId != null ? `/salon/${salonId}/book` : null;
 
   return (
     <div className="mb-4">
