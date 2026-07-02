@@ -87,13 +87,6 @@ export function SalonActionButtons({
           </span>
         )}
       </div>
-
-      {/* ネット予約受付中のみ：指名予約のみである旨の固定案内（フリーは電話へ）。 */}
-      {bookHref && (
-        <p className="text-[11px] text-slate-400 mt-1.5 text-center">
-          ネット予約は「指名予約」のみです。フリー（指名なし）ご希望の場合はお電話ください。
-        </p>
-      )}
     </div>
   );
 }

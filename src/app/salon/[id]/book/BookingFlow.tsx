@@ -280,7 +280,8 @@ export function BookingFlow({
               当日〜7日先で出勤予定がありません。お手数ですがお電話にてお問い合わせください。
             </p>
           ) : (
-            <div className="flex gap-2 overflow-x-auto pb-2 mt-3 -mx-1 px-1">
+            // モバイルは4列で折り返し、sm+ は7列で横いっぱいに均等配置
+            <div className="grid grid-cols-4 sm:grid-cols-7 gap-2 mt-3">
               {days.map((d) => {
                 const t = formatDateTab(d.date, d.date === businessToday);
                 return (
@@ -288,9 +289,11 @@ export function BookingFlow({
                     key={d.date}
                     type="button"
                     onClick={() => chooseDate(d.date)}
-                    className="flex-shrink-0 flex flex-col items-center gap-0.5 rounded-xl border border-slate-200 px-3.5 py-2.5 hover:border-pink-300 hover:bg-pink-50/40 transition-colors min-w-[64px]"
+                    className="flex flex-col items-center gap-0.5 rounded-xl border border-slate-200 px-1 py-3 hover:border-pink-300 hover:bg-pink-50/40 transition-colors"
                   >
-                    {t.today && <span className="text-[9px] font-bold text-pink-500">今日</span>}
+                    {t.today
+                      ? <span className="text-[9px] font-bold text-pink-500">今日</span>
+                      : <span className="text-[9px]">&nbsp;</span>}
                     <span className="text-sm font-bold text-slate-700">{t.md}</span>
                     <span className={`text-[10px] ${t.wd === '日' ? 'text-rose-400' : t.wd === '土' ? 'text-blue-400' : 'text-slate-400'}`}>({t.wd})</span>
                   </button>
@@ -322,47 +325,53 @@ export function BookingFlow({
                 </p>
               )}
               <div className="space-y-2 mt-3">
-                {slotsByHour.map((g) => (
-                  <div key={g.hour} className="flex items-start gap-2">
-                    <span className="text-xs font-bold text-slate-400 w-8 flex-shrink-0 pt-2">{g.hour}時</span>
-                    <div className="flex flex-wrap gap-1.5">
-                      {g.items.map((s) => {
-                        if (s.state === 'open') {
-                          return (
-                            <button
-                              key={s.startISO}
-                              type="button"
-                              onClick={() => chooseSlot(s)}
-                              className="rounded-lg border border-pink-300 bg-pink-50 text-pink-700 text-xs font-bold px-2.5 py-1.5 hover:bg-pink-100 transition-colors"
-                            >
-                              {s.label}
-                            </button>
-                          );
-                        }
-                        if (s.state === 'tel') {
+                {slotsByHour.map((g) => {
+                  // 00/15/30/45 の4列に整列（欠けている分は空セルで詰めて列を揃える）。
+                  const byMinute = new Map(g.items.map((s) => [s.label.slice(3, 5), s]));
+                  return (
+                    <div key={g.hour} className="flex items-center gap-2">
+                      <span className="text-xs font-bold text-slate-400 w-8 flex-shrink-0 text-right">{g.hour}時</span>
+                      <div className="grid grid-cols-4 gap-1.5 flex-1">
+                        {['00', '15', '30', '45'].map((mm) => {
+                          const s = byMinute.get(mm);
+                          if (!s) return <div key={mm} aria-hidden />;
+                          if (s.state === 'open') {
+                            return (
+                              <button
+                                key={s.startISO}
+                                type="button"
+                                onClick={() => chooseSlot(s)}
+                                className="rounded-lg border border-pink-300 bg-pink-50 text-pink-700 text-xs font-bold py-2 hover:bg-pink-100 transition-colors text-center"
+                              >
+                                {s.label}
+                              </button>
+                            );
+                          }
+                          if (s.state === 'tel') {
+                            return (
+                              <span
+                                key={s.startISO}
+                                className="rounded-lg border border-slate-200 bg-slate-50 text-slate-400 text-xs font-bold py-2 cursor-not-allowed text-center"
+                                title="直前のためお電話でご予約ください"
+                              >
+                                {s.label}<span className="ml-0.5 text-[9px]">TEL</span>
+                              </span>
+                            );
+                          }
+                          // full
                           return (
                             <span
                               key={s.startISO}
-                              className="rounded-lg border border-slate-200 bg-slate-50 text-slate-400 text-xs font-bold px-2.5 py-1.5 cursor-not-allowed"
-                              title="直前のためお電話でご予約ください"
+                              className="rounded-lg border border-slate-200 bg-slate-100 text-slate-300 text-xs font-bold py-2 cursor-not-allowed text-center"
                             >
-                              {s.label}<span className="ml-0.5 text-[9px]">TEL</span>
+                              {s.label}<span className="ml-0.5">×</span>
                             </span>
                           );
-                        }
-                        // full
-                        return (
-                          <span
-                            key={s.startISO}
-                            className="rounded-lg border border-slate-200 bg-slate-100 text-slate-300 text-xs font-bold px-2.5 py-1.5 cursor-not-allowed"
-                          >
-                            {s.label}<span className="ml-0.5">×</span>
-                          </span>
-                        );
-                      })}
+                        })}
+                      </div>
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             </>
           )}
@@ -429,6 +438,13 @@ export function BookingFlow({
                 <span className="font-bold">お電話に出られなかった場合、当店からの掛け直しはいたしません。</span>
                 その際は、ご予約が確定していた場合でも予約枠を解放させていただきます。恐れ入りますが、
                 できるだけ早めに折り返しのお電話にご対応いただけますようお願いいたします。
+              </p>
+            </div>
+            {/* 料金についての注意書き（固定文言） */}
+            <div className="rounded-xl border border-amber-200 bg-amber-50/60 p-3 text-[11px] text-amber-800 leading-relaxed">
+              <p className="font-bold mb-1">料金について</p>
+              <p>
+                コース料金のほかに、別途指名料等が必要となる場合があります。総額はお電話にてお伝えいたします。
               </p>
             </div>
             <div>
