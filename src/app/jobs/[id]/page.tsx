@@ -3,6 +3,7 @@ import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import { areaLabel } from '@/app/lib/areaLabel';
 import { fetchJobById, employmentTypeLabel, type JobDetail } from '@/app/lib/jobs';
+import { ApplyForm } from './ApplyForm';
 
 const SITE_URL = 'https://fukues.com';
 
@@ -77,8 +78,8 @@ function buildJobPostingJsonLd(job: JobDetail): Record<string, unknown> {
         addressCountry: 'JP',
       },
     },
-    // フォーム応募はフェーズ3で実装予定。実装後 true に変更する。
-    directApply: false,
+    // サイト内でWEB応募が完結するため true（フェーズ3で応募フォーム実装済み）。
+    directApply: true,
   };
 
   // datePosted：published_at の日付部分（ISO 8601）。
@@ -186,14 +187,16 @@ export default async function JobDetailPage({
           </div>
         )}
 
-        {/* 応募導線（暫定）：電話応募 ＋ 本体（フクエス）の店舗情報への導線。
-            ※ フォーム応募はフェーズ3で追加予定（実装後 JSON-LD の directApply を true に変更）。 */}
+        {/* 応募導線：WEB応募（サイト内完結）を主導線に、電話応募も残す。 */}
         <div className="mt-6 space-y-3">
+          {/* WEBで応募する（グリーン基調・主導線） */}
+          <ApplyForm jobId={job.id} />
+
           {job.salon.phone && (
             <a
               href={`tel:${job.salon.phone}`}
-              className="flex items-center justify-center gap-2 w-full py-3.5 rounded-xl text-white font-bold shadow-sm hover:opacity-90 transition-opacity"
-              style={{ background: 'linear-gradient(95deg,#10B981,#84CC16)' }}
+              className="flex items-center justify-center gap-2 w-full py-3.5 rounded-xl font-bold border transition-colors hover:bg-emerald-50"
+              style={{ borderColor: '#6EE7B7', color: '#059669' }}
             >
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                 <path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07A19.5 19.5 0 013.07 8.81a19.79 19.79 0 01-3.07-8.63A2 2 0 012 0h3a2 2 0 012 1.72c.127.96.361 1.903.7 2.81a2 2 0 01-.45 2.11L6.09 7.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0122 16.92z" />

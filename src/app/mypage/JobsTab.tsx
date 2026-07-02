@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { getMyJob, upsertMyJob, toggleMyJobActive, deleteMyJob, type MyJob } from '@/app/actions/jobs';
 import { JobFields, EMPTY_JOB_FORM, jobToForm, type JobFormState } from '@/app/components/JobFields';
+import { JobApplications } from '@/app/mypage/JobApplications';
 
 // mypage「求人」タブ本体。1店舗1件のため一覧ではなく単一画面
 // （未作成→作成フォーム／作成済み→編集フォーム＋公開切替＋削除）。
@@ -70,7 +71,7 @@ export function JobsTab({ salonId }: { salonId: number }) {
 
   const handleDelete = async () => {
     if (!job) return;
-    if (!window.confirm('この求人を削除しますか？\nこの操作は取り消せません。')) return;
+    if (!window.confirm('この求人を削除しますか？\n応募履歴もすべて削除されます。\nこの操作は取り消せません。')) return;
     setBusy(true);
     setMsg(null);
     const res = await deleteMyJob(job.id);
@@ -196,6 +197,9 @@ export function JobsTab({ salonId }: { salonId: number }) {
           </button>
         </div>
       </div>
+
+      {/* 応募一覧（求人が作成済みのときのみ表示） */}
+      {job && <JobApplications salonId={salonId} />}
     </div>
   );
 }

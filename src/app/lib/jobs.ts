@@ -21,6 +21,12 @@ export function employmentTypeLabel(value: string | null | undefined): string {
   return EMPLOYMENT_TYPE_LABELS[value] ?? EMPLOYMENT_TYPE_LABELS.OTHER;
 }
 
+// 応募ステータスの定義（new/contacted/closed）。
+// サーバーアクション（'use server'）は async 関数以外を export できないため、
+// 定数はこの非serverモジュールに集約し、actions 側は import して使う。
+export const APPLICATION_STATUSES = ['new', 'contacted', 'closed'] as const;
+export type ApplicationStatus = (typeof APPLICATION_STATUSES)[number];
+
 // ── 型 ───────────────────────────────────────────────
 export type JobSalon = {
   id: number;

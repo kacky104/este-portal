@@ -4,6 +4,9 @@ import { revalidatePath } from 'next/cache';
 import { createClient } from '@/app/lib/supabase/server';
 import { createServiceClient } from '@/app/lib/supabase/service';
 import { ADMIN_UUID } from '@/app/lib/admin';
+import { sendApplicationMail } from '@/app/lib/jobs/sendApplicationMail';
+// 'use server' ファイルは async 関数以外を export できないため、定数・型は非serverモジュールから import する。
+import { APPLICATION_STATUSES, type ApplicationStatus } from '@/app/lib/jobs';
 
 // フクエスワーク（セラピスト求人）フェーズ2のサーバーアクション群。
 //
@@ -21,7 +24,7 @@ import { ADMIN_UUID } from '@/app/lib/admin';
 const EMPLOYMENT_TYPES = ['CONTRACTOR', 'PART_TIME', 'FULL_TIME', 'OTHER'] as const;
 
 const JOB_COLUMNS =
-  'id, salon_id, title, description, employment_type, salary_text, salary_min, salary_max, work_hours, requirements, benefits, access, is_active, published_at, updated_at';
+  'id, salon_id, title, description, employment_type, salary_text, salary_min, salary_max, work_hours, requirements, benefits, access, notify_email, is_active, published_at, updated_at';
 
 export type JobFormInput = {
   title: string;
@@ -34,6 +37,7 @@ export type JobFormInput = {
   requirements: string;
   benefits: string;
   access: string;
+  notify_email: string;
 };
 
 export type MyJob = {
@@ -49,12 +53,13 @@ export type MyJob = {
   requirements: string;
   benefits: string;
   access: string;
+  notify_email: string;
   is_active: boolean;
   published_at: string | null;
   updated_at: string | null;
 };
 
-export type AdminJobRow = MyJob & { salonName: string; salonHidden: boolean };
+export type AdminJobRow = MyJob & { salonName: string; salonHidden: boolean; newCount: number };
 
 type Err = { ok: false; error: string };
 
@@ -73,6 +78,7 @@ function mapJob(row: Record<string, unknown>): MyJob {
     requirements: (row.requirements as string | null) ?? '',
     benefits: (row.benefits as string | null) ?? '',
     access: (row.access as string | null) ?? '',
+    notify_email: (row.notify_email as string | null) ?? '',
     is_active: Boolean(row.is_active),
     published_at: (row.published_at as string | null) ?? null,
     updated_at: (row.updated_at as string | null) ?? null,
@@ -145,6 +151,7 @@ type CleanJob = {
   requirements: string | null;
   benefits: string | null;
   access: string | null;
+  notify_email: string | null;
 };
 
 function validate(input: JobFormInput): { ok: true; clean: CleanJob } | Err {
@@ -173,6 +180,12 @@ function validate(input: JobFormInput): { ok: true; clean: CleanJob } | Err {
     return { ok: false, error: '給与の下限は上限以下にしてください' };
   }
 
+  // 応募通知メール（任意）。入力があるときだけ簡易形式チェック（@を含む程度・予約設定と同方針）。
+  const notifyEmail = trimOrNull(input.notify_email);
+  if (notifyEmail && !notifyEmail.includes('@')) {
+    return { ok: false, error: '応募通知メールの形式が正しくありません' };
+  }
+
   return {
     ok: true,
     clean: {
@@ -186,6 +199,7 @@ function validate(input: JobFormInput): { ok: true; clean: CleanJob } | Err {
       requirements: trimOrNull(input.requirements),
       benefits: trimOrNull(input.benefits),
       access: trimOrNull(input.access),
+      notify_email: notifyEmail,
     },
   };
 }
@@ -329,19 +343,38 @@ export async function adminListJobs(): Promise<{ ok: true; jobs: AdminJobRow[] }
 
   const jobs = data ?? [];
   const salonIds = [...new Set(jobs.map((j) => Number(j.salon_id)))];
+  const jobIds = jobs.map((j) => Number(j.id));
   const salonMap = new Map<number, { name: string; hidden: boolean }>();
+  const newCountByJob = new Map<number, number>();
   if (salonIds.length > 0) {
     const { data: salons } = await svc.from('salons').select('id, name, is_hidden').in('id', salonIds);
     (salons ?? []).forEach((s) =>
       salonMap.set(Number(s.id), { name: (s.name as string | null) ?? '', hidden: Boolean(s.is_hidden) }),
     );
   }
+  // 各求人の新規応募件数（status='new'）を集計（一覧行に「新規n件」を出すため）。
+  if (jobIds.length > 0) {
+    const { data: apps } = await svc
+      .from('job_applications')
+      .select('job_id')
+      .eq('status', 'new')
+      .in('job_id', jobIds);
+    (apps ?? []).forEach((a) => {
+      const jid = Number(a.job_id);
+      newCountByJob.set(jid, (newCountByJob.get(jid) ?? 0) + 1);
+    });
+  }
 
   return {
     ok: true,
     jobs: jobs.map((j) => {
       const info = salonMap.get(Number(j.salon_id));
-      return { ...mapJob(j), salonName: info?.name ?? '(不明)', salonHidden: info?.hidden ?? false };
+      return {
+        ...mapJob(j),
+        salonName: info?.name ?? '(不明)',
+        salonHidden: info?.hidden ?? false,
+        newCount: newCountByJob.get(Number(j.id)) ?? 0,
+      };
     }),
   };
 }
@@ -372,4 +405,223 @@ export async function adminListSalonsForJob(): Promise<
       isHidden: Boolean(s.is_hidden),
     })),
   };
+}
+
+// ══════════════════════════════════════════════════════════════════
+//  応募（job_applications）— フェーズ3
+//  INSERT は anon 可の RLS ポリシーがあるが、重複ガード読み取り＋非表示サロン判定が
+//  必要なため service_role で統一する（RLSを通らない＝明示チェック必須）。
+// ══════════════════════════════════════════════════════════════════
+
+export type JobApplication = {
+  id: string;
+  jobId: number;
+  salonId: number;
+  name: string;
+  tel: string;
+  age: number | null;
+  note: string | null;
+  status: string;
+  createdAt: string;
+};
+
+export type JobApplicationInput = {
+  name: string;
+  tel: string;
+  age: string | number | null;
+  note: string;
+};
+
+function mapApplication(row: Record<string, unknown>): JobApplication {
+  return {
+    id: String(row.id),
+    jobId: Number(row.job_id),
+    salonId: Number(row.salon_id),
+    name: (row.name as string | null) ?? '',
+    tel: (row.tel as string | null) ?? '',
+    age: row.age == null ? null : Number(row.age),
+    note: (row.note as string | null) ?? null,
+    status: (row.status as string | null) ?? 'new',
+    createdAt: String(row.created_at),
+  };
+}
+
+// ── 応募の作成（公開・anon経路。サーバーで全項目を再検証） ──
+export async function createJobApplication(
+  jobId: number,
+  input: JobApplicationInput,
+): Promise<{ ok: true } | Err> {
+  if (!Number.isFinite(jobId)) return { ok: false, error: '対象の求人が不正です' };
+
+  const name = String(input.name ?? '').trim();
+  const tel = String(input.tel ?? '').trim();
+  const note = String(input.note ?? '').trim();
+
+  // ③ 氏名・電話の必須＆形式（電話は数字ハイフンのみ・10〜13桁程度の緩い検証）。
+  if (!name) return { ok: false, error: 'お名前を入力してください' };
+  if (!/^[0-9-]{10,13}$/.test(tel)) {
+    return { ok: false, error: '電話番号は数字とハイフンで正しく入力してください' };
+  }
+
+  // ④ 年齢は入力時のみ 18〜99 の整数。
+  let age: number | null = null;
+  const ageStr = input.age == null ? '' : String(input.age).trim();
+  if (ageStr !== '') {
+    if (!/^\d+$/.test(ageStr)) return { ok: false, error: '年齢は数字で入力してください' };
+    const a = Number(ageStr);
+    if (a < 18 || a > 99) return { ok: false, error: '年齢は18〜99の範囲で入力してください' };
+    age = a;
+  }
+
+  const svc = createServiceClient();
+
+  // ① 求人が存在＆is_active。
+  const { data: job, error: jErr } = await svc
+    .from('salon_jobs')
+    .select('id, title, is_active, notify_email, salon_id')
+    .eq('id', jobId)
+    .maybeSingle();
+  if (jErr || !job) return { ok: false, error: 'この求人は現在応募を受け付けていません' };
+  if (!job.is_active) return { ok: false, error: 'この求人は現在応募を受け付けていません' };
+
+  // ② サロンが is_hidden=false（service_role は RLS を通らないため明示チェック必須）。
+  const { data: salon, error: sErr } = await svc
+    .from('salons')
+    .select('name, is_hidden, booking_email')
+    .eq('id', Number(job.salon_id))
+    .maybeSingle();
+  if (sErr || !salon || salon.is_hidden) {
+    return { ok: false, error: 'この求人は現在応募を受け付けていません' };
+  }
+
+  // ⑤ 直近1時間の同一 job_id + tel 重複ガード。
+  const cutoff = new Date(Date.now() - 60 * 60 * 1000).toISOString();
+  const { data: dup } = await svc
+    .from('job_applications')
+    .select('id')
+    .eq('job_id', jobId)
+    .eq('tel', tel)
+    .gte('created_at', cutoff)
+    .limit(1);
+  if (dup && dup.length > 0) {
+    return { ok: false, error: 'すでに応募を受け付けています。お店からの連絡をお待ちください' };
+  }
+
+  const { error: insErr } = await svc
+    .from('job_applications')
+    // salon_id は NOT NULL。求人から辿った salon_id を必ず入れる。
+    .insert({ job_id: jobId, salon_id: Number(job.salon_id), name, tel, age, note: note || null, status: 'new' });
+  if (insErr) return { ok: false, error: insErr.message };
+
+  // 通知メール：notify_email → salons.booking_email → 両方空ならスキップ（応募はDBに残る）。
+  const to =
+    ((job.notify_email as string | null) ?? '').trim() ||
+    ((salon.booking_email as string | null) ?? '').trim() ||
+    '';
+  await sendApplicationMail({
+    to,
+    salonName: (salon.name as string | null) ?? '',
+    jobTitle: (job.title as string | null) ?? '',
+    name,
+    tel,
+    age,
+    note: note || null,
+  });
+
+  return { ok: true };
+}
+
+// 応募の所有権チェック（application → job → salon.owner_id、本人 or ADMIN）。
+// booking.ts の assertBookingOwner と同じ作法で、成功時は service_role クライアントを返す。
+async function assertApplicationOwner(
+  applicationId: string,
+): Promise<{ ok: true; svc: ReturnType<typeof createServiceClient> } | Err> {
+  if (!applicationId) return { ok: false, error: '対象の応募が不正です' };
+  const auth = await requireUser();
+  if (!auth.ok) return auth;
+
+  const svc = createServiceClient();
+  const { data: app, error } = await svc
+    .from('job_applications')
+    .select('job_id')
+    .eq('id', applicationId)
+    .maybeSingle();
+  if (error || !app) return { ok: false, error: '応募が見つかりません' };
+
+  const { data: job, error: jErr } = await svc
+    .from('salon_jobs')
+    .select('salon_id')
+    .eq('id', Number(app.job_id))
+    .maybeSingle();
+  if (jErr || !job) return { ok: false, error: '求人が見つかりません' };
+
+  const { data: salon, error: sErr } = await svc
+    .from('salons')
+    .select('owner_id')
+    .eq('id', Number(job.salon_id))
+    .maybeSingle();
+  if (sErr || !salon) return { ok: false, error: 'サロンが見つかりません' };
+
+  const ownerId = (salon.owner_id as string | null) ?? null;
+  if (ownerId !== auth.user.id && auth.user.id !== ADMIN_UUID) {
+    return { ok: false, error: 'この応募を操作する権限がありません' };
+  }
+  return { ok: true, svc };
+}
+
+// ── 応募一覧（オーナー本人 or 運営・service_role 取得・新しい順） ──
+export async function getJobApplications(
+  salonId: number,
+): Promise<{ ok: true; applications: JobApplication[] } | Err> {
+  if (!Number.isFinite(salonId)) return { ok: false, error: '対象サロンが不正です' };
+  const auth = await requireUser();
+  if (!auth.ok) return auth;
+  const own = await assertSalonOwner(auth.supabase, auth.user.id, salonId);
+  if (!own.ok) return own;
+
+  const svc = createServiceClient();
+  // 対象サロンの求人ID（1店舗1件だが将来も想定して in で絞る）。
+  const { data: jobs, error: jErr } = await svc.from('salon_jobs').select('id').eq('salon_id', salonId);
+  if (jErr) return { ok: false, error: jErr.message };
+  const jobIds = (jobs ?? []).map((j) => Number(j.id));
+  if (jobIds.length === 0) return { ok: true, applications: [] };
+
+  const { data, error } = await svc
+    .from('job_applications')
+    .select('id, job_id, salon_id, name, tel, age, note, status, created_at')
+    .in('job_id', jobIds)
+    .order('created_at', { ascending: false });
+  if (error) return { ok: false, error: error.message };
+  return { ok: true, applications: (data ?? []).map(mapApplication) };
+}
+
+// ── 応募ステータス変更（new/contacted/closed・オーナー本人 or 運営） ──
+export async function updateApplicationStatus(
+  applicationId: string,
+  nextStatus: string,
+): Promise<{ ok: boolean; error?: string }> {
+  if (!(APPLICATION_STATUSES as readonly string[]).includes(nextStatus)) {
+    return { ok: false, error: 'ステータスが不正です' };
+  }
+  const auth = await assertApplicationOwner(applicationId);
+  if (!auth.ok) return { ok: false, error: auth.error };
+
+  const { error } = await auth.svc
+    .from('job_applications')
+    .update({ status: nextStatus as ApplicationStatus })
+    .eq('id', applicationId);
+  if (error) return { ok: false, error: error.message };
+  return { ok: true };
+}
+
+// ── 応募の削除（confirm前提・オーナー本人 or 運営） ──
+export async function deleteApplication(
+  applicationId: string,
+): Promise<{ ok: boolean; error?: string }> {
+  const auth = await assertApplicationOwner(applicationId);
+  if (!auth.ok) return { ok: false, error: auth.error };
+
+  const { error } = await auth.svc.from('job_applications').delete().eq('id', applicationId);
+  if (error) return { ok: false, error: error.message };
+  return { ok: true };
 }

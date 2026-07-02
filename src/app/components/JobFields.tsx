@@ -16,6 +16,7 @@ export type JobFormState = {
   requirements: string;
   benefits: string;
   access: string;
+  notify_email: string;
 };
 
 // 雇用形態の選択肢（DB値＝schema.org値。デフォルトは業務委託）。
@@ -37,6 +38,7 @@ export const EMPTY_JOB_FORM: JobFormState = {
   requirements: '',
   benefits: '',
   access: '',
+  notify_email: '',
 };
 
 // MyJob（サーバー取得）→ フォーム状態（数値は文字列化・空欄化）。
@@ -52,6 +54,7 @@ export function jobToForm(job: MyJob): JobFormState {
     requirements: job.requirements,
     benefits: job.benefits,
     access: job.access,
+    notify_email: job.notify_email,
   };
 }
 
@@ -186,6 +189,18 @@ export function JobFields({
           placeholder="例）地下鉄天神駅より徒歩3分"
           value={value.access}
           onChange={(e) => onChange({ access: e.target.value })}
+        />
+      </div>
+
+      {/* 応募通知メール（任意）。空欄ならネット予約の通知先（salons.booking_email）に届く。 */}
+      <div>
+        <Label>応募通知メール</Label>
+        <input
+          type="email"
+          className={inputClass}
+          placeholder="空欄の場合はネット予約の通知先に届きます"
+          value={value.notify_email}
+          onChange={(e) => onChange({ notify_email: e.target.value })}
         />
       </div>
 

@@ -151,7 +151,16 @@ export default function AdminJobsManager({ onToast }: { onToast: (msg: string) =
                       </span>
                     )}
                   </td>
-                  <td className="px-4 py-3 text-xs text-slate-600 max-w-[220px] truncate">{row.title}</td>
+                  <td className="px-4 py-3 text-xs text-slate-600 max-w-[220px]">
+                    <div className="flex items-center gap-1.5">
+                      <span className="truncate">{row.title}</span>
+                      {row.newCount > 0 && (
+                        <span className="flex-shrink-0 text-[10px] px-1.5 py-0.5 rounded-full bg-pink-50 text-pink-600 border border-pink-200 font-bold">
+                          新規{row.newCount}件
+                        </span>
+                      )}
+                    </div>
+                  </td>
                   <td className="px-4 py-3 text-[11px] text-slate-500">{EMPLOYMENT_LABEL[row.employment_type] ?? row.employment_type}</td>
                   <td className="px-4 py-3">
                     {row.is_active ? (
