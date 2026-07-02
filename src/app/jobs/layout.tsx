@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { JobsLogo } from '@/components/JobsLogo';
+import { WelcomeSplash } from './WelcomeSplash';
 
 // フクエスワーク（求人サイト）専用シェル。
 // root layout にはサイト共通ヘッダーが無く（各ページが自前でヘッダーを描画する構造）、
@@ -51,6 +52,9 @@ export default function JobsLayout({ children }: { children: React.ReactNode }) 
   return (
     // 別サイト感を出すため肉球壁紙は使わず、白〜ごく薄いグリーンの無地背景。
     <div className="min-h-screen flex flex-col" style={{ background: 'linear-gradient(#ffffff,#F1FAF4)' }}>
+      {/* ウェルカム画面（初回のみ・SSR本体の上に被せるクライアントオーバーレイ。SEO非影響） */}
+      <WelcomeSplash />
+
       {/* ─── フクエスワーク専用ヘッダー（左=ロゴ→/jobs、右=本体TOPへのテキストリンク） ─── */}
       <header className="sticky top-0 z-50 bg-white/85 backdrop-blur-md border-b" style={{ borderColor: '#D6EFE0' }}>
         <div className="max-w-3xl mx-auto px-4 h-14 flex items-center justify-between">
