@@ -263,6 +263,13 @@ export default async function Home() {
               </span>
             </div>
             <nav className="flex gap-5 text-xs text-slate-400">
+              {/* セラピスト求人：実ページ /jobs（フクエスワーク）への内部リンク（他は暫定 #）。 */}
+              <Link
+                href="/jobs"
+                className="hover:text-pink-600 transition-colors whitespace-nowrap"
+              >
+                セラピスト求人（フクエスワーク）
+              </Link>
               {[
                 { label: "利用規約" },
                 // プライバシーポリシーはスマホのみ半角カナ表示（PCは全角）。href は変えない。
