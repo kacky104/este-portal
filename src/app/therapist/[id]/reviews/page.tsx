@@ -44,10 +44,13 @@ export default async function TherapistReviewsPage({
 
   // 所属サロン（テーマ連動の背景・パンくず用）と口コミ集計/一覧を並列取得。
   const [{ data: salonRow }, reviewStats, reviews] = await Promise.all([
-    supabase.from('salons').select('id, name, theme').eq('id', salonId).single(),
+    supabase.from('salons').select('id, name, theme, is_hidden').eq('id', salonId).single(),
     getReviewStats(therapistId),
     getApprovedReviews(therapistId),
   ]);
+
+  // 所属サロンが非表示（or 取得不可）なら404（公開側から隠す）。
+  if (!salonRow || salonRow.is_hidden) notFound();
 
   // 所属サロンと同じテーマ壁紙を背景に適用。
   const theme = getTheme((salonRow?.theme as string | null) ?? null);

@@ -80,9 +80,12 @@ export default async function TherapistPublicPage({
 
   const { data: salonRow } = await supabase
     .from('salons')
-    .select('id, name, area, hours, address, theme')
+    .select('id, name, area, hours, address, theme, is_hidden')
     .eq('id', tRow.salon_id as number)
     .single();
+
+  // 所属サロンが非表示（or 取得不可）ならセラピスト詳細も404にする（公開側から隠す）。
+  if (!salonRow || salonRow.is_hidden) notFound();
 
   // 所属サロンと同じテーマ壁紙を背景に適用
   const theme = getTheme((salonRow?.theme as string | null) ?? null);

@@ -55,9 +55,12 @@ export default async function TherapistDiaryPage({
 
   const { data: salonRow } = await supabase
     .from('salons')
-    .select('id, name, theme')
+    .select('id, name, theme, is_hidden')
     .eq('id', tRow.salon_id as number)
     .single();
+
+  // 所属サロンが非表示（or 取得不可）なら404（公開側から隠す）。
+  if (!salonRow || salonRow.is_hidden) notFound();
 
   const theme = getTheme((salonRow?.theme as string | null) ?? null);
   const { data: wallpaperRow } = await supabase

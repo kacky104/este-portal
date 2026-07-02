@@ -38,11 +38,12 @@ export default async function SalonBookPage({
 
   const { data: salonRow, error } = await supabase
     .from('salons')
-    .select('id, name, theme, phone, booking_enabled, booking_courses')
+    .select('id, name, theme, phone, booking_enabled, booking_courses, is_hidden')
     .eq('id', salonId)
     .single();
 
-  if (error || !salonRow) notFound();
+  // 非表示サロンは予約ページも404（RLSに加え明示チェックで多重防御）。
+  if (error || !salonRow || salonRow.is_hidden) notFound();
 
   const theme = getTheme(salonRow.theme as string | null);
   const salonName = (salonRow.name as string) ?? '';

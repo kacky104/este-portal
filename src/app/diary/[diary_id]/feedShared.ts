@@ -2,8 +2,9 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 
 // 写メ日記フィードの取得・整形を server/client で共有する（表示内容を完全に一致させるため唯一のソース）。
 
+// salons!inner で結合：非表示サロン（anon RLSで不可視）の投稿をフィードから除外する。
 export const DIARY_SELECT =
-  'id, images, title, content, created_at, salon_id, therapist_id, therapists(name, profile_image_url), salons(name, theme)';
+  'id, images, title, content, created_at, salon_id, therapist_id, therapists(name, profile_image_url), salons!inner(name, theme)';
 
 export type DiaryEntry = {
   id: string;
@@ -53,7 +54,8 @@ export async function fetchDiaryFeed(
   supabase: SupabaseClient,
   opts: { fromSalon: boolean; salonId: number | string; therapistId: number | string }
 ): Promise<DiaryEntry[]> {
-  const query = supabase.from('diary_posts').select(DIARY_SELECT).order('created_at', { ascending: false });
+  // salons!inner＋is_hidden=false で、非表示サロンの投稿をフィードから除外する（多重防御）。
+  const query = supabase.from('diary_posts').select(DIARY_SELECT).eq('salons.is_hidden', false).order('created_at', { ascending: false });
   const { data } = opts.fromSalon
     ? await query.eq('salon_id', opts.salonId)
     : await query.eq('therapist_id', opts.therapistId);

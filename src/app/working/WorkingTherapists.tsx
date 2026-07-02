@@ -18,9 +18,11 @@ export function WorkingTherapists({ filterSalonIds }: { filterSalonIds?: number[
       const supabase = createClient();
 
       // ── トップと同じデータ取得。filterSalonIds 指定時のみ そのエリアのサロン所属者に絞る（未指定=全サロン）。 ──
+      // salons!inner＋is_hidden=false で、非表示サロン所属のセラピストは公開表示から除外する。
       let query = supabase
         .from('therapists')
-        .select('id, name, work_hours, area, comment, salon_id, profile_image_url, age, is_available_now, available_until, is_available_now_cast, available_until_cast, is_new_face, new_face_since, feature_badges');
+        .select('id, name, work_hours, area, comment, salon_id, profile_image_url, age, is_available_now, available_until, is_available_now_cast, available_until_cast, is_new_face, new_face_since, feature_badges, salons!inner(is_hidden)')
+        .eq('salons.is_hidden', false);
       if (filterSalonIds) query = query.in('salon_id', filterSalonIds);
       const { data: therapistData } = await query;
 

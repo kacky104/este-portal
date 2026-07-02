@@ -42,9 +42,12 @@ export default async function Home() {
     getFeaturedSalons(supabase, null),
     supabase
       .from('therapist_schedules')
-      .select('start_time, end_time')
+      // therapists!inner→salons!inner の連鎖で、非表示サロン（anon RLSで不可視）所属の
+      // 出勤を本日出勤総数のカウントから除外する。
+      .select('start_time, end_time, therapists!inner(salons!inner(id))')
       .eq('schedule_date', todayJST)
-      .eq('is_active', true),
+      .eq('is_active', true)
+      .eq('therapists.salons.is_hidden', false),
     // サイト全体の口コミ総数：全サロンの review_count（キャッシュ列）合計。
     supabase.from('salons').select('review_count'),
   ]);

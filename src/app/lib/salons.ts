@@ -58,6 +58,9 @@ export async function fetchSalons(
   let query = supabase.from('salons').select(SALON_COLUMNS);
   if (ids) query = query.in('id', ids);
   if (opts?.showOnTopOnly) query = query.eq('show_on_top', true);
+  // 非表示サロンは公開一覧から除外（RLSに加え明示フィルタで多重防御。
+  // オーナー本人がログイン中に公開一覧を見た場合も、公開側では出さない）。
+  query = query.eq('is_hidden', false);
   const { data } = await query;
   return (data ?? []).map(row => mapSalonRow(row as Record<string, unknown>));
 }

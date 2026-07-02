@@ -128,12 +128,15 @@ export async function getSlots(
     return [];
   }
   const supabase = createPublicClient();
+  // therapists!inner→salons!inner の連鎖で、非表示サロン（anon RLSで不可視）所属の
+  // セラピストの枠は取得できない（＝空配列＝予約不可）。
   const { data: sched, error } = await supabase
     .from('therapist_schedules')
-    .select('schedule_date, start_time, end_time, is_active')
+    .select('schedule_date, start_time, end_time, is_active, therapists!inner(salons!inner(id))')
     .eq('therapist_id', therapistId)
     .eq('schedule_date', dateISO)
     .eq('is_active', true)
+    .eq('therapists.salons.is_hidden', false)
     .maybeSingle();
   if (error || !sched || !sched.start_time || !sched.end_time) return [];
 
@@ -212,10 +215,12 @@ export async function createBooking(input: CreateBookingInput): Promise<CreateBo
   // 1) サロンの予約可否＋予約コースを確認（course の改ざん防止）。
   const { data: salon, error: salonErr } = await svc
     .from('salons')
-    .select('name, booking_enabled, booking_email, booking_courses')
+    .select('name, booking_enabled, booking_email, booking_courses, is_hidden')
     .eq('id', salonId)
     .maybeSingle();
   if (salonErr || !salon) return { ok: false, error: 'invalid' };
+  // service_role は RLS を通らないため、非表示サロンは明示的に弾く（受付停止扱い）。
+  if (salon.is_hidden) return { ok: false, error: 'disabled' };
   if (!salon.booking_enabled) return { ok: false, error: 'disabled' };
 
   const courses = parseBookingCourses(salon.booking_courses);

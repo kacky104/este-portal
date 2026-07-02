@@ -72,7 +72,7 @@ export default async function SalonPage({
   ] = await Promise.all([
     supabase
       .from('salons')
-      .select('id, name, rating, review_count, tags, price, area, hours, description, appeal, phone, address, access, closed_days, note, courses, theme, official_url, fukux_url')
+      .select('id, name, rating, review_count, tags, price, area, hours, description, appeal, phone, address, access, closed_days, note, courses, theme, official_url, fukux_url, is_hidden')
       .eq('id', Number(id))
       .single(),
     supabase
@@ -99,7 +99,8 @@ export default async function SalonPage({
       .gte('published_at', announcementCutoff),
   ]);
 
-  if (error || !row) notFound();
+  // 非表示サロンは公開側から隠す（RLSに加え明示チェックで多重防御。直URLアクセスは404）。
+  if (error || !row || row.is_hidden) notFound();
 
   const salonImages = (imageRows ?? []).map(r => ({
     pc:     r.image_url        as string,

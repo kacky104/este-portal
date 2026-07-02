@@ -39,7 +39,9 @@ export default async function DiaryListPage({
   // range で1ページ32件取得＋count: 'exact' で総件数を同時取得（ページ数算出に使う）。
   const { data, count } = await supabase
     .from('diary_posts')
-    .select('id, images, title, content, created_at, therapists(name), salons(name)', { count: 'exact' })
+    // salons!inner＋is_hidden=false で、非表示サロンの投稿を公開一覧から除外する（多重防御）。
+    .select('id, images, title, content, created_at, therapists(name), salons!inner(name)', { count: 'exact' })
+    .eq('salons.is_hidden', false)
     .order('created_at', { ascending: false })
     .range(offset, offset + PAGE_SIZE - 1);
 

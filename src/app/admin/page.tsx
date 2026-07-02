@@ -11,7 +11,7 @@ import SalonEditModal, { type SalonForEdit } from '@/app/components/SalonEditMod
 import ThemeWallpaperManager from '@/app/components/ThemeWallpaperManager';
 import { ADMIN_UUID } from '@/app/lib/admin';
 import { areaLabel } from '@/app/lib/areaLabel';
-import { revalidateTopAndAreas } from '@/app/lib/revalidateTop';
+import { revalidateTopAndAreas, revalidateSalon } from '@/app/lib/revalidateTop';
 
 const supabase = createClient();
 
@@ -31,6 +31,7 @@ type Salon = {
   closed_days: string | null;
   show_on_top: boolean | null;
   dispatch_type: 'none' | 'available' | 'only' | null;
+  is_hidden: boolean | null;
 };
 
 type AuthState = 'loading' | 'forbidden' | 'authorized';
@@ -60,6 +61,7 @@ export default function AdminDashboard() {
   const [dispatchType, setDispatchType] = useState<'none' | 'available' | 'only'>('none');
   const [toast, setToast] = useState('');
   const [editingSalon, setEditingSalon] = useState<SalonForEdit | null>(null);
+  const [hidingId, setHidingId] = useState<number | null>(null);
 
   const showToast = (msg: string) => {
     setToast(msg);
@@ -69,7 +71,7 @@ export default function AdminDashboard() {
   const fetchSalons = useCallback(async () => {
     const { data, error } = await supabase
       .from('salons')
-      .select('id, name, area, price, rating, owner_id, hours, phone, address, access, closed_days, show_on_top, dispatch_type')
+      .select('id, name, area, price, rating, owner_id, hours, phone, address, access, closed_days, show_on_top, dispatch_type, is_hidden')
       .order('id', { ascending: true });
     if (error) {
       setFetchError('サロンデータの取得に失敗しました');
@@ -92,6 +94,33 @@ export default function AdminDashboard() {
   const handleSignOut = async () => {
     await supabase.auth.signOut();
     router.push('/login');
+  };
+
+  // 掲載サロンの非表示トグル（削除ではない・即復帰可）。
+  // 非表示にすると公開側（一覧・検索・詳細・所属セラピスト・写メ日記）から見えなくなる。
+  // オーナー本人・運営は引き続き閲覧/編集できる（salons RLS）。
+  const handleToggleHidden = async (salon: Salon) => {
+    const next = !salon.is_hidden;
+    if (
+      next &&
+      !window.confirm(
+        `「${salon.name ?? 'この店舗'}」を非表示にしますか？\n公開側（一覧・検索・詳細・所属セラピスト・写メ日記）から見えなくなります。\nデータは残り、いつでも表示に戻せます。`,
+      )
+    ) {
+      return;
+    }
+    setHidingId(salon.id);
+    const { error } = await supabase.from('salons').update({ is_hidden: next }).eq('id', salon.id);
+    setHidingId(null);
+    if (error) {
+      showToast(`更新に失敗しました: ${error.message}`);
+      return;
+    }
+    setSalons(prev => prev.map(s => (s.id === salon.id ? { ...s, is_hidden: next } : s)));
+    // 公開側キャッシュ（トップ・地域・当該サロン詳細）を即時再検証して残像を防ぐ。
+    revalidateTopAndAreas();
+    revalidateSalon(salon.id);
+    showToast(next ? '非表示にしました' : '表示に戻しました');
   };
 
   const handleAdd = async (e: React.FormEvent) => {
@@ -362,14 +391,14 @@ export default function AdminDashboard() {
                     <th className="text-left px-4 py-3 text-[11px] font-bold text-slate-400">料金</th>
                     <th className="text-left px-4 py-3 text-[11px] font-bold text-slate-400 w-16">評価</th>
                     <th className="text-left px-4 py-3 text-[11px] font-bold text-slate-400">オーナーUUID</th>
-                    <th className="px-4 py-3 w-16" />
+                    <th className="px-4 py-3 w-44" />
                   </tr>
                 </thead>
                 <tbody>
                   {salons.map((salon, i) => (
                     <tr
                       key={salon.id}
-                      className={`border-b border-slate-100 hover:bg-pink-50/20 transition-colors ${i % 2 === 0 ? '' : 'bg-slate-50/30'}`}
+                      className={`border-b border-slate-100 hover:bg-pink-50/20 transition-colors ${salon.is_hidden ? 'opacity-50' : i % 2 === 0 ? '' : 'bg-slate-50/30'}`}
                     >
                       <td className="px-4 py-3 text-xs text-slate-500 font-mono">{salon.id}</td>
                       <td className="px-4 py-3 text-xs font-bold text-slate-800">{salon.name ?? '—'}</td>
@@ -380,6 +409,9 @@ export default function AdminDashboard() {
                       </td>
                       <td className="px-4 py-3">
                         <div className="flex flex-wrap gap-1">
+                          {salon.is_hidden && (
+                            <span className="text-[10px] px-2 py-0.5 rounded-full bg-rose-100 text-rose-600 border border-rose-200 font-bold">非表示中</span>
+                          )}
                           {salon.show_on_top === false ? (
                             <span className="text-[10px] px-2 py-0.5 rounded-full bg-slate-100 text-slate-400 border border-slate-200 font-medium">非掲載</span>
                           ) : (
@@ -400,13 +432,26 @@ export default function AdminDashboard() {
                       <td className="px-4 py-3 text-[10px] text-slate-400 font-mono break-all">
                         {salon.owner_id ?? <span className="text-slate-300">未設定</span>}
                       </td>
-                      <td className="px-4 py-3 text-right">
-                        <button
-                          onClick={() => setEditingSalon(salon)}
-                          className="text-[11px] font-bold px-3 py-1 rounded-lg border border-pink-200 text-pink-600 hover:bg-pink-50 hover:border-pink-300 transition-colors"
-                        >
-                          編集
-                        </button>
+                      <td className="px-4 py-3">
+                        <div className="flex items-center justify-end gap-2">
+                          <button
+                            onClick={() => handleToggleHidden(salon)}
+                            disabled={hidingId === salon.id}
+                            className={`text-[11px] font-bold px-3 py-1 rounded-lg border transition-colors disabled:opacity-50 ${
+                              salon.is_hidden
+                                ? 'border-emerald-200 text-emerald-600 hover:bg-emerald-50 hover:border-emerald-300'
+                                : 'border-slate-200 text-slate-500 hover:bg-slate-50 hover:border-slate-300'
+                            }`}
+                          >
+                            {salon.is_hidden ? '表示に戻す' : '非表示にする'}
+                          </button>
+                          <button
+                            onClick={() => setEditingSalon(salon)}
+                            className="text-[11px] font-bold px-3 py-1 rounded-lg border border-pink-200 text-pink-600 hover:bg-pink-50 hover:border-pink-300 transition-colors"
+                          >
+                            編集
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   ))}
