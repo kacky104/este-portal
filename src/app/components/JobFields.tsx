@@ -176,7 +176,7 @@ export function JobFields({
           <span className="text-xs text-slate-400 flex-none">円</span>
         </div>
         <p className="text-[10px] text-slate-400 mt-1">
-          下限・上限は「両方入力」か「両方空欄」で。片方だけは保存できません（日給想定）。
+          下限・上限は「両方入力」か「両方空欄」で。片方だけは保存できません（日給想定）。サイトには表示されませんが、入力するとGoogle検索で貴店の求人が表示されやすくなります。
         </p>
       </div>
 
