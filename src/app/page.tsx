@@ -262,7 +262,7 @@ export default async function Home() {
                 フクエス ～福岡メンズエステポータル～
               </span>
             </div>
-            <nav className="flex gap-5 text-xs text-slate-400">
+            <nav className="flex flex-wrap justify-center gap-x-5 gap-y-2 text-xs text-slate-400">
               {/* セラピスト求人：実ページ /jobs（フクエスワーク）への内部リンク（他は暫定 #）。 */}
               <Link
                 href="/jobs"
