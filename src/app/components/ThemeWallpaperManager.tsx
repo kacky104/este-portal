@@ -107,8 +107,7 @@ export default function ThemeWallpaperManager({ onToast }: { onToast: (msg: stri
 
   return (
     <div className="bg-white rounded-3xl border border-slate-100 shadow-sm p-6">
-      <div className="flex items-center justify-between mb-1">
-        <h2 className="text-sm font-black text-slate-700">テーマ壁紙設定</h2>
+      <div className="flex items-center justify-end mb-1">
         <span className="text-[11px] text-slate-400">{Object.keys(byKey).length} / {SALON_THEMES.length} 設定済み</span>
       </div>
       <p className="text-[11px] text-slate-400 mb-1">各テーマの背景に使う壁紙画像を設定します（JPEG / PNG / WebP・最大5MB）。サロン詳細ページで薄く敷かれます。</p>

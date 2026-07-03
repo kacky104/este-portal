@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, type ReactNode } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/app/lib/supabase/client';
@@ -37,6 +37,49 @@ type Salon = {
 
 type AuthState = 'loading' | 'forbidden' | 'authorized';
 
+// 本体タブ内のアコーディオン1セクション。見出し（クリックで開閉・chevron付き）＋本文。
+// 開閉は CSS の hidden 切替のみ（本文は常にマウントしたまま）＝内部フォームの入力中state が破棄されない。
+function AccordionSection({
+  id,
+  title,
+  meta,
+  expanded,
+  onToggle,
+  children,
+}: {
+  id: string;
+  title: string;
+  meta?: ReactNode;
+  expanded: Set<string>;
+  onToggle: (key: string) => void;
+  children: ReactNode;
+}) {
+  const isOpen = expanded.has(id);
+  return (
+    <div>
+      <button
+        type="button"
+        onClick={() => onToggle(id)}
+        aria-expanded={isOpen}
+        className="w-full flex items-center justify-between gap-3 px-5 py-3.5 bg-white rounded-2xl border border-slate-100 shadow-sm hover:bg-slate-50/60 transition-colors"
+      >
+        <span className="flex items-center gap-2 min-w-0">
+          <span className="text-sm font-black text-slate-700">{title}</span>
+          {meta}
+        </span>
+        <svg
+          className={`w-4 h-4 text-slate-400 flex-shrink-0 transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`}
+          fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}
+        >
+          <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+        </svg>
+      </button>
+      {/* 本文は常にレンダリングし、閉時は display:none（unmount しない＝入力中stateを保持）。 */}
+      <div className={isOpen ? 'mt-3' : 'hidden'}>{children}</div>
+    </div>
+  );
+}
+
 const EMPTY_FORM = {
   name: '',
   area: '博多・住吉',
@@ -63,11 +106,36 @@ export default function AdminDashboard() {
   const [toast, setToast] = useState('');
   const [editingSalon, setEditingSalon] = useState<SalonForEdit | null>(null);
   const [hidingId, setHidingId] = useState<number | null>(null);
+  // タブ（本体/求人）とアコーディオン開閉。タブはURLクエリ ?tab= と同期（リロード・ブックマークで維持）。
+  const [activeTab, setActiveTab] = useState<'main' | 'jobs'>('main');
+  // 初期は使用頻度の高い「掲載サロン一覧」のみ開。開閉状態はクライアントstateのみ（永続化しない）。
+  const [expandedSections, setExpandedSections] = useState<Set<string>>(new Set(['salon-list']));
+  // 求人タブの新規応募バッジ用（AdminJobsManager が読み込み時に合計を通知）。
+  const [jobNewCount, setJobNewCount] = useState(0);
 
   const showToast = (msg: string) => {
     setToast(msg);
     setTimeout(() => setToast(''), 3000);
   };
+
+  const toggleSection = (key: string) => {
+    setExpandedSections(prev => {
+      const next = new Set(prev);
+      next.has(key) ? next.delete(key) : next.add(key);
+      return next;
+    });
+  };
+
+  // タブ切替時にURLも更新（履歴を汚さない replace。ページ自体は同一ルートなので再マウントされない）。
+  const selectTab = (key: 'main' | 'jobs') => {
+    setActiveTab(key);
+    router.replace(`/admin?tab=${key}`, { scroll: false });
+  };
+
+  // マウント時に ?tab= を反映（リロード・ブックマークでタブを維持）。
+  useEffect(() => {
+    if (new URLSearchParams(window.location.search).get('tab') === 'jobs') setActiveTab('jobs');
+  }, []);
 
   const fetchSalons = useCallback(async () => {
     const { data, error } = await supabase
@@ -245,29 +313,61 @@ export default function AdminDashboard() {
         </div>
       </header>
 
-      <main className="max-w-5xl mx-auto px-4 py-8 space-y-6">
+      {/* ── タブナビゲーション（mypage と同系統のチップ・本体/求人の2タブ。URLクエリ ?tab= と同期） ── */}
+      <div className="max-w-5xl mx-auto px-3 pt-4 flex flex-wrap justify-center gap-1.5">
+        {([
+          ['main', '本体'],
+          ['jobs', '求人'],
+        ] as const).map(([key, label]) => {
+          const selected = activeTab === key;
+          return (
+            <button
+              key={key}
+              onClick={() => selectTab(key)}
+              aria-pressed={selected}
+              className={`inline-flex items-center gap-1.5 px-4 py-1.5 rounded-full border text-[11px] font-bold transition-colors ${
+                selected
+                  ? 'bg-pink-50 text-pink-600 border-pink-300'
+                  : 'bg-white text-slate-400 border-slate-200 hover:text-slate-600 hover:border-slate-300'
+              }`}
+            >
+              {label}
+              {key === 'jobs' && jobNewCount > 0 && (
+                <span className="inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 rounded-full bg-pink-500 text-white text-[10px] font-black leading-none">
+                  {jobNewCount}
+                </span>
+              )}
+            </button>
+          );
+        })}
+      </div>
 
-        {/* ── トップページ画像スライダー設定 ── */}
-        <HeaderSliderManager />
+      <main className="max-w-5xl mx-auto px-4 py-6 space-y-6">
 
-        {/* ── ピックアップサロン設定 ── */}
-        <FeaturedSalonsManager
-          allSalons={salons.map(s => ({
-            id:   s.id,
-            name: s.name   ?? '',
-            area: s.area   ?? '',
-          }))}
-        />
+        {/* ══════════ 本体タブ ══════════ */}
+        <div className={`space-y-4 ${activeTab === 'main' ? '' : 'hidden'}`}>
 
-        {/* ── テーマ壁紙設定 ── */}
-        <ThemeWallpaperManager onToast={showToast} />
+          <AccordionSection id="header-slider" title="トップページ画像スライダー設定" expanded={expandedSections} onToggle={toggleSection}>
+            <HeaderSliderManager />
+          </AccordionSection>
 
-        {/* ── 求人管理（フクエスワーク） ── */}
-        <AdminJobsManager onToast={showToast} />
+          <AccordionSection id="featured-salons" title="ピックアップサロン設定" expanded={expandedSections} onToggle={toggleSection}>
+            <FeaturedSalonsManager
+              allSalons={salons.map(s => ({
+                id:   s.id,
+                name: s.name   ?? '',
+                area: s.area   ?? '',
+              }))}
+            />
+          </AccordionSection>
 
-        {/* ── 新規サロン追加フォーム ── */}
-        <div className="bg-white rounded-3xl border border-slate-100 shadow-sm p-6">
-          <h2 className="text-sm font-black text-slate-700 mb-5">新規サロン追加</h2>
+          <AccordionSection id="theme-wallpaper" title="テーマ壁紙設定" expanded={expandedSections} onToggle={toggleSection}>
+            <ThemeWallpaperManager onToast={showToast} />
+          </AccordionSection>
+
+          {/* ── 新規サロン追加フォーム ── */}
+          <AccordionSection id="add-salon" title="新規サロン追加" expanded={expandedSections} onToggle={toggleSection}>
+          <div className="bg-white rounded-3xl border border-slate-100 shadow-sm p-6">
           <form onSubmit={handleAdd} className="space-y-4">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               {/* 店舗名 */}
@@ -372,12 +472,17 @@ export default function AdminDashboard() {
           </form>
         </div>
 
-        {/* ── 掲載サロン一覧テーブル ── */}
-        <div className="bg-white rounded-3xl border border-slate-100 shadow-sm overflow-hidden">
-          <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between">
-            <h2 className="text-sm font-black text-slate-700">掲載サロン一覧</h2>
-            <span className="text-xs text-slate-400">{salons.length}件</span>
-          </div>
+          </AccordionSection>
+
+          {/* ── 掲載サロン一覧テーブル（件数はアコーディオン見出しに表示） ── */}
+          <AccordionSection
+            id="salon-list"
+            title="掲載サロン一覧"
+            meta={<span className="text-xs text-slate-400 font-medium">{salons.length}件</span>}
+            expanded={expandedSections}
+            onToggle={toggleSection}
+          >
+          <div className="bg-white rounded-3xl border border-slate-100 shadow-sm overflow-hidden">
 
           {fetchError ? (
             <div className="p-6 text-center text-sm text-rose-400">{fetchError}</div>
@@ -463,7 +568,17 @@ export default function AdminDashboard() {
               </table>
             </div>
           )}
+          </div>
+          </AccordionSection>
+
         </div>
+        {/* ══════════ 本体タブ ここまで ══════════ */}
+
+        {/* ══════════ 求人タブ（ボリュームが少ないためアコーディオンなし） ══════════ */}
+        <div className={`space-y-4 ${activeTab === 'jobs' ? '' : 'hidden'}`}>
+          <AdminJobsManager onToast={showToast} onNewCount={setJobNewCount} />
+        </div>
+
       </main>
 
       {/* ── サロン編集モーダル ── */}

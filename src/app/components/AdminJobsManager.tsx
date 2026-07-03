@@ -34,7 +34,14 @@ function formatDate(iso: string | null): string {
   return new Intl.DateTimeFormat('ja-JP', { timeZone: 'Asia/Tokyo', year: 'numeric', month: '2-digit', day: '2-digit' }).format(d);
 }
 
-export default function AdminJobsManager({ onToast }: { onToast: (msg: string) => void }) {
+export default function AdminJobsManager({
+  onToast,
+  onNewCount,
+}: {
+  onToast: (msg: string) => void;
+  // 親（/admin タブ）へ新規応募の合計件数を通知するためのコールバック（タブ見出しバッジ用）。任意。
+  onNewCount?: (n: number) => void;
+}) {
   const [jobs, setJobs] = useState<AdminJobRow[]>([]);
   const [salons, setSalons] = useState<SalonOption[]>([]);
   const [loadError, setLoadError] = useState('');
@@ -58,8 +65,10 @@ export default function AdminJobsManager({ onToast }: { onToast: (msg: string) =
       return;
     }
     setJobs(jRes.jobs);
+    // 新規応募（status='new'）の合計を親に通知（求人タブの見出しバッジに使う）。
+    onNewCount?.(jRes.jobs.reduce((sum, j) => sum + j.newCount, 0));
     if (sRes.ok) setSalons(sRes.salons);
-  }, []);
+  }, [onNewCount]);
 
   useEffect(() => {
     reload();

@@ -132,8 +132,6 @@ export default function HeaderSliderManager() {
 
   return (
     <div className="space-y-4 border rounded-lg p-4">
-      <h2 className="text-lg font-bold">トップページ画像スライダー</h2>
-
       <div>
         <label className="inline-block bg-blue-600 text-white px-4 py-2 rounded cursor-pointer">
           {uploading ? 'アップロード中...' : '画像を追加'}
