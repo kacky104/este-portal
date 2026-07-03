@@ -477,14 +477,30 @@ export default async function SalonPage({
               </Link>
             </div>
 
-            {/* 4段目：将来のアイコン追加用の空枠2つ ＋ 女性求人。
+            {/* 4段目：空枠（将来用プレースホルダ）／ fukuX ／ 女性求人。
                 空枠は既存セルと同じ枠スタイル（bg/border）で中身なし・クリック不可のプレースホルダ。
-                グリッドの align-items:stretch により空枠の高さは女性求人セルに自動で揃う。 */}
+                グリッドの align-items:stretch により空枠の高さは他セルに自動で揃う。 */}
             <div className="grid grid-cols-3 gap-2 sm:gap-3">
               {/* プレースホルダ①：将来アイコンを追加する枠（中身なし・非クリック） */}
               <div className="rounded-lg border shadow-sm" style={{ backgroundColor: qn.bg, borderColor: qn.border }} aria-hidden />
-              {/* プレースホルダ②：将来アイコンを追加する枠（中身なし・非クリック） */}
-              <div className="rounded-lg border shadow-sm" style={{ backgroundColor: qn.bg, borderColor: qn.border }} aria-hidden />
+              {/* fukuX：salons.fukux_url があればそのURL（外部）へ。未設定ならクリック不可の無効状態で表示。
+                  アイコンは lucide の MessageCircle グリフをインライン化（本リポジトリはアイコンライブラリ非使用でSVG統一）。 */}
+              {salon.fukuxUrl ? (
+                <a href={salon.fukuxUrl} target="_blank" rel="noopener noreferrer" className="flex flex-col items-center justify-center gap-1.5 rounded-lg border px-1.5 py-3 sm:py-4 shadow-sm cursor-pointer hover:shadow-md hover:brightness-95 transition-all" style={{ backgroundColor: qn.bg, borderColor: qn.border }}>
+                  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="flex-shrink-0" style={{ color: qn.icon }}>
+                    <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z" />
+                  </svg>
+                  <span className="text-[11px] sm:text-sm font-bold leading-none whitespace-nowrap" style={{ color: qn.text }}>fukuX</span>
+                </a>
+              ) : (
+                // 未設定：リンクなし・opacity-50 で無効であることを視覚化（aria-disabled）。
+                <div aria-disabled="true" className="flex flex-col items-center justify-center gap-1.5 rounded-lg border px-1.5 py-3 sm:py-4 shadow-sm opacity-50 cursor-default" style={{ backgroundColor: qn.bg, borderColor: qn.border }}>
+                  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="flex-shrink-0" style={{ color: qn.icon }}>
+                    <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z" />
+                  </svg>
+                  <span className="text-[11px] sm:text-sm font-bold leading-none whitespace-nowrap" style={{ color: qn.text }}>fukuX</span>
+                </div>
+              )}
               {/* 女性求人：アクティブ求人があればその詳細 /jobs/[id] へ、無ければ準備中 /jobs/coming-soon へ。
                   お客様向けページのため「別サイトへ移動」を強調せず、他セルと同一デザインで自然に馴染ませる。
                   アイコンは lucide の HeartHandshake グリフをインライン化（本リポジトリはアイコンライブラリ非使用でSVG統一）。 */}
