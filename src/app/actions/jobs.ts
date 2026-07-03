@@ -30,7 +30,7 @@ import {
 const EMPLOYMENT_TYPES = ['CONTRACTOR', 'PART_TIME', 'FULL_TIME', 'OTHER'] as const;
 
 const JOB_COLUMNS =
-  'id, salon_id, title, description, employment_type, salary_text, salary_min, salary_max, work_hours, requirements, benefits, access, notify_email, features, is_active, is_pickup, published_at, updated_at';
+  'id, salon_id, title, description, employment_type, salary_text, salary_min, salary_max, work_hours, requirements, benefits, access, notify_email, features, is_active, published_at, updated_at';
 
 export type JobFormInput = {
   title: string;
@@ -63,7 +63,6 @@ export type MyJob = {
   notify_email: string;
   features: string[];
   is_active: boolean;
-  is_pickup: boolean;
   published_at: string | null;
   updated_at: string | null;
 };
@@ -90,7 +89,6 @@ function mapJob(row: Record<string, unknown>): MyJob {
     notify_email: (row.notify_email as string | null) ?? '',
     features: sanitizeFeatures(row.features),
     is_active: Boolean(row.is_active),
-    is_pickup: Boolean(row.is_pickup),
     published_at: (row.published_at as string | null) ?? null,
     updated_at: (row.updated_at as string | null) ?? null,
   };
@@ -333,35 +331,12 @@ export async function toggleMyJobActive(
   return { ok: true, is_active: next };
 }
 
-// ── ピックアップ（おすすめ求人）トグル：運営専用 ──
-// salon_jobs.is_pickup は BEFORE UPDATE トリガーで admin 以外の改変を拒否する。
-// admin 画面からの操作は service_role クライアントで統一（authenticated でも admin 本人なら通るが確実性を優先）。
-// オーナー(mypage)には一切露出しない。成功時 /jobs のみ即時再検証（おすすめ枠は /jobs トップだけの表示）。
-export async function toggleJobPickup(
-  jobId: number,
-): Promise<{ ok: true; is_pickup: boolean } | Err> {
-  if (!Number.isFinite(jobId)) return { ok: false, error: '対象求人が不正です' };
-  const auth = await requireUser();
-  if (!auth.ok) return auth;
-  if (auth.user.id !== ADMIN_UUID) return { ok: false, error: '管理者専用です' };
-
-  const svc = createServiceClient();
-  const { data: job, error } = await svc
-    .from('salon_jobs')
-    .select('id, is_pickup')
-    .eq('id', jobId)
-    .maybeSingle();
-  if (error || !job) return { ok: false, error: '求人が見つかりません' };
-
-  const next = !job.is_pickup;
-  const { error: upErr } = await svc
-    .from('salon_jobs')
-    .update({ is_pickup: next })
-    .eq('id', jobId);
-  if (upErr) return { ok: false, error: upErr.message };
-  // おすすめ枠は /jobs トップにのみ表示されるため、そのISRキャッシュだけ再検証すれば十分。
+// ── おすすめ求人（featured_jobs）編集後の公開ISR即時更新 ──
+// おすすめ枠は /jobs トップにのみ表示されるため、そのISRキャッシュだけ再検証すれば十分。
+// featured_jobs への書き込み自体は FeaturedJobsManager が authenticated クライアント（RLSで
+// admin UUID のみ許可）で行うため、この関数は純粋なキャッシュ無効化のみを担う。
+export async function revalidateFeaturedJobs(): Promise<void> {
   revalidatePath('/jobs');
-  return { ok: true, is_pickup: next };
 }
 
 // ── 削除（confirmはUI側） ──

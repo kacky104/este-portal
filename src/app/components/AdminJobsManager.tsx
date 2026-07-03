@@ -6,7 +6,6 @@ import {
   adminListSalonsForJob,
   upsertMyJob,
   toggleMyJobActive,
-  toggleJobPickup,
   type AdminJobRow,
 } from '@/app/actions/jobs';
 import {
@@ -55,7 +54,6 @@ export default function AdminJobsManager({
   >(null);
   const [saving, setSaving] = useState(false);
   const [formError, setFormError] = useState('');
-  const [pickupBusyId, setPickupBusyId] = useState<number | null>(null);
 
   const reload = useCallback(async () => {
     setLoadError('');
@@ -86,19 +84,6 @@ export default function AdminJobsManager({
     }
     setJobs((prev) => prev.map((j) => (j.id === row.id ? { ...j, is_active: res.is_active } : j)));
     onToast(res.is_active ? '公開にしました' : '非公開にしました');
-  };
-
-  // ピックアップ（おすすめ求人）トグル。運営専用・service_role 書き込み（サーバー側で /jobs を再検証）。
-  const handleTogglePickup = async (row: AdminJobRow) => {
-    setPickupBusyId(row.id);
-    const res = await toggleJobPickup(row.id);
-    setPickupBusyId(null);
-    if (!res.ok) {
-      onToast(`更新に失敗しました: ${res.error}`);
-      return;
-    }
-    setJobs((prev) => prev.map((j) => (j.id === row.id ? { ...j, is_pickup: res.is_pickup } : j)));
-    onToast(res.is_pickup ? 'おすすめに設定しました' : 'おすすめを解除しました');
   };
 
   const patch = (p: Partial<JobFormState>) =>
@@ -161,7 +146,7 @@ export default function AdminJobsManager({
                 <th className="text-left px-4 py-3 text-[11px] font-bold text-slate-400">雇用形態</th>
                 <th className="text-left px-4 py-3 text-[11px] font-bold text-slate-400">公開状態</th>
                 <th className="text-left px-4 py-3 text-[11px] font-bold text-slate-400">掲載日</th>
-                <th className="px-4 py-3 w-56" />
+                <th className="px-4 py-3 w-40" />
               </tr>
             </thead>
             <tbody>
@@ -198,32 +183,6 @@ export default function AdminJobsManager({
                   <td className="px-4 py-3 text-[11px] text-slate-500">{formatDate(row.published_at)}</td>
                   <td className="px-4 py-3">
                     <div className="flex items-center justify-end gap-2">
-                      {/* おすすめ求人（is_pickup）トグル。ON=グリーン点灯の星。運営専用。 */}
-                      <button
-                        onClick={() => handleTogglePickup(row)}
-                        disabled={pickupBusyId === row.id}
-                        title={row.is_pickup ? 'おすすめを解除' : 'おすすめに設定'}
-                        aria-pressed={row.is_pickup}
-                        className={`flex-shrink-0 w-7 h-7 flex items-center justify-center rounded-lg border transition-colors disabled:opacity-50 ${
-                          row.is_pickup
-                            ? 'border-emerald-300 bg-emerald-50'
-                            : 'border-slate-200 text-slate-300 hover:bg-slate-50 hover:border-slate-300'
-                        }`}
-                        style={row.is_pickup ? { color: '#059669' } : undefined}
-                      >
-                        <svg
-                          width="15"
-                          height="15"
-                          viewBox="0 0 24 24"
-                          fill={row.is_pickup ? 'currentColor' : 'none'}
-                          stroke="currentColor"
-                          strokeWidth="2"
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                        >
-                          <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14l-5-4.87 6.91-1.01L12 2z" />
-                        </svg>
-                      </button>
                       <button
                         onClick={() => handleToggle(row)}
                         disabled={busyId === row.id}

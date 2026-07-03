@@ -10,6 +10,7 @@ import FeaturedSalonsManager from '@/app/components/FeaturedSalonsManager';
 import SalonEditModal, { type SalonForEdit } from '@/app/components/SalonEditModal';
 import ThemeWallpaperManager from '@/app/components/ThemeWallpaperManager';
 import AdminJobsManager from '@/app/components/AdminJobsManager';
+import FeaturedJobsManager from '@/app/components/FeaturedJobsManager';
 import { ADMIN_UUID } from '@/app/lib/admin';
 import { areaLabel } from '@/app/lib/areaLabel';
 import { revalidateTopAndAreas, revalidateSalon } from '@/app/lib/revalidateTop';
@@ -576,6 +577,8 @@ export default function AdminDashboard() {
 
         {/* ══════════ 求人タブ（ボリュームが少ないためアコーディオンなし） ══════════ */}
         <div className={`space-y-4 ${activeTab === 'jobs' ? '' : 'hidden'}`}>
+          {/* おすすめ求人（featured_jobs）設定：本体のピックアップサロンと同方式 */}
+          <FeaturedJobsManager onToast={showToast} />
           <AdminJobsManager onToast={showToast} onNewCount={setJobNewCount} />
         </div>
 

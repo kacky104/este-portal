@@ -1,7 +1,7 @@
 import Link from 'next/link';
 import Image from 'next/image';
 import type { Metadata } from 'next';
-import { fetchActiveJobs, getPickupJobs } from '@/app/lib/jobs';
+import { fetchActiveJobs, getFeaturedJobs } from '@/app/lib/jobs';
 import { JobCard } from './JobCard';
 import { FeatureBrowse } from './FeatureBrowse';
 import { PickupSlider } from './PickupSlider';
@@ -18,7 +18,7 @@ export const metadata: Metadata = {
 };
 
 export default async function JobsPage() {
-  const [jobs, pickupJobs] = await Promise.all([fetchActiveJobs(), getPickupJobs()]);
+  const [jobs, pickupJobs] = await Promise.all([fetchActiveJobs(), getFeaturedJobs()]);
 
   return (
     <main className="max-w-3xl mx-auto px-4 py-8">
@@ -45,7 +45,7 @@ export default async function JobsPage() {
         />
       </div>
 
-      {/* おすすめ求人（運営が選定した is_pickup 求人のスライダー）。0件時はセクションごと非表示。 */}
+      {/* おすすめ求人（運営が featured_jobs に登録した求人のスライダー）。0件時はセクションごと非表示。 */}
       <PickupSlider jobs={pickupJobs} />
 
       {/* パンくず：フクエスワーク › 求人一覧（本体トップへの導線はヘッダー/フッターに任せる） */}

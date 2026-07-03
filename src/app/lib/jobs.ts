@@ -176,48 +176,77 @@ function mapJobListItem(row: Record<string, unknown>): JobListItem | null {
   };
 }
 
-// ── ピックアップ求人（/jobs トップのおすすめスライダー） ──
-// 運営が salon_jobs.is_pickup=true にした求人を、公開中(is_active)かつ表示中サロン(is_hidden=false)に
-// 限って published_at 降順・最大10件で返す。サロンのメイン画像（salon_images の最小 display_order）を
-// カード用に併せて取得する。0件時は空配列（呼び出し側でセクションごと非表示）。
-export async function getPickupJobs(): Promise<PickupJob[]> {
+// ── おすすめ求人（/jobs トップのスライダー）: featured_jobs 専用テーブル方式 ──
+// 本体のピックアップサロン（featured_salons）と同方式。運営が /admin で登録した featured_jobs を
+// area IS NULL（トップ共通）・display_order 昇順・最大5件で取得し、salon_jobs（is_active かつ
+// サロン is_hidden=false の多重チェックを維持）と結合する。カード画像は featured_jobs.image_url が
+// あればそれを、無ければ従来どおりサロンのメイン画像（salon_images 最小 display_order）を使う。
+// 並び順は display_order のまま表示（本体スライダーのマウント後ランダムシャッフルは踏襲しない）。
+// 0件時は空配列（呼び出し側でセクションごと非表示）。
+export async function getFeaturedJobs(): Promise<PickupJob[]> {
   const supabase = createPublicClient();
-  const { data } = await supabase
+
+  // 1) featured_jobs（トップ共通＝area IS NULL）を並び順で取得。
+  //    ※ 将来エリア別対応時は area 引数を足し、.is('area', null) を .eq('area', area) に切替える。
+  const { data: featuredData } = await supabase
+    .from('featured_jobs')
+    .select('job_id, display_order, image_url')
+    .is('area', null)
+    .order('display_order', { ascending: true })
+    .limit(5);
+
+  const featuredRows = featuredData ?? [];
+  if (featuredRows.length === 0) return [];
+
+  const jobIds = [...new Set(featuredRows.map((r) => Number(r.job_id)))];
+
+  // 2) 対象求人を公開中(is_active)＋サロン表示中(is_hidden=false)に限って取得（多重防御）。
+  const { data: jobData } = await supabase
     .from('salon_jobs')
-    .select('id, title, salary_text, published_at, salon_id, salons!inner(id, name, is_hidden)')
-    .eq('is_pickup', true)
+    .select('id, title, salary_text, salon_id, salons!inner(id, name, is_hidden)')
+    .in('id', jobIds)
     .eq('is_active', true)
-    .eq('salons.is_hidden', false)
-    .order('published_at', { ascending: false })
-    .limit(10);
+    .eq('salons.is_hidden', false);
 
-  const rows = data ?? [];
-  if (rows.length === 0) return [];
-
-  // サロンのメイン画像を一括取得（display_order 昇順の先頭＝メイン。salon 詳細と同じ salon_images 参照）。
-  const salonIds = [...new Set(rows.map((r) => Number(r.salon_id)))];
-  const imageBySalon = new Map<number, string>();
-  const { data: imgRows } = await supabase
-    .from('salon_images')
-    .select('salon_id, image_url, display_order')
-    .in('salon_id', salonIds)
-    .order('display_order', { ascending: true });
-  (imgRows ?? []).forEach((img) => {
-    const sid = Number(img.salon_id);
-    // 最小 display_order（＝最初に来た行）をメイン画像として採用。
-    if (!imageBySalon.has(sid) && img.image_url) imageBySalon.set(sid, img.image_url as string);
+  const jobById = new Map<number, { title: string; salaryText: string; salonId: number; salonName: string }>();
+  (jobData ?? []).forEach((row) => {
+    const salon = pickSalon<{ id: number; name: string | null }>(row.salons);
+    if (!salon) return;
+    jobById.set(Number(row.id), {
+      title: (row.title as string | null) ?? '',
+      salaryText: (row.salary_text as string | null) ?? '',
+      salonId: salon.id,
+      salonName: salon.name ?? '',
+    });
   });
 
-  return rows
-    .map((row): PickupJob | null => {
-      const salon = pickSalon<{ id: number; name: string | null }>(row.salons);
-      if (!salon) return null;
+  // 3) 差し替え画像が無い求人向けに、サロンのメイン画像を一括取得。
+  const salonIds = [...new Set([...jobById.values()].map((j) => j.salonId))];
+  const imageBySalon = new Map<number, string>();
+  if (salonIds.length > 0) {
+    const { data: imgRows } = await supabase
+      .from('salon_images')
+      .select('salon_id, image_url, display_order')
+      .in('salon_id', salonIds)
+      .order('display_order', { ascending: true });
+    (imgRows ?? []).forEach((img) => {
+      const sid = Number(img.salon_id);
+      if (!imageBySalon.has(sid) && img.image_url) imageBySalon.set(sid, img.image_url as string);
+    });
+  }
+
+  // 4) featured_jobs の display_order 順を維持しつつ、ineligible（非公開/非表示化）な求人は除外。
+  return featuredRows
+    .map((fr): PickupJob | null => {
+      const job = jobById.get(Number(fr.job_id));
+      if (!job) return null;
       return {
-        id: row.id as number,
-        title: (row.title as string | null) ?? '',
-        salaryText: (row.salary_text as string | null) ?? '',
-        salon: { id: salon.id, name: salon.name ?? '' },
-        imageUrl: imageBySalon.get(Number(row.salon_id)) ?? null,
+        id: Number(fr.job_id),
+        title: job.title,
+        salaryText: job.salaryText,
+        salon: { id: job.salonId, name: job.salonName },
+        // featured_jobs.image_url を最優先、無ければサロンのメイン画像。
+        imageUrl: (fr.image_url as string | null) ?? imageBySalon.get(job.salonId) ?? null,
       };
     })
     .filter((j): j is PickupJob => j !== null);
