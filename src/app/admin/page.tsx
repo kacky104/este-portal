@@ -34,6 +34,7 @@ type Salon = {
   show_on_top: boolean | null;
   dispatch_type: 'none' | 'available' | 'only' | null;
   is_hidden: boolean | null;
+  booking_email: string | null;
 };
 
 type AuthState = 'loading' | 'forbidden' | 'authorized';
@@ -141,7 +142,7 @@ export default function AdminDashboard() {
   const fetchSalons = useCallback(async () => {
     const { data, error } = await supabase
       .from('salons')
-      .select('id, name, area, price, rating, owner_id, hours, phone, address, access, closed_days, show_on_top, dispatch_type, is_hidden')
+      .select('id, name, area, price, rating, owner_id, hours, phone, address, access, closed_days, show_on_top, dispatch_type, is_hidden, booking_email')
       .order('id', { ascending: true });
     if (error) {
       setFetchError('サロンデータの取得に失敗しました');

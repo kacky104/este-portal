@@ -1,10 +1,18 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { createClient } from '@/app/lib/supabase/client';
 import { revalidateSalon, revalidateTopAndAreas } from '@/app/lib/revalidateTop';
 import { TimeRangePicker } from '@/components/TimeRangePicker';
 import { areaLabel } from '@/app/lib/areaLabel';
+import {
+  adminGetOwnerEmail,
+  adminUpdateOwnerEmail,
+  adminSendOwnerPasswordReset,
+} from '@/app/actions/adminOwner';
+
+// メール形式の簡易チェック（サーバー側 adminOwner と同等。UI 側の事前確認用）。
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 const AREAS = [
   '福岡全域', '博多・住吉', '中洲・天神・薬院',
@@ -24,6 +32,7 @@ export type SalonForEdit = {
   owner_id:    string | null;
   show_on_top: boolean | null;
   dispatch_type: 'none' | 'available' | 'only' | null;
+  booking_email: string | null;
 };
 
 type Props = {
@@ -46,6 +55,7 @@ export default function SalonEditModal({ salon, onClose, onSaved }: Props) {
     access:      salon.access      ?? '',
     closed_days: salon.closed_days ?? '',
     owner_id:    salon.owner_id    ?? '',
+    booking_email: salon.booking_email ?? '',
   });
   const [saving, setSaving] = useState(false);
   const [error,  setError]  = useState('');
@@ -53,12 +63,80 @@ export default function SalonEditModal({ salon, onClose, onSaved }: Props) {
   const [showOnTop,    setShowOnTop]    = useState(salon.show_on_top ?? true);
   const [dispatchType, setDispatchType] = useState<'none' | 'available' | 'only'>(salon.dispatch_type ?? 'none');
 
+  // ── ログインメール（auth.users）管理 ──
+  // 対象は「この salon が開かれた時点の owner_uuid」に紐づくアカウント（既存アカウント引き継ぎのため
+  // UUID は変えず email だけ差し替える）。UUID 欄の手動編集とは独立。
+  const ownerUuid = salon.owner_id;
+  const [ownerEmail, setOwnerEmail] = useState<string | null>(null);
+  const [ownerLinked, setOwnerLinked] = useState<boolean | null>(null); // null=読込中
+  const [newEmail, setNewEmail] = useState('');
+  const [emailBusy, setEmailBusy] = useState(false);
+  const [resetBusy, setResetBusy] = useState(false);
+  const [emailMsg, setEmailMsg] = useState<{ kind: 'ok' | 'err'; text: string } | null>(null);
+
+  // モーダルを開いた際に現在のログインメールを取得（admin 専用サーバーアクション経由）。
+  useEffect(() => {
+    let alive = true;
+    (async () => {
+      setOwnerLinked(null);
+      const res = await adminGetOwnerEmail(ownerUuid);
+      if (!alive) return;
+      if (res.ok) {
+        setOwnerEmail(res.email);
+        setOwnerLinked(res.linked);
+      } else {
+        setOwnerLinked(false);
+        setEmailMsg({ kind: 'err', text: res.error });
+      }
+    })();
+    return () => { alive = false; };
+  }, [ownerUuid]);
+
+  const handleChangeEmail = async () => {
+    const next = newEmail.trim();
+    setEmailMsg(null);
+    if (!ownerUuid) { setEmailMsg({ kind: 'err', text: 'オーナーUUIDが未設定のため変更できません' }); return; }
+    if (!EMAIL_RE.test(next)) { setEmailMsg({ kind: 'err', text: 'メールアドレスの形式が正しくありません' }); return; }
+    if (ownerEmail && next.toLowerCase() === ownerEmail.toLowerCase()) {
+      setEmailMsg({ kind: 'err', text: '新しいメールが現在のメールと同じです' });
+      return;
+    }
+    if (!window.confirm(`現在のメール ${ownerEmail ?? '(不明)'} を ${next} に変更します。よろしいですか？`)) return;
+    setEmailBusy(true);
+    const res = await adminUpdateOwnerEmail(ownerUuid, next);
+    setEmailBusy(false);
+    if (!res.ok) { setEmailMsg({ kind: 'err', text: res.error }); return; }
+    setOwnerEmail(res.email);
+    setOwnerLinked(true);
+    setNewEmail('');
+    setEmailMsg({ kind: 'ok', text: `ログインメールを ${res.email} に変更しました ✓` });
+  };
+
+  const handleSendReset = async () => {
+    const target = ownerEmail;
+    setEmailMsg(null);
+    if (!target) { setEmailMsg({ kind: 'err', text: '送信先のログインメールがありません' }); return; }
+    if (!window.confirm(`${target} にパスワード再設定メールを送信します。よろしいですか？`)) return;
+    setResetBusy(true);
+    const res = await adminSendOwnerPasswordReset(target);
+    setResetBusy(false);
+    setEmailMsg(res.ok
+      ? { kind: 'ok', text: `${target} にパスワード再設定メールを送信しました ✓` }
+      : { kind: 'err', text: res.error });
+  };
+
   const set = (key: keyof typeof form) =>
     (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) =>
       setForm(p => ({ ...p, [key]: e.target.value }));
 
   const handleSave = async () => {
     if (!form.name.trim()) { setError('店舗名は必須です'); return; }
+    // 予約通知メール：空欄は許可、入力時のみ形式チェック。
+    const bookingEmail = form.booking_email.trim();
+    if (bookingEmail && !EMAIL_RE.test(bookingEmail)) {
+      setError('予約通知メールの形式が正しくありません');
+      return;
+    }
     setSaving(true);
     setError('');
 
@@ -76,6 +154,7 @@ export default function SalonEditModal({ salon, onClose, onSaved }: Props) {
         owner_id:    form.owner_id.trim() || null,
         show_on_top: showOnTop,
         dispatch_type: dispatchType,
+        booking_email: bookingEmail || null,
       })
       .eq('id', salon.id)
       .select('id');   // 影響行を取得してRLSブロックを検出
@@ -214,8 +293,66 @@ export default function SalonEditModal({ salon, onClose, onSaved }: Props) {
           {textField('住所',     'address', '例: 福岡市博多区...')}
           {textField('アクセス', 'access',  '例: 博多駅より徒歩5分')}
 
+          {/* 予約通知メール（空欄可・入力時のみ形式チェック） */}
+          {textField('予約通知メール', 'booking_email', '例: owner@example.com（ネット予約の通知先）')}
+
           {/* オーナーUUID */}
           {textField('オーナーUUID', 'owner_id', 'xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx', true)}
+
+          {/* ── ログインメール（オーナーアカウント）管理 ── */}
+          <div className="rounded-2xl border border-slate-200 bg-slate-50/60 p-4 space-y-3">
+            <div className="flex items-center justify-between gap-2">
+              <span className="text-[11px] font-bold text-slate-500">ログインメール</span>
+              {ownerLinked === null ? (
+                <span className="text-[10px] text-slate-400">確認中...</span>
+              ) : ownerLinked ? (
+                <span className="text-[11px] font-mono text-slate-700 break-all text-right">{ownerEmail ?? '(不明)'}</span>
+              ) : (
+                <span className="text-[10px] text-amber-600 font-bold">アカウント未連携</span>
+              )}
+            </div>
+
+            {ownerLinked && (
+              <>
+                <p className="text-[10px] text-slate-400 leading-relaxed">
+                  既存アカウントを引き継ぎ、ログインメールだけを新オーナーのものへ変更します（オーナーUUIDは変わりません）。
+                </p>
+                <div className="flex gap-2">
+                  <input
+                    type="email"
+                    placeholder="新しいログインメール"
+                    value={newEmail}
+                    onChange={e => setNewEmail(e.target.value)}
+                    className="flex-1 min-w-0 px-3 py-2 rounded-xl border border-slate-200 text-xs bg-white focus:outline-none focus:ring-2 focus:ring-pink-200"
+                  />
+                  <button
+                    onClick={handleChangeEmail}
+                    disabled={emailBusy}
+                    className="flex-shrink-0 px-3 py-2 rounded-xl bg-pink-500 text-white font-bold text-[11px] shadow-sm disabled:opacity-50 hover:opacity-90 transition-opacity"
+                  >
+                    {emailBusy ? '変更中...' : 'ログインメールを変更'}
+                  </button>
+                </div>
+                <button
+                  onClick={handleSendReset}
+                  disabled={resetBusy}
+                  className="text-[11px] font-semibold text-pink-600 border border-pink-200 rounded-lg px-3 py-1.5 hover:bg-pink-50 disabled:opacity-50 transition-colors"
+                >
+                  {resetBusy ? '送信中...' : 'パスワード再設定メールを送信'}
+                </button>
+              </>
+            )}
+
+            {emailMsg && (
+              <p className={`text-[11px] rounded-lg px-3 py-2 whitespace-pre-line ${
+                emailMsg.kind === 'ok'
+                  ? 'text-emerald-600 bg-emerald-50 border border-emerald-100'
+                  : 'text-rose-500 bg-rose-50 border border-rose-100'
+              }`}>
+                {emailMsg.text}
+              </p>
+            )}
+          </div>
 
           {error && (
             <p className="text-xs text-rose-500 bg-rose-50 border border-rose-100 rounded-xl px-3 py-2">{error}</p>
