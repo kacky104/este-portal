@@ -107,15 +107,14 @@ function buildJobPostingJsonLd(job: JobDetail): Record<string, unknown> {
 }
 
 // BreadcrumbList 構造化データ（JobPosting とは別に出力）。
-// 階層: フクエスワーク(/jobs) › サロン名(/salon/[id]) › 求人タイトル(現在ページ)。
+// 階層: フクエスワーク(/jobs) › {サロン名}の求人(現在ページ)。
 function buildBreadcrumbJsonLd(job: JobDetail): Record<string, unknown> {
   return {
     '@context': 'https://schema.org/',
     '@type': 'BreadcrumbList',
     itemListElement: [
       { '@type': 'ListItem', position: 1, name: 'フクエスワーク', item: `${SITE_URL}/jobs` },
-      { '@type': 'ListItem', position: 2, name: job.salon.name, item: `${SITE_URL}/salon/${job.salon.id}` },
-      { '@type': 'ListItem', position: 3, name: job.title, item: `${SITE_URL}/jobs/${job.id}` },
+      { '@type': 'ListItem', position: 2, name: `${job.salon.name}の求人`, item: `${SITE_URL}/jobs/${job.id}` },
     ],
   };
 }
@@ -146,21 +145,16 @@ export default async function JobDetailPage({
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: breadcrumbJsonLdString }} />
 
       <main className="max-w-3xl mx-auto px-4 py-8">
-        {/* パンくず：フクエスワーク › {サロン名} › {求人タイトル}
-            1行維持（nowrap）。サロン名は max-w＋truncate で控えめに、末尾の求人タイトルは
-            flex-1 min-w-0 truncate で残り幅を使いつつ省略＝モバイルでも折り返さない。 */}
+        {/* パンくず：フクエスワーク › {サロン名}の求人（末尾は現ページ＝リンクなし）
+            1行維持（nowrap）。末尾の「{サロン名}の求人」は flex-1 min-w-0 truncate で
+            残り幅を使いつつ省略＝長いサロン名でもモバイルで折り返さない。 */}
         <nav aria-label="パンくずリスト" className="flex items-center gap-1.5 mb-6" style={{ fontSize: '13px' }}>
           <Link href="/jobs" className="hover:opacity-80 transition-opacity flex-shrink-0 whitespace-nowrap" style={{ color: '#059669' }}>
             フクエスワーク
           </Link>
           <span aria-hidden className="flex-shrink-0" style={{ color: '#999' }}>›</span>
-          {/* サロン名（本体フクエスのサロン詳細 /salon/[id] へ。求人一覧の店舗絞り込み専用ルートは無いため本体詳細を採用） */}
-          <Link href={`/salon/${job.salon.id}`} className="hover:opacity-80 transition-opacity flex-shrink-0 max-w-[40%] truncate" style={{ color: '#059669' }}>
-            {job.salon.name}
-          </Link>
-          <span aria-hidden className="flex-shrink-0" style={{ color: '#999' }}>›</span>
           <span aria-current="page" className="flex-1 min-w-0 truncate font-semibold" style={{ color: '#4D7C0F' }}>
-            {job.title}
+            {job.salon.name}の求人
           </span>
         </nav>
 
