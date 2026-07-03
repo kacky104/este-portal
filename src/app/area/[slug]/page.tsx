@@ -97,7 +97,7 @@ export default async function AreaPage({ params }: { params: Promise<{ slug: str
 
         {/* ─── 本日出勤中のセラピスト（このエリアのサロン所属者のみ）。トップと同じ TherapistScroller を再利用 ───
             時刻依存（出勤中・今すぐ）の判定は TherapistScroller がクライアントのマウント時に行う＝ISR焼き付き回避。 */}
-        <section className="mb-10">
+        <section className="mb-5">
           <div className="flex items-center gap-3 mb-4">
             <div className="w-1 h-6 rounded-full bg-gradient-to-b from-pink-400 to-rose-500" />
             <h2 className="text-xl font-bold text-slate-900"><span className="text-pink-600">{area === DISPATCH_AREA ? '出張対応' : label}</span>で現在出勤中</h2>
