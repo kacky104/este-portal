@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import Image from 'next/image';
 import type { Metadata } from 'next';
 import { fetchActiveJobs } from '@/app/lib/jobs';
 import { JobCard } from './JobCard';
@@ -20,6 +21,29 @@ export default async function JobsPage() {
 
   return (
     <main className="max-w-3xl mx-auto px-4 py-8">
+      {/* ヒーロー画像（PC／SP 出し分け）。旧ウェルカム画面のENTERゲートは廃止し、TOP最上部に直接表示。
+          server component 内での描画のため localStorage/state は使わず、SSRとクライアントで一致（ハイドレーション不整合なし）。 */}
+      <div className="mb-8 -mt-2">
+        {/* PC */}
+        <Image
+          src="/hero-fukuwork-pc.png"
+          alt="フクエスワーク｜福岡メンズエステのセラピスト求人サイト"
+          width={1920}
+          height={1080}
+          priority
+          className="hidden md:block w-full h-auto rounded-2xl"
+        />
+        {/* SP */}
+        <Image
+          src="/hero-fukuwork-sp.png"
+          alt="フクエスワーク｜福岡メンズエステのセラピスト求人サイト"
+          width={1080}
+          height={1920}
+          priority
+          className="md:hidden w-full h-auto rounded-2xl"
+        />
+      </div>
+
       {/* パンくず：フクエスワーク › 求人一覧（本体トップへの導線はヘッダー/フッターに任せる） */}
       <nav aria-label="パンくずリスト" className="flex items-center gap-1.5 mb-6" style={{ fontSize: '13px' }}>
         <Link href="/jobs" className="hover:opacity-80 transition-opacity flex-shrink-0 whitespace-nowrap" style={{ color: '#059669' }}>
