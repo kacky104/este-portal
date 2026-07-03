@@ -224,11 +224,9 @@ export default function FeaturedJobsManager({ onToast }: { onToast: (msg: string
 
   return (
     <div className="bg-white rounded-3xl border border-slate-100 shadow-sm p-6">
+      {/* タイトルはアコーディオン見出しへ集約。ここは補足（推奨サイズ）と件数のみ。 */}
       <div className="flex items-center justify-between mb-5">
-        <div className="flex items-center gap-2">
-          <h2 className="text-sm font-black text-slate-700">おすすめ求人設定</h2>
-          <span className="text-[10px] text-slate-400">推奨画像サイズ: 横1440px × 縦540px</span>
-        </div>
+        <span className="text-[10px] text-slate-400">推奨画像サイズ: 横1440px × 縦540px</span>
         <span className="text-xs text-slate-400">{items.length} / {MAX_FEATURED}件</span>
       </div>
 

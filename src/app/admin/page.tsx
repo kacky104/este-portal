@@ -111,8 +111,8 @@ export default function AdminDashboard() {
   const [activeTab, setActiveTab] = useState<'main' | 'jobs'>('main');
   // 初期は使用頻度の高い「掲載サロン一覧」のみ開。開閉状態はクライアントstateのみ（永続化しない）。
   const [expandedSections, setExpandedSections] = useState<Set<string>>(new Set(['salon-list']));
-  // 求人タブの新規応募バッジ用（AdminJobsManager が読み込み時に合計を通知）。
-  const [jobNewCount, setJobNewCount] = useState(0);
+  // 求人タブのバッジ用（AdminJobsManager が読み込み時に求人件数・新規応募合計を通知）。
+  const [jobStats, setJobStats] = useState<{ total: number; newCount: number }>({ total: 0, newCount: 0 });
 
   const showToast = (msg: string) => {
     setToast(msg);
@@ -333,9 +333,9 @@ export default function AdminDashboard() {
               }`}
             >
               {label}
-              {key === 'jobs' && jobNewCount > 0 && (
+              {key === 'jobs' && jobStats.newCount > 0 && (
                 <span className="inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 rounded-full bg-pink-500 text-white text-[10px] font-black leading-none">
-                  {jobNewCount}
+                  {jobStats.newCount}
                 </span>
               )}
             </button>
@@ -575,11 +575,36 @@ export default function AdminDashboard() {
         </div>
         {/* ══════════ 本体タブ ここまで ══════════ */}
 
-        {/* ══════════ 求人タブ（ボリュームが少ないためアコーディオンなし） ══════════ */}
+        {/* ══════════ 求人タブ（本体タブと同じアコーディオン方式） ══════════ */}
         <div className={`space-y-4 ${activeTab === 'jobs' ? '' : 'hidden'}`}>
+
           {/* おすすめ求人（featured_jobs）設定：本体のピックアップサロンと同方式 */}
-          <FeaturedJobsManager onToast={showToast} />
-          <AdminJobsManager onToast={showToast} onNewCount={setJobNewCount} />
+          <AccordionSection id="featured-jobs" title="おすすめ求人設定" expanded={expandedSections} onToggle={toggleSection}>
+            <FeaturedJobsManager onToast={showToast} />
+          </AccordionSection>
+
+          {/* 求人管理（フクエスワーク）。件数・新規応募バッジは折りたたみ時も見えるよう見出しに表示。 */}
+          <AccordionSection
+            id="jobs-manage"
+            title="求人管理（フクエスワーク）"
+            meta={
+              <>
+                <span className="text-[10px] px-2 py-0.5 rounded-full font-bold" style={{ background: 'rgba(16,185,129,0.12)', color: '#059669' }}>
+                  {jobStats.total}件
+                </span>
+                {jobStats.newCount > 0 && (
+                  <span className="text-[10px] px-2 py-0.5 rounded-full font-bold bg-pink-50 text-pink-600 border border-pink-200">
+                    新規応募{jobStats.newCount}件
+                  </span>
+                )}
+              </>
+            }
+            expanded={expandedSections}
+            onToggle={toggleSection}
+          >
+            <AdminJobsManager onToast={showToast} onStats={setJobStats} />
+          </AccordionSection>
+
         </div>
 
       </main>

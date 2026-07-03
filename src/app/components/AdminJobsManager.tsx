@@ -35,11 +35,12 @@ function formatDate(iso: string | null): string {
 
 export default function AdminJobsManager({
   onToast,
-  onNewCount,
+  onStats,
 }: {
   onToast: (msg: string) => void;
-  // 親（/admin タブ）へ新規応募の合計件数を通知するためのコールバック（タブ見出しバッジ用）。任意。
-  onNewCount?: (n: number) => void;
+  // 親（/admin タブ）へ求人件数・新規応募合計を通知するためのコールバック。
+  // タブ見出しバッジ／アコーディオン見出しバッジ（折りたたみ時も表示）に使う。任意。
+  onStats?: (stats: { total: number; newCount: number }) => void;
 }) {
   const [jobs, setJobs] = useState<AdminJobRow[]>([]);
   const [salons, setSalons] = useState<SalonOption[]>([]);
@@ -63,10 +64,10 @@ export default function AdminJobsManager({
       return;
     }
     setJobs(jRes.jobs);
-    // 新規応募（status='new'）の合計を親に通知（求人タブの見出しバッジに使う）。
-    onNewCount?.(jRes.jobs.reduce((sum, j) => sum + j.newCount, 0));
+    // 求人件数と新規応募（status='new'）合計を親に通知（求人タブ／見出しバッジに使う）。
+    onStats?.({ total: jRes.jobs.length, newCount: jRes.jobs.reduce((sum, j) => sum + j.newCount, 0) });
     if (sRes.ok) setSalons(sRes.salons);
-  }, [onNewCount]);
+  }, [onStats]);
 
   useEffect(() => {
     reload();
@@ -113,13 +114,8 @@ export default function AdminJobsManager({
 
   return (
     <div className="bg-white rounded-3xl border border-slate-100 shadow-sm overflow-hidden">
-      <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between gap-2 flex-wrap">
-        <div className="flex items-center gap-2">
-          <h2 className="text-sm font-black text-slate-700">求人管理（フクエスワーク）</h2>
-          <span className="text-[10px] px-2 py-0.5 rounded-full font-bold" style={{ background: 'rgba(16,185,129,0.12)', color: '#059669' }}>
-            {jobs.length}件
-          </span>
-        </div>
+      {/* 見出し（タイトル・件数バッジ）はアコーディオン見出しへ集約。ここは操作ボタンのみ。 */}
+      <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-end gap-2 flex-wrap">
         <button
           onClick={() => {
             setFormError('');
