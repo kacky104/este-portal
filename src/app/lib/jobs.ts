@@ -56,6 +56,23 @@ export const JOB_FEATURES = [
 
 export const MAX_JOB_FEATURES = 6;
 
+// 求人バナー画像（salon_jobs.hero_image_urls text[] NOT NULL DEFAULT '{}'）の最大枚数。
+// 1枚目が一覧・SNSシェア（OGP）・「注目の求人」バナーで使われるメイン画像。
+export const MAX_JOB_HERO_IMAGES = 3;
+
+// DBから読んだ hero_image_urls を表示用に正規化（配列化・文字列化・空要素除去・重複除去・最大枚数で切り詰め）。
+// features の sanitizeFeatures と同じ「防御的に配列を整える」方針。
+export function sanitizeHeroUrls(raw: unknown): string[] {
+  if (!Array.isArray(raw)) return [];
+  const out: string[] = [];
+  for (const v of raw) {
+    const s = String(v ?? '').trim();
+    if (s !== '' && !out.includes(s)) out.push(s);
+    if (out.length >= MAX_JOB_HERO_IMAGES) break;
+  }
+  return out;
+}
+
 // 「特徴から探す」／フォームのカテゴリ表示用グルーピング（slug は JOB_FEATURES と一致）。
 export const JOB_FEATURE_GROUPS: { title: string; slugs: string[] }[] = [
   { title: '経験・年齢', slugs: ['mikeiken', 'keikensha', '20dai', '30dai', '40dai', '50dai'] },
@@ -108,9 +125,9 @@ export type JobListItem = {
   publishedAt: string | null;
   features: string[];
   salon: JobSalon;
-  // 求人バナー画像URL（16:9・任意）。/jobs トップの「注目の求人」バナー枠のみで使用。
-  // 一覧カード（JobCard）は参照しない。fetchActiveJobs でのみ SELECT する（他取得系では null）。
-  heroImageUrl: string | null;
+  // 求人バナー画像URL（16:9・最大3枚・任意）。/jobs トップの「注目の求人」バナー枠は先頭[0]のみ使用。
+  // 一覧カード（JobCard）は参照しない。fetchActiveJobs でのみ SELECT する（他取得系では空配列）。
+  heroImageUrls: string[];
 };
 
 // ピックアップ（おすすめ求人スライダー）用の軽量カード型。
@@ -136,8 +153,9 @@ export type JobDetail = {
   salaryMin: number | null;
   salaryMax: number | null;
   features: string[];
-  // 求人バナー画像URL（16:9・任意）。詳細ページのパンくず直下バナーで使用。NULLならバナー非表示。
-  heroImageUrl: string | null;
+  // 求人バナー画像URL（16:9・最大3枚・任意）。詳細ページのパンくず直下バナーで使用。
+  // 0枚ならバナー非表示、1枚は静止表示、2枚以上はスライダー表示。
+  heroImageUrls: string[];
   salon: {
     id: number;
     name: string;
@@ -160,8 +178,8 @@ export async function fetchActiveJobs(): Promise<JobListItem[]> {
   const supabase = createPublicClient();
   const { data } = await supabase
     .from('salon_jobs')
-    // hero_image_url を1列だけ相乗り（/jobs トップのバナー枠を別クエリ無しで賄う）。
-    .select('id, title, salary_text, employment_type, published_at, features, hero_image_url, salons!inner(id, name, area, is_hidden)')
+    // hero_image_urls を1列だけ相乗り（/jobs トップのバナー枠を別クエリ無しで賄う）。
+    .select('id, title, salary_text, employment_type, published_at, features, hero_image_urls, salons!inner(id, name, area, is_hidden)')
     .eq('is_active', true)
     .eq('salons.is_hidden', false)
     .order('published_at', { ascending: false });
@@ -187,8 +205,8 @@ function mapJobListItem(row: Record<string, unknown>): JobListItem | null {
       name: salon.name ?? '',
       area: salon.area ?? '',
     },
-    // SELECT に hero_image_url を含む取得系（fetchActiveJobs）のみ値が入る。他は undefined→null。
-    heroImageUrl: (row.hero_image_url as string | null) ?? null,
+    // SELECT に hero_image_urls を含む取得系（fetchActiveJobs）のみ値が入る。他は undefined→空配列。
+    heroImageUrls: sanitizeHeroUrls(row.hero_image_urls),
   };
 }
 
@@ -291,7 +309,7 @@ export async function fetchJobById(id: number): Promise<JobDetail | null> {
   const { data, error } = await supabase
     .from('salon_jobs')
     .select(
-      'id, title, salary_text, employment_type, published_at, work_hours, requirements, benefits, access, description, salary_min, salary_max, features, hero_image_url, salons!inner(id, name, area, address, phone, is_hidden)'
+      'id, title, salary_text, employment_type, published_at, work_hours, requirements, benefits, access, description, salary_min, salary_max, features, hero_image_urls, salons!inner(id, name, area, address, phone, is_hidden)'
     )
     .eq('id', id)
     .eq('is_active', true)
@@ -323,7 +341,7 @@ export async function fetchJobById(id: number): Promise<JobDetail | null> {
     salaryMin: (data.salary_min as number | null) ?? null,
     salaryMax: (data.salary_max as number | null) ?? null,
     features: sanitizeFeatures(data.features),
-    heroImageUrl: (data.hero_image_url as string | null) ?? null,
+    heroImageUrls: sanitizeHeroUrls(data.hero_image_urls),
     salon: {
       id: salon.id,
       name: salon.name ?? '',

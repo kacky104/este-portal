@@ -21,7 +21,7 @@ export type JobFormState = {
   access: string;
   notify_email: string;
   features: string[];
-  hero_image_url: string;
+  hero_image_urls: string[];
 };
 
 // 雇用形態の選択肢（DB値＝schema.org値。デフォルトは業務委託）。
@@ -45,7 +45,7 @@ export const EMPTY_JOB_FORM: JobFormState = {
   access: '',
   notify_email: '',
   features: [],
-  hero_image_url: '',
+  hero_image_urls: [],
 };
 
 // MyJob（サーバー取得）→ フォーム状態（数値は文字列化・空欄化）。
@@ -63,7 +63,7 @@ export function jobToForm(job: MyJob): JobFormState {
     access: job.access,
     notify_email: job.notify_email,
     features: [...job.features],
-    hero_image_url: job.hero_image_url ?? '',
+    hero_image_urls: [...job.hero_image_urls],
   };
 }
 
@@ -280,11 +280,11 @@ export function JobFields({
         )}
       </div>
 
-      {/* 求人バナー画像（16:9・任意）。/jobs トップの「注目の求人」バナー枠に掲載される。 */}
+      {/* 求人バナー画像（16:9・最大3枚・任意）。先頭が一覧・SNSシェア・「注目の求人」バナーで使われる。 */}
       <JobHeroImageField
         salonId={salonId ?? null}
-        value={value.hero_image_url}
-        onChange={(url) => onChange({ hero_image_url: url })}
+        value={value.hero_image_urls}
+        onChange={(urls) => onChange({ hero_image_urls: urls })}
       />
 
       {/* 仕事内容（必須） */}

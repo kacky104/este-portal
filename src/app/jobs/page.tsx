@@ -25,11 +25,12 @@ export const metadata: Metadata = {
 export default async function JobsPage() {
   const [jobs, pickupJobs] = await Promise.all([fetchActiveJobs(), getFeaturedJobs()]);
 
-  // 「注目の求人」バナー：既存の jobs（published_at 降順）からバナー画像ありを抽出（別クエリ無し）。
+  // 「注目の求人」バナー：既存の jobs（published_at 降順）からバナー画像1枚以上ありを抽出（別クエリ無し）。
+  // 表示は先頭[0]のメイン画像のみ（表示仕様は不変。複数枚は詳細ページのスライダーで見せる）。
   const heroBanners = jobs
-    .filter((j) => j.heroImageUrl)
+    .filter((j) => j.heroImageUrls.length > 0)
     .slice(0, HERO_BANNER_LIMIT)
-    .map((j) => ({ id: j.id, title: j.title, heroImageUrl: j.heroImageUrl as string, salonName: j.salon.name }));
+    .map((j) => ({ id: j.id, title: j.title, heroImageUrl: j.heroImageUrls[0], salonName: j.salon.name }));
 
   return (
     <main className="max-w-3xl mx-auto px-4 py-8">

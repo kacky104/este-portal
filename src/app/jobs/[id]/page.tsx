@@ -5,6 +5,7 @@ import { notFound } from 'next/navigation';
 import { areaLabel } from '@/app/lib/areaLabel';
 import { fetchJobById, employmentTypeLabel, featureLabel, type JobDetail } from '@/app/lib/jobs';
 import { ApplyForm } from './ApplyForm';
+import { JobHeroSlider } from './JobHeroSlider';
 
 const SITE_URL = 'https://fukues.com';
 
@@ -158,12 +159,12 @@ export default async function JobDetailPage({
           </span>
         </nav>
 
-        {/* ヒーローバナー（hero_image_url があるときのみ・パンくず直下）。16:9・角丸・文字は重ねない。
-            NULL のときはこのブロックごと出さない（空枠を作らない）。 */}
-        {job.heroImageUrl && (
+        {/* ヒーローバナー（hero_image_urls・パンくず直下）。16:9・角丸・文字は重ねない。
+            0枚: このブロックごと非表示（空枠を作らない）／1枚: 静止表示／2枚以上: スライダー。 */}
+        {job.heroImageUrls.length === 1 && (
           <div className="rounded-2xl overflow-hidden shadow-md border border-emerald-100 mb-4">
             <Image
-              src={job.heroImageUrl}
+              src={job.heroImageUrls[0]}
               alt={job.title}
               width={1280}
               height={720}
@@ -171,6 +172,9 @@ export default async function JobDetailPage({
               className="w-full h-auto aspect-video object-cover"
             />
           </div>
+        )}
+        {job.heroImageUrls.length >= 2 && (
+          <JobHeroSlider images={job.heroImageUrls} title={job.title} />
         )}
 
         {/* ヘッダーカード：雇用形態・タイトル・店名 */}
