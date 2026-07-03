@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import Image from 'next/image';
 import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import { areaLabel } from '@/app/lib/areaLabel';
@@ -105,6 +106,20 @@ function buildJobPostingJsonLd(job: JobDetail): Record<string, unknown> {
   return ld;
 }
 
+// BreadcrumbList 構造化データ（JobPosting とは別に出力）。
+// 階層: フクエスワーク(/jobs) › サロン名(/salon/[id]) › 求人タイトル(現在ページ)。
+function buildBreadcrumbJsonLd(job: JobDetail): Record<string, unknown> {
+  return {
+    '@context': 'https://schema.org/',
+    '@type': 'BreadcrumbList',
+    itemListElement: [
+      { '@type': 'ListItem', position: 1, name: 'フクエスワーク', item: `${SITE_URL}/jobs` },
+      { '@type': 'ListItem', position: 2, name: job.salon.name, item: `${SITE_URL}/salon/${job.salon.id}` },
+      { '@type': 'ListItem', position: 3, name: job.title, item: `${SITE_URL}/jobs/${job.id}` },
+    ],
+  };
+}
+
 export default async function JobDetailPage({
   params,
 }: {
@@ -118,25 +133,51 @@ export default async function JobDetailPage({
   if (!job) notFound();
 
   const jsonLd = buildJobPostingJsonLd(job);
+  const breadcrumbJsonLd = buildBreadcrumbJsonLd(job);
   // </script> によるスクリプト早期終了を防ぐため < をエスケープしてから埋め込む。
   const jsonLdString = JSON.stringify(jsonLd).replace(/</g, '\\u003c');
+  const breadcrumbJsonLdString = JSON.stringify(breadcrumbJsonLd).replace(/</g, '\\u003c');
 
   return (
     <>
       {/* JobPosting 構造化データ */}
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: jsonLdString }} />
+      {/* BreadcrumbList 構造化データ（フクエスワーク › サロン名 › 求人タイトル） */}
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: breadcrumbJsonLdString }} />
 
       <main className="max-w-3xl mx-auto px-4 py-8">
-        {/* パンくず：フクエスワーク › {求人タイトル} */}
+        {/* パンくず：フクエスワーク › {サロン名} › {求人タイトル}
+            1行維持（nowrap）。サロン名は max-w＋truncate で控えめに、末尾の求人タイトルは
+            flex-1 min-w-0 truncate で残り幅を使いつつ省略＝モバイルでも折り返さない。 */}
         <nav aria-label="パンくずリスト" className="flex items-center gap-1.5 mb-6" style={{ fontSize: '13px' }}>
           <Link href="/jobs" className="hover:opacity-80 transition-opacity flex-shrink-0 whitespace-nowrap" style={{ color: '#059669' }}>
             フクエスワーク
           </Link>
           <span aria-hidden className="flex-shrink-0" style={{ color: '#999' }}>›</span>
-          <span aria-current="page" className="inline-block max-w-[60%] truncate align-middle font-semibold" style={{ color: '#4D7C0F' }}>
+          {/* サロン名（本体フクエスのサロン詳細 /salon/[id] へ。求人一覧の店舗絞り込み専用ルートは無いため本体詳細を採用） */}
+          <Link href={`/salon/${job.salon.id}`} className="hover:opacity-80 transition-opacity flex-shrink-0 max-w-[40%] truncate" style={{ color: '#059669' }}>
+            {job.salon.name}
+          </Link>
+          <span aria-hidden className="flex-shrink-0" style={{ color: '#999' }}>›</span>
+          <span aria-current="page" className="flex-1 min-w-0 truncate font-semibold" style={{ color: '#4D7C0F' }}>
             {job.title}
           </span>
         </nav>
+
+        {/* ヒーローバナー（hero_image_url があるときのみ・パンくず直下）。16:9・角丸・文字は重ねない。
+            NULL のときはこのブロックごと出さない（空枠を作らない）。 */}
+        {job.heroImageUrl && (
+          <div className="rounded-2xl overflow-hidden shadow-md border border-emerald-100 mb-4">
+            <Image
+              src={job.heroImageUrl}
+              alt={job.title}
+              width={1280}
+              height={720}
+              sizes="(max-width: 768px) 100vw, 768px"
+              className="w-full h-auto aspect-video object-cover"
+            />
+          </div>
+        )}
 
         {/* ヘッダーカード：雇用形態・タイトル・店名 */}
         <div className="rounded-2xl border border-emerald-100 bg-white p-5 shadow-sm">

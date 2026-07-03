@@ -136,6 +136,8 @@ export type JobDetail = {
   salaryMin: number | null;
   salaryMax: number | null;
   features: string[];
+  // 求人バナー画像URL（16:9・任意）。詳細ページのパンくず直下バナーで使用。NULLならバナー非表示。
+  heroImageUrl: string | null;
   salon: {
     id: number;
     name: string;
@@ -289,7 +291,7 @@ export async function fetchJobById(id: number): Promise<JobDetail | null> {
   const { data, error } = await supabase
     .from('salon_jobs')
     .select(
-      'id, title, salary_text, employment_type, published_at, work_hours, requirements, benefits, access, description, salary_min, salary_max, features, salons!inner(id, name, area, address, phone, is_hidden)'
+      'id, title, salary_text, employment_type, published_at, work_hours, requirements, benefits, access, description, salary_min, salary_max, features, hero_image_url, salons!inner(id, name, area, address, phone, is_hidden)'
     )
     .eq('id', id)
     .eq('is_active', true)
@@ -321,6 +323,7 @@ export async function fetchJobById(id: number): Promise<JobDetail | null> {
     salaryMin: (data.salary_min as number | null) ?? null,
     salaryMax: (data.salary_max as number | null) ?? null,
     features: sanitizeFeatures(data.features),
+    heroImageUrl: (data.hero_image_url as string | null) ?? null,
     salon: {
       id: salon.id,
       name: salon.name ?? '',
