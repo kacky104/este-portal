@@ -31,7 +31,7 @@ import {
 const EMPLOYMENT_TYPES = ['CONTRACTOR', 'PART_TIME', 'FULL_TIME', 'OTHER'] as const;
 
 const JOB_COLUMNS =
-  'id, salon_id, title, description, employment_type, salary_text, salary_min, salary_max, work_hours, requirements, benefits, access, notify_email, features, is_active, published_at, updated_at';
+  'id, salon_id, title, description, employment_type, salary_text, salary_min, salary_max, work_hours, requirements, benefits, access, notify_email, features, hero_image_url, is_active, published_at, updated_at';
 
 export type JobFormInput = {
   title: string;
@@ -46,6 +46,8 @@ export type JobFormInput = {
   access: string;
   notify_email: string;
   features: string[];
+  // 求人バナー画像URL（16:9・job-hero-images バケット。空欄可）。
+  hero_image_url: string;
 };
 
 export type MyJob = {
@@ -63,6 +65,7 @@ export type MyJob = {
   access: string;
   notify_email: string;
   features: string[];
+  hero_image_url: string | null;
   is_active: boolean;
   published_at: string | null;
   updated_at: string | null;
@@ -89,6 +92,7 @@ function mapJob(row: Record<string, unknown>): MyJob {
     access: (row.access as string | null) ?? '',
     notify_email: (row.notify_email as string | null) ?? '',
     features: sanitizeFeatures(row.features),
+    hero_image_url: (row.hero_image_url as string | null) ?? null,
     is_active: Boolean(row.is_active),
     published_at: (row.published_at as string | null) ?? null,
     updated_at: (row.updated_at as string | null) ?? null,
@@ -165,6 +169,7 @@ type CleanJob = {
   access: string | null;
   notify_email: string | null;
   features: string[];
+  hero_image_url: string | null;
 };
 
 function validate(input: JobFormInput): { ok: true; clean: CleanJob } | Err {
@@ -229,6 +234,8 @@ function validate(input: JobFormInput): { ok: true; clean: CleanJob } | Err {
       access: trimOrNull(input.access),
       notify_email: notifyEmail,
       features,
+      // バナー画像URLは自前ストレージのアップロード結果。空欄は null に正規化。
+      hero_image_url: trimOrNull(input.hero_image_url),
     },
   };
 }

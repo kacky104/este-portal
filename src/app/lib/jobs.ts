@@ -107,6 +107,9 @@ export type JobListItem = {
   publishedAt: string | null;
   features: string[];
   salon: JobSalon;
+  // 求人バナー画像URL（16:9・任意）。/jobs トップの「注目の求人」バナー枠のみで使用。
+  // 一覧カード（JobCard）は参照しない。fetchActiveJobs でのみ SELECT する（他取得系では null）。
+  heroImageUrl: string | null;
 };
 
 // ピックアップ（おすすめ求人スライダー）用の軽量カード型。
@@ -154,7 +157,8 @@ export async function fetchActiveJobs(): Promise<JobListItem[]> {
   const supabase = createPublicClient();
   const { data } = await supabase
     .from('salon_jobs')
-    .select('id, title, salary_text, employment_type, published_at, features, salons!inner(id, name, area, is_hidden)')
+    // hero_image_url を1列だけ相乗り（/jobs トップのバナー枠を別クエリ無しで賄う）。
+    .select('id, title, salary_text, employment_type, published_at, features, hero_image_url, salons!inner(id, name, area, is_hidden)')
     .eq('is_active', true)
     .eq('salons.is_hidden', false)
     .order('published_at', { ascending: false });
@@ -180,6 +184,8 @@ function mapJobListItem(row: Record<string, unknown>): JobListItem | null {
       name: salon.name ?? '',
       area: salon.area ?? '',
     },
+    // SELECT に hero_image_url を含む取得系（fetchActiveJobs）のみ値が入る。他は undefined→null。
+    heroImageUrl: (row.hero_image_url as string | null) ?? null,
   };
 }
 

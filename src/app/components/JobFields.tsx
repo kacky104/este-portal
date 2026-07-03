@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import type { MyJob } from '@/app/actions/jobs';
 import { JOB_FEATURE_GROUPS, featureLabel, MAX_JOB_FEATURES, isValidEmailFormat } from '@/app/lib/jobs';
+import { JobHeroImageField } from '@/app/components/JobHeroImageField';
 
 // 求人フォームの共通フィールド（mypage求人タブ／admin求人管理で共用）。
 // 表示専用のコントロールド・コンポーネント。保存やバリデーションは呼び出し側（サーバーアクション）が担う。
@@ -20,6 +21,7 @@ export type JobFormState = {
   access: string;
   notify_email: string;
   features: string[];
+  hero_image_url: string;
 };
 
 // 雇用形態の選択肢（DB値＝schema.org値。デフォルトは業務委託）。
@@ -43,6 +45,7 @@ export const EMPTY_JOB_FORM: JobFormState = {
   access: '',
   notify_email: '',
   features: [],
+  hero_image_url: '',
 };
 
 // MyJob（サーバー取得）→ フォーム状態（数値は文字列化・空欄化）。
@@ -60,6 +63,7 @@ export function jobToForm(job: MyJob): JobFormState {
     access: job.access,
     notify_email: job.notify_email,
     features: [...job.features],
+    hero_image_url: job.hero_image_url ?? '',
   };
 }
 
@@ -78,9 +82,13 @@ function Label({ children, required }: { children: React.ReactNode; required?: b
 export function JobFields({
   value,
   onChange,
+  salonId,
 }: {
   value: JobFormState;
   onChange: (patch: Partial<JobFormState>) => void;
+  // 求人バナー画像のアップロード先フォルダ（={salon_id}）。未指定/未選択（代理作成でサロン未選択）では
+  // アップロード欄を無効化する。
+  salonId?: number | null;
 }) {
   // 最大数に達した状態で未選択タグを押したときの警告（クライアント側）。
   const [featureWarn, setFeatureWarn] = useState(false);
@@ -271,6 +279,13 @@ export function JobFields({
           <p className="text-[10px] text-rose-500 mt-1">メールアドレスの形式が正しくありません。</p>
         )}
       </div>
+
+      {/* 求人バナー画像（16:9・任意）。/jobs トップの「注目の求人」バナー枠に掲載される。 */}
+      <JobHeroImageField
+        salonId={salonId ?? null}
+        value={value.hero_image_url}
+        onChange={(url) => onChange({ hero_image_url: url })}
+      />
 
       {/* 仕事内容（必須） */}
       <div>

@@ -5,6 +5,11 @@ import { fetchActiveJobs, getFeaturedJobs } from '@/app/lib/jobs';
 import { JobCard } from './JobCard';
 import { FeatureBrowse } from './FeatureBrowse';
 import { PickupSlider } from './PickupSlider';
+import { JobHeroBanners } from './JobHeroBanners';
+
+// 「注目の求人」バナーの初期表示上限。件数が増えた場合はここを調整、または将来的に
+// 「もっと見る」/ページングを追加する拡張ポイント。
+const HERO_BANNER_LIMIT = 10;
 
 // ISR：10分ごとに再生成（SEO目的。求人は頻繁に変わらないためキャッシュで十分）。
 export const revalidate = 600;
@@ -19,6 +24,12 @@ export const metadata: Metadata = {
 
 export default async function JobsPage() {
   const [jobs, pickupJobs] = await Promise.all([fetchActiveJobs(), getFeaturedJobs()]);
+
+  // 「注目の求人」バナー：既存の jobs（published_at 降順）からバナー画像ありを抽出（別クエリ無し）。
+  const heroBanners = jobs
+    .filter((j) => j.heroImageUrl)
+    .slice(0, HERO_BANNER_LIMIT)
+    .map((j) => ({ id: j.id, title: j.title, heroImageUrl: j.heroImageUrl as string, salonName: j.salon.name }));
 
   return (
     <main className="max-w-3xl mx-auto px-4 py-8">
@@ -47,6 +58,9 @@ export default async function JobsPage() {
 
       {/* おすすめ求人（運営が featured_jobs に登録した求人のスライダー）。0件時はセクションごと非表示。 */}
       <PickupSlider jobs={pickupJobs} />
+
+      {/* 注目の求人（オーナー設定のバナー画像）。おすすめスライダーと既存求人一覧の間に配置。0件時は非表示。 */}
+      <JobHeroBanners banners={heroBanners} />
 
       {/* パンくず：フクエスワーク › 求人一覧（本体トップへの導線はヘッダー/フッターに任せる） */}
       <nav aria-label="パンくずリスト" className="flex items-center gap-1.5 mb-6" style={{ fontSize: '13px' }}>

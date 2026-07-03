@@ -253,7 +253,7 @@ export default function AdminJobsManager({
               </div>
             )}
 
-            <JobFields value={editor.form} onChange={patch} />
+            <JobFields value={editor.form} onChange={patch} salonId={editor.salonId} />
 
             {formError && (
               <p className="text-xs text-rose-600 bg-rose-50 border border-rose-100 rounded-xl px-3 py-2">{formError}</p>

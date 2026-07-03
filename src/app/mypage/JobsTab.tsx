@@ -183,7 +183,7 @@ export function JobsTab({ salonId }: { salonId: number }) {
 
       {/* フォーム本体 */}
       <div className="bg-white rounded-3xl border border-slate-100 shadow-sm p-5 space-y-4">
-        <JobFields value={form} onChange={patch} />
+        <JobFields value={form} onChange={patch} salonId={salonId} />
 
         {/* 注意書き */}
         <ul className="text-[10px] text-slate-400 leading-relaxed space-y-1 list-disc pl-4">
