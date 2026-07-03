@@ -70,7 +70,7 @@ export function PickupSlider({ jobs }: { jobs: PickupJob[] }) {
               )}
 
               {/* 下部グラデーションオーバーレイ（本体スライダー同系統） */}
-              <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-black/10 to-transparent" />
+              <div className="absolute inset-0 bg-gradient-to-t from-black/20 via-black/5 to-transparent" />
 
               {/* PICKUP バッジ（本体のピンク系は流用せず、フクエスワークのグリーン→ライム） */}
               <span
