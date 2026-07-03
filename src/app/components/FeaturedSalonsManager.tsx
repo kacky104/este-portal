@@ -112,7 +112,14 @@ export default function FeaturedSalonsManager({ allSalons }: { allSalons: SalonO
 
   const handleDelete = async (id: string) => {
     setSaving(true);
-    await supabase.from('featured_salons').delete().eq('id', id);
+    const { error } = await supabase.from('featured_salons').delete().eq('id', id);
+    if (error) { setSaving(false); alert(`削除に失敗しました。\n${error.message}`); return; }
+    // 行削除時に紐づく画像ファイルもstorageから掃除（残置ファイル対策）。DB削除成功後に実施。
+    const removed = items.find(i => i.id === id);
+    if (removed?.imageUrl) {
+      const oldPath = removed.imageUrl.split(`/${BUCKET}/`)[1];
+      if (oldPath) await supabase.storage.from(BUCKET).remove([oldPath]);
+    }
     setSaving(false);
     revalidateFeaturedArea(selectedArea);
     await fetchFeatured();
@@ -150,17 +157,15 @@ export default function FeaturedSalonsManager({ allSalons }: { allSalons: SalonO
     if (!item) return;
 
     const ext  = file.name.split('.').pop()?.toLowerCase() ?? 'jpg';
-    const path = `${itemId}.${ext}`;
+    // パスは timestamp でユニーク化（{id}/{timestamp}.{ext}）。固定名＋upsertだと差し替えても
+    // public URL が不変でCDN/ブラウザが旧画像をキャッシュし続ける（＝「変更しても前回の画像」バグ）。
+    // 毎回URLが変わるようにして確実に反映させる。
+    const path = `${itemId}/${Date.now()}.${ext}`;
 
     setSaving(true);
 
-    // 既存ファイルを削除（上書きアップロードのため）
-    if (item.imageUrl) {
-      const oldPath = item.imageUrl.split(`/${BUCKET}/`)[1];
-      if (oldPath) {
-        await supabase.storage.from(BUCKET).remove([oldPath]);
-      }
-    }
+    // 差し替え前の旧ファイルパスを控えておく（新規アップロード成功後に掃除する）。
+    const oldPath = item.imageUrl ? item.imageUrl.split(`/${BUCKET}/`)[1] : null;
 
     const { error: uploadError } = await supabase.storage
       .from(BUCKET)
@@ -184,6 +189,9 @@ export default function FeaturedSalonsManager({ allSalons }: { allSalons: SalonO
     if (updateError) {
       console.error('DB update error:', updateError);
       alert(`画像URLの保存に失敗しました。\n${updateError.message}`);
+    } else if (oldPath && oldPath !== path) {
+      // DB更新が成功してから旧ファイルを削除（失敗時に画像を失わない順序）。
+      await supabase.storage.from(BUCKET).remove([oldPath]);
     }
 
     e.target.value = '';
