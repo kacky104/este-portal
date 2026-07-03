@@ -39,17 +39,30 @@ export function PickupSlider({ jobs }: { jobs: PickupJob[] }) {
             <Link
               key={job.id}
               href={`/jobs/${job.id}`}
-              className="snap-start flex-shrink-0 w-[calc((100%-1.5rem)/2.2)] relative aspect-[4/3] rounded-2xl overflow-hidden shadow-lg"
+              className="snap-start flex-shrink-0 w-[calc((100%-1.5rem)/2.2)] relative aspect-video rounded-2xl overflow-hidden shadow-lg"
             >
-              {/* サロン画像を全面表示。無い場合はブランドグラデを全面に敷く（テキストは同様に重ねる）。 */}
+              {/* サロン画像を「ぼかし背景＋object-contain」で切れずに全体表示。
+                  背面: 同じ画像を object-cover でぼかし拡大して全面に敷く（余白埋めの装飾＝alt空）。
+                  前面: 同じ画像を object-contain で全体表示（文字が切れない）。
+                  画像が無い場合はブランドグラデを全面に敷く（テキストは同様に重ねる）。 */}
               {job.imageUrl ? (
-                <Image
-                  src={job.imageUrl}
-                  alt={job.salon.name}
-                  fill
-                  className="object-cover"
-                  sizes="(max-width: 768px) 45vw, 340px"
-                />
+                <>
+                  <Image
+                    src={job.imageUrl}
+                    alt=""
+                    fill
+                    aria-hidden
+                    className="object-cover blur-lg scale-110 opacity-60"
+                    sizes="(max-width: 768px) 45vw, 340px"
+                  />
+                  <Image
+                    src={job.imageUrl}
+                    alt={job.salon.name}
+                    fill
+                    className="object-contain"
+                    sizes="(max-width: 768px) 45vw, 340px"
+                  />
+                </>
               ) : (
                 <div className="absolute inset-0" style={{ background: 'linear-gradient(135deg,#10B981,#84CC16)' }} />
               )}
