@@ -444,7 +444,7 @@ function SalonCardSkeleton() {
 
 // ── ShuffledSalons ────────────────────────────────────────────
 
-export function ShuffledSalons({ salons, areas, showAge = false, areaNextToDuty = false, ratingAtBottom = false, compactTherapists = false, showSaveButton = false, wideDesktop = false, tabsAsLinks = false, currentArea, includeDispatch = false, heading, shuffleSalt = '' }: { salons: Salon[]; areas: string[]; showAge?: boolean; areaNextToDuty?: boolean; ratingAtBottom?: boolean; compactTherapists?: boolean; showSaveButton?: boolean; wideDesktop?: boolean; tabsAsLinks?: boolean; currentArea?: string; includeDispatch?: boolean; heading?: React.ReactNode; shuffleSalt?: string }) {
+export function ShuffledSalons({ salons, areas, showAge = false, areaNextToDuty = false, ratingAtBottom = false, compactTherapists = false, showSaveButton = false, wideDesktop = false, tabsAsLinks = false, currentArea, includeDispatch = false, heading, shuffleSalt = '', showAreaTitle = false }: { salons: Salon[]; areas: string[]; showAge?: boolean; areaNextToDuty?: boolean; ratingAtBottom?: boolean; compactTherapists?: boolean; showSaveButton?: boolean; wideDesktop?: boolean; tabsAsLinks?: boolean; currentArea?: string; includeDispatch?: boolean; heading?: React.ReactNode; shuffleSalt?: string; showAreaTitle?: boolean }) {
   const [list,            setList]            = useState<Salon[]>([]);
   const [activeArea,      setActiveArea]      = useState('福岡全域');
   // tabsAsLinks 時はページ自体が絞り込み対象を表すため、currentArea を選択中エリアとして使う
@@ -498,9 +498,30 @@ export function ShuffledSalons({ salons, areas, showAge = false, areaNextToDuty 
     </div>
   );
 
-  // 地域バッジ列（tabs）を最上部に置き、その下に見出し（heading）→ カード一覧の順で表示する。
+  // 地域タブ（tabs）の直上に出すセクション見出し「地域で選ぶ」。
+  // 本体の既存セクション見出し（「ピックアップサロン」等）と同一マークアップ：
+  // 左のグラデ縦バー ＋ ブランドグラデ（橙→マゼンタ）のタイトル。フクエス本体のTOP/地域ページのみ表示。
+  const areaSectionTitle = showAreaTitle ? (
+    <div className="flex items-center gap-3 mb-4">
+      <div className="w-1 h-6 rounded-full bg-gradient-to-b from-pink-400 to-rose-500" />
+      <h2
+        className="text-xl font-bold"
+        style={{
+          background: 'linear-gradient(to right, #FB923C, #DB2777)',
+          WebkitBackgroundClip: 'text',
+          WebkitTextFillColor: 'transparent',
+          backgroundClip: 'text',
+        }}
+      >
+        地域で選ぶ
+      </h2>
+    </div>
+  ) : null;
+
+  // 地域見出し→地域バッジ列（tabs）を最上部に置き、その下に見出し（heading）→ カード一覧の順で表示する。
   const tabsAndHeading = (
     <>
+      {areaSectionTitle}
       {tabs}
       {heading}
     </>

@@ -112,6 +112,7 @@ export default async function AreaPage({ params }: { params: Promise<{ slug: str
           shuffleSalt={`area:${slug}`}
           currentArea={area}
           tabsAsLinks
+          showAreaTitle
           includeDispatch={area === DISPATCH_AREA}
           showAge
           areaNextToDuty

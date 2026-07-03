@@ -204,6 +204,7 @@ export default async function Home() {
               shuffleSalt="home"
               currentArea={ALL_AREA}
               tabsAsLinks
+              showAreaTitle
               showAge
               areaNextToDuty
               ratingAtBottom
