@@ -206,6 +206,10 @@ export default async function SalonPage({
   // 掲載中のセラピスト求人（あれば「求人情報」セクションを出す。createPublicClient 内部使用で ISR を壊さない）。
   const salonJobs = await fetchActiveJobsBySalon(Number(id));
 
+  // 「女性求人」アイコンのリンク先：アクティブな求人があればその求人詳細へ、無ければ準備中ページへ。
+  // 判定は上で取得済みの salonJobs を再利用（追加クエリ不要）。
+  const jobsHref = salonJobs.length > 0 ? `/jobs/${salonJobs[0].id}` : '/jobs/coming-soon';
+
   // 店舗基本情報の中身（スマホ=サロンについての下／デスクトップ=右サイドバー の2箇所で共用）
   const shopInfoRows = (
     <dl className="space-y-3.5 text-sm">
@@ -470,6 +474,28 @@ export default async function SalonPage({
                   <path d="M9 21v-4a2 2 0 0 1 2 -2h2a2 2 0 0 1 2 2v4" />
                 </svg>
                 <span className="text-[11px] sm:text-sm font-bold leading-none whitespace-nowrap" style={{ color: qn.text }}>店舗情報</span>
+              </Link>
+            </div>
+
+            {/* 4段目：将来のアイコン追加用の空枠2つ ＋ 女性求人。
+                空枠は既存セルと同じ枠スタイル（bg/border）で中身なし・クリック不可のプレースホルダ。
+                グリッドの align-items:stretch により空枠の高さは女性求人セルに自動で揃う。 */}
+            <div className="grid grid-cols-3 gap-2 sm:gap-3">
+              {/* プレースホルダ①：将来アイコンを追加する枠（中身なし・非クリック） */}
+              <div className="rounded-lg border shadow-sm" style={{ backgroundColor: qn.bg, borderColor: qn.border }} aria-hidden />
+              {/* プレースホルダ②：将来アイコンを追加する枠（中身なし・非クリック） */}
+              <div className="rounded-lg border shadow-sm" style={{ backgroundColor: qn.bg, borderColor: qn.border }} aria-hidden />
+              {/* 女性求人：アクティブ求人があればその詳細 /jobs/[id] へ、無ければ準備中 /jobs/coming-soon へ。
+                  お客様向けページのため「別サイトへ移動」を強調せず、他セルと同一デザインで自然に馴染ませる。
+                  アイコンは lucide の HeartHandshake グリフをインライン化（本リポジトリはアイコンライブラリ非使用でSVG統一）。 */}
+              <Link href={jobsHref} className="flex flex-col items-center justify-center gap-1.5 rounded-lg border px-1.5 py-3 sm:py-4 shadow-sm cursor-pointer hover:shadow-md hover:brightness-95 transition-all" style={{ backgroundColor: qn.bg, borderColor: qn.border }}>
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="flex-shrink-0" style={{ color: qn.icon }}>
+                  <path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z" />
+                  <path d="M12 5 9.04 7.96a2.17 2.17 0 0 0 0 3.08c.82.82 2.13.85 3 .07l2.07-1.9a2.82 2.82 0 0 1 3.79 0l2.96 2.66" />
+                  <path d="m18 15-2-2" />
+                  <path d="m15 18-2-2" />
+                </svg>
+                <span className="text-[11px] sm:text-sm font-bold leading-none whitespace-nowrap" style={{ color: qn.text }}>女性求人</span>
               </Link>
             </div>
             </div>
