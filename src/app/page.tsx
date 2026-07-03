@@ -96,13 +96,6 @@ export default async function Home() {
           <div className="absolute bottom-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-pink-300/50 to-transparent" />
 
           <div className="relative max-w-5xl mx-auto px-4 text-center">
-            {/* eyebrow */}
-            <p className="inline-flex items-center gap-2 text-xs font-semibold text-slate-400 tracking-[0.2em] mb-4">
-              <span className="w-6 h-px bg-slate-300" />
-              福岡に特化したメンズエステポータルサイト
-              <span className="w-6 h-px bg-slate-300" />
-            </p>
-
             {/* リード文（緑系グラデ：ヘッダーのサブと同系） */}
             <p className="text-[18px] sm:text-[22px] leading-snug">
               <span
@@ -115,7 +108,7 @@ export default async function Home() {
                   color: 'transparent',
                 }}
               >
-                福岡でメンズエステを探すなら
+                福岡密着型メンズエステポータルサイト
               </span>
             </p>
 
