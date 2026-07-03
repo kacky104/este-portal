@@ -77,6 +77,13 @@ export function isValidFeatureSlug(slug: string): boolean {
   return Object.prototype.hasOwnProperty.call(FEATURE_LABEL_BY_SLUG, slug);
 }
 
+// メール形式の簡易チェック（応募通知メール等で共用。クライアント／サーバー両方で使う）。
+// サロン編集モーダルの booking_email と同一方式。空欄可の欄では呼び出し側で「空ならスキップ」を判定する。
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+export function isValidEmailFormat(value: string): boolean {
+  return EMAIL_RE.test(value.trim());
+}
+
 // DBから読んだ features を表示用に正規化（配列化・ホワイトリスト・重複除去・マスタ順に整列）。
 export function sanitizeFeatures(raw: unknown): string[] {
   if (!Array.isArray(raw)) return [];

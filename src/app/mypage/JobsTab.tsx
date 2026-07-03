@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { getMyJob, upsertMyJob, toggleMyJobActive, deleteMyJob, type MyJob } from '@/app/actions/jobs';
+import { isValidEmailFormat } from '@/app/lib/jobs';
 import { JobFields, EMPTY_JOB_FORM, jobToForm, type JobFormState } from '@/app/components/JobFields';
 import { JobApplications } from '@/app/mypage/JobApplications';
 
@@ -42,6 +43,11 @@ export function JobsTab({ salonId }: { salonId: number }) {
   const patch = (p: Partial<JobFormState>) => setForm((prev) => ({ ...prev, ...p }));
 
   const handleSave = async () => {
+    // 応募通知メール：空欄は許可（＝予約通知メールへフォールバック）、入力時のみ形式チェック。
+    if (form.notify_email.trim() !== '' && !isValidEmailFormat(form.notify_email)) {
+      setMsg({ kind: 'err', text: '応募通知メールの形式が正しくありません' });
+      return;
+    }
     setSaving(true);
     setMsg(null);
     const res = await upsertMyJob(salonId, form);

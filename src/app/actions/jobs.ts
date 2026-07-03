@@ -11,6 +11,7 @@ import {
   type ApplicationStatus,
   MAX_JOB_FEATURES,
   isValidFeatureSlug,
+  isValidEmailFormat,
   sanitizeFeatures,
 } from '@/app/lib/jobs';
 
@@ -192,9 +193,11 @@ function validate(input: JobFormInput): { ok: true; clean: CleanJob } | Err {
     return { ok: false, error: '給与の下限は上限以下にしてください' };
   }
 
-  // 応募通知メール（任意）。入力があるときだけ簡易形式チェック（@を含む程度・予約設定と同方針）。
+  // 応募通知メール（任意）。空欄は null に正規化（''とNULLの混在を防ぎ booking_email フォールバックを
+  // 確実に効かせる）。入力があるときはメール形式を検証（無効値は Resend 送信失敗でサイレントに
+  // 通知が消えるため、ここで弾く）。サロン編集の booking_email と同一方式。
   const notifyEmail = trimOrNull(input.notify_email);
-  if (notifyEmail && !notifyEmail.includes('@')) {
+  if (notifyEmail && !isValidEmailFormat(notifyEmail)) {
     return { ok: false, error: '応募通知メールの形式が正しくありません' };
   }
 

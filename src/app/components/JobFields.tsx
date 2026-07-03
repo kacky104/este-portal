@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import type { MyJob } from '@/app/actions/jobs';
-import { JOB_FEATURE_GROUPS, featureLabel, MAX_JOB_FEATURES } from '@/app/lib/jobs';
+import { JOB_FEATURE_GROUPS, featureLabel, MAX_JOB_FEATURES, isValidEmailFormat } from '@/app/lib/jobs';
 
 // 求人フォームの共通フィールド（mypage求人タブ／admin求人管理で共用）。
 // 表示専用のコントロールド・コンポーネント。保存やバリデーションは呼び出し側（サーバーアクション）が担う。
@@ -262,10 +262,14 @@ export function JobFields({
         <input
           type="email"
           className={inputClass}
-          placeholder="空欄の場合はネット予約の通知先に届きます"
+          placeholder="例）owner@example.com"
           value={value.notify_email}
           onChange={(e) => onChange({ notify_email: e.target.value })}
         />
+        <p className="text-[10px] text-slate-400 mt-1">未設定の場合は予約通知メール宛に送信されます。</p>
+        {value.notify_email.trim() !== '' && !isValidEmailFormat(value.notify_email) && (
+          <p className="text-[10px] text-rose-500 mt-1">メールアドレスの形式が正しくありません。</p>
+        )}
       </div>
 
       {/* 仕事内容（必須） */}
