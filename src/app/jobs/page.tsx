@@ -1,9 +1,10 @@
 import Link from 'next/link';
 import Image from 'next/image';
 import type { Metadata } from 'next';
-import { fetchActiveJobs } from '@/app/lib/jobs';
+import { fetchActiveJobs, getPickupJobs } from '@/app/lib/jobs';
 import { JobCard } from './JobCard';
 import { FeatureBrowse } from './FeatureBrowse';
+import { PickupSlider } from './PickupSlider';
 
 // ISR：10分ごとに再生成（SEO目的。求人は頻繁に変わらないためキャッシュで十分）。
 export const revalidate = 600;
@@ -17,7 +18,7 @@ export const metadata: Metadata = {
 };
 
 export default async function JobsPage() {
-  const jobs = await fetchActiveJobs();
+  const [jobs, pickupJobs] = await Promise.all([fetchActiveJobs(), getPickupJobs()]);
 
   return (
     <main className="max-w-3xl mx-auto px-4 py-8">
@@ -43,6 +44,9 @@ export default async function JobsPage() {
           className="md:hidden w-full h-auto rounded-2xl"
         />
       </div>
+
+      {/* おすすめ求人（運営が選定した is_pickup 求人のスライダー）。0件時はセクションごと非表示。 */}
+      <PickupSlider jobs={pickupJobs} />
 
       {/* パンくず：フクエスワーク › 求人一覧（本体トップへの導線はヘッダー/フッターに任せる） */}
       <nav aria-label="パンくずリスト" className="flex items-center gap-1.5 mb-6" style={{ fontSize: '13px' }}>

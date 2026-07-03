@@ -102,6 +102,15 @@ export type JobListItem = {
   salon: JobSalon;
 };
 
+// ピックアップ（おすすめ求人スライダー）用の軽量カード型。
+export type PickupJob = {
+  id: number;
+  title: string;
+  salaryText: string;
+  salon: { id: number; name: string };
+  imageUrl: string | null;
+};
+
 export type JobDetail = {
   id: number;
   title: string;
@@ -165,6 +174,53 @@ function mapJobListItem(row: Record<string, unknown>): JobListItem | null {
       area: salon.area ?? '',
     },
   };
+}
+
+// ── ピックアップ求人（/jobs トップのおすすめスライダー） ──
+// 運営が salon_jobs.is_pickup=true にした求人を、公開中(is_active)かつ表示中サロン(is_hidden=false)に
+// 限って published_at 降順・最大10件で返す。サロンのメイン画像（salon_images の最小 display_order）を
+// カード用に併せて取得する。0件時は空配列（呼び出し側でセクションごと非表示）。
+export async function getPickupJobs(): Promise<PickupJob[]> {
+  const supabase = createPublicClient();
+  const { data } = await supabase
+    .from('salon_jobs')
+    .select('id, title, salary_text, published_at, salon_id, salons!inner(id, name, is_hidden)')
+    .eq('is_pickup', true)
+    .eq('is_active', true)
+    .eq('salons.is_hidden', false)
+    .order('published_at', { ascending: false })
+    .limit(10);
+
+  const rows = data ?? [];
+  if (rows.length === 0) return [];
+
+  // サロンのメイン画像を一括取得（display_order 昇順の先頭＝メイン。salon 詳細と同じ salon_images 参照）。
+  const salonIds = [...new Set(rows.map((r) => Number(r.salon_id)))];
+  const imageBySalon = new Map<number, string>();
+  const { data: imgRows } = await supabase
+    .from('salon_images')
+    .select('salon_id, image_url, display_order')
+    .in('salon_id', salonIds)
+    .order('display_order', { ascending: true });
+  (imgRows ?? []).forEach((img) => {
+    const sid = Number(img.salon_id);
+    // 最小 display_order（＝最初に来た行）をメイン画像として採用。
+    if (!imageBySalon.has(sid) && img.image_url) imageBySalon.set(sid, img.image_url as string);
+  });
+
+  return rows
+    .map((row): PickupJob | null => {
+      const salon = pickSalon<{ id: number; name: string | null }>(row.salons);
+      if (!salon) return null;
+      return {
+        id: row.id as number,
+        title: (row.title as string | null) ?? '',
+        salaryText: (row.salary_text as string | null) ?? '',
+        salon: { id: salon.id, name: salon.name ?? '' },
+        imageUrl: imageBySalon.get(Number(row.salon_id)) ?? null,
+      };
+    })
+    .filter((j): j is PickupJob => j !== null);
 }
 
 // ── 特徴タグ絞り込み一覧用（/jobs/tag/[slug]） ──
