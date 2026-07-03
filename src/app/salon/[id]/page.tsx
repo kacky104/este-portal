@@ -585,39 +585,6 @@ export default async function SalonPage({
               {shopInfoRows}
             </CollapsibleSection>
 
-            {/* 求人情報（掲載中の求人があるときのみ表示。各求人詳細 /jobs/[id] へリンク） */}
-            {salonJobs.length > 0 && (
-              <div className="rounded-2xl border shadow-sm p-6" style={{ backgroundColor: theme.card, borderColor: theme.cardBorder }}>
-                <div className="flex items-center gap-2 mb-4 flex-wrap">
-                  <span className="w-1 h-5 rounded-full bg-gradient-to-b from-[#10B981] to-[#84CC16] flex-shrink-0" />
-                  <h2 className="text-base font-bold" style={{ color: theme.heading }}>求人情報</h2>
-                  {/* 求人サイト「フクエスワーク」提供であることを示す小ラベル（グリーン系）。リンク先は各求人詳細のまま。 */}
-                  <span
-                    className="text-[10px] font-bold px-1.5 py-0.5 rounded-full"
-                    style={{ background: 'rgba(16,185,129,0.12)', color: '#059669' }}
-                  >
-                    powered by フクエスワーク
-                  </span>
-                </div>
-                <ul className="space-y-2">
-                  {salonJobs.map((job) => (
-                    <li key={job.id}>
-                      <Link
-                        href={`/jobs/${job.id}`}
-                        className="flex items-center justify-between gap-2 rounded-xl border px-4 py-3 hover:brightness-95 transition-all"
-                        style={{ borderColor: theme.cardBorder }}
-                      >
-                        <span className="text-sm font-medium break-words min-w-0" style={{ color: theme.body }}>{job.title}</span>
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#ec4899" strokeWidth="2.5" className="flex-shrink-0">
-                          <path d="M5 12h14M12 5l7 7-7 7" />
-                        </svg>
-                      </Link>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            )}
-
             {/* New face therapists（該当0人のときはセクションごと非表示） */}
             <SalonNewFaceTherapists salonId={Number(id)} theme={theme} />
           </div>
