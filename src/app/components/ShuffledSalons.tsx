@@ -499,20 +499,12 @@ export function ShuffledSalons({ salons, areas, showAge = false, areaNextToDuty 
   );
 
   // 地域タブ（tabs）の直上に出すセクション見出し「地域で選ぶ」。
-  // 本体の既存セクション見出し（「ピックアップサロン」等）と同一マークアップ：
-  // 左のグラデ縦バー ＋ ブランドグラデ（橙→マゼンタ）のタイトル。フクエス本体のTOP/地域ページのみ表示。
+  // 本体の既存セクション見出し（「出勤中のセラピスト」等）と同一マークアップ：
+  // 左のグラデ縦バー ＋ 標準色（text-slate-900）のタイトル。フクエス本体のTOP/地域ページのみ表示。
   const areaSectionTitle = showAreaTitle ? (
     <div className="flex items-center gap-3 mb-4">
       <div className="w-1 h-6 rounded-full bg-gradient-to-b from-pink-400 to-rose-500" />
-      <h2
-        className="text-xl font-bold"
-        style={{
-          background: 'linear-gradient(to right, #FB923C, #DB2777)',
-          WebkitBackgroundClip: 'text',
-          WebkitTextFillColor: 'transparent',
-          backgroundClip: 'text',
-        }}
-      >
+      <h2 className="text-xl font-bold text-slate-900">
         地域で選ぶ
       </h2>
     </div>
