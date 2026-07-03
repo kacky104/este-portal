@@ -4,10 +4,12 @@ import type { PickupJob } from '@/app/lib/jobs';
 
 // おすすめ求人（ピックアップ）横スクロールスライダー。サーバーコンポーネント（時間依存レンダリング無し）。
 // 本体トップの「ピックアップサロン」スライダーと同系統のバナー風カード（写真全面＋下部グラデ＋白文字重ね）を、
-// 1枚見せではなくモバイル・PC共通で 2.1枚見せにしたもの。JSカルーセルは使わず CSS スクロール
+// 1枚見せではなくモバイル・PC共通で 1.2枚見せにしたもの。JSカルーセルは使わず CSS スクロール
 // （overflow-x-auto + scroll-snap）のみ。
 // 重要: 横オーバーフローはトラック（overflow-x-auto の div）内に閉じ込め、ページ全体を広げない。
-// カード幅は 2.1枚見せで端が覗く＝スクロール可能と分かる（gap-1.5=0.375rem×2枚分を差し引いて算出）。
+// カード幅は 1.2枚見せで端が覗く＝スクロール可能と分かる（画面内のギャップは1箇所＝gap-1.5=0.375rem 1つ分を差し引いて算出）。
+// ※PCで過大に見える場合は幅をレスポンシブ化する余地あり（モバイル1.2枚見せ / PC(md以上)2.1枚見せ）:
+//   w-[calc((100%-0.375rem)/1.2)] md:w-[calc((100%-0.75rem)/2.1)]。今回は全幅共通で1.2枚見せ。
 export function PickupSlider({ jobs }: { jobs: PickupJob[] }) {
   // 0件時はセクションごと非表示（呼び出し側でも制御するが二重防御）。
   if (jobs.length === 0) return null;
@@ -39,7 +41,7 @@ export function PickupSlider({ jobs }: { jobs: PickupJob[] }) {
             <Link
               key={job.id}
               href={`/jobs/${job.id}`}
-              className="snap-start flex-shrink-0 w-[calc((100%-0.75rem)/2.1)] relative aspect-video rounded-2xl overflow-hidden shadow-lg"
+              className="snap-start flex-shrink-0 w-[calc((100%-0.375rem)/1.2)] relative aspect-video rounded-2xl overflow-hidden shadow-lg"
             >
               {/* サロン画像を「ぼかし背景＋object-contain」で切れずに全体表示。
                   背面: 同じ画像を object-cover でぼかし拡大して全面に敷く（余白埋めの装飾＝alt空）。
