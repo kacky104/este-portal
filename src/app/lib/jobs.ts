@@ -35,17 +35,18 @@ export const JOB_FEATURES = [
   { slug: 'keikensha',          label: '経験者優遇' },
   { slug: '20dai',              label: '20代活躍中' },
   { slug: '30dai',              label: '30代活躍中' },
-  { slug: '40dai',              label: '40代以上歓迎' },
+  { slug: '40dai',              label: '40代歓迎' },
+  { slug: '50dai',              label: '50代以上歓迎' },
   // 働き方
   { slug: 'jiyu-shukkin',       label: '自由出勤' },
   { slug: 'shu1',               label: '週1日〜OK' },
   { slug: 'w-work',             label: 'Wワーク歓迎' },
   { slug: 'tanjikan',           label: '短時間OK' },
   { slug: 'taiken',             label: '体験入店OK' },
+  { slug: 'shuccho-senmon',     label: '出張専門' },
   // 待遇・お金
   { slug: 'hibarai',            label: '日払いOK' },
   { slug: 'high-back',          label: '高バック率' },
-  { slug: 'norma-nashi',        label: 'ノルマ・罰金なし' },
   { slug: 'hosho',              label: '保証制度あり' },
   // 環境・安心
   { slug: 'koshitsu-taiki',     label: '個室待機' },
@@ -57,9 +58,9 @@ export const MAX_JOB_FEATURES = 6;
 
 // 「特徴から探す」／フォームのカテゴリ表示用グルーピング（slug は JOB_FEATURES と一致）。
 export const JOB_FEATURE_GROUPS: { title: string; slugs: string[] }[] = [
-  { title: '経験・年齢', slugs: ['mikeiken', 'keikensha', '20dai', '30dai', '40dai'] },
-  { title: '働き方',     slugs: ['jiyu-shukkin', 'shu1', 'w-work', 'tanjikan', 'taiken'] },
-  { title: '待遇・お金', slugs: ['hibarai', 'high-back', 'norma-nashi', 'hosho'] },
+  { title: '経験・年齢', slugs: ['mikeiken', 'keikensha', '20dai', '30dai', '40dai', '50dai'] },
+  { title: '働き方',     slugs: ['jiyu-shukkin', 'shu1', 'w-work', 'tanjikan', 'taiken', 'shuccho-senmon'] },
+  { title: '待遇・お金', slugs: ['hibarai', 'high-back', 'hosho'] },
   { title: '環境・安心', slugs: ['koshitsu-taiki', 'sogei', 'jitaku-haken-nashi'] },
 ];
 
