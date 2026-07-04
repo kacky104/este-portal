@@ -11,7 +11,7 @@ import { JobsLogo } from '@/components/JobsLogo';
 const SITE_URL = 'https://fukues.com';
 const BRAND_TITLE = 'フクエスワーク｜福岡メンズエステのセラピスト求人サイト';
 const BRAND_DESCRIPTION =
-  '「フクエスワーク」は福岡のメンズエステで働くセラピスト求人サイト。博多・天神・北九州など福岡全域のメンズエステ求人を、給与・雇用形態から探せます。未経験歓迎の求人も掲載中。';
+  '「フクエスワーク」は福岡のメンズエステで働くセラピスト求人サイト。博多・天神・北九州など福岡全域のメンズエステ求人を、給与・こだわり条件から探せます。未経験歓迎の求人も掲載中。';
 
 // /jobs 配下だけ独自 metadata（ネストは最も近い定義が優先＝本体 root の設定は /jobs 外で維持）。
 export const metadata: Metadata = {
