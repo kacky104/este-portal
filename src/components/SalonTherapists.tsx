@@ -96,16 +96,12 @@ async function fetchScheduleMap(rawIds: unknown[]): Promise<Record<string, Today
   if (rawIds.length === 0) return {};
   const supabase = createClient();
   const today = getBusinessDateJST();
-  console.log('[fetchScheduleMap] today:', today, 'rawIds:', rawIds);
 
-  const { data, error } = await supabase
+  const { data } = await supabase
     .from('therapist_schedules')
     .select('therapist_id, is_active, start_time, end_time')
     .in('therapist_id', rawIds)
     .eq('schedule_date', today);
-
-  console.log('[fetchScheduleMap] rows returned:', data?.length ?? 0, 'error:', error);
-  console.log('[fetchScheduleMap] raw data:', JSON.stringify(data));
 
   const map: Record<string, TodaySchedule> = {};
   (data ?? []).forEach(row => {
@@ -115,7 +111,6 @@ async function fetchScheduleMap(rawIds: unknown[]): Promise<Record<string, Today
       start_time: row.start_time ? String(row.start_time).slice(0, 5) : null,
       end_time:   row.end_time   ? String(row.end_time).slice(0, 5)   : null,
     };
-    console.log('[fetchScheduleMap] mapped key:', key, '→', map[key]);
   });
   return map;
 }
@@ -442,21 +437,16 @@ export function SalonTherapists({ salonId }: { salonId: number }) {
         .select('id, name, age, work_hours, area, comment, profile_image_url, is_available_now, available_until, is_available_now_cast, available_until_cast, is_new_face, new_face_since, body_type, feature_badges')
         .eq('salon_id', salonId);
 
-      console.log('[SalonTherapists] therapist rows:', rows?.map(r => ({ id: r.id, name: r.name })));
-
       const rawIds = (rows ?? []).map(t => t.id);
       const [schedMap, diarySet] = await Promise.all([
         fetchScheduleMap(rawIds),
         fetchDiarySet(rawIds),
       ]);
 
-      console.log('[SalonTherapists] schedMap keys:', Object.keys(schedMap));
-
       const mapped: Therapist[] = (rows ?? []).map(t => {
         const key = String(t.id);
         const todaySchedule = schedMap[key] ?? { is_active: false, start_time: null, end_time: null };
         const status = getScheduleStatus(todaySchedule);
-        console.log(`[SalonTherapists] ${t.name as string} key=${key} today=`, todaySchedule, '→ status:', status.status);
         return {
           id:              key,
           name:            (t.name as string) ?? '',
