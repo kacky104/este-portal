@@ -29,7 +29,7 @@ export function JobHeroSlider({ images, title }: { images: string[]; title: stri
   };
 
   return (
-    <div className="job-hero-ring relative rounded-2xl overflow-hidden shadow-md border border-emerald-100 mb-4">
+    <div className="hero-shine-loop relative rounded-2xl overflow-hidden shadow-md border border-emerald-100 mb-4">
       {/* トラック（横スクロール＋スナップ） */}
       <div
         ref={trackRef}
@@ -72,8 +72,8 @@ export function JobHeroSlider({ images, title }: { images: string[]; title: stri
         </svg>
       </button>
 
-      {/* ドットインジケータ */}
-      <div className="absolute bottom-2 left-0 right-0 flex items-center justify-center gap-1.5">
+      {/* ドットインジケータ（z-10：白帯スイープ(z-5)より前面に保つ） */}
+      <div className="absolute bottom-2 left-0 right-0 z-10 flex items-center justify-center gap-1.5">
         {images.map((_, i) => (
           <button
             key={i}

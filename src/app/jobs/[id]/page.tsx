@@ -178,7 +178,7 @@ export default async function JobDetailPage({
         {/* ヒーローバナー（hero_image_urls・パンくず直下）。16:9・角丸・文字は重ねない。
             0枚: このブロックごと非表示（空枠を作らない）／1枚: 静止表示／2枚以上: スライダー。 */}
         {job.heroImageUrls.length === 1 && (
-          <div className="job-hero-ring rounded-2xl overflow-hidden shadow-md border border-emerald-100 mb-4">
+          <div className="hero-shine-loop rounded-2xl overflow-hidden shadow-md border border-emerald-100 mb-4">
             <Image
               src={job.heroImageUrls[0]}
               alt={job.title}

@@ -280,28 +280,31 @@ body.paw-bg .min-h-screen.bg-slate-50 {
 /* 保存ボタンのクリック演出（pop / burst / flutter）は SaveButton.tsx に同梱（自己完結）。
    ページ別CSSに依存させないため globals.css には置かない。 */
 
-/* ── フクエスワーク ヒーロー画像：ページ表示時に1回だけ斜めの光帯が画像上を横切る（スイープ／ループなし） ──
-   本体（.salon-name-banner / .imasugu-card-shine 等）の定義には一切手を加えず、ワーク専用に新設。
-   画像がカラフル（緑背景＋ピンク文字）でどの領域でも視認できるよう、色付きではなく白のハイライト帯。
+/* ── フクエスワーク 光演出（白帯スイープ）共通クラス：/jobsトップのヒーローと求人詳細ヒーローで共用 ──
+   斜めの白いハイライト帯が画像上を左外→右外へ横切る。周期は「4秒に1回」のループ。
+   本体（.salon-name-banner / .imasugu-card-shine 等）の定義には一切手を加えず、ワーク専用。
+   画像がカラフルでどの領域でも視認できるよう、色付きではなく白帯。
    ラッパに overflow: hidden を持たせ、rounded-2xl の角丸内に帯をクリップする。
-   調整ノブ（実値）: 帯幅=ヒーロー幅の42% ／ 傾き=skewX(-20deg) ／ 白の不透明度=0.55(ピーク) ／
-                     duration=1.2s ／ delay=0.4s ／ ease-in-out ／ iteration-count=1 ／ fill-mode=both。
-   ※静止時のチラつき防止: ::after は既定 opacity:0。走行中のみ keyframe で opacity を上げるため、
-     ロード直後・ハイドレーション中・アニメ終了後のどの静止フレームでも帯は見えない。 */
-.hero-shine-once {
+   調整ノブ（実値）: 周期=4s ／ 帯の実移動時間=約1.2s（keyframe 0%→30%）／ 待機=約2.8s（30%→100%）／
+                     帯幅=ヒーロー幅の42% ／ 傾き=skewX(-20deg) ／ 白の不透明度=0.55(ピーク) ／
+                     ease-in-out ／ 初回のみ delay=0.4s ／ fill-mode=both。
+   ※ animation-delay はループでは初回しか効かないため、「4秒に1回」は duration:4s＋keyframe後半の
+     opacity:0 待機で実現する。静止フレーム（ロード直後・ハイドレーション中・待機中）は既定 opacity:0 で不可視。 */
+.hero-shine-loop {
   position: relative;
   overflow: hidden;            /* 帯が枠外に出ないようクリップ（rounded-2xl と併用で角丸内に収める） */
 }
-.hero-shine-once::after {
+.hero-shine-loop::after {
   content: "";
   position: absolute;
+  z-index: 5;                  /* スライド画像より前面／矢印・ドット(z-10)より背面。pointer-events:none で操作は透過。 */
   /* skewX で傾けても上下端まで帯が届くよう、縦は上下に拡張しておく。 */
   top: -25%;
   bottom: -25%;
   left: 0;
   width: 42%;                  /* 帯幅＝ヒーロー幅の約42%（太め） */
-  pointer-events: none;        /* クリック等を透過（ヒーロー操作に影響させない） */
-  /* 両端が透明・中央が白のハイライト帯（ピーク不透明度 0.55／太くした分ギラつき抑制）。 */
+  pointer-events: none;        /* クリック・スワイプ等を透過（ヒーロー/スライダー操作に影響させない） */
+  /* 両端が透明・中央が白のハイライト帯（ピーク不透明度 0.55）。 */
   background: linear-gradient(
     90deg,
     rgba(255, 255, 255, 0) 0%,
@@ -312,76 +315,21 @@ body.paw-bg .min-h-screen.bg-slate-50 {
   opacity: 0;
   /* 開始位置は枠外（skew 込みでも確実に外）。走行は keyframe 側で translateX を制御。 */
   transform: skewX(-20deg) translateX(-200%);
-  animation: hero-shine-sweep 1.2s ease-in-out 0.4s 1 both;
+  /* 4s 周期のループ。初回のみ 0.4s 遅延。移動は前半(0〜30%≒1.2s)、後半(30〜100%≒2.8s)は待機。 */
+  animation: hero-shine-loop-sweep 4s ease-in-out 0.4s infinite both;
 }
-/* 左外(-200%)→右外(200%)を1回通過。opacity は走り出してからフェードイン→抜ける直前にフェードアウト。
-   これで「開始時に帯が一瞬止まって見える」現象を解消（静止する両端フレームは opacity 0）。 */
-@keyframes hero-shine-sweep {
+/* 0〜30%：左外(-200%)→右外(200%)を1回通過（実移動 約1.2s／現状の体感を維持）。
+   opacity は走り出してからフェードイン→抜ける直前にフェードアウト（両端の静止フレームは opacity 0）。
+   30〜100%：右外に置いたまま opacity 0 で待機し、合計4秒で次の通過へ。 */
+@keyframes hero-shine-loop-sweep {
   0%   { transform: skewX(-20deg) translateX(-200%); opacity: 0; }
-  15%  { opacity: 1; }
-  85%  { opacity: 1; }
+  5%   { opacity: 1; }
+  25%  { opacity: 1; }
+  30%  { transform: skewX(-20deg) translateX(200%); opacity: 0; }
   100% { transform: skewX(-20deg) translateX(200%); opacity: 0; }
 }
 @media (prefers-reduced-motion: reduce) {
-  .hero-shine-once::after {
-    display: none;
-    animation: none;
-  }
-}
-
-/* ── 求人詳細ヒーロー（JobHeroSlider＋1枚静止表示）の枠を、オレンジ→マゼンタの帯が時計回りに周回 ──
-   本体 .therapist-working-shimmer（回転 conic-gradient＋mask リング）の派生。
-   本体・/jobsトップ（.hero-shine-once）の定義は無改変で、専用に新設する。
-   ※「1回だけ」に変えたくなったら animation の infinite → 1、末尾に fill-mode(both 等) を足すだけ。
-   調整ノブ（実値）: 枠太さ=4px ／ 点灯弧=90°（周長の約1/4）／ 周回速度=5s/周（linear・無限）／
-                     グロー=drop-shadow(0 0 8px rgba(219,39,119,.7)) ／ z-index=5（画像より上・矢印/ドットより下）。 */
-@property --job-hero-ring-angle {
-  syntax: "<angle>";
-  inherits: false;
-  initial-value: 0deg;
-}
-.job-hero-ring {
-  position: relative;
-  --job-hero-ring-duration: 2.5s; /* 1周の時間。速度調整はこの値で（落ち着かなければ 3s に）。 */
-}
-.job-hero-ring::before {
-  content: "";
-  position: absolute;
-  inset: 0;
-  z-index: 5;                 /* 画像より前面／矢印・ドット(z-10)より背面。pointer-events:none で操作は透過。 */
-  border-radius: inherit;     /* ラッパの rounded-2xl に追従 */
-  padding: 4px;               /* 光らせる枠の太さ（緑リングより太め・視認性優先） */
-  pointer-events: none;       /* 矢印・ドット・スワイプ操作を妨げない */
-  /* オレンジ(#FB923C)→マゼンタ(#DB2777) の点灯弧 約60°を 180度対称に2本配置（対角で周回）。
-     残り(60〜180deg / 240〜360deg)は透明。2本化に合わせ1本あたりは短め(約60°)でゴチャつき防止。 */
-  background-image: conic-gradient(
-    from var(--job-hero-ring-angle),
-    rgba(251, 146, 60, 0) 0deg,
-    rgba(251, 146, 60, 1) 15deg,   /* #FB923C */
-    rgba(219, 39, 119, 1) 45deg,   /* #DB2777 */
-    rgba(219, 39, 119, 0) 60deg,
-    transparent 60deg 180deg,
-    rgba(251, 146, 60, 0) 180deg,
-    rgba(251, 146, 60, 1) 195deg,  /* #FB923C（2本目） */
-    rgba(219, 39, 119, 1) 225deg,  /* #DB2777（2本目） */
-    rgba(219, 39, 119, 0) 240deg,
-    transparent 240deg 360deg
-  );
-  /* mask リングで content-box（内側）を除外し、枠(border相当)だけを発光させる。 */
-  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
-          mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
-  -webkit-mask-composite: xor;
-          mask-composite: exclude;
-  /* にじみ（外向きグロー・マゼンタ寄り）。芯のリングはシャープに保つ。
-     ※最外ラッパは overflow:hidden のため枠外へ広がるグローはクリップされ、内側寄りのグローが残る。 */
-  filter: drop-shadow(0 0 8px rgba(219, 39, 119, 0.7));
-  animation: job-hero-ring-spin var(--job-hero-ring-duration, 5s) linear infinite;
-}
-@keyframes job-hero-ring-spin {
-  to { --job-hero-ring-angle: 360deg; }
-}
-@media (prefers-reduced-motion: reduce) {
-  .job-hero-ring::before {
+  .hero-shine-loop::after {
     display: none;
     animation: none;
   }

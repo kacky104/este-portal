@@ -40,8 +40,8 @@ export default async function JobsPage() {
     <main className="max-w-3xl mx-auto px-4 py-8">
       {/* ヒーロー画像（PC／SP 出し分け）。旧ウェルカム画面のENTERゲートは廃止し、TOP最上部に直接表示。
           server component 内での描画のため localStorage/state は使わず、SSRとクライアントで一致（ハイドレーション不整合なし）。
-          .hero-shine-once：表示時に1回だけ枠をキラリと光らせる（純CSS・ループなし・reduced-motionで無効）。 */}
-      <div className="mb-8 -mt-2 rounded-2xl hero-shine-once">
+          .hero-shine-loop：斜めの白帯が画像上を4秒に1回横切る（純CSS・reduced-motionで無効）。 */}
+      <div className="mb-8 -mt-2 rounded-2xl hero-shine-loop">
         {/* PC */}
         <Image
           src="/hero-fukuwork-pc.png"
