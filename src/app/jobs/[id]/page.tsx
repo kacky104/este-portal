@@ -151,6 +151,11 @@ export default async function JobDetailPage({
   const job = await fetchJobById(jobId);
   if (!job) notFound();
 
+  // 募集要項「エリア」行の表示値：求人の area（新カラム）を最優先、未入力なら求人の access
+  //（例「博多駅より徒歩3分」＝area フィールドと同じエリア/アクセス性質のため流用）、
+  // それも空ならサロンの地域情報 areaLabel(salon.area) でフォールバック。全て空なら行ごと非表示。
+  const areaValue = job.area || job.access || areaLabel(job.salon.area);
+
   const jsonLd = buildJobPostingJsonLd(job);
   const breadcrumbJsonLd = buildBreadcrumbJsonLd(job);
   // </script> によるスクリプト早期終了を防ぐため < をエスケープしてから埋め込む。
@@ -216,15 +221,19 @@ export default async function JobDetailPage({
           </div>
         </div>
 
-        {/* 募集要項（項目ごと・null/空は非表示） */}
+        {/* 募集要項（表形式・項目名列＋内容列）。給与は必須で常に表示、他は null/空なら行ごと非表示。
+            エリアは area→access→salon.area の順でフォールバック。改行は whitespace-pre-wrap で反映。 */}
         <div className="rounded-2xl border border-emerald-100 bg-white p-5 shadow-sm mt-4">
+          <div className="flex items-center gap-2.5 mb-3">
+            <span className="w-1 h-5 rounded-full" style={{ background: 'linear-gradient(to bottom,#10B981,#84CC16)' }} />
+            <h2 className="font-bold text-slate-900">募集要項</h2>
+          </div>
           <dl className="divide-y divide-slate-100">
             <JobField label="給与" value={job.salaryText} highlight />
+            <JobField label="エリア" value={areaValue} />
             <JobField label="勤務時間" value={job.workHours} />
-            <JobField label="応募資格" value={job.requirements} />
             <JobField label="待遇" value={job.benefits} />
-            <JobField label="アクセス" value={job.access} />
-            <JobField label="住所" value={job.salon.address} />
+            <JobField label="応募資格" value={job.qualifications} />
           </dl>
         </div>
 

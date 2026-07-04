@@ -2,7 +2,18 @@
 
 import { useState } from 'react';
 import type { MyJob } from '@/app/actions/jobs';
-import { JOB_FEATURE_GROUPS, featureLabel, MAX_JOB_FEATURES, isValidEmailFormat, type JobGalleryItem, type TherapistVoice } from '@/app/lib/jobs';
+import {
+  JOB_FEATURE_GROUPS,
+  featureLabel,
+  MAX_JOB_FEATURES,
+  isValidEmailFormat,
+  MAX_JOB_AREA_LEN,
+  MAX_JOB_WORK_HOURS_LEN,
+  MAX_JOB_BENEFITS_LEN,
+  MAX_JOB_QUALIFICATIONS_LEN,
+  type JobGalleryItem,
+  type TherapistVoice,
+} from '@/app/lib/jobs';
 import { JobHeroImageField } from '@/app/components/JobHeroImageField';
 import { JobGalleryField } from '@/app/components/JobGalleryField';
 import { JobVoicesField } from '@/app/components/JobVoicesField';
@@ -16,10 +27,11 @@ export type JobFormState = {
   salary_text: string;
   salary_min: string;
   salary_max: string;
+  // 募集要項の4項目。area / qualifications は新カラム、work_hours / benefits は既存カラム流用。
+  area: string;
   work_hours: string;
-  requirements: string;
   benefits: string;
-  access: string;
+  qualifications: string;
   notify_email: string;
   features: string[];
   hero_image_urls: string[];
@@ -33,10 +45,10 @@ export const EMPTY_JOB_FORM: JobFormState = {
   salary_text: '',
   salary_min: '',
   salary_max: '',
+  area: '',
   work_hours: '',
-  requirements: '',
   benefits: '',
-  access: '',
+  qualifications: '',
   notify_email: '',
   features: [],
   hero_image_urls: [],
@@ -52,10 +64,10 @@ export function jobToForm(job: MyJob): JobFormState {
     salary_text: job.salary_text,
     salary_min: job.salary_min == null ? '' : String(job.salary_min),
     salary_max: job.salary_max == null ? '' : String(job.salary_max),
+    area: job.area,
     work_hours: job.work_hours,
-    requirements: job.requirements,
     benefits: job.benefits,
-    access: job.access,
+    qualifications: job.qualifications,
     notify_email: job.notify_email,
     features: [...job.features],
     hero_image_urls: [...job.hero_image_urls],
@@ -73,6 +85,32 @@ function Label({ children, required }: { children: React.ReactNode; required?: b
       {children}
       {required && <span className="text-rose-400"> *</span>}
     </label>
+  );
+}
+
+// 募集要項フィールド用のラベル＋字数カウンター付きラッパー。超過時はカウンターを赤くする
+// （サーバーではクランプするため保存自体は通るが、切り詰められる旨を視覚で伝える）。
+function FieldWithCount({
+  label,
+  count,
+  max,
+  children,
+}: {
+  label: string;
+  count: number;
+  max: number;
+  children: React.ReactNode;
+}) {
+  return (
+    <div>
+      <div className="flex items-baseline justify-between mb-1">
+        <Label>{label}</Label>
+        <span className={`text-[10px] ${count > max ? 'text-rose-500 font-bold' : 'text-slate-400'}`}>
+          {count}/{max}
+        </span>
+      </div>
+      {children}
+    </div>
   );
 }
 
@@ -161,47 +199,48 @@ export function JobFields({
         </p>
       </div>
 
-      {/* 任意項目 */}
-      <div>
-        <Label>勤務時間</Label>
-        <input
-          type="text"
-          className={inputClass}
-          placeholder="例）12:00〜翌1:00の間で応相談"
-          value={value.work_hours}
-          onChange={(e) => onChange({ work_hours: e.target.value })}
-        />
-      </div>
+      {/* 募集要項（任意・4項目）。求人詳細の「募集要項」表にそのまま並ぶ。上限字数はサーバーで
+          クランプするが、UI にも字数カウンターを出して超過に気付けるようにする。 */}
+      <div className="rounded-xl border border-emerald-100 bg-emerald-50/30 p-3.5 space-y-3">
+        <p className="text-[11px] font-bold text-emerald-700">募集要項（任意）</p>
 
-      <div>
-        <Label>応募資格</Label>
-        <textarea
-          className={`${inputClass} min-h-[64px] resize-y`}
-          placeholder="例）18歳以上（高校生不可）・未経験歓迎"
-          value={value.requirements}
-          onChange={(e) => onChange({ requirements: e.target.value })}
-        />
-      </div>
+        <FieldWithCount label="エリア" count={value.area.length} max={MAX_JOB_AREA_LEN}>
+          <input
+            type="text"
+            className={inputClass}
+            placeholder="例: 博多・中洲エリア／博多駅から徒歩5分"
+            value={value.area}
+            onChange={(e) => onChange({ area: e.target.value })}
+          />
+        </FieldWithCount>
 
-      <div>
-        <Label>待遇</Label>
-        <textarea
-          className={`${inputClass} min-h-[64px] resize-y`}
-          placeholder="例）入店祝い金あり・寮完備・自由出勤"
-          value={value.benefits}
-          onChange={(e) => onChange({ benefits: e.target.value })}
-        />
-      </div>
+        <FieldWithCount label="勤務時間" count={value.work_hours.length} max={MAX_JOB_WORK_HOURS_LEN}>
+          <input
+            type="text"
+            className={inputClass}
+            placeholder="例: 10:00〜LAST／自由出勤・週1日〜OK"
+            value={value.work_hours}
+            onChange={(e) => onChange({ work_hours: e.target.value })}
+          />
+        </FieldWithCount>
 
-      <div>
-        <Label>アクセス</Label>
-        <input
-          type="text"
-          className={inputClass}
-          placeholder="例）地下鉄天神駅より徒歩3分"
-          value={value.access}
-          onChange={(e) => onChange({ access: e.target.value })}
-        />
+        <FieldWithCount label="待遇" count={value.benefits.length} max={MAX_JOB_BENEFITS_LEN}>
+          <textarea
+            className={`${inputClass} min-h-[64px] resize-y`}
+            placeholder="例: 日払いOK・完全個室待機・講習無料・ノルマなし"
+            value={value.benefits}
+            onChange={(e) => onChange({ benefits: e.target.value })}
+          />
+        </FieldWithCount>
+
+        <FieldWithCount label="応募資格" count={value.qualifications.length} max={MAX_JOB_QUALIFICATIONS_LEN}>
+          <textarea
+            className={`${inputClass} min-h-[64px] resize-y`}
+            placeholder="例: 18歳以上（高校生不可）・未経験歓迎"
+            value={value.qualifications}
+            onChange={(e) => onChange({ qualifications: e.target.value })}
+          />
+        </FieldWithCount>
       </div>
 
       {/* 特徴タグ（任意・最大6個）。選んだタグの絞り込みページ /jobs/tag/[slug] に掲載される。 */}

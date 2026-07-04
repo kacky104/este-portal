@@ -47,6 +47,16 @@ export const MAX_JOB_FEATURES = 6;
 // 1枚目が一覧・SNSシェア（OGP）・「注目の求人」バナーで使われるメイン画像。
 export const MAX_JOB_HERO_IMAGES = 3;
 
+// ── 募集要項（自由記述 text・任意入力・NULL/空可） ──
+// 求人詳細の「募集要項」表と mypage/admin フォームで使う4項目の上限字数。
+// サーバー validate ではエラーにせずクランプ（超過分を切り詰め）・空文字は null 正規化する。
+// area（エリア）は salon_jobs.area、qualifications（応募資格）は salon_jobs.qualifications の新カラム。
+// work_hours / benefits は既存カラムを流用（同じ「募集要項」ブロックに集約）。
+export const MAX_JOB_AREA_LEN = 100;
+export const MAX_JOB_WORK_HOURS_LEN = 100;
+export const MAX_JOB_BENEFITS_LEN = 200;
+export const MAX_JOB_QUALIFICATIONS_LEN = 200;
+
 // DBから読んだ hero_image_urls を表示用に正規化（配列化・文字列化・空要素除去・重複除去・最大枚数で切り詰め）。
 // features の sanitizeFeatures と同じ「防御的に配列を整える」方針。
 export function sanitizeHeroUrls(raw: unknown): string[] {
@@ -207,9 +217,15 @@ export type JobDetail = {
   title: string;
   salaryText: string;
   publishedAt: string | null;
+  // ── 募集要項の4項目 ──
+  // area / qualifications は salon_jobs の新カラム。work_hours / benefits は既存カラム流用。
+  area: string | null;
   workHours: string | null;
-  requirements: string | null;
   benefits: string | null;
+  qualifications: string | null;
+  // access は「募集要項」表の項目からは撤去したが、エリア行のフォールバック出典として温存
+  // （area 未入力時に access → salon.area の順で埋める）。requirements は qualifications へ移行済み・
+  // 参照撤去（DBカラムは温存）。
   access: string | null;
   description: string | null;
   salaryMin: number | null;
@@ -395,7 +411,7 @@ export async function fetchJobById(id: number): Promise<JobDetail | null> {
   const { data, error } = await supabase
     .from('salon_jobs')
     .select(
-      'id, title, salary_text, published_at, work_hours, requirements, benefits, access, description, salary_min, salary_max, features, hero_image_urls, gallery_images, therapist_voices, salons!inner(id, name, area, address, phone, is_hidden)'
+      'id, title, salary_text, published_at, area, work_hours, benefits, qualifications, access, description, salary_min, salary_max, features, hero_image_urls, gallery_images, therapist_voices, salons!inner(id, name, area, address, phone, is_hidden)'
     )
     .eq('id', id)
     .eq('is_active', true)
@@ -418,9 +434,10 @@ export async function fetchJobById(id: number): Promise<JobDetail | null> {
     title: (data.title as string) ?? '',
     salaryText: (data.salary_text as string | null) ?? '',
     publishedAt: (data.published_at as string | null) ?? null,
+    area: (data.area as string | null) ?? null,
     workHours: (data.work_hours as string | null) ?? null,
-    requirements: (data.requirements as string | null) ?? null,
     benefits: (data.benefits as string | null) ?? null,
+    qualifications: (data.qualifications as string | null) ?? null,
     access: (data.access as string | null) ?? null,
     description: (data.description as string | null) ?? null,
     salaryMin: (data.salary_min as number | null) ?? null,

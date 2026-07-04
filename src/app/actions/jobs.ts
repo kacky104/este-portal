@@ -13,6 +13,10 @@ import {
   MAX_JOB_HERO_IMAGES,
   MAX_JOB_GALLERY_IMAGES,
   MAX_GALLERY_CAPTION_LEN,
+  MAX_JOB_AREA_LEN,
+  MAX_JOB_WORK_HOURS_LEN,
+  MAX_JOB_BENEFITS_LEN,
+  MAX_JOB_QUALIFICATIONS_LEN,
   type JobGalleryItem,
   MAX_THERAPIST_VOICES,
   MAX_VOICE_COMMENT_LEN,
@@ -39,8 +43,12 @@ import {
 //    触らず updated_at のみ更新（掲載日の水増し防止）。
 //  - 公開側ISR（/jobs・/jobs/[id]・/salon/[id]・sitemap）は書き込み成功時に revalidatePath で即時更新。
 
+// 募集要項は area / work_hours / benefits / qualifications の4項目。
+// requirements・access はフォーム／表示から撤去（requirements は qualifications へ移行済み。
+// access はエリア行のフォールバック用に公開側 fetchJobById でのみ読む）。両カラムとも DB は温存し、
+// ここ（フォーム書き込み経路）では SELECT / UPDATE 対象に含めない＝既存値をそのまま保持する。
 const JOB_COLUMNS =
-  'id, salon_id, title, description, salary_text, salary_min, salary_max, work_hours, requirements, benefits, access, notify_email, features, hero_image_urls, gallery_images, therapist_voices, is_active, published_at, updated_at';
+  'id, salon_id, title, description, salary_text, salary_min, salary_max, area, work_hours, benefits, qualifications, notify_email, features, hero_image_urls, gallery_images, therapist_voices, is_active, published_at, updated_at';
 
 export type JobFormInput = {
   title: string;
@@ -48,10 +56,11 @@ export type JobFormInput = {
   salary_text: string;
   salary_min: string | number | null;
   salary_max: string | number | null;
+  // 募集要項の4項目（自由記述・任意・上限字数でクランプ）。
+  area: string;
   work_hours: string;
-  requirements: string;
   benefits: string;
-  access: string;
+  qualifications: string;
   notify_email: string;
   features: string[];
   // 求人バナー画像URL（16:9・job-hero-images バケット・最大3枚・空配列可）。先頭がメイン画像。
@@ -70,10 +79,10 @@ export type MyJob = {
   salary_text: string;
   salary_min: number | null;
   salary_max: number | null;
+  area: string;
   work_hours: string;
-  requirements: string;
   benefits: string;
-  access: string;
+  qualifications: string;
   notify_email: string;
   features: string[];
   hero_image_urls: string[];
@@ -98,10 +107,10 @@ function mapJob(row: Record<string, unknown>): MyJob {
     salary_text: (row.salary_text as string | null) ?? '',
     salary_min: row.salary_min == null ? null : Number(row.salary_min),
     salary_max: row.salary_max == null ? null : Number(row.salary_max),
+    area: (row.area as string | null) ?? '',
     work_hours: (row.work_hours as string | null) ?? '',
-    requirements: (row.requirements as string | null) ?? '',
     benefits: (row.benefits as string | null) ?? '',
-    access: (row.access as string | null) ?? '',
+    qualifications: (row.qualifications as string | null) ?? '',
     notify_email: (row.notify_email as string | null) ?? '',
     features: sanitizeFeatures(row.features),
     hero_image_urls: sanitizeHeroUrls(row.hero_image_urls),
@@ -170,16 +179,24 @@ function trimOrNull(v: string | null | undefined): string | null {
   return s === '' ? null : s;
 }
 
+// 募集要項の自由記述4項目用：trim → 空文字は null 正規化 → 上限字数でクランプ（超過分を切り詰め）。
+// 他項目のような「超過でエラー」ではなく、店側入力を弾かずに丸める方針（task 指定）。
+function trimClampOrNull(v: string | null | undefined, max: number): string | null {
+  const s = String(v ?? '').trim();
+  if (s === '') return null;
+  return s.length > max ? s.slice(0, max) : s;
+}
+
 type CleanJob = {
   title: string;
   description: string;
   salary_text: string;
   salary_min: number | null;
   salary_max: number | null;
+  area: string | null;
   work_hours: string | null;
-  requirements: string | null;
   benefits: string | null;
-  access: string | null;
+  qualifications: string | null;
   notify_email: string | null;
   features: string[];
   hero_image_urls: string[];
@@ -292,10 +309,11 @@ function validate(input: JobFormInput): { ok: true; clean: CleanJob } | Err {
       salary_text,
       salary_min: min.value,
       salary_max: max.value,
-      work_hours: trimOrNull(input.work_hours),
-      requirements: trimOrNull(input.requirements),
-      benefits: trimOrNull(input.benefits),
-      access: trimOrNull(input.access),
+      // 募集要項4項目：上限字数でクランプ・空文字は null 正規化。
+      area: trimClampOrNull(input.area, MAX_JOB_AREA_LEN),
+      work_hours: trimClampOrNull(input.work_hours, MAX_JOB_WORK_HOURS_LEN),
+      benefits: trimClampOrNull(input.benefits, MAX_JOB_BENEFITS_LEN),
+      qualifications: trimClampOrNull(input.qualifications, MAX_JOB_QUALIFICATIONS_LEN),
       notify_email: notifyEmail,
       features,
       // バナー画像URLは自前ストレージのアップロード結果（最大3枚・先頭がメイン）。空配列可。
@@ -362,6 +380,12 @@ export async function upsertMyJob(
     if (input.hero_image_urls === undefined) delete updatePayload.hero_image_urls;
     if (input.features === undefined) delete updatePayload.features;
     if (input.therapist_voices === undefined) delete updatePayload.therapist_voices;
+    // 募集要項4項目も同ルール：クライアントが送ってこない（＝機能デプロイ前の古いタブ等）場合は
+    // 既存値を温存し、validate 既定の null による上書き＝データ消失を防ぐ。
+    if (input.area === undefined) delete updatePayload.area;
+    if (input.work_hours === undefined) delete updatePayload.work_hours;
+    if (input.benefits === undefined) delete updatePayload.benefits;
+    if (input.qualifications === undefined) delete updatePayload.qualifications;
     const { data, error } = await auth.supabase
       .from('salon_jobs')
       .update(updatePayload)
