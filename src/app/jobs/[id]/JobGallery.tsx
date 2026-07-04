@@ -62,7 +62,7 @@ export function JobGallery({ images }: { images: JobGalleryItem[] }) {
                 </div>
                 {/* キャプションは画像の下・2行まで（超過は省略）。高さ揃えのため min-h を確保。 */}
                 {hasAnyCaption && (
-                  <p className="text-sm text-slate-600 mt-1.5 line-clamp-2 min-h-[2.5rem]">{img.caption}</p>
+                  <p className="text-[11px] leading-snug text-slate-600 mt-1.5 line-clamp-2 min-h-[31px]">{img.caption}</p>
                 )}
               </div>
             ))}
