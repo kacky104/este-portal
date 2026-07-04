@@ -9,6 +9,7 @@ import { JobHeroSlider } from './JobHeroSlider';
 import { JobGallery } from './JobGallery';
 import { JobVoices } from './JobVoices';
 import { JobApplyBar } from './JobApplyBar';
+import { JobDescriptionCollapse } from './JobDescriptionCollapse';
 import { SaveButton } from '@/app/components/SaveButton';
 
 const SITE_URL = 'https://fukues.com';
@@ -271,7 +272,7 @@ export default async function JobDetailPage({
               <span className="w-1 h-5 rounded-full" style={{ background: 'linear-gradient(to bottom,#10B981,#84CC16)' }} />
               <h2 className="font-bold text-slate-900">仕事内容</h2>
             </div>
-            <p className="text-sm text-slate-600 leading-relaxed whitespace-pre-wrap break-words">{job.description}</p>
+            <JobDescriptionCollapse text={job.description} />
           </div>
         )}
 
