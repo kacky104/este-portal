@@ -409,6 +409,25 @@ export async function fetchActiveJobsByFeature(slug: string): Promise<JobListIte
     .filter((j): j is JobListItem => j !== null);
 }
 
+// ── エリア絞り込み一覧用（/jobs/area/[slug]） ──
+// fetchActiveJobsByFeature のエリア版。features の GIN 検索を salons.area の完全一致に差し替えただけで、
+// salons!inner の select 内容・is_active/is_hidden の多重防御・mapJobListItem 整形は既存と完全同一。
+// area は areas.ts の DB値（AREA_ORDER のキー。例 '博多・住吉'）。出張は area 一致では拾えないため対象外。
+export async function fetchActiveJobsByArea(area: string): Promise<JobListItem[]> {
+  const supabase = createPublicClient();
+  const { data } = await supabase
+    .from('salon_jobs')
+    .select('id, title, salary_text, published_at, features, salons!inner(id, name, area, is_hidden)')
+    .eq('is_active', true)
+    .eq('salons.is_hidden', false)
+    .eq('salons.area', area)
+    .order('published_at', { ascending: false });
+
+  return (data ?? [])
+    .map((row) => mapJobListItem(row))
+    .filter((j): j is JobListItem => j !== null);
+}
+
 // ── 詳細用 ───────────────────────────────────────────
 export async function fetchJobById(id: number): Promise<JobDetail | null> {
   const supabase = createPublicClient();

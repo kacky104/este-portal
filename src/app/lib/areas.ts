@@ -38,6 +38,17 @@ export function areaHref(areaValue: string): string {
 }
 
 /**
+ * エリア値 → フクエスワークのエリア別求人ページURL（/jobs/area/<slug>）。
+ * areaHref は本体フクエスのサロン地域ページ（/area/<slug>・全域は /）を返すため、求人側では流用不可。
+ * 全域・出張・未知の値は求人一覧トップ（/jobs）にフォールバック（求人エリアページは通常5エリアのみ）。
+ */
+export function jobsAreaHref(areaValue: string): string {
+  if (areaValue === ALL_AREA || areaValue === DISPATCH_AREA) return '/jobs';
+  const slug = AREA_SLUGS[areaValue];
+  return slug ? `/jobs/area/${slug}` : '/jobs';
+}
+
+/**
  * サロンが指定エリアに属するか（ShuffledSalons の matchesArea と同一判定）。
  * 福岡全域は全件 true。出張エリアは dispatch_type が none 以外（available/only）も含める。
  * それ以外は area 完全一致。地域ページ／出勤一覧のセラピスト絞り込みで salon→area を判定するのに使う。
