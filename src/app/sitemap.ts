@@ -1,6 +1,7 @@
 import type { MetadataRoute } from 'next';
 import { createPublicClient } from '@/app/lib/supabase/public';
-import { fetchActiveJobsForSitemap, fetchFeatureSlugsWithActiveJobs } from '@/app/lib/jobs';
+import { fetchActiveJobsForSitemap, fetchFeatureSlugsWithActiveJobs, fetchAreaTagPairsWithActiveJobs } from '@/app/lib/jobs';
+import { jobsAreaHref } from '@/app/lib/areas';
 
 const SITE_URL = 'https://fukues.com';
 
@@ -13,12 +14,14 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const supabase = createPublicClient();
 
   // 公開サロン／公開サロン所属セラピスト／掲載中求人を並列取得。失敗時は空配列（サイトマップは壊さない）。
-  const [salonsRes, therapistsRes, jobs, featureSlugs] = await Promise.all([
+  const [salonsRes, therapistsRes, jobs, featureSlugs, areaTag] = await Promise.all([
     supabase.from('salons').select('id').eq('is_hidden', false),
     supabase.from('therapists').select('id, salons!inner(is_hidden)').eq('salons.is_hidden', false),
     fetchActiveJobsForSitemap(),
     // 求人が1件以上あるタグのみ（0件＝noindexページはsitemapに入れない）。
     fetchFeatureSlugsWithActiveJobs(),
+    // 求人ありのエリア／エリア×タグペア（0件ペアはnoindexなのでsitemapに入れない）。
+    fetchAreaTagPairsWithActiveJobs(),
   ]);
 
   const now = new Date();
@@ -60,5 +63,29 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     priority: 0.7,
   }));
 
-  return [...staticEntries, ...salonEntries, ...therapistEntries, ...jobEntries, ...tagEntries];
+  // エリア別求人ページ（求人ありの通常エリアのみ）。jobsAreaHref で /jobs/area/<slug> を生成。
+  const areaEntries: MetadataRoute.Sitemap = areaTag.areas.map((area) => ({
+    url: `${SITE_URL}${jobsAreaHref(area)}`,
+    lastModified: now,
+    changeFrequency: 'daily',
+    priority: 0.7,
+  }));
+
+  // エリア×タグ掛け合わせページ（求人ありのペアのみ＝0件ペアはnoindexなので除外）。
+  const areaTagEntries: MetadataRoute.Sitemap = areaTag.pairs.map(({ area, slug }) => ({
+    url: `${SITE_URL}${jobsAreaHref(area)}/tag/${slug}`,
+    lastModified: now,
+    changeFrequency: 'daily',
+    priority: 0.6,
+  }));
+
+  return [
+    ...staticEntries,
+    ...salonEntries,
+    ...therapistEntries,
+    ...jobEntries,
+    ...tagEntries,
+    ...areaEntries,
+    ...areaTagEntries,
+  ];
 }

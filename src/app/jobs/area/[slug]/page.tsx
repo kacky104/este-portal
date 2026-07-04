@@ -6,6 +6,7 @@ import { areaFromSlug, AREA_SLUGS_LIST, DISPATCH_AREA } from '@/app/lib/areas';
 import { areaLabel } from '@/app/lib/areaLabel';
 import { JobCard } from '../../JobCard';
 import { AreaBrowse } from '../../AreaBrowse';
+import { FeatureBrowse } from '../../FeatureBrowse';
 
 // ISR：10分ごとに再生成（タグページと同じ流儀）。
 export const revalidate = 600;
@@ -112,8 +113,9 @@ export default async function JobAreaPage({
         </ul>
       )}
 
-      {/* 他エリアへの回遊（内部リンク網） */}
-      <div className="mt-8">
+      {/* このエリア×特徴タグの掛け合わせページへの入口（内部リンク網の主経路）＋他エリアへの回遊 */}
+      <div className="mt-8 space-y-4">
+        <FeatureBrowse title={`${label}の特徴から探す`} areaSlug={slug} />
         <AreaBrowse title="他のエリアから探す" currentArea={area} />
       </div>
     </main>

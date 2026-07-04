@@ -1,4 +1,5 @@
 import { createPublicClient } from '@/app/lib/supabase/public';
+import { AREA_ORDER, ALL_AREA, DISPATCH_AREA } from '@/app/lib/areas';
 
 // セラピスト求人の取得ロジックを1か所に集約（二重実装しない）。
 // 公開ページ専用のため anon クライアント（createPublicClient）で読む。
@@ -426,6 +427,63 @@ export async function fetchActiveJobsByArea(area: string): Promise<JobListItem[]
   return (data ?? [])
     .map((row) => mapJobListItem(row))
     .filter((j): j is JobListItem => j !== null);
+}
+
+// ── エリア×特徴タグ掛け合わせ一覧用（/jobs/area/[slug]/tag/[tag]） ──
+// fetchActiveJobsByArea に features の GIN 検索を併用しただけ。select/多重防御/mapJobListItem/
+// createPublicClient は既存と完全同一。slug がマスタ外なら空配列（呼び出し側で notFound）。
+export async function fetchActiveJobsByAreaAndFeature(area: string, slug: string): Promise<JobListItem[]> {
+  if (!isValidFeatureSlug(slug)) return [];
+  const supabase = createPublicClient();
+  const { data } = await supabase
+    .from('salon_jobs')
+    .select('id, title, salary_text, published_at, features, salons!inner(id, name, area, is_hidden)')
+    .eq('is_active', true)
+    .eq('salons.is_hidden', false)
+    .eq('salons.area', area)
+    .contains('features', [slug])
+    .order('published_at', { ascending: false });
+
+  return (data ?? [])
+    .map((row) => mapJobListItem(row))
+    .filter((j): j is JobListItem => j !== null);
+}
+
+// ── sitemap 用：求人が1件以上ある「エリア」「エリア×タグ」を1回のクエリで集計 ──
+// 90ペアへ個別クエリを投げず、全アクティブ求人を area+features で1回取得しメモリ集計する。
+// 対象は通常5エリアのみ（全域センチネル ALL_AREA・出張 DISPATCH_AREA は除外）。返り値は表示順を維持。
+// areas: 求人ありの通常エリア（DB値）／pairs: 求人あり (area, tag slug) ペア。
+export async function fetchAreaTagPairsWithActiveJobs(): Promise<{
+  areas: string[];
+  pairs: { area: string; slug: string }[];
+}> {
+  const supabase = createPublicClient();
+  const { data } = await supabase
+    .from('salon_jobs')
+    .select('features, salons!inner(area, is_hidden)')
+    .eq('is_active', true)
+    .eq('salons.is_hidden', false);
+
+  const normalAreas = new Set<string>(AREA_ORDER.filter((a) => a !== ALL_AREA && a !== DISPATCH_AREA));
+  const areaSet = new Set<string>();
+  const pairSet = new Set<string>(); // `${area} ${slug}` で一意化
+
+  (data ?? []).forEach((row) => {
+    const rec = row as Record<string, unknown>;
+    const salon = pickSalon<{ area: string | null }>(rec.salons);
+    const area = salon?.area ?? '';
+    if (!normalAreas.has(area)) return;
+    areaSet.add(area);
+    sanitizeFeatures(rec.features).forEach((slug) => pairSet.add(`${area} ${slug}`));
+  });
+
+  // 表示順（AREA_ORDER）を維持して返す。
+  const areas = AREA_ORDER.filter((a) => areaSet.has(a));
+  const pairs = [...pairSet].map((k) => {
+    const [area, slug] = k.split(' ');
+    return { area, slug };
+  });
+  return { areas, pairs };
 }
 
 // ── 詳細用 ───────────────────────────────────────────
