@@ -8,6 +8,7 @@ import { ApplyForm } from './ApplyForm';
 import { JobHeroSlider } from './JobHeroSlider';
 import { JobGallery } from './JobGallery';
 import { JobVoices } from './JobVoices';
+import { JobApplyBar } from './JobApplyBar';
 import { SaveButton } from '@/app/components/SaveButton';
 
 const SITE_URL = 'https://fukues.com';
@@ -169,7 +170,9 @@ export default async function JobDetailPage({
       {/* BreadcrumbList 構造化データ（フクエスワーク › サロン名 › 求人タイトル） */}
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: breadcrumbJsonLdString }} />
 
-      <main className="max-w-3xl mx-auto px-4 py-8">
+      {/* pb-24 md:pb-8: モバイルは下部固定バー（JobApplyBar）にコンテンツ／戻る導線が隠れないよう
+          余白を確保。md 以上はバー非表示のため通常の pb-8 に戻す。 */}
+      <main className="max-w-3xl mx-auto px-4 pt-8 pb-24 md:pb-8">
         {/* パンくず：フクエスワーク › {サロン名}の求人（末尾は現ページ＝リンクなし）
             1行維持（nowrap）。末尾の「{サロン名}の求人」は flex-1 min-w-0 truncate で
             残り幅を使いつつ省略＝長いサロン名でもモバイルで折り返さない。 */}
@@ -205,11 +208,13 @@ export default async function JobDetailPage({
         <div className="rounded-2xl border border-emerald-100 bg-white p-5 shadow-sm">
           <h1 className="text-xl sm:text-2xl font-extrabold text-slate-900 leading-snug break-words">{job.title}</h1>
 
-          {/* 店名（本体フクエスのサロン詳細へリンク）＋エリア */}
+          {/* 店名（プレーンテキスト＝非リンク化）＋エリア。以前はサロン詳細への <Link> だったが、
+              ヘッダーカードでは店名を導線にしない方針に変更（他ページの店名リンクは非対象）。
+              色・太さ・break-words は維持し、hover 装飾（opacity/transition）のみ除去。 */}
           <div className="mt-3 flex items-center gap-2 flex-wrap text-sm">
-            <Link href={`/salon/${job.salon.id}`} className="font-bold hover:opacity-80 transition-opacity break-words" style={{ color: '#059669' }}>
+            <span className="font-bold break-words" style={{ color: '#059669' }}>
               {job.salon.name}
-            </Link>
+            </span>
             {job.salon.area && (
               <span className="inline-flex items-center gap-0.5 text-slate-400 text-xs">
                 <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -278,8 +283,10 @@ export default async function JobDetailPage({
             0件ならセクションごと非表示。店側入力の自薦レビューのため JSON-LD には載せない。 */}
         <JobVoices voices={job.therapistVoices} />
 
-        {/* 応募導線：WEB応募（サイト内完結）を主導線に、電話応募も残す。 */}
-        <div className="mt-6 space-y-3">
+        {/* 応募導線：WEB応募（サイト内完結）を主導線に、電話応募も残す。
+            モバイル固定バー（JobApplyBar）はこの #apply-section を IntersectionObserver で監視し、
+            可視の間はバーを隠す／フォームボタンはここへアンカースクロールする。 */}
+        <div id="apply-section" className="mt-6 space-y-3">
           {/* WEBで応募する（グリーン基調・主導線） */}
           <ApplyForm jobId={job.id} />
 
@@ -331,6 +338,10 @@ export default async function JobDetailPage({
           </Link>
         </div>
       </main>
+
+      {/* モバイル専用・応募固定バー（md:hidden）。詳細ページ既存の応募ブロックと同じ
+          電話番号(job.salon.phone)・フォーム入口(#apply-section)を流用（新規fetchなし）。 */}
+      <JobApplyBar phone={job.salon.phone} />
     </>
   );
 }
