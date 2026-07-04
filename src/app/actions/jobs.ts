@@ -321,9 +321,15 @@ export async function upsertMyJob(
 
   if (existing) {
     // 編集：published_at は触らない（掲載日の水増し防止）。updated_at のみ更新。
+    // 【データ消失防止ガード】gallery_images は「クライアントがフィールドを送ってきた時だけ」更新する。
+    // 未送信（input.gallery_images === undefined、例: ギャラリー機能デプロイ前の古いタブからの保存）の
+    // 場合は既存のギャラリーを温存し、validate が既定で入れる [] による上書き＝データ消失を防ぐ。
+    // 値が配列で送られていれば（空配列含む）そのまま反映するので、意図的な全消去は引き続き可能。
+    const updatePayload: Record<string, unknown> = { ...c, updated_at: nowIso };
+    if (input.gallery_images === undefined) delete updatePayload.gallery_images;
     const { data, error } = await auth.supabase
       .from('salon_jobs')
-      .update({ ...c, updated_at: nowIso })
+      .update(updatePayload)
       .eq('id', existing.id as number)
       .select(JOB_COLUMNS)
       .maybeSingle();
