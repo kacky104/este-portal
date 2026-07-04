@@ -50,6 +50,39 @@ export async function getLinkedXProfileForTherapist(
   };
 }
 
+// 本体サロン(salons.owner_id) → 連携している fukuX 店舗プロフィール（kind='shop'）。
+// お知らせ→fukuX 同時投稿の author_profile_id に使う。突き合わせ条件は therapist 版と同型で、
+// 連携キーは salons.owner_id (uuid) === x_profiles.auth_user_id (uuid) かつ kind='shop'。
+// 1 auth = 1 x_profile 前提（getXContext が maybeSingle）だが limit(1) で防御。
+// 該当なし・非公開ステータス・handle欠落なら null（＝未連携扱い→呼び出し側は同時投稿を出さない/無効化）。
+export async function getLinkedXProfileForSalon(
+  ownerUserId: string | null | undefined
+): Promise<LinkedXProfile | null> {
+  if (!ownerUserId) return null;
+
+  const supabase = createPublicClient();
+  const { data, error } = await supabase
+    .from('x_profiles')
+    .select('id, handle, display_name, avatar_url, is_verified, status, kind')
+    .eq('auth_user_id', ownerUserId)
+    .eq('kind', 'shop')
+    .limit(1);
+
+  if (error || !data || data.length === 0) return null;
+
+  const p = data[0];
+  if (!p.handle) return null;
+  if (!p.status || !PUBLIC_X_STATUSES.includes(p.status as string)) return null;
+
+  return {
+    profileId: p.id as string,
+    handle: p.handle as string,
+    displayName: (p.display_name as string | null) ?? null,
+    avatarUrl: (p.avatar_url as string | null) ?? null,
+    isVerified: !!p.is_verified,
+  };
+}
+
 export type LinkedTherapist = {
   id: number;
   name: string;

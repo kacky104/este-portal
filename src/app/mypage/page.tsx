@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { createClient } from '@/app/lib/supabase/client';
 import { revalidateSalon, revalidateTherapist } from '@/app/lib/revalidateTop';
+import { getLinkedXProfileForSalon } from '@/app/lib/xLink';
 import { TimeRangePicker } from '@/components/TimeRangePicker';
 import { SALON_THEMES, type ThemeKey } from '@/app/lib/themes';
 import { COUPON_COLORS, getCouponColor, DEFAULT_COUPON_COLOR_KEY, type CouponColorKey } from '@/app/lib/couponColors';
@@ -453,6 +454,16 @@ export default function MyPage() {
   const [repostingAnnouncement, setRepostingAnnouncement] = useState<string | null>(null);
   const [uploadingNewAnnouncementImage, setUploadingNewAnnouncementImage] = useState(false);
   const [uploadingAnnouncementImageId, setUploadingAnnouncementImageId] = useState<string | null>(null);
+  // お知らせ→fukuX 同時投稿。サロンオーナーの連携fukuX店舗プロフィール（kind='shop'・approved）id。
+  // 未連携なら null（＝チェックは disabled 表示＋注記）。日記側 xProfileId と同じ役割。
+  const [xShopProfileId, setXShopProfileId] = useState<string | null>(null);
+  // 新規フォーム用の同時投稿チェック（default OFF・投稿後リセット・都度オプトイン）。
+  const [newAnnCrosspostX, setNewAnnCrosspostX] = useState(false);
+  const [newAnnCrosspostNoReplies, setNewAnnCrosspostNoReplies] = useState(false);
+  // 再投稿カスタム確認モーダル（対象id）＋そのモーダル内の同時投稿チェック（毎回選び直し・記憶しない）。
+  const [repostModalId, setRepostModalId] = useState<string | null>(null);
+  const [repostCrosspostX, setRepostCrosspostX] = useState(false);
+  const [repostCrosspostNoReplies, setRepostCrosspostNoReplies] = useState(false);
 
   const toggleSection = (key: string) => {
     setExpandedSections(prev => {
@@ -507,6 +518,11 @@ export default function MyPage() {
 
       setSalon(salonData);
       setSalonForm(salonData);
+      // お知らせ→fukuX 同時投稿用：オーナーの連携fukuX店舗プロフィール（kind='shop'・approved）を解決。
+      // best-effort（未連携/失敗は null＝チェックは無効表示）。日記の xProfileId 解決と同型。
+      getLinkedXProfileForSalon(user.id)
+        .then((p) => setXShopProfileId(p?.profileId ?? null))
+        .catch(() => setXShopProfileId(null));
       setCourseGroups(parseCourseGroups(salonData.courses));
       setOtherItems(parseOtherItems(salonData.courses));
       setBookingCourses(parseBookingCourses(salonData.booking_courses));
@@ -1361,16 +1377,57 @@ export default function MyPage() {
     setAnnouncementForms(map);
   };
 
+  // お知らせ→fukuX 同時投稿（best-effort）。日記クロスポスト（CastDiary.handleDiaryPost）と同一の
+  // 本文整形・INSERTカラム（author_profile_id/body/images/replies_disabled）を踏襲。
+  // 戻り値: 投稿しなかった（チェックOFF/未連携/中身空）or 成功 → true、送信を試みて失敗 → false。
+  // 呼び出し側はこの真偽で最終トーストを合成し、失敗してもお知らせ本体は巻き戻さない。
+  const maybeCrosspostAnnouncementToX = async (
+    enabled: boolean,
+    noReplies: boolean,
+    title: string,
+    content: string | null,
+    imageUrl: string | null,
+  ): Promise<boolean> => {
+    if (!enabled || !xShopProfileId) return true; // 同時投稿しない＝成功扱い
+    const titlePart = (title ?? '').trim();
+    const contentPart = (content ?? '').trim();
+    // body = タイトル + 空行 + 本文（片方のみ・両方空も許容）。日記側と同一ルール。
+    const body = titlePart && contentPart ? `${titlePart}\n\n${contentPart}` : (titlePart || contentPart);
+    const xImages = imageUrl ? [imageUrl] : [];
+    if (body.length === 0 && xImages.length === 0) return true; // 投稿する中身が無い
+    // お知らせ経路のみ：fukuX本文上限(500字)を超える場合は先頭497字＋「…」(1字)=計498字にクランプ。
+    // 500字ちょうどはそのまま／501字以上で切り詰め（日記経路は従来どおりクランプ無し・不変）。
+    const X_BODY_MAX = 500;
+    const clampedBody = body.length > X_BODY_MAX ? `${body.slice(0, X_BODY_MAX - 3)}…` : body;
+    // 同じ認証クライアントで insert＝x_posts の INSERT ポリシー(author_profile_id = x_my_profile_id())を
+    // 正規に通る（オーナー唯一のプロフィール＝shop プロフィール）。service_role 不使用。
+    const { error: xErr } = await supabase.from('x_posts').insert({
+      author_profile_id: xShopProfileId,
+      body: clampedBody || null,
+      images: xImages,
+      replies_disabled: noReplies,
+    });
+    if (xErr) {
+      console.error('crosspost announcement to x_posts failed:', xErr); // 握りつぶさずログ
+      return false;
+    }
+    return true;
+  };
+
   // お知らせ：新規追加（published_at は DB の default now() で自動設定）
   const handleAnnouncementAdd = async () => {
     if (!salon || !newAnnouncement.title.trim() || !newAnnouncement.content.trim()) return;
     setAddingAnnouncement(true);
+    // 同時投稿用に確定値を控える（保存後に state をリセットするため）。
+    const title = newAnnouncement.title.trim();
+    const content = newAnnouncement.content.trim();
+    const imageUrl = newAnnouncement.image_url || null;
     const { error } = await supabase.from('announcements').insert({
       salon_id:     Number(salon.id),
-      title:        newAnnouncement.title.trim(),
-      content:      newAnnouncement.content.trim(),
+      title,
+      content,
       is_published: newAnnouncement.is_published,
-      image_url:    newAnnouncement.image_url || null,
+      image_url:    imageUrl,
     });
     if (error) {
       setAddingAnnouncement(false);
@@ -1384,10 +1441,14 @@ export default function MyPage() {
     const list = await fetchAnnouncementList(Number(salon.id));
     setAnnouncements(list);
     rebuildAnnouncementForms(list);
+    // お知らせ保存成功後のみ fukuX 同時投稿（新規投稿時）。失敗しても本体は成功のまま。
+    const xOk = await maybeCrosspostAnnouncementToX(newAnnCrosspostX, newAnnCrosspostNoReplies, title, content, imageUrl);
     setNewAnnouncement({ title: '', content: '', is_published: true, image_url: null });
+    setNewAnnCrosspostX(false);
+    setNewAnnCrosspostNoReplies(false);
     setAddingAnnouncement(false);
     if (salon) revalidateSalon(salon.id);
-    showToast('お知らせを追加しました');
+    showToast(xOk ? 'お知らせを追加しました' : 'お知らせを追加しました（fukuX投稿は失敗しました）');
   };
 
   // お知らせ：編集内容を保存
@@ -1430,23 +1491,76 @@ export default function MyPage() {
     showToast(next ? '公開にしました' : '非公開にしました');
   };
 
-  // お知らせ：再投稿（published_at を現在時刻に更新し一覧の先頭へ。元の投稿日時は上書きされ、新しい投稿として扱われる）
-  const handleAnnouncementRepost = async (id: string) => {
-    if (!window.confirm('このお知らせを再投稿しますか？\n投稿日時が現在時刻に更新され、一覧の先頭に表示されます。\n（元の投稿日時は失われ、再び新着「NEW!!」扱いになります）')) return;
+  // お知らせ：再投稿ボタン → カスタム確認モーダルを開く（チェックは毎回OFFから）。
+  // 標準 confirm() ではチェックを置けないため、モーダルで確認＋同時投稿オプションを提示する。
+  const handleAnnouncementRepost = (id: string) => {
+    setRepostCrosspostX(false);
+    setRepostCrosspostNoReplies(false);
+    setRepostModalId(id);
+  };
+
+  // お知らせ：再投稿の実行（モーダルのOK）。published_at を現在時刻に更新し一覧の先頭へ。
+  // 元の投稿日時は上書きされ、新しい投稿として扱われる。再投稿時のみ fukuX 同時投稿（best-effort）。
+  const confirmAnnouncementRepost = async () => {
+    const id = repostModalId;
+    if (!id) return;
+    const target = announcements.find(a => a.id === id);
     setRepostingAnnouncement(id);
     const newIso = new Date().toISOString();
     const { error } = await supabase.from('announcements').update({ published_at: newIso }).eq('id', id);
-    setRepostingAnnouncement(null);
-    if (error) { showToast(`再投稿に失敗しました: ${error.message}`); return; }
+    if (error) { setRepostingAnnouncement(null); showToast(`再投稿に失敗しました: ${error.message}`); return; }
     // 同じ行の published_at を更新し、新しい順で再ソート（元の古い投稿は残らない）
     setAnnouncements(prev =>
       prev
         .map(a => a.id === id ? { ...a, published_at: newIso } : a)
         .sort((x, y) => new Date(y.published_at).getTime() - new Date(x.published_at).getTime())
     );
+    // 再投稿成功後のみ fukuX 同時投稿。失敗しても再投稿は成功のまま。
+    const xOk = target
+      ? await maybeCrosspostAnnouncementToX(repostCrosspostX, repostCrosspostNoReplies, target.title, target.content, target.image_url)
+      : true;
+    setRepostingAnnouncement(null);
+    setRepostModalId(null);
     if (salon) revalidateSalon(salon.id);
-    showToast('再投稿しました');
+    showToast(xOk ? '再投稿しました' : '再投稿しました（fukuX投稿は失敗しました）');
   };
+
+  // お知らせ→fukuX 同時投稿チェックの共通UI（新規フォーム・再投稿モーダルで共用）。
+  // 連携済み（xShopProfileId あり）: 「fukuX にも投稿する」活性。ON時のみ「リプライできないようにする」を表示。
+  // 未連携: チェックを disabled＋opacity-50 で薄表示し、下に連携を促す注記を添える（日記側の条件レンダリング準拠）。
+  const renderCrosspostChecks = (
+    enabled: boolean,
+    setEnabled: (v: boolean) => void,
+    noReplies: boolean,
+    setNoReplies: (v: boolean) => void,
+  ) => (
+    <div className="space-y-2 pt-0.5">
+      <label className={`flex items-center gap-2 select-none ${xShopProfileId ? 'cursor-pointer' : 'opacity-50 cursor-not-allowed'}`}>
+        <input
+          type="checkbox"
+          disabled={!xShopProfileId}
+          checked={enabled}
+          onChange={(e) => { const on = e.target.checked; setEnabled(on); if (!on) setNoReplies(false); }}
+          className="w-4 h-4 accent-pink-500 flex-shrink-0"
+        />
+        <span className="text-xs font-bold text-slate-600">fukuX にも投稿する</span>
+      </label>
+      {!xShopProfileId && (
+        <p className="text-[10px] text-slate-400 pl-6">fukuX店舗アカウントと連携すると同時投稿できます</p>
+      )}
+      {xShopProfileId && enabled && (
+        <label className="flex items-center gap-2 cursor-pointer select-none pl-6">
+          <input
+            type="checkbox"
+            checked={noReplies}
+            onChange={(e) => setNoReplies(e.target.checked)}
+            className="w-4 h-4 accent-pink-500 flex-shrink-0"
+          />
+          <span className="text-xs font-bold text-slate-600">リプライできないようにする</span>
+        </label>
+      )}
+    </div>
+  );
 
   // お知らせ：削除（確認あり）
   const handleAnnouncementDelete = async (id: string) => {
@@ -2888,6 +3002,8 @@ export default function MyPage() {
               />
               <span className="text-xs font-bold text-slate-600">公開する（オフにすると非公開で保存）</span>
             </label>
+            {/* fukuX 同時投稿（新規投稿時のみ有効。編集保存では出さない＝重複ポスト防止）。 */}
+            {renderCrosspostChecks(newAnnCrosspostX, setNewAnnCrosspostX, newAnnCrosspostNoReplies, setNewAnnCrosspostNoReplies)}
             <div className="flex flex-col items-end gap-1.5">
               <button
                 className={saveBtn}
@@ -2899,6 +3015,43 @@ export default function MyPage() {
               <p className="text-[11px] text-slate-400">※新規投稿時のみ、保存している会員に通知されます（編集では通知されません）</p>
             </div>
           </div>
+
+          {/* 再投稿の確認モーダル（標準confirmの置き換え）。文言は既存confirmと同一。
+              その下に fukuX 同時投稿チェック（未連携なら disabled＋注記）。 */}
+          {repostModalId && (
+            <div
+              className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
+              onClick={() => { if (!repostingAnnouncement) setRepostModalId(null); }}
+            >
+              <div
+                className="bg-white rounded-2xl shadow-xl w-full max-w-sm p-5 space-y-4"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <p className="text-sm font-bold text-slate-700 whitespace-pre-line leading-relaxed">
+                  {`このお知らせを再投稿しますか？\n投稿日時が現在時刻に更新され、一覧の先頭に表示されます。\n（元の投稿日時は失われ、再び新着「NEW!!」扱いになります）`}
+                </p>
+                {renderCrosspostChecks(repostCrosspostX, setRepostCrosspostX, repostCrosspostNoReplies, setRepostCrosspostNoReplies)}
+                <div className="flex justify-end gap-2 pt-1">
+                  <button
+                    type="button"
+                    onClick={() => setRepostModalId(null)}
+                    disabled={!!repostingAnnouncement}
+                    className="px-4 py-2 rounded-xl border border-slate-200 text-slate-500 text-xs font-bold hover:bg-slate-50 transition-colors disabled:opacity-50"
+                  >
+                    キャンセル
+                  </button>
+                  <button
+                    type="button"
+                    onClick={confirmAnnouncementRepost}
+                    disabled={!!repostingAnnouncement}
+                    className={saveBtn}
+                  >
+                    {repostingAnnouncement ? '処理中...' : 'OK'}
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* お知らせ一覧（公開・非公開含む。published_at の新しい順） */}
           {announcements.length === 0 ? (
