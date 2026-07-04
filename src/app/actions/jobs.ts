@@ -11,10 +11,14 @@ import {
   type ApplicationStatus,
   MAX_JOB_FEATURES,
   MAX_JOB_HERO_IMAGES,
+  MAX_JOB_GALLERY_IMAGES,
+  MAX_GALLERY_CAPTION_LEN,
+  type JobGalleryItem,
   isValidFeatureSlug,
   isValidEmailFormat,
   sanitizeFeatures,
   sanitizeHeroUrls,
+  sanitizeGallery,
 } from '@/app/lib/jobs';
 
 // フクエスワーク（セラピスト求人）フェーズ2のサーバーアクション群。
@@ -31,7 +35,7 @@ import {
 //  - 公開側ISR（/jobs・/jobs/[id]・/salon/[id]・sitemap）は書き込み成功時に revalidatePath で即時更新。
 
 const JOB_COLUMNS =
-  'id, salon_id, title, description, salary_text, salary_min, salary_max, work_hours, requirements, benefits, access, notify_email, features, hero_image_urls, is_active, published_at, updated_at';
+  'id, salon_id, title, description, salary_text, salary_min, salary_max, work_hours, requirements, benefits, access, notify_email, features, hero_image_urls, gallery_images, is_active, published_at, updated_at';
 
 export type JobFormInput = {
   title: string;
@@ -47,6 +51,8 @@ export type JobFormInput = {
   features: string[];
   // 求人バナー画像URL（16:9・job-hero-images バケット・最大3枚・空配列可）。先頭がメイン画像。
   hero_image_urls: string[];
+  // 「お店の雰囲気」ギャラリー（正方形・最大6枚・空配列可）。各要素 { url, caption }。
+  gallery_images: JobGalleryItem[];
 };
 
 export type MyJob = {
@@ -64,6 +70,7 @@ export type MyJob = {
   notify_email: string;
   features: string[];
   hero_image_urls: string[];
+  gallery_images: JobGalleryItem[];
   is_active: boolean;
   published_at: string | null;
   updated_at: string | null;
@@ -90,6 +97,7 @@ function mapJob(row: Record<string, unknown>): MyJob {
     notify_email: (row.notify_email as string | null) ?? '',
     features: sanitizeFeatures(row.features),
     hero_image_urls: sanitizeHeroUrls(row.hero_image_urls),
+    gallery_images: sanitizeGallery(row.gallery_images),
     is_active: Boolean(row.is_active),
     published_at: (row.published_at as string | null) ?? null,
     updated_at: (row.updated_at as string | null) ?? null,
@@ -166,6 +174,7 @@ type CleanJob = {
   notify_email: string | null;
   features: string[];
   hero_image_urls: string[];
+  gallery_images: JobGalleryItem[];
 };
 
 function validate(input: JobFormInput): { ok: true; clean: CleanJob } | Err {
@@ -226,6 +235,25 @@ function validate(input: JobFormInput): { ok: true; clean: CleanJob } | Err {
     return { ok: false, error: `バナー画像は最大${MAX_JOB_HERO_IMAGES}枚までです` };
   }
 
+  // 「お店の雰囲気」ギャラリー：各要素 {url, caption}。url必須・空/重複除去、caption は30字上限。
+  // 上限6枚を超えたらエラー（サイレント切り詰めしない）。
+  const rawGallery = Array.isArray(input.gallery_images) ? input.gallery_images : [];
+  const gallery: JobGalleryItem[] = [];
+  const gallerySeen = new Set<string>();
+  for (const item of rawGallery) {
+    const url = String((item as JobGalleryItem | undefined)?.url ?? '').trim();
+    if (url === '' || gallerySeen.has(url)) continue;
+    const caption = String((item as JobGalleryItem | undefined)?.caption ?? '').replace(/\s+/g, ' ').trim();
+    if (caption.length > MAX_GALLERY_CAPTION_LEN) {
+      return { ok: false, error: `キャプションは${MAX_GALLERY_CAPTION_LEN}文字以内で入力してください` };
+    }
+    gallerySeen.add(url);
+    gallery.push({ url, caption });
+  }
+  if (gallery.length > MAX_JOB_GALLERY_IMAGES) {
+    return { ok: false, error: `お店の雰囲気の画像は最大${MAX_JOB_GALLERY_IMAGES}枚までです` };
+  }
+
   return {
     ok: true,
     clean: {
@@ -242,6 +270,8 @@ function validate(input: JobFormInput): { ok: true; clean: CleanJob } | Err {
       features,
       // バナー画像URLは自前ストレージのアップロード結果（最大3枚・先頭がメイン）。空配列可。
       hero_image_urls: heroUrls,
+      // 「お店の雰囲気」ギャラリー（最大6枚・各 {url, caption}）。空配列可。
+      gallery_images: gallery,
     },
   };
 }

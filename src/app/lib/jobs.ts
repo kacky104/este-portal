@@ -60,6 +60,33 @@ export function sanitizeHeroUrls(raw: unknown): string[] {
   return out;
 }
 
+// 「お店の雰囲気」ギャラリー画像（salon_jobs.gallery_images jsonb DEFAULT '[]'）。
+// 各要素は { url, caption }。正方形（800×800px推奨）・最大6枚・キャプションは任意（1行・30字まで）。
+export const MAX_JOB_GALLERY_IMAGES = 6;
+export const MAX_GALLERY_CAPTION_LEN = 30;
+
+export type JobGalleryItem = { url: string; caption: string };
+
+// DBから読んだ gallery_images を表示用に正規化（配列化・{url,caption}整形・url空/重複除去・
+// caption を1行30字に丸め・最大6枚で切り詰め）。hero の sanitizeHeroUrls と同じ防御的方針。
+export function sanitizeGallery(raw: unknown): JobGalleryItem[] {
+  if (!Array.isArray(raw)) return [];
+  const out: JobGalleryItem[] = [];
+  const seen = new Set<string>();
+  for (const it of raw) {
+    if (!it || typeof it !== 'object') continue;
+    const rec = it as Record<string, unknown>;
+    const url = String(rec.url ?? '').trim();
+    if (url === '' || seen.has(url)) continue;
+    let caption = String(rec.caption ?? '').replace(/\s+/g, ' ').trim();
+    if (caption.length > MAX_GALLERY_CAPTION_LEN) caption = caption.slice(0, MAX_GALLERY_CAPTION_LEN);
+    seen.add(url);
+    out.push({ url, caption });
+    if (out.length >= MAX_JOB_GALLERY_IMAGES) break;
+  }
+  return out;
+}
+
 // 「特徴から探す」／フォームのカテゴリ表示用グルーピング（slug は JOB_FEATURES と一致）。
 export const JOB_FEATURE_GROUPS: { title: string; slugs: string[] }[] = [
   { title: '経験・年齢', slugs: ['mikeiken', 'keikensha', '20dai', '30dai', '40dai', '50dai'] },
@@ -141,6 +168,8 @@ export type JobDetail = {
   // 求人バナー画像URL（16:9・最大3枚・任意）。詳細ページのパンくず直下バナーで使用。
   // 0枚ならバナー非表示、1枚は静止表示、2枚以上はスライダー表示。
   heroImageUrls: string[];
+  // 「お店の雰囲気」ギャラリー（正方形・最大6枚・任意）。各要素 { url, caption }。0枚ならセクション非表示。
+  galleryImages: JobGalleryItem[];
   salon: {
     id: number;
     name: string;
@@ -293,7 +322,7 @@ export async function fetchJobById(id: number): Promise<JobDetail | null> {
   const { data, error } = await supabase
     .from('salon_jobs')
     .select(
-      'id, title, salary_text, published_at, work_hours, requirements, benefits, access, description, salary_min, salary_max, features, hero_image_urls, salons!inner(id, name, area, address, phone, is_hidden)'
+      'id, title, salary_text, published_at, work_hours, requirements, benefits, access, description, salary_min, salary_max, features, hero_image_urls, gallery_images, salons!inner(id, name, area, address, phone, is_hidden)'
     )
     .eq('id', id)
     .eq('is_active', true)
@@ -325,6 +354,7 @@ export async function fetchJobById(id: number): Promise<JobDetail | null> {
     salaryMax: (data.salary_max as number | null) ?? null,
     features: sanitizeFeatures(data.features),
     heroImageUrls: sanitizeHeroUrls(data.hero_image_urls),
+    galleryImages: sanitizeGallery(data.gallery_images),
     salon: {
       id: salon.id,
       name: salon.name ?? '',

@@ -2,8 +2,9 @@
 
 import { useState } from 'react';
 import type { MyJob } from '@/app/actions/jobs';
-import { JOB_FEATURE_GROUPS, featureLabel, MAX_JOB_FEATURES, isValidEmailFormat } from '@/app/lib/jobs';
+import { JOB_FEATURE_GROUPS, featureLabel, MAX_JOB_FEATURES, isValidEmailFormat, type JobGalleryItem } from '@/app/lib/jobs';
 import { JobHeroImageField } from '@/app/components/JobHeroImageField';
+import { JobGalleryField } from '@/app/components/JobGalleryField';
 
 // 求人フォームの共通フィールド（mypage求人タブ／admin求人管理で共用）。
 // 表示専用のコントロールド・コンポーネント。保存やバリデーションは呼び出し側（サーバーアクション）が担う。
@@ -21,6 +22,7 @@ export type JobFormState = {
   notify_email: string;
   features: string[];
   hero_image_urls: string[];
+  gallery_images: JobGalleryItem[];
 };
 
 export const EMPTY_JOB_FORM: JobFormState = {
@@ -36,6 +38,7 @@ export const EMPTY_JOB_FORM: JobFormState = {
   notify_email: '',
   features: [],
   hero_image_urls: [],
+  gallery_images: [],
 };
 
 // MyJob（サーバー取得）→ フォーム状態（数値は文字列化・空欄化）。
@@ -53,6 +56,7 @@ export function jobToForm(job: MyJob): JobFormState {
     notify_email: job.notify_email,
     features: [...job.features],
     hero_image_urls: [...job.hero_image_urls],
+    gallery_images: job.gallery_images.map((g) => ({ ...g })),
   };
 }
 
@@ -257,6 +261,13 @@ export function JobFields({
         salonId={salonId ?? null}
         value={value.hero_image_urls}
         onChange={(urls) => onChange({ hero_image_urls: urls })}
+      />
+
+      {/* お店の雰囲気ギャラリー（正方形・最大6枚・任意・各画像にキャプション）。求人詳細に掲載。 */}
+      <JobGalleryField
+        salonId={salonId ?? null}
+        value={value.gallery_images}
+        onChange={(items) => onChange({ gallery_images: items })}
       />
 
       {/* 仕事内容（必須） */}

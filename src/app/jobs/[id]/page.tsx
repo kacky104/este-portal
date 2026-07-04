@@ -6,6 +6,7 @@ import { areaLabel } from '@/app/lib/areaLabel';
 import { fetchJobById, featureLabel, type JobDetail } from '@/app/lib/jobs';
 import { ApplyForm } from './ApplyForm';
 import { JobHeroSlider } from './JobHeroSlider';
+import { JobGallery } from './JobGallery';
 
 const SITE_URL = 'https://fukues.com';
 
@@ -257,6 +258,10 @@ export default async function JobDetailPage({
             <p className="text-sm text-slate-600 leading-relaxed whitespace-pre-wrap break-words">{job.description}</p>
           </div>
         )}
+
+        {/* お店の雰囲気ギャラリー（正方形スライダー・キャプション付き）。0枚ならセクションごと非表示。
+            応募導線より上に配置し、雰囲気を見てから応募に進める導線にする。 */}
+        <JobGallery images={job.galleryImages} />
 
         {/* 応募導線：WEB応募（サイト内完結）を主導線に、電話応募も残す。 */}
         <div className="mt-6 space-y-3">
