@@ -191,6 +191,10 @@ export function JobsTab({ salonId }: { salonId: number }) {
         )}
       </div>
 
+      {/* 応募一覧（求人が作成済みのときのみ表示）。フォーム入力より上に配置＝店側は
+          まず応募状況を確認してから内容編集に進める導線にする（ブロック内部は不変）。 */}
+      {job && <JobApplications salonId={salonId} />}
+
       {/* フォーム本体 */}
       <div className="bg-white rounded-3xl border border-slate-100 shadow-sm p-5 space-y-4">
         <JobFields value={form} onChange={patch} salonId={salonId} />
@@ -213,9 +217,6 @@ export function JobsTab({ salonId }: { salonId: number }) {
           </button>
         </div>
       </div>
-
-      {/* 応募一覧（求人が作成済みのときのみ表示） */}
-      {job && <JobApplications salonId={salonId} />}
     </div>
   );
 }
