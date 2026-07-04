@@ -5,6 +5,7 @@ import { fetchActiveJobs, getFeaturedJobs } from '@/app/lib/jobs';
 import { BRAND_TITLE } from './layout';
 import { JobCard } from './JobCard';
 import { FeatureBrowse } from './FeatureBrowse';
+import { AreaBrowse } from './AreaBrowse';
 import { PickupSlider } from './PickupSlider';
 import { JobHeroBanners } from './JobHeroBanners';
 
@@ -96,8 +97,10 @@ export default async function JobsPage() {
         <p className="text-sm text-slate-500 mt-1.5">福岡のメンズエステで働くセラピスト求人</p>
       </div>
 
-      {/* 特徴から探す（タグ絞り込みページへの内部リンク網） */}
-      <div className="mb-6">
+      {/* エリアから探す（エリア別求人ページへの内部リンク網）→ 特徴から探す（タグ絞り込み）の順。
+          求職者の探索順（まず勤務地エリア→次に条件）に合わせてエリアを特徴の直上に置く。 */}
+      <div className="mb-6 space-y-4">
+        <AreaBrowse />
         <FeatureBrowse />
       </div>
 

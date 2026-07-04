@@ -9,6 +9,7 @@ import {
 } from '@/app/lib/jobs';
 import { JobCard } from '../../JobCard';
 import { FeatureBrowse } from '../../FeatureBrowse';
+import { AreaBrowse } from '../../AreaBrowse';
 
 // ISR：10分ごとに再生成。
 export const revalidate = 600;
@@ -113,9 +114,10 @@ export default async function JobTagPage({
         </ul>
       )}
 
-      {/* 他タグへの回遊（内部リンク網） */}
-      <div className="mt-8">
+      {/* 他タグへの回遊＋「エリア×この特徴」掛け合わせページへの逆方向リンク（掛け合わせページ末尾と同じ並び） */}
+      <div className="mt-8 space-y-4">
         <FeatureBrowse title="他の特徴から探す" currentSlug={slug} />
+        <AreaBrowse title={`エリア別に「${label}」を探す`} tagSlug={slug} />
       </div>
     </main>
   );
