@@ -11,6 +11,10 @@ export function JobGallery({ images }: { images: JobGalleryItem[] }) {
   // 0枚時はセクションごと非表示（呼び出し側でも制御するが二重防御）。
   if (images.length === 0) return null;
 
+  // 1枚でもキャプションがあれば、全カードにキャプション領域（2行分の高さ）を確保して下端を揃える。
+  // 全カードが空のときはキャプション領域ごと出さない（画像のみ・現状踏襲）。
+  const hasAnyCaption = images.some((img) => img.caption !== '');
+
   return (
     <section className="rounded-2xl border border-emerald-100 bg-white p-5 shadow-sm mt-4">
       <div className="flex items-center gap-2.5 mb-3">
@@ -35,8 +39,9 @@ export function JobGallery({ images }: { images: JobGalleryItem[] }) {
                   sizes="(max-width: 768px) 45vw, 220px"
                 />
               </div>
-              {img.caption && (
-                <p className="text-sm text-slate-600 mt-1.5 truncate">{img.caption}</p>
+              {/* キャプションは画像の下・2行まで（超過は省略）。高さ揃えのため min-h を確保。 */}
+              {hasAnyCaption && (
+                <p className="text-sm text-slate-600 mt-1.5 line-clamp-2 min-h-[2.5rem]">{img.caption}</p>
               )}
             </div>
           ))}
