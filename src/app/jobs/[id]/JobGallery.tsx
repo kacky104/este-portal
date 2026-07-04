@@ -69,13 +69,14 @@ export function JobGallery({ images }: { images: JobGalleryItem[] }) {
           </div>
         </div>
 
-        {/* 左右矢印（全デバイス表示・JobHeroSlider と同仕様＝半透明黒の円形ボタン）。
-            リング(白帯なし)・スワイプ操作と共存。pointer-events はボタンのみ有効（画像は透過）。 */}
+        {/* 左右矢印（PC=md以上のみ表示。モバイルはスワイプで横送りできるため非表示）。
+            JobHeroSlider と同仕様＝半透明黒の円形ボタン。スワイプ操作と共存。
+            pointer-events はボタンのみ有効（画像は透過）。 */}
         <button
           type="button"
           aria-label="前へ"
           onClick={() => scrollByCard(-1)}
-          className="flex items-center justify-center absolute left-3 top-1/2 -translate-y-1/2 z-10 w-10 h-10 rounded-full bg-black/30 backdrop-blur-sm text-white border border-white/20 shadow hover:bg-black/50 transition-colors"
+          className="hidden md:flex items-center justify-center absolute left-3 top-1/2 -translate-y-1/2 z-10 w-10 h-10 rounded-full bg-black/30 backdrop-blur-sm text-white border border-white/20 shadow hover:bg-black/50 transition-colors"
         >
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
             <path d="M15 18l-6-6 6-6" />
@@ -85,7 +86,7 @@ export function JobGallery({ images }: { images: JobGalleryItem[] }) {
           type="button"
           aria-label="次へ"
           onClick={() => scrollByCard(1)}
-          className="flex items-center justify-center absolute right-3 top-1/2 -translate-y-1/2 z-10 w-10 h-10 rounded-full bg-black/30 backdrop-blur-sm text-white border border-white/20 shadow hover:bg-black/50 transition-colors"
+          className="hidden md:flex items-center justify-center absolute right-3 top-1/2 -translate-y-1/2 z-10 w-10 h-10 rounded-full bg-black/30 backdrop-blur-sm text-white border border-white/20 shadow hover:bg-black/50 transition-colors"
         >
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
             <path d="M9 18l6-6-6-6" />
