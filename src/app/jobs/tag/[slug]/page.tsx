@@ -26,7 +26,11 @@ export async function generateMetadata({
   const { slug } = await params;
   if (!isValidFeatureSlug(slug)) return {};
   const label = featureLabel(slug);
-  const title = `${label}のメンズエステセラピスト求人【福岡】｜フクエスワーク`;
+  // 文書<title>は layout の template「%s｜フクエスワーク」が末尾を付与するため、ここでは
+  // ブランド名を含めない（含めると「…｜フクエスワーク｜フクエスワーク」と二重化する）。
+  // og:title / twitter:title には template が効かないため、ブランド付きを別途明示する。
+  const baseTitle = `${label}のメンズエステセラピスト求人【福岡】`;
+  const brandedTitle = `${baseTitle}｜フクエスワーク`;
   const description = `福岡で「${label}」のメンズエステ セラピスト求人を掲載。${label}の条件で働けるお店の求人情報をフクエスワークでチェックできます。`;
 
   // 0件のタグページは薄いページのため noindex（1件以上は通常index）。
@@ -34,11 +38,11 @@ export async function generateMetadata({
   const robots = jobs.length === 0 ? { index: false, follow: true } : undefined;
 
   return {
-    title,
+    title: baseTitle,
     description,
     ...(robots ? { robots } : {}),
-    openGraph: { title, description },
-    twitter: { title, description },
+    openGraph: { title: brandedTitle, description },
+    twitter: { title: brandedTitle, description },
   };
 }
 

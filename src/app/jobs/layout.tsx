@@ -9,7 +9,10 @@ import { JobsLogo } from '@/components/JobsLogo';
 // Wallpaper 側で /jobs を除外する（fukuX(/x) と同じ考え方）。root の Cookie/フォント等は継承。
 
 const SITE_URL = 'https://fukues.com';
-const BRAND_TITLE = 'フクエスワーク｜福岡メンズエステのセラピスト求人サイト';
+// /jobs トップ（page.tsx）でも absolute 指定に流用するため export。
+// ※ title.template は「子セグメント」にのみ適用され、同一セグメントの page.js の title には
+//   効かない（Next仕様）。そのため /jobs トップは page.tsx 側でこのブランドタイトルを明示する。
+export const BRAND_TITLE = 'フクエスワーク｜福岡メンズエステのセラピスト求人サイト';
 const BRAND_DESCRIPTION =
   '「フクエスワーク」は福岡のメンズエステで働くセラピスト求人サイト。博多・天神・北九州など福岡全域のメンズエステ求人を、給与・こだわり条件から探せます。未経験歓迎の求人も掲載中。';
 

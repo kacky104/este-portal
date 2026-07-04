@@ -2,6 +2,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import type { Metadata } from 'next';
 import { fetchActiveJobs, getFeaturedJobs } from '@/app/lib/jobs';
+import { BRAND_TITLE } from './layout';
 import { JobCard } from './JobCard';
 import { FeatureBrowse } from './FeatureBrowse';
 import { PickupSlider } from './PickupSlider';
@@ -15,9 +16,12 @@ const HERO_BANNER_LIMIT = 10;
 export const revalidate = 600;
 
 // ヘッダー/フッター/背景/共通OGPは jobs/layout.tsx（フクエスワーク）が担う。
-// タイトルは layout の template「%s｜フクエスワーク」に合成される。
+// タイトルは /jobs トップ＝ブランドタイトルそのもの（title.absolute で親テンプレートを無効化）。
+// ※ layout の title.template は子セグメント（/jobs/[id]・/jobs/tag/[slug]）にのみ効き、
+//   同一セグメントのこの page.tsx には適用されない。未指定/生文字列だと Google が
+//   ドメイン由来の「- フクエス」を付与してしまうため、ブランド名を明示する。
 export const metadata: Metadata = {
-  title: '求人一覧',
+  title: { absolute: BRAND_TITLE },
   description:
     '福岡のメンズエステで働くセラピスト求人をまとめて掲載。エリア・給与・こだわり条件から気になるお店の求人をチェックできます。未経験歓迎のメンズエステ求人も掲載中。',
 };
