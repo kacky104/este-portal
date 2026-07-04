@@ -280,46 +280,40 @@ body.paw-bg .min-h-screen.bg-slate-50 {
 /* 保存ボタンのクリック演出（pop / burst / flutter）は SaveButton.tsx に同梱（自己完結）。
    ページ別CSSに依存させないため globals.css には置かない。 */
 
-/* ── フクエスワーク ヒーロー画像：ページ表示時に1回だけ枠を光が走る（ループなし） ────────────
-   本体（.salon-name-banner / .imasugu-card-shine 等）と同じ mask リング方式の派生。
-   本体側の既存アニメーション定義には一切手を加えず、ワーク専用にこのクラスを新設する。
-   色は本体のピンク＋オレンジではなく、フクエスワークのブランド色 グリーン(#10B981)→ライム(#84CC16)。
-   純CSSで初回レンダー時に1回だけ再生（iteration-count: 1）。fill-mode: both で開始前・終了後は
-   帯が枠外＝発光なし（色残りしない）。prefers-reduced-motion では無効。 */
+/* ── フクエスワーク ヒーロー画像：ページ表示時に1回だけ斜めの光帯が画像上を横切る（スイープ／ループなし） ──
+   本体（.salon-name-banner / .imasugu-card-shine 等）の定義には一切手を加えず、ワーク専用に新設。
+   画像がカラフル（緑背景＋ピンク文字）でどの領域でも視認できるよう、色付きではなく白のハイライト帯。
+   ラッパに overflow: hidden を持たせ、rounded-2xl の角丸内に帯をクリップする。
+   調整ノブ（実値）: 帯幅=ヒーロー幅の28% ／ 傾き=skewX(-20deg) ／ 白の不透明度=0.7(ピーク) ／
+                     duration=1.2s ／ delay=0.4s ／ ease-in-out ／ iteration-count=1 ／ fill-mode=both。 */
 .hero-shine-once {
   position: relative;
+  overflow: hidden;            /* 帯が枠外に出ないようクリップ（rounded-2xl と併用で角丸内に収める） */
 }
 .hero-shine-once::after {
   content: "";
   position: absolute;
-  inset: 0;
-  border-radius: inherit;      /* ラッパの角丸（rounded-2xl）を継承して枠に沿わせる */
-  padding: 2px;                /* 光らせる枠の太さ（演出のみ・静止枠は無し） */
+  /* skewX で傾けても上下端まで帯が届くよう、縦は上下に拡張しておく。 */
+  top: -25%;
+  bottom: -25%;
+  left: 0;
+  width: 28%;                  /* 帯幅＝ヒーロー幅の約28% */
   pointer-events: none;        /* クリック等を透過（ヒーロー操作に影響させない） */
-  background-image: linear-gradient(
-    120deg,
-    transparent 0 42%,
-    rgba(16, 185, 129, 0.95) 47%,   /* #10B981 emerald */
-    rgba(132, 204, 22, 0.95) 57%,    /* #84CC16 lime */
-    transparent 62% 100%
+  /* 両端が透明・中央が白のハイライト帯（ピーク不透明度 0.7）。 */
+  background: linear-gradient(
+    90deg,
+    rgba(255, 255, 255, 0) 0%,
+    rgba(255, 255, 255, 0.7) 50%,
+    rgba(255, 255, 255, 0) 100%
   );
-  background-size: 300% 100%;
-  background-repeat: no-repeat;
-  background-position: 100% 0;
-  /* mask リングで content-box（内側）を除外し、枠(border相当)だけを光らせる。 */
-  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
-          mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
-  -webkit-mask-composite: xor;
-          mask-composite: exclude;
-  /* にじみ（外向きグロー）。芯のリングはシャープに保つ。 */
-  filter: drop-shadow(0 0 6px rgba(16, 185, 129, 0.55));
-  /* 1.6s・0.4s 遅延で「表示直後に滑らかに1回」。both で開始前/終了後は帯が枠外＝非発光。 */
-  animation: hero-shine-sweep 1.6s ease-out 0.4s 1 both;
+  /* translateX は帯自身の幅(=28%container)基準。-110%→460% で左外→右外を1回横切る。 */
+  transform: skewX(-20deg) translateX(-110%);
+  animation: hero-shine-sweep 1.2s ease-in-out 0.4s 1 both;
 }
-/* 開始(100%)・終了(0%)とも帯は要素外＝入って抜けて消えるを1セット。 */
+/* 左外(-110%)→右外(460%)を1回通過。both で開始前/終了後は帯が枠外＝発光なし（色残りしない）。 */
 @keyframes hero-shine-sweep {
-  from { background-position: 100% 0; }
-  to   { background-position: 0% 0; }
+  from { transform: skewX(-20deg) translateX(-110%); }
+  to   { transform: skewX(-20deg) translateX(460%); }
 }
 @media (prefers-reduced-motion: reduce) {
   .hero-shine-once::after {
