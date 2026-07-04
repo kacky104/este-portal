@@ -306,6 +306,8 @@ export default async function JobDetailPage({
             imageSrc="/logo-fukuwork.png"
             imageSavedSrc="/logo-fukuwork-saved.png"
             burstColor="#10B981"
+            savedBg="#FFFFFF"
+            shadow
           />
         </div>
 

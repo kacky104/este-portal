@@ -203,6 +203,27 @@ export async function fetchActiveJobs(): Promise<JobListItem[]> {
     .filter((j): j is JobListItem => j !== null);
 }
 
+// ── 保存サロンの公開求人一覧（/jobs/saved 用） ──
+// 指定サロンID群のうち、公開中(is_active)かつ表示中(is_hidden=false)の求人だけを返す。
+// createPublicClient（anon・Cookieなし）なのでクライアントからも呼べる（本体 /saved の fetchSalons と同方式）。
+// salon_id は salon_jobs の実カラム（getFeaturedJobs / upsert 参照）。0件時は空配列。
+export async function fetchActiveJobsBySalonIds(salonIds: number[]): Promise<JobListItem[]> {
+  const ids = [...new Set(salonIds.map((n) => Number(n)).filter((n) => Number.isFinite(n)))];
+  if (ids.length === 0) return [];
+  const supabase = createPublicClient();
+  const { data } = await supabase
+    .from('salon_jobs')
+    .select('id, title, salary_text, published_at, features, hero_image_urls, salons!inner(id, name, area, is_hidden)')
+    .eq('is_active', true)
+    .eq('salons.is_hidden', false)
+    .in('salon_id', ids)
+    .order('published_at', { ascending: false });
+
+  return (data ?? [])
+    .map((row) => mapJobListItem(row))
+    .filter((j): j is JobListItem => j !== null);
+}
+
 // 一覧行 → JobListItem（fetchActiveJobs / fetchActiveJobsByFeature で共用）。
 function mapJobListItem(row: Record<string, unknown>): JobListItem | null {
   const salon = pickSalon<{ id: number; name: string; area: string | null }>(row.salons);

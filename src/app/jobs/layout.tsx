@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import { JobsLogo } from '@/components/JobsLogo';
+import { JobsSavedMenu } from '@/components/JobsSavedMenu';
 
 // フクエスワーク（求人サイト）専用シェル。
 // root layout にはサイト共通ヘッダーが無く（各ページが自前でヘッダーを描画する構造）、
@@ -48,9 +49,10 @@ export default function JobsLayout({ children }: { children: React.ReactNode }) 
     <div className="min-h-screen flex flex-col" style={{ background: 'linear-gradient(#ffffff,#F1FAF4)' }}>
       {/* ─── フクエスワーク専用ヘッダー（左=ロゴ→/jobs、右=本体TOPへのテキストリンク） ─── */}
       <header className="sticky top-0 z-50 bg-white/85 backdrop-blur-md border-b" style={{ borderColor: '#D6EFE0' }}>
-        {/* ヘッダーはロゴのみ（「フクエスTOPへ」は本体への内部リンクとしてフッターに残す）。 */}
-        <div className="max-w-3xl mx-auto px-4 h-14 flex items-center">
+        {/* 左＝ロゴ／右＝保存メニュー（緑肉球＋件数バッジ→/jobs/saved）。「フクエスTOPへ」はフッターに存置。 */}
+        <div className="max-w-3xl mx-auto px-4 h-14 flex items-center justify-between">
           <JobsLogo />
+          <JobsSavedMenu />
         </div>
       </header>
 

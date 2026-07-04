@@ -126,6 +126,8 @@ export function SaveButton({
   imageSrc,
   imageSavedSrc,
   burstColor,
+  savedBg,
+  shadow = false,
 }: {
   kind: 'salon' | 'therapist';
   item: SaveItem;
@@ -135,6 +137,11 @@ export function SaveButton({
   imageSrc?: string;
   imageSavedSrc?: string;
   burstColor?: string;
+  // 保存済み状態の背後円（本体は「オレンジ→ピンク」ブランドグラデ＝リング装飾）。未指定なら variant 既定。
+  // ワーク版は saved 画像が緑塗り円のため、これを白にして「縁のみ白・装飾なし」にする。
+  savedBg?: string;
+  // 白背景で埋もれる場合の視認性確保（shadow-sm 相当）。default false＝本体は影なしのまま不変。
+  shadow?: boolean;
 }) {
   const buttonRef = useRef<HTMLButtonElement>(null);
 
@@ -196,6 +203,7 @@ export function SaveButton({
   const unsavedImg = imageSrc ?? cfg.images.unsaved;
   const savedImg = imageSavedSrc ?? cfg.images.saved;
   const particleColor = burstColor ?? cfg.particleColor;
+  const savedBackground = savedBg ?? c.saved.bg;
 
   return (
     // ラッパ：演出をボタンの周囲に出すため relative + overflow:visible。
@@ -239,8 +247,9 @@ export function SaveButton({
           // ボタン自体を「背後の円」として使う：未保存＝白／保存済み＝各バリアントのブランドグラデ。
           // その上に実ロゴ画像（内側透過：リング＋肉球のみ不透明）を重ねるため、保存済みは内側の
           // 透過部にグラデが透けて「内側が塗られた＝保存済み」に見える。リングが輪郭を担うので枠線なし。
-          background: isSavedNow ? c.saved.bg : c.unsaved.bg,
+          background: isSavedNow ? savedBackground : c.unsaved.bg,
           border: 'none',
+          boxShadow: shadow ? '0 1px 3px rgba(0,0,0,0.15)' : undefined,
           overflow: 'hidden', // 背後円を円形にクリップ
         }}
       >

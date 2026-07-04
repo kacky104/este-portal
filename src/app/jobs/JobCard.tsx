@@ -6,7 +6,9 @@ import { featureLabel, type JobListItem } from '@/app/lib/jobs';
 // カード肥大化を防ぐため特徴タグは最大3個＋「+n」。
 const MAX_CARD_FEATURES = 3;
 
-export function JobCard({ job }: { job: JobListItem }) {
+// reserveTopRight: カード右上に別要素（保存解除ボタン等）を重ねる呼び出し向けに、タイトル右へ余白を確保。
+// 既定 false＝/jobs・/jobs/tag は従来どおり余白なしで不変。
+export function JobCard({ job, reserveTopRight = false }: { job: JobListItem; reserveTopRight?: boolean }) {
   const shown = job.features.slice(0, MAX_CARD_FEATURES);
   const overflow = job.features.length - shown.length;
 
@@ -16,7 +18,7 @@ export function JobCard({ job }: { job: JobListItem }) {
       className="block rounded-2xl border border-emerald-100 bg-white p-4 shadow-sm hover:border-emerald-300 hover:shadow-md transition-all"
     >
       {/* 求人タイトル */}
-      <h2 className="font-bold text-slate-900 leading-snug break-words">{job.title}</h2>
+      <h2 className={`font-bold text-slate-900 leading-snug break-words${reserveTopRight ? ' pr-9' : ''}`}>{job.title}</h2>
 
       {/* 店名＋エリア */}
       <p className="text-xs text-slate-500 mt-1.5 flex items-center gap-1.5 flex-wrap">
