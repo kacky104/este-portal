@@ -93,8 +93,12 @@ export default function AdminJobsManager({
       setFormError('サロンを選択してください');
       return;
     }
-    // 応募通知メール：空欄は許可（＝予約通知メールへフォールバック）、入力時のみ形式チェック。
-    if (editor.form.notify_email.trim() !== '' && !isValidEmailFormat(editor.form.notify_email)) {
+    // 応募通知メール：必須。未入力を拒否し、入力時は形式もチェック。
+    if (editor.form.notify_email.trim() === '') {
+      setFormError('応募通知メールを入力してください');
+      return;
+    }
+    if (!isValidEmailFormat(editor.form.notify_email)) {
       setFormError('応募通知メールの形式が正しくありません');
       return;
     }

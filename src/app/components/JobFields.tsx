@@ -237,9 +237,9 @@ export function JobFields({
         )}
       </div>
 
-      {/* 応募通知メール（任意）。空欄ならネット予約の通知先（salons.booking_email）に届く。 */}
+      {/* 応募通知メール（必須）。応募があるとこのアドレスに通知が届く。 */}
       <div>
-        <Label>応募通知メール</Label>
+        <Label required>応募通知メール</Label>
         <input
           type="email"
           className={inputClass}
@@ -247,7 +247,6 @@ export function JobFields({
           value={value.notify_email}
           onChange={(e) => onChange({ notify_email: e.target.value })}
         />
-        <p className="text-[10px] text-slate-400 mt-1">未設定の場合は予約通知メール宛に送信されます。</p>
         {value.notify_email.trim() !== '' && !isValidEmailFormat(value.notify_email) && (
           <p className="text-[10px] text-rose-500 mt-1">メールアドレスの形式が正しくありません。</p>
         )}

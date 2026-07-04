@@ -43,8 +43,12 @@ export function JobsTab({ salonId }: { salonId: number }) {
   const patch = (p: Partial<JobFormState>) => setForm((prev) => ({ ...prev, ...p }));
 
   const handleSave = async () => {
-    // 応募通知メール：空欄は許可（＝予約通知メールへフォールバック）、入力時のみ形式チェック。
-    if (form.notify_email.trim() !== '' && !isValidEmailFormat(form.notify_email)) {
+    // 応募通知メール：必須。未入力を拒否し、入力時は形式もチェック。
+    if (form.notify_email.trim() === '') {
+      setMsg({ kind: 'err', text: '応募通知メールを入力してください' });
+      return;
+    }
+    if (!isValidEmailFormat(form.notify_email)) {
       setMsg({ kind: 'err', text: '応募通知メールの形式が正しくありません' });
       return;
     }
