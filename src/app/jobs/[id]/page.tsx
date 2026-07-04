@@ -7,6 +7,7 @@ import { fetchJobById, featureLabel, type JobDetail } from '@/app/lib/jobs';
 import { ApplyForm } from './ApplyForm';
 import { JobHeroSlider } from './JobHeroSlider';
 import { JobGallery } from './JobGallery';
+import { SaveButton } from '@/app/components/SaveButton';
 
 const SITE_URL = 'https://fukues.com';
 
@@ -291,6 +292,21 @@ export default async function JobDetailPage({
               <path d="M5 12h14M12 5l7 7-7 7" />
             </svg>
           </Link>
+        </div>
+
+        {/* サロン求人の保存（お気に入り）。応募導線の直下に独立ブロックとして配置。
+            saved_items は item_type='salon' の汎用設計なので、求人経由でも「その店舗」を保存する。
+            ワーク版の緑肉球画像＋緑の粒色を prop で差し替え（本体 SaveButton は default で不変）。 */}
+        <div className="mt-4 rounded-2xl border border-emerald-100 bg-white p-5 shadow-sm flex items-center justify-center gap-3">
+          <span className="text-sm text-slate-500">このサロン求人を保存する</span>
+          <SaveButton
+            kind="salon"
+            item={{ id: job.salon.id, name: job.salon.name }}
+            variant="paw"
+            imageSrc="/logo-fukuwork.png"
+            imageSavedSrc="/logo-fukuwork-saved.png"
+            burstColor="#10B981"
+          />
         </div>
 
         <div className="mt-8 text-center">

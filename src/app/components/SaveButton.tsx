@@ -123,11 +123,18 @@ export function SaveButton({
   item,
   size = 33,
   variant = 'paw',
+  imageSrc,
+  imageSavedSrc,
+  burstColor,
 }: {
   kind: 'salon' | 'therapist';
   item: SaveItem;
   size?: number;
   variant?: 'paw' | 'sakura';
+  // 画像・粒色は未指定なら variant 既定（本体の現行値）にフォールバック＝既存呼び出し元は無変更で不変。
+  imageSrc?: string;
+  imageSavedSrc?: string;
+  burstColor?: string;
 }) {
   const buttonRef = useRef<HTMLButtonElement>(null);
 
@@ -185,6 +192,10 @@ export function SaveButton({
   const cfg = VARIANTS[variant];
   const c = cfg.colors;
   const isSavedNow = mounted && saved;
+  // prop 未指定時は variant 既定にフォールバック（本体パス・現行粒色を維持）。
+  const unsavedImg = imageSrc ?? cfg.images.unsaved;
+  const savedImg = imageSavedSrc ?? cfg.images.saved;
+  const particleColor = burstColor ?? cfg.particleColor;
 
   return (
     // ラッパ：演出をボタンの周囲に出すため relative + overflow:visible。
@@ -196,7 +207,7 @@ export function SaveButton({
           key={fxKey}
           aria-hidden="true"
           className="absolute inset-0"
-          style={{ zIndex: 2, overflow: 'visible', pointerEvents: 'none', color: cfg.particleColor }}
+          style={{ zIndex: 2, overflow: 'visible', pointerEvents: 'none', color: particleColor }}
         >
           {cfg.particles.map((p, i) => (
             <svg
@@ -236,7 +247,7 @@ export function SaveButton({
         {/* 実ロゴ画像（リング＋肉球・内側透過）。未保存＝グラデ肉球／保存済み＝白抜き肉球に差し替え。
             paw=オレンジ→マゼンタ、sakura=ピンク→パープル。各バリアントの画像ペアを使う。 */}
         <Image
-          src={cfg.images[isSavedNow ? 'saved' : 'unsaved']}
+          src={isSavedNow ? savedImg : unsavedImg}
           alt=""
           aria-hidden="true"
           width={size}
