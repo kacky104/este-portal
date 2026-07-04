@@ -8,12 +8,16 @@ import type { Session } from '@supabase/supabase-js';
 
 export type SavedSalon = { id: number; name: string };
 export type SavedTherapist = { id: number; name: string; salonId: number };
+// フクエスワーク（求人サイト）専用の店舗保存。本体の salon 保存とは item_type / キー / イベントで完全分離。
+export type SavedJobSalon = { id: number; name: string };
 
 export const SAVED_SALONS_EVENT = 'saved-salons-changed';
 export const SAVED_THERAPISTS_EVENT = 'saved-therapists-changed';
+export const SAVED_JOB_SALONS_EVENT = 'saved-job-salons-changed';
 
 const SALON_KEY = 'saved_salons';
 const THERAPIST_KEY = 'saved_therapists';
+const JOB_SALON_KEY = 'saved_job_salons';
 
 // ── module state ──
 let session: Session | null = null;
@@ -21,6 +25,7 @@ let dbReady = false;
 // DBモードのキャッシュ（保存順=古い順で保持。/saved 側が reverse して新しい順に表示）。
 let dbSalonIds: number[] = [];
 let dbTherapistIds: number[] = [];
+let dbJobSalonIds: number[] = [];
 let initialized = false;
 
 const loggedIn = () => session != null;
@@ -31,6 +36,7 @@ function emit(event: string) {
 function emitAll() {
   emit(SAVED_SALONS_EVENT);
   emit(SAVED_THERAPISTS_EVENT);
+  emit(SAVED_JOB_SALONS_EVENT);
 }
 
 // ── localStorage helpers（未ログイン用・従来仕様） ──
@@ -67,6 +73,22 @@ function readLocalTherapists(): SavedTherapist[] {
 function writeLocalTherapists(list: SavedTherapist[]) {
   try { window.localStorage.setItem(THERAPIST_KEY, JSON.stringify(list)); } catch { /* 無視 */ }
 }
+// job_salon（ワーク店舗保存）用。salon と同形だが別キー（saved_job_salons）で本体と混ざらない。
+function readLocalJobSalons(): SavedJobSalon[] {
+  if (typeof window === 'undefined') return [];
+  try {
+    const raw = window.localStorage.getItem(JOB_SALON_KEY);
+    if (!raw) return [];
+    const p = JSON.parse(raw);
+    if (!Array.isArray(p)) return [];
+    return p.filter((x): x is SavedJobSalon => x != null && typeof x.id === 'number' && typeof x.name === 'string');
+  } catch {
+    return [];
+  }
+}
+function writeLocalJobSalons(list: SavedJobSalon[]) {
+  try { window.localStorage.setItem(JOB_SALON_KEY, JSON.stringify(list)); } catch { /* 無視 */ }
+}
 
 // ── 初期化（認証購読＋DBキャッシュ） ──
 export function initSaveStore() {
@@ -82,7 +104,7 @@ export function initSaveStore() {
       if (sess) {
         // 確認後オートログイン等で、端末に未マージの保存が残っていればマージしてから読み込む。
         // 通常のログイン済み再訪は localStorage が空のためマージは走らない（再マージ防止）。
-        const hasLocal = readLocalSalons().length > 0 || readLocalTherapists().length > 0;
+        const hasLocal = readLocalSalons().length > 0 || readLocalTherapists().length > 0 || readLocalJobSalons().length > 0;
         if (hasLocal) mergeLocalToDb(sess.user.id).then(loadDbCache);
         else loadDbCache();
       } else {
@@ -92,6 +114,7 @@ export function initSaveStore() {
       dbReady = false;
       dbSalonIds = [];
       dbTherapistIds = [];
+      dbJobSalonIds = [];
       emitAll(); // localStorage モードへ
     }
     // TOKEN_REFRESHED / USER_UPDATED 等は保存に影響なし
@@ -108,6 +131,7 @@ async function loadDbCache() {
   const rows = (data ?? []) as { item_type: string; item_id: number | string }[];
   dbSalonIds = rows.filter(r => r.item_type === 'salon').map(r => Number(r.item_id));
   dbTherapistIds = rows.filter(r => r.item_type === 'therapist').map(r => Number(r.item_id));
+  dbJobSalonIds = rows.filter(r => r.item_type === 'job_salon').map(r => Number(r.item_id));
   dbReady = true;
   emitAll();
 }
@@ -115,9 +139,11 @@ async function loadDbCache() {
 async function mergeLocalToDb(userId: string) {
   const ls = readLocalSalons();
   const lt = readLocalTherapists();
+  const lj = readLocalJobSalons();
   const rows = [
     ...ls.map(s => ({ user_id: userId, item_type: 'salon', item_id: s.id })),
     ...lt.map(t => ({ user_id: userId, item_type: 'therapist', item_id: t.id })),
+    ...lj.map(j => ({ user_id: userId, item_type: 'job_salon', item_id: j.id })),
   ];
   if (rows.length) {
     const supabase = createClient();
@@ -129,20 +155,23 @@ async function mergeLocalToDb(userId: string) {
   if (typeof window !== 'undefined') {
     window.localStorage.removeItem(SALON_KEY);
     window.localStorage.removeItem(THERAPIST_KEY);
+    window.localStorage.removeItem(JOB_SALON_KEY);
   }
 }
 
 // ── DB 書き込み（楽観的更新。失敗時はキャッシュを戻して再通知） ──
-async function writeDb(kind: 'salon' | 'therapist', id: number, add: boolean) {
+async function writeDb(kind: 'salon' | 'therapist' | 'job_salon', id: number, add: boolean) {
   if (!session) return;
   const supabase = createClient();
-  const event = kind === 'salon' ? SAVED_SALONS_EVENT : SAVED_THERAPISTS_EVENT;
+  const event =
+    kind === 'salon' ? SAVED_SALONS_EVENT
+    : kind === 'therapist' ? SAVED_THERAPISTS_EVENT
+    : SAVED_JOB_SALONS_EVENT;
   const revert = () => {
-    if (kind === 'salon') {
-      dbSalonIds = add ? dbSalonIds.filter(x => x !== id) : (dbSalonIds.includes(id) ? dbSalonIds : [...dbSalonIds, id]);
-    } else {
-      dbTherapistIds = add ? dbTherapistIds.filter(x => x !== id) : (dbTherapistIds.includes(id) ? dbTherapistIds : [...dbTherapistIds, id]);
-    }
+    const undo = (arr: number[]) => add ? arr.filter(x => x !== id) : (arr.includes(id) ? arr : [...arr, id]);
+    if (kind === 'salon') dbSalonIds = undo(dbSalonIds);
+    else if (kind === 'therapist') dbTherapistIds = undo(dbTherapistIds);
+    else dbJobSalonIds = undo(dbJobSalonIds);
     emit(event);
   };
   if (add) {
@@ -209,6 +238,53 @@ export function removeSalon(id: number): void {
   }
   writeLocalSalons(readLocalSalons().filter(s => s.id !== id));
   emit(SAVED_SALONS_EVENT);
+}
+
+// ── 公開API：job_salon（フクエスワーク店舗保存・本体 salon とは別 item_type） ──
+export function getSavedJobSalons(): SavedJobSalon[] {
+  initSaveStore();
+  if (loggedIn()) return dbReady ? dbJobSalonIds.map(id => ({ id, name: '' })) : [];
+  return readLocalJobSalons();
+}
+export function isJobSalonSaved(id: number): boolean {
+  initSaveStore();
+  if (loggedIn()) return dbReady && dbJobSalonIds.includes(id);
+  return readLocalJobSalons().some(s => s.id === id);
+}
+export function jobSalonCount(): number {
+  initSaveStore();
+  if (loggedIn()) return dbReady ? dbJobSalonIds.length : 0;
+  return readLocalJobSalons().length;
+}
+export function toggleJobSalon(item: SavedJobSalon): boolean {
+  initSaveStore();
+  if (loggedIn()) {
+    const has = dbJobSalonIds.includes(item.id);
+    dbJobSalonIds = has ? dbJobSalonIds.filter(x => x !== item.id) : [...dbJobSalonIds, item.id];
+    emit(SAVED_JOB_SALONS_EVENT);
+    void writeDb('job_salon', item.id, !has);
+    return !has;
+  }
+  const list = readLocalJobSalons();
+  const idx = list.findIndex(s => s.id === item.id);
+  let now: boolean;
+  if (idx >= 0) { list.splice(idx, 1); now = false; }
+  else { list.push({ id: item.id, name: item.name }); now = true; }
+  writeLocalJobSalons(list);
+  emit(SAVED_JOB_SALONS_EVENT);
+  return now;
+}
+export function removeJobSalon(id: number): void {
+  initSaveStore();
+  if (loggedIn()) {
+    if (!dbJobSalonIds.includes(id)) return;
+    dbJobSalonIds = dbJobSalonIds.filter(x => x !== id);
+    emit(SAVED_JOB_SALONS_EVENT);
+    void writeDb('job_salon', id, false);
+    return;
+  }
+  writeLocalJobSalons(readLocalJobSalons().filter(s => s.id !== id));
+  emit(SAVED_JOB_SALONS_EVENT);
 }
 
 // ── 公開API：セラピスト ──

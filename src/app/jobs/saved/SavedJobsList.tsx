@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { getSavedSalons, SAVED_SALONS_EVENT } from '@/lib/savedSalons';
+import { getSavedJobSalons, SAVED_JOB_SALONS_EVENT } from '@/lib/savedJobSalons';
 import { fetchActiveJobsBySalonIds, type JobListItem } from '@/app/lib/jobs';
 import { JobCard } from '../JobCard';
 import { SaveButton } from '@/app/components/SaveButton';
@@ -19,12 +19,12 @@ export function SavedJobsList() {
 
   // 保存サロンID群を購読（保存トグルで即時反映＝解除したお店の求人が消える）。
   useEffect(() => {
-    const sync = () => setSalonIds(getSavedSalons().map((s) => s.id));
+    const sync = () => setSalonIds(getSavedJobSalons().map((s) => s.id));
     sync();
-    window.addEventListener(SAVED_SALONS_EVENT, sync);
+    window.addEventListener(SAVED_JOB_SALONS_EVENT, sync);
     window.addEventListener('storage', sync);
     return () => {
-      window.removeEventListener(SAVED_SALONS_EVENT, sync);
+      window.removeEventListener(SAVED_JOB_SALONS_EVENT, sync);
       window.removeEventListener('storage', sync);
     };
   }, []);
@@ -97,7 +97,7 @@ export function SavedJobsList() {
               解除すると saveStore が更新→上の購読が発火→そのお店の求人がリストから消える。 */}
           <div className="absolute top-2.5 right-2.5 z-10">
             <SaveButton
-              kind="salon"
+              kind="job_salon"
               item={{ id: job.salon.id, name: job.salon.name }}
               variant="paw"
               size={28}

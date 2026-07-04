@@ -300,7 +300,7 @@ export default async function JobDetailPage({
         <div className="mt-4 rounded-2xl border border-emerald-100 bg-white p-5 shadow-sm flex items-center justify-center gap-3">
           <span className="text-sm text-slate-500">このサロン求人を保存する</span>
           <SaveButton
-            kind="salon"
+            kind="job_salon"
             item={{ id: job.salon.id, name: job.salon.name }}
             variant="paw"
             imageSrc="/logo-fukuwork.png"

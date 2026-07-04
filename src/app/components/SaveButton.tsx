@@ -8,6 +8,11 @@ import {
   toggleTherapist,
   SAVED_THERAPISTS_EVENT,
 } from '@/lib/savedTherapists';
+import {
+  isJobSalonSaved,
+  toggleJobSalon,
+  SAVED_JOB_SALONS_EVENT,
+} from '@/lib/savedJobSalons';
 
 // ── 演出スタイルをコンポーネントに同梱（どのページで使っても効くようにする） ──
 // globals.css 等のページ別CSSに依存せず、SaveButton が初めて使われた時点で <style> を head へ1度だけ注入する。
@@ -129,7 +134,7 @@ export function SaveButton({
   savedBg,
   shadow = false,
 }: {
-  kind: 'salon' | 'therapist';
+  kind: 'salon' | 'therapist' | 'job_salon';
   item: SaveItem;
   size?: number;
   variant?: 'paw' | 'sakura';
@@ -152,13 +157,18 @@ export function SaveButton({
   const [fxKey, setFxKey] = useState(0);
   const [fxOn, setFxOn] = useState(false); // 粒の表示中フラグ（740ms後に false にして必ず除去）
 
-  const eventName = kind === 'salon' ? SAVED_SALONS_EVENT : SAVED_THERAPISTS_EVENT;
+  const eventName =
+    kind === 'salon' ? SAVED_SALONS_EVENT
+    : kind === 'therapist' ? SAVED_THERAPISTS_EVENT
+    : SAVED_JOB_SALONS_EVENT;
 
   useEffect(() => {
     ensureFxStyles();
     setMounted(true);
     const check = () =>
-      kind === 'salon' ? isSalonSaved(item.id) : isTherapistSaved(item.id);
+      kind === 'salon' ? isSalonSaved(item.id)
+      : kind === 'therapist' ? isTherapistSaved(item.id)
+      : isJobSalonSaved(item.id);
     const sync = () => setSaved(check());
     sync();
     window.addEventListener(eventName, sync);
@@ -190,7 +200,9 @@ export function SaveButton({
     const next =
       kind === 'salon'
         ? toggleSalon({ id: item.id, name: item.name })
-        : toggleTherapist({ id: item.id, name: item.name, salonId: item.salonId ?? 0 });
+        : kind === 'therapist'
+        ? toggleTherapist({ id: item.id, name: item.name, salonId: item.salonId ?? 0 })
+        : toggleJobSalon({ id: item.id, name: item.name });
     setSaved(next);
     // 保存済みになった瞬間だけ演出（解除時は出さない）。連打追従のため毎回 +1。
     if (next) setFxKey(k => k + 1);

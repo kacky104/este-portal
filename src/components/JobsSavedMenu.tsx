@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
-import { getSavedCount, SAVED_SALONS_EVENT } from '@/lib/savedSalons';
+import { getJobSavedCount, SAVED_JOB_SALONS_EVENT } from '@/lib/savedJobSalons';
 
 // フクエスワーク専用ヘッダーの保存メニュー（本体 SavedSalonsMenu を参考にした簡易版）。
 // 緑肉球アイコン＋保存店舗数バッジ。クリックで /jobs/saved へ。
@@ -16,12 +16,12 @@ export function JobsSavedMenu() {
 
   useEffect(() => {
     setMounted(true);
-    const sync = () => setCount(getSavedCount());
+    const sync = () => setCount(getJobSavedCount());
     sync();
-    window.addEventListener(SAVED_SALONS_EVENT, sync);
+    window.addEventListener(SAVED_JOB_SALONS_EVENT, sync);
     window.addEventListener('storage', sync);
     return () => {
-      window.removeEventListener(SAVED_SALONS_EVENT, sync);
+      window.removeEventListener(SAVED_JOB_SALONS_EVENT, sync);
       window.removeEventListener('storage', sync);
     };
   }, []);
