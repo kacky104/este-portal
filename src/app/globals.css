@@ -328,3 +328,55 @@ body.paw-bg .min-h-screen.bg-slate-50 {
     animation: none;
   }
 }
+
+/* ── 求人詳細ヒーロー（JobHeroSlider＋1枚静止表示）の枠を、オレンジ→マゼンタの帯が時計回りに周回 ──
+   本体 .therapist-working-shimmer（回転 conic-gradient＋mask リング）の派生。
+   本体・/jobsトップ（.hero-shine-once）の定義は無改変で、専用に新設する。
+   ※「1回だけ」に変えたくなったら animation の infinite → 1、末尾に fill-mode(both 等) を足すだけ。
+   調整ノブ（実値）: 枠太さ=4px ／ 点灯弧=90°（周長の約1/4）／ 周回速度=5s/周（linear・無限）／
+                     グロー=drop-shadow(0 0 8px rgba(219,39,119,.7)) ／ z-index=5（画像より上・矢印/ドットより下）。 */
+@property --job-hero-ring-angle {
+  syntax: "<angle>";
+  inherits: false;
+  initial-value: 0deg;
+}
+.job-hero-ring {
+  position: relative;
+  --job-hero-ring-duration: 5s; /* 1周の時間。速度調整はこの値で。 */
+}
+.job-hero-ring::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 5;                 /* 画像より前面／矢印・ドット(z-10)より背面。pointer-events:none で操作は透過。 */
+  border-radius: inherit;     /* ラッパの rounded-2xl に追従 */
+  padding: 4px;               /* 光らせる枠の太さ（緑リングより太め・視認性優先） */
+  pointer-events: none;       /* 矢印・ドット・スワイプ操作を妨げない */
+  /* オレンジ(#FB923C)→マゼンタ(#DB2777) の点灯弧 約90°（周長の1/4）。残り(90〜360deg)は透明。 */
+  background-image: conic-gradient(
+    from var(--job-hero-ring-angle),
+    rgba(251, 146, 60, 0) 0deg,
+    rgba(251, 146, 60, 1) 25deg,   /* #FB923C */
+    rgba(219, 39, 119, 1) 65deg,   /* #DB2777 */
+    rgba(219, 39, 119, 0) 90deg,
+    transparent 90deg 360deg
+  );
+  /* mask リングで content-box（内側）を除外し、枠(border相当)だけを発光させる。 */
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+          mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+          mask-composite: exclude;
+  /* にじみ（外向きグロー・マゼンタ寄り）。芯のリングはシャープに保つ。
+     ※最外ラッパは overflow:hidden のため枠外へ広がるグローはクリップされ、内側寄りのグローが残る。 */
+  filter: drop-shadow(0 0 8px rgba(219, 39, 119, 0.7));
+  animation: job-hero-ring-spin var(--job-hero-ring-duration, 5s) linear infinite;
+}
+@keyframes job-hero-ring-spin {
+  to { --job-hero-ring-angle: 360deg; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .job-hero-ring::before {
+    display: none;
+    animation: none;
+  }
+}

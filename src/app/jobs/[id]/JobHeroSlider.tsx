@@ -29,7 +29,7 @@ export function JobHeroSlider({ images, title }: { images: string[]; title: stri
   };
 
   return (
-    <div className="relative rounded-2xl overflow-hidden shadow-md border border-emerald-100 mb-4">
+    <div className="job-hero-ring relative rounded-2xl overflow-hidden shadow-md border border-emerald-100 mb-4">
       {/* トラック（横スクロール＋スナップ） */}
       <div
         ref={trackRef}
