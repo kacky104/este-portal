@@ -238,6 +238,10 @@ export type JobDetail = {
   galleryImages: JobGalleryItem[];
   // 在籍セラピストの声（最大3件・任意）。各要素 { rating, ageGroup, comment }。0件ならセクション非表示。
   therapistVoices: TherapistVoice[];
+  // 応募用の公開連絡先（任意）。salon_jobs の新カラム。設定済みの手段だけ応募セクションに動的表示する。
+  // applyEmail は mailto:、applyLineUrl は外部リンク。notify_email（非公開の通知先）とは別物。
+  applyEmail: string | null;
+  applyLineUrl: string | null;
   salon: {
     id: number;
     name: string;
@@ -411,7 +415,7 @@ export async function fetchJobById(id: number): Promise<JobDetail | null> {
   const { data, error } = await supabase
     .from('salon_jobs')
     .select(
-      'id, title, salary_text, published_at, area, work_hours, benefits, qualifications, access, description, salary_min, salary_max, features, hero_image_urls, gallery_images, therapist_voices, salons!inner(id, name, area, address, phone, is_hidden)'
+      'id, title, salary_text, published_at, area, work_hours, benefits, qualifications, access, description, salary_min, salary_max, features, hero_image_urls, gallery_images, therapist_voices, apply_email, apply_line_url, salons!inner(id, name, area, address, phone, is_hidden)'
     )
     .eq('id', id)
     .eq('is_active', true)
@@ -446,6 +450,8 @@ export async function fetchJobById(id: number): Promise<JobDetail | null> {
     heroImageUrls: sanitizeHeroUrls(data.hero_image_urls),
     galleryImages: sanitizeGallery(data.gallery_images),
     therapistVoices: sanitizeVoices(data.therapist_voices),
+    applyEmail: (data.apply_email as string | null) ?? null,
+    applyLineUrl: (data.apply_line_url as string | null) ?? null,
     salon: {
       id: salon.id,
       name: salon.name ?? '',

@@ -33,6 +33,9 @@ export type JobFormState = {
   benefits: string;
   qualifications: string;
   notify_email: string;
+  // 応募用の公開連絡先（任意）。求人ページに表示する。notify_email（非公開の通知先）とは別物。
+  apply_email: string;
+  apply_line_url: string;
   features: string[];
   hero_image_urls: string[];
   gallery_images: JobGalleryItem[];
@@ -50,6 +53,8 @@ export const EMPTY_JOB_FORM: JobFormState = {
   benefits: '',
   qualifications: '',
   notify_email: '',
+  apply_email: '',
+  apply_line_url: '',
   features: [],
   hero_image_urls: [],
   gallery_images: [],
@@ -69,6 +74,8 @@ export function jobToForm(job: MyJob): JobFormState {
     benefits: job.benefits,
     qualifications: job.qualifications,
     notify_email: job.notify_email,
+    apply_email: job.apply_email ?? '',
+    apply_line_url: job.apply_line_url ?? '',
     features: [...job.features],
     hero_image_urls: [...job.hero_image_urls],
     gallery_images: job.gallery_images.map((g) => ({ ...g })),
@@ -297,6 +304,35 @@ export function JobFields({
         {value.notify_email.trim() !== '' && !isValidEmailFormat(value.notify_email) && (
           <p className="text-[10px] text-rose-500 mt-1">メールアドレスの形式が正しくありません。</p>
         )}
+      </div>
+
+      {/* 応募用の公開連絡先（任意）。求人ページの応募セクションに表示される。未入力の手段は非表示。
+          notify_email（非公開の応募通知先）とは別物であることを注記で明示する。 */}
+      <div>
+        <Label>応募用メールアドレス（任意・公開）</Label>
+        <input
+          type="email"
+          className={inputClass}
+          placeholder="recruit@example.com"
+          value={value.apply_email}
+          onChange={(e) => onChange({ apply_email: e.target.value })}
+        />
+        <p className="text-[10px] text-slate-400 mt-1">求人ページに公開されます。応募通知メールとは別の設定です。</p>
+        {value.apply_email.trim() !== '' && !isValidEmailFormat(value.apply_email) && (
+          <p className="text-[10px] text-rose-500 mt-1">メールアドレスの形式が正しくありません。</p>
+        )}
+      </div>
+
+      <div>
+        <Label>応募用LINE URL（任意・公開）</Label>
+        <input
+          type="url"
+          className={inputClass}
+          placeholder="https://lin.ee/xxxxx"
+          value={value.apply_line_url}
+          onChange={(e) => onChange({ apply_line_url: e.target.value })}
+        />
+        <p className="text-[10px] text-slate-400 mt-1">LINE公式アカウントや友だち追加のURL（https://〜）。</p>
       </div>
 
       {/* 求人バナー画像（16:9・最大3枚・任意）。先頭が一覧・SNSシェア・「注目の求人」バナーで使われる。 */}

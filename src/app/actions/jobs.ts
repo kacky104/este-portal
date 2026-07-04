@@ -48,7 +48,7 @@ import {
 // access はエリア行のフォールバック用に公開側 fetchJobById でのみ読む）。両カラムとも DB は温存し、
 // ここ（フォーム書き込み経路）では SELECT / UPDATE 対象に含めない＝既存値をそのまま保持する。
 const JOB_COLUMNS =
-  'id, salon_id, title, description, salary_text, salary_min, salary_max, area, work_hours, benefits, qualifications, notify_email, features, hero_image_urls, gallery_images, therapist_voices, is_active, published_at, updated_at';
+  'id, salon_id, title, description, salary_text, salary_min, salary_max, area, work_hours, benefits, qualifications, notify_email, apply_email, apply_line_url, features, hero_image_urls, gallery_images, therapist_voices, is_active, published_at, updated_at';
 
 export type JobFormInput = {
   title: string;
@@ -62,6 +62,10 @@ export type JobFormInput = {
   benefits: string;
   qualifications: string;
   notify_email: string;
+  // 応募用の公開連絡先（任意）。notify_email（非公開の応募通知先）とは別物で求人ページに表示する。
+  // optional：この機能デプロイ前の古いタブから送られない場合に既存値を温存するため（更新時 undefined ガードで使用）。
+  apply_email?: string;
+  apply_line_url?: string;
   features: string[];
   // 求人バナー画像URL（16:9・job-hero-images バケット・最大3枚・空配列可）。先頭がメイン画像。
   hero_image_urls: string[];
@@ -84,6 +88,8 @@ export type MyJob = {
   benefits: string;
   qualifications: string;
   notify_email: string;
+  apply_email: string | null;
+  apply_line_url: string | null;
   features: string[];
   hero_image_urls: string[];
   gallery_images: JobGalleryItem[];
@@ -112,6 +118,8 @@ function mapJob(row: Record<string, unknown>): MyJob {
     benefits: (row.benefits as string | null) ?? '',
     qualifications: (row.qualifications as string | null) ?? '',
     notify_email: (row.notify_email as string | null) ?? '',
+    apply_email: (row.apply_email as string | null) ?? null,
+    apply_line_url: (row.apply_line_url as string | null) ?? null,
     features: sanitizeFeatures(row.features),
     hero_image_urls: sanitizeHeroUrls(row.hero_image_urls),
     gallery_images: sanitizeGallery(row.gallery_images),
@@ -198,6 +206,8 @@ type CleanJob = {
   benefits: string | null;
   qualifications: string | null;
   notify_email: string | null;
+  apply_email: string | null;
+  apply_line_url: string | null;
   features: string[];
   hero_image_urls: string[];
   gallery_images: JobGalleryItem[];
@@ -235,6 +245,24 @@ function validate(input: JobFormInput): { ok: true; clean: CleanJob } | Err {
   }
   if (!isValidEmailFormat(notifyEmail)) {
     return { ok: false, error: '応募通知メールの形式が正しくありません' };
+  }
+
+  // 応募用メールアドレス（任意・公開）。空なら null。非空なら形式検証（notify_email と同じ isValidEmailFormat）。
+  // notify_email（非公開の通知先）とは別カラムで、求人ページに mailto: で公開表示する。
+  const applyEmail = trimOrNull(input.apply_email);
+  if (applyEmail && !isValidEmailFormat(applyEmail)) {
+    return { ok: false, error: '応募用メールアドレスの形式が正しくありません' };
+  }
+
+  // 応募用LINE URL（任意・公開）。空なら null。非空なら http/https のみ許可（fukux_url と同じ new URL()＋protocol 検証）。
+  const applyLineUrl = trimOrNull(input.apply_line_url);
+  if (applyLineUrl) {
+    try {
+      const u = new URL(applyLineUrl);
+      if (u.protocol !== 'http:' && u.protocol !== 'https:') throw new Error('bad protocol');
+    } catch {
+      return { ok: false, error: '応募用LINE URLの形式が正しくありません（https://〜）' };
+    }
   }
 
   // 特徴タグ：配列＋各slugホワイトリスト＋重複除去＋最大件数。不正slugは拒否（サイレント除外しない）。
@@ -315,6 +343,8 @@ function validate(input: JobFormInput): { ok: true; clean: CleanJob } | Err {
       benefits: trimClampOrNull(input.benefits, MAX_JOB_BENEFITS_LEN),
       qualifications: trimClampOrNull(input.qualifications, MAX_JOB_QUALIFICATIONS_LEN),
       notify_email: notifyEmail,
+      apply_email: applyEmail,
+      apply_line_url: applyLineUrl,
       features,
       // バナー画像URLは自前ストレージのアップロード結果（最大3枚・先頭がメイン）。空配列可。
       hero_image_urls: heroUrls,
@@ -386,6 +416,10 @@ export async function upsertMyJob(
     if (input.work_hours === undefined) delete updatePayload.work_hours;
     if (input.benefits === undefined) delete updatePayload.benefits;
     if (input.qualifications === undefined) delete updatePayload.qualifications;
+    // 応募用の公開連絡先も同ルール：未送信（機能デプロイ前の古いタブ等）は既存値を温存し、
+    // validate 既定の null による上書き＝データ消失を防ぐ。
+    if (input.apply_email === undefined) delete updatePayload.apply_email;
+    if (input.apply_line_url === undefined) delete updatePayload.apply_line_url;
     const { data, error } = await auth.supabase
       .from('salon_jobs')
       .update(updatePayload)

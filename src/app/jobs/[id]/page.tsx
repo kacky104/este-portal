@@ -302,6 +302,37 @@ export default async function JobDetailPage({
               お店に電話で応募する
             </a>
           )}
+          {/* メールで応募：apply_email（公開アドレス）へ mailto: 直リンク。未設定なら非描画。
+              配色は電話ボタンと同じワークブランドのアウトライン調で揃える。 */}
+          {job.applyEmail && (
+            <a
+              href={`mailto:${job.applyEmail}`}
+              className="flex items-center justify-center gap-2 w-full py-3.5 rounded-xl font-bold border transition-colors hover:bg-emerald-50"
+              style={{ borderColor: '#6EE7B7', color: '#059669' }}
+            >
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <rect x="2" y="4" width="20" height="16" rx="2" />
+                <path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7" />
+              </svg>
+              メールで応募する
+            </a>
+          )}
+          {/* LINEで応募：apply_line_url（外部URL）へ。友だち追加/公式アカウント想定。未設定なら非描画。
+              外部リンクのため target="_blank" rel="noopener noreferrer"。LINEブランドの緑（#06C755）＋白文字。 */}
+          {job.applyLineUrl && (
+            <a
+              href={job.applyLineUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center justify-center gap-2 w-full py-3.5 rounded-xl font-bold text-white shadow-sm hover:opacity-90 transition-opacity"
+              style={{ backgroundColor: '#06C755' }}
+            >
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z" />
+              </svg>
+              LINEで応募する
+            </a>
+          )}
           {/* 本体フクエスへ渡る導線（サイトを跨ぐことが分かる文言に） */}
           <Link
             href={`/salon/${job.salon.id}`}
