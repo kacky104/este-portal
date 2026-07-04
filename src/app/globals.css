@@ -279,3 +279,51 @@ body.paw-bg .min-h-screen.bg-slate-50 {
 
 /* 保存ボタンのクリック演出（pop / burst / flutter）は SaveButton.tsx に同梱（自己完結）。
    ページ別CSSに依存させないため globals.css には置かない。 */
+
+/* ── フクエスワーク ヒーロー画像：ページ表示時に1回だけ枠を光が走る（ループなし） ────────────
+   本体（.salon-name-banner / .imasugu-card-shine 等）と同じ mask リング方式の派生。
+   本体側の既存アニメーション定義には一切手を加えず、ワーク専用にこのクラスを新設する。
+   色は本体のピンク＋オレンジではなく、フクエスワークのブランド色 グリーン(#10B981)→ライム(#84CC16)。
+   純CSSで初回レンダー時に1回だけ再生（iteration-count: 1）。fill-mode: both で開始前・終了後は
+   帯が枠外＝発光なし（色残りしない）。prefers-reduced-motion では無効。 */
+.hero-shine-once {
+  position: relative;
+}
+.hero-shine-once::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;      /* ラッパの角丸（rounded-2xl）を継承して枠に沿わせる */
+  padding: 2px;                /* 光らせる枠の太さ（演出のみ・静止枠は無し） */
+  pointer-events: none;        /* クリック等を透過（ヒーロー操作に影響させない） */
+  background-image: linear-gradient(
+    120deg,
+    transparent 0 42%,
+    rgba(16, 185, 129, 0.95) 47%,   /* #10B981 emerald */
+    rgba(132, 204, 22, 0.95) 57%,    /* #84CC16 lime */
+    transparent 62% 100%
+  );
+  background-size: 300% 100%;
+  background-repeat: no-repeat;
+  background-position: 100% 0;
+  /* mask リングで content-box（内側）を除外し、枠(border相当)だけを光らせる。 */
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+          mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+          mask-composite: exclude;
+  /* にじみ（外向きグロー）。芯のリングはシャープに保つ。 */
+  filter: drop-shadow(0 0 6px rgba(16, 185, 129, 0.55));
+  /* 1.6s・0.4s 遅延で「表示直後に滑らかに1回」。both で開始前/終了後は帯が枠外＝非発光。 */
+  animation: hero-shine-sweep 1.6s ease-out 0.4s 1 both;
+}
+/* 開始(100%)・終了(0%)とも帯は要素外＝入って抜けて消えるを1セット。 */
+@keyframes hero-shine-sweep {
+  from { background-position: 100% 0; }
+  to   { background-position: 0% 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .hero-shine-once::after {
+    display: none;
+    animation: none;
+  }
+}
