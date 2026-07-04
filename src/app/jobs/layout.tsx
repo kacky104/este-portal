@@ -20,21 +20,14 @@ export const metadata: Metadata = {
     template: '%s｜フクエスワーク',
   },
   description: BRAND_DESCRIPTION,
-  // ファビコン分離：専用マーク画像が未作成のため実装だけ用意（画像追加後にコメント解除で有効化）。
-  // icons: {
-  //   icon: [
-  //     { url: '/favicon-fukuwork-32.png', sizes: '32x32', type: 'image/png' },
-  //     { url: '/favicon-fukuwork-16.png', sizes: '16x16', type: 'image/png' },
-  //     { url: '/fukuwork-mark.png', sizes: '200x200', type: 'image/png' },
-  //   ],
-  //   apple: [{ url: '/fukuwork-mark.png' }],
-  // },
+  // ファビコンは App Router のセグメント別アイコン規約（src/app/jobs/icon.png）で /jobs 配下だけ
+  // 自動適用される。root（フクエス本体）のファビコンは /jobs 外でそのまま維持。ここでは指定不要。
   openGraph: {
     title: BRAND_TITLE,
     description: BRAND_DESCRIPTION,
     url: `${SITE_URL}/jobs`,
     siteName: 'フクエスワーク',
-    // 専用OGP画像（1200×630）。画像はカッキーが後日作成予定。未作成の間は404になるだけで実害なし。
+    // 専用OGP画像（1200×630）。/x の ogp-fukux.png と同方式。
     images: [{ url: '/ogp-fukuwork.png', width: 1200, height: 630, alt: 'フクエスワーク' }],
     locale: 'ja_JP',
     type: 'website',

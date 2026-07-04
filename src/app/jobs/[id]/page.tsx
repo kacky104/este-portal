@@ -47,11 +47,28 @@ export async function generateMetadata({
   const description =
     truncatePlain(job.description, 90) ||
     `${job.salon.name}（${areaLabel(job.salon.area)}）のセラピスト求人。${job.salaryText}`;
+  // SNSシェア画像：バナー1枚目（hero_image_urls[0]・16:9）があればそれを使い、無ければ
+  // フクエスワーク共通OGP（/ogp-fukuwork.png）にフォールバック。
+  // ※Next の metadata は浅いマージのため、ここで openGraph/twitter を指定すると layout の
+  //   同キーを丸ごと上書きする。画像・card 等の必要項目はこのページ側で明示する。
+  const shareImage = job.heroImageUrls[0] || `${SITE_URL}/ogp-fukuwork.png`;
   return {
     title,
     description,
-    openGraph: { title, description },
-    twitter: { title, description },
+    openGraph: {
+      title,
+      description,
+      url: `${SITE_URL}/jobs/${job.id}`,
+      siteName: 'フクエスワーク',
+      type: 'article',
+      images: [{ url: shareImage }],
+    },
+    twitter: {
+      card: 'summary_large_image',
+      title,
+      description,
+      images: [shareImage],
+    },
   };
 }
 
