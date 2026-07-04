@@ -223,6 +223,7 @@ export function XPostDetail({ parent }: { parent: XPost }) {
       <XPostCard
         post={parent}
         showReplyLink={false}
+        clampBody={false}
         {...cardProps(parent)}
         reposted={eng.repostState(parent).reposted}
         repostCount={eng.repostState(parent).count}

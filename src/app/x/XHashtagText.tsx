@@ -1,5 +1,6 @@
 'use client';
 
+import { forwardRef } from 'react';
 import Link from 'next/link';
 
 // 本文中の #タグ をリンク化して表示する。タグ範囲＝# の直後から
@@ -14,31 +15,35 @@ function tagHref(tag: string): string {
   return `/x/search?q=${encodeURIComponent('#' + tag)}&tab=posts`;
 }
 
-export function XHashtagText({ text, className }: { text: string; className?: string }) {
-  const nodes: React.ReactNode[] = [];
-  let last = 0;
-  let i = 0;
-  let m: RegExpExecArray | null;
-  TAG_RE.lastIndex = 0;
-  while ((m = TAG_RE.exec(text)) !== null) {
-    const start = m.index;
-    const full = m[0]; // "#タグ名"
-    const tag = m[1]; // "タグ名"
-    if (start > last) nodes.push(text.slice(last, start));
-    nodes.push(
-      <Link
-        key={`h${i}`}
-        href={tagHref(tag)}
-        onClick={(e) => e.stopPropagation()}
-        className="font-medium text-indigo-600 hover:underline"
-      >
-        {full}
-      </Link>
-    );
-    last = start + full.length;
-    i++;
-  }
-  if (last < text.length) nodes.push(text.slice(last));
+// ref は本文の行数クランプ（PostBody）が scrollHeight/clientHeight を測るために <p> へ転送する。
+// 既存の呼び出し（ref 未指定）は従来どおり動作する。
+export const XHashtagText = forwardRef<HTMLParagraphElement, { text: string; className?: string }>(
+  function XHashtagText({ text, className }, ref) {
+    const nodes: React.ReactNode[] = [];
+    let last = 0;
+    let i = 0;
+    let m: RegExpExecArray | null;
+    TAG_RE.lastIndex = 0;
+    while ((m = TAG_RE.exec(text)) !== null) {
+      const start = m.index;
+      const full = m[0]; // "#タグ名"
+      const tag = m[1]; // "タグ名"
+      if (start > last) nodes.push(text.slice(last, start));
+      nodes.push(
+        <Link
+          key={`h${i}`}
+          href={tagHref(tag)}
+          onClick={(e) => e.stopPropagation()}
+          className="font-medium text-indigo-600 hover:underline"
+        >
+          {full}
+        </Link>
+      );
+      last = start + full.length;
+      i++;
+    }
+    if (last < text.length) nodes.push(text.slice(last));
 
-  return <p className={className}>{nodes}</p>;
-}
+    return <p ref={ref} className={className}>{nodes}</p>;
+  }
+);

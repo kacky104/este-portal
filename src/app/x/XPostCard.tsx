@@ -6,7 +6,7 @@ import { createClient } from '@/app/lib/supabase/client';
 import { XTimeAgo } from './XTimeAgo';
 import { VerifiedBadge } from './VerifiedBadge';
 import { XImageLightbox } from './XImageLightbox';
-import { XHashtagText } from './XHashtagText';
+import { PostBody } from './PostBody';
 import { XComposer } from './XComposer';
 import { RepostIcon } from './RepostIcon';
 import { useMe } from './XMeProvider';
@@ -99,6 +99,7 @@ export function XPostCard({
   onToggleRepost,
   repostLabel,
   showReplyLink = true,
+  clampBody = true,
 }: {
   post: XPost;
   liked: boolean;
@@ -124,6 +125,9 @@ export function XPostCard({
   // タイムライン/プロフィールでは true（タップで投稿詳細へ）。投稿詳細ページ内のカードでは false にして
   // リプライ件数を静的表示にする（リプライへの個別返信導線を作らず＝1階層フラットを維持）。
   showReplyLink?: boolean;
+  // 本文の行数クランプ（8行＋「続きを読む」）。一覧系は既定 true。投稿単体ページのメイン投稿だけ
+  // false を渡して全文表示にする（リプライ一覧のカードは既定 true のままクランプ）。
+  clampBody?: boolean;
 }) {
   const a = post.author;
   const { me } = useMe();
@@ -281,13 +285,9 @@ export function XPostCard({
         )}
       </div>
 
-      {/* 本文（#タグ はリンク化） */}
-      {view.body && (
-        <XHashtagText
-          text={view.body}
-          className="text-sm text-slate-800 leading-relaxed whitespace-pre-wrap break-words mt-2 ml-[50px]"
-        />
-      )}
+      {/* 本文（#タグ はリンク化・8行クランプ＋「続きを読む」は PostBody 側で処理）。
+          単体ページのメイン投稿だけ clampBody=false で全文表示。 */}
+      {view.body && <PostBody text={view.body} clamp={clampBody} />}
 
       {/* リンク（任意・http/https のみ）。ドメイン名を新タブで開く。カードの他タップと競合しないよう stopPropagation。 */}
       {safeHref(view.linkUrl) && (
