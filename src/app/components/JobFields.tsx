@@ -2,9 +2,10 @@
 
 import { useState } from 'react';
 import type { MyJob } from '@/app/actions/jobs';
-import { JOB_FEATURE_GROUPS, featureLabel, MAX_JOB_FEATURES, isValidEmailFormat, type JobGalleryItem } from '@/app/lib/jobs';
+import { JOB_FEATURE_GROUPS, featureLabel, MAX_JOB_FEATURES, isValidEmailFormat, type JobGalleryItem, type TherapistVoice } from '@/app/lib/jobs';
 import { JobHeroImageField } from '@/app/components/JobHeroImageField';
 import { JobGalleryField } from '@/app/components/JobGalleryField';
+import { JobVoicesField } from '@/app/components/JobVoicesField';
 
 // 求人フォームの共通フィールド（mypage求人タブ／admin求人管理で共用）。
 // 表示専用のコントロールド・コンポーネント。保存やバリデーションは呼び出し側（サーバーアクション）が担う。
@@ -23,6 +24,7 @@ export type JobFormState = {
   features: string[];
   hero_image_urls: string[];
   gallery_images: JobGalleryItem[];
+  therapist_voices: TherapistVoice[];
 };
 
 export const EMPTY_JOB_FORM: JobFormState = {
@@ -39,6 +41,7 @@ export const EMPTY_JOB_FORM: JobFormState = {
   features: [],
   hero_image_urls: [],
   gallery_images: [],
+  therapist_voices: [],
 };
 
 // MyJob（サーバー取得）→ フォーム状態（数値は文字列化・空欄化）。
@@ -57,6 +60,7 @@ export function jobToForm(job: MyJob): JobFormState {
     features: [...job.features],
     hero_image_urls: [...job.hero_image_urls],
     gallery_images: job.gallery_images.map((g) => ({ ...g })),
+    therapist_voices: job.therapist_voices.map((v) => ({ ...v })),
   };
 }
 
@@ -268,6 +272,12 @@ export function JobFields({
         salonId={salonId ?? null}
         value={value.gallery_images}
         onChange={(items) => onChange({ gallery_images: items })}
+      />
+
+      {/* 在籍セラピストの声（インタビュー形式・最大3件・任意）。求人詳細に掲載。 */}
+      <JobVoicesField
+        value={value.therapist_voices}
+        onChange={(voices) => onChange({ therapist_voices: voices })}
       />
 
       {/* 仕事内容（必須） */}

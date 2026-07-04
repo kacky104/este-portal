@@ -87,6 +87,56 @@ export function sanitizeGallery(raw: unknown): JobGalleryItem[] {
   return out;
 }
 
+// ── 在籍セラピストの声（salon_jobs.therapist_voices jsonb DEFAULT '[]'） ──
+// 各要素 { rating(1-5整数), ageGroup(固定選択肢), comment(200字まで) }。最大3件。
+// 店側がインタビュー形式で入力する自薦コメント。求職者の参考情報として求人詳細に表示する。
+// ※Googleの self-serving review 規約に抵触するため JSON-LD には一切載せない（表示のみ）。
+export const MAX_THERAPIST_VOICES = 3;
+export const MAX_VOICE_COMMENT_LEN = 200;
+// 年代の固定選択肢（select の唯一のソース。表記ゆれ・不正値の混入を防ぐホワイトリスト）。
+export const AGE_GROUPS = ['10代', '20代前半', '20代後半', '30代前半', '30代後半', '40代以上'] as const;
+export type AgeGroup = (typeof AGE_GROUPS)[number];
+
+export type TherapistVoice = { rating: number; ageGroup: string; comment: string };
+
+// ageGroup がホワイトリストに含まれるか（未選択の '' を弾く）。
+export function isValidAgeGroup(v: unknown): v is AgeGroup {
+  return typeof v === 'string' && (AGE_GROUPS as readonly string[]).includes(v);
+}
+
+// DBから読んだ therapist_voices を表示用に正規化（配列化・rating 1-5整数クランプ・ageGroup ホワイトリスト・
+// comment 200字クランプ・最大3件）。sanitizeGallery と同じ防御的方針。
+// ageGroup 不正 or comment 空 のエントリは除外（表示価値がないため）。サーバー validate と同一規則。
+export function sanitizeVoices(raw: unknown): TherapistVoice[] {
+  if (!Array.isArray(raw)) return [];
+  const out: TherapistVoice[] = [];
+  for (const it of raw) {
+    if (!it || typeof it !== 'object') continue;
+    const rec = it as Record<string, unknown>;
+    if (!isValidAgeGroup(rec.ageGroup)) continue; // 年代未選択/不正は除外
+    let rating = Math.round(Number(rec.rating));
+    if (!Number.isFinite(rating)) rating = 5;
+    rating = Math.min(5, Math.max(1, rating));
+    let comment = String(rec.comment ?? '').trim();
+    if (comment === '') continue; // 空コメントは除外
+    if (comment.length > MAX_VOICE_COMMENT_LEN) comment = comment.slice(0, MAX_VOICE_COMMENT_LEN);
+    out.push({ rating, ageGroup: rec.ageGroup, comment });
+    if (out.length >= MAX_THERAPIST_VOICES) break;
+  }
+  return out;
+}
+
+// 保存前のクライアント検証：年代未選択の声があれば保存不可（メッセージを返す・null なら OK）。
+// サーバー validate は不正 ageGroup を defensive に除外するが、UI では明示ブロックして気付けるようにする。
+export function firstVoiceError(voices: TherapistVoice[]): string | null {
+  for (let i = 0; i < voices.length; i++) {
+    if (!isValidAgeGroup(voices[i].ageGroup)) {
+      return `在籍セラピストの声 ${i + 1}件目：年代を選択してください`;
+    }
+  }
+  return null;
+}
+
 // 「特徴から探す」／フォームのカテゴリ表示用グルーピング（slug は JOB_FEATURES と一致）。
 export const JOB_FEATURE_GROUPS: { title: string; slugs: string[] }[] = [
   { title: '経験・年齢', slugs: ['mikeiken', 'keikensha', '20dai', '30dai', '40dai', '50dai'] },
@@ -170,6 +220,8 @@ export type JobDetail = {
   heroImageUrls: string[];
   // 「お店の雰囲気」ギャラリー（正方形・最大6枚・任意）。各要素 { url, caption }。0枚ならセクション非表示。
   galleryImages: JobGalleryItem[];
+  // 在籍セラピストの声（最大3件・任意）。各要素 { rating, ageGroup, comment }。0件ならセクション非表示。
+  therapistVoices: TherapistVoice[];
   salon: {
     id: number;
     name: string;
@@ -343,7 +395,7 @@ export async function fetchJobById(id: number): Promise<JobDetail | null> {
   const { data, error } = await supabase
     .from('salon_jobs')
     .select(
-      'id, title, salary_text, published_at, work_hours, requirements, benefits, access, description, salary_min, salary_max, features, hero_image_urls, gallery_images, salons!inner(id, name, area, address, phone, is_hidden)'
+      'id, title, salary_text, published_at, work_hours, requirements, benefits, access, description, salary_min, salary_max, features, hero_image_urls, gallery_images, therapist_voices, salons!inner(id, name, area, address, phone, is_hidden)'
     )
     .eq('id', id)
     .eq('is_active', true)
@@ -376,6 +428,7 @@ export async function fetchJobById(id: number): Promise<JobDetail | null> {
     features: sanitizeFeatures(data.features),
     heroImageUrls: sanitizeHeroUrls(data.hero_image_urls),
     galleryImages: sanitizeGallery(data.gallery_images),
+    therapistVoices: sanitizeVoices(data.therapist_voices),
     salon: {
       id: salon.id,
       name: salon.name ?? '',

@@ -14,7 +14,7 @@ import {
   jobToForm,
   type JobFormState,
 } from '@/app/components/JobFields';
-import { isValidEmailFormat } from '@/app/lib/jobs';
+import { isValidEmailFormat, firstVoiceError } from '@/app/lib/jobs';
 
 // /admin の求人管理セクション。全 salon_jobs を運営権限で一覧
 // （非表示サロン分も見える＝service_role 読み取り）。公開トグル・編集・未掲載サロンへの代理作成。
@@ -100,6 +100,12 @@ export default function AdminJobsManager({
     }
     if (!isValidEmailFormat(editor.form.notify_email)) {
       setFormError('応募通知メールの形式が正しくありません');
+      return;
+    }
+    // 在籍セラピストの声：年代未選択があれば保存不可。
+    const voiceErr = firstVoiceError(editor.form.therapist_voices);
+    if (voiceErr) {
+      setFormError(voiceErr);
       return;
     }
     setSaving(true);

@@ -14,11 +14,16 @@ import {
   MAX_JOB_GALLERY_IMAGES,
   MAX_GALLERY_CAPTION_LEN,
   type JobGalleryItem,
+  MAX_THERAPIST_VOICES,
+  MAX_VOICE_COMMENT_LEN,
+  isValidAgeGroup,
+  type TherapistVoice,
   isValidFeatureSlug,
   isValidEmailFormat,
   sanitizeFeatures,
   sanitizeHeroUrls,
   sanitizeGallery,
+  sanitizeVoices,
 } from '@/app/lib/jobs';
 
 // フクエスワーク（セラピスト求人）フェーズ2のサーバーアクション群。
@@ -35,7 +40,7 @@ import {
 //  - 公開側ISR（/jobs・/jobs/[id]・/salon/[id]・sitemap）は書き込み成功時に revalidatePath で即時更新。
 
 const JOB_COLUMNS =
-  'id, salon_id, title, description, salary_text, salary_min, salary_max, work_hours, requirements, benefits, access, notify_email, features, hero_image_urls, gallery_images, is_active, published_at, updated_at';
+  'id, salon_id, title, description, salary_text, salary_min, salary_max, work_hours, requirements, benefits, access, notify_email, features, hero_image_urls, gallery_images, therapist_voices, is_active, published_at, updated_at';
 
 export type JobFormInput = {
   title: string;
@@ -53,6 +58,8 @@ export type JobFormInput = {
   hero_image_urls: string[];
   // 「お店の雰囲気」ギャラリー（正方形・最大6枚・空配列可）。各要素 { url, caption }。
   gallery_images: JobGalleryItem[];
+  // 在籍セラピストの声（最大3件・空配列可）。各要素 { rating, ageGroup, comment }。
+  therapist_voices: TherapistVoice[];
 };
 
 export type MyJob = {
@@ -71,6 +78,7 @@ export type MyJob = {
   features: string[];
   hero_image_urls: string[];
   gallery_images: JobGalleryItem[];
+  therapist_voices: TherapistVoice[];
   is_active: boolean;
   published_at: string | null;
   updated_at: string | null;
@@ -98,6 +106,7 @@ function mapJob(row: Record<string, unknown>): MyJob {
     features: sanitizeFeatures(row.features),
     hero_image_urls: sanitizeHeroUrls(row.hero_image_urls),
     gallery_images: sanitizeGallery(row.gallery_images),
+    therapist_voices: sanitizeVoices(row.therapist_voices),
     is_active: Boolean(row.is_active),
     published_at: (row.published_at as string | null) ?? null,
     updated_at: (row.updated_at as string | null) ?? null,
@@ -175,6 +184,7 @@ type CleanJob = {
   features: string[];
   hero_image_urls: string[];
   gallery_images: JobGalleryItem[];
+  therapist_voices: TherapistVoice[];
 };
 
 function validate(input: JobFormInput): { ok: true; clean: CleanJob } | Err {
@@ -254,6 +264,26 @@ function validate(input: JobFormInput): { ok: true; clean: CleanJob } | Err {
     return { ok: false, error: `お店の雰囲気の画像は最大${MAX_JOB_GALLERY_IMAGES}枚までです` };
   }
 
+  // 在籍セラピストの声：各要素 {rating, ageGroup, comment}。防御的に整える（不正エントリは除外）。
+  //  - ageGroup が AGE_GROUPS 外（未選択の '' 含む）→ そのエントリを除外
+  //  - rating は整数1-5にクランプ（範囲外・非数はクランプ／既定5）
+  //  - comment は200字にクランプ（超過分を切り詰め）。空コメントは除外
+  //  - 先頭から最大3件で切り詰め（超過分はサイレント破棄）
+  const rawVoices = Array.isArray(input.therapist_voices) ? input.therapist_voices : [];
+  const voices: TherapistVoice[] = [];
+  for (const item of rawVoices) {
+    const rec = (item ?? {}) as Partial<TherapistVoice>;
+    if (!isValidAgeGroup(rec.ageGroup)) continue;
+    let rating = Math.round(Number(rec.rating));
+    if (!Number.isFinite(rating)) rating = 5;
+    rating = Math.min(5, Math.max(1, rating));
+    let comment = String(rec.comment ?? '').trim();
+    if (comment === '') continue;
+    if (comment.length > MAX_VOICE_COMMENT_LEN) comment = comment.slice(0, MAX_VOICE_COMMENT_LEN);
+    voices.push({ rating, ageGroup: rec.ageGroup, comment });
+    if (voices.length >= MAX_THERAPIST_VOICES) break;
+  }
+
   return {
     ok: true,
     clean: {
@@ -272,6 +302,8 @@ function validate(input: JobFormInput): { ok: true; clean: CleanJob } | Err {
       hero_image_urls: heroUrls,
       // 「お店の雰囲気」ギャラリー（最大6枚・各 {url, caption}）。空配列可。
       gallery_images: gallery,
+      // 在籍セラピストの声（最大3件・各 {rating, ageGroup, comment}）。空配列可。
+      therapist_voices: voices,
     },
   };
 }
@@ -329,6 +361,7 @@ export async function upsertMyJob(
     if (input.gallery_images === undefined) delete updatePayload.gallery_images;
     if (input.hero_image_urls === undefined) delete updatePayload.hero_image_urls;
     if (input.features === undefined) delete updatePayload.features;
+    if (input.therapist_voices === undefined) delete updatePayload.therapist_voices;
     const { data, error } = await auth.supabase
       .from('salon_jobs')
       .update(updatePayload)

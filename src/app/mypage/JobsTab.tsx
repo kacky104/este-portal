@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { getMyJob, upsertMyJob, toggleMyJobActive, deleteMyJob, type MyJob } from '@/app/actions/jobs';
-import { isValidEmailFormat } from '@/app/lib/jobs';
+import { isValidEmailFormat, firstVoiceError } from '@/app/lib/jobs';
 import { JobFields, EMPTY_JOB_FORM, jobToForm, type JobFormState } from '@/app/components/JobFields';
 import { JobApplications } from '@/app/mypage/JobApplications';
 
@@ -50,6 +50,12 @@ export function JobsTab({ salonId }: { salonId: number }) {
     }
     if (!isValidEmailFormat(form.notify_email)) {
       setMsg({ kind: 'err', text: '応募通知メールの形式が正しくありません' });
+      return;
+    }
+    // 在籍セラピストの声：年代未選択があれば保存不可（不完全な声のサイレント破棄を避け、明示的に気付かせる）。
+    const voiceErr = firstVoiceError(form.therapist_voices);
+    if (voiceErr) {
+      setMsg({ kind: 'err', text: voiceErr });
       return;
     }
     setSaving(true);

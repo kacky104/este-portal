@@ -7,6 +7,7 @@ import { fetchJobById, featureLabel, type JobDetail } from '@/app/lib/jobs';
 import { ApplyForm } from './ApplyForm';
 import { JobHeroSlider } from './JobHeroSlider';
 import { JobGallery } from './JobGallery';
+import { JobVoices } from './JobVoices';
 import { SaveButton } from '@/app/components/SaveButton';
 
 const SITE_URL = 'https://fukues.com';
@@ -263,6 +264,10 @@ export default async function JobDetailPage({
         {/* お店の雰囲気ギャラリー（正方形スライダー・キャプション付き）。0枚ならセクションごと非表示。
             応募導線より上に配置し、雰囲気を見てから応募に進める導線にする。 */}
         <JobGallery images={job.galleryImages} />
+
+        {/* 在籍セラピストの声（インタビュー形式・任意・最大3件）。雰囲気ギャラリーの下・応募導線の上。
+            0件ならセクションごと非表示。店側入力の自薦レビューのため JSON-LD には載せない。 */}
+        <JobVoices voices={job.therapistVoices} />
 
         {/* 応募導線：WEB応募（サイト内完結）を主導線に、電話応募も残す。 */}
         <div className="mt-6 space-y-3">
