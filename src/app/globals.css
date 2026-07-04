@@ -342,7 +342,7 @@ body.paw-bg .min-h-screen.bg-slate-50 {
 }
 .job-hero-ring {
   position: relative;
-  --job-hero-ring-duration: 5s; /* 1周の時間。速度調整はこの値で。 */
+  --job-hero-ring-duration: 2.5s; /* 1周の時間。速度調整はこの値で（落ち着かなければ 3s に）。 */
 }
 .job-hero-ring::before {
   content: "";
@@ -352,14 +352,20 @@ body.paw-bg .min-h-screen.bg-slate-50 {
   border-radius: inherit;     /* ラッパの rounded-2xl に追従 */
   padding: 4px;               /* 光らせる枠の太さ（緑リングより太め・視認性優先） */
   pointer-events: none;       /* 矢印・ドット・スワイプ操作を妨げない */
-  /* オレンジ(#FB923C)→マゼンタ(#DB2777) の点灯弧 約90°（周長の1/4）。残り(90〜360deg)は透明。 */
+  /* オレンジ(#FB923C)→マゼンタ(#DB2777) の点灯弧 約60°を 180度対称に2本配置（対角で周回）。
+     残り(60〜180deg / 240〜360deg)は透明。2本化に合わせ1本あたりは短め(約60°)でゴチャつき防止。 */
   background-image: conic-gradient(
     from var(--job-hero-ring-angle),
     rgba(251, 146, 60, 0) 0deg,
-    rgba(251, 146, 60, 1) 25deg,   /* #FB923C */
-    rgba(219, 39, 119, 1) 65deg,   /* #DB2777 */
-    rgba(219, 39, 119, 0) 90deg,
-    transparent 90deg 360deg
+    rgba(251, 146, 60, 1) 15deg,   /* #FB923C */
+    rgba(219, 39, 119, 1) 45deg,   /* #DB2777 */
+    rgba(219, 39, 119, 0) 60deg,
+    transparent 60deg 180deg,
+    rgba(251, 146, 60, 0) 180deg,
+    rgba(251, 146, 60, 1) 195deg,  /* #FB923C（2本目） */
+    rgba(219, 39, 119, 1) 225deg,  /* #DB2777（2本目） */
+    rgba(219, 39, 119, 0) 240deg,
+    transparent 240deg 360deg
   );
   /* mask リングで content-box（内側）を除外し、枠(border相当)だけを発光させる。 */
   -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
