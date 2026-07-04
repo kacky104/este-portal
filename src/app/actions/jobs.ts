@@ -30,15 +30,12 @@ import {
 //    触らず updated_at のみ更新（掲載日の水増し防止）。
 //  - 公開側ISR（/jobs・/jobs/[id]・/salon/[id]・sitemap）は書き込み成功時に revalidatePath で即時更新。
 
-const EMPLOYMENT_TYPES = ['CONTRACTOR', 'PART_TIME', 'FULL_TIME', 'OTHER'] as const;
-
 const JOB_COLUMNS =
   'id, salon_id, title, description, employment_type, salary_text, salary_min, salary_max, work_hours, requirements, benefits, access, notify_email, features, hero_image_urls, is_active, published_at, updated_at';
 
 export type JobFormInput = {
   title: string;
   description: string;
-  employment_type: string;
   salary_text: string;
   salary_min: string | number | null;
   salary_max: string | number | null;
@@ -161,7 +158,6 @@ function trimOrNull(v: string | null | undefined): string | null {
 type CleanJob = {
   title: string;
   description: string;
-  employment_type: string;
   salary_text: string;
   salary_min: number | null;
   salary_max: number | null;
@@ -178,14 +174,10 @@ function validate(input: JobFormInput): { ok: true; clean: CleanJob } | Err {
   const title = String(input.title ?? '').trim();
   const description = String(input.description ?? '').trim();
   const salary_text = String(input.salary_text ?? '').trim();
-  const employment_type = String(input.employment_type ?? '').trim();
 
   if (!title) return { ok: false, error: '求人タイトルを入力してください' };
   if (!description) return { ok: false, error: '仕事内容を入力してください' };
   if (!salary_text) return { ok: false, error: '給与（表示テキスト）を入力してください' };
-  if (!(EMPLOYMENT_TYPES as readonly string[]).includes(employment_type)) {
-    return { ok: false, error: '雇用形態の選択が不正です' };
-  }
 
   const min = parseSalary(input.salary_min);
   const max = parseSalary(input.salary_max);
@@ -238,7 +230,6 @@ function validate(input: JobFormInput): { ok: true; clean: CleanJob } | Err {
     clean: {
       title,
       description,
-      employment_type,
       salary_text,
       salary_min: min.value,
       salary_max: max.value,

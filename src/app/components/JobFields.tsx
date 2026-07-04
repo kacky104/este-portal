@@ -11,7 +11,6 @@ import { JobHeroImageField } from '@/app/components/JobHeroImageField';
 export type JobFormState = {
   title: string;
   description: string;
-  employment_type: string;
   salary_text: string;
   salary_min: string;
   salary_max: string;
@@ -24,7 +23,8 @@ export type JobFormState = {
   hero_image_urls: string[];
 };
 
-// 雇用形態の選択肢（DB値＝schema.org値。デフォルトは業務委託）。
+// 雇用形態の DB値 → 日本語ラベル対応（DB値＝schema.org値）。
+// フォームからは入力欄を撤去したが、DBカラムは温存しており admin 求人一覧の表示ラベルで参照する。
 export const EMPLOYMENT_OPTIONS: { value: string; label: string }[] = [
   { value: 'CONTRACTOR', label: '業務委託' },
   { value: 'PART_TIME', label: 'アルバイト' },
@@ -35,7 +35,6 @@ export const EMPLOYMENT_OPTIONS: { value: string; label: string }[] = [
 export const EMPTY_JOB_FORM: JobFormState = {
   title: '',
   description: '',
-  employment_type: 'CONTRACTOR',
   salary_text: '',
   salary_min: '',
   salary_max: '',
@@ -53,7 +52,6 @@ export function jobToForm(job: MyJob): JobFormState {
   return {
     title: job.title,
     description: job.description,
-    employment_type: job.employment_type || 'CONTRACTOR',
     salary_text: job.salary_text,
     salary_min: job.salary_min == null ? '' : String(job.salary_min),
     salary_max: job.salary_max == null ? '' : String(job.salary_max),
@@ -120,22 +118,6 @@ export function JobFields({
           value={value.title}
           onChange={(e) => onChange({ title: e.target.value })}
         />
-      </div>
-
-      {/* 雇用形態 */}
-      <div>
-        <Label>雇用形態</Label>
-        <select
-          className={inputClass}
-          value={value.employment_type}
-          onChange={(e) => onChange({ employment_type: e.target.value })}
-        >
-          {EMPLOYMENT_OPTIONS.map((o) => (
-            <option key={o.value} value={o.value}>
-              {o.label}
-            </option>
-          ))}
-        </select>
       </div>
 
       {/* 給与（表示テキスト・必須） */}

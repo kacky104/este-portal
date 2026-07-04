@@ -6,9 +6,9 @@ import { createPublicClient } from '@/app/lib/supabase/public';
 // クエリ側でも .eq('is_active', true) と salons!inner の is_hidden=false を明示する。
 
 // ── 雇用形態の表示ラベル ─────────────────────────────────
-// DBの enum 値 → 日本語ラベル。JobPosting 構造化データの employmentType は
-// schema.org が同名（CONTRACTOR / PART_TIME / FULL_TIME / OTHER）を許容するため
-// DB値をそのまま出力する。
+// DBの enum 値 → 日本語ラベル。求人フォーム・詳細ページ表示・JobPosting 構造化データ
+// からは撤去済みで、現在は一覧カード（JobCard）のバッジ表示でのみ使用する。
+// DBカラム（salon_jobs.employment_type）は温存。
 export const EMPLOYMENT_TYPE_LABELS: Record<string, string> = {
   CONTRACTOR: '業務委託',
   PART_TIME: 'アルバイト',
@@ -143,7 +143,6 @@ export type JobDetail = {
   id: number;
   title: string;
   salaryText: string;
-  employmentType: string;
   publishedAt: string | null;
   workHours: string | null;
   requirements: string | null;
@@ -309,7 +308,7 @@ export async function fetchJobById(id: number): Promise<JobDetail | null> {
   const { data, error } = await supabase
     .from('salon_jobs')
     .select(
-      'id, title, salary_text, employment_type, published_at, work_hours, requirements, benefits, access, description, salary_min, salary_max, features, hero_image_urls, salons!inner(id, name, area, address, phone, is_hidden)'
+      'id, title, salary_text, published_at, work_hours, requirements, benefits, access, description, salary_min, salary_max, features, hero_image_urls, salons!inner(id, name, area, address, phone, is_hidden)'
     )
     .eq('id', id)
     .eq('is_active', true)
@@ -331,7 +330,6 @@ export async function fetchJobById(id: number): Promise<JobDetail | null> {
     id: data.id as number,
     title: (data.title as string) ?? '',
     salaryText: (data.salary_text as string | null) ?? '',
-    employmentType: (data.employment_type as string | null) ?? 'OTHER',
     publishedAt: (data.published_at as string | null) ?? null,
     workHours: (data.work_hours as string | null) ?? null,
     requirements: (data.requirements as string | null) ?? null,

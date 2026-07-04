@@ -3,7 +3,7 @@ import Image from 'next/image';
 import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import { areaLabel } from '@/app/lib/areaLabel';
-import { fetchJobById, employmentTypeLabel, featureLabel, type JobDetail } from '@/app/lib/jobs';
+import { fetchJobById, featureLabel, type JobDetail } from '@/app/lib/jobs';
 import { ApplyForm } from './ApplyForm';
 import { JobHeroSlider } from './JobHeroSlider';
 
@@ -46,7 +46,7 @@ export async function generateMetadata({
   const title = `${job.title}｜${job.salon.name}のセラピスト求人`;
   const description =
     truncatePlain(job.description, 90) ||
-    `${job.salon.name}（${areaLabel(job.salon.area)}）のセラピスト求人。${employmentTypeLabel(job.employmentType)}／${job.salaryText}`;
+    `${job.salon.name}（${areaLabel(job.salon.area)}）のセラピスト求人。${job.salaryText}`;
   return {
     title,
     description,
@@ -64,7 +64,6 @@ function buildJobPostingJsonLd(job: JobDetail): Record<string, unknown> {
     title: job.title,
     // description は改行を <br> に変換（schema.org は description に HTML を許容）。
     description: (job.description ?? '').replace(/\n/g, '<br>'),
-    employmentType: job.employmentType,
     hiringOrganization: {
       '@type': 'Organization',
       name: job.salon.name,
@@ -177,14 +176,8 @@ export default async function JobDetailPage({
           <JobHeroSlider images={job.heroImageUrls} title={job.title} />
         )}
 
-        {/* ヘッダーカード：雇用形態・タイトル・店名 */}
+        {/* ヘッダーカード：タイトル・店名 */}
         <div className="rounded-2xl border border-emerald-100 bg-white p-5 shadow-sm">
-          <div className="flex items-center gap-2 mb-2.5">
-            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-bold text-white" style={{ background: 'linear-gradient(95deg,#10B981,#84CC16)' }}>
-              {employmentTypeLabel(job.employmentType)}
-            </span>
-          </div>
-
           <h1 className="text-xl sm:text-2xl font-extrabold text-slate-900 leading-snug break-words">{job.title}</h1>
 
           {/* 店名（本体フクエスのサロン詳細へリンク）＋エリア */}
