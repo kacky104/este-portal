@@ -5,21 +5,8 @@ import { createPublicClient } from '@/app/lib/supabase/public';
 // RLS（is_active かつ salons.is_hidden=false）で絞られるが、多重防御として
 // クエリ側でも .eq('is_active', true) と salons!inner の is_hidden=false を明示する。
 
-// ── 雇用形態の表示ラベル ─────────────────────────────────
-// DBの enum 値 → 日本語ラベル。求人フォーム・詳細ページ表示・JobPosting 構造化データ
-// からは撤去済みで、現在は一覧カード（JobCard）のバッジ表示でのみ使用する。
-// DBカラム（salon_jobs.employment_type）は温存。
-export const EMPLOYMENT_TYPE_LABELS: Record<string, string> = {
-  CONTRACTOR: '業務委託',
-  PART_TIME: 'アルバイト',
-  FULL_TIME: '正社員',
-  OTHER: 'その他',
-};
-
-export function employmentTypeLabel(value: string | null | undefined): string {
-  if (!value) return EMPLOYMENT_TYPE_LABELS.OTHER;
-  return EMPLOYMENT_TYPE_LABELS[value] ?? EMPLOYMENT_TYPE_LABELS.OTHER;
-}
+// 雇用形態（salon_jobs.employment_type）はDBカラムを温存しつつ、フォーム・一覧カード・
+// 詳細ページ表示・JobPosting 構造化データの全表示から撤去済み（表示ラベルの参照も無し）。
 
 // 応募ステータスの定義（new/contacted/closed）。
 // サーバーアクション（'use server'）は async 関数以外を export できないため、
@@ -121,7 +108,6 @@ export type JobListItem = {
   id: number;
   title: string;
   salaryText: string;
-  employmentType: string;
   publishedAt: string | null;
   features: string[];
   salon: JobSalon;
@@ -178,7 +164,7 @@ export async function fetchActiveJobs(): Promise<JobListItem[]> {
   const { data } = await supabase
     .from('salon_jobs')
     // hero_image_urls を1列だけ相乗り（/jobs トップのバナー枠を別クエリ無しで賄う）。
-    .select('id, title, salary_text, employment_type, published_at, features, hero_image_urls, salons!inner(id, name, area, is_hidden)')
+    .select('id, title, salary_text, published_at, features, hero_image_urls, salons!inner(id, name, area, is_hidden)')
     .eq('is_active', true)
     .eq('salons.is_hidden', false)
     .order('published_at', { ascending: false });
@@ -196,7 +182,6 @@ function mapJobListItem(row: Record<string, unknown>): JobListItem | null {
     id: row.id as number,
     title: (row.title as string) ?? '',
     salaryText: (row.salary_text as string | null) ?? '',
-    employmentType: (row.employment_type as string | null) ?? 'OTHER',
     publishedAt: (row.published_at as string | null) ?? null,
     features: sanitizeFeatures(row.features),
     salon: {
@@ -291,7 +276,7 @@ export async function fetchActiveJobsByFeature(slug: string): Promise<JobListIte
   const supabase = createPublicClient();
   const { data } = await supabase
     .from('salon_jobs')
-    .select('id, title, salary_text, employment_type, published_at, features, salons!inner(id, name, area, is_hidden)')
+    .select('id, title, salary_text, published_at, features, salons!inner(id, name, area, is_hidden)')
     .eq('is_active', true)
     .eq('salons.is_hidden', false)
     .contains('features', [slug])

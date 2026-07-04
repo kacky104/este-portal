@@ -12,7 +12,6 @@ import {
   JobFields,
   EMPTY_JOB_FORM,
   jobToForm,
-  EMPLOYMENT_OPTIONS,
   type JobFormState,
 } from '@/app/components/JobFields';
 import { isValidEmailFormat } from '@/app/lib/jobs';
@@ -22,10 +21,6 @@ import { isValidEmailFormat } from '@/app/lib/jobs';
 // 書き込みは mypage と同じサーバーアクション（upsertMyJob / toggleMyJobActive）を流用（RLS＋所有権チェック）。
 
 type SalonOption = { id: number; name: string; hasJob: boolean; isHidden: boolean };
-
-const EMPLOYMENT_LABEL: Record<string, string> = Object.fromEntries(
-  EMPLOYMENT_OPTIONS.map((o) => [o.value, o.label]),
-);
 
 function formatDate(iso: string | null): string {
   if (!iso) return '—';
@@ -145,7 +140,6 @@ export default function AdminJobsManager({
               <tr className="bg-emerald-50/50 border-b border-slate-100">
                 <th className="text-left px-4 py-3 text-[11px] font-bold text-slate-400">店名</th>
                 <th className="text-left px-4 py-3 text-[11px] font-bold text-slate-400">求人タイトル</th>
-                <th className="text-left px-4 py-3 text-[11px] font-bold text-slate-400">雇用形態</th>
                 <th className="text-left px-4 py-3 text-[11px] font-bold text-slate-400">公開状態</th>
                 <th className="text-left px-4 py-3 text-[11px] font-bold text-slate-400">掲載日</th>
                 <th className="px-4 py-3 w-40" />
@@ -172,7 +166,6 @@ export default function AdminJobsManager({
                       )}
                     </div>
                   </td>
-                  <td className="px-4 py-3 text-[11px] text-slate-500">{EMPLOYMENT_LABEL[row.employment_type] ?? row.employment_type}</td>
                   <td className="px-4 py-3">
                     {row.is_active ? (
                       <span className="text-[10px] px-2 py-0.5 rounded-full font-bold" style={{ background: 'rgba(16,185,129,0.12)', color: '#059669' }}>

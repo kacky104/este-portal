@@ -31,7 +31,7 @@ import {
 //  - 公開側ISR（/jobs・/jobs/[id]・/salon/[id]・sitemap）は書き込み成功時に revalidatePath で即時更新。
 
 const JOB_COLUMNS =
-  'id, salon_id, title, description, employment_type, salary_text, salary_min, salary_max, work_hours, requirements, benefits, access, notify_email, features, hero_image_urls, is_active, published_at, updated_at';
+  'id, salon_id, title, description, salary_text, salary_min, salary_max, work_hours, requirements, benefits, access, notify_email, features, hero_image_urls, is_active, published_at, updated_at';
 
 export type JobFormInput = {
   title: string;
@@ -54,7 +54,6 @@ export type MyJob = {
   salon_id: number;
   title: string;
   description: string;
-  employment_type: string;
   salary_text: string;
   salary_min: number | null;
   salary_max: number | null;
@@ -81,7 +80,6 @@ function mapJob(row: Record<string, unknown>): MyJob {
     salon_id: Number(row.salon_id),
     title: (row.title as string | null) ?? '',
     description: (row.description as string | null) ?? '',
-    employment_type: (row.employment_type as string | null) ?? 'OTHER',
     salary_text: (row.salary_text as string | null) ?? '',
     salary_min: row.salary_min == null ? null : Number(row.salary_min),
     salary_max: row.salary_max == null ? null : Number(row.salary_max),

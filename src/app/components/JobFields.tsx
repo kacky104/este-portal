@@ -23,15 +23,6 @@ export type JobFormState = {
   hero_image_urls: string[];
 };
 
-// 雇用形態の DB値 → 日本語ラベル対応（DB値＝schema.org値）。
-// フォームからは入力欄を撤去したが、DBカラムは温存しており admin 求人一覧の表示ラベルで参照する。
-export const EMPLOYMENT_OPTIONS: { value: string; label: string }[] = [
-  { value: 'CONTRACTOR', label: '業務委託' },
-  { value: 'PART_TIME', label: 'アルバイト' },
-  { value: 'FULL_TIME', label: '正社員' },
-  { value: 'OTHER', label: 'その他' },
-];
-
 export const EMPTY_JOB_FORM: JobFormState = {
   title: '',
   description: '',

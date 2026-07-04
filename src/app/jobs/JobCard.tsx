@@ -1,6 +1,6 @@
 import Link from 'next/link';
 import { areaLabel } from '@/app/lib/areaLabel';
-import { employmentTypeLabel, featureLabel, type JobListItem } from '@/app/lib/jobs';
+import { featureLabel, type JobListItem } from '@/app/lib/jobs';
 
 // 求人一覧カード（/jobs と /jobs/tag/[slug] で共用）。サーバーコンポーネント。
 // カード肥大化を防ぐため特徴タグは最大3個＋「+n」。
@@ -15,13 +15,6 @@ export function JobCard({ job }: { job: JobListItem }) {
       href={`/jobs/${job.id}`}
       className="block rounded-2xl border border-emerald-100 bg-white p-4 shadow-sm hover:border-emerald-300 hover:shadow-md transition-all"
     >
-      {/* 雇用形態バッジ */}
-      <div className="flex items-center gap-2 mb-2">
-        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-bold text-white" style={{ background: 'linear-gradient(95deg,#10B981,#84CC16)' }}>
-          {employmentTypeLabel(job.employmentType)}
-        </span>
-      </div>
-
       {/* 求人タイトル */}
       <h2 className="font-bold text-slate-900 leading-snug break-words">{job.title}</h2>
 
