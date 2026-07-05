@@ -11,14 +11,16 @@ import { areaLabel } from '@/app/lib/areaLabel';
 //
 // 画像パスは `{slug}/{timestamp}.{ext}` でユニーク化（固定名+upsert だと差し替えても public URL 不変で
 // CDN/ブラウザが旧画像をキャッシュし続けるバグの再発防止＝featured 画像で根治済みの方式を踏襲。upsert は使わない）。
-// 保存成功後 revalidateFeaturedJobs() で /jobs＋5エリアの6パスを再検証（既存 server action をそのまま利用）。
+// 保存成功後 revalidateFeaturedJobs() で /jobs＋5エリア＋出張専門(/jobs/dispatch)の7パスを再検証（既存 server action をそのまま利用）。
 const BUCKET = 'area-banners';
 
-// 通常5エリア（出張除外）。slug=Storageパス/命名用、area=DB値（area_hero_banners.area のキー・例 '博多・住吉'）。
-const AREA_ROWS = AREA_SLUGS_LIST.filter((s) => s !== 'dispatch').map((slug) => ({
-  slug,
-  area: areaFromSlug(slug) as string,
-}));
+// 通常5エリア＋出張専門（計6行）。slug=Storageパス/命名用、area=DB値（area_hero_banners.area のキー・例 '博多・住吉'）。
+// 出張は slug='dispatch' / area='出張'（Storageパスは既存規約どおり dispatch/{timestamp}.{ext} になる）。
+// label は行の表示名。出張は areaLabel('出張')='出張' ではなく「出張専門」を固定文字列で特別扱いし /jobs/dispatch と揃える。
+const AREA_ROWS = AREA_SLUGS_LIST.map((slug) => {
+  const area = areaFromSlug(slug) as string;
+  return { slug, area, label: slug === 'dispatch' ? '出張専門' : areaLabel(area) };
+});
 
 type BannerRow = { spUrl: string | null; pcUrl: string | null };
 
@@ -171,14 +173,14 @@ export default function AreaBannerManager({ onToast }: { onToast: (msg: string) 
         </div>
       ) : (
         <div className="space-y-2">
-          {AREA_ROWS.map(({ area, slug }) => {
+          {AREA_ROWS.map(({ area, slug, label }) => {
             const row = rows[area];
             return (
               <div key={slug} className="bg-emerald-50/40 rounded-2xl px-4 py-3 border border-emerald-100/70">
                 {/* 1エリア=1行。エリア名＋SP(縦長)＋PC(横長)を横並び。高さ h-40 に揃え、比率は aspect で維持。
                     admin はPC利用前提のため md未満は折り返し許容（崩れなければ十分）。 */}
                 <div className="flex flex-wrap items-start gap-4">
-                  <p className="text-xs font-bold text-slate-800 w-24 flex-shrink-0 pt-4">{areaLabel(area)}</p>
+                  <p className="text-xs font-bold text-slate-800 w-24 flex-shrink-0 pt-4">{label}</p>
                   {(['sp', 'pc'] as const).map((kind) => {
                     const url = kind === 'sp' ? row?.spUrl ?? null : row?.pcUrl ?? null;
                     // 高さ固定 h-40（160px）＋aspectで幅が決まる：SP=5/6(約133px)／PC=3/1(約480px)。
@@ -193,7 +195,7 @@ export default function AreaBannerManager({ onToast }: { onToast: (msg: string) 
                             {/* eslint-disable-next-line @next/next/no-img-element */}
                             <img
                               src={url}
-                              alt={`${areaLabel(area)} ${kind} バナー`}
+                              alt={`${label} ${kind} バナー`}
                               className={`h-40 ${aspect} object-contain rounded-lg border border-emerald-100 bg-slate-50`}
                             />
                             <div className="flex gap-2 mt-0.5">

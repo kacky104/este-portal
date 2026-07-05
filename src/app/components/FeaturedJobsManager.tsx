@@ -8,12 +8,14 @@ import { areaLabel } from '@/app/lib/areaLabel';
 
 // 設定対象セットの切替タブ。key=null はトップ共通（featured_jobs.area IS NULL）、
 // それ以外は AREA_ORDER キー（DB値・例 '博多・住吉'）＝そのエリア専用（area = key の行）。
-// 出張(DISPATCH_AREA)と全域センチネル(ALL_AREA)は求人エリアページ非対応のため除外。表示名は areaLabel 経由。
+// 全域センチネル(ALL_AREA)のみ求人エリアページ非対応のため除外。通常5エリア＋出張専門(DISPATCH_AREA)を含む。
+// 表示名は areaLabel 経由だが、出張は areaLabel('出張')='出張' となるため「出張専門」を固定文字列で特別扱いする
+//（/jobs/dispatch の表示名と揃える）。tab.key='出張' が featured_jobs.area='出張' としてそのまま流れる。
 const AREA_TABS: { key: string | null; label: string }[] = [
   { key: null, label: 'トップ(共通)' },
-  ...AREA_ORDER.filter((a) => a !== ALL_AREA && a !== DISPATCH_AREA).map((a) => ({
+  ...AREA_ORDER.filter((a) => a !== ALL_AREA).map((a) => ({
     key: a as string,
-    label: areaLabel(a),
+    label: a === DISPATCH_AREA ? '出張専門' : areaLabel(a),
   })),
 ];
 
@@ -287,7 +289,9 @@ export default function FeaturedJobsManager({ onToast }: { onToast: (msg: string
       <p className="text-[11px] text-slate-400 mb-4">
         {selectedArea === null
           ? 'フクエスワークのトップ（/jobs）に表示されるおすすめ求人スライダーです。並び順は下の↑↓で調整できます。'
-          : `「${areaLabel(selectedArea)}」のエリアページ（/jobs/area）に表示されるおすすめ求人です。並び順は下の↑↓で調整できます。`}
+          : selectedArea === DISPATCH_AREA
+            ? '出張専門ページ（/jobs/dispatch）に表示されるおすすめ求人です。並び順は下の↑↓で調整できます。'
+            : `「${areaLabel(selectedArea)}」のエリアページ（/jobs/area）に表示されるおすすめ求人です。並び順は下の↑↓で調整できます。`}
       </p>
 
       {/* hidden file input */}
