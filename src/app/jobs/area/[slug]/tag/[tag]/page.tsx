@@ -8,10 +8,13 @@ import {
   fetchActiveJobsByAreaAndFeature,
 } from '@/app/lib/jobs';
 import { shuffleJobs } from '@/app/lib/shuffleJobs';
+import { deriveHeroBanners } from '@/app/lib/heroBanners';
 import { fetchAreaHeroBanner } from '@/app/lib/areaBanners';
 import { areaFromSlug, AREA_SLUGS_LIST, DISPATCH_AREA } from '@/app/lib/areas';
 import { areaLabel } from '@/app/lib/areaLabel';
 import { JobCard } from '../../../../JobCard';
+import { JobHeroBanners } from '../../../../JobHeroBanners';
+import { JobListHeading } from '../../../../JobListHeading';
 import { AreaHeroBanner } from '../../../AreaHeroBanner';
 import { FeatureBrowse } from '../../../../FeatureBrowse';
 import { AreaBrowse } from '../../../../AreaBrowse';
@@ -78,6 +81,8 @@ export default async function JobAreaTagPage({
 
   // メイン求人一覧を30分バケットでシード付きシャッフル（このページはおすすめ枠なし）。
   const shuffledJobs = shuffleJobs(jobs);
+  // このエリア×タグの求人からバナーカードを派生（画像あり・先頭最大10件・30分バケットでシャッフル）。
+  const heroBanners = deriveHeroBanners(jobs);
 
   return (
     <main className="max-w-3xl mx-auto px-4 py-8">
@@ -96,25 +101,14 @@ export default async function JobAreaTagPage({
         </span>
       </nav>
 
-      {/* 見出し */}
-      <div className="mb-6">
-        <h1
-          className="text-2xl sm:text-3xl font-extrabold inline-block"
-          style={{
-            background: 'linear-gradient(95deg,#10B981,#84CC16)',
-            WebkitBackgroundClip: 'text',
-            backgroundClip: 'text',
-            WebkitTextFillColor: 'transparent',
-            color: 'transparent',
-          }}
-        >
-          {areaLbl}×{tagLbl}のセラピスト求人
-        </h1>
-        <p className="text-sm text-slate-500 mt-1.5">福岡のメンズエステ・{areaLbl}／{tagLbl}の求人</p>
-      </div>
-
       {/* エリア専用ヒーローバナー（area_hero_banners・エリア単位）。エリア単独ページと同位置・同props。 */}
       <AreaHeroBanner banner={heroBanner} areaLabel={areaLbl} />
+
+      {/* バナーカードブロック（キーワード見出し h1・一覧の直上）。バナー0件なら非表示。 */}
+      <JobHeroBanners banners={heroBanners} title={`${areaLbl}×${tagLbl}のセラピスト求人`} />
+
+      {/* 一覧見出し「セラピスト求人」。バナーがあれば h2、無ければ h1（h1消失防止）。 */}
+      <JobListHeading subtitle={`福岡のメンズエステ・${areaLbl}／${tagLbl}の求人`} asH1={heroBanners.length === 0} />
 
       {jobs.length === 0 ? (
         <div className="rounded-2xl border border-emerald-100 bg-white p-10 text-center shadow-sm">

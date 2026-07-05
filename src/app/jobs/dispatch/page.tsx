@@ -9,6 +9,9 @@ import { PickupSlider } from '../PickupSlider';
 import { AreaBrowse } from '../AreaBrowse';
 import { FeatureBrowse } from '../FeatureBrowse';
 import { AreaHeroBanner } from '../area/AreaHeroBanner';
+import { JobHeroBanners } from '../JobHeroBanners';
+import { JobListHeading } from '../JobListHeading';
+import { deriveHeroBanners } from '@/app/lib/heroBanners';
 
 // ISR：10分ごとに再生成（エリア単独ページと同じ流儀）。
 export const revalidate = 600;
@@ -40,6 +43,8 @@ export default async function JobDispatchPage() {
 
   // メイン求人一覧のみ30分バケットでシード付きシャッフル（おすすめ pickupJobs は対象外）。
   const shuffledJobs = shuffleJobs(jobs);
+  // 出張専門の求人からバナーカードを派生（画像あり・先頭最大10件・30分バケットでシャッフル）。
+  const heroBanners = deriveHeroBanners(jobs);
 
   return (
     <main className="max-w-3xl mx-auto px-4 py-8">
@@ -58,29 +63,18 @@ export default async function JobDispatchPage() {
         </span>
       </nav>
 
-      {/* 見出し */}
-      <div className="mb-6">
-        <h1
-          className="text-2xl sm:text-3xl font-extrabold inline-block"
-          style={{
-            background: 'linear-gradient(95deg,#10B981,#84CC16)',
-            WebkitBackgroundClip: 'text',
-            backgroundClip: 'text',
-            WebkitTextFillColor: 'transparent',
-            color: 'transparent',
-          }}
-        >
-          出張専門のセラピスト求人
-        </h1>
-        <p className="text-sm text-slate-500 mt-1.5">福岡のメンズエステ・出張専門の求人</p>
-      </div>
-
-      {/* 出張専門ヒーローバナー（area_hero_banners の area='出張' 行・行があるときのみ表示）。見出し直下・スライダー上。 */}
+      {/* 出張専門ヒーローバナー（area_hero_banners の area='出張' 行・行があるときのみ表示）。パンくず直下・スライダー上。 */}
       <AreaHeroBanner banner={heroBanner} areaLabel="出張専門" />
 
       {/* 出張専門のおすすめ求人（featured_jobs.area='出張'）。0件時はセクションごと非表示。
           見出しは「出張専門のおすすめ求人」。トップの並びと同順で一覧の上に置く。 */}
       <PickupSlider jobs={pickupJobs} title="出張専門のおすすめ求人" />
+
+      {/* バナーカードブロック（キーワード見出し h1・一覧の直上）。バナー0件なら非表示。 */}
+      <JobHeroBanners banners={heroBanners} title="出張専門のセラピスト求人" />
+
+      {/* 一覧見出し「セラピスト求人」。バナーがあれば h2、無ければ h1（h1消失防止）。 */}
+      <JobListHeading subtitle="福岡のメンズエステ・出張専門の求人" asH1={heroBanners.length === 0} />
 
       {jobs.length === 0 ? (
         <div className="rounded-2xl border border-emerald-100 bg-white p-10 text-center shadow-sm">

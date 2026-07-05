@@ -9,10 +9,8 @@ import { FeatureBrowse } from './FeatureBrowse';
 import { AreaBrowse } from './AreaBrowse';
 import { PickupSlider } from './PickupSlider';
 import { JobHeroBanners } from './JobHeroBanners';
-
-// 「注目の求人」バナーの初期表示上限。件数が増えた場合はここを調整、または将来的に
-// 「もっと見る」/ページングを追加する拡張ポイント。
-const HERO_BANNER_LIMIT = 10;
+import { JobListHeading } from './JobListHeading';
+import { deriveHeroBanners } from '@/app/lib/heroBanners';
 
 // ISR：10分ごとに再生成（SEO目的。求人は頻繁に変わらないためキャッシュで十分）。
 export const revalidate = 600;
@@ -31,14 +29,10 @@ export const metadata: Metadata = {
 export default async function JobsPage() {
   const [jobs, pickupJobs] = await Promise.all([fetchActiveJobs(), getFeaturedJobs()]);
 
-  // 「注目の求人」バナー：既存の jobs（published_at 降順）からバナー画像1枚以上ありを抽出（別クエリ無し）。
-  // 表示は先頭[0]のメイン画像のみ（表示仕様は不変。複数枚は詳細ページのスライダーで見せる）。
-  const heroBanners = jobs
-    .filter((j) => j.heroImageUrls.length > 0)
-    .slice(0, HERO_BANNER_LIMIT)
-    .map((j) => ({ id: j.id, title: j.title, heroImageUrl: j.heroImageUrls[0], salonName: j.salon.name }));
+  // バナーカード：jobs（このページの条件＝全公開求人）からバナー画像ありを抽出し30分バケットでシャッフル（別クエリ無し）。
+  const heroBanners = deriveHeroBanners(jobs);
 
-  // メイン求人一覧のみ30分バケットでシード付きシャッフル（おすすめ pickupJobs・注目バナー heroBanners は対象外）。
+  // メイン求人一覧のみ30分バケットでシード付きシャッフル（おすすめ pickupJobs・バナー heroBanners は別扱い）。
   const shuffledJobs = shuffleJobs(jobs);
 
   return (
@@ -92,22 +86,8 @@ export default async function JobsPage() {
         </span>
       </nav>
 
-      {/* 見出し（ブランドグラデ グリーン→ライム） */}
-      <div className="mb-6">
-        <h1
-          className="text-2xl sm:text-3xl font-extrabold inline-block"
-          style={{
-            background: 'linear-gradient(95deg,#10B981,#84CC16)',
-            WebkitBackgroundClip: 'text',
-            backgroundClip: 'text',
-            WebkitTextFillColor: 'transparent',
-            color: 'transparent',
-          }}
-        >
-          セラピスト求人
-        </h1>
-        <p className="text-sm text-slate-500 mt-1.5">福岡のメンズエステで働くセラピスト求人</p>
-      </div>
+      {/* 一覧見出し「セラピスト求人」。バナーがあれば h2、無ければ h1（h1消失防止）。 */}
+      <JobListHeading subtitle="福岡のメンズエステで働くセラピスト求人" asH1={heroBanners.length === 0} />
 
       {jobs.length === 0 ? (
         <div className="rounded-2xl border border-emerald-100 bg-white p-10 text-center text-slate-500 text-sm shadow-sm">

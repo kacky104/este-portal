@@ -1,18 +1,15 @@
 import Link from 'next/link';
 import Image from 'next/image';
+import type { HeroBanner } from '@/app/lib/heroBanners';
 
-// /jobs トップの「注目の求人」バナーセクション。サーバーコンポーネント。
+// 求人一覧ページのバナーカードセクション（全求人ページ共通）。サーバーコンポーネント。
 // オーナーが設定した求人バナー画像（16:9・文言焼き込み済み）を縦積みで表示し、
 // バナー全体を /jobs/[id] へのリンクにする。画像の上にテキストは重ねない
 // （バナーに文言が焼き込まれている前提。サロン名・求人名は画像下に控えめに添える）。
 // 既存の求人一覧（JobCard）とは別枠で、置き換えではなく追加。0件時はセクションごと非表示。
+// 見出し（title）はページ条件のキーワード（例「福岡のセラピスト求人」）で、各ページの h1 を担う。
 
-export type HeroBanner = {
-  id: number;
-  title: string;
-  heroImageUrl: string;
-  salonName: string;
-};
+export type { HeroBanner };
 
 // title は見出し文言（既定「注目の求人」）。呼び出し元で差し替え可能にし、指定なしのページは従来どおり。
 export function JobHeroBanners({ banners, title = '注目の求人' }: { banners: HeroBanner[]; title?: string }) {
@@ -23,7 +20,7 @@ export function JobHeroBanners({ banners, title = '注目の求人' }: { banners
       {/* 見出し（フクエスワークのブランドグラデ グリーン→ライム） */}
       <div className="flex items-center gap-2.5 mb-3">
         <span className="w-1 h-5 rounded-full" style={{ background: 'linear-gradient(to bottom,#10B981,#84CC16)' }} />
-        <h2
+        <h1
           className="text-lg font-extrabold inline-block"
           style={{
             background: 'linear-gradient(95deg,#10B981,#84CC16)',
@@ -34,7 +31,7 @@ export function JobHeroBanners({ banners, title = '注目の求人' }: { banners
           }}
         >
           {title}
-        </h2>
+        </h1>
       </div>
 
       {/* 16:9バナーの縦積み（1列・コンテナ幅いっぱい）。 */}

@@ -8,7 +8,10 @@ import {
   fetchActiveJobsByFeature,
 } from '@/app/lib/jobs';
 import { shuffleJobs } from '@/app/lib/shuffleJobs';
+import { deriveHeroBanners } from '@/app/lib/heroBanners';
 import { JobCard } from '../../JobCard';
+import { JobHeroBanners } from '../../JobHeroBanners';
+import { JobListHeading } from '../../JobListHeading';
 import { FeatureBrowse } from '../../FeatureBrowse';
 import { AreaBrowse } from '../../AreaBrowse';
 
@@ -61,6 +64,8 @@ export default async function JobTagPage({
   const jobs = await fetchActiveJobsByFeature(slug);
   // メイン求人一覧を30分バケットでシード付きシャッフル（このページはおすすめ枠なし）。
   const shuffledJobs = shuffleJobs(jobs);
+  // このタグの求人からバナーカードを派生（画像あり・先頭最大10件・30分バケットでシャッフル）。
+  const heroBanners = deriveHeroBanners(jobs);
 
   return (
     <main className="max-w-3xl mx-auto px-4 py-8">
@@ -79,22 +84,11 @@ export default async function JobTagPage({
         </span>
       </nav>
 
-      {/* 見出し */}
-      <div className="mb-6">
-        <h1
-          className="text-2xl sm:text-3xl font-extrabold inline-block"
-          style={{
-            background: 'linear-gradient(95deg,#10B981,#84CC16)',
-            WebkitBackgroundClip: 'text',
-            backgroundClip: 'text',
-            WebkitTextFillColor: 'transparent',
-            color: 'transparent',
-          }}
-        >
-          {label}のセラピスト求人
-        </h1>
-        <p className="text-sm text-slate-500 mt-1.5">福岡のメンズエステ・{label}の求人</p>
-      </div>
+      {/* バナーカードブロック（キーワード見出し h1・一覧の直上）。バナー0件なら非表示。 */}
+      <JobHeroBanners banners={heroBanners} title={`${label}のセラピスト求人`} />
+
+      {/* 一覧見出し「セラピスト求人」。バナーがあれば h2、無ければ h1（h1消失防止）。 */}
+      <JobListHeading subtitle={`福岡のメンズエステ・${label}の求人`} asH1={heroBanners.length === 0} />
 
       {jobs.length === 0 ? (
         <div className="rounded-2xl border border-emerald-100 bg-white p-10 text-center shadow-sm">
