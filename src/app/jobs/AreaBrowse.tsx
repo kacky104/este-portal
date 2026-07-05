@@ -53,7 +53,7 @@ export async function AreaBrowse({
                 key={area}
                 href={href}
                 aria-current={active ? 'page' : undefined}
-                className={`relative block aspect-[2/1] rounded-xl overflow-hidden border transition-shadow ${
+                className={`relative block aspect-[4/1] md:aspect-[2/1] rounded-xl overflow-hidden border transition-shadow ${
                   active ? 'border-transparent ring-2 ring-emerald-500' : 'border-emerald-100'
                 }`}
               >
@@ -78,7 +78,7 @@ export async function AreaBrowse({
               key={area}
               href={href}
               aria-current={active ? 'page' : undefined}
-              className={`flex items-center justify-center text-center aspect-[2/1] rounded-xl border text-xs font-bold px-2 transition-colors ${
+              className={`flex items-center justify-center text-center aspect-[4/1] md:aspect-[2/1] rounded-xl border text-xs font-bold px-2 transition-colors ${
                 active ? 'text-white border-transparent' : ''
               }`}
               style={
