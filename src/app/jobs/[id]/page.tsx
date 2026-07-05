@@ -243,6 +243,42 @@ export default async function JobDetailPage({
           </dl>
         </div>
 
+        {/* このサロンの求人を保存（募集要項の直下・独立ブロック）。応募導線下の既存保存ボタンと
+            同じ kind="job_salon"（localStorageキー saved_job_salons／本体サロン保存とは分離）を使うため、
+            どちらで保存/解除しても SAVED_JOB_SALONS_EVENT 経由で相互に即時同期する（追加実装不要）。
+            配色はワークのグリーン→ライム（#10B981→#84CC16）。アイコンはインラインSVG。 */}
+        <div className="rounded-2xl border border-emerald-100 bg-white p-5 shadow-sm mt-4">
+          <div className="flex items-center gap-2.5 mb-3">
+            <span className="w-1 h-5 rounded-full" style={{ background: 'linear-gradient(to bottom,#10B981,#84CC16)' }} />
+            <h2 className="font-bold text-slate-900">このサロンの求人を保存</h2>
+          </div>
+          <div className="flex items-center gap-4">
+            <div className="flex items-start gap-3 flex-1 min-w-0">
+              <span
+                className="flex-shrink-0 inline-flex items-center justify-center w-9 h-9 rounded-xl text-white"
+                style={{ background: 'linear-gradient(135deg,#10B981,#84CC16)' }}
+              >
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z" />
+                </svg>
+              </span>
+              <p className="text-sm text-slate-500 leading-relaxed">
+                気になった求人は保存して、あとからいつでも見返せます。
+              </p>
+            </div>
+            <SaveButton
+              kind="job_salon"
+              item={{ id: job.salon.id, name: job.salon.name }}
+              variant="paw"
+              imageSrc="/logo-fukuwork.png"
+              imageSavedSrc="/logo-fukuwork-saved.png"
+              burstColor="#10B981"
+              savedBg="#FFFFFF"
+              shadow
+            />
+          </div>
+        </div>
+
         {/* 特徴タグ（全タグ・各チップは絞り込みページへの内部リンク） */}
         {job.features.length > 0 && (
           <div className="rounded-2xl border border-emerald-100 bg-white p-5 shadow-sm mt-4">
