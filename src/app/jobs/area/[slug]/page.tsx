@@ -100,6 +100,12 @@ export default async function JobAreaPage({
           見出しは表示名（areaLabel経由）で「{エリア名}のおすすめ求人」。トップの並びと同順で一覧の上に置く。 */}
       <PickupSlider jobs={pickupJobs} title={`${label}のおすすめ求人`} />
 
+      {/* このエリア×特徴タグの掛け合わせページへの入口（内部リンク網の主経路）＋他エリアへの回遊 */}
+      <div className="mt-8 space-y-4">
+        <FeatureBrowse title={`${label}の特徴から探す`} areaSlug={slug} />
+        <AreaBrowse title="他のエリアから探す" currentArea={area} />
+      </div>
+
       {/* バナーカードブロック（キーワード見出し h1・一覧の直上）。バナー0件なら非表示。 */}
       <JobHeroBanners banners={heroBanners} title={`${label}のセラピスト求人`} />
 
@@ -126,12 +132,6 @@ export default async function JobAreaPage({
           ))}
         </ul>
       )}
-
-      {/* このエリア×特徴タグの掛け合わせページへの入口（内部リンク網の主経路）＋他エリアへの回遊 */}
-      <div className="mt-8 space-y-4">
-        <FeatureBrowse title={`${label}の特徴から探す`} areaSlug={slug} />
-        <AreaBrowse title="他のエリアから探す" currentArea={area} />
-      </div>
     </main>
   );
 }
