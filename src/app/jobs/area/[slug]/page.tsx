@@ -8,6 +8,7 @@ import { JobCard } from '../../JobCard';
 import { PickupSlider } from '../../PickupSlider';
 import { AreaBrowse } from '../../AreaBrowse';
 import { FeatureBrowse } from '../../FeatureBrowse';
+import { AreaHeroBanner } from '../AreaHeroBanner';
 
 // ISR：10分ごとに再生成（タグページと同じ流儀）。
 export const revalidate = 600;
@@ -97,6 +98,9 @@ export default async function JobAreaPage({
         </h1>
         <p className="text-sm text-slate-500 mt-1.5">福岡のメンズエステ・{label}の求人</p>
       </div>
+
+      {/* エリア専用ヒーローバナー（public/jobs/area/ の静的画像・定義エリアのみ表示）。見出し直下・スライダー上。 */}
+      <AreaHeroBanner slug={slug} areaLabel={label} />
 
       {/* このエリア専用のおすすめ求人（featured_jobs.area = このエリア）。0件時はセクションごと非表示。
           見出しは表示名（areaLabel経由）で「{エリア名}のおすすめ求人」。トップの並びと同順で一覧の上に置く。 */}
