@@ -231,8 +231,7 @@ export type JobDetail = {
   benefits: string | null;
   qualifications: string | null;
   // access は「募集要項」表の項目からは撤去したが、エリア行のフォールバック出典として温存
-  // （area 未入力時に access → salon.area の順で埋める）。requirements は qualifications へ移行済み・
-  // 参照撤去（DBカラムは温存）。
+  // （area 未入力時に access → salon.area の順で埋める）。
   access: string | null;
   description: string | null;
   salaryMin: number | null;

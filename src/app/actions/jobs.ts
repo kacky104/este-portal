@@ -45,9 +45,8 @@ import {
 //  - 公開側ISR（/jobs・/jobs/[id]・/salon/[id]・sitemap）は書き込み成功時に revalidatePath で即時更新。
 
 // 募集要項は area / work_hours / benefits / qualifications の4項目。
-// requirements・access はフォーム／表示から撤去（requirements は qualifications へ移行済み。
-// access はエリア行のフォールバック用に公開側 fetchJobById でのみ読む）。両カラムとも DB は温存し、
-// ここ（フォーム書き込み経路）では SELECT / UPDATE 対象に含めない＝既存値をそのまま保持する。
+// access はフォーム／表示から撤去（エリア行のフォールバック用に公開側 fetchJobById でのみ読む）。
+// access カラムは DB 温存し、ここ（フォーム書き込み経路）では SELECT / UPDATE 対象に含めない＝既存値をそのまま保持する。
 const JOB_COLUMNS =
   'id, salon_id, title, description, salary_text, salary_min, salary_max, area, work_hours, benefits, qualifications, notify_email, apply_email, apply_line_url, features, hero_image_urls, gallery_images, therapist_voices, is_active, published_at, updated_at';
 
