@@ -44,10 +44,15 @@ export async function AreaBrowse({
               ? `${jobsAreaHref(area)}/tag/${tagSlug}`
               : jobsAreaHref(area);
           const label = isDispatch ? '出張専門' : areaLabel(area);
-          const iconUrl = icons[area];
+          const icon = icons[area];
+          // md未満は sp（未設定なら pc にフォールバック）、md以上は pc（未設定なら sp にフォールバック）。
+          // マップに入るのは sp/pc いずれか一方でもある場合のみなので、片方設定でも空タイルにならない。
+          const mobileUrl = icon ? icon.sp ?? icon.pc : null;
+          const desktopUrl = icon ? icon.pc ?? icon.sp : null;
 
-          // 画像あり：写真タイル（下部グラデ＋白ラベル）。アクティブはリングで現在地を明示。
-          if (iconUrl) {
+          // 画像あり：写真タイル（下部グラデ＋白ラベル）。SP/PCは md 出し分け（AreaHeroBanner 流儀）。
+          // タイル自体は SP 4:1／PC 2:1 の aspect（sp/pc の推奨比と一致）。アクティブはリングで現在地を明示。
+          if (icon && (mobileUrl || desktopUrl)) {
             return (
               <Link
                 key={area}
@@ -57,17 +62,26 @@ export async function AreaBrowse({
                   active ? 'border-transparent ring-2 ring-emerald-500' : 'border-emerald-100'
                 }`}
               >
-                <Image
-                  src={iconUrl}
-                  alt={label}
-                  fill
-                  sizes="(max-width: 768px) 50vw, 33vw"
-                  className="object-cover"
-                />
-                <div className="absolute inset-0 bg-gradient-to-t from-black/55 via-black/10 to-transparent" />
-                <span className="absolute bottom-1.5 left-2 right-2 text-white font-bold text-xs leading-tight drop-shadow line-clamp-1">
-                  {label}
-                </span>
+                {mobileUrl && (
+                  <Image
+                    src={mobileUrl}
+                    alt={label}
+                    fill
+                    sizes="(max-width: 768px) 50vw, 33vw"
+                    className="object-cover md:hidden"
+                  />
+                )}
+                {desktopUrl && (
+                  <Image
+                    src={desktopUrl}
+                    alt={label}
+                    fill
+                    sizes="(max-width: 768px) 50vw, 33vw"
+                    className="object-cover hidden md:block"
+                  />
+                )}
+                {/* エリア名は画像自体に含める運用のため、下部グラデ＋白文字ラベルは表示しない
+                    （alt にはエリア表示名を維持＝アクセシビリティ/SEO用）。 */}
               </Link>
             );
           }

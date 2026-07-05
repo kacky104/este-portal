@@ -12,6 +12,7 @@ import ThemeWallpaperManager from '@/app/components/ThemeWallpaperManager';
 import AdminJobsManager from '@/app/components/AdminJobsManager';
 import FeaturedJobsManager from '@/app/components/FeaturedJobsManager';
 import AreaBannerManager from '@/app/components/AreaBannerManager';
+import AreaIconManager from '@/app/components/AreaIconManager';
 import { ADMIN_UUID } from '@/app/lib/admin';
 import { areaLabel } from '@/app/lib/areaLabel';
 import { revalidateTopAndAreas, revalidateSalon } from '@/app/lib/revalidateTop';
@@ -588,6 +589,11 @@ export default function AdminDashboard() {
           {/* エリア別ヒーローバナー（area_hero_banners）設定：エリアページ見出し直下のバナー */}
           <AccordionSection id="area-banners" title="エリアバナー設定" expanded={expandedSections} onToggle={toggleSection}>
             <AreaBannerManager onToast={showToast} />
+          </AccordionSection>
+
+          {/* エリアアイコン（area_browse_icons）設定：AreaBrowse タイルの画像（/jobs・エリアページ） */}
+          <AccordionSection id="area-icons" title="エリアアイコン設定" expanded={expandedSections} onToggle={toggleSection}>
+            <AreaIconManager onToast={showToast} />
           </AccordionSection>
 
           {/* 求人管理（フクエスワーク）。件数・新規応募バッジは折りたたみ時も見えるよう見出しに表示。 */}
