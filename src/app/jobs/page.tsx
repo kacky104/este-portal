@@ -66,6 +66,13 @@ export default async function JobsPage() {
       {/* おすすめ求人（運営が featured_jobs に登録した求人のスライダー）。0件時はセクションごと非表示。 */}
       <PickupSlider jobs={pickupJobs} />
 
+      {/* エリアから探す → 特徴から探す（おすすめ求人の直下）。求職者の探索順（まず勤務地エリア→次に条件）に
+          合わせてエリアを特徴の直上に置く。おすすめ求人が0件（PickupSlider 非表示）でもこの位置に表示される。 */}
+      <div className="mb-6 space-y-4">
+        <AreaBrowse />
+        <FeatureBrowse />
+      </div>
+
       {/* 注目の求人（オーナー設定のバナー画像）。おすすめスライダーと既存求人一覧の間に配置。0件時は非表示。 */}
       <JobHeroBanners banners={heroBanners} />
 
@@ -95,13 +102,6 @@ export default async function JobsPage() {
           セラピスト求人
         </h1>
         <p className="text-sm text-slate-500 mt-1.5">福岡のメンズエステで働くセラピスト求人</p>
-      </div>
-
-      {/* エリアから探す（エリア別求人ページへの内部リンク網）→ 特徴から探す（タグ絞り込み）の順。
-          求職者の探索順（まず勤務地エリア→次に条件）に合わせてエリアを特徴の直上に置く。 */}
-      <div className="mb-6 space-y-4">
-        <AreaBrowse />
-        <FeatureBrowse />
       </div>
 
       {jobs.length === 0 ? (
