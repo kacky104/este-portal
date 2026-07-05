@@ -3,6 +3,19 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { createClient } from '@/app/lib/supabase/client';
 import { revalidateFeaturedJobs } from '@/app/actions/jobs';
+import { AREA_ORDER, ALL_AREA, DISPATCH_AREA } from '@/app/lib/areas';
+import { areaLabel } from '@/app/lib/areaLabel';
+
+// 設定対象セットの切替タブ。key=null はトップ共通（featured_jobs.area IS NULL）、
+// それ以外は AREA_ORDER キー（DB値・例 '博多・住吉'）＝そのエリア専用（area = key の行）。
+// 出張(DISPATCH_AREA)と全域センチネル(ALL_AREA)は求人エリアページ非対応のため除外。表示名は areaLabel 経由。
+const AREA_TABS: { key: string | null; label: string }[] = [
+  { key: null, label: 'トップ(共通)' },
+  ...AREA_ORDER.filter((a) => a !== ALL_AREA && a !== DISPATCH_AREA).map((a) => ({
+    key: a as string,
+    label: areaLabel(a),
+  })),
+];
 
 // おすすめ求人（featured_jobs）設定。本体のピックアップサロン（FeaturedSalonsManager）と完全同方式：
 // select追加／↑↓並べ替え（display_order 振り直し）／✕削除／行ごとのスライド画像アップロード。
@@ -41,6 +54,8 @@ export default function FeaturedJobsManager({ onToast }: { onToast: (msg: string
   const [items,           setItems]           = useState<FeaturedJobItem[]>([]);
   const [candidates,      setCandidates]      = useState<JobOption[]>([]);
   const [selectedJobId,   setSelectedJobId]   = useState<number | ''>('');
+  // 設定対象セット。null=トップ共通（area IS NULL）／AREA_ORDER キー=そのエリア専用。既定はトップ共通。
+  const [selectedArea,    setSelectedArea]    = useState<string | null>(null);
   const [loading,         setLoading]         = useState(true);
   const [saving,          setSaving]          = useState(false);
   const [errorMsg,        setErrorMsg]        = useState('');
@@ -52,13 +67,14 @@ export default function FeaturedJobsManager({ onToast }: { onToast: (msg: string
     setLoading(true);
     const sb = createClient();
 
-    // 1) 登録済み featured_jobs（当面はトップ共通＝area IS NULL のみ）。
-    //    ※ 将来エリア別対応時は area タブを増やし、.is('area', null) を選択エリアで切替える。
-    const { data: featuredData, error } = await sb
+    // 1) 選択セットの登録済み featured_jobs を取得。null=トップ共通（area IS NULL）／値=そのエリア（.eq）。
+    const featuredSel = sb
       .from('featured_jobs')
       .select('id, job_id, display_order, image_url')
-      .is('area', null)
       .order('display_order', { ascending: true });
+    const { data: featuredData, error } = await (selectedArea === null
+      ? featuredSel.is('area', null)
+      : featuredSel.eq('area', selectedArea));
 
     if (error) {
       setErrorMsg('featured_jobs テーブルがまだ作成されていない可能性があります。SQLマイグレーションを確認してください。');
@@ -110,7 +126,7 @@ export default function FeaturedJobsManager({ onToast }: { onToast: (msg: string
       imageUrl:     (row.image_url as string | null) ?? null,
     })));
     setLoading(false);
-  }, []);
+  }, [selectedArea]);
 
   useEffect(() => { fetchFeatured(); }, [fetchFeatured]);
 
@@ -118,11 +134,15 @@ export default function FeaturedJobsManager({ onToast }: { onToast: (msg: string
     if (selectedJobId === '' || items.length >= MAX_FEATURED) return;
     const nextOrder = items.length + 1;
     setSaving(true);
-    // area は送らない＝NULL（トップ共通）。一意インデックス (COALESCE(area,''), job_id) で重複防止。
-    const { error } = await supabase.from('featured_jobs').insert({
-      job_id:        selectedJobId,
+    // トップ共通は area を送らない＝NULL、エリア選択時は area=選択キー（DB値）を付与。
+    // display_order は選択セット内の件数+1で採番（セット内で完結）。
+    // 同一セット内 job_id 重複は一意インデックス (COALESCE(area,''), job_id) がDB層で弾く（下の error で toast）。
+    const payload: { job_id: number; display_order: number; area?: string } = {
+      job_id:        Number(selectedJobId),
       display_order: nextOrder,
-    });
+    };
+    if (selectedArea !== null) payload.area = selectedArea;
+    const { error } = await supabase.from('featured_jobs').insert(payload);
     setSaving(false);
     if (error) { onToast(`追加に失敗しました: ${error.message}`); return; }
     setSelectedJobId('');
@@ -241,16 +261,33 @@ export default function FeaturedJobsManager({ onToast }: { onToast: (msg: string
         <span className="text-xs text-slate-400">{items.length} / {MAX_FEATURED}件</span>
       </div>
 
-      {/* 設定対象セットの切替タブ。当面は「トップ(共通)」のみ。
-          ※ 将来エリア別（/area/<slug> 相当の求人ページ）対応時にここへエリアチップを追加し、
-             fetchFeatured / handleAdd の area を選択値に合わせて切り替える。 */}
+      {/* 設定対象セットの切替タブ：トップ(共通)＋通常5エリア。選択セット内で一覧・並び順・追加が完結する。
+          切替時は選択中の求人セレクトもリセット。保存処理中は誤操作防止のため無効化。 */}
       <div className="flex flex-wrap gap-1.5 mb-5">
-        <span className="px-3 py-1.5 rounded-full text-xs font-bold shadow-sm text-white" style={{ background: 'linear-gradient(95deg,#10B981,#84CC16)' }}>
-          トップ(共通)
-        </span>
+        {AREA_TABS.map((tab) => {
+          const active = selectedArea === tab.key;
+          return (
+            <button
+              key={tab.label}
+              type="button"
+              onClick={() => { if (active) return; setSelectedArea(tab.key); setSelectedJobId(''); }}
+              disabled={saving}
+              className="px-3 py-1.5 rounded-full text-xs font-bold shadow-sm border transition-colors disabled:opacity-40"
+              style={
+                active
+                  ? { background: 'linear-gradient(95deg,#10B981,#84CC16)', color: '#ffffff', borderColor: 'transparent' }
+                  : { borderColor: '#A7F3D0', color: '#059669', background: '#ffffff' }
+              }
+            >
+              {tab.label}
+            </button>
+          );
+        })}
       </div>
       <p className="text-[11px] text-slate-400 mb-4">
-        フクエスワークのトップ（/jobs）に表示されるおすすめ求人スライダーです。並び順は下の↑↓で調整できます。
+        {selectedArea === null
+          ? 'フクエスワークのトップ（/jobs）に表示されるおすすめ求人スライダーです。並び順は下の↑↓で調整できます。'
+          : `「${areaLabel(selectedArea)}」のエリアページ（/jobs/area）に表示されるおすすめ求人です。並び順は下の↑↓で調整できます。`}
       </p>
 
       {/* hidden file input */}

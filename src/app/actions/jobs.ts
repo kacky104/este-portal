@@ -4,6 +4,7 @@ import { revalidatePath } from 'next/cache';
 import { createClient } from '@/app/lib/supabase/server';
 import { createServiceClient } from '@/app/lib/supabase/service';
 import { ADMIN_UUID } from '@/app/lib/admin';
+import { AREA_SLUGS_LIST } from '@/app/lib/areas';
 import { sendApplicationMail } from '@/app/lib/jobs/sendApplicationMail';
 // 'use server' ファイルは async 関数以外を export できないため、定数・型は非serverモジュールから import する。
 import {
@@ -477,11 +478,17 @@ export async function toggleMyJobActive(
 }
 
 // ── おすすめ求人（featured_jobs）編集後の公開ISR即時更新 ──
-// おすすめ枠は /jobs トップにのみ表示されるため、そのISRキャッシュだけ再検証すれば十分。
+// おすすめ枠は /jobs トップと各エリアページ（/jobs/area/[slug]）に表示されるため、両方のISRを再検証する。
+// エリア別おすすめ（area 指定）も即時反映するよう、トップ＋通常5エリアの全6パスを一律 revalidate する
+//（呼び出し元は編集セットを問わず同じ呼び出しで済ませられる）。出張(dispatch)はページ非対応のため除外。
 // featured_jobs への書き込み自体は FeaturedJobsManager が authenticated クライアント（RLSで
 // admin UUID のみ許可）で行うため、この関数は純粋なキャッシュ無効化のみを担う。
 export async function revalidateFeaturedJobs(): Promise<void> {
   revalidatePath('/jobs');
+  for (const slug of AREA_SLUGS_LIST) {
+    if (slug === 'dispatch') continue;
+    revalidatePath(`/jobs/area/${slug}`);
+  }
 }
 
 // ── 削除（confirmはUI側） ──
