@@ -7,9 +7,11 @@ import {
   isValidFeatureSlug,
   fetchActiveJobsByAreaAndFeature,
 } from '@/app/lib/jobs';
+import { fetchAreaHeroBanner } from '@/app/lib/areaBanners';
 import { areaFromSlug, AREA_SLUGS_LIST, DISPATCH_AREA } from '@/app/lib/areas';
 import { areaLabel } from '@/app/lib/areaLabel';
 import { JobCard } from '../../../../JobCard';
+import { AreaHeroBanner } from '../../../AreaHeroBanner';
 import { FeatureBrowse } from '../../../../FeatureBrowse';
 import { AreaBrowse } from '../../../../AreaBrowse';
 
@@ -66,7 +68,12 @@ export default async function JobAreaTagPage({
 
   const areaLbl = areaLabel(area);
   const tagLbl = featureLabel(tag);
-  const jobs = await fetchActiveJobsByAreaAndFeature(area, tag);
+  // 掛け合わせ求人一覧と、このエリアのヒーローバナー（エリア単位・タグ別画像はなし）を並列取得。
+  // バナー未設定エリアは null＝非表示（AreaHeroBanner の return null に任せる）。
+  const [jobs, heroBanner] = await Promise.all([
+    fetchActiveJobsByAreaAndFeature(area, tag),
+    fetchAreaHeroBanner(area),
+  ]);
 
   return (
     <main className="max-w-3xl mx-auto px-4 py-8">
@@ -101,6 +108,9 @@ export default async function JobAreaTagPage({
         </h1>
         <p className="text-sm text-slate-500 mt-1.5">福岡のメンズエステ・{areaLbl}／{tagLbl}の求人</p>
       </div>
+
+      {/* エリア専用ヒーローバナー（area_hero_banners・エリア単位）。エリア単独ページと同位置・同props。 */}
+      <AreaHeroBanner banner={heroBanner} areaLabel={areaLbl} />
 
       {jobs.length === 0 ? (
         <div className="rounded-2xl border border-emerald-100 bg-white p-10 text-center shadow-sm">
