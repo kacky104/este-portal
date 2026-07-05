@@ -2,6 +2,7 @@ import Link from 'next/link';
 import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import { fetchActiveJobsByArea, getFeaturedJobs } from '@/app/lib/jobs';
+import { fetchAreaHeroBanner } from '@/app/lib/areaBanners';
 import { areaFromSlug, AREA_SLUGS_LIST, DISPATCH_AREA } from '@/app/lib/areas';
 import { areaLabel } from '@/app/lib/areaLabel';
 import { JobCard } from '../../JobCard';
@@ -58,11 +59,12 @@ export default async function JobAreaPage({
   if (!area || area === DISPATCH_AREA) notFound();
 
   const label = areaLabel(area);
-  // このエリアの求人一覧と、このエリア専用のおすすめ（featured_jobs.area = DB値）を並列取得。
-  // おすすめは area 非NULL行が無ければ空配列＝スライダー非表示（PickupSlider の return null に任せる）。
-  const [jobs, pickupJobs] = await Promise.all([
+  // このエリアの求人一覧／おすすめ（featured_jobs.area）／ヒーローバナー（area_hero_banners）を並列取得。
+  // おすすめ・バナーとも該当行が無ければ空/null＝非表示（各コンポーネントの return null に任せる）。
+  const [jobs, pickupJobs, heroBanner] = await Promise.all([
     fetchActiveJobsByArea(area),
     getFeaturedJobs(area),
+    fetchAreaHeroBanner(area),
   ]);
 
   return (
@@ -99,8 +101,8 @@ export default async function JobAreaPage({
         <p className="text-sm text-slate-500 mt-1.5">福岡のメンズエステ・{label}の求人</p>
       </div>
 
-      {/* エリア専用ヒーローバナー（public/jobs/area/ の静的画像・定義エリアのみ表示）。見出し直下・スライダー上。 */}
-      <AreaHeroBanner slug={slug} areaLabel={label} />
+      {/* エリア専用ヒーローバナー（area_hero_banners から fetch・行があるエリアのみ表示）。見出し直下・スライダー上。 */}
+      <AreaHeroBanner banner={heroBanner} areaLabel={label} />
 
       {/* このエリア専用のおすすめ求人（featured_jobs.area = このエリア）。0件時はセクションごと非表示。
           見出しは表示名（areaLabel経由）で「{エリア名}のおすすめ求人」。トップの並びと同順で一覧の上に置く。 */}

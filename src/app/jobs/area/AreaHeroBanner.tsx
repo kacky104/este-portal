@@ -1,23 +1,17 @@
 import Image from 'next/image';
+import type { AreaHeroBannerUrls } from '@/app/lib/areaBanners';
 
-// エリア別ヒーローバナー。定義があるエリアのみ表示（キーが無ければ何もレンダリングしない）。
-// 画像は public/jobs/area/ 配下の静的アセット（DB非依存）。命名: {slug}-hero-sp.png / {slug}-hero-pc.png。
+// エリア別ヒーローバナー（表示専任）。URL は area_hero_banners から fetch した値を page.tsx が props で渡す。
 // sp: スマホ用（縦長 5:6・750×900）／pc: PC用（横長 3:1・1536×512）。
-// 画像を追加したら public/jobs/area/ に置いてこのマッピングに追記するだけでよい。
-// ※ 実ファイルが未配置でもここは URL を指すだけなので、ビルドは通る（未配置時は Next の画像404になるのみ）。
-const AREA_HERO_BANNERS: Record<string, { sp?: string; pc?: string }> = {
-  'hakata-eki': { sp: '/jobs/area/hakata-eki-hero-sp.png' },
-};
-
-// 画像の実寸（CLS防止のため width/height を明示）。
+// URL は相対パス（/jobs/area/…）と Storage 絶対URLの両対応（next/image・remotePatterns 登録済み）。
+// sp/pc いずれか null なら該当画面幅では非表示。banner が null または両方 null なら何も出さない。
 const SP_W = 750;
 const SP_H = 900; // 5:6
 const PC_W = 1536;
 const PC_H = 512; // 3:1
 
-// slug: URLスラッグ（マッピングキー）／areaLabel: 表示名（alt用・areaLabel経由の上書き名）。
-export function AreaHeroBanner({ slug, areaLabel }: { slug: string; areaLabel: string }) {
-  const banner = AREA_HERO_BANNERS[slug];
+// banner: 該当エリアの sp/pc URL（無ければ null）／areaLabel: 表示名（alt用・areaLabel経由の上書き名）。
+export function AreaHeroBanner({ banner, areaLabel }: { banner: AreaHeroBannerUrls | null; areaLabel: string }) {
   if (!banner || (!banner.sp && !banner.pc)) return null;
 
   const alt = `${areaLabel}のメンズエステ求人はフクエスワーク`;

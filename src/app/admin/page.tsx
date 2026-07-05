@@ -11,6 +11,7 @@ import SalonEditModal, { type SalonForEdit } from '@/app/components/SalonEditMod
 import ThemeWallpaperManager from '@/app/components/ThemeWallpaperManager';
 import AdminJobsManager from '@/app/components/AdminJobsManager';
 import FeaturedJobsManager from '@/app/components/FeaturedJobsManager';
+import AreaBannerManager from '@/app/components/AreaBannerManager';
 import { ADMIN_UUID } from '@/app/lib/admin';
 import { areaLabel } from '@/app/lib/areaLabel';
 import { revalidateTopAndAreas, revalidateSalon } from '@/app/lib/revalidateTop';
@@ -582,6 +583,11 @@ export default function AdminDashboard() {
           {/* おすすめ求人（featured_jobs）設定：本体のピックアップサロンと同方式 */}
           <AccordionSection id="featured-jobs" title="おすすめ求人設定" expanded={expandedSections} onToggle={toggleSection}>
             <FeaturedJobsManager onToast={showToast} />
+          </AccordionSection>
+
+          {/* エリア別ヒーローバナー（area_hero_banners）設定：エリアページ見出し直下のバナー */}
+          <AccordionSection id="area-banners" title="エリアバナー設定" expanded={expandedSections} onToggle={toggleSection}>
+            <AreaBannerManager onToast={showToast} />
           </AccordionSection>
 
           {/* 求人管理（フクエスワーク）。件数・新規応募バッジは折りたたみ時も見えるよう見出しに表示。 */}
