@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import type { Metadata } from 'next';
 import { fetchActiveDispatchJobs, getFeaturedJobs } from '@/app/lib/jobs';
+import { shuffleJobs } from '@/app/lib/shuffleJobs';
 import { fetchAreaHeroBanner } from '@/app/lib/areaBanners';
 import { DISPATCH_AREA } from '@/app/lib/areas';
 import { JobCard } from '../JobCard';
@@ -36,6 +37,9 @@ export default async function JobDispatchPage() {
     getFeaturedJobs(DISPATCH_AREA),
     fetchAreaHeroBanner(DISPATCH_AREA),
   ]);
+
+  // メイン求人一覧のみ30分バケットでシード付きシャッフル（おすすめ pickupJobs は対象外）。
+  const shuffledJobs = shuffleJobs(jobs);
 
   return (
     <main className="max-w-3xl mx-auto px-4 py-8">
@@ -91,7 +95,7 @@ export default async function JobDispatchPage() {
         </div>
       ) : (
         <ul className="space-y-3">
-          {jobs.map((job) => (
+          {shuffledJobs.map((job) => (
             <li key={job.id}>
               <JobCard job={job} />
             </li>

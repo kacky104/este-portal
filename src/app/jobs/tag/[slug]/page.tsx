@@ -7,6 +7,7 @@ import {
   isValidFeatureSlug,
   fetchActiveJobsByFeature,
 } from '@/app/lib/jobs';
+import { shuffleJobs } from '@/app/lib/shuffleJobs';
 import { JobCard } from '../../JobCard';
 import { FeatureBrowse } from '../../FeatureBrowse';
 import { AreaBrowse } from '../../AreaBrowse';
@@ -58,6 +59,8 @@ export default async function JobTagPage({
 
   const label = featureLabel(slug);
   const jobs = await fetchActiveJobsByFeature(slug);
+  // メイン求人一覧を30分バケットでシード付きシャッフル（このページはおすすめ枠なし）。
+  const shuffledJobs = shuffleJobs(jobs);
 
   return (
     <main className="max-w-3xl mx-auto px-4 py-8">
@@ -106,7 +109,7 @@ export default async function JobTagPage({
         </div>
       ) : (
         <ul className="space-y-3">
-          {jobs.map((job) => (
+          {shuffledJobs.map((job) => (
             <li key={job.id}>
               <JobCard job={job} />
             </li>

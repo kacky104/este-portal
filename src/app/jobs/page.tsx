@@ -2,6 +2,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import type { Metadata } from 'next';
 import { fetchActiveJobs, getFeaturedJobs } from '@/app/lib/jobs';
+import { shuffleJobs } from '@/app/lib/shuffleJobs';
 import { BRAND_TITLE } from './layout';
 import { JobCard } from './JobCard';
 import { FeatureBrowse } from './FeatureBrowse';
@@ -36,6 +37,9 @@ export default async function JobsPage() {
     .filter((j) => j.heroImageUrls.length > 0)
     .slice(0, HERO_BANNER_LIMIT)
     .map((j) => ({ id: j.id, title: j.title, heroImageUrl: j.heroImageUrls[0], salonName: j.salon.name }));
+
+  // メイン求人一覧のみ30分バケットでシード付きシャッフル（おすすめ pickupJobs・注目バナー heroBanners は対象外）。
+  const shuffledJobs = shuffleJobs(jobs);
 
   return (
     <main className="max-w-3xl mx-auto px-4 py-8">
@@ -99,7 +103,7 @@ export default async function JobsPage() {
             color: 'transparent',
           }}
         >
-          セラピスト求人
+          福岡のセラピスト求人
         </h1>
         <p className="text-sm text-slate-500 mt-1.5">福岡のメンズエステで働くセラピスト求人</p>
       </div>
@@ -110,7 +114,7 @@ export default async function JobsPage() {
         </div>
       ) : (
         <ul className="space-y-3">
-          {jobs.map((job) => (
+          {shuffledJobs.map((job) => (
             <li key={job.id}>
               <JobCard job={job} />
             </li>

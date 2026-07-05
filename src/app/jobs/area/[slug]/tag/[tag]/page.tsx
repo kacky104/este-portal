@@ -7,6 +7,7 @@ import {
   isValidFeatureSlug,
   fetchActiveJobsByAreaAndFeature,
 } from '@/app/lib/jobs';
+import { shuffleJobs } from '@/app/lib/shuffleJobs';
 import { fetchAreaHeroBanner } from '@/app/lib/areaBanners';
 import { areaFromSlug, AREA_SLUGS_LIST, DISPATCH_AREA } from '@/app/lib/areas';
 import { areaLabel } from '@/app/lib/areaLabel';
@@ -75,6 +76,9 @@ export default async function JobAreaTagPage({
     fetchAreaHeroBanner(area),
   ]);
 
+  // メイン求人一覧を30分バケットでシード付きシャッフル（このページはおすすめ枠なし）。
+  const shuffledJobs = shuffleJobs(jobs);
+
   return (
     <main className="max-w-3xl mx-auto px-4 py-8">
       {/* パンくず：求人一覧 › {エリアlabel} › {タグlabel}（3階層） */}
@@ -125,7 +129,7 @@ export default async function JobAreaTagPage({
         </div>
       ) : (
         <ul className="space-y-3">
-          {jobs.map((job) => (
+          {shuffledJobs.map((job) => (
             <li key={job.id}>
               <JobCard job={job} />
             </li>

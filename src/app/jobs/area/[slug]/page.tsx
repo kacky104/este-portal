@@ -2,6 +2,7 @@ import Link from 'next/link';
 import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import { fetchActiveJobsByArea, getFeaturedJobs } from '@/app/lib/jobs';
+import { shuffleJobs } from '@/app/lib/shuffleJobs';
 import { fetchAreaHeroBanner } from '@/app/lib/areaBanners';
 import { areaFromSlug, AREA_SLUGS_LIST, DISPATCH_AREA } from '@/app/lib/areas';
 import { areaLabel } from '@/app/lib/areaLabel';
@@ -67,6 +68,9 @@ export default async function JobAreaPage({
     fetchAreaHeroBanner(area),
   ]);
 
+  // メイン求人一覧のみ30分バケットでシード付きシャッフル（おすすめ pickupJobs は対象外）。
+  const shuffledJobs = shuffleJobs(jobs);
+
   return (
     <main className="max-w-3xl mx-auto px-4 py-8">
       {/* パンくず：フクエスワーク › 求人一覧 › {label} */}
@@ -121,7 +125,7 @@ export default async function JobAreaPage({
         </div>
       ) : (
         <ul className="space-y-3">
-          {jobs.map((job) => (
+          {shuffledJobs.map((job) => (
             <li key={job.id}>
               <JobCard job={job} />
             </li>
