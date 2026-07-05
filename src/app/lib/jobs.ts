@@ -495,7 +495,7 @@ export async function fetchAreaTagPairsWithActiveJobs(): Promise<{
 
   const normalAreas = new Set<string>(AREA_ORDER.filter((a) => a !== ALL_AREA && a !== DISPATCH_AREA));
   const areaSet = new Set<string>();
-  const pairSet = new Set<string>(); // `${area} ${slug}` で一意化
+  const pairSet = new Set<string>(); // `${area} ${slug}` で一意化
 
   (data ?? []).forEach((row) => {
     const rec = row as Record<string, unknown>;
@@ -503,13 +503,13 @@ export async function fetchAreaTagPairsWithActiveJobs(): Promise<{
     const area = salon?.area ?? '';
     if (!normalAreas.has(area)) return;
     areaSet.add(area);
-    sanitizeFeatures(rec.features).forEach((slug) => pairSet.add(`${area} ${slug}`));
+    sanitizeFeatures(rec.features).forEach((slug) => pairSet.add(`${area} ${slug}`));
   });
 
   // 表示順（AREA_ORDER）を維持して返す。
   const areas = AREA_ORDER.filter((a) => areaSet.has(a));
   const pairs = [...pairSet].map((k) => {
-    const [area, slug] = k.split(' ');
+    const [area, slug] = k.split(' ');
     return { area, slug };
   });
   return { areas, pairs };
