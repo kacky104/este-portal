@@ -12,7 +12,17 @@ import type { HeroBanner } from '@/app/lib/heroBanners';
 export type { HeroBanner };
 
 // title は見出し文言（既定「注目の求人」）。呼び出し元で差し替え可能にし、指定なしのページは従来どおり。
-export function JobHeroBanners({ banners, title = '注目の求人' }: { banners: HeroBanner[]; title?: string }) {
+// priority=true のページ（このブロックがファーストビューのLCPになるページ＝タグページ）でのみ、
+// 先頭バナー1枚だけ next/image の priority を付ける（2件目以降は lazy 維持）。既定 false で他ページは全 lazy。
+export function JobHeroBanners({
+  banners,
+  title = '注目の求人',
+  priority = false,
+}: {
+  banners: HeroBanner[];
+  title?: string;
+  priority?: boolean;
+}) {
   if (banners.length === 0) return null;
 
   return (
@@ -36,7 +46,7 @@ export function JobHeroBanners({ banners, title = '注目の求人' }: { banners
 
       {/* 16:9バナーの縦積み（1列・コンテナ幅いっぱい）。 */}
       <div className="space-y-4">
-        {banners.map((b) => (
+        {banners.map((b, i) => (
           <Link
             key={b.id}
             href={`/jobs/${b.id}`}
@@ -47,6 +57,8 @@ export function JobHeroBanners({ banners, title = '注目の求人' }: { banners
               alt={`${b.salonName}｜${b.title}`}
               width={1280}
               height={720}
+              // LCP最適化：priority 指定ページの先頭バナー(i===0)のみ eager 読み込み。他は next/image 既定の lazy。
+              priority={priority && i === 0}
               sizes="(max-width: 768px) 100vw, 768px"
               className="w-full h-auto"
             />
