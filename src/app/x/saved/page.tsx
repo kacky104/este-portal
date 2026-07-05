@@ -12,6 +12,9 @@ import { XSavedList } from '../XSavedList';
 // 自分の保存（プライベート）を読むため動的レンダリング。
 export const dynamic = 'force-dynamic';
 
+// 本人専用の保存一覧（非公開）のため検索インデックス対象外（noindex,nofollow）。
+export const metadata = { robots: { index: false, follow: false } };
+
 export default async function XSavedPage() {
   const { userId, profile } = await getXContext();
 

@@ -7,6 +7,9 @@ import { XSettingsForm } from './XSettingsForm';
 // ログイン必須＋自分の x_profiles の編集なので動的レンダリング。
 export const dynamic = 'force-dynamic';
 
+// 設定ページ（ログイン必須）のため検索インデックス対象外（noindex,nofollow）。
+export const metadata = { robots: { index: false, follow: false } };
+
 export default async function XSettingsPage() {
   const { userId, email, profile } = await getXContext();
 

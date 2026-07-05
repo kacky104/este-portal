@@ -1,6 +1,12 @@
+import type { Metadata } from 'next';
 import { redirect } from 'next/navigation';
 import { createClient } from '@/app/lib/supabase/server';
 import { ADMIN_UUID } from '@/app/lib/admin';
+
+// /admin 配下は管理専用のため検索インデックス対象外（noindex,nofollow）。表示（メタ）のみ。
+export const metadata: Metadata = {
+  robots: { index: false, follow: false },
+};
 
 // /admin 配下のサーバーサイド認可ガード（'use client' は付けない＝サーバーコンポーネント）。
 // クライアント側（page.tsx の useEffect）の表示制御と合わせた二層防御。

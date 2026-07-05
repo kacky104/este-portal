@@ -6,6 +6,9 @@ import { XLogo } from '../XLogo';
 // ログイン必須＋自分の x_profiles 有無で分岐するため動的レンダリング。
 export const dynamic = 'force-dynamic';
 
+// 登録導線（ログイン必須）のため検索インデックス対象外（noindex,nofollow）。
+export const metadata = { robots: { index: false, follow: false } };
+
 export default async function XOnboardingPage() {
   const { userId, profile } = await getXContext();
 

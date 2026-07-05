@@ -6,6 +6,9 @@ import { XAdmin, type ShopRow, type ModPost, type ModProfile } from './XAdmin';
 
 export const dynamic = 'force-dynamic';
 
+// 管理ページのため検索インデックス対象外（noindex,nofollow）。
+export const metadata = { robots: { index: false, follow: false } };
+
 export default async function XAdminPage() {
   const supabase = await createClient();
   const {

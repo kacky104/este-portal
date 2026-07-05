@@ -8,6 +8,9 @@ import { XShop, type PendingRequest } from './XShop';
 // 自分のログイン状態・所属/申請状況を読むため動的レンダリング。
 export const dynamic = 'force-dynamic';
 
+// 店舗管理（ログイン＋認証必須）のため検索インデックス対象外（noindex,nofollow）。
+export const metadata = { robots: { index: false, follow: false } };
+
 export default async function XShopPage() {
   const { userId, profile } = await getXContext();
 
