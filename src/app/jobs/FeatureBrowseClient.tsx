@@ -76,13 +76,13 @@ export function FeatureBrowseClient({
           チップの遷移先（href）と現在タグ強調（active）はサーバー側で確定済み＝各ページの現状挙動を維持。 */}
       {openCategory && (
         <div className="mt-3 rounded-xl border border-emerald-100 bg-emerald-50/40 p-3">
-          <div className="flex flex-wrap gap-1.5">
+          <div className="flex flex-wrap gap-2">
             {openCategory.tags.map((t) => (
               <Link
                 key={t.slug}
                 href={t.href}
                 aria-current={t.active ? 'page' : undefined}
-                className="text-[11px] font-bold px-2.5 py-1 rounded-full border transition-colors"
+                className="text-sm font-bold px-3.5 py-1.5 rounded-full border transition-colors"
                 style={
                   t.active
                     ? { background: 'linear-gradient(95deg,#10B981,#84CC16)', color: '#ffffff', borderColor: 'transparent' }
