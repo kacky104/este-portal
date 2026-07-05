@@ -156,6 +156,11 @@ export const JOB_FEATURE_GROUPS: { title: string; slugs: string[] }[] = [
   { title: '環境・安心', slugs: ['koshitsu-taiki', 'sogei', 'jitaku-haken-nashi'] },
 ];
 
+// 特徴カテゴリーのキー（＝各グループの title）。feature_category_icons.category に入れる値であり、
+// 表示側（FeatureBrowse／lib/featureIcons）と admin 側が参照する唯一の共有識別子。
+// AreaBrowse が area の日本語DB値をそのままキーにするのと同方式（title と厳密一致・順序も保持）。
+export const JOB_FEATURE_CATEGORY_KEYS = JOB_FEATURE_GROUPS.map((g) => g.title);
+
 const FEATURE_LABEL_BY_SLUG: Record<string, string> = Object.fromEntries(
   JOB_FEATURES.map((f) => [f.slug, f.label]),
 );

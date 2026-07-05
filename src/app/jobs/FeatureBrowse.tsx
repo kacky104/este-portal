@@ -1,12 +1,15 @@
-import Link from 'next/link';
 import { JOB_FEATURE_GROUPS, featureLabel } from '@/app/lib/jobs';
+import { fetchFeatureCategoryIcons } from '@/app/lib/featureIcons';
+import { FeatureBrowseClient } from './FeatureBrowseClient';
 
-// 「特徴から探す」チップ群（/jobs のトップと /jobs/tag/[slug] 下部の回遊で共用）。サーバーコンポーネント。
-// 各チップは /jobs/tag/[slug] への内部リンク（内部リンク網の形成）。
+// 「特徴から探す」画像アイコンタイル群（/jobs トップ・タグページ・エリアページ・出張ページの回遊で共用）。
+// async サーバーコンポーネント：アイコン画像は feature_category_icons（fetchFeatureCategoryIcons）で DB 管理し、
+// ここ（サーバー）で fetch する。開閉（排他アコーディオン）だけを FeatureBrowseClient に委譲する。AreaBrowse の特徴版。
+// カテゴリー（4つ）とタグ（18個）は JOB_FEATURE_GROUPS 由来。カテゴリーキーは title（= DB category 値）。
 // currentSlug を渡すと、そのタグを強調表示する（タグページ下部での現在地表示用）。
 // areaSlug を渡すと、リンク先を /jobs/area/<areaSlug>/tag/<slug>（エリア×タグ掛け合わせ）に切替える
-//（エリアページ／掛け合わせページで「このエリアの特徴から探す」導線として使う。未指定なら従来の /jobs/tag/<slug>）。
-export function FeatureBrowse({
+//（未指定なら従来の /jobs/tag/<slug>）。← 遷移先ロジックは従来チップ版と完全に同一（各ページの挙動を変えない）。
+export async function FeatureBrowse({
   title = '特徴から探す',
   currentSlug,
   areaSlug,
@@ -15,40 +18,19 @@ export function FeatureBrowse({
   currentSlug?: string;
   areaSlug?: string;
 }) {
-  return (
-    <section className="rounded-2xl border border-emerald-100 bg-white p-5 shadow-sm">
-      <div className="flex items-center gap-2.5 mb-3">
-        <span className="w-1 h-5 rounded-full" style={{ background: 'linear-gradient(to bottom,#10B981,#84CC16)' }} />
-        <h2 className="font-bold text-slate-900 text-sm">{title}</h2>
-      </div>
-      <div className="space-y-3">
-        {JOB_FEATURE_GROUPS.map((g) => (
-          <div key={g.title}>
-            <p className="text-[11px] font-bold text-slate-400 mb-1.5">{g.title}</p>
-            <div className="flex flex-wrap gap-1.5">
-              {g.slugs.map((slug) => {
-                const active = slug === currentSlug;
-                const href = areaSlug ? `/jobs/area/${areaSlug}/tag/${slug}` : `/jobs/tag/${slug}`;
-                return (
-                  <Link
-                    key={slug}
-                    href={href}
-                    aria-current={active ? 'page' : undefined}
-                    className="text-[11px] font-bold px-2.5 py-1 rounded-full border transition-colors"
-                    style={
-                      active
-                        ? { background: 'linear-gradient(95deg,#10B981,#84CC16)', color: '#ffffff', borderColor: 'transparent' }
-                        : { borderColor: '#A7F3D0', color: '#059669' }
-                    }
-                  >
-                    {featureLabel(slug)}
-                  </Link>
-                );
-              })}
-            </div>
-          </div>
-        ))}
-      </div>
-    </section>
-  );
+  const icons = await fetchFeatureCategoryIcons();
+  const categories = JOB_FEATURE_GROUPS.map((g) => ({
+    key: g.title,
+    label: g.title,
+    imageUrl: icons[g.title] ?? null,
+    tags: g.slugs.map((slug) => ({
+      slug,
+      label: featureLabel(slug),
+      // 従来チップ版と同一：areaSlug 指定でエリア掛け合わせ、未指定で通常タグページ。currentSlug は強調のみ。
+      href: areaSlug ? `/jobs/area/${areaSlug}/tag/${slug}` : `/jobs/tag/${slug}`,
+      active: slug === currentSlug,
+    })),
+  }));
+
+  return <FeatureBrowseClient title={title} categories={categories} />;
 }
