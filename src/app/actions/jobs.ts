@@ -478,17 +478,20 @@ export async function toggleMyJobActive(
 }
 
 // ── おすすめ求人（featured_jobs）編集後の公開ISR即時更新 ──
-// おすすめ枠は /jobs トップと各エリアページ（/jobs/area/[slug]）に表示されるため、両方のISRを再検証する。
-// エリア別おすすめ（area 指定）も即時反映するよう、トップ＋通常5エリアの全6パスを一律 revalidate する
-//（呼び出し元は編集セットを問わず同じ呼び出しで済ませられる）。出張(dispatch)はページ非対応のため除外。
+// おすすめ枠は /jobs トップと各エリアページ（/jobs/area/[slug]）＋出張専門ページ（/jobs/dispatch）に
+// 表示されるため、全ページのISRを再検証する。エリア別おすすめ（area 指定）も即時反映するよう、
+// トップ＋通常5エリア＋出張専門の全7パスを一律 revalidate する（呼び出し元は編集セットを問わず
+// 同じ呼び出しで済ませられる）。出張は /jobs/area/dispatch ではなく単独ルート /jobs/dispatch。
 // featured_jobs への書き込み自体は FeaturedJobsManager が authenticated クライアント（RLSで
 // admin UUID のみ許可）で行うため、この関数は純粋なキャッシュ無効化のみを担う。
 export async function revalidateFeaturedJobs(): Promise<void> {
   revalidatePath('/jobs');
   for (const slug of AREA_SLUGS_LIST) {
+    // 出張は /jobs/area/<slug> パターンに乗らない単独ルートのため、ループ内では扱わずループ外で明示追加する。
     if (slug === 'dispatch') continue;
     revalidatePath(`/jobs/area/${slug}`);
   }
+  revalidatePath('/jobs/dispatch');
 }
 
 // ── 削除（confirmはUI側） ──

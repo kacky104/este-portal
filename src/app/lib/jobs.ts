@@ -432,6 +432,26 @@ export async function fetchActiveJobsByArea(area: string): Promise<JobListItem[]
     .filter((j): j is JobListItem => j !== null);
 }
 
+// ── 出張専門一覧用（/jobs/dispatch） ──
+// fetchActiveJobsByArea の「出張専門サロン」版。select 内容・is_active/is_hidden の多重防御・並び順・
+// mapJobListItem 整形は既存と完全同一で、絞り込みだけ salons.area の完全一致から
+// salons.dispatch_type='only'（出張専門）へ差し替える。'available'（店舗＋出張）は含めない。
+// ※ area 引数を取らない専用関数。既存のエリア用 fetch（fetchActiveJobsByArea 等）は一切変更しない。
+export async function fetchActiveDispatchJobs(): Promise<JobListItem[]> {
+  const supabase = createPublicClient();
+  const { data } = await supabase
+    .from('salon_jobs')
+    .select('id, title, salary_text, published_at, features, salons!inner(id, name, area, is_hidden)')
+    .eq('is_active', true)
+    .eq('salons.is_hidden', false)
+    .eq('salons.dispatch_type', 'only')
+    .order('published_at', { ascending: false });
+
+  return (data ?? [])
+    .map((row) => mapJobListItem(row))
+    .filter((j): j is JobListItem => j !== null);
+}
+
 // ── エリア×特徴タグ掛け合わせ一覧用（/jobs/area/[slug]/tag/[tag]） ──
 // fetchActiveJobsByArea に features の GIN 検索を併用しただけ。select/多重防御/mapJobListItem/
 // createPublicClient は既存と完全同一。slug がマスタ外なら空配列（呼び出し側で notFound）。

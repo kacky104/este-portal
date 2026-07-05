@@ -1,6 +1,6 @@
 import type { MetadataRoute } from 'next';
 import { createPublicClient } from '@/app/lib/supabase/public';
-import { fetchActiveJobsForSitemap, fetchFeatureSlugsWithActiveJobs, fetchAreaTagPairsWithActiveJobs } from '@/app/lib/jobs';
+import { fetchActiveJobsForSitemap, fetchFeatureSlugsWithActiveJobs, fetchAreaTagPairsWithActiveJobs, fetchActiveDispatchJobs } from '@/app/lib/jobs';
 import { jobsAreaHref } from '@/app/lib/areas';
 
 const SITE_URL = 'https://fukues.com';
@@ -14,7 +14,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const supabase = createPublicClient();
 
   // 公開サロン／公開サロン所属セラピスト／掲載中求人を並列取得。失敗時は空配列（サイトマップは壊さない）。
-  const [salonsRes, therapistsRes, jobs, featureSlugs, areaTag] = await Promise.all([
+  const [salonsRes, therapistsRes, jobs, featureSlugs, areaTag, dispatchJobs] = await Promise.all([
     supabase.from('salons').select('id').eq('is_hidden', false),
     supabase.from('therapists').select('id, salons!inner(is_hidden)').eq('salons.is_hidden', false),
     fetchActiveJobsForSitemap(),
@@ -22,6 +22,8 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     fetchFeatureSlugsWithActiveJobs(),
     // 求人ありのエリア／エリア×タグペア（0件ペアはnoindexなのでsitemapに入れない）。
     fetchAreaTagPairsWithActiveJobs(),
+    // 出張専門ページ（/jobs/dispatch）は求人が1件以上あるときのみ列挙（エリアページと同じ「求人あり」方針）。
+    fetchActiveDispatchJobs(),
   ]);
 
   const now = new Date();
@@ -79,6 +81,12 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     priority: 0.6,
   }));
 
+  // 出張専門ページ（/jobs/dispatch）。出張専門サロンの求人が1件以上あるときのみ列挙。
+  const dispatchEntries: MetadataRoute.Sitemap =
+    dispatchJobs.length > 0
+      ? [{ url: `${SITE_URL}/jobs/dispatch`, lastModified: now, changeFrequency: 'daily', priority: 0.7 }]
+      : [];
+
   return [
     ...staticEntries,
     ...salonEntries,
@@ -87,5 +95,6 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     ...tagEntries,
     ...areaEntries,
     ...areaTagEntries,
+    ...dispatchEntries,
   ];
 }

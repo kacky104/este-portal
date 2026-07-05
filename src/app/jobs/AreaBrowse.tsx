@@ -4,10 +4,12 @@ import { areaLabel } from '@/app/lib/areaLabel';
 
 // 「エリアから探す」チップ群（/jobs/area/[slug] 下部の回遊で使用）。サーバーコンポーネント。
 // 各チップは /jobs/area/<slug> への内部リンク（内部リンク網の形成）。FeatureBrowse のエリア版。
-// 対象は通常5エリアのみ（全域センチネル ALL_AREA と 出張 DISPATCH_AREA は除外）。
+// 対象は通常5エリア＋出張専門（/jobs/dispatch）。全域センチネル ALL_AREA のみ除外。
 // currentArea を渡すと、そのエリアを強調表示する（エリアページ下部での現在地表示用）。
 // tagSlug を渡すと、リンク先を /jobs/area/<slug>/tag/<tagSlug>（同タグ×他エリア）に切替える
 //（掛け合わせページで「他のエリアでこの特徴を探す」導線として使う。未指定なら従来の /jobs/area/<slug>）。
+// 出張（DISPATCH_AREA）だけは例外：掛け合わせページを持たない単独ページのため href は常に /jobs/dispatch 固定
+//（tagSlug が渡されても /jobs/dispatch/tag/... は生成しない＝404回避）。表示名も「出張専門」を用いる。
 export function AreaBrowse({
   title = 'エリアから探す',
   currentArea,
@@ -17,7 +19,7 @@ export function AreaBrowse({
   currentArea?: string;
   tagSlug?: string;
 }) {
-  const areas = AREA_ORDER.filter((a) => a !== ALL_AREA && a !== DISPATCH_AREA);
+  const areas = AREA_ORDER.filter((a) => a !== ALL_AREA);
   return (
     <section className="rounded-2xl border border-emerald-100 bg-white p-5 shadow-sm">
       <div className="flex items-center gap-2.5 mb-3">
@@ -27,8 +29,14 @@ export function AreaBrowse({
       <div className="flex flex-wrap gap-1.5">
         {areas.map((area) => {
           const active = area === currentArea;
-          // jobsAreaHref(area) は通常エリアで /jobs/area/<slug> を返す。tagSlug 指定時はその配下の掛け合わせへ。
-          const href = tagSlug ? `${jobsAreaHref(area)}/tag/${tagSlug}` : jobsAreaHref(area);
+          const isDispatch = area === DISPATCH_AREA;
+          // 通常エリア: jobsAreaHref(area) が /jobs/area/<slug> を返す。tagSlug 指定時はその配下の掛け合わせへ。
+          // 出張: 掛け合わせページを持たないため tagSlug に関わらず /jobs/dispatch 固定・表示名は「出張専門」。
+          const href = isDispatch
+            ? '/jobs/dispatch'
+            : tagSlug
+              ? `${jobsAreaHref(area)}/tag/${tagSlug}`
+              : jobsAreaHref(area);
           return (
             <Link
               key={area}
@@ -41,7 +49,7 @@ export function AreaBrowse({
                   : { borderColor: '#A7F3D0', color: '#059669' }
               }
             >
-              {areaLabel(area)}
+              {isDispatch ? '出張専門' : areaLabel(area)}
             </Link>
           );
         })}
