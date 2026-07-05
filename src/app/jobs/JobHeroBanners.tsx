@@ -14,7 +14,8 @@ export type HeroBanner = {
   salonName: string;
 };
 
-export function JobHeroBanners({ banners }: { banners: HeroBanner[] }) {
+// title は見出し文言（既定「注目の求人」）。呼び出し元で差し替え可能にし、指定なしのページは従来どおり。
+export function JobHeroBanners({ banners, title = '注目の求人' }: { banners: HeroBanner[]; title?: string }) {
   if (banners.length === 0) return null;
 
   return (
@@ -32,7 +33,7 @@ export function JobHeroBanners({ banners }: { banners: HeroBanner[] }) {
             color: 'transparent',
           }}
         >
-          注目の求人
+          {title}
         </h2>
       </div>
 

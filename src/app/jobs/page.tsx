@@ -77,8 +77,9 @@ export default async function JobsPage() {
         <FeatureBrowse />
       </div>
 
-      {/* 注目の求人（オーナー設定のバナー画像）。おすすめスライダーと既存求人一覧の間に配置。0件時は非表示。 */}
-      <JobHeroBanners banners={heroBanners} />
+      {/* 注目の求人（オーナー設定のバナー画像）。おすすめスライダーと既存求人一覧の間に配置。0件時は非表示。
+          /jobsトップのみ見出しを「福岡のセラピスト求人」に差し替え（他ページで使う場合の既定は「注目の求人」）。 */}
+      <JobHeroBanners banners={heroBanners} title="福岡のセラピスト求人" />
 
       {/* パンくず：フクエスワーク › 求人一覧（本体トップへの導線はヘッダー/フッターに任せる） */}
       <nav aria-label="パンくずリスト" className="flex items-center gap-1.5 mb-6" style={{ fontSize: '13px' }}>
@@ -103,7 +104,7 @@ export default async function JobsPage() {
             color: 'transparent',
           }}
         >
-          福岡のセラピスト求人
+          セラピスト求人
         </h1>
         <p className="text-sm text-slate-500 mt-1.5">福岡のメンズエステで働くセラピスト求人</p>
       </div>
