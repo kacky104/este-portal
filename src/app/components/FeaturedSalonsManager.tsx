@@ -160,10 +160,12 @@ export default function FeaturedSalonsManager({ allSalons }: { allSalons: SalonO
     if (!item) return;
 
     const ext  = file.name.split('.').pop()?.toLowerCase() ?? 'jpg';
-    // パスは timestamp でユニーク化（{id}/{timestamp}.{ext}）。固定名＋upsertだと差し替えても
+    // パスは timestamp でユニーク化（salons/{id}/{timestamp}.{ext}）。固定名＋upsertだと差し替えても
     // public URL が不変でCDN/ブラウザが旧画像をキャッシュし続ける（＝「変更しても前回の画像」バグ）。
     // 毎回URLが変わるようにして確実に反映させる。
-    const path = `${itemId}/${Date.now()}.${ext}`;
+    // salons/ プレフィックスで求人分(jobs/)と分離。削除は image_url から '/{BUCKET}/' 以降を
+    // 切り出す方式のため、プレフィックス無しの旧オブジェクトも引き続き削除可能。
+    const path = `salons/${itemId}/${Date.now()}.${ext}`;
 
     setSaving(true);
 
