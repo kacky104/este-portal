@@ -204,8 +204,9 @@ export type JobListItem = {
   publishedAt: string | null;
   features: string[];
   salon: JobSalon;
-  // 求人バナー画像URL（16:9・最大3枚・任意）。/jobs トップの「注目の求人」バナー枠は先頭[0]のみ使用。
-  // 一覧カード（JobCard）は参照しない。fetchActiveJobs でのみ SELECT する（他取得系では空配列）。
+  // 求人バナー画像URL（16:9・最大3枚・任意）。一覧のバナーカードブロック（JobHeroBanners）は先頭[0]のみ使用。
+  // 一覧カード（JobCard）は参照しない。バナーブロックを持つ全一覧 fetch（fetchActiveJobs・エリア/タグ/
+  // エリア×タグ/出張）で SELECT する。バナーブロックを持たない取得系（保存一覧・詳細向けの軽量取得等）では空配列。
   heroImageUrls: string[];
 };
 
@@ -407,7 +408,7 @@ export async function fetchActiveJobsByFeature(slug: string): Promise<JobListIte
   const supabase = createPublicClient();
   const { data } = await supabase
     .from('salon_jobs')
-    .select('id, title, salary_text, published_at, features, salons!inner(id, name, area, is_hidden)')
+    .select('id, title, salary_text, published_at, features, hero_image_urls, salons!inner(id, name, area, is_hidden)')
     .eq('is_active', true)
     .eq('salons.is_hidden', false)
     .contains('features', [slug])
@@ -426,7 +427,7 @@ export async function fetchActiveJobsByArea(area: string): Promise<JobListItem[]
   const supabase = createPublicClient();
   const { data } = await supabase
     .from('salon_jobs')
-    .select('id, title, salary_text, published_at, features, salons!inner(id, name, area, is_hidden)')
+    .select('id, title, salary_text, published_at, features, hero_image_urls, salons!inner(id, name, area, is_hidden)')
     .eq('is_active', true)
     .eq('salons.is_hidden', false)
     .eq('salons.area', area)
@@ -446,7 +447,7 @@ export async function fetchActiveDispatchJobs(): Promise<JobListItem[]> {
   const supabase = createPublicClient();
   const { data } = await supabase
     .from('salon_jobs')
-    .select('id, title, salary_text, published_at, features, salons!inner(id, name, area, is_hidden)')
+    .select('id, title, salary_text, published_at, features, hero_image_urls, salons!inner(id, name, area, is_hidden)')
     .eq('is_active', true)
     .eq('salons.is_hidden', false)
     .eq('salons.dispatch_type', 'only')
@@ -465,7 +466,7 @@ export async function fetchActiveJobsByAreaAndFeature(area: string, slug: string
   const supabase = createPublicClient();
   const { data } = await supabase
     .from('salon_jobs')
-    .select('id, title, salary_text, published_at, features, salons!inner(id, name, area, is_hidden)')
+    .select('id, title, salary_text, published_at, features, hero_image_urls, salons!inner(id, name, area, is_hidden)')
     .eq('is_active', true)
     .eq('salons.is_hidden', false)
     .eq('salons.area', area)
