@@ -160,7 +160,10 @@ export default function FeaturedJobsManager({ onToast }: { onToast: (msg: string
     const removed = items.find(i => i.id === id);
     if (removed?.imageUrl) {
       const oldPath = removed.imageUrl.split(`/${BUCKET}/`)[1];
-      if (oldPath) await supabase.storage.from(BUCKET).remove([oldPath]);
+      if (oldPath) {
+        const { error: removeError } = await supabase.storage.from(BUCKET).remove([oldPath]);
+        if (removeError) console.error('[FeaturedJobs] 行削除に伴う画像の削除に失敗:', oldPath, removeError);
+      }
     }
     setSaving(false);
     await revalidateFeaturedJobs();
@@ -231,7 +234,8 @@ export default function FeaturedJobsManager({ onToast }: { onToast: (msg: string
       onToast(`画像URLの保存に失敗しました: ${updateError.message}`);
     } else if (oldPath && oldPath !== path) {
       // DB更新が成功してから旧ファイルを削除（失敗時に画像を失わない順序）。
-      await supabase.storage.from(BUCKET).remove([oldPath]);
+      const { error: removeError } = await supabase.storage.from(BUCKET).remove([oldPath]);
+      if (removeError) console.error('[FeaturedJobs] 旧画像の削除に失敗:', oldPath, removeError);
     }
 
     e.target.value = '';
@@ -245,7 +249,10 @@ export default function FeaturedJobsManager({ onToast }: { onToast: (msg: string
     if (!item.imageUrl) return;
     setSaving(true);
     const storagePath = item.imageUrl.split(`/${BUCKET}/`)[1];
-    if (storagePath) await supabase.storage.from(BUCKET).remove([storagePath]);
+    if (storagePath) {
+      const { error: removeError } = await supabase.storage.from(BUCKET).remove([storagePath]);
+      if (removeError) console.error('[FeaturedJobs] 画像の削除に失敗:', storagePath, removeError);
+    }
     await supabase.from('featured_jobs').update({ image_url: null }).eq('id', item.id);
     setSaving(false);
     await revalidateFeaturedJobs();
