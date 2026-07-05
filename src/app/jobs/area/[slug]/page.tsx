@@ -1,10 +1,11 @@
 import Link from 'next/link';
 import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
-import { fetchActiveJobsByArea } from '@/app/lib/jobs';
+import { fetchActiveJobsByArea, getFeaturedJobs } from '@/app/lib/jobs';
 import { areaFromSlug, AREA_SLUGS_LIST, DISPATCH_AREA } from '@/app/lib/areas';
 import { areaLabel } from '@/app/lib/areaLabel';
 import { JobCard } from '../../JobCard';
+import { PickupSlider } from '../../PickupSlider';
 import { AreaBrowse } from '../../AreaBrowse';
 import { FeatureBrowse } from '../../FeatureBrowse';
 
@@ -56,7 +57,12 @@ export default async function JobAreaPage({
   if (!area || area === DISPATCH_AREA) notFound();
 
   const label = areaLabel(area);
-  const jobs = await fetchActiveJobsByArea(area);
+  // このエリアの求人一覧と、このエリア専用のおすすめ（featured_jobs.area = DB値）を並列取得。
+  // おすすめは area 非NULL行が無ければ空配列＝スライダー非表示（PickupSlider の return null に任せる）。
+  const [jobs, pickupJobs] = await Promise.all([
+    fetchActiveJobsByArea(area),
+    getFeaturedJobs(area),
+  ]);
 
   return (
     <main className="max-w-3xl mx-auto px-4 py-8">
@@ -91,6 +97,10 @@ export default async function JobAreaPage({
         </h1>
         <p className="text-sm text-slate-500 mt-1.5">福岡のメンズエステ・{label}の求人</p>
       </div>
+
+      {/* このエリア専用のおすすめ求人（featured_jobs.area = このエリア）。0件時はセクションごと非表示。
+          見出しは表示名（areaLabel経由）で「{エリア名}のおすすめ求人」。トップの並びと同順で一覧の上に置く。 */}
+      <PickupSlider jobs={pickupJobs} title={`${label}のおすすめ求人`} />
 
       {jobs.length === 0 ? (
         <div className="rounded-2xl border border-emerald-100 bg-white p-10 text-center shadow-sm">

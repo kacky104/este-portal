@@ -10,7 +10,8 @@ import type { PickupJob } from '@/app/lib/jobs';
 // カード幅は端が覗く＝スクロール可能と分かる。控除するギャップ本数は「画面内に見えるギャップ数」に一致：
 //   モバイル1.2枚見せ → ギャップ1箇所＝gap-1.5(0.375rem)×1 → w-[calc((100%-0.375rem)/1.2)]
 //   PC(md以上)2.2枚見せ → ギャップ2箇所＝gap-1.5(0.375rem)×2=0.75rem → md:w-[calc((100%-0.75rem)/2.2)]
-export function PickupSlider({ jobs }: { jobs: PickupJob[] }) {
+// title: 見出し文言（既定「おすすめ求人」）。エリアページでは「{エリア名}のおすすめ求人」を渡す。
+export function PickupSlider({ jobs, title = 'おすすめ求人' }: { jobs: PickupJob[]; title?: string }) {
   // 0件時はセクションごと非表示（呼び出し側でも制御するが二重防御）。
   if (jobs.length === 0) return null;
 
@@ -29,7 +30,7 @@ export function PickupSlider({ jobs }: { jobs: PickupJob[] }) {
             color: 'transparent',
           }}
         >
-          おすすめ求人
+          {title}
         </h2>
       </div>
 

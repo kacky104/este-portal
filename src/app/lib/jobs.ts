@@ -324,17 +324,20 @@ function mapJobListItem(row: Record<string, unknown>): JobListItem | null {
 // あればそれを、無ければ従来どおりサロンのメイン画像（salon_images 最小 display_order）を使う。
 // 並び順は display_order のまま表示（本体スライダーのマウント後ランダムシャッフルは踏襲しない）。
 // 0件時は空配列（呼び出し側でセクションごと非表示）。
-export async function getFeaturedJobs(): Promise<PickupJob[]> {
+// area 引数: null（既定）＝トップ共通（area IS NULL）／AREA_ORDER キー（例 '博多・住吉'）＝そのエリア専用
+//（area = <値> の行）。エリア別求人ページ（/jobs/area/[slug]）から DB値を渡して呼ぶ。
+export async function getFeaturedJobs(area: string | null = null): Promise<PickupJob[]> {
   const supabase = createPublicClient();
 
-  // 1) featured_jobs（トップ共通＝area IS NULL）を並び順で取得。
-  //    ※ 将来エリア別対応時は area 引数を足し、.is('area', null) を .eq('area', area) に切替える。
-  const { data: featuredData } = await supabase
+  // 1) featured_jobs を並び順で取得。area=null はトップ共通（area IS NULL）、値ありはそのエリア専用（.eq）。
+  const featuredQuery = supabase
     .from('featured_jobs')
     .select('job_id, display_order, image_url')
-    .is('area', null)
     .order('display_order', { ascending: true })
     .limit(5);
+  const { data: featuredData } = await (area === null
+    ? featuredQuery.is('area', null)
+    : featuredQuery.eq('area', area));
 
   const featuredRows = featuredData ?? [];
   if (featuredRows.length === 0) return [];
