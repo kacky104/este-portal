@@ -5,6 +5,7 @@ import { createClient } from '@/app/lib/supabase/client';
 import { revalidateSalon, revalidateTopAndAreas } from '@/app/lib/revalidateTop';
 import { TimeRangePicker } from '@/components/TimeRangePicker';
 import { areaLabel } from '@/app/lib/areaLabel';
+import { AREA_ORDER } from '@/app/lib/areas';
 import {
   adminGetOwnerEmail,
   adminUpdateOwnerEmail,
@@ -13,11 +14,6 @@ import {
 
 // メール形式の簡易チェック（サーバー側 adminOwner と同等。UI 側の事前確認用）。
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-
-const AREAS = [
-  '福岡全域', '博多・住吉', '中洲・天神・薬院',
-  '北九州・小倉', '久留米', '福岡県その他', '出張',
-] as const;
 
 export type SalonForEdit = {
   id:          number;
@@ -47,7 +43,7 @@ const supabase = createClient();
 export default function SalonEditModal({ salon, onClose, onSaved }: Props) {
   const [form, setForm] = useState({
     name:        salon.name        ?? '',
-    area:        salon.area        ?? AREAS[1],
+    area:        salon.area        ?? AREA_ORDER[1],
     price:       salon.price       ?? '',
     hours:       salon.hours       ?? '',
     phone:       salon.phone       ?? '',
@@ -238,7 +234,7 @@ export default function SalonEditModal({ salon, onClose, onSaved }: Props) {
                 onChange={set('area')}
                 className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs bg-slate-50/50 focus:outline-none focus:ring-2 focus:ring-pink-200"
               >
-                {AREAS.map(a => <option key={a} value={a}>{areaLabel(a)}</option>)}
+                {AREA_ORDER.map(a => <option key={a} value={a}>{areaLabel(a)}</option>)}
               </select>
             </div>
             {textField('料金', 'price', '例: 60分 ¥8,000〜')}

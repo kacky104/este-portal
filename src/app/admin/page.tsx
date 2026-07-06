@@ -16,11 +16,10 @@ import AreaIconManager from '@/app/components/AreaIconManager';
 import FeatureIconManager from '@/app/components/FeatureIconManager';
 import { ADMIN_UUID } from '@/app/lib/admin';
 import { areaLabel } from '@/app/lib/areaLabel';
+import { AREA_ORDER } from '@/app/lib/areas';
 import { revalidateTopAndAreas, revalidateSalon } from '@/app/lib/revalidateTop';
 
 const supabase = createClient();
-
-const AREAS = ['福岡全域', '博多・住吉', '中洲・天神・薬院', '北九州・小倉', '久留米', '福岡県その他', '出張'] as const;
 
 type Salon = {
   id:          number;
@@ -397,7 +396,7 @@ export default function AdminDashboard() {
                   onChange={e => setForm(p => ({ ...p, area: e.target.value }))}
                   className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs bg-slate-50/50 focus:outline-none focus:ring-2 focus:ring-pink-200"
                 >
-                  {AREAS.map(a => <option key={a} value={a}>{areaLabel(a)}</option>)}
+                  {AREA_ORDER.map(a => <option key={a} value={a}>{areaLabel(a)}</option>)}
                 </select>
               </div>
 

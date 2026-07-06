@@ -7,17 +7,8 @@ import { AccountMenu } from '@/app/components/AccountMenu';
 import { NotificationBell } from '@/app/components/NotificationBell';
 import { VipLetterIcon } from '@/app/components/VipLetterIcon';
 import { fetchSalons } from '@/app/lib/salons';
-
-// フィルタ判定／DB連動キー。画面表示はすべて areaLabel() を通す。
-const AREAS = [
-  '福岡全域',
-  '博多・住吉',
-  '中洲・天神・薬院',
-  '北九州・小倉',
-  '久留米',
-  '福岡県その他',
-  '出張',
-] as const;
+// フィルタ判定／DB連動キーは areas.ts の AREA_ORDER に一元化（画面表示はすべて areaLabel() を通す）。
+import { AREA_ORDER } from '@/app/lib/areas';
 
 export default async function SalonsPage() {
   const supabase = await createClient();
@@ -53,7 +44,7 @@ export default async function SalonsPage() {
         {/* 地域バッジ列を最上部に出し、その下に見出し＋説明文→カード（heading で順序制御） */}
         <ShuffledSalons
           salons={salons}
-          areas={[...AREAS]}
+          areas={[...AREA_ORDER]}
           shuffleSalt="salons"
           heading={
             <div className="mb-8">
