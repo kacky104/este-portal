@@ -210,6 +210,23 @@ export type JobListItem = {
   heroImageUrls: string[];
 };
 
+// 新着バッジ（NEW）を表示する日数。掲載開始（published_at）からこの日数以内なら新着扱い。
+// published_at は求人の新規作成時のみ now で設定され、編集・公開トグルでは更新されない
+// （＝掲載開始日時。actions/jobs.ts 参照）ため、これを新着判定の基準日とする。
+export const NEW_JOB_DAYS = 14;
+
+// 求人が新着か（掲載開始 published_at から NEW_JOB_DAYS 日以内）を判定する共通関数。
+// 判定はサーバー側（ISR生成時）で行い、キャッシュ（revalidate 間隔）による多少のズレは仕様として許容。
+// published_at が無い／不正な値、または未来日時のときは false（バッジ非表示）。
+export function isNewJob(job: { publishedAt: string | null }): boolean {
+  if (!job.publishedAt) return false;
+  const publishedMs = new Date(job.publishedAt).getTime();
+  if (Number.isNaN(publishedMs)) return false;
+  const ageMs = Date.now() - publishedMs;
+  if (ageMs < 0) return false; // 未来日時は新着扱いしない
+  return ageMs <= NEW_JOB_DAYS * 24 * 60 * 60 * 1000;
+}
+
 // ピックアップ（おすすめ求人スライダー）用の軽量カード型。
 export type PickupJob = {
   id: number;

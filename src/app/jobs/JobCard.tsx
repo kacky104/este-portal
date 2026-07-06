@@ -1,6 +1,6 @@
 import Link from 'next/link';
 import { areaLabel } from '@/app/lib/areaLabel';
-import { featureLabel, type JobListItem } from '@/app/lib/jobs';
+import { featureLabel, isNewJob, type JobListItem } from '@/app/lib/jobs';
 
 // 求人一覧カード（/jobs と /jobs/tag/[slug] で共用）。サーバーコンポーネント。
 // カード肥大化を防ぐため特徴タグは最大3個＋「+n」。
@@ -11,6 +11,8 @@ const MAX_CARD_FEATURES = 3;
 export function JobCard({ job, reserveTopRight = false }: { job: JobListItem; reserveTopRight?: boolean }) {
   const shown = job.features.slice(0, MAX_CARD_FEATURES);
   const overflow = job.features.length - shown.length;
+  // 掲載開始から14日以内なら店名横に控えめな NEW バッジ（判定はサーバー側・ISR生成時）。
+  const isNew = isNewJob(job);
 
   return (
     <Link
@@ -20,8 +22,16 @@ export function JobCard({ job, reserveTopRight = false }: { job: JobListItem; re
       {/* 求人タイトル */}
       <h2 className={`font-bold text-slate-900 leading-snug break-words${reserveTopRight ? ' pr-9' : ''}`}>{job.title}</h2>
 
-      {/* 店名＋エリア */}
+      {/* 店名＋エリア（新着は店名の直前に控えめな NEW ピルバッジ） */}
       <p className="text-xs text-slate-500 mt-1.5 flex items-center gap-1.5 flex-wrap">
+        {isNew && (
+          <span
+            className="inline-flex items-center text-[9px] font-extrabold leading-none tracking-wide text-white px-1.5 py-0.5 rounded-full flex-shrink-0"
+            style={{ background: 'linear-gradient(95deg,#10B981,#84CC16)' }}
+          >
+            NEW
+          </span>
+        )}
         <span className="font-medium text-slate-600 break-words">{job.salon.name}</span>
         {job.salon.area && (
           <span className="inline-flex items-center gap-0.5 text-slate-400">
