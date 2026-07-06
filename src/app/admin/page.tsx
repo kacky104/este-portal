@@ -14,6 +14,7 @@ import FeaturedJobsManager from '@/app/components/FeaturedJobsManager';
 import AreaBannerManager from '@/app/components/AreaBannerManager';
 import AreaIconManager from '@/app/components/AreaIconManager';
 import FeatureIconManager from '@/app/components/FeatureIconManager';
+import WorkArticlesManager from '@/app/components/WorkArticlesManager';
 import { ADMIN_UUID } from '@/app/lib/admin';
 import { areaLabel } from '@/app/lib/areaLabel';
 import { AREA_ORDER } from '@/app/lib/areas';
@@ -599,6 +600,11 @@ export default function AdminDashboard() {
           {/* 特徴アイコン（feature_category_icons）設定：FeatureBrowse カテゴリータイルの画像（/jobs・タグ／エリアページ） */}
           <AccordionSection id="feature-icons" title="特徴アイコン設定" expanded={expandedSections} onToggle={toggleSection}>
             <FeatureIconManager onToast={showToast} />
+          </AccordionSection>
+
+          {/* コラム管理（work_articles）：求職者向けSEO記事。draft含む全件を管理（公開ページは段階3）。 */}
+          <AccordionSection id="work-articles" title="コラム管理（フクエスワーク）" expanded={expandedSections} onToggle={toggleSection}>
+            <WorkArticlesManager onToast={showToast} />
           </AccordionSection>
 
           {/* 求人管理（フクエスワーク）。件数・新規応募バッジは折りたたみ時も見えるよう見出しに表示。 */}
