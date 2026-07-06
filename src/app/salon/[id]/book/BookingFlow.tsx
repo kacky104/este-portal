@@ -12,6 +12,7 @@ import {
 import type { Slot } from '@/app/lib/booking/slots';
 import { getBusinessDateJST } from '@/lib/dutyStatus';
 import { CALLBACK_PREF_OPTIONS, callbackPrefLabel } from '@/app/lib/booking/callbackPref';
+import { normalizePhone } from '@/app/lib/validation/phone';
 
 const WEEKDAYS = ['日', '月', '火', '水', '木', '金', '土'];
 
@@ -128,7 +129,7 @@ export function BookingFlow({
       setFormError('お名前を入力してください');
       return;
     }
-    if (!/^[\d\-]{6,20}$/.test(customerTel.trim())) {
+    if (!/^\d{6,20}$/.test(normalizePhone(customerTel))) {
       setFormError('電話番号は数字とハイフンで正しく入力してください');
       return;
     }

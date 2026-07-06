@@ -8,6 +8,7 @@ import { getBusinessDateJST } from '@/lib/dutyStatus';
 import { buildSlots, scheduleWindowUtc, type Slot } from '@/app/lib/booking/slots';
 import { normalizeCallbackPref, callbackPrefLabel } from '@/app/lib/booking/callbackPref';
 import { sendBookingMail } from '@/app/lib/booking/sendBookingMail';
+import { normalizePhone } from '@/app/lib/validation/phone';
 
 // ネット予約フェーズ1（客向け予約フロー）のサーバーアクション群。
 //
@@ -196,7 +197,8 @@ export async function createBooking(input: CreateBookingInput): Promise<CreateBo
   const courseMin = Number(input.courseMin);
   const courseName = String(input.courseName ?? '').trim();
   const customerName = String(input.customerName ?? '').trim();
-  const customerTel = String(input.customerTel ?? '').trim();
+  // ハイフン除去後の数字のみに正規化（桁ルールは従来どおり 6〜20 桁）。保存値もこの正規化後に統一。
+  const customerTel = normalizePhone(String(input.customerTel ?? ''));
   const note = String(input.note ?? '').trim();
   // 折り返し希望時間帯：有効な slug 以外は 'none' に正規化（改ざん耐性）。
   const callbackPref = normalizeCallbackPref(input.callbackPref);
@@ -205,7 +207,7 @@ export async function createBooking(input: CreateBookingInput): Promise<CreateBo
   if (!Number.isFinite(salonId) || !Number.isFinite(therapistId)) return { ok: false, error: 'invalid' };
   if (!Number.isInteger(courseMin) || courseMin <= 0) return { ok: false, error: 'invalid' };
   if (!customerName) return { ok: false, error: 'invalid' };
-  if (!/^[\d\-]{6,20}$/.test(customerTel)) return { ok: false, error: 'invalid' };
+  if (!/^\d{6,20}$/.test(customerTel)) return { ok: false, error: 'invalid' };
 
   const slotStart = new Date(input.slotStartISO);
   if (Number.isNaN(slotStart.getTime())) return { ok: false, error: 'invalid' };
