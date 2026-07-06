@@ -42,3 +42,6 @@ next-env.d.ts
 
 # Claude Code のローカル設定（マシン固有・権限固有）
 .claude/
+
+# タスク指示書（使い捨て・コミット禁止）
+task_*.md
