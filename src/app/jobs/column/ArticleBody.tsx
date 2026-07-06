@@ -41,21 +41,26 @@ function MarkdownLink({ href, children }: { href?: string; children?: React.Reac
 }
 
 const COMPONENTS: Components = {
+  // h2: 本文より明確に大きく・太字・上マージン広め。/jobs 既存セクション見出し（緑→ライムの
+  // 縦バー＋font-bold）のトーンに合わせつつ、下線（emerald）で本文からの区切りを強調する。
   h2: ({ children }) => (
-    <h2 className="text-lg font-extrabold text-slate-900 mt-8 mb-3 flex items-center gap-2.5">
-      <span className="w-1 h-5 rounded-full" style={{ background: 'linear-gradient(to bottom,#10B981,#84CC16)' }} />
+    <h2 className="text-xl sm:text-2xl font-extrabold text-slate-900 mt-10 mb-4 pb-2 border-b border-emerald-100 flex items-center gap-2.5">
+      <span className="w-1.5 h-6 rounded-full flex-shrink-0" style={{ background: 'linear-gradient(to bottom,#10B981,#84CC16)' }} />
       {children}
     </h2>
   ),
-  h3: ({ children }) => <h3 className="text-base font-bold text-slate-800 mt-6 mb-2">{children}</h3>,
+  // h3: h2より一段小さい太字（バー・下線なしで階層差を明示）。
+  h3: ({ children }) => (
+    <h3 className="text-base sm:text-lg font-bold text-slate-800 mt-7 mb-2">{children}</h3>
+  ),
   p: ({ children }) => <p className="text-[15px] leading-8 text-slate-700 my-4">{children}</p>,
-  ul: ({ children }) => <ul className="list-disc pl-6 my-4 space-y-1.5 text-[15px] leading-7 text-slate-700">{children}</ul>,
-  ol: ({ children }) => <ol className="list-decimal pl-6 my-4 space-y-1.5 text-[15px] leading-7 text-slate-700">{children}</ol>,
+  ul: ({ children }) => <ul className="list-disc pl-6 my-4 space-y-1.5 text-[15px] leading-7 text-slate-700 marker:text-emerald-400">{children}</ul>,
+  ol: ({ children }) => <ol className="list-decimal pl-6 my-4 space-y-1.5 text-[15px] leading-7 text-slate-700 marker:text-emerald-500 marker:font-bold">{children}</ol>,
   li: ({ children }) => <li className="pl-1">{children}</li>,
   strong: ({ children }) => <strong className="font-bold text-slate-900">{children}</strong>,
   em: ({ children }) => <em className="italic">{children}</em>,
   blockquote: ({ children }) => (
-    <blockquote className="border-l-4 pl-4 my-4 text-slate-500 italic" style={{ borderColor: '#6EE7B7' }}>
+    <blockquote className="border-l-4 pl-4 py-1 my-5 rounded-r-lg text-slate-600 italic" style={{ borderColor: '#84CC16', background: 'rgba(132,204,22,0.06)' }}>
       {children}
     </blockquote>
   ),
