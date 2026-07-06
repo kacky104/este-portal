@@ -1,11 +1,11 @@
 import Image from 'next/image';
-import { DiaryPagination } from '@/components/DiaryPagination';
 import { JobDescriptionCollapse } from './JobDescriptionCollapse';
 import { WORK_NEWS_NEW_HOURS, type WorkNewsItem } from '@/app/lib/jobs';
 
-// 求人詳細「新着情報」タブの一覧（サーバーコンポーネント）。work_news の公開分を新しい順で表示。
-// 折りたたみは求人詳細と同じ x非依存の JobDescriptionCollapse を流用。ページネーションは写メ日記実績の
-// DiaryPagination（?page=N・PAGE_SIZE=20）を流用。判定・整形は ISR 生成時（サーバー）で行う。
+// 新着情報（work_news）の一覧描画（サーバーコンポーネント・表示専任）。
+// 求人詳細タブ（/jobs/[id]）と過去ページ（/jobs/[id]/news/[page]）の両方から流用。
+// ページネーションは呼び出し側が担う（ここは一覧＋空表示のみ。動的入力に依存しない）。
+// 折りたたみは求人詳細と同じ x非依存の JobDescriptionCollapse を流用。NEW判定は ISR 生成時（サーバー）で確定。
 
 function formatDate(iso: string): string {
   const d = new Date(iso);
@@ -15,18 +15,8 @@ function formatDate(iso: string): string {
   }).format(d);
 }
 
-export function JobNewsList({
-  rows,
-  basePath,
-  page,
-  totalPages,
-}: {
-  rows: WorkNewsItem[];
-  basePath: string;
-  page: number;
-  totalPages: number;
-}) {
-  // 新着（NEW）バッジ：published_at が現在から WORK_NEWS_NEW_HOURS（48h）以内。ISR生成時に確定。
+export function JobNewsList({ rows }: { rows: WorkNewsItem[] }) {
+  // 新着（NEW）バッジ：published_at が現在から WORK_NEWS_NEW_HOURS（48h）以内。
   const newCutoffMs = Date.now() - WORK_NEWS_NEW_HOURS * 60 * 60 * 1000;
 
   if (rows.length === 0) {
@@ -82,9 +72,6 @@ export function JobNewsList({
           </article>
         );
       })}
-
-      {/* ページネーション（?page=N・20件単位。DiaryPagination を流用） */}
-      <DiaryPagination basePath={basePath} page={page} totalPages={totalPages} />
     </div>
   );
 }

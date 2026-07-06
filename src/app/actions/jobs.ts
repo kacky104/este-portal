@@ -135,6 +135,9 @@ function mapJob(row: Record<string, unknown>): MyJob {
 function revalidateJobsPublic(salonId?: number): void {
   revalidatePath('/jobs');
   revalidatePath('/jobs/[id]', 'page');
+  // 新着情報（work_news）の過去ページ専用ルート（2ページ目以降）。投稿・編集・削除・公開切替で
+  // 求人詳細タブ（page=1）だけでなく過去ページの内容も変わりうるため一括再検証。
+  revalidatePath('/jobs/[id]/news/[page]', 'page');
   // 特徴タグページ（全slug一括）。タグ付け替えでどのタグページにも影響しうるため全体を再検証。
   revalidatePath('/jobs/tag/[slug]', 'page');
   revalidatePath('/salon/[id]', 'page');

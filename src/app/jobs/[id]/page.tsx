@@ -31,11 +31,6 @@ function parseId(raw: string): number | null {
   return Number.isSafeInteger(n) ? n : null;
 }
 
-// ?page=N を 1始まりの整数に正規化（不正・未指定は 1）。新着情報タブのページネーション用。
-function parsePage(raw: string | undefined): number {
-  const n = Number(raw);
-  return Number.isFinite(n) && n >= 1 ? Math.floor(n) : 1;
-}
 
 // 相対表現やHTMLを除いたプレーンテキストを N 字前後に切り詰める（metadata description 用）。
 function truncatePlain(text: string | null, max: number): string {
@@ -151,10 +146,8 @@ function buildBreadcrumbJsonLd(job: JobDetail): Record<string, unknown> {
 
 export default async function JobDetailPage({
   params,
-  searchParams,
 }: {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ page?: string }>;
 }) {
   const { id } = await params;
   const jobId = parseId(id);
@@ -163,12 +156,11 @@ export default async function JobDetailPage({
   const job = await fetchJobById(jobId);
   if (!job) notFound();
 
-  // 新着情報（work_news）タブ：このサロンの公開分を page ページ分取得（既存fetchとは独立）。
-  const newsPage = parsePage((await searchParams).page);
-  const { rows: workNews, total: workNewsTotal } = await fetchPublishedWorkNews(job.salon.id, newsPage);
-  const workNewsTotalPages = Math.max(1, Math.ceil(workNewsTotal / WORK_NEWS_PAGE_SIZE));
-  // ?page=2 以降でアクセスされたら新着情報タブを初期表示にする（求人詳細が出るのは不自然なため）。
-  const initialDetailTab: 'details' | 'news' = newsPage >= 2 ? 'news' : 'details';
+  // 新着情報（work_news）タブ：このサロンの公開分の「最新20件のみ」を固定取得（page=1 固定）。
+  // ページネーションはこのページに持ち込まず（searchParams を使わず ISR/● を維持）、21件以上は
+  // 専用ルート /jobs/[id]/news/[page] へ誘導する。total から2ページ目以降の有無を判定。
+  const { rows: workNews, total: workNewsTotal } = await fetchPublishedWorkNews(job.salon.id, 1);
+  const hasMoreNews = workNewsTotal > WORK_NEWS_PAGE_SIZE;
 
   // 募集要項「エリア」行の表示値：求人の area（新カラム）を最優先、未入力なら求人の access
   //（例「博多駅より徒歩3分」＝area フィールドと同じエリア/アクセス性質のため流用）、
@@ -248,7 +240,6 @@ export default async function JobDetailPage({
             details＝従来の募集要項カードそのまま／news＝この店の公開 work_news（新しい順・20件ページング）。
             両スロットとも server で描画済み（データは初期レンダで両方取得）、切替は JobDetailTabs（client）のみ。 */}
         <JobDetailTabs
-          initialTab={initialDetailTab}
           newsCount={workNewsTotal}
           details={
             <div className="rounded-2xl border border-emerald-100 bg-white p-5 shadow-sm">
@@ -266,12 +257,24 @@ export default async function JobDetailPage({
             </div>
           }
           news={
-            <JobNewsList
-              rows={workNews}
-              basePath={`/jobs/${job.id}`}
-              page={newsPage}
-              totalPages={workNewsTotalPages}
-            />
+            <>
+              <JobNewsList rows={workNews} />
+              {/* 21件以上（最新20件で収まらない）なら過去ページの専用ルートへ誘導。 */}
+              {hasMoreNews && (
+                <div className="mt-5 text-center">
+                  <Link
+                    href={`/jobs/${job.id}/news/2`}
+                    className="inline-flex items-center gap-1.5 text-sm font-bold px-5 py-2.5 rounded-xl border transition-colors hover:bg-emerald-50"
+                    style={{ borderColor: '#6EE7B7', color: '#059669' }}
+                  >
+                    過去の新着情報を見る
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M9 18l6-6-6-6" />
+                    </svg>
+                  </Link>
+                </div>
+              )}
+            </>
           }
         />
 
