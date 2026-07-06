@@ -116,7 +116,7 @@ export default async function JobAreaPage({
       )}
 
       {/* 一覧見出し「セラピスト求人」。バナーがあれば h2、無ければ h1（h1消失防止）。 */}
-      <JobListHeading subtitle={`福岡のメンズエステ・${label}の求人`} asH1={heroBanners.length === 0} />
+      <JobListHeading subtitle={`福岡のメンズエステ・${label}の求人`} asH1={heroBanners.length === 0} h1Title={`${label}のセラピスト求人`} />
 
       {jobs.length === 0 ? (
         <div className="rounded-2xl border border-emerald-100 bg-white p-10 text-center shadow-sm">
