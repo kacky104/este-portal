@@ -28,13 +28,29 @@ export function JobHeroBanners({
 }) {
   const hasBanners = banners.length > 0;
 
+  // h1 は常に1行に収める。掛け合わせページの長い文言（最長「その他福岡市内×高バック率のセラピスト求人」=21字）が
+  // SP(幅375px想定・見出し可用幅≈329px)で折り返すのを、文字数に応じたフォント段階縮小で防ぐ。
+  //   〜14字: text-lg（現状サイズ維持。「博多駅のセラピスト求人」「福岡のセラピスト求人」等の短文はここ）
+  //   15〜20字: SPのみ1段階小（text-base=16px）
+  //   21字〜: SPのみ2段階小（text-sm=14px。可読性下限。21字×14px≈294px<329pxで1行に収まる）
+  // PC(md:)は常に text-lg 相当を維持し、既存ページの見た目を一切変えない（可用幅≈722pxで最長でも余裕）。
+  // ≤20字の2階層は確実に1行内に収まるため whitespace-nowrap で1行を保証。極端に長い想定外タイトルは
+  // はみ出し（横スクロール）よりも折り返しを許容するフォールバックとし、最小階層には nowrap を付けない。
+  const titleLen = [...title].length;
+  const h1SizeClass =
+    titleLen <= 14
+      ? 'text-lg whitespace-nowrap'
+      : titleLen <= 20
+        ? 'text-base md:text-lg whitespace-nowrap'
+        : 'text-sm md:text-lg';
+
   return (
     <section className="mb-8">
       {/* 見出し（フクエスワークのブランドグラデ グリーン→ライム）。h1 は常に描画する（バナー0枚でも）。 */}
       <div className={`flex items-center gap-2.5 ${hasBanners ? 'mb-3' : ''}`}>
-        <span className="w-1 h-5 rounded-full" style={{ background: 'linear-gradient(to bottom,#10B981,#84CC16)' }} />
+        <span className="w-1 h-5 rounded-full shrink-0" style={{ background: 'linear-gradient(to bottom,#10B981,#84CC16)' }} />
         <h1
-          className="text-lg font-extrabold inline-block"
+          className={`${h1SizeClass} font-extrabold inline-block`}
           style={{
             background: 'linear-gradient(95deg,#10B981,#84CC16)',
             WebkitBackgroundClip: 'text',
