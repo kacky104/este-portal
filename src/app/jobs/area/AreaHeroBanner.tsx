@@ -16,8 +16,12 @@ export function AreaHeroBanner({ banner, areaLabel }: { banner: AreaHeroBannerUr
 
   const alt = `${areaLabel}のメンズエステ求人はフクエスワーク`;
 
+  // ラッパに .hero-shine-loop（/jobsトップ・求人詳細ヒーローと共用の共通クラス）を付与し、
+  // 斜めの白帯が4秒に1回横切るシャイン演出を適用。overflow:hidden はクラス側が内蔵するため、
+  // ここでは角丸のみ rounded-xl をラッパにも付けて帯を画像の角丸内にクリップする（画像側 rounded-xl は据え置き）。
+  // SP/PC は md 出し分けで常に片方だけ表示されるため、ラッパ1つへの付与で両画面に効く。
   return (
-    <div className="mb-6">
+    <div className="mb-6 rounded-xl hero-shine-loop">
       {banner.sp && (
         <Image
           src={banner.sp}
