@@ -3,7 +3,8 @@
 import { useCallback, useEffect, useState } from 'react';
 import { createClient } from '@/app/lib/supabase/client';
 import { getLinkedXProfileForSalon } from '@/app/lib/xLink';
-import { revalidateJobsForOwner } from '@/app/actions/jobs';
+import { revalidateJobsForOwner, enforceWorkNewsLimit } from '@/app/actions/jobs';
+import { WORK_NEWS_MAX } from '@/app/lib/jobs';
 import { STORAGE_CACHE_CONTROL } from '@/app/lib/storage';
 
 // mypage「求人」タブの新着情報（work_news）管理カード。本体お知らせ（announcements）管理を
@@ -74,6 +75,48 @@ export function JobNewsManager({ salonId }: { salonId: number }) {
   const [savingId, setSavingId] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [uploadingEditId, setUploadingEditId] = useState<string | null>(null);
+
+  // アコーディオン：展開中の1件のみ（null=全て折りたたみ）。初期表示は最新10件、11件以上は「もっと見る」で全件。
+  const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [showAll, setShowAll] = useState(false);
+  const INITIAL_VISIBLE = 10;
+
+  // 編集フォームが保存済みの値から変化しているか（未保存の変更の有無）。
+  const isDirty = (id: string): boolean => {
+    const f = forms[id];
+    const it = items.find((n) => n.id === id);
+    if (!f || !it) return false;
+    return (
+      f.title !== it.title ||
+      f.content !== (it.content ?? '') ||
+      f.is_published !== it.is_published ||
+      f.image_url !== it.image_url
+    );
+  };
+
+  // 編集フォームを保存済みの値へ戻す（変更破棄）。
+  const resetForm = (id: string) => {
+    const it = items.find((n) => n.id === id);
+    if (!it) return;
+    setForms((prev) => ({
+      ...prev,
+      [id]: { title: it.title, content: it.content ?? '', is_published: it.is_published, image_url: it.image_url },
+    }));
+  };
+
+  // 「編集」トグル。同一行なら閉じる。別行を開くとき、展開中の行に未保存変更があれば confirm で警告し、
+  // 破棄OKなら前の行のフォームを保存済み値へ戻してから切り替える（同時展開は常に1件）。
+  const handleEditToggle = (id: string) => {
+    if (expandedId === id) {
+      setExpandedId(null);
+      return;
+    }
+    if (expandedId !== null && isDirty(expandedId)) {
+      if (!window.confirm('編集中の内容が保存されていません。破棄して別の項目を編集しますか？')) return;
+      resetForm(expandedId);
+    }
+    setExpandedId(id);
+  };
 
   const rebuildForms = (list: WorkNews[]) => {
     const map: Record<string, EditForm> = {};
@@ -176,15 +219,26 @@ export function JobNewsManager({ salonId }: { salonId: number }) {
       });
       return;
     }
-    await fetchList();
     // 追加成功後のみ fukuX 同時投稿（失敗しても本体は成功のまま）。
     const xOk = await maybeCrosspostWorkNewsToX(newCrosspostX, newCrosspostNoReplies, title, content, imageUrl);
+    // ローリング上限（案A・サーバーアクション）：投稿成功後に20件超過分を古い順で自動削除（画像も掃除）。
+    // best-effort（失敗しても投稿自体は成立）。成否に関わらず最新状態を再取得して一覧へ反映する。
+    let pruned = 0;
+    try {
+      const res = await enforceWorkNewsLimit(salonId);
+      if (res.ok) pruned = res.deleted;
+      else console.error('[WorkNews] ローリング削除に失敗:', res.error);
+    } catch (e) {
+      console.error('[WorkNews] ローリング削除で例外:', e);
+    }
+    await fetchList();
     setNewForm({ title: '', content: '', is_published: true, image_url: null });
     setNewCrosspostX(false);
     setNewCrosspostNoReplies(false);
     setAdding(false);
     await revalidateJobsForOwner(salonId);
-    setMsg({ kind: 'ok', text: xOk ? '新着情報を追加しました' : '新着情報を追加しました（fukuX投稿は失敗しました）' });
+    const base = xOk ? '新着情報を追加しました' : '新着情報を追加しました（fukuX投稿は失敗しました）';
+    setMsg({ kind: 'ok', text: pruned > 0 ? `${base}（古い${pruned}件を自動削除）` : base });
   };
 
   // 編集保存（fukuX へは投稿しない＝重複ポスト防止）。画像差し替え時は DB更新成功後に旧画像を削除。
@@ -217,21 +271,9 @@ export function JobNewsManager({ salonId }: { salonId: number }) {
 
     setItems((prev) => prev.map((n) => n.id === id ? { ...n, title, content, is_published, image_url: newImageUrl } : n));
     setSavingId(null);
+    setExpandedId(null); // 保存完了でコンパクト表示へ戻す
     await revalidateJobsForOwner(salonId);
     setMsg({ kind: 'ok', text: '新着情報を保存しました' });
-  };
-
-  // 公開/非公開のワンタップ切替（即時保存）。
-  const handleTogglePublish = async (id: string) => {
-    const target = items.find((n) => n.id === id);
-    if (!target) return;
-    const next = !target.is_published;
-    const { error } = await supabase.from('work_news').update({ is_published: next }).eq('id', id);
-    if (error) { setMsg({ kind: 'err', text: `変更に失敗しました: ${error.message}` }); return; }
-    setItems((prev) => prev.map((n) => n.id === id ? { ...n, is_published: next } : n));
-    setForms((prev) => ({ ...prev, [id]: { ...prev[id], is_published: next } }));
-    await revalidateJobsForOwner(salonId);
-    setMsg({ kind: 'ok', text: next ? '公開にしました' : '非公開にしました' });
   };
 
   // 削除（確認あり）。行削除成功後に添付画像も削除（remove() 戻り値検査）。
@@ -255,6 +297,7 @@ export function JobNewsManager({ salonId }: { salonId: number }) {
     }
     setItems((prev) => prev.filter((n) => n.id !== id));
     setForms((prev) => { const n = { ...prev }; delete n[id]; return n; });
+    if (expandedId === id) setExpandedId(null);
     await revalidateJobsForOwner(salonId);
     setMsg({ kind: 'ok', text: '新着情報を削除しました' });
   };
@@ -395,6 +438,10 @@ export function JobNewsManager({ salonId }: { salonId: number }) {
       {/* 新規追加フォーム */}
       <div className="rounded-2xl border border-emerald-100 bg-emerald-50/30 p-4 space-y-3">
         <h3 className="text-xs font-black" style={{ color: '#059669' }}>新着情報を新規追加</h3>
+        {/* ローリング上限の常設注意書き（新規投稿フォームの近く）。 */}
+        <p className="text-[10px] text-slate-500 leading-relaxed rounded-lg bg-amber-50 border border-amber-100 px-2.5 py-2">
+          新着情報は最新{WORK_NEWS_MAX}件まで保存されます。{WORK_NEWS_MAX + 1}件目を投稿すると、非公開分を含めて古いものから自動的に削除されます。
+        </p>
         <div>
           <label className={labelClass}>タイトル <span className="text-rose-400">*</span></label>
           <input
@@ -450,75 +497,106 @@ export function JobNewsManager({ salonId }: { salonId: number }) {
           <p className="text-xs text-slate-400">登録されている新着情報がありません</p>
         </div>
       ) : (
-        items.map((n) => {
-          const form = forms[n.id] ?? { title: '', content: '', is_published: true, image_url: null };
-          return (
-            <div key={n.id} className="rounded-2xl border border-emerald-100 shadow-sm p-5 space-y-3">
-              <div className="flex flex-wrap items-center justify-between gap-2">
-                <div className="flex items-center gap-2 min-w-0">
-                  <span className={`text-[11px] font-bold px-2.5 py-1 rounded-full flex-shrink-0 ${
+        <>
+          {(showAll ? items : items.slice(0, INITIAL_VISIBLE)).map((n) => {
+            const form = forms[n.id] ?? { title: '', content: '', is_published: true, image_url: null };
+            const expanded = expandedId === n.id;
+            return (
+              <div key={n.id} className="rounded-2xl border border-emerald-100 shadow-sm overflow-hidden">
+                {/* コンパクト行：公開バッジ ＋ タイトル ＋ 投稿日時 ＋ 編集 ＋ 削除 */}
+                <div className="flex items-center gap-2 p-3">
+                  <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full flex-shrink-0 ${
                     n.is_published ? 'bg-emerald-50 text-emerald-600' : 'bg-slate-100 text-slate-400'
                   }`}>
                     {n.is_published ? '公開中' : '非公開'}
                   </span>
-                  <span className="text-[10px] text-slate-400 truncate">{formatPublishedAt(n.published_at)}</span>
-                </div>
-                <div className="flex flex-wrap items-center gap-2 justify-end">
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-bold text-slate-700 truncate">{n.title || '（無題）'}</p>
+                    <p className="text-[10px] text-slate-400 truncate">{formatPublishedAt(n.published_at)}</p>
+                  </div>
                   <button
                     type="button"
-                    onClick={() => handleTogglePublish(n.id)}
-                    className="px-3 py-1.5 rounded-xl border text-xs font-bold transition-colors"
+                    onClick={() => handleEditToggle(n.id)}
+                    className="px-3 py-1.5 rounded-xl border text-xs font-bold transition-colors flex-shrink-0"
                     style={{ borderColor: '#6EE7B7', color: '#059669' }}
                   >
-                    {n.is_published ? '非公開にする' : '公開にする'}
+                    {expanded ? '閉じる' : '編集'}
                   </button>
                   <button
                     type="button"
                     onClick={() => handleDelete(n.id)}
                     disabled={deletingId === n.id}
-                    className="px-3 py-1.5 rounded-xl border border-rose-200 text-rose-500 text-xs font-bold bg-rose-50 hover:bg-rose-100 transition-colors disabled:opacity-50"
+                    className="px-3 py-1.5 rounded-xl border border-rose-200 text-rose-500 text-xs font-bold bg-rose-50 hover:bg-rose-100 transition-colors disabled:opacity-50 flex-shrink-0"
                   >
                     {deletingId === n.id ? '削除中...' : '削除'}
                   </button>
                 </div>
-              </div>
 
-              <div>
-                <label className={labelClass}>タイトル <span className="text-rose-400">*</span></label>
-                <input
-                  className={inputClass}
-                  value={form.title}
-                  onChange={(e) => setForms((prev) => ({ ...prev, [n.id]: { ...prev[n.id], title: e.target.value } }))}
-                />
-              </div>
-              <div>
-                <label className={labelClass}>本文（任意）</label>
-                <textarea
-                  rows={5}
-                  className={textareaClass}
-                  value={form.content}
-                  onChange={(e) => setForms((prev) => ({ ...prev, [n.id]: { ...prev[n.id], content: e.target.value } }))}
-                />
-              </div>
-              <div>
-                <label className={labelClass}>画像（任意・1枚）</label>
-                <p className="text-[10px] text-slate-400 mb-1.5">推奨：800×450px（横長）／ JPEG・PNG・WebP・5MB以下</p>
-                {imageBox(
-                  form.image_url,
-                  () => setForms((prev) => ({ ...prev, [n.id]: { ...prev[n.id], image_url: null } })),
-                  uploadingEditId === n.id,
-                  (e) => handleEditImageUpload(n.id, e),
+                {/* 編集フォーム（展開時のみ・同時展開は常に1件） */}
+                {expanded && (
+                  <div className="border-t border-emerald-100 bg-emerald-50/20 p-4 space-y-3">
+                    <div>
+                      <label className={labelClass}>タイトル <span className="text-rose-400">*</span></label>
+                      <input
+                        className={inputClass}
+                        value={form.title}
+                        onChange={(e) => setForms((prev) => ({ ...prev, [n.id]: { ...prev[n.id], title: e.target.value } }))}
+                      />
+                    </div>
+                    <div>
+                      <label className={labelClass}>本文（任意）</label>
+                      <textarea
+                        rows={5}
+                        className={textareaClass}
+                        value={form.content}
+                        onChange={(e) => setForms((prev) => ({ ...prev, [n.id]: { ...prev[n.id], content: e.target.value } }))}
+                      />
+                    </div>
+                    <div>
+                      <label className={labelClass}>画像（任意・1枚）</label>
+                      <p className="text-[10px] text-slate-400 mb-1.5">推奨：800×450px（横長）／ JPEG・PNG・WebP・5MB以下</p>
+                      {imageBox(
+                        form.image_url,
+                        () => setForms((prev) => ({ ...prev, [n.id]: { ...prev[n.id], image_url: null } })),
+                        uploadingEditId === n.id,
+                        (e) => handleEditImageUpload(n.id, e),
+                      )}
+                      <p className="text-[10px] text-slate-400 mt-1">※ 画像の差し替え・削除は「保存」で確定します。</p>
+                    </div>
+                    <label className="flex items-center gap-2 cursor-pointer select-none">
+                      <input
+                        type="checkbox"
+                        className="w-4 h-4 accent-emerald-500 flex-shrink-0"
+                        checked={form.is_published}
+                        onChange={(e) => setForms((prev) => ({ ...prev, [n.id]: { ...prev[n.id], is_published: e.target.checked } }))}
+                      />
+                      <span className="text-xs font-bold text-slate-600">公開する（オフにすると非公開で保存）</span>
+                    </label>
+                    <div className="flex justify-end">
+                      <button className={saveBtn} style={saveBtnStyle} onClick={() => handleSave(n.id)} disabled={savingId === n.id}>
+                        {savingId === n.id ? '保存中...' : '保存'}
+                      </button>
+                    </div>
+                  </div>
                 )}
-                <p className="text-[10px] text-slate-400 mt-1">※ 画像の差し替え・削除は「保存」で確定します。</p>
               </div>
-              <div className="flex justify-end">
-                <button className={saveBtn} style={saveBtnStyle} onClick={() => handleSave(n.id)} disabled={savingId === n.id}>
-                  {savingId === n.id ? '保存中...' : '保存'}
-                </button>
-              </div>
+            );
+          })}
+
+          {/* もっと見る／折りたたむ（11件以上のときのみ・クライアント側の表示切替＝追加フェッチ不要） */}
+          {items.length > INITIAL_VISIBLE && (
+            <div className="flex justify-center pt-1">
+              <button
+                type="button"
+                onClick={() => setShowAll((v) => !v)}
+                className="text-xs font-bold px-4 py-2 rounded-xl border transition-colors"
+                style={{ borderColor: '#6EE7B7', color: '#059669' }}
+              >
+                {showAll ? '折りたたむ' : `もっと見る（残り${items.length - INITIAL_VISIBLE}件）`}
+              </button>
             </div>
-          );
-        })
+          )}
+        </>
       )}
     </div>
   );

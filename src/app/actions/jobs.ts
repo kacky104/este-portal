@@ -31,6 +31,7 @@ import {
   sanitizeGallery,
   sanitizeVoices,
   validateCelebrationMoney,
+  WORK_NEWS_MAX,
 } from '@/app/lib/jobs';
 
 // フクエスワーク（セラピスト求人）フェーズ2のサーバーアクション群。
@@ -519,6 +520,73 @@ export async function revalidateFeaturedJobs(): Promise<void> {
 // 表示側（求人詳細のタブUI）は段階3で実装予定だが、投稿時点で /jobs 系のISRを更新しておく。
 export async function revalidateJobsForOwner(salonId?: number): Promise<void> {
   revalidateJobsPublic(salonId);
+}
+
+// ── 新着情報（work_news）のローリング上限（サロンごと最新 WORK_NEWS_MAX=20 件） ──
+// 新規投稿が成功したあとにクライアントから呼ぶ（案A：サーバーアクション方式）。
+//  - 同一サロンの work_news を created_at 昇順（古い順）で全件見て、20件を超えていたら超過分を「全て」削除する
+//    （21件超＝過去データ/競合残りでも20件まで削れるよう slice で超過分をまとめて対象化。LIMIT 1 固定にしない）。
+//  - 公開・非公開は問わない（created_at 基準の単純な古い順）。
+//  - 削除は必ず salon_id スコープ内：.eq('salon_id', salonId) ＋ .in('id', overflowIds) の二重条件で実行する。
+//  - 添付画像がある行は、行削除に成功した分だけ対応する Storage ファイルを掃除する（削除した行の image パスのみを対象）。
+//  - 認証ユーザークライアント（RLS）経由。owner本人/ADMIN を salons.owner_id で照合（他サロンには一切触れない）。
+const WORK_NEWS_BUCKET = 'work-news-images';
+
+// work-news-images の public URL から Storage パス（{salon_id}/{ts}.{ext}）を取り出す。該当しなければ null。
+function workNewsStoragePath(url: string | null): string | null {
+  if (!url) return null;
+  const marker = `/${WORK_NEWS_BUCKET}/`;
+  const idx = url.indexOf(marker);
+  return idx === -1 ? null : url.slice(idx + marker.length);
+}
+
+export async function enforceWorkNewsLimit(
+  salonId: number,
+): Promise<{ ok: true; deleted: number } | Err> {
+  if (!Number.isFinite(salonId)) return { ok: false, error: '対象サロンが不正です' };
+  const auth = await requireUser();
+  if (!auth.ok) return auth;
+  const own = await assertSalonOwner(auth.supabase, auth.user.id, salonId);
+  if (!own.ok) return own;
+
+  // 同一サロンの全 work_news を作成日時の古い順で取得（id・image_url のみ）。
+  const { data, error } = await auth.supabase
+    .from('work_news')
+    .select('id, image_url, created_at')
+    .eq('salon_id', salonId)
+    .order('created_at', { ascending: true });
+  if (error) return { ok: false, error: error.message };
+
+  const rows = data ?? [];
+  if (rows.length <= WORK_NEWS_MAX) return { ok: true, deleted: 0 };
+
+  // 超過分（古い側から rows.length - 20 件）をまとめて削除対象にする。
+  const overflow = rows.slice(0, rows.length - WORK_NEWS_MAX);
+  const overflowIds = overflow.map((r) => String(r.id));
+
+  // 【必須】salon_id スコープ内で削除（.eq('salon_id') ＋ .in('id', overflowIds)）。他サロンには波及しない。
+  const { data: deleted, error: delErr } = await auth.supabase
+    .from('work_news')
+    .delete()
+    .eq('salon_id', salonId)
+    .in('id', overflowIds)
+    .select('id');
+  if (delErr) return { ok: false, error: delErr.message };
+
+  // 行削除に成功した分だけ、対応する Storage 画像を掃除（削除した行の image パスのみが対象）。
+  const deletedIds = new Set((deleted ?? []).map((d) => String(d.id)));
+  const paths = overflow
+    .filter((r) => deletedIds.has(String(r.id)))
+    .map((r) => workNewsStoragePath((r.image_url as string | null) ?? null))
+    .filter((p): p is string => p !== null);
+  if (paths.length > 0) {
+    const { error: rmErr } = await auth.supabase.storage.from(WORK_NEWS_BUCKET).remove(paths);
+    // 画像掃除の失敗は致命ではない（行削除は成立済み）。ログのみ（孤児は残るが表示に影響しない）。
+    if (rmErr) console.error('[WorkNews] ローリング削除に伴う画像削除に失敗:', paths, rmErr);
+  }
+
+  revalidateJobsPublic(salonId);
+  return { ok: true, deleted: deletedIds.size };
 }
 
 // ── 削除（confirmはUI側） ──
