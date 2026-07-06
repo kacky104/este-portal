@@ -64,7 +64,7 @@ create policy "work_news_images_storage_insert" on storage.objects
     and exists (
       select 1 from public.salons s
       where s.owner_id = auth.uid()
-        and (s.id)::text = split_part(name, '/', 1)));
+        and (s.id)::text = split_part(objects.name, '/', 1)));
 
 create policy "work_news_images_storage_delete" on storage.objects
   for delete using (
@@ -73,4 +73,4 @@ create policy "work_news_images_storage_delete" on storage.objects
     and exists (
       select 1 from public.salons s
       where s.owner_id = auth.uid()
-        and (s.id)::text = split_part(name, '/', 1)));
+        and (s.id)::text = split_part(objects.name, '/', 1)));
