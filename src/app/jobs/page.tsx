@@ -92,24 +92,7 @@ export default async function JobsPage() {
         </span>
       </nav>
 
-      {/* 一覧見出し「セラピスト求人」。バナーがあれば h2、無ければ h1（h1消失防止）。 */}
-      <JobListHeading subtitle="福岡のメンズエステで働くセラピスト求人" asH1={heroBanners.length === 0} />
-
-      {jobs.length === 0 ? (
-        <div className="rounded-2xl border border-emerald-100 bg-white p-10 text-center text-slate-500 text-sm shadow-sm">
-          現在募集中の求人はありません
-        </div>
-      ) : (
-        <ul className="space-y-3">
-          {shuffledJobs.map((job) => (
-            <li key={job.id}>
-              <JobCard job={job} />
-            </li>
-          ))}
-        </ul>
-      )}
-
-      {/* お仕事コラム（work_articles の新着3件）。0件時はセクションごと非表示。見出しは h2（h1は上の一覧見出し）。 */}
+      {/* お仕事コラム（work_articles の新着3件）。0件時はセクションごと非表示。見出しは h2（h1は上部バナーブロック）。 */}
       {columnArticles.length > 0 && (
         <section className="mt-10">
           <div className="flex items-center justify-between gap-3 mb-3">
@@ -130,6 +113,26 @@ export default async function JobsPage() {
           </ul>
         </section>
       )}
+
+      {/* ── セラピスト求人（テキスト一覧）：ページ最下部＝コラム枠より下に配置 ──
+          見出しは常に h2（h1 は上部の JobHeroBanners が常設で担うため、ここを昇格させない）。 */}
+      <div className="mt-10">
+        <JobListHeading subtitle="福岡のメンズエステで働くセラピスト求人" />
+
+        {jobs.length === 0 ? (
+          <div className="rounded-2xl border border-emerald-100 bg-white p-10 text-center text-slate-500 text-sm shadow-sm">
+            現在募集中の求人はありません
+          </div>
+        ) : (
+          <ul className="space-y-3">
+            {shuffledJobs.map((job) => (
+              <li key={job.id}>
+                <JobCard job={job} />
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
     </main>
   );
 }

@@ -88,34 +88,37 @@ export default async function JobTagPage({
           タグページはこのブロックが最上部の大画像＝LCPのため、先頭バナーに priority を付与。 */}
       <JobHeroBanners banners={heroBanners} title={`${label}のセラピスト求人`} priority />
 
-      {/* 一覧見出し「セラピスト求人」。バナーがあれば h2、無ければ h1（h1消失防止）。 */}
-      <JobListHeading subtitle={`福岡のメンズエステ・${label}の求人`} asH1={heroBanners.length === 0} h1Title={`${label}のセラピスト求人`} />
-
-      {jobs.length === 0 ? (
-        <div className="rounded-2xl border border-emerald-100 bg-white p-10 text-center shadow-sm">
-          <p className="text-slate-500 text-sm">現在この条件の求人はありません</p>
-          <Link
-            href="/jobs"
-            className="inline-block mt-4 text-sm font-bold px-5 py-2.5 rounded-xl border transition-colors hover:bg-emerald-50"
-            style={{ borderColor: '#6EE7B7', color: '#059669' }}
-          >
-            すべての求人を見る →
-          </Link>
-        </div>
-      ) : (
-        <ul className="space-y-3">
-          {shuffledJobs.map((job) => (
-            <li key={job.id}>
-              <JobCard job={job} />
-            </li>
-          ))}
-        </ul>
-      )}
-
       {/* 他タグへの回遊＋「エリア×この特徴」掛け合わせページへの逆方向リンク（掛け合わせページ末尾と同じ並び） */}
       <div className="mt-8 space-y-4">
         <FeatureBrowse title="他の特徴から探す" currentSlug={slug} />
         <AreaBrowse title={`エリア別に「${label}」を探す`} tagSlug={slug} />
+      </div>
+
+      {/* セラピスト求人（テキスト一覧）：ページ最下部＝回遊ブロックより下に配置。
+          見出しは常に h2（h1 は上部の JobHeroBanners が常設で担う）。 */}
+      <div className="mt-10">
+        <JobListHeading subtitle={`福岡のメンズエステ・${label}の求人`} />
+
+        {jobs.length === 0 ? (
+          <div className="rounded-2xl border border-emerald-100 bg-white p-10 text-center shadow-sm">
+            <p className="text-slate-500 text-sm">現在この条件の求人はありません</p>
+            <Link
+              href="/jobs"
+              className="inline-block mt-4 text-sm font-bold px-5 py-2.5 rounded-xl border transition-colors hover:bg-emerald-50"
+              style={{ borderColor: '#6EE7B7', color: '#059669' }}
+            >
+              すべての求人を見る →
+            </Link>
+          </div>
+        ) : (
+          <ul className="space-y-3">
+            {shuffledJobs.map((job) => (
+              <li key={job.id}>
+                <JobCard job={job} />
+              </li>
+            ))}
+          </ul>
+        )}
       </div>
     </main>
   );

@@ -6,8 +6,11 @@ import type { HeroBanner } from '@/app/lib/heroBanners';
 // オーナーが設定した求人バナー画像（16:9・文言焼き込み済み）を縦積みで表示し、
 // バナー全体を /jobs/[id] へのリンクにする。画像の上にテキストは重ねない
 // （バナーに文言が焼き込まれている前提。サロン名・求人名は画像下に控えめに添える）。
-// 既存の求人一覧（JobCard）とは別枠で、置き換えではなく追加。0件時はセクションごと非表示。
+// 既存の求人一覧（JobCard）とは別枠で、置き換えではなく追加。
 // 見出し（title）はページ条件のキーワード（例「福岡のセラピスト求人」）で、各ページの h1 を担う。
+// ※ 見出し(h1)は常に描画する（バナー画像が0枚でも）。求人一覧ブロックをページ最下部へ移した設計のため、
+//   h1 を一覧見出し側で昇格させると h1 が最下部に来てしまう。h1 はこの上部ブロックで常に1つ確保し、
+//   一覧見出し（JobListHeading）は常に h2 とする。バナー画像は0枚なら省略（見出しのみ描画）。
 
 export type { HeroBanner };
 
@@ -23,12 +26,12 @@ export function JobHeroBanners({
   title?: string;
   priority?: boolean;
 }) {
-  if (banners.length === 0) return null;
+  const hasBanners = banners.length > 0;
 
   return (
     <section className="mb-8">
-      {/* 見出し（フクエスワークのブランドグラデ グリーン→ライム） */}
-      <div className="flex items-center gap-2.5 mb-3">
+      {/* 見出し（フクエスワークのブランドグラデ グリーン→ライム）。h1 は常に描画する（バナー0枚でも）。 */}
+      <div className={`flex items-center gap-2.5 ${hasBanners ? 'mb-3' : ''}`}>
         <span className="w-1 h-5 rounded-full" style={{ background: 'linear-gradient(to bottom,#10B981,#84CC16)' }} />
         <h1
           className="text-lg font-extrabold inline-block"
@@ -44,7 +47,8 @@ export function JobHeroBanners({
         </h1>
       </div>
 
-      {/* 16:9バナーの縦積み（1列・コンテナ幅いっぱい）。 */}
+      {/* 16:9バナーの縦積み（1列・コンテナ幅いっぱい）。バナー0枚なら省略（見出しのみ）。 */}
+      {hasBanners && (
       <div className="space-y-4">
         {banners.map((b, i) => (
           <Link
@@ -70,6 +74,7 @@ export function JobHeroBanners({
           </Link>
         ))}
       </div>
+      )}
     </section>
   );
 }

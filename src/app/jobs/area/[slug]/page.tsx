@@ -106,17 +106,15 @@ export default async function JobAreaPage({
         <AreaBrowse title="他のエリアから探す" currentArea={area} />
       </div>
 
-      {/* バナーカードブロック（キーワード見出し h1・一覧の直上）。バナー0件なら非表示。
-          直前の「他のエリアから探す」ブロックとの間に他セクション同等の上余白を確保するため mt-8 でラップ。
-          共有コンポーネント側は触らず、0件時に空の余白が残らないよう描画されるときだけラッパを出す。 */}
-      {heroBanners.length > 0 && (
-        <div className="mt-8">
-          <JobHeroBanners banners={heroBanners} title={`${label}のセラピスト求人`} />
-        </div>
-      )}
+      {/* バナーカードブロック（キーワード見出し h1・一覧の直上）。見出し(h1)は常に描画し、
+          バナー画像は0件なら省略（コンポーネント側で分岐）。h1 を上部で常設して一覧見出しは h2 に統一する。
+          直前の「他のエリアから探す」ブロックとの間に他セクション同等の上余白を確保するため mt-8 でラップ。 */}
+      <div className="mt-8">
+        <JobHeroBanners banners={heroBanners} title={`${label}のセラピスト求人`} />
+      </div>
 
-      {/* 一覧見出し「セラピスト求人」。バナーがあれば h2、無ければ h1（h1消失防止）。 */}
-      <JobListHeading subtitle={`福岡のメンズエステ・${label}の求人`} asH1={heroBanners.length === 0} h1Title={`${label}のセラピスト求人`} />
+      {/* セラピスト求人（テキスト一覧）：ページ最下部。見出しは常に h2（h1 は上部バナーブロックが担う）。 */}
+      <JobListHeading subtitle={`福岡のメンズエステ・${label}の求人`} />
 
       {jobs.length === 0 ? (
         <div className="rounded-2xl border border-emerald-100 bg-white p-10 text-center shadow-sm">
