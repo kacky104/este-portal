@@ -18,6 +18,7 @@ import { inviteCast, resendCastInvite, unlinkCast, cancelCastInvite } from '@/ap
 import { PAYMENT_CARD_OPTIONS } from '@/app/lib/paymentCards';
 import { getSalonBookings, updateBookingStatus, deleteBooking, type OwnerBooking } from '@/app/actions/booking';
 import { callbackPrefLabel } from '@/app/lib/booking/callbackPref';
+import { STORAGE_CACHE_CONTROL } from '@/app/lib/storage';
 
 const supabase = createClient();
 
@@ -671,7 +672,7 @@ export default function MyPage() {
     const ext    = file.name.split('.').pop() ?? 'jpg';
     const path   = `${Number(salon.id)}/${Date.now()}.${ext}`;
 
-    const { error: uploadError } = await supabase.storage.from('salon-images').upload(path, file, { upsert: false });
+    const { error: uploadError } = await supabase.storage.from('salon-images').upload(path, file, { upsert: false, cacheControl: STORAGE_CACHE_CONTROL });
     if (uploadError) {
       showToast(`アップロードに失敗しました: ${uploadError.message}`);
       setUploadingNewSlot(false); e.target.value = ''; return;
@@ -707,7 +708,7 @@ export default function MyPage() {
     const ext  = file.name.split('.').pop() ?? 'jpg';
     const path = `${Number(salon.id)}/${Date.now()}.${ext}`;
 
-    const { error: uploadError } = await supabase.storage.from('salon-images').upload(path, file, { upsert: false });
+    const { error: uploadError } = await supabase.storage.from('salon-images').upload(path, file, { upsert: false, cacheControl: STORAGE_CACHE_CONTROL });
     if (uploadError) {
       showToast(`アップロードに失敗しました: ${uploadError.message}`);
       setUploadingPcId(null); e.target.value = ''; return;
@@ -738,7 +739,7 @@ export default function MyPage() {
     const ext  = file.name.split('.').pop() ?? 'jpg';
     const path = `${Number(salon.id)}/mobile_${Date.now()}.${ext}`;
 
-    const { error: uploadError } = await supabase.storage.from('salon-images').upload(path, file, { upsert: false });
+    const { error: uploadError } = await supabase.storage.from('salon-images').upload(path, file, { upsert: false, cacheControl: STORAGE_CACHE_CONTROL });
     if (uploadError) {
       showToast(`アップロードに失敗しました: ${uploadError.message}`);
       setUploadingMobileId(null); e.target.value = ''; return;
@@ -1187,7 +1188,7 @@ export default function MyPage() {
     const ext  = file.name.split('.').pop() ?? 'jpg';
     const path = `${diaryTherapistId}/${Date.now()}.${ext}`;
 
-    const { error } = await supabase.storage.from('diary-images').upload(path, file);
+    const { error } = await supabase.storage.from('diary-images').upload(path, file, { cacheControl: STORAGE_CACHE_CONTROL });
     if (error) {
       showToast(`アップロードに失敗しました: ${error.message}`);
       setDiaryUploading(false); e.target.value = ''; return;
@@ -1339,7 +1340,7 @@ export default function MyPage() {
     setUploadingNewAnnouncementImage(true);
     const ext  = file.name.split('.').pop() ?? 'jpg';
     const path = `${Number(salon.id)}/${Date.now()}.${ext}`;
-    const { error } = await supabase.storage.from('announcement-images').upload(path, file);
+    const { error } = await supabase.storage.from('announcement-images').upload(path, file, { cacheControl: STORAGE_CACHE_CONTROL });
     if (error) {
       showToast(`アップロードに失敗しました: ${error.message}`);
       setUploadingNewAnnouncementImage(false); e.target.value = ''; return;
@@ -1358,7 +1359,7 @@ export default function MyPage() {
     setUploadingAnnouncementImageId(id);
     const ext  = file.name.split('.').pop() ?? 'jpg';
     const path = `${Number(salon.id)}/${Date.now()}.${ext}`;
-    const { error } = await supabase.storage.from('announcement-images').upload(path, file);
+    const { error } = await supabase.storage.from('announcement-images').upload(path, file, { cacheControl: STORAGE_CACHE_CONTROL });
     if (error) {
       showToast(`アップロードに失敗しました: ${error.message}`);
       setUploadingAnnouncementImageId(null); e.target.value = ''; return;

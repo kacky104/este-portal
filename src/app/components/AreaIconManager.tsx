@@ -5,6 +5,7 @@ import { createClient } from '@/app/lib/supabase/client';
 import { revalidateFeaturedJobs } from '@/app/actions/jobs';
 import { AREA_SLUGS_LIST, areaFromSlug } from '@/app/lib/areas';
 import { areaLabel } from '@/app/lib/areaLabel';
+import { STORAGE_CACHE_CONTROL } from '@/app/lib/storage';
 
 // エリアアイコン（area_browse_icons）管理。AreaBannerManager を雛形に新設（構造・流儀を踏襲）。
 // authenticated クライアント直（RLSで admin UUID のみ許可）。SP/PC 2枚方式（バナーと同構成：sp_image_url / pc_image_url）。
@@ -94,7 +95,7 @@ export default function AreaIconManager({ onToast }: { onToast: (msg: string) =>
 
     const { error: upErr } = await supabase.storage
       .from(BUCKET)
-      .upload(path, file, { contentType: file.type });
+      .upload(path, file, { contentType: file.type, cacheControl: STORAGE_CACHE_CONTROL });
 
     if (upErr) {
       onToast(`画像のアップロードに失敗しました: ${upErr.message}`);

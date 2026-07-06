@@ -3,6 +3,7 @@
 import { useRef, useState } from 'react';
 import { createClient } from '@/app/lib/supabase/client';
 import { MAX_JOB_HERO_IMAGES } from '@/app/lib/jobs';
+import { STORAGE_CACHE_CONTROL } from '@/app/lib/storage';
 
 // 求人バナー画像（16:9・salon_jobs.hero_image_urls text[]・最大3枚）のアップロード欄。
 // mypage求人フォーム／admin代理編集フォームで共用。既存のサロン画像アップロードUXを踏襲。
@@ -60,7 +61,7 @@ export function JobHeroImageField({
 
     const { error: upErr } = await supabase.storage
       .from(BUCKET)
-      .upload(path, file, { upsert: true, contentType: file.type });
+      .upload(path, file, { contentType: file.type, cacheControl: STORAGE_CACHE_CONTROL });
     if (upErr) {
       setBusy(false);
       setErr(`アップロードに失敗しました: ${upErr.message}`);

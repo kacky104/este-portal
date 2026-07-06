@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { createClient } from '@/app/lib/supabase/client';
 import { revalidateFeaturedJobs } from '@/app/actions/jobs';
 import { JOB_FEATURE_CATEGORY_KEYS } from '@/app/lib/jobs';
+import { STORAGE_CACHE_CONTROL } from '@/app/lib/storage';
 
 // 特徴カテゴリーアイコン（feature_category_icons）管理。AreaIconManager を雛形に新設（構造・流儀を踏襲）。
 // authenticated クライアント直（RLSで admin UUID のみ許可）。特徴は image_url 1カラム方式（エリアの SP/PC 2枚とは異なる）。
@@ -98,7 +99,7 @@ export default function FeatureIconManager({ onToast }: { onToast: (msg: string)
 
     const { error: upErr } = await supabase.storage
       .from(BUCKET)
-      .upload(path, file, { contentType: file.type });
+      .upload(path, file, { contentType: file.type, cacheControl: STORAGE_CACHE_CONTROL });
 
     if (upErr) {
       onToast(`画像のアップロードに失敗しました: ${upErr.message}`);

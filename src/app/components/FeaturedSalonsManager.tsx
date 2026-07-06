@@ -5,6 +5,7 @@ import { createClient } from '@/app/lib/supabase/client';
 import { revalidateFeaturedArea } from '@/app/lib/revalidateTop';
 import { AREA_ORDER, ALL_AREA } from '@/app/lib/areas';
 import { areaLabel } from '@/app/lib/areaLabel';
+import { STORAGE_CACHE_CONTROL } from '@/app/lib/storage';
 
 const MAX_FEATURED = 5;
 const BUCKET = 'featured-salon-images';
@@ -174,7 +175,7 @@ export default function FeaturedSalonsManager({ allSalons }: { allSalons: SalonO
 
     const { error: uploadError } = await supabase.storage
       .from(BUCKET)
-      .upload(path, file, { upsert: true, contentType: file.type });
+      .upload(path, file, { contentType: file.type, cacheControl: STORAGE_CACHE_CONTROL });
 
     if (uploadError) {
       console.error('Storage upload error:', uploadError);

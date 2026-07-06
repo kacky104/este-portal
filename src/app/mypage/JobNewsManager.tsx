@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { createClient } from '@/app/lib/supabase/client';
 import { getLinkedXProfileForSalon } from '@/app/lib/xLink';
 import { revalidateJobsForOwner } from '@/app/actions/jobs';
+import { STORAGE_CACHE_CONTROL } from '@/app/lib/storage';
 
 // mypage「求人」タブの新着情報（work_news）管理カード。本体お知らせ（announcements）管理を
 // フクエスワーク向けに忠実移植したもの。書き込みはブラウザSupabaseクライアント直（RLSで自店のみ許可）。
@@ -268,7 +269,7 @@ export function JobNewsManager({ salonId }: { salonId: number }) {
     const prevUrl = newForm.image_url;
     const ext = file.name.split('.').pop() ?? 'jpg';
     const path = `${salonId}/${Date.now()}.${ext}`;
-    const { error } = await supabase.storage.from(BUCKET).upload(path, file);
+    const { error } = await supabase.storage.from(BUCKET).upload(path, file, { cacheControl: STORAGE_CACHE_CONTROL });
     if (error) {
       setMsg({ kind: 'err', text: `アップロードに失敗しました: ${error.message}` });
       setUploadingNew(false); e.target.value = ''; return;
@@ -293,7 +294,7 @@ export function JobNewsManager({ salonId }: { salonId: number }) {
     setUploadingEditId(id);
     const ext = file.name.split('.').pop() ?? 'jpg';
     const path = `${salonId}/${Date.now()}.${ext}`;
-    const { error } = await supabase.storage.from(BUCKET).upload(path, file);
+    const { error } = await supabase.storage.from(BUCKET).upload(path, file, { cacheControl: STORAGE_CACHE_CONTROL });
     if (error) {
       setMsg({ kind: 'err', text: `アップロードに失敗しました: ${error.message}` });
       setUploadingEditId(null); e.target.value = ''; return;

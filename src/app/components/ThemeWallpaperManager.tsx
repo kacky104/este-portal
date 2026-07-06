@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { createClient } from '@/app/lib/supabase/client';
 import { SALON_THEMES } from '@/app/lib/themes';
+import { STORAGE_CACHE_CONTROL } from '@/app/lib/storage';
 
 const supabase = createClient();
 const BUCKET = 'theme-wallpapers';
@@ -54,7 +55,7 @@ export default function ThemeWallpaperManager({ onToast }: { onToast: (msg: stri
     const ext  = file.name.split('.').pop() ?? 'jpg';
     const path = `${themeKey}/${Date.now()}.${ext}`;
 
-    const { error: uploadError } = await supabase.storage.from(BUCKET).upload(path, file, { upsert: false });
+    const { error: uploadError } = await supabase.storage.from(BUCKET).upload(path, file, { upsert: false, cacheControl: STORAGE_CACHE_CONTROL });
     if (uploadError) {
       onToast(`アップロードに失敗しました: ${uploadError.message}`);
       setUploadingKey(null); e.target.value = ''; return;

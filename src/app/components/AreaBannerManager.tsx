@@ -5,6 +5,7 @@ import { createClient } from '@/app/lib/supabase/client';
 import { revalidateFeaturedJobs } from '@/app/actions/jobs';
 import { AREA_SLUGS_LIST, areaFromSlug } from '@/app/lib/areas';
 import { areaLabel } from '@/app/lib/areaLabel';
+import { STORAGE_CACHE_CONTROL } from '@/app/lib/storage';
 
 // エリア別ヒーローバナー（area_hero_banners）管理。FeaturedJobsManager と同方式で authenticated クライアント直
 // （RLSで admin UUID のみ許可）。sp/pc それぞれ独立にアップロード／削除（URLをnullに）できる。
@@ -90,7 +91,7 @@ export default function AreaBannerManager({ onToast }: { onToast: (msg: string) 
 
     const { error: upErr } = await supabase.storage
       .from(BUCKET)
-      .upload(path, file, { contentType: file.type });
+      .upload(path, file, { contentType: file.type, cacheControl: STORAGE_CACHE_CONTROL });
 
     if (upErr) {
       onToast(`画像のアップロードに失敗しました: ${upErr.message}`);

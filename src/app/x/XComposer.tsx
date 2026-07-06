@@ -5,6 +5,7 @@ import { createClient } from '@/app/lib/supabase/client';
 import { normalizeLinkUrl } from './xLink';
 import type { XProfile } from './xProfile';
 import type { XPost } from './xPosts';
+import { STORAGE_CACHE_CONTROL } from '@/app/lib/storage';
 
 const supabase = createClient();
 const BODY_MAX = 500;
@@ -68,7 +69,7 @@ export function XComposer({
       const ext = file.name.split('.').pop() ?? 'jpg';
       // x-images の本人フォルダ配下に固定（RLS が先頭フォルダ = 本人UID を要求）。複数枚は連番で衝突回避。
       const path = `${me.auth_user_id}/${Date.now()}-${i}.${ext}`;
-      const { error: upErr } = await supabase.storage.from('x-images').upload(path, file);
+      const { error: upErr } = await supabase.storage.from('x-images').upload(path, file, { cacheControl: STORAGE_CACHE_CONTROL });
       if (upErr) {
         setError(`画像のアップロードに失敗しました: ${upErr.message}`);
         continue;

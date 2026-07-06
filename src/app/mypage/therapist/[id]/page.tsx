@@ -13,6 +13,7 @@ import {
   MAX_BADGES,
   sanitizeBadges,
 } from '@/lib/therapistBadges';
+import { STORAGE_CACHE_CONTROL } from '@/app/lib/storage';
 
 const supabase = createClient();
 
@@ -145,7 +146,7 @@ export default function TherapistEditPage() {
 
     const { error: uploadError } = await supabase.storage
       .from('therapist-photos')
-      .upload(fileName, file);
+      .upload(fileName, file, { cacheControl: STORAGE_CACHE_CONTROL });
 
     if (uploadError) {
       showToast('アップロードに失敗しました: ' + uploadError.message);

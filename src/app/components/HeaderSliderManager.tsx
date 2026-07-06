@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { createClient } from '@/app/lib/supabase/client';
 import { revalidateTop } from '@/app/lib/revalidateTop';
+import { STORAGE_CACHE_CONTROL } from '@/app/lib/storage';
 
 type SliderImage = {
   id: string;
@@ -41,7 +42,7 @@ export default function HeaderSliderManager() {
 
     const { error: uploadError } = await supabase.storage
       .from('header-slider')
-      .upload(fileName, file);
+      .upload(fileName, file, { cacheControl: STORAGE_CACHE_CONTROL });
 
     if (uploadError) {
       alert('アップロードに失敗しました: ' + uploadError.message);

@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/app/lib/supabase/client';
 import type { XKind } from '../xProfile';
+import { STORAGE_CACHE_CONTROL } from '@/app/lib/storage';
 
 const supabase = createClient();
 
@@ -160,7 +161,7 @@ export function OnboardingForm({ userId }: { userId: string }) {
     setAvatarUploading(true);
     const ext = file.name.split('.').pop() ?? 'jpg';
     const path = `${userId}/${Date.now()}.${ext}`; // RLS が先頭フォルダ = 本人UID を要求
-    const { error: upErr } = await supabase.storage.from('x-images').upload(path, file);
+    const { error: upErr } = await supabase.storage.from('x-images').upload(path, file, { cacheControl: STORAGE_CACHE_CONTROL });
     if (upErr) {
       setError(`画像のアップロードに失敗しました: ${upErr.message}`);
       setAvatarUploading(false);

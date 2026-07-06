@@ -3,6 +3,7 @@
 import { useRef, useState } from 'react';
 import { createClient } from '@/app/lib/supabase/client';
 import { MAX_JOB_GALLERY_IMAGES, MAX_GALLERY_CAPTION_LEN, type JobGalleryItem } from '@/app/lib/jobs';
+import { STORAGE_CACHE_CONTROL } from '@/app/lib/storage';
 
 // 「お店の雰囲気」ギャラリー画像（正方形・salon_jobs.gallery_images jsonb・最大6枚）のアップロード欄。
 // mypage求人フォーム／admin代理編集フォームで共用。JobHeroImageField のパターンを踏襲。
@@ -60,7 +61,7 @@ export function JobGalleryField({
 
     const { error: upErr } = await supabase.storage
       .from(BUCKET)
-      .upload(path, file, { upsert: true, contentType: file.type });
+      .upload(path, file, { contentType: file.type, cacheControl: STORAGE_CACHE_CONTROL });
     if (upErr) {
       setBusy(false);
       setErr(`アップロードに失敗しました: ${upErr.message}`);

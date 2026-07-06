@@ -5,6 +5,7 @@ import { createClient } from '@/app/lib/supabase/client';
 import { revalidateFeaturedJobs } from '@/app/actions/jobs';
 import { AREA_ORDER, ALL_AREA, DISPATCH_AREA } from '@/app/lib/areas';
 import { areaLabel } from '@/app/lib/areaLabel';
+import { STORAGE_CACHE_CONTROL } from '@/app/lib/storage';
 
 // 設定対象セットの切替タブ。key=null はトップ共通（featured_jobs.area IS NULL）、
 // それ以外は AREA_ORDER キー（DB値・例 '博多・住吉'）＝そのエリア専用（area = key の行）。
@@ -214,7 +215,7 @@ export default function FeaturedJobsManager({ onToast }: { onToast: (msg: string
 
     const { error: uploadError } = await supabase.storage
       .from(BUCKET)
-      .upload(path, file, { upsert: true, contentType: file.type });
+      .upload(path, file, { contentType: file.type, cacheControl: STORAGE_CACHE_CONTROL });
 
     if (uploadError) {
       onToast(`画像のアップロードに失敗しました: ${uploadError.message}`);

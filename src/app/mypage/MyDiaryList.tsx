@@ -4,6 +4,7 @@ import { useEffect, useState, useCallback } from 'react';
 import { useSearchParams, useRouter, usePathname } from 'next/navigation';
 import { createClient } from '@/app/lib/supabase/client';
 import { revalidateSalon } from '@/app/lib/revalidateTop';
+import { STORAGE_CACHE_CONTROL } from '@/app/lib/storage';
 
 const supabase = createClient();
 const TITLE_MAX = 10;
@@ -149,7 +150,7 @@ export function MyDiaryList({
     setEditUploading(true);
     const ext = file.name.split('.').pop() ?? 'jpg';
     const path = `${editTherapistId}/${Date.now()}.${ext}`;
-    const { error } = await supabase.storage.from('diary-images').upload(path, file);
+    const { error } = await supabase.storage.from('diary-images').upload(path, file, { cacheControl: STORAGE_CACHE_CONTROL });
     if (error) {
       onToast(`アップロードに失敗しました: ${error.message}`);
       setEditUploading(false); e.target.value = ''; return;

@@ -8,6 +8,7 @@ import { normalizeLinkUrl } from '../xLink';
 import { deleteMyXAccount } from '@/app/actions/xAccount';
 import type { XProfile } from '../xProfile';
 import type { ShopMini } from '../xAffiliation';
+import { STORAGE_CACHE_CONTROL } from '@/app/lib/storage';
 
 const supabase = createClient();
 
@@ -92,7 +93,7 @@ export function XSettingsForm({
     setError('');
     const ext = file.name.split('.').pop() ?? 'jpg';
     const path = `${profile.auth_user_id}/${Date.now()}.${ext}`;
-    const { error: upErr } = await supabase.storage.from('x-images').upload(path, file);
+    const { error: upErr } = await supabase.storage.from('x-images').upload(path, file, { cacheControl: STORAGE_CACHE_CONTROL });
     if (upErr) {
       setError(`画像のアップロードに失敗しました: ${upErr.message}`);
       return null;
