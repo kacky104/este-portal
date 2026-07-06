@@ -11,6 +11,8 @@ import {
   MAX_JOB_WORK_HOURS_LEN,
   MAX_JOB_BENEFITS_LEN,
   MAX_JOB_QUALIFICATIONS_LEN,
+  MAX_CELEBRATION_MONEY,
+  validateCelebrationMoney,
   type JobGalleryItem,
   type TherapistVoice,
 } from '@/app/lib/jobs';
@@ -36,6 +38,8 @@ export type JobFormState = {
   // 応募用の公開連絡先（任意）。求人ページに表示する。notify_email（非公開の通知先）とは別物。
   apply_email: string;
   apply_line_url: string;
+  // お祝い金（円・任意）。数値入力を文字列で保持（salary_min/max と同じ扱い）。空欄で非表示。
+  celebration_money: string;
   features: string[];
   hero_image_urls: string[];
   gallery_images: JobGalleryItem[];
@@ -55,6 +59,7 @@ export const EMPTY_JOB_FORM: JobFormState = {
   notify_email: '',
   apply_email: '',
   apply_line_url: '',
+  celebration_money: '',
   features: [],
   hero_image_urls: [],
   gallery_images: [],
@@ -76,6 +81,7 @@ export function jobToForm(job: MyJob): JobFormState {
     notify_email: job.notify_email,
     apply_email: job.apply_email ?? '',
     apply_line_url: job.apply_line_url ?? '',
+    celebration_money: job.celebration_money == null ? '' : String(job.celebration_money),
     features: [...job.features],
     hero_image_urls: [...job.hero_image_urls],
     gallery_images: job.gallery_images.map((g) => ({ ...g })),
@@ -135,6 +141,10 @@ export function JobFields({
   // 最大数に達した状態で未選択タグを押したときの警告（クライアント側）。
   const [featureWarn, setFeatureWarn] = useState(false);
   const atMax = value.features.length >= MAX_JOB_FEATURES;
+
+  // お祝い金の入力エラー（クライアント側の即時フィードバック）。空欄はエラーなし（＝非表示扱い）。
+  const celebrationCheck = validateCelebrationMoney(value.celebration_money);
+  const celebrationErr = celebrationCheck.ok ? null : celebrationCheck.error;
 
   const toggleFeature = (slug: string) => {
     if (value.features.includes(slug)) {
@@ -333,6 +343,29 @@ export function JobFields({
           onChange={(e) => onChange({ apply_line_url: e.target.value })}
         />
         <p className="text-[10px] text-slate-400 mt-1">LINE公式アカウントや友だち追加のURL（https://〜）。</p>
+      </div>
+
+      {/* お祝い金（任意・公開）。求人詳細の募集要項下に表示される。空欄で非表示。正の整数のみ（上限100万円）。 */}
+      <div>
+        <Label>お祝い金（円・任意）</Label>
+        <div className="flex items-center gap-2">
+          <input
+            type="number"
+            min={1}
+            max={MAX_CELEBRATION_MONEY}
+            step={1000}
+            inputMode="numeric"
+            className={`${inputClass} text-right`}
+            placeholder="例）30000"
+            value={value.celebration_money}
+            onChange={(e) => onChange({ celebration_money: e.target.value })}
+          />
+          <span className="text-xs text-slate-400 flex-none">円</span>
+        </div>
+        <p className="text-[10px] text-slate-400 mt-1 leading-relaxed">
+          フクエスワーク経由の応募で採用が決まった方にサロン様から進呈するお祝い金です。金額を入力すると求人ページに表示されます（空欄で非表示）。
+        </p>
+        {celebrationErr && <p className="text-[10px] text-rose-500 mt-1">{celebrationErr}</p>}
       </div>
 
       {/* 求人バナー画像（16:9・最大3枚・任意）。先頭が一覧・SNSシェア・「注目の求人」バナーで使われる。 */}

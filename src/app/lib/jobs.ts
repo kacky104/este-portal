@@ -58,6 +58,33 @@ export const MAX_JOB_WORK_HOURS_LEN = 100;
 export const MAX_JOB_BENEFITS_LEN = 200;
 export const MAX_JOB_QUALIFICATIONS_LEN = 200;
 
+// ── お祝い金（celebration_money・任意入力・null許容） ──
+// フクエスワーク経由の応募で採用が決まった方へサロンから進呈する金額（円）。上限100万円。
+export const MAX_CELEBRATION_MONEY = 1_000_000;
+
+// お祝い金の入力検証（クライアント・サーバー共用の純粋関数）。
+//  - null/undefined/空文字 → null（＝非表示。0 には変換しない）
+//  - 正の整数のみ許可。負数・小数・非数値・0・上限超過はエラー
+// undefined を渡された場合も value:null を返すが、更新経路では「ペイロードから除外」して
+// 既存値を温存するため（呼び出し側の undefined ガードが担う）、ここでの null 化が上書きに使われることはない。
+export function validateCelebrationMoney(
+  raw: string | number | null | undefined,
+): { ok: true; value: number | null } | { ok: false; error: string } {
+  if (raw === null || raw === undefined) return { ok: true, value: null };
+  const s = String(raw).trim();
+  if (s === '') return { ok: true, value: null };
+  // 負号・小数点・全角/その他非数字はここで弾く（半角数字のみ）。
+  if (!/^\d+$/.test(s)) return { ok: false, error: 'お祝い金は半角の正の整数で入力してください' };
+  const n = Number(s);
+  if (!Number.isSafeInteger(n) || n <= 0) {
+    return { ok: false, error: 'お祝い金は1円以上で入力してください（空欄にすると非表示になります）' };
+  }
+  if (n > MAX_CELEBRATION_MONEY) {
+    return { ok: false, error: `お祝い金は${MAX_CELEBRATION_MONEY.toLocaleString()}円以下で入力してください` };
+  }
+  return { ok: true, value: n };
+}
+
 // DBから読んだ hero_image_urls を表示用に正規化（配列化・文字列化・空要素除去・重複除去・最大枚数で切り詰め）。
 // features の sanitizeFeatures と同じ「防御的に配列を整える」方針。
 export function sanitizeHeroUrls(raw: unknown): string[] {
@@ -265,6 +292,8 @@ export type JobDetail = {
   // applyEmail は mailto:、applyLineUrl は外部リンク。notify_email（非公開の通知先）とは別物。
   applyEmail: string | null;
   applyLineUrl: string | null;
+  // お祝い金（円・任意）。正の整数のときのみ求人詳細に表示（null・0・不正値は非表示）。salon_jobs の新カラム。
+  celebrationMoney: number | null;
   salon: {
     id: number;
     name: string;
@@ -580,7 +609,7 @@ export async function fetchJobById(id: number): Promise<JobDetail | null> {
   const { data, error } = await supabase
     .from('salon_jobs')
     .select(
-      'id, title, salary_text, published_at, area, work_hours, benefits, qualifications, access, description, salary_min, salary_max, features, hero_image_urls, gallery_images, therapist_voices, apply_email, apply_line_url, salons!inner(id, name, area, address, phone, is_hidden)'
+      'id, title, salary_text, published_at, area, work_hours, benefits, qualifications, access, description, salary_min, salary_max, features, hero_image_urls, gallery_images, therapist_voices, apply_email, apply_line_url, celebration_money, salons!inner(id, name, area, address, phone, is_hidden)'
     )
     .eq('id', id)
     .eq('is_active', true)
@@ -617,6 +646,7 @@ export async function fetchJobById(id: number): Promise<JobDetail | null> {
     therapistVoices: sanitizeVoices(data.therapist_voices),
     applyEmail: (data.apply_email as string | null) ?? null,
     applyLineUrl: (data.apply_line_url as string | null) ?? null,
+    celebrationMoney: data.celebration_money == null ? null : Number(data.celebration_money),
     salon: {
       id: salon.id,
       name: salon.name ?? '',

@@ -30,6 +30,7 @@ import {
   sanitizeHeroUrls,
   sanitizeGallery,
   sanitizeVoices,
+  validateCelebrationMoney,
 } from '@/app/lib/jobs';
 
 // フクエスワーク（セラピスト求人）フェーズ2のサーバーアクション群。
@@ -49,7 +50,7 @@ import {
 // access はフォーム／表示から撤去（エリア行のフォールバック用に公開側 fetchJobById でのみ読む）。
 // access カラムは DB 温存し、ここ（フォーム書き込み経路）では SELECT / UPDATE 対象に含めない＝既存値をそのまま保持する。
 const JOB_COLUMNS =
-  'id, salon_id, title, description, salary_text, salary_min, salary_max, area, work_hours, benefits, qualifications, notify_email, apply_email, apply_line_url, features, hero_image_urls, gallery_images, therapist_voices, is_active, published_at, updated_at';
+  'id, salon_id, title, description, salary_text, salary_min, salary_max, area, work_hours, benefits, qualifications, notify_email, apply_email, apply_line_url, celebration_money, features, hero_image_urls, gallery_images, therapist_voices, is_active, published_at, updated_at';
 
 export type JobFormInput = {
   title: string;
@@ -67,6 +68,8 @@ export type JobFormInput = {
   // optional：この機能デプロイ前の古いタブから送られない場合に既存値を温存するため（更新時 undefined ガードで使用）。
   apply_email?: string;
   apply_line_url?: string;
+  // お祝い金（円・任意）。空文字 → null。undefined（機能デプロイ前の古いタブ）は更新時にペイロードから除外＝既存値温存。
+  celebration_money?: string | number | null;
   features: string[];
   // 求人バナー画像URL（16:9・job-hero-images バケット・最大3枚・空配列可）。先頭がメイン画像。
   hero_image_urls: string[];
@@ -91,6 +94,7 @@ export type MyJob = {
   notify_email: string;
   apply_email: string | null;
   apply_line_url: string | null;
+  celebration_money: number | null;
   features: string[];
   hero_image_urls: string[];
   gallery_images: JobGalleryItem[];
@@ -121,6 +125,7 @@ function mapJob(row: Record<string, unknown>): MyJob {
     notify_email: (row.notify_email as string | null) ?? '',
     apply_email: (row.apply_email as string | null) ?? null,
     apply_line_url: (row.apply_line_url as string | null) ?? null,
+    celebration_money: row.celebration_money == null ? null : Number(row.celebration_money),
     features: sanitizeFeatures(row.features),
     hero_image_urls: sanitizeHeroUrls(row.hero_image_urls),
     gallery_images: sanitizeGallery(row.gallery_images),
@@ -212,6 +217,7 @@ type CleanJob = {
   notify_email: string | null;
   apply_email: string | null;
   apply_line_url: string | null;
+  celebration_money: number | null;
   features: string[];
   hero_image_urls: string[];
   gallery_images: JobGalleryItem[];
@@ -268,6 +274,12 @@ function validate(input: JobFormInput): { ok: true; clean: CleanJob } | Err {
       return { ok: false, error: '応募用LINE URLの形式が正しくありません（https://〜）' };
     }
   }
+
+  // お祝い金（任意・公開）。空/undefined → null（0に変換しない）。正の整数のみ許可（負数・小数・非数値・0・上限超過はエラー）。
+  // クライアント・サーバー共用の validateCelebrationMoney で検証（同一ルール）。undefined を null に「正規化」して
+  // 上書きすることは更新経路の undefined ガード（ペイロード除外）で防ぐため、ここでは検証のみに徹する。
+  const celebration = validateCelebrationMoney(input.celebration_money);
+  if (!celebration.ok) return { ok: false, error: celebration.error };
 
   // 特徴タグ：配列＋各slugホワイトリスト＋重複除去＋最大件数。不正slugは拒否（サイレント除外しない）。
   const rawFeatures = Array.isArray(input.features) ? input.features.map((s) => String(s)) : [];
@@ -349,6 +361,7 @@ function validate(input: JobFormInput): { ok: true; clean: CleanJob } | Err {
       notify_email: notifyEmail,
       apply_email: applyEmail,
       apply_line_url: applyLineUrl,
+      celebration_money: celebration.value,
       features,
       // バナー画像URLは自前ストレージのアップロード結果（最大3枚・先頭がメイン）。空配列可。
       hero_image_urls: heroUrls,
@@ -424,6 +437,9 @@ export async function upsertMyJob(
     // validate 既定の null による上書き＝データ消失を防ぐ。
     if (input.apply_email === undefined) delete updatePayload.apply_email;
     if (input.apply_line_url === undefined) delete updatePayload.apply_line_url;
+    // お祝い金も同ルール（gallery_images 消失事故の教訓）。未送信（input.celebration_money === undefined）は
+    // ペイロードから除外＝既存値温存。空文字で送られた場合は「明示クリア」として null 更新される（＝非表示）。
+    if (input.celebration_money === undefined) delete updatePayload.celebration_money;
     const { data, error } = await auth.supabase
       .from('salon_jobs')
       .update(updatePayload)

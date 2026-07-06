@@ -278,6 +278,12 @@ export default async function JobDetailPage({
           }
         />
 
+        {/* お祝い金（サロンオーナー任意設定）。募集要項テーブルブロックの直下に配置。
+            正の整数のときのみ描画（null・0・不正値は枠ごと非表示）。表示は詳細ページのみ（一覧・バナーには出さない）。 */}
+        {typeof job.celebrationMoney === 'number' &&
+          Number.isInteger(job.celebrationMoney) &&
+          job.celebrationMoney > 0 && <JobCelebrationBlock amount={job.celebrationMoney} />}
+
         {/* このサロン求人の保存（募集要項の直下）。最下部の既存保存ブロックと同一構成に統一。
             共通の JobSalonSaveBlock を使用。両ブロックは同じ kind="job_salon"＋salon.id のため
             SAVED_JOB_SALONS_EVENT 経由で保存/解除が相互に即時同期する。 */}
@@ -408,6 +414,41 @@ export default async function JobDetailPage({
 }
 
 /* ── Helper ─────────────────────────────────────────── */
+// お祝い金ブロック（募集要項テーブル直下）。ページ全体が緑系のため、あえてアンバー（金/ご祝儀）系で差別化する。
+// クリーム背景＋amber-400実線枠＋濃茶文字、金額は amber-600 で強調（単色系・グラデ不使用＝本体のオレンジ→
+// マゼンタ グラデとは別物でブランド衝突なし）。中央寄せ・コンパクト。点滅/アニメ/シャインは付けない。
+// amount は呼び出し側で正の整数を保証済み。金額は3桁カンマ区切り。
+function JobCelebrationBlock({ amount }: { amount: number }) {
+  return (
+    <div className="mt-4 rounded-2xl border-2 border-amber-400 bg-amber-50 px-5 py-4 text-center shadow-sm">
+      {/* ラベルバッジ（amber-400地・白文字） */}
+      <span className="inline-block text-[10px] font-black px-2.5 py-0.5 rounded-full bg-amber-400 text-white mb-2">
+        採用お祝い金
+      </span>
+
+      {/* 1行目：前置き（小さめ・濃茶） */}
+      <p className="text-xs sm:text-sm text-amber-900/80 leading-snug">
+        フクエスワークからの応募で採用が決まったら
+      </p>
+
+      {/* 2行目：ギフトアイコン＋大きな金額＋「進呈！」。中央寄せ。金額が大きいので SP では折り返し可（flex-wrap）。 */}
+      <div className="mt-1 flex flex-wrap items-center justify-center gap-x-2 gap-y-0.5 font-bold text-amber-900">
+        {/* ギフト系インラインSVG（lucide未導入のため手書き・amber系の濃色） */}
+        <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#b45309" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="flex-shrink-0" aria-hidden>
+          <rect x="3" y="8" width="18" height="4" rx="1" />
+          <path d="M12 8v13" />
+          <path d="M19 12v7a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2v-7" />
+          <path d="M7.5 8a2.5 2.5 0 0 1 0-5C11 3 12 8 12 8" />
+          <path d="M16.5 8a2.5 2.5 0 0 0 0-5C13 3 12 8 12 8" />
+        </svg>
+        <span className="text-sm sm:text-base">お祝い金</span>
+        <span className="text-3xl font-black leading-none text-amber-600">{amount.toLocaleString()}円</span>
+        <span className="text-sm sm:text-base">進呈！</span>
+      </div>
+    </div>
+  );
+}
+
 // サロン求人の保存ブロック（白カード＋中央寄せテキスト＋SaveButton）。
 // 募集要項直下と応募導線直下の2箇所で同一表示にするため共通化（元の最下部ブロックのマークアップと同一）。
 function JobSalonSaveBlock({ salonId, salonName }: { salonId: number; salonName: string }) {

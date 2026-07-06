@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { getMyJob, upsertMyJob, toggleMyJobActive, deleteMyJob, type MyJob } from '@/app/actions/jobs';
-import { isValidEmailFormat, firstVoiceError } from '@/app/lib/jobs';
+import { isValidEmailFormat, firstVoiceError, validateCelebrationMoney } from '@/app/lib/jobs';
 import { JobFields, EMPTY_JOB_FORM, jobToForm, type JobFormState } from '@/app/components/JobFields';
 import { JobApplications } from '@/app/mypage/JobApplications';
 import { JobNewsManager } from '@/app/mypage/JobNewsManager';
@@ -57,6 +57,12 @@ export function JobsTab({ salonId }: { salonId: number }) {
     const voiceErr = firstVoiceError(form.therapist_voices);
     if (voiceErr) {
       setMsg({ kind: 'err', text: voiceErr });
+      return;
+    }
+    // お祝い金：空欄はOK（null＝非表示）、入力時は正の整数・上限100万円をクライアント側でも検証。
+    const cel = validateCelebrationMoney(form.celebration_money);
+    if (!cel.ok) {
+      setMsg({ kind: 'err', text: cel.error });
       return;
     }
     setSaving(true);
