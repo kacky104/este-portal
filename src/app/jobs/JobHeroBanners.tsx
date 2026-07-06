@@ -47,7 +47,7 @@ export function JobHeroBanners({
   return (
     <section className="mb-8">
       {/* 見出し（フクエスワークのブランドグラデ グリーン→ライム）。h1 は常に描画する（バナー0枚でも）。 */}
-      <div className={`flex items-center gap-2.5 ${hasBanners ? 'mb-3' : ''}`}>
+      <div className="flex items-center gap-2.5">
         <span className="w-1 h-5 rounded-full shrink-0" style={{ background: 'linear-gradient(to bottom,#10B981,#84CC16)' }} />
         <h1
           className={`${h1SizeClass} font-extrabold inline-block`}
@@ -62,6 +62,9 @@ export function JobHeroBanners({
           {title}
         </h1>
       </div>
+      {/* 30分入れ替えの注記（見出し h1 構造には含めない・控えめなグレー小文字）。バナー0枚でも表示。
+          このブロックのバナー(heroBanners=deriveHeroBanners)は30分バケットでシャッフルされるため表記と一致。 */}
+      <p className={`text-xs text-gray-500 mt-1 ${hasBanners ? 'mb-3' : ''}`}>表示順は30分ごとに入れ替わります</p>
 
       {/* 16:9バナーの縦積み（1列・コンテナ幅いっぱい）。バナー0枚なら省略（見出しのみ）。 */}
       {hasBanners && (

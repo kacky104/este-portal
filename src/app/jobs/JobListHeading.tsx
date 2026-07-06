@@ -31,6 +31,9 @@ export function JobListHeading({
         {text}
       </Heading>
       <p className="text-sm text-slate-500 mt-1.5">{subtitle}</p>
+      {/* 30分入れ替えの注記（見出し h2/h1 構造には含めない・控えめなグレー小文字）。
+          この一覧は shuffleJobs（30分バケット）でシャッフル済みのため表記と一致。 */}
+      <p className="text-xs text-gray-500 mt-1">表示順は30分ごとに入れ替わります</p>
     </div>
   );
 }

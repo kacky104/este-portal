@@ -53,6 +53,23 @@ export function PickupSlider({ jobs, title = 'おすすめ求人' }: { jobs: Pic
   const [active, setActive] = useState(0);
   const multiple = jobs.length > 1;
 
+  // 「開くたびシャッフル」：初回HTML(SSR)は渡された display_order のまま描画し、マウント後に一度だけ
+  // Math.random の Fisher–Yates で並べ替える（本体 FeaturedSalonSlider と同方式）。ISRのためサーバーでは
+  // シャッフルしない＝hydration不一致を避けつつ、リロードごとに順序が変わる。並べ替えは jobs 変化時（実質マウント時）
+  // の1回のみで、自動スライドの interval とは独立（スライド中に再シャッフルしない）。
+  const [displayJobs, setDisplayJobs] = useState<PickupJob[]>(jobs);
+  useEffect(() => {
+    const arr = [...jobs];
+    for (let i = arr.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [arr[i], arr[j]] = [arr[j], arr[i]];
+    }
+    setDisplayJobs(arr);
+    const el = trackRef.current;
+    if (el) el.scrollLeft = 0; // 並べ替え後は先頭カードから表示
+    setActive(0);
+  }, [jobs]);
+
   // タイマー（再）起動。1件のみ／reduced-motion では張らない。手動操作・設定変更時に呼び直してリセット。
   const restart = useCallback(() => {
     if (timerRef.current !== null) {
@@ -138,7 +155,7 @@ export function PickupSlider({ jobs, title = 'おすすめ求人' }: { jobs: Pic
         className="relative overflow-x-auto snap-x snap-mandatory [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
       >
         <div className="flex gap-3">
-          {jobs.map((job) => (
+          {displayJobs.map((job) => (
             <Link
               key={job.id}
               href={`/jobs/${job.id}`}
@@ -195,7 +212,7 @@ export function PickupSlider({ jobs, title = 'おすすめ求人' }: { jobs: Pic
       {/* ドット（2件以上のみ）。選択中はグリーン→ライムの横長ドット。 */}
       {multiple && (
         <div className="flex justify-center gap-1.5 mt-3">
-          {jobs.map((job, i) => (
+          {displayJobs.map((job, i) => (
             <button
               key={job.id}
               type="button"
