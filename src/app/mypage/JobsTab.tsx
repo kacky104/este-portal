@@ -5,6 +5,7 @@ import { getMyJob, upsertMyJob, toggleMyJobActive, deleteMyJob, type MyJob } fro
 import { isValidEmailFormat, firstVoiceError } from '@/app/lib/jobs';
 import { JobFields, EMPTY_JOB_FORM, jobToForm, type JobFormState } from '@/app/components/JobFields';
 import { JobApplications } from '@/app/mypage/JobApplications';
+import { JobNewsManager } from '@/app/mypage/JobNewsManager';
 
 // mypage「求人」タブ本体。1店舗1件のため一覧ではなく単一画面
 // （未作成→作成フォーム／作成済み→編集フォーム＋公開切替＋削除）。
@@ -194,6 +195,9 @@ export function JobsTab({ salonId }: { salonId: number }) {
       {/* 応募一覧（求人が作成済みのときのみ表示）。フォーム入力より上に配置＝店側は
           まず応募状況を確認してから内容編集に進める導線にする（ブロック内部は不変）。 */}
       {job && <JobApplications salonId={salonId} />}
+
+      {/* 新着情報（work_news）管理。求人が作成済みのときのみ表示（応募一覧の直後・独立カード）。 */}
+      {job && <JobNewsManager salonId={salonId} />}
 
       {/* フォーム本体 */}
       <div className="bg-white rounded-3xl border border-slate-100 shadow-sm p-5 space-y-4">

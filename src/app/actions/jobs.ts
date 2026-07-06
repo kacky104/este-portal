@@ -494,6 +494,14 @@ export async function revalidateFeaturedJobs(): Promise<void> {
   revalidatePath('/jobs/dispatch');
 }
 
+// ── 新着情報（work_news）書き込み後の公開ISR即時更新 ──
+// work_news はオーナーが mypage から authenticated クライアント直（RLSで自店のみ許可）で
+// 書き込むため、この関数は純粋なキャッシュ無効化のみを担う（求人の upsert 等と同じ revalidateJobsPublic を流用）。
+// 表示側（求人詳細のタブUI）は段階3で実装予定だが、投稿時点で /jobs 系のISRを更新しておく。
+export async function revalidateJobsForOwner(salonId?: number): Promise<void> {
+  revalidateJobsPublic(salonId);
+}
+
 // ── 削除（confirmはUI側） ──
 export async function deleteMyJob(jobId: number): Promise<{ ok: boolean; error?: string }> {
   if (!Number.isFinite(jobId)) return { ok: false, error: '対象求人が不正です' };
