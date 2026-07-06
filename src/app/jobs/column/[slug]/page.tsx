@@ -81,7 +81,7 @@ function buildArticleJsonLd(article: WorkArticleDetail): Record<string, unknown>
     '@context': 'https://schema.org/',
     '@type': 'Article',
     headline: article.title,
-    author: { '@type': 'Organization', name: AUTHOR_NAME },
+    author: { '@type': 'Organization', name: AUTHOR_NAME, url: `${SITE_URL}/jobs/column` },
     publisher: {
       '@type': 'Organization',
       name: 'フクエスワーク',
