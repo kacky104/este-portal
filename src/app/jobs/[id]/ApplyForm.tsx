@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { createJobApplication } from '@/app/actions/jobs';
+import { isValidPhone } from '@/app/lib/validation/phone';
 
 // フクエスワーク 求人応募フォーム（公開・ISRページ内で使えるクライアントコンポーネント）。
 // 時間依存レンダリングは無し（マウント後のユーザー操作のみ）＝ISRキャッシュを壊さない。
@@ -17,8 +18,13 @@ export function ApplyForm({ jobId }: { jobId: number }) {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setSubmitting(true);
     setError('');
+    // 送信前にサーバーと同じルール（ハイフン除去後の数字10〜13桁）で検証。
+    if (!isValidPhone(form.tel)) {
+      setError('電話番号は数字10〜13桁で入力してください');
+      return;
+    }
+    setSubmitting(true);
     const res = await createJobApplication(jobId, {
       name: form.name,
       tel: form.tel,
@@ -83,7 +89,7 @@ export function ApplyForm({ jobId }: { jobId: number }) {
           </div>
           <div>
             <label className="text-[11px] font-bold text-slate-400 block mb-1">電話番号 <span className="text-rose-400">*</span></label>
-            <input type="tel" inputMode="tel" className={inputClass} placeholder="例）090-1234-5678" value={form.tel} onChange={(e) => patch({ tel: e.target.value })} />
+            <input type="tel" inputMode="numeric" className={inputClass} placeholder="例）090-1234-5678" value={form.tel} onChange={(e) => patch({ tel: e.target.value })} />
           </div>
           <div>
             <label className="text-[11px] font-bold text-slate-400 block mb-1">年齢（任意）</label>

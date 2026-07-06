@@ -6,6 +6,7 @@ import { createServiceClient } from '@/app/lib/supabase/service';
 import { ADMIN_UUID } from '@/app/lib/admin';
 import { AREA_SLUGS_LIST } from '@/app/lib/areas';
 import { sendApplicationMail } from '@/app/lib/jobs/sendApplicationMail';
+import { normalizePhone, isValidPhone } from '@/app/lib/validation/phone';
 // 'use server' ファイルは async 関数以外を export できないため、定数・型は非serverモジュールから import する。
 import {
   APPLICATION_STATUSES,
@@ -642,14 +643,16 @@ export async function createJobApplication(
   if (!Number.isFinite(jobId)) return { ok: false, error: '対象の求人が不正です' };
 
   const name = String(input.name ?? '').trim();
-  const tel = String(input.tel ?? '').trim();
+  const telInput = String(input.tel ?? '').trim();
   const note = String(input.note ?? '').trim();
 
-  // ③ 氏名・電話の必須＆形式（電話は数字ハイフンのみ・10〜13桁程度の緩い検証）。
+  // ③ 氏名・電話の必須＆形式（電話はハイフン除去後の数字桁数で 10〜13 桁を判定）。
   if (!name) return { ok: false, error: 'お名前を入力してください' };
-  if (!/^[0-9-]{10,13}$/.test(tel)) {
-    return { ok: false, error: '電話番号は数字とハイフンで正しく入力してください' };
+  if (!isValidPhone(telInput)) {
+    return { ok: false, error: '電話番号は数字10〜13桁で入力してください' };
   }
+  // 以降の重複ガード・保存・通知メールはハイフンなし数字のみに正規化した値で統一する。
+  const tel = normalizePhone(telInput);
 
   // ④ 年齢は入力時のみ 18〜99 の整数。
   let age: number | null = null;
