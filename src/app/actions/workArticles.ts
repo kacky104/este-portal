@@ -84,6 +84,8 @@ function revalidateColumnPublic(): void {
   revalidatePath('/jobs/column/[slug]', 'page');
   revalidatePath('/jobs/column/category/[key]', 'page');
   revalidatePath('/jobs');
+  // sitemap にもコラムURL（一覧・カテゴリ・詳細）が含まれるため、公開/更新/削除で即再生成する。
+  revalidatePath('/sitemap.xml');
 }
 
 // slug（必須文脈）を検証して正規化。空・書式違反はエラー。

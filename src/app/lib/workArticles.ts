@@ -86,6 +86,27 @@ export async function fetchPublishedArticleBySlug(
   return data ? mapDetail(data) : null;
 }
 
+// ── sitemap 用：published 記事の slug / category / updated_at。 ──
+// category は「公開記事が1件以上あるカテゴリだけ sitemap に載せる」判定に、
+// updatedAt は詳細URLの lastModified に使う。
+export type WorkArticleSitemapRow = { slug: string; category: string; updatedAt: string | null };
+
+export async function fetchPublishedArticlesForSitemap(): Promise<WorkArticleSitemapRow[]> {
+  const supabase = createPublicClient();
+  const { data } = await supabase
+    .from('work_articles')
+    .select('slug, category, updated_at')
+    .eq('status', 'published');
+  return (data ?? []).map((r) => {
+    const row = r as Record<string, unknown>;
+    return {
+      slug: String(row.slug ?? ''),
+      category: String(row.category ?? ''),
+      updatedAt: (row.updated_at as string | null) ?? null,
+    };
+  });
+}
+
 // ── generateStaticParams 用：published 記事の slug 一覧。 ──
 export async function fetchPublishedArticleSlugs(): Promise<string[]> {
   const supabase = createPublicClient();

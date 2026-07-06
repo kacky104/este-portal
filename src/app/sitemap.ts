@@ -1,7 +1,9 @@
 import type { MetadataRoute } from 'next';
 import { createPublicClient } from '@/app/lib/supabase/public';
 import { fetchActiveJobsForSitemap, fetchFeatureSlugsWithActiveJobs, fetchAreaTagPairsWithActiveJobs, fetchActiveDispatchJobs } from '@/app/lib/jobs';
+import { fetchPublishedArticlesForSitemap } from '@/app/lib/workArticles';
 import { jobsAreaHref } from '@/app/lib/areas';
+import { ARTICLE_CATEGORY_ORDER } from '@/app/lib/articleCategories';
 
 const SITE_URL = 'https://fukues.com';
 
@@ -14,7 +16,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const supabase = createPublicClient();
 
   // 公開サロン／公開サロン所属セラピスト／掲載中求人を並列取得。失敗時は空配列（サイトマップは壊さない）。
-  const [salonsRes, therapistsRes, jobs, featureSlugs, areaTag, dispatchJobs] = await Promise.all([
+  const [salonsRes, therapistsRes, jobs, featureSlugs, areaTag, dispatchJobs, columnArticles] = await Promise.all([
     supabase.from('salons').select('id').eq('is_hidden', false),
     supabase.from('therapists').select('id, salons!inner(is_hidden)').eq('salons.is_hidden', false),
     fetchActiveJobsForSitemap(),
@@ -24,6 +26,8 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     fetchAreaTagPairsWithActiveJobs(),
     // 出張専門ページ（/jobs/dispatch）は求人が1件以上あるときのみ列挙（エリアページと同じ「求人あり」方針）。
     fetchActiveDispatchJobs(),
+    // 公開コラム（work_articles・published のみ）。詳細URL＋公開記事のあるカテゴリページに使う。
+    fetchPublishedArticlesForSitemap(),
   ]);
 
   const now = new Date();
@@ -34,6 +38,8 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     { url: `${SITE_URL}/salons`, lastModified: now, changeFrequency: 'daily', priority: 0.9 },
     { url: `${SITE_URL}/diary`, lastModified: now, changeFrequency: 'daily', priority: 0.6 },
     { url: `${SITE_URL}/jobs`, lastModified: now, changeFrequency: 'daily', priority: 0.8 },
+    // コラム一覧（公開記事の有無に関わらず存在する静的ページ）。
+    { url: `${SITE_URL}/jobs/column`, lastModified: now, changeFrequency: 'daily', priority: 0.7 },
   ];
 
   const salonEntries: MetadataRoute.Sitemap = (salonsRes.data ?? []).map((s) => ({
@@ -87,6 +93,27 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       ? [{ url: `${SITE_URL}/jobs/dispatch`, lastModified: now, changeFrequency: 'daily', priority: 0.7 }]
       : [];
 
+  // コラム詳細（/jobs/column/[slug]）。published のみ・lastModified は updated_at（無ければ now）。
+  const columnArticleEntries: MetadataRoute.Sitemap = columnArticles.map((a) => ({
+    url: `${SITE_URL}/jobs/column/${a.slug}`,
+    lastModified: a.updatedAt ? new Date(a.updatedAt) : now,
+    changeFrequency: 'monthly',
+    priority: 0.6,
+  }));
+
+  // コラムのカテゴリ別ページ（/jobs/column/category/[key]）。
+  // 既存のタグ/エリアと同じ「中身ありのみ」方針＝公開記事が1件以上あるカテゴリだけ列挙する
+  // （0件カテゴリのページはsitemapに入れない）。順序は ARTICLE_CATEGORY_ORDER に従う。
+  const publishedCategories = new Set(columnArticles.map((a) => a.category));
+  const columnCategoryEntries: MetadataRoute.Sitemap = ARTICLE_CATEGORY_ORDER
+    .filter((key) => publishedCategories.has(key))
+    .map((key) => ({
+      url: `${SITE_URL}/jobs/column/category/${key}`,
+      lastModified: now,
+      changeFrequency: 'weekly',
+      priority: 0.6,
+    }));
+
   return [
     ...staticEntries,
     ...salonEntries,
@@ -96,5 +123,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     ...areaEntries,
     ...areaTagEntries,
     ...dispatchEntries,
+    ...columnCategoryEntries,
+    ...columnArticleEntries,
   ];
 }
