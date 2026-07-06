@@ -1,17 +1,113 @@
+'use client';
+
+import { useCallback, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import type { PickupJob } from '@/app/lib/jobs';
 
-// おすすめ求人（ピックアップ）横スクロールスライダー。サーバーコンポーネント（時間依存レンダリング無し）。
-// 本体トップの「ピックアップサロン」スライダーと同系統のバナー風カード（写真全面＋下部グラデ＋白文字重ね）を、
-// 1枚見せではなくレスポンシブ2段階（モバイル1.2枚見せ / PC(md以上)2.2枚見せ）にしたもの。
-// JSカルーセルは使わず CSS スクロール（overflow-x-auto + scroll-snap）のみ。
-// 重要: 横オーバーフローはトラック（overflow-x-auto の div）内に閉じ込め、ページ全体を広げない。
-// カード幅は端が覗く＝スクロール可能と分かる。控除するギャップ本数は「画面内に見えるギャップ数」に一致：
-//   モバイル1.2枚見せ → ギャップ1箇所＝gap-1.5(0.375rem)×1 → w-[calc((100%-0.375rem)/1.2)]
-//   PC(md以上)2.2枚見せ → ギャップ2箇所＝gap-1.5(0.375rem)×2=0.75rem → md:w-[calc((100%-0.75rem)/2.2)]
+export type { PickupJob };
+
+// おすすめ求人（ピックアップ）カード型スライダー。クライアントコンポーネント。
+// 本体のサロンバナー（ShuffledSalons の SalonCard）と同系統のカード構成に変更：
+//   上部＝求人画像（aspect-video・切れ防止のためブラー背景＋object-contain）／下部＝白背景の情報欄。
+//   旧実装の「画像全面＋下部グラデ＋白文字オーバーレイ」は完全撤去し、テキストは白地側へ移設。
+// 表示情報は現行オーバーレイと同一（サロン名＝主／求人タイトル／給与）で、新規のDB参照は増やさない。
+// 配色はフクエスワークのグリーン→ライム（#10B981→#84CC16）。本体オレンジ/ピンク系は使わない。
+// スライド：3秒に1回、横方向に次カードへ。末尾→先頭ループ。1件のみなら静止（interval を張らない）。
+// prefers-reduced-motion 有効時は自動スライドを止める。ユーザー操作（スワイプ/ホイール/ドット）は
+// タイマーをリセットする簡易対応。unmount / タブ非アクティブ時の暴走は clearInterval と document.hidden で防止。
+// AUTO_MS：自動送り間隔。
+const AUTO_MS = 3000;
+
+// スクロールコンテナ（position:relative 前提）内で index 番目のカードを左端にスナップさせる。
+// card.offsetLeft は relative コンテナ基準＝スナップ先の scrollLeft と一致する。ループのため index は法を取る。
+function scrollCardIntoView(el: HTMLDivElement, index: number) {
+  const cards = el.querySelectorAll<HTMLElement>('[data-card]');
+  const n = cards.length;
+  if (n === 0) return;
+  const idx = ((index % n) + n) % n;
+  const behavior = window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth';
+  el.scrollTo({ left: cards[idx].offsetLeft, behavior });
+}
+
+// 現在の scrollLeft に最も近いカードの index（ドット表示・次送り基点）。
+function currentIndex(el: HTMLDivElement): number {
+  const cards = el.querySelectorAll<HTMLElement>('[data-card]');
+  const cur = el.scrollLeft;
+  let idx = 0;
+  let best = Infinity;
+  cards.forEach((c, i) => {
+    const d = Math.abs(c.offsetLeft - cur);
+    if (d < best) {
+      best = d;
+      idx = i;
+    }
+  });
+  return idx;
+}
+
 // title: 見出し文言（既定「おすすめ求人」）。エリアページでは「{エリア名}のおすすめ求人」を渡す。
 export function PickupSlider({ jobs, title = 'おすすめ求人' }: { jobs: PickupJob[]; title?: string }) {
+  const trackRef = useRef<HTMLDivElement | null>(null);
+  const timerRef = useRef<number | null>(null);
+  const [active, setActive] = useState(0);
+  const multiple = jobs.length > 1;
+
+  // タイマー（再）起動。1件のみ／reduced-motion では張らない。手動操作・設定変更時に呼び直してリセット。
+  const restart = useCallback(() => {
+    if (timerRef.current !== null) {
+      clearInterval(timerRef.current);
+      timerRef.current = null;
+    }
+    if (jobs.length <= 1) return;
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    timerRef.current = window.setInterval(() => {
+      if (document.hidden) return; // タブ非アクティブ時は送らない（暴走防止）
+      const el = trackRef.current;
+      if (!el) return;
+      scrollCardIntoView(el, currentIndex(el) + 1); // 末尾の次は法により先頭へループ
+    }, AUTO_MS);
+  }, [jobs.length]);
+
+  useEffect(() => {
+    restart();
+    const el = trackRef.current;
+    const reduce = window.matchMedia('(prefers-reduced-motion: reduce)');
+    const onPref = () => restart();
+    reduce.addEventListener?.('change', onPref);
+
+    // ユーザー操作でタイマーリセット（簡易対応）。
+    const reset = () => restart();
+    el?.addEventListener('pointerdown', reset);
+    el?.addEventListener('touchstart', reset, { passive: true });
+    el?.addEventListener('wheel', reset, { passive: true });
+
+    return () => {
+      if (timerRef.current !== null) {
+        clearInterval(timerRef.current);
+        timerRef.current = null;
+      }
+      reduce.removeEventListener?.('change', onPref);
+      el?.removeEventListener('pointerdown', reset);
+      el?.removeEventListener('touchstart', reset);
+      el?.removeEventListener('wheel', reset);
+    };
+  }, [restart]);
+
+  // スクロール（自動・手動とも）でドットの選択位置を追従。
+  const onScroll = () => {
+    const el = trackRef.current;
+    if (el) setActive(currentIndex(el));
+  };
+
+  // ドット押下：該当カードへスクロール＋タイマーリセット。
+  const goTo = (i: number) => {
+    const el = trackRef.current;
+    if (!el) return;
+    scrollCardIntoView(el, i);
+    restart();
+  };
+
   // 0件時はセクションごと非表示（呼び出し側でも制御するが二重防御）。
   if (jobs.length === 0) return null;
 
@@ -34,65 +130,88 @@ export function PickupSlider({ jobs, title = 'おすすめ求人' }: { jobs: Pic
         </h2>
       </div>
 
-      {/* トラック：横スクロール＋スナップ。overflow はこの要素内に閉じ込める。
-          -mx-4 px-4 で左右パディング分まで端を使い、スクロール端の見切れを自然にする（親 main の px-4 と対）。 */}
-      <div className="-mx-4 overflow-x-auto snap-x snap-mandatory scroll-px-4 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-        <div className="flex gap-1.5 px-4">
+      {/* トラック：横スクロール＋スナップ（1枚ずつ全幅表示）。relative でカードの offsetLeft をスクロール基点に一致させる。
+          overflow はこの要素内に閉じ込め、ページ全体を広げない。 */}
+      <div
+        ref={trackRef}
+        onScroll={onScroll}
+        className="relative overflow-x-auto snap-x snap-mandatory [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+      >
+        <div className="flex gap-3">
           {jobs.map((job) => (
             <Link
               key={job.id}
               href={`/jobs/${job.id}`}
-              className="snap-start flex-shrink-0 w-[calc((100%-0.375rem)/1.2)] md:w-[calc((100%-0.75rem)/2.2)] relative aspect-video rounded-2xl overflow-hidden shadow-lg"
+              data-card
+              className="snap-start flex-shrink-0 w-full block rounded-2xl overflow-hidden shadow-lg border border-emerald-100 bg-white"
             >
-              {/* サロン画像を「ぼかし背景＋object-contain」で切れずに全体表示。
-                  背面: 同じ画像を object-cover でぼかし拡大して全面に敷く（余白埋めの装飾＝alt空）。
-                  前面: 同じ画像を object-contain で全体表示（文字が切れない）。
-                  画像が無い場合はブランドグラデを全面に敷く（テキストは同様に重ねる）。 */}
-              {job.imageUrl ? (
-                <>
-                  <Image
-                    src={job.imageUrl}
-                    alt=""
-                    fill
-                    aria-hidden
-                    className="object-cover blur-lg scale-110 opacity-60"
-                    sizes="(max-width: 768px) 45vw, 340px"
-                  />
-                  <Image
-                    src={job.imageUrl}
-                    alt={job.salon.name}
-                    fill
-                    className="object-contain"
-                    sizes="(max-width: 768px) 45vw, 340px"
-                  />
-                </>
-              ) : (
-                <div className="absolute inset-0" style={{ background: 'linear-gradient(135deg,#10B981,#84CC16)' }} />
-              )}
+              {/* 上部：求人画像（aspect-video）。切れ防止のためブラー背景＋object-contain（焼き込み文言も切れない）。
+                  画像が無い場合はブランドグラデを敷く。オーバーレイ（グラデ・文字）は撤去。 */}
+              <div className="relative aspect-video bg-emerald-50">
+                {job.imageUrl ? (
+                  <>
+                    <Image
+                      src={job.imageUrl}
+                      alt=""
+                      fill
+                      aria-hidden
+                      className="object-cover blur-lg scale-110 opacity-60"
+                      sizes="(max-width: 768px) 100vw, 768px"
+                    />
+                    <Image
+                      src={job.imageUrl}
+                      alt={job.salon.name}
+                      fill
+                      className="object-contain"
+                      sizes="(max-width: 768px) 100vw, 768px"
+                    />
+                  </>
+                ) : (
+                  <div className="absolute inset-0" style={{ background: 'linear-gradient(135deg,#10B981,#84CC16)' }} />
+                )}
 
-              {/* 下部グラデーションオーバーレイ（本体スライダー同系統） */}
-              <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-black/10 to-transparent" />
+                {/* PICKUP バッジ（フクエスワークのグリーン→ライム） */}
+                <span
+                  className="absolute top-2 left-2 text-[10px] font-black text-white px-2 py-0.5 rounded-full shadow tracking-wide"
+                  style={{ background: 'linear-gradient(95deg,#10B981,#84CC16)' }}
+                >
+                  ✦ PICKUP
+                </span>
+              </div>
 
-              {/* PICKUP バッジ（本体のピンク系は流用せず、フクエスワークのグリーン→ライム） */}
-              <span
-                className="absolute top-2 left-2 text-[10px] font-black text-white px-2 py-0.5 rounded-full shadow tracking-wide"
-                style={{ background: 'linear-gradient(95deg,#10B981,#84CC16)' }}
-              >
-                ✦ PICKUP
-              </span>
-
-              {/* 下部テキスト（白文字＋drop-shadow）：サロン名（大きめ）＋求人タイトル＋給与 */}
-              <div className="absolute bottom-0 left-0 right-0 p-2.5">
-                <p className="text-white font-bold text-sm leading-tight drop-shadow line-clamp-1">{job.salon.name}</p>
-                <p className="text-white/90 text-[11px] leading-snug mt-0.5 drop-shadow line-clamp-2">{job.title}</p>
+              {/* 下部：白背景の情報欄。サロン名（主）＋求人タイトル＋給与（給与はグリーン系）。 */}
+              <div className="px-4 py-3 bg-white">
+                <p className="font-bold text-slate-900 text-sm leading-tight line-clamp-1">{job.salon.name}</p>
+                <p className="text-slate-600 text-xs leading-snug mt-1 line-clamp-2">{job.title}</p>
                 {job.salaryText && (
-                  <p className="text-white text-[11px] font-bold mt-1 drop-shadow line-clamp-1">{job.salaryText}</p>
+                  <p className="text-emerald-600 font-bold text-sm mt-1.5 line-clamp-1">{job.salaryText}</p>
                 )}
               </div>
             </Link>
           ))}
         </div>
       </div>
+
+      {/* ドット（2件以上のみ）。選択中はグリーン→ライムの横長ドット。 */}
+      {multiple && (
+        <div className="flex justify-center gap-1.5 mt-3">
+          {jobs.map((job, i) => (
+            <button
+              key={job.id}
+              type="button"
+              onClick={() => goTo(i)}
+              aria-label={`${i + 1}枚目のおすすめ求人を表示`}
+              aria-current={active === i ? 'true' : undefined}
+              className="h-1.5 rounded-full transition-all"
+              style={
+                active === i
+                  ? { width: '18px', background: 'linear-gradient(95deg,#10B981,#84CC16)' }
+                  : { width: '6px', background: '#cbd5e1' }
+              }
+            />
+          ))}
+        </div>
+      )}
     </section>
   );
 }
