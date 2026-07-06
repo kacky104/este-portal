@@ -494,6 +494,49 @@ export async function fetchActiveJobsByAreaAndFeature(area: string, slug: string
     .filter((j): j is JobListItem => j !== null);
 }
 
+// ── 新着情報（work_news）公開取得（求人詳細ページの「新着情報」タブ用） ──
+// 1ページ20件・published_at desc・is_published=true のみ。page（1始まり）で .range()、count:'exact' で総件数。
+// 求人詳細の既存fetch（fetchJobById）には手を入れず、この関数を独立して呼ぶ（後方互換）。
+export const WORK_NEWS_PAGE_SIZE = 20;
+// 新着（NEW）バッジ判定：published_at がこの時間以内なら新着（本体お知らせの48時間基準を踏襲）。
+export const WORK_NEWS_NEW_HOURS = 48;
+
+export type WorkNewsItem = {
+  id: string;
+  title: string;
+  content: string | null;
+  imageUrl: string | null;
+  publishedAt: string;
+};
+
+// salonId のサロンの公開 work_news を page ページ分取得。rows と total（総公開件数）を返す。
+export async function fetchPublishedWorkNews(
+  salonId: number,
+  page: number,
+): Promise<{ rows: WorkNewsItem[]; total: number }> {
+  const safePage = Number.isFinite(page) && page >= 1 ? Math.floor(page) : 1;
+  const from = (safePage - 1) * WORK_NEWS_PAGE_SIZE;
+  const to = from + WORK_NEWS_PAGE_SIZE - 1;
+
+  const supabase = createPublicClient();
+  const { data, count } = await supabase
+    .from('work_news')
+    .select('id, title, content, image_url, published_at', { count: 'exact' })
+    .eq('salon_id', salonId)
+    .eq('is_published', true)
+    .order('published_at', { ascending: false })
+    .range(from, to);
+
+  const rows: WorkNewsItem[] = (data ?? []).map((r) => ({
+    id: String(r.id),
+    title: (r.title as string | null) ?? '',
+    content: (r.content as string | null) ?? null,
+    imageUrl: (r.image_url as string | null) ?? null,
+    publishedAt: (r.published_at as string | null) ?? '',
+  }));
+  return { rows, total: count ?? 0 };
+}
+
 // ── sitemap 用：求人が1件以上ある「エリア」「エリア×タグ」を1回のクエリで集計 ──
 // 90ペアへ個別クエリを投げず、全アクティブ求人を area+features で1回取得しメモリ集計する。
 // 対象は通常5エリアのみ（全域センチネル ALL_AREA・出張 DISPATCH_AREA は除外）。返り値は表示順を維持。

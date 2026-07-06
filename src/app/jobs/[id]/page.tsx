@@ -3,13 +3,15 @@ import Image from 'next/image';
 import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import { areaLabel } from '@/app/lib/areaLabel';
-import { fetchJobById, featureLabel, type JobDetail } from '@/app/lib/jobs';
+import { fetchJobById, fetchPublishedWorkNews, featureLabel, WORK_NEWS_PAGE_SIZE, type JobDetail } from '@/app/lib/jobs';
 import { ApplyForm } from './ApplyForm';
 import { JobHeroSlider } from './JobHeroSlider';
 import { JobGallery } from './JobGallery';
 import { JobVoices } from './JobVoices';
 import { JobApplyBar } from './JobApplyBar';
 import { JobDescriptionCollapse } from './JobDescriptionCollapse';
+import { JobDetailTabs } from './JobDetailTabs';
+import { JobNewsList } from './JobNewsList';
 import { SaveButton } from '@/app/components/SaveButton';
 
 const SITE_URL = 'https://fukues.com';
@@ -27,6 +29,12 @@ function parseId(raw: string): number | null {
   if (!/^\d+$/.test(raw)) return null;
   const n = Number(raw);
   return Number.isSafeInteger(n) ? n : null;
+}
+
+// ?page=N を 1始まりの整数に正規化（不正・未指定は 1）。新着情報タブのページネーション用。
+function parsePage(raw: string | undefined): number {
+  const n = Number(raw);
+  return Number.isFinite(n) && n >= 1 ? Math.floor(n) : 1;
 }
 
 // 相対表現やHTMLを除いたプレーンテキストを N 字前後に切り詰める（metadata description 用）。
@@ -143,8 +151,10 @@ function buildBreadcrumbJsonLd(job: JobDetail): Record<string, unknown> {
 
 export default async function JobDetailPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ id: string }>;
+  searchParams: Promise<{ page?: string }>;
 }) {
   const { id } = await params;
   const jobId = parseId(id);
@@ -152,6 +162,13 @@ export default async function JobDetailPage({
 
   const job = await fetchJobById(jobId);
   if (!job) notFound();
+
+  // 新着情報（work_news）タブ：このサロンの公開分を page ページ分取得（既存fetchとは独立）。
+  const newsPage = parsePage((await searchParams).page);
+  const { rows: workNews, total: workNewsTotal } = await fetchPublishedWorkNews(job.salon.id, newsPage);
+  const workNewsTotalPages = Math.max(1, Math.ceil(workNewsTotal / WORK_NEWS_PAGE_SIZE));
+  // ?page=2 以降でアクセスされたら新着情報タブを初期表示にする（求人詳細が出るのは不自然なため）。
+  const initialDetailTab: 'details' | 'news' = newsPage >= 2 ? 'news' : 'details';
 
   // 募集要項「エリア」行の表示値：求人の area（新カラム）を最優先、未入力なら求人の access
   //（例「博多駅より徒歩3分」＝area フィールドと同じエリア/アクセス性質のため流用）、
@@ -227,21 +244,36 @@ export default async function JobDetailPage({
           </div>
         </div>
 
-        {/* 募集要項（表形式・項目名列＋内容列）。給与は必須で常に表示、他は null/空なら行ごと非表示。
-            エリアは area→access→salon.area の順でフォールバック。改行は whitespace-pre-wrap で反映。 */}
-        <div className="rounded-2xl border border-emerald-100 bg-white p-5 shadow-sm mt-4">
-          <div className="flex items-center gap-2.5 mb-3">
-            <span className="w-1 h-5 rounded-full" style={{ background: 'linear-gradient(to bottom,#10B981,#84CC16)' }} />
-            <h2 className="font-bold text-slate-900">募集要項</h2>
-          </div>
-          <dl className="divide-y divide-slate-100">
-            <JobField label="給与" value={job.salaryText} highlight />
-            <JobField label="エリア" value={areaValue} />
-            <JobField label="勤務時間" value={job.workHours} />
-            <JobField label="待遇" value={job.benefits} />
-            <JobField label="応募資格" value={job.qualifications} />
-          </dl>
-        </div>
+        {/* 「求人詳細（募集要項）」「新着情報」の2タブ。募集要項ブロックの位置に設置。
+            details＝従来の募集要項カードそのまま／news＝この店の公開 work_news（新しい順・20件ページング）。
+            両スロットとも server で描画済み（データは初期レンダで両方取得）、切替は JobDetailTabs（client）のみ。 */}
+        <JobDetailTabs
+          initialTab={initialDetailTab}
+          newsCount={workNewsTotal}
+          details={
+            <div className="rounded-2xl border border-emerald-100 bg-white p-5 shadow-sm">
+              <div className="flex items-center gap-2.5 mb-3">
+                <span className="w-1 h-5 rounded-full" style={{ background: 'linear-gradient(to bottom,#10B981,#84CC16)' }} />
+                <h2 className="font-bold text-slate-900">募集要項</h2>
+              </div>
+              <dl className="divide-y divide-slate-100">
+                <JobField label="給与" value={job.salaryText} highlight />
+                <JobField label="エリア" value={areaValue} />
+                <JobField label="勤務時間" value={job.workHours} />
+                <JobField label="待遇" value={job.benefits} />
+                <JobField label="応募資格" value={job.qualifications} />
+              </dl>
+            </div>
+          }
+          news={
+            <JobNewsList
+              rows={workNews}
+              basePath={`/jobs/${job.id}`}
+              page={newsPage}
+              totalPages={workNewsTotalPages}
+            />
+          }
+        />
 
         {/* このサロン求人の保存（募集要項の直下）。最下部の既存保存ブロックと同一構成に統一。
             共通の JobSalonSaveBlock を使用。両ブロックは同じ kind="job_salon"＋salon.id のため
