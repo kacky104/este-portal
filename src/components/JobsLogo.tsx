@@ -1,29 +1,23 @@
 import Link from 'next/link';
+import Image from 'next/image';
 
 // フクエスワーク（求人サイト）専用ロゴ。本体ヘッダー（肉球マーク＋サイト名）と同じ構成に揃える。
-// 肉球はブランドカラー（グリーン→ライム #10B981→#84CC16）のグラデ塗りインラインSVG
-// （lucide等の新規依存・画像ファイルの新規追加はしない方針）。サイト名の左横に配置し、
-// ロゴ＋サイト名（＋サブタイトル）全体をトップ /jobs へのリンク範囲に含める。
-// 高さは肉球 w-6 h-6（24px・右の保存メニューの肉球と同寸）で、ヘッダー高 h-14 を変えない。
+// 肉球は正規ロゴ画像 /logo-fukuwork.png（円囲み＋肉球・記事構造化データの publisher.logo と共通）。
+// サイト名の左横に配置し、ロゴ＋サイト名（＋サブタイトル）全体をトップ /jobs へのリンク範囲に含める。
+// 表示は w-6 h-6（24px・右の保存メニューの肉球と同寸）で、ヘッダー高 h-14 を変えない。
+// width/height を明示（Retina 対応で 48px 実寸→24px 表示・滲み防止）＝レイアウトシフトなし。
+// ヘッダー常設で LCP 相当のため priority 付与で初回から即表示。
 export function JobsLogo() {
   return (
     <Link href="/jobs" className="flex items-center gap-2 min-w-0">
-      {/* 肉球マーク（インラインSVG・グリーン→ライムのグラデ塗り）。装飾のため aria-hidden。 */}
-      <svg viewBox="0 0 24 24" className="w-6 h-6 flex-shrink-0" aria-hidden="true" focusable="false">
-        <defs>
-          <linearGradient id="fukuworkPaw" x1="0" y1="0" x2="1" y2="1">
-            <stop offset="0%" stopColor="#10B981" />
-            <stop offset="100%" stopColor="#84CC16" />
-          </linearGradient>
-        </defs>
-        <g fill="url(#fukuworkPaw)">
-          <ellipse cx="5.6" cy="10" rx="1.9" ry="2.5" />
-          <ellipse cx="10" cy="7" rx="2" ry="2.7" />
-          <ellipse cx="14.5" cy="7" rx="2" ry="2.7" />
-          <ellipse cx="18.6" cy="10" rx="1.9" ry="2.5" />
-          <path d="M12 11.5c-3.3 0-6 2.4-6 5.2 0 1.9 1.5 3.3 3.4 3.3 1.2 0 1.9-.5 2.6-.5s1.4.5 2.6.5c1.9 0 3.4-1.4 3.4-3.3 0-2.8-2.7-5.2-6-5.2z" />
-        </g>
-      </svg>
+      <Image
+        src="/logo-fukuwork.png"
+        alt="フクエスワーク"
+        width={48}
+        height={48}
+        priority
+        className="w-6 h-6 flex-shrink-0 object-contain"
+      />
       <span className="flex items-baseline gap-1.5 min-w-0">
         <span
           className="font-bold text-[22px] tracking-wide leading-none inline-block whitespace-nowrap"
