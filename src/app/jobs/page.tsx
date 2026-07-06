@@ -11,6 +11,8 @@ import { PickupSlider } from './PickupSlider';
 import { JobHeroBanners } from './JobHeroBanners';
 import { JobListHeading } from './JobListHeading';
 import { deriveHeroBanners } from '@/app/lib/heroBanners';
+import { fetchPublishedArticles } from '@/app/lib/workArticles';
+import { ArticleCard } from './column/ArticleCard';
 
 // ISR：10分ごとに再生成（SEO目的。求人は頻繁に変わらないためキャッシュで十分）。
 export const revalidate = 600;
@@ -27,7 +29,11 @@ export const metadata: Metadata = {
 };
 
 export default async function JobsPage() {
-  const [jobs, pickupJobs] = await Promise.all([fetchActiveJobs(), getFeaturedJobs()]);
+  const [jobs, pickupJobs, columnArticles] = await Promise.all([
+    fetchActiveJobs(),
+    getFeaturedJobs(),
+    fetchPublishedArticles(3),
+  ]);
 
   // バナーカード：jobs（このページの条件＝全公開求人）からバナー画像ありを抽出し30分バケットでシャッフル（別クエリ無し）。
   const heroBanners = deriveHeroBanners(jobs);
@@ -101,6 +107,28 @@ export default async function JobsPage() {
             </li>
           ))}
         </ul>
+      )}
+
+      {/* お仕事コラム（work_articles の新着3件）。0件時はセクションごと非表示。見出しは h2（h1は上の一覧見出し）。 */}
+      {columnArticles.length > 0 && (
+        <section className="mt-10">
+          <div className="flex items-center justify-between gap-3 mb-3">
+            <div className="flex items-center gap-2.5 min-w-0">
+              <span className="w-1 h-5 rounded-full flex-shrink-0" style={{ background: 'linear-gradient(to bottom,#10B981,#84CC16)' }} />
+              <h2 className="font-bold text-slate-900">お仕事コラム</h2>
+            </div>
+            <Link href="/jobs/column" className="flex-shrink-0 text-xs font-bold hover:opacity-80 transition-opacity" style={{ color: '#059669' }}>
+              すべて見る →
+            </Link>
+          </div>
+          <ul className="space-y-3">
+            {columnArticles.map((a) => (
+              <li key={a.id}>
+                <ArticleCard article={a} />
+              </li>
+            ))}
+          </ul>
+        </section>
       )}
     </main>
   );

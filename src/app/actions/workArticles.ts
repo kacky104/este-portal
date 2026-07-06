@@ -1,5 +1,6 @@
 'use server';
 
+import { revalidatePath } from 'next/cache';
 import { createClient } from '@/app/lib/supabase/server';
 import { ADMIN_UUID } from '@/app/lib/admin';
 import { isValidArticleCategory } from '@/app/lib/articleCategories';
@@ -73,6 +74,16 @@ async function requireAdmin() {
   if (!user) return { ok: false as const, error: 'ログインが必要です' };
   if (user.id !== ADMIN_UUID) return { ok: false as const, error: '管理者専用です' };
   return { ok: true as const, supabase };
+}
+
+// 公開ページ（段階3）のISRを即時再検証する（作成・更新・削除の成功時に呼ぶ）。
+// slug/カテゴリ横断で影響しうるため、動的ルートは一括（'page'）で再検証する。
+// /jobs トップにも新着コラム3件を出しているためそこも対象。
+function revalidateColumnPublic(): void {
+  revalidatePath('/jobs/column');
+  revalidatePath('/jobs/column/[slug]', 'page');
+  revalidatePath('/jobs/column/category/[key]', 'page');
+  revalidatePath('/jobs');
 }
 
 // slug（必須文脈）を検証して正規化。空・書式違反はエラー。
@@ -160,6 +171,7 @@ export async function adminCreateArticle(
     if (error?.code === '23505') return { ok: false, error: 'その slug は既に使われています' };
     return { ok: false, error: error?.message ?? '作成に失敗しました' };
   }
+  revalidateColumnPublic();
   return { ok: true, article: mapArticle(data) };
 }
 
@@ -229,6 +241,7 @@ export async function adminUpdateArticle(
     if (error?.code === '23505') return { ok: false, error: 'その slug は既に使われています' };
     return { ok: false, error: error?.message ?? '更新に失敗しました' };
   }
+  revalidateColumnPublic();
   return { ok: true, article: mapArticle(data) };
 }
 
@@ -243,5 +256,6 @@ export async function adminDeleteArticle(
 
   const { error } = await auth.supabase.from('work_articles').delete().eq('id', id);
   if (error) return { ok: false, error: error.message };
+  revalidateColumnPublic();
   return { ok: true };
 }
