@@ -95,20 +95,9 @@ export default async function Home() {
           <div className="absolute bottom-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-pink-300/50 to-transparent" />
 
           <div className="relative max-w-5xl mx-auto px-4 text-center">
-            {/* 見出し（ページ唯一の h1。緑系グラデ：ヘッダーのサブと同系） */}
-            <h1 className="text-[18px] sm:text-[22px] leading-snug">
-              <span
-                className="inline-block font-medium"
-                style={{
-                  background: 'linear-gradient(95deg,#10B981,#84CC16)',
-                  WebkitBackgroundClip: 'text',
-                  backgroundClip: 'text',
-                  WebkitTextFillColor: 'transparent',
-                  color: 'transparent',
-                }}
-              >
-                福岡メンズエステ密着型ポータルサイト
-              </span>
+            {/* 見出し（ページ唯一の h1。ピンク→オレンジのグラデ帯＋白文字。角丸なし＝直角方針） */}
+            <h1 className="bg-gradient-to-r from-[#FB923C] to-[#DB2777] text-white font-bold text-[18px] sm:text-[22px] leading-snug py-2.5 px-4">
+              福岡メンズエステ密着型ポータルサイト
             </h1>
           </div>
         </section>
