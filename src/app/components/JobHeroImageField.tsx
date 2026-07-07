@@ -101,7 +101,7 @@ export function JobHeroImageField({
       </label>
       <p className="text-[10px] text-slate-400 mb-2 leading-relaxed">
         推奨サイズ：横1280×縦720px（16:9）。設定すると /jobs トップのバナー枠・求人詳細に掲載されます。
-        <span className="block font-bold text-emerald-600">1枚目が一覧・SNSシェアで使われます（↑↓で並び替え）。</span>
+        <span className="block font-bold text-emerald-600">1枚目が一覧・SNSシェアで使われます（↑↓で並び替え）。未設定だとバナー枠や一覧のサムネイルに表示されないため、必ず設定してください。</span>
         {salonId == null && <span className="block text-amber-600">※ 先に対象サロンを選択してください。</span>}
       </p>
 
