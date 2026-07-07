@@ -50,7 +50,7 @@ export default async function SalonSchedulePage({
 
   const theme = getTheme(salonRow.theme as string | null);
 
-  // 営業日基準（午前5時始まり）の7日間
+  // 営業日基準（午前6時始まり）の7日間
   const dates = getBusinessDateRangeJST(7);
 
   const therapists = therapistRows ?? [];

@@ -474,7 +474,7 @@ export default function MyPage() {
     });
   };
 
-  // 営業日基準（午前5時始まり）の7日間。
+  // 営業日基準（午前6時始まり）の7日間。
   // 0:00〜4:59 は前日を1日目、5:00以降は当日を1日目として表示する。
   const sevenDays = useMemo(() => getBusinessDateRangeJST(7), []);
 
@@ -2328,7 +2328,7 @@ export default function MyPage() {
               <p className="text-[11px] text-slate-400">本日出勤中のセラピストに「今すぐ」フラグを設定できます。チェックを入れて保存するとサイト上にバッジが表示されます。30分後に自動で解除されますが、この画面上ではリロードするまでチェックは残ります。</p>
             </div>
             {(() => {
-              // 「今すぐ」判定は営業日基準（深夜0〜5時は前日のスケジュールを参照）
+              // 「今すぐ」判定は営業日基準（深夜0〜6時は前日のスケジュールを参照）
               const todayStr = getBusinessDateJST();
               const checkedCount = onDutyTherapists.filter(t => availableNow[String(t.id)]).length;
               const atLimit = checkedCount >= 3;
