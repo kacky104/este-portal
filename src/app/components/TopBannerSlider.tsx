@@ -1,50 +1,108 @@
 'use client';
 
-import { useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import type { TopBanner } from '@/app/lib/topBanners';
 
 // トップのサロン一覧中に挿入する画像バナースライダー（クライアント）。
-// - 「1.2枚見せ」：1枚を約82%幅にし、次のバナーの端が見切れる peek スタイル。横スクロール＋scroll-snap。
-// - 自動スライドは入れない（PickupSlider のドット/peek は参考にしつつ setInterval 部分は移植しない）。
+// - 「1.1枚見せ」：1枚を約90%幅にし、次のバナーの端が見切れる peek スタイル。横スクロール＋scroll-snap。
+// - 自動スライド：3.5秒ごとに次へ・末尾→先頭ループ（PickupSlider の自動スライドパターンを踏襲）。
+//   1件のみは interval を張らない／prefers-reduced-motion は自動送り停止／手動操作でタイマーリセット／unmount で cleanup。
 // - ドットインジケータあり（>1件のみ）。1件のみはドット非表示・スクロール無効（全幅表示）。
-// - 画像は aspect-video(16:9)・rounded・object-cover。next/image＋sizes 指定。
+// - 画像は aspect-[21/9]・rounded・object-cover。next/image は fill＋sizes 指定。
 // - link_url あり：外部URL(http/https)は target=_blank rel=noopener、内部パス(/…)は next/link。null は画像のみ。
 // - alt_text を alt に使用（空文字可）。配色は本体（橙→マゼンタ）に馴染むニュートラル枠＋マゼンタのドット（緑系は使わない）。
+// AUTO_MS：自動送り間隔。
+const AUTO_MS = 3500;
+
+// スクロールコンテナ（relative 前提）内で index 番目のバナーを左端にスナップ。offsetLeft がトラック基準になる。
+function scrollBannerIntoView(el: HTMLDivElement, index: number) {
+  const cards = el.querySelectorAll<HTMLElement>('[data-banner]');
+  const n = cards.length;
+  if (n === 0) return;
+  const idx = ((index % n) + n) % n;
+  const behavior = window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth';
+  el.scrollTo({ left: cards[idx].offsetLeft, behavior });
+}
+
+// 現在の scrollLeft に最も近いバナーの index（ドット表示・次送り基点）。
+function currentBannerIndex(el: HTMLDivElement): number {
+  const cards = el.querySelectorAll<HTMLElement>('[data-banner]');
+  const cur = el.scrollLeft;
+  let idx = 0;
+  let best = Infinity;
+  cards.forEach((c, i) => {
+    const d = Math.abs(c.offsetLeft - cur);
+    if (d < best) {
+      best = d;
+      idx = i;
+    }
+  });
+  return idx;
+}
+
 export function TopBannerSlider({ banners }: { banners: TopBanner[] }) {
   const trackRef = useRef<HTMLDivElement | null>(null);
+  const timerRef = useRef<number | null>(null);
   const [active, setActive] = useState(0);
+
+  // タイマー（再）起動。1件のみ／reduced-motion では張らない。手動操作・設定変更時に呼び直してリセット。
+  const restart = useCallback(() => {
+    if (timerRef.current !== null) {
+      clearInterval(timerRef.current);
+      timerRef.current = null;
+    }
+    if (banners.length <= 1) return;
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    timerRef.current = window.setInterval(() => {
+      if (document.hidden) return; // タブ非アクティブ時は送らない（暴走防止）
+      const el = trackRef.current;
+      if (!el) return;
+      scrollBannerIntoView(el, currentBannerIndex(el) + 1); // 末尾の次は法により先頭へループ
+    }, AUTO_MS);
+  }, [banners.length]);
+
+  useEffect(() => {
+    restart();
+    const el = trackRef.current;
+    const reduce = window.matchMedia('(prefers-reduced-motion: reduce)');
+    const onPref = () => restart();
+    reduce.addEventListener?.('change', onPref);
+
+    // ユーザー操作（スワイプ/ホイール）でタイマーリセット。プログラムのスクロール（scroll）とは分離。
+    const reset = () => restart();
+    el?.addEventListener('pointerdown', reset);
+    el?.addEventListener('touchstart', reset, { passive: true });
+    el?.addEventListener('wheel', reset, { passive: true });
+
+    return () => {
+      if (timerRef.current !== null) {
+        clearInterval(timerRef.current);
+        timerRef.current = null;
+      }
+      reduce.removeEventListener?.('change', onPref);
+      el?.removeEventListener('pointerdown', reset);
+      el?.removeEventListener('touchstart', reset);
+      el?.removeEventListener('wheel', reset);
+    };
+  }, [restart]);
 
   if (banners.length === 0) return null;
   const multiple = banners.length > 1;
 
-  // スクロール位置に最も近いカードでドットの選択位置を更新（relative コンテナ前提で offsetLeft がトラック基準）。
+  // スクロール（自動・手動とも）でドットの選択位置を追従。
   const onScroll = () => {
     const el = trackRef.current;
-    if (!el) return;
-    const cards = el.querySelectorAll<HTMLElement>('[data-banner]');
-    const cur = el.scrollLeft;
-    let idx = 0;
-    let best = Infinity;
-    cards.forEach((c, i) => {
-      const d = Math.abs(c.offsetLeft - cur);
-      if (d < best) {
-        best = d;
-        idx = i;
-      }
-    });
-    setActive(idx);
+    if (el) setActive(currentBannerIndex(el));
   };
 
+  // ドット押下：該当バナーへスクロール＋タイマーリセット。
   const goTo = (i: number) => {
     const el = trackRef.current;
     if (!el) return;
-    const cards = el.querySelectorAll<HTMLElement>('[data-banner]');
-    const n = cards.length;
-    if (n === 0) return;
-    const idx = ((i % n) + n) % n;
-    el.scrollTo({ left: cards[idx].offsetLeft, behavior: 'smooth' });
+    scrollBannerIntoView(el, i);
+    restart();
   };
 
   // 1.1枚見せ：メインを約90%幅にし、次スライドを約10%チラ見せ（SP・PC共通比率）。
