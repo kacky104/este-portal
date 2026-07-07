@@ -51,12 +51,12 @@ export function RecommendedSalonBannerSlider({ banners }: { banners: Recommended
   // 件数が減った直後に current が範囲外でも破綻しないよう描画時にクランプ。
   const safeCurrent = ((current % count) + count) % count;
 
-  // 1.05枚見せは複数枚のSPのみ。スライド幅95%＋gap 0.5rem(8px) 分だけ1枚あたり移動する。
+  // 1.1枚見せは複数枚のSPのみ。スライド幅88%＋gap 0.5rem(8px) で、次スライドを約10%チラ見せする。
   // 1枚のみ／sm以上は全幅・gapなし・100%移動（＝従来の1枚見せ）。高さ制約は全スライド共通の slideClass に置く。
   const peekMode = multiple && peek;
-  const slideClass = `${multiple ? 'w-[95%] sm:w-full' : 'w-full'} flex-shrink-0 relative h-52 sm:h-96`;
-  // 移動量はスライド実幅基準：peek 時は (95% + 0.5rem)/枚、それ以外は 100%/枚。current=0 は 0。
-  const trackTransform = `translateX(calc(${-safeCurrent} * ${peekMode ? '(95% + 0.5rem)' : '100%'}))`;
+  const slideClass = `${multiple ? 'w-[88%] sm:w-full' : 'w-full'} flex-shrink-0 relative h-52 sm:h-96`;
+  // 移動量はスライド実幅基準：peek 時は (88% + 0.5rem)/枚、それ以外は 100%/枚。current=0 は 0。
+  const trackTransform = `translateX(calc(${-safeCurrent} * ${peekMode ? '(88% + 0.5rem)' : '100%'}))`;
 
   const slideBody = (b: RecommendedSalonBanner, i: number) => {
     const hasOverlay = b.salonName !== '';
