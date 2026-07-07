@@ -8,6 +8,7 @@ import { TimeRangePicker } from '@/components/TimeRangePicker';
 import HeaderSliderManager from '@/app/components/HeaderSliderManager';
 import FeaturedSalonsManager from '@/app/components/FeaturedSalonsManager';
 import TopBannerManager from '@/app/components/TopBannerManager';
+import RecommendedSalonBannerManager from '@/app/components/RecommendedSalonBannerManager';
 import SalonEditModal, { type SalonForEdit } from '@/app/components/SalonEditModal';
 import ThemeWallpaperManager from '@/app/components/ThemeWallpaperManager';
 import AdminJobsManager from '@/app/components/AdminJobsManager';
@@ -369,6 +370,17 @@ export default function AdminDashboard() {
 
           <AccordionSection id="top-banners" title="トップバナースライダー設定" expanded={expandedSections} onToggle={toggleSection}>
             <TopBannerManager onToast={showToast} />
+          </AccordionSection>
+
+          <AccordionSection id="recommended-salon-banners" title="おすすめサロンバナー設定" expanded={expandedSections} onToggle={toggleSection}>
+            <RecommendedSalonBannerManager
+              allSalons={salons.map(s => ({
+                id:   s.id,
+                name: s.name ?? '',
+                area: s.area ?? '',
+              }))}
+              onToast={showToast}
+            />
           </AccordionSection>
 
           <AccordionSection id="theme-wallpaper" title="テーマ壁紙設定" expanded={expandedSections} onToggle={toggleSection}>
