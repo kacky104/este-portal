@@ -39,7 +39,7 @@ export default function HeaderImageSlider() {
   if (slides.length === 0) return null;
 
   return (
-    <div className="relative w-full h-64 md:h-96 overflow-hidden rounded-lg">
+    <div className="relative w-full h-64 sm:h-auto sm:aspect-[4/3] overflow-hidden rounded-lg">
       {slides.map((src, index) => (
         <div
           key={src}
