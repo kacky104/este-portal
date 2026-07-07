@@ -228,7 +228,7 @@ export default function TopBannerManager({ onToast }: { onToast: (msg: string) =
         <p className="text-[11px] text-slate-400 leading-relaxed">
           トップページのサロン一覧（15枚目直下）に表示される画像バナーです。公開中のものだけが表示順に並びます。
         </p>
-        <span className="text-[10px] text-slate-400 flex-shrink-0 ml-3">推奨サイズ: 横1280×縦720px（16:9）</span>
+        <span className="text-[10px] text-slate-400 flex-shrink-0 ml-3">推奨サイズ: 横1200×縦800px（3:2・被写体は中央）</span>
       </div>
 
       {/* hidden file inputs（追加／差し替え） */}
@@ -261,13 +261,13 @@ export default function TopBannerManager({ onToast }: { onToast: (msg: string) =
             return (
               <div key={b.id} className="rounded-2xl border border-slate-100 bg-slate-50/40 p-4">
                 <div className="flex flex-wrap items-start gap-4">
-                  {/* プレビュー（16:9） */}
+                  {/* プレビュー（3:2＝実表示に近い縦横比。object-cover は中央基準） */}
                   <div className="flex-shrink-0">
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img
                       src={b.image_url}
                       alt={b.alt_text ?? ''}
-                      className="w-48 aspect-video object-cover rounded-lg border border-slate-200 bg-slate-100"
+                      className="w-48 aspect-[3/2] object-cover rounded-lg border border-slate-200 bg-slate-100"
                     />
                     <div className="flex gap-2 mt-1">
                       <button onClick={() => triggerReplace(b.id)} disabled={busy} className="text-[10px] font-semibold text-pink-600 hover:underline disabled:opacity-40">

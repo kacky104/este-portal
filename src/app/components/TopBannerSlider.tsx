@@ -1,177 +1,172 @@
 'use client';
 
-import { useCallback, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import type { TopBanner } from '@/app/lib/topBanners';
 
-// トップのサロン一覧中に挿入する画像バナースライダー（クライアント）。
-// - 「1.1枚見せ」：1枚を約90%幅にし、次のバナーの端が見切れる peek スタイル。横スクロール＋scroll-snap。
-// - 自動スライド：3.5秒ごとに次へ・末尾→先頭ループ（PickupSlider の自動スライドパターンを踏襲）。
-//   1件のみは interval を張らない／prefers-reduced-motion は自動送り停止／手動操作でタイマーリセット／unmount で cleanup。
-// - ドットインジケータあり（>1件のみ）。1件のみはドット非表示・スクロール無効（全幅表示）。
-// - 画像は aspect-[21/9]・rounded・object-cover。next/image は fill＋sizes 指定。
+// トップのサロン一覧中（15枚目直下）に挿入する画像バナースライダー。
+// ピックアップサロンブロック（FeaturedSalonSlider）と見た目・挙動を1:1で一致させる：
+// - セクションタイトル：グラデ縦バー＋グラデ文字「福岡のピックアップサロン」＋「おすすめ」バッジ（page.tsx の実装を踏襲）。
+// - 1枚見せ：各スライド w-full。flex＋translateX(-current*100%) の平行移動式（transition-transform duration-500）。
+//   高さは全スライド共通で h-52 sm:h-96（固定高＝アスペクト依存でないので2枚目以降が巨大化しない）。
+//   外殻に rounded-3xl overflow-hidden shadow-lg、画像は next/image fill＋object-cover。
+// - 画像左上に「✦ PICKUP」バッジ（ピックアップ側と同位置・同スタイル）。
+// - 自動スライド：4500ms・hover で一時停止・末尾→先頭ループ・矢印＋ドット・タッチスワイプ。
+//   1件のみは interval を張らず矢印/ドットも非表示（静止）。手動操作（矢印/ドット/スワイプ）でタイマーリセット。unmount で cleanup。
 // - link_url あり：外部URL(http/https)は target=_blank rel=noopener、内部パス(/…)は next/link。null は画像のみ。
-// - alt_text を alt に使用（空文字可）。配色は本体（橙→マゼンタ）に馴染むニュートラル枠＋マゼンタのドット（緑系は使わない）。
-// AUTO_MS：自動送り間隔。
-const AUTO_MS = 3500;
-
-// スクロールコンテナ（relative 前提）内で index 番目のバナーを左端にスナップ。offsetLeft がトラック基準になる。
-function scrollBannerIntoView(el: HTMLDivElement, index: number) {
-  const cards = el.querySelectorAll<HTMLElement>('[data-banner]');
-  const n = cards.length;
-  if (n === 0) return;
-  const idx = ((index % n) + n) % n;
-  const behavior = window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth';
-  el.scrollTo({ left: cards[idx].offsetLeft, behavior });
-}
-
-// 現在の scrollLeft に最も近いバナーの index（ドット表示・次送り基点）。
-function currentBannerIndex(el: HTMLDivElement): number {
-  const cards = el.querySelectorAll<HTMLElement>('[data-banner]');
-  const cur = el.scrollLeft;
-  let idx = 0;
-  let best = Infinity;
-  cards.forEach((c, i) => {
-    const d = Math.abs(c.offsetLeft - cur);
-    if (d < best) {
-      best = d;
-      idx = i;
-    }
-  });
-  return idx;
-}
+// - alt_text を alt に使用（空文字可）。0件ならブロックごと非表示。
+// - PC幅：salon-card-zoom / lg:w-[512px] は挿入元（ShuffledSalons の insertBlock ラッパ）が適用済みのため当コンポーネントでは付けない（二重適用回避）。
+const AUTO_PLAY_MS = 4500;
+const PICKUP_TITLE = '福岡のピックアップサロン';
 
 export function TopBannerSlider({ banners }: { banners: TopBanner[] }) {
-  const trackRef = useRef<HTMLDivElement | null>(null);
-  const timerRef = useRef<number | null>(null);
-  const [active, setActive] = useState(0);
+  const count = banners.length;
+  const [current, setCurrent] = useState(0);
+  const [paused, setPaused] = useState(false);
+  const touchStartX = useRef<number>(0);
 
-  // タイマー（再）起動。1件のみ／reduced-motion では張らない。手動操作・設定変更時に呼び直してリセット。
-  const restart = useCallback(() => {
-    if (timerRef.current !== null) {
-      clearInterval(timerRef.current);
-      timerRef.current = null;
-    }
-    if (banners.length <= 1) return;
-    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
-    timerRef.current = window.setInterval(() => {
-      if (document.hidden) return; // タブ非アクティブ時は送らない（暴走防止）
-      const el = trackRef.current;
-      if (!el) return;
-      scrollBannerIntoView(el, currentBannerIndex(el) + 1); // 末尾の次は法により先頭へループ
-    }, AUTO_MS);
-  }, [banners.length]);
+  const prev = useCallback(() => setCurrent(c => (c - 1 + count) % count), [count]);
+  const next = useCallback(() => setCurrent(c => (c + 1) % count), [count]);
 
+  // 自動送り：hover 一時停止・1件は張らない。current を deps に含めることで手動操作（矢印/ドット/スワイプ）でも
+  // タイマーがリセットされる。unmount / 依存変化時は clearInterval で cleanup。
   useEffect(() => {
-    restart();
-    const el = trackRef.current;
-    const reduce = window.matchMedia('(prefers-reduced-motion: reduce)');
-    const onPref = () => restart();
-    reduce.addEventListener?.('change', onPref);
+    if (paused || count <= 1) return;
+    const id = setInterval(() => setCurrent(c => (c + 1) % count), AUTO_PLAY_MS);
+    return () => clearInterval(id);
+  }, [paused, count, current]);
 
-    // ユーザー操作（スワイプ/ホイール）でタイマーリセット。プログラムのスクロール（scroll）とは分離。
-    const reset = () => restart();
-    el?.addEventListener('pointerdown', reset);
-    el?.addEventListener('touchstart', reset, { passive: true });
-    el?.addEventListener('wheel', reset, { passive: true });
+  if (count === 0) return null;
+  const multiple = count > 1;
+  // 件数が減った直後に current が範囲外になっても破綻しないよう、描画時にクランプ（modulo で 0..count-1）。
+  const safeCurrent = ((current % count) + count) % count;
 
-    return () => {
-      if (timerRef.current !== null) {
-        clearInterval(timerRef.current);
-        timerRef.current = null;
-      }
-      reduce.removeEventListener?.('change', onPref);
-      el?.removeEventListener('pointerdown', reset);
-      el?.removeEventListener('touchstart', reset);
-      el?.removeEventListener('wheel', reset);
-    };
-  }, [restart]);
+  // 各スライド共通ラッパ：w-full flex-shrink-0 relative h-52 sm:h-96（固定高で高さ制約を全スライドに効かせる）。
+  const slideClass = 'w-full flex-shrink-0 relative h-52 sm:h-96 block';
 
-  if (banners.length === 0) return null;
-  const multiple = banners.length > 1;
-
-  // スクロール（自動・手動とも）でドットの選択位置を追従。
-  const onScroll = () => {
-    const el = trackRef.current;
-    if (el) setActive(currentBannerIndex(el));
-  };
-
-  // ドット押下：該当バナーへスクロール＋タイマーリセット。
-  const goTo = (i: number) => {
-    const el = trackRef.current;
-    if (!el) return;
-    scrollBannerIntoView(el, i);
-    restart();
-  };
-
-  // 1.1枚見せ：メインを約90%幅にし、次スライドを約10%チラ見せ（SP・PC共通比率）。
-  const cardClass = `snap-start flex-shrink-0 ${multiple ? 'w-[90%]' : 'w-full'} block`;
-
-  // 表示アスペクトは aspect-[21/9]（≒1280×549）。元画像は 16:9 のままなので object-cover で上下がトリミングされる。
-  // 各スライド共通のラッパに relative + aspect-[21/9] + overflow-hidden を付与し、next/image は fill + object-cover
-  // に統一する（width/height 指定だと2枚目以降で高さ制約が効かず縦に伸びるため）。トラックは items-start で
-  // 「最大の子に高さが引っ張られる」stretch を無効化。幅は 1.2枚見せ（w-82%）のままなので sizes は据え置き。
-  const inner = (b: TopBanner) => (
-    <div className="relative aspect-[21/9] w-full overflow-hidden rounded-2xl border border-slate-200 bg-slate-100 shadow-sm">
+  const slideInner = (b: TopBanner) => (
+    <>
       <Image
         src={b.imageUrl}
         alt={b.altText}
         fill
-        sizes="(max-width: 768px) 90vw, 700px"
         className="object-cover"
+        sizes="(max-width: 1024px) 100vw, 992px"
       />
-    </div>
+      {/* PICKUP バッジ（ピックアップ側と同位置・同スタイル）。 */}
+      <span className="absolute top-4 left-4 text-[11px] font-black text-white bg-pink-500 px-3 py-1 rounded-full shadow-lg tracking-wide">
+        ✦ PICKUP
+      </span>
+    </>
   );
 
-  const renderCard = (b: TopBanner) => {
+  const renderSlide = (b: TopBanner) => {
     if (b.linkUrl) {
       const isExternal = /^https?:\/\//i.test(b.linkUrl);
       if (isExternal) {
         return (
-          <a key={b.id} data-banner href={b.linkUrl} target="_blank" rel="noopener noreferrer" className={cardClass}>
-            {inner(b)}
+          <a key={b.id} href={b.linkUrl} target="_blank" rel="noopener noreferrer" className={slideClass}>
+            {slideInner(b)}
           </a>
         );
       }
       return (
-        <Link key={b.id} data-banner href={b.linkUrl} className={cardClass}>
-          {inner(b)}
+        <Link key={b.id} href={b.linkUrl} className={slideClass}>
+          {slideInner(b)}
         </Link>
       );
     }
     return (
-      <div key={b.id} data-banner className={cardClass}>
-        {inner(b)}
+      <div key={b.id} className={slideClass}>
+        {slideInner(b)}
       </div>
     );
   };
 
   return (
     <div>
-      {/* トラック：横スクロール＋スナップ。relative で子カードの offsetLeft をスクロール基点に一致させる。
-          1件のみは overflow-x-hidden＝スクロール無効。 */}
-      <div
-        ref={trackRef}
-        onScroll={multiple ? onScroll : undefined}
-        className={`relative flex items-start gap-3 snap-x snap-mandatory [scrollbar-width:none] [&::-webkit-scrollbar]:hidden ${
-          multiple ? 'overflow-x-auto' : 'overflow-x-hidden'
-        }`}
-      >
-        {banners.map(renderCard)}
+      {/* ── セクションタイトル（ピックアップサロンと同一構造・スタイル） ── */}
+      <div className="flex items-center gap-3 mb-4">
+        <div className="w-1 h-6 rounded-full bg-gradient-to-b from-pink-400 to-rose-500" />
+        <h2
+          className="font-bold whitespace-nowrap leading-tight"
+          style={{
+            background: 'linear-gradient(to right, #ec4899, #f97316)',
+            WebkitBackgroundClip: 'text',
+            WebkitTextFillColor: 'transparent',
+            backgroundClip: 'text',
+            fontSize: `min(1.25rem, calc((100vw - 56px) / ${PICKUP_TITLE.length}))`,
+          }}
+        >
+          {PICKUP_TITLE}
+        </h2>
+        <span className="flex-shrink-0 text-xs font-semibold px-2.5 py-1 rounded-full bg-pink-50 text-pink-500 border border-pink-200">
+          おすすめ
+        </span>
       </div>
 
+      {/* ── スライダー本体 ── */}
+      <div
+        className="relative"
+        onMouseEnter={() => setPaused(true)}
+        onMouseLeave={() => setPaused(false)}
+      >
+        {/* スライドトラック：flex＋translateX の平行移動。外殻に rounded-3xl overflow-hidden shadow-lg。 */}
+        <div className="rounded-3xl overflow-hidden shadow-lg">
+          <div
+            className="flex transition-transform duration-500 ease-in-out"
+            style={{ transform: `translateX(-${safeCurrent * 100}%)` }}
+            onTouchStart={e => { touchStartX.current = e.touches[0].clientX; }}
+            onTouchEnd={e => {
+              const delta = e.changedTouches[0].clientX - touchStartX.current;
+              if (Math.abs(delta) > 50) {
+                if (delta < 0) next(); else prev();
+              }
+            }}
+          >
+            {banners.map(renderSlide)}
+          </div>
+        </div>
+
+        {/* ── 矢印（>1件のみ） ── */}
+        {multiple && (
+          <>
+            <button
+              onClick={prev}
+              className="absolute left-3 top-[calc(50%-16px)] -translate-y-1/2 z-10 w-9 h-9 rounded-full bg-black/30 backdrop-blur-sm text-white flex items-center justify-center hover:bg-black/50 transition-colors border border-white/20 shadow"
+              aria-label="前へ"
+            >
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                <path d="M15 18l-6-6 6-6" />
+              </svg>
+            </button>
+            <button
+              onClick={next}
+              className="absolute right-3 top-[calc(50%-16px)] -translate-y-1/2 z-10 w-9 h-9 rounded-full bg-black/30 backdrop-blur-sm text-white flex items-center justify-center hover:bg-black/50 transition-colors border border-white/20 shadow"
+              aria-label="次へ"
+            >
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                <path d="M9 18l6-6-6-6" />
+              </svg>
+            </button>
+          </>
+        )}
+      </div>
+
+      {/* ── ドット（>1件のみ） ── */}
       {multiple && (
-        <div className="flex justify-center gap-1.5 mt-3">
+        <div className="flex justify-center items-center gap-2 mt-3">
           {banners.map((b, i) => (
             <button
               key={b.id}
-              type="button"
-              onClick={() => goTo(i)}
-              aria-label={`${i + 1}枚目のバナーを表示`}
-              aria-current={active === i ? 'true' : undefined}
-              className="h-1.5 rounded-full transition-all"
-              style={active === i ? { width: '18px', backgroundColor: '#DB2777' } : { width: '6px', backgroundColor: '#cbd5e1' }}
+              onClick={() => setCurrent(i)}
+              className={`transition-all duration-300 rounded-full ${
+                i === safeCurrent
+                  ? 'w-6 h-2 bg-pink-500'
+                  : 'w-2 h-2 bg-slate-300 hover:bg-pink-300'
+              }`}
+              aria-label={`スライド${i + 1}へ`}
             />
           ))}
         </div>
