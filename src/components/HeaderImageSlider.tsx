@@ -6,19 +6,34 @@ import { createClient } from '@/app/lib/supabase/client';
 
 const AUTOPLAY_INTERVAL = 3000;
 
+type Slide = {
+  /** PC用画像URL（必須）。 */
+  url: string;
+  /** SP用画像URL。未登録(null)なら PC 用にフォールバックする。 */
+  urlSp: string;
+};
+
 export default function HeaderImageSlider() {
   const supabase = createClient();
-  const [slides, setSlides] = useState<string[]>([]);
+  const [slides, setSlides] = useState<Slide[]>([]);
   const [current, setCurrent] = useState(0);
 
   useEffect(() => {
     const fetchSlides = async () => {
       const { data } = await supabase
         .from('header_slider_images')
-        .select('image_url')
+        .select('image_url, image_url_sp')
         .order('display_order', { ascending: true });
 
-      if (data) setSlides(data.map((row) => row.image_url));
+      if (data) {
+        setSlides(
+          data.map((row) => ({
+            url: row.image_url,
+            // SP用が未登録なら PC 用画像をSPでも表示（フォールバック）。
+            urlSp: row.image_url_sp ?? row.image_url,
+          })),
+        );
+      }
     };
     fetchSlides();
   }, []);
@@ -39,19 +54,28 @@ export default function HeaderImageSlider() {
   if (slides.length === 0) return null;
 
   return (
-    <div className="relative w-full h-64 sm:h-auto sm:aspect-[4/3] overflow-hidden rounded-lg">
-      {slides.map((src, index) => (
+    <div className="relative w-full aspect-[4/3] overflow-hidden rounded-lg">
+      {slides.map((slide, index) => (
         <div
-          key={src}
+          key={slide.url}
           className={`absolute inset-0 transition-opacity duration-700 ${
             index === current ? 'opacity-100' : 'opacity-0'
           }`}
         >
+          {/* PC用（sm 以上）。前タスクの 4:3 aspect をコンテナ側で維持。 */}
           <Image
-            src={src}
+            src={slide.url}
             alt={`スライド ${index + 1}`}
             fill
-            className="object-cover"
+            className="hidden sm:block object-cover"
+            priority={index === 0}
+          />
+          {/* SP用（sm 未満）。SP用URLが無ければ PC 用にフォールバック。 */}
+          <Image
+            src={slide.urlSp}
+            alt={`スライド ${index + 1}`}
+            fill
+            className="sm:hidden object-cover"
             priority={index === 0}
           />
         </div>
