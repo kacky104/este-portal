@@ -54,7 +54,7 @@ export default function HeaderImageSlider() {
   if (slides.length === 0) return null;
 
   return (
-    <div className="relative w-full aspect-[4/3] overflow-hidden rounded-lg">
+    <div className="relative w-full aspect-[4/3] sm:aspect-auto sm:h-96 overflow-hidden rounded-lg">
       {slides.map((slide, index) => (
         <div
           key={slide.url}
@@ -62,7 +62,7 @@ export default function HeaderImageSlider() {
             index === current ? 'opacity-100' : 'opacity-0'
           }`}
         >
-          {/* PC用（sm 以上）。前タスクの 4:3 aspect をコンテナ側で維持。 */}
+          {/* PC用（sm 以上）。コンテナは固定高さ sm:h-96 + object-cover（上下トリミングあり）。 */}
           <Image
             src={slide.url}
             alt={`スライド ${index + 1}`}

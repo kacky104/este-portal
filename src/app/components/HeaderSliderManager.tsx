@@ -235,7 +235,11 @@ export default function HeaderSliderManager() {
         </label>
         <p className="text-sm text-gray-500 mt-1">JPEG / PNG / WebP、5MBまで</p>
         <p className="text-sm text-gray-500">
-          PC用推奨サイズ: <span className="font-medium">4:3（例 1448×1086）</span>
+          PC用推奨サイズ: <span className="font-medium">横長 約2.6:1（例 1600×620）</span>
+          <br />
+          <span className="text-gray-400">
+            ※PCは固定高さ＋object-coverのため、縦長・正方形に近い画像は上下がトリミングされます。上記に近い横長画像を推奨します。
+          </span>
         </p>
       </div>
 
