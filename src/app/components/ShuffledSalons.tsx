@@ -444,7 +444,7 @@ function SalonCardSkeleton() {
 
 // ── ShuffledSalons ────────────────────────────────────────────
 
-export function ShuffledSalons({ salons, areas, showAge = false, areaNextToDuty = false, ratingAtBottom = false, compactTherapists = false, showSaveButton = false, wideDesktop = false, tabsAsLinks = false, currentArea, includeDispatch = false, heading, shuffleSalt = '', showAreaTitle = false }: { salons: Salon[]; areas: string[]; showAge?: boolean; areaNextToDuty?: boolean; ratingAtBottom?: boolean; compactTherapists?: boolean; showSaveButton?: boolean; wideDesktop?: boolean; tabsAsLinks?: boolean; currentArea?: string; includeDispatch?: boolean; heading?: React.ReactNode; shuffleSalt?: string; showAreaTitle?: boolean }) {
+export function ShuffledSalons({ salons, areas, showAge = false, areaNextToDuty = false, ratingAtBottom = false, compactTherapists = false, showSaveButton = false, wideDesktop = false, tabsAsLinks = false, currentArea, includeDispatch = false, heading, shuffleSalt = '', showAreaTitle = false, insertBlock, insertAfterIndex = 15 }: { salons: Salon[]; areas: string[]; showAge?: boolean; areaNextToDuty?: boolean; ratingAtBottom?: boolean; compactTherapists?: boolean; showSaveButton?: boolean; wideDesktop?: boolean; tabsAsLinks?: boolean; currentArea?: string; includeDispatch?: boolean; heading?: React.ReactNode; shuffleSalt?: string; showAreaTitle?: boolean; insertBlock?: React.ReactNode; insertAfterIndex?: number }) {
   const [list,            setList]            = useState<Salon[]>([]);
   const [activeArea,      setActiveArea]      = useState('福岡全域');
   // tabsAsLinks 時はページ自体が絞り込み対象を表すため、currentArea を選択中エリアとして使う
@@ -558,6 +558,13 @@ export function ShuffledSalons({ salons, areas, showAge = false, areaNextToDuty 
     />
   ));
 
+  // バナー挿入（insertBlock 指定時のみ。トップページが渡す）：カード配列を insertAfterIndex 枚目の直下で分割する。
+  // 並び順・件数・フィルタ（filtered/cards）には一切手を触れず、描画位置の分割のみ行う（既存ロジック不変）。
+  // カードが N 枚未満なら before=全件・after=空 ＝「最後のカードの直下」に挿入される。
+  const hasInsert = insertBlock != null;
+  const cardsBefore = hasInsert ? cards.slice(0, insertAfterIndex) : cards;
+  const cardsAfter = hasInsert ? cards.slice(insertAfterIndex) : [];
+
   // デスクトップのトップ（wideDesktop）：左にカード列（左寄せ・約723px）、右の余白に縦長ブロック。
   // 外側 flex の items-stretch で縦長ブロックの高さがカード列に揃う＝下端が最後尾カードに一致。
   if (wideDesktop) {
@@ -565,9 +572,22 @@ export function ShuffledSalons({ salons, areas, showAge = false, areaNextToDuty 
       <>
         {tabsAndHeading}
         <div className="lg:flex lg:gap-5 lg:items-stretch">
-          <div className="grid sm:grid-cols-2 lg:grid-cols-1 lg:justify-items-start lg:flex-shrink-0 gap-5">
-            {cards}
-          </div>
+          {hasInsert ? (
+            // 左カラムを1つの flex 子にまとめ、その内部でカード列を分割してバナーを挟む（右カラムの2分割を避ける）。
+            <div className="lg:flex-shrink-0">
+              <div className="grid sm:grid-cols-2 lg:grid-cols-1 lg:justify-items-start gap-5">{cardsBefore}</div>
+              {/* バナーはカード列と同じ幅・位置に揃える：lg では card と同じ基準幅512px＋salon-card-zoom(≒×1.413)で
+                  723px にスケールし、左端・右端をカードに一致させる（peek もこの幅内で見切れる）。zoom/幅指定は lg のみ＝SP不変。 */}
+              <div className="my-6 lg:w-[512px] lg:max-w-full salon-card-zoom">{insertBlock}</div>
+              {cardsAfter.length > 0 && (
+                <div className="grid sm:grid-cols-2 lg:grid-cols-1 lg:justify-items-start gap-5 mt-5">{cardsAfter}</div>
+              )}
+            </div>
+          ) : (
+            <div className="grid sm:grid-cols-2 lg:grid-cols-1 lg:justify-items-start lg:flex-shrink-0 gap-5">
+              {cards}
+            </div>
+          )}
           {/* 右の縦長カラム（lg のみ表示・幅は余白いっぱい）。fukuXバナー＋「準備中」ブロックを縦に積む。 */}
           <div className="hidden lg:flex lg:flex-1 flex-col gap-5">
             {/* fukuX バナー（独立ブロック・「準備中」の直前）。クリックで /x へ。アスペクト比1200:630維持で歪ませない。 */}
@@ -603,9 +623,19 @@ export function ShuffledSalons({ salons, areas, showAge = false, areaNextToDuty 
   return (
     <>
       {tabsAndHeading}
-      <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-5">
-        {cards}
-      </div>
+      {hasInsert ? (
+        <>
+          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-5">{cardsBefore}</div>
+          <div className="my-6">{insertBlock}</div>
+          {cardsAfter.length > 0 && (
+            <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-5 mt-5">{cardsAfter}</div>
+          )}
+        </>
+      ) : (
+        <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-5">
+          {cards}
+        </div>
+      )}
     </>
   );
 }

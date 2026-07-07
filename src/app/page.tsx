@@ -14,6 +14,8 @@ import { fetchSalons } from "./lib/salons";
 import { getBusinessDateJST } from "@/lib/dutyStatus";
 import { ALL_AREA, AREA_ORDER } from "./lib/areas";
 import { getFeaturedSalons } from "./lib/featured";
+import { fetchActiveTopBanners } from "./lib/topBanners";
+import { TopBannerSlider } from "./components/TopBannerSlider";
 
 // フィルタ判定／DB連動キー（変更不可）は areas.ts の AREA_ORDER に一元化。画面表示はすべて areaLabel() を通す。
 
@@ -28,7 +30,7 @@ export default async function Home() {
 
   // ── 互いに依存しない3処理を並列実行（往復の積み上がりを解消） ──
   // ピックアップは area=null の共通セット（＝トップ用）。地域ページは各エリアの設定を使う。
-  const [salons, featuredSalons, todaySchedRes, reviewCountRes] = await Promise.all([
+  const [salons, featuredSalons, todaySchedRes, reviewCountRes, topBanners] = await Promise.all([
     fetchSalons(supabase, { showOnTopOnly: true }), // トップは show_on_top=true のみ表示
     getFeaturedSalons(supabase, null),
     supabase
@@ -41,6 +43,8 @@ export default async function Home() {
       .eq('therapists.salons.is_hidden', false),
     // サイト全体の口コミ総数：全サロンの review_count（キャッシュ列）合計。
     supabase.from('salons').select('review_count'),
+    // トップのサロン一覧中（15枚目直下）に挿すバナー（is_active=true・display_order 昇順）。0件ならブロック非表示。
+    fetchActiveTopBanners(),
   ]);
 
   const todaySchedules = todaySchedRes.data;
@@ -195,6 +199,8 @@ export default async function Home() {
               compactTherapists
               showSaveButton
               wideDesktop
+              insertAfterIndex={15}
+              insertBlock={topBanners.length > 0 ? <TopBannerSlider banners={topBanners} /> : undefined}
               heading={
                 <>
                   <div className="flex items-center gap-3 mb-1.5">
