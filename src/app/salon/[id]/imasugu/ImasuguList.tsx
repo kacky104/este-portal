@@ -117,7 +117,7 @@ export function ImasuguList({
         return (
           <div
             key={t.id}
-            className="imasugu-card-shine rounded-2xl border shadow-sm overflow-hidden flex flex-col"
+            className="imasugu-card-shine border shadow-sm overflow-hidden flex flex-col"
             style={{ backgroundColor: cardBg, borderColor: cardBorder }}
           >
             {/* 写真（大きめ）＋今すぐバッジ */}

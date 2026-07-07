@@ -67,7 +67,7 @@ function TherapistMiniCard({ therapist, index, showAge = false, compact = false 
   return (
     <Link
       href={`/therapist/${therapist.id}`}
-      className={`relative flex-shrink-0 ${compact ? 'w-[92px] h-[134px]' : 'w-[105px] h-[153px]'} rounded-2xl overflow-hidden shadow-md hover:-translate-y-1 hover:shadow-xl transition-all duration-300`}
+      className={`relative flex-shrink-0 ${compact ? 'w-[92px] h-[134px]' : 'w-[105px] h-[153px]'} overflow-hidden shadow-md hover:-translate-y-1 hover:shadow-xl transition-all duration-300`}
       onClick={e => e.stopPropagation()}
     >
       {/* background */}
@@ -392,7 +392,7 @@ export function SalonCard({ salon, therapists, showAge = false, areaNextToDuty =
 
   return (
     <div
-      className={`group rounded-2xl border border-slate-200 bg-white shadow-sm hover:border-pink-300 hover:-translate-y-1 hover:shadow-lg hover:shadow-pink-500/10 transition-all duration-300 flex flex-col cursor-pointer overflow-hidden${
+      className={`group border border-slate-200 bg-white shadow-sm hover:border-pink-300 hover:-translate-y-1 hover:shadow-lg hover:shadow-pink-500/10 transition-all duration-300 flex flex-col cursor-pointer overflow-hidden${
         // デスクトップ(lg)はセラピストカード5枚ぶん（5×92+4×3=472）＋左右パディング40 = 512px。
         // salon-card-zoom で lg のみ比率そのまま拡大（512px×1.413≒723px）。左寄せのため右側に余白。モバイル/タブレットは無効。
         wideDesktop ? ' lg:w-[512px] lg:max-w-full salon-card-zoom' : ''
@@ -612,7 +612,7 @@ export function ShuffledSalons({ salons, areas, showAge = false, areaNextToDuty 
             <Link
               href="/x"
               aria-label="fukuX メンズエステ専用SNS"
-              className="block rounded-2xl border border-pink-100 overflow-hidden shadow-sm"
+              className="block border border-pink-100 overflow-hidden shadow-sm"
             >
               <Image
                 src="/ogp-fukux.png"

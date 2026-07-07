@@ -78,7 +78,7 @@ function DiaryCard({ diary, emphasized = false }: { diary: DiaryView; emphasized
   return (
     <Link
       href={`/diary/${diary.id}`}
-      className={`relative text-left group flex-shrink-0 ${sizeCls} rounded-2xl overflow-hidden shadow-sm hover:-translate-y-1 hover:shadow-lg transition-all duration-300 bg-gradient-to-br from-pink-300 to-rose-400`}
+      className={`relative text-left group flex-shrink-0 ${sizeCls} overflow-hidden shadow-sm hover:-translate-y-1 hover:shadow-lg transition-all duration-300 bg-gradient-to-br from-pink-300 to-rose-400`}
     >
       {diary.image ? (
         // eslint-disable-next-line @next/next/no-img-element

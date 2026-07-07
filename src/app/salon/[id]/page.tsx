@@ -295,7 +295,7 @@ export default async function SalonPage({
         <SalonNameBanner name={salon.name} cardBg={theme.card} cardBorder={theme.cardBorder} heading={theme.heading} />
 
         {/* ─── Block 1: 画像スライダー ─────────────────── */}
-        <div className="rounded-2xl border shadow-sm overflow-hidden mb-4" style={{ backgroundColor: theme.card, borderColor: theme.cardBorder }}>
+        <div className="border shadow-sm overflow-hidden mb-4" style={{ backgroundColor: theme.card, borderColor: theme.cardBorder }}>
           <SalonHeaderSlider images={salonImages} />
         </div>
 

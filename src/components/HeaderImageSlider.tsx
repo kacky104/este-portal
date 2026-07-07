@@ -54,7 +54,7 @@ export default function HeaderImageSlider() {
   if (slides.length === 0) return null;
 
   return (
-    <div className="relative w-full aspect-[4/3] sm:aspect-auto sm:h-96 overflow-hidden rounded-lg">
+    <div className="relative w-full aspect-[4/3] sm:aspect-auto sm:h-96 overflow-hidden">
       {slides.map((slide, index) => (
         <div
           key={slide.url}

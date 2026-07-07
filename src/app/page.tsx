@@ -230,7 +230,7 @@ export default async function Home() {
             <Link
               href="/x"
               aria-label="fukuX メンズエステ専用SNS"
-              className="lg:hidden block rounded-2xl border border-pink-100 overflow-hidden shadow-sm mt-10"
+              className="lg:hidden block border border-pink-100 overflow-hidden shadow-sm mt-10"
             >
               <Image
                 src="/ogp-fukux.png"

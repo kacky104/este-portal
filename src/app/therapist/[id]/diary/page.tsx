@@ -128,7 +128,7 @@ export default async function TherapistDiaryPage({
         ) : (
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-[3px] sm:gap-3">
             {diaries.map((d) => (
-              <Link key={d.id} href={`/diary/${d.id}`} className="group bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden hover:shadow-md transition-shadow">
+              <Link key={d.id} href={`/diary/${d.id}`} className="group bg-white border border-slate-100 shadow-sm overflow-hidden hover:shadow-md transition-shadow">
                 <div className="aspect-square bg-slate-100 relative">
                   {d.image ? (
                     // eslint-disable-next-line @next/next/no-img-element

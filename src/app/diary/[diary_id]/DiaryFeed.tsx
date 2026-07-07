@@ -52,7 +52,7 @@ export function DiaryFeed({
           <article
             key={d.id}
             id={`diary-${d.id}`}
-            className={`scroll-mt-20 bg-white rounded-2xl shadow-sm overflow-hidden border ${
+            className={`scroll-mt-20 bg-white shadow-sm overflow-hidden border ${
               isCurrent ? 'border-pink-400 ring-2 ring-pink-300' : 'border-slate-200'
             }`}
           >

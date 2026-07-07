@@ -28,7 +28,7 @@ function NewsCard({ item, theme }: { item: NewsItem; theme: SalonTheme }) {
   const [open, setOpen] = useState(false);
 
   return (
-    <article className="rounded-2xl border shadow-sm overflow-hidden" style={{ backgroundColor: theme.card, borderColor: theme.cardBorder }}>
+    <article className="border shadow-sm overflow-hidden" style={{ backgroundColor: theme.card, borderColor: theme.cardBorder }}>
       {/* ヘッダー（常時表示・クリックで開閉）：サムネイル＋タイトル＋日付 */}
       <button
         type="button"
@@ -41,7 +41,7 @@ function NewsCard({ item, theme }: { item: NewsItem; theme: SalonTheme }) {
           <img
             src={item.imageUrl}
             alt={item.title}
-            className="w-16 h-16 sm:w-20 sm:h-20 rounded-xl object-cover flex-shrink-0 border"
+            className="w-16 h-16 sm:w-20 sm:h-20 object-cover flex-shrink-0 border"
             style={{ borderColor: theme.cardBorder }}
           />
         )}
@@ -79,7 +79,7 @@ function NewsCard({ item, theme }: { item: NewsItem; theme: SalonTheme }) {
         <div className="overflow-hidden">
           <div className="px-4 sm:px-5 pb-5">
             {item.imageUrl && (
-              <div className="mb-3 rounded-xl overflow-hidden border" style={{ borderColor: theme.cardBorder }}>
+              <div className="mb-3 overflow-hidden border" style={{ borderColor: theme.cardBorder }}>
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img src={item.imageUrl} alt={item.title} className="w-full h-auto max-h-96 object-contain bg-black/5" />
               </div>

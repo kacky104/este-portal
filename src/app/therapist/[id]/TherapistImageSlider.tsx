@@ -148,7 +148,7 @@ export function TherapistImageSlider({
             type="button"
             onClick={() => setIdx(i)}
             aria-label={`${i + 1}枚目を表示`}
-            className="w-12 h-12 rounded-md overflow-hidden flex-shrink-0 transition-all"
+            className="w-12 h-12 overflow-hidden flex-shrink-0 transition-all"
             style={{ border: i === idx ? '2px solid #ec4899' : '2px solid transparent' }}
           >
             {/* eslint-disable-next-line @next/next/no-img-element */}

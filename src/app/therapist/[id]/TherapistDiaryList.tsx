@@ -54,7 +54,7 @@ export function TherapistDiaryList({ posts, name }: { posts: DiaryPostView[]; na
           <Link
             key={post.id}
             href={`/diary/${post.id}`}
-            className="flex-shrink-0 w-[130px] text-left rounded-xl overflow-hidden border border-slate-100 bg-white shadow-sm hover:shadow-md transition-shadow"
+            className="flex-shrink-0 w-[130px] text-left overflow-hidden border border-slate-100 bg-white shadow-sm hover:shadow-md transition-shadow"
           >
             {/* 画像：スマホは縦長（下のテキスト枠ぶんを吸収しカード高さを維持）＋画像内オーバーレイ、
                 PC は従来どおり正方形（テキストは下に別表示）。横幅・横スクロール挙動は不変。 */}

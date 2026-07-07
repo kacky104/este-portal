@@ -102,7 +102,7 @@ export default async function DiaryListPage({
         ) : (
           <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {diaries.map((diary) => (
-              <Link key={diary.id} href={`/diary/${diary.id}`} className="group bg-white rounded-2xl border border-pink-50 shadow-sm hover:border-pink-200 hover:-translate-y-0.5 transition-all duration-300 overflow-hidden flex flex-col">
+              <Link key={diary.id} href={`/diary/${diary.id}`} className="group bg-white border border-pink-50 shadow-sm hover:border-pink-200 hover:-translate-y-0.5 transition-all duration-300 overflow-hidden flex flex-col">
                 {/* 画像 */}
                 <div className="h-40 bg-slate-100 relative">
                   {diary.image ? (

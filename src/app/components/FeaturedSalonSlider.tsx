@@ -62,7 +62,7 @@ export function FeaturedSalonSlider({ salons }: { salons: FeaturedSalon[] }) {
       onMouseLeave={() => setPaused(false)}
     >
       {/* ── Slide track ─────────────────────────────────────── */}
-      <div className="rounded-3xl overflow-hidden shadow-lg">
+      <div className="overflow-hidden shadow-lg">
         <div
           className="flex transition-transform duration-500 ease-in-out"
           style={{ transform: `translateX(-${current * 100}%)` }}

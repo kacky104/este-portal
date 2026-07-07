@@ -220,7 +220,7 @@ export function XSettingsForm({
       {/* ── ヘッダー画像 ── */}
       <div>
         <p className="text-[11px] font-bold text-slate-400 mb-2 px-1">ヘッダー画像（任意・横長）</p>
-        <div className="relative h-28 rounded-2xl overflow-hidden bg-gradient-to-br from-indigo-100 to-sky-100 border border-slate-100">
+        <div className="relative h-28 overflow-hidden bg-gradient-to-br from-indigo-100 to-sky-100 border border-slate-100">
           {headerUrl && (
             // eslint-disable-next-line @next/next/no-img-element
             <img src={headerUrl} alt="" className="w-full h-full object-cover" />

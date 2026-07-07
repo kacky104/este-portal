@@ -71,7 +71,7 @@ export function RecommendedSalonBannerSlider({ banners }: { banners: Recommended
   const multiple = banners.length > 1;
 
   // カード共通クラス（高さ制約・角丸・影を1枚1枚に持たせる）。複数枚は次カードがのぞく幅、1件は全幅。
-  const cardClass = `snap-start flex-shrink-0 relative rounded-3xl overflow-hidden shadow-lg h-52 sm:h-auto sm:aspect-[31/12] ${
+  const cardClass = `snap-start flex-shrink-0 relative overflow-hidden shadow-lg h-52 sm:h-auto sm:aspect-[31/12] ${
     multiple ? 'w-[85%] sm:w-[82%]' : 'w-full'
   }`;
 

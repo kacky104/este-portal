@@ -219,7 +219,7 @@ export function GridCard({ therapist, index, showJoinDate = false, from, enableW
   const card = (
     <Link
       href={from ? `/therapist/${therapist.id}?from=${from}` : `/therapist/${therapist.id}`}
-      className={`text-left w-full rounded-2xl border border-pink-50 bg-white shadow-sm flex h-28 overflow-hidden hover:border-pink-200 hover:shadow-md transition-all duration-200${working ? ' therapist-working-shimmer' : ''}`}
+      className={`text-left w-full border border-pink-50 bg-white shadow-sm flex h-28 overflow-hidden hover:border-pink-200 hover:shadow-md transition-all duration-200${working ? ' therapist-working-shimmer' : ''}`}
     >
       <div className={`relative w-28 bg-gradient-to-br ${grad} flex items-center justify-center flex-shrink-0 overflow-hidden`}>
         {therapist.profileImageUrl ? (
@@ -348,7 +348,7 @@ function MiniCard({ therapist, index }: { therapist: Therapist; index: number })
   return (
     <Link
       href={`/therapist/${therapist.id}`}
-      className="relative flex-shrink-0 w-[105px] h-[153px] md:w-[150px] md:h-56 rounded-2xl overflow-hidden shadow-md hover:-translate-y-1 hover:shadow-xl transition-all duration-300"
+      className="relative flex-shrink-0 w-[105px] h-[153px] md:w-[150px] md:h-56 overflow-hidden shadow-md hover:-translate-y-1 hover:shadow-xl transition-all duration-300"
     >
       {/* background */}
       {therapist.profileImageUrl ? (
