@@ -51,12 +51,15 @@ export function RecommendedSalonBannerSlider({ banners }: { banners: Recommended
   // 件数が減った直後に current が範囲外でも破綻しないよう描画時にクランプ。
   const safeCurrent = ((current % count) + count) % count;
 
-  // 1.1枚見せは複数枚のSPのみ。スライド幅88%＋gap 0.5rem(8px) で、次スライドを約10%チラ見せする。
-  // 1枚のみ／sm以上は全幅・gapなし・100%移動（＝従来の1枚見せ）。高さ制約は全スライド共通の slideClass に置く。
+  // SPのみ「枠外はみ出し方式」の1.1枚見せ：現在スライドはカード幅のまま縮めず、ビューポートを右パディング分だけ
+  // 画面右端まで広げ（-mr-4）、その中でトラックを右へオーバーフローさせて次スライドの左端を右余白にのぞかせる。
+  // ビューポート自身の右端は画面端どまり＝overflow-hidden が内部トラックをクリップ→横スクロールバーは出ない。左端はカードと揃えたまま。
+  // 1枚のみ／sm以上は全幅・はみ出しなし・100%移動（＝従来の1枚見せ）。高さ制約は全スライド共通の slideClass に置く。
   const peekMode = multiple && peek;
-  const slideClass = `${multiple ? 'w-[88%] sm:w-full' : 'w-full'} flex-shrink-0 relative h-52 sm:h-96`;
-  // 移動量はスライド実幅基準：peek 時は (88% + 0.5rem)/枚、それ以外は 100%/枚。current=0 は 0。
-  const trackTransform = `translateX(calc(${-safeCurrent} * ${peekMode ? '(88% + 0.5rem)' : '100%'}))`;
+  // SP時ビューポートは右に16px(1rem)広がるので、スライド幅は calc(100%-1rem)=カード幅で維持。sm以上は w-full。
+  const slideClass = `${multiple ? 'w-[calc(100%-1rem)] sm:w-full' : 'w-full'} flex-shrink-0 relative h-52 sm:h-96`;
+  // 移動量＝スライド幅(カード幅)＋gap。SP: (100% - 1rem) + 0.5rem = (100% - 0.5rem)。sm/1枚: 100%。current=0 は 0。
+  const trackTransform = `translateX(calc(${-safeCurrent} * ${peekMode ? '(100% - 0.5rem)' : '100%'}))`;
 
   const slideBody = (b: RecommendedSalonBanner, i: number) => {
     const hasOverlay = b.salonName !== '';
@@ -156,8 +159,9 @@ export function RecommendedSalonBannerSlider({ banners }: { banners: Recommended
         onMouseEnter={() => setPaused(true)}
         onMouseLeave={() => setPaused(false)}
       >
-        {/* Slide track */}
-      <div className="rounded-3xl overflow-hidden shadow-lg">
+        {/* Slide track。SPのみ -mr-4 で右パディング分だけ画面端まで広げ、overflow-hidden で内部トラックをクリップ
+          （＝次スライドを右余白にのぞかせつつ横スクロールバーは出さない）。sm以上は従来どおりカード幅。 */}
+      <div className={`rounded-3xl overflow-hidden shadow-lg${multiple ? ' -mr-4 sm:mr-0' : ''}`}>
         <div
           className="flex gap-2 sm:gap-0 transition-transform duration-500 ease-in-out"
           style={{ transform: trackTransform }}
