@@ -73,7 +73,7 @@ export default async function SalonPage({
   ] = await Promise.all([
     supabase
       .from('salons')
-      .select('id, name, rating, review_count, tags, price, area, hours, description, appeal, phone, address, access, closed_days, note, courses, theme, official_url, fukux_url, is_hidden')
+      .select('id, name, rating, review_count, tags, price, area, hours, description, appeal, phone, address, access, closed_days, courses, theme, official_url, fukux_url, is_hidden')
       .eq('id', Number(id))
       .single(),
     supabase
@@ -124,7 +124,6 @@ export default async function SalonPage({
     address:     (row.address as string) ?? '',
     access:      (row.access as string) ?? '',
     closedDays:  (row.closed_days as string) ?? '',
-    note:        (row.note as string | undefined) ?? undefined,
     officialUrl: (row.official_url as string | null) ?? null,
     fukuxUrl:    (row.fukux_url as string | null) ?? null,
   };
@@ -649,14 +648,6 @@ export default async function SalonPage({
             <CollapsibleSection theme={theme} className="hidden lg:block rounded-2xl border shadow-sm p-5" title="店舗基本情報" mobileOnly>
               {shopInfoRows}
             </CollapsibleSection>
-
-            {/* Note */}
-            {salon.note && (
-              <div className="rounded-xl border border-pink-100 bg-pink-50 p-4 text-xs text-pink-800 leading-relaxed max-w-full">
-                <p className="font-semibold mb-1">ご利用にあたって</p>
-                <p className="break-words max-w-full whitespace-pre-wrap">{salon.note}</p>
-              </div>
-            )}
 
           </div>
         </div>
