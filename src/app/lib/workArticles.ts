@@ -14,15 +14,17 @@ export type WorkArticleListItem = {
   heroImageUrl: string | null;
   category: string;
   publishedAt: string | null;
+  // 一覧の並び順（公開日と更新日の新しい方＝実質の最終更新日で降順）に使う。
+  // 詳細ページの日付表示（isMeaningfulUpdate 等）は従来どおり WorkArticleDetail 経由でこの値を利用する。
+  updatedAt: string | null;
 };
 
 export type WorkArticleDetail = WorkArticleListItem & {
   body: string;
-  updatedAt: string | null;
 };
 
-const LIST_COLUMNS = 'id, slug, title, excerpt, hero_image_url, category, published_at';
-const DETAIL_COLUMNS = `${LIST_COLUMNS}, body, updated_at`;
+const LIST_COLUMNS = 'id, slug, title, excerpt, hero_image_url, category, published_at, updated_at';
+const DETAIL_COLUMNS = `${LIST_COLUMNS}, body`;
 
 function mapListItem(row: Record<string, unknown>): WorkArticleListItem {
   return {
@@ -33,6 +35,7 @@ function mapListItem(row: Record<string, unknown>): WorkArticleListItem {
     heroImageUrl: (row.hero_image_url as string | null) ?? null,
     category: (row.category as string | null) ?? 'work-guide',
     publishedAt: (row.published_at as string | null) ?? null,
+    updatedAt: (row.updated_at as string | null) ?? null,
   };
 }
 
@@ -40,21 +43,37 @@ function mapDetail(row: Record<string, unknown>): WorkArticleDetail {
   return {
     ...mapListItem(row),
     body: (row.body as string | null) ?? '',
-    updatedAt: (row.updated_at as string | null) ?? null,
   };
+}
+
+// 一覧の並び順キー：published_at と updated_at の「新しい方」のミリ秒。updated_at が null なら published_at のみ。
+// 記事を更新すると updated_at が上がり、一覧の先頭に来る（GREATEST 相当をアプリ側で実現）。
+function effectiveDateMs(a: { publishedAt: string | null; updatedAt: string | null }): number {
+  const p = a.publishedAt ? new Date(a.publishedAt).getTime() : 0;
+  const u = a.updatedAt ? new Date(a.updatedAt).getTime() : 0;
+  return Math.max(Number.isNaN(p) ? 0 : p, Number.isNaN(u) ? 0 : u);
+}
+
+// effectiveDateMs の降順（新しい順）で安定ソート。呼び出し側はクエリで published_at 降順を付けておくと
+// 同値時のタイブレークが決定的になる（Array.prototype.sort は安定ソート）。入力は破壊しない。
+function sortByEffectiveDateDesc<T extends { publishedAt: string | null; updatedAt: string | null }>(
+  items: T[],
+): T[] {
+  return [...items].sort((a, b) => effectiveDateMs(b) - effectiveDateMs(a));
 }
 
 // ── 一覧（published・published_at 降順）。limit 指定で件数制限（トップの新着枠など）。 ──
 export async function fetchPublishedArticles(limit?: number): Promise<WorkArticleListItem[]> {
   const supabase = createPublicClient();
-  let q = supabase
+  // limit はクエリ側で掛けない：published_at 降順で先に切ると「更新で先頭に来るべき記事」が漏れるため、
+  // 全 published を取得→effectiveDate（公開日/更新日の新しい方）でソート→slice の順にする（記事数が少なくコスト無視可）。
+  const { data } = await supabase
     .from('work_articles')
     .select(LIST_COLUMNS)
     .eq('status', 'published')
     .order('published_at', { ascending: false });
-  if (limit != null) q = q.limit(limit);
-  const { data } = await q;
-  return (data ?? []).map(mapListItem);
+  const sorted = sortByEffectiveDateDesc((data ?? []).map(mapListItem));
+  return limit != null ? sorted.slice(0, limit) : sorted;
 }
 
 // ── カテゴリ別一覧（published・published_at 降順）。不正キーは空配列。 ──
@@ -69,7 +88,7 @@ export async function fetchPublishedArticlesByCategory(
     .eq('status', 'published')
     .eq('category', category)
     .order('published_at', { ascending: false });
-  return (data ?? []).map(mapListItem);
+  return sortByEffectiveDateDesc((data ?? []).map(mapListItem));
 }
 
 // ── slug 単体（published のみ）。存在しない／draft は null（呼び出し側で notFound）。 ──
@@ -131,7 +150,7 @@ export async function fetchRelatedArticles(
     .eq('status', 'published')
     .eq('category', category)
     .neq('slug', excludeSlug)
-    .order('published_at', { ascending: false })
-    .limit(limit);
-  return (data ?? []).map(mapListItem);
+    .order('published_at', { ascending: false });
+  // 関連記事も一覧と同じく「更新日を含めた新しい順」。limit はソート後に slice（クエリ側で先に切らない）。
+  return sortByEffectiveDateDesc((data ?? []).map(mapListItem)).slice(0, limit);
 }
