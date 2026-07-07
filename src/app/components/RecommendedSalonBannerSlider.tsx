@@ -22,6 +22,9 @@ export function RecommendedSalonBannerSlider({ banners }: { banners: Recommended
   const count = banners.length;
   const [current, setCurrent] = useState(0);
   const [paused, setPaused] = useState(false);
+  // PC（sm以上＝640px以上）のみ「1.2枚見せ」にする。SSR初期は false（＝1枚見せ）だが current=0 では
+  // 両分岐とも translateX(0) のためハイドレーション不一致は起きない。SPは常に1枚見せ。
+  const [wide, setWide] = useState(false);
   const touchStartX = useRef<number>(0);
 
   const prev = useCallback(() => setCurrent((c) => (c - 1 + count) % count), [count]);
@@ -34,14 +37,28 @@ export function RecommendedSalonBannerSlider({ banners }: { banners: Recommended
     return () => clearInterval(id);
   }, [paused, count, current]);
 
+  // PC（≥640px）検知。sm 以上は1.2枚見せ、未満は1枚見せ。
+  useEffect(() => {
+    const mq = window.matchMedia('(min-width: 640px)');
+    const onChange = () => setWide(mq.matches);
+    onChange();
+    mq.addEventListener?.('change', onChange);
+    return () => mq.removeEventListener?.('change', onChange);
+  }, []);
+
   if (count === 0) return null;
   const multiple = count > 1;
   // 件数が減った直後に current が範囲外でも破綻しないよう描画時にクランプ。
   const safeCurrent = ((current % count) + count) % count;
 
-  // SP/PC共通の1枚見せ：スライドはカード列幅(w-full)、移動量は 100%/枚。高さ制約は全スライド共通の slideClass に置く。
-  const slideClass = 'w-full flex-shrink-0 relative h-52 sm:h-96';
-  const trackTransform = `translateX(-${safeCurrent * 100}%)`;
+  // 高さ制約は全スライド共通の slideClass に置く：
+  //  - SP: h-52 固定（1枚見せ・w-full）。
+  //  - PC(sm以上): 固定高をやめ aspect-[31/12]（＝ピックアップの 992/384≒2.583 と同比率）でスライド幅から高さを決定。
+  //    複数枚は 1.2枚見せ＝スライド幅 calc((100% - 0.5rem)/1.2)（gap 0.5rem 込み）、1枚のみは全幅。
+  const peekMode = multiple && wide;
+  const slideClass = `${multiple ? 'w-full sm:w-[calc((100%_-_0.5rem)/1.2)]' : 'w-full'} flex-shrink-0 relative h-52 sm:h-auto sm:aspect-[31/12]`;
+  // 移動量：SP/1枚は 100%/枚、PC複数枚はスライド幅＋gap＝(100% - 0.5rem)/1.2 + 0.5rem。current=0 は 0。
+  const trackTransform = `translateX(calc(${-safeCurrent} * ${peekMode ? '((100% - 0.5rem)/1.2 + 0.5rem)' : '100%'}))`;
 
   const slideBody = (b: RecommendedSalonBanner, i: number) => {
     const hasOverlay = b.salonName !== '';
@@ -76,9 +93,10 @@ export function RecommendedSalonBannerSlider({ banners }: { banners: Recommended
               📍 {areaLabel(b.area)}
             </span>
 
-            {/* Bottom content */}
-            <div className="absolute bottom-0 left-0 right-0 p-4 sm:p-5">
-              <p className="font-black text-xl sm:text-2xl text-white drop-shadow mb-4 line-clamp-1">
+            {/* Bottom content。PC(sm)は 1.2枚見せで高さが低くなるため、SP据え置きのまま overlay の
+                拡大（text-2xl / p-5）を止め、名前下マージンも詰めて窮屈さを回避（SPは無変更）。 */}
+            <div className="absolute bottom-0 left-0 right-0 p-4">
+              <p className="font-black text-xl text-white drop-shadow mb-4 sm:mb-2.5 line-clamp-1">
                 {b.salonName}
               </p>
 
@@ -144,7 +162,7 @@ export function RecommendedSalonBannerSlider({ banners }: { banners: Recommended
         {/* Slide track */}
       <div className="rounded-3xl overflow-hidden shadow-lg">
         <div
-          className="flex transition-transform duration-500 ease-in-out"
+          className="flex sm:gap-2 transition-transform duration-500 ease-in-out"
           style={{ transform: trackTransform }}
           onTouchStart={(e) => { touchStartX.current = e.touches[0].clientX; }}
           onTouchEnd={(e) => {
