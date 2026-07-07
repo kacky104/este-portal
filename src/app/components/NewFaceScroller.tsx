@@ -16,8 +16,20 @@ export function NewFaceScroller({ therapists }: { therapists: TherapistItem[] })
       {/* セクション見出し（「出勤中のセラピスト」と同一マークアップ：グラデ縦バー＋タイトル＋右端「一覧を見る →」） */}
       <div className="flex items-center justify-between mb-1.5">
         <div className="flex items-center gap-3">
-          <div className="w-1 h-6 rounded-full bg-gradient-to-b from-pink-400 to-rose-500" />
-          <h2 className="text-xl font-bold text-slate-900">新人セラピスト一覧</h2>
+          {/* 新人＝NEW（緑）に合わせ、縦バー・見出し文字とも emerald→lime のグラデに（#10B981→#84CC16） */}
+          <div className="w-1 h-6 rounded-full bg-gradient-to-b from-emerald-500 to-lime-500" />
+          <h2
+            className="text-xl font-bold"
+            style={{
+              background: 'linear-gradient(to right, #10B981, #84CC16)',
+              WebkitBackgroundClip: 'text',
+              WebkitTextFillColor: 'transparent',
+              backgroundClip: 'text',
+              color: 'transparent',
+            }}
+          >
+            新人セラピスト一覧
+          </h2>
         </div>
         {/* デスクトップのみ：タイトル行の右端に「一覧を見る →」（モバイルは末尾カードで導線を確保） */}
         <Link

@@ -44,12 +44,12 @@ export default async function NewFacePage() {
           トップへ戻る
         </Link>
 
-        {/* Heading（中央寄せ・オレンジ→ピンクのグラデーション。/working と同系統） */}
+        {/* Heading（中央寄せ）。トップの「新人セラピスト一覧」見出しと同じ emerald→lime のグラデに揃える（#10B981→#84CC16）。 */}
         <div className="mb-8 text-center">
           <h1
             className="text-2xl font-bold inline-block"
             style={{
-              background: 'linear-gradient(to right, #F59E0B, #EC4899)',
+              background: 'linear-gradient(to right, #10B981, #84CC16)',
               WebkitBackgroundClip: 'text',
               backgroundClip: 'text',
               WebkitTextFillColor: 'transparent',
