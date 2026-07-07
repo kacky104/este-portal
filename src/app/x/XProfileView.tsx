@@ -101,7 +101,7 @@ export function XProfileView({
   return (
     <div>
       {/* ─── ヘッダー（浮遊カード） ─── */}
-      <div className="x-card mt-3 overflow-hidden bg-white/[0.94] shadow-[0_4px_16px_rgba(109,40,217,0.3)]">
+      <div className="x-card mt-3 rounded-2xl overflow-hidden bg-white/[0.94] shadow-[0_4px_16px_rgba(109,40,217,0.3)]">
         {/* バナー（header_url があればタップで全体表示） */}
         <div className="h-28 bg-gradient-to-br from-indigo-100 to-sky-100 relative">
           {target.header_url && (

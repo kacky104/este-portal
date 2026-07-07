@@ -38,7 +38,7 @@ function ImageGrid({
   // 1枚のときは正方形トリミングをやめ、元のアスペクト比のまま表示（縦長対策に max-h で頭打ち）。
   if (images.length === 1) {
     return (
-      <div className="mt-2 overflow-hidden">
+      <div className="mt-2 rounded-xl overflow-hidden">
         <button
           type="button"
           onClick={(e) => {
@@ -58,7 +58,7 @@ function ImageGrid({
   // 複数枚（2〜4枚）は従来どおり正方形グリッド（3枚=先頭大）。
   const cls = 'grid-cols-2';
   return (
-    <div className={`mt-2 grid ${cls} gap-1 overflow-hidden`}>
+    <div className={`mt-2 grid ${cls} gap-1 rounded-xl overflow-hidden`}>
       {images.slice(0, 4).map((src, i) => (
         <button
           type="button"

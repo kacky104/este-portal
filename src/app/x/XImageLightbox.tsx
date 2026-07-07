@@ -179,7 +179,7 @@ export function XImageLightbox({
             ? { transform: `translateY(${dragY}px)`, opacity: Math.max(0.4, 1 - dragY / 500) }
             : undefined
         }
-        className={`max-w-full max-h-full object-contain shadow-2xl select-none ${
+        className={`max-w-full max-h-full object-contain rounded-lg shadow-2xl select-none ${
           dragY ? '' : 'transition-transform duration-200'
         }`}
         draggable={false}

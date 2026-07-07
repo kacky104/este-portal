@@ -203,7 +203,7 @@ export function XComposer({
       {images.length > 0 && (
         <div className="mt-2 grid grid-cols-4 gap-2">
           {images.map((src, i) => (
-            <div key={i} className="relative aspect-square overflow-hidden border border-slate-100 bg-slate-50">
+            <div key={i} className="relative aspect-square rounded-lg overflow-hidden border border-slate-100 bg-slate-50">
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img src={src} alt="" className="w-full h-full object-cover" />
               <button
