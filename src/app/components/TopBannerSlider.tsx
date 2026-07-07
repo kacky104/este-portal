@@ -50,12 +50,12 @@ export function TopBannerSlider({ banners }: { banners: TopBanner[] }) {
   // 1.1枚見せ：メインを約90%幅にし、次スライドを約10%チラ見せ（SP・PC共通比率）。
   const cardClass = `snap-start flex-shrink-0 ${multiple ? 'w-[90%]' : 'w-full'} block`;
 
-  // 表示アスペクトは aspect-[8/3]（≒1280×480）。元画像は 16:9 のままなので object-cover で上下がトリミングされる。
-  // 各スライド共通のラッパに relative + aspect-[8/3] + overflow-hidden を付与し、next/image は fill + object-cover
+  // 表示アスペクトは aspect-[21/9]（≒1280×549）。元画像は 16:9 のままなので object-cover で上下がトリミングされる。
+  // 各スライド共通のラッパに relative + aspect-[21/9] + overflow-hidden を付与し、next/image は fill + object-cover
   // に統一する（width/height 指定だと2枚目以降で高さ制約が効かず縦に伸びるため）。トラックは items-start で
   // 「最大の子に高さが引っ張られる」stretch を無効化。幅は 1.2枚見せ（w-82%）のままなので sizes は据え置き。
   const inner = (b: TopBanner) => (
-    <div className="relative aspect-[8/3] w-full overflow-hidden rounded-2xl border border-slate-200 bg-slate-100 shadow-sm">
+    <div className="relative aspect-[21/9] w-full overflow-hidden rounded-2xl border border-slate-200 bg-slate-100 shadow-sm">
       <Image
         src={b.imageUrl}
         alt={b.altText}
