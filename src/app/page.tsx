@@ -95,8 +95,8 @@ export default async function Home() {
           <div className="absolute bottom-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-pink-300/50 to-transparent" />
 
           <div className="relative max-w-5xl mx-auto px-4 text-center">
-            {/* リード文（緑系グラデ：ヘッダーのサブと同系） */}
-            <p className="text-[18px] sm:text-[22px] leading-snug">
+            {/* 見出し（ページ唯一の h1。緑系グラデ：ヘッダーのサブと同系） */}
+            <h1 className="text-[18px] sm:text-[22px] leading-snug">
               <span
                 className="inline-block font-medium"
                 style={{
@@ -107,33 +107,9 @@ export default async function Home() {
                   color: 'transparent',
                 }}
               >
-                福岡密着型メンズエステポータルサイト
+                福岡メンズエステ密着型ポータルサイト
               </span>
-            </p>
-
-            {/* ブランド名（h1は1つ。フクエスはヘッダーと同じ橙→マゼンタのグラデ） */}
-            <h1
-              className="inline-block text-[44px] sm:text-[56px] font-extrabold leading-tight tracking-tight mb-1"
-              style={{
-                background: 'linear-gradient(95deg,#FB923C,#DB2777)',
-                WebkitBackgroundClip: 'text',
-                backgroundClip: 'text',
-                WebkitTextFillColor: 'transparent',
-                color: 'transparent',
-              }}
-            >
-              フクエス
             </h1>
-
-            {/* アピール（タグライン）：あなた=橙 / お店=マゼンタ、他は通常色 */}
-            <p className="text-[18px] sm:text-[22px] font-medium text-slate-900 leading-snug mb-3">
-              <span style={{ color: '#FB923C' }}>あなた</span>と<span style={{ color: '#DB2777' }}>お店</span>をマッチング
-            </p>
-
-            {/* 説明文（句点なし。モバイルは「福岡全域から」で改行、デスクトップは読点で1行） */}
-            <p className="text-slate-400 text-sm max-w-xl mx-auto mb-3 leading-relaxed">
-              博多・天神・北九州・久留米など福岡全域から<span className="hidden sm:inline">、</span><br className="sm:hidden" />口コミ評価の高い人気サロンをご紹介
-            </p>
           </div>
         </section>
 
