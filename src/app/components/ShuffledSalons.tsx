@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, Fragment } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
@@ -444,7 +444,7 @@ function SalonCardSkeleton() {
 
 // ── ShuffledSalons ────────────────────────────────────────────
 
-export function ShuffledSalons({ salons, areas, showAge = false, areaNextToDuty = false, ratingAtBottom = false, compactTherapists = false, showSaveButton = false, wideDesktop = false, tabsAsLinks = false, currentArea, includeDispatch = false, heading, shuffleSalt = '', showAreaTitle = false, insertBlock, insertAfterIndex = 15 }: { salons: Salon[]; areas: string[]; showAge?: boolean; areaNextToDuty?: boolean; ratingAtBottom?: boolean; compactTherapists?: boolean; showSaveButton?: boolean; wideDesktop?: boolean; tabsAsLinks?: boolean; currentArea?: string; includeDispatch?: boolean; heading?: React.ReactNode; shuffleSalt?: string; showAreaTitle?: boolean; insertBlock?: React.ReactNode; insertAfterIndex?: number }) {
+export function ShuffledSalons({ salons, areas, showAge = false, areaNextToDuty = false, ratingAtBottom = false, compactTherapists = false, showSaveButton = false, wideDesktop = false, tabsAsLinks = false, currentArea, includeDispatch = false, heading, shuffleSalt = '', showAreaTitle = false, insertBlocks }: { salons: Salon[]; areas: string[]; showAge?: boolean; areaNextToDuty?: boolean; ratingAtBottom?: boolean; compactTherapists?: boolean; showSaveButton?: boolean; wideDesktop?: boolean; tabsAsLinks?: boolean; currentArea?: string; includeDispatch?: boolean; heading?: React.ReactNode; shuffleSalt?: string; showAreaTitle?: boolean; insertBlocks?: { afterIndex: number; node: React.ReactNode; zoom?: boolean }[] }) {
   const [list,            setList]            = useState<Salon[]>([]);
   const [activeArea,      setActiveArea]      = useState('福岡全域');
   // tabsAsLinks 時はページ自体が絞り込み対象を表すため、currentArea を選択中エリアとして使う
@@ -558,12 +558,22 @@ export function ShuffledSalons({ salons, areas, showAge = false, areaNextToDuty 
     />
   ));
 
-  // バナー挿入（insertBlock 指定時のみ。トップページが渡す）：カード配列を insertAfterIndex 枚目の直下で分割する。
+  // ブロック挿入（insertBlocks 指定時のみ。トップページが渡す）：カード配列を各 afterIndex の直下で分割する。
   // 並び順・件数・フィルタ（filtered/cards）には一切手を触れず、描画位置の分割のみ行う（既存ロジック不変）。
-  // カードが N 枚未満なら before=全件・after=空 ＝「最後のカードの直下」に挿入される。
-  const hasInsert = insertBlock != null;
-  const cardsBefore = hasInsert ? cards.slice(0, insertAfterIndex) : cards;
-  const cardsAfter = hasInsert ? cards.slice(insertAfterIndex) : [];
+  // afterIndex 昇順にセグメント分割し、各セグメント直後に対応ブロックを差し込む。カードが afterIndex 枚未満の
+  // ブロックは「その時点の最後のカードの直下（＝最下部）」に出る。
+  const blocks = [...(insertBlocks ?? [])]
+    .filter((b) => b.node != null)
+    .sort((a, b) => a.afterIndex - b.afterIndex);
+  const hasInsert = blocks.length > 0;
+  // segments.length === blocks.length + 1（最後のセグメントは末尾ブロック以降の残り）。
+  const segments: React.ReactNode[][] = [];
+  let segStart = 0;
+  for (const b of blocks) {
+    segments.push(cards.slice(segStart, b.afterIndex));
+    segStart = b.afterIndex;
+  }
+  segments.push(cards.slice(segStart));
 
   // デスクトップのトップ（wideDesktop）：左にカード列（左寄せ・約723px）、右の余白に縦長ブロック。
   // 外側 flex の items-stretch で縦長ブロックの高さがカード列に揃う＝下端が最後尾カードに一致。
@@ -573,15 +583,23 @@ export function ShuffledSalons({ salons, areas, showAge = false, areaNextToDuty 
         {tabsAndHeading}
         <div className="lg:flex lg:gap-5 lg:items-stretch">
           {hasInsert ? (
-            // 左カラムを1つの flex 子にまとめ、その内部でカード列を分割してバナーを挟む（右カラムの2分割を避ける）。
+            // 左カラムを1つの flex 子にまとめ、その内部でカード列をセグメント分割して各ブロックを挟む（右カラムの2分割を避ける）。
+            // Fragment で余分なDOMを増やさず、grid/ブロックを lg:flex-shrink-0 の直接の子に保つ（従来の描画・余白を維持）。
             <div className="lg:flex-shrink-0">
-              <div className="grid sm:grid-cols-2 lg:grid-cols-1 lg:justify-items-start gap-5">{cardsBefore}</div>
-              {/* バナーはカード列と同じ幅・位置に揃える：lg では card と同じ基準幅512px＋salon-card-zoom(≒×1.413)で
-                  723px にスケールし、左端・右端をカードに一致させる（peek もこの幅内で見切れる）。zoom/幅指定は lg のみ＝SP不変。 */}
-              <div className="my-6 lg:w-[512px] lg:max-w-full salon-card-zoom">{insertBlock}</div>
-              {cardsAfter.length > 0 && (
-                <div className="grid sm:grid-cols-2 lg:grid-cols-1 lg:justify-items-start gap-5 mt-5">{cardsAfter}</div>
-              )}
+              {segments.map((seg, i) => (
+                <Fragment key={`seg-${i}`}>
+                  {(i === 0 || seg.length > 0) && (
+                    <div className={`grid sm:grid-cols-2 lg:grid-cols-1 lg:justify-items-start gap-5${i > 0 ? ' mt-5' : ''}`}>{seg}</div>
+                  )}
+                  {blocks[i] && (
+                    // zoom:true（バナー）は card と同じ基準幅512px＋salon-card-zoom(≒×1.413)＝723px で左右端をカードに一致。
+                    // zoom:false（新人スクローラー等）は等倍のまま、ラッパ幅を zoom:true の実効幅 calc(512px*1.413)=723.456px に固定
+                    //   ＝カード列と左右端を一致させつつ、lg:flex-shrink-0 列が内部 overflow-x-auto の中身幅まで拡張して
+                    //   ページ横スクロールを起こすのを防ぐ（内部スクロールに収める）。zoom/幅指定は lg のみ＝SP不変。
+                    <div className={blocks[i].zoom ? 'my-6 lg:w-[512px] lg:max-w-full salon-card-zoom' : 'my-6 lg:w-[calc(512px*1.413)] lg:max-w-full'}>{blocks[i].node}</div>
+                  )}
+                </Fragment>
+              ))}
             </div>
           ) : (
             <div className="grid sm:grid-cols-2 lg:grid-cols-1 lg:justify-items-start lg:flex-shrink-0 gap-5">
@@ -624,13 +642,16 @@ export function ShuffledSalons({ salons, areas, showAge = false, areaNextToDuty 
     <>
       {tabsAndHeading}
       {hasInsert ? (
-        <>
-          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-5">{cardsBefore}</div>
-          <div className="my-6">{insertBlock}</div>
-          {cardsAfter.length > 0 && (
-            <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-5 mt-5">{cardsAfter}</div>
-          )}
-        </>
+        segments.map((seg, i) => (
+          <Fragment key={`seg-${i}`}>
+            {(i === 0 || seg.length > 0) && (
+              <div className={`grid sm:grid-cols-2 lg:grid-cols-3 gap-5${i > 0 ? ' mt-5' : ''}`}>{seg}</div>
+            )}
+            {/* 非wideDesktop（zoom列なし）：ブロックはフル幅の通常ブロックで元々 overflow しないが、
+                内部 overflow-x-auto を container 幅内に確実に収める（max-w-full min-w-0＝flex文脈に置かれても膨張しない）。 */}
+            {blocks[i] && <div className="my-6 max-w-full min-w-0">{blocks[i].node}</div>}
+          </Fragment>
+        ))
       ) : (
         <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-5">
           {cards}

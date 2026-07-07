@@ -16,6 +16,8 @@ import { ALL_AREA, AREA_ORDER } from "./lib/areas";
 import { getFeaturedSalons } from "./lib/featured";
 import { fetchActiveRecommendedSalonBanners } from "./lib/recommendedSalonBanners";
 import { RecommendedSalonBannerSlider } from "./components/RecommendedSalonBannerSlider";
+import { fetchNewFaceTherapists } from "./lib/newFaceTherapists";
+import { NewFaceScroller } from "./components/NewFaceScroller";
 
 // フィルタ判定／DB連動キー（変更不可）は areas.ts の AREA_ORDER に一元化。画面表示はすべて areaLabel() を通す。
 
@@ -30,7 +32,7 @@ export default async function Home() {
 
   // ── 互いに依存しない3処理を並列実行（往復の積み上がりを解消） ──
   // ピックアップは area=null の共通セット（＝トップ用）。地域ページは各エリアの設定を使う。
-  const [salons, featuredSalons, todaySchedRes, reviewCountRes, recommendedBanners] = await Promise.all([
+  const [salons, featuredSalons, todaySchedRes, reviewCountRes, recommendedBanners, newFaceTherapists] = await Promise.all([
     fetchSalons(supabase, { showOnTopOnly: true }), // トップは show_on_top=true のみ表示
     getFeaturedSalons(supabase, null),
     supabase
@@ -45,6 +47,8 @@ export default async function Home() {
     supabase.from('salons').select('review_count'),
     // ピックアップ直下の「おすすめサロンバナー」（サロン紐づけ・ピックアップ同一オーバーレイ）。0件なら非表示。
     fetchActiveRecommendedSalonBanners(),
+    // 新人セラピスト（is_new_face=true かつ30日以内）を新しい順に最大35件。サロンカード30枚目直下に挿入。0件なら非表示。
+    fetchNewFaceTherapists(supabase, 35),
   ]);
 
   const todaySchedules = todaySchedRes.data;
@@ -199,8 +203,16 @@ export default async function Home() {
               compactTherapists
               showSaveButton
               wideDesktop
-              insertAfterIndex={15}
-              insertBlock={recommendedBanners.length > 0 ? <RecommendedSalonBannerSlider banners={recommendedBanners} /> : undefined}
+              insertBlocks={[
+                // 15枚目直下：おすすめサロンバナー（カード幅・端に整列＝zoom:true）。
+                ...(recommendedBanners.length > 0
+                  ? [{ afterIndex: 15, node: <RecommendedSalonBannerSlider banners={recommendedBanners} />, zoom: true }]
+                  : []),
+                // 30枚目直下：新人セラピスト一覧（等倍＝zoom:false でカード肥大化を回避）。
+                ...(newFaceTherapists.length > 0
+                  ? [{ afterIndex: 30, node: <NewFaceScroller therapists={newFaceTherapists} />, zoom: false }]
+                  : []),
+              ]}
               heading={
                 <>
                   <div className="flex items-center gap-3 mb-1.5">
