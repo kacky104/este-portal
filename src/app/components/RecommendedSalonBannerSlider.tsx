@@ -22,6 +22,9 @@ export function RecommendedSalonBannerSlider({ banners }: { banners: Recommended
   const count = banners.length;
   const [current, setCurrent] = useState(0);
   const [paused, setPaused] = useState(false);
+  // SP（sm未満＝640px未満）のみ「1.05枚見せ」にする（次スライドの端を約5%チラ見せ）。
+  // SSR初期は false（＝全幅）だが current=0 では両分岐とも translateX(0) のためハイドレーション不一致は起きない。
+  const [peek, setPeek] = useState(false);
   const touchStartX = useRef<number>(0);
 
   const prev = useCallback(() => setCurrent((c) => (c - 1 + count) % count), [count]);
@@ -34,12 +37,26 @@ export function RecommendedSalonBannerSlider({ banners }: { banners: Recommended
     return () => clearInterval(id);
   }, [paused, count, current]);
 
+  // SP（<640px）検知。sm 以上は全幅1枚見せ、未満は1.05枚見せに切替。
+  useEffect(() => {
+    const mq = window.matchMedia('(max-width: 639px)');
+    const onChange = () => setPeek(mq.matches);
+    onChange();
+    mq.addEventListener?.('change', onChange);
+    return () => mq.removeEventListener?.('change', onChange);
+  }, []);
+
   if (count === 0) return null;
   const multiple = count > 1;
   // 件数が減った直後に current が範囲外でも破綻しないよう描画時にクランプ。
   const safeCurrent = ((current % count) + count) % count;
 
-  const slideClass = 'w-full flex-shrink-0 relative h-52 sm:h-96';
+  // 1.05枚見せは複数枚のSPのみ。スライド幅95%＋gap 0.5rem(8px) 分だけ1枚あたり移動する。
+  // 1枚のみ／sm以上は全幅・gapなし・100%移動（＝従来の1枚見せ）。高さ制約は全スライド共通の slideClass に置く。
+  const peekMode = multiple && peek;
+  const slideClass = `${multiple ? 'w-[95%] sm:w-full' : 'w-full'} flex-shrink-0 relative h-52 sm:h-96`;
+  // 移動量はスライド実幅基準：peek 時は (95% + 0.5rem)/枚、それ以外は 100%/枚。current=0 は 0。
+  const trackTransform = `translateX(calc(${-safeCurrent} * ${peekMode ? '(95% + 0.5rem)' : '100%'}))`;
 
   const slideBody = (b: RecommendedSalonBanner, i: number) => {
     const hasOverlay = b.salonName !== '';
@@ -142,8 +159,8 @@ export function RecommendedSalonBannerSlider({ banners }: { banners: Recommended
         {/* Slide track */}
       <div className="rounded-3xl overflow-hidden shadow-lg">
         <div
-          className="flex transition-transform duration-500 ease-in-out"
-          style={{ transform: `translateX(-${safeCurrent * 100}%)` }}
+          className="flex gap-2 sm:gap-0 transition-transform duration-500 ease-in-out"
+          style={{ transform: trackTransform }}
           onTouchStart={(e) => { touchStartX.current = e.touches[0].clientX; }}
           onTouchEnd={(e) => {
             const delta = e.changedTouches[0].clientX - touchStartX.current;
