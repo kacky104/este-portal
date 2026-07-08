@@ -123,7 +123,14 @@ export default async function AreaPage({ params }: { params: Promise<{ slug: str
           wideDesktop
           heading={
             <div className="mb-4">
-              <h1 className="text-xl font-bold text-slate-900 mb-1">{area === DISPATCH_AREA ? '出張対応' : label}のメンズエステ</h1>
+              <div
+                className="px-4 py-2 mb-1"
+                style={{ background: 'linear-gradient(to right, #f97316, #ec4899)' }}
+              >
+                <h1 className="text-xl font-bold text-white leading-none" style={{ transform: 'translateY(1px)' }}>
+                  {area === DISPATCH_AREA ? '出張対応' : label}のメンズエステ一覧
+                </h1>
+              </div>
               <p className="text-xs text-slate-400">
                 表示順は30分ごとに入れ替わります
               </p>
