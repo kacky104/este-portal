@@ -411,7 +411,6 @@ export function SalonCard({ salon, therapists, showAge = false, areaNextToDuty =
           className="px-5 py-2"
           style={{
             background: 'linear-gradient(to right, #fdf2f8, #fce7f3)',
-            borderLeft: '3px solid #ec4899',
             borderBottom: '1px solid #fbcfe8',
           }}
         >

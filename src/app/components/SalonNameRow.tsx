@@ -60,8 +60,8 @@ export function SalonNameRow({
       <div ref={containerRef} className="min-w-0 flex-1 overflow-hidden">
         <span
           ref={textRef}
-          className={`inline-block max-w-full whitespace-nowrap font-bold leading-snug transition-colors ${
-            nameBanner ? 'text-[#be185d]' : 'text-slate-900 group-hover:text-pink-700'
+          className={`inline-block max-w-full whitespace-nowrap font-bold transition-colors ${
+            nameBanner ? 'leading-none text-[#be185d]' : 'leading-snug text-slate-900 group-hover:text-pink-700'
           }`}
           style={{
             fontSize: `${size}px`,
@@ -75,7 +75,8 @@ export function SalonNameRow({
 
       {showSaveButton && (
         // translateY で行中央から見た目だけ少し上へ（レイアウトは保持）。
-        <span className="flex-shrink-0 inline-flex" style={{ transform: 'translateY(-3px)' }}>
+        // バナー時は帯内で上下センターに合わせるため持ち上げ補正を外す。
+        <span className="flex-shrink-0 inline-flex" style={nameBanner ? undefined : { transform: 'translateY(-3px)' }}>
           <SaveButton kind="salon" item={{ id: salonId, name: salonName }} variant="paw" />
         </span>
       )}
