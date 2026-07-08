@@ -408,7 +408,7 @@ export function SalonCard({ salon, therapists, showAge = false, areaNextToDuty =
           店名はモバイル/デスクトップ共通のため、ここでカードレベルに1回だけ描画する。 */}
       {nameBanner && (
         <div
-          className="px-5 py-2"
+          className="px-5 py-1"
           style={{
             background: 'linear-gradient(to right, #fdf2f8, #fce7f3)',
             borderBottom: '1px solid #fbcfe8',
