@@ -119,6 +119,7 @@ export default async function AreaPage({ params }: { params: Promise<{ slug: str
           ratingAtBottom
           compactTherapists
           showSaveButton
+          nameBanner
           wideDesktop
           heading={
             <div className="mb-4">
