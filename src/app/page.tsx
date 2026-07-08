@@ -170,9 +170,9 @@ export default async function Home() {
               nameBanner
               wideDesktop
               insertBlocks={[
-                // 15枚目直下：おすすめサロンバナー（カード幅・端に整列＝zoom:true）。
+                // 10枚目直下：おすすめサロンバナー（カード幅・端に整列＝zoom:true）。
                 ...(recommendedBanners.length > 0
-                  ? [{ afterIndex: 15, node: <RecommendedSalonBannerSlider banners={recommendedBanners} />, zoom: true }]
+                  ? [{ afterIndex: 10, node: <RecommendedSalonBannerSlider banners={recommendedBanners} />, zoom: true }]
                   : []),
                 // 30枚目直下：新人セラピスト一覧（等倍＝zoom:false でカード肥大化を回避）。
                 ...(newFaceTherapists.length > 0
