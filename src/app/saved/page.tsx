@@ -208,6 +208,7 @@ export default function SavedPage() {
                       ratingAtBottom
                       compactTherapists
                       showSaveButton
+                      nameBanner
                     />
                   ))}
                 </div>

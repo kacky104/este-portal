@@ -414,7 +414,7 @@ export function SalonCard({ salon, therapists, showAge = false, areaNextToDuty =
             borderBottom: '1px solid #fbcfe8',
           }}
         >
-          <SalonNameRow salonId={salon.id} salonName={salon.name} showSaveButton nameBanner />
+          <SalonNameRow salonId={salon.id} salonName={salon.name} showSaveButton={showSaveButton} nameBanner />
         </div>
       )}
 

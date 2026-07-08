@@ -46,6 +46,7 @@ export default async function SalonsPage() {
           salons={salons}
           areas={[...AREA_ORDER]}
           shuffleSalt="salons"
+          nameBanner
           heading={
             <div className="mb-8">
               <h1 className="text-2xl font-bold text-slate-900 mb-1">掲載サロン一覧</h1>
