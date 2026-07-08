@@ -26,7 +26,7 @@ export const SALON_THEMES: SalonTheme[] = [
   { key: 'black',  label: 'ブラック', bg: '#1a1a1a', text: '#f1f5f9', card: '#262626', cardBorder: '#3f3f46', heading: '#f1f5f9', body: '#cbd5e1', swatchBorder: '#1a1a1a' },
   { key: 'pink',   label: 'ピンク',   bg: '#fff0f5', text: '#0f172a', card: '#ffe6ef', cardBorder: '#fbcfe8', heading: '#831843', body: '#475569', swatchBorder: '#fbcfe8' },
   { key: 'blue',   label: 'ブルー',   bg: '#f0f5ff', text: '#0f172a', card: '#e6efff', cardBorder: '#bfdbfe', heading: '#1e3a8a', body: '#475569', swatchBorder: '#bfdbfe' },
-  { key: 'red',    label: 'レッド',   bg: '#fff5f5', text: '#0f172a', card: '#ffeaea', cardBorder: '#fecaca', heading: '#7f1d1d', body: '#475569', swatchBorder: '#fecaca' },
+  { key: 'red',    label: 'レッド',   bg: '#ffe4e4', text: '#0f172a', card: '#ffdede', cardBorder: '#fca5a5', heading: '#7f1d1d', body: '#475569', swatchBorder: '#fca5a5' },
   { key: 'purple', label: 'パープル', bg: '#f5f0fe', text: '#0f172a', card: '#ece2fd', cardBorder: '#ddd6fe', heading: '#4c1d95', body: '#475569', swatchBorder: '#ddd6fe' },
 ];
 
