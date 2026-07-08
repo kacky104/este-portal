@@ -260,7 +260,7 @@ export default function TherapistPickupBannerManager({
         <p className="text-[11px] text-slate-400 leading-relaxed">
           トップ＋全エリアページのサロン一覧（20枚目直下）に、横長バナー画像1枚を表示します（公開中からランダム1枚・リロードで入れ替わり）。リンク先URLを設定するとクリックでそこへ移動します。最大{MAX_BANNERS}枠。
         </p>
-        <span className="text-[10px] text-slate-400 flex-shrink-0 ml-3">推奨サイズ: 横1240×縦480px（31:12・横長）</span>
+        <span className="text-[10px] text-slate-400 flex-shrink-0 ml-3">推奨サイズ: 横1240×縦440px（約2.8:1・横長）。スマホでは左右が少しトリミングされるため、文字や顔は中央寄せの余裕あるデザインにしてください。</span>
       </div>
 
       {/* hidden file inputs（追加／差し替え） */}
