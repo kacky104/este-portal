@@ -179,8 +179,9 @@ export default async function Home() {
                   ? [{ afterIndex: 10, node: <RecommendedSalonBannerSlider banners={recommendedBanners} />, zoom: true }]
                   : []),
                 // 20枚目直下：セラピストピックアップ枠（横長画像1枚・クライアント抽選）。
+                // zoom:false（等倍）＝新人一覧と同じ扱い。PC高さが h-64=256px ちょうどになる。
                 ...(pickupBanners.length > 0
-                  ? [{ afterIndex: 20, node: <TherapistPickupBanner banners={pickupBanners} />, zoom: true }]
+                  ? [{ afterIndex: 20, node: <TherapistPickupBanner banners={pickupBanners} />, zoom: false }]
                   : []),
                 // 30枚目直下：新人セラピスト一覧（等倍＝zoom:false でカード肥大化を回避）。
                 ...(newFaceTherapists.length > 0

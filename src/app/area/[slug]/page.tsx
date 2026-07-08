@@ -126,7 +126,7 @@ export default async function AreaPage({ params }: { params: Promise<{ slug: str
           wideDesktop
           insertBlocks={
             pickupBanners.length > 0
-              ? [{ afterIndex: 20, node: <TherapistPickupBanner banners={pickupBanners} />, zoom: true }]
+              ? [{ afterIndex: 20, node: <TherapistPickupBanner banners={pickupBanners} />, zoom: false }]
               : undefined
           }
           heading={
