@@ -196,7 +196,7 @@ function TherapistMiniCardsRow({ therapists, salonId, showAge = false, compact =
 // ── 店名の1行自動縮小（デスクトップ wideLayout 用） ──
 // 店名行が2行になりそうなとき、利用可能幅に収まるまでフォントを段階的に下げて1行を保つ。
 // flex 行の中で min-w-0 により自分の幅が縮むので、その幅に対して文字幅を測って縮小する。
-function WideAutoFitName({ name }: { name: string }) {
+function WideAutoFitName({ name, banner = false }: { name: string; banner?: boolean }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const textRef = useRef<HTMLSpanElement>(null);
   const MAX = 18; // 既定（text-lg 相当。zoom で表示はさらに拡大される）
@@ -221,22 +221,36 @@ function WideAutoFitName({ name }: { name: string }) {
     return () => window.removeEventListener('resize', fit);
   }, [name]);
 
-  return (
+  // 計測用の containerRef 要素は無装飾のまま（padding を付けると clientWidth がずれて縮小判定が狂う）。
+  const inner = (
     <div ref={containerRef} className="min-w-0 overflow-hidden">
       <span
         ref={textRef}
-        className="inline-block max-w-full whitespace-nowrap font-bold text-slate-900 group-hover:text-pink-700 transition-colors leading-snug"
+        className={`inline-block max-w-full whitespace-nowrap font-bold leading-snug transition-colors ${
+          banner ? 'text-white' : 'text-slate-900 group-hover:text-pink-700'
+        }`}
         style={{ fontSize: `${size}px`, overflow: 'hidden', textOverflow: 'ellipsis' }}
       >
         {name}
       </span>
     </div>
   );
+
+  // バナー時：ピンク単系グラデの帯（直角＝サイト全体の直角化方針に合わせ rounded は付けない）。
+  // グラデ・padding は外側ラッパに付け、計測用の containerRef には付けない。
+  if (banner) {
+    return (
+      <div className="min-w-0 px-3 py-1" style={{ background: 'linear-gradient(to right, #ec4899, #f472b6)' }}>
+        {inner}
+      </div>
+    );
+  }
+  return inner;
 }
 
 // ── Salon card ────────────────────────────────────────────────
 
-export function SalonCard({ salon, therapists, showAge = false, areaNextToDuty = false, ratingAtBottom = false, compactTherapists = false, showSaveButton = false, wideDesktop = false }: { salon: Salon; therapists: TherapistThumb[]; showAge?: boolean; areaNextToDuty?: boolean; ratingAtBottom?: boolean; compactTherapists?: boolean; showSaveButton?: boolean; wideDesktop?: boolean }) {
+export function SalonCard({ salon, therapists, showAge = false, areaNextToDuty = false, ratingAtBottom = false, compactTherapists = false, showSaveButton = false, wideDesktop = false, nameBanner = false }: { salon: Salon; therapists: TherapistThumb[]; showAge?: boolean; areaNextToDuty?: boolean; ratingAtBottom?: boolean; compactTherapists?: boolean; showSaveButton?: boolean; wideDesktop?: boolean; nameBanner?: boolean }) {
   const router = useRouter();
   const onDutyCount = therapists.filter(t => t.onDuty).length;
 
@@ -300,7 +314,7 @@ export function SalonCard({ salon, therapists, showAge = false, areaNextToDuty =
     <div className={`flex flex-col flex-1${wideDesktop ? ' lg:hidden' : ''}`}>
       {/* 1. サロン名（＋トップページのみ保存ボタン）。1行自動縮小。 */}
       {showSaveButton ? (
-        <SalonNameRow salonId={salon.id} salonName={salon.name} showSaveButton />
+        <SalonNameRow salonId={salon.id} salonName={salon.name} showSaveButton nameBanner={nameBanner} />
       ) : (
         <h3 className="font-bold text-lg text-slate-900 group-hover:text-pink-700 transition-colors leading-snug mb-3">
           {salon.name}
@@ -366,7 +380,7 @@ export function SalonCard({ salon, therapists, showAge = false, areaNextToDuty =
     <div className="hidden lg:flex lg:flex-col flex-1">
       {/* 1段目: 店名（長い場合はフォント自動縮小で1行維持）→ 営業時間 → 地域 →（右端）保存ボタン */}
       <div className="flex items-center gap-2.5 mb-2.5">
-        <WideAutoFitName name={salon.name} />
+        <WideAutoFitName name={salon.name} banner={nameBanner} />
         {hoursEl}
         {areaBadge}
         {showSaveButton && (
@@ -444,7 +458,7 @@ function SalonCardSkeleton() {
 
 // ── ShuffledSalons ────────────────────────────────────────────
 
-export function ShuffledSalons({ salons, areas, showAge = false, areaNextToDuty = false, ratingAtBottom = false, compactTherapists = false, showSaveButton = false, wideDesktop = false, tabsAsLinks = false, currentArea, includeDispatch = false, heading, shuffleSalt = '', showAreaTitle = false, insertBlocks }: { salons: Salon[]; areas: string[]; showAge?: boolean; areaNextToDuty?: boolean; ratingAtBottom?: boolean; compactTherapists?: boolean; showSaveButton?: boolean; wideDesktop?: boolean; tabsAsLinks?: boolean; currentArea?: string; includeDispatch?: boolean; heading?: React.ReactNode; shuffleSalt?: string; showAreaTitle?: boolean; insertBlocks?: { afterIndex: number; node: React.ReactNode; zoom?: boolean }[] }) {
+export function ShuffledSalons({ salons, areas, showAge = false, areaNextToDuty = false, ratingAtBottom = false, compactTherapists = false, showSaveButton = false, wideDesktop = false, nameBanner = false, tabsAsLinks = false, currentArea, includeDispatch = false, heading, shuffleSalt = '', showAreaTitle = false, insertBlocks }: { salons: Salon[]; areas: string[]; showAge?: boolean; areaNextToDuty?: boolean; ratingAtBottom?: boolean; compactTherapists?: boolean; showSaveButton?: boolean; wideDesktop?: boolean; nameBanner?: boolean; tabsAsLinks?: boolean; currentArea?: string; includeDispatch?: boolean; heading?: React.ReactNode; shuffleSalt?: string; showAreaTitle?: boolean; insertBlocks?: { afterIndex: number; node: React.ReactNode; zoom?: boolean }[] }) {
   const [list,            setList]            = useState<Salon[]>([]);
   const [activeArea,      setActiveArea]      = useState('福岡全域');
   // tabsAsLinks 時はページ自体が絞り込み対象を表すため、currentArea を選択中エリアとして使う
@@ -555,6 +569,7 @@ export function ShuffledSalons({ salons, areas, showAge = false, areaNextToDuty 
       compactTherapists={compactTherapists}
       showSaveButton={showSaveButton}
       wideDesktop={wideDesktop}
+      nameBanner={nameBanner}
     />
   ));
 

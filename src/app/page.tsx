@@ -167,6 +167,7 @@ export default async function Home() {
               ratingAtBottom
               compactTherapists
               showSaveButton
+              nameBanner
               wideDesktop
               insertBlocks={[
                 // 15枚目直下：おすすめサロンバナー（カード幅・端に整列＝zoom:true）。
