@@ -8,6 +8,7 @@ import { notFound } from "next/navigation";
 import { createPublicClient } from "@/app/lib/supabase/public";
 import { getTheme, breadcrumbCurrentColor, type ThemeKey } from "@/app/lib/themes";
 import { getBusinessDateJST } from "@/lib/dutyStatus";
+import { paymentMethodLabel } from "@/app/lib/paymentMethods";
 
 // クイックナビ3カード専用の配色（テーマ連動）。テーマ色の薄い地＋同系の濃いアイコン/文字でコントラストを確保。
 // 黒のみ暗い地＋ゴールド。未設定/不明テーマは getTheme が white に正規化するためフォールバックも white。
@@ -73,7 +74,7 @@ export default async function SalonPage({
   ] = await Promise.all([
     supabase
       .from('salons')
-      .select('id, name, rating, review_count, tags, price, area, hours, description, appeal, phone, address, access, closed_days, courses, theme, official_url, fukux_url, is_hidden')
+      .select('id, name, rating, review_count, tags, price, area, hours, description, appeal, phone, address, access, closed_days, courses, theme, official_url, fukux_url, payment_methods, is_hidden')
       .eq('id', Number(id))
       .single(),
     supabase
@@ -124,6 +125,7 @@ export default async function SalonPage({
     address:     (row.address as string) ?? '',
     access:      (row.access as string) ?? '',
     closedDays:  (row.closed_days as string) ?? '',
+    paymentMethods: (row.payment_methods as string[] | null) ?? [],
     officialUrl: (row.official_url as string | null) ?? null,
     fukuxUrl:    (row.fukux_url as string | null) ?? null,
   };
@@ -217,6 +219,7 @@ export default async function SalonPage({
       <InfoRow icon={<CalendarIcon />} label="定休日"   value={salon.closedDays} labelColor={theme.body} valueColor={theme.heading} />
       <InfoRow icon={<MapIcon />}      label="住所"     value={salon.address}    labelColor={theme.body} valueColor={theme.heading} />
       <InfoRow icon={<TrainIcon />}    label="アクセス" value={salon.access}     labelColor={theme.body} valueColor={theme.heading} />
+      <InfoRow icon={<WalletIcon />}   label="支払い方法" value={salon.paymentMethods.map(paymentMethodLabel).join('・')} labelColor={theme.body} valueColor={theme.heading} />
       {/* 公式サイト：未設定なら行ごと非表示。長いURLでも break-all で折り返して崩れない。 */}
       {salon.officialUrl && (
         <div className="flex gap-3">
@@ -693,6 +696,14 @@ function PhoneIcon() {
   return (
     <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
       <path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07A19.5 19.5 0 013.07 8.81a19.79 19.79 0 01-3.07-8.63A2 2 0 012 0h3a2 2 0 012 1.72c.127.96.361 1.903.7 2.81a2 2 0 01-.45 2.11L6.09 7.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0122 16.92z" />
+    </svg>
+  );
+}
+
+function WalletIcon() {
+  return (
+    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+      <rect x="2" y="5" width="20" height="14" rx="2" /><path d="M2 10h20" />
     </svg>
   );
 }

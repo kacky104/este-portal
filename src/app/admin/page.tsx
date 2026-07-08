@@ -369,6 +369,9 @@ export default function AdminDashboard() {
           </AccordionSection>
 
           <AccordionSection id="top-banners" title="トップバナースライダー設定" expanded={expandedSections} onToggle={toggleSection}>
+            <p className="mb-3 text-xs text-amber-600 bg-amber-50 border border-amber-100 rounded-lg px-3 py-2">
+              ※現在、このバナーはトップページには表示されません。新規の入稿は不要です。
+            </p>
             <TopBannerManager onToast={showToast} />
           </AccordionSection>
 

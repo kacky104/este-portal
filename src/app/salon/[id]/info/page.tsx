@@ -7,6 +7,7 @@ import { VipLetterIcon } from '@/app/components/VipLetterIcon';
 import { notFound } from "next/navigation";
 import { createPublicClient } from "@/app/lib/supabase/public";
 import { getTheme, breadcrumbCurrentColor } from "@/app/lib/themes";
+import { paymentMethodLabel } from "@/app/lib/paymentMethods";
 
 // 個別サロンページ「店舗基本情報」セクションと同じアイコン群
 function PhoneIcon() {
@@ -52,6 +53,13 @@ function LinkIcon() {
     </svg>
   );
 }
+function WalletIcon() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+      <rect x="2" y="5" width="20" height="14" rx="2" /><path d="M2 10h20" />
+    </svg>
+  );
+}
 
 function InfoRow({
   icon, label, value, labelColor, valueColor,
@@ -89,7 +97,7 @@ export default async function SalonInfoPage({
 
   const { data: salonRow, error } = await supabase
     .from('salons')
-    .select('id, name, theme, phone, hours, closed_days, address, access, official_url, fukux_url')
+    .select('id, name, theme, phone, hours, closed_days, address, access, payment_methods, official_url, fukux_url')
     .eq('id', Number(id))
     .single();
 
@@ -122,6 +130,7 @@ export default async function SalonInfoPage({
   const closedDays = (salonRow.closed_days as string) ?? '';
   const address    = (salonRow.address as string) ?? '';
   const access     = (salonRow.access as string) ?? '';
+  const paymentMethods = (salonRow.payment_methods as string[] | null) ?? [];
   const officialUrl = (salonRow.official_url as string | null) ?? null;
   const fukuxUrl    = (salonRow.fukux_url as string | null) ?? null;
 
@@ -174,6 +183,7 @@ export default async function SalonInfoPage({
             <InfoRow icon={<CalendarIcon />} label="定休日"   value={closedDays} labelColor={theme.body} valueColor={theme.heading} />
             <InfoRow icon={<MapIcon />}      label="住所"     value={address}    labelColor={theme.body} valueColor={theme.heading} />
             <InfoRow icon={<TrainIcon />}    label="アクセス" value={access}     labelColor={theme.body} valueColor={theme.heading} />
+            <InfoRow icon={<WalletIcon />}   label="支払い方法" value={paymentMethods.map(paymentMethodLabel).join('・')} labelColor={theme.body} valueColor={theme.heading} />
             {/* 公式サイト：未設定なら行ごと非表示。長いURLでも break-all で折り返して崩れない。 */}
             {officialUrl && (
               <div className="flex gap-3">

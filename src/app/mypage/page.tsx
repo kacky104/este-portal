@@ -16,6 +16,7 @@ import { isCastLiveRow } from '@/lib/imasugu';
 import { MyDiaryList } from './MyDiaryList';
 import { inviteCast, resendCastInvite, unlinkCast, cancelCastInvite } from '@/app/actions/castInvite';
 import { PAYMENT_CARD_OPTIONS } from '@/app/lib/paymentCards';
+import { PAYMENT_METHOD_OPTIONS } from '@/app/lib/paymentMethods';
 import { getSalonBookings, updateBookingStatus, deleteBooking, type OwnerBooking } from '@/app/actions/booking';
 import { callbackPrefLabel } from '@/app/lib/booking/callbackPref';
 import { STORAGE_CACHE_CONTROL } from '@/app/lib/storage';
@@ -364,6 +365,7 @@ type Salon = {
   fukux_url: string | null;
   payment_url: string | null;
   payment_cards: string[] | null;
+  payment_methods: string[] | null;
   booking_enabled: boolean | null;
   booking_email: string | null;
   booking_courses: unknown;
@@ -508,7 +510,7 @@ export default function MyPage() {
 
       const { data: salonData, error: salonError } = await supabase
         .from('salons')
-        .select('id, name, rating, review_count, tags, price, area, hours, description, appeal, therapist_count, therapist_types, therapist_profile, phone, address, access, closed_days, courses, theme, official_url, fukux_url, payment_url, payment_cards, booking_enabled, booking_email, booking_courses')
+        .select('id, name, rating, review_count, tags, price, area, hours, description, appeal, therapist_count, therapist_types, therapist_profile, phone, address, access, closed_days, courses, theme, official_url, fukux_url, payment_url, payment_cards, payment_methods, booking_enabled, booking_email, booking_courses')
         .eq('owner_id', user.id)
         .single();
 
@@ -808,6 +810,17 @@ export default function MyPage() {
     });
   };
 
+  // 支払い方法（店舗基本情報）：現金・クレカ・QR・電子マネーのチェックをトグル（payment_methods 配列で管理）。
+  const togglePaymentMethod = (slug: string) => {
+    setSalonForm((p) => {
+      const current = p.payment_methods ?? [];
+      return {
+        ...p,
+        payment_methods: current.includes(slug) ? current.filter((s) => s !== slug) : [...current, slug],
+      };
+    });
+  };
+
   // 予約コース：行の追加・削除・各フィールド編集。
   const addBookingCourse = () => setBookingCourses((prev) => [...prev, { name: '', duration_min: '', price: '' }]);
   const removeBookingCourse = (index: number) => setBookingCourses((prev) => prev.filter((_, i) => i !== index));
@@ -929,6 +942,7 @@ export default function MyPage() {
         fukux_url: fukuxUrl,
         payment_url: paymentUrl,
         payment_cards: salonForm.payment_cards ?? [],
+        payment_methods: salonForm.payment_methods ?? [],
         booking_enabled: bookingEnabled,
         booking_email: bookingEmail,
         booking_courses: bookingCoursesClean,
@@ -1883,6 +1897,29 @@ export default function MyPage() {
               onChange={(e) => setSalonForm((p) => ({ ...p, fukux_url: e.target.value }))}
             />
             <p className="text-[10px] text-slate-400 mt-1">https:// から始まる正しいURLを入力してください。空欄なら表示されません。</p>
+          </div>
+          {/* ── 支払い方法（店舗基本情報に表示） ── */}
+          <div>
+            <label className={labelClass}>支払い方法</label>
+            <div className="flex flex-wrap gap-2">
+              {PAYMENT_METHOD_OPTIONS.map((m) => {
+                const checked = (salonForm.payment_methods ?? []).includes(m.slug);
+                return (
+                  <label
+                    key={m.slug}
+                    className={`flex items-center gap-1.5 text-xs font-bold rounded-lg border px-2.5 py-1.5 cursor-pointer transition-colors ${
+                      checked
+                        ? 'border-pink-300 bg-pink-50 text-pink-600'
+                        : 'border-slate-200 text-slate-500 hover:bg-slate-50'
+                    }`}
+                  >
+                    <input type="checkbox" checked={checked} onChange={() => togglePaymentMethod(m.slug)} className="accent-pink-500" />
+                    {m.label}
+                  </label>
+                );
+              })}
+            </div>
+            <p className="text-[10px] text-slate-400 mt-1">店舗ページの「店舗基本情報」に表示されます。未選択なら表示されません。</p>
           </div>
           {/* ── クレジットカード決済（外部リンク・対応カード選択） ── */}
           <div>
