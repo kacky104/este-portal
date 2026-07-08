@@ -54,30 +54,23 @@ export function SalonNameRow({
   }, [salonName]);
 
   return (
-    <div className="flex items-center gap-2 mb-3">
-      {/* バナー時：ピンク単系グラデの帯（直角＝直角化方針に合わせ rounded 無し）。
-          グラデ・padding は外側ラッパに付け、計測用の containerRef は無装飾のまま
-          （padding を付けると clientWidth がずれてフォント縮小判定が狂うため）。
-          flex-1 も外側ラッパに移し、内側 containerRef は block 要素として親幅いっぱいに広がる。 */}
-      <div
-        className={`min-w-0 flex-1 ${nameBanner ? 'px-3 py-1' : ''}`}
-        style={nameBanner ? { background: 'linear-gradient(to right, #ec4899, #f472b6)' } : undefined}
-      >
-        <div ref={containerRef} className="min-w-0 overflow-hidden">
-          <span
-            ref={textRef}
-            className={`inline-block max-w-full whitespace-nowrap font-bold leading-snug transition-colors ${
-              nameBanner ? 'text-white' : 'text-slate-900 group-hover:text-pink-700'
-            }`}
-            style={{
-              fontSize: `${size}px`,
-              overflow: 'hidden',
-              textOverflow: allowEllipsis ? 'ellipsis' : 'clip',
-            }}
-          >
-            {salonName}
-          </span>
-        </div>
+    <div className={`flex items-center gap-2 ${nameBanner ? 'mb-0' : 'mb-3'}`}>
+      {/* 計測用 containerRef は無装飾のまま（帯の padding は呼び出し側の px-5 が担う）。
+          バナー時は文字色を濃ピンク(#be185d)にし、ホバーのピンク文字化は外す。 */}
+      <div ref={containerRef} className="min-w-0 flex-1 overflow-hidden">
+        <span
+          ref={textRef}
+          className={`inline-block max-w-full whitespace-nowrap font-bold leading-snug transition-colors ${
+            nameBanner ? 'text-[#be185d]' : 'text-slate-900 group-hover:text-pink-700'
+          }`}
+          style={{
+            fontSize: `${size}px`,
+            overflow: 'hidden',
+            textOverflow: allowEllipsis ? 'ellipsis' : 'clip',
+          }}
+        >
+          {salonName}
+        </span>
       </div>
 
       {showSaveButton && (

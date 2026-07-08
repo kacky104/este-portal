@@ -196,7 +196,7 @@ function TherapistMiniCardsRow({ therapists, salonId, showAge = false, compact =
 // ── 店名の1行自動縮小（デスクトップ wideLayout 用） ──
 // 店名行が2行になりそうなとき、利用可能幅に収まるまでフォントを段階的に下げて1行を保つ。
 // flex 行の中で min-w-0 により自分の幅が縮むので、その幅に対して文字幅を測って縮小する。
-function WideAutoFitName({ name, banner = false }: { name: string; banner?: boolean }) {
+function WideAutoFitName({ name }: { name: string }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const textRef = useRef<HTMLSpanElement>(null);
   const MAX = 18; // 既定（text-lg 相当。zoom で表示はさらに拡大される）
@@ -221,31 +221,17 @@ function WideAutoFitName({ name, banner = false }: { name: string; banner?: bool
     return () => window.removeEventListener('resize', fit);
   }, [name]);
 
-  // 計測用の containerRef 要素は無装飾のまま（padding を付けると clientWidth がずれて縮小判定が狂う）。
-  const inner = (
+  return (
     <div ref={containerRef} className="min-w-0 overflow-hidden">
       <span
         ref={textRef}
-        className={`inline-block max-w-full whitespace-nowrap font-bold leading-snug transition-colors ${
-          banner ? 'text-white' : 'text-slate-900 group-hover:text-pink-700'
-        }`}
+        className="inline-block max-w-full whitespace-nowrap font-bold text-slate-900 group-hover:text-pink-700 transition-colors leading-snug"
         style={{ fontSize: `${size}px`, overflow: 'hidden', textOverflow: 'ellipsis' }}
       >
         {name}
       </span>
     </div>
   );
-
-  // バナー時：ピンク単系グラデの帯（直角＝サイト全体の直角化方針に合わせ rounded は付けない）。
-  // グラデ・padding は外側ラッパに付け、計測用の containerRef には付けない。
-  if (banner) {
-    return (
-      <div className="min-w-0 px-3 py-1" style={{ background: 'linear-gradient(to right, #ec4899, #f472b6)' }}>
-        {inner}
-      </div>
-    );
-  }
-  return inner;
 }
 
 // ── Salon card ────────────────────────────────────────────────
@@ -312,9 +298,10 @@ export function SalonCard({ salon, therapists, showAge = false, areaNextToDuty =
   // ── 従来（モバイル/タブレット）の縦積みレイアウト ──
   const stackedLayout = (
     <div className={`flex flex-col flex-1${wideDesktop ? ' lg:hidden' : ''}`}>
-      {/* 1. サロン名（＋トップページのみ保存ボタン）。1行自動縮小。 */}
-      {showSaveButton ? (
-        <SalonNameRow salonId={salon.id} salonName={salon.name} showSaveButton nameBanner={nameBanner} />
+      {/* 1. サロン名（＋トップページのみ保存ボタン）。1行自動縮小。
+          バナー時（nameBanner）はカード上端の全幅帯で店名を描画するため、ここでは出さない。 */}
+      {nameBanner ? null : showSaveButton ? (
+        <SalonNameRow salonId={salon.id} salonName={salon.name} showSaveButton />
       ) : (
         <h3 className="font-bold text-lg text-slate-900 group-hover:text-pink-700 transition-colors leading-snug mb-3">
           {salon.name}
@@ -380,10 +367,11 @@ export function SalonCard({ salon, therapists, showAge = false, areaNextToDuty =
     <div className="hidden lg:flex lg:flex-col flex-1">
       {/* 1段目: 店名（長い場合はフォント自動縮小で1行維持）→ 営業時間 → 地域 →（右端）保存ボタン */}
       <div className="flex items-center gap-2.5 mb-2.5">
-        <WideAutoFitName name={salon.name} banner={nameBanner} />
+        {/* バナー時（nameBanner）は店名・保存ボタンをカード上端の全幅帯へ移すため、ここでは出さない。 */}
+        {!nameBanner && <WideAutoFitName name={salon.name} />}
         {hoursEl}
         {areaBadge}
-        {showSaveButton && (
+        {!nameBanner && showSaveButton && (
           <span className="ml-auto flex-shrink-0">
             <SaveButton kind="salon" item={{ id: salon.id, name: salon.name }} variant="paw" />
           </span>
@@ -415,6 +403,21 @@ export function SalonCard({ salon, therapists, showAge = false, areaNextToDuty =
     >
       {/* Pink shimmer top line */}
       <div className="h-px bg-gradient-to-r from-transparent via-pink-400/60 to-transparent" />
+
+      {/* トップページのみ：店名の全幅バナー帯（淡ピンクグラデ＋濃ピンク文字）。保存ボタンも帯内に置く。
+          店名はモバイル/デスクトップ共通のため、ここでカードレベルに1回だけ描画する。 */}
+      {nameBanner && (
+        <div
+          className="px-5 py-2"
+          style={{
+            background: 'linear-gradient(to right, #fdf2f8, #fce7f3)',
+            borderLeft: '3px solid #ec4899',
+            borderBottom: '1px solid #fbcfe8',
+          }}
+        >
+          <SalonNameRow salonId={salon.id} salonName={salon.name} showSaveButton nameBanner />
+        </div>
+      )}
 
       {/* トップページ（compactTherapists）はカード下の余白を約1/3（pb 20px→7px）に */}
       <div className={`${compactTherapists ? 'px-5 pt-5 pb-[7px]' : 'p-5'} flex flex-col flex-1`}>
