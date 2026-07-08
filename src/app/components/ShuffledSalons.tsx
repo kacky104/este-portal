@@ -556,6 +556,16 @@ export function ShuffledSalons({ salons, areas, showAge = false, areaNextToDuty 
           </svg>
           <p className="text-sm">このエリアの掲載サロンはまだありません</p>
         </div>
+        {/* 0件エリアでもピックアップ枠等の挿入ブロックは出す（カードが無いだけで枠は表示したい）。
+            ラッパ幅は通常時の zoom:false ブロックと同じ（723px＝カード列と同じ幅感）。 */}
+        {[...(insertBlocks ?? [])]
+          .filter((b) => b.node != null)
+          .sort((a, b) => a.afterIndex - b.afterIndex)
+          .map((b, i) => (
+            <div key={`empty-block-${i}`} className="my-6 lg:w-[calc(512px*1.413)] lg:max-w-full">
+              {b.node}
+            </div>
+          ))}
       </>
     );
   }
