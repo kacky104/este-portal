@@ -10,8 +10,22 @@ import type { TherapistPickupBanner as Banner } from '@/app/lib/therapistPickupB
 // - 公開中の枠から「ページを開くたびにランダム1枚」を表示する。hydration mismatch を避けるため
 //   抽選はクライアントの useEffect 内で行い、サーバー描画時は画像なし（プレースホルダ）にする。
 // - レイアウトシフト防止のため外枠は常に描画し、抽選前は淡いプレースホルダを見せる。
-// - linkable なら /therapist/{id} への全面リンク、非公開（linkable=false）は非リンク画像のみ。
+// - リンク解決：link_url があればそれ、無ければ linkable な therapist_id から /therapist/{id}、
+//   どちらも無ければ非リンク（画像のみ）。link_url は相対パス（/...）と https:// 絶対URLのみ許容。
 // - 0件はブロックごと非表示。
+
+// リンク先を解決する。相対（/で始まる）は内部リンク、https:// は外部リンク、それ以外は非リンク（null）。
+function resolveLink(b: Banner): { href: string; external: boolean } | null {
+  const raw = (b.linkUrl ?? '').trim();
+  if (raw) {
+    if (raw.startsWith('/')) return { href: raw, external: false };
+    if (/^https?:\/\//i.test(raw)) return { href: raw, external: true };
+    return null; // 想定外の形式は非リンク扱い
+  }
+  // フォールバック：公開中セラピストの詳細ページ。
+  if (b.therapistId != null && b.linkable) return { href: `/therapist/${b.therapistId}`, external: false };
+  return null;
+}
 export function TherapistPickupBanner({ banners }: { banners: Banner[] }) {
   // サーバー描画時は null（＝プレースホルダ）。マウント後にランダム1枚を選ぶ。
   const [picked, setPicked] = useState<Banner | null>(null);
@@ -41,13 +55,19 @@ export function TherapistPickupBanner({ banners }: { banners: Banner[] }) {
     />
   );
 
-  if (picked.linkable) {
-    return (
-      <Link href={`/therapist/${picked.therapistId}`} className={frameClass}>
+  const link = resolveLink(picked);
+  if (link) {
+    // 外部URL（https://）は新規タブの通常アンカー、内部（/...）は next/link。
+    return link.external ? (
+      <a href={link.href} target="_blank" rel="noopener noreferrer" className={frameClass}>
+        {img}
+      </a>
+    ) : (
+      <Link href={link.href} className={frameClass}>
         {img}
       </Link>
     );
   }
-  // 非公開セラピスト：詳細ページに飛べないため非リンク（画像のみ）。
+  // リンク先なし：非リンク（画像のみ）。
   return <div className={frameClass}>{img}</div>;
 }

@@ -6,23 +6,21 @@ import { revalidateTopAndAreas } from '@/app/lib/revalidateTop';
 import { STORAGE_CACHE_CONTROL } from '@/app/lib/storage';
 
 // 「セラピストピックアップ枠」（therapist_pickup_banners）管理。authenticated クライアント直（RLSで admin UUID のみ許可）。
-// 各枠は therapist_id 必須（DBの NOT NULL）。画像は therapist-pickup-banners バケットへ
-// `{banner_id}/{timestamp}.{ext}` で保存（upsert不使用＝差し替えで必ず別URL）。
-// 追加は「セラピスト選択→画像選択→新UUIDフォルダにアップロード→そのidで行を insert」の順で
-// image_url(NOT NULL)・therapist_id(NOT NULL) を満たす。差し替え・削除では旧ファイルを Storage から掃除。
+// 画像は therapist-pickup-banners バケットへ `{banner_id}/{timestamp}.{ext}` で保存（upsert不使用＝差し替えで必ず別URL）。
+// 追加は「（任意でリンクURLを入力）→画像選択→新UUIDフォルダにアップロード→そのidで行を insert」の順。
+// リンクは URL 手動入力（link_url）で運用する：/therapist/123 等の相対パス、または https:// 絶対URL。
+//   空欄はリンクなし画像のみ。旧運用の therapist_id は表示・編集しない（フォールバックのみ表示側で有効）。
 // 表示側は横長画像1枚のみ（タイトル・オーバーレイなし）。最大10枠は本UIで制御（DB制約にはしない）。
 // TOP＋全エリアページに出るため、保存後は revalidateTopAndAreas（{top,areasAll}）で無効化する。
 // 単一カラム更新は該当列のみ送る（他フィールドを undefined で上書きしない＝undefinedオーバーライドガード遵守）。
 const BUCKET = 'therapist-pickup-banners';
 const MAX_BANNERS = 10;
 
-type TherapistOption = { id: number; name: string; salonName: string };
-
 type Banner = {
   id: string;
-  therapist_id: number;
   image_url: string;
   alt_text: string | null;
+  link_url: string | null;
   display_order: number;
   is_active: boolean;
 };
@@ -41,10 +39,8 @@ function validateImageFile(file: File): string | null {
 }
 
 export default function TherapistPickupBannerManager({
-  allTherapists,
   onToast,
 }: {
-  allTherapists: TherapistOption[];
   onToast: (msg: string) => void;
 }) {
   const supabase = createClient();
@@ -52,10 +48,11 @@ export default function TherapistPickupBannerManager({
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
-  // 追加フォームで選択中のセラピスト（画像選択→アップロード→insert に使う）。
-  const [addTherapistId, setAddTherapistId] = useState<number | ''>('');
-  // alt のローカル編集値（「保存」ボタンで確定）。
+  // 追加フォームのリンク先URL（任意）。画像選択→アップロード→insert に使う。
+  const [addLinkUrl, setAddLinkUrl] = useState('');
+  // alt / link_url のローカル編集値（各行「保存」で確定）。
   const [altDrafts, setAltDrafts] = useState<Record<string, string>>({});
+  const [linkDrafts, setLinkDrafts] = useState<Record<string, string>>({});
 
   const addInputRef = useRef<HTMLInputElement>(null);
   const replaceInputRef = useRef<HTMLInputElement>(null);
@@ -63,19 +60,11 @@ export default function TherapistPickupBannerManager({
 
   const atLimit = items.length >= MAX_BANNERS;
 
-  const therapistLabel = useCallback(
-    (id: number) => {
-      const t = allTherapists.find((x) => x.id === id);
-      return t ? `${t.name}（${t.salonName}）` : `セラピストID: ${id}（取得不可・非表示の可能性）`;
-    },
-    [allTherapists],
-  );
-
   const fetchList = useCallback(async () => {
     setLoading(true);
     const { data, error } = await supabase
       .from('therapist_pickup_banners')
-      .select('id, therapist_id, image_url, alt_text, display_order, is_active')
+      .select('id, image_url, alt_text, link_url, display_order, is_active')
       .order('display_order', { ascending: true });
     if (error) {
       setErrorMsg('therapist_pickup_banners テーブルの読み込みに失敗しました。マイグレーションを確認してください。');
@@ -86,6 +75,7 @@ export default function TherapistPickupBannerManager({
     setErrorMsg('');
     setItems(list);
     setAltDrafts(Object.fromEntries(list.map((b) => [b.id, b.alt_text ?? ''])));
+    setLinkDrafts(Object.fromEntries(list.map((b) => [b.id, b.link_url ?? ''])));
     setLoading(false);
   }, [supabase]);
 
@@ -93,10 +83,9 @@ export default function TherapistPickupBannerManager({
     fetchList();
   }, [fetchList]);
 
-  // 新規追加：セラピスト選択済み → 画像を選ぶ → 新UUIDフォルダにアップロード → その id で行を insert。
+  // 新規追加：（任意でURL入力）→ 画像を選ぶ → 新UUIDフォルダにアップロード → その id で行を insert。
   const triggerAdd = () => {
     if (atLimit) { onToast(`最大${MAX_BANNERS}枠です`); return; }
-    if (addTherapistId === '') { onToast('先にセラピストを選択してください'); return; }
     addInputRef.current?.click();
   };
   const handleAdd = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -104,7 +93,6 @@ export default function TherapistPickupBannerManager({
     e.target.value = '';
     if (!file) return;
     if (atLimit) { onToast(`最大${MAX_BANNERS}枠です`); return; }
-    if (addTherapistId === '') { onToast('先にセラピストを選択してください'); return; }
     const err = validateImageFile(file);
     if (err) { onToast(err); return; }
     setBusy(true);
@@ -119,7 +107,7 @@ export default function TherapistPickupBannerManager({
     const nextOrder = items.reduce((m, b) => Math.max(m, b.display_order), 0) + 1;
     const { error: insErr } = await supabase
       .from('therapist_pickup_banners')
-      .insert({ id, therapist_id: addTherapistId, image_url: publicUrl, display_order: nextOrder, is_active: true });
+      .insert({ id, image_url: publicUrl, link_url: addLinkUrl.trim() || null, display_order: nextOrder, is_active: true });
     if (insErr) {
       // 行作成に失敗したらアップロード済みファイルを掃除（孤児を残さない）。
       await supabase.storage.from(BUCKET).remove([path]);
@@ -130,7 +118,7 @@ export default function TherapistPickupBannerManager({
       return;
     }
     setBusy(false);
-    setAddTherapistId('');
+    setAddLinkUrl('');
     await revalidateTopAndAreas();
     await fetchList();
     onToast('セラピストピックアップ枠を追加しました');
@@ -173,18 +161,19 @@ export default function TherapistPickupBannerManager({
     onToast('画像を差し替えました');
   };
 
-  // 紐づくセラピストの変更（単一カラム therapist_id のみ更新）。
-  const handleChangeTherapist = async (id: string, therapistId: number) => {
+  // リンク先URLを保存（該当行のみ更新）。空欄は null（リンクなし）。
+  const handleSaveLink = async (id: string) => {
+    const link = (linkDrafts[id] ?? '').trim() || null;
     setBusy(true);
     const { error } = await supabase
       .from('therapist_pickup_banners')
-      .update({ therapist_id: therapistId, updated_at: new Date().toISOString() })
+      .update({ link_url: link, updated_at: new Date().toISOString() })
       .eq('id', id);
     setBusy(false);
-    if (error) { onToast(`変更に失敗しました: ${error.message}`); return; }
-    setItems((prev) => prev.map((b) => (b.id === id ? { ...b, therapist_id: therapistId } : b)));
+    if (error) { onToast(`保存に失敗しました: ${error.message}`); return; }
+    setItems((prev) => prev.map((b) => (b.id === id ? { ...b, link_url: link } : b)));
     await revalidateTopAndAreas();
-    onToast('紐づけセラピストを変更しました');
+    onToast('リンク先を保存しました');
   };
 
   // alt を保存（該当行のみ更新）。
@@ -263,13 +252,13 @@ export default function TherapistPickupBannerManager({
     onToast('枠を削除しました');
   };
 
-  const selectClass = 'w-full px-3 py-2 rounded-xl border border-slate-200 text-xs bg-slate-50/50 focus:outline-none focus:ring-2 focus:ring-pink-200';
+  const inputClass = 'w-full px-3 py-2 rounded-xl border border-slate-200 text-xs bg-slate-50/50 focus:outline-none focus:ring-2 focus:ring-pink-200';
 
   return (
     <div className="bg-white rounded-3xl border border-slate-100 shadow-sm p-6">
       <div className="flex items-center justify-between mb-4">
         <p className="text-[11px] text-slate-400 leading-relaxed">
-          トップ＋全エリアページのサロン一覧（20枚目直下）に、横長バナー画像1枚を表示します（公開中からランダム1枚・リロードで入れ替わり）。クリックでセラピストページへ移動します。最大{MAX_BANNERS}枠。
+          トップ＋全エリアページのサロン一覧（20枚目直下）に、横長バナー画像1枚を表示します（公開中からランダム1枚・リロードで入れ替わり）。リンク先URLを設定するとクリックでそこへ移動します。最大{MAX_BANNERS}枠。
         </p>
         <span className="text-[10px] text-slate-400 flex-shrink-0 ml-3">推奨サイズ: 横1240×縦480px（31:12・横長）</span>
       </div>
@@ -278,23 +267,20 @@ export default function TherapistPickupBannerManager({
       <input ref={addInputRef} type="file" accept="image/jpeg,image/png,image/webp" className="hidden" onChange={handleAdd} />
       <input ref={replaceInputRef} type="file" accept="image/jpeg,image/png,image/webp" className="hidden" onChange={handleReplace} />
 
-      {/* 追加フォーム：セラピスト選択（必須）→ 画像を選んで追加 */}
+      {/* 追加フォーム：リンク先URL（任意）→ 画像を選んで追加 */}
       <div className="flex gap-2 mb-2">
-        <select
-          value={addTherapistId}
-          onChange={(e) => setAddTherapistId(e.target.value ? Number(e.target.value) : '')}
-          className={`flex-1 min-w-0 ${selectClass}`}
+        <input
+          type="text"
+          value={addLinkUrl}
+          onChange={(e) => setAddLinkUrl(e.target.value)}
+          placeholder="リンク先URL（任意）例: /therapist/123 または https://..."
+          className={`flex-1 min-w-0 ${inputClass}`}
           disabled={atLimit}
-        >
-          <option value="">セラピストを選択...</option>
-          {allTherapists.map((t) => (
-            <option key={t.id} value={t.id}>{t.name}（{t.salonName}）</option>
-          ))}
-        </select>
+        />
         <button
           type="button"
           onClick={triggerAdd}
-          disabled={busy || atLimit || addTherapistId === ''}
+          disabled={busy || atLimit}
           className="flex-shrink-0 px-5 py-2.5 rounded-xl bg-gradient-to-r from-pink-500 to-fuchsia-500 text-white font-bold text-xs shadow-sm disabled:opacity-50 hover:opacity-90 transition-opacity"
         >
           ＋ 画像を選んで追加
@@ -310,7 +296,7 @@ export default function TherapistPickupBannerManager({
         <div className="rounded-xl bg-rose-50 border border-rose-100 px-4 py-3 text-xs text-rose-500 leading-relaxed">⚠ {errorMsg}</div>
       ) : items.length === 0 ? (
         <div className="rounded-2xl border border-slate-100 bg-slate-50/50 p-8 text-center text-xs text-slate-400">
-          枠がありません。セラピストを選び「画像を選んで追加」から登録してください。
+          枠がありません。「画像を選んで追加」から登録してください。
         </div>
       ) : (
         <div className="space-y-3">
@@ -346,27 +332,19 @@ export default function TherapistPickupBannerManager({
                   </div>
 
                   <div>
-                    <label className="text-[10px] font-bold text-slate-400 block mb-0.5">紐づけセラピスト（クリックで詳細ページへ）</label>
-                    <select
-                      className={selectClass}
-                      value={b.therapist_id}
-                      onChange={(e) => handleChangeTherapist(b.id, Number(e.target.value))}
-                      disabled={busy}
-                    >
-                      {/* 現在値が allTherapists に無い（非表示等）場合でも選択を保持できるよう、先頭に現在値を出す。 */}
-                      {!allTherapists.some((t) => t.id === b.therapist_id) && (
-                        <option value={b.therapist_id}>{therapistLabel(b.therapist_id)}</option>
-                      )}
-                      {allTherapists.map((t) => (
-                        <option key={t.id} value={t.id}>{t.name}（{t.salonName}）</option>
-                      ))}
-                    </select>
+                    <label className="text-[10px] font-bold text-slate-400 block mb-0.5">リンク先URL（任意・空欄はリンクなし）</label>
+                    <input
+                      className={inputClass}
+                      placeholder="/therapist/123 または https://..."
+                      value={linkDrafts[b.id] ?? ''}
+                      onChange={(e) => setLinkDrafts((prev) => ({ ...prev, [b.id]: e.target.value }))}
+                    />
                   </div>
 
                   <div>
                     <label className="text-[10px] font-bold text-slate-400 block mb-0.5">alt（任意）</label>
                     <input
-                      className={selectClass}
+                      className={inputClass}
                       placeholder="画像の説明"
                       value={altDrafts[b.id] ?? ''}
                       onChange={(e) => setAltDrafts((prev) => ({ ...prev, [b.id]: e.target.value }))}
@@ -374,8 +352,11 @@ export default function TherapistPickupBannerManager({
                   </div>
 
                   <div className="flex items-center gap-2 flex-wrap pt-1">
-                    <button onClick={() => handleSaveAlt(b.id)} disabled={busy} className="text-[11px] font-bold px-3 py-1.5 rounded-lg bg-gradient-to-r from-pink-500 to-fuchsia-500 text-white shadow-sm disabled:opacity-50 hover:opacity-90 transition-opacity">
-                      保存
+                    <button onClick={() => handleSaveLink(b.id)} disabled={busy} className="text-[11px] font-bold px-3 py-1.5 rounded-lg bg-gradient-to-r from-pink-500 to-fuchsia-500 text-white shadow-sm disabled:opacity-50 hover:opacity-90 transition-opacity">
+                      リンクを保存
+                    </button>
+                    <button onClick={() => handleSaveAlt(b.id)} disabled={busy} className="text-[11px] font-bold px-3 py-1.5 rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50 disabled:opacity-50 transition-colors">
+                      altを保存
                     </button>
                     <button onClick={() => handleToggleActive(b.id)} disabled={busy} className="text-[11px] font-bold px-3 py-1.5 rounded-lg border border-slate-200 text-slate-500 hover:bg-slate-50 disabled:opacity-50 transition-colors">
                       {b.is_active ? '非公開にする' : '公開にする'}
