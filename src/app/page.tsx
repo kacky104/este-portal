@@ -18,6 +18,8 @@ import { fetchActiveRecommendedSalonBanners } from "./lib/recommendedSalonBanner
 import { RecommendedSalonBannerSlider } from "./components/RecommendedSalonBannerSlider";
 import { fetchNewFaceTherapists } from "./lib/newFaceTherapists";
 import { NewFaceScroller } from "./components/NewFaceScroller";
+import { fetchActiveTherapistPickupBanners } from "./lib/therapistPickupBanners";
+import { TherapistPickupBanner } from "./components/TherapistPickupBanner";
 
 // フィルタ判定／DB連動キー（変更不可）は areas.ts の AREA_ORDER に一元化。画面表示はすべて areaLabel() を通す。
 
@@ -32,7 +34,7 @@ export default async function Home() {
 
   // ── 互いに依存しない3処理を並列実行（往復の積み上がりを解消） ──
   // ピックアップは area=null の共通セット（＝トップ用）。地域ページは各エリアの設定を使う。
-  const [salons, featuredSalons, todaySchedRes, reviewCountRes, recommendedBanners, newFaceTherapists] = await Promise.all([
+  const [salons, featuredSalons, todaySchedRes, reviewCountRes, recommendedBanners, newFaceTherapists, pickupBanners] = await Promise.all([
     fetchSalons(supabase, { showOnTopOnly: true }), // トップは show_on_top=true のみ表示
     getFeaturedSalons(supabase, null),
     supabase
@@ -49,6 +51,8 @@ export default async function Home() {
     fetchActiveRecommendedSalonBanners(),
     // 新人セラピスト（is_new_face=true かつ30日以内）を新しい順に最大35件。サロンカード30枚目直下に挿入。0件なら非表示。
     fetchNewFaceTherapists(supabase, 35),
+    // セラピストピックアップ枠（横長画像1枚・20枚目直下・クライアント抽選）。0件なら非表示。
+    fetchActiveTherapistPickupBanners(),
   ]);
 
   const todaySchedules = todaySchedRes.data;
@@ -173,6 +177,10 @@ export default async function Home() {
                 // 10枚目直下：おすすめサロンバナー（カード幅・端に整列＝zoom:true）。
                 ...(recommendedBanners.length > 0
                   ? [{ afterIndex: 10, node: <RecommendedSalonBannerSlider banners={recommendedBanners} />, zoom: true }]
+                  : []),
+                // 20枚目直下：セラピストピックアップ枠（横長画像1枚・クライアント抽選）。
+                ...(pickupBanners.length > 0
+                  ? [{ afterIndex: 20, node: <TherapistPickupBanner banners={pickupBanners} />, zoom: true }]
                   : []),
                 // 30枚目直下：新人セラピスト一覧（等倍＝zoom:false でカード肥大化を回避）。
                 ...(newFaceTherapists.length > 0

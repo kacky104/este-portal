@@ -9,6 +9,7 @@ import HeaderSliderManager from '@/app/components/HeaderSliderManager';
 import FeaturedSalonsManager from '@/app/components/FeaturedSalonsManager';
 import TopBannerManager from '@/app/components/TopBannerManager';
 import RecommendedSalonBannerManager from '@/app/components/RecommendedSalonBannerManager';
+import TherapistPickupBannerManager from '@/app/components/TherapistPickupBannerManager';
 import SalonEditModal, { type SalonForEdit } from '@/app/components/SalonEditModal';
 import ThemeWallpaperManager from '@/app/components/ThemeWallpaperManager';
 import AdminJobsManager from '@/app/components/AdminJobsManager';
@@ -103,6 +104,8 @@ export default function AdminDashboard() {
   const router = useRouter();
   const [authState, setAuthState] = useState<AuthState>('loading');
   const [salons, setSalons] = useState<Salon[]>([]);
+  // セラピストピックアップ枠マネージャのセレクト用（id・名前・所属サロン名）。
+  const [therapists, setTherapists] = useState<{ id: number; name: string; salon_id: number }[]>([]);
   const [fetchError, setFetchError] = useState('');
   const [form, setForm] = useState(EMPTY_FORM);
   const [adding, setAdding] = useState(false);
@@ -157,15 +160,24 @@ export default function AdminDashboard() {
     }
   }, []);
 
+  // セラピストピックアップ枠のセレクト用に全セラピストを取得（id・名前・所属サロン）。
+  const fetchTherapists = useCallback(async () => {
+    const { data } = await supabase
+      .from('therapists')
+      .select('id, name, salon_id')
+      .order('id', { ascending: true });
+    setTherapists((data ?? []) as { id: number; name: string; salon_id: number }[]);
+  }, []);
+
   useEffect(() => {
     (async () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) { router.push('/login?redirectTo=' + encodeURIComponent(window.location.pathname)); return; }
       if (user.id !== ADMIN_UUID) { setAuthState('forbidden'); return; }
       setAuthState('authorized');
-      await fetchSalons();
+      await Promise.all([fetchSalons(), fetchTherapists()]);
     })();
-  }, [router, fetchSalons]);
+  }, [router, fetchSalons, fetchTherapists]);
 
   const handleSignOut = async () => {
     await supabase.auth.signOut();
@@ -381,6 +393,17 @@ export default function AdminDashboard() {
                 id:   s.id,
                 name: s.name ?? '',
                 area: s.area ?? '',
+              }))}
+              onToast={showToast}
+            />
+          </AccordionSection>
+
+          <AccordionSection id="therapist-pickup-banners" title="セラピストピックアップ枠設定" expanded={expandedSections} onToggle={toggleSection}>
+            <TherapistPickupBannerManager
+              allTherapists={therapists.map(t => ({
+                id:        t.id,
+                name:      t.name ?? '',
+                salonName: salons.find(s => s.id === t.salon_id)?.name ?? '',
               }))}
               onToast={showToast}
             />

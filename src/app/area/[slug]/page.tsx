@@ -14,6 +14,8 @@ import { NotificationBell } from '@/app/components/NotificationBell';
 import { VipLetterIcon } from '@/app/components/VipLetterIcon';
 import { areaFromSlug, AREA_ORDER, AREA_SLUGS_LIST, DISPATCH_AREA, salonInArea } from '@/app/lib/areas';
 import { areaLabel } from '@/app/lib/areaLabel';
+import { fetchActiveTherapistPickupBanners } from '@/app/lib/therapistPickupBanners';
+import { TherapistPickupBanner } from '@/app/components/TherapistPickupBanner';
 
 // ISR：10分ごとに再生成。Next 16 では revalidate を効かせるため generateStaticParams が必須。
 export const revalidate = 600;
@@ -45,9 +47,10 @@ export default async function AreaPage({ params }: { params: Promise<{ slug: str
 
   // cookie を読まない匿名クライアント（ISR を効かせるため。公開データ専用）。
   const supabase = createPublicClient();
-  const [salons, featuredSalons] = await Promise.all([
+  const [salons, featuredSalons, pickupBanners] = await Promise.all([
     fetchSalons(supabase),
     getFeaturedSalons(supabase, area), // このエリア専用のピックアップ（未設定なら空＝枠ごと非表示）
+    fetchActiveTherapistPickupBanners(), // セラピストピックアップ枠（TOPと共通・20枚目直下・0件なら非表示）
   ]);
   const label = areaLabel(area);
   const pickupTitle = `${area === DISPATCH_AREA ? '出張対応' : label}のピックアップサロン`;
@@ -121,6 +124,11 @@ export default async function AreaPage({ params }: { params: Promise<{ slug: str
           showSaveButton
           nameBanner
           wideDesktop
+          insertBlocks={
+            pickupBanners.length > 0
+              ? [{ afterIndex: 20, node: <TherapistPickupBanner banners={pickupBanners} />, zoom: true }]
+              : undefined
+          }
           heading={
             <div className="mb-4">
               <div
