@@ -181,9 +181,13 @@ export default async function Home() {
               ]}
               heading={
                 <>
-                  <div className="flex items-center gap-3 mb-1.5">
-                    <div className="w-1 h-6 rounded-full bg-gradient-to-b from-pink-500 to-pink-700" />
-                    <h2 className="text-xl font-bold text-slate-900">掲載サロン一覧</h2>
+                  <div
+                    className="px-4 py-2 mb-1.5"
+                    style={{ background: 'linear-gradient(to right, #f97316, #ec4899)' }}
+                  >
+                    <h2 className="text-xl font-bold text-white leading-none" style={{ transform: 'translateY(1px)' }}>
+                      掲載サロン一覧
+                    </h2>
                   </div>
                   <p className="text-xs text-slate-400 mb-4">
                     表示順は30分ごとに入れ替わります
