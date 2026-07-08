@@ -15,11 +15,29 @@ import type { TherapistPickupBanner as Banner } from '@/app/lib/therapistPickupB
 // - 0件はブロックごと非表示。
 
 // リンク先を解決する。相対（/で始まる）は内部リンク、https:// は外部リンク、それ以外は非リンク（null）。
+// 自サイトのホスト（www 有無どちらでも自サイト扱い）。
+function isOwnHost(host: string): boolean {
+  const h = host.toLowerCase().replace(/^www\./, '');
+  return h === 'fukues.com';
+}
+
 function resolveLink(b: Banner): { href: string; external: boolean } | null {
   const raw = (b.linkUrl ?? '').trim();
   if (raw) {
     if (raw.startsWith('/')) return { href: raw, external: false };
-    if (/^https?:\/\//i.test(raw)) return { href: raw, external: true };
+    if (/^https?:\/\//i.test(raw)) {
+      try {
+        const u = new URL(raw);
+        // 自サイトのURLはパス＋クエリ＋ハッシュに変換し、next/link で同一タブ遷移
+        // （ブラウザ/スマホの「戻る」で元ページに戻れる）。他ドメインのみ新規タブ。
+        if (isOwnHost(u.hostname)) {
+          return { href: `${u.pathname}${u.search}${u.hash}`, external: false };
+        }
+      } catch {
+        return null; // パース不能なURLは非リンク扱い
+      }
+      return { href: raw, external: true };
+    }
     return null; // 想定外の形式は非リンク扱い
   }
   // フォールバック：公開中セラピストの詳細ページ。
