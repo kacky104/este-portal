@@ -16,6 +16,7 @@ import { areaFromSlug, AREA_ORDER, AREA_SLUGS_LIST, DISPATCH_AREA, salonInArea }
 import { areaLabel } from '@/app/lib/areaLabel';
 import { fetchActiveTherapistPickupBanners } from '@/app/lib/therapistPickupBanners';
 import { TherapistPickupBanner } from '@/app/components/TherapistPickupBanner';
+import { AutoFitHeadingText } from '@/app/components/AutoFitHeadingText';
 
 // ISR：10分ごとに再生成。Next 16 では revalidate を効かせるため generateStaticParams が必須。
 export const revalidate = 600;
@@ -135,8 +136,8 @@ export default async function AreaPage({ params }: { params: Promise<{ slug: str
                 className="px-4 py-2 mb-1"
                 style={{ background: 'linear-gradient(to right, #f97316, #ec4899)' }}
               >
-                <h1 className="text-xl font-bold text-white leading-none" style={{ transform: 'translateY(1px)' }}>
-                  {area === DISPATCH_AREA ? '出張対応' : label}のメンズエステ一覧
+                <h1 className="min-w-0 overflow-hidden">
+                  <AutoFitHeadingText text={`${area === DISPATCH_AREA ? '出張対応' : label}のメンズエステ一覧`} />
                 </h1>
               </div>
               <p className="text-xs text-slate-400">
