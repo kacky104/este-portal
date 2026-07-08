@@ -27,12 +27,14 @@ function resolveLink(b: Banner): { href: string; external: boolean } | null {
   return null;
 }
 export function TherapistPickupBanner({ banners }: { banners: Banner[] }) {
-  // サーバー描画時は null（＝プレースホルダ）。マウント後にランダム1枚を選ぶ。
-  const [picked, setPicked] = useState<Banner | null>(null);
+  // 初期は先頭(0)を即描画し（おすすめ/新人と同じく「常に画像を出す」作法。null プレースホルダで
+  // ゲーティングしない）、マウント後に useEffect でランダムなインデックスへ差し替える。
+  // 初期描画が banners[0] で server/client 一致するため hydration mismatch も起きない。
+  const [idx, setIdx] = useState(0);
 
   useEffect(() => {
     if (banners.length === 0) return;
-    setPicked(banners[Math.floor(Math.random() * banners.length)]);
+    setIdx(Math.floor(Math.random() * banners.length));
   }, [banners]);
 
   if (banners.length === 0) return null;
@@ -40,10 +42,7 @@ export function TherapistPickupBanner({ banners }: { banners: Banner[] }) {
   // おすすめサロンバナーの1件時と同じサイズ感・直角（SPは h-52 固定、PCは aspect-[31/12]）。
   const frameClass = 'relative overflow-hidden shadow-lg h-52 sm:h-auto sm:aspect-[31/12] w-full';
 
-  // 抽選前（サーバー描画・マウント直後）は淡いプレースホルダだけを見せる（レイアウトシフト防止）。
-  if (!picked) {
-    return <div className={`${frameClass} bg-pink-50`} />;
-  }
+  const picked = banners[idx] ?? banners[0];
 
   const img = (
     <Image
