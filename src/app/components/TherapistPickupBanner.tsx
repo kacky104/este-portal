@@ -40,7 +40,7 @@ export function TherapistPickupBanner({ banners }: { banners: Banner[] }) {
   if (banners.length === 0) return null;
 
   // おすすめサロンバナーの1件時と同じサイズ感・直角（SPは h-52 固定、PCは aspect-[31/12]）。
-  const frameClass = 'relative overflow-hidden shadow-lg h-52 sm:h-auto sm:aspect-[31/12] w-full';
+  const frameClass = 'block relative overflow-hidden shadow-lg h-52 sm:h-auto sm:aspect-[31/12] w-full';
 
   const picked = banners[idx] ?? banners[0];
 
