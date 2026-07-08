@@ -69,7 +69,7 @@ export function SalonNameRow({
             textOverflow: allowEllipsis ? 'ellipsis' : 'clip',
             // バナー時のみ光学補正：大文字英字・カタカナ中心でディセンダーが無く、
             // フォントのディセンダー領域が下側の空白として残るため幾何学的中央では上寄りに見える。2px下げて相殺。
-            ...(nameBanner ? { transform: 'translateY(2px)' } : {}),
+            ...(nameBanner ? { transform: 'translateY(3px)' } : {}),
           }}
         >
           {salonName}
