@@ -1,7 +1,9 @@
 import { Suspense } from 'react';
 import Link from 'next/link';
+import type { Metadata } from 'next';
 import { Logo } from '@/app/components/Logo';
 import { areaLabel } from '@/app/lib/areaLabel';
+import { truncatePlain } from '@/app/lib/truncatePlain';
 import { notFound } from 'next/navigation';
 import { createPublicClient } from '@/app/lib/supabase/public';
 import { FromCrumb } from './FromCrumb';
@@ -57,6 +59,60 @@ export const revalidate = 600;
 // Next 16 では revalidate を効かせるため generateStaticParams（空配列）が必須。dynamicParams は既定 true。
 export async function generateStaticParams() {
   return [];
+}
+
+// セラピスト詳細のメタデータ。所属サロンが非表示なら本体側で notFound 済みのため空を返す。
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}): Promise<Metadata> {
+  const { id } = await params;
+  const supabase = createPublicClient();
+
+  const { data: tRow } = await supabase
+    .from('therapists')
+    .select('name, area, salon_id, profile_text, comment, profile_image_url')
+    .eq('id', id)
+    .single();
+  if (!tRow) return {};
+
+  const { data: salonRow } = await supabase
+    .from('salons')
+    .select('name, is_hidden')
+    .eq('id', tRow.salon_id as number)
+    .single();
+  if (!salonRow || salonRow.is_hidden) return {};
+
+  const name = (tRow.name as string) ?? '';
+  const salonName = (salonRow.name as string) ?? '';
+  const label = areaLabel(tRow.area as string | null);
+  const title = `${name}（${salonName}）｜${label}のメンズエステ【フクエス】`;
+  const description =
+    truncatePlain(tRow.profile_text as string | null, 90) ||
+    truncatePlain(tRow.comment as string | null, 90) ||
+    `${salonName}在籍のセラピスト${name}のプロフィール・出勤情報・写メ日記はフクエスで。`;
+  const image = (tRow.profile_image_url as string | null) || '/ogp.png';
+
+  return {
+    title,
+    description,
+    alternates: { canonical: `/therapist/${id}` },
+    openGraph: {
+      title,
+      description,
+      url: `/therapist/${id}`,
+      siteName: 'フクエス',
+      type: 'website',
+      images: [{ url: image }],
+    },
+    twitter: {
+      card: 'summary_large_image',
+      title,
+      description,
+      images: [image],
+    },
+  };
 }
 
 export default async function TherapistPublicPage({

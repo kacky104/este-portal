@@ -63,6 +63,7 @@ export async function generateMetadata({
   return {
     title,
     description,
+    alternates: { canonical: `/jobs/${job.id}` },
     openGraph: {
       title,
       description,

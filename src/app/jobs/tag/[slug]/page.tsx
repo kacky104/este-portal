@@ -42,10 +42,11 @@ export async function generateMetadata({
   const jobs = await fetchActiveJobsByFeature(slug);
   const robots = jobs.length === 0 ? { index: false, follow: true } : undefined;
 
+  // noindex（0件）ページには canonical を付けず、indexさせる正常系のみ自己参照 canonical を付与。
   return {
     title: baseTitle,
     description,
-    ...(robots ? { robots } : {}),
+    ...(robots ? { robots } : { alternates: { canonical: `/jobs/tag/${slug}` } }),
     openGraph: { title: brandedTitle, description },
     twitter: { title: brandedTitle, description },
   };

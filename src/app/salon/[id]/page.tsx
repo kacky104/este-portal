@@ -1,4 +1,7 @@
 import Link from "next/link";
+import type { Metadata } from "next";
+import { areaLabel } from "@/app/lib/areaLabel";
+import { truncatePlain } from "@/app/lib/truncatePlain";
 import { Logo } from '@/app/components/Logo';
 import { SavedSalonsMenu } from '@/app/components/SavedSalonsMenu';
 import { AccountMenu } from '@/app/components/AccountMenu';
@@ -51,6 +54,63 @@ export async function generateStaticParams() {
   const supabase = createPublicClient();
   const { data } = await supabase.from('salons').select('id');
   return (data ?? []).map((s) => ({ id: String(s.id) }));
+}
+
+// サロン詳細のメタデータ。本体と同じ salons テーブルからメタ用に軽量再取得する
+// （同一リクエスト内でも supabase-js 経由のためメモ化は効かないが、ISR 600s なので実害なし）。
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}): Promise<Metadata> {
+  const { id } = await params;
+  const supabase = createPublicClient();
+  const [{ data: row }, { data: imageRows }] = await Promise.all([
+    supabase
+      .from('salons')
+      .select('name, area, description, appeal, is_hidden')
+      .eq('id', Number(id))
+      .single(),
+    supabase
+      .from('salon_images')
+      .select('image_url')
+      .eq('salon_id', Number(id))
+      .order('display_order', { ascending: true })
+      .limit(1),
+  ]);
+
+  // 非表示サロン・データなしは本体側で notFound 済み。メタは空を返す。
+  if (!row || row.is_hidden) return {};
+
+  const name = (row.name as string) ?? '';
+  const label = areaLabel(row.area as string | null);
+  const title = `${name}｜${label}のメンズエステ【フクエス】`;
+  const description =
+    truncatePlain(row.description as string | null, 90) ||
+    truncatePlain(row.appeal as string | null, 90) ||
+    `福岡・${label}のメンズエステ「${name}」の店舗情報・在籍セラピスト・口コミをフクエスでチェック。`;
+  // SNSシェア画像：サロン画像1枚目（無ければ共通OGP）。canonical/og:url は相対パス（metadataBase で解決）。
+  const image = (imageRows?.[0]?.image_url as string | undefined) || '/ogp.png';
+
+  return {
+    title,
+    description,
+    alternates: { canonical: `/salon/${id}` },
+    openGraph: {
+      title,
+      description,
+      url: `/salon/${id}`,
+      siteName: 'フクエス',
+      type: 'website',
+      images: [{ url: image }],
+    },
+    twitter: {
+      card: 'summary_large_image',
+      title,
+      description,
+      images: [image],
+    },
+  };
 }
 
 export default async function SalonPage({

@@ -26,6 +26,7 @@ export const metadata: Metadata = {
   title: { absolute: BRAND_TITLE },
   description:
     '福岡のメンズエステで働くセラピスト求人をまとめて掲載。エリア・給与・こだわり条件から気になるお店の求人をチェックできます。未経験歓迎のメンズエステ求人も掲載中。',
+  alternates: { canonical: '/jobs' },
 };
 
 export default async function JobsPage() {

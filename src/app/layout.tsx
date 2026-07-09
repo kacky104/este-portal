@@ -23,6 +23,8 @@ export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
   title: SITE_TITLE,
   description: SITE_DESCRIPTION,
+  // TOP用のcanonical。子ページは各自の alternates.canonical で上書きされる（templateではなく固定）。
+  alternates: { canonical: '/' },
   // ファビコン（public/ の新ロゴ画像。app/favicon.ico 規約は廃止しここで一元管理）。
   icons: {
     icon: [

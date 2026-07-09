@@ -28,6 +28,7 @@ export const metadata: Metadata = {
   // ブランド名を含めない。og:title / twitter:title には template が効かないため別途明示する。
   title: BASE_TITLE,
   description: DESCRIPTION,
+  alternates: { canonical: '/jobs/dispatch' },
   openGraph: { title: BRANDED_TITLE, description: DESCRIPTION },
   twitter: { title: BRANDED_TITLE, description: DESCRIPTION },
 };

@@ -14,6 +14,7 @@ const PAGE_SIZE = 32;
 export const metadata = {
   title: '写メ日記 | フクエス ～福岡メンズエステポータル～',
   description: '福岡のメンズエステサロンに在籍するセラピストたちの写メ日記一覧です。',
+  alternates: { canonical: '/diary' },
 };
 
 // ISR：1分ごとに再生成（新着日記の鮮度優先）。cookie を読まない createPublicClient を使うため動的化されない。

@@ -1,8 +1,10 @@
 import { Suspense } from 'react';
 import Link from 'next/link';
+import type { Metadata } from 'next';
 import { Logo } from '@/app/components/Logo';
 import { notFound } from 'next/navigation';
 import { createPublicClient } from '@/app/lib/supabase/public';
+import { truncatePlain } from '@/app/lib/truncatePlain';
 import { getTheme, breadcrumbCurrentColor } from '@/app/lib/themes';
 import { DiaryFeed } from './DiaryFeed';
 import { DiaryListCrumb } from './DiaryListCrumb';
@@ -15,6 +17,56 @@ export const revalidate = 600;
 // Next 16 では revalidate を効かせるため generateStaticParams（空配列）が必須。dynamicParams は既定 true。
 export async function generateStaticParams() {
   return [];
+}
+
+// 写メ日記詳細のメタデータ。非公開サロンの日記・削除済み等（本体が404にするケース）は空を返す。
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ diary_id: string }>;
+}): Promise<Metadata> {
+  const { diary_id } = await params;
+  const supabase = createPublicClient();
+  // salons!inner + is_hidden=false で非表示サロンの日記は対象外（該当なし→空メタ）。
+  const { data } = await supabase
+    .from('diary_posts')
+    .select('title, content, images, therapists(name), salons!inner(name, is_hidden)')
+    .eq('id', diary_id)
+    .eq('salons.is_hidden', false)
+    .maybeSingle();
+  if (!data) return {};
+
+  const t = Array.isArray(data.therapists) ? data.therapists[0] : data.therapists;
+  const s = Array.isArray(data.salons) ? data.salons[0] : data.salons;
+  const therapistName = (t?.name as string | null) ?? '';
+  const salonName = (s?.name as string | null) ?? '';
+  const diaryTitle = (data.title as string | null) || '写メ日記';
+  const title = `${diaryTitle}｜${therapistName}（${salonName}）の写メ日記【フクエス】`;
+  const description =
+    truncatePlain(data.content as string | null, 90) ||
+    `${salonName}のセラピスト${therapistName}の写メ日記。`;
+  const images = (data.images as string[] | null) ?? [];
+  const image = images[0] || '/ogp.png';
+
+  return {
+    title,
+    description,
+    alternates: { canonical: `/diary/${diary_id}` },
+    openGraph: {
+      title,
+      description,
+      url: `/diary/${diary_id}`,
+      siteName: 'フクエス',
+      type: 'article',
+      images: [{ url: image }],
+    },
+    twitter: {
+      card: 'summary_large_image',
+      title,
+      description,
+      images: [image],
+    },
+  };
 }
 
 export default async function DiaryDetailPage({

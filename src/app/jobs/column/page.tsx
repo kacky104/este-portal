@@ -15,6 +15,7 @@ const PAGE_DESC =
 export const metadata: Metadata = {
   title: PAGE_TITLE,
   description: PAGE_DESC,
+  alternates: { canonical: '/jobs/column' },
   openGraph: {
     title: `${PAGE_TITLE}｜フクエスワーク`,
     description: PAGE_DESC,

@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import type { Metadata } from 'next';
 import { Logo } from '@/app/components/Logo';
 import { createClient } from '@/app/lib/supabase/server';
 import { ShuffledSalons } from '@/app/components/ShuffledSalons';
@@ -9,6 +10,18 @@ import { VipLetterIcon } from '@/app/components/VipLetterIcon';
 import { fetchSalons } from '@/app/lib/salons';
 // フィルタ判定／DB連動キーは areas.ts の AREA_ORDER に一元化（画面表示はすべて areaLabel() を通す）。
 import { AREA_ORDER } from '@/app/lib/areas';
+
+const PAGE_TITLE = '福岡のメンズエステ サロン一覧【フクエス】';
+const PAGE_DESC =
+  '福岡のメンズエステを一覧掲載。博多・天神・北九州・久留米など全エリアの人気サロンをエリアで絞り込んで探せます。';
+
+export const metadata: Metadata = {
+  title: PAGE_TITLE,
+  description: PAGE_DESC,
+  alternates: { canonical: '/salons' },
+  openGraph: { title: PAGE_TITLE, description: PAGE_DESC, url: '/salons' },
+  twitter: { title: PAGE_TITLE, description: PAGE_DESC },
+};
 
 export default async function SalonsPage() {
   const supabase = await createClient();

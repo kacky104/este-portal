@@ -2,7 +2,7 @@ import type { MetadataRoute } from 'next';
 import { createPublicClient } from '@/app/lib/supabase/public';
 import { fetchActiveJobsForSitemap, fetchFeatureSlugsWithActiveJobs, fetchAreaTagPairsWithActiveJobs, fetchActiveDispatchJobs } from '@/app/lib/jobs';
 import { fetchPublishedArticlesForSitemap } from '@/app/lib/workArticles';
-import { jobsAreaHref } from '@/app/lib/areas';
+import { jobsAreaHref, AREA_SLUGS_LIST } from '@/app/lib/areas';
 import { ARTICLE_CATEGORY_ORDER } from '@/app/lib/articleCategories';
 
 const SITE_URL = 'https://fukues.com';
@@ -41,6 +41,14 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     // コラム一覧（公開記事の有無に関わらず存在する静的ページ）。
     { url: `${SITE_URL}/jobs/column`, lastModified: now, changeFrequency: 'daily', priority: 0.7 },
   ];
+
+  // 本体フクエスのエリア別サロンページ（/area/[slug]・全6スラッグ）。
+  const areaPageEntries: MetadataRoute.Sitemap = AREA_SLUGS_LIST.map((slug) => ({
+    url: `${SITE_URL}/area/${slug}`,
+    lastModified: now,
+    changeFrequency: 'daily',
+    priority: 0.9,
+  }));
 
   const salonEntries: MetadataRoute.Sitemap = (salonsRes.data ?? []).map((s) => ({
     url: `${SITE_URL}/salon/${s.id}`,
@@ -116,6 +124,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
 
   return [
     ...staticEntries,
+    ...areaPageEntries,
     ...salonEntries,
     ...therapistEntries,
     ...jobEntries,

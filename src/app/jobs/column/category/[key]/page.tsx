@@ -34,6 +34,7 @@ export async function generateMetadata({
   return {
     title,
     description,
+    alternates: { canonical: `/jobs/column/category/${key}` },
     openGraph: {
       title: `${title}｜フクエスワーク`,
       description,
