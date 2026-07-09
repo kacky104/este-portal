@@ -501,13 +501,7 @@ export function ShuffledSalons({ salons, areas, showAge = false, areaNextToDuty 
               ? 'bg-pink-600 text-white shadow-md shadow-pink-500/25'
               : 'border border-slate-200 bg-white text-slate-600 hover:border-pink-300 hover:text-pink-600 shadow-sm'
           }`;
-          // 漢字・カナ主体（ディセンダー無し）のため幾何中央だと上寄りに見える。
-          // 店名バナー・見出し帯と同じ光学センター補正（leading-none＋translateY 1px）。
-          const inner = (
-            <span className="inline-block leading-none" style={{ transform: 'translateY(3px)' }}>
-              {areaLabel(area)}
-            </span>
-          );
+          const inner = areaLabel(area);
           return tabsAsLinks ? (
             <Link key={area} href={areaHref(area)} className={cls} aria-current={active ? 'page' : undefined}>
               {inner}

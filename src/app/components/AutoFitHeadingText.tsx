@@ -13,6 +13,7 @@ const MIN = 13; // 下限
 // whitespace-nowrap で1行を維持し、収まらない間フォントを 0.5px 刻みで下げる。
 // 下限でも収まらないときだけ「…」省略を許可する。
 // 見た目（白・太字・leading-none＋translateY(1px) の光学センター補正）はグラデ帯の h1 に合わせる。
+// span は inline-block だとベースライン揃えで h1 行ボックスのディセント分だけ上寄りになるため block にする。
 export function AutoFitHeadingText({ text }: { text: string }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const textRef = useRef<HTMLSpanElement>(null);
@@ -45,7 +46,7 @@ export function AutoFitHeadingText({ text }: { text: string }) {
     <div ref={containerRef} className="min-w-0 overflow-hidden">
       <span
         ref={textRef}
-        className="inline-block max-w-full whitespace-nowrap font-bold text-white leading-none"
+        className="block max-w-full whitespace-nowrap font-bold text-white leading-none"
         style={{
           fontSize: `${size}px`,
           transform: 'translateY(1px)',
