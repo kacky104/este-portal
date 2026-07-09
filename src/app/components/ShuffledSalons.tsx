@@ -504,7 +504,7 @@ export function ShuffledSalons({ salons, areas, showAge = false, areaNextToDuty 
           // 漢字・カナ主体（ディセンダー無し）のため幾何中央だと上寄りに見える。
           // 店名バナー・見出し帯と同じ光学センター補正（leading-none＋translateY 1px）。
           const inner = (
-            <span className="inline-block leading-none" style={{ transform: 'translateY(2px)' }}>
+            <span className="inline-block leading-none" style={{ transform: 'translateY(3px)' }}>
               {areaLabel(area)}
             </span>
           );
