@@ -4,6 +4,7 @@ import type { Metadata } from 'next';
 import { Logo } from '@/app/components/Logo';
 import { areaLabel } from '@/app/lib/areaLabel';
 import { truncatePlain } from '@/app/lib/truncatePlain';
+import { toJsonLdString, buildBreadcrumbJsonLd } from '@/app/lib/jsonLd';
 import { notFound } from 'next/navigation';
 import { createPublicClient } from '@/app/lib/supabase/public';
 import { FromCrumb } from './FromCrumb';
@@ -303,8 +304,18 @@ export default async function TherapistPublicPage({
     getApprovedReviews(therapistId),
   ]);
 
+  // 構造化データ（BreadcrumbList「トップ › サロン名 › セラピスト名」＝可視パンくずと一致）。
+  const breadcrumbJsonLd = buildBreadcrumbJsonLd([
+    { name: 'トップ', path: '/' },
+    { name: salon?.name ?? 'サロン', path: `/salon/${therapist.salonId}` },
+    { name: therapist.name, path: `/therapist/${id}` },
+  ]);
+
   return (
     <div className="relative min-h-screen overflow-x-clip" style={{ color: theme.text }}>
+
+      {/* BreadcrumbList 構造化データ（トップ › サロン名 › セラピスト名） */}
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: toJsonLdString(breadcrumbJsonLd) }} />
 
       {/* 会員の閲覧履歴を記録（クライアント側・ログイン中のみ） */}
       <ViewHistoryLogger itemType="therapist" itemId={Number(id)} />

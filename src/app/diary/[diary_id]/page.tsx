@@ -5,6 +5,7 @@ import { Logo } from '@/app/components/Logo';
 import { notFound } from 'next/navigation';
 import { createPublicClient } from '@/app/lib/supabase/public';
 import { truncatePlain } from '@/app/lib/truncatePlain';
+import { toJsonLdString, buildBreadcrumbJsonLd } from '@/app/lib/jsonLd';
 import { getTheme, breadcrumbCurrentColor } from '@/app/lib/themes';
 import { DiaryFeed } from './DiaryFeed';
 import { DiaryListCrumb } from './DiaryListCrumb';
@@ -123,8 +124,18 @@ export default async function DiaryDetailPage({
   const salonName = (salonRow?.name as string | null) || currentEntry.salonName || list[0].salonName;
   const currentTitle = currentEntry.title || '写メ日記';
 
+  // 構造化データ（BreadcrumbList「トップ › サロン名 › 日記タイトル」）。
+  const breadcrumbJsonLd = buildBreadcrumbJsonLd([
+    { name: 'トップ', path: '/' },
+    { name: salonName || 'サロン', path: `/salon/${salonId}` },
+    { name: currentTitle, path: `/diary/${diary_id}` },
+  ]);
+
   return (
     <div className="relative min-h-screen overflow-x-clip" style={{ color: theme.text }}>
+
+      {/* BreadcrumbList 構造化データ（トップ › サロン名 › 日記タイトル） */}
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: toJsonLdString(breadcrumbJsonLd) }} />
 
       {/* 背景レイヤー（所属サロンのテーマ壁紙） */}
       <div aria-hidden className="fixed inset-0 -z-10" style={bgLayerStyle} />

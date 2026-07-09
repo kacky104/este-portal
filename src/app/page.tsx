@@ -20,6 +20,17 @@ import { fetchNewFaceTherapists } from "./lib/newFaceTherapists";
 import { NewFaceScroller } from "./components/NewFaceScroller";
 import { fetchActiveTherapistPickupBanners } from "./lib/therapistPickupBanners";
 import { TherapistPickupBanner } from "./components/TherapistPickupBanner";
+import { toJsonLdString } from "./lib/jsonLd";
+
+// TOPの WebSite 構造化データ（サイト名のリッチリザルト狙い）。
+// サイト内検索ページが無いため potentialAction (SearchAction) は入れない。
+const WEBSITE_JSON_LD: Record<string, unknown> = {
+  '@context': 'https://schema.org/',
+  '@type': 'WebSite',
+  name: 'フクエス',
+  alternateName: '福岡メンズエステポータル フクエス',
+  url: 'https://fukues.com/',
+};
 
 // フィルタ判定／DB連動キー（変更不可）は areas.ts の AREA_ORDER に一元化。画面表示はすべて areaLabel() を通す。
 
@@ -73,6 +84,9 @@ export default async function Home() {
 
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900">
+
+      {/* WebSite 構造化データ（サイト名） */}
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: toJsonLdString(WEBSITE_JSON_LD) }} />
 
       {/* ─── Header ─────────────────────────────────────────── */}
       <header className="sticky top-0 z-50 bg-white/90 backdrop-blur-md border-b border-slate-200 shadow-sm">

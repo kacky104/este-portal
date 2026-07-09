@@ -14,6 +14,7 @@ import { NotificationBell } from '@/app/components/NotificationBell';
 import { VipLetterIcon } from '@/app/components/VipLetterIcon';
 import { areaFromSlug, AREA_ORDER, AREA_SLUGS_LIST, DISPATCH_AREA, salonInArea } from '@/app/lib/areas';
 import { areaLabel } from '@/app/lib/areaLabel';
+import { toJsonLdString, buildBreadcrumbJsonLd } from '@/app/lib/jsonLd';
 import { fetchActiveTherapistPickupBanners } from '@/app/lib/therapistPickupBanners';
 import { TherapistPickupBanner } from '@/app/components/TherapistPickupBanner';
 import { AutoFitHeadingText } from '@/app/components/AutoFitHeadingText';
@@ -61,8 +62,17 @@ export default async function AreaPage({ params }: { params: Promise<{ slug: str
   // 判定は共有の salonInArea（ShuffledSalons の matchesArea と同一）。サロン一覧と同じ所属になる。
   const areaSalonIds = salons.filter((s) => salonInArea(s, area)).map((s) => s.id);
 
+  // 構造化データ（BreadcrumbList「トップ › {label}のメンズエステ一覧」）。
+  const breadcrumbJsonLd = buildBreadcrumbJsonLd([
+    { name: 'トップ', path: '/' },
+    { name: `${label}のメンズエステ一覧`, path: `/area/${slug}` },
+  ]);
+
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900">
+
+      {/* BreadcrumbList 構造化データ（トップ › エリア一覧） */}
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: toJsonLdString(breadcrumbJsonLd) }} />
 
       {/* ─── Header ─────────────────────────────────────────── */}
       <header className="sticky top-0 z-50 bg-white/90 backdrop-blur-md border-b border-slate-200 shadow-sm">

@@ -2,6 +2,7 @@ import Link from "next/link";
 import type { Metadata } from "next";
 import { areaLabel } from "@/app/lib/areaLabel";
 import { truncatePlain } from "@/app/lib/truncatePlain";
+import { toJsonLdString, buildBreadcrumbJsonLd } from "@/app/lib/jsonLd";
 import { Logo } from '@/app/components/Logo';
 import { SavedSalonsMenu } from '@/app/components/SavedSalonsMenu';
 import { AccountMenu } from '@/app/components/AccountMenu';
@@ -111,6 +112,53 @@ export async function generateMetadata({
       images: [image],
     },
   };
+}
+
+const SITE_URL = 'https://fukues.com';
+
+// サロン詳細の HealthAndBeautyBusiness（LocalBusinessサブタイプ）構造化データ。
+// ページ本体が取得済みの salon／画像／口コミ統計から組み立てる（追加クエリ不要）。
+// ※openingHours は入れない：DBの hours は自由文字列で schema.org 書式に確実変換できないため。
+// ※aggregateRating は画面表示（salonReviewStats）と一致させる。0件のときは出さない（構造化データエラー回避）。
+function buildSalonJsonLd(
+  salon: {
+    id: number;
+    name: string;
+    area: string;
+    address: string;
+    phone: string;
+    price: string;
+    officialUrl: string | null;
+  },
+  images: string[],
+  reviewStats: { avgOverall: number | null; count: number },
+): Record<string, unknown> {
+  const ld: Record<string, unknown> = {
+    '@context': 'https://schema.org/',
+    '@type': 'HealthAndBeautyBusiness',
+    name: salon.name,
+    url: `${SITE_URL}/salon/${salon.id}`,
+    address: {
+      '@type': 'PostalAddress',
+      streetAddress: salon.address,
+      addressRegion: '福岡県',
+      addressCountry: 'JP',
+    },
+    areaServed: areaLabel(salon.area),
+  };
+  if (salon.phone) ld.telephone = salon.phone;
+  if (images.length > 0) ld.image = images;
+  if (salon.price) ld.priceRange = salon.price;
+  if (salon.officialUrl) ld.sameAs = [salon.officialUrl];
+  // 口コミがある場合のみ。ratingValue は画面表示（toFixed(1)）と一致させる。
+  if (reviewStats.count > 0 && reviewStats.avgOverall !== null && reviewStats.avgOverall > 0) {
+    ld.aggregateRating = {
+      '@type': 'AggregateRating',
+      ratingValue: Number(reviewStats.avgOverall.toFixed(1)),
+      reviewCount: reviewStats.count,
+    };
+  }
+  return ld;
 }
 
 export default async function SalonPage({
@@ -323,8 +371,20 @@ export default async function SalonPage({
     </dl>
   );
 
+  // 構造化データ（HealthAndBeautyBusiness＋BreadcrumbList「トップ › サロン名」）。
+  const salonJsonLd = buildSalonJsonLd(salon, salonImages.map((s) => s.pc), salonReviewStats);
+  const salonBreadcrumbJsonLd = buildBreadcrumbJsonLd([
+    { name: 'トップ', path: '/' },
+    { name: salon.name, path: `/salon/${salon.id}` },
+  ]);
+
   return (
     <div className="relative min-h-screen overflow-x-clip" style={{ color: theme.text }}>
+
+      {/* HealthAndBeautyBusiness 構造化データ（店舗情報） */}
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: toJsonLdString(salonJsonLd) }} />
+      {/* BreadcrumbList 構造化データ（トップ › サロン名） */}
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: toJsonLdString(salonBreadcrumbJsonLd) }} />
 
       {/* 会員の閲覧履歴を記録（クライアント側・ログイン中のみ。ISRキャッシュには影響しない） */}
       <ViewHistoryLogger itemType="salon" itemId={Number(id)} />
