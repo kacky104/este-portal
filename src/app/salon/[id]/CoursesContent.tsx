@@ -1,4 +1,5 @@
 import type { SalonTheme } from '@/app/lib/themes';
+import { AutoFitText } from '@/app/components/AutoFitText';
 
 // salons.courses(JSON) の1要素。duration＝行ラベル（例「70分」「指名料」「極液」）、price＝表示用料金文字列（例「¥11,000」）。
 // duration_min＝ネット予約の枠計算用の数値(分)。時間としてパースできた行のみ数値、それ以外は null/未設定（内部用・表示には使わない）。
@@ -34,7 +35,13 @@ export function CoursesContent({ courses, theme, large = false }: { courses: Cou
           <div key={name}>
             <div className={`flex items-center gap-2 ${headerMb}`}>
               <span className={`${dotCls} rounded-full bg-pink-400 flex-shrink-0`} />
-              <h3 className={`${nameCls} font-bold min-w-0 break-words`} style={{ color: theme.heading }}>{name}</h3>
+              {large ? (
+                <h3 className="min-w-0 flex-1">
+                  <AutoFitText text={name} max={21} min={14} className="font-bold" style={{ color: theme.heading }} />
+                </h3>
+              ) : (
+                <h3 className={`${nameCls} font-bold min-w-0 break-words`} style={{ color: theme.heading }}>{name}</h3>
+              )}
             </div>
             <div className={`pl-4 ${rowsGap}`}>
               {items.map((item, i) => (
