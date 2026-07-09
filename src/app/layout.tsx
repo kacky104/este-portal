@@ -14,7 +14,7 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
-const SITE_TITLE = "【フクエス】福岡密着型メンズエステポータルサイト";
+const SITE_TITLE = "福岡メンズエステの検索・口コミポータルサイト【フクエス】";
 const SITE_DESCRIPTION =
   "福岡密着型メンズエステポータルサイト。博多・天神・北九州・久留米など福岡全域から、口コミ評価の高い人気サロンをご紹介。あなたとお店をマッチングします。";
 const SITE_URL = "https://fukues.com";
