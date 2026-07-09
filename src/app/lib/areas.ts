@@ -51,14 +51,18 @@ export function jobsAreaHref(areaValue: string): string {
 /**
  * サロンが指定エリアに属するか（ShuffledSalons の matchesArea と同一判定）。
  * 福岡全域は全件 true。出張エリアは dispatch_type が none 以外（available/only）も含める。
- * それ以外は area 完全一致。地域ページ／出勤一覧のセラピスト絞り込みで salon→area を判定するのに使う。
+ * それ以外は area または area2 の一致。地域ページ／出勤一覧のセラピスト絞り込みで salon→area を判定するのに使う。
  */
 export function salonInArea(
-  salon: { area: string; dispatchType: string },
+  salon: { area: string; area2?: string | null; dispatchType: string },
   area: string,
 ): boolean {
   if (area === ALL_AREA) return true;
-  return salon.area === area || (area === DISPATCH_AREA && salon.dispatchType !== 'none');
+  return (
+    salon.area === area ||
+    salon.area2 === area ||
+    (area === DISPATCH_AREA && salon.dispatchType !== 'none')
+  );
 }
 
 /** URLスラッグ → エリア値（不明なら null）。 */

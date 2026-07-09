@@ -275,6 +275,12 @@ export function SalonCard({ salon, therapists, showAge = false, areaNextToDuty =
           {areaLabel(salon.area)}
         </span>
       )}
+      {/* 第2エリア（任意）。設定時のみ2個目の地域バッジを出す。第1と同値・出張は念のため除外。 */}
+      {salon.area2 && salon.area2 !== salon.area && salon.area2 !== DISPATCH_AREA && (
+        <span className="flex-shrink-0 text-xs font-semibold px-2.5 py-0.5 rounded-full bg-pink-50 text-pink-600 border border-pink-200">
+          {areaLabel(salon.area2)}
+        </span>
+      )}
       {dispatchBadge}
     </>
   );
@@ -482,7 +488,7 @@ export function ShuffledSalons({ salons, areas, showAge = false, areaNextToDuty 
   // エリア一致判定。includeDispatch 時（出張ページ）は、選択中の出張エリアに限り
   // dispatch_type が none 以外（available/only）のサロンも OR で含める。
   const matchesArea = (s: Salon, area: string) =>
-    s.area === area || (includeDispatch && area === activeAreaEffective && s.dispatchType !== 'none');
+    s.area === area || s.area2 === area || (includeDispatch && area === activeAreaEffective && s.dispatchType !== 'none');
 
   const filtered =
     activeAreaEffective === '福岡全域' ? list : list.filter(s => matchesArea(s, activeAreaEffective));

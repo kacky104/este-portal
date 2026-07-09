@@ -10,6 +10,7 @@ export type Salon = {
   tags:        string[];
   price:       string;
   area:        string;
+  area2:       string; // 第2エリア（任意）。未設定は ''。
   hours:       string;
   description: string;
   // area とは独立した別軸のフラグ。
@@ -22,7 +23,7 @@ export type DispatchType = Salon['dispatchType'];
 // 取得列はここ1か所に集約（二重実装しない）。
 // price はカラム（先頭コース由来の旧スナップショット）だが、カード表示は courses から算出した最安に切替えるため courses も取得。
 const SALON_COLUMNS =
-  'id, name, rating, review_count, tags, price, area, hours, description, show_on_top, dispatch_type, courses';
+  'id, name, rating, review_count, tags, price, area, area2, hours, description, show_on_top, dispatch_type, courses';
 
 function mapSalonRow(row: Record<string, unknown>): Salon {
   return {
@@ -35,6 +36,7 @@ function mapSalonRow(row: Record<string, unknown>): Salon {
     // 算出不可（時間付きコース0件）のときは従来の price カラムにフォールバック（現状踏襲・破綻防止）。
     price:       cheapestCoursePrice(row.courses) || ((row.price as string) ?? ''),
     area:        (row.area as string) ?? '',
+    area2:       (row.area2 as string) ?? '',
     hours:       (row.hours as string) ?? '',
     description: (row.description as string) ?? '',
     showOnTop:    (row.show_on_top as boolean) ?? true,

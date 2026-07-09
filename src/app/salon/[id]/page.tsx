@@ -125,6 +125,7 @@ function buildSalonJsonLd(
     id: number;
     name: string;
     area: string;
+    area2: string;
     address: string;
     phone: string;
     price: string;
@@ -144,7 +145,9 @@ function buildSalonJsonLd(
       addressRegion: '福岡県',
       addressCountry: 'JP',
     },
-    areaServed: areaLabel(salon.area),
+    areaServed: salon.area2
+      ? [areaLabel(salon.area), areaLabel(salon.area2)]
+      : areaLabel(salon.area),
   };
   if (salon.phone) ld.telephone = salon.phone;
   if (images.length > 0) ld.image = images;
@@ -182,7 +185,7 @@ export default async function SalonPage({
   ] = await Promise.all([
     supabase
       .from('salons')
-      .select('id, name, rating, review_count, tags, price, area, hours, description, appeal, phone, address, access, closed_days, courses, theme, official_url, fukux_url, payment_methods, is_hidden')
+      .select('id, name, rating, review_count, tags, price, area, area2, hours, description, appeal, phone, address, access, closed_days, courses, theme, official_url, fukux_url, payment_methods, is_hidden')
       .eq('id', Number(id))
       .single(),
     supabase
@@ -225,6 +228,7 @@ export default async function SalonPage({
     tags:        (row.tags as string[]) ?? [],
     price:       (row.price as string) ?? '',
     area:        (row.area as string) ?? '',
+    area2:       (row.area2 as string) ?? '',
     hours:       (row.hours as string) ?? '',
     description: (row.description as string) ?? '',
     appeal:      (row.appeal as string) ?? '',

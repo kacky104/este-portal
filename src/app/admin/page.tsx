@@ -29,6 +29,7 @@ type Salon = {
   id:          number;
   name:        string | null;
   area:        string | null;
+  area2:       string | null;
   price:       string | null;
   rating:      number | null;
   owner_id:    string | null;
@@ -148,7 +149,7 @@ export default function AdminDashboard() {
   const fetchSalons = useCallback(async () => {
     const { data, error } = await supabase
       .from('salons')
-      .select('id, name, area, price, rating, owner_id, hours, phone, address, access, closed_days, show_on_top, dispatch_type, is_hidden, booking_email')
+      .select('id, name, area, area2, price, rating, owner_id, hours, phone, address, access, closed_days, show_on_top, dispatch_type, is_hidden, booking_email')
       .order('id', { ascending: true });
     if (error) {
       setFetchError('サロンデータの取得に失敗しました');
@@ -543,7 +544,7 @@ export default function AdminDashboard() {
                       <td className="px-4 py-3 text-xs font-bold text-slate-800">{salon.name ?? '—'}</td>
                       <td className="px-4 py-3">
                         <span className="text-[11px] px-2.5 py-0.5 rounded-full bg-pink-50 text-pink-600 border border-pink-100 font-medium">
-                          {salon.area ? areaLabel(salon.area) : '—'}
+                          {salon.area ? areaLabel(salon.area) + (salon.area2 ? ` / ${areaLabel(salon.area2)}` : '') : '—'}
                         </span>
                       </td>
                       <td className="px-4 py-3">

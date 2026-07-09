@@ -5,7 +5,7 @@ import { createClient } from '@/app/lib/supabase/client';
 import { revalidateSalon, revalidateTopAndAreas } from '@/app/lib/revalidateTop';
 import { TimeRangePicker } from '@/components/TimeRangePicker';
 import { areaLabel } from '@/app/lib/areaLabel';
-import { AREA_ORDER } from '@/app/lib/areas';
+import { AREA_ORDER, ALL_AREA, DISPATCH_AREA } from '@/app/lib/areas';
 import {
   adminGetOwnerEmail,
   adminUpdateOwnerEmail,
@@ -19,6 +19,7 @@ export type SalonForEdit = {
   id:          number;
   name:        string | null;
   area:        string | null;
+  area2:       string | null;
   price:       string | null;
   hours:       string | null;
   phone:       string | null;
@@ -44,6 +45,7 @@ export default function SalonEditModal({ salon, onClose, onSaved }: Props) {
   const [form, setForm] = useState({
     name:        salon.name        ?? '',
     area:        salon.area        ?? AREA_ORDER[1],
+    area2:       salon.area2 ?? '',
     price:       salon.price       ?? '',
     hours:       salon.hours       ?? '',
     phone:       salon.phone       ?? '',
@@ -141,6 +143,7 @@ export default function SalonEditModal({ salon, onClose, onSaved }: Props) {
       .update({
         name:        form.name.trim(),
         area:        form.area,
+        area2:       form.area2 || null,
         price:       form.price.trim(),
         hours:       form.hours.trim(),
         phone:       form.phone.trim(),
@@ -225,7 +228,7 @@ export default function SalonEditModal({ salon, onClose, onSaved }: Props) {
             />
           </div>
 
-          {/* エリア ＋ 料金 */}
+          {/* エリア（第1・第2）＋ 料金 */}
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-1">
               <label className="text-[11px] font-bold text-slate-400 block">エリア</label>
@@ -235,6 +238,19 @@ export default function SalonEditModal({ salon, onClose, onSaved }: Props) {
                 className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs bg-slate-50/50 focus:outline-none focus:ring-2 focus:ring-pink-200"
               >
                 {AREA_ORDER.map(a => <option key={a} value={a}>{areaLabel(a)}</option>)}
+              </select>
+            </div>
+            <div className="space-y-1">
+              <label className="text-[11px] font-bold text-slate-400 block">第2エリア（任意）</label>
+              <select
+                value={form.area2}
+                onChange={set('area2')}
+                className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs bg-slate-50/50 focus:outline-none focus:ring-2 focus:ring-pink-200"
+              >
+                <option value="">（設定しない）</option>
+                {AREA_ORDER.filter(a => a !== ALL_AREA && a !== DISPATCH_AREA).map(a => (
+                  <option key={a} value={a}>{areaLabel(a)}</option>
+                ))}
               </select>
             </div>
             {textField('料金', 'price', '例: 60分 ¥8,000〜')}
