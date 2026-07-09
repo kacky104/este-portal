@@ -39,12 +39,14 @@ export async function revalidateFeaturedArea(area: string | null): Promise<void>
 }
 
 // 指定サロンの詳細ページ配下（本体＋サブページ）を無効化する。
-// サロン情報はトップのカード表示にも影響しうるため、既定でトップ(/)も無効化する。
+// サロン情報はトップ・エリアページのカード表示にも影響するため、既定でトップ(/)と
+// 全エリアページ(/area/[slug])も無効化する（API 側は areasAll 対応済み）。
 export async function revalidateSalon(
   salonId: number | string,
   opts?: { top?: boolean },
 ): Promise<void> {
-  await postRevalidate({ salonId, top: opts?.top ?? true });
+  const top = opts?.top ?? true;
+  await postRevalidate({ salonId, top, areasAll: top });
 }
 
 // 指定セラピストの公開ページ配下（本体＋/diary・/reviews）を無効化する。
