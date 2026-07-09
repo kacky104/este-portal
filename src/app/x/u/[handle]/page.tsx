@@ -1,5 +1,7 @@
+import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import { createClient } from '@/app/lib/supabase/server';
+import { createPublicClient } from '@/app/lib/supabase/public';
 import { ADMIN_UUID } from '@/app/lib/admin';
 import { getXContext, type XProfile, type XKind, type XStatus } from '../../xProfile';
 import {
@@ -52,6 +54,48 @@ type ProfileRow = {
 // LIKE のワイルドカード（% _ \）をエスケープし、ilike で大文字小文字無視の「完全一致」にする。
 function escapeLike(s: string): string {
   return s.replace(/([\\%_])/g, '\\$1');
+}
+
+// プロフィールの個別 metadata / OGP。本体は viewer 依存（Cookie 認証）だが、metadata は公開情報のみで
+// 良いため createPublicClient（anon）で軽量に別取得する（本体は列が多く viewer 依存のため共有しない）。
+export async function generateMetadata({ params }: { params: Promise<{ handle: string }> }): Promise<Metadata> {
+  const { handle } = await params;
+  const decoded = decodeURIComponent(handle);
+  const client = createPublicClient();
+  const { data: p } = await client
+    .from('x_profiles')
+    .select('handle, display_name, bio, avatar_url, header_url, status')
+    .ilike('handle', escapeLike(decoded))
+    .maybeSingle();
+
+  // 不在・未承認は noindex（page 側は従来通り notFound / RLS 二重防御）。
+  if (!p || p.status !== 'approved' || p.handle.toLowerCase() !== decoded.toLowerCase()) {
+    return { robots: { index: false, follow: false } };
+  }
+
+  const title = `${p.display_name}(@${p.handle})｜fukuX`;
+  const bio = (p.bio ?? '').replace(/\s+/g, ' ').trim();
+  const description = bio
+    ? bio.length > 110 ? bio.slice(0, 110) + '…' : bio
+    : `${p.display_name}さんのfukuXプロフィール。メンズエステ専用SNS「fukuX」で投稿・出勤情報をチェック。`;
+  const image = p.header_url ?? p.avatar_url ?? '/ogp-fukux.png';
+  const canonical = `/x/u/${encodeURIComponent(p.handle)}`; // DB上の実handle（大文字小文字ゆれをcanonicalで正規化）
+
+  return {
+    title,
+    description,
+    alternates: { canonical },
+    openGraph: {
+      title,
+      description,
+      url: canonical,
+      siteName: 'fukuX',
+      images: [{ url: image }],
+      locale: 'ja_JP',
+      type: 'profile',
+    },
+    twitter: { card: 'summary_large_image', title, description, images: [image] },
+  };
 }
 
 export default async function XProfilePage({ params }: { params: Promise<{ handle: string }> }) {

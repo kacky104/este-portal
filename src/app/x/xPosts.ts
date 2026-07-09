@@ -1,3 +1,4 @@
+import { cache } from 'react';
 import { createPublicClient } from '@/app/lib/supabase/public';
 import { createClient } from '@/app/lib/supabase/server';
 import { seededWeightedShuffle, thirtyMinSeed } from '@/lib/shuffle';
@@ -243,13 +244,15 @@ export async function fetchFollowingPosts(followeeIds: string[]): Promise<XPost[
 
 // 投稿詳細ページ用：単一投稿を公開クライアントで取得（ISRキャッシュ可）。見つからなければ null。
 // リプライ一覧・いいね/フォロー状態など本人依存・動的な部分はクライアント側でマウント時に取得する。
-export async function fetchPostById(id: string): Promise<XPost | null> {
+// React cache() でラップ：同一リクエスト内の generateMetadata と page 本体の二重フェッチを防ぐ
+// （生Supabaseクエリは fetch と違い自動dedupeされないため）。シグネチャ・中身は不変。
+export const fetchPostById = cache(async (id: string): Promise<XPost | null> => {
   const client = createPublicClient();
   const { data } = await client.from('x_posts').select(POST_COLS).eq('id', id).maybeSingle();
   if (!data) return null;
   const out = await attachAuthors(client, [data as PostRow]);
   return out[0] ?? null;
-}
+});
 
 // 指定の投稿群のうち自分がいいね済みの post_id 一覧（いいね状態のUI反映用）。
 export async function fetchMyLikedPostIds(myProfileId: string, postIds: string[]): Promise<string[]> {

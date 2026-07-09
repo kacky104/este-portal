@@ -16,7 +16,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const supabase = createPublicClient();
 
   // 公開サロン／公開サロン所属セラピスト／掲載中求人を並列取得。失敗時は空配列（サイトマップは壊さない）。
-  const [salonsRes, therapistsRes, jobs, featureSlugs, areaTag, dispatchJobs, columnArticles] = await Promise.all([
+  const [salonsRes, therapistsRes, jobs, featureSlugs, areaTag, dispatchJobs, columnArticles, xProfilesRes, xPostsRes] = await Promise.all([
     supabase.from('salons').select('id').eq('is_hidden', false),
     supabase.from('therapists').select('id, salons!inner(is_hidden)').eq('salons.is_hidden', false),
     fetchActiveJobsForSitemap(),
@@ -28,6 +28,9 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     fetchActiveDispatchJobs(),
     // 公開コラム（work_articles・published のみ）。詳細URL＋公開記事のあるカテゴリページに使う。
     fetchPublishedArticlesForSitemap(),
+    // fukuX: 承認済みプロフィール全件＋トップレベル投稿全件（RLSに加え status='approved' を明示フィルタ）。
+    supabase.from('x_profiles').select('handle').eq('status', 'approved'),
+    supabase.from('x_posts').select('id, edited_at, created_at').is('parent_post_id', null),
   ]);
 
   const now = new Date();
@@ -127,6 +130,25 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       priority: 0.6,
     }));
 
+  // fukuX（/x配下）：トップ＋承認済みプロフィール＋トップレベル投稿。失敗時は空配列（サイトマップは壊さない）。
+  const xStaticEntries: MetadataRoute.Sitemap = [
+    { url: `${SITE_URL}/x`, lastModified: now, changeFrequency: 'daily', priority: 0.8 },
+  ];
+
+  const xProfileEntries: MetadataRoute.Sitemap = (xProfilesRes.data ?? []).map((p) => ({
+    url: `${SITE_URL}/x/u/${encodeURIComponent(p.handle)}`,
+    lastModified: now,
+    changeFrequency: 'weekly',
+    priority: 0.5,
+  }));
+
+  const xPostEntries: MetadataRoute.Sitemap = (xPostsRes.data ?? []).map((r) => ({
+    url: `${SITE_URL}/x/post/${r.id}`,
+    lastModified: new Date(r.edited_at ?? r.created_at),
+    changeFrequency: 'weekly',
+    priority: 0.4,
+  }));
+
   return [
     ...staticEntries,
     ...areaPageEntries,
@@ -139,5 +161,8 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     ...dispatchEntries,
     ...columnCategoryEntries,
     ...columnArticleEntries,
+    ...xStaticEntries,
+    ...xProfileEntries,
+    ...xPostEntries,
   ];
 }

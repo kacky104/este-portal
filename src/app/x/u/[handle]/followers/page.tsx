@@ -8,6 +8,9 @@ import { createClient } from '@/app/lib/supabase/server';
 // スキボタンの owner/kind 判定は本人依存なので Cookie 経由で行う（このページのみ閲覧者依存になる）。
 export const dynamic = 'force-dynamic';
 
+// フォロワー一覧は薄いページのため検索インデックス対象外（プロフィールへのリンクは辿らせる）。
+export const metadata = { robots: { index: false, follow: true } };
+
 export default async function XFollowersPage({ params }: { params: Promise<{ handle: string }> }) {
   const { handle } = await params;
   const decoded = decodeURIComponent(handle);
