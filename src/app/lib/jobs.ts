@@ -222,6 +222,7 @@ export type JobSalon = {
   id: number;
   name: string;
   area: string;
+  area2: string;
 };
 
 export type JobListItem = {
@@ -298,6 +299,7 @@ export type JobDetail = {
     id: number;
     name: string;
     area: string;
+    area2: string;
     address: string | null;
     // salons テーブルの電話番号カラムは `phone`（`tel` ではない）。応募導線の tel: リンクに使う。
     phone: string | null;
@@ -317,7 +319,7 @@ export async function fetchActiveJobs(): Promise<JobListItem[]> {
   const { data } = await supabase
     .from('salon_jobs')
     // hero_image_urls を1列だけ相乗り（/jobs トップのバナー枠を別クエリ無しで賄う）。
-    .select('id, title, salary_text, published_at, features, hero_image_urls, salons!inner(id, name, area, is_hidden)')
+    .select('id, title, salary_text, published_at, features, hero_image_urls, salons!inner(id, name, area, area2, is_hidden)')
     .eq('is_active', true)
     .eq('salons.is_hidden', false)
     .order('published_at', { ascending: false });
@@ -337,7 +339,7 @@ export async function fetchActiveJobsBySalonIds(salonIds: number[]): Promise<Job
   const supabase = createPublicClient();
   const { data } = await supabase
     .from('salon_jobs')
-    .select('id, title, salary_text, published_at, features, hero_image_urls, salons!inner(id, name, area, is_hidden)')
+    .select('id, title, salary_text, published_at, features, hero_image_urls, salons!inner(id, name, area, area2, is_hidden)')
     .eq('is_active', true)
     .eq('salons.is_hidden', false)
     .in('salon_id', ids)
@@ -350,7 +352,7 @@ export async function fetchActiveJobsBySalonIds(salonIds: number[]): Promise<Job
 
 // 一覧行 → JobListItem（fetchActiveJobs / fetchActiveJobsByFeature で共用）。
 function mapJobListItem(row: Record<string, unknown>): JobListItem | null {
-  const salon = pickSalon<{ id: number; name: string; area: string | null }>(row.salons);
+  const salon = pickSalon<{ id: number; name: string; area: string | null; area2?: string | null }>(row.salons);
   if (!salon) return null;
   return {
     id: row.id as number,
@@ -362,6 +364,7 @@ function mapJobListItem(row: Record<string, unknown>): JobListItem | null {
       id: salon.id,
       name: salon.name ?? '',
       area: salon.area ?? '',
+      area2: salon.area2 ?? '',
     },
     // SELECT に hero_image_urls を含む取得系（fetchActiveJobs）のみ値が入る。他は undefined→空配列。
     heroImageUrls: sanitizeHeroUrls(row.hero_image_urls),
@@ -453,7 +456,7 @@ export async function fetchActiveJobsByFeature(slug: string): Promise<JobListIte
   const supabase = createPublicClient();
   const { data } = await supabase
     .from('salon_jobs')
-    .select('id, title, salary_text, published_at, features, hero_image_urls, salons!inner(id, name, area, is_hidden)')
+    .select('id, title, salary_text, published_at, features, hero_image_urls, salons!inner(id, name, area, area2, is_hidden)')
     .eq('is_active', true)
     .eq('salons.is_hidden', false)
     .contains('features', [slug])
@@ -472,10 +475,12 @@ export async function fetchActiveJobsByArea(area: string): Promise<JobListItem[]
   const supabase = createPublicClient();
   const { data } = await supabase
     .from('salon_jobs')
-    .select('id, title, salary_text, published_at, features, hero_image_urls, salons!inner(id, name, area, is_hidden)')
+    .select('id, title, salary_text, published_at, features, hero_image_urls, salons!inner(id, name, area, area2, is_hidden)')
     .eq('is_active', true)
     .eq('salons.is_hidden', false)
-    .eq('salons.area', area)
+    // 第1エリア（area）または第2エリア（area2）の一致で拾う。値をダブルクォートで囲み
+    // PostgREST の or 構文の予約文字と衝突しないようにする。!inner なので不一致の求人は親ごと落ちる。
+    .or(`area.eq."${area}",area2.eq."${area}"`, { referencedTable: 'salons' })
     .order('published_at', { ascending: false });
 
   return (data ?? [])
@@ -492,7 +497,7 @@ export async function fetchActiveDispatchJobs(): Promise<JobListItem[]> {
   const supabase = createPublicClient();
   const { data } = await supabase
     .from('salon_jobs')
-    .select('id, title, salary_text, published_at, features, hero_image_urls, salons!inner(id, name, area, is_hidden)')
+    .select('id, title, salary_text, published_at, features, hero_image_urls, salons!inner(id, name, area, area2, is_hidden)')
     .eq('is_active', true)
     .eq('salons.is_hidden', false)
     .eq('salons.dispatch_type', 'only')
@@ -511,10 +516,12 @@ export async function fetchActiveJobsByAreaAndFeature(area: string, slug: string
   const supabase = createPublicClient();
   const { data } = await supabase
     .from('salon_jobs')
-    .select('id, title, salary_text, published_at, features, hero_image_urls, salons!inner(id, name, area, is_hidden)')
+    .select('id, title, salary_text, published_at, features, hero_image_urls, salons!inner(id, name, area, area2, is_hidden)')
     .eq('is_active', true)
     .eq('salons.is_hidden', false)
-    .eq('salons.area', area)
+    // 第1エリア（area）または第2エリア（area2）の一致で拾う。値をダブルクォートで囲み
+    // PostgREST の or 構文の予約文字と衝突しないようにする。!inner なので不一致の求人は親ごと落ちる。
+    .or(`area.eq."${area}",area2.eq."${area}"`, { referencedTable: 'salons' })
     .contains('features', [slug])
     .order('published_at', { ascending: false });
 
@@ -580,7 +587,7 @@ export async function fetchAreaTagPairsWithActiveJobs(): Promise<{
   const supabase = createPublicClient();
   const { data } = await supabase
     .from('salon_jobs')
-    .select('features, salons!inner(area, is_hidden)')
+    .select('features, salons!inner(area, area2, is_hidden)')
     .eq('is_active', true)
     .eq('salons.is_hidden', false);
 
@@ -590,11 +597,14 @@ export async function fetchAreaTagPairsWithActiveJobs(): Promise<{
 
   (data ?? []).forEach((row) => {
     const rec = row as Record<string, unknown>;
-    const salon = pickSalon<{ area: string | null }>(rec.salons);
-    const area = salon?.area ?? '';
-    if (!normalAreas.has(area)) return;
-    areaSet.add(area);
-    sanitizeFeatures(rec.features).forEach((slug) => pairSet.add(`${area} ${slug}`));
+    const salon = pickSalon<{ area: string | null; area2?: string | null }>(rec.salons);
+    const salonAreas = [...new Set([salon?.area ?? '', salon?.area2 ?? ''])].filter((a) => normalAreas.has(a));
+    if (salonAreas.length === 0) return;
+    const feats = sanitizeFeatures(rec.features);
+    for (const area of salonAreas) {
+      areaSet.add(area);
+      feats.forEach((slug) => pairSet.add(`${area} ${slug}`));
+    }
   });
 
   // 表示順（AREA_ORDER）を維持して返す。
@@ -612,7 +622,7 @@ export async function fetchJobById(id: number): Promise<JobDetail | null> {
   const { data, error } = await supabase
     .from('salon_jobs')
     .select(
-      'id, title, salary_text, published_at, area, work_hours, benefits, qualifications, access, description, salary_min, salary_max, features, hero_image_urls, gallery_images, therapist_voices, apply_email, apply_line_url, celebration_money, salons!inner(id, name, area, address, phone, is_hidden)'
+      'id, title, salary_text, published_at, area, work_hours, benefits, qualifications, access, description, salary_min, salary_max, features, hero_image_urls, gallery_images, therapist_voices, apply_email, apply_line_url, celebration_money, salons!inner(id, name, area, area2, address, phone, is_hidden)'
     )
     .eq('id', id)
     .eq('is_active', true)
@@ -625,6 +635,7 @@ export async function fetchJobById(id: number): Promise<JobDetail | null> {
     id: number;
     name: string;
     area: string | null;
+    area2?: string | null;
     address: string | null;
     phone: string | null;
   }>(data.salons);
@@ -654,6 +665,7 @@ export async function fetchJobById(id: number): Promise<JobDetail | null> {
       id: salon.id,
       name: salon.name ?? '',
       area: salon.area ?? '',
+      area2: salon.area2 ?? '',
       address: salon.address ?? null,
       phone: salon.phone ?? null,
     },
