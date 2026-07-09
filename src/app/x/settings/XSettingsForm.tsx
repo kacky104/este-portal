@@ -58,6 +58,8 @@ export function XSettingsForm({
   const isTherapist = profile.kind === 'therapist';
   const isShop = profile.kind === 'shop';
   const [address, setAddress] = useState(profile.address ?? '');
+  // DM受付オフ（全kind共通）。オンにすると自分・相手とも新規/追加送信が不可になる（過去の閲覧は可）。
+  const [dmDisabled, setDmDisabled] = useState(profile.dm_disabled);
   const [avatarUrl, setAvatarUrl] = useState<string | null>(profile.avatar_url);
   const [headerUrl, setHeaderUrl] = useState<string | null>(profile.header_url);
 
@@ -150,6 +152,7 @@ export function XSettingsForm({
         avatar_url: avatarUrl,
         header_url: headerUrl,
         link_url: linkUrl,
+        dm_disabled: dmDisabled,
         // 年齢・スリーサイズはセラピストのみ保存対象（他種別では欄を出さず、キーも送らない＝null上書き防止）。
         ...(isTherapist
           ? {
@@ -313,6 +316,24 @@ export function XSettingsForm({
           className="w-full px-4 py-3 rounded-xl border border-slate-200 text-base bg-slate-50/50 focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:border-transparent"
         />
         <p className="text-[10px] text-slate-400 mt-1 px-1">http:// または https:// のリンク（プロフィールに表示されます）</p>
+      </div>
+
+      {/* ── プライバシー：DM受付（全kind共通） ── */}
+      <div className="rounded-2xl border border-slate-200 bg-slate-50/60 p-4">
+        <label className="flex items-start gap-3 cursor-pointer select-none">
+          <input
+            type="checkbox"
+            checked={dmDisabled}
+            onChange={(e) => setDmDisabled(e.target.checked)}
+            className="mt-0.5 w-4 h-4 accent-indigo-500 flex-shrink-0"
+          />
+          <span>
+            <span className="text-sm font-bold text-slate-700">メッセージ（DM）を受け付けない</span>
+            <span className="block text-[11px] text-slate-400 mt-1 leading-relaxed">
+              オンにすると誰からもメッセージを受け取れません。既存の会話への送信も（あなた・相手とも）できなくなります。
+            </span>
+          </span>
+        </label>
       </div>
 
       {/* ── 住所（お店アカウントのみ・任意）── text-base(16px) で iOS 自動ズーム抑止 */}

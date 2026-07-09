@@ -13,4 +13,5 @@ export type DmOtherProfile = {
   kind: 'user' | 'therapist' | 'shop' | 'official';
   isVerified: boolean;
   status: string;
+  dmDisabled: boolean; // 相手がDM受付オフ。true なら送信不可（過去メッセージの閲覧は可）。
 };

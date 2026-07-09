@@ -83,7 +83,7 @@ export function XThread({ conversationId }: { conversationId: string }) {
       const otherId = (conv.participant_a as string) === myId ? (conv.participant_b as string) : (conv.participant_a as string);
       const { data: op } = await sb
         .from('x_profiles')
-        .select('id, handle, display_name, avatar_url, kind, is_verified, status')
+        .select('id, handle, display_name, avatar_url, kind, is_verified, status, dm_disabled')
         .eq('id', otherId)
         .maybeSingle();
       if (alive && op) {
@@ -95,6 +95,7 @@ export function XThread({ conversationId }: { conversationId: string }) {
           kind: ((op.kind as string) ?? 'user') as DmOtherProfile['kind'],
           isVerified: Boolean(op.is_verified),
           status: (op.status as string) ?? 'approved',
+          dmDisabled: Boolean(op.dm_disabled),
         });
       }
 
@@ -165,6 +166,11 @@ export function XThread({ conversationId }: { conversationId: string }) {
     });
     setInput('');
   };
+
+  // DM受付オフ：どちらか一方でも true なら新規送信不可（過去メッセージの閲覧・既読化は従来どおり）。
+  const dmSelfOff = !!me?.dm_disabled;
+  const dmOtherOff = !!other?.dmDisabled;
+  const dmBlocked = dmSelfOff || dmOtherOff;
 
   return (
     <div className="py-3">
@@ -247,33 +253,49 @@ export function XThread({ conversationId }: { conversationId: string }) {
             <div ref={bottomRef} />
           </div>
 
-          {/* 送信フォーム */}
-          <div className="x-card rounded-2xl bg-white/[0.94] shadow-[0_4px_16px_rgba(109,40,217,0.3)] p-2">
-            {error && <p className="text-[12px] text-rose-500 font-medium px-2 pb-1">⚠️ {error}</p>}
-            <div className="flex items-end gap-2">
-              <input
-                value={input}
-                onChange={(e) => setInput(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter' && !e.shiftKey) {
-                    e.preventDefault();
-                    send();
-                  }
-                }}
-                placeholder="メッセージを入力"
-                className="flex-1 px-3 py-2.5 rounded-xl border border-slate-200 bg-slate-50/50 text-base focus:outline-none focus:ring-2 focus:ring-indigo-300 focus:border-transparent"
-              />
-              <button
-                type="button"
-                onClick={send}
-                disabled={sending || !input.trim()}
-                className="px-4 py-2.5 rounded-xl text-white font-bold text-sm shadow-sm disabled:opacity-40 disabled:cursor-not-allowed transition-opacity"
-                style={{ background: 'linear-gradient(100deg,#6366F1,#8B5CF6)' }}
-              >
-                {sending ? '送信中' : '送信'}
-              </button>
+          {/* 送信フォーム（DM受付オフのときは案内カードに差し替え。過去メッセージの閲覧は上のとおり可能）。 */}
+          {dmBlocked ? (
+            <div className="x-card rounded-2xl bg-white/[0.94] shadow-[0_4px_16px_rgba(109,40,217,0.3)] p-4 text-center">
+              {dmOtherOff ? (
+                <p className="text-sm text-slate-600 leading-relaxed">このアカウントはメッセージを受け付けていません。</p>
+              ) : (
+                <p className="text-sm text-slate-600 leading-relaxed">
+                  DM受付をオフにしているため送信できません。
+                  <Link href="/x/settings" className="text-indigo-600 font-bold underline underline-offset-2">
+                    設定
+                  </Link>
+                  から変更できます。
+                </p>
+              )}
             </div>
-          </div>
+          ) : (
+            <div className="x-card rounded-2xl bg-white/[0.94] shadow-[0_4px_16px_rgba(109,40,217,0.3)] p-2">
+              {error && <p className="text-[12px] text-rose-500 font-medium px-2 pb-1">⚠️ {error}</p>}
+              <div className="flex items-end gap-2">
+                <input
+                  value={input}
+                  onChange={(e) => setInput(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' && !e.shiftKey) {
+                      e.preventDefault();
+                      send();
+                    }
+                  }}
+                  placeholder="メッセージを入力"
+                  className="flex-1 px-3 py-2.5 rounded-xl border border-slate-200 bg-slate-50/50 text-base focus:outline-none focus:ring-2 focus:ring-indigo-300 focus:border-transparent"
+                />
+                <button
+                  type="button"
+                  onClick={send}
+                  disabled={sending || !input.trim()}
+                  className="px-4 py-2.5 rounded-xl text-white font-bold text-sm shadow-sm disabled:opacity-40 disabled:cursor-not-allowed transition-opacity"
+                  style={{ background: 'linear-gradient(100deg,#6366F1,#8B5CF6)' }}
+                >
+                  {sending ? '送信中' : '送信'}
+                </button>
+              </div>
+            </div>
+          )}
         </>
       )}
     </div>

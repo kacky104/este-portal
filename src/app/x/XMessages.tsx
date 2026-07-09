@@ -65,7 +65,7 @@ export function XMessages() {
       const [profRes, readRes, msgRes] = await Promise.all([
         sb
           .from('x_profiles')
-          .select('id, handle, display_name, avatar_url, kind, is_verified, status')
+          .select('id, handle, display_name, avatar_url, kind, is_verified, status, dm_disabled')
           .in('id', otherIds),
         sb.from('x_conversation_reads').select('conversation_id, last_read_at').eq('profile_id', myId).in('conversation_id', convIds),
         sb
@@ -86,6 +86,7 @@ export function XMessages() {
           kind: ((p.kind as string) ?? 'user') as DmOtherProfile['kind'],
           isVerified: Boolean(p.is_verified),
           status: (p.status as string) ?? 'approved',
+          dmDisabled: Boolean(p.dm_disabled),
         })
       );
 

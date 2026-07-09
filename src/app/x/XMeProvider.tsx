@@ -16,7 +16,7 @@ import type { XProfile } from './xProfile';
 
 const supabase = createClient();
 const PROFILE_COLS =
-  'id, auth_user_id, kind, status, handle, display_name, bio, avatar_url, header_url, is_verified, affiliated_shop_id, link_url';
+  'id, auth_user_id, kind, status, handle, display_name, bio, avatar_url, header_url, is_verified, affiliated_shop_id, link_url, dm_disabled';
 
 export type MeContextValue = {
   me: XProfile | null; // 開設済みプロフィール（未開設は null）

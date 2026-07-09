@@ -23,7 +23,9 @@ export function XMessageButton({
   const [busy, setBusy] = useState(false);
   const [toast, setToast] = useState('');
 
-  const canEvaluate = !!viewerProfile && !isOwnProfile && viewerProfile.status !== 'rejected';
+  // どちらか一方でも DM受付オフなら開始不可（相手＝target・自分＝viewerProfile）。最終防御はDB側RPC。
+  const dmBlocked = target.dm_disabled || !!viewerProfile?.dm_disabled;
+  const canEvaluate = !!viewerProfile && !isOwnProfile && viewerProfile.status !== 'rejected' && !dmBlocked;
 
   useEffect(() => {
     if (!canEvaluate || !viewerProfile) return;

@@ -28,10 +28,11 @@ export type XProfile = {
   hip: number | null; // H（ヒップcm）
   created_at: string | null; // プロフィール作成日時（= fukuX開始日）。表示のみ・変更不可。
   address: string | null; // 住所（お店アカウントのみ・任意）。
+  dm_disabled: boolean; // DM受付オフ。どちらか一方がtrueなら相互に送信不可（過去メッセージの閲覧は可）。
 };
 
 const XPROFILE_COLUMNS =
-  'id, auth_user_id, kind, status, handle, display_name, bio, avatar_url, header_url, is_verified, affiliated_shop_id, link_url, age, height, bust, cup, waist, hip, created_at, address';
+  'id, auth_user_id, kind, status, handle, display_name, bio, avatar_url, header_url, is_verified, affiliated_shop_id, link_url, age, height, bust, cup, waist, hip, created_at, address, dm_disabled';
 
 // ログインユーザーと、その x_profiles（未作成なら null）をサーバー側でまとめて取得する。
 // /x・/x/onboarding の分岐に使う。RLS の select は公開だが、自分の行は auth_user_id で引く。
