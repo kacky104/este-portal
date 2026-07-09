@@ -255,7 +255,7 @@ export function GridCard({ therapist, index, showJoinDate = false, from, enableW
               <span className="font-bold text-slate-900 whitespace-nowrap">{therapist.name}</span>
               {therapist.age && <span className="text-[0.9em] text-slate-500 whitespace-nowrap">({therapist.age})</span>}
             </span>
-            {/* 出勤バッジ：デスクトップ(md以上)は名前行に表示（スマホはスリーサイズ行へ） */}
+            {/* 出勤バッジ：デスクトップ(md以上)は従来どおり出勤時間の左（名前の右） */}
             {ss && (
               <span className={`hidden md:inline-flex items-center flex-shrink-0 text-[9px] font-bold px-1.5 py-0.5 rounded-full ${ss.badgeCls}`}>
                 {ss.label}
@@ -266,20 +266,19 @@ export function GridCard({ therapist, index, showJoinDate = false, from, enableW
                 {displayHours || therapist.workHours || '—'}
               </span>
             )}
+            {/* 出勤バッジ：スマホ(md未満)は出勤時間の右隣り（スリーサイズ行の切れ対策で移動） */}
+            {ss && (
+              <span className={`md:hidden inline-flex items-center flex-shrink-0 text-[9px] font-bold px-1.5 py-0.5 rounded-full ${ss.badgeCls}`}>
+                {ss.label}
+              </span>
+            )}
           </div>
-          {/* スリーサイズ行：スマホ(md未満)のみ出勤バッジをスリーサイズの左横に並べる（1行・はみ出しは省略） */}
-          {(ss || bodySizes) && (
+          {/* スリーサイズ行（出勤バッジは名前行へ移動済み） */}
+          {bodySizes && (
             <div className="flex items-center gap-1.5 mb-0.5 min-w-0">
-              {ss && (
-                <span className={`md:hidden flex-shrink-0 text-[9px] font-bold px-1.5 py-0.5 rounded-full ${ss.badgeCls}`}>
-                  {ss.label}
-                </span>
-              )}
-              {bodySizes && (
-                <span className="text-slate-500 truncate min-w-0" style={{ fontSize: '12px' }}>
-                  {bodySizes}
-                </span>
-              )}
+              <span className="text-slate-500 truncate min-w-0" style={{ fontSize: '12px' }}>
+                {bodySizes}
+              </span>
             </div>
           )}
           <FeatureBadges badges={therapist.featureBadges} className="mb-1" />
@@ -317,8 +316,8 @@ export function GridCard({ therapist, index, showJoinDate = false, from, enableW
   if (!showSaveButton) return card;
 
   // 保存ボタンは Link の外側に重ねる（anchor 内の button ネストとスパークのクリップを避ける）。
-  // photo-left=/saved（写真左上・出勤バッジと干渉しない） / card-right=在籍一覧（カード右上）。
-  const posClass = saveButtonPos === 'card-right' ? 'top-2 right-2' : 'top-1.5 left-1.5';
+  // photo-left=/saved（写真左上・出勤バッジと干渉しない） / card-right=在籍一覧（カード右下・スリーサイズ切れ対策で右上から移動）。
+  const posClass = saveButtonPos === 'card-right' ? 'bottom-2 right-2' : 'top-1.5 left-1.5';
   return (
     <div className="relative">
       {card}
