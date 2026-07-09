@@ -9,8 +9,10 @@ import './x-theme.css';
 // fukuX 専用シェル。既存フクエスの共通ヘッダー（Logo/各メニュー）は出さず、独自ヘッダーにする。
 // ルートレイアウト（Cookie認証・<Wallpaper/>）は継承される。Wallpaper は /x 配下を除外済み（肉球壁紙なし）。
 export const metadata: Metadata = {
-  title: 'fukuX｜メンズエステ専用SNS',
-  description: 'メンズエステ専用SNS「fukuX」。セラピスト・お店・ファンがつながる。',
+  // 「フクエックス」の読み仮名と「福岡」を明示（指名検索・地域検索の両対応）。
+  title: 'fukuX(フクエックス)｜福岡メンズエステ専用SNS',
+  description:
+    '福岡のメンズエステ専用SNS「fukuX(フクエックス)」。セラピストの投稿や出勤情報、お店の最新お知らせをタイムラインでチェック。フォローやいいねで推しセラピストとつながれる無料SNSです。',
   // fukuX(/x 配下)だけ丸ロゴ(肉球)をファビコンに。ネストmetadataは最も近い定義が優先されるため、
   // root の icons(フクエス本体)は /x 外でそのまま維持される。
   icons: {
@@ -24,9 +26,9 @@ export const metadata: Metadata = {
   // fukuX(/x 配下)だけ独自 OGP。最も近い layout の openGraph/twitter が優先されるため、
   // /x 外は root の OGP(/ogp.png・フクエス本体)のまま維持される。metadataBase は root から継承。
   openGraph: {
-    title: 'fukuX〜フクエックス〜｜メンズエステ専用SNS',
+    title: 'fukuX(フクエックス)｜福岡メンズエステ専用SNS',
     description:
-      'メンズエステ専用SNS「fukuX」。セラピスト・お店・お客さんがつながる、写メ日記やタイムラインを楽しめる福岡発のSNSです。',
+      '福岡のメンズエステ専用SNS「fukuX(フクエックス)」。セラピストの投稿や出勤情報、お店の最新お知らせをタイムラインでチェック。フォローやいいねで推しセラピストとつながれる無料SNSです。',
     url: 'https://fukues.com/x',
     siteName: 'fukuX',
     images: [{ url: '/ogp-fukux.png', width: 1200, height: 630, alt: 'fukuX' }],
@@ -35,9 +37,9 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'fukuX〜フクエックス〜｜メンズエステ専用SNS',
+    title: 'fukuX(フクエックス)｜福岡メンズエステ専用SNS',
     description:
-      'メンズエステ専用SNS「fukuX」。セラピスト・お店・お客さんがつながる、写メ日記やタイムラインを楽しめる福岡発のSNSです。',
+      '福岡のメンズエステ専用SNS「fukuX(フクエックス)」。セラピストの投稿や出勤情報、お店の最新お知らせをタイムラインでチェック。フォローやいいねで推しセラピストとつながれる無料SNSです。',
     images: ['/ogp-fukux.png'],
   },
 };
