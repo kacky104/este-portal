@@ -40,6 +40,11 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     { url: `${SITE_URL}/jobs`, lastModified: now, changeFrequency: 'daily', priority: 0.8 },
     // コラム一覧（公開記事の有無に関わらず存在する静的ページ）。
     { url: `${SITE_URL}/jobs/column`, lastModified: now, changeFrequency: 'daily', priority: 0.7 },
+    // ポリシー類（法令対応・E-E-A-T用の静的ページ。更新頻度は低い）。
+    { url: `${SITE_URL}/terms`, lastModified: now, changeFrequency: 'yearly', priority: 0.3 },
+    { url: `${SITE_URL}/privacy`, lastModified: now, changeFrequency: 'yearly', priority: 0.3 },
+    { url: `${SITE_URL}/listing`, lastModified: now, changeFrequency: 'yearly', priority: 0.3 },
+    { url: `${SITE_URL}/contact`, lastModified: now, changeFrequency: 'yearly', priority: 0.3 },
   ];
 
   // 本体フクエスのエリア別サロンページ（/area/[slug]・全6スラッグ）。

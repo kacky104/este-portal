@@ -267,15 +267,15 @@ export default async function Home() {
                 セラピスト求人（フクエスワーク）
               </Link>
               {[
-                { label: "利用規約" },
+                { label: "利用規約", href: "/terms" },
                 // プライバシーポリシーはスマホのみ半角カナ表示（PCは全角）。href は変えない。
-                { label: "プライバシーポリシー", mobile: "ﾌﾟﾗｲﾊﾞｼｰﾎﾟﾘｼｰ" },
-                { label: "掲載について" },
-                { label: "お問い合わせ" },
-              ].map(({ label, mobile }) => (
+                { label: "プライバシーポリシー", mobile: "ﾌﾟﾗｲﾊﾞｼｰﾎﾟﾘｼｰ", href: "/privacy" },
+                { label: "掲載について", href: "/listing" },
+                { label: "お問い合わせ", href: "/contact" },
+              ].map(({ label, mobile, href }) => (
                 <Link
                   key={label}
-                  href="#"
+                  href={href}
                   className="hover:text-pink-600 transition-colors whitespace-nowrap"
                 >
                   {mobile ? (
