@@ -575,7 +575,7 @@ export default async function SalonPage({
 
             {/* All therapists（折り畳み式） */}
             <CollapsibleSection theme={theme} className="!mt-1.5 md:!mt-3 rounded-2xl p-6 border shadow-sm" title="在籍セラピスト一覧">
-              <SalonAllTherapists salonId={Number(id)} limit={4} showSaveButton />
+              <SalonAllTherapists salonId={Number(id)} limit={4} showSaveButton singleColumn />
 
               <div className="mt-4 text-center">
                 <Link

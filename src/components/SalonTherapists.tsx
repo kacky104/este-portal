@@ -607,7 +607,7 @@ export function SalonOnDutyExcludingNow({ salonId, theme }: { salonId: number; t
 
 // ── SalonAllTherapists (全員表示) ──────────────────────────────
 
-export function SalonAllTherapists({ salonId, limit, from, showSaveButton = false }: { salonId: number; limit?: number; from?: string; showSaveButton?: boolean }) {
+export function SalonAllTherapists({ salonId, limit, from, showSaveButton = false, singleColumn = false }: { salonId: number; limit?: number; from?: string; showSaveButton?: boolean; singleColumn?: boolean }) {
   const [list, setList] = useState<Therapist[]>([]);
 
   useEffect(() => {
@@ -656,7 +656,9 @@ export function SalonAllTherapists({ salonId, limit, from, showSaveButton = fals
   );
   const shown = limit ? list.slice(0, limit) : list;
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+    // singleColumn: サロンページの「在籍セラピスト一覧」用。新人紹介と同じく常に1列で
+    // カードを親幅いっぱいに広げ、情報エリアを確保する。在籍一覧ページは従来の2列。
+    <div className={`grid grid-cols-1 gap-3${singleColumn ? '' : ' sm:grid-cols-2'}`}>
       {shown.map((t, i) => (
         <GridCard key={t.id} therapist={t} index={i} from={from} showSaveButton={showSaveButton} saveButtonPos="card-right" />
       ))}
