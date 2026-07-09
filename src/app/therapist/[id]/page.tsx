@@ -79,19 +79,21 @@ export async function generateMetadata({
 
   const { data: salonRow } = await supabase
     .from('salons')
-    .select('name, is_hidden')
+    .select('name, area, is_hidden')
     .eq('id', tRow.salon_id as number)
     .single();
   if (!salonRow || salonRow.is_hidden) return {};
 
   const name = (tRow.name as string) ?? '';
   const salonName = (salonRow.name as string) ?? '';
-  const label = areaLabel(tRow.area as string | null);
+  // エリアは therapist.area を優先し、空なら所属サロンの area にフォールバック。両方空なら「福岡」。
+  const areaValue = (tRow.area as string | null) || (salonRow.area as string | null) || null;
+  const label = areaValue ? areaLabel(areaValue) : '福岡';
   const title = `${name}（${salonName}）｜${label}のメンズエステ【フクエス】`;
   const description =
     truncatePlain(tRow.profile_text as string | null, 90) ||
     truncatePlain(tRow.comment as string | null, 90) ||
-    `${salonName}在籍のセラピスト${name}のプロフィール・出勤情報・写メ日記はフクエスで。`;
+    `${label}のメンズエステ「${salonName}」在籍のセラピスト${name}のプロフィール・出勤情報・写メ日記はフクエスで。`;
   const image = (tRow.profile_image_url as string | null) || '/ogp.png';
 
   return {
