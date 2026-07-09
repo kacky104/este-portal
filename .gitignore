@@ -45,3 +45,6 @@ next-env.d.ts
 
 # タスク指示書（使い捨て・コミット禁止）
 task_*.md
+/指示書_*.md
+/引き継ぎメモ*.md
+/airistoppc_1440x540.jpg
