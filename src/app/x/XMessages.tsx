@@ -174,7 +174,7 @@ export function XMessages() {
                   <span className={`text-sm truncate ${it.unread ? 'font-bold text-slate-900' : 'font-bold text-slate-800'}`}>
                     {it.other?.displayName || '（不明なユーザー）'}
                   </span>
-                  {(it.other?.kind === 'shop' || it.other?.kind === 'therapist') && it.other?.isVerified && (
+                  {(it.other?.kind === 'official' || ((it.other?.kind === 'shop' || it.other?.kind === 'therapist') && it.other?.isVerified)) && (
                     <VerifiedBadge kind={it.other.kind} />
                   )}
                   <XTimeAgo iso={it.lastAt} className="ml-auto text-xs text-slate-400 flex-shrink-0" />

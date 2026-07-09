@@ -20,13 +20,15 @@ const supabase = createClient();
 // アバター表示に必要な最小フィールド（XProfile はこれを満たす）。
 type AvatarProfile = Pick<XProfile, 'avatar_url' | 'display_name'>;
 
-const KIND_LABEL: Record<string, string> = { user: 'ユーザー', therapist: 'セラピスト', shop: 'お店' };
+const KIND_LABEL: Record<string, string> = { user: 'ユーザー', therapist: 'セラピスト', shop: 'お店', official: '運営' };
 // 種別バッジの基調色（オンボーディングと統一：ユーザー=青/セラピスト=赤/お店=黄）。
 // 黄は薄色だと読みにくいので濃いめアンバー地＋濃色文字で可読性を確保。
+// 運営(official)はゴールド系。お店(アンバー)と被らないよう濃いイエロー地＋濃色文字で差別化。
 const KIND_BADGE: Record<string, string> = {
   user: 'bg-blue-50 text-blue-700',
   therapist: 'bg-rose-50 text-rose-700',
   shop: 'bg-amber-100 text-amber-800',
+  official: 'bg-yellow-400 text-yellow-950',
 };
 
 // 既存タイムライン/プロフィールのアバター作法に合わせたフォールバック：
@@ -272,7 +274,7 @@ export function XHeader() {
                 <span className={`text-[10px] font-bold rounded-full px-1.5 py-0.5 ${KIND_BADGE[profile.kind] ?? 'bg-slate-100 text-slate-600'}`}>
                   {KIND_LABEL[profile.kind] ?? profile.kind}
                 </span>
-                {(profile.kind === 'shop' || profile.kind === 'therapist') && profile.is_verified && (
+                {(profile.kind === 'official' || ((profile.kind === 'shop' || profile.kind === 'therapist') && profile.is_verified)) && (
                   <VerifiedBadge kind={profile.kind} />
                 )}
                 {affiliatedShop && (

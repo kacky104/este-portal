@@ -122,7 +122,7 @@ export function OnboardingForm({ userId }: { userId: string }) {
   const [handleState, setHandleState] = useState<HandleState>('idle');
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
-  const [done, setDone] = useState<null | 'user' | 'therapist' | 'shop'>(null);
+  const [done, setDone] = useState<XKind | null>(null);
 
   // ── handle のリアルタイム検証（形式→重複） ──
   useEffect(() => {

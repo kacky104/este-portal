@@ -1,8 +1,8 @@
 import { cache } from 'react';
 import { createClient } from '@/app/lib/supabase/server';
 
-// fukuX のアカウント種別。'user'=見る/フォロー専用・'therapist'=投稿/フォロワー・'shop'=全機能（即利用可・運営確認で認証バッジ）。
-export type XKind = 'user' | 'therapist' | 'shop';
+// fukuX のアカウント種別。'user'=見る/フォロー専用・'therapist'=投稿/フォロワー・'shop'=全機能（即利用可・運営確認で認証バッジ）・'official'=運営事務局（お知らせ投稿用・公式バッジ無条件表示・運営がSQLで直接作成）。
+export type XKind = 'user' | 'therapist' | 'shop' | 'official';
 // 新設計：'approved'=通常 / 'rejected'=運営によるBAN(凍結)。'pending' は廃止（互換のため型には残すが未使用）。
 export type XStatus = 'approved' | 'pending' | 'rejected';
 

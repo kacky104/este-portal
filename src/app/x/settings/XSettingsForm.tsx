@@ -15,7 +15,7 @@ const supabase = createClient();
 const DISPLAY_MAX = 30;
 const BIO_MAX = 160;
 
-const KIND_LABEL: Record<string, string> = { user: 'ユーザー', therapist: 'セラピスト', shop: 'お店' };
+const KIND_LABEL: Record<string, string> = { user: 'ユーザー', therapist: 'セラピスト', shop: 'お店', official: '運営' };
 
 // 数値入力欄の値を保存用に変換：空文字は null（0 にしない）。数値として妥当なら整数化。
 function toIntOrNull(s: string): number | null {

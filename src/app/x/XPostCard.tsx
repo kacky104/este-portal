@@ -19,6 +19,7 @@ const KIND_LABEL: Record<string, string> = {
   user: 'ユーザー',
   therapist: 'セラピスト',
   shop: 'お店',
+  official: '運営',
 };
 
 // 画像1〜4枚のグリッド（写メ日記のグリッド作法を参考に。1枚=単独、2/4枚=2列、3枚=先頭大）。
@@ -187,7 +188,7 @@ export function XPostCard({
             <Link href={`/x/u/${a.handle}`} className="font-bold text-sm text-slate-900 truncate max-w-[40%] hover:underline">
               {a.displayName}
             </Link>
-            {(a.kind === 'shop' || a.kind === 'therapist') && a.isVerified && <VerifiedBadge kind={a.kind} />}
+            {(a.kind === 'official' || ((a.kind === 'shop' || a.kind === 'therapist') && a.isVerified)) && <VerifiedBadge kind={a.kind} />}
             <Link href={`/x/u/${a.handle}`} className="text-xs text-slate-400 truncate hover:underline">
               @{a.handle}
             </Link>

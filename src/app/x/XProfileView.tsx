@@ -21,6 +21,7 @@ const KIND_LABEL: Record<string, string> = {
   user: 'ユーザー',
   therapist: 'セラピスト',
   shop: 'お店',
+  official: '運営',
 };
 
 export function XProfileView({
@@ -172,7 +173,7 @@ export function XProfileView({
           <div className="mt-2">
             <div className="flex items-center gap-2 flex-wrap">
               <h1 className="text-xl font-black text-slate-900 truncate max-w-full">{target.display_name}</h1>
-              {(target.kind === 'shop' || target.kind === 'therapist') && target.is_verified && (
+              {(target.kind === 'official' || ((target.kind === 'shop' || target.kind === 'therapist') && target.is_verified)) && (
                 <VerifiedBadge size={18} kind={target.kind} />
               )}
               <span className="text-[10px] font-bold text-indigo-500 bg-indigo-50 rounded-full px-1.5 py-0.5 flex-shrink-0">

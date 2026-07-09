@@ -36,7 +36,7 @@ export type ModProfile = {
   created_at: string;
 };
 
-const KIND_LABEL: Record<string, string> = { user: 'ユーザー', therapist: 'セラピスト', shop: 'お店' };
+const KIND_LABEL: Record<string, string> = { user: 'ユーザー', therapist: 'セラピスト', shop: 'お店', official: '運営' };
 
 export function XAdmin({
   shops: initialShops,
@@ -250,7 +250,7 @@ export function XAdmin({
                       <Link href={`/x/u/${p.handle}`} className="font-bold text-sm text-slate-900 hover:underline truncate">
                         {p.display_name}
                       </Link>
-                      {(p.kind === 'shop' || p.kind === 'therapist') && p.is_verified && <VerifiedBadge kind={p.kind} />}
+                      {(p.kind === 'official' || ((p.kind === 'shop' || p.kind === 'therapist') && p.is_verified)) && <VerifiedBadge kind={p.kind} />}
                       <span className="text-[10px] font-bold text-indigo-500 bg-indigo-50 rounded-full px-1.5 py-0.5">
                         {KIND_LABEL[p.kind] ?? p.kind}
                       </span>

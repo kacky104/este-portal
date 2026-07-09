@@ -37,7 +37,7 @@ export function XComposer({
   const isReply = !!parentPostId;
   const isEdit = !!editPost;
   // リプライ不可トグルは「通常投稿/通常投稿の編集」かつ自分が therapist/shop のときだけ表示（user には出さない＝DB側ガードと二重防御）。
-  const canToggleReplies = !isReply && (me.kind === 'therapist' || me.kind === 'shop');
+  const canToggleReplies = !isReply && (me.kind === 'therapist' || me.kind === 'shop' || me.kind === 'official');
 
   const [body, setBody] = useState(editPost?.body ?? '');
   const [images, setImages] = useState<string[]>(editPost?.images ?? []);

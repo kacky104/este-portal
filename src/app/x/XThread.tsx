@@ -212,7 +212,7 @@ export function XThread({ conversationId }: { conversationId: string }) {
               <div className="min-w-0">
                 <div className="flex items-center gap-1">
                   <span className="font-bold text-sm text-slate-900 truncate">{other.displayName || '（不明なユーザー）'}</span>
-                  {(other.kind === 'shop' || other.kind === 'therapist') && other.isVerified && <VerifiedBadge kind={other.kind} />}
+                  {(other.kind === 'official' || ((other.kind === 'shop' || other.kind === 'therapist') && other.isVerified)) && <VerifiedBadge kind={other.kind} />}
                 </div>
                 <p className="text-xs text-slate-400 truncate">@{other.handle}</p>
               </div>

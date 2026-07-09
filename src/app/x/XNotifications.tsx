@@ -226,7 +226,7 @@ export function XNotifications() {
               <div className="flex-1 min-w-0">
                 <p className={`text-sm leading-snug break-words ${n.isRead ? 'text-slate-600' : 'text-slate-900 font-medium'}`}>
                   <span className="font-bold">{n.actor.displayName || `@${n.actor.handle}`}</span>
-                  {(n.actor.kind === 'shop' || n.actor.kind === 'therapist') && n.actor.isVerified && (
+                  {(n.actor.kind === 'official' || ((n.actor.kind === 'shop' || n.actor.kind === 'therapist') && n.actor.isVerified)) && (
                     <span className="inline-flex align-middle mx-0.5">
                       <VerifiedBadge kind={n.actor.kind} />
                     </span>

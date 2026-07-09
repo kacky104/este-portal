@@ -99,7 +99,7 @@ export default async function XProfilePage({ params }: { params: Promise<{ handl
   if (target.status === 'rejected' && !isOwnProfile && !isAdmin) notFound();
 
   // フォロー数/フォロワー数は count クエリで取得（kind が持ち得る数だけ）。
-  const wantsFollowers = target.kind === 'therapist' || target.kind === 'shop'; // フォロワーを持ち得る
+  const wantsFollowers = target.kind === 'therapist' || target.kind === 'shop' || target.kind === 'official'; // フォロワーを持ち得る
   const wantsFollowing = target.kind === 'user' || target.kind === 'shop'; // フォローし得る
 
   const [followerRes, followingRes, postRes] = await Promise.all([

@@ -69,7 +69,7 @@ export function useXEngagement(opts: {
 
   // ── 権限（DB側 x_me_can_act() と一致：BAN(status='rejected')でなければ可） ──
   const notBanned = !!me && me.status !== 'rejected';
-  const canPost = notBanned && (me!.kind === 'therapist' || me!.kind === 'shop');
+  const canPost = notBanned && (me!.kind === 'therapist' || me!.kind === 'shop' || me!.kind === 'official');
   const canLike = notBanned;
   const canFollow = notBanned && (me!.kind === 'user' || me!.kind === 'shop');
   const canSave = notBanned; // 保存はいいねと同様に（凍結でなければ）誰でも可
@@ -141,7 +141,7 @@ export function useXEngagement(opts: {
   // （未ログイン・user/shop には出してクリックで誘導。therapist 閲覧者には出さない）。
   const showFollowFor = useCallback(
     (author: Pick<XPostAuthor, 'id' | 'kind'>): boolean => {
-      const target = author.kind === 'therapist' || author.kind === 'shop';
+      const target = author.kind === 'therapist' || author.kind === 'shop' || author.kind === 'official';
       if (!target) return false;
       if (me && author.id === me.id) return false;
       if (me && me.kind === 'therapist') return false;

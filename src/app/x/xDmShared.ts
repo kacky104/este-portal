@@ -10,7 +10,7 @@ export type DmOtherProfile = {
   handle: string;
   displayName: string;
   avatarUrl: string | null;
-  kind: 'user' | 'therapist' | 'shop';
+  kind: 'user' | 'therapist' | 'shop' | 'official';
   isVerified: boolean;
   status: string;
 };

@@ -1,7 +1,9 @@
 // fukuX 認証バッジ（is_verified）。「行動の可否」とは無関係＝信頼の表示のみ。
-// 色分け：店舗(kind='shop')は運営手動の認証＝インディゴ。セラピスト(kind='therapist')は
+// 色分け：運営事務局(kind='official')は公式＝ゴールド（is_verified に依存せず無条件表示）。
+// 店舗(kind='shop')は運営手動の認証＝インディゴ。セラピスト(kind='therapist')は
 // 所属＋画像付き投稿10件以上で自動付与される認証＝赤。kind 未指定時は従来どおり店舗(インディゴ)。
-const BADGE: Record<'shop' | 'therapist', { fill: string; title: string }> = {
+const BADGE: Record<'shop' | 'therapist' | 'official', { fill: string; title: string }> = {
+  official: { fill: '#F59E0B', title: 'フクエス公式（運営事務局）' },
   shop: { fill: '#6366F1', title: '運営確認済みの店舗' },
   therapist: { fill: '#EF4444', title: '認証済みのセラピスト' },
 };
@@ -15,7 +17,8 @@ export function VerifiedBadge({
   className?: string;
   kind?: string;
 }) {
-  const { fill, title } = kind === 'therapist' ? BADGE.therapist : BADGE.shop;
+  const { fill, title } =
+    kind === 'official' ? BADGE.official : kind === 'therapist' ? BADGE.therapist : BADGE.shop;
   return (
     <span
       title={title}

@@ -16,7 +16,7 @@ import type { XPost } from './xPosts';
 const sb = createClient();
 const LIMIT = 50;
 
-const KIND_LABEL: Record<string, string> = { user: 'ユーザー', therapist: 'セラピスト', shop: 'お店' };
+const KIND_LABEL: Record<string, string> = { user: 'ユーザー', therapist: 'セラピスト', shop: 'お店', official: '運営' };
 
 const POST_COLS =
   'id, author_profile_id, body, images, like_count, reply_count, replies_disabled, link_url, edited_at, created_at';
@@ -33,7 +33,7 @@ type ProfRow = {
   handle: string;
   display_name: string;
   avatar_url: string | null;
-  kind: 'user' | 'therapist' | 'shop';
+  kind: 'user' | 'therapist' | 'shop' | 'official';
   is_verified: boolean;
   status: string;
   affiliated_shop_id: string | null;
@@ -44,7 +44,7 @@ type Hit = {
   handle: string;
   displayName: string;
   avatarUrl: string | null;
-  kind: 'user' | 'therapist' | 'shop';
+  kind: 'user' | 'therapist' | 'shop' | 'official';
   isVerified: boolean;
   affiliatedShop: { handle: string; displayName: string } | null;
 };
@@ -395,7 +395,7 @@ export function XSearch() {
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-1.5 flex-wrap">
                       <span className="font-bold text-sm text-slate-900 truncate max-w-[50%]">{u.displayName}</span>
-                      {(u.kind === 'shop' || u.kind === 'therapist') && u.isVerified && <VerifiedBadge kind={u.kind} />}
+                      {(u.kind === 'official' || ((u.kind === 'shop' || u.kind === 'therapist') && u.isVerified)) && <VerifiedBadge kind={u.kind} />}
                       <span className="text-[10px] font-bold text-indigo-500 bg-indigo-50 rounded-full px-1.5 py-0.5">
                         {KIND_LABEL[u.kind] ?? u.kind}
                       </span>
