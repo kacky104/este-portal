@@ -418,8 +418,10 @@ export function SalonCard({ salon, therapists, showAge = false, areaNextToDuty =
         </div>
       )}
 
-      {/* トップページ（compactTherapists）はカード下の余白を約1/3（pb 20px→7px）に */}
-      <div className={`${compactTherapists ? 'px-5 pt-5 pb-[7px]' : 'p-5'} flex flex-col flex-1`}>
+      {/* トップページ（compactTherapists）はカード下の余白を約1/3（pb 20px→7px）に。
+          nameBanner 時は店名が上端のバナー帯へ移っているため、本体の上パディングを pt-5(20px)→pt-2.5(10px) に
+          詰めて、バッジ行の上の空白を下の空白（PC: mb-2.5=10px／SP: -mt-1.5補正後 約4px）と揃える。 */}
+      <div className={`${compactTherapists ? `px-5 ${nameBanner ? 'pt-2.5' : 'pt-5'} pb-[7px]` : nameBanner ? 'px-5 pt-2.5 pb-5' : 'p-5'} flex flex-col flex-1`}>
         {stackedLayout}
         {wideLayout}
       </div>
