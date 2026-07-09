@@ -234,6 +234,75 @@ function WideAutoFitName({ name }: { name: string }) {
   );
 }
 
+// ── AutoFitAreaBadges ─────────────────────────────────
+// 地域バッジ（最大2個）＋「出張のみ」バッジを、バッジ行の残り幅（flex-1 min-w-0）に
+// 1行で収まるようフォント実測縮小（12px→最小9px）する。最小でも収まらない場合は
+// 縮小をやめて元サイズ・折り返し（従来表示）にフォールバックする。
+// 計測は fit() 内で fallback 解除 → requestAnimationFrame でリフロー後に行う
+//（fallback 中はコンテナ幅が「残り幅」でなくなるため、必ず通常状態で測る）。
+const BADGE_MAX = 12; // 従来の text-xs
+const BADGE_MIN = 9;
+
+function AutoFitAreaBadges({ labels, dispatchOnly }: { labels: string[]; dispatchOnly: boolean }) {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const innerRef = useRef<HTMLDivElement>(null);
+  const [size, setSize] = useState(BADGE_MAX);
+  const [wrapFallback, setWrapFallback] = useState(false);
+
+  useEffect(() => {
+    const fit = () => {
+      // いったん通常状態（nowrap・flex-1）に戻してから、リフロー後に計測する。
+      setWrapFallback(false);
+      requestAnimationFrame(() => {
+        const c = containerRef.current;
+        const t = innerRef.current;
+        if (!c || !t) return;
+        let s = BADGE_MAX;
+        t.style.fontSize = `${s}px`;
+        while (t.scrollWidth > c.clientWidth && s > BADGE_MIN) {
+          s = Math.max(BADGE_MIN, s - 0.5);
+          t.style.fontSize = `${s}px`;
+        }
+        if (t.scrollWidth > c.clientWidth) {
+          // 最小でも収まらない → 元サイズで折り返し（従来表示）に戻す。
+          setWrapFallback(true);
+          setSize(BADGE_MAX);
+        } else {
+          setSize(s);
+        }
+      });
+    };
+    fit();
+    window.addEventListener('resize', fit);
+    return () => window.removeEventListener('resize', fit);
+    // labels は配列だが中身は salon 由来で不変。join した文字列を依存に使う。
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [labels.join('|'), dispatchOnly]);
+
+  if (labels.length === 0 && !dispatchOnly) return null;
+
+  return (
+    <div ref={containerRef} className={wrapFallback ? 'w-full min-w-0' : 'min-w-0 flex-1 overflow-hidden'}>
+      <div
+        ref={innerRef}
+        className={`flex items-center gap-2 ${wrapFallback ? 'flex-wrap' : 'whitespace-nowrap'}`}
+        style={{ fontSize: `${size}px` }}
+      >
+        {labels.map((label) => (
+          <span key={label} className="flex-shrink-0 font-semibold px-2.5 py-0.5 rounded-full bg-pink-50 text-pink-600 border border-pink-200">
+            {label}
+          </span>
+        ))}
+        {dispatchOnly && (
+          <span className="flex-shrink-0 font-semibold px-2.5 py-0.5 rounded-full bg-blue-100 text-blue-700 border border-blue-300">
+            出張のみ
+          </span>
+        )}
+      </div>
+    </div>
+  );
+}
+
 // ── Salon card ────────────────────────────────────────────────
 
 export function SalonCard({ salon, therapists, showAge = false, areaNextToDuty = false, ratingAtBottom = false, compactTherapists = false, showSaveButton = false, wideDesktop = false, nameBanner = false }: { salon: Salon; therapists: TherapistThumb[]; showAge?: boolean; areaNextToDuty?: boolean; ratingAtBottom?: boolean; compactTherapists?: boolean; showSaveButton?: boolean; wideDesktop?: boolean; nameBanner?: boolean }) {
@@ -284,6 +353,11 @@ export function SalonCard({ salon, therapists, showAge = false, areaNextToDuty =
       {dispatchBadge}
     </>
   );
+  // AutoFitAreaBadges 用のラベル配列（既存 areaBadge と同じ出し分けロジック）。
+  const areaBadgeLabels = [
+    ...(salon.area !== DISPATCH_AREA ? [areaLabel(salon.area)] : []),
+    ...(salon.area2 && salon.area2 !== salon.area && salon.area2 !== DISPATCH_AREA ? [areaLabel(salon.area2)] : []),
+  ];
   const ratingEl = (
     <div className="flex items-center gap-1.5">
       <RatingDisplay rating={salon.rating} reviewCount={salon.reviewCount} />
@@ -329,14 +403,14 @@ export function SalonCard({ salon, therapists, showAge = false, areaNextToDuty =
             </div>
           )}
           {dutyBadge}
-          {areaNextToDuty && areaBadge}
+          {areaNextToDuty && <AutoFitAreaBadges labels={areaBadgeLabels} dispatchOnly={salon.dispatchType === 'only'} />}
         </div>
 
         {/* Stars + count + area */}
         {!ratingAtBottom && (
           <div className="flex items-center gap-2 mb-2">
             <RatingDisplay rating={salon.rating} reviewCount={salon.reviewCount} />
-            {!areaNextToDuty && areaBadge}
+            {!areaNextToDuty && <AutoFitAreaBadges labels={areaBadgeLabels} dispatchOnly={salon.dispatchType === 'only'} />}
           </div>
         )}
       </div>
