@@ -8,7 +8,9 @@ import type { XProfile } from './xProfile';
 const sb = createClient();
 
 // プロフィールの「メッセージ」ボタン。表示条件：ログイン済み ∧ can_act(=非BAN) ∧ 自分以外 ∧
-// 自分→相手 または 相手→自分 のフォローが1本でもある。最終防御は x_start_conversation の例外。
+// （自分→相手 または 相手→自分 のフォローが1本でもある ／ もしくはオファー免除）。最終防御は x_start_conversation の例外。
+// オファー免除：閲覧者が認証済みshop or official ∧ 相手がオファー受付中の未所属セラピスト のとき、
+// フォロー関係なしで開始可（DB側の x_offer_dm_allowed と一致）。dm_disabled・rejected の既存ガードは通す。
 export function XMessageButton({
   viewerProfile,
   target,
@@ -27,8 +29,19 @@ export function XMessageButton({
   const dmBlocked = target.dm_disabled || !!viewerProfile?.dm_disabled;
   const canEvaluate = !!viewerProfile && !isOwnProfile && viewerProfile.status !== 'rejected' && !dmBlocked;
 
+  // オファー免除：認証済みshop or official → オファー受付中の未所属セラピスト は、フォローなしで開始可。
+  const offerDm =
+    !!viewerProfile &&
+    (viewerProfile.kind === 'official' || (viewerProfile.kind === 'shop' && viewerProfile.is_verified)) &&
+    target.kind === 'therapist' && target.offer_enabled && !target.affiliated_shop_id;
+
   useEffect(() => {
     if (!canEvaluate || !viewerProfile) return;
+    // オファー免除に該当すればフォロー判定をスキップして表示可（dmBlocked/rejected は canEvaluate で既に通過）。
+    if (offerDm) {
+      setEligible(true);
+      return;
+    }
     let alive = true;
     (async () => {
       // どちら向きでもフォローが1本あれば可（.or() を使わず2クエリで判定）。
@@ -49,7 +62,7 @@ export function XMessageButton({
     return () => {
       alive = false;
     };
-  }, [canEvaluate, viewerProfile, target.id]);
+  }, [canEvaluate, viewerProfile, target.id, offerDm]);
 
   if (!canEvaluate || !eligible) return null;
 

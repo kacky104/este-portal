@@ -30,10 +30,16 @@ export type XProfile = {
   address: string | null; // 住所（お店アカウントのみ・任意）。
   dm_disabled: boolean; // DM受付オフ。どちらか一方がtrueなら相互に送信不可（過去メッセージの閲覧は可）。
   showcase_images: string[]; // お店カード画像（お店アカウントのみ・最大6枚）。タイムライン「お店」タブのショーケース用。
+  offer_enabled: boolean; // オファー受付（求人スカウト）。therapist専用・未所属時のみ意味を持つ。
+  offer_comment: string | null; // オファー用PR文（最大300文字・任意）。therapist専用。
+  offer_areas: string[]; // オファー希望エリア（X_OFFER_AREAS の値・最大8件）。therapist専用。
 };
 
+// オファー機能の希望エリア（固定8種・表示順）は client からも使うため別モジュールに定義し、ここから再export。
+export { X_OFFER_AREAS } from './xOfferAreas';
+
 const XPROFILE_COLUMNS =
-  'id, auth_user_id, kind, status, handle, display_name, bio, avatar_url, header_url, is_verified, affiliated_shop_id, link_url, age, height, bust, cup, waist, hip, created_at, address, dm_disabled, showcase_images';
+  'id, auth_user_id, kind, status, handle, display_name, bio, avatar_url, header_url, is_verified, affiliated_shop_id, link_url, age, height, bust, cup, waist, hip, created_at, address, dm_disabled, showcase_images, offer_enabled, offer_comment, offer_areas';
 
 // ログインユーザーと、その x_profiles（未作成なら null）をサーバー側でまとめて取得する。
 // /x・/x/onboarding の分岐に使う。RLS の select は公開だが、自分の行は auth_user_id で引く。

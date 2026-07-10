@@ -7,6 +7,7 @@ import { createClient } from '@/app/lib/supabase/client';
 import { normalizeLinkUrl } from '../xLink';
 import { deleteMyXAccount } from '@/app/actions/xAccount';
 import type { XProfile } from '../xProfile';
+import { X_OFFER_AREAS } from '../xOfferAreas';
 import type { ShopMini } from '../xAffiliation';
 import { STORAGE_CACHE_CONTROL } from '@/app/lib/storage';
 
@@ -63,6 +64,11 @@ export function XSettingsForm({
   const [showcaseUploading, setShowcaseUploading] = useState(false);
   // DM受付オフ（全kind共通）。オンにすると自分・相手とも新規/追加送信が不可になる（過去の閲覧は可）。
   const [dmDisabled, setDmDisabled] = useState(profile.dm_disabled);
+  // オファー受付（求人スカウト）。未所属セラピストのみ設定可（所属中はセクション自体を出さない）。
+  const canOffer = isTherapist && !profile.affiliated_shop_id;
+  const [offerEnabled, setOfferEnabled] = useState(profile.offer_enabled);
+  const [offerComment, setOfferComment] = useState(profile.offer_comment ?? '');
+  const [offerAreas, setOfferAreas] = useState<string[]>(profile.offer_areas ?? []);
   const [avatarUrl, setAvatarUrl] = useState<string | null>(profile.avatar_url);
   const [headerUrl, setHeaderUrl] = useState<string | null>(profile.header_url);
 
@@ -155,6 +161,15 @@ export function XSettingsForm({
     setShowcaseImages((prev) => prev.filter((_, i) => i !== idx));
   };
 
+  // 希望エリアの選択トグル。保存は選択順ではなく X_OFFER_AREAS の定数順に揃える。
+  const toggleOfferArea = (area: string) => {
+    setOfferAreas((prev) =>
+      prev.includes(area)
+        ? prev.filter((a) => a !== area)
+        : X_OFFER_AREAS.filter((a) => a === area || prev.includes(a))
+    );
+  };
+
   const displayOk = displayName.trim().length >= 1 && displayName.trim().length <= DISPLAY_MAX;
   const busy = saving || avatarUploading || headerUploading || showcaseUploading;
 
@@ -197,6 +212,14 @@ export function XSettingsForm({
         ...(isShop ? { address: address.trim() || null } : {}),
         // お店カード画像は「認証済みお店」のみ保存対象（未認証で送るとDBトリガ例外で保存全体が失敗するため）。
         ...(isShop && profile.is_verified ? { showcase_images: showcaseImages } : {}),
+        // オファー系は未所属セラピストのみ保存対象（それ以外では欄を出さず、キーも送らない＝ガードトリガ回避）。
+        ...(canOffer
+          ? {
+              offer_enabled: offerEnabled,
+              offer_comment: offerComment.trim() || null,
+              offer_areas: offerAreas,
+            }
+          : {}),
       })
       .eq('id', profile.id);
     setSaving(false);
@@ -366,6 +389,68 @@ export function XSettingsForm({
           </span>
         </label>
       </div>
+
+      {/* ── オファー受付（求人スカウト・未所属セラピストのみ）── お店・運営にのみ /x/offers で表示される ── */}
+      {canOffer && (
+        <div className="rounded-2xl border border-[color:var(--x-border-strong)] bg-[color:var(--x-inset)] p-4">
+          <label className="flex items-start gap-3 cursor-pointer select-none">
+            <input
+              type="checkbox"
+              checked={offerEnabled}
+              onChange={(e) => setOfferEnabled(e.target.checked)}
+              className="mt-0.5 w-4 h-4 accent-indigo-500 flex-shrink-0"
+            />
+            <span>
+              <span className="text-sm font-bold text-[color:var(--x-text-primary)]">オファーを受け付ける（お店・運営にのみ表示されます）</span>
+              <span className="block text-[11px] text-[color:var(--x-text-muted)] mt-1 leading-relaxed">
+                オンにすると、認証済みのお店・運営が見られるオファー一覧に表示され、フォローなしでメッセージを受け取れます。所属が決まると自動で一覧から外れます。
+              </span>
+            </span>
+          </label>
+
+          {offerEnabled && (
+            <div className="mt-4 space-y-4">
+              {/* PR文（最大300文字・任意） */}
+              <div>
+                <label className="text-[11px] font-bold text-[color:var(--x-text-muted)] block mb-1.5 px-1">PR文（任意）</label>
+                <textarea
+                  rows={4}
+                  value={offerComment}
+                  onChange={(e) => setOfferComment(e.target.value)}
+                  placeholder="経験や希望条件など、お店へのアピールを書けます"
+                  maxLength={300}
+                  className="w-full px-4 py-3 rounded-xl border border-[color:var(--x-border-strong)] text-sm bg-[color:var(--x-surface)] focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:border-transparent resize-none"
+                />
+                <p className="text-[11px] text-[color:var(--x-text-muted)] mt-1 text-right">{offerComment.length}/300</p>
+              </div>
+
+              {/* 希望エリア（複数選択可・固定8種） */}
+              <div>
+                <label className="text-[11px] font-bold text-[color:var(--x-text-muted)] block mb-2 px-1">希望エリア（複数選択可）</label>
+                <div className="flex flex-wrap gap-2">
+                  {X_OFFER_AREAS.map((area) => {
+                    const selected = offerAreas.includes(area);
+                    return (
+                      <button
+                        key={area}
+                        type="button"
+                        onClick={() => toggleOfferArea(area)}
+                        className={`text-xs font-bold rounded-full px-3 py-1.5 border transition-colors ${
+                          selected
+                            ? 'border-indigo-400 bg-indigo-500 text-white'
+                            : 'border-[color:var(--x-border-strong)] text-[color:var(--x-text-secondary)] hover:border-indigo-300'
+                        }`}
+                      >
+                        {area}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* ── 住所（お店アカウントのみ・任意）── text-base(16px) で iOS 自動ズーム抑止 */}
       {isShop && (
