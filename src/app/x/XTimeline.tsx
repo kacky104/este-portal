@@ -109,6 +109,7 @@ export function XTimeline({
         repostPending={eng.repostPendingFor(p.id)}
         onToggleRepost={eng.toggleRepost}
         repostLabel={repostLabel}
+        flat
       />
     );
   };
@@ -146,7 +147,11 @@ export function XTimeline({
         recommendedView.length === 0 ? (
           <Empty text="まだ投稿がありません" />
         ) : (
-          <div className="space-y-3 pt-3">{renderList(recommendedView)}</div>
+          // 【試験実装 2026-07-10】X風の全幅行＋区切り線（タイムラインのみ）。戻す場合は
+          // space-y-3 pt-3 のカード並び＋ renderCard の flat を外す。
+          <div className="-mx-4 divide-y divide-[color:var(--x-border)] border-b border-[color:var(--x-border)]">
+            {renderList(recommendedView)}
+          </div>
         )
       ) : tab === 'shops' ? (
         // お店タブ：お店カード（店名＋アバター＋画像グリッド）の一覧。カード全体タップでプロフィールへ。
@@ -227,7 +232,10 @@ export function XTimeline({
       ) : followingFeed.length === 0 ? (
         <Empty text="気になるセラピスト・お店をフォローすると、ここに新着が表示されます" />
       ) : (
-        <div className="space-y-3 pt-3">{renderFeed(followingFeed)}</div>
+        // 【試験実装 2026-07-10】おすすめタブと同じ全幅行方式。
+        <div className="-mx-4 divide-y divide-[color:var(--x-border)] border-b border-[color:var(--x-border)]">
+          {renderFeed(followingFeed)}
+        </div>
       )}
 
       {toast && (

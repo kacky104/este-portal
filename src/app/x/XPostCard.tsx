@@ -101,6 +101,7 @@ export function XPostCard({
   repostLabel,
   showReplyLink = true,
   clampBody = true,
+  flat = false,
 }: {
   post: XPost;
   liked: boolean;
@@ -129,6 +130,9 @@ export function XPostCard({
   // 本文の行数クランプ（8行＋「続きを読む」）。一覧系は既定 true。投稿単体ページのメイン投稿だけ
   // false を渡して全文表示にする（リプライ一覧のカードは既定 true のままクランプ）。
   clampBody?: boolean;
+  // 【試験実装 2026-07-10】X風の全幅行モード。true で浮遊カードの装飾（角丸・影）を外し
+  // 全幅の行として描画する（区切り線は親コンテナの divide-y が担当）。タイムラインのみで使用。
+  flat?: boolean;
 }) {
   const a = post.author;
   const { me } = useMe();
@@ -160,7 +164,13 @@ export function XPostCard({
   if (deleted) return null;
 
   return (
-    <article className="x-card rounded-2xl bg-[color:var(--x-surface)] shadow-[0_4px_16px_rgba(109,40,217,0.3)] p-4">
+    <article
+      className={
+        flat
+          ? 'x-card bg-[color:var(--x-surface)] px-4 py-3'
+          : 'x-card rounded-2xl bg-[color:var(--x-surface)] shadow-[0_4px_16px_rgba(109,40,217,0.3)] p-4'
+      }
+    >
       {/* リポストラベル（値があるときだけ）：カード上部に RepostIcon 小＋グレーテキスト。本文に合わせて軽くインデント。 */}
       {repostLabel && (
         <div className="flex items-center gap-1.5 text-xs text-[color:var(--x-text-muted)] mb-2 ml-[50px]">
