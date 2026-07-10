@@ -38,8 +38,8 @@ export function XStoryBar({ groups, me }: { groups: StoryGroup[]; me: XProfile |
           {/* 先頭：自分の「＋追加」サークル（投稿可能kindのみ） */}
           {canPost && (
             <button type="button" onClick={() => setComposerOpen(true)} className="flex flex-col items-center gap-1 flex-shrink-0 w-[84px]">
-              <span className="relative w-[84px] h-[84px] rounded-full p-[2px] bg-[color:var(--x-border-strong)]">
-                <span className="block w-full h-full rounded-full overflow-hidden border-2 border-[color:var(--x-surface)] bg-gradient-to-br from-indigo-300 to-sky-300 flex items-center justify-center">
+              <span className="relative w-[84px] h-[84px] rounded-full p-[5px] bg-[color:var(--x-border-strong)]">
+                <span className="block w-full h-full rounded-full overflow-hidden bg-gradient-to-br from-indigo-300 to-sky-300 flex items-center justify-center">
                   {me.avatar_url ? (
                     // eslint-disable-next-line @next/next/no-img-element
                     <img src={me.avatar_url} alt="" className="w-full h-full object-cover" />
@@ -66,7 +66,8 @@ export function XStoryBar({ groups, me }: { groups: StoryGroup[]; me: XProfile |
                     className={`absolute inset-0 rounded-full ${allSeen ? '' : 'x-story-ring'}`}
                     style={allSeen ? { background: 'var(--x-border-strong)' } : undefined}
                   />
-                  <span className="absolute inset-[2px] rounded-full overflow-hidden border-2 border-[color:var(--x-surface)] bg-gradient-to-br from-indigo-300 to-sky-300 flex items-center justify-center">
+                  {/* リング幅5px・フチなし（プロフィールのリングと同じ密着型） */}
+                  <span className="absolute inset-[5px] rounded-full overflow-hidden bg-gradient-to-br from-indigo-300 to-sky-300 flex items-center justify-center">
                     {g.author.avatarUrl ? (
                       // eslint-disable-next-line @next/next/no-img-element
                       <img src={g.author.avatarUrl} alt="" className="w-full h-full object-cover" />
