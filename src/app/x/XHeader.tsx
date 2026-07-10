@@ -264,7 +264,7 @@ export function XHeader() {
               <span onClick={() => setOpen(false)} className="inline-flex">
                 <XLogo size="md" />
               </span>
-              <span className="text-[11px] text-[color:var(--x-text-muted)] font-medium">～メンズエステ専用SNS～</span>
+              <span className="text-[11px] text-[color:var(--x-text-muted)] font-medium">～福岡メンズエステ専用ＳＮＳ・フクエックス～</span>
             </div>
 
             {/* ②@handle＋種別/認証/所属バッジ（開設済みのみ） */}
@@ -297,7 +297,7 @@ export function XHeader() {
                 <DrawerLink href="/x/saved" onClick={() => setOpen(false)} label="保存した投稿" />
                 {isVerifiedShop && <DrawerLink href="/x/shop" onClick={() => setOpen(false)} label="店舗管理" accent="emerald" />}
                 {(isVerifiedShop || profile.kind === 'official') && (
-                  <DrawerLink href="/x/offers" onClick={() => setOpen(false)} label="オファー一覧" accent="indigo" />
+                  <DrawerLink href="/x/offers" onClick={() => setOpen(false)} label="求人オファーリスト" accent="indigo" />
                 )}
                 {isAdmin && <DrawerLink href="/x/admin" onClick={() => setOpen(false)} label="運営パネル" accent="indigo" />}
                 <div className="my-2 border-t border-[color:var(--x-border)]" />
