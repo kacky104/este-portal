@@ -311,8 +311,8 @@ export function XSearch() {
       <h1 className="x-rescue-muted text-lg font-black text-white drop-shadow-sm mb-3 px-1">検索</h1>
 
       {/* 入力欄（白カード面＝両テーマで読める） */}
-      <div className="x-card rounded-2xl bg-white/[0.94] shadow-[0_4px_16px_rgba(109,40,217,0.3)] p-3">
-        <div className="flex items-center rounded-xl border border-slate-200 bg-slate-50/50 px-3 focus-within:ring-2 focus-within:ring-indigo-300 focus-within:border-transparent">
+      <div className="x-card rounded-2xl bg-[color:var(--x-surface)] shadow-[0_4px_16px_rgba(109,40,217,0.3)] p-3">
+        <div className="flex items-center rounded-xl border border-[color:var(--x-border-strong)] bg-slate-50/50 px-3 focus-within:ring-2 focus-within:ring-indigo-300 focus-within:border-transparent">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-slate-400 flex-shrink-0">
             <circle cx="11" cy="11" r="8" />
             <path d="m21 21-4.3-4.3" />
@@ -355,7 +355,7 @@ export function XSearch() {
             onClick={() => setTab(key)}
             aria-pressed={tab === key}
             className={`flex-1 py-2 rounded-lg text-sm font-bold transition-colors ${
-              tab === key ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'
+              tab === key ? 'bg-[color:var(--x-surface)] text-indigo-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'
             }`}
           >
             {label}
@@ -382,9 +382,9 @@ export function XSearch() {
                 <Link
                   key={u.id}
                   href={`/x/u/${u.handle}`}
-                  className="x-card flex items-center gap-3 rounded-2xl bg-white/[0.94] shadow-[0_4px_16px_rgba(109,40,217,0.3)] p-3 hover:brightness-[0.98] transition"
+                  className="x-card flex items-center gap-3 rounded-2xl bg-[color:var(--x-surface)] shadow-[0_4px_16px_rgba(109,40,217,0.3)] p-3 hover:brightness-[0.98] transition"
                 >
-                  <span className="relative w-11 h-11 rounded-full overflow-hidden border border-slate-100 bg-gradient-to-br from-indigo-300 to-sky-300 flex items-center justify-center flex-shrink-0">
+                  <span className="relative w-11 h-11 rounded-full overflow-hidden border border-[color:var(--x-border)] bg-gradient-to-br from-indigo-300 to-sky-300 flex items-center justify-center flex-shrink-0">
                     {u.avatarUrl ? (
                       // eslint-disable-next-line @next/next/no-img-element
                       <img src={u.avatarUrl} alt={u.displayName} className="w-full h-full object-cover" />

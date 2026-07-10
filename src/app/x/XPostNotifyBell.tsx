@@ -44,7 +44,7 @@ export function XPostNotifyBell({
       className={`inline-flex items-center justify-center shrink-0 w-9 h-9 rounded-full border transition-colors disabled:opacity-50 ${
         on
           ? 'border-transparent text-white'
-          : 'border-slate-200 text-slate-500 hover:border-indigo-300 hover:text-indigo-600'
+          : 'border-[color:var(--x-border-strong)] text-slate-500 hover:border-indigo-300 hover:text-indigo-600'
       }`}
       style={on ? { background: 'linear-gradient(100deg,#6366F1,#8B5CF6)' } : undefined}
     >

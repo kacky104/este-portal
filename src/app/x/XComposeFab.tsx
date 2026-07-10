@@ -65,7 +65,7 @@ export function XComposeFab({
           onClick={() => setOpen(false)}
         >
           <div
-            className="relative w-full max-w-lg rounded-3xl bg-white shadow-2xl border border-slate-100 p-5 max-h-[90vh] overflow-y-auto"
+            className="relative w-full max-w-lg rounded-3xl bg-[color:var(--x-surface)] shadow-2xl border border-[color:var(--x-border)] p-5 max-h-[90vh] overflow-y-auto"
             onClick={(e) => e.stopPropagation()}
             role="dialog"
             aria-modal="true"

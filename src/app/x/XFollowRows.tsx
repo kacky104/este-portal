@@ -40,11 +40,11 @@ export function XFollowRows({
         const row = (
           <Link
             href={`/x/u/${u.handle}`}
-            className={`x-card flex items-center gap-3 rounded-2xl bg-white/[0.94] shadow-[0_4px_16px_rgba(109,40,217,0.3)] p-3 hover:brightness-[0.98] transition ${
+            className={`x-card flex items-center gap-3 rounded-2xl bg-[color:var(--x-surface)] shadow-[0_4px_16px_rgba(109,40,217,0.3)] p-3 hover:brightness-[0.98] transition ${
               showSuki ? 'pr-20' : ''
             }`}
           >
-            <span className="relative w-11 h-11 rounded-full overflow-hidden border border-slate-100 bg-gradient-to-br from-indigo-300 to-sky-300 flex items-center justify-center flex-shrink-0">
+            <span className="relative w-11 h-11 rounded-full overflow-hidden border border-[color:var(--x-border)] bg-gradient-to-br from-indigo-300 to-sky-300 flex items-center justify-center flex-shrink-0">
               {u.avatarUrl ? (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img src={u.avatarUrl} alt={u.displayName} className="w-full h-full object-cover" />

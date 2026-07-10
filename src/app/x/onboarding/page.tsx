@@ -18,7 +18,7 @@ export default async function XOnboardingPage() {
   if (profile) redirect('/x');
 
   return (
-    <div className="x-card my-6 p-6 rounded-2xl bg-white/70 backdrop-blur-md border border-white/40 shadow-[0_4px_16px_rgba(109,40,217,0.3)]">
+    <div className="x-card my-6 p-6 rounded-2xl bg-[color:var(--x-surface-translucent)] backdrop-blur-md border border-white/40 shadow-[0_4px_16px_rgba(109,40,217,0.3)]">
       {/* 見出し＋横長ロゴ（タイトルと同じ行の右隣）。サブテキストは行の下。狭幅で収まらない時のみ折り返す。 */}
       <div className="mb-6">
         <div className="flex flex-row flex-wrap items-center gap-2.5">

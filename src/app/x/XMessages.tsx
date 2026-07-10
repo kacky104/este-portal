@@ -137,7 +137,7 @@ export function XMessages() {
       {meLoading || loading ? (
         <XListSkeleton rows={6} variant="row" />
       ) : !userId ? (
-        <div className="x-card rounded-2xl bg-white/[0.94] shadow-[0_4px_16px_rgba(109,40,217,0.3)] p-6 text-center">
+        <div className="x-card rounded-2xl bg-[color:var(--x-surface)] shadow-[0_4px_16px_rgba(109,40,217,0.3)] p-6 text-center">
           <p className="text-sm text-slate-600 mb-4 leading-relaxed">メッセージを見るにはログインしてください。</p>
           <Link
             href="/x/login"
@@ -157,12 +157,12 @@ export function XMessages() {
             <Link
               key={it.id}
               href={`/x/messages/${it.id}`}
-              className="x-card flex items-center gap-3 rounded-2xl bg-white/[0.94] shadow-[0_4px_16px_rgba(109,40,217,0.3)] p-3 hover:brightness-[0.98] transition"
+              className="x-card flex items-center gap-3 rounded-2xl bg-[color:var(--x-surface)] shadow-[0_4px_16px_rgba(109,40,217,0.3)] p-3 hover:brightness-[0.98] transition"
             >
               <span className="w-2 flex-shrink-0 flex justify-center">
                 {it.unread && <span className="w-2 h-2 rounded-full bg-indigo-500" aria-label="未読" />}
               </span>
-              <span className="relative w-11 h-11 rounded-full overflow-hidden border border-slate-100 bg-gradient-to-br from-indigo-300 to-sky-300 flex items-center justify-center flex-shrink-0">
+              <span className="relative w-11 h-11 rounded-full overflow-hidden border border-[color:var(--x-border)] bg-gradient-to-br from-indigo-300 to-sky-300 flex items-center justify-center flex-shrink-0">
                 {it.other?.avatarUrl ? (
                   // eslint-disable-next-line @next/next/no-img-element
                   <img src={it.other.avatarUrl} alt={it.other.displayName} className="w-full h-full object-cover" />

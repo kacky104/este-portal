@@ -184,7 +184,7 @@ export function XComposer({
   };
 
   return (
-    <div className="pt-2 pb-4 border-b border-slate-100">
+    <div className="pt-2 pb-4 border-b border-[color:var(--x-border)]">
       {error && (
         <div className="mb-2 p-2.5 rounded-xl bg-rose-50 border border-rose-100 text-rose-500 text-[12px] font-medium">
           ⚠️ {error}
@@ -196,14 +196,14 @@ export function XComposer({
         onChange={(e) => setBody(e.target.value)}
         placeholder={isReply ? '返信を入力' : 'いまどうしてる？'}
         maxLength={BODY_MAX}
-        className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm bg-slate-50/50 focus:outline-none focus:ring-2 focus:ring-indigo-300 focus:border-transparent resize-none"
+        className="w-full px-3 py-2.5 rounded-xl border border-[color:var(--x-border-strong)] text-sm bg-slate-50/50 focus:outline-none focus:ring-2 focus:ring-indigo-300 focus:border-transparent resize-none"
       />
 
       {/* 画像プレビュー（個別削除） */}
       {images.length > 0 && (
         <div className="mt-2 grid grid-cols-4 gap-2">
           {images.map((src, i) => (
-            <div key={i} className="relative aspect-square rounded-lg overflow-hidden border border-slate-100 bg-slate-50">
+            <div key={i} className="relative aspect-square rounded-lg overflow-hidden border border-[color:var(--x-border)] bg-slate-50">
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img src={src} alt="" className="w-full h-full object-cover" />
               <button
@@ -220,7 +220,7 @@ export function XComposer({
       )}
 
       {/* リンク（任意・http/https のみ）。text-base(16px) で iOS 自動ズーム抑止。 */}
-      <div className="mt-2 flex items-center gap-2 rounded-xl border border-slate-200 bg-slate-50/50 px-3 focus-within:ring-2 focus-within:ring-indigo-300 focus-within:border-transparent">
+      <div className="mt-2 flex items-center gap-2 rounded-xl border border-[color:var(--x-border-strong)] bg-slate-50/50 px-3 focus-within:ring-2 focus-within:ring-indigo-300 focus-within:border-transparent">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-slate-400 flex-shrink-0">
           <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
           <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" />

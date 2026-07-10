@@ -102,7 +102,7 @@ export function XProfileView({
   return (
     <div>
       {/* ─── ヘッダー（浮遊カード） ─── */}
-      <div className="x-card mt-3 rounded-2xl overflow-hidden bg-white/[0.94] shadow-[0_4px_16px_rgba(109,40,217,0.3)]">
+      <div className="x-card mt-3 rounded-2xl overflow-hidden bg-[color:var(--x-surface)] shadow-[0_4px_16px_rgba(109,40,217,0.3)]">
         {/* バナー（header_url があればタップで全体表示） */}
         <div className="h-28 bg-gradient-to-br from-indigo-100 to-sky-100 relative">
           {target.header_url && (
@@ -136,7 +136,7 @@ export function XProfileView({
               {isOwnProfile ? (
                 <Link
                   href="/x/settings"
-                  className="inline-block whitespace-nowrap shrink-0 text-xs font-bold px-4 py-1.5 rounded-full border border-slate-200 text-slate-600 hover:border-indigo-300 hover:text-indigo-600 transition-colors"
+                  className="inline-block whitespace-nowrap shrink-0 text-xs font-bold px-4 py-1.5 rounded-full border border-[color:var(--x-border-strong)] text-slate-600 hover:border-indigo-300 hover:text-indigo-600 transition-colors"
                 >
                   プロフィール編集
                 </Link>
@@ -152,7 +152,7 @@ export function XProfileView({
                       disabled={followPending}
                       className={`whitespace-nowrap shrink-0 text-sm font-bold px-3 py-1.5 rounded-full transition-colors disabled:opacity-50 ${
                         following
-                          ? 'border border-slate-200 text-slate-500 hover:border-rose-200 hover:text-rose-500'
+                          ? 'border border-[color:var(--x-border-strong)] text-slate-500 hover:border-rose-200 hover:text-rose-500'
                           : 'text-white'
                       }`}
                       style={following ? undefined : { background: 'linear-gradient(100deg,#6366F1,#8B5CF6)' }}
@@ -277,7 +277,7 @@ export function XProfileView({
 
       {/* ─── 所属セラピスト一覧（店舗プロフィールのみ・浮遊カード） ─── */}
       {target.kind === 'shop' && (
-        <div className="x-card mt-3 rounded-2xl bg-white/[0.94] shadow-[0_4px_16px_rgba(109,40,217,0.3)] p-4">
+        <div className="x-card mt-3 rounded-2xl bg-[color:var(--x-surface)] shadow-[0_4px_16px_rgba(109,40,217,0.3)] p-4">
           <h2 className="text-sm font-black text-slate-800 mb-2">
             所属セラピスト
             {affiliatedTherapists.length > 0 && (
@@ -292,9 +292,9 @@ export function XProfileView({
                 <Link
                   key={th.id}
                   href={`/x/u/${th.handle}`}
-                  className="flex items-center gap-2.5 p-2 rounded-xl hover:bg-slate-50 transition-colors"
+                  className="flex items-center gap-2.5 p-2 rounded-xl hover:bg-[color:var(--x-surface-hover)] transition-colors"
                 >
-                  <span className="relative w-9 h-9 rounded-full overflow-hidden border border-slate-100 bg-gradient-to-br from-indigo-300 to-sky-300 flex items-center justify-center flex-shrink-0">
+                  <span className="relative w-9 h-9 rounded-full overflow-hidden border border-[color:var(--x-border)] bg-gradient-to-br from-indigo-300 to-sky-300 flex items-center justify-center flex-shrink-0">
                     {th.avatarUrl ? (
                       // eslint-disable-next-line @next/next/no-img-element
                       <img src={th.avatarUrl} alt={th.displayName} className="w-full h-full object-cover" />

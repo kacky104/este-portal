@@ -185,7 +185,7 @@ export function XThread({ conversationId }: { conversationId: string }) {
       {meLoading || loading ? (
         <XListSkeleton rows={5} variant="row" />
       ) : !userId ? (
-        <div className="x-card rounded-2xl bg-white/[0.94] shadow-[0_4px_16px_rgba(109,40,217,0.3)] p-6 text-center">
+        <div className="x-card rounded-2xl bg-[color:var(--x-surface)] shadow-[0_4px_16px_rgba(109,40,217,0.3)] p-6 text-center">
           <p className="text-sm text-slate-600 mb-4 leading-relaxed">メッセージを見るにはログインしてください。</p>
           <Link
             href="/x/login"
@@ -196,7 +196,7 @@ export function XThread({ conversationId }: { conversationId: string }) {
           </Link>
         </div>
       ) : accessible === false ? (
-        <div className="x-card rounded-2xl bg-white/[0.94] shadow-[0_4px_16px_rgba(109,40,217,0.3)] p-6 text-center">
+        <div className="x-card rounded-2xl bg-[color:var(--x-surface)] shadow-[0_4px_16px_rgba(109,40,217,0.3)] p-6 text-center">
           <p className="text-sm text-slate-600 leading-relaxed">この会話は見つからないか、表示する権限がありません。</p>
         </div>
       ) : (
@@ -205,9 +205,9 @@ export function XThread({ conversationId }: { conversationId: string }) {
           {other && (
             <Link
               href={`/x/u/${other.handle}`}
-              className="x-card flex items-center gap-3 rounded-2xl bg-white/[0.94] shadow-[0_4px_16px_rgba(109,40,217,0.3)] p-3 mb-3 hover:brightness-[0.98] transition"
+              className="x-card flex items-center gap-3 rounded-2xl bg-[color:var(--x-surface)] shadow-[0_4px_16px_rgba(109,40,217,0.3)] p-3 mb-3 hover:brightness-[0.98] transition"
             >
-              <span className="relative w-10 h-10 rounded-full overflow-hidden border border-slate-100 bg-gradient-to-br from-indigo-300 to-sky-300 flex items-center justify-center flex-shrink-0">
+              <span className="relative w-10 h-10 rounded-full overflow-hidden border border-[color:var(--x-border)] bg-gradient-to-br from-indigo-300 to-sky-300 flex items-center justify-center flex-shrink-0">
                 {other.avatarUrl ? (
                   // eslint-disable-next-line @next/next/no-img-element
                   <img src={other.avatarUrl} alt={other.displayName} className="w-full h-full object-cover" />
@@ -239,7 +239,7 @@ export function XThread({ conversationId }: { conversationId: string }) {
                       className={`px-3.5 py-2 rounded-2xl text-sm leading-relaxed whitespace-pre-wrap break-words ${
                         m.mine
                           ? 'text-white rounded-br-sm'
-                          : 'bg-white border border-slate-100 text-slate-800 rounded-bl-sm'
+                          : 'bg-[color:var(--x-surface)] border border-[color:var(--x-border)] text-slate-800 rounded-bl-sm'
                       }`}
                       style={m.mine ? { background: 'linear-gradient(100deg,#6366F1,#8B5CF6)' } : undefined}
                     >
@@ -255,7 +255,7 @@ export function XThread({ conversationId }: { conversationId: string }) {
 
           {/* 送信フォーム（DM受付オフのときは案内カードに差し替え。過去メッセージの閲覧は上のとおり可能）。 */}
           {dmBlocked ? (
-            <div className="x-card rounded-2xl bg-white/[0.94] shadow-[0_4px_16px_rgba(109,40,217,0.3)] p-4 text-center">
+            <div className="x-card rounded-2xl bg-[color:var(--x-surface)] shadow-[0_4px_16px_rgba(109,40,217,0.3)] p-4 text-center">
               {dmOtherOff ? (
                 <p className="text-sm text-slate-600 leading-relaxed">このアカウントはメッセージを受け付けていません。</p>
               ) : (
@@ -269,7 +269,7 @@ export function XThread({ conversationId }: { conversationId: string }) {
               )}
             </div>
           ) : (
-            <div className="x-card rounded-2xl bg-white/[0.94] shadow-[0_4px_16px_rgba(109,40,217,0.3)] p-2">
+            <div className="x-card rounded-2xl bg-[color:var(--x-surface)] shadow-[0_4px_16px_rgba(109,40,217,0.3)] p-2">
               {error && <p className="text-[12px] text-rose-500 font-medium px-2 pb-1">⚠️ {error}</p>}
               <div className="flex items-end gap-2">
                 <input
@@ -282,7 +282,7 @@ export function XThread({ conversationId }: { conversationId: string }) {
                     }
                   }}
                   placeholder="メッセージを入力"
-                  className="flex-1 px-3 py-2.5 rounded-xl border border-slate-200 bg-slate-50/50 text-base focus:outline-none focus:ring-2 focus:ring-indigo-300 focus:border-transparent"
+                  className="flex-1 px-3 py-2.5 rounded-xl border border-[color:var(--x-border-strong)] bg-slate-50/50 text-base focus:outline-none focus:ring-2 focus:ring-indigo-300 focus:border-transparent"
                 />
                 <button
                   type="button"

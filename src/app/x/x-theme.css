@@ -2,9 +2,29 @@
    data-x-theme は /x ルート（#x-root）にのみ付与され、セレクタも .x-* に限定するため
    フクエス本体（/x 外）には一切影響しない。既定（gradient / 属性なし）は前タスクの見た目。 */
 
-/* ── 固定背景レイヤー：既定はグラデ（ブルー→パープル・鮮やか, 160deg） ── */
+/* ── 既定(gradient)テーマのカラートークン ──
+   コンポーネント側は bg-[color:var(--x-surface)] 等で参照する。白テーマはこの変数を白系へ
+   上書きするだけで従来見た目を完全再現する（面の色の二重管理を避ける）。 */
+#x-root {
+  --x-surface: #f6f3ff;              /* カード・フォーム等の面（旧: white） */
+  --x-surface-translucent: rgba(246, 243, 255, 0.92); /* stickyバー等（旧: white/90） */
+  --x-border: #e2d9fb;               /* カード枠線（旧: slate-100） */
+  --x-border-strong: #d4c6f7;        /* 強めの枠線（旧: slate-200） */
+  --x-surface-hover: #efe9ff;        /* hover面（旧: slate-50 等） */
+}
+
+/* ── 白テーマ：カラートークンを従来の白系へ完全に戻す ── */
+[data-x-theme='white'] {
+  --x-surface: #ffffff;
+  --x-surface-translucent: rgba(255, 255, 255, 0.9);
+  --x-border: rgb(241 245 249);      /* slate-100 */
+  --x-border-strong: rgb(226 232 240); /* slate-200 */
+  --x-surface-hover: rgb(248 250 252); /* slate-50 */
+}
+
+/* ── 固定背景レイヤー：既定は紫の濃淡グラデ（旧: 青→紫, 160deg） ── */
 .x-bg {
-  background: linear-gradient(160deg, #2563eb 0%, #6d28d9 55%, #9333ea 100%);
+  background: linear-gradient(160deg, #4c1d95 0%, #7c3aed 55%, #a855f7 100%);
 }
 
 /* ── 白テーマ：グラデ導入前の素白へ戻す ── */

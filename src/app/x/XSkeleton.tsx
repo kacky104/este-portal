@@ -3,7 +3,7 @@
 
 export function XPostSkeleton() {
   return (
-    <div className="x-card rounded-2xl bg-white/[0.94] shadow-[0_4px_16px_rgba(109,40,217,0.3)] p-4 animate-pulse">
+    <div className="x-card rounded-2xl bg-[color:var(--x-surface)] shadow-[0_4px_16px_rgba(109,40,217,0.3)] p-4 animate-pulse">
       <div className="flex items-center gap-2.5">
         <div className="w-10 h-10 rounded-full bg-slate-200 flex-shrink-0" />
         <div className="flex-1 space-y-1.5">
@@ -21,7 +21,7 @@ export function XPostSkeleton() {
 
 export function XRowSkeleton() {
   return (
-    <div className="x-card flex items-center gap-3 rounded-2xl bg-white/[0.94] shadow-[0_4px_16px_rgba(109,40,217,0.3)] p-3 animate-pulse">
+    <div className="x-card flex items-center gap-3 rounded-2xl bg-[color:var(--x-surface)] shadow-[0_4px_16px_rgba(109,40,217,0.3)] p-3 animate-pulse">
       <div className="w-11 h-11 rounded-full bg-slate-200 flex-shrink-0" />
       <div className="flex-1 space-y-1.5">
         <div className="h-3 w-1/3 rounded bg-slate-200" />

@@ -47,7 +47,7 @@ export function XThemeToggle() {
             onClick={() => apply(key)}
             aria-pressed={theme === key}
             className={`flex-1 py-2 rounded-lg text-xs font-bold transition-colors ${
-              theme === key ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-400 hover:text-slate-600'
+              theme === key ? 'bg-[color:var(--x-surface)] text-indigo-600 shadow-sm' : 'text-slate-400 hover:text-slate-600'
             }`}
           >
             {label}

@@ -156,7 +156,7 @@ export function XAdmin({
   const shownShops = onlyUnverified ? shops.filter((s) => !s.is_verified) : shops;
 
   return (
-    <div className="x-card my-6 p-5 rounded-2xl bg-white/[0.94] shadow-[0_4px_16px_rgba(109,40,217,0.3)]">
+    <div className="x-card my-6 p-5 rounded-2xl bg-[color:var(--x-surface)] shadow-[0_4px_16px_rgba(109,40,217,0.3)]">
       <h1 className="text-xl font-black tracking-tight mb-1">運営パネル</h1>
       <p className="text-xs text-slate-400 mb-4">fukuX の認証バッジ・凍結・モデレーション</p>
 
@@ -174,7 +174,7 @@ export function XAdmin({
             type="button"
             onClick={() => setTab(key)}
             className={`flex-1 py-2 rounded-lg text-xs font-bold transition-colors ${
-              tab === key ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-400 hover:text-slate-600'
+              tab === key ? 'bg-[color:var(--x-surface)] text-indigo-600 shadow-sm' : 'text-slate-400 hover:text-slate-600'
             }`}
           >
             {label}
@@ -194,8 +194,8 @@ export function XAdmin({
               <p className="text-center text-sm text-slate-400 py-12">該当する店舗はありません</p>
             ) : (
               shownShops.map((s) => (
-                <div key={s.id} className="border border-slate-200 rounded-2xl p-3 flex items-center gap-3">
-                  <span className="relative w-11 h-11 rounded-full overflow-hidden border border-slate-100 bg-gradient-to-br from-indigo-300 to-sky-300 flex items-center justify-center flex-shrink-0">
+                <div key={s.id} className="border border-[color:var(--x-border-strong)] rounded-2xl p-3 flex items-center gap-3">
+                  <span className="relative w-11 h-11 rounded-full overflow-hidden border border-[color:var(--x-border)] bg-gradient-to-br from-indigo-300 to-sky-300 flex items-center justify-center flex-shrink-0">
                     {s.avatar_url ? (
                       // eslint-disable-next-line @next/next/no-img-element
                       <img src={s.avatar_url} alt={s.display_name} className="w-full h-full object-cover" />
@@ -221,7 +221,7 @@ export function XAdmin({
                     disabled={busy === s.id}
                     className={`flex-shrink-0 text-xs font-bold px-3 py-1.5 rounded-lg transition-colors disabled:opacity-50 ${
                       s.is_verified
-                        ? 'border border-slate-200 text-slate-500 hover:border-rose-200 hover:text-rose-500'
+                        ? 'border border-[color:var(--x-border-strong)] text-slate-500 hover:border-rose-200 hover:text-rose-500'
                         : 'text-white'
                     }`}
                     style={s.is_verified ? undefined : { background: 'linear-gradient(100deg,#6366F1,#8B5CF6)' }}
@@ -295,7 +295,7 @@ export function XAdmin({
       {tab === 'posts' && (
         <div>
           {/* 日時範囲検索 */}
-          <div className="mb-4 p-3 rounded-2xl bg-slate-50 border border-slate-200">
+          <div className="mb-4 p-3 rounded-2xl bg-slate-50 border border-[color:var(--x-border-strong)]">
             <p className="text-xs font-bold text-slate-500 mb-2">投稿日時で検索（日本時間）</p>
             <div className="flex flex-wrap items-end gap-2">
               <label className="flex flex-col gap-1 text-[11px] font-bold text-slate-400">
@@ -304,7 +304,7 @@ export function XAdmin({
                   type="datetime-local"
                   value={searchFrom}
                   onChange={(e) => setSearchFrom(e.target.value)}
-                  className="text-xs border border-slate-200 rounded-lg px-2 py-1 text-slate-700"
+                  className="text-xs border border-[color:var(--x-border-strong)] rounded-lg px-2 py-1 text-slate-700"
                 />
               </label>
               <label className="flex flex-col gap-1 text-[11px] font-bold text-slate-400">
@@ -313,7 +313,7 @@ export function XAdmin({
                   type="datetime-local"
                   value={searchTo}
                   onChange={(e) => setSearchTo(e.target.value)}
-                  className="text-xs border border-slate-200 rounded-lg px-2 py-1 text-slate-700"
+                  className="text-xs border border-[color:var(--x-border-strong)] rounded-lg px-2 py-1 text-slate-700"
                 />
               </label>
               <button
@@ -329,7 +329,7 @@ export function XAdmin({
                 <button
                   type="button"
                   onClick={clearSearch}
-                  className="text-xs font-bold px-3 py-1.5 rounded-lg border border-slate-200 text-slate-500 hover:bg-slate-100"
+                  className="text-xs font-bold px-3 py-1.5 rounded-lg border border-[color:var(--x-border-strong)] text-slate-500 hover:bg-slate-100"
                 >
                   検索解除
                 </button>

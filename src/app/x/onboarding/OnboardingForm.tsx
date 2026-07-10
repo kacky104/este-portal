@@ -63,7 +63,7 @@ const KINDS: KindMeta[] = [
     selectedCard: 'border-transparent bg-blue-50 ring-2 ring-blue-400 shadow-sm',
     selLabel: 'text-blue-700',
     check: 'bg-blue-500 text-white',
-    hoverCard: 'border-slate-200 bg-white hover:border-transparent hover:bg-gradient-to-br hover:from-blue-500 hover:to-blue-700',
+    hoverCard: 'border-[color:var(--x-border-strong)] bg-[color:var(--x-surface)] hover:border-transparent hover:bg-gradient-to-br hover:from-blue-500 hover:to-blue-700',
     hoverLabel: 'group-hover:text-white',
     hoverDesc: 'group-hover:text-white/90',
   },
@@ -78,7 +78,7 @@ const KINDS: KindMeta[] = [
     selectedCard: 'border-transparent bg-rose-50 ring-2 ring-rose-400 shadow-sm',
     selLabel: 'text-rose-700',
     check: 'bg-rose-500 text-white',
-    hoverCard: 'border-slate-200 bg-white hover:border-transparent hover:bg-gradient-to-br hover:from-rose-400 hover:to-red-600',
+    hoverCard: 'border-[color:var(--x-border-strong)] bg-[color:var(--x-surface)] hover:border-transparent hover:bg-gradient-to-br hover:from-rose-400 hover:to-red-600',
     hoverLabel: 'group-hover:text-white',
     hoverDesc: 'group-hover:text-white/90',
   },
@@ -94,7 +94,7 @@ const KINDS: KindMeta[] = [
     selectedCard: 'border-transparent bg-amber-50 ring-2 ring-amber-400 shadow-sm',
     selLabel: 'text-amber-700',
     check: 'bg-amber-500 text-white',
-    hoverCard: 'border-slate-200 bg-white hover:border-transparent hover:bg-gradient-to-br hover:from-amber-200 hover:to-amber-400',
+    hoverCard: 'border-[color:var(--x-border-strong)] bg-[color:var(--x-surface)] hover:border-transparent hover:bg-gradient-to-br hover:from-amber-200 hover:to-amber-400',
     hoverLabel: 'group-hover:text-amber-900',
     hoverDesc: 'group-hover:text-amber-900',
   },
@@ -395,7 +395,7 @@ export function OnboardingForm({ userId }: { userId: string }) {
       {/* ③ handle（@ID） */}
       <div>
         <label className="text-[11px] font-bold text-slate-400 block mb-1.5 px-1">ID（@ユーザー名）</label>
-        <div className="flex items-center rounded-xl border border-slate-200 bg-slate-50/50 focus-within:ring-2 focus-within:ring-indigo-400 focus-within:border-transparent overflow-hidden">
+        <div className="flex items-center rounded-xl border border-[color:var(--x-border-strong)] bg-slate-50/50 focus-within:ring-2 focus-within:ring-indigo-400 focus-within:border-transparent overflow-hidden">
           <span className="pl-3 pr-1 text-slate-400 font-bold select-none">@</span>
           <input
             type="text"
@@ -421,7 +421,7 @@ export function OnboardingForm({ userId }: { userId: string }) {
           onChange={(e) => setDisplayName(e.target.value)}
           placeholder="表示名を入力"
           maxLength={DISPLAY_MAX}
-          className="w-full px-4 py-3 rounded-xl border border-slate-200 text-base bg-slate-50/50 focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:border-transparent"
+          className="w-full px-4 py-3 rounded-xl border border-[color:var(--x-border-strong)] text-base bg-slate-50/50 focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:border-transparent"
         />
         <p className="text-[11px] text-slate-400 mt-1 text-right">
           {displayName.length}/{DISPLAY_MAX}
@@ -437,7 +437,7 @@ export function OnboardingForm({ userId }: { userId: string }) {
           onChange={(e) => setBio(e.target.value)}
           placeholder="自己紹介を入力"
           maxLength={BIO_MAX}
-          className="w-full px-4 py-3 rounded-xl border border-slate-200 text-base bg-slate-50/50 focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:border-transparent resize-none"
+          className="w-full px-4 py-3 rounded-xl border border-[color:var(--x-border-strong)] text-base bg-slate-50/50 focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:border-transparent resize-none"
         />
         <p className="text-[11px] text-slate-400 mt-1 text-right">
           {bio.length}/{BIO_MAX}
@@ -448,7 +448,7 @@ export function OnboardingForm({ userId }: { userId: string }) {
         <button
           type="button"
           onClick={() => setStep(1)}
-          className="px-5 py-3.5 rounded-xl border border-slate-200 text-slate-500 font-bold text-sm hover:border-slate-300 transition-colors"
+          className="px-5 py-3.5 rounded-xl border border-[color:var(--x-border-strong)] text-slate-500 font-bold text-sm hover:border-slate-300 transition-colors"
         >
           戻る
         </button>

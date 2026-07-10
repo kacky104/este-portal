@@ -53,7 +53,7 @@ export function XProfileSchedule({ therapistId }: { therapistId: number }) {
   };
 
   return (
-    <div className="x-card mt-3 rounded-2xl bg-white/[0.94] shadow-[0_4px_16px_rgba(109,40,217,0.3)] overflow-hidden">
+    <div className="x-card mt-3 rounded-2xl bg-[color:var(--x-surface)] shadow-[0_4px_16px_rgba(109,40,217,0.3)] overflow-hidden">
       <button
         type="button"
         onClick={toggle}
@@ -91,7 +91,7 @@ export function XProfileSchedule({ therapistId }: { therapistId: number }) {
                   <div
                     key={date}
                     className={`flex items-center justify-between px-4 py-2.5 rounded-xl text-sm ${
-                      isActive ? 'bg-pink-50 border border-pink-100' : 'bg-slate-50 border border-slate-100'
+                      isActive ? 'bg-pink-50 border border-pink-100' : 'bg-slate-50 border border-[color:var(--x-border)]'
                     }`}
                   >
                     <span className={`font-medium ${isActive ? 'text-slate-800' : 'text-slate-400'}`}>

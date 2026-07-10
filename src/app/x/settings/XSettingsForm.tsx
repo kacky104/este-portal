@@ -254,7 +254,7 @@ export function XSettingsForm({
       {/* ── ヘッダー画像 ── */}
       <div>
         <p className="text-[11px] font-bold text-slate-400 mb-2 px-1">ヘッダー画像（任意・横長）</p>
-        <div className="relative h-28 rounded-2xl overflow-hidden bg-gradient-to-br from-indigo-100 to-sky-100 border border-slate-100">
+        <div className="relative h-28 rounded-2xl overflow-hidden bg-gradient-to-br from-indigo-100 to-sky-100 border border-[color:var(--x-border)]">
           {headerUrl && (
             // eslint-disable-next-line @next/next/no-img-element
             <img src={headerUrl} alt="" className="w-full h-full object-cover" />
@@ -309,7 +309,7 @@ export function XSettingsForm({
           onChange={(e) => setDisplayName(e.target.value)}
           placeholder="表示名を入力"
           maxLength={DISPLAY_MAX}
-          className="w-full px-4 py-3 rounded-xl border border-slate-200 text-sm bg-slate-50/50 focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:border-transparent"
+          className="w-full px-4 py-3 rounded-xl border border-[color:var(--x-border-strong)] text-sm bg-slate-50/50 focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:border-transparent"
         />
         <p className="text-[11px] text-slate-400 mt-1 text-right">
           {displayName.length}/{DISPLAY_MAX}
@@ -325,7 +325,7 @@ export function XSettingsForm({
           onChange={(e) => setBio(e.target.value)}
           placeholder="自己紹介を入力"
           maxLength={BIO_MAX}
-          className="w-full px-4 py-3 rounded-xl border border-slate-200 text-sm bg-slate-50/50 focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:border-transparent resize-none"
+          className="w-full px-4 py-3 rounded-xl border border-[color:var(--x-border-strong)] text-sm bg-slate-50/50 focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:border-transparent resize-none"
         />
         <p className="text-[11px] text-slate-400 mt-1 text-right">
           {bio.length}/{BIO_MAX}
@@ -344,13 +344,13 @@ export function XSettingsForm({
           autoCapitalize="none"
           autoCorrect="off"
           spellCheck={false}
-          className="w-full px-4 py-3 rounded-xl border border-slate-200 text-base bg-slate-50/50 focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:border-transparent"
+          className="w-full px-4 py-3 rounded-xl border border-[color:var(--x-border-strong)] text-base bg-slate-50/50 focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:border-transparent"
         />
         <p className="text-[10px] text-slate-400 mt-1 px-1">http:// または https:// のリンク（プロフィールに表示されます）</p>
       </div>
 
       {/* ── プライバシー：DM受付（全kind共通） ── */}
-      <div className="rounded-2xl border border-slate-200 bg-slate-50/60 p-4">
+      <div className="rounded-2xl border border-[color:var(--x-border-strong)] bg-slate-50/60 p-4">
         <label className="flex items-start gap-3 cursor-pointer select-none">
           <input
             type="checkbox"
@@ -376,7 +376,7 @@ export function XSettingsForm({
             value={address}
             onChange={(e) => setAddress(e.target.value)}
             placeholder="例: 博多区住吉"
-            className="w-full px-4 py-3 rounded-xl border border-slate-200 text-base text-slate-900 placeholder:text-slate-400 bg-slate-50/50 focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:border-transparent"
+            className="w-full px-4 py-3 rounded-xl border border-[color:var(--x-border-strong)] text-base text-slate-900 placeholder:text-slate-400 bg-slate-50/50 focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:border-transparent"
           />
           <p className="text-[10px] text-slate-400 mt-1 px-1">プロフィールの @ID の横に表示されます。</p>
         </div>
@@ -384,7 +384,7 @@ export function XSettingsForm({
 
       {/* ── お店カード画像（認証済みお店のみ・最大8枚）── タイムライン「お店」タブのショーケース用 */}
       {isShop && !profile.is_verified && (
-        <div className="rounded-2xl border border-slate-200 bg-slate-50/60 p-4">
+        <div className="rounded-2xl border border-[color:var(--x-border-strong)] bg-slate-50/60 p-4">
           <p className="text-sm font-bold text-slate-700">お店カード画像</p>
           <p className="text-[12px] text-slate-500 mt-1 leading-relaxed">
             お店カード画像は、フクエス認証済みのお店のみ設定できます。
@@ -399,7 +399,7 @@ export function XSettingsForm({
           </p>
           <div className="grid grid-cols-4 gap-1.5">
             {showcaseImages.map((url, i) => (
-              <div key={i} className="relative aspect-square rounded-lg overflow-hidden border border-slate-100 bg-slate-50">
+              <div key={i} className="relative aspect-square rounded-lg overflow-hidden border border-[color:var(--x-border)] bg-slate-50">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img src={url} alt={`お店カード画像${i + 1}`} className="w-full h-full object-cover" />
                 <button
@@ -433,7 +433,7 @@ export function XSettingsForm({
 
       {/* ── 年齢・スリーサイズ（セラピストアカウントのみ・すべて任意）── text-base(16px) で iOS 自動ズーム抑止 */}
       {isTherapist && (
-      <div className="rounded-2xl border border-slate-200 bg-slate-50/60 p-4">
+      <div className="rounded-2xl border border-[color:var(--x-border-strong)] bg-slate-50/60 p-4">
         <p className="text-[11px] font-bold text-slate-400 mb-3 px-1">年齢・スリーサイズ（任意）</p>
         <div className="grid grid-cols-2 gap-3">
           <NumberField label="年齢" unit="歳" value={age} onChange={setAge} />
@@ -448,7 +448,7 @@ export function XSettingsForm({
               placeholder="例: F"
               maxLength={4}
               autoCapitalize="characters"
-              className="w-full px-4 py-3 rounded-xl border border-slate-200 text-base text-slate-900 placeholder:text-slate-400 bg-white focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:border-transparent"
+              className="w-full px-4 py-3 rounded-xl border border-[color:var(--x-border-strong)] text-base text-slate-900 placeholder:text-slate-400 bg-[color:var(--x-surface)] focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:border-transparent"
             />
           </div>
           <NumberField label="ウエスト W" unit="cm" value={waist} onChange={setWaist} />
@@ -459,7 +459,7 @@ export function XSettingsForm({
       )}
 
       {/* ── 変更不可（読み取り専用）：ID・種別・ログインメール ── */}
-      <div className="rounded-2xl border border-slate-200 bg-slate-50/60 p-4 space-y-3">
+      <div className="rounded-2xl border border-[color:var(--x-border-strong)] bg-slate-50/60 p-4 space-y-3">
         <p className="text-[11px] font-bold text-slate-400">変更できない項目</p>
         <ReadonlyRow label="ID（@ユーザー名）" value={`@${profile.handle}`} note="IDは変更できません" />
         <ReadonlyRow label="アカウント種別" value={KIND_LABEL[profile.kind] ?? profile.kind} note="種別は変更できません" />
@@ -479,7 +479,7 @@ export function XSettingsForm({
         </button>
         <Link
           href={`/x/u/${profile.handle}`}
-          className="px-5 py-3.5 rounded-xl border border-slate-200 text-slate-500 font-bold text-sm hover:border-slate-300 transition-colors"
+          className="px-5 py-3.5 rounded-xl border border-[color:var(--x-border-strong)] text-slate-500 font-bold text-sm hover:border-slate-300 transition-colors"
         >
           キャンセル
         </Link>
@@ -496,7 +496,7 @@ export function XSettingsForm({
             type="button"
             onClick={leaveShop}
             disabled={removing}
-            className="px-4 py-2 rounded-lg border border-rose-200 text-rose-600 bg-white text-xs font-bold hover:bg-rose-100 transition-colors disabled:opacity-50"
+            className="px-4 py-2 rounded-lg border border-rose-200 text-rose-600 bg-[color:var(--x-surface)] text-xs font-bold hover:bg-rose-100 transition-colors disabled:opacity-50"
           >
             {removing ? '解除中...' : '所属を解除する'}
           </button>
@@ -518,7 +518,7 @@ export function XSettingsForm({
                 setError('');
                 setDeleteOpen(true);
               }}
-              className="px-4 py-2 rounded-lg border border-rose-300 text-rose-600 bg-white text-xs font-bold hover:bg-rose-100 transition-colors"
+              className="px-4 py-2 rounded-lg border border-rose-300 text-rose-600 bg-[color:var(--x-surface)] text-xs font-bold hover:bg-rose-100 transition-colors"
             >
               アカウントを削除する
             </button>
@@ -542,7 +542,7 @@ export function XSettingsForm({
               autoCapitalize="none"
               autoCorrect="off"
               spellCheck={false}
-              className="w-full px-4 py-3 rounded-xl border border-rose-200 text-base text-slate-900 placeholder:text-slate-400 bg-white focus:outline-none focus:ring-2 focus:ring-rose-300"
+              className="w-full px-4 py-3 rounded-xl border border-rose-200 text-base text-slate-900 placeholder:text-slate-400 bg-[color:var(--x-surface)] focus:outline-none focus:ring-2 focus:ring-rose-300"
             />
 
             <div className="flex items-center gap-2 mt-3">
@@ -561,7 +561,7 @@ export function XSettingsForm({
                   setConfirmText('');
                 }}
                 disabled={deleting}
-                className="px-4 py-2.5 rounded-lg border border-slate-200 text-slate-500 text-xs font-bold hover:border-slate-300 transition-colors disabled:opacity-50"
+                className="px-4 py-2.5 rounded-lg border border-[color:var(--x-border-strong)] text-slate-500 text-xs font-bold hover:border-slate-300 transition-colors disabled:opacity-50"
               >
                 キャンセル
               </button>
@@ -601,7 +601,7 @@ function NumberField({
           value={value}
           onChange={(e) => onChange(e.target.value)}
           min={0}
-          className="w-full px-4 py-3 pr-10 rounded-xl border border-slate-200 text-base text-slate-900 placeholder:text-slate-400 bg-white focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:border-transparent"
+          className="w-full px-4 py-3 pr-10 rounded-xl border border-[color:var(--x-border-strong)] text-base text-slate-900 placeholder:text-slate-400 bg-[color:var(--x-surface)] focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:border-transparent"
         />
         <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-slate-400 pointer-events-none">{unit}</span>
       </div>

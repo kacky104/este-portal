@@ -136,7 +136,7 @@ export function XAuthForm({ initialMode }: { initialMode: 'login' | 'signup' }) 
 
   return (
     <div className="py-10 flex flex-col items-center">
-      <div className="w-full max-w-sm rounded-3xl bg-white shadow-xl border border-slate-100 p-7">
+      <div className="w-full max-w-sm rounded-3xl bg-[color:var(--x-surface)] shadow-xl border border-[color:var(--x-border)] p-7">
         {/* ロゴ */}
         <div className="text-center mb-6">
           <XLogo size="lg" />
@@ -161,7 +161,7 @@ export function XAuthForm({ initialMode }: { initialMode: 'login' | 'signup' }) 
             <button
               onClick={handleSignOut}
               disabled={loading}
-              className="w-full py-2.5 rounded-xl border border-slate-200 text-slate-500 font-medium text-sm hover:bg-slate-50 transition-colors disabled:opacity-60"
+              className="w-full py-2.5 rounded-xl border border-[color:var(--x-border-strong)] text-slate-500 font-medium text-sm hover:bg-[color:var(--x-surface-hover)] transition-colors disabled:opacity-60"
             >
               {loading ? '処理中...' : 'ログアウト'}
             </button>
@@ -181,7 +181,7 @@ export function XAuthForm({ initialMode }: { initialMode: 'login' | 'signup' }) 
                     setAlreadyExists(false);
                   }}
                   className={`flex-1 py-2 rounded-lg text-sm font-bold transition-colors ${
-                    mode === m ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-400 hover:text-slate-600'
+                    mode === m ? 'bg-[color:var(--x-surface)] text-indigo-600 shadow-sm' : 'text-slate-400 hover:text-slate-600'
                   }`}
                 >
                   {label}
@@ -232,7 +232,7 @@ export function XAuthForm({ initialMode }: { initialMode: 'login' | 'signup' }) 
                   placeholder="you@example.com"
                   required
                   disabled={loading}
-                  className="w-full px-4 py-3 rounded-xl border border-slate-200 text-sm bg-slate-50/50 focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:border-transparent"
+                  className="w-full px-4 py-3 rounded-xl border border-[color:var(--x-border-strong)] text-sm bg-slate-50/50 focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:border-transparent"
                 />
               </div>
 
@@ -250,7 +250,7 @@ export function XAuthForm({ initialMode }: { initialMode: 'login' | 'signup' }) 
                   required
                   minLength={mode === 'signup' ? 8 : undefined}
                   disabled={loading}
-                  className="w-full px-4 py-3 rounded-xl border border-slate-200 text-sm bg-slate-50/50 focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:border-transparent"
+                  className="w-full px-4 py-3 rounded-xl border border-[color:var(--x-border-strong)] text-sm bg-slate-50/50 focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:border-transparent"
                 />
               </div>
 

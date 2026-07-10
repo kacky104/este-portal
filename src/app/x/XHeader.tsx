@@ -38,7 +38,7 @@ function Avatar({ profile, size = 36 }: { profile: AvatarProfile | null; size?: 
   const dim = { width: size, height: size };
   return (
     <span
-      className="relative rounded-full overflow-hidden border border-slate-200 shadow-sm bg-gradient-to-br from-indigo-300 to-sky-300 flex items-center justify-center"
+      className="relative rounded-full overflow-hidden border border-[color:var(--x-border-strong)] shadow-sm bg-gradient-to-br from-indigo-300 to-sky-300 flex items-center justify-center"
       style={dim}
     >
       {profile?.avatar_url ? (
@@ -148,7 +148,7 @@ export function XHeader() {
 
   return (
     <>
-      <header className="sticky top-0 z-50 bg-white/85 backdrop-blur-md border-b border-slate-200">
+      <header className="sticky top-0 z-50 bg-[color:var(--x-surface-translucent)] backdrop-blur-md border-b border-[color:var(--x-border-strong)]">
         <div className="max-w-2xl mx-auto px-4 h-14 grid grid-cols-[1fr_auto_1fr] items-center">
           {/* 左：アバター（ドロワーを開く） */}
           <div className="justify-self-start">
@@ -251,14 +251,14 @@ export function XHeader() {
         />
         {/* パネル */}
         <aside
-          className={`absolute left-0 top-0 h-full w-[80%] max-w-xs bg-white shadow-2xl flex flex-col transition-transform duration-300 ease-out ${
+          className={`absolute left-0 top-0 h-full w-[80%] max-w-xs bg-[color:var(--x-surface)] shadow-2xl flex flex-col transition-transform duration-300 ease-out ${
             open ? 'translate-x-0' : '-translate-x-full'
           }`}
           role="dialog"
           aria-modal="true"
         >
           {/* 上部ヘッダー（ドロワーは常時白地）：①ロゴ＋キャッチ（常時）②@handle＋バッジ ③メール（ログイン時） */}
-          <div className="p-4 border-b border-slate-100">
+          <div className="p-4 border-b border-[color:var(--x-border)]">
             {/* ①ロゴ＋キャッチ。ロゴタップで /x へ＝ドロワーを閉じる。 */}
             <div className="flex items-center gap-2 flex-wrap">
               <span onClick={() => setOpen(false)} className="inline-flex">
@@ -297,7 +297,7 @@ export function XHeader() {
                 <DrawerLink href="/x/saved" onClick={() => setOpen(false)} label="保存した投稿" />
                 {isVerifiedShop && <DrawerLink href="/x/shop" onClick={() => setOpen(false)} label="店舗管理" accent="emerald" />}
                 {isAdmin && <DrawerLink href="/x/admin" onClick={() => setOpen(false)} label="運営パネル" accent="indigo" />}
-                <div className="my-2 border-t border-slate-100" />
+                <div className="my-2 border-t border-[color:var(--x-border)]" />
                 <button
                   type="button"
                   onClick={handleLogout}
@@ -310,7 +310,7 @@ export function XHeader() {
               // ログイン済みだが未開設
               <>
                 <DrawerLink href="/x/onboarding" onClick={() => setOpen(false)} label="アカウントを開設" accent="indigo" />
-                <div className="my-2 border-t border-slate-100" />
+                <div className="my-2 border-t border-[color:var(--x-border)]" />
                 <button
                   type="button"
                   onClick={handleLogout}
@@ -328,7 +328,7 @@ export function XHeader() {
             )}
 
             {/* 背景テーマ切替（グラデ⇄白）。未ログインでも操作可。localStorage 保存。 */}
-            <div className="my-2 border-t border-slate-100" />
+            <div className="my-2 border-t border-[color:var(--x-border)]" />
             <XThemeToggle />
           </nav>
         </aside>
@@ -362,7 +362,7 @@ function DrawerLink({
     <Link
       href={href}
       onClick={onClick}
-      className={`block px-3 py-3 rounded-xl text-sm font-bold hover:bg-slate-50 transition-colors ${color}`}
+      className={`block px-3 py-3 rounded-xl text-sm font-bold hover:bg-[color:var(--x-surface-hover)] transition-colors ${color}`}
     >
       {label}
     </Link>

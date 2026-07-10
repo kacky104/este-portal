@@ -77,10 +77,10 @@ export function XAffiliationBanner({
 
       <div className="space-y-2">
         {requests.map((r) => (
-          <div key={r.requestId} className="bg-white/70 border border-emerald-100 rounded-xl p-2.5 flex items-center gap-2.5">
+          <div key={r.requestId} className="bg-[color:var(--x-surface-translucent)] border border-emerald-100 rounded-xl p-2.5 flex items-center gap-2.5">
             <Link
               href={`/x/u/${r.shop.handle}`}
-              className="relative w-10 h-10 rounded-full overflow-hidden border border-slate-100 bg-gradient-to-br from-indigo-300 to-sky-300 flex items-center justify-center flex-shrink-0"
+              className="relative w-10 h-10 rounded-full overflow-hidden border border-[color:var(--x-border)] bg-gradient-to-br from-indigo-300 to-sky-300 flex items-center justify-center flex-shrink-0"
             >
               {r.shop.avatarUrl ? (
                 // eslint-disable-next-line @next/next/no-img-element

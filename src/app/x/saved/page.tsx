@@ -29,7 +29,7 @@ export default async function XSavedPage() {
           ← もどる
         </Link>
         <h1 className="x-rescue-muted text-base font-black text-white drop-shadow-sm mb-3">保存した投稿</h1>
-        <div className="x-card rounded-2xl bg-white/[0.94] shadow-[0_4px_16px_rgba(109,40,217,0.3)] p-5 text-center">
+        <div className="x-card rounded-2xl bg-[color:var(--x-surface)] shadow-[0_4px_16px_rgba(109,40,217,0.3)] p-5 text-center">
           <p className="text-sm font-bold text-slate-800 mb-1">保存はアカウント機能です</p>
           <p className="text-[12px] text-slate-500 mb-4 leading-relaxed">
             ログインすると、気になる投稿を保存して後から見返せます。
@@ -44,7 +44,7 @@ export default async function XSavedPage() {
             </Link>
             <Link
               href="/x/login"
-              className="px-5 py-2.5 rounded-xl border border-slate-200 text-slate-600 font-bold text-sm hover:border-indigo-300 hover:text-indigo-600 transition-colors"
+              className="px-5 py-2.5 rounded-xl border border-[color:var(--x-border-strong)] text-slate-600 font-bold text-sm hover:border-indigo-300 hover:text-indigo-600 transition-colors"
             >
               ログイン
             </Link>

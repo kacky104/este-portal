@@ -123,7 +123,7 @@ export function XTimeline({
   return (
     <div className="py-2">
       {/* タブ */}
-      <div className="sticky top-14 z-30 -mx-4 px-4 bg-white/90 backdrop-blur-md border-b border-slate-200">
+      <div className="sticky top-14 z-30 -mx-4 px-4 bg-[color:var(--x-surface-translucent)] backdrop-blur-md border-b border-[color:var(--x-border-strong)]">
         <div className="flex">
           {([['recommended', 'おすすめ'], ['following', isTherapist ? 'フォロワー' : 'フォロー中'], ['shops', 'お店']] as const).map(([key, label]) => (
             <button
@@ -158,7 +158,7 @@ export function XTimeline({
               <Link
                 key={s.id}
                 href={`/x/u/${encodeURIComponent(s.handle)}`}
-                className="block rounded-2xl bg-white shadow-sm border border-slate-100 p-2.5 hover:shadow-md transition-shadow"
+                className="block rounded-2xl bg-[color:var(--x-surface)] shadow-sm border border-[color:var(--x-border)] p-2.5 hover:shadow-md transition-shadow"
               >
                 <div className="flex items-center gap-2 mb-1">
                   <span className="w-8 h-8 rounded-full overflow-hidden border border-white shadow-sm bg-gradient-to-br from-indigo-300 to-sky-300 flex items-center justify-center flex-shrink-0">

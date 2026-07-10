@@ -160,7 +160,7 @@ export function XPostCard({
   if (deleted) return null;
 
   return (
-    <article className="x-card rounded-2xl bg-white/[0.94] shadow-[0_4px_16px_rgba(109,40,217,0.3)] p-4">
+    <article className="x-card rounded-2xl bg-[color:var(--x-surface)] shadow-[0_4px_16px_rgba(109,40,217,0.3)] p-4">
       {/* リポストラベル（値があるときだけ）：カード上部に RepostIcon 小＋グレーテキスト。本文に合わせて軽くインデント。 */}
       {repostLabel && (
         <div className="flex items-center gap-1.5 text-xs text-slate-400 mb-2 ml-[50px]">
@@ -173,7 +173,7 @@ export function XPostCard({
       <div className="flex items-start gap-2.5">
         <Link
           href={`/x/u/${a.handle}`}
-          className="relative w-10 h-10 rounded-full overflow-hidden border border-slate-100 shadow-sm bg-gradient-to-br from-indigo-300 to-sky-300 flex items-center justify-center flex-shrink-0"
+          className="relative w-10 h-10 rounded-full overflow-hidden border border-[color:var(--x-border)] shadow-sm bg-gradient-to-br from-indigo-300 to-sky-300 flex items-center justify-center flex-shrink-0"
         >
           {a.avatarUrl ? (
             // eslint-disable-next-line @next/next/no-img-element
@@ -218,7 +218,7 @@ export function XPostCard({
             disabled={followPending}
             className={`flex-shrink-0 text-xs font-bold px-3 py-1 rounded-full transition-colors disabled:opacity-50 ${
               following
-                ? 'border border-slate-200 text-slate-500 hover:border-rose-200 hover:text-rose-500'
+                ? 'border border-[color:var(--x-border-strong)] text-slate-500 hover:border-rose-200 hover:text-rose-500'
                 : 'text-white'
             }`}
             style={following ? undefined : { background: 'linear-gradient(100deg,#6366F1,#8B5CF6)' }}
@@ -257,7 +257,7 @@ export function XPostCard({
                   }}
                   className="fixed inset-0 z-10 cursor-default"
                 />
-                <div className="absolute right-0 top-9 z-20 w-32 rounded-xl bg-white shadow-lg border border-slate-100 py-1 overflow-hidden">
+                <div className="absolute right-0 top-9 z-20 w-32 rounded-xl bg-[color:var(--x-surface)] shadow-lg border border-[color:var(--x-border)] py-1 overflow-hidden">
                   <button
                     type="button"
                     onClick={(e) => {
@@ -265,7 +265,7 @@ export function XPostCard({
                       setMenuOpen(false);
                       setEditing(true);
                     }}
-                    className="w-full text-left px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
+                    className="w-full text-left px-3 py-2 text-sm font-medium text-slate-700 hover:bg-[color:var(--x-surface-hover)]"
                   >
                     編集
                   </button>
@@ -412,7 +412,7 @@ export function XPostCard({
           onClick={() => setEditing(false)}
         >
           <div
-            className="relative w-full max-w-lg rounded-3xl bg-white shadow-2xl border border-slate-100 p-5 max-h-[90vh] overflow-y-auto"
+            className="relative w-full max-w-lg rounded-3xl bg-[color:var(--x-surface)] shadow-2xl border border-[color:var(--x-border)] p-5 max-h-[90vh] overflow-y-auto"
             onClick={(e) => e.stopPropagation()}
             role="dialog"
             aria-modal="true"

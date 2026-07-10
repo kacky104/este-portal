@@ -163,7 +163,7 @@ export function XShop({
   };
 
   return (
-    <div className="x-card my-6 p-5 rounded-2xl bg-white/[0.94] shadow-[0_4px_16px_rgba(109,40,217,0.3)]">
+    <div className="x-card my-6 p-5 rounded-2xl bg-[color:var(--x-surface)] shadow-[0_4px_16px_rgba(109,40,217,0.3)]">
       <h1 className="text-xl font-black tracking-tight mb-1">店舗管理</h1>
       <p className="text-xs text-slate-400 mb-5">セラピストの所属申請・所属管理</p>
 
@@ -175,7 +175,7 @@ export function XShop({
           本人が承認すると所属が成立します。
         </p>
         <div className="flex gap-2">
-          <div className="flex-1 flex items-center rounded-xl border border-slate-200 focus-within:border-indigo-300 px-3">
+          <div className="flex-1 flex items-center rounded-xl border border-[color:var(--x-border-strong)] focus-within:border-indigo-300 px-3">
             <span className="text-slate-400 text-sm font-bold">@</span>
             <input
               value={query}
@@ -204,11 +204,11 @@ export function XShop({
           <p className="mt-3 text-sm text-slate-400">該当する @ID のセラピストが見つかりません</p>
         )}
         {result && (
-          <div className="mt-3 border border-slate-200 rounded-2xl p-3">
+          <div className="mt-3 border border-[color:var(--x-border-strong)] rounded-2xl p-3">
             <div className="flex items-center gap-3">
               <Link
                 href={`/x/u/${result.therapist.handle}`}
-                className="relative w-11 h-11 rounded-full overflow-hidden border border-slate-100 bg-gradient-to-br from-indigo-300 to-sky-300 flex items-center justify-center flex-shrink-0"
+                className="relative w-11 h-11 rounded-full overflow-hidden border border-[color:var(--x-border)] bg-gradient-to-br from-indigo-300 to-sky-300 flex items-center justify-center flex-shrink-0"
               >
                 {result.therapist.avatarUrl ? (
                   // eslint-disable-next-line @next/next/no-img-element
@@ -229,7 +229,7 @@ export function XShop({
                   所属済み
                 </span>
               ) : pendingIds.has(result.therapist.id) ? (
-                <span className="flex-shrink-0 text-xs font-bold px-3 py-1.5 rounded-lg bg-slate-50 text-slate-400 border border-slate-200">
+                <span className="flex-shrink-0 text-xs font-bold px-3 py-1.5 rounded-lg bg-slate-50 text-slate-400 border border-[color:var(--x-border-strong)]">
                   申請中
                 </span>
               ) : (
@@ -270,7 +270,7 @@ export function XShop({
                   type="button"
                   onClick={() => cancelRequest(p.requestId)}
                   disabled={busy === p.requestId}
-                  className="flex-shrink-0 text-xs font-bold px-3 py-1.5 rounded-lg border border-slate-200 text-slate-500 hover:border-rose-200 hover:text-rose-500 transition-colors disabled:opacity-50"
+                  className="flex-shrink-0 text-xs font-bold px-3 py-1.5 rounded-lg border border-[color:var(--x-border-strong)] text-slate-500 hover:border-rose-200 hover:text-rose-500 transition-colors disabled:opacity-50"
                 >
                   取消
                 </button>
@@ -296,7 +296,7 @@ export function XShop({
                   type="button"
                   onClick={() => removeAffiliation(th)}
                   disabled={busy === th.id}
-                  className="flex-shrink-0 text-xs font-bold px-3 py-1.5 rounded-lg border border-slate-200 text-slate-500 hover:border-rose-200 hover:text-rose-500 transition-colors disabled:opacity-50"
+                  className="flex-shrink-0 text-xs font-bold px-3 py-1.5 rounded-lg border border-[color:var(--x-border-strong)] text-slate-500 hover:border-rose-200 hover:text-rose-500 transition-colors disabled:opacity-50"
                 >
                   解除
                 </button>
@@ -318,10 +318,10 @@ export function XShop({
 // セラピスト1行（アバター＋名前＋@ID＋右側アクション）。一覧で共通利用。
 function Row({ therapist, children }: { therapist: TherapistMini; children: React.ReactNode }) {
   return (
-    <div className="border border-slate-200 rounded-2xl p-3 flex items-center gap-3">
+    <div className="border border-[color:var(--x-border-strong)] rounded-2xl p-3 flex items-center gap-3">
       <Link
         href={`/x/u/${therapist.handle}`}
-        className="relative w-11 h-11 rounded-full overflow-hidden border border-slate-100 bg-gradient-to-br from-indigo-300 to-sky-300 flex items-center justify-center flex-shrink-0"
+        className="relative w-11 h-11 rounded-full overflow-hidden border border-[color:var(--x-border)] bg-gradient-to-br from-indigo-300 to-sky-300 flex items-center justify-center flex-shrink-0"
       >
         {therapist.avatarUrl ? (
           // eslint-disable-next-line @next/next/no-img-element

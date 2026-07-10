@@ -232,7 +232,7 @@ export function XPostDetail({ parent }: { parent: XPost }) {
       />
 
       {/* リプライ作成 or 受付不可案内（白カード面＝両テーマで読める） */}
-      <div className="x-card mt-3 rounded-2xl bg-white/[0.94] shadow-[0_4px_16px_rgba(109,40,217,0.3)] p-4">
+      <div className="x-card mt-3 rounded-2xl bg-[color:var(--x-surface)] shadow-[0_4px_16px_rgba(109,40,217,0.3)] p-4">
         <h2 className="text-sm font-black text-slate-800 mb-1">
           リプライ <span className="text-slate-400 tabular-nums font-bold">{replyCount}</span>
         </h2>

@@ -78,7 +78,7 @@ function TypeIcon({ type }: { type: XNotificationType }) {
 
 function NotifAvatar({ actor }: { actor: XNotificationActor }) {
   return (
-    <span className="relative w-11 h-11 rounded-full overflow-hidden border border-slate-100 bg-gradient-to-br from-indigo-300 to-sky-300 flex items-center justify-center flex-shrink-0">
+    <span className="relative w-11 h-11 rounded-full overflow-hidden border border-[color:var(--x-border)] bg-gradient-to-br from-indigo-300 to-sky-300 flex items-center justify-center flex-shrink-0">
       {actor.avatarUrl ? (
         // eslint-disable-next-line @next/next/no-img-element
         <img src={actor.avatarUrl} alt={actor.displayName} className="w-full h-full object-cover" />
@@ -190,7 +190,7 @@ export function XNotifications() {
       {meLoading || loading ? (
         <XListSkeleton rows={6} variant="row" />
       ) : !userId ? (
-        <div className="x-card rounded-2xl bg-white/[0.94] shadow-[0_4px_16px_rgba(109,40,217,0.3)] p-6 text-center">
+        <div className="x-card rounded-2xl bg-[color:var(--x-surface)] shadow-[0_4px_16px_rgba(109,40,217,0.3)] p-6 text-center">
           <p className="text-sm text-slate-600 mb-4 leading-relaxed">通知を見るにはログインしてください。</p>
           <Link
             href="/x/login"
@@ -209,7 +209,7 @@ export function XNotifications() {
               key={n.id}
               type="button"
               onClick={() => onRowClick(n)}
-              className={`x-card w-full text-left rounded-2xl bg-white/[0.94] shadow-[0_4px_16px_rgba(109,40,217,0.3)] p-3 flex items-center gap-3 hover:brightness-[0.98] transition ${
+              className={`x-card w-full text-left rounded-2xl bg-[color:var(--x-surface)] shadow-[0_4px_16px_rgba(109,40,217,0.3)] p-3 flex items-center gap-3 hover:brightness-[0.98] transition ${
                 n.isRead ? '' : 'ring-1 ring-indigo-300'
               }`}
             >

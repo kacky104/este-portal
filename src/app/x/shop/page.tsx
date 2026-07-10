@@ -21,7 +21,7 @@ export default async function XShopPage() {
   // 未認証店舗：リダイレクトせず「運営の認証が必要」案内を表示（所属操作は verified のみ）。
   if (!profile.is_verified) {
     return (
-      <div className="x-card my-6 p-6 rounded-2xl bg-white/[0.94] shadow-[0_4px_16px_rgba(109,40,217,0.3)]">
+      <div className="x-card my-6 p-6 rounded-2xl bg-[color:var(--x-surface)] shadow-[0_4px_16px_rgba(109,40,217,0.3)]">
         <h1 className="text-xl font-black tracking-tight mb-2">店舗管理</h1>
         <div className="mt-2 p-4 rounded-2xl bg-amber-50 border border-amber-100">
           <p className="text-sm font-bold text-amber-700">運営の認証が必要です</p>

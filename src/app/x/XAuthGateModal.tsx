@@ -19,7 +19,7 @@ export function XAuthGateModal({
   return (
     <div className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center p-4 bg-slate-950/50 backdrop-blur-sm">
       <div className="absolute inset-0" onClick={onClose} aria-hidden />
-      <div className="relative w-full max-w-sm rounded-3xl bg-white shadow-2xl border border-slate-100 p-7">
+      <div className="relative w-full max-w-sm rounded-3xl bg-[color:var(--x-surface)] shadow-2xl border border-[color:var(--x-border)] p-7">
         <button
           type="button"
           onClick={onClose}
@@ -65,7 +65,7 @@ export function XAuthGateModal({
               </Link>
               <Link
                 href="/x/login"
-                className="block w-full py-3 rounded-xl text-center border border-slate-200 text-slate-600 font-bold text-sm hover:border-indigo-300 hover:text-indigo-600 transition-colors"
+                className="block w-full py-3 rounded-xl text-center border border-[color:var(--x-border-strong)] text-slate-600 font-bold text-sm hover:border-indigo-300 hover:text-indigo-600 transition-colors"
               >
                 ログイン
               </Link>
