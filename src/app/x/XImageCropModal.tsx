@@ -127,11 +127,12 @@ export function XImageCropModal({
       await img.decode();
 
       // 枠内に見えている領域を元画像座標に逆変換。
-      // 画像中心は枠中心から offset ずれ。枠左端の元画像X = 画像中心X - (frameW/2 - offset.x)/scale。
+      // 表示は「画像中心 = 枠中心 + offset」なので、枠左上の元画像座標は
+      // sx = nat.w/2 - (frameW/2 + offset.x)/scale（offset が正＝画像を右下へ動かした＝元画像の左上側が見える）。
       const sw = frameW / scale;
       const sh = frameH / scale;
-      const sx = nat.w / 2 - (frameW / 2 - offset.x) / scale;
-      const sy = nat.h / 2 - (frameH / 2 - offset.y) / scale;
+      const sx = nat.w / 2 - (frameW / 2 + offset.x) / scale;
+      const sy = nat.h / 2 - (frameH / 2 + offset.y) / scale;
 
       const canvas = document.createElement('canvas');
       canvas.width = OUT_W;
