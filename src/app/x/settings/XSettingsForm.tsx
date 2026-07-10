@@ -59,7 +59,13 @@ export function XSettingsForm({
   // 年齢・スリーサイズはセラピストのみ、住所はお店のみ。
   const isTherapist = profile.kind === 'therapist';
   const isShop = profile.kind === 'shop';
-  const [address, setAddress] = useState(profile.address ?? '');
+  // 地域（お店のみ）: X_OFFER_AREAS から最大2つ選択。保存は「／」区切りで address(text) にそのまま格納。
+  // 旧フリーテキスト値（バッジに一致しない）は legacyAddress として保持し、選択せず保存しても消さない。
+  const initialShopAreas = (profile.address ?? '')
+    .split('／')
+    .filter((a) => (X_OFFER_AREAS as readonly string[]).includes(a));
+  const [shopAreas, setShopAreas] = useState<string[]>(initialShopAreas);
+  const legacyAddress = profile.address && initialShopAreas.length === 0 ? profile.address : null;
   // お店カード画像（お店アカウントのみ・最大6枚）。タイムライン「お店」タブのショーケースに使う。
   const [showcaseImages, setShowcaseImages] = useState<string[]>(profile.showcase_images ?? []);
   const [showcaseUploading, setShowcaseUploading] = useState(false);
@@ -198,6 +204,15 @@ export function XSettingsForm({
     );
   };
 
+  // お店の地域トグル。最大2つまで・保存はX_OFFER_AREASの定数順。3つ目のクリックは無視。
+  const toggleShopArea = (area: string) => {
+    setShopAreas((prev) => {
+      if (prev.includes(area)) return prev.filter((a) => a !== area);
+      if (prev.length >= 2) return prev;
+      return X_OFFER_AREAS.filter((a) => a === area || prev.includes(a));
+    });
+  };
+
   const displayOk = displayName.trim().length >= 1 && displayName.trim().length <= DISPLAY_MAX;
   const busy = saving || avatarUploading || headerUploading || showcaseUploading;
 
@@ -236,8 +251,8 @@ export function XSettingsForm({
               hip: toIntOrNull(hip),
             }
           : {}),
-        // 住所はお店アカウントのみ保存対象（他種別では欄を出さず、キーも送らない）。
-        ...(isShop ? { address: address.trim() || null } : {}),
+        // 地域（address）はお店アカウントのみ保存対象。未選択かつ旧フリーテキストが残る場合は消さずに維持。
+        ...(isShop ? { address: shopAreas.length > 0 ? shopAreas.join('／') : legacyAddress } : {}),
         // お店カード画像は「認証済みお店」のみ保存対象（未認証で送るとDBトリガ例外で保存全体が失敗するため）。
         ...(isShop && profile.is_verified ? { showcase_images: showcaseImages } : {}),
         // オファー系は未所属セラピストのみ保存対象（それ以外では欄を出さず、キーも送らない＝ガードトリガ回避）。
@@ -481,18 +496,38 @@ export function XSettingsForm({
         </div>
       )}
 
-      {/* ── 住所（お店アカウントのみ・任意）── text-base(16px) で iOS 自動ズーム抑止 */}
+      {/* ── 地域（お店アカウントのみ・任意・2つまで）── オファーの希望エリアと同じ固定8種のバッジ選択 */}
       {isShop && (
         <div>
-          <label className="text-[11px] font-bold text-[color:var(--x-text-muted)] block mb-1.5 px-1">住所（任意）</label>
-          <input
-            type="text"
-            value={address}
-            onChange={(e) => setAddress(e.target.value)}
-            placeholder="例: 博多区住吉"
-            className="w-full px-4 py-3 rounded-xl border border-[color:var(--x-border-strong)] text-base text-[color:var(--x-text-primary)] placeholder:text-[color:var(--x-text-muted)] bg-[color:var(--x-inset)] focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:border-transparent"
-          />
+          <label className="text-[11px] font-bold text-[color:var(--x-text-muted)] block mb-2 px-1">地域（任意・2つまで選択可）</label>
+          <div className="flex flex-wrap gap-2">
+            {X_OFFER_AREAS.map((area) => {
+              const selected = shopAreas.includes(area);
+              const full = !selected && shopAreas.length >= 2;
+              return (
+                <button
+                  key={area}
+                  type="button"
+                  onClick={() => toggleShopArea(area)}
+                  className={`text-xs font-bold rounded-full px-3 py-1.5 border transition-colors ${
+                    selected
+                      ? 'border-indigo-400 bg-indigo-500 text-white'
+                      : full
+                        ? 'border-[color:var(--x-border)] text-[color:var(--x-text-muted)] opacity-50'
+                        : 'border-[color:var(--x-border-strong)] text-[color:var(--x-text-secondary)] hover:border-indigo-300'
+                  }`}
+                >
+                  {area}
+                </button>
+              );
+            })}
+          </div>
           <p className="text-[10px] text-[color:var(--x-text-muted)] mt-1 px-1">プロフィールの @ID の横に表示されます。</p>
+          {legacyAddress && shopAreas.length === 0 && (
+            <p className="text-[10px] text-[color:var(--x-text-muted)] mt-1 px-1">
+              現在の設定: {legacyAddress}（地域を選んで保存すると置き換わります）
+            </p>
+          )}
         </div>
       )}
 
