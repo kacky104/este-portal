@@ -185,7 +185,9 @@ export default async function XProfilePage({ params }: { params: Promise<{ handl
     target.kind === 'shop'
       ? fetchAffiliatedTherapists(supabase, target.id)
       : Promise.resolve([] as TherapistMini[]),
-    target.kind === 'therapist'
+    // 本体 therapist は fukuX の所属とは別系統（auth_user_id 紐づけ）のため、
+    // fukuX 上で未所属（affiliated_shop_id null）なら解決しない＝所属解除でスケジュールブロックも消える。
+    target.kind === 'therapist' && t.affiliated_shop_id
       ? getLinkedTherapistForXProfile(target.auth_user_id)
       : Promise.resolve(null),
   ]);
