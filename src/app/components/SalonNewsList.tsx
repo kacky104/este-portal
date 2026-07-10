@@ -1,8 +1,13 @@
+'use client';
+
 import Link from 'next/link';
 import type { SalonNewsItem } from '@/app/lib/salonNews';
+// 名前・タイトルの1行自動縮小フィット。fukuX用に作った共通コンポーネントだが中身はサイト非依存なので流用。
+import { AutoFitName } from '@/app/x/AutoFitName';
 
-// サロン新着情報の行リスト（トップの5件ブロックと /news 一覧で共用・サーバーコンポーネント）。
+// サロン新着情報の行リスト（トップの5件ブロックと /news 一覧で共用）。
 // 1行 = サムネイル＋日付＋サロン名＋タイトル（＋48時間以内は NEW!! バッジ）。行タップでサロンのお知らせページへ。
+// 店名・タイトルは折り返さず、収まらないときだけフォントを段階縮小して1行に収める（AutoFitName 使用のためクライアント）。
 
 // 日付ラベル（JST・M/D）。
 function formatShortDate(iso: string): string {
@@ -39,18 +44,30 @@ export function SalonNewsList({ items }: { items: SalonNewsItem[] }) {
               )}
             </span>
 
-            <span className="min-w-0 flex-1">
-              <span className="flex items-center gap-2 text-[11px] leading-none">
+            <div className="min-w-0 flex-1">
+              {/* 1段目: 日付（固定）＋サロン名（11→8pxの1行フィット）＋NEW!!（縮めない・after配置） */}
+              <div className="flex items-center gap-2 text-[11px] leading-none">
                 <span className="text-slate-400 flex-shrink-0">{formatShortDate(n.publishedAt)}</span>
-                <span className="font-bold text-pink-500 truncate">{n.salonName}</span>
-                {isNew && (
-                  <span className="flex-shrink-0 text-[9px] font-black text-white bg-gradient-to-r from-pink-500 to-rose-500 rounded-full px-1.5 py-0.5 leading-none">
-                    NEW!!
-                  </span>
-                )}
-              </span>
-              <span className="block text-sm font-bold text-slate-800 truncate mt-1">{n.title}</span>
-            </span>
+                <AutoFitName
+                  name={n.salonName}
+                  max={11}
+                  min={8}
+                  className="gap-2"
+                  textClassName="font-bold text-pink-500 leading-none"
+                  after={
+                    isNew ? (
+                      <span className="flex-shrink-0 text-[9px] font-black text-white bg-gradient-to-r from-pink-500 to-rose-500 rounded-full px-1.5 py-0.5 leading-none">
+                        NEW!!
+                      </span>
+                    ) : undefined
+                  }
+                />
+              </div>
+              {/* 2段目: タイトル（14→10pxの1行フィット） */}
+              <div className="mt-1">
+                <AutoFitName name={n.title} max={14} min={10} textClassName="font-bold text-slate-800" />
+              </div>
+            </div>
 
             <span className="text-slate-300 flex-shrink-0" aria-hidden>
               ›
