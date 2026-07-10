@@ -6,25 +6,40 @@
    コンポーネント側は bg-[color:var(--x-surface)] 等で参照する。白テーマはこの変数を白系へ
    上書きするだけで従来見た目を完全再現する（面の色の二重管理を避ける）。 */
 #x-root {
-  --x-surface: #f6f3ff;              /* カード・フォーム等の面（旧: white） */
-  --x-surface-translucent: rgba(246, 243, 255, 0.92); /* stickyバー等（旧: white/90） */
-  --x-border: #e2d9fb;               /* カード枠線（旧: slate-100） */
-  --x-border-strong: #d4c6f7;        /* 強めの枠線（旧: slate-200） */
-  --x-surface-hover: #efe9ff;        /* hover面（旧: slate-50 等） */
+  /* 面（案C：濃い紫カード） */
+  --x-surface: #3b2a6d;              /* カード・フォーム等の面（旧: white） */
+  --x-surface-translucent: rgba(59, 42, 109, 0.92); /* stickyバー等（旧: white/90） */
+  --x-border: #55428f;               /* カード枠線（旧: slate-100） */
+  --x-border-strong: #6a55a8;        /* 強めの枠線（旧: slate-200） */
+  --x-surface-hover: #473481;        /* hover面（旧: slate-50 等） */
+  --x-inset: #312360;                /* カード内の一段沈んだ面（旧: slate-50/100 の入力欄・チップ等） */
+
+  /* 文字（新設） */
+  --x-text-primary: #ffffff;         /* 旧: slate-900/800 */
+  --x-text-secondary: #cfc3f2;       /* 旧: slate-600/500 */
+  --x-text-muted: #a291da;           /* 旧: slate-400/300 */
+
+  /* アクセント（新設。濃い面上でも読める明るいインディゴ） */
+  --x-accent: #b3bcfc;               /* 旧: indigo-600 のテキスト用途 */
 }
 
-/* ── 白テーマ：カラートークンを従来の白系へ完全に戻す ── */
+/* ── 白テーマ：カラートークンを従来の白系＋濃色文字へ完全に戻す ── */
 [data-x-theme='white'] {
   --x-surface: #ffffff;
   --x-surface-translucent: rgba(255, 255, 255, 0.9);
   --x-border: rgb(241 245 249);      /* slate-100 */
   --x-border-strong: rgb(226 232 240); /* slate-200 */
   --x-surface-hover: rgb(248 250 252); /* slate-50 */
+  --x-inset: rgb(248 250 252);       /* slate-50 */
+  --x-text-primary: rgb(15 23 42);   /* slate-900 */
+  --x-text-secondary: rgb(100 116 139); /* slate-500 */
+  --x-text-muted: rgb(148 163 184);  /* slate-400 */
+  --x-accent: rgb(79 70 229);        /* indigo-600 */
 }
 
-/* ── 固定背景レイヤー：既定は紫の濃淡グラデ（旧: 青→紫, 160deg） ── */
+/* ── 固定背景レイヤー：カードより暗→明の紫でカードとのコントラストを確保（旧: 淡い紫） ── */
 .x-bg {
-  background: linear-gradient(160deg, #4c1d95 0%, #7c3aed 55%, #a855f7 100%);
+  background: linear-gradient(160deg, #2a1760 0%, #4c1d95 55%, #7c3aed 100%);
 }
 
 /* ── 白テーマ：グラデ導入前の素白へ戻す ── */

@@ -140,16 +140,16 @@ export function XAuthForm({ initialMode }: { initialMode: 'login' | 'signup' }) 
         {/* ロゴ */}
         <div className="text-center mb-6">
           <XLogo size="lg" />
-          <p className="text-[12px] text-slate-400 mt-2">メンズエステ専用SNS～フクエックス～</p>
+          <p className="text-[12px] text-[color:var(--x-text-muted)] mt-2">メンズエステ専用SNS～フクエックス～</p>
         </div>
 
         {checking ? (
-          <div className="py-10 text-center text-sm text-slate-400">読み込み中...</div>
+          <div className="py-10 text-center text-sm text-[color:var(--x-text-muted)]">読み込み中...</div>
         ) : currentEmail ? (
           // ── 既ログイン ──
           <div className="text-center space-y-5">
-            <p className="text-sm text-slate-600">
-              <span className="font-bold text-slate-900">{currentEmail}</span> でログイン中です。
+            <p className="text-sm text-[color:var(--x-text-secondary)]">
+              <span className="font-bold text-[color:var(--x-text-primary)]">{currentEmail}</span> でログイン中です。
             </p>
             <Link
               href={DEST}
@@ -161,7 +161,7 @@ export function XAuthForm({ initialMode }: { initialMode: 'login' | 'signup' }) 
             <button
               onClick={handleSignOut}
               disabled={loading}
-              className="w-full py-2.5 rounded-xl border border-[color:var(--x-border-strong)] text-slate-500 font-medium text-sm hover:bg-[color:var(--x-surface-hover)] transition-colors disabled:opacity-60"
+              className="w-full py-2.5 rounded-xl border border-[color:var(--x-border-strong)] text-[color:var(--x-text-secondary)] font-medium text-sm hover:bg-[color:var(--x-surface-hover)] transition-colors disabled:opacity-60"
             >
               {loading ? '処理中...' : 'ログアウト'}
             </button>
@@ -169,7 +169,7 @@ export function XAuthForm({ initialMode }: { initialMode: 'login' | 'signup' }) 
         ) : (
           <>
             {/* タブ切替 */}
-            <div className="flex gap-1 p-1 mb-5 rounded-xl bg-slate-100">
+            <div className="flex gap-1 p-1 mb-5 rounded-xl bg-[color:var(--x-inset)]">
               {([['login', 'ログイン'], ['signup', '新規登録']] as const).map(([m, label]) => (
                 <button
                   key={m}
@@ -181,7 +181,7 @@ export function XAuthForm({ initialMode }: { initialMode: 'login' | 'signup' }) 
                     setAlreadyExists(false);
                   }}
                   className={`flex-1 py-2 rounded-lg text-sm font-bold transition-colors ${
-                    mode === m ? 'bg-[color:var(--x-surface)] text-indigo-600 shadow-sm' : 'text-slate-400 hover:text-slate-600'
+                    mode === m ? 'bg-[color:var(--x-surface)] text-[color:var(--x-accent)] shadow-sm' : 'text-[color:var(--x-text-muted)] hover:text-[color:var(--x-text-secondary)]'
                   }`}
                 >
                   {label}
@@ -220,7 +220,7 @@ export function XAuthForm({ initialMode }: { initialMode: 'login' | 'signup' }) 
               )}
 
               <div className="space-y-1">
-                <label className="text-[11px] font-bold text-slate-400 block px-1">メールアドレス</label>
+                <label className="text-[11px] font-bold text-[color:var(--x-text-muted)] block px-1">メールアドレス</label>
                 <input
                   type="email"
                   autoComplete="email"
@@ -232,14 +232,14 @@ export function XAuthForm({ initialMode }: { initialMode: 'login' | 'signup' }) 
                   placeholder="you@example.com"
                   required
                   disabled={loading}
-                  className="w-full px-4 py-3 rounded-xl border border-[color:var(--x-border-strong)] text-sm bg-slate-50/50 focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:border-transparent"
+                  className="w-full px-4 py-3 rounded-xl border border-[color:var(--x-border-strong)] text-sm bg-[color:var(--x-inset)] focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:border-transparent"
                 />
               </div>
 
               <div className="space-y-1">
-                <label className="text-[11px] font-bold text-slate-400 block px-1">
+                <label className="text-[11px] font-bold text-[color:var(--x-text-muted)] block px-1">
                   パスワード
-                  {mode === 'signup' && <span className="font-normal text-slate-300">（{PASSWORD_HINT}）</span>}
+                  {mode === 'signup' && <span className="font-normal text-[color:var(--x-text-muted)]">（{PASSWORD_HINT}）</span>}
                 </label>
                 <input
                   type="password"
@@ -250,7 +250,7 @@ export function XAuthForm({ initialMode }: { initialMode: 'login' | 'signup' }) 
                   required
                   minLength={mode === 'signup' ? 8 : undefined}
                   disabled={loading}
-                  className="w-full px-4 py-3 rounded-xl border border-[color:var(--x-border-strong)] text-sm bg-slate-50/50 focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:border-transparent"
+                  className="w-full px-4 py-3 rounded-xl border border-[color:var(--x-border-strong)] text-sm bg-[color:var(--x-inset)] focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:border-transparent"
                 />
               </div>
 
@@ -264,13 +264,13 @@ export function XAuthForm({ initialMode }: { initialMode: 'login' | 'signup' }) 
               </button>
             </form>
 
-            <div className="mt-5 space-y-2 text-[11px] text-slate-400 leading-relaxed">
+            <div className="mt-5 space-y-2 text-[11px] text-[color:var(--x-text-muted)] leading-relaxed">
               {mode === 'signup' && (
                 <>
                   <p>登録後、確認メールが届きます。メール内のリンクで登録を完了してください。</p>
                   <p>
                     すでにアカウントをお持ちの方は
-                    <button type="button" onClick={goLogin} className="text-indigo-600 font-medium hover:underline ml-1">
+                    <button type="button" onClick={goLogin} className="text-[color:var(--x-accent)] font-medium hover:underline ml-1">
                       ログイン
                     </button>
                   </p>
@@ -281,7 +281,7 @@ export function XAuthForm({ initialMode }: { initialMode: 'login' | 'signup' }) 
                   <p>fukuX が初めての方も、ログインすると続けてアカウント開設に進めます。</p>
                   <p>
                     パスワードをお忘れの方：
-                    <Link href="/forgot-password" className="text-indigo-600 font-medium hover:underline ml-1">
+                    <Link href="/forgot-password" className="text-[color:var(--x-accent)] font-medium hover:underline ml-1">
                       再設定はこちら →
                     </Link>
                   </p>

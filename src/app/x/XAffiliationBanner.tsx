@@ -91,12 +91,12 @@ export function XAffiliationBanner({
             </Link>
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-1">
-                <Link href={`/x/u/${r.shop.handle}`} className="font-bold text-sm text-slate-900 hover:underline truncate">
+                <Link href={`/x/u/${r.shop.handle}`} className="font-bold text-sm text-[color:var(--x-text-primary)] hover:underline truncate">
                   {r.shop.displayName}
                 </Link>
                 {r.shop.isVerified && <VerifiedBadge />}
               </div>
-              <p className="text-xs text-slate-400 truncate">@{r.shop.handle}</p>
+              <p className="text-xs text-[color:var(--x-text-muted)] truncate">@{r.shop.handle}</p>
             </div>
             <div className="flex items-center gap-1.5 flex-shrink-0">
               <button
@@ -112,7 +112,7 @@ export function XAffiliationBanner({
                 type="button"
                 onClick={() => respond(r.requestId, false)}
                 disabled={busy === r.requestId}
-                className="text-xs font-bold px-3 py-1.5 rounded-lg border border-slate-200 text-slate-500 hover:border-rose-200 hover:text-rose-500 transition-colors disabled:opacity-50"
+                className="text-xs font-bold px-3 py-1.5 rounded-lg border border-slate-200 text-[color:var(--x-text-secondary)] hover:border-rose-200 hover:text-rose-500 transition-colors disabled:opacity-50"
               >
                 却下
               </button>

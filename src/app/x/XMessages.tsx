@@ -138,7 +138,7 @@ export function XMessages() {
         <XListSkeleton rows={6} variant="row" />
       ) : !userId ? (
         <div className="x-card rounded-2xl bg-[color:var(--x-surface)] shadow-[0_4px_16px_rgba(109,40,217,0.3)] p-6 text-center">
-          <p className="text-sm text-slate-600 mb-4 leading-relaxed">メッセージを見るにはログインしてください。</p>
+          <p className="text-sm text-[color:var(--x-text-secondary)] mb-4 leading-relaxed">メッセージを見るにはログインしてください。</p>
           <Link
             href="/x/login"
             className="inline-block px-6 py-2.5 rounded-xl text-white font-bold text-sm shadow-md hover:opacity-95 transition-opacity"
@@ -172,15 +172,15 @@ export function XMessages() {
               </span>
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-1.5">
-                  <span className={`text-sm truncate ${it.unread ? 'font-bold text-slate-900' : 'font-bold text-slate-800'}`}>
+                  <span className={`text-sm truncate ${it.unread ? 'font-bold text-[color:var(--x-text-primary)]' : 'font-bold text-[color:var(--x-text-primary)]'}`}>
                     {it.other?.displayName || '（不明なユーザー）'}
                   </span>
                   {(it.other?.kind === 'official' || ((it.other?.kind === 'shop' || it.other?.kind === 'therapist') && it.other?.isVerified)) && (
                     <VerifiedBadge kind={it.other.kind} />
                   )}
-                  <XTimeAgo iso={it.lastAt} className="ml-auto text-xs text-slate-400 flex-shrink-0" />
+                  <XTimeAgo iso={it.lastAt} className="ml-auto text-xs text-[color:var(--x-text-muted)] flex-shrink-0" />
                 </div>
-                <p className={`text-xs truncate ${it.unread ? 'text-slate-700 font-medium' : 'text-slate-400'}`}>
+                <p className={`text-xs truncate ${it.unread ? 'text-[color:var(--x-text-primary)] font-medium' : 'text-[color:var(--x-text-muted)]'}`}>
                   {it.preview ?? `@${it.other?.handle ?? ''}`}
                 </p>
               </div>

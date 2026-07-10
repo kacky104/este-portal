@@ -54,7 +54,7 @@ export function XFollowRows({
             </span>
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-1.5 flex-wrap">
-                <span className="font-bold text-sm text-slate-900 truncate max-w-[50%]">{u.displayName}</span>
+                <span className="font-bold text-sm text-[color:var(--x-text-primary)] truncate max-w-[50%]">{u.displayName}</span>
                 {(u.kind === 'official' || ((u.kind === 'shop' || u.kind === 'therapist') && u.isVerified)) && <VerifiedBadge kind={u.kind} />}
                 <span className="text-[10px] font-bold text-indigo-500 bg-indigo-50 rounded-full px-1.5 py-0.5">
                   {KIND_LABEL[u.kind] ?? u.kind}
@@ -65,7 +65,7 @@ export function XFollowRows({
                   </span>
                 )}
               </div>
-              <p className="text-xs text-slate-400 truncate">@{u.handle}</p>
+              <p className="text-xs text-[color:var(--x-text-muted)] truncate">@{u.handle}</p>
             </div>
           </Link>
         );

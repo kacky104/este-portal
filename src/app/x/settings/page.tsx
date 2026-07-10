@@ -27,7 +27,7 @@ export default async function XSettingsPage() {
   return (
     <div className="x-card my-6 p-6 rounded-2xl bg-[color:var(--x-surface)] shadow-[0_4px_16px_rgba(109,40,217,0.3)]">
       <h1 className="text-2xl font-black tracking-tight mb-1">プロフィール設定</h1>
-      <p className="text-sm text-slate-500 mb-6">表示名・自己紹介・画像を編集できます。</p>
+      <p className="text-sm text-[color:var(--x-text-secondary)] mb-6">表示名・自己紹介・画像を編集できます。</p>
       <XSettingsForm profile={profile} email={email} affiliatedShop={affiliatedShop} />
     </div>
   );

@@ -24,7 +24,7 @@ export function XAuthGateModal({
           type="button"
           onClick={onClose}
           aria-label="閉じる"
-          className="absolute top-3 right-3 w-8 h-8 rounded-full text-slate-400 hover:bg-slate-100 flex items-center justify-center"
+          className="absolute top-3 right-3 w-8 h-8 rounded-full text-[color:var(--x-text-muted)] hover:bg-[color:var(--x-inset)] flex items-center justify-center"
         >
           ✕
         </button>
@@ -36,7 +36,7 @@ export function XAuthGateModal({
         {loggedIn ? (
           // ── ログイン済み・x_profiles 未開設 ──
           <>
-            <p className="text-center text-sm text-slate-700 leading-relaxed mb-6">
+            <p className="text-center text-sm text-[color:var(--x-text-primary)] leading-relaxed mb-6">
               いいね・フォローするには、表示名と ID を設定して<strong>アカウントを開設</strong>してください。
             </p>
             <Link
@@ -50,7 +50,7 @@ export function XAuthGateModal({
         ) : (
           // ── 未ログイン ──
           <>
-            <p className="text-center text-sm text-slate-700 leading-relaxed mb-6">
+            <p className="text-center text-sm text-[color:var(--x-text-primary)] leading-relaxed mb-6">
               fukuX でいいね・フォローするには<strong>アカウント</strong>が必要です。
               <br />
               新規登録、またはログインして始めましょう。
@@ -65,7 +65,7 @@ export function XAuthGateModal({
               </Link>
               <Link
                 href="/x/login"
-                className="block w-full py-3 rounded-xl text-center border border-[color:var(--x-border-strong)] text-slate-600 font-bold text-sm hover:border-indigo-300 hover:text-indigo-600 transition-colors"
+                className="block w-full py-3 rounded-xl text-center border border-[color:var(--x-border-strong)] text-[color:var(--x-text-secondary)] font-bold text-sm hover:border-indigo-300 hover:text-[color:var(--x-accent)] transition-colors"
               >
                 ログイン
               </Link>
@@ -76,7 +76,7 @@ export function XAuthGateModal({
         <button
           type="button"
           onClick={onClose}
-          className="block w-full mt-4 text-center text-xs text-slate-400 hover:text-slate-600 transition-colors"
+          className="block w-full mt-4 text-center text-xs text-[color:var(--x-text-muted)] hover:text-[color:var(--x-text-secondary)] transition-colors"
         >
           あとで
         </button>

@@ -33,8 +33,8 @@ export function XThemeToggle() {
 
   return (
     <div className="px-3 pt-2 pb-1">
-      <p className="text-[11px] font-bold text-slate-400 mb-1.5 px-1">背景テーマ</p>
-      <div className="flex gap-1 p-1 rounded-xl bg-slate-100">
+      <p className="text-[11px] font-bold text-[color:var(--x-text-muted)] mb-1.5 px-1">背景テーマ</p>
+      <div className="flex gap-1 p-1 rounded-xl bg-[color:var(--x-inset)]">
         {(
           [
             ['gradient', 'グラデ'],
@@ -47,7 +47,7 @@ export function XThemeToggle() {
             onClick={() => apply(key)}
             aria-pressed={theme === key}
             className={`flex-1 py-2 rounded-lg text-xs font-bold transition-colors ${
-              theme === key ? 'bg-[color:var(--x-surface)] text-indigo-600 shadow-sm' : 'text-slate-400 hover:text-slate-600'
+              theme === key ? 'bg-[color:var(--x-surface)] text-[color:var(--x-accent)] shadow-sm' : 'text-[color:var(--x-text-muted)] hover:text-[color:var(--x-text-primary)]'
             }`}
           >
             {label}

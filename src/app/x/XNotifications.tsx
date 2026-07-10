@@ -191,7 +191,7 @@ export function XNotifications() {
         <XListSkeleton rows={6} variant="row" />
       ) : !userId ? (
         <div className="x-card rounded-2xl bg-[color:var(--x-surface)] shadow-[0_4px_16px_rgba(109,40,217,0.3)] p-6 text-center">
-          <p className="text-sm text-slate-600 mb-4 leading-relaxed">通知を見るにはログインしてください。</p>
+          <p className="text-sm text-[color:var(--x-text-secondary)] mb-4 leading-relaxed">通知を見るにはログインしてください。</p>
           <Link
             href="/x/login"
             className="inline-block px-6 py-2.5 rounded-xl text-white font-bold text-sm shadow-md hover:opacity-95 transition-opacity"
@@ -224,7 +224,7 @@ export function XNotifications() {
               </div>
 
               <div className="flex-1 min-w-0">
-                <p className={`text-sm leading-snug break-words ${n.isRead ? 'text-slate-600' : 'text-slate-900 font-medium'}`}>
+                <p className={`text-sm leading-snug break-words ${n.isRead ? 'text-[color:var(--x-text-secondary)]' : 'text-[color:var(--x-text-primary)] font-medium'}`}>
                   <span className="font-bold">{n.actor.displayName || `@${n.actor.handle}`}</span>
                   {(n.actor.kind === 'official' || ((n.actor.kind === 'shop' || n.actor.kind === 'therapist') && n.actor.isVerified)) && (
                     <span className="inline-flex align-middle mx-0.5">
@@ -233,7 +233,7 @@ export function XNotifications() {
                   )}
                   <span>{notificationSuffix(n.type)}</span>
                 </p>
-                <XTimeAgo iso={n.createdAt} className="text-xs text-slate-400" />
+                <XTimeAgo iso={n.createdAt} className="text-xs text-[color:var(--x-text-muted)]" />
               </div>
             </button>
           ))}

@@ -74,11 +74,11 @@ export function XComposeFab({
               type="button"
               onClick={() => setOpen(false)}
               aria-label="閉じる"
-              className="absolute top-3 right-3 w-8 h-8 rounded-full text-slate-400 hover:bg-slate-100 flex items-center justify-center"
+              className="absolute top-3 right-3 w-8 h-8 rounded-full text-[color:var(--x-text-muted)] hover:bg-[color:var(--x-inset)] flex items-center justify-center"
             >
               ✕
             </button>
-            <h2 className="text-sm font-black text-slate-800 mb-1">投稿する</h2>
+            <h2 className="text-sm font-black text-[color:var(--x-text-primary)] mb-1">投稿する</h2>
             <XComposer me={me} myAffiliatedShop={myAffiliatedShop ?? null} onPosted={handlePosted} />
           </div>
         </div>

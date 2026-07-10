@@ -178,8 +178,8 @@ export function XHeader() {
             <Link
               href="/x"
               aria-label="ホーム"
-              className={`flex items-center justify-center w-9 h-9 rounded-full hover:bg-slate-100 active:scale-95 transition ${
-                pathname === '/x' ? 'text-indigo-600' : 'text-slate-600'
+              className={`flex items-center justify-center w-9 h-9 rounded-full hover:bg-[color:var(--x-inset)] active:scale-95 transition ${
+                pathname === '/x' ? 'text-[color:var(--x-accent)]' : 'text-[color:var(--x-text-secondary)]'
               }`}
             >
               <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -192,7 +192,7 @@ export function XHeader() {
             <Link
               href="/x/search"
               aria-label="ユーザーを検索"
-              className="flex items-center justify-center w-9 h-9 rounded-full text-slate-600 hover:bg-slate-100 active:scale-95 transition"
+              className="flex items-center justify-center w-9 h-9 rounded-full text-[color:var(--x-text-secondary)] hover:bg-[color:var(--x-inset)] active:scale-95 transition"
             >
               <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <circle cx="11" cy="11" r="8" />
@@ -205,7 +205,7 @@ export function XHeader() {
               <Link
                 href="/x/messages"
                 aria-label={dmUnread > 0 ? `メッセージ（未読${dmUnread}件）` : 'メッセージ'}
-                className="relative flex items-center justify-center w-9 h-9 rounded-full text-slate-600 hover:bg-slate-100 active:scale-95 transition"
+                className="relative flex items-center justify-center w-9 h-9 rounded-full text-[color:var(--x-text-secondary)] hover:bg-[color:var(--x-inset)] active:scale-95 transition"
               >
                 <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                   <rect x="2" y="4" width="20" height="16" rx="2" />
@@ -223,7 +223,7 @@ export function XHeader() {
               <Link
                 href="/x/notifications"
                 aria-label={unread > 0 ? `通知（未読${unread}件）` : '通知'}
-                className="relative flex items-center justify-center w-9 h-9 rounded-full text-slate-600 hover:bg-slate-100 active:scale-95 transition"
+                className="relative flex items-center justify-center w-9 h-9 rounded-full text-[color:var(--x-text-secondary)] hover:bg-[color:var(--x-inset)] active:scale-95 transition"
               >
                 <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                   <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
@@ -264,13 +264,13 @@ export function XHeader() {
               <span onClick={() => setOpen(false)} className="inline-flex">
                 <XLogo size="md" />
               </span>
-              <span className="text-[11px] text-slate-400 font-medium">～メンズエステ専用SNS～</span>
+              <span className="text-[11px] text-[color:var(--x-text-muted)] font-medium">～メンズエステ専用SNS～</span>
             </div>
 
             {/* ②@handle＋種別/認証/所属バッジ（開設済みのみ） */}
             {loggedIn && profile && (
               <div className="flex items-center gap-1.5 flex-wrap mt-2">
-                <span className="text-xs font-bold text-slate-500 truncate max-w-[45%]">@{profile.handle}</span>
+                <span className="text-xs font-bold text-[color:var(--x-text-secondary)] truncate max-w-[45%]">@{profile.handle}</span>
                 <span className={`text-[10px] font-bold rounded-full px-1.5 py-0.5 ${KIND_BADGE[profile.kind] ?? 'bg-slate-100 text-slate-600'}`}>
                   {KIND_LABEL[profile.kind] ?? profile.kind}
                 </span>
@@ -286,7 +286,7 @@ export function XHeader() {
             )}
 
             {/* ③ログイン中メール（本人確認用・はみ出さないよう truncate） */}
-            {loggedIn && email && <p className="text-[11px] text-slate-400 mt-1 truncate">{email}</p>}
+            {loggedIn && email && <p className="text-[11px] text-[color:var(--x-text-muted)] mt-1 truncate">{email}</p>}
           </div>
 
           {/* メニュー */}
@@ -354,10 +354,10 @@ function DrawerLink({
     accent === 'emerald'
       ? 'text-emerald-600'
       : accent === 'indigo'
-        ? 'text-indigo-600'
+        ? 'text-[color:var(--x-accent)]'
         : muted
-          ? 'text-slate-400'
-          : 'text-slate-700';
+          ? 'text-[color:var(--x-text-muted)]'
+          : 'text-[color:var(--x-text-primary)]';
   return (
     <Link
       href={href}

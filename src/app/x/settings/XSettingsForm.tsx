@@ -253,7 +253,7 @@ export function XSettingsForm({
 
       {/* ── ヘッダー画像 ── */}
       <div>
-        <p className="text-[11px] font-bold text-slate-400 mb-2 px-1">ヘッダー画像（任意・横長）</p>
+        <p className="text-[11px] font-bold text-[color:var(--x-text-muted)] mb-2 px-1">ヘッダー画像（任意・横長）</p>
         <div className="relative h-28 rounded-2xl overflow-hidden bg-gradient-to-br from-indigo-100 to-sky-100 border border-[color:var(--x-border)]">
           {headerUrl && (
             // eslint-disable-next-line @next/next/no-img-element
@@ -261,12 +261,12 @@ export function XSettingsForm({
           )}
         </div>
         <div className="flex items-center gap-2 mt-2">
-          <label className="px-3 py-2 rounded-xl border border-indigo-300 text-indigo-600 text-xs font-bold hover:bg-indigo-50 cursor-pointer transition-colors">
+          <label className="px-3 py-2 rounded-xl border border-indigo-300 text-[color:var(--x-accent)] text-xs font-bold hover:bg-indigo-50 cursor-pointer transition-colors">
             {headerUploading ? 'アップ中...' : headerUrl ? '変更' : '画像を選ぶ'}
             <input type="file" accept="image/jpeg,image/png,image/webp" onChange={onHeader} disabled={headerUploading} className="hidden" />
           </label>
           {headerUrl && (
-            <button type="button" onClick={() => setHeaderUrl(null)} className="text-xs text-slate-400 hover:text-rose-500 transition-colors">
+            <button type="button" onClick={() => setHeaderUrl(null)} className="text-xs text-[color:var(--x-text-muted)] hover:text-rose-500 transition-colors">
               削除
             </button>
           )}
@@ -275,7 +275,7 @@ export function XSettingsForm({
 
       {/* ── アバター ── */}
       <div>
-        <p className="text-[11px] font-bold text-slate-400 mb-2 px-1">アイコン画像（任意）</p>
+        <p className="text-[11px] font-bold text-[color:var(--x-text-muted)] mb-2 px-1">アイコン画像（任意）</p>
         <div className="flex items-center gap-3">
           <span className="relative w-16 h-16 rounded-full overflow-hidden border-2 border-white shadow-sm bg-gradient-to-br from-indigo-300 to-sky-300 flex items-center justify-center flex-shrink-0">
             {avatarUrl ? (
@@ -286,55 +286,55 @@ export function XSettingsForm({
             )}
           </span>
           <div className="flex items-center gap-2">
-            <label className="px-3 py-2 rounded-xl border border-indigo-300 text-indigo-600 text-xs font-bold hover:bg-indigo-50 cursor-pointer transition-colors">
+            <label className="px-3 py-2 rounded-xl border border-indigo-300 text-[color:var(--x-accent)] text-xs font-bold hover:bg-indigo-50 cursor-pointer transition-colors">
               {avatarUploading ? 'アップ中...' : avatarUrl ? '変更' : '画像を選ぶ'}
               <input type="file" accept="image/jpeg,image/png,image/webp" onChange={onAvatar} disabled={avatarUploading} className="hidden" />
             </label>
             {avatarUrl && (
-              <button type="button" onClick={() => setAvatarUrl(null)} className="text-xs text-slate-400 hover:text-rose-500 transition-colors">
+              <button type="button" onClick={() => setAvatarUrl(null)} className="text-xs text-[color:var(--x-text-muted)] hover:text-rose-500 transition-colors">
                 削除
               </button>
             )}
           </div>
         </div>
-        <p className="text-[10px] text-slate-400 mt-1.5">JPEG・PNG・WebP・5MB以下。</p>
+        <p className="text-[10px] text-[color:var(--x-text-muted)] mt-1.5">JPEG・PNG・WebP・5MB以下。</p>
       </div>
 
       {/* ── 表示名 ── */}
       <div>
-        <label className="text-[11px] font-bold text-slate-400 block mb-1.5 px-1">表示名</label>
+        <label className="text-[11px] font-bold text-[color:var(--x-text-muted)] block mb-1.5 px-1">表示名</label>
         <input
           type="text"
           value={displayName}
           onChange={(e) => setDisplayName(e.target.value)}
           placeholder="表示名を入力"
           maxLength={DISPLAY_MAX}
-          className="w-full px-4 py-3 rounded-xl border border-[color:var(--x-border-strong)] text-sm bg-slate-50/50 focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:border-transparent"
+          className="w-full px-4 py-3 rounded-xl border border-[color:var(--x-border-strong)] text-sm bg-[color:var(--x-inset)] focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:border-transparent"
         />
-        <p className="text-[11px] text-slate-400 mt-1 text-right">
+        <p className="text-[11px] text-[color:var(--x-text-muted)] mt-1 text-right">
           {displayName.length}/{DISPLAY_MAX}
         </p>
       </div>
 
       {/* ── 自己紹介 ── */}
       <div>
-        <label className="text-[11px] font-bold text-slate-400 block mb-1.5 px-1">自己紹介（任意）</label>
+        <label className="text-[11px] font-bold text-[color:var(--x-text-muted)] block mb-1.5 px-1">自己紹介（任意）</label>
         <textarea
           rows={3}
           value={bio}
           onChange={(e) => setBio(e.target.value)}
           placeholder="自己紹介を入力"
           maxLength={BIO_MAX}
-          className="w-full px-4 py-3 rounded-xl border border-[color:var(--x-border-strong)] text-sm bg-slate-50/50 focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:border-transparent resize-none"
+          className="w-full px-4 py-3 rounded-xl border border-[color:var(--x-border-strong)] text-sm bg-[color:var(--x-inset)] focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:border-transparent resize-none"
         />
-        <p className="text-[11px] text-slate-400 mt-1 text-right">
+        <p className="text-[11px] text-[color:var(--x-text-muted)] mt-1 text-right">
           {bio.length}/{BIO_MAX}
         </p>
       </div>
 
       {/* ── リンク（任意・http/https のみ）── text-base(16px) で iOS 自動ズーム抑止 */}
       <div>
-        <label className="text-[11px] font-bold text-slate-400 block mb-1.5 px-1">リンク（任意）</label>
+        <label className="text-[11px] font-bold text-[color:var(--x-text-muted)] block mb-1.5 px-1">リンク（任意）</label>
         <input
           type="url"
           inputMode="url"
@@ -344,13 +344,13 @@ export function XSettingsForm({
           autoCapitalize="none"
           autoCorrect="off"
           spellCheck={false}
-          className="w-full px-4 py-3 rounded-xl border border-[color:var(--x-border-strong)] text-base bg-slate-50/50 focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:border-transparent"
+          className="w-full px-4 py-3 rounded-xl border border-[color:var(--x-border-strong)] text-base bg-[color:var(--x-inset)] focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:border-transparent"
         />
-        <p className="text-[10px] text-slate-400 mt-1 px-1">http:// または https:// のリンク（プロフィールに表示されます）</p>
+        <p className="text-[10px] text-[color:var(--x-text-muted)] mt-1 px-1">http:// または https:// のリンク（プロフィールに表示されます）</p>
       </div>
 
       {/* ── プライバシー：DM受付（全kind共通） ── */}
-      <div className="rounded-2xl border border-[color:var(--x-border-strong)] bg-slate-50/60 p-4">
+      <div className="rounded-2xl border border-[color:var(--x-border-strong)] bg-[color:var(--x-inset)] p-4">
         <label className="flex items-start gap-3 cursor-pointer select-none">
           <input
             type="checkbox"
@@ -359,8 +359,8 @@ export function XSettingsForm({
             className="mt-0.5 w-4 h-4 accent-indigo-500 flex-shrink-0"
           />
           <span>
-            <span className="text-sm font-bold text-slate-700">メッセージ（DM）を受け付けない</span>
-            <span className="block text-[11px] text-slate-400 mt-1 leading-relaxed">
+            <span className="text-sm font-bold text-[color:var(--x-text-primary)]">メッセージ（DM）を受け付けない</span>
+            <span className="block text-[11px] text-[color:var(--x-text-muted)] mt-1 leading-relaxed">
               オンにすると誰からもメッセージを受け取れません。既存の会話への送信も（あなた・相手とも）できなくなります。
             </span>
           </span>
@@ -370,36 +370,36 @@ export function XSettingsForm({
       {/* ── 住所（お店アカウントのみ・任意）── text-base(16px) で iOS 自動ズーム抑止 */}
       {isShop && (
         <div>
-          <label className="text-[11px] font-bold text-slate-400 block mb-1.5 px-1">住所（任意）</label>
+          <label className="text-[11px] font-bold text-[color:var(--x-text-muted)] block mb-1.5 px-1">住所（任意）</label>
           <input
             type="text"
             value={address}
             onChange={(e) => setAddress(e.target.value)}
             placeholder="例: 博多区住吉"
-            className="w-full px-4 py-3 rounded-xl border border-[color:var(--x-border-strong)] text-base text-slate-900 placeholder:text-slate-400 bg-slate-50/50 focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:border-transparent"
+            className="w-full px-4 py-3 rounded-xl border border-[color:var(--x-border-strong)] text-base text-[color:var(--x-text-primary)] placeholder:text-[color:var(--x-text-muted)] bg-[color:var(--x-inset)] focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:border-transparent"
           />
-          <p className="text-[10px] text-slate-400 mt-1 px-1">プロフィールの @ID の横に表示されます。</p>
+          <p className="text-[10px] text-[color:var(--x-text-muted)] mt-1 px-1">プロフィールの @ID の横に表示されます。</p>
         </div>
       )}
 
       {/* ── お店カード画像（認証済みお店のみ・最大8枚）── タイムライン「お店」タブのショーケース用 */}
       {isShop && !profile.is_verified && (
-        <div className="rounded-2xl border border-[color:var(--x-border-strong)] bg-slate-50/60 p-4">
-          <p className="text-sm font-bold text-slate-700">お店カード画像</p>
-          <p className="text-[12px] text-slate-500 mt-1 leading-relaxed">
+        <div className="rounded-2xl border border-[color:var(--x-border-strong)] bg-[color:var(--x-inset)] p-4">
+          <p className="text-sm font-bold text-[color:var(--x-text-primary)]">お店カード画像</p>
+          <p className="text-[12px] text-[color:var(--x-text-secondary)] mt-1 leading-relaxed">
             お店カード画像は、フクエス認証済みのお店のみ設定できます。
           </p>
         </div>
       )}
       {isShop && profile.is_verified && (
         <div>
-          <p className="text-[11px] font-bold text-slate-400 mb-1.5 px-1">お店カード画像（8枚まで）</p>
-          <p className="text-[10px] text-slate-400 mb-2 px-1 leading-relaxed">
+          <p className="text-[11px] font-bold text-[color:var(--x-text-muted)] mb-1.5 px-1">お店カード画像（8枚まで）</p>
+          <p className="text-[10px] text-[color:var(--x-text-muted)] mb-2 px-1 leading-relaxed">
             タイムラインの「お店」タブに、店名と一緒に表示されます（4列×2段）。主にセラピスト画像の設定を想定しています。
           </p>
           <div className="grid grid-cols-4 gap-1.5">
             {showcaseImages.map((url, i) => (
-              <div key={i} className="relative aspect-square rounded-lg overflow-hidden border border-[color:var(--x-border)] bg-slate-50">
+              <div key={i} className="relative aspect-square rounded-lg overflow-hidden border border-[color:var(--x-border)] bg-[color:var(--x-inset)]">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img src={url} alt={`お店カード画像${i + 1}`} className="w-full h-full object-cover" />
                 <button
@@ -427,20 +427,20 @@ export function XSettingsForm({
               </label>
             )}
           </div>
-          <p className="text-[10px] text-slate-400 mt-1.5 px-1">JPEG・PNG・WebP・5MB以下。承認済みで1枚以上設定すると「お店」タブに表示されます。</p>
+          <p className="text-[10px] text-[color:var(--x-text-muted)] mt-1.5 px-1">JPEG・PNG・WebP・5MB以下。承認済みで1枚以上設定すると「お店」タブに表示されます。</p>
         </div>
       )}
 
       {/* ── 年齢・スリーサイズ（セラピストアカウントのみ・すべて任意）── text-base(16px) で iOS 自動ズーム抑止 */}
       {isTherapist && (
-      <div className="rounded-2xl border border-[color:var(--x-border-strong)] bg-slate-50/60 p-4">
-        <p className="text-[11px] font-bold text-slate-400 mb-3 px-1">年齢・スリーサイズ（任意）</p>
+      <div className="rounded-2xl border border-[color:var(--x-border-strong)] bg-[color:var(--x-inset)] p-4">
+        <p className="text-[11px] font-bold text-[color:var(--x-text-muted)] mb-3 px-1">年齢・スリーサイズ（任意）</p>
         <div className="grid grid-cols-2 gap-3">
           <NumberField label="年齢" unit="歳" value={age} onChange={setAge} />
           <NumberField label="身長 T" unit="cm" value={height} onChange={setHeight} />
           <NumberField label="バスト B" unit="cm" value={bust} onChange={setBust} />
           <div>
-            <label className="text-[11px] font-bold text-slate-400 block mb-1.5 px-1">カップ</label>
+            <label className="text-[11px] font-bold text-[color:var(--x-text-muted)] block mb-1.5 px-1">カップ</label>
             <input
               type="text"
               value={cup}
@@ -448,19 +448,19 @@ export function XSettingsForm({
               placeholder="例: F"
               maxLength={4}
               autoCapitalize="characters"
-              className="w-full px-4 py-3 rounded-xl border border-[color:var(--x-border-strong)] text-base text-slate-900 placeholder:text-slate-400 bg-[color:var(--x-surface)] focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:border-transparent"
+              className="w-full px-4 py-3 rounded-xl border border-[color:var(--x-border-strong)] text-base text-[color:var(--x-text-primary)] placeholder:text-[color:var(--x-text-muted)] bg-[color:var(--x-inset)] focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:border-transparent"
             />
           </div>
           <NumberField label="ウエスト W" unit="cm" value={waist} onChange={setWaist} />
           <NumberField label="ヒップ H" unit="cm" value={hip} onChange={setHip} />
         </div>
-        <p className="text-[10px] text-slate-400 mt-2 px-1">入力した項目だけ「@ID」の横に表示されます。空欄の項目は表示されません。</p>
+        <p className="text-[10px] text-[color:var(--x-text-muted)] mt-2 px-1">入力した項目だけ「@ID」の横に表示されます。空欄の項目は表示されません。</p>
       </div>
       )}
 
       {/* ── 変更不可（読み取り専用）：ID・種別・ログインメール ── */}
-      <div className="rounded-2xl border border-[color:var(--x-border-strong)] bg-slate-50/60 p-4 space-y-3">
-        <p className="text-[11px] font-bold text-slate-400">変更できない項目</p>
+      <div className="rounded-2xl border border-[color:var(--x-border-strong)] bg-[color:var(--x-inset)] p-4 space-y-3">
+        <p className="text-[11px] font-bold text-[color:var(--x-text-muted)]">変更できない項目</p>
         <ReadonlyRow label="ID（@ユーザー名）" value={`@${profile.handle}`} note="IDは変更できません" />
         <ReadonlyRow label="アカウント種別" value={KIND_LABEL[profile.kind] ?? profile.kind} note="種別は変更できません" />
         <ReadonlyRow label="ログインID（メールアドレス）" value={email ?? '—'} note="メールの変更は今後対応予定です" />
@@ -479,7 +479,7 @@ export function XSettingsForm({
         </button>
         <Link
           href={`/x/u/${profile.handle}`}
-          className="px-5 py-3.5 rounded-xl border border-[color:var(--x-border-strong)] text-slate-500 font-bold text-sm hover:border-slate-300 transition-colors"
+          className="px-5 py-3.5 rounded-xl border border-[color:var(--x-border-strong)] text-[color:var(--x-text-secondary)] font-bold text-sm hover:border-slate-300 transition-colors"
         >
           キャンセル
         </Link>
@@ -593,7 +593,7 @@ function NumberField({
 }) {
   return (
     <div>
-      <label className="text-[11px] font-bold text-slate-400 block mb-1.5 px-1">{label}</label>
+      <label className="text-[11px] font-bold text-[color:var(--x-text-muted)] block mb-1.5 px-1">{label}</label>
       <div className="relative">
         <input
           type="number"
@@ -601,9 +601,9 @@ function NumberField({
           value={value}
           onChange={(e) => onChange(e.target.value)}
           min={0}
-          className="w-full px-4 py-3 pr-10 rounded-xl border border-[color:var(--x-border-strong)] text-base text-slate-900 placeholder:text-slate-400 bg-[color:var(--x-surface)] focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:border-transparent"
+          className="w-full px-4 py-3 pr-10 rounded-xl border border-[color:var(--x-border-strong)] text-base text-[color:var(--x-text-primary)] placeholder:text-[color:var(--x-text-muted)] bg-[color:var(--x-inset)] focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:border-transparent"
         />
-        <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-slate-400 pointer-events-none">{unit}</span>
+        <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-[color:var(--x-text-muted)] pointer-events-none">{unit}</span>
       </div>
     </div>
   );
@@ -612,9 +612,9 @@ function NumberField({
 function ReadonlyRow({ label, value, note }: { label: string; value: string; note: string }) {
   return (
     <div>
-      <p className="text-[11px] font-bold text-slate-400">{label}</p>
-      <p className="text-sm text-slate-500 break-all mt-0.5">{value}</p>
-      <p className="text-[10px] text-slate-400 mt-0.5">{note}</p>
+      <p className="text-[11px] font-bold text-[color:var(--x-text-muted)]">{label}</p>
+      <p className="text-sm text-[color:var(--x-text-secondary)] break-all mt-0.5">{value}</p>
+      <p className="text-[10px] text-[color:var(--x-text-muted)] mt-0.5">{note}</p>
     </div>
   );
 }

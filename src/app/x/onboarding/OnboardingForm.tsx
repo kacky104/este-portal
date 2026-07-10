@@ -254,7 +254,7 @@ export function OnboardingForm({ userId }: { userId: string }) {
       <div className="py-16 text-center">
         <div className="text-4xl mb-4">🎉</div>
         <h2 className="text-xl font-black mb-1">アカウントを開設しました</h2>
-        <p className="text-sm text-slate-400">fukuX へ移動します...</p>
+        <p className="text-sm text-[color:var(--x-text-muted)]">fukuX へ移動します...</p>
       </div>
     );
   }
@@ -265,13 +265,13 @@ export function OnboardingForm({ userId }: { userId: string }) {
       case 'bad':
         return { text: '半角英数字とアンダースコア（_）、3〜20文字で入力してください', cls: 'text-rose-500' };
       case 'checking':
-        return { text: '確認中...', cls: 'text-slate-400' };
+        return { text: '確認中...', cls: 'text-[color:var(--x-text-muted)]' };
       case 'ok':
         return { text: '✓ 使用できます', cls: 'text-emerald-600' };
       case 'taken':
         return { text: 'このIDは使われています', cls: 'text-rose-500' };
       default:
-        return { text: '半角英数字とアンダースコア（_）、3〜20文字', cls: 'text-slate-400' };
+        return { text: '半角英数字とアンダースコア（_）、3〜20文字', cls: 'text-[color:var(--x-text-muted)]' };
     }
   })();
 
@@ -280,7 +280,7 @@ export function OnboardingForm({ userId }: { userId: string }) {
       {/* ステップインジケーター（1/2） */}
       <div className="flex items-center gap-2">
         <StepDot n={1} label="種別" current={step === 1} done={step > 1} />
-        <span className={`flex-1 h-0.5 rounded-full ${step > 1 ? 'bg-indigo-400' : 'bg-slate-200'}`} />
+        <span className={`flex-1 h-0.5 rounded-full ${step > 1 ? 'bg-indigo-400' : 'bg-[color:var(--x-inset)]'}`} />
         <StepDot n={2} label="プロフィール" current={step === 2} done={false} />
       </div>
 
@@ -294,7 +294,7 @@ export function OnboardingForm({ userId }: { userId: string }) {
         <div className="space-y-6">
           {/* ① 種別選択 */}
           <div>
-        <p className="text-[11px] font-bold text-slate-400 mb-2 px-1">アカウント種別</p>
+        <p className="text-[11px] font-bold text-[color:var(--x-text-muted)] mb-2 px-1">アカウント種別</p>
         <div className="space-y-2">
           {KINDS.map((k) => {
             const selected = kind === k.key;
@@ -320,7 +320,7 @@ export function OnboardingForm({ userId }: { userId: string }) {
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-1.5">
                       <span
-                        className={`font-bold text-sm ${selected ? k.selLabel : `text-slate-900 ${k.hoverLabel}`}`}
+                        className={`font-bold text-sm ${selected ? k.selLabel : `text-[color:var(--x-text-primary)] ${k.hoverLabel}`}`}
                       >
                         {k.label}
                       </span>
@@ -332,7 +332,7 @@ export function OnboardingForm({ userId }: { userId: string }) {
                         </span>
                       )}
                     </div>
-                    <p className={`text-[12px] mt-0.5 leading-relaxed ${selected ? 'text-slate-600' : `text-slate-500 ${k.hoverDesc}`}`}>
+                    <p className={`text-[12px] mt-0.5 leading-relaxed ${selected ? 'text-slate-600' : `text-[color:var(--x-text-secondary)] ${k.hoverDesc}`}`}>
                       {k.desc}
                     </p>
                   </div>
@@ -357,7 +357,7 @@ export function OnboardingForm({ userId }: { userId: string }) {
         <div className="space-y-6">
       {/* ② アバター（任意） */}
       <div>
-        <p className="text-[11px] font-bold text-slate-400 mb-2 px-1">アイコン画像（任意）</p>
+        <p className="text-[11px] font-bold text-[color:var(--x-text-muted)] mb-2 px-1">アイコン画像（任意）</p>
         <div className="flex items-center gap-3">
           <span className="relative w-16 h-16 rounded-full overflow-hidden border-2 border-white shadow-sm bg-gradient-to-br from-indigo-300 to-sky-300 flex items-center justify-center flex-shrink-0">
             {avatarUrl ? (
@@ -368,7 +368,7 @@ export function OnboardingForm({ userId }: { userId: string }) {
             )}
           </span>
           <div className="flex items-center gap-2">
-            <label className="px-3 py-2 rounded-xl border border-indigo-300 text-indigo-600 text-xs font-bold hover:bg-indigo-50 cursor-pointer transition-colors">
+            <label className="px-3 py-2 rounded-xl border border-indigo-300 text-[color:var(--x-accent)] text-xs font-bold hover:bg-indigo-50 cursor-pointer transition-colors">
               {avatarUploading ? 'アップ中...' : avatarUrl ? '変更' : '画像を選ぶ'}
               <input
                 type="file"
@@ -382,21 +382,21 @@ export function OnboardingForm({ userId }: { userId: string }) {
               <button
                 type="button"
                 onClick={() => setAvatarUrl(null)}
-                className="text-xs text-slate-400 hover:text-rose-500 transition-colors"
+                className="text-xs text-[color:var(--x-text-muted)] hover:text-rose-500 transition-colors"
               >
                 削除
               </button>
             )}
           </div>
         </div>
-        <p className="text-[10px] text-slate-400 mt-1.5">JPEG・PNG・WebP・5MB以下。あとから設定もできます。</p>
+        <p className="text-[10px] text-[color:var(--x-text-muted)] mt-1.5">JPEG・PNG・WebP・5MB以下。あとから設定もできます。</p>
       </div>
 
       {/* ③ handle（@ID） */}
       <div>
-        <label className="text-[11px] font-bold text-slate-400 block mb-1.5 px-1">ID（@ユーザー名）</label>
-        <div className="flex items-center rounded-xl border border-[color:var(--x-border-strong)] bg-slate-50/50 focus-within:ring-2 focus-within:ring-indigo-400 focus-within:border-transparent overflow-hidden">
-          <span className="pl-3 pr-1 text-slate-400 font-bold select-none">@</span>
+        <label className="text-[11px] font-bold text-[color:var(--x-text-muted)] block mb-1.5 px-1">ID（@ユーザー名）</label>
+        <div className="flex items-center rounded-xl border border-[color:var(--x-border-strong)] bg-[color:var(--x-inset)] focus-within:ring-2 focus-within:ring-indigo-400 focus-within:border-transparent overflow-hidden">
+          <span className="pl-3 pr-1 text-[color:var(--x-text-muted)] font-bold select-none">@</span>
           <input
             type="text"
             value={handle}
@@ -414,32 +414,32 @@ export function OnboardingForm({ userId }: { userId: string }) {
 
       {/* ④ display_name */}
       <div>
-        <label className="text-[11px] font-bold text-slate-400 block mb-1.5 px-1">表示名</label>
+        <label className="text-[11px] font-bold text-[color:var(--x-text-muted)] block mb-1.5 px-1">表示名</label>
         <input
           type="text"
           value={displayName}
           onChange={(e) => setDisplayName(e.target.value)}
           placeholder="表示名を入力"
           maxLength={DISPLAY_MAX}
-          className="w-full px-4 py-3 rounded-xl border border-[color:var(--x-border-strong)] text-base bg-slate-50/50 focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:border-transparent"
+          className="w-full px-4 py-3 rounded-xl border border-[color:var(--x-border-strong)] text-base bg-[color:var(--x-inset)] focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:border-transparent"
         />
-        <p className="text-[11px] text-slate-400 mt-1 text-right">
+        <p className="text-[11px] text-[color:var(--x-text-muted)] mt-1 text-right">
           {displayName.length}/{DISPLAY_MAX}
         </p>
       </div>
 
       {/* ⑤ bio（任意） */}
       <div>
-        <label className="text-[11px] font-bold text-slate-400 block mb-1.5 px-1">自己紹介（任意）</label>
+        <label className="text-[11px] font-bold text-[color:var(--x-text-muted)] block mb-1.5 px-1">自己紹介（任意）</label>
         <textarea
           rows={3}
           value={bio}
           onChange={(e) => setBio(e.target.value)}
           placeholder="自己紹介を入力"
           maxLength={BIO_MAX}
-          className="w-full px-4 py-3 rounded-xl border border-[color:var(--x-border-strong)] text-base bg-slate-50/50 focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:border-transparent resize-none"
+          className="w-full px-4 py-3 rounded-xl border border-[color:var(--x-border-strong)] text-base bg-[color:var(--x-inset)] focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:border-transparent resize-none"
         />
-        <p className="text-[11px] text-slate-400 mt-1 text-right">
+        <p className="text-[11px] text-[color:var(--x-text-muted)] mt-1 text-right">
           {bio.length}/{BIO_MAX}
         </p>
       </div>
@@ -448,7 +448,7 @@ export function OnboardingForm({ userId }: { userId: string }) {
         <button
           type="button"
           onClick={() => setStep(1)}
-          className="px-5 py-3.5 rounded-xl border border-[color:var(--x-border-strong)] text-slate-500 font-bold text-sm hover:border-slate-300 transition-colors"
+          className="px-5 py-3.5 rounded-xl border border-[color:var(--x-border-strong)] text-[color:var(--x-text-secondary)] font-bold text-sm hover:border-slate-300 transition-colors"
         >
           戻る
         </button>
@@ -463,7 +463,7 @@ export function OnboardingForm({ userId }: { userId: string }) {
         </button>
       </div>
       {kind === 'shop' && (
-        <p className="text-[11px] text-slate-400 text-center -mt-2">
+        <p className="text-[11px] text-[color:var(--x-text-muted)] text-center -mt-2">
           ※ 開設後すぐに利用できます。運営が確認すると認証バッジが付きます。
         </p>
       )}
@@ -480,7 +480,7 @@ function StepDot({ n, label, current, done }: { n: number; label: string; curren
     <div className="flex items-center gap-1.5">
       <span
         className={`w-6 h-6 rounded-full flex items-center justify-center text-[11px] font-bold flex-shrink-0 ${
-          active ? 'text-white' : 'bg-slate-100 text-slate-400'
+          active ? 'text-white' : 'bg-[color:var(--x-inset)] text-[color:var(--x-text-muted)]'
         }`}
         style={active ? { background: 'linear-gradient(100deg,#6366F1,#8B5CF6)' } : undefined}
       >
@@ -492,7 +492,7 @@ function StepDot({ n, label, current, done }: { n: number; label: string; curren
           n
         )}
       </span>
-      <span className={`text-[11px] font-bold ${current ? 'text-indigo-600' : 'text-slate-400'}`}>{label}</span>
+      <span className={`text-[11px] font-bold ${current ? 'text-[color:var(--x-accent)]' : 'text-[color:var(--x-text-muted)]'}`}>{label}</span>
     </div>
   );
 }

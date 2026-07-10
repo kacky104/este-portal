@@ -233,18 +233,18 @@ export function XPostDetail({ parent }: { parent: XPost }) {
 
       {/* リプライ作成 or 受付不可案内（白カード面＝両テーマで読める） */}
       <div className="x-card mt-3 rounded-2xl bg-[color:var(--x-surface)] shadow-[0_4px_16px_rgba(109,40,217,0.3)] p-4">
-        <h2 className="text-sm font-black text-slate-800 mb-1">
-          リプライ <span className="text-slate-400 tabular-nums font-bold">{replyCount}</span>
+        <h2 className="text-sm font-black text-[color:var(--x-text-primary)] mb-1">
+          リプライ <span className="text-[color:var(--x-text-muted)] tabular-nums font-bold">{replyCount}</span>
         </h2>
         {parent.repliesDisabled ? (
-          <p className="text-[13px] text-slate-500 py-2 leading-relaxed">
+          <p className="text-[13px] text-[color:var(--x-text-secondary)] py-2 leading-relaxed">
             この投稿はリプライを受け付けていません。
           </p>
         ) : me ? (
           <XComposer me={me} parentPostId={parent.id} onPosted={onReplied} />
         ) : (
           <div className="py-2">
-            <p className="text-[13px] text-slate-500 mb-3 leading-relaxed">
+            <p className="text-[13px] text-[color:var(--x-text-secondary)] mb-3 leading-relaxed">
               リプライするにはアカウントが必要です。
             </p>
             <button

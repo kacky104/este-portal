@@ -36,7 +36,7 @@ export function PostBody({ text, clamp = true }: { text: string; clamp?: boolean
       <XHashtagText
         ref={ref}
         text={text}
-        className={`text-sm text-slate-800 leading-relaxed whitespace-pre-wrap break-words ${clamped ? 'line-clamp-[8]' : ''}`}
+        className={`text-sm text-[color:var(--x-text-primary)] leading-relaxed whitespace-pre-wrap break-words ${clamped ? 'line-clamp-[8]' : ''}`}
       />
       {clamp && overflowing && !expanded && (
         <button

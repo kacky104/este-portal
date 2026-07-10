@@ -136,7 +136,7 @@ export function XProfileView({
               {isOwnProfile ? (
                 <Link
                   href="/x/settings"
-                  className="inline-block whitespace-nowrap shrink-0 text-xs font-bold px-4 py-1.5 rounded-full border border-[color:var(--x-border-strong)] text-slate-600 hover:border-indigo-300 hover:text-indigo-600 transition-colors"
+                  className="inline-block whitespace-nowrap shrink-0 text-xs font-bold px-4 py-1.5 rounded-full border border-[color:var(--x-border-strong)] text-[color:var(--x-text-secondary)] hover:border-indigo-300 hover:text-[color:var(--x-accent)] transition-colors"
                 >
                   プロフィール編集
                 </Link>
@@ -152,7 +152,7 @@ export function XProfileView({
                       disabled={followPending}
                       className={`whitespace-nowrap shrink-0 text-sm font-bold px-3 py-1.5 rounded-full transition-colors disabled:opacity-50 ${
                         following
-                          ? 'border border-[color:var(--x-border-strong)] text-slate-500 hover:border-rose-200 hover:text-rose-500'
+                          ? 'border border-[color:var(--x-border-strong)] text-[color:var(--x-text-secondary)] hover:border-rose-200 hover:text-rose-500'
                           : 'text-white'
                       }`}
                       style={following ? undefined : { background: 'linear-gradient(100deg,#6366F1,#8B5CF6)' }}
@@ -172,7 +172,7 @@ export function XProfileView({
           {/* 名前・kind・所属（同じ行に横並び。狭幅は折り返し） */}
           <div className="mt-2">
             <div className="flex items-center gap-2 flex-wrap">
-              <h1 className="text-xl font-black text-slate-900 truncate max-w-full">{target.display_name}</h1>
+              <h1 className="text-xl font-black text-[color:var(--x-text-primary)] truncate max-w-full">{target.display_name}</h1>
               {(target.kind === 'official' || ((target.kind === 'shop' || target.kind === 'therapist') && target.is_verified)) && (
                 <VerifiedBadge size={18} kind={target.kind} />
               )}
@@ -199,10 +199,10 @@ export function XProfileView({
             </div>
             {/* @handle と 住所（お店のみ）・年齢・スリーサイズ を同じ行に（狭幅は折り返してもレイアウトが崩れない）。 */}
             <div className="flex flex-wrap items-center gap-x-2">
-              <p className="text-sm text-slate-400">@{target.handle}</p>
+              <p className="text-sm text-[color:var(--x-text-muted)]">@{target.handle}</p>
               {/* 住所：お店アカウントのみ・address があるときだけ。Lucide MapPin 相当のインラインSVG＋住所。 */}
               {target.kind === 'shop' && target.address && (
-                <span className="inline-flex items-center gap-x-1 text-xs text-slate-500">
+                <span className="inline-flex items-center gap-x-1 text-xs text-[color:var(--x-text-secondary)]">
                   <svg
                     className="h-3.5 w-3.5 flex-shrink-0"
                     viewBox="0 0 24 24"
@@ -220,11 +220,11 @@ export function XProfileView({
                 </span>
               )}
               {target.kind === 'therapist' && measurements.length > 0 && (
-                <p className="text-xs text-slate-500 tabular-nums">{measurements.join(' ')}</p>
+                <p className="text-xs text-[color:var(--x-text-secondary)] tabular-nums">{measurements.join(' ')}</p>
               )}
             </div>
 
-            {target.bio && <p className="text-sm text-slate-700 leading-relaxed whitespace-pre-wrap break-words mt-2">{target.bio}</p>}
+            {target.bio && <p className="text-sm text-[color:var(--x-text-primary)] leading-relaxed whitespace-pre-wrap break-words mt-2">{target.bio}</p>}
 
             {/* リンク（任意・http/https のみ）と fukuX開始日（作成日・変更不可）を同じ行に。
                 リンクが無くても開始日は単独で表示する（狭幅は折り返し）。 */}
@@ -235,7 +235,7 @@ export function XProfileView({
                     href={safeHref(target.link_url)!}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="inline-flex items-center gap-1.5 max-w-full text-sm font-medium text-indigo-600 hover:underline"
+                    className="inline-flex items-center gap-1.5 max-w-full text-sm font-medium text-[color:var(--x-accent)] hover:underline"
                   >
                     <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="flex-shrink-0">
                       <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
@@ -244,20 +244,20 @@ export function XProfileView({
                     <span className="truncate">{linkDomain(target.link_url!)}</span>
                   </a>
                 )}
-                {startDate && <span className="text-xs text-slate-500">{startDate}</span>}
+                {startDate && <span className="text-xs text-[color:var(--x-text-secondary)]">{startDate}</span>}
               </div>
             )}
 
             {/* 数値（kind が持ち得る数だけ表示）。タップでフォロー中／フォロワー一覧へ。 */}
             <div className="flex items-center gap-4 mt-3 text-sm">
               {followingCount !== null && (
-                <Link href={`/x/u/${target.handle}/following`} className="text-slate-500 hover:underline">
-                  <strong className="text-slate-900 tabular-nums">{followingCount}</strong> フォロー中
+                <Link href={`/x/u/${target.handle}/following`} className="text-[color:var(--x-text-secondary)] hover:underline">
+                  <strong className="text-[color:var(--x-text-primary)] tabular-nums">{followingCount}</strong> フォロー中
                 </Link>
               )}
               {followerCount !== null && (
-                <Link href={`/x/u/${target.handle}/followers`} className="text-slate-500 hover:underline">
-                  <strong className="text-slate-900 tabular-nums">{followerCount}</strong> フォロワー
+                <Link href={`/x/u/${target.handle}/followers`} className="text-[color:var(--x-text-secondary)] hover:underline">
+                  <strong className="text-[color:var(--x-text-primary)] tabular-nums">{followerCount}</strong> フォロワー
                 </Link>
               )}
             </div>
@@ -278,14 +278,14 @@ export function XProfileView({
       {/* ─── 所属セラピスト一覧（店舗プロフィールのみ・浮遊カード） ─── */}
       {target.kind === 'shop' && (
         <div className="x-card mt-3 rounded-2xl bg-[color:var(--x-surface)] shadow-[0_4px_16px_rgba(109,40,217,0.3)] p-4">
-          <h2 className="text-sm font-black text-slate-800 mb-2">
+          <h2 className="text-sm font-black text-[color:var(--x-text-primary)] mb-2">
             所属セラピスト
             {affiliatedTherapists.length > 0 && (
-              <span className="ml-1.5 text-xs font-bold text-slate-400 tabular-nums">{affiliatedTherapists.length}</span>
+              <span className="ml-1.5 text-xs font-bold text-[color:var(--x-text-muted)] tabular-nums">{affiliatedTherapists.length}</span>
             )}
           </h2>
           {affiliatedTherapists.length === 0 ? (
-            <p className="text-xs text-slate-400 py-2">所属セラピストはまだいません</p>
+            <p className="text-xs text-[color:var(--x-text-muted)] py-2">所属セラピストはまだいません</p>
           ) : (
             <div className="space-y-1">
               {affiliatedTherapists.map((th) => (
@@ -303,8 +303,8 @@ export function XProfileView({
                     )}
                   </span>
                   <div className="min-w-0">
-                    <p className="text-sm font-bold text-slate-900 truncate">{th.displayName}</p>
-                    <p className="text-xs text-slate-400 truncate">@{th.handle}</p>
+                    <p className="text-sm font-bold text-[color:var(--x-text-primary)] truncate">{th.displayName}</p>
+                    <p className="text-xs text-[color:var(--x-text-muted)] truncate">@{th.handle}</p>
                   </div>
                 </Link>
               ))}

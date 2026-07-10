@@ -34,7 +34,7 @@ export const XHashtagText = forwardRef<HTMLParagraphElement, { text: string; cla
           key={`h${i}`}
           href={tagHref(tag)}
           onClick={(e) => e.stopPropagation()}
-          className="font-medium text-indigo-600 hover:underline"
+          className="font-medium text-[color:var(--x-accent)] hover:underline"
         >
           {full}
         </Link>

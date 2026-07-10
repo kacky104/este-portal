@@ -60,7 +60,7 @@ export function XProfileSchedule({ therapistId }: { therapistId: number }) {
         aria-expanded={open}
         className="w-full flex items-center justify-between p-4 text-left"
       >
-        <span className="text-sm font-black text-slate-800">出勤スケジュール（7日間）</span>
+        <span className="text-sm font-black text-[color:var(--x-text-primary)]">出勤スケジュール（7日間）</span>
         <svg
           width="18"
           height="18"
@@ -70,7 +70,7 @@ export function XProfileSchedule({ therapistId }: { therapistId: number }) {
           strokeWidth="2.5"
           strokeLinecap="round"
           strokeLinejoin="round"
-          className={`text-slate-400 flex-shrink-0 transition-transform ${open ? 'rotate-180' : ''}`}
+          className={`text-[color:var(--x-text-muted)] flex-shrink-0 transition-transform ${open ? 'rotate-180' : ''}`}
           aria-hidden="true"
         >
           <path d="M6 9l6 6 6-6" />
@@ -80,7 +80,7 @@ export function XProfileSchedule({ therapistId }: { therapistId: number }) {
       {open && (
         <div className="px-4 pb-4">
           {loading && !loaded ? (
-            <p className="text-xs text-slate-400 py-2">読み込み中...</p>
+            <p className="text-xs text-[color:var(--x-text-muted)] py-2">読み込み中...</p>
           ) : (
             <div className="space-y-2">
               {dates.map((date) => {
@@ -91,10 +91,10 @@ export function XProfileSchedule({ therapistId }: { therapistId: number }) {
                   <div
                     key={date}
                     className={`flex items-center justify-between px-4 py-2.5 rounded-xl text-sm ${
-                      isActive ? 'bg-pink-50 border border-pink-100' : 'bg-slate-50 border border-[color:var(--x-border)]'
+                      isActive ? 'bg-pink-50 border border-pink-100' : 'bg-[color:var(--x-inset)] border border-[color:var(--x-border)]'
                     }`}
                   >
-                    <span className={`font-medium ${isActive ? 'text-slate-800' : 'text-slate-400'}`}>
+                    <span className={`font-medium ${isActive ? 'text-slate-800' : 'text-[color:var(--x-text-muted)]'}`}>
                       {formatDate(date)}
                     </span>
                     {isActive ? (
@@ -102,7 +102,7 @@ export function XProfileSchedule({ therapistId }: { therapistId: number }) {
                         🕒 {hours || `${formatTime(sched.start_time)}〜${formatTime(sched.end_time)}`}
                       </span>
                     ) : (
-                      <span className="text-slate-400 text-xs">お休み</span>
+                      <span className="text-[color:var(--x-text-muted)] text-xs">お休み</span>
                     )}
                   </div>
                 );

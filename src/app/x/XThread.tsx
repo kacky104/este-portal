@@ -186,7 +186,7 @@ export function XThread({ conversationId }: { conversationId: string }) {
         <XListSkeleton rows={5} variant="row" />
       ) : !userId ? (
         <div className="x-card rounded-2xl bg-[color:var(--x-surface)] shadow-[0_4px_16px_rgba(109,40,217,0.3)] p-6 text-center">
-          <p className="text-sm text-slate-600 mb-4 leading-relaxed">メッセージを見るにはログインしてください。</p>
+          <p className="text-sm text-[color:var(--x-text-secondary)] mb-4 leading-relaxed">メッセージを見るにはログインしてください。</p>
           <Link
             href="/x/login"
             className="inline-block px-6 py-2.5 rounded-xl text-white font-bold text-sm shadow-md hover:opacity-95 transition-opacity"
@@ -197,7 +197,7 @@ export function XThread({ conversationId }: { conversationId: string }) {
         </div>
       ) : accessible === false ? (
         <div className="x-card rounded-2xl bg-[color:var(--x-surface)] shadow-[0_4px_16px_rgba(109,40,217,0.3)] p-6 text-center">
-          <p className="text-sm text-slate-600 leading-relaxed">この会話は見つからないか、表示する権限がありません。</p>
+          <p className="text-sm text-[color:var(--x-text-secondary)] leading-relaxed">この会話は見つからないか、表示する権限がありません。</p>
         </div>
       ) : (
         <>
@@ -217,10 +217,10 @@ export function XThread({ conversationId }: { conversationId: string }) {
               </span>
               <div className="min-w-0">
                 <div className="flex items-center gap-1">
-                  <span className="font-bold text-sm text-slate-900 truncate">{other.displayName || '（不明なユーザー）'}</span>
+                  <span className="font-bold text-sm text-[color:var(--x-text-primary)] truncate">{other.displayName || '（不明なユーザー）'}</span>
                   {(other.kind === 'official' || ((other.kind === 'shop' || other.kind === 'therapist') && other.isVerified)) && <VerifiedBadge kind={other.kind} />}
                 </div>
-                <p className="text-xs text-slate-400 truncate">@{other.handle}</p>
+                <p className="text-xs text-[color:var(--x-text-muted)] truncate">@{other.handle}</p>
               </div>
             </Link>
           )}
@@ -239,7 +239,7 @@ export function XThread({ conversationId }: { conversationId: string }) {
                       className={`px-3.5 py-2 rounded-2xl text-sm leading-relaxed whitespace-pre-wrap break-words ${
                         m.mine
                           ? 'text-white rounded-br-sm'
-                          : 'bg-[color:var(--x-surface)] border border-[color:var(--x-border)] text-slate-800 rounded-bl-sm'
+                          : 'bg-[color:var(--x-surface)] border border-[color:var(--x-border)] text-[color:var(--x-text-primary)] rounded-bl-sm'
                       }`}
                       style={m.mine ? { background: 'linear-gradient(100deg,#6366F1,#8B5CF6)' } : undefined}
                     >
@@ -257,11 +257,11 @@ export function XThread({ conversationId }: { conversationId: string }) {
           {dmBlocked ? (
             <div className="x-card rounded-2xl bg-[color:var(--x-surface)] shadow-[0_4px_16px_rgba(109,40,217,0.3)] p-4 text-center">
               {dmOtherOff ? (
-                <p className="text-sm text-slate-600 leading-relaxed">このアカウントはメッセージを受け付けていません。</p>
+                <p className="text-sm text-[color:var(--x-text-secondary)] leading-relaxed">このアカウントはメッセージを受け付けていません。</p>
               ) : (
-                <p className="text-sm text-slate-600 leading-relaxed">
+                <p className="text-sm text-[color:var(--x-text-secondary)] leading-relaxed">
                   DM受付をオフにしているため送信できません。
-                  <Link href="/x/settings" className="text-indigo-600 font-bold underline underline-offset-2">
+                  <Link href="/x/settings" className="text-[color:var(--x-accent)] font-bold underline underline-offset-2">
                     設定
                   </Link>
                   から変更できます。
@@ -282,7 +282,7 @@ export function XThread({ conversationId }: { conversationId: string }) {
                     }
                   }}
                   placeholder="メッセージを入力"
-                  className="flex-1 px-3 py-2.5 rounded-xl border border-[color:var(--x-border-strong)] bg-slate-50/50 text-base focus:outline-none focus:ring-2 focus:ring-indigo-300 focus:border-transparent"
+                  className="flex-1 px-3 py-2.5 rounded-xl border border-[color:var(--x-border-strong)] bg-[color:var(--x-inset)] text-base focus:outline-none focus:ring-2 focus:ring-indigo-300 focus:border-transparent"
                 />
                 <button
                   type="button"

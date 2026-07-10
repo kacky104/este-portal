@@ -66,7 +66,7 @@ export default async function XLayout({ children }: { children: React.ReactNode 
       id="x-root"
       data-x-theme="gradient"
       suppressHydrationWarning
-      className="relative min-h-screen text-slate-900"
+      className="relative min-h-screen text-[color:var(--x-text-primary)]"
     >
       <script dangerouslySetInnerHTML={{ __html: THEME_INIT }} />
 

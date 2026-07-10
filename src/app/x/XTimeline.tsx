@@ -131,7 +131,7 @@ export function XTimeline({
               type="button"
               onClick={() => setTab(key)}
               className={`flex-1 py-3 text-sm font-bold transition-colors relative ${
-                tab === key ? 'text-indigo-600' : 'text-slate-400 hover:text-slate-600'
+                tab === key ? 'text-[color:var(--x-accent)]' : 'text-[color:var(--x-text-muted)] hover:text-[color:var(--x-text-secondary)]'
               }`}
             >
               {label}
@@ -169,13 +169,13 @@ export function XTimeline({
                       <span className="text-white font-bold text-sm">{s.displayName.charAt(0) || '?'}</span>
                     )}
                   </span>
-                  <span className="font-bold text-slate-900">{s.displayName}</span>
+                  <span className="font-bold text-[color:var(--x-text-primary)]">{s.displayName}</span>
                   {s.isVerified && <VerifiedBadge kind="shop" />}
-                  <span className="text-xs text-slate-400">@{s.handle}</span>
+                  <span className="text-xs text-[color:var(--x-text-muted)]">@{s.handle}</span>
                 </div>
                 {/* 地域（x_profiles.address）。空なら行ごと非表示。 */}
                 {s.address && (
-                  <p className="text-xs text-slate-500 mb-3 flex items-center gap-1">📍{s.address}</p>
+                  <p className="text-xs text-[color:var(--x-text-secondary)] mb-3 flex items-center gap-1">📍{s.address}</p>
                 )}
                 {/* 余白削減方式: カードの白フチ（p-2.5=10px）を細く残しつつ、隙間は最小限（gap-0.5=2px）。 */}
                 <div className="grid grid-cols-4 gap-0.5">

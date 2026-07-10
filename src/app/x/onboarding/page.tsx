@@ -29,7 +29,7 @@ export default async function XOnboardingPage() {
             <XLogo size="md" />
           </div>
         </div>
-        <p className="text-sm text-slate-500 mt-1">種別を選んで、プロフィールを設定しましょう。</p>
+        <p className="text-sm text-[color:var(--x-text-secondary)] mt-1">種別を選んで、プロフィールを設定しましょう。</p>
       </div>
       <OnboardingForm userId={userId} />
     </div>

@@ -196,14 +196,14 @@ export function XComposer({
         onChange={(e) => setBody(e.target.value)}
         placeholder={isReply ? '返信を入力' : 'いまどうしてる？'}
         maxLength={BODY_MAX}
-        className="w-full px-3 py-2.5 rounded-xl border border-[color:var(--x-border-strong)] text-sm bg-slate-50/50 focus:outline-none focus:ring-2 focus:ring-indigo-300 focus:border-transparent resize-none"
+        className="w-full px-3 py-2.5 rounded-xl border border-[color:var(--x-border-strong)] text-sm bg-[color:var(--x-inset)] text-[color:var(--x-text-primary)] placeholder:text-[color:var(--x-text-muted)] focus:outline-none focus:ring-2 focus:ring-indigo-300 focus:border-transparent resize-none"
       />
 
       {/* 画像プレビュー（個別削除） */}
       {images.length > 0 && (
         <div className="mt-2 grid grid-cols-4 gap-2">
           {images.map((src, i) => (
-            <div key={i} className="relative aspect-square rounded-lg overflow-hidden border border-[color:var(--x-border)] bg-slate-50">
+            <div key={i} className="relative aspect-square rounded-lg overflow-hidden border border-[color:var(--x-border)] bg-[color:var(--x-inset)]">
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img src={src} alt="" className="w-full h-full object-cover" />
               <button
@@ -220,8 +220,8 @@ export function XComposer({
       )}
 
       {/* リンク（任意・http/https のみ）。text-base(16px) で iOS 自動ズーム抑止。 */}
-      <div className="mt-2 flex items-center gap-2 rounded-xl border border-[color:var(--x-border-strong)] bg-slate-50/50 px-3 focus-within:ring-2 focus-within:ring-indigo-300 focus-within:border-transparent">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-slate-400 flex-shrink-0">
+      <div className="mt-2 flex items-center gap-2 rounded-xl border border-[color:var(--x-border-strong)] bg-[color:var(--x-inset)] px-3 focus-within:ring-2 focus-within:ring-indigo-300 focus-within:border-transparent">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-[color:var(--x-text-muted)] flex-shrink-0">
           <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
           <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" />
         </svg>
@@ -234,13 +234,13 @@ export function XComposer({
           autoCapitalize="none"
           autoCorrect="off"
           spellCheck={false}
-          className="flex-1 py-2.5 text-base bg-transparent focus:outline-none"
+          className="flex-1 py-2.5 text-base bg-transparent text-[color:var(--x-text-primary)] placeholder:text-[color:var(--x-text-muted)] focus:outline-none"
         />
       </div>
 
       {/* リプライ不可トグル（通常投稿・therapist/shop のみ） */}
       {canToggleReplies && (
-        <label className="mt-2 flex items-center gap-2 text-[12px] font-medium text-slate-500 cursor-pointer select-none">
+        <label className="mt-2 flex items-center gap-2 text-[12px] font-medium text-[color:var(--x-text-secondary)] cursor-pointer select-none">
           <input
             type="checkbox"
             checked={repliesDisabled}
@@ -255,7 +255,7 @@ export function XComposer({
         <div className="flex items-center gap-3">
           <label
             className={`inline-flex items-center gap-1 text-xs font-bold cursor-pointer transition-colors ${
-              images.length >= MAX_IMAGES ? 'text-slate-300 cursor-not-allowed' : 'text-indigo-500 hover:text-indigo-600'
+              images.length >= MAX_IMAGES ? 'text-[color:var(--x-text-muted)] cursor-not-allowed' : 'text-indigo-500 hover:text-[color:var(--x-accent)]'
             }`}
           >
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -273,7 +273,7 @@ export function XComposer({
               className="hidden"
             />
           </label>
-          <span className="text-[11px] text-slate-400 tabular-nums">
+          <span className="text-[11px] text-[color:var(--x-text-muted)] tabular-nums">
             残り{BODY_MAX - body.length}
           </span>
         </div>

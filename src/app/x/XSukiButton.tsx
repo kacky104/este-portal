@@ -51,7 +51,7 @@ export function XSukiButton({
         className={`relative z-10 inline-flex items-center gap-1 rounded-full px-2.5 py-1.5 text-xs font-bold transition flex-shrink-0 ${
           sukied
             ? 'bg-pink-50 text-pink-500 cursor-default'
-            : 'bg-slate-100 text-slate-400 hover:bg-pink-50 hover:text-pink-500'
+            : 'bg-[color:var(--x-inset)] text-[color:var(--x-text-muted)] hover:bg-pink-50 hover:text-pink-500'
         }`}
       >
         <SukiIcon className="w-4 h-4" />
