@@ -10,6 +10,7 @@ import type { XPost, FeedItem } from './xPosts';
 import type { ShopMini, TherapistMini } from './xAffiliation';
 import { XPostCard } from './XPostCard';
 import { VerifiedBadge } from './VerifiedBadge';
+import { AutoFitName } from './AutoFitName';
 import { XAuthGateModal } from './XAuthGateModal';
 import { XImageLightbox } from './XImageLightbox';
 import { XComposeFab } from './XComposeFab';
@@ -202,16 +203,31 @@ export function XProfileView({
             </div>
           </div>
 
-          {/* 名前・kind・所属（同じ行に横並び。狭幅は折り返し） */}
+          {/* 名前・kind・所属（同じ行に横並び。狭幅は折り返し）。
+              表示名は1行自動縮小フィット（20→13px・AutoFitName）＝長い名前でも改行/省略せず1行に収める。
+              認証バッジ・種別チップは縮めず名前の直後に配置（after）。所属バッジは長くなり得るため次行へ折り返し。 */}
           <div className="mt-2">
             <div className="flex items-center gap-2 flex-wrap">
-              <h1 className="text-xl font-black text-[color:var(--x-text-primary)] truncate max-w-full">{target.display_name}</h1>
-              {(target.kind === 'official' || ((target.kind === 'shop' || target.kind === 'therapist') && target.is_verified)) && (
-                <VerifiedBadge size={18} kind={target.kind} />
-              )}
-              <span className="text-[10px] font-bold text-indigo-500 bg-indigo-50 rounded-full px-1.5 py-0.5 flex-shrink-0">
-                {KIND_LABEL[target.kind] ?? target.kind}
-              </span>
+              <AutoFitName
+                name={target.display_name}
+                max={20}
+                min={13}
+                className="gap-2"
+                textClassName="font-black text-[color:var(--x-text-primary)]"
+                textTag="h1"
+                after={
+                  <>
+                    {(target.kind === 'official' || ((target.kind === 'shop' || target.kind === 'therapist') && target.is_verified)) && (
+                      <span className="flex-shrink-0">
+                        <VerifiedBadge size={18} kind={target.kind} />
+                      </span>
+                    )}
+                    <span className="text-[10px] font-bold text-indigo-500 bg-indigo-50 rounded-full px-1.5 py-0.5 flex-shrink-0">
+                      {KIND_LABEL[target.kind] ?? target.kind}
+                    </span>
+                  </>
+                }
+              />
               {/* 所属バッジ（therapist の確定所属先。種別バッジの右隣・店舗プロフィールへリンク） */}
               {target.kind === 'therapist' && affiliatedShop && (
                 <Link
