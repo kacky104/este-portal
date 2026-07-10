@@ -26,17 +26,16 @@ export function SalonNewsList({ items }: { items: SalonNewsItem[] }) {
           <Link
             key={n.id}
             href={`/salon/${n.salonId}/news`}
-            className="flex items-center gap-3 px-3 py-2.5 hover:bg-pink-50/60 transition-colors"
+            className="flex items-center gap-3 px-3 py-[3px] hover:bg-pink-50/60 transition-colors"
           >
-            {/* サムネイル（画像なしはグラデ＋📢のプレースホルダ） */}
-            <span className="w-12 h-12 rounded-lg overflow-hidden bg-gradient-to-br from-pink-100 to-orange-100 flex items-center justify-center flex-shrink-0">
+            {/* サムネイル（角90度・画像なしはフクエスのロゴ）。行の上下余白は py-[3px]（従来py-2.5=10pxの約1/3）。 */}
+            <span className="w-12 h-12 overflow-hidden bg-white flex items-center justify-center flex-shrink-0">
               {n.imageUrl ? (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img src={n.imageUrl} alt="" className="w-full h-full object-cover" loading="lazy" />
               ) : (
-                <span className="text-lg" aria-hidden>
-                  📢
-                </span>
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src="/logo.png" alt="" className="w-8 h-8 object-contain" loading="lazy" />
               )}
             </span>
 
