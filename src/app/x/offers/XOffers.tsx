@@ -34,8 +34,12 @@ export function XOffers({ therapists }: { therapists: OfferTherapist[] }) {
             key={t.id}
             className="rounded-2xl bg-[color:var(--x-surface)] shadow-sm border border-[color:var(--x-border)] p-3.5 hover:shadow-md transition-shadow"
           >
-            <Link href={`/x/u/${encodeURIComponent(t.handle)}`} className="block">
-              <div className="flex items-center gap-2.5">
+            {/* ヘッダー行: 左=プロフィールへのリンク（アバター＋名前）／右上=オファーを送るボタン */}
+            <div className="flex items-start gap-2.5">
+              <Link
+                href={`/x/u/${encodeURIComponent(t.handle)}`}
+                className="flex items-center gap-2.5 min-w-0 flex-1"
+              >
                 <span className="w-11 h-11 rounded-full overflow-hidden border border-white shadow-sm bg-gradient-to-br from-indigo-300 to-sky-300 flex items-center justify-center flex-shrink-0">
                   {t.avatarUrl ? (
                     // eslint-disable-next-line @next/next/no-img-element
@@ -55,8 +59,14 @@ export function XOffers({ therapists }: { therapists: OfferTherapist[] }) {
                     {t.height != null && <span>T{t.height}</span>}
                   </div>
                 </div>
-              </div>
+              </Link>
+              {/* DM受付オフのセラピストにはボタンを出さない（最終防御はDB側トリガ） */}
+              {!t.dmDisabled && <OfferStartButton targetId={t.id} />}
+            </div>
 
+            {/* PR文・地域があるときだけ本文リンクを描画（空のリンク要素を作らない） */}
+            {(t.offerComment || t.offerAreas.length > 0) && (
+            <Link href={`/x/u/${encodeURIComponent(t.handle)}`} className="block">
               {/* PR文（あれば2〜3行clamp） */}
               {t.offerComment && (
                 <p className="text-sm text-[color:var(--x-text-secondary)] mt-2.5 leading-relaxed line-clamp-3 whitespace-pre-wrap">
@@ -64,26 +74,23 @@ export function XOffers({ therapists }: { therapists: OfferTherapist[] }) {
                 </p>
               )}
 
-              {/* 希望エリアバッジ（折り返し） */}
+              {/* 希望勤務地域（ラベル＋バッジ折り返し） */}
               {t.offerAreas.length > 0 && (
-                <div className="flex flex-wrap gap-1.5 mt-2.5">
-                  {t.offerAreas.map((area) => (
-                    <span
-                      key={area}
-                      className="text-[11px] font-bold rounded-full px-2 py-0.5 bg-[color:var(--x-inset)] text-[color:var(--x-text-secondary)]"
-                    >
-                      {area}
-                    </span>
-                  ))}
+                <div className="mt-2.5">
+                  <p className="text-[11px] font-bold text-[color:var(--x-text-muted)] mb-1">希望勤務地域</p>
+                  <div className="flex flex-wrap gap-1.5">
+                    {t.offerAreas.map((area) => (
+                      <span
+                        key={area}
+                        className="text-[11px] font-bold rounded-full px-2 py-0.5 bg-[color:var(--x-inset)] text-[color:var(--x-text-secondary)]"
+                      >
+                        {area}
+                      </span>
+                    ))}
+                  </div>
                 </div>
               )}
             </Link>
-
-            {/* DM受付オフのセラピストにはボタンを出さない（最終防御はDB側トリガ） */}
-            {!t.dmDisabled && (
-              <div className="mt-3 flex justify-end">
-                <OfferStartButton targetId={t.id} />
-              </div>
             )}
           </div>
         ))
