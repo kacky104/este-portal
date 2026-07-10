@@ -309,7 +309,7 @@ body.paw-bg .min-h-screen.bg-slate-50 {
 /* ── fukuXタイムラインバナーの枠キラリ（5秒に1回・ピンク→紫→青の弧が一周） ──
    therapist-working-shimmer と同方式: ::before＋mask-composite(xor)で「枠線リングだけ」に描画し、
    バナー画像・ドットには被せない。周期5s＝スライダー自動送り(5s)と同調。
-   走行はkeyframe 0%→30%（約1.5s）で一周し、残り70%は opacity:0 で待機（＝5秒に1回走る）。 */
+   走行はkeyframe 0%→60%（約3s）で一周し、残り40%（約2s）は opacity:0 で待機（＝5秒に1回走る）。 */
 @property --x-banner-shine-angle {
   syntax: "<angle>";
   inherits: false;
@@ -347,8 +347,8 @@ body.paw-bg .min-h-screen.bg-slate-50 {
 @keyframes x-banner-shine {
   0% { --x-banner-shine-angle: 0deg; opacity: 0; }
   3% { opacity: 1; }
-  27% { opacity: 1; }
-  30% { --x-banner-shine-angle: 360deg; opacity: 0; }
+  57% { opacity: 1; }
+  60% { --x-banner-shine-angle: 360deg; opacity: 0; }
   100% { --x-banner-shine-angle: 360deg; opacity: 0; }
 }
 @media (prefers-reduced-motion: reduce) {
