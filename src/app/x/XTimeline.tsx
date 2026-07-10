@@ -190,19 +190,22 @@ export function XTimeline({
                 {s.address && (
                   <p className="text-xs text-[color:var(--x-text-secondary)] mb-3 flex items-center gap-1">📍{s.address}</p>
                 )}
-                {/* 余白削減方式: カードの白フチ（p-2.5=10px）を細く残しつつ、隙間は最小限（gap-0.5=2px）。 */}
-                <div className="grid grid-cols-4 gap-0.5">
-                  {s.images.map((url, i) => (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img
-                      key={i}
-                      src={url}
-                      alt={`${s.displayName}-${i + 1}`}
-                      className="aspect-square w-full object-cover rounded-sm"
-                      loading="lazy"
-                    />
-                  ))}
-                </div>
+                {/* 余白削減方式: カードの白フチ（p-2.5=10px）を細く残しつつ、隙間は最小限（gap-0.5=2px）。
+                    画像0枚（未認証店など）はグリッドごと出さず、名前＋地域だけのコンパクトなカードになる。 */}
+                {s.images.length > 0 && (
+                  <div className="grid grid-cols-4 gap-0.5">
+                    {s.images.map((url, i) => (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        key={i}
+                        src={url}
+                        alt={`${s.displayName}-${i + 1}`}
+                        className="aspect-square w-full object-cover rounded-sm"
+                        loading="lazy"
+                      />
+                    ))}
+                  </div>
+                )}
               </Link>
             ))}
           </div>
