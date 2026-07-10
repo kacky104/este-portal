@@ -25,7 +25,7 @@ import { getLinkedTherapistForXProfile } from '@/app/lib/xLink';
 export const dynamic = 'force-dynamic';
 
 const PROFILE_COLS =
-  'id, auth_user_id, kind, status, handle, display_name, bio, avatar_url, header_url, is_verified, affiliated_shop_id, link_url, age, height, bust, cup, waist, hip, created_at, address, dm_disabled';
+  'id, auth_user_id, kind, status, handle, display_name, bio, avatar_url, header_url, is_verified, affiliated_shop_id, link_url, age, height, bust, cup, waist, hip, created_at, address, dm_disabled, showcase_images';
 
 type ProfileRow = {
   id: string;
@@ -49,6 +49,7 @@ type ProfileRow = {
   created_at: string | null;
   address: string | null;
   dm_disabled: boolean;
+  showcase_images: string[];
 };
 
 // LIKE のワイルドカード（% _ \）をエスケープし、ilike で大文字小文字無視の「完全一致」にする。
@@ -136,6 +137,7 @@ export default async function XProfilePage({ params }: { params: Promise<{ handl
     created_at: t.created_at,
     address: t.address,
     dm_disabled: t.dm_disabled,
+    showcase_images: t.showcase_images ?? [],
   };
 
   const isOwnProfile = !!viewer.profile && viewer.profile.id === target.id;

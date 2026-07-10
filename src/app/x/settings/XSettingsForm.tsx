@@ -58,6 +58,9 @@ export function XSettingsForm({
   const isTherapist = profile.kind === 'therapist';
   const isShop = profile.kind === 'shop';
   const [address, setAddress] = useState(profile.address ?? '');
+  // お店カード画像（お店アカウントのみ・最大6枚）。タイムライン「お店」タブのショーケースに使う。
+  const [showcaseImages, setShowcaseImages] = useState<string[]>(profile.showcase_images ?? []);
+  const [showcaseUploading, setShowcaseUploading] = useState(false);
   // DM受付オフ（全kind共通）。オンにすると自分・相手とも新規/追加送信が不可になる（過去の閲覧は可）。
   const [dmDisabled, setDmDisabled] = useState(profile.dm_disabled);
   const [avatarUrl, setAvatarUrl] = useState<string | null>(profile.avatar_url);
@@ -126,8 +129,34 @@ export function XSettingsForm({
     setHeaderUploading(false);
   };
 
+  // お店カード画像の追加（複数選択可）。空き枠（6枚まで）の分だけ順にアップロードし、超過分は無視して通知。
+  const onShowcase = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files ?? []);
+    e.target.value = '';
+    if (files.length === 0) return;
+    const room = 6 - showcaseImages.length;
+    if (room <= 0) {
+      showToast('お店カード画像は6枚までです');
+      return;
+    }
+    const take = files.slice(0, room);
+    setShowcaseUploading(true);
+    const uploaded: string[] = [];
+    for (const file of take) {
+      const url = await uploadImage(file);
+      if (url) uploaded.push(url);
+    }
+    if (uploaded.length > 0) setShowcaseImages((prev) => [...prev, ...uploaded].slice(0, 6));
+    if (files.length > room) showToast('お店カード画像は6枚までのため、超過分は追加していません');
+    setShowcaseUploading(false);
+  };
+
+  const removeShowcase = (idx: number) => {
+    setShowcaseImages((prev) => prev.filter((_, i) => i !== idx));
+  };
+
   const displayOk = displayName.trim().length >= 1 && displayName.trim().length <= DISPLAY_MAX;
-  const busy = saving || avatarUploading || headerUploading;
+  const busy = saving || avatarUploading || headerUploading || showcaseUploading;
 
   const save = async () => {
     if (!displayOk) {
@@ -164,8 +193,8 @@ export function XSettingsForm({
               hip: toIntOrNull(hip),
             }
           : {}),
-        // 住所はお店アカウントのみ保存対象（他種別では欄を出さず、キーも送らない）。
-        ...(isShop ? { address: address.trim() || null } : {}),
+        // 住所・お店カード画像はお店アカウントのみ保存対象（他種別では欄を出さず、キーも送らない）。
+        ...(isShop ? { address: address.trim() || null, showcase_images: showcaseImages } : {}),
       })
       .eq('id', profile.id);
     setSaving(false);
@@ -348,6 +377,47 @@ export function XSettingsForm({
             className="w-full px-4 py-3 rounded-xl border border-slate-200 text-base text-slate-900 placeholder:text-slate-400 bg-slate-50/50 focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:border-transparent"
           />
           <p className="text-[10px] text-slate-400 mt-1 px-1">プロフィールの @ID の横に表示されます。</p>
+        </div>
+      )}
+
+      {/* ── お店カード画像（お店アカウントのみ・最大6枚）── タイムライン「お店」タブのショーケース用 */}
+      {isShop && (
+        <div>
+          <p className="text-[11px] font-bold text-slate-400 mb-1.5 px-1">お店カード画像（6枚まで）</p>
+          <p className="text-[10px] text-slate-400 mb-2 px-1 leading-relaxed">
+            タイムラインの「お店」タブに、店名と一緒に表示されます（3列×2段）。主にセラピスト画像の設定を想定しています。
+          </p>
+          <div className="grid grid-cols-3 gap-1.5">
+            {showcaseImages.map((url, i) => (
+              <div key={i} className="relative aspect-square rounded-lg overflow-hidden border border-slate-100 bg-slate-50">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={url} alt={`お店カード画像${i + 1}`} className="w-full h-full object-cover" />
+                <button
+                  type="button"
+                  onClick={() => removeShowcase(i)}
+                  aria-label="削除"
+                  className="absolute top-1 right-1 w-6 h-6 rounded-full bg-slate-900/60 text-white text-xs font-bold flex items-center justify-center hover:bg-rose-500 transition-colors"
+                >
+                  ✕
+                </button>
+              </div>
+            ))}
+            {showcaseImages.length < 6 && (
+              <label className="aspect-square rounded-lg border-2 border-dashed border-indigo-200 text-indigo-500 flex flex-col items-center justify-center cursor-pointer hover:bg-indigo-50 transition-colors">
+                <span className="text-lg leading-none">＋</span>
+                <span className="text-[10px] font-bold mt-0.5">{showcaseUploading ? 'アップ中...' : '追加'}</span>
+                <input
+                  type="file"
+                  accept="image/jpeg,image/png,image/webp"
+                  multiple
+                  onChange={onShowcase}
+                  disabled={showcaseUploading}
+                  className="hidden"
+                />
+              </label>
+            )}
+          </div>
+          <p className="text-[10px] text-slate-400 mt-1.5 px-1">JPEG・PNG・WebP・5MB以下。承認済みで1枚以上設定すると「お店」タブに表示されます。</p>
         </div>
       )}
 

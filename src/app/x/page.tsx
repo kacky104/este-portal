@@ -16,6 +16,7 @@ import { XTimeline } from './XTimeline';
 import { XAffiliationBanner, type IncomingRequest } from './XAffiliationBanner';
 import { fetchShopMini } from './xAffiliation';
 import { fetchFollowUsers, type FollowUser } from './xFollows';
+import { fetchShopShowcases } from './xShops';
 
 // ログイン状態・自分の x_profiles・フォロー中/いいね状態を読むため動的レンダリング（ISRにはしない）。
 export const dynamic = 'force-dynamic';
@@ -23,8 +24,12 @@ export const dynamic = 'force-dynamic';
 export default async function XHomePage() {
   // 閲覧はログイン不要（SNS標準）。未ログイン・未開設でもおすすめタイムラインを見せ、
   // アクション（いいね/フォロー/投稿）時にアカウント作成モーダルへ誘導する。
-  // getXContext（認証＋自分profile）と fetchRecommended（profile非依存）は独立なので並列化。
-  const [{ userId, profile }, recommended] = await Promise.all([getXContext(), fetchRecommended()]);
+  // getXContext（認証＋自分profile）と fetchRecommended・fetchShopShowcases（profile非依存）は独立なので並列化。
+  const [{ userId, profile }, recommended, shopShowcases] = await Promise.all([
+    getXContext(),
+    fetchRecommended(),
+    fetchShopShowcases(),
+  ]);
 
   let followingFeed: FeedItem[] = []; // フォロー中タブ：フォロー先の投稿＋フォロー先がリポストした投稿をマージ
   let followeeIds: string[] = [];
@@ -185,6 +190,7 @@ export default async function XHomePage() {
         me={profile}
         loggedIn={!!userId}
         recommended={recommended}
+        shopShowcases={shopShowcases}
         followingFeed={followingFeed}
         initialLikedIds={likedIds}
         initialFolloweeIds={followeeIds}
