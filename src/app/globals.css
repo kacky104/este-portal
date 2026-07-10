@@ -88,6 +88,23 @@ body.paw-bg .min-h-screen.bg-slate-50 {
   }
 }
 
+/* ── ストーリービューアの進行プログレスバー（現在のセグメントを 0→100% で走らせる） ──── */
+.x-story-progress {
+  width: 0;
+  animation-name: x-story-progress-fill;
+  animation-timing-function: linear;
+  animation-fill-mode: forwards;
+  animation-iteration-count: 1;
+}
+@keyframes x-story-progress-fill {
+  from {
+    width: 0;
+  }
+  to {
+    width: 100%;
+  }
+}
+
 /* ── サロン店名ブロックの初回キラリ演出（1回のみ・枠線と文字だけ／ピンク多め／約2.3s） ──── */
 .salon-name-banner {
   position: relative;
