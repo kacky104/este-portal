@@ -8,6 +8,7 @@ import { normalizeLinkUrl } from '../xLink';
 import { deleteMyXAccount } from '@/app/actions/xAccount';
 import type { XProfile } from '../xProfile';
 import { X_OFFER_AREAS } from '../xOfferAreas';
+import { XImageCropModal } from '../XImageCropModal';
 import type { ShopMini } from '../xAffiliation';
 import { STORAGE_CACHE_CONTROL } from '@/app/lib/storage';
 
@@ -71,6 +72,8 @@ export function XSettingsForm({
   const [offerAreas, setOfferAreas] = useState<string[]>(profile.offer_areas ?? []);
   const [avatarUrl, setAvatarUrl] = useState<string | null>(profile.avatar_url);
   const [headerUrl, setHeaderUrl] = useState<string | null>(profile.header_url);
+  // ヘッダー画像は選択直後にクロップエディタ（3:1）を開く。null=モーダル非表示。
+  const [headerCropFile, setHeaderCropFile] = useState<File | null>(null);
 
   const [avatarUploading, setAvatarUploading] = useState(false);
   const [headerUploading, setHeaderUploading] = useState(false);
@@ -125,14 +128,39 @@ export function XSettingsForm({
     setAvatarUploading(false);
   };
 
-  const onHeader = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  // ヘッダーはここでアップロードせず、バリデーション後にクロップエディタを開く（保存時に切り抜き→アップロード）。
+  const onHeader = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     e.target.value = '';
     if (!file) return;
+    const verr = validateImageFile(file);
+    if (verr) {
+      setError(verr);
+      return;
+    }
+    setError('');
+    setHeaderCropFile(file);
+  };
+
+  // クロップ確定：切り抜き後の blob を webp（jpegフォールバックは拡張子.jpg）でアップロードし header_url に反映。
+  const onHeaderCropSave = async (blob: Blob) => {
     setHeaderUploading(true);
-    const url = await uploadImage(file);
-    if (url) setHeaderUrl(url);
+    setError('');
+    const ext = blob.type === 'image/jpeg' ? 'jpg' : 'webp';
+    const path = `${profile.auth_user_id}/header-${Date.now()}.${ext}`;
+    const { error: upErr } = await supabase.storage.from('x-images').upload(path, blob, { cacheControl: STORAGE_CACHE_CONTROL });
+    if (upErr) {
+      setError(`画像のアップロードに失敗しました: ${upErr.message}`);
+      setHeaderUploading(false);
+      setHeaderCropFile(null);
+      return;
+    }
+    const {
+      data: { publicUrl },
+    } = supabase.storage.from('x-images').getPublicUrl(path);
+    setHeaderUrl(publicUrl);
     setHeaderUploading(false);
+    setHeaderCropFile(null);
   };
 
   // お店カード画像の追加（複数選択可）。空き枠（8枚まで）の分だけ順にアップロードし、超過分は無視して通知。
@@ -659,6 +687,11 @@ export function XSettingsForm({
         <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 px-4 py-2.5 rounded-xl bg-slate-900/90 text-white text-sm font-bold shadow-lg">
           {toast}
         </div>
+      )}
+
+      {/* ヘッダー画像のクロップエディタ（3:1）。選択時に開き、保存で切り抜き→アップロード。 */}
+      {headerCropFile && (
+        <XImageCropModal file={headerCropFile} onCancel={() => setHeaderCropFile(null)} onSave={onHeaderCropSave} />
       )}
     </div>
   );
