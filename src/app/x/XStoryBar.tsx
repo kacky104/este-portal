@@ -27,7 +27,12 @@ export function XStoryBar({ groups, me, loggedIn }: { groups: StoryGroup[]; me: 
   const refreshSeen = () => setSeen(getSeenMap());
 
   // 投稿可能：therapist/shop/official ∧ status=approved（凍結中は「＋」を出さない）。
-  const canPost = !!me && POSTABLE_KINDS.includes(me.kind) && me.status === 'approved';
+  // セラピストはお店所属中のみ投稿可（未所属は「＋」非表示。RLS側でも同条件を強制）。
+  const canPost =
+    !!me &&
+    POSTABLE_KINDS.includes(me.kind) &&
+    me.status === 'approved' &&
+    (me.kind !== 'therapist' || !!me.affiliated_shop_id);
 
   // バーに出すものが何も無い（自分が投稿不可 ∧ ストーリー0件）なら描画しない。
   if (!canPost && groups.length === 0) return null;
