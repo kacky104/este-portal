@@ -149,19 +149,18 @@ export function XTimeline({
           <div className="space-y-3 pt-3">{renderList(recommendedView)}</div>
         )
       ) : tab === 'shops' ? (
-        // お店タブ：お店カード（店名＋アバター＋3列×2段の画像グリッド）の一覧。カード全体タップでプロフィールへ。
+        // お店タブ【試験実装 2026-07-10】全幅グリッド方式:
+        // カード・白フチをやめ、店名ヘッダー行＋3列エッジトゥエッジ（gap-px）のグリッド。画像は最大6枚（3列×2段）。
+        // 実機評価でダメなら git 履歴の「カード＋白フチA方式」（コミット f239a09 時点の本ブロック）へ差し戻す。
         shopShowcases.length === 0 ? (
           <Empty text="表示できるお店がまだありません" />
         ) : (
-          <div className="space-y-3 pt-3">
+          <div className="-mx-4 pt-2 space-y-2">
             {shopShowcases.map((s) => (
-              <Link
-                key={s.id}
-                href={`/x/u/${encodeURIComponent(s.handle)}`}
-                className="block rounded-2xl bg-[color:var(--x-surface)] shadow-sm border border-[color:var(--x-border)] p-2.5 hover:shadow-md transition-shadow"
-              >
-                <div className="flex items-center gap-2 mb-1">
-                  <span className="w-8 h-8 rounded-full overflow-hidden border border-white shadow-sm bg-gradient-to-br from-indigo-300 to-sky-300 flex items-center justify-center flex-shrink-0">
+              <Link key={s.id} href={`/x/u/${encodeURIComponent(s.handle)}`} className="block">
+                {/* 店名ヘッダー行（区切りの役割。カードなしでも塊が分かるように） */}
+                <div className="flex items-center gap-2.5 px-4 py-2.5">
+                  <span className="w-9 h-9 rounded-full overflow-hidden border border-white shadow-sm bg-gradient-to-br from-indigo-300 to-sky-300 flex items-center justify-center flex-shrink-0">
                     {s.avatarUrl ? (
                       // eslint-disable-next-line @next/next/no-img-element
                       <img src={s.avatarUrl} alt="" className="w-full h-full object-cover" />
@@ -169,23 +168,26 @@ export function XTimeline({
                       <span className="text-white font-bold text-sm">{s.displayName.charAt(0) || '?'}</span>
                     )}
                   </span>
-                  <span className="font-bold text-[color:var(--x-text-primary)]">{s.displayName}</span>
-                  {s.isVerified && <VerifiedBadge kind="shop" />}
-                  <span className="text-xs text-[color:var(--x-text-muted)]">@{s.handle}</span>
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-1.5">
+                      <span className="font-bold text-[color:var(--x-text-primary)] truncate">{s.displayName}</span>
+                      {s.isVerified && <VerifiedBadge kind="shop" />}
+                    </div>
+                    {/* 地域（x_profiles.address）。空なら行ごと非表示。 */}
+                    {s.address && (
+                      <p className="text-xs text-[color:var(--x-text-secondary)] truncate">📍{s.address}</p>
+                    )}
+                  </div>
                 </div>
-                {/* 地域（x_profiles.address）。空なら行ごと非表示。 */}
-                {s.address && (
-                  <p className="text-xs text-[color:var(--x-text-secondary)] mb-3 flex items-center gap-1">📍{s.address}</p>
-                )}
-                {/* 余白削減方式: カードの白フチ（p-2.5=10px）を細く残しつつ、隙間は最小限（gap-0.5=2px）。 */}
-                <div className="grid grid-cols-4 gap-0.5">
-                  {s.images.map((url, i) => (
+                {/* 3列・画面幅いっぱい・隙間1px。8枚設定でも2段（6枚）までに揃える。 */}
+                <div className="grid grid-cols-3 gap-px">
+                  {s.images.slice(0, 6).map((url, i) => (
                     // eslint-disable-next-line @next/next/no-img-element
                     <img
                       key={i}
                       src={url}
                       alt={`${s.displayName}-${i + 1}`}
-                      className="aspect-square w-full object-cover rounded-sm"
+                      className="aspect-square w-full object-cover"
                       loading="lazy"
                     />
                   ))}
