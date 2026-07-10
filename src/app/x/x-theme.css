@@ -23,8 +23,10 @@
   --x-accent: #b3bcfc;               /* 旧: indigo-600 のテキスト用途 */
 }
 
-/* ── 白テーマ：カラートークンを従来の白系＋濃色文字へ完全に戻す ── */
-[data-x-theme='white'] {
+/* ── 白テーマ：カラートークンを従来の白系＋濃色文字へ完全に戻す ──
+   ⚠️ セレクタは #x-root[data-x-theme='white'] にすること。属性セレクタ単独（0,1,0）では
+   既定トークンの #x-root（1,0,0）に詳細度で負けて上書きが効かない（白カードに白文字が残るバグの原因）。 */
+#x-root[data-x-theme='white'] {
   --x-surface: #ffffff;
   --x-surface-translucent: rgba(255, 255, 255, 0.9);
   --x-border: rgb(241 245 249);      /* slate-100 */
