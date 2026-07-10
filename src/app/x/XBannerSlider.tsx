@@ -48,7 +48,8 @@ export function XBannerSlider({ banners }: { banners: XBanner[] }) {
   );
 
   return (
-    <div className="mt-3 relative">
+    // x-banner-frame: 枠線リングだけのグラデキラリ（5秒に1回一周・globals.css）。radius は inherit のため rounded-xl をここに持つ。
+    <div className="mt-3 relative rounded-xl x-banner-frame">
       <div
         ref={trackRef}
         onScroll={onScroll}

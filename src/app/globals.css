@@ -306,6 +306,58 @@ body.paw-bg .min-h-screen.bg-slate-50 {
   }
 }
 
+/* ── fukuXタイムラインバナーの枠キラリ（5秒に1回・ピンク→紫→青の弧が一周） ──
+   therapist-working-shimmer と同方式: ::before＋mask-composite(xor)で「枠線リングだけ」に描画し、
+   バナー画像・ドットには被せない。周期5s＝スライダー自動送り(5s)と同調。
+   走行はkeyframe 0%→30%（約1.5s）で一周し、残り70%は opacity:0 で待機（＝5秒に1回走る）。 */
+@property --x-banner-shine-angle {
+  syntax: "<angle>";
+  inherits: false;
+  initial-value: 0deg;
+}
+.x-banner-frame {
+  position: relative;
+}
+.x-banner-frame::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 10;
+  border-radius: inherit;
+  padding: 2px; /* 光らせる枠の太さ */
+  pointer-events: none;
+  /* ストーリーリングと同系色（ピンク→紫→青）。点灯弧は約80°、残りは透明。 */
+  background-image: conic-gradient(
+    from var(--x-banner-shine-angle),
+    rgba(236, 72, 153, 0) 0deg,
+    rgba(236, 72, 153, 1) 20deg,
+    rgba(168, 85, 247, 1) 40deg,
+    rgba(59, 130, 246, 1) 60deg,
+    rgba(59, 130, 246, 0) 80deg,
+    transparent 80deg 360deg
+  );
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+          mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+          mask-composite: exclude;
+  filter: drop-shadow(0 0 6px rgba(168, 85, 247, 0.9));
+  opacity: 0;
+  animation: x-banner-shine 5s linear infinite;
+}
+@keyframes x-banner-shine {
+  0% { --x-banner-shine-angle: 0deg; opacity: 0; }
+  3% { opacity: 1; }
+  27% { opacity: 1; }
+  30% { --x-banner-shine-angle: 360deg; opacity: 0; }
+  100% { --x-banner-shine-angle: 360deg; opacity: 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .x-banner-frame::before {
+    display: none;
+    animation: none;
+  }
+}
+
 /* 保存ボタンのクリック演出（pop / burst / flutter）は SaveButton.tsx に同梱（自己完結）。
    ページ別CSSに依存させないため globals.css には置かない。 */
 
