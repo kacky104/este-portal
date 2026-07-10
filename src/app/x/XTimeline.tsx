@@ -158,7 +158,7 @@ export function XTimeline({
               <Link
                 key={s.id}
                 href={`/x/u/${encodeURIComponent(s.handle)}`}
-                className="block rounded-2xl bg-white shadow-sm border border-slate-100 p-4 hover:shadow-md transition-shadow"
+                className="block rounded-2xl bg-white shadow-sm border border-slate-100 p-3 hover:shadow-md transition-shadow"
               >
                 <div className="flex items-center gap-2 mb-1">
                   <span className="w-8 h-8 rounded-full overflow-hidden border border-white shadow-sm bg-gradient-to-br from-indigo-300 to-sky-300 flex items-center justify-center flex-shrink-0">
@@ -177,14 +177,15 @@ export function XTimeline({
                 {s.address && (
                   <p className="text-xs text-slate-500 mb-3 flex items-center gap-1">📍{s.address}</p>
                 )}
-                <div className="grid grid-cols-4 gap-1.5">
+                {/* 隙間は最小限（gap-0.5=2px）にして画像自体を大きく見せる。角丸も控えめに。 */}
+                <div className="grid grid-cols-4 gap-0.5">
                   {s.images.map((url, i) => (
                     // eslint-disable-next-line @next/next/no-img-element
                     <img
                       key={i}
                       src={url}
                       alt={`${s.displayName}-${i + 1}`}
-                      className="aspect-square w-full object-cover rounded-lg"
+                      className="aspect-square w-full object-cover rounded-sm"
                       loading="lazy"
                     />
                   ))}
