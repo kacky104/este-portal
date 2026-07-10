@@ -116,8 +116,8 @@ export function XProfileView({
       {/* ─── ヘッダー（浮遊カード） ─── */}
       <div className="x-card mt-3 rounded-2xl overflow-hidden bg-[color:var(--x-surface)] shadow-[0_4px_16px_rgba(109,40,217,0.3)]">
         {/* バナー（header_url があればタップで全体表示） */}
-        {/* 高さ: スマホ=112×1.1≒123px / PC=112×1.2≒134px */}
-        <div className="h-[123px] sm:h-[134px] bg-gradient-to-br from-indigo-100 to-sky-100 relative">
+        {/* 高さ: スマホ=123px / PC=134×1.25≒168px */}
+        <div className="h-[123px] sm:h-[168px] bg-gradient-to-br from-indigo-100 to-sky-100 relative">
           {target.header_url && (
             // eslint-disable-next-line @next/next/no-img-element
             <img

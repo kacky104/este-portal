@@ -305,8 +305,8 @@ export function XSettingsForm({
       {/* ── ヘッダー画像 ── */}
       <div>
         <p className="text-[11px] font-bold text-[color:var(--x-text-muted)] mb-2 px-1">ヘッダー画像（任意・横長）</p>
-        {/* 高さはプロフィール表示（XProfileView）と同じ: スマホ123px / PC134px */}
-        <div className="relative h-[123px] sm:h-[134px] rounded-2xl overflow-hidden bg-gradient-to-br from-indigo-100 to-sky-100 border border-[color:var(--x-border)]">
+        {/* 高さはプロフィール表示（XProfileView）と同じ: スマホ123px / PC168px */}
+        <div className="relative h-[123px] sm:h-[168px] rounded-2xl overflow-hidden bg-gradient-to-br from-indigo-100 to-sky-100 border border-[color:var(--x-border)]">
           {headerUrl && (
             // eslint-disable-next-line @next/next/no-img-element
             <img src={headerUrl} alt="" className="w-full h-full object-cover" />
