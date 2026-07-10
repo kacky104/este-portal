@@ -1,4 +1,5 @@
 import { createClient } from '@/app/lib/supabase/server';
+import { createPublicClient } from '@/app/lib/supabase/public';
 import type { XKind } from './xProfile';
 
 export type XStory = {
@@ -78,4 +79,33 @@ export async function fetchStoryGroups(): Promise<StoryGroup[]> {
 
   // 最新ストーリーが新しい投稿者順に並べる。
   return [...groupMap.values()].sort((a, b) => b.latestAt.localeCompare(a.latestAt));
+}
+
+// 未ログイン用: ストーリー本体は渡さず「誰が出しているか」だけを返す（RPC x_story_authors・security definer）。
+// x_stories 本体のRLSはログイン必須のまま＝匿名はサークル表示のみでタップするとログイン誘導。
+export async function fetchStoryAuthorsPublic(): Promise<StoryGroup[]> {
+  const client = createPublicClient();
+  const { data } = await client.rpc('x_story_authors');
+  const rows = (data ?? []) as Array<{
+    id: string;
+    handle: string | null;
+    display_name: string | null;
+    avatar_url: string | null;
+    kind: XKind;
+    is_verified: boolean;
+    story_count: number;
+    latest_at: string;
+  }>;
+  return rows.map((r) => ({
+    author: {
+      id: r.id,
+      handle: r.handle ?? '',
+      displayName: r.display_name ?? '',
+      avatarUrl: r.avatar_url ?? null,
+      kind: r.kind,
+      isVerified: Boolean(r.is_verified),
+    },
+    stories: [], // 本体は渡さない（未ログインは閲覧不可）
+    latestAt: r.latest_at,
+  }));
 }

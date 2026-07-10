@@ -17,7 +17,7 @@ import { XAffiliationBanner, type IncomingRequest } from './XAffiliationBanner';
 import { fetchShopMini } from './xAffiliation';
 import { fetchFollowUsers, type FollowUser } from './xFollows';
 import { fetchShopShowcases } from './xShops';
-import { fetchStoryGroups, type StoryGroup } from './xStories';
+import { fetchStoryGroups, fetchStoryAuthorsPublic, type StoryGroup } from './xStories';
 import { XStoryBar } from './XStoryBar';
 
 // ログイン状態・自分の x_profiles・フォロー中/いいね状態を読むため動的レンダリング（ISRにはしない）。
@@ -71,10 +71,13 @@ export default async function XHomePage() {
     myFollowers = await fetchFollowUsers(profile.id, 'followers');
   }
 
-  // ストーリーバー：ログイン済み（profile あり）のみ取得。未ログインは何も出さない。
+  // ストーリーバー：ログイン済み（profile あり）は本体つきで取得。
+  // 未ログイン/未開設は投稿者情報のみ（サークル表示・タップでログイン誘導）。
   let storyGroups: StoryGroup[] = [];
   if (profile) {
     storyGroups = await fetchStoryGroups();
+  } else {
+    storyGroups = await fetchStoryAuthorsPublic();
   }
 
   // 凍結(BAN=status='rejected')中の本人かどうか。凍結中はアクション系UI（コンポーザは canPost で抑止済み）に加え、
@@ -194,8 +197,8 @@ export default async function XHomePage() {
       {/* セラピスト本人宛の所属申請バナー（承認/却下） */}
       <XAffiliationBanner requests={incoming} alreadyAffiliated={alreadyAffiliated} />
 
-      {/* ストーリーバー（ログイン時のみ・タブの上）。未ログインは storyGroups 空＋me null で非描画。 */}
-      <XStoryBar groups={storyGroups} me={profile} />
+      {/* ストーリーバー（タブの上）。未ログインもサークルは見える＝タップでログイン誘導モーダル。 */}
+      <XStoryBar groups={storyGroups} me={profile} loggedIn={!!userId} />
 
       <XTimeline
         me={profile}

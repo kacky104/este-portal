@@ -5,14 +5,17 @@ import { XLogo } from './XLogo';
 
 // 未ログイン／未開設のユーザーがアクション（いいね・フォロー等）をしたときに出すアカウント作成モーダル。
 // loggedIn=false → 新規登録／ログイン導線。loggedIn=true（＝ログイン済みだが x_profiles 未開設）→ 開設導線。
+// message: 未ログイン時の案内文をアクションに合わせて差し替え可（省略時は従来文言）。
 export function XAuthGateModal({
   open,
   loggedIn,
   onClose,
+  message,
 }: {
   open: boolean;
   loggedIn: boolean;
   onClose: () => void;
+  message?: string;
 }) {
   if (!open) return null;
 
@@ -51,7 +54,11 @@ export function XAuthGateModal({
           // ── 未ログイン ──
           <>
             <p className="text-center text-sm text-[color:var(--x-text-primary)] leading-relaxed mb-6">
-              fukuX でいいね・フォローするには<strong>アカウント</strong>が必要です。
+              {message ?? (
+                <>
+                  fukuX でいいね・フォローするには<strong>アカウント</strong>が必要です。
+                </>
+              )}
               <br />
               新規登録、またはログインして始めましょう。
             </p>

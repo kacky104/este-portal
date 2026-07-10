@@ -4,18 +4,21 @@ import { useEffect, useState } from 'react';
 import { VerifiedBadge } from './VerifiedBadge';
 import { XStoryViewer } from './XStoryViewer';
 import { XStoryComposer } from './XStoryComposer';
+import { XAuthGateModal } from './XAuthGateModal';
 import { getSeenMap, isGroupSeen } from './xStoriesShared';
 import type { StoryGroup } from './xStories';
 import type { XProfile } from './xProfile';
 
 const POSTABLE_KINDS = ['therapist', 'shop', 'official'];
 
-// タイムライン最上部の横スクロール・ストーリーバー。ログインユーザーのみ描画（page 側でも分岐）。
-export function XStoryBar({ groups, me }: { groups: StoryGroup[]; me: XProfile | null }) {
+// タイムライン最上部の横スクロール・ストーリーバー。
+// 未ログイン/未開設もサークルは見える（groups は投稿者情報のみ・本体なし）＝タップでログイン誘導モーダル。
+export function XStoryBar({ groups, me, loggedIn }: { groups: StoryGroup[]; me: XProfile | null; loggedIn: boolean }) {
   // 既読状態は localStorage 依存＝マウント後に読む（SSRとの不一致回避）。
   const [seen, setSeen] = useState<Record<string, string>>({});
   const [viewerIndex, setViewerIndex] = useState<number | null>(null); // 開いているグループのindex
   const [composerOpen, setComposerOpen] = useState(false);
+  const [gateOpen, setGateOpen] = useState(false); // 未ログイン/未開設タップ時のログイン誘導
 
   useEffect(() => {
     setSeen(getSeenMap());
@@ -23,10 +26,8 @@ export function XStoryBar({ groups, me }: { groups: StoryGroup[]; me: XProfile |
   // ビューアを閉じたら既読を読み直してリング色を更新。
   const refreshSeen = () => setSeen(getSeenMap());
 
-  if (!me) return null; // 未ログインは出さない（防御）
-
   // 投稿可能：therapist/shop/official ∧ status=approved（凍結中は「＋」を出さない）。
-  const canPost = POSTABLE_KINDS.includes(me.kind) && me.status === 'approved';
+  const canPost = !!me && POSTABLE_KINDS.includes(me.kind) && me.status === 'approved';
 
   // バーに出すものが何も無い（自分が投稿不可 ∧ ストーリー0件）なら描画しない。
   if (!canPost && groups.length === 0) return null;
@@ -36,7 +37,7 @@ export function XStoryBar({ groups, me }: { groups: StoryGroup[]; me: XProfile |
       <div className="mt-3 -mx-1">
         <div className="flex gap-3 overflow-x-auto px-1 pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
           {/* 先頭：自分の「＋追加」サークル（投稿可能kindのみ） */}
-          {canPost && (
+          {me && canPost && (
             <button type="button" onClick={() => setComposerOpen(true)} className="flex flex-col items-center gap-1 flex-shrink-0 w-[84px]">
               <span className="relative w-[84px] h-[84px] rounded-full p-[5px] bg-[color:var(--x-border-strong)]">
                 <span className="block w-full h-full rounded-full overflow-hidden bg-gradient-to-br from-indigo-300 to-sky-300 flex items-center justify-center">
@@ -55,11 +56,16 @@ export function XStoryBar({ groups, me }: { groups: StoryGroup[]; me: XProfile |
             </button>
           )}
 
-          {/* 投稿者ごとのサークル。全既読ならリングをグレーに。 */}
+          {/* 投稿者ごとのサークル。全既読ならリングをグレーに（未ログインは常に未読リング）。 */}
           {groups.map((g, i) => {
-            const allSeen = isGroupSeen(g, seen);
+            const allSeen = me ? isGroupSeen(g, seen) : false;
             return (
-              <button key={g.author.id} type="button" onClick={() => setViewerIndex(i)} className="flex flex-col items-center gap-1 flex-shrink-0 w-[84px]">
+              <button
+                key={g.author.id}
+                type="button"
+                onClick={() => (me ? setViewerIndex(i) : setGateOpen(true))}
+                className="flex flex-col items-center gap-1 flex-shrink-0 w-[84px]"
+              >
                 {/* リング層（絶対配置）だけが回転し、アバター層は上に重ねるので回らない */}
                 <span className="relative w-[84px] h-[84px]">
                   <span
@@ -86,7 +92,7 @@ export function XStoryBar({ groups, me }: { groups: StoryGroup[]; me: XProfile |
         </div>
       </div>
 
-      {viewerIndex !== null && (
+      {viewerIndex !== null && me && (
         <XStoryViewer
           groups={groups}
           startGroupIndex={viewerIndex}
@@ -98,7 +104,15 @@ export function XStoryBar({ groups, me }: { groups: StoryGroup[]; me: XProfile |
         />
       )}
 
-      {composerOpen && <XStoryComposer me={me} onClose={() => setComposerOpen(false)} />}
+      {composerOpen && me && <XStoryComposer me={me} onClose={() => setComposerOpen(false)} />}
+
+      {/* 未ログイン/未開設でサークルをタップしたときのログイン誘導 */}
+      <XAuthGateModal
+        open={gateOpen}
+        loggedIn={loggedIn}
+        onClose={() => setGateOpen(false)}
+        message="fukuX でストーリーを見るにはアカウントが必要です。"
+      />
     </>
   );
 }
