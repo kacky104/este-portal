@@ -9,6 +9,7 @@ import { XComposeFab } from './XComposeFab';
 import { XPostCard } from './XPostCard';
 import { XAuthGateModal } from './XAuthGateModal';
 import { XFollowRows } from './XFollowRows';
+import { VerifiedBadge } from './VerifiedBadge';
 import { useXEngagement } from './useXEngagement';
 import type { FollowUser } from './xFollows';
 
@@ -159,7 +160,7 @@ export function XTimeline({
                 href={`/x/u/${encodeURIComponent(s.handle)}`}
                 className="block rounded-2xl bg-white shadow-sm border border-slate-100 p-4 hover:shadow-md transition-shadow"
               >
-                <div className="flex items-center gap-2 mb-3">
+                <div className="flex items-center gap-2 mb-1">
                   <span className="w-8 h-8 rounded-full overflow-hidden border border-white shadow-sm bg-gradient-to-br from-indigo-300 to-sky-300 flex items-center justify-center flex-shrink-0">
                     {s.avatarUrl ? (
                       // eslint-disable-next-line @next/next/no-img-element
@@ -169,9 +170,14 @@ export function XTimeline({
                     )}
                   </span>
                   <span className="font-bold text-slate-900">{s.displayName}</span>
+                  {s.isVerified && <VerifiedBadge kind="shop" />}
                   <span className="text-xs text-slate-400">@{s.handle}</span>
                 </div>
-                <div className="grid grid-cols-3 gap-1.5">
+                {/* 地域（x_profiles.address）。空なら行ごと非表示。 */}
+                {s.address && (
+                  <p className="text-xs text-slate-500 mb-3 flex items-center gap-1">📍{s.address}</p>
+                )}
+                <div className="grid grid-cols-4 gap-1.5">
                   {s.images.map((url, i) => (
                     // eslint-disable-next-line @next/next/no-img-element
                     <img

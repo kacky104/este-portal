@@ -129,14 +129,14 @@ export function XSettingsForm({
     setHeaderUploading(false);
   };
 
-  // お店カード画像の追加（複数選択可）。空き枠（6枚まで）の分だけ順にアップロードし、超過分は無視して通知。
+  // お店カード画像の追加（複数選択可）。空き枠（8枚まで）の分だけ順にアップロードし、超過分は無視して通知。
   const onShowcase = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files ?? []);
     e.target.value = '';
     if (files.length === 0) return;
-    const room = 6 - showcaseImages.length;
+    const room = 8 - showcaseImages.length;
     if (room <= 0) {
-      showToast('お店カード画像は6枚までです');
+      showToast('お店カード画像は8枚までです');
       return;
     }
     const take = files.slice(0, room);
@@ -146,8 +146,8 @@ export function XSettingsForm({
       const url = await uploadImage(file);
       if (url) uploaded.push(url);
     }
-    if (uploaded.length > 0) setShowcaseImages((prev) => [...prev, ...uploaded].slice(0, 6));
-    if (files.length > room) showToast('お店カード画像は6枚までのため、超過分は追加していません');
+    if (uploaded.length > 0) setShowcaseImages((prev) => [...prev, ...uploaded].slice(0, 8));
+    if (files.length > room) showToast('お店カード画像は8枚までのため、超過分は追加していません');
     setShowcaseUploading(false);
   };
 
@@ -193,8 +193,10 @@ export function XSettingsForm({
               hip: toIntOrNull(hip),
             }
           : {}),
-        // 住所・お店カード画像はお店アカウントのみ保存対象（他種別では欄を出さず、キーも送らない）。
-        ...(isShop ? { address: address.trim() || null, showcase_images: showcaseImages } : {}),
+        // 住所はお店アカウントのみ保存対象（他種別では欄を出さず、キーも送らない）。
+        ...(isShop ? { address: address.trim() || null } : {}),
+        // お店カード画像は「認証済みお店」のみ保存対象（未認証で送るとDBトリガ例外で保存全体が失敗するため）。
+        ...(isShop && profile.is_verified ? { showcase_images: showcaseImages } : {}),
       })
       .eq('id', profile.id);
     setSaving(false);
@@ -380,14 +382,22 @@ export function XSettingsForm({
         </div>
       )}
 
-      {/* ── お店カード画像（お店アカウントのみ・最大6枚）── タイムライン「お店」タブのショーケース用 */}
-      {isShop && (
-        <div>
-          <p className="text-[11px] font-bold text-slate-400 mb-1.5 px-1">お店カード画像（6枚まで）</p>
-          <p className="text-[10px] text-slate-400 mb-2 px-1 leading-relaxed">
-            タイムラインの「お店」タブに、店名と一緒に表示されます（3列×2段）。主にセラピスト画像の設定を想定しています。
+      {/* ── お店カード画像（認証済みお店のみ・最大8枚）── タイムライン「お店」タブのショーケース用 */}
+      {isShop && !profile.is_verified && (
+        <div className="rounded-2xl border border-slate-200 bg-slate-50/60 p-4">
+          <p className="text-sm font-bold text-slate-700">お店カード画像</p>
+          <p className="text-[12px] text-slate-500 mt-1 leading-relaxed">
+            お店カード画像は、フクエス認証済みのお店のみ設定できます。
           </p>
-          <div className="grid grid-cols-3 gap-1.5">
+        </div>
+      )}
+      {isShop && profile.is_verified && (
+        <div>
+          <p className="text-[11px] font-bold text-slate-400 mb-1.5 px-1">お店カード画像（8枚まで）</p>
+          <p className="text-[10px] text-slate-400 mb-2 px-1 leading-relaxed">
+            タイムラインの「お店」タブに、店名と一緒に表示されます（4列×2段）。主にセラピスト画像の設定を想定しています。
+          </p>
+          <div className="grid grid-cols-4 gap-1.5">
             {showcaseImages.map((url, i) => (
               <div key={i} className="relative aspect-square rounded-lg overflow-hidden border border-slate-100 bg-slate-50">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -402,7 +412,7 @@ export function XSettingsForm({
                 </button>
               </div>
             ))}
-            {showcaseImages.length < 6 && (
+            {showcaseImages.length < 8 && (
               <label className="aspect-square rounded-lg border-2 border-dashed border-indigo-200 text-indigo-500 flex flex-col items-center justify-center cursor-pointer hover:bg-indigo-50 transition-colors">
                 <span className="text-lg leading-none">＋</span>
                 <span className="text-[10px] font-bold mt-0.5">{showcaseUploading ? 'アップ中...' : '追加'}</span>
