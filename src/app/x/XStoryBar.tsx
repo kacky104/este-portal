@@ -37,8 +37,8 @@ export function XStoryBar({ groups, me }: { groups: StoryGroup[]; me: XProfile |
         <div className="flex gap-3 overflow-x-auto px-1 pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
           {/* 先頭：自分の「＋追加」サークル（投稿可能kindのみ） */}
           {canPost && (
-            <button type="button" onClick={() => setComposerOpen(true)} className="flex flex-col items-center gap-1 flex-shrink-0 w-[72px]">
-              <span className="relative w-[72px] h-[72px] rounded-full p-[2px] bg-[color:var(--x-border-strong)]">
+            <button type="button" onClick={() => setComposerOpen(true)} className="flex flex-col items-center gap-1 flex-shrink-0 w-[84px]">
+              <span className="relative w-[84px] h-[84px] rounded-full p-[2px] bg-[color:var(--x-border-strong)]">
                 <span className="block w-full h-full rounded-full overflow-hidden border-2 border-[color:var(--x-surface)] bg-gradient-to-br from-indigo-300 to-sky-300 flex items-center justify-center">
                   {me.avatar_url ? (
                     // eslint-disable-next-line @next/next/no-img-element
@@ -59,9 +59,9 @@ export function XStoryBar({ groups, me }: { groups: StoryGroup[]; me: XProfile |
           {groups.map((g, i) => {
             const allSeen = isGroupSeen(g, seen);
             return (
-              <button key={g.author.id} type="button" onClick={() => setViewerIndex(i)} className="flex flex-col items-center gap-1 flex-shrink-0 w-[72px]">
+              <button key={g.author.id} type="button" onClick={() => setViewerIndex(i)} className="flex flex-col items-center gap-1 flex-shrink-0 w-[84px]">
                 {/* リング層（絶対配置）だけが回転し、アバター層は上に重ねるので回らない */}
-                <span className="relative w-[72px] h-[72px]">
+                <span className="relative w-[84px] h-[84px]">
                   <span
                     className={`absolute inset-0 rounded-full ${allSeen ? '' : 'x-story-ring'}`}
                     style={allSeen ? { background: 'var(--x-border-strong)' } : undefined}
