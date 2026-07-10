@@ -137,7 +137,8 @@ export function XProfileView({
                   className={`absolute inset-0 rounded-full ${storySeen ? '' : 'x-story-ring'}`}
                   style={storySeen ? { background: 'var(--x-border-strong)' } : undefined}
                 />
-                <span className="absolute inset-[3px] rounded-full overflow-hidden border-2 border-white shadow-sm bg-gradient-to-br from-indigo-300 to-sky-300 flex items-center justify-center">
+                {/* リング幅5px・白フチなし（リングとアバターを直接密着させる） */}
+                <span className="absolute inset-[5px] rounded-full overflow-hidden shadow-sm bg-gradient-to-br from-indigo-300 to-sky-300 flex items-center justify-center">
                   {target.avatar_url ? (
                     // eslint-disable-next-line @next/next/no-img-element
                     <img src={target.avatar_url} alt={target.display_name} className="w-full h-full object-cover" />
