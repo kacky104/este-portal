@@ -5,7 +5,10 @@ import Link from 'next/link';
 import { createClient } from '@/app/lib/supabase/client';
 import { XTimeAgo } from '../XTimeAgo';
 import { VerifiedBadge } from '../VerifiedBadge';
+import { XImageCropModal } from '../XImageCropModal';
+import { normalizeLinkUrl } from '../xLink';
 import { searchXPostsByDate } from '@/app/actions/xAdminSearch';
+import { STORAGE_CACHE_CONTROL } from '@/app/lib/storage';
 
 const supabase = createClient();
 
@@ -38,18 +41,42 @@ export type ModProfile = {
 
 const KIND_LABEL: Record<string, string> = { user: 'ユーザー', therapist: 'セラピスト', shop: 'お店', official: '運営' };
 
+// タイムラインバナー（5枠固定・16:9=1280×720）。行が存在する枠だけタイムラインに表示される。
+export type BannerRow = { slot: number; image_url: string; link_url: string | null };
+const BANNER_SLOTS = [1, 2, 3, 4, 5] as const;
+const BANNER_W = 1280;
+const BANNER_H = 720;
+
+function validateBannerFile(file: File): string | null {
+  if (file.size > 5 * 1024 * 1024) return '5MB以下の画像を選択してください';
+  if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) return 'JPEG・PNG・WebPのみ対応しています';
+  return null;
+}
+
+// バナーリンクの正規化: 「/」始まりはサイト内パスとしてそのまま許可（normalizeLinkUrl は http/https 専用のため）。
+// それ以外は共通ユーティリティで http/https のみ許可・危険スキームを排除。
+function normalizeBannerLink(raw: string): { url: string | null; error: string | null } {
+  const s = raw.trim();
+  if (s.startsWith('/')) return { url: s, error: null };
+  return normalizeLinkUrl(s);
+}
+
 export function XAdmin({
   shops: initialShops,
   posts: initialPosts,
   profiles: initialProfiles,
   emails,
+  banners: initialBanners,
+  myAuthId,
 }: {
   shops: ShopRow[];
   posts: ModPost[];
   profiles: ModProfile[];
   emails: Record<string, string>; // profile.id → ログインメール（運営のみ・/x/admin 限定で表示）
+  banners: BannerRow[]; // タイムラインバナー（設定済みの枠のみ）
+  myAuthId: string; // 運営の auth uid（x-images のアップロード先フォルダ＝RLSが先頭フォルダ一致を要求）
 }) {
-  const [tab, setTab] = useState<'verify' | 'accounts' | 'posts'>('verify');
+  const [tab, setTab] = useState<'verify' | 'accounts' | 'posts' | 'banners'>('verify');
   const [shops, setShops] = useState(initialShops);
   const [posts, setPosts] = useState(initialPosts);
   const [profiles, setProfiles] = useState(initialProfiles);
@@ -60,6 +87,24 @@ export function XAdmin({
   const [searchTo, setSearchTo] = useState('');
   const [searching, setSearching] = useState(false);
   const [searchActive, setSearchActive] = useState(false); // 検索結果表示中フラグ
+
+  // ── バナー管理の状態 ──
+  // slot → 行（未設定枠は undefined）。リンク入力は保存前の編集値を別に持つ。
+  const [bannerMap, setBannerMap] = useState<Record<number, BannerRow | undefined>>(() => {
+    const m: Record<number, BannerRow | undefined> = {};
+    initialBanners.forEach((b) => {
+      m[b.slot] = b;
+    });
+    return m;
+  });
+  const [bannerLinks, setBannerLinks] = useState<Record<number, string>>(() => {
+    const m: Record<number, string> = {};
+    initialBanners.forEach((b) => {
+      m[b.slot] = b.link_url ?? '';
+    });
+    return m;
+  });
+  const [bannerCrop, setBannerCrop] = useState<{ slot: number; file: File } | null>(null);
 
   const showToast = (msg: string) => {
     setToast(msg);
@@ -153,6 +198,87 @@ export function XAdmin({
     setSearchTo('');
   };
 
+  // ── バナー管理の操作 ──
+  // 画像選択 → バリデーション → 16:9 クロップモーダルへ（アップロードはクロップ確定時）。
+  const onBannerFile = (slot: number, e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+    const verr = validateBannerFile(file);
+    if (verr) {
+      showToast(verr);
+      return;
+    }
+    setBannerCrop({ slot, file });
+  };
+
+  // クロップ確定: x-images（本人フォルダ配下＝RLS要件）へアップロード → x_banners に upsert。
+  // リンクは現在の入力値を正規化して同時保存（不正値は null 扱い＝画像保存を優先）。
+  const onBannerCropSave = async (blob: Blob) => {
+    const crop = bannerCrop;
+    if (!crop) return;
+    setBannerCrop(null);
+    const slot = crop.slot;
+    setBusy(`banner-${slot}`);
+    const ext = blob.type === 'image/jpeg' ? 'jpg' : 'webp';
+    const path = `${myAuthId}/banner-slot${slot}-${Date.now()}.${ext}`;
+    const { error: upErr } = await supabase.storage.from('x-images').upload(path, blob, { cacheControl: STORAGE_CACHE_CONTROL });
+    if (upErr) {
+      setBusy(null);
+      showToast(`画像のアップロードに失敗しました：${upErr.message}`);
+      return;
+    }
+    const {
+      data: { publicUrl },
+    } = supabase.storage.from('x-images').getPublicUrl(path);
+    const { url: linkUrl } = normalizeBannerLink(bannerLinks[slot] ?? '');
+    const row: BannerRow = { slot, image_url: publicUrl, link_url: linkUrl };
+    const { error } = await supabase.from('x_banners').upsert(row);
+    setBusy(null);
+    if (error) {
+      showToast(`保存に失敗しました：${error.message}`);
+      return;
+    }
+    setBannerMap((m) => ({ ...m, [slot]: row }));
+    showToast(`バナー${slot}を保存しました`);
+  };
+
+  // リンクだけ保存（画像設定済みの枠のみ）。空欄は「リンクなし」。
+  const saveBannerLink = async (slot: number) => {
+    const row = bannerMap[slot];
+    if (!row) return;
+    const { url, error: linkErr } = normalizeBannerLink(bannerLinks[slot] ?? '');
+    if (linkErr) {
+      showToast(linkErr);
+      return;
+    }
+    setBusy(`banner-${slot}`);
+    const { error } = await supabase.from('x_banners').update({ link_url: url }).eq('slot', slot);
+    setBusy(null);
+    if (error) {
+      showToast(`保存に失敗しました：${error.message}`);
+      return;
+    }
+    setBannerMap((m) => ({ ...m, [slot]: { ...row, link_url: url } }));
+    showToast('リンクを保存しました');
+  };
+
+  // 枠の削除（行削除＝タイムラインから即非表示。storage の画像ファイルはヘッダー同様に残置）。
+  const deleteBanner = async (slot: number) => {
+    if (!bannerMap[slot]) return;
+    if (!window.confirm(`バナー${slot}を削除しますか？\nタイムラインからすぐに消えます。`)) return;
+    setBusy(`banner-${slot}`);
+    const { error } = await supabase.from('x_banners').delete().eq('slot', slot);
+    setBusy(null);
+    if (error) {
+      showToast(`削除に失敗しました：${error.message}`);
+      return;
+    }
+    setBannerMap((m) => ({ ...m, [slot]: undefined }));
+    setBannerLinks((m) => ({ ...m, [slot]: '' }));
+    showToast(`バナー${slot}を削除しました`);
+  };
+
   const shownShops = onlyUnverified ? shops.filter((s) => !s.is_verified) : shops;
 
   return (
@@ -167,6 +293,7 @@ export function XAdmin({
             ['verify', '認証'],
             ['accounts', 'アカウント'],
             ['posts', '投稿'],
+            ['banners', 'バナー'],
           ] as const
         ).map(([key, label]) => (
           <button
@@ -372,6 +499,98 @@ export function XAdmin({
           )}
           </div>
         </div>
+      )}
+
+      {/* ── タイムラインバナー管理（5枠・16:9） ── */}
+      {tab === 'banners' && (
+        <div>
+          <p className="text-xs text-[color:var(--x-text-muted)] mb-4 leading-relaxed">
+            タイムライン（おすすめ／フォロー中／お店）のタブ直下に表示されるスライダーです。画像は16:9（1280×720）に切り抜かれます。
+            設定した枠だけが番号順に表示され、0枠ならスライダー自体が出ません。リンクは任意（/ 始まりはサイト内・URLは新規タブ）。
+          </p>
+          <div className="space-y-4">
+            {BANNER_SLOTS.map((slot) => {
+              const row = bannerMap[slot];
+              const slotBusy = busy === `banner-${slot}`;
+              return (
+                <div key={slot} className="border border-[color:var(--x-border-strong)] rounded-2xl p-3">
+                  <div className="flex items-center justify-between mb-2">
+                    <p className="text-xs font-bold text-[color:var(--x-text-primary)]">
+                      バナー{slot}
+                      {!row && <span className="ml-1.5 text-[10px] font-bold text-[color:var(--x-text-muted)]">未設定</span>}
+                    </p>
+                    <div className="flex items-center gap-2">
+                      <label
+                        className={`text-[11px] font-bold px-3 py-1.5 rounded-lg text-white cursor-pointer transition-opacity hover:opacity-95 ${slotBusy ? 'opacity-50 pointer-events-none' : ''}`}
+                        style={{ background: 'linear-gradient(100deg,#6366F1,#8B5CF6)' }}
+                      >
+                        {slotBusy ? '処理中…' : row ? '画像を変更' : '画像を選択'}
+                        <input
+                          type="file"
+                          accept="image/jpeg,image/png,image/webp"
+                          className="hidden"
+                          onChange={(e) => onBannerFile(slot, e)}
+                          disabled={slotBusy}
+                        />
+                      </label>
+                      {row && (
+                        <button
+                          type="button"
+                          onClick={() => deleteBanner(slot)}
+                          disabled={slotBusy}
+                          className="text-[11px] font-bold px-3 py-1.5 rounded-lg border border-rose-200 text-rose-500 bg-rose-50 hover:bg-rose-100 transition-colors disabled:opacity-50"
+                        >
+                          削除
+                        </button>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* プレビュー（16:9）。未設定はプレースホルダ。 */}
+                  {row ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={row.image_url} alt={`バナー${slot}`} className="w-full aspect-[16/9] object-cover rounded-lg" />
+                  ) : (
+                    <div className="w-full aspect-[16/9] rounded-lg bg-[color:var(--x-inset)] border border-dashed border-[color:var(--x-border-strong)] flex items-center justify-center">
+                      <span className="text-xs text-[color:var(--x-text-muted)]">画像未設定</span>
+                    </div>
+                  )}
+
+                  {/* リンクURL（任意）。画像設定済みの枠のみ保存可。 */}
+                  <div className="flex items-center gap-2 mt-2">
+                    <input
+                      type="text"
+                      value={bannerLinks[slot] ?? ''}
+                      onChange={(e) => setBannerLinks((m) => ({ ...m, [slot]: e.target.value }))}
+                      placeholder="リンクURL（任意）例: /x/u/fukues_info や https://…"
+                      className="flex-1 min-w-0 px-3 py-2 rounded-lg border border-[color:var(--x-border-strong)] text-xs bg-[color:var(--x-surface)] text-[color:var(--x-text-primary)] placeholder:text-[color:var(--x-text-muted)] focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:border-transparent"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => saveBannerLink(slot)}
+                      disabled={!row || slotBusy}
+                      className="flex-shrink-0 text-[11px] font-bold px-3 py-2 rounded-lg border border-[color:var(--x-border-strong)] text-[color:var(--x-text-secondary)] hover:border-indigo-300 hover:text-indigo-500 transition-colors disabled:opacity-40"
+                    >
+                      リンク保存
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* バナー画像のクロップ（16:9固定・1280×720出力）。ヘッダー用モーダルの比率パラメータ版。 */}
+      {bannerCrop && (
+        <XImageCropModal
+          file={bannerCrop.file}
+          outWidth={BANNER_W}
+          outHeight={BANNER_H}
+          title={`バナー${bannerCrop.slot}を調整`}
+          onCancel={() => setBannerCrop(null)}
+          onSave={onBannerCropSave}
+        />
       )}
 
       {toast && (

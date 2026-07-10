@@ -2,21 +2,33 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
-// 出力サイズ（X標準の 3:1）。
-const OUT_W = 1500;
-const OUT_H = 500;
+// 比率ラベル用のGCD（1500×500→3:1、1280×720→16:9）。
+function gcd(a: number, b: number): number {
+  return b === 0 ? a : gcd(b, a % b);
+}
 
-// ヘッダー画像のクロップエディタ（X方式）。固定 3:1 枠に対し、画像をドラッグ移動＋スライダーでズームし、
-// 枠内だけを 1500×500 の WebP（非対応環境は jpeg）に切り抜いて onSave(blob) で返す。
+// 画像のクロップエディタ（X方式）。固定比率の枠に対し、画像をドラッグ移動＋スライダーでズームし、
+// 枠内だけを outWidth×outHeight の WebP（非対応環境は jpeg）に切り抜いて onSave(blob) で返す。
+// デフォルトはヘッダー用の 3:1（1500×500）。バナー等は outWidth/outHeight/title を指定して流用する。
 export function XImageCropModal({
   file,
   onCancel,
   onSave,
+  outWidth = 1500,
+  outHeight = 500,
+  title = 'ヘッダー画像を調整',
 }: {
   file: File;
   onCancel: () => void;
   onSave: (blob: Blob) => void;
+  outWidth?: number;
+  outHeight?: number;
+  title?: string;
 }) {
+  const OUT_W = outWidth;
+  const OUT_H = outHeight;
+  const ratioDiv = gcd(OUT_W, OUT_H);
+  const ratioLabel = `${OUT_W / ratioDiv}:${OUT_H / ratioDiv}`;
   const objectUrl = useMemo(() => URL.createObjectURL(file), [file]);
   const frameRef = useRef<HTMLDivElement | null>(null);
 
@@ -27,7 +39,7 @@ export function XImageCropModal({
   const [offset, setOffset] = useState({ x: 0, y: 0 }); // 枠中心から画像中心へのずれ(px)
   const [busy, setBusy] = useState(false);
 
-  const frameH = frameW / 3;
+  const frameH = frameW * (OUT_H / OUT_W);
 
   // ObjectURL はアンマウント時に解放。
   useEffect(() => () => URL.revokeObjectURL(objectUrl), [objectUrl]);
@@ -180,7 +192,7 @@ export function XImageCropModal({
           >
             キャンセル
           </button>
-          <h2 className="text-sm font-black text-[color:var(--x-text-primary)]">ヘッダー画像を調整</h2>
+          <h2 className="text-sm font-black text-[color:var(--x-text-primary)]">{title}</h2>
           <button
             type="button"
             onClick={handleSave}
@@ -193,11 +205,12 @@ export function XImageCropModal({
         </div>
 
         <div className="p-4 space-y-4">
-          {/* クロップ枠（3:1・黒背景・ドラッグで移動）。touch-action:none で画面スクロールと干渉させない。 */}
+          {/* クロップ枠（固定比率・黒背景・ドラッグで移動）。touch-action:none で画面スクロールと干渉させない。
+              比率が可変になったため aspect は Tailwind ではなく inline style で指定（任意値クラスはビルド時静的のみ）。 */}
           <div
             ref={frameRef}
-            className="relative w-full aspect-[3/1] overflow-hidden rounded-xl bg-black cursor-move select-none"
-            style={{ touchAction: 'none' }}
+            className="relative w-full overflow-hidden rounded-xl bg-black cursor-move select-none"
+            style={{ touchAction: 'none', aspectRatio: `${OUT_W} / ${OUT_H}` }}
             onPointerDown={onPointerDown}
             onPointerMove={onPointerMove}
             onPointerUp={onPointerUp}
@@ -251,7 +264,7 @@ export function XImageCropModal({
           </div>
 
           <p className="text-[10px] text-[color:var(--x-text-muted)] text-center">
-            ドラッグで位置を調整・スライダーで拡大縮小できます（3:1で切り抜かれます）。
+            ドラッグで位置を調整・スライダーで拡大縮小できます（{ratioLabel}で切り抜かれます）。
           </p>
         </div>
       </div>

@@ -7,6 +7,8 @@ import type { XPost, FeedItem } from './xPosts';
 import type { ShopShowcase } from './xShops';
 import { XComposeFab } from './XComposeFab';
 import { XPostCard } from './XPostCard';
+import { XBannerSlider } from './XBannerSlider';
+import type { XBanner } from './xBanners';
 import { XAuthGateModal } from './XAuthGateModal';
 import { XFollowRows } from './XFollowRows';
 import { VerifiedBadge } from './VerifiedBadge';
@@ -26,6 +28,7 @@ export function XTimeline({
   initialRepostCounts,
   myFollowers,
   myAffiliatedShop,
+  banners,
 }: {
   me: XProfile | null;
   loggedIn: boolean;
@@ -40,6 +43,7 @@ export function XTimeline({
   // セラピスト本人のフォロワー一覧（2つ目タブを「フォロワー」に置き換えて表示）。それ以外は未使用。
   myFollowers?: FollowUser[];
   myAffiliatedShop?: { handle: string; displayName: string } | null;
+  banners?: XBanner[]; // 運営設定のバナースライダー（全タブ共通・タブバー直下）。空なら非表示。
 }) {
   const [tab, setTab] = useState<'recommended' | 'following' | 'shops'>('recommended');
   // セラピスト本人はフォローしない仕様＝「フォロー中」フィードが常に空。代わりに2つ目タブを
@@ -141,6 +145,9 @@ export function XTimeline({
           ))}
         </div>
       </div>
+
+      {/* 運営バナースライダー（全タブ共通・タブバー直下）。未設定なら出さない。 */}
+      {(banners?.length ?? 0) > 0 && <XBannerSlider banners={banners!} />}
 
       {/* タブ中身 */}
       {tab === 'recommended' ? (

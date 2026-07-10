@@ -18,8 +18,8 @@ export default async function XAdminPage() {
   // 運営のみ。非運営には管理URLの存在を隠すため 404。
   if (!user || user.id !== ADMIN_UUID) notFound();
 
-  // 認証バッジ管理用の店舗一覧・最近の投稿・最近のプロフィール（BAN/削除用）をまとめて取得。
-  const [shopRes, postRes, profRes] = await Promise.all([
+  // 認証バッジ管理用の店舗一覧・最近の投稿・最近のプロフィール（BAN/削除用）・バナー設定をまとめて取得。
+  const [shopRes, postRes, profRes, bannerRes] = await Promise.all([
     supabase
       .from('x_profiles')
       .select('id, handle, display_name, avatar_url, is_verified, status, created_at')
@@ -36,6 +36,7 @@ export default async function XAdminPage() {
       .select('id, auth_user_id, handle, display_name, kind, status, is_verified, created_at')
       .order('created_at', { ascending: false })
       .limit(50),
+    supabase.from('x_banners').select('slot, image_url, link_url').order('slot', { ascending: true }),
   ]);
 
   const shops = (shopRes.data ?? []) as ShopRow[];
@@ -94,5 +95,10 @@ export default async function XAdminPage() {
     authorName: authorDict.get(r.author_profile_id)?.display_name ?? '(不明)',
   }));
 
-  return <XAdmin shops={shops} posts={posts} profiles={profiles} emails={emails} />;
+  // タイムラインバナー（5枠）。運営のアップロード先パスに使う auth uid も渡す。
+  const banners = ((bannerRes.data ?? []) as Array<{ slot: number; image_url: string; link_url: string | null }>).map(
+    (b) => ({ slot: Number(b.slot), image_url: b.image_url, link_url: b.link_url ?? null })
+  );
+
+  return <XAdmin shops={shops} posts={posts} profiles={profiles} emails={emails} banners={banners} myAuthId={user.id} />;
 }

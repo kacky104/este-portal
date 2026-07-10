@@ -19,6 +19,7 @@ import { fetchFollowUsers, type FollowUser } from './xFollows';
 import { fetchShopShowcases } from './xShops';
 import { fetchStoryGroups, fetchStoryAuthorsPublic, type StoryGroup } from './xStories';
 import { XStoryBar } from './XStoryBar';
+import { fetchXBanners } from './xBanners';
 
 // ログイン状態・自分の x_profiles・フォロー中/いいね状態を読むため動的レンダリング（ISRにはしない）。
 export const dynamic = 'force-dynamic';
@@ -27,10 +28,11 @@ export default async function XHomePage() {
   // 閲覧はログイン不要（SNS標準）。未ログイン・未開設でもおすすめタイムラインを見せ、
   // アクション（いいね/フォロー/投稿）時にアカウント作成モーダルへ誘導する。
   // getXContext（認証＋自分profile）と fetchRecommended・fetchShopShowcases（profile非依存）は独立なので並列化。
-  const [{ userId, profile }, recommended, shopShowcases] = await Promise.all([
+  const [{ userId, profile }, recommended, shopShowcases, banners] = await Promise.all([
     getXContext(),
     fetchRecommended(),
     fetchShopShowcases(),
+    fetchXBanners(),
   ]);
 
   let followingFeed: FeedItem[] = []; // フォロー中タブ：フォロー先の投稿＋フォロー先がリポストした投稿をマージ
@@ -213,6 +215,7 @@ export default async function XHomePage() {
         initialRepostCounts={repostCounts}
         myFollowers={myFollowers}
         myAffiliatedShop={myAffiliatedShop}
+        banners={banners}
       />
     </div>
   );
