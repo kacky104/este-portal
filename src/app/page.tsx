@@ -20,6 +20,8 @@ import { fetchNewFaceTherapists } from "./lib/newFaceTherapists";
 import { NewFaceScroller } from "./components/NewFaceScroller";
 import { fetchActiveTherapistPickupBanners } from "./lib/therapistPickupBanners";
 import { TherapistPickupBanner } from "./components/TherapistPickupBanner";
+import { fetchLatestSalonNews } from "./lib/salonNews";
+import { SalonNewsList } from "./components/SalonNewsList";
 import { toJsonLdString } from "./lib/jsonLd";
 
 // TOPの WebSite 構造化データ（サイト名のリッチリザルト狙い）。
@@ -45,7 +47,7 @@ export default async function Home() {
 
   // ── 互いに依存しない3処理を並列実行（往復の積み上がりを解消） ──
   // ピックアップは area=null の共通セット（＝トップ用）。地域ページは各エリアの設定を使う。
-  const [salons, featuredSalons, todaySchedRes, reviewCountRes, recommendedBanners, newFaceTherapists, pickupBanners] = await Promise.all([
+  const [salons, featuredSalons, todaySchedRes, reviewCountRes, recommendedBanners, newFaceTherapists, pickupBanners, salonNews] = await Promise.all([
     fetchSalons(supabase, { showOnTopOnly: true }), // トップは show_on_top=true のみ表示
     getFeaturedSalons(supabase, null),
     supabase
@@ -64,6 +66,8 @@ export default async function Home() {
     fetchNewFaceTherapists(supabase, 35),
     // セラピストピックアップ枠（横長画像1枚・20枚目直下・クライアント抽選）。0件なら非表示。
     fetchActiveTherapistPickupBanners(),
+    // サロン新着情報（ピックアップ直下・最新5件・1行×5段）。0件なら非表示。続きは /news。
+    fetchLatestSalonNews(supabase, 5),
   ]);
 
   const todaySchedules = todaySchedRes.data;
@@ -133,6 +137,35 @@ export default async function Home() {
                 </span>
               </div>
               <FeaturedSalonSlider salons={featuredSalons} />
+            </div>
+          </section>
+        )}
+
+        {/* ─── Salon News（ピックアップ直下・最新5件） ───────────── */}
+        {salonNews.length > 0 && (
+          <section className="py-5 sm:py-10 bg-white border-t border-pink-50">
+            <div className="max-w-5xl mx-auto px-4">
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center gap-3">
+                  <div className="w-1 h-6 rounded-full bg-gradient-to-b from-pink-400 to-rose-500" />
+                  <h2 className="text-xl font-bold text-slate-900">サロン新着情報</h2>
+                </div>
+                {/* 「出勤中のセラピスト」の一覧リンクと同じグラデ文字。こちらはスマホでも表示。 */}
+                <Link
+                  href="/news"
+                  className="inline-flex items-center gap-1 text-sm font-bold flex-shrink-0"
+                  style={{
+                    background: 'linear-gradient(to right, #ec4899, #f97316)',
+                    WebkitBackgroundClip: 'text',
+                    backgroundClip: 'text',
+                    WebkitTextFillColor: 'transparent',
+                    color: 'transparent',
+                  }}
+                >
+                  もっと見る →
+                </Link>
+              </div>
+              <SalonNewsList items={salonNews} />
             </div>
           </section>
         )}

@@ -48,6 +48,9 @@ export async function POST(req: Request) {
     // 本体＋配下サブページを一括無効化。
     revalidatePath(`/salon/${salonId}`, "layout");
     revalidated.push(`/salon/${salonId}`);
+    // サロン新着情報の横断一覧（/news）もお知らせ保存の即時反映対象にする（トップの5件ブロックは top で反映）。
+    revalidatePath("/news");
+    revalidated.push("/news");
   }
 
   if (therapistId != null && String(therapistId).trim() !== "") {
