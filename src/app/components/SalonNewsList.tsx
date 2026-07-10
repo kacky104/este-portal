@@ -17,7 +17,8 @@ export function SalonNewsList({ items }: { items: SalonNewsItem[] }) {
   const newCutoffMs = Date.now() - 48 * 60 * 60 * 1000;
 
   return (
-    <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-sm divide-y divide-slate-100">
+    // 枠は角丸なし（90度・「掲載サロン一覧」と同じ直角方針）。
+    <div className="bg-white border border-slate-200 overflow-hidden shadow-sm divide-y divide-slate-100">
       {items.map((n) => {
         const publishedMs = n.publishedAt ? new Date(n.publishedAt).getTime() : NaN;
         const isNew = !Number.isNaN(publishedMs) && publishedMs >= newCutoffMs;
