@@ -165,18 +165,18 @@ export function XShop({
   return (
     <div className="x-card my-6 p-5 rounded-2xl bg-[color:var(--x-surface)] shadow-[0_4px_16px_rgba(109,40,217,0.3)]">
       <h1 className="text-xl font-black tracking-tight mb-1">店舗管理</h1>
-      <p className="text-xs text-slate-400 mb-5">セラピストの所属申請・所属管理</p>
+      <p className="text-xs text-[color:var(--x-text-muted)] mb-5">セラピストの所属申請・所属管理</p>
 
       {/* ── セラピスト検索（@ID 完全一致） ── */}
       <section className="mb-7">
-        <h2 className="text-sm font-black text-slate-800 mb-2">セラピストを所属申請</h2>
-        <p className="text-[12px] text-slate-400 mb-2 leading-relaxed">
+        <h2 className="text-sm font-black text-[color:var(--x-text-primary)] mb-2">セラピストを所属申請</h2>
+        <p className="text-[12px] text-[color:var(--x-text-muted)] mb-2 leading-relaxed">
           セラピスト本人から教わった <span className="font-bold">@ID</span> で検索し、所属申請を送ります。
           本人が承認すると所属が成立します。
         </p>
         <div className="flex gap-2">
           <div className="flex-1 flex items-center rounded-xl border border-[color:var(--x-border-strong)] focus-within:border-indigo-300 px-3">
-            <span className="text-slate-400 text-sm font-bold">@</span>
+            <span className="text-[color:var(--x-text-muted)] text-sm font-bold">@</span>
             <input
               value={query}
               onChange={(e) => setQuery(e.target.value)}
@@ -201,7 +201,7 @@ export function XShop({
 
         {/* 検索結果 */}
         {searched && !searching && !result && (
-          <p className="mt-3 text-sm text-slate-400">該当する @ID のセラピストが見つかりません</p>
+          <p className="mt-3 text-sm text-[color:var(--x-text-muted)]">該当する @ID のセラピストが見つかりません</p>
         )}
         {result && (
           <div className="mt-3 border border-[color:var(--x-border-strong)] rounded-2xl p-3">
@@ -218,10 +218,10 @@ export function XShop({
                 )}
               </Link>
               <div className="flex-1 min-w-0">
-                <Link href={`/x/u/${result.therapist.handle}`} className="font-bold text-sm text-slate-900 hover:underline truncate block">
+                <Link href={`/x/u/${result.therapist.handle}`} className="font-bold text-sm text-[color:var(--x-text-primary)] hover:underline truncate block">
                   {result.therapist.displayName}
                 </Link>
-                <p className="text-xs text-slate-400 truncate">@{result.therapist.handle}</p>
+                <p className="text-xs text-[color:var(--x-text-muted)] truncate">@{result.therapist.handle}</p>
               </div>
               {/* アクション：所属済み / 申請中 / 申請ボタン */}
               {result.affiliation === 'self' || affiliatedIds.has(result.therapist.id) ? (
@@ -229,7 +229,7 @@ export function XShop({
                   所属済み
                 </span>
               ) : pendingIds.has(result.therapist.id) ? (
-                <span className="flex-shrink-0 text-xs font-bold px-3 py-1.5 rounded-lg bg-slate-50 text-slate-400 border border-[color:var(--x-border-strong)]">
+                <span className="flex-shrink-0 text-xs font-bold px-3 py-1.5 rounded-lg bg-[color:var(--x-inset)] text-[color:var(--x-text-muted)] border border-[color:var(--x-border-strong)]">
                   申請中
                 </span>
               ) : (
@@ -256,12 +256,12 @@ export function XShop({
 
       {/* ── 申請中の一覧 ── */}
       <section className="mb-7">
-        <h2 className="text-sm font-black text-slate-800 mb-2">
+        <h2 className="text-sm font-black text-[color:var(--x-text-primary)] mb-2">
           申請中
-          {pending.length > 0 && <span className="ml-1.5 text-xs font-bold text-slate-400 tabular-nums">{pending.length}</span>}
+          {pending.length > 0 && <span className="ml-1.5 text-xs font-bold text-[color:var(--x-text-muted)] tabular-nums">{pending.length}</span>}
         </h2>
         {pending.length === 0 ? (
-          <p className="text-xs text-slate-400 py-1">申請中のセラピストはいません</p>
+          <p className="text-xs text-[color:var(--x-text-muted)] py-1">申請中のセラピストはいません</p>
         ) : (
           <div className="space-y-2">
             {pending.map((p) => (
@@ -270,7 +270,7 @@ export function XShop({
                   type="button"
                   onClick={() => cancelRequest(p.requestId)}
                   disabled={busy === p.requestId}
-                  className="flex-shrink-0 text-xs font-bold px-3 py-1.5 rounded-lg border border-[color:var(--x-border-strong)] text-slate-500 hover:border-rose-200 hover:text-rose-500 transition-colors disabled:opacity-50"
+                  className="flex-shrink-0 text-xs font-bold px-3 py-1.5 rounded-lg border border-[color:var(--x-border-strong)] text-[color:var(--x-text-secondary)] hover:border-rose-200 hover:text-rose-500 transition-colors disabled:opacity-50"
                 >
                   取消
                 </button>
@@ -282,12 +282,12 @@ export function XShop({
 
       {/* ── 所属セラピスト一覧 ── */}
       <section>
-        <h2 className="text-sm font-black text-slate-800 mb-2">
+        <h2 className="text-sm font-black text-[color:var(--x-text-primary)] mb-2">
           所属セラピスト
-          {affiliated.length > 0 && <span className="ml-1.5 text-xs font-bold text-slate-400 tabular-nums">{affiliated.length}</span>}
+          {affiliated.length > 0 && <span className="ml-1.5 text-xs font-bold text-[color:var(--x-text-muted)] tabular-nums">{affiliated.length}</span>}
         </h2>
         {affiliated.length === 0 ? (
-          <p className="text-xs text-slate-400 py-1">所属セラピストはまだいません</p>
+          <p className="text-xs text-[color:var(--x-text-muted)] py-1">所属セラピストはまだいません</p>
         ) : (
           <div className="space-y-2">
             {affiliated.map((th) => (
@@ -296,7 +296,7 @@ export function XShop({
                   type="button"
                   onClick={() => removeAffiliation(th)}
                   disabled={busy === th.id}
-                  className="flex-shrink-0 text-xs font-bold px-3 py-1.5 rounded-lg border border-[color:var(--x-border-strong)] text-slate-500 hover:border-rose-200 hover:text-rose-500 transition-colors disabled:opacity-50"
+                  className="flex-shrink-0 text-xs font-bold px-3 py-1.5 rounded-lg border border-[color:var(--x-border-strong)] text-[color:var(--x-text-secondary)] hover:border-rose-200 hover:text-rose-500 transition-colors disabled:opacity-50"
                 >
                   解除
                 </button>
@@ -331,10 +331,10 @@ function Row({ therapist, children }: { therapist: TherapistMini; children: Reac
         )}
       </Link>
       <div className="flex-1 min-w-0">
-        <Link href={`/x/u/${therapist.handle}`} className="font-bold text-sm text-slate-900 hover:underline truncate block">
+        <Link href={`/x/u/${therapist.handle}`} className="font-bold text-sm text-[color:var(--x-text-primary)] hover:underline truncate block">
           {therapist.displayName}
         </Link>
-        <p className="text-xs text-slate-400 truncate">@{therapist.handle}</p>
+        <p className="text-xs text-[color:var(--x-text-muted)] truncate">@{therapist.handle}</p>
       </div>
       {children}
     </div>

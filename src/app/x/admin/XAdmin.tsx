@@ -158,10 +158,10 @@ export function XAdmin({
   return (
     <div className="x-card my-6 p-5 rounded-2xl bg-[color:var(--x-surface)] shadow-[0_4px_16px_rgba(109,40,217,0.3)]">
       <h1 className="text-xl font-black tracking-tight mb-1">運営パネル</h1>
-      <p className="text-xs text-slate-400 mb-4">fukuX の認証バッジ・凍結・モデレーション</p>
+      <p className="text-xs text-[color:var(--x-text-muted)] mb-4">fukuX の認証バッジ・凍結・モデレーション</p>
 
       {/* タブ */}
-      <div className="flex gap-1 p-1 mb-5 rounded-xl bg-slate-100">
+      <div className="flex gap-1 p-1 mb-5 rounded-xl bg-[color:var(--x-inset)]">
         {(
           [
             ['verify', '認証'],
@@ -174,7 +174,7 @@ export function XAdmin({
             type="button"
             onClick={() => setTab(key)}
             className={`flex-1 py-2 rounded-lg text-xs font-bold transition-colors ${
-              tab === key ? 'bg-[color:var(--x-surface)] text-indigo-600 shadow-sm' : 'text-slate-400 hover:text-slate-600'
+              tab === key ? 'bg-[color:var(--x-surface)] text-[color:var(--x-accent)] shadow-sm' : 'text-[color:var(--x-text-muted)] hover:text-[color:var(--x-text-primary)]'
             }`}
           >
             {label}
@@ -185,13 +185,13 @@ export function XAdmin({
       {/* ── 認証バッジ管理（店舗） ── */}
       {tab === 'verify' && (
         <div>
-          <label className="flex items-center gap-2 mb-3 text-xs font-bold text-slate-500 select-none">
+          <label className="flex items-center gap-2 mb-3 text-xs font-bold text-[color:var(--x-text-secondary)] select-none">
             <input type="checkbox" checked={onlyUnverified} onChange={(e) => setOnlyUnverified(e.target.checked)} />
             未認証の店舗だけ表示
           </label>
           <div className="space-y-2">
             {shownShops.length === 0 ? (
-              <p className="text-center text-sm text-slate-400 py-12">該当する店舗はありません</p>
+              <p className="text-center text-sm text-[color:var(--x-text-muted)] py-12">該当する店舗はありません</p>
             ) : (
               shownShops.map((s) => (
                 <div key={s.id} className="border border-[color:var(--x-border-strong)] rounded-2xl p-3 flex items-center gap-3">
@@ -205,7 +205,7 @@ export function XAdmin({
                   </span>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-1.5">
-                      <Link href={`/x/u/${s.handle}`} className="font-bold text-sm text-slate-900 hover:underline truncate">
+                      <Link href={`/x/u/${s.handle}`} className="font-bold text-sm text-[color:var(--x-text-primary)] hover:underline truncate">
                         {s.display_name}
                       </Link>
                       {s.is_verified && <VerifiedBadge />}
@@ -213,7 +213,7 @@ export function XAdmin({
                         <span className="text-[10px] font-bold text-rose-500 bg-rose-50 rounded-full px-1.5 py-0.5">凍結中</span>
                       )}
                     </div>
-                    <p className="text-xs text-slate-400">@{s.handle}</p>
+                    <p className="text-xs text-[color:var(--x-text-muted)]">@{s.handle}</p>
                   </div>
                   <button
                     type="button"
@@ -221,7 +221,7 @@ export function XAdmin({
                     disabled={busy === s.id}
                     className={`flex-shrink-0 text-xs font-bold px-3 py-1.5 rounded-lg transition-colors disabled:opacity-50 ${
                       s.is_verified
-                        ? 'border border-[color:var(--x-border-strong)] text-slate-500 hover:border-rose-200 hover:text-rose-500'
+                        ? 'border border-[color:var(--x-border-strong)] text-[color:var(--x-text-secondary)] hover:border-rose-200 hover:text-rose-500'
                         : 'text-white'
                     }`}
                     style={s.is_verified ? undefined : { background: 'linear-gradient(100deg,#6366F1,#8B5CF6)' }}
@@ -239,7 +239,7 @@ export function XAdmin({
       {tab === 'accounts' && (
         <div className="divide-y divide-slate-100">
           {profiles.length === 0 ? (
-            <p className="text-center text-sm text-slate-400 py-12">プロフィールはありません</p>
+            <p className="text-center text-sm text-[color:var(--x-text-muted)] py-12">プロフィールはありません</p>
           ) : (
             profiles.map((p) => {
               const banned = p.status === 'rejected';
@@ -247,7 +247,7 @@ export function XAdmin({
                 <div key={p.id} className="py-3 flex items-center gap-3">
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-1.5">
-                      <Link href={`/x/u/${p.handle}`} className="font-bold text-sm text-slate-900 hover:underline truncate">
+                      <Link href={`/x/u/${p.handle}`} className="font-bold text-sm text-[color:var(--x-text-primary)] hover:underline truncate">
                         {p.display_name}
                       </Link>
                       {(p.kind === 'official' || ((p.kind === 'shop' || p.kind === 'therapist') && p.is_verified)) && <VerifiedBadge kind={p.kind} />}
@@ -258,9 +258,9 @@ export function XAdmin({
                         <span className="text-[10px] font-bold text-rose-500 bg-rose-50 rounded-full px-1.5 py-0.5">凍結中</span>
                       )}
                     </div>
-                    <p className="text-xs text-slate-400">@{p.handle}</p>
+                    <p className="text-xs text-[color:var(--x-text-muted)]">@{p.handle}</p>
                     {/* ログインメール（運営パネル限定表示）。未取得時は — */}
-                    <p className="text-[11px] text-slate-400 break-all mt-0.5">
+                    <p className="text-[11px] text-[color:var(--x-text-muted)] break-all mt-0.5">
                       ✉ {emails[p.id] ?? '—'}
                     </p>
                   </div>
@@ -295,25 +295,25 @@ export function XAdmin({
       {tab === 'posts' && (
         <div>
           {/* 日時範囲検索 */}
-          <div className="mb-4 p-3 rounded-2xl bg-slate-50 border border-[color:var(--x-border-strong)]">
-            <p className="text-xs font-bold text-slate-500 mb-2">投稿日時で検索（日本時間）</p>
+          <div className="mb-4 p-3 rounded-2xl bg-[color:var(--x-inset)] border border-[color:var(--x-border-strong)]">
+            <p className="text-xs font-bold text-[color:var(--x-text-secondary)] mb-2">投稿日時で検索（日本時間）</p>
             <div className="flex flex-wrap items-end gap-2">
-              <label className="flex flex-col gap-1 text-[11px] font-bold text-slate-400">
+              <label className="flex flex-col gap-1 text-[11px] font-bold text-[color:var(--x-text-muted)]">
                 開始
                 <input
                   type="datetime-local"
                   value={searchFrom}
                   onChange={(e) => setSearchFrom(e.target.value)}
-                  className="text-xs border border-[color:var(--x-border-strong)] rounded-lg px-2 py-1 text-slate-700"
+                  className="text-xs border border-[color:var(--x-border-strong)] rounded-lg px-2 py-1 text-[color:var(--x-text-primary)]"
                 />
               </label>
-              <label className="flex flex-col gap-1 text-[11px] font-bold text-slate-400">
+              <label className="flex flex-col gap-1 text-[11px] font-bold text-[color:var(--x-text-muted)]">
                 終了
                 <input
                   type="datetime-local"
                   value={searchTo}
                   onChange={(e) => setSearchTo(e.target.value)}
-                  className="text-xs border border-[color:var(--x-border-strong)] rounded-lg px-2 py-1 text-slate-700"
+                  className="text-xs border border-[color:var(--x-border-strong)] rounded-lg px-2 py-1 text-[color:var(--x-text-primary)]"
                 />
               </label>
               <button
@@ -329,7 +329,7 @@ export function XAdmin({
                 <button
                   type="button"
                   onClick={clearSearch}
-                  className="text-xs font-bold px-3 py-1.5 rounded-lg border border-[color:var(--x-border-strong)] text-slate-500 hover:bg-slate-100"
+                  className="text-xs font-bold px-3 py-1.5 rounded-lg border border-[color:var(--x-border-strong)] text-[color:var(--x-text-secondary)] hover:bg-[color:var(--x-inset)]"
                 >
                   検索解除
                 </button>
@@ -345,19 +345,19 @@ export function XAdmin({
           {/* 投稿リスト */}
           <div className="divide-y divide-slate-100">
             {posts.length === 0 ? (
-              <p className="text-center text-sm text-slate-400 py-12">
+              <p className="text-center text-sm text-[color:var(--x-text-muted)] py-12">
                 {searchActive ? '該当する投稿はありません' : '投稿はありません'}
               </p>
             ) : (
             posts.map((p) => (
               <div key={p.id} className="py-3 flex items-start gap-3">
                 <div className="flex-1 min-w-0">
-                  <p className="text-xs text-slate-400">
-                    <span className="font-bold text-slate-600">{p.authorName}</span> @{p.authorHandle} ·{' '}
+                  <p className="text-xs text-[color:var(--x-text-muted)]">
+                    <span className="font-bold text-[color:var(--x-text-secondary)]">{p.authorName}</span> @{p.authorHandle} ·{' '}
                     <XTimeAgo iso={p.createdAt} />
                   </p>
-                  {p.body && <p className="text-sm text-slate-800 mt-0.5 break-words line-clamp-3">{p.body}</p>}
-                  {p.images.length > 0 && <p className="text-[11px] text-slate-400 mt-0.5">🖼 画像{p.images.length}枚</p>}
+                  {p.body && <p className="text-sm text-[color:var(--x-text-primary)] mt-0.5 break-words line-clamp-3">{p.body}</p>}
+                  {p.images.length > 0 && <p className="text-[11px] text-[color:var(--x-text-muted)] mt-0.5">🖼 画像{p.images.length}枚</p>}
                 </div>
                 <button
                   type="button"
