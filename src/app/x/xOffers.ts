@@ -11,6 +11,7 @@ export type OfferTherapist = {
   height: number | null;
   offerComment: string | null;
   offerAreas: string[];
+  dmDisabled: boolean; // DM受付オフのセラピストには「オファーを送る」ボタンを出さない
 };
 
 // オファー一覧用: 承認済み・オファー受付中・未所属のセラピストを30分シードでシャッフルして返す。
@@ -19,7 +20,7 @@ export async function fetchOfferTherapists(): Promise<OfferTherapist[]> {
   const supabase = await createClient();
   const { data } = await supabase
     .from('x_profiles')
-    .select('id, handle, display_name, avatar_url, is_verified, age, height, offer_comment, offer_areas')
+    .select('id, handle, display_name, avatar_url, is_verified, age, height, offer_comment, offer_areas, dm_disabled')
     .eq('kind', 'therapist')
     .eq('status', 'approved')
     .eq('offer_enabled', true)
@@ -34,6 +35,7 @@ export async function fetchOfferTherapists(): Promise<OfferTherapist[]> {
     height: (r.height as number | null) ?? null,
     offerComment: (r.offer_comment as string | null) ?? null,
     offerAreas: (r.offer_areas as string[] | null) ?? [],
+    dmDisabled: Boolean(r.dm_disabled),
   }));
   return seededWeightedShuffle(rows, thirtyMinSeed(), () => 1.0);
 }
