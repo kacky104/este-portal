@@ -104,8 +104,10 @@ export function XStoryComposer({ me, onClose }: { me: XProfile; onClose: () => v
 
   return (
     <div className="fixed inset-0 z-[100] bg-black/60 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4">
-      <div className="w-full sm:max-w-md bg-[color:var(--x-surface)] rounded-t-2xl sm:rounded-2xl shadow-2xl max-h-[92vh] overflow-y-auto">
-        <div className="flex items-center justify-between px-5 py-4 border-b border-[color:var(--x-border)]">
+      {/* max-h は dvh（URLバーを除いた実表示領域）基準。vh だとスマホでヘッダーがURLバーの裏に隠れる */}
+      <div className="w-full sm:max-w-md bg-[color:var(--x-surface)] rounded-t-2xl sm:rounded-2xl shadow-2xl max-h-[88dvh] overflow-y-auto">
+        {/* スクロールしても閉じる✕が常に押せるよう sticky */}
+        <div className="sticky top-0 z-10 bg-[color:var(--x-surface)] flex items-center justify-between px-5 py-4 border-b border-[color:var(--x-border)]">
           <h2 className="text-base font-black text-[color:var(--x-text-primary)]">ストーリーを投稿</h2>
           <button type="button" onClick={onClose} aria-label="閉じる" className="p-1.5 text-[color:var(--x-text-muted)] hover:text-[color:var(--x-text-primary)] transition-colors">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -122,7 +124,7 @@ export function XStoryComposer({ me, onClose }: { me: XProfile; onClose: () => v
 
           {/* 画像選択＋プレビュー（9:16想定・黒背景の中に object-contain） */}
           {preview ? (
-            <div className="relative rounded-xl overflow-hidden bg-black aspect-[9/16] flex items-center justify-center">
+            <div className="relative rounded-xl overflow-hidden bg-black h-[45dvh] flex items-center justify-center">
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img src={preview} alt="プレビュー" className="w-full h-full object-contain" />
               <button
@@ -135,7 +137,7 @@ export function XStoryComposer({ me, onClose }: { me: XProfile; onClose: () => v
               </button>
             </div>
           ) : (
-            <label className="aspect-[9/16] rounded-xl border-2 border-dashed border-indigo-200 text-indigo-500 flex flex-col items-center justify-center cursor-pointer hover:bg-indigo-50 transition-colors">
+            <label className="h-[45dvh] rounded-xl border-2 border-dashed border-indigo-200 text-indigo-500 flex flex-col items-center justify-center cursor-pointer hover:bg-indigo-50 transition-colors">
               <span className="text-3xl leading-none">＋</span>
               <span className="text-xs font-bold mt-1">画像を選ぶ</span>
               <span className="text-[10px] text-[color:var(--x-text-muted)] mt-0.5">JPEG・PNG・WebP・5MB以下</span>
