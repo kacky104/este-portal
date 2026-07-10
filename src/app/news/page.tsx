@@ -52,7 +52,7 @@ export default async function SalonNewsIndexPage() {
         </nav>
 
         {/* 見出しはトップのブロックと同じグラデ帯（角丸なし＝直角方針） */}
-        <div className="px-4 py-2 mb-1.5" style={{ background: 'linear-gradient(to right, #f97316, #ec4899)' }}>
+        <div className="px-4 py-1 mb-1" style={{ background: 'linear-gradient(to right, #f97316, #ec4899)' }}>
           <h1 className="text-xl font-bold text-white leading-none" style={{ transform: 'translateY(1px)' }}>
             サロン新着情報
           </h1>

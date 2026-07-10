@@ -144,10 +144,12 @@ export default async function Home() {
         {/* ─── Salon News（ピックアップ直下・最新5件） ─────────────
             見出しは「掲載サロン一覧」と同じグラデ帯（角丸なし＝直角方針）。右端に「もっと見る→」。 */}
         {salonNews.length > 0 && (
-          <section className="py-5 sm:py-10 bg-white border-t border-pink-50">
+          // 上下の隙間はバナー圧縮に合わせて従来の半分（py-5/10→py-2.5/5）。
+          <section className="py-2.5 sm:py-5 bg-white border-t border-pink-50">
             <div className="max-w-5xl mx-auto px-4">
+              {/* バナー縦幅は py-2→py-1 に圧縮（掲載サロン一覧と統一） */}
               <div
-                className="px-4 py-2 mb-1.5 flex items-center justify-between"
+                className="px-4 py-1 mb-1 flex items-center justify-between"
                 style={{ background: 'linear-gradient(to right, #f97316, #ec4899)' }}
               >
                 <h2 className="text-xl font-bold text-white leading-none" style={{ transform: 'translateY(1px)' }}>
@@ -195,7 +197,8 @@ export default async function Home() {
         </section>
 
         {/* ─── Salon list ──────────────────────────────────────── */}
-        <section id="salons" className="pt-4 pb-12">
+        {/* 上余白はタイトルバナー圧縮に合わせて半分（pt-4→pt-2）。 */}
+        <section id="salons" className="pt-2 pb-12">
           <div className="max-w-5xl mx-auto px-4">
             {/* 地域バッジ列を最上部に出し、その下に見出し＋説明文→カード（heading で順序制御） */}
             <ShuffledSalons
@@ -229,8 +232,9 @@ export default async function Home() {
               ]}
               heading={
                 <>
+                  {/* バナー縦幅 py-2→py-1・下余白 mb-1.5→mb-1（サロン新着情報と統一の圧縮） */}
                   <div
-                    className="px-4 py-2 mb-1.5"
+                    className="px-4 py-1 mb-1"
                     style={{ background: 'linear-gradient(to right, #f97316, #ec4899)' }}
                   >
                     <h2 className="text-xl font-bold text-white leading-none" style={{ transform: 'translateY(1px)' }}>
