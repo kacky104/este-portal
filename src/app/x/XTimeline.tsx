@@ -147,8 +147,8 @@ export function XTimeline({
         recommendedView.length === 0 ? (
           <Empty text="まだ投稿がありません" />
         ) : (
-          // 【試験実装 2026-07-10】X風の全幅行＋区切り線（タイムラインのみ）。戻す場合は
-          // space-y-3 pt-3 のカード並び＋ renderCard の flat を外す。
+          // X風の全幅行＋区切り線（2026-07-10 実機評価で本採用）。タイムラインのみこの方式で、
+          // プロフィール・投稿詳細・検索などは従来の浮遊カードのまま。
           <div className="-mx-4 divide-y divide-[color:var(--x-border)] border-b border-[color:var(--x-border)]">
             {renderList(recommendedView)}
           </div>
@@ -232,7 +232,7 @@ export function XTimeline({
       ) : followingFeed.length === 0 ? (
         <Empty text="気になるセラピスト・お店をフォローすると、ここに新着が表示されます" />
       ) : (
-        // 【試験実装 2026-07-10】おすすめタブと同じ全幅行方式。
+        // おすすめタブと同じ全幅行方式（本採用）。
         <div className="-mx-4 divide-y divide-[color:var(--x-border)] border-b border-[color:var(--x-border)]">
           {renderFeed(followingFeed)}
         </div>
