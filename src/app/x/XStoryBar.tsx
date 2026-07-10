@@ -37,8 +37,8 @@ export function XStoryBar({ groups, me }: { groups: StoryGroup[]; me: XProfile |
         <div className="flex gap-3 overflow-x-auto px-1 pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
           {/* 先頭：自分の「＋追加」サークル（投稿可能kindのみ） */}
           {canPost && (
-            <button type="button" onClick={() => setComposerOpen(true)} className="flex flex-col items-center gap-1 flex-shrink-0 w-16">
-              <span className="relative w-16 h-16 rounded-full p-[2px] bg-[color:var(--x-border-strong)]">
+            <button type="button" onClick={() => setComposerOpen(true)} className="flex flex-col items-center gap-1 flex-shrink-0 w-[72px]">
+              <span className="relative w-[72px] h-[72px] rounded-full p-[2px] bg-[color:var(--x-border-strong)]">
                 <span className="block w-full h-full rounded-full overflow-hidden border-2 border-[color:var(--x-surface)] bg-gradient-to-br from-indigo-300 to-sky-300 flex items-center justify-center">
                   {me.avatar_url ? (
                     // eslint-disable-next-line @next/next/no-img-element
@@ -59,16 +59,14 @@ export function XStoryBar({ groups, me }: { groups: StoryGroup[]; me: XProfile |
           {groups.map((g, i) => {
             const allSeen = isGroupSeen(g, seen);
             return (
-              <button key={g.author.id} type="button" onClick={() => setViewerIndex(i)} className="flex flex-col items-center gap-1 flex-shrink-0 w-16">
-                <span
-                  className="w-16 h-16 rounded-full p-[2px]"
-                  style={
-                    allSeen
-                      ? { background: 'var(--x-border-strong)' }
-                      : { background: 'linear-gradient(135deg,#f59e0b,#f43f5e,#8b5cf6)' }
-                  }
-                >
-                  <span className="block w-full h-full rounded-full overflow-hidden border-2 border-[color:var(--x-surface)] bg-gradient-to-br from-indigo-300 to-sky-300 flex items-center justify-center">
+              <button key={g.author.id} type="button" onClick={() => setViewerIndex(i)} className="flex flex-col items-center gap-1 flex-shrink-0 w-[72px]">
+                {/* リング層（絶対配置）だけが回転し、アバター層は上に重ねるので回らない */}
+                <span className="relative w-[72px] h-[72px]">
+                  <span
+                    className={`absolute inset-0 rounded-full ${allSeen ? '' : 'x-story-ring'}`}
+                    style={allSeen ? { background: 'var(--x-border-strong)' } : undefined}
+                  />
+                  <span className="absolute inset-[2px] rounded-full overflow-hidden border-2 border-[color:var(--x-surface)] bg-gradient-to-br from-indigo-300 to-sky-300 flex items-center justify-center">
                     {g.author.avatarUrl ? (
                       // eslint-disable-next-line @next/next/no-img-element
                       <img src={g.author.avatarUrl} alt="" className="w-full h-full object-cover" />

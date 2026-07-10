@@ -105,6 +105,18 @@ body.paw-bg .min-h-screen.bg-slate-50 {
   }
 }
 
+/* ── ストーリーバーの未読リング（ピンク→紫→青の回転グラデーション）。
+      リング層だけを回し、アバターは別レイヤーに重ねるので回らない ──── */
+.x-story-ring {
+  background: conic-gradient(from 0deg, #ec4899, #a855f7, #3b82f6, #a855f7, #ec4899);
+  animation: x-story-ring-spin 2.5s linear infinite;
+}
+@keyframes x-story-ring-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
 /* ── サロン店名ブロックの初回キラリ演出（1回のみ・枠線と文字だけ／ピンク多め／約2.3s） ──── */
 .salon-name-banner {
   position: relative;
