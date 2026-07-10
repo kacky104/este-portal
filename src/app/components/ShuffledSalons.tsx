@@ -487,8 +487,9 @@ export function SalonCard({ salon, therapists, showAge = false, areaNextToDuty =
       {/* トップページのみ：店名の全幅バナー帯（淡ピンクグラデ＋濃ピンク文字）。保存ボタンも帯内に置く。
           店名はモバイル/デスクトップ共通のため、ここでカードレベルに1回だけ描画する。 */}
       {nameBanner && (
+        // 帯の余白のみ圧縮: py-1(4px)→py-0.5(2px)。肉球（33px）は維持＝帯は約37px。
         <div
-          className="px-5 py-1"
+          className="px-5 py-0.5"
           style={{
             background: 'linear-gradient(to right, #fdf2f8, #fce7f3)',
             borderBottom: '1px solid #fbcfe8',
