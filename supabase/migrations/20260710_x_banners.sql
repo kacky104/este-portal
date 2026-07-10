@@ -17,9 +17,10 @@ create policy x_banners_select on public.x_banners
   for select to anon, authenticated
   using (true);
 
--- 書き込み: 運営（kind=official）のみ
+-- 書き込み: 運営（kind=official）または最上位管理者（ADMIN_UUID＝src/app/lib/admin.ts と同一値）。
+-- /x/admin にログインする管理ユーザーは official プロフィールを持たない場合があるため UID でも許可する。
 drop policy if exists x_banners_write on public.x_banners;
 create policy x_banners_write on public.x_banners
   for all to authenticated
-  using (x_my_kind() = 'official')
-  with check (x_my_kind() = 'official');
+  using (x_my_kind() = 'official' or auth.uid() = '63aca737-b399-4fb2-bf92-8a3816955d69'::uuid)
+  with check (x_my_kind() = 'official' or auth.uid() = '63aca737-b399-4fb2-bf92-8a3816955d69'::uuid);

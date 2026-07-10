@@ -64,7 +64,7 @@ export function XBannerSlider({ banners }: { banners: XBanner[] }) {
         className="flex overflow-x-auto snap-x snap-mandatory rounded-xl [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
       >
         {banners.map((b) => (
-          <div key={b.slot} className="w-full flex-shrink-0 snap-center aspect-[16/9] overflow-hidden bg-[color:var(--x-inset)]">
+          <div key={b.slot} className="w-full flex-shrink-0 snap-center aspect-[64/27] overflow-hidden bg-[color:var(--x-inset)]">
             {b.linkUrl ? (
               b.linkUrl.startsWith('/') ? (
                 <Link href={b.linkUrl} className="block w-full h-full">

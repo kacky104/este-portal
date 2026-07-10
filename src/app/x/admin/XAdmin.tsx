@@ -41,11 +41,11 @@ export type ModProfile = {
 
 const KIND_LABEL: Record<string, string> = { user: 'ユーザー', therapist: 'セラピスト', shop: 'お店', official: '運営' };
 
-// タイムラインバナー（5枠固定・16:9=1280×720）。行が存在する枠だけタイムラインに表示される。
+// タイムラインバナー（5枠固定・64:27=1280×540＝16:9の縦3/4）。行が存在する枠だけタイムラインに表示される。
 export type BannerRow = { slot: number; image_url: string; link_url: string | null };
 const BANNER_SLOTS = [1, 2, 3, 4, 5] as const;
 const BANNER_W = 1280;
-const BANNER_H = 720;
+const BANNER_H = 540;
 
 function validateBannerFile(file: File): string | null {
   if (file.size > 5 * 1024 * 1024) return '5MB以下の画像を選択してください';
@@ -505,7 +505,7 @@ export function XAdmin({
       {tab === 'banners' && (
         <div>
           <p className="text-xs text-[color:var(--x-text-muted)] mb-4 leading-relaxed">
-            タイムライン（おすすめ／フォロー中／お店）のタブ直下に表示されるスライダーです。画像は16:9（1280×720）に切り抜かれます。
+            タイムライン（おすすめ／フォロー中／お店）のタブ直下に表示されるスライダーです。画像は横長（1280×540）に切り抜かれます。
             設定した枠だけが番号順に表示され、0枠ならスライダー自体が出ません。リンクは任意（/ 始まりはサイト内・URLは新規タブ）。
           </p>
           <div className="space-y-4">
@@ -549,9 +549,9 @@ export function XAdmin({
                   {/* プレビュー（16:9）。未設定はプレースホルダ。 */}
                   {row ? (
                     // eslint-disable-next-line @next/next/no-img-element
-                    <img src={row.image_url} alt={`バナー${slot}`} className="w-full aspect-[16/9] object-cover rounded-lg" />
+                    <img src={row.image_url} alt={`バナー${slot}`} className="w-full aspect-[64/27] object-cover rounded-lg" />
                   ) : (
-                    <div className="w-full aspect-[16/9] rounded-lg bg-[color:var(--x-inset)] border border-dashed border-[color:var(--x-border-strong)] flex items-center justify-center">
+                    <div className="w-full aspect-[64/27] rounded-lg bg-[color:var(--x-inset)] border border-dashed border-[color:var(--x-border-strong)] flex items-center justify-center">
                       <span className="text-xs text-[color:var(--x-text-muted)]">画像未設定</span>
                     </div>
                   )}
