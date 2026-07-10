@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import type { XProfile } from './xProfile';
 import type { XPost, FeedItem } from './xPosts';
@@ -14,6 +14,60 @@ import { XFollowRows } from './XFollowRows';
 import { VerifiedBadge } from './VerifiedBadge';
 import { useXEngagement } from './useXEngagement';
 import type { FollowUser } from './xFollows';
+
+// SSR警告回避: クライアントのみ useLayoutEffect（描画前測定＝チラつき防止）。RecommendedSalonBannerSlider と同じ手法。
+const useIsomorphicLayoutEffect = typeof window !== 'undefined' ? useLayoutEffect : useEffect;
+
+// お店タブのお店名1行自動縮小フィット（本体サイトの AutoFitSalonName の小型版）。
+// 収まらないときだけ MAX→MIN で fontSize を段階縮小し全文1行表示。MIN でも溢れる超長名のみ末尾省略(…)。
+const SHOP_NAME_MAX = 16; // 現行 font-bold text-base 相当＝収まる店名は今と同じ見た目
+const SHOP_NAME_MIN = 11;
+const SHOP_NAME_STEP = 0.5;
+
+// 認証バッジは店名の直後に置きたいので component 内に持ち、flex子のテキストだけを縮める。
+// テキストは min-w-0 の flex 子＝溢れると clientWidth が利用可能幅で頭打ちになるため、
+// scrollWidth > clientWidth の間だけ縮小すれば「バッジ分を除いた実効幅」に自動フィットする。
+function AutoFitShopName({ name, verified }: { name: string; verified: boolean }) {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const textRef = useRef<HTMLSpanElement>(null);
+  const [size, setSize] = useState(SHOP_NAME_MAX);
+
+  useIsomorphicLayoutEffect(() => {
+    const c = containerRef.current;
+    const t = textRef.current;
+    if (!c || !t) return;
+    const fit = () => {
+      let s = SHOP_NAME_MAX;
+      t.style.fontSize = `${s}px`;
+      while (t.scrollWidth > t.clientWidth && s > SHOP_NAME_MIN) {
+        s = Math.max(SHOP_NAME_MIN, s - SHOP_NAME_STEP);
+        t.style.fontSize = `${s}px`;
+      }
+      setSize(s);
+    };
+    fit();
+    const ro = new ResizeObserver(fit);
+    ro.observe(c);
+    return () => ro.disconnect();
+  }, [name, verified]);
+
+  return (
+    <div ref={containerRef} className="flex-1 min-w-0 flex items-center gap-1">
+      <span
+        ref={textRef}
+        className="min-w-0 whitespace-nowrap font-bold text-[color:var(--x-text-primary)]"
+        style={{ fontSize: `${size}px`, overflow: 'hidden', textOverflow: 'ellipsis' }}
+      >
+        {name}
+      </span>
+      {verified && (
+        <span className="flex-shrink-0">
+          <VerifiedBadge kind="shop" />
+        </span>
+      )}
+    </div>
+  );
+}
 
 export function XTimeline({
   me,
@@ -173,6 +227,7 @@ export function XTimeline({
                 href={`/x/u/${encodeURIComponent(s.handle)}`}
                 className="block rounded-2xl bg-[color:var(--x-surface)] shadow-sm border border-[color:var(--x-border)] p-2.5 hover:shadow-md transition-shadow"
               >
+                {/* 店名は1行自動縮小フィット（AutoFitShopName）・@ID は非表示（2026-07-10 変更）。バッジは縮めない。 */}
                 <div className="flex items-center gap-2 mb-1">
                   <span className="w-8 h-8 rounded-full overflow-hidden border border-white shadow-sm bg-gradient-to-br from-indigo-300 to-sky-300 flex items-center justify-center flex-shrink-0">
                     {s.avatarUrl ? (
@@ -182,9 +237,7 @@ export function XTimeline({
                       <span className="text-white font-bold text-sm">{s.displayName.charAt(0) || '?'}</span>
                     )}
                   </span>
-                  <span className="font-bold text-[color:var(--x-text-primary)]">{s.displayName}</span>
-                  {s.isVerified && <VerifiedBadge kind="shop" />}
-                  <span className="text-xs text-[color:var(--x-text-muted)]">@{s.handle}</span>
+                  <AutoFitShopName name={s.displayName} verified={s.isVerified} />
                 </div>
                 {/* 地域（x_profiles.address）。空なら行ごと非表示。 */}
                 {s.address && (
