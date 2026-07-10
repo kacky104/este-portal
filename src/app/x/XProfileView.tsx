@@ -1,8 +1,11 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import type { XProfile } from './xProfile';
+import type { StoryGroup } from './xStories';
+import { XStoryViewer } from './XStoryViewer';
+import { getSeenMap, isGroupSeen } from './xStoriesShared';
 import type { XPost, FeedItem } from './xPosts';
 import type { ShopMini, TherapistMini } from './xAffiliation';
 import { XPostCard } from './XPostCard';
@@ -26,6 +29,7 @@ const KIND_LABEL: Record<string, string> = {
 
 export function XProfileView({
   target,
+  storyGroup,
   viewerProfile,
   loggedIn,
   isOwnProfile,
@@ -43,6 +47,7 @@ export function XProfileView({
   scheduleTherapistId,
 }: {
   target: XProfile;
+  storyGroup: StoryGroup | null; // target の未失効ストーリー（あればアバターにリング＋タップでビューア）
   viewerProfile: XProfile | null;
   loggedIn: boolean;
   isOwnProfile: boolean;
@@ -62,6 +67,13 @@ export function XProfileView({
   const [toast, setToast] = useState('');
   const [gateOpen, setGateOpen] = useState(false); // 未ログイン／未開設アクション時のモーダル
   const [lightboxSrc, setLightboxSrc] = useState<string | null>(null); // avatar/header の全体表示
+  // ストーリーリング: 既読状態は localStorage 依存＝マウント後に読む（SSR不一致回避）。
+  const [storyOpen, setStoryOpen] = useState(false);
+  const [storySeenMap, setStorySeenMap] = useState<Record<string, string>>({});
+  useEffect(() => {
+    setStorySeenMap(getSeenMap());
+  }, []);
+  const storySeen = storyGroup ? isGroupSeen(storyGroup, storySeenMap) : true;
   const showToast = (msg: string) => {
     setToast(msg);
     window.setTimeout(() => setToast(''), 2600);
@@ -118,19 +130,38 @@ export function XProfileView({
 
         <div className="px-4 pb-4">
           <div className="flex items-end justify-between -mt-9">
-            <span className="relative w-20 h-20 rounded-full overflow-hidden border-4 border-white shadow-sm bg-gradient-to-br from-indigo-300 to-sky-300 flex items-center justify-center">
-              {target.avatar_url ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img
-                  src={target.avatar_url}
-                  alt={target.display_name}
-                  onClick={() => setLightboxSrc(target.avatar_url)}
-                  className="w-full h-full object-cover cursor-pointer"
+            {storyGroup ? (
+              /* ストーリーあり: リング（未読はグラデ回転・既読はグレー）＋タップでビューア */
+              <button type="button" onClick={() => setStoryOpen(true)} aria-label="ストーリーを見る" className="relative w-20 h-20 flex-shrink-0">
+                <span
+                  className={`absolute inset-0 rounded-full ${storySeen ? '' : 'x-story-ring'}`}
+                  style={storySeen ? { background: 'var(--x-border-strong)' } : undefined}
                 />
-              ) : (
-                <span className="text-white font-bold text-2xl">{target.display_name.charAt(0) || '?'}</span>
-              )}
-            </span>
+                <span className="absolute inset-[3px] rounded-full overflow-hidden border-2 border-white shadow-sm bg-gradient-to-br from-indigo-300 to-sky-300 flex items-center justify-center">
+                  {target.avatar_url ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={target.avatar_url} alt={target.display_name} className="w-full h-full object-cover" />
+                  ) : (
+                    <span className="text-white font-bold text-2xl">{target.display_name.charAt(0) || '?'}</span>
+                  )}
+                </span>
+              </button>
+            ) : (
+              /* ストーリーなし: 従来どおり（タップでアバター全体表示） */
+              <span className="relative w-20 h-20 rounded-full overflow-hidden border-4 border-white shadow-sm bg-gradient-to-br from-indigo-300 to-sky-300 flex items-center justify-center">
+                {target.avatar_url ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={target.avatar_url}
+                    alt={target.display_name}
+                    onClick={() => setLightboxSrc(target.avatar_url)}
+                    className="w-full h-full object-cover cursor-pointer"
+                  />
+                ) : (
+                  <span className="text-white font-bold text-2xl">{target.display_name.charAt(0) || '?'}</span>
+                )}
+              </span>
+            )}
 
             <div className="mb-1 flex flex-nowrap items-center gap-2">
               {isOwnProfile ? (
@@ -364,6 +395,19 @@ export function XProfileView({
 
       {/* avatar / header の全体表示ライトボックス */}
       <XImageLightbox src={lightboxSrc} alt={target.display_name} onClose={() => setLightboxSrc(null)} />
+
+      {/* アバターのストーリーリングから開くビューア（このプロフィールの1グループのみ） */}
+      {storyOpen && storyGroup && (
+        <XStoryViewer
+          groups={[storyGroup]}
+          startGroupIndex={0}
+          myProfileId={viewerProfile?.id ?? ''}
+          onClose={() => {
+            setStoryOpen(false);
+            setStorySeenMap(getSeenMap());
+          }}
+        />
+      )}
 
       {/* 右下の投稿FAB（閲覧者が therapist/shop かつ approved のときのみ）。
           プロフィール投稿一覧へのリアルタイム反映はせず、成功トーストのみ（リロードで反映）。 */}

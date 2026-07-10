@@ -20,6 +20,7 @@ import {
 } from '../../xAffiliation';
 import { XProfileView } from '../../XProfileView';
 import { getLinkedTherapistForXProfile } from '@/app/lib/xLink';
+import type { StoryGroup } from '../../xStories';
 
 // 閲覧者のログイン状態でフォロー状態が変わるため動的レンダリング。
 export const dynamic = 'force-dynamic';
@@ -178,7 +179,7 @@ export default async function XProfilePage({ params }: { params: Promise<{ handl
   // 所属情報：therapist は所属先店舗（1件）、shop は所属セラピスト一覧を解決。
   // linkedTherapist：セラピストなら紐づく本体 therapist を解決（出勤スケジュールブロック用）。
   // therapist id 自体は日付非依存なのでサーバー解決でISRに焼いてよい（日付依存の取得・表示は子のクライアント側）。
-  const [affiliatedShop, affiliatedTherapists, linkedTherapist] = await Promise.all([
+  const [affiliatedShop, affiliatedTherapists, linkedTherapist, storyRes] = await Promise.all([
     target.kind === 'therapist'
       ? fetchShopMini(supabase, t.affiliated_shop_id)
       : Promise.resolve(null),
@@ -190,8 +191,38 @@ export default async function XProfilePage({ params }: { params: Promise<{ handl
     target.kind === 'therapist' && t.affiliated_shop_id
       ? getLinkedTherapistForXProfile(target.auth_user_id)
       : Promise.resolve(null),
+    // target の未失効ストーリー（アバターのストーリーリング用）。閲覧はログイン必須＝RLSにより未ログインは常に0件。
+    supabase
+      .from('x_stories')
+      .select('id, image_url, caption, created_at')
+      .eq('author_profile_id', target.id)
+      .gt('expires_at', new Date().toISOString())
+      .order('created_at', { ascending: true }),
   ]);
   const scheduleTherapistId = linkedTherapist?.id ?? null; // 紐づく therapist が無ければ null＝ブロック非表示
+
+  // ストーリーが無ければ null＝アバターは従来表示（リングなし・タップで全体表示）。
+  const storyRows = (storyRes.data ?? []) as Array<{ id: number | string; image_url: string; caption: string | null; created_at: string }>;
+  const storyGroup: StoryGroup | null =
+    storyRows.length > 0
+      ? {
+          author: {
+            id: target.id,
+            handle: target.handle,
+            displayName: target.display_name,
+            avatarUrl: target.avatar_url,
+            kind: target.kind,
+            isVerified: target.is_verified,
+          },
+          stories: storyRows.map((s) => ({
+            id: String(s.id),
+            imageUrl: s.image_url,
+            caption: s.caption ?? null,
+            createdAt: s.created_at,
+          })),
+          latestAt: storyRows[storyRows.length - 1].created_at,
+        }
+      : null;
 
   // 投稿は全て target が投稿主なので辞書引き不要（author を直接付与）。
   // target が所属ありセラピストなら、本人の投稿カードにも所属バッジが出るよう author に付与。
@@ -269,6 +300,7 @@ export default async function XProfilePage({ params }: { params: Promise<{ handl
   return (
     <XProfileView
       target={target}
+      storyGroup={storyGroup}
       viewerProfile={viewer.profile}
       loggedIn={!!viewer.userId}
       isOwnProfile={isOwnProfile}
