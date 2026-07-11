@@ -9,6 +9,7 @@ import { XImageCropModal } from '../XImageCropModal';
 import { normalizeLinkUrl } from '../xLink';
 import { searchXPostsByDate } from '@/app/actions/xAdminSearch';
 import { STORAGE_CACHE_CONTROL } from '@/app/lib/storage';
+import { BANNER_SITE_SHORT } from '../banner/bannerSites';
 
 const supabase = createClient();
 
@@ -42,6 +43,19 @@ export type ModProfile = {
 
 const KIND_LABEL: Record<string, string> = { user: 'ユーザー', therapist: 'セラピスト', shop: 'お店', official: '運営' };
 
+// リンクバナー設置報告（banner_reports）。/x/banner/report から送信され、ここで未対応/対応済みを管理する。
+export type BannerReportRow = {
+  id: string;
+  salon_name: string;
+  email: string;
+  sites: string[]; // 'fukux' | 'fukues' | 'work'
+  page_url: string;
+  x_handle: string | null;
+  comment: string | null;
+  status: 'open' | 'done';
+  created_at: string;
+};
+
 // タイムラインバナー（5枠固定・64:27=1280×540＝16:9の縦3/4）。行が存在する枠だけタイムラインに表示される。
 export type BannerRow = { slot: number; image_url: string; link_url: string | null };
 const BANNER_SLOTS = [1, 2, 3, 4, 5] as const;
@@ -68,6 +82,7 @@ export function XAdmin({
   profiles: initialProfiles,
   emails,
   banners: initialBanners,
+  reports: initialReports,
   myAuthId,
 }: {
   shops: ShopRow[];
@@ -75,9 +90,11 @@ export function XAdmin({
   profiles: ModProfile[];
   emails: Record<string, string>; // profile.id → ログインメール（運営のみ・/x/admin 限定で表示）
   banners: BannerRow[]; // タイムラインバナー（設定済みの枠のみ）
+  reports: BannerReportRow[]; // リンクバナー設置報告（未対応が先・新着順）
   myAuthId: string; // 運営の auth uid（x-images のアップロード先フォルダ＝RLSが先頭フォルダ一致を要求）
 }) {
-  const [tab, setTab] = useState<'verify' | 'accounts' | 'posts' | 'banners'>('verify');
+  const [tab, setTab] = useState<'verify' | 'accounts' | 'posts' | 'banners' | 'reports'>('verify');
+  const [reports, setReports] = useState(initialReports);
   const [shops, setShops] = useState(initialShops);
   const [posts, setPosts] = useState(initialPosts);
   const [profiles, setProfiles] = useState(initialProfiles);
@@ -140,6 +157,20 @@ export function XAdmin({
     }
     setShops((list) => list.map((s) => (s.id === id ? { ...s, banner_installed: value } : s)));
     showToast(value ? 'バナー設置済みにしました（カード画像+4枚）' : 'バナー設置を解除しました');
+  };
+
+  // 設置報告の対応済み/未対応切り替え（banner_reports.status。RLSでADMIN_UUIDのみ更新可）。
+  const setReportStatus = async (id: string, status: 'open' | 'done') => {
+    if (busy) return;
+    setBusy(id);
+    const { error } = await supabase.from('banner_reports').update({ status }).eq('id', id);
+    setBusy(null);
+    if (error) {
+      showToast(`更新に失敗しました：${error.message}`);
+      return;
+    }
+    setReports((list) => list.map((r) => (r.id === id ? { ...r, status } : r)));
+    showToast(status === 'done' ? '対応済みにしました' : '未対応に戻しました');
   };
 
   // BAN(凍結)/解除：status を 'rejected' / 'approved' に。全 kind 対象。
@@ -310,6 +341,7 @@ export function XAdmin({
             ['accounts', 'アカウント'],
             ['posts', '投稿'],
             ['banners', 'バナー'],
+            ['reports', '報告'],
           ] as const
         ).map(([key, label]) => (
           <button
@@ -612,6 +644,84 @@ export function XAdmin({
                 </div>
               );
             })}
+          </div>
+        </div>
+      )}
+
+      {/* ── リンクバナー設置報告（/x/banner/report からの送信一覧・未対応が先） ── */}
+      {tab === 'reports' && (
+        <div>
+          <p className="text-xs text-[color:var(--x-text-muted)] mb-4 leading-relaxed">
+            リンクバナー設置報告の一覧です。設置ページを確認したら、fukuXのお店は「認証」タブで「バナー設置✓」（カード画像+4枚）を行い、
+            ご記入のメールアドレスへ連絡のうえ「対応済み」にしてください。
+          </p>
+          <div className="space-y-2">
+            {reports.length === 0 ? (
+              <p className="text-center text-sm text-[color:var(--x-text-muted)] py-12">報告はまだありません</p>
+            ) : (
+              reports.map((r) => (
+                <div
+                  key={r.id}
+                  className={`border rounded-2xl p-3 ${
+                    r.status === 'open' ? 'border-indigo-300' : 'border-[color:var(--x-border-strong)] opacity-70'
+                  }`}
+                >
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    <span className="font-bold text-sm text-[color:var(--x-text-primary)]">{r.salon_name}</span>
+                    {r.sites.map((s) => (
+                      <span key={s} className="text-[10px] font-bold text-indigo-500 bg-indigo-50 rounded-full px-1.5 py-0.5">
+                        {BANNER_SITE_SHORT[s] ?? s}
+                      </span>
+                    ))}
+                    <span
+                      className={`text-[10px] font-bold rounded-full px-1.5 py-0.5 ${
+                        r.status === 'open' ? 'text-amber-700 bg-amber-100' : 'text-emerald-600 bg-emerald-50'
+                      }`}
+                    >
+                      {r.status === 'open' ? '未対応' : '対応済み'}
+                    </span>
+                    <span className="text-[10px] text-[color:var(--x-text-muted)] ml-auto">
+                      <XTimeAgo iso={r.created_at} />
+                    </span>
+                  </div>
+                  <div className="mt-1.5 space-y-0.5 text-xs text-[color:var(--x-text-secondary)] break-all">
+                    <p>
+                      設置ページ:{' '}
+                      <a href={r.page_url} target="_blank" rel="noopener noreferrer" className="text-[color:var(--x-accent)] hover:underline">
+                        {r.page_url}
+                      </a>
+                    </p>
+                    <p>
+                      連絡先: <a href={`mailto:${r.email}`} className="text-[color:var(--x-accent)] hover:underline">{r.email}</a>
+                    </p>
+                    {r.x_handle && (
+                      <p>
+                        fukuX:{' '}
+                        <Link href={`/x/u/${encodeURIComponent(r.x_handle)}`} className="text-[color:var(--x-accent)] hover:underline">
+                          @{r.x_handle}
+                        </Link>
+                      </p>
+                    )}
+                    {r.comment && <p className="whitespace-pre-wrap break-words">補足: {r.comment}</p>}
+                  </div>
+                  <div className="mt-2">
+                    <button
+                      type="button"
+                      onClick={() => setReportStatus(r.id, r.status === 'open' ? 'done' : 'open')}
+                      disabled={busy === r.id}
+                      className={`text-xs font-bold px-3 py-1.5 rounded-lg transition-colors disabled:opacity-50 ${
+                        r.status === 'open'
+                          ? 'text-white'
+                          : 'border border-[color:var(--x-border-strong)] text-[color:var(--x-text-secondary)] hover:border-amber-300 hover:text-amber-600'
+                      }`}
+                      style={r.status === 'open' ? { background: 'linear-gradient(100deg,#10B981,#34D399)' } : undefined}
+                    >
+                      {r.status === 'open' ? '対応済みにする' : '未対応に戻す'}
+                    </button>
+                  </div>
+                </div>
+              ))
+            )}
           </div>
         </div>
       )}

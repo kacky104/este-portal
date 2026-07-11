@@ -1,4 +1,5 @@
 /* eslint-disable @next/next/no-img-element */
+import Link from 'next/link';
 import type { Metadata } from 'next';
 import { XBannerTagCode } from './XBannerTagCode';
 
@@ -54,6 +55,18 @@ export default function XBannerPage() {
           <XBannerTagCode tag={bannerTag(file)} />
         </section>
       ))}
+
+      <h2 className={H2}>設置後のご報告（特典）</h2>
+      <p className={P}>
+        バナーを設置いただいたサロン様には特典をご用意しています（fukuXはタイムライン「お店」タブのカード画像を4枚追加）。設置後、下記フォームからご報告ください。運営が確認のうえ開放します。
+      </p>
+      <Link
+        href="/x/banner/report"
+        className="inline-block mt-3 px-5 py-2.5 rounded-full text-sm font-bold text-white active:scale-[0.98] transition"
+        style={{ background: 'linear-gradient(100deg,#6366F1,#8B5CF6)' }}
+      >
+        設置を報告する →
+      </Link>
 
       <h2 className={H2}>ご利用にあたって</h2>
       <ul className={UL}>

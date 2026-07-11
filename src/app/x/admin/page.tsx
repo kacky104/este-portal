@@ -2,7 +2,7 @@ import { notFound } from 'next/navigation';
 import { createClient } from '@/app/lib/supabase/server';
 import { ADMIN_UUID } from '@/app/lib/admin';
 import { getXAccountEmails } from '@/app/actions/xAdmin';
-import { XAdmin, type ShopRow, type ModPost, type ModProfile } from './XAdmin';
+import { XAdmin, type ShopRow, type ModPost, type ModProfile, type BannerReportRow } from './XAdmin';
 
 export const dynamic = 'force-dynamic';
 
@@ -19,7 +19,7 @@ export default async function XAdminPage() {
   if (!user || user.id !== ADMIN_UUID) notFound();
 
   // 認証バッジ管理用の店舗一覧・最近の投稿・最近のプロフィール（BAN/削除用）・バナー設定をまとめて取得。
-  const [shopRes, postRes, profRes, bannerRes] = await Promise.all([
+  const [shopRes, postRes, profRes, bannerRes, reportRes] = await Promise.all([
     supabase
       .from('x_profiles')
       .select('id, handle, display_name, avatar_url, is_verified, banner_installed, status, created_at')
@@ -37,6 +37,13 @@ export default async function XAdminPage() {
       .order('created_at', { ascending: false })
       .limit(50),
     supabase.from('x_banners').select('slot, image_url, link_url').order('slot', { ascending: true }),
+    // リンクバナー設置報告（RLSでADMIN_UUIDのみ閲覧可）。未対応を上に・新着順。
+    supabase
+      .from('banner_reports')
+      .select('id, salon_name, email, sites, page_url, x_handle, comment, status, created_at')
+      .order('status', { ascending: false }) // 'open' > 'done'（文字列降順で open が先）
+      .order('created_at', { ascending: false })
+      .limit(200),
   ]);
 
   const shops = (shopRes.data ?? []) as ShopRow[];
@@ -100,5 +107,9 @@ export default async function XAdminPage() {
     (b) => ({ slot: Number(b.slot), image_url: b.image_url, link_url: b.link_url ?? null })
   );
 
-  return <XAdmin shops={shops} posts={posts} profiles={profiles} emails={emails} banners={banners} myAuthId={user.id} />;
+  const reports = (reportRes.data ?? []) as BannerReportRow[];
+
+  return (
+    <XAdmin shops={shops} posts={posts} profiles={profiles} emails={emails} banners={banners} reports={reports} myAuthId={user.id} />
+  );
 }
