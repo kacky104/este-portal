@@ -352,6 +352,14 @@ export function XHeader() {
               >
                 プライバシーポリシー
               </Link>
+              <span className="text-[color:var(--x-text-muted)]">･</span>
+              <Link
+                href="/x/banner"
+                onClick={() => setOpen(false)}
+                className="text-[color:var(--x-text-muted)] hover:underline"
+              >
+                リンクバナー
+              </Link>
             </div>
           </nav>
         </aside>

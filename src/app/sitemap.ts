@@ -136,6 +136,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     // ポリシー類（fukuX特則）。本体 /terms・/privacy と同じ扱い（yearly・低priority）。
     { url: `${SITE_URL}/x/terms`, lastModified: now, changeFrequency: 'yearly', priority: 0.3 },
     { url: `${SITE_URL}/x/privacy`, lastModified: now, changeFrequency: 'yearly', priority: 0.3 },
+    { url: `${SITE_URL}/x/banner`, lastModified: now, changeFrequency: 'yearly', priority: 0.3 },
   ];
 
   const xProfileEntries: MetadataRoute.Sitemap = (xProfilesRes.data ?? []).map((p) => ({
