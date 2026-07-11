@@ -605,7 +605,7 @@ export function XSettingsForm({
               </label>
             )}
           </div>
-          <p className="text-[10px] text-[color:var(--x-text-muted)] mt-1.5 px-1">JPEG・PNG・WebP・5MB以下。1枚以上設定すると「お店」タブのカードに画像が表示されます。</p>
+          <p className="text-[10px] text-[color:var(--x-text-muted)] mt-1.5 px-1">JPEG・PNG・WebP・5MB以下。</p>
         </div>
       )}
 
