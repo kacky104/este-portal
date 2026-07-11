@@ -36,7 +36,8 @@ export function SalonIntakeForm({ token }: { token: string }) {
   const [error, setError] = useState('');
 
   const canSubmit =
-    salonName.trim() !== '' && address.trim() !== '' && contactName.trim() !== '' && contactEmail.trim() !== '' &&
+    salonName.trim() !== '' && area !== '' && dispatch !== '' && address.trim() !== '' &&
+    contactName.trim() !== '' && contactEmail.trim() !== '' &&
     !sending;
 
   const submit = async (e: React.FormEvent) => {
@@ -76,7 +77,7 @@ export function SalonIntakeForm({ token }: { token: string }) {
         </div>
 
         <div>
-          <label className={LABEL}>エリア</label>
+          <label className={LABEL}>エリア{REQ}</label>
           <select value={area} onChange={(e) => setArea(e.target.value)} className={INPUT}>
             <option value="">選択してください</option>
             {AREA_CHOICES.map((a) => (
@@ -86,7 +87,7 @@ export function SalonIntakeForm({ token }: { token: string }) {
           <p className="text-[10px] text-slate-400 mt-1">第2エリアも掲載したい場合は別途お問い合わせください。</p>
         </div>
         <div>
-          <label className={LABEL}>出張の有無</label>
+          <label className={LABEL}>出張の有無{REQ}</label>
           <select value={dispatch} onChange={(e) => setDispatch(e.target.value)} className={INPUT}>
             <option value="">選択してください</option>
             <option value="なし">なし</option>

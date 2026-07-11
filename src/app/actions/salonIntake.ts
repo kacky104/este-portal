@@ -102,6 +102,8 @@ export async function submitSalonIntake(
   const contactEmail = v(input.contactEmail, 254);
 
   if (!salonName) return { ok: false, error: '店舗名を入力してください' };
+  if (!input.area.trim()) return { ok: false, error: 'エリアを選択してください' };
+  if (!input.dispatch.trim()) return { ok: false, error: '出張の有無を選択してください' };
   if (!address) return { ok: false, error: '住所を入力してください' };
   if (!contactName) return { ok: false, error: 'ご担当者名を入力してください' };
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(contactEmail)) return { ok: false, error: 'メールアドレスの形式が正しくありません' };
