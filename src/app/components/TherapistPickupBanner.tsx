@@ -62,7 +62,26 @@ export function TherapistPickupBanner({ banners }: { banners: Banner[] }) {
 
   const picked = banners[idx] ?? banners[0];
 
-  const img = (
+  // スマホ用画像（mobile_image_url）が設定されていれば sm 未満はそれ・sm 以上はPC用を表示
+  // （AreaBrowse の sp/pc 出し分けと同じ流儀）。未設定なら従来どおりPC用1枚を全幅で表示。
+  const img = picked.mobileImageUrl ? (
+    <>
+      <Image
+        src={picked.mobileImageUrl}
+        alt={picked.altText}
+        fill
+        className="object-cover sm:hidden"
+        sizes="100vw"
+      />
+      <Image
+        src={picked.imageUrl}
+        alt={picked.altText}
+        fill
+        className="object-cover hidden sm:block"
+        sizes="1024px"
+      />
+    </>
+  ) : (
     <Image
       src={picked.imageUrl}
       alt={picked.altText}

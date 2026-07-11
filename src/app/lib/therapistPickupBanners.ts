@@ -10,7 +10,8 @@ import { createPublicClient } from '@/app/lib/supabase/public';
 // ※ therapists.id は integer。
 export type TherapistPickupBanner = {
   id: string;
-  imageUrl: string;   // admin アップロード画像
+  imageUrl: string;   // admin アップロード画像（PC用）
+  mobileImageUrl: string | null; // スマホ用画像（任意）。未設定は imageUrl をスマホでも表示。
   altText: string;
   linkUrl: string | null;       // 手動入力のリンク先URL（相対 /... または https:// 絶対）。優先。
   therapistId: number | null;   // 旧運用の紐づけ（link_url が無いときのフォールバック元）
@@ -22,7 +23,7 @@ export async function fetchActiveTherapistPickupBanners(): Promise<TherapistPick
 
   const { data: bannerRows } = await supabase
     .from('therapist_pickup_banners')
-    .select('id, image_url, alt_text, therapist_id, link_url, display_order')
+    .select('id, image_url, mobile_image_url, alt_text, therapist_id, link_url, display_order')
     .eq('is_active', true)
     .order('display_order', { ascending: true });
 
@@ -31,6 +32,7 @@ export async function fetchActiveTherapistPickupBanners(): Promise<TherapistPick
     .map((r) => ({
       id: String(r.id),
       imageUrl: (r.image_url as string | null) ?? '',
+      mobileImageUrl: ((r.mobile_image_url as string | null) ?? '').trim() || null,
       altText: (r.alt_text as string | null) ?? '',
       linkUrl: ((r.link_url as string | null) ?? '').trim() || null,
       therapistId: r.therapist_id != null ? Number(r.therapist_id) : null,
@@ -57,6 +59,7 @@ export async function fetchActiveTherapistPickupBanners(): Promise<TherapistPick
   return banners.map((b) => ({
     id: b.id,
     imageUrl: b.imageUrl,
+    mobileImageUrl: b.mobileImageUrl,
     altText: b.altText,
     linkUrl: b.linkUrl,
     therapistId: b.therapistId,

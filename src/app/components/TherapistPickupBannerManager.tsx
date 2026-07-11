@@ -19,6 +19,7 @@ const MAX_BANNERS = 10;
 type Banner = {
   id: string;
   image_url: string;
+  mobile_image_url: string | null; // スマホ用（任意）。未設定はスマホでも image_url を表示。
   alt_text: string | null;
   link_url: string | null;
   display_order: number;
@@ -57,6 +58,9 @@ export default function TherapistPickupBannerManager({
   const addInputRef = useRef<HTMLInputElement>(null);
   const replaceInputRef = useRef<HTMLInputElement>(null);
   const replaceTargetId = useRef<string | null>(null);
+  // スマホ用画像の設定/差し替え用（PC用と同じ「hidden input＋対象id」方式）。
+  const mobileInputRef = useRef<HTMLInputElement>(null);
+  const mobileTargetId = useRef<string | null>(null);
 
   const atLimit = items.length >= MAX_BANNERS;
 
@@ -64,7 +68,7 @@ export default function TherapistPickupBannerManager({
     setLoading(true);
     const { data, error } = await supabase
       .from('therapist_pickup_banners')
-      .select('id, image_url, alt_text, link_url, display_order, is_active')
+      .select('id, image_url, mobile_image_url, alt_text, link_url, display_order, is_active')
       .order('display_order', { ascending: true });
     if (error) {
       setErrorMsg('therapist_pickup_banners テーブルの読み込みに失敗しました。マイグレーションを確認してください。');
@@ -161,6 +165,64 @@ export default function TherapistPickupBannerManager({
     onToast('画像を差し替えました');
   };
 
+  // スマホ用画像の設定/差し替え：`{id}/sp-{timestamp}.{ext}` にアップロード → DB更新成功後に旧SPファイルを掃除。
+  const triggerMobile = (id: string) => { mobileTargetId.current = id; mobileInputRef.current?.click(); };
+  const handleMobileReplace = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    const id = mobileTargetId.current;
+    e.target.value = '';
+    mobileTargetId.current = null;
+    if (!file || !id) return;
+    const err = validateImageFile(file);
+    if (err) { onToast(err); return; }
+    const target = items.find((b) => b.id === id);
+    if (!target) return;
+    setBusy(true);
+    const ext = file.name.split('.').pop()?.toLowerCase() ?? 'jpg';
+    const path = `${id}/sp-${Date.now()}.${ext}`;
+    const { error: upErr } = await supabase.storage
+      .from(BUCKET)
+      .upload(path, file, { contentType: file.type, cacheControl: STORAGE_CACHE_CONTROL });
+    if (upErr) { onToast(`アップロードに失敗しました: ${upErr.message}`); setBusy(false); return; }
+    const { data: { publicUrl } } = supabase.storage.from(BUCKET).getPublicUrl(path);
+    const { error: dbErr } = await supabase
+      .from('therapist_pickup_banners')
+      .update({ mobile_image_url: publicUrl, updated_at: new Date().toISOString() })
+      .eq('id', id);
+    if (dbErr) { onToast(`保存に失敗しました: ${dbErr.message}`); setBusy(false); return; }
+    const oldPath = storagePathFromUrl(target.mobile_image_url);
+    if (oldPath && oldPath !== path) {
+      const { error: rmErr } = await supabase.storage.from(BUCKET).remove([oldPath]);
+      if (rmErr) console.error('[TherapistPickupBanner] 旧スマホ用画像の削除に失敗:', oldPath, rmErr);
+    }
+    setBusy(false);
+    await revalidateTopAndAreas();
+    await fetchList();
+    onToast('スマホ用画像を設定しました');
+  };
+
+  // スマホ用画像の解除：DBを null に → Storage ファイルを掃除（スマホは PC 用画像の表示に戻る）。
+  const handleMobileDelete = async (id: string) => {
+    const target = items.find((b) => b.id === id);
+    if (!target?.mobile_image_url) return;
+    if (!window.confirm('スマホ用画像を削除しますか？\nスマホではPC用画像の表示に戻ります。')) return;
+    setBusy(true);
+    const { error } = await supabase
+      .from('therapist_pickup_banners')
+      .update({ mobile_image_url: null, updated_at: new Date().toISOString() })
+      .eq('id', id);
+    setBusy(false);
+    if (error) { onToast(`削除に失敗しました: ${error.message}`); return; }
+    const oldPath = storagePathFromUrl(target.mobile_image_url);
+    if (oldPath) {
+      const { error: rmErr } = await supabase.storage.from(BUCKET).remove([oldPath]);
+      if (rmErr) console.error('[TherapistPickupBanner] スマホ用画像の削除に失敗:', oldPath, rmErr);
+    }
+    setItems((prev) => prev.map((b) => (b.id === id ? { ...b, mobile_image_url: null } : b)));
+    await revalidateTopAndAreas();
+    onToast('スマホ用画像を削除しました');
+  };
+
   // リンク先URLを保存（該当行のみ更新）。空欄は null（リンクなし）。
   const handleSaveLink = async (id: string) => {
     const link = (linkDrafts[id] ?? '').trim() || null;
@@ -242,10 +304,12 @@ export default function TherapistPickupBannerManager({
       onToast('削除できませんでした（権限エラーの可能性があります）');
       return;
     }
-    const oldPath = storagePathFromUrl(target?.image_url ?? null);
-    if (oldPath) {
-      const { error: rmErr } = await supabase.storage.from(BUCKET).remove([oldPath]);
-      if (rmErr) console.error('[TherapistPickupBanner] 削除に伴う画像の削除に失敗:', oldPath, rmErr);
+    // PC用・スマホ用の両ファイルを掃除。
+    const oldPaths = [storagePathFromUrl(target?.image_url ?? null), storagePathFromUrl(target?.mobile_image_url ?? null)]
+      .filter((p): p is string => !!p);
+    if (oldPaths.length > 0) {
+      const { error: rmErr } = await supabase.storage.from(BUCKET).remove(oldPaths);
+      if (rmErr) console.error('[TherapistPickupBanner] 削除に伴う画像の削除に失敗:', oldPaths, rmErr);
     }
     setItems((prev) => prev.filter((b) => b.id !== id));
     await revalidateTopAndAreas();
@@ -260,12 +324,16 @@ export default function TherapistPickupBannerManager({
         <p className="text-[11px] text-slate-400 leading-relaxed">
           トップ＋全エリアページのサロン一覧（20枚目直下）に、横長バナー画像1枚を表示します（公開中からランダム1枚・リロードで入れ替わり）。リンク先URLを設定するとクリックでそこへ移動します。最大{MAX_BANNERS}枠。
         </p>
-        <span className="text-[10px] text-slate-400 flex-shrink-0 ml-3">推奨サイズ: 横1240×縦440px（約2.8:1・横長）。スマホでは左右が少しトリミングされるため、文字や顔は中央寄せの余裕あるデザインにしてください。</span>
+        <span className="text-[10px] text-slate-400 flex-shrink-0 ml-3">
+          推奨サイズ: PC用は横1240×縦440px（約2.8:1・横長）。スマホ用（任意）は横1000×縦400px（2.5:1）目安。
+          スマホ用を設定するとスマホではそちらが表示され、未設定ならPC用が左右トリミングで表示されます。文字や顔は中央寄せの余裕あるデザインにしてください。
+        </span>
       </div>
 
-      {/* hidden file inputs（追加／差し替え） */}
+      {/* hidden file inputs（追加／差し替え／スマホ用） */}
       <input ref={addInputRef} type="file" accept="image/jpeg,image/png,image/webp" className="hidden" onChange={handleAdd} />
       <input ref={replaceInputRef} type="file" accept="image/jpeg,image/png,image/webp" className="hidden" onChange={handleReplace} />
+      <input ref={mobileInputRef} type="file" accept="image/jpeg,image/png,image/webp" className="hidden" onChange={handleMobileReplace} />
 
       {/* 追加フォーム：リンク先URL（任意）→ 画像を選んで追加 */}
       <div className="flex gap-2 mb-2">
@@ -303,8 +371,9 @@ export default function TherapistPickupBannerManager({
           {items.map((b, i) => (
             <div key={b.id} className="rounded-2xl border border-slate-100 bg-slate-50/40 p-4">
               <div className="flex flex-wrap items-start gap-4">
-                {/* プレビュー（31:12＝表示の横長比率に合わせる。object-cover は中央基準） */}
+                {/* プレビュー（PC用31:12＋スマホ用）。object-cover は中央基準。 */}
                 <div className="flex-shrink-0">
+                  <p className="text-[9px] font-bold text-slate-400 mb-0.5">PC用</p>
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img
                     src={b.image_url}
@@ -315,6 +384,31 @@ export default function TherapistPickupBannerManager({
                     <button onClick={() => triggerReplace(b.id)} disabled={busy} className="text-[10px] font-semibold text-pink-600 hover:underline disabled:opacity-40">
                       画像を差し替え
                     </button>
+                  </div>
+
+                  {/* スマホ用（任意）。未設定はスマホでもPC用が表示される（トリミングあり）。 */}
+                  <p className="text-[9px] font-bold text-slate-400 mt-2 mb-0.5">スマホ用（任意）</p>
+                  {b.mobile_image_url ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={b.mobile_image_url}
+                      alt={`${b.alt_text ?? ''}（スマホ用）`}
+                      className="w-48 aspect-[5/2] object-cover rounded-lg border border-slate-200 bg-slate-100"
+                    />
+                  ) : (
+                    <div className="w-48 aspect-[5/2] rounded-lg border border-dashed border-slate-200 bg-slate-50 flex items-center justify-center">
+                      <span className="text-[10px] text-slate-400">未設定（PC用を表示）</span>
+                    </div>
+                  )}
+                  <div className="flex gap-2 mt-1">
+                    <button onClick={() => triggerMobile(b.id)} disabled={busy} className="text-[10px] font-semibold text-pink-600 hover:underline disabled:opacity-40">
+                      {b.mobile_image_url ? 'スマホ用を差し替え' : 'スマホ用を設定'}
+                    </button>
+                    {b.mobile_image_url && (
+                      <button onClick={() => handleMobileDelete(b.id)} disabled={busy} className="text-[10px] font-semibold text-rose-500 hover:underline disabled:opacity-40">
+                        スマホ用を削除
+                      </button>
+                    )}
                   </div>
                 </div>
 
