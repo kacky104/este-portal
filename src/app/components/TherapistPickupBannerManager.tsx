@@ -320,14 +320,14 @@ export default function TherapistPickupBannerManager({
 
   return (
     <div className="bg-white rounded-3xl border border-slate-100 shadow-sm p-6">
-      <div className="flex items-center justify-between mb-4">
+      <div className="mb-4 space-y-1">
         <p className="text-[11px] text-slate-400 leading-relaxed">
           トップ＋全エリアページのサロン一覧（20枚目直下）に、横長バナー画像1枚を表示します（公開中からランダム1枚・リロードで入れ替わり）。リンク先URLを設定するとクリックでそこへ移動します。最大{MAX_BANNERS}枠。
         </p>
-        <span className="text-[10px] text-slate-400 flex-shrink-0 ml-3">
+        <p className="text-[10px] text-slate-400 leading-relaxed">
           推奨サイズ: PC用は横1240×縦440px（約2.8:1・横長）。スマホ用（任意）は横1000×縦400px（2.5:1）目安。
           スマホ用を設定するとスマホではそちらが表示され、未設定ならPC用が左右トリミングで表示されます。文字や顔は中央寄せの余裕あるデザインにしてください。
-        </span>
+        </p>
       </div>
 
       {/* hidden file inputs（追加／差し替え／スマホ用） */}
