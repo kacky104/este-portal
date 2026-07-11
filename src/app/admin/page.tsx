@@ -12,6 +12,7 @@ import RecommendedSalonBannerManager from '@/app/components/RecommendedSalonBann
 import TherapistPickupBannerManager from '@/app/components/TherapistPickupBannerManager';
 import SalonEditModal, { type SalonForEdit } from '@/app/components/SalonEditModal';
 import ThemeWallpaperManager from '@/app/components/ThemeWallpaperManager';
+import SalonIntakeManager from '@/app/components/SalonIntakeManager';
 import AdminJobsManager from '@/app/components/AdminJobsManager';
 import FeaturedJobsManager from '@/app/components/FeaturedJobsManager';
 import AreaBannerManager from '@/app/components/AreaBannerManager';
@@ -394,6 +395,11 @@ export default function AdminDashboard() {
 
           <AccordionSection id="theme-wallpaper" title="テーマ壁紙設定" expanded={expandedSections} onToggle={toggleSection}>
             <ThemeWallpaperManager onToast={showToast} />
+          </AccordionSection>
+
+          {/* ── 新規店舗の初回情報入力フォーム（ワンタイムURL発行・入力内容の確認） ── */}
+          <AccordionSection id="salon-intakes" title="新規店舗 入力フォーム発行" expanded={expandedSections} onToggle={toggleSection}>
+            <SalonIntakeManager onToast={showToast} />
           </AccordionSection>
 
           {/* ── 新規サロン追加フォーム ── */}
