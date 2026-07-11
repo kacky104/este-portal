@@ -43,6 +43,9 @@ export default function XTherapistGuidePage() {
       <p className={P}>
         fukuX（フクエックス）は、福岡のメンズエステ専用SNSです。セラピストのあなたが投稿やストーリーでお客様とつながり、出勤情報やお店の情報を届けられます。利用は無料。このガイドでは、登録から日々の使い方までを順番に説明します。
       </p>
+      <p className={`${P} mt-2`}>
+        fukuXでは、運営に承認されたお店と、お店に所属しているセラピストを優遇して表示しています。<span className="font-bold text-[color:var(--x-text-primary)]">お店への所属が圧倒的に有利</span>です（くわしくはSTEP4）。
+      </p>
 
       <Step n={1} title="アカウントを登録する" />
       <ol className={OL}>
@@ -75,8 +78,11 @@ export default function XTherapistGuidePage() {
       </ul>
       <p className={NOTE}>※写真は自分に権利があるもの（お店から許可を得たもの）だけを使ってください。</p>
 
-      <Step n={4} title="お店に所属する" />
+      <Step n={4} title="お店に所属する（所属すると断然有利！）" />
       <p className={P}>
+        所属申請を送れるのは、<span className="font-bold text-[color:var(--x-text-primary)]">フクエス運営の審査で承認されたお店だけ</span>です。fukuXでは、なりすましでないことが確認・承認されたお店と、お店に所属しているセラピストを優遇して表示しています。ぜひお店に所属してfukuXをご利用ください。
+      </p>
+      <p className={`${P} mt-2`}>
         所属はお店側からの申請で成立します。流れは次のとおりです。
       </p>
       <ol className={`${OL} mt-2`}>
@@ -89,6 +95,13 @@ export default function XTherapistGuidePage() {
         <li>退店したときは、設定の「所属を解除する」から解除してください（お店側からも解除できます）。</li>
         <li>実際に在籍しているお店以外への所属は禁止です。</li>
       </ul>
+      {/* 所属×投稿のメリット訴求（赤バッジ→おすすめ露出アップ）。ガイドの最重要アピールポイント。 */}
+      <div className="mt-3 rounded-2xl border border-rose-300/60 bg-[color:var(--x-inset)] p-4">
+        <p className="text-sm font-bold text-rose-400 mb-1">🔴 赤いバッジを目指そう</p>
+        <p className={P}>
+          お店に所属して投稿をがんばると、<span className="font-bold text-[color:var(--x-text-primary)]">認証の赤いバッジ</span>が表示されるようになります。バッジが表示されると、おすすめタイムラインにあなたの投稿が表示される確率が<span className="font-bold text-[color:var(--x-text-primary)]">大幅にアップ</span>します。お客様の目に留まるチャンスが大きく増えるので、まずはお店に所属して投稿を続けてみてください。
+        </p>
+      </div>
 
       <Step n={5} title="投稿してみよう" />
       <ul className={UL}>
