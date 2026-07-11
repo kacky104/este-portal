@@ -346,6 +346,14 @@ export function XHeader() {
               </Link>
               <span className="text-[color:var(--x-text-muted)]">･</span>
               <Link
+                href="/x/guide/shop"
+                onClick={() => setOpen(false)}
+                className="text-[color:var(--x-text-muted)] hover:underline"
+              >
+                お店ガイド
+              </Link>
+              <span className="text-[color:var(--x-text-muted)]">･</span>
+              <Link
                 href="/x/terms"
                 onClick={() => setOpen(false)}
                 className="text-[color:var(--x-text-muted)] hover:underline"
