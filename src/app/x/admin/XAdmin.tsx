@@ -328,6 +328,9 @@ export function XAdmin({
 
   const shownShops = onlyUnverified ? shops.filter((s) => !s.is_verified) : shops;
 
+  // 「報告」タブの未対応件数（タブの赤バッジ用）。対応済みトグルで即時に増減する。
+  const openReportCount = reports.filter((r) => r.status === 'open').length;
+
   return (
     <div className="x-card my-6 p-5 rounded-2xl bg-[color:var(--x-surface)] shadow-[0_4px_16px_rgba(109,40,217,0.3)]">
       <h1 className="text-xl font-black tracking-tight mb-1">運営パネル</h1>
@@ -348,11 +351,17 @@ export function XAdmin({
             key={key}
             type="button"
             onClick={() => setTab(key)}
-            className={`flex-1 py-2 rounded-lg text-xs font-bold transition-colors ${
+            className={`relative flex-1 py-2 rounded-lg text-xs font-bold transition-colors ${
               tab === key ? 'bg-[color:var(--x-surface)] text-[color:var(--x-accent)] shadow-sm' : 'text-[color:var(--x-text-muted)] hover:text-[color:var(--x-text-primary)]'
             }`}
           >
             {label}
+            {/* 報告タブ: 未対応件数の赤バッジ（通知ベルと同トーン）。0件なら非表示。 */}
+            {key === 'reports' && openReportCount > 0 && (
+              <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] px-1 rounded-full bg-rose-500 text-white text-[10px] font-bold flex items-center justify-center tabular-nums shadow-sm">
+                {openReportCount > 99 ? '99+' : openReportCount}
+              </span>
+            )}
           </button>
         ))}
       </div>
