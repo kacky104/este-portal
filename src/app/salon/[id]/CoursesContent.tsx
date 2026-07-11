@@ -8,7 +8,7 @@ export type Course = { name: string; duration: string; price: string; descriptio
 // コースメニュー・料金表の「内容描画部分」。
 // 同名コースをカテゴリとしてグループ化し、ピンク●＋カテゴリ名／各行（ラベル左・料金右・区切り線）／税込注記を描画する。
 // CollapsibleCourses（折り畳みブロック）と /salon/[id]/price ページの両方で共有してデザインのズレを防ぐ。
-//   large=true（/price 専用）：文字サイズと行間・余白を約1.5倍に拡大。デフォルトは現状サイズ。
+//   large=true（/price と詳細ページの折り畳みブロックで使用）：文字サイズと行間・余白を約1.5倍に拡大。デフォルト（小）は現在未使用。
 export function CoursesContent({ courses, theme, large = false }: { courses: Course[]; theme: SalonTheme; large?: boolean }) {
   // 同名コースをグループ化（従来の表示ロジックを踏襲）。
   const grouped = Array.from(
