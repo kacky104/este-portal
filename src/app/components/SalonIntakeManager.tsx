@@ -20,6 +20,7 @@ type Intake = {
   salon_name: string | null;
   area: string | null;
   area2: string | null;
+  dispatch: string | null; // 出張の有無（'あり' / 'なし'）
   address: string | null;
   access: string | null;
   phone: string | null;
@@ -38,7 +39,7 @@ type Intake = {
 };
 
 const COLS =
-  'id, token, label, status, expires_at, salon_name, area, area2, address, access, phone, hours, closed_days, price_courses, description, payment_methods, official_url, contact_name, contact_email, note, photo_urls, created_at, submitted_at';
+  'id, token, label, status, expires_at, salon_name, area, area2, dispatch, address, access, phone, hours, closed_days, price_courses, description, payment_methods, official_url, contact_name, contact_email, note, photo_urls, created_at, submitted_at';
 
 // 推測不能な48桁hexトークン（ブラウザの CSPRNG）。
 function generateToken(): string {
@@ -273,6 +274,7 @@ export default function SalonIntakeManager({ onToast }: { onToast: (msg: string)
                   <div className="mt-3 rounded-xl border border-slate-100 bg-white p-4 space-y-1.5">
                     <Row label="店舗名" value={r.salon_name} />
                     <Row label="エリア" value={[r.area, r.area2].filter(Boolean).join(' ／ ') || null} />
+                    <Row label="出張" value={r.dispatch} />
                     <Row label="住所" value={r.address} />
                     <Row label="アクセス" value={r.access} />
                     <Row label="電話番号" value={r.phone} />

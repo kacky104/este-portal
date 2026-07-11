@@ -69,6 +69,7 @@ export type SalonIntakeInput = {
   salonName: string;
   area: string;
   area2: string;
+  dispatch: string; // 出張の有無（'あり' / 'なし' / ''）
   address: string;
   access: string;
   phone: string;
@@ -116,6 +117,7 @@ export async function submitSalonIntake(
       salon_name: salonName,
       area: v(input.area, 30) || null,
       area2: v(input.area2, 30) || null,
+      dispatch: v(input.dispatch, 20) || null,
       address,
       access: v(input.access, 200) || null,
       phone: v(input.phone, 30) || null,
