@@ -133,6 +133,9 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   // fukuX（/x配下）：トップ＋承認済みプロフィール＋トップレベル投稿。失敗時は空配列（サイトマップは壊さない）。
   const xStaticEntries: MetadataRoute.Sitemap = [
     { url: `${SITE_URL}/x`, lastModified: now, changeFrequency: 'daily', priority: 0.8 },
+    // ポリシー類（fukuX特則）。本体 /terms・/privacy と同じ扱い（yearly・低priority）。
+    { url: `${SITE_URL}/x/terms`, lastModified: now, changeFrequency: 'yearly', priority: 0.3 },
+    { url: `${SITE_URL}/x/privacy`, lastModified: now, changeFrequency: 'yearly', priority: 0.3 },
   ];
 
   const xProfileEntries: MetadataRoute.Sitemap = (xProfilesRes.data ?? []).map((p) => ({

@@ -333,6 +333,26 @@ export function XHeader() {
             {/* 背景テーマ切替（グラデ⇄白）。未ログインでも操作可。localStorage 保存。 */}
             <div className="my-2 border-t border-[color:var(--x-border)]" />
             <XThemeToggle />
+
+            {/* ポリシー類（fukuX特則）。ログイン状態を問わず常時表示・控えめな小リンク。 */}
+            <div className="my-2 border-t border-[color:var(--x-border)]" />
+            <div className="px-3 py-2 flex items-center gap-2 flex-wrap text-[11px]">
+              <Link
+                href="/x/terms"
+                onClick={() => setOpen(false)}
+                className="text-[color:var(--x-text-muted)] hover:underline"
+              >
+                利用規約
+              </Link>
+              <span className="text-[color:var(--x-text-muted)]">･</span>
+              <Link
+                href="/x/privacy"
+                onClick={() => setOpen(false)}
+                className="text-[color:var(--x-text-muted)] hover:underline"
+              >
+                プライバシーポリシー
+              </Link>
+            </div>
           </nav>
         </aside>
       </div>
