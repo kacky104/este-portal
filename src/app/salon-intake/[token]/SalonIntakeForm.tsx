@@ -159,7 +159,7 @@ export function SalonIntakeForm({ token }: { token: string }) {
       {/* オーナー編集画面のご案内（送信ボタン直上・最重要の案内） */}
       <div className="rounded-xl border border-pink-100 bg-pink-50/60 px-4 py-3">
         <p className="text-xs text-slate-600 leading-relaxed">
-          店名とエリア以外の項目は、後からオーナー様の編集画面で変更できます。準備が整い次第、ご記入の連絡先にログインIDとオーナー編集ページの入り方をお送りいたします。
+          店名とエリア以外の項目は、後からオーナー様の編集画面で変更できます。準備が整い次第、ご記入の連絡先メールアドレスにログインIDとオーナー編集ページの入り方をお送りいたします。
         </p>
       </div>
 
