@@ -49,9 +49,13 @@ export function XBannerReportForm() {
       <div className="rounded-2xl border border-[color:var(--x-border-strong)] bg-[color:var(--x-inset)] p-6 text-center">
         <p className="text-base font-bold text-[color:var(--x-text-primary)]">ご報告ありがとうございました</p>
         <p className="text-sm text-[color:var(--x-text-secondary)] mt-2 leading-relaxed">
-          運営が設置を確認のうえ、ご記入のメールアドレスへご連絡します。
+          運営が設置を確認のうえ、特典（fukuXはお店カード画像の追加枠）を開放致します。
           <br />
-          確認には数日いただく場合があります。
+          特典の開放をもって確認完了のご連絡に代えさせていただきます。
+          <br />
+          設置確認が取れなかった場合、又は返信が必要な内容の場合は、ご記入のメールアドレスへご連絡致します。
+          <br />
+          確認・開放には数日いただく場合があります。
         </p>
         <Link href="/x" className="inline-block mt-4 text-sm font-bold text-[color:var(--x-accent)] hover:underline">
           タイムラインへ戻る
@@ -92,7 +96,9 @@ export function XBannerReportForm() {
           placeholder="例: info@example.com"
           className={INPUT}
         />
-        <p className="text-[10px] text-[color:var(--x-text-muted)] mt-1 px-1">確認結果のご連絡に使用します。</p>
+        <p className="text-[10px] text-[color:var(--x-text-muted)] mt-1 px-1">
+          設置確認が取れなかった場合や、返信が必要な内容の場合のご連絡に使用します。
+        </p>
       </div>
 
       <div>

@@ -661,8 +661,8 @@ export function XAdmin({
       {tab === 'reports' && (
         <div>
           <p className="text-xs text-[color:var(--x-text-muted)] mb-4 leading-relaxed">
-            リンクバナー設置報告の一覧です。設置ページを確認したら、fukuXのお店は「認証」タブで「バナー設置✓」（カード画像+4枚）を行い、
-            ご記入のメールアドレスへ連絡のうえ「対応済み」にしてください。
+            リンクバナー設置報告の一覧です。設置ページを確認したら、fukuXのお店は「認証」タブで「バナー設置✓」（カード画像+4枚）を行い「対応済み」にしてください。
+            特典の開放をもって確認完了の連絡に代える運用です（メール連絡は設置確認が取れなかった場合・返信が必要な場合のみ）。
           </p>
           <div className="space-y-2">
             {reports.length === 0 ? (
