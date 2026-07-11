@@ -334,9 +334,17 @@ export function XHeader() {
             <div className="my-2 border-t border-[color:var(--x-border)]" />
             <XThemeToggle />
 
-            {/* ポリシー類（fukuX特則）。ログイン状態を問わず常時表示・控えめな小リンク。 */}
+            {/* ポリシー類・ガイド（fukuX特則）。ログイン状態を問わず常時表示・控えめな小リンク。 */}
             <div className="my-2 border-t border-[color:var(--x-border)]" />
             <div className="px-3 py-2 flex items-center gap-2 flex-wrap text-[11px]">
+              <Link
+                href="/x/guide/therapist"
+                onClick={() => setOpen(false)}
+                className="text-[color:var(--x-text-muted)] hover:underline"
+              >
+                セラピストガイド
+              </Link>
+              <span className="text-[color:var(--x-text-muted)]">･</span>
               <Link
                 href="/x/terms"
                 onClick={() => setOpen(false)}

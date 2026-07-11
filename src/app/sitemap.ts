@@ -137,6 +137,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     { url: `${SITE_URL}/x/terms`, lastModified: now, changeFrequency: 'yearly', priority: 0.3 },
     { url: `${SITE_URL}/x/privacy`, lastModified: now, changeFrequency: 'yearly', priority: 0.3 },
     { url: `${SITE_URL}/x/banner`, lastModified: now, changeFrequency: 'yearly', priority: 0.3 },
+    { url: `${SITE_URL}/x/guide/therapist`, lastModified: now, changeFrequency: 'monthly', priority: 0.4 },
   ];
 
   const xProfileEntries: MetadataRoute.Sitemap = (xProfilesRes.data ?? []).map((p) => ({
