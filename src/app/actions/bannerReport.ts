@@ -1,6 +1,7 @@
 'use server';
 
 import { createServiceClient } from '@/app/lib/supabase/service';
+import { notifyAdmin } from '@/app/lib/notifyAdmin';
 
 // リンクバナー設置報告の送信（/x/banner/report）。未ログインでも送信可のため、
 // クライアントから直接 INSERT させず（banner_reports に INSERT ポリシーなし）、
@@ -63,5 +64,15 @@ export async function submitBannerReport(
     comment: comment || null,
   });
   if (error) return { ok: false, error: '送信に失敗しました。時間をおいてお試しください' };
+
+  // 運営へメール通知（失敗しても送信自体は成功扱い）。
+  await notifyAdmin(`【fukuX】リンクバナー設置報告（${salonName}）`, [
+    `サロン名: ${salonName}`,
+    `バナー: ${sites.join('・')}`,
+    `設置ページ: ${pageUrl}`,
+    `連絡先: ${email}${xHandle ? `／fukuX: @${xHandle}` : ''}`,
+    '',
+    '確認・対応: https://fukues.com/x/admin →「報告」タブ',
+  ]);
   return { ok: true };
 }

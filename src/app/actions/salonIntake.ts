@@ -1,6 +1,7 @@
 'use server';
 
 import { createServiceClient } from '@/app/lib/supabase/service';
+import { notifyAdmin } from '@/app/lib/notifyAdmin';
 
 // 新規店舗の初回情報入力フォーム（/salon-intake/[token]）のサーバー処理。
 // salon_intakes は RLS で運営のみアクセス可のため、公開側（未ログインの店舗）は
@@ -139,5 +140,15 @@ export async function submitSalonIntake(
     .eq('id', row.id)
     .eq('status', 'pending'); // 二重送信ガード（同時送信でも片方だけ通る）
   if (error) return { ok: false, error: '送信に失敗しました。時間をおいてお試しください' };
+
+  // 運営へメール通知（失敗しても送信自体は成功扱い）。
+  await notifyAdmin(`【フクエス】新規店舗フォームが送信されました（${salonName}）`, [
+    `発行メモ: ${row.label ?? '（なし）'}`,
+    `店舗名: ${salonName}`,
+    `エリア: ${v(input.area, 30)}／出張: ${v(input.dispatch, 20)}`,
+    `担当者: ${contactName}（${contactEmail}）`,
+    '',
+    '内容の確認: https://fukues.com/admin →「新規店舗 入力フォーム発行」→ 内容を見る',
+  ]);
   return { ok: true };
 }
