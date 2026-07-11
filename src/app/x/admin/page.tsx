@@ -22,7 +22,7 @@ export default async function XAdminPage() {
   const [shopRes, postRes, profRes, bannerRes] = await Promise.all([
     supabase
       .from('x_profiles')
-      .select('id, handle, display_name, avatar_url, is_verified, status, created_at')
+      .select('id, handle, display_name, avatar_url, is_verified, banner_installed, status, created_at')
       .eq('kind', 'shop')
       .order('created_at', { ascending: false })
       .limit(200),

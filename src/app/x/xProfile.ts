@@ -29,7 +29,8 @@ export type XProfile = {
   created_at: string | null; // プロフィール作成日時（= fukuX開始日）。表示のみ・変更不可。
   address: string | null; // 住所（お店アカウントのみ・任意）。
   dm_disabled: boolean; // DM受付オフ。どちらか一方がtrueなら相互に送信不可（過去メッセージの閲覧は可）。
-  showcase_images: string[]; // お店カード画像（お店アカウントのみ・最大6枚）。タイムライン「お店」タブのショーケース用。
+  showcase_images: string[]; // お店カード画像（お店アカウントのみ）。上限は認証×バナー設置で0/4/8枚（xShowcase.ts参照）。
+  banner_installed: boolean; // リンクバナー設置済み（運営が/x/adminで確認・トグル）。カード画像上限+4。読み取り専用。
   offer_enabled: boolean; // オファー受付（求人スカウト）。therapist専用・未所属時のみ意味を持つ。
   offer_comment: string | null; // オファー用PR文（最大300文字・任意）。therapist専用。
   offer_areas: string[]; // オファー希望エリア（X_OFFER_AREAS の値・最大8件）。therapist専用。
@@ -39,7 +40,7 @@ export type XProfile = {
 export { X_OFFER_AREAS } from './xOfferAreas';
 
 const XPROFILE_COLUMNS =
-  'id, auth_user_id, kind, status, handle, display_name, bio, avatar_url, header_url, is_verified, affiliated_shop_id, link_url, age, height, bust, cup, waist, hip, created_at, address, dm_disabled, showcase_images, offer_enabled, offer_comment, offer_areas';
+  'id, auth_user_id, kind, status, handle, display_name, bio, avatar_url, header_url, is_verified, affiliated_shop_id, link_url, age, height, bust, cup, waist, hip, created_at, address, dm_disabled, showcase_images, banner_installed, offer_enabled, offer_comment, offer_areas';
 
 // ログインユーザーと、その x_profiles（未作成なら null）をサーバー側でまとめて取得する。
 // /x・/x/onboarding の分岐に使う。RLS の select は公開だが、自分の行は auth_user_id で引く。

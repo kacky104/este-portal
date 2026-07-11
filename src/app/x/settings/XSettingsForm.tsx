@@ -11,6 +11,7 @@ import { X_OFFER_AREAS } from '../xOfferAreas';
 import { XImageCropModal } from '../XImageCropModal';
 import type { ShopMini } from '../xAffiliation';
 import { STORAGE_CACHE_CONTROL } from '@/app/lib/storage';
+import { shopShowcaseLimit } from '../xShowcase';
 
 const supabase = createClient();
 
@@ -66,9 +67,13 @@ export function XSettingsForm({
     .filter((a) => (X_OFFER_AREAS as readonly string[]).includes(a));
   const [shopAreas, setShopAreas] = useState<string[]>(initialShopAreas);
   const legacyAddress = profile.address && initialShopAreas.length === 0 ? profile.address : null;
-  // お店カード画像（お店アカウントのみ・最大6枚）。タイムライン「お店」タブのショーケースに使う。
+  // お店カード画像（お店アカウントのみ）。タイムライン「お店」タブのショーケースに使う。
+  // 上限は認証×リンクバナー設置で 0/4/8 枚（DBガードと同式・xShowcase.ts）。
+  const showcaseLimit = isShop ? shopShowcaseLimit(profile) : 0;
   const [showcaseImages, setShowcaseImages] = useState<string[]>(profile.showcase_images ?? []);
   const [showcaseUploading, setShowcaseUploading] = useState(false);
+  // 上限引き下げ（認証解除等）で既存画像が上限を超えている状態。追加不可・削除のみ可（DB側も同挙動）。
+  const showcaseOver = showcaseImages.length > showcaseLimit;
   // DM受付オフ（全kind共通）。オンにすると自分・相手とも新規/追加送信が不可になる（過去の閲覧は可）。
   const [dmDisabled, setDmDisabled] = useState(profile.dm_disabled);
   // オファー受付（求人スカウト）。未所属セラピストのみ設定可（所属中はセクション自体を出さない）。
@@ -174,9 +179,9 @@ export function XSettingsForm({
     const files = Array.from(e.target.files ?? []);
     e.target.value = '';
     if (files.length === 0) return;
-    const room = 8 - showcaseImages.length;
+    const room = showcaseLimit - showcaseImages.length;
     if (room <= 0) {
-      showToast('お店カード画像は8枚までです');
+      showToast(`お店カード画像は${showcaseLimit}枚までです`);
       return;
     }
     const take = files.slice(0, room);
@@ -253,8 +258,11 @@ export function XSettingsForm({
           : {}),
         // 地域（address）はお店アカウントのみ保存対象。未選択かつ旧フリーテキストが残る場合は消さずに維持。
         ...(isShop ? { address: shopAreas.length > 0 ? shopAreas.join('／') : legacyAddress } : {}),
-        // お店カード画像は「認証済みお店」のみ保存対象（未認証で送るとDBトリガ例外で保存全体が失敗するため）。
-        ...(isShop && profile.is_verified ? { showcase_images: showcaseImages } : {}),
+        // お店カード画像は「上限>0」または「既存画像あり（削除を反映するため）」のお店のみ保存対象
+        // （上限0・画像0で送る意味はなく、DBトリガの上限式とも整合。枚数が減る変更はDB側が常に許可）。
+        ...(isShop && (showcaseLimit > 0 || (profile.showcase_images ?? []).length > 0)
+          ? { showcase_images: showcaseImages }
+          : {}),
         // オファー系は未所属セラピストのみ保存対象（それ以外では欄を出さず、キーも送らない＝ガードトリガ回避）。
         ...(canOffer
           ? {
@@ -531,21 +539,42 @@ export function XSettingsForm({
         </div>
       )}
 
-      {/* ── お店カード画像（認証済みお店のみ・最大8枚）── タイムライン「お店」タブのショーケース用 */}
-      {isShop && !profile.is_verified && (
+      {/* ── お店カード画像 ── タイムライン「お店」タブのショーケース用。
+          上限は認証×リンクバナー設置で 0/4/8 枚（showcaseLimit）。上限0のときは案内カードのみ。 */}
+      {isShop && showcaseLimit === 0 && showcaseImages.length === 0 && (
         <div className="rounded-2xl border border-[color:var(--x-border-strong)] bg-[color:var(--x-inset)] p-4">
           <p className="text-sm font-bold text-[color:var(--x-text-primary)]">お店カード画像</p>
           <p className="text-[12px] text-[color:var(--x-text-secondary)] mt-1 leading-relaxed">
-            お店カード画像は、フクエス認証済みのお店のみ設定できます。
+            お店カード画像は、フクエス認証済みのお店、または貴店サイトに
+            <Link href="/x/banner" className="text-[color:var(--x-accent)] font-bold hover:underline">リンクバナー</Link>
+            を設置いただいたお店が設定できます（認証で4枚・バナー設置でさらに4枚）。
+            バナー設置後は運営までご連絡ください。確認のうえ設定を開放します。
           </p>
         </div>
       )}
-      {isShop && profile.is_verified && (
+      {isShop && (showcaseLimit > 0 || showcaseImages.length > 0) && (
         <div>
-          <p className="text-[11px] font-bold text-[color:var(--x-text-muted)] mb-1.5 px-1">お店カード画像（8枚まで）</p>
-          <p className="text-[10px] text-[color:var(--x-text-muted)] mb-2 px-1 leading-relaxed">
-            タイムラインの「お店」タブに、店名と一緒に表示されます（4列×2段）。主にセラピスト画像の設定を想定しています。
+          <p className="text-[11px] font-bold text-[color:var(--x-text-muted)] mb-1.5 px-1">
+            お店カード画像{showcaseLimit > 0 ? `（${showcaseLimit}枚まで）` : ''}
           </p>
+          <p className="text-[10px] text-[color:var(--x-text-muted)] mb-2 px-1 leading-relaxed">
+            {showcaseLimit > 0 && (
+              <>タイムラインの「お店」タブに、店名と一緒に表示されます（4列×{showcaseLimit > 4 ? '2段' : '1段'}）。主にセラピスト画像の設定を想定しています。</>
+            )}
+            {!profile.banner_installed && (
+              <>
+                貴店サイトに
+                <Link href="/x/banner" className="text-[color:var(--x-accent)] font-bold hover:underline">リンクバナー</Link>
+                を設置いただくと、さらに4枚追加できます（設置後に運営までご連絡ください）。
+              </>
+            )}
+          </p>
+          {showcaseOver && (
+            <p className="text-[10px] font-bold text-rose-400 mb-2 px-1 leading-relaxed">
+              現在の設定枚数（{showcaseImages.length}枚）が上限（{showcaseLimit}枚）を超えています。「お店」タブには
+              {showcaseLimit > 0 ? `先頭${showcaseLimit}枚のみ表示されます` : '表示されません'}。追加はできません（削除は可能・データは消えません）。
+            </p>
+          )}
           <div className="grid grid-cols-4 gap-1.5">
             {showcaseImages.map((url, i) => (
               <div key={i} className="relative aspect-square rounded-lg overflow-hidden border border-[color:var(--x-border)] bg-[color:var(--x-inset)]">
@@ -561,7 +590,7 @@ export function XSettingsForm({
                 </button>
               </div>
             ))}
-            {showcaseImages.length < 8 && (
+            {showcaseImages.length < showcaseLimit && (
               <label className="aspect-square rounded-lg border-2 border-dashed border-indigo-200 text-indigo-500 flex flex-col items-center justify-center cursor-pointer hover:bg-indigo-50 transition-colors">
                 <span className="text-lg leading-none">＋</span>
                 <span className="text-[10px] font-bold mt-0.5">{showcaseUploading ? 'アップ中...' : '追加'}</span>
@@ -576,7 +605,7 @@ export function XSettingsForm({
               </label>
             )}
           </div>
-          <p className="text-[10px] text-[color:var(--x-text-muted)] mt-1.5 px-1">JPEG・PNG・WebP・5MB以下。承認済みで1枚以上設定すると「お店」タブに表示されます。</p>
+          <p className="text-[10px] text-[color:var(--x-text-muted)] mt-1.5 px-1">JPEG・PNG・WebP・5MB以下。1枚以上設定すると「お店」タブのカードに画像が表示されます。</p>
         </div>
       )}
 

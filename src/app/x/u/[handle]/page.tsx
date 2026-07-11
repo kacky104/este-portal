@@ -26,7 +26,7 @@ import type { StoryGroup } from '../../xStories';
 export const dynamic = 'force-dynamic';
 
 const PROFILE_COLS =
-  'id, auth_user_id, kind, status, handle, display_name, bio, avatar_url, header_url, is_verified, affiliated_shop_id, link_url, age, height, bust, cup, waist, hip, created_at, address, dm_disabled, showcase_images, offer_enabled, offer_comment, offer_areas';
+  'id, auth_user_id, kind, status, handle, display_name, bio, avatar_url, header_url, is_verified, affiliated_shop_id, link_url, age, height, bust, cup, waist, hip, created_at, address, dm_disabled, showcase_images, banner_installed, offer_enabled, offer_comment, offer_areas';
 
 type ProfileRow = {
   id: string;
@@ -51,6 +51,7 @@ type ProfileRow = {
   address: string | null;
   dm_disabled: boolean;
   showcase_images: string[];
+  banner_installed: boolean;
   offer_enabled: boolean;
   offer_comment: string | null;
   offer_areas: string[];
@@ -142,6 +143,7 @@ export default async function XProfilePage({ params }: { params: Promise<{ handl
     address: t.address,
     dm_disabled: t.dm_disabled,
     showcase_images: t.showcase_images ?? [],
+    banner_installed: t.banner_installed ?? false,
     offer_enabled: t.offer_enabled,
     offer_comment: t.offer_comment,
     offer_areas: t.offer_areas ?? [],

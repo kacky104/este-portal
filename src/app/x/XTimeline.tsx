@@ -34,7 +34,7 @@ export function XTimeline({
   me: XProfile | null;
   loggedIn: boolean;
   recommended: XPost[];
-  shopShowcases: ShopShowcase[]; // お店タブ：承認済み・画像1枚以上のお店（サーバで30分シードシャッフル済み）
+  shopShowcases: ShopShowcase[]; // お店タブ：承認済み全店（画像は認証×バナー設置で0/4/8枚に上限適用済み・サーバで30分シードシャッフル済み）
   followingFeed: FeedItem[]; // フォロー中タブ：投稿＋リポストをマージ済み（サーバで sortAt 降順・重複排除）
   initialLikedIds: string[];
   initialFolloweeIds: string[];

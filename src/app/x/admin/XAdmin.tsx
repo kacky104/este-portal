@@ -18,6 +18,7 @@ export type ShopRow = {
   display_name: string;
   avatar_url: string | null;
   is_verified: boolean;
+  banner_installed: boolean; // リンクバナー設置済み（カード画像上限+4）。運営がここでトグルする。
   status: string;
   created_at: string;
 };
@@ -124,6 +125,21 @@ export function XAdmin({
     setShops((list) => list.map((s) => (s.id === id ? { ...s, is_verified: value } : s)));
     setProfiles((list) => list.map((p) => (p.id === id ? { ...p, is_verified: value } : p)));
     showToast(value ? '認証バッジを付与しました' : '認証バッジを解除しました');
+  };
+
+  // リンクバナー設置 設定/解除：x_profiles.banner_installed を更新（ADMIN_UUIDのみガードトリガを通過）。
+  // お店カード画像の上限が +4 される（認証×バナーで 0/4/8）。相手サイトへの設置を目視確認してからONにする。
+  const setBannerInstalled = async (id: string, value: boolean) => {
+    if (busy) return;
+    setBusy(id);
+    const { error } = await supabase.from('x_profiles').update({ banner_installed: value }).eq('id', id);
+    setBusy(null);
+    if (error) {
+      showToast(`更新に失敗しました：${error.message}`);
+      return;
+    }
+    setShops((list) => list.map((s) => (s.id === id ? { ...s, banner_installed: value } : s)));
+    showToast(value ? 'バナー設置済みにしました（カード画像+4枚）' : 'バナー設置を解除しました');
   };
 
   // BAN(凍結)/解除：status を 'rejected' / 'approved' に。全 kind 対象。
@@ -336,25 +352,44 @@ export function XAdmin({
                         {s.display_name}
                       </Link>
                       {s.is_verified && <VerifiedBadge />}
+                      {s.banner_installed && (
+                        <span className="text-[10px] font-bold text-emerald-600 bg-emerald-50 rounded-full px-1.5 py-0.5">バナー設置</span>
+                      )}
                       {s.status === 'rejected' && (
                         <span className="text-[10px] font-bold text-rose-500 bg-rose-50 rounded-full px-1.5 py-0.5">凍結中</span>
                       )}
                     </div>
                     <p className="text-xs text-[color:var(--x-text-muted)]">@{s.handle}</p>
                   </div>
-                  <button
-                    type="button"
-                    onClick={() => setVerified(s.id, !s.is_verified)}
-                    disabled={busy === s.id}
-                    className={`flex-shrink-0 text-xs font-bold px-3 py-1.5 rounded-lg transition-colors disabled:opacity-50 ${
-                      s.is_verified
-                        ? 'border border-[color:var(--x-border-strong)] text-[color:var(--x-text-secondary)] hover:border-rose-200 hover:text-rose-500'
-                        : 'text-white'
-                    }`}
-                    style={s.is_verified ? undefined : { background: 'linear-gradient(100deg,#6366F1,#8B5CF6)' }}
-                  >
-                    {s.is_verified ? '認証解除' : '認証付与'}
-                  </button>
+                  {/* 操作は縦積み（認証／バナー設置）。カード画像上限＝認証+4・バナー+4（0/4/8）。 */}
+                  <div className="flex-shrink-0 flex flex-col gap-1">
+                    <button
+                      type="button"
+                      onClick={() => setVerified(s.id, !s.is_verified)}
+                      disabled={busy === s.id}
+                      className={`text-xs font-bold px-3 py-1.5 rounded-lg transition-colors disabled:opacity-50 ${
+                        s.is_verified
+                          ? 'border border-[color:var(--x-border-strong)] text-[color:var(--x-text-secondary)] hover:border-rose-200 hover:text-rose-500'
+                          : 'text-white'
+                      }`}
+                      style={s.is_verified ? undefined : { background: 'linear-gradient(100deg,#6366F1,#8B5CF6)' }}
+                    >
+                      {s.is_verified ? '認証解除' : '認証付与'}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setBannerInstalled(s.id, !s.banner_installed)}
+                      disabled={busy === s.id}
+                      className={`text-xs font-bold px-3 py-1.5 rounded-lg transition-colors disabled:opacity-50 ${
+                        s.banner_installed
+                          ? 'border border-[color:var(--x-border-strong)] text-[color:var(--x-text-secondary)] hover:border-rose-200 hover:text-rose-500'
+                          : 'text-white'
+                      }`}
+                      style={s.banner_installed ? undefined : { background: 'linear-gradient(100deg,#10B981,#34D399)' }}
+                    >
+                      {s.banner_installed ? 'バナー解除' : 'バナー設置✓'}
+                    </button>
+                  </div>
                 </div>
               ))
             )}
