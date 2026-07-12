@@ -50,7 +50,7 @@ export default async function Home() {
 
   // ── 互いに依存しない3処理を並列実行（往復の積み上がりを解消） ──
   // ピックアップは area=null の共通セット（＝トップ用）。地域ページは各エリアの設定を使う。
-  const [salons, featuredSalons, todaySchedRes, reviewCountRes, recommendedBanners, newFaceTherapists, pickupBanners, salonNews, latestColumns] = await Promise.all([
+  const [salons, featuredSalons, todaySchedRes, recommendedBanners, newFaceTherapists, pickupBanners, salonNews, latestColumns] = await Promise.all([
     fetchSalons(supabase, { showOnTopOnly: true }), // トップは show_on_top=true のみ表示
     getFeaturedSalons(supabase, null),
     supabase
@@ -61,8 +61,6 @@ export default async function Home() {
       .eq('schedule_date', todayJST)
       .eq('is_active', true)
       .eq('therapists.salons.is_hidden', false),
-    // サイト全体の口コミ総数：全サロンの review_count（キャッシュ列）合計。
-    supabase.from('salons').select('review_count'),
     // ピックアップ直下の「おすすめサロンバナー」（サロン紐づけ・ピックアップ同一オーバーレイ）。0件なら非表示。
     fetchActiveRecommendedSalonBanners(),
     // 新人セラピスト（is_new_face=true かつ30日以内）を新しい順に最大35件。サロンカード30枚目直下に挿入。0件なら非表示。
@@ -76,12 +74,6 @@ export default async function Home() {
   ]);
 
   const todaySchedules = todaySchedRes.data;
-
-  // 全サロンの review_count を合計（口コミ総数の実数）。
-  const totalReviewCount = (reviewCountRes.data ?? []).reduce(
-    (sum, s) => sum + (Number(s.review_count) || 0),
-    0,
-  );
 
   // 本日出勤セラピスト総数（off以外 = is_active かつ start/end が存在するすべて）。
   // クエリは上の Promise.all で並列取得済み（todaySchedRes）。
@@ -287,16 +279,6 @@ export default async function Home() {
               />
             </Link>
 
-            <div className="flex justify-center mt-10">
-              <div className="inline-flex justify-center rounded-2xl border border-slate-200 bg-white overflow-hidden shadow-sm">
-                {/* 口コミ総数（実数＝全サロンの review_count 合計）。 */}
-                <div className="flex flex-col items-center px-6 py-3">
-                  <span className="text-[11px] text-slate-400 mb-0.5">口コミ総数</span>
-                  <span className="text-sm font-bold text-slate-700">{totalReviewCount.toLocaleString()}件</span>
-                </div>
-              </div>
-            </div>
-
             {/* ─── 新着コラム（最新3件・0件なら非表示）。フッターより強い内部リンクとして
                 トップ本文から /column へ導線を張る（/jobs トップの新着コラムと同方式）。 ─── */}
             {latestColumns.length > 0 && (
@@ -380,18 +362,6 @@ export default async function Home() {
                       </div>
                     </details>
                   ))}
-                  {/* 回答内で触れているコラムへの内部リンク（/column の評価立ち上げにも寄与） */}
-                  <div className="flex flex-wrap gap-2 pt-1">
-                    <Link href="/column/how-to-choose-salon" className="text-xs font-bold px-3 py-1.5 rounded-full border border-pink-200 text-pink-600 transition-colors hover:bg-pink-50">
-                      選び方ガイドを読む
-                    </Link>
-                    <Link href="/column/first-time-guide" className="text-xs font-bold px-3 py-1.5 rounded-full border border-pink-200 text-pink-600 transition-colors hover:bg-pink-50">
-                      初めての方向けガイドを読む
-                    </Link>
-                    <Link href="/column" className="text-xs font-bold px-3 py-1.5 rounded-full border border-pink-200 text-pink-600 transition-colors hover:bg-pink-50">
-                      コラム一覧を見る
-                    </Link>
-                  </div>
                 </div>
               </details>
             </section>
@@ -419,8 +389,6 @@ export default async function Home() {
                 セラピスト求人（フクエスワーク）
               </Link>
               {[
-                // 本体コラム（利用者向けガイド記事・/column）。
-                { label: "コラム", href: "/column" },
                 { label: "利用規約", href: "/terms" },
                 // プライバシーポリシーはスマホのみ半角カナ表示（PCは全角）。href は変えない。
                 { label: "プライバシーポリシー", mobile: "ﾌﾟﾗｲﾊﾞｼｰﾎﾟﾘｼｰ", href: "/privacy" },
