@@ -6,11 +6,13 @@ import { submitOwnerInquiry } from '@/app/actions/ownerInquiry';
 
 const supabase = createClient();
 
-// /mypage「運営から」タブ。
-//  - 上段: 運営からのお知らせ一覧（owner_notices・一斉＋自店舗個別を RLS が絞る）
-//  - 下段: 運営へのお問い合わせフォーム（Server Action submitOwnerInquiry）＋送信履歴
+// /mypage「運営から」タブ。内部を3つのサブタブに分割:
+//  - notices: 運営からのお知らせ一覧（owner_notices・一斉＋自店舗個別を RLS が絞る）
+//  - inquiry: 運営へのお問い合わせフォーム（Server Action submitOwnerInquiry）＋送信履歴
+//  - faq:     よくある質問（owner_faqs・/admin「オーナー連絡」で作成した全店舗共通FAQ）
 // 未読管理: owner_notice_reads に既読行が無いお知らせを未読とし、件数を onUnreadChange で
-// 親（page.tsx のタブバッジ）へ通知。タブが開かれたら（active=true）未読ぶんを一括既読化する。
+// 親（page.tsx のタブバッジ）へ通知。タブが開かれ notices サブタブが表示されている間に
+// 未読ぶんを一括既読化する（初期サブタブは notices）。
 // パネルは page.tsx の hidden 切替方式で常時マウントされるため、読み込みは mount 時に1回行う。
 
 type OwnerNotice = {
@@ -27,6 +29,12 @@ type OwnerInquiry = {
   body: string;
   status: 'open' | 'done';
   created_at: string;
+};
+
+type OwnerFaq = {
+  id: string;
+  question: string;
+  answer: string;
 };
 
 function formatDateJST(iso: string): string {
@@ -48,10 +56,14 @@ export function SupportTab({
   onUnreadChange: (count: number) => void;
   onToast: (msg: string) => void;
 }) {
+  const [subTab, setSubTab] = useState<'notices' | 'inquiry' | 'faq'>('notices');
   const [notices, setNotices] = useState<OwnerNotice[]>([]);
   const [readIds, setReadIds] = useState<Set<string>>(new Set());
   const [noticesLoading, setNoticesLoading] = useState(true);
   const [inquiries, setInquiries] = useState<OwnerInquiry[]>([]);
+  const [faqs, setFaqs] = useState<OwnerFaq[]>([]);
+  // 開いているFAQ（アコーディオン・複数開閉可）。
+  const [openFaqIds, setOpenFaqIds] = useState<Set<string>>(new Set());
   const [subject, setSubject] = useState('');
   const [body, setBody] = useState('');
   const [sending, setSending] = useState(false);
@@ -68,7 +80,7 @@ export function SupportTab({
       setNoticesLoading(true);
       const sixMonthsAgo = new Date();
       sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
-      const [{ data: noticeData }, { data: readData }, { data: inquiryData }] = await Promise.all([
+      const [{ data: noticeData }, { data: readData }, { data: inquiryData }, { data: faqData }] = await Promise.all([
         supabase
           .from('owner_notices')
           .select('id, salon_id, title, body, created_at')
@@ -83,10 +95,16 @@ export function SupportTab({
           .select('id, subject, body, status, created_at')
           .eq('salon_id', salonId)
           .order('created_at', { ascending: false }),
+        supabase
+          .from('owner_faqs')
+          .select('id, question, answer')
+          .order('sort_order', { ascending: true })
+          .order('created_at', { ascending: true }),
       ]);
       setNotices((noticeData ?? []) as OwnerNotice[]);
       setReadIds(new Set((readData ?? []).map(r => String(r.notice_id))));
       setInquiries((inquiryData ?? []) as OwnerInquiry[]);
+      setFaqs((faqData ?? []) as OwnerFaq[]);
       setNoticesLoading(false);
     })();
   }, [salonId]);
@@ -102,7 +120,7 @@ export function SupportTab({
   // ignoreDuplicates:true ＝ ON CONFLICT DO NOTHING。オーナーには UPDATE ポリシーが無いため、
   // DO UPDATE になる通常の upsert は既存行との競合時に RLS で失敗する（INSERT のみで完結させる）。
   useEffect(() => {
-    if (!active || salonId == null || unreadIds.length === 0 || markingRef.current) return;
+    if (!active || subTab !== 'notices' || salonId == null || unreadIds.length === 0 || markingRef.current) return;
     markingRef.current = true;
     (async () => {
       const { error } = await supabase
@@ -112,7 +130,7 @@ export function SupportTab({
       markingRef.current = false;
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [active, salonId, unreadIds.length]);
+  }, [active, subTab, salonId, unreadIds.length]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -143,10 +161,49 @@ export function SupportTab({
 
   const inputClass = 'w-full rounded-xl border border-slate-200 px-3 py-2 text-sm text-slate-700 focus:outline-none focus:border-pink-300 focus:ring-2 focus:ring-pink-100';
 
+  const toggleFaq = (id: string) => {
+    setOpenFaqIds(prev => {
+      const next = new Set(prev);
+      next.has(id) ? next.delete(id) : next.add(id);
+      return next;
+    });
+  };
+
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
+      {/* ── サブタブ（運営から / 運営に問い合わせ / よくある質問） ── */}
+      <div className="flex flex-wrap justify-center gap-1.5">
+        {([
+          ['notices', '運営から'],
+          ['inquiry', '運営に問い合わせ'],
+          ['faq',     'よくある質問'],
+        ] as const).map(([key, label]) => {
+          const selected = subTab === key;
+          return (
+            <button
+              key={key}
+              onClick={() => setSubTab(key)}
+              aria-pressed={selected}
+              className={`inline-flex items-center gap-1 px-4 py-1.5 rounded-full border text-[11px] font-bold transition-colors ${
+                selected
+                  ? 'bg-pink-50 text-pink-600 border-pink-300'
+                  : 'bg-white text-slate-400 border-slate-200 hover:text-slate-600 hover:border-slate-300'
+              }`}
+            >
+              {label}
+              {/* お知らせサブタブ: 未読件数バッジ（親タブと同型） */}
+              {key === 'notices' && unreadIds.length > 0 && (
+                <span className="inline-flex items-center justify-center min-w-[16px] h-[16px] px-1 rounded-full bg-pink-500 text-white text-[9px] font-black leading-none">
+                  {unreadIds.length}
+                </span>
+              )}
+            </button>
+          );
+        })}
+      </div>
+
       {/* ── 運営からのお知らせ ── */}
-      <div className="bg-white rounded-3xl border border-slate-100 shadow-sm p-5 space-y-4">
+      <div className={`bg-white rounded-3xl border border-slate-100 shadow-sm p-5 space-y-4 ${subTab === 'notices' ? '' : 'hidden'}`}>
         <h2 className="text-sm font-black text-slate-700">運営からのお知らせ</h2>
         <p className="text-[11px] text-slate-400">※ お知らせは配信から6ヶ月間表示されます。それより古いものは自動的に非表示になります。</p>
         {noticesLoading ? (
@@ -179,7 +236,7 @@ export function SupportTab({
       </div>
 
       {/* ── 運営へのお問い合わせ ── */}
-      <div className="bg-white rounded-3xl border border-slate-100 shadow-sm p-5 space-y-4">
+      <div className={`bg-white rounded-3xl border border-slate-100 shadow-sm p-5 space-y-4 ${subTab === 'inquiry' ? '' : 'hidden'}`}>
         <h2 className="text-sm font-black text-slate-700">運営へのお問い合わせ</h2>
         <p className="text-[11px] text-slate-400 leading-relaxed">
           掲載内容の変更依頼・不具合のご報告・その他のご相談はこちらから送信してください。
@@ -244,6 +301,50 @@ export function SupportTab({
                 </div>
               ))}
             </div>
+          </div>
+        )}
+      </div>
+
+      {/* ── よくある質問（/admin「オーナー連絡」で作成・全店舗共通） ── */}
+      <div className={`bg-white rounded-3xl border border-slate-100 shadow-sm p-5 space-y-4 ${subTab === 'faq' ? '' : 'hidden'}`}>
+        <h2 className="text-sm font-black text-slate-700">よくある質問</h2>
+        {noticesLoading ? (
+          <p className="text-xs text-slate-400">読み込み中…</p>
+        ) : faqs.length === 0 ? (
+          <p className="text-xs text-slate-400">よくある質問はまだ登録されていません。</p>
+        ) : (
+          <div className="space-y-2">
+            {faqs.map(f => {
+              const open = openFaqIds.has(f.id);
+              return (
+                <div key={f.id} className="rounded-2xl border border-slate-100 overflow-hidden">
+                  <button
+                    type="button"
+                    onClick={() => toggleFaq(f.id)}
+                    aria-expanded={open}
+                    className="w-full flex items-start justify-between gap-3 p-3.5 text-left hover:bg-slate-50/60 transition-colors"
+                  >
+                    <span className="flex items-start gap-2 min-w-0">
+                      <span className="flex-shrink-0 text-pink-500 font-black text-xs leading-5">Q.</span>
+                      <span className="text-xs font-bold text-slate-700 leading-5 break-words">{f.question}</span>
+                    </span>
+                    <svg
+                      width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                      strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"
+                      className={`flex-shrink-0 mt-1 text-pink-400 transition-transform duration-200 ${open ? 'rotate-180' : ''}`}
+                    >
+                      <path d="M6 9l6 6 6-6" />
+                    </svg>
+                  </button>
+                  {open && (
+                    <div className="px-3.5 pb-3.5 flex items-start gap-2 border-t border-slate-50">
+                      <span className="flex-shrink-0 text-slate-400 font-black text-xs leading-5 mt-3">A.</span>
+                      <p className="text-xs text-slate-600 leading-relaxed whitespace-pre-wrap break-words mt-3">{f.answer}</p>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
           </div>
         )}
       </div>

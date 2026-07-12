@@ -7,9 +7,10 @@ const supabase = createClient();
 
 // /admin「オーナー連絡」: 運営⇔オーナー連絡の管理UI（本体タブ内のアコーディオン）。
 //  - 上段: オーナー向けお知らせ配信（全店舗一斉 or 個別店舗）＋配信済み一覧（既読数・削除）
-//  - 下段: オーナーからのお問い合わせ一覧（未対応⇔対応済みトグル）
+//  - 中段: オーナーからのお問い合わせ一覧（未対応⇔対応済みトグル）
+//  - 下段: よくある質問（owner_faqs）の作成・編集・並べ替え・削除（全オーナー共通表示）
 // 読み書きはすべて管理者ログインの RLS（owner_notices_admin 等・ADMIN_UUID）経由＝クライアント直接で完結。
-// オーナー側の受信・送信は /mypage「運営から」タブ（SupportTab.tsx）。
+// オーナー側の受信・送信・FAQ閲覧は /mypage「運営から」タブ（SupportTab.tsx）。
 
 type SalonOption = { id: number; name: string };
 
@@ -28,6 +29,13 @@ type OwnerInquiry = {
   body: string;
   status: 'open' | 'done';
   created_at: string;
+};
+
+type OwnerFaq = {
+  id: string;
+  question: string;
+  answer: string;
+  sort_order: number;
 };
 
 function formatDateTimeJST(iso: string): string {
@@ -59,14 +67,24 @@ export default function OwnerContactManager({
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [busyInquiryId, setBusyInquiryId] = useState<string | null>(null);
 
+  // よくある質問（FAQ）管理。
+  const [faqs, setFaqs] = useState<OwnerFaq[]>([]);
+  // 各FAQの編集フォーム値（id → {question, answer}）。読み込み時・追加時に同期する。
+  const [faqForms, setFaqForms] = useState<Record<string, { question: string; answer: string }>>({});
+  const [newFaqQ, setNewFaqQ] = useState('');
+  const [newFaqA, setNewFaqA] = useState('');
+  const [addingFaq, setAddingFaq] = useState(false);
+  const [busyFaqId, setBusyFaqId] = useState<string | null>(null);
+
   const salonName = (id: number | null) =>
     id == null ? null : (allSalons.find(s => s.id === id)?.name ?? `店舗ID:${id}`);
 
   const reload = async () => {
-    const [{ data: noticeData }, { data: readData }, { data: inquiryData }] = await Promise.all([
+    const [{ data: noticeData }, { data: readData }, { data: inquiryData }, { data: faqData }] = await Promise.all([
       supabase.from('owner_notices').select('id, salon_id, title, body, created_at').order('created_at', { ascending: false }),
       supabase.from('owner_notice_reads').select('notice_id'),
       supabase.from('owner_inquiries').select('id, salon_id, subject, body, status, created_at').order('created_at', { ascending: false }),
+      supabase.from('owner_faqs').select('id, question, answer, sort_order').order('sort_order', { ascending: true }).order('created_at', { ascending: true }),
     ]);
     setNotices((noticeData ?? []) as OwnerNotice[]);
     const counts: Record<string, number> = {};
@@ -76,6 +94,11 @@ export default function OwnerContactManager({
     });
     setReadCounts(counts);
     setInquiries((inquiryData ?? []) as OwnerInquiry[]);
+    const faqList = (faqData ?? []) as OwnerFaq[];
+    setFaqs(faqList);
+    const formMap: Record<string, { question: string; answer: string }> = {};
+    faqList.forEach(f => { formMap[f.id] = { question: f.question, answer: f.answer }; });
+    setFaqForms(formMap);
   };
 
   useEffect(() => {
@@ -140,6 +163,85 @@ export default function OwnerContactManager({
       setInquiries(prev => prev.map(x => (x.id === q.id ? { ...x, status: next } : x)));
     } finally {
       setBusyInquiryId(null);
+    }
+  };
+
+  // ── FAQ 操作 ──
+  const handleAddFaq = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const q = newFaqQ.trim();
+    const a = newFaqA.trim();
+    if (!q || !a) return;
+    setAddingFaq(true);
+    try {
+      // 末尾に追加（sort_order は現在の件数＝最後尾）。
+      const { error } = await supabase.from('owner_faqs').insert({ question: q, answer: a, sort_order: faqs.length });
+      if (error) {
+        onToast(`追加に失敗しました: ${error.message}`);
+        return;
+      }
+      onToast('よくある質問を追加しました');
+      setNewFaqQ('');
+      setNewFaqA('');
+      await reload();
+    } finally {
+      setAddingFaq(false);
+    }
+  };
+
+  const handleSaveFaq = async (id: string) => {
+    const form = faqForms[id];
+    if (!form || !form.question.trim() || !form.answer.trim()) return;
+    setBusyFaqId(id);
+    try {
+      const { error } = await supabase.from('owner_faqs').update({ question: form.question.trim(), answer: form.answer.trim() }).eq('id', id);
+      if (error) {
+        onToast(`保存に失敗しました: ${error.message}`);
+        return;
+      }
+      onToast('よくある質問を保存しました');
+      setFaqs(prev => prev.map(f => (f.id === id ? { ...f, question: form.question.trim(), answer: form.answer.trim() } : f)));
+    } finally {
+      setBusyFaqId(null);
+    }
+  };
+
+  const handleDeleteFaq = async (id: string) => {
+    if (!confirm('このよくある質問を削除しますか？')) return;
+    setBusyFaqId(id);
+    try {
+      const { error } = await supabase.from('owner_faqs').delete().eq('id', id);
+      if (error) {
+        onToast(`削除に失敗しました: ${error.message}`);
+        return;
+      }
+      onToast('よくある質問を削除しました');
+      setFaqs(prev => prev.filter(f => f.id !== id));
+    } finally {
+      setBusyFaqId(null);
+    }
+  };
+
+  // 並べ替え（↑↓）: 配列内で入れ替えて sort_order を index で振り直し、全行を更新する（件数は少ない想定）。
+  const moveFaq = async (id: string, dir: -1 | 1) => {
+    const idx = faqs.findIndex(f => f.id === id);
+    const to = idx + dir;
+    if (idx < 0 || to < 0 || to >= faqs.length) return;
+    const next = [...faqs];
+    [next[idx], next[to]] = [next[to], next[idx]];
+    const renumbered = next.map((f, i) => ({ ...f, sort_order: i }));
+    setBusyFaqId(id);
+    setFaqs(renumbered); // 楽観更新（失敗時は reload で復元）
+    try {
+      const results = await Promise.all(
+        renumbered.map(f => supabase.from('owner_faqs').update({ sort_order: f.sort_order }).eq('id', f.id)),
+      );
+      if (results.some(r => r.error)) {
+        onToast('並べ替えの保存に失敗しました');
+        await reload();
+      }
+    } finally {
+      setBusyFaqId(null);
     }
   };
 
@@ -258,6 +360,79 @@ export default function OwnerContactManager({
                 <p className="text-[11px] text-slate-500 whitespace-pre-wrap break-words mt-0.5">{q.body}</p>
               </div>
             ))}
+          </div>
+        )}
+      </div>
+
+      {/* ── よくある質問（オーナー向け・全店舗共通） ── */}
+      <div className="bg-white rounded-3xl border border-slate-100 shadow-sm p-5 space-y-4">
+        <h3 className="text-sm font-black text-slate-700">よくある質問（オーナー向け）</h3>
+        <p className="text-[11px] text-slate-400">
+          各オーナーのマイページ「運営から」→「よくある質問」タブに、ここで登録した順で全店舗共通表示されます。
+        </p>
+
+        {/* 追加フォーム */}
+        <form onSubmit={handleAddFaq} className="space-y-3 rounded-2xl border border-slate-100 bg-slate-50/60 p-4">
+          <div>
+            <label className={labelClass}>質問 <span className="text-rose-400">*</span></label>
+            <input type="text" value={newFaqQ} onChange={e => setNewFaqQ(e.target.value)} maxLength={200} required placeholder="例：出勤スケジュールはどこで設定できますか？" className={inputClass} />
+          </div>
+          <div>
+            <label className={labelClass}>回答 <span className="text-rose-400">*</span></label>
+            <textarea value={newFaqA} onChange={e => setNewFaqA(e.target.value)} maxLength={4000} required rows={3} className={inputClass} />
+          </div>
+          <button
+            type="submit"
+            disabled={addingFaq || newFaqQ.trim() === '' || newFaqA.trim() === ''}
+            className="px-6 py-2.5 rounded-xl bg-pink-600 text-white text-sm font-bold hover:bg-pink-500 transition-colors disabled:opacity-40 disabled:cursor-not-allowed shadow-sm shadow-pink-500/20"
+          >
+            {addingFaq ? '追加中…' : '追加する'}
+          </button>
+        </form>
+
+        {/* 一覧（インライン編集・並べ替え・削除） */}
+        {faqs.length > 0 && (
+          <div className="space-y-2">
+            {faqs.map((f, i) => {
+              const form = faqForms[f.id] ?? { question: f.question, answer: f.answer };
+              const dirty = form.question !== f.question || form.answer !== f.answer;
+              const busy = busyFaqId === f.id;
+              return (
+                <div key={f.id} className="rounded-xl border border-slate-100 p-3 space-y-2">
+                  <div className="flex items-center gap-2">
+                    <span className="text-[10px] font-bold text-slate-400">Q{i + 1}</span>
+                    <div className="ml-auto flex items-center gap-2">
+                      <button onClick={() => moveFaq(f.id, -1)} disabled={busy || i === 0} className="text-[11px] font-bold text-slate-400 hover:text-pink-600 disabled:opacity-30 transition-colors">↑ 上へ</button>
+                      <button onClick={() => moveFaq(f.id, 1)} disabled={busy || i === faqs.length - 1} className="text-[11px] font-bold text-slate-400 hover:text-pink-600 disabled:opacity-30 transition-colors">↓ 下へ</button>
+                      <button onClick={() => handleDeleteFaq(f.id)} disabled={busy} className="text-[11px] font-bold text-rose-400 hover:text-rose-500 disabled:opacity-40">削除</button>
+                    </div>
+                  </div>
+                  <input
+                    type="text"
+                    value={form.question}
+                    maxLength={200}
+                    onChange={e => setFaqForms(prev => ({ ...prev, [f.id]: { ...form, question: e.target.value } }))}
+                    className={inputClass}
+                  />
+                  <textarea
+                    value={form.answer}
+                    maxLength={4000}
+                    rows={3}
+                    onChange={e => setFaqForms(prev => ({ ...prev, [f.id]: { ...form, answer: e.target.value } }))}
+                    className={inputClass}
+                  />
+                  {dirty && (
+                    <button
+                      onClick={() => handleSaveFaq(f.id)}
+                      disabled={busy || form.question.trim() === '' || form.answer.trim() === ''}
+                      className="px-4 py-1.5 rounded-lg bg-pink-600 text-white text-[11px] font-bold hover:bg-pink-500 transition-colors disabled:opacity-40"
+                    >
+                      {busy ? '保存中…' : '変更を保存'}
+                    </button>
+                  )}
+                </div>
+              );
+            })}
           </div>
         )}
       </div>
