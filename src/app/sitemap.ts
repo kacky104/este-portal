@@ -57,6 +57,9 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     // リンクバナー配布ページ（本体・ワーク。fukuX版 /x/banner と同じ yearly 0.3）。
     { url: `${SITE_URL}/banner`, lastModified: now, changeFrequency: 'yearly', priority: 0.3 },
     { url: `${SITE_URL}/jobs/banner`, lastModified: now, changeFrequency: 'yearly', priority: 0.3 },
+    // フクエスワークの規約・ポリシー（本体の特則。/x/terms 等と同じ yearly 0.3）。
+    { url: `${SITE_URL}/jobs/terms`, lastModified: now, changeFrequency: 'yearly', priority: 0.3 },
+    { url: `${SITE_URL}/jobs/privacy`, lastModified: now, changeFrequency: 'yearly', priority: 0.3 },
   ];
 
   // 本体フクエスのエリア別サロンページ（/area/[slug]・全6スラッグ）。

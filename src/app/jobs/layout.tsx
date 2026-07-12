@@ -62,15 +62,24 @@ export default function JobsLayout({ children }: { children: React.ReactNode }) 
       <footer className="border-t bg-white/70 py-6 mt-12" style={{ borderColor: '#D6EFE0' }}>
         <div className="max-w-3xl mx-auto px-4 flex flex-col items-center gap-2 text-center">
           <p className="text-xs text-slate-400">© 2026 フクエスワーク. All rights reserved.</p>
+          {/* 規約・ポリシー（ワーク特則）・リンクバナーの小リンク行。 */}
+          <p className="text-xs text-slate-400">
+            <a href="/jobs/terms" className="font-medium hover:opacity-80 transition-opacity" style={{ color: '#059669' }}>
+              利用規約
+            </a>
+            {' ／ '}
+            <a href="/jobs/privacy" className="font-medium hover:opacity-80 transition-opacity" style={{ color: '#059669' }}>
+              プライバシーポリシー
+            </a>
+            {' ／ '}
+            <a href="/jobs/banner" className="font-medium hover:opacity-80 transition-opacity" style={{ color: '#059669' }}>
+              リンクバナー
+            </a>
+          </p>
           <p className="text-xs text-slate-400">
             運営:{' '}
             <a href={SITE_URL} className="font-medium hover:opacity-80 transition-opacity" style={{ color: '#059669' }}>
               フクエス（福岡メンズエステポータル）
-            </a>
-            {' ／ '}
-            {/* リンクバナー配布ページ（ワーク版・200×40）。 */}
-            <a href="/jobs/banner" className="font-medium hover:opacity-80 transition-opacity" style={{ color: '#059669' }}>
-              リンクバナー
             </a>
           </p>
         </div>
