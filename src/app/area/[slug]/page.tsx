@@ -14,7 +14,8 @@ import { NotificationBell } from '@/app/components/NotificationBell';
 import { VipLetterIcon } from '@/app/components/VipLetterIcon';
 import { areaFromSlug, AREA_ORDER, AREA_SLUGS_LIST, DISPATCH_AREA, salonInArea } from '@/app/lib/areas';
 import { areaLabel } from '@/app/lib/areaLabel';
-import { toJsonLdString, buildBreadcrumbJsonLd } from '@/app/lib/jsonLd';
+import { toJsonLdString, buildBreadcrumbJsonLd, buildFaqPageJsonLd } from '@/app/lib/jsonLd';
+import { AREA_SEO_CONTENT } from '@/app/lib/areaSeoContent';
 import { fetchActiveTherapistPickupBanners } from '@/app/lib/therapistPickupBanners';
 import { TherapistPickupBanner } from '@/app/components/TherapistPickupBanner';
 import { AutoFitHeadingText } from '@/app/components/AutoFitHeadingText';
@@ -33,7 +34,10 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
   if (!area) return {};
   const label = areaLabel(area);
   const title = `${label}のメンズエステ一覧｜フクエス`;
-  const description = `${label}エリアのメンズエステを掲載。口コミ評価の高い人気サロンをご紹介します。`;
+  // meta description はエリア固有文（areaSeoContent）を優先。未定義エリアは従来の汎用文にフォールバック。
+  const description =
+    AREA_SEO_CONTENT[area]?.metaDescription ??
+    `${label}エリアのメンズエステを掲載。口コミ評価の高い人気サロンをご紹介します。`;
   return {
     title,
     description,
@@ -68,11 +72,19 @@ export default async function AreaPage({ params }: { params: Promise<{ slug: str
     { name: `${label}のメンズエステ一覧`, path: `/area/${slug}` },
   ]);
 
+  // エリア固有のSEOコンテンツ（紹介文＋FAQ）。未定義エリアは何も出さない（従来表示のまま）。
+  const seo = AREA_SEO_CONTENT[area] ?? null;
+  const faqJsonLd = seo && seo.faqs.length > 0 ? buildFaqPageJsonLd(seo.faqs) : null;
+
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900">
 
       {/* BreadcrumbList 構造化データ（トップ › エリア一覧） */}
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: toJsonLdString(breadcrumbJsonLd) }} />
+      {/* FAQPage 構造化データ（ページ下部に表示している Q&A と同一内容） */}
+      {faqJsonLd && (
+        <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: toJsonLdString(faqJsonLd) }} />
+      )}
 
       {/* ─── Header ─────────────────────────────────────────── */}
       <header className="sticky top-0 z-50 bg-white/90 backdrop-blur-md border-b border-slate-200 shadow-sm">
@@ -154,9 +166,55 @@ export default async function AreaPage({ params }: { params: Promise<{ slug: str
               <p className="text-xs text-slate-400">
                 表示順は30分ごとに入れ替わります
               </p>
+              {/* エリア固有の紹介文（SEO・h1直下）。ISRで焼き付くため件数など可変の数値は書かない。 */}
+              {seo && (
+                <div className="mt-3 space-y-2">
+                  {seo.intro.map((para, i) => (
+                    <p key={i} className="text-[13px] leading-relaxed text-slate-500">{para}</p>
+                  ))}
+                </div>
+              )}
             </div>
           }
         />
+
+        {/* ─── よくある質問（エリア固有・FAQPage 構造化データと同一内容） ─── */}
+        {seo && seo.faqs.length > 0 && (
+          <section className="mt-12">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-1 h-6 rounded-full bg-gradient-to-b from-pink-400 to-rose-500" />
+              <h2 className="text-xl font-bold text-slate-900">
+                {area === DISPATCH_AREA ? '出張メンズエステ' : label}のよくある質問
+              </h2>
+            </div>
+            <div className="space-y-2.5">
+              {seo.faqs.map((f) => (
+                <details
+                  key={f.q}
+                  className="group rounded-2xl border border-slate-200 bg-white shadow-sm overflow-hidden"
+                >
+                  <summary className="flex items-start justify-between gap-3 p-4 cursor-pointer select-none list-none [&::-webkit-details-marker]:hidden hover:bg-slate-50/60 transition-colors">
+                    <span className="flex items-start gap-2 min-w-0">
+                      <span className="flex-shrink-0 text-pink-500 font-black text-sm leading-6">Q.</span>
+                      <span className="text-sm font-bold text-slate-800 leading-6 break-words">{f.q}</span>
+                    </span>
+                    <svg
+                      width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                      strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"
+                      className="flex-shrink-0 mt-1.5 text-pink-400 transition-transform duration-200 group-open:rotate-180"
+                    >
+                      <path d="M6 9l6 6 6-6" />
+                    </svg>
+                  </summary>
+                  <div className="px-4 pb-4 flex items-start gap-2 border-t border-slate-100 pt-3">
+                    <span className="flex-shrink-0 text-slate-400 font-black text-sm leading-6">A.</span>
+                    <p className="text-sm text-slate-600 leading-relaxed break-words">{f.a}</p>
+                  </div>
+                </details>
+              ))}
+            </div>
+          </section>
+        )}
       </main>
 
       {/* ─── Footer ──────────────────────────────────────── */}

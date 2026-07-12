@@ -22,3 +22,18 @@ export function buildBreadcrumbJsonLd(
     })),
   };
 }
+
+/** FAQPage。faqs はページに実際に表示している Q&A と同一内容にすること（非表示コンテンツはNG）。 */
+export function buildFaqPageJsonLd(
+  faqs: { q: string; a: string }[],
+): Record<string, unknown> {
+  return {
+    '@context': 'https://schema.org/',
+    '@type': 'FAQPage',
+    mainEntity: faqs.map((f) => ({
+      '@type': 'Question',
+      name: f.q,
+      acceptedAnswer: { '@type': 'Answer', text: f.a },
+    })),
+  };
+}
