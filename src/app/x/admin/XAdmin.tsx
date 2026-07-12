@@ -8,6 +8,7 @@ import { VerifiedBadge } from '../VerifiedBadge';
 import { XImageCropModal } from '../XImageCropModal';
 import { normalizeLinkUrl } from '../xLink';
 import { searchXPostsByDate } from '@/app/actions/xAdminSearch';
+import { adminDeleteXPost, adminDeleteXProfile } from '@/app/actions/xAdmin';
 import { STORAGE_CACHE_CONTROL } from '@/app/lib/storage';
 import { BANNER_SITE_SHORT } from '../banner/bannerSites';
 
@@ -192,14 +193,16 @@ export function XAdmin({
     showToast(ban ? '凍結しました' : '凍結を解除しました');
   };
 
+  // 削除は server action 経由（クライアント直 delete だと x-images の画像が残置され
+  // URL 直打ちで見え続けるため。action 側で storage 掃除 → 行削除を行う）。
   const deletePost = async (id: string) => {
     if (busy) return;
     if (!window.confirm('この投稿を削除しますか？\nこの操作は取り消せません。')) return;
     setBusy(id);
-    const { error } = await supabase.from('x_posts').delete().eq('id', id);
+    const res = await adminDeleteXPost(id);
     setBusy(null);
-    if (error) {
-      showToast(`削除に失敗しました：${error.message}`);
+    if (!res.ok) {
+      showToast(res.error);
       return;
     }
     setPosts((list) => list.filter((p) => p.id !== id));
@@ -210,10 +213,10 @@ export function XAdmin({
     if (busy) return;
     if (!window.confirm(`プロフィール「${name}」を削除しますか？\nこの操作は取り消せません（投稿等も連動して消える場合があります）。`)) return;
     setBusy(id);
-    const { error } = await supabase.from('x_profiles').delete().eq('id', id);
+    const res = await adminDeleteXProfile(id);
     setBusy(null);
-    if (error) {
-      showToast(`削除に失敗しました：${error.message}`);
+    if (!res.ok) {
+      showToast(res.error);
       return;
     }
     setProfiles((list) => list.filter((p) => p.id !== id));

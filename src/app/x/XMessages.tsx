@@ -172,7 +172,8 @@ export function XMessages() {
               </span>
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-1.5">
-                  <span className={`text-sm truncate ${it.unread ? 'font-bold text-[color:var(--x-text-primary)]' : 'font-bold text-[color:var(--x-text-primary)]'}`}>
+                  {/* 未読は太字＋primary、既読はやや控えめ（下のプレビュー行の未読/既読差と揃える） */}
+                  <span className={`text-sm truncate ${it.unread ? 'font-bold text-[color:var(--x-text-primary)]' : 'font-medium text-[color:var(--x-text-secondary)]'}`}>
                     {it.other?.displayName || '（不明なユーザー）'}
                   </span>
                   {(it.other?.kind === 'official' || ((it.other?.kind === 'shop' || it.other?.kind === 'therapist') && it.other?.isVerified)) && (

@@ -145,6 +145,8 @@ export function useXEngagement(opts: {
       if (!target) return false;
       if (me && author.id === me.id) return false;
       if (me && me.kind === 'therapist') return false;
+      // official は canFollow=false（フォロー不可）なので、押しても必ず失敗するボタンを出さない
+      if (me && me.kind === 'official') return false;
       return true;
     },
     [me]

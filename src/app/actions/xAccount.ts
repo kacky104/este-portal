@@ -14,6 +14,7 @@ import { createServiceClient } from '@/app/lib/supabase/service';
 //  - x_profiles.id 参照の FK は全て ON DELETE CASCADE 済み＝本人行を1件消せば
 //    x_posts/リプライ/x_likes/x_post_saves/x_follows/x_notifications/
 //    x_affiliation_requests/x_conversations/x_messages/x_conversation_reads が連鎖削除される。
+//    後から追加の x_reposts/x_suki/x_stories も CASCADE 確認済み（2026-07-12 本番DBで pg_constraint 確認）。
 
 const X_IMAGES_BUCKET = 'x-images'; // fukuX のアバター/ヘッダー/投稿画像はすべてこのバケットの {uid}/ 配下
 

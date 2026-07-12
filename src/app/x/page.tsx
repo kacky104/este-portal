@@ -24,6 +24,11 @@ import { fetchXBanners } from './xBanners';
 // ログイン状態・自分の x_profiles・フォロー中/いいね状態を読むため動的レンダリング（ISRにはしない）。
 export const dynamic = 'force-dynamic';
 
+// canonical を明示しないと root layout の alternates:{canonical:'/'} を継承し、
+// fukuXトップの正規URLが本体トップ扱いになる（検索インデックス除外の恐れ）。
+// layout 側に置くと canonical 未定義の下位ページ全てが /x 扱いになるため page 側で定義する。
+export const metadata = { alternates: { canonical: '/x' } };
+
 export default async function XHomePage() {
   // 閲覧はログイン不要（SNS標準）。未ログイン・未開設でもおすすめタイムラインを見せ、
   // アクション（いいね/フォロー/投稿）時にアカウント作成モーダルへ誘導する。

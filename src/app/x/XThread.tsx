@@ -245,7 +245,7 @@ export function XThread({ conversationId }: { conversationId: string }) {
                     >
                       {m.body}
                     </div>
-                    <XTimeAgo iso={m.createdAt} className="text-[10px] text-white/70 mt-0.5 px-1 drop-shadow-sm" />
+                    <XTimeAgo iso={m.createdAt} className="x-rescue-muted text-[10px] text-white/70 mt-0.5 px-1 drop-shadow-sm" />
                   </div>
                 </div>
               ))
