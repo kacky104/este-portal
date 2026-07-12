@@ -24,6 +24,8 @@ import { fetchLatestSalonNews } from "./lib/salonNews";
 import { SalonNewsList } from "./components/SalonNewsList";
 import { toJsonLdString, buildFaqPageJsonLd } from "./lib/jsonLd";
 import { TOP_SALON_LIST_INTRO, TOP_PAGE_FAQS } from "./lib/areaSeoContent";
+import { fetchPublishedMainArticles } from "./lib/mainArticles";
+import { ArticleCard } from "./column/ArticleCard";
 
 // TOPの WebSite 構造化データ（サイト名のリッチリザルト狙い）。
 // サイト内検索ページが無いため potentialAction (SearchAction) は入れない。
@@ -48,7 +50,7 @@ export default async function Home() {
 
   // ── 互いに依存しない3処理を並列実行（往復の積み上がりを解消） ──
   // ピックアップは area=null の共通セット（＝トップ用）。地域ページは各エリアの設定を使う。
-  const [salons, featuredSalons, todaySchedRes, reviewCountRes, recommendedBanners, newFaceTherapists, pickupBanners, salonNews] = await Promise.all([
+  const [salons, featuredSalons, todaySchedRes, reviewCountRes, recommendedBanners, newFaceTherapists, pickupBanners, salonNews, latestColumns] = await Promise.all([
     fetchSalons(supabase, { showOnTopOnly: true }), // トップは show_on_top=true のみ表示
     getFeaturedSalons(supabase, null),
     supabase
@@ -69,6 +71,8 @@ export default async function Home() {
     fetchActiveTherapistPickupBanners(),
     // サロン新着情報（ピックアップ直下・最新5件・1行×5段）。0件なら非表示。続きは /news。
     fetchLatestSalonNews(supabase, 5),
+    // 本体コラム新着3件（FAQ直上のセクション）。0件なら非表示。/jobs トップの新着コラムと同方式。
+    fetchPublishedMainArticles(3),
   ]);
 
   const todaySchedules = todaySchedRes.data;
@@ -292,6 +296,29 @@ export default async function Home() {
                 </div>
               </div>
             </div>
+
+            {/* ─── 新着コラム（最新3件・0件なら非表示）。フッターより強い内部リンクとして
+                トップ本文から /column へ導線を張る（/jobs トップの新着コラムと同方式）。 ─── */}
+            {latestColumns.length > 0 && (
+              <section className="mt-12">
+                <div className="flex items-center justify-between mb-3">
+                  <div className="flex items-center gap-3">
+                    <div className="w-1 h-6 rounded-full bg-gradient-to-b from-pink-400 to-rose-500" />
+                    <h2 className="text-xl font-bold text-slate-900">新着コラム</h2>
+                  </div>
+                  <Link href="/column" className="text-xs font-bold text-pink-600 flex-shrink-0 hover:opacity-80 transition-opacity">
+                    もっと見る →
+                  </Link>
+                </div>
+                <ul className="space-y-3">
+                  {latestColumns.map((a) => (
+                    <li key={a.id}>
+                      <ArticleCard article={a} />
+                    </li>
+                  ))}
+                </ul>
+              </section>
+            )}
 
             {/* ─── よくある質問（福岡市全体・一般向け。エリアページのFAQと重複させない） ───
                 エリアページと同じ二段折り畳み：見出し（縦バー＋h2）が summary・中のQ&Aも details。

@@ -75,6 +75,8 @@ function revalidateColumnPublic(): void {
   revalidatePath('/column');
   revalidatePath('/column/[slug]', 'page');
   revalidatePath('/column/category/[key]', 'page');
+  // トップにも新着コラム3件を出しているためそこも対象（ワーク側が /jobs を再検証するのと同方式）。
+  revalidatePath('/');
   // sitemap にもコラムURL（一覧・カテゴリ・詳細）が含まれるため、公開/更新/削除で即再生成する。
   revalidatePath('/sitemap.xml');
 }
