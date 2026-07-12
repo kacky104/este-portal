@@ -155,25 +155,46 @@ export default async function AreaPage({ params }: { params: Promise<{ slug: str
           }
           heading={
             <div className="mb-4">
-              <div
-                className="px-4 py-2 mb-1"
-                style={{ background: 'linear-gradient(to right, #f97316, #ec4899)' }}
-              >
-                <h1 className="min-w-0 overflow-hidden">
-                  <AutoFitHeadingText text={`${area === DISPATCH_AREA ? '出張対応' : label}のメンズエステ一覧`} />
-                </h1>
-              </div>
+              {/* エリア固有の紹介文（SEO・h1直下）。タイトルバー自体を summary にしたアコーディオンで、
+                  クリックで開閉（初期は閉）。<details> は本文が最初からHTMLに含まれる＝SSRされるため、
+                  折り畳んでいてもGoogleには通常コンテンツとして評価される（後からJSで読む方式はNG）。
+                  ISRで焼き付くため件数など可変の数値は紹介文に書かない。 */}
+              {seo ? (
+                <details className="group mb-1">
+                  <summary
+                    className="flex items-center gap-3 px-4 py-2 cursor-pointer select-none list-none [&::-webkit-details-marker]:hidden"
+                    style={{ background: 'linear-gradient(to right, #f97316, #ec4899)' }}
+                  >
+                    <h1 className="min-w-0 flex-1 overflow-hidden">
+                      <AutoFitHeadingText text={`${area === DISPATCH_AREA ? '出張対応' : label}のメンズエステ一覧`} />
+                    </h1>
+                    <svg
+                      width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                      strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"
+                      className="flex-shrink-0 text-white/90 transition-transform duration-200 group-open:rotate-180"
+                    >
+                      <path d="M6 9l6 6 6-6" />
+                    </svg>
+                  </summary>
+                  <div className="pt-2.5 pb-1 space-y-2">
+                    {seo.intro.map((para, i) => (
+                      <p key={i} className="text-[13px] leading-relaxed text-slate-500">{para}</p>
+                    ))}
+                  </div>
+                </details>
+              ) : (
+                <div
+                  className="px-4 py-2 mb-1"
+                  style={{ background: 'linear-gradient(to right, #f97316, #ec4899)' }}
+                >
+                  <h1 className="min-w-0 overflow-hidden">
+                    <AutoFitHeadingText text={`${area === DISPATCH_AREA ? '出張対応' : label}のメンズエステ一覧`} />
+                  </h1>
+                </div>
+              )}
               <p className="text-xs text-slate-400">
                 表示順は30分ごとに入れ替わります
               </p>
-              {/* エリア固有の紹介文（SEO・h1直下）。ISRで焼き付くため件数など可変の数値は書かない。 */}
-              {seo && (
-                <div className="mt-3 space-y-2">
-                  {seo.intro.map((para, i) => (
-                    <p key={i} className="text-[13px] leading-relaxed text-slate-500">{para}</p>
-                  ))}
-                </div>
-              )}
             </div>
           }
         />
