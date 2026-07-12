@@ -1,5 +1,4 @@
 /* eslint-disable @next/next/no-img-element */
-import Link from 'next/link';
 import type { Metadata } from 'next';
 import { Logo } from '@/app/components/Logo';
 import { BannerTagCode } from '@/app/components/BannerTagCode';
@@ -67,17 +66,8 @@ export default function BannerPage() {
             </section>
           ))}
 
-          <h2 className={H2}>設置後のご報告（特典）</h2>
-          <p className={P}>
-            バナーを設置いただいたサロン様には特典をご用意しています（内容は順次ご案内します）。設置後、下記フォームからご報告ください。
-          </p>
-          <Link
-            href="/x/banner/report"
-            className="inline-block mt-3 px-5 py-2.5 rounded-full text-sm font-bold text-white active:scale-[0.98] transition hover:opacity-90"
-            style={{ background: 'linear-gradient(to right,#ec4899,#f97316)' }}
-          >
-            設置を報告する →
-          </Link>
+          {/* 「設置後のご報告（特典）」ブロックは特典内容が確定してから再掲する（2026-07-12 削除。
+              報告フォーム /x/banner/report 自体は3サイト共通で稼働中）。 */}
 
           <h2 className={H2}>ご利用にあたって</h2>
           <ul className={UL}>
