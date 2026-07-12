@@ -4,10 +4,10 @@ import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import type { XBanner } from './xBanners';
 
-const AUTO_MS = 5000;
+const AUTO_MS = 3500;
 
 // タイムラインのタブバー直下に出すバナースライダー（全タブ共通・最大5枠・16:9）。
-// scroll-snap ベースの手動スワイプ＋5秒間隔の自動送り（ループ）。操作中は自動送りを一時停止。
+// scroll-snap ベースの手動スワイプ＋3.5秒間隔の自動送り（ループ）。操作中は自動送りを一時停止。
 export function XBannerSlider({ banners }: { banners: XBanner[] }) {
   const trackRef = useRef<HTMLDivElement | null>(null);
   const [index, setIndex] = useState(0);
