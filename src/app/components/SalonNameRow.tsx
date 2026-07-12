@@ -68,8 +68,8 @@ export function SalonNameRow({
             overflow: 'hidden',
             textOverflow: allowEllipsis ? 'ellipsis' : 'clip',
             // バナー時のみ光学補正：大文字英字・カタカナ中心でディセンダーが無く、
-            // フォントのディセンダー領域が下側の空白として残るため幾何学的中央では上寄りに見える。2px下げて相殺。
-            ...(nameBanner ? { transform: 'translateY(3px)' } : {}),
+            // フォントのディセンダー領域が下側の空白として残るため幾何学的中央では上寄りに見える。4px下げて相殺（3px でもまだ上寄りに見えたため+1px）。
+            ...(nameBanner ? { transform: 'translateY(4px)' } : {}),
           }}
         >
           {salonName}
