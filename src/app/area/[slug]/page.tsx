@@ -199,16 +199,29 @@ export default async function AreaPage({ params }: { params: Promise<{ slug: str
           }
         />
 
-        {/* ─── よくある質問（エリア固有・FAQPage 構造化データと同一内容） ─── */}
+        {/* ─── よくある質問（エリア固有・FAQPage 構造化データと同一内容） ───
+            見出しは h1 と同じグラデ帯のタイトルバー（summary）で、Q&A一覧ごと折り畳み（初期閉）。
+            内容はSSRでHTMLに含まれるため、閉じていてもSEO評価は変わらない（紹介文と同方式）。
+            外側は named group（group/faq）にして、内側の各Q&A（無印 group）の▽回転と干渉しないようにする。 */}
         {seo && seo.faqs.length > 0 && (
           <section className="mt-12">
-            <div className="flex items-center gap-3 mb-4">
-              <div className="w-1 h-6 rounded-full bg-gradient-to-b from-pink-400 to-rose-500" />
-              <h2 className="text-xl font-bold text-slate-900">
-                {area === DISPATCH_AREA ? '出張メンズエステ' : label}のよくある質問
-              </h2>
-            </div>
-            <div className="space-y-2.5">
+            <details className="group/faq">
+              <summary
+                className="flex items-center gap-3 px-4 py-2 cursor-pointer select-none list-none [&::-webkit-details-marker]:hidden"
+                style={{ background: 'linear-gradient(to right, #f97316, #ec4899)' }}
+              >
+                <h2 className="min-w-0 flex-1 overflow-hidden">
+                  <AutoFitHeadingText text={`${area === DISPATCH_AREA ? '出張メンズエステ' : label}のよくある質問`} />
+                </h2>
+                <svg
+                  width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                  strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"
+                  className="flex-shrink-0 text-white/90 transition-transform duration-200 group-open/faq:rotate-180"
+                >
+                  <path d="M6 9l6 6 6-6" />
+                </svg>
+              </summary>
+              <div className="space-y-2.5 pt-3">
               {seo.faqs.map((f) => (
                 <details
                   key={f.q}
@@ -233,7 +246,8 @@ export default async function AreaPage({ params }: { params: Promise<{ slug: str
                   </div>
                 </details>
               ))}
-            </div>
+              </div>
+            </details>
           </section>
         )}
       </main>
