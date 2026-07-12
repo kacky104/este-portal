@@ -15,14 +15,26 @@ export const metadata: Metadata = {
 
 const SITE_URL = 'https://fukues.com';
 
-// バナー1種（200×40）。public/ 直下に配置した画像を参照する。
+// バナー（200×40）。public/ 直下に配置した画像を参照する。
+// 1番目＝フクエス本体・2番目＝フクエスワーク（求人）。両サイトの配布ページで相互掲載（順序は各サイト優先）。
 const BANNERS = [
-  { file: 'fukues-banner-200x40.png', label: 'リンクバナー' },
+  {
+    file: 'fukues-banner-200x40.png',
+    label: 'フクエス（本体）',
+    href: `${SITE_URL}/`,
+    alt: 'フクエス｜福岡メンズエステ情報・口コミポータル',
+  },
+  {
+    file: 'fukuwork-banner-200x40.png',
+    label: 'フクエスワーク（求人）',
+    href: `${SITE_URL}/jobs`,
+    alt: 'フクエスワーク｜福岡メンズエステのセラピスト求人サイト',
+  },
 ] as const;
 
 // 外部サイト貼り付け用タグ。画像は直リンク参照可（ダウンロードして設置してもOK）。
-function bannerTag(file: string): string {
-  return `<a href="${SITE_URL}/" target="_blank" rel="noopener"><img src="${SITE_URL}/${file}" width="200" height="40" alt="フクエス｜福岡メンズエステ情報・口コミポータル" loading="lazy" style="border:0;"></a>`;
+function bannerTag(b: (typeof BANNERS)[number]): string {
+  return `<a href="${b.href}" target="_blank" rel="noopener"><img src="${SITE_URL}/${b.file}" width="200" height="40" alt="${b.alt}" loading="lazy" style="border:0;"></a>`;
 }
 
 const H2 = 'text-base font-bold text-slate-800 mt-6 mb-2';
@@ -44,25 +56,23 @@ export default function BannerPage() {
           <h1 className="text-xl font-bold text-slate-900 mb-4">リンクバナーについて</h1>
 
           <p className={P}>
-            フクエスはリンクフリーです。事前のご連絡は不要です。サロン様の公式サイトやブログ等からのリンクの際は、下記のバナーをご利用ください。リンク先は
-            <span className="font-bold text-slate-800"> {SITE_URL}/ </span>
-            でお願いします。
+            フクエスはリンクフリーです。事前のご連絡は不要です。サロン様の公式サイトやブログ等からのリンクの際は、下記のバナーをご利用ください。求人サイト「フクエスワーク」のバナーも併せてご利用いただけます。リンク先はそれぞれのタグに記載のURLでお願いします。
           </p>
 
-          {BANNERS.map(({ file, label }) => (
-            <section key={file}>
-              <h2 className={H2}>{label}（200×40）</h2>
-              {/* プレビュー：白版も輪郭が出るよう枠線つきの面に載せる。 */}
+          {BANNERS.map((b) => (
+            <section key={b.file}>
+              <h2 className={H2}>{b.label}（200×40）</h2>
+              {/* プレビュー：輪郭が出るよう枠線つきの面に載せる。 */}
               <div className="inline-block p-4 rounded-xl bg-slate-50 border border-slate-200">
                 <img
-                  src={`/${file}`}
-                  alt="フクエス｜福岡メンズエステ情報・口コミポータル"
+                  src={`/${b.file}`}
+                  alt={b.alt}
                   width={200}
                   height={40}
                   className="block border border-slate-200"
                 />
               </div>
-              <BannerTagCode tag={bannerTag(file)} accent="pink" />
+              <BannerTagCode tag={bannerTag(b)} accent="pink" />
             </section>
           ))}
 

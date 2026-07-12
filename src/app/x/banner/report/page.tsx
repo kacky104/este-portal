@@ -15,9 +15,9 @@ export default function XBannerReportPage() {
       <h1 className="text-xl font-bold text-[color:var(--x-text-primary)] mb-4">リンクバナー設置のご報告</h1>
 
       <p className="text-sm text-[color:var(--x-text-secondary)] leading-relaxed mb-1">
-        貴サイトへの
+        貴サイトへのfukuX
         <Link href="/x/banner" className="text-[color:var(--x-accent)] hover:underline">リンクバナー</Link>
-        設置ありがとうございます。下記フォームからご報告ください。運営が設置を確認のうえ、特典（fukuXはお店カード画像の追加枠）を開放致します。設置確認が取れなかった場合、又は返信が必要な内容の場合は、ご記入のメールアドレスへご連絡致します。
+        設置ありがとうございます。下記フォームからご報告ください。運営が設置を確認のうえ、特典（お店カード画像の追加枠）を開放致します。設置確認が取れなかった場合、又は返信が必要な内容の場合は、ご記入のメールアドレスへご連絡致します。
       </p>
       <p className="text-xs text-[color:var(--x-text-muted)] leading-relaxed mb-5">
         確認・開放には数日いただく場合があります。特典の開放をもって確認完了のご連絡に代えさせていただきます。

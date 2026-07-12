@@ -3,10 +3,11 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { submitBannerReport } from '@/app/actions/bannerReport';
-import { BANNER_SITES, BANNER_SITE_LABEL } from '../bannerSites';
 
 // リンクバナー設置報告フォーム（未ログイン可）。送信は Server Action（バリデーション＋honeypot＋24h重複防止）。
 // 入力欄は設定フォームと同じ作法: x-inset面・text-base(16px)でiOS自動ズーム抑止。
+// 2026-07-12: fukuX専用の報告ページ化＝「貼ったバナーの種類」チェックボックスを廃止し、
+// sites は常に ['fukux'] 固定で送信する（banner_reports のスキーマ・Server Action は不変）。
 const INPUT =
   'w-full rounded-xl border border-[color:var(--x-border-strong)] bg-[color:var(--x-inset)] px-3 py-2.5 text-base text-[color:var(--x-text-primary)] placeholder:text-[color:var(--x-text-muted)] focus:outline-none focus:ring-2 focus:ring-indigo-300';
 const LABEL = 'block text-[11px] font-bold text-[color:var(--x-text-muted)] mb-1.5 px-1';
@@ -14,7 +15,6 @@ const LABEL = 'block text-[11px] font-bold text-[color:var(--x-text-muted)] mb-1
 export function XBannerReportForm() {
   const [salonName, setSalonName] = useState('');
   const [email, setEmail] = useState('');
-  const [sites, setSites] = useState<string[]>([]);
   const [pageUrl, setPageUrl] = useState('');
   const [xHandle, setXHandle] = useState('');
   const [comment, setComment] = useState('');
@@ -23,19 +23,16 @@ export function XBannerReportForm() {
   const [done, setDone] = useState(false);
   const [error, setError] = useState('');
 
-  const toggleSite = (s: string) => {
-    setSites((prev) => (prev.includes(s) ? prev.filter((v) => v !== s) : [...prev, s]));
-  };
-
   const canSubmit =
-    salonName.trim().length > 0 && email.trim().length > 0 && sites.length > 0 && pageUrl.trim().length > 0 && !sending;
+    salonName.trim().length > 0 && email.trim().length > 0 && pageUrl.trim().length > 0 && !sending;
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!canSubmit) return;
     setSending(true);
     setError('');
-    const res = await submitBannerReport({ salonName, email, sites, pageUrl, xHandle, comment, website });
+    // fukuX専用ページのため種類は固定（本体・ワークの特典報告は特典確定後に別途用意）。
+    const res = await submitBannerReport({ salonName, email, sites: ['fukux'], pageUrl, xHandle, comment, website });
     setSending(false);
     if (res.ok) {
       setDone(true);
@@ -49,7 +46,7 @@ export function XBannerReportForm() {
       <div className="rounded-2xl border border-[color:var(--x-border-strong)] bg-[color:var(--x-inset)] p-6 text-center">
         <p className="text-base font-bold text-[color:var(--x-text-primary)]">ご報告ありがとうございました</p>
         <p className="text-sm text-[color:var(--x-text-secondary)] mt-2 leading-relaxed">
-          運営が設置を確認のうえ、特典（fukuXはお店カード画像の追加枠）を開放致します。
+          運営が設置を確認のうえ、特典（お店カード画像の追加枠）を開放致します。
           <br />
           特典の開放をもって確認完了のご連絡に代えさせていただきます。
           <br />
@@ -99,25 +96,6 @@ export function XBannerReportForm() {
         <p className="text-[10px] text-[color:var(--x-text-muted)] mt-1 px-1">
           設置確認が取れなかった場合や、返信が必要な内容の場合のご連絡に使用します。
         </p>
-      </div>
-
-      <div>
-        <p className={LABEL}>貼ったバナーの種類（必須・複数選択可）</p>
-        <div className="space-y-2">
-          {BANNER_SITES.map((s) => (
-            <label
-              key={s}
-              className={`flex items-center gap-2.5 rounded-xl border px-3 py-2.5 cursor-pointer transition-colors ${
-                sites.includes(s)
-                  ? 'border-indigo-400 bg-[color:var(--x-inset)]'
-                  : 'border-[color:var(--x-border-strong)] hover:bg-[color:var(--x-surface-hover)]'
-              }`}
-            >
-              <input type="checkbox" checked={sites.includes(s)} onChange={() => toggleSite(s)} />
-              <span className="text-sm font-bold text-[color:var(--x-text-primary)]">{BANNER_SITE_LABEL[s]}</span>
-            </label>
-          ))}
-        </div>
       </div>
 
       <div>
