@@ -394,6 +394,8 @@ export default async function Home() {
                 { label: "プライバシーポリシー", mobile: "ﾌﾟﾗｲﾊﾞｼｰﾎﾟﾘｼｰ", href: "/privacy" },
                 { label: "掲載について", href: "/listing" },
                 { label: "お問い合わせ", href: "/contact" },
+                // リンクバナー配布ページ（本体版・200×40）。
+                { label: "リンクバナー", href: "/banner" },
               ].map(({ label, mobile, href }) => (
                 <Link
                   key={label}

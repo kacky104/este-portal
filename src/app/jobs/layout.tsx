@@ -67,6 +67,11 @@ export default function JobsLayout({ children }: { children: React.ReactNode }) 
             <a href={SITE_URL} className="font-medium hover:opacity-80 transition-opacity" style={{ color: '#059669' }}>
               フクエス（福岡メンズエステポータル）
             </a>
+            {' ／ '}
+            {/* リンクバナー配布ページ（ワーク版・200×40）。 */}
+            <a href="/jobs/banner" className="font-medium hover:opacity-80 transition-opacity" style={{ color: '#059669' }}>
+              リンクバナー
+            </a>
           </p>
         </div>
       </footer>
