@@ -159,6 +159,7 @@ export default function OwnerContactManager({
         <h3 className="text-sm font-black text-slate-700">オーナー向けお知らせ配信</h3>
         <p className="text-[11px] text-slate-400">
           各オーナーのマイページ「運営から」タブに表示されます（未読ぶんはタブに赤バッジ）。
+          オーナー側では配信から6ヶ月経過したお知らせは自動非表示になります（下の配信済み一覧には残ります）。
         </p>
         <form onSubmit={handleSend} className="space-y-3">
           <div>

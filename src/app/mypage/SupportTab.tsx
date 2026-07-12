@@ -60,14 +60,19 @@ export function SupportTab({
   const markingRef = useRef(false);
 
   // 初回読み込み（salonId 確定後に1回）。
+  // お知らせは配信から6ヶ月以内のみ表示（古いものは自動非表示＝溜まり続けない）。
+  // 未読バッジもこの取得結果ベースなので、6ヶ月超の未読が残ってもバッジには数えられない。
   useEffect(() => {
     if (salonId == null) return;
     (async () => {
       setNoticesLoading(true);
+      const sixMonthsAgo = new Date();
+      sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
       const [{ data: noticeData }, { data: readData }, { data: inquiryData }] = await Promise.all([
         supabase
           .from('owner_notices')
           .select('id, salon_id, title, body, created_at')
+          .gte('created_at', sixMonthsAgo.toISOString())
           .order('created_at', { ascending: false }),
         supabase
           .from('owner_notice_reads')
@@ -143,6 +148,7 @@ export function SupportTab({
       {/* ── 運営からのお知らせ ── */}
       <div className="bg-white rounded-3xl border border-slate-100 shadow-sm p-5 space-y-4">
         <h2 className="text-sm font-black text-slate-700">運営からのお知らせ</h2>
+        <p className="text-[11px] text-slate-400">※ お知らせは配信から6ヶ月間表示されます。それより古いものは自動的に非表示になります。</p>
         {noticesLoading ? (
           <p className="text-xs text-slate-400">読み込み中…</p>
         ) : notices.length === 0 ? (
