@@ -23,6 +23,7 @@ import { TherapistPickupBanner } from "./components/TherapistPickupBanner";
 import { fetchLatestSalonNews } from "./lib/salonNews";
 import { SalonNewsList } from "./components/SalonNewsList";
 import { toJsonLdString } from "./lib/jsonLd";
+import { TOP_SALON_LIST_INTRO } from "./lib/areaSeoContent";
 
 // TOPの WebSite 構造化データ（サイト名のリッチリザルト狙い）。
 // サイト内検索ページが無いため potentialAction (SearchAction) は入れない。
@@ -232,15 +233,32 @@ export default async function Home() {
               ]}
               heading={
                 <>
-                  {/* バナー縦幅 py-2→py-1・下余白 mb-1.5→mb-1（サロン新着情報と統一の圧縮） */}
-                  <div
-                    className="px-4 py-1 mb-1"
-                    style={{ background: 'linear-gradient(to right, #f97316, #ec4899)' }}
-                  >
-                    <h2 className="text-xl font-bold text-white leading-none" style={{ transform: 'translateY(1px)' }}>
-                      掲載サロン一覧
-                    </h2>
-                  </div>
+                  {/* バナー縦幅 py-1・下余白 mb-1 はサロン新着情報と統一の圧縮のまま。
+                      エリアページと同方式：タイトルバー自体を summary にしたアコーディオンで、
+                      クリックで福岡市の紹介文（SSR済み＝閉じていてもSEO評価される）を開閉。初期は閉。
+                      トップは show_on_top=true のサロンのみ表示＝福岡市内中心の運用（タイトルもそれに合わせた）。 */}
+                  <details className="group mb-1">
+                    <summary
+                      className="px-4 py-1 flex items-center gap-3 cursor-pointer select-none list-none [&::-webkit-details-marker]:hidden"
+                      style={{ background: 'linear-gradient(to right, #f97316, #ec4899)' }}
+                    >
+                      <h2 className="text-xl font-bold text-white leading-none min-w-0 flex-1" style={{ transform: 'translateY(1px)' }}>
+                        福岡市掲載サロン一覧
+                      </h2>
+                      <svg
+                        width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                        strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"
+                        className="flex-shrink-0 text-white/90 transition-transform duration-200 group-open:rotate-180"
+                      >
+                        <path d="M6 9l6 6 6-6" />
+                      </svg>
+                    </summary>
+                    <div className="pt-2.5 pb-1 space-y-2">
+                      {TOP_SALON_LIST_INTRO.map((para, i) => (
+                        <p key={i} className="text-[13px] leading-relaxed text-slate-500">{para}</p>
+                      ))}
+                    </div>
+                  </details>
                   <p className="text-xs text-slate-400 mb-4">
                     表示順は30分ごとに入れ替わります
                   </p>
