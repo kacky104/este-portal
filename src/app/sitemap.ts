@@ -2,8 +2,10 @@ import type { MetadataRoute } from 'next';
 import { createPublicClient } from '@/app/lib/supabase/public';
 import { fetchActiveJobsForSitemap, fetchFeatureSlugsWithActiveJobs, fetchAreaTagPairsWithActiveJobs, fetchActiveDispatchJobs } from '@/app/lib/jobs';
 import { fetchPublishedArticlesForSitemap } from '@/app/lib/workArticles';
+import { fetchPublishedMainArticlesForSitemap } from '@/app/lib/mainArticles';
 import { jobsAreaHref, AREA_SLUGS_LIST } from '@/app/lib/areas';
 import { ARTICLE_CATEGORY_ORDER } from '@/app/lib/articleCategories';
+import { MAIN_ARTICLE_CATEGORY_ORDER } from '@/app/lib/mainArticleCategories';
 
 const SITE_URL = 'https://fukues.com';
 
@@ -16,7 +18,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const supabase = createPublicClient();
 
   // 公開サロン／公開サロン所属セラピスト／掲載中求人を並列取得。失敗時は空配列（サイトマップは壊さない）。
-  const [salonsRes, therapistsRes, jobs, featureSlugs, areaTag, dispatchJobs, columnArticles, xProfilesRes, xPostsRes] = await Promise.all([
+  const [salonsRes, therapistsRes, jobs, featureSlugs, areaTag, dispatchJobs, columnArticles, mainColumnArticles, xProfilesRes, xPostsRes] = await Promise.all([
     supabase.from('salons').select('id').eq('is_hidden', false),
     supabase.from('therapists').select('id, salons!inner(is_hidden)').eq('salons.is_hidden', false),
     fetchActiveJobsForSitemap(),
@@ -28,6 +30,8 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     fetchActiveDispatchJobs(),
     // 公開コラム（work_articles・published のみ）。詳細URL＋公開記事のあるカテゴリページに使う。
     fetchPublishedArticlesForSitemap(),
+    // 本体コラム（main_articles・published のみ）。/column 配下のURLに使う。
+    fetchPublishedMainArticlesForSitemap(),
     // fukuX: 承認済みプロフィール全件＋トップレベル投稿全件（RLSに加え status='approved' を明示フィルタ）。
     supabase.from('x_profiles').select('handle').eq('status', 'approved'),
     supabase.from('x_posts').select('id, edited_at, created_at').is('parent_post_id', null),
@@ -43,6 +47,8 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     { url: `${SITE_URL}/jobs`, lastModified: now, changeFrequency: 'daily', priority: 0.8 },
     // コラム一覧（公開記事の有無に関わらず存在する静的ページ）。
     { url: `${SITE_URL}/jobs/column`, lastModified: now, changeFrequency: 'daily', priority: 0.7 },
+    // 本体コラム一覧（/column・利用者向け）。
+    { url: `${SITE_URL}/column`, lastModified: now, changeFrequency: 'daily', priority: 0.7 },
     // ポリシー類（法令対応・E-E-A-T用の静的ページ。更新頻度は低い）。
     { url: `${SITE_URL}/terms`, lastModified: now, changeFrequency: 'yearly', priority: 0.3 },
     { url: `${SITE_URL}/privacy`, lastModified: now, changeFrequency: 'yearly', priority: 0.3 },
@@ -130,6 +136,24 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       priority: 0.6,
     }));
 
+  // 本体コラム詳細（/column/[slug]）・カテゴリ別（/column/category/[key]）。ワーク側と同方針
+  // （published のみ・カテゴリは公開記事が1件以上あるものだけ）。
+  const mainColumnArticleEntries: MetadataRoute.Sitemap = mainColumnArticles.map((a) => ({
+    url: `${SITE_URL}/column/${a.slug}`,
+    lastModified: a.updatedAt ? new Date(a.updatedAt) : now,
+    changeFrequency: 'monthly',
+    priority: 0.6,
+  }));
+  const publishedMainCategories = new Set(mainColumnArticles.map((a) => a.category));
+  const mainColumnCategoryEntries: MetadataRoute.Sitemap = MAIN_ARTICLE_CATEGORY_ORDER
+    .filter((key) => publishedMainCategories.has(key))
+    .map((key) => ({
+      url: `${SITE_URL}/column/category/${key}`,
+      lastModified: now,
+      changeFrequency: 'weekly',
+      priority: 0.6,
+    }));
+
   // fukuX（/x配下）：トップ＋承認済みプロフィール＋トップレベル投稿。失敗時は空配列（サイトマップは壊さない）。
   const xStaticEntries: MetadataRoute.Sitemap = [
     { url: `${SITE_URL}/x`, lastModified: now, changeFrequency: 'daily', priority: 0.8 },
@@ -168,6 +192,8 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     ...dispatchEntries,
     ...columnCategoryEntries,
     ...columnArticleEntries,
+    ...mainColumnCategoryEntries,
+    ...mainColumnArticleEntries,
     ...xStaticEntries,
     ...xProfileEntries,
     ...xPostEntries,

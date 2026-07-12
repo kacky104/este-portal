@@ -14,6 +14,7 @@ import SalonEditModal, { type SalonForEdit } from '@/app/components/SalonEditMod
 import ThemeWallpaperManager from '@/app/components/ThemeWallpaperManager';
 import SalonIntakeManager from '@/app/components/SalonIntakeManager';
 import OwnerContactManager from '@/app/components/OwnerContactManager';
+import MainArticlesManager from '@/app/components/MainArticlesManager';
 import AdminJobsManager from '@/app/components/AdminJobsManager';
 import FeaturedJobsManager from '@/app/components/FeaturedJobsManager';
 import AreaBannerManager from '@/app/components/AreaBannerManager';
@@ -409,6 +410,11 @@ export default function AdminDashboard() {
               allSalons={salons.map(s => ({ id: s.id, name: s.name ?? '' }))}
               onToast={showToast}
             />
+          </AccordionSection>
+
+          {/* ── 本体コラム記事（利用者向け・/column 配下） ── */}
+          <AccordionSection id="main-articles" title="コラム記事（本体・利用者向け）" expanded={expandedSections} onToggle={toggleSection}>
+            <MainArticlesManager onToast={showToast} />
           </AccordionSection>
 
           {/* ── 新規サロン追加フォーム ── */}
