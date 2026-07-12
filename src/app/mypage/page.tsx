@@ -11,6 +11,7 @@ import { SALON_THEMES, type ThemeKey } from '@/app/lib/themes';
 import { COUPON_COLORS, getCouponColor, DEFAULT_COUPON_COLOR_KEY, type CouponColorKey } from '@/app/lib/couponColors';
 import { VipLetterForm } from '@/app/components/VipLetterForm';
 import { JobsTab } from '@/app/mypage/JobsTab';
+import { SupportTab } from '@/app/mypage/SupportTab';
 import { getBusinessDateJST, getBusinessDateRangeJST } from '@/lib/dutyStatus';
 import { isCastLiveRow } from '@/lib/imasugu';
 import { MyDiaryList } from './MyDiaryList';
@@ -87,7 +88,7 @@ async function fetchAnnouncementList(salonId: number): Promise<Announcement[]> {
 }
 
 // タブのアイコン（既存サイトと同系統の tabler/lucide 風アウトラインアイコン）。
-function tabIcon(key: 'salon' | 'schedule' | 'available' | 'profile' | 'diary' | 'coupon' | 'news' | 'vipletter' | 'booking' | 'jobs') {
+function tabIcon(key: 'salon' | 'schedule' | 'available' | 'profile' | 'diary' | 'coupon' | 'news' | 'vipletter' | 'booking' | 'jobs' | 'support') {
   const common = {
     width: 14, height: 14, viewBox: '0 0 24 24', fill: 'none',
     stroke: 'currentColor', strokeWidth: 2,
@@ -127,6 +128,13 @@ function tabIcon(key: 'salon' | 'schedule' | 'available' | 'profile' | 'diary' |
           <rect x="3" y="7" width="18" height="13" rx="2" />
           <path d="M8 7V5a2 2 0 0 1 2 -2h4a2 2 0 0 1 2 2v2" />
           <path d="M3 13h18" />
+        </svg>
+      );
+    case 'support': // 運営から（mail）
+      return (
+        <svg {...common}>
+          <rect x="3" y="5" width="18" height="14" rx="2" />
+          <path d="M3 7l9 6 9-6" />
         </svg>
       );
     case 'available': // 今すぐ（clock）
@@ -406,7 +414,9 @@ export default function MyPage() {
   const [toast, setToast] = useState('');
   const [saving, setSaving] = useState(false);
   const [savingSchedule, setSavingSchedule] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<'salon' | 'schedule' | 'profile' | 'available' | 'diary' | 'coupon' | 'news' | 'vipletter' | 'booking' | 'jobs'>('salon');
+  const [activeTab, setActiveTab] = useState<'salon' | 'schedule' | 'profile' | 'available' | 'diary' | 'coupon' | 'news' | 'vipletter' | 'booking' | 'jobs' | 'support'>('salon');
+  // 「運営から」タブの未読お知らせ件数（SupportTab が読み込み時に通知・タブバッジ表示用）。
+  const [supportUnread, setSupportUnread] = useState(0);
   const [expandedSections, setExpandedSections] = useState<Set<string>>(new Set());
   const [newTherapistName, setNewTherapistName] = useState('');
   const [newTherapistIsNew, setNewTherapistIsNew] = useState(false);
@@ -1656,6 +1666,7 @@ export default function MyPage() {
             ['vipletter', 'VIPレター'],
             ['booking',   'ネット予約'],
             ['jobs',      '求人'],
+            ['support',   '運営から'],
           ] as const).map(([key, label]) => {
             const selected = activeTab === key;
             return (
@@ -1671,6 +1682,12 @@ export default function MyPage() {
               >
                 {tabIcon(key)}
                 {label}
+                {/* 「運営から」タブ: 未読お知らせ件数の赤バッジ（/admin 求人タブのバッジと同型） */}
+                {key === 'support' && supportUnread > 0 && (
+                  <span className="inline-flex items-center justify-center min-w-[16px] h-[16px] px-1 rounded-full bg-pink-500 text-white text-[9px] font-black leading-none">
+                    {supportUnread}
+                  </span>
+                )}
               </button>
             );
           })}
@@ -3234,6 +3251,17 @@ export default function MyPage() {
               <p className="text-xs text-slate-400">サロン情報を読み込み中です…</p>
             </div>
           )}
+        </div>
+
+        {/* ── 運営から（お知らせ受信＋お問い合わせ） ── */}
+        {/* 常時マウント（hidden 切替）＝未読件数をタブバッジへ即時反映。タブを開くと既読化される。 */}
+        <div className={`${activeTab === 'support' ? '' : 'hidden'}`}>
+          <SupportTab
+            salonId={salon ? Number(salon.id) : null}
+            active={activeTab === 'support'}
+            onUnreadChange={setSupportUnread}
+            onToast={showToast}
+          />
         </div>
 
       </main>

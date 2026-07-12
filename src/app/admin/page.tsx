@@ -13,6 +13,7 @@ import TherapistPickupBannerManager from '@/app/components/TherapistPickupBanner
 import SalonEditModal, { type SalonForEdit } from '@/app/components/SalonEditModal';
 import ThemeWallpaperManager from '@/app/components/ThemeWallpaperManager';
 import SalonIntakeManager from '@/app/components/SalonIntakeManager';
+import OwnerContactManager from '@/app/components/OwnerContactManager';
 import AdminJobsManager from '@/app/components/AdminJobsManager';
 import FeaturedJobsManager from '@/app/components/FeaturedJobsManager';
 import AreaBannerManager from '@/app/components/AreaBannerManager';
@@ -400,6 +401,14 @@ export default function AdminDashboard() {
           {/* ── 新規店舗の初回情報入力フォーム（ワンタイムURL発行・入力内容の確認） ── */}
           <AccordionSection id="salon-intakes" title="新規店舗 入力フォーム発行" expanded={expandedSections} onToggle={toggleSection}>
             <SalonIntakeManager onToast={showToast} />
+          </AccordionSection>
+
+          {/* ── オーナー連絡（お知らせ配信＋お問い合わせ受信。/mypage「運営から」タブと対） ── */}
+          <AccordionSection id="owner-contact" title="オーナー連絡（お知らせ配信・お問い合わせ）" expanded={expandedSections} onToggle={toggleSection}>
+            <OwnerContactManager
+              allSalons={salons.map(s => ({ id: s.id, name: s.name ?? '' }))}
+              onToast={showToast}
+            />
           </AccordionSection>
 
           {/* ── 新規サロン追加フォーム ── */}
