@@ -47,11 +47,13 @@ export function FeaturedSalonSlider({ salons }: { salons: FeaturedSalon[] }) {
   const next = useCallback(() => setCurrent(c => (c + 1) % displaySalons.length),                [displaySalons.length]);
 
   // Auto-play
+  // deps に current を含める＝矢印・ドット・スワイプの手動操作でタイマーをリセットする
+  // （含めないと操作直後に既存タイマーが発火して「2枚連続で進む」。TopBannerSlider と同方式）。
   useEffect(() => {
     if (paused || displaySalons.length <= 1) return;
     const id = setInterval(() => setCurrent(c => (c + 1) % displaySalons.length), AUTO_PLAY_MS);
     return () => clearInterval(id);
-  }, [paused, displaySalons.length]);
+  }, [paused, displaySalons.length, current]);
 
   if (displaySalons.length === 0) return null;
 

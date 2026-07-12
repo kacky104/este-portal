@@ -120,28 +120,24 @@ export async function inviteCast(input: { therapistId: string; salonId: number; 
   if (t.user_id) return { ok: false, error: 'このセラピストは既に本人ログイン済みです' };
 
   // 同一メールの重複招待ガード：このメールが【自分以外の】セラピスト行で
-  // 既に使われていないか確認する。本人ログイン済み(user_id 非null)でも
-  // 招待中(invited_email 一致)でも、別人の行で使われていればブロックする。
+  // 既に使われていないか確認する（招待中でも本人ログイン済みでもブロック）。
   // 自分自身(input.therapistId)の行は除外＝同じ行への再招待・上書きは許可。
+  // ※以前は .or(`...invited_email.ilike.${email}`) だったが、(a) ilike はメールに普通に
+  //   含まれる `_` が任意1文字ワイルドカードになる、(b) .or() へのメール文字列の直接補間は
+  //   `,` を含むローカル部で条件を注入できる、の2点が不健全だった（2026-07-12修正）。
+  //   invited_email は inviteCast で必ず lowercase 保存されるため .eq で厳密一致できる。
   const { data: dupRows, error: dupErr } = await svc
     .from('therapists')
-    .select('id, user_id, invited_email')
-    .or(`user_id.not.is.null,invited_email.ilike.${email}`)
-    .neq('id', input.therapistId);
+    .select('id')
+    .eq('invited_email', email)
+    .neq('id', input.therapistId)
+    .limit(1);
 
   if (dupErr) {
     return { ok: false, error: `重複確認に失敗しました: ${dupErr.message}` };
   }
 
-  const emailLower = email.toLowerCase();
-  const conflict = (dupRows ?? []).some((r) => {
-    const invited = (r.invited_email ?? '').trim().toLowerCase();
-    // 別人が同じメールで「招待中」または「本人ログイン済み」かを判定。
-    // user_id 非null の行は、そのメールで実アカウントを持っている可能性。
-    return invited === emailLower;
-  });
-
-  if (conflict) {
+  if (dupRows && dupRows.length > 0) {
     return {
       ok: false,
       error: 'このメールアドレスは既に別のセラピストに使われています。別のメールアドレスを指定してください。',
@@ -281,10 +277,13 @@ export async function claimCastTherapist(): Promise<ClaimResult> {
   if (existing) return { ok: true, therapistName: (existing.name as string | null) ?? null };
 
   // invited_email 一致 かつ 未紐付け のレコードを探す。
+  // ※以前は .ilike だったが、`_` が任意1文字ワイルドカードになり
+  //   jane_doe@… のユーザーが janeXdoe@… 宛招待の行を誤って本人化できた（2026-07-12修正）。
+  //   invited_email は inviteCast で必ず lowercase 保存・email も lowercase 済みのため .eq で厳密一致。
   const { data: match } = await svc
     .from('therapists')
     .select('id, name')
-    .ilike('invited_email', email)
+    .eq('invited_email', email)
     .is('user_id', null)
     .maybeSingle();
   if (!match) {

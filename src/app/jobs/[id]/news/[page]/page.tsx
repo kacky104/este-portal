@@ -36,7 +36,11 @@ export async function generateMetadata({
   const job = await fetchJobById(jobId);
   if (!job) return {};
   // layout の template「%s｜フクエスワーク」が末尾を付与する。
-  return { title: `${job.salon.name}の新着情報 ${pageNum}ページ目` };
+  // canonical を明示しないと root の canonical '/' を継承して「トップの重複」扱いになるため自己参照を付与。
+  return {
+    title: `${job.salon.name}の新着情報 ${pageNum}ページ目`,
+    alternates: { canonical: `/jobs/${jobId}/news/${pageNum}` },
+  };
 }
 
 export default async function JobNewsArchivePage({

@@ -590,14 +590,29 @@ export async function enforceWorkNewsLimit(
 }
 
 // ── 削除（confirmはUI側） ──
+// job-hero-images の public URL から Storage パスを取り出す。該当しなければ null。
+const JOB_IMAGES_BUCKET = 'job-hero-images';
+function jobImageStoragePath(url: string | null | undefined): string | null {
+  if (!url) return null;
+  const marker = `/${JOB_IMAGES_BUCKET}/`;
+  const idx = url.indexOf(marker);
+  if (idx === -1) return null;
+  try {
+    return decodeURIComponent(url.slice(idx + marker.length).split('?')[0]);
+  } catch {
+    return null;
+  }
+}
+
 export async function deleteMyJob(jobId: number): Promise<{ ok: boolean; error?: string }> {
   if (!Number.isFinite(jobId)) return { ok: false, error: '対象求人が不正です' };
   const auth = await requireUser();
   if (!auth.ok) return { ok: false, error: auth.error };
 
+  // 掃除対象の画像URL（バナー最大3枚＋フォトギャラリー最大6枚）も行削除前に控える。
   const { data: job, error } = await auth.supabase
     .from('salon_jobs')
-    .select('id, salon_id')
+    .select('id, salon_id, hero_image_urls, gallery_images')
     .eq('id', jobId)
     .maybeSingle();
   if (error || !job) return { ok: false, error: '求人が見つかりません' };
@@ -608,6 +623,22 @@ export async function deleteMyJob(jobId: number): Promise<{ ok: boolean; error?:
 
   const { error: delErr } = await auth.supabase.from('salon_jobs').delete().eq('id', jobId);
   if (delErr) return { ok: false, error: delErr.message };
+
+  // 行削除成功後に job-hero-images の画像を掃除（2026-07-12）。
+  // 従来は行削除のみで画像が残置され URL 直打ちで見え続けた。掃除は best-effort
+  // （失敗しても削除は成立済み・ログのみ）。enforceWorkNewsLimit と同方針。
+  const heroUrls = Array.isArray(job.hero_image_urls) ? (job.hero_image_urls as string[]) : [];
+  const galleryUrls = Array.isArray(job.gallery_images)
+    ? (job.gallery_images as { url?: unknown }[]).map((g) => String(g?.url ?? ''))
+    : [];
+  const paths = [...new Set([...heroUrls, ...galleryUrls])]
+    .map(jobImageStoragePath)
+    .filter((p): p is string => p !== null);
+  if (paths.length > 0) {
+    const { error: rmErr } = await auth.supabase.storage.from(JOB_IMAGES_BUCKET).remove(paths);
+    if (rmErr) console.error('[deleteMyJob] 求人画像の削除に失敗:', paths, rmErr);
+  }
+
   revalidateJobsPublic(salonId);
   return { ok: true };
 }

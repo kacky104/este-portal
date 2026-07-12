@@ -9,6 +9,18 @@ import { createPublicClient } from "@/app/lib/supabase/public";
 import { getTheme, breadcrumbCurrentColor } from "@/app/lib/themes";
 import { CoursesContent, type Course } from "../CoursesContent";
 import { PaymentSection } from "../PaymentSection";
+import type { Metadata } from "next";
+import { buildSalonSubpageMetadata } from "../subpageMetadata";
+
+// 自己参照 canonical＋固有 title（root の canonical '/' 継承による重複扱いを防ぐ）。詳細は ../subpageMetadata.ts。
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}): Promise<Metadata> {
+  const { id } = await params;
+  return buildSalonSubpageMetadata(id, "price", "料金システム");
+}
 
 // ISR：10分ごとに再生成（保存時は /api/revalidate で即時無効化）。
 export const revalidate = 600;

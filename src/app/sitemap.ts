@@ -44,6 +44,10 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     { url: `${SITE_URL}/`, lastModified: now, changeFrequency: 'daily', priority: 1 },
     { url: `${SITE_URL}/salons`, lastModified: now, changeFrequency: 'daily', priority: 0.9 },
     { url: `${SITE_URL}/diary`, lastModified: now, changeFrequency: 'daily', priority: 0.6 },
+    // 出勤中一覧・新人一覧・サロン新着情報（2026-07-12 canonical 明示とセットで sitemap 掲載）。
+    { url: `${SITE_URL}/working`, lastModified: now, changeFrequency: 'daily', priority: 0.6 },
+    { url: `${SITE_URL}/therapist/new`, lastModified: now, changeFrequency: 'daily', priority: 0.6 },
+    { url: `${SITE_URL}/news`, lastModified: now, changeFrequency: 'daily', priority: 0.6 },
     { url: `${SITE_URL}/jobs`, lastModified: now, changeFrequency: 'daily', priority: 0.8 },
     // コラム一覧（公開記事の有無に関わらず存在する静的ページ）。
     { url: `${SITE_URL}/jobs/column`, lastModified: now, changeFrequency: 'daily', priority: 0.7 },

@@ -171,7 +171,7 @@ export type CreateBookingInput = {
 
 export type CreateBookingResult =
   | { ok: true }
-  | { ok: false; error: 'disabled' | 'slot_taken' | 'invalid' | string };
+  | { ok: false; error: 'disabled' | 'slot_taken' | 'invalid' | 'duplicate_booking' | 'rate_limited' | string };
 
 // slotStart（UTC）が属する JST 日付を返す（"YYYY-MM-DD"）。
 function jstDateOf(d: Date): string {
@@ -237,6 +237,33 @@ export async function createBooking(input: CreateBookingInput): Promise<CreateBo
     .maybeSingle();
   if (thErr || !therapist) return { ok: false, error: 'invalid' };
   if (Number(therapist.salon_id) !== salonId || !therapist.is_active) return { ok: false, error: 'invalid' };
+
+  // 2.5) 悪用ガード（2026-07-12）：予約は匿名で行えるため、無制限に INSERT できると
+  //      偽名＋電話番号形式だけで全セラピストの全枠を機械的に埋める営業妨害が可能だった。
+  //      job_applications の「直近1時間の同一 tel ガード」と同方針で tel 単位に制限する。
+  //      ガード用クエリ自体の失敗は予約を止めない（ログのみ・bannerReport と同方針）。
+  //  (a) 同一 tel × 同一サロンに未来の有効予約（cancelled 以外）が既にあれば重複として拒否。
+  const { data: dupRows, error: dupErr } = await svc
+    .from('salon_bookings')
+    .select('id')
+    .eq('customer_tel', customerTel)
+    .eq('salon_id', salonId)
+    .neq('status', 'cancelled')
+    .gt('slot_start', new Date().toISOString())
+    .limit(1);
+  if (dupErr) console.error('createBooking: duplicate check failed:', dupErr.message);
+  if (dupRows && dupRows.length > 0) return { ok: false, error: 'duplicate_booking' };
+
+  //  (b) 同一 tel の直近1時間の予約作成が2件以上なら拒否（キャンセル済みも作成実績として数える）。
+  const rateCutoff = new Date(Date.now() - 60 * 60 * 1000).toISOString();
+  const { data: recentRows, error: recentErr } = await svc
+    .from('salon_bookings')
+    .select('id')
+    .eq('customer_tel', customerTel)
+    .gte('created_at', rateCutoff)
+    .limit(2);
+  if (recentErr) console.error('createBooking: rate limit check failed:', recentErr.message);
+  if (recentRows && recentRows.length >= 2) return { ok: false, error: 'rate_limited' };
 
   // 3) slotStart を含む出勤枠を特定（夜跨ぎシフトは前日 schedule_date に属するため2日分を候補にする）。
   const jstDate = jstDateOf(slotStart);

@@ -7,11 +7,37 @@ import { VipLetterIcon } from '@/app/components/VipLetterIcon';
 import { createPublicClient } from '@/app/lib/supabase/public';
 import { fetchNewFaceTherapists } from '@/app/lib/newFaceTherapists';
 import { NewFaceList } from './NewFaceList';
+import type { Metadata } from 'next';
 
 // 新人セラピスト一覧ページ（トップ「新人セラピスト一覧」の「一覧を見る →」先）。/working の構成に倣う。
 // 新人リストは変動が遅い（30日ウィンドウ）ため ISR（10分）と相性が良い。全件を新しい順で表示。
 // 静的セグメント "new" は動的 /therapist/[id] より優先されるため衝突しない（実IDは "new" と非衝突）。
 export const revalidate = 600;
+
+// 自己参照 canonical＋固有 title（root の canonical '/' 継承による重複扱いを防ぐ）。
+const NEWFACE_TITLE = '新人セラピスト一覧｜福岡メンズエステ【フクエス】';
+const NEWFACE_DESCRIPTION =
+  '福岡のメンズエステに新しく入店した新人セラピスト一覧。博多・天神・北九州・久留米など福岡全域の新人情報をフクエスでチェックできます。';
+
+export const metadata: Metadata = {
+  title: NEWFACE_TITLE,
+  description: NEWFACE_DESCRIPTION,
+  alternates: { canonical: '/therapist/new' },
+  openGraph: {
+    title: NEWFACE_TITLE,
+    description: NEWFACE_DESCRIPTION,
+    url: '/therapist/new',
+    siteName: 'フクエス',
+    type: 'website',
+    images: [{ url: '/ogp.png', width: 1200, height: 630 }],
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: NEWFACE_TITLE,
+    description: NEWFACE_DESCRIPTION,
+    images: ['/ogp.png'],
+  },
+};
 
 export default async function NewFacePage() {
   const supabase = createPublicClient();

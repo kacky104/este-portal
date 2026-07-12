@@ -27,11 +27,14 @@ export default async function ModerationPage() {
   const pending = rows ?? [];
 
   // 承認済み（公開中）も取得（誤承認の削除導線用）。
+  // 承認済みは削除されない限り増え続けるため、サーバー取得は直近200件に限定する（2026-07-12）。
+  // それより古い口コミの削除が必要になったら DB 直接操作 or 検索機能の追加で対応。
   const { data: approvedRows } = await svc
     .from('therapist_reviews')
     .select('id, therapist_id, user_id, rating_service, rating_technique, rating_reception, visited_on, body, created_at')
     .eq('status', 'approved')
-    .order('created_at', { ascending: false });
+    .order('created_at', { ascending: false })
+    .limit(200);
   const approved = approvedRows ?? [];
 
   // nickname / therapist 名は pending・approved 両方の id をまとめて1回ずつ引く（クエリ回数は増やさない）。

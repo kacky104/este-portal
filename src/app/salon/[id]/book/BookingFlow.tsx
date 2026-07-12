@@ -168,6 +168,15 @@ export function BookingFlow({
       setSubmitError('この店舗は現在ネット予約を受け付けていません。');
       return;
     }
+    // 悪用ガード（同一電話番号の重複・短時間連投）に該当した場合の案内。
+    if (res.error === 'duplicate_booking') {
+      setSubmitError('同じ電話番号でのご予約をすでに受け付けています。変更はお店へ直接ご連絡ください。');
+      return;
+    }
+    if (res.error === 'rate_limited') {
+      setSubmitError('短時間に複数のご予約はできません。しばらく時間をおいてからお試しください。');
+      return;
+    }
     setSubmitError('予約内容に不備があります。最初からやり直してください。');
   };
 

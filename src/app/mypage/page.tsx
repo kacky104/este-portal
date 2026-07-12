@@ -16,11 +16,13 @@ import { getBusinessDateJST, getBusinessDateRangeJST } from '@/lib/dutyStatus';
 import { isCastLiveRow } from '@/lib/imasugu';
 import { MyDiaryList } from './MyDiaryList';
 import { inviteCast, resendCastInvite, unlinkCast, cancelCastInvite } from '@/app/actions/castInvite';
+import { deleteTherapistWithCleanup } from '@/app/actions/therapistAdmin';
 import { PAYMENT_CARD_OPTIONS } from '@/app/lib/paymentCards';
 import { PAYMENT_METHOD_OPTIONS } from '@/app/lib/paymentMethods';
 import { getSalonBookings, updateBookingStatus, deleteBooking, type OwnerBooking } from '@/app/actions/booking';
 import { callbackPrefLabel } from '@/app/lib/booking/callbackPref';
 import { STORAGE_CACHE_CONTROL } from '@/app/lib/storage';
+import { useToast } from '@/app/components/useToast';
 
 const supabase = createClient();
 
@@ -411,7 +413,8 @@ export default function MyPage() {
   const [therapistForms, setTherapistForms] = useState<Record<string, Partial<Therapist>>>({});
   const [schedules, setSchedules] = useState<Record<string, Record<string, DaySchedule>>>({});
   const [loadError, setLoadError] = useState('');
-  const [toast, setToast] = useState('');
+  // トーストは共通フックで一元管理（タイマー直書きは連続表示・unmount後setStateのバグ源）。
+  const { toast, showToast } = useToast();
   const [saving, setSaving] = useState(false);
   const [savingSchedule, setSavingSchedule] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<'salon' | 'schedule' | 'profile' | 'available' | 'diary' | 'coupon' | 'news' | 'vipletter' | 'booking' | 'jobs' | 'support'>('salon');
@@ -636,11 +639,6 @@ export default function MyPage() {
     return () => clearInterval(timer);
   }, []);
 
-  const showToast = (msg: string) => {
-    setToast(msg);
-    setTimeout(() => setToast(''), 3000);
-  };
-
   const updateDay = (therapistId: string, dateStr: string, patch: Partial<DaySchedule>) => {
     setSchedules(prev => {
       const current: DaySchedule = prev[therapistId]?.[dateStr] ?? {
@@ -665,6 +663,23 @@ export default function MyPage() {
     const marker = '/salon-images/';
     const idx = url.indexOf(marker);
     if (idx !== -1) supabase.storage.from('salon-images').remove([url.slice(idx + marker.length)]);
+  };
+
+  // announcement-images の public URL → バケット内パス（{salon_id}/{ts}.{ext}）。対象外URLは null。
+  const announcementStoragePath = (url: string | null | undefined): string | null => {
+    if (!url) return null;
+    const marker = '/announcement-images/';
+    const idx = url.indexOf(marker);
+    return idx === -1 ? null : url.slice(idx + marker.length);
+  };
+
+  // 不要になったお知らせ画像を掃除（2026-07-12）。従来は削除・差し替えで旧画像が残置され
+  // URL 直打ちで見え続けた。掃除は best-effort（失敗しても本体操作は成立・ログのみ）。
+  const removeAnnouncementImage = async (url: string | null | undefined) => {
+    const path = announcementStoragePath(url);
+    if (!path) return;
+    const { error } = await supabase.storage.from('announcement-images').remove([path]);
+    if (error) console.error('[announcements] 旧画像の削除に失敗:', path, error.message);
   };
 
   const validateImageFile = (file: File): string | null => {
@@ -1044,36 +1059,24 @@ export default function MyPage() {
   const handleTherapistDelete = async (id: string, name: string | null) => {
     const displayName = name ?? 'このセラピスト';
     if (!window.confirm(`「${displayName}」を削除しますか？\nこの操作は取り消せません。`)) return;
+    if (!salon) return;
 
+    // 2026-07-12: クライアント直 delete → server action 化。
+    // 直 delete では therapist-photos / diary-images の画像が残置され URL 直打ちで
+    // 見え続けるため、行削除成功後に storage も掃除する（fukuX の運営削除と同方針）。
     setDeletingTherapist(id);
-    console.log('[delete] start id=', id, 'type=', typeof id);
-
-    // ON DELETE CASCADE 未設定の場合も安全なよう schedules を先に削除
-    const { error: schedErr } = await supabase
-      .from('therapist_schedules')
-      .delete()
-      .eq('therapist_id', id);
-    console.log('[delete] therapist_schedules result: error=', schedErr);
-
-    // .select() を付けて実際に削除された行を取得（RLSブロック時は0行返る）
-    const { data: deleted, error } = await supabase
-      .from('therapists')
-      .delete()
-      .eq('id', id)
-      .select('id');
-    console.log('[delete] therapists result: deleted=', deleted, 'error=', error);
-
-    setDeletingTherapist(null);
-
-    if (error) {
-      console.error('[delete] error:', error);
-      showToast(`削除に失敗しました: ${error.message}`);
-      return;
+    let res: Awaited<ReturnType<typeof deleteTherapistWithCleanup>>;
+    try {
+      res = await deleteTherapistWithCleanup({ therapistId: id, salonId: Number(salon.id) });
+    } catch {
+      res = { ok: false, error: '通信に失敗しました。時間をおいて再度お試しください' };
+    } finally {
+      setDeletingTherapist(null);
     }
 
-    if (!deleted || deleted.length === 0) {
-      console.warn('[delete] 0 rows deleted — RLSポリシーにより削除が拒否された可能性があります');
-      showToast('削除できませんでした（権限エラーの可能性があります）');
+    if (!res.ok) {
+      console.error('[delete] error:', res.error);
+      showToast(`削除に失敗しました: ${res.error}`);
       return;
     }
 
@@ -1370,6 +1373,9 @@ export default function MyPage() {
       setUploadingNewAnnouncementImage(false); e.target.value = ''; return;
     }
     const { data: { publicUrl } } = supabase.storage.from('announcement-images').getPublicUrl(path);
+    // 選び直し：直前にアップロード済みの未保存画像（フォーム内のみ参照）は掃除してから差し替える。
+    const prevUnsavedUrl = newAnnouncement.image_url ?? null;
+    if (prevUnsavedUrl) removeAnnouncementImage(prevUnsavedUrl);
     setNewAnnouncement(p => ({ ...p, image_url: publicUrl }));
     setUploadingNewAnnouncementImage(false); e.target.value = '';
   };
@@ -1389,6 +1395,11 @@ export default function MyPage() {
       setUploadingAnnouncementImageId(null); e.target.value = ''; return;
     }
     const { data: { publicUrl } } = supabase.storage.from('announcement-images').getPublicUrl(path);
+    // 選び直し：フォーム内の画像が DB 未保存のセッション内アップロードなら掃除してから差し替える
+    // （DB 保存済みの画像は保存成功時に handleAnnouncementSave 側で掃除する）。
+    const prevFormUrl = (announcementForms[id]?.image_url as string | null) ?? null;
+    const dbUrl = announcements.find(a => a.id === id)?.image_url ?? null;
+    if (prevFormUrl && prevFormUrl !== dbUrl) removeAnnouncementImage(prevFormUrl);
     setAnnouncementForms(prev => ({ ...prev, [id]: { ...prev[id], image_url: publicUrl } }));
     setUploadingAnnouncementImageId(null); e.target.value = '';
   };
@@ -1496,6 +1507,9 @@ export default function MyPage() {
     }).eq('id', id);
     setSavingAnnouncement(null);
     if (error) { showToast(`保存に失敗しました: ${error.message}`); return; }
+    // 差し替え・画像なしへの変更で不要になった旧画像を掃除（保存成功後・best-effort）。
+    const prevImageUrl = announcements.find(a => a.id === id)?.image_url ?? null;
+    if (prevImageUrl && prevImageUrl !== image_url) removeAnnouncementImage(prevImageUrl);
     setAnnouncements(prev => prev.map(a => a.id === id
       ? { ...a, title: form.title!.trim(), content, is_published, image_url }
       : a));
@@ -1590,6 +1604,8 @@ export default function MyPage() {
   // お知らせ：削除（確認あり）
   const handleAnnouncementDelete = async (id: string) => {
     if (!window.confirm('このお知らせを削除しますか？\nこの操作は取り消せません。')) return;
+    // 掃除対象の画像URLを行削除前に控える（行削除成功後に best-effort で掃除）。
+    const oldImageUrl = announcements.find(a => a.id === id)?.image_url ?? null;
     setDeletingAnnouncement(id);
     const { data: deleted, error } = await supabase.from('announcements').delete().eq('id', id).select('id');
     setDeletingAnnouncement(null);
@@ -1598,6 +1614,7 @@ export default function MyPage() {
       showToast('削除できませんでした（権限エラーの可能性があります）');
       return;
     }
+    removeAnnouncementImage(oldImageUrl);
     setAnnouncements(prev => prev.filter(a => a.id !== id));
     setAnnouncementForms(prev => { const n = { ...prev }; delete n[id]; return n; });
     if (salon) revalidateSalon(salon.id);

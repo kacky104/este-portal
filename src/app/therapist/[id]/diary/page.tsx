@@ -7,12 +7,44 @@ import { formatDiaryDate } from '@/lib/diaryDate';
 import { DiaryTherapistAvatar } from '@/components/DiaryTherapistAvatar';
 import { DiaryNewBadge } from '@/components/DiaryNewBadge';
 import { DiaryPagination } from '@/components/DiaryPagination';
+import type { Metadata } from 'next';
 
 const PAGE_SIZE = 32;
 
 // ?page ページネーション（searchParams）をサーバーで読むため、リクエスト毎に動的レンダリングする。
 // ISR（revalidate + generateStaticParams）のまま searchParams を読むと DYNAMIC_SERVER_USAGE で500になるため force-dynamic を明示。
 export const dynamic = 'force-dynamic';
+
+// 自己参照 canonical＋固有 title（root の canonical '/' 継承による重複扱いを防ぐ）。
+// ?page= 付きページも canonical はベース（/therapist/[id]/diary）に集約する。
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}): Promise<Metadata> {
+  const { id } = await params;
+  const supabase = createPublicClient();
+  const { data: row } = await supabase
+    .from('therapists')
+    .select('name')
+    .eq('id', id)
+    .single();
+  if (!row) return { robots: { index: false, follow: false } };
+  const title = `${(row.name as string) ?? ''}の写メ日記｜福岡メンズエステ【フクエス】`;
+  const path = `/therapist/${id}/diary`;
+  return {
+    title,
+    alternates: { canonical: path },
+    openGraph: {
+      title,
+      url: path,
+      siteName: 'フクエス',
+      type: 'website',
+      images: [{ url: '/ogp.png', width: 1200, height: 630 }],
+    },
+    twitter: { card: 'summary_large_image', title, images: ['/ogp.png'] },
+  };
+}
 
 type DiaryRow = {
   id: number | string;

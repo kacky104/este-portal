@@ -7,15 +7,37 @@ import { VipLetterIcon } from '@/app/components/VipLetterIcon';
 import { createPublicClient } from '@/app/lib/supabase/public';
 import { fetchLatestSalonNews } from '@/app/lib/salonNews';
 import { SalonNewsList } from '@/app/components/SalonNewsList';
+import type { Metadata } from 'next';
 
 // 全サロン横断の新着情報一覧（トップ「サロン新着情報」の「もっと見る」先）。最新50件・ページングなし。
 // 件数が増えてページングが必要になったら limit+offset か published_at カーソルで拡張する。
 
 export const revalidate = 600;
 
-export const metadata = {
-  title: 'サロン新着情報｜フクエス - 福岡メンズエステポータル',
-  description: '福岡のメンズエステサロンの最新お知らせ一覧。新人入店・イベント・割引情報などサロンの新着情報をまとめてチェックできます。',
+// 自己参照 canonical を明示（root の canonical '/' 継承による重複扱いを防ぐ）。
+// openGraph は浅いマージで root の og が丸ごと消えるため必要項目を全て明示。
+const NEWS_TITLE = 'サロン新着情報｜フクエス - 福岡メンズエステポータル';
+const NEWS_DESCRIPTION =
+  '福岡のメンズエステサロンの最新お知らせ一覧。新人入店・イベント・割引情報などサロンの新着情報をまとめてチェックできます。';
+
+export const metadata: Metadata = {
+  title: NEWS_TITLE,
+  description: NEWS_DESCRIPTION,
+  alternates: { canonical: '/news' },
+  openGraph: {
+    title: NEWS_TITLE,
+    description: NEWS_DESCRIPTION,
+    url: '/news',
+    siteName: 'フクエス',
+    type: 'website',
+    images: [{ url: '/ogp.png', width: 1200, height: 630 }],
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: NEWS_TITLE,
+    description: NEWS_DESCRIPTION,
+    images: ['/ogp.png'],
+  },
 };
 
 export default async function SalonNewsIndexPage() {

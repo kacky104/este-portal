@@ -121,6 +121,38 @@ export async function submitReview(input: SubmitInput): Promise<void> {
     throw new Error('対象のセラピストが正しくありません');
   }
 
+  // 連投ガード（2026-07-12）：従来は同一セラピストへ pending を無制限に連投でき、
+  // 審査キューを洪水させられた。job_applications・createBooking の tel ガードと同方針。
+  // RLS の SELECT ポリシーに依存せず確実に数えるため、ガードの読みだけ service_role で行う
+  // （user.id は auth.getUser() 由来のサーバー検証済みの値のみ使用）。
+  const guardSvc = createServiceClient();
+
+  // (a) 同一 user × 同一セラピストの pending が既にあれば重複として拒否。
+  const { data: dupRows, error: dupErr } = await guardSvc
+    .from('therapist_reviews')
+    .select('id')
+    .eq('therapist_id', therapistId)
+    .eq('user_id', user.id)
+    .eq('status', 'pending')
+    .limit(1);
+  if (dupErr) console.error('submitReview: duplicate check failed:', dupErr.message);
+  if (dupRows && dupRows.length > 0) {
+    throw new Error('このセラピストへの口コミは審査中です。承認をお待ちください');
+  }
+
+  // (b) 同一 user の全投稿は24時間で3件まで（承認済み・却下も投稿実績として数える）。
+  const reviewCutoff = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+  const { data: recentRows, error: recentErr } = await guardSvc
+    .from('therapist_reviews')
+    .select('id')
+    .eq('user_id', user.id)
+    .gte('created_at', reviewCutoff)
+    .limit(3);
+  if (recentErr) console.error('submitReview: rate limit check failed:', recentErr.message);
+  if (recentRows && recentRows.length >= 3) {
+    throw new Error('口コミの投稿は24時間に3件までです。時間をおいて再度お試しください');
+  }
+
   // 同じ authenticated クライアントで insert（service_role 不使用）。
   // user_id はログインユーザーの id、status は送らず DB default 'pending' に任せる。
   const { error } = await supabase.from('therapist_reviews').insert({

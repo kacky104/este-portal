@@ -8,6 +8,18 @@ import { notFound } from "next/navigation";
 import { createPublicClient } from "@/app/lib/supabase/public";
 import { getTheme, breadcrumbCurrentColor } from "@/app/lib/themes";
 import { SalonAllTherapists } from "@/components/SalonTherapists";
+import type { Metadata } from "next";
+import { buildSalonSubpageMetadata } from "../subpageMetadata";
+
+// 自己参照 canonical＋固有 title（root の canonical '/' 継承による重複扱いを防ぐ）。詳細は ../subpageMetadata.ts。
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}): Promise<Metadata> {
+  const { id } = await params;
+  return buildSalonSubpageMetadata(id, "therapists", "在籍セラピスト一覧");
+}
 
 // ISR：10分ごとに再生成（保存時は /api/revalidate で即時無効化）。
 export const revalidate = 600;

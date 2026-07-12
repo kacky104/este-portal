@@ -110,8 +110,16 @@ export default function AdminJobsManager({
     }
     setSaving(true);
     setFormError('');
-    const res = await upsertMyJob(salonId, editor.form);
-    setSaving(false);
+    // server action はネットワーク断等で reject しうるため try/finally で必ず saving を戻す
+    // （従来は reject すると保存ボタンが永久無効のままだった）。
+    let res: Awaited<ReturnType<typeof upsertMyJob>>;
+    try {
+      res = await upsertMyJob(salonId, editor.form);
+    } catch {
+      res = { ok: false, error: '通信に失敗しました。時間をおいて再度お試しください' };
+    } finally {
+      setSaving(false);
+    }
     if (!res.ok) {
       setFormError(res.error);
       return;

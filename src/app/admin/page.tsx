@@ -21,6 +21,7 @@ import AreaBannerManager from '@/app/components/AreaBannerManager';
 import AreaIconManager from '@/app/components/AreaIconManager';
 import FeatureIconManager from '@/app/components/FeatureIconManager';
 import WorkArticlesManager from '@/app/components/WorkArticlesManager';
+import { useToast } from '@/app/components/useToast';
 import { ADMIN_UUID } from '@/app/lib/admin';
 import { areaLabel } from '@/app/lib/areaLabel';
 import { AREA_ORDER } from '@/app/lib/areas';
@@ -115,7 +116,6 @@ export default function AdminDashboard() {
   // area とは独立した別軸のフラグ（文字列フォームとは別 state で型安全に管理）。
   const [showOnTop, setShowOnTop] = useState(true);
   const [dispatchType, setDispatchType] = useState<'none' | 'available' | 'only'>('none');
-  const [toast, setToast] = useState('');
   const [editingSalon, setEditingSalon] = useState<SalonForEdit | null>(null);
   const [hidingId, setHidingId] = useState<number | null>(null);
   // タブ（本体/求人）とアコーディオン開閉。タブはURLクエリ ?tab= と同期（リロード・ブックマークで維持）。
@@ -125,10 +125,8 @@ export default function AdminDashboard() {
   // 求人タブのバッジ用（AdminJobsManager が読み込み時に求人件数・新規応募合計を通知）。
   const [jobStats, setJobStats] = useState<{ total: number; newCount: number }>({ total: 0, newCount: 0 });
 
-  const showToast = (msg: string) => {
-    setToast(msg);
-    setTimeout(() => setToast(''), 3000);
-  };
+  // トーストは共通フックで一元管理（タイマー直書きは連続表示・unmount後setStateのバグ源）。
+  const { toast, showToast } = useToast();
 
   const toggleSection = (key: string) => {
     setExpandedSections(prev => {

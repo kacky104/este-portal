@@ -42,17 +42,25 @@ export function VipLetterForm({ salonId }: { salonId: number }) {
     setSending(true);
     setError('');
     setSentMsg('');
-    const res = await sendVipLetter({
-      salonId,
-      title,
-      body,
-      couponEnabled,
-      couponDiscount,
-      couponTerms,
-      couponExpiresAt,
-      couponColor,
-    });
-    setSending(false);
+    // server action はネットワーク断等で reject しうるため try/finally で必ず sending を戻す
+    // （従来は reject すると送信ボタンが永久無効のままだった）。
+    let res: Awaited<ReturnType<typeof sendVipLetter>>;
+    try {
+      res = await sendVipLetter({
+        salonId,
+        title,
+        body,
+        couponEnabled,
+        couponDiscount,
+        couponTerms,
+        couponExpiresAt,
+        couponColor,
+      });
+    } catch {
+      res = { ok: false, error: '通信に失敗しました。時間をおいて再度お試しください' };
+    } finally {
+      setSending(false);
+    }
     if (res.ok) {
       setSentMsg(`VIPレターを送信しました（${res.recipientCount}人に配信）`);
       setTitle('');

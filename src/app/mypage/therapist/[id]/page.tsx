@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { createClient } from '@/app/lib/supabase/client';
@@ -14,6 +14,8 @@ import {
   sanitizeBadges,
 } from '@/lib/therapistBadges';
 import { STORAGE_CACHE_CONTROL } from '@/app/lib/storage';
+import { cleanupTherapistPhotos } from '@/app/actions/therapistAdmin';
+import { useToast } from '@/app/components/useToast';
 
 const supabase = createClient();
 
@@ -66,17 +68,17 @@ export default function TherapistEditPage() {
   const [therapist, setTherapist] = useState<Therapist | null>(null);
   const [form, setForm] = useState<Partial<Therapist>>({});
   const [images, setImages] = useState<string[]>([]);
+  // 旧画像掃除用（2026-07-12）：DB保存済みの画像一覧と、このセッションでアップロードしたURLを控えておき、
+  // 保存成功時に「最終的に使われなかった画像」を storage から掃除する（従来は差し替え・削除のたびに孤児が蓄積）。
+  const [savedImages, setSavedImages] = useState<string[]>([]);
+  const sessionUploadsRef = useRef<string[]>([]);
   const [bodyParts, setBodyParts] = useState<BodyParts>({ height: '', bust: '', cup: '', waist: '', hip: '' });
   const [badges, setBadges] = useState<string[]>([]);
   const [loadError, setLoadError] = useState('');
   const [saving, setSaving] = useState(false);
   const [uploadingSlot, setUploadingSlot] = useState<number | null>(null);
-  const [toast, setToast] = useState('');
-
-  const showToast = (msg: string) => {
-    setToast(msg);
-    setTimeout(() => setToast(''), 3000);
-  };
+  // トーストは共通フックで一元管理（タイマー直書きは連続表示・unmount後setStateのバグ源）。
+  const { toast, showToast } = useToast();
 
   useEffect(() => {
     (async () => {
@@ -120,6 +122,7 @@ export default function TherapistEditPage() {
             ? [tData.profile_image_url]
             : [];
       setImages(initialImages.slice(0, MAX_IMAGES));
+      setSavedImages(initialImages.slice(0, MAX_IMAGES));
       setBodyParts(parseBodyType(tData.body_type));
       // 現在の特徴バッジをプリフィル（不正値除去・最大3つに正規化）
       setBadges(sanitizeBadges(tData.feature_badges));
@@ -159,6 +162,7 @@ export default function TherapistEditPage() {
       .from('therapist-photos')
       .getPublicUrl(fileName);
 
+    sessionUploadsRef.current.push(urlData.publicUrl);
     setImages(prev => {
       const next = [...prev];
       if (slot < next.length) next[slot] = urlData.publicUrl; // 差し替え
@@ -202,7 +206,24 @@ export default function TherapistEditPage() {
       .eq('id', therapist.id);
 
     setSaving(false);
-    if (!error) revalidateTop(); // 成功時：トップのISRを即時更新
+    if (!error) {
+      revalidateTop(); // 成功時：トップのISRを即時更新
+      // 差し替え・スロット削除で不要になった旧画像を掃除（best-effort・失敗しても保存は成立）。
+      // 対象＝「DB保存済みだった画像」＋「このセッションでアップロードした画像」のうち最終形に残らなかったもの。
+      const keep = new Set(images);
+      const removedUrls = [...new Set([...savedImages, ...sessionUploadsRef.current])].filter(
+        (u) => !keep.has(u),
+      );
+      if (removedUrls.length > 0) {
+        cleanupTherapistPhotos({
+          therapistId: therapist.id,
+          salonId: Number(therapist.salon_id),
+          urls: removedUrls,
+        }).catch((e) => console.error('[therapist] 旧画像の掃除に失敗:', e));
+      }
+      setSavedImages(images);
+      sessionUploadsRef.current = [];
+    }
     showToast(error ? '保存に失敗しました' : '保存しました');
   };
 

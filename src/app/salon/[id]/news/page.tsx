@@ -8,6 +8,18 @@ import { notFound } from "next/navigation";
 import { createPublicClient } from "@/app/lib/supabase/public";
 import { getTheme, breadcrumbCurrentColor } from "@/app/lib/themes";
 import { NewsAccordion } from "../NewsAccordion";
+import type { Metadata } from "next";
+import { buildSalonSubpageMetadata } from "../subpageMetadata";
+
+// 自己参照 canonical＋固有 title（root の canonical '/' 継承による重複扱いを防ぐ）。詳細は ../subpageMetadata.ts。
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}): Promise<Metadata> {
+  const { id } = await params;
+  return buildSalonSubpageMetadata(id, "news", "お知らせ");
+}
 
 function formatDate(iso: string): string {
   const d = new Date(iso);

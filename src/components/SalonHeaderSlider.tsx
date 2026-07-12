@@ -22,11 +22,13 @@ export default function SalonHeaderSlider({ images }: Props) {
     return () => window.removeEventListener('resize', check);
   }, []);
 
+  // deps に current を含める＝矢印・スワイプの手動操作でタイマーをリセットする
+  // （含めないと操作直後に既存タイマーが発火して「2枚連続で進む」。TopBannerSlider と同方式）。
   useEffect(() => {
     if (count <= 1 || paused) return;
     const id = setInterval(() => setCurrent(c => (c + 1) % count), 4000);
     return () => clearInterval(id);
-  }, [count, paused]);
+  }, [count, paused, current]);
 
   const prev = () => setCurrent(c => (c - 1 + count) % count);
   const next = () => setCurrent(c => (c + 1) % count);

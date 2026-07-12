@@ -9,6 +9,33 @@ import { createPublicClient } from '@/app/lib/supabase/public';
 import { fetchSalons } from '@/app/lib/salons';
 import { areaFromSlug, salonInArea, DISPATCH_AREA } from '@/app/lib/areas';
 import { areaLabel } from '@/app/lib/areaLabel';
+import type { Metadata } from 'next';
+
+// 自己参照 canonical＋固有 title（root の canonical '/' 継承による重複扱いを防ぐ）。
+// ?area= 付きの絞り込み表示も canonical はベース（/working）に集約する。
+const WORKING_TITLE = '本日出勤のセラピスト一覧｜福岡メンズエステ【フクエス】';
+const WORKING_DESCRIPTION =
+  '福岡のメンズエステで本日出勤中のセラピスト一覧。博多・天神・北九州・久留米など福岡全域の出勤情報をフクエスでまとめてチェックできます。';
+
+export const metadata: Metadata = {
+  title: WORKING_TITLE,
+  description: WORKING_DESCRIPTION,
+  alternates: { canonical: '/working' },
+  openGraph: {
+    title: WORKING_TITLE,
+    description: WORKING_DESCRIPTION,
+    url: '/working',
+    siteName: 'フクエス',
+    type: 'website',
+    images: [{ url: '/ogp.png', width: 1200, height: 630 }],
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: WORKING_TITLE,
+    description: WORKING_DESCRIPTION,
+    images: ['/ogp.png'],
+  },
+};
 
 export default async function WorkingPage({
   searchParams,

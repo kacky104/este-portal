@@ -11,6 +11,18 @@ import { formatDiaryDate } from '@/lib/diaryDate';
 import { DiaryTherapistAvatar } from '@/components/DiaryTherapistAvatar';
 import { DiaryNewBadge } from '@/components/DiaryNewBadge';
 import { DiaryPagination } from '@/components/DiaryPagination';
+import type { Metadata } from 'next';
+import { buildSalonSubpageMetadata } from '../subpageMetadata';
+
+// 自己参照 canonical＋固有 title（root の canonical '/' 継承による重複扱いを防ぐ）。詳細は ../subpageMetadata.ts。
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}): Promise<Metadata> {
+  const { id } = await params;
+  return buildSalonSubpageMetadata(id, 'diary', '写メ日記');
+}
 
 const PAGE_SIZE = 32;
 

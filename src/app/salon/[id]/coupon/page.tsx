@@ -8,6 +8,18 @@ import { notFound } from "next/navigation";
 import { createPublicClient } from "@/app/lib/supabase/public";
 import { getTheme, breadcrumbCurrentColor } from "@/app/lib/themes";
 import { getCouponColor } from "@/app/lib/couponColors";
+import type { Metadata } from "next";
+import { buildSalonSubpageMetadata } from "../subpageMetadata";
+
+// 自己参照 canonical＋固有 title（root の canonical '/' 継承による重複扱いを防ぐ）。詳細は ../subpageMetadata.ts。
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}): Promise<Metadata> {
+  const { id } = await params;
+  return buildSalonSubpageMetadata(id, "coupon", "クーポン");
+}
 
 // 有効期限の表示整形（"2026-07-31" → "2026年7月31日"）。
 function formatValidUntil(d: string): string {

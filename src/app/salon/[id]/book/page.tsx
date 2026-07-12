@@ -10,6 +10,18 @@ import { getTheme, breadcrumbCurrentColor } from "@/app/lib/themes";
 import { getBookableTherapists } from "@/app/actions/booking";
 import { BookingFlow } from "./BookingFlow";
 import type { BookingCourse } from "@/app/actions/booking";
+import type { Metadata } from "next";
+import { buildSalonSubpageMetadata } from "../subpageMetadata";
+
+// 予約フォームはインデックス対象外（noindex）。root の canonical '/' 継承による重複扱いも防ぐ。
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}): Promise<Metadata> {
+  const { id } = await params;
+  return buildSalonSubpageMetadata(id, "book", "ネット予約", { noindex: true });
+}
 
 // 予約枠は時刻に依存するため常に動的レンダリング（ISRキャッシュしない）。
 export const dynamic = 'force-dynamic';

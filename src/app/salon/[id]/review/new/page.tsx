@@ -4,6 +4,18 @@ import { Logo } from '@/app/components/Logo';
 import { createPublicClient } from '@/app/lib/supabase/public';
 import { getSalonActiveTherapists } from '@/app/lib/reviews';
 import { SalonReviewForm } from './SalonReviewForm';
+import type { Metadata } from 'next';
+import { buildSalonSubpageMetadata } from '../../subpageMetadata';
+
+// 口コミ投稿フォームはインデックス対象外（noindex）。root の canonical '/' 継承による重複扱いも防ぐ。
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}): Promise<Metadata> {
+  const { id } = await params;
+  return buildSalonSubpageMetadata(id, 'review/new', '口コミ投稿', { noindex: true });
+}
 
 // 口コミ投稿ページ（ログイン会員向け）。ログイン判定はフォーム側（クライアント）で行うため、
 // ここは店舗名・在籍セラピストを取得してフォームを描画するだけ。
