@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/app/lib/supabase/client';
 import type { XProfile } from './xProfile';
+import { useXToast } from './useXToast';
 
 const sb = createClient();
 
@@ -22,7 +23,7 @@ export function XMessageButton({
   const router = useRouter();
   const [eligible, setEligible] = useState(false);
   const [busy, setBusy] = useState(false);
-  const [toast, setToast] = useState('');
+  const { toast, showToast } = useXToast(2800);
 
   // どちらか一方でも DM受付オフなら開始不可（相手＝target・自分＝viewerProfile）。最終防御はDB側RPC。
   const dmBlocked = target.dm_disabled || !!viewerProfile?.dm_disabled;
@@ -60,8 +61,7 @@ export function XMessageButton({
     const { data, error } = await sb.rpc('x_start_conversation', { p_other: target.id });
     setBusy(false);
     if (error || data == null) {
-      setToast(error?.message ?? '会話を開始できませんでした');
-      window.setTimeout(() => setToast(''), 2800);
+      showToast(error?.message ?? '会話を開始できませんでした');
       return;
     }
     router.push(`/x/messages/${data}`);

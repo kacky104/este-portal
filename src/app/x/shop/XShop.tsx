@@ -4,6 +4,7 @@ import { useMemo, useState } from 'react';
 import Link from 'next/link';
 import { createClient } from '@/app/lib/supabase/client';
 import type { TherapistMini } from '../xAffiliation';
+import { useXToast } from '../useXToast';
 
 const supabase = createClient();
 
@@ -42,12 +43,7 @@ export function XShop({
   const [result, setResult] = useState<SearchResult | null>(null);
 
   const [busy, setBusy] = useState<string | null>(null);
-  const [toast, setToast] = useState('');
-
-  const showToast = (msg: string) => {
-    setToast(msg);
-    window.setTimeout(() => setToast(''), 2800);
-  };
+  const { toast, showToast } = useXToast(2800);
 
   const pendingIds = useMemo(() => new Set(pending.map((p) => p.therapist.id)), [pending]);
   const affiliatedIds = useMemo(() => new Set(affiliated.map((a) => a.id)), [affiliated]);

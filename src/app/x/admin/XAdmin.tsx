@@ -11,6 +11,7 @@ import { searchXPostsByDate } from '@/app/actions/xAdminSearch';
 import { adminDeleteXPost, adminDeleteXProfile } from '@/app/actions/xAdmin';
 import { STORAGE_CACHE_CONTROL } from '@/app/lib/storage';
 import { BANNER_SITE_SHORT } from '../banner/bannerSites';
+import { useXToast } from '../useXToast';
 
 const supabase = createClient();
 
@@ -101,7 +102,7 @@ export function XAdmin({
   const [profiles, setProfiles] = useState(initialProfiles);
   const [onlyUnverified, setOnlyUnverified] = useState(false);
   const [busy, setBusy] = useState<string | null>(null);
-  const [toast, setToast] = useState('');
+  const { toast, showToast } = useXToast(2800);
   const [searchFrom, setSearchFrom] = useState(''); // datetime-local の値
   const [searchTo, setSearchTo] = useState('');
   const [searching, setSearching] = useState(false);
@@ -124,11 +125,6 @@ export function XAdmin({
     return m;
   });
   const [bannerCrop, setBannerCrop] = useState<{ slot: number; file: File } | null>(null);
-
-  const showToast = (msg: string) => {
-    setToast(msg);
-    window.setTimeout(() => setToast(''), 2800);
-  };
 
   // 認証バッジ付与/解除：x_profiles.is_verified を更新（運営は通常クライアントで RLS/ガードトリガを通過）。
   const setVerified = async (id: string, value: boolean) => {

@@ -62,6 +62,11 @@ export function XBannerSlider({ banners }: { banners: XBanner[] }) {
         onPointerCancel={() => {
           pausedRef.current = false;
         }}
+        // マウスで押下したまま要素外で離すと pointerup がここに届かず paused が残るため、
+        // 要素から出た時点でも再開する（タッチは暗黙キャプチャで pointerup が届くので影響なし）。
+        onPointerLeave={() => {
+          pausedRef.current = false;
+        }}
         className="flex overflow-x-auto snap-x snap-mandatory rounded-xl [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
       >
         {banners.map((b) => (

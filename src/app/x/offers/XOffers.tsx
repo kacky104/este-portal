@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import { createClient } from '@/app/lib/supabase/client';
 import { VerifiedBadge } from '../VerifiedBadge';
 import type { OfferTherapist } from '../xOffers';
+import { useXToast } from '../useXToast';
 
 const sb = createClient();
 
@@ -103,7 +104,7 @@ export function XOffers({ therapists }: { therapists: OfferTherapist[] }) {
 function OfferStartButton({ targetId }: { targetId: string }) {
   const router = useRouter();
   const [busy, setBusy] = useState(false);
-  const [toast, setToast] = useState('');
+  const { toast, showToast } = useXToast(2800);
 
   const start = async () => {
     if (busy) return;
@@ -111,8 +112,7 @@ function OfferStartButton({ targetId }: { targetId: string }) {
     const { data, error } = await sb.rpc('x_start_conversation', { p_other: targetId });
     setBusy(false);
     if (error || data == null) {
-      setToast(error?.message ?? '会話を開始できませんでした');
-      window.setTimeout(() => setToast(''), 2800);
+      showToast(error?.message ?? '会話を開始できませんでした');
       return;
     }
     router.push(`/x/messages/${data}`);

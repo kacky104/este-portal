@@ -16,6 +16,7 @@ import { XImageLightbox } from './XImageLightbox';
 import { XComposeFab } from './XComposeFab';
 import { XMessageButton } from './XMessageButton';
 import { XPostNotifyBell } from './XPostNotifyBell';
+import { useXToast } from './useXToast';
 import { XProfileSchedule } from './XProfileSchedule';
 import { safeHref, linkDomain } from './xLink';
 import { formatFukuxStartDate } from './xDate';
@@ -65,7 +66,7 @@ export function XProfileView({
   affiliatedTherapists: TherapistMini[]; // target が shop のとき所属セラピスト一覧
   scheduleTherapistId: number | null; // 紐づく本体 therapist id（セラピスト＋連携時のみ。無ければスケジュール非表示）
 }) {
-  const [toast, setToast] = useState('');
+  const { toast, showToast } = useXToast();
   const [gateOpen, setGateOpen] = useState(false); // 未ログイン／未開設アクション時のモーダル
   const [lightboxSrc, setLightboxSrc] = useState<string | null>(null); // avatar/header の全体表示
   // ストーリーリング: 既読状態は localStorage 依存＝マウント後に読む（SSR不一致回避）。
@@ -75,10 +76,6 @@ export function XProfileView({
     setStorySeenMap(getSeenMap());
   }, []);
   const storySeen = storyGroup ? isGroupSeen(storyGroup, storySeenMap) : true;
-  const showToast = (msg: string) => {
-    setToast(msg);
-    window.setTimeout(() => setToast(''), 2600);
-  };
 
   // フックのいいね/リポスト状態はフィード内の各投稿（重複排除済み）を種にする。
   const posts = useMemo(() => feed.map((f) => f.post), [feed]);

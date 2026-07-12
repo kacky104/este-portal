@@ -9,6 +9,7 @@ import { VerifiedBadge } from './VerifiedBadge';
 import { XPostCard } from './XPostCard';
 import { XAuthGateModal } from './XAuthGateModal';
 import { useXEngagement } from './useXEngagement';
+import { useXToast } from './useXToast';
 import { useMe } from './XMeProvider';
 import type { XKind } from './xProfile';
 import type { XPost } from './xPosts';
@@ -195,11 +196,7 @@ export function XSearch() {
   const { me, userId } = useMe(); // 自分は共通Contextから（重複取得を排除）
   const loggedIn = !!userId;
   const [gateOpen, setGateOpen] = useState(false);
-  const [toast, setToast] = useState('');
-  const showToast = (m: string) => {
-    setToast(m);
-    window.setTimeout(() => setToast(''), 2600);
-  };
+  const { toast, showToast } = useXToast();
 
   const eng = useXEngagement({
     me,

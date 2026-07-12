@@ -7,6 +7,7 @@ import type { XPost } from './xPosts';
 import { XPostCard } from './XPostCard';
 import { XAuthGateModal } from './XAuthGateModal';
 import { useXEngagement } from './useXEngagement';
+import { useXToast } from './useXToast';
 
 // 保存した投稿の一覧（自分のみ）。各カードの保存ボタンから解除でき、解除すると一覧から消える。
 // 「表示中の投稿」を eng.isSaved でフィルタ＝楽観解除で即消え、失敗ロールバック時は再表示される（保存状態が真の出所）。
@@ -29,12 +30,8 @@ export function XSavedList({
   initialRepostedIds: string[];
   initialRepostCounts: Record<string, number>;
 }) {
-  const [toast, setToast] = useState('');
+  const { toast, showToast } = useXToast();
   const [gateOpen, setGateOpen] = useState(false);
-  const showToast = (msg: string) => {
-    setToast(msg);
-    window.setTimeout(() => setToast(''), 2600);
-  };
 
   const eng = useXEngagement({
     me,

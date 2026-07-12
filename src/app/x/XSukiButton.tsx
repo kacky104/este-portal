@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { SukiIcon } from './SukiIcon';
 import { sukiProfile } from './xSukiActions';
+import { useXToast } from './useXToast';
 
 // スキのボタンラベル（暫定）。表記変更はここ1箇所で行う。
 export const SUKI_LABEL = 'スキ';
@@ -19,12 +20,7 @@ export function XSukiButton({
 }) {
   const [sukied, setSukied] = useState(initialSuki);
   const [pending, setPending] = useState(false);
-  const [toast, setToast] = useState('');
-
-  const showToast = (m: string) => {
-    setToast(m);
-    window.setTimeout(() => setToast(''), 2600);
-  };
+  const { toast, showToast } = useXToast();
 
   const onClick = async () => {
     if (sukied || pending) return;

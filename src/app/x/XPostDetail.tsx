@@ -9,6 +9,7 @@ import { XComposer } from './XComposer';
 import { XAuthGateModal } from './XAuthGateModal';
 import { XListSkeleton } from './XSkeleton';
 import { useXEngagement } from './useXEngagement';
+import { useXToast } from './useXToast';
 import { useMe } from './XMeProvider';
 import type { XKind } from './xProfile';
 import type { XPost } from './xPosts';
@@ -115,13 +116,8 @@ export function XPostDetail({ parent }: { parent: XPost }) {
   const [replies, setReplies] = useState<XPost[]>([]);
   const [loaded, setLoaded] = useState(false);
   const [gateOpen, setGateOpen] = useState(false);
-  const [toast, setToast] = useState('');
+  const { toast, showToast } = useXToast();
   const [replyCount, setReplyCount] = useState(parent.replyCount);
-
-  const showToast = (m: string) => {
-    setToast(m);
-    window.setTimeout(() => setToast(''), 2600);
-  };
 
   const eng = useXEngagement({
     me,

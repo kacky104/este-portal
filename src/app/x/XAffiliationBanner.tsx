@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/app/lib/supabase/client';
 import { VerifiedBadge } from './VerifiedBadge';
+import { useXToast } from './useXToast';
 
 const supabase = createClient();
 
@@ -30,12 +31,7 @@ export function XAffiliationBanner({
   const router = useRouter();
   const [requests, setRequests] = useState<IncomingRequest[]>(initial);
   const [busy, setBusy] = useState<string | null>(null);
-  const [toast, setToast] = useState('');
-
-  const showToast = (msg: string) => {
-    setToast(msg);
-    window.setTimeout(() => setToast(''), 2800);
-  };
+  const { toast, showToast } = useXToast(2800);
 
   // 承認/却下。承認すると同セラピスト宛の他 pending は自動 reject される＝承認時は一覧を空にする。
   const respond = async (requestId: string, accept: boolean) => {

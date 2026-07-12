@@ -45,14 +45,18 @@ export async function submitBannerReport(
 
   const svc = createServiceClient();
 
-  // 連投防止: 同一メール×同一URLの未対応報告が24時間以内にあれば重複として弾く。
+  // 連投防止: 同一メール×同一URLの未対応（status='open'）報告が24時間以内にあれば重複として弾く。
+  // 対応済み(done)は除外＝運営が対応した直後の再報告（URL修正等）はブロックしない。
+  // チェック自体はbest-effort: クエリ失敗時はログのみ残して送信は通す（重複より取りこぼしの方が痛い）。
   const since = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
-  const { count } = await svc
+  const { count, error: dupErr } = await svc
     .from('banner_reports')
     .select('id', { count: 'exact', head: true })
     .eq('email', email)
     .eq('page_url', pageUrl)
+    .eq('status', 'open')
     .gte('created_at', since);
+  if (dupErr) console.error('[submitBannerReport] 重複チェック失敗:', dupErr.message);
   if ((count ?? 0) > 0) return { ok: false, error: '同じ内容の報告を受付済みです。確認まで数日お待ちください' };
 
   const { error } = await svc.from('banner_reports').insert({

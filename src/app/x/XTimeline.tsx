@@ -14,6 +14,7 @@ import { XFollowRows } from './XFollowRows';
 import { VerifiedBadge } from './VerifiedBadge';
 import { AutoFitName } from './AutoFitName';
 import { useXEngagement } from './useXEngagement';
+import { useXToast } from './useXToast';
 import type { FollowUser } from './xFollows';
 
 export function XTimeline({
@@ -51,14 +52,9 @@ export function XTimeline({
   // 「フォロワー（自分をフォローしている人の一覧）」に置き換える。user/shop/未ログインは従来どおり。
   const isTherapist = me?.kind === 'therapist';
   const followers = myFollowers ?? [];
-  const [toast, setToast] = useState('');
+  const { toast, showToast } = useXToast();
   const [myNewPosts, setMyNewPosts] = useState<XPost[]>([]);
   const [gateOpen, setGateOpen] = useState(false); // 未ログイン／未開設アクション時のモーダル
-
-  const showToast = (msg: string) => {
-    setToast(msg);
-    window.setTimeout(() => setToast(''), 2600);
-  };
 
   // いいね/フォローの状態・権限・操作は共通フックに集約（プロフィールページと共有）。
   const eng = useXEngagement({

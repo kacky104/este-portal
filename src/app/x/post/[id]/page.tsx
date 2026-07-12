@@ -21,7 +21,7 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
   const title = `${name}(${handle})さん: ${head}｜fukuX`;
   const description =
     excerpt(post.body, 110) ||
-    `${name}さんのfukuX投稿。メンズエステ専用SNS「fukuX」で写メ日記やタイムラインをチェック。`;
+    `${name}さんのfukuX投稿。メンズエステ専用SNS「fukuX」で投稿やタイムラインをチェック。`;
   // 投稿画像はSupabase Storageの絶対URL。無ければ共通OGP（相対＝metadataBaseで解決）。
   const image = post.images?.[0] ?? '/ogp-fukux.png';
 

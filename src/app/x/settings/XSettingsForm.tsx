@@ -12,6 +12,7 @@ import { XImageCropModal } from '../XImageCropModal';
 import type { ShopMini } from '../xAffiliation';
 import { STORAGE_CACHE_CONTROL } from '@/app/lib/storage';
 import { shopShowcaseLimit } from '../xShowcase';
+import { useXToast } from '../useXToast';
 
 const supabase = createClient();
 
@@ -90,7 +91,7 @@ export function XSettingsForm({
   const [headerUploading, setHeaderUploading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
-  const [toast, setToast] = useState('');
+  const { toast, showToast } = useXToast();
 
   // 自主脱退（解除）の状態。解除済みならボタンを消す。
   const [shop, setShop] = useState<ShopMini | null>(affiliatedShop);
@@ -102,11 +103,6 @@ export function XSettingsForm({
   const [deleting, setDeleting] = useState(false);
   // 入力が自分の handle と一致（先頭 @ は許容・大小無視）したときだけ確定ボタンを活性化。
   const confirmOk = confirmText.trim().replace(/^@/, '').toLowerCase() === profile.handle.toLowerCase();
-
-  const showToast = (msg: string) => {
-    setToast(msg);
-    window.setTimeout(() => setToast(''), 2600);
-  };
 
   // 画像アップロード：x-images バケットの本人フォルダ配下（先頭フォルダ=本人UIDをRLSが要求）。
   const uploadImage = async (file: File): Promise<string | null> => {

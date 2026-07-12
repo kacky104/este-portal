@@ -1,14 +1,6 @@
 // リンクバナーの種類（banner_reports.sites の格納値と表示名）。
-// フォーム（XBannerReportForm）と運営パネル（XAdmin「報告」タブ）で共用。
-export const BANNER_SITES = ['fukux', 'fukues', 'work'] as const;
-
-export const BANNER_SITE_LABEL: Record<string, string> = {
-  fukux: 'fukuX（メンズエステ専用SNS）',
-  fukues: 'フクエス（ポータル本体）',
-  work: 'フクエスワーク（求人）',
-};
-
-// 運営パネルの一覧用の短い表示名。
+// フォーム（XBannerReportForm）は fukuX専用化で sites:['fukux'] 固定となりここを参照しなくなった。
+// 現在の利用は運営パネル（XAdmin「報告」タブ）の一覧表示のみ。DBには3値が残るため辞書は3値のまま維持。
 export const BANNER_SITE_SHORT: Record<string, string> = {
   fukux: 'fukuX',
   fukues: 'フクエス',
