@@ -22,8 +22,8 @@ import { fetchActiveTherapistPickupBanners } from "./lib/therapistPickupBanners"
 import { TherapistPickupBanner } from "./components/TherapistPickupBanner";
 import { fetchLatestSalonNews } from "./lib/salonNews";
 import { SalonNewsList } from "./components/SalonNewsList";
-import { toJsonLdString } from "./lib/jsonLd";
-import { TOP_SALON_LIST_INTRO } from "./lib/areaSeoContent";
+import { toJsonLdString, buildFaqPageJsonLd } from "./lib/jsonLd";
+import { TOP_SALON_LIST_INTRO, TOP_PAGE_FAQS } from "./lib/areaSeoContent";
 
 // TOPの WebSite 構造化データ（サイト名のリッチリザルト狙い）。
 // サイト内検索ページが無いため potentialAction (SearchAction) は入れない。
@@ -92,6 +92,8 @@ export default async function Home() {
 
       {/* WebSite 構造化データ（サイト名） */}
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: toJsonLdString(WEBSITE_JSON_LD) }} />
+      {/* FAQPage 構造化データ（ページ下部に表示している Q&A と同一内容） */}
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: toJsonLdString(buildFaqPageJsonLd(TOP_PAGE_FAQS)) }} />
 
       {/* ─── Header ─────────────────────────────────────────── */}
       <header className="sticky top-0 z-50 bg-white/90 backdrop-blur-md border-b border-slate-200 shadow-sm">
@@ -290,6 +292,66 @@ export default async function Home() {
                 </div>
               </div>
             </div>
+
+            {/* ─── よくある質問（福岡市全体・一般向け。エリアページのFAQと重複させない） ───
+                エリアページと同じ二段折り畳み：見出し（縦バー＋h2）が summary・中のQ&Aも details。
+                内容はSSRでHTMLに含まれるため、閉じていてもSEO評価は変わらない。
+                外側は named group（group/faq）＝内側Q&A（無印 group）の▽回転と干渉しない。 */}
+            <section className="mt-12">
+              <details className="group/faq">
+                <summary className="flex items-center gap-3 cursor-pointer select-none list-none [&::-webkit-details-marker]:hidden">
+                  <div className="w-1 h-6 rounded-full bg-gradient-to-b from-pink-400 to-rose-500" />
+                  <h2 className="text-xl font-bold text-slate-900 min-w-0 flex-1">
+                    福岡メンズエステのよくある質問
+                  </h2>
+                  <svg
+                    width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                    strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"
+                    className="flex-shrink-0 text-pink-400 transition-transform duration-200 group-open/faq:rotate-180"
+                  >
+                    <path d="M6 9l6 6 6-6" />
+                  </svg>
+                </summary>
+                <div className="space-y-2.5 pt-3">
+                  {TOP_PAGE_FAQS.map((f) => (
+                    <details
+                      key={f.q}
+                      className="group rounded-2xl border border-slate-200 bg-white shadow-sm overflow-hidden"
+                    >
+                      <summary className="flex items-start justify-between gap-3 p-4 cursor-pointer select-none list-none [&::-webkit-details-marker]:hidden hover:bg-slate-50/60 transition-colors">
+                        <span className="flex items-start gap-2 min-w-0">
+                          <span className="flex-shrink-0 text-pink-500 font-black text-sm leading-6">Q.</span>
+                          <span className="text-sm font-bold text-slate-800 leading-6 break-words">{f.q}</span>
+                        </span>
+                        <svg
+                          width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                          strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"
+                          className="flex-shrink-0 mt-1.5 text-pink-400 transition-transform duration-200 group-open:rotate-180"
+                        >
+                          <path d="M6 9l6 6 6-6" />
+                        </svg>
+                      </summary>
+                      <div className="px-4 pb-4 flex items-start gap-2 border-t border-slate-100 pt-3">
+                        <span className="flex-shrink-0 text-slate-400 font-black text-sm leading-6">A.</span>
+                        <p className="text-sm text-slate-600 leading-relaxed break-words">{f.a}</p>
+                      </div>
+                    </details>
+                  ))}
+                  {/* 回答内で触れているコラムへの内部リンク（/column の評価立ち上げにも寄与） */}
+                  <div className="flex flex-wrap gap-2 pt-1">
+                    <Link href="/column/how-to-choose-salon" className="text-xs font-bold px-3 py-1.5 rounded-full border border-pink-200 text-pink-600 transition-colors hover:bg-pink-50">
+                      選び方ガイドを読む
+                    </Link>
+                    <Link href="/column/first-time-guide" className="text-xs font-bold px-3 py-1.5 rounded-full border border-pink-200 text-pink-600 transition-colors hover:bg-pink-50">
+                      初めての方向けガイドを読む
+                    </Link>
+                    <Link href="/column" className="text-xs font-bold px-3 py-1.5 rounded-full border border-pink-200 text-pink-600 transition-colors hover:bg-pink-50">
+                      コラム一覧を見る
+                    </Link>
+                  </div>
+                </div>
+              </details>
+            </section>
           </div>
         </section>
       </main>
