@@ -743,7 +743,7 @@ export function SalonNewFaceTherapists({
     // 新人紹介は常に1列（縦並び）。カードが親幅いっぱいに横長になり、特徴バッジが1行に収まる。
     <div className="grid grid-cols-1 gap-3">
       {shown.map((t, i) => (
-        <GridCard key={t.id} therapist={t} index={i} showJoinDate from={from} showSaveButton={showSaveButton} saveButtonPos="card-right" />
+        <GridCard key={t.id} therapist={t} index={i} showJoinDate from={from} showSaveButton={showSaveButton} saveButtonPos="card-right" largeImage />
       ))}
     </div>
   );
