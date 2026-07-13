@@ -399,7 +399,7 @@ export async function getMyJob(
 // 求人未掲載の場合 jobBoost は null（＝対象外）。読み取りは getMyJob と同じ認証クライアント＋RLS。
 export async function getMyPerkStatus(
   salonId: number,
-): Promise<{ ok: true; cardBoost: boolean; jobBoost: boolean | null } | Err> {
+): Promise<{ ok: true; salonName: string; cardBoost: boolean; jobBoost: boolean | null } | Err> {
   if (!Number.isFinite(salonId)) return { ok: false, error: '対象サロンが不正です' };
   const auth = await requireUser();
   if (!auth.ok) return auth;
@@ -407,13 +407,15 @@ export async function getMyPerkStatus(
   if (!own.ok) return own;
 
   const [{ data: salon }, { data: job }] = await Promise.all([
-    auth.supabase.from('salons').select('card_boost').eq('id', salonId).maybeSingle(),
+    auth.supabase.from('salons').select('name, card_boost').eq('id', salonId).maybeSingle(),
     auth.supabase.from('salon_jobs').select('job_boost').eq('salon_id', salonId).maybeSingle(),
   ]);
 
+  const salonRec = (salon ?? {}) as Record<string, unknown>;
   return {
     ok: true,
-    cardBoost: salon ? Boolean((salon as Record<string, unknown>).card_boost) : false,
+    salonName: (salonRec.name as string | null) ?? '',
+    cardBoost: salon ? Boolean(salonRec.card_boost) : false,
     jobBoost: job ? Boolean((job as Record<string, unknown>).job_boost) : null,
   };
 }

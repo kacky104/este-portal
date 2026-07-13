@@ -4,21 +4,21 @@
 // ・フクエス／フクエスワーク／fukuX の3サイトのリンクバナー（200×40）と貼り付け用タグ、特典説明を表示。
 // ・自店の優先表示特典（本体 card_boost・求人 job_boost）の適用状況を「実行中✓／未適用」で表示する。
 //   ブースト自体は運営がバナー設置を確認してから /admin で付与する（オーナーは変更不可・閲覧のみ）。
-//   未適用のオーナーには「バナーを設置してご報告 → 特典を受ける」導線（設置報告フォーム）を出す。
-// 状況取得はサーバーアクション getMyPerkStatus（自店のみ・RLS）。
+// ・設置報告は fukuX 専用フォームではなく、この場の簡易フォーム（店名・URL・貼ったバナー種類）で受ける。
+//   連絡先メールはログインセッションから取得（submitMyBannerReport）。banner_reports に保存される。
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import Image from 'next/image';
-import Link from 'next/link';
 import { getMyPerkStatus } from '@/app/actions/jobs';
+import { submitMyBannerReport } from '@/app/actions/bannerReport';
 import { BannerTagCode } from '@/app/components/BannerTagCode';
 
 const SITE_URL = 'https://fukues.com';
-// 設置報告フォーム（3サイト共通の受付窓口）。
-const REPORT_URL = '/x/banner/report';
+
+type SiteKey = 'fukues' | 'work' | 'fukux';
 
 type Banner = {
-  key: 'fukues' | 'work' | 'x';
+  key: SiteKey;
   file: string;
   label: string;
   href: string;
@@ -48,7 +48,7 @@ const BANNERS: Banner[] = [
     desc: '求人カードが、フクエスワークの求人一覧（トップ・エリア・タグ・出張）で上側に表示されやすくなります。',
   },
   {
-    key: 'x',
+    key: 'fukux',
     file: 'fukux-banner-200x40.png',
     label: 'fukuX（フクエックス）',
     href: `${SITE_URL}/x`,
@@ -75,7 +75,8 @@ function PerkStatusRow({
   activeDesc: string;
 }) {
   return (
-    <div className="flex items-start gap-3 rounded-2xl border p-3.5"
+    <div
+      className="flex items-start gap-3 rounded-2xl border p-3.5"
       style={{
         borderColor: state === true ? '#bbf7d0' : state === false ? '#fbcfe8' : '#e2e8f0',
         background: state === true ? 'rgba(240,253,244,0.7)' : state === false ? 'rgba(253,242,248,0.7)' : 'rgba(248,250,252,0.7)',
@@ -112,7 +113,7 @@ function PerkStatusRow({
           <p className="text-[11px] text-emerald-700 leading-relaxed mt-1">{activeDesc}</p>
         ) : state === false ? (
           <p className="text-[11px] text-slate-500 leading-relaxed mt-1">
-            まだ特典が適用されていません。バナーを設置してご報告いただくと、運営確認後に優先表示が有効になります。
+            まだ特典が適用されていません。バナーを設置し、下の報告フォームからご報告いただくと、運営確認後に優先表示が有効になります。
           </p>
         ) : (
           <p className="text-[11px] text-slate-400 leading-relaxed mt-1">
@@ -131,6 +132,16 @@ export function BannerPerkPanel({ salonId }: { salonId: number | null }) {
   const [loading, setLoading] = useState(true);
   const [errorMsg, setErrorMsg] = useState('');
 
+  // ── 設置報告フォーム（この場で完結する簡易版） ──
+  const formRef = useRef<HTMLDivElement>(null);
+  const [salonName, setSalonName] = useState('');
+  const [pageUrl, setPageUrl] = useState('');
+  const [sites, setSites] = useState<Set<SiteKey>>(new Set());
+  const [comment, setComment] = useState('');
+  const [sending, setSending] = useState(false);
+  const [formError, setFormError] = useState('');
+  const [done, setDone] = useState(false);
+
   useEffect(() => {
     if (salonId == null) return;
     (async () => {
@@ -144,12 +155,50 @@ export function BannerPerkPanel({ salonId }: { salonId: number | null }) {
       setErrorMsg('');
       setCardBoost(res.cardBoost);
       setJobBoost(res.jobBoost);
+      setSalonName((prev) => (prev === '' ? res.salonName : prev)); // 店名を初期プリフィル（編集後は保持）
       setLoading(false);
     })();
   }, [salonId]);
 
   const bothActive = cardBoost === true && jobBoost === true;
   const anyInactive = cardBoost === false || jobBoost === false;
+
+  const toggleSite = (key: SiteKey) => {
+    setSites((prev) => {
+      const next = new Set(prev);
+      next.has(key) ? next.delete(key) : next.add(key);
+      return next;
+    });
+    setDone(false);
+  };
+
+  const canSubmit = salonName.trim() !== '' && pageUrl.trim() !== '' && sites.size > 0 && !sending;
+
+  const submit = async () => {
+    setFormError('');
+    setSending(true);
+    const res = await submitMyBannerReport({
+      salonName: salonName.trim(),
+      pageUrl: pageUrl.trim(),
+      sites: [...sites],
+      comment: comment.trim(),
+    });
+    setSending(false);
+    if (!res.ok) {
+      setFormError(res.error ?? '送信に失敗しました');
+      return;
+    }
+    setDone(true);
+    // 店名は残し、他はクリア（連続報告しづらくするため sites/URL はリセット）。
+    setPageUrl('');
+    setSites(new Set());
+    setComment('');
+  };
+
+  const scrollToForm = () => formRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+
+  const inputClass =
+    'w-full rounded-xl border border-slate-200 px-3 py-2 text-sm text-slate-700 focus:outline-none focus:border-pink-300 focus:ring-2 focus:ring-pink-100';
 
   return (
     <div className="space-y-4">
@@ -181,7 +230,7 @@ export function BannerPerkPanel({ salonId }: { salonId: number | null }) {
               activeDesc="求人カードが一覧の上側に表示されやすくなっています。"
             />
 
-            {/* まとめメッセージ＋未適用時の導線 */}
+            {/* まとめメッセージ＋未適用時の導線（下の報告フォームへスクロール） */}
             {bothActive ? (
               <p className="text-xs font-bold text-emerald-600 text-center pt-1">
                 🎉 バナー設置特典が適用中です。ご協力ありがとうございます！
@@ -191,12 +240,13 @@ export function BannerPerkPanel({ salonId }: { salonId: number | null }) {
                 <p className="text-xs text-slate-600 leading-relaxed">
                   まだバナー未設置の特典があります。下のバナーを貴サイトに貼って、設置報告をすると特典を受けられます。
                 </p>
-                <Link
-                  href={REPORT_URL}
+                <button
+                  type="button"
+                  onClick={scrollToForm}
                   className="inline-block px-5 py-2 rounded-full bg-pink-600 text-white text-xs font-bold hover:bg-pink-500 transition-colors shadow-sm shadow-pink-500/20"
                 >
                   バナー設置を報告する →
-                </Link>
+                </button>
               </div>
             ) : null}
           </div>
@@ -230,14 +280,122 @@ export function BannerPerkPanel({ salonId }: { salonId: number | null }) {
             <BannerTagCode tag={bannerTag(b)} accent={b.accent} />
           </section>
         ))}
+      </div>
 
-        <div className="pt-1 border-t border-slate-100">
-          <p className="text-[11px] text-slate-400 leading-relaxed pt-3">
-            バナーを設置したら
-            <Link href={REPORT_URL} className="text-pink-600 font-bold hover:underline mx-1">設置報告フォーム</Link>
-            からご報告ください。運営確認後、優先表示の特典を有効化します。
+      {/* ── 設置報告フォーム（この場で完結・簡易版） ── */}
+      <div ref={formRef} className="bg-white rounded-3xl border border-slate-100 shadow-sm p-5 space-y-3">
+        <div>
+          <h2 className="text-sm font-black text-slate-700">バナー設置を報告する</h2>
+          <p className="text-[11px] text-slate-400 leading-relaxed mt-1">
+            バナーを設置したら、店名・設置ページのURL・貼ったバナーの種類をご報告ください。
+            運営が設置を確認のうえ、優先表示の特典を有効化します（確認まで数日いただく場合があります）。
+            ご連絡はログイン中のメールアドレス宛に行います。
           </p>
         </div>
+
+        {done ? (
+          <div className="rounded-2xl border border-emerald-200 bg-emerald-50/70 p-4 text-center">
+            <p className="text-sm font-bold text-emerald-700">報告を受け付けました ✓</p>
+            <p className="text-[11px] text-emerald-600 mt-1">運営が確認のうえ、特典を有効化します。続けて別のページを報告する場合は下から入力してください。</p>
+            <button
+              type="button"
+              onClick={() => setDone(false)}
+              className="mt-3 px-4 py-1.5 rounded-full text-xs font-bold bg-white border border-emerald-200 text-emerald-600 hover:bg-emerald-50 transition"
+            >
+              続けて報告する
+            </button>
+          </div>
+        ) : (
+          <div className="space-y-3">
+            <div>
+              <label className="text-[11px] font-bold text-slate-400 block mb-1">
+                店名 <span className="text-rose-400">*</span>
+              </label>
+              <input
+                type="text"
+                value={salonName}
+                onChange={(e) => setSalonName(e.target.value)}
+                maxLength={100}
+                placeholder="例：アロマサロン◯◯"
+                className={inputClass}
+              />
+            </div>
+
+            <div>
+              <label className="text-[11px] font-bold text-slate-400 block mb-1">
+                バナーを設置したページのURL <span className="text-rose-400">*</span>
+              </label>
+              <input
+                type="url"
+                value={pageUrl}
+                onChange={(e) => setPageUrl(e.target.value)}
+                maxLength={500}
+                placeholder="例：https://example.com/links"
+                className={inputClass}
+              />
+            </div>
+
+            <div>
+              <label className="text-[11px] font-bold text-slate-400 block mb-1.5">
+                貼ったバナー <span className="text-rose-400">*</span>（複数選択可）
+              </label>
+              <div className="flex flex-wrap gap-2">
+                {BANNERS.map((b) => {
+                  const on = sites.has(b.key);
+                  return (
+                    <button
+                      key={b.key}
+                      type="button"
+                      onClick={() => toggleSite(b.key)}
+                      aria-pressed={on}
+                      className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-xs font-bold transition-colors ${
+                        on
+                          ? 'bg-pink-600 text-white border-pink-600'
+                          : 'bg-white text-slate-500 border-slate-200 hover:border-pink-300'
+                      }`}
+                    >
+                      <span
+                        className={`inline-flex items-center justify-center w-3.5 h-3.5 rounded-sm border ${
+                          on ? 'bg-white border-white' : 'border-slate-300'
+                        }`}
+                      >
+                        {on && (
+                          <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="#db2777" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round">
+                            <path d="M5 13l4 4L19 7" />
+                          </svg>
+                        )}
+                      </span>
+                      {b.label}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            <div>
+              <label className="text-[11px] font-bold text-slate-400 block mb-1">補足コメント（任意）</label>
+              <textarea
+                value={comment}
+                onChange={(e) => setComment(e.target.value)}
+                maxLength={1000}
+                rows={3}
+                placeholder="補足があればご記入ください"
+                className={inputClass}
+              />
+            </div>
+
+            {formError && <p className="text-xs text-rose-500">{formError}</p>}
+
+            <button
+              type="button"
+              onClick={submit}
+              disabled={!canSubmit}
+              className="w-full sm:w-auto px-6 py-2.5 rounded-xl bg-pink-600 text-white text-sm font-bold hover:bg-pink-500 transition-colors disabled:opacity-40 disabled:cursor-not-allowed shadow-sm shadow-pink-500/20"
+            >
+              {sending ? '送信中…' : '設置を報告する'}
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );
