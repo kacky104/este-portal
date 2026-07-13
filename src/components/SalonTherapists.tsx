@@ -226,7 +226,7 @@ export async function fetchTherapistsByIds(ids: number[]): Promise<Therapist[]> 
 
 // ── GridCard ──────────────────────────────────────────────────
 
-export function GridCard({ therapist, index, showJoinDate = false, from, enableWorkingShimmer = false, showSaveButton = false, saveButtonPos = 'photo-left', largeImage = false, hideSaveOnMobile = false }: {
+export function GridCard({ therapist, index, showJoinDate = false, from, enableWorkingShimmer = false, showSaveButton = false, saveButtonPos = 'photo-left', largeImage = false, hideSaveOnMobile = false, hideDiaryFukuxOnMobile = false }: {
   therapist:    Therapist;
   index:        number;
   showJoinDate?: boolean;   // 新人紹介セクションのみ true（入店日を表示）
@@ -236,6 +236,7 @@ export function GridCard({ therapist, index, showJoinDate = false, from, enableW
   saveButtonPos?: 'photo-left' | 'card-right';  // 'photo-left'=/saved（写真左上）/ 'card-right'=在籍一覧（カード右上）
   largeImage?: boolean;  // 在籍セラピスト一覧（ページ／タブ）のみ true：写真を幅×1.25・高さ×1.5に拡大
   hideSaveOnMobile?: boolean;  // スマホ(<640px)でのみ保存ボタンを隠す（sm以上は表示）。サロン詳細の在籍一覧セクション用。
+  hideDiaryFukuxOnMobile?: boolean;  // スマホ(<640px)でのみ写メ日記＋fukuXバッジを隠す（sm以上は表示）。今すぐ下段の本日出勤用。
 }) {
   const grad = GRADS[index % GRADS.length];
   const sym  = SYMS[index % SYMS.length];
@@ -374,7 +375,7 @@ export function GridCard({ therapist, index, showJoinDate = false, from, enableW
               ここは preventDefault + stopPropagation で日記一覧ページへ遷移させる。 */}
           {/* 写メ日記バッジ＋fukuX利用中アイコン（写メ日記の右横にfukuXマーク）。どちらか一方でも表示。 */}
           {(therapist.hasDiary || therapist.onFukuX) && (
-            <div className="flex items-center gap-1.5 mb-1">
+            <div className={`${hideDiaryFukuxOnMobile ? 'hidden sm:flex' : 'flex'} items-center gap-1.5 mb-1`}>
               {therapist.hasDiary && (
                 <span
                   role="link"
@@ -717,7 +718,7 @@ export function SalonOnDutyExcludingNow({ salonId, theme }: { salonId: number; t
       </div>
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         {list.map((t, i) => (
-          <GridCard key={t.id} therapist={t} index={i} enableWorkingShimmer largeImage />
+          <GridCard key={t.id} therapist={t} index={i} enableWorkingShimmer largeImage hideDiaryFukuxOnMobile />
         ))}
       </div>
     </div>
