@@ -28,6 +28,7 @@ export type DaySchedule = {
   bodyType:       string | null;
   hasDiary:       boolean;
   reviewCount:    number;   // 承認済み口コミ件数（0なら非表示）
+  onFukuX:        boolean;   // fukuX（approved な therapist プロフィール）を利用中か
   featureBadges:  string[];
 };
 
@@ -161,21 +162,30 @@ function TherapistCard({ t, isToday, salonId }: { t: DaySchedule; isToday: boole
         )}
         {/* 写メ日記バッジ（日記が1件以上ある子のみ）。カード全体は /therapist/[id] へのリンクのため、
             ここは preventDefault + stopPropagation で日記一覧ページへ遷移させる。 */}
-        {t.hasDiary && (
-          <span
-            role="link"
-            tabIndex={0}
-            onClick={(e) => { e.preventDefault(); e.stopPropagation(); router.push(`/therapist/${t.id}/diary`); }}
-            onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); e.stopPropagation(); router.push(`/therapist/${t.id}/diary`); } }}
-            className="inline-flex items-center gap-1 mt-1 rounded-md border border-pink-500 text-pink-600 font-bold hover:bg-pink-50 transition-colors cursor-pointer self-start"
-            style={{ fontSize: '11px', padding: '3px 9px' }}
-          >
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="flex-shrink-0">
-              <path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z" />
-              <circle cx="12" cy="13" r="3" />
-            </svg>
-            写メ日記
-          </span>
+        {/* 写メ日記バッジ＋fukuX利用中アイコン（写メ日記の右横にfukuXマーク）。どちらか一方でも表示。 */}
+        {(t.hasDiary || t.onFukuX) && (
+          <div className="flex items-center gap-1.5 mt-1 self-start">
+            {t.hasDiary && (
+              <span
+                role="link"
+                tabIndex={0}
+                onClick={(e) => { e.preventDefault(); e.stopPropagation(); router.push(`/therapist/${t.id}/diary`); }}
+                onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); e.stopPropagation(); router.push(`/therapist/${t.id}/diary`); } }}
+                className="inline-flex items-center gap-1 rounded-md border border-pink-500 text-pink-600 font-bold hover:bg-pink-50 transition-colors cursor-pointer"
+                style={{ fontSize: '11px', padding: '3px 9px' }}
+              >
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="flex-shrink-0">
+                  <path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z" />
+                  <circle cx="12" cy="13" r="3" />
+                </svg>
+                写メ日記
+              </span>
+            )}
+            {t.onFukuX && (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src="/fukux-mark.png" alt="fukuX 利用中" title="fukuX 利用中" className="h-5 w-auto flex-shrink-0" />
+            )}
+          </div>
         )}
       </div>
     </Link>

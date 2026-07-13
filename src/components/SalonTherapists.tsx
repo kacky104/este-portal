@@ -83,13 +83,14 @@ export type Therapist = {
   bodyType:        string | null;
   hasDiary:        boolean;
   reviewCount:     number;   // 承認済み口コミ件数（0なら非表示）
+  onFukuX:         boolean;   // fukuX（approved な therapist プロフィール）を利用中か
   featureBadges:   string[]; // 特徴バッジ（最大3）
   salonId?:        number;   // 保存ボタン用（/saved のセラピストカードで使用）
 };
 
 // セラピストカードの取得列（全コンポーネントで共有）。
 const THERAPIST_SELECT =
-  'id, name, age, work_hours, area, comment, profile_image_url, is_available_now, available_until, is_available_now_cast, available_until_cast, is_new_face, new_face_since, body_type, feature_badges, salon_id';
+  'id, name, age, work_hours, area, comment, profile_image_url, is_available_now, available_until, is_available_now_cast, available_until_cast, is_new_face, new_face_since, body_type, feature_badges, salon_id, user_id';
 
 // ── shared schedule fetch ──────────────────────────────────────
 
@@ -146,12 +147,30 @@ async function fetchReviewCountMap(rawIds: unknown[]): Promise<Record<string, nu
   return map;
 }
 
+// ── fukuX 利用中セラピストを1クエリでまとめて取得（auth_user_id の Set） ──────────
+// therapists.user_id (uuid) === x_profiles.auth_user_id で突き合わせ、kind='therapist' かつ
+// status='approved'（handleあり）のプロフィールを持つ user_id の集合を返す（xLink.ts と同方式）。
+async function fetchFukuXSet(userIds: unknown[]): Promise<Set<string>> {
+  const ids = [...new Set(userIds.map(u => (u == null ? '' : String(u))).filter(s => s !== ''))];
+  if (ids.length === 0) return new Set();
+  const supabase = createClient();
+  const { data } = await supabase
+    .from('x_profiles')
+    .select('auth_user_id')
+    .in('auth_user_id', ids)
+    .eq('kind', 'therapist')
+    .eq('status', 'approved')
+    .not('handle', 'is', null);
+  return new Set((data ?? []).map(r => String(r.auth_user_id)));
+}
+
 // ── 行→Therapist 変換（取得ロジックを共有して二重実装しない） ──
 function buildTherapist(
   t: Record<string, unknown>,
   schedMap: Record<string, TodaySchedule>,
   diarySet: Set<string>,
-  reviewMap: Record<string, number>
+  reviewMap: Record<string, number>,
+  fukuxSet: Set<string>
 ): Therapist {
   const key = String(t.id);
   return {
@@ -172,6 +191,7 @@ function buildTherapist(
     age:             (t.age as string | null) ?? null,
     hasDiary:        diarySet.has(key),
     reviewCount:     reviewMap[key] ?? 0,
+    onFukuX:         fukuxSet.has(String(t.user_id)),
     featureBadges:   sanitizeBadges(t.feature_badges),
     salonId:         (t.salon_id as number | null) ?? undefined,
   };
@@ -188,12 +208,14 @@ export async function fetchTherapistsByIds(ids: number[]): Promise<Therapist[]> 
     .in('id', ids);
 
   const rawIds = (rows ?? []).map(t => t.id);
-  const [schedMap, diarySet, reviewMap] = await Promise.all([
+  const userIds = (rows ?? []).map(t => t.user_id);
+  const [schedMap, diarySet, reviewMap, fukuxSet] = await Promise.all([
     fetchScheduleMap(rawIds),
     fetchDiarySet(rawIds),
     fetchReviewCountMap(rawIds),
+    fetchFukuXSet(userIds),
   ]);
-  return (rows ?? []).map(t => buildTherapist(t as Record<string, unknown>, schedMap, diarySet, reviewMap));
+  return (rows ?? []).map(t => buildTherapist(t as Record<string, unknown>, schedMap, diarySet, reviewMap, fukuxSet));
 }
 
 // ── GridCard ──────────────────────────────────────────────────
@@ -344,21 +366,30 @@ export function GridCard({ therapist, index, showJoinDate = false, from, enableW
           )}
           {/* 写メ日記バッジ（日記が1件以上ある子のみ）。カード全体は /therapist/[id] へのリンクのため、
               ここは preventDefault + stopPropagation で日記一覧ページへ遷移させる。 */}
-          {therapist.hasDiary && (
-            <span
-              role="link"
-              tabIndex={0}
-              onClick={(e) => { e.preventDefault(); e.stopPropagation(); router.push(`/therapist/${therapist.id}/diary`); }}
-              onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); e.stopPropagation(); router.push(`/therapist/${therapist.id}/diary`); } }}
-              className="inline-flex items-center gap-1 mb-1 rounded-md border border-pink-500 text-pink-600 font-bold hover:bg-pink-50 transition-colors cursor-pointer"
-              style={{ fontSize: '11px', padding: '3px 9px' }}
-            >
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="flex-shrink-0">
-                <path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z" />
-                <circle cx="12" cy="13" r="3" />
-              </svg>
-              写メ日記
-            </span>
+          {/* 写メ日記バッジ＋fukuX利用中アイコン（写メ日記の右横にfukuXマーク）。どちらか一方でも表示。 */}
+          {(therapist.hasDiary || therapist.onFukuX) && (
+            <div className="flex items-center gap-1.5 mb-1">
+              {therapist.hasDiary && (
+                <span
+                  role="link"
+                  tabIndex={0}
+                  onClick={(e) => { e.preventDefault(); e.stopPropagation(); router.push(`/therapist/${therapist.id}/diary`); }}
+                  onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); e.stopPropagation(); router.push(`/therapist/${therapist.id}/diary`); } }}
+                  className="inline-flex items-center gap-1 rounded-md border border-pink-500 text-pink-600 font-bold hover:bg-pink-50 transition-colors cursor-pointer"
+                  style={{ fontSize: '11px', padding: '3px 9px' }}
+                >
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="flex-shrink-0">
+                    <path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z" />
+                    <circle cx="12" cy="13" r="3" />
+                  </svg>
+                  写メ日記
+                </span>
+              )}
+              {therapist.onFukuX && (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src="/fukux-mark.png" alt="fukuX 利用中" title="fukuX 利用中" className="h-5 w-auto flex-shrink-0" />
+              )}
+            </div>
           )}
           <p className="text-[10px] text-slate-500 line-clamp-2 leading-relaxed break-all">
             {therapist.comment}
@@ -491,14 +522,16 @@ export function SalonTherapists({ salonId }: { salonId: number }) {
       const supabase = createClient();
       const { data: rows } = await supabase
         .from('therapists')
-        .select('id, name, age, work_hours, area, comment, profile_image_url, is_available_now, available_until, is_available_now_cast, available_until_cast, is_new_face, new_face_since, body_type, feature_badges')
+        .select('id, name, age, work_hours, area, comment, profile_image_url, is_available_now, available_until, is_available_now_cast, available_until_cast, is_new_face, new_face_since, body_type, feature_badges, user_id')
         .eq('salon_id', salonId);
 
       const rawIds = (rows ?? []).map(t => t.id);
-      const [schedMap, diarySet, reviewMap] = await Promise.all([
+      const userIds = (rows ?? []).map(t => t.user_id);
+      const [schedMap, diarySet, reviewMap, fukuxSet] = await Promise.all([
         fetchScheduleMap(rawIds),
         fetchDiarySet(rawIds),
         fetchReviewCountMap(rawIds),
+        fetchFukuXSet(userIds),
       ]);
 
       const mapped: Therapist[] = (rows ?? []).map(t => {
@@ -523,6 +556,7 @@ export function SalonTherapists({ salonId }: { salonId: number }) {
           age:             (t.age as string | null) ?? null,
           hasDiary:        diarySet.has(key),
           reviewCount:     reviewMap[key] ?? 0,
+          onFukuX:         fukuxSet.has(String(t.user_id)),
           featureBadges:   sanitizeBadges(t.feature_badges),
         };
       });
@@ -584,14 +618,16 @@ export function SalonOnDutyExcludingNow({ salonId, theme }: { salonId: number; t
       const supabase = createClient();
       const { data: rows } = await supabase
         .from('therapists')
-        .select('id, name, age, work_hours, area, comment, profile_image_url, is_available_now, available_until, is_available_now_cast, available_until_cast, is_new_face, new_face_since, body_type, feature_badges')
+        .select('id, name, age, work_hours, area, comment, profile_image_url, is_available_now, available_until, is_available_now_cast, available_until_cast, is_new_face, new_face_since, body_type, feature_badges, user_id')
         .eq('salon_id', salonId);
 
       const rawIds = (rows ?? []).map(t => t.id);
-      const [schedMap, diarySet, reviewMap] = await Promise.all([
+      const userIds = (rows ?? []).map(t => t.user_id);
+      const [schedMap, diarySet, reviewMap, fukuxSet] = await Promise.all([
         fetchScheduleMap(rawIds),
         fetchDiarySet(rawIds),
         fetchReviewCountMap(rawIds),
+        fetchFukuXSet(userIds),
       ]);
 
       const mapped: Therapist[] = (rows ?? []).map(t => {
@@ -615,6 +651,7 @@ export function SalonOnDutyExcludingNow({ salonId, theme }: { salonId: number; t
           age:             (t.age as string | null) ?? null,
           hasDiary:        diarySet.has(key),
           reviewCount:     reviewMap[key] ?? 0,
+          onFukuX:         fukuxSet.has(String(t.user_id)),
           featureBadges:   sanitizeBadges(t.feature_badges),
           salonId,  // 保存ボタン用（このサロンに在籍）
         };
@@ -676,14 +713,16 @@ export function SalonAllTherapists({ salonId, limit, from, showSaveButton = fals
       const supabase = createClient();
       const { data: rows } = await supabase
         .from('therapists')
-        .select('id, name, age, work_hours, area, comment, profile_image_url, is_available_now, available_until, is_available_now_cast, available_until_cast, is_new_face, new_face_since, body_type, feature_badges')
+        .select('id, name, age, work_hours, area, comment, profile_image_url, is_available_now, available_until, is_available_now_cast, available_until_cast, is_new_face, new_face_since, body_type, feature_badges, user_id')
         .eq('salon_id', salonId);
 
       const rawIds = (rows ?? []).map(t => t.id);
-      const [schedMap, diarySet, reviewMap] = await Promise.all([
+      const userIds = (rows ?? []).map(t => t.user_id);
+      const [schedMap, diarySet, reviewMap, fukuxSet] = await Promise.all([
         fetchScheduleMap(rawIds),
         fetchDiarySet(rawIds),
         fetchReviewCountMap(rawIds),
+        fetchFukuXSet(userIds),
       ]);
 
       const mapped: Therapist[] = (rows ?? []).map(t => ({
@@ -704,6 +743,7 @@ export function SalonAllTherapists({ salonId, limit, from, showSaveButton = fals
         age:             (t.age as string | null) ?? null,
         hasDiary:        diarySet.has(String(t.id)),
         reviewCount:     reviewMap[String(t.id)] ?? 0,
+        onFukuX:         fukuxSet.has(String(t.user_id)),
         featureBadges:   sanitizeBadges(t.feature_badges),
         salonId,  // 保存ボタン用（このサロンに在籍）
       }));
@@ -754,14 +794,16 @@ export function SalonNewFaceTherapists({
       const supabase = createClient();
       const { data: rows } = await supabase
         .from('therapists')
-        .select('id, name, age, work_hours, area, comment, profile_image_url, is_available_now, available_until, is_available_now_cast, available_until_cast, is_new_face, new_face_since, body_type, feature_badges')
+        .select('id, name, age, work_hours, area, comment, profile_image_url, is_available_now, available_until, is_available_now_cast, available_until_cast, is_new_face, new_face_since, body_type, feature_badges, user_id')
         .eq('salon_id', salonId);
 
       const rawIds = (rows ?? []).map(t => t.id);
-      const [schedMap, diarySet, reviewMap] = await Promise.all([
+      const userIds = (rows ?? []).map(t => t.user_id);
+      const [schedMap, diarySet, reviewMap, fukuxSet] = await Promise.all([
         fetchScheduleMap(rawIds),
         fetchDiarySet(rawIds),
         fetchReviewCountMap(rawIds),
+        fetchFukuXSet(userIds),
       ]);
 
       const mapped: Therapist[] = (rows ?? []).map(t => ({
@@ -782,6 +824,7 @@ export function SalonNewFaceTherapists({
         age:             (t.age as string | null) ?? null,
         hasDiary:        diarySet.has(String(t.id)),
         reviewCount:     reviewMap[String(t.id)] ?? 0,
+        onFukuX:         fukuxSet.has(String(t.user_id)),
         featureBadges:   sanitizeBadges(t.feature_badges),
         salonId,  // 保存ボタン用（このサロンに在籍）
       }));

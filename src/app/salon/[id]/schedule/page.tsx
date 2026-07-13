@@ -54,7 +54,7 @@ export default async function SalonSchedulePage({
       .single(),
     supabase
       .from('therapists')
-      .select('id, name, age, profile_image_url, is_available_now, available_until, is_available_now_cast, available_until_cast, is_new_face, new_face_since, body_type, feature_badges')
+      .select('id, name, age, profile_image_url, is_available_now, available_until, is_available_now_cast, available_until_cast, is_new_face, new_face_since, body_type, feature_badges, user_id')
       .eq('salon_id', Number(id)),
   ]);
 
@@ -68,10 +68,11 @@ export default async function SalonSchedulePage({
   const therapists = therapistRows ?? [];
   const tMap = new Map(therapists.map(t => [String(t.id), t]));
   const therapistIds = therapists.map(t => t.id);
+  const userIds = therapists.map(t => t.user_id).filter((u): u is string => typeof u === 'string' && u !== '');
 
   // 第2段：壁紙（theme.key 依存）・スケジュール・写メ日記有無（therapistIds 依存）を並列取得。
   // therapistIds が空のときは .in が0件を返すため、結果は従来どおり空になる。
-  const [wallpaperRes, schedRes, diaryRes, reviewRes] = await Promise.all([
+  const [wallpaperRes, schedRes, diaryRes, reviewRes, xRes] = await Promise.all([
     supabase
       .from('theme_wallpapers')
       .select('image_url')
@@ -91,6 +92,13 @@ export default async function SalonSchedulePage({
       .select('therapist_id')
       .in('therapist_id', therapistIds)
       .eq('status', 'approved'),
+    supabase
+      .from('x_profiles')
+      .select('auth_user_id')
+      .in('auth_user_id', userIds)
+      .eq('kind', 'therapist')
+      .eq('status', 'approved')
+      .not('handle', 'is', null),
   ]);
 
   const wallpaperUrl = (wallpaperRes.data?.image_url as string | undefined) ?? null;
@@ -118,6 +126,9 @@ export default async function SalonSchedulePage({
     const key = String(r.therapist_id);
     reviewCountByTherapist[key] = (reviewCountByTherapist[key] ?? 0) + 1;
   });
+
+  // fukuX 利用中（approved な therapist プロフィールがある auth_user_id）の集合。
+  const fukuxUserIds = new Set((xRes.data ?? []).map(r => String(r.auth_user_id)));
 
   // 日付ごとに出勤予定セラピストを構築
   const byDate: Record<string, DaySchedule[]> = {};
@@ -151,6 +162,7 @@ export default async function SalonSchedulePage({
       bodyType:       (t.body_type as string | null) ?? null,
       hasDiary:       diaryIds.has(String(t.id)),
       reviewCount:    reviewCountByTherapist[String(t.id)] ?? 0,
+      onFukuX:        fukuxUserIds.has(String(t.user_id)),
       featureBadges:  sanitizeBadges(t.feature_badges),
     });
   }
