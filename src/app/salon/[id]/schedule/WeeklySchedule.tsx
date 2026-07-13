@@ -135,27 +135,23 @@ function TherapistCard({ t, isToday, salonId }: { t: DaySchedule; isToday: boole
         {isNew && <NewBadge className="absolute bottom-1.5 left-1.5 z-10" />}
       </div>
       <div className="p-3 flex-1 flex flex-col justify-start min-w-0">
-        <div ref={nameRowRef} className="flex items-center gap-1.5 mb-1 flex-nowrap min-w-0 overflow-hidden">
+        {/* 1行目：名前（左端に保存ボタンを重ねる＝pl-9で余白を確保） */}
+        <div ref={nameRowRef} className="flex items-center gap-1.5 mb-1 flex-nowrap min-w-0 overflow-hidden pl-9">
           <span ref={nameWrapRef} className="flex items-baseline gap-1 flex-shrink-0 text-sm">
             <span className="font-bold text-slate-900 whitespace-nowrap">{t.name}</span>
             {t.age && <span className="text-[0.9em] text-slate-500 whitespace-nowrap">({t.age})</span>}
           </span>
-          {/* 出勤バッジ：デスクトップ(md以上)は名前行に表示（スマホはスリーサイズ行へ） */}
-          <span className={`hidden md:inline-flex items-center flex-shrink-0 text-[10px] font-bold px-1.5 py-0.5 rounded-full whitespace-nowrap ${badge.cls}`}>
-            {badge.label}
-          </span>
-          <span className="flex-shrink-0 text-xs font-medium text-pink-600 whitespace-nowrap">
-            {displayHours(t.startTime, t.endTime)}
-          </span>
         </div>
-        {/* スリーサイズ行：スマホ(md未満)のみ出勤バッジをスリーサイズの左横に並べる（1行・はみ出しは省略） */}
-        <div className="flex items-center gap-1.5 mb-0.5 min-w-0">
-          <span className={`md:hidden flex-shrink-0 text-[10px] font-bold px-1.5 py-0.5 rounded-full whitespace-nowrap ${badge.cls}`}>
-            {badge.label}
-          </span>
-          {bodySizes && (
-            <span className="text-slate-500 truncate min-w-0" style={{ fontSize: '12px' }}>{bodySizes}</span>
-          )}
+        {/* 2行目：身長・スリーサイズのみ */}
+        {bodySizes && (
+          <div className="mb-0.5 min-w-0">
+            <span className="block text-slate-500 truncate min-w-0" style={{ fontSize: '12px' }}>{bodySizes}</span>
+          </div>
+        )}
+        {/* 3行目：出勤中バッジ＋右隣りに出勤時間 */}
+        <div className="flex items-center gap-1.5 mb-1 min-w-0 flex-nowrap overflow-hidden">
+          <span className={`inline-flex items-center flex-shrink-0 text-[10px] font-bold px-1.5 py-0.5 rounded-full whitespace-nowrap ${badge.cls}`}>{badge.label}</span>
+          <span className="flex-shrink-0 text-xs font-medium text-pink-600 whitespace-nowrap">{displayHours(t.startTime, t.endTime)}</span>
         </div>
         <FeatureBadges badges={t.featureBadges} className="mb-1" />
         {/* 写メ日記バッジ（日記が1件以上ある子のみ）。カード全体は /therapist/[id] へのリンクのため、
@@ -178,8 +174,8 @@ function TherapistCard({ t, isToday, salonId }: { t: DaySchedule; isToday: boole
         )}
       </div>
     </Link>
-      {/* 保存ボタン（カード右上）。Link の外側に重ね、anchor 内ネストとスパーククリップを回避。 */}
-      <div className="absolute top-2 right-2 z-20">
+      {/* 保存ボタン（名前行の左端＝写真140pxの右隣り）。Link の外側に重ね、anchor 内ネストとスパーククリップを回避。 */}
+      <div className="absolute top-3 left-[146px] z-20">
         <SaveButton
           kind="therapist"
           item={{ id: Number(t.id), name: t.name, salonId }}
