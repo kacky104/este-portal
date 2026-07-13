@@ -198,7 +198,7 @@ export async function fetchTherapistsByIds(ids: number[]): Promise<Therapist[]> 
 
 // ── GridCard ──────────────────────────────────────────────────
 
-export function GridCard({ therapist, index, showJoinDate = false, from, enableWorkingShimmer = false, showSaveButton = false, saveButtonPos = 'photo-left', largeImage = false }: {
+export function GridCard({ therapist, index, showJoinDate = false, from, enableWorkingShimmer = false, showSaveButton = false, saveButtonPos = 'photo-left', largeImage = false, hideSaveOnMobile = false }: {
   therapist:    Therapist;
   index:        number;
   showJoinDate?: boolean;   // 新人紹介セクションのみ true（入店日を表示）
@@ -207,6 +207,7 @@ export function GridCard({ therapist, index, showJoinDate = false, from, enableW
   showSaveButton?: boolean;  // 保存ボタンを表示（/saved・在籍一覧）
   saveButtonPos?: 'photo-left' | 'card-right';  // 'photo-left'=/saved（写真左上）/ 'card-right'=在籍一覧（カード右上）
   largeImage?: boolean;  // 在籍セラピスト一覧（ページ／タブ）のみ true：写真を幅×1.25・高さ×1.5に拡大
+  hideSaveOnMobile?: boolean;  // スマホ(<640px)でのみ保存ボタンを隠す（sm以上は表示）。サロン詳細の在籍一覧セクション用。
 }) {
   const grad = GRADS[index % GRADS.length];
   const sym  = SYMS[index % SYMS.length];
@@ -378,7 +379,7 @@ export function GridCard({ therapist, index, showJoinDate = false, from, enableW
   return (
     <div className="relative">
       {card}
-      <div className={`absolute ${posClass} z-20`}>
+      <div className={`absolute ${posClass} z-20${hideSaveOnMobile ? ' hidden sm:block' : ''}`}>
         <SaveButton
           kind="therapist"
           item={{ id: Number(therapist.id), name: therapist.name, salonId: therapist.salonId ?? 0 }}
@@ -667,7 +668,7 @@ export function SalonOnDutyExcludingNow({ salonId, theme }: { salonId: number; t
 
 // ── SalonAllTherapists (全員表示) ──────────────────────────────
 
-export function SalonAllTherapists({ salonId, limit, from, showSaveButton = false, singleColumn = false }: { salonId: number; limit?: number; from?: string; showSaveButton?: boolean; singleColumn?: boolean }) {
+export function SalonAllTherapists({ salonId, limit, from, showSaveButton = false, singleColumn = false, hideSaveOnMobile = false }: { salonId: number; limit?: number; from?: string; showSaveButton?: boolean; singleColumn?: boolean; hideSaveOnMobile?: boolean }) {
   const [list, setList] = useState<Therapist[]>([]);
 
   useEffect(() => {
@@ -722,7 +723,7 @@ export function SalonAllTherapists({ salonId, limit, from, showSaveButton = fals
     // カードを親幅いっぱいに広げ、情報エリアを確保する。在籍一覧ページは従来の2列。
     <div className={`grid grid-cols-1 gap-3${singleColumn ? '' : ' sm:grid-cols-2'}`}>
       {shown.map((t, i) => (
-        <GridCard key={t.id} therapist={t} index={i} from={from} showSaveButton={showSaveButton} saveButtonPos="card-right" largeImage />
+        <GridCard key={t.id} therapist={t} index={i} from={from} showSaveButton={showSaveButton} saveButtonPos="card-right" largeImage hideSaveOnMobile={hideSaveOnMobile} />
       ))}
     </div>
   );
