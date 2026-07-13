@@ -116,9 +116,9 @@ function TherapistCard({ t, isToday, salonId }: { t: DaySchedule; isToday: boole
     <div className="relative">
     <Link
       href={`/therapist/${t.id}?from=schedule`}
-      className={`border border-slate-200 bg-white shadow-sm flex h-28 overflow-hidden hover:shadow-md transition-all duration-200${working ? ' therapist-working-shimmer' : ''}`}
+      className={`border border-slate-200 bg-white shadow-sm flex h-[168px] overflow-hidden hover:shadow-md transition-all duration-200${working ? ' therapist-working-shimmer' : ''}`}
     >
-      <div className="relative w-28 flex-shrink-0 overflow-hidden bg-gradient-to-br from-pink-300 to-rose-400 flex items-center justify-center">
+      <div className="relative w-[140px] flex-shrink-0 overflow-hidden bg-gradient-to-br from-pink-300 to-rose-400 flex items-center justify-center">
         {t.imageUrl ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img src={t.imageUrl} alt={t.name} className="absolute inset-0 w-full h-full object-cover" />

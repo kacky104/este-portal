@@ -176,7 +176,7 @@ export async function fetchTherapistsByIds(ids: number[]): Promise<Therapist[]> 
 
 // ── GridCard ──────────────────────────────────────────────────
 
-export function GridCard({ therapist, index, showJoinDate = false, from, enableWorkingShimmer = false, showSaveButton = false, saveButtonPos = 'photo-left' }: {
+export function GridCard({ therapist, index, showJoinDate = false, from, enableWorkingShimmer = false, showSaveButton = false, saveButtonPos = 'photo-left', largeImage = false }: {
   therapist:    Therapist;
   index:        number;
   showJoinDate?: boolean;   // 新人紹介セクションのみ true（入店日を表示）
@@ -184,6 +184,7 @@ export function GridCard({ therapist, index, showJoinDate = false, from, enableW
   enableWorkingShimmer?: boolean;   // 出勤中カードの外枠を緑キラリ（schedule / imasugu下段のみ true）
   showSaveButton?: boolean;  // 保存ボタンを表示（/saved・在籍一覧）
   saveButtonPos?: 'photo-left' | 'card-right';  // 'photo-left'=/saved（写真左上）/ 'card-right'=在籍一覧（カード右上）
+  largeImage?: boolean;  // 在籍セラピスト一覧（ページ／タブ）のみ true：写真を幅×1.25・高さ×1.5に拡大
 }) {
   const grad = GRADS[index % GRADS.length];
   const sym  = SYMS[index % SYMS.length];
@@ -219,9 +220,9 @@ export function GridCard({ therapist, index, showJoinDate = false, from, enableW
   const card = (
     <Link
       href={from ? `/therapist/${therapist.id}?from=${from}` : `/therapist/${therapist.id}`}
-      className={`text-left w-full border border-pink-50 bg-white shadow-sm flex h-28 overflow-hidden hover:border-pink-200 hover:shadow-md transition-all duration-200${working ? ' therapist-working-shimmer' : ''}`}
+      className={`text-left w-full border border-pink-50 bg-white shadow-sm flex ${largeImage ? 'h-[168px]' : 'h-28'} overflow-hidden hover:border-pink-200 hover:shadow-md transition-all duration-200${working ? ' therapist-working-shimmer' : ''}`}
     >
-      <div className={`relative w-28 bg-gradient-to-br ${grad} flex items-center justify-center flex-shrink-0 overflow-hidden`}>
+      <div className={`relative ${largeImage ? 'w-[140px]' : 'w-28'} bg-gradient-to-br ${grad} flex items-center justify-center flex-shrink-0 overflow-hidden`}>
         {therapist.profileImageUrl ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img
@@ -659,7 +660,7 @@ export function SalonAllTherapists({ salonId, limit, from, showSaveButton = fals
     // カードを親幅いっぱいに広げ、情報エリアを確保する。在籍一覧ページは従来の2列。
     <div className={`grid grid-cols-1 gap-3${singleColumn ? '' : ' sm:grid-cols-2'}`}>
       {shown.map((t, i) => (
-        <GridCard key={t.id} therapist={t} index={i} from={from} showSaveButton={showSaveButton} saveButtonPos="card-right" />
+        <GridCard key={t.id} therapist={t} index={i} from={from} showSaveButton={showSaveButton} saveButtonPos="card-right" largeImage />
       ))}
     </div>
   );
