@@ -71,7 +71,7 @@ export default async function SalonSchedulePage({
 
   // 第2段：壁紙（theme.key 依存）・スケジュール・写メ日記有無（therapistIds 依存）を並列取得。
   // therapistIds が空のときは .in が0件を返すため、結果は従来どおり空になる。
-  const [wallpaperRes, schedRes, diaryRes] = await Promise.all([
+  const [wallpaperRes, schedRes, diaryRes, reviewRes] = await Promise.all([
     supabase
       .from('theme_wallpapers')
       .select('image_url')
@@ -86,6 +86,11 @@ export default async function SalonSchedulePage({
       .from('diary_posts')
       .select('therapist_id')
       .in('therapist_id', therapistIds),
+    supabase
+      .from('therapist_reviews')
+      .select('therapist_id')
+      .in('therapist_id', therapistIds)
+      .eq('status', 'approved'),
   ]);
 
   const wallpaperUrl = (wallpaperRes.data?.image_url as string | undefined) ?? null;
@@ -106,6 +111,13 @@ export default async function SalonSchedulePage({
 
   // 写メ日記の有無（diary_posts を1件以上持つ therapist_id の集合）。
   const diaryIds = new Set((diaryRes.data ?? []).map(r => String(r.therapist_id)));
+
+  // 承認済み口コミ件数（therapist_id → 件数）。
+  const reviewCountByTherapist: Record<string, number> = {};
+  (reviewRes.data ?? []).forEach(r => {
+    const key = String(r.therapist_id);
+    reviewCountByTherapist[key] = (reviewCountByTherapist[key] ?? 0) + 1;
+  });
 
   // 日付ごとに出勤予定セラピストを構築
   const byDate: Record<string, DaySchedule[]> = {};
@@ -138,6 +150,7 @@ export default async function SalonSchedulePage({
       newFaceSince:   (t.new_face_since as string | null) ?? null,
       bodyType:       (t.body_type as string | null) ?? null,
       hasDiary:       diaryIds.has(String(t.id)),
+      reviewCount:    reviewCountByTherapist[String(t.id)] ?? 0,
       featureBadges:  sanitizeBadges(t.feature_badges),
     });
   }

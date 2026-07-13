@@ -82,6 +82,7 @@ export type Therapist = {
   newFaceSince:    string | null;
   bodyType:        string | null;
   hasDiary:        boolean;
+  reviewCount:     number;   // 承認済み口コミ件数（0なら非表示）
   featureBadges:   string[]; // 特徴バッジ（最大3）
   salonId?:        number;   // 保存ボタン用（/saved のセラピストカードで使用）
 };
@@ -127,11 +128,30 @@ async function fetchDiarySet(rawIds: unknown[]): Promise<Set<string>> {
   return new Set((data ?? []).map(r => String(r.therapist_id)));
 }
 
+// ── 承認済み口コミ件数を1クエリでまとめて取得（therapist_id → 件数） ──────────
+// 対象セラピストの therapist_reviews（status='approved'）を therapist_id ごとに集計（N+1回避）。
+async function fetchReviewCountMap(rawIds: unknown[]): Promise<Record<string, number>> {
+  if (rawIds.length === 0) return {};
+  const supabase = createClient();
+  const { data } = await supabase
+    .from('therapist_reviews')
+    .select('therapist_id')
+    .in('therapist_id', rawIds)
+    .eq('status', 'approved');
+  const map: Record<string, number> = {};
+  (data ?? []).forEach(r => {
+    const key = String(r.therapist_id);
+    map[key] = (map[key] ?? 0) + 1;
+  });
+  return map;
+}
+
 // ── 行→Therapist 変換（取得ロジックを共有して二重実装しない） ──
 function buildTherapist(
   t: Record<string, unknown>,
   schedMap: Record<string, TodaySchedule>,
-  diarySet: Set<string>
+  diarySet: Set<string>,
+  reviewMap: Record<string, number>
 ): Therapist {
   const key = String(t.id);
   return {
@@ -151,6 +171,7 @@ function buildTherapist(
     bodyType:        (t.body_type as string | null) ?? null,
     age:             (t.age as string | null) ?? null,
     hasDiary:        diarySet.has(key),
+    reviewCount:     reviewMap[key] ?? 0,
     featureBadges:   sanitizeBadges(t.feature_badges),
     salonId:         (t.salon_id as number | null) ?? undefined,
   };
@@ -167,11 +188,12 @@ export async function fetchTherapistsByIds(ids: number[]): Promise<Therapist[]> 
     .in('id', ids);
 
   const rawIds = (rows ?? []).map(t => t.id);
-  const [schedMap, diarySet] = await Promise.all([
+  const [schedMap, diarySet, reviewMap] = await Promise.all([
     fetchScheduleMap(rawIds),
     fetchDiarySet(rawIds),
+    fetchReviewCountMap(rawIds),
   ]);
-  return (rows ?? []).map(t => buildTherapist(t as Record<string, unknown>, schedMap, diarySet));
+  return (rows ?? []).map(t => buildTherapist(t as Record<string, unknown>, schedMap, diarySet, reviewMap));
 }
 
 // ── GridCard ──────────────────────────────────────────────────
@@ -310,6 +332,10 @@ export function GridCard({ therapist, index, showJoinDate = false, from, enableW
             </>
           )}
           <FeatureBadges badges={therapist.featureBadges} className="mb-1" />
+          {/* 口コミ件数（承認済みが1件以上のときのみ・特徴バッジの下） */}
+          {therapist.reviewCount > 0 && (
+            <p className="mb-1 text-[11px] font-bold text-pink-600">口コミ{therapist.reviewCount}件</p>
+          )}
           {showJoinDate && isNewFaceActive(therapist.isNewFace, therapist.newFaceSince) && therapist.newFaceSince && (
             <p className="mb-0.5" style={{ fontSize: '12px', color: '#15803d' }}>
               {formatJoinDate(therapist.newFaceSince)}
@@ -468,9 +494,10 @@ export function SalonTherapists({ salonId }: { salonId: number }) {
         .eq('salon_id', salonId);
 
       const rawIds = (rows ?? []).map(t => t.id);
-      const [schedMap, diarySet] = await Promise.all([
+      const [schedMap, diarySet, reviewMap] = await Promise.all([
         fetchScheduleMap(rawIds),
         fetchDiarySet(rawIds),
+        fetchReviewCountMap(rawIds),
       ]);
 
       const mapped: Therapist[] = (rows ?? []).map(t => {
@@ -494,6 +521,7 @@ export function SalonTherapists({ salonId }: { salonId: number }) {
           bodyType:        (t.body_type as string | null) ?? null,
           age:             (t.age as string | null) ?? null,
           hasDiary:        diarySet.has(key),
+          reviewCount:     reviewMap[key] ?? 0,
           featureBadges:   sanitizeBadges(t.feature_badges),
         };
       });
@@ -559,9 +587,10 @@ export function SalonOnDutyExcludingNow({ salonId, theme }: { salonId: number; t
         .eq('salon_id', salonId);
 
       const rawIds = (rows ?? []).map(t => t.id);
-      const [schedMap, diarySet] = await Promise.all([
+      const [schedMap, diarySet, reviewMap] = await Promise.all([
         fetchScheduleMap(rawIds),
         fetchDiarySet(rawIds),
+        fetchReviewCountMap(rawIds),
       ]);
 
       const mapped: Therapist[] = (rows ?? []).map(t => {
@@ -584,6 +613,7 @@ export function SalonOnDutyExcludingNow({ salonId, theme }: { salonId: number; t
           bodyType:        (t.body_type as string | null) ?? null,
           age:             (t.age as string | null) ?? null,
           hasDiary:        diarySet.has(key),
+          reviewCount:     reviewMap[key] ?? 0,
           featureBadges:   sanitizeBadges(t.feature_badges),
           salonId,  // 保存ボタン用（このサロンに在籍）
         };
@@ -649,9 +679,10 @@ export function SalonAllTherapists({ salonId, limit, from, showSaveButton = fals
         .eq('salon_id', salonId);
 
       const rawIds = (rows ?? []).map(t => t.id);
-      const [schedMap, diarySet] = await Promise.all([
+      const [schedMap, diarySet, reviewMap] = await Promise.all([
         fetchScheduleMap(rawIds),
         fetchDiarySet(rawIds),
+        fetchReviewCountMap(rawIds),
       ]);
 
       const mapped: Therapist[] = (rows ?? []).map(t => ({
@@ -671,6 +702,7 @@ export function SalonAllTherapists({ salonId, limit, from, showSaveButton = fals
         bodyType:        (t.body_type as string | null) ?? null,
         age:             (t.age as string | null) ?? null,
         hasDiary:        diarySet.has(String(t.id)),
+        reviewCount:     reviewMap[String(t.id)] ?? 0,
         featureBadges:   sanitizeBadges(t.feature_badges),
         salonId,  // 保存ボタン用（このサロンに在籍）
       }));
@@ -725,9 +757,10 @@ export function SalonNewFaceTherapists({
         .eq('salon_id', salonId);
 
       const rawIds = (rows ?? []).map(t => t.id);
-      const [schedMap, diarySet] = await Promise.all([
+      const [schedMap, diarySet, reviewMap] = await Promise.all([
         fetchScheduleMap(rawIds),
         fetchDiarySet(rawIds),
+        fetchReviewCountMap(rawIds),
       ]);
 
       const mapped: Therapist[] = (rows ?? []).map(t => ({
@@ -747,6 +780,7 @@ export function SalonNewFaceTherapists({
         bodyType:        (t.body_type as string | null) ?? null,
         age:             (t.age as string | null) ?? null,
         hasDiary:        diarySet.has(String(t.id)),
+        reviewCount:     reviewMap[String(t.id)] ?? 0,
         featureBadges:   sanitizeBadges(t.feature_badges),
         salonId,  // 保存ボタン用（このサロンに在籍）
       }));

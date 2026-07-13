@@ -27,6 +27,7 @@ export type DaySchedule = {
   newFaceSince:   string | null;
   bodyType:       string | null;
   hasDiary:       boolean;
+  reviewCount:    number;   // 承認済み口コミ件数（0なら非表示）
   featureBadges:  string[];
 };
 
@@ -154,6 +155,10 @@ function TherapistCard({ t, isToday, salonId }: { t: DaySchedule; isToday: boole
           <span className="flex-shrink-0 text-xs font-medium text-pink-600 whitespace-nowrap">{displayHours(t.startTime, t.endTime)}</span>
         </div>
         <FeatureBadges badges={t.featureBadges} className="mb-1" />
+        {/* 口コミ件数（承認済みが1件以上のときのみ・特徴バッジの下） */}
+        {t.reviewCount > 0 && (
+          <p className="mb-1 text-[11px] font-bold text-pink-600">口コミ{t.reviewCount}件</p>
+        )}
         {/* 写メ日記バッジ（日記が1件以上ある子のみ）。カード全体は /therapist/[id] へのリンクのため、
             ここは preventDefault + stopPropagation で日記一覧ページへ遷移させる。 */}
         {t.hasDiary && (
