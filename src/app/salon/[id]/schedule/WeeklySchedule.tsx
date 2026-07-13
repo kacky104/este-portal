@@ -140,7 +140,7 @@ function TherapistCard({ t, isToday, salonId }: { t: DaySchedule; isToday: boole
       <div className="p-3 flex-1 flex flex-col justify-start min-w-0">
         {/* 1行目：名前（右端に保存ボタンを重ねる＝pr-8で余白を確保） */}
         <div ref={nameRowRef} className="flex items-center gap-1.5 mb-1 flex-nowrap min-w-0 overflow-hidden pr-8">
-          <span ref={nameWrapRef} className="flex items-baseline gap-1 flex-shrink-0 text-sm">
+          <span ref={nameWrapRef} className="flex items-baseline gap-1 flex-shrink-0 text-[15px]">
             <span className="font-bold text-slate-900 whitespace-nowrap">{t.name}</span>
             {t.age && <span className="text-[0.9em] text-slate-500 whitespace-nowrap">({t.age})</span>}
           </span>
@@ -148,13 +148,13 @@ function TherapistCard({ t, isToday, salonId }: { t: DaySchedule; isToday: boole
         {/* 2行目：身長・スリーサイズのみ */}
         {bodySizes && (
           <div className="mb-0.5 min-w-0">
-            <span className="block text-slate-500 truncate min-w-0" style={{ fontSize: '12px' }}>{bodySizes}</span>
+            <span className="block text-slate-500 truncate min-w-0" style={{ fontSize: '13px' }}>{bodySizes}</span>
           </div>
         )}
         {/* 3行目：出勤中バッジ＋右隣りに出勤時間 */}
         <div className="flex items-center gap-1.5 mb-1 min-w-0 flex-nowrap overflow-hidden">
           <span className={`inline-flex items-center flex-shrink-0 text-[10px] font-bold px-1.5 py-0.5 rounded-full whitespace-nowrap ${badge.cls}`}>{badge.label}</span>
-          <span className="flex-shrink-0 text-xs font-medium text-pink-600 whitespace-nowrap">{displayHours(t.startTime, t.endTime)}</span>
+          <span className="flex-shrink-0 text-[13px] font-medium text-pink-600 whitespace-nowrap">{displayHours(t.startTime, t.endTime)}</span>
         </div>
         <FeatureBadges badges={t.featureBadges} className="mb-1" />
         {/* 口コミ件数（承認済みが1件以上のときのみ・特徴バッジの下） */}

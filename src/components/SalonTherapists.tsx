@@ -306,7 +306,7 @@ export function GridCard({ therapist, index, showJoinDate = false, from, enableW
             /* 大カード（在籍一覧・新人紹介）：1行目=名前（左端に保存ボタンを重ねる）/2行目=身長スリーサイズ/3行目=出勤バッジ＋出勤時間 */
             <>
               <div ref={nameRowRef} className={`flex items-center gap-1.5 mb-0.5 flex-nowrap min-w-0 overflow-hidden${showSaveButton ? ' pr-8' : ''}`}>
-                <span ref={nameWrapRef} className="flex items-baseline gap-1 flex-shrink-0">
+                <span ref={nameWrapRef} className="flex items-baseline gap-1 flex-shrink-0 text-[13px]">
                   <span className="font-bold text-slate-900 whitespace-nowrap">{therapist.name}</span>
                   {therapist.age && <span className="text-[0.9em] text-slate-500 whitespace-nowrap">({therapist.age})</span>}
                 </span>
@@ -314,7 +314,7 @@ export function GridCard({ therapist, index, showJoinDate = false, from, enableW
               {/* 2行目：身長・スリーサイズのみ */}
               {bodySizes && (
                 <div className="mb-0.5 min-w-0">
-                  <span className="block text-slate-500 truncate min-w-0" style={{ fontSize: '12px' }}>{bodySizes}</span>
+                  <span className="block text-slate-500 truncate min-w-0" style={{ fontSize: '13px' }}>{bodySizes}</span>
                 </div>
               )}
               {/* 3行目：出勤中バッジ＋右隣りに出勤時間 */}
@@ -322,7 +322,7 @@ export function GridCard({ therapist, index, showJoinDate = false, from, enableW
                 <div className="flex items-center gap-1.5 mb-1 min-w-0 flex-nowrap overflow-hidden">
                   <span className={`inline-flex items-center flex-shrink-0 text-[9px] font-bold px-1.5 py-0.5 rounded-full ${ss.badgeCls}`}>{ss.label}</span>
                   {ss.status !== 'off' && (
-                    <span className="flex-shrink-0 text-[10px] text-pink-500 font-medium whitespace-nowrap">{displayHours || therapist.workHours || '—'}</span>
+                    <span className="flex-shrink-0 text-[11px] text-pink-500 font-medium whitespace-nowrap">{displayHours || therapist.workHours || '—'}</span>
                   )}
                 </div>
               )}
