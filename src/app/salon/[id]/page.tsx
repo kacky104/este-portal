@@ -510,7 +510,7 @@ export default async function SalonPage({
                 </svg>
                 <span className="text-[11px] sm:text-sm font-bold leading-none whitespace-nowrap" style={{ color: qn.text }}>料金</span>
               </Link>
-              {/* 口コミ（メッセージ・店舗の口コミ一覧ページへのリンク） */}
+              {/* 口コミ（記入＝鉛筆アイコン・店舗の口コミ一覧ページへのリンク。fukuXの二重吹き出しと紛らわしいため変更） */}
               <Link href={`/salon/${id}/reviews`} className="relative flex flex-col items-center justify-center gap-1.5 rounded-lg border px-1.5 py-3 sm:py-4 shadow-sm cursor-pointer hover:shadow-md hover:brightness-95 transition-all" style={{ backgroundColor: qn.bg, borderColor: qn.border }}>
                 {/* 承認済み口コミ総数のハートバッジ（1件以上のときのみ右上にはみ出して表示）。本日出勤カードと同一デザイン。 */}
                 {salonReviewStats.count > 0 && (
@@ -525,8 +525,9 @@ export default async function SalonPage({
                   </svg>
                 )}
                 <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="flex-shrink-0" style={{ color: qn.icon }}>
-                  <path d="M21 14l-3 -3h-7a1 1 0 0 1 -1 -1v-6a1 1 0 0 1 1 -1h9a1 1 0 0 1 1 1v10" />
-                  <path d="M14 15v2a1 1 0 0 1 -1 1h-7l-3 3v-10a1 1 0 0 1 1 -1h2" />
+                  {/* lucide square-pen（記入）。fukuXの二重吹き出しと差別化。 */}
+                  <path d="M12 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+                  <path d="M18.375 2.625a1 1 0 0 1 3 3l-9.013 9.014a2 2 0 0 1-.853.505l-2.873.84a.5.5 0 0 1-.62-.62l.84-2.873a2 2 0 0 1 .506-.852z" />
                 </svg>
                 <span className="text-[11px] sm:text-sm font-bold leading-none whitespace-nowrap" style={{ color: qn.text }}>口コミ</span>
               </Link>
