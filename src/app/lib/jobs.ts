@@ -1,6 +1,11 @@
 import { createPublicClient } from '@/app/lib/supabase/public';
 import { AREA_ORDER, ALL_AREA, DISPATCH_AREA } from '@/app/lib/areas';
 
+// リンクバナー設置特典で「求人カード優先表示」に使う重み（求人版・本体 CARD_BOOST_WEIGHT と同値）。
+// 求人一覧の30分ごとシャッフルで job_boost=true の求人に与える重み。
+// 1.0=従来（差なし）。1.5 で「一覧の上側（半数より上）に来やすくなる」効果になる。
+export const JOB_BOOST_WEIGHT = 1.5;
+
 // セラピスト求人の取得ロジックを1か所に集約（二重実装しない）。
 // 公開ページ専用のため anon クライアント（createPublicClient）で読む。
 // RLS（is_active かつ salons.is_hidden=false）で絞られるが、多重防御として
@@ -236,6 +241,9 @@ export type JobListItem = {
   // 一覧カード（JobCard）は参照しない。バナーブロックを持つ全一覧 fetch（fetchActiveJobs・エリア/タグ/
   // エリア×タグ/出張）で SELECT する。バナーブロックを持たない取得系（保存一覧・詳細向けの軽量取得等）では空配列。
   heroImageUrls: string[];
+  // 求人カード優先表示（バナー設置特典・求人版）。true で一覧の上側（半数より上）に来やすい。
+  // 一覧の重み付き30分シャッフル（shuffleJobs の weightOf）でのみ使用。false は従来どおり一様。
+  jobBoost: boolean;
 };
 
 // 新着バッジ（NEW）を表示する日数。掲載開始（published_at）からこの日数以内なら新着扱い。
@@ -313,20 +321,37 @@ function pickSalon<T>(raw: unknown): T | null {
   return (Array.isArray(raw) ? raw[0] : raw) as T;
 }
 
+// 一覧 fetch 共通の SELECT 列。hero_image_urls を1列だけ相乗り（/jobs トップのバナー枠を別クエリ無しで賄う）。
+// job_boost（バナー設置特典・求人版）も相乗りで取得する。
+const JOB_LIST_SELECT_BASE =
+  'id, title, salary_text, published_at, features, hero_image_urls, salons!inner(id, name, area, area2, is_hidden)';
+const JOB_LIST_SELECT =
+  'id, title, salary_text, published_at, features, hero_image_urls, job_boost, salons!inner(id, name, area, area2, is_hidden)';
+
+// job_boost 列を含めて取得。マイグレーション未適用の環境では列が無くクエリが失敗するため、
+// その場合は BASE 列（job_boost なし）で再取得してフォールバックする（求人一覧を落とさない）。
+// build は「列文字列を受け取り、フィルタを適用したクエリ（thenable）」を返すクロージャ。
+async function runJobListQuery(
+  build: (cols: string) => PromiseLike<{ data: unknown; error: unknown }>,
+): Promise<Record<string, unknown>[]> {
+  let res = await build(JOB_LIST_SELECT);
+  if (res.error) res = await build(JOB_LIST_SELECT_BASE);
+  return (res.data as Record<string, unknown>[] | null) ?? [];
+}
+
 // ── 一覧用 ───────────────────────────────────────────
 export async function fetchActiveJobs(): Promise<JobListItem[]> {
   const supabase = createPublicClient();
-  const { data } = await supabase
-    .from('salon_jobs')
-    // hero_image_urls を1列だけ相乗り（/jobs トップのバナー枠を別クエリ無しで賄う）。
-    .select('id, title, salary_text, published_at, features, hero_image_urls, salons!inner(id, name, area, area2, is_hidden)')
-    .eq('is_active', true)
-    .eq('salons.is_hidden', false)
-    .order('published_at', { ascending: false });
+  const rows = await runJobListQuery((cols) =>
+    supabase
+      .from('salon_jobs')
+      .select(cols)
+      .eq('is_active', true)
+      .eq('salons.is_hidden', false)
+      .order('published_at', { ascending: false }),
+  );
 
-  return (data ?? [])
-    .map((row) => mapJobListItem(row))
-    .filter((j): j is JobListItem => j !== null);
+  return rows.map((row) => mapJobListItem(row)).filter((j): j is JobListItem => j !== null);
 }
 
 // ── 保存サロンの公開求人一覧（/jobs/saved 用） ──
@@ -337,17 +362,17 @@ export async function fetchActiveJobsBySalonIds(salonIds: number[]): Promise<Job
   const ids = [...new Set(salonIds.map((n) => Number(n)).filter((n) => Number.isFinite(n)))];
   if (ids.length === 0) return [];
   const supabase = createPublicClient();
-  const { data } = await supabase
-    .from('salon_jobs')
-    .select('id, title, salary_text, published_at, features, hero_image_urls, salons!inner(id, name, area, area2, is_hidden)')
-    .eq('is_active', true)
-    .eq('salons.is_hidden', false)
-    .in('salon_id', ids)
-    .order('published_at', { ascending: false });
+  const rows = await runJobListQuery((cols) =>
+    supabase
+      .from('salon_jobs')
+      .select(cols)
+      .eq('is_active', true)
+      .eq('salons.is_hidden', false)
+      .in('salon_id', ids)
+      .order('published_at', { ascending: false }),
+  );
 
-  return (data ?? [])
-    .map((row) => mapJobListItem(row))
-    .filter((j): j is JobListItem => j !== null);
+  return rows.map((row) => mapJobListItem(row)).filter((j): j is JobListItem => j !== null);
 }
 
 // 一覧行 → JobListItem（fetchActiveJobs / fetchActiveJobsByFeature で共用）。
@@ -368,6 +393,8 @@ function mapJobListItem(row: Record<string, unknown>): JobListItem | null {
     },
     // SELECT に hero_image_urls を含む取得系（fetchActiveJobs）のみ値が入る。他は undefined→空配列。
     heroImageUrls: sanitizeHeroUrls(row.hero_image_urls),
+    // job_boost 列。マイグレーション未適用でフォールバック取得した場合は undefined→false。
+    jobBoost: (row.job_boost as boolean) ?? false,
   };
 }
 
@@ -454,17 +481,17 @@ export async function getFeaturedJobs(area: string | null = null): Promise<Picku
 export async function fetchActiveJobsByFeature(slug: string): Promise<JobListItem[]> {
   if (!isValidFeatureSlug(slug)) return [];
   const supabase = createPublicClient();
-  const { data } = await supabase
-    .from('salon_jobs')
-    .select('id, title, salary_text, published_at, features, hero_image_urls, salons!inner(id, name, area, area2, is_hidden)')
-    .eq('is_active', true)
-    .eq('salons.is_hidden', false)
-    .contains('features', [slug])
-    .order('published_at', { ascending: false });
+  const rows = await runJobListQuery((cols) =>
+    supabase
+      .from('salon_jobs')
+      .select(cols)
+      .eq('is_active', true)
+      .eq('salons.is_hidden', false)
+      .contains('features', [slug])
+      .order('published_at', { ascending: false }),
+  );
 
-  return (data ?? [])
-    .map((row) => mapJobListItem(row))
-    .filter((j): j is JobListItem => j !== null);
+  return rows.map((row) => mapJobListItem(row)).filter((j): j is JobListItem => j !== null);
 }
 
 // ── エリア絞り込み一覧用（/jobs/area/[slug]） ──
@@ -473,19 +500,19 @@ export async function fetchActiveJobsByFeature(slug: string): Promise<JobListIte
 // area は areas.ts の DB値（AREA_ORDER のキー。例 '博多・住吉'）。出張は area 一致では拾えないため対象外。
 export async function fetchActiveJobsByArea(area: string): Promise<JobListItem[]> {
   const supabase = createPublicClient();
-  const { data } = await supabase
-    .from('salon_jobs')
-    .select('id, title, salary_text, published_at, features, hero_image_urls, salons!inner(id, name, area, area2, is_hidden)')
-    .eq('is_active', true)
-    .eq('salons.is_hidden', false)
-    // 第1エリア（area）または第2エリア（area2）の一致で拾う。値をダブルクォートで囲み
-    // PostgREST の or 構文の予約文字と衝突しないようにする。!inner なので不一致の求人は親ごと落ちる。
-    .or(`area.eq."${area}",area2.eq."${area}"`, { referencedTable: 'salons' })
-    .order('published_at', { ascending: false });
+  const rows = await runJobListQuery((cols) =>
+    supabase
+      .from('salon_jobs')
+      .select(cols)
+      .eq('is_active', true)
+      .eq('salons.is_hidden', false)
+      // 第1エリア（area）または第2エリア（area2）の一致で拾う。値をダブルクォートで囲み
+      // PostgREST の or 構文の予約文字と衝突しないようにする。!inner なので不一致の求人は親ごと落ちる。
+      .or(`area.eq."${area}",area2.eq."${area}"`, { referencedTable: 'salons' })
+      .order('published_at', { ascending: false }),
+  );
 
-  return (data ?? [])
-    .map((row) => mapJobListItem(row))
-    .filter((j): j is JobListItem => j !== null);
+  return rows.map((row) => mapJobListItem(row)).filter((j): j is JobListItem => j !== null);
 }
 
 // ── 出張専門一覧用（/jobs/dispatch） ──
@@ -495,17 +522,17 @@ export async function fetchActiveJobsByArea(area: string): Promise<JobListItem[]
 // ※ area 引数を取らない専用関数。既存のエリア用 fetch（fetchActiveJobsByArea 等）は一切変更しない。
 export async function fetchActiveDispatchJobs(): Promise<JobListItem[]> {
   const supabase = createPublicClient();
-  const { data } = await supabase
-    .from('salon_jobs')
-    .select('id, title, salary_text, published_at, features, hero_image_urls, salons!inner(id, name, area, area2, is_hidden)')
-    .eq('is_active', true)
-    .eq('salons.is_hidden', false)
-    .eq('salons.dispatch_type', 'only')
-    .order('published_at', { ascending: false });
+  const rows = await runJobListQuery((cols) =>
+    supabase
+      .from('salon_jobs')
+      .select(cols)
+      .eq('is_active', true)
+      .eq('salons.is_hidden', false)
+      .eq('salons.dispatch_type', 'only')
+      .order('published_at', { ascending: false }),
+  );
 
-  return (data ?? [])
-    .map((row) => mapJobListItem(row))
-    .filter((j): j is JobListItem => j !== null);
+  return rows.map((row) => mapJobListItem(row)).filter((j): j is JobListItem => j !== null);
 }
 
 // ── エリア×特徴タグ掛け合わせ一覧用（/jobs/area/[slug]/tag/[tag]） ──
@@ -514,20 +541,20 @@ export async function fetchActiveDispatchJobs(): Promise<JobListItem[]> {
 export async function fetchActiveJobsByAreaAndFeature(area: string, slug: string): Promise<JobListItem[]> {
   if (!isValidFeatureSlug(slug)) return [];
   const supabase = createPublicClient();
-  const { data } = await supabase
-    .from('salon_jobs')
-    .select('id, title, salary_text, published_at, features, hero_image_urls, salons!inner(id, name, area, area2, is_hidden)')
-    .eq('is_active', true)
-    .eq('salons.is_hidden', false)
-    // 第1エリア（area）または第2エリア（area2）の一致で拾う。値をダブルクォートで囲み
-    // PostgREST の or 構文の予約文字と衝突しないようにする。!inner なので不一致の求人は親ごと落ちる。
-    .or(`area.eq."${area}",area2.eq."${area}"`, { referencedTable: 'salons' })
-    .contains('features', [slug])
-    .order('published_at', { ascending: false });
+  const rows = await runJobListQuery((cols) =>
+    supabase
+      .from('salon_jobs')
+      .select(cols)
+      .eq('is_active', true)
+      .eq('salons.is_hidden', false)
+      // 第1エリア（area）または第2エリア（area2）の一致で拾う。値をダブルクォートで囲み
+      // PostgREST の or 構文の予約文字と衝突しないようにする。!inner なので不一致の求人は親ごと落ちる。
+      .or(`area.eq."${area}",area2.eq."${area}"`, { referencedTable: 'salons' })
+      .contains('features', [slug])
+      .order('published_at', { ascending: false }),
+  );
 
-  return (data ?? [])
-    .map((row) => mapJobListItem(row))
-    .filter((j): j is JobListItem => j !== null);
+  return rows.map((row) => mapJobListItem(row)).filter((j): j is JobListItem => j !== null);
 }
 
 // ── 新着情報（work_news）公開取得（求人詳細ページの「新着情報」タブ用） ──

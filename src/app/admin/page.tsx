@@ -18,6 +18,7 @@ import OwnerContactManager from '@/app/components/OwnerContactManager';
 import MainArticlesManager from '@/app/components/MainArticlesManager';
 import AdminJobsManager from '@/app/components/AdminJobsManager';
 import FeaturedJobsManager from '@/app/components/FeaturedJobsManager';
+import JobBoostManager from '@/app/components/JobBoostManager';
 import AreaBannerManager from '@/app/components/AreaBannerManager';
 import AreaIconManager from '@/app/components/AreaIconManager';
 import FeatureIconManager from '@/app/components/FeatureIconManager';
@@ -635,6 +636,11 @@ export default function AdminDashboard() {
           {/* おすすめ求人（featured_jobs）設定：本体のピックアップサロンと同方式 */}
           <AccordionSection id="featured-jobs" title="おすすめ求人設定" expanded={expandedSections} onToggle={toggleSection}>
             <FeaturedJobsManager onToast={showToast} />
+          </AccordionSection>
+
+          {/* 求人カード優先表示（job_boost・バナー設置特典の求人版）。本体の card-boost と対。 */}
+          <AccordionSection id="job-boost" title="求人カード優先表示（バナー設置特典）" expanded={expandedSections} onToggle={toggleSection}>
+            <JobBoostManager onToast={showToast} />
           </AccordionSection>
 
           {/* エリア別ヒーローバナー（area_hero_banners）設定：エリアページ見出し直下のバナー */}

@@ -1,6 +1,6 @@
 import Link from 'next/link';
 import type { Metadata } from 'next';
-import { fetchActiveDispatchJobs, getFeaturedJobs } from '@/app/lib/jobs';
+import { fetchActiveDispatchJobs, getFeaturedJobs, JOB_BOOST_WEIGHT } from '@/app/lib/jobs';
 import { shuffleJobs } from '@/app/lib/shuffleJobs';
 import { fetchAreaHeroBanner } from '@/app/lib/areaBanners';
 import { DISPATCH_AREA } from '@/app/lib/areas';
@@ -43,7 +43,7 @@ export default async function JobDispatchPage() {
   ]);
 
   // メイン求人一覧のみ30分バケットでシード付きシャッフル（おすすめ pickupJobs は対象外）。
-  const shuffledJobs = shuffleJobs(jobs);
+  const shuffledJobs = shuffleJobs(jobs, (j) => (j.jobBoost ? JOB_BOOST_WEIGHT : 1));
   // 出張専門の求人からバナーカードを派生（画像あり・先頭最大10件・30分バケットでシャッフル）。
   const heroBanners = deriveHeroBanners(jobs);
 

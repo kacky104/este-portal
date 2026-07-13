@@ -694,6 +694,91 @@ export async function adminListJobs(): Promise<{ ok: true; jobs: AdminJobRow[] }
   };
 }
 
+// ── /admin 用：求人カード優先表示（job_boost・バナー設置特典）の一覧取得（service_role 読み取り・非表示分も含む） ──
+// 本体の card_boost（salons）と対の求人版。JobBoostManager が表示する軽量リスト。
+export type JobBoostRow = {
+  id: number;
+  title: string;
+  salonName: string;
+  salonHidden: boolean;
+  isActive: boolean;
+  jobBoost: boolean;
+};
+
+export async function adminListJobBoosts(): Promise<{ ok: true; jobs: JobBoostRow[] } | Err> {
+  const auth = await requireUser();
+  if (!auth.ok) return auth;
+  if (auth.user.id !== ADMIN_UUID) return { ok: false, error: '管理者専用です' };
+
+  const svc = createServiceClient();
+  const { data, error } = await svc
+    .from('salon_jobs')
+    .select('id, title, salon_id, is_active, job_boost')
+    .order('published_at', { ascending: false });
+  if (error) {
+    // job_boost 列が無い＝マイグレーション未適用の可能性。呼び出し側で案内できるよう文言化して返す。
+    return {
+      ok: false,
+      error:
+        'job_boost 列が見つかりません。先に SQL マイグレーション（20260713_salon_jobs_job_boost.sql）を実行してください。',
+    };
+  }
+
+  const jobs = data ?? [];
+  const salonIds = [...new Set(jobs.map((j) => Number(j.salon_id)))];
+  const salonMap = new Map<number, { name: string; hidden: boolean }>();
+  if (salonIds.length > 0) {
+    const { data: salons } = await svc.from('salons').select('id, name, is_hidden').in('id', salonIds);
+    (salons ?? []).forEach((s) =>
+      salonMap.set(Number(s.id), { name: (s.name as string | null) ?? '', hidden: Boolean(s.is_hidden) }),
+    );
+  }
+
+  return {
+    ok: true,
+    jobs: jobs.map((j) => {
+      const info = salonMap.get(Number(j.salon_id));
+      return {
+        id: Number(j.id),
+        title: (j.title as string | null) ?? '',
+        salonName: info?.name ?? '(不明)',
+        salonHidden: info?.hidden ?? false,
+        isActive: Boolean(j.is_active),
+        jobBoost: Boolean(j.job_boost),
+      };
+    }),
+  };
+}
+
+// ── /admin 用：求人カード優先表示（job_boost）の ON/OFF ──
+// 書き込みは認証クライアント（RLS）経由。admin は salon_jobs 書き込みRLSでUUID判定されて全求人を更新できる。
+// 成功時は公開側の求人一覧ISR（トップ・エリア・出張・タグ）を即時再検証する。
+export async function adminSetJobBoost(
+  jobId: number,
+  next: boolean,
+): Promise<{ ok: true; job_boost: boolean } | Err> {
+  const auth = await requireUser();
+  if (!auth.ok) return auth;
+  if (auth.user.id !== ADMIN_UUID) return { ok: false, error: '管理者専用です' };
+
+  const { error } = await auth.supabase
+    .from('salon_jobs')
+    .update({ job_boost: next })
+    .eq('id', jobId);
+  if (error) return { ok: false, error: error.message };
+
+  // 求人一覧の並びに影響するため /jobs と各エリア・出張・タグページを再検証（revalidateFeaturedJobs と同方針＋タグ）。
+  revalidatePath('/jobs');
+  for (const slug of AREA_SLUGS_LIST) {
+    if (slug === 'dispatch') continue;
+    revalidatePath(`/jobs/area/${slug}`);
+  }
+  revalidatePath('/jobs/dispatch');
+  revalidatePath('/jobs/tag/[slug]', 'page');
+  revalidatePath('/jobs/area/[slug]/tag/[tag]', 'page');
+  return { ok: true, job_boost: next };
+}
+
 // ── /admin 用：代理作成のためのサロン一覧（求人の有無フラグ付き・service_role 読み取り） ──
 export async function adminListSalonsForJob(): Promise<
   { ok: true; salons: { id: number; name: string; hasJob: boolean; isHidden: boolean }[] } | Err

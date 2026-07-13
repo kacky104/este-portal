@@ -6,6 +6,7 @@ import {
   featureLabel,
   isValidFeatureSlug,
   fetchActiveJobsByFeature,
+  JOB_BOOST_WEIGHT,
 } from '@/app/lib/jobs';
 import { shuffleJobs } from '@/app/lib/shuffleJobs';
 import { deriveHeroBanners } from '@/app/lib/heroBanners';
@@ -64,7 +65,7 @@ export default async function JobTagPage({
   const label = featureLabel(slug);
   const jobs = await fetchActiveJobsByFeature(slug);
   // メイン求人一覧を30分バケットでシード付きシャッフル（このページはおすすめ枠なし）。
-  const shuffledJobs = shuffleJobs(jobs);
+  const shuffledJobs = shuffleJobs(jobs, (j) => (j.jobBoost ? JOB_BOOST_WEIGHT : 1));
   // このタグの求人からバナーカードを派生（画像あり・先頭最大10件・30分バケットでシャッフル）。
   const heroBanners = deriveHeroBanners(jobs);
 

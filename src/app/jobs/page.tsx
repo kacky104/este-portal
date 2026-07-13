@@ -1,7 +1,7 @@
 import Link from 'next/link';
 import Image from 'next/image';
 import type { Metadata } from 'next';
-import { fetchActiveJobs, getFeaturedJobs } from '@/app/lib/jobs';
+import { fetchActiveJobs, getFeaturedJobs, JOB_BOOST_WEIGHT } from '@/app/lib/jobs';
 import { shuffleJobs } from '@/app/lib/shuffleJobs';
 import { BRAND_TITLE } from './layout';
 import { JobCard } from './JobCard';
@@ -40,7 +40,8 @@ export default async function JobsPage() {
   const heroBanners = deriveHeroBanners(jobs);
 
   // メイン求人一覧のみ30分バケットでシード付きシャッフル（おすすめ pickupJobs・バナー heroBanners は別扱い）。
-  const shuffledJobs = shuffleJobs(jobs);
+  // バナー設置特典：job_boost=true の求人は重み JOB_BOOST_WEIGHT で一覧の上側に来やすくする（false は従来どおり一様）。
+  const shuffledJobs = shuffleJobs(jobs, (j) => (j.jobBoost ? JOB_BOOST_WEIGHT : 1));
 
   return (
     <main className="max-w-3xl mx-auto px-4 py-8">

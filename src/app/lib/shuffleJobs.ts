@@ -16,10 +16,27 @@ function mulberry32(seed: number): () => number {
   };
 }
 
-// 30分バケットをシードにした Fisher–Yates シャッフル。入力を破壊せずコピーを返す。
-export function shuffleJobs<T>(jobs: T[]): T[] {
+// 30分バケットをシードにしたシャッフル。入力を破壊せずコピーを返す。
+// weightOf 未指定：従来どおり一様な Fisher–Yates シャッフル。
+// weightOf 指定：重み付きシャッフル（Efraimidis–Spirakis）。重みが大きい要素ほど前
+//   （＝一覧の上側）に来やすいが確定ではない。重みが全要素 1.0 なら一様シャッフルと同じ分布＝従来挙動。
+//   バナー設置特典（job_boost=true の求人に重み JOB_BOOST_WEIGHT）で上側に来やすくするのに使う。
+export function shuffleJobs<T>(jobs: T[], weightOf?: (item: T) => number): T[] {
   const seed = Math.floor(Date.now() / BUCKET_MS);
   const rand = mulberry32(seed);
+
+  if (weightOf) {
+    // 各要素に key = u^(1/weight)（u は seed PRNG の [0,1)）を割り当て、key 降順で並べる。
+    // weight が大きいほど key が 1 に寄りやすく前に来る。weight 全1なら key=u＝一様シャッフル。
+    return jobs
+      .map((item) => {
+        const w = Math.max(weightOf(item), 1e-9); // 0/負の重みは極小に丸めて 1/w の発散を防ぐ
+        return { item, key: Math.pow(rand(), 1 / w) };
+      })
+      .sort((a, b) => b.key - a.key)
+      .map((x) => x.item);
+  }
+
   const out = jobs.slice();
   for (let i = out.length - 1; i > 0; i--) {
     const j = Math.floor(rand() * (i + 1));
