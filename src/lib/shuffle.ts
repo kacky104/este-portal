@@ -73,3 +73,17 @@ function hashString(s: string): number {
 export function shuffleEvery30min<T>(items: readonly T[], salt = ""): T[] {
   return seededShuffle(items, (thirtyMinSeed() ^ hashString(salt)) >>> 0);
 }
+
+/**
+ * shuffleEvery30min の重み付き版。30分ごとに1度だけ並びが変わる決定的シャッフルを、
+ * weightOf が大きい要素ほど前（＝一覧の上側）に来やすい「重み付きランダム」で行う。
+ * weight を全要素 1.0 にすると shuffleEvery30min と同じ一様シャッフルになる（＝従来挙動）。
+ * 同じ30分・同じ salt・同じ入力・同じ重みなら必ず同じ並び（純粋関数・副作用なし）。
+ */
+export function weightedShuffleEvery30min<T>(
+  items: readonly T[],
+  salt: string,
+  weightOf: (item: T) => number
+): T[] {
+  return seededWeightedShuffle(items, (thirtyMinSeed() ^ hashString(salt)) >>> 0, weightOf);
+}

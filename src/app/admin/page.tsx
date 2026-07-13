@@ -7,6 +7,7 @@ import { createClient } from '@/app/lib/supabase/client';
 import { TimeRangePicker } from '@/components/TimeRangePicker';
 import HeaderSliderManager from '@/app/components/HeaderSliderManager';
 import FeaturedSalonsManager from '@/app/components/FeaturedSalonsManager';
+import CardBoostManager from '@/app/components/CardBoostManager';
 import TopBannerManager from '@/app/components/TopBannerManager';
 import RecommendedSalonBannerManager from '@/app/components/RecommendedSalonBannerManager';
 import TherapistPickupBannerManager from '@/app/components/TherapistPickupBannerManager';
@@ -369,6 +370,10 @@ export default function AdminDashboard() {
                 area: s.area   ?? '',
               }))}
             />
+          </AccordionSection>
+
+          <AccordionSection id="card-boost" title="サロンカード優先表示（バナー設置特典）" expanded={expandedSections} onToggle={toggleSection}>
+            <CardBoostManager onToast={showToast} />
           </AccordionSection>
 
           <AccordionSection id="top-banners" title="トップバナースライダー設定" expanded={expandedSections} onToggle={toggleSection}>

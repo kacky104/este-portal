@@ -13,8 +13,8 @@ import { SaveButton } from './SaveButton';
 import { useSalonTherapists, type TherapistThumb } from './useSalonTherapists';
 import { areaLabel } from '../lib/areaLabel';
 import { areaHref, DISPATCH_AREA } from '../lib/areas';
-import { shuffleEvery30min } from '@/lib/shuffle';
-import type { Salon } from '@/app/lib/salons';
+import { weightedShuffleEvery30min } from '@/lib/shuffle';
+import { CARD_BOOST_WEIGHT, type Salon } from '@/app/lib/salons';
 
 export type { Salon };
 
@@ -557,7 +557,11 @@ export function ShuffledSalons({ salons, areas, showAge = false, areaNextToDuty 
   // :00/:30 で入れ替わる）。salt でトップ/地域/各エリアを独立に回す。クライアント mount で確定するため
   // ISR キャッシュ（revalidate=600）を凍結させない（初期 list=[] で SSR とクライアント初期描画は一致＝不一致なし）。
   useEffect(() => {
-    setList(shuffleEvery30min(salons, shuffleSalt));
+    // バナー設置特典：card_boost=true のサロンは重み CARD_BOOST_WEIGHT で
+    // 一覧の上側（半数より上）に来やすくなる。false は重み1.0＝従来の一様シャッフルと同じ分布。
+    setList(
+      weightedShuffleEvery30min(salons, shuffleSalt, (s) => (s.cardBoost ? CARD_BOOST_WEIGHT : 1)),
+    );
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // エリア一致判定。includeDispatch 時（出張ページ）は、選択中の出張エリアに限り
