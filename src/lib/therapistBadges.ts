@@ -30,13 +30,13 @@ export const BADGE_CATEGORY_ORDER: BadgeCategory[] = ['rank', 'career', 'look', 
 export const BADGES_BY_CATEGORY: Record<BadgeCategory, string[]> = {
   rank:   ['NO.1', 'プレミア', '殿堂入り', '人気急上昇', '指名多数', 'リピーター多数'],
   career: ['未経験', '経験者', '新人', 'ベテラン', '女子大生'],
-  look:   ['ギャル', '清楚', 'お姉さん系', '妹系', '童顔', 'モデル系', 'スレンダー', '美脚', '低身長', '高身長', '熟女', '巨乳', 'アイドル系', 'キャバ嬢'],
+  look:   ['ギャル', '清楚', 'キレイ', 'かわいい', 'お姉さん系', '妹系', '童顔', 'モデル系', 'スレンダー', '美脚', '低身長', '高身長', '熟女', '巨乳', 'アイドル系', 'キャバ嬢'],
   mood:   ['癒し系', '笑顔が素敵', '明るい', '天然', 'トーク上手', 'おしとやか', 'ツンデレ'],
   skill:  ['丁寧な施術', 'アロマ得意', '施術上手', '密着施術', 'リンパ得意', 'サービス抜群'],
 };
 
 // 1セラピストあたりの最大選択数。
-export const MAX_BADGES = 3;
+export const MAX_BADGES = 5;
 
 // ラベル → カテゴリ の逆引き表。
 const LABEL_TO_CATEGORY: Record<string, BadgeCategory> = (() => {
