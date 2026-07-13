@@ -94,7 +94,7 @@ export default async function SalonSchedulePage({
       .eq('status', 'approved'),
     supabase
       .from('x_profiles')
-      .select('auth_user_id')
+      .select('auth_user_id, handle')
       .in('auth_user_id', userIds)
       .eq('kind', 'therapist')
       .eq('status', 'approved')
@@ -127,8 +127,11 @@ export default async function SalonSchedulePage({
     reviewCountByTherapist[key] = (reviewCountByTherapist[key] ?? 0) + 1;
   });
 
-  // fukuX 利用中（approved な therapist プロフィールがある auth_user_id）の集合。
-  const fukuxUserIds = new Set((xRes.data ?? []).map(r => String(r.auth_user_id)));
+  // fukuX 利用中（approved な therapist プロフィール）の auth_user_id → handle マップ。
+  const fukuxHandleByUser = new Map<string, string>();
+  (xRes.data ?? []).forEach(r => {
+    if (r.handle) fukuxHandleByUser.set(String(r.auth_user_id), String(r.handle));
+  });
 
   // 日付ごとに出勤予定セラピストを構築
   const byDate: Record<string, DaySchedule[]> = {};
@@ -162,7 +165,8 @@ export default async function SalonSchedulePage({
       bodyType:       (t.body_type as string | null) ?? null,
       hasDiary:       diaryIds.has(String(t.id)),
       reviewCount:    reviewCountByTherapist[String(t.id)] ?? 0,
-      onFukuX:        fukuxUserIds.has(String(t.user_id)),
+      onFukuX:        fukuxHandleByUser.has(String(t.user_id)),
+      xHandle:        fukuxHandleByUser.get(String(t.user_id)) ?? null,
       featureBadges:  sanitizeBadges(t.feature_badges),
     });
   }

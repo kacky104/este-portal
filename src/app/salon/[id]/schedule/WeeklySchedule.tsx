@@ -29,6 +29,7 @@ export type DaySchedule = {
   hasDiary:       boolean;
   reviewCount:    number;   // 承認済み口コミ件数（0なら非表示）
   onFukuX:        boolean;   // fukuX（approved な therapist プロフィール）を利用中か
+  xHandle:        string | null; // fukuX プロフィールのハンドル（/x/u/{handle} リンク用。未連携は null）
   featureBadges:  string[];
 };
 
@@ -181,9 +182,22 @@ function TherapistCard({ t, isToday, salonId }: { t: DaySchedule; isToday: boole
                 写メ日記
               </span>
             )}
-            {t.onFukuX && (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img src="/fukux-mark.png" alt="fukuX 利用中" title="fukuX 利用中" className="h-5 w-auto flex-shrink-0" />
+            {t.onFukuX && t.xHandle && (
+              <span
+                role="link"
+                tabIndex={0}
+                onClick={(e) => { e.preventDefault(); e.stopPropagation(); router.push(`/x/u/${encodeURIComponent(t.xHandle!)}`); }}
+                onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); e.stopPropagation(); router.push(`/x/u/${encodeURIComponent(t.xHandle!)}`); } }}
+                className="inline-flex items-center gap-1 rounded-md border border-blue-500 text-blue-600 font-bold hover:bg-blue-50 transition-colors cursor-pointer flex-shrink-0"
+                style={{ fontSize: '11px', padding: '3px 9px' }}
+              >
+                {/* サロン詳細ページと同じ fukuX アイコン（lucide MessagesSquare／二重吹き出し） */}
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="flex-shrink-0">
+                  <path d="M14 9a2 2 0 0 1-2 2H6l-4 4V4c0-1.1.9-2 2-2h8a2 2 0 0 1 2 2z" />
+                  <path d="M18 9h2a2 2 0 0 1 2 2v11l-4-4h-6a2 2 0 0 1-2-2v-1" />
+                </svg>
+                fukuX
+              </span>
             )}
           </div>
         )}
