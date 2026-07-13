@@ -254,7 +254,7 @@ export function GridCard({ therapist, index, showJoinDate = false, from, enableW
           {largeImage ? (
             /* 大カード（在籍一覧・新人紹介）：1行目=名前（左端に保存ボタンを重ねる）/2行目=身長スリーサイズ/3行目=出勤バッジ＋出勤時間 */
             <>
-              <div ref={nameRowRef} className={`flex items-center gap-1.5 mb-0.5 flex-nowrap min-w-0 overflow-hidden${showSaveButton ? ' pl-9' : ''}`}>
+              <div ref={nameRowRef} className={`flex items-center gap-1.5 mb-0.5 flex-nowrap min-w-0 overflow-hidden${showSaveButton ? ' pr-8' : ''}`}>
                 <span ref={nameWrapRef} className="flex items-baseline gap-1 flex-shrink-0">
                   <span className="font-bold text-slate-900 whitespace-nowrap">{therapist.name}</span>
                   {therapist.age && <span className="text-[0.9em] text-slate-500 whitespace-nowrap">({therapist.age})</span>}
@@ -345,9 +345,9 @@ export function GridCard({ therapist, index, showJoinDate = false, from, enableW
 
   // 保存ボタンは Link の外側に重ねる（anchor 内の button ネストとスパークのクリップを避ける）。
   // photo-left=/saved（写真左上・出勤バッジと干渉しない） / card-right=在籍一覧（カード右下・スリーサイズ切れ対策で右上から移動）。
-  // largeImage（在籍一覧・新人紹介）は保存ボタンを名前行の左端（写真=140pxの右隣り）に重ねる。
+  // largeImage（在籍一覧・新人紹介）は保存ボタンを名前行の右端（カード右上）に重ねる。
   const posClass = largeImage
-    ? 'top-3 left-[146px]'
+    ? 'top-3 right-3'
     : saveButtonPos === 'card-right' ? 'bottom-2 right-2' : 'top-1.5 left-1.5';
   return (
     <div className="relative">

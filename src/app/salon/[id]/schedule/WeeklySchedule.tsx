@@ -135,8 +135,8 @@ function TherapistCard({ t, isToday, salonId }: { t: DaySchedule; isToday: boole
         {isNew && <NewBadge className="absolute bottom-1.5 left-1.5 z-10" />}
       </div>
       <div className="p-3 flex-1 flex flex-col justify-start min-w-0">
-        {/* 1行目：名前（左端に保存ボタンを重ねる＝pl-9で余白を確保） */}
-        <div ref={nameRowRef} className="flex items-center gap-1.5 mb-1 flex-nowrap min-w-0 overflow-hidden pl-9">
+        {/* 1行目：名前（右端に保存ボタンを重ねる＝pr-8で余白を確保） */}
+        <div ref={nameRowRef} className="flex items-center gap-1.5 mb-1 flex-nowrap min-w-0 overflow-hidden pr-8">
           <span ref={nameWrapRef} className="flex items-baseline gap-1 flex-shrink-0 text-sm">
             <span className="font-bold text-slate-900 whitespace-nowrap">{t.name}</span>
             {t.age && <span className="text-[0.9em] text-slate-500 whitespace-nowrap">({t.age})</span>}
@@ -174,8 +174,8 @@ function TherapistCard({ t, isToday, salonId }: { t: DaySchedule; isToday: boole
         )}
       </div>
     </Link>
-      {/* 保存ボタン（名前行の左端＝写真140pxの右隣り）。Link の外側に重ね、anchor 内ネストとスパーククリップを回避。 */}
-      <div className="absolute top-3 left-[146px] z-20">
+      {/* 保存ボタン（名前行の右端＝カード右上）。Link の外側に重ね、anchor 内ネストとスパーククリップを回避。 */}
+      <div className="absolute top-3 right-3 z-20">
         <SaveButton
           kind="therapist"
           item={{ id: Number(t.id), name: t.name, salonId }}
