@@ -79,5 +79,5 @@ export async function fetchSalons(
   // その場合は BASE 列（card_boost なし）で再取得してフォールバックする（サイトを落とさない）。
   let res = await build(SALON_COLUMNS);
   if (res.error) res = await build(SALON_COLUMNS_BASE);
-  return (res.data ?? []).map(row => mapSalonRow(row as Record<string, unknown>));
+  return (res.data ?? []).map(row => mapSalonRow(row as unknown as Record<string, unknown>));
 }
