@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { createClient } from '@/app/lib/supabase/client';
 import { submitOwnerInquiry } from '@/app/actions/ownerInquiry';
+import { BannerPerkPanel } from '@/app/mypage/BannerPerkPanel';
 
 const supabase = createClient();
 
@@ -56,7 +57,7 @@ export function SupportTab({
   onUnreadChange: (count: number) => void;
   onToast: (msg: string) => void;
 }) {
-  const [subTab, setSubTab] = useState<'notices' | 'inquiry' | 'faq'>('notices');
+  const [subTab, setSubTab] = useState<'notices' | 'inquiry' | 'faq' | 'banner'>('notices');
   const [notices, setNotices] = useState<OwnerNotice[]>([]);
   const [readIds, setReadIds] = useState<Set<string>>(new Set());
   const [noticesLoading, setNoticesLoading] = useState(true);
@@ -177,6 +178,7 @@ export function SupportTab({
           ['notices', '運営から'],
           ['inquiry', '運営に問い合わせ'],
           ['faq',     'よくある質問'],
+          ['banner',  'リンクバナー特典'],
         ] as const).map(([key, label]) => {
           const selected = subTab === key;
           return (
@@ -347,6 +349,11 @@ export function SupportTab({
             })}
           </div>
         )}
+      </div>
+
+      {/* ── リンクバナー特典（バナー素材・タグ・特典適用状況） ── */}
+      <div className={subTab === 'banner' ? '' : 'hidden'}>
+        <BannerPerkPanel salonId={salonId} />
       </div>
     </div>
   );

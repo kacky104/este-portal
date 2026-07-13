@@ -393,6 +393,31 @@ export async function getMyJob(
   return { ok: true, job: data ? mapJob(data) : null };
 }
 
+// ── /mypage 用：自店のバナー設置特典（優先表示）の適用状況 ──
+// 本体サロンカード（salons.card_boost）と求人カード（salon_jobs.job_boost）の現在の適用状況を返す。
+// ブースト自体は運営が /admin でバナー設置確認後に付与する（オーナーは変更不可・表示のみ）。
+// 求人未掲載の場合 jobBoost は null（＝対象外）。読み取りは getMyJob と同じ認証クライアント＋RLS。
+export async function getMyPerkStatus(
+  salonId: number,
+): Promise<{ ok: true; cardBoost: boolean; jobBoost: boolean | null } | Err> {
+  if (!Number.isFinite(salonId)) return { ok: false, error: '対象サロンが不正です' };
+  const auth = await requireUser();
+  if (!auth.ok) return auth;
+  const own = await assertSalonOwner(auth.supabase, auth.user.id, salonId);
+  if (!own.ok) return own;
+
+  const [{ data: salon }, { data: job }] = await Promise.all([
+    auth.supabase.from('salons').select('card_boost').eq('id', salonId).maybeSingle(),
+    auth.supabase.from('salon_jobs').select('job_boost').eq('salon_id', salonId).maybeSingle(),
+  ]);
+
+  return {
+    ok: true,
+    cardBoost: salon ? Boolean((salon as Record<string, unknown>).card_boost) : false,
+    jobBoost: job ? Boolean((job as Record<string, unknown>).job_boost) : null,
+  };
+}
+
 // ── 作成/更新（RLS経由・1店舗1件） ──
 export async function upsertMyJob(
   salonId: number,
