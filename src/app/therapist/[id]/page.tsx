@@ -492,50 +492,41 @@ export default async function TherapistPublicPage({
               </div>
             </div>
 
-            {/* ─── fukuX 連携ブロック（プロフィール情報カードの直下・細長・青基調） ─── */}
+            {/* ─── fukuX 連携ブロック（プロフィール情報カードの直下・細長1行・fukuXブランドグラデ） ─── */}
             {/* 連携している fukuX（approved・handleあり）セラピストのみ表示。カード全体が /x/u/{handle} へのリンク。 */}
+            {/* 1行構成：アバター／fukuX／表示名（＋認証）／＠ハンドル。グラデは fukuX 本体背景（x-theme.css .x-bg）と同色。 */}
             {linkedX && (
               <Link
                 href={`/x/u/${encodeURIComponent(linkedX.handle)}`}
-                className="group flex items-center gap-3 rounded-2xl px-4 py-3 border border-sky-400/40 shadow-sm hover:shadow-md transition-shadow"
-                style={{ background: 'linear-gradient(95deg,#0EA5E9,#2563EB)' }}
+                className="flex items-center gap-2.5 rounded-2xl px-4 py-2 border border-white/15 shadow-sm hover:shadow-md transition-shadow text-white"
+                style={{ background: 'linear-gradient(100deg,#2a1760 0%,#4c1d95 55%,#7c3aed 100%)' }}
               >
                 {/* アバター（無ければ fukuX 二重吹き出しアイコン） */}
-                <span className="flex-shrink-0 w-11 h-11 rounded-full bg-white/20 ring-2 ring-white/60 overflow-hidden flex items-center justify-center">
+                <span className="flex-shrink-0 w-8 h-8 rounded-full bg-white/15 ring-1 ring-white/40 overflow-hidden flex items-center justify-center">
                   {linkedX.avatarUrl ? (
                     // eslint-disable-next-line @next/next/no-img-element
                     <img src={linkedX.avatarUrl} alt="" className="w-full h-full object-cover" />
                   ) : (
-                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#ffffff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#ffffff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
                       <path d="M14 9a2 2 0 0 1-2 2H6l-4 4V4c0-1.1.9-2 2-2h8a2 2 0 0 1 2 2z" />
                       <path d="M18 9h2a2 2 0 0 1 2 2v11l-4-4h-6a2 2 0 0 1-2-2v-1" />
                     </svg>
                   )}
                 </span>
 
-                {/* テキスト（fukuXラベル＋表示名＋認証／ハンドル） */}
-                <div className="min-w-0 flex-1 text-white">
-                  <div className="flex items-center gap-1.5">
-                    <span className="inline-flex items-center rounded-full bg-white/20 px-2 py-0.5 text-[11px] font-bold leading-none whitespace-nowrap">
-                      fukuX
-                    </span>
-                    <span className="truncate text-sm font-bold">
-                      {linkedX.displayName || linkedX.handle}
-                    </span>
-                    {linkedX.isVerified && <VerifiedBadge kind="therapist" size={15} />}
-                  </div>
-                  <p className="mt-0.5 truncate text-xs text-white/85">
-                    @{linkedX.handle}・SNSでも活動中！
-                  </p>
-                </div>
-
-                {/* CTA */}
-                <span className="flex-shrink-0 inline-flex items-center gap-1 rounded-full bg-white px-3 py-1.5 text-xs font-bold text-blue-600 shadow-sm group-hover:bg-blue-50 transition-colors">
-                  見る
-                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" aria-hidden>
-                    <path d="M5 12h14M12 5l7 7-7 7" />
-                  </svg>
+                {/* fukuX ラベル */}
+                <span className="inline-flex items-center rounded-full bg-white/20 px-2 py-0.5 text-[11px] font-bold leading-none whitespace-nowrap flex-shrink-0">
+                  fukuX
                 </span>
+
+                {/* 表示名（＋認証バッジ） */}
+                <span className="truncate text-sm font-bold min-w-0">
+                  {linkedX.displayName || linkedX.handle}
+                </span>
+                {linkedX.isVerified && <VerifiedBadge kind="therapist" size={14} />}
+
+                {/* ＠ハンドル */}
+                <span className="text-xs text-white/70 whitespace-nowrap flex-shrink-0">@{linkedX.handle}</span>
               </Link>
             )}
 
