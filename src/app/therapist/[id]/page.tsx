@@ -30,6 +30,8 @@ import { sanitizeBadges, getBadgeColors } from '@/lib/therapistBadges';
 import { getReviewStats, getApprovedReviews } from '@/app/lib/reviews';
 import { ReviewSummary } from '@/app/components/ReviewSummary';
 import { ReviewList } from '@/app/components/ReviewList';
+import { getLinkedXProfileForTherapist } from '@/app/lib/xLink';
+import { VerifiedBadge } from '@/app/x/VerifiedBadge';
 
 // ── helpers ───────────────────────────────────────────────────
 
@@ -129,7 +131,7 @@ export default async function TherapistPublicPage({
 
   const { data: tRow, error: tError } = await supabase
     .from('therapists')
-    .select('id, name, profile_image_url, profile_images, age, body_type, profile_text, work_hours, comment, area, salon_id, is_new_face, new_face_since, is_available_now, available_until, is_available_now_cast, available_until_cast, feature_badges')
+    .select('id, name, profile_image_url, profile_images, age, body_type, profile_text, work_hours, comment, area, salon_id, user_id, is_new_face, new_face_since, is_available_now, available_until, is_available_now_cast, available_until_cast, feature_badges')
     .eq('id', id)
     .single();
 
@@ -299,9 +301,12 @@ export default async function TherapistPublicPage({
   // 口コミ（承認済みのみ・公開）。getReviewStats/getApprovedReviews は内部で createPublicClient を
   // 使う（cookies() を呼ばない）ため、既存の ISR を壊さない。
   const therapistId = Number(id);
-  const [reviewStats, reviews] = await Promise.all([
+  const [reviewStats, reviews, linkedX] = await Promise.all([
     getReviewStats(therapistId),
     getApprovedReviews(therapistId),
+    // fukuX 連携プロフィール（therapists.user_id === x_profiles.auth_user_id・kind='therapist'・approved）。
+    // 未連携・非公開・handle欠落なら null → ブロック自体を非表示。
+    getLinkedXProfileForTherapist(tRow.user_id as string | null),
   ]);
 
   // 構造化データ（BreadcrumbList「トップ › サロン名 › セラピスト名」＝可視パンくずと一致）。
@@ -486,6 +491,53 @@ export default async function TherapistPublicPage({
                 )}
               </div>
             </div>
+
+            {/* ─── fukuX 連携ブロック（プロフィール情報カードの直下・細長・青基調） ─── */}
+            {/* 連携している fukuX（approved・handleあり）セラピストのみ表示。カード全体が /x/u/{handle} へのリンク。 */}
+            {linkedX && (
+              <Link
+                href={`/x/u/${encodeURIComponent(linkedX.handle)}`}
+                className="group flex items-center gap-3 rounded-2xl px-4 py-3 border border-sky-400/40 shadow-sm hover:shadow-md transition-shadow"
+                style={{ background: 'linear-gradient(95deg,#0EA5E9,#2563EB)' }}
+              >
+                {/* アバター（無ければ fukuX 二重吹き出しアイコン） */}
+                <span className="flex-shrink-0 w-11 h-11 rounded-full bg-white/20 ring-2 ring-white/60 overflow-hidden flex items-center justify-center">
+                  {linkedX.avatarUrl ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={linkedX.avatarUrl} alt="" className="w-full h-full object-cover" />
+                  ) : (
+                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#ffffff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+                      <path d="M14 9a2 2 0 0 1-2 2H6l-4 4V4c0-1.1.9-2 2-2h8a2 2 0 0 1 2 2z" />
+                      <path d="M18 9h2a2 2 0 0 1 2 2v11l-4-4h-6a2 2 0 0 1-2-2v-1" />
+                    </svg>
+                  )}
+                </span>
+
+                {/* テキスト（fukuXラベル＋表示名＋認証／ハンドル） */}
+                <div className="min-w-0 flex-1 text-white">
+                  <div className="flex items-center gap-1.5">
+                    <span className="inline-flex items-center rounded-full bg-white/20 px-2 py-0.5 text-[11px] font-bold leading-none whitespace-nowrap">
+                      fukuX
+                    </span>
+                    <span className="truncate text-sm font-bold">
+                      {linkedX.displayName || linkedX.handle}
+                    </span>
+                    {linkedX.isVerified && <VerifiedBadge kind="therapist" size={15} />}
+                  </div>
+                  <p className="mt-0.5 truncate text-xs text-white/85">
+                    @{linkedX.handle}・SNSでも活動中！
+                  </p>
+                </div>
+
+                {/* CTA */}
+                <span className="flex-shrink-0 inline-flex items-center gap-1 rounded-full bg-white px-3 py-1.5 text-xs font-bold text-blue-600 shadow-sm group-hover:bg-blue-50 transition-colors">
+                  見る
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" aria-hidden>
+                    <path d="M5 12h14M12 5l7 7-7 7" />
+                  </svg>
+                </span>
+              </Link>
+            )}
 
             {/* 写メ日記（新着6件 + 全部見る）— プロフィールの上に表示 */}
             {diaryPosts.length > 0 && (
