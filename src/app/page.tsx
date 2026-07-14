@@ -191,7 +191,7 @@ export default async function Home() {
                 一覧を見る →
               </Link>
             </div>
-            <TherapistScroller showAge />
+            <TherapistScroller showAge bleedMobile largeMobile />
           </div>
         </section>
 

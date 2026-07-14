@@ -70,7 +70,7 @@ export type TherapistItem = {
 
 // ── Card ──────────────────────────────────────────────────────
 
-export function Card({ therapist, index, showAge = false }: { therapist: TherapistItem; index: number; showAge?: boolean }) {
+export function Card({ therapist, index, showAge = false, large = false }: { therapist: TherapistItem; index: number; showAge?: boolean; large?: boolean }) {
   const grad = GRADIENTS[index % GRADIENTS.length];
   const [ss, setSS] = useState<StatusResult | null>(null);
   useEffect(() => { setSS(getScheduleStatus(therapist.today)); }, [therapist.today]);
@@ -80,7 +80,7 @@ export function Card({ therapist, index, showAge = false }: { therapist: Therapi
   return (
     <Link
       href={`/therapist/${therapist.id}`}
-      className="relative flex-shrink-0 w-[105px] h-[153px] sm:w-44 sm:h-64 overflow-hidden shadow-md hover:-translate-y-1 hover:shadow-xl transition-all duration-300"
+      className={`relative flex-shrink-0 ${large ? 'w-[123px] h-[179px]' : 'w-[105px] h-[153px]'} sm:w-44 sm:h-64 overflow-hidden shadow-md hover:-translate-y-1 hover:shadow-xl transition-all duration-300`}
     >
       {/* background: photo or gradient fallback */}
       {therapist.profileImageUrl ? (
@@ -138,7 +138,7 @@ export function Card({ therapist, index, showAge = false }: { therapist: Therapi
 
 // ── TherapistScroller ─────────────────────────────────────────
 
-export function TherapistScroller({ showAge = false, filterSalonIds, workingHref = '/working' }: { showAge?: boolean; filterSalonIds?: number[]; workingHref?: string } = {}) {
+export function TherapistScroller({ showAge = false, filterSalonIds, workingHref = '/working', bleedMobile = false, largeMobile = false }: { showAge?: boolean; filterSalonIds?: number[]; workingHref?: string; bleedMobile?: boolean; largeMobile?: boolean } = {}) {
   const [list, setList] = useState<TherapistItem[]>([]);
 
   useEffect(() => {
@@ -244,13 +244,15 @@ export function TherapistScroller({ showAge = false, filterSalonIds, workingHref
   }
 
   return (
-    <div className="flex gap-[3px] sm:gap-3 overflow-x-auto pb-4 scrollbar-pink w-full">
+    // bleedMobile: 親セクションの px-4(16px) を -mx-4 で相殺し、スマホでは帯を画面端まで全幅（両端0）に。
+    // w-auto と負マージンで実効幅を画面幅ちょうどに広げる（w-full だと右側に隙間が残るため使わない）。sm以上は従来。
+    <div className={`flex gap-[3px] sm:gap-3 overflow-x-auto pb-4 scrollbar-pink ${bleedMobile ? '-mx-4 w-auto sm:mx-0 sm:w-full' : 'w-full'}`}>
       {/* 出勤中セラピストは最大35枚まで表示 */}
-      {list.slice(0, 35).map((t, i) => <Card key={t.id} therapist={t} index={i} showAge={showAge} />)}
+      {list.slice(0, 35).map((t, i) => <Card key={t.id} therapist={t} index={i} showAge={showAge} large={largeMobile} />)}
       {/* 末尾：本日出勤中セラピスト一覧ページへの「一覧を見る」カード（地域ページは ?area= 付きに） */}
       <Link
         href={workingHref}
-        className="flex-shrink-0 w-[105px] h-[153px] sm:w-44 sm:h-64 rounded-2xl overflow-hidden shadow-md hover:-translate-y-1 hover:shadow-xl transition-all duration-300 flex flex-col items-center justify-center gap-2"
+        className={`flex-shrink-0 ${largeMobile ? 'w-[123px] h-[179px]' : 'w-[105px] h-[153px]'} sm:w-44 sm:h-64 rounded-2xl overflow-hidden shadow-md hover:-translate-y-1 hover:shadow-xl transition-all duration-300 flex flex-col items-center justify-center gap-2`}
         style={{ background: 'linear-gradient(to bottom right, #ec4899, #f97316)' }}
       >
         <span className="flex items-center justify-center w-9 h-9 sm:w-12 sm:h-12 rounded-full bg-white/20">
