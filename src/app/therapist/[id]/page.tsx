@@ -31,7 +31,6 @@ import { getReviewStats, getApprovedReviews } from '@/app/lib/reviews';
 import { ReviewSummary } from '@/app/components/ReviewSummary';
 import { ReviewList } from '@/app/components/ReviewList';
 import { getLinkedXProfileForTherapist } from '@/app/lib/xLink';
-import { VerifiedBadge } from '@/app/x/VerifiedBadge';
 
 // ── helpers ───────────────────────────────────────────────────
 
@@ -498,7 +497,7 @@ export default async function TherapistPublicPage({
             {linkedX && (
               <Link
                 href={`/x/u/${encodeURIComponent(linkedX.handle)}`}
-                className="flex items-center gap-2.5 rounded-2xl px-4 py-2 border border-white/15 shadow-sm hover:shadow-md transition-shadow text-white"
+                className="flex items-center justify-center gap-2.5 rounded-2xl px-4 py-2 border border-white/15 shadow-sm hover:shadow-md transition-shadow text-white"
                 style={{ background: 'linear-gradient(100deg,#2a1760 0%,#4c1d95 55%,#7c3aed 100%)' }}
               >
                 {/* アバター（無ければ fukuX 二重吹き出しアイコン） */}
@@ -519,15 +518,6 @@ export default async function TherapistPublicPage({
                   fukuX
                 </span>
                 <span className="text-[11px] text-white/80 whitespace-nowrap flex-shrink-0">〜フクエックス〜</span>
-
-                {/* 表示名（＋認証バッジ） */}
-                <span className="truncate text-sm font-bold min-w-0">
-                  {linkedX.displayName || linkedX.handle}
-                </span>
-                {linkedX.isVerified && <VerifiedBadge kind="therapist" size={14} />}
-
-                {/* ＠ハンドル */}
-                <span className="text-xs text-white/70 whitespace-nowrap flex-shrink-0">@{linkedX.handle}</span>
               </Link>
             )}
 
