@@ -147,14 +147,14 @@ export function HomeSearchBar() {
           type="button"
           onClick={() => { setTab(tab === 'salon' ? 'therapist' : 'salon'); setOpen(true); }}
           aria-label="お店・セラピストを切替"
-          className={`flex-shrink-0 w-[72px] flex items-center justify-center gap-0.5 px-1 py-2.5 font-bold text-white shadow-sm bg-gradient-to-r ${
+          className={`flex-shrink-0 w-[72px] flex items-center justify-center gap-0.5 px-1 py-[5px] font-bold text-white shadow-sm bg-gradient-to-r ${
             tab === 'salon'
               ? 'from-[#38BDF8] to-[#2563EB]'   /* お店＝青系グラデ（明→濃） */
               : 'from-[#F472B6] to-[#BE185D]'   /* セラピスト＝ピンク系グラデ（明→濃） */
           }`}
         >
           {/* セラピストは文字数が多いので小さめのフォントにして、固定幅(w-24)内に収める＝切替でボタン幅・アイコンが変わらない */}
-          <span className={`whitespace-nowrap leading-none ${tab === 'salon' ? 'text-sm' : 'text-[9px]'}`}>{tab === 'salon' ? 'お店' : 'セラピスト'}</span>
+          <span className="whitespace-nowrap leading-none text-sm">{tab === 'salon' ? 'お店' : 'セラピ'}</span>
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="flex-shrink-0"><path d="M7 4v13M7 4L3 8M7 4l4 4" /><path d="M17 20V7M17 20l4-4M17 20l-4-4" /></svg>
         </button>
 
@@ -173,7 +173,7 @@ export function HomeSearchBar() {
           autoCapitalize="none"
           autoCorrect="off"
           spellCheck={false}
-          className="flex-1 py-2.5 px-2 text-base bg-transparent focus:outline-none text-slate-800 placeholder:text-slate-400"
+          className="flex-1 py-[5px] px-2 text-base bg-transparent focus:outline-none text-slate-800 placeholder:text-slate-400"
         />
         {q && (
           <button
