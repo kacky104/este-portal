@@ -305,7 +305,7 @@ function AutoFitAreaBadges({ labels, dispatchOnly }: { labels: string[]; dispatc
 
 // ── Salon card ────────────────────────────────────────────────
 
-export function SalonCard({ salon, therapists, showAge = false, areaNextToDuty = false, ratingAtBottom = false, compactTherapists = false, showSaveButton = false, wideDesktop = false, nameBanner = false }: { salon: Salon; therapists: TherapistThumb[]; showAge?: boolean; areaNextToDuty?: boolean; ratingAtBottom?: boolean; compactTherapists?: boolean; showSaveButton?: boolean; wideDesktop?: boolean; nameBanner?: boolean }) {
+export function SalonCard({ salon, therapists, showAge = false, areaNextToDuty = false, ratingAtBottom = false, compactTherapists = false, showSaveButton = false, wideDesktop = false, nameBanner = false, bleedTherapists = false }: { salon: Salon; therapists: TherapistThumb[]; showAge?: boolean; areaNextToDuty?: boolean; ratingAtBottom?: boolean; compactTherapists?: boolean; showSaveButton?: boolean; wideDesktop?: boolean; nameBanner?: boolean; bleedTherapists?: boolean }) {
   const router = useRouter();
   const onDutyCount = therapists.filter(t => t.onDuty).length;
 
@@ -369,8 +369,10 @@ export function SalonCard({ salon, therapists, showAge = false, areaNextToDuty =
       詳しく見る →
     </span>
   );
+  // bleedTherapists: セラピスト帯のみカード内側の左右パディング(px-5=20px)を -mx-5 で相殺し、
+  // カード端まで全幅に。スマホ(stackedLayout)だけ効かせ、PC(wideLayout)は lg:mx-0 で従来の余白を維持。
   const therapistThumbs = therapists.length > 0 ? (
-    <div className={compactTherapists ? 'mb-2' : 'mb-4'}>
+    <div className={`${compactTherapists ? 'mb-2' : 'mb-4'}${bleedTherapists ? ' -mx-5 lg:mx-0' : ''}`}>
       <TherapistMiniCardsRow therapists={therapists} salonId={salon.id} showAge={showAge} compact={compactTherapists} />
     </div>
   ) : null;
@@ -543,7 +545,7 @@ function SalonCardSkeleton() {
 
 // ── ShuffledSalons ────────────────────────────────────────────
 
-export function ShuffledSalons({ salons, areas, showAge = false, areaNextToDuty = false, ratingAtBottom = false, compactTherapists = false, showSaveButton = false, wideDesktop = false, mobileSingleColumn = false, nameBanner = false, tabsAsLinks = false, currentArea, includeDispatch = false, heading, shuffleSalt = '', showAreaTitle = false, insertBlocks }: { salons: Salon[]; areas: string[]; showAge?: boolean; areaNextToDuty?: boolean; ratingAtBottom?: boolean; compactTherapists?: boolean; showSaveButton?: boolean; wideDesktop?: boolean; mobileSingleColumn?: boolean; nameBanner?: boolean; tabsAsLinks?: boolean; currentArea?: string; includeDispatch?: boolean; heading?: React.ReactNode; shuffleSalt?: string; showAreaTitle?: boolean; insertBlocks?: { afterIndex: number; node: React.ReactNode; zoom?: boolean }[] }) {
+export function ShuffledSalons({ salons, areas, showAge = false, areaNextToDuty = false, ratingAtBottom = false, compactTherapists = false, showSaveButton = false, wideDesktop = false, mobileSingleColumn = false, bleedTherapists = false, nameBanner = false, tabsAsLinks = false, currentArea, includeDispatch = false, heading, shuffleSalt = '', showAreaTitle = false, insertBlocks }: { salons: Salon[]; areas: string[]; showAge?: boolean; areaNextToDuty?: boolean; ratingAtBottom?: boolean; compactTherapists?: boolean; showSaveButton?: boolean; wideDesktop?: boolean; mobileSingleColumn?: boolean; bleedTherapists?: boolean; nameBanner?: boolean; tabsAsLinks?: boolean; currentArea?: string; includeDispatch?: boolean; heading?: React.ReactNode; shuffleSalt?: string; showAreaTitle?: boolean; insertBlocks?: { afterIndex: number; node: React.ReactNode; zoom?: boolean }[] }) {
   const [list,            setList]            = useState<Salon[]>([]);
   const [activeArea,      setActiveArea]      = useState('福岡全域');
   // tabsAsLinks 時はページ自体が絞り込み対象を表すため、currentArea を選択中エリアとして使う
@@ -673,6 +675,7 @@ export function ShuffledSalons({ salons, areas, showAge = false, areaNextToDuty 
       showSaveButton={showSaveButton}
       wideDesktop={wideDesktop}
       nameBanner={nameBanner}
+      bleedTherapists={bleedTherapists}
     />
   ));
 
