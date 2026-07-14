@@ -139,32 +139,22 @@ export function HomeSearchBar() {
 
   return (
     <div ref={wrapRef} className="relative max-w-5xl mx-auto px-4">
-      {/* タブ（お店 / セラピスト）。キーワードはタブ間で共有。 */}
-      <div className="flex gap-1 mb-2">
-        {(
-          [
-            ['salon', 'お店'],
-            ['therapist', 'セラピスト'],
-          ] as const
-        ).map(([key, label]) => (
-          <button
-            key={key}
-            type="button"
-            onClick={() => { setTab(key); setOpen(true); }}
-            aria-pressed={tab === key}
-            className={`flex-1 py-2 text-sm font-bold transition-colors border ${
-              tab === key
-                ? 'bg-gradient-to-r from-[#FB923C] to-[#DB2777] text-white border-transparent shadow-sm'
-                : 'bg-white text-slate-500 border-pink-200 hover:text-pink-500'
-            }`}
-          >
-            {label}
-          </button>
-        ))}
-      </div>
+      {/* 種別トグル（左）＋検索入力（右）を横並び。トグルをタップでお店⇔セラピストを切替。
+          切替に合わせて検索入力はその分だけ短くなる（flex-1）。 */}
+      <div className="flex gap-2 items-stretch">
+        {/* 種別トグルボタン：現在の種別を表示し、タップで切替（上下矢印アイコンで切替可能と示す） */}
+        <button
+          type="button"
+          onClick={() => { setTab(tab === 'salon' ? 'therapist' : 'salon'); setOpen(true); }}
+          aria-label="お店・セラピストを切替"
+          className="flex-shrink-0 flex items-center gap-1 px-3 py-2.5 text-sm font-bold text-white bg-gradient-to-r from-[#FB923C] to-[#DB2777] shadow-sm"
+        >
+          {tab === 'salon' ? 'お店' : 'セラピスト'}
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M7 4v13M7 4L3 8M7 4l4 4" /><path d="M17 20V7M17 20l4-4M17 20l-4-4" /></svg>
+        </button>
 
-      {/* 入力欄（虫眼鏡アイコン＋クリアボタン）。text-base=16pxでiOSの自動ズーム防止。 */}
-      <div className="flex items-center border border-pink-200 bg-white px-3 focus-within:ring-2 focus-within:ring-pink-300 focus-within:border-transparent shadow-sm">
+        {/* 入力欄（虫眼鏡アイコン＋クリアボタン）。text-base=16pxでiOSの自動ズーム防止。 */}
+        <div className="flex-1 min-w-0 flex items-center border border-pink-200 bg-white px-3 focus-within:ring-2 focus-within:ring-pink-300 focus-within:border-transparent shadow-sm">
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-pink-400 flex-shrink-0">
           <circle cx="11" cy="11" r="8" />
           <path d="m21 21-4.3-4.3" />
@@ -190,6 +180,7 @@ export function HomeSearchBar() {
             ×
           </button>
         )}
+        </div>
       </div>
 
       {/* 候補ドロップダウン（選択中タブのみ） */}
