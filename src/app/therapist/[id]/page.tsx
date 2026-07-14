@@ -514,10 +514,11 @@ export default async function TherapistPublicPage({
                   )}
                 </span>
 
-                {/* fukuX ラベル */}
+                {/* fukuX ラベル＋読み仮名 */}
                 <span className="inline-flex items-center rounded-full bg-white/20 px-2 py-0.5 text-[11px] font-bold leading-none whitespace-nowrap flex-shrink-0">
                   fukuX
                 </span>
+                <span className="text-[11px] text-white/80 whitespace-nowrap flex-shrink-0">〜フクエックス〜</span>
 
                 {/* 表示名（＋認証バッジ） */}
                 <span className="truncate text-sm font-bold min-w-0">
