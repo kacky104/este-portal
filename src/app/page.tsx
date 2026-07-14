@@ -198,7 +198,8 @@ export default async function Home() {
         {/* ─── Salon list ──────────────────────────────────────── */}
         {/* 上余白はタイトルバナー圧縮に合わせて半分（pt-4→pt-2）。 */}
         <section id="salons" className="pt-2 pb-12">
-          <div className="max-w-5xl mx-auto px-4">
+          {/* スマホは左右余白を px-4(16px)→px-2(8px) に詰めてカードを幅広に。PC(lg)は従来の16pxのまま。 */}
+          <div className="max-w-5xl mx-auto px-2 lg:px-4">
             {/* 地域バッジ列を最上部に出し、その下に見出し＋説明文→カード（heading で順序制御） */}
             <ShuffledSalons
               salons={salons}
