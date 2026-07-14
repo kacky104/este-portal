@@ -133,6 +133,8 @@ export default async function AreaPage({ params }: { params: Promise<{ slug: str
         </section>
 
         {/* 地域バッジ列を最上部に出し、その下に見出し＋説明文→カード（heading で順序制御） */}
+        {/* サロン一覧のみ左右余白を main(px-4=16px)→4px に詰める（-mx-3=12px相殺）。TOPのpx-1と同幅感。lgは従来。 */}
+        <div className="-mx-3 lg:mx-0">
         <ShuffledSalons
           salons={salons}
           areas={[...AREA_ORDER]}
@@ -148,6 +150,7 @@ export default async function AreaPage({ params }: { params: Promise<{ slug: str
           showSaveButton
           nameBanner
           wideDesktop
+          mobileSingleColumn
           bleedTherapists
           largeThumbs
           insertBlocks={
@@ -200,6 +203,7 @@ export default async function AreaPage({ params }: { params: Promise<{ slug: str
             </div>
           }
         />
+        </div>
 
         {/* ─── よくある質問（エリア固有・FAQPage 構造化データと同一内容） ───
             見出しは h1 と同じグラデ帯のタイトルバー（summary）で、Q&A一覧ごと折り畳み（初期閉）。
