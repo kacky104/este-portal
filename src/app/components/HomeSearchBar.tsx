@@ -1,8 +1,9 @@
 'use client';
 
 // TOPページのタイトルバー直下に置く検索バー。
-// 店名・セラピスト名を部分一致（ilike）でリアルタイム検索し、入力欄の下に候補ドロップダウンを出す。
-// 候補タップで各詳細ページ（/salon/[id] ／ /therapist/[id]）へ遷移する。
+// 「お店」「セラピスト」をタブで切り替えて、名前を部分一致（ilike）でリアルタイム検索し、
+// 入力欄の下に候補ドロップダウンを出す。候補タップで各詳細ページ
+// （/salon/[id] ／ /therapist/[id]）へ遷移する。
 // 非表示サロン・非アクティブのセラピストは公開一覧と同じく除外する。
 
 import { useEffect, useRef, useState } from 'react';
@@ -11,17 +12,19 @@ import Image from 'next/image';
 import { createClient } from '@/app/lib/supabase/client';
 
 const sb = createClient();
-const LIMIT = 8; // 種別ごとの最大候補数
+const LIMIT = 12; // 候補の最大数（お店・セラピスト各タブごと）
+
+type Tab = 'salon' | 'therapist';
 
 // ilike のワイルドカード（% _ \）をエスケープし、入力を「部分一致の literal」として扱う。
 function escapeLike(s: string): string {
   return s.replace(/([\\%_])/g, '\\$1');
 }
 
-type SalonHit = { id: number; name: string; area: string };
+type SalonHit = { id: number; name: string; area: string; imageUrl: string | null };
 type TherapistHit = { id: string; name: string; salonName: string; imageUrl: string | null };
 
-// 店名を部分一致で検索。非表示サロンは除外。
+// 店名を部分一致で検索。非表示サロンは除外。サムネイル（salon_images 先頭）も付与する。
 async function searchSalons(kw: string): Promise<SalonHit[]> {
   const pattern = `%${escapeLike(kw)}%`;
   const { data } = await sb
@@ -31,10 +34,27 @@ async function searchSalons(kw: string): Promise<SalonHit[]> {
     .eq('is_hidden', false)
     .order('name', { ascending: true })
     .limit(LIMIT);
-  return (data ?? []).map((r) => ({
-    id: r.id as number,
-    name: (r.name as string) ?? '',
-    area: (r.area as string) ?? '',
+  const rows = (data ?? []) as { id: number; name: string; area: string }[];
+  if (rows.length === 0) return [];
+
+  // サムネイル：salon_images を display_order 昇順で引き、各サロンの先頭1枚を採用。
+  const ids = rows.map((r) => r.id);
+  const { data: imgs } = await sb
+    .from('salon_images')
+    .select('salon_id, image_url, display_order')
+    .in('salon_id', ids)
+    .order('display_order', { ascending: true });
+  const imageBySalon = new Map<number, string>();
+  for (const img of (imgs ?? []) as { salon_id: number; image_url: string | null }[]) {
+    const sid = Number(img.salon_id);
+    if (!imageBySalon.has(sid) && img.image_url) imageBySalon.set(sid, img.image_url);
+  }
+
+  return rows.map((r) => ({
+    id: r.id,
+    name: r.name ?? '',
+    area: r.area ?? '',
+    imageUrl: imageBySalon.get(r.id) ?? null,
   }));
 }
 
@@ -62,6 +82,7 @@ async function searchTherapists(kw: string): Promise<TherapistHit[]> {
 }
 
 export function HomeSearchBar() {
+  const [tab, setTab] = useState<Tab>('salon');
   const [q, setQ] = useState('');
   const [salons, setSalons] = useState<SalonHit[]>([]);
   const [therapists, setTherapists] = useState<TherapistHit[]>([]);
@@ -70,7 +91,7 @@ export function HomeSearchBar() {
   const [open, setOpen] = useState(false);
   const wrapRef = useRef<HTMLDivElement>(null);
 
-  // 入力をデバウンス（250ms）して検索。空文字では検索しない。
+  // 入力 or タブ変更で、選択中タブのみ検索（デバウンス250ms）。空文字では検索しない。
   useEffect(() => {
     const kw = q.trim();
     if (!kw) {
@@ -83,18 +104,25 @@ export function HomeSearchBar() {
     setLoading(true);
     let cancelled = false;
     const t = setTimeout(async () => {
-      const [s, th] = await Promise.all([searchSalons(kw), searchTherapists(kw)]);
-      if (cancelled) return;
-      setSalons(s);
-      setTherapists(th);
-      setLoading(false);
-      setSearched(true);
+      if (tab === 'salon') {
+        const s = await searchSalons(kw);
+        if (cancelled) return;
+        setSalons(s);
+      } else {
+        const th = await searchTherapists(kw);
+        if (cancelled) return;
+        setTherapists(th);
+      }
+      if (!cancelled) {
+        setLoading(false);
+        setSearched(true);
+      }
     }, 250);
     return () => {
       cancelled = true;
       clearTimeout(t);
     };
-  }, [q]);
+  }, [q, tab]);
 
   // 外側クリックでドロップダウンを閉じる。
   useEffect(() => {
@@ -106,10 +134,35 @@ export function HomeSearchBar() {
   }, []);
 
   const showDropdown = open && q.trim().length > 0;
-  const noHits = searched && !loading && salons.length === 0 && therapists.length === 0;
+  const hits = tab === 'salon' ? salons.length : therapists.length;
+  const noHits = searched && !loading && hits === 0;
 
   return (
     <div ref={wrapRef} className="relative max-w-5xl mx-auto px-4">
+      {/* タブ（お店 / セラピスト）。キーワードはタブ間で共有。 */}
+      <div className="flex gap-1 mb-2">
+        {(
+          [
+            ['salon', 'お店'],
+            ['therapist', 'セラピスト'],
+          ] as const
+        ).map(([key, label]) => (
+          <button
+            key={key}
+            type="button"
+            onClick={() => { setTab(key); setOpen(true); }}
+            aria-pressed={tab === key}
+            className={`flex-1 py-2 text-sm font-bold transition-colors border ${
+              tab === key
+                ? 'bg-gradient-to-r from-[#FB923C] to-[#DB2777] text-white border-transparent shadow-sm'
+                : 'bg-white text-slate-500 border-pink-200 hover:text-pink-500'
+            }`}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+
       {/* 入力欄（虫眼鏡アイコン＋クリアボタン）。text-base=16pxでiOSの自動ズーム防止。 */}
       <div className="flex items-center border border-pink-200 bg-white px-3 focus-within:ring-2 focus-within:ring-pink-300 focus-within:border-transparent shadow-sm">
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-pink-400 flex-shrink-0">
@@ -120,7 +173,7 @@ export function HomeSearchBar() {
           value={q}
           onChange={(e) => { setQ(e.target.value); setOpen(true); }}
           onFocus={() => setOpen(true)}
-          placeholder="お店・セラピストの名前で検索"
+          placeholder={tab === 'salon' ? 'お店の名前で検索' : 'セラピストの名前で検索'}
           autoComplete="off"
           autoCapitalize="none"
           autoCorrect="off"
@@ -139,62 +192,57 @@ export function HomeSearchBar() {
         )}
       </div>
 
-      {/* 候補ドロップダウン */}
+      {/* 候補ドロップダウン（選択中タブのみ） */}
       {showDropdown && (
         <div className="absolute left-4 right-4 top-full mt-1 z-40 bg-white border border-slate-200 shadow-lg max-h-[70vh] overflow-y-auto">
           {loading ? (
             <p className="text-sm text-slate-400 text-center py-6">検索中...</p>
           ) : noHits ? (
-            <p className="text-sm text-slate-400 text-center py-6">該当するお店・セラピストが見つかりません</p>
+            <p className="text-sm text-slate-400 text-center py-6">
+              {tab === 'salon' ? '該当するお店が見つかりません' : '該当するセラピストが見つかりません'}
+            </p>
+          ) : tab === 'salon' ? (
+            salons.map((s) => (
+              <Link
+                key={`salon-${s.id}`}
+                href={`/salon/${s.id}`}
+                onClick={() => setOpen(false)}
+                className="flex items-center gap-3 px-3 py-2.5 hover:bg-slate-50 border-t border-slate-100 first:border-t-0"
+              >
+                <span className="relative w-11 h-11 overflow-hidden bg-gradient-to-br from-pink-100 to-rose-100 flex items-center justify-center flex-shrink-0">
+                  {s.imageUrl ? (
+                    <Image src={s.imageUrl} alt={s.name} fill className="object-cover" sizes="44px" />
+                  ) : (
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-pink-400"><path d="M3 9l1-5h16l1 5" /><path d="M4 9v11h16V9" /><path d="M9 20v-6h6v6" /></svg>
+                  )}
+                </span>
+                <span className="min-w-0">
+                  <span className="block font-bold text-sm text-slate-800 truncate">{s.name}</span>
+                  {s.area && <span className="block text-xs text-slate-400 truncate">{s.area}</span>}
+                </span>
+              </Link>
+            ))
           ) : (
-            <>
-              {salons.length > 0 && (
-                <div>
-                  <p className="text-[11px] font-bold text-pink-500 bg-pink-50 px-3 py-1.5">お店</p>
-                  {salons.map((s) => (
-                    <Link
-                      key={`salon-${s.id}`}
-                      href={`/salon/${s.id}`}
-                      onClick={() => setOpen(false)}
-                      className="flex items-center gap-3 px-3 py-2.5 hover:bg-slate-50 border-t border-slate-100"
-                    >
-                      <span className="w-9 h-9 flex items-center justify-center bg-gradient-to-br from-pink-100 to-rose-100 text-pink-500 flex-shrink-0">
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 9l1-5h16l1 5" /><path d="M4 9v11h16V9" /><path d="M9 20v-6h6v6" /></svg>
-                      </span>
-                      <span className="min-w-0">
-                        <span className="block font-bold text-sm text-slate-800 truncate">{s.name}</span>
-                        {s.area && <span className="block text-xs text-slate-400 truncate">{s.area}</span>}
-                      </span>
-                    </Link>
-                  ))}
-                </div>
-              )}
-              {therapists.length > 0 && (
-                <div>
-                  <p className="text-[11px] font-bold text-pink-500 bg-pink-50 px-3 py-1.5">セラピスト</p>
-                  {therapists.map((t) => (
-                    <Link
-                      key={`th-${t.id}`}
-                      href={`/therapist/${t.id}`}
-                      onClick={() => setOpen(false)}
-                      className="flex items-center gap-3 px-3 py-2.5 hover:bg-slate-50 border-t border-slate-100"
-                    >
-                      <span className="relative w-9 h-9 overflow-hidden bg-gradient-to-br from-pink-200 to-fuchsia-300 flex items-center justify-center flex-shrink-0">
-                        {t.imageUrl ? (
-                          <Image src={t.imageUrl} alt={t.name} fill className="object-cover" sizes="36px" />
-                        ) : (
-                          <span className="text-white font-bold text-sm">{t.name.charAt(0)}</span>
-                        )}
-                      </span>
-                      <span className="min-w-0">
-                        <span className="block font-bold text-sm text-slate-800 truncate">{t.name}</span>
-                        {t.salonName && <span className="block text-xs text-slate-400 truncate">{t.salonName}</span>}
-                      </span>
-                    </Link>
-                  ))}
-                </div>
-              )}
-            </>
+            therapists.map((t) => (
+              <Link
+                key={`th-${t.id}`}
+                href={`/therapist/${t.id}`}
+                onClick={() => setOpen(false)}
+                className="flex items-center gap-3 px-3 py-2.5 hover:bg-slate-50 border-t border-slate-100 first:border-t-0"
+              >
+                <span className="relative w-11 h-11 overflow-hidden bg-gradient-to-br from-pink-200 to-fuchsia-300 flex items-center justify-center flex-shrink-0">
+                  {t.imageUrl ? (
+                    <Image src={t.imageUrl} alt={t.name} fill className="object-cover" sizes="44px" />
+                  ) : (
+                    <span className="text-white font-bold text-sm">{t.name.charAt(0)}</span>
+                  )}
+                </span>
+                <span className="min-w-0">
+                  <span className="block font-bold text-sm text-slate-800 truncate">{t.name}</span>
+                  {t.salonName && <span className="block text-xs text-slate-400 truncate">{t.salonName}</span>}
+                </span>
+              </Link>
+            ))
           )}
         </div>
       )}
