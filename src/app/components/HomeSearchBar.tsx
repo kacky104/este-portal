@@ -147,7 +147,7 @@ export function HomeSearchBar() {
           type="button"
           onClick={() => { setTab(tab === 'salon' ? 'therapist' : 'salon'); setOpen(true); }}
           aria-label="お店・セラピストを切替"
-          className={`flex-shrink-0 w-24 flex items-center justify-center gap-1 px-2 py-2.5 font-bold text-white shadow-sm bg-gradient-to-r ${
+          className={`flex-shrink-0 w-[72px] flex items-center justify-center gap-0.5 px-1 py-2.5 font-bold text-white shadow-sm bg-gradient-to-r ${
             tab === 'salon'
               ? 'from-[#38BDF8] to-[#2563EB]'   /* お店＝青系グラデ（明→濃） */
               : 'from-[#F472B6] to-[#BE185D]'   /* セラピスト＝ピンク系グラデ（明→濃） */
