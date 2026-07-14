@@ -129,7 +129,7 @@ export default async function AreaPage({ params }: { params: Promise<{ slug: str
             <div className="w-1 h-6 rounded-full bg-gradient-to-b from-pink-400 to-rose-500" />
             <h2 className="text-xl font-bold text-slate-900"><span className="text-pink-600">{area === DISPATCH_AREA ? '出張対応' : label}</span>で現在出勤中</h2>
           </div>
-          <TherapistScroller showAge filterSalonIds={areaSalonIds} workingHref={`/working?area=${slug}`} />
+          <TherapistScroller showAge filterSalonIds={areaSalonIds} workingHref={`/working?area=${slug}`} bleedMobile largeMobile />
         </section>
 
         {/* 地域バッジ列を最上部に出し、その下に見出し＋説明文→カード（heading で順序制御） */}
@@ -148,6 +148,8 @@ export default async function AreaPage({ params }: { params: Promise<{ slug: str
           showSaveButton
           nameBanner
           wideDesktop
+          bleedTherapists
+          largeThumbs
           insertBlocks={
             pickupBanners.length > 0
               ? [{ afterIndex: 20, node: <TherapistPickupBanner banners={pickupBanners} />, zoom: false }]
