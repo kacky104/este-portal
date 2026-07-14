@@ -138,7 +138,7 @@ export function HomeSearchBar() {
   const noHits = searched && !loading && hits === 0;
 
   return (
-    <div ref={wrapRef} className="relative max-w-5xl mx-auto px-1">
+    <div ref={wrapRef} className="relative max-w-5xl mx-auto px-4">
       {/* 種別トグル（左）＋検索入力（右）を横並び。トグルをタップでお店⇔セラピストを切替。
           切替に合わせて検索入力はその分だけ短くなる（flex-1）。 */}
       <div className="flex gap-2 items-stretch">
@@ -154,7 +154,7 @@ export function HomeSearchBar() {
           }`}
         >
           {/* セラピストは文字数が多いので小さめのフォントにして、固定幅(w-24)内に収める＝切替でボタン幅・アイコンが変わらない */}
-          <span className={tab === 'salon' ? 'text-sm' : 'text-[11px]'}>{tab === 'salon' ? 'お店' : 'セラピスト'}</span>
+          <span className={`whitespace-nowrap leading-none ${tab === 'salon' ? 'text-sm' : 'text-[9px]'}`}>{tab === 'salon' ? 'お店' : 'セラピスト'}</span>
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="flex-shrink-0"><path d="M7 4v13M7 4L3 8M7 4l4 4" /><path d="M17 20V7M17 20l4-4M17 20l-4-4" /></svg>
         </button>
 
@@ -190,7 +190,7 @@ export function HomeSearchBar() {
 
       {/* 候補ドロップダウン（選択中タブのみ） */}
       {showDropdown && (
-        <div className="absolute left-1 right-1 top-full mt-1 z-40 bg-white border border-slate-200 shadow-lg max-h-[70vh] overflow-y-auto">
+        <div className="absolute left-4 right-4 top-full mt-1 z-40 bg-white border border-slate-200 shadow-lg max-h-[70vh] overflow-y-auto">
           {loading ? (
             <p className="text-sm text-slate-400 text-center py-6">検索中...</p>
           ) : noHits ? (
