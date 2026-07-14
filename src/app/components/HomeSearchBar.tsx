@@ -21,20 +21,44 @@ function escapeLike(s: string): string {
   return s.replace(/([\\%_])/g, '\\$1');
 }
 
+// ひらがな⇄カタカナを相互ヒットさせるための検索バリアント生成。
+// 1) NFKC 正規化（半角カナ ﾗﾋﾞﾘﾝｽ→全角 ラビリンス、全角英数→半角 等）
+// 2) 全部カタカナ化した版と、全部ひらがな化した版の2パターンを返す（重複は除去）。
+// これで「さら」でも「サラ」でもヒットするようになる。
+function kanaVariants(raw: string): string[] {
+  const base = raw.normalize('NFKC');
+  const toKata = (s: string) =>
+    s.replace(/[ぁ-ゖ]/g, (c) => String.fromCharCode(c.charCodeAt(0) + 0x60));
+  const toHira = (s: string) =>
+    s.replace(/[ァ-ヶ]/g, (c) => String.fromCharCode(c.charCodeAt(0) - 0x60));
+  return Array.from(new Set([toKata(base), toHira(base)]));
+}
+
 type SalonHit = { id: number; name: string; area: string; imageUrl: string | null };
 type TherapistHit = { id: string; name: string; salonName: string; imageUrl: string | null };
 
 // 店名を部分一致で検索。非表示サロンは除外。サムネイル（salon_images 先頭）も付与する。
 async function searchSalons(kw: string): Promise<SalonHit[]> {
-  const pattern = `%${escapeLike(kw)}%`;
-  const { data } = await sb
-    .from('salons')
-    .select('id, name, area')
-    .ilike('name', pattern)
-    .eq('is_hidden', false)
-    .order('name', { ascending: true })
-    .limit(LIMIT);
-  const rows = (data ?? []) as { id: number; name: string; area: string }[];
+  // ひらがな版・カタカナ版それぞれで検索し、id で重複除去してマージ。
+  const variants = kanaVariants(kw);
+  const results = await Promise.all(
+    variants.map((v) =>
+      sb
+        .from('salons')
+        .select('id, name, area')
+        .ilike('name', `%${escapeLike(v)}%`)
+        .eq('is_hidden', false)
+        .order('name', { ascending: true })
+        .limit(LIMIT)
+    )
+  );
+  const map = new Map<number, { id: number; name: string; area: string }>();
+  for (const res of results) {
+    for (const row of (res.data ?? []) as { id: number; name: string; area: string }[]) {
+      if (!map.has(row.id)) map.set(row.id, row);
+    }
+  }
+  const rows = [...map.values()].slice(0, LIMIT);
   if (rows.length === 0) return [];
 
   // サムネイル：salon_images を display_order 昇順で引き、各サロンの先頭1枚を採用。
@@ -60,16 +84,29 @@ async function searchSalons(kw: string): Promise<SalonHit[]> {
 
 // セラピスト名を部分一致で検索。非アクティブ・非表示サロン所属は除外。所属店名も取得。
 async function searchTherapists(kw: string): Promise<TherapistHit[]> {
-  const pattern = `%${escapeLike(kw)}%`;
-  const { data } = await sb
-    .from('therapists')
-    .select('id, name, profile_image_url, is_active, salons!inner(name, is_hidden)')
-    .ilike('name', pattern)
-    .eq('is_active', true)
-    .eq('salons.is_hidden', false)
-    .order('name', { ascending: true })
-    .limit(LIMIT);
-  return (data ?? []).map((r) => {
+  // ひらがな版・カタカナ版それぞれで検索し、id で重複除去してマージ。
+  const variants = kanaVariants(kw);
+  const results = await Promise.all(
+    variants.map((v) =>
+      sb
+        .from('therapists')
+        .select('id, name, profile_image_url, is_active, salons!inner(name, is_hidden)')
+        .ilike('name', `%${escapeLike(v)}%`)
+        .eq('is_active', true)
+        .eq('salons.is_hidden', false)
+        .order('name', { ascending: true })
+        .limit(LIMIT)
+    )
+  );
+  const map = new Map<string, Record<string, unknown>>();
+  for (const res of results) {
+    for (const r of (res.data ?? []) as Record<string, unknown>[]) {
+      const key = String(r.id);
+      if (!map.has(key)) map.set(key, r);
+    }
+  }
+  const rows = [...map.values()].slice(0, LIMIT);
+  return rows.map((r) => {
     const salon = r.salons as unknown as { name?: string } | { name?: string }[] | null;
     const salonName = Array.isArray(salon) ? (salon[0]?.name ?? '') : (salon?.name ?? '');
     return {
