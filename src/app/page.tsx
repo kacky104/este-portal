@@ -217,6 +217,7 @@ export default async function Home() {
               wideDesktop
               mobileSingleColumn
               bleedTherapists
+              largeThumbs
               insertBlocks={[
                 // 10枚目直下：おすすめサロンバナー（カード幅・端に整列＝zoom:true）。
                 ...(recommendedBanners.length > 0

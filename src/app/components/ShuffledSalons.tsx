@@ -55,7 +55,7 @@ function RatingDisplay({ rating, reviewCount }: { rating: number; reviewCount: n
 
 // ── Therapist mini card (matches TherapistScroller Card design) ──
 
-function TherapistMiniCard({ therapist, index, showAge = false, compact = false }: { therapist: TherapistThumb; index: number; showAge?: boolean; compact?: boolean }) {
+function TherapistMiniCard({ therapist, index, showAge = false, compact = false, large = false }: { therapist: TherapistThumb; index: number; showAge?: boolean; compact?: boolean; large?: boolean }) {
   const grad = GRADIENTS[index % GRADIENTS.length];
   const dutyStatus = !therapist.onDuty
     ? 'off'
@@ -67,7 +67,7 @@ function TherapistMiniCard({ therapist, index, showAge = false, compact = false 
   return (
     <Link
       href={`/therapist/${therapist.id}`}
-      className={`relative flex-shrink-0 ${compact ? 'w-[92px] h-[134px]' : 'w-[105px] h-[153px]'} overflow-hidden shadow-md hover:-translate-y-1 hover:shadow-xl transition-all duration-300`}
+      className={`relative flex-shrink-0 ${large ? 'w-[120px] h-[175px] lg:w-[92px] lg:h-[134px]' : compact ? 'w-[92px] h-[134px]' : 'w-[105px] h-[153px]'} overflow-hidden shadow-md hover:-translate-y-1 hover:shadow-xl transition-all duration-300`}
       onClick={e => e.stopPropagation()}
     >
       {/* background */}
@@ -134,7 +134,7 @@ function TherapistMiniCard({ therapist, index, showAge = false, compact = false 
 
 // ── Therapist mini cards row (hover auto-scroll / touch swipe) ──
 
-function TherapistMiniCardsRow({ therapists, salonId, showAge = false, compact = false }: { therapists: TherapistThumb[]; salonId: number; showAge?: boolean; compact?: boolean }) {
+function TherapistMiniCardsRow({ therapists, salonId, showAge = false, compact = false, large = false }: { therapists: TherapistThumb[]; salonId: number; showAge?: boolean; compact?: boolean; large?: boolean }) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const rafRef    = useRef<number | null>(null);
 
@@ -168,13 +168,13 @@ function TherapistMiniCardsRow({ therapists, salonId, showAge = false, compact =
       onClick={e => e.stopPropagation()}
     >
       {displayed.map((t, i) => (
-        <TherapistMiniCard key={t.id} therapist={t} index={i} showAge={showAge} compact={compact} />
+        <TherapistMiniCard key={t.id} therapist={t} index={i} showAge={showAge} compact={compact} large={large} />
       ))}
 
       {/* View-all button */}
       <Link
         href={`/salon/${salonId}`}
-        className={`relative flex-shrink-0 ${compact ? 'w-[92px] h-[134px]' : 'w-[105px] h-[153px]'} rounded-2xl overflow-hidden border border-pink-200 bg-gradient-to-b from-pink-50 to-fuchsia-100 flex flex-col items-center justify-center gap-2 hover:from-pink-100 hover:to-fuchsia-200 transition-colors shadow-sm`}
+        className={`relative flex-shrink-0 ${large ? 'w-[120px] h-[175px] lg:w-[92px] lg:h-[134px]' : compact ? 'w-[92px] h-[134px]' : 'w-[105px] h-[153px]'} rounded-2xl overflow-hidden border border-pink-200 bg-gradient-to-b from-pink-50 to-fuchsia-100 flex flex-col items-center justify-center gap-2 hover:from-pink-100 hover:to-fuchsia-200 transition-colors shadow-sm`}
         onClick={e => e.stopPropagation()}
       >
         <div className="w-10 h-10 rounded-full bg-white/70 flex items-center justify-center shadow-sm">
@@ -305,7 +305,7 @@ function AutoFitAreaBadges({ labels, dispatchOnly }: { labels: string[]; dispatc
 
 // ── Salon card ────────────────────────────────────────────────
 
-export function SalonCard({ salon, therapists, showAge = false, areaNextToDuty = false, ratingAtBottom = false, compactTherapists = false, showSaveButton = false, wideDesktop = false, nameBanner = false, bleedTherapists = false }: { salon: Salon; therapists: TherapistThumb[]; showAge?: boolean; areaNextToDuty?: boolean; ratingAtBottom?: boolean; compactTherapists?: boolean; showSaveButton?: boolean; wideDesktop?: boolean; nameBanner?: boolean; bleedTherapists?: boolean }) {
+export function SalonCard({ salon, therapists, showAge = false, areaNextToDuty = false, ratingAtBottom = false, compactTherapists = false, showSaveButton = false, wideDesktop = false, nameBanner = false, bleedTherapists = false, largeThumbs = false }: { salon: Salon; therapists: TherapistThumb[]; showAge?: boolean; areaNextToDuty?: boolean; ratingAtBottom?: boolean; compactTherapists?: boolean; showSaveButton?: boolean; wideDesktop?: boolean; nameBanner?: boolean; bleedTherapists?: boolean; largeThumbs?: boolean }) {
   const router = useRouter();
   const onDutyCount = therapists.filter(t => t.onDuty).length;
 
@@ -373,7 +373,7 @@ export function SalonCard({ salon, therapists, showAge = false, areaNextToDuty =
   // カード端まで全幅に。スマホ(stackedLayout)だけ効かせ、PC(wideLayout)は lg:mx-0 で従来の余白を維持。
   const therapistThumbs = therapists.length > 0 ? (
     <div className={`${compactTherapists ? 'mb-2' : 'mb-4'}${bleedTherapists ? ' -mx-5 lg:mx-0' : ''}`}>
-      <TherapistMiniCardsRow therapists={therapists} salonId={salon.id} showAge={showAge} compact={compactTherapists} />
+      <TherapistMiniCardsRow therapists={therapists} salonId={salon.id} showAge={showAge} compact={compactTherapists} large={largeThumbs} />
     </div>
   ) : null;
 
@@ -545,7 +545,7 @@ function SalonCardSkeleton() {
 
 // ── ShuffledSalons ────────────────────────────────────────────
 
-export function ShuffledSalons({ salons, areas, showAge = false, areaNextToDuty = false, ratingAtBottom = false, compactTherapists = false, showSaveButton = false, wideDesktop = false, mobileSingleColumn = false, bleedTherapists = false, nameBanner = false, tabsAsLinks = false, currentArea, includeDispatch = false, heading, shuffleSalt = '', showAreaTitle = false, insertBlocks }: { salons: Salon[]; areas: string[]; showAge?: boolean; areaNextToDuty?: boolean; ratingAtBottom?: boolean; compactTherapists?: boolean; showSaveButton?: boolean; wideDesktop?: boolean; mobileSingleColumn?: boolean; bleedTherapists?: boolean; nameBanner?: boolean; tabsAsLinks?: boolean; currentArea?: string; includeDispatch?: boolean; heading?: React.ReactNode; shuffleSalt?: string; showAreaTitle?: boolean; insertBlocks?: { afterIndex: number; node: React.ReactNode; zoom?: boolean }[] }) {
+export function ShuffledSalons({ salons, areas, showAge = false, areaNextToDuty = false, ratingAtBottom = false, compactTherapists = false, showSaveButton = false, wideDesktop = false, mobileSingleColumn = false, bleedTherapists = false, largeThumbs = false, nameBanner = false, tabsAsLinks = false, currentArea, includeDispatch = false, heading, shuffleSalt = '', showAreaTitle = false, insertBlocks }: { salons: Salon[]; areas: string[]; showAge?: boolean; areaNextToDuty?: boolean; ratingAtBottom?: boolean; compactTherapists?: boolean; showSaveButton?: boolean; wideDesktop?: boolean; mobileSingleColumn?: boolean; bleedTherapists?: boolean; largeThumbs?: boolean; nameBanner?: boolean; tabsAsLinks?: boolean; currentArea?: string; includeDispatch?: boolean; heading?: React.ReactNode; shuffleSalt?: string; showAreaTitle?: boolean; insertBlocks?: { afterIndex: number; node: React.ReactNode; zoom?: boolean }[] }) {
   const [list,            setList]            = useState<Salon[]>([]);
   const [activeArea,      setActiveArea]      = useState('福岡全域');
   // tabsAsLinks 時はページ自体が絞り込み対象を表すため、currentArea を選択中エリアとして使う
@@ -676,6 +676,7 @@ export function ShuffledSalons({ salons, areas, showAge = false, areaNextToDuty 
       wideDesktop={wideDesktop}
       nameBanner={nameBanner}
       bleedTherapists={bleedTherapists}
+      largeThumbs={largeThumbs}
     />
   ));
 
