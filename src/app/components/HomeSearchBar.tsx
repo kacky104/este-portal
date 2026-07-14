@@ -138,7 +138,7 @@ export function HomeSearchBar() {
   const noHits = searched && !loading && hits === 0;
 
   return (
-    <div ref={wrapRef} className="relative max-w-5xl mx-auto px-4">
+    <div ref={wrapRef} className="relative max-w-5xl mx-auto px-1">
       {/* 種別トグル（左）＋検索入力（右）を横並び。トグルをタップでお店⇔セラピストを切替。
           切替に合わせて検索入力はその分だけ短くなる（flex-1）。 */}
       <div className="flex gap-2 items-stretch">
@@ -149,8 +149,8 @@ export function HomeSearchBar() {
           aria-label="お店・セラピストを切替"
           className={`flex-shrink-0 w-24 flex items-center justify-center gap-1 px-2 py-2.5 font-bold text-white shadow-sm bg-gradient-to-r ${
             tab === 'salon'
-              ? 'from-[#38BDF8] to-[#2563EB]'   /* お店＝青系グラデ */
-              : 'from-[#EC4899] to-[#DB2777]'   /* セラピスト＝ピンク系グラデ */
+              ? 'from-[#38BDF8] to-[#2563EB]'   /* お店＝青系グラデ（明→濃） */
+              : 'from-[#F472B6] to-[#BE185D]'   /* セラピスト＝ピンク系グラデ（明→濃） */
           }`}
         >
           {/* セラピストは文字数が多いので小さめのフォントにして、固定幅(w-24)内に収める＝切替でボタン幅・アイコンが変わらない */}
@@ -190,7 +190,7 @@ export function HomeSearchBar() {
 
       {/* 候補ドロップダウン（選択中タブのみ） */}
       {showDropdown && (
-        <div className="absolute left-4 right-4 top-full mt-1 z-40 bg-white border border-slate-200 shadow-lg max-h-[70vh] overflow-y-auto">
+        <div className="absolute left-1 right-1 top-full mt-1 z-40 bg-white border border-slate-200 shadow-lg max-h-[70vh] overflow-y-auto">
           {loading ? (
             <p className="text-sm text-slate-400 text-center py-6">検索中...</p>
           ) : noHits ? (
