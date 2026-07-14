@@ -147,10 +147,15 @@ export function HomeSearchBar() {
           type="button"
           onClick={() => { setTab(tab === 'salon' ? 'therapist' : 'salon'); setOpen(true); }}
           aria-label="お店・セラピストを切替"
-          className="flex-shrink-0 flex items-center gap-1 px-3 py-2.5 text-sm font-bold text-white bg-gradient-to-r from-[#FB923C] to-[#DB2777] shadow-sm"
+          className={`flex-shrink-0 w-24 flex items-center justify-center gap-1 px-2 py-2.5 font-bold text-white shadow-sm bg-gradient-to-r ${
+            tab === 'salon'
+              ? 'from-[#38BDF8] to-[#2563EB]'   /* お店＝青系グラデ */
+              : 'from-[#EC4899] to-[#DB2777]'   /* セラピスト＝ピンク系グラデ */
+          }`}
         >
-          {tab === 'salon' ? 'お店' : 'セラピスト'}
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M7 4v13M7 4L3 8M7 4l4 4" /><path d="M17 20V7M17 20l4-4M17 20l-4-4" /></svg>
+          {/* セラピストは文字数が多いので小さめのフォントにして、固定幅(w-24)内に収める＝切替でボタン幅・アイコンが変わらない */}
+          <span className={tab === 'salon' ? 'text-sm' : 'text-[11px]'}>{tab === 'salon' ? 'お店' : 'セラピスト'}</span>
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="flex-shrink-0"><path d="M7 4v13M7 4L3 8M7 4l4 4" /><path d="M17 20V7M17 20l4-4M17 20l-4-4" /></svg>
         </button>
 
         {/* 入力欄（虫眼鏡アイコン＋クリアボタン）。text-base=16pxでiOSの自動ズーム防止。 */}
