@@ -26,6 +26,7 @@ import { toJsonLdString, buildFaqPageJsonLd } from "./lib/jsonLd";
 import { TOP_SALON_LIST_INTRO, TOP_PAGE_FAQS } from "./lib/areaSeoContent";
 import { fetchPublishedMainArticles } from "./lib/mainArticles";
 import { ArticleCard } from "./column/ArticleCard";
+import { HomeSearchBar } from "./components/HomeSearchBar";
 
 // TOPの WebSite 構造化データ（サイト名のリッチリザルト狙い）。
 // サイト内検索ページが無いため potentialAction (SearchAction) は入れない。
@@ -120,6 +121,11 @@ export default async function Home() {
             <h1 className="bg-gradient-to-r from-[#FB923C] to-[#DB2777] text-white font-bold text-[18px] sm:text-[22px] leading-snug py-2.5 px-4">
               福岡メンズエステ密着型ポータルサイト
             </h1>
+          </div>
+
+          {/* タイトルバー直下の検索バー：店名・セラピスト名のリアルタイム候補 */}
+          <div className="relative mt-3">
+            <HomeSearchBar />
           </div>
         </section>
 
