@@ -111,7 +111,7 @@ export default async function Home() {
         </section>
 
         {/* ─── Hero ────────────────────────────────────────────── */}
-        <section className="relative overflow-hidden bg-white pt-5 pb-5">
+        <section className="relative overflow-hidden bg-white pt-2.5 pb-2.5">
           <div className="absolute inset-0 bg-[radial-gradient(ellipse_70%_50%_at_50%_-10%,rgba(236,72,153,0.06),transparent)]" />
           <div className="absolute bottom-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-pink-300/50 to-transparent" />
 
