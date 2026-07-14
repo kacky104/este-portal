@@ -543,7 +543,7 @@ function SalonCardSkeleton() {
 
 // ── ShuffledSalons ────────────────────────────────────────────
 
-export function ShuffledSalons({ salons, areas, showAge = false, areaNextToDuty = false, ratingAtBottom = false, compactTherapists = false, showSaveButton = false, wideDesktop = false, nameBanner = false, tabsAsLinks = false, currentArea, includeDispatch = false, heading, shuffleSalt = '', showAreaTitle = false, insertBlocks }: { salons: Salon[]; areas: string[]; showAge?: boolean; areaNextToDuty?: boolean; ratingAtBottom?: boolean; compactTherapists?: boolean; showSaveButton?: boolean; wideDesktop?: boolean; nameBanner?: boolean; tabsAsLinks?: boolean; currentArea?: string; includeDispatch?: boolean; heading?: React.ReactNode; shuffleSalt?: string; showAreaTitle?: boolean; insertBlocks?: { afterIndex: number; node: React.ReactNode; zoom?: boolean }[] }) {
+export function ShuffledSalons({ salons, areas, showAge = false, areaNextToDuty = false, ratingAtBottom = false, compactTherapists = false, showSaveButton = false, wideDesktop = false, mobileSingleColumn = false, nameBanner = false, tabsAsLinks = false, currentArea, includeDispatch = false, heading, shuffleSalt = '', showAreaTitle = false, insertBlocks }: { salons: Salon[]; areas: string[]; showAge?: boolean; areaNextToDuty?: boolean; ratingAtBottom?: boolean; compactTherapists?: boolean; showSaveButton?: boolean; wideDesktop?: boolean; mobileSingleColumn?: boolean; nameBanner?: boolean; tabsAsLinks?: boolean; currentArea?: string; includeDispatch?: boolean; heading?: React.ReactNode; shuffleSalt?: string; showAreaTitle?: boolean; insertBlocks?: { afterIndex: number; node: React.ReactNode; zoom?: boolean }[] }) {
   const [list,            setList]            = useState<Salon[]>([]);
   const [activeArea,      setActiveArea]      = useState('福岡全域');
   // tabsAsLinks 時はページ自体が絞り込み対象を表すため、currentArea を選択中エリアとして使う
@@ -552,6 +552,10 @@ export function ShuffledSalons({ salons, areas, showAge = false, areaNextToDuty 
 
   // セラピストサムネイル取得は共有フックに集約（保存ページと同一ロジック）
   const salonTherapists = useSalonTherapists(salons);
+
+  // wideDesktop 一覧のカラム定義。mobileSingleColumn=true（TOP用）は lg 未満を常に1列に
+  // （既定は sm:grid-cols-2＝640px以上で2列）。lg は元々ワイド1列なので grid-cols-1 で不変。
+  const wideGridCols = mobileSingleColumn ? 'grid-cols-1' : 'sm:grid-cols-2 lg:grid-cols-1';
 
   // shuffle on mount：30分ごとに1度だけ並びが変わる決定的シャッフル（同じ30分は誰がリロードしても同じ、
   // :00/:30 で入れ替わる）。salt でトップ/地域/各エリアを独立に回す。クライアント mount で確定するため
@@ -626,7 +630,7 @@ export function ShuffledSalons({ salons, areas, showAge = false, areaNextToDuty 
     return (
       <>
         {tabsAndHeading}
-        <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-5">
+        <div className={`grid ${mobileSingleColumn ? 'grid-cols-1' : 'sm:grid-cols-2'} lg:grid-cols-3 gap-5`}>
           {salons.map(s => <SalonCardSkeleton key={s.id} />)}
         </div>
       </>
@@ -703,7 +707,7 @@ export function ShuffledSalons({ salons, areas, showAge = false, areaNextToDuty 
               {segments.map((seg, i) => (
                 <Fragment key={`seg-${i}`}>
                   {(i === 0 || seg.length > 0) && (
-                    <div className={`grid sm:grid-cols-2 lg:grid-cols-1 lg:justify-items-start gap-5${i > 0 ? ' mt-5' : ''}`}>{seg}</div>
+                    <div className={`grid ${wideGridCols} lg:justify-items-start gap-5${i > 0 ? ' mt-5' : ''}`}>{seg}</div>
                   )}
                   {blocks[i] && (
                     // zoom:true（バナー）は card と同じ基準幅512px＋salon-card-zoom(≒×1.413)＝723px で左右端をカードに一致。
@@ -716,7 +720,7 @@ export function ShuffledSalons({ salons, areas, showAge = false, areaNextToDuty 
               ))}
             </div>
           ) : (
-            <div className="grid sm:grid-cols-2 lg:grid-cols-1 lg:justify-items-start lg:flex-shrink-0 gap-5">
+            <div className={`grid ${wideGridCols} lg:justify-items-start lg:flex-shrink-0 gap-5`}>
               {cards}
             </div>
           )}
