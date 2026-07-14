@@ -369,10 +369,11 @@ export function SalonCard({ salon, therapists, showAge = false, areaNextToDuty =
       詳しく見る →
     </span>
   );
-  // bleedTherapists: セラピスト帯のみカード内側の左右パディング(px-5=20px)を -mx-5 で相殺し、
-  // カード端まで全幅に。スマホ(stackedLayout)だけ効かせ、PC(wideLayout)は lg:mx-0 で従来の余白を維持。
+  // bleedTherapists: セラピスト帯のみカード内側の左右パディング(px-5=20px)を負マージンで相殺し、
+  // カード端寄りに広げる。-mx-3(12px相殺)＝両端に約8pxの余白を残す。スマホ(stackedLayout)だけ効かせ、
+  // PC(wideLayout)は lg:mx-0 で従来の余白を維持。
   const therapistThumbs = therapists.length > 0 ? (
-    <div className={`${compactTherapists ? 'mb-2' : 'mb-4'}${bleedTherapists ? ' -mx-5 lg:mx-0' : ''}`}>
+    <div className={`${compactTherapists ? 'mb-2' : 'mb-4'}${bleedTherapists ? ' -mx-3 lg:mx-0' : ''}`}>
       <TherapistMiniCardsRow therapists={therapists} salonId={salon.id} showAge={showAge} compact={compactTherapists} large={largeThumbs} />
     </div>
   ) : null;
