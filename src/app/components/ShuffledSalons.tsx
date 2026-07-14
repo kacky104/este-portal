@@ -67,7 +67,7 @@ function TherapistMiniCard({ therapist, index, showAge = false, compact = false,
   return (
     <Link
       href={`/therapist/${therapist.id}`}
-      className={`relative flex-shrink-0 ${large ? 'w-[120px] h-[175px] lg:w-[92px] lg:h-[134px]' : compact ? 'w-[92px] h-[134px]' : 'w-[105px] h-[153px]'} overflow-hidden shadow-md hover:-translate-y-1 hover:shadow-xl transition-all duration-300`}
+      className={`relative flex-shrink-0 ${large ? 'w-[116px] h-[169px] lg:w-[92px] lg:h-[134px]' : compact ? 'w-[92px] h-[134px]' : 'w-[105px] h-[153px]'} overflow-hidden shadow-md hover:-translate-y-1 hover:shadow-xl transition-all duration-300`}
       onClick={e => e.stopPropagation()}
     >
       {/* background */}
@@ -174,7 +174,7 @@ function TherapistMiniCardsRow({ therapists, salonId, showAge = false, compact =
       {/* View-all button */}
       <Link
         href={`/salon/${salonId}`}
-        className={`relative flex-shrink-0 ${large ? 'w-[120px] h-[175px] lg:w-[92px] lg:h-[134px]' : compact ? 'w-[92px] h-[134px]' : 'w-[105px] h-[153px]'} rounded-2xl overflow-hidden border border-pink-200 bg-gradient-to-b from-pink-50 to-fuchsia-100 flex flex-col items-center justify-center gap-2 hover:from-pink-100 hover:to-fuchsia-200 transition-colors shadow-sm`}
+        className={`relative flex-shrink-0 ${large ? 'w-[116px] h-[169px] lg:w-[92px] lg:h-[134px]' : compact ? 'w-[92px] h-[134px]' : 'w-[105px] h-[153px]'} rounded-2xl overflow-hidden border border-pink-200 bg-gradient-to-b from-pink-50 to-fuchsia-100 flex flex-col items-center justify-center gap-2 hover:from-pink-100 hover:to-fuchsia-200 transition-colors shadow-sm`}
         onClick={e => e.stopPropagation()}
       >
         <div className="w-10 h-10 rounded-full bg-white/70 flex items-center justify-center shadow-sm">
