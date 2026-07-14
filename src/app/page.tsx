@@ -122,11 +122,13 @@ export default async function Home() {
               福岡メンズエステ密着型ポータルサイト
             </h1>
           </div>
+        </section>
 
-          {/* タイトルバー直下の検索バー：店名・セラピスト名のリアルタイム候補 */}
-          <div className="relative mt-3">
-            <HomeSearchBar />
-          </div>
+        {/* タイトルバー直下の検索バー（店名・セラピスト名のリアルタイム候補）
+            ※ 候補ドロップダウンが上の overflow-hidden セクションに切られないよう、
+              ヒーローの外の独立セクションに置く。 */}
+        <section className="bg-white pt-3 pb-4">
+          <HomeSearchBar />
         </section>
 
         {/* ─── Pickup Salons ───────────────────────────────────── */}
@@ -432,3 +434,4 @@ export default async function Home() {
     </div>
   );
 }
+
