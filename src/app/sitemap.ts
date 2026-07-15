@@ -46,6 +46,8 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     { url: `${SITE_URL}/`, lastModified: now, changeFrequency: 'daily', priority: 1 },
     { url: `${SITE_URL}/salons`, lastModified: now, changeFrequency: 'daily', priority: 0.9 },
     { url: `${SITE_URL}/diary`, lastModified: now, changeFrequency: 'daily', priority: 0.6 },
+    // 全店舗の口コミ一覧（新着順）。
+    { url: `${SITE_URL}/reviews`, lastModified: now, changeFrequency: 'daily', priority: 0.6 },
     // 出勤中一覧・新人一覧・サロン新着情報（2026-07-12 canonical 明示とセットで sitemap 掲載）。
     { url: `${SITE_URL}/working`, lastModified: now, changeFrequency: 'daily', priority: 0.6 },
     // 特徴バッジ・エリアでのセラピスト検索ページ。

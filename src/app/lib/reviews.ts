@@ -26,6 +26,8 @@ export type ApprovedReview = {
   nickname: string; // 無ければ 'ゲスト'
   therapistName?: string; // サロン単位の一覧で「○○さんへの口コミ」表示に使う。セラピスト単位の取得では付与しない。
   therapistImage?: string | null; // サロン単位の一覧で丸アイコン表示に使う。セラピスト単位の取得では付与しない。
+  salonName?: string; // 全店舗一覧（/reviews）で所属店名を表示・リンクするのに使う。他の取得では付与しない。
+  salonId?: number; // 全店舗一覧（/reviews）で /salon/[id] へのリンクに使う。
 };
 
 export type ReviewStats = {
@@ -241,6 +243,73 @@ export async function getSalonApprovedReviews(salonId: number): Promise<Approved
       therapistImage: byId.get(r.therapist_id)?.image ?? null,
     };
   });
+}
+
+// 全店舗の承認済み口コミを新着順で取得（/reviews 用）。
+// 公開ルール：非表示サロン所属・非在籍（is_active=false）セラピストの口コミは除外。
+// 各口コミに therapistName/Image＋salonName/Id を付与し、一覧で「誰・どの店」を出せるようにする。
+// created_at 降順で最新 limit 件を取得してから公開フィルタ（件数は緩めに取る）。
+export async function getAllApprovedReviews(limit = 200): Promise<ApprovedReview[]> {
+  const supabase = createPublicClient();
+
+  // 1. 最新の承認済み口コミ（新着順・上限 limit）。
+  const { data, error } = await supabase
+    .from('therapist_reviews')
+    .select(REVIEW_COLUMNS)
+    .eq('status', 'approved')
+    .order('created_at', { ascending: false })
+    .limit(limit);
+  if (error || !data || data.length === 0) return [];
+  const rows = data as unknown as ReviewRow[];
+
+  // 2. 対象セラピスト → 名前/画像/所属店（公開・在籍のみ）。非表示店/非在籍はここで落ちる。
+  const therapistIds = [...new Set(rows.map((r) => r.therapist_id))];
+  const { data: therapists } = await supabase
+    .from('therapists')
+    .select('id, name, profile_image_url, salon_id, salons!inner(name, is_hidden)')
+    .in('id', therapistIds)
+    .eq('is_active', true)
+    .eq('salons.is_hidden', false);
+  const byId = new Map<number, { name: string; image: string | null; salonId: number; salonName: string }>();
+  for (const t of therapists ?? []) {
+    const s = Array.isArray(t.salons) ? t.salons[0] : t.salons;
+    byId.set(t.id as number, {
+      name: (t.name as string) ?? '',
+      image: (t.profile_image_url as string | null) ?? null,
+      salonId: t.salon_id as number,
+      salonName: ((s as { name?: string } | null)?.name as string) ?? '',
+    });
+  }
+
+  // 3. nickname を別クエリ解決（無ければ 'ゲスト'）。
+  const userIds = [...new Set(rows.map((r) => r.user_id))];
+  const nameMap = await fetchNicknameMap(supabase, userIds);
+
+  // 4. 公開対象（byId に残った）口コミだけを組み立て（新着順は rows の順序を維持）。
+  return rows
+    .filter((r) => byId.has(r.therapist_id))
+    .map((r) => {
+      const info = byId.get(r.therapist_id)!;
+      const s = Number(r.rating_service);
+      const t = Number(r.rating_technique);
+      const rc = Number(r.rating_reception);
+      return {
+        id: String(r.id),
+        therapistId: r.therapist_id,
+        ratingService: s,
+        ratingTechnique: t,
+        ratingReception: rc,
+        overall: overallOf(s, t, rc),
+        body: r.body ?? '',
+        visitedOn: String(r.visited_on),
+        createdAt: String(r.created_at),
+        nickname: nameMap.get(r.user_id) ?? 'ゲスト',
+        therapistName: info.name,
+        therapistImage: info.image,
+        salonName: info.salonName,
+        salonId: info.salonId,
+      };
+    });
 }
 
 // 承認済み口コミからサロンの rating/review_count を計算し salons に焼き込む（キャッシュ列同期）。

@@ -1,3 +1,4 @@
+import Link from 'next/link';
 import type { ApprovedReview } from '@/app/lib/reviews';
 import { Stars } from './Stars';
 
@@ -38,7 +39,8 @@ export function ReviewList({ reviews }: { reviews: ApprovedReview[] }) {
     <ul className="space-y-5">
       {reviews.map((r) => (
         <li key={r.id} className="border-b border-slate-100 pb-5 last:border-0 last:pb-0">
-          {/* 対象セラピスト名＋丸アイコン（サロン単位の一覧のときだけ付く。セラピスト詳細では therapistName 無し＝非表示） */}
+          {/* 対象セラピスト名＋丸アイコン（サロン単位の一覧のときだけ付く。セラピスト詳細では therapistName 無し＝非表示）。
+              全店舗一覧（/reviews）では salonName が付くので、セラピスト名・店名をリンク表示する。 */}
           {r.therapistName && (
             <div className="flex items-center gap-2 mb-1">
               <span className="w-7 h-7 rounded-full overflow-hidden flex-shrink-0 bg-gradient-to-br from-pink-300 to-rose-400 flex items-center justify-center">
@@ -49,7 +51,19 @@ export function ReviewList({ reviews }: { reviews: ApprovedReview[] }) {
                   <span className="text-white text-xs font-bold">{r.therapistName.charAt(0)}</span>
                 )}
               </span>
-              <p className="text-[12px] font-bold text-pink-600">{r.therapistName}さんへの口コミ</p>
+              {r.salonName ? (
+                <p className="text-[12px] min-w-0 truncate">
+                  <Link href={`/therapist/${r.therapistId}`} className="font-bold text-pink-600 hover:underline">{r.therapistName}</Link>
+                  <span className="text-slate-400"> ・ </span>
+                  {r.salonId ? (
+                    <Link href={`/salon/${r.salonId}`} className="text-slate-500 hover:underline">{r.salonName}</Link>
+                  ) : (
+                    <span className="text-slate-500">{r.salonName}</span>
+                  )}
+                </p>
+              ) : (
+                <p className="text-[12px] font-bold text-pink-600">{r.therapistName}さんへの口コミ</p>
+              )}
             </div>
           )}
           {/* 総合星＋総合値／投稿日 */}

@@ -129,19 +129,50 @@ export default async function Home() {
               ヒーローの外の独立セクションに置く。 */}
         <section className="bg-white pt-3 pb-4">
           <HomeSearchBar />
-          {/* 特徴バッジでのセラピスト絞り込み検索ページ（/therapists）への導線。 */}
-          <div className="max-w-5xl mx-auto px-4 mt-2 text-center">
-            <Link
-              href="/therapists"
-              className="inline-flex items-center gap-1 text-sm font-medium text-pink-600 hover:text-pink-700"
-            >
-              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="flex-shrink-0">
-                <line x1="4" y1="21" x2="4" y2="14" /><line x1="4" y1="10" x2="4" y2="3" /><line x1="12" y1="21" x2="12" y2="12" /><line x1="12" y1="8" x2="12" y2="3" /><line x1="20" y1="21" x2="20" y2="16" /><line x1="20" y1="12" x2="20" y2="3" /><line x1="1" y1="14" x2="7" y2="14" /><line x1="9" y1="8" x2="15" y2="8" /><line x1="17" y1="16" x2="23" y2="16" />
-              </svg>
-              特徴からセラピストを探す
-              <span aria-hidden>→</span>
-            </Link>
-          </div>
+          {/* クイック導線：特徴で探す／写メ日記／口コミ／新人。アイコン＋ラベルの4分割行。 */}
+          <nav aria-label="クイックメニュー" className="max-w-md mx-auto px-4 mt-3">
+            <div className="grid grid-cols-4 gap-2">
+              {/* 特徴で探す → /therapists */}
+              <Link href="/therapists" className="group flex flex-col items-center gap-1.5">
+                <span className="w-12 h-12 rounded-2xl bg-pink-50 border border-pink-100 flex items-center justify-center text-pink-600 group-hover:bg-pink-100 transition-colors">
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <line x1="4" y1="21" x2="4" y2="14" /><line x1="4" y1="10" x2="4" y2="3" /><line x1="12" y1="21" x2="12" y2="12" /><line x1="12" y1="8" x2="12" y2="3" /><line x1="20" y1="21" x2="20" y2="16" /><line x1="20" y1="12" x2="20" y2="3" /><line x1="1" y1="14" x2="7" y2="14" /><line x1="9" y1="8" x2="15" y2="8" /><line x1="17" y1="16" x2="23" y2="16" />
+                  </svg>
+                </span>
+                <span className="text-[11px] font-bold text-slate-600 group-hover:text-pink-600 transition-colors">特徴で探す</span>
+              </Link>
+
+              {/* 写メ日記 → /diary */}
+              <Link href="/diary" className="group flex flex-col items-center gap-1.5">
+                <span className="w-12 h-12 rounded-2xl bg-pink-50 border border-pink-100 flex items-center justify-center text-pink-600 group-hover:bg-pink-100 transition-colors">
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z" /><circle cx="12" cy="13" r="4" />
+                  </svg>
+                </span>
+                <span className="text-[11px] font-bold text-slate-600 group-hover:text-pink-600 transition-colors">写メ日記</span>
+              </Link>
+
+              {/* 口コミ → /reviews */}
+              <Link href="/reviews" className="group flex flex-col items-center gap-1.5">
+                <span className="w-12 h-12 rounded-2xl bg-pink-50 border border-pink-100 flex items-center justify-center text-pink-600 group-hover:bg-pink-100 transition-colors">
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+                  </svg>
+                </span>
+                <span className="text-[11px] font-bold text-slate-600 group-hover:text-pink-600 transition-colors">口コミ</span>
+              </Link>
+
+              {/* 新人 → /therapist/new */}
+              <Link href="/therapist/new" className="group flex flex-col items-center gap-1.5">
+                <span className="w-12 h-12 rounded-2xl bg-pink-50 border border-pink-100 flex items-center justify-center text-pink-600 group-hover:bg-pink-100 transition-colors">
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M12 2l2.9 6.9 7.1.6-5.4 4.7 1.7 7-6.3-3.8-6.3 3.8 1.7-7L2 9.5l7.1-.6z" />
+                  </svg>
+                </span>
+                <span className="text-[11px] font-bold text-slate-600 group-hover:text-pink-600 transition-colors">新人</span>
+              </Link>
+            </div>
+          </nav>
         </section>
 
         {/* ─── Pickup Salons ───────────────────────────────────── */}
