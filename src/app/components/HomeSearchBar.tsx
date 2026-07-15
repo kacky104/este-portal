@@ -221,4 +221,14 @@ export function HomeSearchBar() {
                   )}
                 </span>
                 <span className="min-w-0">
-                  <span className="block font-bold text-sm text-slate-800 trun
+                  <span className="block font-bold text-sm text-slate-800 truncate">{t.name}</span>
+                  {t.salonName && <span className="block text-xs text-slate-400 truncate">{t.salonName}</span>}
+                </span>
+              </Link>
+            ))
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
