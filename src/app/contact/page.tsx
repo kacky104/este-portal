@@ -8,7 +8,8 @@ import { VipLetterIcon } from '@/app/components/VipLetterIcon';
 export const metadata: Metadata = {
   title: 'お問い合わせ｜フクエス',
   description: '福岡メンズエステポータル「フクエス」へのお問い合わせについてのご案内です。',
-  alternates: { canonical: '/contact' },
+  // 検索価値が低いページのため noindex（インデックス対象外なので canonical は付けない）。
+  robots: { index: false, follow: false },
 };
 
 export default function ContactPage() {
