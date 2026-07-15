@@ -245,8 +245,8 @@ export default async function Home() {
                         <HomeSearchBar />
                       </div>
                       <nav aria-label="クイックメニュー" className="max-w-md mx-auto px-4 mt-3 lg:mt-0 lg:mx-0 lg:px-0 lg:w-[420px] lg:flex-shrink-0">
-                      <div className="grid grid-cols-5 gap-2">
-                        <Link href="/therapists" className="col-span-2 flex flex-col items-center justify-center gap-0.5 bg-violet-50 border border-violet-100 text-violet-600 px-2 py-0.5 hover:bg-violet-100 transition-colors">
+                      <div className="grid grid-cols-5 gap-1.5">
+                        <Link href="/therapists" className="flex flex-col items-center justify-center gap-0.5 bg-violet-50 border border-violet-100 text-violet-600 px-2 py-0.5 hover:bg-violet-100 transition-colors">
                           <span className="text-lg leading-none" aria-hidden>💁‍♀️</span>
                           <span className="text-[11px] font-bold whitespace-nowrap leading-none">特徴で探す</span>
                         </Link>
@@ -262,6 +262,10 @@ export default async function Home() {
                           <span className="text-lg leading-none" aria-hidden>🔰</span>
                           <span className="text-[11px] font-bold whitespace-nowrap leading-none">新人</span>
                         </Link>
+                        <div className="flex flex-col items-center justify-center gap-0.5 bg-slate-50 border border-dashed border-slate-200 text-slate-400 px-2 py-0.5">
+                          <span className="text-lg leading-none" aria-hidden>＋</span>
+                          <span className="text-[11px] font-bold whitespace-nowrap leading-none">準備中</span>
+                        </div>
                       </div>
                     </nav>
                     </div>
