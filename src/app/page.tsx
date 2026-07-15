@@ -129,6 +129,19 @@ export default async function Home() {
               ヒーローの外の独立セクションに置く。 */}
         <section className="bg-white pt-3 pb-4">
           <HomeSearchBar />
+          {/* エリア・こだわりでの絞り込み検索ページ（/search）への導線。 */}
+          <div className="max-w-5xl mx-auto px-4 mt-2 text-center">
+            <Link
+              href="/search"
+              className="inline-flex items-center gap-1 text-sm font-medium text-pink-600 hover:text-pink-700"
+            >
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="flex-shrink-0">
+                <line x1="4" y1="6" x2="20" y2="6" /><line x1="7" y1="12" x2="17" y2="12" /><line x1="10" y1="18" x2="14" y2="18" />
+              </svg>
+              エリア・こだわりで探す
+              <span aria-hidden>→</span>
+            </Link>
+          </div>
         </section>
 
         {/* ─── Pickup Salons ───────────────────────────────────── */}
