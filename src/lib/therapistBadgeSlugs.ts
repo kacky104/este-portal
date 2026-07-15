@@ -63,6 +63,13 @@ export const BADGE_SLUG_LIST: string[] = BADGE_CATEGORY_ORDER.flatMap((cat) =>
   BADGES_BY_CATEGORY[cat].map((label) => BADGE_TO_SLUG[label]).filter(Boolean),
 );
 
+// 内部リンク（/therapists の「人気の特徴から探す」）に出す主要バッジ。
+// 検索需要の高い 外見・スキル・雰囲気 中心に厳選。ランディングページへの導線＝クロール/ランキング補助。
+export const POPULAR_BADGES: string[] = [
+  '癒し系', '妹系', 'お姉さん系', 'かわいい', 'スレンダー', 'モデル系',
+  '巨乳', '美脚', '新人', '女子大生', '密着施術', 'アロマ得意',
+];
+
 /** ラベル → スラッグ（未定義なら null）。 */
 export function badgeToSlug(label: string): string | null {
   return BADGE_TO_SLUG[label] ?? null;
