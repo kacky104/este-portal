@@ -48,24 +48,19 @@ export default async function AllReviewsPage() {
         {/* Heading */}
         <div className="mb-8 overflow-hidden rounded-3xl border border-pink-100 bg-gradient-to-br from-pink-50 via-rose-50 to-white shadow-sm">
           <div className="px-5 py-6 sm:px-8 sm:py-7">
-            <div className="flex items-start gap-3.5">
-              <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-pink-500 to-rose-500 text-xl shadow-sm shadow-pink-200">💬</span>
-              <div className="min-w-0">
-                <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1.5">
-                  <h1 className="text-xl sm:text-2xl font-black tracking-tight bg-gradient-to-r from-pink-600 to-rose-500 bg-clip-text text-transparent">
-                    福岡メンズエステ 口コミ一覧
-                  </h1>
-                  {reviews.length > 0 && (
-                    <span className="inline-flex items-center rounded-full border border-pink-100 bg-white/80 px-2.5 py-0.5 text-xs font-bold text-pink-600">
-                      全{reviews.length}件
-                    </span>
-                  )}
-                </div>
-                <p className="mt-2 text-xs sm:text-sm text-slate-500 leading-relaxed">
-                  福岡のメンズエステ口コミサイト『フクエス』に寄せられた口コミを新着順でチェック
-                </p>
-              </div>
+            <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1.5">
+              <h1 className="text-xl sm:text-2xl font-black tracking-tight bg-gradient-to-r from-pink-600 to-rose-500 bg-clip-text text-transparent">
+                福岡メンズエステ 口コミ一覧
+              </h1>
+              {reviews.length > 0 && (
+                <span className="inline-flex items-center rounded-full border border-pink-100 bg-white/80 px-2.5 py-0.5 text-xs font-bold text-pink-600">
+                  全{reviews.length}件
+                </span>
+              )}
             </div>
+            <p className="mt-2 text-xs sm:text-sm text-slate-500 leading-relaxed">
+              福岡のメンズエステ口コミサイト『フクエス』に寄せられた口コミを新着順でチェック
+            </p>
           </div>
         </div>
 
