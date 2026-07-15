@@ -13,9 +13,10 @@ import { DiaryPagination } from '@/components/DiaryPagination';
 const PAGE_SIZE = 32;
 
 export const metadata = {
-  title: '写メ日記 | フクエス ～福岡メンズエステポータル～',
-  description: '福岡のメンズエステサロンに在籍するセラピストたちの写メ日記一覧です。',
+  title: '福岡メンズエステの写メ日記｜フクエス',
+  description: '福岡のメンズエステ各店のセラピストが投稿する写メ日記を新着順でまとめてチェック。出勤情報やお店の雰囲気、セラピストの日常が写真でわかります。',
   alternates: { canonical: '/diary' },
+  openGraph: { title: '福岡メンズエステの写メ日記｜フクエス', url: '/diary', siteName: 'フクエス', type: 'website' },
 };
 
 // ISR：1分ごとに再生成（新着日記の鮮度優先）。cookie を読まない createPublicClient を使うため動的化されない。
@@ -89,12 +90,22 @@ export default async function DiaryListPage({
         </Link>
 
         {/* Heading */}
-        <div className="mb-8">
-          <div className="flex items-center gap-2 mb-1">
-            <span className="text-2xl">📸</span>
-            <h1 className="text-2xl font-black text-slate-900 tracking-tight">写メ日記</h1>
+        <div className="mb-8 overflow-hidden rounded-3xl border border-pink-100 bg-gradient-to-br from-pink-50 via-rose-50 to-white shadow-sm">
+          <div className="px-5 py-6 sm:px-8 sm:py-7">
+            <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1.5">
+              <h1 className="text-xl sm:text-2xl font-black tracking-tight bg-gradient-to-r from-pink-600 to-rose-500 bg-clip-text text-transparent">
+                福岡メンズエステ 写メ日記
+              </h1>
+              {(count ?? 0) > 0 && (
+                <span className="inline-flex items-center rounded-full border border-pink-100 bg-white/80 px-2.5 py-0.5 text-xs font-bold text-pink-600">
+                  全{count}件
+                </span>
+              )}
+            </div>
+            <p className="mt-2 text-xs sm:text-sm text-slate-500 leading-relaxed">
+              福岡のメンズエステ各店のセラピストが投稿する写メ日記を新着順でチェック。出勤情報やお店の雰囲気が写真でわかります。
+            </p>
           </div>
-          <p className="text-sm text-slate-500">セラピストたちの日常やお知らせをチェックしよう</p>
         </div>
 
         {/* Diary grid */}
