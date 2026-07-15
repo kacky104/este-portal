@@ -63,8 +63,9 @@ export default async function XShopsPage() {
                 )}
               </span>
             </h1>
-            <p className="mt-2 text-xs sm:text-sm text-slate-500 leading-relaxed">
-              福岡メンズエステ専用SNS「fukuX」に参加する承認店舗の一覧。フォローして、お得な最新情報などを手に入れてください。
+            {/* 説明文（fukuXの説明＋独自コンテンツ。h1直下の1本にまとめて重複を解消）。 */}
+            <p className="mt-3 text-xs sm:text-sm text-slate-600 leading-relaxed">
+              「fukuX（フクエックス）」は、福岡のメンズエステに特化した専用SNSです。ここに掲載しているのは運営が承認した店舗のみ。気になるお店をフォローすれば、割引や当日の空き状況、写メ日記などの最新情報をいち早く受け取れます。
             </p>
           </div>
         </div>
