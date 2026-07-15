@@ -417,6 +417,11 @@ export default function TherapistEditPage() {
             <span className="text-[11px] font-bold text-slate-500">{badges.length} / {MAX_BADGES} 選択中</span>
           </div>
 
+          {/* 設定を促す訴求文：検索・特徴別ページへの露出メリットを明記して設定率を上げる。 */}
+          <p className="text-[11px] text-pink-700 bg-pink-50 border border-pink-100 rounded-xl px-3 py-2 leading-relaxed">
+            設定すると「特徴からセラピストを探す」検索や特徴別ページに掲載され、お客様に見つけてもらいやすくなります。
+          </p>
+
           {BADGE_CATEGORY_ORDER.map((cat) => {
             const colors = BADGE_CATEGORY_COLORS[cat];
             const atMax = badges.length >= MAX_BADGES;
