@@ -5,7 +5,7 @@
 --   置換: HomeSearchBar の「両表記生成 + ilike」を search_salons / search_therapists RPC へ
 --   実カラム: salons(id, name, area, is_hidden)
 --            salon_images(salon_id, image_url, display_order)
---            therapists(id uuid, name, profile_image_url, salon_id, is_active)
+--            therapists(id bigint, name, profile_image_url, salon_id, is_active)
 -- =============================================================================
 
 -- 1) 拡張 -------------------------------------------------------------------
