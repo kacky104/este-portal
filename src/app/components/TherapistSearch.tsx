@@ -30,7 +30,7 @@ const CHIP_ACTIVE = 'bg-pink-600 text-white shadow-md shadow-pink-500/25';
 const CHIP_INACTIVE =
   'border border-slate-200 bg-white text-slate-600 hover:border-pink-300 hover:text-pink-600 shadow-sm';
 
-export function TherapistSearch() {
+export function TherapistSearch({ lockedBadges = [] }: { lockedBadges?: string[] } = {}) {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -122,6 +122,11 @@ export function TherapistSearch() {
     () => (searchParams.get('b') || '').split(',').map((s) => s.trim()).filter(Boolean),
     [searchParams],
   );
+  // ランディングページ等で固定するバッジ（lockedBadges）＋URL選択を AND で合成した実効フィルタ。
+  const badgeFilter = useMemo(
+    () => Array.from(new Set([...lockedBadges, ...selectedBadges])),
+    [lockedBadges.join('|'), selectedBadges], // eslint-disable-line react-hooks/exhaustive-deps
+  );
 
   const pushParams = (next: URLSearchParams) => {
     const qs = next.toString();
@@ -134,6 +139,7 @@ export function TherapistSearch() {
     pushParams(p);
   };
   const toggleBadge = (badge: string) => {
+    if (lockedBadges.includes(badge)) return; // 固定バッジは外せない
     const set = new Set(selectedBadges);
     if (set.has(badge)) set.delete(badge);
     else set.add(badge);
@@ -147,7 +153,7 @@ export function TherapistSearch() {
   // ── 絞り込み＋並び替え（今すぐ → 出勤中 → その他）。 ──
   const ordered = useMemo(() => {
     const results = list.filter((t) => {
-      if (selectedBadges.length && !selectedBadges.every((b) => t.featureBadges.includes(b))) return false;
+      if (badgeFilter.length && !badgeFilter.every((b) => t.featureBadges.includes(b))) return false;
       if (area !== ALL_AREA) {
         const info = salonAreaMap[t.salonId];
         if (!info || !salonInArea(info, area)) return false;
@@ -165,7 +171,7 @@ export function TherapistSearch() {
     const usedIds = new Set([...imasugu, ...onDuty].map((t) => t.id));
     const rest = seededShuffle(results.filter((t) => !usedIds.has(t.id)), thirtyMinSeed());
     return [...imasugu, ...onDuty, ...rest];
-  }, [list, salonAreaMap, selectedBadges, area]);
+  }, [list, salonAreaMap, badgeFilter, area]);
 
   const hasFilter = area !== ALL_AREA || selectedBadges.length > 0;
 
@@ -202,14 +208,18 @@ export function TherapistSearch() {
                 <p className="text-[11px] text-slate-400 mb-1">{BADGE_CATEGORY_LABELS[cat]}</p>
                 <div className="flex flex-wrap gap-1.5">
                   {BADGES_BY_CATEGORY[cat].map((badge) => {
-                    const active = selectedBadges.includes(badge);
+                    const active = badgeFilter.includes(badge);
+                    const locked = lockedBadges.includes(badge);
                     const colors = getBadgeColors(badge);
                     return (
                       <button
                         key={badge}
                         type="button"
                         onClick={() => toggleBadge(badge)}
-                        className="flex-shrink-0 px-3 py-1 rounded-full text-xs font-bold border transition-all"
+                        disabled={locked}
+                        aria-pressed={active}
+                        title={locked ? 'このページの固定条件です' : undefined}
+                        className={`flex-shrink-0 px-3 py-1 rounded-full text-xs font-bold border transition-all ${locked ? 'cursor-default' : ''}`}
                         style={
                           active && colors
                             ? { background: colors.fill, color: colors.text, borderColor: colors.border }

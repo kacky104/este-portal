@@ -4,6 +4,8 @@ import { fetchActiveJobsForSitemap, fetchFeatureSlugsWithActiveJobs, fetchAreaTa
 import { fetchPublishedArticlesForSitemap } from '@/app/lib/workArticles';
 import { fetchPublishedMainArticlesForSitemap } from '@/app/lib/mainArticles';
 import { jobsAreaHref, AREA_SLUGS_LIST } from '@/app/lib/areas';
+import { sanitizeBadges } from '@/lib/therapistBadges';
+import { badgeToSlug } from '@/lib/therapistBadgeSlugs';
 import { ARTICLE_CATEGORY_ORDER } from '@/app/lib/articleCategories';
 import { MAIN_ARTICLE_CATEGORY_ORDER } from '@/app/lib/mainArticleCategories';
 
@@ -20,7 +22,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   // 公開サロン／公開サロン所属セラピスト／掲載中求人を並列取得。失敗時は空配列（サイトマップは壊さない）。
   const [salonsRes, therapistsRes, jobs, featureSlugs, areaTag, dispatchJobs, columnArticles, mainColumnArticles, xProfilesRes, xPostsRes] = await Promise.all([
     supabase.from('salons').select('id').eq('is_hidden', false),
-    supabase.from('therapists').select('id, salons!inner(is_hidden)').eq('salons.is_hidden', false),
+    supabase.from('therapists').select('id, is_active, feature_badges, salons!inner(is_hidden)').eq('salons.is_hidden', false),
     fetchActiveJobsForSitemap(),
     // 求人が1件以上あるタグのみ（0件＝noindexページはsitemapに入れない）。
     fetchFeatureSlugsWithActiveJobs(),
@@ -88,6 +90,27 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     lastModified: now,
     changeFrequency: 'weekly',
     priority: 0.5,
+  }));
+
+  // 特徴バッジ別ランディングページ（/therapists/badge/[slug]）。
+  // 「中身ありのみ」方針：公開（is_active）セラピストが実際に持つバッジのスラッグだけを列挙し、
+  // 0件バッジ（＝空ページ）は sitemap に入れない（求人タグページと同じ考え方）。
+  const usedBadgeSlugs = (() => {
+    const set = new Set<string>();
+    for (const t of therapistsRes.data ?? []) {
+      if ((t as { is_active?: unknown }).is_active === false) continue;
+      for (const label of sanitizeBadges((t as { feature_badges?: unknown }).feature_badges)) {
+        const slug = badgeToSlug(label);
+        if (slug) set.add(slug);
+      }
+    }
+    return [...set];
+  })();
+  const therapistBadgeEntries: MetadataRoute.Sitemap = usedBadgeSlugs.map((slug) => ({
+    url: `${SITE_URL}/therapists/badge/${slug}`,
+    lastModified: now,
+    changeFrequency: 'daily',
+    priority: 0.6,
   }));
 
   const jobEntries: MetadataRoute.Sitemap = jobs.map((j) => ({
@@ -197,6 +220,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     ...areaPageEntries,
     ...salonEntries,
     ...therapistEntries,
+    ...therapistBadgeEntries,
     ...jobEntries,
     ...tagEntries,
     ...areaEntries,
