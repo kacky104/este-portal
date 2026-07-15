@@ -250,7 +250,7 @@ export default async function Home() {
                           <span className="text-lg leading-none" aria-hidden>💁‍♀️</span>
                           <span className="text-[11px] font-bold whitespace-nowrap leading-none">特徴で探す</span>
                         </Link>
-                        <Link href="/diary" className="flex flex-col items-center justify-center gap-0.5 bg-sky-50 border border-sky-100 text-sky-600 px-2 py-0.5 hover:bg-sky-100 transition-colors">
+                        <Link href="/diary" className="flex flex-col items-center justify-center gap-0.5 bg-pink-50 border border-pink-100 text-pink-600 px-2 py-0.5 hover:bg-pink-100 transition-colors">
                           <span className="text-lg leading-none" aria-hidden>📷</span>
                           <span className="text-[11px] font-bold whitespace-nowrap leading-none">写メ日記</span>
                         </Link>
@@ -262,7 +262,7 @@ export default async function Home() {
                           <span className="text-lg leading-none" aria-hidden>🔰</span>
                           <span className="text-[11px] font-bold whitespace-nowrap leading-none">新人</span>
                         </Link>
-                        <Link href="/x-shops" className="flex flex-col items-center justify-center gap-0.5 bg-rose-50 border border-rose-100 text-rose-600 px-2 py-0.5 hover:bg-rose-100 transition-colors">
+                        <Link href="/x-shops" className="flex flex-col items-center justify-center gap-0.5 bg-sky-50 border border-sky-100 text-sky-600 px-2 py-0.5 hover:bg-sky-100 transition-colors">
                           <span className="text-lg leading-none" aria-hidden>📣</span>
                           <span className="text-[11px] font-bold whitespace-nowrap leading-none">SNS</span>
                         </Link>
