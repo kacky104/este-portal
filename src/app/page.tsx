@@ -262,10 +262,10 @@ export default async function Home() {
                           <span className="text-lg leading-none" aria-hidden>🔰</span>
                           <span className="text-[11px] font-bold whitespace-nowrap leading-none">新人</span>
                         </Link>
-                        <div className="flex flex-col items-center justify-center gap-0.5 bg-slate-50 border border-dashed border-slate-200 text-slate-400 px-2 py-0.5">
-                          <span className="text-lg leading-none" aria-hidden>＋</span>
-                          <span className="text-[11px] font-bold whitespace-nowrap leading-none">準備中</span>
-                        </div>
+                        <Link href="/x-shops" className="flex flex-col items-center justify-center gap-0.5 bg-rose-50 border border-rose-100 text-rose-600 px-2 py-0.5 hover:bg-rose-100 transition-colors">
+                          <span className="text-lg leading-none" aria-hidden>📣</span>
+                          <span className="text-[11px] font-bold whitespace-nowrap leading-none">SNS</span>
+                        </Link>
                       </div>
                     </nav>
                     </div>
