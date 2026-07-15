@@ -581,8 +581,8 @@ export function ShuffledSalons({ salons, areas, showAge = false, areaNextToDuty 
 
   /* ── Area filter tabs ── */
   const tabs = (
-    // 地域バッジ列と直下（検索バー等）の間の余白。mb-8→mb-4 で半分に。
-    <div className="mb-4">
+    // 地域バッジ列と直下（検索バー等）の間の余白。mb-8→mb-4→mb-2 とさらに半分に。
+    <div className="mb-2">
       <div
         className="flex flex-wrap justify-center gap-1 pb-2 sm:flex-nowrap sm:justify-start sm:gap-2 sm:overflow-x-auto"
         style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' } as React.CSSProperties}
