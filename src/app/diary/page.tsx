@@ -10,7 +10,7 @@ import { DiaryTherapistAvatar } from '@/components/DiaryTherapistAvatar';
 import { DiaryNewBadge } from '@/components/DiaryNewBadge';
 import { DiaryPagination } from '@/components/DiaryPagination';
 
-const PAGE_SIZE = 32;
+const PAGE_SIZE = 50;
 
 export const metadata = {
   title: '福岡メンズエステの写メ日記｜フクエス',
