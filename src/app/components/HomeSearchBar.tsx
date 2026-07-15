@@ -10,112 +10,62 @@ import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { createClient } from '@/app/lib/supabase/client';
+import { toKana, isRomaji } from 'wanakana';
 
 const sb = createClient();
 const LIMIT = 12; // 候補の最大数（お店・セラピスト各タブごと）
 
 type Tab = 'salon' | 'therapist';
 
-// ilike のワイルドカード（% _ \）をエスケープし、入力を「部分一致の literal」として扱う。
-function escapeLike(s: string): string {
-  return s.replace(/([\\%_])/g, '\\$1');
-}
-
-// ひらがな⇄カタカナを相互ヒットさせるための検索バリアント生成。
-// 1) NFKC 正規化（半角カナ ﾗﾋﾞﾘﾝｽ→全角 ラビリンス、全角英数→半角 等）
-// 2) 全部カタカナ化した版と、全部ひらがな化した版の2パターンを返す（重複は除去）。
-// これで「さら」でも「サラ」でもヒットするようになる。
-function kanaVariants(raw: string): string[] {
-  const base = raw.normalize('NFKC');
-  const toKata = (s: string) =>
-    s.replace(/[ぁ-ゖ]/g, (c) => String.fromCharCode(c.charCodeAt(0) + 0x60));
-  const toHira = (s: string) =>
-    s.replace(/[ァ-ヶ]/g, (c) => String.fromCharCode(c.charCodeAt(0) - 0x60));
-  return Array.from(new Set([toKata(base), toHira(base)]));
-}
-
 type SalonHit = { id: number; name: string; area: string; imageUrl: string | null };
 type TherapistHit = { id: string; name: string; salonName: string; imageUrl: string | null };
 
-// 店名を部分一致で検索。非表示サロンは除外。サムネイル（salon_images 先頭）も付与する。
+// 入力の前処理：ローマ字はカナへ寄せる（"sara"→さら）。店名/セラピ名がカナ主体なら決定的に一致する。
+// ひらがな⇄カタカナ・濁点・長音・半角カナ の揺れ吸収は DB 側の search_normalize に一本化したため、
+// クライアントでの表記バリアント生成や like エスケープは不要になった。
+function normalizeInput(raw: string): string {
+  const s = raw.trim();
+  return isRomaji(s) ? toKana(s) : s;
+}
+
+// 店名を部分一致で検索（RPC: search_salons）。非表示サロン除外・サムネイル/エリア付きはDB側で処理。
 async function searchSalons(kw: string): Promise<SalonHit[]> {
-  // ひらがな版・カタカナ版それぞれで検索し、id で重複除去してマージ。
-  const variants = kanaVariants(kw);
-  const results = await Promise.all(
-    variants.map((v) =>
-      sb
-        .from('salons')
-        .select('id, name, area')
-        .ilike('name', `%${escapeLike(v)}%`)
-        .eq('is_hidden', false)
-        .order('name', { ascending: true })
-        .limit(LIMIT)
-    )
-  );
-  const map = new Map<number, { id: number; name: string; area: string }>();
-  for (const res of results) {
-    for (const row of (res.data ?? []) as { id: number; name: string; area: string }[]) {
-      if (!map.has(row.id)) map.set(row.id, row);
-    }
+  const { data, error } = await sb.rpc('search_salons', {
+    q: normalizeInput(kw),
+    max_results: LIMIT,
+  });
+  if (error) {
+    console.error(error);
+    return [];
   }
-  const rows = [...map.values()].slice(0, LIMIT);
-  if (rows.length === 0) return [];
-
-  // サムネイル：salon_images を display_order 昇順で引き、各サロンの先頭1枚を採用。
-  const ids = rows.map((r) => r.id);
-  const { data: imgs } = await sb
-    .from('salon_images')
-    .select('salon_id, image_url, display_order')
-    .in('salon_id', ids)
-    .order('display_order', { ascending: true });
-  const imageBySalon = new Map<number, string>();
-  for (const img of (imgs ?? []) as { salon_id: number; image_url: string | null }[]) {
-    const sid = Number(img.salon_id);
-    if (!imageBySalon.has(sid) && img.image_url) imageBySalon.set(sid, img.image_url);
-  }
-
-  return rows.map((r) => ({
+  return (
+    (data ?? []) as { id: number; name: string | null; area: string | null; image_url: string | null }[]
+  ).map((r) => ({
     id: r.id,
     name: r.name ?? '',
     area: r.area ?? '',
-    imageUrl: imageBySalon.get(r.id) ?? null,
+    imageUrl: r.image_url ?? null,
   }));
 }
 
-// セラピスト名を部分一致で検索。非アクティブ・非表示サロン所属は除外。所属店名も取得。
+// セラピスト名を部分一致で検索（RPC: search_therapists）。非アクティブ・非表示店所属の除外・所属店名取得はDB側。
 async function searchTherapists(kw: string): Promise<TherapistHit[]> {
-  // ひらがな版・カタカナ版それぞれで検索し、id で重複除去してマージ。
-  const variants = kanaVariants(kw);
-  const results = await Promise.all(
-    variants.map((v) =>
-      sb
-        .from('therapists')
-        .select('id, name, profile_image_url, is_active, salons!inner(name, is_hidden)')
-        .ilike('name', `%${escapeLike(v)}%`)
-        .eq('is_active', true)
-        .eq('salons.is_hidden', false)
-        .order('name', { ascending: true })
-        .limit(LIMIT)
-    )
-  );
-  const map = new Map<string, Record<string, unknown>>();
-  for (const res of results) {
-    for (const r of (res.data ?? []) as Record<string, unknown>[]) {
-      const key = String(r.id);
-      if (!map.has(key)) map.set(key, r);
-    }
-  }
-  const rows = [...map.values()].slice(0, LIMIT);
-  return rows.map((r) => {
-    const salon = r.salons as unknown as { name?: string } | { name?: string }[] | null;
-    const salonName = Array.isArray(salon) ? (salon[0]?.name ?? '') : (salon?.name ?? '');
-    return {
-      id: String(r.id),
-      name: (r.name as string) ?? '',
-      salonName,
-      imageUrl: (r.profile_image_url as string | null) ?? null,
-    };
+  const { data, error } = await sb.rpc('search_therapists', {
+    q: normalizeInput(kw),
+    max_results: LIMIT,
   });
+  if (error) {
+    console.error(error);
+    return [];
+  }
+  return (
+    (data ?? []) as { id: string; name: string | null; profile_image_url: string | null; salon_name: string | null }[]
+  ).map((r) => ({
+    id: r.id,
+    name: r.name ?? '',
+    salonName: r.salon_name ?? '',
+    imageUrl: r.profile_image_url ?? null,
+  }));
 }
 
 export function HomeSearchBar() {
@@ -271,14 +221,4 @@ export function HomeSearchBar() {
                   )}
                 </span>
                 <span className="min-w-0">
-                  <span className="block font-bold text-sm text-slate-800 truncate">{t.name}</span>
-                  {t.salonName && <span className="block text-xs text-slate-400 truncate">{t.salonName}</span>}
-                </span>
-              </Link>
-            ))
-          )}
-        </div>
-      )}
-    </div>
-  );
-}
+                  <span className="block font-bold text-sm text-slate-800 trun
