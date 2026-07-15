@@ -17,6 +17,7 @@ import {
   BADGE_CATEGORY_ORDER,
   BADGES_BY_CATEGORY,
   BADGE_CATEGORY_LABELS,
+  BADGE_CATEGORY_COLORS,
   getBadgeColors,
 } from '@/lib/therapistBadges';
 import { isImasuguLiveCamel, imasuguUntilCamel } from '@/lib/imasugu';
@@ -178,10 +179,13 @@ export function TherapistSearch({ lockedBadges = [] }: { lockedBadges?: string[]
   return (
     <div>
       {/* ── 絞り込みパネル ── */}
-      <div className="rounded-2xl border border-slate-200 bg-white shadow-sm p-4 sm:p-5 mb-6">
+      <div className="rounded-2xl border border-pink-100 bg-white shadow-sm p-4 sm:p-5 mb-6">
         {/* エリア */}
         <div className="mb-4">
-          <p className="text-xs font-bold text-slate-500 mb-2">エリア</p>
+          <p className="flex items-center gap-1.5 text-xs font-bold text-slate-700 mb-2">
+            <span className="inline-block h-3.5 w-1 rounded-full bg-gradient-to-b from-pink-400 to-rose-500" />
+            エリア
+          </p>
           <div className="flex flex-wrap gap-1.5">
             {AREA_ORDER.map((a) => {
               const active = area === a;
@@ -201,38 +205,47 @@ export function TherapistSearch({ lockedBadges = [] }: { lockedBadges?: string[]
 
         {/* 特徴バッジ（カテゴリ別・複数選択＝AND） */}
         <div>
-          <p className="text-xs font-bold text-slate-500 mb-2">特徴バッジ（すべてを満たすセラピストを表示）</p>
-          <div className="space-y-2.5">
-            {BADGE_CATEGORY_ORDER.map((cat) => (
-              <div key={cat}>
-                <p className="text-[11px] text-slate-400 mb-1">{BADGE_CATEGORY_LABELS[cat]}</p>
-                <div className="flex flex-wrap gap-1.5">
-                  {BADGES_BY_CATEGORY[cat].map((badge) => {
-                    const active = badgeFilter.includes(badge);
-                    const locked = lockedBadges.includes(badge);
-                    const colors = getBadgeColors(badge);
-                    return (
-                      <button
-                        key={badge}
-                        type="button"
-                        onClick={() => toggleBadge(badge)}
-                        disabled={locked}
-                        aria-pressed={active}
-                        title={locked ? 'このページの固定条件です' : undefined}
-                        className={`flex-shrink-0 px-3 py-1 rounded-full text-xs font-bold border transition-all ${locked ? 'cursor-default' : ''}`}
-                        style={
-                          active && colors
-                            ? { background: colors.fill, color: colors.text, borderColor: colors.border }
-                            : { background: '#fff', color: '#64748b', borderColor: '#e2e8f0' }
-                        }
-                      >
-                        {badge}
-                      </button>
-                    );
-                  })}
+          <p className="flex items-center gap-1.5 text-xs font-bold text-slate-700 mb-3">
+            <span className="inline-block h-3.5 w-1 rounded-full bg-gradient-to-b from-pink-400 to-rose-500" />
+            特徴バッジ<span className="font-normal text-slate-400">（すべてを満たすセラピストを表示）</span>
+          </p>
+          <div className="space-y-3">
+            {BADGE_CATEGORY_ORDER.map((cat) => {
+              const catColor = BADGE_CATEGORY_COLORS[cat];
+              return (
+                <div key={cat} className="rounded-xl p-2.5" style={{ background: `${catColor.fill}55` }}>
+                  <p className="flex items-center gap-1.5 text-[11px] font-bold mb-1.5" style={{ color: catColor.text }}>
+                    <span className="inline-block w-1.5 h-1.5 rounded-full" style={{ background: catColor.text }} />
+                    {BADGE_CATEGORY_LABELS[cat]}
+                  </p>
+                  <div className="flex flex-wrap gap-1.5">
+                    {BADGES_BY_CATEGORY[cat].map((badge) => {
+                      const active = badgeFilter.includes(badge);
+                      const locked = lockedBadges.includes(badge);
+                      const colors = getBadgeColors(badge) ?? { fill: '#f1f5f9', text: '#64748b', border: '#e2e8f0' };
+                      return (
+                        <button
+                          key={badge}
+                          type="button"
+                          onClick={() => toggleBadge(badge)}
+                          disabled={locked}
+                          aria-pressed={active}
+                          title={locked ? 'このページの固定条件です' : undefined}
+                          className={`flex-shrink-0 px-3 py-1 rounded-full text-xs font-bold border transition-all ${active ? 'shadow-sm' : 'hover:brightness-95'} ${locked ? 'cursor-default' : ''}`}
+                          style={
+                            active
+                              ? { background: colors.text, color: '#fff', borderColor: colors.text }
+                              : { background: '#fff', color: colors.text, borderColor: colors.border }
+                          }
+                        >
+                          {active && '✓ '}{badge}
+                        </button>
+                      );
+                    })}
+                  </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </div>
       </div>

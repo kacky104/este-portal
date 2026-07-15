@@ -29,9 +29,15 @@ export default function TherapistsPage() {
       </header>
 
       <main className="max-w-5xl mx-auto px-4 py-6">
-        <div className="flex items-center gap-3 mb-5">
-          <div className="w-1 h-6 rounded-full bg-gradient-to-b from-pink-400 to-rose-500" />
-          <h1 className="text-xl font-bold text-slate-900">特徴からセラピストを探す</h1>
+        <div className="mb-5 overflow-hidden rounded-3xl border border-pink-100 bg-gradient-to-br from-pink-50 via-rose-50 to-white shadow-sm">
+          <div className="px-5 py-5 sm:px-8 sm:py-6">
+            <h1 className="text-lg sm:text-2xl font-black tracking-tight bg-gradient-to-r from-pink-600 to-rose-500 bg-clip-text text-transparent">
+              特徴からセラピストを探す
+            </h1>
+            <p className="mt-1.5 text-xs sm:text-sm text-slate-500 leading-relaxed">
+              癒し系・妹系・密着施術など、好みの特徴やエリアで福岡のメンズエステセラピストを絞り込み検索。
+            </p>
+          </div>
         </div>
 
         {/* 人気の特徴から探す：バッジ別ランディングページ（/therapists/badge/[slug]）への内部リンク。
