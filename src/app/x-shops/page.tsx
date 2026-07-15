@@ -52,7 +52,7 @@ export default async function XShopsPage() {
           <div className="px-5 py-6 sm:px-8 sm:py-7">
             <div className="flex items-center gap-2">
               <h1 className="text-base sm:text-2xl font-black tracking-tight bg-gradient-to-r from-pink-600 to-rose-500 bg-clip-text text-transparent">
-                fukuX～フクエックス～掲載店舗一覧
+                fukuX～フクエックス～承認店舗
               </h1>
               {shops.length > 0 && (
                 <span className="shrink-0 inline-flex items-center rounded-full border border-pink-100 bg-white/80 px-2.5 py-0.5 text-xs font-bold text-pink-600">
