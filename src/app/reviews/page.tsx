@@ -48,12 +48,12 @@ export default async function AllReviewsPage() {
         {/* Heading */}
         <div className="mb-8 overflow-hidden rounded-3xl border border-pink-100 bg-gradient-to-br from-pink-50 via-rose-50 to-white shadow-sm">
           <div className="px-5 py-6 sm:px-8 sm:py-7">
-            <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1.5">
-              <h1 className="text-xl sm:text-2xl font-black tracking-tight bg-gradient-to-r from-pink-600 to-rose-500 bg-clip-text text-transparent">
+            <div className="flex items-center gap-2">
+              <h1 className="whitespace-nowrap text-lg sm:text-2xl font-black tracking-tight bg-gradient-to-r from-pink-600 to-rose-500 bg-clip-text text-transparent">
                 福岡メンズエステ 口コミ一覧
               </h1>
               {reviews.length > 0 && (
-                <span className="inline-flex items-center rounded-full border border-pink-100 bg-white/80 px-2.5 py-0.5 text-xs font-bold text-pink-600">
+                <span className="shrink-0 inline-flex items-center rounded-full border border-pink-100 bg-white/80 px-2.5 py-0.5 text-xs font-bold text-pink-600">
                   全{reviews.length}件
                 </span>
               )}
