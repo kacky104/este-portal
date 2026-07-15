@@ -124,43 +124,6 @@ export default async function Home() {
           </div>
         </section>
 
-        {/* タイトルバー直下の検索バー（店名・セラピスト名のリアルタイム候補）
-            ※ 候補ドロップダウンが上の overflow-hidden セクションに切られないよう、
-              ヒーローの外の独立セクションに置く。 */}
-        <section className="bg-white pt-3 pb-4">
-          <HomeSearchBar />
-          {/* クイック導線：特徴で探す／写メ日記／口コミ／新人。
-              アイコンとラベルを1つのボックス内に収め、絵の下に文字を表示（縦並び）。
-              各ボックスは中身に合わせて横幅可変（「特徴で探す」はテキストが長いぶん横に広がる）。 */}
-          <nav aria-label="クイックメニュー" className="max-w-md mx-auto px-4 mt-3">
-            {/* 横幅を5分割：特徴で探す=2枠、写メ日記/口コミ/新人=各1枠。 */}
-            <div className="grid grid-cols-5 gap-2">
-              {/* 特徴で探す → /therapists（2枠ぶん） */}
-              <Link href="/therapists" className="col-span-2 flex flex-col items-center justify-center gap-0.5 bg-violet-50 border border-violet-100 text-violet-600 px-2 py-0.5 hover:bg-violet-100 transition-colors">
-                <span className="text-lg leading-none" aria-hidden>💁‍♀️</span>
-                <span className="text-[11px] font-bold whitespace-nowrap leading-none">特徴で探す</span>
-              </Link>
-
-              {/* 写メ日記 → /diary */}
-              <Link href="/diary" className="flex flex-col items-center justify-center gap-0.5 bg-sky-50 border border-sky-100 text-sky-600 px-2 py-0.5 hover:bg-sky-100 transition-colors">
-                <span className="text-lg leading-none" aria-hidden>📷</span>
-                <span className="text-[11px] font-bold whitespace-nowrap leading-none">写メ日記</span>
-              </Link>
-
-              {/* 口コミ → /reviews */}
-              <Link href="/reviews" className="flex flex-col items-center justify-center gap-0.5 bg-amber-50 border border-amber-100 text-amber-600 px-2 py-0.5 hover:bg-amber-100 transition-colors">
-                <span className="text-lg leading-none" aria-hidden>💬</span>
-                <span className="text-[11px] font-bold whitespace-nowrap leading-none">口コミ</span>
-              </Link>
-
-              {/* 新人 → /therapist/new */}
-              <Link href="/therapist/new" className="flex flex-col items-center justify-center gap-0.5 bg-emerald-50 border border-emerald-100 text-emerald-600 px-2 py-0.5 hover:bg-emerald-100 transition-colors">
-                <span className="text-lg leading-none" aria-hidden>🔰</span>
-                <span className="text-[11px] font-bold whitespace-nowrap leading-none">新人</span>
-              </Link>
-            </div>
-          </nav>
-        </section>
 
         {/* ─── Pickup Salons ───────────────────────────────────── */}
         {featuredSalons.length > 0 && (
@@ -274,6 +237,30 @@ export default async function Home() {
               ]}
               heading={
                 <>
+                  {/* 店名・セラピスト名のリアルタイム検索＋クイック導線。エリアタブの直下に配置。 */}
+                  <div className="bg-white pt-1 pb-4 mb-2">
+                    <HomeSearchBar />
+                    <nav aria-label="クイックメニュー" className="max-w-md mx-auto px-4 mt-3">
+                      <div className="grid grid-cols-5 gap-2">
+                        <Link href="/therapists" className="col-span-2 flex flex-col items-center justify-center gap-0.5 bg-violet-50 border border-violet-100 text-violet-600 px-2 py-0.5 hover:bg-violet-100 transition-colors">
+                          <span className="text-lg leading-none" aria-hidden>💁‍♀️</span>
+                          <span className="text-[11px] font-bold whitespace-nowrap leading-none">特徴で探す</span>
+                        </Link>
+                        <Link href="/diary" className="flex flex-col items-center justify-center gap-0.5 bg-sky-50 border border-sky-100 text-sky-600 px-2 py-0.5 hover:bg-sky-100 transition-colors">
+                          <span className="text-lg leading-none" aria-hidden>📷</span>
+                          <span className="text-[11px] font-bold whitespace-nowrap leading-none">写メ日記</span>
+                        </Link>
+                        <Link href="/reviews" className="flex flex-col items-center justify-center gap-0.5 bg-amber-50 border border-amber-100 text-amber-600 px-2 py-0.5 hover:bg-amber-100 transition-colors">
+                          <span className="text-lg leading-none" aria-hidden>💬</span>
+                          <span className="text-[11px] font-bold whitespace-nowrap leading-none">口コミ</span>
+                        </Link>
+                        <Link href="/therapist/new" className="flex flex-col items-center justify-center gap-0.5 bg-emerald-50 border border-emerald-100 text-emerald-600 px-2 py-0.5 hover:bg-emerald-100 transition-colors">
+                          <span className="text-lg leading-none" aria-hidden>🔰</span>
+                          <span className="text-[11px] font-bold whitespace-nowrap leading-none">新人</span>
+                        </Link>
+                      </div>
+                    </nav>
+                  </div>
                   {/* バナー縦幅 py-1・下余白 mb-1 はサロン新着情報と統一の圧縮のまま。
                       エリアページと同方式：タイトルバー自体を summary にしたアコーディオンで、
                       クリックで福岡市の紹介文（SSR済み＝閉じていてもSEO評価される）を開閉。初期は閉。
