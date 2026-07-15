@@ -239,8 +239,12 @@ export default async function Home() {
                 <>
                   {/* 店名・セラピスト名のリアルタイム検索＋クイック導線。エリアタブの直下に配置。 */}
                   <div className="bg-white pt-1 pb-4 mb-2">
-                    <HomeSearchBar />
-                    <nav aria-label="クイックメニュー" className="max-w-md mx-auto px-4 mt-3">
+                    {/* PC(lg)は「アイコン行＝左／検索バー＝右」の1行。モバイルは縦積み（検索→アイコン）。 */}
+                    <div className="flex flex-col lg:flex-row-reverse lg:items-center lg:gap-4">
+                      <div className="lg:flex-1 lg:min-w-0">
+                        <HomeSearchBar />
+                      </div>
+                      <nav aria-label="クイックメニュー" className="max-w-md mx-auto px-4 mt-3 lg:mt-0 lg:mx-0 lg:px-0 lg:w-[420px] lg:flex-shrink-0">
                       <div className="grid grid-cols-5 gap-2">
                         <Link href="/therapists" className="col-span-2 flex flex-col items-center justify-center gap-0.5 bg-violet-50 border border-violet-100 text-violet-600 px-2 py-0.5 hover:bg-violet-100 transition-colors">
                           <span className="text-lg leading-none" aria-hidden>💁‍♀️</span>
@@ -260,6 +264,7 @@ export default async function Home() {
                         </Link>
                       </div>
                     </nav>
+                    </div>
                   </div>
                   {/* バナー縦幅 py-1・下余白 mb-1 はサロン新着情報と統一の圧縮のまま。
                       エリアページと同方式：タイトルバー自体を summary にしたアコーディオンで、
