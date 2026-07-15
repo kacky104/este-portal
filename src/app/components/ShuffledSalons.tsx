@@ -612,7 +612,9 @@ export function ShuffledSalons({ salons, areas, showAge = false, areaNextToDuty 
   // 本体の既存セクション見出し（「出勤中のセラピスト」等）と同一マークアップ：
   // 左のグラデ縦バー ＋ 標準色（text-slate-900）のタイトル。フクエス本体のTOP/地域ページのみ表示。
   const areaSectionTitle = showAreaTitle ? (
-    <div className="flex items-center gap-3 mb-4">
+    // スマホは親コンテナが px-1(4px) のため、見出しだけ pl-3 で +12px し、
+    // 「出勤中のセラピスト」（px-4=16px）と左端を揃える。PC(lg)は親が px-4 なので pl-0。
+    <div className="flex items-center gap-3 mb-4 pl-3 lg:pl-0">
       <div className="w-1 h-6 rounded-full bg-gradient-to-b from-pink-400 to-rose-500" />
       <h2 className="text-xl font-bold text-slate-900">
         エリアから探す
