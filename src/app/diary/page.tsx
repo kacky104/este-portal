@@ -6,6 +6,7 @@ import { AccountMenu } from '@/app/components/AccountMenu';
 import { NotificationBell } from '@/app/components/NotificationBell';
 import { VipLetterIcon } from '@/app/components/VipLetterIcon';
 import { formatDiaryDate } from '@/lib/diaryDate';
+import { DiaryTherapistAvatar } from '@/components/DiaryTherapistAvatar';
 import { DiaryNewBadge } from '@/components/DiaryNewBadge';
 import { DiaryPagination } from '@/components/DiaryPagination';
 
@@ -20,9 +21,10 @@ export const metadata = {
 // ISR：1分ごとに再生成（新着日記の鮮度優先）。cookie を読まない createPublicClient を使うため動的化されない。
 export const revalidate = 60;
 
+type TherapistRef = { name: string | null; profile_image_url: string | null };
 type DiaryRow = {
-  id: number; images: string[] | null; title: string | null; content: string | null; created_at: string;
-  therapists: { name: string | null } | { name: string | null }[] | null;
+  id: number; images: string[] | null; title: string | null; created_at: string;
+  therapists: TherapistRef | TherapistRef[] | null;
   salons: { name: string | null } | { name: string | null }[] | null;
 };
 
@@ -41,7 +43,7 @@ export default async function DiaryListPage({
   const { data, count } = await supabase
     .from('diary_posts')
     // salons!inner＋is_hidden=false で、非表示サロンの投稿を公開一覧から除外する（多重防御）。
-    .select('id, images, title, content, created_at, therapists(name), salons!inner(name)', { count: 'exact' })
+    .select('id, images, title, created_at, therapists(name, profile_image_url), salons!inner(name)', { count: 'exact' })
     .eq('salons.is_hidden', false)
     .order('created_at', { ascending: false })
     .range(offset, offset + PAGE_SIZE - 1);
@@ -55,9 +57,9 @@ export default async function DiaryListPage({
       id: r.id,
       image: (r.images ?? [])[0] ?? null,
       title: r.title ?? '',
-      content: r.content ?? '',
       createdAt: r.created_at,
       therapistName: t?.name ?? '',
+      therapistImage: t?.profile_image_url ?? null,
       salonName: s?.name ?? '',
     };
   });
@@ -101,36 +103,60 @@ export default async function DiaryListPage({
             日記はまだありません ✿
           </div>
         ) : (
-          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-[3px] sm:gap-3">
             {diaries.map((diary) => (
-              <Link key={diary.id} href={`/diary/${diary.id}`} className="group bg-white border border-pink-50 shadow-sm hover:border-pink-200 hover:-translate-y-0.5 transition-all duration-300 overflow-hidden flex flex-col">
-                {/* 画像 */}
-                <div className="h-40 bg-slate-100 relative">
+              <Link key={diary.id} href={`/diary/${diary.id}`} className="group bg-white border border-slate-100 shadow-sm overflow-hidden hover:shadow-md transition-shadow">
+                <div className="aspect-square bg-slate-100 relative">
                   {diary.image ? (
                     // eslint-disable-next-line @next/next/no-img-element
-                    <img src={diary.image} alt={diary.therapistName} className="absolute inset-0 w-full h-full object-cover" />
+                    <img src={diary.image} alt={diary.title || diary.therapistName} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
                   ) : (
-                    <div className="absolute inset-0 flex items-center justify-center bg-gradient-to-br from-pink-300 to-rose-400 text-white font-bold text-2xl">
+                    <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-pink-300 to-rose-400 text-white font-bold text-2xl">
                       {diary.therapistName.charAt(0)}
                     </div>
                   )}
+                  {/* 店名バッジ（ピンク文字・白背景）。全店舗一覧なので所属店を出す。 */}
                   {diary.salonName && (
-                    <span className="absolute top-2 right-2 text-[10px] font-semibold px-2 py-0.5 rounded-full bg-white/90 text-pink-600">
+                    <span className="absolute top-1.5 left-1.5 z-10 max-w-[calc(100%-12px)] truncate text-[10px] font-semibold px-2 py-0.5 rounded-full bg-white/90 text-pink-600 shadow-sm">
                       {diary.salonName}
                     </span>
                   )}
-                </div>
-
-                {/* Body */}
-                <div className="p-4 flex-1 flex flex-col gap-2">
-                  <div className="flex items-center gap-1.5">
-                    <span className="font-bold text-sm text-slate-900">{diary.therapistName}</span>
-                    <span className="text-[10px] text-slate-400">{formatDiaryDate(diary.createdAt)}</span>
-                    <DiaryNewBadge iso={diary.createdAt} />
+                  {/* スマホのみ：画像内オーバーレイ（下部スクリム＋白文字）。sm以上は非表示。 */}
+                  <div className="sm:hidden absolute inset-x-0 bottom-0 px-2 pt-6 pb-2 bg-gradient-to-t from-black/70 via-black/25 to-transparent">
+                    <div className="flex items-start gap-1.5">
+                      <DiaryTherapistAvatar src={diary.therapistImage} name={diary.therapistName} size={28} />
+                      <div className="min-w-0 flex-1">
+                        <p className="flex items-baseline gap-1 min-w-0" style={{ textShadow: '0 1px 2px rgba(0,0,0,0.6)' }}>
+                          <span className="text-[10px] font-bold text-white truncate">{diary.therapistName}</span>
+                          <span className="flex-shrink-0 text-[10px] text-white/85">{formatDiaryDate(diary.createdAt)}</span>
+                          <DiaryNewBadge iso={diary.createdAt} />
+                        </p>
+                        {diary.title && (
+                          <h2 className="text-[11px] font-bold text-white line-clamp-2 mt-0.5 break-all" style={{ textShadow: '0 1px 2px rgba(0,0,0,0.6)' }}>
+                            {diary.title}
+                          </h2>
+                        )}
+                      </div>
+                    </div>
                   </div>
-                  {diary.title && <h2 className="font-bold text-sm text-slate-800 line-clamp-1">{diary.title}</h2>}
-                  {diary.content && <p className="text-[11px] text-slate-500 leading-relaxed line-clamp-3 flex-1">{diary.content}</p>}
-                  <span className="text-[10px] text-pink-500 font-semibold group-hover:underline mt-1">続きを読む →</span>
+                </div>
+                {/* sm以上：画像下にテキスト（スクリムなし）。スマホでは非表示。 */}
+                <div className="p-2.5 hidden sm:block">
+                  <div className="flex items-start gap-2">
+                    <DiaryTherapistAvatar src={diary.therapistImage} name={diary.therapistName} size={32} />
+                    <div className="min-w-0 flex-1">
+                      <p className="flex items-baseline gap-1.5 min-w-0">
+                        <span className="text-[11px] text-pink-600 font-bold truncate">{diary.therapistName}</span>
+                        <span className="flex-shrink-0" style={{ fontSize: '11px', color: '#999' }}>{formatDiaryDate(diary.createdAt)}</span>
+                        <DiaryNewBadge iso={diary.createdAt} />
+                      </p>
+                      {diary.title && (
+                        <h2 className="text-sm font-bold line-clamp-2 mt-0.5 break-all" style={{ background: 'linear-gradient(to right, #ec4899, #f97316)', WebkitBackgroundClip: 'text', backgroundClip: 'text', WebkitTextFillColor: 'transparent', color: 'transparent' }}>
+                          {diary.title}
+                        </h2>
+                      )}
+                    </div>
+                  </div>
                 </div>
               </Link>
             ))}
