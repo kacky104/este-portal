@@ -14,7 +14,7 @@ export const metadata: Metadata = {
   title: '福岡メンズエステの口コミ一覧｜フクエス',
   description: '福岡のメンズエステに寄せられた口コミを新着順でまとめてチェック。接客・施術・受付の評価とレビューを店舗横断で確認できます。',
   alternates: { canonical: '/reviews' },
-  openGraph: { title: '福岡メンズエステの口コミ一覧｜フクエス', url: '/reviews', siteName: 'フクエス', type: 'website' },
+  openGraph: { title: '福岡メンズエステの口コミ一覧｜フクエス', description: '福岡のメンズエステに寄せられた口コミを新着順でまとめてチェック。接客・施術・受付の評価とレビューを店舗横断で確認できます。', url: '/reviews', siteName: 'フクエス', type: 'website' },
 };
 
 // ISR：10分ごとに再生成（口コミ承認時は /api/revalidate で個別無効化される想定・一覧はゆるめでOK）。

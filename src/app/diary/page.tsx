@@ -16,7 +16,7 @@ export const metadata = {
   title: '福岡メンズエステの写メ日記｜フクエス',
   description: '福岡のメンズエステ各店のセラピストが投稿する写メ日記を新着順でまとめてチェック。出勤情報やお店の雰囲気、セラピストの日常が写真でわかります。',
   alternates: { canonical: '/diary' },
-  openGraph: { title: '福岡メンズエステの写メ日記｜フクエス', url: '/diary', siteName: 'フクエス', type: 'website' },
+  openGraph: { title: '福岡メンズエステの写メ日記｜フクエス', description: '福岡のメンズエステ各店のセラピストが投稿する写メ日記を新着順でまとめてチェック。出勤情報やお店の雰囲気、セラピストの日常が写真でわかります。', url: '/diary', siteName: 'フクエス', type: 'website' },
 };
 
 // ISR：1分ごとに再生成（新着日記の鮮度優先）。cookie を読まない createPublicClient を使うため動的化されない。
@@ -40,7 +40,7 @@ export default async function DiaryListPage({
   const offset = (page - 1) * PAGE_SIZE;
 
   const supabase = createPublicClient();
-  // range で1ページ32件取得＋count: 'exact' で総件数を同時取得（ページ数算出に使う）。
+  // range で1ページ50件取得＋count: 'exact' で総件数を同時取得（ページ数算出に使う）。
   const { data, count } = await supabase
     .from('diary_posts')
     // salons!inner＋is_hidden=false で、非表示サロンの投稿を公開一覧から除外する（多重防御）。
