@@ -4,7 +4,13 @@ import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { Logo } from '@/app/components/Logo';
 import { TherapistSearch } from '@/app/components/TherapistSearch';
-import { slugToBadge, BADGE_SLUG_LIST } from '@/lib/therapistBadgeSlugs';
+import { slugToBadge, badgeToSlug, BADGE_SLUG_LIST } from '@/lib/therapistBadgeSlugs';
+import {
+  getBadgeCategory,
+  getBadgeColors,
+  BADGES_BY_CATEGORY,
+  BADGE_CATEGORY_LABELS,
+} from '@/lib/therapistBadges';
 
 // ISR：10分ごとに再生成（/therapists と同じ方針）。
 export const revalidate = 600;
@@ -35,6 +41,10 @@ export default async function BadgeLandingPage({ params }: { params: Promise<{ s
   const label = slugToBadge(slug);
   if (!label) notFound();
 
+  // 同カテゴリの他バッジ（相互リンク＝バッジ・クラスタのSEO強化）。
+  const category = getBadgeCategory(label);
+  const siblings = category ? BADGES_BY_CATEGORY[category].filter((b) => b !== label) : [];
+
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900">
       {/* シンプルヘッダー */}
@@ -59,6 +69,30 @@ export default async function BadgeLandingPage({ params }: { params: Promise<{ s
         <p className="text-sm text-slate-500 mb-5">
           福岡のメンズエステで「{label}」が特徴のセラピストを表示中。エリアや他の特徴を足してさらに絞り込めます。
         </p>
+
+        {/* 関連する特徴（同カテゴリの他バッジ）への内部リンク。バッジ同士を相互リンクでクラスタ化しSEOを強化。 */}
+        {category && siblings.length > 0 && (
+          <nav aria-label="関連する特徴" className="mb-6">
+            <p className="text-xs font-bold text-slate-500 mb-2">同じ「{BADGE_CATEGORY_LABELS[category]}」の特徴</p>
+            <div className="flex flex-wrap gap-1.5">
+              {siblings.map((b) => {
+                const s = badgeToSlug(b);
+                if (!s) return null;
+                const c = getBadgeColors(b);
+                return (
+                  <Link
+                    key={b}
+                    href={`/therapists/badge/${s}`}
+                    className="px-3 py-1 rounded-full text-xs font-bold border hover:opacity-80 transition-opacity"
+                    style={c ? { background: c.fill, color: c.text, borderColor: c.border } : undefined}
+                  >
+                    {b}
+                  </Link>
+                );
+              })}
+            </div>
+          </nav>
+        )}
 
         {/* useSearchParams を使うため Suspense 境界で包む。lockedBadges でこのバッジを固定。 */}
         <Suspense fallback={<div className="py-20 text-center text-slate-400 text-sm">読み込み中…</div>}>
