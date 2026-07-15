@@ -83,7 +83,7 @@ $$;
 
 -- セラピスト検索: 非アクティブ・非表示サロン所属を除外、所属店名も返す
 create or replace function public.search_therapists(q text, max_results int default 12)
-returns table (id uuid, name text, profile_image_url text, salon_name text)
+returns table (id text, name text, profile_image_url text, salon_name text)
 language sql
 stable
 parallel safe
@@ -91,7 +91,7 @@ security definer
 set search_path = public
 as $$
   select
-    t.id,
+    t.id::text,
     t.name,
     t.profile_image_url,
     s.name as salon_name
