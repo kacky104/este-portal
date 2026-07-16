@@ -336,9 +336,9 @@ export default function AdminDashboard() {
       {/* ── タブナビゲーション（mypage と同系統のチップ・本体/求人の2タブ。URLクエリ ?tab= と同期） ── */}
       <div className="max-w-5xl mx-auto px-3 pt-4 flex flex-wrap justify-center gap-1.5">
         {([
-          ['main', '本体'],
-          ['jobs', '求人'],
           ['salon', '店舗管理'],
+          ['main', 'オプション'],
+          ['jobs', '求人'],
         ] as const).map(([key, label]) => {
           const selected = activeTab === key;
           return (
