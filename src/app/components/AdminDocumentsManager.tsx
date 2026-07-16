@@ -53,6 +53,8 @@ export default function AdminDocumentsManager({ onToast }: { onToast: (msg: stri
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
+  // 種類サブタブ（PDF / WORD）。アップロードは両タブ共通で、一覧のみ絞り込む。
+  const [subTab, setSubTab] = useState<'pdf' | 'word'>('pdf');
   const inputRef = useRef<HTMLInputElement>(null);
 
   const fetchList = useCallback(async () => {
@@ -98,6 +100,8 @@ export default function AdminDocumentsManager({ onToast }: { onToast: (msg: stri
         continue;
       }
       onToast(`${file.name} をアップロードしました`);
+      const k = ACCEPT_MIMES[file.type] ?? (ext === 'pdf' ? 'pdf' : 'word');
+      setSubTab(k);
     }
     setBusy(false);
     await fetchList();
@@ -158,17 +162,44 @@ export default function AdminDocumentsManager({ onToast }: { onToast: (msg: stri
         onChange={handleUpload}
       />
 
+      {/* ── 種類サブタブ（PDF / WORD・件数付き） ── */}
+      <div className="flex gap-1.5 mb-4">
+        {([
+          ['pdf', 'PDF', docs.filter(d => kindOf(d) === 'pdf').length],
+          ['word', 'WORD', docs.filter(d => kindOf(d) === 'word').length],
+        ] as const).map(([key, label, count]) => {
+          const selected = subTab === key;
+          return (
+            <button
+              key={key}
+              onClick={() => setSubTab(key)}
+              aria-pressed={selected}
+              className={`inline-flex items-center gap-1 px-4 py-1.5 rounded-full border text-[11px] font-bold transition-colors ${
+                selected
+                  ? 'bg-pink-50 text-pink-600 border-pink-300'
+                  : 'bg-white text-slate-400 border-slate-200 hover:text-slate-600 hover:border-slate-300'
+              }`}
+            >
+              {label}
+              <span className={`text-[10px] rounded-full px-1.5 py-px font-bold ${selected ? 'bg-pink-100 text-pink-600' : 'bg-slate-100 text-slate-500'}`}>
+                {count}
+              </span>
+            </button>
+          );
+        })}
+      </div>
+
       {loading ? (
         <p className="text-xs text-slate-400 text-center py-6">読み込み中...</p>
       ) : errorMsg ? (
         <div className="rounded-xl bg-rose-50 border border-rose-100 px-4 py-3 text-xs text-rose-500 leading-relaxed">⚠ {errorMsg}</div>
-      ) : docs.length === 0 ? (
+      ) : docs.filter(d => kindOf(d) === subTab).length === 0 ? (
         <div className="rounded-2xl border border-slate-100 bg-slate-50/50 p-8 text-center text-xs text-slate-400">
-          書類がありません。「ファイルをアップロード」から追加してください。
+          {subTab === 'pdf' ? 'PDF' : 'Word'}の書類がありません。「ファイルをアップロード」から追加してください。
         </div>
       ) : (
         <div className="space-y-2">
-          {docs.map(doc => {
+          {docs.filter(d => kindOf(d) === subTab).map(doc => {
             const kind = kindOf(doc);
             return (
               <div key={doc.id} className="rounded-2xl border border-slate-100 bg-slate-50/40 p-3.5 flex items-center gap-3 flex-wrap">
