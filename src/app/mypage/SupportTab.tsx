@@ -43,6 +43,7 @@ type OptionBanner = {
   title: string;
   description: string | null;
   price: number | null; // 円。null は「応相談」表示。
+  stock: number | null; // 残り枠数。null=枠表示なし / 0=売り切れ / ≥1=残りN枠。
 };
 
 function formatDateJST(iso: string): string {
@@ -113,7 +114,7 @@ export function SupportTab({
           .order('created_at', { ascending: true }),
         supabase
           .from('option_banners')
-          .select('id, title, description, price')
+          .select('id, title, description, price, stock')
           .eq('is_active', true)
           .order('display_order', { ascending: true }),
       ]);
@@ -179,6 +180,7 @@ export function SupportTab({
   // オプション商品の申込：新テーブルは作らず、既存の問い合わせ経路（owner_inquiries＋運営メール通知）に
   // 「どの商品を申し込んだか」を件名・本文に載せて送る（submitOwnerInquiry を流用）。送信後は履歴を再取得。
   const handleApply = async (p: OptionBanner) => {
+    if (p.stock === 0) { onToast('この商品は売り切れです'); return; }
     const priceText = p.price == null ? '応相談' : `¥${p.price.toLocaleString()}`;
     if (!window.confirm(`「${p.title}」を申し込みますか？\n運営に申込内容が送信され、折り返しご連絡します。`)) return;
     setApplyingId(p.id);
@@ -420,11 +422,20 @@ export function SupportTab({
           <p className="text-xs text-slate-400">現在お申し込みいただけるオプションはありません。</p>
         ) : (
           <div className="space-y-3">
-            {optionBanners.map((p) => (
+            {optionBanners.map((p) => {
+              const soldOut = p.stock === 0;
+              return (
               <div key={p.id} className="rounded-2xl border border-slate-100 bg-slate-50/60 p-4">
                 <div className="flex items-start justify-between gap-3 flex-wrap">
                   <div className="min-w-0 flex-1">
-                    <h3 className="text-sm font-bold text-slate-800 break-words">{p.title}</h3>
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <h3 className="text-sm font-bold text-slate-800 break-words">{p.title}</h3>
+                      {soldOut ? (
+                        <span className="text-[10px] font-black px-2 py-0.5 rounded-full bg-slate-200 text-slate-500">売り切れ</span>
+                      ) : p.stock != null ? (
+                        <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-pink-50 text-pink-600 border border-pink-200">残り{p.stock}枠</span>
+                      ) : null}
+                    </div>
                     {p.description && (
                       <p className="text-xs text-slate-600 leading-relaxed whitespace-pre-wrap break-words mt-1">{p.description}</p>
                     )}
@@ -435,14 +446,15 @@ export function SupportTab({
                   <button
                     type="button"
                     onClick={() => handleApply(p)}
-                    disabled={applyingId === p.id}
+                    disabled={applyingId === p.id || soldOut}
                     className="flex-shrink-0 px-5 py-2.5 rounded-xl bg-pink-600 text-white text-sm font-bold hover:bg-pink-500 transition-colors disabled:opacity-40 disabled:cursor-not-allowed shadow-sm shadow-pink-500/20"
                   >
-                    {applyingId === p.id ? '送信中…' : '申込'}
+                    {soldOut ? '売り切れ' : applyingId === p.id ? '送信中…' : '申込'}
                   </button>
                 </div>
               </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </div>

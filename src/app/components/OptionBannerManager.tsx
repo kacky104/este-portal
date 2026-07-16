@@ -14,6 +14,7 @@ type Product = {
   title: string;
   description: string | null;
   price: number | null;
+  stock: number | null;
   display_order: number;
   is_active: boolean;
 };
@@ -28,14 +29,15 @@ export default function OptionBannerManager({ onToast }: { onToast: (msg: string
   const [addTitle, setAddTitle] = useState('');
   const [addDesc, setAddDesc] = useState('');
   const [addPrice, setAddPrice] = useState('');
+  const [addStock, setAddStock] = useState('');
   // 各行の編集ドラフト（「保存」で確定）
-  const [drafts, setDrafts] = useState<Record<string, { title: string; description: string; price: string }>>({});
+  const [drafts, setDrafts] = useState<Record<string, { title: string; description: string; price: string; stock: string }>>({});
 
   const fetchList = useCallback(async () => {
     setLoading(true);
     const { data, error } = await supabase
       .from('option_banners')
-      .select('id, title, description, price, display_order, is_active')
+      .select('id, title, description, price, stock, display_order, is_active')
       .order('display_order', { ascending: true });
     if (error) {
       setErrorMsg('option_banners テーブルの読み込みに失敗しました。マイグレーションを適用したか確認してください。');
@@ -49,6 +51,7 @@ export default function OptionBannerManager({ onToast }: { onToast: (msg: string
       title: p.title,
       description: p.description ?? '',
       price: p.price == null ? '' : String(p.price),
+      stock: p.stock == null ? '' : String(p.stock),
     }])));
     setLoading(false);
   }, [supabase]);
@@ -70,6 +73,7 @@ export default function OptionBannerManager({ onToast }: { onToast: (msg: string
       title,
       description: addDesc.trim() || null,
       price: parsePrice(addPrice),
+      stock: parsePrice(addStock),
       display_order: nextOrder,
       is_active: true,
     });
@@ -80,7 +84,7 @@ export default function OptionBannerManager({ onToast }: { onToast: (msg: string
         : `追加に失敗しました: ${error.message}`);
       return;
     }
-    setAddTitle(''); setAddDesc(''); setAddPrice('');
+    setAddTitle(''); setAddDesc(''); setAddPrice(''); setAddStock('');
     await fetchList();
     onToast('オプション商品を追加しました');
   };
@@ -92,14 +96,15 @@ export default function OptionBannerManager({ onToast }: { onToast: (msg: string
     if (title === '') { onToast('商品名を入力してください'); return; }
     const description = d.description.trim() || null;
     const price = parsePrice(d.price);
+    const stock = parsePrice(d.stock);
     setBusy(true);
     const { error } = await supabase
       .from('option_banners')
-      .update({ title, description, price, updated_at: new Date().toISOString() })
+      .update({ title, description, price, stock, updated_at: new Date().toISOString() })
       .eq('id', id);
     setBusy(false);
     if (error) { onToast(`保存に失敗しました: ${error.message}`); return; }
-    setItems((prev) => prev.map((p) => (p.id === id ? { ...p, title, description, price } : p)));
+    setItems((prev) => prev.map((p) => (p.id === id ? { ...p, title, description, price, stock } : p)));
     onToast('保存しました');
   };
 
@@ -158,6 +163,7 @@ export default function OptionBannerManager({ onToast }: { onToast: (msg: string
       <div className="rounded-2xl border border-slate-100 bg-slate-50/40 p-4 mb-4 space-y-2">
         <input className={inputClass} placeholder="商品名（例: トップバナー掲載）" value={addTitle} maxLength={100} onChange={(e) => setAddTitle(e.target.value)} />
         <textarea className={inputClass} placeholder="説明（任意）" value={addDesc} maxLength={1000} rows={2} onChange={(e) => setAddDesc(e.target.value)} />
+        <input className={inputClass} placeholder="残り枠数（空欄=枠表示なし／0=売り切れ）" value={addStock} inputMode="numeric" onChange={(e) => setAddStock(e.target.value)} />
         <div className="flex gap-2">
           <input className={`flex-1 min-w-0 ${inputClass}`} placeholder="価格（円・数字のみ／空欄=応相談）" value={addPrice} inputMode="numeric" onChange={(e) => setAddPrice(e.target.value)} />
           <button
@@ -182,7 +188,7 @@ export default function OptionBannerManager({ onToast }: { onToast: (msg: string
       ) : (
         <div className="space-y-3">
           {items.map((p, i) => {
-            const d = drafts[p.id] ?? { title: p.title, description: p.description ?? '', price: p.price == null ? '' : String(p.price) };
+            const d = drafts[p.id] ?? { title: p.title, description: p.description ?? '', price: p.price == null ? '' : String(p.price), stock: p.stock == null ? '' : String(p.stock) };
             return (
               <div key={p.id} className="rounded-2xl border border-slate-100 bg-slate-50/40 p-4 space-y-2">
                 <div className="flex items-center gap-2 flex-wrap">
@@ -207,6 +213,10 @@ export default function OptionBannerManager({ onToast }: { onToast: (msg: string
                 <div>
                   <label className="text-[10px] font-bold text-slate-400 block mb-0.5">価格（円・空欄=応相談）</label>
                   <input className={inputClass} value={d.price} inputMode="numeric" onChange={(e) => setDrafts((prev) => ({ ...prev, [p.id]: { ...d, price: e.target.value } }))} />
+                </div>
+                <div>
+                  <label className="text-[10px] font-bold text-slate-400 block mb-0.5">残り枠数（空欄=枠表示なし／0=売り切れ）</label>
+                  <input className={inputClass} value={d.stock} inputMode="numeric" onChange={(e) => setDrafts((prev) => ({ ...prev, [p.id]: { ...d, stock: e.target.value } }))} />
                 </div>
 
                 <div className="flex items-center gap-2 flex-wrap pt-1">
