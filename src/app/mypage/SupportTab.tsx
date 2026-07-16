@@ -38,6 +38,13 @@ type OwnerFaq = {
   answer: string;
 };
 
+type OptionBanner = {
+  id: string;
+  title: string;
+  description: string | null;
+  price: number | null; // 円。null は「応相談」表示。
+};
+
 function formatDateJST(iso: string): string {
   const d = new Date(iso);
   if (Number.isNaN(d.getTime())) return '';
@@ -57,12 +64,15 @@ export function SupportTab({
   onUnreadChange: (count: number) => void;
   onToast: (msg: string) => void;
 }) {
-  const [subTab, setSubTab] = useState<'notices' | 'inquiry' | 'faq' | 'banner'>('notices');
+  const [subTab, setSubTab] = useState<'notices' | 'inquiry' | 'faq' | 'banner' | 'option'>('notices');
   const [notices, setNotices] = useState<OwnerNotice[]>([]);
   const [readIds, setReadIds] = useState<Set<string>>(new Set());
   const [noticesLoading, setNoticesLoading] = useState(true);
   const [inquiries, setInquiries] = useState<OwnerInquiry[]>([]);
   const [faqs, setFaqs] = useState<OwnerFaq[]>([]);
+  const [optionBanners, setOptionBanners] = useState<OptionBanner[]>([]);
+  // 申込中の商品ID（ボタン二度押し防止）。
+  const [applyingId, setApplyingId] = useState<string | null>(null);
   // 開いているFAQ（アコーディオン・複数開閉可）。
   const [openFaqIds, setOpenFaqIds] = useState<Set<string>>(new Set());
   const [subject, setSubject] = useState('');
@@ -81,7 +91,7 @@ export function SupportTab({
       setNoticesLoading(true);
       const sixMonthsAgo = new Date();
       sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
-      const [{ data: noticeData }, { data: readData }, { data: inquiryData }, { data: faqData }] = await Promise.all([
+      const [{ data: noticeData }, { data: readData }, { data: inquiryData }, { data: faqData }, { data: optionData }] = await Promise.all([
         supabase
           .from('owner_notices')
           .select('id, salon_id, title, body, created_at')
@@ -101,11 +111,17 @@ export function SupportTab({
           .select('id, question, answer')
           .order('sort_order', { ascending: true })
           .order('created_at', { ascending: true }),
+        supabase
+          .from('option_banners')
+          .select('id, title, description, price')
+          .eq('is_active', true)
+          .order('display_order', { ascending: true }),
       ]);
       setNotices((noticeData ?? []) as OwnerNotice[]);
       setReadIds(new Set((readData ?? []).map(r => String(r.notice_id))));
       setInquiries((inquiryData ?? []) as OwnerInquiry[]);
       setFaqs((faqData ?? []) as OwnerFaq[]);
+      setOptionBanners((optionData ?? []) as OptionBanner[]);
       setNoticesLoading(false);
     })();
   }, [salonId]);
@@ -160,6 +176,41 @@ export function SupportTab({
     }
   };
 
+  // オプション商品の申込：新テーブルは作らず、既存の問い合わせ経路（owner_inquiries＋運営メール通知）に
+  // 「どの商品を申し込んだか」を件名・本文に載せて送る（submitOwnerInquiry を流用）。送信後は履歴を再取得。
+  const handleApply = async (p: OptionBanner) => {
+    const priceText = p.price == null ? '応相談' : `¥${p.price.toLocaleString()}`;
+    if (!window.confirm(`「${p.title}」を申し込みますか？\n運営に申込内容が送信され、折り返しご連絡します。`)) return;
+    setApplyingId(p.id);
+    try {
+      const res = await submitOwnerInquiry({
+        subject: `【オプション申込】${p.title}`.slice(0, 100),
+        body: [
+          '以下のオプションを申し込みます。',
+          '',
+          `商品: ${p.title}`,
+          `料金: ${priceText}`,
+          p.description ? `\n${p.description}` : '',
+          '',
+          '※「オプション申込」から送信されました。',
+        ].join('\n'),
+      });
+      if (!res.ok) { onToast(res.error ?? '申込の送信に失敗しました'); return; }
+      onToast('申込を送信しました。運営より折り返しご連絡します');
+      // 送信履歴（問い合わせ一覧）に反映。
+      if (salonId != null) {
+        const { data } = await supabase
+          .from('owner_inquiries')
+          .select('id, subject, body, status, created_at')
+          .eq('salon_id', salonId)
+          .order('created_at', { ascending: false });
+        setInquiries((data ?? []) as OwnerInquiry[]);
+      }
+    } finally {
+      setApplyingId(null);
+    }
+  };
+
   const inputClass = 'w-full rounded-xl border border-slate-200 px-3 py-2 text-sm text-slate-700 focus:outline-none focus:border-pink-300 focus:ring-2 focus:ring-pink-100';
 
   const toggleFaq = (id: string) => {
@@ -179,6 +230,7 @@ export function SupportTab({
           ['inquiry', '運営に問い合わせ'],
           ['faq',     'よくある質問'],
           ['banner',  'リンクバナー特典'],
+          ['option',  'オプション申込'],
         ] as const).map(([key, label]) => {
           const selected = subTab === key;
           return (
@@ -354,6 +406,45 @@ export function SupportTab({
       {/* ── リンクバナー特典（バナー素材・タグ・特典適用状況） ── */}
       <div className={subTab === 'banner' ? '' : 'hidden'}>
         <BannerPerkPanel salonId={salonId} />
+      </div>
+
+      {/* ── オプション申込（option_banners・公開中を表示順で・各「申込」→ owner_inquiries へ送信） ── */}
+      <div className={`bg-white rounded-3xl border border-slate-100 shadow-sm p-5 space-y-4 ${subTab === 'option' ? '' : 'hidden'}`}>
+        <h2 className="text-sm font-black text-slate-700">オプション申込</h2>
+        <p className="text-[11px] text-slate-400 leading-relaxed">
+          ご希望のオプションの「申込」ボタンを押すと、運営に申込内容が届きます。折り返しご連絡のうえ、詳細をご案内します。
+        </p>
+        {noticesLoading ? (
+          <p className="text-xs text-slate-400">読み込み中…</p>
+        ) : optionBanners.length === 0 ? (
+          <p className="text-xs text-slate-400">現在お申し込みいただけるオプションはありません。</p>
+        ) : (
+          <div className="space-y-3">
+            {optionBanners.map((p) => (
+              <div key={p.id} className="rounded-2xl border border-slate-100 bg-slate-50/60 p-4">
+                <div className="flex items-start justify-between gap-3 flex-wrap">
+                  <div className="min-w-0 flex-1">
+                    <h3 className="text-sm font-bold text-slate-800 break-words">{p.title}</h3>
+                    {p.description && (
+                      <p className="text-xs text-slate-600 leading-relaxed whitespace-pre-wrap break-words mt-1">{p.description}</p>
+                    )}
+                    <p className="text-sm font-black text-pink-600 mt-2">
+                      {p.price == null ? '応相談' : `¥${p.price.toLocaleString()}`}
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => handleApply(p)}
+                    disabled={applyingId === p.id}
+                    className="flex-shrink-0 px-5 py-2.5 rounded-xl bg-pink-600 text-white text-sm font-bold hover:bg-pink-500 transition-colors disabled:opacity-40 disabled:cursor-not-allowed shadow-sm shadow-pink-500/20"
+                  >
+                    {applyingId === p.id ? '送信中…' : '申込'}
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );
