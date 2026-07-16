@@ -308,6 +308,12 @@ export default function AdminDashboard() {
           </div>
           <div className="flex items-center gap-4">
             <Link
+              href="/moderation"
+              className="text-xs text-slate-400 hover:text-pink-600 font-medium transition-colors"
+            >
+              モデレーション
+            </Link>
+            <Link
               href="/"
               target="_blank"
               rel="noopener noreferrer"
