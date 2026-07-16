@@ -229,16 +229,24 @@ export default function SavedPage() {
                 </p>
               ) : (
                 <>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  {therapists.map((t, i) => (
-                    <GridCard key={t.id} therapist={t} index={i} showSaveButton saveButtonPos="card-right" largeImage />
-                  ))}
-                </div>
-                {pickupBanners.length > 0 && (
-                  <div className="mt-4">
-                    <TherapistPickupBanner banners={pickupBanners} />
+                  {/* 先頭5枚 → ピックアップ枠 → 残り。5枚未満なら全カードの下にピックアップ枠。 */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    {therapists.slice(0, 5).map((t, i) => (
+                      <GridCard key={t.id} therapist={t} index={i} showSaveButton saveButtonPos="card-right" largeImage />
+                    ))}
                   </div>
-                )}
+                  {pickupBanners.length > 0 && (
+                    <div className="mt-4">
+                      <TherapistPickupBanner banners={pickupBanners} />
+                    </div>
+                  )}
+                  {therapists.length > 5 && (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-3">
+                      {therapists.slice(5).map((t, i) => (
+                        <GridCard key={t.id} therapist={t} index={i + 5} showSaveButton saveButtonPos="card-right" largeImage />
+                      ))}
+                    </div>
+                  )}
                 </>
               )
             )}
