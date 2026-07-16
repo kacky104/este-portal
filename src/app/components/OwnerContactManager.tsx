@@ -166,6 +166,27 @@ export default function OwnerContactManager({
     }
   };
 
+  // お問い合わせを削除（admin は owner_inquiries を for all で削除可）。取り消し不可のため確認する。
+  const deleteInquiry = async (q: OwnerInquiry) => {
+    if (!confirm('このお問い合わせを削除しますか？\nこの操作は取り消せません。')) return;
+    setBusyInquiryId(q.id);
+    try {
+      const { data: deleted, error } = await supabase.from('owner_inquiries').delete().eq('id', q.id).select('id');
+      if (error) {
+        onToast(`削除に失敗しました: ${error.message}`);
+        return;
+      }
+      if (!deleted || deleted.length === 0) {
+        onToast('削除できませんでした（権限エラーの可能性があります）');
+        return;
+      }
+      setInquiries(prev => prev.filter(x => x.id !== q.id));
+      onToast('お問い合わせを削除しました');
+    } finally {
+      setBusyInquiryId(null);
+    }
+  };
+
   // ── FAQ 操作 ──
   const handleAddFaq = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -354,6 +375,13 @@ export default function OwnerContactManager({
                     className="ml-auto flex-shrink-0 text-[11px] font-bold text-slate-400 hover:text-pink-600 disabled:opacity-40 transition-colors"
                   >
                     {busyInquiryId === q.id ? '更新中…' : q.status === 'open' ? '対応済みにする' : '未対応に戻す'}
+                  </button>
+                  <button
+                    onClick={() => deleteInquiry(q)}
+                    disabled={busyInquiryId === q.id}
+                    className="flex-shrink-0 text-[11px] font-bold text-rose-400 hover:text-rose-500 disabled:opacity-40 transition-colors"
+                  >
+                    削除
                   </button>
                 </div>
                 <p className="text-xs font-bold text-slate-700">{q.subject}</p>
