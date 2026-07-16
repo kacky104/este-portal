@@ -353,6 +353,9 @@ export default function OwnerContactManager({
             </span>
           )}
         </h3>
+        <p className="text-[11px] text-amber-600 bg-amber-50 border border-amber-100 rounded-lg px-3 py-2">
+          ※ オーナー側には「対応履歴は3ヶ月後に消去されます」と案内しています。原則、送信から3ヶ月経過するまでは削除しないでください。
+        </p>
         {inquiries.length === 0 ? (
           <p className="text-xs text-slate-400">お問い合わせはまだありません。</p>
         ) : (
