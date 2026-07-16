@@ -25,7 +25,6 @@ export function SalonIntakeForm({ token }: { token: string }) {
   const [phone, setPhone] = useState('');
   const [hours, setHours] = useState('');
   const [closedDays, setClosedDays] = useState('');
-  const [priceCourses, setPriceCourses] = useState('');
   const [description, setDescription] = useState('');
   const [officialUrl, setOfficialUrl] = useState('');
   const [contactName, setContactName] = useState('');
@@ -47,7 +46,7 @@ export function SalonIntakeForm({ token }: { token: string }) {
     setError('');
     const res = await submitSalonIntake(token, {
       salonName, area, area2: '', dispatch, address, access, phone, hours, closedDays,
-      priceCourses, description, paymentMethods: '', officialUrl,
+      priceCourses: '', description, paymentMethods: '', officialUrl,
       contactName, contactEmail, note, photoUrls: [],
     });
     setSending(false);
@@ -84,7 +83,7 @@ export function SalonIntakeForm({ token }: { token: string }) {
               <option key={a} value={a}>{a}</option>
             ))}
           </select>
-          <p className="text-[10px] text-slate-400 mt-1">第2エリアも掲載したい場合は別途お問い合わせください。</p>
+          <p className="text-[10px] text-slate-400 mt-1">第2エリアも掲載したい場合は別途オプションになります。その際はお問い合わせください。</p>
         </div>
         <div>
           <label className={LABEL}>出張の有無{REQ}</label>
@@ -122,11 +121,6 @@ export function SalonIntakeForm({ token }: { token: string }) {
         <div>
           <label className={LABEL}>定休日</label>
           <input type="text" value={closedDays} onChange={(e) => setClosedDays(e.target.value)} maxLength={100} placeholder="例: 年中無休 / 毎週月曜" className={INPUT} />
-        </div>
-
-        <div className="sm:col-span-2">
-          <label className={LABEL}>料金・コース</label>
-          <textarea value={priceCourses} onChange={(e) => setPriceCourses(e.target.value)} maxLength={2000} rows={5} placeholder={'例:\n60分 10,000円\n90分 14,000円\n120分 18,000円\n指名料 1,000円 / 交通費 実費'} className={INPUT} />
         </div>
 
         <div className="sm:col-span-2">
