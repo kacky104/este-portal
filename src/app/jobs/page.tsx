@@ -79,9 +79,12 @@ export default async function JobsPage() {
         <FeatureBrowse />
       </div>
 
-      {/* 注目の求人（オーナー設定のバナー画像）。おすすめスライダーと既存求人一覧の間に配置。0件時は非表示。
-          /jobsトップのみ見出しを「福岡のセラピスト求人」に差し替え（他ページで使う場合の既定は「注目の求人」）。 */}
-      <JobHeroBanners banners={heroBanners} title="福岡のセラピスト求人" />
+      {/* 注目の求人（オーナー設定のバナー画像）。おすすめスライダーと既存求人一覧の間に配置。
+          見出し(h1)はバナー0件でも常に描画し、バナー画像のみ0件なら省略（コンポーネント側で分岐）。
+          /jobsトップのみ見出しを「福岡メンズエステのセラピスト求人」に差し替え（他ページで使う場合の既定は「注目の求人」）。
+          h1 に主要KW「福岡メンズエステ」を含める（/reviews・/diary・/x-shops と同方針）。16字のため
+          JobHeroBanners の段階縮小（15〜20字＝SPのみ text-base・nowrap）で1行に収まる。 */}
+      <JobHeroBanners banners={heroBanners} title="福岡メンズエステのセラピスト求人" />
 
       {/* パンくず：フクエスワーク › 求人一覧（本体トップへの導線はヘッダー/フッターに任せる） */}
       <nav aria-label="パンくずリスト" className="flex items-center gap-1.5 mb-6" style={{ fontSize: '13px' }}>

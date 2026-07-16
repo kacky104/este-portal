@@ -44,7 +44,7 @@ export default async function JobDispatchPage() {
 
   // メイン求人一覧のみ30分バケットでシード付きシャッフル（おすすめ pickupJobs は対象外）。
   const shuffledJobs = shuffleJobs(jobs, (j) => (j.jobBoost ? JOB_BOOST_WEIGHT : 1));
-  // 出張専門の求人からバナーカードを派生（画像あり・先頭最大10件・30分バケットでシャッフル）。
+  // 出張専門の求人からバナーカードを派生（画像あり・30分バケットでシャッフル→先頭最大 HERO_BANNER_LIMIT=30 件）。
   const heroBanners = deriveHeroBanners(jobs);
 
   return (
@@ -71,7 +71,8 @@ export default async function JobDispatchPage() {
           見出しは「出張専門のおすすめ求人」。トップの並びと同順で一覧の上に置く。 */}
       <PickupSlider jobs={pickupJobs} title="出張専門のおすすめ求人" />
 
-      {/* バナーカードブロック（キーワード見出し h1・一覧の直上）。バナー0件なら非表示。 */}
+      {/* バナーカードブロック（キーワード見出し h1・一覧の直上）。見出し(h1)はバナー0件でも常に描画し、
+          バナー画像のみ0件なら省略（コンポーネント側で分岐）。 */}
       <JobHeroBanners banners={heroBanners} title="出張専門のセラピスト求人" />
 
       {/* 特徴タグ絞り込み（/jobs/tag/[slug]）＋他エリアへの回遊。出張は掛け合わせページを持たないため

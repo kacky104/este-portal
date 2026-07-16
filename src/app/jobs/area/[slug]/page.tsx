@@ -74,7 +74,7 @@ export default async function JobAreaPage({
 
   // メイン求人一覧のみ30分バケットでシード付きシャッフル（おすすめ pickupJobs は対象外）。
   const shuffledJobs = shuffleJobs(jobs, (j) => (j.jobBoost ? JOB_BOOST_WEIGHT : 1));
-  // このエリアの求人からバナーカードを派生（画像あり・先頭最大10件・30分バケットでシャッフル）。
+  // このエリアの求人からバナーカードを派生（画像あり・30分バケットでシャッフル→先頭最大 HERO_BANNER_LIMIT=30 件）。
   const heroBanners = deriveHeroBanners(jobs);
 
   return (

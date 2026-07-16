@@ -83,7 +83,7 @@ export default async function JobAreaTagPage({
 
   // メイン求人一覧を30分バケットでシード付きシャッフル（このページはおすすめ枠なし）。
   const shuffledJobs = shuffleJobs(jobs, (j) => (j.jobBoost ? JOB_BOOST_WEIGHT : 1));
-  // このエリア×タグの求人からバナーカードを派生（画像あり・先頭最大10件・30分バケットでシャッフル）。
+  // このエリア×タグの求人からバナーカードを派生（画像あり・30分バケットでシャッフル→先頭最大 HERO_BANNER_LIMIT=30 件）。
   const heroBanners = deriveHeroBanners(jobs);
 
   return (
@@ -106,7 +106,8 @@ export default async function JobAreaTagPage({
       {/* エリア専用ヒーローバナー（area_hero_banners・エリア単位）。エリア単独ページと同位置・同props。 */}
       <AreaHeroBanner banner={heroBanner} areaLabel={areaLbl} />
 
-      {/* バナーカードブロック（キーワード見出し h1・一覧の直上）。バナー0件なら非表示。 */}
+      {/* バナーカードブロック（キーワード見出し h1・一覧の直上）。見出し(h1)はバナー0件でも常に描画し、
+          バナー画像のみ0件なら省略（コンポーネント側で分岐）。 */}
       <JobHeroBanners banners={heroBanners} title={`${areaLbl}×${tagLbl}のセラピスト求人`} />
 
       {/* 回遊：同エリアの他タグ（掛け合わせ）／同タグの他エリア（掛け合わせ） */}
