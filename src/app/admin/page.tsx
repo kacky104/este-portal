@@ -368,6 +368,10 @@ export default function AdminDashboard() {
         {/* ══════════ 本体タブ ══════════ */}
         <div className={`space-y-4 ${activeTab === 'main' ? '' : 'hidden'}`}>
 
+          <AccordionSection id="option-banners" title="オプションバナー設定" expanded={expandedSections} onToggle={toggleSection}>
+            <OptionBannerManager onToast={showToast} />
+          </AccordionSection>
+
           <AccordionSection id="header-slider" title="トップページ画像スライダー設定" expanded={expandedSections} onToggle={toggleSection}>
             <HeaderSliderManager />
           </AccordionSection>
@@ -382,13 +386,6 @@ export default function AdminDashboard() {
             />
           </AccordionSection>
 
-          <AccordionSection id="top-banners" title="トップバナースライダー設定" expanded={expandedSections} onToggle={toggleSection}>
-            <p className="mb-3 text-xs text-amber-600 bg-amber-50 border border-amber-100 rounded-lg px-3 py-2">
-              ※現在、このバナーはトップページには表示されません。新規の入稿は不要です。
-            </p>
-            <TopBannerManager onToast={showToast} />
-          </AccordionSection>
-
           <AccordionSection id="recommended-salon-banners" title="おすすめサロンバナー設定" expanded={expandedSections} onToggle={toggleSection}>
             <RecommendedSalonBannerManager
               allSalons={salons.map(s => ({
@@ -400,16 +397,19 @@ export default function AdminDashboard() {
             />
           </AccordionSection>
 
-          <AccordionSection id="option-banners" title="オプションバナー設定" expanded={expandedSections} onToggle={toggleSection}>
-            <OptionBannerManager onToast={showToast} />
-          </AccordionSection>
-
           <AccordionSection id="therapist-pickup-banners" title="セラピストピックアップ枠設定" expanded={expandedSections} onToggle={toggleSection}>
             <TherapistPickupBannerManager onToast={showToast} />
           </AccordionSection>
 
           <AccordionSection id="theme-wallpaper" title="テーマ壁紙設定" expanded={expandedSections} onToggle={toggleSection}>
             <ThemeWallpaperManager onToast={showToast} />
+          </AccordionSection>
+
+          <AccordionSection id="top-banners" title="トップバナースライダー設定（使用中止）" expanded={expandedSections} onToggle={toggleSection}>
+            <p className="mb-3 text-xs text-amber-600 bg-amber-50 border border-amber-100 rounded-lg px-3 py-2">
+              ※現在、このバナーはトップページには表示されません。新規の入稿は不要です。
+            </p>
+            <TopBannerManager onToast={showToast} />
           </AccordionSection>
 
         </div>
