@@ -14,6 +14,8 @@ import { AccountMenu } from '@/app/components/AccountMenu';
 import { NotificationBell } from '@/app/components/NotificationBell';
 import { VipLetterIcon } from '@/app/components/VipLetterIcon';
 import { GridCard, fetchTherapistsByIds, type Therapist } from '@/components/SalonTherapists';
+import { TherapistPickupBanner } from '@/app/components/TherapistPickupBanner';
+import { fetchActiveTherapistPickupBanners, type TherapistPickupBanner as PickupBanner } from '@/app/lib/therapistPickupBanners';
 
 export default function SavedPage() {
   // 表示中タブ（既定: 保存した店舗）
@@ -32,6 +34,13 @@ export default function SavedPage() {
   const [therapistsById, setTherapistsById]   = useState<Record<number, Therapist>>({});
   const therapistAttempted = useRef<Set<number>>(new Set());
   const [loadingTherapists, setLoadingTherapists] = useState(true);
+  // セラピストピックアップ枠（保存したセラピスト一覧の最後に表示）。公開データを匿名クライアントで取得。
+  const [pickupBanners, setPickupBanners] = useState<PickupBanner[]>([]);
+  useEffect(() => {
+    let alive = true;
+    fetchActiveTherapistPickupBanners().then(b => { if (alive) setPickupBanners(b); }).catch(() => {});
+    return () => { alive = false; };
+  }, []);
 
   // ヘッダーのバッジ等からの #therapists / #salons でタブを切替（ハッシュ連動）。
   useEffect(() => {
@@ -219,11 +228,18 @@ export default function SavedPage() {
                   保存したセラピストはまだありません
                 </p>
               ) : (
+                <>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   {therapists.map((t, i) => (
                     <GridCard key={t.id} therapist={t} index={i} showSaveButton saveButtonPos="card-right" largeImage />
                   ))}
                 </div>
+                {pickupBanners.length > 0 && (
+                  <div className="mt-4">
+                    <TherapistPickupBanner banners={pickupBanners} />
+                  </div>
+                )}
+                </>
               )
             )}
           </>
