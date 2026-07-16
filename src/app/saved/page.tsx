@@ -41,6 +41,27 @@ export default function SavedPage() {
     fetchActiveTherapistPickupBanners().then(b => { if (alive) setPickupBanners(b); }).catch(() => {});
     return () => { alive = false; };
   }, []);
+  // ピックアップサロン枠（TOP＝area null＋地域＝area 値あり）の全店舗からランダム1店舗を、
+  // 保存した店舗一覧の5枚目の下に表示する。保存済みの店舗は候補から除外（重複カード防止）。
+  const [pickupSalon, setPickupSalon] = useState<Salon | null>(null);
+  useEffect(() => {
+    if (!salonsSynced) return;
+    let alive = true;
+    (async () => {
+      const supabase = createClient();
+      const { data } = await supabase.from('featured_salons').select('salon_id');
+      if (!alive || !data) return;
+      const savedSet = new Set(getSavedSalons().map(x => x.id));
+      const candidateIds = [...new Set(data.map(r => Number(r.salon_id)))].filter(id => !savedSet.has(id));
+      if (candidateIds.length === 0) return;
+      // 非表示サロンは fetchSalons 側で除外されるため、取得後の結果から抽選する。
+      const list = await fetchSalons(supabase, { ids: candidateIds });
+      if (!alive || list.length === 0) return;
+      setPickupSalon(list[Math.floor(Math.random() * list.length)]);
+    })().catch(() => {});
+    return () => { alive = false; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [salonsSynced]);
 
   // ヘッダーのバッジ等からの #therapists / #salons でタブを切替（ハッシュ連動）。
   useEffect(() => {
@@ -135,6 +156,8 @@ export default function SavedPage() {
   );
 
   const salonTherapists = useSalonTherapists(salons);
+  const pickupSalonArr = useMemo(() => (pickupSalon ? [pickupSalon] : []), [pickupSalon]);
+  const pickupSalonTherapists = useSalonTherapists(pickupSalonArr);
 
   const loading = loadingSalons || loadingTherapists;
 
@@ -206,21 +229,59 @@ export default function SavedPage() {
                   保存した店舗はまだありません
                 </p>
               ) : (
-                <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-5">
-                  {salons.map(salon => (
-                    <SalonCard
-                      key={salon.id}
-                      salon={salon}
-                      therapists={salonTherapists[salon.id] ?? []}
-                      showAge
-                      areaNextToDuty
-                      ratingAtBottom
-                      compactTherapists
-                      showSaveButton
-                      nameBanner
-                    />
-                  ))}
-                </div>
+                <>
+                  {/* 先頭5枚 → ピックアップ店舗（ランダム1店舗・PICKUPバッジ付き） → 残り。5枚未満なら最後のカードの下。 */}
+                  <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-5">
+                    {salons.slice(0, 5).map(salon => (
+                      <SalonCard
+                        key={salon.id}
+                        salon={salon}
+                        therapists={salonTherapists[salon.id] ?? []}
+                        showAge
+                        areaNextToDuty
+                        ratingAtBottom
+                        compactTherapists
+                        showSaveButton
+                        nameBanner
+                      />
+                    ))}
+                  </div>
+                  {pickupSalon && (
+                    <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-5 mt-5">
+                      <div className="relative">
+                        <span className="absolute -top-2.5 left-3 z-10 text-[11px] font-black text-white bg-pink-500 px-3 py-1 rounded-full shadow-lg tracking-wide pointer-events-none">
+                          ✦ PICKUP
+                        </span>
+                        <SalonCard
+                          salon={pickupSalon}
+                          therapists={pickupSalonTherapists[pickupSalon.id] ?? []}
+                          showAge
+                          areaNextToDuty
+                          ratingAtBottom
+                          compactTherapists
+                          nameBanner
+                        />
+                      </div>
+                    </div>
+                  )}
+                  {salons.length > 5 && (
+                    <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-5 mt-5">
+                      {salons.slice(5).map(salon => (
+                        <SalonCard
+                          key={salon.id}
+                          salon={salon}
+                          therapists={salonTherapists[salon.id] ?? []}
+                          showAge
+                          areaNextToDuty
+                          ratingAtBottom
+                          compactTherapists
+                          showSaveButton
+                          nameBanner
+                        />
+                      ))}
+                    </div>
+                  )}
+                </>
               )
             ) : (
               therapists.length === 0 ? (
