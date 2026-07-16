@@ -3,10 +3,31 @@ import type { Metadata } from 'next';
 
 // フクエスワーク利用規約（フクエス本体利用規約の特則）。fukuX版 /x/terms と同じ「特則」構成。
 // ヘッダー・フッターは /jobs レイアウトを継承。静的コンテンツのみ・データ取得なし。
+const SITE_URL = 'https://fukues.com';
+const PAGE_TITLE = 'フクエスワーク利用規約';
+const PAGE_DESC = '福岡メンズエステのセラピスト求人サイト「フクエスワーク」の利用規約（フクエス利用規約の特則）です。';
+
 export const metadata: Metadata = {
-  title: 'フクエスワーク利用規約',
-  description: '福岡メンズエステのセラピスト求人サイト「フクエスワーク」の利用規約（フクエス利用規約の特則）です。',
+  title: PAGE_TITLE,
+  description: PAGE_DESC,
   alternates: { canonical: '/jobs/terms' },
+  // openGraph/twitter を未定義のままだと layout のもの（og:title=ブランド名・og:url=/jobs）を丸ごと継承し、
+  // シェア時にトップ扱いになるため、このページの title/url を明示する。
+  // Next の metadata は浅いマージ＝layout の同キーを丸ごと上書きするため、画像・card 等もここで明示する。
+  openGraph: {
+    title: `${PAGE_TITLE}｜フクエスワーク`,
+    description: PAGE_DESC,
+    url: `${SITE_URL}/jobs/terms`,
+    siteName: 'フクエスワーク',
+    type: 'website',
+    images: [{ url: `${SITE_URL}/ogp-fukuwork.png` }],
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: `${PAGE_TITLE}｜フクエスワーク`,
+    description: PAGE_DESC,
+    images: [`${SITE_URL}/ogp-fukuwork.png`],
+  },
 };
 
 const H2 = 'text-base font-bold text-slate-800 mt-6 mb-2';

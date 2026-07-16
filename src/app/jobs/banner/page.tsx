@@ -7,13 +7,32 @@ import { BannerTagCode } from '@/app/components/BannerTagCode';
 // 画像は public/ 直下：
 //   fukuwork-banner-200x40.png（カラー版）・fukuwork-banner-200x40-white.png（白基調版）
 // 設置報告は fukuX と共通の受付窓口 /x/banner/report（banner_reports.sites='work'）。
-export const metadata: Metadata = {
-  title: 'リンクバナーについて',
-  description: '福岡メンズエステのセラピスト求人サイト「フクエスワーク」のリンクバナーと貼り付け用HTMLタグのご案内です。リンクはご自由にどうぞ。',
-  alternates: { canonical: '/jobs/banner' },
-};
-
 const SITE_URL = 'https://fukues.com';
+const PAGE_TITLE = 'リンクバナーについて';
+const PAGE_DESC = '福岡メンズエステのセラピスト求人サイト「フクエスワーク」のリンクバナーと貼り付け用HTMLタグのご案内です。リンクはご自由にどうぞ。';
+
+export const metadata: Metadata = {
+  title: PAGE_TITLE,
+  description: PAGE_DESC,
+  alternates: { canonical: '/jobs/banner' },
+  // openGraph/twitter を未定義のままだと layout のもの（og:title=ブランド名・og:url=/jobs）を丸ごと継承し、
+  // シェア時にトップ扱いになるため、このページの title/url を明示する。
+  // Next の metadata は浅いマージ＝layout の同キーを丸ごと上書きするため、画像・card 等もここで明示する。
+  openGraph: {
+    title: `${PAGE_TITLE}｜フクエスワーク`,
+    description: PAGE_DESC,
+    url: `${SITE_URL}/jobs/banner`,
+    siteName: 'フクエスワーク',
+    type: 'website',
+    images: [{ url: `${SITE_URL}/ogp-fukuwork.png` }],
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: `${PAGE_TITLE}｜フクエスワーク`,
+    description: PAGE_DESC,
+    images: [`${SITE_URL}/ogp-fukuwork.png`],
+  },
+};
 
 // バナー（200×40）。public/ 直下に配置した画像を参照する。
 // 1番目＝フクエスワーク（求人）・2番目＝フクエス本体。両サイトの配布ページで相互掲載（順序は各サイト優先）。

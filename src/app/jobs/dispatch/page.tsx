@@ -23,15 +23,26 @@ const BRANDED_TITLE = `${BASE_TITLE}｜フクエスワーク`;
 const DESCRIPTION =
   '福岡・出張専門のメンズエステ セラピスト求人を掲載。出張専門で働けるお店の求人情報をフクエスワークでチェックできます。';
 
-export const metadata: Metadata = {
-  // 文書<title>は layout の template「%s｜フクエスワーク」が末尾を付与するため、ここでは
-  // ブランド名を含めない。og:title / twitter:title には template が効かないため別途明示する。
-  title: BASE_TITLE,
-  description: DESCRIPTION,
-  alternates: { canonical: '/jobs/dispatch' },
-  openGraph: { title: BRANDED_TITLE, description: DESCRIPTION },
-  twitter: { title: BRANDED_TITLE, description: DESCRIPTION },
-};
+// エリア・タグページと同じ「求人0件→noindex」ポリシーに統一するため generateMetadata 化
+// （従来は静的 metadata のみで、0件時も index 可能なままだった）。sitemap 側は既に0件時に
+// /jobs/dispatch を除外しており（dispatchEntries）、ページ本体の robots もこれで揃う。
+// 求人取得が generateMetadata と本文で2回走るのはエリア・タグページと同じ既存トレードオフ。
+export async function generateMetadata(): Promise<Metadata> {
+  // 0件の出張専門ページは薄いページのため noindex（1件以上は通常index）。
+  const jobs = await fetchActiveDispatchJobs();
+  const robots = jobs.length === 0 ? { index: false, follow: true } : undefined;
+
+  // noindex（0件）ページには canonical を付けず、indexさせる正常系のみ自己参照 canonical を付与。
+  return {
+    // 文書<title>は layout の template「%s｜フクエスワーク」が末尾を付与するため、ここでは
+    // ブランド名を含めない。og:title / twitter:title には template が効かないため別途明示する。
+    title: BASE_TITLE,
+    description: DESCRIPTION,
+    ...(robots ? { robots } : { alternates: { canonical: '/jobs/dispatch' } }),
+    openGraph: { title: BRANDED_TITLE, description: DESCRIPTION },
+    twitter: { title: BRANDED_TITLE, description: DESCRIPTION },
+  };
+}
 
 export default async function JobDispatchPage() {
   // 出張専門の求人一覧／おすすめ（featured_jobs.area='出張'）／ヒーローバナー（area_hero_banners）を並列取得。

@@ -12,6 +12,8 @@ import { WorkNewsPager } from '../../WorkNewsPager';
 
 export const revalidate = 600;
 
+const SITE_URL = 'https://fukues.com';
+
 // 事前生成はせず、初回アクセス時にその場生成→以降キャッシュ（ランタイムISR）。
 export async function generateStaticParams() {
   return [];
@@ -37,9 +39,30 @@ export async function generateMetadata({
   if (!job) return {};
   // layout の template「%s｜フクエスワーク」が末尾を付与する。
   // canonical を明示しないと root の canonical '/' を継承して「トップの重複」扱いになるため自己参照を付与。
+  const title = `${job.salon.name}の新着情報 ${pageNum}ページ目`;
+  const brandedTitle = `${title}｜フクエスワーク`;
+  const description = `フクエスワーク掲載「${job.salon.name}」の新着情報アーカイブ（${pageNum}ページ目）。お店からのお知らせを掲載順に確認できます。`;
   return {
-    title: `${job.salon.name}の新着情報 ${pageNum}ページ目`,
+    title,
+    description,
     alternates: { canonical: `/jobs/${jobId}/news/${pageNum}` },
+    // openGraph/twitter を未定義のままだと layout のもの（og:title=ブランド名・og:url=/jobs）を丸ごと継承し、
+    // シェア時にトップ扱いになるため、このページの title/url を明示する。
+    // Next の metadata は浅いマージ＝layout の同キーを丸ごと上書きするため、画像・card 等もここで明示する。
+    openGraph: {
+      title: brandedTitle,
+      description,
+      url: `${SITE_URL}/jobs/${jobId}/news/${pageNum}`,
+      siteName: 'フクエスワーク',
+      type: 'website',
+      images: [{ url: `${SITE_URL}/ogp-fukuwork.png` }],
+    },
+    twitter: {
+      card: 'summary_large_image',
+      title: brandedTitle,
+      description,
+      images: [`${SITE_URL}/ogp-fukuwork.png`],
+    },
   };
 }
 
