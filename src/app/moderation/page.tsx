@@ -105,9 +105,6 @@ export default async function ModerationPage() {
             <Link href="/" target="_blank" rel="noopener noreferrer" className="text-sm font-medium text-slate-500 hover:text-pink-600 transition-colors">
               サイトを見る
             </Link>
-            <Link href="/admin" className="text-sm font-medium text-slate-500 hover:text-pink-600 transition-colors">
-              管理トップ
-            </Link>
           </div>
         </div>
       </header>
