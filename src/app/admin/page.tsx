@@ -372,11 +372,11 @@ export default function AdminDashboard() {
             <OptionBannerManager onToast={showToast} />
           </AccordionSection>
 
-          <AccordionSection id="header-slider" title="トップページ画像スライダー設定" expanded={expandedSections} onToggle={toggleSection}>
+          <AccordionSection id="header-slider" title="TOP最上部画像設定" expanded={expandedSections} onToggle={toggleSection}>
             <HeaderSliderManager />
           </AccordionSection>
 
-          <AccordionSection id="featured-salons" title="ピックアップサロン設定" expanded={expandedSections} onToggle={toggleSection}>
+          <AccordionSection id="featured-salons" title="ピックアップサロン設定（TOP・地域）" expanded={expandedSections} onToggle={toggleSection}>
             <FeaturedSalonsManager
               allSalons={salons.map(s => ({
                 id:   s.id,
@@ -386,7 +386,7 @@ export default function AdminDashboard() {
             />
           </AccordionSection>
 
-          <AccordionSection id="recommended-salon-banners" title="おすすめサロンバナー設定" expanded={expandedSections} onToggle={toggleSection}>
+          <AccordionSection id="recommended-salon-banners" title="おすすめサロン設定（TOP/中段）" expanded={expandedSections} onToggle={toggleSection}>
             <RecommendedSalonBannerManager
               allSalons={salons.map(s => ({
                 id:   s.id,
