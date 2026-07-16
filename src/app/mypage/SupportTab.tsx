@@ -350,6 +350,7 @@ export function SupportTab({
         {inquiries.length > 0 && (
           <div className="pt-2 border-t border-slate-100">
             <h3 className="text-xs font-bold text-slate-500 mb-2">送信履歴</h3>
+            <p className="text-[11px] text-slate-400 mb-2">※ 対応履歴は3ヶ月後に消去されます。</p>
             <div className="space-y-2">
               {inquiries.map(q => (
                 <div key={q.id} className="rounded-xl border border-slate-100 p-3">
