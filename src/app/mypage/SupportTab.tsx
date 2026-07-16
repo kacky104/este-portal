@@ -42,8 +42,17 @@ type OptionBanner = {
   id: string;
   title: string;
   description: string | null;
+  site: string; // 対象サイト（fukues / work / fukux）。
   price: number | null; // 円。null は「応相談」表示。
   stock: number | null; // 残り枠数。null=枠表示なし / 0=売り切れ / ≥1=残りN枠。
+};
+
+// オプション商品の対象サイトの表示ラベルと識別バッジ配色
+// （フクエス=ピンク / フクエスワーク=エメラルド / フクエックス=インディゴ。管理Managerと同一）。
+const OPTION_SITE_META: Record<string, { label: string; badge: string }> = {
+  fukues: { label: 'フクエス', badge: 'bg-pink-50 text-pink-600 border-pink-200' },
+  work: { label: 'フクエスワーク', badge: 'bg-emerald-50 text-emerald-600 border-emerald-200' },
+  fukux: { label: 'フクエックス', badge: 'bg-indigo-50 text-indigo-600 border-indigo-200' },
 };
 
 function formatDateJST(iso: string): string {
@@ -114,7 +123,7 @@ export function SupportTab({
           .order('created_at', { ascending: true }),
         supabase
           .from('option_banners')
-          .select('id, title, description, price, stock')
+          .select('id, site, title, description, price, stock')
           .eq('is_active', true)
           .order('display_order', { ascending: true }),
       ]);
@@ -424,11 +433,15 @@ export function SupportTab({
           <div className="space-y-3">
             {optionBanners.map((p) => {
               const soldOut = p.stock === 0;
+              const siteMeta = OPTION_SITE_META[p.site];
               return (
               <div key={p.id} className="rounded-2xl border border-slate-100 bg-slate-50/60 p-4">
                 <div className="flex items-start justify-between gap-3 flex-wrap">
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-2 flex-wrap">
+                      {siteMeta && (
+                        <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${siteMeta.badge}`}>{siteMeta.label}</span>
+                      )}
                       <h3 className="text-sm font-bold text-slate-800 break-words">{p.title}</h3>
                       {soldOut ? (
                         <span className="text-[10px] font-black px-2 py-0.5 rounded-full bg-slate-200 text-slate-500">売り切れ</span>

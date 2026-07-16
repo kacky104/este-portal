@@ -9,8 +9,16 @@ import { createClient } from '@/app/lib/supabase/client';
 // 画像は持たず、商品名・説明・価格（円・整数／null＝「応相談」）・表示順・公開フラグのみ。
 // 各行の編集はドラフトstate＋「保存」で確定（更新は該当列のみ送る＝undefinedオーバーライドガード遵守）。
 
+// 対象サイトの表示ラベルと識別バッジ配色（フクエス=ピンク / フクエスワーク=エメラルド / フクエックス=インディゴ）。
+const SITE_META: Record<string, { label: string; badge: string }> = {
+  fukues: { label: 'フクエス', badge: 'bg-pink-50 text-pink-600 border-pink-200' },
+  work: { label: 'フクエスワーク', badge: 'bg-emerald-50 text-emerald-600 border-emerald-200' },
+  fukux: { label: 'フクエックス', badge: 'bg-indigo-50 text-indigo-600 border-indigo-200' },
+};
+
 type Product = {
   id: string;
+  site: string;
   title: string;
   description: string | null;
   price: number | null;
@@ -26,18 +34,19 @@ export default function OptionBannerManager({ onToast }: { onToast: (msg: string
   const [busy, setBusy] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
   // 追加フォーム
+  const [addSite, setAddSite] = useState('fukues');
   const [addTitle, setAddTitle] = useState('');
   const [addDesc, setAddDesc] = useState('');
   const [addPrice, setAddPrice] = useState('');
   const [addStock, setAddStock] = useState('');
   // 各行の編集ドラフト（「保存」で確定）
-  const [drafts, setDrafts] = useState<Record<string, { title: string; description: string; price: string; stock: string }>>({});
+  const [drafts, setDrafts] = useState<Record<string, { site: string; title: string; description: string; price: string; stock: string }>>({});
 
   const fetchList = useCallback(async () => {
     setLoading(true);
     const { data, error } = await supabase
       .from('option_banners')
-      .select('id, title, description, price, stock, display_order, is_active')
+      .select('id, site, title, description, price, stock, display_order, is_active')
       .order('display_order', { ascending: true });
     if (error) {
       setErrorMsg('option_banners テーブルの読み込みに失敗しました。マイグレーションを適用したか確認してください。');
@@ -48,6 +57,7 @@ export default function OptionBannerManager({ onToast }: { onToast: (msg: string
     setErrorMsg('');
     setItems(list);
     setDrafts(Object.fromEntries(list.map((p) => [p.id, {
+      site: p.site,
       title: p.title,
       description: p.description ?? '',
       price: p.price == null ? '' : String(p.price),
@@ -70,6 +80,7 @@ export default function OptionBannerManager({ onToast }: { onToast: (msg: string
     setBusy(true);
     const nextOrder = items.reduce((m, p) => Math.max(m, p.display_order), 0) + 1;
     const { error } = await supabase.from('option_banners').insert({
+      site: addSite,
       title,
       description: addDesc.trim() || null,
       price: parsePrice(addPrice),
@@ -84,7 +95,7 @@ export default function OptionBannerManager({ onToast }: { onToast: (msg: string
         : `追加に失敗しました: ${error.message}`);
       return;
     }
-    setAddTitle(''); setAddDesc(''); setAddPrice(''); setAddStock('');
+    setAddSite('fukues'); setAddTitle(''); setAddDesc(''); setAddPrice(''); setAddStock('');
     await fetchList();
     onToast('オプション商品を追加しました');
   };
@@ -97,14 +108,15 @@ export default function OptionBannerManager({ onToast }: { onToast: (msg: string
     const description = d.description.trim() || null;
     const price = parsePrice(d.price);
     const stock = parsePrice(d.stock);
+    const site = d.site;
     setBusy(true);
     const { error } = await supabase
       .from('option_banners')
-      .update({ title, description, price, stock, updated_at: new Date().toISOString() })
+      .update({ site, title, description, price, stock, updated_at: new Date().toISOString() })
       .eq('id', id);
     setBusy(false);
     if (error) { onToast(`保存に失敗しました: ${error.message}`); return; }
-    setItems((prev) => prev.map((p) => (p.id === id ? { ...p, title, description, price, stock } : p)));
+    setItems((prev) => prev.map((p) => (p.id === id ? { ...p, site, title, description, price, stock } : p)));
     onToast('保存しました');
   };
 
@@ -161,6 +173,11 @@ export default function OptionBannerManager({ onToast }: { onToast: (msg: string
 
       {/* 追加フォーム */}
       <div className="rounded-2xl border border-slate-100 bg-slate-50/40 p-4 mb-4 space-y-2">
+        <select className={inputClass} value={addSite} onChange={(e) => setAddSite(e.target.value)}>
+          <option value="fukues">フクエス（本体）</option>
+          <option value="work">フクエスワーク（求人）</option>
+          <option value="fukux">フクエックス（SNS）</option>
+        </select>
         <input className={inputClass} placeholder="商品名（例: トップバナー掲載）" value={addTitle} maxLength={100} onChange={(e) => setAddTitle(e.target.value)} />
         <textarea className={inputClass} placeholder="説明（任意）" value={addDesc} maxLength={1000} rows={2} onChange={(e) => setAddDesc(e.target.value)} />
         <input className={inputClass} placeholder="残り枠数（空欄=枠表示なし／0=売り切れ）" value={addStock} inputMode="numeric" onChange={(e) => setAddStock(e.target.value)} />
@@ -188,13 +205,15 @@ export default function OptionBannerManager({ onToast }: { onToast: (msg: string
       ) : (
         <div className="space-y-3">
           {items.map((p, i) => {
-            const d = drafts[p.id] ?? { title: p.title, description: p.description ?? '', price: p.price == null ? '' : String(p.price), stock: p.stock == null ? '' : String(p.stock) };
+            const d = drafts[p.id] ?? { site: p.site, title: p.title, description: p.description ?? '', price: p.price == null ? '' : String(p.price), stock: p.stock == null ? '' : String(p.stock) };
+            const siteMeta = SITE_META[p.site];
             return (
               <div key={p.id} className="rounded-2xl border border-slate-100 bg-slate-50/40 p-4 space-y-2">
                 <div className="flex items-center gap-2 flex-wrap">
                   <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${p.is_active ? 'bg-emerald-50 text-emerald-600 border border-emerald-100' : 'bg-slate-100 text-slate-400 border border-slate-200'}`}>
                     {p.is_active ? '公開中' : '非公開'}
                   </span>
+                  {siteMeta && (<span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${siteMeta.badge}`}>{siteMeta.label}</span>)}
                   <span className="text-[10px] text-slate-400">表示順 {p.display_order}</span>
                   <div className="flex items-center gap-1 ml-auto">
                     <button onClick={() => handleMove(p.id, 'up')} disabled={busy || i === 0} className="w-7 h-7 rounded-lg border border-slate-200 text-slate-500 text-xs hover:bg-slate-100 disabled:opacity-30" aria-label="上へ">↑</button>
@@ -202,6 +221,14 @@ export default function OptionBannerManager({ onToast }: { onToast: (msg: string
                   </div>
                 </div>
 
+                <div>
+                  <label className="text-[10px] font-bold text-slate-400 block mb-0.5">対象サイト</label>
+                  <select className={inputClass} value={d.site} onChange={(e) => setDrafts((prev) => ({ ...prev, [p.id]: { ...d, site: e.target.value } }))}>
+                    <option value="fukues">フクエス（本体）</option>
+                    <option value="work">フクエスワーク（求人）</option>
+                    <option value="fukux">フクエックス（SNS）</option>
+                  </select>
+                </div>
                 <div>
                   <label className="text-[10px] font-bold text-slate-400 block mb-0.5">商品名</label>
                   <input className={inputClass} value={d.title} maxLength={100} onChange={(e) => setDrafts((prev) => ({ ...prev, [p.id]: { ...d, title: e.target.value } }))} />
