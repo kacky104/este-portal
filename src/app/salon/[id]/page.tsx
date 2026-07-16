@@ -737,8 +737,8 @@ export default async function SalonPage({
           {/* Right: shop info */}
           <div className="space-y-3 md:space-y-6 min-w-0">
 
-            {/* Price summary */}
-            <div className="bg-pink-600 rounded-2xl p-5 text-white max-w-full">
+            {/* Price summary（スマホ非表示・PC右サイドバーのみ） */}
+            <div className="hidden lg:block bg-pink-600 rounded-2xl p-5 text-white max-w-full">
               <p className="text-xs font-semibold opacity-80 mb-1">料金目安</p>
               <p className="text-2xl font-bold break-words max-w-full">{salon.price}</p>
               <p className="text-xs opacity-70 mt-1">※ コースにより異なります</p>
