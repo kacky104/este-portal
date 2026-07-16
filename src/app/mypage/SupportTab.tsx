@@ -49,10 +49,10 @@ type OptionBanner = {
 
 // オプション商品の対象サイトの表示ラベルと識別バッジ配色
 // （フクエス=ピンク / フクエスワーク=エメラルド / フクエックス=インディゴ。管理Managerと同一）。
-const OPTION_SITE_META: Record<string, { label: string; badge: string }> = {
-  fukues: { label: 'フクエス', badge: 'bg-pink-50 text-pink-600 border-pink-200' },
-  work: { label: 'フクエスワーク', badge: 'bg-emerald-50 text-emerald-600 border-emerald-200' },
-  fukux: { label: 'フクエックス', badge: 'bg-indigo-50 text-indigo-600 border-indigo-200' },
+const OPTION_SITE_META: Record<string, { label: string; badge: string; card: string }> = {
+  fukues: { label: 'フクエス', badge: 'bg-pink-50 text-pink-600 border-pink-200', card: 'border-pink-200 bg-pink-50/40 border-l-4 border-l-pink-400' },
+  work: { label: 'フクエスワーク', badge: 'bg-emerald-50 text-emerald-600 border-emerald-200', card: 'border-emerald-200 bg-emerald-50/40 border-l-4 border-l-emerald-400' },
+  fukux: { label: 'フクエックス', badge: 'bg-indigo-50 text-indigo-600 border-indigo-200', card: 'border-indigo-200 bg-indigo-50/40 border-l-4 border-l-indigo-400' },
 };
 
 function formatDateJST(iso: string): string {
@@ -435,7 +435,7 @@ export function SupportTab({
               const soldOut = p.stock === 0;
               const siteMeta = OPTION_SITE_META[p.site];
               return (
-              <div key={p.id} className="rounded-2xl border border-slate-100 bg-slate-50/60 p-4">
+              <div key={p.id} className={`rounded-2xl border p-4 ${siteMeta ? siteMeta.card : 'border-slate-100 bg-slate-50/60'}`}>
                 <div className="flex items-start justify-between gap-3 flex-wrap">
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-2 flex-wrap">
