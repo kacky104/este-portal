@@ -14,8 +14,10 @@ import type { RecommendedSalonBanner } from '@/app/lib/recommendedSalonBanners';
 // - 各カードの中身はバナー画像＋ピックアップ同一オーバーレイ（PICKUPバッジ・地域バッジ・サロン名・丸アイコン・詳細を見る）。
 //   高さは SP は h-52 固定、PC は aspect-[31/12]（＝ピックアップ実測 992/384≒2.583 と同比率）で幅から決定。
 // - link はサロン詳細（/salon/{salonId}）。非公開サロン（salonName===''）は画像のみ・非リンクにフォールバック。
-// - 0件はブロックごと非表示。カルーセル（自動送り・矢印・ドット・translateX・matchMedia）は持たない。
+// - 0件はブロックごと非表示。自動送り（3.5秒ごとに次カードへスムーススクロール・hover/タッチで一時停止・末尾→先頭ループ）は持つ。
+//   矢印・ドット・translateX・matchMedia は持たない（ネイティブ横スクロール＋scroll-snap のまま実スクロール位置で送る）。
 const SECTION_TITLE = '福岡のおすすめサロン';
+const AUTO_SLIDE_MS = 3500; // 自動送り間隔（3.5秒ごとに1枚進める）
 
 // SSR 警告回避：クライアントのみ useLayoutEffect（描画前に測定＝チラつき防止）、サーバーは useEffect にフォールバック。
 const useIsomorphicLayoutEffect = typeof window !== 'undefined' ? useLayoutEffect : useEffect;
@@ -67,6 +69,34 @@ function AutoFitSalonName({ name }: { name: string }) {
 }
 
 export function RecommendedSalonBannerSlider({ banners }: { banners: RecommendedSalonBanner[] }) {
+  const scrollerRef = useRef<HTMLDivElement>(null);
+  const [paused, setPaused] = useState(false);
+
+  // 自動送り：AUTO_SLIDE_MS ごとに、実スクロール位置から左端に最も近いカードを求めて次の1枚へスムーススクロール。
+  // 末尾→先頭ループ。hover / タッチ中は一時停止。1件以下は張らない。unmount / 一時停止で cleanup。
+  // フックはルール上、早期リターンより前に置く（banners.length を deps に含め件数変化にも追従）。
+  useEffect(() => {
+    if (banners.length <= 1 || paused) return;
+    const el = scrollerRef.current;
+    if (!el) return;
+    const id = setInterval(() => {
+      const cards = Array.from(el.children) as HTMLElement[];
+      if (cards.length <= 1) return;
+      const elLeft = el.getBoundingClientRect().left;
+      let cur = 0;
+      let best = Infinity;
+      cards.forEach((c, i) => {
+        const d = Math.abs(c.getBoundingClientRect().left - elLeft);
+        if (d < best) { best = d; cur = i; }
+      });
+      const nextIndex = cur + 1 >= cards.length ? 0 : cur + 1;
+      const target = cards[nextIndex];
+      const left = el.scrollLeft + (target.getBoundingClientRect().left - elLeft);
+      el.scrollTo({ left, behavior: 'smooth' });
+    }, AUTO_SLIDE_MS);
+    return () => clearInterval(id);
+  }, [banners.length, paused]);
+
   if (banners.length === 0) return null;
   const multiple = banners.length > 1;
 
@@ -166,7 +196,14 @@ export function RecommendedSalonBannerSlider({ banners }: { banners: Recommended
       </div>
 
       {/* ── 独立カードの横スクロール列（TherapistScroller と同じ overflow-x-auto ＋ scrollbar-pink。snap で止まり位置を揃える） ── */}
-      <div className="flex gap-3 overflow-x-auto pb-4 scrollbar-pink snap-x snap-mandatory w-full">
+      <div
+        ref={scrollerRef}
+        onMouseEnter={() => setPaused(true)}
+        onMouseLeave={() => setPaused(false)}
+        onTouchStart={() => setPaused(true)}
+        onTouchEnd={() => setPaused(false)}
+        className="flex gap-3 overflow-x-auto pb-4 scrollbar-pink snap-x snap-mandatory w-full"
+      >
         {banners.map((b, i) =>
           b.salonName !== '' ? (
             <Link key={b.id} href={`/salon/${b.salonId}`} className={cardClass}>
