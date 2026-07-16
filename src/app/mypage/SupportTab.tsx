@@ -436,7 +436,7 @@ export function SupportTab({
               const siteMeta = OPTION_SITE_META[p.site];
               return (
               <div key={p.id} className={`rounded-2xl border p-4 ${siteMeta ? siteMeta.card : 'border-slate-100 bg-slate-50/60'}`}>
-                <div className="flex items-start justify-between gap-3 flex-wrap">
+                <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-2 flex-wrap">
                       {siteMeta && (
@@ -460,7 +460,7 @@ export function SupportTab({
                     type="button"
                     onClick={() => handleApply(p)}
                     disabled={applyingId === p.id || soldOut}
-                    className="flex-shrink-0 px-5 py-2.5 rounded-xl bg-pink-600 text-white text-sm font-bold hover:bg-pink-500 transition-colors disabled:opacity-40 disabled:cursor-not-allowed shadow-sm shadow-pink-500/20"
+                    className="w-full sm:w-auto flex-shrink-0 px-5 py-2.5 rounded-xl bg-pink-600 text-white text-sm font-bold hover:bg-pink-500 transition-colors disabled:opacity-40 disabled:cursor-not-allowed shadow-sm shadow-pink-500/20"
                   >
                     {soldOut ? '売り切れ' : applyingId === p.id ? '送信中…' : '申込'}
                   </button>
