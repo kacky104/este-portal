@@ -16,6 +16,8 @@ import { VipLetterIcon } from '@/app/components/VipLetterIcon';
 import { GridCard, fetchTherapistsByIds, type Therapist } from '@/components/SalonTherapists';
 import { TherapistPickupBanner } from '@/app/components/TherapistPickupBanner';
 import { fetchActiveTherapistPickupBanners, type TherapistPickupBanner as PickupBanner } from '@/app/lib/therapistPickupBanners';
+import { RecommendedSalonBannerSlider } from '@/app/components/RecommendedSalonBannerSlider';
+import { fetchActiveRecommendedSalonBanners, type RecommendedSalonBanner } from '@/app/lib/recommendedSalonBanners';
 
 export default function SavedPage() {
   // 表示中タブ（既定: 保存した店舗）
@@ -41,23 +43,58 @@ export default function SavedPage() {
     fetchActiveTherapistPickupBanners().then(b => { if (alive) setPickupBanners(b); }).catch(() => {});
     return () => { alive = false; };
   }, []);
-  // ピックアップサロン枠（TOP＝area null＋地域＝area 値あり）の全店舗からランダム1店舗を、
-  // 保存した店舗一覧の5枚目の下に表示する。保存済みの店舗は候補から除外（重複カード防止）。
-  const [pickupSalon, setPickupSalon] = useState<Salon | null>(null);
+  // 保存した店舗一覧の5枚目の下に出す「サロンバナー」（ランダム1店舗）。
+  // 候補＝TOPピックアップ＋地域ピックアップ（featured_salons 全行・画像あり）＋TOPおすすめサロンバナー
+  // （recommended_salon_banners）。保存済みの店舗と重複サロンは候補から除外。
+  // 表示はおすすめサロンバナーと同一カード（RecommendedSalonBannerSlider を単発で流用）。
+  const [pickupBanner, setPickupBanner] = useState<RecommendedSalonBanner | null>(null);
   useEffect(() => {
     if (!salonsSynced) return;
     let alive = true;
     (async () => {
       const supabase = createClient();
-      const { data } = await supabase.from('featured_salons').select('salon_id');
-      if (!alive || !data) return;
       const savedSet = new Set(getSavedSalons().map(x => x.id));
-      const candidateIds = [...new Set(data.map(r => Number(r.salon_id)))].filter(id => !savedSet.has(id));
-      if (candidateIds.length === 0) return;
-      // 非表示サロンは fetchSalons 側で除外されるため、取得後の結果から抽選する。
-      const list = await fetchSalons(supabase, { ids: candidateIds });
-      if (!alive || list.length === 0) return;
-      setPickupSalon(list[Math.floor(Math.random() * list.length)]);
+      const [recommended, { data: featuredRows }] = await Promise.all([
+        fetchActiveRecommendedSalonBanners(),
+        supabase.from('featured_salons').select('salon_id, image_url'),
+      ]);
+      if (!alive) return;
+      // おすすめバナー側＝完成済みバナー（画像・サロン名・地域・丸アイコン込み）。
+      const recCandidates = recommended.filter(b => !savedSet.has(b.salonId));
+      const recIds = new Set(recCandidates.map(b => b.salonId));
+      // ピックアップ側＝featured_salons の画像付き行のみ。おすすめ側と同一サロンは除外（重複防止）。
+      const featCandidates = [...new Map(
+        (featuredRows ?? [])
+          .map(r => ({ salonId: Number(r.salon_id), imageUrl: ((r.image_url as string | null) ?? '').trim() }))
+          .filter(c => c.imageUrl !== '' && !savedSet.has(c.salonId) && !recIds.has(c.salonId))
+          .map(c => [c.salonId, c] as const),
+      ).values()];
+      const total = recCandidates.length + featCandidates.length;
+      if (total === 0) return;
+      const idx = Math.floor(Math.random() * total);
+      if (idx < recCandidates.length) {
+        setPickupBanner(recCandidates[idx]);
+        return;
+      }
+      // featured 行はバナー型に組み立て（サロン名・地域・セラピスト丸アイコンを追加取得）。
+      // 非公開サロンは salons が返らず salonName='' → バナー側で画像のみ・非リンクにフォールバック。
+      const picked = featCandidates[idx - recCandidates.length];
+      const [{ data: salonData }, { data: therapistData }] = await Promise.all([
+        supabase.from('salons').select('id, name, area').eq('id', picked.salonId).maybeSingle(),
+        supabase.from('therapists').select('profile_image_url').eq('salon_id', picked.salonId).not('profile_image_url', 'is', null).limit(4),
+      ]);
+      if (!alive) return;
+      setPickupBanner({
+        id: `featured-${picked.salonId}`,
+        imageUrl: picked.imageUrl,
+        altText: (salonData?.name as string | undefined) ?? '',
+        salonId: picked.salonId,
+        salonName: (salonData?.name as string | undefined) ?? '',
+        area: (salonData?.area as string | undefined) ?? '',
+        therapistImages: (therapistData ?? [])
+          .map(t => t.profile_image_url as string | null)
+          .filter((u): u is string => Boolean(u)),
+      });
     })().catch(() => {});
     return () => { alive = false; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -156,8 +193,6 @@ export default function SavedPage() {
   );
 
   const salonTherapists = useSalonTherapists(salons);
-  const pickupSalonArr = useMemo(() => (pickupSalon ? [pickupSalon] : []), [pickupSalon]);
-  const pickupSalonTherapists = useSalonTherapists(pickupSalonArr);
 
   const loading = loadingSalons || loadingTherapists;
 
@@ -246,22 +281,9 @@ export default function SavedPage() {
                       />
                     ))}
                   </div>
-                  {pickupSalon && (
-                    <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-5 mt-5">
-                      <div className="relative">
-                        <span className="absolute -top-2.5 left-3 z-10 text-[11px] font-black text-white bg-pink-500 px-3 py-1 rounded-full shadow-lg tracking-wide pointer-events-none">
-                          ✦ PICKUP
-                        </span>
-                        <SalonCard
-                          salon={pickupSalon}
-                          therapists={pickupSalonTherapists[pickupSalon.id] ?? []}
-                          showAge
-                          areaNextToDuty
-                          ratingAtBottom
-                          compactTherapists
-                          nameBanner
-                        />
-                      </div>
+                  {pickupBanner && (
+                    <div className="mt-5">
+                      <RecommendedSalonBannerSlider banners={[pickupBanner]} hideTitle />
                     </div>
                   )}
                   {salons.length > 5 && (

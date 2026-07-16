@@ -68,7 +68,7 @@ function AutoFitSalonName({ name }: { name: string }) {
   );
 }
 
-export function RecommendedSalonBannerSlider({ banners }: { banners: RecommendedSalonBanner[] }) {
+export function RecommendedSalonBannerSlider({ banners, hideTitle = false }: { banners: RecommendedSalonBanner[]; hideTitle?: boolean }) {
   const scrollerRef = useRef<HTMLDivElement>(null);
   const [paused, setPaused] = useState(false);
 
@@ -175,7 +175,8 @@ export function RecommendedSalonBannerSlider({ banners }: { banners: Recommended
 
   return (
     <div>
-      {/* ── セクションタイトル（ピックアップサロンと同構造・同スタイル） ── */}
+      {/* ── セクションタイトル（ピックアップサロンと同構造・同スタイル）。hideTitle 時は出さない（保存ページ等の単発利用向け） ── */}
+      {!hideTitle && (
       <div className="flex items-center gap-3 mb-4">
         <div className="w-1 h-6 rounded-full bg-gradient-to-b from-pink-400 to-rose-500" />
         <h2
@@ -194,6 +195,7 @@ export function RecommendedSalonBannerSlider({ banners }: { banners: Recommended
           おすすめ
         </span>
       </div>
+      )}
 
       {/* ── 独立カードの横スクロール列（TherapistScroller と同じ overflow-x-auto ＋ scrollbar-pink。snap で止まり位置を揃える） ── */}
       <div
