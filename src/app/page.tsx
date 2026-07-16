@@ -303,21 +303,6 @@ export default async function Home() {
               }
             />
 
-            {/* fukuX バナー（スマホのみ・「口コミ総数」の直前）。PCは右カラム(ShuffledSalons)に既出のため lg:hidden で二重表示回避。 */}
-            <Link
-              href="/x"
-              aria-label="fukuX メンズエステ専用SNS"
-              className="lg:hidden block border border-pink-100 overflow-hidden shadow-sm mt-10"
-            >
-              <Image
-                src="/ogp-fukux.png"
-                alt="fukuX メンズエステ専用SNS"
-                width={1200}
-                height={630}
-                className="w-full h-auto"
-              />
-            </Link>
-
             {/* ─── 新着コラム（最新3件・0件なら非表示）。フッターより強い内部リンクとして
                 トップ本文から /column へ導線を張る（/jobs トップの新着コラムと同方式）。 ─── */}
             {latestColumns.length > 0 && (
