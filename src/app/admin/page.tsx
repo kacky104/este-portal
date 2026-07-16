@@ -122,7 +122,7 @@ export default function AdminDashboard() {
   const [editingSalon, setEditingSalon] = useState<SalonForEdit | null>(null);
   const [hidingId, setHidingId] = useState<number | null>(null);
   // タブ（本体/求人）とアコーディオン開閉。タブはURLクエリ ?tab= と同期（リロード・ブックマークで維持）。
-  const [activeTab, setActiveTab] = useState<'main' | 'jobs'>('main');
+  const [activeTab, setActiveTab] = useState<'main' | 'jobs' | 'salon'>('main');
   // 初期は使用頻度の高い「掲載サロン一覧」のみ開。開閉状態はクライアントstateのみ（永続化しない）。
   const [expandedSections, setExpandedSections] = useState<Set<string>>(new Set(['salon-list']));
   // 求人タブのバッジ用（AdminJobsManager が読み込み時に求人件数・新規応募合計を通知）。
@@ -140,14 +140,15 @@ export default function AdminDashboard() {
   };
 
   // タブ切替時にURLも更新（履歴を汚さない replace。ページ自体は同一ルートなので再マウントされない）。
-  const selectTab = (key: 'main' | 'jobs') => {
+  const selectTab = (key: 'main' | 'jobs' | 'salon') => {
     setActiveTab(key);
     router.replace(`/admin?tab=${key}`, { scroll: false });
   };
 
   // マウント時に ?tab= を反映（リロード・ブックマークでタブを維持）。
   useEffect(() => {
-    if (new URLSearchParams(window.location.search).get('tab') === 'jobs') setActiveTab('jobs');
+    const t = new URLSearchParams(window.location.search).get('tab');
+    if (t === 'jobs' || t === 'salon') setActiveTab(t);
   }, []);
 
   const fetchSalons = useCallback(async () => {
@@ -337,6 +338,7 @@ export default function AdminDashboard() {
         {([
           ['main', '本体'],
           ['jobs', '求人'],
+          ['salon', '店舗管理'],
         ] as const).map(([key, label]) => {
           const selected = activeTab === key;
           return (
@@ -380,10 +382,6 @@ export default function AdminDashboard() {
             />
           </AccordionSection>
 
-          <AccordionSection id="card-boost" title="サロンカード優先表示（バナー設置特典）" expanded={expandedSections} onToggle={toggleSection}>
-            <CardBoostManager onToast={showToast} />
-          </AccordionSection>
-
           <AccordionSection id="top-banners" title="トップバナースライダー設定" expanded={expandedSections} onToggle={toggleSection}>
             <p className="mb-3 text-xs text-amber-600 bg-amber-50 border border-amber-100 rounded-lg px-3 py-2">
               ※現在、このバナーはトップページには表示されません。新規の入稿は不要です。
@@ -414,22 +412,15 @@ export default function AdminDashboard() {
             <ThemeWallpaperManager onToast={showToast} />
           </AccordionSection>
 
+        </div>
+        {/* ══════════ 本体タブ ここまで ══════════ */}
+
+        {/* 店舗管理タブ（本体から移動：店舗登録・サロン一覧・オーナー連絡・優先順位・コラム記事） */}
+        <div className={`space-y-4 ${activeTab === 'salon' ? '' : 'hidden'}`}>
+
           {/* ── 新規店舗の初回情報入力フォーム（ワンタイムURL発行・入力内容の確認） ── */}
           <AccordionSection id="salon-intakes" title="新規店舗 入力フォーム発行" expanded={expandedSections} onToggle={toggleSection}>
             <SalonIntakeManager onToast={showToast} />
-          </AccordionSection>
-
-          {/* ── オーナー連絡（お知らせ配信＋お問い合わせ受信。/mypage「運営から」タブと対） ── */}
-          <AccordionSection id="owner-contact" title="オーナー連絡（お知らせ配信・お問い合わせ）" expanded={expandedSections} onToggle={toggleSection}>
-            <OwnerContactManager
-              allSalons={salons.map(s => ({ id: s.id, name: s.name ?? '' }))}
-              onToast={showToast}
-            />
-          </AccordionSection>
-
-          {/* ── 本体コラム記事（利用者向け・/column 配下） ── */}
-          <AccordionSection id="main-articles" title="コラム記事（本体・利用者向け）" expanded={expandedSections} onToggle={toggleSection}>
-            <MainArticlesManager onToast={showToast} />
           </AccordionSection>
 
           {/* ── 新規サロン追加フォーム ── */}
@@ -638,8 +629,25 @@ export default function AdminDashboard() {
           </div>
           </AccordionSection>
 
+          {/* ── オーナー連絡（お知らせ配信＋お問い合わせ受信。/mypage「運営から」タブと対） ── */}
+          <AccordionSection id="owner-contact" title="オーナー連絡（お知らせ配信・お問い合わせ）" expanded={expandedSections} onToggle={toggleSection}>
+            <OwnerContactManager
+              allSalons={salons.map(s => ({ id: s.id, name: s.name ?? '' }))}
+              onToast={showToast}
+            />
+          </AccordionSection>
+
+          <AccordionSection id="card-boost" title="サロンカード優先表示（バナー設置特典）" expanded={expandedSections} onToggle={toggleSection}>
+            <CardBoostManager onToast={showToast} />
+          </AccordionSection>
+
+          {/* ── 本体コラム記事（利用者向け・/column 配下） ── */}
+          <AccordionSection id="main-articles" title="コラム記事（本体・利用者向け）" expanded={expandedSections} onToggle={toggleSection}>
+            <MainArticlesManager onToast={showToast} />
+          </AccordionSection>
+
         </div>
-        {/* ══════════ 本体タブ ここまで ══════════ */}
+        {/* 店舗管理タブ ここまで */}
 
         {/* ══════════ 求人タブ（本体タブと同じアコーディオン方式） ══════════ */}
         <div className={`space-y-4 ${activeTab === 'jobs' ? '' : 'hidden'}`}>
