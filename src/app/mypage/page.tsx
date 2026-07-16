@@ -1683,7 +1683,7 @@ export default function MyPage() {
             ['vipletter', 'VIPレター'],
             ['booking',   'ネット予約'],
             ['jobs',      '求人'],
-            ['support',   '運営から'],
+            ['support',   '運営事務局'],
           ] as const).map(([key, label]) => {
             const selected = activeTab === key;
             return (
