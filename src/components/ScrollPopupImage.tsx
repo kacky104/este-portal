@@ -11,6 +11,8 @@
  *  - 画像本体クリックで href へ遷移
  *  - スマホのみ表示（PC・タブレット等、幅600pxより広い画面では非表示）
  *  - サイズ：スマホ 42vw × 30vh（横=画面幅の約42%・縦=画面高の約30%）
+ *  - 枠なし表示：角丸カード枠・四角い影は付けず、画像は全体表示（切れない）。
+ *    背景を透過したPNG（切り抜き画像）は背景に溶け込む。影はシルエットに沿う drop-shadow。
  *
  * 使い方（例）:
  *   import ScrollPopupImage from "@/components/ScrollPopupImage";
@@ -157,13 +159,11 @@ export default function ScrollPopupImage({
           height: ${heightVh}vh;
           min-width: 120px;
           z-index: 50;
-          border-radius: 14px;
-          overflow: hidden;
-          box-shadow: 0 10px 30px rgba(0,0,0,.28);
           cursor: pointer;
           transform: translateY(140%);
           opacity: 0;
           pointer-events: none;
+          /* 枠なし（透過画像を背景に溶け込ませる）：角丸・四角い影・切り抜きは付けない */
         }
         .sp-pop.sp-show {
           opacity: 1;
@@ -176,8 +176,12 @@ export default function ScrollPopupImage({
         .sp-pop img {
           width: 100%;
           height: 100%;
-          object-fit: cover;
+          /* 全体表示（切り抜きPNGがはみ出さず全部見える）＋下寄せで人物が地に足つく */
+          object-fit: contain;
+          object-position: center bottom;
           display: block;
+          /* 四角い box-shadow ではなく、画像のシルエットに沿う柔らかい影 */
+          filter: drop-shadow(0 6px 10px rgba(0,0,0,.28));
         }
         .sp-close {
           position: absolute;
