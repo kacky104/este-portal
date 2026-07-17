@@ -18,20 +18,13 @@ body {
   font-family: Arial, Helvetica, sans-serif;
 }
 
-/* ── サイト全体の肉球壁紙 ───────────────────────────────
-   body に .paw-bg を付与（Wallpaper.tsx がパス判定でトグル）。テーマ色／着せ替えで
-   背景が変わるページ（/salon/*・/therapist/*・/diary/[id]・/cast）では付与しないため壁紙は出ない。
-   非テーマページのルートは不透明な bg-slate-50 で body を覆っているので、その背景色だけ
-   透明化して body の壁紙を透かす（near-white の極薄パターンがカードの余白にうっすら見える）。 */
+/* ── サイト全体の背景（肉球壁紙は撤去し、白無地に戻した：2026-07-18） ──
+   以前は body.paw-bg に /paw-bg.png のタイル壁紙を敷き、非テーマページのルート
+   （bg-slate-50）を透明化して壁紙を透かしていた。フクエスの背景を無地（body 既定の
+   near-white = bg-slate-50 相当）に戻すため、壁紙画像と透過指定を外した。
+   Wallpaper.tsx が付与する body.paw-bg クラスは残置（将来の再有効化に備える）が、今は何も描かない。 */
 body.paw-bg {
-  background-image: url('/paw-bg.png');
-  background-repeat: repeat;
-  background-position: top center;
-  /* background-size は指定しない（ネイティブサイズでタイル）。
-     background-attachment: fixed は iOS でジャンクが出るため使わない。 */
-}
-body.paw-bg .min-h-screen.bg-slate-50 {
-  background-color: transparent;
+  background-image: none;
 }
 
 /* ── Image fade-in on src change ─────────────────────── */
