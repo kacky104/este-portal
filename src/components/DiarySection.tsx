@@ -224,9 +224,9 @@ export function SalonDiaryCircles({
   // 読み込み中・0件のときはセクションごと非表示（上部に空の帯を出さない）。
   if (!list || list.length === 0) return null;
 
-  // 円1つ分の寸法。スマホ幅で約3.5枚見えるよう item=82px / gap=8px（pitch=90px）。
-  const CIRCLE = 72; // 円の直径(px)
-  const ITEM = 82;   // 名前を含む1列の幅(px)
+  // 円1つ分の寸法。スマホ幅で約3.5枚見えるよう item=98px / gap=4px（pitch=102px）。
+  const CIRCLE = 94; // 円の直径(px)
+  const ITEM = 98;   // 名前を含む1列の幅(px)
 
   return (
     <div className="w-full">
@@ -235,7 +235,7 @@ export function SalonDiaryCircles({
         <h2 className="text-base font-bold" style={{ color: heading }}>写メ日記</h2>
       </div>
 
-      <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-pink w-full">
+      <div className="flex gap-1 overflow-x-auto pb-2 scrollbar-pink w-full">
         {list.map((d) => (
           <Link
             key={d.id}
