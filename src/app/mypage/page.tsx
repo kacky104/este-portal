@@ -426,11 +426,14 @@ const POPUP_COLS = [
   { img: 'popup_image_url3', link: 'popup_link3' },
 ] as const;
 
-// ポップアップのリンク先候補。自分のサロン内のページのみ（外部URLは選べない）。
+// ポップアップのリンク先候補。自分のサロン内のページ＋自店セラピストの個別ページのみ（外部URLは選べない）。
 // value は保存される実パス。'' は「リンクなし」。
-function popupLinkOptions(salonId: string | number): { label: string; value: string }[] {
+function popupLinkOptions(
+  salonId: string | number,
+  therapists: { id: string; name: string | null }[] = [],
+): { label: string; value: string }[] {
   const base = `/salon/${salonId}`;
-  return [
+  const pages = [
     { label: 'リンクなし',       value: '' },
     { label: 'サロンTOP',        value: base },
     { label: '料金',             value: `${base}/price` },
@@ -443,6 +446,11 @@ function popupLinkOptions(salonId: string | number): { label: string; value: str
     { label: '出勤表',           value: `${base}/schedule` },
     { label: 'ネット予約',       value: `${base}/book` },
   ];
+  // 自店セラピストの個別ページ（/therapist/[id]）。
+  const therapistPages = therapists
+    .filter((t) => t.id != null && String(t.id).trim() !== '')
+    .map((t) => ({ label: `セラピスト：${t.name ?? '（名前未設定）'}`, value: `/therapist/${t.id}` }));
+  return [...pages, ...therapistPages];
 }
 
 export default function MyPage() {
@@ -3395,7 +3403,7 @@ export default function MyPage() {
             <div>
               <h2 className="text-sm font-black text-slate-700">ポップアップ画像</h2>
               <p className="mt-1 text-[11px] leading-relaxed text-slate-400">
-                スマホでサロン詳細ページを少し下にスクロールすると、左下から画像が「ポンっ」と跳ねて出ます（スマホ表示のみ。PCでは出ません）。最大3枚まで登録でき、<span className="text-slate-500 font-bold">ページを開くたびに1枚がランダムで表示</span>されます。画像ごとに、自分のサロン内のページへのリンク先を選べます。「表示する」をONにすると公開されます（お客様は✕で閉じられます）。<br />
+                スマホでサロン詳細ページを少し下にスクロールすると、左下から画像が「ポンっ」と跳ねて出ます（スマホ表示のみ。PCでは出ません）。最大3枚まで登録でき、<span className="text-slate-500 font-bold">ページを開くたびに1枚がランダムで表示</span>されます。画像ごとに、自分のサロン内のページ（セラピスト個別ページも含む）へのリンク先を選べます。「表示する」をONにすると公開されます（お客様は✕で閉じられます）。<br />
                 <span className="text-slate-500 font-bold">推奨サイズ：</span>縦長・約2:3（例 800×1200px）／1MB以下／JPEG・PNG・WebP。画像は枠なしで全体が表示されます（切れません）。<span className="text-pink-500 font-bold">背景を透過したPNG（切り抜き画像）</span>にすると、背景に自然に溶け込みます。
               </p>
             </div>
@@ -3431,7 +3439,7 @@ export default function MyPage() {
                       onChange={(e) => setPopupLinks(prev => prev.map((l, i) => (i === slot ? e.target.value : l)))}
                       className="w-full rounded-lg border border-slate-200 px-3 py-2 text-xs bg-white focus:outline-none focus:border-pink-300"
                     >
-                      {(salon ? popupLinkOptions(salon.id) : [{ label: 'リンクなし', value: '' }]).map((opt) => (
+                      {(salon ? popupLinkOptions(salon.id, therapists) : [{ label: 'リンクなし', value: '' }]).map((opt) => (
                         <option key={opt.value || 'none'} value={opt.value}>{opt.label}</option>
                       ))}
                     </select>
