@@ -115,47 +115,50 @@ export default async function ModerationPage() {
         {/* タブ（口コミ審査／書類）。書類は /admin と同じ書類置き場（RLS: 管理者＋審査スタッフ） */}
         <ModerationTabs
           documents={<ModerationDocuments />}
-          reviews={
+          reviewsPending={
             <>
-        <div className="flex items-center gap-2.5 mb-1">
-          <div className="w-1 h-6 rounded-full bg-gradient-to-b from-orange-400 to-pink-600" />
-          <h1 className="text-xl font-bold text-slate-900">口コミ審査</h1>
-        </div>
-        <p className="text-sm text-slate-500 mb-6">
-          未承認の口コミ {views.length} 件。承認すると公開ページに表示されます。
-        </p>
+              <div className="flex items-center gap-2.5 mb-1">
+                <div className="w-1 h-6 rounded-full bg-gradient-to-b from-orange-400 to-pink-600" />
+                <h1 className="text-xl font-bold text-slate-900">口コミ審査</h1>
+              </div>
+              <p className="text-sm text-slate-500 mb-6">
+                未承認の口コミ {views.length} 件。承認すると公開ページに表示されます。
+              </p>
 
-        {views.length === 0 ? (
-          <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-8 text-center text-slate-400 text-sm">
-            審査待ちの口コミはありません。
-          </div>
-        ) : (
-          <div className="space-y-4">
-            {views.map((v) => (
-              <ReviewModeration key={v.reviewId} {...v} />
-            ))}
-          </div>
-        )}
+              {views.length === 0 ? (
+                <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-8 text-center text-slate-400 text-sm">
+                  審査待ちの口コミはありません。
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {views.map((v) => (
+                    <ReviewModeration key={v.reviewId} {...v} />
+                  ))}
+                </div>
+              )}
+            </>
+          }
+          reviewsApproved={
+            <>
+              {/* ─── 承認済み（公開中）一覧：誤承認を削除する導線 ─── */}
+              <div className="flex items-center gap-2.5 mb-1">
+                <div className="w-1 h-6 rounded-full bg-gradient-to-b from-orange-400 to-pink-600" />
+                <h2 className="text-xl font-bold text-slate-900">承認済みの口コミ</h2>
+              </div>
+              <p className="text-sm text-slate-500 mb-6">
+                公開中 {approvedViews.length} 件。削除すると公開ページから消えます（元に戻せません）。
+              </p>
 
-        {/* ─── 承認済み（公開中）一覧：誤承認を削除する導線 ─── */}
-        <div className="flex items-center gap-2.5 mb-1 mt-10">
-          <div className="w-1 h-6 rounded-full bg-gradient-to-b from-orange-400 to-pink-600" />
-          <h2 className="text-xl font-bold text-slate-900">承認済みの口コミ</h2>
-        </div>
-        <p className="text-sm text-slate-500 mb-6">
-          公開中 {approvedViews.length} 件。削除すると公開ページから消えます（元に戻せません）。
-        </p>
-
-        {approvedViews.length === 0 ? (
-          <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-8 text-center text-slate-400 text-sm">
-            公開中の口コミはありません。
-          </div>
-        ) : (
-          // 承認済みは溜まり続けるため 50件ずつページング（URL同期）。useSearchParams のため Suspense でラップ。
-          <Suspense fallback={null}>
-            <ApprovedReviewsPaginated reviews={approvedViews} pageSize={50} />
-          </Suspense>
-        )}
+              {approvedViews.length === 0 ? (
+                <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-8 text-center text-slate-400 text-sm">
+                  公開中の口コミはありません。
+                </div>
+              ) : (
+                // 承認済みは溜まり続けるため 50件ずつページング（URL同期）。useSearchParams のため Suspense でラップ。
+                <Suspense fallback={null}>
+                  <ApprovedReviewsPaginated reviews={approvedViews} pageSize={50} />
+                </Suspense>
+              )}
             </>
           }
         />

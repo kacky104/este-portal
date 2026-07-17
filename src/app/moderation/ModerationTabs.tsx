@@ -2,10 +2,29 @@
 
 import { useState, type ReactNode } from 'react';
 
-// /moderation のタブ切替（口コミ審査／書類）。中身はサーバー側で描画済みの ReactNode を受け取り、
-// hidden 切替で両方マウントしたまま表示だけ切り替える（/admin のタブと同方針・stateを保持）。
-export function ModerationTabs({ reviews, documents }: { reviews: ReactNode; documents: ReactNode }) {
+// /moderation のタブ切替。上段タブ＝口コミ審査／書類。口コミ審査の中はさらに
+// サブタブ（口コミ審査＝審査待ち／承認済み）で分ける（2026-07-17 仕様変更）。
+// 中身はサーバー側で描画済みの ReactNode を受け取り、hidden 切替で両方マウントしたまま
+// 表示だけ切り替える（/admin のタブと同方針・stateを保持）。
+export function ModerationTabs({
+  reviewsPending,
+  reviewsApproved,
+  documents,
+}: {
+  reviewsPending: ReactNode;
+  reviewsApproved: ReactNode;
+  documents: ReactNode;
+}) {
   const [tab, setTab] = useState<'reviews' | 'docs'>('reviews');
+  const [reviewTab, setReviewTab] = useState<'pending' | 'approved'>('pending');
+
+  const pill = (selected: boolean) =>
+    `px-4 py-1.5 rounded-full border text-xs font-bold transition-colors ${
+      selected
+        ? 'bg-pink-50 text-pink-600 border-pink-300'
+        : 'bg-white text-slate-400 border-slate-200 hover:text-slate-600 hover:border-slate-300'
+    }`;
+
   return (
     <>
       <div className="flex gap-1.5 mb-6">
@@ -13,22 +32,34 @@ export function ModerationTabs({ reviews, documents }: { reviews: ReactNode; doc
           ['reviews', '口コミ審査'],
           ['docs', '書類'],
         ] as const).map(([key, label]) => (
-          <button
-            key={key}
-            type="button"
-            onClick={() => setTab(key)}
-            aria-pressed={tab === key}
-            className={`px-4 py-1.5 rounded-full border text-xs font-bold transition-colors ${
-              tab === key
-                ? 'bg-pink-50 text-pink-600 border-pink-300'
-                : 'bg-white text-slate-400 border-slate-200 hover:text-slate-600 hover:border-slate-300'
-            }`}
-          >
+          <button key={key} type="button" onClick={() => setTab(key)} aria-pressed={tab === key} className={pill(tab === key)}>
             {label}
           </button>
         ))}
       </div>
-      <div className={tab === 'reviews' ? '' : 'hidden'}>{reviews}</div>
+
+      <div className={tab === 'reviews' ? '' : 'hidden'}>
+        {/* サブタブ：口コミ審査（審査待ち）／承認済み */}
+        <div className="flex gap-1.5 mb-6">
+          {([
+            ['pending', '口コミ審査'],
+            ['approved', '承認済み'],
+          ] as const).map(([key, label]) => (
+            <button
+              key={key}
+              type="button"
+              onClick={() => setReviewTab(key)}
+              aria-pressed={reviewTab === key}
+              className={pill(reviewTab === key)}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+        <div className={reviewTab === 'pending' ? '' : 'hidden'}>{reviewsPending}</div>
+        <div className={reviewTab === 'approved' ? '' : 'hidden'}>{reviewsApproved}</div>
+      </div>
+
       <div className={tab === 'docs' ? '' : 'hidden'}>{documents}</div>
     </>
   );
