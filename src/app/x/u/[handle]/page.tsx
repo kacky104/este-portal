@@ -235,6 +235,7 @@ export default async function XProfilePage({ params }: { params: Promise<{ handl
     kind: target.kind,
     avatarUrl: target.avatar_url,
     isVerified: target.is_verified,
+    address: target.address,
     affiliatedShop: affiliatedShop
       ? { handle: affiliatedShop.handle, displayName: affiliatedShop.displayName }
       : null,

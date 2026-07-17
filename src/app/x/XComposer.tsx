@@ -174,6 +174,7 @@ export function XComposer({
         kind: me.kind,
         avatarUrl: me.avatar_url,
         isVerified: me.is_verified,
+        address: me.address,
         // 自分が店舗所属セラピストなら、投稿直後の楽観カードにも所属バッジを出す。
         affiliatedShop: myAffiliatedShop ?? null,
       },

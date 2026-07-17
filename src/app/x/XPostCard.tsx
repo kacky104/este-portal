@@ -237,6 +237,10 @@ export function XPostCard({
             {/* 編集済み表示 */}
             {view.editedAt && <span className="text-[10px] text-[color:var(--x-text-muted)]">(編集済み)</span>}
           </div>
+          {/* お店は名前の下に住所を表示（2026-07-17 追加・未設定なら出さない） */}
+          {a.kind === 'shop' && a.address && (
+            <p className="mt-0.5 text-[11px] text-[color:var(--x-text-muted)] truncate">📍 {a.address}</p>
+          )}
           {/* セラピストの所属バッジは名前の下の行に表示（2026-07-17 仕様変更・店舗プロフィールへリンク） */}
           {a.affiliatedShop && (
             <div className="mt-0.5">

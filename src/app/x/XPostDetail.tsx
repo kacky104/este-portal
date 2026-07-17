@@ -47,7 +47,7 @@ async function fetchReplyThread(parentId: string): Promise<XPost[]> {
   const authorIds = [...new Set(list.map((r) => r.author_profile_id).filter(Boolean))];
   const { data: profs } = await sb
     .from('x_profiles')
-    .select('id, handle, display_name, kind, avatar_url, status, is_verified, affiliated_shop_id')
+    .select('id, handle, display_name, kind, avatar_url, status, is_verified, affiliated_shop_id, address')
     .in('id', authorIds);
 
   const dict = new Map<
@@ -60,6 +60,7 @@ async function fetchReplyThread(parentId: string): Promise<XPost[]> {
       status: string;
       is_verified: boolean;
       affiliated_shop_id: string | null;
+      address: string | null;
     }
   >();
   (profs ?? []).forEach((p) =>
@@ -71,6 +72,7 @@ async function fetchReplyThread(parentId: string): Promise<XPost[]> {
       status: (p.status as string) ?? 'approved',
       is_verified: Boolean(p.is_verified),
       affiliated_shop_id: (p.affiliated_shop_id as string | null) ?? null,
+      address: (p.address as string | null) ?? null,
     })
   );
 
@@ -101,6 +103,7 @@ async function fetchReplyThread(parentId: string): Promise<XPost[]> {
         kind: a.kind,
         avatarUrl: a.avatar_url,
         isVerified: a.is_verified,
+        address: a.address,
         affiliatedShop: shop ? { handle: shop.handle, displayName: shop.displayName } : null,
       },
     });

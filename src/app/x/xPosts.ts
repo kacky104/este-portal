@@ -28,6 +28,7 @@ export type XPostAuthor = {
   kind: XKind;
   avatarUrl: string | null;
   isVerified: boolean; // 認証バッジ（shop のみ運用）
+  address: string | null; // 住所（投稿カードで shop のみ名前の下に表示。他 kind は表示しない）
   // セラピストが店舗に所属していれば所属先の最小情報（投稿カードの「○○店所属」表示用）。なければ null。
   affiliatedShop: { handle: string; displayName: string } | null;
 };
@@ -67,7 +68,7 @@ async function attachAuthors(client: AnyClient, rows: PostRow[]): Promise<XPost[
 
   const { data: profs } = await client
     .from('x_profiles')
-    .select('id, handle, display_name, kind, avatar_url, status, is_verified, affiliated_shop_id')
+    .select('id, handle, display_name, kind, avatar_url, status, is_verified, affiliated_shop_id, address')
     .in('id', ids);
 
   const dict = new Map<
@@ -80,6 +81,7 @@ async function attachAuthors(client: AnyClient, rows: PostRow[]): Promise<XPost[
       status: string;
       is_verified: boolean;
       affiliated_shop_id: string | null;
+      address: string | null;
     }
   >();
   (profs ?? []).forEach((p) =>
@@ -91,6 +93,7 @@ async function attachAuthors(client: AnyClient, rows: PostRow[]): Promise<XPost[
       status: (p.status as string) ?? 'approved',
       is_verified: Boolean(p.is_verified),
       affiliated_shop_id: (p.affiliated_shop_id as string | null) ?? null,
+      address: (p.address as string | null) ?? null,
     })
   );
 
@@ -122,6 +125,7 @@ async function attachAuthors(client: AnyClient, rows: PostRow[]): Promise<XPost[
         kind: a.kind,
         avatarUrl: a.avatar_url,
         isVerified: a.is_verified,
+        address: a.address,
         affiliatedShop: shop ? { handle: shop.handle, displayName: shop.displayName } : null,
       },
     });
