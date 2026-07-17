@@ -407,8 +407,9 @@ export function XPostCard({
         )}
       </div>
 
-      {/* 2行目（カード全幅）：お店の住所（📍）／セラピストの所属バッジ＋最右端に（編集済み）。
+      {/* 2行目（カード全幅）：お店の住所（📍）／セラピストの所属バッジ＋直後に（編集済み）。
           名前カラム内だと（編集済み）が住所を圧迫するため、ヘッダーの外に出して全幅を使う（2026-07-17）。
+          （編集済み）は右端寄せだと間延びした空白ができるため、バッジのすぐ隣に続けて表示する。
           左は本文と同じインデント（ml-[50px]＝アバター40px＋gap10px）。どれも無ければ行ごと出さない。 */}
       {((a.kind === 'shop' && a.address) || a.affiliatedShop || view.editedAt) && (
         <div className="mt-0.5 ml-[50px] flex items-center gap-1.5 min-w-0">
@@ -424,7 +425,7 @@ export function XPostCard({
             </Link>
           )}
           {view.editedAt && (
-            <span className="ml-auto flex-shrink-0 text-[10px] text-[color:var(--x-text-muted)]">(編集済み)</span>
+            <span className="flex-shrink-0 text-[10px] text-[color:var(--x-text-muted)]">(編集済み)</span>
           )}
         </div>
       )}
