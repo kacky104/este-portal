@@ -440,7 +440,7 @@ export function XAdmin({
       {tab === 'abuse' && (
         <div className="space-y-2">
           <p className="text-[11px] text-[color:var(--x-text-muted)] mb-2">
-            投稿の「…」メニューから送られた通報の一覧です（新しい順・最新200件を保持し、超えた分は古いものから自動削除）。対応したら「対応済み」に切り替えてください。
+            投稿の「…」メニューから送られた通報の一覧です（新しい順・最新200件を保持し、超えた分は古いものから自動削除）。対応したら「対応済み」に切り替えてください。「通報された投稿を削除する」を実行すると、その投稿への通報は全員分まとめて消えます。
           </p>
           {!abuseLoaded ? (
             <p className="text-xs text-[color:var(--x-text-muted)] py-6 text-center">読み込み中…</p>
