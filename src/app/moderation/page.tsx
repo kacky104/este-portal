@@ -8,6 +8,8 @@ import {
   type ApprovedReviewView,
 } from './ReviewModeration';
 import { ApprovedReviewsPaginated } from './ApprovedReviewsPaginated';
+import { ModerationTabs } from './ModerationTabs';
+import { ModerationDocuments } from './ModerationDocuments';
 
 // 口コミ審査画面（管理者専用）。layout.tsx のサーバーガードと合わせた二層防御。
 // 未承認（status='pending'）は RLS 上 admin 本人でも見えないため、取得は service_role で行う。
@@ -110,6 +112,11 @@ export default async function ModerationPage() {
       </header>
 
       <main className="max-w-3xl mx-auto px-4 py-8">
+        {/* タブ（口コミ審査／書類）。書類は /admin と同じ書類置き場（RLS: 管理者＋審査スタッフ） */}
+        <ModerationTabs
+          documents={<ModerationDocuments />}
+          reviews={
+            <>
         <div className="flex items-center gap-2.5 mb-1">
           <div className="w-1 h-6 rounded-full bg-gradient-to-b from-orange-400 to-pink-600" />
           <h1 className="text-xl font-bold text-slate-900">口コミ審査</h1>
@@ -149,6 +156,9 @@ export default async function ModerationPage() {
             <ApprovedReviewsPaginated reviews={approvedViews} pageSize={50} />
           </Suspense>
         )}
+            </>
+          }
+        />
       </main>
     </div>
   );

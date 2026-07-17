@@ -142,7 +142,7 @@ export default function AdminDocumentsManager({ onToast }: { onToast: (msg: stri
     <div className="bg-white rounded-3xl border border-slate-100 shadow-sm p-6">
       <div className="flex items-center justify-between gap-3 mb-4 flex-wrap">
         <p className="text-[11px] text-slate-400 leading-relaxed">
-          PDF・Word（.pdf / .doc / .docx・20MBまで）の保管庫です。管理者のみ閲覧・ダウンロードできます（オーナー・一般には公開されません）。
+          PDF・Word（.pdf / .doc / .docx・20MBまで）の保管庫です。運営・審査スタッフのみ利用できます（オーナー・一般には公開されません）。
         </p>
         <button
           type="button"
