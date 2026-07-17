@@ -35,7 +35,7 @@ const HEART_COLORS: Record<ThemeKey, { fill: string; num: string }> = {
   purple: { fill: '#6258C7', num: '#ffffff' },
 };
 import { SalonTherapists, SalonAllTherapists, SalonNewFaceTherapists } from "@/components/SalonTherapists";
-import { SalonDiarySection, SalonDiaryCircles } from "@/components/DiarySection";
+import { SalonDiaryCircles } from "@/components/DiarySection";
 import SalonHeaderSlider from "@/components/SalonHeaderSlider";
 import { SalonNameBanner } from "./SalonNameBanner";
 import { SalonActionButtons } from "./SalonActionButtons";
@@ -671,30 +671,6 @@ export default async function SalonPage({
                 </Link>
               </div>
               <SalonTherapists salonId={Number(id)} />
-            </div>
-
-            {/* Diary section（本日の出勤との隙間を半分に：space-y を上書き。枠内の上下余白も半分に：p-5→px-5 py-2.5） */}
-            <div className="!mt-1.5 md:!mt-3 rounded-3xl px-5 py-2.5 border shadow-sm" style={{ backgroundColor: theme.card, borderColor: theme.cardBorder }}>
-              <div className="flex items-center justify-between gap-2 mb-4">
-                <div className="flex items-center gap-2 min-w-0">
-                  <span className="w-1 h-5 rounded-full bg-gradient-to-b from-pink-500 to-pink-700 flex-shrink-0" />
-                  <h2 className="text-base font-bold truncate" style={{ color: theme.heading }}>セラピスト写メ日記</h2>
-                </div>
-                <Link
-                  href={`/salon/${id}/diary`}
-                  className="inline-block text-sm font-bold flex-shrink-0"
-                  style={{
-                    background: 'linear-gradient(to right, #ec4899, #f97316)',
-                    WebkitBackgroundClip: 'text',
-                    backgroundClip: 'text',
-                    WebkitTextFillColor: 'transparent',
-                    color: 'transparent',
-                  }}
-                >
-                  全部見る →
-                </Link>
-              </div>
-              <SalonDiarySection salonId={id} />
             </div>
 
             {/* Courses — shown only when DB data is available（折り畳み式） */}
