@@ -237,23 +237,103 @@ export function XPostCard({
         </div>
 
         {/* フォローボタンは投稿カードから廃止（2026-07-16 仕様変更）。フォロー/解除はドロワーまたはプロフィール画面から。 */}
-        {/* 「…」ドロワートリガー（自分以外の投稿・moderation 指定時のみ）。カード遷移と競合しないよう stopPropagation。 */}
+        {/* 「…」メニュー（自分以外の投稿・moderation 指定時のみ）。X風のドロップダウン（ボタン直下・アイコン付き行）。
+            isOwn の編集/削除メニューと同じ「fixedオーバーレイ＋absoluteカード」方式。カード遷移と競合しないよう stopPropagation。 */}
         {!isOwn && moderation && (
-          <button
-            type="button"
-            onClick={(e) => {
-              e.stopPropagation();
-              setDrawerOpen(true);
-            }}
-            aria-label="投稿オプション"
-            className="w-8 h-8 -mr-1 -mt-1 flex-shrink-0 rounded-full text-[color:var(--x-text-muted)] hover:bg-[color:var(--x-inset)] hover:text-[color:var(--x-text-secondary)] flex items-center justify-center transition-colors"
-          >
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
-              <circle cx="5" cy="12" r="2" />
-              <circle cx="12" cy="12" r="2" />
-              <circle cx="19" cy="12" r="2" />
-            </svg>
-          </button>
+          <div className="relative flex-shrink-0">
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                setDrawerOpen((o) => !o);
+                setReportStep(false);
+              }}
+              aria-label="投稿オプション"
+              className="w-8 h-8 -mr-1 -mt-1 rounded-full text-[color:var(--x-text-muted)] hover:bg-[color:var(--x-inset)] hover:text-[color:var(--x-text-secondary)] flex items-center justify-center transition-colors"
+            >
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+                <circle cx="5" cy="12" r="2" />
+                <circle cx="12" cy="12" r="2" />
+                <circle cx="19" cy="12" r="2" />
+              </svg>
+            </button>
+            {drawerOpen && (
+              <>
+                {/* 画面どこかをタップで閉じる（X と同じ・キャンセル行は置かない） */}
+                <button
+                  type="button"
+                  aria-label="メニューを閉じる"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setDrawerOpen(false);
+                    setReportStep(false);
+                  }}
+                  className="fixed inset-0 z-10 cursor-default"
+                />
+                <div className="absolute right-0 top-9 z-20 w-64 rounded-2xl bg-[color:var(--x-surface)] shadow-[0_4px_24px_rgba(0,0,0,0.25)] border border-[color:var(--x-border)] py-1 overflow-hidden">
+                  {!reportStep ? (
+                    <>
+                      {showFollow && (
+                        <MenuRow
+                          disabled={followPending}
+                          onClick={() => { onToggleFollow(a.id); setDrawerOpen(false); }}
+                          label={following ? `@${a.handle} のフォローを解除` : `@${a.handle} をフォロー`}
+                          icon={following ? (
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" /><line x1="17" y1="8" x2="22" y2="13" /><line x1="22" y1="8" x2="17" y2="13" /></svg>
+                          ) : (
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" /><line x1="19" y1="8" x2="19" y2="14" /><line x1="22" y1="11" x2="16" y2="11" /></svg>
+                          )}
+                        />
+                      )}
+                      {onToggleSave && (
+                        <MenuRow
+                          disabled={!!savePending}
+                          onClick={() => { onToggleSave(post); setDrawerOpen(false); }}
+                          label={saved ? '保存を解除' : '保存する'}
+                          icon={<svg width="18" height="18" viewBox="0 0 24 24" fill={saved ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m19 21-7-4-7 4V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z" /></svg>}
+                        />
+                      )}
+                      <MenuRow
+                        onClick={() => { moderation.onMute(a); setDrawerOpen(false); }}
+                        label={`@${a.handle} をミュート`}
+                        icon={<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" /><line x1="23" y1="9" x2="17" y2="15" /><line x1="17" y1="9" x2="23" y2="15" /></svg>}
+                      />
+                      <MenuRow
+                        danger
+                        onClick={() => { moderation.onBlock(a); setDrawerOpen(false); }}
+                        label={`@${a.handle} をブロック`}
+                        icon={<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10" /><line x1="4.93" y1="4.93" x2="19.07" y2="19.07" /></svg>}
+                      />
+                      <MenuRow
+                        danger
+                        onClick={() => setReportStep(true)}
+                        label="投稿を通報"
+                        icon={<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z" /><line x1="4" y1="22" x2="4" y2="15" /></svg>}
+                      />
+                    </>
+                  ) : (
+                    <>
+                      <p className="px-4 py-2 text-xs font-bold text-[color:var(--x-text-muted)]">通報する理由を選んでください</p>
+                      {(['スパム・宣伝', '不適切な内容', 'その他'] as const).map((reason) => (
+                        <MenuRow
+                          key={reason}
+                          onClick={() => { moderation.onReport(post, reason); setDrawerOpen(false); setReportStep(false); }}
+                          label={reason}
+                          icon={<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z" /><line x1="4" y1="22" x2="4" y2="15" /></svg>}
+                        />
+                      ))}
+                      <MenuRow
+                        muted
+                        onClick={() => setReportStep(false)}
+                        label="戻る"
+                        icon={<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M19 12H5" /><path d="m12 19-7-7 7-7" /></svg>}
+                      />
+                    </>
+                  )}
+                </div>
+              </>
+            )}
+          </div>
         )}
 
         {/* 自分の投稿のみ：…メニュー（編集/削除）。カード遷移と競合しないよう stopPropagation。 */}
@@ -473,65 +553,20 @@ export function XPostCard({
           </div>
         </div>
       )}
-      {/* ── 「…」ドロワー（下からのシート）。フォロー切替・保存・ミュート・ブロック・通報（理由選択）。 ── */}
-      {drawerOpen && moderation && (
-        <div className="fixed inset-0 z-[70]" onClick={(e) => e.stopPropagation()}>
-          <div
-            className="absolute inset-0 bg-slate-950/50 backdrop-blur-sm"
-            onClick={() => { setDrawerOpen(false); setReportStep(false); }}
-          />
-          <div className="absolute bottom-0 left-0 right-0 max-w-2xl mx-auto bg-[color:var(--x-surface)] rounded-t-2xl shadow-2xl p-3 pb-[max(12px,env(safe-area-inset-bottom))]">
-            <div className="mx-auto w-10 h-1 rounded-full bg-[color:var(--x-border-strong)] mb-2" aria-hidden />
-            {!reportStep ? (
-              <div className="space-y-1">
-                {/* フォロー切替（親が showFollow で権限判定済みのときのみ） */}
-                {showFollow && (
-                  <DrawerRow
-                    label={following ? 'フォロー解除' : `@${a.handle} をフォローする`}
-                    disabled={followPending}
-                    onClick={() => { onToggleFollow(a.id); setDrawerOpen(false); }}
-                  />
-                )}
-                {onToggleSave && (
-                  <DrawerRow
-                    label={saved ? '保存を解除' : '保存する'}
-                    disabled={!!savePending}
-                    onClick={() => { onToggleSave(post); setDrawerOpen(false); }}
-                  />
-                )}
-                <DrawerRow label={`@${a.handle} をミュート`} onClick={() => { moderation.onMute(a); setDrawerOpen(false); }} />
-                <DrawerRow danger label={`@${a.handle} をブロック`} onClick={() => { moderation.onBlock(a); setDrawerOpen(false); }} />
-                <DrawerRow danger label="通報する" onClick={() => setReportStep(true)} />
-                <DrawerRow muted label="キャンセル" onClick={() => { setDrawerOpen(false); setReportStep(false); }} />
-              </div>
-            ) : (
-              <div className="space-y-1">
-                <p className="px-3 py-1 text-xs font-bold text-[color:var(--x-text-muted)]">通報する理由を選んでください</p>
-                {(['スパム・宣伝', '不適切な内容', 'その他'] as const).map((reason) => (
-                  <DrawerRow
-                    key={reason}
-                    label={reason}
-                    onClick={() => { moderation.onReport(post, reason); setDrawerOpen(false); setReportStep(false); }}
-                  />
-                ))}
-                <DrawerRow muted label="戻る" onClick={() => setReportStep(false)} />
-              </div>
-            )}
-          </div>
-        </div>
-      )}
     </article>
   );
 }
 
-// ドロワーの1行ボタン（danger=赤 / muted=グレー / 通常=本文色）。
-function DrawerRow({
+// ドロップダウンの1行ボタン（X風：左アイコン＋ラベル。danger=赤 / muted=グレー / 通常=本文色）。
+function MenuRow({
+  icon,
   label,
   onClick,
   danger = false,
   muted = false,
   disabled = false,
 }: {
+  icon: React.ReactNode;
   label: string;
   onClick: () => void;
   danger?: boolean;
@@ -546,7 +581,7 @@ function DrawerRow({
         onClick();
       }}
       disabled={disabled}
-      className={`w-full text-left px-3 py-3 rounded-xl text-sm font-bold transition-colors disabled:opacity-40 ${
+      className={`w-full flex items-center gap-3 text-left px-4 py-2.5 text-sm font-bold transition-colors disabled:opacity-40 ${
         danger
           ? 'text-rose-500 hover:bg-rose-50'
           : muted
@@ -554,7 +589,8 @@ function DrawerRow({
             : 'text-[color:var(--x-text-primary)] hover:bg-[color:var(--x-surface-hover)]'
       }`}
     >
-      {label}
+      <span className="flex-shrink-0">{icon}</span>
+      <span className="truncate">{label}</span>
     </button>
   );
 }
