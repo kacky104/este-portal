@@ -11,7 +11,7 @@ import { XComposer } from './XComposer';
 import { RepostIcon } from './RepostIcon';
 import { useMe } from './XMeProvider';
 import { safeHref, linkDomain } from './xLink';
-import type { XPost } from './xPosts';
+import type { XPost, XPostAuthor } from './xPosts';
 
 const sb = createClient();
 
@@ -102,6 +102,7 @@ export function XPostCard({
   showReplyLink = true,
   clampBody = true,
   flat = false,
+  moderation,
 }: {
   post: XPost;
   liked: boolean;
@@ -133,6 +134,13 @@ export function XPostCard({
   // X風の全幅行モード（2026-07-10 本採用）。true で浮遊カードの装飾（角丸・影）を外し
   // 全幅の行として描画する（区切り線は親コンテナの divide-y が担当）。タイムラインのみで使用。
   flat?: boolean;
+  // 「…」ドロワー（フォロー切替/保存/ミュート/ブロック/通報）。渡した呼び出し元（タイムライン）のみ、
+  // 自分以外の投稿の右上に「…」ボタンを表示する。未指定の呼び出し元は従来どおり非表示。
+  moderation?: {
+    onMute: (author: XPostAuthor) => void;
+    onBlock: (author: XPostAuthor) => void;
+    onReport: (post: XPost, reason: string) => void;
+  };
 }) {
   const a = post.author;
   const { me } = useMe();
@@ -142,6 +150,9 @@ export function XPostCard({
   const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
   // 編集/削除のローカル状態（親の再配線なしで自己完結：編集は override で上書き、削除は非表示）。
   const [menuOpen, setMenuOpen] = useState(false);
+  // 「…」ドロワー（自分以外の投稿）。reportStep=true で通報理由の選択ステップ。
+  const [drawerOpen, setDrawerOpen] = useState(false);
+  const [reportStep, setReportStep] = useState(false);
   const [editing, setEditing] = useState(false);
   const [deleted, setDeleted] = useState(false);
   const [override, setOverride] = useState<
@@ -225,8 +236,25 @@ export function XPostCard({
           </div>
         </div>
 
-        {/* フォローボタンは投稿カードから廃止（2026-07-16 仕様変更）。フォロー/解除はプロフィール画面から。
-            showFollow / following / onToggleFollow / followPending の各プロップは呼び出し元との互換のため温存。 */}
+        {/* フォローボタンは投稿カードから廃止（2026-07-16 仕様変更）。フォロー/解除はドロワーまたはプロフィール画面から。 */}
+        {/* 「…」ドロワートリガー（自分以外の投稿・moderation 指定時のみ）。カード遷移と競合しないよう stopPropagation。 */}
+        {!isOwn && moderation && (
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              setDrawerOpen(true);
+            }}
+            aria-label="投稿オプション"
+            className="w-8 h-8 -mr-1 -mt-1 flex-shrink-0 rounded-full text-[color:var(--x-text-muted)] hover:bg-[color:var(--x-inset)] hover:text-[color:var(--x-text-secondary)] flex items-center justify-center transition-colors"
+          >
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+              <circle cx="5" cy="12" r="2" />
+              <circle cx="12" cy="12" r="2" />
+              <circle cx="19" cy="12" r="2" />
+            </svg>
+          </button>
+        )}
 
         {/* 自分の投稿のみ：…メニュー（編集/削除）。カード遷移と競合しないよう stopPropagation。 */}
         {isOwn && (
@@ -445,6 +473,88 @@ export function XPostCard({
           </div>
         </div>
       )}
+      {/* ── 「…」ドロワー（下からのシート）。フォロー切替・保存・ミュート・ブロック・通報（理由選択）。 ── */}
+      {drawerOpen && moderation && (
+        <div className="fixed inset-0 z-[70]" onClick={(e) => e.stopPropagation()}>
+          <div
+            className="absolute inset-0 bg-slate-950/50 backdrop-blur-sm"
+            onClick={() => { setDrawerOpen(false); setReportStep(false); }}
+          />
+          <div className="absolute bottom-0 left-0 right-0 max-w-2xl mx-auto bg-[color:var(--x-surface)] rounded-t-2xl shadow-2xl p-3 pb-[max(12px,env(safe-area-inset-bottom))]">
+            <div className="mx-auto w-10 h-1 rounded-full bg-[color:var(--x-border-strong)] mb-2" aria-hidden />
+            {!reportStep ? (
+              <div className="space-y-1">
+                {/* フォロー切替（親が showFollow で権限判定済みのときのみ） */}
+                {showFollow && (
+                  <DrawerRow
+                    label={following ? 'フォロー解除' : `@${a.handle} をフォローする`}
+                    disabled={followPending}
+                    onClick={() => { onToggleFollow(a.id); setDrawerOpen(false); }}
+                  />
+                )}
+                {onToggleSave && (
+                  <DrawerRow
+                    label={saved ? '保存を解除' : '保存する'}
+                    disabled={!!savePending}
+                    onClick={() => { onToggleSave(post); setDrawerOpen(false); }}
+                  />
+                )}
+                <DrawerRow label={`@${a.handle} をミュート`} onClick={() => { moderation.onMute(a); setDrawerOpen(false); }} />
+                <DrawerRow danger label={`@${a.handle} をブロック`} onClick={() => { moderation.onBlock(a); setDrawerOpen(false); }} />
+                <DrawerRow danger label="通報する" onClick={() => setReportStep(true)} />
+                <DrawerRow muted label="キャンセル" onClick={() => { setDrawerOpen(false); setReportStep(false); }} />
+              </div>
+            ) : (
+              <div className="space-y-1">
+                <p className="px-3 py-1 text-xs font-bold text-[color:var(--x-text-muted)]">通報する理由を選んでください</p>
+                {(['スパム・宣伝', '不適切な内容', 'その他'] as const).map((reason) => (
+                  <DrawerRow
+                    key={reason}
+                    label={reason}
+                    onClick={() => { moderation.onReport(post, reason); setDrawerOpen(false); setReportStep(false); }}
+                  />
+                ))}
+                <DrawerRow muted label="戻る" onClick={() => setReportStep(false)} />
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </article>
+  );
+}
+
+// ドロワーの1行ボタン（danger=赤 / muted=グレー / 通常=本文色）。
+function DrawerRow({
+  label,
+  onClick,
+  danger = false,
+  muted = false,
+  disabled = false,
+}: {
+  label: string;
+  onClick: () => void;
+  danger?: boolean;
+  muted?: boolean;
+  disabled?: boolean;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={(e) => {
+        e.stopPropagation();
+        onClick();
+      }}
+      disabled={disabled}
+      className={`w-full text-left px-3 py-3 rounded-xl text-sm font-bold transition-colors disabled:opacity-40 ${
+        danger
+          ? 'text-rose-500 hover:bg-rose-50'
+          : muted
+            ? 'text-[color:var(--x-text-muted)] hover:bg-[color:var(--x-surface-hover)]'
+            : 'text-[color:var(--x-text-primary)] hover:bg-[color:var(--x-surface-hover)]'
+      }`}
+    >
+      {label}
+    </button>
   );
 }

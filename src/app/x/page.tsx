@@ -20,6 +20,7 @@ import { fetchShopShowcases } from './xShops';
 import { fetchStoryGroups, fetchStoryAuthorsPublic, type StoryGroup } from './xStories';
 import { XStoryBar } from './XStoryBar';
 import { fetchXBanners } from './xBanners';
+import { fetchMyHiddenProfileIds } from './xModerationData';
 
 // ログイン状態・自分の x_profiles・フォロー中/いいね状態を読むため動的レンダリング（ISRにはしない）。
 export const dynamic = 'force-dynamic';
@@ -46,8 +47,12 @@ export default async function XHomePage() {
   let savedIds: string[] = [];
   let repostedIds: string[] = [];
   let repostCounts: Record<string, number> = {};
+  let hiddenProfileIds: string[] = []; // ミュート/ブロック中の相手（タイムライン非表示用）
   if (profile) {
-    followeeIds = await fetchMyFolloweeIds(profile.id);
+    [followeeIds, hiddenProfileIds] = await Promise.all([
+      fetchMyFolloweeIds(profile.id),
+      fetchMyHiddenProfileIds(profile.id),
+    ]);
     // フォロー先のトップレベル投稿と、フォロー先がリポストした投稿を並行取得しマージ（sortAt降順・重複排除）。
     const [followingPosts, followingReposts] = await Promise.all([
       fetchFollowingPosts(followeeIds),
@@ -221,6 +226,7 @@ export default async function XHomePage() {
         myFollowers={myFollowers}
         myAffiliatedShop={myAffiliatedShop}
         banners={banners}
+        initialHiddenProfileIds={hiddenProfileIds}
       />
     </div>
   );

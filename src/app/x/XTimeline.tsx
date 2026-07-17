@@ -3,13 +3,14 @@
 import { useMemo, useState } from 'react';
 import Link from 'next/link';
 import type { XProfile } from './xProfile';
-import type { XPost, FeedItem } from './xPosts';
+import type { XPost, XPostAuthor, FeedItem } from './xPosts';
 import type { ShopShowcase } from './xShops';
 import { XComposeFab } from './XComposeFab';
 import { XPostCard } from './XPostCard';
 import { XBannerSlider } from './XBannerSlider';
 import type { XBanner } from './xBanners';
 import { XAuthGateModal } from './XAuthGateModal';
+import { muteProfile, blockProfile, reportPost } from './xModerationActions';
 import { XFollowRows } from './XFollowRows';
 import { VerifiedBadge } from './VerifiedBadge';
 import { AutoFitName } from './AutoFitName';
@@ -31,6 +32,7 @@ export function XTimeline({
   myFollowers,
   myAffiliatedShop,
   banners,
+  initialHiddenProfileIds,
 }: {
   me: XProfile | null;
   loggedIn: boolean;
@@ -46,6 +48,7 @@ export function XTimeline({
   myFollowers?: FollowUser[];
   myAffiliatedShop?: { handle: string; displayName: string } | null;
   banners?: XBanner[]; // 運営設定のバナースライダー（全タブ共通・タブバー直下）。空なら非表示。
+  initialHiddenProfileIds?: string[]; // 自分がミュート/ブロック中の相手（サーバー取得・タイムライン非表示用）
 }) {
   const [tab, setTab] = useState<'recommended' | 'following' | 'shops'>('recommended');
   // バナースライダーのシャッフル：タブを切り替えるたびに並びをシャッフルし、key を変えて
@@ -72,6 +75,31 @@ export function XTimeline({
   const { toast, showToast } = useXToast();
   const [myNewPosts, setMyNewPosts] = useState<XPost[]>([]);
   const [gateOpen, setGateOpen] = useState(false); // 未ログイン／未開設アクション時のモーダル
+  // ミュート/ブロック中の相手（author profile id）。サーバー初期値＋この場の操作で追記し、全タブの表示から除外。
+  const [hiddenIds, setHiddenIds] = useState<Set<string>>(() => new Set(initialHiddenProfileIds ?? []));
+  const hideAuthor = (id: string) => setHiddenIds((s) => { const n = new Set(s); n.add(id); return n; });
+
+  // ── 「…」ドロワーのモデレーション操作（未ログイン/未開設はアカウント作成モーダルへ） ──
+  const handleMute = async (author: XPostAuthor) => {
+    if (!me) { setGateOpen(true); return; }
+    const res = await muteProfile(author.id);
+    if (!res.ok) { showToast(res.error); return; }
+    hideAuthor(author.id);
+    showToast(`@${author.handle} をミュートしました`);
+  };
+  const handleBlock = async (author: XPostAuthor) => {
+    if (!me) { setGateOpen(true); return; }
+    if (!window.confirm(`@${author.handle} をブロックしますか？\n相手の投稿が表示されなくなり、相互のフォローも解除されます。`)) return;
+    const res = await blockProfile(author.id);
+    if (!res.ok) { showToast(res.error); return; }
+    hideAuthor(author.id);
+    showToast(`@${author.handle} をブロックしました`);
+  };
+  const handleReport = async (post: XPost, reason: string) => {
+    if (!me) { setGateOpen(true); return; }
+    const res = await reportPost({ targetProfileId: post.author.id, postId: post.id, reason });
+    showToast(res.ok ? '通報を受け付けました。ご協力ありがとうございます' : res.error);
+  };
 
   // いいね/フォローの状態・権限・操作は共通フックに集約（プロフィールページと共有）。
   const eng = useXEngagement({
@@ -100,8 +128,20 @@ export function XTimeline({
   // おすすめ表示：自分の新規投稿 + サーバー取得分（重複除去）。
   const recommendedView = useMemo(() => {
     const seen = new Set<string>();
-    return [...myNewPosts, ...recommended].filter((p) => (seen.has(p.id) ? false : (seen.add(p.id), true)));
-  }, [myNewPosts, recommended]);
+    return [...myNewPosts, ...recommended]
+      .filter((p) => (seen.has(p.id) ? false : (seen.add(p.id), true)))
+      .filter((p) => !hiddenIds.has(p.author.id)); // ミュート/ブロック中の相手を除外
+  }, [myNewPosts, recommended, hiddenIds]);
+
+  // フォロー中フィード・お店タブもミュート/ブロック中の相手を除外。
+  const followingFeedView = useMemo(
+    () => followingFeed.filter((f) => !hiddenIds.has(f.post.author.id)),
+    [followingFeed, hiddenIds],
+  );
+  const shopShowcasesView = useMemo(
+    () => shopShowcases.filter((sc) => !hiddenIds.has(sc.id)),
+    [shopShowcases, hiddenIds],
+  );
 
   // 1枚のカードを描画（repostLabel を渡せばカード上部にリポストラベルが出る）。
   const renderCard = (p: XPost, repostLabel?: string) => {
@@ -127,6 +167,7 @@ export function XTimeline({
         repostPending={eng.repostPendingFor(p.id)}
         onToggleRepost={eng.toggleRepost}
         repostLabel={repostLabel}
+        moderation={{ onMute: handleMute, onBlock: handleBlock, onReport: handleReport }}
         flat
       />
     );
@@ -178,11 +219,11 @@ export function XTimeline({
       ) : tab === 'shops' ? (
         // お店タブ：お店カード（店名＋アバター＋画像グリッド）の一覧。カード全体タップでプロフィールへ。
         // ※全幅グリッド方式を試験（2026-07-10）→実機評価でカード型（A方式）継続に確定し差し戻し済み。
-        shopShowcases.length === 0 ? (
+        shopShowcasesView.length === 0 ? (
           <Empty text="表示できるお店がまだありません" />
         ) : (
           <div className="space-y-3 pt-3">
-            {shopShowcases.map((s) => (
+            {shopShowcasesView.map((s) => (
               <Link
                 key={s.id}
                 href={`/x/u/${encodeURIComponent(s.handle)}`}
@@ -265,12 +306,12 @@ export function XTimeline({
             </Link>
           </div>
         </div>
-      ) : followingFeed.length === 0 ? (
+      ) : followingFeedView.length === 0 ? (
         <Empty text="気になるセラピスト・お店をフォローすると、ここに新着が表示されます" />
       ) : (
         // おすすめタブと同じ全幅行方式（本採用）。
         <div className="-mx-4 divide-y divide-[color:var(--x-border)] border-b border-[color:var(--x-border)]">
-          {renderFeed(followingFeed)}
+          {renderFeed(followingFeedView)}
         </div>
       )}
 

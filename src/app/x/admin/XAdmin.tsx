@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { createClient } from '@/app/lib/supabase/client';
 import { XTimeAgo } from '../XTimeAgo';
@@ -95,7 +95,7 @@ export function XAdmin({
   reports: BannerReportRow[]; // リンクバナー設置報告（未対応が先・新着順）
   myAuthId: string; // 運営の auth uid（x-images のアップロード先フォルダ＝RLSが先頭フォルダ一致を要求）
 }) {
-  const [tab, setTab] = useState<'verify' | 'accounts' | 'posts' | 'banners' | 'reports'>('verify');
+  const [tab, setTab] = useState<'verify' | 'accounts' | 'posts' | 'banners' | 'reports' | 'abuse'>('verify');
   const [reports, setReports] = useState(initialReports);
   const [shops, setShops] = useState(initialShops);
   const [posts, setPosts] = useState(initialPosts);
@@ -327,6 +327,58 @@ export function XAdmin({
 
   const shownShops = onlyUnverified ? shops.filter((s) => !s.is_verified) : shops;
 
+  // ── 通報（x_reports）タブ ──────────────────────────────
+  // タブを初めて開いたときに遅延取得（管理RLS: ADMIN_UUID のみ SELECT/UPDATE 可）。
+  // 表示用に reporter/target の handle と対象投稿の本文冒頭も引く。
+  type AbuseReport = {
+    id: string;
+    reporter_profile_id: string;
+    target_profile_id: string;
+    post_id: string | null;
+    reason: string;
+    status: 'open' | 'done';
+    created_at: string;
+  };
+  const [abuseReports, setAbuseReports] = useState<AbuseReport[]>([]);
+  const [abuseProfiles, setAbuseProfiles] = useState<Record<string, { handle: string; displayName: string }>>({});
+  const [abusePostBodies, setAbusePostBodies] = useState<Record<string, string>>({});
+  const [abuseLoaded, setAbuseLoaded] = useState(false);
+  const [abuseBusyId, setAbuseBusyId] = useState<string | null>(null);
+  useEffect(() => {
+    if (tab !== 'abuse' || abuseLoaded) return;
+    (async () => {
+      const { data: reportRows } = await supabase
+        .from('x_reports')
+        .select('id, reporter_profile_id, target_profile_id, post_id, reason, status, created_at')
+        .order('created_at', { ascending: false })
+        .limit(200);
+      const rows = (reportRows ?? []) as AbuseReport[];
+      setAbuseReports(rows);
+      const profileIds = [...new Set(rows.flatMap((r) => [r.reporter_profile_id, r.target_profile_id]))];
+      const postIds = [...new Set(rows.map((r) => r.post_id).filter((v): v is string => !!v))];
+      const [profRes, postRes] = await Promise.all([
+        profileIds.length > 0 ? supabase.from('x_profiles').select('id, handle, display_name').in('id', profileIds) : Promise.resolve({ data: [] }),
+        postIds.length > 0 ? supabase.from('x_posts').select('id, body').in('id', postIds) : Promise.resolve({ data: [] }),
+      ]);
+      setAbuseProfiles(Object.fromEntries(((profRes.data ?? []) as { id: string; handle: string; display_name: string }[]).map((p) => [p.id, { handle: p.handle, displayName: p.display_name }])));
+      setAbusePostBodies(Object.fromEntries(((postRes.data ?? []) as { id: string; body: string | null }[]).map((p) => [p.id, p.body ?? ''])));
+      setAbuseLoaded(true);
+    })();
+  }, [tab, abuseLoaded]);
+
+  const toggleAbuseStatus = async (r: AbuseReport) => {
+    const next = r.status === 'open' ? 'done' : 'open';
+    setAbuseBusyId(r.id);
+    const { error } = await supabase.from('x_reports').update({ status: next }).eq('id', r.id);
+    setAbuseBusyId(null);
+    if (error) return;
+    setAbuseReports((prev) => prev.map((x) => (x.id === r.id ? { ...x, status: next } : x)));
+  };
+  const abuseName = (id: string) => {
+    const p = abuseProfiles[id];
+    return p ? `${p.displayName}（@${p.handle}）` : id.slice(0, 8);
+  };
+
   // 「報告」タブの未対応件数（タブの赤バッジ用）。対応済みトグルで即時に増減する。
   const openReportCount = reports.filter((r) => r.status === 'open').length;
 
@@ -344,6 +396,7 @@ export function XAdmin({
             ['posts', '投稿'],
             ['banners', 'バナー'],
             ['reports', '報告'],
+            ['abuse', '通報'],
           ] as const
         ).map(([key, label]) => (
           <button
@@ -364,6 +417,52 @@ export function XAdmin({
           </button>
         ))}
       </div>
+
+      {/* ── 通報一覧（x_reports・投稿カードの「…」ドロワーから送信） ── */}
+      {tab === 'abuse' && (
+        <div className="space-y-2">
+          <p className="text-[11px] text-[color:var(--x-text-muted)] mb-2">
+            投稿の「…」メニューから送られた通報の一覧です（新しい順・最大200件）。対応したら「対応済み」に切り替えてください。
+          </p>
+          {!abuseLoaded ? (
+            <p className="text-xs text-[color:var(--x-text-muted)] py-6 text-center">読み込み中…</p>
+          ) : abuseReports.length === 0 ? (
+            <p className="text-xs text-[color:var(--x-text-muted)] py-6 text-center">通報はまだありません。</p>
+          ) : (
+            abuseReports.map((r) => (
+              <div key={r.id} className={`rounded-xl border p-3 ${r.status === 'open' ? 'border-amber-300 bg-amber-50/40' : 'border-[color:var(--x-border)] opacity-70'}`}>
+                <div className="flex items-center gap-2 flex-wrap mb-1">
+                  <span className="text-[11px] text-[color:var(--x-text-muted)]">{new Date(r.created_at).toLocaleString('ja-JP', { timeZone: 'Asia/Tokyo' })}</span>
+                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-indigo-50 text-indigo-600">{r.reason}</span>
+                  {r.status === 'open' ? (
+                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-100 text-amber-700">未対応</span>
+                  ) : (
+                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-600">対応済み</span>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => toggleAbuseStatus(r)}
+                    disabled={abuseBusyId === r.id}
+                    className="ml-auto flex-shrink-0 text-[11px] font-bold text-[color:var(--x-text-muted)] hover:text-[color:var(--x-accent)] disabled:opacity-40 transition-colors"
+                  >
+                    {abuseBusyId === r.id ? '更新中…' : r.status === 'open' ? '対応済みにする' : '未対応に戻す'}
+                  </button>
+                </div>
+                <p className="text-xs text-[color:var(--x-text-secondary)]">
+                  通報者: <span className="font-bold">{abuseName(r.reporter_profile_id)}</span>
+                  <span className="mx-1.5">→</span>
+                  対象: <span className="font-bold">{abuseName(r.target_profile_id)}</span>
+                </p>
+                {r.post_id && (
+                  <p className="text-[11px] text-[color:var(--x-text-muted)] mt-1 line-clamp-2 break-words">
+                    投稿: {abusePostBodies[r.post_id] ? abusePostBodies[r.post_id].slice(0, 120) : '（削除済みまたは取得不可）'}
+                  </p>
+                )}
+              </div>
+            ))
+          )}
+        </div>
+      )}
 
       {/* ── 認証バッジ管理（店舗） ── */}
       {tab === 'verify' && (
