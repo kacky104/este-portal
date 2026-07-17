@@ -29,6 +29,7 @@ export type SalonForEdit = {
   owner_id:    string | null;
   show_on_top: boolean | null;
   dispatch_type: 'none' | 'available' | 'only' | null;
+  jobs_enabled: boolean | null;
   booking_email: string | null;
 };
 
@@ -60,6 +61,8 @@ export default function SalonEditModal({ salon, onClose, onSaved }: Props) {
   // area とは独立した別軸のフラグ（boolean なので文字列フォームとは別 state で管理）。
   const [showOnTop,    setShowOnTop]    = useState(salon.show_on_top ?? true);
   const [dispatchType, setDispatchType] = useState<'none' | 'available' | 'only'>(salon.dispatch_type ?? 'none');
+  // フクエスワーク（求人）掲載の契約有無。ON の店だけ /mypage に「求人」タブが出る。
+  const [jobsEnabled,  setJobsEnabled]  = useState(salon.jobs_enabled ?? false);
 
   // ── ログインメール（auth.users）管理 ──
   // 対象は「この salon が開かれた時点の owner_uuid」に紐づくアカウント（既存アカウント引き継ぎのため
@@ -153,6 +156,7 @@ export default function SalonEditModal({ salon, onClose, onSaved }: Props) {
         owner_id:    form.owner_id.trim() || null,
         show_on_top: showOnTop,
         dispatch_type: dispatchType,
+        jobs_enabled: jobsEnabled,
         booking_email: bookingEmail || null,
       })
       .eq('id', salon.id)
@@ -279,6 +283,16 @@ export default function SalonEditModal({ salon, onClose, onSaved }: Props) {
                 <option value="only">出張専門</option>
               </select>
             </div>
+            {/* フクエスワーク（求人）掲載の契約。ON の店だけ /mypage に「求人」タブが出る。 */}
+            <label className="flex items-center gap-2 text-xs font-medium text-slate-600 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={jobsEnabled}
+                onChange={e => setJobsEnabled(e.target.checked)}
+                className="w-4 h-4 accent-pink-500"
+              />
+              フクエスワーク掲載（求人タブ）
+            </label>
           </div>
 
           {/* 営業時間 */}

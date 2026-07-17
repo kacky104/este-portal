@@ -50,6 +50,7 @@ type Salon = {
   closed_days: string | null;
   show_on_top: boolean | null;
   dispatch_type: 'none' | 'available' | 'only' | null;
+  jobs_enabled: boolean | null;
   is_hidden: boolean | null;
   booking_email: string | null;
 };
@@ -158,7 +159,7 @@ export default function AdminDashboard() {
   const fetchSalons = useCallback(async () => {
     const { data, error } = await supabase
       .from('salons')
-      .select('id, name, area, area2, price, rating, owner_id, hours, phone, address, access, closed_days, show_on_top, dispatch_type, is_hidden, booking_email')
+      .select('id, name, area, area2, price, rating, owner_id, hours, phone, address, access, closed_days, show_on_top, dispatch_type, jobs_enabled, is_hidden, booking_email')
       .order('id', { ascending: true });
     if (error) {
       setFetchError('サロンデータの取得に失敗しました');
@@ -638,6 +639,9 @@ export default function AdminDashboard() {
                           )}
                           {salon.dispatch_type === 'only' && (
                             <span className="text-[10px] px-2 py-0.5 rounded-full bg-blue-100 text-blue-700 border border-blue-300 font-medium">出張専門</span>
+                          )}
+                          {salon.jobs_enabled && (
+                            <span className="text-[10px] px-2 py-0.5 rounded-full bg-amber-50 text-amber-700 border border-amber-200 font-medium">ワーク</span>
                           )}
                         </div>
                       </td>

@@ -386,6 +386,7 @@ type Salon = {
   booking_enabled: boolean | null;
   booking_email: string | null;
   booking_courses: unknown;
+  jobs_enabled: boolean | null;
   popup_image_url: string | null;
   popup_link: string | null;
   popup_image_url2: string | null;
@@ -577,7 +578,7 @@ export default function MyPage() {
 
       const { data: salonData, error: salonError } = await supabase
         .from('salons')
-        .select('id, name, rating, review_count, tags, price, area, hours, description, appeal, therapist_count, therapist_types, therapist_profile, phone, address, access, closed_days, courses, theme, official_url, fukux_url, payment_url, payment_cards, payment_methods, booking_enabled, booking_email, booking_courses, popup_image_url, popup_link, popup_image_url2, popup_link2, popup_image_url3, popup_link3, popup_enabled')
+        .select('id, name, rating, review_count, tags, price, area, hours, description, appeal, therapist_count, therapist_types, therapist_profile, phone, address, access, closed_days, courses, theme, official_url, fukux_url, payment_url, payment_cards, payment_methods, booking_enabled, booking_email, booking_courses, jobs_enabled, popup_image_url, popup_link, popup_image_url2, popup_link2, popup_image_url3, popup_link3, popup_enabled')
         .eq('owner_id', user.id)
         .single();
 
@@ -1811,7 +1812,10 @@ export default function MyPage() {
             ['jobs',      '求人'],
             ['popup',     'ポップアップ'],
             ['support',   '運営事務局'],
-          ] as const).map(([key, label]) => {
+          ] as const)
+            // 求人タブはフクエスワーク掲載（jobs_enabled）契約店のみ表示。
+            .filter(([key]) => key !== 'jobs' || Boolean(salon?.jobs_enabled))
+            .map(([key, label]) => {
             const selected = activeTab === key;
             return (
               <button
@@ -3397,8 +3401,8 @@ export default function MyPage() {
           )}
         </div>
 
-        {/* ── 求人タブ（フクエスワーク・最後尾） ── */}
-        <div className={`space-y-4 ${activeTab === 'jobs' ? '' : 'hidden'}`}>
+        {/* ── 求人タブ（フクエスワーク・最後尾）。掲載契約店（jobs_enabled）のみ表示。 ── */}
+        <div className={`space-y-4 ${activeTab === 'jobs' && salon?.jobs_enabled ? '' : 'hidden'}`}>
           {salon ? (
             <JobsTab salonId={Number(salon.id)} />
           ) : (
