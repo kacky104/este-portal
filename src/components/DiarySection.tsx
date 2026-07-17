@@ -210,13 +210,9 @@ export function SalonDiarySection({ salonId }: { salonId: string }) {
 // スマホで約3.5枚見える幅、最大10枚、末尾に「一覧を見る」。空のときは何も出さない。
 export function SalonDiaryCircles({
   salonId,
-  cardBg,
-  cardBorder,
   heading,
 }: {
   salonId: string;
-  cardBg?: string;
-  cardBorder?: string;
   heading?: string;
 }) {
   const [list, setList] = useState<DiaryView[] | null>(null);
@@ -233,7 +229,7 @@ export function SalonDiaryCircles({
   const ITEM = 82;   // 名前を含む1列の幅(px)
 
   return (
-    <div className="rounded-3xl px-3 py-3 border shadow-sm" style={{ backgroundColor: cardBg, borderColor: cardBorder }}>
+    <div className="w-full">
       <div className="flex items-center gap-2 mb-3">
         <span className="w-1 h-5 rounded-full bg-gradient-to-b from-pink-500 to-pink-700 flex-shrink-0" />
         <h2 className="text-base font-bold" style={{ color: heading }}>写メ日記</h2>

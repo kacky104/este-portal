@@ -647,7 +647,7 @@ export default async function SalonPage({
             </div>
 
             {/* 写メ日記（円形サムネ横スクロール・本日の出勤セラピストの上）。空なら自動で非表示。 */}
-            <SalonDiaryCircles salonId={id} cardBg={theme.card} cardBorder={theme.cardBorder} heading={theme.heading} />
+            <SalonDiaryCircles salonId={id} heading={theme.heading} />
 
             {/* Today's therapists（枠内の上下余白を半分に：p-5→px-5 py-2.5） */}
             <div className="mt-8 rounded-3xl px-5 py-2.5 border shadow-sm" style={{ backgroundColor: theme.card, borderColor: theme.cardBorder }}>
