@@ -204,3 +204,91 @@ export function SalonDiarySection({ salonId }: { salonId: string }) {
     </div>
   );
 }
+
+// ── SalonDiaryCircles（サロン詳細ページ上部：円形サムネ横スクロール） ────
+// 写メ日記を円（〇）で表示。円の中は写真のみ・円の下にセラピスト名だけ。
+// スマホで約3.5枚見える幅、最大10枚、末尾に「一覧を見る」。空のときは何も出さない。
+export function SalonDiaryCircles({
+  salonId,
+  cardBg,
+  cardBorder,
+  heading,
+}: {
+  salonId: string;
+  cardBg?: string;
+  cardBorder?: string;
+  heading?: string;
+}) {
+  const [list, setList] = useState<DiaryView[] | null>(null);
+
+  useEffect(() => {
+    fetchDiaries({ salonId, limit: 10 }).then(setList);
+  }, [salonId]);
+
+  // 読み込み中・0件のときはセクションごと非表示（上部に空の帯を出さない）。
+  if (!list || list.length === 0) return null;
+
+  // 円1つ分の寸法。スマホ幅で約3.5枚見えるよう item=82px / gap=8px（pitch=90px）。
+  const CIRCLE = 72; // 円の直径(px)
+  const ITEM = 82;   // 名前を含む1列の幅(px)
+
+  return (
+    <div className="rounded-3xl px-3 py-3 border shadow-sm" style={{ backgroundColor: cardBg, borderColor: cardBorder }}>
+      <div className="flex items-center gap-2 mb-3">
+        <span className="w-1 h-5 rounded-full bg-gradient-to-b from-pink-500 to-pink-700 flex-shrink-0" />
+        <h2 className="text-base font-bold" style={{ color: heading }}>写メ日記</h2>
+      </div>
+
+      <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-pink w-full">
+        {list.map((d) => (
+          <Link
+            key={d.id}
+            href={`/diary/${d.id}`}
+            className="flex-shrink-0 flex flex-col items-center gap-1.5 group"
+            style={{ width: ITEM }}
+          >
+            {/* 円（写真のみ・文字なし）。リング付き。 */}
+            <span className="block rounded-full p-[2px] bg-gradient-to-tr from-pink-400 to-rose-400">
+              <span
+                className="block rounded-full overflow-hidden bg-white"
+                style={{ width: CIRCLE, height: CIRCLE }}
+              >
+                {d.image ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={d.image}
+                    alt={d.therapistName}
+                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                  />
+                ) : (
+                  <span className="block w-full h-full bg-gradient-to-br from-pink-200 to-rose-300" />
+                )}
+              </span>
+            </span>
+            {/* 円の下：セラピスト名だけ */}
+            <span className="text-[10px] leading-tight text-center truncate w-full" style={{ color: heading }}>
+              {d.therapistName}
+            </span>
+          </Link>
+        ))}
+
+        {/* 末尾：一覧を見る */}
+        <Link
+          href={`/salon/${salonId}/diary`}
+          className="flex-shrink-0 flex flex-col items-center gap-1.5"
+          style={{ width: ITEM }}
+        >
+          <span
+            className="rounded-full flex items-center justify-center border-2 border-pink-300 bg-pink-50"
+            style={{ width: CIRCLE, height: CIRCLE }}
+          >
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="text-pink-500">
+              <path d="M5 12h14M12 5l7 7-7 7" />
+            </svg>
+          </span>
+          <span className="text-[10px] leading-tight text-center font-bold text-pink-600">一覧を見る</span>
+        </Link>
+      </div>
+    </div>
+  );
+}
