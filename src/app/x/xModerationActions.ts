@@ -78,6 +78,36 @@ export async function blockProfile(targetProfileId: string): Promise<ModerationR
   return { ok: true };
 }
 
+// ミュート解除（自分の行のみ削除・RLS: muter本人）。
+export async function unmuteProfile(targetProfileId: string): Promise<ModerationResult> {
+  if (!targetProfileId) return { ok: false, error: '対象が不正です。' };
+  const supabase = await createClient();
+  const myId = await resolveMyProfileId(supabase);
+  if (!myId) return { ok: false, error: 'ログインとアカウント開設が必要です。' };
+  const { error } = await supabase
+    .from('x_mutes')
+    .delete()
+    .eq('muter_profile_id', myId)
+    .eq('muted_profile_id', targetProfileId);
+  if (error) return { ok: false, error: '解除に失敗しました。時間をおいてお試しください。' };
+  return { ok: true };
+}
+
+// ブロック解除（自分の行のみ削除・RLS: blocker本人）。解除してもフォローは自動では復活しない。
+export async function unblockProfile(targetProfileId: string): Promise<ModerationResult> {
+  if (!targetProfileId) return { ok: false, error: '対象が不正です。' };
+  const supabase = await createClient();
+  const myId = await resolveMyProfileId(supabase);
+  if (!myId) return { ok: false, error: 'ログインとアカウント開設が必要です。' };
+  const { error } = await supabase
+    .from('x_blocks')
+    .delete()
+    .eq('blocker_profile_id', myId)
+    .eq('blocked_profile_id', targetProfileId);
+  if (error) return { ok: false, error: '解除に失敗しました。時間をおいてお試しください。' };
+  return { ok: true };
+}
+
 const REPORT_REASONS = ['スパム・宣伝', '不適切な内容', 'その他'] as const;
 
 export async function reportPost(input: {

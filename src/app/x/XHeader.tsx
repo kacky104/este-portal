@@ -306,6 +306,8 @@ export function XHeader() {
               <>
                 <DrawerLink href={`/x/u/${profile.handle}`} onClick={() => setOpen(false)} label="マイプロフィール" />
                 <DrawerLink href="/x/saved" onClick={() => setOpen(false)} label="保存した投稿" />
+                <DrawerLink href="/x/mutes" onClick={() => setOpen(false)} label="ミュートしたアカウント" />
+                <DrawerLink href="/x/blocks" onClick={() => setOpen(false)} label="ブロックしたアカウント" />
                 {isVerifiedShop && <DrawerLink href="/x/shop" onClick={() => setOpen(false)} label="店舗管理" accent="emerald" />}
                 {(isVerifiedShop || profile.kind === 'official') && (
                   <DrawerLink href="/x/offers" onClick={() => setOpen(false)} label="求人オファーリスト" accent="indigo" />
