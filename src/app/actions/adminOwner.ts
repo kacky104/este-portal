@@ -104,3 +104,32 @@ export async function adminSendOwnerPasswordReset(
   if (error) return { ok: false, error: error.message };
   return { ok: true };
 }
+
+// ── オーナーとしてログイン（なりすまし）リンクの発行 ──
+// 対象オーナーの一時ログインリンク（マジックリンク・1回限り・有効期限あり）を発行して返す。
+// シークレットウィンドウで開くと、そのオーナーとしてログインした状態で /mypage に入れる
+// （編集委託の作業や、オーナー側の表示確認に使う）。
+// ⚠ 同じブラウザで開くと管理者ログインがオーナーログインに置き換わるため、UI側で
+//    「必ずシークレットウィンドウで開く」ことを案内する。操作はオーナー本人の操作として記録される。
+export async function adminGenerateOwnerLoginLink(
+  ownerUuid: string | null,
+): Promise<{ ok: true; link: string } | Err> {
+  const auth = await requireAdmin();
+  if (!auth.ok) return auth;
+
+  const uid = (ownerUuid ?? '').trim();
+  if (!uid) return { ok: false, error: 'このサロンにはオーナーUUIDが設定されていません' };
+
+  const svc = createServiceClient();
+  const { data: userData, error: getErr } = await svc.auth.admin.getUserById(uid);
+  if (getErr || !userData?.user?.email) return { ok: false, error: 'オーナーのログインアカウントが見つかりません' };
+
+  const { data, error } = await svc.auth.admin.generateLink({
+    type: 'magiclink',
+    email: userData.user.email,
+    options: { redirectTo: 'https://fukues.com/mypage' },
+  });
+  const link = data?.properties?.action_link;
+  if (error || !link) return { ok: false, error: `リンクの発行に失敗しました${error ? `（${error.message}）` : ''}` };
+  return { ok: true, link };
+}

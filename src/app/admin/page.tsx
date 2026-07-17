@@ -25,6 +25,7 @@ import AreaIconManager from '@/app/components/AreaIconManager';
 import FeatureIconManager from '@/app/components/FeatureIconManager';
 import WorkArticlesManager from '@/app/components/WorkArticlesManager';
 import AdminDocumentsManager from '@/app/components/AdminDocumentsManager';
+import { adminGenerateOwnerLoginLink } from '@/app/actions/adminOwner';
 import { useToast } from '@/app/components/useToast';
 import { ADMIN_UUID } from '@/app/lib/admin';
 import { areaLabel } from '@/app/lib/areaLabel';
@@ -122,6 +123,7 @@ export default function AdminDashboard() {
   const [dispatchType, setDispatchType] = useState<'none' | 'available' | 'only'>('none');
   const [editingSalon, setEditingSalon] = useState<SalonForEdit | null>(null);
   const [hidingId, setHidingId] = useState<number | null>(null);
+  const [impersonatingId, setImpersonatingId] = useState<number | null>(null); // オーナーログインリンク発行中のサロンID
   // タブ（本体/求人）とアコーディオン開閉。タブはURLクエリ ?tab= と同期（リロード・ブックマークで維持）。
   const [activeTab, setActiveTab] = useState<'main' | 'jobs' | 'salon' | 'docs'>('main');
   // 初期は使用頻度の高い「掲載サロン一覧」のみ開。開閉状態はクライアントstateのみ（永続化しない）。
@@ -183,6 +185,29 @@ export default function AdminDashboard() {
   // 掲載サロンの非表示トグル（削除ではない・即復帰可）。
   // 非表示にすると公開側（一覧・検索・詳細・所属セラピスト・写メ日記）から見えなくなる。
   // オーナー本人・運営は引き続き閲覧/編集できる（salons RLS）。
+  // 「オーナーとしてログイン」：対象オーナーの一時ログインリンクを発行してクリップボードへコピー。
+  // 必ずシークレットウィンドウで開く運用（同じブラウザだと管理者ログインがオーナーに置き換わるため）。
+  const handleOwnerLogin = async (salon: Salon) => {
+    if (!salon.owner_id) return;
+    if (!window.confirm(
+      `「${salon.name ?? ''}」のオーナーとしてログインするリンクを発行します。\n\n` +
+      '⚠ リンクは必ずシークレットウィンドウで開いてください。\n' +
+      '（同じブラウザで開くと管理者ログインがオーナーログインに置き換わります）\n' +
+      '※ リンクは1回限り・短時間で失効します。操作はオーナー本人の操作として記録されます。'
+    )) return;
+    setImpersonatingId(salon.id);
+    const res = await adminGenerateOwnerLoginLink(salon.owner_id);
+    setImpersonatingId(null);
+    if (!res.ok) { showToast(res.error); return; }
+    try {
+      await navigator.clipboard.writeText(res.link);
+      showToast('ログインリンクをコピーしました。シークレットウィンドウに貼り付けて開いてください');
+    } catch {
+      // クリップボードが使えない環境ではリンクを直接提示（手動コピー）。
+      window.prompt('このリンクをシークレットウィンドウで開いてください（1回限り有効）', res.link);
+    }
+  };
+
   const handleToggleHidden = async (salon: Salon) => {
     const next = !salon.is_hidden;
     if (
@@ -631,6 +656,15 @@ export default function AdminDashboard() {
                           >
                             {salon.is_hidden ? '表示に戻す' : '非表示にする'}
                           </button>
+                          {salon.owner_id && (
+                            <button
+                              onClick={() => handleOwnerLogin(salon)}
+                              disabled={impersonatingId === salon.id}
+                              className="text-[11px] font-bold px-3 py-1 rounded-lg border border-indigo-200 text-indigo-600 hover:bg-indigo-50 hover:border-indigo-300 transition-colors disabled:opacity-50"
+                            >
+                              {impersonatingId === salon.id ? '発行中…' : 'オーナーとしてログイン'}
+                            </button>
+                          )}
                           <button
                             onClick={() => setEditingSalon(salon)}
                             className="text-[11px] font-bold px-3 py-1 rounded-lg border border-pink-200 text-pink-600 hover:bg-pink-50 hover:border-pink-300 transition-colors"
