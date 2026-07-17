@@ -234,22 +234,25 @@ export function XPostCard({
               </span>
             )}
             {/* 相対時刻（◯分前）は廃止（2026-07-17 仕様変更・投稿日は右端の…メニュー左隣に表示） */}
-            {/* 編集済み表示 */}
-            {view.editedAt && <span className="text-[10px] text-[color:var(--x-text-muted)]">(編集済み)</span>}
           </div>
-          {/* お店は名前の下に住所を表示（2026-07-17 追加・未設定なら出さない） */}
-          {a.kind === 'shop' && a.address && (
-            <p className="mt-0.5 text-[11px] text-[color:var(--x-text-muted)] truncate">📍 {a.address}</p>
-          )}
-          {/* セラピストの所属バッジは名前の下の行に表示（2026-07-17 仕様変更・店舗プロフィールへリンク） */}
-          {a.affiliatedShop && (
-            <div className="mt-0.5">
-              <Link
-                href={`/x/u/${a.affiliatedShop.handle}`}
-                className="inline-block text-[10px] font-bold text-emerald-600 bg-emerald-50 rounded-full px-1.5 py-0.5 hover:bg-emerald-100 transition-colors truncate max-w-[70%]"
-              >
-                {a.affiliatedShop.displayName}所属
-              </Link>
+          {/* 2行目：お店の住所（📍）／セラピストの所属バッジ＋右端に（編集済み）。
+              どれも無ければ行ごと出さない（編集済みのみでも行を出して右端に表示）。 */}
+          {((a.kind === 'shop' && a.address) || a.affiliatedShop || view.editedAt) && (
+            <div className="mt-0.5 flex items-center gap-1.5 min-w-0">
+              {a.kind === 'shop' && a.address && (
+                <span className="text-[11px] text-[color:var(--x-text-muted)] truncate min-w-0">📍 {a.address}</span>
+              )}
+              {a.affiliatedShop && (
+                <Link
+                  href={`/x/u/${a.affiliatedShop.handle}`}
+                  className="inline-block flex-shrink-0 text-[10px] font-bold text-emerald-600 bg-emerald-50 rounded-full px-1.5 py-0.5 hover:bg-emerald-100 transition-colors truncate max-w-[70%]"
+                >
+                  {a.affiliatedShop.displayName}所属
+                </Link>
+              )}
+              {view.editedAt && (
+                <span className="ml-auto flex-shrink-0 text-[10px] text-[color:var(--x-text-muted)]">(編集済み)</span>
+              )}
             </div>
           )}
         </div>
