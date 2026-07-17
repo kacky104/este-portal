@@ -46,7 +46,7 @@ import { ImasuguCountBadge } from "@/app/components/ImasuguCountBadge";
 import { getSalonReviewStats } from "@/app/lib/reviews";
 import { fetchActiveJobsBySalon } from "@/app/lib/jobs";
 import { Stars } from "@/app/components/Stars";
-import ScrollPopupImage from "@/components/ScrollPopupImage";
+import SalonScrollPopup from "@/app/components/SalonScrollPopup";
 
 // ISR：10分ごとに再生成（保存時は /api/revalidate で即時無効化）。
 export const revalidate = 600;
@@ -186,7 +186,7 @@ export default async function SalonPage({
   ] = await Promise.all([
     supabase
       .from('salons')
-      .select('id, name, rating, review_count, tags, price, area, area2, hours, description, appeal, phone, address, access, closed_days, courses, theme, official_url, fukux_url, payment_methods, is_hidden, popup_image_url, popup_link, popup_enabled')
+      .select('id, name, rating, review_count, tags, price, area, area2, hours, description, appeal, phone, address, access, closed_days, courses, theme, official_url, fukux_url, payment_methods, is_hidden')
       .eq('id', Number(id))
       .single(),
     supabase
@@ -241,10 +241,6 @@ export default async function SalonPage({
     paymentMethods: (row.payment_methods as string[] | null) ?? [],
     officialUrl: (row.official_url as string | null) ?? null,
     fukuxUrl:    (row.fukux_url as string | null) ?? null,
-    // 左下ポップアップ画像（オーナーが /mypage で設定。popup_enabled かつ画像ありのときだけ表示）
-    popupImageUrl: (row.popup_image_url as string | null) ?? null,
-    popupLink:     (row.popup_link as string | null) ?? null,
-    popupEnabled:  Boolean(row.popup_enabled),
   };
 
   const theme = getTheme(row.theme as string | null);
@@ -793,14 +789,11 @@ export default async function SalonPage({
         </div>
       </footer>
 
-      {/* スクロールで左下から跳ねて出るポップアップ画像（position:fixed のため配置場所は表示位置に影響しない）。
-          オーナーが /mypage「ポップアップ」タブで画像・リンク・表示ON/OFFを設定。
-          表示OFF または画像未設定のときは src="" となり、コンポーネント側で何も描画されない。 */}
-      <ScrollPopupImage
-        src={salon.popupEnabled && salon.popupImageUrl ? salon.popupImageUrl : ""}
-        href={salon.popupLink ?? ""}
-        alt="お知らせ"
-      />
+      {/* スクロールで左下から跳ねて出るポップアップ画像（スマホのみ）。
+          設定はクライアント側でその場でDB取得＝ISRキャッシュに焼き込まないので、
+          「今すぐ」バッジと同様、オーナーの保存がキャッシュ待ちなしで即反映される。
+          オーナーは /mypage「ポップアップ」タブで画像・リンク・表示ON/OFFを設定。 */}
+      <SalonScrollPopup salonId={Number(id)} />
     </div>
   );
 }
