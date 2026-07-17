@@ -46,7 +46,8 @@ export default function SavedPage() {
   }, []);
   // 保存した店舗一覧の5枚目の下に出す「サロンバナー」（ランダム1店舗）。
   // 候補＝TOPピックアップ＋地域ピックアップ（featured_salons 全行・画像あり）＋TOPおすすめサロンバナー
-  // （recommended_salon_banners）。保存済みの店舗と重複サロンは候補から除外。
+  // （recommended_salon_banners）。同一サロンの重複のみ除外（保存済み店舗の除外は 2026-07-17 に廃止＝
+  // 候補が少ない環境でもバナーが必ず出るようにする。保存済みの店のバナーが並ぶことは許容）。
   // 表示はおすすめサロンバナーと同一カード（RecommendedSalonBannerSlider を単発で流用）。
   const [pickupBanner, setPickupBanner] = useState<RecommendedSalonBanner | null>(null);
   useEffect(() => {
@@ -57,26 +58,25 @@ export default function SavedPage() {
     const load = async (attempt: number) => {
       try {
         const supabase = createPublicClient();
-        const savedSet = new Set(getSavedSalons().map(x => x.id));
         const [recommended, { data: featuredRows }] = await Promise.all([
           fetchActiveRecommendedSalonBanners(),
           supabase.from('featured_salons').select('salon_id, image_url'),
         ]);
         if (!alive) return;
         // おすすめバナー側＝完成済みバナー（画像・サロン名・地域・丸アイコン込み）。
-        const recCandidates = recommended.filter(b => !savedSet.has(b.salonId));
+        const recCandidates = recommended;
         const recIds = new Set(recCandidates.map(b => b.salonId));
         // ピックアップ側＝featured_salons の画像付き行のみ。おすすめ側と同一サロンは除外（重複防止）。
         const featCandidates = [...new Map(
           (featuredRows ?? [])
             .map(r => ({ salonId: Number(r.salon_id), imageUrl: ((r.image_url as string | null) ?? '').trim() }))
-            .filter(c => c.imageUrl !== '' && !savedSet.has(c.salonId) && !recIds.has(c.salonId))
+            .filter(c => c.imageUrl !== '' && !recIds.has(c.salonId))
             .map(c => [c.salonId, c] as const),
         ).values()];
         const total = recCandidates.length + featCandidates.length;
         if (total === 0) {
-          console.info('[saved] サロンバナー: 表示候補0件（保存済み除外後）', {
-            recommended: recommended.length, featuredRows: (featuredRows ?? []).length, saved: savedSet.size,
+          console.info('[saved] サロンバナー: 表示候補0件（バナー未登録の可能性）', {
+            recommended: recommended.length, featuredRows: (featuredRows ?? []).length,
           });
           return;
         }
