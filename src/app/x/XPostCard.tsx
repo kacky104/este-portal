@@ -235,6 +235,26 @@ export function XPostCard({
             )}
             {/* 相対時刻（◯分前）は廃止（2026-07-17 仕様変更・投稿日は右端の…メニュー左隣に表示） */}
           </div>
+          {/* 2行目（名前の下・アバター横に収まる）：お店の住所（📍）／セラピストの所属バッジ＋直後に（編集済み）。
+              右端寄せ（ml-auto）は間延びするため使わない。住所は truncate（編集済みぶんを除いた幅まで表示）。 */}
+          {((a.kind === 'shop' && a.address) || a.affiliatedShop || view.editedAt) && (
+            <div className="mt-0.5 flex items-center gap-1.5 min-w-0">
+              {a.kind === 'shop' && a.address && (
+                <span className="text-[11px] text-[color:var(--x-text-muted)] truncate min-w-0">📍 {a.address}</span>
+              )}
+              {a.affiliatedShop && (
+                <Link
+                  href={`/x/u/${a.affiliatedShop.handle}`}
+                  className="inline-block flex-shrink-0 text-[10px] font-bold text-emerald-600 bg-emerald-50 rounded-full px-1.5 py-0.5 hover:bg-emerald-100 transition-colors truncate max-w-[70%]"
+                >
+                  {a.affiliatedShop.displayName}所属
+                </Link>
+              )}
+              {view.editedAt && (
+                <span className="flex-shrink-0 text-[10px] text-[color:var(--x-text-muted)]">(編集済み)</span>
+              )}
+            </div>
+          )}
         </div>
 
         {/* 投稿日（…メニューの左隣・2026-07-17 追加）。名前行の相対時刻（◯分前）とは別に、日付をひと目で分かるように。 */}
@@ -406,29 +426,6 @@ export function XPostCard({
           </div>
         )}
       </div>
-
-      {/* 2行目（カード全幅）：お店の住所（📍）／セラピストの所属バッジ＋直後に（編集済み）。
-          名前カラム内だと（編集済み）が住所を圧迫するため、ヘッダーの外に出して全幅を使う（2026-07-17）。
-          （編集済み）は右端寄せだと間延びした空白ができるため、バッジのすぐ隣に続けて表示する。
-          左は本文と同じインデント（ml-[50px]＝アバター40px＋gap10px）。どれも無ければ行ごと出さない。 */}
-      {((a.kind === 'shop' && a.address) || a.affiliatedShop || view.editedAt) && (
-        <div className="mt-0.5 ml-[50px] flex items-center gap-1.5 min-w-0">
-          {a.kind === 'shop' && a.address && (
-            <span className="text-[11px] text-[color:var(--x-text-muted)] truncate min-w-0">📍 {a.address}</span>
-          )}
-          {a.affiliatedShop && (
-            <Link
-              href={`/x/u/${a.affiliatedShop.handle}`}
-              className="inline-block flex-shrink-0 text-[10px] font-bold text-emerald-600 bg-emerald-50 rounded-full px-1.5 py-0.5 hover:bg-emerald-100 transition-colors truncate max-w-[70%]"
-            >
-              {a.affiliatedShop.displayName}所属
-            </Link>
-          )}
-          {view.editedAt && (
-            <span className="flex-shrink-0 text-[10px] text-[color:var(--x-text-muted)]">(編集済み)</span>
-          )}
-        </div>
-      )}
 
       {/* 本文（#タグ はリンク化・8行クランプ＋「続きを読む」は PostBody 側で処理）。
           単体ページのメイン投稿だけ clampBody=false で全文表示。 */}
