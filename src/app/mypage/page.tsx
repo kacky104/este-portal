@@ -3354,7 +3354,8 @@ export default function MyPage() {
             <div>
               <h2 className="text-sm font-black text-slate-700">ポップアップ画像</h2>
               <p className="mt-1 text-[11px] leading-relaxed text-slate-400">
-                スマホでサロン詳細ページを少し下にスクロールすると、左下から画像が「ポンっ」と跳ねて出ます（スマホ表示のみ。PCでは出ません）。画像とリンク先を設定し「表示する」をONにすると公開されます（お客様は✕で閉じられます）。縦長〜正方形の画像がおすすめです。
+                スマホでサロン詳細ページを少し下にスクロールすると、左下から画像が「ポンっ」と跳ねて出ます（スマホ表示のみ。PCでは出ません）。画像とリンク先を設定し「表示する」をONにすると公開されます（お客様は✕で閉じられます）。<br />
+                <span className="text-slate-500 font-bold">推奨サイズ：</span>縦長・約2:3（例 800×1200px）／1MB以下／JPEG・PNG・WebP。文字やロゴは中央寄せにしてください（画像の端は少し切れることがあります）。
               </p>
             </div>
 
