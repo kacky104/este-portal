@@ -4,6 +4,7 @@ import { SavedSalonsMenu } from '@/app/components/SavedSalonsMenu';
 import { AccountMenu } from '@/app/components/AccountMenu';
 import { NotificationBell } from '@/app/components/NotificationBell';
 import { VipLetterIcon } from '@/app/components/VipLetterIcon';
+import { ListingInquiryForm } from './ListingInquiryForm';
 
 export const metadata: Metadata = {
   title: '掲載について｜フクエス',
@@ -34,22 +35,16 @@ export default function ListingPage() {
         </p>
 
         <h2 className="text-lg font-bold text-slate-800 mt-8 mb-3">掲載をご希望のサロン様へ</h2>
-        <p className="text-sm text-slate-600 leading-relaxed">
-          本サイトへの掲載をご希望のサロン様は、下記メールアドレスまでお気軽にお問い合わせください。掲載内容・条件等の詳細をご案内いたします。
+        <p className="text-sm text-slate-600 leading-relaxed mb-4">
+          本サイトへの掲載をご希望のサロン様は、下記フォームからお気軽にお問い合わせください。掲載内容・条件等の詳細をご案内いたします。
         </p>
-        <p className="text-sm text-slate-600 leading-relaxed mt-2">
-          メール：<a href="mailto:info@fukues.com" className="text-pink-600 hover:underline">info@fukues.com</a>
+
+        {/* 掲載お問い合わせフォーム（未ログインで送信可・運営宛メール通知＋listing_inquiriesに保存） */}
+        <ListingInquiryForm />
+
+        <p className="text-xs text-slate-500 leading-relaxed mt-3">
+          メールでのお問い合わせも受け付けています：<a href="mailto:info@fukues.com" className="text-pink-600 hover:underline">info@fukues.com</a>
         </p>
-        <p className="text-sm text-slate-600 leading-relaxed mt-3 mb-2">
-          お問い合わせの際は、以下をご記載ください。
-        </p>
-        <ul className="list-disc pl-5 space-y-1 text-sm text-slate-600 leading-relaxed">
-          <li>店舗名</li>
-          <li>所在エリア</li>
-          <li>ご担当者名</li>
-          <li>ご連絡先</li>
-          <li>店舗ホームページ等（あれば）</li>
-        </ul>
 
         <h2 className="text-lg font-bold text-slate-800 mt-8 mb-3">掲載できるサロンについて</h2>
         <p className="text-sm text-slate-600 leading-relaxed mb-2">
