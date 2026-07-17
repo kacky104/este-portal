@@ -534,6 +534,23 @@ export default function AdminDashboard() {
 
           </AccordionSection>
 
+          {/* ── オーナー連絡（お知らせ配信＋お問い合わせ受信。/mypage「運営から」タブと対） ── */}
+          <AccordionSection id="owner-contact" title="オーナー連絡（お知らせ配信・お問い合わせ）" expanded={expandedSections} onToggle={toggleSection}>
+            <OwnerContactManager
+              allSalons={salons.map(s => ({ id: s.id, name: s.name ?? '' }))}
+              onToast={showToast}
+            />
+          </AccordionSection>
+
+          <AccordionSection id="card-boost" title="サロンカード優先表示（バナー設置特典）" expanded={expandedSections} onToggle={toggleSection}>
+            <CardBoostManager onToast={showToast} />
+          </AccordionSection>
+
+          {/* ── 本体コラム記事（利用者向け・/column 配下） ── */}
+          <AccordionSection id="main-articles" title="コラム記事（本体・利用者向け）" expanded={expandedSections} onToggle={toggleSection}>
+            <MainArticlesManager onToast={showToast} />
+          </AccordionSection>
+
           {/* ── 掲載サロン一覧テーブル（件数はアコーディオン見出しに表示） ── */}
           <AccordionSection
             id="salon-list"
@@ -629,23 +646,6 @@ export default function AdminDashboard() {
             </div>
           )}
           </div>
-          </AccordionSection>
-
-          {/* ── オーナー連絡（お知らせ配信＋お問い合わせ受信。/mypage「運営から」タブと対） ── */}
-          <AccordionSection id="owner-contact" title="オーナー連絡（お知らせ配信・お問い合わせ）" expanded={expandedSections} onToggle={toggleSection}>
-            <OwnerContactManager
-              allSalons={salons.map(s => ({ id: s.id, name: s.name ?? '' }))}
-              onToast={showToast}
-            />
-          </AccordionSection>
-
-          <AccordionSection id="card-boost" title="サロンカード優先表示（バナー設置特典）" expanded={expandedSections} onToggle={toggleSection}>
-            <CardBoostManager onToast={showToast} />
-          </AccordionSection>
-
-          {/* ── 本体コラム記事（利用者向け・/column 配下） ── */}
-          <AccordionSection id="main-articles" title="コラム記事（本体・利用者向け）" expanded={expandedSections} onToggle={toggleSection}>
-            <MainArticlesManager onToast={showToast} />
           </AccordionSection>
 
         </div>
