@@ -185,7 +185,7 @@ export default async function SalonPage({
   ] = await Promise.all([
     supabase
       .from('salons')
-      .select('id, name, rating, review_count, tags, price, area, area2, hours, description, appeal, phone, address, access, closed_days, courses, theme, official_url, fukux_url, payment_methods, is_hidden')
+      .select('id, name, rating, review_count, tags, price, area, area2, hours, description, appeal, phone, address, access, closed_days, courses, theme, official_url, fukux_url, payment_methods, is_hidden, dispatch_type')
       .eq('id', Number(id))
       .single(),
     supabase
@@ -240,6 +240,8 @@ export default async function SalonPage({
     paymentMethods: (row.payment_methods as string[] | null) ?? [],
     officialUrl: (row.official_url as string | null) ?? null,
     fukuxUrl:    (row.fukux_url as string | null) ?? null,
+    // 掲載・出張区分（'none'=出張なし / 'available'=出張あり / 'only'=出張専門）
+    dispatchType: (row.dispatch_type as 'none' | 'available' | 'only' | null) ?? 'none',
   };
 
   const theme = getTheme(row.theme as string | null);
@@ -382,6 +384,20 @@ export default async function SalonPage({
     { name: salon.name, path: `/salon/${salon.id}` },
   ]);
 
+  // 店名の下に出す情報行（店舗情報から生成）。
+  // 1行目：メンズエステ／エリア名／ルーム（個室） ※出張専門店（dispatch_type='only'）は「出張」。
+  const roomOrDispatch = salon.dispatchType === 'only' ? '出張' : 'ルーム（個室）';
+  const salonMetaLine1 = ['メンズエステ', areaLabel(salon.area), roomOrDispatch]
+    .filter((s) => s && s.trim() !== '')
+    .join('／');
+  // 2行目：営業時間：〇〇／定休日：〇〇（値が無い項目は出さない）。
+  const salonMetaLine2 = [
+    salon.hours ? `営業時間：${salon.hours}` : '',
+    salon.closedDays ? `定休日：${salon.closedDays}` : '',
+  ]
+    .filter((s) => s !== '')
+    .join('／');
+
   return (
     <div className="relative min-h-screen overflow-x-clip" style={{ color: theme.text }}>
 
@@ -422,10 +438,14 @@ export default async function SalonPage({
           <SalonHeaderSlider images={salonImages} />
         </div>
 
-        {/* ─── 店名（TOP画像の下・枠なし・背景の上に表示） ─── */}
-        <h1 className="font-bold leading-tight mb-4 px-1" style={{ color: theme.heading, fontSize: 'clamp(18px, 5vw, 26px)' }}>
+        {/* ─── 店名＋情報行（TOP画像の下・枠なし・背景の上・中央寄せ） ─── */}
+        <h1 className="font-bold leading-tight text-center px-2" style={{ color: theme.heading, fontSize: 'clamp(18px, 5vw, 26px)' }}>
           {salon.name}
         </h1>
+        <div className="text-center mt-1.5 mb-4 leading-relaxed px-2" style={{ color: theme.body }}>
+          <p className="text-[12px]">{salonMetaLine1}</p>
+          {salonMetaLine2 && <p className="text-[12px]">{salonMetaLine2}</p>}
+        </div>
 
         {/* ─── 主要アクション（ネット予約 / 電話をする）＋ 右端にサロン保存ボタン ───
             ネット予約ボタンは常時表示・/salon/[id]/book への内部リンク（受付可否は book ページで判定）。
