@@ -34,7 +34,7 @@ export default async function XMutesPage() {
         ← もどる
       </Link>
       <h1 className="x-rescue-muted text-base font-black text-white drop-shadow-sm mb-1">ミュートしたアカウント</h1>
-      <p className="x-rescue-muted text-[11px] text-white/80 drop-shadow-sm mb-3">アカウントをタップすると解除できます。</p>
+      <p className="x-rescue-muted text-[11px] text-white/80 drop-shadow-sm mb-3">ミュートは相手との関係はそのまま・自分にだけ見えなくする機能です。アカウントをタップすると解除できます。</p>
       <XModerationList mode="mute" users={users} />
     </div>
   );

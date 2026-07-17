@@ -34,7 +34,7 @@ export default async function XBlocksPage() {
         ← もどる
       </Link>
       <h1 className="x-rescue-muted text-base font-black text-white drop-shadow-sm mb-1">ブロックしたアカウント</h1>
-      <p className="x-rescue-muted text-[11px] text-white/80 drop-shadow-sm mb-3">アカウントをタップすると解除できます。解除してもフォローは自動では戻りません。</p>
+      <p className="x-rescue-muted text-[11px] text-white/80 drop-shadow-sm mb-3">ブロックは相互フォロー解除＋相手の投稿を非表示にする機能です。アカウントをタップすると解除できます。解除してもフォローは自動では戻りません。</p>
       <XModerationList mode="block" users={users} />
     </div>
   );
