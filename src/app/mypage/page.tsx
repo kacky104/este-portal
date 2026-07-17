@@ -2153,18 +2153,26 @@ export default function MyPage() {
                           {/* eslint-disable-next-line @next/next/no-img-element */}
                           <img src={img.image_url} alt="" className="absolute inset-0 w-full h-full object-cover" />
                         </div>
-                        <label className={`flex items-center justify-center cursor-pointer py-1 px-2 rounded-lg border text-[10px] font-bold transition-colors ${
-                          uploadingPcId === img.id
-                            ? 'border-pink-100 text-pink-300 cursor-not-allowed'
-                            : 'border-pink-200 text-pink-500 hover:bg-pink-50'
-                        }`}>
-                          <input
-                            type="file" accept="image/jpeg,image/png,image/webp" className="hidden"
-                            disabled={uploadingPcId === img.id}
-                            onChange={(e) => handlePcImageReplace(img.id, img.image_url, e)}
-                          />
-                          {uploadingPcId === img.id ? 'UP中...' : '変更'}
-                        </label>
+                        <div className="flex gap-1">
+                          <label className={`flex-1 flex items-center justify-center cursor-pointer py-1 px-2 rounded-lg border text-[10px] font-bold transition-colors ${
+                            uploadingPcId === img.id
+                              ? 'border-pink-100 text-pink-300 cursor-not-allowed'
+                              : 'border-pink-200 text-pink-500 hover:bg-pink-50'
+                          }`}>
+                            <input
+                              type="file" accept="image/jpeg,image/png,image/webp" className="hidden"
+                              disabled={uploadingPcId === img.id}
+                              onChange={(e) => handlePcImageReplace(img.id, img.image_url, e)}
+                            />
+                            {uploadingPcId === img.id ? 'UP中...' : '変更'}
+                          </label>
+                          {/* PC用の削除＝そのスロットごと削除（PC用が本体のため。確認ダイアログあり）。 */}
+                          <button
+                            type="button"
+                            onClick={() => handleImageDelete(img.id, img.image_url, img.mobile_image_url)}
+                            className="py-1 px-2 rounded-lg border border-rose-100 text-rose-400 text-[10px] font-bold hover:bg-rose-50 transition-colors"
+                          >削除</button>
+                        </div>
                       </div>
 
                       {/* スマホ用 */}
@@ -2204,7 +2212,7 @@ export default function MyPage() {
                       </div>
                     </div>
 
-                    {/* 並び替え・スロット削除 */}
+                    {/* 並び替え（削除は各画像の「削除」ボタンで行う） */}
                     <div className="flex items-center justify-between pt-1.5 border-t border-pink-100">
                       <span className="text-[10px] text-slate-400">スロット {i + 1}</span>
                       <div className="flex gap-1">
@@ -2212,8 +2220,6 @@ export default function MyPage() {
                           className="w-7 h-7 rounded-lg border border-slate-200 text-slate-400 text-xs flex items-center justify-center hover:border-pink-300 hover:text-pink-500 disabled:opacity-30 transition-colors">↑</button>
                         <button type="button" onClick={() => handleImageMove(i, 'down')} disabled={i === salonImages.length - 1}
                           className="w-7 h-7 rounded-lg border border-slate-200 text-slate-400 text-xs flex items-center justify-center hover:border-pink-300 hover:text-pink-500 disabled:opacity-30 transition-colors">↓</button>
-                        <button type="button" onClick={() => handleImageDelete(img.id, img.image_url, img.mobile_image_url)}
-                          className="w-7 h-7 rounded-lg border border-rose-100 text-rose-400 text-xs flex items-center justify-center hover:bg-rose-50 transition-colors">✕</button>
                       </div>
                     </div>
                   </div>
