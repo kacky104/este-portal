@@ -60,7 +60,8 @@ function Avatar({ profile, size = 36 }: { profile: AvatarProfile | null; size?: 
 }
 
 // fukuX ヘッダー（3カラム）＋左スライドインのドロワーメニュー。
-// 左=自分のアバター（ドロワートリガー）／中央=肉球ロゴ（最上部へスムーズスクロール）／右=スペーサー。
+// 左=自分のアバター（ドロワートリガー）／中央=肉球ロゴ（タイムライン /x の最上部へ。/x 上ではスムーズスクロール・他ページからは遷移）
+// ／右=家アイコン（マイプロフィールへ）・検索・DM・通知。
 export function XHeader() {
   const router = useRouter();
   const pathname = usePathname();
@@ -137,7 +138,15 @@ export function XHeader() {
   const isVerifiedShop = profile?.kind === 'shop' && profile.is_verified;
   const loggedIn = !!userId;
 
-  const scrollTop = () => window.scrollTo({ top: 0, behavior: 'smooth' });
+  // 中央ロゴ：タイムライン（/x）の一番上へ。/x 表示中はスムーズスクロール、他ページからは /x へ遷移
+  // （遷移後は新規表示のため最上部から始まる）。
+  const goTimelineTop = () => {
+    if (pathname === '/x') {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    } else {
+      router.push('/x');
+    }
+  };
 
   const handleLogout = async () => {
     setOpen(false);
@@ -162,24 +171,26 @@ export function XHeader() {
             </button>
           </div>
 
-          {/* 中央：肉球ロゴ（クリックで最上部へスムーズスクロール） */}
+          {/* 中央：肉球ロゴ（クリックでタイムライン /x の一番上へ） */}
           <button
             type="button"
-            onClick={scrollTop}
-            aria-label="トップへスクロール"
+            onClick={goTimelineTop}
+            aria-label="タイムラインの一番上へ"
             className="justify-self-center flex items-center active:scale-95 transition"
           >
             <Image src="/fukux-mark.png" alt="fukuX" width={36} height={36} priority className="object-contain" />
           </button>
 
-          {/* 右：ホーム＋検索（誰でも）＋メール/通知ベル（ログイン＋開設済みのみ）。grid 1fr/auto/1fr のため中央ロゴは保たれる。 */}
+          {/* 右：家アイコン（マイプロフィールへ）＋検索（誰でも）＋メール/通知ベル（ログイン＋開設済みのみ）。
+              grid 1fr/auto/1fr のため中央ロゴは保たれる。タイムラインへは中央ロゴ（2026-07-16 仕様変更）。 */}
           <div className="justify-self-end flex items-center gap-0.5">
-            {/* ホーム（おすすめタイムライン /x へ・公開）。現在地が /x のとき色を強調。 */}
+            {/* 家アイコン：マイプロフィールへ。未開設はアカウント開設・未ログインはログインへ誘導。
+                自分のプロフィール表示中は色を強調。 */}
             <Link
-              href="/x"
-              aria-label="ホーム"
+              href={profile ? `/x/u/${profile.handle}` : loggedIn ? '/x/onboarding' : '/x/login'}
+              aria-label="マイプロフィール"
               className={`flex items-center justify-center w-9 h-9 rounded-full hover:bg-[color:var(--x-inset)] active:scale-95 transition ${
-                pathname === '/x' ? 'text-[color:var(--x-accent)]' : 'text-[color:var(--x-text-secondary)]'
+                profile && pathname === `/x/u/${profile.handle}` ? 'text-[color:var(--x-accent)]' : 'text-[color:var(--x-text-secondary)]'
               }`}
             >
               <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
