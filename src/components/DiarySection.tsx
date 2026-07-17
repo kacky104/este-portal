@@ -230,9 +230,10 @@ export function SalonDiaryCircles({
 
   return (
     <div className="w-full">
-      <div className="flex items-center gap-2 mb-3">
+      {/* タイトルは他セクション（カード px-5）と開始位置を揃えるため pl-5。円の行は全幅のまま。 */}
+      <div className="flex items-center gap-2 mb-3 pl-5">
         <span className="w-1 h-5 rounded-full bg-gradient-to-b from-pink-500 to-pink-700 flex-shrink-0" />
-        <h2 className="text-base font-bold" style={{ color: heading }}>写メ日記</h2>
+        <h2 className="text-base font-bold" style={{ color: heading }}>セラピスト写メ日記</h2>
       </div>
 
       <div className="flex gap-1 overflow-x-auto pb-2 scrollbar-pink w-full">
