@@ -3,7 +3,6 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { createClient } from '@/app/lib/supabase/client';
-import { XTimeAgo } from './XTimeAgo';
 import { VerifiedBadge } from './VerifiedBadge';
 import { XImageLightbox } from './XImageLightbox';
 import { PostBody } from './PostBody';
@@ -234,20 +233,21 @@ export function XPostCard({
                 {KIND_LABEL[a.kind] ?? a.kind}
               </span>
             )}
-            {/* セラピストが店舗所属なら所属先を小さく表示（店舗プロフィールへリンク） */}
-            {a.affiliatedShop && (
-              <Link
-                href={`/x/u/${a.affiliatedShop.handle}`}
-                className="text-[10px] font-bold text-emerald-600 bg-emerald-50 rounded-full px-1.5 py-0.5 hover:bg-emerald-100 transition-colors truncate max-w-[40%]"
-              >
-                {a.affiliatedShop.displayName}所属
-              </Link>
-            )}
-            <span className="text-xs text-[color:var(--x-text-muted)]">·</span>
-            <XTimeAgo iso={post.createdAt} className="text-xs text-[color:var(--x-text-muted)]" />
+            {/* 相対時刻（◯分前）は廃止（2026-07-17 仕様変更・投稿日は右端の…メニュー左隣に表示） */}
             {/* 編集済み表示 */}
             {view.editedAt && <span className="text-[10px] text-[color:var(--x-text-muted)]">(編集済み)</span>}
           </div>
+          {/* セラピストの所属バッジは名前の下の行に表示（2026-07-17 仕様変更・店舗プロフィールへリンク） */}
+          {a.affiliatedShop && (
+            <div className="mt-0.5">
+              <Link
+                href={`/x/u/${a.affiliatedShop.handle}`}
+                className="inline-block text-[10px] font-bold text-emerald-600 bg-emerald-50 rounded-full px-1.5 py-0.5 hover:bg-emerald-100 transition-colors truncate max-w-[70%]"
+              >
+                {a.affiliatedShop.displayName}所属
+              </Link>
+            </div>
+          )}
         </div>
 
         {/* 投稿日（…メニューの左隣・2026-07-17 追加）。名前行の相対時刻（◯分前）とは別に、日付をひと目で分かるように。 */}
