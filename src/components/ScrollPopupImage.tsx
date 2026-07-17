@@ -9,8 +9,8 @@
  *  - 一番上まで戻すと消える（また下げると再び出る）
  *  - ✕ で閉じると、そのセッション中は再表示しない
  *  - 画像本体クリックで href へ遷移
- *  - PC / スマホ両対応（スマホは見やすさ優先で少し大きめ）
- *  - サイズ：PC 縦=画面約1/3・横=約1/4、スマホは 42vw × 30vh
+ *  - スマホのみ表示（PC・タブレット等、幅600pxより広い画面では非表示）
+ *  - サイズ：スマホ 42vw × 30vh（横=画面幅の約42%・縦=画面高の約30%）
  *
  * 使い方（例）:
  *   import ScrollPopupImage from "@/components/ScrollPopupImage";
@@ -202,6 +202,10 @@ export default function ScrollPopupImage({
             width: ${mobileWidthVw}vw;
             height: ${mobileHeightVh}vh;
           }
+        }
+        /* スマホのみ表示：幅600pxより広い画面（PC・タブレット）では出さない */
+        @media (min-width: 601px) {
+          .sp-pop { display: none !important; }
         }
         @media (prefers-reduced-motion: reduce) {
           .sp-pop.sp-show { animation: none; transform: translateY(0); }
