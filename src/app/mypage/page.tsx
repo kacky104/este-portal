@@ -2134,6 +2134,11 @@ export default function MyPage() {
               <span className="text-[10px] text-slate-400">{salonImages.length} / 3</span>
             </div>
 
+            {/* 推奨サイズは画像が0枚でも分かるよう常時表示（PC・スマホ両方）。 */}
+            <p className="text-[10px] text-slate-400 -mt-1">
+              PC用 推奨 <span className="font-bold text-slate-500">1600×530px</span>／スマホ用 推奨 <span className="font-bold text-slate-500">750×470px</span>（JPEG・PNG・WebP／各5MBまで）
+            </p>
+
             {salonImages.length > 0 && (
               <div className="space-y-3">
                 {salonImages.map((img, i) => (
