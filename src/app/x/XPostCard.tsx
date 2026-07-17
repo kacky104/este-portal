@@ -225,21 +225,8 @@ export function XPostCard({
           </div>
         </div>
 
-        {showFollow && (
-          <button
-            type="button"
-            onClick={() => onToggleFollow(a.id)}
-            disabled={followPending}
-            className={`flex-shrink-0 text-xs font-bold px-3 py-1 rounded-full transition-colors disabled:opacity-50 ${
-              following
-                ? 'border border-[color:var(--x-border-strong)] text-[color:var(--x-text-secondary)] hover:border-rose-200 hover:text-rose-500'
-                : 'text-white'
-            }`}
-            style={following ? undefined : { background: 'linear-gradient(100deg,#6366F1,#8B5CF6)' }}
-          >
-            {following ? 'フォロー中' : 'フォロー'}
-          </button>
-        )}
+        {/* フォローボタンは投稿カードから廃止（2026-07-16 仕様変更）。フォロー/解除はプロフィール画面から。
+            showFollow / following / onToggleFollow / followPending の各プロップは呼び出し元との互換のため温存。 */}
 
         {/* 自分の投稿のみ：…メニュー（編集/削除）。カード遷移と競合しないよう stopPropagation。 */}
         {isOwn && (
