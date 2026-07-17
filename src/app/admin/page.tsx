@@ -25,6 +25,7 @@ import AreaIconManager from '@/app/components/AreaIconManager';
 import FeatureIconManager from '@/app/components/FeatureIconManager';
 import WorkArticlesManager from '@/app/components/WorkArticlesManager';
 import AdminDocumentsManager from '@/app/components/AdminDocumentsManager';
+import ListingInquiryManager from '@/app/components/ListingInquiryManager';
 import { adminGenerateOwnerLoginLink } from '@/app/actions/adminOwner';
 import { useToast } from '@/app/components/useToast';
 import { ADMIN_UUID } from '@/app/lib/admin';
@@ -446,6 +447,10 @@ export default function AdminDashboard() {
         <div className={`space-y-4 ${activeTab === 'salon' ? '' : 'hidden'}`}>
 
           {/* ── 新規店舗の初回情報入力フォーム（ワンタイムURL発行・入力内容の確認） ── */}
+          <AccordionSection id="listing-inquiries" title="掲載お問い合わせ" expanded={expandedSections} onToggle={toggleSection}>
+            <ListingInquiryManager onToast={showToast} />
+          </AccordionSection>
+
           <AccordionSection id="salon-intakes" title="新規店舗 入力フォーム発行" expanded={expandedSections} onToggle={toggleSection}>
             <SalonIntakeManager onToast={showToast} />
           </AccordionSection>
