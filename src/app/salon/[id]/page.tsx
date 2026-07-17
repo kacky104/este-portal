@@ -37,6 +37,7 @@ const HEART_COLORS: Record<ThemeKey, { fill: string; num: string }> = {
 import { SalonTherapists, SalonAllTherapists, SalonNewFaceTherapists } from "@/components/SalonTherapists";
 import { SalonDiaryCircles } from "@/components/DiarySection";
 import SalonHeaderSlider from "@/components/SalonHeaderSlider";
+import { AutoFitText } from "@/app/components/AutoFitText";
 import { SalonActionButtons } from "./SalonActionButtons";
 import { CollapsibleCourses } from "./CollapsibleCourses";
 import { CollapsibleSection } from "./CollapsibleSection";
@@ -390,13 +391,8 @@ export default async function SalonPage({
   const salonMetaLine1 = ['メンズエステ', areaLabel(salon.area), roomOrDispatch]
     .filter((s) => s && s.trim() !== '')
     .join('／');
-  // 2行目：営業時間：〇〇／定休日：〇〇（値が無い項目は出さない）。
-  const salonMetaLine2 = [
-    salon.hours ? `営業時間：${salon.hours}` : '',
-    salon.closedDays ? `定休日：${salon.closedDays}` : '',
-  ]
-    .filter((s) => s !== '')
-    .join('／');
+  // 2行目：営業時間：〇〇／定休日：〇〇（空欄は「問い合わせ」と表示）。
+  const salonMetaLine2 = `営業時間：${salon.hours || '問い合わせ'}／定休日：${salon.closedDays || '問い合わせ'}`;
 
   return (
     <div className="relative min-h-screen overflow-x-clip" style={{ color: theme.text }}>
@@ -439,8 +435,9 @@ export default async function SalonPage({
         </div>
 
         {/* ─── 店名＋情報行（TOP画像の下・枠なし・背景の上・中央寄せ） ─── */}
-        <h1 className="font-bold leading-tight text-center px-2" style={{ color: theme.heading, fontSize: 'clamp(18px, 5vw, 26px)' }}>
-          {salon.name}
+        {/* 店名は長いと2行になるため、AutoFitText で1行に収まるようフォントを自動縮小（26→最小15px）。 */}
+        <h1 className="px-2">
+          <AutoFitText text={salon.name} max={26} min={15} className="text-center font-bold leading-tight" style={{ color: theme.heading }} />
         </h1>
         <div className="text-center mt-1.5 mb-4 leading-relaxed px-2" style={{ color: theme.body }}>
           <p className="text-[12px]">{salonMetaLine1}</p>
