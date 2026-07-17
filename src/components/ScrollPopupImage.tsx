@@ -186,7 +186,7 @@ export default function ScrollPopupImage({
         .sp-close {
           position: absolute;
           top: 6px;
-          right: 6px;
+          left: 6px;
           z-index: 2;
           width: 26px;
           height: 26px;

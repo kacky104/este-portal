@@ -388,6 +388,10 @@ type Salon = {
   booking_courses: unknown;
   popup_image_url: string | null;
   popup_link: string | null;
+  popup_image_url2: string | null;
+  popup_link2: string | null;
+  popup_image_url3: string | null;
+  popup_link3: string | null;
   popup_enabled: boolean | null;
 };
 
@@ -414,6 +418,13 @@ type DaySchedule = {
   start_time: string | null;
   end_time: string | null;
 };
+
+// ポップアップ画像スロット（最大3枚）→ salons の列名の対応。
+const POPUP_COLS = [
+  { img: 'popup_image_url',  link: 'popup_link'  },
+  { img: 'popup_image_url2', link: 'popup_link2' },
+  { img: 'popup_image_url3', link: 'popup_link3' },
+] as const;
 
 export default function MyPage() {
   const router = useRouter();
@@ -448,12 +459,12 @@ export default function MyPage() {
   const [bookingsError, setBookingsError] = useState('');
   const [bookingBusyId, setBookingBusyId] = useState<string | null>(null);
   const [salonImages,    setSalonImages]    = useState<SalonImage[]>([]);
-  // ポップアップ画像タブ（サロン詳細で左下から出る画像）
-  const [popupImageUrl, setPopupImageUrl] = useState<string | null>(null);
-  const [popupLink,     setPopupLink]     = useState('');
-  const [popupEnabled,  setPopupEnabled]  = useState(false);
-  const [uploadingPopup, setUploadingPopup] = useState(false);
-  const [savingPopup,    setSavingPopup]    = useState(false);
+  // ポップアップ画像タブ（サロン詳細で左下から出る画像。最大3枚・各画像に個別リンク・リロード毎に1枚ランダム表示）
+  const [popupImages,  setPopupImages]  = useState<(string | null)[]>([null, null, null]);
+  const [popupLinks,   setPopupLinks]   = useState<string[]>(['', '', '']);
+  const [popupEnabled, setPopupEnabled] = useState(false);
+  const [uploadingPopupSlot, setUploadingPopupSlot] = useState<number | null>(null);
+  const [savingPopup,  setSavingPopup]  = useState(false);
   const [uploadingNewSlot,  setUploadingNewSlot]  = useState(false);
   const [uploadingPcId,     setUploadingPcId]     = useState<string | null>(null);
   const [uploadingMobileId, setUploadingMobileId] = useState<string | null>(null);
@@ -539,7 +550,7 @@ export default function MyPage() {
 
       const { data: salonData, error: salonError } = await supabase
         .from('salons')
-        .select('id, name, rating, review_count, tags, price, area, hours, description, appeal, therapist_count, therapist_types, therapist_profile, phone, address, access, closed_days, courses, theme, official_url, fukux_url, payment_url, payment_cards, payment_methods, booking_enabled, booking_email, booking_courses, popup_image_url, popup_link, popup_enabled')
+        .select('id, name, rating, review_count, tags, price, area, hours, description, appeal, therapist_count, therapist_types, therapist_profile, phone, address, access, closed_days, courses, theme, official_url, fukux_url, payment_url, payment_cards, payment_methods, booking_enabled, booking_email, booking_courses, popup_image_url, popup_link, popup_image_url2, popup_link2, popup_image_url3, popup_link3, popup_enabled')
         .eq('owner_id', user.id)
         .single();
 
@@ -558,9 +569,17 @@ export default function MyPage() {
       setCourseGroups(parseCourseGroups(salonData.courses));
       setOtherItems(parseOtherItems(salonData.courses));
       setBookingCourses(parseBookingCourses(salonData.booking_courses));
-      // ポップアップ画像の設定を初期化
-      setPopupImageUrl(salonData.popup_image_url ?? null);
-      setPopupLink(salonData.popup_link ?? '');
+      // ポップアップ画像の設定を初期化（最大3枚・各リンク）
+      setPopupImages([
+        salonData.popup_image_url  ?? null,
+        salonData.popup_image_url2 ?? null,
+        salonData.popup_image_url3 ?? null,
+      ]);
+      setPopupLinks([
+        salonData.popup_link  ?? '',
+        salonData.popup_link2 ?? '',
+        salonData.popup_link3 ?? '',
+      ]);
       setPopupEnabled(Boolean(salonData.popup_enabled));
 
       // ネット予約の受付一覧を取得（オーナー検証＋service_role はサーバーアクション側）。
@@ -708,57 +727,60 @@ export default function MyPage() {
     return null;
   };
 
-  // ─── ポップアップ画像（サロン詳細で左下から出る画像）───
-  // salon-images バケットを流用し、path を popup_ プレフィックスで区別。URLは salons.popup_image_url に保存。
-  const handlePopupImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  // ─── ポップアップ画像（サロン詳細で左下・最大3枚・各画像に個別リンク・リロード毎に1枚ランダム表示）───
+  // salon-images バケットを流用し、path を popup{n}_ プレフィックスで区別。URLは salons.popup_image_url / _2 / _3 に保存。
+  const handlePopupImageUpload = async (slot: number, e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file || !salon) return;
     const err = validateImageFile(file);
     if (err) { showToast(err); return; }
 
-    setUploadingPopup(true);
+    setUploadingPopupSlot(slot);
     const ext  = file.name.split('.').pop() ?? 'jpg';
-    const path = `${Number(salon.id)}/popup_${Date.now()}.${ext}`;
+    const path = `${Number(salon.id)}/popup${slot + 1}_${Date.now()}.${ext}`;
 
     const { error: uploadError } = await supabase.storage.from('salon-images').upload(path, file, { upsert: false, cacheControl: STORAGE_CACHE_CONTROL });
     if (uploadError) {
       showToast(`アップロードに失敗しました: ${uploadError.message}`);
-      setUploadingPopup(false); e.target.value = ''; return;
+      setUploadingPopupSlot(null); e.target.value = ''; return;
     }
 
     const { data: { publicUrl } } = supabase.storage.from('salon-images').getPublicUrl(path);
-    const { error: dbErr } = await supabase.from('salons').update({ popup_image_url: publicUrl }).eq('id', salon.id);
+    const { error: dbErr } = await supabase.from('salons').update({ [POPUP_COLS[slot].img]: publicUrl }).eq('id', salon.id);
 
-    setUploadingPopup(false); e.target.value = '';
+    setUploadingPopupSlot(null); e.target.value = '';
     if (dbErr) {
       showToast(`保存に失敗しました: ${dbErr.message}`);
       await supabase.storage.from('salon-images').remove([path]); return;
     }
-    const oldUrl = popupImageUrl;
-    setPopupImageUrl(publicUrl);
+    const oldUrl = popupImages[slot];
+    setPopupImages(prev => prev.map((u, i) => (i === slot ? publicUrl : u)));
     if (oldUrl) storageRemove(oldUrl); // 旧画像を掃除（best-effort）
     revalidateSalon(salon.id);
     showToast('ポップアップ画像をアップロードしました');
   };
 
-  const handlePopupImageDelete = async () => {
-    if (!salon || !popupImageUrl) return;
-    if (!window.confirm('ポップアップ画像を削除しますか？（表示もOFFになります）')) return;
-    const { error } = await supabase.from('salons').update({ popup_image_url: null, popup_enabled: false }).eq('id', salon.id);
+  const handlePopupImageDelete = async (slot: number) => {
+    if (!salon) return;
+    const url = popupImages[slot];
+    if (!url) return;
+    if (!window.confirm('この画像を削除しますか？')) return;
+    const { error } = await supabase.from('salons').update({ [POPUP_COLS[slot].img]: null }).eq('id', salon.id);
     if (error) { showToast(`削除に失敗しました: ${error.message}`); return; }
-    storageRemove(popupImageUrl);
-    setPopupImageUrl(null);
-    setPopupEnabled(false);
+    storageRemove(url);
+    setPopupImages(prev => prev.map((u, i) => (i === slot ? null : u)));
     revalidateSalon(salon.id);
-    showToast('ポップアップ画像を削除しました');
+    showToast('画像を削除しました');
   };
 
   const handlePopupSave = async () => {
     if (!salon) return;
-    if (popupEnabled && !popupImageUrl) { showToast('先に画像をアップロードしてください'); return; }
+    const anyImage = popupImages.some(Boolean);
+    if (popupEnabled && !anyImage) { showToast('先に画像を1枚以上アップロードしてください'); return; }
     setSavingPopup(true);
-    const link = popupLink.trim();
-    const { error } = await supabase.from('salons').update({ popup_link: link || null, popup_enabled: popupEnabled }).eq('id', salon.id);
+    const update: Record<string, unknown> = { popup_enabled: popupEnabled };
+    POPUP_COLS.forEach((c, i) => { update[c.link] = popupLinks[i].trim() || null; });
+    const { error } = await supabase.from('salons').update(update).eq('id', salon.id);
     setSavingPopup(false);
     if (error) { showToast(`保存に失敗しました: ${error.message}`); return; }
     revalidateSalon(salon.id);
@@ -3354,48 +3376,48 @@ export default function MyPage() {
             <div>
               <h2 className="text-sm font-black text-slate-700">ポップアップ画像</h2>
               <p className="mt-1 text-[11px] leading-relaxed text-slate-400">
-                スマホでサロン詳細ページを少し下にスクロールすると、左下から画像が「ポンっ」と跳ねて出ます（スマホ表示のみ。PCでは出ません）。画像とリンク先を設定し「表示する」をONにすると公開されます（お客様は✕で閉じられます）。<br />
+                スマホでサロン詳細ページを少し下にスクロールすると、左下から画像が「ポンっ」と跳ねて出ます（スマホ表示のみ。PCでは出ません）。最大3枚まで登録でき、<span className="text-slate-500 font-bold">ページを開くたびに1枚がランダムで表示</span>されます。画像ごとに違うリンク先を設定できます。「表示する」をONにすると公開されます（お客様は✕で閉じられます）。<br />
                 <span className="text-slate-500 font-bold">推奨サイズ：</span>縦長・約2:3（例 800×1200px）／1MB以下／JPEG・PNG・WebP。画像は枠なしで全体が表示されます（切れません）。<span className="text-pink-500 font-bold">背景を透過したPNG（切り抜き画像）</span>にすると、背景に自然に溶け込みます。
               </p>
             </div>
 
-            {/* プレビュー＋アップロード */}
-            <div className="flex items-start gap-4">
-              <div className="w-24 h-32 rounded-xl border border-slate-200 overflow-hidden bg-slate-50 flex items-center justify-center flex-shrink-0">
-                {popupImageUrl ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img src={popupImageUrl} alt="ポップアップ画像プレビュー" className="w-full h-full object-cover" />
-                ) : (
-                  <span className="text-[10px] text-slate-400 text-center px-2">画像未設定</span>
-                )}
+            {/* 画像スロット×3（各：プレビュー＋アップロード＋削除＋個別リンク） */}
+            {[0, 1, 2].map((slot) => (
+              <div key={slot} className="rounded-2xl border border-slate-100 p-3 space-y-2">
+                <p className="text-[11px] font-bold text-slate-500">画像 {slot + 1}</p>
+                <div className="flex items-start gap-3">
+                  <div className="w-20 h-28 rounded-xl border border-slate-200 overflow-hidden bg-slate-50 flex items-center justify-center flex-shrink-0">
+                    {popupImages[slot] ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img src={popupImages[slot] as string} alt={`ポップアップ画像${slot + 1}プレビュー`} className="w-full h-full object-contain" />
+                    ) : (
+                      <span className="text-[10px] text-slate-400 text-center px-2">未設定</span>
+                    )}
+                  </div>
+                  <div className="space-y-2 min-w-0 flex-1">
+                    <label className="inline-block">
+                      <span className={`inline-flex items-center gap-1 px-3 py-1.5 rounded-full text-[11px] font-bold ${uploadingPopupSlot === slot ? 'bg-slate-100 text-slate-400 cursor-default' : 'bg-pink-50 text-pink-600 border border-pink-300 hover:bg-pink-100 cursor-pointer'}`}>
+                        {uploadingPopupSlot === slot ? 'アップロード中…' : (popupImages[slot] ? '画像を差し替える' : '画像をアップロード')}
+                      </span>
+                      <input type="file" accept="image/jpeg,image/png,image/webp" className="hidden" onChange={(e) => handlePopupImageUpload(slot, e)} disabled={uploadingPopupSlot === slot} />
+                    </label>
+                    {popupImages[slot] && (
+                      <button type="button" onClick={() => handlePopupImageDelete(slot)} className="block text-[11px] text-slate-400 hover:text-red-500 underline">
+                        画像を削除
+                      </button>
+                    )}
+                    <input
+                      type="text"
+                      value={popupLinks[slot]}
+                      onChange={(e) => setPopupLinks(prev => prev.map((l, i) => (i === slot ? e.target.value : l)))}
+                      placeholder="リンク先（任意）https://… または /salon/○○/coupon"
+                      className="w-full rounded-lg border border-slate-200 px-3 py-2 text-xs focus:outline-none focus:border-pink-300"
+                    />
+                  </div>
+                </div>
               </div>
-              <div className="space-y-2">
-                <label className="inline-block">
-                  <span className={`inline-flex items-center gap-1 px-3 py-1.5 rounded-full text-[11px] font-bold ${uploadingPopup ? 'bg-slate-100 text-slate-400 cursor-default' : 'bg-pink-50 text-pink-600 border border-pink-300 hover:bg-pink-100 cursor-pointer'}`}>
-                    {uploadingPopup ? 'アップロード中…' : (popupImageUrl ? '画像を差し替える' : '画像をアップロード')}
-                  </span>
-                  <input type="file" accept="image/jpeg,image/png,image/webp" className="hidden" onChange={handlePopupImageUpload} disabled={uploadingPopup} />
-                </label>
-                {popupImageUrl && (
-                  <button type="button" onClick={handlePopupImageDelete} className="block text-[11px] text-slate-400 hover:text-red-500 underline">
-                    画像を削除
-                  </button>
-                )}
-                <p className="text-[10px] text-slate-400">JPEG・PNG・WebP／5MBまで</p>
-              </div>
-            </div>
-
-            {/* リンク先（任意） */}
-            <div>
-              <label className="block text-[11px] font-bold text-slate-600 mb-1">クリック時のリンク先（任意）</label>
-              <input
-                type="text"
-                value={popupLink}
-                onChange={(e) => setPopupLink(e.target.value)}
-                placeholder="https://… または /salon/○○/coupon など（空欄ならクリックで移動しません）"
-                className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:border-pink-300"
-              />
-            </div>
+            ))}
+            <p className="text-[10px] text-slate-400">JPEG・PNG・WebP／各5MBまで。リンクを空欄にすると、その画像はクリックしても移動しません。</p>
 
             {/* 表示ON/OFF */}
             <div>
@@ -3403,7 +3425,7 @@ export default function MyPage() {
                 <input type="checkbox" checked={popupEnabled} onChange={(e) => setPopupEnabled(e.target.checked)} className="w-4 h-4 accent-pink-500" />
                 <span className="text-sm font-bold text-slate-700">サロン詳細ページに表示する</span>
               </label>
-              <p className="mt-1 text-[10px] text-slate-400">※ 画像を設定してONにしたときだけ表示されます。</p>
+              <p className="mt-1 text-[10px] text-slate-400">※ 画像を1枚以上設定してONにしたときだけ表示されます。</p>
             </div>
 
             <button
