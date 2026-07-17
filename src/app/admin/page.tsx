@@ -373,7 +373,7 @@ export default function AdminDashboard() {
               key={key}
               onClick={() => selectTab(key)}
               aria-pressed={selected}
-              className={`inline-flex items-center gap-1.5 px-4 py-1.5 rounded-full border text-[11px] font-bold transition-colors ${
+              className={`inline-flex items-center gap-1.5 px-6 py-2.5 rounded-full border text-sm font-bold transition-colors ${
                 selected
                   ? 'bg-pink-50 text-pink-600 border-pink-300'
                   : 'bg-white text-slate-400 border-slate-200 hover:text-slate-600 hover:border-slate-300'

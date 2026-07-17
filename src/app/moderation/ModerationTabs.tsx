@@ -18,8 +18,9 @@ export function ModerationTabs({
   const [tab, setTab] = useState<'reviews' | 'docs'>('reviews');
   const [reviewTab, setReviewTab] = useState<'pending' | 'approved'>('pending');
 
-  const pill = (selected: boolean) =>
-    `px-4 py-1.5 rounded-full border text-xs font-bold transition-colors ${
+  // large=上段タブ（大きめ）。サブタブ（口コミ審査/承認済み）は従来サイズのまま。
+  const pill = (selected: boolean, large = false) =>
+    `${large ? 'px-6 py-2.5 text-sm' : 'px-4 py-1.5 text-xs'} rounded-full border font-bold transition-colors ${
       selected
         ? 'bg-pink-50 text-pink-600 border-pink-300'
         : 'bg-white text-slate-400 border-slate-200 hover:text-slate-600 hover:border-slate-300'
@@ -32,7 +33,7 @@ export function ModerationTabs({
           ['reviews', '口コミ審査'],
           ['docs', '書類'],
         ] as const).map(([key, label]) => (
-          <button key={key} type="button" onClick={() => setTab(key)} aria-pressed={tab === key} className={pill(tab === key)}>
+          <button key={key} type="button" onClick={() => setTab(key)} aria-pressed={tab === key} className={pill(tab === key, true)}>
             {label}
           </button>
         ))}
