@@ -37,7 +37,6 @@ const HEART_COLORS: Record<ThemeKey, { fill: string; num: string }> = {
 import { SalonTherapists, SalonAllTherapists, SalonNewFaceTherapists } from "@/components/SalonTherapists";
 import { SalonDiaryCircles } from "@/components/DiarySection";
 import SalonHeaderSlider from "@/components/SalonHeaderSlider";
-import { SalonNameBanner } from "./SalonNameBanner";
 import { SalonActionButtons } from "./SalonActionButtons";
 import { CollapsibleCourses } from "./CollapsibleCourses";
 import { CollapsibleSection } from "./CollapsibleSection";
@@ -418,13 +417,15 @@ export default async function SalonPage({
           </span>
         </nav>
 
-        {/* ─── Block 0: 店名（最上部・独立ブロック／初回キラリ演出） ─────── */}
-        <SalonNameBanner name={salon.name} cardBg={theme.card} cardBorder={theme.cardBorder} heading={theme.heading} />
-
-        {/* ─── Block 1: 画像スライダー ─────────────────── */}
-        <div className="border shadow-sm overflow-hidden mb-4" style={{ backgroundColor: theme.card, borderColor: theme.cardBorder }}>
+        {/* ─── Block 1: 画像スライダー（TOP画像） ─────────────────── */}
+        <div className="border shadow-sm overflow-hidden mb-3" style={{ backgroundColor: theme.card, borderColor: theme.cardBorder }}>
           <SalonHeaderSlider images={salonImages} />
         </div>
+
+        {/* ─── 店名（TOP画像の下・枠なし・背景の上に表示） ─── */}
+        <h1 className="font-bold leading-tight mb-4 px-1" style={{ color: theme.heading, fontSize: 'clamp(18px, 5vw, 26px)' }}>
+          {salon.name}
+        </h1>
 
         {/* ─── 主要アクション（ネット予約 / 電話をする）＋ 右端にサロン保存ボタン ───
             ネット予約ボタンは常時表示・/salon/[id]/book への内部リンク（受付可否は book ページで判定）。
