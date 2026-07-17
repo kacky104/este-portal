@@ -51,54 +51,67 @@ export default function SavedPage() {
   const [pickupBanner, setPickupBanner] = useState<RecommendedSalonBanner | null>(null);
   useEffect(() => {
     let alive = true;
-    (async () => {
-      // 公開データのみ読むため匿名クライアントを使う（セッション付きクライアントだと、複数
-      // GoTrueClient のトークン競合でページ内遷移直後の取得が失敗し「リロードするまでバナーが
-      // 出ない」ことがあった）。保存リストは localStorage 同期読み＝マウント時に即取得できる。
-      const supabase = createPublicClient();
-      const savedSet = new Set(getSavedSalons().map(x => x.id));
-      const [recommended, { data: featuredRows }] = await Promise.all([
-        fetchActiveRecommendedSalonBanners(),
-        supabase.from('featured_salons').select('salon_id, image_url'),
-      ]);
-      if (!alive) return;
-      // おすすめバナー側＝完成済みバナー（画像・サロン名・地域・丸アイコン込み）。
-      const recCandidates = recommended.filter(b => !savedSet.has(b.salonId));
-      const recIds = new Set(recCandidates.map(b => b.salonId));
-      // ピックアップ側＝featured_salons の画像付き行のみ。おすすめ側と同一サロンは除外（重複防止）。
-      const featCandidates = [...new Map(
-        (featuredRows ?? [])
-          .map(r => ({ salonId: Number(r.salon_id), imageUrl: ((r.image_url as string | null) ?? '').trim() }))
-          .filter(c => c.imageUrl !== '' && !savedSet.has(c.salonId) && !recIds.has(c.salonId))
-          .map(c => [c.salonId, c] as const),
-      ).values()];
-      const total = recCandidates.length + featCandidates.length;
-      if (total === 0) return;
-      const idx = Math.floor(Math.random() * total);
-      if (idx < recCandidates.length) {
-        setPickupBanner(recCandidates[idx]);
-        return;
+    // 公開データのみ読むため匿名クライアントを使う。保存リストは localStorage 同期読み＝マウント時に即取得できる。
+    // 取得に失敗した場合は1.2秒後に1回だけ再試行（ページ内遷移直後の一時的な失敗の自己回復）。
+    // 候補0件やエラー時は console に診断を残す（「初回だけバナーが出ない」報告の切り分け用・2026-07-17）。
+    const load = async (attempt: number) => {
+      try {
+        const supabase = createPublicClient();
+        const savedSet = new Set(getSavedSalons().map(x => x.id));
+        const [recommended, { data: featuredRows }] = await Promise.all([
+          fetchActiveRecommendedSalonBanners(),
+          supabase.from('featured_salons').select('salon_id, image_url'),
+        ]);
+        if (!alive) return;
+        // おすすめバナー側＝完成済みバナー（画像・サロン名・地域・丸アイコン込み）。
+        const recCandidates = recommended.filter(b => !savedSet.has(b.salonId));
+        const recIds = new Set(recCandidates.map(b => b.salonId));
+        // ピックアップ側＝featured_salons の画像付き行のみ。おすすめ側と同一サロンは除外（重複防止）。
+        const featCandidates = [...new Map(
+          (featuredRows ?? [])
+            .map(r => ({ salonId: Number(r.salon_id), imageUrl: ((r.image_url as string | null) ?? '').trim() }))
+            .filter(c => c.imageUrl !== '' && !savedSet.has(c.salonId) && !recIds.has(c.salonId))
+            .map(c => [c.salonId, c] as const),
+        ).values()];
+        const total = recCandidates.length + featCandidates.length;
+        if (total === 0) {
+          console.info('[saved] サロンバナー: 表示候補0件（保存済み除外後）', {
+            recommended: recommended.length, featuredRows: (featuredRows ?? []).length, saved: savedSet.size,
+          });
+          return;
+        }
+        const idx = Math.floor(Math.random() * total);
+        if (idx < recCandidates.length) {
+          setPickupBanner(recCandidates[idx]);
+          return;
+        }
+        // featured 行はバナー型に組み立て（サロン名・地域・セラピスト丸アイコンを追加取得）。
+        // 非公開サロンは salons が返らず salonName='' → バナー側で画像のみ・非リンクにフォールバック。
+        const picked = featCandidates[idx - recCandidates.length];
+        const [{ data: salonData }, { data: therapistData }] = await Promise.all([
+          supabase.from('salons').select('id, name, area').eq('id', picked.salonId).maybeSingle(),
+          supabase.from('therapists').select('profile_image_url').eq('salon_id', picked.salonId).not('profile_image_url', 'is', null).limit(4),
+        ]);
+        if (!alive) return;
+        setPickupBanner({
+          id: `featured-${picked.salonId}`,
+          imageUrl: picked.imageUrl,
+          altText: (salonData?.name as string | undefined) ?? '',
+          salonId: picked.salonId,
+          salonName: (salonData?.name as string | undefined) ?? '',
+          area: (salonData?.area as string | undefined) ?? '',
+          therapistImages: (therapistData ?? [])
+            .map(t => t.profile_image_url as string | null)
+            .filter((u): u is string => Boolean(u)),
+        });
+      } catch (e) {
+        console.error('[saved] サロンバナーの取得に失敗:', e);
+        if (alive && attempt < 1) {
+          window.setTimeout(() => { if (alive) load(attempt + 1); }, 1200);
+        }
       }
-      // featured 行はバナー型に組み立て（サロン名・地域・セラピスト丸アイコンを追加取得）。
-      // 非公開サロンは salons が返らず salonName='' → バナー側で画像のみ・非リンクにフォールバック。
-      const picked = featCandidates[idx - recCandidates.length];
-      const [{ data: salonData }, { data: therapistData }] = await Promise.all([
-        supabase.from('salons').select('id, name, area').eq('id', picked.salonId).maybeSingle(),
-        supabase.from('therapists').select('profile_image_url').eq('salon_id', picked.salonId).not('profile_image_url', 'is', null).limit(4),
-      ]);
-      if (!alive) return;
-      setPickupBanner({
-        id: `featured-${picked.salonId}`,
-        imageUrl: picked.imageUrl,
-        altText: (salonData?.name as string | undefined) ?? '',
-        salonId: picked.salonId,
-        salonName: (salonData?.name as string | undefined) ?? '',
-        area: (salonData?.area as string | undefined) ?? '',
-        therapistImages: (therapistData ?? [])
-          .map(t => t.profile_image_url as string | null)
-          .filter((u): u is string => Boolean(u)),
-      });
-    })().catch((e) => { console.error('[saved] サロンバナーの取得に失敗:', e); });
+    };
+    load(0);
     return () => { alive = false; };
   }, []);
 
