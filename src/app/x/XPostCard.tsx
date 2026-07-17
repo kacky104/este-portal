@@ -202,9 +202,13 @@ export function XPostCard({
             <Link href={`/x/u/${a.handle}`} className="text-xs text-[color:var(--x-text-muted)] truncate hover:underline">
               @{a.handle}
             </Link>
-            <span className="text-[10px] font-bold text-indigo-500 bg-indigo-50 rounded-full px-1.5 py-0.5">
-              {KIND_LABEL[a.kind] ?? a.kind}
-            </span>
+            {/* 種別バッジ：セラピスト・お店は非表示（2026-07-16 仕様変更・ヘッダーの情報量を削減）。
+                ユーザー・運営のみ表示。認証バッジ（VerifiedBadge）は従来どおり全種別で表示。 */}
+            {a.kind !== 'therapist' && a.kind !== 'shop' && (
+              <span className="text-[10px] font-bold text-indigo-500 bg-indigo-50 rounded-full px-1.5 py-0.5">
+                {KIND_LABEL[a.kind] ?? a.kind}
+              </span>
+            )}
             {/* セラピストが店舗所属なら所属先を小さく表示（店舗プロフィールへリンク） */}
             {a.affiliatedShop && (
               <Link
