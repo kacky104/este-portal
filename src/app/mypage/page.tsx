@@ -426,6 +426,25 @@ const POPUP_COLS = [
   { img: 'popup_image_url3', link: 'popup_link3' },
 ] as const;
 
+// ポップアップのリンク先候補。自分のサロン内のページのみ（外部URLは選べない）。
+// value は保存される実パス。'' は「リンクなし」。
+function popupLinkOptions(salonId: string | number): { label: string; value: string }[] {
+  const base = `/salon/${salonId}`;
+  return [
+    { label: 'リンクなし',       value: '' },
+    { label: 'サロンTOP',        value: base },
+    { label: '料金',             value: `${base}/price` },
+    { label: 'クーポン',         value: `${base}/coupon` },
+    { label: '口コミ',           value: `${base}/reviews` },
+    { label: '写メ日記',         value: `${base}/diary` },
+    { label: 'お知らせ',         value: `${base}/news` },
+    { label: 'セラピスト一覧',   value: `${base}/therapists` },
+    { label: '店舗情報',         value: `${base}/info` },
+    { label: '出勤表',           value: `${base}/schedule` },
+    { label: 'ネット予約',       value: `${base}/book` },
+  ];
+}
+
 export default function MyPage() {
   const router = useRouter();
   const [salon, setSalon] = useState<Salon | null>(null);
@@ -3376,7 +3395,7 @@ export default function MyPage() {
             <div>
               <h2 className="text-sm font-black text-slate-700">ポップアップ画像</h2>
               <p className="mt-1 text-[11px] leading-relaxed text-slate-400">
-                スマホでサロン詳細ページを少し下にスクロールすると、左下から画像が「ポンっ」と跳ねて出ます（スマホ表示のみ。PCでは出ません）。最大3枚まで登録でき、<span className="text-slate-500 font-bold">ページを開くたびに1枚がランダムで表示</span>されます。画像ごとに違うリンク先を設定できます。「表示する」をONにすると公開されます（お客様は✕で閉じられます）。<br />
+                スマホでサロン詳細ページを少し下にスクロールすると、左下から画像が「ポンっ」と跳ねて出ます（スマホ表示のみ。PCでは出ません）。最大3枚まで登録でき、<span className="text-slate-500 font-bold">ページを開くたびに1枚がランダムで表示</span>されます。画像ごとに、自分のサロン内のページへのリンク先を選べます。「表示する」をONにすると公開されます（お客様は✕で閉じられます）。<br />
                 <span className="text-slate-500 font-bold">推奨サイズ：</span>縦長・約2:3（例 800×1200px）／1MB以下／JPEG・PNG・WebP。画像は枠なしで全体が表示されます（切れません）。<span className="text-pink-500 font-bold">背景を透過したPNG（切り抜き画像）</span>にすると、背景に自然に溶け込みます。
               </p>
             </div>
@@ -3406,18 +3425,21 @@ export default function MyPage() {
                         画像を削除
                       </button>
                     )}
-                    <input
-                      type="text"
+                    <label className="block text-[10px] text-slate-500 mb-0.5">クリック時のリンク先（自店ページのみ）</label>
+                    <select
                       value={popupLinks[slot]}
                       onChange={(e) => setPopupLinks(prev => prev.map((l, i) => (i === slot ? e.target.value : l)))}
-                      placeholder="リンク先（任意）https://… または /salon/○○/coupon"
-                      className="w-full rounded-lg border border-slate-200 px-3 py-2 text-xs focus:outline-none focus:border-pink-300"
-                    />
+                      className="w-full rounded-lg border border-slate-200 px-3 py-2 text-xs bg-white focus:outline-none focus:border-pink-300"
+                    >
+                      {(salon ? popupLinkOptions(salon.id) : [{ label: 'リンクなし', value: '' }]).map((opt) => (
+                        <option key={opt.value || 'none'} value={opt.value}>{opt.label}</option>
+                      ))}
+                    </select>
                   </div>
                 </div>
               </div>
             ))}
-            <p className="text-[10px] text-slate-400">JPEG・PNG・WebP／各5MBまで。リンクを空欄にすると、その画像はクリックしても移動しません。</p>
+            <p className="text-[10px] text-slate-400">JPEG・PNG・WebP／各5MBまで。リンク先は自分のサロン内のページから選べます（「リンクなし」ならクリックしても移動しません）。</p>
 
             {/* 表示ON/OFF */}
             <div>
