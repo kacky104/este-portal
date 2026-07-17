@@ -218,18 +218,20 @@ export function XPostCard({
         </Link>
 
         <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-1.5 flex-wrap">
-            <Link href={`/x/u/${a.handle}`} className="font-bold text-sm text-[color:var(--x-text-primary)] truncate max-w-[40%] hover:underline">
+          {/* 1行目：収まらないときは @handle（ID）が先に省略され、名前は極力残す（2026-07-17 仕様変更）。
+              名前は flex-shrink-0＋max-w-[70%]（超長い名前のみ省略）、@handle は min-w-0 で先に縮む。 */}
+          <div className="flex items-center gap-1.5 min-w-0">
+            <Link href={`/x/u/${a.handle}`} className="flex-shrink-0 font-bold text-sm text-[color:var(--x-text-primary)] truncate max-w-[70%] hover:underline">
               {a.displayName}
             </Link>
             {(a.kind === 'official' || ((a.kind === 'shop' || a.kind === 'therapist') && a.isVerified)) && <VerifiedBadge kind={a.kind} />}
-            <Link href={`/x/u/${a.handle}`} className="text-xs text-[color:var(--x-text-muted)] truncate hover:underline">
+            <Link href={`/x/u/${a.handle}`} className="min-w-0 text-xs text-[color:var(--x-text-muted)] truncate hover:underline">
               @{a.handle}
             </Link>
             {/* 種別バッジ：セラピスト・お店は非表示（2026-07-16 仕様変更・ヘッダーの情報量を削減）。
                 ユーザー・運営のみ表示。認証バッジ（VerifiedBadge）は従来どおり全種別で表示。 */}
             {a.kind !== 'therapist' && a.kind !== 'shop' && (
-              <span className="text-[10px] font-bold text-indigo-500 bg-indigo-50 rounded-full px-1.5 py-0.5">
+              <span className="flex-shrink-0 text-[10px] font-bold text-indigo-500 bg-indigo-50 rounded-full px-1.5 py-0.5">
                 {KIND_LABEL[a.kind] ?? a.kind}
               </span>
             )}
