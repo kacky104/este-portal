@@ -2,13 +2,13 @@
 
 import { createClient } from '@/app/lib/supabase/server';
 import { createServiceClient } from '@/app/lib/supabase/service';
-import { notifyAdmin } from '@/app/lib/notifyAdmin';
 
 // fukuX モデレーション操作（投稿カードの「…」ドロワーから）。
 // - muteProfile  : x_mutes に行を追加（相手に通知されない・自分のタイムラインから非表示）。
 // - blockProfile : x_blocks に行を追加＋相互フォローを自動解除。相手→自分のフォロー行の削除は
 //                  RLS（follower本人のみ削除可）を越える必要があるため、その1操作のみ service_role を使う。
-// - reportPost   : x_reports に保存（RLS: reporter本人のみINSERT可）＋運営宛メール通知。
+// - reportPost   : x_reports に保存（RLS: reporter本人のみINSERT可）。メール通知はしない
+//                  （/x/admin「通報」タブで確認する運用・2026-07-17 仕様変更）。
 // いずれも Cookie セッション（authenticated）＋RLS を基本とする（xSukiActions と同方針）。
 
 export type ModerationResult = { ok: true } | { ok: false; error: string };
@@ -101,23 +101,5 @@ export async function reportPost(input: {
     reason,
   });
   if (error) return { ok: false, error: '通報の送信に失敗しました。時間をおいてお試しください。' };
-
-  // 運営宛メール（handle は公開SELECTで取得できる範囲で添える。失敗しても通報自体は成立）。
-  const { data: handles } = await supabase
-    .from('x_profiles')
-    .select('id, handle, display_name')
-    .in('id', [myId, targetProfileId]);
-  const nameOf = (id: string) => {
-    const p = (handles ?? []).find(h => (h.id as string) === id);
-    return p ? `${p.display_name}（@${p.handle}）` : id;
-  };
-  await notifyAdmin('【fukuX】投稿の通報', [
-    `通報者: ${nameOf(myId)}`,
-    `対象ユーザー: ${nameOf(targetProfileId)}`,
-    `対象投稿ID: ${postId ?? '(なし)'}`,
-    `理由: ${reason}`,
-    '',
-    '確認・対応: https://fukues.com/x/admin →「通報」タブ',
-  ]);
   return { ok: true };
 }

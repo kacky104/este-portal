@@ -374,6 +374,23 @@ export function XAdmin({
     if (error) return;
     setAbuseReports((prev) => prev.map((x) => (x.id === r.id ? { ...x, status: next } : x)));
   };
+  // 通報された投稿の削除。既存の adminDeleteXPost（storage画像の掃除→行削除）を流用。
+  // x_reports.post_id は FK(on delete set null) でDB側が null 化されるため、ローカルの表示も合わせる。
+  const deleteReportedPost = async (r: AbuseReport) => {
+    if (!r.post_id) return;
+    if (!window.confirm('通報された投稿を削除しますか？\nこの操作は取り消せません。')) return;
+    setAbuseBusyId(r.id);
+    const res = await adminDeleteXPost(r.post_id);
+    setAbuseBusyId(null);
+    if (!res.ok) {
+      showToast(res.error);
+      return;
+    }
+    const deletedPostId = r.post_id;
+    setAbuseReports((prev) => prev.map((x) => (x.post_id === deletedPostId ? { ...x, post_id: null } : x)));
+    showToast('通報された投稿を削除しました');
+  };
+
   const abuseName = (id: string) => {
     const p = abuseProfiles[id];
     return p ? `${p.displayName}（@${p.handle}）` : id.slice(0, 8);
@@ -453,10 +470,32 @@ export function XAdmin({
                   <span className="mx-1.5">→</span>
                   対象: <span className="font-bold">{abuseName(r.target_profile_id)}</span>
                 </p>
-                {r.post_id && (
-                  <p className="text-[11px] text-[color:var(--x-text-muted)] mt-1 line-clamp-2 break-words">
-                    投稿: {abusePostBodies[r.post_id] ? abusePostBodies[r.post_id].slice(0, 120) : '（削除済みまたは取得不可）'}
-                  </p>
+                {r.post_id ? (
+                  <>
+                    <p className="text-[11px] text-[color:var(--x-text-muted)] mt-1 line-clamp-2 break-words">
+                      投稿: {abusePostBodies[r.post_id] ? abusePostBodies[r.post_id].slice(0, 120) : '（本文なし・画像のみ等）'}
+                    </p>
+                    <div className="flex items-center gap-4 mt-2">
+                      <Link
+                        href={`/x/post/${r.post_id}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-[11px] font-bold text-[color:var(--x-accent)] hover:underline"
+                      >
+                        通報された投稿を見る
+                      </Link>
+                      <button
+                        type="button"
+                        onClick={() => deleteReportedPost(r)}
+                        disabled={abuseBusyId === r.id}
+                        className="text-[11px] font-bold text-rose-500 hover:underline disabled:opacity-40"
+                      >
+                        通報された投稿を削除する
+                      </button>
+                    </div>
+                  </>
+                ) : (
+                  <p className="text-[11px] text-[color:var(--x-text-muted)] mt-1">投稿: （削除済み）</p>
                 )}
               </div>
             ))

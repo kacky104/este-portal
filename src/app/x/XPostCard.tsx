@@ -317,7 +317,13 @@ export function XPostCard({
                       {(['スパム・宣伝', '不適切な内容', 'その他'] as const).map((reason) => (
                         <MenuRow
                           key={reason}
-                          onClick={() => { moderation.onReport(post, reason); setDrawerOpen(false); setReportStep(false); }}
+                          onClick={() => {
+                            // 誤操作防止：理由選択のあと、送信前にもう一度確認する。
+                            if (!window.confirm(`この投稿を「${reason}」として通報しますか？`)) return;
+                            moderation.onReport(post, reason);
+                            setDrawerOpen(false);
+                            setReportStep(false);
+                          }}
                           label={reason}
                           icon={<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z" /><line x1="4" y1="22" x2="4" y2="15" /></svg>}
                         />
