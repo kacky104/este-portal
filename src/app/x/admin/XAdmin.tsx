@@ -375,10 +375,11 @@ export function XAdmin({
     setAbuseReports((prev) => prev.map((x) => (x.id === r.id ? { ...x, status: next } : x)));
   };
   // 通報された投稿の削除。既存の adminDeleteXPost（storage画像の掃除→行削除）を流用。
-  // x_reports.post_id は FK(on delete set null) でDB側が null 化されるため、ローカルの表示も合わせる。
+  // x_reports.post_id は FK(on delete cascade) のため、同じ投稿への通報はDB側で全て連動削除される。
+  // ローカルの一覧からも同じ post_id の通報をまとめて除去する。
   const deleteReportedPost = async (r: AbuseReport) => {
     if (!r.post_id) return;
-    if (!window.confirm('通報された投稿を削除しますか？\nこの操作は取り消せません。')) return;
+    if (!window.confirm('通報された投稿を削除しますか？\n同じ投稿への通報もまとめて消えます。この操作は取り消せません。')) return;
     setAbuseBusyId(r.id);
     const res = await adminDeleteXPost(r.post_id);
     setAbuseBusyId(null);
@@ -387,8 +388,8 @@ export function XAdmin({
       return;
     }
     const deletedPostId = r.post_id;
-    setAbuseReports((prev) => prev.map((x) => (x.post_id === deletedPostId ? { ...x, post_id: null } : x)));
-    showToast('通報された投稿を削除しました');
+    setAbuseReports((prev) => prev.filter((x) => x.post_id !== deletedPostId));
+    showToast('投稿と、その投稿への通報を削除しました');
   };
 
   const abuseName = (id: string) => {
@@ -439,7 +440,7 @@ export function XAdmin({
       {tab === 'abuse' && (
         <div className="space-y-2">
           <p className="text-[11px] text-[color:var(--x-text-muted)] mb-2">
-            投稿の「…」メニューから送られた通報の一覧です（新しい順・最大200件）。対応したら「対応済み」に切り替えてください。
+            投稿の「…」メニューから送られた通報の一覧です（新しい順・最新200件を保持し、超えた分は古いものから自動削除）。対応したら「対応済み」に切り替えてください。
           </p>
           {!abuseLoaded ? (
             <p className="text-xs text-[color:var(--x-text-muted)] py-6 text-center">読み込み中…</p>
