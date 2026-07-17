@@ -48,8 +48,9 @@ import { fetchActiveJobsBySalon } from "@/app/lib/jobs";
 import { Stars } from "@/app/components/Stars";
 import SalonScrollPopup from "@/app/components/SalonScrollPopup";
 
-// ISR：10分ごとに再生成（保存時は /api/revalidate で即時無効化）。
-export const revalidate = 600;
+// ISR：60秒ごとに再生成（保存時は /api/revalidate で即時無効化。これは即時破棄が
+// 届かなかった場合の保険で、最悪でも60秒で自動更新される。以前は600秒＝最長10分だった）。
+export const revalidate = 60;
 
 // ビルド時に全サロンの詳細ページを事前生成（dynamicParams=true のままなので新規サロンは初回アクセスで生成）。
 export async function generateStaticParams() {
