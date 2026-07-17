@@ -48,6 +48,23 @@ export function XTimeline({
   banners?: XBanner[]; // 運営設定のバナースライダー（全タブ共通・タブバー直下）。空なら非表示。
 }) {
   const [tab, setTab] = useState<'recommended' | 'following' | 'shops'>('recommended');
+  // バナースライダーのシャッフル：タブを切り替えるたびに並びをシャッフルし、key を変えて
+  // スライダーを先頭から再スタートさせる。初期表示はサーバー順のまま（hydration mismatch 回避＝
+  // Math.random はクリック時のみ）。
+  const [shuffledBanners, setShuffledBanners] = useState<XBanner[] | null>(null);
+  const [bannerShuffleKey, setBannerShuffleKey] = useState(0);
+  const selectTab = (key: 'recommended' | 'following' | 'shops') => {
+    setTab(key);
+    if ((banners?.length ?? 0) > 1) {
+      const arr = [...banners!];
+      for (let i = arr.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [arr[i], arr[j]] = [arr[j], arr[i]];
+      }
+      setShuffledBanners(arr);
+      setBannerShuffleKey(k => k + 1);
+    }
+  };
   // セラピスト本人はフォローしない仕様＝「フォロー中」フィードが常に空。代わりに2つ目タブを
   // 「フォロワー（自分をフォローしている人の一覧）」に置き換える。user/shop/未ログインは従来どおり。
   const isTherapist = me?.kind === 'therapist';
@@ -131,7 +148,7 @@ export function XTimeline({
             <button
               key={key}
               type="button"
-              onClick={() => setTab(key)}
+              onClick={() => selectTab(key)}
               className={`flex-1 py-3 text-sm font-bold transition-colors relative ${
                 tab === key ? 'text-[color:var(--x-accent)]' : 'text-[color:var(--x-text-muted)] hover:text-[color:var(--x-text-secondary)]'
               }`}
@@ -143,8 +160,9 @@ export function XTimeline({
         </div>
       </div>
 
-      {/* 運営バナースライダー（全タブ共通・タブバー直下）。未設定なら出さない。 */}
-      {(banners?.length ?? 0) > 0 && <XBannerSlider banners={banners!} />}
+      {/* 運営バナースライダー（全タブ共通・タブバー直下）。未設定なら出さない。
+          タブ切替のたびにシャッフルした並びで先頭から再スタート（key で再マウント）。 */}
+      {(banners?.length ?? 0) > 0 && <XBannerSlider key={bannerShuffleKey} banners={shuffledBanners ?? banners!} />}
 
       {/* タブ中身 */}
       {tab === 'recommended' ? (
