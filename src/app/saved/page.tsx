@@ -18,6 +18,7 @@ import { TherapistPickupBanner } from '@/app/components/TherapistPickupBanner';
 import { fetchActiveTherapistPickupBanners, type TherapistPickupBanner as PickupBanner } from '@/app/lib/therapistPickupBanners';
 import { RecommendedSalonBannerSlider } from '@/app/components/RecommendedSalonBannerSlider';
 import { fetchActiveRecommendedSalonBanners, type RecommendedSalonBanner } from '@/app/lib/recommendedSalonBanners';
+import { createPublicClient } from '@/app/lib/supabase/public';
 
 export default function SavedPage() {
   // 表示中タブ（既定: 保存した店舗）
@@ -49,10 +50,12 @@ export default function SavedPage() {
   // 表示はおすすめサロンバナーと同一カード（RecommendedSalonBannerSlider を単発で流用）。
   const [pickupBanner, setPickupBanner] = useState<RecommendedSalonBanner | null>(null);
   useEffect(() => {
-    if (!salonsSynced) return;
     let alive = true;
     (async () => {
-      const supabase = createClient();
+      // 公開データのみ読むため匿名クライアントを使う（セッション付きクライアントだと、複数
+      // GoTrueClient のトークン競合でページ内遷移直後の取得が失敗し「リロードするまでバナーが
+      // 出ない」ことがあった）。保存リストは localStorage 同期読み＝マウント時に即取得できる。
+      const supabase = createPublicClient();
       const savedSet = new Set(getSavedSalons().map(x => x.id));
       const [recommended, { data: featuredRows }] = await Promise.all([
         fetchActiveRecommendedSalonBanners(),
@@ -95,10 +98,9 @@ export default function SavedPage() {
           .map(t => t.profile_image_url as string | null)
           .filter((u): u is string => Boolean(u)),
       });
-    })().catch(() => {});
+    })().catch((e) => { console.error('[saved] サロンバナーの取得に失敗:', e); });
     return () => { alive = false; };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [salonsSynced]);
+  }, []);
 
   // ヘッダーのバッジ等からの #therapists / #salons でタブを切替（ハッシュ連動）。
   useEffect(() => {
