@@ -127,9 +127,10 @@ export async function adminGenerateOwnerLoginLink(
   const { data, error } = await svc.auth.admin.generateLink({
     type: 'magiclink',
     email: userData.user.email,
-    options: { redirectTo: 'https://fukues.com/mypage' },
   });
-  const link = data?.properties?.action_link;
-  if (error || !link) return { ok: false, error: `リンクの発行に失敗しました${error ? `（${error.message}）` : ''}` };
-  return { ok: true, link };
+  // action_link（1回限りの直リンク）はブラウザのURL先読みで踏まれて otp_expired になる事故があるため使わない。
+  // hashed_token を自前の確認ページ（/owner/impersonate）にハッシュで渡し、ボタンクリック時に verifyOtp で消費する。
+  const tokenHash = data?.properties?.hashed_token;
+  if (error || !tokenHash) return { ok: false, error: `リンクの発行に失敗しました${error ? `（${error.message}）` : ''}` };
+  return { ok: true, link: `https://fukues.com/owner/impersonate#token_hash=${encodeURIComponent(tokenHash)}` };
 }
