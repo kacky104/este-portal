@@ -118,7 +118,7 @@ export async function adminGenerateOwnerLoginLink(
   if (!auth.ok) return auth;
 
   const uid = (ownerUuid ?? '').trim();
-  if (!uid) return { ok: false, error: 'このサロンにはオーナーUUIDが設定されていません' };
+  if (!uid) return { ok: false, error: 'この店舗にはオーナーUUIDが設定されていません' };
 
   const svc = createServiceClient();
   const { data: userData, error: getErr } = await svc.auth.admin.getUserById(uid);

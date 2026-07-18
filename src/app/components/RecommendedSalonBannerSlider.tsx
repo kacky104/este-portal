@@ -16,7 +16,7 @@ import type { RecommendedSalonBanner } from '@/app/lib/recommendedSalonBanners';
 // - link はサロン詳細（/salon/{salonId}）。非公開サロン（salonName===''）は画像のみ・非リンクにフォールバック。
 // - 0件はブロックごと非表示。自動送り（3.5秒ごとに次カードへスムーススクロール・hover/タッチで一時停止・末尾→先頭ループ）は持つ。
 //   矢印・ドット・translateX・matchMedia は持たない（ネイティブ横スクロール＋scroll-snap のまま実スクロール位置で送る）。
-const SECTION_TITLE = '福岡のおすすめサロン';
+const SECTION_TITLE = '福岡のおすすめ店舗';
 const AUTO_SLIDE_MS = 3500; // 自動送り間隔（3.5秒ごとに1枚進める）
 
 // SSR 警告回避：クライアントのみ useLayoutEffect（描画前に測定＝チラつき防止）、サーバーは useEffect にフォールバック。

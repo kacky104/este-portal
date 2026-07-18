@@ -90,7 +90,7 @@ export default function AdminJobsManager({
     if (!editor) return;
     const salonId = editor.salonId; // edit=number / create=number|null
     if (salonId == null) {
-      setFormError('サロンを選択してください');
+      setFormError('店舗を選択してください');
       return;
     }
     // 応募通知メール：必須。未入力を拒否し、入力時は形式もチェック。
@@ -237,7 +237,7 @@ export default function AdminJobsManager({
             {editor.mode === 'create' && (
               <div>
                 <label className="text-[11px] font-bold text-slate-400 block mb-1">
-                  対象サロン <span className="text-rose-400">*</span>
+                  対象店舗 <span className="text-rose-400">*</span>
                 </label>
                 <select
                   className="w-full px-3 py-2 rounded-xl border border-slate-200 text-sm bg-slate-50/50 focus:outline-none focus:ring-2 focus:ring-emerald-200"
@@ -259,7 +259,7 @@ export default function AdminJobsManager({
                   ))}
                 </select>
                 {salonsWithoutJob.length === 0 && (
-                  <p className="text-[10px] text-slate-400 mt-1">未掲載のサロンはありません（全店に求人があります）。</p>
+                  <p className="text-[10px] text-slate-400 mt-1">未掲載の店舗はありません（全店に求人があります）。</p>
                 )}
               </div>
             )}

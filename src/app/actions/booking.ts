@@ -381,7 +381,7 @@ export type OwnerBooking = {
 export async function getSalonBookings(
   salonId: number,
 ): Promise<{ ok: true; bookings: OwnerBooking[] } | { ok: false; error: string }> {
-  if (!Number.isFinite(salonId)) return { ok: false, error: '対象サロンが不正です' };
+  if (!Number.isFinite(salonId)) return { ok: false, error: '対象店舗が不正です' };
 
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
@@ -392,10 +392,10 @@ export async function getSalonBookings(
     .select('owner_id')
     .eq('id', salonId)
     .maybeSingle();
-  if (salonErr || !salon) return { ok: false, error: 'サロンが見つかりません' };
+  if (salonErr || !salon) return { ok: false, error: '店舗が見つかりません' };
   const ownerId = (salon.owner_id as string | null) ?? null;
   if (ownerId !== user.id && user.id !== ADMIN_UUID) {
-    return { ok: false, error: 'このサロンの予約を閲覧する権限がありません' };
+    return { ok: false, error: 'この店舗の予約を閲覧する権限がありません' };
   }
 
   const svc = createServiceClient();
@@ -466,7 +466,7 @@ async function assertBookingOwner(
     .select('owner_id')
     .eq('id', Number(booking.salon_id))
     .maybeSingle();
-  if (sErr || !salon) return { ok: false, error: 'サロンが見つかりません' };
+  if (sErr || !salon) return { ok: false, error: '店舗が見つかりません' };
   const ownerId = (salon.owner_id as string | null) ?? null;
   if (ownerId !== user.id && user.id !== ADMIN_UUID) {
     return { ok: false, error: 'この予約を操作する権限がありません' };

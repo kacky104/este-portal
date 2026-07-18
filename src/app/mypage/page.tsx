@@ -436,7 +436,7 @@ function popupLinkOptions(
   const base = `/salon/${salonId}`;
   const pages = [
     { label: 'リンクなし',       value: '' },
-    { label: 'サロンTOP',        value: base },
+    { label: '店舗TOP',        value: base },
     { label: '料金',             value: `${base}/price` },
     { label: 'クーポン',         value: `${base}/coupon` },
     { label: '口コミ',           value: `${base}/reviews` },
@@ -583,7 +583,7 @@ export default function MyPage() {
         .single();
 
       if (salonError || !salonData) {
-        setLoadError('サロン情報が見つかりません');
+        setLoadError('店舗情報が見つかりません');
         return;
       }
 
@@ -1852,17 +1852,17 @@ export default function MyPage() {
           >
             {salonForm.name ?? ''}
           </h2>
-          <p className="mt-1 text-[11px] text-slate-400">※ サロン名の変更は管理者のみ行えます。変更が必要な場合はお問い合わせください。</p>
+          <p className="mt-1 text-[11px] text-slate-400">※ 店舗名の変更は管理者のみ行えます。変更が必要な場合はお問い合わせください。</p>
         </div>
 
         {/* ── サロン情報編集 ── */}
         <div className={`bg-white rounded-3xl border border-slate-100 shadow-sm p-5 space-y-4 ${activeTab === 'salon' ? '' : 'hidden'}`}>
-          <h2 className="text-sm font-black text-slate-700">サロン情報の編集</h2>
+          <h2 className="text-sm font-black text-slate-700">店舗情報の編集</h2>
 
           {/* ── テーマ（壁紙） ── */}
           <div>
             <label className={labelClass}>テーマ（背景壁紙）</label>
-            <p className="mb-2 text-[11px] text-slate-400">サロン詳細ページの背景に敷かれる壁紙を選べます。壁紙未設定のテーマは背景色のみになります。</p>
+            <p className="mb-2 text-[11px] text-slate-400">店舗詳細ページの背景に敷かれる壁紙を選べます。壁紙未設定のテーマは背景色のみになります。</p>
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
               {SALON_THEMES.map((t) => {
                 const selected = (salonForm.theme ?? 'white') === t.key;
@@ -2127,14 +2127,14 @@ export default function MyPage() {
             </div>
           </div>
           <div>
-            <label className={labelClass}>サロン紹介</label>
+            <label className={labelClass}>店舗紹介</label>
             <textarea rows={6} className={textareaClass} value={salonForm.description ?? ''} onChange={(e) => setSalonForm((p) => ({ ...p, description: e.target.value }))} />
           </div>
 
           {/* ── サロン画像 ── */}
           <div className="border-t border-slate-100 pt-4 space-y-3">
             <div className="flex items-center justify-between">
-              <label className={labelClass}>サロン画像（最大3枚）</label>
+              <label className={labelClass}>店舗画像（最大3枚）</label>
               <span className="text-[10px] text-slate-400">{salonImages.length} / 3</span>
             </div>
 
@@ -2333,7 +2333,7 @@ export default function MyPage() {
               ネット予約を受け付ける
             </label>
             <p className="text-[10px] text-slate-400 leading-relaxed">
-              ネット予約を受け付けると、サロン詳細ページの「ネット予約」ボタンから予約の受付が開始されます。
+              ネット予約を受け付けると、店舗詳細ページの「ネット予約」ボタンから予約の受付が開始されます。
               （「予約で受け付けるコース」を1つ以上登録する必要があります）
             </p>
             <div>
@@ -3396,7 +3396,7 @@ export default function MyPage() {
             <VipLetterForm salonId={Number(salon.id)} />
           ) : (
             <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5">
-              <p className="text-xs text-slate-400">サロン情報を読み込み中です…</p>
+              <p className="text-xs text-slate-400">店舗情報を読み込み中です…</p>
             </div>
           )}
         </div>
@@ -3407,7 +3407,7 @@ export default function MyPage() {
             <JobsTab salonId={Number(salon.id)} />
           ) : (
             <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5">
-              <p className="text-xs text-slate-400">サロン情報を読み込み中です…</p>
+              <p className="text-xs text-slate-400">店舗情報を読み込み中です…</p>
             </div>
           )}
         </div>
@@ -3418,7 +3418,7 @@ export default function MyPage() {
             <div>
               <h2 className="text-sm font-black text-slate-700">ポップアップ画像</h2>
               <p className="mt-1 text-[11px] leading-relaxed text-slate-400">
-                スマホでサロン詳細ページを少し下にスクロールすると、左下から画像が「ポンっ」と跳ねて出ます（スマホ表示のみ。PCでは出ません）。最大3枚まで登録でき、<span className="text-slate-500 font-bold">ページを開くたびに1枚がランダムで表示</span>されます。画像ごとに、自分のサロン内のページ（セラピスト個別ページも含む）へのリンク先を選べます。「表示する」をONにすると公開されます（お客様は✕で閉じられます）。<br />
+                スマホで店舗詳細ページを少し下にスクロールすると、左下から画像が「ポンっ」と跳ねて出ます（スマホ表示のみ。PCでは出ません）。最大3枚まで登録でき、<span className="text-slate-500 font-bold">ページを開くたびに1枚がランダムで表示</span>されます。画像ごとに、自分の店舗内のページ（セラピスト個別ページも含む）へのリンク先を選べます。「表示する」をONにすると公開されます（お客様は✕で閉じられます）。<br />
                 <span className="text-slate-500 font-bold">推奨サイズ：</span>縦長・約2:3（例 800×1200px）／1MB以下／JPEG・PNG・WebP。画像は枠なしで全体が表示されます（切れません）。<span className="text-pink-500 font-bold">背景を透過したPNG（切り抜き画像）</span>にすると、背景に自然に溶け込みます。
               </p>
             </div>
@@ -3462,13 +3462,13 @@ export default function MyPage() {
                 </div>
               </div>
             ))}
-            <p className="text-[10px] text-slate-400">JPEG・PNG・WebP／各5MBまで。リンク先は自分のサロン内のページから選べます（「リンクなし」ならクリックしても移動しません）。</p>
+            <p className="text-[10px] text-slate-400">JPEG・PNG・WebP／各5MBまで。リンク先は自分の店舗内のページから選べます（「リンクなし」ならクリックしても移動しません）。</p>
 
             {/* 表示ON/OFF */}
             <div>
               <label className="flex items-center gap-2 cursor-pointer">
                 <input type="checkbox" checked={popupEnabled} onChange={(e) => setPopupEnabled(e.target.checked)} className="w-4 h-4 accent-pink-500" />
-                <span className="text-sm font-bold text-slate-700">サロン詳細ページに表示する</span>
+                <span className="text-sm font-bold text-slate-700">店舗詳細ページに表示する</span>
               </label>
               <p className="mt-1 text-[10px] text-slate-400">※ 画像を1枚以上設定してONにしたときだけ表示されます。</p>
             </div>

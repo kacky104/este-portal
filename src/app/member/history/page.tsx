@@ -135,7 +135,7 @@ export default async function HistoryPage() {
               <section className="mb-10">
                 <h2 className="flex items-center gap-2 text-base font-bold text-slate-700 mb-4">
                   <span className="w-1 h-5 rounded-full" style={{ background: '#EC4899' }} />
-                  閲覧したサロン
+                  閲覧した店舗
                 </h2>
                 <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-4">
                   {salons.map(salon => (

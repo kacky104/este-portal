@@ -8,7 +8,7 @@ import { ListingInquiryForm } from './ListingInquiryForm';
 
 export const metadata: Metadata = {
   title: '掲載について｜フクエス',
-  description: '福岡メンズエステポータル「フクエス」への店舗掲載をご希望のサロン様へのご案内です。',
+  description: '福岡メンズエステポータル「フクエス」への店舗掲載をご希望の店舗様へのご案内です。',
   alternates: { canonical: '/listing' },
 };
 
@@ -31,12 +31,12 @@ export default function ListingPage() {
         <h1 className="text-2xl font-bold text-slate-900 mb-6">掲載について</h1>
 
         <p className="text-sm text-slate-600 leading-relaxed">
-          フクエスは、福岡県のメンズエステ専門ポータルサイトです。博多・天神・北九州・久留米など福岡全域のサロン様の情報を掲載しています。
+          フクエスは、福岡県のメンズエステ専門ポータルサイトです。博多・天神・北九州・久留米など福岡全域の店舗様の情報を掲載しています。
         </p>
 
-        <h2 className="text-lg font-bold text-slate-800 mt-8 mb-3">掲載をご希望のサロン様へ</h2>
+        <h2 className="text-lg font-bold text-slate-800 mt-8 mb-3">掲載をご希望の店舗様へ</h2>
         <p className="text-sm text-slate-600 leading-relaxed mb-4">
-          本サイトへの掲載をご希望のサロン様は、下記フォームからお気軽にお問い合わせください。掲載内容・条件等の詳細をご案内いたします。
+          本サイトへの掲載をご希望の店舗様は、下記フォームからお気軽にお問い合わせください。掲載内容・条件等の詳細をご案内いたします。
         </p>
 
         {/* 掲載お問い合わせフォーム（未ログインで送信可・運営宛メール通知＋listing_inquiriesに保存） */}
@@ -46,9 +46,9 @@ export default function ListingPage() {
           メールでのお問い合わせも受け付けています：<a href="mailto:info@fukues.com" className="text-pink-600 hover:underline">info@fukues.com</a>
         </p>
 
-        <h2 className="text-lg font-bold text-slate-800 mt-8 mb-3">掲載できるサロンについて</h2>
+        <h2 className="text-lg font-bold text-slate-800 mt-8 mb-3">掲載できる店舗について</h2>
         <p className="text-sm text-slate-600 leading-relaxed mb-2">
-          以下に該当するサロン様の掲載はお断りしています。
+          以下に該当する店舗様の掲載はお断りしています。
         </p>
         <ul className="list-disc pl-5 space-y-1 text-sm text-slate-600 leading-relaxed">
           <li>法令に違反する営業を行っている、またはその疑いがある場合</li>
@@ -56,7 +56,7 @@ export default function ListingPage() {
           <li>その他、当事務局が掲載にふさわしくないと判断した場合</li>
         </ul>
 
-        <h2 className="text-lg font-bold text-slate-800 mt-8 mb-3">掲載サロン様向け機能</h2>
+        <h2 className="text-lg font-bold text-slate-800 mt-8 mb-3">掲載店舗様向け機能</h2>
         <ul className="list-disc pl-5 space-y-1 text-sm text-slate-600 leading-relaxed">
           <li>店舗ページ（店舗情報・料金・コース・写真の掲載）</li>
           <li>セラピストのプロフィール・出勤スケジュール管理</li>

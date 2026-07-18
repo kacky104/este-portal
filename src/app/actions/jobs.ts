@@ -173,10 +173,10 @@ async function assertSalonOwner(
     .select('owner_id')
     .eq('id', salonId)
     .maybeSingle();
-  if (error || !salon) return { ok: false, error: 'サロンが見つかりません' };
+  if (error || !salon) return { ok: false, error: '店舗が見つかりません' };
   const ownerId = (salon.owner_id as string | null) ?? null;
   if (ownerId !== userId && userId !== ADMIN_UUID) {
-    return { ok: false, error: 'このサロンの求人を操作する権限がありません' };
+    return { ok: false, error: 'この店舗の求人を操作する権限がありません' };
   }
   return { ok: true };
 }
@@ -378,7 +378,7 @@ function validate(input: JobFormInput): { ok: true; clean: CleanJob } | Err {
 export async function getMyJob(
   salonId: number,
 ): Promise<{ ok: true; job: MyJob | null } | Err> {
-  if (!Number.isFinite(salonId)) return { ok: false, error: '対象サロンが不正です' };
+  if (!Number.isFinite(salonId)) return { ok: false, error: '対象店舗が不正です' };
   const auth = await requireUser();
   if (!auth.ok) return auth;
   const own = await assertSalonOwner(auth.supabase, auth.user.id, salonId);
@@ -400,7 +400,7 @@ export async function getMyJob(
 export async function getMyPerkStatus(
   salonId: number,
 ): Promise<{ ok: true; salonName: string; cardBoost: boolean; jobBoost: boolean | null } | Err> {
-  if (!Number.isFinite(salonId)) return { ok: false, error: '対象サロンが不正です' };
+  if (!Number.isFinite(salonId)) return { ok: false, error: '対象店舗が不正です' };
   const auth = await requireUser();
   if (!auth.ok) return auth;
   const own = await assertSalonOwner(auth.supabase, auth.user.id, salonId);
@@ -425,7 +425,7 @@ export async function upsertMyJob(
   salonId: number,
   input: JobFormInput,
 ): Promise<{ ok: true; job: MyJob } | Err> {
-  if (!Number.isFinite(salonId)) return { ok: false, error: '対象サロンが不正です' };
+  if (!Number.isFinite(salonId)) return { ok: false, error: '対象店舗が不正です' };
   const auth = await requireUser();
   if (!auth.ok) return auth;
   const own = await assertSalonOwner(auth.supabase, auth.user.id, salonId);
@@ -570,7 +570,7 @@ function workNewsStoragePath(url: string | null): string | null {
 export async function enforceWorkNewsLimit(
   salonId: number,
 ): Promise<{ ok: true; deleted: number } | Err> {
-  if (!Number.isFinite(salonId)) return { ok: false, error: '対象サロンが不正です' };
+  if (!Number.isFinite(salonId)) return { ok: false, error: '対象店舗が不正です' };
   const auth = await requireUser();
   if (!auth.ok) return auth;
   const own = await assertSalonOwner(auth.supabase, auth.user.id, salonId);
@@ -989,7 +989,7 @@ async function assertApplicationOwner(
     .select('owner_id')
     .eq('id', Number(job.salon_id))
     .maybeSingle();
-  if (sErr || !salon) return { ok: false, error: 'サロンが見つかりません' };
+  if (sErr || !salon) return { ok: false, error: '店舗が見つかりません' };
 
   const ownerId = (salon.owner_id as string | null) ?? null;
   if (ownerId !== auth.user.id && auth.user.id !== ADMIN_UUID) {
@@ -1002,7 +1002,7 @@ async function assertApplicationOwner(
 export async function getJobApplications(
   salonId: number,
 ): Promise<{ ok: true; applications: JobApplication[] } | Err> {
-  if (!Number.isFinite(salonId)) return { ok: false, error: '対象サロンが不正です' };
+  if (!Number.isFinite(salonId)) return { ok: false, error: '対象店舗が不正です' };
   const auth = await requireUser();
   if (!auth.ok) return auth;
   const own = await assertSalonOwner(auth.supabase, auth.user.id, salonId);

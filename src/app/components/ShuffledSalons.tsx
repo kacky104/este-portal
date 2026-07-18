@@ -651,7 +651,7 @@ export function ShuffledSalons({ salons, areas, showAge = false, areaNextToDuty 
           <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="mb-4 opacity-40">
             <circle cx="11" cy="11" r="8" /><path d="M21 21l-4.35-4.35" />
           </svg>
-          <p className="text-sm">このエリアの掲載サロンはまだありません</p>
+          <p className="text-sm">このエリアの掲載店舗はまだありません</p>
         </div>
         {/* 0件エリアでもピックアップ枠等の挿入ブロックは出す（カードが無いだけで枠は表示したい）。
             ラッパ幅は通常時の zoom:false ブロックと同じ（723px＝カード列と同じ幅感）。 */}

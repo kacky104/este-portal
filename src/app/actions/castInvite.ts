@@ -37,7 +37,7 @@ type OwnerErr = { error: string };
 
 // ログインユーザーがその salon の owner（または管理者UID）かをサーバー側で検証。
 async function assertOwner(salonId: number): Promise<OwnerOk | OwnerErr> {
-  if (!Number.isFinite(salonId)) return { error: '対象サロンが不正です' };
+  if (!Number.isFinite(salonId)) return { error: '対象店舗が不正です' };
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return { error: 'ログインが必要です' };
@@ -47,11 +47,11 @@ async function assertOwner(salonId: number): Promise<OwnerOk | OwnerErr> {
     .select('owner_id')
     .eq('id', salonId)
     .maybeSingle();
-  if (error || !salon) return { error: 'サロンが見つかりません' };
+  if (error || !salon) return { error: '店舗が見つかりません' };
 
   const ownerId = (salon.owner_id as string | null) ?? null;
   if (ownerId !== user.id && user.id !== ADMIN_UUID) {
-    return { error: 'このサロンの操作権限がありません' };
+    return { error: 'この店舗の操作権限がありません' };
   }
   return { userId: user.id };
 }

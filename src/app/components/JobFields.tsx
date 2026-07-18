@@ -363,7 +363,7 @@ export function JobFields({
           <span className="text-xs text-slate-400 flex-none">円</span>
         </div>
         <p className="text-[10px] text-slate-400 mt-1 leading-relaxed">
-          フクエスワーク経由の応募で採用が決まった方にサロン様から進呈するお祝い金です。金額を入力すると求人ページに表示されます（空欄で非表示）。
+          フクエスワーク経由の応募で採用が決まった方に店舗様から進呈するお祝い金です。金額を入力すると求人ページに表示されます（空欄で非表示）。
         </p>
         {celebrationErr && <p className="text-[10px] text-rose-500 mt-1">{celebrationErr}</p>}
       </div>

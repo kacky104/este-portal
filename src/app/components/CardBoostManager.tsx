@@ -75,7 +75,7 @@ export default function CardBoostManager({ onToast }: { onToast: (msg: string) =
   return (
     <div className="rounded-2xl border border-slate-100 bg-white p-4 shadow-sm">
       <p className="text-xs text-slate-500 leading-relaxed mb-3">
-        リンクバナー設置特典の設定です。オンにしたサロンは、トップ・地域ページのサロンカード（30分ごとランダム表示）で
+        リンクバナー設置特典の設定です。オンにした店舗は、トップ・地域ページの店舗カード（30分ごとランダム表示）で
         <span className="font-bold text-pink-600">一覧の上側（半数より上）に来やすく</span>なります。
         順位を固定するものではなく、当たりやすさが上がる仕組みです。設置をやめた店舗はオフに戻してください。
       </p>

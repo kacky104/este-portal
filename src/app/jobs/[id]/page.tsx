@@ -455,7 +455,7 @@ function JobCelebrationBlock({ amount }: { amount: number }) {
 function JobSalonSaveBlock({ salonId, salonName }: { salonId: number; salonName: string }) {
   return (
     <div className="mt-4 rounded-2xl border border-emerald-100 bg-white p-5 shadow-sm flex items-center justify-center gap-3">
-      <span className="text-sm text-slate-500">このサロン求人を保存する</span>
+      <span className="text-sm text-slate-500">この店舗求人を保存する</span>
       <SaveButton
         kind="job_salon"
         item={{ id: salonId, name: salonName }}

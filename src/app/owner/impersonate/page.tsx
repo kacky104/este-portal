@@ -38,7 +38,7 @@ export default function OwnerImpersonatePage() {
       <div className="w-full max-w-md bg-white rounded-3xl border border-slate-100 shadow-sm p-8 text-center">
         <h1 className="text-base font-black text-slate-800 mb-2">オーナーとしてログイン</h1>
         <p className="text-xs text-slate-500 leading-relaxed mb-6">
-          管理者向けの機能です。下のボタンを押すと、対象サロンのオーナーとしてログインし、マイページへ移動します。
+          管理者向けの機能です。下のボタンを押すと、対象店舗のオーナーとしてログインし、マイページへ移動します。
           操作はオーナー本人の操作として記録されます。
         </p>
         {tokenHash ? (

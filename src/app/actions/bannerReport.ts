@@ -37,7 +37,7 @@ export async function submitBannerReport(
     (VALID_SITES as string[]).includes(s),
   );
 
-  if (salonName.length < 1 || salonName.length > 100) return { ok: false, error: 'サロン名は1〜100文字で入力してください' };
+  if (salonName.length < 1 || salonName.length > 100) return { ok: false, error: '店舗名は1〜100文字で入力してください' };
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || email.length > 254) return { ok: false, error: 'メールアドレスの形式が正しくありません' };
   if (sites.length === 0) return { ok: false, error: '貼ったバナーの種類を選択してください' };
   if (!/^https?:\/\/.+\..+/.test(pageUrl) || pageUrl.length > 500) return { ok: false, error: '設置ページURLは http(s):// から始まるURLを入力してください' };
@@ -72,7 +72,7 @@ export async function submitBannerReport(
 
   // 運営へメール通知（失敗しても送信自体は成功扱い）。
   await notifyAdmin(`【fukuX】リンクバナー設置報告（${salonName}）`, [
-    `サロン名: ${salonName}`,
+    `店舗名: ${salonName}`,
     `バナー: ${sites.join('・')}`,
     `設置ページ: ${pageUrl}`,
     `連絡先: ${email}${xHandle ? `／fukuX: @${xHandle}` : ''}`,
@@ -144,7 +144,7 @@ export async function submitMyBannerReport(input: {
   if (error) return { ok: false, error: '送信に失敗しました。時間をおいてお試しください' };
 
   await notifyAdmin(`【フクエス】リンクバナー設置報告（${salonName}）`, [
-    `サロン名: ${salonName}`,
+    `店舗名: ${salonName}`,
     `バナー: ${sites.map((s) => SITE_LABEL[s]).join('・')}`,
     `設置ページ: ${pageUrl}`,
     `連絡先: ${email}`,

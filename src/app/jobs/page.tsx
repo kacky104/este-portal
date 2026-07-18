@@ -70,7 +70,7 @@ export default async function JobsPage() {
       </div>
 
       {/* おすすめ求人（運営が featured_jobs に登録した求人のスライダー）。0件時はセクションごと非表示。 */}
-      <PickupSlider jobs={pickupJobs} title="おすすめ求人ピックアップサロン" />
+      <PickupSlider jobs={pickupJobs} title="おすすめ求人ピックアップ店舗" />
 
       {/* エリアから探す → 特徴から探す（おすすめ求人の直下）。求職者の探索順（まず勤務地エリア→次に条件）に
           合わせてエリアを特徴の直上に置く。おすすめ求人が0件（PickupSlider 非表示）でもこの位置に表示される。 */}

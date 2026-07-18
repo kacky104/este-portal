@@ -127,7 +127,7 @@ export default async function DiaryDetailPage({
   // 構造化データ（BreadcrumbList「トップ › サロン名 › 日記タイトル」）。
   const breadcrumbJsonLd = buildBreadcrumbJsonLd([
     { name: 'トップ', path: '/' },
-    { name: salonName || 'サロン', path: `/salon/${salonId}` },
+    { name: salonName || '店舗', path: `/salon/${salonId}` },
     { name: currentTitle, path: `/diary/${diary_id}` },
   ]);
 
@@ -160,7 +160,7 @@ export default async function DiaryDetailPage({
             className="hover:opacity-80 transition-opacity inline-block max-w-[30%] truncate align-middle"
             style={{ color: '#ec4899' }}
           >
-            {salonName || 'サロン'}
+            {salonName || '店舗'}
           </Link>
           <span aria-hidden className="flex-shrink-0" style={{ color: '#999' }}>›</span>
           <Suspense fallback={<span className="flex-shrink-0 whitespace-nowrap" style={{ color: '#ec4899' }}>写メ日記一覧</span>}>

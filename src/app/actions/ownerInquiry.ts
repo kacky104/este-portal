@@ -32,7 +32,7 @@ export async function submitOwnerInquiry(
     .select('id, name')
     .eq('owner_id', user.id)
     .single();
-  if (!salon) return { ok: false, error: 'サロン情報が見つかりません' };
+  if (!salon) return { ok: false, error: '店舗情報が見つかりません' };
 
   const { error } = await supabase.from('owner_inquiries').insert({
     salon_id: salon.id,

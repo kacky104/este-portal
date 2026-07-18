@@ -236,7 +236,7 @@ export default async function MainColumnDetailPage({
             className="flex items-center justify-center gap-2 w-full py-3.5 rounded-xl font-bold text-white shadow-sm hover:opacity-90 transition-opacity"
             style={{ background: 'linear-gradient(to right,#ec4899,#f97316)' }}
           >
-            サロン一覧を見る
+            店舗一覧を見る
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
               <path d="M5 12h14M12 5l7 7-7 7" />
             </svg>
@@ -248,7 +248,7 @@ export default async function MainColumnDetailPage({
                 href={areaHref(area)}
                 className="text-xs font-bold px-3 py-1.5 rounded-full border border-pink-200 text-pink-600 transition-colors hover:bg-pink-50"
               >
-                {area === DISPATCH_AREA ? '出張対応' : areaLabel(area)}のサロン
+                {area === DISPATCH_AREA ? '出張対応' : areaLabel(area)}の店舗
               </Link>
             ))}
           </div>

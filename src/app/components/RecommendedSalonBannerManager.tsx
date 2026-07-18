@@ -63,7 +63,7 @@ export default function RecommendedSalonBannerManager({
   const salonLabel = useCallback(
     (id: number) => {
       const s = allSalons.find((x) => x.id === id);
-      return s ? `${s.name}（${areaLabel(s.area)}）` : `サロンID: ${id}（取得不可・非表示の可能性）`;
+      return s ? `${s.name}（${areaLabel(s.area)}）` : `店舗ID: ${id}（取得不可・非表示の可能性）`;
     },
     [allSalons],
   );
@@ -92,14 +92,14 @@ export default function RecommendedSalonBannerManager({
 
   // 新規追加：サロン選択済み → 画像を選ぶ → 新UUIDフォルダにアップロード → その id で行を insert。
   const triggerAdd = () => {
-    if (addSalonId === '') { onToast('先にサロンを選択してください'); return; }
+    if (addSalonId === '') { onToast('先に店舗を選択してください'); return; }
     addInputRef.current?.click();
   };
   const handleAdd = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     e.target.value = '';
     if (!file) return;
-    if (addSalonId === '') { onToast('先にサロンを選択してください'); return; }
+    if (addSalonId === '') { onToast('先に店舗を選択してください'); return; }
     const err = validateImageFile(file);
     if (err) { onToast(err); return; }
     setBusy(true);
@@ -128,7 +128,7 @@ export default function RecommendedSalonBannerManager({
     setAddSalonId('');
     await revalidateTop();
     await fetchList();
-    onToast('おすすめサロンバナーを追加しました');
+    onToast('おすすめ店舗バナーを追加しました');
   };
 
   // 画像差し替え：新ファイルをアップロード → DB更新成功後に旧ファイルを掃除。
@@ -179,7 +179,7 @@ export default function RecommendedSalonBannerManager({
     if (error) { onToast(`変更に失敗しました: ${error.message}`); return; }
     setItems((prev) => prev.map((b) => (b.id === id ? { ...b, salon_id: salonId } : b)));
     await revalidateTop();
-    onToast('紐づけサロンを変更しました');
+    onToast('紐づけ店舗を変更しました');
   };
 
   // alt を保存（該当行のみ更新）。
@@ -264,7 +264,7 @@ export default function RecommendedSalonBannerManager({
     <div className="bg-white rounded-3xl border border-slate-100 shadow-sm p-6">
       <div className="flex items-center justify-between mb-4">
         <p className="text-[11px] text-slate-400 leading-relaxed">
-          トップのサロン一覧（15枚目直下）に、選んだサロンのオーバーレイ（店名・セラピスト・地域・詳細ボタン）付きで表示されます。公開中のものだけが表示順に並びます。
+          トップの店舗一覧（15枚目直下）に、選んだ店舗のオーバーレイ（店名・セラピスト・地域・詳細ボタン）付きで表示されます。公開中のものだけが表示順に並びます。
         </p>
         <span className="text-[10px] text-slate-400 flex-shrink-0 ml-3">推奨サイズ: 横1200×縦800px（3:2・被写体は中央）</span>
       </div>
@@ -280,7 +280,7 @@ export default function RecommendedSalonBannerManager({
           onChange={(e) => setAddSalonId(e.target.value ? Number(e.target.value) : '')}
           className={`flex-1 min-w-0 ${selectClass}`}
         >
-          <option value="">サロンを選択...</option>
+          <option value="">店舗を選択...</option>
           {allSalons.map((s) => (
             <option key={s.id} value={s.id}>{s.name}（{areaLabel(s.area)}）</option>
           ))}
@@ -301,7 +301,7 @@ export default function RecommendedSalonBannerManager({
         <div className="rounded-xl bg-rose-50 border border-rose-100 px-4 py-3 text-xs text-rose-500 leading-relaxed">⚠ {errorMsg}</div>
       ) : items.length === 0 ? (
         <div className="rounded-2xl border border-slate-100 bg-slate-50/50 p-8 text-center text-xs text-slate-400">
-          バナーがありません。サロンを選び「画像を選んで追加」から登録してください。
+          バナーがありません。店舗を選び「画像を選んで追加」から登録してください。
         </div>
       ) : (
         <div className="space-y-3">
@@ -337,7 +337,7 @@ export default function RecommendedSalonBannerManager({
                   </div>
 
                   <div>
-                    <label className="text-[10px] font-bold text-slate-400 block mb-0.5">紐づけサロン（詳細ページに自動リンク）</label>
+                    <label className="text-[10px] font-bold text-slate-400 block mb-0.5">紐づけ店舗（詳細ページに自動リンク）</label>
                     <select
                       className={selectClass}
                       value={b.salon_id}

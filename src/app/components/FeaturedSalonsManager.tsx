@@ -280,7 +280,7 @@ export default function FeaturedSalonsManager({ allSalons }: { allSalons: SalonO
           {/* 登録済み一覧 */}
           {items.length === 0 ? (
             <div className="text-center py-8 text-xs text-slate-400 border border-dashed border-slate-200 rounded-2xl mb-4">
-              ピックアップサロンが未設定です
+              ピックアップ店舗が未設定です
             </div>
           ) : (
             <div className="space-y-2 mb-4">
@@ -363,7 +363,7 @@ export default function FeaturedSalonsManager({ allSalons }: { allSalons: SalonO
                 onChange={e => setSelectedSalonId(e.target.value ? Number(e.target.value) : '')}
                 className="flex-1 min-w-0 px-3 py-2 rounded-xl border border-slate-200 text-xs bg-slate-50/50 focus:outline-none focus:ring-2 focus:ring-pink-200"
               >
-                <option value="">サロンを選択...</option>
+                <option value="">店舗を選択...</option>
                 {availableSalons.map(s => (
                   <option key={s.id} value={s.id}>{s.name}（{areaLabel(s.area)}）</option>
                 ))}

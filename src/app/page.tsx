@@ -82,7 +82,7 @@ export default async function Home() {
     s => Boolean(s.start_time) && Boolean(s.end_time)
   ).length;
 
-  const pickupTitle = "福岡のピックアップサロン";
+  const pickupTitle = "福岡のピックアップ店舗";
 
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900">
@@ -154,7 +154,7 @@ export default async function Home() {
                 style={{ background: 'linear-gradient(to right, #f97316, #ec4899)' }}
               >
                 <h2 className="text-xl font-bold text-white leading-none" style={{ transform: 'translateY(1px)' }}>
-                  サロン新着情報
+                  店舗新着情報
                 </h2>
                 <Link href="/news" className="text-xs font-bold text-white flex-shrink-0 hover:opacity-90 transition-opacity">
                   もっと見る →
@@ -280,7 +280,7 @@ export default async function Home() {
                       style={{ background: 'linear-gradient(to right, #f97316, #ec4899)' }}
                     >
                       <h2 className="text-xl font-bold text-white leading-none min-w-0 flex-1" style={{ transform: 'translateY(1px)' }}>
-                        福岡市掲載サロン一覧
+                        福岡市掲載店舗一覧
                       </h2>
                       <svg
                         width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"

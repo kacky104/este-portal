@@ -226,7 +226,7 @@ export default function TopBannerManager({ onToast }: { onToast: (msg: string) =
     <div className="bg-white rounded-3xl border border-slate-100 shadow-sm p-6">
       <div className="flex items-center justify-between mb-4">
         <p className="text-[11px] text-slate-400 leading-relaxed">
-          トップページのサロン一覧（15枚目直下）に表示される画像バナーです。公開中のものだけが表示順に並びます。
+          トップページの店舗一覧（15枚目直下）に表示される画像バナーです。公開中のものだけが表示順に並びます。
         </p>
         <span className="text-[10px] text-slate-400 flex-shrink-0 ml-3">推奨サイズ: 横1200×縦800px（3:2・被写体は中央）</span>
       </div>

@@ -18,7 +18,7 @@ import type { TopBanner } from '@/app/lib/topBanners';
 // - alt_text を alt に使用（空文字可）。0件ならブロックごと非表示。
 // - PC幅：salon-card-zoom / lg:w-[512px] は挿入元（ShuffledSalons の insertBlock ラッパ）が適用済みのため当コンポーネントでは付けない（二重適用回避）。
 const AUTO_PLAY_MS = 4500;
-const PICKUP_TITLE = '福岡のピックアップサロン';
+const PICKUP_TITLE = '福岡のピックアップ店舗';
 
 export function TopBannerSlider({ banners }: { banners: TopBanner[] }) {
   const count = banners.length;

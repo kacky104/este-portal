@@ -34,7 +34,7 @@ export default function XBannerPage() {
       <h1 className="text-xl font-bold text-[color:var(--x-text-primary)] mb-4">リンクバナーについて</h1>
 
       <p className={P}>
-        fukuX（フクエックス）はリンクフリーです。事前のご連絡は不要です。サロン様の公式サイトやブログ等からのリンクの際は、下記のバナーをご利用ください。リンク先は
+        fukuX（フクエックス）はリンクフリーです。事前のご連絡は不要です。店舗様の公式サイトやブログ等からのリンクの際は、下記のバナーをご利用ください。リンク先は
         <span className="font-bold text-[color:var(--x-text-primary)]"> {SITE_URL}/x </span>
         でお願いします。
       </p>
@@ -58,7 +58,7 @@ export default function XBannerPage() {
 
       <h2 className={H2}>設置後のご報告（特典）</h2>
       <p className={P}>
-        バナーを設置いただいたサロン様には特典をご用意しています（fukuXはタイムライン「お店」タブのカード画像を4枚追加）。設置後、下記フォームからご報告ください。運営が確認のうえ開放します。
+        バナーを設置いただいた店舗様には特典をご用意しています（fukuXはタイムライン「お店」タブのカード画像を4枚追加）。設置後、下記フォームからご報告ください。運営が確認のうえ開放します。
       </p>
       <Link
         href="/x/banner/report"

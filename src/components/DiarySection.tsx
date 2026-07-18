@@ -188,7 +188,7 @@ export function SalonDiarySection({ salonId }: { salonId: string }) {
   if (list && list.length === 0) {
     return (
       <div className="text-center py-6 text-xs text-slate-400 border border-dashed border-pink-100 rounded-2xl bg-pink-50/10">
-        只今、こちらのサロンの写メ日記は準備中です ✿
+        只今、こちらの店舗の写メ日記は準備中です ✿
       </div>
     );
   }

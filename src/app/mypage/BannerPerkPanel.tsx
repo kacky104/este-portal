@@ -36,7 +36,7 @@ const BANNERS: Banner[] = [
     href: `${SITE_URL}/`,
     alt: 'フクエス｜福岡メンズエステ情報・口コミポータル',
     accent: 'pink',
-    desc: 'サロンカードが、TOP・地域ページの一覧（30分ごとの表示切替）で上側に表示されやすくなります。',
+    desc: '店舗カードが、TOP・地域ページの一覧（30分ごとの表示切替）で上側に表示されやすくなります。',
   },
   {
     key: 'work',
@@ -208,7 +208,7 @@ export function BannerPerkPanel({ salonId }: { salonId: number | null }) {
           <h2 className="text-sm font-black text-slate-700">リンクバナー設置特典</h2>
           <p className="text-[11px] text-slate-400 leading-relaxed mt-1">
             貴サイトにフクエス／フクエスワークのリンクバナーを設置し、運営にご報告いただくと、
-            <span className="font-bold text-pink-600">サロン・求人カードの優先表示（一覧の上側に来やすくなる特典）</span>
+            <span className="font-bold text-pink-600">店舗・求人カードの優先表示（一覧の上側に来やすくなる特典）</span>
             が有効になります。現在の適用状況はこちらです。
           </p>
         </div>
@@ -222,7 +222,7 @@ export function BannerPerkPanel({ salonId }: { salonId: number | null }) {
             <PerkStatusRow
               label="フクエス（本体）優先表示"
               state={cardBoost ?? false}
-              activeDesc="サロンカードが一覧の上側に表示されやすくなっています。"
+              activeDesc="店舗カードが一覧の上側に表示されやすくなっています。"
             />
             <PerkStatusRow
               label="フクエスワーク（求人）優先表示"

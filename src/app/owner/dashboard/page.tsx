@@ -27,7 +27,7 @@ export default async function DashboardPage() {
               <span className="text-pink-500 font-bold text-sm leading-none">◆</span>
             </div>
             <span className="font-bold text-[15px] tracking-wide text-pink-600">
-              サロン管理画面
+              店舗管理画面
             </span>
           </div>
           <form action={logout}>
@@ -52,12 +52,12 @@ export default async function DashboardPage() {
         {salon && (
           <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
             <h3 className="text-base font-semibold text-slate-800 mb-4">
-              サロン情報
+              店舗情報
             </h3>
             <dl className="space-y-3 text-sm">
               {(
                 [
-                  ["サロン名", salon.name],
+                  ["店舗名", salon.name],
                   ["エリア", areaLabel(salon.area)],
                   ["営業時間", salon.hours],
                   ["電話番号", salon.phone],
@@ -77,7 +77,7 @@ export default async function DashboardPage() {
 
         {!salon && (
           <div className="bg-amber-50 border border-amber-200 rounded-2xl p-6 text-sm text-amber-700">
-            サロン情報が見つかりません。管理者にお問い合わせください。
+            店舗情報が見つかりません。管理者にお問い合わせください。
           </div>
         )}
       </main>

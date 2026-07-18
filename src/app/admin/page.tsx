@@ -162,7 +162,7 @@ export default function AdminDashboard() {
       .select('id, name, area, area2, price, rating, owner_id, hours, phone, address, access, closed_days, show_on_top, dispatch_type, jobs_enabled, is_hidden, booking_email')
       .order('id', { ascending: true });
     if (error) {
-      setFetchError('サロンデータの取得に失敗しました');
+      setFetchError('店舗データの取得に失敗しました');
     } else {
       setFetchError('');
       setSalons(data ?? []);
@@ -273,7 +273,7 @@ export default function AdminDashboard() {
       setShowOnTop(true);
       setDispatchType('none');
       revalidateTopAndAreas(); // 新規サロンをトップ＋地域ページ（出張含む）に反映
-      showToast('サロンを追加しました');
+      showToast('店舗を追加しました');
       await fetchSalons();
     }
   };
@@ -405,7 +405,7 @@ export default function AdminDashboard() {
             <HeaderSliderManager />
           </AccordionSection>
 
-          <AccordionSection id="featured-salons" title="ピックアップサロン設定（TOP・地域）" expanded={expandedSections} onToggle={toggleSection}>
+          <AccordionSection id="featured-salons" title="ピックアップ店舗設定（TOP・地域）" expanded={expandedSections} onToggle={toggleSection}>
             <FeaturedSalonsManager
               allSalons={salons.map(s => ({
                 id:   s.id,
@@ -415,7 +415,7 @@ export default function AdminDashboard() {
             />
           </AccordionSection>
 
-          <AccordionSection id="recommended-salon-banners" title="おすすめサロン設定（TOP/中段）" expanded={expandedSections} onToggle={toggleSection}>
+          <AccordionSection id="recommended-salon-banners" title="おすすめ店舗設定（TOP/中段）" expanded={expandedSections} onToggle={toggleSection}>
             <RecommendedSalonBannerManager
               allSalons={salons.map(s => ({
                 id:   s.id,
@@ -457,7 +457,7 @@ export default function AdminDashboard() {
           </AccordionSection>
 
           {/* ── 新規サロン追加フォーム ── */}
-          <AccordionSection id="add-salon" title="新規サロン追加" expanded={expandedSections} onToggle={toggleSection}>
+          <AccordionSection id="add-salon" title="新規店舗追加" expanded={expandedSections} onToggle={toggleSection}>
           <div className="bg-white rounded-3xl border border-slate-100 shadow-sm p-6">
           <form onSubmit={handleAdd} className="space-y-4">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -573,7 +573,7 @@ export default function AdminDashboard() {
             />
           </AccordionSection>
 
-          <AccordionSection id="card-boost" title="サロンカード優先表示（バナー設置特典）" expanded={expandedSections} onToggle={toggleSection}>
+          <AccordionSection id="card-boost" title="店舗カード優先表示（バナー設置特典）" expanded={expandedSections} onToggle={toggleSection}>
             <CardBoostManager onToast={showToast} />
           </AccordionSection>
 
@@ -585,7 +585,7 @@ export default function AdminDashboard() {
           {/* ── 掲載サロン一覧テーブル（件数はアコーディオン見出しに表示） ── */}
           <AccordionSection
             id="salon-list"
-            title="掲載サロン一覧"
+            title="掲載店舗一覧"
             meta={<span className="text-xs text-slate-400 font-medium">{salons.length}件</span>}
             expanded={expandedSections}
             onToggle={toggleSection}
@@ -602,7 +602,7 @@ export default function AdminDashboard() {
                 <thead>
                   <tr className="bg-pink-50/50 border-b border-slate-100">
                     <th className="text-left px-4 py-3 text-[11px] font-bold text-slate-400 w-14">ID</th>
-                    <th className="text-left px-4 py-3 text-[11px] font-bold text-slate-400">サロン名</th>
+                    <th className="text-left px-4 py-3 text-[11px] font-bold text-slate-400">店舗名</th>
                     <th className="text-left px-4 py-3 text-[11px] font-bold text-slate-400">エリア</th>
                     <th className="text-left px-4 py-3 text-[11px] font-bold text-slate-400">状態</th>
                     <th className="text-left px-4 py-3 text-[11px] font-bold text-slate-400">料金</th>

@@ -174,7 +174,7 @@ export default function SalonEditModal({ salon, onClose, onSaved }: Props) {
     } else {
       revalidateSalon(salon.id);   // このサロンの詳細＋トップを更新
       revalidateTopAndAreas();     // 掲載/出張フラグ・エリア変更を地域ページ（出張含む）にも反映
-      onSaved('サロン情報を更新しました ✓');
+      onSaved('店舗情報を更新しました ✓');
     }
   };
 
@@ -207,7 +207,7 @@ export default function SalonEditModal({ salon, onClose, onSaved }: Props) {
         {/* ── Header ── */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 flex-shrink-0">
           <h3 className="text-sm font-black text-slate-800">
-            サロン編集
+            店舗編集
             <span className="ml-2 text-[11px] font-normal text-slate-400">ID: {salon.id}</span>
           </h3>
           <button

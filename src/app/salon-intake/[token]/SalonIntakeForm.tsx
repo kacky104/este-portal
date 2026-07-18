@@ -59,7 +59,7 @@ export function SalonIntakeForm({ token }: { token: string }) {
       <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-8 text-center">
         <p className="text-base font-bold text-slate-800">ご入力ありがとうございました</p>
         <p className="text-sm text-slate-500 mt-2 leading-relaxed">
-          いただいた内容をもとにサロンページを作成し、担当よりご連絡いたします。
+          いただいた内容をもとに店舗ページを作成し、担当よりご連絡いたします。
           <br />
           追加・変更のご希望はいつでも承ります。
         </p>

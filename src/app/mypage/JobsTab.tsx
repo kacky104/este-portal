@@ -212,7 +212,7 @@ export function JobsTab({ salonId }: { salonId: number }) {
         {/* 注意書き */}
         <ul className="text-[10px] text-slate-400 leading-relaxed space-y-1 list-disc pl-4">
           <li>掲載は1店舗につき1件です。</li>
-          <li>サロンが非表示の間は、求人も自動的に非公開になります。</li>
+          <li>店舗が非表示の間は、求人も自動的に非公開になります。</li>
           <li>保存すると数秒でフクエスワーク（/jobs）に反映されます。</li>
         </ul>
 

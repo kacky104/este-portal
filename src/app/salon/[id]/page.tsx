@@ -426,7 +426,7 @@ export default async function SalonPage({
           </Link>
           <span aria-hidden className="flex-shrink-0" style={{ color: '#999' }}>›</span>
           <span aria-current="page" className="inline-block max-w-[60%] truncate align-middle" style={{ color: breadcrumbCurrentColor(theme.key), fontWeight: 600 }}>
-            {salon.name || 'サロン'}
+            {salon.name || '店舗'}
           </span>
         </nav>
 
@@ -719,7 +719,7 @@ export default async function SalonPage({
             </CollapsibleSection>
 
             {/* About（折り畳み式・在籍セラピスト一覧の下） */}
-            <CollapsibleSection theme={theme} className="rounded-2xl border shadow-sm p-6" title="サロンについて">
+            <CollapsibleSection theme={theme} className="rounded-2xl border shadow-sm p-6" title="店舗について">
               <p className="text-sm leading-relaxed mb-4 break-words max-w-full whitespace-pre-wrap" style={{ color: theme.body }}>{salon.description}</p>
               <p className="text-sm leading-relaxed break-words max-w-full whitespace-pre-wrap" style={{ color: theme.body }}>{salon.appeal}</p>
             </CollapsibleSection>

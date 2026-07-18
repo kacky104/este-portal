@@ -16,9 +16,9 @@ export const revalidate = 600;
 
 // 自己参照 canonical を明示（root の canonical '/' 継承による重複扱いを防ぐ）。
 // openGraph は浅いマージで root の og が丸ごと消えるため必要項目を全て明示。
-const NEWS_TITLE = 'サロン新着情報｜フクエス - 福岡メンズエステポータル';
+const NEWS_TITLE = '店舗新着情報｜フクエス - 福岡メンズエステポータル';
 const NEWS_DESCRIPTION =
-  '福岡のメンズエステサロンの最新お知らせ一覧。新人入店・イベント・割引情報などサロンの新着情報をまとめてチェックできます。';
+  '福岡のメンズエステ店舗の最新お知らせ一覧。新人入店・イベント・割引情報など店舗の新着情報をまとめてチェックできます。';
 
 export const metadata: Metadata = {
   title: NEWS_TITLE,
@@ -69,14 +69,14 @@ export default async function SalonNewsIndexPage() {
             ›
           </span>
           <span aria-current="page" className="flex-shrink-0 whitespace-nowrap font-semibold text-slate-600">
-            サロン新着情報
+            店舗新着情報
           </span>
         </nav>
 
         {/* 見出しはトップのブロックと同じグラデ帯（角丸なし＝直角方針） */}
         <div className="px-4 py-1 mb-1" style={{ background: 'linear-gradient(to right, #f97316, #ec4899)' }}>
           <h1 className="text-xl font-bold text-white leading-none" style={{ transform: 'translateY(1px)' }}>
-            サロン新着情報
+            店舗新着情報
           </h1>
         </div>
         <p className="text-xs text-slate-400 mb-4">最新50件を表示しています</p>

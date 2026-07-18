@@ -11,9 +11,9 @@ import { fetchSalons } from '@/app/lib/salons';
 // フィルタ判定／DB連動キーは areas.ts の AREA_ORDER に一元化（画面表示はすべて areaLabel() を通す）。
 import { AREA_ORDER } from '@/app/lib/areas';
 
-const PAGE_TITLE = '福岡のメンズエステ サロン一覧【フクエス】';
+const PAGE_TITLE = '福岡のメンズエステ 店舗一覧【フクエス】';
 const PAGE_DESC =
-  '福岡のメンズエステを一覧掲載。博多・天神・北九州・久留米など全エリアの人気サロンをエリアで絞り込んで探せます。';
+  '福岡のメンズエステを一覧掲載。博多・天神・北九州・久留米など全エリアの人気店舗をエリアで絞り込んで探せます。';
 
 export const metadata: Metadata = {
   title: PAGE_TITLE,
@@ -62,7 +62,7 @@ export default async function SalonsPage() {
           nameBanner
           heading={
             <div className="mb-8">
-              <h1 className="text-2xl font-bold text-slate-900 mb-1">掲載サロン一覧</h1>
+              <h1 className="text-2xl font-bold text-slate-900 mb-1">掲載店舗一覧</h1>
               <p className="text-xs text-slate-400">
                 全{salons.length}件 ｜ 表示順は30分ごとに入れ替わります
               </p>

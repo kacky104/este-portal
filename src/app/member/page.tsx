@@ -139,7 +139,7 @@ export default async function MemberPage() {
           >
             <div className="flex items-center gap-2">
               <Image src="/logo.png" alt="" aria-hidden width={28} height={28} className="w-7 h-7 flex-shrink-0" />
-              <span className="text-xs sm:text-sm font-medium text-slate-500">保存サロン</span>
+              <span className="text-xs sm:text-sm font-medium text-slate-500">保存店舗</span>
             </div>
             <div className="flex items-baseline justify-center gap-3">
               <p className="font-bold leading-none">
@@ -178,7 +178,7 @@ export default async function MemberPage() {
           <section className="mb-10">
             <h2 className="flex items-center gap-2 text-base font-bold text-slate-700 mb-4">
               <span className="w-1 h-5 rounded-full" style={{ background: '#EC4899' }} />
-              最近保存したサロン
+              最近保存した店舗
             </h2>
             <div
               className="flex gap-3 overflow-x-auto pb-2 -mx-4 px-4 sm:mx-0 sm:px-0"
@@ -272,7 +272,7 @@ export default async function MemberPage() {
                   見る <span aria-hidden>→</span>
                 </span>
               </div>
-              <p className="text-xs text-slate-400 mt-1.5">最近見たサロン・セラピスト</p>
+              <p className="text-xs text-slate-400 mt-1.5">最近見た店舗・セラピスト</p>
             </Link>
 
             {/* 通知・新着フォロー（保存サロンの新着クーポン・お知らせ） */}
@@ -286,7 +286,7 @@ export default async function MemberPage() {
                   見る <span aria-hidden>→</span>
                 </span>
               </div>
-              <p className="text-xs text-slate-400 mt-1.5">保存サロンの新着（クーポン・お知らせ）</p>
+              <p className="text-xs text-slate-400 mt-1.5">保存店舗の新着（クーポン・お知らせ）</p>
             </Link>
 
             {/* VIPレター受信ボックス（保存店から届く特別メッセージ） */}

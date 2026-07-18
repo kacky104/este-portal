@@ -72,7 +72,7 @@ export function XBannerReportForm() {
       </div>
 
       <div>
-        <label className={LABEL}>サロン名（必須）</label>
+        <label className={LABEL}>店舗名（必須）</label>
         <input
           type="text"
           value={salonName}

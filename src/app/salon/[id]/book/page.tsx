@@ -109,7 +109,7 @@ export default async function SalonBookPage({
           </Link>
           <span aria-hidden className="flex-shrink-0" style={{ color: '#999' }}>›</span>
           <Link href={`/salon/${id}`} className="hover:opacity-80 transition-opacity inline-block max-w-[45%] truncate align-middle" style={{ color: '#ec4899' }}>
-            {salonName || 'サロン'}
+            {salonName || '店舗'}
           </Link>
           <span aria-hidden className="flex-shrink-0" style={{ color: '#999' }}>›</span>
           <span aria-current="page" className="flex-shrink-0 whitespace-nowrap" style={{ color: breadcrumbCurrentColor(theme.key), fontWeight: 600 }}>ネット予約</span>
@@ -149,7 +149,7 @@ export default async function SalonBookPage({
               href={`/salon/${id}`}
               className="inline-block text-sm font-bold text-pink-600 hover:opacity-80 transition-opacity"
             >
-              ← サロンページへ戻る
+              ← 店舗ページへ戻る
             </Link>
           </div>
         )}

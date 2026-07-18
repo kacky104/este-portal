@@ -37,7 +37,7 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
   // meta description はエリア固有文（areaSeoContent）を優先。未定義エリアは従来の汎用文にフォールバック。
   const description =
     AREA_SEO_CONTENT[area]?.metaDescription ??
-    `${label}エリアのメンズエステを掲載。口コミ評価の高い人気サロンをご紹介します。`;
+    `${label}エリアのメンズエステを掲載。口コミ評価の高い人気店舗をご紹介します。`;
   return {
     title,
     description,
@@ -60,7 +60,7 @@ export default async function AreaPage({ params }: { params: Promise<{ slug: str
     fetchActiveTherapistPickupBanners(), // セラピストピックアップ枠（TOPと共通・20枚目直下・0件なら非表示）
   ]);
   const label = areaLabel(area);
-  const pickupTitle = `${area === DISPATCH_AREA ? '出張対応' : label}のピックアップサロン`;
+  const pickupTitle = `${area === DISPATCH_AREA ? '出張対応' : label}のピックアップ店舗`;
 
   // このエリアに属するサロンの id（出勤中セラピストスライダー＆「一覧を見る」の絞り込みに使う）。
   // 判定は共有の salonInArea（ShuffledSalons の matchesArea と同一）。サロン一覧と同じ所属になる。

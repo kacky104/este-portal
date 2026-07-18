@@ -52,16 +52,16 @@ export default async function SalonIntakePage({ params }: { params: Promise<{ to
         {gate.state === 'submitted' && (
           <Info
             title="このフォームは送信済みです"
-            body={'ご入力ありがとうございました。\n内容をもとにサロンページを作成し、担当よりご連絡いたします。'}
+            body={'ご入力ありがとうございました。\n内容をもとに店舗ページを作成し、担当よりご連絡いたします。'}
           />
         )}
         {gate.state === 'ok' && (
           <>
             <h1 className="text-2xl font-bold text-slate-900 mb-2">
-              {gate.label ? `${gate.label} 様` : '掲載サロン様'}　掲載情報のご入力
+              {gate.label ? `${gate.label} 様` : '掲載店舗様'}　掲載情報のご入力
             </h1>
             <p className="text-sm text-slate-600 leading-relaxed mb-1">
-              このたびはフクエスへの掲載ありがとうございます。サロンページの作成に必要な情報のご入力をお願いいたします。
+              このたびはフクエスへの掲載ありがとうございます。店舗ページの作成に必要な情報のご入力をお願いいたします。
             </p>
             <p className="text-xs text-slate-400 leading-relaxed mb-6">
               ※送信は一度のみです。掲載後の変更はいつでも承りますので、まずは分かる範囲でご入力ください。

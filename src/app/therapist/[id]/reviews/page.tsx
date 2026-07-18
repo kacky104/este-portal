@@ -103,7 +103,7 @@ export default async function TherapistReviewsPage({
       : {}),
   };
 
-  const salonName = (salonRow?.name as string) ?? 'サロン';
+  const salonName = (salonRow?.name as string) ?? '店舗';
 
   return (
     <div className="relative min-h-screen overflow-x-clip" style={{ color: theme.text }}>

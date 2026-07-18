@@ -311,7 +311,7 @@ export default async function TherapistPublicPage({
   // 構造化データ（BreadcrumbList「トップ › サロン名 › セラピスト名」＝可視パンくずと一致）。
   const breadcrumbJsonLd = buildBreadcrumbJsonLd([
     { name: 'トップ', path: '/' },
-    { name: salon?.name ?? 'サロン', path: `/salon/${therapist.salonId}` },
+    { name: salon?.name ?? '店舗', path: `/salon/${therapist.salonId}` },
     { name: therapist.name, path: `/therapist/${id}` },
   ]);
 
@@ -355,7 +355,7 @@ export default async function TherapistPublicPage({
             className="hover:opacity-80 transition-opacity inline-block max-w-[35%] truncate align-middle"
             style={{ color: '#ec4899' }}
           >
-            {salon?.name ?? 'サロン'}
+            {salon?.name ?? '店舗'}
           </Link>
           <Suspense fallback={null}>
             <FromCrumb salonId={therapist.salonId} />
@@ -647,7 +647,7 @@ export default async function TherapistPublicPage({
               <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-5">
                 {/* モバイル：「所属サロン」ラベルの右隣に営業時間・地域。デスクトップ：ラベルの下に表示 */}
                 <div className="flex flex-row items-center gap-2 lg:flex-col lg:items-start lg:gap-1 mb-2">
-                  <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wide flex-shrink-0">所属サロン</p>
+                  <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wide flex-shrink-0">所属店舗</p>
                   <div className="flex items-center gap-2 min-w-0">
                     {salon.hours && (
                       <span className="text-xs text-slate-500 whitespace-nowrap truncate">🕒 {salon.hours}</span>
@@ -663,7 +663,7 @@ export default async function TherapistPublicPage({
                   href={`/salon/${salon.id}`}
                   className="flex items-center justify-center gap-2 w-full py-2.5 rounded-xl bg-pink-600 text-white text-xs font-bold hover:bg-pink-700 transition-colors"
                 >
-                  サロン詳細を見る
+                  店舗詳細を見る
                   <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
                     <path d="M5 12h14M12 5l7 7-7 7" />
                   </svg>

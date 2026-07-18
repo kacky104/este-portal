@@ -175,7 +175,7 @@ export default function SalonIntakeManager({ onToast }: { onToast: (msg: string)
   return (
     <div className="bg-white rounded-3xl border border-slate-100 shadow-sm p-6">
       <p className="text-[11px] text-slate-400 leading-relaxed mb-4">
-        契約した新規店舗に、サロンページ作成用の情報を入力してもらうワンタイムURLを発行します（有効期限{EXPIRE_DAYS}日・送信は一度のみ）。
+        契約した新規店舗に、店舗ページ作成用の情報を入力してもらうワンタイムURLを発行します（有効期限{EXPIRE_DAYS}日・送信は一度のみ）。
         発行したURLをコピーして、店舗様のメール・LINE等へ送ってください。送信されると「入力済み」になり内容を確認できます。
       </p>
 

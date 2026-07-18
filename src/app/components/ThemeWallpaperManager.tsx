@@ -111,7 +111,7 @@ export default function ThemeWallpaperManager({ onToast }: { onToast: (msg: stri
       <div className="flex items-center justify-end mb-1">
         <span className="text-[11px] text-slate-400">{Object.keys(byKey).length} / {SALON_THEMES.length} 設定済み</span>
       </div>
-      <p className="text-[11px] text-slate-400 mb-1">各テーマの背景に使う壁紙画像を設定します（JPEG / PNG / WebP・最大5MB）。サロン詳細ページで薄く敷かれます。</p>
+      <p className="text-[11px] text-slate-400 mb-1">各テーマの背景に使う壁紙画像を設定します（JPEG / PNG / WebP・最大5MB）。店舗詳細ページで薄く敷かれます。</p>
       <p className="text-[11px] text-slate-400 mb-5">推奨サイズ：横 1920px × 縦 1080px（16:9 の横長画像）</p>
 
       {loading ? (

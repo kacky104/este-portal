@@ -48,7 +48,7 @@ export function JobGalleryField({
     const file = e.target.files?.[0];
     e.target.value = ''; // 同じファイルの再選択も拾えるようクリア
     if (!file) return;
-    if (salonId == null) { setErr('先に対象サロンを選択してください'); return; }
+    if (salonId == null) { setErr('先に対象店舗を選択してください'); return; }
     if (atMax) { setErr(`お店の雰囲気の画像は最大${MAX_JOB_GALLERY_IMAGES}枚までです`); return; }
     const v = validateImageFile(file);
     if (v) { setErr(v); return; }
@@ -108,7 +108,7 @@ export function JobGalleryField({
       <p className="text-[10px] text-slate-400 mb-2 leading-relaxed">
         推奨サイズ：正方形（800×800px推奨）。求人詳細の「お店の雰囲気」スライダーに掲載されます。
         <span className="block">各画像に一言キャプション（例：「講習は女性講師」）を付けられます（任意・{MAX_GALLERY_CAPTION_LEN}字まで・↑↓で並び替え）。</span>
-        {salonId == null && <span className="block text-amber-600">※ 先に対象サロンを選択してください。</span>}
+        {salonId == null && <span className="block text-amber-600">※ 先に対象店舗を選択してください。</span>}
       </p>
 
       <input

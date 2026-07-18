@@ -388,7 +388,7 @@ export default function FeaturedJobsManager({ onToast }: { onToast: (msg: string
                         disabled={saving}
                         className="text-[10px] text-slate-500 font-semibold border border-dashed border-slate-300 rounded-lg px-3 py-1.5 hover:border-emerald-300 hover:text-emerald-500 disabled:opacity-40 transition-colors"
                       >
-                        📷 画像をアップロード（未設定時はサロンのメイン画像）
+                        📷 画像をアップロード（未設定時は店舗のメイン画像）
                       </button>
                     )}
                   </div>
