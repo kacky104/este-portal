@@ -310,11 +310,11 @@ export default async function Home() {
                 {/* FAQと同じアコーディオン（見出しが summary・初期閉・SSR済みでSEO評価は不変）。
                     外側は named group（group/columns）＝ArticleCard 内の無印 group（hover演出）と干渉しない。 */}
                 <details className="group/columns">
-                  <summary className="flex items-center gap-3 cursor-pointer select-none list-none [&::-webkit-details-marker]:hidden">
-                    <div className="w-1 h-6 rounded-full bg-gradient-to-b from-pink-400 to-rose-500" />
-                    <h2 className="text-xl font-bold text-slate-900 min-w-0 flex-1">新着コラム</h2>
+                  <summary className="flex items-center gap-2.5 cursor-pointer select-none list-none [&::-webkit-details-marker]:hidden">
+                    <div className="w-1 h-4 rounded-full bg-gradient-to-b from-pink-400 to-rose-500" />
+                    <h2 className="text-base font-bold text-slate-900 min-w-0 flex-1">新着コラム</h2>
                     <svg
-                      width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                      width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
                       strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"
                       className="flex-shrink-0 text-pink-400 transition-transform duration-200 group-open/columns:rotate-180"
                     >
@@ -348,13 +348,13 @@ export default async function Home() {
                 外側は named group（group/faq）＝内側Q&A（無印 group）の▽回転と干渉しない。 */}
             <section className="mt-12">
               <details className="group/faq">
-                <summary className="flex items-center gap-3 cursor-pointer select-none list-none [&::-webkit-details-marker]:hidden">
-                  <div className="w-1 h-6 rounded-full bg-gradient-to-b from-pink-400 to-rose-500" />
-                  <h2 className="text-xl font-bold text-slate-900 min-w-0 flex-1">
+                <summary className="flex items-center gap-2.5 cursor-pointer select-none list-none [&::-webkit-details-marker]:hidden">
+                  <div className="w-1 h-4 rounded-full bg-gradient-to-b from-pink-400 to-rose-500" />
+                  <h2 className="text-base font-bold text-slate-900 min-w-0 flex-1">
                     福岡メンズエステのよくある質問
                   </h2>
                   <svg
-                    width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                    width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
                     strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"
                     className="flex-shrink-0 text-pink-400 transition-transform duration-200 group-open/faq:rotate-180"
                   >
