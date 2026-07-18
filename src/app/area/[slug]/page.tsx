@@ -168,7 +168,7 @@ export default async function AreaPage({ params }: { params: Promise<{ slug: str
                 <details className="group mb-1">
                   <summary
                     className="flex items-center gap-3 px-4 py-2 cursor-pointer select-none list-none [&::-webkit-details-marker]:hidden"
-                    style={{ background: 'linear-gradient(to right, #f97316, #ec4899)' }}
+                    style={{ background: '#f1f5f9', borderBottom: '1px solid #e2e8f0' }}
                   >
                     <h1 className="min-w-0 flex-1 overflow-hidden">
                       <AutoFitHeadingText text={`${area === DISPATCH_AREA ? '出張対応' : label}のメンズエステ一覧`} />
@@ -176,7 +176,7 @@ export default async function AreaPage({ params }: { params: Promise<{ slug: str
                     <svg
                       width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
                       strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"
-                      className="flex-shrink-0 text-white/90 transition-transform duration-200 group-open:rotate-180"
+                      className="flex-shrink-0 text-slate-400 transition-transform duration-200 group-open:rotate-180"
                     >
                       <path d="M6 9l6 6 6-6" />
                     </svg>
@@ -189,10 +189,10 @@ export default async function AreaPage({ params }: { params: Promise<{ slug: str
                 </details>
               ) : (
                 <div
-                  className="px-4 py-2 mb-1"
-                  style={{ background: 'linear-gradient(to right, #f97316, #ec4899)' }}
+                  className="px-4 py-2 mb-1 flex items-center gap-2.5"
+                  style={{ background: '#f1f5f9', borderBottom: '1px solid #e2e8f0' }}
                 >
-                  <h1 className="min-w-0 overflow-hidden">
+                  <h1 className="min-w-0 flex-1 overflow-hidden">
                     <AutoFitHeadingText text={`${area === DISPATCH_AREA ? '出張対応' : label}のメンズエステ一覧`} />
                   </h1>
                 </div>

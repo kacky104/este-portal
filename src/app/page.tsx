@@ -150,13 +150,13 @@ export default async function Home() {
             <div className="max-w-5xl mx-auto px-4">
               {/* バナー縦幅は py-2→py-1 に圧縮（掲載サロン一覧と統一） */}
               <div
-                className="px-4 py-1 mb-1 flex items-center justify-between"
-                style={{ background: 'linear-gradient(to right, #f97316, #ec4899)' }}
+                className="px-4 py-1.5 mb-1 flex items-center justify-between"
+                style={{ background: '#f1f5f9', borderBottom: '1px solid #e2e8f0' }}
               >
-                <h2 className="text-xl font-bold text-white leading-none" style={{ transform: 'translateY(1px)' }}>
+                <h2 className="text-xl font-bold text-slate-600 leading-none flex items-center gap-2.5">
                   店舗新着情報
                 </h2>
-                <Link href="/news" className="text-xs font-bold text-white flex-shrink-0 hover:opacity-90 transition-opacity">
+                <Link href="/news" className="text-xs font-bold text-pink-600 flex-shrink-0 hover:opacity-80 transition-opacity">
                   もっと見る →
                 </Link>
               </div>
@@ -276,16 +276,16 @@ export default async function Home() {
                       トップは show_on_top=true のサロンのみ表示＝福岡市内中心の運用（タイトルもそれに合わせた）。 */}
                   <details className="group mb-1">
                     <summary
-                      className="px-4 py-1 flex items-center gap-3 cursor-pointer select-none list-none [&::-webkit-details-marker]:hidden"
-                      style={{ background: 'linear-gradient(to right, #f97316, #ec4899)' }}
+                      className="px-4 py-1.5 flex items-center gap-3 cursor-pointer select-none list-none [&::-webkit-details-marker]:hidden"
+                      style={{ background: '#f1f5f9', borderBottom: '1px solid #e2e8f0' }}
                     >
-                      <h2 className="text-xl font-bold text-white leading-none min-w-0 flex-1" style={{ transform: 'translateY(1px)' }}>
+                      <h2 className="text-xl font-bold text-slate-600 leading-none min-w-0 flex-1">
                         福岡市掲載店舗一覧
                       </h2>
                       <svg
                         width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
                         strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"
-                        className="flex-shrink-0 text-white/90 transition-transform duration-200 group-open:rotate-180"
+                        className="flex-shrink-0 text-slate-400 transition-transform duration-200 group-open:rotate-180"
                       >
                         <path d="M6 9l6 6 6-6" />
                       </svg>

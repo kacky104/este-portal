@@ -46,7 +46,7 @@ export function AutoFitHeadingText({ text }: { text: string }) {
     <div ref={containerRef} className="min-w-0 overflow-hidden">
       <span
         ref={textRef}
-        className="block max-w-full whitespace-nowrap font-bold text-white leading-none"
+        className="block max-w-full whitespace-nowrap font-bold text-slate-600 leading-none"
         style={{
           fontSize: `${size}px`,
           transform: 'translateY(1px)',
