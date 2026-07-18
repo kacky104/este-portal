@@ -44,6 +44,18 @@ function resolveLink(b: Banner): { href: string; external: boolean } | null {
   if (b.therapistId != null && b.linkable) return { href: `/therapist/${b.therapistId}`, external: false };
   return null;
 }
+
+// バナー下に表示する1行キャプション（任意・最大27文字）。
+// スマホ（幅360px以上＝現行のほぼ全機種）で全角27文字が1行に収まる固定サイズ(12.5px)。
+// 文字数が少なくてもサイズは一定（自動縮小しない）。万一あふれても1行維持で末尾省略。
+function BannerCaption({ text }: { text: string }) {
+  return (
+    <p className="mt-2 px-1 text-center whitespace-nowrap overflow-hidden text-ellipsis font-bold text-slate-600 leading-tight text-[12.5px]">
+      {text}
+    </p>
+  );
+}
+
 export function TherapistPickupBanner({ banners }: { banners: Banner[] }) {
   // 初期は先頭(0)を即描画し（おすすめ/新人と同じく「常に画像を出す」作法。null プレースホルダで
   // ゲーティングしない）、マウント後に useEffect でランダムなインデックスへ差し替える。
@@ -58,7 +70,9 @@ export function TherapistPickupBanner({ banners }: { banners: Banner[] }) {
   if (banners.length === 0) return null;
 
   // おすすめサロンバナーの1件時と同じサイズ感・直角（SPは h-52 固定、PCは aspect-[31/12]）。
-  const frameClass = 'block relative overflow-hidden shadow-lg h-[153px] sm:h-64 w-full';
+  // 画像ボックス（固定高・overflow-hidden）と外枠（リンク）を分離し、キャプションは画像の「下」に置く。
+  const outerClass = 'block w-full';
+  const imageClass = 'relative overflow-hidden shadow-lg h-[153px] sm:h-64 w-full';
 
   const picked = banners[idx] ?? banners[0];
 
@@ -91,19 +105,27 @@ export function TherapistPickupBanner({ banners }: { banners: Banner[] }) {
     />
   );
 
+  const caption = picked.caption?.trim() ? picked.caption : null;
+  const content = (
+    <>
+      <div className={imageClass}>{img}</div>
+      {caption && <BannerCaption text={caption} />}
+    </>
+  );
+
   const link = resolveLink(picked);
   if (link) {
     // 外部URL（https://）は新規タブの通常アンカー、内部（/...）は next/link。
     return link.external ? (
-      <a href={link.href} target="_blank" rel="noopener noreferrer" className={frameClass}>
-        {img}
+      <a href={link.href} target="_blank" rel="noopener noreferrer" className={outerClass}>
+        {content}
       </a>
     ) : (
-      <Link href={link.href} className={frameClass}>
-        {img}
+      <Link href={link.href} className={outerClass}>
+        {content}
       </Link>
     );
   }
-  // リンク先なし：非リンク（画像のみ）。
-  return <div className={frameClass}>{img}</div>;
+  // リンク先なし：非リンク（画像のみ＋キャプション）。
+  return <div className={outerClass}>{content}</div>;
 }

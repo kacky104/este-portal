@@ -21,6 +21,7 @@ type Banner = {
   image_url: string;
   mobile_image_url: string | null; // スマホ用（任意）。未設定はスマホでも image_url を表示。
   alt_text: string | null;
+  caption: string | null;
   link_url: string | null;
   display_order: number;
   is_active: boolean;
@@ -54,6 +55,7 @@ export default function TherapistPickupBannerManager({
   // alt / link_url のローカル編集値（各行「保存」で確定）。
   const [altDrafts, setAltDrafts] = useState<Record<string, string>>({});
   const [linkDrafts, setLinkDrafts] = useState<Record<string, string>>({});
+  const [captionDrafts, setCaptionDrafts] = useState<Record<string, string>>({});
 
   const addInputRef = useRef<HTMLInputElement>(null);
   const replaceInputRef = useRef<HTMLInputElement>(null);
@@ -68,7 +70,7 @@ export default function TherapistPickupBannerManager({
     setLoading(true);
     const { data, error } = await supabase
       .from('therapist_pickup_banners')
-      .select('id, image_url, mobile_image_url, alt_text, link_url, display_order, is_active')
+      .select('id, image_url, mobile_image_url, alt_text, caption, link_url, display_order, is_active')
       .order('display_order', { ascending: true });
     if (error) {
       setErrorMsg('therapist_pickup_banners テーブルの読み込みに失敗しました。マイグレーションを確認してください。');
@@ -80,6 +82,7 @@ export default function TherapistPickupBannerManager({
     setItems(list);
     setAltDrafts(Object.fromEntries(list.map((b) => [b.id, b.alt_text ?? ''])));
     setLinkDrafts(Object.fromEntries(list.map((b) => [b.id, b.link_url ?? ''])));
+    setCaptionDrafts(Object.fromEntries(list.map((b) => [b.id, b.caption ?? ''])));
     setLoading(false);
   }, [supabase]);
 
@@ -251,6 +254,21 @@ export default function TherapistPickupBannerManager({
     setItems((prev) => prev.map((b) => (b.id === id ? { ...b, alt_text: alt } : b)));
     await revalidateTopAndAreas();
     onToast('保存しました');
+  };
+
+  // バナー下キャプション（1行・最大25文字）を保存（該当行のみ更新）。空欄は null。
+  const handleSaveCaption = async (id: string) => {
+    const caption = (captionDrafts[id] ?? '').trim().slice(0, 27) || null;
+    setBusy(true);
+    const { error } = await supabase
+      .from('therapist_pickup_banners')
+      .update({ caption, updated_at: new Date().toISOString() })
+      .eq('id', id);
+    setBusy(false);
+    if (error) { onToast(`保存に失敗しました: ${error.message}`); return; }
+    setItems((prev) => prev.map((b) => (b.id === id ? { ...b, caption } : b)));
+    await revalidateTopAndAreas();
+    onToast('キャプションを保存しました');
   };
 
   // 公開/非公開の切替。
@@ -445,12 +463,27 @@ export default function TherapistPickupBannerManager({
                     />
                   </div>
 
+                  <div>
+                    <label className="text-[10px] font-bold text-slate-400 block mb-0.5">バナー下キャプション（任意・1行／最大27文字）</label>
+                    <input
+                      className={inputClass}
+                      maxLength={27}
+                      placeholder="例: 20代セラピスト多数在籍"
+                      value={captionDrafts[b.id] ?? ''}
+                      onChange={(e) => setCaptionDrafts((prev) => ({ ...prev, [b.id]: e.target.value }))}
+                    />
+                    <p className="text-[10px] text-slate-400 mt-0.5 text-right">{(captionDrafts[b.id] ?? '').length}/27</p>
+                  </div>
+
                   <div className="flex items-center gap-2 flex-wrap pt-1">
                     <button onClick={() => handleSaveLink(b.id)} disabled={busy} className="text-[11px] font-bold px-3 py-1.5 rounded-lg bg-gradient-to-r from-pink-500 to-fuchsia-500 text-white shadow-sm disabled:opacity-50 hover:opacity-90 transition-opacity">
                       リンクを保存
                     </button>
                     <button onClick={() => handleSaveAlt(b.id)} disabled={busy} className="text-[11px] font-bold px-3 py-1.5 rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50 disabled:opacity-50 transition-colors">
                       altを保存
+                    </button>
+                    <button onClick={() => handleSaveCaption(b.id)} disabled={busy} className="text-[11px] font-bold px-3 py-1.5 rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50 disabled:opacity-50 transition-colors">
+                      キャプションを保存
                     </button>
                     <button onClick={() => handleToggleActive(b.id)} disabled={busy} className="text-[11px] font-bold px-3 py-1.5 rounded-lg border border-slate-200 text-slate-500 hover:bg-slate-50 disabled:opacity-50 transition-colors">
                       {b.is_active ? '非公開にする' : '公開にする'}
