@@ -22,6 +22,7 @@ type Banner = {
   mobile_image_url: string | null; // スマホ用（任意）。未設定はスマホでも image_url を表示。
   alt_text: string | null;
   caption: string | null;
+  shop_name: string | null;
   link_url: string | null;
   display_order: number;
   is_active: boolean;
@@ -56,6 +57,7 @@ export default function TherapistPickupBannerManager({
   const [altDrafts, setAltDrafts] = useState<Record<string, string>>({});
   const [linkDrafts, setLinkDrafts] = useState<Record<string, string>>({});
   const [captionDrafts, setCaptionDrafts] = useState<Record<string, string>>({});
+  const [shopDrafts, setShopDrafts] = useState<Record<string, string>>({});
 
   const addInputRef = useRef<HTMLInputElement>(null);
   const replaceInputRef = useRef<HTMLInputElement>(null);
@@ -70,7 +72,7 @@ export default function TherapistPickupBannerManager({
     setLoading(true);
     const { data, error } = await supabase
       .from('therapist_pickup_banners')
-      .select('id, image_url, mobile_image_url, alt_text, caption, link_url, display_order, is_active')
+      .select('id, image_url, mobile_image_url, alt_text, caption, shop_name, link_url, display_order, is_active')
       .order('display_order', { ascending: true });
     if (error) {
       setErrorMsg('therapist_pickup_banners テーブルの読み込みに失敗しました。マイグレーションを確認してください。');
@@ -83,6 +85,7 @@ export default function TherapistPickupBannerManager({
     setAltDrafts(Object.fromEntries(list.map((b) => [b.id, b.alt_text ?? ''])));
     setLinkDrafts(Object.fromEntries(list.map((b) => [b.id, b.link_url ?? ''])));
     setCaptionDrafts(Object.fromEntries(list.map((b) => [b.id, b.caption ?? ''])));
+    setShopDrafts(Object.fromEntries(list.map((b) => [b.id, b.shop_name ?? ''])));
     setLoading(false);
   }, [supabase]);
 
@@ -269,6 +272,21 @@ export default function TherapistPickupBannerManager({
     setItems((prev) => prev.map((b) => (b.id === id ? { ...b, caption } : b)));
     await revalidateTopAndAreas();
     onToast('キャプションを保存しました');
+  };
+
+  // 店舗名（バナー下・キャプション1段下の右端／最大30文字）を保存（該当行のみ更新）。空欄は null。
+  const handleSaveShopName = async (id: string) => {
+    const shop = (shopDrafts[id] ?? '').trim().slice(0, 30) || null;
+    setBusy(true);
+    const { error } = await supabase
+      .from('therapist_pickup_banners')
+      .update({ shop_name: shop, updated_at: new Date().toISOString() })
+      .eq('id', id);
+    setBusy(false);
+    if (error) { onToast(`保存に失敗しました: ${error.message}`); return; }
+    setItems((prev) => prev.map((b) => (b.id === id ? { ...b, shop_name: shop } : b)));
+    await revalidateTopAndAreas();
+    onToast('店舗名を保存しました');
   };
 
   // 公開/非公開の切替。
@@ -475,6 +493,18 @@ export default function TherapistPickupBannerManager({
                     <p className="text-[10px] text-slate-400 mt-0.5 text-right">{(captionDrafts[b.id] ?? '').length}/27</p>
                   </div>
 
+                  <div>
+                    <label className="text-[10px] font-bold text-slate-400 block mb-0.5">店舗名（任意・キャプション1段下の右端に薄グレー表示／最大30文字）</label>
+                    <input
+                      className={inputClass}
+                      maxLength={30}
+                      placeholder="例: リラクゼーション天神 本店"
+                      value={shopDrafts[b.id] ?? ''}
+                      onChange={(e) => setShopDrafts((prev) => ({ ...prev, [b.id]: e.target.value }))}
+                    />
+                    <p className="text-[10px] text-slate-400 mt-0.5 text-right">{(shopDrafts[b.id] ?? '').length}/30</p>
+                  </div>
+
                   <div className="flex items-center gap-2 flex-wrap pt-1">
                     <button onClick={() => handleSaveLink(b.id)} disabled={busy} className="text-[11px] font-bold px-3 py-1.5 rounded-lg bg-gradient-to-r from-pink-500 to-fuchsia-500 text-white shadow-sm disabled:opacity-50 hover:opacity-90 transition-opacity">
                       リンクを保存
@@ -484,6 +514,9 @@ export default function TherapistPickupBannerManager({
                     </button>
                     <button onClick={() => handleSaveCaption(b.id)} disabled={busy} className="text-[11px] font-bold px-3 py-1.5 rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50 disabled:opacity-50 transition-colors">
                       キャプションを保存
+                    </button>
+                    <button onClick={() => handleSaveShopName(b.id)} disabled={busy} className="text-[11px] font-bold px-3 py-1.5 rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50 disabled:opacity-50 transition-colors">
+                      店舗名を保存
                     </button>
                     <button onClick={() => handleToggleActive(b.id)} disabled={busy} className="text-[11px] font-bold px-3 py-1.5 rounded-lg border border-slate-200 text-slate-500 hover:bg-slate-50 disabled:opacity-50 transition-colors">
                       {b.is_active ? '非公開にする' : '公開にする'}

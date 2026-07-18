@@ -106,10 +106,16 @@ export function TherapistPickupBanner({ banners }: { banners: Banner[] }) {
   );
 
   const caption = picked.caption?.trim() ? picked.caption : null;
+  const shopName = picked.shopName?.trim() ? picked.shopName : null;
   const content = (
     <>
       <div className={imageClass}>{img}</div>
       {caption && <BannerCaption text={caption} />}
+      {shopName && (
+        <p className="mt-0.5 px-1 text-right whitespace-nowrap overflow-hidden text-ellipsis font-medium text-slate-400 leading-tight text-[11px]">
+          {shopName}
+        </p>
+      )}
     </>
   );
 

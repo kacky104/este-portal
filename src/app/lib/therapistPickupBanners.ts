@@ -14,6 +14,7 @@ export type TherapistPickupBanner = {
   mobileImageUrl: string | null; // スマホ用画像（任意）。未設定は imageUrl をスマホでも表示。
   altText: string;
   caption: string | null;       // バナー下に表示する1行キャプション（最大25文字・任意）
+  shopName: string | null;      // キャプション1段下・右端に薄グレーで表示する店舗名（任意）
   linkUrl: string | null;       // 手動入力のリンク先URL（相対 /... または https:// 絶対）。優先。
   therapistId: number | null;   // 旧運用の紐づけ（link_url が無いときのフォールバック元）
   linkable: boolean;            // therapist_id が anon 取得可（公開中）＝ /therapist/{id} を張れる
@@ -24,7 +25,7 @@ export async function fetchActiveTherapistPickupBanners(): Promise<TherapistPick
 
   const { data: bannerRows } = await supabase
     .from('therapist_pickup_banners')
-    .select('id, image_url, mobile_image_url, alt_text, caption, therapist_id, link_url, display_order')
+    .select('id, image_url, mobile_image_url, alt_text, caption, shop_name, therapist_id, link_url, display_order')
     .eq('is_active', true)
     .order('display_order', { ascending: true });
 
@@ -36,6 +37,7 @@ export async function fetchActiveTherapistPickupBanners(): Promise<TherapistPick
       mobileImageUrl: ((r.mobile_image_url as string | null) ?? '').trim() || null,
       altText: (r.alt_text as string | null) ?? '',
       caption: ((r.caption as string | null) ?? '').trim() || null,
+      shopName: ((r.shop_name as string | null) ?? '').trim() || null,
       linkUrl: ((r.link_url as string | null) ?? '').trim() || null,
       therapistId: r.therapist_id != null ? Number(r.therapist_id) : null,
     }))
@@ -64,6 +66,7 @@ export async function fetchActiveTherapistPickupBanners(): Promise<TherapistPick
     mobileImageUrl: b.mobileImageUrl,
     altText: b.altText,
     caption: b.caption,
+    shopName: b.shopName,
     linkUrl: b.linkUrl,
     therapistId: b.therapistId,
     linkable: b.therapistId != null && linkableSet.has(b.therapistId),
