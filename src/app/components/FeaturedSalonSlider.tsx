@@ -4,6 +4,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { areaLabel } from '@/app/lib/areaLabel';
 import { useState, useEffect, useRef, useCallback } from 'react';
+import { SalonNameCaption } from './SalonNameCaption';
 
 export type FeaturedSalon = {
   salonId:          number;
@@ -59,10 +60,10 @@ export function FeaturedSalonSlider({ salons }: { salons: FeaturedSalon[] }) {
 
   return (
     <div
-      className="relative"
       onMouseEnter={() => setPaused(true)}
       onMouseLeave={() => setPaused(false)}
     >
+      <div className="relative">
       {/* ── Slide track ─────────────────────────────────────── */}
       <div className="overflow-hidden shadow-lg">
         <div
@@ -113,10 +114,6 @@ export function FeaturedSalonSlider({ salons }: { salons: FeaturedSalon[] }) {
 
                 {/* Bottom content */}
                 <div className="absolute bottom-0 left-0 right-0 p-4 sm:p-5">
-                  <p className="font-black text-xl sm:text-2xl text-white drop-shadow mb-4 line-clamp-1">
-                    {salon.salonName}
-                  </p>
-
                   <div className="flex items-center justify-between">
                     {/* Therapist thumbnails */}
                     <div className="flex -space-x-2">
@@ -172,6 +169,12 @@ export function FeaturedSalonSlider({ salons }: { salons: FeaturedSalon[] }) {
             </svg>
           </button>
         </>
+      )}
+      </div>
+
+      {/* ── 店名（バナー下・現在のスライド／中央・濃グレー太字・店舗ページへリンク） ── */}
+      {displaySalons[current] && (
+        <SalonNameCaption salonId={displaySalons[current].salonId} name={displaySalons[current].salonName} />
       )}
 
       {/* ── Dot indicators ─────────────────────────────────── */}

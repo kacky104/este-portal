@@ -2,8 +2,9 @@
 
 import Link from 'next/link';
 import Image from 'next/image';
-import { useRef, useState, useLayoutEffect, useEffect } from 'react';
+import { useRef, useState, useEffect } from 'react';
 import { areaLabel } from '@/app/lib/areaLabel';
+import { SalonNameCaption } from './SalonNameCaption';
 import type { RecommendedSalonBanner } from '@/app/lib/recommendedSalonBanners';
 
 // トップのサロン一覧中（15枚目直下）に表示する「おすすめサロンバナー」。
@@ -18,55 +19,6 @@ import type { RecommendedSalonBanner } from '@/app/lib/recommendedSalonBanners';
 //   矢印・ドット・translateX・matchMedia は持たない（ネイティブ横スクロール＋scroll-snap のまま実スクロール位置で送る）。
 const SECTION_TITLE = '福岡のおすすめ店舗';
 const AUTO_SLIDE_MS = 3500; // 自動送り間隔（3.5秒ごとに1枚進める）
-
-// SSR 警告回避：クライアントのみ useLayoutEffect（描画前に測定＝チラつき防止）、サーバーは useEffect にフォールバック。
-const useIsomorphicLayoutEffect = typeof window !== 'undefined' ? useLayoutEffect : useEffect;
-
-// サロン名の1行自動縮小フィット（実測ベース）。カード幅に収まらないときだけ MAX→MIN(約65%) で fontSize を段階縮小し、
-// 全文を1行表示する。MIN まで縮めても収まらない超長名のみ従来どおり末尾省略(…)。改行はしない（whitespace-nowrap）。
-// SP/PC でカード幅が異なるため各カードで個別に実測。リサイズ（zoom切替・回転等）は ResizeObserver で再計算。
-// 横スクロール列のオフスクリーンカードもマウント時に測定される（display:none ではないため clientWidth を取得可能）。
-const NAME_MAX = 20;   // text-xl = 1.25rem = 20px（現行サイズを維持＝収まる店名は今と同じ見た目）
-const NAME_MIN = 13;   // 下限＝約65%（20 × 0.65 = 13px）
-const NAME_STEP = 0.5; // 縮小ステップ
-
-function AutoFitSalonName({ name }: { name: string }) {
-  const containerRef = useRef<HTMLDivElement>(null);
-  const textRef = useRef<HTMLSpanElement>(null);
-  const [size, setSize] = useState(NAME_MAX);
-
-  useIsomorphicLayoutEffect(() => {
-    const c = containerRef.current;
-    const t = textRef.current;
-    if (!c || !t) return;
-    const fit = () => {
-      let s = NAME_MAX;
-      t.style.fontSize = `${s}px`;
-      // scrollWidth(文字の全幅) が clientWidth(利用可能幅) を超える間、下限まで縮める。
-      while (t.scrollWidth > c.clientWidth && s > NAME_MIN) {
-        s = Math.max(NAME_MIN, s - NAME_STEP);
-        t.style.fontSize = `${s}px`;
-      }
-      setSize(s);
-    };
-    fit();
-    const ro = new ResizeObserver(fit);
-    ro.observe(c);
-    return () => ro.disconnect();
-  }, [name]);
-
-  return (
-    <div ref={containerRef} className="min-w-0 overflow-hidden mb-4 sm:mb-2.5">
-      <span
-        ref={textRef}
-        className="inline-block max-w-full whitespace-nowrap font-black text-white drop-shadow"
-        style={{ fontSize: `${size}px`, overflow: 'hidden', textOverflow: 'ellipsis' }}
-      >
-        {name}
-      </span>
-    </div>
-  );
-}
 
 export function RecommendedSalonBannerSlider({ banners, hideTitle = false }: { banners: RecommendedSalonBanner[]; hideTitle?: boolean }) {
   const scrollerRef = useRef<HTMLDivElement>(null);
@@ -100,10 +52,10 @@ export function RecommendedSalonBannerSlider({ banners, hideTitle = false }: { b
   if (banners.length === 0) return null;
   const multiple = banners.length > 1;
 
-  // カード共通クラス（高さ制約・角丸・影を1枚1枚に持たせる）。複数枚は次カードがのぞく幅、1件は全幅。
-  const cardClass = `snap-start flex-shrink-0 relative overflow-hidden shadow-lg h-52 sm:h-auto sm:aspect-[31/12] ${
-    multiple ? 'w-[85%] sm:w-[82%]' : 'w-full'
-  }`;
+  // カード外枠（幅・スナップのみ）と画像ボックス（高さ制約・影・オーバーフロー）を分離。
+  // 店名は画像ボックスの「下」に置くため、外枠は overflow-hidden を持たせない。
+  const cardOuter = `snap-start flex-shrink-0 ${multiple ? 'w-[85%] sm:w-[82%]' : 'w-full'}`;
+  const cardImage = 'relative overflow-hidden shadow-lg h-52 sm:h-auto sm:aspect-[31/12] w-full';
 
   const cardBody = (b: RecommendedSalonBanner, i: number) => {
     const hasOverlay = b.salonName !== '';
@@ -138,11 +90,8 @@ export function RecommendedSalonBannerSlider({ banners, hideTitle = false }: { b
               📍 {areaLabel(b.area)}
             </span>
 
-            {/* Bottom content。PC(sm)は低い高さに合わせ overlay を SP据え置きサイズのまま（p-4）・名前下マージンを詰める。
-                サロン名は幅に収まらない場合のみ自動縮小して全文1行表示（AutoFitSalonName）。 */}
+            {/* Bottom content（店名はバナー下に移動＝オーバーレイからは削除）。 */}
             <div className="absolute bottom-0 left-0 right-0 p-4">
-              <AutoFitSalonName name={b.salonName} />
-
               <div className="flex items-center justify-between">
                 {/* Therapist thumbnails */}
                 <div className="flex -space-x-2">
@@ -208,13 +157,15 @@ export function RecommendedSalonBannerSlider({ banners, hideTitle = false }: { b
       >
         {banners.map((b, i) =>
           b.salonName !== '' ? (
-            <Link key={b.id} href={`/salon/${b.salonId}`} className={cardClass}>
-              {cardBody(b, i)}
+            <Link key={b.id} href={`/salon/${b.salonId}`} className={cardOuter}>
+              <div className={cardImage}>{cardBody(b, i)}</div>
+              {/* 店名（バナー下・カード全体が Link なので自身はリンクにしない＝<a>二重ネスト回避） */}
+              <SalonNameCaption salonId={b.salonId} name={b.salonName} link={false} />
             </Link>
           ) : (
-            // 非公開サロン：詳細ページに飛べないため非リンク（画像のみ）。
-            <div key={b.id} className={cardClass}>
-              {cardBody(b, i)}
+            // 非公開サロン：詳細ページに飛べないため非リンク（画像のみ・店名なし）。
+            <div key={b.id} className={cardOuter}>
+              <div className={cardImage}>{cardBody(b, i)}</div>
             </div>
           )
         )}
