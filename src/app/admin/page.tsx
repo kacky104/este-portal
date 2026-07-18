@@ -25,6 +25,7 @@ import AreaIconManager from '@/app/components/AreaIconManager';
 import FeatureIconManager from '@/app/components/FeatureIconManager';
 import WorkArticlesManager from '@/app/components/WorkArticlesManager';
 import AdminDocumentsManager from '@/app/components/AdminDocumentsManager';
+import AdminImagesManager from '@/app/components/AdminImagesManager';
 import ListingInquiryManager from '@/app/components/ListingInquiryManager';
 import { adminGenerateOwnerLoginLink } from '@/app/actions/adminOwner';
 import { useToast } from '@/app/components/useToast';
@@ -755,6 +756,9 @@ export default function AdminDashboard() {
         <div className={`space-y-4 ${activeTab === 'docs' ? '' : 'hidden'}`}>
           <AccordionSection id="admin-documents" title="書類置き場（PDF・Word）" expanded={expandedSections} onToggle={toggleSection}>
             <AdminDocumentsManager onToast={showToast} />
+          </AccordionSection>
+          <AccordionSection id="admin-images" title="画像フォルダ" expanded={expandedSections} onToggle={toggleSection}>
+            <AdminImagesManager onToast={showToast} />
           </AccordionSection>
         </div>
 
