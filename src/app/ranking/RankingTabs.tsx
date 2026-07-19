@@ -169,8 +169,11 @@ export default function RankingTabs({
 
         {/* ヒーロー画像（タブ別）：幅いっぱい（ビューポート端まで） */}
         {heroUrl && (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img src={heroUrl} alt="週間ランキング" className="block w-full h-auto mb-6" />
+          // スマホは全幅（端まで）、PCはコンテンツ幅に収めて角丸に（大きくなりすぎ防止）。
+          <div className="mb-6 sm:max-w-3xl sm:mx-auto sm:px-4">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={heroUrl} alt="週間ランキング" className="block w-full h-auto sm:rounded-2xl sm:shadow-sm" />
+          </div>
         )}
 
         <div className="max-w-3xl mx-auto px-4">
