@@ -717,7 +717,7 @@ export default async function SalonPage({
                 {detailBanners.map((b, i) => {
                   const img = (
                     // eslint-disable-next-line @next/next/no-img-element
-                    <img src={b.img} alt="" className="block w-full h-[156px] sm:h-auto sm:aspect-[31/9] object-cover rounded-2xl shadow-sm" />
+                    <img src={b.img} alt="" className="block w-full h-[117px] sm:h-auto sm:aspect-[31/9] object-cover rounded-2xl shadow-sm" />
                   );
                   return b.link ? (
                     <Link key={i} href={b.link} className="block">{img}</Link>
