@@ -7,6 +7,7 @@ import { truncatePlain } from '@/app/lib/truncatePlain';
 import { toJsonLdString, buildBreadcrumbJsonLd } from '@/app/lib/jsonLd';
 import { notFound } from 'next/navigation';
 import { createPublicClient } from '@/app/lib/supabase/public';
+import PageViewLogger from '@/app/components/PageViewLogger';
 import { FromCrumb } from './FromCrumb';
 import { getBusinessDateRangeJST } from '@/lib/dutyStatus';
 import { formatDate, formatTime, buildDisplayHours } from '@/lib/scheduleFormat';
@@ -339,6 +340,9 @@ export default async function TherapistPublicPage({
       </header>
 
       <main className="max-w-4xl mx-auto px-4 py-8">
+
+        {/* 週間アクセスランキング用の閲覧計測（表示のみ担う不可視部品） */}
+        <PageViewLogger itemType="therapist" itemId={Number(tRow.id)} />
 
         {/* ─── パンくずリスト（シンプル矢印形式）：トップ › サロン名 › セラピスト名 ─── */}
         <nav aria-label="パンくずリスト" className="flex items-center gap-1.5 mb-6" style={{ fontSize: '13px' }}>

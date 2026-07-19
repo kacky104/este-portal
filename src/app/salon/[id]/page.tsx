@@ -8,6 +8,7 @@ import { SavedSalonsMenu } from '@/app/components/SavedSalonsMenu';
 import { AccountMenu } from '@/app/components/AccountMenu';
 import { NotificationBell } from '@/app/components/NotificationBell';
 import { VipLetterIcon } from '@/app/components/VipLetterIcon';
+import PageViewLogger from '@/app/components/PageViewLogger';
 import { notFound } from "next/navigation";
 import { createPublicClient } from "@/app/lib/supabase/public";
 import { getTheme, breadcrumbCurrentColor, type ThemeKey } from "@/app/lib/themes";
@@ -418,6 +419,9 @@ export default async function SalonPage({
       </header>
 
       <main className="max-w-4xl mx-auto px-4 py-8 overflow-x-hidden">
+
+        {/* 週間アクセスランキング用の閲覧計測（表示のみ担う不可視部品） */}
+        <PageViewLogger itemType="salon" itemId={salon.id} />
 
         {/* ─── パンくずリスト：トップ › サロン名（他ページと同形式） ─── */}
         <nav aria-label="パンくずリスト" className="flex items-center gap-1.5 mb-6" style={{ fontSize: '13px' }}>

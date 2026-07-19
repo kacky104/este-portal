@@ -269,6 +269,16 @@ export default async function Home() {
                       </div>
                     </nav>
                     </div>
+                    {/* 週間ランキングへの導線（金→ピンクのグラデ帯・王冠付き） */}
+                    <Link
+                      href="/ranking"
+                      className="flex items-center justify-center gap-2 mt-3 mx-4 lg:mx-0 py-2.5 rounded-full text-white text-sm font-bold shadow-sm hover:opacity-90 transition-opacity"
+                      style={{ background: 'linear-gradient(to right, #F59E0B, #EC4899)' }}
+                    >
+                      <span aria-hidden>👑</span>
+                      週間ランキングを見る
+                      <span aria-hidden>→</span>
+                    </Link>
                   </div>
                   {/* バナー縦幅 py-1・下余白 mb-1 はサロン新着情報と統一の圧縮のまま。
                       エリアページと同方式：タイトルバー自体を summary にしたアコーディオンで、
