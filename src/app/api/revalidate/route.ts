@@ -28,14 +28,16 @@ export async function POST(req: Request) {
   let therapistId: number | string | undefined;
   let area: string | undefined;
   let areasAll = false;
+  let ranking = false;
   let top = true;
   try {
-    const body = (await req.json()) as { salonId?: number | string; therapistId?: number | string; top?: boolean; area?: string; areasAll?: boolean } | null;
+    const body = (await req.json()) as { salonId?: number | string; therapistId?: number | string; top?: boolean; area?: string; areasAll?: boolean; ranking?: boolean } | null;
     if (body && typeof body === "object") {
       if (body.salonId != null) salonId = body.salonId;
       if (body.therapistId != null) therapistId = body.therapistId;
       if (body.area != null) area = body.area;
       if (body.areasAll === true) areasAll = true;
+      if (body.ranking === true) ranking = true;
       if (body.top === false) top = false;
     }
   } catch {
@@ -71,6 +73,12 @@ export async function POST(req: Request) {
     // 全 /area/<slug> ページ（出張含む）をまとめて無効化（動的ルート単位）。
     revalidatePath("/area/[slug]", "page");
     revalidated.push("/area/[slug]");
+  }
+
+  if (ranking) {
+    // 週間ランキング（/ranking）。下駄設定の保存後などに即時反映する。
+    revalidatePath("/ranking");
+    revalidated.push("/ranking");
   }
 
   if (top) {

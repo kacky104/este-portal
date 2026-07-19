@@ -26,6 +26,7 @@ import FeatureIconManager from '@/app/components/FeatureIconManager';
 import WorkArticlesManager from '@/app/components/WorkArticlesManager';
 import AdminDocumentsManager from '@/app/components/AdminDocumentsManager';
 import AdminImagesManager from '@/app/components/AdminImagesManager';
+import RankingHandicapManager from '@/app/components/RankingHandicapManager';
 import ListingInquiryManager from '@/app/components/ListingInquiryManager';
 import { adminGenerateOwnerLoginLink } from '@/app/actions/adminOwner';
 import { useToast } from '@/app/components/useToast';
@@ -583,6 +584,11 @@ export default function AdminDashboard() {
 
           <AccordionSection id="card-boost" title="店舗カード優先表示（バナー設置特典）" expanded={expandedSections} onToggle={toggleSection}>
             <CardBoostManager onToast={showToast} />
+          </AccordionSection>
+
+          {/* ── 週間ランキングの下駄（ハンデ）設定：店舗/セラピストごとに毎週の加算値を設定 ── */}
+          <AccordionSection id="ranking-handicap" title="週間ランキング下駄（ハンデ）設定" expanded={expandedSections} onToggle={toggleSection}>
+            <RankingHandicapManager onToast={showToast} />
           </AccordionSection>
 
           {/* ── 本体コラム記事（利用者向け・/column 配下） ── */}

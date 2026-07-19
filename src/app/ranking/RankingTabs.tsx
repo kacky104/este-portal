@@ -43,21 +43,26 @@ function AreaChip({ area }: { area: string | null }) {
   );
 }
 
-function Views({ views }: { views: number }) {
+// 右端の「開く」シェブロン（アクセス数は非表示なので、タップ可能な誘目として置く）。
+function Chevron() {
   return (
-    <span className="flex-shrink-0 text-right">
-      <span className="text-sm font-black text-slate-800 tabular-nums">{views.toLocaleString()}</span>
-      <span className="ml-0.5 text-[10px] text-slate-400 font-medium">アクセス</span>
-    </span>
+    <svg
+      width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
+      className="flex-shrink-0 text-slate-300"
+      aria-hidden
+    >
+      <path d="M9 18l6-6-6-6" />
+    </svg>
   );
 }
 
 function EmptyState() {
   return (
     <div className="py-14 text-center text-sm text-slate-400">
-      今週のアクセスデータはまだありません。
+      今週のランキングはまだ集計中です。
       <br />
-      集計が貯まると順位が表示されます。
+      アクセスが貯まると順位が表示されます。
     </div>
   );
 }
@@ -126,7 +131,7 @@ export default function RankingTabs({
                         <AreaChip area={s.area2} />
                       </div>
                     </div>
-                    <Views views={s.views} />
+                    <Chevron />
                   </Link>
                 </li>
               ))}
@@ -144,33 +149,34 @@ export default function RankingTabs({
             <ul className="divide-y divide-slate-100">
               {therapistRanking.map((t) => (
                 <li key={t.id}>
-                  <div className="flex items-center gap-3 px-4 py-3 hover:bg-pink-50/30 transition-colors">
+                  <Link
+                    href={`/therapist/${t.id}`}
+                    className="flex items-center gap-3 px-4 py-3 hover:bg-pink-50/30 transition-colors"
+                  >
                     <RankBadge rank={t.rank} />
-                    <Link href={`/therapist/${t.id}`} className="flex items-center gap-3 min-w-0 flex-1">
-                      <span className="flex-shrink-0 w-11 h-11 rounded-full overflow-hidden bg-slate-100 relative">
-                        {t.profileImageUrl ? (
-                          <Image
-                            src={t.profileImageUrl}
-                            alt={t.name}
-                            fill
-                            className="object-cover"
-                            sizes="44px"
-                          />
-                        ) : (
-                          <span className="absolute inset-0 flex items-center justify-center text-slate-300 font-bold">
-                            {t.name.charAt(0) || '—'}
-                          </span>
-                        )}
-                      </span>
-                      <span className="min-w-0">
-                        <span className="block text-sm font-bold text-slate-800 truncate">{t.name || '—'}</span>
-                        {t.salonName && (
-                          <span className="block text-[11px] text-slate-400 truncate">{t.salonName}</span>
-                        )}
-                      </span>
-                    </Link>
-                    <Views views={t.views} />
-                  </div>
+                    <span className="flex-shrink-0 w-11 h-11 rounded-full overflow-hidden bg-slate-100 relative">
+                      {t.profileImageUrl ? (
+                        <Image
+                          src={t.profileImageUrl}
+                          alt={t.name}
+                          fill
+                          className="object-cover"
+                          sizes="44px"
+                        />
+                      ) : (
+                        <span className="absolute inset-0 flex items-center justify-center text-slate-300 font-bold">
+                          {t.name.charAt(0) || '—'}
+                        </span>
+                      )}
+                    </span>
+                    <span className="min-w-0 flex-1">
+                      <span className="block text-sm font-bold text-slate-800 truncate">{t.name || '—'}</span>
+                      {t.salonName && (
+                        <span className="block text-[11px] text-slate-400 truncate">{t.salonName}</span>
+                      )}
+                    </span>
+                    <Chevron />
+                  </Link>
                 </li>
               ))}
             </ul>
@@ -179,8 +185,8 @@ export default function RankingTabs({
       )}
 
       <p className="text-[11px] text-slate-400 text-center mt-4 leading-relaxed">
-        ※ アクセス数は各詳細ページの週間閲覧数を集計したものです。<br />
-        毎週月曜0時（日本時間）にリセットされ、新しい週の集計が始まります。
+        ※ ランキングは各詳細ページの週間アクセスをもとに集計しています。<br />
+        毎週月曜0時（日本時間）に新しい週の集計へ切り替わります。
       </p>
     </div>
   );

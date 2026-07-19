@@ -2,7 +2,12 @@
 // ログイン cookie は同一オリジンの fetch で自動同送されるため、トークンの受け渡しは不要。
 // 失敗（ネットワーク/権限等）は握りつぶし、ユーザー操作は止めない。
 
-type RevalidateBody = { salonId?: number | string; therapistId?: number | string; top?: boolean; area?: string; areasAll?: boolean };
+type RevalidateBody = { salonId?: number | string; therapistId?: number | string; top?: boolean; area?: string; areasAll?: boolean; ranking?: boolean };
+
+// 週間ランキングページ（/ranking）だけを無効化する（下駄設定の保存後などに使う）。
+export async function revalidateRanking(): Promise<void> {
+  await postRevalidate({ ranking: true, top: false });
+}
 
 async function postRevalidate(body?: RevalidateBody): Promise<void> {
   try {
