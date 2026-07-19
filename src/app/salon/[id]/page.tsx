@@ -11,6 +11,7 @@ import { VipLetterIcon } from '@/app/components/VipLetterIcon';
 import PageViewLogger from '@/app/components/PageViewLogger';
 import { notFound } from "next/navigation";
 import { createPublicClient } from "@/app/lib/supabase/public";
+import { sanitizeInternalPath } from "@/app/lib/safeLink";
 import { getTheme, breadcrumbCurrentColor, type ThemeKey } from "@/app/lib/themes";
 import { getBusinessDateJST } from "@/lib/dutyStatus";
 import { paymentMethodLabel } from "@/app/lib/paymentMethods";
@@ -258,9 +259,9 @@ export default async function SalonPage({
     .maybeSingle();
   const detailBanners = (bannerRow && bannerRow.detail_banner_enabled)
     ? [
-        { img: bannerRow.detail_banner_image_url as string | null,  link: (bannerRow.detail_banner_link as string | null) ?? '' },
-        { img: bannerRow.detail_banner_image_url2 as string | null, link: (bannerRow.detail_banner_link2 as string | null) ?? '' },
-        { img: bannerRow.detail_banner_image_url3 as string | null, link: (bannerRow.detail_banner_link3 as string | null) ?? '' },
+        { img: bannerRow.detail_banner_image_url as string | null,  link: sanitizeInternalPath(bannerRow.detail_banner_link as string | null) },
+        { img: bannerRow.detail_banner_image_url2 as string | null, link: sanitizeInternalPath(bannerRow.detail_banner_link2 as string | null) },
+        { img: bannerRow.detail_banner_image_url3 as string | null, link: sanitizeInternalPath(bannerRow.detail_banner_link3 as string | null) },
       ].filter((b): b is { img: string; link: string } => Boolean(b.img))
     : [];
   const qn = QUICKNAV_COLORS[theme.key];

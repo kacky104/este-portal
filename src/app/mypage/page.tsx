@@ -23,6 +23,7 @@ import { getSalonBookings, updateBookingStatus, deleteBooking, type OwnerBooking
 import { callbackPrefLabel } from '@/app/lib/booking/callbackPref';
 import { STORAGE_CACHE_CONTROL } from '@/app/lib/storage';
 import SalonFreePagesManager from '@/app/components/SalonFreePagesManager';
+import { sanitizeInternalPath } from '@/app/lib/safeLink';
 import { useToast } from '@/app/components/useToast';
 
 const supabase = createClient();
@@ -891,7 +892,7 @@ export default function MyPage() {
     if (detailEnabled && !anyImage) { showToast('先に画像を1枚以上アップロードしてください'); return; }
     setSavingDetail(true);
     const update: Record<string, unknown> = { detail_banner_enabled: detailEnabled };
-    DETAIL_COLS.forEach((c, i) => { update[c.link] = detailLinks[i].trim() || null; });
+    DETAIL_COLS.forEach((c, i) => { update[c.link] = sanitizeInternalPath(detailLinks[i]) || null; });
     const { error } = await supabase.from('salons').update(update).eq('id', salon.id);
     setSavingDetail(false);
     if (error) { showToast(`保存に失敗しました: ${error.message}`); return; }
@@ -905,7 +906,7 @@ export default function MyPage() {
     if (popupEnabled && !anyImage) { showToast('先に画像を1枚以上アップロードしてください'); return; }
     setSavingPopup(true);
     const update: Record<string, unknown> = { popup_enabled: popupEnabled };
-    POPUP_COLS.forEach((c, i) => { update[c.link] = popupLinks[i].trim() || null; });
+    POPUP_COLS.forEach((c, i) => { update[c.link] = sanitizeInternalPath(popupLinks[i]) || null; });
     const { error } = await supabase.from('salons').update(update).eq('id', salon.id);
     setSavingPopup(false);
     if (error) { showToast(`保存に失敗しました: ${error.message}`); return; }

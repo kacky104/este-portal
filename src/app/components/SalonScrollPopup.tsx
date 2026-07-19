@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { createClient } from '@/app/lib/supabase/client';
 import ScrollPopupImage from '@/components/ScrollPopupImage';
+import { sanitizeInternalPath } from '@/app/lib/safeLink';
 
 type Candidate = { url: string; link: string | null };
 
@@ -48,5 +49,5 @@ export default function SalonScrollPopup({ salonId }: { salonId: number }) {
 
   if (!chosen) return null;
 
-  return <ScrollPopupImage src={chosen.url} href={chosen.link ?? ''} alt="お知らせ" />;
+  return <ScrollPopupImage src={chosen.url} href={sanitizeInternalPath(chosen.link)} alt="お知らせ" />;
 }
