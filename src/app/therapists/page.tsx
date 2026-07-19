@@ -3,6 +3,7 @@ import { Suspense } from 'react';
 import Link from 'next/link';
 import { Logo } from '@/app/components/Logo';
 import { TherapistSearch } from '@/app/components/TherapistSearch';
+import { Breadcrumb } from '@/app/components/Breadcrumb';
 import { POPULAR_BADGES, badgeToSlug } from '@/lib/therapistBadgeSlugs';
 import { getBadgeColors } from '@/lib/therapistBadges';
 
@@ -29,6 +30,7 @@ export default function TherapistsPage() {
       </header>
 
       <main className="max-w-5xl mx-auto px-4 py-6">
+        <Breadcrumb current="特徴からセラピストを探す" />
         <div className="mb-5 overflow-hidden rounded-3xl border border-pink-100 bg-gradient-to-br from-pink-50 via-rose-50 to-white shadow-sm">
           <div className="px-5 py-5 sm:px-8 sm:py-6">
             <h1 className="text-lg sm:text-2xl font-black tracking-tight bg-gradient-to-r from-pink-600 to-rose-500 bg-clip-text text-transparent">

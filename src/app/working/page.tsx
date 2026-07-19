@@ -1,10 +1,10 @@
-import Link from 'next/link';
 import { Logo } from '@/app/components/Logo';
 import { WorkingTherapists } from './WorkingTherapists';
 import { SavedSalonsMenu } from '@/app/components/SavedSalonsMenu';
 import { AccountMenu } from '@/app/components/AccountMenu';
 import { NotificationBell } from '@/app/components/NotificationBell';
 import { VipLetterIcon } from '@/app/components/VipLetterIcon';
+import { Breadcrumb } from '@/app/components/Breadcrumb';
 import { createPublicClient } from '@/app/lib/supabase/public';
 import { fetchSalons } from '@/app/lib/salons';
 import { areaFromSlug, salonInArea, DISPATCH_AREA } from '@/app/lib/areas';
@@ -74,15 +74,7 @@ export default async function WorkingPage({
       <main className="max-w-5xl mx-auto px-4 py-10">
 
         {/* Back link */}
-        <Link
-          href="/"
-          className="inline-flex items-center gap-1.5 text-sm text-slate-500 hover:text-pink-600 transition-colors mb-8"
-        >
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-            <path d="M19 12H5M12 5l-7 7 7 7" />
-          </svg>
-          トップへ戻る
-        </Link>
+        <Breadcrumb current="現在出勤中のセラピスト" />
 
         {/* Heading（中央寄せ）。?area 指定時はエリア名（ピンク）で改行し2行に分ける。
             未指定（全エリア）は従来どおりオレンジ→ピンクのグラデーション1行。 */}

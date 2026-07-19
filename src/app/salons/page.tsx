@@ -1,4 +1,3 @@
-import Link from 'next/link';
 import type { Metadata } from 'next';
 import { Logo } from '@/app/components/Logo';
 import { createClient } from '@/app/lib/supabase/server';
@@ -7,6 +6,7 @@ import { SavedSalonsMenu } from '@/app/components/SavedSalonsMenu';
 import { AccountMenu } from '@/app/components/AccountMenu';
 import { NotificationBell } from '@/app/components/NotificationBell';
 import { VipLetterIcon } from '@/app/components/VipLetterIcon';
+import { Breadcrumb } from '@/app/components/Breadcrumb';
 import { fetchSalons } from '@/app/lib/salons';
 // フィルタ判定／DB連動キーは areas.ts の AREA_ORDER に一元化（画面表示はすべて areaLabel() を通す）。
 import { AREA_ORDER } from '@/app/lib/areas';
@@ -44,15 +44,7 @@ export default async function SalonsPage() {
       <main className="max-w-5xl mx-auto px-4 py-10">
 
         {/* Back link */}
-        <Link
-          href="/"
-          className="inline-flex items-center gap-1.5 text-sm text-slate-500 hover:text-pink-600 transition-colors mb-8"
-        >
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-            <path d="M19 12H5M12 5l-7 7 7 7" />
-          </svg>
-          トップへ戻る
-        </Link>
+        <Breadcrumb current="掲載店舗一覧" />
 
         {/* 地域バッジ列を最上部に出し、その下に見出し＋説明文→カード（heading で順序制御） */}
         <ShuffledSalons

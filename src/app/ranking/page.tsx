@@ -1,10 +1,10 @@
-import Link from 'next/link';
 import type { Metadata } from 'next';
 import { Logo } from '@/app/components/Logo';
 import { SavedSalonsMenu } from '@/app/components/SavedSalonsMenu';
 import { AccountMenu } from '@/app/components/AccountMenu';
 import { NotificationBell } from '@/app/components/NotificationBell';
 import { VipLetterIcon } from '@/app/components/VipLetterIcon';
+import { Breadcrumb } from '@/app/components/Breadcrumb';
 import {
   fetchSalonWeeklyRanking,
   fetchTherapistWeeklyRanking,
@@ -56,15 +56,7 @@ export default async function RankingPage() {
 
       <main className="max-w-3xl mx-auto px-4 py-10">
         {/* Back link */}
-        <Link
-          href="/"
-          className="inline-flex items-center gap-1.5 text-sm text-slate-500 hover:text-pink-600 transition-colors mb-8"
-        >
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-            <path d="M19 12H5M12 5l-7 7 7 7" />
-          </svg>
-          トップへ戻る
-        </Link>
+        <Breadcrumb current="週間ランキング" />
 
         {/* Heading（中央寄せ・金→ピンクのグラデ。王冠アイコン付き） */}
         <div className="mb-2 text-center">

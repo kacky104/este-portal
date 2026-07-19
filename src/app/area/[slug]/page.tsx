@@ -1,4 +1,3 @@
-import Link from 'next/link';
 import { Logo } from '@/app/components/Logo';
 import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
@@ -12,6 +11,7 @@ import { SavedSalonsMenu } from '@/app/components/SavedSalonsMenu';
 import { AccountMenu } from '@/app/components/AccountMenu';
 import { NotificationBell } from '@/app/components/NotificationBell';
 import { VipLetterIcon } from '@/app/components/VipLetterIcon';
+import { Breadcrumb } from '@/app/components/Breadcrumb';
 import { areaFromSlug, AREA_ORDER, AREA_SLUGS_LIST, DISPATCH_AREA, salonInArea } from '@/app/lib/areas';
 import { areaLabel } from '@/app/lib/areaLabel';
 import { toJsonLdString, buildBreadcrumbJsonLd, buildFaqPageJsonLd } from '@/app/lib/jsonLd';
@@ -100,15 +100,7 @@ export default async function AreaPage({ params }: { params: Promise<{ slug: str
       <main className="max-w-5xl mx-auto px-4 py-10">
 
         {/* Back link */}
-        <Link
-          href="/"
-          className="inline-flex items-center gap-1.5 text-sm text-slate-500 hover:text-pink-600 transition-colors mb-8"
-        >
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-            <path d="M19 12H5M12 5l-7 7 7 7" />
-          </svg>
-          トップへ戻る
-        </Link>
+        <Breadcrumb current={label} />
 
         {/* ─── Pickup Salons（このエリア専用・未設定なら非表示） ─── */}
         {featuredSalons.length > 0 && (

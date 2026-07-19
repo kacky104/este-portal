@@ -5,6 +5,7 @@ import { SavedSalonsMenu } from '@/app/components/SavedSalonsMenu';
 import { AccountMenu } from '@/app/components/AccountMenu';
 import { NotificationBell } from '@/app/components/NotificationBell';
 import { VipLetterIcon } from '@/app/components/VipLetterIcon';
+import { Breadcrumb } from '@/app/components/Breadcrumb';
 import { formatDiaryDate } from '@/lib/diaryDate';
 import { DiaryTherapistAvatar } from '@/components/DiaryTherapistAvatar';
 import { DiaryNewBadge } from '@/components/DiaryNewBadge';
@@ -82,12 +83,7 @@ export default async function DiaryListPage({
       <main className="max-w-4xl mx-auto px-4 py-8">
 
         {/* Back */}
-        <Link href="/" className="inline-flex items-center gap-1.5 text-sm text-slate-500 hover:text-pink-600 transition-colors mb-6">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-            <path d="M19 12H5M12 5l-7 7 7 7" />
-          </svg>
-          トップへ戻る
-        </Link>
+        <Breadcrumb current="写メ日記" />
 
         {/* Heading */}
         <div className="mb-8 overflow-hidden rounded-3xl border border-pink-100 bg-gradient-to-br from-pink-50 via-rose-50 to-white shadow-sm">
