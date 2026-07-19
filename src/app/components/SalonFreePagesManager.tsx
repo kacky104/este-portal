@@ -16,10 +16,12 @@ export default function SalonFreePagesManager({
   salonId,
   onToast,
   onPagesChange,
+  bare = false,
 }: {
   salonId: number;
   onToast: (m: string) => void;
   onPagesChange?: (pages: { id: number; title: string }[]) => void;
+  bare?: boolean;
 }) {
   const [pages, setPages] = useState<FreePage[]>([]);
   const [loaded, setLoaded] = useState(false);
@@ -137,9 +139,9 @@ export default function SalonFreePagesManager({
   };
 
   return (
-    <div className="bg-white rounded-3xl border border-slate-100 shadow-sm p-5 space-y-4">
+    <div className={bare ? 'space-y-4' : 'bg-white rounded-3xl border border-slate-100 shadow-sm p-5 space-y-4'}>
       <div>
-        <h2 className="text-sm font-black text-slate-700">フリーページ（最大3）</h2>
+        {!bare && <h2 className="text-sm font-black text-slate-700">フリーページ（最大3）</h2>}
         <p className="mt-1 text-[11px] leading-relaxed text-slate-400">
           自由に作れるページです（タイトル＋本文＋画像）。作成したページは、上の「詳細バナー」やポップアップ画像の
           <span className="text-slate-500 font-bold">リンク先</span>に選べます。URL は /salon/{salonId}/p/ページID です。

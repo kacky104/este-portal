@@ -23,6 +23,7 @@ import { getSalonBookings, updateBookingStatus, deleteBooking, type OwnerBooking
 import { callbackPrefLabel } from '@/app/lib/booking/callbackPref';
 import { STORAGE_CACHE_CONTROL } from '@/app/lib/storage';
 import SalonFreePagesManager from '@/app/components/SalonFreePagesManager';
+import AccordionCard from '@/app/components/AccordionCard';
 import { sanitizeInternalPath } from '@/app/lib/safeLink';
 import { useToast } from '@/app/components/useToast';
 
@@ -3487,10 +3488,9 @@ export default function MyPage() {
         {/* ── ポップアップ画像タブ（サロン詳細で左下から出る画像） ── */}
         <div className={`space-y-4 ${activeTab === 'popup' ? '' : 'hidden'}`}>
           {/* ── テーマ（背景壁紙）：店舗装飾。旧・店舗タブから移設。保存で salons.theme を更新 ── */}
-          <div className="bg-white rounded-3xl border border-slate-100 shadow-sm p-5 space-y-4">
+          <AccordionCard title="テーマ（背景壁紙）">
           {/* ── テーマ（壁紙） ── */}
           <div>
-            <h2 className="text-sm font-black text-slate-700">テーマ（背景壁紙）</h2>
             <p className="mt-1 mb-2 text-[11px] leading-relaxed text-slate-400">店舗詳細ページの背景に敷かれる壁紙を選べます。壁紙未設定のテーマは背景色のみになります。</p>
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
               {SALON_THEMES.map((t) => {
@@ -3538,12 +3538,11 @@ export default function MyPage() {
             >
               {savingTheme ? '保存中…' : 'テーマを保存する'}
             </button>
-          </div>
+          </AccordionCard>
 
           {/* ── 詳細ページ バナー（最大3・出勤セラピストの下に縦表示） ── */}
-          <div className="bg-white rounded-3xl border border-slate-100 shadow-sm p-5 space-y-4">
+          <AccordionCard title="詳細ページ バナー（最大3）">
             <div>
-              <h2 className="text-sm font-black text-slate-700">詳細ページ バナー（最大3）</h2>
               <p className="mt-1 text-[11px] leading-relaxed text-slate-400">
                 店舗詳細ページの「本日の出勤セラピスト」の下に、登録した順で縦に表示されます（最大3枚）。各バナーにリンク先（自店ページ・フリーページ）を設定でき、「表示する」をONにすると公開されます。<br />
                 推奨：横長バナー（PC比率 約31:9・例 1240×360px）／各5MBまで／JPEG・PNG・WebP。
@@ -3595,11 +3594,10 @@ export default function MyPage() {
             <button type="button" onClick={handleDetailSave} disabled={savingDetail} className="w-full py-2.5 rounded-full bg-pink-500 text-white text-sm font-bold hover:bg-pink-600 disabled:opacity-50">
               {savingDetail ? '保存中…' : '保存する'}
             </button>
-          </div>
+          </AccordionCard>
 
-          <div className="bg-white rounded-3xl border border-slate-100 shadow-sm p-5 space-y-4">
+          <AccordionCard title="ポップアップ画像">
             <div>
-              <h2 className="text-sm font-black text-slate-700">ポップアップ画像</h2>
               <p className="mt-1 text-[11px] leading-relaxed text-slate-400">
                 スマホで店舗詳細ページを少し下にスクロールすると、左下から画像が「ポンっ」と跳ねて出ます（スマホ表示のみ。PCでは出ません）。最大3枚まで登録でき、<span className="text-slate-500 font-bold">ページを開くたびに1枚がランダムで表示</span>されます。画像ごとに、自分の店舗内のページ（セラピスト個別ページも含む）へのリンク先を選べます。「表示する」をONにすると公開されます（お客様は✕で閉じられます）。<br />
                 <span className="text-slate-500 font-bold">推奨サイズ：</span>縦長・約2:3（例 800×1200px）／1MB以下／JPEG・PNG・WebP。画像は枠なしで全体が表示されます（切れません）。<span className="text-pink-500 font-bold">背景を透過したPNG（切り抜き画像）</span>にすると、背景に自然に溶け込みます。
@@ -3664,14 +3662,17 @@ export default function MyPage() {
             >
               {savingPopup ? '保存中…' : '保存する'}
             </button>
-          </div>
+          </AccordionCard>
 
           {salon && (
-            <SalonFreePagesManager
-              salonId={Number(salon.id)}
-              onToast={showToast}
-              onPagesChange={setFreePagesForLinks}
-            />
+            <AccordionCard title="フリーページ（最大3）">
+              <SalonFreePagesManager
+                salonId={Number(salon.id)}
+                onToast={showToast}
+                onPagesChange={setFreePagesForLinks}
+                bare
+              />
+            </AccordionCard>
           )}
         </div>
 
