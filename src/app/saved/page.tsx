@@ -228,7 +228,7 @@ export default function SavedPage() {
       <main className="max-w-5xl mx-auto px-4 py-10">
 
         {/* パンくず */}
-        <nav className="flex items-center gap-1.5 text-[13px] text-slate-400 mb-6" aria-label="パンくずリスト">
+        <nav className="flex items-center gap-1.5 text-[13px] text-slate-400 mb-3" aria-label="パンくずリスト">
           <Link href="/" className="hover:text-pink-600 transition-colors">トップ</Link>
           <span className="text-slate-300">›</span>
           <span className="text-slate-600 font-medium">保存した一覧</span>

@@ -10,7 +10,7 @@ export function Breadcrumb({
   root?: { label: string; href: string };
 }) {
   return (
-    <nav aria-label="パンくずリスト" className="flex items-center gap-1.5 mb-6" style={{ fontSize: '13px' }}>
+    <nav aria-label="パンくずリスト" className="flex items-center gap-1.5 mb-3" style={{ fontSize: '13px' }}>
       <Link
         href={root.href}
         className="hover:opacity-80 transition-opacity flex-shrink-0 whitespace-nowrap"

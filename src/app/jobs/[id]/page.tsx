@@ -187,7 +187,7 @@ export default async function JobDetailPage({
         {/* パンくず：フクエスワーク › {サロン名}の求人（末尾は現ページ＝リンクなし）
             1行維持（nowrap）。末尾の「{サロン名}の求人」は flex-1 min-w-0 truncate で
             残り幅を使いつつ省略＝長いサロン名でもモバイルで折り返さない。 */}
-        <nav aria-label="パンくずリスト" className="flex items-center gap-1.5 mb-6" style={{ fontSize: '13px' }}>
+        <nav aria-label="パンくずリスト" className="flex items-center gap-1.5 mb-3" style={{ fontSize: '13px' }}>
           <Link href="/jobs" className="hover:opacity-80 transition-opacity flex-shrink-0 whitespace-nowrap" style={{ color: '#059669' }}>
             フクエスワーク
           </Link>

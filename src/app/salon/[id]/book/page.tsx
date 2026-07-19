@@ -103,7 +103,7 @@ export default async function SalonBookPage({
       <main className="max-w-2xl mx-auto px-4 py-8">
 
         {/* ─── パンくずリスト：トップ › サロン名 › ネット予約 ─── */}
-        <nav aria-label="パンくずリスト" className="flex items-center gap-1.5 mb-6" style={{ fontSize: '13px' }}>
+        <nav aria-label="パンくずリスト" className="flex items-center gap-1.5 mb-3" style={{ fontSize: '13px' }}>
           <Link href="/" className="hover:opacity-80 transition-opacity flex-shrink-0 whitespace-nowrap" style={{ color: '#ec4899' }}>
             トップ
           </Link>

@@ -138,7 +138,7 @@ export default async function TherapistDiaryPage({
       <main className="max-w-4xl mx-auto px-4 py-8">
 
         {/* パンくず：トップ › サロン名 › セラピスト名 › 写メ日記 */}
-        <nav aria-label="パンくずリスト" className="flex items-center gap-1.5 mb-6" style={{ fontSize: '13px' }}>
+        <nav aria-label="パンくずリスト" className="flex items-center gap-1.5 mb-3" style={{ fontSize: '13px' }}>
           <Link href="/" className="hover:opacity-80 transition-opacity flex-shrink-0 whitespace-nowrap" style={{ color: '#ec4899' }}>トップ</Link>
           <span aria-hidden className="flex-shrink-0" style={{ color: '#999' }}>›</span>
           <Link href={`/salon/${tRow.salon_id}`} className="hover:opacity-80 transition-opacity inline-block max-w-[30%] truncate align-middle" style={{ color: '#ec4899' }}>{salonName || '店舗'}</Link>

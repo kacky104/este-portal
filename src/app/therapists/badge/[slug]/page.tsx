@@ -56,7 +56,7 @@ export default async function BadgeLandingPage({ params }: { params: Promise<{ s
 
       <main className="max-w-5xl mx-auto px-4 py-6">
         {/* パンくず的な戻り導線 */}
-        <div className="mb-4 text-sm">
+        <div className="mb-2 text-sm">
           <Link href="/therapists" className="text-slate-500 hover:text-pink-600">特徴からセラピストを探す</Link>
           <span className="text-slate-300 mx-1.5">/</span>
           <span className="text-slate-700">{label}</span>

@@ -60,7 +60,7 @@ export default async function MainColumnCategoryPage({
   return (
     <main className="max-w-3xl mx-auto px-4 py-8">
       {/* パンくず：フクエス › コラム › カテゴリ */}
-      <nav aria-label="パンくずリスト" className="flex items-center gap-1.5 mb-6" style={{ fontSize: '13px' }}>
+      <nav aria-label="パンくずリスト" className="flex items-center gap-1.5 mb-3" style={{ fontSize: '13px' }}>
         <Link href="/" className="text-pink-600 hover:opacity-80 transition-opacity flex-shrink-0 whitespace-nowrap">
           フクエス
         </Link>

@@ -62,7 +62,7 @@ export default async function NotificationsPage() {
       <main className="max-w-2xl mx-auto px-4 py-8 sm:py-10">
 
         {/* パンくず */}
-        <nav className="flex items-center gap-1.5 text-[13px] text-slate-400 mb-6" aria-label="パンくずリスト">
+        <nav className="flex items-center gap-1.5 text-[13px] text-slate-400 mb-3" aria-label="パンくずリスト">
           <Link href="/member" className="hover:text-pink-600 transition-colors">マイページ</Link>
           <span className="text-slate-300">›</span>
           <span className="text-slate-600 font-medium">お知らせ・新着</span>
