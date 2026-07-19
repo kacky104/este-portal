@@ -67,20 +67,50 @@ function EmptyState() {
   );
 }
 
+// 店舗系（店舗／総合）の一覧。行の見た目は共通。
+function SalonList({ items }: { items: SalonRankItem[] }) {
+  if (items.length === 0) return <EmptyState />;
+  return (
+    <ul className="divide-y divide-slate-100">
+      {items.map((s) => (
+        <li key={s.id}>
+          <Link
+            href={`/salon/${s.id}`}
+            className="flex items-center gap-3 px-4 py-3 hover:bg-pink-50/30 transition-colors"
+          >
+            <RankBadge rank={s.rank} />
+            <div className="min-w-0 flex-1">
+              <p className="text-sm font-bold text-slate-800 truncate">{s.name || '—'}</p>
+              <div className="flex flex-wrap items-center gap-1 mt-0.5">
+                <AreaChip area={s.area} />
+                <AreaChip area={s.area2} />
+              </div>
+            </div>
+            <Chevron />
+          </Link>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
 export default function RankingTabs({
+  overallRanking,
   salonRanking,
   therapistRanking,
 }: {
+  overallRanking: SalonRankItem[];
   salonRanking: SalonRankItem[];
   therapistRanking: TherapistRankItem[];
 }) {
-  const [tab, setTab] = useState<'salon' | 'therapist'>('salon');
+  const [tab, setTab] = useState<'overall' | 'salon' | 'therapist'>('overall');
 
   return (
     <div>
-      {/* タブ（店舗 / セラピスト）。/admin 等と同系統のピンクチップ。 */}
+      {/* タブ（総合 / 店舗 / セラピスト）。/admin 等と同系統のピンクチップ。 */}
       <div className="flex justify-center gap-2 mb-5">
         {([
+          ['overall', '総合', overallRanking.length],
           ['salon', '店舗', salonRanking.length],
           ['therapist', 'セラピスト', therapistRanking.length],
         ] as const).map(([key, label, count]) => {
@@ -91,7 +121,7 @@ export default function RankingTabs({
               type="button"
               onClick={() => setTab(key)}
               aria-pressed={selected}
-              className={`inline-flex items-center gap-1.5 px-6 py-2.5 rounded-full border text-sm font-bold transition-colors ${
+              className={`inline-flex items-center gap-1.5 px-5 py-2.5 rounded-full border text-sm font-bold transition-colors ${
                 selected
                   ? 'bg-pink-50 text-pink-600 border-pink-300'
                   : 'bg-white text-slate-400 border-slate-200 hover:text-slate-600 hover:border-slate-300'
@@ -110,33 +140,17 @@ export default function RankingTabs({
         })}
       </div>
 
+      {/* ── 総合ランキング（店舗＋所属セラピストの合算・店舗表示） ── */}
+      {tab === 'overall' && (
+        <div className="bg-white rounded-3xl border border-slate-100 shadow-sm overflow-hidden">
+          <SalonList items={overallRanking} />
+        </div>
+      )}
+
       {/* ── 店舗ランキング ── */}
       {tab === 'salon' && (
         <div className="bg-white rounded-3xl border border-slate-100 shadow-sm overflow-hidden">
-          {salonRanking.length === 0 ? (
-            <EmptyState />
-          ) : (
-            <ul className="divide-y divide-slate-100">
-              {salonRanking.map((s) => (
-                <li key={s.id}>
-                  <Link
-                    href={`/salon/${s.id}`}
-                    className="flex items-center gap-3 px-4 py-3 hover:bg-pink-50/30 transition-colors"
-                  >
-                    <RankBadge rank={s.rank} />
-                    <div className="min-w-0 flex-1">
-                      <p className="text-sm font-bold text-slate-800 truncate">{s.name || '—'}</p>
-                      <div className="flex flex-wrap items-center gap-1 mt-0.5">
-                        <AreaChip area={s.area} />
-                        <AreaChip area={s.area2} />
-                      </div>
-                    </div>
-                    <Chevron />
-                  </Link>
-                </li>
-              ))}
-            </ul>
-          )}
+          <SalonList items={salonRanking} />
         </div>
       )}
 
@@ -185,7 +199,7 @@ export default function RankingTabs({
       )}
 
       <p className="text-[11px] text-slate-400 text-center mt-4 leading-relaxed">
-        ※ ランキングは各詳細ページの週間アクセスをもとに集計しています。<br />
+        ※ 総合は「店舗＋所属セラピスト全員」の週間アクセスを合算した順位です。<br />
         毎週月曜0時（日本時間）に新しい週の集計へ切り替わります。
       </p>
     </div>

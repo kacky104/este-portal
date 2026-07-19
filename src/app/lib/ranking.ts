@@ -190,3 +190,68 @@ export async function fetchRankingHero(): Promise<string | null> {
     .maybeSingle();
   return ((data?.image_url as string | null) ?? null) || null;
 }
+
+// 総合ランキング（店舗ベース）：店舗自身のアクセス + その店舗に所属する在籍セラピスト全員のアクセスを合算。
+// スコア = 店舗(実アクセス+下駄) + Σ 所属セラピスト(実アクセス+下駄)。非表示店舗・退店セラピストは除外。合計0は非表示。
+// 表示形状は店舗ランキングと同じ SalonRankItem。
+export async function fetchOverallWeeklyRanking(limit = 10): Promise<SalonRankItem[]> {
+  const supabase = createPublicClient();
+  const week = currentWeekStartJST();
+
+  // 店舗の週間アクセス
+  const { data: sViewRows } = await supabase
+    .from('page_view_weekly')
+    .select('item_id, views')
+    .eq('item_type', 'salon')
+    .eq('week_start', week);
+  const salonViews = new Map<number, number>();
+  ((sViewRows ?? []) as Array<{ item_id: number; views: number }>).forEach((r) =>
+    salonViews.set(Number(r.item_id), Number(r.views)),
+  );
+
+  // セラピストの週間アクセス
+  const { data: tViewRows } = await supabase
+    .from('page_view_weekly')
+    .select('item_id, views')
+    .eq('item_type', 'therapist')
+    .eq('week_start', week);
+  const therapistViews = new Map<number, number>();
+  ((tViewRows ?? []) as Array<{ item_id: number; views: number }>).forEach((r) =>
+    therapistViews.set(Number(r.item_id), Number(r.views)),
+  );
+
+  // 非表示でない店舗
+  const { data: salonRows } = await supabase
+    .from('salons')
+    .select('id, name, area, area2, ranking_bonus')
+    .eq('is_hidden', false);
+  type S = { id: number; name: string | null; area: string | null; area2: string | null; ranking_bonus: number | null };
+  const salons = (salonRows ?? []) as S[];
+
+  // 在籍セラピスト（非表示店舗所属は除外）を店舗ごとに合算
+  const { data: tRows } = await supabase
+    .from('therapists')
+    .select('id, salon_id, ranking_bonus, is_active, salons!inner(is_hidden)')
+    .eq('is_active', true)
+    .eq('salons.is_hidden', false);
+  type T = { id: number; salon_id: number | null; ranking_bonus: number | null };
+  const therapistContribBySalon = new Map<number, number>();
+  ((tRows ?? []) as unknown as T[]).forEach((t) => {
+    const sid = t.salon_id != null ? Number(t.salon_id) : null;
+    if (sid == null) return;
+    const contrib = (therapistViews.get(Number(t.id)) ?? 0) + Number(t.ranking_bonus ?? 0);
+    therapistContribBySalon.set(sid, (therapistContribBySalon.get(sid) ?? 0) + contrib);
+  });
+
+  return salons
+    .map((s) => {
+      const id = Number(s.id);
+      const score =
+        (salonViews.get(id) ?? 0) + Number(s.ranking_bonus ?? 0) + (therapistContribBySalon.get(id) ?? 0);
+      return { id, name: s.name ?? '', area: s.area ?? null, area2: s.area2 ?? null, _score: score };
+    })
+    .filter((x) => x._score > 0)
+    .sort((a, b) => b._score - a._score || a.id - b.id)
+    .slice(0, limit)
+    .map((x, i) => ({ rank: i + 1, id: x.id, name: x.name, area: x.area, area2: x.area2 }));
+}

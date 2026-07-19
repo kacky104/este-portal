@@ -6,6 +6,7 @@ import { NotificationBell } from '@/app/components/NotificationBell';
 import { VipLetterIcon } from '@/app/components/VipLetterIcon';
 import { Breadcrumb } from '@/app/components/Breadcrumb';
 import {
+  fetchOverallWeeklyRanking,
   fetchSalonWeeklyRanking,
   fetchTherapistWeeklyRanking,
   fetchRankingHero,
@@ -33,8 +34,9 @@ export const metadata: Metadata = {
 };
 
 export default async function RankingPage() {
-  const [salonRanking, therapistRanking, heroUrl] = await Promise.all([
-    fetchSalonWeeklyRanking(10),   // 店舗はトップ10まで
+  const [overallRanking, salonRanking, therapistRanking, heroUrl] = await Promise.all([
+    fetchOverallWeeklyRanking(10),  // 総合（店舗＋所属セラピスト）トップ10
+    fetchSalonWeeklyRanking(10),    // 店舗はトップ10まで
     fetchTherapistWeeklyRanking(30),
     fetchRankingHero(),
   ]);
@@ -69,7 +71,7 @@ export default async function RankingPage() {
 
         {/* 見出し以降（コンテナ内・左右余白あり） */}
         <div className="max-w-3xl mx-auto px-4">
-        <RankingTabs salonRanking={salonRanking} therapistRanking={therapistRanking} />
+        <RankingTabs overallRanking={overallRanking} salonRanking={salonRanking} therapistRanking={therapistRanking} />
         </div>
       </main>
 
