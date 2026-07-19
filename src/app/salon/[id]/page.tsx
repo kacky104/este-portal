@@ -690,7 +690,7 @@ export default async function SalonPage({
 
             {/* Today's therapists（枠内の上下余白を半分に：p-5→px-5 py-2.5。写メ日記との間隔は mt-4→mt-[5px] で約1/3に） */}
             <div className="mt-[5px] rounded-3xl px-5 py-2.5 border shadow-sm" style={{ backgroundColor: theme.card, borderColor: theme.cardBorder }}>
-              <div className="flex items-center justify-between gap-2 mb-4">
+              <div className="flex items-center justify-between gap-2 mb-2">
                 <div className="flex items-center gap-2 min-w-0">
                   <span className="w-1 h-6 rounded-full bg-gradient-to-b from-pink-500 to-pink-700 flex-shrink-0" />
                   <h2 className="text-base font-bold" style={{ color: theme.heading }}>本日の出勤セラピスト<span className="text-2xl font-extrabold mx-1" style={{ color: '#ec4899' }}>{todayScheduledCount}</span>人</h2>
