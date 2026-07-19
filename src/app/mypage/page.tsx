@@ -22,6 +22,7 @@ import { PAYMENT_METHOD_OPTIONS } from '@/app/lib/paymentMethods';
 import { getSalonBookings, updateBookingStatus, deleteBooking, type OwnerBooking } from '@/app/actions/booking';
 import { callbackPrefLabel } from '@/app/lib/booking/callbackPref';
 import { STORAGE_CACHE_CONTROL } from '@/app/lib/storage';
+import SalonFreePagesManager from '@/app/components/SalonFreePagesManager';
 import { useToast } from '@/app/components/useToast';
 
 const supabase = createClient();
@@ -395,6 +396,13 @@ type Salon = {
   popup_image_url3: string | null;
   popup_link3: string | null;
   popup_enabled: boolean | null;
+  detail_banner_enabled: boolean | null;
+  detail_banner_image_url: string | null;
+  detail_banner_link: string | null;
+  detail_banner_image_url2: string | null;
+  detail_banner_link2: string | null;
+  detail_banner_image_url3: string | null;
+  detail_banner_link3: string | null;
 };
 
 type Therapist = {
@@ -428,11 +436,19 @@ const POPUP_COLS = [
   { img: 'popup_image_url3', link: 'popup_link3' },
 ] as const;
 
+// 詳細ページバナー（最大3枚）→ salons の列名の対応。
+const DETAIL_COLS = [
+  { img: 'detail_banner_image_url',  link: 'detail_banner_link'  },
+  { img: 'detail_banner_image_url2', link: 'detail_banner_link2' },
+  { img: 'detail_banner_image_url3', link: 'detail_banner_link3' },
+] as const;
+
 // ポップアップのリンク先候補。自分のサロン内のページ＋自店セラピストの個別ページのみ（外部URLは選べない）。
 // value は保存される実パス。'' は「リンクなし」。
 function popupLinkOptions(
   salonId: string | number,
   therapists: { id: string; name: string | null }[] = [],
+  freePages: { id: number; title: string }[] = [],
 ): { label: string; value: string }[] {
   const base = `/salon/${salonId}`;
   const pages = [
@@ -452,7 +468,10 @@ function popupLinkOptions(
   const therapistPages = therapists
     .filter((t) => t.id != null && String(t.id).trim() !== '')
     .map((t) => ({ label: `セラピスト：${t.name ?? '（名前未設定）'}`, value: `/therapist/${t.id}` }));
-  return [...pages, ...therapistPages];
+  const freePageLinks = freePages
+    .filter((fp) => fp.id != null)
+    .map((fp) => ({ label: `フリーページ：${fp.title || '（無題）'}`, value: `/salon/${salonId}/p/${fp.id}` }));
+  return [...pages, ...therapistPages, ...freePageLinks];
 }
 
 export default function MyPage() {
@@ -493,6 +512,12 @@ export default function MyPage() {
   const [popupLinks,   setPopupLinks]   = useState<string[]>(['', '', '']);
   const [popupEnabled, setPopupEnabled] = useState(false);
   const [uploadingPopupSlot, setUploadingPopupSlot] = useState<number | null>(null);
+  const [detailBanners, setDetailBanners] = useState<(string | null)[]>([null, null, null]);
+  const [detailLinks, setDetailLinks] = useState<string[]>(['', '', '']);
+  const [detailEnabled, setDetailEnabled] = useState(false);
+  const [uploadingDetailSlot, setUploadingDetailSlot] = useState<number | null>(null);
+  const [savingDetail, setSavingDetail] = useState(false);
+  const [freePagesForLinks, setFreePagesForLinks] = useState<{ id: number; title: string }[]>([]);
   const [savingPopup,  setSavingPopup]  = useState(false);
   const [savingTheme, setSavingTheme] = useState(false); // テーマ（店舗装飾タブ）保存中
   const [uploadingNewSlot,  setUploadingNewSlot]  = useState(false);
@@ -580,7 +605,7 @@ export default function MyPage() {
 
       const { data: salonData, error: salonError } = await supabase
         .from('salons')
-        .select('id, name, rating, review_count, tags, price, area, hours, description, appeal, catchphrase, therapist_count, therapist_types, therapist_profile, phone, address, access, closed_days, courses, theme, official_url, fukux_url, payment_url, payment_cards, payment_methods, booking_enabled, booking_email, booking_courses, jobs_enabled, popup_image_url, popup_link, popup_image_url2, popup_link2, popup_image_url3, popup_link3, popup_enabled')
+        .select('id, name, rating, review_count, tags, price, area, hours, description, appeal, catchphrase, therapist_count, therapist_types, therapist_profile, phone, address, access, closed_days, courses, theme, official_url, fukux_url, payment_url, payment_cards, payment_methods, booking_enabled, booking_email, booking_courses, jobs_enabled, popup_image_url, popup_link, popup_image_url2, popup_link2, popup_image_url3, popup_link3, popup_enabled, detail_banner_enabled, detail_banner_image_url, detail_banner_link, detail_banner_image_url2, detail_banner_link2, detail_banner_image_url3, detail_banner_link3')
         .eq('owner_id', user.id)
         .single();
 
@@ -611,6 +636,17 @@ export default function MyPage() {
         salonData.popup_link3 ?? '',
       ]);
       setPopupEnabled(Boolean(salonData.popup_enabled));
+      setDetailBanners([
+        salonData.detail_banner_image_url  ?? null,
+        salonData.detail_banner_image_url2 ?? null,
+        salonData.detail_banner_image_url3 ?? null,
+      ]);
+      setDetailLinks([
+        salonData.detail_banner_link  ?? '',
+        salonData.detail_banner_link2 ?? '',
+        salonData.detail_banner_link3 ?? '',
+      ]);
+      setDetailEnabled(Boolean(salonData.detail_banner_enabled));
 
       // ネット予約の受付一覧を取得（オーナー検証＋service_role はサーバーアクション側）。
       // 失敗時はエラーを握り潰さず表示する（silent 0件を防ぐ）。
@@ -812,6 +848,55 @@ export default function MyPage() {
     if (error) { showToast(`保存に失敗しました: ${error.message}`); return; }
     revalidateSalon(salon.id);
     showToast('テーマを保存しました');
+  };
+
+  // ── 詳細ページバナー：画像アップロード/削除/保存（ポップアップと同方式） ──
+  const handleDetailImageUpload = async (slot: number, e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !salon) return;
+    const err = validateImageFile(file);
+    if (err) { showToast(err); return; }
+    setUploadingDetailSlot(slot);
+    const ext  = file.name.split('.').pop() ?? 'jpg';
+    const path = `${Number(salon.id)}/detailbanner${slot + 1}_${Date.now()}.${ext}`;
+    const { error: uploadError } = await supabase.storage.from('salon-images').upload(path, file, { upsert: false, cacheControl: STORAGE_CACHE_CONTROL });
+    if (uploadError) { showToast(`アップロードに失敗しました: ${uploadError.message}`); setUploadingDetailSlot(null); e.target.value = ''; return; }
+    const { data: { publicUrl } } = supabase.storage.from('salon-images').getPublicUrl(path);
+    const { error: dbErr } = await supabase.from('salons').update({ [DETAIL_COLS[slot].img]: publicUrl }).eq('id', salon.id);
+    setUploadingDetailSlot(null); e.target.value = '';
+    if (dbErr) { showToast(`保存に失敗しました: ${dbErr.message}`); await supabase.storage.from('salon-images').remove([path]); return; }
+    const oldUrl = detailBanners[slot];
+    setDetailBanners(prev => prev.map((u, i) => (i === slot ? publicUrl : u)));
+    if (oldUrl) storageRemove(oldUrl);
+    revalidateSalon(salon.id);
+    showToast('バナー画像をアップロードしました');
+  };
+
+  const handleDetailImageDelete = async (slot: number) => {
+    if (!salon) return;
+    const url = detailBanners[slot];
+    if (!url) return;
+    if (!window.confirm('この画像を削除しますか？')) return;
+    const { error } = await supabase.from('salons').update({ [DETAIL_COLS[slot].img]: null }).eq('id', salon.id);
+    if (error) { showToast(`削除に失敗しました: ${error.message}`); return; }
+    storageRemove(url);
+    setDetailBanners(prev => prev.map((u, i) => (i === slot ? null : u)));
+    revalidateSalon(salon.id);
+    showToast('画像を削除しました');
+  };
+
+  const handleDetailSave = async () => {
+    if (!salon) return;
+    const anyImage = detailBanners.some(Boolean);
+    if (detailEnabled && !anyImage) { showToast('先に画像を1枚以上アップロードしてください'); return; }
+    setSavingDetail(true);
+    const update: Record<string, unknown> = { detail_banner_enabled: detailEnabled };
+    DETAIL_COLS.forEach((c, i) => { update[c.link] = detailLinks[i].trim() || null; });
+    const { error } = await supabase.from('salons').update(update).eq('id', salon.id);
+    setSavingDetail(false);
+    if (error) { showToast(`保存に失敗しました: ${error.message}`); return; }
+    revalidateSalon(salon.id);
+    showToast('保存しました');
   };
 
   const handlePopupSave = async () => {
@@ -3454,6 +3539,63 @@ export default function MyPage() {
             </button>
           </div>
 
+          {/* ── 詳細ページ バナー（最大3・出勤セラピストの下に縦表示） ── */}
+          <div className="bg-white rounded-3xl border border-slate-100 shadow-sm p-5 space-y-4">
+            <div>
+              <h2 className="text-sm font-black text-slate-700">詳細ページ バナー（最大3）</h2>
+              <p className="mt-1 text-[11px] leading-relaxed text-slate-400">
+                店舗詳細ページの「本日の出勤セラピスト」の下に、登録した順で縦に表示されます（最大3枚）。各バナーにリンク先（自店ページ・フリーページ）を設定でき、「表示する」をONにすると公開されます。<br />
+                推奨：横長バナー（PC比率 約31:9・例 1240×360px）／各5MBまで／JPEG・PNG・WebP。
+              </p>
+            </div>
+            {[0, 1, 2].map((slot) => (
+              <div key={slot} className="rounded-2xl border border-slate-100 p-3 space-y-2">
+                <p className="text-[11px] font-bold text-slate-500">バナー {slot + 1}</p>
+                <div className="rounded-xl border border-slate-200 overflow-hidden bg-slate-50 aspect-[31/9] flex items-center justify-center">
+                  {detailBanners[slot] ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={detailBanners[slot] as string} alt={`バナー${slot + 1}プレビュー`} className="w-full h-full object-cover" />
+                  ) : (
+                    <span className="text-[10px] text-slate-400">未設定</span>
+                  )}
+                </div>
+                <div className="flex flex-wrap items-center gap-2">
+                  <label className="inline-block">
+                    <span className={`inline-flex items-center gap-1 px-3 py-1.5 rounded-full text-[11px] font-bold ${uploadingDetailSlot === slot ? 'bg-slate-100 text-slate-400 cursor-default' : 'bg-pink-50 text-pink-600 border border-pink-300 hover:bg-pink-100 cursor-pointer'}`}>
+                      {uploadingDetailSlot === slot ? 'アップロード中…' : (detailBanners[slot] ? '画像を差し替える' : '画像をアップロード')}
+                    </span>
+                    <input type="file" accept="image/jpeg,image/png,image/webp" className="hidden" onChange={(e) => handleDetailImageUpload(slot, e)} disabled={uploadingDetailSlot === slot} />
+                  </label>
+                  {detailBanners[slot] && (
+                    <button type="button" onClick={() => handleDetailImageDelete(slot)} className="text-[11px] text-slate-400 hover:text-red-500 underline">
+                      画像を削除
+                    </button>
+                  )}
+                </div>
+                <label className="block text-[10px] text-slate-500">クリック時のリンク先</label>
+                <select
+                  value={detailLinks[slot]}
+                  onChange={(e) => setDetailLinks(prev => prev.map((l, i) => (i === slot ? e.target.value : l)))}
+                  className="w-full rounded-lg border border-slate-200 px-3 py-2 text-xs bg-white focus:outline-none focus:border-pink-300"
+                >
+                  {(salon ? popupLinkOptions(salon.id, therapists, freePagesForLinks) : [{ label: 'リンクなし', value: '' }]).map((opt) => (
+                    <option key={opt.value || 'none'} value={opt.value}>{opt.label}</option>
+                  ))}
+                </select>
+              </div>
+            ))}
+            <div>
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input type="checkbox" checked={detailEnabled} onChange={(e) => setDetailEnabled(e.target.checked)} className="w-4 h-4 accent-pink-500" />
+                <span className="text-sm font-bold text-slate-700">店舗詳細ページに表示する</span>
+              </label>
+              <p className="mt-1 text-[10px] text-slate-400">※ 画像を1枚以上設定してONにしたときだけ表示されます。</p>
+            </div>
+            <button type="button" onClick={handleDetailSave} disabled={savingDetail} className="w-full py-2.5 rounded-full bg-pink-500 text-white text-sm font-bold hover:bg-pink-600 disabled:opacity-50">
+              {savingDetail ? '保存中…' : '保存する'}
+            </button>
+          </div>
+
           <div className="bg-white rounded-3xl border border-slate-100 shadow-sm p-5 space-y-4">
             <div>
               <h2 className="text-sm font-black text-slate-700">ポップアップ画像</h2>
@@ -3494,7 +3636,7 @@ export default function MyPage() {
                       onChange={(e) => setPopupLinks(prev => prev.map((l, i) => (i === slot ? e.target.value : l)))}
                       className="w-full rounded-lg border border-slate-200 px-3 py-2 text-xs bg-white focus:outline-none focus:border-pink-300"
                     >
-                      {(salon ? popupLinkOptions(salon.id, therapists) : [{ label: 'リンクなし', value: '' }]).map((opt) => (
+                      {(salon ? popupLinkOptions(salon.id, therapists, freePagesForLinks) : [{ label: 'リンクなし', value: '' }]).map((opt) => (
                         <option key={opt.value || 'none'} value={opt.value}>{opt.label}</option>
                       ))}
                     </select>
@@ -3522,6 +3664,14 @@ export default function MyPage() {
               {savingPopup ? '保存中…' : '保存する'}
             </button>
           </div>
+
+          {salon && (
+            <SalonFreePagesManager
+              salonId={Number(salon.id)}
+              onToast={showToast}
+              onPagesChange={setFreePagesForLinks}
+            />
+          )}
         </div>
 
         {/* ── 運営から（お知らせ受信＋お問い合わせ） ── */}

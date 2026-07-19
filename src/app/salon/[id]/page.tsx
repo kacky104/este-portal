@@ -248,6 +248,21 @@ export default async function SalonPage({
   };
 
   const theme = getTheme(row.theme as string | null);
+
+  // 詳細ページバナー（最大3・有効時のみ）。/mypage 店舗装飾で設定。
+  // 列が未追加の環境でも本体表示を壊さないよう単独取得（失敗＝バナー無し扱い）。
+  const { data: bannerRow } = await supabase
+    .from('salons')
+    .select('detail_banner_enabled, detail_banner_image_url, detail_banner_link, detail_banner_image_url2, detail_banner_link2, detail_banner_image_url3, detail_banner_link3')
+    .eq('id', Number(id))
+    .maybeSingle();
+  const detailBanners = (bannerRow && bannerRow.detail_banner_enabled)
+    ? [
+        { img: bannerRow.detail_banner_image_url as string | null,  link: (bannerRow.detail_banner_link as string | null) ?? '' },
+        { img: bannerRow.detail_banner_image_url2 as string | null, link: (bannerRow.detail_banner_link2 as string | null) ?? '' },
+        { img: bannerRow.detail_banner_image_url3 as string | null, link: (bannerRow.detail_banner_link3 as string | null) ?? '' },
+      ].filter((b): b is { img: string; link: string } => Boolean(b.img))
+    : [];
   const qn = QUICKNAV_COLORS[theme.key];
   const heart = HEART_COLORS[theme.key];
 
@@ -695,6 +710,23 @@ export default async function SalonPage({
               </div>
               <SalonTherapists salonId={Number(id)} />
             </div>
+
+            {/* 詳細バナー枠（最大3・出勤セラピストの下）。SP: 高さ156px（PUバナーの3/4）／PC: aspect 31:9。クリックでリンク先へ。 */}
+            {detailBanners.length > 0 && (
+              <div className="mt-3 space-y-3">
+                {detailBanners.map((b, i) => {
+                  const img = (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={b.img} alt="" className="block w-full h-[156px] sm:h-auto sm:aspect-[31/9] object-cover rounded-2xl shadow-sm" />
+                  );
+                  return b.link ? (
+                    <Link key={i} href={b.link} className="block">{img}</Link>
+                  ) : (
+                    <div key={i}>{img}</div>
+                  );
+                })}
+              </div>
+            )}
 
             {/* Courses — shown only when DB data is available（折り畳み式） */}
             {salon.courses.length > 0 && (
