@@ -107,37 +107,34 @@ export default function RankingTabs({
 
   return (
     <div>
-      {/* タブ（総合 / 店舗 / セラピスト）。/admin 等と同系統のピンクチップ。 */}
-      <div className="flex justify-center gap-2 mb-5">
-        {([
-          ['overall', '総合', overallRanking.length],
-          ['salon', '店舗', salonRanking.length],
-          ['therapist', 'セラピスト', therapistRanking.length],
-        ] as const).map(([key, label, count]) => {
-          const selected = tab === key;
-          return (
-            <button
-              key={key}
-              type="button"
-              onClick={() => setTab(key)}
-              aria-pressed={selected}
-              className={`inline-flex items-center gap-1.5 px-5 py-2.5 rounded-full border text-sm font-bold transition-colors ${
-                selected
-                  ? 'bg-pink-50 text-pink-600 border-pink-300'
-                  : 'bg-white text-slate-400 border-slate-200 hover:text-slate-600 hover:border-slate-300'
-              }`}
-            >
-              {label}
-              <span
-                className={`inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 rounded-full text-[10px] font-black leading-none ${
-                  selected ? 'bg-pink-500 text-white' : 'bg-slate-100 text-slate-400'
+      {/* タブ（総合 / 店舗 / セラピスト）。角なし・隙間なしのセグメント。スマホは幅いっぱい、PCは中央寄せ・自動幅。 */}
+      <div className="flex sm:justify-center mb-5">
+        <div className="flex w-full sm:w-auto">
+          {([
+            ['overall', '総合'],
+            ['salon', '店舗'],
+            ['therapist', 'セラピスト'],
+          ] as const).map(([key, label], i) => {
+            const selected = tab === key;
+            return (
+              <button
+                key={key}
+                type="button"
+                onClick={() => setTab(key)}
+                aria-pressed={selected}
+                className={`flex-1 sm:flex-none flex items-center justify-center px-2 sm:px-10 py-2.5 border text-sm font-bold transition-colors ${
+                  i > 0 ? '-ml-px' : ''
+                } ${
+                  selected
+                    ? 'relative z-10 bg-pink-50 text-pink-600 border-pink-300'
+                    : 'bg-white text-slate-400 border-slate-200 hover:text-slate-600 hover:border-slate-300'
                 }`}
               >
-                {count}
-              </span>
-            </button>
-          );
-        })}
+                {label}
+              </button>
+            );
+          })}
+        </div>
       </div>
 
       {/* ── 総合ランキング（店舗＋所属セラピストの合算・店舗表示） ── */}
