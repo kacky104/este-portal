@@ -276,7 +276,7 @@ export default async function Home() {
                       style={{ background: 'linear-gradient(to right, #F59E0B, #EC4899)' }}
                     >
                       <span aria-hidden>👑</span>
-                      週間ランキングを見る
+                      ランキングを見る
                       <span aria-hidden>→</span>
                     </Link>
                   </div>
