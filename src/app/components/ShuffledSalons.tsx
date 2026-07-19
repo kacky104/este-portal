@@ -365,7 +365,7 @@ export function SalonCard({ salon, therapists, showAge = false, areaNextToDuty =
   );
   // キャッチフレーズ（TOP/地域の店舗カード：出勤数・地域バッジの上）。セラピストPUキャプションと同配色・サイズ。
   const catchEl = salon.catchphrase ? (
-    <p className="px-1 mb-1.5 text-center whitespace-nowrap overflow-hidden text-ellipsis font-bold text-slate-600 leading-tight text-[12px]">
+    <p className="px-1 mb-1.5 text-left whitespace-nowrap overflow-hidden text-ellipsis font-bold text-slate-600 leading-tight text-[12px]">
       {salon.catchphrase}
     </p>
   ) : null;
