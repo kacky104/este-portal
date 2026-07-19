@@ -112,19 +112,17 @@ export default async function SalonFreePage({
         </nav>
 
         <article className="rounded-2xl border shadow-sm p-6" style={{ backgroundColor: theme.card, borderColor: theme.cardBorder }}>
+          {images.length > 0 && (
+            <div className="mb-4">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={images[0]} alt="" className="block w-full h-auto rounded-xl" />
+            </div>
+          )}
           {title && (
             <h1 className="text-xl sm:text-2xl font-bold mb-4 break-words" style={{ color: theme.heading }}>{title}</h1>
           )}
           {body && (
-            <p className="text-sm leading-relaxed whitespace-pre-wrap break-words mb-4" style={{ color: theme.body }}>{body}</p>
-          )}
-          {images.length > 0 && (
-            <div className="space-y-3">
-              {images.map((src, i) => (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img key={i} src={src} alt="" className="block w-full h-auto rounded-xl" />
-              ))}
-            </div>
+            <p className="text-sm leading-relaxed whitespace-pre-wrap break-words" style={{ color: theme.body }}>{body}</p>
           )}
           {!title && !body && images.length === 0 && (
             <p className="text-sm text-center py-8" style={{ color: theme.body }}>このページにはまだ内容がありません。</p>

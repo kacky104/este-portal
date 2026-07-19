@@ -108,6 +108,7 @@ export default function SalonFreePagesManager({
   };
 
   const uploadImage = async (page: FreePage, file: File) => {
+    if (page.images.length >= 1) { onToast('画像は1枚までです（差し替えは × で削除してから）'); return; }
     if (!/^image\/(jpeg|png|webp)$/.test(file.type)) { onToast('JPEG / PNG / WebP のみ'); return; }
     if (file.size > 5 * 1024 * 1024) { onToast('画像は5MBまでです'); return; }
     setBusyId(page.id);
@@ -125,7 +126,7 @@ export default function SalonFreePagesManager({
     const el = fileRefs.current[page.id];
     if (el) el.value = '';
     revalidateSalon(salonId);
-    onToast('画像を追加しました');
+    onToast('画像を設定しました');
   };
 
   const removeImage = async (page: FreePage, idx: number) => {
@@ -168,33 +169,11 @@ export default function SalonFreePagesManager({
               </div>
 
               <div>
-                <label className="text-[11px] font-bold text-slate-400 block mb-1">タイトル（最大60文字）</label>
-                <input
-                  type="text"
-                  maxLength={60}
-                  value={page.title}
-                  onChange={(e) => setField(page.id, { title: e.target.value.slice(0, 60) })}
-                  placeholder="例：8月限定キャンペーンのご案内"
-                  className="w-full px-3 py-2 rounded-xl border border-slate-200 text-sm bg-slate-50/50 focus:outline-none focus:ring-2 focus:ring-pink-200"
-                />
-              </div>
-
-              <div>
-                <label className="text-[11px] font-bold text-slate-400 block mb-1">本文（改行できます）</label>
-                <textarea
-                  rows={5}
-                  value={page.body}
-                  onChange={(e) => setField(page.id, { body: e.target.value })}
-                  className="w-full px-3 py-2 rounded-xl border border-slate-200 text-sm bg-slate-50/50 focus:outline-none focus:ring-2 focus:ring-pink-200 resize-none"
-                />
-              </div>
-
-              <div>
-                <label className="text-[11px] font-bold text-slate-400 block mb-1">画像</label>
+                <label className="text-[11px] font-bold text-slate-400 block mb-1">画像（1枚）</label>
                 {page.images.length > 0 && (
                   <div className="flex flex-wrap gap-2 mb-2">
                     {page.images.map((src, idx) => (
-                      <div key={idx} className="relative w-20 h-20 rounded-lg overflow-hidden border border-slate-200">
+                      <div key={idx} className="relative w-28 h-20 rounded-lg overflow-hidden border border-slate-200">
                         {/* eslint-disable-next-line @next/next/no-img-element */}
                         <img src={src} alt="" className="w-full h-full object-cover" />
                         <button
@@ -216,15 +195,39 @@ export default function SalonFreePagesManager({
                   className="hidden"
                   onChange={(e) => { const f = e.target.files?.[0]; if (f) uploadImage(page, f); }}
                 />
-                <button
-                  type="button"
-                  onClick={() => fileRefs.current[page.id]?.click()}
-                  disabled={busyId === page.id}
-                  className="inline-flex items-center gap-1 px-3 py-1.5 rounded-full text-[11px] font-bold bg-pink-50 text-pink-600 border border-pink-300 hover:bg-pink-100 disabled:opacity-50"
-                >
-                  {busyId === page.id ? 'アップロード中…' : '画像を追加'}
-                </button>
-                <p className="mt-1 text-[10px] text-slate-400">JPEG・PNG・WebP／各5MBまで。画像はページ内に縦に並びます。</p>
+                {page.images.length === 0 && (
+                  <button
+                    type="button"
+                    onClick={() => fileRefs.current[page.id]?.click()}
+                    disabled={busyId === page.id}
+                    className="inline-flex items-center gap-1 px-3 py-1.5 rounded-full text-[11px] font-bold bg-pink-50 text-pink-600 border border-pink-300 hover:bg-pink-100 disabled:opacity-50"
+                  >
+                    {busyId === page.id ? 'アップロード中…' : '画像を追加'}
+                  </button>
+                )}
+                <p className="mt-1 text-[10px] text-slate-400">JPEG・PNG・WebP／5MBまで（1枚のみ）。差し替えは × で削除してから追加してください。</p>
+              </div>
+
+              <div>
+                <label className="text-[11px] font-bold text-slate-400 block mb-1">タイトル（最大60文字）</label>
+                <input
+                  type="text"
+                  maxLength={60}
+                  value={page.title}
+                  onChange={(e) => setField(page.id, { title: e.target.value.slice(0, 60) })}
+                  placeholder="例：8月限定キャンペーンのご案内"
+                  className="w-full px-3 py-2 rounded-xl border border-slate-200 text-sm bg-slate-50/50 focus:outline-none focus:ring-2 focus:ring-pink-200"
+                />
+              </div>
+
+              <div>
+                <label className="text-[11px] font-bold text-slate-400 block mb-1">本文（改行できます）</label>
+                <textarea
+                  rows={5}
+                  value={page.body}
+                  onChange={(e) => setField(page.id, { body: e.target.value })}
+                  className="w-full px-3 py-2 rounded-xl border border-slate-200 text-sm bg-slate-50/50 focus:outline-none focus:ring-2 focus:ring-pink-200 resize-none"
+                />
               </div>
 
               <button
