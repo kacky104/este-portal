@@ -56,17 +56,21 @@ export default async function RankingPage() {
         </div>
       </header>
 
-      {/* ヒーロー（ヘッダー）画像：全幅ぴったり（角丸・左右余白・影なし・端まで）。
-          /admin で設定・未設定なら非表示。next/image ではなく素の img で元の縦横比のまま全幅表示。 */}
-      {heroUrl && (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img src={heroUrl} alt="週間ランキング" className="block w-full h-auto" />
-      )}
+      <main className="pb-10">
+        {/* パンくず（コンテナ内・左右余白あり） */}
+        <div className="max-w-3xl mx-auto px-4 pt-10">
+          <Breadcrumb current="週間ランキング" />
+        </div>
 
-      <main className="max-w-3xl mx-auto px-4 py-10">
-        {/* Back link */}
-        <Breadcrumb current="週間ランキング" />
+        {/* ヒーロー（ヘッダー）画像：パンくずの下・見出しの上に、幅いっぱい（ビューポート端まで・角丸/左右余白なし）。
+            /admin で設定・未設定なら非表示。next/image ではなく素の img で元の縦横比のまま全幅表示。 */}
+        {heroUrl && (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={heroUrl} alt="週間ランキング" className="block w-full h-auto mb-6" />
+        )}
 
+        {/* 見出し以降（コンテナ内・左右余白あり） */}
+        <div className="max-w-3xl mx-auto px-4">
         {/* Heading（中央寄せ・金→ピンクのグラデ。王冠アイコン付き） */}
         <div className="mb-2 text-center">
           <h1
@@ -86,6 +90,7 @@ export default async function RankingPage() {
         <p className="text-xs text-slate-400 text-center mb-8">{weekLabel} の集計</p>
 
         <RankingTabs salonRanking={salonRanking} therapistRanking={therapistRanking} />
+        </div>
       </main>
 
       {/* ─── Footer ──────────────────────────────────────── */}
