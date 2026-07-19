@@ -56,20 +56,16 @@ export default async function RankingPage() {
         </div>
       </header>
 
+      {/* ヒーロー（ヘッダー）画像：全幅ぴったり（角丸・左右余白・影なし・端まで）。
+          /admin で設定・未設定なら非表示。next/image ではなく素の img で元の縦横比のまま全幅表示。 */}
+      {heroUrl && (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img src={heroUrl} alt="週間ランキング" className="block w-full h-auto" />
+      )}
+
       <main className="max-w-3xl mx-auto px-4 py-10">
         {/* Back link */}
         <Breadcrumb current="週間ランキング" />
-
-        {/* ヒーロー（ヘッダー）画像：/admin で設定。未設定なら非表示。
-            任意サイズをそのまま横幅いっぱいで表示（next/image ではなく素の img）。 */}
-        {heroUrl && (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
-            src={heroUrl}
-            alt="週間ランキング"
-            className="w-full h-auto rounded-2xl mb-6 shadow-sm"
-          />
-        )}
 
         {/* Heading（中央寄せ・金→ピンクのグラデ。王冠アイコン付き） */}
         <div className="mb-2 text-center">
