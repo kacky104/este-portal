@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, type CSSProperties } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { Logo } from '@/app/components/Logo';
@@ -115,11 +115,13 @@ export default function RankingTabs({
   salonRanking,
   therapistRanking,
   heroUrl,
+  wallpapers,
 }: {
   overallRanking: SalonRankItem[];
   salonRanking: SalonRankItem[];
   therapistRanking: TherapistRankItem[];
   heroUrl: string | null;
+  wallpapers: Record<string, string>;
 }) {
   const [tab, setTab] = useState<TabKey>('overall');
   const theme = getTheme(TAB_THEME[tab]);
@@ -129,8 +131,25 @@ export default function RankingTabs({
     borderColor: theme.cardBorder,
   } as const;
 
+  // テーマ壁紙（設定があれば）をテーマ色の半透明オーバーレイ越しに敷く。サロン詳細と同じ方式。
+  // 未設定テーマは単色（theme.bg）。固定レイヤーにして長い一覧でも背景が動かないようにする。
+  const wallpaperUrl = wallpapers[theme.key] ?? null;
+  const bgLayerStyle: CSSProperties = {
+    backgroundColor: theme.bg,
+    ...(wallpaperUrl
+      ? {
+          backgroundImage: `linear-gradient(${theme.bg}D9, ${theme.bg}D9), url(${wallpaperUrl})`,
+          backgroundSize: 'cover',
+          backgroundPosition: 'center',
+        }
+      : {}),
+  };
+
   return (
-    <div className="min-h-screen transition-colors duration-300" style={{ background: theme.bg, color: theme.text }}>
+    <div className="min-h-screen transition-colors duration-300" style={{ color: theme.text }}>
+      {/* テーマ背景（壁紙＋オーバーレイ）を全面に固定配置。コンテンツはこの上に重なる。 */}
+      <div className="fixed inset-0 -z-10 transition-colors duration-300" style={bgLayerStyle} aria-hidden />
+
       {/* ─── Header（テーマに関わらず白のバー） ─── */}
       <header className="sticky top-0 z-50 bg-white/90 backdrop-blur-md border-b border-slate-200 shadow-sm">
         <div className="max-w-5xl mx-auto px-4 h-14 flex items-center justify-between">

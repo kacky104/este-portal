@@ -255,3 +255,15 @@ export async function fetchOverallWeeklyRanking(limit = 10): Promise<SalonRankIt
     .slice(0, limit)
     .map((x, i) => ({ rank: i + 1, id: x.id, name: x.name, area: x.area, area2: x.area2 }));
 }
+
+// テーマ壁紙（theme_wallpapers）を theme_key → 画像URL のマップで返す。未設定キーは含まれない。
+// ランキングはタブでテーマが変わるため、必要なテーマ分をまとめて取得してクライアントに渡す。
+export async function fetchThemeWallpapers(): Promise<Record<string, string>> {
+  const supabase = createPublicClient();
+  const { data } = await supabase.from('theme_wallpapers').select('theme_key, image_url');
+  const map: Record<string, string> = {};
+  ((data ?? []) as Array<{ theme_key: string; image_url: string }>).forEach((r) => {
+    if (r.theme_key && r.image_url) map[r.theme_key] = r.image_url;
+  });
+  return map;
+}
