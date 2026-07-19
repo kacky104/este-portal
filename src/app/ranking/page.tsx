@@ -3,7 +3,7 @@ import {
   fetchOverallWeeklyRanking,
   fetchSalonWeeklyRanking,
   fetchTherapistWeeklyRanking,
-  fetchRankingHero,
+  fetchRankingHeroes,
   fetchThemeWallpapers,
 } from '@/app/lib/ranking';
 import RankingTabs from './RankingTabs';
@@ -28,14 +28,14 @@ export const metadata: Metadata = {
   },
 };
 
-// 本体（ヘッダー・パンくず・ヒーロー・タブ・一覧・フッター）はタブごとにテーマを切り替えるため
-// クライアント部品 RankingTabs 側に集約。ここではデータ取得とメタのみ担う。
+// 本体（ヘッダー・パンくず・ヒーロー・タブ・一覧・フッター）はタブごとにテーマ・ヒーロー画像を
+// 切り替えるためクライアント部品 RankingTabs 側に集約。ここではデータ取得とメタのみ担う。
 export default async function RankingPage() {
-  const [overallRanking, salonRanking, therapistRanking, heroUrl, wallpapers] = await Promise.all([
+  const [overallRanking, salonRanking, therapistRanking, heroes, wallpapers] = await Promise.all([
     fetchOverallWeeklyRanking(10),  // 総合（店舗＋所属セラピスト）トップ10
     fetchSalonWeeklyRanking(10),    // 店舗はトップ10まで
     fetchTherapistWeeklyRanking(30),
-    fetchRankingHero(),
+    fetchRankingHeroes(),
     fetchThemeWallpapers(),
   ]);
 
@@ -44,7 +44,7 @@ export default async function RankingPage() {
       overallRanking={overallRanking}
       salonRanking={salonRanking}
       therapistRanking={therapistRanking}
-      heroUrl={heroUrl}
+      heroes={heroes}
       wallpapers={wallpapers}
     />
   );

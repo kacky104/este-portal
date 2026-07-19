@@ -267,3 +267,20 @@ export async function fetchThemeWallpapers(): Promise<Record<string, string>> {
   });
   return map;
 }
+
+// タブ別ヒーロー画像URL（総合／店舗／セラピスト）。未設定は null。
+export type RankingHeroes = { overall: string | null; salon: string | null; therapist: string | null };
+export async function fetchRankingHeroes(): Promise<RankingHeroes> {
+  const supabase = createPublicClient();
+  const { data } = await supabase
+    .from('ranking_hero')
+    .select('hero_overall, hero_salon, hero_therapist')
+    .eq('id', 1)
+    .maybeSingle();
+  const pick = (v: unknown): string | null => ((v as string | null) ?? null) || null;
+  return {
+    overall: pick(data?.hero_overall),
+    salon: pick(data?.hero_salon),
+    therapist: pick(data?.hero_therapist),
+  };
+}

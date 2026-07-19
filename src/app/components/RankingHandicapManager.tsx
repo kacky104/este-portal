@@ -6,12 +6,14 @@ import { areaLabel } from '@/app/lib/areaLabel';
 import { revalidateRanking } from '@/app/lib/revalidateTop';
 
 // 週間ランキングの管理：店舗/セラピストの「下駄（ハンデ）」設定＋ヒーロー（ヘッダー）画像設定。
-// 下駄の保存は管理者判定付きRPC admin_set_ranking_bonus、ヒーロー画像は admin_set_ranking_hero 経由。
+// 下駄の保存は管理者判定付きRPC admin_set_ranking_bonus、ヒーロー画像は admin_set_ranking_hero(p_tab,p_url) 経由。
 // 画像は既存の公開バケット header-slider を再利用（ranking/ 配下に保存）。
-// セラピストは「店舗名の一覧 → 店舗を選ぶと所属セラピスト」の2段構成。
+// ヒーロー画像は総合/店舗/セラピストのタブ別に3枚設定できる。
 const supabase = createClient();
 
 const HERO_BUCKET = 'header-slider';
+type HeroSel = 'overall' | 'salon' | 'therapist';
+const HERO_LABELS: Record<HeroSel, string> = { overall: '総合', salon: '店舗', therapist: 'セラピスト' };
 
 type SalonRow = { id: number; name: string; area: string | null; bonus: number };
 type TherapistRow = { id: number; name: string; salonId: number | null; salonName: string; bonus: number };
@@ -37,7 +39,9 @@ export default function RankingHandicapManager({ onToast }: { onToast: (m: strin
   const [loaded, setLoaded] = useState(false);
   const [error, setError] = useState('');
   const [selectedSalonId, setSelectedSalonId] = useState<number | null>(null); // セラピストタブで選択中の店舗
-  const [heroUrl, setHeroUrl] = useState<string | null>(null); // 現在のヒーロー画像URL
+  // ヒーロー画像（タブ別3枚）
+  const [heroUrls, setHeroUrls] = useState<Record<HeroSel, string | null>>({ overall: null, salon: null, therapist: null });
+  const [heroSel, setHeroSel] = useState<HeroSel>('overall'); // ヘッダー画像タブ内で編集中のページ
   const [heroBusy, setHeroBusy] = useState(false);
   const heroInputRef = useRef<HTMLInputElement>(null);
 
@@ -49,7 +53,7 @@ export default function RankingHandicapManager({ onToast }: { onToast: (m: strin
         .select('id, name, ranking_bonus, is_active, salon_id, salons(name)')
         .eq('is_active', true)
         .order('id', { ascending: true }),
-      supabase.from('ranking_hero').select('image_url').eq('id', 1).maybeSingle(),
+      supabase.from('ranking_hero').select('hero_overall, hero_salon, hero_therapist').eq('id', 1).maybeSingle(),
     ]);
     if (sErr || tErr) {
       setError('データの取得に失敗しました');
@@ -85,7 +89,12 @@ export default function RankingHandicapManager({ onToast }: { onToast: (m: strin
     setSalons(s);
     setTherapists(t);
     setInputs(init);
-    setHeroUrl(((hData?.image_url as string | null) ?? null) || null);
+    const pick = (v: unknown): string | null => ((v as string | null) ?? null) || null;
+    setHeroUrls({
+      overall: pick((hData as { hero_overall?: unknown } | null)?.hero_overall),
+      salon: pick((hData as { hero_salon?: unknown } | null)?.hero_salon),
+      therapist: pick((hData as { hero_therapist?: unknown } | null)?.hero_therapist),
+    });
     setLoaded(true);
   }, []);
 
@@ -115,8 +124,8 @@ export default function RankingHandicapManager({ onToast }: { onToast: (m: strin
     onToast(val > 0 ? `下駄（+${val.toLocaleString()}）を保存しました` : '下駄を解除しました');
   };
 
-  // ── ヒーロー画像：アップロード（header-slider/ranking/ 配下）→ RPCでURL保存 ──
-  const onHeroFile = async (file: File) => {
+  // ── ヒーロー画像：アップロード（header-slider/ranking/ 配下）→ RPCでタブ別にURL保存 ──
+  const onHeroFile = async (sel: HeroSel, file: File) => {
     if (!file) return;
     if (!/^image\/(jpeg|png|webp)$/.test(file.type)) {
       onToast('JPEG / PNG / WebP のみアップロードできます');
@@ -128,7 +137,7 @@ export default function RankingHandicapManager({ onToast }: { onToast: (m: strin
     }
     setHeroBusy(true);
     const ext = file.type === 'image/png' ? 'png' : file.type === 'image/webp' ? 'webp' : 'jpg';
-    const path = `ranking/hero-${Date.now()}.${ext}`;
+    const path = `ranking/hero-${sel}-${Date.now()}.${ext}`;
     const { error: upErr } = await supabase.storage
       .from(HERO_BUCKET)
       .upload(path, file, { upsert: true, contentType: file.type });
@@ -139,29 +148,29 @@ export default function RankingHandicapManager({ onToast }: { onToast: (m: strin
     }
     const { data: pub } = supabase.storage.from(HERO_BUCKET).getPublicUrl(path);
     const url = pub.publicUrl;
-    const { error: rpcErr } = await supabase.rpc('admin_set_ranking_hero', { p_url: url });
+    const { error: rpcErr } = await supabase.rpc('admin_set_ranking_hero', { p_tab: sel, p_url: url });
     setHeroBusy(false);
     if (rpcErr) {
       onToast(`保存に失敗しました: ${rpcErr.message}`);
       return;
     }
-    setHeroUrl(url);
+    setHeroUrls((prev) => ({ ...prev, [sel]: url }));
     if (heroInputRef.current) heroInputRef.current.value = '';
     revalidateRanking();
-    onToast('ヘッダー画像を設定しました');
+    onToast(`「${HERO_LABELS[sel]}」のヘッダー画像を設定しました`);
   };
 
-  const removeHero = async () => {
+  const removeHero = async (sel: HeroSel) => {
     setHeroBusy(true);
-    const { error: rpcErr } = await supabase.rpc('admin_set_ranking_hero', { p_url: '' });
+    const { error: rpcErr } = await supabase.rpc('admin_set_ranking_hero', { p_tab: sel, p_url: '' });
     setHeroBusy(false);
     if (rpcErr) {
       onToast(`削除に失敗しました: ${rpcErr.message}`);
       return;
     }
-    setHeroUrl(null);
+    setHeroUrls((prev) => ({ ...prev, [sel]: null }));
     revalidateRanking();
-    onToast('ヘッダー画像を削除しました');
+    onToast(`「${HERO_LABELS[sel]}」のヘッダー画像を削除しました`);
   };
 
   // 切替時は検索と選択店舗をリセット。
@@ -214,6 +223,9 @@ export default function RankingHandicapManager({ onToast }: { onToast: (m: strin
   const searchPlaceholder =
     tab === 'salon' ? '店舗名で絞り込み' : selectedShop ? 'セラピスト名で絞り込み' : '店舗名で絞り込み';
 
+  const anyHero = Boolean(heroUrls.overall || heroUrls.salon || heroUrls.therapist);
+  const currentHero = heroUrls[heroSel];
+
   const row = (type: 'salon' | 'therapist', id: number, title: string, sub: string) => {
     const key = `${type}:${id}`;
     const current = type === 'salon'
@@ -256,8 +268,9 @@ export default function RankingHandicapManager({ onToast }: { onToast: (m: strin
     <div className="bg-white rounded-3xl border border-slate-100 shadow-sm p-4 space-y-3">
       {tab === 'hero' ? (
         <p className="text-[11px] text-slate-500 bg-slate-50 border border-slate-100 rounded-lg px-3 py-2 leading-relaxed">
-          週間ランキングページ最上部に表示する<strong className="text-slate-700">ヘッダー画像</strong>を設定します。
-          JPEG / PNG / WebP・5MBまで。未設定なら非表示（従来の見出しのみ）。横長のバナー画像がおすすめです。
+          週間ランキングページ最上部の<strong className="text-slate-700">ヘッダー画像</strong>を、
+          <strong className="text-slate-700">総合／店舗／セラピストのタブごと</strong>に設定できます。
+          JPEG / PNG / WebP・5MBまで。未設定のタブは非表示。横長のバナー画像がおすすめです。
         </p>
       ) : (
         <p className="text-[11px] text-slate-500 bg-slate-50 border border-slate-100 rounded-lg px-3 py-2 leading-relaxed">
@@ -292,7 +305,7 @@ export default function RankingHandicapManager({ onToast }: { onToast: (m: strin
                   {count}
                 </span>
               )}
-              {key === 'hero' && heroUrl && (
+              {key === 'hero' && anyHero && (
                 <span className="inline-block w-1.5 h-1.5 rounded-full bg-emerald-500" aria-label="設定あり" />
               )}
             </button>
@@ -300,21 +313,44 @@ export default function RankingHandicapManager({ onToast }: { onToast: (m: strin
         })}
       </div>
 
-      {/* ══ ヘッダー画像タブ ══ */}
+      {/* ══ ヘッダー画像タブ（総合／店舗／セラピスト別） ══ */}
       {tab === 'hero' ? (
         <div className="space-y-3">
+          {/* 編集するページの選択（それぞれ設定済みは緑ドット） */}
+          <div className="flex gap-1.5">
+            {(['overall', 'salon', 'therapist'] as const).map((k) => {
+              const sel = heroSel === k;
+              return (
+                <button
+                  key={k}
+                  type="button"
+                  onClick={() => setHeroSel(k)}
+                  aria-pressed={sel}
+                  className={`inline-flex items-center gap-1.5 px-4 py-1.5 rounded-full border text-xs font-bold transition-colors ${
+                    sel
+                      ? 'bg-pink-50 text-pink-600 border-pink-300'
+                      : 'bg-white text-slate-400 border-slate-200 hover:text-slate-600 hover:border-slate-300'
+                  }`}
+                >
+                  {HERO_LABELS[k]}
+                  {heroUrls[k] && <span className="inline-block w-1.5 h-1.5 rounded-full bg-emerald-500" aria-label="設定あり" />}
+                </button>
+              );
+            })}
+          </div>
+
           {!loaded ? (
             <div className="py-8 text-center text-sm text-slate-400">読み込み中...</div>
           ) : (
             <>
-              {heroUrl ? (
+              {currentHero ? (
                 <div className="rounded-2xl border border-slate-100 overflow-hidden">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={heroUrl} alt="現在のヘッダー画像" className="w-full h-auto block" />
+                  <img src={currentHero} alt={`現在のヘッダー画像（${HERO_LABELS[heroSel]}）`} className="w-full h-auto block" />
                 </div>
               ) : (
                 <div className="rounded-2xl border border-dashed border-slate-200 py-10 text-center text-sm text-slate-400">
-                  ヘッダー画像は未設定です
+                  「{HERO_LABELS[heroSel]}」のヘッダー画像は未設定です
                 </div>
               )}
 
@@ -324,7 +360,7 @@ export default function RankingHandicapManager({ onToast }: { onToast: (m: strin
                 accept="image/jpeg,image/png,image/webp"
                 onChange={(e) => {
                   const f = e.target.files?.[0];
-                  if (f) onHeroFile(f);
+                  if (f) onHeroFile(heroSel, f);
                 }}
                 className="hidden"
               />
@@ -335,12 +371,12 @@ export default function RankingHandicapManager({ onToast }: { onToast: (m: strin
                   disabled={heroBusy}
                   className="px-4 py-2 rounded-xl bg-gradient-to-r from-pink-500 to-fuchsia-500 text-white font-bold text-xs shadow-sm hover:opacity-90 transition-opacity disabled:opacity-50"
                 >
-                  {heroBusy ? '処理中…' : heroUrl ? '画像を差し替える' : '画像をアップロード'}
+                  {heroBusy ? '処理中…' : currentHero ? '画像を差し替える' : '画像をアップロード'}
                 </button>
-                {heroUrl && (
+                {currentHero && (
                   <button
                     type="button"
-                    onClick={removeHero}
+                    onClick={() => removeHero(heroSel)}
                     disabled={heroBusy}
                     className="px-4 py-2 rounded-xl border border-slate-200 text-slate-500 font-bold text-xs hover:bg-slate-50 hover:border-slate-300 transition-colors disabled:opacity-50"
                   >

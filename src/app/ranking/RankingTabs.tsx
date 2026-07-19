@@ -17,7 +17,6 @@ import type { SalonRankItem, TherapistRankItem } from '@/app/lib/ranking';
 const TAB_THEME = { overall: 'white', salon: 'black', therapist: 'pink' } as const;
 type TabKey = keyof typeof TAB_THEME;
 
-// 順位バッジ（1〜3位は金銀銅、それ以降はテーマ連動のグレー数字）。
 function RankBadge({ rank, theme }: { rank: number; theme: SalonTheme }) {
   const medal =
     rank === 1
@@ -80,7 +79,6 @@ function EmptyState({ theme }: { theme: SalonTheme }) {
   );
 }
 
-// 店舗系（店舗／総合）の一覧。テーマ連動。
 function SalonList({ items, theme }: { items: SalonRankItem[]; theme: SalonTheme }) {
   if (items.length === 0) return <EmptyState theme={theme} />;
   return (
@@ -114,17 +112,18 @@ export default function RankingTabs({
   overallRanking,
   salonRanking,
   therapistRanking,
-  heroUrl,
+  heroes,
   wallpapers,
 }: {
   overallRanking: SalonRankItem[];
   salonRanking: SalonRankItem[];
   therapistRanking: TherapistRankItem[];
-  heroUrl: string | null;
+  heroes: { overall: string | null; salon: string | null; therapist: string | null };
   wallpapers: Record<string, string>;
 }) {
   const [tab, setTab] = useState<TabKey>('overall');
   const theme = getTheme(TAB_THEME[tab]);
+  const heroUrl = heroes[tab] ?? null; // タブ別ヒーロー画像
 
   const cardStyle = {
     background: theme.card,
@@ -132,7 +131,6 @@ export default function RankingTabs({
   } as const;
 
   // テーマ壁紙（設定があれば）をテーマ色の半透明オーバーレイ越しに敷く。サロン詳細と同じ方式。
-  // 未設定テーマは単色（theme.bg）。固定レイヤーにして長い一覧でも背景が動かないようにする。
   const wallpaperUrl = wallpapers[theme.key] ?? null;
   const bgLayerStyle: CSSProperties = {
     backgroundColor: theme.bg,
@@ -169,7 +167,7 @@ export default function RankingTabs({
           <Breadcrumb current="週間ランキング" currentColor={breadcrumbCurrentColor(theme.key)} />
         </div>
 
-        {/* ヒーロー画像：幅いっぱい（ビューポート端まで） */}
+        {/* ヒーロー画像（タブ別）：幅いっぱい（ビューポート端まで） */}
         {heroUrl && (
           // eslint-disable-next-line @next/next/no-img-element
           <img src={heroUrl} alt="週間ランキング" className="block w-full h-auto mb-6" />
