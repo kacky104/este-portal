@@ -194,11 +194,12 @@ export default function RankingTabs({
                     aria-pressed={selected}
                     className={`flex-1 sm:flex-none flex items-center justify-center px-2 sm:px-10 py-2.5 border text-sm font-bold transition-colors ${
                       i > 0 ? '-ml-px' : ''
-                    } ${
+                    } ${selected ? 'relative z-10' : ''}`}
+                    style={
                       selected
-                        ? 'relative z-10 bg-pink-50 text-pink-600 border-pink-300'
-                        : 'bg-white text-slate-400 border-slate-200 hover:text-slate-600 hover:border-slate-300'
-                    }`}
+                        ? { background: theme.heading, color: theme.card, borderColor: theme.heading }
+                        : { background: theme.card, color: theme.body, borderColor: theme.cardBorder }
+                    }
                   >
                     {label}
                   </button>
