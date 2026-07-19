@@ -34,7 +34,7 @@ export const metadata: Metadata = {
 
 export default async function RankingPage() {
   const [salonRanking, therapistRanking] = await Promise.all([
-    fetchSalonWeeklyRanking(30),
+    fetchSalonWeeklyRanking(10),   // 店舗はトップ10まで
     fetchTherapistWeeklyRanking(30),
   ]);
   const weekLabel = currentWeekLabelJST();
