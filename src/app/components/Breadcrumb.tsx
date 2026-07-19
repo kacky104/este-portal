@@ -5,9 +5,12 @@ import Link from 'next/link';
 export function Breadcrumb({
   current,
   root = { label: 'トップ', href: '/' },
+  currentColor = '#475569',
 }: {
   current: string;
   root?: { label: string; href: string };
+  /** 現在ページ名の文字色。テーマ連動したい場合に指定（既定は slate-600）。 */
+  currentColor?: string;
 }) {
   return (
     <nav aria-label="パンくずリスト" className="flex items-center gap-1.5 mb-3" style={{ fontSize: '13px' }}>
@@ -22,7 +25,7 @@ export function Breadcrumb({
       <span
         aria-current="page"
         className="inline-block max-w-[70%] truncate align-middle"
-        style={{ color: '#475569', fontWeight: 600 }}
+        style={{ color: currentColor, fontWeight: 600 }}
       >
         {current}
       </span>
