@@ -179,3 +179,14 @@ export async function fetchTherapistWeeklyRanking(limit = 30): Promise<Therapist
       profileImageUrl: x.profileImageUrl,
     }));
 }
+
+// 週間ランキングページのヒーロー（ヘッダー）画像URL。未設定は null。
+export async function fetchRankingHero(): Promise<string | null> {
+  const supabase = createPublicClient();
+  const { data } = await supabase
+    .from('ranking_hero')
+    .select('image_url')
+    .eq('id', 1)
+    .maybeSingle();
+  return ((data?.image_url as string | null) ?? null) || null;
+}

@@ -1,18 +1,21 @@
 'use client';
 
-import { useEffect, useState, useCallback, useMemo } from 'react';
+import { useEffect, useState, useCallback, useMemo, useRef } from 'react';
 import { createClient } from '@/app/lib/supabase/client';
 import { areaLabel } from '@/app/lib/areaLabel';
 import { revalidateRanking } from '@/app/lib/revalidateTop';
 
-// 週間ランキングの「下駄（ハンデ）」設定。店舗・セラピストごとに毎週のアクセス数へ加算する固定値を設定する。
-// 保存は管理者判定付きRPC admin_set_ranking_bonus 経由（各テーブルの更新RLSに依存しない）。
-// 公開ランキングには数値は出ないため、この値は「順位を底上げする内部の下駄」として機能する。
+// 週間ランキングの管理：店舗/セラピストの「下駄（ハンデ）」設定＋ヒーロー（ヘッダー）画像設定。
+// 下駄の保存は管理者判定付きRPC admin_set_ranking_bonus、ヒーロー画像は admin_set_ranking_hero 経由。
+// 画像は既存の公開バケット header-slider を再利用（ranking/ 配下に保存）。
 // セラピストは「店舗名の一覧 → 店舗を選ぶと所属セラピスト」の2段構成。
 const supabase = createClient();
 
+const HERO_BUCKET = 'header-slider';
+
 type SalonRow = { id: number; name: string; area: string | null; bonus: number };
 type TherapistRow = { id: number; name: string; salonId: number | null; salonName: string; bonus: number };
+type TabKey = 'salon' | 'therapist' | 'hero';
 
 function Chevron() {
   return (
@@ -25,7 +28,7 @@ function Chevron() {
 }
 
 export default function RankingHandicapManager({ onToast }: { onToast: (m: string) => void }) {
-  const [tab, setTab] = useState<'salon' | 'therapist'>('salon');
+  const [tab, setTab] = useState<TabKey>('salon');
   const [salons, setSalons] = useState<SalonRow[]>([]);
   const [therapists, setTherapists] = useState<TherapistRow[]>([]);
   const [inputs, setInputs] = useState<Record<string, string>>({}); // `${type}:${id}` -> 入力中の文字列
@@ -34,15 +37,19 @@ export default function RankingHandicapManager({ onToast }: { onToast: (m: strin
   const [loaded, setLoaded] = useState(false);
   const [error, setError] = useState('');
   const [selectedSalonId, setSelectedSalonId] = useState<number | null>(null); // セラピストタブで選択中の店舗
+  const [heroUrl, setHeroUrl] = useState<string | null>(null); // 現在のヒーロー画像URL
+  const [heroBusy, setHeroBusy] = useState(false);
+  const heroInputRef = useRef<HTMLInputElement>(null);
 
   const load = useCallback(async () => {
-    const [{ data: sData, error: sErr }, { data: tData, error: tErr }] = await Promise.all([
+    const [{ data: sData, error: sErr }, { data: tData, error: tErr }, { data: hData }] = await Promise.all([
       supabase.from('salons').select('id, name, area, ranking_bonus').eq('is_hidden', false).order('id', { ascending: true }),
       supabase
         .from('therapists')
         .select('id, name, ranking_bonus, is_active, salon_id, salons(name)')
         .eq('is_active', true)
         .order('id', { ascending: true }),
+      supabase.from('ranking_hero').select('image_url').eq('id', 1).maybeSingle(),
     ]);
     if (sErr || tErr) {
       setError('データの取得に失敗しました');
@@ -56,7 +63,6 @@ export default function RankingHandicapManager({ onToast }: { onToast: (m: strin
       bonus: Number((r.ranking_bonus as number | null) ?? 0),
     }));
     const t: TherapistRow[] = (tData ?? []).map((r) => {
-      // PostgREST の埋め込み salons は環境により配列/オブジェクトどちらにもなり得るため両対応。
       const row = r as unknown as {
         id: number;
         name: string | null;
@@ -79,6 +85,7 @@ export default function RankingHandicapManager({ onToast }: { onToast: (m: strin
     setSalons(s);
     setTherapists(t);
     setInputs(init);
+    setHeroUrl(((hData?.image_url as string | null) ?? null) || null);
     setLoaded(true);
   }, []);
 
@@ -104,12 +111,61 @@ export default function RankingHandicapManager({ onToast }: { onToast: (m: strin
     if (type === 'salon') setSalons((prev) => prev.map((r) => (r.id === id ? { ...r, bonus: val } : r)));
     else setTherapists((prev) => prev.map((r) => (r.id === id ? { ...r, bonus: val } : r)));
     setInputs((prev) => ({ ...prev, [key]: String(val) }));
-    revalidateRanking(); // /ranking を即時再検証（反映は次の再生成で）
+    revalidateRanking();
     onToast(val > 0 ? `下駄（+${val.toLocaleString()}）を保存しました` : '下駄を解除しました');
   };
 
+  // ── ヒーロー画像：アップロード（header-slider/ranking/ 配下）→ RPCでURL保存 ──
+  const onHeroFile = async (file: File) => {
+    if (!file) return;
+    if (!/^image\/(jpeg|png|webp)$/.test(file.type)) {
+      onToast('JPEG / PNG / WebP のみアップロードできます');
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      onToast('画像は5MBまでです');
+      return;
+    }
+    setHeroBusy(true);
+    const ext = file.type === 'image/png' ? 'png' : file.type === 'image/webp' ? 'webp' : 'jpg';
+    const path = `ranking/hero-${Date.now()}.${ext}`;
+    const { error: upErr } = await supabase.storage
+      .from(HERO_BUCKET)
+      .upload(path, file, { upsert: true, contentType: file.type });
+    if (upErr) {
+      setHeroBusy(false);
+      onToast(`アップロードに失敗しました: ${upErr.message}`);
+      return;
+    }
+    const { data: pub } = supabase.storage.from(HERO_BUCKET).getPublicUrl(path);
+    const url = pub.publicUrl;
+    const { error: rpcErr } = await supabase.rpc('admin_set_ranking_hero', { p_url: url });
+    setHeroBusy(false);
+    if (rpcErr) {
+      onToast(`保存に失敗しました: ${rpcErr.message}`);
+      return;
+    }
+    setHeroUrl(url);
+    if (heroInputRef.current) heroInputRef.current.value = '';
+    revalidateRanking();
+    onToast('ヘッダー画像を設定しました');
+  };
+
+  const removeHero = async () => {
+    setHeroBusy(true);
+    const { error: rpcErr } = await supabase.rpc('admin_set_ranking_hero', { p_url: '' });
+    setHeroBusy(false);
+    if (rpcErr) {
+      onToast(`削除に失敗しました: ${rpcErr.message}`);
+      return;
+    }
+    setHeroUrl(null);
+    revalidateRanking();
+    onToast('ヘッダー画像を削除しました');
+  };
+
   // 切替時は検索と選択店舗をリセット。
-  const switchTab = (key: 'salon' | 'therapist') => {
+  const switchTab = (key: TabKey) => {
     setTab(key);
     setQ('');
     setSelectedSalonId(null);
@@ -121,7 +177,6 @@ export default function RankingHandicapManager({ onToast }: { onToast: (m: strin
     return salons.filter((r) => r.name.includes(kw));
   }, [salons, q]);
 
-  // セラピストを店舗単位でグループ化（id昇順の初出順で店舗を並べる）。
   const therapistShops = useMemo(() => {
     const map = new Map<number, { salonId: number; salonName: string; therapists: TherapistRow[]; bonusCount: number }>();
     therapists.forEach((t) => {
@@ -157,11 +212,7 @@ export default function RankingHandicapManager({ onToast }: { onToast: (m: strin
   const salonBonusCount = salons.filter((r) => r.bonus > 0).length;
 
   const searchPlaceholder =
-    tab === 'salon'
-      ? '店舗名で絞り込み'
-      : selectedShop
-      ? 'セラピスト名で絞り込み'
-      : '店舗名で絞り込み';
+    tab === 'salon' ? '店舗名で絞り込み' : selectedShop ? 'セラピスト名で絞り込み' : '店舗名で絞り込み';
 
   const row = (type: 'salon' | 'therapist', id: number, title: string, sub: string) => {
     const key = `${type}:${id}`;
@@ -203,16 +254,24 @@ export default function RankingHandicapManager({ onToast }: { onToast: (m: strin
 
   return (
     <div className="bg-white rounded-3xl border border-slate-100 shadow-sm p-4 space-y-3">
-      <p className="text-[11px] text-slate-500 bg-slate-50 border border-slate-100 rounded-lg px-3 py-2 leading-relaxed">
-        設定した値が<strong className="text-slate-700">毎週のアクセス数に自動で加算</strong>されます（週リセット後も維持）。
-        0 で解除。<strong className="text-slate-700">数値は公開ランキングには表示されません</strong>（順位の底上げのみ）。
-      </p>
+      {tab === 'hero' ? (
+        <p className="text-[11px] text-slate-500 bg-slate-50 border border-slate-100 rounded-lg px-3 py-2 leading-relaxed">
+          週間ランキングページ最上部に表示する<strong className="text-slate-700">ヘッダー画像</strong>を設定します。
+          JPEG / PNG / WebP・5MBまで。未設定なら非表示（従来の見出しのみ）。横長のバナー画像がおすすめです。
+        </p>
+      ) : (
+        <p className="text-[11px] text-slate-500 bg-slate-50 border border-slate-100 rounded-lg px-3 py-2 leading-relaxed">
+          設定した値が<strong className="text-slate-700">毎週のアクセス数に自動で加算</strong>されます（週リセット後も維持）。
+          0 で解除。<strong className="text-slate-700">数値は公開ランキングには表示されません</strong>（順位の底上げのみ）。
+        </p>
+      )}
 
-      {/* 店舗 / セラピスト サブタブ */}
-      <div className="flex gap-1.5">
+      {/* サブタブ：店舗 / セラピスト / ヘッダー画像 */}
+      <div className="flex flex-wrap gap-1.5">
         {([
           ['salon', '店舗', salons.length],
           ['therapist', 'セラピスト', therapists.length],
+          ['hero', 'ヘッダー画像', null],
         ] as const).map(([key, label, count]) => {
           const selected = tab === key;
           return (
@@ -228,97 +287,154 @@ export default function RankingHandicapManager({ onToast }: { onToast: (m: strin
               }`}
             >
               {label}
-              <span className={`inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 rounded-full text-[10px] font-black leading-none ${selected ? 'bg-pink-500 text-white' : 'bg-slate-100 text-slate-400'}`}>
-                {count}
-              </span>
+              {count != null && (
+                <span className={`inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 rounded-full text-[10px] font-black leading-none ${selected ? 'bg-pink-500 text-white' : 'bg-slate-100 text-slate-400'}`}>
+                  {count}
+                </span>
+              )}
+              {key === 'hero' && heroUrl && (
+                <span className="inline-block w-1.5 h-1.5 rounded-full bg-emerald-500" aria-label="設定あり" />
+              )}
             </button>
           );
         })}
       </div>
 
-      {/* セラピストタブで店舗選択中は、店舗名のパンくず＋戻る */}
-      {tab === 'therapist' && selectedShop && (
-        <button
-          type="button"
-          onClick={() => { setSelectedSalonId(null); setQ(''); }}
-          className="inline-flex items-center gap-1.5 text-xs font-bold text-slate-500 hover:text-pink-600 transition-colors"
-        >
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M15 18l-6-6 6-6" />
-          </svg>
-          店舗一覧へ戻る
-        </button>
-      )}
-
-      {/* 検索 */}
-      <input
-        type="text"
-        value={q}
-        onChange={(e) => setQ(e.target.value)}
-        placeholder={searchPlaceholder}
-        className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs bg-slate-50/50 focus:outline-none focus:ring-2 focus:ring-pink-200"
-      />
-
-      {/* 件数の案内 */}
-      {tab === 'salon' ? (
-        <p className="text-[11px] text-slate-400">下駄あり：{salonBonusCount}件 / 全{salons.length}件</p>
-      ) : selectedShop ? (
-        <p className="text-[11px] text-slate-400">
-          {selectedShop.salonName}：下駄あり {selectedShop.bonusCount}件 / 全{selectedShop.therapists.length}名
-        </p>
-      ) : (
-        <p className="text-[11px] text-slate-400">店舗を選ぶと所属セラピストを設定できます（全{therapistShops.length}店舗 / {therapists.length}名）</p>
-      )}
-
-      {error ? (
-        <div className="py-8 text-center text-sm text-rose-400">{error}</div>
-      ) : !loaded ? (
-        <div className="py-8 text-center text-sm text-slate-400">読み込み中...</div>
-      ) : tab === 'salon' ? (
-        // ── 店舗タブ ──
-        <div className="rounded-2xl border border-slate-100 overflow-hidden max-h-[420px] overflow-y-auto">
-          {filteredSalons.length === 0 ? (
-            <div className="py-8 text-center text-sm text-slate-400">該当する店舗がありません</div>
+      {/* ══ ヘッダー画像タブ ══ */}
+      {tab === 'hero' ? (
+        <div className="space-y-3">
+          {!loaded ? (
+            <div className="py-8 text-center text-sm text-slate-400">読み込み中...</div>
           ) : (
-            filteredSalons.map((r) => row('salon', r.id, r.name, r.area ? areaLabel(r.area) : ''))
-          )}
-        </div>
-      ) : selectedShop ? (
-        // ── セラピストタブ：店舗を選択中（所属セラピスト一覧） ──
-        <div className="rounded-2xl border border-slate-100 overflow-hidden max-h-[420px] overflow-y-auto">
-          {filteredShopTherapists.length === 0 ? (
-            <div className="py-8 text-center text-sm text-slate-400">該当するセラピストがいません</div>
-          ) : (
-            filteredShopTherapists.map((t) => row('therapist', t.id, t.name, ''))
-          )}
-        </div>
-      ) : (
-        // ── セラピストタブ：店舗一覧（クリックで所属セラピストへ） ──
-        <div className="rounded-2xl border border-slate-100 overflow-hidden max-h-[420px] overflow-y-auto">
-          {filteredShops.length === 0 ? (
-            <div className="py-8 text-center text-sm text-slate-400">該当する店舗がありません</div>
-          ) : (
-            filteredShops.map((shop) => (
-              <button
-                key={shop.salonId}
-                type="button"
-                onClick={() => { setSelectedSalonId(shop.salonId); setQ(''); }}
-                className="w-full flex items-center gap-3 px-4 py-3 border-b border-slate-100 last:border-b-0 hover:bg-pink-50/30 transition-colors text-left"
-              >
-                <div className="min-w-0 flex-1">
-                  <p className="text-xs font-bold text-slate-800 truncate">{shop.salonName}</p>
-                  <p className="text-[11px] text-slate-400">{shop.therapists.length}名</p>
+            <>
+              {heroUrl ? (
+                <div className="rounded-2xl border border-slate-100 overflow-hidden">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={heroUrl} alt="現在のヘッダー画像" className="w-full h-auto block" />
                 </div>
-                {shop.bonusCount > 0 && (
-                  <span className="flex-shrink-0 text-[10px] px-2 py-0.5 rounded-full bg-amber-50 text-amber-700 border border-amber-200 font-bold">
-                    下駄{shop.bonusCount}
-                  </span>
+              ) : (
+                <div className="rounded-2xl border border-dashed border-slate-200 py-10 text-center text-sm text-slate-400">
+                  ヘッダー画像は未設定です
+                </div>
+              )}
+
+              <input
+                ref={heroInputRef}
+                type="file"
+                accept="image/jpeg,image/png,image/webp"
+                onChange={(e) => {
+                  const f = e.target.files?.[0];
+                  if (f) onHeroFile(f);
+                }}
+                className="hidden"
+              />
+              <div className="flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  onClick={() => heroInputRef.current?.click()}
+                  disabled={heroBusy}
+                  className="px-4 py-2 rounded-xl bg-gradient-to-r from-pink-500 to-fuchsia-500 text-white font-bold text-xs shadow-sm hover:opacity-90 transition-opacity disabled:opacity-50"
+                >
+                  {heroBusy ? '処理中…' : heroUrl ? '画像を差し替える' : '画像をアップロード'}
+                </button>
+                {heroUrl && (
+                  <button
+                    type="button"
+                    onClick={removeHero}
+                    disabled={heroBusy}
+                    className="px-4 py-2 rounded-xl border border-slate-200 text-slate-500 font-bold text-xs hover:bg-slate-50 hover:border-slate-300 transition-colors disabled:opacity-50"
+                  >
+                    削除
+                  </button>
                 )}
-                <Chevron />
-              </button>
-            ))
+              </div>
+            </>
           )}
         </div>
+      ) : (
+        <>
+          {/* セラピストタブで店舗選択中は、店舗名のパンくず＋戻る */}
+          {tab === 'therapist' && selectedShop && (
+            <button
+              type="button"
+              onClick={() => { setSelectedSalonId(null); setQ(''); }}
+              className="inline-flex items-center gap-1.5 text-xs font-bold text-slate-500 hover:text-pink-600 transition-colors"
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M15 18l-6-6 6-6" />
+              </svg>
+              店舗一覧へ戻る
+            </button>
+          )}
+
+          {/* 検索 */}
+          <input
+            type="text"
+            value={q}
+            onChange={(e) => setQ(e.target.value)}
+            placeholder={searchPlaceholder}
+            className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs bg-slate-50/50 focus:outline-none focus:ring-2 focus:ring-pink-200"
+          />
+
+          {/* 件数の案内 */}
+          {tab === 'salon' ? (
+            <p className="text-[11px] text-slate-400">下駄あり：{salonBonusCount}件 / 全{salons.length}件</p>
+          ) : selectedShop ? (
+            <p className="text-[11px] text-slate-400">
+              {selectedShop.salonName}：下駄あり {selectedShop.bonusCount}件 / 全{selectedShop.therapists.length}名
+            </p>
+          ) : (
+            <p className="text-[11px] text-slate-400">店舗を選ぶと所属セラピストを設定できます（全{therapistShops.length}店舗 / {therapists.length}名）</p>
+          )}
+
+          {error ? (
+            <div className="py-8 text-center text-sm text-rose-400">{error}</div>
+          ) : !loaded ? (
+            <div className="py-8 text-center text-sm text-slate-400">読み込み中...</div>
+          ) : tab === 'salon' ? (
+            <div className="rounded-2xl border border-slate-100 overflow-hidden max-h-[420px] overflow-y-auto">
+              {filteredSalons.length === 0 ? (
+                <div className="py-8 text-center text-sm text-slate-400">該当する店舗がありません</div>
+              ) : (
+                filteredSalons.map((r) => row('salon', r.id, r.name, r.area ? areaLabel(r.area) : ''))
+              )}
+            </div>
+          ) : selectedShop ? (
+            <div className="rounded-2xl border border-slate-100 overflow-hidden max-h-[420px] overflow-y-auto">
+              {filteredShopTherapists.length === 0 ? (
+                <div className="py-8 text-center text-sm text-slate-400">該当するセラピストがいません</div>
+              ) : (
+                filteredShopTherapists.map((t) => row('therapist', t.id, t.name, ''))
+              )}
+            </div>
+          ) : (
+            <div className="rounded-2xl border border-slate-100 overflow-hidden max-h-[420px] overflow-y-auto">
+              {filteredShops.length === 0 ? (
+                <div className="py-8 text-center text-sm text-slate-400">該当する店舗がありません</div>
+              ) : (
+                filteredShops.map((shop) => (
+                  <button
+                    key={shop.salonId}
+                    type="button"
+                    onClick={() => { setSelectedSalonId(shop.salonId); setQ(''); }}
+                    className="w-full flex items-center gap-3 px-4 py-3 border-b border-slate-100 last:border-b-0 hover:bg-pink-50/30 transition-colors text-left"
+                  >
+                    <div className="min-w-0 flex-1">
+                      <p className="text-xs font-bold text-slate-800 truncate">{shop.salonName}</p>
+                      <p className="text-[11px] text-slate-400">{shop.therapists.length}名</p>
+                    </div>
+                    {shop.bonusCount > 0 && (
+                      <span className="flex-shrink-0 text-[10px] px-2 py-0.5 rounded-full bg-amber-50 text-amber-700 border border-amber-200 font-bold">
+                        下駄{shop.bonusCount}
+                      </span>
+                    )}
+                    <Chevron />
+                  </button>
+                ))
+              )}
+            </div>
+          )}
+        </>
       )}
     </div>
   );
