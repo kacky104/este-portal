@@ -133,6 +133,8 @@ export default function AdminDashboard() {
   const [expandedSections, setExpandedSections] = useState<Set<string>>(new Set(['salon-list']));
   // 求人タブのバッジ用（AdminJobsManager が読み込み時に求人件数・新規応募合計を通知）。
   const [jobStats, setJobStats] = useState<{ total: number; newCount: number }>({ total: 0, newCount: 0 });
+  // 掲載店舗一覧の表示/非表示サブタブ（is_hidden で分割）。永続化しないクライアントstateのみ。
+  const [salonListTab, setSalonListTab] = useState<'visible' | 'hidden'>('visible');
 
   // トーストは共通フックで一元管理（タイマー直書きは連続表示・unmount後setStateのバグ源）。
   const { toast, showToast } = useToast();
@@ -291,6 +293,11 @@ export default function AdminDashboard() {
       />
     </div>
   );
+
+  // 掲載店舗一覧を「表示中（is_hidden でない）／非表示（is_hidden）」で振り分け。
+  const visibleSalons = salons.filter(s => !s.is_hidden);
+  const hiddenSalons = salons.filter(s => s.is_hidden);
+  const listedSalons = salonListTab === 'hidden' ? hiddenSalons : visibleSalons;
 
   if (authState === 'loading') {
     return (
@@ -591,12 +598,46 @@ export default function AdminDashboard() {
             expanded={expandedSections}
             onToggle={toggleSection}
           >
+          {/* ── 表示中/非表示のサブタブ（is_hidden で振り分け・件数バッジ付き） ── */}
+          <div className="flex gap-1.5 mb-3">
+            {([
+              ['visible', '表示中', visibleSalons.length],
+              ['hidden', '非表示', hiddenSalons.length],
+            ] as const).map(([key, label, count]) => {
+              const selected = salonListTab === key;
+              return (
+                <button
+                  key={key}
+                  type="button"
+                  onClick={() => setSalonListTab(key)}
+                  aria-pressed={selected}
+                  className={`inline-flex items-center gap-1.5 px-4 py-1.5 rounded-full border text-xs font-bold transition-colors ${
+                    selected
+                      ? 'bg-pink-50 text-pink-600 border-pink-300'
+                      : 'bg-white text-slate-400 border-slate-200 hover:text-slate-600 hover:border-slate-300'
+                  }`}
+                >
+                  {label}
+                  <span
+                    className={`inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 rounded-full text-[10px] font-black leading-none ${
+                      selected ? 'bg-pink-500 text-white' : 'bg-slate-100 text-slate-400'
+                    }`}
+                  >
+                    {count}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+
           <div className="bg-white rounded-3xl border border-slate-100 shadow-sm overflow-hidden">
 
           {fetchError ? (
             <div className="p-6 text-center text-sm text-rose-400">{fetchError}</div>
-          ) : salons.length === 0 ? (
-            <div className="p-10 text-center text-sm text-slate-400">データがありません</div>
+          ) : listedSalons.length === 0 ? (
+            <div className="p-10 text-center text-sm text-slate-400">
+              {salonListTab === 'hidden' ? '非表示の店舗はありません' : '表示中の店舗はありません'}
+            </div>
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
@@ -613,7 +654,7 @@ export default function AdminDashboard() {
                   </tr>
                 </thead>
                 <tbody>
-                  {salons.map((salon, i) => (
+                  {listedSalons.map((salon, i) => (
                     <tr
                       key={salon.id}
                       className={`border-b border-slate-100 hover:bg-pink-50/20 transition-colors ${salon.is_hidden ? 'opacity-50' : i % 2 === 0 ? '' : 'bg-slate-50/30'}`}
