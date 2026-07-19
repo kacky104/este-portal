@@ -9,7 +9,6 @@ import {
   fetchSalonWeeklyRanking,
   fetchTherapistWeeklyRanking,
   fetchRankingHero,
-  currentWeekLabelJST,
 } from '@/app/lib/ranking';
 import RankingTabs from './RankingTabs';
 
@@ -39,7 +38,6 @@ export default async function RankingPage() {
     fetchTherapistWeeklyRanking(30),
     fetchRankingHero(),
   ]);
-  const weekLabel = currentWeekLabelJST();
 
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900">
@@ -71,24 +69,6 @@ export default async function RankingPage() {
 
         {/* 見出し以降（コンテナ内・左右余白あり） */}
         <div className="max-w-3xl mx-auto px-4">
-        {/* Heading（中央寄せ・金→ピンクのグラデ。王冠アイコン付き） */}
-        <div className="mb-2 text-center">
-          <h1
-            className="text-2xl font-bold inline-flex items-center gap-2"
-            style={{
-              background: 'linear-gradient(to right, #F59E0B, #EC4899)',
-              WebkitBackgroundClip: 'text',
-              backgroundClip: 'text',
-              WebkitTextFillColor: 'transparent',
-              color: 'transparent',
-            }}
-          >
-            <span aria-hidden style={{ WebkitTextFillColor: 'initial' }}>👑</span>
-            週間ランキング
-          </h1>
-        </div>
-        <p className="text-xs text-slate-400 text-center mb-8">{weekLabel} の集計</p>
-
         <RankingTabs salonRanking={salonRanking} therapistRanking={therapistRanking} />
         </div>
       </main>
