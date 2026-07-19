@@ -57,6 +57,14 @@ export default function SalonFreePagesManager({
   const setField = (id: number, patch: Partial<FreePage>) =>
     setPages((prev) => prev.map((p) => (p.id === id ? { ...p, ...patch } : p)));
 
+  // 画像の公開URLから salon-images バケット内パスを割り出し、実ファイルを削除する。
+  // DB配列から外すだけだと孤児ファイルが溜まるため、削除系で必ず呼ぶ。
+  const storageRemove = (url: string) => {
+    const marker = `/${FREE_BUCKET}/`;
+    const idx = url.indexOf(marker);
+    if (idx !== -1) supabase.storage.from(FREE_BUCKET).remove([url.slice(idx + marker.length)]);
+  };
+
   const addPage = async () => {
     if (pages.length >= MAX_PAGES) return;
     const { data, error } = await supabase
@@ -86,8 +94,10 @@ export default function SalonFreePagesManager({
 
   const deletePage = async (id: number) => {
     if (!window.confirm('このフリーページを削除しますか？（元に戻せません）')) return;
+    const target = pages.find((p) => p.id === id);
     const { error } = await supabase.from('salon_free_pages').delete().eq('id', id);
     if (error) { onToast(`削除に失敗しました: ${error.message}`); return; }
+    target?.images.forEach((u) => { if (u) storageRemove(u); }); // ページ内画像の実ファイルも削除
     const next = pages.filter((p) => p.id !== id);
     setPages(next);
     emit(next);
@@ -117,9 +127,11 @@ export default function SalonFreePagesManager({
   };
 
   const removeImage = async (page: FreePage, idx: number) => {
+    const removedUrl = page.images[idx];
     const nextImages = page.images.filter((_, i) => i !== idx);
     const { error } = await supabase.from('salon_free_pages').update({ images: nextImages, updated_at: new Date().toISOString() }).eq('id', page.id);
     if (error) { onToast(`削除に失敗しました: ${error.message}`); return; }
+    if (removedUrl) storageRemove(removedUrl); // 実ファイルも削除（孤児防止）
     setField(page.id, { images: nextImages });
     revalidateSalon(salonId);
   };

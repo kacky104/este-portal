@@ -712,7 +712,7 @@ export default async function SalonPage({
               <SalonTherapists salonId={Number(id)} />
             </div>
 
-            {/* 詳細バナー枠（最大3・出勤セラピストの下）。SP: 高さ156px（PUバナーの3/4）／PC: aspect 31:9。クリックでリンク先へ。 */}
+            {/* 詳細バナー枠（最大3・出勤セラピストの下）。SP: 高さ117px（PUバナーの約3/4）／PC: aspect 31:9。クリックでリンク先へ。 */}
             {detailBanners.length > 0 && (
               <div className="mt-3 space-y-3">
                 {detailBanners.map((b, i) => {

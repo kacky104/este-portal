@@ -18,7 +18,7 @@ export type Salon = {
   area2:       string; // 第2エリア（任意）。未設定は ''。
   hours:       string;
   description: string;
-  catchphrase: string; // TOP/地域の店舗カードに出すキャッチフレーズ（最大30文字）
+  catchphrase: string; // TOP/地域の店舗カードに出すキャッチフレーズ（最大27文字）
   // area とは独立した別軸のフラグ。
   showOnTop:    boolean; // トップ（/＝福岡市全域）に出すか
   dispatchType: 'none' | 'available' | 'only'; // 出張区分（none=なし / available=店舗あり＋出張 / only=出張専門）

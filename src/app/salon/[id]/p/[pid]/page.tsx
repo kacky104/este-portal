@@ -23,6 +23,11 @@ async function fetchFreePage(id: string, pid: string) {
     .eq('id', Number(pid))
     .maybeSingle();
   if (!page || Number(page.salon_id) !== Number(id)) return null;
+  // 中身が空のページ（追加直後など）は公開しない＝404。内容を入れて保存すると公開される。
+  const _title = ((page.title as string) ?? '').trim();
+  const _body = ((page.body as string) ?? '').trim();
+  const _imgs = Array.isArray(page.images) ? (page.images as unknown[]) : [];
+  if (!_title && !_body && _imgs.length === 0) return null;
   const { data: salon } = await supabase
     .from('salons')
     .select('id, name, theme, is_hidden')
