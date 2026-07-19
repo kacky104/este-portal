@@ -1098,7 +1098,7 @@ export default function MyPage() {
         hours: salonForm.hours,
         description: salonForm.description,
         appeal: salonForm.appeal,
-        catchphrase: (salonForm.catchphrase ?? '').trim().slice(0, 30) || null,
+        catchphrase: (salonForm.catchphrase ?? '').trim().slice(0, 40) || null,
         phone: salonForm.phone,
         address: salonForm.address,
         access: salonForm.access,
@@ -2100,16 +2100,16 @@ export default function MyPage() {
           </div>
           <div>
             <label className={labelClass}>キャッチフレーズ</label>
-            <p className="mb-1 text-[11px] text-slate-400">TOP・地域ページの店舗カードに表示されます（最大30文字）。</p>
+            <p className="mb-1 text-[11px] text-slate-400">TOP・地域ページの店舗カードに表示されます（最大40文字）。</p>
             <input
               type="text"
-              maxLength={30}
+              maxLength={40}
               className={inputClass}
               placeholder="例：癒しと非日常を、あなたに。"
               value={salonForm.catchphrase ?? ''}
-              onChange={(e) => setSalonForm((prev) => ({ ...prev, catchphrase: e.target.value.slice(0, 30) }))}
+              onChange={(e) => setSalonForm((prev) => ({ ...prev, catchphrase: e.target.value.slice(0, 40) }))}
             />
-            <p className="mt-0.5 text-right text-[10px] text-slate-400">{(salonForm.catchphrase ?? '').length}/30</p>
+            <p className="mt-0.5 text-right text-[10px] text-slate-400">{(salonForm.catchphrase ?? '').length}/40</p>
           </div>
 
           <div>
