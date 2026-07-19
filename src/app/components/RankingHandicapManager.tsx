@@ -8,10 +8,21 @@ import { revalidateRanking } from '@/app/lib/revalidateTop';
 // 週間ランキングの「下駄（ハンデ）」設定。店舗・セラピストごとに毎週のアクセス数へ加算する固定値を設定する。
 // 保存は管理者判定付きRPC admin_set_ranking_bonus 経由（各テーブルの更新RLSに依存しない）。
 // 公開ランキングには数値は出ないため、この値は「順位を底上げする内部の下駄」として機能する。
+// セラピストは「店舗名の一覧 → 店舗を選ぶと所属セラピスト」の2段構成。
 const supabase = createClient();
 
 type SalonRow = { id: number; name: string; area: string | null; bonus: number };
-type TherapistRow = { id: number; name: string; salonName: string; bonus: number };
+type TherapistRow = { id: number; name: string; salonId: number | null; salonName: string; bonus: number };
+
+function Chevron() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
+      className="flex-shrink-0 text-slate-300" aria-hidden>
+      <path d="M9 18l6-6-6-6" />
+    </svg>
+  );
+}
 
 export default function RankingHandicapManager({ onToast }: { onToast: (m: string) => void }) {
   const [tab, setTab] = useState<'salon' | 'therapist'>('salon');
@@ -22,13 +33,14 @@ export default function RankingHandicapManager({ onToast }: { onToast: (m: strin
   const [q, setQ] = useState('');
   const [loaded, setLoaded] = useState(false);
   const [error, setError] = useState('');
+  const [selectedSalonId, setSelectedSalonId] = useState<number | null>(null); // セラピストタブで選択中の店舗
 
   const load = useCallback(async () => {
     const [{ data: sData, error: sErr }, { data: tData, error: tErr }] = await Promise.all([
       supabase.from('salons').select('id, name, area, ranking_bonus').eq('is_hidden', false).order('id', { ascending: true }),
       supabase
         .from('therapists')
-        .select('id, name, ranking_bonus, is_active, salons(name)')
+        .select('id, name, ranking_bonus, is_active, salon_id, salons(name)')
         .eq('is_active', true)
         .order('id', { ascending: true }),
     ]);
@@ -49,12 +61,14 @@ export default function RankingHandicapManager({ onToast }: { onToast: (m: strin
         id: number;
         name: string | null;
         ranking_bonus: number | null;
+        salon_id: number | null;
         salons: { name: string | null } | { name: string | null }[] | null;
       };
       const salonRel = Array.isArray(row.salons) ? row.salons[0] : row.salons;
       return {
         id: Number(row.id),
         name: row.name ?? '',
+        salonId: row.salon_id != null ? Number(row.salon_id) : null,
         salonName: salonRel?.name ?? '',
         bonus: Number(row.ranking_bonus ?? 0),
       };
@@ -94,21 +108,60 @@ export default function RankingHandicapManager({ onToast }: { onToast: (m: strin
     onToast(val > 0 ? `下駄（+${val.toLocaleString()}）を保存しました` : '下駄を解除しました');
   };
 
+  // 切替時は検索と選択店舗をリセット。
+  const switchTab = (key: 'salon' | 'therapist') => {
+    setTab(key);
+    setQ('');
+    setSelectedSalonId(null);
+  };
+
   const filteredSalons = useMemo(() => {
     const kw = q.trim();
     if (!kw) return salons;
     return salons.filter((r) => r.name.includes(kw));
   }, [salons, q]);
 
-  const filteredTherapists = useMemo(() => {
-    const kw = q.trim();
-    if (!kw) return therapists;
-    return therapists.filter((r) => r.name.includes(kw) || r.salonName.includes(kw));
-  }, [therapists, q]);
+  // セラピストを店舗単位でグループ化（id昇順の初出順で店舗を並べる）。
+  const therapistShops = useMemo(() => {
+    const map = new Map<number, { salonId: number; salonName: string; therapists: TherapistRow[]; bonusCount: number }>();
+    therapists.forEach((t) => {
+      const sid = t.salonId ?? -1;
+      if (!map.has(sid)) {
+        map.set(sid, { salonId: sid, salonName: t.salonName || '（店舗未設定）', therapists: [], bonusCount: 0 });
+      }
+      const g = map.get(sid)!;
+      g.therapists.push(t);
+      if (t.bonus > 0) g.bonusCount += 1;
+    });
+    return [...map.values()];
+  }, [therapists]);
 
-  const activeCount = tab === 'salon'
-    ? salons.filter((r) => r.bonus > 0).length
-    : therapists.filter((r) => r.bonus > 0).length;
+  const selectedShop = useMemo(
+    () => (selectedSalonId == null ? null : therapistShops.find((s) => s.salonId === selectedSalonId) ?? null),
+    [therapistShops, selectedSalonId],
+  );
+
+  const filteredShops = useMemo(() => {
+    const kw = q.trim();
+    if (!kw) return therapistShops;
+    return therapistShops.filter((s) => s.salonName.includes(kw));
+  }, [therapistShops, q]);
+
+  const filteredShopTherapists = useMemo(() => {
+    if (!selectedShop) return [];
+    const kw = q.trim();
+    if (!kw) return selectedShop.therapists;
+    return selectedShop.therapists.filter((t) => t.name.includes(kw));
+  }, [selectedShop, q]);
+
+  const salonBonusCount = salons.filter((r) => r.bonus > 0).length;
+
+  const searchPlaceholder =
+    tab === 'salon'
+      ? '店舗名で絞り込み'
+      : selectedShop
+      ? 'セラピスト名で絞り込み'
+      : '店舗名で絞り込み';
 
   const row = (type: 'salon' | 'therapist', id: number, title: string, sub: string) => {
     const key = `${type}:${id}`;
@@ -166,7 +219,7 @@ export default function RankingHandicapManager({ onToast }: { onToast: (m: strin
             <button
               key={key}
               type="button"
-              onClick={() => { setTab(key); setQ(''); }}
+              onClick={() => switchTab(key)}
               aria-pressed={selected}
               className={`inline-flex items-center gap-1.5 px-4 py-1.5 rounded-full border text-xs font-bold transition-colors ${
                 selected
@@ -183,35 +236,87 @@ export default function RankingHandicapManager({ onToast }: { onToast: (m: strin
         })}
       </div>
 
-      {/* 検索（名前で絞り込み。セラピストは所属店名でも可） */}
+      {/* セラピストタブで店舗選択中は、店舗名のパンくず＋戻る */}
+      {tab === 'therapist' && selectedShop && (
+        <button
+          type="button"
+          onClick={() => { setSelectedSalonId(null); setQ(''); }}
+          className="inline-flex items-center gap-1.5 text-xs font-bold text-slate-500 hover:text-pink-600 transition-colors"
+        >
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M15 18l-6-6 6-6" />
+          </svg>
+          店舗一覧へ戻る
+        </button>
+      )}
+
+      {/* 検索 */}
       <input
         type="text"
         value={q}
         onChange={(e) => setQ(e.target.value)}
-        placeholder={tab === 'salon' ? '店舗名で絞り込み' : 'セラピスト名・店名で絞り込み'}
+        placeholder={searchPlaceholder}
         className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs bg-slate-50/50 focus:outline-none focus:ring-2 focus:ring-pink-200"
       />
 
-      <p className="text-[11px] text-slate-400">
-        下駄あり：{activeCount}件 / 全{tab === 'salon' ? salons.length : therapists.length}件
-      </p>
+      {/* 件数の案内 */}
+      {tab === 'salon' ? (
+        <p className="text-[11px] text-slate-400">下駄あり：{salonBonusCount}件 / 全{salons.length}件</p>
+      ) : selectedShop ? (
+        <p className="text-[11px] text-slate-400">
+          {selectedShop.salonName}：下駄あり {selectedShop.bonusCount}件 / 全{selectedShop.therapists.length}名
+        </p>
+      ) : (
+        <p className="text-[11px] text-slate-400">店舗を選ぶと所属セラピストを設定できます（全{therapistShops.length}店舗 / {therapists.length}名）</p>
+      )}
 
       {error ? (
         <div className="py-8 text-center text-sm text-rose-400">{error}</div>
       ) : !loaded ? (
         <div className="py-8 text-center text-sm text-slate-400">読み込み中...</div>
-      ) : (
+      ) : tab === 'salon' ? (
+        // ── 店舗タブ ──
         <div className="rounded-2xl border border-slate-100 overflow-hidden max-h-[420px] overflow-y-auto">
-          {tab === 'salon' ? (
-            filteredSalons.length === 0 ? (
-              <div className="py-8 text-center text-sm text-slate-400">該当する店舗がありません</div>
-            ) : (
-              filteredSalons.map((r) => row('salon', r.id, r.name, r.area ? areaLabel(r.area) : ''))
-            )
-          ) : filteredTherapists.length === 0 ? (
-            <div className="py-8 text-center text-sm text-slate-400">該当するセラピストがありません</div>
+          {filteredSalons.length === 0 ? (
+            <div className="py-8 text-center text-sm text-slate-400">該当する店舗がありません</div>
           ) : (
-            filteredTherapists.map((r) => row('therapist', r.id, r.name, r.salonName))
+            filteredSalons.map((r) => row('salon', r.id, r.name, r.area ? areaLabel(r.area) : ''))
+          )}
+        </div>
+      ) : selectedShop ? (
+        // ── セラピストタブ：店舗を選択中（所属セラピスト一覧） ──
+        <div className="rounded-2xl border border-slate-100 overflow-hidden max-h-[420px] overflow-y-auto">
+          {filteredShopTherapists.length === 0 ? (
+            <div className="py-8 text-center text-sm text-slate-400">該当するセラピストがいません</div>
+          ) : (
+            filteredShopTherapists.map((t) => row('therapist', t.id, t.name, ''))
+          )}
+        </div>
+      ) : (
+        // ── セラピストタブ：店舗一覧（クリックで所属セラピストへ） ──
+        <div className="rounded-2xl border border-slate-100 overflow-hidden max-h-[420px] overflow-y-auto">
+          {filteredShops.length === 0 ? (
+            <div className="py-8 text-center text-sm text-slate-400">該当する店舗がありません</div>
+          ) : (
+            filteredShops.map((shop) => (
+              <button
+                key={shop.salonId}
+                type="button"
+                onClick={() => { setSelectedSalonId(shop.salonId); setQ(''); }}
+                className="w-full flex items-center gap-3 px-4 py-3 border-b border-slate-100 last:border-b-0 hover:bg-pink-50/30 transition-colors text-left"
+              >
+                <div className="min-w-0 flex-1">
+                  <p className="text-xs font-bold text-slate-800 truncate">{shop.salonName}</p>
+                  <p className="text-[11px] text-slate-400">{shop.therapists.length}名</p>
+                </div>
+                {shop.bonusCount > 0 && (
+                  <span className="flex-shrink-0 text-[10px] px-2 py-0.5 rounded-full bg-amber-50 text-amber-700 border border-amber-200 font-bold">
+                    下駄{shop.bonusCount}
+                  </span>
+                )}
+                <Chevron />
+              </button>
+            ))
           )}
         </div>
       )}
