@@ -18,6 +18,7 @@ export type Salon = {
   area2:       string; // 第2エリア（任意）。未設定は ''。
   hours:       string;
   description: string;
+  catchphrase: string; // TOP/地域の店舗カードに出すキャッチフレーズ（最大30文字）
   // area とは独立した別軸のフラグ。
   showOnTop:    boolean; // トップ（/＝福岡市全域）に出すか
   dispatchType: 'none' | 'available' | 'only'; // 出張区分（none=なし / available=店舗あり＋出張 / only=出張専門）
@@ -31,7 +32,7 @@ export type DispatchType = Salon['dispatchType'];
 const SALON_COLUMNS_BASE =
   'id, name, rating, review_count, tags, price, area, area2, hours, description, show_on_top, dispatch_type, courses';
 // card_boost を含む本番用。マイグレーション未適用の環境では下記フォールバックで BASE に切替える。
-const SALON_COLUMNS = `${SALON_COLUMNS_BASE}, card_boost`;
+const SALON_COLUMNS = `${SALON_COLUMNS_BASE}, card_boost, catchphrase`;
 
 function mapSalonRow(row: Record<string, unknown>): Salon {
   return {
@@ -47,6 +48,7 @@ function mapSalonRow(row: Record<string, unknown>): Salon {
     area2:       (row.area2 as string) ?? '',
     hours:       (row.hours as string) ?? '',
     description: (row.description as string) ?? '',
+    catchphrase: (row.catchphrase as string) ?? '',
     showOnTop:    (row.show_on_top as boolean) ?? true,
     dispatchType: (row.dispatch_type as 'none' | 'available' | 'only') ?? 'none',
     cardBoost:    (row.card_boost as boolean) ?? false,

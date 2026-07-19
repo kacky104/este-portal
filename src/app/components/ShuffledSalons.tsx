@@ -363,6 +363,12 @@ export function SalonCard({ salon, therapists, showAge = false, areaNextToDuty =
       <RatingDisplay rating={salon.rating} reviewCount={salon.reviewCount} />
     </div>
   );
+  // キャッチフレーズ（TOP/地域の店舗カード：出勤数・地域バッジの上）。セラピストPUキャプションと同配色・サイズ。
+  const catchEl = salon.catchphrase ? (
+    <p className="px-1 mb-1.5 text-center whitespace-nowrap overflow-hidden text-ellipsis font-bold text-slate-600 leading-tight text-[12.5px]">
+      {salon.catchphrase}
+    </p>
+  ) : null;
   const priceEl = <p className="text-pink-600 font-bold text-sm whitespace-nowrap flex-shrink-0">{salon.price}</p>;
   const detailBtn = (
     <span className="flex-shrink-0 px-4 py-2 rounded-xl bg-pink-600 text-white font-bold text-xs group-hover:bg-pink-500 transition-colors shadow-sm shadow-pink-500/20">
@@ -390,6 +396,8 @@ export function SalonCard({ salon, therapists, showAge = false, areaNextToDuty =
           {salon.name}
         </h3>
       )}
+
+      {catchEl}
 
       {/* 2. 評価・エリア・タグなどの情報。
           compactTherapists（トップ/保存）はバッジ行（出勤数・地域）の上下余白を半分に
@@ -448,6 +456,7 @@ export function SalonCard({ salon, therapists, showAge = false, areaNextToDuty =
   // ── デスクトップ1列・幅広レイアウト（lg のみ。トップページ wideDesktop 時） ──
   const wideLayout = wideDesktop && (
     <div className="hidden lg:flex lg:flex-col flex-1">
+      {catchEl}
       {/* 1段目: 店名（長い場合はフォント自動縮小で1行維持）→ 営業時間 → 地域 →（右端）保存ボタン */}
       <div className="flex items-center gap-2.5 mb-2.5">
         {/* バナー時（nameBanner）は店名・保存ボタンをカード上端の全幅帯へ移すため、ここでは出さない。 */}

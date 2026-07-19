@@ -369,6 +369,7 @@ type Salon = {
   hours: string | null;
   description: string | null;
   appeal: string | null;
+  catchphrase: string | null;
   therapist_count: number | null;
   therapist_types: string[] | null;
   therapist_profile: string | null;
@@ -579,7 +580,7 @@ export default function MyPage() {
 
       const { data: salonData, error: salonError } = await supabase
         .from('salons')
-        .select('id, name, rating, review_count, tags, price, area, hours, description, appeal, therapist_count, therapist_types, therapist_profile, phone, address, access, closed_days, courses, theme, official_url, fukux_url, payment_url, payment_cards, payment_methods, booking_enabled, booking_email, booking_courses, jobs_enabled, popup_image_url, popup_link, popup_image_url2, popup_link2, popup_image_url3, popup_link3, popup_enabled')
+        .select('id, name, rating, review_count, tags, price, area, hours, description, appeal, catchphrase, therapist_count, therapist_types, therapist_profile, phone, address, access, closed_days, courses, theme, official_url, fukux_url, payment_url, payment_cards, payment_methods, booking_enabled, booking_email, booking_courses, jobs_enabled, popup_image_url, popup_link, popup_image_url2, popup_link2, popup_image_url3, popup_link3, popup_enabled')
         .eq('owner_id', user.id)
         .single();
 
@@ -1097,6 +1098,7 @@ export default function MyPage() {
         hours: salonForm.hours,
         description: salonForm.description,
         appeal: salonForm.appeal,
+        catchphrase: (salonForm.catchphrase ?? '').trim().slice(0, 30) || null,
         phone: salonForm.phone,
         address: salonForm.address,
         access: salonForm.access,
@@ -2096,6 +2098,20 @@ export default function MyPage() {
               </div>
             </div>
           </div>
+          <div>
+            <label className={labelClass}>キャッチフレーズ</label>
+            <p className="mb-1 text-[11px] text-slate-400">TOP・地域ページの店舗カードに表示されます（最大30文字）。</p>
+            <input
+              type="text"
+              maxLength={30}
+              className={inputClass}
+              placeholder="例：癒しと非日常を、あなたに。"
+              value={salonForm.catchphrase ?? ''}
+              onChange={(e) => setSalonForm((prev) => ({ ...prev, catchphrase: e.target.value.slice(0, 30) }))}
+            />
+            <p className="mt-0.5 text-right text-[10px] text-slate-400">{(salonForm.catchphrase ?? '').length}/30</p>
+          </div>
+
           <div>
             <label className={labelClass}>店舗紹介</label>
             <textarea rows={6} className={textareaClass} value={salonForm.description ?? ''} onChange={(e) => setSalonForm((p) => ({ ...p, description: e.target.value }))} />
