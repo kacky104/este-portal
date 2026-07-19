@@ -1813,6 +1813,7 @@ export default function MyPage() {
         <div className="max-w-2xl mx-auto px-3 py-2 flex flex-wrap justify-center gap-1.5">
           {([
             ['salon',     '店舗'],
+            ['popup',     '店舗装飾'],
             ['schedule',  '出勤'],
             ['available', '今すぐ'],
             ['profile',   'セラピスト'],
@@ -1822,7 +1823,6 @@ export default function MyPage() {
             ['vipletter', 'VIPレター'],
             ['booking',   'ネット予約'],
             ['jobs',      '求人'],
-            ['popup',     '店舗装飾'],
             ['support',   '運営事務局'],
           ] as const)
             // 求人タブはフクエスワーク掲載（jobs_enabled）契約店のみ表示。
