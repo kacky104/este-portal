@@ -455,6 +455,9 @@ export function SupportTab({
                     )}
                     <p className="text-sm font-black text-pink-600 mt-2">
                       {p.price == null ? '応相談' : `¥${p.price.toLocaleString()}`}
+                      {p.price != null && (
+                        <span className="ml-1 text-[11px] font-medium text-slate-400">（税込）</span>
+                      )}
                     </p>
                   </div>
                   <button
