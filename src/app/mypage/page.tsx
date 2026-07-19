@@ -493,6 +493,7 @@ export default function MyPage() {
   const [popupEnabled, setPopupEnabled] = useState(false);
   const [uploadingPopupSlot, setUploadingPopupSlot] = useState<number | null>(null);
   const [savingPopup,  setSavingPopup]  = useState(false);
+  const [savingTheme, setSavingTheme] = useState(false); // テーマ（店舗装飾タブ）保存中
   const [uploadingNewSlot,  setUploadingNewSlot]  = useState(false);
   const [uploadingPcId,     setUploadingPcId]     = useState<string | null>(null);
   const [uploadingMobileId, setUploadingMobileId] = useState<string | null>(null);
@@ -799,6 +800,17 @@ export default function MyPage() {
     setPopupImages(prev => prev.map((u, i) => (i === slot ? null : u)));
     revalidateSalon(salon.id);
     showToast('画像を削除しました');
+  };
+
+  // テーマ（背景壁紙）だけを保存（店舗装飾タブ）。salons.theme を更新して即時反映。
+  const handleThemeSave = async () => {
+    if (!salon) return;
+    setSavingTheme(true);
+    const { error } = await supabase.from('salons').update({ theme: salonForm.theme ?? 'white' }).eq('id', salon.id);
+    setSavingTheme(false);
+    if (error) { showToast(`保存に失敗しました: ${error.message}`); return; }
+    revalidateSalon(salon.id);
+    showToast('テーマを保存しました');
   };
 
   const handlePopupSave = async () => {
@@ -1810,7 +1822,7 @@ export default function MyPage() {
             ['vipletter', 'VIPレター'],
             ['booking',   'ネット予約'],
             ['jobs',      '求人'],
-            ['popup',     'ポップアップ'],
+            ['popup',     '店舗装飾'],
             ['support',   '運営事務局'],
           ] as const)
             // 求人タブはフクエスワーク掲載（jobs_enabled）契約店のみ表示。
@@ -1859,48 +1871,6 @@ export default function MyPage() {
         <div className={`bg-white rounded-3xl border border-slate-100 shadow-sm p-5 space-y-4 ${activeTab === 'salon' ? '' : 'hidden'}`}>
           <h2 className="text-sm font-black text-slate-700">店舗情報の編集</h2>
 
-          {/* ── テーマ（壁紙） ── */}
-          <div>
-            <label className={labelClass}>テーマ（背景壁紙）</label>
-            <p className="mb-2 text-[11px] text-slate-400">店舗詳細ページの背景に敷かれる壁紙を選べます。壁紙未設定のテーマは背景色のみになります。</p>
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
-              {SALON_THEMES.map((t) => {
-                const selected = (salonForm.theme ?? 'white') === t.key;
-                const wallpaper = themeWallpapers[t.key];
-                return (
-                  <button
-                    key={t.key}
-                    type="button"
-                    onClick={() => setSalonForm((p) => ({ ...p, theme: t.key as ThemeKey }))}
-                    className={`group rounded-2xl border-2 overflow-hidden text-left transition-colors ${
-                      selected ? 'border-pink-500 ring-2 ring-pink-200' : 'border-slate-200 hover:border-pink-300'
-                    }`}
-                  >
-                    {/* プレビュー */}
-                    <div className="relative w-full" style={{ aspectRatio: '16/9', backgroundColor: t.bg }}>
-                      {wallpaper && (
-                        // eslint-disable-next-line @next/next/no-img-element
-                        <img src={wallpaper} alt="" className="absolute inset-0 w-full h-full object-cover" />
-                      )}
-                      {selected && (
-                        <span className="absolute top-1.5 right-1.5 w-5 h-5 rounded-full bg-pink-500 text-white text-[11px] font-bold flex items-center justify-center shadow">
-                          ✓
-                        </span>
-                      )}
-                    </div>
-                    {/* ラベル */}
-                    <div className={`flex items-center gap-1.5 px-2.5 py-1.5 ${selected ? 'bg-pink-50' : 'bg-white'}`}>
-                      <span
-                        className="w-3.5 h-3.5 rounded-full flex-shrink-0"
-                        style={{ backgroundColor: t.bg, border: `1px solid ${t.swatchBorder}` }}
-                      />
-                      <span className={`text-xs font-bold ${selected ? 'text-pink-600' : 'text-slate-600'}`}>{t.label}</span>
-                    </div>
-                  </button>
-                );
-              })}
-            </div>
-          </div>
 
           <div>
             <label className={labelClass}>コースメニュー</label>
@@ -3414,6 +3384,60 @@ export default function MyPage() {
 
         {/* ── ポップアップ画像タブ（サロン詳細で左下から出る画像） ── */}
         <div className={`space-y-4 ${activeTab === 'popup' ? '' : 'hidden'}`}>
+          {/* ── テーマ（背景壁紙）：店舗装飾。旧・店舗タブから移設。保存で salons.theme を更新 ── */}
+          <div className="bg-white rounded-3xl border border-slate-100 shadow-sm p-5 space-y-4">
+          {/* ── テーマ（壁紙） ── */}
+          <div>
+            <label className={labelClass}>テーマ（背景壁紙）</label>
+            <p className="mb-2 text-[11px] text-slate-400">店舗詳細ページの背景に敷かれる壁紙を選べます。壁紙未設定のテーマは背景色のみになります。</p>
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
+              {SALON_THEMES.map((t) => {
+                const selected = (salonForm.theme ?? 'white') === t.key;
+                const wallpaper = themeWallpapers[t.key];
+                return (
+                  <button
+                    key={t.key}
+                    type="button"
+                    onClick={() => setSalonForm((p) => ({ ...p, theme: t.key as ThemeKey }))}
+                    className={`group rounded-2xl border-2 overflow-hidden text-left transition-colors ${
+                      selected ? 'border-pink-500 ring-2 ring-pink-200' : 'border-slate-200 hover:border-pink-300'
+                    }`}
+                  >
+                    {/* プレビュー */}
+                    <div className="relative w-full" style={{ aspectRatio: '16/9', backgroundColor: t.bg }}>
+                      {wallpaper && (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img src={wallpaper} alt="" className="absolute inset-0 w-full h-full object-cover" />
+                      )}
+                      {selected && (
+                        <span className="absolute top-1.5 right-1.5 w-5 h-5 rounded-full bg-pink-500 text-white text-[11px] font-bold flex items-center justify-center shadow">
+                          ✓
+                        </span>
+                      )}
+                    </div>
+                    {/* ラベル */}
+                    <div className={`flex items-center gap-1.5 px-2.5 py-1.5 ${selected ? 'bg-pink-50' : 'bg-white'}`}>
+                      <span
+                        className="w-3.5 h-3.5 rounded-full flex-shrink-0"
+                        style={{ backgroundColor: t.bg, border: `1px solid ${t.swatchBorder}` }}
+                      />
+                      <span className={`text-xs font-bold ${selected ? 'text-pink-600' : 'text-slate-600'}`}>{t.label}</span>
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+            <button
+              type="button"
+              onClick={handleThemeSave}
+              disabled={savingTheme}
+              className="w-full py-2.5 rounded-full bg-pink-500 text-white text-sm font-bold hover:bg-pink-600 disabled:opacity-50"
+            >
+              {savingTheme ? '保存中…' : 'テーマを保存する'}
+            </button>
+          </div>
+
           <div className="bg-white rounded-3xl border border-slate-100 shadow-sm p-5 space-y-4">
             <div>
               <h2 className="text-sm font-black text-slate-700">ポップアップ画像</h2>
