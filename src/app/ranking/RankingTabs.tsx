@@ -197,7 +197,7 @@ export default function RankingTabs({
                     } ${selected ? 'relative z-10' : ''}`}
                     style={
                       selected
-                        ? { background: theme.heading, color: theme.card, borderColor: theme.heading }
+                        ? { background: `${theme.heading}1A`, color: theme.heading, borderColor: theme.heading }
                         : { background: theme.card, color: theme.body, borderColor: theme.cardBorder }
                     }
                   >
