@@ -3388,8 +3388,8 @@ export default function MyPage() {
           <div className="bg-white rounded-3xl border border-slate-100 shadow-sm p-5 space-y-4">
           {/* ── テーマ（壁紙） ── */}
           <div>
-            <label className={labelClass}>テーマ（背景壁紙）</label>
-            <p className="mb-2 text-[11px] text-slate-400">店舗詳細ページの背景に敷かれる壁紙を選べます。壁紙未設定のテーマは背景色のみになります。</p>
+            <h2 className="text-sm font-black text-slate-700">テーマ（背景壁紙）</h2>
+            <p className="mt-1 mb-2 text-[11px] leading-relaxed text-slate-400">店舗詳細ページの背景に敷かれる壁紙を選べます。壁紙未設定のテーマは背景色のみになります。</p>
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
               {SALON_THEMES.map((t) => {
                 const selected = (salonForm.theme ?? 'white') === t.key;
