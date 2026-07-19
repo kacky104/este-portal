@@ -714,11 +714,11 @@ export default async function SalonPage({
 
             {/* 詳細バナー枠（最大3・出勤セラピストの下）。SP: 高さ117px（PUバナーの約3/4）／PC: aspect 31:9。クリックでリンク先へ。 */}
             {detailBanners.length > 0 && (
-              <div className="mt-3 space-y-3">
+              <div className="mt-3 space-y-1.5">
                 {detailBanners.map((b, i) => {
                   const img = (
                     // eslint-disable-next-line @next/next/no-img-element
-                    <img src={b.img} alt="" className="block w-full h-[117px] sm:h-auto sm:aspect-[31/9] object-cover rounded-2xl shadow-sm" />
+                    <img src={b.img} alt="" className="block w-full h-[117px] sm:h-auto sm:aspect-[31/9] object-cover shadow-sm" />
                   );
                   return b.link ? (
                     <Link key={i} href={b.link} className="block">{img}</Link>
