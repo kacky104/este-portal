@@ -38,7 +38,7 @@ export default function RankingTopShowcase({
   prevRank?: number;
 }) {
   const [cards, setCards] = useState<Card[]>([]);
-  const [catchphrase, setCatchphrase] = useState('');
+  const [info, setInfo] = useState<{ catchphrase: string; price: string; hours: string; closedDays: string }>({ catchphrase: '', price: '', hours: '', closedDays: '' });
 
   useEffect(() => {
     let active = true;
@@ -46,7 +46,7 @@ export default function RankingTopShowcase({
       const supabase = createClient();
       const [tRes, sRes] = await Promise.all([
         supabase.from('therapists').select('id, name, age, profile_image_url, is_new_face').eq('salon_id', salonId),
-        supabase.from('salons').select('catchphrase').eq('id', salonId).maybeSingle(),
+        supabase.from('salons').select('catchphrase, price, hours, closed_days').eq('id', salonId).maybeSingle(),
       ]);
       if (!active) return;
       const data = tRes.data;
@@ -63,7 +63,13 @@ export default function RankingTopShowcase({
         }));
         setCards(pick);
       }
-      setCatchphrase(((sRes.data?.catchphrase as string | null) ?? '') || '');
+      const sr = sRes.data;
+      setInfo({
+        catchphrase: ((sr?.catchphrase as string | null) ?? '') || '',
+        price: ((sr?.price as string | null) ?? '') || '',
+        hours: ((sr?.hours as string | null) ?? '') || '',
+        closedDays: ((sr?.closed_days as string | null) ?? '') || '',
+      });
     })();
     return () => {
       active = false;
@@ -139,8 +145,15 @@ export default function RankingTopShowcase({
           </div>
         )}
 
-        {catchphrase && (
-          <p className="mt-2 text-center text-[13px] font-bold leading-snug" style={{ color: '#B8860B' }}>{catchphrase}</p>
+        {(info.catchphrase || info.price || info.hours || info.closedDays) && (
+          <div className="mt-2 text-center leading-relaxed">
+            {info.catchphrase && (
+              <p className="text-[13px] font-bold leading-snug" style={{ color: '#B8860B' }}>{info.catchphrase}</p>
+            )}
+            {info.price && <p className="mt-1 text-[13px] font-bold text-pink-600">{info.price}</p>}
+            <p className="mt-0.5 text-[11px] text-slate-500">営業時間：{info.hours || '問い合わせ'}</p>
+            <p className="text-[11px] text-slate-500">定休日：{info.closedDays || '問い合わせ'}</p>
+          </div>
         )}
 
         {/* 店舗ページへ */}
