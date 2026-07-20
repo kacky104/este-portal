@@ -245,11 +245,20 @@ export default async function Home() {
                         <HomeSearchBar />
                       </div>
                       <nav aria-label="クイックメニュー" className="max-w-md mx-auto px-4 mt-3 lg:mt-0 lg:mx-0 lg:px-0 lg:w-[420px] lg:flex-shrink-0">
-                      <div className="grid grid-cols-5 gap-1.5">
+                      <div className="space-y-1.5">
+                        {/* 1段目：特徴で探す ＋ ランキング（2分割） */}
+                        <div className="grid grid-cols-2 gap-1.5">
                         <Link href="/therapists" className="flex flex-col items-center justify-center gap-0.5 bg-violet-50 border border-violet-100 text-violet-600 px-2 py-0.5 hover:bg-violet-100 transition-colors">
                           <span className="text-lg leading-none" aria-hidden>💁‍♀️</span>
                           <span className="text-[11px] font-bold whitespace-nowrap leading-none">特徴で探す</span>
                         </Link>
+                        <Link href="/ranking" className="flex flex-col items-center justify-center gap-0.5 text-white px-2 py-0.5 hover:opacity-90 transition-opacity" style={{ background: 'linear-gradient(to right, #F59E0B, #EC4899)' }}>
+                          <span className="text-lg leading-none" aria-hidden>👑</span>
+                          <span className="text-[11px] font-bold whitespace-nowrap leading-none">ランキング</span>
+                        </Link>
+                        </div>
+                        {/* 2段目：写メ日記・口コミ・新人・SNS（4分割） */}
+                        <div className="grid grid-cols-4 gap-1.5">
                         <Link href="/diary" className="flex flex-col items-center justify-center gap-0.5 bg-pink-50 border border-pink-100 text-pink-600 px-2 py-0.5 hover:bg-pink-100 transition-colors">
                           <span className="text-lg leading-none" aria-hidden>📷</span>
                           <span className="text-[11px] font-bold whitespace-nowrap leading-none">写メ日記</span>
@@ -266,18 +275,10 @@ export default async function Home() {
                           <span className="text-lg leading-none" aria-hidden>📣</span>
                           <span className="text-[11px] font-bold whitespace-nowrap leading-none">SNS</span>
                         </Link>
+                        </div>
                       </div>
                     </nav>
                     </div>
-                    {/* 週間ランキングへの導線（金→ピンクのグラデ帯・王冠付き） */}
-                    <Link
-                      href="/ranking"
-                      className="flex items-center justify-center gap-2 mt-3 mx-4 lg:mx-0 py-2.5 text-white text-sm font-bold shadow-sm hover:opacity-90 transition-opacity"
-                      style={{ background: 'linear-gradient(to right, #F59E0B, #EC4899)' }}
-                    >
-                      <span aria-hidden>👑</span>
-                      ランキング
-                    </Link>
                   </div>
                   {/* バナー縦幅 py-1・下余白 mb-1 はサロン新着情報と統一の圧縮のまま。
                       エリアページと同方式：タイトルバー自体を summary にしたアコーディオンで、
