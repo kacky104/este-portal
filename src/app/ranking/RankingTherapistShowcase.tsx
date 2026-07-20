@@ -45,15 +45,6 @@ export function RankingTherapistShowcase({
             ) : (
               <span className="absolute inset-0 flex items-center justify-center text-slate-300 font-bold text-3xl">{name.charAt(0) || '—'}</span>
             )}
-            {/* 金メダル 1 */}
-            <span className="absolute top-1.5 left-1.5 w-10 h-10" aria-label="第1位">
-              <svg viewBox="0 0 100 100" className="w-full h-full drop-shadow">
-                <path d="M36 48 L24 92 L40 82 L45 94 L52 60 Z" fill="#D64550" />
-                <path d="M64 48 L76 92 L60 82 L55 94 L48 60 Z" fill="#B23742" />
-                <circle cx="50" cy="40" r="30" fill="#E8A317" stroke="#CE8C0C" strokeWidth="3" />
-                <text x="50" y="51" textAnchor="middle" fontSize="30" fontWeight="900" fill="#5A3E00">1</text>
-              </svg>
-            </span>
             {/* 名前オーバーレイ */}
             <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/70 to-transparent px-2 pt-5 pb-1.5">
               <p className="text-white text-sm font-bold truncate drop-shadow">{name}</p>
@@ -62,13 +53,20 @@ export function RankingTherapistShowcase({
 
           {/* 右半分：情報 */}
           <div className="flex-1 min-w-0 flex flex-col justify-center gap-1.5 p-3">
-            <div className="flex items-center gap-1.5">
-              <span className="text-[11px] font-black tracking-wide" style={{ color: '#B8860B' }}>週間ランキング 第1位</span>
+            <div className="flex items-center gap-2 min-w-0">
+              <span className="flex-shrink-0 w-12 h-12" aria-label="第1位">
+                <svg viewBox="0 0 100 100" className="w-full h-full drop-shadow" aria-hidden>
+                  <path d="M36 48 L24 92 L40 82 L45 94 L52 60 Z" fill="#D64550" />
+                  <path d="M64 48 L76 92 L60 82 L55 94 L48 60 Z" fill="#B23742" />
+                  <circle cx="50" cy="40" r="30" fill="#E8A317" stroke="#CE8C0C" strokeWidth="3" />
+                  <text x="50" y="51" textAnchor="middle" fontSize="30" fontWeight="900" fill="#5A3E00">1</text>
+                </svg>
+              </span>
               <RankDelta current={1} prev={prevRank} />
+              <Link href={`/therapist/${id}`} className="min-w-0 hover:opacity-90 transition-opacity">
+                <span className="block text-lg font-black truncate" style={{ color: nameColor }}>{name || '—'}</span>
+              </Link>
             </div>
-            <Link href={`/therapist/${id}`} className="block hover:opacity-90 transition-opacity">
-              <span className="block text-lg font-black truncate" style={{ color: nameColor }}>{name || '—'}</span>
-            </Link>
             {salonName && <span className="text-[12px] truncate" style={{ color: subColor }}>{salonName}</span>}
             {area && (
               <span className="inline-block self-start text-[10px] px-2 py-0.5 rounded-full bg-amber-50 text-amber-700 border border-amber-200 font-medium">{areaLabel(area)}</span>
