@@ -298,10 +298,6 @@ export default function RankingTabs({
             </div>
           )}
 
-          <p className="text-[11px] text-center mt-4 leading-relaxed" style={{ color: theme.body }}>
-            ※ 総合は「店舗＋所属セラピスト全員」の週間アクセスを合算した順位です。<br />
-            毎週月曜0時（日本時間）に新しい週の集計へ切り替わります。
-          </p>
         </div>
       </main>
 
