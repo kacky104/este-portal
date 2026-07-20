@@ -30,6 +30,7 @@ export function RankingTherapistShowcase({
   theme,
   compact = false,
   mini = false,
+  micro = false,
 }: {
   rank: number;
   id: number;
@@ -51,6 +52,7 @@ export function RankingTherapistShowcase({
   theme: SalonTheme;
   compact?: boolean;
   mini?: boolean;
+  micro?: boolean;
 }) {
   const darkTheme = theme.key === 'black';
   const nameColor = darkTheme ? theme.heading : '#334155';
@@ -82,11 +84,11 @@ export function RankingTherapistShowcase({
   return (
     <div className="mb-5 p-[2.5px] shadow-md" style={{ background: m.border }}>
       <div style={{ background: darkTheme ? theme.card : '#ffffff' }}>
-        <div className={`flex ${compact ? 'h-44' : ''}`}>
+        <div className={`flex ${compact ? 'h-44' : ''} ${micro ? 'items-center' : ''}`}>
           {/* 左半分：セラピストの大きな写真カード */}
           <Link
             href={`/therapist/${id}`}
-            className={`relative block flex-shrink-0 overflow-hidden bg-slate-100 group ${mini ? 'w-1/4 aspect-[3/4]' : compact ? 'w-[37.5%] h-full' : 'w-1/2 aspect-[3/4]'}`}
+            className={`relative block flex-shrink-0 overflow-hidden bg-slate-100 group ${micro ? 'w-[12.5%] aspect-[3/4]' : mini ? 'w-1/4 aspect-[3/4]' : compact ? 'w-[37.5%] h-full' : 'w-1/2 aspect-[3/4]'}`}
           >
             {profileImageUrl ? (
               <Image
