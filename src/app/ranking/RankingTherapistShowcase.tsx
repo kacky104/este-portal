@@ -78,11 +78,11 @@ export function RankingTherapistShowcase({
   return (
     <div className="mb-5 p-[2.5px] shadow-md" style={{ background: m.border }}>
       <div style={{ background: darkTheme ? theme.card : '#ffffff' }}>
-        <div className="flex">
+        <div className={`flex ${compact ? 'h-44' : ''}`}>
           {/* 左半分：セラピストの大きな写真カード */}
           <Link
             href={`/therapist/${id}`}
-            className={`relative block ${compact ? 'w-[37.5%]' : 'w-1/2'} flex-shrink-0 aspect-[3/4] overflow-hidden bg-slate-100 group`}
+            className={`relative block flex-shrink-0 overflow-hidden bg-slate-100 group ${compact ? 'w-[37.5%] h-full' : 'w-1/2 aspect-[3/4]'}`}
           >
             {profileImageUrl ? (
               <Image
@@ -113,7 +113,7 @@ export function RankingTherapistShowcase({
           </Link>
 
           {/* 右半分：情報 */}
-          <div className="flex-1 min-w-0 flex flex-col justify-start gap-1.5 px-1 py-2">
+          <div className={`flex-1 min-w-0 flex flex-col justify-start gap-1.5 px-1 py-2 ${compact ? 'overflow-hidden' : ''}`}>
             {/* 順位バッジ（位置そのまま）＋右隣に 名前(上)／スリーサイズ(下) */}
             <div className="flex items-start gap-1 min-w-0">
               <span className="flex-shrink-0 w-12 h-12" aria-label={`第${rank}位`}>
@@ -139,7 +139,7 @@ export function RankingTherapistShowcase({
             {/* 特徴バッジ（順位バッジの下・中央寄せ） */}
             <FeatureBadges badges={featureBadges} className="justify-center" />
             {/* キャッチフレーズ（特徴バッジの下・中央寄せ） */}
-            {catchphrase && (
+            {!compact && catchphrase && (
               <AutoFitText text={catchphrase} max={13} min={10} className="mt-auto font-bold text-center" style={{ color: '#db2777' }} />
             )}
             {/* エリアバッジ・ボタン・店名を一番下へ寄せる */}
