@@ -6,6 +6,7 @@ import {
   fetchRankingHeroes,
   fetchThemeWallpapers,
   fetchPreviousRankMaps,
+  fetchOverallShowcaseData,
 } from '@/app/lib/ranking';
 import RankingTabs from './RankingTabs';
 
@@ -40,6 +41,8 @@ export default async function RankingPage() {
     fetchThemeWallpapers(),
     fetchPreviousRankMaps(),        // 前週順位（順位変動マーク用）
   ]);
+  // 総合ショーケースのセラピスト/店舗情報を1回でまとめて取得（個別fetch回避）。
+  const showcaseData = await fetchOverallShowcaseData(overallRanking.map((s) => s.id));
 
   return (
     <RankingTabs
@@ -49,6 +52,7 @@ export default async function RankingPage() {
       heroes={heroes}
       wallpapers={wallpapers}
       prevRanks={prevRanks}
+      showcaseData={showcaseData}
     />
   );
 }

@@ -11,7 +11,7 @@ import { VipLetterIcon } from '@/app/components/VipLetterIcon';
 import { Breadcrumb } from '@/app/components/Breadcrumb';
 import RankingTopShowcase from './RankingTopShowcase';
 import { getTheme, breadcrumbCurrentColor, type SalonTheme } from '@/app/lib/themes';
-import type { SalonRankItem, TherapistRankItem, PrevRankMaps } from '@/app/lib/ranking';
+import type { SalonRankItem, TherapistRankItem, PrevRankMaps, ShowcaseSalonData } from '@/app/lib/ranking';
 import { RankDelta } from './RankDelta';
 import { salonMetaText } from './salonMeta';
 
@@ -108,6 +108,7 @@ export default function RankingTabs({
   heroes,
   wallpapers,
   prevRanks,
+  showcaseData,
 }: {
   overallRanking: SalonRankItem[];
   salonRanking: SalonRankItem[];
@@ -115,6 +116,7 @@ export default function RankingTabs({
   heroes: { overall: string | null; salon: string | null; therapist: string | null };
   wallpapers: Record<string, string>;
   prevRanks: PrevRankMaps;
+  showcaseData: Record<number, ShowcaseSalonData>;
 }) {
   const [tab, setTab] = useState<TabKey>('overall');
   const theme = getTheme(TAB_THEME[tab]);
@@ -220,6 +222,7 @@ export default function RankingTabs({
                   area2={s.area2}
                   dispatchType={s.dispatchType}
                   prevRank={prevRanks.overall[String(s.id)]}
+                  data={showcaseData[s.id] ?? { therapists: [], catchphrase: '', price: '', hours: '', closedDays: '' }}
                 />
               ))
             )

@@ -319,3 +319,39 @@ export async function fetchRankingHeroes(): Promise<RankingHeroes> {
     therapist: pick(data?.hero_therapist),
   };
 }
+
+
+// 総合ランキング各順位のショーケース用データを一括取得（クライアント個別fetchを避け高速化）。
+// therapists は所属全員を返し、ランダム選抜はクライアント側で行う（開くたびランダムを維持）。
+export type ShowcaseCard = { id: string; name: string; age: string | null; img: string | null; isNew: boolean };
+export type ShowcaseSalonData = {
+  therapists: ShowcaseCard[];
+  catchphrase: string;
+  price: string;
+  hours: string;
+  closedDays: string;
+};
+export async function fetchOverallShowcaseData(salonIds: number[]): Promise<Record<number, ShowcaseSalonData>> {
+  const byId: Record<number, ShowcaseSalonData> = {};
+  salonIds.forEach((id) => { byId[id] = { therapists: [], catchphrase: '', price: '', hours: '', closedDays: '' }; });
+  if (salonIds.length === 0) return byId;
+  const supabase = createPublicClient();
+  const [tRes, sRes] = await Promise.all([
+    supabase.from('therapists').select('id, salon_id, name, age, profile_image_url, is_new_face').in('salon_id', salonIds),
+    supabase.from('salons').select('id, catchphrase, price, hours, closed_days').in('id', salonIds),
+  ]);
+  ((tRes.data ?? []) as Array<{ id: number; salon_id: number | null; name: string | null; age: string | null; profile_image_url: string | null; is_new_face: boolean | null }>).forEach((t) => {
+    const sid = t.salon_id != null ? Number(t.salon_id) : null;
+    if (sid == null || !byId[sid]) return;
+    byId[sid].therapists.push({ id: String(t.id), name: t.name ?? '', age: t.age ?? null, img: t.profile_image_url ?? null, isNew: Boolean(t.is_new_face) });
+  });
+  ((sRes.data ?? []) as Array<{ id: number; catchphrase: string | null; price: string | null; hours: string | null; closed_days: string | null }>).forEach((s2) => {
+    const id = Number(s2.id);
+    if (!byId[id]) return;
+    byId[id].catchphrase = (s2.catchphrase ?? '') || '';
+    byId[id].price = (s2.price ?? '') || '';
+    byId[id].hours = (s2.hours ?? '') || '';
+    byId[id].closedDays = (s2.closed_days ?? '') || '';
+  });
+  return byId;
+}

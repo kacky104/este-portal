@@ -3,12 +3,10 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
-import { createClient } from '@/app/lib/supabase/client';
-import { salonMetaText } from './salonMeta';
 import { RankDelta } from './RankDelta';
+import { salonMetaText } from './salonMeta';
 import { AutoFitText } from '@/app/components/AutoFitText';
-
-type Card = { id: string; name: string; age: string | null; img: string | null; isNew: boolean };
+import type { ShowcaseSalonData, ShowcaseCard } from '@/app/lib/ranking';
 
 // フィッシャー–イエーツでシャッフル（クライアント描画専用）。
 function shuffle<T>(arr: T[]): T[] {
@@ -20,8 +18,16 @@ function shuffle<T>(arr: T[]): T[] {
   return a;
 }
 
-// 総合ランキング1位の豪華ショーケース。
-// その店舗の所属セラピストを最大8枚（4列×2段）ランダムで表示する。金枠＋王冠で豪華に。
+// 画像ありを優先し最大 count 枚を選ぶ。randomize=false は SSR/初期表示用（決定的）。
+function pickCards(list: ShowcaseCard[], count: number, randomize: boolean): ShowcaseCard[] {
+  const withImg = list.filter((t) => t.img);
+  const noImg = list.filter((t) => !t.img);
+  const a = randomize ? [...shuffle(withImg), ...shuffle(noImg)] : [...withImg, ...noImg];
+  return a.slice(0, count);
+}
+
+// 総合ランキングのショーケース。1〜3位=8枚(4×2)＋金/銀/銅、4位以降=4枚(1行)＋ダーク。
+// データはサーバーで一括取得したものを props で受け取る（個別 fetch なし＝高速）。
 export default function RankingTopShowcase({
   rank,
   salonId,
@@ -30,6 +36,7 @@ export default function RankingTopShowcase({
   area2,
   dispatchType,
   prevRank,
+  data,
 }: {
   rank: number;
   salonId: number;
@@ -38,54 +45,22 @@ export default function RankingTopShowcase({
   area2: string | null;
   dispatchType: 'none' | 'available' | 'only';
   prevRank?: number;
+  data: ShowcaseSalonData;
 }) {
-  const [cards, setCards] = useState<Card[]>([]);
-  const [info, setInfo] = useState<{ catchphrase: string; price: string; hours: string; closedDays: string }>({ catchphrase: '', price: '', hours: '', closedDays: '' });
-
+  const count = rank <= 3 ? 8 : 4;
+  // SSRは決定的な並び、マウント後にシャッフル（開くたびランダム・ハイドレーション不整合なし）。
+  const [cards, setCards] = useState<ShowcaseCard[]>(() => pickCards(data.therapists, count, false));
   useEffect(() => {
-    let active = true;
-    (async () => {
-      const supabase = createClient();
-      const [tRes, sRes] = await Promise.all([
-        supabase.from('therapists').select('id, name, age, profile_image_url, is_new_face').eq('salon_id', salonId),
-        supabase.from('salons').select('catchphrase, price, hours, closed_days').eq('id', salonId).maybeSingle(),
-      ]);
-      if (!active) return;
-      const data = tRes.data;
-      if (data) {
-        // 画像ありを優先し、それぞれシャッフルして最大8枚。
-        const withImg = shuffle(data.filter((t) => t.profile_image_url));
-        const noImg = shuffle(data.filter((t) => !t.profile_image_url));
-        const pick = [...withImg, ...noImg].slice(0, rank <= 3 ? 8 : 4).map((t) => ({
-          id: String(t.id),
-          name: (t.name as string) ?? '',
-          age: (t.age as string | null) ?? null,
-          img: (t.profile_image_url as string | null) ?? null,
-          isNew: Boolean(t.is_new_face),
-        }));
-        setCards(pick);
-      }
-      const sr = sRes.data;
-      setInfo({
-        catchphrase: ((sr?.catchphrase as string | null) ?? '') || '',
-        price: ((sr?.price as string | null) ?? '') || '',
-        hours: ((sr?.hours as string | null) ?? '') || '',
-        closedDays: ((sr?.closed_days as string | null) ?? '') || '',
-      });
-    })();
-    return () => {
-      active = false;
-    };
-  }, [salonId]);
+    setCards(pickCards(data.therapists, count, true));
+  }, [data.therapists, count]);
 
-  // 地域＋区分のテキスト（スラッシュ両隣にスペース）。
   const metaText = salonMetaText(area, area2, dispatchType);
-  // 料金・営業時間・定休日を1行に（スラッシュ区切り・未設定は問い合わせ）。
   const detailLine = [
-    info.price || null,
-    `営業時間：${info.hours || '問い合わせ'}`,
-    `定休日：${info.closedDays || '問い合わせ'}`,
+    data.price || null,
+    `営業時間：${data.hours || '問い合わせ'}`,
+    `定休日：${data.closedDays || '問い合わせ'}`,
   ].filter(Boolean).join(' / ');
+
   // 順位バッジ：1金/2銀/3銅はリボンメダル、4位以降は番号バッジ。
   const medal =
     rank === 1 ? { c: '#E8A317', s: '#CE8C0C', r: '#F7C948', n: '#5A3E00' }
@@ -93,13 +68,23 @@ export default function RankingTopShowcase({
     : rank === 3 ? { c: '#D69A62', s: '#A96B36', r: '#EAC29A', n: '#5A3418' }
     : null;
 
+  // 順位別レイアウト（枠色・地色・文字色）。1金/2銀/3銅、4位以降はダーク。
+  const isDark = rank > 3;
+  const frameBg =
+    rank === 1 ? 'linear-gradient(135deg,#F9D976,#E8A317,#F7C948,#B8860B)'
+    : rank === 2 ? 'linear-gradient(135deg,#EEF1F5,#AEB8C2,#D7DEE5,#8A94A0)'
+    : rank === 3 ? 'linear-gradient(135deg,#EEC59B,#CD8B54,#E7B98F,#A96B36)'
+    : 'linear-gradient(135deg,#4B5563,#111827,#374151,#0B0F16)';
+  const innerCls = isDark ? 'bg-slate-800 p-1' : 'bg-white p-1';
+  const nameColor = isDark ? '#f8fafc' : '#0f172a';
+  const metaColor = isDark ? '#cbd5e1' : '#64748b';
+  const catchColor = isDark ? '#F5D57A' : '#B8860B';
+  const cardPlaceholder = isDark ? 'bg-slate-700' : 'bg-slate-100';
+
   return (
-    <div
-      className="mb-5 p-[2.5px] shadow-md"
-      style={{ background: 'linear-gradient(135deg,#F9D976,#E8A317,#F7C948,#B8860B)' }}
-    >
-      <div className="bg-white p-1">
-        {/* ヘッダー：左上に「王冠＋1」バッジ、店名は中央（右にバッジ幅スペーサーで中央寄せ・1行オートフィット） */}
+    <div className="mb-5 p-[2.5px] shadow-md" style={{ background: frameBg }}>
+      <div className={innerCls}>
+        {/* ヘッダー：左に順位バッジ、右に店名（1行オートフィット） */}
         <div className="flex items-center gap-2 mb-2">
           <span className="flex-shrink-0 w-14 h-14" aria-label={`第${rank}位`}>
             {medal ? (
@@ -111,28 +96,33 @@ export default function RankingTopShowcase({
                 <text x="50" y="51" textAnchor="middle" fontSize="30" fontWeight="900" fill={medal.n}>{rank}</text>
               </svg>
             ) : (
-              <span className="w-full h-full rounded-full flex items-center justify-center font-black text-base shadow-sm" style={{ background: 'linear-gradient(135deg,#FBEDCB,#EFD79B)', color: '#8a6d1f', border: '1px solid #E6D3A2' }}>{rank}</span>
+              <span
+                className="w-full h-full rounded-full flex items-center justify-center font-black text-base shadow-sm"
+                style={{ background: 'linear-gradient(135deg,#E5E7EB,#9CA3AF)', color: '#1f2937', border: '1px solid #cbd5e1' }}
+              >
+                {rank}
+              </span>
             )}
           </span>
           <div className="min-w-0 flex-1">
             <Link href={`/salon/${salonId}`} className="block hover:opacity-90 transition-opacity">
-              <AutoFitText text={salonName || '—'} max={22} min={12} className="font-black text-slate-900" />
+              <AutoFitText text={salonName || '—'} max={22} min={12} className="font-black" style={{ color: nameColor }} />
             </Link>
             <div className="mt-0.5 flex items-center gap-1.5">
               <RankDelta current={rank} prev={prevRank} />
-              <span className="min-w-0 truncate text-[11px] text-slate-500">{metaText}</span>
+              <span className="min-w-0 truncate text-[11px]" style={{ color: metaColor }}>{metaText}</span>
             </div>
           </div>
         </div>
 
-        {/* 所属セラピスト：最大8枚（4列×2段・ランダム） */}
+        {/* 所属セラピスト（1〜3位=8枚/4×2、4位以降=4枚/1行・ランダム） */}
         {cards.length > 0 && (
           <div className="grid grid-cols-4">
             {cards.map((c) => (
               <Link
                 key={c.id}
                 href={`/therapist/${c.id}`}
-                className="relative block aspect-[3/4] overflow-hidden bg-slate-100 group"
+                className={`relative block aspect-[3/4] overflow-hidden group ${cardPlaceholder}`}
               >
                 {c.img ? (
                   <Image
@@ -143,7 +133,7 @@ export default function RankingTopShowcase({
                     sizes="(max-width:640px) 24vw, 130px"
                   />
                 ) : (
-                  <span className="absolute inset-0 flex items-center justify-center text-slate-300 font-bold text-lg">
+                  <span className="absolute inset-0 flex items-center justify-center text-slate-400 font-bold text-lg">
                     {c.name.charAt(0) || '—'}
                   </span>
                 )}
@@ -163,12 +153,13 @@ export default function RankingTopShowcase({
           </div>
         )}
 
-        {(info.catchphrase || info.price || info.hours || info.closedDays) && (
+        {/* キャッチフレーズ＋料金/営業時間/定休日（1行） */}
+        {(data.catchphrase || data.price || data.hours || data.closedDays) && (
           <div className="mt-2 text-center leading-relaxed">
-            {info.catchphrase && (
-              <p className="text-[13px] font-bold leading-snug" style={{ color: '#B8860B' }}>{info.catchphrase}</p>
+            {data.catchphrase && (
+              <p className="text-[13px] font-bold leading-snug" style={{ color: catchColor }}>{data.catchphrase}</p>
             )}
-            <AutoFitText text={detailLine} max={12} min={9} className="mt-1 text-center text-slate-500" />
+            <AutoFitText text={detailLine} max={12} min={9} className="mt-1 text-center" style={{ color: metaColor }} />
           </div>
         )}
 
