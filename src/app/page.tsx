@@ -244,35 +244,29 @@ export default async function Home() {
                       <div className="lg:flex-1 lg:min-w-0">
                         <HomeSearchBar />
                       </div>
-                      <nav aria-label="クイックメニュー" className="max-w-md mx-auto px-4 mt-3 lg:mt-0 lg:mx-0 lg:px-0 lg:w-[420px] lg:flex-shrink-0">
+                      <nav aria-label="クイックメニュー" className="w-full mt-3 lg:mt-0 lg:w-[420px] lg:flex-shrink-0">
                       <div className="space-y-1.5">
                         {/* 1段目：特徴で探す ＋ ランキング（2分割） */}
                         <div className="grid grid-cols-2 gap-1.5">
-                        <Link href="/therapists" className="flex flex-col items-center justify-center gap-0.5 bg-violet-50 border border-violet-100 text-violet-600 px-2 py-0.5 hover:bg-violet-100 transition-colors">
-                          <span className="text-lg leading-none" aria-hidden>💁‍♀️</span>
+                        <Link href="/therapists" className="flex flex-col items-center justify-center gap-0.5 bg-violet-50 border border-violet-100 text-violet-600 px-2 py-2 hover:bg-violet-100 transition-colors">
                           <span className="text-[11px] font-bold whitespace-nowrap leading-none">特徴で探す</span>
                         </Link>
-                        <Link href="/ranking" className="flex flex-col items-center justify-center gap-0.5 text-white px-2 py-0.5 hover:opacity-90 transition-opacity" style={{ background: 'linear-gradient(to right, #F59E0B, #EC4899)' }}>
-                          <span className="text-lg leading-none" aria-hidden>👑</span>
-                          <span className="text-[11px] font-bold whitespace-nowrap leading-none">ランキング</span>
+                        <Link href="/ranking" className="flex flex-col items-center justify-center gap-0.5 text-white px-2 py-2 hover:opacity-90 transition-opacity" style={{ background: 'linear-gradient(to right, #F59E0B, #EC4899)' }}>
+                          <span className="text-[11px] font-bold whitespace-nowrap leading-none">人気ランキング</span>
                         </Link>
                         </div>
                         {/* 2段目：写メ日記・口コミ・新人・SNS（4分割） */}
                         <div className="grid grid-cols-4 gap-1.5">
-                        <Link href="/diary" className="flex flex-col items-center justify-center gap-0.5 bg-pink-50 border border-pink-100 text-pink-600 px-2 py-0.5 hover:bg-pink-100 transition-colors">
-                          <span className="text-lg leading-none" aria-hidden>📷</span>
+                        <Link href="/diary" className="flex flex-col items-center justify-center gap-0.5 bg-pink-50 border border-pink-100 text-pink-600 px-2 py-2 hover:bg-pink-100 transition-colors">
                           <span className="text-[11px] font-bold whitespace-nowrap leading-none">写メ日記</span>
                         </Link>
-                        <Link href="/reviews" className="flex flex-col items-center justify-center gap-0.5 bg-amber-50 border border-amber-100 text-amber-600 px-2 py-0.5 hover:bg-amber-100 transition-colors">
-                          <span className="text-lg leading-none" aria-hidden>💬</span>
+                        <Link href="/reviews" className="flex flex-col items-center justify-center gap-0.5 bg-amber-50 border border-amber-100 text-amber-600 px-2 py-2 hover:bg-amber-100 transition-colors">
                           <span className="text-[11px] font-bold whitespace-nowrap leading-none">口コミ</span>
                         </Link>
-                        <Link href="/therapist/new" className="flex flex-col items-center justify-center gap-0.5 bg-emerald-50 border border-emerald-100 text-emerald-600 px-2 py-0.5 hover:bg-emerald-100 transition-colors">
-                          <span className="text-lg leading-none" aria-hidden>🔰</span>
+                        <Link href="/therapist/new" className="flex flex-col items-center justify-center gap-0.5 bg-emerald-50 border border-emerald-100 text-emerald-600 px-2 py-2 hover:bg-emerald-100 transition-colors">
                           <span className="text-[11px] font-bold whitespace-nowrap leading-none">新人</span>
                         </Link>
-                        <Link href="/x-shops" className="flex flex-col items-center justify-center gap-0.5 bg-sky-50 border border-sky-100 text-sky-600 px-2 py-0.5 hover:bg-sky-100 transition-colors">
-                          <span className="text-lg leading-none" aria-hidden>📣</span>
+                        <Link href="/x-shops" className="flex flex-col items-center justify-center gap-0.5 bg-sky-50 border border-sky-100 text-sky-600 px-2 py-2 hover:bg-sky-100 transition-colors">
                           <span className="text-[11px] font-bold whitespace-nowrap leading-none">SNS</span>
                         </Link>
                         </div>
