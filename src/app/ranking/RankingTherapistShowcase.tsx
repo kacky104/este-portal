@@ -130,19 +130,22 @@ export function RankingTherapistShowcase({
             {catchphrase && (
               <AutoFitText text={catchphrase} max={13} min={10} className="font-bold text-center" style={{ color: '#db2777' }} />
             )}
-            {area && (
-              <span className="inline-block self-start text-[10px] px-2 py-0.5 rounded-full bg-amber-50 text-amber-700 border border-amber-200 font-medium">{areaLabel(area)}</span>
-            )}
-            <Link
-              href={`/therapist/${id}`}
-              className="mt-1 flex items-center justify-center gap-1.5 py-2 rounded-full text-white text-[13px] font-bold shadow-sm hover:opacity-90 transition-opacity"
-              style={{ background: 'linear-gradient(to right,#E8A317,#F7C948)' }}
-            >
-              このセラピストを見る
-              <span aria-hidden>→</span>
-            </Link>
-            {/* 店名（一番下・中央寄せ） */}
-            {salonName && <span className="max-w-full text-center text-[12px] truncate" style={{ color: subColor }}>{salonName}</span>}
+            {/* エリアバッジ・ボタン・店名を一番下へ寄せる */}
+            <div className="mt-auto flex flex-col gap-1.5 pt-1.5">
+              {area && (
+                <span className="inline-block self-center text-[10px] px-2 py-0.5 rounded-full bg-amber-50 text-amber-700 border border-amber-200 font-medium">{areaLabel(area)}</span>
+              )}
+              <Link
+                href={`/therapist/${id}`}
+                className="flex items-center justify-center gap-1.5 py-2 rounded-full text-white text-[13px] font-bold shadow-sm hover:opacity-90 transition-opacity"
+                style={{ background: 'linear-gradient(to right,#E8A317,#F7C948)' }}
+              >
+                このセラピストを見る
+                <span aria-hidden>→</span>
+              </Link>
+              {/* 店名（中央寄せ） */}
+              {salonName && <span className="max-w-full text-center text-[12px] truncate" style={{ color: subColor }}>{salonName}</span>}
+            </div>
           </div>
         </div>
       </div>
