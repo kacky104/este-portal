@@ -224,7 +224,7 @@ export default function RankingTabs({
                   総合ランキング TOP10
                 </h2>
                 <p className="mt-2 text-[12px] leading-relaxed" style={{ color: theme.body }}>
-                  店舗と所属セラピスト全員の週間アクセスを合算した、フクエス総合の人気ランキングです。
+                  店舗と所属セラピスト全員の週間アクセスを合算した、<br className="sm:hidden" />フクエス総合の人気ランキングです。
                 </p>
               </div>
               {overallRanking.length === 0 ? (
