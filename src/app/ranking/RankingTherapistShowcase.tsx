@@ -29,6 +29,7 @@ export function RankingTherapistShowcase({
   prevRank,
   theme,
   compact = false,
+  mini = false,
 }: {
   rank: number;
   id: number;
@@ -49,6 +50,7 @@ export function RankingTherapistShowcase({
   prevRank?: number;
   theme: SalonTheme;
   compact?: boolean;
+  mini?: boolean;
 }) {
   const darkTheme = theme.key === 'black';
   const nameColor = darkTheme ? theme.heading : '#334155';
@@ -61,6 +63,7 @@ export function RankingTherapistShowcase({
     4: { border: 'linear-gradient(135deg,#E7EDF5,#9FB3C8,#D6E0EC,#7D93AB)', button: 'linear-gradient(to right,#7D93AB,#A9BED2)', circle: '#8FA6BC', stroke: '#6B8199', num: '#2C3E50', ribbonL: '#5B7186', ribbonR: '#425568', area: 'bg-slate-50 text-slate-600 border-slate-200' },
   };
   const m = MEDAL[rank <= 3 ? rank : 4] ?? MEDAL[1];
+  const tight = compact || mini; // 4位以降の詰めレイアウト
   const bd = parseBodyType(bodyType);
   const cup = bd?.cup ?? null;
   // スリーサイズ（カップ数は出さない。カップは画像上のバッジで表示）。
@@ -82,7 +85,7 @@ export function RankingTherapistShowcase({
           {/* 左半分：セラピストの大きな写真カード */}
           <Link
             href={`/therapist/${id}`}
-            className={`relative block flex-shrink-0 overflow-hidden bg-slate-100 group ${compact ? 'w-[37.5%] h-full' : 'w-1/2 aspect-[3/4]'}`}
+            className={`relative block flex-shrink-0 overflow-hidden bg-slate-100 group ${mini ? 'w-1/4 aspect-[3/4]' : compact ? 'w-[37.5%] h-full' : 'w-1/2 aspect-[3/4]'}`}
           >
             {profileImageUrl ? (
               <Image
@@ -113,7 +116,7 @@ export function RankingTherapistShowcase({
           </Link>
 
           {/* 右半分：情報 */}
-          <div className={`flex-1 min-w-0 flex flex-col justify-start px-1 ${compact ? 'gap-0.5 py-1 overflow-hidden' : 'gap-1.5 py-2'}`}>
+          <div className={`flex-1 min-w-0 flex flex-col justify-start px-1 ${tight ? 'gap-0.5 py-1' : 'gap-1.5 py-2'} ${compact ? 'overflow-hidden' : ''}`}>
             {/* 順位バッジ（位置そのまま）＋右隣に 名前(上)／スリーサイズ(下) */}
             <div className="flex items-start gap-1 min-w-0">
               <span className="flex-shrink-0 w-12 h-12" aria-label={`第${rank}位`}>
@@ -136,14 +139,14 @@ export function RankingTherapistShowcase({
                 )}
               </div>
             </div>
-            {/* 特徴バッジ（順位バッジの下・中央寄せ） */}
-            <FeatureBadges badges={featureBadges} className="justify-center" />
+            {/* 特徴バッジ（順位バッジの下・中央寄せ。11位以降は非表示） */}
+            {!mini && <FeatureBadges badges={featureBadges} className="justify-center" />}
             {/* キャッチフレーズ（特徴バッジの下・中央寄せ） */}
-            {!compact && catchphrase && (
+            {!tight && catchphrase && (
               <AutoFitText text={catchphrase} max={13} min={10} className="mt-auto font-bold text-center" style={{ color: '#db2777' }} />
             )}
             {/* エリアバッジ・ボタン・店名を一番下へ寄せる */}
-            <div className={`mt-auto flex flex-col ${compact ? 'gap-0.5 pt-0.5' : 'gap-1.5 pt-1.5'}`}>
+            <div className={`mt-auto flex flex-col ${tight ? 'gap-0.5 pt-0.5' : 'gap-1.5 pt-1.5'}`}>
               {area && (
                 <span className={`inline-block self-center text-[10px] px-2 py-0.5 rounded-full border font-medium ${m.area}`}>{areaLabel(area)}</span>
               )}
