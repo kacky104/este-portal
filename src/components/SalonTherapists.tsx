@@ -303,7 +303,7 @@ export function GridCard({ therapist, index, showJoinDate = false, from, enableW
           <NewBadge className="absolute bottom-1.5 left-1.5 z-10" />
         )}
       </div>
-      <div className="p-3 flex-1 flex flex-col justify-between min-w-0 text-xs">
+      <div className="pt-1.5 px-3 pb-3 flex-1 flex flex-col justify-between min-w-0 text-xs">
         <div>
           {largeImage ? (
             /* 大カード（在籍一覧・新人紹介）：1行目=名前（左端に保存ボタンを重ねる）/2行目=身長スリーサイズ/3行目=出勤バッジ＋出勤時間 */
