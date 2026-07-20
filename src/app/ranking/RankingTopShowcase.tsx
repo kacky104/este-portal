@@ -75,7 +75,7 @@ export default function RankingTopShowcase({
     : rank === 3 ? 'linear-gradient(135deg,#EEC59B,#CD8B54,#E7B98F,#A96B36)'
     : 'linear-gradient(135deg,#E5E7EB,#CBD5E1)';
   const innerCls = 'bg-white p-1';
-  const nameColor = '#0f172a';
+  const nameColor = '#334155';
   const metaColor = '#64748b';
   const catchColor = '#B8860B';
   const cardPlaceholder = 'bg-slate-100';
