@@ -9,6 +9,7 @@ import { AccountMenu } from '@/app/components/AccountMenu';
 import { NotificationBell } from '@/app/components/NotificationBell';
 import { VipLetterIcon } from '@/app/components/VipLetterIcon';
 import { Breadcrumb } from '@/app/components/Breadcrumb';
+import RankingTopShowcase from './RankingTopShowcase';
 import { areaLabel } from '@/app/lib/areaLabel';
 import { getTheme, breadcrumbCurrentColor, type SalonTheme } from '@/app/lib/themes';
 import type { SalonRankItem, TherapistRankItem } from '@/app/lib/ranking';
@@ -208,10 +209,33 @@ export default function RankingTabs({
             </div>
           </div>
 
-          {/* ── 総合／店舗（店舗表示） ── */}
-          {(tab === 'overall' || tab === 'salon') && (
+          {/* ── 総合：1位は所属セラピストを並べた豪華ショーケース、2位以降は通常リスト ── */}
+          {tab === 'overall' && (
+            <>
+              {overallRanking.length > 0 && (
+                <RankingTopShowcase
+                  salonId={overallRanking[0].id}
+                  salonName={overallRanking[0].name}
+                  area={overallRanking[0].area}
+                />
+              )}
+              {overallRanking.length > 1 && (
+                <div className="rounded-3xl border shadow-sm overflow-hidden transition-colors duration-300" style={cardStyle}>
+                  <SalonList items={overallRanking.slice(1)} theme={theme} />
+                </div>
+              )}
+              {overallRanking.length === 0 && (
+                <div className="rounded-3xl border shadow-sm overflow-hidden transition-colors duration-300" style={cardStyle}>
+                  <EmptyState theme={theme} />
+                </div>
+              )}
+            </>
+          )}
+
+          {/* ── 店舗 ── */}
+          {tab === 'salon' && (
             <div className="rounded-3xl border shadow-sm overflow-hidden transition-colors duration-300" style={cardStyle}>
-              <SalonList items={tab === 'overall' ? overallRanking : salonRanking} theme={theme} />
+              <SalonList items={salonRanking} theme={theme} />
             </div>
           )}
 
