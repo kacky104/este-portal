@@ -5,6 +5,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { createClient } from '@/app/lib/supabase/client';
 import { areaLabel } from '@/app/lib/areaLabel';
+import { AutoFitText } from '@/app/components/AutoFitText';
 
 type Card = { id: string; name: string; age: string | null; img: string | null; isNew: boolean };
 
@@ -59,44 +60,39 @@ export default function RankingTopShowcase({
 
   return (
     <div
-      className="mb-5 rounded-3xl p-[2.5px] shadow-md"
+      className="mb-5 p-[2.5px] shadow-md"
       style={{ background: 'linear-gradient(135deg,#F9D976,#E8A317,#F7C948,#B8860B)' }}
     >
-      <div className="rounded-[22px] bg-white p-4">
+      <div className="bg-white p-4">
         {/* ヘッダー：王冠バッジ ＋ 第1位ラベル ＋ 店名 */}
-        <div className="flex items-center gap-3 mb-3">
+        <div className="text-center mb-3">
           <span
-            className="flex-shrink-0 w-11 h-11 rounded-full flex items-center justify-center shadow"
+            className="inline-flex w-11 h-11 rounded-full items-center justify-center shadow mb-1.5"
             style={{ background: 'linear-gradient(135deg,#F7C948,#E8A317)', border: '1px solid #E8A317' }}
           >
             <svg viewBox="0 0 576 512" width="22" height="22" fill="#5A3E00" aria-hidden>
               <path d="M309 106c11.4-7 19-19.7 19-34 0-22.1-17.9-40-40-40s-40 17.9-40 40c0 14.4 7.6 27 19 34l-39.5 74c-9.8 16.4-32.4 20-47 7.4L86 158c5-6.4 8-14.4 8-23 0-22.1-17.9-40-40-40S14 92.9 14 115s17.9 40 40 40c1.7 0 3.5-.1 5.1-.3l45.5 244.5c3.2 17.9 18.8 30.8 37 30.8h332.8c18.2 0 33.8-12.9 37-30.8L516.9 154.7c1.7.2 3.4.3 5.1.3 22.1 0 40-17.9 40-40s-17.9-40-40-40-40 17.9-40 40c0 8.6 3 16.6 8 23l-76.5 69.9c-14.6 12.6-37.2 9-47-7.4L309 106z" />
             </svg>
           </span>
-          <div className="min-w-0 flex-1">
-            <p className="text-[11px] font-black tracking-wide" style={{ color: '#B8860B' }}>総合ランキング 第1位</p>
-            <Link
-              href={`/salon/${salonId}`}
-              className="block text-lg font-black text-slate-900 truncate hover:text-pink-600 transition-colors"
-            >
-              {salonName || '—'}
-            </Link>
-            {area && (
-              <span className="inline-block mt-0.5 text-[10px] px-2 py-0.5 rounded-full bg-amber-50 text-amber-700 border border-amber-200 font-medium">
-                {areaLabel(area)}
-              </span>
-            )}
-          </div>
+          <p className="text-[12px] font-black tracking-wide mb-1" style={{ color: '#B8860B' }}>総合ランキング 第1位</p>
+          <Link href={`/salon/${salonId}`} className="block hover:opacity-90 transition-opacity">
+            <AutoFitText text={salonName || '—'} max={20} min={12} className="text-center font-black text-slate-900" />
+          </Link>
+          {area && (
+            <span className="inline-block mt-1 text-[10px] px-2 py-0.5 rounded-full bg-amber-50 text-amber-700 border border-amber-200 font-medium">
+              {areaLabel(area)}
+            </span>
+          )}
         </div>
 
         {/* 所属セラピスト：最大8枚（4列×2段・ランダム） */}
         {cards.length > 0 && (
-          <div className="grid grid-cols-4 gap-1.5">
+          <div className="grid grid-cols-4">
             {cards.map((c) => (
               <Link
                 key={c.id}
                 href={`/therapist/${c.id}`}
-                className="relative block aspect-[3/4] overflow-hidden rounded-lg bg-slate-100 group shadow-sm ring-1 ring-amber-100"
+                className="relative block aspect-[3/4] overflow-hidden bg-slate-100 group"
               >
                 {c.img ? (
                   <Image
