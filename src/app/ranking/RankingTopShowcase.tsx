@@ -65,11 +65,11 @@ export default function RankingTopShowcase({
     `営業時間：${data.hours || '問い合わせ'}`,
     `定休日：${data.closedDays || '問い合わせ'}`,
   ].filter(Boolean).join(' / ');
-  // 店舗4位以降（画像レイアウト）は料金を出さない。
-  const detailLineNoPrice = [
+  // 店舗4位以降（画像レイアウト）は 料金＋営業時間（定休日は出さない）。
+  const detailLineSalon = [
+    data.price || null,
     `営業時間：${data.hours || '問い合わせ'}`,
-    `定休日：${data.closedDays || '問い合わせ'}`,
-  ].join(' / ');
+  ].filter(Boolean).join(' / ');
 
   // 順位バッジ：1金/2銀/3銅はリボンメダル、4位以降は番号バッジ。
   const medal =
@@ -174,20 +174,20 @@ export default function RankingTopShowcase({
 
         {imageLayout ? (
           /* 店舗4位以降：左=店舗画像／右=キャッチ・営業時間等・ボタン（左寄せ・右カラム幅に合わせる） */
-          <div className="mt-2 flex gap-3 items-stretch">
-            <div className={`flex-1 min-w-0 rounded-lg overflow-hidden ${cardPlaceholder}`}>
+          <div className="mt-2 flex gap-3 items-start">
+            <div className={`flex-1 min-w-0 aspect-[4/3] rounded-lg overflow-hidden ${cardPlaceholder}`}>
               {data.image ? (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img src={data.image} alt={salonName} className="w-full h-full object-cover" />
               ) : (
-                <span className="flex w-full h-full min-h-[96px] items-center justify-center text-[10px] text-slate-400">画像なし</span>
+                <span className="flex w-full h-full items-center justify-center text-[10px] text-slate-400">画像なし</span>
               )}
             </div>
-            <div className="basis-[54%] flex-shrink-0 flex flex-col justify-center gap-1.5">
+            <div className="basis-[54%] flex-shrink-0 min-w-0 flex flex-col gap-1.5">
               {data.catchphrase && (
-                <p className="text-left text-[13px] font-bold leading-snug" style={{ color: catchColor }}>{data.catchphrase}</p>
+                <p className="text-left text-[13px] font-bold truncate" style={{ color: catchColor }}>{data.catchphrase}</p>
               )}
-              <AutoFitText text={detailLineNoPrice} max={12} min={9} className="text-left" style={{ color: metaColor }} />
+              <p className="text-left text-[11px] truncate" style={{ color: metaColor }}>{detailLineSalon}</p>
               <Link
                 href={`/salon/${salonId}`}
                 className="mt-1 flex items-center justify-center gap-1.5 py-2 rounded-full text-white text-[13px] font-bold shadow-sm hover:opacity-90 transition-opacity"
