@@ -337,23 +337,29 @@ export async function fetchOverallShowcaseData(salonIds: number[]): Promise<Reco
   salonIds.forEach((id) => { byId[id] = { therapists: [], catchphrase: '', price: '', hours: '', closedDays: '', image: '' }; });
   if (salonIds.length === 0) return byId;
   const supabase = createPublicClient();
-  const [tRes, sRes] = await Promise.all([
+  const [tRes, sRes, imgRes] = await Promise.all([
     supabase.from('therapists').select('id, salon_id, name, age, profile_image_url, is_new_face').in('salon_id', salonIds),
-    supabase.from('salons').select('id, catchphrase, price, hours, closed_days, image_url, mobile_image_url').in('id', salonIds),
+    supabase.from('salons').select('id, catchphrase, price, hours, closed_days').in('id', salonIds),
+    supabase.from('salon_images').select('salon_id, image_url, display_order').in('salon_id', salonIds).order('display_order', { ascending: true }),
   ]);
   ((tRes.data ?? []) as Array<{ id: number; salon_id: number | null; name: string | null; age: string | null; profile_image_url: string | null; is_new_face: boolean | null }>).forEach((t) => {
     const sid = t.salon_id != null ? Number(t.salon_id) : null;
     if (sid == null || !byId[sid]) return;
     byId[sid].therapists.push({ id: String(t.id), name: t.name ?? '', age: t.age ?? null, img: t.profile_image_url ?? null, isNew: Boolean(t.is_new_face) });
   });
-  ((sRes.data ?? []) as Array<{ id: number; catchphrase: string | null; price: string | null; hours: string | null; closed_days: string | null; image_url: string | null; mobile_image_url: string | null }>).forEach((s2) => {
+  ((sRes.data ?? []) as Array<{ id: number; catchphrase: string | null; price: string | null; hours: string | null; closed_days: string | null }>).forEach((s2) => {
     const id = Number(s2.id);
     if (!byId[id]) return;
     byId[id].catchphrase = (s2.catchphrase ?? '') || '';
     byId[id].price = (s2.price ?? '') || '';
     byId[id].hours = (s2.hours ?? '') || '';
     byId[id].closedDays = (s2.closed_days ?? '') || '';
-    byId[id].image = (s2.image_url ?? s2.mobile_image_url ?? '') || '';
+  });
+  // 店舗ヘッダー画像（salon_images）：display_order 昇順の1枚目を採用。
+  ((imgRes.data ?? []) as Array<{ salon_id: number; image_url: string | null }>).forEach((r) => {
+    const id = Number(r.salon_id);
+    if (!byId[id] || byId[id].image) return;
+    byId[id].image = (r.image_url ?? '') || '';
   });
   return byId;
 }
