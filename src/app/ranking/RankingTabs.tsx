@@ -164,7 +164,7 @@ export default function RankingTabs({
       <main className="pb-10">
         {/* パンくず（テーマ連動の文字色） */}
         <div className="max-w-3xl mx-auto px-4 pt-10">
-          <Breadcrumb current="ランキング" currentColor={breadcrumbCurrentColor(theme.key)} />
+          <Breadcrumb current="福岡のメンズエステ人気ランキング" currentColor={breadcrumbCurrentColor(theme.key)} />
         </div>
 
         {/* ヒーロー画像（タブ別）：幅いっぱい（ビューポート端まで） */}
