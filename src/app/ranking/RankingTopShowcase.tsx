@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { createClient } from '@/app/lib/supabase/client';
-import { areaLabel } from '@/app/lib/areaLabel';
+import { salonMetaText } from './salonMeta';
 import { RankDelta } from './RankDelta';
 import { AutoFitText } from '@/app/components/AutoFitText';
 
@@ -26,12 +26,14 @@ export default function RankingTopShowcase({
   salonId,
   salonName,
   area,
+  area2,
   dispatchType,
   prevRank,
 }: {
   salonId: number;
   salonName: string;
   area: string | null;
+  area2: string | null;
   dispatchType: 'none' | 'available' | 'only';
   prevRank?: number;
 }) {
@@ -68,9 +70,8 @@ export default function RankingTopShowcase({
     };
   }, [salonId]);
 
-  // 地域＋区分のテキスト（例：博多駅周辺/メンズエステ/ルーム（個室））。出張専門は「エリア/出張専門」。
-  const typeLabel = dispatchType === 'only' ? '出張専門' : 'メンズエステ/ルーム（個室）';
-  const metaText = [area ? areaLabel(area) : '', typeLabel].filter(Boolean).join('/');
+  // 地域＋区分のテキスト（スラッシュ両隣にスペース）。
+  const metaText = salonMetaText(area, area2, dispatchType);
 
   return (
     <div
@@ -95,7 +96,7 @@ export default function RankingTopShowcase({
             </Link>
             <div className="mt-0.5 flex items-center gap-1.5">
               <RankDelta current={1} prev={prevRank} />
-              <span className="text-[11px] text-slate-500 truncate">{metaText}</span>
+              <span className="min-w-0 truncate text-[11px] text-slate-500">{metaText}</span>
             </div>
           </div>
         </div>

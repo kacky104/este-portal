@@ -10,11 +10,10 @@ import { NotificationBell } from '@/app/components/NotificationBell';
 import { VipLetterIcon } from '@/app/components/VipLetterIcon';
 import { Breadcrumb } from '@/app/components/Breadcrumb';
 import RankingTopShowcase from './RankingTopShowcase';
-import { areaLabel } from '@/app/lib/areaLabel';
 import { getTheme, breadcrumbCurrentColor, type SalonTheme } from '@/app/lib/themes';
 import type { SalonRankItem, TherapistRankItem, PrevRankMaps } from '@/app/lib/ranking';
 import { RankDelta } from './RankDelta';
-import { SalonTypeBadge } from './SalonTypeBadge';
+import { salonMetaText } from './salonMeta';
 
 // タブごとのテーマ（サロン詳細と同じテーマ定義を流用）：総合=ホワイト / 店舗=ブラック / セラピスト=ピンク。
 const TAB_THEME = { overall: 'white', salon: 'black', therapist: 'pink' } as const;
@@ -46,15 +45,6 @@ function RankBadge({ rank, theme }: { rank: number; theme: SalonTheme }) {
       style={{ background: theme.bg, color: theme.body, border: `1px solid ${theme.cardBorder}` }}
     >
       {rank}
-    </span>
-  );
-}
-
-function AreaChip({ area }: { area: string | null }) {
-  if (!area) return null;
-  return (
-    <span className="text-[10px] px-2 py-0.5 rounded-full bg-pink-50 text-pink-600 border border-pink-100 font-medium">
-      {areaLabel(area)}
     </span>
   );
 }
@@ -98,11 +88,9 @@ function SalonList({ items, theme, prevRanks }: { items: SalonRankItem[]; theme:
             <RankBadge rank={s.rank} theme={theme} />
             <div className="min-w-0 flex-1">
               <p className="text-sm font-bold truncate" style={{ color: theme.heading }}>{s.name || '—'}</p>
-              <div className="flex flex-wrap items-center gap-1 mt-0.5">
+              <div className="flex items-center gap-1.5 mt-0.5">
                 <RankDelta current={s.rank} prev={prevRanks[String(s.id)]} />
-                <AreaChip area={s.area} />
-                <AreaChip area={s.area2} />
-                <SalonTypeBadge dispatchType={s.dispatchType} />
+                <span className="min-w-0 truncate text-[11px]" style={{ color: theme.body }}>{salonMetaText(s.area, s.area2, s.dispatchType)}</span>
               </div>
             </div>
             <Chevron color={theme.body} />
@@ -223,6 +211,7 @@ export default function RankingTabs({
                   salonId={overallRanking[0].id}
                   salonName={overallRanking[0].name}
                   area={overallRanking[0].area}
+                  area2={overallRanking[0].area2}
                   dispatchType={overallRanking[0].dispatchType}
                   prevRank={prevRanks.overall[String(overallRanking[0].id)]}
                 />

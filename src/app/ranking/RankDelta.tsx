@@ -14,15 +14,15 @@ export function RankDelta({ current, prev }: { current: number; prev?: number })
   }
   if (current < prev) {
     return (
-      <span className="flex-shrink-0 text-[11px] leading-none" style={{ color: '#16a34a' }} title={`前回${prev}位から上昇`} aria-label="前回より上昇">▲</span>
+      <span className="flex-shrink-0 text-[11px] leading-none" style={{ color: '#dc2626' }} title={`前回${prev}位から上昇`} aria-label="前回より上昇">▲</span>
     );
   }
   if (current > prev) {
     return (
-      <span className="flex-shrink-0 text-[11px] leading-none" style={{ color: '#e11d48' }} title={`前回${prev}位から下降`} aria-label="前回より下降">▼</span>
+      <span className="flex-shrink-0 text-[11px] leading-none" style={{ color: '#2563eb' }} title={`前回${prev}位から下降`} aria-label="前回より下降">▼</span>
     );
   }
   return (
-    <span className="flex-shrink-0 text-[11px] leading-none" style={{ color: '#94a3b8' }} title="前回と同じ" aria-label="前回と同じ">▬</span>
+    <span className="flex-shrink-0 text-[11px] leading-none" style={{ color: '#16a34a' }} title="前回と同じ" aria-label="前回と同じ">▬</span>
   );
 }
