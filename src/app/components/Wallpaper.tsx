@@ -11,7 +11,7 @@ import { useEffect } from 'react';
 //                  /jobs（フクエスワーク トップ）。
 // ※ /diary（一覧）・/cast/login など認証ページはテーマ背景ではないため除外しない（壁紙を出す）。
 const EXCLUDED_PREFIXES = ['/salon/', '/therapist/', '/diary/', '/x/', '/jobs/'];
-const EXCLUDED_EXACT = ['/cast', '/x', '/jobs', '/ranking'];
+const EXCLUDED_EXACT = ['/cast', '/x', '/jobs', '/ranking', '/therapists'];
 
 export default function Wallpaper() {
   const pathname = usePathname() || '';
