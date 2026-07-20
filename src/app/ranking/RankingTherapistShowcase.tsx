@@ -5,7 +5,7 @@ import { AutoFitText } from '@/app/components/AutoFitText';
 import { FeatureBadges } from '@/components/FeatureBadges';
 import { areaLabel } from '@/app/lib/areaLabel';
 import type { SalonTheme } from '@/app/lib/themes';
-import { formatBodySizes, parseBodyType } from '@/lib/bodyType';
+import { parseBodyType } from '@/lib/bodyType';
 
 // セラピストランキング1位の豪華ショーケース。枠の左半分を大きな写真カードにする。
 export function RankingTherapistShowcase({
@@ -32,8 +32,19 @@ export function RankingTherapistShowcase({
   const darkTheme = theme.key === 'black';
   const nameColor = darkTheme ? theme.heading : '#334155';
   const subColor = darkTheme ? theme.body : '#64748b';
-  const cup = parseBodyType(bodyType)?.cup ?? null;
-  const bodySizes = formatBodySizes(bodyType);
+  const bd = parseBodyType(bodyType);
+  const cup = bd?.cup ?? null;
+  // スリーサイズ（カップ数は出さない。カップは画像上のバッジで表示）。
+  const bodySizes = bd
+    ? [
+        bd.height && `T${bd.height}`,
+        bd.bust && `B${bd.bust}`,
+        bd.waist && `W${bd.waist}`,
+        bd.hip && `H${bd.hip}`,
+      ]
+        .filter(Boolean)
+        .join(' ')
+    : '';
 
   return (
     <div className="mb-5 p-[2.5px] shadow-md" style={{ background: 'linear-gradient(135deg,#F9D976,#E8A317,#F7C948,#B8860B)' }}>
@@ -63,7 +74,7 @@ export function RankingTherapistShowcase({
           </Link>
 
           {/* 右半分：情報 */}
-          <div className="flex-1 min-w-0 flex flex-col justify-start gap-1.5 p-2">
+          <div className="flex-1 min-w-0 flex flex-col justify-start gap-1.5 px-1 py-2">
             {/* 順位バッジ（位置そのまま）＋右隣に 名前(上)／スリーサイズ(下) */}
             <div className="flex items-start gap-1 min-w-0">
               <span className="flex-shrink-0 w-12 h-12" aria-label="第1位">
@@ -82,7 +93,7 @@ export function RankingTherapistShowcase({
                 </Link>
                 {/* スリーサイズ（名前の下・こちらも1行に自動フィット） */}
                 {bodySizes && (
-                  <AutoFitText text={bodySizes} max={12} min={9} className="font-semibold mt-0.5 text-center" style={{ color: nameColor }} />
+                  <AutoFitText text={bodySizes} max={15} min={11} className="font-bold mt-0.5 text-center" style={{ color: nameColor }} />
                 )}
               </div>
             </div>
