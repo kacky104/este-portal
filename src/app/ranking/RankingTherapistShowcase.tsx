@@ -2,6 +2,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { RankDelta } from './RankDelta';
 import { AutoFitText } from '@/app/components/AutoFitText';
+import { FeatureBadges } from '@/components/FeatureBadges';
 import { areaLabel } from '@/app/lib/areaLabel';
 import type { SalonTheme } from '@/app/lib/themes';
 import { formatBodySizes, parseBodyType } from '@/lib/bodyType';
@@ -14,6 +15,7 @@ export function RankingTherapistShowcase({
   area,
   profileImageUrl,
   bodyType,
+  featureBadges,
   prevRank,
   theme,
 }: {
@@ -23,6 +25,7 @@ export function RankingTherapistShowcase({
   area: string | null;
   profileImageUrl: string | null;
   bodyType: string | null;
+  featureBadges: string[];
   prevRank?: number;
   theme: SalonTheme;
 }) {
@@ -83,6 +86,8 @@ export function RankingTherapistShowcase({
                 )}
               </div>
             </div>
+            {/* 特徴バッジ（順位バッジの下・中央寄せ） */}
+            <FeatureBadges badges={featureBadges} className="justify-center" />
             {salonName && <span className="text-[12px] truncate" style={{ color: subColor }}>{salonName}</span>}
             {area && (
               <span className="inline-block self-start text-[10px] px-2 py-0.5 rounded-full bg-amber-50 text-amber-700 border border-amber-200 font-medium">{areaLabel(area)}</span>

@@ -262,6 +262,7 @@ export default function RankingTabs({
                     area={therapistRanking[0].area}
                     profileImageUrl={therapistRanking[0].profileImageUrl}
                     bodyType={therapistRanking[0].bodyType}
+                    featureBadges={therapistRanking[0].featureBadges}
                     prevRank={prevRanks.therapist[String(therapistRanking[0].id)]}
                     theme={theme}
                   />
