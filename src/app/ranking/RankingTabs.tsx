@@ -255,29 +255,33 @@ export default function RankingTabs({
                 </div>
               ) : (
                 <>
-                  <RankingTherapistShowcase
-                    id={therapistRanking[0].id}
-                    name={therapistRanking[0].name}
-                    salonName={therapistRanking[0].salonName}
-                    area={therapistRanking[0].area}
-                    profileImageUrl={therapistRanking[0].profileImageUrl}
-                    bodyType={therapistRanking[0].bodyType}
-                    featureBadges={therapistRanking[0].featureBadges}
-                    catchphrase={therapistRanking[0].catchphrase}
-                    isAvailableNow={therapistRanking[0].isAvailableNow}
-                    availableUntil={therapistRanking[0].availableUntil}
-                    isAvailableNowCast={therapistRanking[0].isAvailableNowCast}
-                    availableUntilCast={therapistRanking[0].availableUntilCast}
-                    todayIsActive={therapistRanking[0].todayIsActive}
-                    todayStart={therapistRanking[0].todayStart}
-                    todayEnd={therapistRanking[0].todayEnd}
-                    prevRank={prevRanks.therapist[String(therapistRanking[0].id)]}
-                    theme={theme}
-                  />
-                  {therapistRanking.length > 1 && (
+                  {therapistRanking.slice(0, 3).map((t) => (
+                    <RankingTherapistShowcase
+                      key={t.id}
+                      rank={t.rank}
+                      id={t.id}
+                      name={t.name}
+                      salonName={t.salonName}
+                      area={t.area}
+                      profileImageUrl={t.profileImageUrl}
+                      bodyType={t.bodyType}
+                      featureBadges={t.featureBadges}
+                      catchphrase={t.catchphrase}
+                      isAvailableNow={t.isAvailableNow}
+                      availableUntil={t.availableUntil}
+                      isAvailableNowCast={t.isAvailableNowCast}
+                      availableUntilCast={t.availableUntilCast}
+                      todayIsActive={t.todayIsActive}
+                      todayStart={t.todayStart}
+                      todayEnd={t.todayEnd}
+                      prevRank={prevRanks.therapist[String(t.id)]}
+                      theme={theme}
+                    />
+                  ))}
+                  {therapistRanking.length > 3 && (
                     <div className="rounded-3xl border shadow-sm overflow-hidden transition-colors duration-300" style={cardStyle}>
                       <ul>
-                        {therapistRanking.slice(1).map((t, idx, arr) => (
+                        {therapistRanking.slice(3).map((t, idx, arr) => (
                           <li
                             key={t.id}
                             style={idx < arr.length - 1 ? { borderBottom: `1px solid ${theme.cardBorder}` } : undefined}

@@ -10,6 +10,7 @@ import { parseBodyType } from '@/lib/bodyType';
 
 // セラピストランキング1位の豪華ショーケース。枠の左半分を大きな写真カードにする。
 export function RankingTherapistShowcase({
+  rank,
   id,
   name,
   salonName,
@@ -28,6 +29,7 @@ export function RankingTherapistShowcase({
   prevRank,
   theme,
 }: {
+  rank: number;
   id: number;
   name: string;
   salonName: string;
@@ -49,6 +51,13 @@ export function RankingTherapistShowcase({
   const darkTheme = theme.key === 'black';
   const nameColor = darkTheme ? theme.heading : '#334155';
   const subColor = darkTheme ? theme.body : '#64748b';
+  // 順位ごとの配色（1=金 / 2=銀 / 3=銅）。
+  const MEDAL: Record<number, { border: string; button: string; circle: string; stroke: string; num: string; ribbonL: string; ribbonR: string; area: string }> = {
+    1: { border: 'linear-gradient(135deg,#F9D976,#E8A317,#F7C948,#B8860B)', button: 'linear-gradient(to right,#E8A317,#F7C948)', circle: '#E8A317', stroke: '#CE8C0C', num: '#5A3E00', ribbonL: '#D64550', ribbonR: '#B23742', area: 'bg-amber-50 text-amber-700 border-amber-200' },
+    2: { border: 'linear-gradient(135deg,#F5F5F7,#B8BCC2,#E4E6E9,#8E9297)', button: 'linear-gradient(to right,#9AA0A6,#C9CDD3)', circle: '#C2C6CC', stroke: '#8E9297', num: '#3A3F45', ribbonL: '#6B7280', ribbonR: '#4B5563', area: 'bg-slate-50 text-slate-600 border-slate-200' },
+    3: { border: 'linear-gradient(135deg,#EABF98,#B87333,#D89C66,#8A5323)', button: 'linear-gradient(to right,#B87333,#D89C66)', circle: '#CD7F32', stroke: '#9C5A21', num: '#4A2A10', ribbonL: '#C05B2E', ribbonR: '#94421F', area: 'bg-orange-50 text-orange-700 border-orange-200' },
+  };
+  const m = MEDAL[rank] ?? MEDAL[1];
   const bd = parseBodyType(bodyType);
   const cup = bd?.cup ?? null;
   // スリーサイズ（カップ数は出さない。カップは画像上のバッジで表示）。
@@ -64,7 +73,7 @@ export function RankingTherapistShowcase({
     : '';
 
   return (
-    <div className="mb-5 p-[2.5px] shadow-md" style={{ background: 'linear-gradient(135deg,#F9D976,#E8A317,#F7C948,#B8860B)' }}>
+    <div className="mb-5 p-[2.5px] shadow-md" style={{ background: m.border }}>
       <div style={{ background: darkTheme ? theme.card : '#ffffff' }}>
         <div className="flex">
           {/* 左半分：セラピストの大きな写真カード */}
@@ -104,15 +113,15 @@ export function RankingTherapistShowcase({
           <div className="flex-1 min-w-0 flex flex-col justify-start gap-1.5 px-1 py-2">
             {/* 順位バッジ（位置そのまま）＋右隣に 名前(上)／スリーサイズ(下) */}
             <div className="flex items-start gap-1 min-w-0">
-              <span className="flex-shrink-0 w-12 h-12" aria-label="第1位">
+              <span className="flex-shrink-0 w-12 h-12" aria-label={`第${rank}位`}>
                 <svg viewBox="0 0 100 100" className="w-full h-full drop-shadow" aria-hidden>
-                  <path d="M36 48 L24 92 L40 82 L45 94 L52 60 Z" fill="#D64550" />
-                  <path d="M64 48 L76 92 L60 82 L55 94 L48 60 Z" fill="#B23742" />
-                  <circle cx="50" cy="40" r="30" fill="#E8A317" stroke="#CE8C0C" strokeWidth="3" />
-                  <text x="50" y="51" textAnchor="middle" fontSize="30" fontWeight="900" fill="#5A3E00">1</text>
+                  <path d="M36 48 L24 92 L40 82 L45 94 L52 60 Z" fill={m.ribbonL} />
+                  <path d="M64 48 L76 92 L60 82 L55 94 L48 60 Z" fill={m.ribbonR} />
+                  <circle cx="50" cy="40" r="30" fill={m.circle} stroke={m.stroke} strokeWidth="3" />
+                  <text x="50" y="51" textAnchor="middle" fontSize="30" fontWeight="900" fill={m.num}>{rank}</text>
                 </svg>
               </span>
-              <span className="flex-shrink-0 -ml-2 mt-1"><RankDelta current={1} prev={prevRank} /></span>
+              <span className="flex-shrink-0 -ml-2 mt-1"><RankDelta current={rank} prev={prevRank} /></span>
               <div className="flex-1 min-w-0 ml-1">
                 {/* 名前（バッジの上・2行になる場合はフォント縮小で1行に） */}
                 <Link href={`/therapist/${id}`} className="block hover:opacity-90 transition-opacity">
@@ -133,12 +142,12 @@ export function RankingTherapistShowcase({
             {/* エリアバッジ・ボタン・店名を一番下へ寄せる */}
             <div className="mt-auto flex flex-col gap-1.5 pt-1.5">
               {area && (
-                <span className="inline-block self-center text-[10px] px-2 py-0.5 rounded-full bg-amber-50 text-amber-700 border border-amber-200 font-medium">{areaLabel(area)}</span>
+                <span className={`inline-block self-center text-[10px] px-2 py-0.5 rounded-full border font-medium ${m.area}`}>{areaLabel(area)}</span>
               )}
               <Link
                 href={`/therapist/${id}`}
                 className="flex items-center justify-center gap-1.5 py-2 rounded-full text-white text-[13px] font-bold shadow-sm hover:opacity-90 transition-opacity"
-                style={{ background: 'linear-gradient(to right,#E8A317,#F7C948)' }}
+                style={{ background: m.button }}
               >
                 このセラピストを見る
                 <span aria-hidden>→</span>
