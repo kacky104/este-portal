@@ -14,6 +14,7 @@ import { getTheme, breadcrumbCurrentColor, type SalonTheme } from '@/app/lib/the
 import type { SalonRankItem, TherapistRankItem, PrevRankMaps, ShowcaseSalonData } from '@/app/lib/ranking';
 import { RankDelta } from './RankDelta';
 import { RankingHeading } from './RankingHeading';
+import { RankingTherapistShowcase } from './RankingTherapistShowcase';
 
 // タブごとのテーマ（サロン詳細と同じテーマ定義を流用）：総合=ホワイト / 店舗=ブラック / セラピスト=ピンク。
 const TAB_THEME = { overall: 'white', salon: 'black', therapist: 'pink' } as const;
@@ -248,44 +249,59 @@ export default function RankingTabs({
                 description={<>セラピスト個別ページへの週間アクセスによる<br className="sm:hidden" />福岡のメンズエステ人気セラピストランキングです</>}
                 bodyColor={theme.body}
               />
-              <div className="rounded-3xl border shadow-sm overflow-hidden transition-colors duration-300" style={cardStyle}>
               {therapistRanking.length === 0 ? (
-                <EmptyState theme={theme} />
+                <div className="rounded-3xl border shadow-sm overflow-hidden transition-colors duration-300" style={cardStyle}>
+                  <EmptyState theme={theme} />
+                </div>
               ) : (
-                <ul>
-                  {therapistRanking.map((t, idx) => (
-                    <li
-                      key={t.id}
-                      style={idx < therapistRanking.length - 1 ? { borderBottom: `1px solid ${theme.cardBorder}` } : undefined}
-                    >
-                      <Link
-                        href={`/therapist/${t.id}`}
-                        className="flex items-center gap-3 px-4 py-3 transition-colors hover:bg-pink-500/10"
-                      >
-                        <RankBadge rank={t.rank} theme={theme} />
-                        <span className="flex-shrink-0 w-11 h-11 rounded-full overflow-hidden bg-slate-100 relative">
-                          {t.profileImageUrl ? (
-                            <Image src={t.profileImageUrl} alt={t.name} fill className="object-cover" sizes="44px" />
-                          ) : (
-                            <span className="absolute inset-0 flex items-center justify-center text-slate-300 font-bold">
-                              {t.name.charAt(0) || '—'}
-                            </span>
-                          )}
-                        </span>
-                        <span className="min-w-0 flex-1">
-                          <span className="block text-sm font-bold truncate" style={{ color: theme.heading }}>{t.name || '—'}</span>
-                          {t.salonName && (
-                            <span className="block text-[11px] truncate" style={{ color: theme.body }}>{t.salonName}</span>
-                          )}
-                        </span>
-                        <RankDelta current={t.rank} prev={prevRanks.therapist[String(t.id)]} />
-                        <Chevron color={theme.body} />
-                      </Link>
-                    </li>
-                  ))}
-                </ul>
+                <>
+                  <RankingTherapistShowcase
+                    id={therapistRanking[0].id}
+                    name={therapistRanking[0].name}
+                    salonName={therapistRanking[0].salonName}
+                    area={therapistRanking[0].area}
+                    profileImageUrl={therapistRanking[0].profileImageUrl}
+                    prevRank={prevRanks.therapist[String(therapistRanking[0].id)]}
+                    theme={theme}
+                  />
+                  {therapistRanking.length > 1 && (
+                    <div className="rounded-3xl border shadow-sm overflow-hidden transition-colors duration-300" style={cardStyle}>
+                      <ul>
+                        {therapistRanking.slice(1).map((t, idx, arr) => (
+                          <li
+                            key={t.id}
+                            style={idx < arr.length - 1 ? { borderBottom: `1px solid ${theme.cardBorder}` } : undefined}
+                          >
+                            <Link
+                              href={`/therapist/${t.id}`}
+                              className="flex items-center gap-3 px-4 py-3 transition-colors hover:bg-pink-500/10"
+                            >
+                              <RankBadge rank={t.rank} theme={theme} />
+                              <span className="flex-shrink-0 w-11 h-11 rounded-full overflow-hidden bg-slate-100 relative">
+                                {t.profileImageUrl ? (
+                                  <Image src={t.profileImageUrl} alt={t.name} fill className="object-cover" sizes="44px" />
+                                ) : (
+                                  <span className="absolute inset-0 flex items-center justify-center text-slate-300 font-bold">
+                                    {t.name.charAt(0) || '—'}
+                                  </span>
+                                )}
+                              </span>
+                              <span className="min-w-0 flex-1">
+                                <span className="block text-sm font-bold truncate" style={{ color: theme.heading }}>{t.name || '—'}</span>
+                                {t.salonName && (
+                                  <span className="block text-[11px] truncate" style={{ color: theme.body }}>{t.salonName}</span>
+                                )}
+                              </span>
+                              <RankDelta current={t.rank} prev={prevRanks.therapist[String(t.id)]} />
+                              <Chevron color={theme.body} />
+                            </Link>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                </>
               )}
-              </div>
             </>
           )}
 
