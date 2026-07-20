@@ -6,6 +6,7 @@ import Image from 'next/image';
 import { createClient } from '@/app/lib/supabase/client';
 import { areaLabel } from '@/app/lib/areaLabel';
 import { RankDelta } from './RankDelta';
+import { SalonTypeBadge } from './SalonTypeBadge';
 import { AutoFitText } from '@/app/components/AutoFitText';
 
 type Card = { id: string; name: string; age: string | null; img: string | null; isNew: boolean };
@@ -26,11 +27,13 @@ export default function RankingTopShowcase({
   salonId,
   salonName,
   area,
+  dispatchType,
   prevRank,
 }: {
   salonId: number;
   salonName: string;
   area: string | null;
+  dispatchType: 'none' | 'available' | 'only';
   prevRank?: number;
 }) {
   const [cards, setCards] = useState<Card[]>([]);
@@ -82,13 +85,14 @@ export default function RankingTopShowcase({
             <Link href={`/salon/${salonId}`} className="block hover:opacity-90 transition-opacity">
               <AutoFitText text={salonName || '—'} max={20} min={12} className="text-center font-black text-slate-900" />
             </Link>
-            <div className="mt-0.5 flex items-center justify-center gap-1.5">
+            <div className="mt-0.5 flex flex-wrap items-center justify-center gap-1.5">
               <RankDelta current={1} prev={prevRank} />
               {area && (
-                <span className="inline-block text-[10px] px-2 py-0.5 rounded-full bg-amber-50 text-amber-700 border border-amber-200 font-medium">
+                <span className="inline-block text-[10px] px-2 py-0.5 rounded-full bg-pink-50 text-pink-600 border border-pink-100 font-medium">
                   {areaLabel(area)}
                 </span>
               )}
+              <SalonTypeBadge dispatchType={dispatchType} />
             </div>
           </div>
           <span className="flex-shrink-0 w-14" aria-hidden />

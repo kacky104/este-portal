@@ -10,6 +10,7 @@ export type SalonRankItem = {
   name: string;
   area: string | null;
   area2: string | null;
+  dispatchType: 'none' | 'available' | 'only';
 };
 
 export type TherapistRankItem = {
@@ -118,7 +119,7 @@ export async function fetchSalonWeeklyRanking(limit = 30, week: string = current
 
   const { data: salonRows } = await supabase
     .from('salons')
-    .select('id, name, area, area2, ranking_bonus, is_hidden')
+    .select('id, name, area, area2, ranking_bonus, is_hidden, dispatch_type')
     .in('id', candidateIds)
     .eq('is_hidden', false);
 
@@ -128,6 +129,7 @@ export async function fetchSalonWeeklyRanking(limit = 30, week: string = current
     area: string | null;
     area2: string | null;
     ranking_bonus: number | null;
+    dispatch_type: 'none' | 'available' | 'only' | null;
   }>)
     .map((s) => {
       const effective = (viewMap.get(Number(s.id)) ?? 0) + Number(s.ranking_bonus ?? 0);
@@ -136,13 +138,14 @@ export async function fetchSalonWeeklyRanking(limit = 30, week: string = current
         name: s.name ?? '',
         area: s.area ?? null,
         area2: s.area2 ?? null,
+        dispatchType: (s.dispatch_type ?? 'none') as 'none' | 'available' | 'only',
         _score: effective,
       };
     })
     .filter((x) => x._score > 0)
     .sort((a, b) => b._score - a._score || a.id - b.id)
     .slice(0, limit)
-    .map((x, i) => ({ rank: i + 1, id: x.id, name: x.name, area: x.area, area2: x.area2 }));
+    .map((x, i) => ({ rank: i + 1, id: x.id, name: x.name, area: x.area, area2: x.area2, dispatchType: x.dispatchType }));
 }
 
 // セラピストの週間ランキング（実アクセス + 下駄。退店/非表示店舗所属は除外。合計0は非表示）。
@@ -255,9 +258,9 @@ export async function fetchOverallWeeklyRanking(limit = 10, week: string = curre
   // 非表示でない店舗
   const { data: salonRows } = await supabase
     .from('salons')
-    .select('id, name, area, area2, ranking_bonus')
+    .select('id, name, area, area2, ranking_bonus, dispatch_type')
     .eq('is_hidden', false);
-  type S = { id: number; name: string | null; area: string | null; area2: string | null; ranking_bonus: number | null };
+  type S = { id: number; name: string | null; area: string | null; area2: string | null; ranking_bonus: number | null; dispatch_type: 'none' | 'available' | 'only' | null };
   const salons = (salonRows ?? []) as S[];
 
   // 在籍セラピスト（非表示店舗所属は除外）を店舗ごとに合算
@@ -280,12 +283,12 @@ export async function fetchOverallWeeklyRanking(limit = 10, week: string = curre
       const id = Number(s.id);
       const score =
         (salonViews.get(id) ?? 0) + Number(s.ranking_bonus ?? 0) + (therapistContribBySalon.get(id) ?? 0);
-      return { id, name: s.name ?? '', area: s.area ?? null, area2: s.area2 ?? null, _score: score };
+      return { id, name: s.name ?? '', area: s.area ?? null, area2: s.area2 ?? null, dispatchType: (s.dispatch_type ?? 'none') as 'none' | 'available' | 'only', _score: score };
     })
     .filter((x) => x._score > 0)
     .sort((a, b) => b._score - a._score || a.id - b.id)
     .slice(0, limit)
-    .map((x, i) => ({ rank: i + 1, id: x.id, name: x.name, area: x.area, area2: x.area2 }));
+    .map((x, i) => ({ rank: i + 1, id: x.id, name: x.name, area: x.area, area2: x.area2, dispatchType: x.dispatchType }));
 }
 
 // テーマ壁紙（theme_wallpapers）を theme_key → 画像URL のマップで返す。未設定キーは含まれない。

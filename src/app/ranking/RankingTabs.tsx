@@ -14,6 +14,7 @@ import { areaLabel } from '@/app/lib/areaLabel';
 import { getTheme, breadcrumbCurrentColor, type SalonTheme } from '@/app/lib/themes';
 import type { SalonRankItem, TherapistRankItem, PrevRankMaps } from '@/app/lib/ranking';
 import { RankDelta } from './RankDelta';
+import { SalonTypeBadge } from './SalonTypeBadge';
 
 // タブごとのテーマ（サロン詳細と同じテーマ定義を流用）：総合=ホワイト / 店舗=ブラック / セラピスト=ピンク。
 const TAB_THEME = { overall: 'white', salon: 'black', therapist: 'pink' } as const;
@@ -101,6 +102,7 @@ function SalonList({ items, theme, prevRanks }: { items: SalonRankItem[]; theme:
                 <RankDelta current={s.rank} prev={prevRanks[String(s.id)]} />
                 <AreaChip area={s.area} />
                 <AreaChip area={s.area2} />
+                <SalonTypeBadge dispatchType={s.dispatchType} />
               </div>
             </div>
             <Chevron color={theme.body} />
@@ -221,6 +223,7 @@ export default function RankingTabs({
                   salonId={overallRanking[0].id}
                   salonName={overallRanking[0].name}
                   area={overallRanking[0].area}
+                  dispatchType={overallRanking[0].dispatchType}
                   prevRank={prevRanks.overall[String(overallRanking[0].id)]}
                 />
               )}
