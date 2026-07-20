@@ -121,7 +121,7 @@ export function RankingTherapistShowcase({
           </Link>
 
           {/* 右半分：情報 */}
-          <div className={`flex-1 min-w-0 flex flex-col justify-start px-1 ${tight ? 'gap-0.5 py-1' : 'gap-1.5 py-2'} ${compact ? 'overflow-hidden' : ''}`}>
+          <div className={`flex-1 min-w-0 flex flex-col justify-start px-1 ${tight ? 'gap-0.5 py-1' : 'gap-1.5 py-2'} ${compact || micro ? 'overflow-hidden' : ''}`}>
             {/* 順位バッジ（位置そのまま）＋右隣に 名前(上)／スリーサイズ(下) */}
             <div className="flex items-start gap-1 min-w-0">
               <span className="flex-shrink-0 w-12 h-12" aria-label={`第${rank}位`}>
@@ -134,13 +134,45 @@ export function RankingTherapistShowcase({
               </span>
               <span className="flex-shrink-0 -ml-2 mt-1"><RankDelta current={rank} prev={prevRank} /></span>
               <div className="flex-1 min-w-0 ml-1">
-                {/* 名前（バッジの上・2行になる場合はフォント縮小で1行に） */}
-                <Link href={`/therapist/${id}`} className="block hover:opacity-90 transition-opacity">
-                  <AutoFitText text={name || '—'} max={18} min={12} className="font-black text-center" style={{ color: nameColor }} />
-                </Link>
-                {/* スリーサイズ（名前の下・こちらも1行に自動フィット） */}
-                {bodySizes && (
-                  <AutoFitText text={bodySizes} max={15} min={11} className="font-bold mt-0.5 text-center" style={{ color: nameColor }} />
+                {micro ? (
+                  <>
+                    {/* 名前＋スリーサイズを横並び */}
+                    <div className="flex items-baseline justify-center gap-1 min-w-0">
+                      <Link href={`/therapist/${id}`} className="min-w-0 hover:opacity-90 transition-opacity">
+                        <span className="block text-[14px] font-black truncate" style={{ color: nameColor }}>{name || '—'}</span>
+                      </Link>
+                      {bodySizes && (
+                        <span className="flex-shrink-0 text-[10px] font-bold whitespace-nowrap" style={{ color: nameColor }}>{bodySizes}</span>
+                      )}
+                    </div>
+                    {/* スリーサイズがあった場所に 出勤バッジ＋地域バッジ */}
+                    <div className="flex items-center justify-center gap-1 mt-0.5">
+                      <ShowcaseDutyBadge
+                        isAvailableNow={isAvailableNow}
+                        availableUntil={availableUntil}
+                        isAvailableNowCast={isAvailableNowCast}
+                        availableUntilCast={availableUntilCast}
+                        todayIsActive={todayIsActive}
+                        todayStart={todayStart}
+                        todayEnd={todayEnd}
+                        className="flex-shrink-0"
+                      />
+                      {area && (
+                        <span className={`inline-block text-[10px] px-2 py-0.5 rounded-full border font-medium ${m.area}`}>{areaLabel(area)}</span>
+                      )}
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    {/* 名前（バッジの上・2行になる場合はフォント縮小で1行に） */}
+                    <Link href={`/therapist/${id}`} className="block hover:opacity-90 transition-opacity">
+                      <AutoFitText text={name || '—'} max={18} min={12} className="font-black text-center" style={{ color: nameColor }} />
+                    </Link>
+                    {/* スリーサイズ（名前の下・こちらも1行に自動フィット） */}
+                    {bodySizes && (
+                      <AutoFitText text={bodySizes} max={15} min={11} className="font-bold mt-0.5 text-center" style={{ color: nameColor }} />
+                    )}
+                  </>
                 )}
               </div>
             </div>
@@ -152,7 +184,7 @@ export function RankingTherapistShowcase({
             )}
             {/* エリアバッジ・ボタン・店名を一番下へ寄せる */}
             <div className={`mt-auto flex flex-col ${tight ? 'gap-0.5 pt-0.5' : 'gap-1.5 pt-1.5'}`}>
-              {mini ? (
+              {micro ? null : mini ? (
                 <div className="self-center flex items-center justify-center gap-1">
                   <ShowcaseDutyBadge
                     isAvailableNow={isAvailableNow}
