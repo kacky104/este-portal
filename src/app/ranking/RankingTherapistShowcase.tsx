@@ -128,7 +128,7 @@ export function RankingTherapistShowcase({
             <FeatureBadges badges={featureBadges} className="justify-center" />
             {/* キャッチフレーズ（特徴バッジの下・中央寄せ） */}
             {catchphrase && (
-              <AutoFitText text={catchphrase} max={13} min={10} className="font-bold text-center" style={{ color: '#db2777' }} />
+              <AutoFitText text={catchphrase} max={13} min={10} className="mt-auto font-bold text-center" style={{ color: '#db2777' }} />
             )}
             {/* エリアバッジ・ボタン・店名を一番下へ寄せる */}
             <div className="mt-auto flex flex-col gap-1.5 pt-1.5">
