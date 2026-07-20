@@ -7,6 +7,7 @@ import { RankDelta } from './RankDelta';
 import { salonMetaText } from './salonMeta';
 import { AutoFitText } from '@/app/components/AutoFitText';
 import type { ShowcaseSalonData, ShowcaseCard } from '@/app/lib/ranking';
+import type { SalonTheme } from '@/app/lib/themes';
 
 // フィッシャー–イエーツでシャッフル（クライアント描画専用）。
 function shuffle<T>(arr: T[]): T[] {
@@ -37,6 +38,7 @@ export default function RankingTopShowcase({
   dispatchType,
   prevRank,
   data,
+  theme,
 }: {
   rank: number;
   salonId: number;
@@ -46,6 +48,7 @@ export default function RankingTopShowcase({
   dispatchType: 'none' | 'available' | 'only';
   prevRank?: number;
   data: ShowcaseSalonData;
+  theme: SalonTheme;
 }) {
   const count = rank <= 3 ? 8 : 4;
   // SSRは決定的な並び、マウント後にシャッフル（開くたびランダム・ハイドレーション不整合なし）。
@@ -74,15 +77,14 @@ export default function RankingTopShowcase({
     : rank === 2 ? 'linear-gradient(135deg,#FBFCFE,#AEB8C4,#E9EDF2,#7C8794,#C6CED7)'
     : rank === 3 ? 'linear-gradient(135deg,#EEC59B,#CD8B54,#E7B98F,#A96B36)'
     : 'linear-gradient(135deg,#E5E7EB,#CBD5E1)';
-  const innerCls = 'bg-white p-1';
-  const nameColor = '#334155';
-  const metaColor = '#64748b';
-  const catchColor =
-    rank === 1 ? '#B8860B'
-    : rank === 2 ? '#5F6C7A'
-    : rank === 3 ? '#A96B36'
-    : '#64748B';
-  const cardPlaceholder = 'bg-slate-100';
+  const darkTheme = theme.key === 'black';
+  const innerBg = darkTheme ? theme.card : '#ffffff';
+  const nameColor = darkTheme ? theme.heading : '#334155';
+  const metaColor = darkTheme ? theme.body : '#64748b';
+  const catchColor = darkTheme
+    ? (rank === 1 ? '#F5D57A' : rank === 2 ? '#C4CBD4' : rank === 3 ? '#E0A66A' : '#CBD5E1')
+    : (rank === 1 ? '#B8860B' : rank === 2 ? '#5F6C7A' : rank === 3 ? '#A96B36' : '#64748B');
+  const cardPlaceholder = darkTheme ? 'bg-slate-700' : 'bg-slate-100';
   // 「この店舗を見る」ボタンも順位色に合わせる（白文字が読める濃さの左→右グラデ）。
   const buttonBg =
     rank === 1 ? 'linear-gradient(to right,#E8A317,#F7C948)'
@@ -92,7 +94,7 @@ export default function RankingTopShowcase({
 
   return (
     <div className="mb-5 p-[2.5px] shadow-md" style={{ background: frameBg }}>
-      <div className={innerCls}>
+      <div className="p-1" style={{ background: innerBg }}>
         {/* ヘッダー：左に順位バッジ、右に店名（1行オートフィット） */}
         <div className="flex items-center gap-2 mb-2">
           <span className="flex-shrink-0 w-14 h-14" aria-label={`第${rank}位`}>

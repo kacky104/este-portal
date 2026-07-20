@@ -42,7 +42,8 @@ export default async function RankingPage() {
     fetchPreviousRankMaps(),        // 前週順位（順位変動マーク用）
   ]);
   // 総合ショーケースのセラピスト/店舗情報を1回でまとめて取得（個別fetch回避）。
-  const showcaseData = await fetchOverallShowcaseData(overallRanking.map((s) => s.id));
+  const showcaseIds = Array.from(new Set([...overallRanking.map((s) => s.id), ...salonRanking.map((s) => s.id)]));
+  const showcaseData = await fetchOverallShowcaseData(showcaseIds);
 
   return (
     <RankingTabs
