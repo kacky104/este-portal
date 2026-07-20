@@ -88,7 +88,7 @@ export function RankingTherapistShowcase({
     : '';
 
   return (
-    <div className={`p-[2.5px] shadow-md ${rank >= 10 && rank <= 19 ? 'mb-[15px]' : 'mb-5'}`} style={{ background: m.border }}>
+    <div className={`p-[2.5px] shadow-md ${rank >= 20 && rank <= 29 ? 'mb-[10px]' : rank >= 10 && rank <= 19 ? 'mb-[15px]' : 'mb-5'}`} style={{ background: m.border }}>
       <div style={{ background: darkTheme ? theme.card : '#ffffff' }}>
         <div className={`flex ${nano ? 'aspect-[16/3]' : compact ? 'h-44' : ''}`}>
           {/* 左半分：セラピストの大きな写真カード */}
