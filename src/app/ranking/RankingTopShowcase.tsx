@@ -65,6 +65,11 @@ export default function RankingTopShowcase({
     `営業時間：${data.hours || '問い合わせ'}`,
     `定休日：${data.closedDays || '問い合わせ'}`,
   ].filter(Boolean).join(' / ');
+  // 店舗4位以降（画像レイアウト）は料金を出さない。
+  const detailLineNoPrice = [
+    `営業時間：${data.hours || '問い合わせ'}`,
+    `定休日：${data.closedDays || '問い合わせ'}`,
+  ].join(' / ');
 
   // 順位バッジ：1金/2銀/3銅はリボンメダル、4位以降は番号バッジ。
   const medal =
@@ -182,7 +187,7 @@ export default function RankingTopShowcase({
               {data.catchphrase && (
                 <p className="text-left text-[13px] font-bold leading-snug" style={{ color: catchColor }}>{data.catchphrase}</p>
               )}
-              <AutoFitText text={detailLine} max={12} min={9} className="text-left" style={{ color: metaColor }} />
+              <AutoFitText text={detailLineNoPrice} max={12} min={9} className="text-left" style={{ color: metaColor }} />
               <Link
                 href={`/salon/${salonId}`}
                 className="mt-1 flex items-center justify-center gap-1.5 py-2 rounded-full text-white text-[13px] font-bold shadow-sm hover:opacity-90 transition-opacity"
