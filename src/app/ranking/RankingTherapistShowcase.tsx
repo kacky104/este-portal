@@ -28,6 +28,7 @@ export function RankingTherapistShowcase({
   todayEnd,
   prevRank,
   theme,
+  compact = false,
 }: {
   rank: number;
   id: number;
@@ -47,6 +48,7 @@ export function RankingTherapistShowcase({
   todayEnd: string | null;
   prevRank?: number;
   theme: SalonTheme;
+  compact?: boolean;
 }) {
   const darkTheme = theme.key === 'black';
   const nameColor = darkTheme ? theme.heading : '#334155';
@@ -56,6 +58,7 @@ export function RankingTherapistShowcase({
     1: { border: 'linear-gradient(135deg,#F9D976,#E8A317,#F7C948,#B8860B)', button: 'linear-gradient(to right,#E8A317,#F7C948)', circle: '#E8A317', stroke: '#CE8C0C', num: '#5A3E00', ribbonL: '#D64550', ribbonR: '#B23742', area: 'bg-amber-50 text-amber-700 border-amber-200' },
     2: { border: 'linear-gradient(135deg,#F5F5F7,#B8BCC2,#E4E6E9,#8E9297)', button: 'linear-gradient(to right,#9AA0A6,#C9CDD3)', circle: '#C2C6CC', stroke: '#8E9297', num: '#3A3F45', ribbonL: '#6B7280', ribbonR: '#4B5563', area: 'bg-slate-50 text-slate-600 border-slate-200' },
     3: { border: 'linear-gradient(135deg,#EABF98,#B87333,#D89C66,#8A5323)', button: 'linear-gradient(to right,#B87333,#D89C66)', circle: '#CD7F32', stroke: '#9C5A21', num: '#4A2A10', ribbonL: '#C05B2E', ribbonR: '#94421F', area: 'bg-orange-50 text-orange-700 border-orange-200' },
+    4: { border: 'linear-gradient(135deg,#E7EDF5,#9FB3C8,#D6E0EC,#7D93AB)', button: 'linear-gradient(to right,#7D93AB,#A9BED2)', circle: '#8FA6BC', stroke: '#6B8199', num: '#2C3E50', ribbonL: '#5B7186', ribbonR: '#425568', area: 'bg-slate-50 text-slate-600 border-slate-200' },
   };
   const m = MEDAL[rank] ?? MEDAL[1];
   const bd = parseBodyType(bodyType);
@@ -73,7 +76,7 @@ export function RankingTherapistShowcase({
     : '';
 
   return (
-    <div className="mb-5 p-[2.5px] shadow-md" style={{ background: m.border }}>
+    <div className={`mb-5 p-[2.5px] shadow-md ${compact ? 'w-3/4 mx-auto' : ''}`} style={{ background: m.border }}>
       <div style={{ background: darkTheme ? theme.card : '#ffffff' }}>
         <div className="flex">
           {/* 左半分：セラピストの大きな写真カード */}
