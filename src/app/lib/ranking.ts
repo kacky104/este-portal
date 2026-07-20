@@ -4,6 +4,7 @@
 // ★公開ページには数値は出さない（順位のみ表示）。views は内部の並べ替え用で、返り値には含めない。
 import { createPublicClient } from '@/app/lib/supabase/public';
 import { sanitizeBadges } from '@/lib/therapistBadges';
+import { getBusinessDateJST } from '@/lib/dutyStatus';
 
 export type SalonRankItem = {
   rank: number;
@@ -25,6 +26,13 @@ export type TherapistRankItem = {
   bodyType: string | null;
   featureBadges: string[];
   catchphrase: string | null;
+  isAvailableNow: boolean;
+  availableUntil: string | null;
+  isAvailableNowCast: boolean;
+  availableUntilCast: string | null;
+  todayIsActive: boolean;
+  todayStart: string | null;
+  todayEnd: string | null;
 };
 
 // 現在時刻(JST)が属する週の「月曜」の 'YYYY-MM-DD'。
@@ -178,7 +186,7 @@ export async function fetchTherapistWeeklyRanking(limit = 30, week: string = cur
 
   const { data: tRows } = await supabase
     .from('therapists')
-    .select('id, name, area, salon_id, profile_image_url, body_type, feature_badges, catchphrase, ranking_bonus, is_active, salons!inner(id, name, is_hidden)')
+    .select('id, name, area, salon_id, profile_image_url, body_type, feature_badges, catchphrase, is_available_now, available_until, is_available_now_cast, available_until_cast, ranking_bonus, is_active, salons!inner(id, name, is_hidden)')
     .in('id', candidateIds)
     .eq('is_active', true)
     .eq('salons.is_hidden', false);
@@ -192,11 +200,15 @@ export async function fetchTherapistWeeklyRanking(limit = 30, week: string = cur
     body_type: string | null;
     feature_badges: unknown;
     catchphrase: string | null;
+    is_available_now: boolean | null;
+    available_until: string | null;
+    is_available_now_cast: boolean | null;
+    available_until_cast: string | null;
     ranking_bonus: number | null;
     salons: { id: number; name: string | null; is_hidden: boolean } | null;
   };
 
-  return ((tRows ?? []) as unknown as TRow[])
+  const scored = ((tRows ?? []) as unknown as TRow[])
     .map((t) => {
       const effective = (viewMap.get(Number(t.id)) ?? 0) + Number(t.ranking_bonus ?? 0);
       return {
@@ -209,13 +221,36 @@ export async function fetchTherapistWeeklyRanking(limit = 30, week: string = cur
         bodyType: t.body_type ?? null,
         featureBadges: sanitizeBadges(t.feature_badges),
         catchphrase: t.catchphrase ?? null,
+        isAvailableNow: Boolean(t.is_available_now),
+        availableUntil: (t.available_until as string | null) ?? null,
+        isAvailableNowCast: Boolean(t.is_available_now_cast),
+        availableUntilCast: (t.available_until_cast as string | null) ?? null,
         _score: effective,
       };
     })
     .filter((x) => x._score > 0)
     .sort((a, b) => b._score - a._score || a.id - b.id)
-    .slice(0, limit)
-    .map((x, i) => ({
+    .slice(0, limit);
+
+  // 本日の出勤スケジュール（出勤バッジ用）。上位のみ取得。
+  const today = getBusinessDateJST();
+  const { data: schedRows } = await supabase
+    .from('therapist_schedules')
+    .select('therapist_id, is_active, start_time, end_time')
+    .in('therapist_id', scored.map((x) => x.id))
+    .eq('schedule_date', today);
+  const schedMap = new Map<number, { active: boolean; start: string | null; end: string | null }>();
+  ((schedRows ?? []) as Array<{ therapist_id: number; is_active: boolean; start_time: string | null; end_time: string | null }>).forEach((r) => {
+    schedMap.set(Number(r.therapist_id), {
+      active: Boolean(r.is_active),
+      start: r.start_time ? String(r.start_time).slice(0, 5) : null,
+      end: r.end_time ? String(r.end_time).slice(0, 5) : null,
+    });
+  });
+
+  return scored.map((x, i) => {
+    const sch = schedMap.get(x.id);
+    return {
       rank: i + 1,
       id: x.id,
       name: x.name,
@@ -226,7 +261,15 @@ export async function fetchTherapistWeeklyRanking(limit = 30, week: string = cur
       bodyType: x.bodyType,
       featureBadges: x.featureBadges,
       catchphrase: x.catchphrase,
-    }));
+      isAvailableNow: x.isAvailableNow,
+      availableUntil: x.availableUntil,
+      isAvailableNowCast: x.isAvailableNowCast,
+      availableUntilCast: x.availableUntilCast,
+      todayIsActive: sch?.active ?? false,
+      todayStart: sch?.start ?? null,
+      todayEnd: sch?.end ?? null,
+    };
+  });
 }
 
 // 週間ランキングページのヒーロー（ヘッダー）画像URL。未設定は null。

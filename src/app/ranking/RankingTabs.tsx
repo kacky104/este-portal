@@ -264,6 +264,13 @@ export default function RankingTabs({
                     bodyType={therapistRanking[0].bodyType}
                     featureBadges={therapistRanking[0].featureBadges}
                     catchphrase={therapistRanking[0].catchphrase}
+                    isAvailableNow={therapistRanking[0].isAvailableNow}
+                    availableUntil={therapistRanking[0].availableUntil}
+                    isAvailableNowCast={therapistRanking[0].isAvailableNowCast}
+                    availableUntilCast={therapistRanking[0].availableUntilCast}
+                    todayIsActive={therapistRanking[0].todayIsActive}
+                    todayStart={therapistRanking[0].todayStart}
+                    todayEnd={therapistRanking[0].todayEnd}
                     prevRank={prevRanks.therapist[String(therapistRanking[0].id)]}
                     theme={theme}
                   />

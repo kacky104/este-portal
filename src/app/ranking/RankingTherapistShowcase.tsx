@@ -3,6 +3,7 @@ import Image from 'next/image';
 import { RankDelta } from './RankDelta';
 import { AutoFitText } from '@/app/components/AutoFitText';
 import { FeatureBadges } from '@/components/FeatureBadges';
+import { ShowcaseDutyBadge } from './ShowcaseDutyBadge';
 import { areaLabel } from '@/app/lib/areaLabel';
 import type { SalonTheme } from '@/app/lib/themes';
 import { parseBodyType } from '@/lib/bodyType';
@@ -17,6 +18,13 @@ export function RankingTherapistShowcase({
   bodyType,
   featureBadges,
   catchphrase,
+  isAvailableNow,
+  availableUntil,
+  isAvailableNowCast,
+  availableUntilCast,
+  todayIsActive,
+  todayStart,
+  todayEnd,
   prevRank,
   theme,
 }: {
@@ -28,6 +36,13 @@ export function RankingTherapistShowcase({
   bodyType: string | null;
   featureBadges: string[];
   catchphrase: string | null;
+  isAvailableNow: boolean;
+  availableUntil: string | null;
+  isAvailableNowCast: boolean;
+  availableUntilCast: string | null;
+  todayIsActive: boolean;
+  todayStart: string | null;
+  todayEnd: string | null;
   prevRank?: number;
   theme: SalonTheme;
 }) {
@@ -73,6 +88,16 @@ export function RankingTherapistShowcase({
                 {cup.toUpperCase()}
               </span>
             )}
+            {/* 出勤バッジ（画像右上） */}
+            <ShowcaseDutyBadge
+              isAvailableNow={isAvailableNow}
+              availableUntil={availableUntil}
+              isAvailableNowCast={isAvailableNowCast}
+              availableUntilCast={availableUntilCast}
+              todayIsActive={todayIsActive}
+              todayStart={todayStart}
+              todayEnd={todayEnd}
+            />
           </Link>
 
           {/* 右半分：情報 */}
@@ -102,7 +127,7 @@ export function RankingTherapistShowcase({
             {/* 特徴バッジ（順位バッジの下・中央寄せ） */}
             <FeatureBadges badges={featureBadges} className="justify-center" />
             {/* キャッチフレーズ（特徴バッジの下・中央寄せ） */}
-            {catchphrase && <span className="max-w-full text-center text-[12px] font-bold truncate" style={{ color: '#db2777' }}>{catchphrase}</span>}
+            {catchphrase && <span className="self-center max-w-[8em] text-center text-[12px] font-bold leading-tight break-words" style={{ color: '#db2777' }}>{catchphrase}</span>}
             {area && (
               <span className="inline-block self-start text-[10px] px-2 py-0.5 rounded-full bg-amber-50 text-amber-700 border border-amber-200 font-medium">{areaLabel(area)}</span>
             )}
