@@ -24,6 +24,7 @@ export type TherapistRankItem = {
   profileImageUrl: string | null;
   bodyType: string | null;
   featureBadges: string[];
+  catchphrase: string | null;
 };
 
 // 現在時刻(JST)が属する週の「月曜」の 'YYYY-MM-DD'。
@@ -177,7 +178,7 @@ export async function fetchTherapistWeeklyRanking(limit = 30, week: string = cur
 
   const { data: tRows } = await supabase
     .from('therapists')
-    .select('id, name, area, salon_id, profile_image_url, body_type, feature_badges, ranking_bonus, is_active, salons!inner(id, name, is_hidden)')
+    .select('id, name, area, salon_id, profile_image_url, body_type, feature_badges, catchphrase, ranking_bonus, is_active, salons!inner(id, name, is_hidden)')
     .in('id', candidateIds)
     .eq('is_active', true)
     .eq('salons.is_hidden', false);
@@ -190,6 +191,7 @@ export async function fetchTherapistWeeklyRanking(limit = 30, week: string = cur
     profile_image_url: string | null;
     body_type: string | null;
     feature_badges: unknown;
+    catchphrase: string | null;
     ranking_bonus: number | null;
     salons: { id: number; name: string | null; is_hidden: boolean } | null;
   };
@@ -206,6 +208,7 @@ export async function fetchTherapistWeeklyRanking(limit = 30, week: string = cur
         profileImageUrl: t.profile_image_url ?? null,
         bodyType: t.body_type ?? null,
         featureBadges: sanitizeBadges(t.feature_badges),
+        catchphrase: t.catchphrase ?? null,
         _score: effective,
       };
     })
@@ -222,6 +225,7 @@ export async function fetchTherapistWeeklyRanking(limit = 30, week: string = cur
       profileImageUrl: x.profileImageUrl,
       bodyType: x.bodyType,
       featureBadges: x.featureBadges,
+      catchphrase: x.catchphrase,
     }));
 }
 

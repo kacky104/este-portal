@@ -16,6 +16,7 @@ export function RankingTherapistShowcase({
   profileImageUrl,
   bodyType,
   featureBadges,
+  catchphrase,
   prevRank,
   theme,
 }: {
@@ -26,6 +27,7 @@ export function RankingTherapistShowcase({
   profileImageUrl: string | null;
   bodyType: string | null;
   featureBadges: string[];
+  catchphrase: string | null;
   prevRank?: number;
   theme: SalonTheme;
 }) {
@@ -99,6 +101,8 @@ export function RankingTherapistShowcase({
             </div>
             {/* 特徴バッジ（順位バッジの下・中央寄せ） */}
             <FeatureBadges badges={featureBadges} className="justify-center" />
+            {/* キャッチフレーズ（特徴バッジの下・中央寄せ） */}
+            {catchphrase && <span className="max-w-full text-center text-[12px] font-bold truncate" style={{ color: '#db2777' }}>{catchphrase}</span>}
             {area && (
               <span className="inline-block self-start text-[10px] px-2 py-0.5 rounded-full bg-amber-50 text-amber-700 border border-amber-200 font-medium">{areaLabel(area)}</span>
             )}
