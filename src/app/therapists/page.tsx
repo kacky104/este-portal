@@ -1,5 +1,5 @@
 import type { Metadata } from 'next';
-import { Suspense } from 'react';
+import { Suspense, type CSSProperties } from 'react';
 import Link from 'next/link';
 import { Logo } from '@/app/components/Logo';
 import { TherapistSearch } from '@/app/components/TherapistSearch';
@@ -34,20 +34,19 @@ export default async function TherapistsPage() {
   // ランキングと同じ方式：purple テーマ壁紙をテーマ色の半透明オーバーレイ越しに敷く。
   const theme = getTheme('purple');
   const wallpaperUrl = wallpapers[theme.key] ?? null;
-  const bgStyle = {
-    backgroundColor: theme.bg,
-    ...(wallpaperUrl
-      ? {
-          backgroundImage: `linear-gradient(${theme.bg}D9, ${theme.bg}D9), url(${wallpaperUrl})`,
-          backgroundSize: 'cover' as const,
-          backgroundPosition: 'center' as const,
-        }
-      : {}),
-  };
+  // 背景スタイル。壁紙ありは .page-wallpaper クラス＋CSS変数でレスポンシブに敷く
+  // （スマホは全幅で端の柄を見せ、PCは cover）。壁紙なしはテーマ色の単色。
+  const bgStyle: CSSProperties = wallpaperUrl
+    ? ({
+        backgroundColor: theme.bg,
+        ['--wp-veil']: `${theme.bg}D9`,
+        ['--wp-url']: `url(${wallpaperUrl})`,
+      } as CSSProperties)
+    : { backgroundColor: theme.bg };
   return (
     <div className="min-h-screen text-slate-900">
       {/* 背景：purple テーマ壁紙を固定レイヤーで敷く（サロン詳細と同方式・モバイルの fixed 無視対策）。 */}
-      <div aria-hidden className="fixed inset-0 -z-10" style={bgStyle} />
+      <div aria-hidden className={`fixed inset-0 -z-10 ${wallpaperUrl ? 'page-wallpaper' : ''}`} style={bgStyle} />
       {/* シンプルヘッダー */}
       <header className="sticky top-0 z-30 bg-white/90 backdrop-blur border-b border-slate-200">
         <div className="max-w-5xl mx-auto px-4 h-14 flex items-center justify-between">
