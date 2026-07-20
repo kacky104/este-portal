@@ -64,14 +64,14 @@ export default function RankingTopShowcase({
   // 順位バッジ：1金/2銀/3銅はリボンメダル、4位以降は番号バッジ。
   const medal =
     rank === 1 ? { c: '#E8A317', s: '#CE8C0C', r: '#F7C948', n: '#5A3E00' }
-    : rank === 2 ? { c: '#C4CBD4', s: '#9AA3AE', r: '#E4E9EF', n: '#37414D' }
+    : rank === 2 ? { c: '#D6DCE3', s: '#9AA4B0', r: '#F4F7FA', n: '#37414D' }
     : rank === 3 ? { c: '#D69A62', s: '#A96B36', r: '#EAC29A', n: '#5A3418' }
     : null;
 
   // 順位別の外枠色（1金/2銀/3銅、4位以降は薄いグレーのノーマル枠）。中身（背景）は全順位とも白。
   const frameBg =
     rank === 1 ? 'linear-gradient(135deg,#F9D976,#E8A317,#F7C948,#B8860B)'
-    : rank === 2 ? 'linear-gradient(135deg,#EEF1F5,#AEB8C2,#D7DEE5,#8A94A0)'
+    : rank === 2 ? 'linear-gradient(135deg,#FBFCFE,#AEB8C4,#E9EDF2,#7C8794,#C6CED7)'
     : rank === 3 ? 'linear-gradient(135deg,#EEC59B,#CD8B54,#E7B98F,#A96B36)'
     : 'linear-gradient(135deg,#E5E7EB,#CBD5E1)';
   const innerCls = 'bg-white p-1';
@@ -79,14 +79,14 @@ export default function RankingTopShowcase({
   const metaColor = '#64748b';
   const catchColor =
     rank === 1 ? '#B8860B'
-    : rank === 2 ? '#6B7684'
+    : rank === 2 ? '#5F6C7A'
     : rank === 3 ? '#A96B36'
     : '#64748B';
   const cardPlaceholder = 'bg-slate-100';
   // 「この店舗を見る」ボタンも順位色に合わせる（白文字が読める濃さの左→右グラデ）。
   const buttonBg =
     rank === 1 ? 'linear-gradient(to right,#E8A317,#F7C948)'
-    : rank === 2 ? 'linear-gradient(to right,#8A94A0,#AEB8C2)'
+    : rank === 2 ? 'linear-gradient(to right,#7F8B99,#BAC3CE)'
     : rank === 3 ? 'linear-gradient(to right,#A96B36,#CD8B54)'
     : 'linear-gradient(to right,#64748B,#94A3B8)';
 
