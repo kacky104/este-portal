@@ -71,6 +71,7 @@ export type Therapist = {
   age:             string | null;
   workHours:       string;
   comment:         string;
+  catchphrase:     string;
   area:            string;
   profileImageUrl: string | null;
   today:           TodaySchedule;
@@ -91,7 +92,7 @@ export type Therapist = {
 
 // セラピストカードの取得列（全コンポーネントで共有）。
 const THERAPIST_SELECT =
-  'id, name, age, work_hours, area, comment, profile_image_url, is_available_now, available_until, is_available_now_cast, available_until_cast, is_new_face, new_face_since, body_type, feature_badges, salon_id, user_id';
+  'id, name, age, work_hours, area, comment, profile_image_url, is_available_now, available_until, is_available_now_cast, available_until_cast, is_new_face, new_face_since, body_type, feature_badges, salon_id, user_id, catchphrase';
 
 // ── shared schedule fetch ──────────────────────────────────────
 
@@ -184,6 +185,7 @@ function buildTherapist(
     workHours:       (t.work_hours as string) ?? '',
     area:            (t.area as string) ?? '',
     comment:         (t.comment as string) ?? '',
+    catchphrase: (t.catchphrase as string) ?? '',
     profileImageUrl: (t.profile_image_url as string | null) ?? null,
     today:           schedMap[key] ?? { is_active: false, start_time: null, end_time: null },
     isAvailableNow:  Boolean(t.is_available_now),
@@ -414,6 +416,11 @@ export function GridCard({ therapist, index, showJoinDate = false, from, enableW
           <p className="text-[10px] text-slate-500 line-clamp-2 leading-relaxed break-all">
             {therapist.comment}
           </p>
+          {therapist.catchphrase && (
+            <p className="mt-1 whitespace-nowrap overflow-hidden text-ellipsis font-bold text-slate-600 leading-tight text-[12.5px]">
+              {therapist.catchphrase}
+            </p>
+          )}
         </div>
       </div>
     </Link>
@@ -509,6 +516,9 @@ function MiniCard({ therapist, index }: { therapist: Therapist; index: number })
         {(ss?.status === 'onDuty' || ss?.status === 'before') && (displayHours || therapist.workHours) && (
           <p className="text-[13px] text-pink-200 font-medium mt-0.5 text-center whitespace-nowrap">{displayHours || therapist.workHours}</p>
         )}
+        {therapist.catchphrase && (
+          <p className="text-[12.5px] font-bold leading-tight drop-shadow whitespace-nowrap overflow-hidden text-ellipsis mt-0.5">{therapist.catchphrase}</p>
+        )}
       </div>
     </Link>
   );
@@ -542,7 +552,7 @@ export function SalonTherapists({ salonId }: { salonId: number }) {
       const supabase = createClient();
       const { data: rows } = await supabase
         .from('therapists')
-        .select('id, name, age, work_hours, area, comment, profile_image_url, is_available_now, available_until, is_available_now_cast, available_until_cast, is_new_face, new_face_since, body_type, feature_badges, user_id')
+        .select('id, name, age, work_hours, area, comment, profile_image_url, is_available_now, available_until, is_available_now_cast, available_until_cast, is_new_face, new_face_since, body_type, feature_badges, user_id, catchphrase')
         .eq('salon_id', salonId);
 
       const rawIds = (rows ?? []).map(t => t.id);
@@ -564,6 +574,7 @@ export function SalonTherapists({ salonId }: { salonId: number }) {
           workHours:       (t.work_hours as string) ?? '',
           area:            (t.area as string) ?? '',
           comment:         (t.comment as string) ?? '',
+          catchphrase: (t.catchphrase as string) ?? '',
           profileImageUrl: (t.profile_image_url as string | null) ?? null,
           today:           todaySchedule,
           isAvailableNow:  Boolean(t.is_available_now),
@@ -639,7 +650,7 @@ export function SalonOnDutyExcludingNow({ salonId, theme }: { salonId: number; t
       const supabase = createClient();
       const { data: rows } = await supabase
         .from('therapists')
-        .select('id, name, age, work_hours, area, comment, profile_image_url, is_available_now, available_until, is_available_now_cast, available_until_cast, is_new_face, new_face_since, body_type, feature_badges, user_id')
+        .select('id, name, age, work_hours, area, comment, profile_image_url, is_available_now, available_until, is_available_now_cast, available_until_cast, is_new_face, new_face_since, body_type, feature_badges, user_id, catchphrase')
         .eq('salon_id', salonId);
 
       const rawIds = (rows ?? []).map(t => t.id);
@@ -660,6 +671,7 @@ export function SalonOnDutyExcludingNow({ salonId, theme }: { salonId: number; t
           workHours:       (t.work_hours as string) ?? '',
           area:            (t.area as string) ?? '',
           comment:         (t.comment as string) ?? '',
+          catchphrase: (t.catchphrase as string) ?? '',
           profileImageUrl: (t.profile_image_url as string | null) ?? null,
           today:           todaySchedule,
           isAvailableNow:  Boolean(t.is_available_now),
@@ -735,7 +747,7 @@ export function SalonAllTherapists({ salonId, limit, from, showSaveButton = fals
       const supabase = createClient();
       const { data: rows } = await supabase
         .from('therapists')
-        .select('id, name, age, work_hours, area, comment, profile_image_url, is_available_now, available_until, is_available_now_cast, available_until_cast, is_new_face, new_face_since, body_type, feature_badges, user_id')
+        .select('id, name, age, work_hours, area, comment, profile_image_url, is_available_now, available_until, is_available_now_cast, available_until_cast, is_new_face, new_face_since, body_type, feature_badges, user_id, catchphrase')
         .eq('salon_id', salonId);
 
       const rawIds = (rows ?? []).map(t => t.id);
@@ -753,6 +765,7 @@ export function SalonAllTherapists({ salonId, limit, from, showSaveButton = fals
         workHours:       (t.work_hours as string) ?? '',
         area:            (t.area as string) ?? '',
         comment:         (t.comment as string) ?? '',
+        catchphrase: (t.catchphrase as string) ?? '',
         profileImageUrl: (t.profile_image_url as string | null) ?? null,
         today:           schedMap[String(t.id)] ?? { is_active: false, start_time: null, end_time: null },
         isAvailableNow:  Boolean(t.is_available_now),
@@ -817,7 +830,7 @@ export function SalonNewFaceTherapists({
       const supabase = createClient();
       const { data: rows } = await supabase
         .from('therapists')
-        .select('id, name, age, work_hours, area, comment, profile_image_url, is_available_now, available_until, is_available_now_cast, available_until_cast, is_new_face, new_face_since, body_type, feature_badges, user_id')
+        .select('id, name, age, work_hours, area, comment, profile_image_url, is_available_now, available_until, is_available_now_cast, available_until_cast, is_new_face, new_face_since, body_type, feature_badges, user_id, catchphrase')
         .eq('salon_id', salonId);
 
       const rawIds = (rows ?? []).map(t => t.id);
@@ -835,6 +848,7 @@ export function SalonNewFaceTherapists({
         workHours:       (t.work_hours as string) ?? '',
         area:            (t.area as string) ?? '',
         comment:         (t.comment as string) ?? '',
+        catchphrase: (t.catchphrase as string) ?? '',
         profileImageUrl: (t.profile_image_url as string | null) ?? null,
         today:           schedMap[String(t.id)] ?? { is_active: false, start_time: null, end_time: null },
         isAvailableNow:  Boolean(t.is_available_now),
