@@ -27,12 +27,12 @@ export function RankingTherapistShowcase({
   const subColor = darkTheme ? theme.body : '#64748b';
   return (
     <div className="mb-5 p-[2.5px] shadow-md" style={{ background: 'linear-gradient(135deg,#F9D976,#E8A317,#F7C948,#B8860B)' }}>
-      <div className="p-2" style={{ background: darkTheme ? theme.card : '#ffffff' }}>
-        <div className="flex gap-3">
+      <div style={{ background: darkTheme ? theme.card : '#ffffff' }}>
+        <div className="flex">
           {/* 左半分：セラピストの大きな写真カード */}
           <Link
             href={`/therapist/${id}`}
-            className="relative block w-1/2 flex-shrink-0 aspect-[3/4] overflow-hidden rounded-lg bg-slate-100 group ring-1 ring-amber-200"
+            className="relative block w-1/2 flex-shrink-0 aspect-[3/4] overflow-hidden bg-slate-100 group"
           >
             {profileImageUrl ? (
               <Image
@@ -61,7 +61,7 @@ export function RankingTherapistShowcase({
           </Link>
 
           {/* 右半分：情報 */}
-          <div className="flex-1 min-w-0 flex flex-col justify-center gap-1.5">
+          <div className="flex-1 min-w-0 flex flex-col justify-center gap-1.5 p-3">
             <div className="flex items-center gap-1.5">
               <span className="text-[11px] font-black tracking-wide" style={{ color: '#B8860B' }}>週間ランキング 第1位</span>
               <RankDelta current={1} prev={prevRank} />
