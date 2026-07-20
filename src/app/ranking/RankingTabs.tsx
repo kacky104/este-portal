@@ -255,13 +255,14 @@ export default function RankingTabs({
                 </div>
               ) : (
                 <>
-                  {therapistRanking.slice(0, 30).map((t) => (
+                  {therapistRanking.slice(0, 31).map((t) => (
                     <RankingTherapistShowcase
                       key={t.id}
                       rank={t.rank}
                       compact={t.rank >= 4 && t.rank <= 10}
                       mini={t.rank >= 11}
                       micro={t.rank >= 21}
+                      nano={t.rank >= 31}
                       id={t.id}
                       name={t.name}
                       salonName={t.salonName}
@@ -281,10 +282,10 @@ export default function RankingTabs({
                       theme={theme}
                     />
                   ))}
-                  {therapistRanking.length > 30 && (
+                  {therapistRanking.length > 31 && (
                     <div className="rounded-3xl border shadow-sm overflow-hidden transition-colors duration-300" style={cardStyle}>
                       <ul>
-                        {therapistRanking.slice(30).map((t, idx, arr) => (
+                        {therapistRanking.slice(31).map((t, idx, arr) => (
                           <li
                             key={t.id}
                             style={idx < arr.length - 1 ? { borderBottom: `1px solid ${theme.cardBorder}` } : undefined}

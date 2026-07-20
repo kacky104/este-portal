@@ -31,6 +31,7 @@ export function RankingTherapistShowcase({
   compact = false,
   mini = false,
   micro = false,
+  nano = false,
 }: {
   rank: number;
   id: number;
@@ -53,6 +54,7 @@ export function RankingTherapistShowcase({
   compact?: boolean;
   mini?: boolean;
   micro?: boolean;
+  nano?: boolean;
 }) {
   const darkTheme = theme.key === 'black';
   const nameColor = darkTheme ? theme.heading : '#334155';
@@ -65,8 +67,9 @@ export function RankingTherapistShowcase({
     4: { border: 'linear-gradient(135deg,#E7EDF5,#9FB3C8,#D6E0EC,#7D93AB)', button: 'linear-gradient(to right,#7D93AB,#A9BED2)', circle: '#8FA6BC', stroke: '#6B8199', num: '#2C3E50', ribbonL: '#5B7186', ribbonR: '#425568', area: 'bg-slate-50 text-slate-600 border-slate-200' },
     11: { border: 'linear-gradient(135deg,#F4F7FB,#CBD6E2,#EAF0F6,#B4C3D4)', button: 'linear-gradient(to right,#AEBECF,#D2DBE7)', circle: '#C6D1DD', stroke: '#A2B2C3', num: '#64748B', ribbonL: '#9AA9BB', ribbonR: '#8090A2', area: 'bg-slate-50 text-slate-500 border-slate-200' },
     21: { border: 'linear-gradient(135deg,#FBFCFE,#DFE7EF,#F3F7FB,#CDD8E3)', button: 'linear-gradient(to right,#CBD6E2,#E6ECF3)', circle: '#DCE3EB', stroke: '#C0CCD8', num: '#8A97A6', ribbonL: '#BCC7D4', ribbonR: '#A8B6C4', area: 'bg-slate-50 text-slate-400 border-slate-100' },
+    31: { border: 'linear-gradient(135deg,#FDFEFF,#E9EEF4,#F8FAFC,#DAE1EA)', button: 'linear-gradient(to right,#DAE2EB,#EFF3F7)', circle: '#E7ECF1', stroke: '#D0D8E0', num: '#A6B0BC', ribbonL: '#D0D8E1', ribbonR: '#C2CBD5', area: 'bg-slate-50 text-slate-400 border-slate-100' },
   };
-  const m = MEDAL[micro ? 21 : mini ? 11 : rank <= 3 ? rank : 4] ?? MEDAL[1];
+  const m = MEDAL[nano ? 31 : micro ? 21 : mini ? 11 : rank <= 3 ? rank : 4] ?? MEDAL[1];
   const tight = compact || mini; // 4位以降の詰めレイアウト
   // カップ数バッジのサイズ（カードが小さいほど縮小）。
   const cupCls = micro ? 'bottom-1 left-1 w-6 h-6 text-[11px] ring-1' : tight ? 'bottom-1.5 left-1.5 w-8 h-8 text-base ring-1' : 'bottom-2 left-2 w-10 h-10 text-xl ring-2';
@@ -91,7 +94,7 @@ export function RankingTherapistShowcase({
           {/* 左半分：セラピストの大きな写真カード */}
           <Link
             href={`/therapist/${id}`}
-            className={`relative block flex-shrink-0 overflow-hidden bg-slate-100 group ${micro ? 'w-[18.75%] aspect-[3/4]' : mini ? 'w-1/4 aspect-[3/4]' : compact ? 'w-[37.5%] h-full' : 'w-1/2 aspect-[3/4]'}`}
+            className={`relative block flex-shrink-0 overflow-hidden bg-slate-100 group ${nano ? 'w-[14.0625%] aspect-[3/4]' : micro ? 'w-[18.75%] aspect-[3/4]' : mini ? 'w-1/4 aspect-[3/4]' : compact ? 'w-[37.5%] h-full' : 'w-1/2 aspect-[3/4]'}`}
           >
             {profileImageUrl ? (
               <Image
@@ -127,7 +130,7 @@ export function RankingTherapistShowcase({
           <div className={`flex-1 min-w-0 flex flex-col justify-start px-1 ${tight ? 'gap-0.5 py-1' : 'gap-1.5 py-2'} ${compact || micro ? 'overflow-hidden' : ''}`}>
             {/* 順位バッジ（位置そのまま）＋右隣に 名前(上)／スリーサイズ(下) */}
             <div className="flex items-start gap-1 min-w-0">
-              <span className="flex-shrink-0 w-12 h-12" aria-label={`第${rank}位`}>
+              <span className={`flex-shrink-0 ${nano ? 'w-8 h-8' : 'w-12 h-12'}`} aria-label={`第${rank}位`}>
                 <svg viewBox="0 0 100 100" className="w-full h-full drop-shadow" aria-hidden>
                   <path d="M36 48 L24 92 L40 82 L45 94 L52 60 Z" fill={m.ribbonL} />
                   <path d="M64 48 L76 92 L60 82 L55 94 L48 60 Z" fill={m.ribbonR} />
@@ -210,7 +213,7 @@ export function RankingTherapistShowcase({
               )}
               <Link
                 href={`/therapist/${id}`}
-                className="flex items-center justify-center gap-1.5 py-2 rounded-full text-white text-[13px] font-bold shadow-sm hover:opacity-90 transition-opacity"
+                className={`flex items-center justify-center gap-1.5 rounded-full text-white font-bold shadow-sm hover:opacity-90 transition-opacity ${nano ? 'py-1 text-[11px]' : 'py-2 text-[13px]'}`}
                 style={{ background: m.button }}
               >
                 このセラピストを見る
