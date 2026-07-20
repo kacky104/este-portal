@@ -150,6 +150,15 @@ export function RankingTherapistShowcase({
                       {bodySizes && (
                         <span className="flex-shrink-0 text-[10px] font-bold whitespace-nowrap" style={{ color: nameColor }}>{bodySizes}</span>
                       )}
+                      {nano && (
+                        <Link
+                          href={`/therapist/${id}`}
+                          className="self-center flex-shrink-0 inline-flex items-center gap-0.5 rounded-full text-white text-[9px] font-bold px-1.5 py-0.5 shadow-sm hover:opacity-90 transition-opacity"
+                          style={{ background: m.button }}
+                        >
+                          見る<span aria-hidden>→</span>
+                        </Link>
+                      )}
                     </div>
                     {/* スリーサイズがあった場所に 出勤バッジ＋地域バッジ */}
                     <div className="flex items-center justify-center gap-1 mt-0.5 min-w-0">
@@ -214,14 +223,16 @@ export function RankingTherapistShowcase({
                   <span className={`inline-block self-center text-[10px] px-2 py-0.5 rounded-full border font-medium ${m.area}`}>{areaLabel(area)}</span>
                 )
               )}
-              <Link
-                href={`/therapist/${id}`}
-                className={`flex items-center justify-center gap-1.5 rounded-full text-white font-bold shadow-sm hover:opacity-90 transition-opacity ${nano ? 'py-1 text-[11px]' : 'py-2 text-[13px]'}`}
-                style={{ background: m.button }}
-              >
-                このセラピストを見る
-                <span aria-hidden>→</span>
-              </Link>
+              {!nano && (
+                <Link
+                  href={`/therapist/${id}`}
+                  className="flex items-center justify-center gap-1.5 py-2 rounded-full text-white text-[13px] font-bold shadow-sm hover:opacity-90 transition-opacity"
+                  style={{ background: m.button }}
+                >
+                  このセラピストを見る
+                  <span aria-hidden>→</span>
+                </Link>
+              )}
               {/* 店名（中央寄せ） */}
               {!nano && salonName && <span className="max-w-full text-center text-[12px] truncate" style={{ color: subColor }}>{salonName}</span>}
             </div>
