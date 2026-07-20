@@ -52,7 +52,7 @@ export function RankingTherapistShowcase({
           </Link>
 
           {/* 右半分：情報 */}
-          <div className="flex-1 min-w-0 flex flex-col justify-start gap-1.5 p-3">
+          <div className="flex-1 min-w-0 flex flex-col justify-start gap-1.5">
             <div className="flex items-center gap-2 min-w-0">
               <span className="flex-shrink-0 w-12 h-12" aria-label="第1位">
                 <svg viewBox="0 0 100 100" className="w-full h-full drop-shadow" aria-hidden>
