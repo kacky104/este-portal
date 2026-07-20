@@ -63,19 +63,18 @@ export default function RankingTopShowcase({
       className="mb-5 p-[2.5px] shadow-md"
       style={{ background: 'linear-gradient(135deg,#F9D976,#E8A317,#F7C948,#B8860B)' }}
     >
-      <div className="bg-white p-4">
-        {/* ヘッダー：王冠バッジ ＋ 第1位ラベル ＋ 店名 */}
-        {/* ヘッダー：左上に「王冠＋1」バッジ、その右に店名（1行オートフィット） */}
-        <div className="flex items-center gap-2.5 mb-3">
-          <span className="relative flex-shrink-0 w-10 h-10" aria-label="第1位">
+      <div className="bg-white p-1">
+        {/* ヘッダー：左上に「王冠＋1」バッジ、店名は中央（右にバッジ幅スペーサーで中央寄せ・1行オートフィット） */}
+        <div className="flex items-center gap-2 mb-2">
+          <span className="relative flex-shrink-0 w-12 h-12" aria-label="第1位">
             <svg viewBox="0 0 576 512" className="w-full h-full drop-shadow-sm" fill="#E8A317" aria-hidden>
               <path d="M309 106c11.4-7 19-19.7 19-34 0-22.1-17.9-40-40-40s-40 17.9-40 40c0 14.4 7.6 27 19 34l-39.5 74c-9.8 16.4-32.4 20-47 7.4L86 158c5-6.4 8-14.4 8-23 0-22.1-17.9-40-40-40S14 92.9 14 115s17.9 40 40 40c1.7 0 3.5-.1 5.1-.3l45.5 244.5c3.2 17.9 18.8 30.8 37 30.8h332.8c18.2 0 33.8-12.9 37-30.8L516.9 154.7c1.7.2 3.4.3 5.1.3 22.1 0 40-17.9 40-40s-17.9-40-40-40-40 17.9-40 40c0 8.6 3 16.6 8 23l-76.5 69.9c-14.6 12.6-37.2 9-47-7.4L309 106z" />
             </svg>
-            <span className="absolute inset-x-0 bottom-0 h-[62%] flex items-center justify-center font-black text-[13px] leading-none" style={{ color: '#5A3E00' }}>1</span>
+            <span className="absolute inset-x-0 bottom-0 h-[62%] flex items-center justify-center font-black text-[15px] leading-none" style={{ color: '#5A3E00' }}>1</span>
           </span>
-          <div className="min-w-0 flex-1">
+          <div className="min-w-0 flex-1 text-center">
             <Link href={`/salon/${salonId}`} className="block hover:opacity-90 transition-opacity">
-              <AutoFitText text={salonName || '—'} max={20} min={12} className="font-black text-slate-900" />
+              <AutoFitText text={salonName || '—'} max={20} min={12} className="text-center font-black text-slate-900" />
             </Link>
             {area && (
               <span className="inline-block mt-0.5 text-[10px] px-2 py-0.5 rounded-full bg-amber-50 text-amber-700 border border-amber-200 font-medium">
@@ -83,6 +82,7 @@ export default function RankingTopShowcase({
               </span>
             )}
           </div>
+          <span className="flex-shrink-0 w-12" aria-hidden />
         </div>
 
         {/* 所属セラピスト：最大8枚（4列×2段・ランダム） */}
