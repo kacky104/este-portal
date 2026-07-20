@@ -417,7 +417,7 @@ export function GridCard({ therapist, index, showJoinDate = false, from, enableW
             {therapist.comment}
           </p>
           {therapist.catchphrase && (
-            <p className="mt-1 whitespace-nowrap overflow-hidden text-ellipsis font-bold text-slate-600 leading-tight text-[12.5px]">
+            <p className="mt-1 whitespace-nowrap overflow-hidden text-ellipsis font-bold text-slate-600 leading-tight text-[11.5px]">
               {therapist.catchphrase}
             </p>
           )}
@@ -517,7 +517,7 @@ function MiniCard({ therapist, index }: { therapist: Therapist; index: number })
           <p className="text-[13px] text-pink-200 font-medium mt-0.5 text-center whitespace-nowrap">{displayHours || therapist.workHours}</p>
         )}
         {therapist.catchphrase && (
-          <p className="text-[12.5px] font-bold leading-tight drop-shadow whitespace-nowrap overflow-hidden text-ellipsis mt-0.5">{therapist.catchphrase}</p>
+          <p className="text-[11.5px] font-bold leading-tight drop-shadow whitespace-nowrap overflow-hidden text-ellipsis mt-0.5">{therapist.catchphrase}</p>
         )}
       </div>
     </Link>
