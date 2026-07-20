@@ -23,6 +23,9 @@ export const metadata: Metadata = {
   twitter: { card: 'summary', title: TITLE, description: DESCRIPTION },
 };
 
+// ISR：ヒーロー画像・テーマ壁紙（purple）を反映するため定期再生成する。
+export const revalidate = 300;
+
 export default async function TherapistsPage() {
   const [hero, wallpapers] = await Promise.all([
     fetchPageHero('therapists'),
