@@ -90,11 +90,11 @@ export function RankingTherapistShowcase({
   return (
     <div className="mb-5 p-[2.5px] shadow-md" style={{ background: m.border }}>
       <div style={{ background: darkTheme ? theme.card : '#ffffff' }}>
-        <div className={`flex ${compact ? 'h-44' : ''}`}>
+        <div className={`flex ${nano ? 'aspect-[16/3]' : compact ? 'h-44' : ''}`}>
           {/* 左半分：セラピストの大きな写真カード */}
           <Link
             href={`/therapist/${id}`}
-            className={`relative block flex-shrink-0 overflow-hidden bg-slate-100 group ${nano ? 'w-[14.0625%] aspect-[3/4]' : micro ? 'w-[18.75%] aspect-[3/4]' : mini ? 'w-1/4 aspect-[3/4]' : compact ? 'w-[37.5%] h-full' : 'w-1/2 aspect-[3/4]'}`}
+            className={`relative block flex-shrink-0 overflow-hidden bg-slate-100 group ${nano ? 'w-[14.0625%] h-full' : micro ? 'w-[18.75%] aspect-[3/4]' : mini ? 'w-1/4 aspect-[3/4]' : compact ? 'w-[37.5%] h-full' : 'w-1/2 aspect-[3/4]'}`}
           >
             {profileImageUrl ? (
               <Image
@@ -152,7 +152,7 @@ export function RankingTherapistShowcase({
                       )}
                     </div>
                     {/* スリーサイズがあった場所に 出勤バッジ＋地域バッジ */}
-                    <div className="flex items-center justify-center gap-1 mt-0.5">
+                    <div className="flex items-center justify-center gap-1 mt-0.5 min-w-0">
                       <ShowcaseDutyBadge
                         isAvailableNow={isAvailableNow}
                         availableUntil={availableUntil}
@@ -164,7 +164,10 @@ export function RankingTherapistShowcase({
                         className="flex-shrink-0"
                       />
                       {area && (
-                        <span className={`inline-block text-[10px] px-2 py-0.5 rounded-full border font-medium ${m.area}`}>{areaLabel(area)}</span>
+                        <span className={`flex-shrink-0 inline-block text-[10px] px-2 py-0.5 rounded-full border font-medium ${m.area}`}>{areaLabel(area)}</span>
+                      )}
+                      {nano && salonName && (
+                        <span className="min-w-0 text-[10px] truncate" style={{ color: subColor }}>{salonName}</span>
                       )}
                     </div>
                   </>
@@ -220,7 +223,7 @@ export function RankingTherapistShowcase({
                 <span aria-hidden>→</span>
               </Link>
               {/* 店名（中央寄せ） */}
-              {salonName && <span className="max-w-full text-center text-[12px] truncate" style={{ color: subColor }}>{salonName}</span>}
+              {!nano && salonName && <span className="max-w-full text-center text-[12px] truncate" style={{ color: subColor }}>{salonName}</span>}
             </div>
           </div>
         </div>
