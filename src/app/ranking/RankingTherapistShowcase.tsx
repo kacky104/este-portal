@@ -76,13 +76,13 @@ export function RankingTherapistShowcase({
     : '';
 
   return (
-    <div className={`mb-5 p-[2.5px] shadow-md ${compact ? 'w-3/4 mx-auto' : ''}`} style={{ background: m.border }}>
+    <div className="mb-5 p-[2.5px] shadow-md" style={{ background: m.border }}>
       <div style={{ background: darkTheme ? theme.card : '#ffffff' }}>
         <div className="flex">
           {/* 左半分：セラピストの大きな写真カード */}
           <Link
             href={`/therapist/${id}`}
-            className="relative block w-1/2 flex-shrink-0 aspect-[3/4] overflow-hidden bg-slate-100 group"
+            className={`relative block ${compact ? 'w-[37.5%]' : 'w-1/2'} flex-shrink-0 aspect-[3/4] overflow-hidden bg-slate-100 group`}
           >
             {profileImageUrl ? (
               <Image
