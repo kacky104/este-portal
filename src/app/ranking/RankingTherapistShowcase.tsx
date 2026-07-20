@@ -175,6 +175,9 @@ export function RankingTherapistShowcase({
                       {area && (
                         <span className={`flex-shrink-0 inline-block text-[10px] px-2 py-0.5 rounded-full border font-medium ${m.area}`}>{areaLabel(area)}</span>
                       )}
+                      {nano && salonName && (
+                        <span className="min-w-0 text-[10px] truncate" style={{ color: subColor }}>{salonName}</span>
+                      )}
                     </div>
                   </>
                 ) : (
@@ -231,7 +234,7 @@ export function RankingTherapistShowcase({
                 </Link>
               )}
               {/* 店名（中央寄せ） */}
-              {salonName && <span className={`max-w-full text-center truncate ${nano ? 'text-[10px]' : 'text-[12px]'}`} style={{ color: subColor }}>{salonName}</span>}
+              {!nano && salonName && <span className="max-w-full text-center text-[12px] truncate" style={{ color: subColor }}>{salonName}</span>}
             </div>
           </div>
         </div>
