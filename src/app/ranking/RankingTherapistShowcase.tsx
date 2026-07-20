@@ -127,7 +127,9 @@ export function RankingTherapistShowcase({
             {/* 特徴バッジ（順位バッジの下・中央寄せ） */}
             <FeatureBadges badges={featureBadges} className="justify-center" />
             {/* キャッチフレーズ（特徴バッジの下・中央寄せ） */}
-            {catchphrase && <span className="self-center max-w-[8em] text-center text-[12px] font-bold leading-tight break-words" style={{ color: '#db2777' }}>{catchphrase}</span>}
+            {catchphrase && (
+              <AutoFitText text={catchphrase} max={13} min={10} className="font-bold text-center" style={{ color: '#db2777' }} />
+            )}
             {area && (
               <span className="inline-block self-start text-[10px] px-2 py-0.5 rounded-full bg-amber-50 text-amber-700 border border-amber-200 font-medium">{areaLabel(area)}</span>
             )}
