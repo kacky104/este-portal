@@ -207,25 +207,34 @@ export default function RankingTabs({
 
           {/* ── 総合：1位は所属セラピストを並べた豪華ショーケース、2位以降は通常リスト ── */}
           {tab === 'overall' && (
-            overallRanking.length === 0 ? (
-              <div className="rounded-3xl border shadow-sm overflow-hidden transition-colors duration-300" style={cardStyle}>
-                <EmptyState theme={theme} />
+            <>
+              {/* 見出し＋説明（1位ブロックの上） */}
+              <div className="mb-4 text-center">
+                <h2 className="text-lg font-black tracking-wide" style={{ color: theme.heading }}>総合ランキング TOP10</h2>
+                <p className="mt-1.5 text-[12px] leading-relaxed" style={{ color: theme.body }}>
+                  店舗と所属セラピスト全員の週間アクセスを合算した、フクエス総合の人気ランキングです。毎週月曜0時（日本時間）に新しい週の集計へ切り替わります。
+                </p>
               </div>
-            ) : (
-              overallRanking.map((s) => (
-                <RankingTopShowcase
-                  key={s.id}
-                  rank={s.rank}
-                  salonId={s.id}
-                  salonName={s.name}
-                  area={s.area}
-                  area2={s.area2}
-                  dispatchType={s.dispatchType}
-                  prevRank={prevRanks.overall[String(s.id)]}
-                  data={showcaseData[s.id] ?? { therapists: [], catchphrase: '', price: '', hours: '', closedDays: '' }}
-                />
-              ))
-            )
+              {overallRanking.length === 0 ? (
+                <div className="rounded-3xl border shadow-sm overflow-hidden transition-colors duration-300" style={cardStyle}>
+                  <EmptyState theme={theme} />
+                </div>
+              ) : (
+                overallRanking.map((s) => (
+                  <RankingTopShowcase
+                    key={s.id}
+                    rank={s.rank}
+                    salonId={s.id}
+                    salonName={s.name}
+                    area={s.area}
+                    area2={s.area2}
+                    dispatchType={s.dispatchType}
+                    prevRank={prevRanks.overall[String(s.id)]}
+                    data={showcaseData[s.id] ?? { therapists: [], catchphrase: '', price: '', hours: '', closedDays: '' }}
+                  />
+                ))
+              )}
+            </>
           )}
 
           {/* ── 店舗 ── */}
