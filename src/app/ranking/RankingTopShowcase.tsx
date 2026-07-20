@@ -77,7 +77,11 @@ export default function RankingTopShowcase({
   const innerCls = 'bg-white p-1';
   const nameColor = '#334155';
   const metaColor = '#64748b';
-  const catchColor = '#B8860B';
+  const catchColor =
+    rank === 1 ? '#B8860B'
+    : rank === 2 ? '#6B7684'
+    : rank === 3 ? '#A96B36'
+    : '#64748B';
   const cardPlaceholder = 'bg-slate-100';
   // 「この店舗を見る」ボタンも順位色に合わせる（白文字が読める濃さの左→右グラデ）。
   const buttonBg =
