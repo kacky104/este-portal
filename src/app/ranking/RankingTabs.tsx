@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, type CSSProperties } from 'react';
+import { useEffect, useLayoutEffect, useState, type CSSProperties } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { Logo } from '@/app/components/Logo';
@@ -19,6 +19,9 @@ import { RankingTherapistShowcase } from './RankingTherapistShowcase';
 // タブごとのテーマ（サロン詳細と同じテーマ定義を流用）：総合=ホワイト / 店舗=ブラック / セラピスト=ピンク。
 const TAB_THEME = { overall: 'white', salon: 'black', therapist: 'pink' } as const;
 type TabKey = keyof typeof TAB_THEME;
+const TAB_KEYS = ['overall', 'salon', 'therapist'] as const;
+// SSR/クライアントで挙動を合わせるレイアウト計測フック（AutoFitText と同流儀）。
+const useIsoLayoutEffect = typeof window !== 'undefined' ? useLayoutEffect : useEffect;
 
 function RankBadge({ rank, theme }: { rank: number; theme: SalonTheme }) {
   const medal =
@@ -91,6 +94,18 @@ export default function RankingTabs({
   showcaseData: Record<number, ShowcaseSalonData>;
 }) {
   const [tab, setTab] = useState<TabKey>('overall');
+  // リロード時に直前のタブを復元（URL ハッシュに保存。ISR を壊さないようクライアント側のみ）。
+  useIsoLayoutEffect(() => {
+    const h = window.location.hash.replace('#', '');
+    if ((TAB_KEYS as readonly string[]).includes(h)) setTab(h as TabKey);
+  }, []);
+  const changeTab = (key: TabKey) => {
+    setTab(key);
+    try {
+      const url = key === 'overall' ? window.location.pathname + window.location.search : `#${key}`;
+      window.history.replaceState(null, '', url);
+    } catch {}
+  };
   const theme = getTheme(TAB_THEME[tab]);
   const heroUrl = heroes[tab] ?? null; // タブ別ヒーロー画像
 
@@ -159,7 +174,7 @@ export default function RankingTabs({
                   <button
                     key={key}
                     type="button"
-                    onClick={() => setTab(key)}
+                    onClick={() => changeTab(key)}
                     aria-pressed={selected}
                     className={`flex-1 sm:flex-none flex items-center justify-center px-2 sm:px-10 py-2.5 border text-sm font-bold transition-colors ${
                       i > 0 ? '-ml-px' : ''
