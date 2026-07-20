@@ -68,18 +68,17 @@ export default function RankingTopShowcase({
     : rank === 3 ? { c: '#D69A62', s: '#A96B36', r: '#EAC29A', n: '#5A3418' }
     : null;
 
-  // 順位別レイアウト（枠色・地色・文字色）。1金/2銀/3銅、4位以降はダーク。
-  const isDark = rank > 3;
+  // 順位別の外枠色（1金/2銀/3銅、4位以降はダーク枠）。中身（背景）は全順位とも白。
   const frameBg =
     rank === 1 ? 'linear-gradient(135deg,#F9D976,#E8A317,#F7C948,#B8860B)'
     : rank === 2 ? 'linear-gradient(135deg,#EEF1F5,#AEB8C2,#D7DEE5,#8A94A0)'
     : rank === 3 ? 'linear-gradient(135deg,#EEC59B,#CD8B54,#E7B98F,#A96B36)'
     : 'linear-gradient(135deg,#4B5563,#111827,#374151,#0B0F16)';
-  const innerCls = isDark ? 'bg-slate-800 p-1' : 'bg-white p-1';
-  const nameColor = isDark ? '#f8fafc' : '#0f172a';
-  const metaColor = isDark ? '#cbd5e1' : '#64748b';
-  const catchColor = isDark ? '#F5D57A' : '#B8860B';
-  const cardPlaceholder = isDark ? 'bg-slate-700' : 'bg-slate-100';
+  const innerCls = 'bg-white p-1';
+  const nameColor = '#0f172a';
+  const metaColor = '#64748b';
+  const catchColor = '#B8860B';
+  const cardPlaceholder = 'bg-slate-100';
 
   return (
     <div className="mb-5 p-[2.5px] shadow-md" style={{ background: frameBg }}>
