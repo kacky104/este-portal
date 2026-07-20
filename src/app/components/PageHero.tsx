@@ -5,7 +5,7 @@ export function PageHero({ url, alt }: { url: string | null; alt: string }) {
   return (
     <div className="mb-6">
       {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img src={url} alt={alt} className="block w-full h-auto rounded-2xl shadow-sm" />
+      <img src={url} alt={alt} className="block w-full h-auto shadow-sm" />
     </div>
   );
 }
