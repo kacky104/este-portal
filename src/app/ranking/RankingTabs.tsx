@@ -12,7 +12,8 @@ import { Breadcrumb } from '@/app/components/Breadcrumb';
 import RankingTopShowcase from './RankingTopShowcase';
 import { areaLabel } from '@/app/lib/areaLabel';
 import { getTheme, breadcrumbCurrentColor, type SalonTheme } from '@/app/lib/themes';
-import type { SalonRankItem, TherapistRankItem } from '@/app/lib/ranking';
+import type { SalonRankItem, TherapistRankItem, PrevRankMaps } from '@/app/lib/ranking';
+import { RankDelta } from './RankDelta';
 
 // タブごとのテーマ（サロン詳細と同じテーマ定義を流用）：総合=ホワイト / 店舗=ブラック / セラピスト=ピンク。
 const TAB_THEME = { overall: 'white', salon: 'black', therapist: 'pink' } as const;
@@ -80,7 +81,7 @@ function EmptyState({ theme }: { theme: SalonTheme }) {
   );
 }
 
-function SalonList({ items, theme }: { items: SalonRankItem[]; theme: SalonTheme }) {
+function SalonList({ items, theme, prevRanks }: { items: SalonRankItem[]; theme: SalonTheme; prevRanks: Record<string, number> }) {
   if (items.length === 0) return <EmptyState theme={theme} />;
   return (
     <ul>
@@ -97,6 +98,7 @@ function SalonList({ items, theme }: { items: SalonRankItem[]; theme: SalonTheme
             <div className="min-w-0 flex-1">
               <p className="text-sm font-bold truncate" style={{ color: theme.heading }}>{s.name || '—'}</p>
               <div className="flex flex-wrap items-center gap-1 mt-0.5">
+                <RankDelta current={s.rank} prev={prevRanks[String(s.id)]} />
                 <AreaChip area={s.area} />
                 <AreaChip area={s.area2} />
               </div>
@@ -115,12 +117,14 @@ export default function RankingTabs({
   therapistRanking,
   heroes,
   wallpapers,
+  prevRanks,
 }: {
   overallRanking: SalonRankItem[];
   salonRanking: SalonRankItem[];
   therapistRanking: TherapistRankItem[];
   heroes: { overall: string | null; salon: string | null; therapist: string | null };
   wallpapers: Record<string, string>;
+  prevRanks: PrevRankMaps;
 }) {
   const [tab, setTab] = useState<TabKey>('overall');
   const theme = getTheme(TAB_THEME[tab]);
@@ -217,11 +221,12 @@ export default function RankingTabs({
                   salonId={overallRanking[0].id}
                   salonName={overallRanking[0].name}
                   area={overallRanking[0].area}
+                  prevRank={prevRanks.overall[String(overallRanking[0].id)]}
                 />
               )}
               {overallRanking.length > 1 && (
                 <div className="rounded-3xl border shadow-sm overflow-hidden transition-colors duration-300" style={cardStyle}>
-                  <SalonList items={overallRanking.slice(1)} theme={theme} />
+                  <SalonList items={overallRanking.slice(1)} theme={theme} prevRanks={prevRanks.overall} />
                 </div>
               )}
               {overallRanking.length === 0 && (
@@ -235,7 +240,7 @@ export default function RankingTabs({
           {/* ── 店舗 ── */}
           {tab === 'salon' && (
             <div className="rounded-3xl border shadow-sm overflow-hidden transition-colors duration-300" style={cardStyle}>
-              <SalonList items={salonRanking} theme={theme} />
+              <SalonList items={salonRanking} theme={theme} prevRanks={prevRanks.salon} />
             </div>
           )}
 
@@ -271,6 +276,7 @@ export default function RankingTabs({
                             <span className="block text-[11px] truncate" style={{ color: theme.body }}>{t.salonName}</span>
                           )}
                         </span>
+                        <RankDelta current={t.rank} prev={prevRanks.therapist[String(t.id)]} />
                         <Chevron color={theme.body} />
                       </Link>
                     </li>

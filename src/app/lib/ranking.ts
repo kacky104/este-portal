@@ -56,10 +56,44 @@ export function currentWeekLabelJST(): string {
   return `${fmt(startDate)}(月) 〜 ${fmt(endDate)}(日)`;
 }
 
+// 前週（先週）の月曜 'YYYY-MM-DD'。順位変動（前回比）の比較用。
+export function previousWeekStartJST(): string {
+  const [y, m, d] = currentWeekStartJST().split('-').map(Number);
+  const base = new Date(Date.UTC(y, m - 1, d, 12, 0, 0));
+  base.setUTCDate(base.getUTCDate() - 7);
+  const yy = base.getUTCFullYear();
+  const mm = String(base.getUTCMonth() + 1).padStart(2, '0');
+  const dd = String(base.getUTCDate()).padStart(2, '0');
+  return `${yy}-${mm}-${dd}`;
+}
+
+// 前週の順位マップ（種別ごとに entity_id(文字列) → 前週順位）。
+// page_view_weekly は週ごとの行を保持しているため、先週の week_start でその場で再計算する。
+// 前週にランク外/データ無しの対象はマップに含まれない（＝表示側で「NEW」扱い）。
+// 大きめ limit で全順位を取り、トップ表示外の対象でも正確な前週順位を得る。
+export type PrevRankMaps = {
+  overall: Record<string, number>;
+  salon: Record<string, number>;
+  therapist: Record<string, number>;
+};
+export async function fetchPreviousRankMaps(): Promise<PrevRankMaps> {
+  const week = previousWeekStartJST();
+  const [overall, salon, therapist] = await Promise.all([
+    fetchOverallWeeklyRanking(9999, week),
+    fetchSalonWeeklyRanking(9999, week),
+    fetchTherapistWeeklyRanking(9999, week),
+  ]);
+  const toMap = (arr: Array<{ id: number; rank: number }>): Record<string, number> => {
+    const m: Record<string, number> = {};
+    arr.forEach((x) => { m[String(x.id)] = x.rank; });
+    return m;
+  };
+  return { overall: toMap(overall), salon: toMap(salon), therapist: toMap(therapist) };
+}
+
 // 店舗の週間ランキング（実アクセス + 下駄。非表示店舗は除外。合計0は非表示）。
-export async function fetchSalonWeeklyRanking(limit = 30): Promise<SalonRankItem[]> {
+export async function fetchSalonWeeklyRanking(limit = 30, week: string = currentWeekStartJST()): Promise<SalonRankItem[]> {
   const supabase = createPublicClient();
-  const week = currentWeekStartJST();
 
   const { data: rows } = await supabase
     .from('page_view_weekly')
@@ -112,9 +146,8 @@ export async function fetchSalonWeeklyRanking(limit = 30): Promise<SalonRankItem
 }
 
 // セラピストの週間ランキング（実アクセス + 下駄。退店/非表示店舗所属は除外。合計0は非表示）。
-export async function fetchTherapistWeeklyRanking(limit = 30): Promise<TherapistRankItem[]> {
+export async function fetchTherapistWeeklyRanking(limit = 30, week: string = currentWeekStartJST()): Promise<TherapistRankItem[]> {
   const supabase = createPublicClient();
-  const week = currentWeekStartJST();
 
   const { data: rows } = await supabase
     .from('page_view_weekly')
@@ -194,9 +227,8 @@ export async function fetchRankingHero(): Promise<string | null> {
 // 総合ランキング（店舗ベース）：店舗自身のアクセス + その店舗に所属する在籍セラピスト全員のアクセスを合算。
 // スコア = 店舗(実アクセス+下駄) + Σ 所属セラピスト(実アクセス+下駄)。非表示店舗・退店セラピストは除外。合計0は非表示。
 // 表示形状は店舗ランキングと同じ SalonRankItem。
-export async function fetchOverallWeeklyRanking(limit = 10): Promise<SalonRankItem[]> {
+export async function fetchOverallWeeklyRanking(limit = 10, week: string = currentWeekStartJST()): Promise<SalonRankItem[]> {
   const supabase = createPublicClient();
-  const week = currentWeekStartJST();
 
   // 店舗の週間アクセス
   const { data: sViewRows } = await supabase
