@@ -131,7 +131,7 @@ export default async function TherapistPublicPage({
 
   const { data: tRow, error: tError } = await supabase
     .from('therapists')
-    .select('id, name, profile_image_url, profile_images, age, body_type, profile_text, work_hours, comment, area, salon_id, user_id, is_new_face, new_face_since, is_available_now, available_until, is_available_now_cast, available_until_cast, feature_badges')
+    .select('id, name, profile_image_url, profile_images, age, body_type, profile_text, work_hours, comment, area, salon_id, user_id, is_new_face, new_face_since, is_available_now, available_until, is_available_now_cast, available_until_cast, feature_badges, catchphrase')
     .eq('id', id)
     .single();
 
@@ -214,6 +214,7 @@ export default async function TherapistPublicPage({
     newFaceSince:    (tRow.new_face_since as string | null) ?? null,
     // 特徴バッジ（既知のみ・重複除去・最大3つに正規化。色/ラベルは therapistBadges が唯一のソース）
     featureBadges:   sanitizeBadges(tRow.feature_badges),
+    catchphrase:     (tRow.catchphrase as string | null) ?? null,
   };
 
   const salon = salonRow
@@ -491,6 +492,11 @@ export default async function TherapistPublicPage({
                       );
                     })}
                   </div>
+                )}
+                {therapist.catchphrase && (
+                  <p className="mt-2.5 text-center sm:text-left text-[13px] font-bold text-slate-600 leading-snug">
+                    {therapist.catchphrase}
+                  </p>
                 )}
               </div>
             </div>
