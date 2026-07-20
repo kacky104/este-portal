@@ -23,6 +23,7 @@ function shuffle<T>(arr: T[]): T[] {
 // 総合ランキング1位の豪華ショーケース。
 // その店舗の所属セラピストを最大8枚（4列×2段）ランダムで表示する。金枠＋王冠で豪華に。
 export default function RankingTopShowcase({
+  rank,
   salonId,
   salonName,
   area,
@@ -30,6 +31,7 @@ export default function RankingTopShowcase({
   dispatchType,
   prevRank,
 }: {
+  rank: number;
   salonId: number;
   salonName: string;
   area: string | null;
@@ -54,7 +56,7 @@ export default function RankingTopShowcase({
         // 画像ありを優先し、それぞれシャッフルして最大8枚。
         const withImg = shuffle(data.filter((t) => t.profile_image_url));
         const noImg = shuffle(data.filter((t) => !t.profile_image_url));
-        const pick = [...withImg, ...noImg].slice(0, 8).map((t) => ({
+        const pick = [...withImg, ...noImg].slice(0, rank <= 3 ? 8 : 4).map((t) => ({
           id: String(t.id),
           name: (t.name as string) ?? '',
           age: (t.age as string | null) ?? null,
@@ -84,6 +86,12 @@ export default function RankingTopShowcase({
     `営業時間：${info.hours || '問い合わせ'}`,
     `定休日：${info.closedDays || '問い合わせ'}`,
   ].filter(Boolean).join(' / ');
+  // 順位バッジ：1金/2銀/3銅はリボンメダル、4位以降は番号バッジ。
+  const medal =
+    rank === 1 ? { c: '#E8A317', s: '#CE8C0C', r: '#F7C948', n: '#5A3E00' }
+    : rank === 2 ? { c: '#C4CBD4', s: '#9AA3AE', r: '#E4E9EF', n: '#37414D' }
+    : rank === 3 ? { c: '#D69A62', s: '#A96B36', r: '#EAC29A', n: '#5A3418' }
+    : null;
 
   return (
     <div
@@ -93,21 +101,25 @@ export default function RankingTopShowcase({
       <div className="bg-white p-1">
         {/* ヘッダー：左上に「王冠＋1」バッジ、店名は中央（右にバッジ幅スペーサーで中央寄せ・1行オートフィット） */}
         <div className="flex items-center gap-2 mb-2">
-          <span className="flex-shrink-0 w-14 h-14" aria-label="第1位">
-            <svg viewBox="0 0 100 100" className="w-full h-full drop-shadow-sm" aria-hidden>
-              <path d="M36 48 L24 92 L40 82 L45 94 L52 60 Z" fill="#D64550" />
-              <path d="M64 48 L76 92 L60 82 L55 94 L48 60 Z" fill="#B23742" />
-              <circle cx="50" cy="40" r="30" fill="#E8A317" stroke="#CE8C0C" strokeWidth="3" />
-              <circle cx="50" cy="40" r="30" fill="none" stroke="#F7C948" strokeWidth="1.5" strokeDasharray="2 3" />
-              <text x="50" y="51" textAnchor="middle" fontSize="30" fontWeight="900" fill="#5A3E00">1</text>
-            </svg>
+          <span className="flex-shrink-0 w-14 h-14" aria-label={`第${rank}位`}>
+            {medal ? (
+              <svg viewBox="0 0 100 100" className="w-full h-full drop-shadow-sm" aria-hidden>
+                <path d="M36 48 L24 92 L40 82 L45 94 L52 60 Z" fill="#D64550" />
+                <path d="M64 48 L76 92 L60 82 L55 94 L48 60 Z" fill="#B23742" />
+                <circle cx="50" cy="40" r="30" fill={medal.c} stroke={medal.s} strokeWidth="3" />
+                <circle cx="50" cy="40" r="30" fill="none" stroke={medal.r} strokeWidth="1.5" strokeDasharray="2 3" />
+                <text x="50" y="51" textAnchor="middle" fontSize="30" fontWeight="900" fill={medal.n}>{rank}</text>
+              </svg>
+            ) : (
+              <span className="w-full h-full rounded-full flex items-center justify-center font-black text-base shadow-sm" style={{ background: 'linear-gradient(135deg,#FBEDCB,#EFD79B)', color: '#8a6d1f', border: '1px solid #E6D3A2' }}>{rank}</span>
+            )}
           </span>
           <div className="min-w-0 flex-1">
             <Link href={`/salon/${salonId}`} className="block hover:opacity-90 transition-opacity">
               <AutoFitText text={salonName || '—'} max={22} min={12} className="font-black text-slate-900" />
             </Link>
             <div className="mt-0.5 flex items-center gap-1.5">
-              <RankDelta current={1} prev={prevRank} />
+              <RankDelta current={rank} prev={prevRank} />
               <span className="min-w-0 truncate text-[11px] text-slate-500">{metaText}</span>
             </div>
           </div>
