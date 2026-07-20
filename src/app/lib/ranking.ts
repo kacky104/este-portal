@@ -21,6 +21,7 @@ export type TherapistRankItem = {
   salonName: string;
   area: string | null;
   profileImageUrl: string | null;
+  bodyType: string | null;
 };
 
 // 現在時刻(JST)が属する週の「月曜」の 'YYYY-MM-DD'。
@@ -174,7 +175,7 @@ export async function fetchTherapistWeeklyRanking(limit = 30, week: string = cur
 
   const { data: tRows } = await supabase
     .from('therapists')
-    .select('id, name, area, salon_id, profile_image_url, ranking_bonus, is_active, salons!inner(id, name, is_hidden)')
+    .select('id, name, area, salon_id, profile_image_url, body_type, ranking_bonus, is_active, salons!inner(id, name, is_hidden)')
     .in('id', candidateIds)
     .eq('is_active', true)
     .eq('salons.is_hidden', false);
@@ -185,6 +186,7 @@ export async function fetchTherapistWeeklyRanking(limit = 30, week: string = cur
     area: string | null;
     salon_id: number | null;
     profile_image_url: string | null;
+    body_type: string | null;
     ranking_bonus: number | null;
     salons: { id: number; name: string | null; is_hidden: boolean } | null;
   };
@@ -199,6 +201,7 @@ export async function fetchTherapistWeeklyRanking(limit = 30, week: string = cur
         salonName: t.salons?.name ?? '',
         area: t.area ?? null,
         profileImageUrl: t.profile_image_url ?? null,
+        bodyType: t.body_type ?? null,
         _score: effective,
       };
     })
@@ -213,6 +216,7 @@ export async function fetchTherapistWeeklyRanking(limit = 30, week: string = cur
       salonName: x.salonName,
       area: x.area,
       profileImageUrl: x.profileImageUrl,
+      bodyType: x.bodyType,
     }));
 }
 

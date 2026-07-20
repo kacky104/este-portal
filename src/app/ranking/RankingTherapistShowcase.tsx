@@ -3,6 +3,7 @@ import Image from 'next/image';
 import { RankDelta } from './RankDelta';
 import { areaLabel } from '@/app/lib/areaLabel';
 import type { SalonTheme } from '@/app/lib/themes';
+import { formatBodySizes } from '@/lib/bodyType';
 
 // セラピストランキング1位の豪華ショーケース。枠の左半分を大きな写真カードにする。
 export function RankingTherapistShowcase({
@@ -11,6 +12,7 @@ export function RankingTherapistShowcase({
   salonName,
   area,
   profileImageUrl,
+  bodyType,
   prevRank,
   theme,
 }: {
@@ -19,12 +21,14 @@ export function RankingTherapistShowcase({
   salonName: string;
   area: string | null;
   profileImageUrl: string | null;
+  bodyType: string | null;
   prevRank?: number;
   theme: SalonTheme;
 }) {
   const darkTheme = theme.key === 'black';
   const nameColor = darkTheme ? theme.heading : '#334155';
   const subColor = darkTheme ? theme.body : '#64748b';
+  const bodySizes = formatBodySizes(bodyType);
   return (
     <div className="mb-5 p-[2.5px] shadow-md" style={{ background: 'linear-gradient(135deg,#F9D976,#E8A317,#F7C948,#B8860B)' }}>
       <div style={{ background: darkTheme ? theme.card : '#ffffff' }}>
@@ -45,10 +49,6 @@ export function RankingTherapistShowcase({
             ) : (
               <span className="absolute inset-0 flex items-center justify-center text-slate-300 font-bold text-3xl">{name.charAt(0) || '—'}</span>
             )}
-            {/* 名前オーバーレイ */}
-            <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/70 to-transparent px-2 pt-5 pb-1.5">
-              <p className="text-white text-sm font-bold truncate drop-shadow">{name}</p>
-            </div>
           </Link>
 
           {/* 右半分：情報 */}
@@ -67,6 +67,7 @@ export function RankingTherapistShowcase({
                 <span className="block text-lg font-black truncate" style={{ color: nameColor }}>{name || '—'}</span>
               </Link>
             </div>
+            {bodySizes && <span className="text-[12px] font-semibold truncate" style={{ color: nameColor }}>{bodySizes}</span>}
             {salonName && <span className="text-[12px] truncate" style={{ color: subColor }}>{salonName}</span>}
             {area && (
               <span className="inline-block self-start text-[10px] px-2 py-0.5 rounded-full bg-amber-50 text-amber-700 border border-amber-200 font-medium">{areaLabel(area)}</span>
