@@ -13,6 +13,7 @@ export function ShowcaseDutyBadge({
   todayIsActive,
   todayStart,
   todayEnd,
+  className = 'absolute top-2 right-2 z-10',
 }: {
   isAvailableNow: boolean;
   availableUntil: string | null;
@@ -21,6 +22,7 @@ export function ShowcaseDutyBadge({
   todayIsActive: boolean;
   todayStart: string | null;
   todayEnd: string | null;
+  className?: string;
 }) {
   const [badge, setBadge] = useState<StatusBadgeData | null>(null);
   useEffect(() => {
@@ -41,7 +43,7 @@ export function ShowcaseDutyBadge({
   if (!badge) return null;
   return (
     <span
-      className={`absolute top-2 right-2 z-10 text-[10px] font-bold leading-none px-2 py-1 rounded-full shadow ${badge.blink ? 'animate-pulse' : ''}`}
+      className={`${className} text-[10px] font-bold leading-none px-2 py-1 rounded-full shadow ${badge.blink ? 'animate-pulse' : ''}`}
       style={{ background: badge.bg, color: badge.color }}
     >
       {badge.label}

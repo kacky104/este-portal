@@ -104,16 +104,18 @@ export function RankingTherapistShowcase({
                 {cup.toUpperCase()}
               </span>
             )}
-            {/* 出勤バッジ（画像右上） */}
-            <ShowcaseDutyBadge
-              isAvailableNow={isAvailableNow}
-              availableUntil={availableUntil}
-              isAvailableNowCast={isAvailableNowCast}
-              availableUntilCast={availableUntilCast}
-              todayIsActive={todayIsActive}
-              todayStart={todayStart}
-              todayEnd={todayEnd}
-            />
+            {/* 出勤バッジ（画像右上。11位以降は地域バッジ横に移動するためここでは非表示） */}
+            {!mini && (
+              <ShowcaseDutyBadge
+                isAvailableNow={isAvailableNow}
+                availableUntil={availableUntil}
+                isAvailableNowCast={isAvailableNowCast}
+                availableUntilCast={availableUntilCast}
+                todayIsActive={todayIsActive}
+                todayStart={todayStart}
+                todayEnd={todayEnd}
+              />
+            )}
           </Link>
 
           {/* 右半分：情報 */}
@@ -148,8 +150,26 @@ export function RankingTherapistShowcase({
             )}
             {/* エリアバッジ・ボタン・店名を一番下へ寄せる */}
             <div className={`mt-auto flex flex-col ${tight ? 'gap-0.5 pt-0.5' : 'gap-1.5 pt-1.5'}`}>
-              {area && (
-                <span className={`inline-block self-center text-[10px] px-2 py-0.5 rounded-full border font-medium ${m.area}`}>{areaLabel(area)}</span>
+              {mini ? (
+                <div className="self-center flex items-center justify-center gap-1">
+                  <ShowcaseDutyBadge
+                    isAvailableNow={isAvailableNow}
+                    availableUntil={availableUntil}
+                    isAvailableNowCast={isAvailableNowCast}
+                    availableUntilCast={availableUntilCast}
+                    todayIsActive={todayIsActive}
+                    todayStart={todayStart}
+                    todayEnd={todayEnd}
+                    className="flex-shrink-0"
+                  />
+                  {area && (
+                    <span className={`inline-block text-[10px] px-2 py-0.5 rounded-full border font-medium ${m.area}`}>{areaLabel(area)}</span>
+                  )}
+                </div>
+              ) : (
+                area && (
+                  <span className={`inline-block self-center text-[10px] px-2 py-0.5 rounded-full border font-medium ${m.area}`}>{areaLabel(area)}</span>
+                )
               )}
               <Link
                 href={`/therapist/${id}`}
