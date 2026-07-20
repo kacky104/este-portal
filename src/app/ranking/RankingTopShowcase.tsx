@@ -39,6 +39,7 @@ export default function RankingTopShowcase({
   prevRank,
   data,
   theme,
+  variant = 'overall',
 }: {
   rank: number;
   salonId: number;
@@ -49,8 +50,9 @@ export default function RankingTopShowcase({
   prevRank?: number;
   data: ShowcaseSalonData;
   theme: SalonTheme;
+  variant?: 'overall' | 'salon';
 }) {
-  const count = rank <= 3 ? 8 : 4;
+  const count = variant === 'salon' ? (rank <= 3 ? 4 : 0) : (rank <= 3 ? 8 : 4);
   // SSRは決定的な並び、マウント後にシャッフル（開くたびランダム・ハイドレーション不整合なし）。
   const [cards, setCards] = useState<ShowcaseCard[]>(() => pickCards(data.therapists, count, false));
   useEffect(() => {
@@ -85,6 +87,7 @@ export default function RankingTopShowcase({
     ? (rank === 1 ? '#F5D57A' : rank === 2 ? '#C4CBD4' : rank === 3 ? '#E0A66A' : '#CBD5E1')
     : (rank === 1 ? '#B8860B' : rank === 2 ? '#5F6C7A' : rank === 3 ? '#A96B36' : '#64748B');
   const cardPlaceholder = darkTheme ? 'bg-slate-700' : 'bg-slate-100';
+  const imageLayout = variant === 'salon' && rank > 3;
   // 「この店舗を見る」ボタンも順位色に合わせる（白文字が読める濃さの左→右グラデ）。
   const buttonBg =
     rank === 1 ? 'linear-gradient(to right,#E8A317,#F7C948)'
@@ -127,7 +130,7 @@ export default function RankingTopShowcase({
         </div>
 
         {/* 所属セラピスト（1〜3位=8枚/4×2、4位以降=4枚/1行・ランダム） */}
-        {cards.length > 0 && (
+        {!imageLayout && cards.length > 0 && (
           <div className="grid grid-cols-4">
             {cards.map((c) => (
               <Link
@@ -164,25 +167,54 @@ export default function RankingTopShowcase({
           </div>
         )}
 
-        {/* キャッチフレーズ＋料金/営業時間/定休日（1行） */}
-        {(data.catchphrase || data.price || data.hours || data.closedDays) && (
-          <div className="mt-2 text-center leading-relaxed">
-            {data.catchphrase && (
-              <p className="text-[13px] font-bold leading-snug" style={{ color: catchColor }}>{data.catchphrase}</p>
-            )}
-            <AutoFitText text={detailLine} max={12} min={9} className="mt-1 text-center" style={{ color: metaColor }} />
+        {imageLayout ? (
+          /* 店舗4位以降：左=店舗画像／右=キャッチ・営業時間等・ボタン（左寄せ・右カラム幅に合わせる） */
+          <div className="mt-2 flex gap-3 items-stretch">
+            <div className={`flex-1 min-w-0 rounded-lg overflow-hidden ${cardPlaceholder}`}>
+              {data.image ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={data.image} alt={salonName} className="w-full h-full object-cover" />
+              ) : (
+                <span className="flex w-full h-full min-h-[96px] items-center justify-center text-[10px] text-slate-400">画像なし</span>
+              )}
+            </div>
+            <div className="basis-[54%] flex-shrink-0 flex flex-col justify-center gap-1.5">
+              {data.catchphrase && (
+                <p className="text-left text-[13px] font-bold leading-snug" style={{ color: catchColor }}>{data.catchphrase}</p>
+              )}
+              <AutoFitText text={detailLine} max={12} min={9} className="text-left" style={{ color: metaColor }} />
+              <Link
+                href={`/salon/${salonId}`}
+                className="mt-1 flex items-center justify-center gap-1.5 py-2 rounded-full text-white text-[13px] font-bold shadow-sm hover:opacity-90 transition-opacity"
+                style={{ background: buttonBg }}
+              >
+                この店舗を見る
+                <span aria-hidden>→</span>
+              </Link>
+            </div>
           </div>
+        ) : (
+          <>
+            {/* キャッチフレーズ＋料金/営業時間/定休日（1行） */}
+            {(data.catchphrase || data.price || data.hours || data.closedDays) && (
+              <div className="mt-2 text-center leading-relaxed">
+                {data.catchphrase && (
+                  <p className="text-[13px] font-bold leading-snug" style={{ color: catchColor }}>{data.catchphrase}</p>
+                )}
+                <AutoFitText text={detailLine} max={12} min={9} className="mt-1 text-center" style={{ color: metaColor }} />
+              </div>
+            )}
+            {/* 店舗ページへ */}
+            <Link
+              href={`/salon/${salonId}`}
+              className="mt-3 flex items-center justify-center gap-1.5 py-2.5 rounded-full text-white text-sm font-bold shadow-sm hover:opacity-90 transition-opacity"
+              style={{ background: buttonBg }}
+            >
+              この店舗を見る
+              <span aria-hidden>→</span>
+            </Link>
+          </>
         )}
-
-        {/* 店舗ページへ */}
-        <Link
-          href={`/salon/${salonId}`}
-          className="mt-3 flex items-center justify-center gap-1.5 py-2.5 rounded-full text-white text-sm font-bold shadow-sm hover:opacity-90 transition-opacity"
-          style={{ background: buttonBg }}
-        >
-          この店舗を見る
-          <span aria-hidden>→</span>
-        </Link>
       </div>
     </div>
   );

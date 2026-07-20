@@ -199,8 +199,9 @@ export default function RankingTabs({
                     area2={s.area2}
                     dispatchType={s.dispatchType}
                     prevRank={prevRanks.overall[String(s.id)]}
-                    data={showcaseData[s.id] ?? { therapists: [], catchphrase: '', price: '', hours: '', closedDays: '' }}
+                    data={showcaseData[s.id] ?? { therapists: [], catchphrase: '', price: '', hours: '', closedDays: '', image: '' }}
                     theme={theme}
+                    variant="overall"
                   />
                 ))
               )}
@@ -230,8 +231,9 @@ export default function RankingTabs({
                     area2={s.area2}
                     dispatchType={s.dispatchType}
                     prevRank={prevRanks.salon[String(s.id)]}
-                    data={showcaseData[s.id] ?? { therapists: [], catchphrase: '', price: '', hours: '', closedDays: '' }}
+                    data={showcaseData[s.id] ?? { therapists: [], catchphrase: '', price: '', hours: '', closedDays: '', image: '' }}
                     theme={theme}
+                    variant="salon"
                   />
                 ))
               )}
