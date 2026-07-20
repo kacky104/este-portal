@@ -6,6 +6,8 @@ import { AccountMenu } from '@/app/components/AccountMenu';
 import { NotificationBell } from '@/app/components/NotificationBell';
 import { VipLetterIcon } from '@/app/components/VipLetterIcon';
 import { Breadcrumb } from '@/app/components/Breadcrumb';
+import { PageHero } from '@/app/components/PageHero';
+import { fetchPageHero } from '@/app/lib/pageHero';
 import { formatDiaryDate } from '@/lib/diaryDate';
 import { DiaryTherapistAvatar } from '@/components/DiaryTherapistAvatar';
 import { DiaryNewBadge } from '@/components/DiaryNewBadge';
@@ -84,6 +86,7 @@ export default async function DiaryListPage({
 
         {/* Back */}
         <Breadcrumb current="写メ日記" />
+        <PageHero url={await fetchPageHero('diary')} alt="写メ日記" />
 
         {/* Heading */}
         <div className="mb-8 overflow-hidden rounded-3xl border border-pink-100 bg-gradient-to-br from-pink-50 via-rose-50 to-white shadow-sm">

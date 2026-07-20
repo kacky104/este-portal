@@ -27,6 +27,7 @@ import WorkArticlesManager from '@/app/components/WorkArticlesManager';
 import AdminDocumentsManager from '@/app/components/AdminDocumentsManager';
 import AdminImagesManager from '@/app/components/AdminImagesManager';
 import RankingHandicapManager from '@/app/components/RankingHandicapManager';
+import PageHeroManager from '@/app/components/PageHeroManager';
 import ListingInquiryManager from '@/app/components/ListingInquiryManager';
 import { adminGenerateOwnerLoginLink } from '@/app/actions/adminOwner';
 import { useToast } from '@/app/components/useToast';
@@ -589,6 +590,11 @@ export default function AdminDashboard() {
           {/* ── 週間ランキングの下駄（ハンデ）設定：店舗/セラピストごとに毎週の加算値を設定 ── */}
           <AccordionSection id="ranking-handicap" title="週間ランキング下駄（ハンデ）設定" expanded={expandedSections} onToggle={toggleSection}>
             <RankingHandicapManager onToast={showToast} />
+          </AccordionSection>
+
+          {/* ── ページ別ヒーロー（ヘッダー）画像：特徴で探す/写メ日記/口コミ/新人/SNS ── */}
+          <AccordionSection id="page-heroes" title="ページ別ヒーロー画像設定" expanded={expandedSections} onToggle={toggleSection}>
+            <PageHeroManager onToast={showToast} />
           </AccordionSection>
 
           {/* ── 本体コラム記事（利用者向け・/column 配下） ── */}

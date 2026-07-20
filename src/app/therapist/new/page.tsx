@@ -4,6 +4,8 @@ import { AccountMenu } from '@/app/components/AccountMenu';
 import { NotificationBell } from '@/app/components/NotificationBell';
 import { VipLetterIcon } from '@/app/components/VipLetterIcon';
 import { Breadcrumb } from '@/app/components/Breadcrumb';
+import { PageHero } from '@/app/components/PageHero';
+import { fetchPageHero } from '@/app/lib/pageHero';
 import { createPublicClient } from '@/app/lib/supabase/public';
 import { fetchNewFaceTherapists } from '@/app/lib/newFaceTherapists';
 import { NewFaceList } from './NewFaceList';
@@ -61,6 +63,7 @@ export default async function NewFacePage() {
 
         {/* Back link */}
         <Breadcrumb current="新人セラピスト一覧" />
+        <PageHero url={await fetchPageHero('newface')} alt="新人セラピスト" />
 
         {/* Heading（中央寄せ）。トップの「新人セラピスト一覧」見出しと同じ emerald→lime のグラデに揃える（#10B981→#84CC16）。 */}
         <div className="mb-8 text-center">

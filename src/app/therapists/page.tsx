@@ -4,6 +4,8 @@ import Link from 'next/link';
 import { Logo } from '@/app/components/Logo';
 import { TherapistSearch } from '@/app/components/TherapistSearch';
 import { Breadcrumb } from '@/app/components/Breadcrumb';
+import { PageHero } from '@/app/components/PageHero';
+import { fetchPageHero } from '@/app/lib/pageHero';
 import { POPULAR_BADGES, badgeToSlug } from '@/lib/therapistBadgeSlugs';
 import { getBadgeColors } from '@/lib/therapistBadges';
 
@@ -19,7 +21,8 @@ export const metadata: Metadata = {
   twitter: { card: 'summary', title: TITLE, description: DESCRIPTION },
 };
 
-export default function TherapistsPage() {
+export default async function TherapistsPage() {
+  const hero = await fetchPageHero('therapists');
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900">
       {/* シンプルヘッダー */}
@@ -31,6 +34,7 @@ export default function TherapistsPage() {
 
       <main className="max-w-5xl mx-auto px-4 py-6">
         <Breadcrumb current="特徴からセラピストを探す" />
+        <PageHero url={hero} alt="特徴で探す" />
         <div className="mb-5 overflow-hidden rounded-3xl border border-pink-100 bg-gradient-to-br from-pink-50 via-rose-50 to-white shadow-sm">
           <div className="px-5 py-5 sm:px-8 sm:py-6">
             <h1 className="text-lg sm:text-2xl font-black tracking-tight bg-gradient-to-r from-pink-600 to-rose-500 bg-clip-text text-transparent">

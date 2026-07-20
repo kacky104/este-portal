@@ -6,6 +6,8 @@ import { AccountMenu } from '@/app/components/AccountMenu';
 import { NotificationBell } from '@/app/components/NotificationBell';
 import { VipLetterIcon } from '@/app/components/VipLetterIcon';
 import { Breadcrumb } from '@/app/components/Breadcrumb';
+import { PageHero } from '@/app/components/PageHero';
+import { fetchPageHero } from '@/app/lib/pageHero';
 import { VerifiedBadge } from '@/app/x/VerifiedBadge';
 import { fetchShopShowcases } from '@/app/x/xShops';
 
@@ -42,6 +44,7 @@ export default async function XShopsPage() {
       <main className="max-w-3xl mx-auto px-4 py-8">
         {/* Back */}
         <Breadcrumb current="fukuX承認店舗" />
+        <PageHero url={await fetchPageHero('xshops')} alt="SNS" />
 
         {/* Heading */}
         <div className="mb-8 overflow-hidden rounded-3xl border border-pink-100 bg-gradient-to-br from-pink-50 via-rose-50 to-white shadow-sm">

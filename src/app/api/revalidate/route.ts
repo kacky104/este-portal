@@ -29,15 +29,17 @@ export async function POST(req: Request) {
   let area: string | undefined;
   let areasAll = false;
   let ranking = false;
+  let pageHeroes = false;
   let top = true;
   try {
-    const body = (await req.json()) as { salonId?: number | string; therapistId?: number | string; top?: boolean; area?: string; areasAll?: boolean; ranking?: boolean } | null;
+    const body = (await req.json()) as { salonId?: number | string; therapistId?: number | string; top?: boolean; area?: string; areasAll?: boolean; ranking?: boolean; pageHeroes?: boolean } | null;
     if (body && typeof body === "object") {
       if (body.salonId != null) salonId = body.salonId;
       if (body.therapistId != null) therapistId = body.therapistId;
       if (body.area != null) area = body.area;
       if (body.areasAll === true) areasAll = true;
       if (body.ranking === true) ranking = true;
+      if (body.pageHeroes === true) pageHeroes = true;
       if (body.top === false) top = false;
     }
   } catch {
@@ -79,6 +81,14 @@ export async function POST(req: Request) {
     // 週間ランキング（/ranking）。下駄設定の保存後などに即時反映する。
     revalidatePath("/ranking");
     revalidated.push("/ranking");
+  }
+
+  if (pageHeroes) {
+    // ページ別ヒーロー画像の設定後、対象5ページを無効化する。
+    for (const path of ["/therapists", "/diary", "/reviews", "/therapist/new", "/x-shops"]) {
+      revalidatePath(path);
+      revalidated.push(path);
+    }
   }
 
   if (top) {

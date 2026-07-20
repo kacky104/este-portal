@@ -6,6 +6,8 @@ import { AccountMenu } from '@/app/components/AccountMenu';
 import { NotificationBell } from '@/app/components/NotificationBell';
 import { VipLetterIcon } from '@/app/components/VipLetterIcon';
 import { Breadcrumb } from '@/app/components/Breadcrumb';
+import { PageHero } from '@/app/components/PageHero';
+import { fetchPageHero } from '@/app/lib/pageHero';
 import { getAllApprovedReviews } from '@/app/lib/reviews';
 import { ReviewList } from '@/app/components/ReviewList';
 import { PaginatedReviewList } from '@/app/components/PaginatedReviewList';
@@ -39,6 +41,7 @@ export default async function AllReviewsPage() {
       <main className="max-w-4xl mx-auto px-4 py-8">
         {/* Back */}
         <Breadcrumb current="口コミ一覧" />
+        <PageHero url={await fetchPageHero('reviews')} alt="口コミ" />
 
         {/* Heading */}
         <div className="mb-8 overflow-hidden rounded-3xl border border-pink-100 bg-gradient-to-br from-pink-50 via-rose-50 to-white shadow-sm">
