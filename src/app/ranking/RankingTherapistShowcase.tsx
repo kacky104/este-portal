@@ -1,9 +1,10 @@
 import Link from 'next/link';
 import Image from 'next/image';
 import { RankDelta } from './RankDelta';
+import { AutoFitText } from '@/app/components/AutoFitText';
 import { areaLabel } from '@/app/lib/areaLabel';
 import type { SalonTheme } from '@/app/lib/themes';
-import { formatBodySizes } from '@/lib/bodyType';
+import { formatBodySizes, parseBodyType } from '@/lib/bodyType';
 
 // セラピストランキング1位の豪華ショーケース。枠の左半分を大きな写真カードにする。
 export function RankingTherapistShowcase({
@@ -28,7 +29,9 @@ export function RankingTherapistShowcase({
   const darkTheme = theme.key === 'black';
   const nameColor = darkTheme ? theme.heading : '#334155';
   const subColor = darkTheme ? theme.body : '#64748b';
+  const cup = parseBodyType(bodyType)?.cup ?? null;
   const bodySizes = formatBodySizes(bodyType);
+
   return (
     <div className="mb-5 p-[2.5px] shadow-md" style={{ background: 'linear-gradient(135deg,#F9D976,#E8A317,#F7C948,#B8860B)' }}>
       <div style={{ background: darkTheme ? theme.card : '#ffffff' }}>
@@ -49,11 +52,17 @@ export function RankingTherapistShowcase({
             ) : (
               <span className="absolute inset-0 flex items-center justify-center text-slate-300 font-bold text-3xl">{name.charAt(0) || '—'}</span>
             )}
+            {cup && (
+              <span className="absolute bottom-2 left-2 flex items-center justify-center w-11 h-11 rounded-full bg-gradient-to-br from-pink-500 to-rose-600 text-white text-2xl font-black leading-none shadow-lg ring-2 ring-white/80">
+                {cup.toUpperCase()}
+              </span>
+            )}
           </Link>
 
           {/* 右半分：情報 */}
           <div className="flex-1 min-w-0 flex flex-col justify-start gap-1.5 p-2">
-            <div className="flex items-center gap-1 min-w-0">
+            {/* 順位バッジ（位置そのまま）＋右隣に 名前(上)／スリーサイズ(下) */}
+            <div className="flex items-start gap-1 min-w-0">
               <span className="flex-shrink-0 w-12 h-12" aria-label="第1位">
                 <svg viewBox="0 0 100 100" className="w-full h-full drop-shadow" aria-hidden>
                   <path d="M36 48 L24 92 L40 82 L45 94 L52 60 Z" fill="#D64550" />
@@ -62,12 +71,18 @@ export function RankingTherapistShowcase({
                   <text x="50" y="51" textAnchor="middle" fontSize="30" fontWeight="900" fill="#5A3E00">1</text>
                 </svg>
               </span>
-              <span className="flex-shrink-0 -ml-2"><RankDelta current={1} prev={prevRank} /></span>
-              <Link href={`/therapist/${id}`} className="min-w-0 ml-1 hover:opacity-90 transition-opacity">
-                <span className="block text-lg font-black truncate" style={{ color: nameColor }}>{name || '—'}</span>
-              </Link>
+              <span className="flex-shrink-0 -ml-2 mt-1"><RankDelta current={1} prev={prevRank} /></span>
+              <div className="flex-1 min-w-0 ml-1">
+                {/* 名前（バッジの上・2行になる場合はフォント縮小で1行に） */}
+                <Link href={`/therapist/${id}`} className="block hover:opacity-90 transition-opacity">
+                  <AutoFitText text={name || '—'} max={18} min={12} className="font-black text-center" style={{ color: nameColor }} />
+                </Link>
+                {/* スリーサイズ（名前の下・こちらも1行に自動フィット） */}
+                {bodySizes && (
+                  <AutoFitText text={bodySizes} max={12} min={9} className="font-semibold mt-0.5 text-center" style={{ color: nameColor }} />
+                )}
+              </div>
             </div>
-            {bodySizes && <span className="text-[12px] font-semibold truncate" style={{ color: nameColor }}>{bodySizes}</span>}
             {salonName && <span className="text-[12px] truncate" style={{ color: subColor }}>{salonName}</span>}
             {area && (
               <span className="inline-block self-start text-[10px] px-2 py-0.5 rounded-full bg-amber-50 text-amber-700 border border-amber-200 font-medium">{areaLabel(area)}</span>
