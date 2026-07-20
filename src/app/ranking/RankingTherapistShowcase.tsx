@@ -61,8 +61,9 @@ export function RankingTherapistShowcase({
     2: { border: 'linear-gradient(135deg,#F5F5F7,#B8BCC2,#E4E6E9,#8E9297)', button: 'linear-gradient(to right,#9AA0A6,#C9CDD3)', circle: '#C2C6CC', stroke: '#8E9297', num: '#3A3F45', ribbonL: '#6B7280', ribbonR: '#4B5563', area: 'bg-slate-50 text-slate-600 border-slate-200' },
     3: { border: 'linear-gradient(135deg,#EABF98,#B87333,#D89C66,#8A5323)', button: 'linear-gradient(to right,#B87333,#D89C66)', circle: '#CD7F32', stroke: '#9C5A21', num: '#4A2A10', ribbonL: '#C05B2E', ribbonR: '#94421F', area: 'bg-orange-50 text-orange-700 border-orange-200' },
     4: { border: 'linear-gradient(135deg,#E7EDF5,#9FB3C8,#D6E0EC,#7D93AB)', button: 'linear-gradient(to right,#7D93AB,#A9BED2)', circle: '#8FA6BC', stroke: '#6B8199', num: '#2C3E50', ribbonL: '#5B7186', ribbonR: '#425568', area: 'bg-slate-50 text-slate-600 border-slate-200' },
+    11: { border: 'linear-gradient(135deg,#F4F7FB,#CBD6E2,#EAF0F6,#B4C3D4)', button: 'linear-gradient(to right,#AEBECF,#D2DBE7)', circle: '#C6D1DD', stroke: '#A2B2C3', num: '#64748B', ribbonL: '#9AA9BB', ribbonR: '#8090A2', area: 'bg-slate-50 text-slate-500 border-slate-200' },
   };
-  const m = MEDAL[rank <= 3 ? rank : 4] ?? MEDAL[1];
+  const m = MEDAL[mini ? 11 : rank <= 3 ? rank : 4] ?? MEDAL[1];
   const tight = compact || mini; // 4位以降の詰めレイアウト
   const bd = parseBodyType(bodyType);
   const cup = bd?.cup ?? null;
