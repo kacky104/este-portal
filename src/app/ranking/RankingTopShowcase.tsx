@@ -81,11 +81,11 @@ export default function RankingTopShowcase({
               <text x="50" y="51" textAnchor="middle" fontSize="30" fontWeight="900" fill="#5A3E00">1</text>
             </svg>
           </span>
-          <div className="min-w-0 flex-1 text-center">
+          <div className="min-w-0 flex-1">
             <Link href={`/salon/${salonId}`} className="block hover:opacity-90 transition-opacity">
-              <AutoFitText text={salonName || '—'} max={20} min={12} className="text-center font-black text-slate-900" />
+              <AutoFitText text={salonName || '—'} max={22} min={12} className="font-black text-slate-900" />
             </Link>
-            <div className="mt-0.5 flex flex-wrap items-center justify-center gap-1.5">
+            <div className="mt-0.5 flex flex-wrap items-center gap-1.5">
               <RankDelta current={1} prev={prevRank} />
               {area && (
                 <span className="inline-block text-[10px] px-2 py-0.5 rounded-full bg-pink-50 text-pink-600 border border-pink-100 font-medium">
@@ -95,7 +95,6 @@ export default function RankingTopShowcase({
               <SalonTypeBadge dispatchType={dispatchType} />
             </div>
           </div>
-          <span className="flex-shrink-0 w-14" aria-hidden />
         </div>
 
         {/* 所属セラピスト：最大8枚（4列×2段・ランダム） */}
