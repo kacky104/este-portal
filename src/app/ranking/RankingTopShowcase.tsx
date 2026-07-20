@@ -66,11 +66,14 @@ export default function RankingTopShowcase({
       <div className="bg-white p-1">
         {/* ヘッダー：左上に「王冠＋1」バッジ、店名は中央（右にバッジ幅スペーサーで中央寄せ・1行オートフィット） */}
         <div className="flex items-center gap-2 mb-2">
-          <span className="relative flex-shrink-0 w-12 h-12" aria-label="第1位">
-            <svg viewBox="0 0 576 512" className="w-full h-full drop-shadow-sm" fill="#E8A317" aria-hidden>
-              <path d="M309 106c11.4-7 19-19.7 19-34 0-22.1-17.9-40-40-40s-40 17.9-40 40c0 14.4 7.6 27 19 34l-39.5 74c-9.8 16.4-32.4 20-47 7.4L86 158c5-6.4 8-14.4 8-23 0-22.1-17.9-40-40-40S14 92.9 14 115s17.9 40 40 40c1.7 0 3.5-.1 5.1-.3l45.5 244.5c3.2 17.9 18.8 30.8 37 30.8h332.8c18.2 0 33.8-12.9 37-30.8L516.9 154.7c1.7.2 3.4.3 5.1.3 22.1 0 40-17.9 40-40s-17.9-40-40-40-40 17.9-40 40c0 8.6 3 16.6 8 23l-76.5 69.9c-14.6 12.6-37.2 9-47-7.4L309 106z" />
+          <span className="flex-shrink-0 w-14 h-14" aria-label="第1位">
+            <svg viewBox="0 0 100 100" className="w-full h-full drop-shadow-sm" aria-hidden>
+              <path d="M36 48 L24 92 L40 82 L45 94 L52 60 Z" fill="#D64550" />
+              <path d="M64 48 L76 92 L60 82 L55 94 L48 60 Z" fill="#B23742" />
+              <circle cx="50" cy="40" r="30" fill="#E8A317" stroke="#CE8C0C" strokeWidth="3" />
+              <circle cx="50" cy="40" r="30" fill="none" stroke="#F7C948" strokeWidth="1.5" strokeDasharray="2 3" />
+              <text x="50" y="51" textAnchor="middle" fontSize="30" fontWeight="900" fill="#5A3E00">1</text>
             </svg>
-            <span className="absolute inset-x-0 bottom-0 h-[62%] flex items-center justify-center font-black text-[15px] leading-none" style={{ color: '#5A3E00' }}>1</span>
           </span>
           <div className="min-w-0 flex-1 text-center">
             <Link href={`/salon/${salonId}`} className="block hover:opacity-90 transition-opacity">
@@ -82,7 +85,7 @@ export default function RankingTopShowcase({
               </span>
             )}
           </div>
-          <span className="flex-shrink-0 w-12" aria-hidden />
+          <span className="flex-shrink-0 w-14" aria-hidden />
         </div>
 
         {/* 所属セラピスト：最大8枚（4列×2段・ランダム） */}
