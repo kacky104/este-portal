@@ -36,7 +36,7 @@ export default async function RankingPage() {
   const [overallRanking, salonRanking, therapistRanking, heroes, wallpapers, prevRanks] = await Promise.all([
     fetchOverallWeeklyRanking(10),  // 総合（店舗＋所属セラピスト）トップ10
     fetchSalonWeeklyRanking(10),    // 店舗はトップ10まで
-    fetchTherapistWeeklyRanking(30),
+    fetchTherapistWeeklyRanking(50),
     fetchRankingHeroes(),
     fetchThemeWallpapers(),
     fetchPreviousRankMaps(),        // 前週順位（順位変動マーク用）

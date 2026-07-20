@@ -244,7 +244,7 @@ export default function RankingTabs({
           {tab === 'therapist' && (
             <>
               <RankingHeading
-                title="セラピストランキング TOP30"
+                title="セラピストランキング TOP50"
                 description={<>セラピスト個別ページへの週間アクセスによる、<br className="sm:hidden" />フクエス人気セラピストランキングです。</>}
                 bodyColor={theme.body}
               />
