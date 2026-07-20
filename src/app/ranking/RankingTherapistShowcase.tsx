@@ -53,7 +53,7 @@ export function RankingTherapistShowcase({
 
           {/* 右半分：情報 */}
           <div className="flex-1 min-w-0 flex flex-col justify-start gap-1.5">
-            <div className="flex items-center gap-2 min-w-0">
+            <div className="flex items-center gap-1 min-w-0">
               <span className="flex-shrink-0 w-12 h-12" aria-label="第1位">
                 <svg viewBox="0 0 100 100" className="w-full h-full drop-shadow" aria-hidden>
                   <path d="M36 48 L24 92 L40 82 L45 94 L52 60 Z" fill="#D64550" />
@@ -62,8 +62,8 @@ export function RankingTherapistShowcase({
                   <text x="50" y="51" textAnchor="middle" fontSize="30" fontWeight="900" fill="#5A3E00">1</text>
                 </svg>
               </span>
-              <RankDelta current={1} prev={prevRank} />
-              <Link href={`/therapist/${id}`} className="min-w-0 hover:opacity-90 transition-opacity">
+              <span className="flex-shrink-0 -ml-2"><RankDelta current={1} prev={prevRank} /></span>
+              <Link href={`/therapist/${id}`} className="min-w-0 ml-1 hover:opacity-90 transition-opacity">
                 <span className="block text-lg font-black truncate" style={{ color: nameColor }}>{name || '—'}</span>
               </Link>
             </div>
