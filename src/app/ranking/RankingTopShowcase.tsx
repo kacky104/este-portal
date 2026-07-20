@@ -78,6 +78,12 @@ export default function RankingTopShowcase({
 
   // 地域＋区分のテキスト（スラッシュ両隣にスペース）。
   const metaText = salonMetaText(area, area2, dispatchType);
+  // 料金・営業時間・定休日を1行に（スラッシュ区切り・未設定は問い合わせ）。
+  const detailLine = [
+    info.price || null,
+    `営業時間：${info.hours || '問い合わせ'}`,
+    `定休日：${info.closedDays || '問い合わせ'}`,
+  ].filter(Boolean).join(' / ');
 
   return (
     <div
@@ -150,9 +156,7 @@ export default function RankingTopShowcase({
             {info.catchphrase && (
               <p className="text-[13px] font-bold leading-snug" style={{ color: '#B8860B' }}>{info.catchphrase}</p>
             )}
-            {info.price && <p className="mt-1 text-[13px] font-bold text-pink-600">{info.price}</p>}
-            <p className="mt-0.5 text-[11px] text-slate-500">営業時間：{info.hours || '問い合わせ'}</p>
-            <p className="text-[11px] text-slate-500">定休日：{info.closedDays || '問い合わせ'}</p>
+            <AutoFitText text={detailLine} max={12} min={9} className="mt-1 text-center text-slate-500" />
           </div>
         )}
 
