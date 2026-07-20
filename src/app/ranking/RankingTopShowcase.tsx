@@ -79,6 +79,12 @@ export default function RankingTopShowcase({
   const metaColor = '#64748b';
   const catchColor = '#B8860B';
   const cardPlaceholder = 'bg-slate-100';
+  // 「この店舗を見る」ボタンも順位色に合わせる（白文字が読める濃さの左→右グラデ）。
+  const buttonBg =
+    rank === 1 ? 'linear-gradient(to right,#E8A317,#F7C948)'
+    : rank === 2 ? 'linear-gradient(to right,#8A94A0,#AEB8C2)'
+    : rank === 3 ? 'linear-gradient(to right,#A96B36,#CD8B54)'
+    : 'linear-gradient(to right,#64748B,#94A3B8)';
 
   return (
     <div className="mb-5 p-[2.5px] shadow-md" style={{ background: frameBg }}>
@@ -166,7 +172,7 @@ export default function RankingTopShowcase({
         <Link
           href={`/salon/${salonId}`}
           className="mt-3 flex items-center justify-center gap-1.5 py-2.5 rounded-full text-white text-sm font-bold shadow-sm hover:opacity-90 transition-opacity"
-          style={{ background: 'linear-gradient(to right,#E8A317,#F7C948)' }}
+          style={{ background: buttonBg }}
         >
           この店舗を見る
           <span aria-hidden>→</span>
