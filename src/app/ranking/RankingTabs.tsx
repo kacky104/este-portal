@@ -255,7 +255,7 @@ export default function RankingTabs({
                 </div>
               ) : (
                 <>
-                  {therapistRanking.slice(0, 4).map((t) => (
+                  {therapistRanking.slice(0, 10).map((t) => (
                     <RankingTherapistShowcase
                       key={t.id}
                       rank={t.rank}
@@ -279,10 +279,10 @@ export default function RankingTabs({
                       theme={theme}
                     />
                   ))}
-                  {therapistRanking.length > 4 && (
+                  {therapistRanking.length > 10 && (
                     <div className="rounded-3xl border shadow-sm overflow-hidden transition-colors duration-300" style={cardStyle}>
                       <ul>
-                        {therapistRanking.slice(4).map((t, idx, arr) => (
+                        {therapistRanking.slice(10).map((t, idx, arr) => (
                           <li
                             key={t.id}
                             style={idx < arr.length - 1 ? { borderBottom: `1px solid ${theme.cardBorder}` } : undefined}
