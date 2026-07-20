@@ -67,6 +67,8 @@ export function RankingTherapistShowcase({
   };
   const m = MEDAL[mini ? 11 : rank <= 3 ? rank : 4] ?? MEDAL[1];
   const tight = compact || mini; // 4位以降の詰めレイアウト
+  // カップ数バッジのサイズ（カードが小さいほど縮小）。
+  const cupCls = micro ? 'bottom-1 left-1 w-6 h-6 text-[11px] ring-1' : tight ? 'bottom-1.5 left-1.5 w-8 h-8 text-base ring-1' : 'bottom-2 left-2 w-10 h-10 text-xl ring-2';
   const bd = parseBodyType(bodyType);
   const cup = bd?.cup ?? null;
   // スリーサイズ（カップ数は出さない。カップは画像上のバッジで表示）。
@@ -102,7 +104,7 @@ export function RankingTherapistShowcase({
               <span className="absolute inset-0 flex items-center justify-center text-slate-300 font-bold text-3xl">{name.charAt(0) || '—'}</span>
             )}
             {cup && (
-              <span className="absolute bottom-2 left-2 flex items-center justify-center w-11 h-11 rounded-full bg-gradient-to-br from-pink-500 to-rose-600 text-white text-2xl font-black leading-none shadow-lg ring-2 ring-white/80">
+              <span className={`absolute flex items-center justify-center rounded-full bg-gradient-to-br from-pink-500 to-rose-600 text-white font-black leading-none shadow-lg ring-white/80 ${cupCls}`}>
                 {cup.toUpperCase()}
               </span>
             )}
