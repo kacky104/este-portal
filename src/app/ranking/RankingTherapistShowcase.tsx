@@ -99,7 +99,6 @@ export function RankingTherapistShowcase({
             </div>
             {/* 特徴バッジ（順位バッジの下・中央寄せ） */}
             <FeatureBadges badges={featureBadges} className="justify-center" />
-            {salonName && <span className="text-[12px] truncate" style={{ color: subColor }}>{salonName}</span>}
             {area && (
               <span className="inline-block self-start text-[10px] px-2 py-0.5 rounded-full bg-amber-50 text-amber-700 border border-amber-200 font-medium">{areaLabel(area)}</span>
             )}
@@ -111,6 +110,8 @@ export function RankingTherapistShowcase({
               このセラピストを見る
               <span aria-hidden>→</span>
             </Link>
+            {/* 店名（一番下・中央寄せ） */}
+            {salonName && <span className="max-w-full text-center text-[12px] truncate" style={{ color: subColor }}>{salonName}</span>}
           </div>
         </div>
       </div>
