@@ -113,7 +113,7 @@ export function RankingTherapistShowcase({
           </Link>
 
           {/* 右半分：情報 */}
-          <div className={`flex-1 min-w-0 flex flex-col justify-start gap-1.5 px-1 py-2 ${compact ? 'overflow-hidden' : ''}`}>
+          <div className={`flex-1 min-w-0 flex flex-col justify-start px-1 ${compact ? 'gap-0.5 py-1 overflow-hidden' : 'gap-1.5 py-2'}`}>
             {/* 順位バッジ（位置そのまま）＋右隣に 名前(上)／スリーサイズ(下) */}
             <div className="flex items-start gap-1 min-w-0">
               <span className="flex-shrink-0 w-12 h-12" aria-label={`第${rank}位`}>
@@ -143,7 +143,7 @@ export function RankingTherapistShowcase({
               <AutoFitText text={catchphrase} max={13} min={10} className="mt-auto font-bold text-center" style={{ color: '#db2777' }} />
             )}
             {/* エリアバッジ・ボタン・店名を一番下へ寄せる */}
-            <div className="mt-auto flex flex-col gap-1.5 pt-1.5">
+            <div className={`mt-auto flex flex-col ${compact ? 'gap-0.5 pt-0.5' : 'gap-1.5 pt-1.5'}`}>
               {area && (
                 <span className={`inline-block self-center text-[10px] px-2 py-0.5 rounded-full border font-medium ${m.area}`}>{areaLabel(area)}</span>
               )}
