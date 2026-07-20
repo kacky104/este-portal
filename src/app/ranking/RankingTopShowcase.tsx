@@ -6,7 +6,6 @@ import Image from 'next/image';
 import { createClient } from '@/app/lib/supabase/client';
 import { areaLabel } from '@/app/lib/areaLabel';
 import { RankDelta } from './RankDelta';
-import { SalonTypeBadge } from './SalonTypeBadge';
 import { AutoFitText } from '@/app/components/AutoFitText';
 
 type Card = { id: string; name: string; age: string | null; img: string | null; isNew: boolean };
@@ -37,32 +36,41 @@ export default function RankingTopShowcase({
   prevRank?: number;
 }) {
   const [cards, setCards] = useState<Card[]>([]);
+  const [catchphrase, setCatchphrase] = useState('');
 
   useEffect(() => {
     let active = true;
     (async () => {
       const supabase = createClient();
-      const { data } = await supabase
-        .from('therapists')
-        .select('id, name, age, profile_image_url, is_new_face')
-        .eq('salon_id', salonId);
-      if (!active || !data) return;
-      // 画像ありを優先し、それぞれシャッフルして最大8枚。
-      const withImg = shuffle(data.filter((t) => t.profile_image_url));
-      const noImg = shuffle(data.filter((t) => !t.profile_image_url));
-      const pick = [...withImg, ...noImg].slice(0, 8).map((t) => ({
-        id: String(t.id),
-        name: (t.name as string) ?? '',
-        age: (t.age as string | null) ?? null,
-        img: (t.profile_image_url as string | null) ?? null,
-        isNew: Boolean(t.is_new_face),
-      }));
-      setCards(pick);
+      const [tRes, sRes] = await Promise.all([
+        supabase.from('therapists').select('id, name, age, profile_image_url, is_new_face').eq('salon_id', salonId),
+        supabase.from('salons').select('catchphrase').eq('id', salonId).maybeSingle(),
+      ]);
+      if (!active) return;
+      const data = tRes.data;
+      if (data) {
+        // 画像ありを優先し、それぞれシャッフルして最大8枚。
+        const withImg = shuffle(data.filter((t) => t.profile_image_url));
+        const noImg = shuffle(data.filter((t) => !t.profile_image_url));
+        const pick = [...withImg, ...noImg].slice(0, 8).map((t) => ({
+          id: String(t.id),
+          name: (t.name as string) ?? '',
+          age: (t.age as string | null) ?? null,
+          img: (t.profile_image_url as string | null) ?? null,
+          isNew: Boolean(t.is_new_face),
+        }));
+        setCards(pick);
+      }
+      setCatchphrase(((sRes.data?.catchphrase as string | null) ?? '') || '');
     })();
     return () => {
       active = false;
     };
   }, [salonId]);
+
+  // 地域＋区分のテキスト（例：博多駅周辺/メンズエステ/ルーム（個室））。出張専門は「エリア/出張専門」。
+  const typeLabel = dispatchType === 'only' ? '出張専門' : 'メンズエステ/ルーム（個室）';
+  const metaText = [area ? areaLabel(area) : '', typeLabel].filter(Boolean).join('/');
 
   return (
     <div
@@ -85,14 +93,9 @@ export default function RankingTopShowcase({
             <Link href={`/salon/${salonId}`} className="block hover:opacity-90 transition-opacity">
               <AutoFitText text={salonName || '—'} max={22} min={12} className="font-black text-slate-900" />
             </Link>
-            <div className="mt-0.5 flex flex-wrap items-center gap-1.5">
+            <div className="mt-0.5 flex items-center gap-1.5">
               <RankDelta current={1} prev={prevRank} />
-              {area && (
-                <span className="inline-block text-[10px] px-2 py-0.5 rounded-full bg-pink-50 text-pink-600 border border-pink-100 font-medium">
-                  {areaLabel(area)}
-                </span>
-              )}
-              <SalonTypeBadge dispatchType={dispatchType} />
+              <span className="text-[11px] text-slate-500 truncate">{metaText}</span>
             </div>
           </div>
         </div>
@@ -133,6 +136,10 @@ export default function RankingTopShowcase({
               </Link>
             ))}
           </div>
+        )}
+
+        {catchphrase && (
+          <p className="mt-2 text-center text-[13px] font-bold leading-snug" style={{ color: '#B8860B' }}>{catchphrase}</p>
         )}
 
         {/* 店舗ページへ */}
