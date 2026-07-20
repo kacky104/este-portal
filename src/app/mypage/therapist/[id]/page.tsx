@@ -201,7 +201,7 @@ export default function TherapistEditPage() {
         age:               form.age ?? null,
         body_type:         form.body_type ?? null,
         profile_text:      form.profile_text ?? null,
-        catchphrase:       (form.catchphrase ?? '').trim().slice(0, 20) || null,
+        catchphrase:       (form.catchphrase ?? '').trim().slice(0, 16) || null,
         // 念のため保存前に正規化（既知バッジのみ・最大3つ）
         feature_badges:    sanitizeBadges(badges),
       })
@@ -401,15 +401,15 @@ export default function TherapistEditPage() {
         <div className="bg-white rounded-3xl border border-slate-100 shadow-sm p-5 space-y-3">
           <div className="flex items-center justify-between">
             <h2 className="text-sm font-black text-slate-700">キャッチフレーズ</h2>
-            <span className="text-[11px] font-bold text-slate-500">{(form.catchphrase ?? '').length} / 20</span>
+            <span className="text-[11px] font-bold text-slate-500">{(form.catchphrase ?? '').length} / 16</span>
           </div>
           <input
             type="text"
-            maxLength={20}
+            maxLength={16}
             className={inputClass}
             placeholder="例：癒しの時間をあなたに"
             value={form.catchphrase ?? ''}
-            onChange={(e) => setForm((p) => ({ ...p, catchphrase: e.target.value.slice(0, 20) }))}
+            onChange={(e) => setForm((p) => ({ ...p, catchphrase: e.target.value.slice(0, 16) }))}
           />
         </div>
 
