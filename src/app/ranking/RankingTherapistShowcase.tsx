@@ -130,7 +130,7 @@ export function RankingTherapistShowcase({
           <div className={`flex-1 min-w-0 flex flex-col justify-start px-1 ${tight ? 'gap-0.5 py-1' : 'gap-1.5 py-2'} ${compact || micro ? 'overflow-hidden' : ''}`}>
             {/* 順位バッジ（位置そのまま）＋右隣に 名前(上)／スリーサイズ(下) */}
             <div className="flex items-start gap-1 min-w-0">
-              <span className={`flex-shrink-0 ${nano ? 'w-8 h-8' : 'w-12 h-12'}`} aria-label={`第${rank}位`}>
+              <span className="flex-shrink-0 w-12 h-12" aria-label={`第${rank}位`}>
                 <svg viewBox="0 0 100 100" className="w-full h-full drop-shadow" aria-hidden>
                   <path d="M36 48 L24 92 L40 82 L45 94 L52 60 Z" fill={m.ribbonL} />
                   <path d="M64 48 L76 92 L60 82 L55 94 L48 60 Z" fill={m.ribbonR} />
@@ -174,9 +174,6 @@ export function RankingTherapistShowcase({
                       />
                       {area && (
                         <span className={`flex-shrink-0 inline-block text-[10px] px-2 py-0.5 rounded-full border font-medium ${m.area}`}>{areaLabel(area)}</span>
-                      )}
-                      {nano && salonName && (
-                        <span className="min-w-0 text-[10px] truncate" style={{ color: subColor }}>{salonName}</span>
                       )}
                     </div>
                   </>
@@ -234,7 +231,7 @@ export function RankingTherapistShowcase({
                 </Link>
               )}
               {/* 店名（中央寄せ） */}
-              {!nano && salonName && <span className="max-w-full text-center text-[12px] truncate" style={{ color: subColor }}>{salonName}</span>}
+              {salonName && <span className={`max-w-full text-center truncate ${nano ? 'text-[10px]' : 'text-[12px]'}`} style={{ color: subColor }}>{salonName}</span>}
             </div>
           </div>
         </div>
