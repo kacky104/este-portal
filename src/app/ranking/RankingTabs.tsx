@@ -181,7 +181,7 @@ export default function RankingTabs({
             <>
               <RankingHeading
                 title="総合ランキング TOP10"
-                description={<>店舗と所属セラピスト全員の週間アクセスを合算した、<br className="sm:hidden" />フクエス総合の人気ランキングです。</>}
+                description={<>店舗と所属セラピスト全員の週間アクセスを合算した<br className="sm:hidden" />福岡のメンズエステ総合の人気ランキングです</>}
                 bodyColor={theme.body}
               />
               {overallRanking.length === 0 ? (
@@ -213,7 +213,7 @@ export default function RankingTabs({
             <>
               <RankingHeading
                 title="店舗ランキング TOP10"
-                description={<>店舗ページへの週間アクセスによる、<br className="sm:hidden" />フクエス店舗の人気ランキングです。</>}
+                description={<>店舗ページへの週間アクセスによる<br className="sm:hidden" />福岡のメンズエステ店舗の人気ランキングです</>}
                 bodyColor={theme.body}
               />
               {salonRanking.length === 0 ? (
@@ -245,7 +245,7 @@ export default function RankingTabs({
             <>
               <RankingHeading
                 title="セラピストランキング TOP50"
-                description={<>セラピスト個別ページへの週間アクセスによる、<br className="sm:hidden" />フクエス人気セラピストランキングです。</>}
+                description={<>セラピスト個別ページへの週間アクセスによる<br className="sm:hidden" />福岡のメンズエステ人気セラピストランキングです</>}
                 bodyColor={theme.body}
               />
               <div className="rounded-3xl border shadow-sm overflow-hidden transition-colors duration-300" style={cardStyle}>
