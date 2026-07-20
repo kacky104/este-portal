@@ -242,7 +242,13 @@ export default function RankingTabs({
 
           {/* ── セラピスト ── */}
           {tab === 'therapist' && (
-            <div className="rounded-3xl border shadow-sm overflow-hidden transition-colors duration-300" style={cardStyle}>
+            <>
+              <RankingHeading
+                title="セラピストランキング TOP30"
+                description={<>セラピスト個別ページへの週間アクセスによる、<br className="sm:hidden" />フクエス人気セラピストランキングです。</>}
+                bodyColor={theme.body}
+              />
+              <div className="rounded-3xl border shadow-sm overflow-hidden transition-colors duration-300" style={cardStyle}>
               {therapistRanking.length === 0 ? (
                 <EmptyState theme={theme} />
               ) : (
@@ -279,7 +285,8 @@ export default function RankingTabs({
                   ))}
                 </ul>
               )}
-            </div>
+              </div>
+            </>
           )}
 
         </div>
