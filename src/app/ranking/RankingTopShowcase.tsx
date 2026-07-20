@@ -174,8 +174,8 @@ export default function RankingTopShowcase({
 
         {imageLayout ? (
           /* 店舗4位以降：左=店舗画像／右=キャッチ・営業時間等・ボタン（左寄せ・右カラム幅に合わせる） */
-          <div className="mt-2 flex gap-3 items-stretch">
-            <div className={`flex-shrink-0 self-stretch aspect-square rounded-lg overflow-hidden ${cardPlaceholder}`}>
+          <div className="mt-2 flex gap-3 items-center">
+            <div className={`flex-shrink-0 w-24 h-24 sm:w-28 sm:h-28 rounded-lg overflow-hidden ${cardPlaceholder}`}>
               {data.image ? (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img src={data.image} alt={salonName} className="w-full h-full object-cover" />
