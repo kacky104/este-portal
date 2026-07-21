@@ -31,10 +31,10 @@ export function NewFaceScroller({ therapists }: { therapists: TherapistItem[] })
             新人セラピスト一覧
           </h2>
         </div>
-        {/* デスクトップのみ：タイトル行の右端に「一覧を見る →」（モバイルは末尾カードで導線を確保） */}
+        {/* タイトル行の右端に「もっと見る →」（スマホ・PC 共通表示。末尾カードでも導線を確保） */}
         <Link
           href="/therapist/new"
-          className="hidden sm:inline-flex items-center gap-1 text-sm font-bold flex-shrink-0"
+          className="inline-flex items-center gap-1 text-xs sm:text-sm font-bold flex-shrink-0 whitespace-nowrap"
           style={{
             background: 'linear-gradient(to right, #ec4899, #f97316)',
             WebkitBackgroundClip: 'text',
@@ -43,7 +43,7 @@ export function NewFaceScroller({ therapists }: { therapists: TherapistItem[] })
             color: 'transparent',
           }}
         >
-          一覧を見る →
+          もっと見る →
         </Link>
       </div>
 
