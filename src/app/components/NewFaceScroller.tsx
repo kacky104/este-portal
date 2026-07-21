@@ -36,7 +36,7 @@ export function NewFaceScroller({ therapists }: { therapists: TherapistItem[] })
           href="/therapist/new"
           className="inline-flex items-center gap-1 text-xs sm:text-sm font-bold flex-shrink-0 whitespace-nowrap"
           style={{
-            background: 'linear-gradient(to right, #ec4899, #f97316)',
+            background: 'linear-gradient(to right, #10B981, #84CC16)',
             WebkitBackgroundClip: 'text',
             backgroundClip: 'text',
             WebkitTextFillColor: 'transparent',
