@@ -8,6 +8,8 @@ import { SavedSalonsMenu } from '@/app/components/SavedSalonsMenu';
 import { AccountMenu } from '@/app/components/AccountMenu';
 import { NotificationBell } from '@/app/components/NotificationBell';
 import { VipLetterIcon } from '@/app/components/VipLetterIcon';
+import { AdBanner } from '@/app/components/AdBanner';
+import { fetchActiveAdBanners } from '@/app/lib/adBanners';
 
 // 会員個別の内容（ログイン必須・保存状況に依存）のため ISR はかけず動的のままにする。
 // cookie を読む createClient() の時点で動的になるが、意図を明示しておく。
@@ -100,6 +102,9 @@ export default async function MemberPage() {
     })
     .filter((t): t is TherapistPreview => t !== null);
 
+  // 細い広告バナー（会員ページ最上部に表示・公開中からランダム1枚）。当ページは force-dynamic のため常に最新。
+  const adBanners = await fetchActiveAdBanners();
+
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900">
 
@@ -115,6 +120,9 @@ export default async function MemberPage() {
       </header>
 
       <main className="max-w-5xl mx-auto px-4 py-8 sm:py-10">
+
+        {/* ─── 細い広告バナー（共通ヘッダー下・会員ページ最上部） ─── */}
+        <AdBanner banners={adBanners} />
 
         {/* ─── 挨拶エリア ─── */}
         <section className="mb-8">
