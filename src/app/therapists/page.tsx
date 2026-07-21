@@ -57,7 +57,7 @@ export default async function TherapistsPage() {
 
       <main className="max-w-5xl mx-auto px-4 py-6">
         <Breadcrumb current="特徴からセラピストを探す" currentColor={breadcrumbCurrentColor(theme.key)} />
-        <PageHero url={hero} alt="特徴で探す" />
+        <PageHero url={hero} alt="特徴で探す" fullBleedMobile />
         {/* タイトル＋説明：カードを外し、紫の壁紙背景に直接（神秘的なレイアウト）。 */}
         <div className="my-8 sm:my-10 text-center">
           <p className="text-[11px] tracking-[0.35em] font-semibold text-fuchsia-500/80">FUKUES THERAPIST</p>
