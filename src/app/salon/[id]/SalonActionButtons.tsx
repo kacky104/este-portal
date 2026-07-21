@@ -15,21 +15,25 @@ import { SaveButton } from '@/app/components/SaveButton';
 export function SalonActionButtons({
   reserveUrl,
   phone,
+  lineUrl,
   salonId,
   salonName,
 }: {
   reserveUrl?: string | null;
   phone?: string | null;
+  lineUrl?: string | null;
   salonId?: number;
   salonName?: string;
 }) {
   const base =
-    'flex-1 inline-flex items-center justify-center gap-2 rounded-xl px-4 py-3.5 text-sm font-bold shadow-sm transition-all';
+    'flex-1 min-w-[6.5rem] inline-flex items-center justify-center gap-2 rounded-xl px-4 py-3.5 text-sm font-bold shadow-sm transition-all';
 
   // 主CTA＝ネット予約（ブランドグラデ：オレンジ→マゼンタ）。
   const reserveStyle: React.CSSProperties = { background: 'linear-gradient(to right,#FB923C,#DB2777)' };
   // 副CTA＝電話をする（白地＋ブランド枠の従ボタン）。
   const phoneStyle: React.CSSProperties = { color: '#DB2777', border: '1.5px solid #F4B6CE' };
+  // LINE予約＝LINEブランドの緑（#06C755）。line_url が '#' のときは表示のみ・クリック不可。
+  const lineStyle: React.CSSProperties = { background: '#06C755' };
 
   const calendarIcon = (
     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="flex-shrink-0">
@@ -42,6 +46,15 @@ export function SalonActionButtons({
       <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.13.96.36 1.9.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.91.34 1.85.57 2.81.7A2 2 0 0 1 22 16.92z" />
     </svg>
   );
+  const lineIcon = (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="flex-shrink-0">
+      <path d="M21 11.5a8.38 8.38 0 0 1-8.5 8.5 9 9 0 0 1-3.8-.8L3 21l1.9-4.3A8.38 8.38 0 0 1 4 12.5 8.5 8.5 0 0 1 12.5 4 8.38 8.38 0 0 1 21 11.5z" />
+    </svg>
+  );
+
+  // LINE予約：空欄は非表示・'#' は表示するがクリック不可・URLはクリックで新規タブ。
+  const lineRaw = (lineUrl ?? '').trim();
+  const lineDisabled = lineRaw === '#';
 
   // ネット予約の遷移先：salonId があれば常に内部の予約ページへ（受付可否は book 側で判定）。
   // salonId 無し時のみ外部 reserveUrl をフォールバックに使う。
@@ -49,7 +62,7 @@ export function SalonActionButtons({
 
   return (
     <div className="mb-4">
-      <div className="flex items-stretch gap-2.5 sm:gap-3">
+      <div className="flex flex-wrap items-stretch gap-2.5 sm:gap-3">
         {/* ── ネット予約（主CTA） ── */}
         {bookHref ? (
           <Link href={bookHref} className={`${base} text-white hover:brightness-105`} style={reserveStyle}>
@@ -76,6 +89,19 @@ export function SalonActionButtons({
           <button type="button" aria-disabled="true" className={`${base} bg-white cursor-default`} style={phoneStyle}>
             {phoneIcon}電話をする
           </button>
+        )}
+
+        {/* ── LINE予約（空欄は非表示・'#' はクリック不可・URLは新規タブ） ── */}
+        {lineRaw && (
+          lineDisabled ? (
+            <button type="button" aria-disabled="true" className={`${base} text-white cursor-default`} style={lineStyle}>
+              {lineIcon}LINE予約
+            </button>
+          ) : (
+            <a href={lineRaw} target="_blank" rel="noopener noreferrer" className={`${base} text-white hover:brightness-105`} style={lineStyle}>
+              {lineIcon}LINE予約
+            </a>
+          )
         )}
 
         {/* ── サロン保存ボタン（右端・既存 SaveButton paw を流用。状態は SaveButton 側で自己完結） ── */}

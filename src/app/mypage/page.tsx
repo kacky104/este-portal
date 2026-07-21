@@ -377,6 +377,7 @@ type Salon = {
   therapist_types: string[] | null;
   therapist_profile: string | null;
   phone: string | null;
+  line_url: string | null;
   address: string | null;
   access: string | null;
   closed_days: string | null;
@@ -607,7 +608,7 @@ export default function MyPage() {
 
       const { data: salonData, error: salonError } = await supabase
         .from('salons')
-        .select('id, name, rating, review_count, tags, price, area, hours, description, appeal, catchphrase, therapist_count, therapist_types, therapist_profile, phone, address, access, closed_days, courses, theme, official_url, fukux_url, payment_url, payment_cards, payment_methods, booking_enabled, booking_email, booking_courses, jobs_enabled, popup_image_url, popup_link, popup_image_url2, popup_link2, popup_image_url3, popup_link3, popup_enabled, detail_banner_enabled, detail_banner_image_url, detail_banner_link, detail_banner_image_url2, detail_banner_link2, detail_banner_image_url3, detail_banner_link3')
+        .select('id, name, rating, review_count, tags, price, area, hours, description, appeal, catchphrase, therapist_count, therapist_types, therapist_profile, phone, address, access, closed_days, courses, theme, official_url, fukux_url, line_url, payment_url, payment_cards, payment_methods, booking_enabled, booking_email, booking_courses, jobs_enabled, popup_image_url, popup_link, popup_image_url2, popup_link2, popup_image_url3, popup_link3, popup_enabled, detail_banner_enabled, detail_banner_image_url, detail_banner_link, detail_banner_image_url2, detail_banner_link2, detail_banner_image_url3, detail_banner_link3')
         .eq('owner_id', user.id)
         .single();
 
@@ -1193,6 +1194,7 @@ export default function MyPage() {
         theme: salonForm.theme ?? 'white',
         official_url: officialUrl,
         fukux_url: fukuxUrl,
+        line_url: (salonForm.line_url ?? '').trim() || null,
         payment_url: paymentUrl,
         payment_cards: salonForm.payment_cards ?? [],
         payment_methods: salonForm.payment_methods ?? [],
@@ -2091,6 +2093,11 @@ export default function MyPage() {
           <div>
             <label className={labelClass}>電話番号</label>
             <input className={inputClass} value={salonForm.phone ?? ''} onChange={(e) => setSalonForm((p) => ({ ...p, phone: e.target.value }))} />
+          </div>
+          <div>
+            <label className={labelClass}>LINE予約URL（任意）</label>
+            <input className={inputClass} value={salonForm.line_url ?? ''} onChange={(e) => setSalonForm((p) => ({ ...p, line_url: e.target.value }))} placeholder="https://lin.ee/xxxx または https://line.me/..." />
+            <p className="text-[11px] text-slate-400 mt-1 leading-relaxed">LINE公式アカウントの友だち追加URL等。空欄ならサロン詳細のLINE予約ボタンは非表示。「#」だけ入力するとボタンは表示されますがクリックはできません（準備中の表示）。</p>
           </div>
           <div>
             <label className={labelClass}>住所</label>
