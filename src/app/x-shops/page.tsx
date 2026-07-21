@@ -8,6 +8,8 @@ import { VipLetterIcon } from '@/app/components/VipLetterIcon';
 import { Breadcrumb } from '@/app/components/Breadcrumb';
 import { PageHero } from '@/app/components/PageHero';
 import { fetchPageHero } from '@/app/lib/pageHero';
+import { AdBanner } from '@/app/components/AdBanner';
+import { fetchActiveAdBanners } from '@/app/lib/adBanners';
 import { fetchThemeWallpapers } from '@/app/lib/ranking';
 import { getTheme, breadcrumbCurrentColor } from '@/app/lib/themes';
 import { VerifiedBadge } from '@/app/x/VerifiedBadge';
@@ -29,10 +31,11 @@ export const revalidate = 600;
 
 export default async function XShopsPage() {
   // 青テーマ壁紙を固定レイヤーで敷く（/therapists と同方式）。ショップ・ヒーロー・壁紙を同時取得。
-  const [shops, hero, wallpapers] = await Promise.all([
+  const [shops, hero, wallpapers, adBanners] = await Promise.all([
     fetchShopShowcases(),
     fetchPageHero('xshops'),
     fetchThemeWallpapers(),
+    fetchActiveAdBanners(),
   ]);
   const theme = getTheme('blue');
   const wallpaperUrl = wallpapers[theme.key] ?? null;
@@ -86,6 +89,9 @@ export default async function XShopsPage() {
             「fukuX（フクエックス）」は、福岡のメンズエステに特化した専用SNS。ここに掲載しているのは運営が承認した店舗のみ。気になるお店をフォローすれば、割引や当日の空き状況、写メ日記などの最新情報をいち早く受け取れます。
           </p>
         </div>
+
+        {/* 細い広告バナー（公開中からランダム1枚・ページを開くたびに入れ替わり） */}
+        <AdBanner banners={adBanners} />
 
         {/* Shop list */}
         {shops.length === 0 ? (

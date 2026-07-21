@@ -2,7 +2,7 @@
 // ログイン cookie は同一オリジンの fetch で自動同送されるため、トークンの受け渡しは不要。
 // 失敗（ネットワーク/権限等）は握りつぶし、ユーザー操作は止めない。
 
-type RevalidateBody = { salonId?: number | string; therapistId?: number | string; top?: boolean; area?: string; areasAll?: boolean; ranking?: boolean; pageHeroes?: boolean };
+type RevalidateBody = { salonId?: number | string; therapistId?: number | string; top?: boolean; area?: string; areasAll?: boolean; ranking?: boolean; pageHeroes?: boolean; adBanners?: boolean };
 
 // 週間ランキングページ（/ranking）だけを無効化する（下駄設定の保存後などに使う）。
 export async function revalidateRanking(): Promise<void> {
@@ -12,6 +12,11 @@ export async function revalidateRanking(): Promise<void> {
 // ページ別ヒーロー画像の対象5ページを無効化する（ヒーロー設定の保存後に使う）。
 export async function revalidatePageHeroes(): Promise<void> {
   await postRevalidate({ pageHeroes: true, top: false });
+}
+
+// 細い広告バナー（ad_banners）の差し込み先ページを無効化する（バナー設定の保存後に使う）。
+export async function revalidateAdBanners(): Promise<void> {
+  await postRevalidate({ adBanners: true, top: false });
 }
 
 async function postRevalidate(body?: RevalidateBody): Promise<void> {

@@ -30,9 +30,10 @@ export async function POST(req: Request) {
   let areasAll = false;
   let ranking = false;
   let pageHeroes = false;
+  let adBanners = false;
   let top = true;
   try {
-    const body = (await req.json()) as { salonId?: number | string; therapistId?: number | string; top?: boolean; area?: string; areasAll?: boolean; ranking?: boolean; pageHeroes?: boolean } | null;
+    const body = (await req.json()) as { salonId?: number | string; therapistId?: number | string; top?: boolean; area?: string; areasAll?: boolean; ranking?: boolean; pageHeroes?: boolean; adBanners?: boolean } | null;
     if (body && typeof body === "object") {
       if (body.salonId != null) salonId = body.salonId;
       if (body.therapistId != null) therapistId = body.therapistId;
@@ -40,6 +41,7 @@ export async function POST(req: Request) {
       if (body.areasAll === true) areasAll = true;
       if (body.ranking === true) ranking = true;
       if (body.pageHeroes === true) pageHeroes = true;
+      if (body.adBanners === true) adBanners = true;
       if (body.top === false) top = false;
     }
   } catch {
@@ -86,6 +88,14 @@ export async function POST(req: Request) {
   if (pageHeroes) {
     // ページ別ヒーロー画像の設定後、対象5ページを無効化する。
     for (const path of ["/therapists", "/diary", "/reviews", "/therapist/new", "/x-shops"]) {
+      revalidatePath(path);
+      revalidated.push(path);
+    }
+  }
+
+  if (adBanners) {
+    // 細い広告バナー（ad_banners）の設定後、差し込み先ページを無効化する（今後の差し込み先も含む）。
+    for (const path of ["/therapists", "/diary", "/reviews", "/therapist/new", "/x-shops", "/ranking"]) {
       revalidatePath(path);
       revalidated.push(path);
     }

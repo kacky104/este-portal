@@ -12,6 +12,7 @@ import TopBannerManager from '@/app/components/TopBannerManager';
 import RecommendedSalonBannerManager from '@/app/components/RecommendedSalonBannerManager';
 import OptionBannerManager from '@/app/components/OptionBannerManager';
 import TherapistPickupBannerManager from '@/app/components/TherapistPickupBannerManager';
+import AdBannerManager from '@/app/components/AdBannerManager';
 import SalonEditModal, { type SalonForEdit } from '@/app/components/SalonEditModal';
 import ThemeWallpaperManager from '@/app/components/ThemeWallpaperManager';
 import SalonIntakeManager from '@/app/components/SalonIntakeManager';
@@ -438,6 +439,10 @@ export default function AdminDashboard() {
 
           <AccordionSection id="therapist-pickup-banners" title="セラピストピックアップ枠設定" expanded={expandedSections} onToggle={toggleSection}>
             <TherapistPickupBannerManager onToast={showToast} />
+          </AccordionSection>
+
+          <AccordionSection id="ad-banners" title="細い広告バナー設定" expanded={expandedSections} onToggle={toggleSection}>
+            <AdBannerManager onToast={showToast} />
           </AccordionSection>
 
           <AccordionSection id="theme-wallpaper" title="テーマ壁紙設定" expanded={expandedSections} onToggle={toggleSection}>

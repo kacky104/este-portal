@@ -8,6 +8,8 @@ import { VipLetterIcon } from '@/app/components/VipLetterIcon';
 import { Breadcrumb } from '@/app/components/Breadcrumb';
 import { PageHero } from '@/app/components/PageHero';
 import { fetchPageHero } from '@/app/lib/pageHero';
+import { AdBanner } from '@/app/components/AdBanner';
+import { fetchActiveAdBanners } from '@/app/lib/adBanners';
 import { fetchThemeWallpapers } from '@/app/lib/ranking';
 import { getTheme, breadcrumbCurrentColor } from '@/app/lib/themes';
 import { getAllApprovedReviews } from '@/app/lib/reviews';
@@ -26,10 +28,11 @@ export const revalidate = 600;
 
 export default async function AllReviewsPage() {
   // 黄色テーマ壁紙を固定レイヤーで敷く（/therapists と同方式）。口コミ・ヒーロー・壁紙を同時取得。
-  const [reviews, hero, wallpapers] = await Promise.all([
+  const [reviews, hero, wallpapers, adBanners] = await Promise.all([
     getAllApprovedReviews(),
     fetchPageHero('reviews'),
     fetchThemeWallpapers(),
+    fetchActiveAdBanners(),
   ]);
   const theme = getTheme('yellow');
   const wallpaperUrl = wallpapers[theme.key] ?? null;
@@ -82,6 +85,9 @@ export default async function AllReviewsPage() {
             福岡のメンズエステ口コミサイト<br />『フクエス』に寄せられた口コミを新着順でチェック
           </p>
         </div>
+
+        {/* 細い広告バナー（公開中からランダム1枚・ページを開くたびに入れ替わり） */}
+        <AdBanner banners={adBanners} />
 
         {/* 口コミ一覧（全店舗・新着順・20件/ページ） */}
         {reviews.length === 0 ? (

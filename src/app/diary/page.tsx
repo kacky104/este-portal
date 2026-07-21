@@ -8,6 +8,8 @@ import { VipLetterIcon } from '@/app/components/VipLetterIcon';
 import { Breadcrumb } from '@/app/components/Breadcrumb';
 import { PageHero } from '@/app/components/PageHero';
 import { fetchPageHero } from '@/app/lib/pageHero';
+import { AdBanner } from '@/app/components/AdBanner';
+import { fetchActiveAdBanners } from '@/app/lib/adBanners';
 import { fetchThemeWallpapers } from '@/app/lib/ranking';
 import { getTheme, breadcrumbCurrentColor } from '@/app/lib/themes';
 import { formatDiaryDate } from '@/lib/diaryDate';
@@ -45,9 +47,10 @@ export default async function DiaryListPage({
   const offset = (page - 1) * PAGE_SIZE;
 
   // 赤テーマ壁紙を固定レイヤーで敷く（/therapists と同方式）。ヒーロー画像も同時取得。
-  const [hero, wallpapers] = await Promise.all([
+  const [hero, wallpapers, adBanners] = await Promise.all([
     fetchPageHero('diary'),
     fetchThemeWallpapers(),
+    fetchActiveAdBanners(),
   ]);
   const theme = getTheme('red');
   const wallpaperUrl = wallpapers[theme.key] ?? null;
@@ -128,6 +131,9 @@ export default async function DiaryListPage({
             福岡のメンズエステ各店のセラピストが投稿する写メ日記を新着順でチェック。出勤情報やお店の雰囲気が写真でわかります。
           </p>
         </div>
+
+        {/* 細い広告バナー（公開中からランダム1枚・ページを開くたびに入れ替わり） */}
+        <AdBanner banners={adBanners} />
 
         {/* Diary grid */}
         {diaries.length === 0 ? (

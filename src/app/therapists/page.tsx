@@ -6,6 +6,8 @@ import { TherapistSearch } from '@/app/components/TherapistSearch';
 import { Breadcrumb } from '@/app/components/Breadcrumb';
 import { PageHero } from '@/app/components/PageHero';
 import { fetchPageHero } from '@/app/lib/pageHero';
+import { AdBanner } from '@/app/components/AdBanner';
+import { fetchActiveAdBanners } from '@/app/lib/adBanners';
 import { fetchThemeWallpapers } from '@/app/lib/ranking';
 import { getTheme, breadcrumbCurrentColor } from '@/app/lib/themes';
 import { POPULAR_BADGES, badgeToSlug } from '@/lib/therapistBadgeSlugs';
@@ -27,9 +29,10 @@ export const metadata: Metadata = {
 export const revalidate = 300;
 
 export default async function TherapistsPage() {
-  const [hero, wallpapers] = await Promise.all([
+  const [hero, wallpapers, adBanners] = await Promise.all([
     fetchPageHero('therapists'),
     fetchThemeWallpapers(),
+    fetchActiveAdBanners(),
   ]);
   // ランキングと同じ方式：purple テーマ壁紙をテーマ色の半透明オーバーレイ越しに敷く。
   const theme = getTheme('purple');
@@ -69,6 +72,9 @@ export default async function TherapistsPage() {
             癒し系・妹系・密着施術など、好みの特徴やエリアで<br />福岡のメンズエステセラピストを絞り込み検索
           </p>
         </div>
+
+        {/* 細い広告バナー（公開中からランダム1枚・ページを開くたびに入れ替わり） */}
+        <AdBanner banners={adBanners} />
 
         {/* 人気の特徴から探す：バッジ別ランディングページ（/therapists/badge/[slug]）への内部リンク。
             サーバー描画の <Link> なのでクローラに辿られ、各ランディングの発見性・評価を底上げする。 */}
