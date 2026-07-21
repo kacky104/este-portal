@@ -8,6 +8,8 @@ import { VipLetterIcon } from '@/app/components/VipLetterIcon';
 import { Breadcrumb } from '@/app/components/Breadcrumb';
 import { PageHero } from '@/app/components/PageHero';
 import { fetchPageHero } from '@/app/lib/pageHero';
+import { fetchThemeWallpapers } from '@/app/lib/ranking';
+import { getTheme, breadcrumbCurrentColor } from '@/app/lib/themes';
 import { getAllApprovedReviews } from '@/app/lib/reviews';
 import { ReviewList } from '@/app/components/ReviewList';
 import { PaginatedReviewList } from '@/app/components/PaginatedReviewList';
@@ -23,10 +25,29 @@ export const metadata: Metadata = {
 export const revalidate = 600;
 
 export default async function AllReviewsPage() {
-  const reviews = await getAllApprovedReviews();
+  // 黄色テーマ壁紙を固定レイヤーで敷く（/therapists と同方式）。口コミ・ヒーロー・壁紙を同時取得。
+  const [reviews, hero, wallpapers] = await Promise.all([
+    getAllApprovedReviews(),
+    fetchPageHero('reviews'),
+    fetchThemeWallpapers(),
+  ]);
+  const theme = getTheme('yellow');
+  const wallpaperUrl = wallpapers[theme.key] ?? null;
+  const bgStyle = {
+    backgroundColor: theme.bg,
+    ...(wallpaperUrl
+      ? {
+          backgroundImage: `linear-gradient(${theme.bg}D9, ${theme.bg}D9), url(${wallpaperUrl})`,
+          backgroundSize: 'cover' as const,
+          backgroundPosition: 'center' as const,
+        }
+      : {}),
+  };
 
   return (
-    <div className="min-h-screen bg-slate-50 text-slate-900">
+    <div className="min-h-screen text-slate-900">
+      {/* 背景：yellow テーマ壁紙を固定レイヤーで敷く（サロン詳細/therapists と同方式）。 */}
+      <div aria-hidden className="fixed inset-0 -z-10" style={bgStyle} />
       {/* Header */}
       <header className="sticky top-0 z-50 bg-white/90 backdrop-blur-md border-b border-slate-200 shadow-sm">
         <div className="max-w-4xl mx-auto px-4 h-14 flex items-center justify-between">
@@ -40,31 +61,31 @@ export default async function AllReviewsPage() {
 
       <main className="max-w-4xl mx-auto px-4 py-8">
         {/* Back */}
-        <Breadcrumb current="口コミ一覧" />
-        <PageHero url={await fetchPageHero('reviews')} alt="口コミ" />
+        <Breadcrumb current="口コミ一覧" currentColor={breadcrumbCurrentColor(theme.key)} />
+        <PageHero url={hero} alt="口コミ" fullBleedMobile />
 
-        {/* Heading */}
-        <div className="mb-8 overflow-hidden rounded-3xl border border-pink-100 bg-gradient-to-br from-pink-50 via-rose-50 to-white shadow-sm">
-          <div className="px-5 py-6 sm:px-8 sm:py-7">
-            <div className="flex items-center gap-2">
-              <h1 className="whitespace-nowrap text-lg sm:text-2xl font-black tracking-tight bg-gradient-to-r from-pink-600 to-rose-500 bg-clip-text text-transparent">
-                福岡メンズエステ 口コミ一覧
-              </h1>
-              {reviews.length > 0 && (
-                <span className="shrink-0 inline-flex items-center rounded-full border border-pink-100 bg-white/80 px-2.5 py-0.5 text-xs font-bold text-pink-600">
-                  全{reviews.length}件
-                </span>
-              )}
+        {/* Heading：カードを外し、黄色の壁紙背景に直接（神秘的なレイアウト・/therapists と同方式）。 */}
+        <div className="my-8 sm:my-10 text-center">
+          <p className="text-[11px] tracking-[0.35em] font-semibold text-amber-500/90">FUKUES REVIEWS</p>
+          <h1 className="mt-2 text-2xl sm:text-4xl font-black tracking-[0.06em] bg-gradient-to-r from-amber-600 via-yellow-500 to-amber-600 bg-clip-text text-transparent drop-shadow-[0_1px_10px_rgba(245,158,11,0.3)]">
+            福岡メンズエステ 口コミ一覧
+          </h1>
+          {reviews.length > 0 && (
+            <div className="mt-3">
+              <span className="inline-flex items-center rounded-full border border-amber-200 bg-white/80 px-2.5 py-0.5 text-xs font-bold text-amber-600">
+                全{reviews.length}件
+              </span>
             </div>
-            <p className="mt-2 text-xs sm:text-sm text-slate-500 leading-relaxed">
-              福岡のメンズエステ口コミサイト『フクエス』に寄せられた口コミを新着順でチェック
-            </p>
-          </div>
+          )}
+          <div className="mx-auto mt-4 h-px w-24 bg-gradient-to-r from-transparent via-amber-400/70 to-transparent" />
+          <p className="mx-auto mt-4 max-w-md text-xs sm:text-sm leading-relaxed text-slate-600">
+            福岡のメンズエステ口コミサイト『フクエス』に寄せられた口コミを新着順でチェック
+          </p>
         </div>
 
         {/* 口コミ一覧（全店舗・新着順・20件/ページ） */}
         {reviews.length === 0 ? (
-          <div className="text-center py-16 text-slate-400 text-sm border border-dashed border-pink-100 rounded-3xl bg-pink-50/10">
+          <div className="text-center py-16 text-slate-400 text-sm border border-dashed border-amber-100 rounded-3xl bg-amber-50/10">
             口コミはまだありません
           </div>
         ) : (
