@@ -4,6 +4,7 @@ import { Logo } from '@/app/components/Logo';
 import { createClient } from '@/app/lib/supabase/server';
 import { SavedSalonsMenu } from '@/app/components/SavedSalonsMenu';
 import { AccountMenu } from '@/app/components/AccountMenu';
+import { HamburgerMenu } from '@/app/components/HamburgerMenu';
 import { NotificationBell } from '@/app/components/NotificationBell';
 import { VipLetterIcon } from '@/app/components/VipLetterIcon';
 import { getMemberVipLetters } from '@/app/lib/vipLetters';
@@ -42,7 +43,7 @@ export default async function VipLettersPage() {
           <div className="flex items-center gap-2">
             <SavedSalonsMenu />
             <VipLetterIcon /><NotificationBell />
-            <AccountMenu />
+            <AccountMenu /><HamburgerMenu />
           </div>
         </div>
       </header>

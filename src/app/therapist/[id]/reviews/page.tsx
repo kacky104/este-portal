@@ -4,6 +4,7 @@ import { notFound } from 'next/navigation';
 import { Logo } from '@/app/components/Logo';
 import { SavedSalonsMenu } from '@/app/components/SavedSalonsMenu';
 import { AccountMenu } from '@/app/components/AccountMenu';
+import { HamburgerMenu } from '@/app/components/HamburgerMenu';
 import { NotificationBell } from '@/app/components/NotificationBell';
 import { VipLetterIcon } from '@/app/components/VipLetterIcon';
 import { createPublicClient } from '@/app/lib/supabase/public';
@@ -117,7 +118,7 @@ export default async function TherapistReviewsPage({
           <Logo />
           <div className="flex items-center gap-2">
             <SavedSalonsMenu />
-            <VipLetterIcon /><NotificationBell /><AccountMenu />
+            <VipLetterIcon /><NotificationBell /><AccountMenu /><HamburgerMenu />
           </div>
         </div>
       </header>

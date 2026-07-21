@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import { Logo } from '@/app/components/Logo';
 import { SavedSalonsMenu } from '@/app/components/SavedSalonsMenu';
 import { AccountMenu } from '@/app/components/AccountMenu';
+import { HamburgerMenu } from '@/app/components/HamburgerMenu';
 import { NotificationBell } from '@/app/components/NotificationBell';
 import { VipLetterIcon } from '@/app/components/VipLetterIcon';
 import { ListingInquiryForm } from './ListingInquiryForm';
@@ -22,7 +23,7 @@ export default function ListingPage() {
           <Logo />
           <div className="flex items-center gap-2">
             <SavedSalonsMenu />
-            <VipLetterIcon /><NotificationBell /><AccountMenu />
+            <VipLetterIcon /><NotificationBell /><AccountMenu /><HamburgerMenu />
           </div>
         </div>
       </header>

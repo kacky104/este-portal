@@ -6,6 +6,7 @@ import Image from 'next/image';
 import { Logo } from '@/app/components/Logo';
 import { SavedSalonsMenu } from '@/app/components/SavedSalonsMenu';
 import { AccountMenu } from '@/app/components/AccountMenu';
+import { HamburgerMenu } from '@/app/components/HamburgerMenu';
 import { NotificationBell } from '@/app/components/NotificationBell';
 import { VipLetterIcon } from '@/app/components/VipLetterIcon';
 import { Breadcrumb } from '@/app/components/Breadcrumb';
@@ -140,7 +141,7 @@ export default function RankingTabs({
             <SavedSalonsMenu />
             <VipLetterIcon />
             <NotificationBell />
-            <AccountMenu />
+            <AccountMenu /><HamburgerMenu />
           </div>
         </div>
       </header>

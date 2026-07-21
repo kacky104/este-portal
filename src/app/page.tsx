@@ -8,6 +8,7 @@ import HeaderImageSlider from "@/components/HeaderImageSlider";
 import { FeaturedSalonSlider } from "./components/FeaturedSalonSlider";
 import { SavedSalonsMenu } from "./components/SavedSalonsMenu";
 import { AccountMenu } from "./components/AccountMenu";
+import { HamburgerMenu } from '@/app/components/HamburgerMenu';
 import { NotificationBell } from "./components/NotificationBell";
 import { VipLetterIcon } from "./components/VipLetterIcon";
 import { fetchSalons } from "./lib/salons";
@@ -99,7 +100,7 @@ export default async function Home() {
           <div className="flex items-center gap-5">
             <div className="flex items-center gap-2">
               <SavedSalonsMenu />
-              <VipLetterIcon /><NotificationBell /><AccountMenu />
+              <VipLetterIcon /><NotificationBell /><AccountMenu /><HamburgerMenu />
             </div>
           </div>
         </div>
