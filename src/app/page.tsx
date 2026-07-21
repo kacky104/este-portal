@@ -107,7 +107,7 @@ export default async function Home() {
 
       <main>
         {/* ─── テスト運用中のお知らせ（TOP最上部スライダーの上） ─── */}
-        <div className="bg-amber-50 border-b border-amber-100">
+        <div className="sticky top-14 z-40 bg-amber-50 border-b border-amber-100">
           <p className="max-w-5xl mx-auto px-4 py-2 text-center text-xs sm:text-sm font-bold text-amber-700 leading-relaxed">
             現在テスト運用中です。9月中旬サイトオープン予定。
           </p>
