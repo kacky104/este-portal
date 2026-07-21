@@ -27,23 +27,6 @@ body.paw-bg {
   background-image: none;
 }
 
-/* ── ページ背景の壁紙レイヤー（テーマ壁紙）──
-   スマホ(<640px)は画像を全幅で敷き縦リピート＝端に寄った柄も見えるようにする。
-   PC(sm+)は cover で中央フィット（従来の見た目）。色はCSS変数でページから注入。 */
-.page-wallpaper {
-  background-image: linear-gradient(var(--wp-veil), var(--wp-veil)), var(--wp-url);
-  background-repeat: no-repeat, repeat-y;
-  background-position: center, top center;
-  background-size: cover, 100% auto;
-}
-@media (min-width: 640px) {
-  .page-wallpaper {
-    background-repeat: no-repeat, no-repeat;
-    background-position: center, center;
-    background-size: cover, cover;
-  }
-}
-
 /* ── Image fade-in on src change ─────────────────────── */
 @keyframes img-fade-in {
   from { opacity: 0; }
