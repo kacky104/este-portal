@@ -50,7 +50,7 @@ export default function JobsLayout({ children }: { children: React.ReactNode }) 
       {/* ─── フクエスワーク専用ヘッダー（左=ロゴ→/jobs、右=本体TOPへのテキストリンク） ─── */}
       <header className="sticky top-0 z-50 bg-white/85 backdrop-blur-md border-b" style={{ borderColor: '#D6EFE0' }}>
         {/* 左＝ロゴ／右＝保存メニュー（緑肉球＋件数バッジ→/jobs/saved）。「フクエスTOPへ」はフッターに存置。 */}
-        <div className="max-w-3xl mx-auto px-4 h-14 flex items-center justify-between">
+        <div className="max-w-3xl mx-auto px-2 h-14 flex items-center justify-between">
           <JobsLogo />
           <JobsSavedMenu />
         </div>

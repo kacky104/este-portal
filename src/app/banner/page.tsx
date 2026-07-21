@@ -46,7 +46,7 @@ export default function BannerPage() {
     <div className="min-h-screen bg-slate-50 text-slate-900 flex flex-col">
       {/* ─── Header（本体共通構成の簡易版） ─── */}
       <header className="sticky top-0 z-50 bg-white/90 backdrop-blur-md border-b border-slate-200 shadow-sm">
-        <div className="max-w-5xl mx-auto px-4 h-14 flex items-center">
+        <div className="max-w-5xl mx-auto px-2 h-14 flex items-center">
           <Logo />
         </div>
       </header>

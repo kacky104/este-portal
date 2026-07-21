@@ -21,7 +21,7 @@ export default async function DashboardPage() {
   return (
     <div className="min-h-screen bg-slate-50">
       <header className="bg-white border-b border-slate-200 shadow-sm">
-        <div className="max-w-5xl mx-auto px-4 h-14 flex items-center justify-between">
+        <div className="max-w-5xl mx-auto px-2 h-14 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="w-7 h-7 rounded-lg bg-pink-50 border border-pink-200 flex items-center justify-center">
               <span className="text-pink-500 font-bold text-sm leading-none">◆</span>

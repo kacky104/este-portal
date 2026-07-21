@@ -158,7 +158,7 @@ export function XHeader() {
   return (
     <>
       <header className="sticky top-0 z-50 bg-[color:var(--x-surface-translucent)] backdrop-blur-md border-b border-[color:var(--x-border-strong)]">
-        <div className="max-w-2xl mx-auto px-4 h-14 grid grid-cols-[1fr_auto_1fr] items-center">
+        <div className="max-w-2xl mx-auto px-2 h-14 grid grid-cols-[1fr_auto_1fr] items-center">
           {/* 左：アバター（ドロワーを開く） */}
           <div className="justify-self-start">
             <button

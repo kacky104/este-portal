@@ -216,7 +216,7 @@ export default function SavedPage() {
 
       {/* ─── Header ─────────────────────────────────────────── */}
       <header className="sticky top-0 z-50 bg-white/90 backdrop-blur-md border-b border-slate-200 shadow-sm">
-        <div className="max-w-5xl mx-auto px-4 h-14 flex items-center justify-between">
+        <div className="max-w-5xl mx-auto px-2 h-14 flex items-center justify-between">
           <Logo />
           <div className="flex items-center gap-2">
             <SavedSalonsMenu />

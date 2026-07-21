@@ -28,7 +28,7 @@ export default async function SalonIntakePage({ params }: { params: Promise<{ to
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900">
       <header className="sticky top-0 z-50 bg-white/90 backdrop-blur-md border-b border-slate-200 shadow-sm">
-        <div className="max-w-3xl mx-auto px-4 h-14 flex items-center">
+        <div className="max-w-3xl mx-auto px-2 h-14 flex items-center">
           <span className="text-lg font-black bg-gradient-to-r from-pink-500 to-fuchsia-500 bg-clip-text text-transparent">
             フクエス
           </span>

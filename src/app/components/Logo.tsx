@@ -6,7 +6,7 @@ import Image from 'next/image';
 // 画像とリンクのみのためサーバーコンポーネントのまま（'use client' 不要）。
 export function Logo() {
   return (
-    <Link href="/" className="flex items-center gap-3">
+    <Link href="/" className="flex items-center gap-1.5">
       <Image
         src="/logo.png"
         alt="フクエス"

@@ -45,7 +45,7 @@ export default async function SalonReviewNewPage({
   return (
     <div className="min-h-screen bg-pink-50/40">
       <header className="sticky top-0 z-50 bg-white/90 backdrop-blur-md border-b border-slate-200 shadow-sm">
-        <div className="max-w-2xl mx-auto px-4 h-14 flex items-center justify-between">
+        <div className="max-w-2xl mx-auto px-2 h-14 flex items-center justify-between">
           <Logo />
           <Link
             href={`/salon/${salonId}`}

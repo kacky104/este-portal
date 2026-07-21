@@ -130,7 +130,7 @@ export default async function TherapistDiaryPage({
       <div aria-hidden className="fixed inset-0 -z-10" style={bgLayerStyle} />
 
       <header className="sticky top-0 z-50 backdrop-blur-md border-b shadow-sm" style={{ backgroundColor: `${theme.card}E6`, borderColor: theme.cardBorder }}>
-        <div className="max-w-4xl mx-auto px-4 h-14 flex items-center">
+        <div className="max-w-4xl mx-auto px-2 h-14 flex items-center">
           <Logo />
         </div>
       </header>

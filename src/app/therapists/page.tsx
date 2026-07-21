@@ -53,7 +53,7 @@ export default async function TherapistsPage() {
       <div aria-hidden className="fixed inset-0 -z-10" style={bgStyle} />
       {/* シンプルヘッダー */}
       <header className="sticky top-0 z-30 bg-white/90 backdrop-blur border-b border-slate-200">
-        <div className="max-w-5xl mx-auto px-4 h-14 flex items-center justify-between">
+        <div className="max-w-5xl mx-auto px-2 h-14 flex items-center justify-between">
           <Logo />
         </div>
       </header>
