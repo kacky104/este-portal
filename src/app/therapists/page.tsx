@@ -2,6 +2,11 @@ import type { Metadata } from 'next';
 import { Suspense } from 'react';
 import Link from 'next/link';
 import { Logo } from '@/app/components/Logo';
+import { SavedSalonsMenu } from '@/app/components/SavedSalonsMenu';
+import { VipLetterIcon } from '@/app/components/VipLetterIcon';
+import { NotificationBell } from '@/app/components/NotificationBell';
+import { AccountMenu } from '@/app/components/AccountMenu';
+import { HamburgerMenu } from '@/app/components/HamburgerMenu';
 import { TherapistSearch } from '@/app/components/TherapistSearch';
 import { Breadcrumb } from '@/app/components/Breadcrumb';
 import { PageHero } from '@/app/components/PageHero';
@@ -55,6 +60,10 @@ export default async function TherapistsPage() {
       <header className="sticky top-0 z-30 bg-white/90 backdrop-blur border-b border-slate-200">
         <div className="max-w-5xl mx-auto px-2 h-14 flex items-center justify-between">
           <Logo />
+          <div className="flex items-center gap-2">
+            <SavedSalonsMenu />
+            <VipLetterIcon /><NotificationBell /><AccountMenu /><HamburgerMenu />
+          </div>
         </div>
       </header>
 
