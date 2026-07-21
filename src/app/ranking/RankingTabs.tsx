@@ -309,7 +309,6 @@ export default function RankingTabs({
                               href={`/therapist/${t.id}`}
                               className="flex items-center gap-3 px-4 py-3 transition-colors hover:bg-pink-500/10"
                             >
-                              <RankBadge rank={t.rank} theme={theme} />
                               <span className="flex-shrink-0 w-11 h-11 rounded-full overflow-hidden bg-slate-100 relative">
                                 {t.profileImageUrl ? (
                                   <Image src={t.profileImageUrl} alt={t.name} fill className="object-cover" sizes="44px" />
@@ -319,6 +318,7 @@ export default function RankingTabs({
                                   </span>
                                 )}
                               </span>
+                              <RankBadge rank={t.rank} theme={theme} />
                               <span className="min-w-0 flex-1">
                                 <span className="block text-sm font-bold truncate" style={{ color: theme.heading }}>{t.name || '—'}</span>
                                 {t.salonName && (
