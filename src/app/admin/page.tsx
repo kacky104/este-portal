@@ -441,7 +441,7 @@ export default function AdminDashboard() {
             <TherapistPickupBannerManager onToast={showToast} />
           </AccordionSection>
 
-          <AccordionSection id="ad-banners" title="細い広告バナー設定" expanded={expandedSections} onToggle={toggleSection}>
+          <AccordionSection id="ad-banners" title="ルックバナー設定" expanded={expandedSections} onToggle={toggleSection}>
             <AdBannerManager onToast={showToast} />
           </AccordionSection>
 

@@ -42,7 +42,7 @@ function resolveLink(b: Banner): { href: string; external: boolean } | null {
   return null; // 想定外の形式は非リンク扱い
 }
 
-export function AdBanner({ banners }: { banners: Banner[] }) {
+export function AdBanner({ banners, spacingClassName = 'my-6 sm:my-8' }: { banners: Banner[]; spacingClassName?: string }) {
   // 初期は先頭(0)を即描画し、マウント後に useEffect でランダムなインデックスへ差し替える
   // （初期描画が banners[0] で server/client 一致するため hydration mismatch は起きない）。
   const [idx, setIdx] = useState(0);
@@ -56,8 +56,8 @@ export function AdBanner({ banners }: { banners: Banner[] }) {
 
   const picked = banners[idx] ?? banners[0];
 
-  // 細い帯：スマホ h-16(64px)・PC h-24(96px) の固定高・全幅・角丸。object-cover は中央基準。
-  const boxClass = 'relative block w-full overflow-hidden rounded-2xl shadow-sm bg-slate-100 h-16 sm:h-24 my-6 sm:my-8';
+  // 細い帯：スマホ h-16(64px)・PC h-24(96px) の固定高・全幅・直角（角丸なし）。余白は spacingClassName で制御。object-cover は中央基準。
+  const boxClass = `relative block w-full overflow-hidden shadow-sm bg-slate-100 h-16 sm:h-24 ${spacingClassName}`;
 
   // スマホ用画像があれば sm 未満はそれ・sm 以上はPC用を出し分け。未設定なら全幅でPC用1枚。
   const img = picked.mobileImageUrl ? (

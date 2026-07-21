@@ -123,7 +123,7 @@ export default function AdBannerManager({
     setAddLinkUrl('');
     await revalidateAdBanners();
     await fetchList();
-    onToast('広告バナーを追加しました');
+    onToast('ルックバナーを追加しました');
   };
 
   // 画像差し替え：新ファイルをアップロード → DB更新成功後に旧ファイルを掃除。
@@ -320,7 +320,7 @@ export default function AdBannerManager({
     <div className="bg-white rounded-3xl border border-slate-100 shadow-sm p-6">
       <div className="mb-4 space-y-1">
         <p className="text-[11px] text-slate-400 leading-relaxed">
-          各ページ（/therapists・/diary・/reviews・/x-shops など）に、細い帯状の広告バナーを表示します（公開中からランダム1枚・ページを開くたびに入れ替わり）。リンク先URLを設定するとクリックでそこへ移動します。最大{MAX_BANNERS}枠。
+          各ページ（/therapists・/diary・/reviews・/x-shops・会員ページ など）に、細い帯状のルックバナーを表示します（公開中からランダム1枚・ページを開くたびに入れ替わり）。リンク先URLを設定するとクリックでそこへ移動します。最大{MAX_BANNERS}枠。
         </p>
         <p className="text-[10px] text-slate-400 leading-relaxed">
           推奨サイズ: PC用は横1200×縦140px 目安（横長の細い帯）。スマホ用（任意）は横720×縦130px 目安。

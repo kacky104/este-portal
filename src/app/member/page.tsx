@@ -119,10 +119,12 @@ export default async function MemberPage() {
         </div>
       </header>
 
-      <main className="max-w-5xl mx-auto px-4 py-8 sm:py-10">
+      {/* ─── ルックバナー（共通ヘッダー直下・隙間0・公開中からランダム1枚） ─── */}
+      <div className="max-w-5xl mx-auto px-4">
+        <AdBanner banners={adBanners} spacingClassName="" />
+      </div>
 
-        {/* ─── 細い広告バナー（共通ヘッダー下・会員ページ最上部） ─── */}
-        <AdBanner banners={adBanners} />
+      <main className="max-w-5xl mx-auto px-4 py-8 sm:py-10">
 
         {/* ─── 挨拶エリア ─── */}
         <section className="mb-8">
