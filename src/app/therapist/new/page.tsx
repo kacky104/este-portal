@@ -6,6 +6,8 @@ import { VipLetterIcon } from '@/app/components/VipLetterIcon';
 import { Breadcrumb } from '@/app/components/Breadcrumb';
 import { PageHero } from '@/app/components/PageHero';
 import { fetchPageHero } from '@/app/lib/pageHero';
+import { fetchThemeWallpapers } from '@/app/lib/ranking';
+import { getTheme, breadcrumbCurrentColor } from '@/app/lib/themes';
 import { createPublicClient } from '@/app/lib/supabase/public';
 import { fetchNewFaceTherapists } from '@/app/lib/newFaceTherapists';
 import { NewFaceList } from './NewFaceList';
@@ -43,10 +45,29 @@ export const metadata: Metadata = {
 
 export default async function NewFacePage() {
   const supabase = createPublicClient();
-  const therapists = await fetchNewFaceTherapists(supabase); // limit 無指定＝全件
+  // 緑テーマ壁紙を固定レイヤーで敷く（/therapists と同方式）。新人一覧・ヒーロー・壁紙を同時取得。
+  const [therapists, hero, wallpapers] = await Promise.all([
+    fetchNewFaceTherapists(supabase), // limit 無指定＝全件
+    fetchPageHero('newface'),
+    fetchThemeWallpapers(),
+  ]);
+  const theme = getTheme('green');
+  const wallpaperUrl = wallpapers[theme.key] ?? null;
+  const bgStyle = {
+    backgroundColor: theme.bg,
+    ...(wallpaperUrl
+      ? {
+          backgroundImage: `linear-gradient(${theme.bg}D9, ${theme.bg}D9), url(${wallpaperUrl})`,
+          backgroundSize: 'cover' as const,
+          backgroundPosition: 'center' as const,
+        }
+      : {}),
+  };
 
   return (
-    <div className="min-h-screen bg-slate-50 text-slate-900">
+    <div className="min-h-screen text-slate-900">
+      {/* 背景：green テーマ壁紙を固定レイヤーで敷く（サロン詳細/therapists と同方式）。 */}
+      <div aria-hidden className="fixed inset-0 -z-10" style={bgStyle} />
 
       {/* ─── Header ─────────────────────────────────────────── */}
       <header className="sticky top-0 z-50 bg-white/90 backdrop-blur-md border-b border-slate-200 shadow-sm">
@@ -62,23 +83,19 @@ export default async function NewFacePage() {
       <main className="max-w-5xl mx-auto px-4 py-10">
 
         {/* Back link */}
-        <Breadcrumb current="新人セラピスト一覧" />
-        <PageHero url={await fetchPageHero('newface')} alt="新人セラピスト" />
+        <Breadcrumb current="新人セラピスト一覧" currentColor={breadcrumbCurrentColor(theme.key)} />
+        <PageHero url={hero} alt="新人セラピスト" fullBleedMobile />
 
-        {/* Heading（中央寄せ）。トップの「新人セラピスト一覧」見出しと同じ emerald→lime のグラデに揃える（#10B981→#84CC16）。 */}
-        <div className="mb-8 text-center">
-          <h1
-            className="text-2xl font-bold inline-block"
-            style={{
-              background: 'linear-gradient(to right, #10B981, #84CC16)',
-              WebkitBackgroundClip: 'text',
-              backgroundClip: 'text',
-              WebkitTextFillColor: 'transparent',
-              color: 'transparent',
-            }}
-          >
+        {/* Heading：神秘的レイアウト（緑）・/therapists と同方式。壁紙背景の上に直接。 */}
+        <div className="my-8 sm:my-10 text-center">
+          <p className="text-[11px] tracking-[0.35em] font-semibold text-emerald-500/80">FUKUES NEWFACE</p>
+          <h1 className="mt-2 text-2xl sm:text-4xl font-black tracking-[0.06em] bg-gradient-to-r from-emerald-600 via-green-500 to-lime-500 bg-clip-text text-transparent drop-shadow-[0_1px_10px_rgba(16,185,129,0.25)]">
             新人セラピスト一覧
           </h1>
+          <div className="mx-auto mt-4 h-px w-24 bg-gradient-to-r from-transparent via-emerald-400/70 to-transparent" />
+          <p className="mx-auto mt-4 max-w-md text-xs sm:text-sm leading-relaxed text-slate-600">
+            入店から1ヶ月以内のフレッシュな新人セラピストだけを集めました<br />福岡全域から、デビューしたばかりの新しい出会いを新着順でチェック
+          </p>
         </div>
 
         <NewFaceList therapists={therapists} />

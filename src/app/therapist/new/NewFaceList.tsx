@@ -5,7 +5,7 @@ import { Card, type TherapistItem } from '@/app/components/TherapistScroller';
 export function NewFaceList({ therapists }: { therapists: TherapistItem[] }) {
   if (therapists.length === 0) {
     return (
-      <div className="text-center py-10 text-sm text-slate-400 border border-dashed border-pink-100 rounded-2xl bg-pink-50/20">
+      <div className="text-center py-10 text-sm text-slate-400 border border-dashed border-emerald-100 rounded-2xl bg-emerald-50/20">
         現在、新人セラピストはおりません ✿
       </div>
     );
