@@ -8,6 +8,8 @@ import { VipLetterIcon } from '@/app/components/VipLetterIcon';
 import { Breadcrumb } from '@/app/components/Breadcrumb';
 import { PageHero } from '@/app/components/PageHero';
 import { fetchPageHero } from '@/app/lib/pageHero';
+import { fetchThemeWallpapers } from '@/app/lib/ranking';
+import { getTheme, breadcrumbCurrentColor } from '@/app/lib/themes';
 import { formatDiaryDate } from '@/lib/diaryDate';
 import { DiaryTherapistAvatar } from '@/components/DiaryTherapistAvatar';
 import { DiaryNewBadge } from '@/components/DiaryNewBadge';
@@ -42,6 +44,24 @@ export default async function DiaryListPage({
   const page = Math.max(1, Math.floor(Number(pageParam)) || 1);
   const offset = (page - 1) * PAGE_SIZE;
 
+  // 赤テーマ壁紙を固定レイヤーで敷く（/therapists と同方式）。ヒーロー画像も同時取得。
+  const [hero, wallpapers] = await Promise.all([
+    fetchPageHero('diary'),
+    fetchThemeWallpapers(),
+  ]);
+  const theme = getTheme('red');
+  const wallpaperUrl = wallpapers[theme.key] ?? null;
+  const bgStyle = {
+    backgroundColor: theme.bg,
+    ...(wallpaperUrl
+      ? {
+          backgroundImage: `linear-gradient(${theme.bg}D9, ${theme.bg}D9), url(${wallpaperUrl})`,
+          backgroundSize: 'cover' as const,
+          backgroundPosition: 'center' as const,
+        }
+      : {}),
+  };
+
   const supabase = createPublicClient();
   // range で1ページ50件取得＋count: 'exact' で総件数を同時取得（ページ数算出に使う）。
   const { data, count } = await supabase
@@ -69,7 +89,9 @@ export default async function DiaryListPage({
   });
 
   return (
-    <div className="min-h-screen bg-slate-50 text-slate-900">
+    <div className="min-h-screen text-slate-900">
+      {/* 背景：red テーマ壁紙を固定レイヤーで敷く（サロン詳細/therapists と同方式）。 */}
+      <div aria-hidden className="fixed inset-0 -z-10" style={bgStyle} />
 
       {/* Header */}
       <header className="sticky top-0 z-50 bg-white/90 backdrop-blur-md border-b border-slate-200 shadow-sm">
@@ -85,31 +107,31 @@ export default async function DiaryListPage({
       <main className="max-w-4xl mx-auto px-4 py-8">
 
         {/* Back */}
-        <Breadcrumb current="写メ日記" />
-        <PageHero url={await fetchPageHero('diary')} alt="写メ日記" />
+        <Breadcrumb current="写メ日記" currentColor={breadcrumbCurrentColor(theme.key)} />
+        <PageHero url={hero} alt="写メ日記" fullBleedMobile />
 
-        {/* Heading */}
-        <div className="mb-8 overflow-hidden rounded-3xl border border-pink-100 bg-gradient-to-br from-pink-50 via-rose-50 to-white shadow-sm">
-          <div className="px-5 py-6 sm:px-8 sm:py-7">
-            <div className="flex items-center gap-2">
-              <h1 className="whitespace-nowrap text-lg sm:text-2xl font-black tracking-tight bg-gradient-to-r from-pink-600 to-rose-500 bg-clip-text text-transparent">
-                福岡メンズエステ 写メ日記
-              </h1>
-              {(count ?? 0) > 0 && (
-                <span className="shrink-0 inline-flex items-center rounded-full border border-pink-100 bg-white/80 px-2.5 py-0.5 text-xs font-bold text-pink-600">
-                  全{count}件
-                </span>
-              )}
+        {/* Heading：カードを外し、赤の壁紙背景に直接（神秘的なレイアウト・/therapists と同方式）。 */}
+        <div className="my-8 sm:my-10 text-center">
+          <p className="text-[11px] tracking-[0.35em] font-semibold text-red-500/80">FUKUES DIARY</p>
+          <h1 className="mt-2 text-2xl sm:text-4xl font-black tracking-[0.06em] bg-gradient-to-r from-red-700 via-rose-600 to-red-700 bg-clip-text text-transparent drop-shadow-[0_1px_10px_rgba(239,68,68,0.25)]">
+            福岡メンズエステ 写メ日記
+          </h1>
+          {(count ?? 0) > 0 && (
+            <div className="mt-3">
+              <span className="inline-flex items-center rounded-full border border-red-200 bg-white/80 px-2.5 py-0.5 text-xs font-bold text-red-600">
+                全{count}件
+              </span>
             </div>
-            <p className="mt-2 text-xs sm:text-sm text-slate-500 leading-relaxed">
-              福岡のメンズエステ各店のセラピストが投稿する写メ日記を新着順でチェック。出勤情報やお店の雰囲気が写真でわかります。
-            </p>
-          </div>
+          )}
+          <div className="mx-auto mt-4 h-px w-24 bg-gradient-to-r from-transparent via-red-400/70 to-transparent" />
+          <p className="mx-auto mt-4 max-w-md text-xs sm:text-sm leading-relaxed text-slate-600">
+            福岡のメンズエステ各店のセラピストが投稿する写メ日記を新着順でチェック。出勤情報やお店の雰囲気が写真でわかります。
+          </p>
         </div>
 
         {/* Diary grid */}
         {diaries.length === 0 ? (
-          <div className="text-center py-16 text-slate-400 text-sm border border-dashed border-pink-100 rounded-3xl bg-pink-50/10">
+          <div className="text-center py-16 text-slate-400 text-sm border border-dashed border-red-100 rounded-3xl bg-red-50/10">
             日記はまだありません ✿
           </div>
         ) : (
@@ -121,13 +143,13 @@ export default async function DiaryListPage({
                     // eslint-disable-next-line @next/next/no-img-element
                     <img src={diary.image} alt={diary.title || diary.therapistName} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
                   ) : (
-                    <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-pink-300 to-rose-400 text-white font-bold text-2xl">
+                    <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-red-300 to-rose-400 text-white font-bold text-2xl">
                       {diary.therapistName.charAt(0)}
                     </div>
                   )}
-                  {/* 店名バッジ（ピンク文字・白背景）。全店舗一覧なので所属店を出す。 */}
+                  {/* 店名バッジ（赤文字・白背景）。全店舗一覧なので所属店を出す。 */}
                   {diary.salonName && (
-                    <span className="absolute top-1.5 left-1.5 z-10 max-w-[calc(100%-12px)] truncate text-[10px] font-semibold px-2 py-0.5 rounded-full bg-white/90 text-pink-600 shadow-sm">
+                    <span className="absolute top-1.5 left-1.5 z-10 max-w-[calc(100%-12px)] truncate text-[10px] font-semibold px-2 py-0.5 rounded-full bg-white/90 text-red-600 shadow-sm">
                       {diary.salonName}
                     </span>
                   )}
@@ -156,12 +178,12 @@ export default async function DiaryListPage({
                     <DiaryTherapistAvatar src={diary.therapistImage} name={diary.therapistName} size={32} />
                     <div className="min-w-0 flex-1">
                       <p className="flex items-baseline gap-1.5 min-w-0">
-                        <span className="text-[11px] text-pink-600 font-bold truncate">{diary.therapistName}</span>
+                        <span className="text-[11px] text-red-600 font-bold truncate">{diary.therapistName}</span>
                         <span className="flex-shrink-0" style={{ fontSize: '11px', color: '#999' }}>{formatDiaryDate(diary.createdAt)}</span>
                         <DiaryNewBadge iso={diary.createdAt} />
                       </p>
                       {diary.title && (
-                        <h2 className="text-sm font-bold line-clamp-2 mt-0.5 break-all" style={{ background: 'linear-gradient(to right, #ec4899, #f97316)', WebkitBackgroundClip: 'text', backgroundClip: 'text', WebkitTextFillColor: 'transparent', color: 'transparent' }}>
+                        <h2 className="text-sm font-bold line-clamp-2 mt-0.5 break-all" style={{ background: 'linear-gradient(to right, #dc2626, #f43f5e)', WebkitBackgroundClip: 'text', backgroundClip: 'text', WebkitTextFillColor: 'transparent', color: 'transparent' }}>
                           {diary.title}
                         </h2>
                       )}

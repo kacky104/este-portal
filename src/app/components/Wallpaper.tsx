@@ -9,9 +9,9 @@ import { useEffect } from 'react';
 //                        /jobs/*（フクエスワークは別サイト風のため肉球壁紙を出さない）。
 // 除外（完全一致）: /cast（着せ替えダッシュボード。CastThemeProvider が全面背景を出す）／/x（fukuX トップ）／
 //                  /jobs（フクエスワーク トップ）。
-// ※ /diary（一覧）・/cast/login など認証ページはテーマ背景ではないため除外しない（壁紙を出す）。
+// ※ /diary（一覧）は赤テーマ背景を敷くため除外に追加。/cast/login など認証ページはテーマ背景ではないため除外しない（壁紙を出す）。
 const EXCLUDED_PREFIXES = ['/salon/', '/therapist/', '/diary/', '/x/', '/jobs/'];
-const EXCLUDED_EXACT = ['/cast', '/x', '/jobs', '/ranking', '/therapists'];
+const EXCLUDED_EXACT = ['/cast', '/x', '/jobs', '/ranking', '/therapists', '/diary'];
 
 export default function Wallpaper() {
   const pathname = usePathname() || '';
