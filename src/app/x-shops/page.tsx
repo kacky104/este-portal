@@ -8,6 +8,8 @@ import { VipLetterIcon } from '@/app/components/VipLetterIcon';
 import { Breadcrumb } from '@/app/components/Breadcrumb';
 import { PageHero } from '@/app/components/PageHero';
 import { fetchPageHero } from '@/app/lib/pageHero';
+import { fetchThemeWallpapers } from '@/app/lib/ranking';
+import { getTheme, breadcrumbCurrentColor } from '@/app/lib/themes';
 import { VerifiedBadge } from '@/app/x/VerifiedBadge';
 import { fetchShopShowcases } from '@/app/x/xShops';
 
@@ -26,10 +28,29 @@ export const metadata: Metadata = {
 export const revalidate = 600;
 
 export default async function XShopsPage() {
-  const shops = await fetchShopShowcases();
+  // 青テーマ壁紙を固定レイヤーで敷く（/therapists と同方式）。ショップ・ヒーロー・壁紙を同時取得。
+  const [shops, hero, wallpapers] = await Promise.all([
+    fetchShopShowcases(),
+    fetchPageHero('xshops'),
+    fetchThemeWallpapers(),
+  ]);
+  const theme = getTheme('blue');
+  const wallpaperUrl = wallpapers[theme.key] ?? null;
+  const bgStyle = {
+    backgroundColor: theme.bg,
+    ...(wallpaperUrl
+      ? {
+          backgroundImage: `linear-gradient(${theme.bg}D9, ${theme.bg}D9), url(${wallpaperUrl})`,
+          backgroundSize: 'cover' as const,
+          backgroundPosition: 'center' as const,
+        }
+      : {}),
+  };
 
   return (
-    <div className="min-h-screen bg-slate-50 text-slate-900">
+    <div className="min-h-screen text-slate-900">
+      {/* 背景：blue テーマ壁紙を固定レイヤーで敷く（サロン詳細/therapists と同方式）。 */}
+      <div aria-hidden className="fixed inset-0 -z-10" style={bgStyle} />
       {/* Header */}
       <header className="sticky top-0 z-50 bg-white/90 backdrop-blur-md border-b border-slate-200 shadow-sm">
         <div className="max-w-3xl mx-auto px-4 h-14 flex items-center justify-between">
@@ -43,35 +64,32 @@ export default async function XShopsPage() {
 
       <main className="max-w-3xl mx-auto px-4 py-8">
         {/* Back */}
-        <Breadcrumb current="fukuX承認店舗" />
-        <PageHero url={await fetchPageHero('xshops')} alt="SNS" />
+        <Breadcrumb current="fukuX承認店舗" currentColor={breadcrumbCurrentColor(theme.key)} />
+        <PageHero url={hero} alt="SNS" fullBleedMobile />
 
-        {/* Heading */}
-        <div className="mb-8 overflow-hidden rounded-3xl border border-pink-100 bg-gradient-to-br from-pink-50 via-rose-50 to-white shadow-sm">
-          <div className="px-5 py-6 sm:px-8 sm:py-7">
-            <h1 className="font-black tracking-tight">
-              <span className="block text-xs sm:text-sm font-bold text-pink-500">福岡メンズエステ専用SNS</span>
-              <span className="mt-0.5 flex items-center gap-2">
-                <span className="text-base sm:text-2xl bg-gradient-to-r from-pink-600 to-rose-500 bg-clip-text text-transparent">
-                  fukuX～フクエックス～承認店舗
-                </span>
-                {shops.length > 0 && (
-                  <span className="shrink-0 inline-flex items-center rounded-full border border-pink-100 bg-white/80 px-2.5 py-0.5 text-xs font-bold text-pink-600">
-                    全{shops.length}件
-                  </span>
-                )}
+        {/* Heading：カードを外し、青の壁紙背景に直接（神秘的なレイアウト・/therapists と同方式）。 */}
+        <div className="my-8 sm:my-10 text-center">
+          <p className="text-[11px] tracking-[0.35em] font-semibold text-blue-500/80">FUKUES SNS</p>
+          <h1 className="mt-2 text-xl sm:text-3xl font-black tracking-[0.06em] bg-gradient-to-r from-blue-700 via-sky-600 to-blue-700 bg-clip-text text-transparent drop-shadow-[0_1px_10px_rgba(59,130,246,0.25)]">
+            fukuX〜フクエックス〜承認店舗
+          </h1>
+          {shops.length > 0 && (
+            <div className="mt-3">
+              <span className="inline-flex items-center rounded-full border border-blue-200 bg-white/80 px-2.5 py-0.5 text-xs font-bold text-blue-600">
+                全{shops.length}件
               </span>
-            </h1>
-            {/* 説明文（fukuXの説明＋独自コンテンツ。h1直下の1本にまとめて重複を解消）。 */}
-            <p className="mt-3 text-xs sm:text-sm text-slate-600 leading-relaxed">
-              「fukuX（フクエックス）」は、福岡のメンズエステに特化した専用SNSです。ここに掲載しているのは運営が承認した店舗のみ。気になるお店をフォローすれば、割引や当日の空き状況、写メ日記などの最新情報をいち早く受け取れます。
-            </p>
-          </div>
+            </div>
+          )}
+          <div className="mx-auto mt-4 h-px w-24 bg-gradient-to-r from-transparent via-blue-400/70 to-transparent" />
+          {/* 説明文（fukuXの説明。神秘的レイアウトの中央寄せで表示）。 */}
+          <p className="mx-auto mt-4 max-w-xl text-xs sm:text-sm leading-relaxed text-slate-600">
+            「fukuX（フクエックス）」は、福岡のメンズエステに特化した専用SNS。ここに掲載しているのは運営が承認した店舗のみ。気になるお店をフォローすれば、割引や当日の空き状況、写メ日記などの最新情報をいち早く受け取れます。
+          </p>
         </div>
 
         {/* Shop list */}
         {shops.length === 0 ? (
-          <div className="text-center py-16 text-slate-400 text-sm border border-dashed border-pink-100 rounded-3xl bg-pink-50/10">
+          <div className="text-center py-16 text-slate-400 text-sm border border-dashed border-blue-100 rounded-3xl bg-blue-50/10">
             表示できるお店がまだありません
           </div>
         ) : (
