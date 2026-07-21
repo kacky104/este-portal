@@ -26,7 +26,7 @@ export function SalonActionButtons({
   salonName?: string;
 }) {
   const base =
-    'flex-1 min-w-[6.5rem] inline-flex items-center justify-center gap-2 rounded-xl px-4 py-3.5 text-sm font-bold shadow-sm transition-all';
+    'flex-1 min-w-0 inline-flex items-center justify-center gap-1 sm:gap-1.5 rounded-xl px-1.5 sm:px-4 py-3.5 text-xs sm:text-sm font-bold shadow-sm whitespace-nowrap transition-all';
 
   // 主CTA＝ネット予約（ブランドグラデ：オレンジ→マゼンタ）。
   const reserveStyle: React.CSSProperties = { background: 'linear-gradient(to right,#FB923C,#DB2777)' };
@@ -62,7 +62,7 @@ export function SalonActionButtons({
 
   return (
     <div className="mb-4">
-      <div className="flex flex-wrap items-stretch gap-2.5 sm:gap-3">
+      <div className="flex items-stretch gap-1.5 sm:gap-3">
         {/* ── ネット予約（主CTA） ── */}
         {bookHref ? (
           <Link href={bookHref} className={`${base} text-white hover:brightness-105`} style={reserveStyle}>
