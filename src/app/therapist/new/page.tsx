@@ -94,7 +94,7 @@ export default async function NewFacePage() {
           </h1>
           <div className="mx-auto mt-4 h-px w-24 bg-gradient-to-r from-transparent via-emerald-400/70 to-transparent" />
           <p className="mx-auto mt-4 max-w-md text-xs sm:text-sm leading-relaxed text-slate-600">
-            入店から1ヶ月以内のフレッシュな新人セラピストだけを集めました<br />福岡全域から、デビューしたばかりの新しい出会いを新着順でチェック
+            入店から1ヶ月以内のフレッシュな新人セラピストをご紹介<br />福岡全域から、デビューした新しい出会いを新着順でチェック
           </p>
         </div>
 
