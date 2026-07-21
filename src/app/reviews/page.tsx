@@ -79,7 +79,7 @@ export default async function AllReviewsPage() {
           )}
           <div className="mx-auto mt-4 h-px w-24 bg-gradient-to-r from-transparent via-amber-400/70 to-transparent" />
           <p className="mx-auto mt-4 max-w-md text-xs sm:text-sm leading-relaxed text-slate-600">
-            福岡のメンズエステ口コミサイト『フクエス』に寄せられた口コミを新着順でチェック
+            福岡のメンズエステ口コミサイト<br />『フクエス』に寄せられた口コミを新着順でチェック
           </p>
         </div>
 
