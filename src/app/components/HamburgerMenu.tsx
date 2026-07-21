@@ -8,65 +8,17 @@ import Link from 'next/link';
 // サイト内の主要コンテンツ導線（人気ランキング/特徴で探す/写メ日記/口コミ/新人/SNS）をまとめる。
 // ヘッダーの各アイコン（保存/VIP/通知/アカウント）とは別物で、ここにはコンテンツ系リンクのみを入れる。
 // ボタンは丸枠なし・三本線＋下に「menu」表記。クリックで右側からドロワーがスライドイン（角は直角）。
+// 各項目は文字ラベルのみ（左アイコンなし）。オーバーレイのクリック・Escで閉じる。
 //
-// ドロワー／オーバーレイは createPortal で document.body 直下へ描画する。
-// 理由：ヘッダーが backdrop-blur を持つと、その内側の position:fixed の基準がヘッダーになり
-//       h-full や inset-0 がヘッダー範囲に閉じてしまう（背景が透明・全高にならない）。body直下なら回避できる。
-const ITEMS: { href: string; label: string; icon: React.ReactNode }[] = [
-  {
-    href: '/ranking',
-    label: '人気ランキング',
-    icon: (
-      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-        <path d="M6 4h12v3a6 6 0 0 1-12 0V4z" /><path d="M6 5H3v1a3 3 0 0 0 3 3" /><path d="M18 5h3v1a3 3 0 0 1-3 3" /><path d="M9 20h6M12 13v7" />
-      </svg>
-    ),
-  },
-  {
-    href: '/therapists',
-    label: '特徴で探す',
-    icon: (
-      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-        <circle cx="11" cy="11" r="7" /><path d="M21 21l-4.3-4.3" />
-      </svg>
-    ),
-  },
-  {
-    href: '/diary',
-    label: '写メ日記',
-    icon: (
-      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-        <rect x="3" y="6" width="18" height="14" rx="2" /><circle cx="12" cy="13" r="3.2" /><path d="M8 6l1.5-2.2h5L16 6" />
-      </svg>
-    ),
-  },
-  {
-    href: '/reviews',
-    label: '口コミ',
-    icon: (
-      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-        <path d="M21 15a2 2 0 0 1-2 2H8l-5 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
-      </svg>
-    ),
-  },
-  {
-    href: '/therapist/new',
-    label: '新人',
-    icon: (
-      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-        <path d="M12 3l2.3 5.6 6 .5-4.6 3.9 1.4 5.9L12 16.9 6.5 19.8l1.4-5.9L3.3 9.1l6-.5z" />
-      </svg>
-    ),
-  },
-  {
-    href: '/x-shops',
-    label: 'SNS',
-    icon: (
-      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-        <path d="M4 9h16M4 15h16M10 3L8 21M16 3l-2 18" />
-      </svg>
-    ),
-  },
+// createPortal で document.body 直下へ描画する。ヘッダーが backdrop-blur を持つと、その内側の
+// position:fixed の基準がヘッダーになり全高/全画面にならないため、body直下で回避する。
+const ITEMS: { href: string; label: string }[] = [
+  { href: '/ranking', label: '人気ランキング' },
+  { href: '/therapists', label: '特徴で探す' },
+  { href: '/diary', label: '写メ日記' },
+  { href: '/reviews', label: '口コミ' },
+  { href: '/therapist/new', label: '新人' },
+  { href: '/x-shops', label: 'SNS' },
 ];
 
 export function HamburgerMenu() {
@@ -132,11 +84,8 @@ export function HamburgerMenu() {
                   key={item.href}
                   href={item.href}
                   onClick={() => setOpen(false)}
-                  className="flex items-center gap-3 px-4 py-3.5 text-sm font-semibold text-slate-700 border-b border-slate-50 hover:bg-pink-50/70 transition-colors"
+                  className="flex items-center px-4 py-3.5 text-sm font-semibold text-slate-700 border-b border-slate-50 hover:bg-pink-50/70 transition-colors"
                 >
-                  <span className="flex-shrink-0 w-8 h-8 bg-slate-50 flex items-center justify-center text-pink-600">
-                    {item.icon}
-                  </span>
                   {item.label}
                 </Link>
               ))}

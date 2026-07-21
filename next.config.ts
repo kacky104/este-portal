@@ -1,8 +1,6 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  // 開発時の左下インジケーター（Nバッジ）を非表示。本番ビルドには元々出ない。
-  devIndicators: false,
   images: {
     remotePatterns: [
       { protocol: 'https', hostname: 'images.unsplash.com' },
