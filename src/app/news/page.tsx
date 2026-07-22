@@ -14,6 +14,8 @@ import { PageHero } from '@/app/components/PageHero';
 import { fetchPageHero } from '@/app/lib/pageHero';
 import { fetchThemeWallpapers } from '@/app/lib/ranking';
 import { getTheme } from '@/app/lib/themes';
+import { AdBanner } from '@/app/components/AdBanner';
+import { fetchActiveAdBanners } from '@/app/lib/adBanners';
 
 // 全サロン横断の新着情報一覧（トップ「サロン新着情報」の「もっと見る」先）。最新50件・ページングなし。
 // 件数が増えてページングが必要になったら limit+offset か published_at カーソルで拡張する。
@@ -49,10 +51,11 @@ export const metadata: Metadata = {
 export default async function SalonNewsIndexPage() {
   const supabase = createPublicClient();
   // 新着情報50件・ヒーロー画像・テーマ壁紙を並列取得（未設定はそれぞれ非表示／無地）。
-  const [items, hero, wallpapers] = await Promise.all([
+  const [items, hero, wallpapers, adBanners] = await Promise.all([
     fetchLatestSalonNews(supabase, 50),
     fetchPageHero('news'),
     fetchThemeWallpapers(),
+    fetchActiveAdBanners(),
   ]);
 
   // gold テーマ壁紙を固定レイヤーで敷く（/reviews・/x-shops と同方式）。
@@ -110,13 +113,6 @@ export default async function SalonNewsIndexPage() {
           <h1 className="mt-2 text-2xl sm:text-4xl font-black tracking-[0.06em] bg-gradient-to-r from-amber-700 via-yellow-500 to-amber-700 bg-clip-text text-transparent drop-shadow-[0_1px_10px_rgba(202,158,42,0.3)]">
             店舗新着情報
           </h1>
-          {items.length > 0 && (
-            <div className="mt-3">
-              <span className="inline-flex items-center rounded-full border border-amber-200 bg-white/80 px-2.5 py-0.5 text-xs font-bold text-amber-700">
-                最新{items.length}件
-              </span>
-            </div>
-          )}
           <div className="mx-auto mt-4 h-px w-24 bg-gradient-to-r from-transparent via-amber-500/70 to-transparent" />
           {/* 説明文（2段落でボリュームを持たせる） */}
           <p className="mx-auto mt-4 max-w-xl text-xs sm:text-sm leading-relaxed text-slate-600">
@@ -127,6 +123,9 @@ export default async function SalonNewsIndexPage() {
             気になるお知らせをタップすると各店舗のページへ。料金メニューや口コミ、写メ日記もあわせてチェックできます。
           </p>
         </div>
+
+        {/* 細い広告バナー（公開中からランダム1枚・ページを開くたびに入れ替わり） */}
+        <AdBanner banners={adBanners} />
 
         {items.length === 0 ? (
           <div className="text-center py-16 text-sm text-slate-400 rounded-3xl border border-dashed border-amber-200 bg-amber-50/20">
