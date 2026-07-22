@@ -1,6 +1,6 @@
 // サロンページのテーマカラー定義（/mypage の選択UIと /salon/[id] の表示で共用）
 
-export type ThemeKey = 'white' | 'black' | 'pink' | 'blue' | 'red' | 'purple' | 'green' | 'yellow';
+export type ThemeKey = 'white' | 'black' | 'pink' | 'blue' | 'red' | 'purple' | 'green' | 'yellow' | 'gold' | 'silver';
 
 export type SalonTheme = {
   key:   ThemeKey;
@@ -30,6 +30,8 @@ export const SALON_THEMES: SalonTheme[] = [
   { key: 'purple', label: 'パープル', bg: '#f5f0fe', text: '#0f172a', card: '#ece2fd', cardBorder: '#ddd6fe', heading: '#4c1d95', body: '#475569', swatchBorder: '#ddd6fe' },
   { key: 'green',  label: 'グリーン', bg: '#f0fdf4', text: '#0f172a', card: '#dcfce7', cardBorder: '#bbf7d0', heading: '#14532d', body: '#475569', swatchBorder: '#bbf7d0' },
   { key: 'yellow', label: 'イエロー', bg: '#fffbeb', text: '#0f172a', card: '#fef3c7', cardBorder: '#fde68a', heading: '#78350f', body: '#475569', swatchBorder: '#fde68a' },
+  { key: 'gold',   label: 'ゴールド', bg: '#fbf7ec', text: '#0f172a', card: '#f6eed8', cardBorder: '#e3d3a4', heading: '#7a5c0d', body: '#475569', swatchBorder: '#e3d3a4' },
+  { key: 'silver', label: 'シルバー', bg: '#f6f7f9', text: '#0f172a', card: '#eceef2', cardBorder: '#d3d8df', heading: '#374151', body: '#475569', swatchBorder: '#d3d8df' },
 ];
 
 const DEFAULT_THEME = SALON_THEMES[0];
