@@ -14,6 +14,7 @@ type Row = {
   name: string;
   area: string;
   phone: string;
+  website: string; // 公式ホームページURL（任意・/salons の2行目右カラムに表示）
   displayOrder: number;
   isActive: boolean;
 };
@@ -32,18 +33,20 @@ export default function FreeSalonListingsManager({ onToast }: { onToast: (msg: s
   const [name, setName] = useState('');
   const [area, setArea] = useState<string>(AREA_CHOICES[0]);
   const [phone, setPhone] = useState('');
+  const [website, setWebsite] = useState('');
 
   // 行内編集
   const [editId, setEditId] = useState<string | null>(null);
   const [editName, setEditName] = useState('');
   const [editArea, setEditArea] = useState('');
   const [editPhone, setEditPhone] = useState('');
+  const [editWebsite, setEditWebsite] = useState('');
 
   const fetchRows = useCallback(async () => {
     setLoading(true);
     const { data, error } = await supabase
       .from('free_salon_listings')
-      .select('id, name, area, phone, display_order, is_active')
+      .select('id, name, area, phone, website_url, display_order, is_active')
       .order('display_order', { ascending: true })
       .order('created_at', { ascending: true });
     if (error) {
@@ -58,6 +61,7 @@ export default function FreeSalonListingsManager({ onToast }: { onToast: (msg: s
         name: (r.name as string) ?? '',
         area: (r.area as string) ?? '',
         phone: (r.phone as string) ?? '',
+        website: (r.website_url as string) ?? '',
         displayOrder: (r.display_order as number) ?? 0,
         isActive: (r.is_active as boolean) ?? true,
       })),
@@ -73,11 +77,11 @@ export default function FreeSalonListingsManager({ onToast }: { onToast: (msg: s
     setBusy(true);
     const maxOrder = rows.reduce((m, r) => Math.max(m, r.displayOrder), 0);
     const { error } = await supabase.from('free_salon_listings').insert({
-      name: trimmed, area, phone: phone.trim(), display_order: maxOrder + 1,
+      name: trimmed, area, phone: phone.trim(), website_url: website.trim(), display_order: maxOrder + 1,
     });
     setBusy(false);
     if (error) { onToast(`追加に失敗しました: ${error.message}`); return; }
-    setName(''); setPhone('');
+    setName(''); setPhone(''); setWebsite('');
     onToast('無料掲載枠に追加しました');
     fetchRows();
   };
@@ -87,6 +91,7 @@ export default function FreeSalonListingsManager({ onToast }: { onToast: (msg: s
     setEditName(r.name);
     setEditArea(r.area || AREA_CHOICES[0]);
     setEditPhone(r.phone);
+    setEditWebsite(r.website);
   };
 
   const saveEdit = async () => {
@@ -96,7 +101,7 @@ export default function FreeSalonListingsManager({ onToast }: { onToast: (msg: s
     setBusy(true);
     const { error } = await supabase
       .from('free_salon_listings')
-      .update({ name: trimmed, area: editArea, phone: editPhone.trim() })
+      .update({ name: trimmed, area: editArea, phone: editPhone.trim(), website_url: editWebsite.trim() })
       .eq('id', editId);
     setBusy(false);
     if (error) { onToast(`保存に失敗しました: ${error.message}`); return; }
@@ -154,7 +159,7 @@ export default function FreeSalonListingsManager({ onToast }: { onToast: (msg: s
 
       {/* 追加フォーム */}
       <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4 space-y-3">
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <input
             value={name}
             onChange={(e) => setName(e.target.value)}
@@ -174,6 +179,12 @@ export default function FreeSalonListingsManager({ onToast }: { onToast: (msg: s
             value={phone}
             onChange={(e) => setPhone(e.target.value)}
             placeholder="電話番号（任意）"
+            className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm"
+          />
+          <input
+            value={website}
+            onChange={(e) => setWebsite(e.target.value)}
+            placeholder="公式ホームページURL（任意・https://〜）"
             className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm"
           />
         </div>
@@ -198,7 +209,7 @@ export default function FreeSalonListingsManager({ onToast }: { onToast: (msg: s
             <li key={r.id} className={`p-3 ${r.isActive ? '' : 'opacity-50'}`}>
               {editId === r.id ? (
                 <div className="space-y-2">
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                     <input
                       value={editName}
                       onChange={(e) => setEditName(e.target.value)}
@@ -216,6 +227,13 @@ export default function FreeSalonListingsManager({ onToast }: { onToast: (msg: s
                     <input
                       value={editPhone}
                       onChange={(e) => setEditPhone(e.target.value)}
+                      placeholder="電話番号"
+                      className="w-full rounded-lg border border-slate-200 px-3 py-1.5 text-sm"
+                    />
+                    <input
+                      value={editWebsite}
+                      onChange={(e) => setEditWebsite(e.target.value)}
+                      placeholder="公式ホームページURL"
                       className="w-full rounded-lg border border-slate-200 px-3 py-1.5 text-sm"
                     />
                   </div>
@@ -229,6 +247,7 @@ export default function FreeSalonListingsManager({ onToast }: { onToast: (msg: s
                   <span className="font-bold text-sm text-slate-800">{r.name}</span>
                   <span className="text-xs text-slate-500">{areaLabel(r.area) || '—'}</span>
                   <span className="text-xs text-slate-500">{r.phone || '—'}</span>
+                  <span className="text-xs text-slate-400">{r.website ? '公式HPあり' : '公式HPなし'}</span>
                   <span className="ml-auto flex items-center gap-1">
                     <button type="button" onClick={() => move(i, -1)} disabled={busy || i === 0} className="w-7 h-7 rounded-full border border-slate-200 text-xs text-slate-500 disabled:opacity-30">↑</button>
                     <button type="button" onClick={() => move(i, 1)} disabled={busy || i === rows.length - 1} className="w-7 h-7 rounded-full border border-slate-200 text-xs text-slate-500 disabled:opacity-30">↓</button>

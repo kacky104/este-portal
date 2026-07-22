@@ -33,6 +33,7 @@ type ListRow = {
   name: string;
   area: string;
   phone: string;
+  website: string;       // 公式ホームページURL（掲載中= salons.official_url／無料枠= website_url）。空は非表示。
   href: string | null;   // 掲載中サロンは /salon/<id>、無料掲載枠は null（テキストのみ）
   displayOrder: number;  // 無料掲載枠のみ使用（/admin の並び順）
 };
@@ -49,8 +50,8 @@ export default async function SalonsPage() {
   // 掲載中サロンと無料掲載枠を並列取得。
   // free_salon_listings はマイグレーション未適用でもページを壊さない（エラー時は空扱い）。
   const [salonsRes, freeRes] = await Promise.all([
-    supabase.from('salons').select('id, name, area, phone').eq('is_hidden', false),
-    supabase.from('free_salon_listings').select('id, name, area, phone, display_order').eq('is_active', true),
+    supabase.from('salons').select('id, name, area, phone, official_url').eq('is_hidden', false),
+    supabase.from('free_salon_listings').select('id, name, area, phone, website_url, display_order').eq('is_active', true),
   ]);
 
   const listed: ListRow[] = (salonsRes.data ?? []).map((r) => ({
@@ -58,6 +59,7 @@ export default async function SalonsPage() {
     name: (r.name as string) ?? '',
     area: (r.area as string) ?? '',
     phone: (r.phone as string) ?? '',
+    website: (r.official_url as string) ?? '',
     href: `/salon/${r.id}`,
     displayOrder: 0,
   }));
@@ -66,6 +68,7 @@ export default async function SalonsPage() {
     name: (r.name as string) ?? '',
     area: (r.area as string) ?? '',
     phone: (r.phone as string) ?? '',
+    website: (r.website_url as string) ?? '',
     href: null,
     displayOrder: (r.display_order as number) ?? 0,
   }));
@@ -112,7 +115,8 @@ export default async function SalonsPage() {
         ) : (
           <ul className="bg-white border border-slate-200 rounded-2xl px-4 sm:px-6 divide-y divide-slate-100">
             {rows.map((r) => (
-              <li key={r.key} className="py-2.5 flex flex-wrap items-baseline gap-x-3 gap-y-0.5 text-sm">
+              <li key={r.key} className="py-2.5 text-sm">
+                {/* 1行目：店名（掲載中サロンは詳細ページへリンク） */}
                 {r.href ? (
                   <Link href={r.href} className="font-bold text-pink-600 hover:underline">
                     {r.name}
@@ -120,16 +124,24 @@ export default async function SalonsPage() {
                 ) : (
                   <span className="font-bold text-slate-800">{r.name}</span>
                 )}
-                <span className="text-xs text-slate-500">{areaLabel(r.area)}</span>
-                {r.phone ? (
-                  r.href ? (
-                    <a href={`tel:${r.phone.replace(/[^0-9+]/g, '')}`} className="text-slate-600">
-                      {r.phone}
-                    </a>
-                  ) : (
-                    <span className="text-slate-600">{r.phone}</span>
-                  )
-                ) : null}
+                {/* 2行目：3分割（左=地域／中=電話（tel:発信）／右=公式ホームページ） */}
+                <div className="mt-1 grid grid-cols-3 gap-2 items-center text-xs">
+                  <span className="text-slate-500 truncate">{areaLabel(r.area)}</span>
+                  <span className="text-center truncate">
+                    {r.phone && (
+                      <a href={`tel:${r.phone.replace(/[^0-9+]/g, '')}`} className="text-slate-600 hover:underline">
+                        {r.phone}
+                      </a>
+                    )}
+                  </span>
+                  <span className="text-right truncate">
+                    {r.website && (
+                      <a href={r.website} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">
+                        公式ホームページ
+                      </a>
+                    )}
+                  </span>
+                </div>
               </li>
             ))}
           </ul>
