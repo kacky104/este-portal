@@ -30,6 +30,7 @@ import AdminImagesManager from '@/app/components/AdminImagesManager';
 import RankingHandicapManager from '@/app/components/RankingHandicapManager';
 import PageHeroManager from '@/app/components/PageHeroManager';
 import ListingInquiryManager from '@/app/components/ListingInquiryManager';
+import FreeSalonListingsManager from '@/app/components/FreeSalonListingsManager';
 import { adminGenerateOwnerLoginLink } from '@/app/actions/adminOwner';
 import { useToast } from '@/app/components/useToast';
 import { ADMIN_UUID } from '@/app/lib/admin';
@@ -471,6 +472,11 @@ export default function AdminDashboard() {
 
           <AccordionSection id="salon-intakes" title="新規店舗 入力フォーム発行" expanded={expandedSections} onToggle={toggleSection}>
             <SalonIntakeManager onToast={showToast} />
+          </AccordionSection>
+
+          {/* ── 無料掲載枠（/salons のテキスト行）管理 ── */}
+          <AccordionSection id="free-salon-listings" title="無料掲載枠（/salons テキスト掲載）" expanded={expandedSections} onToggle={toggleSection}>
+            <FreeSalonListingsManager onToast={showToast} />
           </AccordionSection>
 
           {/* ── 新規サロン追加フォーム ── */}

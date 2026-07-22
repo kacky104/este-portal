@@ -1,21 +1,24 @@
 import type { Metadata } from 'next';
+import Link from 'next/link';
 import { Logo } from '@/app/components/Logo';
 import { createClient } from '@/app/lib/supabase/server';
-import { ShuffledSalons } from '@/app/components/ShuffledSalons';
 import { SavedSalonsMenu } from '@/app/components/SavedSalonsMenu';
 import { AccountMenu } from '@/app/components/AccountMenu';
 import { HamburgerMenu } from '@/app/components/HamburgerMenu';
 import { NotificationBell } from '@/app/components/NotificationBell';
 import { VipLetterIcon } from '@/app/components/VipLetterIcon';
 import { Breadcrumb } from '@/app/components/Breadcrumb';
-import { fetchSalons } from '@/app/lib/salons';
-// フィルタ判定／DB連動キーは areas.ts の AREA_ORDER に一元化（画面表示はすべて areaLabel() を通す）。
-import { AREA_ORDER } from '@/app/lib/areas';
 import { SiteNoticeBanner } from '@/app/components/SiteNoticeBanner';
+import { AREA_ORDER } from '@/app/lib/areas';
+import { areaLabel } from '@/app/lib/areaLabel';
+
+// /salons は無料掲載枠も兼ねるため、店名・地域・電話番号のみのテキスト一覧にしている（カード表示は廃止）。
+// 行は「掲載中サロン（salons テーブル・自動）＋無料掲載枠（free_salon_listings・/admin から手入力）」の統合。
+// 掲載中サロンは店名→詳細ページ・電話→tel: リンク、無料掲載枠は純テキストのみ。
 
 const PAGE_TITLE = '福岡のメンズエステ 店舗一覧【フクエス】';
 const PAGE_DESC =
-  '福岡のメンズエステを一覧掲載。博多・天神・北九州・久留米など全エリアの人気店舗をエリアで絞り込んで探せます。';
+  '福岡のメンズエステを一覧掲載。博多・天神・北九州・久留米など全エリアの店舗を店名・地域・電話番号でシンプルにまとめています。';
 
 export const metadata: Metadata = {
   title: PAGE_TITLE,
@@ -25,9 +28,59 @@ export const metadata: Metadata = {
   twitter: { title: PAGE_TITLE, description: PAGE_DESC },
 };
 
+type ListRow = {
+  key: string;
+  name: string;
+  area: string;
+  phone: string;
+  href: string | null;   // 掲載中サロンは /salon/<id>、無料掲載枠は null（テキストのみ）
+  displayOrder: number;  // 無料掲載枠のみ使用（/admin の並び順）
+};
+
+// 地域の表示順（AREA_ORDER）。未知の値は末尾へ。
+const areaIndex = (a: string) => {
+  const i = (AREA_ORDER as readonly string[]).indexOf(a);
+  return i < 0 ? AREA_ORDER.length : i;
+};
+
 export default async function SalonsPage() {
   const supabase = await createClient();
-  const salons = await fetchSalons(supabase);
+
+  // 掲載中サロンと無料掲載枠を並列取得。
+  // free_salon_listings はマイグレーション未適用でもページを壊さない（エラー時は空扱い）。
+  const [salonsRes, freeRes] = await Promise.all([
+    supabase.from('salons').select('id, name, area, phone').eq('is_hidden', false),
+    supabase.from('free_salon_listings').select('id, name, area, phone, display_order').eq('is_active', true),
+  ]);
+
+  const listed: ListRow[] = (salonsRes.data ?? []).map((r) => ({
+    key: `s-${r.id}`,
+    name: (r.name as string) ?? '',
+    area: (r.area as string) ?? '',
+    phone: (r.phone as string) ?? '',
+    href: `/salon/${r.id}`,
+    displayOrder: 0,
+  }));
+  const free: ListRow[] = (freeRes.data ?? []).map((r) => ({
+    key: `f-${r.id}`,
+    name: (r.name as string) ?? '',
+    area: (r.area as string) ?? '',
+    phone: (r.phone as string) ?? '',
+    href: null,
+    displayOrder: (r.display_order as number) ?? 0,
+  }));
+
+  // 並び：地域（AREA_ORDER）→ 掲載中サロン（名前順）→ 無料掲載枠（/admin の並び順）のフラット1列。
+  const rows = [...listed, ...free].sort((a, b) => {
+    const ai = areaIndex(a.area);
+    const bi = areaIndex(b.area);
+    if (ai !== bi) return ai - bi;
+    const ak = a.href ? 0 : 1;
+    const bk = b.href ? 0 : 1;
+    if (ak !== bk) return ak - bk;
+    if (ak === 0) return a.name.localeCompare(b.name, 'ja');
+    return a.displayOrder - b.displayOrder;
+  });
 
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900">
@@ -44,26 +97,43 @@ export default async function SalonsPage() {
       </header>
       <SiteNoticeBanner />
 
-      <main className="max-w-5xl mx-auto px-4 py-10">
+      <main className="max-w-3xl mx-auto px-4 py-10">
 
         {/* Back link */}
         <Breadcrumb current="掲載店舗一覧" />
 
-        {/* 地域バッジ列を最上部に出し、その下に見出し＋説明文→カード（heading で順序制御） */}
-        <ShuffledSalons
-          salons={salons}
-          areas={[...AREA_ORDER]}
-          shuffleSalt="salons"
-          nameBanner
-          heading={
-            <div className="mb-8">
-              <h1 className="text-2xl font-bold text-slate-900 mb-1">掲載店舗一覧</h1>
-              <p className="text-xs text-slate-400">
-                全{salons.length}件 ｜ 表示順は30分ごとに入れ替わります
-              </p>
-            </div>
-          }
-        />
+        <div className="mb-6">
+          <h1 className="text-2xl font-bold text-slate-900 mb-1">掲載店舗一覧</h1>
+          <p className="text-xs text-slate-400">全{rows.length}件</p>
+        </div>
+
+        {rows.length === 0 ? (
+          <p className="text-sm text-slate-400 text-center py-16">掲載店舗はまだありません</p>
+        ) : (
+          <ul className="bg-white border border-slate-200 rounded-2xl px-4 sm:px-6 divide-y divide-slate-100">
+            {rows.map((r) => (
+              <li key={r.key} className="py-2.5 flex flex-wrap items-baseline gap-x-3 gap-y-0.5 text-sm">
+                {r.href ? (
+                  <Link href={r.href} className="font-bold text-pink-600 hover:underline">
+                    {r.name}
+                  </Link>
+                ) : (
+                  <span className="font-bold text-slate-800">{r.name}</span>
+                )}
+                <span className="text-xs text-slate-500">{areaLabel(r.area)}</span>
+                {r.phone ? (
+                  r.href ? (
+                    <a href={`tel:${r.phone.replace(/[^0-9+]/g, '')}`} className="text-slate-600">
+                      {r.phone}
+                    </a>
+                  ) : (
+                    <span className="text-slate-600">{r.phone}</span>
+                  )
+                ) : null}
+              </li>
+            ))}
+          </ul>
+        )}
       </main>
 
       {/* ─── Footer ──────────────────────────────────────── */}
