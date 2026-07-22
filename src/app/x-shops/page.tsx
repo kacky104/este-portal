@@ -108,7 +108,7 @@ export default async function XShopsPage() {
                 key={s.id}
                 href={`/x/u/${encodeURIComponent(s.handle)}`}
                 className="block rounded-2xl shadow-sm border p-3 hover:shadow-md hover:brightness-110 transition-all"
-                style={{ background: '#2563eb', borderColor: '#60a5fa' }}
+                style={{ background: 'linear-gradient(135deg, #1d4ed8 0%, #0ea5e9 100%)', borderColor: '#7dd3fc' }}
               >
                 {/* 店名＋アバター＋認証バッジ（このページ専用の青基調配色。fukuX本体の紫テーマは変えない） */}
                 <div className="flex items-center gap-2 mb-1">
