@@ -12,6 +12,8 @@ import type { Metadata } from 'next';
 import { SiteNoticeBanner } from '@/app/components/SiteNoticeBanner';
 import { PageHero } from '@/app/components/PageHero';
 import { fetchPageHero } from '@/app/lib/pageHero';
+import { fetchThemeWallpapers } from '@/app/lib/ranking';
+import { getTheme } from '@/app/lib/themes';
 
 // 全サロン横断の新着情報一覧（トップ「サロン新着情報」の「もっと見る」先）。最新50件・ページングなし。
 // 件数が増えてページングが必要になったら limit+offset か published_at カーソルで拡張する。
@@ -46,14 +48,31 @@ export const metadata: Metadata = {
 
 export default async function SalonNewsIndexPage() {
   const supabase = createPublicClient();
-  // 新着情報50件とヒーロー画像を並列取得（ヒーロー未設定は null＝非表示）。
-  const [items, hero] = await Promise.all([
+  // 新着情報50件・ヒーロー画像・テーマ壁紙を並列取得（未設定はそれぞれ非表示／無地）。
+  const [items, hero, wallpapers] = await Promise.all([
     fetchLatestSalonNews(supabase, 50),
     fetchPageHero('news'),
+    fetchThemeWallpapers(),
   ]);
 
+  // gold テーマ壁紙を固定レイヤーで敷く（/reviews・/x-shops と同方式）。
+  const theme = getTheme('gold');
+  const wallpaperUrl = wallpapers[theme.key] ?? null;
+  const bgStyle = {
+    backgroundColor: theme.bg,
+    ...(wallpaperUrl
+      ? {
+          backgroundImage: `linear-gradient(${theme.bg}D9, ${theme.bg}D9), url(${wallpaperUrl})`,
+          backgroundSize: 'cover' as const,
+          backgroundPosition: 'center' as const,
+        }
+      : {}),
+  };
+
   return (
-    <div className="min-h-screen bg-slate-50 text-slate-900">
+    <div className="min-h-screen text-slate-900">
+      {/* 背景：gold テーマ壁紙を固定レイヤーで敷く */}
+      <div aria-hidden className="fixed inset-0 -z-10" style={bgStyle} />
       {/* ─── Header（トップと同一構成） ─── */}
       <header className="sticky top-0 z-50 bg-white/90 backdrop-blur-md border-b border-slate-200 shadow-sm">
         <div className="max-w-5xl mx-auto px-2 h-14 flex items-center justify-between">
@@ -68,7 +87,7 @@ export default async function SalonNewsIndexPage() {
       </header>
       <SiteNoticeBanner />
 
-      <main className="max-w-5xl mx-auto px-4 py-8">
+      <main className="max-w-4xl mx-auto px-4 py-8">
         {/* パンくずリスト：トップ › サロン新着情報 */}
         <nav aria-label="パンくずリスト" className="flex items-center gap-1.5 mb-3" style={{ fontSize: '13px' }}>
           <Link href="/" className="hover:opacity-80 transition-opacity flex-shrink-0 whitespace-nowrap text-pink-500">
@@ -85,20 +104,38 @@ export default async function SalonNewsIndexPage() {
         {/* ページ別ヒーロー画像（/admin のページ別ヒーロー画像設定「新着情報」から設定・未設定は非表示） */}
         <PageHero url={hero} alt="新着情報" fullBleedMobile />
 
-        {/* 見出しはトップのブロックと同じグラデ帯（角丸なし＝直角方針） */}
-        <div className="px-4 py-1.5 mb-1 flex items-center gap-2.5" style={{ background: '#f1f5f9', borderBottom: '1px solid #e2e8f0' }}>
-          <h1 className="text-xl font-bold text-slate-600 leading-none">
+        {/* Heading：カードを外し、ゴールドの壁紙背景に直接（神秘的なレイアウト・/reviews と同方式）。 */}
+        <div className="my-8 sm:my-10 text-center">
+          <p className="text-[11px] tracking-[0.35em] font-semibold text-amber-600/80">FUKUES NEWS</p>
+          <h1 className="mt-2 text-2xl sm:text-4xl font-black tracking-[0.06em] bg-gradient-to-r from-amber-700 via-yellow-500 to-amber-700 bg-clip-text text-transparent drop-shadow-[0_1px_10px_rgba(202,158,42,0.3)]">
             店舗新着情報
           </h1>
+          {items.length > 0 && (
+            <div className="mt-3">
+              <span className="inline-flex items-center rounded-full border border-amber-200 bg-white/80 px-2.5 py-0.5 text-xs font-bold text-amber-700">
+                最新{items.length}件
+              </span>
+            </div>
+          )}
+          <div className="mx-auto mt-4 h-px w-24 bg-gradient-to-r from-transparent via-amber-500/70 to-transparent" />
+          {/* 説明文（2段落でボリュームを持たせる） */}
+          <p className="mx-auto mt-4 max-w-xl text-xs sm:text-sm leading-relaxed text-slate-600">
+            福岡のメンズエステ各店から届いた最新のお知らせを新着順で掲載しています。
+            新人セラピストの入店速報、期間限定の割引・イベント、本日の出勤情報など、お店の「今」がひと目でわかります。
+          </p>
+          <p className="mx-auto mt-2 max-w-xl text-xs sm:text-sm leading-relaxed text-slate-600">
+            気になるお知らせをタップすると各店舗のページへ。料金メニューや口コミ、写メ日記もあわせてチェックできます。
+          </p>
         </div>
-        <p className="text-xs text-slate-400 mb-4">最新50件を表示しています</p>
 
         {items.length === 0 ? (
-          <div className="text-center py-12 text-sm text-slate-400 rounded-2xl border border-slate-200 bg-white">
+          <div className="text-center py-16 text-sm text-slate-400 rounded-3xl border border-dashed border-amber-200 bg-amber-50/20">
             新着情報はまだありません
           </div>
         ) : (
-          <SalonNewsList items={items} />
+          <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-3 sm:p-5">
+            <SalonNewsList items={items} />
+          </div>
         )}
       </main>
     </div>
