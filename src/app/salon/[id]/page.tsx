@@ -28,6 +28,8 @@ const QUICKNAV_COLORS: Record<ThemeKey, { bg: string; border: string; icon: stri
   purple: { bg: '#EEEDFE', border: '#AFA9EC', icon: '#3C3489', text: '#26215C' },
   green:  { bg: '#E7F6EC', border: '#86C99B', icon: '#1E7A45', text: '#12522F' },
   yellow: { bg: '#FBF3DE', border: '#E6C56A', icon: '#9A6B12', text: '#6E4A0C' },
+  gold:   { bg: '#F8F1DC', border: '#D9C077', icon: '#8A6410', text: '#5F460B' },
+  silver: { bg: '#EFF1F4', border: '#B7BEC9', icon: '#4B5563', text: '#374151' },
 };
 
 // 本日出勤数のハートバッジ専用の配色（テーマ連動）。fill=ハートの塗り / num=数字色（黒のみ濃い文字）。
@@ -40,6 +42,8 @@ const HEART_COLORS: Record<ThemeKey, { fill: string; num: string }> = {
   purple: { fill: '#6258C7', num: '#ffffff' },
   green:  { fill: '#2E9E5B', num: '#ffffff' },
   yellow: { fill: '#E0A92E', num: '#ffffff' },
+  gold:   { fill: '#C39A2A', num: '#ffffff' },
+  silver: { fill: '#6B7280', num: '#ffffff' },
 };
 import { SalonTherapists, SalonAllTherapists, SalonNewFaceTherapists } from "@/components/SalonTherapists";
 import { SalonDiaryCircles } from "@/components/DiarySection";
