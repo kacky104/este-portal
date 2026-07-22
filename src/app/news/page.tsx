@@ -10,6 +10,8 @@ import { fetchLatestSalonNews } from '@/app/lib/salonNews';
 import { SalonNewsList } from '@/app/components/SalonNewsList';
 import type { Metadata } from 'next';
 import { SiteNoticeBanner } from '@/app/components/SiteNoticeBanner';
+import { PageHero } from '@/app/components/PageHero';
+import { fetchPageHero } from '@/app/lib/pageHero';
 
 // 全サロン横断の新着情報一覧（トップ「サロン新着情報」の「もっと見る」先）。最新50件・ページングなし。
 // 件数が増えてページングが必要になったら limit+offset か published_at カーソルで拡張する。
@@ -44,7 +46,11 @@ export const metadata: Metadata = {
 
 export default async function SalonNewsIndexPage() {
   const supabase = createPublicClient();
-  const items = await fetchLatestSalonNews(supabase, 50);
+  // 新着情報50件とヒーロー画像を並列取得（ヒーロー未設定は null＝非表示）。
+  const [items, hero] = await Promise.all([
+    fetchLatestSalonNews(supabase, 50),
+    fetchPageHero('news'),
+  ]);
 
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900">
@@ -75,6 +81,9 @@ export default async function SalonNewsIndexPage() {
             店舗新着情報
           </span>
         </nav>
+
+        {/* ページ別ヒーロー画像（/admin のページ別ヒーロー画像設定「新着情報」から設定・未設定は非表示） */}
+        <PageHero url={hero} alt="新着情報" fullBleedMobile />
 
         {/* 見出しはトップのブロックと同じグラデ帯（角丸なし＝直角方針） */}
         <div className="px-4 py-1.5 mb-1 flex items-center gap-2.5" style={{ background: '#f1f5f9', borderBottom: '1px solid #e2e8f0' }}>

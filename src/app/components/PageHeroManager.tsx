@@ -10,11 +10,11 @@ import { PAGE_HERO_LABELS, type PageHeroKey } from '@/app/lib/pageHero';
 
 const supabase = createClient();
 const HERO_BUCKET = 'header-slider';
-const KEYS: PageHeroKey[] = ['therapists', 'diary', 'reviews', 'newface', 'xshops'];
+const KEYS: PageHeroKey[] = ['therapists', 'diary', 'reviews', 'newface', 'xshops', 'news'];
 
 export default function PageHeroManager({ onToast }: { onToast: (m: string) => void }) {
   const [urls, setUrls] = useState<Record<PageHeroKey, string | null>>({
-    therapists: null, diary: null, reviews: null, newface: null, xshops: null,
+    therapists: null, diary: null, reviews: null, newface: null, xshops: null, news: null,
   });
   const [sel, setSel] = useState<PageHeroKey>('therapists');
   const [busy, setBusy] = useState(false);
@@ -24,7 +24,7 @@ export default function PageHeroManager({ onToast }: { onToast: (m: string) => v
   const load = useCallback(async () => {
     const { data } = await supabase.from('page_heroes').select('page_key, image_url');
     const next: Record<PageHeroKey, string | null> = {
-      therapists: null, diary: null, reviews: null, newface: null, xshops: null,
+      therapists: null, diary: null, reviews: null, newface: null, xshops: null, news: null,
     };
     ((data ?? []) as Array<{ page_key: string; image_url: string | null }>).forEach((r) => {
       if ((KEYS as string[]).includes(r.page_key)) next[r.page_key as PageHeroKey] = r.image_url ?? null;

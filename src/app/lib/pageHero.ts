@@ -2,7 +2,7 @@
 // createPublicClient（anon/cookieレス）で読み、ISR が効くようにする。
 import { createPublicClient } from '@/app/lib/supabase/public';
 
-export type PageHeroKey = 'therapists' | 'diary' | 'reviews' | 'newface' | 'xshops';
+export type PageHeroKey = 'therapists' | 'diary' | 'reviews' | 'newface' | 'xshops' | 'news';
 
 export const PAGE_HERO_LABELS: Record<PageHeroKey, string> = {
   therapists: '特徴で探す',
@@ -10,6 +10,7 @@ export const PAGE_HERO_LABELS: Record<PageHeroKey, string> = {
   reviews: '口コミ',
   newface: '新人',
   xshops: 'SNS',
+  news: '新着情報',
 };
 
 // 未設定は null を返す（テーブル未作成時もエラーを握りつぶして null）。
