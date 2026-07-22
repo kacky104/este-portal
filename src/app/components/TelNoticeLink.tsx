@@ -31,7 +31,9 @@ export function TelNoticeLink({
     return () => window.removeEventListener('keydown', onKey);
   }, [open]);
 
-  const telHref = `tel:${phone.replace(/[^0-9+]/g, '')}`;
+  // tel: に渡す番号。ハイフンは残す（OSの発信確認に整形されたフル番号が出る）。
+  // スペースや「（予約専用）」等の注記だけを除去する。
+  const telHref = `tel:${phone.replace(/[^0-9+\-]/g, '')}`;
 
   return (
     <>
