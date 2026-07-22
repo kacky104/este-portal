@@ -16,6 +16,7 @@ import { getTheme, breadcrumbCurrentColor } from '@/app/lib/themes';
 import { getAllApprovedReviews } from '@/app/lib/reviews';
 import { ReviewList } from '@/app/components/ReviewList';
 import { PaginatedReviewList } from '@/app/components/PaginatedReviewList';
+import { SiteNoticeBanner } from '@/app/components/SiteNoticeBanner';
 
 export const metadata: Metadata = {
   title: '福岡メンズエステの口コミ一覧｜フクエス',
@@ -62,6 +63,7 @@ export default async function AllReviewsPage() {
           </div>
         </div>
       </header>
+      <SiteNoticeBanner />
 
       <main className="max-w-4xl mx-auto px-4 py-8">
         {/* Back */}

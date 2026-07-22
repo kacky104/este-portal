@@ -5,6 +5,7 @@ import { AccountMenu } from '@/app/components/AccountMenu';
 import { HamburgerMenu } from '@/app/components/HamburgerMenu';
 import { NotificationBell } from '@/app/components/NotificationBell';
 import { VipLetterIcon } from '@/app/components/VipLetterIcon';
+import { SiteNoticeBanner } from '@/app/components/SiteNoticeBanner';
 
 export const metadata: Metadata = {
   title: 'お問い合わせ｜フクエス',
@@ -27,6 +28,7 @@ export default function ContactPage() {
           </div>
         </div>
       </header>
+      <SiteNoticeBanner />
 
       <main className="max-w-3xl mx-auto px-4 py-10">
         <h1 className="text-2xl font-bold text-slate-900 mb-6">お問い合わせ</h1>

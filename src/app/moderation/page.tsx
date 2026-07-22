@@ -10,6 +10,7 @@ import {
 import { ApprovedReviewsPaginated } from './ApprovedReviewsPaginated';
 import { ModerationTabs } from './ModerationTabs';
 import { ModerationDocuments } from './ModerationDocuments';
+import { SiteNoticeBanner } from '@/app/components/SiteNoticeBanner';
 
 // 口コミ審査画面（管理者専用）。layout.tsx のサーバーガードと合わせた二層防御。
 // 未承認（status='pending'）は RLS 上 admin 本人でも見えないため、取得は service_role で行う。
@@ -110,6 +111,7 @@ export default async function ModerationPage() {
           </div>
         </div>
       </header>
+      <SiteNoticeBanner />
 
       <main className="max-w-3xl mx-auto px-4 py-8">
         {/* タブ（口コミ審査／書類）。書類は /admin と同じ書類置き場（RLS: 管理者＋審査スタッフ） */}

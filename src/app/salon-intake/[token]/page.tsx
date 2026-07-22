@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import { getSalonIntakeGate } from '@/app/actions/salonIntake';
 import { SalonIntakeForm } from './SalonIntakeForm';
+import { SiteNoticeBanner } from '@/app/components/SiteNoticeBanner';
 
 // 新規店舗の初回情報入力フォーム。運営が発行したワンタイムURL（トークン）でのみ表示される。
 // トークン検証は Server Action（service_role）側で実施。非公開ページのため noindex。
@@ -35,6 +36,7 @@ export default async function SalonIntakePage({ params }: { params: Promise<{ to
           <span className="ml-2 text-xs text-slate-400 font-bold">掲載情報入力フォーム</span>
         </div>
       </header>
+      <SiteNoticeBanner />
 
       <main className="max-w-3xl mx-auto px-4 py-10">
         {gate.state === 'notfound' && (

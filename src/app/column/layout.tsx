@@ -5,6 +5,7 @@ import { AccountMenu } from '@/app/components/AccountMenu';
 import { HamburgerMenu } from '@/app/components/HamburgerMenu';
 import { NotificationBell } from '@/app/components/NotificationBell';
 import { VipLetterIcon } from '@/app/components/VipLetterIcon';
+import { SiteNoticeBanner } from '@/app/components/SiteNoticeBanner';
 
 // フクエス本体コラム（/column 配下）の共通シェル。
 // 本体の他ページ（エリアページ等）と同じヘッダー構成＋シンプルなフッター。
@@ -33,6 +34,7 @@ export default function ColumnLayout({ children }: { children: React.ReactNode }
           </div>
         </div>
       </header>
+      <SiteNoticeBanner />
 
       <div className="flex-1">{children}</div>
 

@@ -20,6 +20,7 @@ import { AREA_SEO_CONTENT } from '@/app/lib/areaSeoContent';
 import { fetchActiveTherapistPickupBanners } from '@/app/lib/therapistPickupBanners';
 import { TherapistPickupBanner } from '@/app/components/TherapistPickupBanner';
 import { AutoFitHeadingText } from '@/app/components/AutoFitHeadingText';
+import { SiteNoticeBanner } from '@/app/components/SiteNoticeBanner';
 
 // ISR：10分ごとに再生成。Next 16 では revalidate を効かせるため generateStaticParams が必須。
 export const revalidate = 600;
@@ -97,6 +98,7 @@ export default async function AreaPage({ params }: { params: Promise<{ slug: str
           </div>
         </div>
       </header>
+      <SiteNoticeBanner />
 
       <main className="max-w-5xl mx-auto px-4 py-10">
 

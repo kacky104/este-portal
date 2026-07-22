@@ -9,6 +9,7 @@ import { NotificationBell } from '@/app/components/NotificationBell';
 import { VipLetterIcon } from '@/app/components/VipLetterIcon';
 import { getMemberVipLetters } from '@/app/lib/vipLetters';
 import { VipLetterList } from './VipLetterList';
+import { SiteNoticeBanner } from '@/app/components/SiteNoticeBanner';
 
 // 会員個別の内容（ログイン必須）のため ISR はかけず動的のままにする。
 export const dynamic = 'force-dynamic';
@@ -47,6 +48,7 @@ export default async function VipLettersPage() {
           </div>
         </div>
       </header>
+      <SiteNoticeBanner />
 
       <main className="max-w-2xl mx-auto px-4 py-8 sm:py-10">
 

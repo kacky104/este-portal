@@ -5,6 +5,7 @@ import { getXContext } from './xProfile';
 import { createClient } from '@/app/lib/supabase/server';
 import { fetchShopMini } from './xAffiliation';
 import './x-theme.css';
+import { SiteNoticeBanner } from '@/app/components/SiteNoticeBanner';
 
 // fukuX 専用シェル。既存フクエスの共通ヘッダー（Logo/各メニュー）は出さず、独自ヘッダーにする。
 // ルートレイアウト（Cookie認証・<Wallpaper/>）は継承される。Wallpaper は /x 配下を除外済み（肉球壁紙なし）。
@@ -79,6 +80,7 @@ export default async function XLayout({ children }: { children: React.ReactNode 
         <XMeProvider seed={seed}>
           {/* ─── fukuX ヘッダー（左=アバター/ドロワー・中央=肉球ロゴ・右=スペーサー） ─── */}
           <XHeader />
+          <SiteNoticeBanner variant="x" />
 
           <main className="max-w-2xl mx-auto px-4 pb-20">{children}</main>
         </XMeProvider>

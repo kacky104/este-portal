@@ -11,6 +11,7 @@ import { Breadcrumb } from '@/app/components/Breadcrumb';
 import { fetchSalons } from '@/app/lib/salons';
 // フィルタ判定／DB連動キーは areas.ts の AREA_ORDER に一元化（画面表示はすべて areaLabel() を通す）。
 import { AREA_ORDER } from '@/app/lib/areas';
+import { SiteNoticeBanner } from '@/app/components/SiteNoticeBanner';
 
 const PAGE_TITLE = '福岡のメンズエステ 店舗一覧【フクエス】';
 const PAGE_DESC =
@@ -41,6 +42,7 @@ export default async function SalonsPage() {
           </div>
         </div>
       </header>
+      <SiteNoticeBanner />
 
       <main className="max-w-5xl mx-auto px-4 py-10">
 

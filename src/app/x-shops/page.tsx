@@ -15,6 +15,7 @@ import { fetchThemeWallpapers } from '@/app/lib/ranking';
 import { getTheme, breadcrumbCurrentColor } from '@/app/lib/themes';
 import { VerifiedBadge } from '@/app/x/VerifiedBadge';
 import { fetchShopShowcases } from '@/app/x/xShops';
+import { SiteNoticeBanner } from '@/app/components/SiteNoticeBanner';
 
 const TITLE = '福岡メンズエステの承認店舗一覧｜フクエス';
 const DESCRIPTION =
@@ -65,6 +66,7 @@ export default async function XShopsPage() {
           </div>
         </div>
       </header>
+      <SiteNoticeBanner />
 
       <main className="max-w-3xl mx-auto px-4 py-8">
         {/* Back */}

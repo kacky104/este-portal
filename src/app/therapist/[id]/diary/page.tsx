@@ -8,6 +8,7 @@ import { DiaryTherapistAvatar } from '@/components/DiaryTherapistAvatar';
 import { DiaryNewBadge } from '@/components/DiaryNewBadge';
 import { DiaryPagination } from '@/components/DiaryPagination';
 import type { Metadata } from 'next';
+import { SiteNoticeBanner } from '@/app/components/SiteNoticeBanner';
 
 const PAGE_SIZE = 32;
 
@@ -134,6 +135,7 @@ export default async function TherapistDiaryPage({
           <Logo />
         </div>
       </header>
+      <SiteNoticeBanner />
 
       <main className="max-w-4xl mx-auto px-4 py-8">
 

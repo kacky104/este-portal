@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import { JobsLogo } from '@/components/JobsLogo';
 import { JobsSavedMenu } from '@/components/JobsSavedMenu';
+import { SiteNoticeBanner } from '@/app/components/SiteNoticeBanner';
 
 // フクエスワーク（求人サイト）専用シェル。
 // root layout にはサイト共通ヘッダーが無く（各ページが自前でヘッダーを描画する構造）、
@@ -55,6 +56,7 @@ export default function JobsLayout({ children }: { children: React.ReactNode }) 
           <JobsSavedMenu />
         </div>
       </header>
+      <SiteNoticeBanner variant="work" />
 
       <div className="flex-1">{children}</div>
 

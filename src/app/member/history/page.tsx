@@ -9,6 +9,7 @@ import { AccountMenu } from '@/app/components/AccountMenu';
 import { HamburgerMenu } from '@/app/components/HamburgerMenu';
 import { NotificationBell } from '@/app/components/NotificationBell';
 import { VipLetterIcon } from '@/app/components/VipLetterIcon';
+import { SiteNoticeBanner } from '@/app/components/SiteNoticeBanner';
 
 // 会員個別の内容（ログイン必須）のため ISR はかけず動的のままにする。
 export const dynamic = 'force-dynamic';
@@ -107,6 +108,7 @@ export default async function HistoryPage() {
           </div>
         </div>
       </header>
+      <SiteNoticeBanner />
 
       <main className="max-w-5xl mx-auto px-4 py-8 sm:py-10">
 

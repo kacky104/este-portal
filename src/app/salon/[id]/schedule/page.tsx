@@ -15,6 +15,7 @@ import { sanitizeBadges } from "@/lib/therapistBadges";
 import { isImasuguLiveCamel, imasuguUntilCamel } from "@/lib/imasugu";
 import type { Metadata } from "next";
 import { buildSalonSubpageMetadata } from "../subpageMetadata";
+import { SiteNoticeBanner } from '@/app/components/SiteNoticeBanner';
 
 // 自己参照 canonical＋固有 title（root の canonical '/' 継承による重複扱いを防ぐ）。詳細は ../subpageMetadata.ts。
 export async function generateMetadata({
@@ -213,6 +214,7 @@ export default async function SalonSchedulePage({
           <div className="flex items-center gap-2"><SavedSalonsMenu /><VipLetterIcon /><NotificationBell /><AccountMenu /><HamburgerMenu /></div>
         </div>
       </header>
+      <SiteNoticeBanner />
 
       <main className="max-w-4xl mx-auto px-4 py-8">
 

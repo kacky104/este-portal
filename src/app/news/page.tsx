@@ -9,6 +9,7 @@ import { createPublicClient } from '@/app/lib/supabase/public';
 import { fetchLatestSalonNews } from '@/app/lib/salonNews';
 import { SalonNewsList } from '@/app/components/SalonNewsList';
 import type { Metadata } from 'next';
+import { SiteNoticeBanner } from '@/app/components/SiteNoticeBanner';
 
 // 全サロン横断の新着情報一覧（トップ「サロン新着情報」の「もっと見る」先）。最新50件・ページングなし。
 // 件数が増えてページングが必要になったら limit+offset か published_at カーソルで拡張する。
@@ -59,6 +60,7 @@ export default async function SalonNewsIndexPage() {
           </div>
         </div>
       </header>
+      <SiteNoticeBanner />
 
       <main className="max-w-5xl mx-auto px-4 py-8">
         {/* パンくずリスト：トップ › サロン新着情報 */}

@@ -3,6 +3,7 @@ import { createClient } from "@/app/lib/supabase/server";
 import { areaLabel } from "@/app/lib/areaLabel";
 import { logout } from "@/app/actions/auth";
 import { SALONS } from "@/app/lib/salonData";
+import { SiteNoticeBanner } from '@/app/components/SiteNoticeBanner';
 
 export default async function DashboardPage() {
   const supabase = await createClient();
@@ -40,6 +41,7 @@ export default async function DashboardPage() {
           </form>
         </div>
       </header>
+      <SiteNoticeBanner />
 
       <main className="max-w-5xl mx-auto px-4 py-10">
         <h2 className="text-xl font-bold text-slate-900 mb-2">

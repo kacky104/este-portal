@@ -11,6 +11,7 @@ import { NotificationBell } from '@/app/components/NotificationBell';
 import { VipLetterIcon } from '@/app/components/VipLetterIcon';
 import { AdBanner } from '@/app/components/AdBanner';
 import { fetchActiveAdBanners } from '@/app/lib/adBanners';
+import { SiteNoticeBanner } from '@/app/components/SiteNoticeBanner';
 
 // 会員個別の内容（ログイン必須・保存状況に依存）のため ISR はかけず動的のままにする。
 // cookie を読む createClient() の時点で動的になるが、意図を明示しておく。
@@ -119,6 +120,7 @@ export default async function MemberPage() {
           </div>
         </div>
       </header>
+      <SiteNoticeBanner />
 
       {/* ─── ルックバナー（共通ヘッダー直下・隙間0・公開中からランダム1枚） ─── */}
       <div className="max-w-5xl mx-auto px-4">

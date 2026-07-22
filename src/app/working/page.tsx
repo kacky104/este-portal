@@ -11,6 +11,7 @@ import { fetchSalons } from '@/app/lib/salons';
 import { areaFromSlug, salonInArea, DISPATCH_AREA } from '@/app/lib/areas';
 import { areaLabel } from '@/app/lib/areaLabel';
 import type { Metadata } from 'next';
+import { SiteNoticeBanner } from '@/app/components/SiteNoticeBanner';
 
 // 自己参照 canonical＋固有 title（root の canonical '/' 継承による重複扱いを防ぐ）。
 // ?area= 付きの絞り込み表示も canonical はベース（/working）に集約する。
@@ -71,6 +72,7 @@ export default async function WorkingPage({
           </div>
         </div>
       </header>
+      <SiteNoticeBanner />
 
       <main className="max-w-5xl mx-auto px-4 py-10">
 

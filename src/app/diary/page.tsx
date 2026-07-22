@@ -17,6 +17,7 @@ import { formatDiaryDate } from '@/lib/diaryDate';
 import { DiaryTherapistAvatar } from '@/components/DiaryTherapistAvatar';
 import { DiaryNewBadge } from '@/components/DiaryNewBadge';
 import { DiaryPagination } from '@/components/DiaryPagination';
+import { SiteNoticeBanner } from '@/app/components/SiteNoticeBanner';
 
 const PAGE_SIZE = 50;
 
@@ -107,6 +108,7 @@ export default async function DiaryListPage({
           </div>
         </div>
       </header>
+      <SiteNoticeBanner />
 
       <main className="max-w-4xl mx-auto px-4 py-8">
 

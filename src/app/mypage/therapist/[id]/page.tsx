@@ -16,6 +16,7 @@ import {
 import { STORAGE_CACHE_CONTROL } from '@/app/lib/storage';
 import { cleanupTherapistPhotos } from '@/app/actions/therapistAdmin';
 import { useToast } from '@/app/components/useToast';
+import { SiteNoticeBanner } from '@/app/components/SiteNoticeBanner';
 
 const supabase = createClient();
 
@@ -275,6 +276,7 @@ export default function TherapistEditPage() {
           </h1>
         </div>
       </header>
+      <SiteNoticeBanner />
 
       <main className="max-w-2xl mx-auto px-4 py-6 space-y-5">
 

@@ -16,6 +16,7 @@ import type { SalonRankItem, TherapistRankItem, PrevRankMaps, ShowcaseSalonData 
 import { RankDelta } from './RankDelta';
 import { RankingHeading } from './RankingHeading';
 import { RankingTherapistShowcase } from './RankingTherapistShowcase';
+import { SiteNoticeBanner } from '@/app/components/SiteNoticeBanner';
 
 // タブごとのテーマ（サロン詳細と同じテーマ定義を流用）：総合=ホワイト / 店舗=ブラック / セラピスト=ピンク。
 const TAB_THEME = { overall: 'white', salon: 'black', therapist: 'pink' } as const;
@@ -145,6 +146,7 @@ export default function RankingTabs({
           </div>
         </div>
       </header>
+      <SiteNoticeBanner />
 
       <main className="pb-10">
         {/* パンくず（テーマ連動の文字色） */}

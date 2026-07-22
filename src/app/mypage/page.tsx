@@ -26,6 +26,7 @@ import SalonFreePagesManager from '@/app/components/SalonFreePagesManager';
 import AccordionCard from '@/app/components/AccordionCard';
 import { sanitizeInternalPath } from '@/app/lib/safeLink';
 import { useToast } from '@/app/components/useToast';
+import { SiteNoticeBanner } from '@/app/components/SiteNoticeBanner';
 
 const supabase = createClient();
 
@@ -1899,6 +1900,7 @@ export default function MyPage() {
             </div>
           </div>
         </header>
+        <SiteNoticeBanner />
 
         {/* タブナビゲーション（アイコン＋短縮ラベルのチップ。横に並びきらなければ折り返す） */}
         <div className="max-w-2xl mx-auto px-3 py-2 flex flex-wrap justify-center gap-1.5">

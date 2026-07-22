@@ -13,6 +13,7 @@ import { BookingFlow } from "./BookingFlow";
 import type { BookingCourse } from "@/app/actions/booking";
 import type { Metadata } from "next";
 import { buildSalonSubpageMetadata } from "../subpageMetadata";
+import { SiteNoticeBanner } from '@/app/components/SiteNoticeBanner';
 
 // 予約フォームはインデックス対象外（noindex）。root の canonical '/' 継承による重複扱いも防ぐ。
 export async function generateMetadata({
@@ -100,6 +101,7 @@ export default async function SalonBookPage({
           <div className="flex items-center gap-2"><SavedSalonsMenu /><VipLetterIcon /><NotificationBell /><AccountMenu /><HamburgerMenu /></div>
         </div>
       </header>
+      <SiteNoticeBanner />
 
       <main className="max-w-2xl mx-auto px-4 py-8">
 

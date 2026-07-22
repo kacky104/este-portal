@@ -33,6 +33,7 @@ import { getReviewStats, getApprovedReviews } from '@/app/lib/reviews';
 import { ReviewSummary } from '@/app/components/ReviewSummary';
 import { ReviewList } from '@/app/components/ReviewList';
 import { getLinkedXProfileForTherapist } from '@/app/lib/xLink';
+import { SiteNoticeBanner } from '@/app/components/SiteNoticeBanner';
 
 // ── helpers ───────────────────────────────────────────────────
 
@@ -340,6 +341,7 @@ export default async function TherapistPublicPage({
           </div>
         </div>
       </header>
+      <SiteNoticeBanner />
 
       <main className="max-w-4xl mx-auto px-4 py-8">
 

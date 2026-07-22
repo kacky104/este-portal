@@ -36,6 +36,7 @@ import { ADMIN_UUID } from '@/app/lib/admin';
 import { areaLabel } from '@/app/lib/areaLabel';
 import { AREA_ORDER } from '@/app/lib/areas';
 import { revalidateTopAndAreas, revalidateSalon } from '@/app/lib/revalidateTop';
+import { SiteNoticeBanner } from '@/app/components/SiteNoticeBanner';
 
 const supabase = createClient();
 
@@ -371,6 +372,7 @@ export default function AdminDashboard() {
           </div>
         </div>
       </header>
+      <SiteNoticeBanner />
 
       {/* ── タブナビゲーション（mypage と同系統のチップ・本体/求人の2タブ。URLクエリ ?tab= と同期） ── */}
       <div className="max-w-5xl mx-auto px-3 pt-4 flex flex-wrap justify-center gap-1.5">

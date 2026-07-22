@@ -14,6 +14,7 @@ import { ReviewSummary } from '@/app/components/ReviewSummary';
 import { ReviewList } from '@/app/components/ReviewList';
 import { PaginatedReviewList } from '@/app/components/PaginatedReviewList';
 import type { Metadata } from 'next';
+import { SiteNoticeBanner } from '@/app/components/SiteNoticeBanner';
 
 // ISR：10分ごとに再生成（保存時は /api/revalidate で即時無効化）。
 export const revalidate = 600;
@@ -122,6 +123,7 @@ export default async function TherapistReviewsPage({
           </div>
         </div>
       </header>
+      <SiteNoticeBanner />
 
       <main className="max-w-4xl mx-auto px-4 py-8">
 

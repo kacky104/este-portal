@@ -11,6 +11,7 @@ import {
   BADGES_BY_CATEGORY,
   BADGE_CATEGORY_LABELS,
 } from '@/lib/therapistBadges';
+import { SiteNoticeBanner } from '@/app/components/SiteNoticeBanner';
 
 // ISR：10分ごとに再生成（/therapists と同じ方針）。
 export const revalidate = 600;
@@ -53,6 +54,7 @@ export default async function BadgeLandingPage({ params }: { params: Promise<{ s
           <Logo />
         </div>
       </header>
+      <SiteNoticeBanner />
 
       <main className="max-w-5xl mx-auto px-4 py-6">
         {/* パンくず的な戻り導線 */}

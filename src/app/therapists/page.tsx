@@ -17,6 +17,7 @@ import { fetchThemeWallpapers } from '@/app/lib/ranking';
 import { getTheme, breadcrumbCurrentColor } from '@/app/lib/themes';
 import { POPULAR_BADGES, badgeToSlug } from '@/lib/therapistBadgeSlugs';
 import { getBadgeColors } from '@/lib/therapistBadges';
+import { SiteNoticeBanner } from '@/app/components/SiteNoticeBanner';
 
 const TITLE = '特徴からセラピストを探す｜福岡メンズエステ【フクエス】';
 const DESCRIPTION =
@@ -66,6 +67,7 @@ export default async function TherapistsPage() {
           </div>
         </div>
       </header>
+      <SiteNoticeBanner />
 
       <main className="max-w-5xl mx-auto px-4 py-6">
         <Breadcrumb current="特徴からセラピストを探す" currentColor={breadcrumbCurrentColor(theme.key)} />

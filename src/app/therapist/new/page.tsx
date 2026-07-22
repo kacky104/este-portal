@@ -13,6 +13,7 @@ import { createPublicClient } from '@/app/lib/supabase/public';
 import { fetchNewFaceTherapists } from '@/app/lib/newFaceTherapists';
 import { NewFaceList } from './NewFaceList';
 import type { Metadata } from 'next';
+import { SiteNoticeBanner } from '@/app/components/SiteNoticeBanner';
 
 // 新人セラピスト一覧ページ（トップ「新人セラピスト一覧」の「一覧を見る →」先）。/working の構成に倣う。
 // 新人リストは変動が遅い（30日ウィンドウ）ため ISR（10分）と相性が良い。全件を新しい順で表示。
@@ -80,6 +81,7 @@ export default async function NewFacePage() {
           </div>
         </div>
       </header>
+      <SiteNoticeBanner />
 
       <main className="max-w-5xl mx-auto px-4 py-10">
 

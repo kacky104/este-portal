@@ -20,6 +20,7 @@ import { fetchActiveTherapistPickupBanners, type TherapistPickupBanner as Pickup
 import { RecommendedSalonBannerSlider } from '@/app/components/RecommendedSalonBannerSlider';
 import { fetchActiveRecommendedSalonBanners, type RecommendedSalonBanner } from '@/app/lib/recommendedSalonBanners';
 import { createPublicClient } from '@/app/lib/supabase/public';
+import { SiteNoticeBanner } from '@/app/components/SiteNoticeBanner';
 
 export default function SavedPage() {
   // 表示中タブ（既定: 保存した店舗）
@@ -225,6 +226,7 @@ export default function SavedPage() {
           </div>
         </div>
       </header>
+      <SiteNoticeBanner />
 
       <main className="max-w-5xl mx-auto px-4 py-10">
 

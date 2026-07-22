@@ -28,6 +28,7 @@ import { TOP_SALON_LIST_INTRO, TOP_PAGE_FAQS } from "./lib/areaSeoContent";
 import { fetchPublishedMainArticles } from "./lib/mainArticles";
 import { ArticleCard } from "./column/ArticleCard";
 import { HomeSearchBar } from "./components/HomeSearchBar";
+import { SiteNoticeBanner } from '@/app/components/SiteNoticeBanner';
 
 // TOPの WebSite 構造化データ（サイト名のリッチリザルト狙い）。
 // サイト内検索ページが無いため potentialAction (SearchAction) は入れない。
@@ -107,12 +108,8 @@ export default async function Home() {
       </header>
 
       <main>
-        {/* ─── テスト運用中のお知らせ（TOP最上部スライダーの上） ─── */}
-        <div className="sticky top-14 z-40 bg-amber-50 border-b border-amber-100">
-          <p className="max-w-5xl mx-auto px-4 py-2 text-center text-xs sm:text-sm font-bold text-amber-700 leading-relaxed">
-            現在テスト運用中です。9月中旬サイトオープン予定。
-          </p>
-        </div>
+        {/* ─── テスト運用中のお知らせ（共通コンポーネント化） ─── */}
+        <SiteNoticeBanner />
 
         {/* ─── Header Image Slider ─────────────────────────────── */}
         <section className="max-w-5xl mx-auto px-4 pt-6 pb-2">

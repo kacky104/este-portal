@@ -7,6 +7,7 @@ import { CastSignOutButton } from './CastSignOutButton';
 import { CastThemeProvider } from './CastTheme';
 import { CastTabs } from './CastTabs';
 import { getLinkedXProfileForTherapist } from '@/app/lib/xLink';
+import { SiteNoticeBanner } from '@/app/components/SiteNoticeBanner';
 
 // キャスト管理トップ（フェーズ1：最小実装）。
 // ガードはページ内 redirect 方式（proxy.ts は触らない）。
@@ -87,6 +88,7 @@ export default async function CastHomePage() {
           </div>
         </div>
       </header>
+      <SiteNoticeBanner />
 
       <main className="max-w-2xl mx-auto px-4 py-8">
         {therapist ? (

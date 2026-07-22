@@ -9,6 +9,7 @@ import { notFound } from "next/navigation";
 import { createPublicClient } from "@/app/lib/supabase/public";
 import { getTheme, breadcrumbCurrentColor } from "@/app/lib/themes";
 import type { Metadata } from "next";
+import { SiteNoticeBanner } from '@/app/components/SiteNoticeBanner';
 
 // フリーページ（オーナーが /mypage 店舗装飾で作成。タイトル＋本文＋画像）。1店舗最大3。
 export const revalidate = 600;
@@ -101,6 +102,7 @@ export default async function SalonFreePage({
           <div className="flex items-center gap-2"><SavedSalonsMenu /><VipLetterIcon /><NotificationBell /><AccountMenu /><HamburgerMenu /></div>
         </div>
       </header>
+      <SiteNoticeBanner />
 
       <main className="max-w-4xl mx-auto px-4 py-8">
         {/* パンくず：トップ › サロン名 › ページ名 */}

@@ -2,6 +2,7 @@
 import type { Metadata } from 'next';
 import { Logo } from '@/app/components/Logo';
 import { BannerTagCode } from '@/app/components/BannerTagCode';
+import { SiteNoticeBanner } from '@/app/components/SiteNoticeBanner';
 
 // フクエス本体のリンクバナー案内ページ（fukuX版 /x/banner の本体テーマ版）。
 // 静的コンテンツのみ・データ取得なし。画像は public/ 直下：
@@ -50,6 +51,7 @@ export default function BannerPage() {
           <Logo />
         </div>
       </header>
+      <SiteNoticeBanner />
 
       <main className="flex-1 max-w-3xl mx-auto w-full px-4">
         <div className="my-6 p-6 rounded-2xl bg-white border border-pink-100 shadow-sm">

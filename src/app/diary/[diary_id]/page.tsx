@@ -10,6 +10,7 @@ import { getTheme, breadcrumbCurrentColor } from '@/app/lib/themes';
 import { DiaryFeed } from './DiaryFeed';
 import { DiaryListCrumb } from './DiaryListCrumb';
 import { fetchDiaryFeed } from './feedShared';
+import { SiteNoticeBanner } from '@/app/components/SiteNoticeBanner';
 
 // ISR：10分ごとに再生成（保存時は /api/revalidate で /salon/[id] 配下を 'layout' 無効化）。
 export const revalidate = 600;
@@ -146,6 +147,7 @@ export default async function DiaryDetailPage({
           <Logo />
         </div>
       </header>
+      <SiteNoticeBanner />
 
       <main className="max-w-2xl mx-auto px-4 py-8">
 
