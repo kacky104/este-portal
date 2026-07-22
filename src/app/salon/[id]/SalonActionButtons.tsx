@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import { SaveButton } from '@/app/components/SaveButton';
+import { TelNoticeLink } from '@/app/components/TelNoticeLink';
 
 // サロン詳細ページの主要アクション（ネット予約／電話をする）。
 //
@@ -81,9 +82,10 @@ export function SalonActionButtons({
 
         {/* ── 電話をする（副CTA） ── */}
         {phone ? (
-          <a href={`tel:${phone}`} className={`${base} bg-white hover:bg-pink-50`} style={phoneStyle}>
+          // タップで「フクエスを見た」ポップアップ→発信（tel: 直リンクをやめて文言を挟む）。
+          <TelNoticeLink phone={phone} className={`${base} bg-white hover:bg-pink-50`} style={phoneStyle}>
             {phoneIcon}電話をする
-          </a>
+          </TelNoticeLink>
         ) : (
           // phone 未設定：今は無効。データ接続後は tel: の番号を差し込むだけ。
           <button type="button" aria-disabled="true" className={`${base} bg-white cursor-default`} style={phoneStyle}>

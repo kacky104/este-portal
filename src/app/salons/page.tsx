@@ -11,6 +11,7 @@ import { Breadcrumb } from '@/app/components/Breadcrumb';
 import { SiteNoticeBanner } from '@/app/components/SiteNoticeBanner';
 import { AREA_ORDER } from '@/app/lib/areas';
 import { areaLabel } from '@/app/lib/areaLabel';
+import { TelNoticeLink } from '@/app/components/TelNoticeLink';
 
 // /salons は無料掲載枠も兼ねるため、店名・地域・電話番号のみのテキスト一覧にしている（カード表示は廃止）。
 // 行は「掲載中サロン（salons テーブル・自動）＋無料掲載枠（free_salon_listings・/admin から手入力）」の統合。
@@ -129,9 +130,9 @@ export default async function SalonsPage() {
                   <span className="text-slate-500 truncate">{areaLabel(r.area)}</span>
                   <span className="text-center truncate">
                     {r.phone && (
-                      <a href={`tel:${r.phone.replace(/[^0-9+]/g, '')}`} className="text-slate-600 hover:underline">
+                      <TelNoticeLink phone={r.phone} className="text-slate-600 hover:underline">
                         {r.phone}
-                      </a>
+                      </TelNoticeLink>
                     )}
                   </span>
                   <span className="text-right truncate">
