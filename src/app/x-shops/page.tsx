@@ -108,7 +108,7 @@ export default async function XShopsPage() {
                 key={s.id}
                 href={`/x/u/${encodeURIComponent(s.handle)}`}
                 className="block rounded-2xl shadow-sm border p-3 hover:shadow-md hover:brightness-110 transition-all"
-                style={{ background: '#1e3a8a', borderColor: '#3b5cc4' }}
+                style={{ background: '#2563eb', borderColor: '#60a5fa' }}
               >
                 {/* 店名＋アバター＋認証バッジ（このページ専用の青基調配色。fukuX本体の紫テーマは変えない） */}
                 <div className="flex items-center gap-2 mb-1">
@@ -126,7 +126,7 @@ export default async function XShopsPage() {
 
                 {/* 地域（x_profiles.address）。空なら非表示。 */}
                 {s.address && (
-                  <p className="text-xs mb-3 flex items-center gap-1" style={{ color: '#bfdbfe' }}>📍{s.address}</p>
+                  <p className="text-xs mb-3 flex items-center gap-1" style={{ color: '#dbeafe' }}>📍{s.address}</p>
                 )}
 
                 {/* ショーケース画像（最大8枚・4列グリッド）。0枚ならグリッドごと非表示。 */}
