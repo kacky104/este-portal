@@ -5,7 +5,7 @@ import type { MainArticleListItem } from '@/app/lib/mainArticles';
 import { formatColumnDate } from './format';
 
 // 本体コラム一覧カード（ワーク側 ArticleCard のピンクテーマ版）。
-// hero画像（なければグラデーションのプレースホルダー）・カテゴリバッジ・タイトル・excerpt・公開日。
+// hero画像（なければグラデーションのプレースホルダー）・カテゴリバッジ・タイトル・excerpt・更新日。
 // カード全体が詳細ページ /column/[slug] へのリンク。
 export function ArticleCard({ article }: { article: MainArticleListItem }) {
   return (
@@ -41,8 +41,8 @@ export function ArticleCard({ article }: { article: MainArticleListItem }) {
           <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-pink-50 text-pink-600 border border-pink-200">
             {mainArticleCategoryLabel(article.category)}
           </span>
-          {article.publishedAt && (
-            <span className="text-[10px] text-slate-400">{formatColumnDate(article.publishedAt)}</span>
+          {(article.updatedAt ?? article.publishedAt) && (
+            <span className="text-[10px] text-slate-400">{formatColumnDate(article.updatedAt ?? article.publishedAt)}</span>
           )}
         </div>
         <h3 className="text-sm font-bold text-slate-900 leading-snug line-clamp-2 group-hover:text-pink-700 transition-colors">
