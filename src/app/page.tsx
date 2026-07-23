@@ -112,7 +112,8 @@ export default async function Home() {
         <SiteNoticeBanner />
 
         {/* ─── Header Image Slider ─────────────────────────────── */}
-        <section className="max-w-5xl mx-auto px-4 pt-6 pb-2">
+        {/* PCは全幅（フルブリード）表示。スマホは従来どおり左右余白つき（px-4）。 */}
+        <section className="px-4 pt-6 pb-2 sm:px-0">
           <HeaderImageSlider />
         </section>
 

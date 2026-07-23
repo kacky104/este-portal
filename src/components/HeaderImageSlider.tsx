@@ -54,7 +54,7 @@ export default function HeaderImageSlider() {
   if (slides.length === 0) return null;
 
   return (
-    <div className="relative w-full aspect-[4/3] sm:aspect-auto sm:h-96 overflow-hidden">
+    <div className="relative w-full aspect-[4/3] sm:aspect-[1600/620] sm:max-h-[600px] overflow-hidden">
       {slides.map((slide, index) => (
         <div
           key={slide.url}
@@ -62,7 +62,7 @@ export default function HeaderImageSlider() {
             index === current ? 'opacity-100' : 'opacity-0'
           }`}
         >
-          {/* PC用（sm 以上）。コンテナは固定高さ sm:h-96 + object-cover（上下トリミングあり）。 */}
+          {/* PC用（sm 以上）。全幅＋約2.6:1のアスペクト比（幅に応じて高さが伸縮）+ object-cover。超ワイド時のみ max-h-[600px] で頭打ち＝上下トリミング。 */}
           <Image
             src={slide.url}
             alt={`スライド ${index + 1}`}
