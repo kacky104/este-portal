@@ -22,6 +22,7 @@ export function XTimeline({
   me,
   loggedIn,
   recommended,
+  pinned = [],
   shopShowcases,
   followingFeed,
   initialLikedIds,
@@ -37,6 +38,7 @@ export function XTimeline({
   me: XProfile | null;
   loggedIn: boolean;
   recommended: XPost[];
+  pinned?: XPost[]; // 運営がタイムライン固定した投稿（おすすめ最上部・📌ラベル付き）。空なら何も出ない
   shopShowcases: ShopShowcase[]; // お店タブ：承認済み全店（画像は認証×バナー設置で0/4/8枚に上限適用済み・サーバで30分シードシャッフル済み）
   followingFeed: FeedItem[]; // フォロー中タブ：投稿＋リポストをマージ済み（サーバで sortAt 降順・重複排除）
   initialLikedIds: string[];
@@ -105,8 +107,8 @@ export function XTimeline({
   const eng = useXEngagement({
     me,
     posts: useMemo(
-      () => [...recommended, ...followingFeed.map((f) => f.post)],
-      [recommended, followingFeed]
+      () => [...pinned, ...recommended, ...followingFeed.map((f) => f.post)],
+      [pinned, recommended, followingFeed]
     ),
     initialLikedIds,
     initialFolloweeIds,
@@ -125,13 +127,19 @@ export function XTimeline({
     showToast('投稿しました');
   };
 
-  // おすすめ表示：自分の新規投稿 + サーバー取得分（重複除去）。
+  // 固定投稿：ミュート/ブロック中の相手は固定でも非表示（通常タイムラインと同じ扱い）。
+  const pinnedView = useMemo(
+    () => pinned.filter((p) => !hiddenIds.has(p.author.id)),
+    [pinned, hiddenIds],
+  );
+
+  // おすすめ表示：自分の新規投稿 + サーバー取得分（重複除去）。固定投稿は先頭に別枠で出すため除外。
   const recommendedView = useMemo(() => {
-    const seen = new Set<string>();
+    const seen = new Set<string>(pinned.map((p) => p.id));
     return [...myNewPosts, ...recommended]
       .filter((p) => (seen.has(p.id) ? false : (seen.add(p.id), true)))
       .filter((p) => !hiddenIds.has(p.author.id)); // ミュート/ブロック中の相手を除外
-  }, [myNewPosts, recommended, hiddenIds]);
+  }, [myNewPosts, recommended, hiddenIds, pinned]);
 
   // フォロー中フィード・お店タブもミュート/ブロック中の相手を除外。
   const followingFeedView = useMemo(
@@ -207,12 +215,14 @@ export function XTimeline({
 
       {/* タブ中身 */}
       {tab === 'recommended' ? (
-        recommendedView.length === 0 ? (
+        pinnedView.length === 0 && recommendedView.length === 0 ? (
           <Empty text="まだ投稿がありません" />
         ) : (
           // X風の全幅行＋区切り線（2026-07-10 実機評価で本採用）。タイムラインのみこの方式で、
           // プロフィール・投稿詳細・検索などは従来の浮遊カードのまま。
+          // 固定投稿（📌）→通常のおすすめ、の順。ラベルはリポストラベルと同じ仕組みを流用。
           <div className="-mx-4 divide-y divide-[color:var(--x-border)] border-b border-[color:var(--x-border)]">
+            {pinnedView.map((p) => renderCard(p, '📌 固定された投稿'))}
             {renderList(recommendedView)}
           </div>
         )

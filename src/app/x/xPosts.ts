@@ -156,6 +156,23 @@ export async function fetchRecommended(): Promise<XPost[]> {
   );
 }
 
+// ── タイムライン固定（ピン止め・運営設定） ─────────────────────────────
+// 運営が /x/admin で選んだ投稿（x_posts.pinned_at 非null）を、おすすめタブの最上部に固定表示する。
+// pinned_at 降順で最大 PINNED_LIMIT 件。トップレベル投稿のみ（リプライは固定不可）。
+// pinned_at の更新は service_role（管理サーバーアクション）経由のみ＝一般RLSでは書けない。
+export const PINNED_LIMIT = 3;
+export async function fetchPinnedPosts(): Promise<XPost[]> {
+  const client = createPublicClient();
+  const { data } = await client
+    .from('x_posts')
+    .select(POST_COLS)
+    .is('parent_post_id', null)
+    .not('pinned_at', 'is', null)
+    .order('pinned_at', { ascending: false })
+    .limit(PINNED_LIMIT);
+  return attachAuthors(client, (data ?? []) as PostRow[]);
+}
+
 // 自分がフォローしている profile id 一覧（follow 状態のUI反映＋フォロー中タブの両方に使う）。
 export async function fetchMyFolloweeIds(myProfileId: string): Promise<string[]> {
   const supabase = await createClient();

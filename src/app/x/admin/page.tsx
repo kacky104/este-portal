@@ -28,7 +28,7 @@ export default async function XAdminPage() {
       .limit(200),
     supabase
       .from('x_posts')
-      .select('id, author_profile_id, body, images, created_at')
+      .select('id, author_profile_id, body, images, created_at, pinned_at')
       .order('created_at', { ascending: false })
       .limit(50),
     supabase
@@ -77,6 +77,7 @@ export default async function XAdminPage() {
     body: string | null;
     images: string[] | null;
     created_at: string;
+    pinned_at: string | null;
   };
   const postRows = (postRes.data ?? []) as PostRow[];
   const authorIds = [...new Set(postRows.map((r) => r.author_profile_id).filter(Boolean))];
@@ -98,6 +99,7 @@ export default async function XAdminPage() {
     body: r.body ?? null,
     images: r.images ?? [],
     createdAt: r.created_at,
+    pinnedAt: r.pinned_at ?? null,
     authorHandle: authorDict.get(r.author_profile_id)?.handle ?? '',
     authorName: authorDict.get(r.author_profile_id)?.display_name ?? '(不明)',
   }));

@@ -8,7 +8,7 @@ import { VerifiedBadge } from '../VerifiedBadge';
 import { XImageCropModal } from '../XImageCropModal';
 import { normalizeLinkUrl } from '../xLink';
 import { searchXPostsByDate } from '@/app/actions/xAdminSearch';
-import { adminDeleteXPost, adminDeleteXProfile } from '@/app/actions/xAdmin';
+import { adminDeleteXPost, adminDeleteXProfile, adminSetXPostPinned } from '@/app/actions/xAdmin';
 import { STORAGE_CACHE_CONTROL } from '@/app/lib/storage';
 import { BANNER_SITE_SHORT } from '../banner/bannerSites';
 import { useXToast } from '../useXToast';
@@ -30,6 +30,7 @@ export type ModPost = {
   body: string | null;
   images: string[];
   createdAt: string;
+  pinnedAt: string | null; // タイムライン固定日時（null=非固定）
   authorHandle: string;
   authorName: string;
 };
@@ -191,6 +192,21 @@ export function XAdmin({
 
   // 削除は server action 経由（クライアント直 delete だと x-images の画像が残置され
   // URL 直打ちで見え続けるため。action 側で storage 掃除 → 行削除を行う）。
+  // タイムライン固定（ピン止め）の設定/解除。表示側（/x おすすめ最上部）は最新3件のみ使用。
+  const togglePin = async (id: string, pin: boolean) => {
+    if (busy) return;
+    setBusy(id);
+    const res = await adminSetXPostPinned(id, pin);
+    setBusy(null);
+    if (!res.ok) {
+      showToast(res.error);
+      return;
+    }
+    const at = pin ? new Date().toISOString() : null;
+    setPosts((list) => list.map((p) => (p.id === id ? { ...p, pinnedAt: at } : p)));
+    showToast(pin ? 'タイムライン最上部に固定しました' : '固定を解除しました');
+  };
+
   const deletePost = async (id: string) => {
     if (busy) return;
     if (!window.confirm('この投稿を削除しますか？\nこの操作は取り消せません。')) return;
@@ -696,10 +712,23 @@ export function XAdmin({
                   <p className="text-xs text-[color:var(--x-text-muted)]">
                     <span className="font-bold text-[color:var(--x-text-secondary)]">{p.authorName}</span> @{p.authorHandle} ·{' '}
                     <XTimeAgo iso={p.createdAt} />
+                    {p.pinnedAt && <span className="ml-1.5 text-[10px] font-bold text-indigo-500">📌 固定中</span>}
                   </p>
                   {p.body && <p className="text-sm text-[color:var(--x-text-primary)] mt-0.5 break-words line-clamp-3">{p.body}</p>}
                   {p.images.length > 0 && <p className="text-[11px] text-[color:var(--x-text-muted)] mt-0.5">🖼 画像{p.images.length}枚</p>}
                 </div>
+                <button
+                  type="button"
+                  onClick={() => togglePin(p.id, !p.pinnedAt)}
+                  disabled={busy === p.id}
+                  className={`flex-shrink-0 px-3 py-1 rounded-lg border text-[11px] font-bold transition-colors disabled:opacity-50 ${
+                    p.pinnedAt
+                      ? 'border-indigo-300 text-white bg-indigo-500 hover:bg-indigo-600'
+                      : 'border-indigo-200 text-indigo-500 bg-indigo-50 hover:bg-indigo-100'
+                  }`}
+                >
+                  {p.pinnedAt ? '固定解除' : '📌 固定'}
+                </button>
                 <button
                   type="button"
                   onClick={() => deletePost(p.id)}

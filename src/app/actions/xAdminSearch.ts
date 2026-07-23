@@ -9,6 +9,7 @@ export type ModPostResult = {
   body: string | null;
   images: string[];
   createdAt: string;
+  pinnedAt: string | null; // タイムライン固定日時（null=非固定）
   authorHandle: string;
   authorName: string;
 };
@@ -47,7 +48,7 @@ export async function searchXPostsByDate(
 
   let q = supabase
     .from('x_posts')
-    .select('id, author_profile_id, body, images, created_at')
+    .select('id, author_profile_id, body, images, created_at, pinned_at')
     .order('created_at', { ascending: false })
     .limit(100); // TODO: 100件超が必要になったら range() でページング
 
@@ -89,6 +90,7 @@ export async function searchXPostsByDate(
     body: r.body ?? null,
     images: r.images ?? [],
     createdAt: r.created_at,
+    pinnedAt: (r as { pinned_at?: string | null }).pinned_at ?? null,
     authorHandle: dict.get(r.author_profile_id)?.handle ?? '',
     authorName: dict.get(r.author_profile_id)?.display_name ?? '(不明)',
   }));
