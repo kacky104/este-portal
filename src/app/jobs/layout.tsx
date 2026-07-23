@@ -66,6 +66,11 @@ export default function JobsLayout({ children }: { children: React.ReactNode }) 
           <p className="text-xs text-slate-400">© 2026 フクエスワーク. All rights reserved.</p>
           {/* 規約・ポリシー（ワーク特則）・リンクバナーの小リンク行。 */}
           <p className="text-xs text-slate-400">
+            {/* 運営者情報（本体 /about。E-E-A-T用・2026-07-23追加）。 */}
+            <a href="/about" className="font-medium hover:opacity-80 transition-opacity" style={{ color: '#059669' }}>
+              運営者情報
+            </a>
+            {' ／ '}
             <a href="/jobs/terms" className="font-medium hover:opacity-80 transition-opacity" style={{ color: '#059669' }}>
               利用規約
             </a>
