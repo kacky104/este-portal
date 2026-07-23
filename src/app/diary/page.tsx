@@ -11,6 +11,8 @@ import { PageHero } from '@/app/components/PageHero';
 import { fetchPageHero } from '@/app/lib/pageHero';
 import { AdBanner } from '@/app/components/AdBanner';
 import { fetchActiveAdBanners } from '@/app/lib/adBanners';
+import { TherapistPickupBanner } from '@/app/components/TherapistPickupBanner';
+import { fetchActiveTherapistPickupBanners } from '@/app/lib/therapistPickupBanners';
 import { fetchThemeWallpapers } from '@/app/lib/ranking';
 import { getTheme, breadcrumbCurrentColor } from '@/app/lib/themes';
 import { formatDiaryDate } from '@/lib/diaryDate';
@@ -49,10 +51,11 @@ export default async function DiaryListPage({
   const offset = (page - 1) * PAGE_SIZE;
 
   // 赤テーマ壁紙を固定レイヤーで敷く（/therapists と同方式）。ヒーロー画像も同時取得。
-  const [hero, wallpapers, adBanners] = await Promise.all([
+  const [hero, wallpapers, adBanners, pickupBanners] = await Promise.all([
     fetchPageHero('diary'),
     fetchThemeWallpapers(),
     fetchActiveAdBanners(),
+    fetchActiveTherapistPickupBanners(),
   ]);
   const theme = getTheme('red');
   const wallpaperUrl = wallpapers[theme.key] ?? null;
@@ -92,6 +95,9 @@ export default async function DiaryListPage({
       salonName: s?.name ?? '',
     };
   });
+
+  // ピックアップ枠の挿入位置：スマホ2列×10段＝20枚目の直下（PCでは5段目相当）。件数が20未満なら最後のカード直下。
+  const diaryInsertAt = Math.min(20, diaries.length) - 1;
 
   return (
     <div className="min-h-screen text-slate-900">
@@ -145,7 +151,8 @@ export default async function DiaryListPage({
           </div>
         ) : (
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-[3px] sm:gap-3">
-            {diaries.map((diary) => (
+            {diaries.flatMap((diary, i) => {
+              const card = (
               <Link key={diary.id} href={`/diary/${diary.id}`} className="group bg-white border border-slate-100 shadow-sm overflow-hidden hover:shadow-md transition-shadow">
                 <div className="aspect-square bg-slate-100 relative">
                   {diary.image ? (
@@ -200,7 +207,16 @@ export default async function DiaryListPage({
                   </div>
                 </div>
               </Link>
-            ))}
+              );
+              if (pickupBanners.length > 0 && i === diaryInsertAt) {
+                return [card, (
+                  <div key="pickup" className="col-span-full w-full my-4 sm:my-6">
+                    <TherapistPickupBanner banners={pickupBanners} />
+                  </div>
+                )];
+              }
+              return [card];
+            })}
           </div>
         )}
 
