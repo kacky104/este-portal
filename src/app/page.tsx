@@ -399,19 +399,15 @@ export default async function Home() {
               </details>
             </section>
 
-            {/* ─── 掲載サロン一覧への導線（FAQ直下）───
-                新着コラムと同じ見出し（縦バー＋h2）＋中央の丸ボタン構成で /salons へ内部リンク。 */}
+            {/* ─── 掲載店舗一覧への導線（FAQ直下）───
+                見出しは無し。中央の丸ボタンのみで /salons へ内部リンク。 */}
             <section className="mt-12">
-              <div className="flex items-center gap-2.5">
-                <div className="w-1 h-4 rounded-full bg-gradient-to-b from-pink-400 to-rose-500" />
-                <h2 className="text-base font-bold text-slate-900 min-w-0 flex-1">掲載サロン一覧</h2>
-              </div>
-              <div className="flex justify-center mt-4">
+              <div className="flex justify-center">
                 <Link
                   href="/salons"
                   className="text-xs font-bold px-5 py-2 rounded-full border border-pink-200 text-pink-600 transition-colors hover:bg-pink-50"
                 >
-                  掲載サロン一覧を見る →
+                  掲載店舗一覧を見る→
                 </Link>
               </div>
             </section>
