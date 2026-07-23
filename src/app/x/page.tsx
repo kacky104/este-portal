@@ -1,8 +1,8 @@
 import Link from 'next/link';
 import { createClient } from '@/app/lib/supabase/server';
+import { ADMIN_UUID } from '@/app/lib/admin';
 import { getXContext } from './xProfile';
 import {
-  fetchPinnedPosts,
   fetchRecommended,
   fetchMyFolloweeIds,
   fetchFollowingPosts,
@@ -35,11 +35,9 @@ export default async function XHomePage() {
   // 閲覧はログイン不要（SNS標準）。未ログイン・未開設でもおすすめタイムラインを見せ、
   // アクション（いいね/フォロー/投稿）時にアカウント作成モーダルへ誘導する。
   // getXContext（認証＋自分profile）と fetchRecommended・fetchShopShowcases（profile非依存）は独立なので並列化。
-  // pinned: 運営がタイムライン最上部に固定した投稿（おすすめタブの先頭に📌付きで表示）。
-  const [{ userId, profile }, recommended, pinned, shopShowcases, banners] = await Promise.all([
+  const [{ userId, profile }, recommended, shopShowcases, banners] = await Promise.all([
     getXContext(),
     fetchRecommended(),
-    fetchPinnedPosts(),
     fetchShopShowcases(),
     fetchXBanners(),
   ]);
@@ -64,7 +62,7 @@ export default async function XHomePage() {
     followingFeed = mergePostsAndReposts(followingPosts, followingReposts);
   }
   // おすすめにはリポストを流さない（従来の投稿のみ）。meta/いいね/保存は両タブの全post_idを対象に。
-  const allIds = [...new Set([...pinned.map((p) => p.id), ...recommended.map((p) => p.id), ...followingFeed.map((f) => f.post.id)])];
+  const allIds = [...new Set([...recommended.map((p) => p.id), ...followingFeed.map((f) => f.post.id)])];
   // リポスト件数は公開情報＝未ログインでも表示。自分のリポスト済みは profile があるときだけ入る。
   {
     const meta = await fetchRepostMeta(profile?.id ?? null, allIds);
@@ -219,7 +217,6 @@ export default async function XHomePage() {
         me={profile}
         loggedIn={!!userId}
         recommended={recommended}
-        pinned={pinned}
         shopShowcases={shopShowcases}
         followingFeed={followingFeed}
         initialLikedIds={likedIds}
@@ -231,6 +228,7 @@ export default async function XHomePage() {
         myAffiliatedShop={myAffiliatedShop}
         banners={banners}
         initialHiddenProfileIds={hiddenProfileIds}
+        isAdmin={userId === ADMIN_UUID}
       />
     </div>
   );

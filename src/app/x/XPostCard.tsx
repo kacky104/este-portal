@@ -116,6 +116,7 @@ export function XPostCard({
   clampBody = true,
   flat = false,
   moderation,
+  pinControl,
 }: {
   post: XPost;
   liked: boolean;
@@ -153,6 +154,12 @@ export function XPostCard({
     onMute: (author: XPostAuthor) => void;
     onBlock: (author: XPostAuthor) => void;
     onReport: (post: XPost, reason: string) => void;
+  };
+  // タイムライン固定（ピン止め・運営のみ）。渡した呼び出し元（タイムライン・isAdmin時）のみ、
+  // 「…」メニューに「TOPに固定／固定を解除」を出す。設定はサーバーアクション（service_role）経由。
+  pinControl?: {
+    pinned: boolean;
+    onToggle: (post: XPost, pin: boolean) => void;
   };
 }) {
   const a = post.author;
@@ -301,6 +308,13 @@ export function XPostCard({
                 <div className="absolute right-0 top-9 z-20 w-64 rounded-2xl bg-[color:var(--x-surface)] shadow-[0_4px_24px_rgba(0,0,0,0.25)] border border-[color:var(--x-border)] py-1 overflow-hidden">
                   {!reportStep ? (
                     <>
+                      {pinControl && (
+                        <MenuRow
+                          onClick={() => { pinControl.onToggle(post, !pinControl.pinned); setDrawerOpen(false); }}
+                          label={pinControl.pinned ? 'TOPへの固定を解除' : 'TOPに固定'}
+                          icon={<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 17v5" /><path d="M9 10.76V7a3 3 0 0 1 6 0v3.76a2 2 0 0 0 .59 1.42l1.41 1.41a1 1 0 0 1-.71 1.71H7.71a1 1 0 0 1-.71-1.71l1.41-1.41A2 2 0 0 0 9 10.76z" /></svg>}
+                        />
+                      )}
                       {showFollow && (
                         <MenuRow
                           disabled={followPending}
@@ -401,6 +415,19 @@ export function XPostCard({
                   className="fixed inset-0 z-10 cursor-default"
                 />
                 <div className="absolute right-0 top-9 z-20 w-32 rounded-xl bg-[color:var(--x-surface)] shadow-lg border border-[color:var(--x-border)] py-1 overflow-hidden">
+                  {pinControl && (
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setMenuOpen(false);
+                        pinControl.onToggle(post, !pinControl.pinned);
+                      }}
+                      className="w-full text-left px-3 py-2 text-sm font-medium text-[color:var(--x-text-primary)] hover:bg-[color:var(--x-surface-hover)]"
+                    >
+                      {pinControl.pinned ? 'TOPの固定を解除' : 'TOPに固定'}
+                    </button>
+                  )}
                   <button
                     type="button"
                     onClick={(e) => {

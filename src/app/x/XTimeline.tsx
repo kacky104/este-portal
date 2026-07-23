@@ -1,6 +1,7 @@
 'use client';
 
 import { useMemo, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import type { XProfile } from './xProfile';
 import type { XPost, XPostAuthor, FeedItem } from './xPosts';
@@ -11,6 +12,7 @@ import { XBannerSlider } from './XBannerSlider';
 import type { XBanner } from './xBanners';
 import { XAuthGateModal } from './XAuthGateModal';
 import { muteProfile, blockProfile, reportPost } from './xModerationActions';
+import { adminSetXPostPinned } from '@/app/actions/xAdmin';
 import { XFollowRows } from './XFollowRows';
 import { VerifiedBadge } from './VerifiedBadge';
 import { AutoFitName } from './AutoFitName';
@@ -22,7 +24,6 @@ export function XTimeline({
   me,
   loggedIn,
   recommended,
-  pinned = [],
   shopShowcases,
   followingFeed,
   initialLikedIds,
@@ -34,11 +35,11 @@ export function XTimeline({
   myAffiliatedShop,
   banners,
   initialHiddenProfileIds,
+  isAdmin = false,
 }: {
   me: XProfile | null;
   loggedIn: boolean;
   recommended: XPost[];
-  pinned?: XPost[]; // 運営がタイムライン固定した投稿（おすすめ最上部・📌ラベル付き）。空なら何も出ない
   shopShowcases: ShopShowcase[]; // お店タブ：承認済み全店（画像は認証×バナー設置で0/4/8枚に上限適用済み・サーバで30分シードシャッフル済み）
   followingFeed: FeedItem[]; // フォロー中タブ：投稿＋リポストをマージ済み（サーバで sortAt 降順・重複排除）
   initialLikedIds: string[];
@@ -51,6 +52,7 @@ export function XTimeline({
   myAffiliatedShop?: { handle: string; displayName: string } | null;
   banners?: XBanner[]; // 運営設定のバナースライダー（全タブ共通・タブバー直下）。空なら非表示。
   initialHiddenProfileIds?: string[]; // 自分がミュート/ブロック中の相手（サーバー取得・タイムライン非表示用）
+  isAdmin?: boolean; // 運営（ADMIN_UUID）のみ true。投稿カード「…」メニューに「TOPに固定」を出す
 }) {
   const [tab, setTab] = useState<'recommended' | 'following' | 'shops'>('recommended');
   // バナースライダーのシャッフル：タブを切り替えるたびに並びをシャッフルし、key を変えて
@@ -103,12 +105,26 @@ export function XTimeline({
     showToast(res.ok ? '通報を受け付けました。ご協力ありがとうございます' : res.error);
   };
 
+  // タイムライン固定（運営のみ）。固定/解除 → force-dynamic ページを router.refresh() で再取得し、
+  // おすすめ最上部の固定枠（pinned prop）に反映する。
+  const router = useRouter();
+  const pinnedIds = useMemo(() => new Set(pinned.map((p) => p.id)), [pinned]);
+  const handleTogglePin = async (post: XPost, pin: boolean) => {
+    const res = await adminSetXPostPinned(post.id, pin);
+    if (!res.ok) {
+      showToast(res.error);
+      return;
+    }
+    showToast(pin ? 'TOPに固定しました' : '固定を解除しました');
+    router.refresh();
+  };
+
   // いいね/フォローの状態・権限・操作は共通フックに集約（プロフィールページと共有）。
   const eng = useXEngagement({
     me,
     posts: useMemo(
-      () => [...pinned, ...recommended, ...followingFeed.map((f) => f.post)],
-      [pinned, recommended, followingFeed]
+      () => [...recommended, ...followingFeed.map((f) => f.post)],
+      [recommended, followingFeed]
     ),
     initialLikedIds,
     initialFolloweeIds,
@@ -127,19 +143,13 @@ export function XTimeline({
     showToast('投稿しました');
   };
 
-  // 固定投稿：ミュート/ブロック中の相手は固定でも非表示（通常タイムラインと同じ扱い）。
-  const pinnedView = useMemo(
-    () => pinned.filter((p) => !hiddenIds.has(p.author.id)),
-    [pinned, hiddenIds],
-  );
-
-  // おすすめ表示：自分の新規投稿 + サーバー取得分（重複除去）。固定投稿は先頭に別枠で出すため除外。
+  // おすすめ表示：自分の新規投稿 + サーバー取得分（重複除去）。
   const recommendedView = useMemo(() => {
-    const seen = new Set<string>(pinned.map((p) => p.id));
+    const seen = new Set<string>();
     return [...myNewPosts, ...recommended]
       .filter((p) => (seen.has(p.id) ? false : (seen.add(p.id), true)))
       .filter((p) => !hiddenIds.has(p.author.id)); // ミュート/ブロック中の相手を除外
-  }, [myNewPosts, recommended, hiddenIds, pinned]);
+  }, [myNewPosts, recommended, hiddenIds]);
 
   // フォロー中フィード・お店タブもミュート/ブロック中の相手を除外。
   const followingFeedView = useMemo(
@@ -176,6 +186,7 @@ export function XTimeline({
         onToggleRepost={eng.toggleRepost}
         repostLabel={repostLabel}
         moderation={{ onMute: handleMute, onBlock: handleBlock, onReport: handleReport }}
+        pinControl={isAdmin ? { pinned: pinnedIds.has(p.id), onToggle: handleTogglePin } : undefined}
         flat
       />
     );
@@ -215,14 +226,12 @@ export function XTimeline({
 
       {/* タブ中身 */}
       {tab === 'recommended' ? (
-        pinnedView.length === 0 && recommendedView.length === 0 ? (
+        recommendedView.length === 0 ? (
           <Empty text="まだ投稿がありません" />
         ) : (
           // X風の全幅行＋区切り線（2026-07-10 実機評価で本採用）。タイムラインのみこの方式で、
           // プロフィール・投稿詳細・検索などは従来の浮遊カードのまま。
-          // 固定投稿（📌）→通常のおすすめ、の順。ラベルはリポストラベルと同じ仕組みを流用。
           <div className="-mx-4 divide-y divide-[color:var(--x-border)] border-b border-[color:var(--x-border)]">
-            {pinnedView.map((p) => renderCard(p, '📌 固定された投稿'))}
             {renderList(recommendedView)}
           </div>
         )
