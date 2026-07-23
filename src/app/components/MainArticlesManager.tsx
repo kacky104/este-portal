@@ -7,6 +7,7 @@ import {
   MAIN_ARTICLE_CATEGORY_ORDER,
   mainArticleCategoryLabel,
 } from '@/app/lib/mainArticleCategories';
+import { MAIN_ARTICLE_PRESETS } from '@/app/lib/mainArticlePresets';
 import {
   adminListMainArticles,
   adminCreateMainArticle,
@@ -92,6 +93,7 @@ export default function MainArticlesManager({ onToast }: { onToast: (msg: string
   const [saving, setSaving] = useState(false);
   const [heroUploading, setHeroUploading] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [presetKey, setPresetKey] = useState(''); // 新規作成時の定型コラム選択
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -112,6 +114,27 @@ export default function MainArticlesManager({ onToast }: { onToast: (msg: string
     setEditing({ id: crypto.randomUUID(), isNew: true, originalSlug: '', originalHeroUrl: null });
     setForm(EMPTY_FORM);
     setFormError('');
+    setPresetKey('');
+  };
+
+  // 定型コラム（プリセット）をフォームに流し込む。ヒーロー画像・ステータスはそのまま（下書き）。
+  const applyPreset = (key: string) => {
+    if (!key) { setPresetKey(''); return; }
+    const preset = MAIN_ARTICLE_PRESETS.find(pr => pr.key === key);
+    if (!preset) return;
+    if ((form.title.trim() !== '' || form.body.trim() !== '') &&
+        !window.confirm('入力中の内容を定型コラムで置き換えますか？')) {
+      return; // キャンセル時は選択・入力を維持
+    }
+    setPresetKey(key);
+    setForm(p => ({
+      ...p,
+      slug: preset.slug,
+      title: preset.title,
+      category: preset.category,
+      excerpt: preset.excerpt,
+      body: preset.body,
+    }));
   };
 
   const openEdit = (a: MainArticle) => {
@@ -136,6 +159,7 @@ export default function MainArticlesManager({ onToast }: { onToast: (msg: string
     setEditing(null);
     setForm(EMPTY_FORM);
     setFormError('');
+    setPresetKey('');
   };
 
   const handleHeroUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -213,6 +237,7 @@ export default function MainArticlesManager({ onToast }: { onToast: (msg: string
     setSaving(false);
     setEditing(null);
     setForm(EMPTY_FORM);
+    setPresetKey('');
     onToast(editing.isNew ? 'コラム記事を作成しました' : 'コラム記事を更新しました');
     await load();
   };
@@ -270,6 +295,24 @@ export default function MainArticlesManager({ onToast }: { onToast: (msg: string
               閉じる
             </button>
           </div>
+
+          {/* 定型コラムから読み込む（新規作成時のみ） */}
+          {editing.isNew && (
+            <div className="space-y-1">
+              <label className="text-[11px] font-bold text-slate-400 block">定型コラムから読み込む（任意）</label>
+              <select
+                value={presetKey}
+                onChange={e => applyPreset(e.target.value)}
+                className="w-full px-3 py-2 rounded-xl border border-pink-200 text-xs bg-white focus:outline-none focus:ring-2 focus:ring-pink-200"
+              >
+                <option value="">（選択すると各項目に自動入力）</option>
+                {MAIN_ARTICLE_PRESETS.map(pr => (
+                  <option key={pr.key} value={pr.key}>{pr.label}</option>
+                ))}
+              </select>
+              <p className="text-[10px] text-slate-400">選ぶとタイトル・slug・カテゴリ・抜粋・本文が入ります。あとはヒーロー画像を設定して「作成」してください。</p>
+            </div>
+          )}
 
           {/* slug */}
           <div className="space-y-1">
