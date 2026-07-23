@@ -62,6 +62,8 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     // 本体コラム一覧（/column・利用者向け）。
     { url: `${SITE_URL}/column`, lastModified: now, changeFrequency: 'daily', priority: 0.7 },
     // ポリシー類（法令対応・E-E-A-T用の静的ページ。更新頻度は低い）。
+    // 運営者情報（E-E-A-T用の静的ページ。2026-07-23追加）。
+    { url: `${SITE_URL}/about`, lastModified: now, changeFrequency: 'yearly', priority: 0.3 },
     { url: `${SITE_URL}/terms`, lastModified: now, changeFrequency: 'yearly', priority: 0.3 },
     { url: `${SITE_URL}/privacy`, lastModified: now, changeFrequency: 'yearly', priority: 0.3 },
     { url: `${SITE_URL}/listing`, lastModified: now, changeFrequency: 'yearly', priority: 0.3 },

@@ -436,6 +436,8 @@ export default async function Home() {
                 セラピスト求人（フクエスワーク）
               </Link>
               {[
+                // 運営者情報（E-E-A-T用 /about。2026-07-23追加）。
+                { label: "運営者情報", href: "/about" },
                 { label: "利用規約", href: "/terms" },
                 // プライバシーポリシーはスマホのみ半角カナ表示（PCは全角）。href は変えない。
                 { label: "プライバシーポリシー", mobile: "ﾌﾟﾗｲﾊﾞｼｰﾎﾟﾘｼｰ", href: "/privacy" },
