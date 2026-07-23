@@ -11,6 +11,8 @@ import { fetchThemeWallpapers } from '@/app/lib/ranking';
 import { getTheme, breadcrumbCurrentColor } from '@/app/lib/themes';
 import { createPublicClient } from '@/app/lib/supabase/public';
 import { fetchNewFaceTherapists } from '@/app/lib/newFaceTherapists';
+import { AdBanner } from '@/app/components/AdBanner';
+import { fetchActiveAdBanners } from '@/app/lib/adBanners';
 import { NewFaceList } from './NewFaceList';
 import type { Metadata } from 'next';
 import { SiteNoticeBanner } from '@/app/components/SiteNoticeBanner';
@@ -48,10 +50,11 @@ export const metadata: Metadata = {
 export default async function NewFacePage() {
   const supabase = createPublicClient();
   // 緑テーマ壁紙を固定レイヤーで敷く（/therapists と同方式）。新人一覧・ヒーロー・壁紙を同時取得。
-  const [therapists, hero, wallpapers] = await Promise.all([
+  const [therapists, hero, wallpapers, adBanners] = await Promise.all([
     fetchNewFaceTherapists(supabase), // limit 無指定＝全件
     fetchPageHero('newface'),
     fetchThemeWallpapers(),
+    fetchActiveAdBanners(),
   ]);
   const theme = getTheme('green');
   const wallpaperUrl = wallpapers[theme.key] ?? null;
@@ -100,6 +103,9 @@ export default async function NewFacePage() {
             入店から1ヶ月以内のフレッシュな新人セラピストをご紹介<br />福岡全域から、デビューした新しい出会いを新着順でチェック
           </p>
         </div>
+
+        {/* 細い広告バナー（公開中からランダム1枚・ページを開くたびに入れ替わり） */}
+        <AdBanner banners={adBanners} />
 
         <NewFaceList therapists={therapists} />
       </main>

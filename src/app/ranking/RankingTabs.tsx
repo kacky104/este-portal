@@ -17,6 +17,8 @@ import { RankDelta } from './RankDelta';
 import { RankingHeading } from './RankingHeading';
 import { RankingTherapistShowcase } from './RankingTherapistShowcase';
 import { SiteNoticeBanner } from '@/app/components/SiteNoticeBanner';
+import { AdBanner } from '@/app/components/AdBanner';
+import type { AdBanner as AdBannerData } from '@/app/lib/adBanners';
 
 // タブごとのテーマ（サロン詳細と同じテーマ定義を流用）：総合=ホワイト / 店舗=ブラック / セラピスト=ピンク。
 const TAB_THEME = { overall: 'white', salon: 'black', therapist: 'pink' } as const;
@@ -86,6 +88,7 @@ export default function RankingTabs({
   wallpapers,
   prevRanks,
   showcaseData,
+  adBanners,
 }: {
   overallRanking: SalonRankItem[];
   salonRanking: SalonRankItem[];
@@ -94,6 +97,7 @@ export default function RankingTabs({
   wallpapers: Record<string, string>;
   prevRanks: PrevRankMaps;
   showcaseData: Record<number, ShowcaseSalonData>;
+  adBanners: AdBannerData[];
 }) {
   const [tab, setTab] = useState<TabKey>('overall');
   // リロード時に直前のタブを復元（URL ハッシュに保存。ISR を壊さないようクライアント側のみ）。
@@ -203,6 +207,8 @@ export default function RankingTabs({
                 description={<>店舗と所属セラピスト全員の週間アクセスを合算した<br className="sm:hidden" />福岡のメンズエステ総合の人気ランキングです</>}
                 bodyColor={theme.body}
               />
+              {/* 細い広告バナー（公開中からランダム1枚・ページを開くたびに入れ替わり） */}
+              <AdBanner banners={adBanners} />
               {overallRanking.length === 0 ? (
                 <div className="rounded-3xl border shadow-sm overflow-hidden transition-colors duration-300" style={cardStyle}>
                   <EmptyState theme={theme} />
@@ -235,6 +241,8 @@ export default function RankingTabs({
                 description={<>店舗ページへの週間アクセスによる<br className="sm:hidden" />福岡のメンズエステ店舗の人気ランキングです</>}
                 bodyColor={theme.body}
               />
+              {/* 細い広告バナー（公開中からランダム1枚・ページを開くたびに入れ替わり） */}
+              <AdBanner banners={adBanners} />
               {salonRanking.length === 0 ? (
                 <div className="rounded-3xl border shadow-sm overflow-hidden transition-colors duration-300" style={cardStyle}>
                   <EmptyState theme={theme} />
@@ -267,6 +275,8 @@ export default function RankingTabs({
                 description={<>セラピスト個別ページへの週間アクセスによる<br className="sm:hidden" />福岡のメンズエステ人気セラピストランキングです</>}
                 bodyColor={theme.body}
               />
+              {/* 細い広告バナー（公開中からランダム1枚・ページを開くたびに入れ替わり） */}
+              <AdBanner banners={adBanners} />
               {therapistRanking.length === 0 ? (
                 <div className="rounded-3xl border shadow-sm overflow-hidden transition-colors duration-300" style={cardStyle}>
                   <EmptyState theme={theme} />

@@ -9,6 +9,7 @@ import {
   fetchOverallShowcaseData,
 } from '@/app/lib/ranking';
 import RankingTabs from './RankingTabs';
+import { fetchActiveAdBanners } from '@/app/lib/adBanners';
 
 // アクセス集計は随時更新されるため短めのISR（5分）。週境界は fetch 時に月曜JSTで判定。
 export const revalidate = 300;
@@ -33,13 +34,14 @@ export const metadata: Metadata = {
 // 本体（ヘッダー・パンくず・ヒーロー・タブ・一覧・フッター）はタブごとにテーマ・ヒーロー画像を
 // 切り替えるためクライアント部品 RankingTabs 側に集約。ここではデータ取得とメタのみ担う。
 export default async function RankingPage() {
-  const [overallRanking, salonRanking, therapistRanking, heroes, wallpapers, prevRanks] = await Promise.all([
+  const [overallRanking, salonRanking, therapistRanking, heroes, wallpapers, prevRanks, adBanners] = await Promise.all([
     fetchOverallWeeklyRanking(10),  // 総合（店舗＋所属セラピスト）トップ10
     fetchSalonWeeklyRanking(10),    // 店舗はトップ10まで
     fetchTherapistWeeklyRanking(50),
     fetchRankingHeroes(),
     fetchThemeWallpapers(),
     fetchPreviousRankMaps(),        // 前週順位（順位変動マーク用）
+    fetchActiveAdBanners(),         // 細い広告バナー（ルックバナー）
   ]);
   // 総合ショーケースのセラピスト/店舗情報を1回でまとめて取得（個別fetch回避）。
   const showcaseIds = Array.from(new Set([...overallRanking.map((s) => s.id), ...salonRanking.map((s) => s.id)]));
@@ -54,6 +56,7 @@ export default async function RankingPage() {
       wallpapers={wallpapers}
       prevRanks={prevRanks}
       showcaseData={showcaseData}
+      adBanners={adBanners}
     />
   );
 }
