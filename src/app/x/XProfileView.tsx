@@ -39,6 +39,7 @@ export function XProfileView({
   followerCount,
   followingCount,
   feed,
+  pinnedPostId = null,
   initialLikedIds,
   initialSavedIds,
   initialRepostedIds,
@@ -56,7 +57,8 @@ export function XProfileView({
   isOwnProfile: boolean;
   followerCount: number | null;
   followingCount: number | null;
-  feed: FeedItem[]; // 通常投稿＋リポストをマージ済み（サーバで sortAt 降順・重複排除済み）
+  feed: FeedItem[]; // 通常投稿＋リポストをマージ済み（サーバで sortAt 降順・重複排除済み・固定投稿は先頭）
+  pinnedPostId?: string | null; // 📌固定表示する投稿ID（サーバで先頭に並び替え済み・ラベル表示用）
   initialLikedIds: string[];
   initialSavedIds: string[];
   initialRepostedIds: string[];
@@ -413,6 +415,7 @@ export function XProfileView({
                   repostPending={eng.repostPendingFor(p.id)}
                   onToggleRepost={eng.toggleRepost}
                   repostLabel={item.kind === 'repost' ? `${item.reposterName} さんがリポスト` : undefined}
+                  pinnedLabel={item.kind === 'post' && p.id === pinnedPostId}
                   moderation={{ onMute: handleMute, onBlock: handleBlock, onReport: handleReport }}
                 />
               );

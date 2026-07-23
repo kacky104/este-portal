@@ -168,7 +168,7 @@ export default async function XProfilePage({ params }: { params: Promise<{ handl
       : Promise.resolve({ count: null }),
     supabase
       .from('x_posts')
-      .select('id, body, images, like_count, reply_count, replies_disabled, link_url, edited_at, created_at')
+      .select('id, body, images, like_count, reply_count, replies_disabled, link_url, edited_at, created_at, pinned_at')
       .eq('author_profile_id', target.id)
       .is('parent_post_id', null) // プロフィールの投稿一覧にもリプライは出さない
       .order('created_at', { ascending: false })
@@ -251,6 +251,7 @@ export default async function XProfilePage({ params }: { params: Promise<{ handl
       link_url: string | null;
       edited_at: string | null;
       created_at: string;
+      pinned_at: string | null;
     }>
   ).map((r) => ({
     id: String(r.id),
@@ -261,6 +262,7 @@ export default async function XProfilePage({ params }: { params: Promise<{ handl
     repliesDisabled: Boolean(r.replies_disabled),
     linkUrl: r.link_url ?? null,
     editedAt: r.edited_at ?? null,
+    pinnedAt: r.pinned_at ?? null,
     createdAt: r.created_at,
     author,
   }));
@@ -269,6 +271,13 @@ export default async function XProfilePage({ params }: { params: Promise<{ handl
   // 元投稿の著者は他人なので attachAuthors 済み（fetchRepostsByReposters 内）。ラベルは本人の表示名。
   const repostItems = await fetchRepostsByReposters([target.id]);
   const feed = mergePostsAndReposts(posts, repostItems);
+
+  // プロフィール固定（📌）：本人のトップレベル投稿のうち pinned_at 最新の1件を先頭へ移動（本家Xと同じ）。
+  // ※ 一覧の取得上限（直近200件）より古い投稿を固定した場合は対象外＝表示されない（運用上は稀・許容）。
+  const pinnedCandidates = feed.filter((f) => f.kind === 'post' && !!f.post.pinnedAt);
+  pinnedCandidates.sort((x, y) => ((y.post.pinnedAt ?? '') < (x.post.pinnedAt ?? '') ? -1 : 1));
+  const pinnedTop = pinnedCandidates[0] ?? null;
+  const orderedFeed = pinnedTop ? [pinnedTop, ...feed.filter((f) => f !== pinnedTop)] : feed;
   const feedPostIds = [...new Set(feed.map((f) => f.post.id))];
 
   // 閲覧者のフォロー状態・いいね状態・保存状態（ログイン＋自分のprofileがある時のみ）。
@@ -309,7 +318,8 @@ export default async function XProfilePage({ params }: { params: Promise<{ handl
       isOwnProfile={isOwnProfile}
       followerCount={followerCount}
       followingCount={followingCount}
-      feed={feed}
+      feed={orderedFeed}
+      pinnedPostId={pinnedTop ? pinnedTop.post.id : null}
       initialLikedIds={initialLikedIds}
       initialSavedIds={initialSavedIds}
       initialRepostedIds={initialRepostedIds}

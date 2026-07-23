@@ -1,6 +1,5 @@
 import Link from 'next/link';
 import { createClient } from '@/app/lib/supabase/server';
-import { ADMIN_UUID } from '@/app/lib/admin';
 import { getXContext } from './xProfile';
 import {
   fetchRecommended,
@@ -228,7 +227,6 @@ export default async function XHomePage() {
         myAffiliatedShop={myAffiliatedShop}
         banners={banners}
         initialHiddenProfileIds={hiddenProfileIds}
-        isAdmin={userId === ADMIN_UUID}
       />
     </div>
   );

@@ -19,7 +19,8 @@ import type { XKind } from './xProfile';
 export const RECOMMENDED_LIMIT = 500;
 
 // reply_count / replies_disabled はリプライ機能用（reply_count はトリガ自動増減・アプリは手動更新しない）。link_url は投稿の外部リンク。edited_at は編集済み表示用。
-const POST_COLS = 'id, author_profile_id, body, images, like_count, reply_count, replies_disabled, link_url, edited_at, created_at';
+// pinned_at はプロフィール固定（📌）用（本人が自分のプロフィール先頭に固定・null=非固定）。
+const POST_COLS = 'id, author_profile_id, body, images, like_count, reply_count, replies_disabled, link_url, edited_at, created_at, pinned_at';
 
 export type XPostAuthor = {
   id: string;
@@ -42,6 +43,9 @@ export type XPost = {
   repliesDisabled: boolean; // リプライ受付不可（therapist/shop が自投稿で設定可）
   linkUrl: string | null; // 投稿の外部リンク（http/https のみ・任意）
   editedAt: string | null; // 編集済みなら最終編集時刻（null=未編集）
+  // プロフィール固定（📌）日時。本人が自分のプロフィール先頭に固定した投稿（null/未取得=非固定）。
+  // optional なのは、pinned_at を select しない補助的な取得経路（検索・詳細等）が残っているため。
+  pinnedAt?: string | null;
   createdAt: string;
   author: XPostAuthor;
 };
@@ -56,6 +60,7 @@ type PostRow = {
   replies_disabled: boolean | null;
   link_url: string | null;
   edited_at: string | null;
+  pinned_at?: string | null;
   created_at: string;
 };
 
@@ -117,6 +122,7 @@ async function attachAuthors(client: AnyClient, rows: PostRow[]): Promise<XPost[
       repliesDisabled: Boolean(r.replies_disabled),
       linkUrl: r.link_url ?? null,
       editedAt: r.edited_at ?? null,
+      pinnedAt: r.pinned_at ?? null,
       createdAt: r.created_at,
       author: {
         id: r.author_profile_id,
@@ -154,23 +160,6 @@ export async function fetchRecommended(): Promise<XPost[]> {
   return seededWeightedShuffle(posts, thirtyMinSeed(), (p) =>
     p.author.kind === 'therapist' && p.author.isVerified ? VERIFIED_THERAPIST_WEIGHT : 1.0
   );
-}
-
-// ── タイムライン固定（ピン止め・運営設定） ─────────────────────────────
-// 運営が /x/admin で選んだ投稿（x_posts.pinned_at 非null）を、おすすめタブの最上部に固定表示する。
-// pinned_at 降順で最大 PINNED_LIMIT 件。トップレベル投稿のみ（リプライは固定不可）。
-// pinned_at の更新は service_role（管理サーバーアクション）経由のみ＝一般RLSでは書けない。
-export const PINNED_LIMIT = 3;
-export async function fetchPinnedPosts(): Promise<XPost[]> {
-  const client = createPublicClient();
-  const { data } = await client
-    .from('x_posts')
-    .select(POST_COLS)
-    .is('parent_post_id', null)
-    .not('pinned_at', 'is', null)
-    .order('pinned_at', { ascending: false })
-    .limit(PINNED_LIMIT);
-  return attachAuthors(client, (data ?? []) as PostRow[]);
 }
 
 // 自分がフォローしている profile id 一覧（follow 状態のUI反映＋フォロー中タブの両方に使う）。

@@ -85,31 +85,6 @@ export async function adminDeleteXProfile(profileId: string): Promise<XAdminDele
 }
 
 // 運営による投稿削除：x_posts.images（公開URL）から storage パスを復元して掃除 → 行削除。
-// タイムライン固定（ピン止め）の設定/解除。pinned_at はRLSで一般更新不可のため service_role で更新
-// （adminDeleteXPost と同じ二重ガード方針）。固定は運用上少数（表示側は最新3件のみ使用）。
-export async function adminSetXPostPinned(postId: string, pinned: boolean): Promise<XAdminDeleteResult> {
-  if (!(await requireAdmin())) return { ok: false, error: '権限がありません。' };
-  if (!postId) return { ok: false, error: '対象が不正です。' };
-
-  const svc = createServiceClient();
-  // リプライは固定不可（タイムラインに出ないため）。
-  const { data: post, error: postErr } = await svc
-    .from('x_posts')
-    .select('id, parent_post_id')
-    .eq('id', postId)
-    .maybeSingle();
-  if (postErr) return { ok: false, error: '投稿の取得に失敗しました。' };
-  if (!post) return { ok: false, error: '対象投稿が見つかりません。' };
-  if (post.parent_post_id) return { ok: false, error: 'リプライは固定できません。' };
-
-  const { error } = await svc
-    .from('x_posts')
-    .update({ pinned_at: pinned ? new Date().toISOString() : null })
-    .eq('id', postId);
-  if (error) return { ok: false, error: `更新に失敗しました：${error.message}` };
-  return { ok: true };
-}
-
 export async function adminDeleteXPost(postId: string): Promise<XAdminDeleteResult> {
   if (!(await requireAdmin())) return { ok: false, error: '権限がありません。' };
   if (!postId) return { ok: false, error: '対象が不正です。' };

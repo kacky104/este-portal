@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { createClient } from '@/app/lib/supabase/client';
 import { VerifiedBadge } from './VerifiedBadge';
@@ -116,7 +117,7 @@ export function XPostCard({
   clampBody = true,
   flat = false,
   moderation,
-  pinControl,
+  pinnedLabel = false,
 }: {
   post: XPost;
   liked: boolean;
@@ -155,16 +156,39 @@ export function XPostCard({
     onBlock: (author: XPostAuthor) => void;
     onReport: (post: XPost, reason: string) => void;
   };
-  // タイムライン固定（ピン止め・運営のみ）。渡した呼び出し元（タイムライン・isAdmin時）のみ、
-  // 「…」メニューに「TOPに固定／固定を解除」を出す。設定はサーバーアクション（service_role）経由。
-  pinControl?: {
-    pinned: boolean;
-    onToggle: (post: XPost, pin: boolean) => void;
-  };
+  // 📌「固定された投稿」ラベル（プロフィール先頭の固定表示用）。true でカード上部に表示。
+  pinnedLabel?: boolean;
 }) {
   const a = post.author;
   const { me } = useMe();
   const isOwn = !!me && me.id === a.id; // 自分の投稿＝編集/削除メニューを出す
+
+  // ── プロフィール固定（📌・本家X同様）。自分の投稿を1件だけ自分のプロフィール先頭に固定できる。
+  // 編集/削除と同じくカード内で自己完結（クライアントRLS更新）。1人1件＝固定時に既存の固定を解除。
+  // showReplyLink=false の文脈（投稿詳細＝リプライを含む）ではメニューに出さない（トップレベル専用）。
+  const router = useRouter();
+  const [pinnedAt, setPinnedAt] = useState<string | null>(post.pinnedAt ?? null);
+  const onTogglePin = async () => {
+    setMenuOpen(false);
+    const sb = createClient();
+    const pin = !pinnedAt;
+    if (pin) {
+      // 既存の固定を解除（1人1件運用）。RLSにより自分の投稿以外は更新されない。
+      await sb.from('x_posts').update({ pinned_at: null }).eq('author_profile_id', a.id).not('pinned_at', 'is', null);
+    }
+    const at = new Date().toISOString();
+    const { error } = await sb
+      .from('x_posts')
+      .update({ pinned_at: pin ? at : null })
+      .eq('id', post.id);
+    if (error) {
+      window.alert(`固定の更新に失敗しました：${error.message}`);
+      return;
+    }
+    setPinnedAt(pin ? at : null);
+    // プロフィールページの並び（固定を先頭へ）をサーバー再取得で反映。
+    router.refresh();
+  };
 
   // 投稿画像の全画面拡大。クリックした画像のインデックスを保持（null で閉じ）。複数枚は左右ナビ可。
   const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
@@ -202,6 +226,14 @@ export function XPostCard({
           : 'x-card rounded-2xl bg-[color:var(--x-surface)] shadow-[0_4px_16px_rgba(109,40,217,0.3)] p-4'
       }
     >
+      {/* 📌固定ラベル（プロフィール先頭の固定投稿にだけ表示）。リポストラベルと同じ位置・トーン。 */}
+      {pinnedLabel && (
+        <div className="flex items-center gap-1.5 text-xs text-[color:var(--x-text-muted)] mb-2 ml-[50px]">
+          <span className="flex-shrink-0">📌</span>
+          <span className="truncate">固定された投稿</span>
+        </div>
+      )}
+
       {/* リポストラベル（値があるときだけ）：カード上部に RepostIcon 小＋グレーテキスト。本文に合わせて軽くインデント。 */}
       {repostLabel && (
         <div className="flex items-center gap-1.5 text-xs text-[color:var(--x-text-muted)] mb-2 ml-[50px]">
@@ -308,13 +340,6 @@ export function XPostCard({
                 <div className="absolute right-0 top-9 z-20 w-64 rounded-2xl bg-[color:var(--x-surface)] shadow-[0_4px_24px_rgba(0,0,0,0.25)] border border-[color:var(--x-border)] py-1 overflow-hidden">
                   {!reportStep ? (
                     <>
-                      {pinControl && (
-                        <MenuRow
-                          onClick={() => { pinControl.onToggle(post, !pinControl.pinned); setDrawerOpen(false); }}
-                          label={pinControl.pinned ? 'TOPへの固定を解除' : 'TOPに固定'}
-                          icon={<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 17v5" /><path d="M9 10.76V7a3 3 0 0 1 6 0v3.76a2 2 0 0 0 .59 1.42l1.41 1.41a1 1 0 0 1-.71 1.71H7.71a1 1 0 0 1-.71-1.71l1.41-1.41A2 2 0 0 0 9 10.76z" /></svg>}
-                        />
-                      )}
                       {showFollow && (
                         <MenuRow
                           disabled={followPending}
@@ -415,17 +440,16 @@ export function XPostCard({
                   className="fixed inset-0 z-10 cursor-default"
                 />
                 <div className="absolute right-0 top-9 z-20 w-32 rounded-xl bg-[color:var(--x-surface)] shadow-lg border border-[color:var(--x-border)] py-1 overflow-hidden">
-                  {pinControl && (
+                  {showReplyLink && (
                     <button
                       type="button"
                       onClick={(e) => {
                         e.stopPropagation();
-                        setMenuOpen(false);
-                        pinControl.onToggle(post, !pinControl.pinned);
+                        onTogglePin();
                       }}
                       className="w-full text-left px-3 py-2 text-sm font-medium text-[color:var(--x-text-primary)] hover:bg-[color:var(--x-surface-hover)]"
                     >
-                      {pinControl.pinned ? 'TOPの固定を解除' : 'TOPに固定'}
+                      {pinnedAt ? '固定を解除' : 'TOPに固定'}
                     </button>
                   )}
                   <button
