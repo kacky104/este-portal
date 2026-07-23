@@ -13,7 +13,7 @@ async function fetchFeaturedRows(supabase: PublicClient, area: string | null) {
   const base = () =>
     supabase
       .from('featured_salons')
-      .select('salon_id, display_order, image_url')
+      .select('salon_id, display_order, image_url, mobile_image_url')
       .order('display_order', { ascending: true })
       .limit(5);
 
@@ -47,6 +47,9 @@ export async function getFeaturedSalons(
   const featuredIds = featuredRows.map(r => r.salon_id as number);
   const imageUrlMap = Object.fromEntries(
     featuredRows.map(r => [r.salon_id as number, (r.image_url as string | null) ?? null])
+  );
+  const mobileImageUrlMap = Object.fromEntries(
+    featuredRows.map(r => [r.salon_id as number, (r.mobile_image_url as string | null) ?? null])
   );
 
   const [{ data: featuredSalonData }, { data: therapistData }] = await Promise.all([
@@ -90,6 +93,7 @@ export async function getFeaturedSalons(
         price:           cheapestCoursePrice(s.courses) || ((s.price  as string) ?? ''),
         rating:          (s.rating as number) ?? 0,
         imageUrl:        imageUrlMap[salonId] ?? undefined,
+        mobileImageUrl:  mobileImageUrlMap[salonId] ?? undefined,
         therapistImages: sorted
           .map(t => t.profile_image_url as string | null)
           .filter((u): u is string => Boolean(u))

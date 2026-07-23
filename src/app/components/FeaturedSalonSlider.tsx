@@ -14,6 +14,7 @@ export type FeaturedSalon = {
   rating:           number;
   therapistImages:  string[];
   imageUrl?:        string;
+  mobileImageUrl?:  string;
 };
 
 const GRADS = [
@@ -77,20 +78,42 @@ export function FeaturedSalonSlider({ salons }: { salons: FeaturedSalon[] }) {
         >
           {displaySalons.map((salon, i) => {
             const bgImage = salon.imageUrl ?? salon.therapistImages[0];
+            const mobileBg    = salon.mobileImageUrl ?? null;
             const grad        = GRADS[i % GRADS.length];
 
             return (
               <div key={salon.salonId} className="w-full flex-shrink-0 relative h-52 sm:h-96">
-                {/* Background */}
+                {/* Background：スマホ用画像があれば sm 未満はそれ・sm 以上はPC用に出し分け（未設定はPC用をスマホでもトリミング表示）。 */}
                 {bgImage ? (
-                  <Image
-                    src={bgImage}
-                    alt={salon.salonName}
-                    fill
-                    className="object-cover"
-                    sizes="(max-width: 1024px) 100vw, 992px"
-                    priority={i === 0}
-                  />
+                  mobileBg ? (
+                    <>
+                      <Image
+                        src={mobileBg}
+                        alt={salon.salonName}
+                        fill
+                        className="object-cover sm:hidden"
+                        sizes="100vw"
+                        priority={i === 0}
+                      />
+                      <Image
+                        src={bgImage}
+                        alt={salon.salonName}
+                        fill
+                        className="object-cover hidden sm:block"
+                        sizes="(max-width: 1024px) 100vw, 992px"
+                        priority={i === 0}
+                      />
+                    </>
+                  ) : (
+                    <Image
+                      src={bgImage}
+                      alt={salon.salonName}
+                      fill
+                      className="object-cover"
+                      sizes="(max-width: 1024px) 100vw, 992px"
+                      priority={i === 0}
+                    />
+                  )
                 ) : (
                   <div className={`absolute inset-0 bg-gradient-to-br ${grad}`} />
                 )}

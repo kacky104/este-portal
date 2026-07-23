@@ -11,12 +11,13 @@ const MAX_FEATURED = 5;
 const BUCKET = 'featured-salon-images';
 
 type FeaturedItem = {
-  id:           string;
-  salonId:      number;
-  salonName:    string;
-  salonArea:    string;
-  displayOrder: number;
-  imageUrl:     string | null;
+  id:              string;
+  salonId:         number;
+  salonName:       string;
+  salonArea:       string;
+  displayOrder:    number;
+  imageUrl:        string | null;
+  mobileImageUrl:  string | null;
 };
 
 type SalonOption = {
@@ -42,6 +43,7 @@ export default function FeaturedSalonsManager({ allSalons }: { allSalons: SalonO
 
   const fileInputRef    = useRef<HTMLInputElement>(null);
   const uploadTargetId  = useRef<string | null>(null);
+  const uploadKind      = useRef<'pc' | 'sp'>('pc'); // アップロード対象がPC用かスマホ用か
 
   const fetchFeatured = useCallback(async () => {
     setLoading(true);
@@ -49,7 +51,7 @@ export default function FeaturedSalonsManager({ allSalons }: { allSalons: SalonO
 
     const baseQuery = sb
       .from('featured_salons')
-      .select('id, salon_id, display_order, image_url')
+      .select('id, salon_id, display_order, image_url, mobile_image_url')
       .order('display_order', { ascending: true });
     const { data: featuredData, error } = await (
       selectedArea === null ? baseQuery.is('area', null) : baseQuery.eq('area', selectedArea)
@@ -84,8 +86,9 @@ export default function FeaturedSalonsManager({ allSalons }: { allSalons: SalonO
       salonId:      row.salon_id     as number,
       salonName:    nameMap[row.salon_id as number]?.name ?? '',
       salonArea:    nameMap[row.salon_id as number]?.area ?? '',
-      displayOrder: row.display_order as number,
-      imageUrl:     (row.image_url as string | null) ?? null,
+      displayOrder:   row.display_order as number,
+      imageUrl:       (row.image_url as string | null) ?? null,
+      mobileImageUrl: (row.mobile_image_url as string | null) ?? null,
     })));
     setLoading(false);
   }, [selectedArea]);
@@ -117,12 +120,13 @@ export default function FeaturedSalonsManager({ allSalons }: { allSalons: SalonO
     if (error) { setSaving(false); alert(`削除に失敗しました。\n${error.message}`); return; }
     // 行削除時に紐づく画像ファイルもstorageから掃除（残置ファイル対策）。DB削除成功後に実施。
     const removed = items.find(i => i.id === id);
-    if (removed?.imageUrl) {
-      const oldPath = removed.imageUrl.split(`/${BUCKET}/`)[1];
-      if (oldPath) {
-        const { error: removeError } = await supabase.storage.from(BUCKET).remove([oldPath]);
-        if (removeError) console.error('[FeaturedSalons] 行削除に伴う画像の削除に失敗:', oldPath, removeError);
-      }
+    // PC用・スマホ用の両ファイルを掃除。
+    const oldPaths = [removed?.imageUrl ?? null, removed?.mobileImageUrl ?? null]
+      .map(u => (u ? u.split(`/${BUCKET}/`)[1] : null))
+      .filter((pth): pth is string => Boolean(pth));
+    if (oldPaths.length > 0) {
+      const { error: removeError } = await supabase.storage.from(BUCKET).remove(oldPaths);
+      if (removeError) console.error('[FeaturedSalons] 行削除に伴う画像の削除に失敗:', oldPaths, removeError);
     }
     setSaving(false);
     revalidateFeaturedArea(selectedArea);
@@ -147,8 +151,9 @@ export default function FeaturedSalonsManager({ allSalons }: { allSalons: SalonO
     revalidateFeaturedArea(selectedArea);
   };
 
-  const triggerImageUpload = (itemId: string) => {
+  const triggerImageUpload = (itemId: string, kind: 'pc' | 'sp' = 'pc') => {
     uploadTargetId.current = itemId;
+    uploadKind.current = kind;
     fileInputRef.current?.click();
   };
 
@@ -166,12 +171,17 @@ export default function FeaturedSalonsManager({ allSalons }: { allSalons: SalonO
     // 毎回URLが変わるようにして確実に反映させる。
     // salons/ プレフィックスで求人分(jobs/)と分離。削除は image_url から '/{BUCKET}/' 以降を
     // 切り出す方式のため、プレフィックス無しの旧オブジェクトも引き続き削除可能。
-    const path = `salons/${itemId}/${Date.now()}.${ext}`;
+    const kind = uploadKind.current;
+    // スマホ用は sp- プレフィックスで分離。PC用は従来どおり。
+    const path = kind === 'sp'
+      ? `salons/${itemId}/sp-${Date.now()}.${ext}`
+      : `salons/${itemId}/${Date.now()}.${ext}`;
 
     setSaving(true);
 
     // 差し替え前の旧ファイルパスを控えておく（新規アップロード成功後に掃除する）。
-    const oldPath = item.imageUrl ? item.imageUrl.split(`/${BUCKET}/`)[1] : null;
+    const oldUrl = kind === 'sp' ? item.mobileImageUrl : item.imageUrl;
+    const oldPath = oldUrl ? oldUrl.split(`/${BUCKET}/`)[1] : null;
 
     const { error: uploadError } = await supabase.storage
       .from(BUCKET)
@@ -189,7 +199,7 @@ export default function FeaturedSalonsManager({ allSalons }: { allSalons: SalonO
     const { data: { publicUrl } } = supabase.storage.from(BUCKET).getPublicUrl(path);
     const { error: updateError } = await supabase
       .from('featured_salons')
-      .update({ image_url: publicUrl })
+      .update(kind === 'sp' ? { mobile_image_url: publicUrl } : { image_url: publicUrl })
       .eq('id', itemId);
 
     if (updateError) {
@@ -208,15 +218,17 @@ export default function FeaturedSalonsManager({ allSalons }: { allSalons: SalonO
     await fetchFeatured();
   };
 
-  const handleDeleteImage = async (item: FeaturedItem) => {
-    if (!item.imageUrl) return;
+  const handleDeleteImage = async (item: FeaturedItem, kind: 'pc' | 'sp' = 'pc') => {
+    const targetUrl = kind === 'sp' ? item.mobileImageUrl : item.imageUrl;
+    if (!targetUrl) return;
+    if (kind === 'sp' && !window.confirm('スマホ用画像を削除しますか？\nスマホではPC用画像の表示に戻ります。')) return;
     setSaving(true);
-    const storagePath = item.imageUrl.split(`/${BUCKET}/`)[1];
+    const storagePath = targetUrl.split(`/${BUCKET}/`)[1];
     if (storagePath) {
       const { error: removeError } = await supabase.storage.from(BUCKET).remove([storagePath]);
       if (removeError) console.error('[FeaturedSalons] 画像の削除に失敗:', storagePath, removeError);
     }
-    await supabase.from('featured_salons').update({ image_url: null }).eq('id', item.id);
+    await supabase.from('featured_salons').update(kind === 'sp' ? { mobile_image_url: null } : { image_url: null }).eq('id', item.id);
     setSaving(false);
     revalidateFeaturedArea(selectedArea);
     await fetchFeatured();
@@ -229,7 +241,7 @@ export default function FeaturedSalonsManager({ allSalons }: { allSalons: SalonO
     <div className="bg-white rounded-3xl border border-slate-100 shadow-sm p-6">
       <div className="flex items-center justify-between mb-5">
         <div className="flex items-center gap-2">
-          <span className="text-[10px] text-slate-400">推奨画像サイズ: 横1440px × 縦540px</span>
+          <span className="text-[10px] text-slate-400">推奨画像サイズ: PC用 横1440×縦540px／スマホ用（任意）横1080×縦540px</span>
         </div>
         <span className="text-xs text-slate-400">{items.length} / {MAX_FEATURED}件</span>
       </div>
@@ -254,10 +266,13 @@ export default function FeaturedSalonsManager({ allSalons }: { allSalons: SalonO
           );
         })}
       </div>
-      <p className="text-[11px] text-slate-400 mb-4">
+      <p className="text-[11px] text-slate-400 mb-2">
         {selectedArea === null
           ? 'トップページ（/）に表示される共通のピックアップです。'
           : `「${areaLabel(selectedArea)}」の地域ページに表示されるピックアップです。`}
+      </p>
+      <p className="text-[11px] text-slate-400 mb-4 leading-relaxed">
+        スマホ用画像（任意）を設定するとスマホではそちらが表示されます（未設定ならPC用が中央トリミングで表示）。スマホの表示枠は全幅×高さ約208px（約2:1）です。
       </p>
 
       {/* hidden file input */}
@@ -315,40 +330,36 @@ export default function FeaturedSalonsManager({ allSalons }: { allSalons: SalonO
                     </div>
                   </div>
 
-                  {/* 下段: 画像設定 */}
-                  <div className="mt-2 pl-7 flex items-center gap-2">
-                    {item.imageUrl ? (
-                      <>
-                        {/* eslint-disable-next-line @next/next/no-img-element */}
-                        <img
-                          src={item.imageUrl}
-                          alt="スライダー画像"
-                          className="w-16 h-10 object-cover rounded-lg border border-pink-100"
-                        />
-                        <button
-                          onClick={() => triggerImageUpload(item.id)}
-                          disabled={saving}
-                          className="text-[10px] text-pink-500 font-semibold border border-pink-200 rounded-lg px-2.5 py-1 hover:bg-pink-50 disabled:opacity-40 transition-colors"
-                        >
-                          変更
-                        </button>
-                        <button
-                          onClick={() => handleDeleteImage(item)}
-                          disabled={saving}
-                          className="text-[10px] text-rose-400 font-semibold border border-rose-100 rounded-lg px-2.5 py-1 hover:bg-rose-50 disabled:opacity-40 transition-colors"
-                        >
-                          画像を削除
-                        </button>
-                      </>
-                    ) : (
-                      <button
-                        onClick={() => triggerImageUpload(item.id)}
-                        disabled={saving}
-                        className="text-[10px] text-slate-500 font-semibold border border-dashed border-slate-300 rounded-lg px-3 py-1.5 hover:border-pink-300 hover:text-pink-500 disabled:opacity-40 transition-colors"
-                      >
-                        📷 画像をアップロード
-                      </button>
-                    )}
+                  {/* 下段: 画像設定（PC用／スマホ用） */}
+                  <div className="mt-2 pl-7 space-y-2">
+                    {/* PC用 */}
+                    <div className="flex items-center gap-2">
+                      <span className="text-[9px] font-bold text-slate-400 w-12 flex-shrink-0 leading-tight">PC用</span>
+                      {item.imageUrl ? (
+                        <>
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img src={item.imageUrl} alt="PC用スライダー画像" className="w-16 h-10 object-cover rounded-lg border border-pink-100" />
+                          <button onClick={() => triggerImageUpload(item.id, 'pc')} disabled={saving} className="text-[10px] text-pink-500 font-semibold border border-pink-200 rounded-lg px-2.5 py-1 hover:bg-pink-50 disabled:opacity-40 transition-colors">変更</button>
+                          <button onClick={() => handleDeleteImage(item, 'pc')} disabled={saving} className="text-[10px] text-rose-400 font-semibold border border-rose-100 rounded-lg px-2.5 py-1 hover:bg-rose-50 disabled:opacity-40 transition-colors">画像を削除</button>
+                        </>
+                      ) : (
+                        <button onClick={() => triggerImageUpload(item.id, 'pc')} disabled={saving} className="text-[10px] text-slate-500 font-semibold border border-dashed border-slate-300 rounded-lg px-3 py-1.5 hover:border-pink-300 hover:text-pink-500 disabled:opacity-40 transition-colors">📷 画像をアップロード</button>
+                      )}
+                    </div>
+                    {/* スマホ用（任意） */}
+                    <div className="flex items-center gap-2">
+                      <span className="text-[9px] font-bold text-slate-400 w-12 flex-shrink-0 leading-tight">スマホ用<br />（任意）</span>
+                      {item.mobileImageUrl ? (
+                        <>
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img src={item.mobileImageUrl} alt="スマホ用スライダー画像" className="w-16 h-10 object-cover rounded-lg border border-pink-100" />
+                          <button onClick={() => triggerImageUpload(item.id, 'sp')} disabled={saving} className="text-[10px] text-pink-500 font-semibold border border-pink-200 rounded-lg px-2.5 py-1 hover:bg-pink-50 disabled:opacity-40 transition-colors">変更</button>
+                          <button onClick={() => handleDeleteImage(item, 'sp')} disabled={saving} className="text-[10px] text-rose-400 font-semibold border border-rose-100 rounded-lg px-2.5 py-1 hover:bg-rose-50 disabled:opacity-40 transition-colors">画像を削除</button>
+                        </>
+                      ) : (
+                        <button onClick={() => triggerImageUpload(item.id, 'sp')} disabled={saving} className="text-[10px] text-slate-500 font-semibold border border-dashed border-slate-300 rounded-lg px-3 py-1.5 hover:border-pink-300 hover:text-pink-500 disabled:opacity-40 transition-colors">📷 スマホ用をアップロード</button>
+                      )}
+                    </div>
                   </div>
                 </div>
               ))}
