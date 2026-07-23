@@ -90,11 +90,11 @@ export function RankingTherapistShowcase({
   return (
     <div className={`p-[2.5px] shadow-md ${rank >= 30 && rank <= 39 ? 'mb-[5px]' : rank >= 20 && rank <= 29 ? 'mb-[10px]' : rank >= 10 && rank <= 19 ? 'mb-[15px]' : 'mb-5'}`} style={{ background: m.border }}>
       <div style={{ background: darkTheme ? theme.card : '#ffffff' }}>
-        <div className={`flex ${nano ? 'aspect-[16/3]' : compact ? 'h-44' : ''}`}>
+        <div className={`flex ${nano ? 'aspect-[16/3]' : compact ? 'h-44 sm:h-auto' : ''}`}>
           {/* 左半分：セラピストの大きな写真カード */}
           <Link
             href={`/therapist/${id}`}
-            className={`relative block flex-shrink-0 overflow-hidden bg-slate-100 group ${nano ? 'w-[14.0625%] h-full' : micro ? 'w-[18.75%] aspect-[3/4]' : mini ? 'w-1/4 aspect-[3/4]' : compact ? 'w-[37.5%] h-full' : 'w-1/2 aspect-[3/4]'}`}
+            className={`relative block flex-shrink-0 overflow-hidden bg-slate-100 group ${nano ? 'w-[14.0625%] h-full' : micro ? 'w-[18.75%] aspect-[3/4]' : mini ? 'w-1/4 aspect-[3/4]' : compact ? 'w-[37.5%] h-full sm:h-auto sm:aspect-[3/4]' : 'w-1/2 aspect-[3/4]'}`}
           >
             {profileImageUrl ? (
               <Image
