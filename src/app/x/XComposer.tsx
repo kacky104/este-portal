@@ -294,7 +294,7 @@ export const XComposer = forwardRef<XComposerHandle, XComposerProps>(function XC
         </div>
       )}
       <textarea
-        rows={3}
+        rows={isReply ? 3 : 6}
         value={body}
         onChange={(e) => {
           setBody(e.target.value);
