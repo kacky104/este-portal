@@ -140,6 +140,9 @@ export default function AdminDashboard() {
   const [expandedSections, setExpandedSections] = useState<Set<string>>(new Set(['salon-list']));
   // 求人タブのバッジ用（AdminJobsManager が読み込み時に求人件数・新規応募合計を通知）。
   const [jobStats, setJobStats] = useState<{ total: number; newCount: number }>({ total: 0, newCount: 0 });
+  // 求職マッチングの未対応エントリー件数（WorkMatchManager が読み込み/更新時に通知）。
+  // 求人タブのバッジ（新規応募との合算）とアコーディオン見出しの「未対応n件」に使う。
+  const [matchOpenCount, setMatchOpenCount] = useState(0);
   // 掲載店舗一覧の表示/非表示サブタブ（is_hidden で分割）。永続化しないクライアントstateのみ。
   const [salonListTab, setSalonListTab] = useState<'visible' | 'hidden'>('visible');
 
@@ -398,9 +401,10 @@ export default function AdminDashboard() {
               }`}
             >
               {label}
-              {key === 'jobs' && jobStats.newCount > 0 && (
+              {/* 求人タブ：新規応募＋マッチング未対応の合算バッジ（/adminを開いた瞬間に要対応が分かるように） */}
+              {key === 'jobs' && jobStats.newCount + matchOpenCount > 0 && (
                 <span className="inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 rounded-full bg-pink-500 text-white text-[10px] font-black leading-none">
-                  {jobStats.newCount}
+                  {jobStats.newCount + matchOpenCount}
                 </span>
               )}
             </button>
@@ -470,11 +474,6 @@ export default function AdminDashboard() {
           {/* ── 新規店舗の初回情報入力フォーム（ワンタイムURL発行・入力内容の確認） ── */}
           <AccordionSection id="listing-inquiries" title="掲載お問い合わせ" expanded={expandedSections} onToggle={toggleSection}>
             <ListingInquiryManager onToast={showToast} />
-          </AccordionSection>
-
-          {/* ── フクエスワーク 求職マッチング エントリー（/jobs/matching の公開フォーム受け皿・斡旋支援） ── */}
-          <AccordionSection id="work-match-entries" title="求職マッチング エントリー" expanded={expandedSections} onToggle={toggleSection}>
-            <WorkMatchManager onToast={showToast} />
           </AccordionSection>
 
           <AccordionSection id="salon-intakes" title="新規店舗 入力フォーム発行" expanded={expandedSections} onToggle={toggleSection}>
@@ -770,6 +769,24 @@ export default function AdminDashboard() {
 
         {/* ══════════ 求人タブ（本体タブと同じアコーディオン方式） ══════════ */}
         <div className={`space-y-4 ${activeTab === 'jobs' ? '' : 'hidden'}`}>
+
+          {/* ── 求職マッチング エントリー（/jobs/matching の公開フォーム受け皿・斡旋支援）。
+              要対応が最初に目に入るようタブ最上部に配置し、未対応件数を見出しバッジで表示。 ── */}
+          <AccordionSection
+            id="work-match-entries"
+            title="求職マッチング エントリー"
+            meta={
+              matchOpenCount > 0 ? (
+                <span className="text-[10px] px-2 py-0.5 rounded-full font-bold bg-pink-50 text-pink-600 border border-pink-200">
+                  未対応{matchOpenCount}件
+                </span>
+              ) : undefined
+            }
+            expanded={expandedSections}
+            onToggle={toggleSection}
+          >
+            <WorkMatchManager onToast={showToast} onOpenCount={setMatchOpenCount} />
+          </AccordionSection>
 
           {/* おすすめ求人（featured_jobs）設定：本体のピックアップサロンと同方式 */}
           <AccordionSection id="featured-jobs" title="おすすめ求人設定" expanded={expandedSections} onToggle={toggleSection}>

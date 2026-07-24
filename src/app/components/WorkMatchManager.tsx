@@ -40,7 +40,14 @@ function formatDateTimeJST(iso: string): string {
   }).format(d);
 }
 
-export default function WorkMatchManager({ onToast }: { onToast: (msg: string) => void }) {
+export default function WorkMatchManager({
+  onToast,
+  onOpenCount,
+}: {
+  onToast: (msg: string) => void;
+  // 未対応（status='open'）件数の変化を親へ通知（/admin の求人タブ・アコーディオン見出しのバッジ用）。
+  onOpenCount?: (n: number) => void;
+}) {
   const supabase = createClient();
   const [entries, setEntries] = useState<WorkMatchEntry[]>([]);
   const [loading, setLoading] = useState(true);
@@ -65,6 +72,11 @@ export default function WorkMatchManager({ onToast }: { onToast: (msg: string) =
   }, [supabase]);
 
   useEffect(() => { fetchList(); }, [fetchList]);
+
+  // 未対応件数を親へ通知（読み込み・状態切替・削除のたびに entries から再計算）。
+  useEffect(() => {
+    onOpenCount?.(entries.filter((q) => q.status === 'open').length);
+  }, [entries, onOpenCount]);
 
   const toggleStatus = async (q: WorkMatchEntry) => {
     const next = q.status === 'open' ? 'done' : 'open';
