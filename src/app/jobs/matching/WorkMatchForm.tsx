@@ -19,7 +19,9 @@ import { JOB_FEATURE_GROUPS, featureLabel, MAX_JOB_FEATURES } from '@/app/lib/jo
 
 // 求職マッチングのエントリーフォーム（/jobs/matching）。未ログインで送信可。
 // website はハニーポット（CSSで非表示・人間は空のまま）。送信成功で完了表示に切り替える。
-// 連絡先（電話・LINE・メール）は最低どれか1つ必須。希望特徴は最大 MAX_JOB_FEATURES 個。
+// 連絡先（電話・LINE・メール）は最低どれか1つ必須＝ご紹介先のお店からの連絡に使う。
+// 「運営からのおすすめ店舗ピックアップ（メール案内）」は希望制で、希望時はメール必須。
+// 希望特徴は最大 MAX_JOB_FEATURES 個。
 export function WorkMatchForm() {
   const [displayName, setDisplayName] = useState('');
   const [age, setAge] = useState('');
@@ -31,6 +33,7 @@ export function WorkMatchForm() {
   const [contactPhone, setContactPhone] = useState('');
   const [contactLine, setContactLine] = useState('');
   const [contactEmail, setContactEmail] = useState('');
+  const [wantsAdminPickup, setWantsAdminPickup] = useState(false);
   const [note, setNote] = useState('');
   const [website, setWebsite] = useState(''); // honeypot
   const [sending, setSending] = useState(false);
@@ -52,7 +55,9 @@ export function WorkMatchForm() {
   const ageNum = Number(age);
   const ageOk = /^\d{1,3}$/.test(age.trim()) && ageNum >= 18 && ageNum <= 99;
   const hasContact = contactPhone.trim() !== '' || contactLine.trim() !== '' || contactEmail.trim() !== '';
-  const canSubmit = ageOk && experience !== '' && hasContact && !sending;
+  // 運営ピックアップ希望時はメール必須（サーバー validate と同一規則）。
+  const pickupEmailOk = !wantsAdminPickup || contactEmail.trim() !== '';
+  const canSubmit = ageOk && experience !== '' && hasContact && pickupEmailOk && !sending;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -71,6 +76,7 @@ export function WorkMatchForm() {
         contactPhone,
         contactLine,
         contactEmail,
+        wantsAdminPickup,
         note,
         website,
       });
@@ -90,7 +96,7 @@ export function WorkMatchForm() {
         <p className="text-2xl mb-2">🐾</p>
         <p className="text-sm font-bold text-slate-800 mb-1">エントリーを受け付けました</p>
         <p className="text-xs text-slate-500 leading-relaxed">
-          ご希望に合うお店を運営がお探しして、ご入力いただいた連絡先へご案内します。<br />
+          ご希望に合うお店を運営がお探しして、ご紹介先のお店からご入力いただいた連絡先へご連絡いたします。<br />
           少しお時間をいただく場合があります。どうぞお待ちください。
         </p>
       </div>
@@ -200,7 +206,7 @@ export function WorkMatchForm() {
       <div className={sectionClass}>
         <p className="text-xs font-black text-emerald-700 mb-1">ご連絡先</p>
         <p className="text-[11px] text-slate-400 mb-3">
-          電話・LINE・メールのうち、ご希望の連絡方法を<span className="font-bold text-slate-500">1つ以上</span>ご記入ください。運営からそっとご連絡します。
+          電話・LINE・メールのうち、ご希望の連絡方法を<span className="font-bold text-slate-500">1つ以上</span>ご記入ください。ご紹介先のお店から、こちらの連絡先へご連絡いたします。
         </p>
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           <div>
@@ -218,6 +224,25 @@ export function WorkMatchForm() {
         </div>
         {!hasContact && (
           <p className="text-[11px] text-slate-400 mt-2">いずれか1つ以上の連絡先を入力すると送信できます。</p>
+        )}
+
+        {/* 運営からのおすすめ店舗ピックアップ（希望制・希望時はメール必須） */}
+        <label className="flex items-start gap-2.5 mt-4 rounded-xl border border-emerald-100 bg-emerald-50/40 p-3 cursor-pointer">
+          <input
+            type="checkbox"
+            checked={wantsAdminPickup}
+            onChange={(e) => setWantsAdminPickup(e.target.checked)}
+            className="mt-0.5 w-4 h-4 accent-emerald-600 flex-shrink-0"
+          />
+          <span className="min-w-0">
+            <span className="block text-xs font-bold text-slate-700">運営からのおすすめ店舗ピックアップも希望する</span>
+            <span className="block text-[11px] text-slate-500 leading-relaxed mt-0.5">
+              あなたの希望に合うおすすめのお店を、運営がメールでご案内します。<span className="font-bold">ご希望の場合はメールアドレスのご記入が必須です。</span>
+            </span>
+          </span>
+        </label>
+        {wantsAdminPickup && contactEmail.trim() === '' && (
+          <p className="text-[11px] text-rose-400 mt-2">運営からのピックアップをご希望の場合は、メールアドレスをご記入ください。</p>
         )}
       </div>
 

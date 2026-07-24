@@ -85,13 +85,18 @@ export async function submitWorkMatchEntry(
     return { ok: false, error: '連絡先が長すぎます' };
   }
 
-  // 連絡先は電話・LINE・メールのうち最低1つ必須。
+  // 連絡先（ご紹介先のお店からの連絡に使う）は電話・LINE・メールのうち最低1つ必須。
   if (contactPhone === '' && contactLine === '' && contactEmail === '') {
     return { ok: false, error: '連絡先を電話・LINE・メールのいずれか1つ以上入力してください' };
   }
   // メールを入力した場合は形式チェック。
   if (contactEmail !== '' && !isValidEmailFormat(contactEmail)) {
     return { ok: false, error: 'メールアドレスの形式が正しくありません' };
+  }
+  // 運営からのおすすめ店舗ピックアップ（メール案内）を希望する場合はメール必須。
+  const wantsAdminPickup = input.wantsAdminPickup === true;
+  if (wantsAdminPickup && contactEmail === '') {
+    return { ok: false, error: '運営からのおすすめ店舗ピックアップをご希望の場合は、メールアドレスの入力が必要です' };
   }
 
   const svc = createServiceClient();
@@ -106,6 +111,7 @@ export async function submitWorkMatchEntry(
     contact_phone: contactPhone || null,
     contact_line: contactLine || null,
     contact_email: contactEmail || null,
+    wants_admin_pickup: wantsAdminPickup,
     note: note || null,
   });
   if (error) return { ok: false, error: '送信に失敗しました。時間をおいてお試しください' };
@@ -122,10 +128,11 @@ export async function submitWorkMatchEntry(
     `送迎: ${PICKUP_LABEL[wantsPickup as WorkPickup]}`,
     `希望条件: ${featuresLabel}`,
     '',
-    '─── 連絡先 ───',
+    '─── 連絡先（お店からの連絡用） ───',
     `電話: ${contactPhone || '(なし)'}`,
     `LINE: ${contactLine || '(なし)'}`,
     `メール: ${contactEmail || '(なし)'}`,
+    `運営からのおすすめ店舗ピックアップ: ${wantsAdminPickup ? '希望あり（メールで案内）' : '希望なし'}`,
     '',
     '─── その他ご希望 ───',
     note || '(なし)',

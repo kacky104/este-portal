@@ -10,7 +10,8 @@ import { featureLabel } from '@/app/lib/jobs';
 // /jobs/matching の公開フォームから送られた求職エントリーを、掲載お問い合わせと同じ作法で管理する
 // （未対応を先頭・未対応⇔対応済みトグル・削除）。RLS: 運営のみ全操作可。
 // 各エントリーで「条件に合う店舗を提案」を押すと、希望エリアで絞りつつ“応募が少ない掲載店”を
-// 上位に並べた候補（suggestStoresForEntry）を表示。運営が上位3店ほどを選んで本人に連絡・斡旋する。
+// 上位に並べた候補（suggestStoresForEntry）を表示。運営が上位3店ほどを選んで店舗側へ共有し、
+// 店舗から本人の連絡先へ連絡してもらう（wants_admin_pickup=true の人には運営からもメールで案内）。
 type WorkMatchEntry = {
   id: string;
   display_name: string | null;
@@ -23,6 +24,7 @@ type WorkMatchEntry = {
   contact_phone: string | null;
   contact_line: string | null;
   contact_email: string | null;
+  wants_admin_pickup: boolean;
   note: string | null;
   status: 'open' | 'done';
   created_at: string;
@@ -50,7 +52,7 @@ export default function WorkMatchManager({ onToast }: { onToast: (msg: string) =
     setLoading(true);
     const { data, error } = await supabase
       .from('work_match_entries')
-      .select('id, display_name, age, experience, current_job, desired_areas, wants_pickup, desired_features, contact_phone, contact_line, contact_email, note, status, created_at')
+      .select('id, display_name, age, experience, current_job, desired_areas, wants_pickup, desired_features, contact_phone, contact_line, contact_email, wants_admin_pickup, note, status, created_at')
       .order('created_at', { ascending: false });
     if (error) {
       setErrorMsg('work_match_entries テーブルの読み込みに失敗しました。マイグレーションを適用したか確認してください。');
@@ -173,7 +175,13 @@ export default function WorkMatchManager({ onToast }: { onToast: (msg: string) =
                 {q.desired_features && q.desired_features.length > 0 && (
                   <p className="text-[11px] text-slate-500 mt-0.5">希望条件: {q.desired_features.map(featureLabel).join('、')}</p>
                 )}
-                <p className="text-[11px] text-slate-600 mt-1 font-medium">{contactLine(q)}</p>
+                <p className="text-[11px] text-slate-600 mt-1 font-medium">
+                  {contactLine(q)}
+                  <span className="ml-1 text-[10px] text-slate-400 font-normal">（お店からの連絡用）</span>
+                  {q.wants_admin_pickup && (
+                    <span className="ml-2 text-[10px] font-bold px-2 py-0.5 rounded-full bg-sky-50 text-sky-600 border border-sky-200">運営ピックアップ希望（メール案内）</span>
+                  )}
+                </p>
                 {q.note && <p className="text-[11px] text-slate-500 whitespace-pre-wrap break-words mt-1 rounded-lg bg-slate-50 px-2 py-1.5">{q.note}</p>}
 
                 {/* 斡旋支援：条件に合う店舗を提案 */}

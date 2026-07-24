@@ -36,9 +36,12 @@ export type WorkMatchInput = {
   desiredAreas: string[];
   wantsPickup: string;
   desiredFeatures: string[];
+  // 連絡先（ご紹介先のお店からの連絡に使う。最低どれか1つ必須）。
   contactPhone: string;
   contactLine: string;
   contactEmail: string;
+  // 運営からのおすすめ店舗ピックアップ（メール案内）希望。true の場合 contactEmail 必須。
+  wantsAdminPickup: boolean;
   note: string;
   website: string; // honeypot（人間は空のまま送る）
 };
