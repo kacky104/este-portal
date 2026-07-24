@@ -1,10 +1,12 @@
 'use client';
 
-import { useState } from 'react';
+import { forwardRef, useImperativeHandle, useState } from 'react';
 import { createClient } from '@/app/lib/supabase/client';
 import { normalizeLinkUrl } from './xLink';
 import type { XProfile } from './xProfile';
 import type { XPost } from './xPosts';
+import type { XDraft } from './xDrafts';
+import { XDraftsPanel } from './XDraftsPanel';
 import { STORAGE_CACHE_CONTROL } from '@/app/lib/storage';
 
 const supabase = createClient();
@@ -17,23 +19,33 @@ function validateImageFile(file: File): string | null {
   return null;
 }
 
-// 投稿コンポーザ。表示条件（approved の therapist/shop）は親で判定済み＝ここでは出ている時点で投稿可能。
-// myAffiliatedShop: 自分（セラピスト）の所属先（あれば）。投稿直後の楽観カードに所属バッジを出すために使う。
-export function XComposer({
-  me,
-  myAffiliatedShop,
-  onPosted,
-  parentPostId,
-  editPost,
-}: {
+// 親（XComposeFab）が「閉じる時確認」で使う命令ハンドル。
+// hasUnsavedDraftableContent: 下書き化できる未送信内容があるか（本文 or 画像）。
+// saveDraft: 現在の内容を下書きに保存し、成否を返す（フィールドは成功時に空へ戻す）。
+export type XComposerHandle = {
+  hasUnsavedDraftableContent: () => boolean;
+  saveDraft: () => Promise<boolean>;
+};
+
+type XComposerProps = {
   me: XProfile;
   myAffiliatedShop?: { handle: string; displayName: string } | null;
   onPosted: (post: XPost) => void;
   // 指定時はリプライ作成モード（parent_post_id をセット・リプライ不可トグルは出さない）。
   parentPostId?: string;
-  // 指定時は編集モード（新規 insert ではなく対象投稿を update・各値を初期表示）。
+  // 指定時は編集モード（新規 insert ではなく対象投稿を update・各値を初期表示）。編集は下書き対象外。
   editPost?: XPost;
-}) {
+  // 下書き保存が成功したときに親へ通知（FABはこれでモーダルを閉じてトースト表示）。
+  // 未指定（インラインのリプライ欄など）ではコンポーザ内に緑の通知を出す。
+  onDraftSaved?: () => void;
+};
+
+// 投稿コンポーザ。表示条件（approved の therapist/shop）は親で判定済み＝ここでは出ている時点で投稿可能。
+// myAffiliatedShop: 自分（セラピスト）の所属先（あれば）。投稿直後の楽観カードに所属バッジを出すために使う。
+export const XComposer = forwardRef<XComposerHandle, XComposerProps>(function XComposer(
+  { me, myAffiliatedShop, onPosted, parentPostId, editPost, onDraftSaved },
+  ref
+) {
   const isReply = !!parentPostId;
   const isEdit = !!editPost;
   // リプライ不可トグルは「通常投稿/通常投稿の編集」かつ自分が therapist/shop のときだけ表示（user には出さない＝DB側ガードと二重防御）。
@@ -46,6 +58,17 @@ export function XComposer({
   const [posting, setPosting] = useState(false);
   const [error, setError] = useState('');
   const [repliesDisabled, setRepliesDisabled] = useState(editPost?.repliesDisabled ?? false);
+
+  // ── 下書き関連 ──
+  // activeDraftId: いま編集中の下書きの id（null=下書き由来ではない新規作成）。
+  //   保存時は id 有りなら update、無しなら insert。投稿成功時に id 有りならその下書きを削除する。
+  const [activeDraftId, setActiveDraftId] = useState<string | null>(null);
+  const [savingDraft, setSavingDraft] = useState(false);
+  const [draftNotice, setDraftNotice] = useState('');
+  const [showDrafts, setShowDrafts] = useState(false);
+
+  // 下書き化できる内容があるか（DB制約 x_post_not_empty と同じく本文 or 画像が要る。リンクのみは不可）。
+  const hasDraftableContent = body.trim().length > 0 || images.length > 0;
 
   const onPick = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files ?? []);
@@ -87,6 +110,75 @@ export function XComposer({
   const trimmed = body.trim();
   // 本文空＋画像0 は送信不可（DB制約 x_post_not_empty に一致）。
   const canPost = (trimmed.length > 0 || images.length > 0) && !posting && !uploading;
+
+  // ── 下書き保存の実体：成功で true。フィールドは空へ戻す（内容は下書きに退避済み）。 ──
+  // ボタン経由・親からの命令（閉じる時確認）双方でこれを使う。フィードバックは呼び出し側で出す。
+  const doSaveDraft = async (): Promise<boolean> => {
+    if (isEdit) return false; // 既存投稿の編集は下書き対象外
+    if (!hasDraftableContent || savingDraft || posting || uploading) return false;
+    const { url: linkUrl, error: linkErr } = normalizeLinkUrl(link);
+    if (linkErr) {
+      setError(linkErr);
+      return false;
+    }
+    setSavingDraft(true);
+    setError('');
+    const row: Record<string, unknown> = {
+      body: trimmed || null,
+      images,
+      link_url: linkUrl,
+      replies_disabled: canToggleReplies ? repliesDisabled : false,
+    };
+    let ok = false;
+    if (activeDraftId) {
+      // 既存下書きの上書き（updated_at はトリガで自動更新）。
+      const { error: upErr } = await supabase.from('x_drafts').update(row).eq('id', activeDraftId);
+      ok = !upErr;
+      if (upErr) setError(`下書きを保存できませんでした：${upErr.message}`);
+    } else {
+      // 新規下書き。リプライ下書きは parent_post_id を付与（x_posts.id は bigint＝文字列でも自動変換）。
+      const { error: insErr } = await supabase
+        .from('x_drafts')
+        .insert({ ...row, author_profile_id: me.id, parent_post_id: parentPostId ?? null });
+      ok = !insErr;
+      if (insErr) setError(`下書きを保存できませんでした：${insErr.message}`);
+    }
+    setSavingDraft(false);
+    if (ok) {
+      setBody('');
+      setImages([]);
+      setLink('');
+      setRepliesDisabled(false);
+      setActiveDraftId(null);
+    }
+    return ok;
+  };
+
+  // ボタン「下書き保存」：保存後、親があれば通知（FABは閉じる）、無ければ緑の通知を出す。
+  const onClickSaveDraft = async () => {
+    const ok = await doSaveDraft();
+    if (!ok) return;
+    if (onDraftSaved) onDraftSaved();
+    else setDraftNotice('下書きに保存しました');
+  };
+
+  // 一覧で選んだ下書きをコンポーザに読み込む（以後の保存は上書き＝update）。
+  const loadDraft = (d: XDraft) => {
+    setBody(d.body ?? '');
+    setImages(d.images);
+    setLink(d.linkUrl ?? '');
+    setRepliesDisabled(canToggleReplies ? d.repliesDisabled : false);
+    setActiveDraftId(d.id);
+    setShowDrafts(false);
+    setError('');
+    setDraftNotice('');
+  };
+
+  // 親（XComposeFab）へ命令ハンドルを公開（閉じる時確認で使用）。
+  useImperativeHandle(ref, () => ({
+    hasUnsavedDraftableContent: () => hasDraftableContent,
+    saveDraft: doSaveDraft,
+  }));
 
   const submit = async () => {
     if (!canPost) return;
@@ -179,6 +271,11 @@ export function XComposer({
         affiliatedShop: myAffiliatedShop ?? null,
       },
     });
+    // 下書きから起こした投稿なら、その下書きを削除（投稿できたので不要）。
+    if (activeDraftId) {
+      await supabase.from('x_drafts').delete().eq('id', activeDraftId);
+      setActiveDraftId(null);
+    }
     setBody('');
     setImages([]);
     setLink('');
@@ -191,10 +288,18 @@ export function XComposer({
           ⚠️ {error}
         </div>
       )}
+      {draftNotice && (
+        <div className="mb-2 p-2.5 rounded-xl bg-emerald-50 border border-emerald-100 text-emerald-600 text-[12px] font-medium">
+          ✓ {draftNotice}
+        </div>
+      )}
       <textarea
         rows={3}
         value={body}
-        onChange={(e) => setBody(e.target.value)}
+        onChange={(e) => {
+          setBody(e.target.value);
+          if (draftNotice) setDraftNotice('');
+        }}
         placeholder={isReply ? '返信を入力' : 'いまどうしてる？'}
         maxLength={BODY_MAX}
         className="w-full px-3 py-2.5 rounded-xl border border-[color:var(--x-border-strong)] text-sm bg-[color:var(--x-inset)] text-[color:var(--x-text-primary)] placeholder:text-[color:var(--x-text-muted)] focus:outline-none focus:ring-2 focus:ring-indigo-300 focus:border-transparent resize-none"
@@ -274,30 +379,70 @@ export function XComposer({
               className="hidden"
             />
           </label>
+
+          {/* 下書き一覧（編集モード以外）。通常投稿=通常下書き / リプライ=このスレッドのリプライ下書き。 */}
+          {!isEdit && (
+            <button
+              type="button"
+              onClick={() => setShowDrafts(true)}
+              className="inline-flex items-center gap-1 text-xs font-bold text-indigo-500 hover:text-[color:var(--x-accent)] transition-colors"
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                <path d="M14 2v6h6M8 13h8M8 17h6" />
+              </svg>
+              下書き
+            </button>
+          )}
+
           <span className="text-[11px] text-[color:var(--x-text-muted)] tabular-nums">
             残り{BODY_MAX - body.length}
           </span>
         </div>
-        <button
-          type="button"
-          onClick={submit}
-          disabled={!canPost}
-          className="px-5 py-2 rounded-full text-white font-bold text-sm shadow-sm disabled:opacity-40 disabled:cursor-not-allowed transition-opacity"
-          style={{ background: 'linear-gradient(100deg,#6366F1,#8B5CF6)' }}
-        >
-          {posting
-            ? isEdit
-              ? '保存中...'
-              : isReply
-                ? '送信中...'
-                : '投稿中...'
-            : isEdit
-              ? '保存する'
-              : isReply
-                ? '返信する'
-                : '投稿する'}
-        </button>
+
+        <div className="flex items-center gap-2">
+          {/* 下書き保存（編集モード以外・内容があるときのみ有効） */}
+          {!isEdit && (
+            <button
+              type="button"
+              onClick={onClickSaveDraft}
+              disabled={!hasDraftableContent || savingDraft || posting || uploading}
+              className="px-4 py-2 rounded-full font-bold text-sm border border-[color:var(--x-border-strong)] text-[color:var(--x-text-secondary)] hover:bg-[color:var(--x-inset)] disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+            >
+              {savingDraft ? '保存中...' : '下書き保存'}
+            </button>
+          )}
+          <button
+            type="button"
+            onClick={submit}
+            disabled={!canPost}
+            className="px-5 py-2 rounded-full text-white font-bold text-sm shadow-sm disabled:opacity-40 disabled:cursor-not-allowed transition-opacity"
+            style={{ background: 'linear-gradient(100deg,#6366F1,#8B5CF6)' }}
+          >
+            {posting
+              ? isEdit
+                ? '保存中...'
+                : isReply
+                  ? '送信中...'
+                  : '投稿中...'
+              : isEdit
+                ? '保存する'
+                : isReply
+                  ? '返信する'
+                  : '投稿する'}
+          </button>
+        </div>
       </div>
+
+      {/* 下書き一覧モーダル（fixed オーバーレイ＝コンポーザの配置文脈に依らず最前面） */}
+      {showDrafts && (
+        <XDraftsPanel
+          me={me}
+          parentPostId={parentPostId ?? null}
+          onPick={loadDraft}
+          onClose={() => setShowDrafts(false)}
+        />
+      )}
     </div>
   );
-}
+});
