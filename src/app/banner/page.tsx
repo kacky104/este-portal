@@ -17,7 +17,8 @@ export const metadata: Metadata = {
 const SITE_URL = 'https://fukues.com';
 
 // バナー（200×40）。public/ 直下に配置した画像を参照する。
-// 1番目＝フクエス本体・2番目＝フクエスワーク（求人）。両サイトの配布ページで相互掲載（順序は各サイト優先）。
+// 1番目＝フクエス本体・2番目＝フクエスワーク（求人）・3番目＝fukuX（SNS・カラー版（紫）のみ。
+// 白基調版の配布は fukuX 側 /x/banner に任せる）。各サイトの配布ページで相互掲載（順序は各サイト優先）。
 const BANNERS = [
   {
     file: 'fukues-banner-200x40.png',
@@ -30,6 +31,12 @@ const BANNERS = [
     label: 'フクエスワーク（求人）',
     href: `${SITE_URL}/jobs`,
     alt: 'フクエスワーク｜福岡メンズエステのセラピスト求人サイト',
+  },
+  {
+    file: 'fukux-banner-200x40.png',
+    label: 'fukuX（SNS）',
+    href: `${SITE_URL}/x`,
+    alt: 'fukuX(フクエックス)｜福岡メンズエステ専用SNS',
   },
 ] as const;
 
@@ -58,7 +65,7 @@ export default function BannerPage() {
           <h1 className="text-xl font-bold text-slate-900 mb-4">リンクバナーについて</h1>
 
           <p className={P}>
-            フクエスはリンクフリーです。事前のご連絡は不要です。店舗様の公式サイトやブログ等からのリンクの際は、下記のバナーをご利用ください。求人サイト「フクエスワーク」のバナーも併せてご利用いただけます。リンク先はそれぞれのタグに記載のURLでお願いします。
+            フクエスはリンクフリーです。事前のご連絡は不要です。店舗様の公式サイトやブログ等からのリンクの際は、下記のバナーをご利用ください。求人サイト「フクエスワーク」・専用SNS「fukuX」のバナーも併せてご利用いただけます。リンク先はそれぞれのタグに記載のURLでお願いします。
           </p>
 
           {BANNERS.map((b) => (
