@@ -25,6 +25,7 @@ import {
   MAX_NOTE_LEN,
   type WorkMatchInput,
   type SuggestedStore,
+  type SalonAppStat,
 } from '@/app/lib/workMatch';
 
 // フクエスワーク「求職マッチング」エントリー（/jobs/matching の公開フォーム）と、
@@ -234,4 +235,81 @@ export async function suggestStoresForEntry(
   });
 
   return { ok: true, stores: candidates.slice(0, 10) };
+}
+
+// ── 運営の応募状況ダッシュボード：店舗×フクエスワーク応募件数 ─────────
+// 「どのお店に何件応募が来ているか（＝どこが少ないか）」を常時見られるようにする集計。
+// 掲載中（jobs_enabled=true）の全店を応募0件でも必ず1行出し、掲載を外れた店でも過去に応募が
+// あれば行を出す（履歴の取りこぼし防止）。読み取りは service_role・実行は運営（ADMIN_UUID）のみ。
+export async function fetchJobApplicationStats(): Promise<
+  { ok: true; stats: SalonAppStat[] } | { ok: false; error: string }
+> {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user || user.id !== ADMIN_UUID) return { ok: false, error: '権限がありません' };
+
+  const svc = createServiceClient();
+
+  // ① 掲載中の店舗（応募0件でも表に出すベース）。
+  const { data: salonRows, error: sErr } = await svc
+    .from('salons')
+    .select('id, name, area, is_hidden')
+    .eq('jobs_enabled', true);
+  if (sErr) return { ok: false, error: sErr.message };
+
+  // ② 全応募（salon_id・作成日時・対応状況）。
+  const { data: appRows, error: aErr } = await svc
+    .from('job_applications')
+    .select('salon_id, created_at, status');
+  if (aErr) return { ok: false, error: aErr.message };
+
+  // ③ 公開中の求人本数（求人0本の掲載店を見分けるため）。
+  const { data: jobRows, error: jErr } = await svc
+    .from('salon_jobs')
+    .select('salon_id')
+    .eq('is_active', true);
+  if (jErr) return { ok: false, error: jErr.message };
+
+  const statBySalon = new Map<number, SalonAppStat>();
+  const ensure = (salonId: number): SalonAppStat => {
+    let s = statBySalon.get(salonId);
+    if (!s) {
+      s = { salonId, salonName: `(店舗ID ${salonId})`, area: '', isHidden: false, activeJobs: 0, total: 0, last30d: 0, newCount: 0, latestAt: null };
+      statBySalon.set(salonId, s);
+    }
+    return s;
+  };
+
+  for (const r of salonRows ?? []) {
+    const s = ensure(Number(r.id));
+    s.salonName = (r.name as string | null) ?? s.salonName;
+    s.area = (r.area as string | null) ?? '';
+    s.isHidden = Boolean(r.is_hidden);
+  }
+  for (const r of jobRows ?? []) {
+    const sid = Number((r as { salon_id: unknown }).salon_id);
+    if (Number.isFinite(sid)) ensure(sid).activeJobs += 1;
+  }
+
+  const cutoff30 = Date.now() - 30 * 24 * 60 * 60 * 1000;
+  for (const r of appRows ?? []) {
+    const sid = Number((r as { salon_id: unknown }).salon_id);
+    if (!Number.isFinite(sid)) continue;
+    const s = ensure(sid);
+    s.total += 1;
+    if (((r as { status: string | null }).status ?? '') === 'new') s.newCount += 1;
+    const at = (r as { created_at: string | null }).created_at;
+    if (at) {
+      const t = new Date(at).getTime();
+      if (Number.isFinite(t) && t >= cutoff30) s.last30d += 1;
+      if (!s.latestAt || at > s.latestAt) s.latestAt = at;
+    }
+  }
+
+  // 掲載外かつ応募も無い行は作られない（ensure は salons/jobs/apps のいずれかに現れた店だけ）。
+  // 応募が来ていない掲載店を把握しやすいよう、既定は「応募が少ない順 → 店名順」。並び替えはUI側で行う。
+  const stats = [...statBySalon.values()].sort((a, b) =>
+    a.total !== b.total ? a.total - b.total : a.salonName.localeCompare(b.salonName, 'ja'),
+  );
+  return { ok: true, stats };
 }

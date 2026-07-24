@@ -46,6 +46,20 @@ export type WorkMatchInput = {
   website: string; // honeypot（人間は空のまま送る）
 };
 
+// 店舗ごとのフクエスワーク応募状況（fetchJobApplicationStats が返す行）。
+// 掲載中（jobs_enabled）の店は応募0件でも必ず1行出す（“応募が少ない店”の把握が目的のため）。
+export type SalonAppStat = {
+  salonId: number;
+  salonName: string;
+  area: string;
+  isHidden: boolean;      // salons.is_hidden（非表示中の掲載店の応募も見えるように含める）
+  activeJobs: number;     // 公開中（is_active）の求人本数
+  total: number;          // 応募件数（全期間）
+  last30d: number;        // 応募件数（直近30日）
+  newCount: number;       // 未対応（status='new'）の応募件数
+  latestAt: string | null; // 最新応募日時（ISO・応募0件なら null）
+};
+
 // 運営の斡旋支援（suggestStoresForEntry）が返す候補店舗。
 export type SuggestedStore = {
   salonId: number;

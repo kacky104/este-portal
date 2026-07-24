@@ -31,6 +31,7 @@ import RankingHandicapManager from '@/app/components/RankingHandicapManager';
 import PageHeroManager from '@/app/components/PageHeroManager';
 import ListingInquiryManager from '@/app/components/ListingInquiryManager';
 import WorkMatchManager from '@/app/components/WorkMatchManager';
+import WorkAppStats from '@/app/components/WorkAppStats';
 import FreeSalonListingsManager from '@/app/components/FreeSalonListingsManager';
 import { adminGenerateOwnerLoginLink } from '@/app/actions/adminOwner';
 import { useToast } from '@/app/components/useToast';
@@ -820,6 +821,11 @@ export default function AdminDashboard() {
             onToggle={toggleSection}
           >
             <AdminJobsManager onToast={showToast} onStats={setJobStats} />
+          </AccordionSection>
+
+          {/* ── フクエスワーク応募状況：店舗×応募件数の常設集計表（どの店に応募が少ないかの把握用） ── */}
+          <AccordionSection id="work-app-stats" title="フクエスワーク応募状況（店舗別）" expanded={expandedSections} onToggle={toggleSection}>
+            <WorkAppStats />
           </AccordionSection>
 
         </div>
