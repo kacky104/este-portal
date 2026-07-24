@@ -69,6 +69,29 @@ export default async function JobsPage() {
         />
       </div>
 
+      {/* お仕事マッチングへの導線（/jobs/matching）。希望を入力→運営が合うお店を無料で紹介・斡旋する入口。
+          求人一覧を自分で探す前に「運営に探してもらう」選択肢を最上部で提示する。 */}
+      <Link
+        href="/jobs/matching"
+        className="group block mb-6 rounded-2xl p-4 sm:p-5 shadow-sm transition-transform hover:-translate-y-0.5"
+        style={{ background: 'linear-gradient(95deg,#10B981,#84CC16)' }}
+      >
+        <div className="flex items-center gap-3">
+          <span className="text-2xl sm:text-3xl flex-shrink-0" aria-hidden>🐾</span>
+          <div className="min-w-0 flex-1">
+            <p className="text-white font-extrabold text-sm sm:text-base leading-tight">
+              お店選びに迷ったら、運営が無料でお探しします
+            </p>
+            <p className="text-white/90 text-[11px] sm:text-xs mt-0.5 leading-relaxed">
+              希望のエリアや働き方を入力するだけ。あなたに合うお店を数店ご紹介します（未経験も歓迎）
+            </p>
+          </div>
+          <span className="flex-shrink-0 rounded-full bg-white/95 text-emerald-700 text-xs font-black px-3 py-1.5 group-hover:bg-white transition-colors whitespace-nowrap">
+            無料で相談 →
+          </span>
+        </div>
+      </Link>
+
       {/* おすすめ求人（運営が featured_jobs に登録した求人のスライダー）。0件時はセクションごと非表示。 */}
       <PickupSlider jobs={pickupJobs} title="おすすめ求人ピックアップ店舗" />
 

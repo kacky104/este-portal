@@ -30,6 +30,7 @@ import AdminImagesManager from '@/app/components/AdminImagesManager';
 import RankingHandicapManager from '@/app/components/RankingHandicapManager';
 import PageHeroManager from '@/app/components/PageHeroManager';
 import ListingInquiryManager from '@/app/components/ListingInquiryManager';
+import WorkMatchManager from '@/app/components/WorkMatchManager';
 import FreeSalonListingsManager from '@/app/components/FreeSalonListingsManager';
 import { adminGenerateOwnerLoginLink } from '@/app/actions/adminOwner';
 import { useToast } from '@/app/components/useToast';
@@ -468,6 +469,11 @@ export default function AdminDashboard() {
           {/* ── 新規店舗の初回情報入力フォーム（ワンタイムURL発行・入力内容の確認） ── */}
           <AccordionSection id="listing-inquiries" title="掲載お問い合わせ" expanded={expandedSections} onToggle={toggleSection}>
             <ListingInquiryManager onToast={showToast} />
+          </AccordionSection>
+
+          {/* ── フクエスワーク 求職マッチング エントリー（/jobs/matching の公開フォーム受け皿・斡旋支援） ── */}
+          <AccordionSection id="work-match-entries" title="求職マッチング エントリー" expanded={expandedSections} onToggle={toggleSection}>
+            <WorkMatchManager onToast={showToast} />
           </AccordionSection>
 
           <AccordionSection id="salon-intakes" title="新規店舗 入力フォーム発行" expanded={expandedSections} onToggle={toggleSection}>
