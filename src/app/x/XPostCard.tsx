@@ -484,22 +484,50 @@ export function XPostCard({
           単体ページのメイン投稿だけ clampBody=false で全文表示。 */}
       {view.body && <PostBody text={view.body} clamp={clampBody} />}
 
-      {/* リンク（任意・http/https のみ）。ドメイン名を新タブで開く。カードの他タップと競合しないよう stopPropagation。 */}
-      {safeHref(view.linkUrl) && (
-        <a
-          href={safeHref(view.linkUrl)!}
-          target="_blank"
-          rel="noopener noreferrer"
-          onClick={(e) => e.stopPropagation()}
-          className="ml-[50px] mt-2 inline-flex items-center gap-1.5 max-w-full text-sm font-medium text-[color:var(--x-accent)] hover:underline"
-        >
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="flex-shrink-0">
-            <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
-            <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" />
-          </svg>
-          <span className="truncate">{linkDomain(view.linkUrl!)}</span>
-        </a>
-      )}
+      {/* リンク：fukues.com はOGPカード（サムネイル＋タイトル＋説明）、それ以外/未取得はドメインのテキストリンク。
+          いずれも新タブで開く。カードの他タップと競合しないよう stopPropagation。 */}
+      {safeHref(view.linkUrl) &&
+        (view.linkImage ? (
+          <a
+            href={safeHref(view.linkUrl)!}
+            target="_blank"
+            rel="noopener noreferrer"
+            onClick={(e) => e.stopPropagation()}
+            className="ml-[50px] mt-2 block max-w-full overflow-hidden rounded-2xl border border-[color:var(--x-border)] bg-[color:var(--x-inset)] hover:opacity-95 transition-opacity"
+          >
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={view.linkImage} alt="" className="w-full aspect-[1.91/1] object-cover" />
+            <div className="p-3">
+              {view.linkTitle && (
+                <div className="text-sm font-bold text-[color:var(--x-text-primary)] line-clamp-2">{view.linkTitle}</div>
+              )}
+              {view.linkDescription && (
+                <div className="mt-0.5 text-[12px] text-[color:var(--x-text-secondary)] line-clamp-2">{view.linkDescription}</div>
+              )}
+              <div className="mt-1 flex items-center gap-1 text-[11px] text-[color:var(--x-text-muted)]">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="flex-shrink-0">
+                  <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
+                  <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" />
+                </svg>
+                <span className="truncate">{linkDomain(view.linkUrl!)}</span>
+              </div>
+            </div>
+          </a>
+        ) : (
+          <a
+            href={safeHref(view.linkUrl)!}
+            target="_blank"
+            rel="noopener noreferrer"
+            onClick={(e) => e.stopPropagation()}
+            className="ml-[50px] mt-2 inline-flex items-center gap-1.5 max-w-full text-sm font-medium text-[color:var(--x-accent)] hover:underline"
+          >
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="flex-shrink-0">
+              <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
+              <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" />
+            </svg>
+            <span className="truncate">{linkDomain(view.linkUrl!)}</span>
+          </a>
+        ))}
 
       {/* 画像 */}
       <div className="ml-[50px]">

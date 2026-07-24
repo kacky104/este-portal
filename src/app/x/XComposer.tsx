@@ -1,12 +1,14 @@
 'use client';
 
 import { forwardRef, useImperativeHandle, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { createClient } from '@/app/lib/supabase/client';
 import { normalizeLinkUrl } from './xLink';
 import type { XProfile } from './xProfile';
 import type { XPost } from './xPosts';
 import type { XDraft } from './xDrafts';
 import { XDraftsPanel } from './XDraftsPanel';
+import { refreshXPostLinkPreview } from './xLinkPreviewActions';
 import { STORAGE_CACHE_CONTROL } from '@/app/lib/storage';
 
 const supabase = createClient();
@@ -48,6 +50,7 @@ export const XComposer = forwardRef<XComposerHandle, XComposerProps>(function XC
 ) {
   const isReply = !!parentPostId;
   const isEdit = !!editPost;
+  const router = useRouter();
   // リプライ不可トグルは「通常投稿/通常投稿の編集」かつ自分が therapist/shop のときだけ表示（user には出さない＝DB側ガードと二重防御）。
   const canToggleReplies = !isReply && (me.kind === 'therapist' || me.kind === 'shop' || me.kind === 'official');
 
@@ -216,6 +219,10 @@ export const XComposer = forwardRef<XComposerHandle, XComposerProps>(function XC
         repliesDisabled: canToggleReplies ? repliesDisabled : editPost.repliesDisabled,
         editedAt,
       });
+      // リンクが変わった/消えた/付いた場合は OGPカードを取り直し、反映のため再フェッチ（取得は fukues.com のみ）。
+      if ((editPost.linkUrl ?? '') !== (linkUrl ?? '')) {
+        void refreshXPostLinkPreview(editPost.id, linkUrl).then(() => router.refresh());
+      }
       return;
     }
 
@@ -279,6 +286,10 @@ export const XComposer = forwardRef<XComposerHandle, XComposerProps>(function XC
     setBody('');
     setImages([]);
     setLink('');
+    // fukues.com のリンクなら OGPカードをサーバー側で取得→反映のため再フェッチ。
+    if (linkUrl && data?.id) {
+      void refreshXPostLinkPreview(String(data.id), linkUrl).then(() => router.refresh());
+    }
   };
 
   return (

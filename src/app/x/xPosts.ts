@@ -20,7 +20,8 @@ export const RECOMMENDED_LIMIT = 500;
 
 // reply_count / replies_disabled はリプライ機能用（reply_count はトリガ自動増減・アプリは手動更新しない）。link_url は投稿の外部リンク。edited_at は編集済み表示用。
 // pinned_at はプロフィール固定（📌）用（本人が自分のプロフィール先頭に固定・null=非固定）。
-const POST_COLS = 'id, author_profile_id, body, images, like_count, reply_count, replies_disabled, link_url, edited_at, created_at, pinned_at';
+// link_image / link_title / link_description はリンクプレビュー（OGPカード）用（fukues.com のみ・null=カード無し）。
+const POST_COLS = 'id, author_profile_id, body, images, like_count, reply_count, replies_disabled, link_url, edited_at, created_at, pinned_at, link_image, link_title, link_description';
 
 export type XPostAuthor = {
   id: string;
@@ -42,6 +43,11 @@ export type XPost = {
   replyCount: number; // この投稿が持つリプライ数（トリガ自動更新）
   repliesDisabled: boolean; // リプライ受付不可（therapist/shop が自投稿で設定可）
   linkUrl: string | null; // 投稿の外部リンク（http/https のみ・任意）
+  // リンクプレビュー（OGPカード）。fukues.com のリンクのみサーバー側で取得・キャッシュ。null=カード無し＝テキストリンク表示。
+  // optional なのは link_* を select しない補助経路が将来増えても壊れないようにするため。
+  linkImage?: string | null;
+  linkTitle?: string | null;
+  linkDescription?: string | null;
   editedAt: string | null; // 編集済みなら最終編集時刻（null=未編集）
   // プロフィール固定（📌）日時。本人が自分のプロフィール先頭に固定した投稿（null/未取得=非固定）。
   // optional なのは、pinned_at を select しない補助的な取得経路（検索・詳細等）が残っているため。
@@ -61,6 +67,9 @@ type PostRow = {
   link_url: string | null;
   edited_at: string | null;
   pinned_at?: string | null;
+  link_image?: string | null;
+  link_title?: string | null;
+  link_description?: string | null;
   created_at: string;
 };
 
@@ -121,6 +130,9 @@ async function attachAuthors(client: AnyClient, rows: PostRow[]): Promise<XPost[
       replyCount: r.reply_count ?? 0,
       repliesDisabled: Boolean(r.replies_disabled),
       linkUrl: r.link_url ?? null,
+      linkImage: r.link_image ?? null,
+      linkTitle: r.link_title ?? null,
+      linkDescription: r.link_description ?? null,
       editedAt: r.edited_at ?? null,
       pinnedAt: r.pinned_at ?? null,
       createdAt: r.created_at,
