@@ -16,6 +16,8 @@ import { PageHero } from '@/app/components/PageHero';
 import { fetchPageHero } from '@/app/lib/pageHero';
 import { getTheme, breadcrumbCurrentColor } from '@/app/lib/themes';
 import { fetchThemeWallpapers } from '@/app/lib/ranking';
+import { AdBanner } from '@/app/components/AdBanner';
+import { fetchActiveAdBanners } from '@/app/lib/adBanners';
 
 // /salons は無料掲載枠も兼ねるため、店名・地域・電話番号のみのテキスト一覧にしている（カード表示は廃止）。
 // 行は「掲載中サロン（salons テーブル・自動）＋無料掲載枠（free_salon_listings・/admin から手入力）」の統合。
@@ -54,13 +56,15 @@ export default async function SalonsPage() {
 
   // 掲載中サロンと無料掲載枠を並列取得。
   // free_salon_listings はマイグレーション未適用でもページを壊さない（エラー時は空扱い）。
-  const [salonsRes, freeRes, hero, wallpapers] = await Promise.all([
+  const [salonsRes, freeRes, hero, wallpapers, adBanners] = await Promise.all([
     supabase.from('salons').select('id, name, area, phone, official_url').eq('is_hidden', false),
     supabase.from('free_salon_listings').select('id, name, area, phone, website_url, display_order').eq('is_active', true),
     // ページ別ヒーロー画像（admin「ページ別ヒーロー画像設定」の「掲載店舗一覧」。未設定なら非表示）。
     fetchPageHero('salons'),
     // シルバーテーマ壁紙（/reviews・/therapists と同方式で固定レイヤーに敷く）。
     fetchThemeWallpapers(),
+    // ルックバナー（ad_banners・公開中からランダム1枚）。一覧ブロックの上下に1枠ずつ表示。
+    fetchActiveAdBanners(),
   ]);
 
   // シルバーテーマの配色＋壁紙。壁紙は theme.bg の85%不透明を重ねて文字の可読性を保つ（/reviews と同係数 D9）。
@@ -143,6 +147,9 @@ export default async function SalonsPage() {
           <p className="mt-2 text-xs text-slate-500">全{rows.length}件</p>
         </div>
 
+        {/* ルックバナー（一覧ブロックの上）。公開中からランダム1枚・ページを開くたびに入れ替わり。 */}
+        <AdBanner banners={adBanners} />
+
         {rows.length === 0 ? (
           <p className="text-sm text-slate-500 text-center py-16">掲載店舗はまだありません</p>
         ) : (
@@ -179,6 +186,9 @@ export default async function SalonsPage() {
             ))}
           </ul>
         )}
+
+        {/* ルックバナー（一覧ブロックの下）。上の枠とは独立にランダム抽選（枚数が少ないと同じ枠になることもある）。 */}
+        <AdBanner banners={adBanners} />
       </main>
 
       {/* ─── Footer ──────────────────────────────────────── */}
