@@ -7,7 +7,6 @@
 // - 条件は URL（?b=バッジA,バッジB &area=...）に同期し、共有・リロードで復元できる。
 
 import { useEffect, useMemo, useState } from 'react';
-import Link from 'next/link';
 import { useRouter, useSearchParams, usePathname } from 'next/navigation';
 import { createClient } from '@/app/lib/supabase/client';
 import { getBusinessDateJST } from '@/lib/dutyStatus';
@@ -290,12 +289,6 @@ export function TherapistSearch({ lockedBadges = [] }: { lockedBadges?: string[]
         </div>
       )}
 
-      {/* トップへ戻る導線 */}
-      <div className="mt-8 text-center">
-        <Link href="/" className="text-sm text-slate-500 hover:text-pink-600">
-          ← トップへ戻る
-        </Link>
-      </div>
     </div>
   );
 }
