@@ -40,6 +40,17 @@ const WEBSITE_JSON_LD: Record<string, unknown> = {
   url: 'https://fukues.com/',
 };
 
+// トップのクイックメニュー導線。モバイル＝エリアタブ直下／PC(lg)＝店舗新着情報の右列 で共用（定義はここに一元化）。
+// 並び順は先頭2つがモバイル1段目（特徴・ランキング）、残り4つが2段目（日記・口コミ・新人・SNS）。
+const QUICK_LINKS = [
+  { href: '/therapists', label: '特徴で探す' },
+  { href: '/ranking', label: '人気ランキング' },
+  { href: '/diary', label: '写メ日記' },
+  { href: '/reviews', label: '口コミ' },
+  { href: '/therapist/new', label: '新人' },
+  { href: '/x-shops', label: 'SNS' },
+] as const;
+
 // フィルタ判定／DB連動キー（変更不可）は areas.ts の AREA_ORDER に一元化。画面表示はすべて areaLabel() を通す。
 
 // ISR：トップは10分キャッシュ（並び順のランダム化はクライアント側で行うため固定HTMLでよい）。
@@ -152,21 +163,55 @@ export default async function Home() {
             見出しは「掲載サロン一覧」と同じグラデ帯（角丸なし＝直角方針）。右端に「もっと見る→」。 */}
         {salonNews.length > 0 && (
           // 上下の隙間はバナー圧縮に合わせて従来の半分（py-5/10→py-2.5/5）。
+          // PC(lg)は「店舗新着情報＝左半分／検索＋クイックメニュー＝右半分」の2列。
+          // 右列はエリアタブ直下の検索ブロックからの移設（あちらは新着があるとき lg:hidden）。
+          // モバイルは従来どおり新着情報のみ（検索・メニューはエリアタブ直下のまま）。
           <section className="py-2.5 sm:py-5 bg-white border-t border-pink-50">
-            <div className="max-w-5xl mx-auto px-4">
-              {/* バナー縦幅は py-2→py-1 に圧縮（掲載サロン一覧と統一） */}
-              <div
-                className="px-4 py-1.5 mb-1 flex items-center justify-between"
-                style={{ background: '#f1f5f9', borderBottom: '1px solid #e2e8f0' }}
-              >
-                <h2 className="text-xl font-bold text-slate-600 leading-none flex items-center gap-2.5">
-                  店舗新着情報
-                </h2>
-                <Link href="/news" className="text-xs font-bold text-pink-600 flex-shrink-0 hover:opacity-80 transition-opacity">
-                  もっと見る →
-                </Link>
+            <div className="max-w-5xl mx-auto px-4 lg:flex lg:items-stretch lg:gap-6">
+              {/* 左：店舗新着情報（PCは半幅） */}
+              <div className="lg:w-1/2 lg:min-w-0">
+                {/* バナー縦幅は py-2→py-1 に圧縮（掲載サロン一覧と統一） */}
+                <div
+                  className="px-4 py-1.5 mb-1 flex items-center justify-between"
+                  style={{ background: '#f1f5f9', borderBottom: '1px solid #e2e8f0' }}
+                >
+                  <h2 className="text-xl font-bold text-slate-600 leading-none flex items-center gap-2.5">
+                    店舗新着情報
+                  </h2>
+                  <Link href="/news" className="text-xs font-bold text-pink-600 flex-shrink-0 hover:opacity-80 transition-opacity">
+                    もっと見る →
+                  </Link>
+                </div>
+                <SalonNewsList items={salonNews} />
               </div>
-              <SalonNewsList items={salonNews} />
+
+              {/* 右：お店・セラピスト検索＋クイックメニュー（PCのみ）。
+                  items-stretch＋flex-1＋grid-rows-3 h-full で左列（新着5件）と高さを揃え、
+                  ボタンが縦に伸びて右半分の空白を埋める。 */}
+              <div className="hidden lg:flex lg:w-1/2 lg:min-w-0 lg:flex-col">
+                <div
+                  className="px-4 py-1.5 mb-1"
+                  style={{ background: '#f1f5f9', borderBottom: '1px solid #e2e8f0' }}
+                >
+                  <h2 className="text-xl font-bold text-slate-600 leading-none">お店・セラピストを探す</h2>
+                </div>
+                <div className="mt-1.5">
+                  <HomeSearchBar />
+                </div>
+                <nav aria-label="クイックメニュー" className="flex-1 min-h-0 px-4 mt-3">
+                  <div className="grid grid-cols-2 grid-rows-3 gap-2 h-full">
+                    {QUICK_LINKS.map((l) => (
+                      <Link
+                        key={l.href}
+                        href={l.href}
+                        className="flex items-center justify-center bg-white border border-slate-200 text-slate-600 hover:bg-pink-50/60 hover:border-pink-200 hover:text-pink-600 transition-colors"
+                      >
+                        <span className="text-sm font-bold whitespace-nowrap leading-none">{l.label}</span>
+                      </Link>
+                    ))}
+                  </div>
+                </nav>
+              </div>
             </div>
           </section>
         )}
@@ -244,7 +289,9 @@ export default async function Home() {
               heading={
                 <>
                   {/* 店名・セラピスト名のリアルタイム検索＋クイック導線。エリアタブの直下に配置。 */}
-                  <div className="bg-white pt-1 pb-4 mb-2">
+                  {/* PC(lg)では検索・クイックメニューを店舗新着情報の右列へ移設済みのため非表示。
+                      新着0件（＝右列ごと出ない）ときは従来どおりPCでもここに表示する。 */}
+                  <div className={`bg-white pt-1 pb-4 mb-2${salonNews.length > 0 ? ' lg:hidden' : ''}`}>
                     {/* PC(lg)は「アイコン行＝左／検索バー＝右」の1行。モバイルは縦積み（検索→アイコン）。 */}
                     <div className="flex flex-col lg:flex-row-reverse lg:items-center lg:gap-4">
                       <div className="lg:flex-1 lg:min-w-0">
@@ -252,29 +299,21 @@ export default async function Home() {
                       </div>
                       <nav aria-label="クイックメニュー" className="w-full px-4 mt-3 lg:mt-0 lg:px-0 lg:w-[420px] lg:flex-shrink-0">
                       <div className="space-y-1.5">
-                        {/* 1段目：特徴で探す ＋ ランキング（2分割） */}
+                        {/* 1段目：特徴で探す＋ランキング（2分割）／2段目：写メ日記・口コミ・新人・SNS（4分割）。
+                            リンク定義は QUICK_LINKS（店舗新着情報の右列と共通）に一元化。 */}
                         <div className="grid grid-cols-2 gap-1.5">
-                        <Link href="/therapists" className="flex flex-col items-center justify-center gap-0.5 bg-white border border-slate-200 text-slate-600 px-2 py-2 hover:bg-slate-50 transition-colors">
-                          <span className="text-[11px] font-bold whitespace-nowrap leading-none">特徴で探す</span>
-                        </Link>
-                        <Link href="/ranking" className="flex flex-col items-center justify-center gap-0.5 bg-white border border-slate-200 text-slate-600 px-2 py-2 hover:bg-slate-50 transition-colors">
-                          <span className="text-[11px] font-bold whitespace-nowrap leading-none">人気ランキング</span>
-                        </Link>
+                          {QUICK_LINKS.slice(0, 2).map((l) => (
+                            <Link key={l.href} href={l.href} className="flex flex-col items-center justify-center gap-0.5 bg-white border border-slate-200 text-slate-600 px-2 py-2 hover:bg-slate-50 transition-colors">
+                              <span className="text-[11px] font-bold whitespace-nowrap leading-none">{l.label}</span>
+                            </Link>
+                          ))}
                         </div>
-                        {/* 2段目：写メ日記・口コミ・新人・SNS（4分割） */}
                         <div className="grid grid-cols-4 gap-1.5">
-                        <Link href="/diary" className="flex flex-col items-center justify-center gap-0.5 bg-white border border-slate-200 text-slate-600 px-2 py-2 hover:bg-slate-50 transition-colors">
-                          <span className="text-[11px] font-bold whitespace-nowrap leading-none">写メ日記</span>
-                        </Link>
-                        <Link href="/reviews" className="flex flex-col items-center justify-center gap-0.5 bg-white border border-slate-200 text-slate-600 px-2 py-2 hover:bg-slate-50 transition-colors">
-                          <span className="text-[11px] font-bold whitespace-nowrap leading-none">口コミ</span>
-                        </Link>
-                        <Link href="/therapist/new" className="flex flex-col items-center justify-center gap-0.5 bg-white border border-slate-200 text-slate-600 px-2 py-2 hover:bg-slate-50 transition-colors">
-                          <span className="text-[11px] font-bold whitespace-nowrap leading-none">新人</span>
-                        </Link>
-                        <Link href="/x-shops" className="flex flex-col items-center justify-center gap-0.5 bg-white border border-slate-200 text-slate-600 px-2 py-2 hover:bg-slate-50 transition-colors">
-                          <span className="text-[11px] font-bold whitespace-nowrap leading-none">SNS</span>
-                        </Link>
+                          {QUICK_LINKS.slice(2).map((l) => (
+                            <Link key={l.href} href={l.href} className="flex flex-col items-center justify-center gap-0.5 bg-white border border-slate-200 text-slate-600 px-2 py-2 hover:bg-slate-50 transition-colors">
+                              <span className="text-[11px] font-bold whitespace-nowrap leading-none">{l.label}</span>
+                            </Link>
+                          ))}
                         </div>
                       </div>
                     </nav>
