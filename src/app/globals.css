@@ -390,7 +390,9 @@ body.paw-bg {
   /* 開始位置は枠外（skew 込みでも確実に外）。走行は keyframe 側で translateX を制御。 */
   transform: skewX(-20deg) translateX(-200%);
   /* 4s 周期のループ。初回のみ 0.4s 遅延。移動は前半(0〜30%≒1.2s)、後半(30〜100%≒2.8s)は待機。 */
-  animation: hero-shine-loop-sweep 4s ease-in-out 0.4s infinite both;
+  /* 周期は --hero-shine-duration で上書き可（既定4s＝従来どおり）。同じ画面に複数置くとき、
+     周期をずらして「機械的に揃った点滅」に見えないようにするためのノブ。 */
+  animation: hero-shine-loop-sweep var(--hero-shine-duration, 4s) ease-in-out 0.4s infinite both;
 }
 /* 0〜30%：左外(-200%)→右外(200%)を1回通過（実移動 約1.2s／現状の体感を維持）。
    opacity は走り出してからフェードイン→抜ける直前にフェードアウト（両端の静止フレームは opacity 0）。

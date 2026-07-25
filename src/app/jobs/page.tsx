@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import Image from 'next/image';
+import type { CSSProperties } from 'react';
 import type { Metadata } from 'next';
 import { fetchActiveJobs, getFeaturedJobs, JOB_BOOST_WEIGHT } from '@/app/lib/jobs';
 import { shuffleJobs } from '@/app/lib/shuffleJobs';
@@ -28,6 +29,10 @@ export const metadata: Metadata = {
     '福岡のメンズエステで働くセラピスト求人をまとめて掲載。エリア・給与・こだわり条件から気になるお店の求人をチェックできます。未経験歓迎のメンズエステ求人も掲載中。',
   alternates: { canonical: '/jobs' },
 };
+
+// マッチング導線ブロックの訴求チップ。文言は「無料・未経験可・条件で探せる」の3点に絞る
+// （増やすと1行に収まらず折り返してブロックが縦に伸びるため）。
+const MATCHING_POINTS = ['相談無料', '未経験OK', 'エリア・条件から'] as const;
 
 export default async function JobsPage() {
   const [jobs, pickupJobs, columnArticles] = await Promise.all([
@@ -70,25 +75,58 @@ export default async function JobsPage() {
       </div>
 
       {/* お仕事マッチングへの導線（/jobs/matching）。希望を入力→運営が合うお店を無料で紹介・斡旋する入口。
-          求人一覧を自分で探す前に「運営に探してもらう」選択肢を最上部で提示する。 */}
+          求人一覧を自分で探す前に「運営に探してもらう」選択肢を最上部で提示する。
+          直上のヒーローに埋もれないよう華やかな見た目にしている：
+            ・多色グラデ（emerald→lime→yellow）＋白のぼかし円で奥行き
+            ・.hero-shine-loop（ヒーローと共用の白帯スイープ）。直上のヒーローと同時に光ると機械的に見えるため
+              --hero-shine-duration で周期を6sにずらす（ヒーローは既定4s）。reduced-motion では globals.css 側で停止。
+            ・装飾は aria-hidden／pointer-events-none。読み上げとタップ判定はリンク本体のまま。 */}
       <Link
         href="/jobs/matching"
-        className="group block mb-6 rounded-2xl p-4 sm:p-5 shadow-sm transition-transform hover:-translate-y-0.5"
-        style={{ background: 'linear-gradient(95deg,#10B981,#84CC16)' }}
+        className="hero-shine-loop group relative block mb-6 overflow-hidden rounded-3xl px-4 py-5 sm:px-6 sm:py-6 ring-1 ring-white/50 transition-transform duration-300 hover:-translate-y-1"
+        style={{
+          background:
+            'linear-gradient(115deg,#059669 0%,#10B981 30%,#4ADE80 55%,#A3E635 80%,#FDE047 100%)',
+          boxShadow: '0 10px 25px -5px rgba(16,185,129,0.45)',
+          '--hero-shine-duration': '6s',
+        } as CSSProperties}
       >
-        <div className="flex items-center gap-3">
-          <span className="text-2xl sm:text-3xl flex-shrink-0" aria-hidden>🐾</span>
-          <div className="min-w-0 flex-1">
-            <p className="text-white font-extrabold text-sm sm:text-base leading-tight">
-              お店選びに迷ったら、運営が無料でお探しします
-            </p>
-            <p className="text-white/90 text-[11px] sm:text-xs mt-0.5 leading-relaxed">
-              希望のエリアや働き方を入力するだけ。あなたに合うお店を数店ご紹介します（未経験も歓迎）
-            </p>
-          </div>
-          <span className="flex-shrink-0 rounded-full bg-white/95 text-emerald-700 text-xs font-black px-3 py-1.5 group-hover:bg-white transition-colors whitespace-nowrap">
-            無料で相談 →
+        {/* 背景装飾（白のぼかし円）。テキストより背面・クリックは透過。 */}
+        <span aria-hidden className="pointer-events-none absolute -top-10 -right-8 h-32 w-32 rounded-full bg-white/25 blur-2xl" />
+        <span aria-hidden className="pointer-events-none absolute -bottom-14 left-6 h-36 w-36 rounded-full bg-white/20 blur-2xl" />
+
+        {/* z-10＝白帯スイープ（::after は z-5）より前面。光がテキストの裏を通る。 */}
+        <div className="relative z-10">
+          <span className="inline-flex items-center gap-1 rounded-full bg-white/25 px-2.5 py-1 text-[10px] sm:text-xs font-bold text-white ring-1 ring-white/40 backdrop-blur-sm">
+            🐾 フクエスワーク公式マッチング
           </span>
+
+          {/* SPは縦積み（見出しが2行に折れず、CTAを横幅いっぱいの押しやすいボタンにできる）。
+              sm以上は横並びでCTAを右端に置く。 */}
+          <div className="mt-2.5 flex flex-col items-stretch gap-3 sm:flex-row sm:items-center sm:gap-5">
+            <div className="min-w-0 flex-1">
+              <p className="text-white font-black text-lg sm:text-2xl leading-tight tracking-tight drop-shadow-[0_2px_4px_rgba(4,90,70,0.35)]">
+                あなたとお店をマッチング！<span aria-hidden>✨</span>
+              </p>
+              <p className="mt-1.5 text-white/95 text-xs sm:text-sm font-medium leading-relaxed">
+                掲載店舗から得た情報とあなたのご希望の条件で、ピッタリなお店選びをお手伝いします！
+              </p>
+              <ul className="mt-2.5 flex flex-wrap gap-1.5">
+                {MATCHING_POINTS.map((t) => (
+                  <li
+                    key={t}
+                    className="rounded-full bg-white/90 px-2.5 py-0.5 text-[10px] sm:text-[11px] font-bold text-emerald-700"
+                  >
+                    {t}
+                  </li>
+                ))}
+              </ul>
+            </div>
+            {/* CTA。SPは幅いっぱい（親指で押しやすい）、sm以上は右端で内容幅。 */}
+            <span className="block w-full flex-shrink-0 rounded-full bg-white px-4 py-3 text-center text-sm font-black text-emerald-700 shadow-md transition-all group-hover:bg-emerald-50 group-hover:shadow-lg whitespace-nowrap sm:w-auto sm:self-center sm:px-5 sm:py-3">
+              無料で相談 →
+            </span>
+          </div>
         </div>
       </Link>
 
