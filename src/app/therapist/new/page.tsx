@@ -110,6 +110,8 @@ export default async function NewFacePage() {
         <AdBanner banners={adBanners} />
 
         <NewFaceList therapists={therapists} pickupBanners={pickupBanners} />
+        {/* ルックバナー（ページ下部）。上部の枠とは独立にランダム抽選。 */}
+        <AdBanner banners={adBanners} />
       </main>
 
       {/* ─── Footer ──────────────────────────────────────── */}

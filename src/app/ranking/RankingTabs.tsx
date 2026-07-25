@@ -351,6 +351,9 @@ export default function RankingTabs({
             </>
           )}
 
+
+          {/* ルックバナー（ページ下部・3タブ共通）。各タブ上部の枠とは独立にランダム抽選。 */}
+          <AdBanner banners={adBanners} />
         </div>
       </main>
 

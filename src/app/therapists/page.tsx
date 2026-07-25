@@ -114,6 +114,8 @@ export default async function TherapistsPage() {
         <Suspense fallback={<div className="py-20 text-center text-slate-400 text-sm">読み込み中…</div>}>
           <TherapistSearch />
         </Suspense>
+        {/* ルックバナー（ページ下部）。上部の枠とは独立にランダム抽選。 */}
+        <AdBanner banners={adBanners} />
       </main>
 
       <footer className="border-t border-slate-200 bg-white py-6 mt-12">
