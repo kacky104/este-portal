@@ -2,7 +2,7 @@
 // createPublicClient（anon/cookieレス）で読み、ISR が効くようにする。
 import { createPublicClient } from '@/app/lib/supabase/public';
 
-export type PageHeroKey = 'therapists' | 'diary' | 'reviews' | 'newface' | 'xshops' | 'news' | 'jobs-matching';
+export type PageHeroKey = 'therapists' | 'diary' | 'reviews' | 'newface' | 'xshops' | 'news' | 'salons' | 'jobs-matching';
 
 export const PAGE_HERO_LABELS: Record<PageHeroKey, string> = {
   therapists: '特徴で探す',
@@ -11,6 +11,7 @@ export const PAGE_HERO_LABELS: Record<PageHeroKey, string> = {
   newface: '新人',
   xshops: 'SNS',
   news: '新着情報',
+  salons: '掲載店舗一覧',
   'jobs-matching': 'お仕事マッチング',
 };
 
@@ -22,6 +23,7 @@ export const PAGE_HERO_PATHS: Record<PageHeroKey, string> = {
   newface: '/therapist/new',
   xshops: '/x-shops',
   news: '/news',
+  salons: '/salons',
   'jobs-matching': '/jobs/matching',
 };
 
@@ -31,7 +33,7 @@ export const PAGE_HERO_PATHS: Record<PageHeroKey, string> = {
 //   2. admin_set_page_hero の許可キーへ追加する migration を作成（Supabaseへ適用）
 //   3. 下のどちらかのグループ（または新グループ）へ追加 → 該当タブの管理UIに自動で並ぶ
 //   4. 公開ページ側で fetchPageHero('<key>') → <PageHero> を表示
-export const MAIN_PAGE_HERO_KEYS: readonly PageHeroKey[] = ['therapists', 'diary', 'reviews', 'newface', 'xshops', 'news'];
+export const MAIN_PAGE_HERO_KEYS: readonly PageHeroKey[] = ['therapists', 'diary', 'reviews', 'newface', 'xshops', 'news', 'salons'];
 export const JOBS_PAGE_HERO_KEYS: readonly PageHeroKey[] = ['jobs-matching'];
 
 // 未設定は null を返す（テーブル未作成時もエラーを握りつぶして null）。

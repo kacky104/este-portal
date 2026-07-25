@@ -12,6 +12,10 @@ import { SiteNoticeBanner } from '@/app/components/SiteNoticeBanner';
 import { AREA_ORDER } from '@/app/lib/areas';
 import { areaLabel } from '@/app/lib/areaLabel';
 import { TelNoticeLink } from '@/app/components/TelNoticeLink';
+import { PageHero } from '@/app/components/PageHero';
+import { fetchPageHero } from '@/app/lib/pageHero';
+import { getTheme, breadcrumbCurrentColor } from '@/app/lib/themes';
+import { fetchThemeWallpapers } from '@/app/lib/ranking';
 
 // /salons は無料掲載枠も兼ねるため、店名・地域・電話番号のみのテキスト一覧にしている（カード表示は廃止）。
 // 行は「掲載中サロン（salons テーブル・自動）＋無料掲載枠（free_salon_listings・/admin から手入力）」の統合。
@@ -50,10 +54,28 @@ export default async function SalonsPage() {
 
   // 掲載中サロンと無料掲載枠を並列取得。
   // free_salon_listings はマイグレーション未適用でもページを壊さない（エラー時は空扱い）。
-  const [salonsRes, freeRes] = await Promise.all([
+  const [salonsRes, freeRes, hero, wallpapers] = await Promise.all([
     supabase.from('salons').select('id, name, area, phone, official_url').eq('is_hidden', false),
     supabase.from('free_salon_listings').select('id, name, area, phone, website_url, display_order').eq('is_active', true),
+    // ページ別ヒーロー画像（admin「ページ別ヒーロー画像設定」の「掲載店舗一覧」。未設定なら非表示）。
+    fetchPageHero('salons'),
+    // シルバーテーマ壁紙（/reviews・/therapists と同方式で固定レイヤーに敷く）。
+    fetchThemeWallpapers(),
   ]);
+
+  // シルバーテーマの配色＋壁紙。壁紙は theme.bg の85%不透明を重ねて文字の可読性を保つ（/reviews と同係数 D9）。
+  const theme = getTheme('silver');
+  const wallpaperUrl = wallpapers[theme.key] ?? null;
+  const bgStyle = {
+    backgroundColor: theme.bg,
+    ...(wallpaperUrl
+      ? {
+          backgroundImage: `linear-gradient(${theme.bg}D9, ${theme.bg}D9), url(${wallpaperUrl})`,
+          backgroundSize: 'cover' as const,
+          backgroundPosition: 'center' as const,
+        }
+      : {}),
+  };
 
   const listed: ListRow[] = (salonsRes.data ?? []).map((r) => ({
     key: `s-${r.id}`,
@@ -87,7 +109,9 @@ export default async function SalonsPage() {
   });
 
   return (
-    <div className="min-h-screen bg-slate-50 text-slate-900">
+    <div className="min-h-screen text-slate-900">
+      {/* 背景：silver テーマ壁紙を固定レイヤーで敷く（/reviews・/therapists と同方式）。 */}
+      <div aria-hidden className="fixed inset-0 -z-10" style={bgStyle} />
 
       {/* ─── Header ─────────────────────────────────────────── */}
       <header className="sticky top-0 z-50 bg-white/90 backdrop-blur-md border-b border-slate-200 shadow-sm">
@@ -104,19 +128,27 @@ export default async function SalonsPage() {
       <main className="max-w-3xl mx-auto px-4 py-10">
 
         {/* Back link */}
-        <Breadcrumb current="掲載店舗一覧" />
+        <Breadcrumb current="掲載店舗一覧" currentColor={breadcrumbCurrentColor(theme.key)} />
 
-        <div className="mb-6">
-          <h1 className="text-2xl font-bold text-slate-900 mb-1">掲載店舗一覧</h1>
-          <p className="text-xs text-slate-400">全{rows.length}件</p>
+        {/* ヒーロー画像（admin「ページ別ヒーロー画像設定」→「掲載店舗一覧」。未設定なら非表示） */}
+        <PageHero url={hero} alt="福岡メンズエステ 掲載店舗一覧" fullBleedMobile />
+
+        {/* Heading：シルバーの壁紙背景に直接（/reviews・/therapists と同方式の神秘的レイアウト）。
+            h1 に主要KW「福岡メンズエステ」を含める（/reviews・/diary・/x-shops と同方針）。 */}
+        <div className="my-8 sm:my-10 text-center">
+          <p className="text-[11px] tracking-[0.35em] font-semibold text-slate-400">FUKUES SALON LIST</p>
+          <h1 className="mt-2 text-2xl sm:text-4xl font-black tracking-[0.06em] bg-gradient-to-r from-slate-600 via-gray-400 to-slate-600 bg-clip-text text-transparent drop-shadow-[0_1px_10px_rgba(148,163,184,0.35)]">
+            福岡メンズエステ 掲載店舗一覧
+          </h1>
+          <p className="mt-2 text-xs text-slate-500">全{rows.length}件</p>
         </div>
 
         {rows.length === 0 ? (
-          <p className="text-sm text-slate-400 text-center py-16">掲載店舗はまだありません</p>
+          <p className="text-sm text-slate-500 text-center py-16">掲載店舗はまだありません</p>
         ) : (
-          <ul className="bg-white border border-slate-200 rounded-2xl px-4 sm:px-6 divide-y divide-slate-100">
+          <ul className="bg-white/90 border rounded-2xl px-4 sm:px-6 divide-y" style={{ borderColor: theme.cardBorder }}>
             {rows.map((r) => (
-              <li key={r.key} className="py-2.5 text-sm">
+              <li key={r.key} className="py-2.5 text-sm border-[#e3e6eb]">
                 {/* 1行目：店名（掲載中サロンは詳細ページへリンク） */}
                 {r.href ? (
                   <Link href={r.href} className="font-bold text-pink-600 hover:underline">
@@ -150,7 +182,7 @@ export default async function SalonsPage() {
       </main>
 
       {/* ─── Footer ──────────────────────────────────────── */}
-      <footer className="border-t border-slate-200 bg-white py-6 mt-12">
+      <footer className="border-t bg-white/90 py-6 mt-12" style={{ borderColor: theme.cardBorder }}>
         <div className="max-w-5xl mx-auto px-4 text-center text-xs text-slate-400">
           © 2026 フクエス. All rights reserved.
         </div>
