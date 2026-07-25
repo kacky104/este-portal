@@ -5,7 +5,9 @@ import type { WorkArticleListItem } from '@/app/lib/workArticles';
 import { formatColumnDate } from './format';
 
 // コラム一覧カード。hero画像（なければグラデーションのプレースホルダー）・カテゴリバッジ・
-// タイトル・excerpt・公開日。カード全体が詳細ページ /jobs/column/[slug] へのリンク。
+// タイトル・excerpt・更新日。カード全体が詳細ページ /jobs/column/[slug] へのリンク。
+// 日付は本体コラム（/column）と揃えて updatedAt を優先表示（未設定なら publishedAt）。
+// 一覧の並び順も「公開日と更新日の新しい方」の降順なので、表示と順序が一致する。
 export function ArticleCard({ article }: { article: WorkArticleListItem }) {
   return (
     <Link
@@ -40,8 +42,8 @@ export function ArticleCard({ article }: { article: WorkArticleListItem }) {
           <span className="text-[10px] font-bold px-2 py-0.5 rounded-full" style={{ background: 'rgba(16,185,129,0.12)', color: '#059669' }}>
             {articleCategoryLabel(article.category)}
           </span>
-          {article.publishedAt && (
-            <span className="text-[10px] text-slate-400">{formatColumnDate(article.publishedAt)}</span>
+          {(article.updatedAt ?? article.publishedAt) && (
+            <span className="text-[10px] text-slate-400">{formatColumnDate(article.updatedAt ?? article.publishedAt)}</span>
           )}
         </div>
         <h3 className="text-sm font-bold text-slate-900 leading-snug line-clamp-2 group-hover:text-emerald-700 transition-colors">
