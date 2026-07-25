@@ -21,7 +21,7 @@ import { fetchThemeWallpapers } from '@/app/lib/ranking';
 // 行は「掲載中サロン（salons テーブル・自動）＋無料掲載枠（free_salon_listings・/admin から手入力）」の統合。
 // 掲載中サロンは店名→詳細ページ・電話→tel: リンク、無料掲載枠は純テキストのみ。
 
-const PAGE_TITLE = '福岡のメンズエステ 店舗一覧【フクエス】';
+const PAGE_TITLE = '福岡のメンズエステ店一覧【フクエス】';
 const PAGE_DESC =
   '福岡のメンズエステを一覧掲載。博多・天神・北九州・久留米など全エリアの店舗を店名・地域・電話番号でシンプルにまとめています。';
 
@@ -128,17 +128,17 @@ export default async function SalonsPage() {
       <main className="max-w-3xl mx-auto px-4 py-10">
 
         {/* Back link */}
-        <Breadcrumb current="掲載店舗一覧" currentColor={breadcrumbCurrentColor(theme.key)} />
+        <Breadcrumb current="福岡のメンズエステ店一覧" currentColor={breadcrumbCurrentColor(theme.key)} />
 
         {/* ヒーロー画像（admin「ページ別ヒーロー画像設定」→「掲載店舗一覧」。未設定なら非表示） */}
-        <PageHero url={hero} alt="福岡メンズエステ 掲載店舗一覧" fullBleedMobile />
+        <PageHero url={hero} alt="福岡のメンズエステ店一覧" fullBleedMobile />
 
         {/* Heading：シルバーの壁紙背景に直接（/reviews・/therapists と同方式の神秘的レイアウト）。
             h1 に主要KW「福岡メンズエステ」を含める（/reviews・/diary・/x-shops と同方針）。 */}
         <div className="my-8 sm:my-10 text-center">
           <p className="text-[11px] tracking-[0.35em] font-semibold text-slate-400">FUKUES SALON LIST</p>
           <h1 className="mt-2 text-2xl sm:text-4xl font-black tracking-[0.06em] bg-gradient-to-r from-slate-600 via-gray-400 to-slate-600 bg-clip-text text-transparent drop-shadow-[0_1px_10px_rgba(148,163,184,0.35)]">
-            福岡メンズエステ 掲載店舗一覧
+            福岡のメンズエステ店一覧
           </h1>
           <p className="mt-2 text-xs text-slate-500">全{rows.length}件</p>
         </div>

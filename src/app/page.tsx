@@ -439,7 +439,7 @@ export default async function Home() {
               </details>
             </section>
 
-            {/* ─── 掲載店舗一覧への導線（FAQ直下）───
+            {/* ─── 福岡のメンズエステ店一覧（/salons）への導線（FAQ直下）───
                 見出しは無し。中央の丸ボタンのみで /salons へ内部リンク。 */}
             <section className="mt-12">
               <div className="flex justify-center">
@@ -447,7 +447,7 @@ export default async function Home() {
                   href="/salons"
                   className="text-xs font-bold px-5 py-2 rounded-full border border-pink-200 text-pink-600 transition-colors hover:bg-pink-50"
                 >
-                  掲載店舗一覧を見る→
+                  福岡のメンズエステ店一覧を見る→
                 </Link>
               </div>
             </section>

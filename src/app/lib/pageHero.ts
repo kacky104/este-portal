@@ -11,7 +11,7 @@ export const PAGE_HERO_LABELS: Record<PageHeroKey, string> = {
   newface: '新人',
   xshops: 'SNS',
   news: '新着情報',
-  salons: '掲載店舗一覧',
+  salons: 'メンズエステ店一覧',
   'jobs-matching': 'お仕事マッチング',
 };
 
