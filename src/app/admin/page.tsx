@@ -29,6 +29,7 @@ import AdminDocumentsManager from '@/app/components/AdminDocumentsManager';
 import AdminImagesManager from '@/app/components/AdminImagesManager';
 import RankingHandicapManager from '@/app/components/RankingHandicapManager';
 import PageHeroManager from '@/app/components/PageHeroManager';
+import { JOBS_PAGE_HERO_KEYS } from '@/app/lib/pageHero';
 import ListingInquiryManager from '@/app/components/ListingInquiryManager';
 import WorkMatchManager from '@/app/components/WorkMatchManager';
 import WorkAppStats from '@/app/components/WorkAppStats';
@@ -811,6 +812,16 @@ export default function AdminDashboard() {
           {/* 特徴アイコン（feature_category_icons）設定：FeatureBrowse カテゴリータイルの画像（/jobs・タグ／エリアページ） */}
           <AccordionSection id="feature-icons" title="特徴アイコン設定" expanded={expandedSections} onToggle={toggleSection}>
             <FeatureIconManager onToast={showToast} />
+          </AccordionSection>
+
+          {/* 求人ページ別ヒーロー画像：本体タブの「ページ別ヒーロー画像設定」と同じ仕組み（page_heroes）を
+              求人系キー（JOBS_PAGE_HERO_KEYS）に絞って表示。対象ページを増やす手順は lib/pageHero.ts のコメント参照。 */}
+          <AccordionSection id="jobs-page-heroes" title="求人ページ別ヒーロー画像設定" expanded={expandedSections} onToggle={toggleSection}>
+            <PageHeroManager
+              onToast={showToast}
+              keys={JOBS_PAGE_HERO_KEYS}
+              description="フクエスワーク側の各ページ上部に表示するヒーロー画像を設定します（JPEG / PNG / WebP・5MBまで）。本体の「ページ別ヒーロー画像設定」と同じ仕組みです。"
+            />
           </AccordionSection>
 
           {/* コラム管理（work_articles）：求職者向けSEO記事。draft含む全件を管理（公開ページは段階3）。 */}

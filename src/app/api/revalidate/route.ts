@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/app/lib/supabase/server";
 import { areaHref } from "@/app/lib/areas";
+import { PAGE_HERO_PATHS } from '@/app/lib/pageHero';
 
 // ISR キャッシュを即時更新するエンドポイント。
 // 認証で保護：cookie のログインセッションから getUser し、認証済みユーザー（オーナー/管理者）
@@ -86,8 +87,9 @@ export async function POST(req: Request) {
   }
 
   if (pageHeroes) {
-    // ページ別ヒーロー画像の設定後、対象5ページを無効化する。
-    for (const path of ["/therapists", "/diary", "/reviews", "/therapist/new", "/x-shops"]) {
+    // ページ別ヒーロー画像の設定後、全対象ページを無効化する。
+    // 対象は lib/pageHero.ts の PAGE_HERO_PATHS に一元化（キー追加時にここの直しを不要にする）。
+    for (const path of Object.values(PAGE_HERO_PATHS)) {
       revalidatePath(path);
       revalidated.push(path);
     }

@@ -2,36 +2,47 @@
 
 // ページ別ヒーロー（ヘッダー）画像の管理。ランキングのヒーロー設定と同方式。
 // 画像は既存の公開バケット header-slider を再利用（page-hero/ 配下に保存）→ 公開URLを
-// 管理者判定付きRPC admin_set_page_hero(p_key,p_url) で保存する。対象は5ページ。
+// 管理者判定付きRPC admin_set_page_hero(p_key,p_url) で保存する。
+// keys プロップで対象ページを絞れる（本体タブ＝MAIN_PAGE_HERO_KEYS（既定）／求人タブ＝JOBS_PAGE_HERO_KEYS）。
+// ※ keys には lib/pageHero.ts のエクスポート定数など「毎レンダーで同一参照」のものを渡すこと
+//   （インライン配列だと load の useCallback が毎回作り直され再取得が走る）。
 import { useEffect, useState, useRef, useCallback } from 'react';
 import { createClient } from '@/app/lib/supabase/client';
 import { revalidatePageHeroes } from '@/app/lib/revalidateTop';
-import { PAGE_HERO_LABELS, type PageHeroKey } from '@/app/lib/pageHero';
+import { MAIN_PAGE_HERO_KEYS, PAGE_HERO_LABELS, type PageHeroKey } from '@/app/lib/pageHero';
 
 const supabase = createClient();
 const HERO_BUCKET = 'header-slider';
-const KEYS: PageHeroKey[] = ['therapists', 'diary', 'reviews', 'newface', 'xshops', 'news'];
 
-export default function PageHeroManager({ onToast }: { onToast: (m: string) => void }) {
-  const [urls, setUrls] = useState<Record<PageHeroKey, string | null>>({
-    therapists: null, diary: null, reviews: null, newface: null, xshops: null, news: null,
-  });
-  const [sel, setSel] = useState<PageHeroKey>('therapists');
+// keys の各キーを null 初期化したレコード（部分キーのRecordだが、参照は常に keys 内なので安全）。
+function emptyUrls(keys: readonly PageHeroKey[]): Record<PageHeroKey, string | null> {
+  return Object.fromEntries(keys.map((k) => [k, null])) as Record<PageHeroKey, string | null>;
+}
+
+export default function PageHeroManager({
+  onToast,
+  keys = MAIN_PAGE_HERO_KEYS,
+  description = '各ページ上部に表示するヘッダー画像を設定します（JPEG / PNG / WebP・5MBまで）。ランキングと同じ仕組みです。',
+}: {
+  onToast: (m: string) => void;
+  keys?: readonly PageHeroKey[];
+  description?: string;
+}) {
+  const [urls, setUrls] = useState<Record<PageHeroKey, string | null>>(() => emptyUrls(keys));
+  const [sel, setSel] = useState<PageHeroKey>(keys[0]);
   const [busy, setBusy] = useState(false);
   const [loaded, setLoaded] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
   const load = useCallback(async () => {
     const { data } = await supabase.from('page_heroes').select('page_key, image_url');
-    const next: Record<PageHeroKey, string | null> = {
-      therapists: null, diary: null, reviews: null, newface: null, xshops: null, news: null,
-    };
+    const next = emptyUrls(keys);
     ((data ?? []) as Array<{ page_key: string; image_url: string | null }>).forEach((r) => {
-      if ((KEYS as string[]).includes(r.page_key)) next[r.page_key as PageHeroKey] = r.image_url ?? null;
+      if ((keys as readonly string[]).includes(r.page_key)) next[r.page_key as PageHeroKey] = r.image_url ?? null;
     });
     setUrls(next);
     setLoaded(true);
-  }, []);
+  }, [keys]);
 
   useEffect(() => { load(); }, [load]);
 
@@ -85,13 +96,11 @@ export default function PageHeroManager({ onToast }: { onToast: (m: string) => v
 
   return (
     <div className="space-y-4">
-      <p className="text-sm text-slate-500">
-        各ページ上部に表示するヘッダー画像を設定します（JPEG / PNG / WebP・5MBまで）。ランキングと同じ仕組みです。
-      </p>
+      <p className="text-sm text-slate-500">{description}</p>
 
       {/* ページ選択 */}
       <div className="flex flex-wrap gap-1.5">
-        {KEYS.map((key) => (
+        {keys.map((key) => (
           <button
             key={key}
             type="button"

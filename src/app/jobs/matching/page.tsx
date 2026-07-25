@@ -1,6 +1,8 @@
 import Link from 'next/link';
 import type { Metadata } from 'next';
 import { WorkMatchForm } from './WorkMatchForm';
+import { PageHero } from '@/app/components/PageHero';
+import { fetchPageHero } from '@/app/lib/pageHero';
 
 // フクエスワーク「求職マッチング」エントリー（女の子＝求職者の希望入力フォーム）。
 // 女の子が希望条件と連絡先を入力 → 運営が条件に合う掲載店舗を数店ピック → その店舗から本人へ連絡してもらう斡旋。
@@ -32,7 +34,12 @@ export const metadata: Metadata = {
   },
 };
 
-export default function JobMatchingPage() {
+// ISR：10分ごとに再生成（ヒーロー画像の反映用。admin保存時は /api/revalidate で即時無効化もされる）。
+export const revalidate = 600;
+
+export default async function JobMatchingPage() {
+  // ページ別ヒーロー画像（admin求人タブ「求人ページ別ヒーロー画像設定」で設定。未設定なら非表示）。
+  const hero = await fetchPageHero('jobs-matching');
   return (
     <main className="max-w-3xl mx-auto px-4 py-8">
       {/* パンくず：フクエスワーク › お仕事マッチング */}
@@ -45,6 +52,9 @@ export default function JobMatchingPage() {
           お仕事マッチング
         </span>
       </nav>
+
+      {/* ヒーロー画像（未設定なら何も出ない）。他ページ（口コミ等）と同じくパンくず直下・見出しの上。 */}
+      <PageHero url={hero} alt="お仕事マッチング｜フクエスワーク" fullBleedMobile />
 
       <div className="mb-6">
         <h1
