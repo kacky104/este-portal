@@ -13,8 +13,7 @@ import { SaveButton } from './SaveButton';
 import { useSalonTherapists, type TherapistThumb } from './useSalonTherapists';
 import { areaLabel } from '../lib/areaLabel';
 import { areaHref, DISPATCH_AREA } from '../lib/areas';
-import { weightedShuffleEvery30min } from '@/lib/shuffle';
-import { CARD_BOOST_WEIGHT, type Salon } from '@/app/lib/salons';
+import { type Salon } from '@/app/lib/salons';
 
 export type { Salon };
 
@@ -555,8 +554,13 @@ function SalonCardSkeleton() {
 
 // ── ShuffledSalons ────────────────────────────────────────────
 
-export function ShuffledSalons({ salons, areas, showAge = false, areaNextToDuty = false, ratingAtBottom = false, compactTherapists = false, showSaveButton = false, wideDesktop = false, mobileSingleColumn = false, bleedTherapists = false, largeThumbs = false, nameBanner = false, tabsAsLinks = false, currentArea, includeDispatch = false, heading, shuffleSalt = '', showAreaTitle = false, insertBlocks }: { salons: Salon[]; areas: string[]; showAge?: boolean; areaNextToDuty?: boolean; ratingAtBottom?: boolean; compactTherapists?: boolean; showSaveButton?: boolean; wideDesktop?: boolean; mobileSingleColumn?: boolean; bleedTherapists?: boolean; largeThumbs?: boolean; nameBanner?: boolean; tabsAsLinks?: boolean; currentArea?: string; includeDispatch?: boolean; heading?: React.ReactNode; shuffleSalt?: string; showAreaTitle?: boolean; insertBlocks?: { afterIndex: number; node: React.ReactNode; zoom?: boolean }[] }) {
-  const [list,            setList]            = useState<Salon[]>([]);
+export function ShuffledSalons({ salons, areas, showAge = false, areaNextToDuty = false, ratingAtBottom = false, compactTherapists = false, showSaveButton = false, wideDesktop = false, mobileSingleColumn = false, bleedTherapists = false, largeThumbs = false, nameBanner = false, tabsAsLinks = false, currentArea, includeDispatch = false, heading, showAreaTitle = false, insertBlocks }: { salons: Salon[]; areas: string[]; showAge?: boolean; areaNextToDuty?: boolean; ratingAtBottom?: boolean; compactTherapists?: boolean; showSaveButton?: boolean; wideDesktop?: boolean; mobileSingleColumn?: boolean; bleedTherapists?: boolean; largeThumbs?: boolean; nameBanner?: boolean; tabsAsLinks?: boolean; currentArea?: string; includeDispatch?: boolean; heading?: React.ReactNode; showAreaTitle?: boolean; insertBlocks?: { afterIndex: number; node: React.ReactNode; zoom?: boolean }[] }) {
+  // 並び順は呼び出し元（RSC）で確定済みのものをそのまま使う（2026-07-26変更）。
+  // 従来は「初期 list=[] ＋ mount時の useEffect シャッフル」だったが、初期HTMLがスケルトンになり
+  // SEO（Googlebot のJSレンダリング第2波待ち）に不利だった。シャッフルは決定的（30分シード）なので
+  // サーバーで実行しても hydration 不一致は起きず、ISR（revalidate=600）とも矛盾しない。
+  // 呼び出し元での並べ方: weightedShuffleEvery30min(salons, salt, s => s.cardBoost ? CARD_BOOST_WEIGHT : 1)
+  const list = salons;
   const [activeArea,      setActiveArea]      = useState('福岡全域');
   // tabsAsLinks 時はページ自体が絞り込み対象を表すため、currentArea を選択中エリアとして使う
   // （クリックは別ページへの遷移＝Link。内部の activeArea state は使わない）。
@@ -568,17 +572,6 @@ export function ShuffledSalons({ salons, areas, showAge = false, areaNextToDuty 
   // wideDesktop 一覧のカラム定義。mobileSingleColumn=true（TOP用）は lg 未満を常に1列に
   // （既定は sm:grid-cols-2＝640px以上で2列）。lg は元々ワイド1列なので grid-cols-1 で不変。
   const wideGridCols = mobileSingleColumn ? 'grid-cols-1' : 'sm:grid-cols-2 lg:grid-cols-1';
-
-  // shuffle on mount：30分ごとに1度だけ並びが変わる決定的シャッフル（同じ30分は誰がリロードしても同じ、
-  // :00/:30 で入れ替わる）。salt でトップ/地域/各エリアを独立に回す。クライアント mount で確定するため
-  // ISR キャッシュ（revalidate=600）を凍結させない（初期 list=[] で SSR とクライアント初期描画は一致＝不一致なし）。
-  useEffect(() => {
-    // バナー設置特典：card_boost=true のサロンは重み CARD_BOOST_WEIGHT で
-    // 一覧の上側（半数より上）に来やすくなる。false は重み1.0＝従来の一様シャッフルと同じ分布。
-    setList(
-      weightedShuffleEvery30min(salons, shuffleSalt, (s) => (s.cardBoost ? CARD_BOOST_WEIGHT : 1)),
-    );
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // エリア一致判定。includeDispatch 時（出張ページ）は、選択中の出張エリアに限り
   // dispatch_type が none 以外（available/only）のサロンも OR で含める。

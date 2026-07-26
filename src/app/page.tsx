@@ -11,7 +11,8 @@ import { AccountMenu } from "./components/AccountMenu";
 import { HamburgerMenu } from '@/app/components/HamburgerMenu';
 import { NotificationBell } from "./components/NotificationBell";
 import { VipLetterIcon } from "./components/VipLetterIcon";
-import { fetchSalons } from "./lib/salons";
+import { fetchSalons, CARD_BOOST_WEIGHT } from "./lib/salons";
+import { weightedShuffleEvery30min } from "@/lib/shuffle";
 import { getBusinessDateJST } from "@/lib/dutyStatus";
 import { ALL_AREA, AREA_ORDER } from "./lib/areas";
 import { getFeaturedSalons } from "./lib/featured";
@@ -255,9 +256,8 @@ export default async function Home() {
           <div className="max-w-5xl mx-auto px-1 lg:px-4">
             {/* 地域バッジ列を最上部に出し、その下に見出し＋説明文→カード（heading で順序制御） */}
             <ShuffledSalons
-              salons={salons}
+              salons={weightedShuffleEvery30min(salons, 'home', (s) => (s.cardBoost ? CARD_BOOST_WEIGHT : 1))}
               areas={[...AREA_ORDER]}
-              shuffleSalt="home"
               currentArea={ALL_AREA}
               tabsAsLinks
               showAreaTitle
