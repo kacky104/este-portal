@@ -308,6 +308,9 @@ export type JobDetail = {
     name: string;
     area: string;
     area2: string;
+    // 郵便番号（例「812-0011」）。JobPosting の jobLocation.address.postalCode 用。
+    // 表示には使わない。未入力なら null。
+    postalCode: string | null;
     address: string | null;
     // salons テーブルの電話番号カラムは `phone`（`tel` ではない）。応募導線の tel: リンクに使う。
     phone: string | null;
@@ -649,7 +652,7 @@ export async function fetchJobById(id: number): Promise<JobDetail | null> {
   const { data, error } = await supabase
     .from('salon_jobs')
     .select(
-      'id, title, salary_text, published_at, area, work_hours, benefits, qualifications, access, description, salary_min, salary_max, features, hero_image_urls, gallery_images, therapist_voices, apply_email, apply_line_url, celebration_money, salons!inner(id, name, area, area2, address, phone, is_hidden)'
+      'id, title, salary_text, published_at, area, work_hours, benefits, qualifications, access, description, salary_min, salary_max, features, hero_image_urls, gallery_images, therapist_voices, apply_email, apply_line_url, celebration_money, salons!inner(id, name, area, area2, postal_code, address, phone, is_hidden)'
     )
     .eq('id', id)
     .eq('is_active', true)
@@ -663,6 +666,7 @@ export async function fetchJobById(id: number): Promise<JobDetail | null> {
     name: string;
     area: string | null;
     area2?: string | null;
+    postal_code: string | null;
     address: string | null;
     phone: string | null;
   }>(data.salons);
@@ -693,6 +697,8 @@ export async function fetchJobById(id: number): Promise<JobDetail | null> {
       name: salon.name ?? '',
       area: salon.area ?? '',
       area2: salon.area2 ?? '',
+      // 郵便番号は JobPosting 構造化データ専用。未入力（''）は null に寄せて呼び出し側の判定を単純化する。
+      postalCode: salon.postal_code?.trim() || null,
       address: salon.address ?? null,
       phone: salon.phone ?? null,
     },

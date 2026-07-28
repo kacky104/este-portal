@@ -81,8 +81,14 @@ export async function generateMetadata({
   };
 }
 
+// 日本の郵便番号「NNN-NNNN」形式かどうか。JSON-LD へ出す前の最終ゲート。
+function isValidPostalCode(v: string | null): boolean {
+  return !!v && /^\d{3}-\d{4}$/.test(v);
+}
+
 // JobPosting 構造化データ（このページの本丸）。データ取得・出力内容はブランド分離では変更しない。
 // validThrough は常時掲載方針のため出力しない（期限切れ放置はGoogleの品質違反）。
+// postalCode は salons.postal_code（構造化データ専用カラム）を出力。未設定の店では省略される。
 function buildJobPostingJsonLd(job: JobDetail): Record<string, unknown> {
   const ld: Record<string, unknown> = {
     '@context': 'https://schema.org/',
@@ -102,6 +108,9 @@ function buildJobPostingJsonLd(job: JobDetail): Record<string, unknown> {
         addressRegion: '福岡県',
         addressLocality: job.salon.area || undefined,
         streetAddress: job.salon.address || undefined,
+        // postalCode は salons.postal_code が「NNN-NNNN」形式のときだけ出力する。
+        // 未入力・書式不正の店は項目ごと省略（誤った郵便番号を出す方が有害なため）。
+        postalCode: isValidPostalCode(job.salon.postalCode) ? job.salon.postalCode! : undefined,
         addressCountry: 'JP',
       },
     },

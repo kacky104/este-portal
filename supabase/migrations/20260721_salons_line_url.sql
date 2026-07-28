@@ -1,1 +1,5 @@
-cd C:\Users\joltc\Desktop\este-portal; Get-ChildItem -Path .git -Recurse -Force -Include *.lock, index.lock.*, *.stale_*, tmp_obj_* | Remove-Item -Force -ErrorAction SilentlyContinue; git push origin maincd C:\Users\joltc\Desktop\este-portal; Get-ChildItem -Path .git -Recurse -Force -Include *.lock, index.lock.*, *.stale_*, tmp_obj_* | Remove-Item -Force -ErrorAction SilentlyContinue; git push origin main
+-- 店舗のLINE予約URL（サロン詳細のLINE予約ボタン用）。
+-- 空欄はボタン非表示、'#' はアイコンのみ（クリック不可）、URLならクリックで開く。
+-- Supabase SQL Editor で実行してください（コード push より先に適用）。
+-- オーナーは既存の salons 更新ポリシーで自店の line_url を保存できる（新規ポリシー不要）。
+alter table public.salons add column if not exists line_url text;

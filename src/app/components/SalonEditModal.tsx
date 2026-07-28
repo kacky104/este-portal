@@ -15,6 +15,19 @@ import {
 // メール形式の簡易チェック（サーバー側 adminOwner と同等。UI 側の事前確認用）。
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
+// 郵便番号を「812-0011」形式に正規化する。
+// 全角数字・全角ハイフン・「〒」・空白を吸収し、数字7桁なら 3-4 で区切る。
+// 7桁に満たない/超える場合は入力をそのまま返す（保存は許可し、構造化データ側で出さないだけにする）。
+function normalizePostalCode(raw: string): string {
+  const zenkakuToHankaku = raw.replace(/[０-９]/g, (c) =>
+    String.fromCharCode(c.charCodeAt(0) - 0xfee0),
+  );
+  const cleaned = zenkakuToHankaku.replace(/[〒\s]/g, '').replace(/[‐‑‒–—―ー－]/g, '-').trim();
+  const digits = cleaned.replace(/-/g, '');
+  if (/^\d{7}$/.test(digits)) return `${digits.slice(0, 3)}-${digits.slice(3)}`;
+  return cleaned;
+}
+
 export type SalonForEdit = {
   id:          number;
   name:        string | null;
@@ -23,6 +36,8 @@ export type SalonForEdit = {
   price:       string | null;
   hours:       string | null;
   phone:       string | null;
+  // 郵便番号。求人ページの JobPosting 構造化データ（jobLocation.address.postalCode）専用。
+  postal_code: string | null;
   address:     string | null;
   access:      string | null;
   closed_days: string | null;
@@ -50,6 +65,7 @@ export default function SalonEditModal({ salon, onClose, onSaved }: Props) {
     price:       salon.price       ?? '',
     hours:       salon.hours       ?? '',
     phone:       salon.phone       ?? '',
+    postal_code: salon.postal_code ?? '',
     address:     salon.address     ?? '',
     access:      salon.access      ?? '',
     closed_days: salon.closed_days ?? '',
@@ -150,6 +166,8 @@ export default function SalonEditModal({ salon, onClose, onSaved }: Props) {
         price:       form.price.trim(),
         hours:       form.hours.trim(),
         phone:       form.phone.trim(),
+        // 全角ハイフン・空白を除去し「812-0011」形式へ寄せる（空欄可）。
+        postal_code: normalizePostalCode(form.postal_code),
         address:     form.address.trim(),
         access:      form.access.trim(),
         closed_days: form.closed_days.trim(),
@@ -316,7 +334,11 @@ export default function SalonEditModal({ salon, onClose, onSaved }: Props) {
             {textField('定休日',   'closed_days', '例: 年中無休')}
           </div>
 
-          {textField('住所',     'address', '例: 福岡市博多区...')}
+          {/* 郵便番号 ＋ 住所（郵便番号は求人ページの構造化データ専用・空欄可） */}
+          <div className="grid grid-cols-[7rem_1fr] gap-4">
+            {textField('郵便番号', 'postal_code', '例: 812-0011')}
+            {textField('住所',     'address',     '例: 福岡市博多区...')}
+          </div>
           {textField('アクセス', 'access',  '例: 博多駅より徒歩5分')}
 
           {/* 予約通知メール（空欄可・入力時のみ形式チェック） */}

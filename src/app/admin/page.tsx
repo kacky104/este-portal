@@ -54,6 +54,8 @@ type Salon = {
   owner_id:    string | null;
   hours:       string | null;
   phone:       string | null;
+  // 郵便番号。求人ページの JobPosting 構造化データ（jobLocation.address.postalCode）専用。
+  postal_code: string | null;
   address:     string | null;
   access:      string | null;
   closed_days: string | null;
@@ -115,6 +117,7 @@ const EMPTY_FORM = {
   price: '',
   hours: '',
   phone: '',
+  postal_code: '',
   address: '',
   access: '',
   closed_days: '',
@@ -173,7 +176,7 @@ export default function AdminDashboard() {
   const fetchSalons = useCallback(async () => {
     const { data, error } = await supabase
       .from('salons')
-      .select('id, name, area, area2, price, rating, owner_id, hours, phone, address, access, closed_days, show_on_top, dispatch_type, jobs_enabled, is_hidden, booking_email')
+      .select('id, name, area, area2, price, rating, owner_id, hours, phone, postal_code, address, access, closed_days, show_on_top, dispatch_type, jobs_enabled, is_hidden, booking_email')
       .order('id', { ascending: true });
     if (error) {
       setFetchError('店舗データの取得に失敗しました');
@@ -260,6 +263,7 @@ export default function AdminDashboard() {
       price:             form.price.trim(),
       hours:             form.hours.trim(),
       phone:             form.phone.trim(),
+      postal_code:       form.postal_code.trim(),
       address:           form.address.trim(),
       access:            form.access.trim(),
       closed_days:       form.closed_days.trim(),
@@ -535,6 +539,7 @@ export default function AdminDashboard() {
               </div>
 
               {field('電話番号', 'phone', '例: 092-XXX-XXXX')}
+              {field('郵便番号', 'postal_code', '例: 812-0011')}
               {field('住所', 'address', '例: 福岡市博多区...')}
               {field('アクセス', 'access', '例: 博多駅より徒歩5分')}
               {field('定休日', 'closed_days', '例: 年中無休')}
