@@ -340,8 +340,14 @@ export function XProfileView({
                 </Link>
               )}
               {verifiedTherapistCount !== null && (
-                <Link href={`/x/u/${target.handle}/therapists`} className="text-[color:var(--x-text-secondary)] hover:underline">
-                  <strong className="text-[color:var(--x-text-primary)] tabular-nums">{verifiedTherapistCount}</strong> 赤バッジセラピスト
+                <Link
+                  href={`/x/u/${target.handle}/therapists`}
+                  className="inline-flex items-center gap-1 text-[color:var(--x-text-secondary)] hover:underline"
+                >
+                  <strong className="text-[color:var(--x-text-primary)] tabular-nums">{verifiedTherapistCount}</strong>
+                  {/* 「赤バッジ」は文字ではなく実物のバッジ（VerifiedBadge kind='therapist'＝赤）を出す。 */}
+                  <VerifiedBadge kind="therapist" size={14} />
+                  <span>セラピスト</span>
                 </Link>
               )}
             </div>
