@@ -46,6 +46,7 @@ const HEART_COLORS: Record<ThemeKey, { fill: string; num: string }> = {
   silver: { fill: '#6B7280', num: '#ffffff' },
 };
 import { SalonTherapists, SalonAllTherapists, SalonNewFaceTherapists } from "@/components/SalonTherapists";
+import { fetchSalonTherapists } from "@/app/lib/salonTherapists";
 import { SalonDiaryCircles } from "@/components/DiarySection";
 import SalonHeaderSlider from "@/components/SalonHeaderSlider";
 import { AutoFitText } from "@/app/components/AutoFitText";
@@ -293,7 +294,7 @@ export default async function SalonPage({
   // therapistIds が空のときは .in('therapist_id', []) が0件を返すため、件数は従来どおり0になる。
   const today = getBusinessDateJST();
   const diaryCutoff = new Date(Date.now() - 48 * 60 * 60 * 1000).toISOString();
-  const [schedRes, diaryRes, wallpaperRes] = await Promise.all([
+  const [schedRes, diaryRes, wallpaperRes, allTherapists] = await Promise.all([
     supabase
       .from('therapist_schedules')
       .select('therapist_id, is_active, start_time, end_time')
@@ -309,6 +310,9 @@ export default async function SalonPage({
       .select('image_url')
       .eq('theme_key', theme.key)
       .maybeSingle(),
+    // 在籍セラピスト一覧セクション用。props で渡すことで初期HTMLに
+    // <a href="/therapist/[id]"> が載る（SEO対応 2026-07-28）。
+    fetchSalonTherapists(Number(id), supabase),
   ]);
 
   // 本日出勤セラピスト数（GridCardの「N名」と同一ロジック：当日の is_active スケジュールを持つ人数）。
@@ -748,7 +752,7 @@ export default async function SalonPage({
 
             {/* All therapists（折り畳み式） */}
             <CollapsibleSection theme={theme} className="!mt-1.5 md:!mt-3 rounded-2xl p-6 border shadow-sm" title="在籍セラピスト一覧">
-              <SalonAllTherapists salonId={Number(id)} limit={4} showSaveButton singleColumn hideSaveOnMobile />
+              <SalonAllTherapists salonId={Number(id)} limit={4} showSaveButton singleColumn hideSaveOnMobile initialList={allTherapists} />
 
               <div className="mt-4 text-center">
                 <Link

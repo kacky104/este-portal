@@ -51,6 +51,22 @@ export function HamburgerMenu() {
         <span className="text-[10px] font-bold leading-none">menu</span>
       </button>
 
+      {/* SSR用の同一導線（SEO対応 2026-07-28）。
+          下のドロワーは createPortal（document.body 直下）かつ mounted ガート付きのため、
+          初期HTML＝クローラが最初に見る中身にはナビリンクが1本も含まれていなかった。
+          その結果トップページ以外は実質ハブ不在となり、/ranking・/therapists・/diary 等への
+          リンクがサイト内に流れていなかった。ここで同じ導線を初期HTMLにも出しておく。
+          マウント後（＝JS実行後）はドロワー側に一本化されるため重複しない。
+          sr-only は視覚的に隠すだけで支援技術からは読める＝実際に利用可能な導線であり、
+          クローキングにはあたらない（表示メニューと同じ項目・同じリンク先）。 */}
+      {!mounted && (
+        <nav aria-label="サイト内メニュー" className="sr-only">
+          {ITEMS.map((item) => (
+            <Link key={item.href} href={item.href}>{item.label}</Link>
+          ))}
+        </nav>
+      )}
+
       {mounted && createPortal(
         <>
           {/* オーバーレイ（クリックで閉じる） */}

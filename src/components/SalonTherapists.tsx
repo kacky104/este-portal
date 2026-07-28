@@ -14,6 +14,11 @@ import { SaveButton } from '@/app/components/SaveButton';
 import { isImasuguLiveCamel, imasuguUntilCamel } from '@/lib/imasugu';
 import type { SalonTheme } from '@/app/lib/themes';
 
+// GridCard は initialList 経由でサーバー描画されるようになった（SEO対応 2026-07-28）。
+// useLayoutEffect はサーバーでは動作せず React が警告を出すため、SSR時は useEffect にフォールバックする。
+// （クライアントでは従来どおり useLayoutEffect ＝ 描画前に名前行のフォントを詰めるのでチラつかない）
+const useIsomorphicLayoutEffect = typeof window !== 'undefined' ? useLayoutEffect : useEffect;
+
 const GRADS = ['from-pink-300 to-rose-400', 'from-fuchsia-300 to-pink-400', 'from-rose-300 to-pink-500'];
 const SYMS  = ['✿', '❀', '✾', '♡', '✦'];
 
@@ -255,7 +260,7 @@ export function GridCard({ therapist, index, showJoinDate = false, from, enableW
   // フォントを縮めて1行に収める（短いカードは元サイズ維持＝一律縮小しない）。
   const nameRowRef  = useRef<HTMLDivElement>(null);
   const nameWrapRef = useRef<HTMLSpanElement>(null);
-  useLayoutEffect(() => {
+  useIsomorphicLayoutEffect(() => {
     const row = nameRowRef.current, nameWrap = nameWrapRef.current;
     if (!row || !nameWrap) return;
     const fit = () => {
@@ -739,10 +744,16 @@ export function SalonOnDutyExcludingNow({ salonId, theme }: { salonId: number; t
 
 // ── SalonAllTherapists (全員表示) ──────────────────────────────
 
-export function SalonAllTherapists({ salonId, limit, from, showSaveButton = false, singleColumn = false, hideSaveOnMobile = false }: { salonId: number; limit?: number; from?: string; showSaveButton?: boolean; singleColumn?: boolean; hideSaveOnMobile?: boolean }) {
-  const [list, setList] = useState<Therapist[]>([]);
+// initialList: サーバー（page）が ISR で取得済みのリストを受け取る場合に渡す。
+// 渡された場合は自己フェッチせず、そのまま初期stateとして描画する＝初期HTMLに
+// <a href="/therapist/[id]"> が載り、クローラがセラピスト詳細へ辿れるようになる。
+// （未指定なら従来どおりクライアントで取得。既存の呼び出し箇所は変更不要）
+export function SalonAllTherapists({ salonId, limit, from, showSaveButton = false, singleColumn = false, hideSaveOnMobile = false, initialList }: { salonId: number; limit?: number; from?: string; showSaveButton?: boolean; singleColumn?: boolean; hideSaveOnMobile?: boolean; initialList?: Therapist[] }) {
+  const hasInitial = Array.isArray(initialList);
+  const [list, setList] = useState<Therapist[]>(initialList ?? []);
 
   useEffect(() => {
+    if (hasInitial) return;  // サーバー取得済み。二重フェッチしない。
     (async () => {
       const supabase = createClient();
       const { data: rows } = await supabase
@@ -786,7 +797,7 @@ export function SalonAllTherapists({ salonId, limit, from, showSaveButton = fals
 
       setList(mapped);
     })();
-  }, [salonId]);
+  }, [salonId, hasInitial]);
 
   if (list.length === 0) return (
     <div className="text-center py-8 text-xs text-slate-400 border border-dashed border-pink-100 rounded-2xl bg-pink-50/10">

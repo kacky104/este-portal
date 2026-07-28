@@ -9,6 +9,7 @@ import { notFound } from "next/navigation";
 import { createPublicClient } from "@/app/lib/supabase/public";
 import { getTheme, breadcrumbCurrentColor } from "@/app/lib/themes";
 import { SalonAllTherapists } from "@/components/SalonTherapists";
+import { fetchSalonTherapists } from "@/app/lib/salonTherapists";
 import type { Metadata } from "next";
 import { buildSalonSubpageMetadata } from "../subpageMetadata";
 import { SiteNoticeBanner } from '@/app/components/SiteNoticeBanner';
@@ -50,11 +51,16 @@ export default async function SalonTherapistsPage({
 
   const theme = getTheme(salonRow.theme as string | null);
 
-  const { data: wallpaperRow } = await supabase
-    .from('theme_wallpapers')
-    .select('image_url')
-    .eq('theme_key', theme.key)
-    .maybeSingle();
+  // 在籍セラピストは壁紙と並列でサーバー取得する。props で渡すことで初期HTMLに
+  // <a href="/therapist/[id]"> が載り、クローラが各セラピスト詳細へ辿れる（SEO対応 2026-07-28）。
+  const [{ data: wallpaperRow }, therapists] = await Promise.all([
+    supabase
+      .from('theme_wallpapers')
+      .select('image_url')
+      .eq('theme_key', theme.key)
+      .maybeSingle(),
+    fetchSalonTherapists(Number(id), supabase),
+  ]);
   const wallpaperUrl = (wallpaperRow?.image_url as string | undefined) ?? null;
 
   // 個別サロンページと同じ背景レイヤー（壁紙＋テーマ色オーバーレイ、モバイル対応の固定配置）
@@ -110,7 +116,7 @@ export default async function SalonTherapistsPage({
         </div>
 
         {/* 全在籍セラピスト（写真・名前・今すぐ・NEW・出勤ステータス付きカード） */}
-        <SalonAllTherapists salonId={Number(id)} from="therapists" showSaveButton />
+        <SalonAllTherapists salonId={Number(id)} from="therapists" showSaveButton initialList={therapists} />
       </main>
     </div>
   );

@@ -22,7 +22,9 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   // 公開サロン／公開サロン所属セラピスト／掲載中求人を並列取得。失敗時は空配列（サイトマップは壊さない）。
   const [salonsRes, therapistsRes, jobs, featureSlugs, areaTag, dispatchJobs, columnArticles, mainColumnArticles, xProfilesRes, xPostsRes] = await Promise.all([
     supabase.from('salons').select('id').eq('is_hidden', false),
-    supabase.from('therapists').select('id, is_active, feature_badges, salons!inner(is_hidden)').eq('salons.is_hidden', false),
+    // is_active=true のみ。退店・非公開セラピストを載せると 404 が sitemap 経由で発生する
+    // （2026-07-28: /therapist/38・/therapist/40 が Search Console で「見つかりませんでした(404)」）。
+    supabase.from('therapists').select('id, is_active, feature_badges, salons!inner(is_hidden)').eq('salons.is_hidden', false).eq('is_active', true),
     fetchActiveJobsForSitemap(),
     // 求人が1件以上あるタグのみ（0件＝noindexページはsitemapに入れない）。
     fetchFeatureSlugsWithActiveJobs(),
@@ -34,9 +36,13 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     fetchPublishedArticlesForSitemap(),
     // 本体コラム（main_articles・published のみ）。/column 配下のURLに使う。
     fetchPublishedMainArticlesForSitemap(),
-    // fukuX: 承認済みプロフィール全件＋トップレベル投稿全件（RLSに加え status='approved' を明示フィルタ）。
-    supabase.from('x_profiles').select('handle').eq('status', 'approved'),
-    supabase.from('x_posts').select('id, edited_at, created_at').is('parent_post_id', null),
+    // fukuX: 承認済みプロフィール全件＋トップレベル投稿全件。
+    // x_posts には status 列が無く、公開可否は「投稿者プロフィールが approved か」で決まる。
+    // 以前のコメントは「status='approved' を明示フィルタ」と書いていたが実装されておらず、
+    // 未承認プロフィールの投稿まで sitemap に載っていた（2026-07-28 修正）。
+    // author_profile_id を取得し、下で承認済みプロフィールの id 集合と突き合わせて絞る。
+    supabase.from('x_profiles').select('id, handle').eq('status', 'approved'),
+    supabase.from('x_posts').select('id, author_profile_id, edited_at, created_at').is('parent_post_id', null),
   ]);
 
   const now = new Date();
@@ -54,6 +60,9 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     { url: `${SITE_URL}/working`, lastModified: now, changeFrequency: 'daily', priority: 0.6 },
     // 特徴バッジ・エリアでのセラピスト検索ページ。
     { url: `${SITE_URL}/therapists`, lastModified: now, changeFrequency: 'daily', priority: 0.7 },
+    // 人気ランキング（トップ・ハンバーガーメニューから導線があり実在するが、
+    // sitemap から漏れていた。2026-07-28 追加）。
+    { url: `${SITE_URL}/ranking`, lastModified: now, changeFrequency: 'daily', priority: 0.7 },
     { url: `${SITE_URL}/therapist/new`, lastModified: now, changeFrequency: 'daily', priority: 0.6 },
     { url: `${SITE_URL}/news`, lastModified: now, changeFrequency: 'daily', priority: 0.6 },
     { url: `${SITE_URL}/jobs`, lastModified: now, changeFrequency: 'daily', priority: 0.8 },
@@ -214,12 +223,16 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     priority: 0.5,
   }));
 
-  const xPostEntries: MetadataRoute.Sitemap = (xPostsRes.data ?? []).map((r) => ({
-    url: `${SITE_URL}/x/post/${r.id}`,
-    lastModified: new Date(r.edited_at ?? r.created_at),
-    changeFrequency: 'weekly',
-    priority: 0.4,
-  }));
+  // 承認済みプロフィールの投稿のみ（未承認・保留中の投稿者のURLは sitemap に載せない）。
+  const approvedProfileIds = new Set((xProfilesRes.data ?? []).map((p) => String(p.id)));
+  const xPostEntries: MetadataRoute.Sitemap = (xPostsRes.data ?? [])
+    .filter((r) => approvedProfileIds.has(String(r.author_profile_id)))
+    .map((r) => ({
+      url: `${SITE_URL}/x/post/${r.id}`,
+      lastModified: new Date(r.edited_at ?? r.created_at),
+      changeFrequency: 'weekly',
+      priority: 0.4,
+    }));
 
   return [
     ...staticEntries,
