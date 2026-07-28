@@ -18,6 +18,7 @@ import {
   type ShopMini,
   type TherapistMini,
 } from '../../xAffiliation';
+import { countVerifiedProfiles } from '../../xFollows';
 import { XProfileView } from '../../XProfileView';
 import { getLinkedTherapistForXProfile } from '@/app/lib/xLink';
 import type { StoryGroup } from '../../xStories';
@@ -178,6 +179,14 @@ export default async function XProfilePage({ params }: { params: Promise<{ handl
   const followerCount = wantsFollowers ? (followerRes.count ?? 0) : null;
   const followingCount = wantsFollowing ? (followingRes.count ?? 0) : null;
 
+  // 運営(official)のプロフィールだけ、フォロワーの右に fukuX 全体の
+  // 「承認店舗」（shop かつ is_verified）と「赤バッジセラピスト」（therapist かつ is_verified）の数を出す。
+  // official 以外は null＝従来どおり非表示（クエリも投げない）。
+  const [verifiedShopCount, verifiedTherapistCount] =
+    target.kind === 'official'
+      ? await Promise.all([countVerifiedProfiles('shop'), countVerifiedProfiles('therapist')])
+      : [null, null];
+
   // 所属情報：therapist は所属先店舗（1件）、shop は所属セラピスト一覧を解決。
   // linkedTherapist：セラピストなら紐づく本体 therapist を解決（出勤スケジュールブロック用）。
   // therapist id 自体は日付非依存なのでサーバー解決でISRに焼いてよい（日付依存の取得・表示は子のクライアント側）。
@@ -324,6 +333,8 @@ export default async function XProfilePage({ params }: { params: Promise<{ handl
       isOwnProfile={isOwnProfile}
       followerCount={followerCount}
       followingCount={followingCount}
+      verifiedShopCount={verifiedShopCount}
+      verifiedTherapistCount={verifiedTherapistCount}
       feed={orderedFeed}
       pinnedPostId={pinnedTop ? pinnedTop.post.id : null}
       initialLikedIds={initialLikedIds}

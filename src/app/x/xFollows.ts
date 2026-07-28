@@ -26,13 +26,14 @@ function escapeLike(s: string): string {
 
 // handle から対象プロフィールの最小情報を公開クライアントで解決。
 // 該当なし／rejected（RLSでanonには出ない）は null。呼び出し側で notFound 判定。
+// kind も返す（運営限定ページ＝承認店舗／赤バッジセラピスト一覧のゲート判定に使う）。
 export async function resolveProfileMini(
   decodedHandle: string
-): Promise<{ id: string; handle: string; displayName: string } | null> {
+): Promise<{ id: string; handle: string; displayName: string; kind: XKind } | null> {
   const client = createPublicClient();
   const { data } = await client
     .from('x_profiles')
-    .select('id, handle, display_name')
+    .select('id, handle, display_name, kind')
     .ilike('handle', escapeLike(decodedHandle))
     .maybeSingle();
   if (!data) return null;
@@ -41,7 +42,66 @@ export async function resolveProfileMini(
     id: data.id as string,
     handle: data.handle as string,
     displayName: (data.display_name as string) ?? '',
+    kind: ((data.kind as XKind) ?? 'user'),
   };
+}
+
+// ── 認証済み（バッジ付き）プロフィールの一覧・件数 ────────────────────────────
+// 運営(official)プロフィールに出す2つのカウンタ用。
+//   'shop'      = 運営が手動で認証した店舗（インディゴのバッジ）＝「承認店舗」
+//   'therapist' = 所属＋画像付き投稿10件以上で自動付与される認証（赤のバッジ）＝「赤バッジセラピスト」
+// どちらも is_verified=true かつ rejected(凍結)でないものだけを対象にする。
+export type VerifiedKind = 'shop' | 'therapist';
+
+// 一覧に出す上限。フォロー一覧（500）と同じ作法。
+const VERIFIED_LIMIT = 500;
+
+// バッジ付きプロフィールの件数（プロフィールのカウンタ表示用）。
+export async function countVerifiedProfiles(kind: VerifiedKind): Promise<number> {
+  const client = createPublicClient();
+  const { count } = await client
+    .from('x_profiles')
+    .select('id', { count: 'exact', head: true })
+    .eq('kind', kind)
+    .eq('is_verified', true)
+    .neq('status', 'rejected');
+  return count ?? 0;
+}
+
+// バッジ付きプロフィールの一覧（新しい順）。行の描画はフォロー一覧（XFollowRows）を流用するため
+// 戻り値は FollowUser に揃える。therapist は所属店舗名も解決してバッジに出す。
+export async function fetchVerifiedProfiles(kind: VerifiedKind): Promise<FollowUser[]> {
+  const client = createPublicClient();
+  const { data } = await client
+    .from('x_profiles')
+    .select('id, handle, display_name, kind, avatar_url, is_verified, affiliated_shop_id, status')
+    .eq('kind', kind)
+    .eq('is_verified', true)
+    .neq('status', 'rejected')
+    .order('created_at', { ascending: false })
+    .limit(VERIFIED_LIMIT);
+
+  const rows = ((data ?? []) as Array<Record<string, unknown>>).filter((p) => (p.status as string) !== 'rejected');
+  if (rows.length === 0) return [];
+
+  // 所属店舗名（therapist のみ）を1クエリでまとめ解決。shop のときは空配列＝クエリ無し。
+  const shopDict = await fetchShopMiniByIds(
+    client,
+    kind === 'therapist' ? rows.map((p) => (p.affiliated_shop_id as string | null) ?? null) : []
+  );
+
+  return rows.map((p) => {
+    const shop = kind === 'therapist' ? shopDict.get((p.affiliated_shop_id as string) ?? '') : undefined;
+    return {
+      id: p.id as string,
+      handle: (p.handle as string) ?? '',
+      displayName: (p.display_name as string) ?? '',
+      kind: (p.kind as XKind) ?? kind,
+      avatarUrl: (p.avatar_url as string | null) ?? null,
+      isVerified: Boolean(p.is_verified),
+      affiliatedShop: shop ? { handle: shop.handle, displayName: shop.displayName } : null,
+    };
+  });
 }
 
 // フォロワー or フォロー中のユーザー一覧。

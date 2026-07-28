@@ -38,6 +38,8 @@ export function XProfileView({
   isOwnProfile,
   followerCount,
   followingCount,
+  verifiedShopCount = null,
+  verifiedTherapistCount = null,
   feed,
   pinnedPostId = null,
   initialLikedIds,
@@ -57,6 +59,8 @@ export function XProfileView({
   isOwnProfile: boolean;
   followerCount: number | null;
   followingCount: number | null;
+  verifiedShopCount?: number | null; // 運営(official)プロフィールのみ：fukuX全体の承認店舗数
+  verifiedTherapistCount?: number | null; // 運営(official)プロフィールのみ：fukuX全体の赤バッジセラピスト数
   feed: FeedItem[]; // 通常投稿＋リポストをマージ済み（サーバで sortAt 降順・重複排除済み・固定投稿は先頭）
   pinnedPostId?: string | null; // 📌固定表示する投稿ID（サーバで先頭に並び替え済み・ラベル表示用）
   initialLikedIds: string[];
@@ -316,8 +320,10 @@ export function XProfileView({
               </div>
             )}
 
-            {/* 数値（kind が持ち得る数だけ表示）。タップでフォロー中／フォロワー一覧へ。 */}
-            <div className="flex items-center gap-4 mt-3 text-sm">
+            {/* 数値（kind が持ち得る数だけ表示）。タップでフォロー中／フォロワー一覧へ。
+                運営(official)のみ、フォロワーの右に「承認店舗」「赤バッジセラピスト」をこの順で追加（タップで一覧へ）。
+                4項目になると狭幅で溢れるため flex-wrap で折り返す。 */}
+            <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mt-3 text-sm">
               {followingCount !== null && (
                 <Link href={`/x/u/${target.handle}/following`} className="text-[color:var(--x-text-secondary)] hover:underline">
                   <strong className="text-[color:var(--x-text-primary)] tabular-nums">{followingCount}</strong> フォロー中
@@ -326,6 +332,16 @@ export function XProfileView({
               {followerCount !== null && (
                 <Link href={`/x/u/${target.handle}/followers`} className="text-[color:var(--x-text-secondary)] hover:underline">
                   <strong className="text-[color:var(--x-text-primary)] tabular-nums">{followerCount}</strong> フォロワー
+                </Link>
+              )}
+              {verifiedShopCount !== null && (
+                <Link href={`/x/u/${target.handle}/shops`} className="text-[color:var(--x-text-secondary)] hover:underline">
+                  <strong className="text-[color:var(--x-text-primary)] tabular-nums">{verifiedShopCount}</strong> 承認店舗
+                </Link>
+              )}
+              {verifiedTherapistCount !== null && (
+                <Link href={`/x/u/${target.handle}/therapists`} className="text-[color:var(--x-text-secondary)] hover:underline">
+                  <strong className="text-[color:var(--x-text-primary)] tabular-nums">{verifiedTherapistCount}</strong> 赤バッジセラピスト
                 </Link>
               )}
             </div>
