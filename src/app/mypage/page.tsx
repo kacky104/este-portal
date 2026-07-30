@@ -27,6 +27,7 @@ import AccordionCard from '@/app/components/AccordionCard';
 import { sanitizeInternalPath } from '@/app/lib/safeLink';
 import { useToast } from '@/app/components/useToast';
 import { SiteNoticeBanner } from '@/app/components/SiteNoticeBanner';
+import { SalonBumpButton } from '@/app/components/SalonBumpButton';
 
 const supabase = createClient();
 
@@ -1959,6 +1960,13 @@ export default function MyPage() {
           </h2>
           <p className="mt-1 text-[11px] text-slate-400">※ 店舗名の変更は管理者のみ行えます。変更が必要な場合はお問い合わせください。</p>
         </div>
+
+        {/* ── 上位表示（TOP・地域ページの店舗カードを先頭へ）。店舗タブの最上部。 ── */}
+        {salon && (
+          <div className={activeTab === 'salon' ? '' : 'hidden'}>
+            <SalonBumpButton salonId={Number(salon.id)} />
+          </div>
+        )}
 
         {/* ── サロン情報編集 ── */}
         <div className={`bg-white rounded-3xl border border-slate-100 shadow-sm p-5 space-y-4 ${activeTab === 'salon' ? '' : 'hidden'}`}>
