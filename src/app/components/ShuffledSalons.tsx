@@ -557,9 +557,10 @@ function SalonCardSkeleton() {
 export function ShuffledSalons({ salons, areas, showAge = false, areaNextToDuty = false, ratingAtBottom = false, compactTherapists = false, showSaveButton = false, wideDesktop = false, mobileSingleColumn = false, bleedTherapists = false, largeThumbs = false, nameBanner = false, tabsAsLinks = false, currentArea, includeDispatch = false, heading, showAreaTitle = false, insertBlocks }: { salons: Salon[]; areas: string[]; showAge?: boolean; areaNextToDuty?: boolean; ratingAtBottom?: boolean; compactTherapists?: boolean; showSaveButton?: boolean; wideDesktop?: boolean; mobileSingleColumn?: boolean; bleedTherapists?: boolean; largeThumbs?: boolean; nameBanner?: boolean; tabsAsLinks?: boolean; currentArea?: string; includeDispatch?: boolean; heading?: React.ReactNode; showAreaTitle?: boolean; insertBlocks?: { afterIndex: number; node: React.ReactNode; zoom?: boolean }[] }) {
   // 並び順は呼び出し元（RSC）で確定済みのものをそのまま使う（2026-07-26変更）。
   // 従来は「初期 list=[] ＋ mount時の useEffect シャッフル」だったが、初期HTMLがスケルトンになり
-  // SEO（Googlebot のJSレンダリング第2波待ち）に不利だった。シャッフルは決定的（30分シード）なので
+  // SEO（Googlebot のJSレンダリング第2波待ち）に不利だった。シャッフルは決定的（6時間シード）なので
   // サーバーで実行しても hydration 不一致は起きず、ISR（revalidate=600）とも矛盾しない。
-  // 呼び出し元での並べ方: weightedShuffleEvery30min(salons, salt, s => s.cardBoost ? CARD_BOOST_WEIGHT : 1)
+  // 呼び出し元での並べ方: weightedShuffleEvery6h(salons, salt, s => s.cardBoost ? CARD_BOOST_WEIGHT : 1)
+  // （2026-07-28: 30分→6時間へ変更。求人・fukuX側の30分シャッフルは対象外＝従来どおり）
   const list = salons;
   const [activeArea,      setActiveArea]      = useState('福岡全域');
   // tabsAsLinks 時はページ自体が絞り込み対象を表すため、currentArea を選択中エリアとして使う

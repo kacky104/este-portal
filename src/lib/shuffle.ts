@@ -55,6 +55,12 @@ export function thirtyMinSeed(nowMs: number = Date.now()): number {
   return Math.floor(nowMs / (30 * 60 * 1000));
 }
 
+/** 現在時刻（ミリ秒）から6時間スロットの seed を作る。同じ6時間の間は同じ値、6時間ごとに変わる。
+ *  スロットはエポック基準（UTC）なので JST では 3時/9時/15時/21時 に切り替わる。 */
+export function sixHourSeed(nowMs: number = Date.now()): number {
+  return Math.floor(nowMs / (6 * 60 * 60 * 1000));
+}
+
 /** salt 文字列を 32bit ハッシュに（ページごとに並びを変えたい時用・FNV-1a）。 */
 function hashString(s: string): number {
   let h = 2166136261;
@@ -86,4 +92,17 @@ export function weightedShuffleEvery30min<T>(
   weightOf: (item: T) => number
 ): T[] {
   return seededWeightedShuffle(items, (thirtyMinSeed() ^ hashString(salt)) >>> 0, weightOf);
+}
+
+/**
+ * weightedShuffleEvery30min の6時間版。TOP／地域ページの店舗カード用（2026-07-28 に30分→6時間へ変更）。
+ * 同じ6時間・同じ salt・同じ入力・同じ重みなら必ず同じ並び（純粋関数・副作用なし）。
+ * 実際の入れ替わりはスロット切替後の最初の ISR 再生成時（revalidate=600 なので最大+10分ずれる）。
+ */
+export function weightedShuffleEvery6h<T>(
+  items: readonly T[],
+  salt: string,
+  weightOf: (item: T) => number
+): T[] {
+  return seededWeightedShuffle(items, (sixHourSeed() ^ hashString(salt)) >>> 0, weightOf);
 }

@@ -3,7 +3,7 @@ import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import { createPublicClient } from '@/app/lib/supabase/public';
 import { fetchSalons, CARD_BOOST_WEIGHT } from '@/app/lib/salons';
-import { weightedShuffleEvery30min } from '@/lib/shuffle';
+import { weightedShuffleEvery6h } from '@/lib/shuffle';
 import { ShuffledSalons } from '@/app/components/ShuffledSalons';
 import { TherapistScroller } from '@/app/components/TherapistScroller';
 import { FeaturedSalonSlider } from '@/app/components/FeaturedSalonSlider';
@@ -132,7 +132,7 @@ export default async function AreaPage({ params }: { params: Promise<{ slug: str
         {/* サロン一覧のみ左右余白を main(px-4=16px)→4px に詰める（-mx-3=12px相殺）。TOPのpx-1と同幅感。lgは従来。 */}
         <div className="-mx-3 lg:mx-0">
         <ShuffledSalons
-          salons={weightedShuffleEvery30min(salons, `area:${slug}`, (s) => (s.cardBoost ? CARD_BOOST_WEIGHT : 1))}
+          salons={weightedShuffleEvery6h(salons, `area:${slug}`, (s) => (s.cardBoost ? CARD_BOOST_WEIGHT : 1))}
           areas={[...AREA_ORDER]}
           currentArea={area}
           tabsAsLinks
@@ -193,7 +193,7 @@ export default async function AreaPage({ params }: { params: Promise<{ slug: str
                 </div>
               )}
               <p className="text-xs text-slate-400">
-                表示順は30分ごとに入れ替わります
+                表示順は6時間ごとに入れ替わります
               </p>
             </div>
           }

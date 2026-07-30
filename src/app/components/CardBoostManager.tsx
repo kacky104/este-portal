@@ -1,7 +1,7 @@
 'use client';
 
 // サロンカード「優先表示」設定（リンクバナー設置特典）。
-// card_boost=true にしたサロンは、トップ／地域ページのカード「30分ごとランダム表示」で
+// card_boost=true にしたサロンは、トップ／地域ページのカード「6時間ごとランダム表示」で
 // 一覧の上側（半数より上）に来やすくなる（src/lib/shuffle の重み付きシャッフル）。
 // 更新は salons テーブルへの直接 UPDATE（RLS: salons_update_admin＝ADMIN_UUID のみ）。
 // 保存後は revalidateTopAndAreas() でトップ／全エリアの ISR を即時更新する。
@@ -75,7 +75,7 @@ export default function CardBoostManager({ onToast }: { onToast: (msg: string) =
   return (
     <div className="rounded-2xl border border-slate-100 bg-white p-4 shadow-sm">
       <p className="text-xs text-slate-500 leading-relaxed mb-3">
-        リンクバナー設置特典の設定です。オンにした店舗は、トップ・地域ページの店舗カード（30分ごとランダム表示）で
+        リンクバナー設置特典の設定です。オンにした店舗は、トップ・地域ページの店舗カード（6時間ごとランダム表示）で
         <span className="font-bold text-pink-600">一覧の上側（半数より上）に来やすく</span>なります。
         順位を固定するものではなく、当たりやすさが上がる仕組みです。設置をやめた店舗はオフに戻してください。
       </p>
