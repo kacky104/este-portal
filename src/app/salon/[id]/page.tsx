@@ -796,11 +796,19 @@ export default async function SalonPage({
               <p className="text-xs opacity-70 mt-1">※ コースにより異なります</p>
             </div>
 
-            {/* Rating（口コミ評価＝承認済み口コミの計算値。店舗基本情報の上） */}
-            <div className="rounded-2xl border shadow-sm p-5" style={{ backgroundColor: theme.card, borderColor: theme.cardBorder }}>
-              {salonReviewStats.count === 0 || salonReviewStats.avgOverall === null ? (
+            {/* Rating（口コミ評価＝承認済み口コミの計算値。店舗基本情報の上）
+                1件以上あればカード全体が店舗の口コミ一覧（/salon/[id]/reviews）へのリンク。0件時はリンクなし。 */}
+            {salonReviewStats.count === 0 || salonReviewStats.avgOverall === null ? (
+              <div className="rounded-2xl border shadow-sm p-5" style={{ backgroundColor: theme.card, borderColor: theme.cardBorder }}>
                 <p className="text-sm" style={{ color: theme.body }}>口コミはまだありません</p>
-              ) : (
+              </div>
+            ) : (
+              <Link
+                href={`/salon/${id}/reviews`}
+                className="block rounded-2xl border shadow-sm p-5 cursor-pointer hover:shadow-md hover:brightness-[0.97] transition-all"
+                style={{ backgroundColor: theme.card, borderColor: theme.cardBorder }}
+                aria-label={`${salon.name}の口コミ一覧を見る`}
+              >
                 <div className="space-y-3">
                   {/* 総合 */}
                   <div className="flex flex-wrap items-center gap-3">
@@ -820,9 +828,11 @@ export default async function SalonPage({
                       <span className="inline-flex items-center gap-1">受付 <Stars value={salonReviewStats.avgReception} size={11} /> {salonReviewStats.avgReception.toFixed(1)}</span>
                     )}
                   </div>
+                  {/* 一覧への導線（タップできることを明示） */}
+                  <p className="text-xs font-semibold text-pink-600 text-right">口コミ一覧を見る →</p>
                 </div>
-              )}
-            </div>
+              </Link>
+            )}
 
             {/* Shop info（デスクトップのみ：右サイドバーに常時展開で表示。スマホは左カラムのサロンについての下） */}
             <CollapsibleSection theme={theme} className="hidden lg:block rounded-2xl border shadow-sm p-5" title="店舗基本情報" mobileOnly>
