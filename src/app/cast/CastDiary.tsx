@@ -72,7 +72,7 @@ export function CastDiary({
   const [diaryBody, setDiaryBody] = useState('');
   const [diaryUploading, setDiaryUploading] = useState(false);
   const [diaryPosting, setDiaryPosting] = useState(false);
-  const [crosspostX, setCrosspostX] = useState(false); // fukuX 同時投稿（デフォルトOFF・連携時のみ表示）
+  const [crosspostX, setCrosspostX] = useState(true); // fukuX 同時投稿（デフォルトON・連携時のみ表示。外したいときだけチェックを外す）
   const [crosspostXNoReplies, setCrosspostXNoReplies] = useState(false); // fukuX投稿のリプライ禁止（fukuX ON時のみ表示・デフォルトOFF）
 
   // ── 一覧 ──
@@ -200,7 +200,7 @@ export function CastDiary({
     setDiaryImage(null);
     setDiaryTitle('');
     setDiaryBody('');
-    setCrosspostX(false); // 毎回デフォルトOFFに戻す（都度オプトイン）
+    setCrosspostX(true); // 毎回デフォルトONに戻す（外すのは都度オプトアウト）
     setCrosspostXNoReplies(false); // リプライ禁止チェックも都度OFFへ
     revalidateSalon(salonId, { top: false }); // 公開側（サロン詳細・セラピスト日記）を更新（best-effort）
     showToast('写メ日記を投稿しました');
