@@ -95,6 +95,8 @@ export function XProfileView({
     showToast(res.ok ? '通報を受け付けました。ご協力ありがとうございます' : res.error);
   };
   const [lightboxSrc, setLightboxSrc] = useState<string | null>(null); // avatar/header の全体表示
+  // 所属セラピスト一覧の展開状態。閉＝アイコンだけの横並び／開＝名前つき縦リスト（タップで切替）。
+  const [therapistListOpen, setTherapistListOpen] = useState(false);
   // ストーリーリング: 既読状態は localStorage 依存＝マウント後に読む（SSR不一致回避）。
   const [storyOpen, setStoryOpen] = useState(false);
   const [storySeenMap, setStorySeenMap] = useState<Record<string, string>>({});
@@ -376,7 +378,37 @@ export function XProfileView({
           </h2>
           {affiliatedTherapists.length === 0 ? (
             <p className="text-xs text-[color:var(--x-text-muted)] py-2">所属セラピストはまだいません</p>
+          ) : !therapistListOpen ? (
+            // 閉じた状態：アイコンだけの横並び（折り返しあり）。タップで名前つき一覧を展開。
+            <button
+              type="button"
+              onClick={() => setTherapistListOpen(true)}
+              aria-label={`所属セラピスト${affiliatedTherapists.length}人の一覧を表示`}
+              className="w-full flex flex-wrap items-center gap-1.5 p-1 rounded-xl hover:bg-[color:var(--x-surface-hover)] transition-colors cursor-pointer text-left"
+            >
+              {affiliatedTherapists.map((th) => (
+                <span
+                  key={th.id}
+                  className="relative w-9 h-9 rounded-full overflow-hidden border border-[color:var(--x-border)] bg-gradient-to-br from-indigo-300 to-sky-300 flex items-center justify-center flex-shrink-0"
+                  title={th.displayName}
+                >
+                  {th.avatarUrl ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={th.avatarUrl} alt={th.displayName} className="w-full h-full object-cover" />
+                  ) : (
+                    <span className="text-white text-xs font-bold">{th.displayName.charAt(0) || '?'}</span>
+                  )}
+                </span>
+              ))}
+              <span className="ml-1 inline-flex items-center gap-0.5 text-xs font-bold text-[color:var(--x-text-muted)]">
+                一覧
+                <svg viewBox="0 0 20 20" fill="currentColor" className="w-3.5 h-3.5" aria-hidden="true">
+                  <path fillRule="evenodd" d="M5.23 7.21a.75.75 0 0 1 1.06.02L10 11.06l3.71-3.83a.75.75 0 1 1 1.08 1.04l-4.25 4.39a.75.75 0 0 1-1.08 0L5.21 8.27a.75.75 0 0 1 .02-1.06Z" clipRule="evenodd" />
+                </svg>
+              </span>
+            </button>
           ) : (
+            // 開いた状態：従来どおり名前つき縦リスト（行タップで各プロフィールへ）＋閉じるボタン。
             <div className="space-y-1">
               {affiliatedTherapists.map((th) => (
                 <Link
@@ -398,6 +430,13 @@ export function XProfileView({
                   </div>
                 </Link>
               ))}
+              <button
+                type="button"
+                onClick={() => setTherapistListOpen(false)}
+                className="w-full text-center text-xs font-bold text-[color:var(--x-text-muted)] py-1.5 rounded-xl hover:bg-[color:var(--x-surface-hover)] transition-colors cursor-pointer"
+              >
+                閉じる
+              </button>
             </div>
           )}
         </div>
