@@ -67,7 +67,7 @@ export function JobNewsManager({ salonId }: { salonId: number }) {
   const [xShopProfileId, setXShopProfileId] = useState<string | null>(null);
 
   const [newForm, setNewForm] = useState<NewForm>({ title: '', content: '', is_published: true, image_url: null });
-  const [newCrosspostX, setNewCrosspostX] = useState(false);
+  const [newCrosspostX, setNewCrosspostX] = useState(true); // fukuX同時投稿デフォルトON（外すのは都度）
   const [newCrosspostNoReplies, setNewCrosspostNoReplies] = useState(false);
 
   const [adding, setAdding] = useState(false);
@@ -233,7 +233,7 @@ export function JobNewsManager({ salonId }: { salonId: number }) {
     }
     await fetchList();
     setNewForm({ title: '', content: '', is_published: true, image_url: null });
-    setNewCrosspostX(false);
+    setNewCrosspostX(true); // 投稿後もデフォルトONへ戻す
     setNewCrosspostNoReplies(false);
     setAdding(false);
     await revalidateJobsForOwner(salonId);
@@ -359,7 +359,7 @@ export function JobNewsManager({ salonId }: { salonId: number }) {
         <input
           type="checkbox"
           disabled={!xShopProfileId}
-          checked={enabled}
+          checked={!!xShopProfileId && enabled}
           onChange={(e) => { const on = e.target.checked; setEnabled(on); if (!on) setNoReplies(false); }}
           className="w-4 h-4 accent-emerald-500 flex-shrink-0"
         />

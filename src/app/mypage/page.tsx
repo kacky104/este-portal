@@ -560,12 +560,12 @@ export default function MyPage() {
   // お知らせ→fukuX 同時投稿。サロンオーナーの連携fukuX店舗プロフィール（kind='shop'・approved）id。
   // 未連携なら null（＝チェックは disabled 表示＋注記）。日記側 xProfileId と同じ役割。
   const [xShopProfileId, setXShopProfileId] = useState<string | null>(null);
-  // 新規フォーム用の同時投稿チェック（default OFF・投稿後リセット・都度オプトイン）。
-  const [newAnnCrosspostX, setNewAnnCrosspostX] = useState(false);
+  // 新規フォーム用の同時投稿チェック（default ON・投稿後もONへリセット・外すのは都度）。
+  const [newAnnCrosspostX, setNewAnnCrosspostX] = useState(true);
   const [newAnnCrosspostNoReplies, setNewAnnCrosspostNoReplies] = useState(false);
   // 再投稿カスタム確認モーダル（対象id）＋そのモーダル内の同時投稿チェック（毎回選び直し・記憶しない）。
   const [repostModalId, setRepostModalId] = useState<string | null>(null);
-  const [repostCrosspostX, setRepostCrosspostX] = useState(false);
+  const [repostCrosspostX, setRepostCrosspostX] = useState(true);
   const [repostCrosspostNoReplies, setRepostCrosspostNoReplies] = useState(false);
 
   const toggleSection = (key: string) => {
@@ -1712,7 +1712,7 @@ export default function MyPage() {
     // お知らせ保存成功後のみ fukuX 同時投稿（新規投稿時）。失敗しても本体は成功のまま。
     const xOk = await maybeCrosspostAnnouncementToX(newAnnCrosspostX, newAnnCrosspostNoReplies, title, content, imageUrl);
     setNewAnnouncement({ title: '', content: '', is_published: true, image_url: null });
-    setNewAnnCrosspostX(false);
+    setNewAnnCrosspostX(true); // 投稿後もデフォルトONへ戻す
     setNewAnnCrosspostNoReplies(false);
     setAddingAnnouncement(false);
     if (salon) revalidateSalon(salon.id);
@@ -1762,10 +1762,10 @@ export default function MyPage() {
     showToast(next ? '公開にしました' : '非公開にしました');
   };
 
-  // お知らせ：再投稿ボタン → カスタム確認モーダルを開く（チェックは毎回OFFから）。
+  // お知らせ：再投稿ボタン → カスタム確認モーダルを開く（チェックは毎回ONから）。
   // 標準 confirm() ではチェックを置けないため、モーダルで確認＋同時投稿オプションを提示する。
   const handleAnnouncementRepost = (id: string) => {
-    setRepostCrosspostX(false);
+    setRepostCrosspostX(true); // モーダルを開くたびデフォルトON
     setRepostCrosspostNoReplies(false);
     setRepostModalId(id);
   };
@@ -1810,7 +1810,7 @@ export default function MyPage() {
         <input
           type="checkbox"
           disabled={!xShopProfileId}
-          checked={enabled}
+          checked={!!xShopProfileId && enabled}
           onChange={(e) => { const on = e.target.checked; setEnabled(on); if (!on) setNoReplies(false); }}
           className="w-4 h-4 accent-pink-500 flex-shrink-0"
         />
