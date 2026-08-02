@@ -277,8 +277,9 @@ export default function ReviewsTabs({
             </div>
           )}
           <div className={`mx-auto mt-4 h-px w-24 bg-gradient-to-r from-transparent to-transparent ${head.dividerClass}`} />
+          {/* 説明文：スマホでもPCでも2行になる位置で改行 */}
           <p className="mx-auto mt-4 max-w-md text-xs sm:text-sm leading-relaxed" style={{ color: theme.body }}>
-            福岡のメンズエステ口コミサイト<br />『フクエス』に寄せられた口コミを<br className="sm:hidden" />新着順・ランキングでチェック
+            福岡のメンズエステ口コミサイト『フクエス』に<br />寄せられた口コミを新着順・ランキングでチェック
           </p>
         </div>
 
@@ -336,9 +337,9 @@ export default function ReviewsTabs({
               title="セラピスト口コミ数ランキング TOP50"
               description={
                 <>
-                  口コミ件数の多い順のセラピストランキングです
+                  口コミ50件までのセラピストを件数の多い順で紹介する
                   <br className="sm:hidden" />
-                  （51件以上は殿堂入りへ）
+                  口コミセラピストランキングです（51件以上は殿堂入りへ）
                 </>
               }
             />
@@ -369,9 +370,9 @@ export default function ReviewsTabs({
               title="殿堂入りセラピスト"
               description={
                 <>
-                  口コミ51件以上を達成した
+                  口コミが51件以上寄せられたセラピストだけが
                   <br className="sm:hidden" />
-                  殿堂入りセラピストです
+                  名を連ねる殿堂入りリストです
                 </>
               }
             />
