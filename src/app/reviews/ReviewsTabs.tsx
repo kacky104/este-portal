@@ -30,30 +30,35 @@ type TabKey = keyof typeof TAB_THEME;
 const TAB_KEYS = ['new', 'therapist', 'hall'] as const;
 const useIsoLayoutEffect = typeof window !== 'undefined' ? useLayoutEffect : useEffect;
 
-// ページ大見出し（FUKUES REVIEWS）のタブ別配色。グラデ文字・区切り線・件数バッジをテーマに合わせる。
+// ページ大見出しのタブ別タイトル・配色。神秘的なレイアウト（トラッキング英字ラベル＋グラデ発光文字＋区切り線）を
+// タブごとの色（黄＝新着 / 銀＝ランキング / 黒×金＝殿堂入り）で出し分ける。
 const HERO_HEAD: Record<
   TabKey,
-  { label: string; labelClass: string; gradClass: string; dividerClass: string; badgeClass: string }
+  { label: string; title: string; labelClass: string; gradClass: string; dividerClass: string; badgeClass: string }
 > = {
   new: {
     label: 'FUKUES REVIEWS',
+    title: '福岡メンズエステ 口コミ一覧',
     labelClass: 'text-amber-500/90',
     gradClass: 'from-amber-600 via-yellow-500 to-amber-600 drop-shadow-[0_1px_10px_rgba(245,158,11,0.3)]',
     dividerClass: 'via-amber-400/70',
     badgeClass: 'bg-white/80 border-amber-200 text-amber-600',
   },
+  // 銀の光をまとった神秘的なグラデ（中央が明るく輝く）＋シルバーのグロー。
   therapist: {
     label: 'REVIEW RANKING',
+    title: 'セラピスト口コミ数TOP50',
     labelClass: 'text-slate-500/90',
-    gradClass: 'from-slate-600 via-gray-400 to-slate-600 drop-shadow-[0_1px_10px_rgba(100,116,139,0.35)]',
+    gradClass: 'from-slate-600 via-gray-300 to-slate-600 drop-shadow-[0_1px_14px_rgba(148,163,184,0.5)]',
     dividerClass: 'via-slate-400/70',
     badgeClass: 'bg-white/80 border-slate-300 text-slate-600',
   },
-  // 殿堂入りは黒背景に金文字（暗背景で映えるよう明るめの金グラデ＋グロー）。
+  // 黒背景に金文字（暗背景で映える明るめの金グラデ＋強めの金グロー）。
   hall: {
     label: 'HALL OF FAME',
+    title: '口コミ殿堂入りセラピスト',
     labelClass: 'text-yellow-400/90',
-    gradClass: 'from-yellow-500 via-amber-300 to-yellow-500 drop-shadow-[0_1px_12px_rgba(247,201,72,0.35)]',
+    gradClass: 'from-yellow-500 via-amber-200 to-yellow-500 drop-shadow-[0_1px_16px_rgba(247,201,72,0.5)]',
     dividerClass: 'via-yellow-500/70',
     badgeClass: 'bg-white/10 border-yellow-500/60 text-yellow-300',
   },
@@ -115,17 +120,6 @@ function Chevron({ color }: { color: string }) {
     >
       <path d="M9 18l6-6-6-6" />
     </svg>
-  );
-}
-
-// タブ内見出し（タイトルのみ・説明はページ大見出し下にタブ連動で表示）。テーマ連動の配色。
-function TabHeading({ title, theme }: { title: string; theme: SalonTheme }) {
-  return (
-    <div className="mb-5 text-center">
-      <h2 className="text-lg sm:text-xl font-black tracking-wide" style={{ color: theme.heading }}>
-        {title}
-      </h2>
-    </div>
   );
 }
 
@@ -296,7 +290,7 @@ export default function ReviewsTabs({
           <h1
             className={`mt-2 text-2xl sm:text-4xl font-black tracking-[0.06em] bg-gradient-to-r bg-clip-text text-transparent ${head.gradClass}`}
           >
-            福岡メンズエステ 口コミ一覧
+            {head.title}
           </h1>
           {reviews.length > 0 && (
             <div className="mt-3">
@@ -339,7 +333,6 @@ export default function ReviewsTabs({
         {/* ── セラピスト：口コミ数ランキング（50件以下・TOP50人）。シルバーテーマ ── */}
         {tab === 'therapist' && (
           <>
-            <TabHeading theme={theme} title="セラピスト口コミ数ランキング TOP50" />
             {ranking.length === 0 ? (
               <EmptyCard theme={theme}>口コミのあるセラピストはまだいません</EmptyCard>
             ) : (
@@ -362,7 +355,6 @@ export default function ReviewsTabs({
         {/* ── 殿堂入り：口コミ51件以上のレジェンド（黒×金の特別カード）。ブラックテーマ ── */}
         {tab === 'hall' && (
           <>
-            <TabHeading theme={theme} title="殿堂入りセラピスト" />
             {hallOfFame.length === 0 ? (
               <EmptyCard theme={theme}>
                 殿堂入りセラピストはまだいません
