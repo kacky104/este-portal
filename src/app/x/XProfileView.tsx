@@ -408,28 +408,28 @@ export function XProfileView({
               </span>
             </button>
           ) : (
-            // 開いた状態：従来どおり名前つき縦リスト（行タップで各プロフィールへ）＋閉じるボタン。
+            // 開いた状態：3列のカード型グリッド（上に大きめアイコン・下に名前。@ハンドルは省略してすっきり見せる）。
+            // 各カードのタップで各プロフィールへ＋下の「閉じる」でアイコン横並びに戻る。
             <div className="space-y-1">
-              {affiliatedTherapists.map((th) => (
-                <Link
-                  key={th.id}
-                  href={`/x/u/${th.handle}`}
-                  className="flex items-center gap-2.5 p-2 rounded-xl hover:bg-[color:var(--x-surface-hover)] transition-colors"
-                >
-                  <span className="relative w-9 h-9 rounded-full overflow-hidden border border-[color:var(--x-border)] bg-gradient-to-br from-indigo-300 to-sky-300 flex items-center justify-center flex-shrink-0">
-                    {th.avatarUrl ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img src={th.avatarUrl} alt={th.displayName} className="w-full h-full object-cover" />
-                    ) : (
-                      <span className="text-white text-xs font-bold">{th.displayName.charAt(0) || '?'}</span>
-                    )}
-                  </span>
-                  <div className="min-w-0">
-                    <p className="text-sm font-bold text-[color:var(--x-text-primary)] truncate">{th.displayName}</p>
-                    <p className="text-xs text-[color:var(--x-text-muted)] truncate">@{th.handle}</p>
-                  </div>
-                </Link>
-              ))}
+              <div className="grid grid-cols-3 gap-1.5">
+                {affiliatedTherapists.map((th) => (
+                  <Link
+                    key={th.id}
+                    href={`/x/u/${th.handle}`}
+                    className="flex flex-col items-center gap-1.5 p-2 rounded-xl hover:bg-[color:var(--x-surface-hover)] transition-colors"
+                  >
+                    <span className="relative w-14 h-14 rounded-full overflow-hidden border border-[color:var(--x-border)] bg-gradient-to-br from-indigo-300 to-sky-300 flex items-center justify-center flex-shrink-0">
+                      {th.avatarUrl ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img src={th.avatarUrl} alt={th.displayName} className="w-full h-full object-cover" />
+                      ) : (
+                        <span className="text-white text-sm font-bold">{th.displayName.charAt(0) || '?'}</span>
+                      )}
+                    </span>
+                    <p className="w-full text-xs font-bold text-[color:var(--x-text-primary)] text-center truncate">{th.displayName}</p>
+                  </Link>
+                ))}
+              </div>
               <button
                 type="button"
                 onClick={() => setTherapistListOpen(false)}
