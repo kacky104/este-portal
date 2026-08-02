@@ -295,7 +295,7 @@ export default function ReviewsTabs({
           {reviews.length > 0 && (
             <div className="mt-3">
               <span className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-bold ${head.badgeClass}`}>
-                全{reviews.length}件
+                口コミ総数{reviews.length}件
               </span>
             </div>
           )}
