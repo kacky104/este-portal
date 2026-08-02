@@ -23,9 +23,9 @@ import { PaginatedReviewList } from '@/app/components/PaginatedReviewList';
 // タブごとにテーマ（壁紙・配色）を切り替えるため、ページ全体（ヘッダー〜フッター）をここに集約。
 // - 新着：イエローテーマ。全店舗の承認済み口コミを新着順（20件/ページ）。
 // - セラピスト：シルバーテーマ。口コミ50件以下を件数の多い順（TOP50人・同数は総合平均が高い順）。
-// - 殿堂入り：ゴールドテーマ。口コミ51件以上のセラピスト（件数の多い順）。
+// - 殿堂入り：ブラックテーマ（黒基調＋金アクセント）。口コミ51件以上のセラピスト（件数の多い順）。
 // タブ状態は URL ハッシュに保存し、リロード時に復元（ISR を壊さないようクライアント側のみ）。
-const TAB_THEME = { new: 'yellow', therapist: 'silver', hall: 'gold' } as const;
+const TAB_THEME = { new: 'yellow', therapist: 'silver', hall: 'black' } as const;
 type TabKey = keyof typeof TAB_THEME;
 const TAB_KEYS = ['new', 'therapist', 'hall'] as const;
 const useIsoLayoutEffect = typeof window !== 'undefined' ? useLayoutEffect : useEffect;
@@ -40,21 +40,22 @@ const HERO_HEAD: Record<
     labelClass: 'text-amber-500/90',
     gradClass: 'from-amber-600 via-yellow-500 to-amber-600 drop-shadow-[0_1px_10px_rgba(245,158,11,0.3)]',
     dividerClass: 'via-amber-400/70',
-    badgeClass: 'border-amber-200 text-amber-600',
+    badgeClass: 'bg-white/80 border-amber-200 text-amber-600',
   },
   therapist: {
     label: 'REVIEW RANKING',
     labelClass: 'text-slate-500/90',
     gradClass: 'from-slate-600 via-gray-400 to-slate-600 drop-shadow-[0_1px_10px_rgba(100,116,139,0.35)]',
     dividerClass: 'via-slate-400/70',
-    badgeClass: 'border-slate-300 text-slate-600',
+    badgeClass: 'bg-white/80 border-slate-300 text-slate-600',
   },
+  // 殿堂入りは黒背景に金文字（暗背景で映えるよう明るめの金グラデ＋グロー）。
   hall: {
     label: 'HALL OF FAME',
-    labelClass: 'text-yellow-600/90',
-    gradClass: 'from-yellow-700 via-amber-500 to-yellow-700 drop-shadow-[0_1px_10px_rgba(180,130,20,0.35)]',
-    dividerClass: 'via-yellow-600/70',
-    badgeClass: 'border-yellow-600/40 text-yellow-700',
+    labelClass: 'text-yellow-400/90',
+    gradClass: 'from-yellow-500 via-amber-300 to-yellow-500 drop-shadow-[0_1px_12px_rgba(247,201,72,0.35)]',
+    dividerClass: 'via-yellow-500/70',
+    badgeClass: 'bg-white/10 border-yellow-500/60 text-yellow-300',
   },
 };
 
@@ -136,7 +137,9 @@ function RankRow({ t, badge, theme }: { t: TherapistReviewRankItem; badge: React
   return (
     <Link
       href={`/therapist/${t.id}`}
-      className="flex items-center gap-3 px-4 py-3 transition-colors hover:bg-black/5"
+      className={`flex items-center gap-3 px-4 py-3 transition-colors ${
+        theme.key === 'black' ? 'hover:bg-white/10' : 'hover:bg-black/5'
+      }`}
     >
       {badge}
       <span className="flex-shrink-0 w-11 h-11 rounded-full overflow-hidden bg-slate-100 relative">
@@ -159,7 +162,11 @@ function RankRow({ t, badge, theme }: { t: TherapistReviewRankItem; badge: React
         )}
       </span>
       <span className="flex-shrink-0 text-right">
-        <span className="block text-sm font-black tabular-nums" style={{ color: theme.heading }}>
+        {/* 件数：黒テーマ（殿堂入り）では金色で強調 */}
+        <span
+          className="block text-sm font-black tabular-nums"
+          style={{ color: theme.key === 'black' ? '#F7C948' : theme.heading }}
+        >
           {t.reviewCount}
           <span className="ml-0.5 text-[10px] font-bold" style={{ color: theme.body }}>件</span>
         </span>
@@ -175,7 +182,9 @@ function RankRow({ t, badge, theme }: { t: TherapistReviewRankItem; badge: React
 function EmptyCard({ children, theme }: { children: ReactNode; theme: SalonTheme }) {
   return (
     <div
-      className="text-center py-16 text-sm border border-dashed rounded-3xl bg-white/40"
+      className={`text-center py-16 text-sm border border-dashed rounded-3xl ${
+        theme.key === 'black' ? 'bg-white/5' : 'bg-white/40'
+      }`}
       style={{ borderColor: theme.cardBorder, color: theme.body }}
     >
       {children}
@@ -231,7 +240,7 @@ export default function ReviewsTabs({
   };
 
   return (
-    <div className="min-h-screen text-slate-900 transition-colors duration-300">
+    <div className="min-h-screen transition-colors duration-300" style={{ color: theme.text }}>
       {/* テーマ背景（壁紙＋オーバーレイ）を全面に固定配置。タブ切替で色ごと入れ替わる。 */}
       <div aria-hidden className="fixed inset-0 -z-10 transition-colors duration-300" style={bgLayerStyle} />
 
@@ -262,7 +271,7 @@ export default function ReviewsTabs({
           </h1>
           {reviews.length > 0 && (
             <div className="mt-3">
-              <span className={`inline-flex items-center rounded-full border bg-white/80 px-2.5 py-0.5 text-xs font-bold ${head.badgeClass}`}>
+              <span className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-bold ${head.badgeClass}`}>
                 全{reviews.length}件
               </span>
             </div>
@@ -352,7 +361,7 @@ export default function ReviewsTabs({
           </>
         )}
 
-        {/* ── 殿堂入り：口コミ51件以上のレジェンド（金の特別カード）。ゴールドテーマ ── */}
+        {/* ── 殿堂入り：口コミ51件以上のレジェンド（黒×金の特別カード）。ブラックテーマ ── */}
         {tab === 'hall' && (
           <>
             <TabHeading
@@ -374,15 +383,18 @@ export default function ReviewsTabs({
               </EmptyCard>
             ) : (
               <div
-                className="rounded-2xl shadow-sm overflow-hidden"
+                className="rounded-2xl overflow-hidden shadow-[0_0_24px_rgba(247,201,72,0.15)]"
                 style={{
-                  border: '1px solid #E8A317',
-                  background: 'linear-gradient(160deg,#FFFBEB 0%,#FFFFFF 45%,#FEF3C7 100%)',
+                  border: '1px solid #B8860B',
+                  background: 'linear-gradient(160deg,#262626 0%,#1c1c1c 45%,#2a2413 100%)',
                 }}
               >
                 <ul>
                   {hallOfFame.map((t, idx) => (
-                    <li key={t.id} className={idx < hallOfFame.length - 1 ? 'border-b border-amber-200/60' : undefined}>
+                    <li
+                      key={t.id}
+                      style={idx < hallOfFame.length - 1 ? { borderBottom: '1px solid rgba(232,163,23,0.35)' } : undefined}
+                    >
                       <RankRow t={t} theme={theme} badge={<CrownBadge />} />
                     </li>
                   ))}
