@@ -187,14 +187,14 @@ export default function ReviewsTabs({
   reviews,
   ranking,
   hallOfFame,
-  hero,
+  heroes,
   wallpapers,
   adBanners,
 }: {
   reviews: ApprovedReview[];
   ranking: TherapistReviewRankItem[];
   hallOfFame: TherapistReviewRankItem[];
-  hero: string | null;
+  heroes: { new: string | null; therapist: string | null; hall: string | null };
   wallpapers: Record<string, string>;
   adBanners: AdBannerData[];
 }) {
@@ -214,6 +214,7 @@ export default function ReviewsTabs({
 
   const theme = getTheme(TAB_THEME[tab]);
   const head = HERO_HEAD[tab];
+  const heroUrl = heroes[tab] ?? null; // タブ別ヒーロー画像（/admin のページ別ヒーロー画像設定・未設定なら非表示）
   const cardStyle = { background: theme.card, borderColor: theme.cardBorder } as const;
 
   // テーマ壁紙（設定があれば）をテーマ色の半透明オーバーレイ越しに敷く。/ranking・サロン詳細と同方式。
@@ -249,7 +250,7 @@ export default function ReviewsTabs({
       <main className="max-w-4xl mx-auto px-4 py-8">
         {/* Back */}
         <Breadcrumb current="口コミ一覧" currentColor={breadcrumbCurrentColor(theme.key)} />
-        <PageHero url={hero} alt="口コミ" fullBleedMobile />
+        <PageHero url={heroUrl} alt="口コミ" fullBleedMobile />
 
         {/* Heading：カード無しで壁紙背景に直接（/therapists と同方式）。配色はタブ連動。 */}
         <div className="my-8 sm:my-10 text-center">

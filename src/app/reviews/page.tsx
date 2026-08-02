@@ -19,10 +19,13 @@ export const revalidate = 600;
 // （新着=イエロー / セラピスト=シルバー / 殿堂入り=ゴールド）の壁紙・配色を切り替えるため
 // クライアント部品 ReviewsTabs 側に集約。ここではデータ取得とメタのみ担う（/ranking と同構成）。
 export default async function AllReviewsPage() {
-  const [reviews, therapistRanking, hero, wallpapers, adBanners] = await Promise.all([
+  // ヒーロー画像はタブ別に3キー（新着=reviews / セラピスト=reviews-therapist / 殿堂入り=reviews-hall）。
+  const [reviews, therapistRanking, heroNew, heroTherapist, heroHall, wallpapers, adBanners] = await Promise.all([
     getAllApprovedReviews(),
     getTherapistReviewRanking(),
     fetchPageHero('reviews'),
+    fetchPageHero('reviews-therapist'),
+    fetchPageHero('reviews-hall'),
     fetchThemeWallpapers(),
     fetchActiveAdBanners(),
   ]);
@@ -32,7 +35,7 @@ export default async function AllReviewsPage() {
       reviews={reviews}
       ranking={therapistRanking.ranking}
       hallOfFame={therapistRanking.hallOfFame}
-      hero={hero}
+      heroes={{ new: heroNew, therapist: heroTherapist, hall: heroHall }}
       wallpapers={wallpapers}
       adBanners={adBanners}
     />
