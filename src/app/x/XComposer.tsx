@@ -14,6 +14,8 @@ import { STORAGE_CACHE_CONTROL } from '@/app/lib/storage';
 const supabase = createClient();
 const BODY_MAX = 500;
 const MAX_IMAGES = 4;
+// 表示中のプロフィールと実ログインが食い違ったとき（別タブで /admin 等に別アカウントでログインした場合など）の案内。
+const SESSION_MISMATCH_MSG = 'アカウントが切り替わっています。ページを再読み込みしてください';
 
 function validateImageFile(file: File): string | null {
   if (file.size > 5 * 1024 * 1024) return '5MB以下の画像を選択してください';
@@ -73,6 +75,15 @@ export const XComposer = forwardRef<XComposerHandle, XComposerProps>(function XC
   // 下書き化できる内容があるか（DB制約 x_post_not_empty と同じく本文 or 画像が要る。リンクのみは不可）。
   const hasDraftableContent = body.trim().length > 0 || images.length > 0;
 
+  // 画面のプロフィール（me）と実際のログインセッションが一致するか。
+  // 同一ブラウザの別タブで /admin などに別アカウントでログインすると、開きっぱなしのタブは
+  // 表示上のプロフィールのまま認証トークンだけが切り替わり、投稿・下書き・画像アップロードが
+  // RLS違反の生エラーになる。送信前にここで検出し、分かりやすい案内を出す（getSession はローカル参照のみで高速）。
+  const sessionMatchesProfile = async (): Promise<boolean> => {
+    const { data } = await supabase.auth.getSession();
+    return (data.session?.user?.id ?? null) === me.auth_user_id;
+  };
+
   const onPick = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files ?? []);
     e.target.value = '';
@@ -83,6 +94,11 @@ export const XComposer = forwardRef<XComposerHandle, XComposerProps>(function XC
       return;
     }
     setError('');
+    // アカウント切り替わり検出（x-images の RLS は本人UIDフォルダを要求＝ズレていると必ず失敗するため先に案内）。
+    if (!(await sessionMatchesProfile())) {
+      setError(SESSION_MISMATCH_MSG);
+      return;
+    }
     setUploading(true);
     const picked = files.slice(0, room);
     for (let i = 0; i < picked.length; i++) {
@@ -122,6 +138,11 @@ export const XComposer = forwardRef<XComposerHandle, XComposerProps>(function XC
     const { url: linkUrl, error: linkErr } = normalizeLinkUrl(link);
     if (linkErr) {
       setError(linkErr);
+      return false;
+    }
+    // アカウント切り替わり検出（RLSの生エラーを出さず、再読み込みの案内に置き換える）。
+    if (!(await sessionMatchesProfile())) {
+      setError(SESSION_MISMATCH_MSG);
       return false;
     }
     setSavingDraft(true);
@@ -189,6 +210,11 @@ export const XComposer = forwardRef<XComposerHandle, XComposerProps>(function XC
     const { url: linkUrl, error: linkErr } = normalizeLinkUrl(link);
     if (linkErr) {
       setError(linkErr);
+      return;
+    }
+    // アカウント切り替わり検出（投稿・編集ともRLS違反になる前に再読み込みの案内を出す）。
+    if (!(await sessionMatchesProfile())) {
+      setError(SESSION_MISMATCH_MSG);
       return;
     }
     setPosting(true);
