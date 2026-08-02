@@ -315,8 +315,8 @@ export default function ReviewsTabs({
           </p>
         </div>
 
-        {/* 細い広告バナー（公開中からランダム1枚・ページを開くたびに入れ替わり） */}
-        <AdBanner banners={adBanners} />
+        {/* 細い広告バナー（公開中からランダム1枚）。key={tab} でタブ切替のたびに再マウント＝再抽選（/ranking と同挙動）。 */}
+        <AdBanner key={`ad-top-${tab}`} banners={adBanners} />
 
         {/* ── 新着：従来どおり全店舗の口コミを新着順（20件/ページ）。イエローテーマ ── */}
         {tab === 'new' &&
@@ -384,8 +384,8 @@ export default function ReviewsTabs({
           </>
         )}
 
-        {/* ルックバナー（ページ下部・3タブ共通）。上部の枠とは独立にランダム抽選。 */}
-        <AdBanner banners={adBanners} />
+        {/* ルックバナー（ページ下部）。上部の枠とは独立にランダム抽選。key={tab} でタブ切替のたびに再抽選。 */}
+        <AdBanner key={`ad-bottom-${tab}`} banners={adBanners} />
       </main>
 
       {/* Footer */}
