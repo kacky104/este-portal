@@ -118,16 +118,13 @@ function Chevron({ color }: { color: string }) {
   );
 }
 
-// タブ内見出し（タイトル＋説明）。テーマ連動の配色。
-function TabHeading({ title, description, theme }: { title: string; description: ReactNode; theme: SalonTheme }) {
+// タブ内見出し（タイトルのみ・説明はページ大見出し下にタブ連動で表示）。テーマ連動の配色。
+function TabHeading({ title, theme }: { title: string; theme: SalonTheme }) {
   return (
     <div className="mb-5 text-center">
       <h2 className="text-lg sm:text-xl font-black tracking-wide" style={{ color: theme.heading }}>
         {title}
       </h2>
-      <p className="mt-1.5 text-xs sm:text-sm leading-relaxed" style={{ color: theme.body }}>
-        {description}
-      </p>
     </div>
   );
 }
@@ -261,33 +258,9 @@ export default function ReviewsTabs({
         <Breadcrumb current="口コミ一覧" currentColor={breadcrumbCurrentColor(theme.key)} />
         <PageHero url={heroUrl} alt="口コミ" fullBleedMobile />
 
-        {/* Heading：カード無しで壁紙背景に直接（/therapists と同方式）。配色はタブ連動。 */}
-        <div className="my-8 sm:my-10 text-center">
-          <p className={`text-[11px] tracking-[0.35em] font-semibold ${head.labelClass}`}>{head.label}</p>
-          <h1
-            className={`mt-2 text-2xl sm:text-4xl font-black tracking-[0.06em] bg-gradient-to-r bg-clip-text text-transparent ${head.gradClass}`}
-          >
-            福岡メンズエステ 口コミ一覧
-          </h1>
-          {reviews.length > 0 && (
-            <div className="mt-3">
-              <span className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-bold ${head.badgeClass}`}>
-                全{reviews.length}件
-              </span>
-            </div>
-          )}
-          <div className={`mx-auto mt-4 h-px w-24 bg-gradient-to-r from-transparent to-transparent ${head.dividerClass}`} />
-          {/* 説明文：スマホでもPCでも2行になる位置で改行 */}
-          <p className="mx-auto mt-4 max-w-md text-xs sm:text-sm leading-relaxed" style={{ color: theme.body }}>
-            福岡のメンズエステ口コミサイト『フクエス』に<br />寄せられた口コミを新着順・ランキングでチェック
-          </p>
-        </div>
-
-        {/* 細い広告バナー（公開中からランダム1枚・ページを開くたびに入れ替わり） */}
-        <AdBanner banners={adBanners} />
-
-        {/* タブ（新着 / セラピスト / 殿堂入り）。/ranking と同じ角なし・隙間なしセグメント。スマホは幅いっぱい。 */}
-        <div className="flex sm:justify-center mb-5">
+        {/* タブ（新着 / セラピスト / 殿堂入り）：ヒーロー画像の直下に配置。
+            /ranking と同じ角なし・隙間なしセグメント。スマホは幅いっぱい。 */}
+        <div className="mt-6 flex sm:justify-center">
           <div className="flex w-full sm:w-auto">
             {([
               ['new', '新着'],
@@ -317,6 +290,40 @@ export default function ReviewsTabs({
           </div>
         </div>
 
+        {/* Heading：カード無しで壁紙背景に直接（/therapists と同方式）。配色はタブ連動。 */}
+        <div className="my-8 sm:my-10 text-center">
+          <p className={`text-[11px] tracking-[0.35em] font-semibold ${head.labelClass}`}>{head.label}</p>
+          <h1
+            className={`mt-2 text-2xl sm:text-4xl font-black tracking-[0.06em] bg-gradient-to-r bg-clip-text text-transparent ${head.gradClass}`}
+          >
+            福岡メンズエステ 口コミ一覧
+          </h1>
+          {reviews.length > 0 && (
+            <div className="mt-3">
+              <span className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-bold ${head.badgeClass}`}>
+                全{reviews.length}件
+              </span>
+            </div>
+          )}
+          <div className={`mx-auto mt-4 h-px w-24 bg-gradient-to-r from-transparent to-transparent ${head.dividerClass}`} />
+          {/* 説明文：タブ連動で切り替え（新着=サイト紹介／セラピスト=50件までのランキング／殿堂入り=51件以上）。
+              いずれもスマホ・PCとも2行に収まる位置で改行。 */}
+          <p className="mx-auto mt-4 max-w-md text-xs sm:text-sm leading-relaxed" style={{ color: theme.body }}>
+            {tab === 'new' && (
+              <>福岡のメンズエステ口コミサイト『フクエス』に<br />寄せられた口コミを新着順・ランキングでチェック</>
+            )}
+            {tab === 'therapist' && (
+              <>口コミ50件までのセラピストを件数の多い順で紹介する<br className="sm:hidden" />口コミセラピストランキングです（51件以上は殿堂入りへ）</>
+            )}
+            {tab === 'hall' && (
+              <>口コミが51件以上寄せられたセラピストだけが<br className="sm:hidden" />名を連ねる殿堂入りリストです</>
+            )}
+          </p>
+        </div>
+
+        {/* 細い広告バナー（公開中からランダム1枚・ページを開くたびに入れ替わり） */}
+        <AdBanner banners={adBanners} />
+
         {/* ── 新着：従来どおり全店舗の口コミを新着順（20件/ページ）。イエローテーマ ── */}
         {tab === 'new' &&
           (reviews.length === 0 ? (
@@ -332,17 +339,7 @@ export default function ReviewsTabs({
         {/* ── セラピスト：口コミ数ランキング（50件以下・TOP50人）。シルバーテーマ ── */}
         {tab === 'therapist' && (
           <>
-            <TabHeading
-              theme={theme}
-              title="セラピスト口コミ数ランキング TOP50"
-              description={
-                <>
-                  口コミ50件までのセラピストを件数の多い順で紹介する
-                  <br className="sm:hidden" />
-                  口コミセラピストランキングです（51件以上は殿堂入りへ）
-                </>
-              }
-            />
+            <TabHeading theme={theme} title="セラピスト口コミ数ランキング TOP50" />
             {ranking.length === 0 ? (
               <EmptyCard theme={theme}>口コミのあるセラピストはまだいません</EmptyCard>
             ) : (
@@ -365,17 +362,7 @@ export default function ReviewsTabs({
         {/* ── 殿堂入り：口コミ51件以上のレジェンド（黒×金の特別カード）。ブラックテーマ ── */}
         {tab === 'hall' && (
           <>
-            <TabHeading
-              theme={theme}
-              title="殿堂入りセラピスト"
-              description={
-                <>
-                  口コミが51件以上寄せられたセラピストだけが
-                  <br className="sm:hidden" />
-                  名を連ねる殿堂入りリストです
-                </>
-              }
-            />
+            <TabHeading theme={theme} title="殿堂入りセラピスト" />
             {hallOfFame.length === 0 ? (
               <EmptyCard theme={theme}>
                 殿堂入りセラピストはまだいません
