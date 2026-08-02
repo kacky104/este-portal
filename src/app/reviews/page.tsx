@@ -1,4 +1,3 @@
-import { Suspense } from 'react';
 import type { Metadata } from 'next';
 import { Logo } from '@/app/components/Logo';
 import { SavedSalonsMenu } from '@/app/components/SavedSalonsMenu';
@@ -13,25 +12,25 @@ import { AdBanner } from '@/app/components/AdBanner';
 import { fetchActiveAdBanners } from '@/app/lib/adBanners';
 import { fetchThemeWallpapers } from '@/app/lib/ranking';
 import { getTheme, breadcrumbCurrentColor } from '@/app/lib/themes';
-import { getAllApprovedReviews } from '@/app/lib/reviews';
-import { ReviewList } from '@/app/components/ReviewList';
-import { PaginatedReviewList } from '@/app/components/PaginatedReviewList';
+import { getAllApprovedReviews, getTherapistReviewRanking } from '@/app/lib/reviews';
+import ReviewsTabs from './ReviewsTabs';
 import { SiteNoticeBanner } from '@/app/components/SiteNoticeBanner';
 
 export const metadata: Metadata = {
   title: '福岡メンズエステの口コミ一覧｜フクエス',
-  description: '福岡のメンズエステに寄せられた口コミを新着順でまとめてチェック。接客・施術・受付の評価とレビューを店舗横断で確認できます。',
+  description: '福岡のメンズエステに寄せられた口コミを新着順・口コミ数のセラピストランキング・殿堂入りでまとめてチェック。接客・施術・受付の評価とレビューを店舗横断で確認できます。',
   alternates: { canonical: '/reviews' },
-  openGraph: { title: '福岡メンズエステの口コミ一覧｜フクエス', description: '福岡のメンズエステに寄せられた口コミを新着順でまとめてチェック。接客・施術・受付の評価とレビューを店舗横断で確認できます。', url: '/reviews', siteName: 'フクエス', type: 'website' },
+  openGraph: { title: '福岡メンズエステの口コミ一覧｜フクエス', description: '福岡のメンズエステに寄せられた口コミを新着順・口コミ数のセラピストランキング・殿堂入りでまとめてチェック。接客・施術・受付の評価とレビューを店舗横断で確認できます。', url: '/reviews', siteName: 'フクエス', type: 'website' },
 };
 
 // ISR：10分ごとに再生成（口コミ承認時は /api/revalidate で個別無効化される想定・一覧はゆるめでOK）。
 export const revalidate = 600;
 
 export default async function AllReviewsPage() {
-  // 黄色テーマ壁紙を固定レイヤーで敷く（/therapists と同方式）。口コミ・ヒーロー・壁紙を同時取得。
-  const [reviews, hero, wallpapers, adBanners] = await Promise.all([
+  // 黄色テーマ壁紙を固定レイヤーで敷く（/therapists と同方式）。口コミ・ランキング・ヒーロー・壁紙を同時取得。
+  const [reviews, therapistRanking, hero, wallpapers, adBanners] = await Promise.all([
     getAllApprovedReviews(),
+    getTherapistReviewRanking(),
     fetchPageHero('reviews'),
     fetchThemeWallpapers(),
     fetchActiveAdBanners(),
@@ -85,25 +84,19 @@ export default async function AllReviewsPage() {
           )}
           <div className="mx-auto mt-4 h-px w-24 bg-gradient-to-r from-transparent via-amber-400/70 to-transparent" />
           <p className="mx-auto mt-4 max-w-md text-xs sm:text-sm leading-relaxed text-slate-600">
-            福岡のメンズエステ口コミサイト<br />『フクエス』に寄せられた口コミを新着順でチェック
+            福岡のメンズエステ口コミサイト<br />『フクエス』に寄せられた口コミを<br className="sm:hidden" />新着順・ランキングでチェック
           </p>
         </div>
 
         {/* 細い広告バナー（公開中からランダム1枚・ページを開くたびに入れ替わり） */}
         <AdBanner banners={adBanners} />
 
-        {/* 口コミ一覧（全店舗・新着順・20件/ページ） */}
-        {reviews.length === 0 ? (
-          <div className="text-center py-16 text-slate-400 text-sm border border-dashed border-amber-100 rounded-3xl bg-amber-50/10">
-            口コミはまだありません
-          </div>
-        ) : (
-          <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
-            <Suspense fallback={<ReviewList reviews={reviews.slice(0, 20)} />}>
-              <PaginatedReviewList reviews={reviews} pageSize={20} />
-            </Suspense>
-          </div>
-        )}
+        {/* タブ（新着 / セラピスト / 殿堂入り）＋各タブの中身はクライアント部品 ReviewsTabs に集約 */}
+        <ReviewsTabs
+          reviews={reviews}
+          ranking={therapistRanking.ranking}
+          hallOfFame={therapistRanking.hallOfFame}
+        />
         {/* ルックバナー（ページ下部）。上部の枠とは独立にランダム抽選。 */}
         <AdBanner banners={adBanners} />
       </main>

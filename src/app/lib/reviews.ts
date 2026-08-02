@@ -312,6 +312,111 @@ export async function getAllApprovedReviews(limit = 200): Promise<ApprovedReview
     });
 }
 
+// ── 口コミ数によるセラピストランキング（/reviews のタブ用） ──
+// 「セラピスト」タブ＝口コミ50件以下を件数の多い順（TOP50人まで）／「殿堂入り」タブ＝51件以上。
+// 同数のときは総合平均が高い順 → さらに同点なら最新口コミが新しい順。
+export type TherapistReviewRankItem = {
+  id: number;
+  rank: number; // 各リスト内の順位（1始まり）
+  name: string;
+  image: string | null;
+  salonId: number;
+  salonName: string;
+  reviewCount: number;
+  avgOverall: number; // 3軸平均の総合を全口コミで平均（小数1位）
+};
+
+export type TherapistReviewRanking = {
+  ranking: TherapistReviewRankItem[]; // 50件以下・TOP50人
+  hallOfFame: TherapistReviewRankItem[]; // 51件以上（殿堂入り）
+};
+
+export async function getTherapistReviewRanking(): Promise<TherapistReviewRanking> {
+  const empty: TherapistReviewRanking = { ranking: [], hallOfFame: [] };
+  const supabase = createPublicClient();
+
+  // 1. 承認済み口コミの3軸＋対象IDを全件取得（PostgREST の1リクエスト上限対策に1000件ずつページング）。
+  type CountRow = {
+    therapist_id: number;
+    rating_service: number | string;
+    rating_technique: number | string;
+    rating_reception: number | string;
+    created_at: string;
+  };
+  const all: CountRow[] = [];
+  const PAGE = 1000;
+  for (let from = 0; ; from += PAGE) {
+    const { data, error } = await supabase
+      .from('therapist_reviews')
+      .select('therapist_id, rating_service, rating_technique, rating_reception, created_at')
+      .eq('status', 'approved')
+      .order('created_at', { ascending: false })
+      .range(from, from + PAGE - 1);
+    if (error || !data || data.length === 0) break;
+    all.push(...(data as unknown as CountRow[]));
+    if (data.length < PAGE) break;
+  }
+  if (all.length === 0) return empty;
+
+  // 2. therapist_id ごとに件数・総合値・最新口コミ日時を集計。
+  const agg = new Map<number, { count: number; overalls: number[]; latest: string }>();
+  for (const r of all) {
+    const o = overallOf(Number(r.rating_service), Number(r.rating_technique), Number(r.rating_reception));
+    const cur = agg.get(r.therapist_id);
+    if (cur) {
+      cur.count += 1;
+      cur.overalls.push(o);
+      if (r.created_at > cur.latest) cur.latest = r.created_at;
+    } else {
+      agg.set(r.therapist_id, { count: 1, overalls: [o], latest: String(r.created_at) });
+    }
+  }
+
+  // 3. 公開対象セラピストの情報（在籍 is_active=true・非表示サロン除外）。getAllApprovedReviews と同じ公開ルール。
+  const therapistIds = [...agg.keys()];
+  const { data: therapists } = await supabase
+    .from('therapists')
+    .select('id, name, profile_image_url, salon_id, salons!inner(name, is_hidden)')
+    .in('id', therapistIds)
+    .eq('is_active', true)
+    .eq('salons.is_hidden', false);
+
+  // 4. 表示アイテムを組み立て → 件数降順 → 総合平均降順 → 最新口コミ降順でソート。
+  const items: (TherapistReviewRankItem & { latest: string })[] = [];
+  for (const t of therapists ?? []) {
+    const a = agg.get(t.id as number);
+    if (!a) continue;
+    const s = Array.isArray(t.salons) ? t.salons[0] : t.salons;
+    items.push({
+      id: t.id as number,
+      rank: 0, // 後で採番
+      name: (t.name as string) ?? '',
+      image: (t.profile_image_url as string | null) ?? null,
+      salonId: t.salon_id as number,
+      salonName: ((s as { name?: string } | null)?.name as string) ?? '',
+      reviewCount: a.count,
+      avgOverall: avg1(a.overalls) ?? 0,
+      latest: a.latest,
+    });
+  }
+  items.sort(
+    (x, y) =>
+      y.reviewCount - x.reviewCount ||
+      y.avgOverall - x.avgOverall ||
+      (y.latest > x.latest ? 1 : y.latest < x.latest ? -1 : 0),
+  );
+
+  // 5. 50件以下＝通常ランキング（TOP50人まで）／51件以上＝殿堂入り。各リスト内で1位から採番。
+  const ranking = items
+    .filter((t) => t.reviewCount <= 50)
+    .slice(0, 50)
+    .map(({ latest: _latest, ...t }, i) => ({ ...t, rank: i + 1 }));
+  const hallOfFame = items
+    .filter((t) => t.reviewCount >= 51)
+    .map(({ latest: _latest, ...t }, i) => ({ ...t, rank: i + 1 }));
+  return { ranking, hallOfFame };
+}
+
 // 承認済み口コミからサロンの rating/review_count を計算し salons に焼き込む（キャッシュ列同期）。
 // 評価の定義は getSalonReviewStats と同一（is_active セラピストの承認済み口コミの総合平均・件数）。
 // 同じ計算ヘルパー（overallOf/avg1 → statsFromRows）を使い回し、カードと詳細で値がズレないようにする。
