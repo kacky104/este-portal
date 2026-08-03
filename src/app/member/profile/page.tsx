@@ -8,6 +8,7 @@ import { HamburgerMenu } from '@/app/components/HamburgerMenu';
 import { NotificationBell } from '@/app/components/NotificationBell';
 import { VipLetterIcon } from '@/app/components/VipLetterIcon';
 import { ProfileForm } from './ProfileForm';
+import { DeleteAccountPanel } from './DeleteAccountPanel';
 import { SiteNoticeBanner } from '@/app/components/SiteNoticeBanner';
 
 // 会員個別の内容（ログイン必須）のため ISR はかけず動的のままにする。
@@ -64,6 +65,15 @@ export default async function ProfilePage() {
         <div className="rounded-2xl border border-slate-100 bg-white p-5 sm:p-6 shadow-sm">
           <ProfileForm userId={user.id} initialNickname={initialNickname} />
         </div>
+
+        {/* ─── 退会（危険操作・ページ最下部） ───
+            メールアドレスはサーバーで確定したログインユーザーのものだけを渡す。
+            実際の照合・削除は Server Action 側でも再検証する（画面だけの確認にしない）。 */}
+        {user.email && (
+          <div className="mt-10">
+            <DeleteAccountPanel email={user.email} />
+          </div>
+        )}
       </main>
 
       {/* ─── Footer ─── */}
