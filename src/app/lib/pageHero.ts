@@ -12,6 +12,7 @@ export type PageHeroKey =
   | 'xshops'
   | 'news'
   | 'salons'
+  | 'join'
   | 'jobs-matching';
 
 export const PAGE_HERO_LABELS: Record<PageHeroKey, string> = {
@@ -24,6 +25,7 @@ export const PAGE_HERO_LABELS: Record<PageHeroKey, string> = {
   xshops: 'SNS',
   news: '新着情報',
   salons: 'メンズエステ店一覧',
+  join: '会員登録案内',
   'jobs-matching': 'お仕事マッチング',
 };
 
@@ -38,6 +40,7 @@ export const PAGE_HERO_PATHS: Record<PageHeroKey, string> = {
   xshops: '/x-shops',
   news: '/news',
   salons: '/salons',
+  join: '/join',
   'jobs-matching': '/jobs/matching',
 };
 
@@ -47,7 +50,7 @@ export const PAGE_HERO_PATHS: Record<PageHeroKey, string> = {
 //   2. admin_set_page_hero の許可キーへ追加する migration を作成（Supabaseへ適用）
 //   3. 下のどちらかのグループ（または新グループ）へ追加 → 該当タブの管理UIに自動で並ぶ
 //   4. 公開ページ側で fetchPageHero('<key>') → <PageHero> を表示
-export const MAIN_PAGE_HERO_KEYS: readonly PageHeroKey[] = ['therapists', 'diary', 'reviews', 'reviews-therapist', 'reviews-hall', 'newface', 'xshops', 'news', 'salons'];
+export const MAIN_PAGE_HERO_KEYS: readonly PageHeroKey[] = ['therapists', 'diary', 'reviews', 'reviews-therapist', 'reviews-hall', 'newface', 'xshops', 'news', 'salons', 'join'];
 export const JOBS_PAGE_HERO_KEYS: readonly PageHeroKey[] = ['jobs-matching'];
 
 // 未設定は null を返す（テーブル未作成時もエラーを握りつぶして null）。

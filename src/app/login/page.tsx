@@ -25,7 +25,9 @@ function LoginInner() {
   const params = useSearchParams();
   const dest = safeRedirect(params.get('redirectTo'));
 
-  const [mode, setMode] = useState<'login' | 'signup'>('login');
+  // ?mode=signup で新規登録タブを開いた状態にする（/join の「無料で会員登録する」からの遷移用）。
+  // それ以外は従来どおりログインタブ。
+  const [mode, setMode] = useState<'login' | 'signup'>(params.get('mode') === 'signup' ? 'signup' : 'login');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   // メール確認コールバックからのエラー（?error=...）は初期表示する。
@@ -214,6 +216,12 @@ function LoginInner() {
                 <p>登録後、確認メールが届きます。メール内のリンクで登録を完了してください。</p>
               )}
               <p>💾 この端末で保存したお気に入りは、ログインすると自動でアカウントに引き継がれます。</p>
+              <p>
+                会員になるとできること：
+                <Link href="/join" className="text-pink-600 font-medium hover:underline ml-1">
+                  ご案内はこちら →
+                </Link>
+              </p>
               {mode === 'login' && (
                 <p>
                   パスワードをお忘れの方：

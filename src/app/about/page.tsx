@@ -113,6 +113,7 @@ export default function AboutPage() {
         <ul className="list-disc pl-5 space-y-1 text-sm text-slate-600 leading-relaxed">
           <li><Link href="/terms" className="text-pink-600 hover:underline">利用規約</Link></li>
           <li><Link href="/privacy" className="text-pink-600 hover:underline">プライバシーポリシー</Link></li>
+          <li><Link href="/join" className="text-pink-600 hover:underline">会員登録について</Link></li>
           <li><Link href="/listing" className="text-pink-600 hover:underline">掲載について</Link></li>
           <li><Link href="/contact" className="text-pink-600 hover:underline">お問い合わせ</Link></li>
         </ul>

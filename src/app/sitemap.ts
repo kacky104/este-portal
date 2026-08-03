@@ -77,6 +77,8 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     { url: `${SITE_URL}/privacy`, lastModified: now, changeFrequency: 'yearly', priority: 0.3 },
     { url: `${SITE_URL}/listing`, lastModified: now, changeFrequency: 'yearly', priority: 0.3 },
     { url: `${SITE_URL}/contact`, lastModified: now, changeFrequency: 'yearly', priority: 0.3 },
+    // 会員登録案内（/join）。ポリシー類より更新頻度は高く、集客導線でもあるので monthly 0.5。
+    { url: `${SITE_URL}/join`, lastModified: now, changeFrequency: 'monthly', priority: 0.5 },
     // リンクバナー配布ページ（本体・ワーク。fukuX版 /x/banner と同じ yearly 0.3）。
     { url: `${SITE_URL}/banner`, lastModified: now, changeFrequency: 'yearly', priority: 0.3 },
     { url: `${SITE_URL}/jobs/banner`, lastModified: now, changeFrequency: 'yearly', priority: 0.3 },

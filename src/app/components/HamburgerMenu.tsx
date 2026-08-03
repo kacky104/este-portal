@@ -7,6 +7,8 @@ import Link from 'next/link';
 // 共通ヘッダー右端のメニュー（ハンバーガー）。
 // サイト内の主要コンテンツ導線（人気ランキング/特徴で探す/写メ日記/口コミ/新人/SNS）をまとめる。
 // ヘッダーの各アイコン（保存/VIP/通知/アカウント）とは別物で、ここにはコンテンツ系リンクのみを入れる。
+// 例外として末尾に /join（会員登録案内）を置く。ログイン導線は AccountMenu 側にあるが、
+// 「登録すると何ができるか」の説明ページはコンテンツ寄りで、SSR導線に載せてクローラにも拾わせたいため。
 // ボタンは丸枠なし・三本線＋下に「menu」表記。クリックで右側からドロワーがスライドイン（角は直角）。
 // 各項目は文字ラベルのみ（左アイコンなし）。オーバーレイのクリック・Escで閉じる。
 //
@@ -20,6 +22,7 @@ const ITEMS: { href: string; label: string }[] = [
   { href: '/reviews', label: '口コミ' },
   { href: '/therapist/new', label: '新人' },
   { href: '/x-shops', label: 'SNS' },
+  { href: '/join', label: '会員登録について' },
 ];
 
 export function HamburgerMenu() {
