@@ -44,7 +44,10 @@ export default async function ModerationPage() {
   const allRows = [...pending, ...approved];
 
   // 投稿者 nickname を別クエリで解決（無ければ「ゲスト」）。
-  const userIds = [...new Set(allRows.map((r) => r.user_id as string))];
+  // 退会済み会員の口コミは user_id が NULL のため、引く対象から外す（2026-08-03）。
+  const userIds = [...new Set(allRows.map((r) => r.user_id as string | null))].filter(
+    (id): id is string => !!id,
+  );
   const nameMap = new Map<string, string>();
   if (userIds.length > 0) {
     const { data: profiles } = await svc.from('profiles').select('id, nickname').in('id', userIds);
@@ -89,7 +92,7 @@ export default async function ModerationPage() {
       overall: Math.round(((s + t + rc) / 3) * 10) / 10,
       visitedOn: String(r.visited_on),
       body: (r.body as string) ?? '',
-      nickname: nameMap.get(r.user_id as string) ?? 'ゲスト',
+      nickname: (r.user_id ? nameMap.get(r.user_id as string) : undefined) ?? 'ゲスト',
       therapistName: therapistMap.get(r.therapist_id as number) ?? `セラピスト#${r.therapist_id}`,
       salonName: salonNameMap.get(therapistSalonMap.get(r.therapist_id as number) ?? -1) ?? '',
       createdAt: String(r.created_at),

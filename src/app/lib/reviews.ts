@@ -53,7 +53,9 @@ function overallOf(service: number, technique: number, reception: number): numbe
 type ReviewRow = {
   id: string | number;
   therapist_id: number;
-  user_id: string;
+  // 退会済み会員の口コミは NULL（therapist_reviews_user_id_fkey が ON DELETE SET NULL）。
+  // 本文は残し、表示名だけ「ゲスト」に落とす＝匿名化（2026-08-03）。
+  user_id: string | null;
   rating_service: number | string;
   rating_technique: number | string;
   rating_reception: number | string;
@@ -66,21 +68,28 @@ const REVIEW_COLUMNS =
   'id, therapist_id, user_id, rating_service, rating_technique, rating_reception, body, visited_on, created_at';
 
 // user_id → nickname のマップを引く（空配列なら空マップ）。nickname 未設定/空白は載せない。
+// 退会済み（user_id が NULL）の行は引く対象から外す。
 async function fetchNicknameMap(
   supabase: ReturnType<typeof createPublicClient>,
-  userIds: string[],
+  userIds: (string | null)[],
 ): Promise<Map<string, string>> {
   const map = new Map<string, string>();
-  if (userIds.length === 0) return map;
+  const ids = userIds.filter((id): id is string => !!id);
+  if (ids.length === 0) return map;
   const { data: profiles } = await supabase
     .from('profiles')
     .select('id, nickname')
-    .in('id', userIds);
+    .in('id', ids);
   (profiles ?? []).forEach((p) => {
     const nn = (p.nickname as string | null)?.trim();
     if (nn) map.set(p.id as string, nn);
   });
   return map;
+}
+
+// 表示名の解決。未設定・退会済み（user_id が NULL）はどちらも「ゲスト」。
+function nicknameOf(map: Map<string, string>, userId: string | null): string {
+  return (userId ? map.get(userId) : undefined) ?? 'ゲスト';
 }
 
 // 3軸の数値配列から ReviewStats を組み立てる（取得済み行を渡す）。
@@ -132,7 +141,7 @@ export async function getApprovedReviews(therapistId: number): Promise<ApprovedR
       body: r.body ?? '',
       visitedOn: String(r.visited_on),
       createdAt: String(r.created_at),
-      nickname: nameMap.get(r.user_id) ?? 'ゲスト',
+      nickname: nicknameOf(nameMap, r.user_id),
     };
   });
 }
@@ -238,7 +247,7 @@ export async function getSalonApprovedReviews(salonId: number): Promise<Approved
       body: r.body ?? '',
       visitedOn: String(r.visited_on),
       createdAt: String(r.created_at),
-      nickname: nameMap.get(r.user_id) ?? 'ゲスト',
+      nickname: nicknameOf(nameMap, r.user_id),
       therapistName: byId.get(r.therapist_id)?.name ?? '',
       therapistImage: byId.get(r.therapist_id)?.image ?? null,
     };
@@ -303,7 +312,7 @@ export async function getAllApprovedReviews(limit = 200): Promise<ApprovedReview
         body: r.body ?? '',
         visitedOn: String(r.visited_on),
         createdAt: String(r.created_at),
-        nickname: nameMap.get(r.user_id) ?? 'ゲスト',
+        nickname: nicknameOf(nameMap, r.user_id),
         therapistName: info.name,
         therapistImage: info.image,
         salonName: info.salonName,

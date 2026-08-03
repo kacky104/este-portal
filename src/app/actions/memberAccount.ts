@@ -11,10 +11,16 @@ import { createServiceClient } from '@/app/lib/supabase/service';
 //  - 本人性検証：auth.getUser() のログイン id を唯一の削除キーにする。
 //    クライアントから uid は受け取らない（なりすまし防止）。加えて画面で入力された
 //    メールアドレスがログイン中のものと一致することを二重チェックする。
-//  - このDBには auth.users / profiles を親とする外部キーが1本も無い（2026-08-03 本番で確認）。
-//    つまり auth.users を消しても連鎖削除は起きないため、関連テーブルは明示的に消す必要がある。
-//  - 口コミ（therapist_reviews）は消さない。user_id が NOT NULL のため NULL 化もできないが、
-//    profiles 行を消せば lib/reviews.ts の nickname 解決が外れて表示が「ゲスト」に落ちる＝匿名化。
+//  - auth.users を親とする外部キーは pg_catalog で確認すること。information_schema の
+//    constraint_column_usage は「実行ユーザーが所有しないテーブルの制約を隠す」ため、
+//    auth スキーマ（所有者 supabase_auth_admin）宛のFKが見えず、実在するのに0件に見える。
+//    2026-08-03 にこれで判断を誤り、退会テストで口コミが CASCADE 削除された。
+//  - 会員データ（profiles / saved_items / view_history / notification_reads /
+//    vip_letter_recipients）はすべて auth.users への ON DELETE CASCADE 付き。
+//    ここでの明示 delete は保険（順序を固定し、auth 削除前に確実に消すため）。
+//  - 口コミ（therapist_reviews）は消さない。user_id は ON DELETE SET NULL に張り替え済み
+//    （20260803_therapist_reviews_user_id_set_null.sql）なので、退会すると NULL になり
+//    lib/reviews.ts の nickname 解決が外れて表示が「ゲスト」に落ちる＝匿名化。
 //    店舗の口コミ件数・★平均・ランキングを後から動かさないための方針（2026-08-03 決定）。
 //  - fukuX アカウントを持っている会員は退会させない。ログイン（auth.users）が本体と共有のため、
 //    本体を消すと fukuX に入れなくなる。先に /x/settings で fukuX を削除してもらう。
