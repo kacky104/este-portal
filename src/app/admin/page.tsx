@@ -29,6 +29,7 @@ import AdminDocumentsManager from '@/app/components/AdminDocumentsManager';
 import AdminImagesManager from '@/app/components/AdminImagesManager';
 import RankingHandicapManager from '@/app/components/RankingHandicapManager';
 import PageHeroManager from '@/app/components/PageHeroManager';
+import ReviewCampaignManager from '@/app/components/ReviewCampaignManager';
 import { JOBS_PAGE_HERO_KEYS } from '@/app/lib/pageHero';
 import ListingInquiryManager from '@/app/components/ListingInquiryManager';
 import WorkMatchManager from '@/app/components/WorkMatchManager';
@@ -620,6 +621,11 @@ export default function AdminDashboard() {
           {/* ── ページ別ヒーロー（ヘッダー）画像：特徴で探す/写メ日記/口コミ/新人/SNS ── */}
           <AccordionSection id="page-heroes" title="ページ別ヒーロー画像設定" expanded={expandedSections} onToggle={toggleSection}>
             <PageHeroManager onToast={showToast} />
+          </AccordionSection>
+
+          {/* ── 口コミ投稿者への個別VIPレター（オープン記念キャンペーン用・運営専用） ── */}
+          <AccordionSection id="review-campaign" title="口コミ投稿者へVIPレター送信" expanded={expandedSections} onToggle={toggleSection}>
+            <ReviewCampaignManager onToast={showToast} />
           </AccordionSection>
 
           {/* ── 本体コラム記事（利用者向け・/column 配下） ── */}
