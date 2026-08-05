@@ -246,11 +246,16 @@ export default async function JoinPage() {
                 <span aria-hidden className="text-pink-500 flex-shrink-0">●</span>
                 保存した店舗・セラピストの内容が店舗側に伝わることはありません。
               </li>
+              {/* テキストとリンクは1つの span にまとめる。flex の直下に置くと
+                  「文字列」「リンク」「文字列」がそれぞれ別のフレックスアイテムになり、
+                  横並びで幅を取り合って不自然な折り返しになるため。 */}
               <li className="flex gap-2">
                 <span aria-hidden className="text-pink-500 flex-shrink-0">●</span>
-                取得した情報の取り扱いは
-                <Link href="/privacy" className="text-pink-600 font-medium hover:underline mx-0.5">プライバシーポリシー</Link>
-                をご確認ください。
+                <span>
+                  取得した情報の取り扱いは
+                  <Link href="/privacy" className="text-pink-600 font-medium hover:underline mx-0.5 whitespace-nowrap">プライバシーポリシー</Link>
+                  をご確認ください。
+                </span>
               </li>
             </ul>
           </div>
