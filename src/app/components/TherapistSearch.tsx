@@ -5,9 +5,18 @@
 // - 特徴バッジは therapistBadges.ts の定義をそのまま利用。複数選択は AND（すべて満たす）。
 // - 並びは「今すぐ → 出勤中 → その他（30分ごとシャッフル）」。カードは既存 TherapistScroller の Card を流用。
 // - 条件は URL（?b=バッジA,バッジB &area=...）に同期し、共有・リロードで復元できる。
+//
+// SSR対応（2026-08-05）:
+// - page（Server）が fetchTherapistPool で取得したリストを initialList / initialSalonAreaMap で
+//   渡すと、初期HTMLに全セラピストカード（<a href="/therapist/N">）が焼き込まれる。
+// - フィルタ状態は useSearchParams ではなくマウント後の window.location 読み取りで復元する。
+//   useSearchParams はISR（静的）ページでは Suspense 境界までCSRフォールバックさせるため、
+//   せっかくの initialList もHTMLに出なくなってしまう（＝従来「中身なしページ」だった根本原因）。
+//   初期描画（SSR含む）は常に「絞り込みなし・全件」で、?b=/?area= はマウント後に適用される。
+// - シャッフルseedは initialSeed（サーバー計算）を優先し、SSRとhydrationの並び不一致を防ぐ。
 
 import { useEffect, useMemo, useState } from 'react';
-import { useRouter, useSearchParams, usePathname } from 'next/navigation';
+import { useRouter } from 'next/navigation';
 import { createClient } from '@/app/lib/supabase/client';
 import { getBusinessDateJST } from '@/lib/dutyStatus';
 import { Card, getScheduleStatus, type TherapistItem } from '@/app/components/TherapistScroller';
@@ -30,17 +39,41 @@ const CHIP_ACTIVE = 'bg-pink-600 text-white shadow-md shadow-pink-500/25';
 const CHIP_INACTIVE =
   'border border-slate-200 bg-white text-slate-600 hover:border-pink-300 hover:text-pink-600 shadow-sm';
 
-export function TherapistSearch({ lockedBadges = [] }: { lockedBadges?: string[] } = {}) {
+export function TherapistSearch({
+  lockedBadges = [],
+  initialList,
+  initialSalonAreaMap,
+  initialSeed,
+}: {
+  lockedBadges?: string[];
+  initialList?: TherapistItem[];
+  initialSalonAreaMap?: Record<number, SalonAreaInfo>;
+  initialSeed?: number;
+} = {}) {
   const router = useRouter();
-  const pathname = usePathname();
-  const searchParams = useSearchParams();
+  const hasInitial = initialList !== undefined;
 
-  const [list, setList] = useState<TherapistItem[]>([]);
-  const [salonAreaMap, setSalonAreaMap] = useState<Record<number, SalonAreaInfo>>({});
-  const [loaded, setLoaded] = useState(false);
+  const [list, setList] = useState<TherapistItem[]>(initialList ?? []);
+  const [salonAreaMap, setSalonAreaMap] = useState<Record<number, SalonAreaInfo>>(initialSalonAreaMap ?? {});
+  const [loaded, setLoaded] = useState(hasInitial);
+  // シャッフルseed。サーバーから渡されたものを固定で使う（SSRとhydrationで並びを一致させる）。
+  const [seed] = useState<number>(() => initialSeed ?? thirtyMinSeed());
 
-  // ── 全アクティブセラピスト＋所属サロン＋本日スケジュールを取得（WorkingTherapists と同じ取り方）。 ──
+  // ── フィルタ状態（?area= / ?b=）。初期描画は常に「絞り込みなし」で、マウント後にURLから復元。 ──
+  const [area, setAreaState] = useState<string>(ALL_AREA);
+  const [selectedBadges, setSelectedBadges] = useState<string[]>([]);
   useEffect(() => {
+    const p = new URLSearchParams(window.location.search);
+    const a = p.get('area');
+    if (a) setAreaState(a);
+    const b = (p.get('b') || '').split(',').map((s) => s.trim()).filter(Boolean);
+    if (b.length) setSelectedBadges(b);
+  }, []);
+
+  // ── 全アクティブセラピスト＋所属サロン＋本日スケジュールを取得（WorkingTherapists と同じ取り方）。
+  //    initialList がサーバーから渡されている場合は自己フェッチをスキップ（salonTherapists.ts と同方針）。 ──
+  useEffect(() => {
+    if (hasInitial) return;
     (async () => {
       const supabase = createClient();
 
@@ -114,41 +147,42 @@ export function TherapistSearch({ lockedBadges = [] }: { lockedBadges?: string[]
       setList(mapped);
       setLoaded(true);
     })();
-  }, []);
+  }, [hasInitial]);
 
-  // ── URL から現在の絞り込み状態を読む。 ──
-  const area = searchParams.get('area') || ALL_AREA;
-  const selectedBadges = useMemo(
-    () => (searchParams.get('b') || '').split(',').map((s) => s.trim()).filter(Boolean),
-    [searchParams],
-  );
-  // ランディングページ等で固定するバッジ（lockedBadges）＋URL選択を AND で合成した実効フィルタ。
+  // ランディングページ等で固定するバッジ（lockedBadges）＋選択中バッジを AND で合成した実効フィルタ。
+  const lockedKey = lockedBadges.join('|');
   const badgeFilter = useMemo(
     () => Array.from(new Set([...lockedBadges, ...selectedBadges])),
-    [lockedBadges.join('|'), selectedBadges], // eslint-disable-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [lockedKey, selectedBadges],
   );
 
-  const pushParams = (next: URLSearchParams) => {
-    const qs = next.toString();
-    router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false });
+  // フィルタ変更時は state を即時更新し、URL（?area=/?b=）にも同期する（共有・リロード用）。
+  const syncUrl = (nextArea: string, nextBadges: string[]) => {
+    const p = new URLSearchParams();
+    if (nextArea !== ALL_AREA) p.set('area', nextArea);
+    if (nextBadges.length) p.set('b', nextBadges.join(','));
+    const qs = p.toString();
+    router.replace(qs ? `${window.location.pathname}?${qs}` : window.location.pathname, { scroll: false });
   };
   const setArea = (a: string) => {
-    const p = new URLSearchParams(searchParams.toString());
-    if (a === ALL_AREA) p.delete('area');
-    else p.set('area', a);
-    pushParams(p);
+    setAreaState(a);
+    syncUrl(a, selectedBadges);
   };
   const toggleBadge = (badge: string) => {
     if (lockedBadges.includes(badge)) return; // 固定バッジは外せない
     const set = new Set(selectedBadges);
     if (set.has(badge)) set.delete(badge);
     else set.add(badge);
-    const p = new URLSearchParams(searchParams.toString());
-    if (set.size) p.set('b', Array.from(set).join(','));
-    else p.delete('b');
-    pushParams(p);
+    const next = Array.from(set);
+    setSelectedBadges(next);
+    syncUrl(area, next);
   };
-  const resetAll = () => pushParams(new URLSearchParams());
+  const resetAll = () => {
+    setAreaState(ALL_AREA);
+    setSelectedBadges([]);
+    syncUrl(ALL_AREA, []);
+  };
 
   // ── 絞り込み＋並び替え（今すぐ → 出勤中 → その他）。 ──
   const ordered = useMemo(() => {
@@ -166,12 +200,12 @@ export function TherapistSearch({ lockedBadges = [] }: { lockedBadges?: string[]
       .sort((a, b) => imasuguUntilCamel(a) - imasuguUntilCamel(b));
     const onDuty = seededShuffle(
       results.filter((t) => !isImasuguLiveCamel(t) && getScheduleStatus(t.today).status === 'onDuty'),
-      thirtyMinSeed(),
+      seed,
     );
     const usedIds = new Set([...imasugu, ...onDuty].map((t) => t.id));
-    const rest = seededShuffle(results.filter((t) => !usedIds.has(t.id)), thirtyMinSeed());
+    const rest = seededShuffle(results.filter((t) => !usedIds.has(t.id)), seed);
     return [...imasugu, ...onDuty, ...rest];
-  }, [list, salonAreaMap, badgeFilter, area]);
+  }, [list, salonAreaMap, badgeFilter, area, seed]);
 
   const hasFilter = area !== ALL_AREA || selectedBadges.length > 0;
 

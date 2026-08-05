@@ -1,5 +1,4 @@
 import type { Metadata } from 'next';
-import { Suspense } from 'react';
 import Link from 'next/link';
 import { Logo } from '@/app/components/Logo';
 import { SavedSalonsMenu } from '@/app/components/SavedSalonsMenu';
@@ -18,6 +17,8 @@ import { getTheme, breadcrumbCurrentColor } from '@/app/lib/themes';
 import { POPULAR_BADGES, badgeToSlug } from '@/lib/therapistBadgeSlugs';
 import { getBadgeColors } from '@/lib/therapistBadges';
 import { SiteNoticeBanner } from '@/app/components/SiteNoticeBanner';
+import { fetchTherapistPool } from '@/app/lib/therapistPool';
+import { thirtyMinSeed } from '@/lib/shuffle';
 
 const TITLE = '特徴からセラピストを探す｜福岡メンズエステ【フクエス】';
 const DESCRIPTION =
@@ -35,11 +36,15 @@ export const metadata: Metadata = {
 export const revalidate = 300;
 
 export default async function TherapistsPage() {
-  const [hero, wallpapers, adBanners] = await Promise.all([
+  const [hero, wallpapers, adBanners, pool] = await Promise.all([
     fetchPageHero('therapists'),
     fetchThemeWallpapers(),
     fetchActiveAdBanners(),
+    // 全アクティブセラピストをサーバーで取得し、初期HTMLに全カード（リンク）を焼き込む（2026-08-05）。
+    fetchTherapistPool({ activeOnly: true }),
   ]);
+  // シャッフルseedもサーバーで確定（SSRとhydrationの並び不一致を防ぐ。ISR再生成ごとに更新）。
+  const listSeed = thirtyMinSeed();
   // ランキングと同じ方式：purple テーマ壁紙をテーマ色の半透明オーバーレイ越しに敷く。
   const theme = getTheme('purple');
   const wallpaperUrl = wallpapers[theme.key] ?? null;
@@ -110,10 +115,9 @@ export default async function TherapistsPage() {
           </div>
         </nav>
 
-        {/* useSearchParams を使うため Suspense 境界で包む。 */}
-        <Suspense fallback={<div className="py-20 text-center text-slate-400 text-sm">読み込み中…</div>}>
-          <TherapistSearch />
-        </Suspense>
+        {/* サーバー取得の initialList を渡してSSR描画（フィルタ復元はマウント後の location 読み取り。
+            useSearchParams をやめたので Suspense 境界は不要になった：2026-08-05）。 */}
+        <TherapistSearch initialList={pool.list} initialSalonAreaMap={pool.salonAreaMap} initialSeed={listSeed} />
         {/* ルックバナー（ページ下部）。上部の枠とは独立にランダム抽選。 */}
         <AdBanner banners={adBanners} />
       </main>

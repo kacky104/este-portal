@@ -10,6 +10,8 @@ import { createPublicClient } from '@/app/lib/supabase/public';
 import { fetchSalons } from '@/app/lib/salons';
 import { areaFromSlug, salonInArea, DISPATCH_AREA } from '@/app/lib/areas';
 import { areaLabel } from '@/app/lib/areaLabel';
+import { fetchTherapistPool } from '@/app/lib/therapistPool';
+import { thirtyMinSeed } from '@/lib/shuffle';
 import type { Metadata } from 'next';
 import { SiteNoticeBanner } from '@/app/components/SiteNoticeBanner';
 
@@ -58,6 +60,11 @@ export default async function WorkingPage({
     filterSalonIds = salons.filter((s) => salonInArea(s, areaValue)).map((s) => s.id);
     headingArea = areaValue === DISPATCH_AREA ? '出張対応' : areaLabel(areaValue);
   }
+
+  // 出勤中セラピストをサーバーで取得し、初期HTMLにカード（リンク）を焼き込む（2026-08-05）。
+  // 取得条件は従来のクライアント実装と完全に同一（is_active では絞らない）。並び替えはコンポーネント側。
+  const pool = await fetchTherapistPool({ filterSalonIds });
+  const listSeed = thirtyMinSeed();
 
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900">
@@ -114,7 +121,8 @@ export default async function WorkingPage({
           )}
         </div>
 
-        <WorkingTherapists filterSalonIds={filterSalonIds} />
+        {/* key でエリア切替時に必ず作り直す（initialList が state 初期値のため、prop 変更を確実に反映させる） */}
+        <WorkingTherapists key={slug ?? 'all'} filterSalonIds={filterSalonIds} initialList={pool.list} initialSeed={listSeed} />
       </main>
 
       {/* ─── Footer ──────────────────────────────────────── */}

@@ -1,5 +1,4 @@
 import type { Metadata } from 'next';
-import { Suspense } from 'react';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { Logo } from '@/app/components/Logo';
@@ -12,6 +11,8 @@ import {
   BADGE_CATEGORY_LABELS,
 } from '@/lib/therapistBadges';
 import { SiteNoticeBanner } from '@/app/components/SiteNoticeBanner';
+import { fetchTherapistPool } from '@/app/lib/therapistPool';
+import { thirtyMinSeed } from '@/lib/shuffle';
 
 // ISR：10分ごとに再生成（/therapists と同じ方針）。
 export const revalidate = 600;
@@ -45,6 +46,11 @@ export default async function BadgeLandingPage({ params }: { params: Promise<{ s
   // 同カテゴリの他バッジ（相互リンク＝バッジ・クラスタのSEO強化）。
   const category = getBadgeCategory(label);
   const siblings = category ? BADGES_BY_CATEGORY[category].filter((b) => b !== label) : [];
+
+  // 全アクティブセラピストをサーバーで取得し、初期HTMLにカード（リンク）を焼き込む（2026-08-05）。
+  // バッジ絞り込みは lockedBadges として TherapistSearch 側で行う（従来と同じ）。
+  const pool = await fetchTherapistPool({ activeOnly: true });
+  const listSeed = thirtyMinSeed();
 
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900">
@@ -96,10 +102,16 @@ export default async function BadgeLandingPage({ params }: { params: Promise<{ s
           </nav>
         )}
 
-        {/* useSearchParams を使うため Suspense 境界で包む。lockedBadges でこのバッジを固定。 */}
-        <Suspense fallback={<div className="py-20 text-center text-slate-400 text-sm">読み込み中…</div>}>
-          <TherapistSearch lockedBadges={[label]} />
-        </Suspense>
+        {/* サーバー取得の initialList を渡してSSR描画。lockedBadges でこのバッジを固定。
+            key={slug} でバッジ間遷移時に必ず作り直す（クライアント側 state の持ち越し防止）。
+            useSearchParams をやめたので Suspense 境界は不要になった（2026-08-05）。 */}
+        <TherapistSearch
+          key={slug}
+          lockedBadges={[label]}
+          initialList={pool.list}
+          initialSalonAreaMap={pool.salonAreaMap}
+          initialSeed={listSeed}
+        />
       </main>
 
       <footer className="border-t border-slate-200 bg-white py-6 mt-12">
