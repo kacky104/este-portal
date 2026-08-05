@@ -319,11 +319,37 @@ export default async function TherapistPublicPage({
     { name: therapist.name, path: `/therapist/${id}` },
   ]);
 
+  // ProfilePage + Person 構造化データ（人物ページであることと所属店舗の関係を明示）。
+  // ※aggregateRating は付けない：Google のレビュースニペットは Person を itemReviewed に
+  //   サポートしておらず（人物への評価は対象外）、付けると GSC のレビュー拡張レポートで
+  //   「サポート対象外のタイプ」エラーになるため。★評価の構造化データは店舗側
+  //   （/salon/[id] の HealthAndBeautyBusiness）にのみ出す方針。
+  const profileJsonLd: Record<string, unknown> = {
+    '@context': 'https://schema.org/',
+    '@type': 'ProfilePage',
+    mainEntity: {
+      '@type': 'Person',
+      name: therapist.name,
+      url: `https://fukues.com/therapist/${id}`,
+      image: images.length > 0 ? images[0] : undefined,
+      jobTitle: 'セラピスト',
+      worksFor: salon
+        ? {
+            '@type': 'HealthAndBeautyBusiness',
+            name: salon.name,
+            url: `https://fukues.com/salon/${therapist.salonId}`,
+          }
+        : undefined,
+    },
+  };
+
   return (
     <div className="relative min-h-screen overflow-x-clip" style={{ color: theme.text }}>
 
       {/* BreadcrumbList 構造化データ（トップ › サロン名 › セラピスト名） */}
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: toJsonLdString(breadcrumbJsonLd) }} />
+      {/* ProfilePage + Person 構造化データ（人物・所属店舗） */}
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: toJsonLdString(profileJsonLd) }} />
 
       {/* 会員の閲覧履歴を記録（クライアント側・ログイン中のみ） */}
       <ViewHistoryLogger itemType="therapist" itemId={Number(id)} />
@@ -416,13 +442,16 @@ export default async function TherapistPublicPage({
                   />
                 </div>
 
-                {/* ── 名前＋出勤情報（デスクトップ：名前・年齢の右横に出勤時間=work_hours、その横にバッジ） ── */}
+                {/* ── 名前＋出勤情報（デスクトップ：名前・年齢の右横に出勤時間=work_hours、その横にバッジ） ──
+                    PC用とモバイル用はCSS出し分け（hidden）で両方HTMLに含まれるため、
+                    h1はモバイル側（Googleはモバイルファーストインデックス）の1つだけにし、
+                    こちらは同スタイルの <p> にする（h1二重出力の解消：2026-08-05）。 */}
                 <div className="hidden md:block mb-1 pr-12">
                   <div className="flex items-center flex-wrap gap-x-2 gap-y-1">
-                    <h1 className="text-2xl font-bold text-slate-900">
+                    <p className="text-2xl font-bold text-slate-900">
                       {therapist.name}
                       {therapist.age && <span className="ml-0.5">（{therapist.age}）</span>}
-                    </h1>
+                    </p>
                     {therapist.workHours && (
                       <span className="inline-flex items-center gap-1 text-sm font-medium text-slate-500">
                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-slate-400 flex-shrink-0">

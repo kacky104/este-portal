@@ -131,6 +131,20 @@ export async function generateMetadata({
 
 const SITE_URL = 'https://fukues.com';
 
+// 日本の郵便番号「NNN-NNNN」形式かどうか。JSON-LD へ出す前の最終ゲート（求人側と同じ方針）。
+function isValidPostalCode(v: string | null): boolean {
+  return !!v && /^\d{3}-\d{4}$/.test(v);
+}
+
+// 住所文字列の先頭から市区町村（addressLocality 用）を取り出す。
+// 「福岡市博多区」「北九州市小倉北区」「久留米市」「糟屋郡志免町」等にマッチ。
+// 確実に取れたときだけ返し、取れなければ undefined（誤った自治体名を出すより省略が安全）。
+function localityFromAddress(address: string): string | undefined {
+  const rest = address.replace(/^福岡県/, '');
+  const m = rest.match(/^((?:福岡市|北九州市)[぀-龯]{1,4}区|[぀-龯]{2,6}市|[぀-龯]{1,4}郡[぀-龯]{1,6}(?:町|村))/);
+  return m ? m[1] : undefined;
+}
+
 // サロン詳細の HealthAndBeautyBusiness（LocalBusinessサブタイプ）構造化データ。
 // ページ本体が取得済みの salon／画像／口コミ統計から組み立てる（追加クエリ不要）。
 // ※openingHours は入れない：DBの hours は自由文字列で schema.org 書式に確実変換できないため。
@@ -145,6 +159,9 @@ function buildSalonJsonLd(
     phone: string;
     price: string;
     officialUrl: string | null;
+    fukuxUrl: string | null;
+    lineUrl: string | null;
+    postalCode: string | null;
   },
   images: string[],
   reviewStats: { avgOverall: number | null; count: number },
@@ -157,6 +174,10 @@ function buildSalonJsonLd(
     address: {
       '@type': 'PostalAddress',
       streetAddress: salon.address,
+      // addressLocality（市区町村）は住所から確実に取れたときだけ出す。
+      addressLocality: localityFromAddress(salon.address),
+      // postalCode は「NNN-NNNN」形式のときだけ（求人 JobPosting と同じゲート）。
+      postalCode: isValidPostalCode(salon.postalCode) ? salon.postalCode! : undefined,
       addressRegion: '福岡県',
       addressCountry: 'JP',
     },
@@ -167,7 +188,9 @@ function buildSalonJsonLd(
   if (salon.phone) ld.telephone = salon.phone;
   if (images.length > 0) ld.image = images;
   if (salon.price) ld.priceRange = salon.price;
-  if (salon.officialUrl) ld.sameAs = [salon.officialUrl];
+  // sameAs は同一店舗の別プロフィール（公式サイト・fukuX・LINE）。空は落とす。
+  const sameAs = [salon.officialUrl, salon.fukuxUrl, salon.lineUrl].filter(Boolean);
+  if (sameAs.length > 0) ld.sameAs = sameAs;
   // 口コミがある場合のみ。ratingValue は画面表示（toFixed(1)）と一致させる。
   if (reviewStats.count > 0 && reviewStats.avgOverall !== null && reviewStats.avgOverall > 0) {
     ld.aggregateRating = {
@@ -200,7 +223,7 @@ export default async function SalonPage({
   ] = await Promise.all([
     supabase
       .from('salons')
-      .select('id, name, rating, review_count, tags, price, area, area2, hours, description, appeal, phone, address, access, closed_days, courses, theme, official_url, fukux_url, line_url, payment_methods, is_hidden, dispatch_type')
+      .select('id, name, rating, review_count, tags, price, area, area2, hours, description, appeal, phone, address, access, closed_days, courses, theme, official_url, fukux_url, line_url, payment_methods, is_hidden, dispatch_type, postal_code')
       .eq('id', Number(id))
       .single(),
     supabase
@@ -258,6 +281,8 @@ export default async function SalonPage({
     lineUrl:     (row.line_url as string | null) ?? null,
     // 掲載・出張区分（'none'=出張なし / 'available'=出張あり / 'only'=出張専門）
     dispatchType: (row.dispatch_type as 'none' | 'available' | 'only' | null) ?? 'none',
+    // 構造化データ専用（求人 JobPosting と共用のカラム）。画面には表示しない。
+    postalCode:   (row.postal_code as string | null) ?? null,
   };
 
   const theme = getTheme(row.theme as string | null);

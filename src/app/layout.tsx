@@ -1,18 +1,11 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { SaveStoreInit } from "./components/SaveStoreInit";
 import Wallpaper from "./components/Wallpaper";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
-  subsets: ["latin"],
-});
-
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
-});
+// Geist / Geist_Mono（next/font）は削除（2026-08-05）。
+// globals.css の body { font-family: Arial, ... } が常に優先されており、
+// woff2 を全ページで preload しながら1文字も表示に使われていなかったため。
 
 // 「検索」（機能語・クエリに現れない）を「情報」（実クエリに現れる語）へ置き換え（2026-07-10）。
 const SITE_TITLE = "福岡メンズエステ情報・口コミポータルサイト【フクエス】";
@@ -58,10 +51,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html
-      lang="ja"
-      className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
-    >
+    <html lang="ja" className="h-full antialiased">
       <body className="min-h-full flex flex-col">
         <SaveStoreInit />
         <Wallpaper />

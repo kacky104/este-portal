@@ -8,8 +8,10 @@
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  /* Geistフォント（next/font）は未使用のまま全ページで読み込まれていたため削除（2026-08-05）。
+     実際の表示は下の body { font-family: Arial, ... } が担っている。 */
+  --font-sans: Arial, Helvetica, sans-serif;
+  --font-mono: ui-monospace, monospace;
 }
 
 body {
