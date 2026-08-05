@@ -195,7 +195,7 @@ function TherapistMiniCardsRow({ therapists, salonId, showAge = false, compact =
 // ── 店名の1行自動縮小（デスクトップ wideLayout 用） ──
 // 店名行が2行になりそうなとき、利用可能幅に収まるまでフォントを段階的に下げて1行を保つ。
 // flex 行の中で min-w-0 により自分の幅が縮むので、その幅に対して文字幅を測って縮小する。
-function WideAutoFitName({ name }: { name: string }) {
+function WideAutoFitName({ name, salonId }: { name: string; salonId: number }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const textRef = useRef<HTMLSpanElement>(null);
   const MAX = 18; // 既定（text-lg 相当。zoom で表示はさらに拡大される）
@@ -222,13 +222,16 @@ function WideAutoFitName({ name }: { name: string }) {
 
   return (
     <div ref={containerRef} className="min-w-0 overflow-hidden">
-      <span
-        ref={textRef}
-        className="inline-block max-w-full whitespace-nowrap font-bold text-slate-900 group-hover:text-pink-700 transition-colors leading-snug"
-        style={{ fontSize: `${size}px`, overflow: 'hidden', textOverflow: 'ellipsis' }}
-      >
-        {name}
-      </span>
+      {/* 店名リンク（SSRで <a href> を出す）。カード onClick との二重遷移は stopPropagation で防ぐ。 */}
+      <Link href={`/salon/${salonId}`} className="inline-block max-w-full" onClick={(e) => e.stopPropagation()}>
+        <span
+          ref={textRef}
+          className="inline-block max-w-full whitespace-nowrap font-bold text-slate-900 group-hover:text-pink-700 transition-colors leading-snug"
+          style={{ fontSize: `${size}px`, overflow: 'hidden', textOverflow: 'ellipsis' }}
+        >
+          {name}
+        </span>
+      </Link>
     </div>
   );
 }
@@ -369,10 +372,17 @@ export function SalonCard({ salon, therapists, showAge = false, areaNextToDuty =
     </p>
   ) : null;
   const priceEl = <p className="text-pink-600 font-bold text-sm whitespace-nowrap flex-shrink-0">{salon.price}</p>;
+  // 「詳しく見る」もクローラが辿れる実リンクにする（見た目は従来の span と同一）。
+  // カード全体の onClick（router.push）とは stopPropagation で二重遷移を防ぐ。
   const detailBtn = (
-    <span className="flex-shrink-0 px-4 py-2 rounded-xl bg-pink-600 text-white font-bold text-xs group-hover:bg-pink-500 transition-colors shadow-sm shadow-pink-500/20">
+    <Link
+      href={`/salon/${salon.id}`}
+      onClick={(e) => e.stopPropagation()}
+      className="flex-shrink-0 px-4 py-2 rounded-xl bg-pink-600 text-white font-bold text-xs group-hover:bg-pink-500 transition-colors shadow-sm shadow-pink-500/20"
+      aria-label={`${salon.name}の詳細を見る`}
+    >
       詳しく見る →
-    </span>
+    </Link>
   );
   // bleedTherapists: セラピスト帯のみカード内側の左右パディング(px-5=20px)を負マージンで相殺し、
   // カード端寄りに広げる。-mx-3(12px相殺)＝両端に約8pxの余白を残す。スマホ(stackedLayout)だけ効かせ、
@@ -392,7 +402,10 @@ export function SalonCard({ salon, therapists, showAge = false, areaNextToDuty =
         <SalonNameRow salonId={salon.id} salonName={salon.name} showSaveButton />
       ) : (
         <h3 className="font-bold text-lg text-slate-900 group-hover:text-pink-700 transition-colors leading-snug mb-3">
-          {salon.name}
+          {/* 店名リンク（SSRで <a href> を出す。カード onClick との二重遷移は stopPropagation で防ぐ） */}
+          <Link href={`/salon/${salon.id}`} onClick={(e) => e.stopPropagation()}>
+            {salon.name}
+          </Link>
         </h3>
       )}
 
@@ -459,7 +472,7 @@ export function SalonCard({ salon, therapists, showAge = false, areaNextToDuty =
       {/* 1段目: 店名（長い場合はフォント自動縮小で1行維持）→ 営業時間 → 地域 →（右端）保存ボタン */}
       <div className="flex items-center gap-2.5 mb-2.5">
         {/* バナー時（nameBanner）は店名・保存ボタンをカード上端の全幅帯へ移すため、ここでは出さない。 */}
-        {!nameBanner && <WideAutoFitName name={salon.name} />}
+        {!nameBanner && <WideAutoFitName name={salon.name} salonId={salon.id} />}
         {hoursEl}
         {areaBadge}
         {!nameBanner && showSaveButton && (

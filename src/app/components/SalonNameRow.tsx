@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import Link from 'next/link';
 import { SaveButton } from './SaveButton';
 
 // SSR とクライアントで挙動を合わせるためのレイアウト計測フック。
@@ -58,22 +59,32 @@ export function SalonNameRow({
       {/* 計測用 containerRef は無装飾のまま（帯の padding は呼び出し側の px-5 が担う）。
           バナー時は文字色を濃ピンク(#be185d)にし、ホバーのピンク文字化は外す。 */}
       <div ref={containerRef} className="min-w-0 flex-1 overflow-hidden">
-        <span
-          ref={textRef}
-          className={`inline-block max-w-full whitespace-nowrap font-bold transition-colors ${
-            nameBanner ? 'leading-none text-[#be185d]' : 'leading-snug text-slate-900 group-hover:text-pink-700'
-          }`}
-          style={{
-            fontSize: `${size}px`,
-            overflow: 'hidden',
-            textOverflow: allowEllipsis ? 'ellipsis' : 'clip',
-            // バナー時のみ光学補正：大文字英字・カタカナ中心でディセンダーが無く、
-            // フォントのディセンダー領域が下側の空白として残るため幾何学的中央では上寄りに見える。4px下げて相殺（3px でもまだ上寄りに見えたため+1px）。
-            ...(nameBanner ? { transform: 'translateY(4px)' } : {}),
-          }}
+        {/* 店名はサロン詳細への <Link>。カード全体の onClick（router.push）とは別に、
+            クローラが辿れる <a href> と「店名」というアンカーテキストをSSRで確保するのが目的
+            （2026-08-05 SEO監査：トップ/エリアの店舗カードに <a> が1本も無かった問題の修正）。
+            stopPropagation でカード側 onClick との二重遷移を防ぐ。 */}
+        <Link
+          href={`/salon/${salonId}`}
+          className="inline-block max-w-full"
+          onClick={(e) => e.stopPropagation()}
         >
-          {salonName}
-        </span>
+          <span
+            ref={textRef}
+            className={`inline-block max-w-full whitespace-nowrap font-bold transition-colors ${
+              nameBanner ? 'leading-none text-[#be185d]' : 'leading-snug text-slate-900 group-hover:text-pink-700'
+            }`}
+            style={{
+              fontSize: `${size}px`,
+              overflow: 'hidden',
+              textOverflow: allowEllipsis ? 'ellipsis' : 'clip',
+              // バナー時のみ光学補正：大文字英字・カタカナ中心でディセンダーが無く、
+              // フォントのディセンダー領域が下側の空白として残るため幾何学的中央では上寄りに見える。4px下げて相殺（3px でもまだ上寄りに見えたため+1px）。
+              ...(nameBanner ? { transform: 'translateY(4px)' } : {}),
+            }}
+          >
+            {salonName}
+          </span>
+        </Link>
       </div>
 
       {showSaveButton && (
