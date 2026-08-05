@@ -323,7 +323,7 @@ export default async function Home() {
                       エリアページと同方式：タイトルバー自体を summary にしたアコーディオンで、
                       クリックで福岡市の紹介文（SSR済み＝閉じていてもSEO評価される）を開閉。初期は閉。
                       トップは show_on_top=true のサロンのみ表示＝福岡市内中心の運用（タイトルもそれに合わせた）。 */}
-                  <details className="group mb-1">
+                  <details className="group mb-4">
                     <summary
                       className="px-4 py-1.5 flex items-center gap-3 cursor-pointer select-none list-none [&::-webkit-details-marker]:hidden"
                       style={{ background: '#f1f5f9', borderBottom: '1px solid #e2e8f0' }}
@@ -345,9 +345,6 @@ export default async function Home() {
                       ))}
                     </div>
                   </details>
-                  <p className="text-xs text-slate-400 mb-4">
-                    表示順は6時間ごとに入れ替わります
-                  </p>
                 </>
               }
             />

@@ -192,9 +192,6 @@ export default async function AreaPage({ params }: { params: Promise<{ slug: str
                   </h1>
                 </div>
               )}
-              <p className="text-xs text-slate-400">
-                表示順は6時間ごとに入れ替わります
-              </p>
             </div>
           }
         />
