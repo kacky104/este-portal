@@ -46,12 +46,13 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   // ※salons/therapists/x_profiles/x_posts は fetchAllRows で全件ページング（.order は範囲取得の安定化に必須）。
   //   求人・コラムは件数規模が小さく lib 側取得のまま（1000件が見えてきたら同様にページング化する）。
   const [salonRows, therapistRows, jobs, featureSlugs, areaTag, dispatchJobs, columnArticles, mainColumnArticles, xProfileRows, xPostRows] = await Promise.all([
-    fetchAllRows<{ id: number }>((from, to) =>
-      supabase.from('salons').select('id').eq('is_hidden', false).order('id').range(from, to)),
+    // updated_at は 20260806 マイグレーションで追加（bump・今すぐ系だけの変更では動かないトリガつき）。
+    fetchAllRows<{ id: number; updated_at: string | null }>((from, to) =>
+      supabase.from('salons').select('id, updated_at').eq('is_hidden', false).order('id').range(from, to)),
     // is_active=true のみ。退店・非公開セラピストを載せると 404 が sitemap 経由で発生する
     // （2026-07-28: /therapist/38・/therapist/40 が Search Console で「見つかりませんでした(404)」）。
-    fetchAllRows<{ id: number; feature_badges: unknown }>((from, to) =>
-      supabase.from('therapists').select('id, feature_badges, salons!inner(is_hidden)').eq('salons.is_hidden', false).eq('is_active', true).order('id').range(from, to)),
+    fetchAllRows<{ id: number; feature_badges: unknown; updated_at: string | null }>((from, to) =>
+      supabase.from('therapists').select('id, feature_badges, updated_at, salons!inner(is_hidden)').eq('salons.is_hidden', false).eq('is_active', true).order('id').range(from, to)),
     fetchActiveJobsForSitemap(),
     // 求人が1件以上あるタグのみ（0件＝noindexページはsitemapに入れない）。
     fetchFeatureSlugsWithActiveJobs(),
@@ -124,12 +125,14 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
 
   const salonEntries: MetadataRoute.Sitemap = salonRows.map((s) => ({
     url: `${SITE_URL}/salon/${s.id}`,
+    ...(s.updated_at ? { lastModified: new Date(s.updated_at) } : {}),
     changeFrequency: 'weekly',
     priority: 0.7,
   }));
 
   const therapistEntries: MetadataRoute.Sitemap = therapistRows.map((t) => ({
     url: `${SITE_URL}/therapist/${t.id}`,
+    ...(t.updated_at ? { lastModified: new Date(t.updated_at) } : {}),
     changeFrequency: 'weekly',
     priority: 0.5,
   }));
