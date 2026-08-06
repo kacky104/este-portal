@@ -23,6 +23,30 @@ export function buildBreadcrumbJsonLd(
   };
 }
 
+/**
+ * ItemList（一覧ページの掲載内容と順序を明示する・2026-08-06 追加）。
+ * items は画面に実際に表示している順序・件数と一致させること（非表示コンテンツはNG）。
+ * url は '/' からの相対パス。name を省くと ListItem は url だけになる。
+ */
+export function buildItemListJsonLd(
+  items: { name?: string; path: string }[],
+  opts?: { name?: string },
+): Record<string, unknown> {
+  return {
+    '@context': 'https://schema.org/',
+    '@type': 'ItemList',
+    ...(opts?.name ? { name: opts.name } : {}),
+    numberOfItems: items.length,
+    itemListOrder: 'https://schema.org/ItemListOrderAscending',
+    itemListElement: items.map((it, i) => ({
+      '@type': 'ListItem',
+      position: i + 1,
+      ...(it.name ? { name: it.name } : {}),
+      url: `${SITE_URL}${it.path}`,
+    })),
+  };
+}
+
 /** FAQPage。faqs はページに実際に表示している Q&A と同一内容にすること（非表示コンテンツはNG）。 */
 export function buildFaqPageJsonLd(
   faqs: { q: string; a: string }[],

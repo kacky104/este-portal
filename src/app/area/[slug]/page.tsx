@@ -16,7 +16,7 @@ import { VipLetterIcon } from '@/app/components/VipLetterIcon';
 import { Breadcrumb } from '@/app/components/Breadcrumb';
 import { areaFromSlug, AREA_ORDER, AREA_SLUGS_LIST, DISPATCH_AREA, salonInArea } from '@/app/lib/areas';
 import { areaLabel } from '@/app/lib/areaLabel';
-import { toJsonLdString, buildBreadcrumbJsonLd, buildFaqPageJsonLd } from '@/app/lib/jsonLd';
+import { toJsonLdString, buildBreadcrumbJsonLd, buildFaqPageJsonLd, buildItemListJsonLd } from '@/app/lib/jsonLd';
 import { AREA_SEO_CONTENT } from '@/app/lib/areaSeoContent';
 import { fetchActiveTherapistPickupBanners } from '@/app/lib/therapistPickupBanners';
 import { TherapistPickupBanner } from '@/app/components/TherapistPickupBanner';
@@ -77,7 +77,18 @@ export default async function AreaPage({ params }: { params: Promise<{ slug: str
 
   // このエリアに属するサロンの id（出勤中セラピストスライダー＆「一覧を見る」の絞り込みに使う）。
   // 判定は共有の salonInArea（ShuffledSalons の matchesArea と同一）。サロン一覧と同じ所属になる。
-  const areaSalonIds = salons.filter((s) => salonInArea(s, area)).map((s) => s.id);
+  const areaSalons = salons.filter((s) => salonInArea(s, area));
+  const areaSalonIds = areaSalons.map((s) => s.id);
+
+  // ItemList 構造化データ（2026-08-06 追加）。このエリアに掲載しているサロンの一覧
+  // （画面の ShuffledSalons と同じ集合。並びは6時間ごとのシャッフルなので順序は保証しない）。
+  const itemListJsonLd =
+    areaSalons.length > 0
+      ? buildItemListJsonLd(
+          areaSalons.map((s) => ({ name: s.name, path: `/salon/${s.id}` })),
+          { name: `${label}のメンズエステ一覧` },
+        )
+      : null;
 
   // 構造化データ（BreadcrumbList「トップ › {label}のメンズエステ一覧」）。
   const breadcrumbJsonLd = buildBreadcrumbJsonLd([
@@ -97,6 +108,10 @@ export default async function AreaPage({ params }: { params: Promise<{ slug: str
       {/* FAQPage 構造化データ（ページ下部に表示している Q&A と同一内容） */}
       {faqJsonLd && (
         <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: toJsonLdString(faqJsonLd) }} />
+      )}
+      {/* ItemList 構造化データ（このエリアの掲載サロン一覧） */}
+      {itemListJsonLd && (
+        <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: toJsonLdString(itemListJsonLd) }} />
       )}
 
       {/* ─── Header ─────────────────────────────────────────── */}

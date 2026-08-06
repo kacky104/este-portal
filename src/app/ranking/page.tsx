@@ -9,6 +9,7 @@ import {
   fetchOverallShowcaseData,
 } from '@/app/lib/ranking';
 import RankingTabs from './RankingTabs';
+import { toJsonLdString, buildItemListJsonLd } from '@/app/lib/jsonLd';
 import { fetchActiveAdBanners } from '@/app/lib/adBanners';
 
 // アクセス集計は随時更新されるため短めのISR（5分）。週境界は fetch 時に月曜JSTで判定。
@@ -52,15 +53,32 @@ export default async function RankingPage() {
   const showcaseData = await fetchOverallShowcaseData(showcaseIds);
 
   return (
-    <RankingTabs
-      overallRanking={overallRanking}
-      salonRanking={salonRanking}
-      therapistRanking={therapistRanking}
-      heroes={heroes}
-      wallpapers={wallpapers}
-      prevRanks={prevRanks}
-      showcaseData={showcaseData}
-      adBanners={adBanners}
-    />
+    <>
+      {/* ItemList 構造化データ（2026-08-06 追加）。
+          初期表示タブ＝総合ランキングの並びと同一内容・同一順序（RankingTabs の overallRanking）。 */}
+      {overallRanking.length > 0 && (
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{
+            __html: toJsonLdString(
+              buildItemListJsonLd(
+                overallRanking.map((s) => ({ name: s.name, path: `/salon/${s.id}` })),
+                { name: RANKING_TITLE },
+              ),
+            ),
+          }}
+        />
+      )}
+      <RankingTabs
+        overallRanking={overallRanking}
+        salonRanking={salonRanking}
+        therapistRanking={therapistRanking}
+        heroes={heroes}
+        wallpapers={wallpapers}
+        prevRanks={prevRanks}
+        showcaseData={showcaseData}
+        adBanners={adBanners}
+      />
+    </>
   );
 }

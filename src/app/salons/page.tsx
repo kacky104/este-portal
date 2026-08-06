@@ -20,6 +20,7 @@ import { fetchThemeWallpapers } from '@/app/lib/ranking';
 import { AdBanner } from '@/app/components/AdBanner';
 import { fetchActiveAdBanners } from '@/app/lib/adBanners';
 import { SiteFooter } from '@/app/components/SiteFooter';
+import { toJsonLdString, buildItemListJsonLd } from '@/app/lib/jsonLd';
 
 // /salons は無料掲載枠も兼ねるため、店名・地域・電話番号のみのテキスト一覧にしている（カード表示は廃止）。
 // 行は「掲載中サロン（salons テーブル・自動）＋無料掲載枠（free_salon_listings・/admin から手入力）」の統合。
@@ -141,8 +142,27 @@ export default async function SalonsPage() {
     return a.displayOrder - b.displayOrder;
   });
 
+  // ItemList 構造化データ（2026-08-06 追加）。画面の並び（rows）と同一順序。
+  // 詳細ページを持つ掲載中サロンのみ（無料掲載枠は href が無くテキスト表示なので対象外）。
+  const listedRows = rows.filter((r) => r.href);
+
   return (
     <div className="min-h-screen text-slate-900">
+      {/* ItemList 構造化データ（表示している一覧と同一内容・同一順序） */}
+      {listedRows.length > 0 && (
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{
+            __html: toJsonLdString(
+              buildItemListJsonLd(
+                listedRows.map((r) => ({ name: r.name, path: r.href as string })),
+                { name: PAGE_TITLE },
+              ),
+            ),
+          }}
+        />
+      )}
+
       {/* 背景：silver テーマ壁紙を固定レイヤーで敷く（/reviews・/therapists と同方式）。 */}
       <div aria-hidden className="fixed inset-0 -z-10" style={bgStyle} />
 
