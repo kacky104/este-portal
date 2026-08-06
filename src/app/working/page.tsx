@@ -15,12 +15,17 @@ import { thirtyMinSeed } from '@/lib/shuffle';
 import type { Metadata } from 'next';
 import { SiteNoticeBanner } from '@/app/components/SiteNoticeBanner';
 import { SiteFooter } from '@/app/components/SiteFooter';
+import { fetchActiveAdBanners } from '@/app/lib/adBanners';
+import { AdBanner } from '@/app/components/AdBanner';
 
 // 自己参照 canonical＋固有 title（root の canonical '/' 継承による重複扱いを防ぐ）。
 // ?area= 付きの絞り込み表示も canonical はベース（/working）に集約する。
-const WORKING_TITLE = '本日出勤のセラピスト一覧｜福岡メンズエステ【フクエス】';
+// 文言は「現在出勤中」で統一（2026-08-06）。パンくず・見出し・title・description・
+// 一覧が空のときの文言（WorkingTherapists）まで同じ言い方に揃える。
+// このページは「今この瞬間に出勤中の人」を出す一覧で、「本日出勤予定」ではないため。
+const WORKING_TITLE = '現在出勤中のセラピスト一覧｜福岡メンズエステ【フクエス】';
 const WORKING_DESCRIPTION =
-  '福岡のメンズエステで本日出勤中のセラピスト一覧。博多・天神・北九州・久留米など福岡全域の出勤情報をフクエスでまとめてチェックできます。';
+  '福岡のメンズエステで現在出勤中のセラピスト一覧。博多・天神・北九州・久留米など福岡全域の出勤情報をフクエスでまとめてチェックできます。';
 
 export const metadata: Metadata = {
   title: WORKING_TITLE,
@@ -64,7 +69,11 @@ export default async function WorkingPage({
 
   // 出勤中セラピストをサーバーで取得し、初期HTMLにカード（リンク）を焼き込む（2026-08-05）。
   // 取得条件は従来のクライアント実装と完全に同一（is_active では絞らない）。並び替えはコンポーネント側。
-  const pool = await fetchTherapistPool({ filterSalonIds });
+  const [pool, adBanners] = await Promise.all([
+    fetchTherapistPool({ filterSalonIds }),
+    // ルックバナー（ad_banners・公開中からランダム1枚）。一覧ブロックの上下に1枠ずつ表示。
+    fetchActiveAdBanners(),
+  ]);
   const listSeed = thirtyMinSeed();
 
   return (
@@ -117,13 +126,19 @@ export default async function WorkingPage({
                 color: 'transparent',
               }}
             >
-              本日出勤中のセラピスト
+              現在出勤中のセラピスト
             </h1>
           )}
         </div>
 
+        {/* ルックバナー（一覧ブロックの上）。公開中からランダム1枚・ページを開くたびに入れ替わり。 */}
+        <AdBanner banners={adBanners} />
+
         {/* key でエリア切替時に必ず作り直す（initialList が state 初期値のため、prop 変更を確実に反映させる） */}
         <WorkingTherapists key={slug ?? 'all'} filterSalonIds={filterSalonIds} initialList={pool.list} initialSeed={listSeed} />
+
+        {/* ルックバナー（一覧ブロックの下）。上の枠とは独立にランダム抽選（枚数が少ないと同じ枠になることもある）。 */}
+        <AdBanner banners={adBanners} />
       </main>
 
       {/* ─── Footer ──────────────────────────────────────── */}
