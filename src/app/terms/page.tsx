@@ -1,4 +1,3 @@
-import Link from 'next/link';
 import type { Metadata } from 'next';
 import { Logo } from '@/app/components/Logo';
 import { SavedSalonsMenu } from '@/app/components/SavedSalonsMenu';
