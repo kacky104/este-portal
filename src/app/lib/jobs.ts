@@ -47,7 +47,9 @@ export const JOB_FEATURES = [
   { slug: 'jitaku-haken-nashi', label: '自宅派遣なし' },
 ] as const;
 
-export const MAX_JOB_FEATURES = 6;
+// 2026-08-06: 6 → 8 に拡大（運営判断）。求人の特徴タグと、求人マッチングの
+// 「その他の希望条件」の両方がこの上限を共有している。
+export const MAX_JOB_FEATURES = 8;
 
 // 求人バナー画像（salon_jobs.hero_image_urls text[] NOT NULL DEFAULT '{}'）の最大枚数。
 // 1枚目が一覧・SNSシェア（OGP）・「注目の求人」バナーで使われるメイン画像。
