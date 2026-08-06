@@ -40,6 +40,12 @@ export async function buildSalonSubpageMetadata(
   }
 
   const path = `/salon/${id}/${sub}`;
+  // canonical は ?page= を付けない素のパスで正しい（2026-08-06 に再確認）。
+  // 口コミのページ送りは PaginatedReviewList（クライアント）が担当し、サーバーは
+  // searchParams を読まない＝ ?page=2 でも初期HTMLは1ページ目と完全に同一。
+  // したがって ?page=n を自己参照 canonical にすると重複URLを量産するだけになる。
+  // 2ページ目以降の口コミを個別にインデックスさせたくなったら、まず
+  // 「サーバー側でページ分割する（/jobs/[id]/news/[page] のようなパス方式）」に作り替えること。
   return {
     title,
     description,

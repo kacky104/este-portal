@@ -45,6 +45,8 @@ export async function generateMetadata({
   // description（2026-08-05 追加）。未設定だと root のサイト説明文と完全重複になるため固有化。
   const description = `福岡メンズエステのセラピスト「${name}」への口コミ・評価一覧。実際に利用したユーザーの感想（運営承認制）をフクエスで確認できます。`;
   const path = `/therapist/${id}/reviews`;
+  // canonical に ?page= を付けないのは意図的（詳細は salon/[id]/subpageMetadata.ts のコメント）。
+  // ページ送りはクライアント側（PaginatedReviewList）で、?page=2 でも初期HTMLは1ページ目と同一。
   return {
     title,
     description,

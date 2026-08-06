@@ -32,14 +32,21 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   // 公開サロン／公開サロン所属セラピスト／掲載中求人を並列取得。失敗時は空配列（サイトマップは壊さない）。
   // ※salons/therapists/x_profiles/x_posts は fetchAllRows で全件ページング（.order は範囲取得の安定化に必須）。
   //   求人・コラムは件数規模が小さく lib 側取得のまま（1000件が見えてきたら同様にページング化する）。
-  const [salonRows, therapistRows, jobs, featureSlugs, areaTag, dispatchJobs, columnArticles, mainColumnArticles, xProfileRows, xPostRows] = await Promise.all([
+  const [salonRows, therapistRows, diaryRows, jobs, featureSlugs, areaTag, dispatchJobs, columnArticles, mainColumnArticles, xProfileRows, xPostRows] = await Promise.all([
     // updated_at は 20260806 マイグレーションで追加（bump・今すぐ系だけの変更では動かないトリガつき）。
-    fetchAllRows<{ id: number; updated_at: string | null }>((from, to) =>
-      supabase.from('salons').select('id, updated_at').eq('is_hidden', false).order('id').range(from, to)),
+    // courses は /salon/[id]/price を sitemap に入れるかの判定にだけ使う（0件＝準備中表示なので入れない）。
+    fetchAllRows<{ id: number; updated_at: string | null; courses: unknown }>((from, to) =>
+      supabase.from('salons').select('id, updated_at, courses').eq('is_hidden', false).order('id').range(from, to)),
     // is_active=true のみ。退店・非公開セラピストを載せると 404 が sitemap 経由で発生する
     // （2026-07-28: /therapist/38・/therapist/40 が Search Console で「見つかりませんでした(404)」）。
-    fetchAllRows<{ id: number; feature_badges: unknown; updated_at: string | null }>((from, to) =>
-      supabase.from('therapists').select('id, feature_badges, updated_at, salons!inner(is_hidden)').eq('salons.is_hidden', false).eq('is_active', true).order('id').range(from, to)),
+    fetchAllRows<{ id: number; salon_id: number; feature_badges: unknown; updated_at: string | null }>((from, to) =>
+      supabase.from('therapists').select('id, salon_id, feature_badges, updated_at, salons!inner(is_hidden)').eq('salons.is_hidden', false).eq('is_active', true).order('id').range(from, to)),
+    // 写メ日記の詳細（/diary/[diary_id]）。従来は sitemap に一切載っておらず、
+    // 内部リンク（/diary の1ページ目・各セラピストの日記一覧）からしか発見できなかった。
+    // 公開サロン所属の日記のみ（salons!inner + is_hidden=false）。退店セラピストの日記は
+    // 下で「公開セラピストID集合」と突き合わせて除外する（詳細ページ側が404にするため）。
+    fetchAllRows<{ id: number; therapist_id: number; created_at: string | null }>((from, to) =>
+      supabase.from('diary_posts').select('id, therapist_id, created_at, salons!inner(is_hidden)').eq('salons.is_hidden', false).order('id').range(from, to)),
     fetchActiveJobsForSitemap(),
     // 求人が1件以上あるタグのみ（0件＝noindexページはsitemapに入れない）。
     fetchFeatureSlugsWithActiveJobs(),
@@ -123,6 +130,46 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     changeFrequency: 'weekly',
     priority: 0.5,
   }));
+
+  // サロン配下サブページ（2026-08-06 追加）。固有 title/description・自己参照 canonical・
+  // BreadcrumbList まで整備済みなのに sitemap には本体 /salon/[id] しか無かった。
+  //
+  // ただし既存の「中身ありのみ」方針（0件バッジ・0件タグを載せない）に合わせ、
+  // **中身が必ず埋まる3種だけ**に絞る:
+  //   - /info      … salons の店舗基本情報から常に生成される
+  //   - /price     … courses が1件以上あるサロンのみ
+  //   - /therapists… 公開セラピストが1名以上いるサロンのみ
+  // /reviews・/diary・/news・/coupon は中身が0件のことがあり、薄いページを大量に送信すると
+  // 「検出 - インデックス未登録」を増やすだけなので入れない（内部リンクからは到達できる）。
+  // /imasugu は時刻ベースでクライアント描画＝初期HTMLが実質空なので同様に除外。
+  // /book・/review/new は noindex なので当然対象外。
+  const therapistCountBySalon = new Map<number, number>();
+  for (const t of therapistRows) {
+    therapistCountBySalon.set(t.salon_id, (therapistCountBySalon.get(t.salon_id) ?? 0) + 1);
+  }
+  const salonSubpageEntries: MetadataRoute.Sitemap = salonRows.flatMap((s) => {
+    const subs: string[] = ['info'];
+    if (Array.isArray(s.courses) && s.courses.length > 0) subs.push('price');
+    if ((therapistCountBySalon.get(s.id) ?? 0) > 0) subs.push('therapists');
+    return subs.map((sub) => ({
+      url: `${SITE_URL}/salon/${s.id}/${sub}`,
+      ...(s.updated_at ? { lastModified: new Date(s.updated_at) } : {}),
+      changeFrequency: 'weekly' as const,
+      priority: 0.4,
+    }));
+  });
+
+  // 写メ日記の詳細（/diary/[diary_id]）。公開サロン所属かつ公開セラピストの投稿のみ。
+  // 退店（is_active=false）セラピストの日記は詳細ページ側が 404 になるため sitemap に載せない。
+  const publicTherapistIds = new Set(therapistRows.map((t) => String(t.id)));
+  const diaryEntries: MetadataRoute.Sitemap = diaryRows
+    .filter((d) => publicTherapistIds.has(String(d.therapist_id)))
+    .map((d) => ({
+      url: `${SITE_URL}/diary/${d.id}`,
+      ...(d.created_at ? { lastModified: new Date(d.created_at) } : {}),
+      changeFrequency: 'monthly' as const,
+      priority: 0.4,
+    }));
 
   // 特徴バッジ別ランディングページ（/therapists/badge/[slug]）。
   // 「中身ありのみ」方針：公開（is_active）セラピストが実際に持つバッジのスラッグだけを列挙し、
@@ -252,7 +299,9 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     ...staticEntries,
     ...areaPageEntries,
     ...salonEntries,
+    ...salonSubpageEntries,
     ...therapistEntries,
+    ...diaryEntries,
     ...therapistBadgeEntries,
     ...jobEntries,
     ...tagEntries,
