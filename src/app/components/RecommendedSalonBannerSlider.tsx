@@ -5,6 +5,7 @@ import Image from 'next/image';
 import { useRef, useState, useEffect } from 'react';
 import { areaLabel } from '@/app/lib/areaLabel';
 import { SalonNameCaption } from './SalonNameCaption';
+import { ImpressionMark } from './ImpressionMark';
 import type { RecommendedSalonBanner } from '@/app/lib/recommendedSalonBanners';
 
 // トップのサロン一覧中（15枚目直下）に表示する「おすすめサロンバナー」。
@@ -158,14 +159,16 @@ export function RecommendedSalonBannerSlider({ banners, hideTitle = false }: { b
         {banners.map((b, i) =>
           b.salonName !== '' ? (
             <Link key={b.id} href={`/salon/${b.salonId}`} className={cardOuter}>
-              <div className={cardImage}>{cardBody(b, i)}</div>
+              {/* バナー面のインプレッション計測（おすすめ店舗バナー） */}
+              <div className={cardImage}><ImpressionMark salonId={b.salonId} surface="banner" />{cardBody(b, i)}</div>
               {/* 店名（バナー下・カード全体が Link なので自身はリンクにしない＝<a>二重ネスト回避） */}
               <SalonNameCaption salonId={b.salonId} name={b.salonName} link={false} />
             </Link>
           ) : (
             // 非公開サロン：詳細ページに飛べないため非リンク（画像のみ・店名なし）。
             <div key={b.id} className={cardOuter}>
-              <div className={cardImage}>{cardBody(b, i)}</div>
+              {/* 非公開サロンのバナーも表示は計測する（admin では (非表示) バッジ付きで出る） */}
+              <div className={cardImage}><ImpressionMark salonId={b.salonId} surface="banner" />{cardBody(b, i)}</div>
             </div>
           )
         )}

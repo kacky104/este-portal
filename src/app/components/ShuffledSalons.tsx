@@ -11,6 +11,7 @@ import { NewBadge } from '@/components/NewBadge';
 import { SalonNameRow } from './SalonNameRow';
 import { SaveButton } from './SaveButton';
 import { useSalonTherapists, type TherapistThumb } from './useSalonTherapists';
+import { ImpressionMark } from './ImpressionMark';
 import { areaLabel } from '../lib/areaLabel';
 import { areaHref, DISPATCH_AREA } from '../lib/areas';
 import { type Salon } from '@/app/lib/salons';
@@ -505,6 +506,9 @@ export function SalonCard({ salon, therapists, showAge = false, areaNextToDuty =
       }`}
       onClick={() => router.push(`/salon/${salon.id}`)}
     >
+      {/* 店舗カードのインプレッション計測（カードが50%見えた時点で1回・セッション内1回） */}
+      <ImpressionMark salonId={salon.id} surface="card" />
+
       {/* Pink shimmer top line */}
       <div className="h-px bg-gradient-to-r from-transparent via-pink-400/60 to-transparent" />
 

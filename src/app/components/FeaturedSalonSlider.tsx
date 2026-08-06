@@ -5,6 +5,7 @@ import Image from 'next/image';
 import { areaLabel } from '@/app/lib/areaLabel';
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { SalonNameCaption } from './SalonNameCaption';
+import { ImpressionMark } from './ImpressionMark';
 
 export type FeaturedSalon = {
   salonId:          number;
@@ -83,6 +84,10 @@ export function FeaturedSalonSlider({ salons }: { salons: FeaturedSalon[] }) {
 
             return (
               <div key={salon.salonId} className="w-full flex-shrink-0 relative h-52 sm:h-96">
+                {/* バナー面のインプレッション計測。トラック外のスライドはクリップされているため、
+                    実際にスライドが表示された時だけカウントされる（IntersectionObserver は祖先の
+                    overflow-hidden を考慮する）。 */}
+                <ImpressionMark salonId={salon.salonId} surface="banner" />
                 {/* Background：スマホ用画像があれば sm 未満はそれ・sm 以上はPC用に出し分け（未設定はPC用をスマホでもトリミング表示）。 */}
                 {bgImage ? (
                   mobileBg ? (

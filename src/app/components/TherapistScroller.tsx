@@ -10,6 +10,7 @@ import { NewBadge } from '@/components/NewBadge';
 import { sanitizeBadges } from '@/lib/therapistBadges';
 import { isImasuguLiveCamel, imasuguUntilCamel } from '@/lib/imasugu';
 import { seededShuffle, thirtyMinSeed } from '@/lib/shuffle';
+import { ImpressionMark } from './ImpressionMark';
 
 const GRADIENTS = ['from-pink-300 to-rose-400', 'from-fuchsia-300 to-pink-400', 'from-rose-300 to-pink-500', 'from-pink-400 to-fuchsia-400'];
 
@@ -82,6 +83,9 @@ export function Card({ therapist, index, showAge = false, large = false }: { the
       href={`/therapist/${therapist.id}`}
       className={`relative flex-shrink-0 ${large ? 'w-[123px] h-[179px]' : 'w-[105px] h-[153px]'} sm:w-44 sm:h-64 overflow-hidden shadow-md hover:-translate-y-1 hover:shadow-xl transition-all duration-300`}
     >
+      {/* セラピストカードのインプレッション計測（所属店舗に紐づけて集計。Card を使う全箇所が対象） */}
+      <ImpressionMark salonId={therapist.salonId} surface="therapist" />
+
       {/* background: photo or gradient fallback */}
       {therapist.profileImageUrl ? (
         <Image
