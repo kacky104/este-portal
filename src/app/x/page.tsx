@@ -144,6 +144,10 @@ export default async function XHomePage() {
 
   return (
     <div>
+      {/* h1（従来は無し）。タイムライン主体でヘッダーはロゴのみのため、
+          視覚デザインを変えない sr-only で出す（/ranking と同方式）。 */}
+      <h1 className="sr-only">fukuX(フクエックス)｜福岡メンズエステ専用SNS</h1>
+
       {/* 凍結(BAN)中の本人への通知。理由は表示しない。ログイン/開設バナーより優先して最上部に出す。 */}
       {isFrozen && (
         <div className="mt-4 mb-1 p-5 rounded-2xl bg-slate-50 border border-[color:var(--x-border-strong)]">

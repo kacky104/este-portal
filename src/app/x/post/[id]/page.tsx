@@ -53,5 +53,17 @@ export default async function XPostDetailPage({ params }: { params: Promise<{ id
   const { id } = await params;
   const parent = await fetchPostById(id);
   if (!parent) notFound();
-  return <XPostDetail parent={parent} />;
+  const authorName = parent.author?.displayName ?? 'fukuX';
+  const authorHandle = parent.author?.handle ? `@${parent.author.handle}` : '';
+  const head = excerpt(parent.body, 40);
+  return (
+    <>
+      {/* h1（従来は無し）。投稿カードのデザインを変えないため sr-only で出す。文言は title と揃える。 */}
+      <h1 className="sr-only">
+        {authorName}
+        {authorHandle ? `(${authorHandle})` : ''}さんのfukuX投稿{head ? `: ${head}` : ''}
+      </h1>
+      <XPostDetail parent={parent} />
+    </>
+  );
 }

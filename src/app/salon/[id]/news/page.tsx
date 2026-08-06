@@ -146,10 +146,14 @@ export default async function SalonNewsPage({
 
         {/* タイトル */}
         <div className="mb-6 text-center">
-          <h1 className="font-bold whitespace-nowrap overflow-hidden" style={{ fontSize: 'clamp(16px, 4vw, 24px)', textOverflow: 'ellipsis', color: theme.heading }}>
-            {salonName}
+          {/* h1 は「店名＋このページの内容」で1ページ1本にする（従来は全サブページが店名だけで同一だった）。
+              見た目は変えないため、店名と副題を h1 内の block span 2つに分けている。 */}
+          <h1>
+            <span className="block font-bold whitespace-nowrap overflow-hidden" style={{ fontSize: 'clamp(16px, 4vw, 24px)', textOverflow: 'ellipsis', color: theme.heading }}>
+              {salonName}
+            </span>
+            <span className="block text-sm mt-1 font-normal" style={{ color: theme.body }}>お知らせ</span>
           </h1>
-          <p className="text-sm mt-1" style={{ color: theme.body }}>お知らせ</p>
         </div>
 
         {/* お知らせ一覧 */}

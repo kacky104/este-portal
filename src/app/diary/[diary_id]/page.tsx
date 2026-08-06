@@ -172,6 +172,13 @@ export default async function DiaryDetailPage({
           <span aria-current="page" className="inline-block max-w-[30%] truncate align-middle" style={{ color: breadcrumbCurrentColor(theme.key), fontWeight: 600 }}>{currentTitle}</span>
         </nav>
 
+        {/* h1（従来は無し）。フィードは日記が縦に連続するデザインで見出しを置く場所が無いため、
+            視覚デザインを変えない sr-only で「題名｜セラピスト（店舗）の写メ日記」を出す。 */}
+        <h1 className="sr-only">
+          {currentTitle}｜{currentEntry.therapistName || 'セラピスト'}
+          {salonName ? `（${salonName}）` : ''}の写メ日記
+        </h1>
+
         {/* ─── 写メ日記フィード（縦に連続表示。?from=salon はクライアントで差し替え） ─── */}
         <Suspense fallback={null}>
           <DiaryFeed

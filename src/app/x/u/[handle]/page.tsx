@@ -325,27 +325,31 @@ export default async function XProfilePage({ params }: { params: Promise<{ handl
   );
 
   return (
-    <XProfileView
-      target={target}
-      storyGroup={storyGroup}
-      viewerProfile={viewer.profile}
-      loggedIn={!!viewer.userId}
-      isOwnProfile={isOwnProfile}
-      followerCount={followerCount}
-      followingCount={followingCount}
-      verifiedShopCount={verifiedShopCount}
-      verifiedTherapistCount={verifiedTherapistCount}
-      feed={orderedFeed}
-      pinnedPostId={pinnedTop ? pinnedTop.post.id : null}
-      initialLikedIds={initialLikedIds}
-      initialSavedIds={initialSavedIds}
-      initialRepostedIds={initialRepostedIds}
-      initialRepostCounts={initialRepostCounts}
-      initialFollowing={initialFollowing}
-      initialNotifyPosts={initialNotifyPosts}
-      affiliatedShop={affiliatedShop}
-      affiliatedTherapists={affiliatedTherapists}
-      scheduleTherapistId={scheduleTherapistId}
-    />
+    <>
+      {/* h1（従来は無し）。プロフィールヘッダーの見た目を変えないため sr-only で出す。文言は title と揃える。 */}
+      <h1 className="sr-only">{target.display_name}(@{target.handle})のfukuXプロフィール</h1>
+      <XProfileView
+        target={target}
+        storyGroup={storyGroup}
+        viewerProfile={viewer.profile}
+        loggedIn={!!viewer.userId}
+        isOwnProfile={isOwnProfile}
+        followerCount={followerCount}
+        followingCount={followingCount}
+        verifiedShopCount={verifiedShopCount}
+        verifiedTherapistCount={verifiedTherapistCount}
+        feed={orderedFeed}
+        pinnedPostId={pinnedTop ? pinnedTop.post.id : null}
+        initialLikedIds={initialLikedIds}
+        initialSavedIds={initialSavedIds}
+        initialRepostedIds={initialRepostedIds}
+        initialRepostCounts={initialRepostCounts}
+        initialFollowing={initialFollowing}
+        initialNotifyPosts={initialNotifyPosts}
+        affiliatedShop={affiliatedShop}
+        affiliatedTherapists={affiliatedTherapists}
+        scheduleTherapistId={scheduleTherapistId}
+      />
+    </>
   );
 }
