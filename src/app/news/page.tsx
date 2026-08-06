@@ -142,6 +142,10 @@ export default async function SalonNewsIndexPage() {
             <SalonNewsList items={items} />
           </div>
         )}
+
+        {/* ルックバナー（一覧ブロックの下）。上の枠とは独立にランダム抽選するため、
+            枚数が少ないと上下で同じ枠になることもある（/salons と同方式）。 */}
+        <AdBanner banners={adBanners} />
       </main>
     </div>
   );
