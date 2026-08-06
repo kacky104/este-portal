@@ -15,9 +15,10 @@ import Link from 'next/link';
 // createPortal で document.body 直下へ描画する。ヘッダーが backdrop-blur を持つと、その内側の
 // position:fixed の基準がヘッダーになり全高/全画面にならないため、body直下で回避する。
 // 並びは共通フッター（SiteFooter の CONTENT_LINKS）と揃える。
-// /salons・/working・/column は導線が無く孤立していたため追加（2026-08-06）。
+// /working・/column は導線が無く孤立していたため追加（2026-08-06）。
+// ※/salons（店舗一覧）はここに載せない：無料バナー特典で契約外の店舗も掲載する
+//   ページのため、利用者の主動線に置くと契約店舗が埋もれてしまう（2026-08-06 運用判断）。
 const ITEMS: { href: string; label: string }[] = [
-  { href: '/salons', label: '店舗一覧' },
   { href: '/news', label: '店舗新着情報' },
   { href: '/ranking', label: '人気ランキング' },
   { href: '/therapists', label: '特徴で探す' },

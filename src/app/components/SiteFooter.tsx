@@ -22,8 +22,9 @@ import Image from 'next/image';
 type FooterLinkDef = { href: string; label: string; mobile?: string };
 
 // コンテンツ系（回遊してほしいページ）。ハンバーガーメニューの ITEMS と揃える。
+// ※/salons（店舗一覧）はここに載せない：無料バナー特典で契約外の店舗も掲載する
+//   ページのため、利用者の主動線に置くと契約店舗が埋もれてしまう（2026-08-06 運用判断）。
 const CONTENT_LINKS: FooterLinkDef[] = [
-  { href: '/salons', label: '店舗一覧' },
   { href: '/news', label: '店舗新着情報' },
   { href: '/ranking', label: '人気ランキング' },
   { href: '/therapists', label: '特徴で探す' },
