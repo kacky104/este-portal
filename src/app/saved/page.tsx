@@ -21,6 +21,7 @@ import { RecommendedSalonBannerSlider } from '@/app/components/RecommendedSalonB
 import { fetchActiveRecommendedSalonBanners, type RecommendedSalonBanner } from '@/app/lib/recommendedSalonBanners';
 import { createPublicClient } from '@/app/lib/supabase/public';
 import { SiteNoticeBanner } from '@/app/components/SiteNoticeBanner';
+import { SiteFooter } from '@/app/components/SiteFooter';
 
 export default function SavedPage() {
   // 表示中タブ（既定: 保存した店舗）
@@ -356,11 +357,7 @@ export default function SavedPage() {
       </main>
 
       {/* ─── Footer ──────────────────────────────────────── */}
-      <footer className="border-t border-slate-200 bg-white py-6 mt-12">
-        <div className="max-w-5xl mx-auto px-4 text-center text-xs text-slate-400">
-          © 2026 フクエス. All rights reserved.
-        </div>
-      </footer>
+      <SiteFooter inner="max-w-5xl" />
     </div>
   );
 }

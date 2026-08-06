@@ -6,6 +6,7 @@ import { HamburgerMenu } from '@/app/components/HamburgerMenu';
 import { NotificationBell } from '@/app/components/NotificationBell';
 import { VipLetterIcon } from '@/app/components/VipLetterIcon';
 import { SiteNoticeBanner } from '@/app/components/SiteNoticeBanner';
+import { SiteFooter } from '@/app/components/SiteFooter';
 
 export const metadata: Metadata = {
   title: 'お問い合わせ｜フクエス',
@@ -53,11 +54,7 @@ export default function ContactPage() {
       </main>
 
       {/* ─── Footer ──────────────────────────────────────── */}
-      <footer className="border-t border-slate-200 bg-white py-6 mt-12">
-        <div className="max-w-3xl mx-auto px-4 text-center text-xs text-slate-400">
-          © 2026 フクエス. All rights reserved.
-        </div>
-      </footer>
+      <SiteFooter inner="max-w-3xl" />
     </div>
   );
 }

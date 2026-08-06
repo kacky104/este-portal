@@ -6,13 +6,12 @@ import { HamburgerMenu } from '@/app/components/HamburgerMenu';
 import { NotificationBell } from '@/app/components/NotificationBell';
 import { VipLetterIcon } from '@/app/components/VipLetterIcon';
 import { SiteNoticeBanner } from '@/app/components/SiteNoticeBanner';
+import { SiteFooter } from '@/app/components/SiteFooter';
 
 // フクエス本体コラム（/column 配下）の共通シェル。
 // 本体の他ページ（エリアページ等）と同じヘッダー構成＋シンプルなフッター。
 // metadata の title.template は子セグメント（[slug]・category/[key]）にのみ適用される
 // Next 仕様のため、/column トップは page.tsx 側でフルタイトルを明示する（/jobs layout と同方式）。
-
-const SITE_URL = 'https://fukues.com';
 
 export const metadata: Metadata = {
   title: {
@@ -38,17 +37,8 @@ export default function ColumnLayout({ children }: { children: React.ReactNode }
 
       <div className="flex-1">{children}</div>
 
-      {/* ─── Footer ─── */}
-      <footer className="border-t border-slate-200 bg-white py-6 mt-12">
-        <div className="max-w-5xl mx-auto px-4 flex flex-col items-center gap-2 text-center">
-          <p className="text-xs text-slate-400">© 2026 フクエス. All rights reserved.</p>
-          <p className="text-xs text-slate-400">
-            <a href={SITE_URL} className="font-medium text-pink-600 hover:opacity-80 transition-opacity">
-              フクエス（福岡メンズエステポータル）
-            </a>
-          </p>
-        </div>
-      </footer>
+      {/* ─── Footer（本体共通・ロゴ＋サイト名つき） ─── */}
+      <SiteFooter inner="max-w-5xl" showBrand />
     </div>
   );
 }

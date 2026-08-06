@@ -17,6 +17,7 @@ import { fetchActiveAdBanners } from '@/app/lib/adBanners';
 import { NewFaceList } from './NewFaceList';
 import type { Metadata } from 'next';
 import { SiteNoticeBanner } from '@/app/components/SiteNoticeBanner';
+import { SiteFooter } from '@/app/components/SiteFooter';
 
 // 新人セラピスト一覧ページ（トップ「新人セラピスト一覧」の「一覧を見る →」先）。/working の構成に倣う。
 // 新人リストは変動が遅い（30日ウィンドウ）ため ISR（10分）と相性が良い。全件を新しい順で表示。
@@ -115,11 +116,7 @@ export default async function NewFacePage() {
       </main>
 
       {/* ─── Footer ──────────────────────────────────────── */}
-      <footer className="border-t border-slate-200 bg-white py-6 mt-12">
-        <div className="max-w-5xl mx-auto px-4 text-center text-xs text-slate-400">
-          © 2026 フクエス. All rights reserved.
-        </div>
-      </footer>
+      <SiteFooter inner="max-w-5xl" />
     </div>
   );
 }

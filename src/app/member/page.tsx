@@ -12,6 +12,7 @@ import { VipLetterIcon } from '@/app/components/VipLetterIcon';
 import { AdBanner } from '@/app/components/AdBanner';
 import { fetchActiveAdBanners } from '@/app/lib/adBanners';
 import { SiteNoticeBanner } from '@/app/components/SiteNoticeBanner';
+import { SiteFooter } from '@/app/components/SiteFooter';
 
 // 会員個別の内容（ログイン必須・保存状況に依存）のため ISR はかけず動的のままにする。
 // cookie を読む createClient() の時点で動的になるが、意図を明示しておく。
@@ -320,11 +321,7 @@ export default async function MemberPage() {
       </main>
 
       {/* ─── Footer ─── */}
-      <footer className="border-t border-slate-200 bg-white py-6 mt-12">
-        <div className="max-w-5xl mx-auto px-4 text-center text-xs text-slate-400">
-          © 2026 フクエス. All rights reserved.
-        </div>
-      </footer>
+      <SiteFooter inner="max-w-5xl" />
     </div>
   );
 }

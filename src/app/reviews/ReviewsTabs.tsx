@@ -18,6 +18,7 @@ import { getTheme, breadcrumbCurrentColor, type SalonTheme } from '@/app/lib/the
 import type { ApprovedReview, TherapistReviewRankItem } from '@/app/lib/reviews';
 import { ReviewList } from '@/app/components/ReviewList';
 import { PaginatedReviewList } from '@/app/components/PaginatedReviewList';
+import { SiteFooter } from '@/app/components/SiteFooter';
 
 // /reviews のタブ（新着 / セラピスト / 殿堂入り）。/ranking の RankingTabs と同方式で、
 // タブごとにテーマ（壁紙・配色）を切り替えるため、ページ全体（ヘッダー〜フッター）をここに集約。
@@ -393,11 +394,7 @@ export default function ReviewsTabs({
       </main>
 
       {/* Footer */}
-      <footer className="border-t border-slate-200 bg-white py-6 mt-12">
-        <div className="max-w-4xl mx-auto px-4 text-center text-xs text-slate-400">
-          © 2026 フクエス. All rights reserved.
-        </div>
-      </footer>
+      <SiteFooter inner="max-w-4xl" />
     </div>
   );
 }

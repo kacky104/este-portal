@@ -19,6 +19,7 @@ import { getTheme, breadcrumbCurrentColor } from '@/app/lib/themes';
 import { fetchThemeWallpapers } from '@/app/lib/ranking';
 import { AdBanner } from '@/app/components/AdBanner';
 import { fetchActiveAdBanners } from '@/app/lib/adBanners';
+import { SiteFooter } from '@/app/components/SiteFooter';
 
 // /salons は無料掲載枠も兼ねるため、店名・地域・電話番号のみのテキスト一覧にしている（カード表示は廃止）。
 // 行は「掲載中サロン（salons テーブル・自動）＋無料掲載枠（free_salon_listings・/admin から手入力）」の統合。
@@ -220,11 +221,11 @@ export default async function SalonsPage() {
       </main>
 
       {/* ─── Footer ──────────────────────────────────────── */}
-      <footer className="border-t bg-white/90 py-6 mt-12" style={{ borderColor: theme.cardBorder }}>
-        <div className="max-w-5xl mx-auto px-4 text-center text-xs text-slate-400">
-          © 2026 フクエス. All rights reserved.
-        </div>
-      </footer>
+      <SiteFooter
+        inner="max-w-5xl"
+        className="border-t bg-white/90 py-8 mt-12"
+        style={{ borderColor: theme.cardBorder }}
+      />
     </div>
   );
 }

@@ -3,6 +3,7 @@ import type { Metadata } from 'next';
 import { Logo } from '@/app/components/Logo';
 import { BannerTagCode } from '@/app/components/BannerTagCode';
 import { SiteNoticeBanner } from '@/app/components/SiteNoticeBanner';
+import { SiteFooter } from '@/app/components/SiteFooter';
 
 // フクエス本体のリンクバナー案内ページ（fukuX版 /x/banner の本体テーマ版）。
 // 静的コンテンツのみ・データ取得なし。画像は public/ 直下：
@@ -107,11 +108,7 @@ export default function BannerPage() {
       </main>
 
       {/* ─── Footer ─── */}
-      <footer className="border-t border-slate-200 bg-white py-6 mt-12">
-        <div className="max-w-5xl mx-auto px-4 text-center text-xs text-slate-400">
-          © 2026 フクエス. All rights reserved.
-        </div>
-      </footer>
+      <SiteFooter inner="max-w-5xl" />
     </div>
   );
 }

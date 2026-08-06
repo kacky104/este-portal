@@ -14,13 +14,18 @@ import Link from 'next/link';
 //
 // createPortal で document.body 直下へ描画する。ヘッダーが backdrop-blur を持つと、その内側の
 // position:fixed の基準がヘッダーになり全高/全画面にならないため、body直下で回避する。
+// 並びは共通フッター（SiteFooter の CONTENT_LINKS）と揃える。
+// /salons・/working・/column は導線が無く孤立していたため追加（2026-08-06）。
 const ITEMS: { href: string; label: string }[] = [
+  { href: '/salons', label: '店舗一覧' },
   { href: '/news', label: '店舗新着情報' },
   { href: '/ranking', label: '人気ランキング' },
   { href: '/therapists', label: '特徴で探す' },
+  { href: '/working', label: '出勤中' },
+  { href: '/therapist/new', label: '新人' },
   { href: '/diary', label: '写メ日記' },
   { href: '/reviews', label: '口コミ' },
-  { href: '/therapist/new', label: '新人' },
+  { href: '/column', label: 'コラム' },
   { href: '/x-shops', label: 'SNS' },
   { href: '/join', label: '会員登録について' },
 ];

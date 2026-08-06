@@ -14,6 +14,7 @@ import { fetchTherapistPool } from '@/app/lib/therapistPool';
 import { thirtyMinSeed } from '@/lib/shuffle';
 import type { Metadata } from 'next';
 import { SiteNoticeBanner } from '@/app/components/SiteNoticeBanner';
+import { SiteFooter } from '@/app/components/SiteFooter';
 
 // 自己参照 canonical＋固有 title（root の canonical '/' 継承による重複扱いを防ぐ）。
 // ?area= 付きの絞り込み表示も canonical はベース（/working）に集約する。
@@ -126,11 +127,7 @@ export default async function WorkingPage({
       </main>
 
       {/* ─── Footer ──────────────────────────────────────── */}
-      <footer className="border-t border-slate-200 bg-white py-6 mt-12">
-        <div className="max-w-5xl mx-auto px-4 text-center text-xs text-slate-400">
-          © 2026 フクエス. All rights reserved.
-        </div>
-      </footer>
+      <SiteFooter inner="max-w-5xl" />
     </div>
   );
 }

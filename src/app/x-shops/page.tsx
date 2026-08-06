@@ -16,6 +16,7 @@ import { getTheme, breadcrumbCurrentColor } from '@/app/lib/themes';
 import { VerifiedBadge } from '@/app/x/VerifiedBadge';
 import { fetchShopShowcases } from '@/app/x/xShops';
 import { SiteNoticeBanner } from '@/app/components/SiteNoticeBanner';
+import { SiteFooter } from '@/app/components/SiteFooter';
 
 const TITLE = '福岡メンズエステの承認店舗一覧｜フクエス';
 const DESCRIPTION =
@@ -164,11 +165,7 @@ export default async function XShopsPage() {
       </main>
 
       {/* Footer */}
-      <footer className="border-t border-slate-200 bg-white py-6 mt-12">
-        <div className="max-w-3xl mx-auto px-4 text-center text-xs text-slate-400">
-          © 2026 フクエス. All rights reserved.
-        </div>
-      </footer>
+      <SiteFooter inner="max-w-3xl" />
     </div>
   );
 }

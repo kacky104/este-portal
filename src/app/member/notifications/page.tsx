@@ -10,6 +10,7 @@ import { VipLetterIcon } from '@/app/components/VipLetterIcon';
 import { getNotificationFeed } from '@/app/lib/notifications';
 import { MarkNotificationsRead } from './MarkNotificationsRead';
 import { SiteNoticeBanner } from '@/app/components/SiteNoticeBanner';
+import { SiteFooter } from '@/app/components/SiteFooter';
 
 // 会員個別の内容（ログイン必須）のため ISR はかけず動的のままにする。
 export const dynamic = 'force-dynamic';
@@ -122,11 +123,7 @@ export default async function NotificationsPage() {
       </main>
 
       {/* ─── Footer ─── */}
-      <footer className="border-t border-slate-200 bg-white py-6 mt-12">
-        <div className="max-w-5xl mx-auto px-4 text-center text-xs text-slate-400">
-          © 2026 フクエス. All rights reserved.
-        </div>
-      </footer>
+      <SiteFooter inner="max-w-5xl" />
     </div>
   );
 }

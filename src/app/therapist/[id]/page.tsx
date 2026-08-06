@@ -34,6 +34,7 @@ import { ReviewSummary } from '@/app/components/ReviewSummary';
 import { ReviewList } from '@/app/components/ReviewList';
 import { getLinkedXProfileForTherapist } from '@/app/lib/xLink';
 import { SiteNoticeBanner } from '@/app/components/SiteNoticeBanner';
+import { SiteFooter } from '@/app/components/SiteFooter';
 
 // ── helpers ───────────────────────────────────────────────────
 
@@ -728,11 +729,7 @@ export default async function TherapistPublicPage({
       </main>
 
       {/* ─── Footer ──────────────────────────────────────── */}
-      <footer className="border-t border-slate-200 bg-white py-6 mt-12">
-        <div className="max-w-4xl mx-auto px-4 text-center text-xs text-slate-400">
-          © 2026 フクエス. All rights reserved.
-        </div>
-      </footer>
+      <SiteFooter inner="max-w-4xl" />
     </div>
   );
 }

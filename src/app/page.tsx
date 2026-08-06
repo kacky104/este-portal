@@ -1,5 +1,4 @@
 import Link from "next/link";
-import Image from "next/image";
 import { Logo } from '@/app/components/Logo';
 import { ShuffledSalons } from "./components/ShuffledSalons";
 import { TherapistScroller } from "./components/TherapistScroller";
@@ -30,6 +29,7 @@ import { fetchPublishedMainArticles } from "./lib/mainArticles";
 import { ArticleCard } from "./column/ArticleCard";
 import { HomeSearchBar } from "./components/HomeSearchBar";
 import { SiteNoticeBanner } from '@/app/components/SiteNoticeBanner';
+import { SiteFooter } from '@/app/components/SiteFooter';
 
 // TOPの WebSite 構造化データ（サイト名のリッチリザルト狙い）。
 // サイト内検索ページが無いため potentialAction (SearchAction) は入れない。
@@ -453,57 +453,7 @@ export default async function Home() {
       </main>
 
       {/* ─── Footer ─────────────────────────────────────────── */}
-      <footer className="border-t border-slate-200 bg-white py-8 mt-2">
-        <div className="max-w-5xl mx-auto px-4">
-          <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
-            <div className="flex items-center gap-2.5">
-              {/* ヘッダーと同じフクエスのロゴ（肉球） */}
-              <Image src="/logo.png" alt="フクエス" width={20} height={20} className="w-5 h-5 flex-shrink-0" />
-              <span className="text-slate-500 text-sm font-medium">
-                フクエス ～福岡メンズエステポータル～
-              </span>
-            </div>
-            <nav className="flex flex-wrap justify-center gap-x-5 gap-y-2 text-xs text-slate-400">
-              {/* セラピスト求人：実ページ /jobs（フクエスワーク）への内部リンク（他は暫定 #）。 */}
-              <Link
-                href="/jobs"
-                className="hover:text-pink-600 transition-colors whitespace-nowrap"
-              >
-                セラピスト求人（フクエスワーク）
-              </Link>
-              {[
-                // 運営者情報（E-E-A-T用 /about。2026-07-23追加）。
-                { label: "運営者情報", href: "/about" },
-                { label: "利用規約", href: "/terms" },
-                // プライバシーポリシーはスマホのみ半角カナ表示（PCは全角）。href は変えない。
-                { label: "プライバシーポリシー", mobile: "ﾌﾟﾗｲﾊﾞｼｰﾎﾟﾘｼｰ", href: "/privacy" },
-                { label: "掲載について", href: "/listing" },
-                { label: "お問い合わせ", href: "/contact" },
-                // リンクバナー配布ページ（本体版・200×40）。
-                { label: "リンクバナー", href: "/banner" },
-              ].map(({ label, mobile, href }) => (
-                <Link
-                  key={label}
-                  href={href}
-                  className="hover:text-pink-600 transition-colors whitespace-nowrap"
-                >
-                  {mobile ? (
-                    <>
-                      <span className="sm:hidden">{mobile}</span>
-                      <span className="hidden sm:inline">{label}</span>
-                    </>
-                  ) : (
-                    label
-                  )}
-                </Link>
-              ))}
-            </nav>
-          </div>
-          <p className="text-center text-xs text-slate-300 mt-6">
-            © 2026 フクエス. All rights reserved.
-          </p>
-        </div>
-      </footer>
+      <SiteFooter inner="max-w-5xl" className="border-t border-slate-200 bg-white py-8 mt-2" showBrand />
     </div>
   );
 }

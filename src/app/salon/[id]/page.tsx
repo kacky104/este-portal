@@ -60,6 +60,7 @@ import { fetchActiveJobsBySalon } from "@/app/lib/jobs";
 import { Stars } from "@/app/components/Stars";
 import SalonScrollPopup from "@/app/components/SalonScrollPopup";
 import { SiteNoticeBanner } from '@/app/components/SiteNoticeBanner';
+import { SiteFooter } from '@/app/components/SiteFooter';
 
 // ISR：60秒ごとに再生成（保存時は /api/revalidate で即時無効化。これは即時破棄が
 // 届かなかった場合の保険で、最悪でも60秒で自動更新される。以前は600秒＝最長10分だった）。
@@ -869,11 +870,12 @@ export default async function SalonPage({
       </main>
 
       {/* ─── Footer ──────────────────────────────────────── */}
-      <footer className="border-t py-6 mt-12" style={{ backgroundColor: theme.card, borderColor: theme.cardBorder }}>
-        <div className="max-w-4xl mx-auto px-4 text-center text-xs opacity-70" style={{ color: theme.body }}>
-          © 2026 フクエス. All rights reserved.
-        </div>
-      </footer>
+      <SiteFooter
+        inner="max-w-4xl"
+        className="border-t py-8 mt-12"
+        style={{ backgroundColor: theme.card, borderColor: theme.cardBorder }}
+        textColor={theme.body}
+      />
 
       {/* スクロールで左下から跳ねて出るポップアップ画像（スマホのみ）。
           設定はクライアント側でその場でDB取得＝ISRキャッシュに焼き込まないので、

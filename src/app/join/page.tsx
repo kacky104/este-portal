@@ -15,6 +15,7 @@ import { fetchThemeWallpapers } from '@/app/lib/ranking';
 import { getTheme, breadcrumbCurrentColor } from '@/app/lib/themes';
 import { SiteNoticeBanner } from '@/app/components/SiteNoticeBanner';
 import { JoinCta } from './JoinCta';
+import { SiteFooter } from '@/app/components/SiteFooter';
 
 const TITLE = '無料会員登録のご案内｜福岡メンズエステ【フクエス】';
 const DESCRIPTION =
@@ -319,11 +320,7 @@ export default async function JoinPage() {
         <AdBanner banners={adBanners} />
       </main>
 
-      <footer className="border-t border-slate-200 bg-white py-6 mt-12">
-        <div className="max-w-5xl mx-auto px-4 text-center text-xs text-slate-400">
-          © 2026 フクエス. All rights reserved.
-        </div>
-      </footer>
+      <SiteFooter inner="max-w-5xl" />
     </div>
   );
 }

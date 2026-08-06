@@ -8,6 +8,7 @@ import { NotificationBell } from '@/app/components/NotificationBell';
 import { VipLetterIcon } from '@/app/components/VipLetterIcon';
 import { SiteNoticeBanner } from '@/app/components/SiteNoticeBanner';
 import { toJsonLdString } from '@/app/lib/jsonLd';
+import { SiteFooter } from '@/app/components/SiteFooter';
 
 // 運営者情報・サイトについて（E-E-A-T用の静的ページ。terms/privacy と同じ構成）。
 export const metadata: Metadata = {
@@ -149,11 +150,7 @@ export default function AboutPage() {
       </main>
 
       {/* ─── Footer ──────────────────────────────────────── */}
-      <footer className="border-t border-slate-200 bg-white py-6 mt-12">
-        <div className="max-w-3xl mx-auto px-4 text-center text-xs text-slate-400">
-          © 2026 フクエス. All rights reserved.
-        </div>
-      </footer>
+      <SiteFooter inner="max-w-3xl" />
     </div>
   );
 }

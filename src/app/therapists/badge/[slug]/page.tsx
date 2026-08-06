@@ -13,6 +13,7 @@ import {
 import { SiteNoticeBanner } from '@/app/components/SiteNoticeBanner';
 import { fetchTherapistPool } from '@/app/lib/therapistPool';
 import { thirtyMinSeed } from '@/lib/shuffle';
+import { SiteFooter } from '@/app/components/SiteFooter';
 
 // ISR：10分ごとに再生成（/therapists と同じ方針）。
 export const revalidate = 600;
@@ -123,11 +124,7 @@ export default async function BadgeLandingPage({ params }: { params: Promise<{ s
         />
       </main>
 
-      <footer className="border-t border-slate-200 bg-white py-6 mt-12">
-        <div className="max-w-5xl mx-auto px-4 text-center text-xs text-slate-400">
-          © 2026 フクエス. All rights reserved.
-        </div>
-      </footer>
+      <SiteFooter inner="max-w-5xl" />
     </div>
   );
 }
