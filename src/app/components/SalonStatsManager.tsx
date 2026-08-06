@@ -1,9 +1,15 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { createClient } from '@/app/lib/supabase/client';
-import { fetchAllRows } from '@/app/lib/fetchAllRows';
 import { areaLabel } from '@/app/lib/areaLabel';
+import {
+  addDays,
+  fetchSalonStats,
+  jstTodayYmd,
+  mondayOf,
+  type SalonStatRow,
+  type StatsRange,
+} from '@/app/lib/salonStats';
 
 // /admin「店舗別アクセス・送客数」（2026-08-06 新設）。
 //
@@ -22,9 +28,7 @@ import { areaLabel } from '@/app/lib/areaLabel';
 // のファネルが比率として読める。CTR = PV合計 ÷ 表示計（参考値：PVには検索やSNSからの
 // 直接流入も含まれるため、厳密な「カードのクリック率」ではない）。
 //
-// 取得は全件ページング（fetchAllRows）。店舗数×セラピスト数×週数で1000行を軽く超えるため。
-
-const supabase = createClient();
+// 集計そのものは lib/salonStats.ts（月次レポートと共有）。ここは期間選択と表示だけを持つ。
 
 type PeriodKey = 'this' | 'last' | 'w4' | 'all';
 const PERIODS: { key: PeriodKey; label: string }[] = [
@@ -40,45 +44,10 @@ type SortKey =
   | 'pvSalon' | 'pvTherapist' | 'pvTotal'
   | 'tel' | 'line' | 'book' | 'actions' | 'rate';
 
-type Row = {
-  id: number;
-  name: string;
-  area: string;
-  hidden: boolean;
-  impCard: number;    // 店舗カードの表示回数
-  impTher: number;    // セラピストカードの表示回数（所属店舗に紐づけ）
-  impBanner: number;  // 店舗バナー（ピックアップ/おすすめ）の表示回数
-  impTotal: number;
-  ctr: number;        // PV合計 ÷ 表示計（表示0なら0）
-  pvSalon: number;
-  pvTherapist: number;
-  pvTotal: number;
-  tel: number;
-  line: number;
-  book: number;
-  actions: number;
-  rate: number; // 送客計 ÷ PV合計（PV0なら0）
-};
-
-// ── 日付ユーティリティ（すべて JST の暦日を 'YYYY-MM-DD' 文字列で扱う） ──
-// Date のローカルタイムゾーンに依存しないよう、計算は UTC メソッドだけで行う。
-function jstTodayYmd(): string {
-  return new Date(Date.now() + 9 * 60 * 60 * 1000).toISOString().slice(0, 10);
-}
-function addDays(ymd: string, n: number): string {
-  const d = new Date(`${ymd}T00:00:00Z`);
-  d.setUTCDate(d.getUTCDate() + n);
-  return d.toISOString().slice(0, 10);
-}
-/** その日を含む週の月曜（page_view_weekly.week_start と同じ定義）。 */
-function mondayOf(ymd: string): string {
-  const d = new Date(`${ymd}T00:00:00Z`);
-  const diff = (d.getUTCDay() + 6) % 7; // 月曜=0, 日曜=6
-  return addDays(ymd, -diff);
-}
+type Row = SalonStatRow;
 
 /** 選択中の期間を「対象の週初リスト」と「日付範囲」に変換する（null は無制限＝全期間）。 */
-function resolvePeriod(key: PeriodKey): { weeks: string[] | null; from: string | null; to: string | null } {
+function resolvePeriod(key: PeriodKey): StatsRange {
   const today = jstTodayYmd();
   const thisMon = mondayOf(today);
   if (key === 'this') return { weeks: [thisMon], from: thisMon, to: today };
@@ -112,111 +81,10 @@ export default function SalonStatsManager({ onToast }: { onToast: (m: string) =>
 
   const load = useCallback(async (p: PeriodKey) => {
     setLoading(true);
-    const { weeks, from, to } = resolvePeriod(p);
     try {
-      const [salons, therapists, pvRows, actionRows, impRows] = await Promise.all([
-        // 店舗（非表示も含めて全件。非表示は行にバッジを付けて区別する）
-        fetchAllRows<{ id: number; name: string | null; area: string | null; is_hidden: boolean | null }>(
-          (f, t) => supabase.from('salons').select('id, name, area, is_hidden').order('id').range(f, t),
-        ),
-        // セラピスト → 所属店舗の対応（PVを店舗に足し上げるため。退店・非公開も含めて全件）
-        fetchAllRows<{ id: number; salon_id: number | null }>(
-          (f, t) => supabase.from('therapists').select('id, salon_id').order('id').range(f, t),
-        ),
-        // PV（週次）
-        fetchAllRows<{ item_type: string; item_id: number; views: number }>((f, t) => {
-          let query = supabase
-            .from('page_view_weekly')
-            .select('item_type, item_id, views, week_start')
-            .order('item_id');
-          if (weeks) query = query.in('week_start', weeks);
-          return query.range(f, t);
-        }),
-        // 送客アクション（日次）
-        fetchAllRows<{ salon_id: number; action: string; count: number }>((f, t) => {
-          let query = supabase.from('salon_action_daily').select('salon_id, action, count, day').order('salon_id');
-          if (from) query = query.gte('day', from);
-          if (to) query = query.lte('day', to);
-          return query.range(f, t);
-        }),
-        // インプレッション（日次・面別）
-        fetchAllRows<{ salon_id: number; surface: string; count: number }>((f, t) => {
-          let query = supabase.from('salon_impression_daily').select('salon_id, surface, count, day').order('salon_id');
-          if (from) query = query.gte('day', from);
-          if (to) query = query.lte('day', to);
-          return query.range(f, t);
-        }),
-      ]);
-
-      // セラピストID → 店舗ID
-      const therapistSalon = new Map<number, number>();
-      for (const t of therapists) {
-        if (t.salon_id != null) therapistSalon.set(Number(t.id), Number(t.salon_id));
-      }
-
-      const pvSalon = new Map<number, number>();
-      const pvTherapist = new Map<number, number>();
-      for (const r of pvRows) {
-        const views = Number(r.views) || 0;
-        if (r.item_type === 'salon') {
-          pvSalon.set(r.item_id, (pvSalon.get(r.item_id) ?? 0) + views);
-        } else if (r.item_type === 'therapist') {
-          const sid = therapistSalon.get(Number(r.item_id));
-          if (sid != null) pvTherapist.set(sid, (pvTherapist.get(sid) ?? 0) + views);
-        }
-      }
-
-      const act = new Map<number, { tel: number; line: number; book: number }>();
-      for (const r of actionRows) {
-        const cur = act.get(r.salon_id) ?? { tel: 0, line: 0, book: 0 };
-        const n = Number(r.count) || 0;
-        if (r.action === 'tel') cur.tel += n;
-        else if (r.action === 'line') cur.line += n;
-        else if (r.action === 'book') cur.book += n;
-        act.set(r.salon_id, cur);
-      }
-
-      const imp = new Map<number, { card: number; ther: number; banner: number }>();
-      for (const r of impRows) {
-        const cur = imp.get(r.salon_id) ?? { card: 0, ther: 0, banner: 0 };
-        const n = Number(r.count) || 0;
-        if (r.surface === 'card') cur.card += n;
-        else if (r.surface === 'therapist') cur.ther += n;
-        else if (r.surface === 'banner') cur.banner += n;
-        imp.set(r.salon_id, cur);
-      }
-
+      const data = await fetchSalonStats(resolvePeriod(p));
       setError('');
-      setRows(
-        salons.map((s) => {
-          const a = act.get(s.id) ?? { tel: 0, line: 0, book: 0 };
-          const im = imp.get(s.id) ?? { card: 0, ther: 0, banner: 0 };
-          const ps = pvSalon.get(s.id) ?? 0;
-          const pt = pvTherapist.get(s.id) ?? 0;
-          const pvTotal = ps + pt;
-          const actions = a.tel + a.line + a.book;
-          const impTotal = im.card + im.ther + im.banner;
-          return {
-            id: s.id,
-            name: s.name ?? '',
-            area: s.area ?? '',
-            hidden: Boolean(s.is_hidden),
-            impCard: im.card,
-            impTher: im.ther,
-            impBanner: im.banner,
-            impTotal,
-            ctr: impTotal > 0 ? pvTotal / impTotal : 0,
-            pvSalon: ps,
-            pvTherapist: pt,
-            pvTotal,
-            tel: a.tel,
-            line: a.line,
-            book: a.book,
-            actions,
-            rate: pvTotal > 0 ? actions / pvTotal : 0,
-          };
-        }),
-      );
+      setRows(data);
     } catch {
       setError('データの取得に失敗しました');
     } finally {
@@ -346,6 +214,7 @@ export default function SalonStatsManager({ onToast }: { onToast: (m: string) =>
         value={q}
         onChange={(e) => setQ(e.target.value)}
         placeholder="店舗名・エリアで絞り込み"
+        aria-label="店舗名・エリアで絞り込み"
         className="w-full sm:w-72 mb-3 rounded-xl border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:border-pink-300 focus:ring-2 focus:ring-pink-100"
       />
 

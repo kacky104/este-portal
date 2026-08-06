@@ -36,6 +36,7 @@ import WorkMatchManager from '@/app/components/WorkMatchManager';
 import WorkAppStats from '@/app/components/WorkAppStats';
 import FreeSalonListingsManager from '@/app/components/FreeSalonListingsManager';
 import SalonStatsManager from '@/app/components/SalonStatsManager';
+import SalonMonthlyReport from '@/app/components/SalonMonthlyReport';
 import { adminGenerateOwnerLoginLink } from '@/app/actions/adminOwner';
 import { useToast } from '@/app/components/useToast';
 import { ADMIN_UUID } from '@/app/lib/admin';
@@ -481,6 +482,11 @@ export default function AdminDashboard() {
           {/* ── 店舗別のPV・送客アクション集計（2026-08-06 新設。契約更新やレポートの根拠に使う） ── */}
           <AccordionSection id="salon-stats" title="店舗別アクセス・送客数" expanded={expandedSections} onToggle={toggleSection}>
             <SalonStatsManager onToast={showToast} />
+          </AccordionSection>
+
+          {/* ── 契約店舗にそのまま送れる月次レポート（2026-08-06 新設。集計は上と同じ lib/salonStats.ts） ── */}
+          <AccordionSection id="salon-monthly-report" title="月次レポート（店舗へ送る文面）" expanded={expandedSections} onToggle={toggleSection}>
+            <SalonMonthlyReport onToast={showToast} />
           </AccordionSection>
 
           {/* ── 新規店舗の初回情報入力フォーム（ワンタイムURL発行・入力内容の確認） ── */}
