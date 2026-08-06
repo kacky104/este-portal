@@ -35,6 +35,7 @@ import ListingInquiryManager from '@/app/components/ListingInquiryManager';
 import WorkMatchManager from '@/app/components/WorkMatchManager';
 import WorkAppStats from '@/app/components/WorkAppStats';
 import FreeSalonListingsManager from '@/app/components/FreeSalonListingsManager';
+import SalonStatsManager from '@/app/components/SalonStatsManager';
 import { adminGenerateOwnerLoginLink } from '@/app/actions/adminOwner';
 import { useToast } from '@/app/components/useToast';
 import { ADMIN_UUID } from '@/app/lib/admin';
@@ -476,6 +477,11 @@ export default function AdminDashboard() {
 
         {/* 店舗管理タブ（本体から移動：店舗登録・サロン一覧・オーナー連絡・優先順位・コラム記事） */}
         <div className={`space-y-4 ${activeTab === 'salon' ? '' : 'hidden'}`}>
+
+          {/* ── 店舗別のPV・送客アクション集計（2026-08-06 新設。契約更新やレポートの根拠に使う） ── */}
+          <AccordionSection id="salon-stats" title="店舗別アクセス・送客数" expanded={expandedSections} onToggle={toggleSection}>
+            <SalonStatsManager onToast={showToast} />
+          </AccordionSection>
 
           {/* ── 新規店舗の初回情報入力フォーム（ワンタイムURL発行・入力内容の確認） ── */}
           <AccordionSection id="listing-inquiries" title="掲載お問い合わせ" expanded={expandedSections} onToggle={toggleSection}>
