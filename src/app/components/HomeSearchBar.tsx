@@ -152,10 +152,14 @@ export function HomeSearchBar() {
           <path d="m21 21-4.3-4.3" />
         </svg>
         <input
+          id="home-search"
           value={q}
           onChange={(e) => { setQ(e.target.value); setOpen(true); }}
           onFocus={() => setOpen(true)}
           placeholder={tab === 'salon' ? 'お店の名前で検索' : 'セラピストの名前で検索'}
+          // 可視ラベルを置かないデザインなので aria-label で項目名を補う（placeholder はラベル代わりにならない）。
+          // 選択中タブに合わせて文言が変わる。
+          aria-label={tab === 'salon' ? 'お店の名前で検索' : 'セラピストの名前で検索'}
           autoComplete="off"
           autoCapitalize="none"
           autoCorrect="off"

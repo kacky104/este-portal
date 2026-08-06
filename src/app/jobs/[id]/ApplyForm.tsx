@@ -7,6 +7,7 @@ import { isValidPhone } from '@/app/lib/validation/phone';
 // フクエスワーク 求人応募フォーム（公開・ISRページ内で使えるクライアントコンポーネント）。
 // 時間依存レンダリングは無し（マウント後のユーザー操作のみ）＝ISRキャッシュを壊さない。
 // 「WEBで応募する」ボタンでフォームを展開。送信は anon 経路のサーバーアクション（サーバー再検証あり）。
+// 各 label は htmlFor で入力欄の id と紐付ける（2026-08-06）。1ページに1インスタンスのみなので id は固定値でよい。
 export function ApplyForm({ jobId }: { jobId: number }) {
   const [open, setOpen] = useState(false);
   const [done, setDone] = useState(false);
@@ -84,20 +85,20 @@ export function ApplyForm({ jobId }: { jobId: number }) {
           </div>
 
           <div>
-            <label className="text-[11px] font-bold text-slate-400 block mb-1">お名前 <span className="text-rose-400">*</span></label>
-            <input type="text" className={inputClass} placeholder="例）福岡 太郎" value={form.name} onChange={(e) => patch({ name: e.target.value })} />
+            <label htmlFor="job-apply-name" className="text-[11px] font-bold text-slate-400 block mb-1">お名前 <span className="text-rose-400">*</span></label>
+            <input id="job-apply-name" name="name" type="text" autoComplete="name" className={inputClass} placeholder="例）福岡 太郎" value={form.name} onChange={(e) => patch({ name: e.target.value })} />
           </div>
           <div>
-            <label className="text-[11px] font-bold text-slate-400 block mb-1">電話番号 <span className="text-rose-400">*</span></label>
-            <input type="tel" inputMode="numeric" className={inputClass} placeholder="例）090-1234-5678" value={form.tel} onChange={(e) => patch({ tel: e.target.value })} />
+            <label htmlFor="job-apply-tel" className="text-[11px] font-bold text-slate-400 block mb-1">電話番号 <span className="text-rose-400">*</span></label>
+            <input id="job-apply-tel" name="tel" type="tel" autoComplete="tel" inputMode="numeric" className={inputClass} placeholder="例）090-1234-5678" value={form.tel} onChange={(e) => patch({ tel: e.target.value })} />
           </div>
           <div>
-            <label className="text-[11px] font-bold text-slate-400 block mb-1">年齢（任意）</label>
-            <input type="number" min={18} max={99} className={`${inputClass} w-28`} placeholder="例）25" value={form.age} onChange={(e) => patch({ age: e.target.value })} />
+            <label htmlFor="job-apply-age" className="text-[11px] font-bold text-slate-400 block mb-1">年齢（任意）</label>
+            <input id="job-apply-age" name="age" type="number" min={18} max={99} className={`${inputClass} w-28`} placeholder="例）25" value={form.age} onChange={(e) => patch({ age: e.target.value })} />
           </div>
           <div>
-            <label className="text-[11px] font-bold text-slate-400 block mb-1">メッセージ・質問（任意）</label>
-            <textarea className={`${inputClass} min-h-[88px] resize-y`} placeholder="ご質問や希望などがあればご記入ください" value={form.note} onChange={(e) => patch({ note: e.target.value })} />
+            <label htmlFor="job-apply-note" className="text-[11px] font-bold text-slate-400 block mb-1">メッセージ・質問（任意）</label>
+            <textarea id="job-apply-note" name="note" className={`${inputClass} min-h-[88px] resize-y`} placeholder="ご質問や希望などがあればご記入ください" value={form.note} onChange={(e) => patch({ note: e.target.value })} />
           </div>
 
           {/* 注意書き（予約と同思想：まだ確定ではない） */}

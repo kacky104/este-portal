@@ -5,6 +5,10 @@ import { submitListingInquiry } from '@/app/actions/listingInquiry';
 
 // 掲載お問い合わせフォーム（/listing）。未ログインで送信可。
 // company はハニーポット（CSSで非表示・人間は空のまま）。送信成功で完了表示に切り替える。
+//
+// アクセシビリティ（2026-08-06）: 各 label は htmlFor で入力欄の id と紐付ける
+// （ラベルタップでフォーカスが当たる／スクリーンリーダーが項目名を読む）。
+// id は他ページと衝突しないよう listing- 接頭辞。name はブラウザの自動入力ヒント用。
 export function ListingInquiryForm() {
   const [shopName, setShopName] = useState('');
   const [area, setArea] = useState('');
@@ -57,32 +61,32 @@ export function ListingInquiryForm() {
     <form onSubmit={handleSubmit} className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 space-y-4">
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div className="sm:col-span-2">
-          <label className={labelClass}>店舗名 <span className="text-rose-400">*</span></label>
-          <input type="text" value={shopName} onChange={(e) => setShopName(e.target.value)} maxLength={100} required placeholder="例: アロマサロン〇〇 博多店" className={inputClass} />
+          <label htmlFor="listing-shop-name" className={labelClass}>店舗名 <span className="text-rose-400">*</span></label>
+          <input id="listing-shop-name" name="shopName" type="text" value={shopName} onChange={(e) => setShopName(e.target.value)} maxLength={100} required placeholder="例: アロマサロン〇〇 博多店" className={inputClass} />
         </div>
         <div>
-          <label className={labelClass}>所在エリア <span className="text-rose-400">*</span></label>
-          <input type="text" value={area} onChange={(e) => setArea(e.target.value)} maxLength={100} required placeholder="例: 博多・天神・北九州 など" className={inputClass} />
+          <label htmlFor="listing-area" className={labelClass}>所在エリア <span className="text-rose-400">*</span></label>
+          <input id="listing-area" name="area" type="text" value={area} onChange={(e) => setArea(e.target.value)} maxLength={100} required placeholder="例: 博多・天神・北九州 など" className={inputClass} />
         </div>
         <div>
-          <label className={labelClass}>ご担当者名 <span className="text-rose-400">*</span></label>
-          <input type="text" value={contactName} onChange={(e) => setContactName(e.target.value)} maxLength={50} required placeholder="例: 山田" className={inputClass} />
+          <label htmlFor="listing-contact-name" className={labelClass}>ご担当者名 <span className="text-rose-400">*</span></label>
+          <input id="listing-contact-name" name="contactName" type="text" autoComplete="name" value={contactName} onChange={(e) => setContactName(e.target.value)} maxLength={50} required placeholder="例: 山田" className={inputClass} />
         </div>
         <div>
-          <label className={labelClass}>メールアドレス <span className="text-rose-400">*</span></label>
-          <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} maxLength={200} required placeholder="例: owner@example.com" className={inputClass} />
+          <label htmlFor="listing-email" className={labelClass}>メールアドレス <span className="text-rose-400">*</span></label>
+          <input id="listing-email" name="email" type="email" autoComplete="email" value={email} onChange={(e) => setEmail(e.target.value)} maxLength={200} required placeholder="例: owner@example.com" className={inputClass} />
         </div>
         <div>
-          <label className={labelClass}>電話番号（任意）</label>
-          <input type="tel" value={phone} onChange={(e) => setPhone(e.target.value)} maxLength={30} placeholder="例: 092-000-0000" className={inputClass} />
+          <label htmlFor="listing-phone" className={labelClass}>電話番号（任意）</label>
+          <input id="listing-phone" name="phone" type="tel" autoComplete="tel" value={phone} onChange={(e) => setPhone(e.target.value)} maxLength={30} placeholder="例: 092-000-0000" className={inputClass} />
         </div>
         <div className="sm:col-span-2">
-          <label className={labelClass}>店舗ホームページ等（任意）</label>
-          <input type="text" value={website} onChange={(e) => setWebsite(e.target.value)} maxLength={300} placeholder="例: https://example.com" className={inputClass} />
+          <label htmlFor="listing-website" className={labelClass}>店舗ホームページ等（任意）</label>
+          <input id="listing-website" name="website" type="text" value={website} onChange={(e) => setWebsite(e.target.value)} maxLength={300} placeholder="例: https://example.com" className={inputClass} />
         </div>
         <div className="sm:col-span-2">
-          <label className={labelClass}>ご質問・メッセージ（任意）</label>
-          <textarea value={message} onChange={(e) => setMessage(e.target.value)} maxLength={2000} rows={5} placeholder="掲載時期のご希望やご質問など、自由にご記入ください" className={inputClass} />
+          <label htmlFor="listing-message" className={labelClass}>ご質問・メッセージ（任意）</label>
+          <textarea id="listing-message" name="message" value={message} onChange={(e) => setMessage(e.target.value)} maxLength={2000} rows={5} placeholder="掲載時期のご希望やご質問など、自由にご記入ください" className={inputClass} />
         </div>
       </div>
 
