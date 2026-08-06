@@ -1,5 +1,7 @@
 import Link from 'next/link';
 import Image from 'next/image';
+import { AREA_ORDER, ALL_AREA, DISPATCH_AREA, areaHref } from '@/app/lib/areas';
+import { areaLabel } from '@/app/lib/areaLabel';
 
 // 全ページ共通のフッター（2026-08-06 新設）。
 //
@@ -8,6 +10,8 @@ import Image from 'next/image';
 // そのため下層ページはヘッダーのハンバーガー（マウント前は sr-only）以外に導線が無く、
 // クローラから見て主要ページ同士がほとんど繋がっていない状態だった。
 // ここに主要ページへの可視リンクを集約し、全ページから同じ導線を出す。
+//
+// グループは「エリアから探す」→「さがす」→「サイト情報」の3本。
 //
 // レイアウト（2026-08-06 スマホ整理）:
 //   スマホ（〜639px）… 見出しつきの左寄せ2列リスト。中央寄せの折り返しだと語の切れ目が
@@ -20,6 +24,18 @@ import Image from 'next/image';
 // テーマ色を敷くページ（サロン詳細・/salons）は className/style/textColor で上書きする。
 
 type FooterLinkDef = { href: string; label: string; mobile?: string };
+
+// エリア別ページ（/area/<slug>）。全ページのフッターから6エリアへ張ることで、
+// エリアページ同士・エリアページと下層ページを相互に繋ぐ（2026-08-06 追加）。
+// 従来はエリアページへの可視リンクがトップとエリアページ上部の地域タブだけで、
+// 下層ページからは辿れなかった（GSC「検出 - インデックス未登録」の一因）。
+// 並び・ラベルは AREA_ORDER / areaLabel に従う＝地域タブと同じ表記になる。
+// 「福岡全域」はトップ（/）と同じなので載せない（重複導線を作らない）。
+// 「出張」だけは単体だと意味が伝わりにくいのでエリアページ本文と同じ「出張対応」表記にする。
+const AREA_LINKS: FooterLinkDef[] = AREA_ORDER.filter((a) => a !== ALL_AREA).map((a) => ({
+  href: areaHref(a),
+  label: a === DISPATCH_AREA ? '出張対応' : areaLabel(a),
+}));
 
 // コンテンツ系（回遊してほしいページ）。ハンバーガーメニューの ITEMS と揃える。
 // ※/salons（店舗一覧）はここに載せない：無料バナー特典で契約外の店舗も掲載する
@@ -134,9 +150,16 @@ export function SiteFooter({
           </div>
         )}
 
-        <FooterGroup title="さがす" links={CONTENT_LINKS} textColor={textColor} />
+        <FooterGroup title="エリアから探す" links={AREA_LINKS} textColor={textColor} />
 
         {/* スマホはグループの区切り線つき、sm以上は従来どおり mt だけ */}
+        <FooterGroup
+          title="さがす"
+          links={CONTENT_LINKS}
+          textColor={textColor}
+          className={`mt-4 pt-4 border-t sm:mt-3 sm:pt-0 sm:border-t-0${textColor ? ' border-slate-400/25' : ' border-slate-100'}`}
+        />
+
         <FooterGroup
           title="サイト情報"
           links={INFO_LINKS}
