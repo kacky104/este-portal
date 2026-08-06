@@ -33,8 +33,17 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
     description,
     // クエリ絞り込み（?b=,?area=）ではなく、この専用ページを正規URLとして個別インデックスさせる。
     alternates: { canonical: `/therapists/badge/${slug}` },
-    openGraph: { title, description, url: `/therapists/badge/${slug}`, siteName: 'フクエス', type: 'website' },
-    twitter: { card: 'summary', title, description },
+    // Next の metadata は浅いマージ＝openGraph を部分指定すると root layout の og が丸ごと消える
+    // （og:image も消える）。そのため images まで全て明示する。
+    openGraph: {
+      title,
+      description,
+      url: `/therapists/badge/${slug}`,
+      siteName: 'フクエス',
+      type: 'website',
+      images: [{ url: '/ogp.png', width: 1200, height: 630 }],
+    },
+    twitter: { card: 'summary_large_image', title, description, images: ['/ogp.png'] },
   };
 }
 

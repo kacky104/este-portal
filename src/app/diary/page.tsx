@@ -23,11 +23,25 @@ import { SiteNoticeBanner } from '@/app/components/SiteNoticeBanner';
 
 const PAGE_SIZE = 50;
 
+const PAGE_TITLE = '福岡メンズエステの写メ日記｜フクエス';
+const PAGE_DESC =
+  '福岡のメンズエステ各店のセラピストが投稿する写メ日記を新着順でまとめてチェック。出勤情報やお店の雰囲気、セラピストの日常が写真でわかります。';
+
 export const metadata = {
-  title: '福岡メンズエステの写メ日記｜フクエス',
-  description: '福岡のメンズエステ各店のセラピストが投稿する写メ日記を新着順でまとめてチェック。出勤情報やお店の雰囲気、セラピストの日常が写真でわかります。',
+  title: PAGE_TITLE,
+  description: PAGE_DESC,
   alternates: { canonical: '/diary' },
-  openGraph: { title: '福岡メンズエステの写メ日記｜フクエス', description: '福岡のメンズエステ各店のセラピストが投稿する写メ日記を新着順でまとめてチェック。出勤情報やお店の雰囲気、セラピストの日常が写真でわかります。', url: '/diary', siteName: 'フクエス', type: 'website' },
+  // Next の metadata は浅いマージ＝openGraph を部分指定すると root layout の og が丸ごと消える
+  // （og:image も消える）。そのため images まで全て明示する。
+  openGraph: {
+    title: PAGE_TITLE,
+    description: PAGE_DESC,
+    url: '/diary',
+    siteName: 'フクエス',
+    type: 'website',
+    images: [{ url: '/ogp.png', width: 1200, height: 630 }],
+  },
+  twitter: { card: 'summary_large_image', title: PAGE_TITLE, description: PAGE_DESC, images: ['/ogp.png'] },
 };
 
 // ISR：1分ごとに再生成（新着日記の鮮度優先）。cookie を読まない createPublicClient を使うため動的化されない。

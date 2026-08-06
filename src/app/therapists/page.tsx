@@ -28,8 +28,17 @@ export const metadata: Metadata = {
   title: TITLE,
   description: DESCRIPTION,
   alternates: { canonical: '/therapists' },
-  openGraph: { title: TITLE, description: DESCRIPTION, url: '/therapists', siteName: 'フクエス', type: 'website' },
-  twitter: { card: 'summary', title: TITLE, description: DESCRIPTION },
+  // Next の metadata は浅いマージ＝openGraph を部分指定すると root layout の og が丸ごと消える
+  // （og:image も消える）。そのため images まで全て明示する。
+  openGraph: {
+    title: TITLE,
+    description: DESCRIPTION,
+    url: '/therapists',
+    siteName: 'フクエス',
+    type: 'website',
+    images: [{ url: '/ogp.png', width: 1200, height: 630 }],
+  },
+  twitter: { card: 'summary_large_image', title: TITLE, description: DESCRIPTION, images: ['/ogp.png'] },
 };
 
 // ISR：ヒーロー画像・テーマ壁紙（purple）を反映するため定期再生成する。

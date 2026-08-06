@@ -45,8 +45,17 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
     title,
     description,
     alternates: { canonical: `/area/${slug}` },
-    openGraph: { title, description },
-    twitter: { title, description },
+    // Next の metadata は浅いマージ＝openGraph を部分指定すると root layout の og が丸ごと消える
+    // （og:image も消える）。そのため url/siteName/type/images まで全て明示する。
+    openGraph: {
+      title,
+      description,
+      url: `/area/${slug}`,
+      siteName: 'フクエス',
+      type: 'website',
+      images: [{ url: '/ogp.png', width: 1200, height: 630 }],
+    },
+    twitter: { card: 'summary_large_image', title, description, images: ['/ogp.png'] },
   };
 }
 

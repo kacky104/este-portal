@@ -25,7 +25,18 @@ export const metadata: Metadata = {
   title: TITLE,
   description: DESCRIPTION,
   alternates: { canonical: '/x-shops' },
-  openGraph: { title: TITLE, description: DESCRIPTION, url: '/x-shops', siteName: 'フクエス', type: 'website' },
+  // Next の metadata は浅いマージ＝openGraph を部分指定すると root layout の og が丸ごと消える
+  // （og:image も消える）。そのため images まで全て明示する。
+  // /x-shops は /x 配下ではなく root layout 側なので、画像は本体の /ogp.png に揃える。
+  openGraph: {
+    title: TITLE,
+    description: DESCRIPTION,
+    url: '/x-shops',
+    siteName: 'フクエス',
+    type: 'website',
+    images: [{ url: '/ogp.png', width: 1200, height: 630 }],
+  },
+  twitter: { card: 'summary_large_image', title: TITLE, description: DESCRIPTION, images: ['/ogp.png'] },
 };
 
 // ISR：10分ごとに再生成（並びは30分シードシャッフルなのでゆるめでOK）。

@@ -22,13 +22,17 @@ export const metadata: Metadata = {
   title: RANKING_TITLE,
   description: RANKING_DESCRIPTION,
   alternates: { canonical: '/ranking' },
+  // Next の metadata は浅いマージ＝openGraph を部分指定すると root layout の og が丸ごと消える
+  // （og:image も消える）。そのため images まで全て明示する。
   openGraph: {
     title: RANKING_TITLE,
     description: RANKING_DESCRIPTION,
     url: '/ranking',
     siteName: 'フクエス',
     type: 'website',
+    images: [{ url: '/ogp.png', width: 1200, height: 630 }],
   },
+  twitter: { card: 'summary_large_image', title: RANKING_TITLE, description: RANKING_DESCRIPTION, images: ['/ogp.png'] },
 };
 
 // 本体（ヘッダー・パンくず・ヒーロー・タブ・一覧・フッター）はタブごとにテーマ・ヒーロー画像を

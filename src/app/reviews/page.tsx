@@ -5,11 +5,25 @@ import { fetchThemeWallpapers } from '@/app/lib/ranking';
 import { getAllApprovedReviews, getTherapistReviewRanking } from '@/app/lib/reviews';
 import ReviewsTabs from './ReviewsTabs';
 
+const PAGE_TITLE = '福岡メンズエステの口コミ一覧｜フクエス';
+const PAGE_DESC =
+  '福岡のメンズエステに寄せられた口コミを新着順・口コミ数のセラピストランキング・殿堂入りでまとめてチェック。接客・施術・受付の評価とレビューを店舗横断で確認できます。';
+
 export const metadata: Metadata = {
-  title: '福岡メンズエステの口コミ一覧｜フクエス',
-  description: '福岡のメンズエステに寄せられた口コミを新着順・口コミ数のセラピストランキング・殿堂入りでまとめてチェック。接客・施術・受付の評価とレビューを店舗横断で確認できます。',
+  title: PAGE_TITLE,
+  description: PAGE_DESC,
   alternates: { canonical: '/reviews' },
-  openGraph: { title: '福岡メンズエステの口コミ一覧｜フクエス', description: '福岡のメンズエステに寄せられた口コミを新着順・口コミ数のセラピストランキング・殿堂入りでまとめてチェック。接客・施術・受付の評価とレビューを店舗横断で確認できます。', url: '/reviews', siteName: 'フクエス', type: 'website' },
+  // Next の metadata は浅いマージ＝openGraph を部分指定すると root layout の og が丸ごと消える
+  // （og:image も消える）。そのため images まで全て明示する。
+  openGraph: {
+    title: PAGE_TITLE,
+    description: PAGE_DESC,
+    url: '/reviews',
+    siteName: 'フクエス',
+    type: 'website',
+    images: [{ url: '/ogp.png', width: 1200, height: 630 }],
+  },
+  twitter: { card: 'summary_large_image', title: PAGE_TITLE, description: PAGE_DESC, images: ['/ogp.png'] },
 };
 
 // ISR：10分ごとに再生成（口コミ承認時は /api/revalidate で個別無効化される想定・一覧はゆるめでOK）。

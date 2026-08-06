@@ -31,8 +31,17 @@ export const metadata: Metadata = {
   title: PAGE_TITLE,
   description: PAGE_DESC,
   alternates: { canonical: '/salons' },
-  openGraph: { title: PAGE_TITLE, description: PAGE_DESC, url: '/salons' },
-  twitter: { title: PAGE_TITLE, description: PAGE_DESC },
+  // Next の metadata は浅いマージ＝openGraph を部分指定すると root layout の og が丸ごと消える
+  // （og:image も消える）。そのため siteName/type/images まで全て明示する。
+  openGraph: {
+    title: PAGE_TITLE,
+    description: PAGE_DESC,
+    url: '/salons',
+    siteName: 'フクエス',
+    type: 'website',
+    images: [{ url: '/ogp.png', width: 1200, height: 630 }],
+  },
+  twitter: { card: 'summary_large_image', title: PAGE_TITLE, description: PAGE_DESC, images: ['/ogp.png'] },
 };
 
 type ListRow = {
