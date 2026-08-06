@@ -7,6 +7,7 @@ import { HamburgerMenu } from '@/app/components/HamburgerMenu';
 import { NotificationBell } from '@/app/components/NotificationBell';
 import { VipLetterIcon } from '@/app/components/VipLetterIcon';
 import { SiteNoticeBanner } from '@/app/components/SiteNoticeBanner';
+import { toJsonLdString } from '@/app/lib/jsonLd';
 
 // 運営者情報・サイトについて（E-E-A-T用の静的ページ。terms/privacy と同じ構成）。
 export const metadata: Metadata = {
@@ -16,9 +17,33 @@ export const metadata: Metadata = {
   alternates: { canonical: '/about' },
 };
 
+// Organization 構造化データ（2026-08-05）。サイト全体で唯一の Organization 定義をここに置く
+// （運営者情報ページ＝E-E-A-T の起点。サイト名表示・ナレッジパネルの土台になる）。
+// sameAs は運営Xアカウント（@fukuesinfo）。ID は変更しない方針（2026-07 運用メモ）。
+const ORGANIZATION_JSON_LD = {
+  '@context': 'https://schema.org/',
+  '@type': 'Organization',
+  '@id': 'https://fukues.com/#organization',
+  name: 'フクエス運営事務局',
+  url: 'https://fukues.com',
+  logo: {
+    '@type': 'ImageObject',
+    url: 'https://fukues.com/logo.png',
+  },
+  sameAs: ['https://x.com/fukuesinfo'],
+  contactPoint: {
+    '@type': 'ContactPoint',
+    contactType: 'customer support',
+    url: 'https://fukues.com/contact',
+    availableLanguage: 'Japanese',
+  },
+};
+
 export default function AboutPage() {
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900">
+      {/* Organization 構造化データ */}
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: toJsonLdString(ORGANIZATION_JSON_LD) }} />
 
       {/* ─── Header ─────────────────────────────────────────── */}
       <header className="sticky top-0 z-50 bg-white/90 backdrop-blur-md border-b border-slate-200 shadow-sm">
