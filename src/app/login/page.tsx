@@ -171,8 +171,9 @@ function LoginInner() {
               )}
 
               <div className="space-y-1">
-                <label className="text-[11px] font-bold text-slate-400 block px-1">メールアドレス</label>
+                <label htmlFor="login-email" className="text-[11px] font-bold text-slate-400 block px-1">メールアドレス</label>
                 <input
+                  id="login-email"
                   type="email"
                   autoComplete="email"
                   value={email}
@@ -185,10 +186,11 @@ function LoginInner() {
               </div>
 
               <div className="space-y-1">
-                <label className="text-[11px] font-bold text-slate-400 block px-1">
+                <label htmlFor="login-password" className="text-[11px] font-bold text-slate-400 block px-1">
                   パスワード{mode === 'signup' && <span className="font-normal text-slate-300">（{PASSWORD_HINT}）</span>}
                 </label>
                 <input
+                  id="login-password"
                   type="password"
                   autoComplete={mode === 'signup' ? 'new-password' : 'current-password'}
                   value={password}

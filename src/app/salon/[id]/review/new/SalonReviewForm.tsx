@@ -155,13 +155,14 @@ export function SalonReviewForm({
 
       {/* 1. 誰への口コミか */}
       <div>
-        <label className={labelClass}>誰への口コミですか？</label>
+        <label htmlFor="review-therapist" className={labelClass}>誰への口コミですか？</label>
         {noTherapists ? (
           <p className="text-sm text-rose-500 bg-rose-50 border border-rose-100 rounded-xl px-3 py-2">
             在籍セラピストがいません。
           </p>
         ) : (
           <select
+            id="review-therapist"
             value={therapistId}
             onChange={(e) => setTherapistId(e.target.value === '' ? '' : Number(e.target.value))}
             className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-sm bg-slate-50/50 focus:outline-none focus:ring-2 focus:ring-pink-200"
@@ -178,8 +179,8 @@ export function SalonReviewForm({
 
       {/* 2. 3軸の星 */}
       <div>
-        <label className={labelClass}>評価</label>
-        <div className="space-y-2.5">
+        <span id="review-rating-label" className={labelClass}>評価</span>
+        <div className="space-y-2.5" role="group" aria-labelledby="review-rating-label">
           <StarRatingInput value={service} onChange={setService} label="接客" />
           <StarRatingInput value={technique} onChange={setTechnique} label="施術" />
           <StarRatingInput value={reception} onChange={setReception} label="受付対応" />

@@ -127,10 +127,11 @@ export default function CastResetPasswordPage() {
               </div>
             )}
             <div className="space-y-1">
-              <label className="text-[11px] font-bold text-slate-400 block px-1">
+              <label htmlFor="cast-rp-password" className="text-[11px] font-bold text-slate-400 block px-1">
                 新しいパスワード<span className="font-normal text-slate-300">（{PASSWORD_HINT}）</span>
               </label>
               <input
+                id="cast-rp-password"
                 type="password"
                 autoComplete="new-password"
                 value={password}
@@ -143,8 +144,9 @@ export default function CastResetPasswordPage() {
               />
             </div>
             <div className="space-y-1">
-              <label className="text-[11px] font-bold text-slate-400 block px-1">新しいパスワード（確認）</label>
+              <label htmlFor="cast-rp-password-confirm" className="text-[11px] font-bold text-slate-400 block px-1">新しいパスワード（確認）</label>
               <input
+                id="cast-rp-password-confirm"
                 type="password"
                 autoComplete="new-password"
                 value={confirm}

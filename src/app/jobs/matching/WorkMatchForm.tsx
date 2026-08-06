@@ -123,17 +123,17 @@ export function WorkMatchForm() {
         <p className="text-xs font-black text-emerald-700 mb-3">あなたについて</p>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
-            <label className={labelClass}>お名前・ニックネーム（任意）</label>
-            <input type="text" value={displayName} onChange={(e) => setDisplayName(e.target.value)} maxLength={MAX_DISPLAY_NAME_LEN} placeholder="例: みお" className={inputClass} />
+            <label htmlFor="wm-display-name" className={labelClass}>お名前・ニックネーム（任意）</label>
+            <input id="wm-display-name" type="text" autoComplete="name" value={displayName} onChange={(e) => setDisplayName(e.target.value)} maxLength={MAX_DISPLAY_NAME_LEN} placeholder="例: みお" className={inputClass} />
           </div>
           <div>
-            <label className={labelClass}>年齢 <span className="text-rose-400">*</span></label>
-            <input type="text" inputMode="numeric" value={age} onChange={(e) => setAge(e.target.value.replace(/[^0-9]/g, ''))} maxLength={3} required placeholder="例: 24" className={inputClass} />
+            <label htmlFor="wm-age" className={labelClass}>年齢 <span className="text-rose-400">*</span></label>
+            <input id="wm-age" type="text" inputMode="numeric" value={age} onChange={(e) => setAge(e.target.value.replace(/[^0-9]/g, ''))} maxLength={3} required placeholder="例: 24" className={inputClass} />
             {age !== '' && !ageOk && <p className="text-[11px] text-rose-400 mt-1">18〜99の範囲で入力してください</p>}
           </div>
           <div className="sm:col-span-2">
-            <label className={labelClass}>お仕事の経験 <span className="text-rose-400">*</span></label>
-            <div className="flex flex-wrap gap-2">
+            <span id="wm-experience-label" className={labelClass}>お仕事の経験 <span className="text-rose-400">*</span></span>
+            <div className="flex flex-wrap gap-2" role="group" aria-labelledby="wm-experience-label">
               {WORK_EXPERIENCE_VALUES.map((v) => (
                 <button key={v} type="button" onClick={() => setExperience(v)} className={chip(experience === v)}>
                   {EXPERIENCE_LABEL[v]}
@@ -142,8 +142,8 @@ export function WorkMatchForm() {
             </div>
           </div>
           <div className="sm:col-span-2">
-            <label className={labelClass}>現在の職業（任意）</label>
-            <input type="text" value={currentJob} onChange={(e) => setCurrentJob(e.target.value)} maxLength={MAX_CURRENT_JOB_LEN} placeholder="例: 会社員 / 学生 / 現在他店で勤務 など" className={inputClass} />
+            <label htmlFor="wm-current-job" className={labelClass}>現在の職業（任意）</label>
+            <input id="wm-current-job" type="text" value={currentJob} onChange={(e) => setCurrentJob(e.target.value)} maxLength={MAX_CURRENT_JOB_LEN} placeholder="例: 会社員 / 学生 / 現在他店で勤務 など" className={inputClass} />
           </div>
         </div>
       </div>
@@ -153,8 +153,8 @@ export function WorkMatchForm() {
         <p className="text-xs font-black text-emerald-700 mb-1">希望の働き方</p>
         <p className="text-[11px] text-slate-400 mb-3">当てはまるものを選んでください（任意・複数可）。</p>
 
-        <label className={labelClass}>働きたいエリア</label>
-        <div className="flex flex-wrap gap-2 mb-1">
+        <span id="wm-areas-label" className={labelClass}>働きたいエリア</span>
+        <div className="flex flex-wrap gap-2 mb-1" role="group" aria-labelledby="wm-areas-label">
           {WORK_AREA_CHOICES.map((area) => (
             <button key={area} type="button" onClick={() => toggleArea(area)} className={chip(desiredAreas.includes(area))}>
               {area}
@@ -163,8 +163,8 @@ export function WorkMatchForm() {
         </div>
         <p className="text-[11px] text-slate-400 mb-4">※ 選ばない場合は「エリアはこだわらない」として全エリアが対象になります。</p>
 
-        <label className={labelClass}>送迎</label>
-        <div className="flex flex-wrap gap-2 mb-4">
+        <span id="wm-pickup-label" className={labelClass}>送迎</span>
+        <div className="flex flex-wrap gap-2 mb-4" role="group" aria-labelledby="wm-pickup-label">
           {WORK_PICKUP_VALUES.map((v) => (
             <button key={v} type="button" onClick={() => setWantsPickup(v)} className={chip(wantsPickup === v)}>
               {PICKUP_LABEL[v]}
@@ -172,11 +172,11 @@ export function WorkMatchForm() {
           ))}
         </div>
 
-        <label className={labelClass}>
+        <span id="wm-features-label" className={labelClass}>
           その他の希望条件（最大{MAX_JOB_FEATURES}個・任意）
           <span className="ml-1 font-normal text-slate-400">選択中 {desiredFeatures.length}/{MAX_JOB_FEATURES}</span>
-        </label>
-        <div className="space-y-3 mt-1">
+        </span>
+        <div className="space-y-3 mt-1" role="group" aria-labelledby="wm-features-label">
           {JOB_FEATURE_GROUPS.map((g) => (
             <div key={g.title}>
               <p className="text-[11px] font-bold text-slate-400 mb-1">{g.title}</p>
@@ -210,16 +210,16 @@ export function WorkMatchForm() {
         </p>
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           <div>
-            <label className={labelClass}>電話番号</label>
-            <input type="tel" value={contactPhone} onChange={(e) => setContactPhone(e.target.value)} maxLength={MAX_CONTACT_LEN} placeholder="例: 090-0000-0000" className={inputClass} />
+            <label htmlFor="wm-phone" className={labelClass}>電話番号</label>
+            <input id="wm-phone" type="tel" autoComplete="tel" value={contactPhone} onChange={(e) => setContactPhone(e.target.value)} maxLength={MAX_CONTACT_LEN} placeholder="例: 090-0000-0000" className={inputClass} />
           </div>
           <div>
-            <label className={labelClass}>LINE ID</label>
-            <input type="text" value={contactLine} onChange={(e) => setContactLine(e.target.value)} maxLength={MAX_CONTACT_LEN} placeholder="例: fukues_mio" className={inputClass} />
+            <label htmlFor="wm-line" className={labelClass}>LINE ID</label>
+            <input id="wm-line" type="text" value={contactLine} onChange={(e) => setContactLine(e.target.value)} maxLength={MAX_CONTACT_LEN} placeholder="例: fukues_mio" className={inputClass} />
           </div>
           <div>
-            <label className={labelClass}>メールアドレス</label>
-            <input type="email" value={contactEmail} onChange={(e) => setContactEmail(e.target.value)} maxLength={MAX_CONTACT_LEN} placeholder="例: mio@example.com" className={inputClass} />
+            <label htmlFor="wm-email" className={labelClass}>メールアドレス</label>
+            <input id="wm-email" type="email" autoComplete="email" value={contactEmail} onChange={(e) => setContactEmail(e.target.value)} maxLength={MAX_CONTACT_LEN} placeholder="例: mio@example.com" className={inputClass} />
           </div>
         </div>
         {!hasContact && (
@@ -248,8 +248,8 @@ export function WorkMatchForm() {
 
       {/* その他ご希望 */}
       <div className={sectionClass}>
-        <label className={labelClass}>その他ご希望・ご質問（任意）</label>
-        <textarea value={note} onChange={(e) => setNote(e.target.value)} maxLength={MAX_NOTE_LEN} rows={4} placeholder="ご希望の勤務日数・時間帯、気になっていること、連絡がつきやすい時間帯など、自由にご記入ください" className={inputClass} />
+        <label htmlFor="wm-note" className={labelClass}>その他ご希望・ご質問（任意）</label>
+        <textarea id="wm-note" value={note} onChange={(e) => setNote(e.target.value)} maxLength={MAX_NOTE_LEN} rows={4} placeholder="ご希望の勤務日数・時間帯、気になっていること、連絡がつきやすい時間帯など、自由にご記入ください" className={inputClass} />
       </div>
 
       {/* honeypot（スパムボット対策）：視覚・支援技術の双方から隠す。人間はここを埋めない。 */}

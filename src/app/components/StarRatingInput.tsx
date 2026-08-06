@@ -26,7 +26,14 @@ export function StarRatingInput({
   return (
     <div className="flex items-center gap-3">
       {label && <span className="text-sm font-bold text-slate-600 w-20 flex-shrink-0">{label}</span>}
-      <div className="flex items-center gap-1" onMouseLeave={() => setHover(0)}>
+      {/* 星ボタン群は「評価を選ぶ一組」なので radiogroup として読み上げさせる。
+          可視ラベル（label）がある場合はそれを、無い場合は汎用文言をグループ名にする。 */}
+      <div
+        className="flex items-center gap-1"
+        role="radiogroup"
+        aria-label={label ? `${label}の評価` : '評価'}
+        onMouseLeave={() => setHover(0)}
+      >
         {[0, 1, 2, 3, 4].map((i) => {
           const fill = Math.max(0, Math.min(1, display - i));
           const pct = `${fill * 100}%`;

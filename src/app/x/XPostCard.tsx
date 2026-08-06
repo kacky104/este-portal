@@ -541,6 +541,7 @@ export function XPostCard({
           onClick={() => onToggleLike(post)}
           disabled={likePending}
           aria-pressed={liked}
+          aria-label={liked ? 'いいねを解除' : 'いいね'}
           className={`inline-flex items-center gap-1.5 text-sm transition-colors disabled:opacity-50 ${
             liked ? 'text-rose-500' : 'text-[color:var(--x-text-muted)] hover:text-rose-400'
           }`}

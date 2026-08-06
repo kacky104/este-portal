@@ -180,6 +180,8 @@ export function XShop({
                 if (e.key === 'Enter') runSearch();
               }}
               placeholder="セラピストのID"
+              // 可視ラベルを置かないデザインなので aria-label で項目名を補う（placeholder はラベル代わりにならない）。
+              aria-label="セラピストの@IDで検索"
               className="flex-1 py-2.5 px-1 text-sm outline-none bg-transparent"
               autoComplete="off"
             />

@@ -129,9 +129,9 @@ function CastLoginInner() {
                 </p>
               )}
               <div>
-                <label htmlFor="email" className="block text-sm font-medium text-slate-700 mb-1.5">メールアドレス</label>
+                <label htmlFor="cast-login-email" className="block text-sm font-medium text-slate-700 mb-1.5">メールアドレス</label>
                 <input
-                  id="email"
+                  id="cast-login-email"
                   type="email"
                   autoComplete="email"
                   value={email}
@@ -144,9 +144,9 @@ function CastLoginInner() {
               </div>
 
               <div>
-                <label htmlFor="password" className="block text-sm font-medium text-slate-700 mb-1.5">パスワード</label>
+                <label htmlFor="cast-login-password" className="block text-sm font-medium text-slate-700 mb-1.5">パスワード</label>
                 <input
-                  id="password"
+                  id="cast-login-password"
                   type="password"
                   autoComplete="current-password"
                   value={password}

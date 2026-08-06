@@ -322,6 +322,8 @@ export function XSearch() {
             value={q}
             onChange={(e) => setQ(e.target.value)}
             placeholder="名前や @ID で検索"
+            // 可視ラベルを置かないデザインなので aria-label で項目名を補う（placeholder はラベル代わりにならない）。
+            aria-label="名前や @ID で検索"
             autoComplete="off"
             autoCapitalize="none"
             autoCorrect="off"

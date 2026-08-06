@@ -395,9 +395,11 @@ export function BookingFlow({
           <SectionTitle>5. お客様情報</SectionTitle>
           <div className="space-y-3 mt-3">
             <div>
-              <label className="block text-[11px] font-bold text-slate-500 mb-1">お名前 <span className="text-rose-400">必須</span></label>
+              <label htmlFor="book-name" className="block text-[11px] font-bold text-slate-500 mb-1">お名前 <span className="text-rose-400">必須</span></label>
               <input
+                id="book-name"
                 type="text"
+                autoComplete="name"
                 value={customerName}
                 onChange={(e) => setCustomerName(e.target.value)}
                 placeholder="例）福岡 太郎"
@@ -405,9 +407,11 @@ export function BookingFlow({
               />
             </div>
             <div>
-              <label className="block text-[11px] font-bold text-slate-500 mb-1">電話番号 <span className="text-rose-400">必須</span></label>
+              <label htmlFor="book-tel" className="block text-[11px] font-bold text-slate-500 mb-1">電話番号 <span className="text-rose-400">必須</span></label>
               <input
+                id="book-tel"
                 type="tel"
+                autoComplete="tel"
                 value={customerTel}
                 onChange={(e) => setCustomerTel(e.target.value)}
                 placeholder="例）090-1234-5678"
@@ -416,8 +420,8 @@ export function BookingFlow({
             </div>
             {/* 折り返しお電話の希望時間帯（任意・デフォルト「希望なし」） */}
             <div>
-              <label className="block text-[11px] font-bold text-slate-500 mb-1">折り返しお電話の希望時間帯（任意）</label>
-              <div className="flex flex-wrap gap-2">
+              <span id="book-callback-pref-label" className="block text-[11px] font-bold text-slate-500 mb-1">折り返しお電話の希望時間帯（任意）</span>
+              <div className="flex flex-wrap gap-2" role="radiogroup" aria-labelledby="book-callback-pref-label">
                 {CALLBACK_PREF_OPTIONS.map((o) => (
                   <label
                     key={o.slug}
@@ -458,8 +462,9 @@ export function BookingFlow({
               </p>
             </div>
             <div>
-              <label className="block text-[11px] font-bold text-slate-500 mb-1">備考（任意）</label>
+              <label htmlFor="book-note" className="block text-[11px] font-bold text-slate-500 mb-1">備考（任意）</label>
               <textarea
+                id="book-note"
                 value={note}
                 onChange={(e) => setNote(e.target.value)}
                 rows={3}

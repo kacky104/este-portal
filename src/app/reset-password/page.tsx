@@ -117,10 +117,11 @@ export default function ResetPasswordPage() {
               </div>
             )}
             <div className="space-y-1">
-              <label className="text-[11px] font-bold text-slate-400 block px-1">
+              <label htmlFor="rp-password" className="text-[11px] font-bold text-slate-400 block px-1">
                 新しいパスワード<span className="font-normal text-slate-300">（{PASSWORD_HINT}）</span>
               </label>
               <input
+                id="rp-password"
                 type="password"
                 autoComplete="new-password"
                 value={password}
@@ -133,8 +134,9 @@ export default function ResetPasswordPage() {
               />
             </div>
             <div className="space-y-1">
-              <label className="text-[11px] font-bold text-slate-400 block px-1">新しいパスワード（確認）</label>
+              <label htmlFor="rp-password-confirm" className="text-[11px] font-bold text-slate-400 block px-1">新しいパスワード（確認）</label>
               <input
+                id="rp-password-confirm"
                 type="password"
                 autoComplete="new-password"
                 value={confirm}

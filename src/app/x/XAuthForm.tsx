@@ -220,8 +220,9 @@ export function XAuthForm({ initialMode }: { initialMode: 'login' | 'signup' }) 
               )}
 
               <div className="space-y-1">
-                <label className="text-[11px] font-bold text-[color:var(--x-text-muted)] block px-1">メールアドレス</label>
+                <label htmlFor="x-auth-email" className="text-[11px] font-bold text-[color:var(--x-text-muted)] block px-1">メールアドレス</label>
                 <input
+                  id="x-auth-email"
                   type="email"
                   autoComplete="email"
                   value={email}
@@ -237,11 +238,12 @@ export function XAuthForm({ initialMode }: { initialMode: 'login' | 'signup' }) 
               </div>
 
               <div className="space-y-1">
-                <label className="text-[11px] font-bold text-[color:var(--x-text-muted)] block px-1">
+                <label htmlFor="x-auth-password" className="text-[11px] font-bold text-[color:var(--x-text-muted)] block px-1">
                   パスワード
                   {mode === 'signup' && <span className="font-normal text-[color:var(--x-text-muted)]">（{PASSWORD_HINT}）</span>}
                 </label>
                 <input
+                  id="x-auth-password"
                   type="password"
                   autoComplete={mode === 'signup' ? 'new-password' : 'current-password'}
                   value={password}

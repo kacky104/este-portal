@@ -72,9 +72,11 @@ export function XBannerReportForm() {
       </div>
 
       <div>
-        <label className={LABEL}>店舗名（必須）</label>
+        <label htmlFor="xbr-salon-name" className={LABEL}>店舗名（必須）</label>
         <input
+          id="xbr-salon-name"
           type="text"
+          autoComplete="organization"
           value={salonName}
           onChange={(e) => setSalonName(e.target.value)}
           maxLength={100}
@@ -84,9 +86,11 @@ export function XBannerReportForm() {
       </div>
 
       <div>
-        <label className={LABEL}>連絡先メールアドレス（必須）</label>
+        <label htmlFor="xbr-email" className={LABEL}>連絡先メールアドレス（必須）</label>
         <input
+          id="xbr-email"
           type="email"
+          autoComplete="email"
           value={email}
           onChange={(e) => setEmail(e.target.value)}
           maxLength={254}
@@ -99,9 +103,11 @@ export function XBannerReportForm() {
       </div>
 
       <div>
-        <label className={LABEL}>バナーを設置したページのURL（必須）</label>
+        <label htmlFor="xbr-page-url" className={LABEL}>バナーを設置したページのURL（必須）</label>
         <input
+          id="xbr-page-url"
           type="url"
+          autoComplete="url"
           value={pageUrl}
           onChange={(e) => setPageUrl(e.target.value)}
           maxLength={500}
@@ -111,8 +117,9 @@ export function XBannerReportForm() {
       </div>
 
       <div>
-        <label className={LABEL}>fukuXの@ID（任意）</label>
+        <label htmlFor="xbr-x-handle" className={LABEL}>fukuXの@ID（任意）</label>
         <input
+          id="xbr-x-handle"
           type="text"
           value={xHandle}
           onChange={(e) => setXHandle(e.target.value)}
@@ -126,8 +133,9 @@ export function XBannerReportForm() {
       </div>
 
       <div>
-        <label className={LABEL}>補足コメント（任意）</label>
+        <label htmlFor="xbr-comment" className={LABEL}>補足コメント（任意）</label>
         <textarea
+          id="xbr-comment"
           value={comment}
           onChange={(e) => setComment(e.target.value)}
           maxLength={1000}

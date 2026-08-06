@@ -71,13 +71,13 @@ export function SalonIntakeForm({ token }: { token: string }) {
     <form onSubmit={submit} className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 space-y-5">
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div className="sm:col-span-2">
-          <label className={LABEL}>店舗名{REQ}</label>
-          <input type="text" value={salonName} onChange={(e) => setSalonName(e.target.value)} maxLength={100} placeholder="例: アロマサロン◯◯ 博多店" className={INPUT} />
+          <label htmlFor="intake-salon-name" className={LABEL}>店舗名{REQ}</label>
+          <input id="intake-salon-name" autoComplete="organization" type="text" value={salonName} onChange={(e) => setSalonName(e.target.value)} maxLength={100} placeholder="例: アロマサロン◯◯ 博多店" className={INPUT} />
         </div>
 
         <div>
-          <label className={LABEL}>エリア{REQ}</label>
-          <select value={area} onChange={(e) => setArea(e.target.value)} className={INPUT}>
+          <label htmlFor="intake-area" className={LABEL}>エリア{REQ}</label>
+          <select id="intake-area" value={area} onChange={(e) => setArea(e.target.value)} className={INPUT}>
             <option value="">選択してください</option>
             {AREA_CHOICES.map((a) => (
               <option key={a} value={a}>{a}</option>
@@ -86,8 +86,8 @@ export function SalonIntakeForm({ token }: { token: string }) {
           <p className="text-[10px] text-slate-400 mt-1">第2エリアも掲載したい場合は別途オプションになります。その際はお問い合わせください。</p>
         </div>
         <div>
-          <label className={LABEL}>出張の有無{REQ}</label>
-          <select value={dispatch} onChange={(e) => setDispatch(e.target.value)} className={INPUT}>
+          <label htmlFor="intake-dispatch" className={LABEL}>出張の有無{REQ}</label>
+          <select id="intake-dispatch" value={dispatch} onChange={(e) => setDispatch(e.target.value)} className={INPUT}>
             <option value="">選択してください</option>
             <option value="なし">なし</option>
             <option value="あり">あり</option>
@@ -95,41 +95,42 @@ export function SalonIntakeForm({ token }: { token: string }) {
         </div>
 
         <div className="sm:col-span-2">
-          <label className={LABEL}>住所{REQ}</label>
-          <input type="text" value={address} onChange={(e) => setAddress(e.target.value)} maxLength={200} placeholder="例: 福岡市博多区◯◯ 1-2-3 ◯◯ビル601" className={INPUT} />
+          <label htmlFor="intake-address" className={LABEL}>住所{REQ}</label>
+          <input id="intake-address" autoComplete="street-address" type="text" value={address} onChange={(e) => setAddress(e.target.value)} maxLength={200} placeholder="例: 福岡市博多区◯◯ 1-2-3 ◯◯ビル601" className={INPUT} />
           <p className="text-[10px] text-slate-400 mt-1">サイトに載せたい範囲で記入してください。</p>
         </div>
 
         <div className="sm:col-span-2">
-          <label className={LABEL}>アクセス（最寄り駅・道順など）</label>
-          <input type="text" value={access} onChange={(e) => setAccess(e.target.value)} maxLength={200} placeholder="例: 地下鉄◯◯駅 2番出口から徒歩3分" className={INPUT} />
+          <label htmlFor="intake-access" className={LABEL}>アクセス（最寄り駅・道順など）</label>
+          <input id="intake-access" type="text" value={access} onChange={(e) => setAccess(e.target.value)} maxLength={200} placeholder="例: 地下鉄◯◯駅 2番出口から徒歩3分" className={INPUT} />
         </div>
 
         <div>
-          <label className={LABEL}>電話番号</label>
-          <input type="tel" value={phone} onChange={(e) => setPhone(e.target.value)} maxLength={30} placeholder="例: 092-000-0000" className={INPUT} />
+          <label htmlFor="intake-phone" className={LABEL}>電話番号</label>
+          <input id="intake-phone" autoComplete="tel" type="tel" value={phone} onChange={(e) => setPhone(e.target.value)} maxLength={30} placeholder="例: 092-000-0000" className={INPUT} />
         </div>
         <div>
-          <label className={LABEL}>公式サイトURL</label>
-          <input type="url" value={officialUrl} onChange={(e) => setOfficialUrl(e.target.value)} maxLength={300} placeholder="例: https://example.com" className={INPUT} />
+          <label htmlFor="intake-official-url" className={LABEL}>公式サイトURL</label>
+          <input id="intake-official-url" autoComplete="url" type="url" value={officialUrl} onChange={(e) => setOfficialUrl(e.target.value)} maxLength={300} placeholder="例: https://example.com" className={INPUT} />
         </div>
 
         <div>
-          <label className={LABEL}>営業時間</label>
-          <input type="text" value={hours} onChange={(e) => setHours(e.target.value)} maxLength={100} placeholder="例: 12:00〜翌3:00（最終受付2:00）" className={INPUT} />
+          <label htmlFor="intake-hours" className={LABEL}>営業時間</label>
+          <input id="intake-hours" type="text" value={hours} onChange={(e) => setHours(e.target.value)} maxLength={100} placeholder="例: 12:00〜翌3:00（最終受付2:00）" className={INPUT} />
         </div>
         <div>
-          <label className={LABEL}>定休日</label>
-          <input type="text" value={closedDays} onChange={(e) => setClosedDays(e.target.value)} maxLength={100} placeholder="例: 年中無休 / 毎週月曜" className={INPUT} />
-        </div>
-
-        <div className="sm:col-span-2">
-          <label className={LABEL}>お店の紹介文・アピールポイント</label>
-          <textarea value={description} onChange={(e) => setDescription(e.target.value)} maxLength={2000} rows={5} placeholder="お店の雰囲気・コンセプト・強みなど、自由にご記入ください" className={INPUT} />
+          <label htmlFor="intake-closed-days" className={LABEL}>定休日</label>
+          <input id="intake-closed-days" type="text" value={closedDays} onChange={(e) => setClosedDays(e.target.value)} maxLength={100} placeholder="例: 年中無休 / 毎週月曜" className={INPUT} />
         </div>
 
         <div className="sm:col-span-2">
-          <label className={LABEL}>支払い方法</label>
+          <label htmlFor="intake-description" className={LABEL}>お店の紹介文・アピールポイント</label>
+          <textarea id="intake-description" value={description} onChange={(e) => setDescription(e.target.value)} maxLength={2000} rows={5} placeholder="お店の雰囲気・コンセプト・強みなど、自由にご記入ください" className={INPUT} />
+        </div>
+
+        {/* 入力欄が無い案内ブロックなので label ではなく見出しの span にする（紐付け先が存在しないため）。 */}
+        <div className="sm:col-span-2">
+          <span className={LABEL}>支払い方法</span>
           <p className="text-xs text-slate-500 leading-relaxed rounded-xl border border-slate-200 bg-slate-50/50 px-3 py-2.5">
             現金のみの表示ではじまります。クレジットカード等お取り扱いの場合は、オーナー様の編集画面での操作をお願いいたします。
           </p>
@@ -138,16 +139,16 @@ export function SalonIntakeForm({ token }: { token: string }) {
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2 border-t border-slate-100">
         <div>
-          <label className={LABEL}>ご担当者名{REQ}</label>
-          <input type="text" value={contactName} onChange={(e) => setContactName(e.target.value)} maxLength={50} placeholder="例: 山田" className={INPUT} />
+          <label htmlFor="intake-contact-name" className={LABEL}>ご担当者名{REQ}</label>
+          <input id="intake-contact-name" autoComplete="name" type="text" value={contactName} onChange={(e) => setContactName(e.target.value)} maxLength={50} placeholder="例: 山田" className={INPUT} />
         </div>
         <div>
-          <label className={LABEL}>連絡先メールアドレス{REQ}</label>
-          <input type="email" value={contactEmail} onChange={(e) => setContactEmail(e.target.value)} maxLength={254} placeholder="例: info@example.com" className={INPUT} />
+          <label htmlFor="intake-contact-email" className={LABEL}>連絡先メールアドレス{REQ}</label>
+          <input id="intake-contact-email" autoComplete="email" type="email" value={contactEmail} onChange={(e) => setContactEmail(e.target.value)} maxLength={254} placeholder="例: info@example.com" className={INPUT} />
         </div>
         <div className="sm:col-span-2">
-          <label className={LABEL}>備考（伝えておきたいこと・非公開希望の項目など）</label>
-          <textarea value={note} onChange={(e) => setNote(e.target.value)} maxLength={1000} rows={3} className={INPUT} />
+          <label htmlFor="intake-note" className={LABEL}>備考（伝えておきたいこと・非公開希望の項目など）</label>
+          <textarea id="intake-note" value={note} onChange={(e) => setNote(e.target.value)} maxLength={1000} rows={3} className={INPUT} />
         </div>
       </div>
 

@@ -122,11 +122,12 @@ export function XOfficialContactModal({
             </h2>
 
             <div>
-              <label className="block text-[11px] font-bold text-[color:var(--x-text-muted)] mb-1.5 px-1">
+              <label htmlFor="xoc-handle" className="block text-[11px] font-bold text-[color:var(--x-text-muted)] mb-1.5 px-1">
                 アカウントID
               </label>
               {/* ログイン中の handle を自動表示・編集不可（なりすまし防止） */}
               <input
+                id="xoc-handle"
                 type="text"
                 value={`@${myHandle}`}
                 readOnly
@@ -136,10 +137,11 @@ export function XOfficialContactModal({
             </div>
 
             <div>
-              <label className="block text-[11px] font-bold text-[color:var(--x-text-muted)] mb-1.5 px-1">
+              <label htmlFor="xoc-body" className="block text-[11px] font-bold text-[color:var(--x-text-muted)] mb-1.5 px-1">
                 お問い合わせ内容（必須）
               </label>
               <textarea
+                id="xoc-body"
                 value={body}
                 onChange={(e) => setBody(e.target.value)}
                 rows={6}

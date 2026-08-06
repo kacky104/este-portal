@@ -73,8 +73,9 @@ function ForgotPasswordInner() {
               </div>
             )}
             <div className="space-y-1">
-              <label className="text-[11px] font-bold text-slate-400 block px-1">メールアドレス</label>
+              <label htmlFor="fp-email" className="text-[11px] font-bold text-slate-400 block px-1">メールアドレス</label>
               <input
+                id="fp-email"
                 type="email"
                 autoComplete="email"
                 value={email}
