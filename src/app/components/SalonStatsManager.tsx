@@ -7,16 +7,20 @@ import { areaLabel } from '@/app/lib/areaLabel';
 
 // /admin「店舗別アクセス・送客数」（2026-08-06 新設）。
 //
-// 2つのデータを店舗ごとに突き合わせて1枚の表にする。
+// 3つのデータを店舗ごとに突き合わせて1枚の表にする。
+//   ・インプレ … salon_impression_daily（日単位・JST）。一覧カード/バナーが画面に50%見えた回数
+//                （ImpressionMark.tsx）。面別: card=店舗カード / therapist=セラピストカード / banner=店舗バナー。
 //   ・PV       … page_view_weekly（週単位・月曜JST起点）。詳細ページの PageViewLogger が加算。
 //                店舗ページのPVと、その店に所属するセラピスト詳細ページのPV合計を別列で出す。
 //   ・送客     … salon_action_daily（日単位・JST）。詳細ページの3ボタンのクリック。
 //
-// 期間の粒度が「週」と「日」で違うため、期間の選択肢は両者が揃うよう **週（月曜起点）** に丸める。
+// 期間の粒度が「週」と「日」で混在するため、期間の選択肢は揃うよう **週（月曜起点）** に丸める。
 // 「今週」だけは今日までの途中経過（PVも同じく途中経過の行なので整合する）。
 //
-// PV も送客も「同一セッションで1回」の人数ベースで数えているので、
-// 送客率 = 送客計 ÷ PV合計 が比率として意味を持つ。
+// インプレ・PV・送客はすべて「同一セッションで1回」の人数ベースで数えているので、
+//   インプレ（一覧で見えた）→ PV（詳細を開いた）→ 送客（電話・予約した）
+// のファネルが比率として読める。CTR = PV合計 ÷ 表示計（参考値：PVには検索やSNSからの
+// 直接流入も含まれるため、厳密な「カードのクリック率」ではない）。
 //
 // 取得は全件ページング（fetchAllRows）。店舗数×セラピスト数×週数で1000行を軽く超えるため。
 
@@ -30,13 +34,22 @@ const PERIODS: { key: PeriodKey; label: string }[] = [
   { key: 'all', label: '全期間' },
 ];
 
-type SortKey = 'name' | 'pvSalon' | 'pvTherapist' | 'pvTotal' | 'tel' | 'line' | 'book' | 'actions' | 'rate';
+type SortKey =
+  | 'name'
+  | 'impCard' | 'impTher' | 'impBanner' | 'impTotal' | 'ctr'
+  | 'pvSalon' | 'pvTherapist' | 'pvTotal'
+  | 'tel' | 'line' | 'book' | 'actions' | 'rate';
 
 type Row = {
   id: number;
   name: string;
   area: string;
   hidden: boolean;
+  impCard: number;    // 店舗カードの表示回数
+  impTher: number;    // セラピストカードの表示回数（所属店舗に紐づけ）
+  impBanner: number;  // 店舗バナー（ピックアップ/おすすめ）の表示回数
+  impTotal: number;
+  ctr: number;        // PV合計 ÷ 表示計（表示0なら0）
   pvSalon: number;
   pvTherapist: number;
   pvTotal: number;
@@ -101,7 +114,7 @@ export default function SalonStatsManager({ onToast }: { onToast: (m: string) =>
     setLoading(true);
     const { weeks, from, to } = resolvePeriod(p);
     try {
-      const [salons, therapists, pvRows, actionRows] = await Promise.all([
+      const [salons, therapists, pvRows, actionRows, impRows] = await Promise.all([
         // 店舗（非表示も含めて全件。非表示は行にバッジを付けて区別する）
         fetchAllRows<{ id: number; name: string | null; area: string | null; is_hidden: boolean | null }>(
           (f, t) => supabase.from('salons').select('id, name, area, is_hidden').order('id').range(f, t),
@@ -122,6 +135,13 @@ export default function SalonStatsManager({ onToast }: { onToast: (m: string) =>
         // 送客アクション（日次）
         fetchAllRows<{ salon_id: number; action: string; count: number }>((f, t) => {
           let query = supabase.from('salon_action_daily').select('salon_id, action, count, day').order('salon_id');
+          if (from) query = query.gte('day', from);
+          if (to) query = query.lte('day', to);
+          return query.range(f, t);
+        }),
+        // インプレッション（日次・面別）
+        fetchAllRows<{ salon_id: number; surface: string; count: number }>((f, t) => {
+          let query = supabase.from('salon_impression_daily').select('salon_id, surface, count, day').order('salon_id');
           if (from) query = query.gte('day', from);
           if (to) query = query.lte('day', to);
           return query.range(f, t);
@@ -156,19 +176,36 @@ export default function SalonStatsManager({ onToast }: { onToast: (m: string) =>
         act.set(r.salon_id, cur);
       }
 
+      const imp = new Map<number, { card: number; ther: number; banner: number }>();
+      for (const r of impRows) {
+        const cur = imp.get(r.salon_id) ?? { card: 0, ther: 0, banner: 0 };
+        const n = Number(r.count) || 0;
+        if (r.surface === 'card') cur.card += n;
+        else if (r.surface === 'therapist') cur.ther += n;
+        else if (r.surface === 'banner') cur.banner += n;
+        imp.set(r.salon_id, cur);
+      }
+
       setError('');
       setRows(
         salons.map((s) => {
           const a = act.get(s.id) ?? { tel: 0, line: 0, book: 0 };
+          const im = imp.get(s.id) ?? { card: 0, ther: 0, banner: 0 };
           const ps = pvSalon.get(s.id) ?? 0;
           const pt = pvTherapist.get(s.id) ?? 0;
           const pvTotal = ps + pt;
           const actions = a.tel + a.line + a.book;
+          const impTotal = im.card + im.ther + im.banner;
           return {
             id: s.id,
             name: s.name ?? '',
             area: s.area ?? '',
             hidden: Boolean(s.is_hidden),
+            impCard: im.card,
+            impTher: im.ther,
+            impBanner: im.banner,
+            impTotal,
+            ctr: impTotal > 0 ? pvTotal / impTotal : 0,
             pvSalon: ps,
             pvTherapist: pt,
             pvTotal,
@@ -208,6 +245,10 @@ export default function SalonStatsManager({ onToast }: { onToast: (m: string) =>
     () =>
       sorted.reduce(
         (acc, r) => ({
+          impCard: acc.impCard + r.impCard,
+          impTher: acc.impTher + r.impTher,
+          impBanner: acc.impBanner + r.impBanner,
+          impTotal: acc.impTotal + r.impTotal,
           pvSalon: acc.pvSalon + r.pvSalon,
           pvTherapist: acc.pvTherapist + r.pvTherapist,
           pvTotal: acc.pvTotal + r.pvTotal,
@@ -216,7 +257,7 @@ export default function SalonStatsManager({ onToast }: { onToast: (m: string) =>
           book: acc.book + r.book,
           actions: acc.actions + r.actions,
         }),
-        { pvSalon: 0, pvTherapist: 0, pvTotal: 0, tel: 0, line: 0, book: 0, actions: 0 },
+        { impCard: 0, impTher: 0, impBanner: 0, impTotal: 0, pvSalon: 0, pvTherapist: 0, pvTotal: 0, tel: 0, line: 0, book: 0, actions: 0 },
       ),
     [sorted],
   );
@@ -231,13 +272,18 @@ export default function SalonStatsManager({ onToast }: { onToast: (m: string) =>
   };
 
   const copyCsv = async () => {
-    const head = ['店舗名', 'エリア', 'PV(店舗)', 'PV(セラピスト)', 'PV合計', '電話', 'LINE', 'ネット予約', '送客計', '送客率'];
+    const head = ['店舗名', 'エリア', '表示(カード)', '表示(セラピ)', '表示(バナー)', '表示計', 'PV(店舗)', 'PV(セラピスト)', 'PV合計', 'CTR', '電話', 'LINE', 'ネット予約', '送客計', '送客率'];
     const body = sorted.map((r) => [
       r.name,
       areaLabel(r.area),
+      r.impCard,
+      r.impTher,
+      r.impBanner,
+      r.impTotal,
       r.pvSalon,
       r.pvTherapist,
       r.pvTotal,
+      r.impTotal > 0 ? `${(r.ctr * 100).toFixed(1)}%` : '-',
       r.tel,
       r.line,
       r.book,
@@ -260,9 +306,10 @@ export default function SalonStatsManager({ onToast }: { onToast: (m: string) =>
   return (
     <div className="bg-white rounded-3xl border border-slate-100 shadow-sm p-4 sm:p-6">
       <p className="text-xs text-slate-500 leading-relaxed mb-4">
-        店舗ページ・セラピストページの閲覧数（PV）と、店舗詳細の「電話をする」「LINE予約」「ネット予約」の
-        クリック数を店舗別に集計します。PV・送客とも<strong className="text-slate-700">同じ人が同じセッション中に何度押しても1回</strong>として
-        数えるため、送客率（送客計 ÷ PV合計）が比率として読めます。
+        一覧カード・バナーの表示回数（インプレッション）、店舗・セラピストページの閲覧数（PV）、
+        店舗詳細の「電話をする」「LINE予約」「ネット予約」のクリック数を店舗別に集計します。
+        いずれも<strong className="text-slate-700">同じ人のセッション中は1回</strong>として数えるため、
+        表示 → 詳細PV → 送客 のファネルが比率として読めます（CTR = PV合計 ÷ 表示計、送客率 = 送客計 ÷ PV合計）。
         期間は月曜はじまりの週単位です（「今週」は今日までの途中経過）。
       </p>
 
@@ -311,7 +358,7 @@ export default function SalonStatsManager({ onToast }: { onToast: (m: string) =>
       ) : (
         // 列が多いので横スクロール。店舗名列は sticky で残す。
         <div className="overflow-x-auto -mx-4 sm:mx-0 px-4 sm:px-0">
-          <table className="min-w-[720px] w-full text-xs">
+          <table className="min-w-[1000px] w-full text-xs">
             <thead>
               <tr className="text-slate-400 border-b border-slate-200">
                 <th
@@ -320,9 +367,15 @@ export default function SalonStatsManager({ onToast }: { onToast: (m: string) =>
                 >
                   店舗名<Arrow active={sortKey === 'name'} desc={desc} />
                 </th>
+                {/* 表示（インプレッション）→ PV → 送客 のファネル順に並べる */}
+                <th className={th} onClick={() => toggleSort('impCard')}>ｶｰﾄﾞ表示<Arrow active={sortKey === 'impCard'} desc={desc} /></th>
+                <th className={th} onClick={() => toggleSort('impTher')}>ｾﾗﾋﾟ表示<Arrow active={sortKey === 'impTher'} desc={desc} /></th>
+                <th className={th} onClick={() => toggleSort('impBanner')}>ﾊﾞﾅｰ表示<Arrow active={sortKey === 'impBanner'} desc={desc} /></th>
+                <th className={th} onClick={() => toggleSort('impTotal')}>表示計<Arrow active={sortKey === 'impTotal'} desc={desc} /></th>
                 <th className={th} onClick={() => toggleSort('pvSalon')}>店舗PV<Arrow active={sortKey === 'pvSalon'} desc={desc} /></th>
                 <th className={th} onClick={() => toggleSort('pvTherapist')}>セラピPV<Arrow active={sortKey === 'pvTherapist'} desc={desc} /></th>
                 <th className={th} onClick={() => toggleSort('pvTotal')}>PV合計<Arrow active={sortKey === 'pvTotal'} desc={desc} /></th>
+                <th className={th} onClick={() => toggleSort('ctr')}>CTR<Arrow active={sortKey === 'ctr'} desc={desc} /></th>
                 <th className={th} onClick={() => toggleSort('tel')}>電話<Arrow active={sortKey === 'tel'} desc={desc} /></th>
                 <th className={th} onClick={() => toggleSort('line')}>LINE<Arrow active={sortKey === 'line'} desc={desc} /></th>
                 <th className={th} onClick={() => toggleSort('book')}>予約<Arrow active={sortKey === 'book'} desc={desc} /></th>
@@ -340,9 +393,14 @@ export default function SalonStatsManager({ onToast }: { onToast: (m: string) =>
                     {r.hidden && <span className="ml-1 text-[9px] text-slate-400">(非表示)</span>}
                     <span className="block text-[10px] text-slate-400">{areaLabel(r.area)}</span>
                   </td>
+                  <td className={`${td} text-slate-500`}>{r.impCard.toLocaleString()}</td>
+                  <td className={`${td} text-slate-500`}>{r.impTher.toLocaleString()}</td>
+                  <td className={`${td} text-slate-500`}>{r.impBanner.toLocaleString()}</td>
+                  <td className={`${td} font-bold text-slate-700`}>{r.impTotal.toLocaleString()}</td>
                   <td className={`${td} text-slate-500`}>{r.pvSalon.toLocaleString()}</td>
                   <td className={`${td} text-slate-500`}>{r.pvTherapist.toLocaleString()}</td>
                   <td className={`${td} font-bold text-slate-700`}>{r.pvTotal.toLocaleString()}</td>
+                  <td className={`${td} text-slate-500`}>{r.impTotal > 0 ? `${(r.ctr * 100).toFixed(1)}%` : '-'}</td>
                   <td className={`${td} text-slate-500`}>{r.tel.toLocaleString()}</td>
                   <td className={`${td} text-slate-500`}>{r.line.toLocaleString()}</td>
                   <td className={`${td} text-slate-500`}>{r.book.toLocaleString()}</td>
@@ -354,9 +412,16 @@ export default function SalonStatsManager({ onToast }: { onToast: (m: string) =>
             <tfoot>
               <tr className="border-t-2 border-slate-200 font-bold text-slate-700">
                 <td className="px-2 py-2 text-left sticky left-0 bg-white">合計（{sorted.length}店）</td>
+                <td className={td}>{totals.impCard.toLocaleString()}</td>
+                <td className={td}>{totals.impTher.toLocaleString()}</td>
+                <td className={td}>{totals.impBanner.toLocaleString()}</td>
+                <td className={td}>{totals.impTotal.toLocaleString()}</td>
                 <td className={td}>{totals.pvSalon.toLocaleString()}</td>
                 <td className={td}>{totals.pvTherapist.toLocaleString()}</td>
                 <td className={td}>{totals.pvTotal.toLocaleString()}</td>
+                <td className={td}>
+                  {totals.impTotal > 0 ? `${((totals.pvTotal / totals.impTotal) * 100).toFixed(1)}%` : '-'}
+                </td>
                 <td className={td}>{totals.tel.toLocaleString()}</td>
                 <td className={td}>{totals.line.toLocaleString()}</td>
                 <td className={td}>{totals.book.toLocaleString()}</td>
@@ -371,7 +436,11 @@ export default function SalonStatsManager({ onToast }: { onToast: (m: string) =>
       )}
 
       <p className="mt-4 text-[11px] text-slate-400 leading-relaxed">
-        ※ 送客アクションの記録は 2026-08-06 開始です。それ以前の期間を選ぶと送客列は 0 になります。<br />
+        ※ 送客アクション・表示回数の記録は 2026-08-06 開始です。それ以前の期間を選ぶとこれらの列は 0 になります。<br />
+        ※ 表示回数は一覧カード/バナーが画面に50%以上見えた時点で1件（画面外・スクロール前は数えません）。
+        カード表示=TOP/地域の店舗カード、セラピ表示=セラピストカード（所属店に合算）、
+        バナー表示=ピックアップ店舗スライダー・おすすめ店舗バナー。セラピストピックアップ枠は店舗IDを持たないため対象外です。<br />
+        ※ CTR（PV合計 ÷ 表示計）は参考値です。PVには検索・SNSなどからの直接流入も含まれます。<br />
         ※ 電話は確認ポップアップの「電話をかける」を押した時点で1件です（ボタンを開いただけでは数えません）。<br />
         ※ ネット予約は予約ページへ進んだ数で、予約完了数ではありません。
       </p>
