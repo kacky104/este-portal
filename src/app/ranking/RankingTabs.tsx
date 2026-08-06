@@ -153,6 +153,9 @@ export default function RankingTabs({
       <SiteNoticeBanner />
 
       <main className="pb-10">
+        {/* ページ見出し（h1）。従来 h1 が無かった（最上位が各タブの h2）ためSEO用に追加（2026-08-05）。
+            視覚デザインは変えない方針で sr-only（スクリーンリーダー・クローラのみが読む）。 */}
+        <h1 className="sr-only">福岡のメンズエステ人気ランキング【フクエス】</h1>
         {/* パンくず（テーマ連動の文字色） */}
         <div className="max-w-3xl mx-auto px-4 pt-10">
           <Breadcrumb current="福岡のメンズエステ人気ランキング" currentColor={breadcrumbCurrentColor(theme.key)} />
@@ -162,8 +165,16 @@ export default function RankingTabs({
         {heroUrl && (
           // スマホは全幅（端まで）、PCはコンテンツ幅に収めて角丸に（大きくなりすぎ防止）。
           <div className="mb-6 sm:max-w-3xl sm:mx-auto sm:px-4">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={heroUrl} alt="週間ランキング" className="block w-full h-auto sm:rounded-2xl sm:shadow-sm" />
+            {/* LCP画像なので next/image ＋ priority（2026-08-05）。比率は実画像に従う（h-auto） */}
+            <Image
+              src={heroUrl}
+              alt="福岡メンズエステ人気ランキング"
+              width={1200}
+              height={400}
+              priority
+              sizes="(min-width: 768px) 768px, 100vw"
+              className="block w-full h-auto sm:rounded-2xl sm:shadow-sm"
+            />
           </div>
         )}
 
@@ -199,8 +210,11 @@ export default function RankingTabs({
             </div>
           </div>
 
-          {/* ── 総合：1位は所属セラピストを並べた豪華ショーケース、2位以降は通常リスト ── */}
-          {tab === 'overall' && (
+          {/* ── 総合：1位は所属セラピストを並べた豪華ショーケース、2位以降は通常リスト ──
+              3タブとも常にDOMへ描画し、非アクティブ側は hidden で隠す（JobDetailTabs と同方式。2026-08-05）。
+              従来の {tab === 'x' && ...} 方式は初期HTMLに「総合」しか含まれず、店舗・セラピスト
+              ランキングのリンク群がクローラから見えなかった。 */}
+          <div className={tab === 'overall' ? '' : 'hidden'}>
             <>
               <RankingHeading
                 title="総合ランキング TOP10"
@@ -231,10 +245,10 @@ export default function RankingTabs({
                 ))
               )}
             </>
-          )}
+          </div>
 
           {/* ── 店舗 ── */}
-          {tab === 'salon' && (
+          <div className={tab === 'salon' ? '' : 'hidden'}>
             <>
               <RankingHeading
                 title="店舗ランキング TOP10"
@@ -265,10 +279,10 @@ export default function RankingTabs({
                 ))
               )}
             </>
-          )}
+          </div>
 
           {/* ── セラピスト ── */}
-          {tab === 'therapist' && (
+          <div className={tab === 'therapist' ? '' : 'hidden'}>
             <>
               <RankingHeading
                 title="セラピストランキング TOP50"
@@ -349,7 +363,7 @@ export default function RankingTabs({
                 </>
               )}
             </>
-          )}
+          </div>
 
 
           {/* ルックバナー（ページ下部・3タブ共通）。各タブ上部の枠とは独立にランダム抽選。 */}

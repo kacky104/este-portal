@@ -318,9 +318,12 @@ export default function ReviewsTabs({
         {/* 細い広告バナー（公開中からランダム1枚）。key={tab} でタブ切替のたびに再マウント＝再抽選（/ranking と同挙動）。 */}
         <AdBanner key={`ad-top-${tab}`} banners={adBanners} />
 
-        {/* ── 新着：従来どおり全店舗の口コミを新着順（20件/ページ）。イエローテーマ ── */}
-        {tab === 'new' &&
-          (reviews.length === 0 ? (
+        {/* ── 新着：従来どおり全店舗の口コミを新着順（20件/ページ）。イエローテーマ ──
+            3タブとも常にDOMへ描画し、非アクティブ側は hidden で隠す（JobDetailTabs と同方式。2026-08-05）。
+            従来の {tab === 'x' && ...} 方式は初期HTMLに「新着」しか含まれず、セラピスト・殿堂入りの
+            /therapist/[id] リンク群がクローラから見えなかった。 */}
+        <div className={tab === 'new' ? '' : 'hidden'}>
+          {reviews.length === 0 ? (
             <EmptyCard theme={theme}>口コミはまだありません</EmptyCard>
           ) : (
             <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
@@ -328,10 +331,11 @@ export default function ReviewsTabs({
                 <PaginatedReviewList reviews={reviews} pageSize={20} />
               </Suspense>
             </div>
-          ))}
+          )}
+        </div>
 
         {/* ── セラピスト：口コミ数ランキング（50件以下・TOP50人）。シルバーテーマ ── */}
-        {tab === 'therapist' && (
+        <div className={tab === 'therapist' ? '' : 'hidden'}>
           <>
             {ranking.length === 0 ? (
               <EmptyCard theme={theme}>口コミのあるセラピストはまだいません</EmptyCard>
@@ -350,10 +354,10 @@ export default function ReviewsTabs({
               </div>
             )}
           </>
-        )}
+        </div>
 
         {/* ── 殿堂入り：口コミ51件以上のレジェンド（黒×金の特別カード）。ブラックテーマ ── */}
-        {tab === 'hall' && (
+        <div className={tab === 'hall' ? '' : 'hidden'}>
           <>
             {hallOfFame.length === 0 ? (
               <EmptyCard theme={theme}>
@@ -382,7 +386,7 @@ export default function ReviewsTabs({
               </div>
             )}
           </>
-        )}
+        </div>
 
         {/* ルックバナー（ページ下部）。上部の枠とは独立にランダム抽選。key={tab} でタブ切替のたびに再抽選。 */}
         <AdBanner key={`ad-bottom-${tab}`} banners={adBanners} />
