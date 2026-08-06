@@ -1,6 +1,7 @@
 'use client';
 
-import { useSearchParams, useRouter, usePathname } from 'next/navigation';
+import Link from 'next/link';
+import { useSearchParams, usePathname } from 'next/navigation';
 import type { ApprovedReview } from '@/app/lib/reviews';
 import { ReviewList } from './ReviewList';
 
@@ -11,6 +12,10 @@ import { ReviewList } from './ReviewList';
 //
 // 渡された全件を pageSize ごとに分割し、現在ページ分だけ ReviewList で表示。
 // ReviewList は純粋な表示用サーバーコンポーネント（フック・cookie 不使用）なのでそのまま子に出来る。
+//
+// ページ送りは <Link>（2026-08-06）。従来は <button onClick={router.replace}> で <a> が
+// 存在せず、クローラが2ページ目以降に到達できなかった（DiaryPagination と同方式に統一）。
+// 端（1ページ目/最終ページ）では無効表示の <span> を出す。
 export function PaginatedReviewList({
   reviews,
   pageSize = 20,
@@ -19,7 +24,6 @@ export function PaginatedReviewList({
   pageSize?: number;
 }) {
   const searchParams = useSearchParams();
-  const router = useRouter();
   const pathname = usePathname();
 
   const total = reviews.length;
@@ -34,19 +38,13 @@ export function PaginatedReviewList({
   const start = (page - 1) * pageSize;
   const pageReviews = reviews.slice(start, start + pageSize);
 
-  // ページ移動：1ページ目は素のパス、それ以外は ?page=n。先頭へは飛ばさない（scroll:false）。
-  const goTo = (n: number) => {
-    const target = Math.min(Math.max(1, n), totalPages);
-    if (target === page) return;
-    if (target === 1) {
-      router.replace(pathname, { scroll: false });
-    } else {
-      router.replace(`${pathname}?page=${target}`, { scroll: false });
-    }
-  };
+  // 1ページ目は素のパス（?page=1 を作らない＝重複URL防止）、それ以外は ?page=n。
+  const hrefFor = (n: number) => (n <= 1 ? pathname : `${pathname}?page=${n}`);
 
   const btnClass =
-    'px-4 py-2 rounded-xl border border-pink-300 text-pink-600 text-sm font-bold hover:bg-pink-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors';
+    'px-4 py-2 rounded-xl border border-pink-300 text-pink-600 text-sm font-bold hover:bg-pink-50 transition-colors';
+  const disabledClass =
+    'px-4 py-2 rounded-xl border border-pink-300 text-pink-600 text-sm font-bold opacity-40 cursor-not-allowed';
 
   return (
     <div className="space-y-5">
@@ -54,15 +52,19 @@ export function PaginatedReviewList({
 
       {totalPages > 1 && (
         <div className="flex items-center justify-center gap-4 pt-2">
-          <button type="button" onClick={() => goTo(page - 1)} disabled={page <= 1} className={btnClass}>
-            ← 前へ
-          </button>
+          {page <= 1 ? (
+            <span aria-disabled="true" className={disabledClass}>← 前へ</span>
+          ) : (
+            <Link href={hrefFor(page - 1)} scroll={false} className={btnClass}>← 前へ</Link>
+          )}
           <span className="text-sm font-bold text-slate-500 tabular-nums">
             {page} / {totalPages}
           </span>
-          <button type="button" onClick={() => goTo(page + 1)} disabled={page >= totalPages} className={btnClass}>
-            次へ →
-          </button>
+          {page >= totalPages ? (
+            <span aria-disabled="true" className={disabledClass}>次へ →</span>
+          ) : (
+            <Link href={hrefFor(page + 1)} scroll={false} className={btnClass}>次へ →</Link>
+          )}
         </div>
       )}
     </div>
