@@ -111,7 +111,7 @@ export default async function SalonNewsIndexPage() {
         </nav>
 
         {/* ページ別ヒーロー画像（/admin のページ別ヒーロー画像設定「新着情報」から設定・未設定は非表示） */}
-        <PageHero url={hero} alt="新着情報" fullBleedMobile />
+        <PageHero url={hero} alt="新着情報" fullBleedMobile contentMax={896} />
 
         {/* Heading：カードを外し、ゴールドの壁紙背景に直接（神秘的なレイアウト・/reviews と同方式）。 */}
         <div className="my-8 sm:my-10 text-center">

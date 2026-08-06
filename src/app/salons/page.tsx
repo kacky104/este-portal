@@ -184,7 +184,7 @@ export default async function SalonsPage() {
         <Breadcrumb current="福岡のメンズエステ店一覧" currentColor={breadcrumbCurrentColor(theme.key)} />
 
         {/* ヒーロー画像（admin「ページ別ヒーロー画像設定」→「掲載店舗一覧」。未設定なら非表示） */}
-        <PageHero url={hero} alt="福岡のメンズエステ店一覧" fullBleedMobile />
+        <PageHero url={hero} alt="福岡のメンズエステ店一覧" fullBleedMobile contentMax={768} />
 
         {/* Heading：シルバーの壁紙背景に直接（/reviews・/therapists と同方式の神秘的レイアウト）。
             h1 に主要KW「福岡メンズエステ」を含める（/reviews・/diary・/x-shops と同方針）。 */}

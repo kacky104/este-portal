@@ -60,7 +60,7 @@ export default async function JobMatchingPage() {
       </nav>
 
       {/* ヒーロー画像（未設定なら何も出ない）。他ページ（口コミ等）と同じくパンくず直下・見出しの上。 */}
-      <PageHero url={hero} alt="お仕事マッチング｜フクエスワーク" fullBleedMobile />
+      <PageHero url={hero} alt="お仕事マッチング｜フクエスワーク" fullBleedMobile contentMax={768} />
 
       <div className="mb-6">
         <h1

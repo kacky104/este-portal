@@ -251,7 +251,7 @@ export default function ReviewsTabs({
       <main className="max-w-4xl mx-auto px-4 py-8">
         {/* Back */}
         <Breadcrumb current="口コミ一覧" currentColor={breadcrumbCurrentColor(theme.key)} />
-        <PageHero url={heroUrl} alt="口コミ" fullBleedMobile />
+        <PageHero url={heroUrl} alt="口コミ" fullBleedMobile contentMax={896} />
 
         {/* タブ（新着 / セラピスト / 殿堂入り）：ヒーロー画像の直下に配置。
             /ranking と同じ角なし・隙間なしセグメント。スマホは幅いっぱい。 */}

@@ -83,7 +83,7 @@ export default async function XShopsPage() {
       <main className="max-w-3xl mx-auto px-4 py-8">
         {/* Back */}
         <Breadcrumb current="fukuX承認店舗" currentColor={breadcrumbCurrentColor(theme.key)} />
-        <PageHero url={hero} alt="SNS" fullBleedMobile />
+        <PageHero url={hero} alt="SNS" fullBleedMobile contentMax={768} />
 
         {/* Heading：カードを外し、青の壁紙背景に直接（神秘的なレイアウト・/therapists と同方式）。 */}
         <div className="my-8 sm:my-10 text-center">

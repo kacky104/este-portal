@@ -156,7 +156,7 @@ export default async function DiaryListPage({
 
         {/* Back */}
         <Breadcrumb current="写メ日記" currentColor={breadcrumbCurrentColor(theme.key)} />
-        <PageHero url={hero} alt="写メ日記" fullBleedMobile />
+        <PageHero url={hero} alt="写メ日記" fullBleedMobile contentMax={896} />
 
         {/* Heading：カードを外し、赤の壁紙背景に直接（神秘的なレイアウト・/therapists と同方式）。 */}
         <div className="my-8 sm:my-10 text-center">
