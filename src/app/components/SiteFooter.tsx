@@ -13,12 +13,16 @@ import { areaLabel } from '@/app/lib/areaLabel';
 //
 // グループは「エリアから探す」→「さがす」→「サイト情報」の3本。
 //
-// レイアウト（2026-08-06 スマホ整理）:
-//   スマホ（〜639px）… 見出しつきの左寄せ2列リスト。中央寄せの折り返しだと語の切れ目が
-//                       分かりづらく、タップ領域も狭かったため。
-//   sm以上（640px〜）… 従来どおり中央寄せの1行折り返し（見出しは sm:hidden で消す）。
+// レイアウト:
+//   スマホ（〜639px）… 見出しつきの左寄せ2列リスト。グループ間は区切り線。
+//                       中央寄せの折り返しだと語の切れ目が分かりづらく、タップ領域も狭かったため。
+//   sm以上（640px〜）… 見出しつきの3カラム（各グループ1列の縦リスト）。
+//                       2026-08-06 変更：従来は中央寄せの1行折り返し×3行だったが、
+//                       エリア行を足して3行になった時点で「リンクの壁」になり、
+//                       どのリンクがどの系統か判別できなくなったため一般的な3カラム型に。
 //   ※スマホ用とPC用でマークアップを分けると同じリンクがHTMLに2本出てしまうので、
-//     grid → flex の切り替えだけで1つのマークアップを使い回す。
+//     grid の列数と文字サイズの切り替えだけで1つのマークアップを使い回す
+//     （この方針は今後フッターに手を入れるときも守ること）。
 //
 // ページ本文幅は inner で max-w-* を渡す（既定 max-w-5xl）。
 // テーマ色を敷くページ（サロン詳細・/salons）は className/style/textColor で上書きする。
@@ -54,7 +58,7 @@ const CONTENT_LINKS: FooterLinkDef[] = [
 ];
 
 // サイト情報系（従来トップのフッターにあった並び）。
-// mobile は sm 未満だけの短縮表記（長いラベルが2列に収まらないもののみ）。
+// mobile は md 未満だけの短縮表記（長いラベルが列幅に収まらないもののみ）。
 const INFO_LINKS: FooterLinkDef[] = [
   { href: '/jobs', label: 'セラピスト求人（フクエスワーク）', mobile: 'セラピスト求人' },
   { href: '/about', label: '運営者情報' },
@@ -78,20 +82,22 @@ type Props = {
   showBrand?: boolean;
 };
 
-// リンク1本。スマホは1行1リンク（py-2 でタップ領域を確保）、sm以上は行内に並ぶ。
+// リンク1本。スマホは1行1リンク（py-2 でタップ領域を確保）、sm以上は列内の1行（py-1）。
 function FooterLink({ href, label, mobile, textColor }: FooterLinkDef & { textColor?: string }) {
   return (
     <Link
       href={href}
-      className={`block py-2 text-[13px] leading-tight sm:inline sm:py-0 sm:text-xs sm:whitespace-nowrap hover:text-pink-600 transition-colors${
+      className={`block py-2 text-[13px] leading-tight sm:py-1 sm:text-xs hover:text-pink-600 transition-colors${
         textColor ? '' : ' text-slate-500'
       }`}
       style={textColor ? { color: textColor } : undefined}
     >
       {mobile ? (
+        // 短縮表記の切り替えは md(768px)。sm(640px)〜md 未満は3カラムの1列が約180pxしかなく、
+        // 長いラベル（「セラピスト求人（フクエスワーク）」）が不格好に2行折り返しするため。
         <>
-          <span className="sm:hidden">{mobile}</span>
-          <span className="hidden sm:inline">{label}</span>
+          <span className="md:hidden">{mobile}</span>
+          <span className="hidden md:inline">{label}</span>
         </>
       ) : (
         label
@@ -100,7 +106,7 @@ function FooterLink({ href, label, mobile, textColor }: FooterLinkDef & { textCo
   );
 }
 
-// 見出し＋リンク群。スマホは2列グリッド、sm以上は中央寄せの折り返し1行。
+// 見出し＋リンク群。スマホは2列グリッド、sm以上は1列の縦リスト（＝親の3カラムの1本）。
 function FooterGroup({
   title,
   links,
@@ -114,14 +120,14 @@ function FooterGroup({
 }) {
   return (
     <nav aria-label={title} className={className}>
-      {/* 見出しはスマホのみ（sm以上は従来どおり見出しなしの1行） */}
+      {/* 見出しはスマホ・PCとも表示（PCは3カラムの列見出しになる） */}
       <p
-        className={`sm:hidden text-[11px] font-bold tracking-[0.15em] mb-1${textColor ? ' opacity-60' : ' text-slate-400'}`}
+        className={`text-[11px] font-bold tracking-[0.15em] mb-1 sm:mb-2${textColor ? ' opacity-60' : ' text-slate-400'}`}
         style={textColor ? { color: textColor } : undefined}
       >
         {title}
       </p>
-      <ul className="grid grid-cols-2 gap-x-4 sm:flex sm:flex-wrap sm:justify-center sm:gap-x-4 sm:gap-y-2">
+      <ul className="grid grid-cols-2 gap-x-4 sm:grid-cols-1 sm:gap-x-0">
         {links.map((l) => (
           <li key={l.href}>
             <FooterLink href={l.href} label={l.label} mobile={l.mobile} textColor={textColor} />
@@ -150,25 +156,27 @@ export function SiteFooter({
           </div>
         )}
 
-        <FooterGroup title="エリアから探す" links={AREA_LINKS} textColor={textColor} />
+        {/* sm以上は3カラム。スマホは1列に積み、2本目以降は区切り線で分ける。 */}
+        <div className="grid grid-cols-1 sm:grid-cols-3 sm:gap-8">
+          <FooterGroup title="エリアから探す" links={AREA_LINKS} textColor={textColor} />
 
-        {/* スマホはグループの区切り線つき、sm以上は従来どおり mt だけ */}
-        <FooterGroup
-          title="さがす"
-          links={CONTENT_LINKS}
-          textColor={textColor}
-          className={`mt-4 pt-4 border-t sm:mt-3 sm:pt-0 sm:border-t-0${textColor ? ' border-slate-400/25' : ' border-slate-100'}`}
-        />
+          <FooterGroup
+            title="さがす"
+            links={CONTENT_LINKS}
+            textColor={textColor}
+            className={`mt-4 pt-4 border-t sm:mt-0 sm:pt-0 sm:border-t-0${textColor ? ' border-slate-400/25' : ' border-slate-100'}`}
+          />
 
-        <FooterGroup
-          title="サイト情報"
-          links={INFO_LINKS}
-          textColor={textColor}
-          className={`mt-4 pt-4 border-t sm:mt-3 sm:pt-0 sm:border-t-0${textColor ? ' border-slate-400/25' : ' border-slate-100'}`}
-        />
+          <FooterGroup
+            title="サイト情報"
+            links={INFO_LINKS}
+            textColor={textColor}
+            className={`mt-4 pt-4 border-t sm:mt-0 sm:pt-0 sm:border-t-0${textColor ? ' border-slate-400/25' : ' border-slate-100'}`}
+          />
+        </div>
 
         <p
-          className={`text-center text-xs mt-5${textColor ? ' opacity-70' : ' text-slate-400'}`}
+          className={`text-center text-xs mt-5 sm:mt-8${textColor ? ' opacity-70' : ' text-slate-400'}`}
           style={textColor ? { color: textColor } : undefined}
         >
           © 2026 フクエス. All rights reserved.
