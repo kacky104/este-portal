@@ -51,7 +51,7 @@ export default async function SalonReviewsPage({
   ] = await Promise.all([
     supabase
       .from('salons')
-      .select('id, name, theme')
+      .select('id, name, theme, address')
       .eq('id', Number(id))
       .single(),
     getSalonApprovedReviews(Number(id)),
@@ -82,6 +82,45 @@ export default async function SalonReviewsPage({
 
   const salonName = (salonRow.name as string) ?? '';
 
+  // Review 構造化データ（2026-08-06）。itemReviewed は店舗（HealthAndBeautyBusiness＝Google の
+  // レビュースニペット対応タイプ）。※セラピスト個人（Person）は対象外のため、口コミの構造化
+  // データは店舗単位のこのページにのみ出す方針（/therapist/[id]/reviews には出さない）。
+  // - aggregateRating はこのページに表示している承認済み口コミ全件から算出（画面と同一データ）。
+  // - review は初期HTMLに表示される1ページ目（20件）に合わせる。
+  const reviewsJsonLd = reviews.length > 0
+    ? {
+        '@context': 'https://schema.org/',
+        '@type': 'HealthAndBeautyBusiness',
+        '@id': `https://fukues.com/salon/${id}#business`,
+        name: salonName,
+        url: `https://fukues.com/salon/${id}`,
+        ...(salonRow.address
+          ? {
+              address: {
+                '@type': 'PostalAddress',
+                streetAddress: salonRow.address as string,
+                addressRegion: '福岡県',
+                addressCountry: 'JP',
+              },
+            }
+          : {}),
+        aggregateRating: {
+          '@type': 'AggregateRating',
+          ratingValue: Number((reviews.reduce((a, r) => a + r.overall, 0) / reviews.length).toFixed(1)),
+          reviewCount: reviews.length,
+          bestRating: 5,
+          worstRating: 1,
+        },
+        review: reviews.slice(0, 20).map((r) => ({
+          '@type': 'Review',
+          author: { '@type': 'Person', name: r.nickname },
+          ...(r.createdAt ? { datePublished: r.createdAt.slice(0, 10) } : {}),
+          reviewBody: r.body,
+          reviewRating: { '@type': 'Rating', ratingValue: r.overall, bestRating: 5, worstRating: 1 },
+        })),
+      }
+    : null;
+
   return (
     <div className="relative min-h-screen overflow-x-clip" style={{ color: theme.text }}>
 
@@ -99,6 +138,10 @@ export default async function SalonReviewsPage({
 
       <main className="max-w-4xl mx-auto px-4 py-8">
 
+        {/* Review 構造化データ（店舗への口コミ＋★集計。0件なら出さない） */}
+        {reviewsJsonLd && (
+          <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: toJsonLdString(reviewsJsonLd) }} />
+        )}
         {/* ─── パンくずリスト：トップ › サロン名 › 口コミ ─── */}
         {/* BreadcrumbList 構造化データ（可視パンくずと同一内容。2026-08-05） */}
         <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: toJsonLdString(buildBreadcrumbJsonLd([
