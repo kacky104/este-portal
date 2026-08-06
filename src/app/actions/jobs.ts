@@ -3,7 +3,7 @@
 import { revalidatePath } from 'next/cache';
 import { createClient } from '@/app/lib/supabase/server';
 import { createServiceClient } from '@/app/lib/supabase/service';
-import { ADMIN_UUID } from '@/app/lib/admin';
+import { ADMIN_UUID, MODERATOR_UUIDS } from '@/app/lib/admin';
 import { AREA_SLUGS_LIST } from '@/app/lib/areas';
 import { sendApplicationMail } from '@/app/lib/jobs/sendApplicationMail';
 import { normalizePhone, isValidPhone } from '@/app/lib/validation/phone';
@@ -162,7 +162,16 @@ async function requireUser() {
   return { ok: true as const, user, supabase };
 }
 
-// 指定サロンの owner本人 or 運営(ADMIN_UUID) であることを認証クライアント（RLS）で検証する。
+// 求人管理を許可する運営側スタッフか（運営本人＋審査スタッフ）。
+// 2026-08-06: /moderation に求人管理タブを追加し、審査スタッフにも求人の一覧・編集・
+// 公開切替・代理作成を開放した（MODERATOR_UUIDS を流用。DB側は
+// 20260806_salon_jobs_moderators.sql で同じ UUID リストに開放済み）。
+// 応募者情報（job_applications）の操作は個人情報を含むため従来どおり owner/運営のみ。
+function isJobStaff(userId: string): boolean {
+  return MODERATOR_UUIDS.includes(userId);
+}
+
+// 指定サロンの owner本人 or 運営側スタッフ（isJobStaff）であることを認証クライアント（RLS）で検証する。
 async function assertSalonOwner(
   supabase: Awaited<ReturnType<typeof createClient>>,
   userId: string,
@@ -175,7 +184,7 @@ async function assertSalonOwner(
     .maybeSingle();
   if (error || !salon) return { ok: false, error: '店舗が見つかりません' };
   const ownerId = (salon.owner_id as string | null) ?? null;
-  if (ownerId !== userId && userId !== ADMIN_UUID) {
+  if (ownerId !== userId && !isJobStaff(userId)) {
     return { ok: false, error: 'この店舗の求人を操作する権限がありません' };
   }
   return { ok: true };
@@ -674,7 +683,7 @@ export async function deleteMyJob(jobId: number): Promise<{ ok: boolean; error?:
 export async function adminListJobs(): Promise<{ ok: true; jobs: AdminJobRow[] } | Err> {
   const auth = await requireUser();
   if (!auth.ok) return auth;
-  if (auth.user.id !== ADMIN_UUID) return { ok: false, error: '管理者専用です' };
+  if (!isJobStaff(auth.user.id)) return { ok: false, error: '運営専用です' };
 
   const svc = createServiceClient();
   const { data, error } = await svc
@@ -812,7 +821,7 @@ export async function adminListSalonsForJob(): Promise<
 > {
   const auth = await requireUser();
   if (!auth.ok) return auth;
-  if (auth.user.id !== ADMIN_UUID) return { ok: false, error: '管理者専用です' };
+  if (!isJobStaff(auth.user.id)) return { ok: false, error: '運営専用です' };
 
   const svc = createServiceClient();
   const [{ data: salons, error: sErr }, { data: jobs, error: jErr }] = await Promise.all([

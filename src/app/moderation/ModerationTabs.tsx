@@ -2,20 +2,23 @@
 
 import { useState, type ReactNode } from 'react';
 
-// /moderation のタブ切替。上段タブ＝口コミ審査／書類。口コミ審査の中はさらに
+// /moderation のタブ切替。上段タブ＝口コミ審査／求人／書類。口コミ審査の中はさらに
 // サブタブ（口コミ審査＝審査待ち／承認済み）で分ける（2026-07-17 仕様変更）。
-// 中身はサーバー側で描画済みの ReactNode を受け取り、hidden 切替で両方マウントしたまま
+// 求人タブは /admin の求人管理と同内容（2026-08-06 追加）。
+// 中身はサーバー側で描画済みの ReactNode を受け取り、hidden 切替で全部マウントしたまま
 // 表示だけ切り替える（/admin のタブと同方針・stateを保持）。
 export function ModerationTabs({
   reviewsPending,
   reviewsApproved,
+  jobs,
   documents,
 }: {
   reviewsPending: ReactNode;
   reviewsApproved: ReactNode;
+  jobs: ReactNode;
   documents: ReactNode;
 }) {
-  const [tab, setTab] = useState<'reviews' | 'docs'>('reviews');
+  const [tab, setTab] = useState<'reviews' | 'jobs' | 'docs'>('reviews');
   const [reviewTab, setReviewTab] = useState<'pending' | 'approved'>('pending');
 
   // large=上段タブ（大きめ）。サブタブ（口コミ審査/承認済み）は従来サイズのまま。
@@ -31,6 +34,7 @@ export function ModerationTabs({
       <div className="flex gap-1.5 mb-6">
         {([
           ['reviews', '口コミ審査'],
+          ['jobs', '求人'],
           ['docs', '書類'],
         ] as const).map(([key, label]) => (
           <button key={key} type="button" onClick={() => setTab(key)} aria-pressed={tab === key} className={pill(tab === key, true)}>
@@ -60,6 +64,8 @@ export function ModerationTabs({
         <div className={reviewTab === 'pending' ? '' : 'hidden'}>{reviewsPending}</div>
         <div className={reviewTab === 'approved' ? '' : 'hidden'}>{reviewsApproved}</div>
       </div>
+
+      <div className={tab === 'jobs' ? '' : 'hidden'}>{jobs}</div>
 
       <div className={tab === 'docs' ? '' : 'hidden'}>{documents}</div>
     </>

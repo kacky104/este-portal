@@ -10,6 +10,7 @@ import {
 import { ApprovedReviewsPaginated } from './ApprovedReviewsPaginated';
 import { ModerationTabs } from './ModerationTabs';
 import { ModerationDocuments } from './ModerationDocuments';
+import { ModerationJobs } from './ModerationJobs';
 import { SiteNoticeBanner } from '@/app/components/SiteNoticeBanner';
 
 // 口コミ審査画面（管理者専用）。layout.tsx のサーバーガードと合わせた二層防御。
@@ -117,8 +118,10 @@ export default async function ModerationPage() {
       <SiteNoticeBanner />
 
       <main className="max-w-3xl mx-auto px-4 py-8">
-        {/* タブ（口コミ審査／書類）。書類は /admin と同じ書類置き場（RLS: 管理者＋審査スタッフ） */}
+        {/* タブ（口コミ審査／求人／書類）。求人は /admin の求人管理と同内容（RLS: 管理者＋審査スタッフ）、
+            書類は /admin と同じ書類置き場（RLS: 管理者＋審査スタッフ） */}
         <ModerationTabs
+          jobs={<ModerationJobs />}
           documents={<ModerationDocuments />}
           reviewsPending={
             <>
