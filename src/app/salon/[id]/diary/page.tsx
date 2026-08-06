@@ -15,6 +15,7 @@ import { DiaryPagination } from '@/components/DiaryPagination';
 import type { Metadata } from 'next';
 import { buildSalonSubpageMetadata } from '../subpageMetadata';
 import { SiteNoticeBanner } from '@/app/components/SiteNoticeBanner';
+import { buildBreadcrumbJsonLd, toJsonLdString } from '@/app/lib/jsonLd';
 
 // 自己参照 canonical＋固有 title（root の canonical '/' 継承による重複扱いを防ぐ）。詳細は ../subpageMetadata.ts。
 export async function generateMetadata({
@@ -126,6 +127,12 @@ export default async function SalonDiaryPage({
       <main className="max-w-4xl mx-auto px-4 py-8">
 
         {/* パンくず：トップ › サロン名 › 写メ日記 */}
+        {/* BreadcrumbList 構造化データ（可視パンくずと同一内容。2026-08-05） */}
+        <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: toJsonLdString(buildBreadcrumbJsonLd([
+          { name: 'トップ', path: '/' },
+          { name: salonName || '店舗', path: `/salon/${id}` },
+          { name: '写メ日記', path: `/salon/${id}/diary` },
+        ])) }} />
         <nav aria-label="パンくずリスト" className="flex items-center gap-1.5 mb-3" style={{ fontSize: '13px' }}>
           <Link href="/" className="hover:opacity-80 transition-opacity flex-shrink-0 whitespace-nowrap" style={{ color: '#ec4899' }}>トップ</Link>
           <span aria-hidden className="flex-shrink-0" style={{ color: '#999' }}>›</span>
@@ -150,7 +157,7 @@ export default async function SalonDiaryPage({
                 <div className="aspect-square bg-slate-100 relative">
                   {d.image ? (
                     // eslint-disable-next-line @next/next/no-img-element
-                    <img src={d.image} alt={d.title || d.therapistName} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
+                    <img src={d.image} alt={d.title || d.therapistName} loading="lazy" decoding="async" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
                   ) : (
                     <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-pink-300 to-rose-400 text-white font-bold text-2xl">
                       {d.therapistName.charAt(0)}

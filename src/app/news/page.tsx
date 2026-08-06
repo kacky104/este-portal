@@ -16,6 +16,7 @@ import { fetchThemeWallpapers } from '@/app/lib/ranking';
 import { getTheme } from '@/app/lib/themes';
 import { AdBanner } from '@/app/components/AdBanner';
 import { fetchActiveAdBanners } from '@/app/lib/adBanners';
+import { buildBreadcrumbJsonLd, toJsonLdString } from '@/app/lib/jsonLd';
 
 // 全サロン横断の新着情報一覧（トップ「サロン新着情報」の「もっと見る」先）。最新50件・ページングなし。
 // 件数が増えてページングが必要になったら limit+offset か published_at カーソルで拡張する。
@@ -92,6 +93,11 @@ export default async function SalonNewsIndexPage() {
 
       <main className="max-w-4xl mx-auto px-4 py-8">
         {/* パンくずリスト：トップ › サロン新着情報 */}
+        {/* BreadcrumbList 構造化データ（可視パンくずと同一内容。2026-08-05） */}
+        <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: toJsonLdString(buildBreadcrumbJsonLd([
+          { name: 'トップ', path: '/' },
+          { name: '店舗新着情報', path: '/news' },
+        ])) }} />
         <nav aria-label="パンくずリスト" className="flex items-center gap-1.5 mb-3" style={{ fontSize: '13px' }}>
           <Link href="/" className="hover:opacity-80 transition-opacity flex-shrink-0 whitespace-nowrap text-pink-500">
             トップ

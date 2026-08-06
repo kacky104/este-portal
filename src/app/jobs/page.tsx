@@ -14,6 +14,7 @@ import { JobListHeading } from './JobListHeading';
 import { deriveHeroBanners } from '@/app/lib/heroBanners';
 import { fetchPublishedArticles } from '@/app/lib/workArticles';
 import { ArticleCard } from './column/ArticleCard';
+import { buildBreadcrumbJsonLd, toJsonLdString } from '@/app/lib/jsonLd';
 
 // ISR：10分ごとに再生成（SEO目的。求人は頻繁に変わらないためキャッシュで十分）。
 export const revalidate = 600;
@@ -148,6 +149,11 @@ export default async function JobsPage() {
       <JobHeroBanners banners={heroBanners} title="福岡メンズエステのセラピスト求人" />
 
       {/* パンくず：フクエスワーク › 求人一覧（本体トップへの導線はヘッダー/フッターに任せる） */}
+      {/* BreadcrumbList 構造化データ（可視パンくずと同一内容。2026-08-05） */}
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: toJsonLdString(buildBreadcrumbJsonLd([
+        { name: 'フクエスワーク', path: '/jobs' },
+        { name: '求人一覧', path: '/jobs' },
+      ])) }} />
       <nav aria-label="パンくずリスト" className="flex items-center gap-1.5 mb-3" style={{ fontSize: '13px' }}>
         <Link href="/jobs" className="hover:opacity-80 transition-opacity flex-shrink-0 whitespace-nowrap" style={{ color: '#059669' }}>
           フクエスワーク

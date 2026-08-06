@@ -29,18 +29,24 @@ export async function buildSalonSubpageMetadata(
   if (!row || row.is_hidden) return { robots: { index: false, follow: false } };
 
   const name = (row.name as string) ?? '';
-  const title = `${name}の${label}｜${areaLabel(row.area as string | null)}のメンズエステ【フクエス】`;
+  const areaText = areaLabel(row.area as string | null);
+  const title = `${name}の${label}｜${areaText}のメンズエステ【フクエス】`;
+  // description（2026-08-05 追加）。未設定だと root layout のサイト説明文を全店舗×9ページが
+  // 継承し「メタディスクリプション完全重複」になっていた。店名＋ページ種別で固有化する。
+  const description = `${areaText}のメンズエステ「${name}」の${label}ページ。フクエスでは${name}の料金・在籍セラピスト・出勤スケジュール・口コミ・写メ日記をまとめて確認できます。`;
 
   if (opts?.noindex) {
-    return { title, robots: { index: false, follow: false } };
+    return { title, description, robots: { index: false, follow: false } };
   }
 
   const path = `/salon/${id}/${sub}`;
   return {
     title,
+    description,
     alternates: { canonical: path },
     openGraph: {
       title,
+      description,
       url: path,
       siteName: 'フクエス',
       type: 'website',
@@ -49,6 +55,7 @@ export async function buildSalonSubpageMetadata(
     twitter: {
       card: 'summary_large_image',
       title,
+      description,
       images: ['/ogp.png'],
     },
   };

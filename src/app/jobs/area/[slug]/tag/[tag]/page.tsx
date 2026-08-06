@@ -19,6 +19,7 @@ import { JobListHeading } from '../../../../JobListHeading';
 import { AreaHeroBanner } from '../../../AreaHeroBanner';
 import { FeatureBrowse } from '../../../../FeatureBrowse';
 import { AreaBrowse } from '../../../../AreaBrowse';
+import { buildBreadcrumbJsonLd, toJsonLdString } from '@/app/lib/jsonLd';
 
 // ISR：10分ごとに再生成（タグ・エリアページと同じ流儀）。
 export const revalidate = 600;
@@ -89,6 +90,12 @@ export default async function JobAreaTagPage({
   return (
     <main className="max-w-3xl mx-auto px-4 py-8">
       {/* パンくず：求人一覧 › {エリアlabel} › {タグlabel}（3階層） */}
+      {/* BreadcrumbList 構造化データ（可視パンくずと同一内容。2026-08-05） */}
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: toJsonLdString(buildBreadcrumbJsonLd([
+        { name: '求人一覧', path: '/jobs' },
+        { name: areaLbl, path: `/jobs/area/${slug}` },
+        { name: tagLbl, path: `/jobs/area/${slug}/tag/${tag}` },
+      ])) }} />
       <nav aria-label="パンくずリスト" className="flex items-center gap-1.5 mb-3" style={{ fontSize: '13px' }}>
         <Link href="/jobs" className="hover:opacity-80 transition-opacity flex-shrink-0 whitespace-nowrap" style={{ color: '#059669' }}>
           求人一覧

@@ -9,6 +9,7 @@ import { DiaryNewBadge } from '@/components/DiaryNewBadge';
 import { DiaryPagination } from '@/components/DiaryPagination';
 import type { Metadata } from 'next';
 import { SiteNoticeBanner } from '@/app/components/SiteNoticeBanner';
+import { buildBreadcrumbJsonLd, toJsonLdString } from '@/app/lib/jsonLd';
 
 const PAGE_SIZE = 32;
 
@@ -31,19 +32,24 @@ export async function generateMetadata({
     .eq('id', id)
     .single();
   if (!row) return { robots: { index: false, follow: false } };
-  const title = `${(row.name as string) ?? ''}の写メ日記｜福岡メンズエステ【フクエス】`;
+  const name = (row.name as string) ?? '';
+  const title = `${name}の写メ日記｜福岡メンズエステ【フクエス】`;
+  // description（2026-08-05 追加）。未設定だと root のサイト説明文と完全重複になるため固有化。
+  const description = `福岡メンズエステのセラピスト「${name}」の写メ日記一覧。日々の出勤情報や近況をフクエスでチェックできます。`;
   const path = `/therapist/${id}/diary`;
   return {
     title,
+    description,
     alternates: { canonical: path },
     openGraph: {
       title,
+      description,
       url: path,
       siteName: 'フクエス',
       type: 'website',
       images: [{ url: '/ogp.png', width: 1200, height: 630 }],
     },
-    twitter: { card: 'summary_large_image', title, images: ['/ogp.png'] },
+    twitter: { card: 'summary_large_image', title, description, images: ['/ogp.png'] },
   };
 }
 
@@ -140,6 +146,13 @@ export default async function TherapistDiaryPage({
       <main className="max-w-4xl mx-auto px-4 py-8">
 
         {/* パンくず：トップ › サロン名 › セラピスト名 › 写メ日記 */}
+        {/* BreadcrumbList 構造化データ（可視パンくずと同一内容。2026-08-05） */}
+        <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: toJsonLdString(buildBreadcrumbJsonLd([
+          { name: 'トップ', path: '/' },
+          { name: salonName || '店舗', path: `/salon/${tRow.salon_id}` },
+          { name: therapistName || 'セラピスト', path: `/therapist/${id}` },
+          { name: '写メ日記', path: `/therapist/${id}/diary` },
+        ])) }} />
         <nav aria-label="パンくずリスト" className="flex items-center gap-1.5 mb-3" style={{ fontSize: '13px' }}>
           <Link href="/" className="hover:opacity-80 transition-opacity flex-shrink-0 whitespace-nowrap" style={{ color: '#ec4899' }}>トップ</Link>
           <span aria-hidden className="flex-shrink-0" style={{ color: '#999' }}>›</span>
@@ -166,7 +179,7 @@ export default async function TherapistDiaryPage({
                 <div className="aspect-square bg-slate-100 relative">
                   {d.image ? (
                     // eslint-disable-next-line @next/next/no-img-element
-                    <img src={d.image} alt={d.title || therapistName} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
+                    <img src={d.image} alt={d.title || therapistName} loading="lazy" decoding="async" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
                   ) : (
                     <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-pink-300 to-rose-400 text-white font-bold text-2xl">
                       {therapistName.charAt(0)}

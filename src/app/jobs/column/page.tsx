@@ -3,6 +3,7 @@ import type { Metadata } from 'next';
 import { fetchPublishedArticles } from '@/app/lib/workArticles';
 import { ArticleCard } from './ArticleCard';
 import { CategoryChips } from './CategoryChips';
+import { buildBreadcrumbJsonLd, toJsonLdString } from '@/app/lib/jsonLd';
 
 // ISR：既存 /jobs 系公開ページと同じ10分。anon クライアント読取のみ＝cookie不使用で動的化しない。
 export const revalidate = 600;
@@ -32,6 +33,11 @@ export default async function ColumnListPage() {
   return (
     <main className="max-w-3xl mx-auto px-4 py-8">
       {/* パンくず：フクエスワーク › コラム */}
+      {/* BreadcrumbList 構造化データ（可視パンくずと同一内容。2026-08-05） */}
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: toJsonLdString(buildBreadcrumbJsonLd([
+        { name: 'フクエスワーク', path: '/jobs' },
+        { name: 'コラム', path: '/jobs/column' },
+      ])) }} />
       <nav aria-label="パンくずリスト" className="flex items-center gap-1.5 mb-3" style={{ fontSize: '13px' }}>
         <Link href="/jobs" className="hover:opacity-80 transition-opacity flex-shrink-0 whitespace-nowrap" style={{ color: '#059669' }}>
           フクエスワーク

@@ -4,6 +4,7 @@ import { notFound, redirect } from 'next/navigation';
 import { fetchJobById, fetchPublishedWorkNews, WORK_NEWS_PAGE_SIZE } from '@/app/lib/jobs';
 import { JobNewsList } from '../../JobNewsList';
 import { WorkNewsPager } from '../../WorkNewsPager';
+import { buildBreadcrumbJsonLd, toJsonLdString } from '@/app/lib/jsonLd';
 
 // 新着情報（work_news）の過去ページ専用ルート（2ページ目以降）。
 // /jobs/[id] 本体から searchParams を排除するための独立ルート（ルートセグメント [page] でページ番号を受ける）。
@@ -92,6 +93,12 @@ export default async function JobNewsArchivePage({
   return (
     <main className="max-w-3xl mx-auto px-4 pt-8 pb-8">
       {/* パンくず：フクエスワーク › {サロン名}の求人 › 新着情報 */}
+      {/* BreadcrumbList 構造化データ（可視パンくずと同一内容。2026-08-05） */}
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: toJsonLdString(buildBreadcrumbJsonLd([
+        { name: 'フクエスワーク', path: '/jobs' },
+        { name: `${job.salon.name}の求人`, path: `/jobs/${jobId}` },
+        { name: '新着情報', path: `/jobs/${jobId}/news/${pageNum}` },
+      ])) }} />
       <nav aria-label="パンくずリスト" className="flex items-center gap-1.5 mb-3" style={{ fontSize: '13px' }}>
         <Link href="/jobs" className="hover:opacity-80 transition-opacity flex-shrink-0 whitespace-nowrap" style={{ color: '#059669' }}>
           フクエスワーク

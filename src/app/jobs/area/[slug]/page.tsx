@@ -14,6 +14,7 @@ import { AreaHeroBanner } from '../AreaHeroBanner';
 import { JobHeroBanners } from '../../JobHeroBanners';
 import { JobListHeading } from '../../JobListHeading';
 import { deriveHeroBanners } from '@/app/lib/heroBanners';
+import { buildBreadcrumbJsonLd, toJsonLdString } from '@/app/lib/jsonLd';
 
 // ISR：10分ごとに再生成（タグページと同じ流儀）。
 export const revalidate = 600;
@@ -80,6 +81,12 @@ export default async function JobAreaPage({
   return (
     <main className="max-w-3xl mx-auto px-4 py-8">
       {/* パンくず：フクエスワーク › 求人一覧 › {label} */}
+      {/* BreadcrumbList 構造化データ（可視パンくずと同一内容。2026-08-05） */}
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: toJsonLdString(buildBreadcrumbJsonLd([
+        { name: 'フクエスワーク', path: '/jobs' },
+        { name: '求人一覧', path: '/jobs' },
+        { name: label, path: `/jobs/area/${slug}` },
+      ])) }} />
       <nav aria-label="パンくずリスト" className="flex items-center gap-1.5 mb-3" style={{ fontSize: '13px' }}>
         <Link href="/jobs" className="hover:opacity-80 transition-opacity flex-shrink-0 whitespace-nowrap" style={{ color: '#059669' }}>
           フクエスワーク

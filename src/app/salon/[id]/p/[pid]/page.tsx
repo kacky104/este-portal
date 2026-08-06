@@ -10,6 +10,7 @@ import { createPublicClient } from "@/app/lib/supabase/public";
 import { getTheme, breadcrumbCurrentColor } from "@/app/lib/themes";
 import type { Metadata } from "next";
 import { SiteNoticeBanner } from '@/app/components/SiteNoticeBanner';
+import { buildBreadcrumbJsonLd, toJsonLdString } from '@/app/lib/jsonLd';
 
 // フリーページ（オーナーが /mypage 店舗装飾で作成。タイトル＋本文＋画像）。1店舗最大3。
 export const revalidate = 600;
@@ -46,14 +47,27 @@ export async function generateMetadata({
 }): Promise<Metadata> {
   const { id, pid } = await params;
   const res = await fetchFreePage(id, pid);
-  if (!res) return {};
+  // 空で返すと root の canonical '/' が継承され「トップの複製」扱いになるため noindex を返す
+  // （subpageMetadata.ts と同じパターン。2026-08-05）。
+  if (!res) return { robots: { index: false, follow: false } };
   const title = (res.page.title as string) || 'ページ';
   const salonName = (res.salon.name as string) ?? '';
   const t = `${title}｜${salonName}｜福岡メンズエステ【フクエス】`;
+  // description（2026-08-05 追加）。未設定だと root のサイト説明文と完全重複になるため固有化。
+  const description = `福岡メンズエステ「${salonName}」の「${title}」ページ。店舗からのお知らせ・案内をフクエスで確認できます。`;
   return {
     title: t,
+    description,
     alternates: { canonical: `/salon/${id}/p/${pid}` },
-    openGraph: { title: t, url: `/salon/${id}/p/${pid}`, siteName: 'フクエス', type: 'article' },
+    openGraph: {
+      title: t,
+      description,
+      url: `/salon/${id}/p/${pid}`,
+      siteName: 'フクエス',
+      type: 'article',
+      images: [{ url: '/ogp.png', width: 1200, height: 630 }],
+    },
+    twitter: { card: 'summary_large_image', title: t, description, images: ['/ogp.png'] },
   };
 }
 
@@ -106,6 +120,12 @@ export default async function SalonFreePage({
 
       <main className="max-w-4xl mx-auto px-4 py-8">
         {/* パンくず：トップ › サロン名 › ページ名 */}
+        {/* BreadcrumbList 構造化データ（可視パンくずと同一内容。2026-08-05） */}
+        <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: toJsonLdString(buildBreadcrumbJsonLd([
+          { name: 'トップ', path: '/' },
+          { name: salonName || '店舗', path: `/salon/${id}` },
+          { name: title || 'ページ', path: `/salon/${id}/p/${pid}` },
+        ])) }} />
         <nav aria-label="パンくずリスト" className="flex items-center gap-1.5 mb-3" style={{ fontSize: '13px' }}>
           <Link href="/" className="hover:opacity-80 transition-opacity flex-shrink-0 whitespace-nowrap" style={{ color: '#ec4899' }}>トップ</Link>
           <span aria-hidden className="flex-shrink-0" style={{ color: '#999' }}>›</span>

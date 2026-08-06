@@ -9,6 +9,7 @@ import {
 import { fetchPublishedMainArticlesByCategory } from '@/app/lib/mainArticles';
 import { ArticleCard } from '../../ArticleCard';
 import { CategoryChips } from '../../CategoryChips';
+import { buildBreadcrumbJsonLd, toJsonLdString } from '@/app/lib/jsonLd';
 
 // 本体コラムのカテゴリ別一覧（ワーク側 jobs/column/category/[key] のピンクテーマ版）。
 
@@ -60,6 +61,12 @@ export default async function MainColumnCategoryPage({
   return (
     <main className="max-w-3xl mx-auto px-4 py-8">
       {/* パンくず：フクエス › コラム › カテゴリ */}
+      {/* BreadcrumbList 構造化データ（可視パンくずと同一内容。2026-08-05） */}
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: toJsonLdString(buildBreadcrumbJsonLd([
+        { name: 'フクエス', path: '/' },
+        { name: 'コラム', path: '/column' },
+        { name: label, path: `/column/category/${key}` },
+      ])) }} />
       <nav aria-label="パンくずリスト" className="flex items-center gap-1.5 mb-3" style={{ fontSize: '13px' }}>
         <Link href="/" className="text-pink-600 hover:opacity-80 transition-opacity flex-shrink-0 whitespace-nowrap">
           フクエス

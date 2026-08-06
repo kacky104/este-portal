@@ -9,6 +9,7 @@ import {
 import { fetchPublishedArticlesByCategory } from '@/app/lib/workArticles';
 import { ArticleCard } from '../../ArticleCard';
 import { CategoryChips } from '../../CategoryChips';
+import { buildBreadcrumbJsonLd, toJsonLdString } from '@/app/lib/jsonLd';
 
 // ISR：一覧と同じ10分。
 export const revalidate = 600;
@@ -60,6 +61,12 @@ export default async function ColumnCategoryPage({
   return (
     <main className="max-w-3xl mx-auto px-4 py-8">
       {/* パンくず：フクエスワーク › コラム › カテゴリ */}
+      {/* BreadcrumbList 構造化データ（可視パンくずと同一内容。2026-08-05） */}
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: toJsonLdString(buildBreadcrumbJsonLd([
+        { name: 'フクエスワーク', path: '/jobs' },
+        { name: 'コラム', path: '/jobs/column' },
+        { name: label, path: `/jobs/column/category/${key}` },
+      ])) }} />
       <nav aria-label="パンくずリスト" className="flex items-center gap-1.5 mb-3" style={{ fontSize: '13px' }}>
         <Link href="/jobs" className="hover:opacity-80 transition-opacity flex-shrink-0 whitespace-nowrap" style={{ color: '#059669' }}>
           フクエスワーク

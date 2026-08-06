@@ -3,6 +3,7 @@ import type { Metadata } from 'next';
 import { WorkMatchForm } from './WorkMatchForm';
 import { PageHero } from '@/app/components/PageHero';
 import { fetchPageHero } from '@/app/lib/pageHero';
+import { buildBreadcrumbJsonLd, toJsonLdString } from '@/app/lib/jsonLd';
 
 // フクエスワーク「求職マッチング」エントリー（女の子＝求職者の希望入力フォーム）。
 // 女の子が希望条件と連絡先を入力 → 運営が条件に合う掲載店舗を数店ピック → その店舗から本人へ連絡してもらう斡旋。
@@ -43,6 +44,11 @@ export default async function JobMatchingPage() {
   return (
     <main className="max-w-3xl mx-auto px-4 py-8">
       {/* パンくず：フクエスワーク › お仕事マッチング */}
+      {/* BreadcrumbList 構造化データ（可視パンくずと同一内容。2026-08-05） */}
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: toJsonLdString(buildBreadcrumbJsonLd([
+        { name: 'フクエスワーク', path: '/jobs' },
+        { name: 'お仕事マッチング', path: '/jobs/matching' },
+      ])) }} />
       <nav aria-label="パンくずリスト" className="flex items-center gap-1.5 mb-3" style={{ fontSize: '13px' }}>
         <Link href="/jobs" className="hover:opacity-80 transition-opacity flex-shrink-0 whitespace-nowrap" style={{ color: '#059669' }}>
           フクエスワーク

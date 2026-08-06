@@ -104,7 +104,8 @@ export default async function AreaPage({ params }: { params: Promise<{ slug: str
       <main className="max-w-5xl mx-auto px-4 py-10">
 
         {/* Back link */}
-        <Breadcrumb current={label} />
+        {/* BreadcrumbList JSON-LD はこのページ独自実装が既にあるため二重出力を抑止 */}
+        <Breadcrumb current={label} jsonLd={false} />
 
         {/* ─── Pickup Salons（このエリア専用・未設定なら非表示） ─── */}
         {featuredSalons.length > 0 && (

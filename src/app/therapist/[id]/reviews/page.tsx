@@ -15,6 +15,7 @@ import { ReviewList } from '@/app/components/ReviewList';
 import { PaginatedReviewList } from '@/app/components/PaginatedReviewList';
 import type { Metadata } from 'next';
 import { SiteNoticeBanner } from '@/app/components/SiteNoticeBanner';
+import { buildBreadcrumbJsonLd, toJsonLdString } from '@/app/lib/jsonLd';
 
 // ISR：10分ごとに再生成（保存時は /api/revalidate で即時無効化）。
 export const revalidate = 600;
@@ -38,19 +39,24 @@ export async function generateMetadata({
     .eq('id', id)
     .single();
   if (!row) return { robots: { index: false, follow: false } };
-  const title = `${(row.name as string) ?? ''}の口コミ一覧｜福岡メンズエステ【フクエス】`;
+  const name = (row.name as string) ?? '';
+  const title = `${name}の口コミ一覧｜福岡メンズエステ【フクエス】`;
+  // description（2026-08-05 追加）。未設定だと root のサイト説明文と完全重複になるため固有化。
+  const description = `福岡メンズエステのセラピスト「${name}」への口コミ・評価一覧。実際に利用したユーザーの感想（運営承認制）をフクエスで確認できます。`;
   const path = `/therapist/${id}/reviews`;
   return {
     title,
+    description,
     alternates: { canonical: path },
     openGraph: {
       title,
+      description,
       url: path,
       siteName: 'フクエス',
       type: 'website',
       images: [{ url: '/ogp.png', width: 1200, height: 630 }],
     },
-    twitter: { card: 'summary_large_image', title, images: ['/ogp.png'] },
+    twitter: { card: 'summary_large_image', title, description, images: ['/ogp.png'] },
   };
 }
 
@@ -128,6 +134,13 @@ export default async function TherapistReviewsPage({
       <main className="max-w-4xl mx-auto px-4 py-8">
 
         {/* ─── パンくず：トップ › サロン名 › セラピスト名 › 口コミ ─── */}
+        {/* BreadcrumbList 構造化データ（可視パンくずと同一内容。2026-08-05） */}
+        <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: toJsonLdString(buildBreadcrumbJsonLd([
+          { name: 'トップ', path: '/' },
+          { name: salonName || '店舗', path: `/salon/${salonId}` },
+          { name: therapistName || 'セラピスト', path: `/therapist/${id}` },
+          { name: '口コミ', path: `/therapist/${id}/reviews` },
+        ])) }} />
         <nav aria-label="パンくずリスト" className="flex items-center gap-1.5 mb-3" style={{ fontSize: '13px' }}>
           <Link href="/" className="hover:opacity-80 transition-opacity flex-shrink-0 whitespace-nowrap" style={{ color: '#ec4899' }}>
             トップ
