@@ -1,6 +1,7 @@
 import Link from "next/link";
 import type { Metadata } from "next";
 import { areaLabel } from "@/app/lib/areaLabel";
+import { areaHref } from "@/app/lib/areas";
 import { truncatePlain } from "@/app/lib/truncatePlain";
 import { toJsonLdString, buildBreadcrumbJsonLd } from "@/app/lib/jsonLd";
 import { Logo } from '@/app/components/Logo';
@@ -320,7 +321,7 @@ export default async function SalonPage({
   // therapistIds が空のときは .in('therapist_id', []) が0件を返すため、件数は従来どおり0になる。
   const today = getBusinessDateJST();
   const diaryCutoff = new Date(Date.now() - 48 * 60 * 60 * 1000).toISOString();
-  const [schedRes, diaryRes, wallpaperRes, allTherapists] = await Promise.all([
+  const [schedRes, diaryRes, wallpaperRes, allTherapists, sameAreaRes] = await Promise.all([
     supabase
       .from('therapist_schedules')
       .select('therapist_id, is_active, start_time, end_time')
@@ -339,6 +340,17 @@ export default async function SalonPage({
     // 在籍セラピスト一覧セクション用。props で渡すことで初期HTMLに
     // <a href="/therapist/[id]"> が載る（SEO対応 2026-07-28）。
     fetchSalonTherapists(Number(id), supabase),
+    // 同じエリアの他の店舗（2026-08-06 追加）。
+    // 従来はサロン詳細から他のサロン詳細へ行く導線が1本も無く、店舗ページ同士が
+    // サイト内で完全に孤立していた（エリアページを経由しないと辿り着けない）。
+    supabase
+      .from('salons')
+      .select('id, name, area, price')
+      .eq('area', salon.area)
+      .eq('is_hidden', false)
+      .neq('id', Number(id))
+      .order('id')
+      .limit(6),
   ]);
 
   // 本日出勤セラピスト数（GridCardの「N名」と同一ロジック：当日の is_active スケジュールを持つ人数）。
@@ -357,6 +369,17 @@ export default async function SalonPage({
 
   // 写メ日記の48時間以内投稿数（このサロン所属セラピストの diary_posts を created_at で集計）。
   const diaryRecentCount = diaryRes.count ?? 0;
+
+  // 同じエリアの他の店舗（0件ならセクションごと非表示）。
+  const sameAreaSalons = ((sameAreaRes.data ?? []) as Array<{
+    id: number | string;
+    name: string | null;
+    price: string | null;
+  }>).map((s) => ({
+    id: String(s.id),
+    name: s.name ?? '',
+    price: s.price ?? '',
+  }));
 
   const wallpaperRow = wallpaperRes.data;
   const wallpaperUrl = (wallpaperRow?.image_url as string | undefined) ?? null;
@@ -810,6 +833,41 @@ export default async function SalonPage({
 
             {/* New face therapists（該当0人のときはセクションごと非表示） */}
             <SalonNewFaceTherapists salonId={Number(id)} theme={theme} />
+
+            {/* 同じエリアの他の店舗（2026-08-06 追加・0件なら非表示）。
+                サロン詳細どうしを繋ぐ唯一の導線。初期HTMLに <a href="/salon/[id]"> が載る。 */}
+            {sameAreaSalons.length > 0 && (
+              <section className="rounded-2xl border shadow-sm p-6" style={{ backgroundColor: theme.card, borderColor: theme.cardBorder }}>
+                <div className="flex items-center gap-2.5 mb-4">
+                  <span className="w-1 h-5 rounded-full bg-gradient-to-b from-pink-500 to-pink-700 flex-shrink-0" />
+                  <h2 className="font-bold" style={{ color: theme.heading }}>
+                    {areaLabel(salon.area)}の他の店舗
+                  </h2>
+                </div>
+                <ul className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  {sameAreaSalons.map((s) => (
+                    <li key={s.id}>
+                      <Link
+                        href={`/salon/${s.id}`}
+                        className="block rounded-xl border px-3.5 py-3 hover:brightness-[0.97] transition-all"
+                        style={{ borderColor: theme.cardBorder }}
+                      >
+                        <span className="block text-sm font-bold truncate" style={{ color: theme.heading }}>{s.name}</span>
+                        {s.price && (
+                          <span className="block text-xs mt-0.5 truncate" style={{ color: theme.body }}>{s.price}</span>
+                        )}
+                      </Link>
+                    </li>
+                  ))}
+                </ul>
+                <Link
+                  href={areaHref(salon.area)}
+                  className="block mt-4 text-xs font-semibold text-pink-600 text-right hover:opacity-80 transition-opacity"
+                >
+                  {areaLabel(salon.area)}のメンズエステ一覧を見る →
+                </Link>
+              </section>
+            )}
           </div>
 
           {/* Right: shop info */}

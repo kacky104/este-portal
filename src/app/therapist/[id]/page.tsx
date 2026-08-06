@@ -29,6 +29,7 @@ import { VipLetterIcon } from '@/app/components/VipLetterIcon';
 import { SaveButton } from '@/app/components/SaveButton';
 import { ViewHistoryLogger } from '@/app/components/ViewHistoryLogger';
 import { sanitizeBadges, getBadgeColors } from '@/lib/therapistBadges';
+import { badgeToSlug } from '@/lib/therapistBadgeSlugs';
 import { getReviewStats, getApprovedReviews } from '@/app/lib/reviews';
 import { ReviewSummary } from '@/app/components/ReviewSummary';
 import { ReviewList } from '@/app/components/ReviewList';
@@ -305,13 +306,34 @@ export default async function TherapistPublicPage({
   // 口コミ（承認済みのみ・公開）。getReviewStats/getApprovedReviews は内部で createPublicClient を
   // 使う（cookies() を呼ばない）ため、既存の ISR を壊さない。
   const therapistId = Number(id);
-  const [reviewStats, reviews, linkedX] = await Promise.all([
+  const [reviewStats, reviews, linkedX, sameSalonRes] = await Promise.all([
     getReviewStats(therapistId),
     getApprovedReviews(therapistId),
     // fukuX 連携プロフィール（therapists.user_id === x_profiles.auth_user_id・kind='therapist'・approved）。
     // 未連携・非公開・handle欠落なら null → ブロック自体を非表示。
     getLinkedXProfileForTherapist(tRow.user_id as string | null),
+    // 同じ店の他のセラピスト（サイドバーの相互リンク用・2026-08-06）。
+    // 従来はセラピスト詳細から他のセラピスト詳細へ行く導線が1本も無く、
+    // セラピストページ同士がサイト内で孤立していた。
+    supabase
+      .from('therapists')
+      .select('id, name, profile_image_url')
+      .eq('salon_id', tRow.salon_id as number)
+      .eq('is_active', true)
+      .neq('id', therapistId)
+      .order('id')
+      .limit(8),
   ]);
+
+  const sameSalonTherapists = ((sameSalonRes.data ?? []) as Array<{
+    id: number | string;
+    name: string | null;
+    profile_image_url: string | null;
+  }>).map((t) => ({
+    id: String(t.id),
+    name: t.name ?? '',
+    image: t.profile_image_url ?? null,
+  }));
 
   // 構造化データ（BreadcrumbList「トップ › サロン名 › セラピスト名」＝可視パンくずと一致）。
   const breadcrumbJsonLd = buildBreadcrumbJsonLd([
@@ -508,18 +530,31 @@ export default async function TherapistPublicPage({
                   </div>
                 )}
 
-                {/* 特徴バッジ（スリーサイズの下。色/ラベルは therapistBadges を参照。空なら非表示） */}
+                {/* 特徴バッジ（スリーサイズの下。色/ラベルは therapistBadges を参照。空なら非表示）
+                    バッジは同じ特徴のセラピストを集めたLP（/therapists/badge/[slug]）へのリンク（2026-08-06）。
+                    従来は <span> でリンクが無く、40件あるバッジLPへの導線がサイト内にほぼ存在しなかった
+                    （とくに rank 系6件は /therapists の POPULAR_BADGES にも無く完全に孤立していた）。
+                    スラッグ未定義のラベルは従来どおり <span> のまま。 */}
                 {therapist.featureBadges.length > 0 && (
                   <div className="flex flex-wrap gap-1.5 mt-2.5 justify-center sm:justify-start">
                     {therapist.featureBadges.map((label) => {
                       const c = getBadgeColors(label);
                       if (!c) return null;
-                      return (
-                        <span
+                      const badgeClass = 'inline-flex items-center px-3 py-1 rounded-full text-xs font-bold border';
+                      const badgeStyle = { backgroundColor: c.fill, color: c.text, borderColor: c.border };
+                      const slug = badgeToSlug(label);
+                      return slug ? (
+                        <Link
                           key={label}
-                          className="inline-flex items-center px-3 py-1 rounded-full text-xs font-bold border"
-                          style={{ backgroundColor: c.fill, color: c.text, borderColor: c.border }}
+                          href={`/therapists/badge/${slug}`}
+                          className={`${badgeClass} hover:opacity-80 transition-opacity`}
+                          style={badgeStyle}
+                          title={`「${label}」のセラピストを探す`}
                         >
+                          {label}
+                        </Link>
+                      ) : (
+                        <span key={label} className={badgeClass} style={badgeStyle}>
                           {label}
                         </span>
                       );
@@ -710,6 +745,40 @@ export default async function TherapistPublicPage({
                   <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
                     <path d="M5 12h14M12 5l7 7-7 7" />
                   </svg>
+                </Link>
+              </div>
+            )}
+
+            {/* 同じ店の他のセラピスト（2026-08-06 追加）。
+                在籍が本人だけなら非表示。8名までで、続きは店舗の在籍一覧へ。 */}
+            {sameSalonTherapists.length > 0 && salon && (
+              <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-5">
+                <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wide mb-3">同じ店の他のセラピスト</p>
+                <ul className="space-y-1">
+                  {sameSalonTherapists.map((t) => (
+                    <li key={t.id}>
+                      <Link
+                        href={`/therapist/${t.id}`}
+                        className="flex items-center gap-2.5 py-1.5 rounded-lg hover:bg-pink-50/70 transition-colors"
+                      >
+                        <span className="w-8 h-8 rounded-full bg-slate-100 overflow-hidden flex-shrink-0 flex items-center justify-center">
+                          {t.image ? (
+                            // eslint-disable-next-line @next/next/no-img-element
+                            <img src={t.image} alt="" loading="lazy" decoding="async" className="w-full h-full object-cover" />
+                          ) : (
+                            <span className="text-[11px] font-bold text-slate-400">{(t.name || '?').charAt(0)}</span>
+                          )}
+                        </span>
+                        <span className="text-[13px] font-semibold text-slate-700 truncate">{t.name}</span>
+                      </Link>
+                    </li>
+                  ))}
+                </ul>
+                <Link
+                  href={`/salon/${salon.id}/therapists`}
+                  className="block mt-3 text-xs font-semibold text-pink-600 text-right hover:opacity-80 transition-opacity"
+                >
+                  在籍セラピストをすべて見る →
                 </Link>
               </div>
             )}
