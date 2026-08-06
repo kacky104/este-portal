@@ -144,7 +144,10 @@ export default async function AreaPage({ params }: { params: Promise<{ slug: str
           </section>
         )}
 
-        {/* ─── 本日出勤中のセラピスト（このエリアのサロン所属者のみ）。トップと同じ TherapistScroller を再利用 ───
+        {/* ─── 現在出勤中のセラピスト（このエリアのサロン所属者のみ）。トップと同じ TherapistScroller を再利用 ───
+            見出しは「〇〇で現在出勤中」。トップ／一覧ページの「現在出勤中のセラピスト」と用語は同じだが、
+            エリア名を前に付けると「中洲・天神・薬院で現在出勤中のセラピスト」で20文字になり
+            スマホで2行に折り返すため、ここだけ「〜のセラピスト」を省いた言い回しにしている。
             時刻依存（出勤中・今すぐ）の判定は TherapistScroller がクライアントのマウント時に行う＝ISR焼き付き回避。 */}
         <section className="mb-5">
           <div className="flex items-center gap-3 mb-4">

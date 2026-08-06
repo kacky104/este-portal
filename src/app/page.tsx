@@ -221,13 +221,17 @@ export default async function Home() {
         <section className="pt-5 pb-[5px] sm:pt-10 sm:pb-5 bg-white border-t border-pink-50">
           <div className="max-w-5xl mx-auto px-4">
             <div className="flex items-center justify-between mb-1.5">
-              <div className="flex items-center gap-3">
-                <div className="w-1 h-6 rounded-full bg-gradient-to-b from-pink-400 to-rose-500" />
-                <h2 className="text-xl font-bold text-slate-900">出勤中のセラピスト</h2>
-                <div className="flex items-baseline gap-0.5">
-                  <span style={{ color: '#ec4899', fontWeight: 600, fontSize: '13px' }}>本日出勤総数</span>
-                  <span style={{ background: 'linear-gradient(to right, #ec4899, #f97316)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', fontWeight: 700, fontSize: '18px' }}>{todayTherapistCount}</span>
-                  <span style={{ color: '#ec4899', fontWeight: 600, fontSize: '13px' }}>人</span>
+              {/* 見出しは /working（一覧ページ）と同じ「現在出勤中のセラピスト」で統一（2026-08-06）。
+                  隣の「本日出勤総数」は意味が別（今日の出勤予定の総数）なのでそのまま。
+                  2語増えた分、スマホ（〜639px）だけ見出しを text-lg・カウントを一段小さくして1行に収める
+                  （従来の「出勤中のセラピスト」でも360px幅では2行に折り返していた）。sm以上は従来サイズ。 */}
+              <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+                <div className="w-1 h-6 rounded-full bg-gradient-to-b from-pink-400 to-rose-500 flex-shrink-0" />
+                <h2 className="text-lg sm:text-xl font-bold text-slate-900 whitespace-nowrap">現在出勤中のセラピスト</h2>
+                <div className="flex items-baseline gap-0.5 flex-shrink-0">
+                  <span className="text-[11px] sm:text-[13px]" style={{ color: '#ec4899', fontWeight: 600 }}>本日出勤総数</span>
+                  <span className="text-base sm:text-lg" style={{ background: 'linear-gradient(to right, #ec4899, #f97316)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', fontWeight: 700 }}>{todayTherapistCount}</span>
+                  <span className="text-[11px] sm:text-[13px]" style={{ color: '#ec4899', fontWeight: 600 }}>人</span>
                 </div>
               </div>
               {/* デスクトップのみ：タイトル行の右端に「一覧を見る →」 */}
