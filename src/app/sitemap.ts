@@ -1,5 +1,6 @@
 import type { MetadataRoute } from 'next';
 import { createPublicClient } from '@/app/lib/supabase/public';
+import { fetchAllRows } from '@/app/lib/fetchAllRows';
 import { fetchActiveJobsForSitemap, fetchFeatureSlugsWithActiveJobs, fetchAreaTagPairsWithActiveJobs, fetchActiveDispatchJobs } from '@/app/lib/jobs';
 import { fetchPublishedArticlesForSitemap } from '@/app/lib/workArticles';
 import { fetchPublishedMainArticlesForSitemap } from '@/app/lib/mainArticles';
@@ -20,22 +21,8 @@ export const revalidate = 600;
 // 信用できないサイトではこのシグナル自体を無視するため、実更新日時（updated_at 等）を持つ
 // エントリだけに lastModified を付け、持たないものは省略する（省略は仕様上問題ない）。
 
-// Supabase(PostgREST) は .limit/.range 未指定だと既定 max-rows=1000 で「静かに」打ち切られる。
-// サロン・セラピスト・fukuX投稿が1000件を超えると sitemap から欠落するため、
-// 1000件ずつページングして全件を取得する（2026-08-05）。
-const PAGE_SIZE = 1000;
-async function fetchAllRows<T>(
-  build: (from: number, to: number) => PromiseLike<{ data: T[] | null }>,
-): Promise<T[]> {
-  const all: T[] = [];
-  for (let from = 0; ; from += PAGE_SIZE) {
-    const { data } = await build(from, from + PAGE_SIZE - 1);
-    const rows = data ?? [];
-    all.push(...rows);
-    if (rows.length < PAGE_SIZE) break;
-  }
-  return all;
-}
+// Supabase(PostgREST) の既定 max-rows=1000 対策の全件ページング。
+// /salons でも使うため src/app/lib/fetchAllRows.ts に移した（2026-08-06）。
 
 // サイトマップ（本プロジェクト初の sitemap。求人フェーズ1で新規作成）。
 // 公開データのみを anon クライアントで読む（非表示サロンは RLS＋明示フィルタで除外）。

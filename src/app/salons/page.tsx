@@ -1,7 +1,8 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { Logo } from '@/app/components/Logo';
-import { createClient } from '@/app/lib/supabase/server';
+import { createPublicClient } from '@/app/lib/supabase/public';
+import { fetchAllRows } from '@/app/lib/fetchAllRows';
 import { SavedSalonsMenu } from '@/app/components/SavedSalonsMenu';
 import { AccountMenu } from '@/app/components/AccountMenu';
 import { HamburgerMenu } from '@/app/components/HamburgerMenu';
@@ -44,6 +45,10 @@ export const metadata: Metadata = {
   twitter: { card: 'summary_large_image', title: PAGE_TITLE, description: PAGE_DESC, images: ['/ogp.png'] },
 };
 
+// ISR：10分ごとに再生成。従来は cookies() を読む createClient を使っていたためリクエストごとの
+// 動的レンダリングになっていた（この一覧はログイン状態で出し分けない＝ISR で問題ない）。
+export const revalidate = 600;
+
 type ListRow = {
   key: string;
   name: string;
@@ -61,13 +66,27 @@ const areaIndex = (a: string) => {
 };
 
 export default async function SalonsPage() {
-  const supabase = await createClient();
+  // cookie を読まない匿名クライアント（ISR を効かせるため。公開データ専用）。
+  // salons / free_salon_listings はどちらも anon の公開SELECTポリシーで読める。
+  const supabase = createPublicClient();
 
   // 掲載中サロンと無料掲載枠を並列取得。
   // free_salon_listings はマイグレーション未適用でもページを壊さない（エラー時は空扱い）。
-  const [salonsRes, freeRes, hero, wallpapers, adBanners] = await Promise.all([
-    supabase.from('salons').select('id, name, area, phone, official_url').eq('is_hidden', false),
-    supabase.from('free_salon_listings').select('id, name, area, phone, website_url, display_order').eq('is_active', true),
+  // ※「全店舗一覧」なので PostgREST 既定の1000件打ち切りに当たらないよう fetchAllRows で全件ページングする。
+  const [salonRows, freeRows, hero, wallpapers, adBanners] = await Promise.all([
+    fetchAllRows<{ id: number; name: string | null; area: string | null; phone: string | null; official_url: string | null }>(
+      (from, to) =>
+        supabase.from('salons').select('id, name, area, phone, official_url').eq('is_hidden', false).order('id').range(from, to),
+    ),
+    fetchAllRows<{ id: number; name: string | null; area: string | null; phone: string | null; website_url: string | null; display_order: number | null }>(
+      (from, to) =>
+        supabase
+          .from('free_salon_listings')
+          .select('id, name, area, phone, website_url, display_order')
+          .eq('is_active', true)
+          .order('id')
+          .range(from, to),
+    ),
     // ページ別ヒーロー画像（admin「ページ別ヒーロー画像設定」の「掲載店舗一覧」。未設定なら非表示）。
     fetchPageHero('salons'),
     // シルバーテーマ壁紙（/reviews・/therapists と同方式で固定レイヤーに敷く）。
@@ -90,7 +109,7 @@ export default async function SalonsPage() {
       : {}),
   };
 
-  const listed: ListRow[] = (salonsRes.data ?? []).map((r) => ({
+  const listed: ListRow[] = salonRows.map((r) => ({
     key: `s-${r.id}`,
     name: (r.name as string) ?? '',
     area: (r.area as string) ?? '',
@@ -99,7 +118,7 @@ export default async function SalonsPage() {
     href: `/salon/${r.id}`,
     displayOrder: 0,
   }));
-  const free: ListRow[] = (freeRes.data ?? []).map((r) => ({
+  const free: ListRow[] = freeRows.map((r) => ({
     key: `f-${r.id}`,
     name: (r.name as string) ?? '',
     area: (r.area as string) ?? '',
