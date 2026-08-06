@@ -1,8 +1,20 @@
+'use client';
+
 import Link from 'next/link';
 import { SaveButton } from '@/app/components/SaveButton';
 import { TelNoticeLink } from '@/app/components/TelNoticeLink';
+import { logSalonAction } from '@/app/lib/logSalonAction';
 
 // サロン詳細ページの主要アクション（ネット予約／電話をする）。
+//
+// 送客アクションの計測（2026-08-06）:
+//   3ボタンのクリックを increment_salon_action RPC で店舗別に記録する（/admin で集計を見る）。
+//   計測のためにクライアントコンポーネント化したが、props は全て serializable なので
+//   サーバー側（salon/[id]/page.tsx）からの呼び出し方は従来のまま。
+//   ・電話 … ポップアップの「電話をかける」を押した瞬間（開いただけでは数えない）
+//   ・LINE … LINE予約ボタンのクリック（'#' の無効プレビューは数えない）
+//   ・予約 … ネット予約ボタンのクリック（予約完了ではなく予約ページへの遷移）
+//   同一セッション内の同じ店舗×同じアクションは1回だけ（logSalonAction 側で制御）。
 //
 //  - ネット予約ボタンは常時表示。salonId があれば /salon/[id]/book への内部リンクにする
 //    （受付可否＝booking_enabled＋コース有無は book ページ側で判定・案内する）。
@@ -66,11 +78,11 @@ export function SalonActionButtons({
       <div className="flex items-stretch gap-1.5 sm:gap-3">
         {/* ── ネット予約（主CTA） ── */}
         {bookHref ? (
-          <Link href={bookHref} className={`${base} text-white hover:brightness-105`} style={reserveStyle}>
+          <Link href={bookHref} onClick={() => logSalonAction(salonId, 'book')} className={`${base} text-white hover:brightness-105`} style={reserveStyle}>
             {calendarIcon}ネット予約
           </Link>
         ) : reserveUrl ? (
-          <a href={reserveUrl} target="_blank" rel="noopener noreferrer" className={`${base} text-white hover:brightness-105`} style={reserveStyle}>
+          <a href={reserveUrl} onClick={() => logSalonAction(salonId, 'book')} target="_blank" rel="noopener noreferrer" className={`${base} text-white hover:brightness-105`} style={reserveStyle}>
             {calendarIcon}ネット予約
           </a>
         ) : (
@@ -83,7 +95,7 @@ export function SalonActionButtons({
         {/* ── 電話をする（副CTA） ── */}
         {phone ? (
           // タップで「フクエスを見た」ポップアップ→発信（tel: 直リンクをやめて文言を挟む）。
-          <TelNoticeLink phone={phone} className={`${base} bg-white hover:bg-pink-50`} style={phoneStyle}>
+          <TelNoticeLink phone={phone} onCall={() => logSalonAction(salonId, 'tel')} className={`${base} bg-white hover:bg-pink-50`} style={phoneStyle}>
             {phoneIcon}電話をする
           </TelNoticeLink>
         ) : (
@@ -100,7 +112,7 @@ export function SalonActionButtons({
               {lineIcon}LINE予約
             </button>
           ) : (
-            <a href={lineRaw} target="_blank" rel="noopener noreferrer" className={`${base} text-white hover:brightness-105`} style={lineStyle}>
+            <a href={lineRaw} onClick={() => logSalonAction(salonId, 'line')} target="_blank" rel="noopener noreferrer" className={`${base} text-white hover:brightness-105`} style={lineStyle}>
               {lineIcon}LINE予約
             </a>
           )

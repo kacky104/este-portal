@@ -13,11 +13,15 @@ export function TelNoticeLink({
   className,
   style,
   children,
+  onCall,
 }: {
   phone: string;
   className?: string;
   style?: React.CSSProperties;
   children: React.ReactNode;
+  /** ポップアップの「電話をかける」を押した瞬間に呼ばれる（送客アクション計測用・2026-08-06）。
+   *  ボタンを開いただけでは呼ばれない＝実際に発信した人だけを数える。 */
+  onCall?: () => void;
 }) {
   const [open, setOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
@@ -54,7 +58,7 @@ export function TelNoticeLink({
             <p className="mt-2 text-lg font-bold text-slate-700">{phone}</p>
             <a
               href={telHref}
-              onClick={() => setOpen(false)}
+              onClick={() => { onCall?.(); setOpen(false); }}
               className="mt-4 inline-flex w-full items-center justify-center gap-1.5 rounded-xl py-3 text-sm font-bold text-white hover:brightness-105 transition-all"
               style={{ background: 'linear-gradient(to right,#FB923C,#DB2777)' }}
             >
