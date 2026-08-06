@@ -1,14 +1,20 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
+import Image from 'next/image';
 
 type SlideItem = { pc: string; mobile: string | null };
 
 type Props = {
   images: SlideItem[];
+  /** alt テキスト（店名を渡す。サロン詳細のLCP画像が alt="" だったSEO/a11y改善：2026-08-05） */
+  alt?: string;
 };
 
-export default function SalonHeaderSlider({ images }: Props) {
+// 画像は max-w-4xl(896px) のコンテナ内で全幅表示。スマホは 100vw。
+const SLIDER_SIZES = '(min-width: 896px) 896px, 100vw';
+
+export default function SalonHeaderSlider({ images, alt = '' }: Props) {
   const [current,  setCurrent]  = useState(0);
   const [paused,   setPaused]   = useState(false);
   const [isMobile, setIsMobile] = useState(false);
@@ -47,8 +53,8 @@ export default function SalonHeaderSlider({ images }: Props) {
     const src = isMobile && images[0].mobile ? images[0].mobile : images[0].pc;
     return (
       <div className="h-56 sm:h-72 relative overflow-hidden">
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src={src} alt="" className="absolute inset-0 w-full h-full object-cover" />
+        {/* LCP画像：next/image（最適化配信）＋ priority（preload）。fill は固定高コンテナ前提 */}
+        <Image src={src} alt={alt} fill priority sizes={SLIDER_SIZES} className="object-cover" />
       </div>
     );
   }
@@ -77,8 +83,17 @@ export default function SalonHeaderSlider({ images }: Props) {
           const src = isMobile && item.mobile ? item.mobile : item.pc;
           return (
           <div key={i} className="w-full flex-shrink-0 relative h-full">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={src} alt="" className="absolute inset-0 w-full h-full object-cover" />
+            {/* 1枚目はLCPなので priority。2枚目以降はスライド切替時の空白を避けるため eager
+                （lazy だと translateX で画面外にある間読み込まれず、切替直後に白が見える）。 */}
+            <Image
+              src={src}
+              alt={i === 0 ? alt : ''}
+              fill
+              priority={i === 0}
+              loading={i === 0 ? undefined : 'eager'}
+              sizes={SLIDER_SIZES}
+              className="object-cover"
+            />
           </div>
           );
         })}

@@ -157,7 +157,7 @@ export default async function DiaryListPage({
                 <div className="aspect-square bg-slate-100 relative">
                   {diary.image ? (
                     // eslint-disable-next-line @next/next/no-img-element
-                    <img src={diary.image} alt={diary.title || diary.therapistName} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
+                    <img src={diary.image} alt={diary.title || diary.therapistName} loading="lazy" decoding="async" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
                   ) : (
                     <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-red-300 to-rose-400 text-white font-bold text-2xl">
                       {diary.therapistName.charAt(0)}

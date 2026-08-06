@@ -287,6 +287,8 @@ export function GridCard({ therapist, index, showJoinDate = false, from, enableW
           <img
             src={therapist.profileImageUrl}
             alt={therapist.name}
+            loading="lazy"
+            decoding="async"
             className="absolute inset-0 w-full h-full object-cover"
           />
         ) : (
@@ -473,7 +475,7 @@ function MiniCard({ therapist, index }: { therapist: Therapist; index: number })
       {/* background */}
       {therapist.profileImageUrl ? (
         // eslint-disable-next-line @next/next/no-img-element
-        <img src={therapist.profileImageUrl} alt={therapist.name} className="absolute inset-0 w-full h-full object-cover" />
+        <img src={therapist.profileImageUrl} alt={therapist.name} loading="lazy" decoding="async" className="absolute inset-0 w-full h-full object-cover" />
       ) : (
         <div className={`absolute inset-0 bg-gradient-to-br ${grad} flex items-center justify-center`}>
           <span className="text-white/30 font-bold text-3xl">{therapist.name.charAt(0)}</span>

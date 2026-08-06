@@ -39,10 +39,14 @@ export function TherapistImageSlider({
   if (images.length === 1) {
     return (
       <div className="relative w-full h-full flex items-center justify-center">
+        {/* このページのLCP画像。object-contain＋transform 前提のレイアウトのため next/image 化は
+            せず、fetchPriority/decoding でLCP優先度だけ上げる（2026-08-05）。 */}
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
           src={images[0]}
           alt={name}
+          fetchPriority="high"
+          decoding="async"
           className="max-w-full max-h-full object-contain"
         />
         {overlays}
@@ -101,11 +105,14 @@ export function TherapistImageSlider({
               pointerEvents: visible ? 'auto' : 'none',
             }}
           >
+            {/* 1枚目（初期アクティブ）はLCP候補なので fetchPriority を上げる（2026-08-05） */}
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
               src={url}
               alt={isActive ? name : ''}
               draggable={false}
+              fetchPriority={i === 0 ? 'high' : undefined}
+              decoding="async"
               className="w-full h-full object-contain"
               // 両隣はcontainで中央寄せされ端の見切れが空白になるため、
               // 中央側の端へ寄せて10%の見切れに画像が映るようにする。
@@ -152,7 +159,7 @@ export function TherapistImageSlider({
             style={{ border: i === idx ? '2px solid #ec4899' : '2px solid transparent' }}
           >
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={url} alt="" className="w-full h-full object-cover" />
+            <img src={url} alt="" loading="lazy" decoding="async" className="w-full h-full object-cover" />
           </button>
         ))}
       </div>

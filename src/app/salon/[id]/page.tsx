@@ -493,7 +493,7 @@ export default async function SalonPage({
 
         {/* ─── Block 1: 画像スライダー（TOP画像） ─────────────────── */}
         <div className="border shadow-sm overflow-hidden mb-3" style={{ backgroundColor: theme.card, borderColor: theme.cardBorder }}>
-          <SalonHeaderSlider images={salonImages} />
+          <SalonHeaderSlider images={salonImages} alt={salon.name} />
         </div>
 
         {/* ─── 店名＋情報行（TOP画像の下・枠なし・背景の上・中央寄せ） ─── */}

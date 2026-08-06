@@ -62,19 +62,25 @@ export default function HeaderImageSlider() {
             index === current ? 'opacity-100' : 'opacity-0'
           }`}
         >
-          {/* PC用（sm 以上）。全幅＋約2.6:1のアスペクト比（幅に応じて高さが伸縮）+ object-cover。超ワイド時のみ max-h-[600px] で頭打ち＝上下トリミング。 */}
+          {/* PC用（sm 以上）。全幅＋約2.6:1のアスペクト比（幅に応じて高さが伸縮）+ object-cover。超ワイド時のみ max-h-[600px] で頭打ち＝上下トリミング。
+              sizes（2026-08-05）: PC用とSP用は両方DOMにあり両方 priority=preload されるため、
+              media query 付き sizes で「表示されない側は最小サイズを選ばせて」転送の無駄を抑える
+              （PC用はスマホで 1px 相当＝最小画像、SP用はPCで 1px 相当）。alt も「スライドN」から
+              サイト内容を表す文言に変更。 */}
           <Image
             src={slide.url}
-            alt={`スライド ${index + 1}`}
+            alt={`福岡メンズエステ フクエス メインビジュアル ${index + 1}`}
             fill
+            sizes="(max-width: 639px) 1px, 100vw"
             className="hidden sm:block object-cover"
             priority={index === 0}
           />
           {/* SP用（sm 未満）。SP用URLが無ければ PC 用にフォールバック。 */}
           <Image
             src={slide.urlSp}
-            alt={`スライド ${index + 1}`}
+            alt={`福岡メンズエステ フクエス メインビジュアル ${index + 1}`}
             fill
+            sizes="(min-width: 640px) 1px, 100vw"
             className="sm:hidden object-cover"
             priority={index === 0}
           />
