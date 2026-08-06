@@ -14,17 +14,44 @@ const SITE_URL = 'https://fukues.com';
 // ISR：10分ごとに再生成（サイト他ページと同じ周期。新規求人／サロンを反映する）。
 export const revalidate = 600;
 
+// lastModified の方針（2026-08-05 変更）:
+// 従来は実データの無い行に `new Date()` を入れていたため、revalidate（10分）ごとに
+// 「全ページがたった今更新された」という嘘のシグナルを送り続けていた。Google は lastmod が
+// 信用できないサイトではこのシグナル自体を無視するため、実更新日時（updated_at 等）を持つ
+// エントリだけに lastModified を付け、持たないものは省略する（省略は仕様上問題ない）。
+
+// Supabase(PostgREST) は .limit/.range 未指定だと既定 max-rows=1000 で「静かに」打ち切られる。
+// サロン・セラピスト・fukuX投稿が1000件を超えると sitemap から欠落するため、
+// 1000件ずつページングして全件を取得する（2026-08-05）。
+const PAGE_SIZE = 1000;
+async function fetchAllRows<T>(
+  build: (from: number, to: number) => PromiseLike<{ data: T[] | null }>,
+): Promise<T[]> {
+  const all: T[] = [];
+  for (let from = 0; ; from += PAGE_SIZE) {
+    const { data } = await build(from, from + PAGE_SIZE - 1);
+    const rows = data ?? [];
+    all.push(...rows);
+    if (rows.length < PAGE_SIZE) break;
+  }
+  return all;
+}
+
 // サイトマップ（本プロジェクト初の sitemap。求人フェーズ1で新規作成）。
 // 公開データのみを anon クライアントで読む（非表示サロンは RLS＋明示フィルタで除外）。
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const supabase = createPublicClient();
 
   // 公開サロン／公開サロン所属セラピスト／掲載中求人を並列取得。失敗時は空配列（サイトマップは壊さない）。
-  const [salonsRes, therapistsRes, jobs, featureSlugs, areaTag, dispatchJobs, columnArticles, mainColumnArticles, xProfilesRes, xPostsRes] = await Promise.all([
-    supabase.from('salons').select('id').eq('is_hidden', false),
+  // ※salons/therapists/x_profiles/x_posts は fetchAllRows で全件ページング（.order は範囲取得の安定化に必須）。
+  //   求人・コラムは件数規模が小さく lib 側取得のまま（1000件が見えてきたら同様にページング化する）。
+  const [salonRows, therapistRows, jobs, featureSlugs, areaTag, dispatchJobs, columnArticles, mainColumnArticles, xProfileRows, xPostRows] = await Promise.all([
+    fetchAllRows<{ id: number }>((from, to) =>
+      supabase.from('salons').select('id').eq('is_hidden', false).order('id').range(from, to)),
     // is_active=true のみ。退店・非公開セラピストを載せると 404 が sitemap 経由で発生する
     // （2026-07-28: /therapist/38・/therapist/40 が Search Console で「見つかりませんでした(404)」）。
-    supabase.from('therapists').select('id, is_active, feature_badges, salons!inner(is_hidden)').eq('salons.is_hidden', false).eq('is_active', true),
+    fetchAllRows<{ id: number; feature_badges: unknown }>((from, to) =>
+      supabase.from('therapists').select('id, feature_badges, salons!inner(is_hidden)').eq('salons.is_hidden', false).eq('is_active', true).order('id').range(from, to)),
     fetchActiveJobsForSitemap(),
     // 求人が1件以上あるタグのみ（0件＝noindexページはsitemapに入れない）。
     fetchFeatureSlugsWithActiveJobs(),
@@ -38,74 +65,71 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     fetchPublishedMainArticlesForSitemap(),
     // fukuX: 承認済みプロフィール全件＋トップレベル投稿全件。
     // x_posts には status 列が無く、公開可否は「投稿者プロフィールが approved か」で決まる。
-    // 以前のコメントは「status='approved' を明示フィルタ」と書いていたが実装されておらず、
-    // 未承認プロフィールの投稿まで sitemap に載っていた（2026-07-28 修正）。
-    // author_profile_id を取得し、下で承認済みプロフィールの id 集合と突き合わせて絞る。
-    supabase.from('x_profiles').select('id, handle').eq('status', 'approved'),
-    supabase.from('x_posts').select('id, author_profile_id, edited_at, created_at').is('parent_post_id', null),
+    // author_profile_id を取得し、下で承認済みプロフィールの id 集合と突き合わせて絞る（2026-07-28）。
+    fetchAllRows<{ id: number; handle: string }>((from, to) =>
+      supabase.from('x_profiles').select('id, handle').eq('status', 'approved').order('id').range(from, to)),
+    fetchAllRows<{ id: number; author_profile_id: unknown; edited_at: string | null; created_at: string | null }>((from, to) =>
+      supabase.from('x_posts').select('id, author_profile_id, edited_at, created_at').is('parent_post_id', null).order('id').range(from, to)),
   ]);
 
-  const now = new Date();
-
-  // 主要な静的ページ。
+  // 主要な静的ページ（lastModified は実更新日時を持たないため省略）。
   const staticEntries: MetadataRoute.Sitemap = [
-    { url: `${SITE_URL}/`, lastModified: now, changeFrequency: 'daily', priority: 1 },
-    { url: `${SITE_URL}/salons`, lastModified: now, changeFrequency: 'daily', priority: 0.9 },
-    { url: `${SITE_URL}/diary`, lastModified: now, changeFrequency: 'daily', priority: 0.6 },
+    { url: `${SITE_URL}/`, changeFrequency: 'daily', priority: 1 },
+    { url: `${SITE_URL}/salons`, changeFrequency: 'daily', priority: 0.9 },
+    { url: `${SITE_URL}/diary`, changeFrequency: 'daily', priority: 0.6 },
     // 全店舗の口コミ一覧（新着順）。
-    { url: `${SITE_URL}/reviews`, lastModified: now, changeFrequency: 'daily', priority: 0.6 },
+    { url: `${SITE_URL}/reviews`, changeFrequency: 'daily', priority: 0.6 },
     // fukuX承認店舗の一覧（TOP「📣 SNS」からの導線・各店 /x/u へのハブページ）。
-    { url: `${SITE_URL}/x-shops`, lastModified: now, changeFrequency: 'daily', priority: 0.6 },
+    { url: `${SITE_URL}/x-shops`, changeFrequency: 'daily', priority: 0.6 },
     // 出勤中一覧・新人一覧・サロン新着情報（2026-07-12 canonical 明示とセットで sitemap 掲載）。
-    { url: `${SITE_URL}/working`, lastModified: now, changeFrequency: 'daily', priority: 0.6 },
+    { url: `${SITE_URL}/working`, changeFrequency: 'daily', priority: 0.6 },
     // 特徴バッジ・エリアでのセラピスト検索ページ。
-    { url: `${SITE_URL}/therapists`, lastModified: now, changeFrequency: 'daily', priority: 0.7 },
+    { url: `${SITE_URL}/therapists`, changeFrequency: 'daily', priority: 0.7 },
     // 人気ランキング（トップ・ハンバーガーメニューから導線があり実在するが、
     // sitemap から漏れていた。2026-07-28 追加）。
-    { url: `${SITE_URL}/ranking`, lastModified: now, changeFrequency: 'daily', priority: 0.7 },
-    { url: `${SITE_URL}/therapist/new`, lastModified: now, changeFrequency: 'daily', priority: 0.6 },
-    { url: `${SITE_URL}/news`, lastModified: now, changeFrequency: 'daily', priority: 0.6 },
-    { url: `${SITE_URL}/jobs`, lastModified: now, changeFrequency: 'daily', priority: 0.8 },
+    { url: `${SITE_URL}/ranking`, changeFrequency: 'daily', priority: 0.7 },
+    { url: `${SITE_URL}/therapist/new`, changeFrequency: 'daily', priority: 0.6 },
+    { url: `${SITE_URL}/news`, changeFrequency: 'daily', priority: 0.6 },
+    { url: `${SITE_URL}/jobs`, changeFrequency: 'daily', priority: 0.8 },
+    // お仕事マッチング（求職者向けCVページ。sitemap から漏れていた。2026-08-05 追加）。
+    { url: `${SITE_URL}/jobs/matching`, changeFrequency: 'monthly', priority: 0.6 },
     // コラム一覧（公開記事の有無に関わらず存在する静的ページ）。
-    { url: `${SITE_URL}/jobs/column`, lastModified: now, changeFrequency: 'daily', priority: 0.7 },
+    { url: `${SITE_URL}/jobs/column`, changeFrequency: 'daily', priority: 0.7 },
     // 本体コラム一覧（/column・利用者向け）。
-    { url: `${SITE_URL}/column`, lastModified: now, changeFrequency: 'daily', priority: 0.7 },
+    { url: `${SITE_URL}/column`, changeFrequency: 'daily', priority: 0.7 },
     // ポリシー類（法令対応・E-E-A-T用の静的ページ。更新頻度は低い）。
     // 運営者情報（E-E-A-T用の静的ページ。2026-07-23追加）。
-    { url: `${SITE_URL}/about`, lastModified: now, changeFrequency: 'yearly', priority: 0.3 },
-    { url: `${SITE_URL}/terms`, lastModified: now, changeFrequency: 'yearly', priority: 0.3 },
-    { url: `${SITE_URL}/privacy`, lastModified: now, changeFrequency: 'yearly', priority: 0.3 },
-    { url: `${SITE_URL}/listing`, lastModified: now, changeFrequency: 'yearly', priority: 0.3 },
+    { url: `${SITE_URL}/about`, changeFrequency: 'yearly', priority: 0.3 },
+    { url: `${SITE_URL}/terms`, changeFrequency: 'yearly', priority: 0.3 },
+    { url: `${SITE_URL}/privacy`, changeFrequency: 'yearly', priority: 0.3 },
+    { url: `${SITE_URL}/listing`, changeFrequency: 'yearly', priority: 0.3 },
     // /contact は noindex（contact/page.tsx）のため sitemap に載せない（2026-08-05）。
     // noindex ページを sitemap に入れると GSC で「送信されたURLに noindex タグ」エラーになる。
     // 会員登録案内（/join）。ポリシー類より更新頻度は高く、集客導線でもあるので monthly 0.5。
-    { url: `${SITE_URL}/join`, lastModified: now, changeFrequency: 'monthly', priority: 0.5 },
+    { url: `${SITE_URL}/join`, changeFrequency: 'monthly', priority: 0.5 },
     // リンクバナー配布ページ（本体・ワーク。fukuX版 /x/banner と同じ yearly 0.3）。
-    { url: `${SITE_URL}/banner`, lastModified: now, changeFrequency: 'yearly', priority: 0.3 },
-    { url: `${SITE_URL}/jobs/banner`, lastModified: now, changeFrequency: 'yearly', priority: 0.3 },
+    { url: `${SITE_URL}/banner`, changeFrequency: 'yearly', priority: 0.3 },
+    { url: `${SITE_URL}/jobs/banner`, changeFrequency: 'yearly', priority: 0.3 },
     // フクエスワークの規約・ポリシー（本体の特則。/x/terms 等と同じ yearly 0.3）。
-    { url: `${SITE_URL}/jobs/terms`, lastModified: now, changeFrequency: 'yearly', priority: 0.3 },
-    { url: `${SITE_URL}/jobs/privacy`, lastModified: now, changeFrequency: 'yearly', priority: 0.3 },
+    { url: `${SITE_URL}/jobs/terms`, changeFrequency: 'yearly', priority: 0.3 },
+    { url: `${SITE_URL}/jobs/privacy`, changeFrequency: 'yearly', priority: 0.3 },
   ];
 
   // 本体フクエスのエリア別サロンページ（/area/[slug]・全6スラッグ）。
   const areaPageEntries: MetadataRoute.Sitemap = AREA_SLUGS_LIST.map((slug) => ({
     url: `${SITE_URL}/area/${slug}`,
-    lastModified: now,
     changeFrequency: 'daily',
     priority: 0.9,
   }));
 
-  const salonEntries: MetadataRoute.Sitemap = (salonsRes.data ?? []).map((s) => ({
+  const salonEntries: MetadataRoute.Sitemap = salonRows.map((s) => ({
     url: `${SITE_URL}/salon/${s.id}`,
-    lastModified: now,
     changeFrequency: 'weekly',
     priority: 0.7,
   }));
 
-  const therapistEntries: MetadataRoute.Sitemap = (therapistsRes.data ?? []).map((t) => ({
+  const therapistEntries: MetadataRoute.Sitemap = therapistRows.map((t) => ({
     url: `${SITE_URL}/therapist/${t.id}`,
-    lastModified: now,
     changeFrequency: 'weekly',
     priority: 0.5,
   }));
@@ -115,9 +139,8 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   // 0件バッジ（＝空ページ）は sitemap に入れない（求人タグページと同じ考え方）。
   const usedBadgeSlugs = (() => {
     const set = new Set<string>();
-    for (const t of therapistsRes.data ?? []) {
-      if ((t as { is_active?: unknown }).is_active === false) continue;
-      for (const label of sanitizeBadges((t as { feature_badges?: unknown }).feature_badges)) {
+    for (const t of therapistRows) {
+      for (const label of sanitizeBadges(t.feature_badges)) {
         const slug = badgeToSlug(label);
         if (slug) set.add(slug);
       }
@@ -126,14 +149,13 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   })();
   const therapistBadgeEntries: MetadataRoute.Sitemap = usedBadgeSlugs.map((slug) => ({
     url: `${SITE_URL}/therapists/badge/${slug}`,
-    lastModified: now,
     changeFrequency: 'daily',
     priority: 0.6,
   }));
 
   const jobEntries: MetadataRoute.Sitemap = jobs.map((j) => ({
     url: `${SITE_URL}/jobs/${j.id}`,
-    lastModified: j.updatedAt ? new Date(j.updatedAt) : now,
+    ...(j.updatedAt ? { lastModified: new Date(j.updatedAt) } : {}),
     changeFrequency: 'weekly',
     priority: 0.6,
   }));
@@ -141,7 +163,6 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   // 特徴タグページ（求人ありのタグのみ）。
   const tagEntries: MetadataRoute.Sitemap = featureSlugs.map((slug) => ({
     url: `${SITE_URL}/jobs/tag/${slug}`,
-    lastModified: now,
     changeFrequency: 'daily',
     priority: 0.7,
   }));
@@ -149,7 +170,6 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   // エリア別求人ページ（求人ありの通常エリアのみ）。jobsAreaHref で /jobs/area/<slug> を生成。
   const areaEntries: MetadataRoute.Sitemap = areaTag.areas.map((area) => ({
     url: `${SITE_URL}${jobsAreaHref(area)}`,
-    lastModified: now,
     changeFrequency: 'daily',
     priority: 0.7,
   }));
@@ -157,7 +177,6 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   // エリア×タグ掛け合わせページ（求人ありのペアのみ＝0件ペアはnoindexなので除外）。
   const areaTagEntries: MetadataRoute.Sitemap = areaTag.pairs.map(({ area, slug }) => ({
     url: `${SITE_URL}${jobsAreaHref(area)}/tag/${slug}`,
-    lastModified: now,
     changeFrequency: 'daily',
     priority: 0.6,
   }));
@@ -165,13 +184,13 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   // 出張専門ページ（/jobs/dispatch）。出張専門サロンの求人が1件以上あるときのみ列挙。
   const dispatchEntries: MetadataRoute.Sitemap =
     dispatchJobs.length > 0
-      ? [{ url: `${SITE_URL}/jobs/dispatch`, lastModified: now, changeFrequency: 'daily', priority: 0.7 }]
+      ? [{ url: `${SITE_URL}/jobs/dispatch`, changeFrequency: 'daily', priority: 0.7 }]
       : [];
 
-  // コラム詳細（/jobs/column/[slug]）。published のみ・lastModified は updated_at（無ければ now）。
+  // コラム詳細（/jobs/column/[slug]）。published のみ・lastModified は updated_at（無ければ省略）。
   const columnArticleEntries: MetadataRoute.Sitemap = columnArticles.map((a) => ({
     url: `${SITE_URL}/jobs/column/${a.slug}`,
-    lastModified: a.updatedAt ? new Date(a.updatedAt) : now,
+    ...(a.updatedAt ? { lastModified: new Date(a.updatedAt) } : {}),
     changeFrequency: 'monthly',
     priority: 0.6,
   }));
@@ -184,7 +203,6 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     .filter((key) => publishedCategories.has(key))
     .map((key) => ({
       url: `${SITE_URL}/jobs/column/category/${key}`,
-      lastModified: now,
       changeFrequency: 'weekly',
       priority: 0.6,
     }));
@@ -193,7 +211,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   // （published のみ・カテゴリは公開記事が1件以上あるものだけ）。
   const mainColumnArticleEntries: MetadataRoute.Sitemap = mainColumnArticles.map((a) => ({
     url: `${SITE_URL}/column/${a.slug}`,
-    lastModified: a.updatedAt ? new Date(a.updatedAt) : now,
+    ...(a.updatedAt ? { lastModified: new Date(a.updatedAt) } : {}),
     changeFrequency: 'monthly',
     priority: 0.6,
   }));
@@ -202,40 +220,43 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     .filter((key) => publishedMainCategories.has(key))
     .map((key) => ({
       url: `${SITE_URL}/column/category/${key}`,
-      lastModified: now,
       changeFrequency: 'weekly',
       priority: 0.6,
     }));
 
   // fukuX（/x配下）：トップ＋承認済みプロフィール＋トップレベル投稿。失敗時は空配列（サイトマップは壊さない）。
   const xStaticEntries: MetadataRoute.Sitemap = [
-    { url: `${SITE_URL}/x`, lastModified: now, changeFrequency: 'daily', priority: 0.8 },
+    { url: `${SITE_URL}/x`, changeFrequency: 'daily', priority: 0.8 },
     // ポリシー類（fukuX特則）。本体 /terms・/privacy と同じ扱い（yearly・低priority）。
-    { url: `${SITE_URL}/x/terms`, lastModified: now, changeFrequency: 'yearly', priority: 0.3 },
-    { url: `${SITE_URL}/x/privacy`, lastModified: now, changeFrequency: 'yearly', priority: 0.3 },
-    { url: `${SITE_URL}/x/banner`, lastModified: now, changeFrequency: 'yearly', priority: 0.3 },
-    { url: `${SITE_URL}/x/guide/user`, lastModified: now, changeFrequency: 'monthly', priority: 0.4 },
-    { url: `${SITE_URL}/x/guide/therapist`, lastModified: now, changeFrequency: 'monthly', priority: 0.4 },
-    { url: `${SITE_URL}/x/guide/shop`, lastModified: now, changeFrequency: 'monthly', priority: 0.4 },
+    { url: `${SITE_URL}/x/terms`, changeFrequency: 'yearly', priority: 0.3 },
+    { url: `${SITE_URL}/x/privacy`, changeFrequency: 'yearly', priority: 0.3 },
+    { url: `${SITE_URL}/x/banner`, changeFrequency: 'yearly', priority: 0.3 },
+    { url: `${SITE_URL}/x/guide/user`, changeFrequency: 'monthly', priority: 0.4 },
+    { url: `${SITE_URL}/x/guide/therapist`, changeFrequency: 'monthly', priority: 0.4 },
+    { url: `${SITE_URL}/x/guide/shop`, changeFrequency: 'monthly', priority: 0.4 },
   ];
 
-  const xProfileEntries: MetadataRoute.Sitemap = (xProfilesRes.data ?? []).map((p) => ({
+  const xProfileEntries: MetadataRoute.Sitemap = xProfileRows.map((p) => ({
     url: `${SITE_URL}/x/u/${encodeURIComponent(p.handle)}`,
-    lastModified: now,
     changeFrequency: 'weekly',
     priority: 0.5,
   }));
 
   // 承認済みプロフィールの投稿のみ（未承認・保留中の投稿者のURLは sitemap に載せない）。
-  const approvedProfileIds = new Set((xProfilesRes.data ?? []).map((p) => String(p.id)));
-  const xPostEntries: MetadataRoute.Sitemap = (xPostsRes.data ?? [])
+  // lastModified は edited_at → created_at の順で採用。両方 null なら省略
+  // （new Date(null) は Invalid Date → toISOString() 例外で sitemap 全体が落ちるため）。
+  const approvedProfileIds = new Set(xProfileRows.map((p) => String(p.id)));
+  const xPostEntries: MetadataRoute.Sitemap = xPostRows
     .filter((r) => approvedProfileIds.has(String(r.author_profile_id)))
-    .map((r) => ({
-      url: `${SITE_URL}/x/post/${r.id}`,
-      lastModified: new Date(r.edited_at ?? r.created_at),
-      changeFrequency: 'weekly',
-      priority: 0.4,
-    }));
+    .map((r) => {
+      const ts = r.edited_at ?? r.created_at;
+      return {
+        url: `${SITE_URL}/x/post/${r.id}`,
+        ...(ts ? { lastModified: new Date(ts) } : {}),
+        changeFrequency: 'weekly' as const,
+        priority: 0.4,
+      };
+    });
 
   return [
     ...staticEntries,
