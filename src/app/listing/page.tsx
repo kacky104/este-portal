@@ -88,10 +88,11 @@ export default function ListingPage() {
               フクエスの写メ日記・口コミを、店舗様の公式ホームページにそのまま表示できる埋め込みパーツをご用意しています。
             </p>
           </div>
+          {/* ※「掲載効果を数字で確認（レポート）」カードはサイトのPVが育ってから載せる予定（2026-08-07 差し替え）。 */}
           <div className="rounded-2xl border border-slate-200 bg-white px-4 py-3">
-            <p className="text-sm font-bold text-slate-800 mb-1">掲載効果を数字で確認</p>
+            <p className="text-sm font-bold text-slate-800 mb-1">fukuX（フクエックス）</p>
             <p className="text-xs text-slate-500 leading-relaxed">
-              一覧での表示回数・ページ閲覧数・電話や予約のアクション数を集計しており、掲載効果のレポートをお渡しできます。
+              メンズエステ専用SNS「fukuX」で承認店舗になれます。店舗アカウントでの投稿・宣伝や所属セラピストとの連携など、利用の幅が広がります。
             </p>
           </div>
         </div>
