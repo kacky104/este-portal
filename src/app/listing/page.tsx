@@ -50,6 +50,38 @@ export default function ListingPage() {
           メールでのお問い合わせも受け付けています：<a href="mailto:info@fukues.com" className="text-pink-600 hover:underline">info@fukues.com</a>
         </p>
 
+        {/* ── 無料掲載（テキスト掲載）の案内（2026-08-07 追加）──
+            条件＝公式HPに3サイトのリンクバナー設置。確認後 /admin の「無料掲載枠」に手入力で
+            /salons のテキスト一覧へ掲載する運用（free_salon_listings）。 */}
+        <h2 className="text-lg font-bold text-slate-800 mt-8 mb-3">無料掲載について</h2>
+        <p className="text-sm text-slate-600 leading-relaxed mb-3">
+          店舗様の公式ホームページに、フクエス・フクエスワーク・fukuX（フクエックス）の3つの
+          <a href="/banner" className="text-pink-600 hover:underline">リンクバナー</a>
+          を設置いただいた店舗様は、<strong className="text-slate-800">無料で店舗一覧に掲載</strong>できます。
+        </p>
+        <div className="rounded-2xl border border-pink-100 bg-pink-50/50 px-4 py-3 mb-3">
+          <p className="text-xs font-bold text-slate-700 mb-1.5">無料掲載の流れ</p>
+          <ol className="list-decimal pl-5 space-y-1 text-sm text-slate-600 leading-relaxed">
+            <li>
+              <a href="/banner" className="text-pink-600 hover:underline">リンクバナーのページ</a>
+              から3つのバナータグを取得し、公式ホームページに設置
+            </li>
+            <li>
+              <a href="/x/banner/report" className="text-pink-600 hover:underline">設置報告フォーム</a>
+              または上記フォーム・メールで、設置したページのURLをご連絡
+            </li>
+            <li>当事務局で設置を確認できましたら、店舗一覧に掲載いたします</li>
+          </ol>
+        </div>
+        <p className="text-sm text-slate-600 leading-relaxed mb-2">
+          無料掲載では、<a href="/salons" className="text-pink-600 hover:underline">店舗一覧</a>
+          に店名・地域・電話番号・公式ホームページへのリンクをテキストで掲載します
+          （店舗ページの開設や下記「掲載店舗様向け機能」は含まれません）。
+        </p>
+        <p className="text-xs text-slate-500 leading-relaxed mb-2">
+          ※ 掲載期間中はバナーの設置継続をお願いします。バナーが確認できなくなった場合、掲載を終了することがあります。
+        </p>
+
         <h2 className="text-lg font-bold text-slate-800 mt-8 mb-3">掲載できる店舗について</h2>
         <p className="text-sm text-slate-600 leading-relaxed mb-2">
           以下に該当する店舗様の掲載はお断りしています。
