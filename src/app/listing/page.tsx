@@ -8,6 +8,8 @@ import { VipLetterIcon } from '@/app/components/VipLetterIcon';
 import { ListingInquiryForm } from './ListingInquiryForm';
 import { SiteNoticeBanner } from '@/app/components/SiteNoticeBanner';
 import { SiteFooter } from '@/app/components/SiteFooter';
+import { getTheme } from '@/app/lib/themes';
+import { fetchThemeWallpapers } from '@/app/lib/ranking';
 
 export const metadata: Metadata = {
   title: '掲載について｜フクエス',
@@ -15,9 +17,27 @@ export const metadata: Metadata = {
   alternates: { canonical: '/listing' },
 };
 
-export default function ListingPage() {
+// テーマ壁紙を取得するため ISR にする（他の公開ページと同じ10分）。
+export const revalidate = 600;
+
+export default async function ListingPage() {
+  // 背景はホワイトテーマ＋テーマ壁紙（white）。/salons のシルバーと同方式・可読性用に D9 を重ねる（2026-08-07）。
+  const theme = getTheme('white');
+  const wallpapers = await fetchThemeWallpapers();
+  const wallpaperUrl = wallpapers[theme.key] ?? null;
+  const bgStyle = {
+    backgroundColor: theme.bg,
+    ...(wallpaperUrl
+      ? {
+          backgroundImage: `linear-gradient(${theme.bg}D9, ${theme.bg}D9), url(${wallpaperUrl})`,
+          backgroundSize: 'cover' as const,
+          backgroundPosition: 'center' as const,
+        }
+      : {}),
+  };
+
   return (
-    <div className="min-h-screen bg-slate-50 text-slate-900">
+    <div className="min-h-screen text-slate-900" style={bgStyle}>
 
       {/* ─── Header ─────────────────────────────────────────── */}
       <header className="sticky top-0 z-50 bg-white/90 backdrop-blur-md border-b border-slate-200 shadow-sm">
