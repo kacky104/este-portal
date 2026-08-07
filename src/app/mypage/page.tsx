@@ -1972,7 +1972,7 @@ export default function MyPage() {
         {/* ── 公式サイト向けの埋め込みコード発行（写メ日記・口コミの iframe ウィジェット） ── */}
         {salon && (
           <div className={activeTab === 'salon' ? '' : 'hidden'}>
-            <EmbedCodePanel salonId={Number(salon.id)} onToast={showToast} />
+            <EmbedCodePanel salonId={Number(salon.id)} salonName={salon.name ?? ''} onToast={showToast} />
           </div>
         )}
 

@@ -24,6 +24,14 @@ function buildReviewsTag(salonId: number): string {
   return `<iframe src="${SITE}/embed/salon/${salonId}/reviews" style="width:100%;max-width:600px;border:none;" height="420" loading="lazy" title="口コミ（フクエス）"></iframe>`;
 }
 
+// SEO用の通常テキストリンク。iframe の中のリンクは検索エンジンに「設置先からのリンク」として
+// カウントされないため、被リンクとして効かせたい場合はこれを併設してもらう（2026-08-07 追加）。
+// アンカーテキストは店舗名＋内容がわかる自然な文言にする（「こちら」等は避ける）。
+function buildTextLinkTag(salonId: number, salonName: string): string {
+  const label = `${salonName}の写メ日記・口コミ（福岡メンズエステ情報 フクエス）`;
+  return `<a href="${SITE}/salon/${salonId}">${label}</a>`;
+}
+
 function CodeBlock({
   label,
   description,
@@ -80,7 +88,15 @@ function CodeBlock({
   );
 }
 
-export function EmbedCodePanel({ salonId, onToast }: { salonId: number; onToast: (m: string) => void }) {
+export function EmbedCodePanel({
+  salonId,
+  salonName,
+  onToast,
+}: {
+  salonId: number;
+  salonName: string;
+  onToast: (m: string) => void;
+}) {
   const [open, setOpen] = useState(false);
 
   return (
@@ -120,6 +136,14 @@ export function EmbedCodePanel({ salonId, onToast }: { salonId: number; onToast:
             description="承認済みの新着口コミ3件と平均評価を表示します。"
             code={buildReviewsTag(salonId)}
             previewUrl={`/embed/salon/${salonId}/reviews`}
+            onToast={onToast}
+          />
+
+          <CodeBlock
+            label="テキストリンク（SEO用・推奨）"
+            description="ウィジェットの近くにこの通常リンクも貼ると、検索エンジンからの評価（被リンク）につながります。ウィジェットだけではリンクとしてカウントされないため、あわせての設置がおすすめです。"
+            code={buildTextLinkTag(salonId, salonName)}
+            previewUrl={`/salon/${salonId}`}
             onToast={onToast}
           />
         </div>
