@@ -47,50 +47,50 @@ export default function ListingPage() {
         </p>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-2">
           <div className="rounded-2xl border border-slate-200 bg-white px-4 py-3">
-            <p className="text-sm font-bold text-slate-800 mb-1">店舗ページ</p>
+            <p className="text-sm font-bold text-pink-600 mb-1">店舗ページ</p>
             <p className="text-xs text-slate-500 leading-relaxed">
               店舗情報・料金コース・写真を掲載。テーマカラーや壁紙でお店の雰囲気に合わせたページが作れます。
             </p>
           </div>
           <div className="rounded-2xl border border-slate-200 bg-white px-4 py-3">
-            <p className="text-sm font-bold text-slate-800 mb-1">セラピスト紹介・出勤スケジュール</p>
+            <p className="text-sm font-bold text-pink-600 mb-1">セラピスト紹介・出勤スケジュール</p>
             <p className="text-xs text-slate-500 leading-relaxed">
               プロフィールページと出勤表で「今日誰がいるか」を毎日発信。出勤中の店舗はトップページにも表示されます。
             </p>
           </div>
           <div className="rounded-2xl border border-slate-200 bg-white px-4 py-3">
-            <p className="text-sm font-bold text-slate-800 mb-1">写メ日記</p>
+            <p className="text-sm font-bold text-pink-600 mb-1">写メ日記</p>
             <p className="text-xs text-slate-500 leading-relaxed">
               セラピストが自分のスマホから投稿できます。日記はトップページ・一覧にも流れ、ファンづくりとリピートにつながります。
             </p>
           </div>
           <div className="rounded-2xl border border-slate-200 bg-white px-4 py-3">
-            <p className="text-sm font-bold text-slate-800 mb-1">予約につながる導線</p>
+            <p className="text-sm font-bold text-pink-600 mb-1">予約につながる導線</p>
             <p className="text-xs text-slate-500 leading-relaxed">
               電話・LINE予約・ネット予約をワンタップで。クーポンやお知らせの配信で来店のきっかけを作れます。
             </p>
           </div>
           <div className="rounded-2xl border border-slate-200 bg-white px-4 py-3">
-            <p className="text-sm font-bold text-slate-800 mb-1">口コミ・ランキング</p>
+            <p className="text-sm font-bold text-pink-600 mb-1">口コミ・ランキング</p>
             <p className="text-xs text-slate-500 leading-relaxed">
               口コミは運営の承認制なので安心。評価は店舗ページと週間ランキングに反映され、新規のお客様の後押しになります。
             </p>
           </div>
           <div className="rounded-2xl border border-slate-200 bg-white px-4 py-3">
-            <p className="text-sm font-bold text-slate-800 mb-1">セラピスト求人（フクエスワーク）</p>
+            <p className="text-sm font-bold text-pink-600 mb-1">セラピスト求人（フクエスワーク）</p>
             <p className="text-xs text-slate-500 leading-relaxed">
               求人サイト「フクエスワーク」に求人を掲載できます。応募はメール・LINEで直接届きます。
             </p>
           </div>
           <div className="rounded-2xl border border-slate-200 bg-white px-4 py-3">
-            <p className="text-sm font-bold text-slate-800 mb-1">公式サイトへの埋め込み</p>
+            <p className="text-sm font-bold text-pink-600 mb-1">公式サイトへの埋め込み</p>
             <p className="text-xs text-slate-500 leading-relaxed">
               フクエスの写メ日記・口コミを、店舗様の公式ホームページにそのまま表示できる埋め込みパーツをご用意しています。
             </p>
           </div>
           {/* ※「掲載効果を数字で確認（レポート）」カードはサイトのPVが育ってから載せる予定（2026-08-07 差し替え）。 */}
           <div className="rounded-2xl border border-slate-200 bg-white px-4 py-3">
-            <p className="text-sm font-bold text-slate-800 mb-1">fukuX（フクエックス）</p>
+            <p className="text-sm font-bold text-pink-600 mb-1">fukuX（フクエックス）</p>
             <p className="text-xs text-slate-500 leading-relaxed">
               メンズエステ専用SNS「fukuX」で承認店舗になれます。店舗アカウントでの投稿・宣伝や所属セラピストとの連携など、利用の幅が広がります。
             </p>
