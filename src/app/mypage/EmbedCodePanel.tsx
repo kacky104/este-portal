@@ -27,8 +27,10 @@ function buildReviewsTag(salonId: number): string {
 // SEO用の通常テキストリンク。iframe の中のリンクは検索エンジンに「設置先からのリンク」として
 // カウントされないため、被リンクとして効かせたい場合はこれを併設してもらう（2026-08-07 追加）。
 // アンカーテキストは店舗名＋内容がわかる自然な文言にする（「こちら」等は避ける）。
+// ※「（福岡メンズエステ情報 フクエス）」の suffix は運営判断で外した（2026-08-07。
+//   店舗の公式サイト上で他媒体名が目立つのを避けたいという意図）。
 function buildTextLinkTag(salonId: number, salonName: string): string {
-  const label = `${salonName}の写メ日記・口コミ（福岡メンズエステ情報 フクエス）`;
+  const label = `${salonName}の写メ日記・口コミ`;
   return `<a href="${SITE}/salon/${salonId}">${label}</a>`;
 }
 
