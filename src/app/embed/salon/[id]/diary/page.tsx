@@ -5,7 +5,7 @@ import type { Metadata } from 'next';
 
 // 契約店舗の公式サイトに iframe で貼る「写メ日記」埋め込みウィジェット（2026-08-06 新設）。
 //
-// - 3列×6段＝最大18件のサムネイルグリッド。クリックでフクエスの日記詳細
+// - 3列×4段＝最大12件のサムネイルグリッド。クリックでフクエスの日記詳細
 //   （/diary/[id]?from=salon）を新しいタブで開く。
 // - 埋め込み先のデザインがバラバラなため白基調ニュートラル（サイトのピンクはリンク程度）。
 // - ヘッダー/フッターなどサイト共通UIは載せない軽量ページ。リンクは必ず絶対URL＋
@@ -27,9 +27,9 @@ export const metadata: Metadata = {
 };
 
 const COLS = 3;
-const ROWS = 6;
-const MAX_ITEMS = COLS * ROWS; // 18
-// 画像なし日記を間引いても18件埋まるよう多めに取得する。
+const ROWS = 4;
+const MAX_ITEMS = COLS * ROWS; // 12
+// 画像なし日記を間引いても12件埋まるよう多めに取得する。
 const FETCH_LIMIT = MAX_ITEMS * 3;
 
 type Row = {

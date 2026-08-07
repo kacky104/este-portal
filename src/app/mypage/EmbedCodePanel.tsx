@@ -5,17 +5,17 @@ import { useState } from 'react';
 // mypage 店舗タブ「公式サイトに貼る埋め込みコード」（2026-08-06 新設）。
 //
 // 契約店舗の公式ホームページに iframe で貼ってもらう2種類のウィジェット
-// （/embed/salon/[id]/diary＝写メ日記3列×6段 / /embed/salon/[id]/reviews＝口コミ3件）の
+// （/embed/salon/[id]/diary＝写メ日記3列×4段 / /embed/salon/[id]/reviews＝口コミ3件）の
 // タグをコピーできるパネル。オーナーが自分でコピーして制作会社等に渡す想定。
 //
 // iframe の高さ:
-//  - 日記は「幅に応じて高さが変わる」ため aspect-ratio で指定（3列×6段＝およそ縦2倍＋見出し分）。
+//  - 日記は「幅に応じて高さが変わる」ため aspect-ratio で指定（3列×4段＋見出し・フッター分）。
 //  - 口コミは本文を3行でクランプしているので固定高でよい（幅が狭いと折返しが増えるため少し余裕を持たせる）。
 
 const SITE = 'https://fukues.com';
 
 function buildDiaryTag(salonId: number): string {
-  return `<iframe src="${SITE}/embed/salon/${salonId}/diary" style="width:100%;max-width:600px;aspect-ratio:10/22;border:none;" loading="lazy" title="写メ日記（フクエス）"></iframe>`;
+  return `<iframe src="${SITE}/embed/salon/${salonId}/diary" style="width:100%;max-width:600px;aspect-ratio:10/15;border:none;" loading="lazy" title="写メ日記（フクエス）"></iframe>`;
 }
 
 function buildReviewsTag(salonId: number): string {
@@ -107,7 +107,7 @@ export function EmbedCodePanel({ salonId, onToast }: { salonId: number; onToast:
 
           <CodeBlock
             label="写メ日記ウィジェット"
-            description="最新の写メ日記を3列×6段（最大18件）のサムネイルで表示します。"
+            description="最新の写メ日記を3列×4段（最大12件）のサムネイルで表示します。"
             code={buildDiaryTag(salonId)}
             previewUrl={`/embed/salon/${salonId}/diary`}
             onToast={onToast}
