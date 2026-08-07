@@ -10,7 +10,9 @@ import { useState } from 'react';
 //
 // iframe の高さ:
 //  - 日記は「幅に応じて高さが変わる」ため aspect-ratio で指定（3列×4段＋見出し・フッター分）。
-//  - 口コミは本文を3行でクランプしているので固定高でよい（幅が狭いと折返しが増えるため少し余裕を持たせる）。
+//  - 口コミは本文を3行でクランプしているので固定高でよい。420 は PC幅前提のジャスト寄りの値
+//    （スマホ幅では折返しが増えて下が切れることがある→その場合は貼り付け先で height を増やしてもらう。
+//     2026-08-07 に 480→420 へ変更。余白が目立つという店舗フィードバックによる）。
 
 const SITE = 'https://fukues.com';
 
@@ -19,7 +21,7 @@ function buildDiaryTag(salonId: number): string {
 }
 
 function buildReviewsTag(salonId: number): string {
-  return `<iframe src="${SITE}/embed/salon/${salonId}/reviews" style="width:100%;max-width:600px;border:none;" height="480" loading="lazy" title="口コミ（フクエス）"></iframe>`;
+  return `<iframe src="${SITE}/embed/salon/${salonId}/reviews" style="width:100%;max-width:600px;border:none;" height="420" loading="lazy" title="口コミ（フクエス）"></iframe>`;
 }
 
 function CodeBlock({
