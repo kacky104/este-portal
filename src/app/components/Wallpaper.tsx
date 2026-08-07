@@ -10,7 +10,8 @@ import { useEffect } from 'react';
 // 除外（完全一致）: /cast（着せ替えダッシュボード。CastThemeProvider が全面背景を出す）／/x（fukuX トップ）／
 //                  /jobs（フクエスワーク トップ）。
 // ※ /diary（一覧）は赤テーマ背景を敷くため除外に追加。/cast/login など認証ページはテーマ背景ではないため除外しない（壁紙を出す）。
-const EXCLUDED_PREFIXES = ['/salon/', '/therapist/', '/diary/', '/x/', '/jobs/'];
+// /embed/ は外部サイトに iframe で貼る埋め込みウィジェット＝白背景固定のため壁紙を出さない。
+const EXCLUDED_PREFIXES = ['/salon/', '/therapist/', '/diary/', '/x/', '/jobs/', '/embed/'];
 const EXCLUDED_EXACT = ['/cast', '/x', '/jobs', '/ranking', '/therapists', '/diary', '/reviews', '/x-shops'];
 
 export default function Wallpaper() {

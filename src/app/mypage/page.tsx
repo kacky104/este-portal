@@ -28,6 +28,7 @@ import { sanitizeInternalPath } from '@/app/lib/safeLink';
 import { useToast } from '@/app/components/useToast';
 import { SiteNoticeBanner } from '@/app/components/SiteNoticeBanner';
 import { SalonBumpButton } from '@/app/components/SalonBumpButton';
+import { EmbedCodePanel } from './EmbedCodePanel';
 
 const supabase = createClient();
 
@@ -1965,6 +1966,13 @@ export default function MyPage() {
         {salon && (
           <div className={activeTab === 'salon' ? '' : 'hidden'}>
             <SalonBumpButton salonId={Number(salon.id)} />
+          </div>
+        )}
+
+        {/* ── 公式サイト向けの埋め込みコード発行（写メ日記・口コミの iframe ウィジェット） ── */}
+        {salon && (
+          <div className={activeTab === 'salon' ? '' : 'hidden'}>
+            <EmbedCodePanel salonId={Number(salon.id)} onToast={showToast} />
           </div>
         )}
 
