@@ -103,6 +103,25 @@ export default function ListingPage() {
           本サイトへの掲載をご希望の店舗様は、下記フォームからお気軽にお問い合わせください。掲載内容・条件等の詳細をご案内いたします。
         </p>
 
+        {/* 掲載案内PDF（public/docs/fukues-listing-guide.pdf・2026-08-07 追加）。
+            料金を問い合わせ前に知りたいオーナーが多いため、フォームより先に置く。 */}
+        <a
+          href="/docs/fukues-listing-guide.pdf"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="flex items-center gap-3 rounded-2xl border border-pink-200 bg-pink-50/50 px-4 py-3 mb-4 hover:border-pink-300 hover:bg-pink-50 transition-colors"
+        >
+          <span className="flex-shrink-0 inline-flex items-center justify-center w-9 h-9 rounded-xl bg-white border border-pink-200 text-pink-500 text-[10px] font-black">
+            PDF
+          </span>
+          <span className="min-w-0">
+            <span className="block text-sm font-bold text-pink-600">掲載店舗募集のご案内（PDF）</span>
+            <span className="block text-xs text-slate-500 mt-0.5">
+              料金体系など詳しく知りたい方は、こちらのご案内資料をご覧ください。
+            </span>
+          </span>
+        </a>
+
         {/* 掲載お問い合わせフォーム（未ログインで送信可・運営宛メール通知＋listing_inquiriesに保存） */}
         <ListingInquiryForm />
 
