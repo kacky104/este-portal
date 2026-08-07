@@ -44,6 +44,7 @@ export default function ListingPage() {
         <p className="text-sm text-slate-600 leading-relaxed mb-4">
           掲載店舗様には、集客からリピートづくりまでに必要な機能をまとめてご用意しています。
           店舗情報の更新・写メ日記・出勤管理はすべて専用の管理画面から、店舗様ご自身でいつでも行えます。
+          また、セラピストの求人掲載や、お仕事を探しているセラピストへのオファーもできるようになります。
         </p>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-2">
           <div className="rounded-2xl border border-slate-200 bg-white px-4 py-3">
