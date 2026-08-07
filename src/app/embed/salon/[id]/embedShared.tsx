@@ -11,10 +11,11 @@
 export const EMBED_SITE_URL = 'https://fukues.com';
 // ※ revalidate は各 page.tsx にリテラルで 600 と書く（Next の制約で定数 import 不可）。
 
-/** 「もっと見る」リンク＋Powered by フクエス の共通フッター。 */
+/** 「もっと見る」リンクの共通フッター。
+ *  ※「Powered by フクエス」は店舗の公式サイト上で媒体名を出さない運営判断で撤去（2026-08-07）。 */
 export function EmbedFooter({ moreHref, moreLabel }: { moreHref: string; moreLabel: string }) {
   return (
-    <div className="mt-3 flex items-center justify-between gap-2">
+    <div className="mt-3">
       <a
         href={moreHref}
         target="_blank"
@@ -22,14 +23,6 @@ export function EmbedFooter({ moreHref, moreLabel }: { moreHref: string; moreLab
         className="text-xs font-bold text-pink-500 hover:text-pink-600"
       >
         {moreLabel} →
-      </a>
-      <a
-        href={EMBED_SITE_URL}
-        target="_blank"
-        rel="noopener noreferrer"
-        className="text-[10px] text-slate-400 hover:text-slate-500"
-      >
-        Powered by フクエス
       </a>
     </div>
   );

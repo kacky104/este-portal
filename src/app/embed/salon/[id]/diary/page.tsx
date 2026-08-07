@@ -82,10 +82,7 @@ export default async function EmbedSalonDiaryPage({
 
   return (
     <div className="bg-white p-4 font-sans">
-      <p className="text-[13px] font-bold text-slate-700 mb-3">
-        写メ日記
-        <span className="ml-2 text-[11px] font-normal text-slate-400">タップでフクエスの日記が開きます</span>
-      </p>
+      <p className="text-[13px] font-bold text-slate-700 mb-3">写メ日記一覧</p>
 
       {entries.length === 0 ? (
         <p className="py-10 text-center text-xs text-slate-400">写メ日記はまだありません</p>
