@@ -10,6 +10,8 @@ import { SiteNoticeBanner } from '@/app/components/SiteNoticeBanner';
 import { SiteFooter } from '@/app/components/SiteFooter';
 import { getTheme } from '@/app/lib/themes';
 import { fetchThemeWallpapers } from '@/app/lib/ranking';
+import { fetchPageHero } from '@/app/lib/pageHero';
+import { PageHero } from '@/app/components/PageHero';
 
 export const metadata: Metadata = {
   title: '掲載について｜フクエス',
@@ -23,7 +25,10 @@ export const revalidate = 600;
 export default async function ListingPage() {
   // 背景はホワイトテーマ＋テーマ壁紙（white）。/salons のシルバーと同方式・可読性用に D9 を重ねる（2026-08-07）。
   const theme = getTheme('white');
-  const wallpapers = await fetchThemeWallpapers();
+  const [wallpapers, hero] = await Promise.all([
+    fetchThemeWallpapers(),
+    fetchPageHero('listing'),
+  ]);
   const wallpaperUrl = wallpapers[theme.key] ?? null;
   const bgStyle = {
     backgroundColor: theme.bg,
@@ -52,6 +57,10 @@ export default async function ListingPage() {
       <SiteNoticeBanner />
 
       <main className="max-w-3xl mx-auto px-4 py-10">
+        {/* ページ別ヒーロー画像（/admin「ページ別ヒーロー画像設定」の listing 枠・2026-08-08 追加）。
+            未設定なら何も描画しない。main は max-w-3xl なので contentMax は 768。 */}
+        <PageHero url={hero} alt="掲載について" fullBleedMobile contentMax={768} />
+
         <h1 className="text-2xl font-bold text-slate-900 mb-6">掲載について</h1>
 
         <p className="text-sm text-slate-600 leading-relaxed">
