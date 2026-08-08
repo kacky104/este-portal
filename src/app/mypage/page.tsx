@@ -29,7 +29,6 @@ import { useToast } from '@/app/components/useToast';
 import { SiteNoticeBanner } from '@/app/components/SiteNoticeBanner';
 import { SalonBumpButton } from '@/app/components/SalonBumpButton';
 import { EmbedCodePanel } from './EmbedCodePanel';
-import { HpTab } from './HpTab';
 
 const supabase = createClient();
 
@@ -97,7 +96,7 @@ async function fetchAnnouncementList(salonId: number): Promise<Announcement[]> {
 }
 
 // タブのアイコン（既存サイトと同系統の tabler/lucide 風アウトラインアイコン）。
-function tabIcon(key: 'salon' | 'schedule' | 'available' | 'profile' | 'diary' | 'coupon' | 'news' | 'vipletter' | 'booking' | 'jobs' | 'hp' | 'popup' | 'support') {
+function tabIcon(key: 'salon' | 'schedule' | 'available' | 'profile' | 'diary' | 'coupon' | 'news' | 'vipletter' | 'booking' | 'jobs' | 'popup' | 'support') {
   const common = {
     width: 14, height: 14, viewBox: '0 0 24 24', fill: 'none',
     stroke: 'currentColor', strokeWidth: 2,
@@ -137,14 +136,6 @@ function tabIcon(key: 'salon' | 'schedule' | 'available' | 'profile' | 'diary' |
           <rect x="3" y="7" width="18" height="13" rx="2" />
           <path d="M8 7V5a2 2 0 0 1 2 -2h4a2 2 0 0 1 2 2v2" />
           <path d="M3 13h18" />
-        </svg>
-      );
-    case 'hp': // 公式HP（globe）
-      return (
-        <svg {...common}>
-          <circle cx="12" cy="12" r="9" />
-          <path d="M3 12h18" />
-          <path d="M12 3a14 14 0 0 1 0 18a14 14 0 0 1 0 -18" />
         </svg>
       );
     case 'support': // 運営から（mail）
@@ -501,11 +492,9 @@ export default function MyPage() {
   const { toast, showToast } = useToast();
   const [saving, setSaving] = useState(false);
   const [savingSchedule, setSavingSchedule] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<'salon' | 'schedule' | 'profile' | 'available' | 'diary' | 'coupon' | 'news' | 'vipletter' | 'booking' | 'jobs' | 'hp' | 'popup' | 'support'>('salon');
+  const [activeTab, setActiveTab] = useState<'salon' | 'schedule' | 'profile' | 'available' | 'diary' | 'coupon' | 'news' | 'vipletter' | 'booking' | 'jobs' | 'popup' | 'support'>('salon');
   // 「運営から」タブの未読お知らせ件数（SupportTab が読み込み時に通知・タブバッジ表示用）。
   const [supportUnread, setSupportUnread] = useState(0);
-  // 公式HP契約の有無（salon_sites に行があるか）。タブの表示可否のみに使う（中身は HpTab が自分で取得）。
-  const [hpSiteExists, setHpSiteExists] = useState(false);
   const [expandedSections, setExpandedSections] = useState<Set<string>>(new Set());
   const [newTherapistName, setNewTherapistName] = useState('');
   const [newTherapistIsNew, setNewTherapistIsNew] = useState(false);
@@ -633,13 +622,6 @@ export default function MyPage() {
 
       setSalon(salonData);
       setSalonForm(salonData);
-      // 公式HP契約の有無（タブ表示判定）。best-effort（失敗時はタブ非表示のまま）。
-      supabase
-        .from('salon_sites')
-        .select('salon_id')
-        .eq('salon_id', salonData.id)
-        .maybeSingle()
-        .then(({ data: siteRow }) => setHpSiteExists(Boolean(siteRow)));
       // お知らせ→fukuX 同時投稿用：オーナーの連携fukuX店舗プロフィール（kind='shop'・approved）を解決。
       // best-effort（未連携/失敗は null＝チェックは無効表示）。日記の xProfileId 解決と同型。
       getLinkedXProfileForSalon(user.id)
@@ -1936,13 +1918,10 @@ export default function MyPage() {
             ['vipletter', 'VIPレター'],
             ['booking',   'ネット予約'],
             ['jobs',      '求人'],
-            ['hp',        '公式HP'],
             ['support',   '運営事務局'],
           ] as const)
             // 求人タブはフクエスワーク掲載（jobs_enabled）契約店のみ表示。
             .filter(([key]) => key !== 'jobs' || Boolean(salon?.jobs_enabled))
-            // 公式HPタブは契約店（salon_sites に行がある店舗）のみ表示。
-            .filter(([key]) => key !== 'hp' || hpSiteExists)
             .map(([key, label]) => {
             const selected = activeTab === key;
             return (
@@ -3524,17 +3503,6 @@ export default function MyPage() {
         <div className={`space-y-4 ${activeTab === 'jobs' && salon?.jobs_enabled ? '' : 'hidden'}`}>
           {salon ? (
             <JobsTab salonId={Number(salon.id)} />
-          ) : (
-            <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5">
-              <p className="text-xs text-slate-400">店舗情報を読み込み中です…</p>
-            </div>
-          )}
-        </div>
-
-        {/* ── 公式HPタブ（契約店＝salon_sites に行がある店舗のみ表示）。2026-08-08 段階1。 ── */}
-        <div className={`space-y-4 ${activeTab === 'hp' && hpSiteExists ? '' : 'hidden'}`}>
-          {salon ? (
-            <HpTab salonId={Number(salon.id)} onToast={showToast} />
           ) : (
             <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5">
               <p className="text-xs text-slate-400">店舗情報を読み込み中です…</p>

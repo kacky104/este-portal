@@ -1,3 +1,6 @@
+// ※ 2026-08-08: /mypage の「公式HP」タブは撤去済み。このコンポーネントは
+// 店舗ドメイン側の管理画面（独自ドメイン/admin・段階3）に移植して使う予定で残している。
+// 現在どこからも import されていない。
 'use client';
 
 import { useEffect, useState } from 'react';
