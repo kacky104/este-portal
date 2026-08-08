@@ -40,7 +40,7 @@ export default async function XAdminPage() {
     // リンクバナー設置報告（RLSでADMIN_UUIDのみ閲覧可）。未対応を上に・新着順。
     supabase
       .from('banner_reports')
-      .select('id, salon_name, email, sites, page_url, x_handle, comment, status, created_at')
+      .select('id, salon_name, email, sites, page_url, x_handle, comment, area, phone, official_url, status, created_at')
       .order('status', { ascending: false }) // 'open' > 'done'（文字列降順で open が先）
       .order('created_at', { ascending: false })
       .limit(200),

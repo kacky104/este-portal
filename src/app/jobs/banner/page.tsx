@@ -87,8 +87,16 @@ export default function JobsBannerPage() {
           </section>
         ))}
 
-        {/* 「設置後のご報告（特典）」ブロックは特典内容が確定してから再掲する（2026-07-12 削除。
-            報告フォーム /x/banner/report 自体は3サイト共通で稼働中）。 */}
+        {/* ── 設置後のご報告（2026-08-08 復活）──
+            報告フォームは本体テーマの /banner/report（3サイト共通・保存先 banner_reports）。 */}
+        <h2 className={H2}>設置後のご報告</h2>
+        <p className={P}>
+          バナーを設置いただいたら、
+          <a href="/banner/report" className="text-emerald-600 hover:underline">設置報告フォーム</a>
+          からご報告ください。フクエス・フクエスワーク・fukuX の3つすべてを設置いただいた店舗様は、フクエスの
+          <a href="/listing" className="text-emerald-600 hover:underline">店舗一覧に無料で掲載</a>
+          できます。
+        </p>
 
         <h2 className={H2}>ご利用にあたって</h2>
         <ul className={UL}>

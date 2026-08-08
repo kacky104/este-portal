@@ -45,7 +45,9 @@ export type ModProfile = {
 
 const KIND_LABEL: Record<string, string> = { user: 'ユーザー', therapist: 'セラピスト', shop: 'お店', official: '運営' };
 
-// リンクバナー設置報告（banner_reports）。/x/banner/report から送信され、ここで未対応/対応済みを管理する。
+// リンクバナー設置報告（banner_reports）。/x/banner/report と /banner/report（本体版）から送信され、
+// ここで未対応/対応済みを管理する。area/phone/official_url は本体版フォームだけが送る任意項目
+// （無料掲載枠への転記用・2026-08-08 追加）。
 export type BannerReportRow = {
   id: string;
   salon_name: string;
@@ -54,6 +56,9 @@ export type BannerReportRow = {
   page_url: string;
   x_handle: string | null;
   comment: string | null;
+  area: string | null;
+  phone: string | null;
+  official_url: string | null;
   status: 'open' | 'done';
   created_at: string;
 };
@@ -795,12 +800,14 @@ export function XAdmin({
         </div>
       )}
 
-      {/* ── リンクバナー設置報告（/x/banner/report からの送信一覧・未対応が先） ── */}
+      {/* ── リンクバナー設置報告（/x/banner/report・/banner/report からの送信一覧・未対応が先） ── */}
       {tab === 'reports' && (
         <div>
           <p className="text-xs text-[color:var(--x-text-muted)] mb-4 leading-relaxed">
             リンクバナー設置報告の一覧です。設置ページを確認したら、fukuXのお店は「認証」タブで「バナー設置✓」（カード画像+4枚）を行い「対応済み」にしてください。
             特典の開放をもって確認完了の連絡に代える運用です（メール連絡は設置確認が取れなかった場合・返信が必要な場合のみ）。
+            3サイト（フクエス・ワーク・fukuX）すべてのバナーが確認できた報告は、フクエス /admin の「無料掲載枠」に
+            店名・地域・電話・公式HPを手入力して店舗一覧へ掲載します（地域・電話・公式HPは本体版フォームからの報告のみ届きます）。
           </p>
           <div className="space-y-2">
             {reports.length === 0 ? (
@@ -847,6 +854,17 @@ export function XAdmin({
                         <Link href={`/x/u/${encodeURIComponent(r.x_handle)}`} className="text-[color:var(--x-accent)] hover:underline">
                           @{r.x_handle}
                         </Link>
+                      </p>
+                    )}
+                    {/* 本体版フォーム（/banner/report）の任意項目。/admin「無料掲載枠」への転記用。 */}
+                    {r.area && <p>地域: {r.area}</p>}
+                    {r.phone && <p>電話: {r.phone}</p>}
+                    {r.official_url && (
+                      <p>
+                        公式HP:{' '}
+                        <a href={r.official_url} target="_blank" rel="noopener noreferrer" className="text-[color:var(--x-accent)] hover:underline">
+                          {r.official_url}
+                        </a>
                       </p>
                     )}
                     {r.comment && <p className="whitespace-pre-wrap break-words">補足: {r.comment}</p>}

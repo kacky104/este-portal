@@ -8,7 +8,7 @@ import { SiteFooter } from '@/app/components/SiteFooter';
 // フクエス本体のリンクバナー案内ページ（fukuX版 /x/banner の本体テーマ版）。
 // 静的コンテンツのみ・データ取得なし。画像は public/ 直下：
 //   fukues-banner-200x40.png（カラー版）・fukues-banner-200x40-white.png（白基調版）
-// 設置報告は fukuX と共通の受付窓口 /x/banner/report（banner_reports.sites='fukues'）。
+// 設置報告は本体テーマの /banner/report（2026-08-08 新設。保存先は fukuX と共通の banner_reports）。
 export const metadata: Metadata = {
   title: 'リンクバナーについて｜フクエス',
   description: '福岡メンズエステ情報・口コミポータル「フクエス」のリンクバナーと貼り付け用HTMLタグのご案内です。リンクはご自由にどうぞ。',
@@ -86,8 +86,21 @@ export default function BannerPage() {
             </section>
           ))}
 
-          {/* 「設置後のご報告（特典）」ブロックは特典内容が確定してから再掲する（2026-07-12 削除。
-              報告フォーム /x/banner/report 自体は3サイト共通で稼働中）。 */}
+          {/* ── 設置後のご報告（2026-08-08 復活）──
+              3サイト設置＝無料掲載（/salons テキスト掲載）の条件なので、報告導線をここにも置く。
+              リンク先は本体テーマの /banner/report（fukuX版 /x/banner/report とはUIのみ別・保存先は共通）。 */}
+          <h2 className={H2}>設置後のご報告</h2>
+          <p className={P}>
+            バナーを設置いただいたら、下記フォームからご報告ください。フクエス・フクエスワーク・fukuX の3つすべてを設置いただいた店舗様は、
+            <a href="/listing" className="text-pink-600 hover:underline">無料で店舗一覧に掲載</a>
+            できます（fukuXのお店アカウントには、お店カード画像+4枚の特典もございます）。
+          </p>
+          <a
+            href="/banner/report"
+            className="inline-block mt-3 px-5 py-2.5 rounded-full bg-pink-600 text-white text-sm font-bold hover:bg-pink-500 transition-colors shadow-sm shadow-pink-500/20"
+          >
+            設置を報告する →
+          </a>
 
           <h2 className={H2}>ご利用にあたって</h2>
           <ul className={UL}>

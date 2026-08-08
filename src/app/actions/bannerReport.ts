@@ -4,8 +4,8 @@ import { createClient } from '@/app/lib/supabase/server';
 import { createServiceClient } from '@/app/lib/supabase/service';
 import { notifyAdmin } from '@/app/lib/notifyAdmin';
 
-// リンクバナー設置報告の送信（/x/banner/report）。未ログインでも送信可のため、
-// クライアントから直接 INSERT させず（banner_reports に INSERT ポリシーなし）、
+// リンクバナー設置報告の送信（fukuX版 /x/banner/report・本体版 /banner/report の共用）。
+// 未ログインでも送信可のため、クライアントから直接 INSERT させず（banner_reports に INSERT ポリシーなし）、
 // この Server Action がバリデーション＋スパム対策を通したうえで service_role で書き込む。
 
 // 貼ったバナーの種類（DB格納値 → 表示名）。フォーム・運営パネルと共用。
@@ -20,6 +20,13 @@ export type BannerReportInput = {
   xHandle: string; // 任意（空文字可）
   comment: string; // 任意（空文字可）
   website: string; // honeypot（画面に出さない入力。値が入っていたらbotとみなし黙って成功扱い）
+  // ↓ 本体版フォーム（/banner/report）だけが送る任意項目。無料掲載枠への転記用（2026-08-08 追加）。
+  // fukuX版フォームは渡さない＝undefined → DBは NULL。
+  area?: string;
+  phone?: string;
+  officialUrl?: string;
+  /** 通知メールの件名・文面の出し分け。既定は fukuX（従来動作）。 */
+  source?: 'fukux' | 'fukues';
 };
 
 export async function submitBannerReport(
@@ -33,6 +40,9 @@ export async function submitBannerReport(
   const pageUrl = input.pageUrl.trim();
   const xHandle = input.xHandle.trim().replace(/^@/, '');
   const comment = input.comment.trim();
+  const area = (input.area ?? '').trim();
+  const phone = (input.phone ?? '').trim();
+  const officialUrl = (input.officialUrl ?? '').trim();
   const sites = [...new Set(input.sites)].filter((s): s is BannerSite =>
     (VALID_SITES as string[]).includes(s),
   );
@@ -43,6 +53,10 @@ export async function submitBannerReport(
   if (!/^https?:\/\/.+\..+/.test(pageUrl) || pageUrl.length > 500) return { ok: false, error: '設置ページURLは http(s):// から始まるURLを入力してください' };
   if (xHandle.length > 30) return { ok: false, error: '@IDは30文字以内で入力してください' };
   if (comment.length > 1000) return { ok: false, error: '補足コメントは1000文字以内で入力してください' };
+  if (area.length > 100) return { ok: false, error: '地域は100文字以内で入力してください' };
+  if (phone.length > 30) return { ok: false, error: '電話番号は30文字以内で入力してください' };
+  if (officialUrl !== '' && (!/^https?:\/\/.+\..+/.test(officialUrl) || officialUrl.length > 500))
+    return { ok: false, error: '公式ホームページのURLは http(s):// から始まるURLを入力してください' };
 
   const svc = createServiceClient();
 
@@ -67,15 +81,24 @@ export async function submitBannerReport(
     page_url: pageUrl,
     x_handle: xHandle || null,
     comment: comment || null,
+    area: area || null,
+    phone: phone || null,
+    official_url: officialUrl || null,
   });
   if (error) return { ok: false, error: '送信に失敗しました。時間をおいてお試しください' };
 
-  // 運営へメール通知（失敗しても送信自体は成功扱い）。
-  await notifyAdmin(`【fukuX】リンクバナー設置報告（${salonName}）`, [
+  // 運営へメール通知（失敗しても送信自体は成功扱い）。件名の媒体名は送信元フォームで出し分ける。
+  const brand = input.source === 'fukues' ? 'フクエス' : 'fukuX';
+  await notifyAdmin(`【${brand}】リンクバナー設置報告（${salonName}）`, [
     `店舗名: ${salonName}`,
-    `バナー: ${sites.join('・')}`,
+    `バナー: ${sites.map((s) => SITE_LABEL[s]).join('・')}`,
     `設置ページ: ${pageUrl}`,
     `連絡先: ${email}${xHandle ? `／fukuX: @${xHandle}` : ''}`,
+    // 本体版フォームの任意項目（無料掲載枠への転記用）。入力があった行だけ出す。
+    area ? `地域: ${area}` : '',
+    phone ? `電話: ${phone}` : '',
+    officialUrl ? `公式HP: ${officialUrl}` : '',
+    comment ? `補足: ${comment}` : '',
     '',
     '確認・対応: https://fukues.com/x/admin →「報告」タブ',
   ]);

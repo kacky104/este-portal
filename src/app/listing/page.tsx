@@ -175,7 +175,7 @@ export default async function ListingPage() {
               から3つのバナータグを取得し、公式ホームページに設置
             </li>
             <li>
-              <a href="/x/banner/report" className="text-pink-600 hover:underline">設置報告フォーム</a>
+              <a href="/banner/report" className="text-pink-600 hover:underline">設置報告フォーム</a>
               または上記フォーム・メールで、設置したページのURLをご連絡
             </li>
             <li>当事務局で設置を確認できましたら、店舗一覧に掲載いたします</li>
