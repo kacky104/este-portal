@@ -11,7 +11,8 @@ import { useEffect } from 'react';
 //                  /jobs（フクエスワーク トップ）。
 // ※ /diary（一覧）は赤テーマ背景を敷くため除外に追加。/cast/login など認証ページはテーマ背景ではないため除外しない（壁紙を出す）。
 // /embed/ は外部サイトに iframe で貼る埋め込みウィジェット＝白背景固定のため壁紙を出さない。
-const EXCLUDED_PREFIXES = ['/salon/', '/therapist/', '/diary/', '/x/', '/jobs/', '/embed/'];
+// /hp/ は掲載店舗の公式ホームページ＝フクエスの壁紙を出さない（ひな形が自分で背景を塗る）。
+const EXCLUDED_PREFIXES = ['/salon/', '/therapist/', '/diary/', '/x/', '/jobs/', '/embed/', '/hp/'];
 const EXCLUDED_EXACT = ['/cast', '/x', '/jobs', '/ranking', '/therapists', '/diary', '/reviews', '/x-shops'];
 
 export default function Wallpaper() {

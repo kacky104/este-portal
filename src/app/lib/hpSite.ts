@@ -176,3 +176,52 @@ export type HpSiteFormInput = {
   blocks:            HpBlocksConfig;
   banners:           HpBanner[];
 };
+
+// ── ひな形別カラーバリエーション（2026-08-08 デザイン確定にともない追加） ──
+// テーマは「ひな形ごとに用意された6色」から選ぶ（SALON_THEMES の10色とは別体系）。
+// CSS変数の上書きだけで色が変わる設計（デザインモック thumbs.js の VARIANTS と同一の値）。
+// ひな形と色は最初のギャラリー選択で確定し、以後は変更不可（変更は運営作業・有償）。
+export type HpColorVariant = {
+  key:   string;
+  label: string;
+  /** ひな形CSSに注入する CSS 変数（例 { '--hp-accent': '#c4a469' }） */
+  css:   Record<string, string>;
+};
+
+export const HP_COLOR_VARIANTS: Record<HpTemplateKey, HpColorVariant[]> = {
+  a: [
+    { key: 'gold',     label: 'シャンパンゴールド', css: { '--hp-accent': '#c4a469', '--hp-accent-soft': '#a8905e' } },
+    { key: 'platinum', label: 'プラチナ',           css: { '--hp-accent': '#c9ccd4', '--hp-accent-soft': '#a6aab4' } },
+    { key: 'rose',     label: 'ローズ',             css: { '--hp-accent': '#d4a3ab', '--hp-accent-soft': '#b8878f' } },
+    { key: 'wine',     label: 'ボルドー',           css: { '--hp-accent': '#c98a8a', '--hp-accent-soft': '#ad6f6f' } },
+    { key: 'blue',     label: 'ミッドナイト',       css: { '--hp-accent': '#93a8cc', '--hp-accent-soft': '#7789ad' } },
+    { key: 'forest',   label: 'フォレスト',         css: { '--hp-accent': '#9dbca5', '--hp-accent-soft': '#81a089' } },
+  ],
+  b: [
+    { key: 'green',    label: 'リーフグリーン',     css: { '--hp-accent': '#8fae8b', '--hp-accent-deep': '#6b8f67' } },
+    { key: 'terra',    label: 'テラコッタ',         css: { '--hp-accent': '#d99a7e', '--hp-accent-deep': '#bd7e62' } },
+    { key: 'blue',     label: 'スモークブルー',     css: { '--hp-accent': '#8fa8c4', '--hp-accent-deep': '#6f88a8' } },
+    { key: 'lavender', label: 'ラベンダー',         css: { '--hp-accent': '#a89ac4', '--hp-accent-deep': '#8c7eaa' } },
+    { key: 'pink',     label: 'ロゼピンク',         css: { '--hp-accent': '#d49aac', '--hp-accent-deep': '#b87e90' } },
+    { key: 'mustard',  label: 'マスタード',         css: { '--hp-accent': '#c4ae6b', '--hp-accent-deep': '#a8924f' } },
+  ],
+  c: [
+    { key: 'red',      label: 'シグナルレッド',     css: { '--hp-accent': '#ff4658' } },
+    { key: 'blue',     label: 'クラインブルー',     css: { '--hp-accent': '#2b5cff' } },
+    { key: 'green',    label: 'グリーン',           css: { '--hp-accent': '#00a86b' } },
+    { key: 'orange',   label: 'オレンジ',           css: { '--hp-accent': '#ff7a1a' } },
+    { key: 'purple',   label: 'パープル',           css: { '--hp-accent': '#8a3ffc' } },
+    { key: 'mono',     label: 'モノクローム',       css: { '--hp-accent': '#111114' } },
+  ],
+};
+
+/** ひな形に対して有効な色キーか。 */
+export function isValidHpColor(template: HpTemplateKey, colorKey: string): boolean {
+  return HP_COLOR_VARIANTS[template].some((v) => v.key === colorKey);
+}
+
+/** ひな形＋色キー → CSS変数（不正キーは各ひな形の先頭色にフォールバック）。 */
+export function hpColorCssVars(template: HpTemplateKey, colorKey: string): Record<string, string> {
+  const list = HP_COLOR_VARIANTS[template];
+  return (list.find((v) => v.key === colorKey) ?? list[0]).css;
+}

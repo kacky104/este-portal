@@ -2,8 +2,8 @@
 
 import { createClient } from '@/app/lib/supabase/server';
 import { ADMIN_UUID } from '@/app/lib/admin';
-import { SALON_THEMES } from '@/app/lib/themes';
 import {
+  isValidHpColor,
   type HpSite,
   type HpSiteFormInput,
   type HpSiteStatus,
@@ -121,8 +121,9 @@ export async function saveMyHpSite(
   if (!isHpTemplateKey(input.template_key)) {
     return { ok: false, error: 'ひな形の指定が正しくありません' };
   }
-  if (!SALON_THEMES.some((t) => t.key === input.theme_key)) {
-    return { ok: false, error: 'テーマカラーの指定が正しくありません' };
+  // カラーはひな形ごとの6色（HP_COLOR_VARIANTS）から。SALON_THEMES とは別体系（2026-08-08 変更）。
+  if (!isValidHpColor(input.template_key, input.theme_key)) {
+    return { ok: false, error: 'カラーの指定が正しくありません' };
   }
   if (!Array.isArray(input.hero_images) || input.hero_images.length > MAX_HP_HERO_IMAGES) {
     return { ok: false, error: `トップ画像は最大${MAX_HP_HERO_IMAGES}枚です` };
