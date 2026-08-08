@@ -5,7 +5,7 @@ import { BannerTagCode } from '@/app/components/BannerTagCode';
 // フクエスワークのリンクバナー案内ページ（fukuX版 /x/banner のワーク（緑）テーマ版）。
 // ヘッダー・フッターは /jobs レイアウトを継承。静的コンテンツのみ・データ取得なし。
 // 画像は public/ 直下：
-//   fukuwork-banner-200x40.png（カラー版）・fukuwork-banner-200x40-white.png（白基調版）
+//   fukuwork-banner-300x60.png（カラー版）・fukuwork-banner-300x60-white.png（白基調版）
 // 設置報告は fukuX と共通の受付窓口 /x/banner/report（banner_reports.sites='work'）。
 const SITE_URL = 'https://fukues.com';
 const PAGE_TITLE = 'リンクバナーについて';
@@ -34,17 +34,17 @@ export const metadata: Metadata = {
   },
 };
 
-// バナー（200×40）。public/ 直下に配置した画像を参照する。
+// バナー（300×60）。public/ 直下に配置した画像を参照する。
 // 1番目＝フクエスワーク（求人）・2番目＝フクエス本体。両サイトの配布ページで相互掲載（順序は各サイト優先）。
 const BANNERS = [
   {
-    file: 'fukuwork-banner-200x40.png',
+    file: 'fukuwork-banner-300x60.png',
     label: 'フクエスワーク（求人）',
     href: `${SITE_URL}/jobs`,
     alt: 'フクエスワーク｜福岡メンズエステのセラピスト求人サイト',
   },
   {
-    file: 'fukues-banner-200x40.png',
+    file: 'fukues-banner-300x60.png',
     label: 'フクエス（本体）',
     href: `${SITE_URL}/`,
     alt: 'フクエス｜福岡メンズエステ情報・口コミポータル',
@@ -53,7 +53,7 @@ const BANNERS = [
 
 // 外部サイト貼り付け用タグ。画像は直リンク参照可（ダウンロードして設置してもOK）。
 function bannerTag(b: (typeof BANNERS)[number]): string {
-  return `<a href="${b.href}" target="_blank" rel="noopener"><img src="${SITE_URL}/${b.file}" width="200" height="40" alt="${b.alt}" loading="lazy" style="border:0;"></a>`;
+  return `<a href="${b.href}" target="_blank" rel="noopener"><img src="${SITE_URL}/${b.file}" width="300" height="60" alt="${b.alt}" loading="lazy" style="border:0;"></a>`;
 }
 
 const H2 = 'text-base font-bold text-slate-800 mt-6 mb-2';
@@ -72,14 +72,14 @@ export default function JobsBannerPage() {
 
         {BANNERS.map((b) => (
           <section key={b.file}>
-            <h2 className={H2}>{b.label}（200×40）</h2>
+            <h2 className={H2}>{b.label}（300×60）</h2>
             {/* プレビュー：輪郭が出るよう枠線つきの面に載せる。 */}
             <div className="inline-block p-4 rounded-xl bg-slate-50 border border-slate-200">
               <img
                 src={`/${b.file}`}
                 alt={b.alt}
-                width={200}
-                height={40}
+                width={300}
+                height={60}
                 className="block border border-slate-200"
               />
             </div>

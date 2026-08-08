@@ -1,7 +1,7 @@
 'use client';
 
 // /mypage「運営から」タブ内のサブタブ「リンクバナー特典」。
-// ・フクエス／フクエスワーク／fukuX の3サイトのリンクバナー（200×40）と貼り付け用タグ、特典説明を表示。
+// ・フクエス／フクエスワーク／fukuX の3サイトのリンクバナー（300×60）と貼り付け用タグ、特典説明を表示。
 // ・自店の優先表示特典（本体 card_boost・求人 job_boost）の適用状況を「実行中✓／未適用」で表示する。
 //   ブースト自体は運営がバナー設置を確認してから /admin で付与する（オーナーは変更不可・閲覧のみ）。
 // ・設置報告は fukuX 専用フォームではなく、この場の簡易フォーム（店名・URL・貼ったバナー種類）で受ける。
@@ -31,7 +31,7 @@ type Banner = {
 const BANNERS: Banner[] = [
   {
     key: 'fukues',
-    file: 'fukues-banner-200x40.png',
+    file: 'fukues-banner-300x60.png',
     label: 'フクエス（本体）',
     href: `${SITE_URL}/`,
     alt: 'フクエス｜福岡メンズエステ情報・口コミポータル',
@@ -40,7 +40,7 @@ const BANNERS: Banner[] = [
   },
   {
     key: 'work',
-    file: 'fukuwork-banner-200x40.png',
+    file: 'fukuwork-banner-300x60.png',
     label: 'フクエスワーク（求人）',
     href: `${SITE_URL}/jobs`,
     alt: 'フクエスワーク｜福岡メンズエステのセラピスト求人サイト',
@@ -49,7 +49,7 @@ const BANNERS: Banner[] = [
   },
   {
     key: 'fukux',
-    file: 'fukux-banner-200x40.png',
+    file: 'fukux-banner-300x60.png',
     label: 'fukuX（フクエックス）',
     href: `${SITE_URL}/x`,
     alt: 'fukuX(フクエックス)｜福岡メンズエステ専用SNS',
@@ -60,7 +60,7 @@ const BANNERS: Banner[] = [
 
 // 外部サイト貼り付け用タグ（配布ページと同一形式）。画像は直リンク参照可。
 function bannerTag(b: Banner): string {
-  return `<a href="${b.href}" target="_blank" rel="noopener"><img src="${SITE_URL}/${b.file}" width="200" height="40" alt="${b.alt}" loading="lazy" style="border:0;"></a>`;
+  return `<a href="${b.href}" target="_blank" rel="noopener"><img src="${SITE_URL}/${b.file}" width="300" height="60" alt="${b.alt}" loading="lazy" style="border:0;"></a>`;
 }
 
 // 特典適用状況の1行（実行中✓／未適用＋導線／対象外）。
@@ -256,7 +256,7 @@ export function BannerPerkPanel({ salonId }: { salonId: number | null }) {
       {/* ── バナー素材・タグ・特典説明 ── */}
       <div className="bg-white rounded-3xl border border-slate-100 shadow-sm p-5 space-y-5">
         <div>
-          <h2 className="text-sm font-black text-slate-700">リンクバナー（200×40）</h2>
+          <h2 className="text-sm font-black text-slate-700">リンクバナー（300×60）</h2>
           <p className="text-[11px] text-slate-400 leading-relaxed mt-1">
             下記タグを貴サイトに貼り付けてご利用ください（画像はダウンロードして設置してもOK）。
             リンク先は各タグ記載のURLでお願いします。画像の改変はご遠慮ください。
@@ -272,8 +272,8 @@ export function BannerPerkPanel({ salonId }: { salonId: number | null }) {
               <Image
                 src={`/${b.file}`}
                 alt={b.alt}
-                width={200}
-                height={40}
+                width={300}
+                height={60}
                 className="block border border-slate-200"
               />
             </div>

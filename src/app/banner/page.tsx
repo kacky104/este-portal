@@ -7,7 +7,12 @@ import { SiteFooter } from '@/app/components/SiteFooter';
 
 // フクエス本体のリンクバナー案内ページ（fukuX版 /x/banner の本体テーマ版）。
 // 静的コンテンツのみ・データ取得なし。画像は public/ 直下：
-//   fukues-banner-200x40.png（カラー版）・fukues-banner-200x40-white.png（白基調版）
+//   fukues-banner-300x60.png（カラー版）・fukues-banner-300x60-white.png（白基調版）
+//
+// サイズ改訂（2026-08-08）: 200×40 → 300×60。
+//   ・旧 *-banner-200x40.png は public/ に残置＝すでに旧タグを貼っている店舗のバナーが404にならないようにする。
+//   ・タグを変えても設置済み店舗には反映されないため、大きくしたい店舗には貼り替えを依頼すること。
+//   ・画像の実体は 600×120（2倍解像度）を 300×60 で表示する。差し替えは同じファイル名で上書きするだけ。
 // 設置報告は本体テーマの /banner/report（2026-08-08 新設。保存先は fukuX と共通の banner_reports）。
 export const metadata: Metadata = {
   title: 'リンクバナーについて｜フクエス',
@@ -17,24 +22,24 @@ export const metadata: Metadata = {
 
 const SITE_URL = 'https://fukues.com';
 
-// バナー（200×40）。public/ 直下に配置した画像を参照する。
+// バナー（300×60）。public/ 直下に配置した画像を参照する。
 // 1番目＝フクエス本体・2番目＝フクエスワーク（求人）・3番目＝fukuX（SNS・カラー版（紫）のみ。
 // 白基調版の配布は fukuX 側 /x/banner に任せる）。各サイトの配布ページで相互掲載（順序は各サイト優先）。
 const BANNERS = [
   {
-    file: 'fukues-banner-200x40.png',
+    file: 'fukues-banner-300x60.png',
     label: 'フクエス（本体）',
     href: `${SITE_URL}/`,
     alt: 'フクエス｜福岡メンズエステ情報・口コミポータル',
   },
   {
-    file: 'fukuwork-banner-200x40.png',
+    file: 'fukuwork-banner-300x60.png',
     label: 'フクエスワーク（求人）',
     href: `${SITE_URL}/jobs`,
     alt: 'フクエスワーク｜福岡メンズエステのセラピスト求人サイト',
   },
   {
-    file: 'fukux-banner-200x40.png',
+    file: 'fukux-banner-300x60.png',
     label: 'fukuX（SNS）',
     href: `${SITE_URL}/x`,
     alt: 'fukuX(フクエックス)｜福岡メンズエステ専用SNS',
@@ -43,7 +48,7 @@ const BANNERS = [
 
 // 外部サイト貼り付け用タグ。画像は直リンク参照可（ダウンロードして設置してもOK）。
 function bannerTag(b: (typeof BANNERS)[number]): string {
-  return `<a href="${b.href}" target="_blank" rel="noopener"><img src="${SITE_URL}/${b.file}" width="200" height="40" alt="${b.alt}" loading="lazy" style="border:0;"></a>`;
+  return `<a href="${b.href}" target="_blank" rel="noopener"><img src="${SITE_URL}/${b.file}" width="300" height="60" alt="${b.alt}" loading="lazy" style="border:0;"></a>`;
 }
 
 const H2 = 'text-base font-bold text-slate-800 mt-6 mb-2';
@@ -71,14 +76,14 @@ export default function BannerPage() {
 
           {BANNERS.map((b) => (
             <section key={b.file}>
-              <h2 className={H2}>{b.label}（200×40）</h2>
+              <h2 className={H2}>{b.label}（300×60）</h2>
               {/* プレビュー：輪郭が出るよう枠線つきの面に載せる。 */}
               <div className="inline-block p-4 rounded-xl bg-slate-50 border border-slate-200">
                 <img
                   src={`/${b.file}`}
                   alt={b.alt}
-                  width={200}
-                  height={40}
+                  width={300}
+                  height={60}
                   className="block border border-slate-200"
                 />
               </div>
