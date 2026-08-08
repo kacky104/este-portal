@@ -47,8 +47,18 @@ export function HpTemplate({ data }: { data: HpPageData }) {
   const onDuty = therapists.filter((t) => t.onDuty);
 
   return (
-    <div className={`hp-root hp-${site.template_key}`} style={cssVars}>
+    <div
+      className={`hp-root hp-${site.template_key}${data.wallpaperUrl ? ' hp-has-wallpaper' : ''}`}
+      style={cssVars}
+    >
       <style dangerouslySetInnerHTML={{ __html: TEMPLATE_CSS[site.template_key] }} />
+
+      {/* ── テーマ壁紙（theme_wallpapers 流用・固定レイヤー）。
+           background-attachment: fixed はモバイルで無視されるため /salon/[id] と同じ固定配置レイヤー方式。
+           暗色オーバーレイは各ひな形のCSS（.hp-wallpaper::after）が持つ。 ── */}
+      {data.wallpaperUrl && (
+        <div className="hp-wallpaper" style={{ backgroundImage: `url(${data.wallpaperUrl})` }} />
+      )}
 
       {/* ── トップバー（タイプCのみCSSで表示） ── */}
       <div className="hp-topbar">

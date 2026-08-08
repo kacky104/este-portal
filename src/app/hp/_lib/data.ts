@@ -65,6 +65,17 @@ export type HpPageData = {
   jobId:      number | null;
   /** 本日の営業日（JST・午前6時切替）の表示ラベル（例「8/9 (土)」）。出勤ブロックの日付表示用 */
   todayLabel: string;
+  /** テーマ壁紙のURL（theme_wallpapers・/admin でアップロードした画像を流用）。無ければ null */
+  wallpaperUrl: string | null;
+};
+
+// ひな形ごとに敷くテーマ壁紙のキー（theme_wallpapers.theme_key）。
+// A（LUXE・黒基調）はフクエスの「ブラック」壁紙を薄く敷く（2026-08-08 要望）。
+// B/C は現状なし（敷きたくなったらここにキーを足すだけ）。
+const HP_WALLPAPER_THEME: Record<'a' | 'b' | 'c', string | null> = {
+  a: 'black',
+  b: null,
+  c: null,
 };
 
 function mapSiteRow(row: Record<string, unknown>): HpSite {
@@ -156,6 +167,18 @@ export async function fetchHpPageData(slug: string): Promise<HpPageData | null> 
       .maybeSingle(),
   ]);
 
+  // テーマ壁紙（ひな形に対応するキーがある場合のみ・/salon/[id] と同じ theme_wallpapers を流用）
+  const wallpaperKey = HP_WALLPAPER_THEME[site.template_key];
+  let wallpaperUrl: string | null = null;
+  if (wallpaperKey) {
+    const { data: wp } = await supabase
+      .from('theme_wallpapers')
+      .select('image_url')
+      .eq('theme_key', wallpaperKey)
+      .maybeSingle();
+    wallpaperUrl = (wp?.image_url as string | undefined) ?? null;
+  }
+
   // 出勤マップ（本日・is_active のみ）
   const dutyMap = new Map<string, { start: string; end: string }>();
   (schedRes.data ?? []).forEach((r) => {
@@ -218,6 +241,7 @@ export async function fetchHpPageData(slug: string): Promise<HpPageData | null> 
     })),
     jobId: jobRes.data ? Number(jobRes.data.id) : null,
     todayLabel: formatTodayLabel(today),
+    wallpaperUrl,
   };
 }
 

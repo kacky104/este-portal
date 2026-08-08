@@ -37,6 +37,9 @@ const COMMON = `
 .hp-th-catch { display: none; }
 .hp-th-badges { display: none; }
 .hp-sched-date { font-size: 11px; margin: -8px 0 12px; opacity: .75; letter-spacing: .1em; }
+/* テーマ壁紙レイヤー（有効時は .hp-has-wallpaper が付き、ひな形側で透過調整する） */
+.hp-wallpaper { position: fixed; inset: 0; z-index: -1; background-size: cover; background-position: center; pointer-events: none; }
+.hp-wallpaper::after { content: ''; position: absolute; inset: 0; }
 /* スクロール出現（reduced-motion 時はアニメなしで常時表示） */
 @media (prefers-reduced-motion: no-preference) {
   [data-hp-reveal] { opacity: 0; transform: translateY(26px); transition: opacity .7s ease, transform .7s ease; }
@@ -59,6 +62,12 @@ ${COMMON}
 }
 .hp-a .hp-sec-alt { background: #1f1d22; }
 .hp-a .hp-sec + .hp-sec:not(.hp-sec-alt) { border-top: 1px solid #26242b; }
+/* 壁紙が有効なとき: 地を透かして壁紙を見せ、帯・カードは半透明のガラス調に */
+.hp-a.hp-has-wallpaper { background-color: transparent; }
+.hp-a .hp-wallpaper::after { background: rgba(23,22,26,.84); }
+.hp-a.hp-has-wallpaper .hp-sec-alt { background: rgba(31,29,34,.72); }
+.hp-a.hp-has-wallpaper .hp-card { background: rgba(35,33,40,.8); }
+.hp-a.hp-has-wallpaper .hp-topbar { background: rgba(23,22,26,.82); }
 /* 固定トップバー（店名＋予約）。スクロールしても店名と導線が消えない */
 .hp-a .hp-topbar { display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; z-index: 30;
   padding: 13px 20px; background: rgba(23,22,26,.9); backdrop-filter: blur(8px); border-bottom: 1px solid color-mix(in srgb, var(--hp-accent, #c4a469) 40%, transparent); }
