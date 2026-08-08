@@ -13,7 +13,9 @@
 //  - .hp-rule（短い罫線）はタイプAだけ表示
 
 const COMMON = `
-.hp-root { max-width: 640px; margin: 0 auto; min-height: 100vh; -webkit-font-smoothing: antialiased; padding-bottom: 64px; position: relative; }
+/* isolation: isolate は壁紙レイヤー（z-index:-1）のため必須。
+   これが無いと負の z-index がページ全体の背面（レイアウトの額縁背景の裏）まで潜って見えなくなる。 */
+.hp-root { max-width: 640px; margin: 0 auto; min-height: 100vh; -webkit-font-smoothing: antialiased; padding-bottom: 64px; position: relative; isolation: isolate; }
 .hp-root * { margin: 0; padding: 0; box-sizing: border-box; }
 .hp-hero-img { display: block; width: 100%; height: auto; max-height: 78vh; object-fit: cover; }
 .hp-sec { padding: 48px 22px; }
@@ -64,7 +66,7 @@ ${COMMON}
 .hp-a .hp-sec + .hp-sec:not(.hp-sec-alt) { border-top: 1px solid #26242b; }
 /* 壁紙が有効なとき: 地を透かして壁紙を見せ、帯・カードは半透明のガラス調に */
 .hp-a.hp-has-wallpaper { background-color: transparent; }
-.hp-a .hp-wallpaper::after { background: rgba(23,22,26,.84); }
+.hp-a .hp-wallpaper::after { background: rgba(23,22,26,.62); }
 .hp-a.hp-has-wallpaper .hp-sec-alt { background: rgba(31,29,34,.72); }
 .hp-a.hp-has-wallpaper .hp-card { background: rgba(35,33,40,.8); }
 .hp-a.hp-has-wallpaper .hp-topbar { background: rgba(23,22,26,.82); }
