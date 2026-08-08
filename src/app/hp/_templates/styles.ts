@@ -129,8 +129,22 @@ ${COMMON}
 `;
 
 const TYPE_B = `
+@import url('https://fonts.googleapis.com/css2?family=Zen+Maru+Gothic:wght@500;700;900&display=swap');
 ${COMMON}
-.hp-b { background: #faf8f4; color: #3d3a35; font-family: 'Hiragino Kaku Gothic ProN', 'Noto Sans JP', 'Noto Sans CJK JP', sans-serif; }
+.hp-b { background: #faf8f4; color: #3d3a35; font-family: 'Zen Maru Gothic', 'Hiragino Maru Gothic ProN', 'Hiragino Kaku Gothic ProN', 'Noto Sans JP', sans-serif; }
+/* PCワイド対応（Aと同じ考え方：帯は全幅・本文720px中央） */
+.hp-b { max-width: 1024px; }
+@media (min-width: 768px) {
+  .hp-b .hp-sec { padding: 64px calc((100% - 720px) / 2); }
+  .hp-b .hp-hero-name { font-size: 34px; }
+  .hp-b .hp-th-row { flex-wrap: wrap; }
+}
+.hp-b .hp-cta { max-width: 1024px; }
+/* 固定トップバー（白のすりガラス） */
+.hp-b .hp-topbar { display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; z-index: 30;
+  padding: 12px 18px; background: rgba(250,248,244,.9); backdrop-filter: blur(8px); border-bottom: 1px solid #eee7db; }
+.hp-b .hp-topbar-name { font-size: 13px; font-weight: 900; color: #3d3a35; }
+.hp-b .hp-topbar-cta { font-size: 10px; font-weight: 900; letter-spacing: .15em; color: #fff; background: var(--hp-accent-deep, #6b8f67); border-radius: 999px; padding: 8px 16px; text-decoration: none; }
 .hp-b .hp-en { display: inline-block; font-size: 10px; font-weight: 700; color: var(--hp-accent-deep, #6b8f67); background: #ffffff; border: 1px solid #eee7db; border-radius: 999px; padding: 5px 14px; letter-spacing: .12em; text-transform: uppercase; }
 .hp-b .hp-h2 { font-size: 19px; font-weight: 800; margin: 14px 0 16px; letter-spacing: .04em; }
 .hp-b .hp-hero-text { padding: 26px 20px 10px; text-align: center; }
@@ -151,7 +165,11 @@ ${COMMON}
 .hp-b .hp-th-noimg { background: linear-gradient(160deg, #f0ece4, #e2e6da); }
 .hp-b .hp-th-name { margin-top: 8px; font-size: 12px; font-weight: 800; text-align: center; color: #3d3a35; }
 .hp-b .hp-th-age { font-size: 10px; color: #9b948a; text-align: center; margin-top: 2px; }
-.hp-b .hp-th-onduty { display: block; width: fit-content; margin: 6px auto 0; font-size: 9px; font-weight: 800; color: #fff; background: var(--hp-accent, #8fae8b); border-radius: 999px; padding: 3px 10px; }
+.hp-b .hp-th-catch { display: block; margin-top: 6px; padding: 0 6px; font-size: 10px; color: #8a8378; text-align: center; line-height: 1.7;
+  overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+.hp-b .hp-th-badges { display: flex; flex-wrap: wrap; gap: 4px; justify-content: center; margin-top: 7px; padding: 0 6px; }
+.hp-b .hp-th-badge { font-size: 8.5px; font-weight: 700; color: #7d766c; background: #fff; border: 1px solid #eee7db; border-radius: 999px; padding: 2px 8px; }
+.hp-b .hp-th-onduty { display: block; width: fit-content; margin: 8px auto 0; font-size: 9px; font-weight: 800; color: #fff; background: var(--hp-accent, #8fae8b); border-radius: 999px; padding: 3px 10px; }
 .hp-b .hp-sched-row { display: flex; justify-content: space-between; align-items: center; padding: 11px 4px; border-bottom: 1px dashed #eee7db; font-size: 13px; }
 .hp-b .hp-sched-name { font-weight: 800; }
 .hp-b .hp-sched-time { font-size: 12px; font-weight: 700; color: var(--hp-accent-deep, #6b8f67); background: #ffffff; border: 1px solid #eee7db; border-radius: 999px; padding: 4px 12px; }
@@ -174,12 +192,24 @@ ${COMMON}
 .hp-b .hp-cta a { border-radius: 999px; font-weight: 900; box-shadow: 0 6px 18px rgba(80,70,55,.16); }
 .hp-b .hp-cta-tel { background: #fff; color: #3d3a35; border: 1px solid #eee7db; }
 .hp-b .hp-cta-line { background: var(--hp-accent-deep, #6b8f67); color: #fff; }
+.hp-b .hp-sched-date { display: inline-block; background: color-mix(in srgb, var(--hp-accent, #8fae8b) 16%, #ffffff); color: var(--hp-accent-deep, #6b8f67); border-radius: 999px; padding: 5px 16px; margin: 0 0 16px; font-size: 12px; font-weight: 800; opacity: 1; }
 `;
 
 const TYPE_C = `
 ${COMMON}
 .hp-c { background: #f4f4f6; color: #1c1c20; font-family: 'Hiragino Kaku Gothic ProN', 'Noto Sans JP', 'Noto Sans CJK JP', sans-serif; }
-.hp-c .hp-topbar { display: flex; justify-content: space-between; align-items: center; padding: 16px 20px; border-bottom: 2px solid #111114; }
+/* PCワイド対応（罫線・帯は全幅・本文760px中央） */
+.hp-c { max-width: 1024px; }
+@media (min-width: 768px) {
+  .hp-c .hp-sec { padding: 64px calc((100% - 760px) / 2); }
+  .hp-c .hp-en { font-size: 40px; }
+  .hp-c .hp-hero-name { font-size: 48px; }
+  /* 後方の基本ルール（flex: 0 0 44%）に勝つよう詳細度を1段上げる */
+  .hp-c .hp-th-row .hp-th-cell { flex-basis: 25%; }
+}
+.hp-c .hp-cta { max-width: 1024px; }
+.hp-c .hp-topbar { display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; z-index: 30;
+  padding: 14px 20px; background: rgba(244,244,246,.92); backdrop-filter: blur(8px); border-bottom: 2px solid #111114; }
 .hp-c .hp-topbar-name { font-size: 15px; font-weight: 900; letter-spacing: .04em; }
 .hp-c .hp-topbar-cta { font-size: 10px; font-weight: 900; background: #111114; color: #fff; padding: 8px 14px; letter-spacing: .15em; text-decoration: none; }
 .hp-c .hp-sec { border-top: 2px solid #111114; padding: 46px 20px; }
@@ -206,6 +236,10 @@ ${COMMON}
 .hp-c .hp-th-noimg { background: linear-gradient(160deg, #e4e4e8, #d2d2d8); }
 .hp-c .hp-th-name { padding: 10px 12px 0; font-size: 14px; font-weight: 900; color: #1c1c20; }
 .hp-c .hp-th-age { padding: 2px 12px 0; font-size: 10px; font-weight: 700; color: #77777e; letter-spacing: .15em; }
+.hp-c .hp-th-catch { display: block; padding: 6px 12px 0; font-size: 10.5px; font-weight: 600; color: #55555c; line-height: 1.7;
+  overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+.hp-c .hp-th-badges { display: flex; flex-wrap: wrap; gap: 4px; padding: 8px 12px 0; }
+.hp-c .hp-th-badge { font-size: 8.5px; font-weight: 900; color: #111114; border: 1.5px solid #111114; padding: 2px 7px; letter-spacing: .05em; }
 .hp-c .hp-th-onduty { margin: 8px 12px 0; display: inline-block; font-size: 9px; font-weight: 900; color: var(--hp-accent, #ff4658); border: 2px solid var(--hp-accent, #ff4658); padding: 2px 8px; letter-spacing: .1em; }
 .hp-c .hp-sched-row { display: flex; justify-content: space-between; padding: 14px 2px; border-bottom: 1px solid #c9c9cf; font-size: 13px; font-weight: 800; }
 .hp-c .hp-sched-time { font-weight: 900; }
@@ -227,6 +261,7 @@ ${COMMON}
 .hp-c .hp-cta a { font-weight: 900; letter-spacing: .2em; }
 .hp-c .hp-cta-tel { background: #fff; color: #111114; border-right: 2px solid #111114; }
 .hp-c .hp-cta-line { background: var(--hp-accent, #ff4658); color: #fff; }
+.hp-c .hp-sched-date { display: inline-block; background: #111114; color: #fff; padding: 6px 16px; margin: 0 0 16px; font-size: 12px; font-weight: 900; letter-spacing: .15em; opacity: 1; }
 `;
 
 export const TEMPLATE_CSS: Record<'a' | 'b' | 'c', string> = {
