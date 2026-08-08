@@ -34,20 +34,47 @@ const COMMON = `
 .hp-cta { position: fixed; bottom: 0; left: 50%; transform: translateX(-50%); width: 100%; max-width: 640px; display: flex; z-index: 20; }
 .hp-cta a { flex: 1; text-align: center; padding: 16px 0; font-size: 13px; text-decoration: none; font-weight: 700; letter-spacing: .15em; }
 .hp-footer { padding: 44px 22px 60px; text-align: center; }
+.hp-th-catch { display: none; }
+.hp-th-badges { display: none; }
+.hp-sched-date { font-size: 11px; margin: -8px 0 12px; opacity: .75; letter-spacing: .1em; }
+/* スクロール出現（reduced-motion 時はアニメなしで常時表示） */
+@media (prefers-reduced-motion: no-preference) {
+  [data-hp-reveal] { opacity: 0; transform: translateY(26px); transition: opacity .7s ease, transform .7s ease; }
+  [data-hp-reveal].hp-revealed { opacity: 1; transform: none; }
+}
 `;
 
 const TYPE_A = `
+@import url('https://fonts.googleapis.com/css2?family=Shippori+Mincho:wght@400;500;600&display=swap');
 ${COMMON}
-.hp-a { background: #17161a; color: #e8e4dc; font-family: 'Hiragino Mincho ProN', 'Yu Mincho', 'Noto Serif JP', 'Noto Serif CJK JP', serif; }
+.hp-a { background: #17161a; color: #e8e4dc; font-family: 'Shippori Mincho', 'Hiragino Mincho ProN', 'Yu Mincho', 'Noto Serif JP', 'Noto Serif CJK JP', serif; }
+/* PCワイド対応: 枠を広げ、背景に繻子（サテン）風の淡い光沢を敷く。
+   セクションの背景帯は全幅・本文は中央 720px（padding で作る＝帯が途切れない）。 */
+.hp-a { max-width: 1024px; background-image:
+  radial-gradient(900px 480px at 85% -120px, color-mix(in srgb, var(--hp-accent, #c4a469) 9%, transparent), transparent 70%),
+  radial-gradient(700px 420px at -10% 30%, color-mix(in srgb, var(--hp-accent, #c4a469) 5%, transparent), transparent 70%); }
+@media (min-width: 768px) {
+  .hp-a .hp-sec { padding: 76px calc((100% - 720px) / 2); }
+  .hp-a .hp-hero-text { padding: 48px 24px 56px; }
+}
 .hp-a .hp-sec-alt { background: #1f1d22; }
+.hp-a .hp-sec + .hp-sec:not(.hp-sec-alt) { border-top: 1px solid #26242b; }
+/* 固定トップバー（店名＋予約）。スクロールしても店名と導線が消えない */
+.hp-a .hp-topbar { display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; z-index: 30;
+  padding: 13px 20px; background: rgba(23,22,26,.9); backdrop-filter: blur(8px); border-bottom: 1px solid color-mix(in srgb, var(--hp-accent, #c4a469) 40%, transparent); }
+.hp-a .hp-topbar-name { font-size: 13px; letter-spacing: .22em; color: #e8e4dc; }
+.hp-a .hp-topbar-cta { font-size: 10px; letter-spacing: .25em; color: #17161a; background: var(--hp-accent, #c4a469); padding: 8px 16px; text-decoration: none; }
 .hp-a .hp-en { letter-spacing: .35em; font-size: 10px; color: var(--hp-accent, #c4a469); text-transform: uppercase; }
-.hp-a .hp-h2 { font-size: 20px; font-weight: 600; letter-spacing: .18em; margin: 8px 0 6px; }
-.hp-a .hp-rule { display: block; width: 36px; height: 1px; background: var(--hp-accent, #c4a469); margin: 18px 0 26px; }
+.hp-a .hp-h2 { font-size: 21px; font-weight: 600; letter-spacing: .18em; margin: 8px 0 6px; }
+/* 罫線は二重線（内側は淡く）でホテルライクに */
+.hp-a .hp-rule { display: block; width: 56px; height: 5px; margin: 16px 0 26px; background: none; border-top: 1px solid var(--hp-accent, #c4a469); position: relative; }
+.hp-a .hp-rule::after { content: ''; position: absolute; top: 3px; left: 10px; right: 10px; border-top: 1px solid color-mix(in srgb, var(--hp-accent, #c4a469) 45%, transparent); }
 .hp-a .hp-hero-text { padding: 34px 24px 44px; text-align: center; }
-.hp-a .hp-hero-en { font-size: 11px; letter-spacing: .5em; color: var(--hp-accent, #c4a469); margin-bottom: 14px; }
+.hp-a .hp-hero-en { font-size: 11px; letter-spacing: .4em; color: var(--hp-accent, #c4a469); margin-bottom: 14px; }
 .hp-a .hp-hero-name { font-size: 32px; font-weight: 500; letter-spacing: .12em; line-height: 1.35; }
 .hp-a .hp-hero-catch { margin-top: 14px; font-size: 13px; color: #cfc9bd; letter-spacing: .14em; line-height: 2; }
 .hp-a .hp-hero-area { margin-top: 20px; font-size: 10px; color: #948f85; letter-spacing: .3em; }
+@media (min-width: 768px) { .hp-a .hp-hero-name { font-size: 40px; } }
 .hp-a .hp-concept-text { font-size: 13px; line-height: 2.3; color: #cfc9bd; letter-spacing: .06em; white-space: pre-wrap; }
 .hp-a .hp-concept-img { width: 100%; height: auto; margin-bottom: 20px; border: 1px solid #3a3742; }
 .hp-a .hp-course-group { margin-bottom: 24px; }
@@ -55,16 +82,24 @@ ${COMMON}
 .hp-a .hp-course-row { display: flex; justify-content: space-between; align-items: baseline; padding: 13px 2px; border-bottom: 1px solid #3a3742; }
 .hp-a .hp-course-min { font-size: 12px; letter-spacing: .1em; }
 .hp-a .hp-course-price { font-size: 15px; color: var(--hp-accent, #c4a469); font-style: italic; }
+.hp-a .hp-th-card { flex-basis: 150px; }
+@media (min-width: 768px) { .hp-a .hp-th-row { flex-wrap: wrap; } .hp-a .hp-th-card { flex-basis: 158px; } }
 .hp-a .hp-th-frame { border: 1px solid #3a3742; padding: 6px; background: #232128; }
 .hp-a .hp-th-noimg { background: linear-gradient(160deg, #26242b, #34313a); }
 .hp-a .hp-th-name { margin-top: 10px; font-size: 12px; letter-spacing: .12em; text-align: center; color: #e8e4dc; }
 .hp-a .hp-th-age { font-size: 10px; color: var(--hp-accent-soft, #a8905e); text-align: center; margin-top: 3px; }
-.hp-a .hp-th-onduty { display: block; width: fit-content; margin: 6px auto 0; font-size: 9px; color: var(--hp-accent, #c4a469); border: 1px solid var(--hp-accent-soft, #a8905e); padding: 2px 8px; letter-spacing: .15em; }
+.hp-a .hp-th-catch { display: block; margin-top: 6px; font-size: 10px; color: #948f85; text-align: center; line-height: 1.7;
+  overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+.hp-a .hp-th-badges { display: flex; flex-wrap: wrap; gap: 4px; justify-content: center; margin-top: 7px; }
+.hp-a .hp-th-badge { font-size: 8.5px; color: #cfc9bd; border: 1px solid #4a4650; padding: 2px 7px; letter-spacing: .08em; }
+.hp-a .hp-th-onduty { display: block; width: fit-content; margin: 8px auto 0; font-size: 9px; color: var(--hp-accent, #c4a469); border: 1px solid var(--hp-accent-soft, #a8905e); padding: 2px 8px; letter-spacing: .15em; }
 .hp-a .hp-sched-row { display: flex; justify-content: space-between; padding: 13px 2px; border-bottom: 1px solid #3a3742; font-size: 12px; letter-spacing: .08em; }
 .hp-a .hp-sched-time { color: var(--hp-accent-soft, #a8905e); font-style: italic; }
 .hp-a .hp-embed { border: 1px solid #3a3742; }
 .hp-a .hp-more { color: var(--hp-accent, #c4a469); letter-spacing: .2em; border-bottom: 1px solid var(--hp-accent-soft, #a8905e); padding-bottom: 3px; }
-.hp-a .hp-card { background: #232128; border: 1px solid #3a3742; padding: 16px; }
+/* カードは内側に淡い金の飾り枠（G1 の EVENT 枠のイメージ） */
+.hp-a .hp-card { background: #232128; border: 1px solid #3a3742; padding: 20px; position: relative; }
+.hp-a .hp-card::before { content: ''; position: absolute; inset: 5px; border: 1px solid color-mix(in srgb, var(--hp-accent, #c4a469) 28%, transparent); pointer-events: none; }
 .hp-a .hp-card-title { font-size: 12px; letter-spacing: .1em; margin-bottom: 8px; }
 .hp-a .hp-coupon-discount { font-size: 16px; color: var(--hp-accent, #c4a469); margin-bottom: 6px; }
 .hp-a .hp-card-body { font-size: 11px; color: #948f85; line-height: 1.9; white-space: pre-wrap; }
@@ -76,8 +111,10 @@ ${COMMON}
 .hp-a .hp-footer-name { font-size: 13px; letter-spacing: .3em; color: var(--hp-accent, #c4a469); margin-bottom: 12px; }
 .hp-a .hp-footer-sub { font-size: 9px; color: #6d675e; letter-spacing: .2em; line-height: 2.4; }
 .hp-a .hp-footer-sub a { color: var(--hp-accent-soft, #a8905e); }
+.hp-a .hp-cta { max-width: 1024px; }
 .hp-a .hp-cta-tel { background: #232128; color: #e8e4dc; border-top: 1px solid var(--hp-accent-soft, #a8905e); }
 .hp-a .hp-cta-line { background: var(--hp-accent, #c4a469); color: #17161a; }
+.hp-a .hp-sched-date { display: inline-block; background: #2a2730; border: 1px solid #3a3742; padding: 6px 18px; margin: 0 0 18px; font-size: 12px; color: var(--hp-accent, #c4a469); letter-spacing: .2em; opacity: 1; }
 `;
 
 const TYPE_B = `

@@ -65,7 +65,7 @@ export function HpTemplate({ data }: { data: HpPageData }) {
           <img className="hp-hero-img" src={heroImage} alt={salon.name} />
         )}
         <div className="hp-hero-text">
-          <div className="hp-hero-en">AROMA PRIVATE SALON</div>
+          {salon.catchphrase && <div className="hp-hero-en">{salon.catchphrase}</div>}
           <h1 className="hp-hero-name">{salon.name}</h1>
           {site.hero_catch && <p className="hp-hero-catch">{site.hero_catch}</p>}
           <p className="hp-hero-area">{salon.area}{salon.hours ? `　${salon.hours}` : ''}</p>
@@ -74,7 +74,7 @@ export function HpTemplate({ data }: { data: HpPageData }) {
 
       {/* ── コンセプト ── */}
       {(site.concept_text || site.concept_title) && (
-        <section className="hp-sec hp-sec-concept">
+        <section data-hp-reveal className="hp-sec hp-sec-concept">
           <SecHead no="01" en="Concept" jp={site.concept_title || 'コンセプト'} />
           {site.concept_image_url && (
             // eslint-disable-next-line @next/next/no-img-element
@@ -86,7 +86,7 @@ export function HpTemplate({ data }: { data: HpPageData }) {
 
       {/* ── コース料金 ── */}
       {grouped.length > 0 && (
-        <section className="hp-sec hp-sec-alt hp-sec-courses">
+        <section data-hp-reveal className="hp-sec hp-sec-alt hp-sec-courses">
           <SecHead no="02" en="Menu" jp="コース料金" />
           {grouped.map(([name, items]) => (
             <div key={name} className="hp-course-group">
@@ -105,7 +105,7 @@ export function HpTemplate({ data }: { data: HpPageData }) {
 
       {/* ── セラピスト ── */}
       {b.therapists.on && therapists.length > 0 && (
-        <section className="hp-sec hp-sec-therapists">
+        <section data-hp-reveal className="hp-sec hp-sec-therapists">
           <SecHead no="03" en="Therapist" jp="セラピスト" />
           <div className="hp-th-row">
             {therapists.map((t) => (
@@ -119,7 +119,17 @@ export function HpTemplate({ data }: { data: HpPageData }) {
                   )}
                 </div>
                 <div className="hp-th-name">{t.name}</div>
-                {t.age !== null && <div className="hp-th-age">{t.age}歳</div>}
+                {(t.age !== null || t.bodyType) && (
+                  <div className="hp-th-age">{[t.age !== null ? `${t.age}歳` : '', t.bodyType].filter(Boolean).join(' / ')}</div>
+                )}
+                {t.catchphrase && <div className="hp-th-catch">{t.catchphrase}</div>}
+                {t.badges.length > 0 && (
+                  <div className="hp-th-badges">
+                    {t.badges.slice(0, 4).map((bd) => (
+                      <span key={bd} className="hp-th-badge">{bd}</span>
+                    ))}
+                  </div>
+                )}
                 {t.onDuty && <span className="hp-th-onduty">本日出勤</span>}
               </a>
             ))}
@@ -129,8 +139,9 @@ export function HpTemplate({ data }: { data: HpPageData }) {
 
       {/* ── 本日の出勤 ── */}
       {b.schedule.on && onDuty.length > 0 && (
-        <section className="hp-sec hp-sec-alt hp-sec-schedule">
+        <section data-hp-reveal className="hp-sec hp-sec-alt hp-sec-schedule">
           <SecHead no="04" en="Schedule" jp="本日の出勤" />
+          <div className="hp-sched-date">{data.todayLabel}</div>
           {onDuty.map((t) => (
             <div key={t.id} className="hp-sched-row">
               <span className="hp-sched-name">{t.name}</span>
@@ -142,7 +153,7 @@ export function HpTemplate({ data }: { data: HpPageData }) {
 
       {/* ── 写メ日記（埋め込み） ── */}
       {b.diary.on && (
-        <section className="hp-sec hp-sec-diary">
+        <section data-hp-reveal className="hp-sec hp-sec-diary">
           <SecHead no="05" en="Diary" jp="写メ日記" />
           <iframe className="hp-embed" src={`/embed/salon/${salon.id}/diary`} title="写メ日記" loading="lazy" style={{ height: 480 }} />
           <a className="hp-more" href={`${salonUrl}/diary`} target="_blank" rel="noopener noreferrer">もっと見る →</a>
@@ -151,7 +162,7 @@ export function HpTemplate({ data }: { data: HpPageData }) {
 
       {/* ── 口コミ（埋め込み） ── */}
       {b.reviews.on && (
-        <section className="hp-sec hp-sec-alt hp-sec-reviews">
+        <section data-hp-reveal className="hp-sec hp-sec-alt hp-sec-reviews">
           <SecHead no="06" en="Voice" jp="口コミ" />
           <iframe className="hp-embed" src={`/embed/salon/${salon.id}/reviews`} title="口コミ" loading="lazy" style={{ height: 420 }} />
           <a className="hp-more" href={`${salonUrl}/reviews`} target="_blank" rel="noopener noreferrer">もっと見る →</a>
@@ -160,7 +171,7 @@ export function HpTemplate({ data }: { data: HpPageData }) {
 
       {/* ── クーポン ── */}
       {b.coupon.on && coupons.length > 0 && (
-        <section className="hp-sec hp-sec-coupon">
+        <section data-hp-reveal className="hp-sec hp-sec-coupon">
           <SecHead no="07" en="Coupon" jp="クーポン" />
           {coupons.map((c) => (
             <div key={c.id} className="hp-card">
@@ -174,7 +185,7 @@ export function HpTemplate({ data }: { data: HpPageData }) {
 
       {/* ── お知らせ ── */}
       {b.news.on && news.length > 0 && (
-        <section className="hp-sec hp-sec-alt hp-sec-news">
+        <section data-hp-reveal className="hp-sec hp-sec-alt hp-sec-news">
           <SecHead no="08" en="News" jp="お知らせ" />
           {news.map((n) => (
             <div key={n.id} className="hp-card">
@@ -199,7 +210,7 @@ export function HpTemplate({ data }: { data: HpPageData }) {
       ))}
 
       {/* ── 店舗情報 ── */}
-      <section className="hp-sec hp-sec-alt hp-sec-info">
+      <section data-hp-reveal className="hp-sec hp-sec-alt hp-sec-info">
         <SecHead no="12" en="Information" jp="店舗情報" />
         <dl className="hp-info">
           {salon.address && (<div className="hp-info-row"><dt>住所</dt><dd>{salon.address}</dd></div>)}
@@ -211,7 +222,7 @@ export function HpTemplate({ data }: { data: HpPageData }) {
 
       {/* ── バナー ── */}
       {site.banners.length > 0 && (
-        <section className="hp-sec hp-sec-banners">
+        <section data-hp-reveal className="hp-sec hp-sec-banners">
           {site.banners.map((bn, i) =>
             bn.link ? (
               <a key={i} href={bn.link} target="_blank" rel="noopener noreferrer">
@@ -239,6 +250,14 @@ export function HpTemplate({ data }: { data: HpPageData }) {
           )}
         </div>
       </footer>
+
+      {/* ── スクロール出現アニメ（依存なしの素の IntersectionObserver）。
+           prefers-reduced-motion はCSS側で無効化。IO 非対応環境は即時表示にフォールバック。 ── */}
+      <script
+        dangerouslySetInnerHTML={{
+          __html: `(function(){var els=document.querySelectorAll('[data-hp-reveal]');if(!('IntersectionObserver'in window)){els.forEach(function(el){el.classList.add('hp-revealed')});return}var io=new IntersectionObserver(function(entries){entries.forEach(function(e){if(e.isIntersecting){e.target.classList.add('hp-revealed');io.unobserve(e.target)}})},{rootMargin:'0px 0px -8% 0px'});els.forEach(function(el){io.observe(el)})})();`,
+        }}
+      />
 
       {/* ── 予約CTA（画面下固定） ── */}
       {(salon.phone || salon.lineUrl) && (

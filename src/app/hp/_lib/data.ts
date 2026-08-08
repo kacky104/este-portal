@@ -12,6 +12,7 @@
 
 import { createPublicClient } from '@/app/lib/supabase/public';
 import { getBusinessDateJST } from '@/lib/dutyStatus';
+import { sanitizeBadges } from '@/lib/therapistBadges';
 import {
   type HpSite,
   type HpSiteStatus,
@@ -25,12 +26,15 @@ import {
 export type HpCourse = { name: string; duration: string; price: string };
 
 export type HpTherapist = {
-  id:        string;
-  name:      string;
-  age:       number | null;
-  imageUrl:  string | null;
-  onDuty:    boolean;        // 本日出勤か
-  todayTime: string | null;  // 「12:00〜22:00」形式（出勤日のみ）
+  id:          string;
+  name:        string;
+  age:         number | null;
+  imageUrl:    string | null;
+  onDuty:      boolean;        // 本日出勤か
+  todayTime:   string | null;  // 「12:00〜22:00」形式（出勤日のみ）
+  catchphrase: string;         // ひとことキャッチ（therapists.catchphrase）
+  bodyType:    string;         // 体型（therapists.body_type）
+  badges:      string[];       // 特徴バッジ（lib/therapistBadges の sanitizeBadges 済みラベル）
 };
 
 export type HpCouponItem = { id: string; title: string; discount: string; conditions: string };
@@ -59,6 +63,8 @@ export type HpPageData = {
   freePages:  HpFreePage[];
   /** フクエスワークの求人ID（求人リンクブロック用。無ければ null） */
   jobId:      number | null;
+  /** 本日の営業日（JST・午前6時切替）の表示ラベル（例「8/9 (土)」）。出勤ブロックの日付表示用 */
+  todayLabel: string;
 };
 
 function mapSiteRow(row: Record<string, unknown>): HpSite {
@@ -116,7 +122,7 @@ export async function fetchHpPageData(slug: string): Promise<HpPageData | null> 
   const [therapistRes, schedRes, couponRes, newsRes, freeRes, jobRes] = await Promise.all([
     supabase
       .from('therapists')
-      .select('id, name, age, profile_image_url')
+      .select('id, name, age, profile_image_url, catchphrase, body_type, feature_badges')
       .eq('salon_id', salonId),
     supabase
       .from('therapist_schedules')
@@ -159,12 +165,15 @@ export async function fetchHpPageData(slug: string): Promise<HpPageData | null> 
   const therapists: HpTherapist[] = (therapistRes.data ?? []).map((t) => {
     const duty = dutyMap.get(String(t.id)) ?? null;
     return {
-      id:        String(t.id),
-      name:      (t.name as string) ?? '',
-      age:       (t.age as number | null) ?? null,
-      imageUrl:  (t.profile_image_url as string | null) ?? null,
-      onDuty:    duty !== null,
-      todayTime: duty ? `${duty.start}〜${duty.end}` : null,
+      id:          String(t.id),
+      name:        (t.name as string) ?? '',
+      age:         (t.age as number | null) ?? null,
+      imageUrl:    (t.profile_image_url as string | null) ?? null,
+      onDuty:      duty !== null,
+      todayTime:   duty ? `${duty.start}〜${duty.end}` : null,
+      catchphrase: (t.catchphrase as string | null) ?? '',
+      bodyType:    (t.body_type as string | null) ?? '',
+      badges:      sanitizeBadges(t.feature_badges),
     };
   });
   // 出勤中を先頭に（並びの安定のため名前で二次ソート）
@@ -208,5 +217,15 @@ export async function fetchHpPageData(slug: string): Promise<HpPageData | null> 
       images: Array.isArray(f.images) ? (f.images as string[]).filter((u) => typeof u === 'string') : [],
     })),
     jobId: jobRes.data ? Number(jobRes.data.id) : null,
+    todayLabel: formatTodayLabel(today),
   };
+}
+
+/** 'YYYY-MM-DD' → 「M/D (曜)」。営業日基準の日付をそのまま表示する。 */
+function formatTodayLabel(ymd: string): string {
+  const m = ymd.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (!m) return '';
+  const d = new Date(Date.UTC(Number(m[1]), Number(m[2]) - 1, Number(m[3])));
+  const wd = ['日', '月', '火', '水', '木', '金', '土'][d.getUTCDay()];
+  return `${Number(m[2])}/${Number(m[3])} (${wd})`;
 }
