@@ -5,7 +5,16 @@ import { useState } from 'react';
 // 貼り付け用HTMLタグの表示＋ワンタップコピー（本体 /banner・ワーク /jobs/banner 共用）。
 // fukuX 版（x/banner/XBannerTagCode.tsx）のテーマ非依存版：accent でボタン配色だけ切り替える。
 // タグ文字列は親（サーバー側）で組み立てて渡す＝URL・ファイル名の一元管理。
-export function BannerTagCode({ tag, accent }: { tag: string; accent: 'pink' | 'emerald' }) {
+// label: ボタンの文言（既定「タグをコピー」）。まとめてコピー用パネルで「3つまとめてコピー」等に差し替える。
+export function BannerTagCode({
+  tag,
+  accent,
+  label = 'タグをコピー',
+}: {
+  tag: string;
+  accent: 'pink' | 'emerald';
+  label?: string;
+}) {
   const [copied, setCopied] = useState(false);
 
   const copy = async () => {
@@ -33,7 +42,7 @@ export function BannerTagCode({ tag, accent }: { tag: string; accent: 'pink' | '
         onClick={copy}
         className={`mt-2 px-4 py-1.5 rounded-full text-xs font-bold bg-white border active:scale-95 transition ${btn}`}
       >
-        {copied ? 'コピーしました ✓' : 'タグをコピー'}
+        {copied ? 'コピーしました ✓' : label}
       </button>
     </div>
   );

@@ -1,6 +1,7 @@
 /* eslint-disable @next/next/no-img-element */
 import type { Metadata } from 'next';
 import { BannerTagCode } from '@/app/components/BannerTagCode';
+import { bannerStackSnippet } from '@/app/lib/bannerTags';
 
 // フクエスワークのリンクバナー案内ページ（fukuX版 /x/banner のワーク（緑）テーマ版）。
 // ヘッダー・フッターは /jobs レイアウトを継承。静的コンテンツのみ・データ取得なし。
@@ -86,6 +87,19 @@ export default function JobsBannerPage() {
             <BannerTagCode tag={bannerTag(b)} accent="emerald" />
           </section>
         ))}
+
+        {/* ── まとめて貼るスニペット（2026-08-08 追加）。包み方は lib/bannerTags.ts に集約。
+            このページは2枚（ワーク＋本体）なので、無料掲載の条件（3サイト）には足りない旨を添えて /banner へ誘導する。 */}
+        <h2 className={H2}>2つまとめて貼る場合</h2>
+        <p className={P}>
+          下のコードをコピーして1か所に貼り付けると、2つのバナーが縦に並びます。
+          fukuX を含めた3つを設置すると、フクエスの
+          <a href="/listing" className="text-emerald-600 hover:underline">店舗一覧に無料で掲載</a>
+          できます（3つまとめたコードは
+          <a href="/banner" className="text-emerald-600 hover:underline">フクエスのバナーページ</a>
+          にあります）。
+        </p>
+        <BannerTagCode tag={bannerStackSnippet(BANNERS.map(bannerTag))} accent="emerald" label="2つまとめてコピー" />
 
         {/* ── 設置後のご報告（2026-08-08 復活）──
             報告フォームは本体テーマの /banner/report（3サイト共通・保存先 banner_reports）。 */}

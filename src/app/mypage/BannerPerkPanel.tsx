@@ -12,6 +12,7 @@ import Image from 'next/image';
 import { getMyPerkStatus } from '@/app/actions/jobs';
 import { submitMyBannerReport } from '@/app/actions/bannerReport';
 import { BannerTagCode } from '@/app/components/BannerTagCode';
+import { bannerStackSnippet } from '@/app/lib/bannerTags';
 
 const SITE_URL = 'https://fukues.com';
 
@@ -280,6 +281,17 @@ export function BannerPerkPanel({ salonId }: { salonId: number | null }) {
             <BannerTagCode tag={bannerTag(b)} accent={b.accent} />
           </section>
         ))}
+
+        {/* ── 3つまとめて貼るスニペット（2026-08-08 追加）──
+            特典は3サイト設置が前提なので、1回のコピーで済ませられるようにする。
+            包み方（縦積み・8px）は lib/bannerTags.ts に集約（配布ページ /banner と同一）。 */}
+        <section className="space-y-2 pt-1 border-t border-slate-100">
+          <h3 className="text-xs font-black text-slate-700">3つまとめて貼る</h3>
+          <p className="text-[11px] text-slate-500 leading-relaxed">
+            下のコードを1か所に貼り付けると、3つのバナーが縦に並びます。3サイトすべての設置で特典の対象になります。
+          </p>
+          <BannerTagCode tag={bannerStackSnippet(BANNERS.map(bannerTag))} accent="pink" label="3つまとめてコピー" />
+        </section>
       </div>
 
       {/* ── 設置報告フォーム（この場で完結・簡易版） ── */}

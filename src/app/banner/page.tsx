@@ -4,6 +4,7 @@ import { Logo } from '@/app/components/Logo';
 import { BannerTagCode } from '@/app/components/BannerTagCode';
 import { SiteNoticeBanner } from '@/app/components/SiteNoticeBanner';
 import { SiteFooter } from '@/app/components/SiteFooter';
+import { bannerStackSnippet } from '@/app/lib/bannerTags';
 
 // フクエス本体のリンクバナー案内ページ（fukuX版 /x/banner の本体テーマ版）。
 // 静的コンテンツのみ・データ取得なし。画像は public/ 直下：
@@ -90,6 +91,17 @@ export default function BannerPage() {
               <BannerTagCode tag={bannerTag(b)} accent="pink" />
             </section>
           ))}
+
+          {/* ── 3つまとめて貼るスニペット（2026-08-08 追加）──
+              無料掲載の条件が「3サイトすべて設置」なので、1回のコピーで済むほうが離脱が少ない。
+              包み方（縦積み・8px）は lib/bannerTags.ts に集約。 */}
+          <h2 className={H2}>3つまとめて貼る場合</h2>
+          <p className={P}>
+            下のコードをコピーして1か所に貼り付けると、3つのバナーが縦に並びます。
+            <strong className="text-slate-800">無料掲載をご希望の店舗様はこちらが便利です</strong>
+            （3サイトすべての設置が条件のため）。
+          </p>
+          <BannerTagCode tag={bannerStackSnippet(BANNERS.map(bannerTag))} accent="pink" label="3つまとめてコピー" />
 
           {/* ── 設置後のご報告（2026-08-08 復活）──
               3サイト設置＝無料掲載（/salons テキスト掲載）の条件なので、報告導線をここにも置く。
