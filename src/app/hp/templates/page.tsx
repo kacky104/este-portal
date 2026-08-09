@@ -24,8 +24,10 @@ import { DesignThumb, HP_TEMPLATE_NOTES, hpVariantColors } from '@/app/hp/_templ
 //      フクエス契約→制作料0円・＋ワーク両方契約→月々も0円。この数字を変えるときは営業資料・規約と必ず同時に。
 //   6. 制作の流れ 5ステップ → フッター（お問い合わせ）
 //
-// 画像: public/hp-lp/hero-pc.webp（2400×1350）/ hero-sp.webp（1080×1620）。
+// 画像: public/hp-lp/hero-pc.webp（2400×960・2.5:1）/ hero-sp.webp（1080×1620）。
 // 差し替え時は同名で上書きすればよい（この寸法・比率を守ること）。
+// ※ PC は当初 16:9（2400×1350）だったが「画面全部が画像で埋まって圧迫感がある」ため、
+//   vootec のサンプルサイトと同じ 2.5:1 に変更（2026-08-09）。フルHDで下に次のセクションが覗く。
 //
 // 各デザインの「デモを見る」は /hp/demo/preview/{template}/{color} へ。
 // demo は HP_DEMO_SLUG の予約 slug で、この slug に限りプレビューがログイン不要
