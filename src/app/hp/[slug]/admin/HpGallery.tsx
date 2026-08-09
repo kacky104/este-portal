@@ -6,98 +6,18 @@ import {
   HP_COLOR_VARIANTS,
   type HpTemplateKey,
 } from '@/app/lib/hpSite';
+import { DesignThumb, HP_TEMPLATE_NOTES, hpVariantColors } from '@/app/hp/_templates/DesignThumb';
 
-// ひな形ギャラリー（2026-08-09 段階3）。
+// ひな形ギャラリー（2026-08-09）。
 //
-// 3ひな形 × 各6色 = 18通りから1つ選んで【確定】する画面。確定するとロックされ、
-// 以後ひな形とカラーは店舗側から変更できない（変更は運営の有償作業）。
-// 確定前の1回きりの画面なので、公開ページ（/hp/[slug]）のデータ取得には一切依存させない
-// （＝写真も文章も未入力の状態で選べる）。
+// ※ 方針変更（2026-08-09 夕）: デザインは店舗に自己判断させず、打ち合わせで決める。
+//   店舗にはデザイン一覧（/hp/templates・公開）を見せて口頭で決定し、
+//   【この画面は運営専用】として決定内容をここから設定・確定する（HpAdminApp が
+//   role==='operator' のときだけ表示）。実物プレビュー（/hp/[slug]/preview/…）で
+//   その店の実データが入った状態を確認してから確定できる。
 //
-// サムネイルは公開ページのCSSを流用せず、ここだけの簡易表現で描いている（雰囲気の当たり用）。
-// 【実物の確認】は /hp/[slug]/preview/{template}/{color} に任せる：その店の実データが入った
-// 公開ページを選択中のひな形×カラーでそのまま描画する（2026-08-09 追加。簡易サムネだけで
-// 変更不可の確定をさせるのは無理がある、という指摘への対応）。確定前に必ずここへ誘導する。
-
-type ThumbProps = { template: HpTemplateKey; accent: string; deep: string };
-
-function Thumb({ template, accent, deep }: ThumbProps) {
-  if (template === 'a') {
-    // LUXE: 黒基調・明朝・細い金の罫線
-    return (
-      <div style={{ background: '#17161a', color: '#e8e3d9', padding: '14px 12px', height: 168, fontFamily: 'serif' }}>
-        <div style={{ height: 44, background: `linear-gradient(135deg, ${accent}66, #0b0a0c 70%)`, border: `1px solid ${accent}55` }} />
-        <div style={{ width: 22, height: 1, background: accent, margin: '14px auto 8px' }} />
-        <div style={{ fontSize: 8, letterSpacing: '.28em', textAlign: 'center', color: accent }}>CONCEPT</div>
-        <div style={{ margin: '10px auto 0', width: '78%' }}>
-          <div style={{ height: 3, background: '#3a3730', marginBottom: 5 }} />
-          <div style={{ height: 3, background: '#3a3730', marginBottom: 5 }} />
-          <div style={{ height: 3, background: '#3a3730', width: '60%' }} />
-        </div>
-        <div style={{ display: 'flex', gap: 5, marginTop: 14 }}>
-          {[0, 1, 2].map((i) => (
-            <div key={i} style={{ flex: 1, height: 30, background: '#232026', border: `1px solid ${accent}33` }} />
-          ))}
-        </div>
-      </div>
-    );
-  }
-  if (template === 'b') {
-    // CLEAN: 生成り地・丸ゴシック・面で見せる
-    return (
-      <div style={{ background: '#faf7f2', color: '#4a463f', padding: '14px 12px', height: 168 }}>
-        <div style={{ height: 44, background: `linear-gradient(135deg, ${accent}, ${deep})`, borderRadius: 10 }} />
-        <div style={{ fontSize: 9, fontWeight: 800, marginTop: 12, color: deep }}>コンセプト</div>
-        <div style={{ marginTop: 8 }}>
-          <div style={{ height: 3, background: '#ded8cf', borderRadius: 2, marginBottom: 5 }} />
-          <div style={{ height: 3, background: '#ded8cf', borderRadius: 2, marginBottom: 5 }} />
-          <div style={{ height: 3, background: '#ded8cf', borderRadius: 2, width: '55%' }} />
-        </div>
-        <div style={{ display: 'flex', gap: 5, marginTop: 14 }}>
-          {[0, 1, 2].map((i) => (
-            <div key={i} style={{ flex: 1, height: 30, background: '#fff', borderRadius: 8, border: '1px solid #e7e1d8' }} />
-          ))}
-        </div>
-      </div>
-    );
-  }
-  // MODE: 白地・太ゴシック・連番と極太アクセント
-  return (
-    <div style={{ background: '#fff', color: '#111114', padding: '14px 12px', height: 168 }}>
-      <div style={{ height: 44, background: '#111114' }} />
-      {/* アクセント帯はヒーローの【下】に置く。中に重ねると mono（黒）が黒地に沈んで見えないため */}
-      <div style={{ width: 52, height: 5, background: accent }} />
-      <div style={{ display: 'flex', alignItems: 'baseline', gap: 6, marginTop: 12 }}>
-        <span style={{ fontSize: 9, fontWeight: 900, color: accent }}>01</span>
-        <span style={{ fontSize: 9, fontWeight: 900, letterSpacing: '.1em' }}>CONCEPT</span>
-      </div>
-      <div style={{ marginTop: 8 }}>
-        <div style={{ height: 3, background: '#e3e3e6', marginBottom: 5 }} />
-        <div style={{ height: 3, background: '#e3e3e6', marginBottom: 5 }} />
-        <div style={{ height: 3, background: '#e3e3e6', width: '50%' }} />
-      </div>
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 4, marginTop: 14 }}>
-        {[0, 1, 2, 3].map((i) => (
-          <div key={i} style={{ height: 30, background: '#f1f1f3' }} />
-        ))}
-      </div>
-    </div>
-  );
-}
-
-function variantColors(template: HpTemplateKey, colorKey: string): { accent: string; deep: string } {
-  const list = HP_COLOR_VARIANTS[template];
-  const v = list.find((x) => x.key === colorKey) ?? list[0];
-  const accent = v.css['--hp-accent'] ?? '#c4a469';
-  const deep = v.css['--hp-accent-deep'] ?? v.css['--hp-accent-soft'] ?? accent;
-  return { accent, deep };
-}
-
-const TEMPLATE_NOTE: Record<HpTemplateKey, string> = {
-  a: '黒基調・明朝体の高級路線。落ち着いた大人向けの店舗に。',
-  b: '生成り地のやわらかい印象。清潔感・癒やし系の店舗に。',
-  c: '白地に太字とアクセント。都会的でシャープな印象に。',
-};
+// 確定するとロックされ、以後ひな形・カラーは saveHpSiteContent では変更できない
+// （解除は SQL で design_locked=false に戻す）。
 
 export function HpGallery({
   onConfirm,
@@ -122,7 +42,7 @@ export function HpGallery({
   const livePreviewUrl =
     previewHref === '/' ? `/preview/${template}/${color}` : `${previewHref}/preview/${template}/${color}`;
 
-  const { accent, deep } = variantColors(template, color);
+  const { accent, deep } = hpVariantColors(template, color);
   const colorLabel = HP_COLOR_VARIANTS[template].find((v) => v.key === color)?.label ?? '';
   const templateLabel = HP_TEMPLATES.find((t) => t.key === template)?.label ?? '';
 
@@ -144,7 +64,7 @@ export function HpGallery({
         <p className="text-xs font-bold text-slate-600">1. ひな形</p>
         <div className="grid grid-cols-3 gap-3">
           {HP_TEMPLATES.map((t) => {
-            const c = variantColors(t.key, HP_COLOR_VARIANTS[t.key][0].key);
+            const c = hpVariantColors(t.key, HP_COLOR_VARIANTS[t.key][0].key);
             const on = template === t.key;
             return (
               <button
@@ -155,7 +75,7 @@ export function HpGallery({
                   on ? 'border-pink-400' : 'border-slate-200 hover:border-slate-300'
                 }`}
               >
-                <Thumb template={t.key} accent={c.accent} deep={c.deep} />
+                <DesignThumb template={t.key} accent={c.accent} deep={c.deep} />
                 <span className={`block px-2 py-2 text-[11px] font-bold ${on ? 'bg-pink-50 text-pink-600' : 'bg-white text-slate-500'}`}>
                   {t.label}
                 </span>
@@ -163,7 +83,7 @@ export function HpGallery({
             );
           })}
         </div>
-        <p className="text-[11px] text-slate-400 leading-relaxed">{TEMPLATE_NOTE[template]}</p>
+        <p className="text-[11px] text-slate-400 leading-relaxed">{HP_TEMPLATE_NOTES[template]}</p>
       </div>
 
       {/* ── カラー ── */}
@@ -229,7 +149,7 @@ export function HpGallery({
           <div className="w-full max-w-sm rounded-2xl bg-white p-6 space-y-4 shadow-xl">
             <h3 className="text-sm font-black text-slate-800">このデザインで確定しますか？</h3>
             <div className="rounded-xl overflow-hidden border border-slate-200">
-              <Thumb template={template} accent={accent} deep={deep} />
+              <DesignThumb template={template} accent={accent} deep={deep} />
             </div>
             <p className="text-center text-xs font-bold text-slate-700">
               {templateLabel}／{colorLabel}

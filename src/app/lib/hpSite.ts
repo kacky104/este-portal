@@ -157,6 +157,19 @@ export function isHpDomainKey(key: string): boolean {
   return key.includes('.');
 }
 
+// ── 予約 slug ────────────────────────────────────────
+// /hp/ 配下の静的ルートと衝突するため、店舗の slug として発行してはいけない値。
+// （Next.js は静的セグメントが [slug] より優先されるので事故にはならないが、
+//   その店のHPが永遠に開けなくなる。段階4の slug 発行UIで必ず弾くこと）
+export const HP_RESERVED_SLUGS = ['welcome', 'templates', 'demo'] as const;
+
+/**
+ * デモ店舗の slug。デザイン一覧（/hp/templates）からの実物プレビューは
+ * この slug に限りログイン不要で公開する（営業資料・契約前の店舗への提示用）。
+ * 運営がダミー内容のサロン＋salon_sites 行（slug='demo'）を用意する。
+ */
+export const HP_DEMO_SLUG = 'demo';
+
 /** URLキーの正規化（小文字・前後空白除去・www 除去）。proxy.ts の normalizeHost と対の関係。 */
 export function normalizeHpSiteKey(key: string): string {
   const k = key.trim().toLowerCase();

@@ -1,21 +1,24 @@
 import type { Metadata } from 'next';
 import { headers } from 'next/headers';
 import { notFound } from 'next/navigation';
-import Link from 'next/link';
 import { fetchHpPageData } from '@/app/hp/_lib/data';
 import { HpTemplate } from '@/app/hp/_templates/HpTemplate';
-import { isHpTemplateKey, isValidHpColor, normalizeHpSiteKey } from '@/app/lib/hpSite';
+import { HP_DEMO_SLUG, isHpTemplateKey, isValidHpColor, normalizeHpSiteKey } from '@/app/lib/hpSite';
 import { getHpAdminContext } from '@/app/actions/hpAdmin';
 
-// ひな形ギャラリーの【実物プレビュー】（2026-08-09）。
+// デザインの【実物プレビュー】（2026-08-09）。
 //
 // /hp/{key}/preview/{template}/{color} で、その店の実データ（セラピスト・出勤・料金 …）が
 // 入った公開ページを、指定のひな形×カラーでそのまま描画する。DBには何も書かない。
-// ギャラリーの簡易サムネだけで「変更不可の確定」をさせるのは無理がある、という指摘（2026-08-09）
-// への対応。掲載データから中身が自動で埋まるうちの方式だからできる芸当で、ここが vootec との差。
+// 掲載データから中身が自動で埋まるうちの方式だからできる芸当で、ここが vootec との差。
 //
-// - 認可必須: 管理画面と同じ判定（運営/オーナー/HP管理者）。第三者には 404。
-//   draft の店でも本人はプレビューできる（公開ページの status ゲートは通らない）。
+// 用途は2つ:
+//  1. デモ（key = HP_DEMO_SLUG）… デザイン一覧（/hp/templates）から誰でも見られる。
+//     運営が用意したサンプル店舗で18パターンを見せ、契約店舗と会話でデザインを決める。
+//  2. 契約店舗の実データでの確認 … 管理画面と同じ認可（運営/オーナー/HP管理者）。
+//     運営が設定を確定する前の最終確認に使う。第三者には 404。
+//     draft の店でも本人はプレビューできる（公開ページの status ゲートは通らない）。
+//
 // - force-dynamic: ログイン判定に cookie を読むため。ISR には乗せない（公開ページ側は従来どおり）。
 // - 店舗ドメイン経由でも proxy.ts の rewrite でそのまま届く（/preview/... → /hp/{ドメイン}/preview/...）。
 
@@ -34,18 +37,27 @@ export default async function HpPreviewPage({
   const { slug, template, color } = await params;
   if (!isHpTemplateKey(template) || !isValidHpColor(template, color)) notFound();
 
-  // 管理画面に入れる人だけ（未ログイン・部外者は 404。存在も知らせない）
-  const access = await getHpAdminContext(slug);
-  if (!access.ok) notFound();
+  const isDemo = normalizeHpSiteKey(slug) === HP_DEMO_SLUG;
+  if (!isDemo) {
+    // 管理画面に入れる人だけ（未ログイン・部外者は 404。存在も知らせない）
+    const access = await getHpAdminContext(slug);
+    if (!access.ok) notFound();
+  }
 
   const data = await fetchHpPageData(slug, { template_key: template, theme_key: color });
   if (!data) notFound();
 
-  // 「選択画面に戻る」の行き先。店舗ドメイン経由なら /admin（/hp/… を書くと二重 rewrite で 404）、
-  // fukues.com 経由なら /hp/{key}/admin。admin/page.tsx の previewHref と同じ判定。
+  // 「戻る」の行き先。デモはデザイン一覧へ。契約店舗の確認は管理画面へ
+  // （店舗ドメイン経由なら /admin。/hp/… を書くと二重 rewrite で 404。admin/page.tsx と同じ判定）。
   const h = await headers();
   const host = normalizeHpSiteKey((h.get('x-forwarded-host') ?? h.get('host') ?? '').split(':')[0]);
-  const adminHref = host !== '' && host === normalizeHpSiteKey(slug) ? '/admin' : `/hp/${slug}/admin`;
+  const backHref = isDemo
+    ? '/hp/templates'
+    : host !== '' && host === normalizeHpSiteKey(slug) ? '/admin' : `/hp/${slug}/admin`;
+  const bannerText = isDemo
+    ? 'デザインの表示例です（サンプル店舗のデータで表示しています）'
+    : 'プレビュー表示です（まだ確定されていません）';
+  const backLabel = isDemo ? 'デザイン一覧に戻る' : '選択画面に戻る';
 
   return (
     <div>
@@ -69,9 +81,9 @@ export default async function HpPreviewPage({
           letterSpacing: '.05em',
         }}
       >
-        <span>プレビュー表示です（まだ確定されていません）</span>
-        <Link
-          href={adminHref}
+        <span>{bannerText}</span>
+        <a
+          href={backHref}
           style={{
             color: '#fff',
             background: 'rgba(255,255,255,.18)',
@@ -83,8 +95,8 @@ export default async function HpPreviewPage({
             whiteSpace: 'nowrap',
           }}
         >
-          選択画面に戻る
-        </Link>
+          {backLabel}
+        </a>
       </div>
       {/* バナーの高さぶん下げる */}
       <div style={{ height: 42 }} />

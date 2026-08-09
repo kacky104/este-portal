@@ -17,9 +17,14 @@ import { HpEditor } from './HpEditor';
 
 // 店舗ドメイン/admin の本体（2026-08-09 段階3）。
 //
-// 1画面で「ログイン → デザイン確定（未確定なら） → 編集」までを完結させる。
+// 1画面で「ログイン → デザイン設定（未確定なら） → 編集」までを完結させる。
 // ログイン専用ルートを分けていないのは、店舗に案内するURLを
 // 「https://お店のドメイン/admin」の1本だけにしたいため（マニュアルを薄く保つ）。
+//
+// デザインの決め方（2026-08-09 夕の方針変更）:
+//   店舗にはギャラリーで自己判断させない。デザイン一覧（/hp/templates・公開）を見せて
+//   会話で決め、【運営】がこの画面のギャラリーから設定・確定する。
+//   → design_locked=false のとき、operator にはギャラリー・店舗には「打ち合わせ中」の案内を出す。
 //
 // 権限判定はサーバー（actions/hpAdmin.ts）が唯一の正。ここでの出し分けは見た目だけで、
 // 権限が無い状態で操作しても各アクションがエラーを返す。
@@ -140,11 +145,16 @@ export function HpAdminApp({ siteKey, previewHref }: { siteKey: string; previewH
         </div>
       </div>
 
-      {/* ── 本体：未確定ならギャラリー、確定済みなら編集 ── */}
+      {/* ── 本体 ──
+          確定済み: 編集パネル（全ロール）
+          未確定:   運営にはギャラリー（打ち合わせ結果を設定・確定する）、
+                    店舗には「デザイン打ち合わせ中」の案内 ── */}
       {site.design_locked ? (
         <HpEditor siteKey={siteKey} site={site} onSaved={patchSite} onToast={showToast} />
-      ) : (
+      ) : ctx.role === 'operator' ? (
         <HpGallery onConfirm={handleConfirmDesign} busy={busy} previewHref={previewHref} />
+      ) : (
+        <DesignPendingCard />
       )}
 
       {/* ── HP管理者アカウント（オーナー・運営にだけ表示） ── */}
@@ -157,6 +167,30 @@ export function HpAdminApp({ siteKey, previewHref }: { siteKey: string; previewH
           {toast}
         </div>
       )}
+    </div>
+  );
+}
+
+// ── デザイン打ち合わせ中（店舗向け・design_locked=false のとき） ──────
+function DesignPendingCard() {
+  return (
+    <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5 space-y-3">
+      <h3 className="text-sm font-black text-slate-800">ホームページのデザインを準備中です</h3>
+      <p className="text-xs text-slate-500 leading-relaxed">
+        ホームページのデザイン（ひな形とカラー）は、担当者との打ち合わせで決定します。
+        下のデザイン一覧からお好みのイメージをお選びのうえ、担当者までお知らせください。
+      </p>
+      <a
+        href="https://fukues.com/hp/templates"
+        target="_blank"
+        rel="noreferrer"
+        className="inline-block px-5 py-2.5 rounded-full bg-pink-500 text-white text-xs font-black hover:bg-pink-600 transition-colors"
+      >
+        デザイン一覧を見る（全18パターン）
+      </a>
+      <p className="text-[11px] text-slate-400 leading-relaxed">
+        デザインの設定が完了すると、この画面で写真や文章の変更ができるようになります。
+      </p>
     </div>
   );
 }
