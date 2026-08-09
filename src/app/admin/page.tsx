@@ -144,7 +144,7 @@ export default function AdminDashboard() {
   const [hidingId, setHidingId] = useState<number | null>(null);
   const [impersonatingId, setImpersonatingId] = useState<number | null>(null); // オーナーログインリンク発行中のサロンID
   // タブ（本体/求人）とアコーディオン開閉。タブはURLクエリ ?tab= と同期（リロード・ブックマークで維持）。
-  const [activeTab, setActiveTab] = useState<'main' | 'jobs' | 'salon' | 'docs'>('main');
+  const [activeTab, setActiveTab] = useState<'main' | 'jobs' | 'salon' | 'hp' | 'docs'>('main');
   // 初期は使用頻度の高い「掲載サロン一覧」のみ開。開閉状態はクライアントstateのみ（永続化しない）。
   const [expandedSections, setExpandedSections] = useState<Set<string>>(new Set(['salon-list']));
   // 求人タブのバッジ用（AdminJobsManager が読み込み時に求人件数・新規応募合計を通知）。
@@ -167,7 +167,7 @@ export default function AdminDashboard() {
   };
 
   // タブ切替時にURLも更新（履歴を汚さない replace。ページ自体は同一ルートなので再マウントされない）。
-  const selectTab = (key: 'main' | 'jobs' | 'salon' | 'docs') => {
+  const selectTab = (key: 'main' | 'jobs' | 'salon' | 'hp' | 'docs') => {
     setActiveTab(key);
     router.replace(`/admin?tab=${key}`, { scroll: false });
   };
@@ -175,7 +175,7 @@ export default function AdminDashboard() {
   // マウント時に ?tab= を反映（リロード・ブックマークでタブを維持）。
   useEffect(() => {
     const t = new URLSearchParams(window.location.search).get('tab');
-    if (t === 'jobs' || t === 'salon' || t === 'docs') setActiveTab(t);
+    if (t === 'jobs' || t === 'salon' || t === 'hp' || t === 'docs') setActiveTab(t);
   }, []);
 
   const fetchSalons = useCallback(async () => {
@@ -394,6 +394,7 @@ export default function AdminDashboard() {
       <div className="max-w-5xl mx-auto px-3 pt-4 flex flex-wrap justify-center gap-1.5">
         {([
           ['salon', '店舗管理'],
+          ['hp', '公式HP'],
           ['main', 'オプション'],
           ['jobs', '求人'],
           ['docs', '書類'],
@@ -498,16 +499,6 @@ export default function AdminDashboard() {
 
           <AccordionSection id="salon-intakes" title="新規店舗 入力フォーム発行" expanded={expandedSections} onToggle={toggleSection}>
             <SalonIntakeManager onToast={showToast} />
-          </AccordionSection>
-
-          {/* ── 公式HP管理（契約サイト一覧・発行・運営専用編集・2026-08-09 段階4） ── */}
-          <AccordionSection id="hp-sites" title="公式HP管理（契約サイト）" expanded={expandedSections} onToggle={toggleSection}>
-            <HpSitesManager onToast={showToast} />
-          </AccordionSection>
-
-          {/* ── 公式HP サンプル店舗（デザイン一覧の「デモ」用・2026-08-09） ── */}
-          <AccordionSection id="hp-demo" title="公式HP サンプル店舗（デモ）" expanded={expandedSections} onToggle={toggleSection}>
-            <HpDemoManager onToast={showToast} />
           </AccordionSection>
 
           {/* ── 無料掲載枠（/salons のテキスト行）管理 ── */}
@@ -802,6 +793,42 @@ export default function AdminDashboard() {
 
         </div>
         {/* 店舗管理タブ ここまで */}
+
+        {/* ══════════ 公式HPタブ（掲載店舗向け公式ホームページ事業・2026-08-09） ══════════ */}
+        <div className={`space-y-4 ${activeTab === 'hp' ? '' : 'hidden'}`}>
+
+          {/* ── 契約サイト一覧・発行・運営専用編集（段階4） ── */}
+          <AccordionSection id="hp-sites" title="公式HP管理（契約サイト）" expanded={expandedSections} onToggle={toggleSection}>
+            <HpSitesManager onToast={showToast} />
+          </AccordionSection>
+
+          {/* ── デザイン一覧（/hp/templates）の「デモ」が参照するサンプル店舗 ── */}
+          <AccordionSection id="hp-demo" title="公式HP サンプル店舗（デモ）" expanded={expandedSections} onToggle={toggleSection}>
+            <HpDemoManager onToast={showToast} />
+          </AccordionSection>
+
+          {/* ── 営業・確認用のリンク集（毎回URLを思い出さずに済むように） ── */}
+          <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5 space-y-3">
+            <h4 className="text-xs font-black text-slate-700">よく使うページ</h4>
+            <div className="flex flex-wrap gap-2">
+              <a href="/hp/templates" target="_blank" rel="noreferrer"
+                 className="px-4 py-2 rounded-full border border-slate-200 text-xs font-bold text-slate-500 hover:border-slate-300">
+                デザイン一覧・LP（店舗に見せる）
+              </a>
+              <a href="/hp/demo/preview/s/gold" target="_blank" rel="noreferrer"
+                 className="px-4 py-2 rounded-full border border-slate-200 text-xs font-bold text-slate-500 hover:border-slate-300">
+                デモ（タイプS ゴールド）
+              </a>
+            </div>
+            <p className="text-[11px] text-slate-400 leading-relaxed">
+              ※ デザインは店舗に選ばせず、デザイン一覧を見せて打ち合わせで決定 → 運営がその店の管理画面で設定・確定します。
+              <br />
+              ※ 独自ドメインを設定したら Vercel（Settings → Domains）にも同じドメインの追加が必要です。
+            </p>
+          </div>
+
+        </div>
+        {/* 公式HPタブ ここまで */}
 
         {/* ══════════ 求人タブ（本体タブと同じアコーディオン方式） ══════════ */}
         <div className={`space-y-4 ${activeTab === 'jobs' ? '' : 'hidden'}`}>
