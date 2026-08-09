@@ -1,8 +1,8 @@
-// 掲載店舗向け「公式ホームページ」機能の型・定数・サニタイズ（2026-08-08 段階1）。
+// 掲載店舗向け「公式ホームページ」機能の型・定数・サニタイズ（2026-08-08 段階1 → 08-09 段階3）。
 //
 // このファイルが blocks（jsonb）の形の「正」。DB 側は形を強制しないので、
 // 読み込み時は必ず sanitizeHpBlocks() を通して欠損キー・不正値を既定値に丸める。
-// 'use server' ファイル（actions/hpSite.ts）は async 関数しか export できないため、
+// 'use server' ファイル（actions/hpAdmin.ts）は async 関数しか export できないため、
 // 型・定数・純関数はすべてここに置く（lib/jobs.ts と同じ役割分担）。
 
 // ── ひな形 ───────────────────────────────────────────
@@ -146,6 +146,28 @@ export function sanitizeHpHeroImages(raw: unknown): string[] {
     .slice(0, MAX_HP_HERO_IMAGES);
 }
 
+// ── URLキー（slug または独自ドメイン） ─────────────────
+// 段階3から /hp/[slug] の [slug] には2種類が入る:
+//   - 'test-shop'       … 暫定URL（fukues.com/hp/test-shop）。salon_sites.slug
+//   - 'example-shop.com'… 独自ドメイン。proxy.ts がホスト名をそのまま入れて rewrite する
+// slug は「半角英数とハイフン」で作る運用なのでドットを含まない＝ドットの有無で判別できる。
+
+/** URLキーがドメイン（独自ドメイン経由のアクセス）か。 */
+export function isHpDomainKey(key: string): boolean {
+  return key.includes('.');
+}
+
+/** URLキーの正規化（小文字・前後空白除去・www 除去）。proxy.ts の normalizeHost と対の関係。 */
+export function normalizeHpSiteKey(key: string): string {
+  const k = key.trim().toLowerCase();
+  return k.startsWith('www.') ? k.slice(4) : k;
+}
+
+/** salon_sites を引くときの列名。ドメインなら domain、そうでなければ slug。 */
+export function hpSiteKeyColumn(key: string): 'domain' | 'slug' {
+  return isHpDomainKey(key) ? 'domain' : 'slug';
+}
+
 // ── サイト行（アプリ内での形） ────────────────────────
 export type HpSite = {
   salon_id:          number;
@@ -161,13 +183,47 @@ export type HpSite = {
   concept_image_url: string | null;
   blocks:            HpBlocksConfig;
   banners:           HpBanner[];
+  /** ひな形・カラーの確定ロック。true なら店舗側から変更できない（変更は運営の有償作業） */
+  design_locked:     boolean;
   updated_at:        string;
 };
 
-/** 店舗が /mypage から保存できる項目（slug / domain / status は含めない）。 */
-export type HpSiteFormInput = {
-  template_key:      string;
-  theme_key:         string;
+/** salon_sites から公開ページ・管理画面が読む列（運営専用の契約メモ類は含めない）。 */
+export const HP_SITE_COLUMNS =
+  'salon_id, slug, domain, status, template_key, theme_key, hero_images, hero_catch, concept_title, concept_text, concept_image_url, blocks, banners, design_locked, updated_at';
+
+/** DB の1行 → アプリ内の HpSite。公開ページ・管理画面の両方がこれ1本を使う。 */
+export function mapHpSiteRow(row: Record<string, unknown>): HpSite {
+  const status = row.status;
+  const template = row.template_key;
+  return {
+    salon_id:          Number(row.salon_id),
+    slug:              (row.slug as string) ?? '',
+    domain:            (row.domain as string | null) ?? null,
+    status:            isHpSiteStatus(status) ? status : 'draft',
+    template_key:      isHpTemplateKey(template) ? template : 'a',
+    theme_key:         (row.theme_key as string) ?? '',
+    hero_images:       sanitizeHpHeroImages(row.hero_images),
+    hero_catch:        (row.hero_catch as string) ?? '',
+    concept_title:     (row.concept_title as string) ?? '',
+    concept_text:      (row.concept_text as string) ?? '',
+    concept_image_url: (row.concept_image_url as string | null) ?? null,
+    blocks:            sanitizeHpBlocks(row.blocks),
+    banners:           sanitizeHpBanners(row.banners),
+    design_locked:     row.design_locked === true,
+    updated_at:        (row.updated_at as string) ?? '',
+  };
+}
+
+/**
+ * 店舗が管理画面（店舗ドメイン/admin）から保存できる項目。
+ *
+ * ひな形（template_key）とカラー（theme_key）は【含めない】。
+ * デザインは最初のギャラリー選択で確定し、以後は変更不可（変更は運営の有償作業）。
+ * → 確定は confirmHpDesign、以後の編集はこの型だけ、という型レベルの分離にしている。
+ * slug / domain / status も含めない（status は setHpSiteLive・他は運営のみ）。
+ */
+export type HpContentInput = {
   hero_images:       string[];
   hero_catch:        string;
   concept_title:     string;

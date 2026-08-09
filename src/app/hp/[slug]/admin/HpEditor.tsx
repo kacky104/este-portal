@@ -1,18 +1,15 @@
-// ※ 2026-08-08: /mypage の「公式HP」タブは撤去済み。このコンポーネントは
-// 店舗ドメイン側の管理画面（独自ドメイン/admin・段階3）に移植して使う予定で残している。
-// 現在どこからも import されていない。
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { createClient } from '@/app/lib/supabase/client';
 import { STORAGE_CACHE_CONTROL } from '@/app/lib/storage';
-import { SALON_THEMES } from '@/app/lib/themes';
-import { getMyHpSite, saveMyHpSite, setMyHpSiteLive } from '@/app/actions/hpSite';
+import { saveHpSiteContent } from '@/app/actions/hpAdmin';
 import {
   type HpSite,
   type HpBlocksConfig,
   type HpBanner,
   HP_TEMPLATES,
+  HP_COLOR_VARIANTS,
   MAX_HP_HERO_IMAGES,
   MAX_HP_BANNERS,
   MAX_HP_CATCH_LEN,
@@ -26,16 +23,17 @@ import {
   HP_REVIEWS_COUNT_MAX,
 } from '@/app/lib/hpSite';
 
+// 公式HPの編集パネル（旧 mypage/HpTab.tsx を店舗ドメイン/admin へ移植・2026-08-09 段階3）。
+//
+// 旧版からの変更点:
+//  - ひな形・カラーの選択UIを撤去（ギャラリーで確定済み＝ここでは表示のみ）。
+//    保存アクション（saveHpSiteContent）も設計上その2列を書けない。
+//  - カラーの体系は SALON_THEMES ではなく HP_COLOR_VARIANTS（ひな形ごと6色）。
+//  - 保存は画面下部の「保存する」1ボタンに集約（項目ごとの個別保存にしない＝マニュアルを薄く保つ）。
+
 const supabase = createClient();
 
-// mypage「公式HP」タブ本体（2026-08-08 段階1）。
-// 1店舗1サイト（salon_sites・行の作成は運営）。ここでは既存行の編集だけを行う。
-// 保存は画面下部の「保存する」1ボタンに集約（項目ごとの個別保存にしない＝マニュアルを薄く保つ）。
-// 配色は mypage 既存トーン（白カード・ピンクアクセント）。
-
 type FormState = {
-  template_key:      string;
-  theme_key:         string;
   hero_images:       string[];
   hero_catch:        string;
   concept_title:     string;
@@ -49,8 +47,6 @@ function siteToForm(site: HpSite): FormState {
   const slots: (HpBanner | null)[] = [null, null, null];
   site.banners.slice(0, MAX_HP_BANNERS).forEach((b, i) => { slots[i] = b; });
   return {
-    template_key:      site.template_key,
-    theme_key:         site.theme_key,
     hero_images:       site.hero_images,
     hero_catch:        site.hero_catch,
     concept_title:     site.concept_title,
@@ -67,40 +63,29 @@ function validateImageFile(file: File): string | null {
   return null;
 }
 
-export function HpTab({ salonId, onToast }: { salonId: number; onToast: (msg: string) => void }) {
-  const [loading, setLoading] = useState(true);
-  const [loadError, setLoadError] = useState('');
-  const [site, setSite] = useState<HpSite | null>(null);
-  const [form, setForm] = useState<FormState | null>(null);
+export function HpEditor({
+  siteKey,
+  site,
+  onSaved,
+  onToast,
+}: {
+  siteKey: string;
+  site: HpSite;
+  onSaved: (site: HpSite) => void;
+  onToast: (msg: string) => void;
+}) {
+  const [form, setForm] = useState<FormState>(() => siteToForm(site));
   const [saving, setSaving] = useState(false);
-  const [toggling, setToggling] = useState(false);
   // アップロード中のスロット識別子（'hero0'〜 / 'concept' / 'banner0'〜）
   const [uploadingSlot, setUploadingSlot] = useState<string | null>(null);
 
-  useEffect(() => {
-    let alive = true;
-    setLoading(true);
-    setLoadError('');
-    getMyHpSite(salonId)
-      .then((res) => {
-        if (!alive) return;
-        if (!res.ok) { setLoadError(res.error); return; }
-        setSite(res.site);
-        setForm(res.site ? siteToForm(res.site) : null);
-      })
-      .catch((e) => alive && setLoadError(e instanceof Error ? e.message : String(e)))
-      .finally(() => alive && setLoading(false));
-    return () => { alive = false; };
-  }, [salonId]);
-
-  const patch = (p: Partial<FormState>) => setForm((prev) => (prev ? { ...prev, ...p } : prev));
+  const patch = (p: Partial<FormState>) => setForm((prev) => ({ ...prev, ...p }));
   const patchBlocks = (p: Partial<HpBlocksConfig>) =>
-    setForm((prev) => (prev ? { ...prev, blocks: { ...prev.blocks, ...p } } : prev));
+    setForm((prev) => ({ ...prev, blocks: { ...prev.blocks, ...p } }));
 
   // 保存済みサイト行で使われていないURLだけ storage から削除する（best-effort）。
   // 保存前に消すと DB が参照中の画像を壊すため、保存済みURLには触らない。
   const removeIfUnsaved = (url: string) => {
-    if (!site) return;
     const savedUrls = new Set<string>([
       ...site.hero_images,
       ...(site.concept_image_url ? [site.concept_image_url] : []),
@@ -118,7 +103,7 @@ export function HpTab({ salonId, onToast }: { salonId: number; onToast: (msg: st
     if (err) { onToast(err); return null; }
     setUploadingSlot(slotKey);
     const ext = file.name.split('.').pop() ?? 'jpg';
-    const path = `${salonId}/hp_${slotKey}_${Date.now()}.${ext}`;
+    const path = `${site.salon_id}/hp_${slotKey}_${Date.now()}.${ext}`;
     const { error: uploadError } = await supabase.storage
       .from('salon-images')
       .upload(path, file, { upsert: false, cacheControl: STORAGE_CACHE_CONTROL });
@@ -132,11 +117,8 @@ export function HpTab({ salonId, onToast }: { salonId: number; onToast: (msg: st
   };
 
   const handleSave = async () => {
-    if (!form) return;
     setSaving(true);
-    const res = await saveMyHpSite(salonId, {
-      template_key:      form.template_key,
-      theme_key:         form.theme_key,
+    const res = await saveHpSiteContent(siteKey, {
       hero_images:       form.hero_images,
       hero_catch:        form.hero_catch,
       concept_title:     form.concept_title,
@@ -147,128 +129,38 @@ export function HpTab({ salonId, onToast }: { salonId: number; onToast: (msg: st
     });
     setSaving(false);
     if (!res.ok) { onToast(res.error); return; }
-    setSite(res.site);
     setForm(siteToForm(res.site));
+    onSaved(res.site);
     onToast('保存しました');
   };
-
-  const handleToggleLive = async () => {
-    if (!site) return;
-    setToggling(true);
-    const res = await setMyHpSiteLive(salonId, site.status !== 'live');
-    setToggling(false);
-    if (!res.ok) { onToast(res.error); return; }
-    setSite({ ...site, status: res.status });
-    onToast(res.status === 'live' ? '公開にしました' : '非公開にしました');
-  };
-
-  if (loading) {
-    return (
-      <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5">
-        <p className="text-xs text-slate-400">読み込み中です…</p>
-      </div>
-    );
-  }
-  if (loadError) {
-    return (
-      <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5">
-        <p className="text-xs text-rose-500">{loadError}</p>
-      </div>
-    );
-  }
-  if (!site || !form) {
-    return (
-      <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5">
-        <p className="text-xs text-slate-400">
-          公式HPの契約情報が見つかりません。運営事務局までお問い合わせください。
-        </p>
-      </div>
-    );
-  }
-
-  const statusLabel =
-    site.status === 'live' ? '公開中' : site.status === 'suspended' ? '停止中（運営）' : '非公開（制作中）';
-  const statusColor =
-    site.status === 'live' ? 'bg-emerald-50 text-emerald-600 border-emerald-200'
-    : site.status === 'suspended' ? 'bg-rose-50 text-rose-500 border-rose-200'
-    : 'bg-slate-50 text-slate-500 border-slate-200';
 
   const inputCls =
     'w-full rounded-xl border border-slate-200 px-3 py-2 text-sm text-slate-700 focus:outline-none focus:border-pink-300';
 
+  const templateLabel = HP_TEMPLATES.find((t) => t.key === site.template_key)?.label ?? '';
+  const colorVariant = HP_COLOR_VARIANTS[site.template_key].find((v) => v.key === site.theme_key)
+    ?? HP_COLOR_VARIANTS[site.template_key][0];
+
   return (
     <div className="space-y-4">
-      {/* ── 状態 ── */}
-      <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5 space-y-3">
-        <div className="flex items-center justify-between">
-          <h3 className="text-sm font-black text-slate-800">公式ホームページ</h3>
-          <span className={`inline-flex items-center px-2.5 py-1 rounded-full border text-[11px] font-bold ${statusColor}`}>
-            {statusLabel}
+      {/* ── デザイン（確定済み・表示のみ） ── */}
+      <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5 space-y-2">
+        <h3 className="text-sm font-black text-slate-800">デザイン</h3>
+        <div className="flex items-center gap-2">
+          <span
+            className="w-7 h-7 rounded-full border border-black/10 flex-shrink-0"
+            style={{ backgroundColor: colorVariant.css['--hp-accent'] }}
+          />
+          <p className="text-xs font-bold text-slate-700">
+            {templateLabel}／{colorVariant.label}
+          </p>
+          <span className="ml-auto inline-flex items-center px-2.5 py-1 rounded-full border border-slate-200 bg-slate-50 text-[11px] font-bold text-slate-500">
+            確定済み
           </span>
         </div>
-        <p className="text-xs text-slate-500">
-          ドメイン：{site.domain ? <span className="font-bold text-slate-700">{site.domain}</span> : '準備中（運営で取得手続き中です）'}
+        <p className="text-[11px] text-slate-400 leading-relaxed">
+          ※ ひな形とカラーの変更は運営事務局での作業（有償）となります。写真・文章はこのページからいつでも変更できます。
         </p>
-        {site.status !== 'suspended' && (
-          <button
-            onClick={handleToggleLive}
-            disabled={toggling}
-            className={`px-4 py-2 rounded-full text-xs font-bold border transition-colors disabled:opacity-50 ${
-              site.status === 'live'
-                ? 'bg-white text-slate-500 border-slate-200 hover:border-slate-300'
-                : 'bg-pink-500 text-white border-pink-500 hover:bg-pink-600'
-            }`}
-          >
-            {toggling ? '切替中…' : site.status === 'live' ? '非公開にする' : '公開する'}
-          </button>
-        )}
-        <p className="text-[11px] text-slate-400">
-          ※ 公開ページの提供は現在準備中です。設定と公開状態は先に保存できます。
-        </p>
-      </div>
-
-      {/* ── デザイン ── */}
-      <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5 space-y-4">
-        <h3 className="text-sm font-black text-slate-800">デザイン</h3>
-        <div>
-          <p className="text-xs font-bold text-slate-600 mb-2">ひな形</p>
-          <div className="flex flex-wrap gap-2">
-            {HP_TEMPLATES.map((t) => (
-              <button
-                key={t.key}
-                onClick={() => patch({ template_key: t.key })}
-                aria-pressed={form.template_key === t.key}
-                className={`px-4 py-2 rounded-full border text-xs font-bold transition-colors ${
-                  form.template_key === t.key
-                    ? 'bg-pink-50 text-pink-600 border-pink-300'
-                    : 'bg-white text-slate-400 border-slate-200 hover:border-slate-300'
-                }`}
-              >
-                {t.label}
-              </button>
-            ))}
-          </div>
-          <p className="mt-1 text-[11px] text-slate-400">※ ひな形はレイアウトの型です。あとから変更しても、入力した内容や画像はそのまま使えます。</p>
-        </div>
-        <div>
-          <p className="text-xs font-bold text-slate-600 mb-2">テーマカラー</p>
-          <div className="flex flex-wrap gap-2">
-            {SALON_THEMES.map((t) => (
-              <button
-                key={t.key}
-                onClick={() => patch({ theme_key: t.key })}
-                aria-pressed={form.theme_key === t.key}
-                title={t.label}
-                className={`w-9 h-9 rounded-full border-2 transition-transform ${
-                  form.theme_key === t.key ? 'border-pink-400 scale-110' : 'border-slate-200'
-                }`}
-                style={{ backgroundColor: t.bg }}
-              >
-                <span className="sr-only">{t.label}</span>
-              </button>
-            ))}
-          </div>
-        </div>
       </div>
 
       {/* ── トップ（ヒーロー） ── */}
@@ -317,6 +209,9 @@ export function HpTab({ salonId, onToast }: { salonId: number; onToast: (msg: st
             );
           })}
         </div>
+        <p className="text-[11px] text-slate-400">
+          ※ 横長のバナー画像は全体が表示され、縦長の写真は上下が切り取られて表示されます（自動で切り替わります）。
+        </p>
         <div>
           <p className="text-xs font-bold text-slate-600 mb-1">キャッチコピー（最大{MAX_HP_CATCH_LEN}文字）</p>
           <input
@@ -400,7 +295,7 @@ export function HpTab({ salonId, onToast }: { salonId: number; onToast: (msg: st
         <h3 className="text-sm font-black text-slate-800">表示するブロック</h3>
         <p className="text-[11px] text-slate-400">
           ※ 各ブロックの中身（セラピスト・出勤・写メ日記・口コミ・クーポン・お知らせ等）は、
-          マイページの各タブで編集した内容がそのまま表示されます。ここで二重に入力する必要はありません。
+          フクエスのマイページで編集した内容がそのまま表示されます。ここで二重に入力する必要はありません。
         </p>
 
         <label className="flex items-center justify-between py-1">
@@ -558,6 +453,9 @@ export function HpTab({ salonId, onToast }: { salonId: number; onToast: (msg: st
         >
           変更を破棄して元に戻す
         </button>
+        <p className="text-[11px] text-slate-400 text-center">
+          ※ 保存すると公開ページに反映されます（反映まで少し時間がかかることがあります）。
+        </p>
       </div>
     </div>
   );

@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation';
 import { getSession, onAuthChange, updatePassword } from '@/lib/auth';
 import { PASSWORD_HINT, validatePassword } from '@/lib/password';
 import { claimCastTherapist } from '@/app/actions/castInvite';
-import { readInviteHash, establishSessionFromHash, clearAuthHash } from '../inviteHash';
+import { readInviteHash, establishSessionFromHash, clearAuthHash } from '@/app/lib/inviteHash';
 
 // キャスト招待の着地ページ。
 // /auth/callback で invite トークンが verify されセッションが確立した状態でここに来る想定。

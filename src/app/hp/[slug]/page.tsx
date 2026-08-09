@@ -2,15 +2,18 @@ import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import { fetchHpPageData } from '@/app/hp/_lib/data';
 import { HpTemplate } from '@/app/hp/_templates/HpTemplate';
+import { isHpDomainKey, normalizeHpSiteKey } from '@/app/lib/hpSite';
 
-// 掲載店舗の公式ホームページ（2026-08-08 段階2）。
+// 掲載店舗の公式ホームページ（2026-08-08 段階2 → 2026-08-09 段階3で独自ドメイン対応）。
 //
-// - 暫定URL: fukues.com/hp/[slug]。段階3で独自ドメイン → このルートへ rewrite する
-//   （src/proxy.ts にホスト名分岐を追加予定。ページ実装はそのまま使う）。
+// - URLキー [slug] は2種類:
+//     'test-shop'        … 暫定URL fukues.com/hp/test-shop（salon_sites.slug）
+//     'example-shop.com' … 独自ドメイン。src/proxy.ts がホスト名を入れて rewrite する
 // - ISR 600秒。店舗の編集（写メ日記・出勤など）は既存の各テーブルを読むだけなので、
 //   本体側の更新がそのまま反映される（最大10分遅れ）。
-// - noindex: 暫定URL（fukues.com 配下）は検索に出さない。独自ドメイン接続（段階3）で
-//   ドメイン側だけ index 許可に切り替える（fukues.com/hp/* は今後も noindex のまま＝重複回避）。
+// - index/noindex: 独自ドメイン経由（キーがドメイン）かつ salon_sites.domain と一致する時だけ
+//   index 許可。暫定URL（fukues.com/hp/*）は今後も noindex のまま＝重複回避。
+//   canonical は常に独自ドメイン側へ向ける（両方から引けるため）。
 // - status ゲート: live のみ表示。draft/suspended は「準備中」ページ。
 //   テスト時は SQL で status を切り替える: update salon_sites set status='live' where salon_id=◯;
 
@@ -28,10 +31,18 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
   const description =
     data.site.hero_catch ||
     (data.site.concept_text ? data.site.concept_text.slice(0, 80) : `${data.salon.name}の公式サイト`);
+
+  const key = normalizeHpSiteKey(slug);
+  const domain = data.site.domain;
+  // 独自ドメインで接続済み かつ そのドメインでアクセスされている時だけ検索に載せる。
+  const indexable = !!domain && isHpDomainKey(key) && key === normalizeHpSiteKey(domain);
+
   return {
     title: `${data.salon.name}｜公式サイト`,
     description,
-    robots: { index: false, follow: false }, // 暫定URLのため noindex（段階3で独自ドメインのみ解除）
+    robots: indexable ? { index: true, follow: true } : { index: false, follow: false },
+    // ドメイン接続済みなら正規URLは必ずドメイン側（fukues.com/hp/* から拾われても集約される）
+    ...(domain ? { alternates: { canonical: `https://${normalizeHpSiteKey(domain)}/` } } : {}),
   };
 }
 

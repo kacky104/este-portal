@@ -6,7 +6,7 @@ import Image from 'next/image';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { signInWithEmail, getSession, onAuthChange, signOut } from '@/lib/auth';
 import { claimCastTherapist } from '@/app/actions/castInvite';
-import { readInviteHash, establishSessionFromHash, clearAuthHash } from '../inviteHash';
+import { readInviteHash, establishSessionFromHash, clearAuthHash } from '@/app/lib/inviteHash';
 
 function CastLoginInner() {
   const router = useRouter();

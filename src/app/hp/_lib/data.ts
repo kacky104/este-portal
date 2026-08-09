@@ -15,12 +15,10 @@ import { getBusinessDateJST } from '@/lib/dutyStatus';
 import { sanitizeBadges } from '@/lib/therapistBadges';
 import {
   type HpSite,
-  type HpSiteStatus,
-  isHpSiteStatus,
-  isHpTemplateKey,
-  sanitizeHpBlocks,
-  sanitizeHpBanners,
-  sanitizeHpHeroImages,
+  HP_SITE_COLUMNS,
+  hpSiteKeyColumn,
+  mapHpSiteRow,
+  normalizeHpSiteKey,
 } from '@/app/lib/hpSite';
 
 export type HpCourse = { name: string; duration: string; price: string };
@@ -78,27 +76,6 @@ const HP_WALLPAPER_THEME: Record<'a' | 'b' | 'c', string | null> = {
   c: null,
 };
 
-function mapSiteRow(row: Record<string, unknown>): HpSite {
-  const status = row.status;
-  const template = row.template_key;
-  return {
-    salon_id:          Number(row.salon_id),
-    slug:              (row.slug as string) ?? '',
-    domain:            (row.domain as string | null) ?? null,
-    status:            (isHpSiteStatus(status) ? status : 'draft') as HpSiteStatus,
-    template_key:      isHpTemplateKey(template) ? template : 'a',
-    theme_key:         (row.theme_key as string) ?? '',
-    hero_images:       sanitizeHpHeroImages(row.hero_images),
-    hero_catch:        (row.hero_catch as string) ?? '',
-    concept_title:     (row.concept_title as string) ?? '',
-    concept_text:      (row.concept_text as string) ?? '',
-    concept_image_url: (row.concept_image_url as string | null) ?? null,
-    blocks:            sanitizeHpBlocks(row.blocks),
-    banners:           sanitizeHpBanners(row.banners),
-    updated_at:        (row.updated_at as string) ?? '',
-  };
-}
-
 /** HH:MM:SS → HH:MM（therapist_schedules の time 列表示用） */
 function hm(v: unknown): string {
   const s = String(v ?? '');
@@ -106,19 +83,23 @@ function hm(v: unknown): string {
 }
 
 /**
- * slug から公開ページ用データ一式を取得する。サイト行が無ければ null。
+ * URLキー（slug または独自ドメイン）から公開ページ用データ一式を取得する。サイト行が無ければ null。
  * status のゲート（live 以外は準備中ページ）は呼び出し側（page.tsx）で行う。
+ *
+ * キーの解釈は lib/hpSite.ts の hpSiteKeyColumn（ドットを含めば domain、含まなければ slug）。
+ * 独自ドメイン経由（proxy.ts の rewrite）でも同じ関数で引ける。
  */
-export async function fetchHpPageData(slug: string): Promise<HpPageData | null> {
+export async function fetchHpPageData(key: string): Promise<HpPageData | null> {
   const supabase = createPublicClient();
 
+  const siteKey = normalizeHpSiteKey(key);
   const { data: siteRow } = await supabase
     .from('salon_sites')
-    .select('salon_id, slug, domain, status, template_key, theme_key, hero_images, hero_catch, concept_title, concept_text, concept_image_url, blocks, banners, updated_at')
-    .eq('slug', slug)
+    .select(HP_SITE_COLUMNS)
+    .eq(hpSiteKeyColumn(siteKey), siteKey)
     .maybeSingle();
   if (!siteRow) return null;
-  const site = mapSiteRow(siteRow as Record<string, unknown>);
+  const site = mapHpSiteRow(siteRow as Record<string, unknown>);
   const salonId = site.salon_id;
 
   const { data: salonRow } = await supabase

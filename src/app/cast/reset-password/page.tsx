@@ -5,7 +5,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { getSession, onAuthChange, updatePassword } from '@/lib/auth';
 import { PASSWORD_HINT, PASSWORD_ERROR, validatePassword } from '@/lib/password';
-import { readInviteHash, establishSessionFromHash, clearAuthHash } from '../inviteHash';
+import { readInviteHash, establishSessionFromHash, clearAuthHash } from '@/app/lib/inviteHash';
 
 // セラピスト用パスワード再設定の着地ページ（会員 /reset-password のクローン）。
 // 違いは2点：
