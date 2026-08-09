@@ -11,6 +11,7 @@
 //   （重複コンテンツ回避。設計メモ4章）。
 
 import { createPublicClient } from '@/app/lib/supabase/public';
+import { createServiceClient } from '@/app/lib/supabase/service';
 import { getBusinessDateJST } from '@/lib/dutyStatus';
 import { sanitizeBadges } from '@/lib/therapistBadges';
 import {
@@ -99,9 +100,14 @@ export async function fetchHpPageData(
   key: string,
   designOverride?: { template_key: HpTemplateKey; theme_key: string },
 ): Promise<HpPageData | null> {
-  const supabase = createPublicClient();
-
   const siteKey = normalizeHpSiteKey(key);
+
+  // デモ店舗（slug='demo'）だけ service role で読む（2026-08-09 修正）。
+  // デモ用サロンは is_hidden=true で作る運用だが、salons の公開SELECTポリシーは
+  // is_hidden=true の行を anon から隠すため、anon クライアントでは salons 行が引けず
+  // 下の is_hidden 例外判定に到達する前に 404 になっていた（/hp/demo が 404 だった原因）。
+  // service role は読み取り専用のこの関数内でしか使わず、対象もデモ1店舗に限定される。
+  const supabase = siteKey === HP_DEMO_SLUG ? createServiceClient() : createPublicClient();
   const { data: siteRow } = await supabase
     .from('salon_sites')
     .select(HP_SITE_COLUMNS)
