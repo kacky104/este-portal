@@ -15,6 +15,7 @@ import { getBusinessDateJST } from '@/lib/dutyStatus';
 import { sanitizeBadges } from '@/lib/therapistBadges';
 import {
   type HpSite,
+  type HpTemplateKey,
   HP_SITE_COLUMNS,
   hpSiteKeyColumn,
   mapHpSiteRow,
@@ -88,8 +89,14 @@ function hm(v: unknown): string {
  *
  * キーの解釈は lib/hpSite.ts の hpSiteKeyColumn（ドットを含めば domain、含まなければ slug）。
  * 独自ドメイン経由（proxy.ts の rewrite）でも同じ関数で引ける。
+ *
+ * designOverride: ギャラリーの実物プレビュー（/hp/[slug]/preview/…）用。DBの値の代わりに
+ * 指定のひな形・カラーで組み立てる（壁紙もひな形に追従）。保存はしない・表示だけ。
  */
-export async function fetchHpPageData(key: string): Promise<HpPageData | null> {
+export async function fetchHpPageData(
+  key: string,
+  designOverride?: { template_key: HpTemplateKey; theme_key: string },
+): Promise<HpPageData | null> {
   const supabase = createPublicClient();
 
   const siteKey = normalizeHpSiteKey(key);
@@ -100,6 +107,10 @@ export async function fetchHpPageData(key: string): Promise<HpPageData | null> {
     .maybeSingle();
   if (!siteRow) return null;
   const site = mapHpSiteRow(siteRow as Record<string, unknown>);
+  if (designOverride) {
+    site.template_key = designOverride.template_key;
+    site.theme_key = designOverride.theme_key;
+  }
   const salonId = site.salon_id;
 
   const { data: salonRow } = await supabase

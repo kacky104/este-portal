@@ -14,10 +14,10 @@ import {
 // 確定前の1回きりの画面なので、公開ページ（/hp/[slug]）のデータ取得には一切依存させない
 // （＝写真も文章も未入力の状態で選べる）。
 //
-// サムネイルは公開ページのCSSを流用せず、ここだけの簡易表現で描いている。
-// 理由: 実ページのCSS（_templates/styles.ts）は 640px 幅前提の文字列で、
-//       縮小してカードに埋め込むと崩れる。見分けがつけば十分な用途なのでコストを掛けない。
-//       ※ 実物の見え方は「実際のページで確認」リンク（/hp/{slug}）で見てもらう。
+// サムネイルは公開ページのCSSを流用せず、ここだけの簡易表現で描いている（雰囲気の当たり用）。
+// 【実物の確認】は /hp/[slug]/preview/{template}/{color} に任せる：その店の実データが入った
+// 公開ページを選択中のひな形×カラーでそのまま描画する（2026-08-09 追加。簡易サムネだけで
+// 変更不可の確定をさせるのは無理がある、という指摘への対応）。確定前に必ずここへ誘導する。
 
 type ThumbProps = { template: HpTemplateKey; accent: string; deep: string };
 
@@ -117,6 +117,11 @@ export function HpGallery({
     setColor(HP_COLOR_VARIANTS[t][0].key); // ひな形ごとに色の体系が違うので先頭色へ戻す
   };
 
+  // 実物プレビューのURL。previewHref は公開ページの場所（店舗ドメインなら '/'・
+  // fukues.com なら '/hp/{key}'）なので、その配下の /preview/… に繋げる。
+  const livePreviewUrl =
+    previewHref === '/' ? `/preview/${template}/${color}` : `${previewHref}/preview/${template}/${color}`;
+
   const { accent, deep } = variantColors(template, color);
   const colorLabel = HP_COLOR_VARIANTS[template].find((v) => v.key === color)?.label ?? '';
   const templateLabel = HP_TEMPLATES.find((t) => t.key === template)?.label ?? '';
@@ -127,8 +132,9 @@ export function HpGallery({
         <h2 className="text-sm font-black text-slate-800">デザインを選ぶ</h2>
         <p className="text-xs text-slate-500 leading-relaxed">
           ひな形3種類 × カラー6色から1つお選びください。
-          <span className="font-bold text-rose-500">選んで確定すると、あとから変更できません。</span>
+          選んだ組み合わせは、<span className="font-bold text-slate-700">お店の実際のデータが入った実物のページ</span>で確認できます。
           <br />
+          <span className="font-bold text-rose-500">選んで確定すると、あとから変更できません。</span>
           写真・文章はいつでも変更できます。変更できないのは「型」と「色」だけです。
         </p>
       </div>
@@ -187,14 +193,23 @@ export function HpGallery({
         </div>
       </div>
 
-      {/* ── プレビューと確定 ── */}
+      {/* ── 実物プレビューと確定 ── */}
       <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5 space-y-4">
-        <p className="text-xs font-bold text-slate-600">3. 確認して確定</p>
-        <div className="mx-auto w-full max-w-[220px] rounded-2xl overflow-hidden border border-slate-200 shadow-sm">
-          <Thumb template={template} accent={accent} deep={deep} />
-        </div>
+        <p className="text-xs font-bold text-slate-600">3. 実物を確認して確定</p>
         <p className="text-center text-xs font-bold text-slate-700">
-          {templateLabel}／{colorLabel}
+          いま選んでいるもの：{templateLabel}／{colorLabel}
+        </p>
+        <a
+          href={livePreviewUrl}
+          target="_blank"
+          rel="noreferrer"
+          className="block w-full py-3 rounded-full border-2 border-pink-400 text-pink-600 text-sm font-black text-center hover:bg-pink-50 transition-colors"
+        >
+          この組み合わせを実物のページで見る
+        </a>
+        <p className="text-[11px] text-slate-400 text-center leading-relaxed">
+          お店の実際のセラピスト・出勤・料金が入った状態のページが別タブで開きます。
+          スマートフォンでの見え方は、開いたページのURLをスマートフォンに送ってご確認ください。
         </p>
         <button
           onClick={() => setAsking(true)}
@@ -223,6 +238,14 @@ export function HpGallery({
               確定すると、ひな形とカラーはあとから変更できません（変更をご希望の場合は運営事務局での有償作業となります）。
               写真・文章・表示するブロックは、確定後もいつでも変更できます。
             </p>
+            <a
+              href={livePreviewUrl}
+              target="_blank"
+              rel="noreferrer"
+              className="block text-center text-[11px] font-bold text-pink-600 hover:text-pink-700 underline"
+            >
+              実物のページをもう一度確認する（別タブ）
+            </a>
             <div className="flex gap-2">
               <button
                 onClick={() => setAsking(false)}
@@ -239,14 +262,6 @@ export function HpGallery({
                 {busy ? '確定中…' : '確定する'}
               </button>
             </div>
-            <a
-              href={previewHref}
-              target="_blank"
-              rel="noreferrer"
-              className="block text-center text-[11px] text-slate-400 hover:text-slate-600 underline"
-            >
-              現在のページを別タブで見る
-            </a>
           </div>
         </div>
       )}
