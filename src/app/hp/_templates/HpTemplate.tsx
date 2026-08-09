@@ -43,7 +43,10 @@ export function HpTemplate({ data }: { data: HpPageData }) {
   const cssVars = hpColorCssVars(site.template_key, site.theme_key) as React.CSSProperties;
   const salonUrl = `${EMBED_SITE_URL}/salon/${salon.id}`;
   const grouped = groupCourses(courses);
-  const heroImage = site.hero_images[0] ?? null;
+  // ヒーローは「1枚目=PC用（横長）／2枚目=スマホ用（縦長・省略可）」の約束。
+  // 2枚目が無ければ1枚目を両方に使う（従来どおりの挙動）。
+  const heroPc = site.hero_images[0] ?? null;
+  const heroSp = site.hero_images[1] ?? null;
   const onDuty = therapists.filter((t) => t.onDuty);
 
   return (
@@ -79,12 +82,16 @@ export function HpTemplate({ data }: { data: HpPageData }) {
       {/* ── ヒーロー ──
            画像は自然な縦横比で表示しつつ max-height でキャップ（CSS側）。
            横長バナー＝全体表示／縦長写真＝切り抜き、が自動で切り替わる。
+           スマホ用（hero_images[1]）があれば 639px 以下で <picture> が自動で差し替える。
            タイプSは店舗の画像が未設定でも成立するよう、既定のキービジュアル
            （public/hp-s/・PC 2.5:1 / SP 4:5 を出し分け）にフォールバックする。 */}
       <div className="hp-hero">
-        {heroImage ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img className="hp-hero-img" src={heroImage} alt={salon.name} />
+        {heroPc ? (
+          <picture>
+            {heroSp && <source media="(max-width: 639px)" srcSet={heroSp} />}
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img className="hp-hero-img" src={heroPc} alt={salon.name} />
+          </picture>
         ) : site.template_key === 's' ? (
           <picture>
             <source media="(max-width: 639px)" srcSet="/hp-s/hero-sp.webp" />

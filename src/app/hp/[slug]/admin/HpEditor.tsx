@@ -59,6 +59,12 @@ function siteToForm(site: HpSite): FormState {
   };
 }
 
+// ヒーローのスロット定義（位置＝用途）。hero_images[0]=PC / [1]=スマホ。
+const HERO_SLOTS = [
+  { key: 'pc', label: 'パソコン用', hint: '横長 2400×960', previewCls: 'aspect-[5/2]' },
+  { key: 'sp', label: 'スマートフォン用', hint: '縦長 1080×1350・省略可', previewCls: 'aspect-[4/5]' },
+] as const;
+
 function validateImageFile(file: File): string | null {
   if (file.size > 5 * 1024 * 1024) return '5MB以下の画像を選択してください';
   if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) return 'JPEG・PNG・WebPのみ対応しています';
@@ -170,19 +176,32 @@ export function HpEditor({
       {/* ── トップ（ヒーロー） ── */}
       <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5 space-y-4">
         <h3 className="text-sm font-black text-slate-800">トップ画像・キャッチコピー</h3>
-        <div className="grid grid-cols-3 gap-2">
-          {Array.from({ length: MAX_HP_HERO_IMAGES }, (_, i) => {
+        {/* PC用（横長）とスマホ用（縦長）の2枚。位置に意味があるので
+            hero_images[0]=PC / [1]=スマホ を厳密に守る（末尾追加にしない）。 */}
+        <div className="grid grid-cols-2 gap-3">
+          {HERO_SLOTS.map((slot, i) => {
             const url = form.hero_images[i] ?? null;
             const slotKey = `hero${i}`;
             return (
-              <div key={i} className="space-y-1">
+              <div key={slot.key} className="space-y-1.5">
+                <p className="text-xs font-bold text-slate-600">
+                  {slot.label}
+                  <span className="ml-1 font-normal text-slate-400">{slot.hint}</span>
+                </p>
                 {url ? (
                   <div className="relative">
                     {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img src={url} alt={`トップ画像${i + 1}`} className="w-full aspect-video object-cover rounded-xl border border-slate-200" />
+                    <img
+                      src={url}
+                      alt={slot.label}
+                      className={`w-full object-cover rounded-xl border border-slate-200 ${slot.previewCls}`}
+                    />
                     <button
                       onClick={() => {
-                        patch({ hero_images: form.hero_images.filter((u) => u !== url) });
+                        // 位置を保つため、後ろを詰めるのは「PC用を消したときにスマホ用しか残らない」場合を
+                        // 避けるため。PC用を消したらスマホ用も一緒に外す（PCなしSPありは表示できないため）。
+                        const next = i === 0 ? [] : form.hero_images.slice(0, 1);
+                        patch({ hero_images: next });
                         removeIfUnsaved(url);
                       }}
                       className="absolute top-1 right-1 w-6 h-6 rounded-full bg-black/50 text-white text-xs font-bold"
@@ -192,8 +211,10 @@ export function HpEditor({
                     </button>
                   </div>
                 ) : (
-                  <label className="flex items-center justify-center w-full aspect-video rounded-xl border-2 border-dashed border-slate-200 text-[11px] text-slate-400 cursor-pointer hover:border-pink-300">
-                    {uploadingSlot === slotKey ? 'アップ中…' : `画像${i + 1}`}
+                  <label
+                    className={`flex items-center justify-center w-full rounded-xl border-2 border-dashed border-slate-200 text-[11px] text-slate-400 cursor-pointer hover:border-pink-300 ${slot.previewCls}`}
+                  >
+                    {uploadingSlot === slotKey ? 'アップ中…' : '画像を選ぶ'}
                     <input
                       type="file"
                       accept="image/jpeg,image/png,image/webp"
@@ -203,8 +224,15 @@ export function HpEditor({
                         const file = e.target.files?.[0];
                         e.target.value = '';
                         if (!file) return;
+                        if (i === 1 && !form.hero_images[0]) {
+                          onToast('先にパソコン用の画像を設定してください');
+                          return;
+                        }
                         const publicUrl = await uploadImage(slotKey, file);
-                        if (publicUrl) patch({ hero_images: [...form.hero_images, publicUrl].slice(0, MAX_HP_HERO_IMAGES) });
+                        if (!publicUrl) return;
+                        const next = [...form.hero_images];
+                        next[i] = publicUrl;
+                        patch({ hero_images: next.slice(0, MAX_HP_HERO_IMAGES) });
                       }}
                     />
                   </label>
@@ -213,8 +241,10 @@ export function HpEditor({
             );
           })}
         </div>
-        <p className="text-[11px] text-slate-400">
-          ※ 横長のバナー画像は全体が表示され、縦長の写真は上下が切り取られて表示されます（自動で切り替わります）。
+        <p className="text-[11px] text-slate-400 leading-relaxed">
+          ※ スマートフォン用を設定すると、スマホで見たときだけそちらに自動で切り替わります（未設定ならパソコン用を共用）。
+          <br />
+          ※ 推奨サイズ：パソコン用 2400×960px（横長）／スマートフォン用 1080×1350px（縦長）。
         </p>
         <div>
           <p className="text-xs font-bold text-slate-600 mb-1">キャッチコピー（最大{MAX_HP_CATCH_LEN}文字）</p>

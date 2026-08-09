@@ -17,6 +17,7 @@ const COMMON = `
    これが無いと負の z-index がページ全体の背面（レイアウトの額縁背景の裏）まで潜って見えなくなる。 */
 .hp-root { max-width: 640px; margin: 0 auto; min-height: 100vh; -webkit-font-smoothing: antialiased; padding-bottom: 64px; position: relative; isolation: isolate; }
 .hp-root * { margin: 0; padding: 0; box-sizing: border-box; }
+.hp-hero picture { display: block; }
 .hp-hero-img { display: block; width: 100%; height: auto; max-height: 78vh; object-fit: cover; }
 .hp-sec { padding: 48px 22px; }
 .hp-idx, .hp-topbar { display: none; }
