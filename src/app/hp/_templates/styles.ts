@@ -40,6 +40,12 @@ const COMMON = `
 .hp-th-catch { display: none; }
 .hp-th-badges { display: none; }
 .hp-sched-date { font-size: 11px; margin: -8px 0 12px; opacity: .75; letter-spacing: .1em; }
+/* 出勤行は <a>（セラピスト個別ページへ）。A/B/C は従来の「名前 …… 時間」1行のままにする:
+   サムネと年齢体型は隠し、hp-sched-body を display:contents にして
+   名前と時間を行（flex）の直接の子に戻す。タイプSだけがこれを上書きして写真グリッドにする。 */
+.hp-sched-row { color: inherit; text-decoration: none; }
+.hp-sched-body { display: contents; }
+.hp-sched-thumb, .hp-sched-meta { display: none; }
 /* テーマ壁紙レイヤー（有効時は .hp-has-wallpaper が付き、ひな形側で透過調整する） */
 .hp-wallpaper { position: fixed; inset: 0; z-index: -1; background-size: cover; background-position: center; pointer-events: none; }
 .hp-wallpaper::after { content: ''; position: absolute; inset: 0; }
@@ -276,9 +282,41 @@ ${COMMON}
 /* フラッグシップは全幅（額縁なし）。本文は中央760pxに寄せる */
 .hp-s { max-width: none; }
 .hp-s .hp-sec { padding: 60px 22px; }
-@media (min-width: 768px) { .hp-s .hp-sec { padding: 84px calc((100% - 760px) / 2); } }
+@media (min-width: 768px) { .hp-s .hp-sec { padding: 84px calc((100% - 860px) / 2); } }
+/* 写真グリッド（出勤・セラピスト）だけは本文より広く取り、1枚を大きく見せる。
+   本文は読みやすさ優先で 860px のまま。負の padding にならないよう 1240px 以上でのみ適用。 */
+@media (min-width: 1240px) {
+  .hp-s .hp-sec-schedule, .hp-s .hp-sec-therapists {
+    padding-left: calc((100% - 1180px) / 2); padding-right: calc((100% - 1180px) / 2);
+  }
+}
 .hp-s .hp-sec-alt { background: #f7f2ea; }
 .hp-s section[id] { scroll-margin-top: 64px; }
+
+/* ── セクションの並べ替え（タイプSのみ）──
+   DOM は全ひな形共通のまま、flex の order だけで「ヒーロー直下に本日の出勤」を実現する
+   （HpTemplate.tsx に "このひな形だけの並び" を持ち込まないため。作業ルール1）。
+   <style> と <script> は display:none なので flex アイテムにならない。
+   .hp-wallpaper / .hp-cta は position:fixed なので order の影響を受けない。 */
+.hp-s { display: flex; flex-direction: column; }
+.hp-s .hp-topbar          { order: 1; }
+.hp-s .hp-hero            { order: 2; }
+.hp-s .hp-sec-schedule    { order: 3; }
+.hp-s .hp-sec-concept     { order: 4; }
+.hp-s .hp-sec-courses     { order: 5; }
+.hp-s .hp-sec-therapists  { order: 6; }
+.hp-s .hp-sec-diary       { order: 7; }
+.hp-s .hp-sec-reviews     { order: 8; }
+.hp-s .hp-sec-coupon      { order: 9; }
+.hp-s .hp-sec-news        { order: 10; }
+.hp-s .hp-sec-free        { order: 11; }
+.hp-s .hp-sec-info        { order: 12; }
+.hp-s .hp-sec-banners     { order: 13; }
+.hp-s .hp-footer          { order: 14; }
+/* 並べ替えで背景の縞（無地↔生成り）がずれるぶんを付け替える。
+   schedule=帯 / concept=無地 / courses=帯 / therapists=無地 …と交互に戻す。 */
+.hp-s .hp-sec-diary, .hp-s .hp-sec-coupon, .hp-s .hp-sec-free { background: #f7f2ea; }
+.hp-s .hp-sec-reviews, .hp-s .hp-sec-news, .hp-s .hp-sec-info { background: #fdfbf7; }
 
 /* ── 固定ナビ（白のすりガラス・店名／ナビ／RESERVE） ── */
 .hp-s .hp-topbar { display: flex; justify-content: space-between; align-items: center; gap: 16px; position: sticky; top: 0; z-index: 30;
@@ -323,8 +361,9 @@ ${COMMON}
 .hp-s .hp-course-min { font-size: 12.5px; letter-spacing: .1em; color: #5d5346; }
 .hp-s .hp-course-price { font-size: 15px; color: var(--hp-accent, #b98d4f); font-style: italic; }
 
-.hp-s .hp-th-card { flex-basis: 150px; }
-@media (min-width: 768px) { .hp-s .hp-th-row { flex-wrap: wrap; } .hp-s .hp-th-card { flex-basis: 168px; } }
+/* セラピストは横スクロールではなくグリッド（SP2列・PC4列）で大きく見せる */
+.hp-s .hp-th-row { display: grid; grid-template-columns: repeat(2, 1fr); gap: 22px 12px; overflow: visible; padding-bottom: 0; }
+@media (min-width: 768px) { .hp-s .hp-th-row { grid-template-columns: repeat(4, 1fr); gap: 30px 18px; } }
 .hp-s .hp-th-frame { border: 1px solid #eadfcd; padding: 6px; background: #fff; box-shadow: 0 6px 20px rgba(120,100,70,.08); }
 .hp-s .hp-th-noimg { background: linear-gradient(160deg, #f3ecdf, #e7dcc9); }
 .hp-s .hp-th-name { margin-top: 11px; font-size: 12.5px; letter-spacing: .14em; text-align: center; color: #4a4238; }
@@ -335,9 +374,19 @@ ${COMMON}
 .hp-s .hp-th-badge { font-size: 8.5px; color: #7a6f60; border: 1px solid #e0d4bf; background: #fff; padding: 2px 7px; letter-spacing: .08em; }
 .hp-s .hp-th-onduty { display: block; width: fit-content; margin: 8px auto 0; font-size: 9px; color: #fff; background: var(--hp-accent, #b98d4f); padding: 2px 10px; letter-spacing: .15em; }
 
-.hp-s .hp-sched-date { display: inline-block; background: #fff; border: 1px solid #eadfcd; padding: 6px 18px; margin: 0 0 18px; font-size: 12px; color: var(--hp-accent, #b98d4f); letter-spacing: .2em; opacity: 1; }
-.hp-s .hp-sched-row { display: flex; justify-content: space-between; padding: 13px 2px; border-bottom: 1px solid #e7dcc9; font-size: 12.5px; letter-spacing: .08em; color: #5d5346; }
-.hp-s .hp-sched-time { color: var(--hp-accent, #b98d4f); font-style: italic; }
+/* ── 本日の出勤（ヒーロー直下の主役ブロック）──
+   SP2列・PC4列の写真グリッド。セラピスト一覧と同じ寸法感で揃える。 */
+.hp-s .hp-sched-date { display: inline-block; background: #fff; border: 1px solid #eadfcd; padding: 6px 18px; margin: 0 0 22px; font-size: 12px; color: var(--hp-accent, #b98d4f); letter-spacing: .2em; opacity: 1; }
+.hp-s .hp-sched-list { display: grid; grid-template-columns: repeat(2, 1fr); gap: 22px 12px; }
+@media (min-width: 768px) { .hp-s .hp-sched-list { grid-template-columns: repeat(4, 1fr); gap: 30px 18px; } }
+.hp-s .hp-sched-row { display: block; padding: 0; border: none; }
+.hp-s .hp-sched-thumb { display: block; border: 1px solid #eadfcd; padding: 6px; background: #fff; box-shadow: 0 6px 20px rgba(120,100,70,.08); }
+.hp-s .hp-sched-thumb img, .hp-s .hp-sched-noimg { display: block; width: 100%; aspect-ratio: 4 / 5; object-fit: cover; }
+.hp-s .hp-sched-noimg { background: linear-gradient(160deg, #f3ecdf, #e7dcc9); }
+.hp-s .hp-sched-body { display: flex; flex-direction: column; align-items: center; gap: 3px; margin-top: 12px; }
+.hp-s .hp-sched-name { font-size: 13.5px; letter-spacing: .14em; color: #4a4238; }
+.hp-s .hp-sched-meta { display: block; font-size: 10.5px; color: #9b8c74; letter-spacing: .06em; }
+.hp-s .hp-sched-time { margin-top: 3px; font-size: 12px; color: var(--hp-accent, #b98d4f); font-style: italic; letter-spacing: .04em; }
 
 .hp-s .hp-embed { border: 1px solid #eadfcd; }
 .hp-s .hp-more { color: var(--hp-accent, #b98d4f); letter-spacing: .2em; border-bottom: 1px solid var(--hp-accent-soft, #d5b98a); padding-bottom: 3px; }

@@ -165,17 +165,42 @@ export function HpTemplate({ data }: { data: HpPageData }) {
         </section>
       )}
 
-      {/* ── 本日の出勤 ── */}
+      {/* ── 本日の出勤 ──
+           行は「サムネイル＋（名前・年齢体型・時間）」の共通DOM。
+           A/B/C は COMMON で hp-sched-thumb / hp-sched-meta を display:none にし、
+           hp-sched-body を display:contents にすることで従来どおり「名前 …… 時間」の
+           1行レイアウトのまま（見た目は変わらない）。タイプSだけが写真グリッドとして使う。 */}
       {b.schedule.on && onDuty.length > 0 && (
         <section id="schedule" data-hp-reveal className="hp-sec hp-sec-alt hp-sec-schedule">
           <SecHead no="04" en="Schedule" jp="本日の出勤" />
           <div className="hp-sched-date">{data.todayLabel}</div>
-          {onDuty.map((t) => (
-            <div key={t.id} className="hp-sched-row">
-              <span className="hp-sched-name">{t.name}</span>
-              <span className="hp-sched-time">{t.todayTime}</span>
-            </div>
-          ))}
+          <div className="hp-sched-list">
+            {onDuty.map((t) => (
+              <a
+                key={t.id}
+                className="hp-sched-row"
+                href={`${EMBED_SITE_URL}/therapist/${t.id}`}
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                <span className="hp-sched-thumb">
+                  {t.imageUrl ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={t.imageUrl} alt={t.name} />
+                  ) : (
+                    <span className="hp-sched-noimg" />
+                  )}
+                </span>
+                <span className="hp-sched-body">
+                  <span className="hp-sched-name">{t.name}</span>
+                  <span className="hp-sched-meta">
+                    {[t.age !== null ? `${t.age}歳` : '', t.bodyType].filter(Boolean).join(' / ')}
+                  </span>
+                  <span className="hp-sched-time">{t.todayTime}</span>
+                </span>
+              </a>
+            ))}
+          </div>
         </section>
       )}
 
