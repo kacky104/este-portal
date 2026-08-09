@@ -275,7 +275,7 @@ ${COMMON}
 // タイプS（GRACE・フラッグシップ）: LPのキービジュアルに描かれたサイトの実物化（2026-08-09）。
 // 白〜クリーム地×シャンパンゴールド×しっぽり明朝。全幅ヒーローに文字を重ね、
 // 上部固定ナビ（CONCEPT/SYSTEM/…・アンカー）を出す唯一のひな形。
-// 既定ヒーロー画像は public/hp-s/（PC 2.5:1 / SP 4:5・口元から下の構図）。
+// 既定ヒーロー画像は public/hp-s/（PC 2400×960 / SP 1080×760・口元から下の構図）。
 const TYPE_S = `
 @import url('https://fonts.googleapis.com/css2?family=Shippori+Mincho:wght@400;500;600&display=swap');
 ${COMMON}
@@ -342,9 +342,15 @@ ${COMMON}
 .hp-s .hp-hero-name::after { content: ''; position: absolute; left: 2px; bottom: 0; width: 64px; border-top: 1px solid var(--hp-accent-soft, #d5b98a); }
 .hp-s .hp-hero-area { margin-top: 14px; font-size: clamp(8px, .9vw, 11px); color: #9b8c74; letter-spacing: .3em; }
 @media (max-width: 639px) {
-  /* SP: 4:5 画像の下3分の1（明るい余白）に載せる */
-  .hp-s .hp-hero-text { justify-content: flex-end; padding: 0 20px 8%; max-width: 100%; }
-  .hp-s .hp-hero-catch { margin-bottom: 14px; font-size: 20px; }
+  /* SP: 横長寄り（1080×760）のヒーロー下部に文字を載せる。
+     写真の上に直接置くと小さい英字が読めないため、下から明るいスクリムを重ねる。 */
+  .hp-s .hp-hero-text { justify-content: flex-end; padding: 0 20px 26px; max-width: 100%; z-index: 1; }
+  .hp-s .hp-hero-catch { margin-bottom: 12px; font-size: 21px; }
+  .hp-s .hp-hero::after {
+    content: ''; position: absolute; left: 0; right: 0; bottom: 0; height: 68%;
+    background: linear-gradient(to top, rgba(253,251,247,.94), rgba(253,251,247,.6) 42%, rgba(253,251,247,0));
+    pointer-events: none;
+  }
 }
 
 /* ── セクション見出し（金の英字＋明朝＋二重罫線。Aの意匠を明るい地に移植） ── */

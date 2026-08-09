@@ -62,7 +62,7 @@ function siteToForm(site: HpSite): FormState {
 // ヒーローのスロット定義（位置＝用途）。hero_images[0]=PC / [1]=スマホ。
 const HERO_SLOTS = [
   { key: 'pc', label: 'パソコン用', hint: '横長 2400×960', previewCls: 'aspect-[5/2]' },
-  { key: 'sp', label: 'スマートフォン用', hint: '縦長 1080×1350・省略可', previewCls: 'aspect-[4/5]' },
+  { key: 'sp', label: 'スマートフォン用', hint: '1080×760・省略可', previewCls: 'aspect-[27/19]' },
 ] as const;
 
 function validateImageFile(file: File): string | null {
@@ -244,7 +244,7 @@ export function HpEditor({
         <p className="text-[11px] text-slate-400 leading-relaxed">
           ※ スマートフォン用を設定すると、スマホで見たときだけそちらに自動で切り替わります（未設定ならパソコン用を共用）。
           <br />
-          ※ 推奨サイズ：パソコン用 2400×960px（横長）／スマートフォン用 1080×1350px（縦長）。
+          ※ 推奨サイズ：パソコン用 2400×960px ／ スマートフォン用 1080×760px。
         </p>
         <div>
           <p className="text-xs font-bold text-slate-600 mb-1">キャッチコピー（最大{MAX_HP_CATCH_LEN}文字）</p>

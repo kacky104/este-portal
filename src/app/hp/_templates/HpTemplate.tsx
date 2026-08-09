@@ -84,7 +84,7 @@ export function HpTemplate({ data }: { data: HpPageData }) {
            横長バナー＝全体表示／縦長写真＝切り抜き、が自動で切り替わる。
            スマホ用（hero_images[1]）があれば 639px 以下で <picture> が自動で差し替える。
            タイプSは店舗の画像が未設定でも成立するよう、既定のキービジュアル
-           （public/hp-s/・PC 2.5:1 / SP 4:5 を出し分け）にフォールバックする。 */}
+           （public/hp-s/・PC 2400×960 / SP 1080×760 を出し分け）にフォールバックする。 */}
       <div className="hp-hero">
         {heroPc ? (
           <picture>
