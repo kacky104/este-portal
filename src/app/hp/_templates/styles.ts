@@ -316,12 +316,12 @@ ${COMMON}
 .hp-s .hp-footer          { order: 14; }
 /* 並べ替えで背景の縞（無地↔生成り）がずれるぶんを付け替える。
    schedule=帯 / concept=無地 / courses=帯 / therapists=無地 …と交互に戻す。 */
-.hp-s .hp-sec-diary, .hp-s .hp-sec-coupon, .hp-s .hp-sec-free { background: #f7f2ea; }
-.hp-s .hp-sec-reviews, .hp-s .hp-sec-news, .hp-s .hp-sec-info { background: #fdfbf7; }
+.hp-s .hp-sec-diary, .hp-s .hp-sec-coupon, .hp-s .hp-sec-free { background: rgba(247,242,234,.70); }
+.hp-s .hp-sec-reviews, .hp-s .hp-sec-news, .hp-s .hp-sec-info { background: rgba(253,251,247,.30); }
 
 /* ── 固定ナビ（白のすりガラス・店名／ナビ／RESERVE） ── */
 .hp-s .hp-topbar { display: flex; justify-content: space-between; align-items: center; gap: 16px; position: sticky; top: 0; z-index: 30;
-  padding: 14px 22px; background: rgba(253,251,247,.92); backdrop-filter: blur(10px); border-bottom: 1px solid #eee4d4; }
+  padding: 14px 22px; background: rgba(253,251,247,.86); backdrop-filter: blur(10px); border-bottom: 1px solid #eee4d4; }
 .hp-s .hp-topbar-name { font-size: 14px; letter-spacing: .24em; color: var(--hp-accent, #b98d4f); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .hp-s .hp-topbar-nav { display: none; gap: 26px; }
 @media (min-width: 900px) { .hp-s .hp-topbar-nav { display: flex; } }
@@ -421,14 +421,26 @@ ${COMMON}
 /* ══════════ 神秘的な仕上げ（2026-08-09 要望）══════════
    狙いは「静けさ・左右対称・淡い光」。装飾はCSSだけで完結させ、DOMには手を入れない。 */
 
-/* 1) 霞（かすみ）— 画面全体に淡い光のたまりを置く。スクロールしても位置が変わらないので
-      セクションをまたいで“光の中にいる”感じが続く。 */
-.hp-s {
+/* 1) 背景は2枚の固定レイヤーで作る（スクロールしても動かず“光の中にいる”感じが続く）。
+      ::before = 羽根の壁紙 / ::after = 金の光のたまり（霞）。
+      どちらも position:fixed なので flex アイテムにはならず、並べ替え（order）にも影響しない。
+      負の z-index が使えるのは .hp-root の isolation:isolate があるおかげ（COMMON 参照）。
+      ※ background-attachment:fixed はモバイルで無視されるため、固定レイヤー方式にしている。 */
+.hp-s::before {
+  content: ''; position: fixed; inset: 0; z-index: -2; pointer-events: none;
+  background: url('/hp-s/wallpaper.webp') center / cover no-repeat;
+}
+.hp-s::after {
+  content: ''; position: fixed; inset: 0; z-index: -1; pointer-events: none;
   background-image:
     radial-gradient(1200px 680px at 50% -180px, color-mix(in srgb, var(--hp-accent, #b98d4f) 15%, transparent), transparent 66%),
     radial-gradient(820px 560px at 4% 38%,   color-mix(in srgb, var(--hp-accent, #b98d4f) 7%,  transparent), transparent 70%),
     radial-gradient(820px 560px at 96% 76%,  color-mix(in srgb, var(--hp-accent, #b98d4f) 7%,  transparent), transparent 70%);
 }
+/* 壁紙を透かすため、セクションの地色は半透明にする（無地=薄いベール／帯=やや濃いベール）。
+   文字色は #4a4238 系なので、この濃度でも可読性は保てる。 */
+.hp-s .hp-sec { background: rgba(253,251,247,.30); }
+.hp-s .hp-sec-alt { background: rgba(247,242,234,.70); }
 
 /* 2) 見出しは左右対称に。英字→和文→飾り罫、を中央で積む */
 .hp-s .hp-en { text-align: center; letter-spacing: .5em; text-indent: .5em; font-size: 10.5px; }
