@@ -383,16 +383,28 @@ ${COMMON}
 /* ── 本日の出勤（ヒーロー直下の主役ブロック）──
    SP2列・PC4列の写真グリッド。セラピスト一覧と同じ寸法感で揃える。 */
 .hp-s .hp-sched-date { display: inline-block; background: #fff; border: 1px solid #eadfcd; padding: 6px 18px; margin: 0 0 22px; font-size: 12px; color: var(--hp-accent, #b98d4f); letter-spacing: .2em; opacity: 1; }
-.hp-s .hp-sched-list { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); justify-content: center; gap: 6px 3px; }
-@media (min-width: 768px) { .hp-s .hp-sched-list { grid-template-columns: repeat(4, minmax(0, 268px)); gap: 9px 5px; } }
-.hp-s .hp-sched-row { display: block; padding: 0; border: none; }
-.hp-s .hp-sched-thumb { display: block; border: 1px solid #eadfcd; padding: 0; background: #fff; }
+.hp-s .hp-sched-list { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); justify-content: center; gap: 3px; }
+@media (min-width: 768px) { .hp-s .hp-sched-list { grid-template-columns: repeat(4, minmax(0, 268px)); gap: 5px; } }
+/* スマホは左右の余白を食い破って画面の端まで使う（枠いっぱいのモザイク） */
+@media (max-width: 639px) { .hp-s .hp-sched-list { margin-left: -22px; margin-right: -22px; } }
+.hp-s .hp-sched-row { display: block; padding: 0; border: none; position: relative; overflow: hidden; }
+.hp-s .hp-sched-thumb { display: block; border: none; padding: 0; background: #f3ecdf; position: relative; box-shadow: none; }
 .hp-s .hp-sched-thumb img, .hp-s .hp-sched-noimg { display: block; width: 100%; aspect-ratio: 4 / 5; object-fit: cover; }
 .hp-s .hp-sched-noimg { background: linear-gradient(160deg, #f3ecdf, #e7dcc9); }
-.hp-s .hp-sched-body { display: flex; flex-direction: column; align-items: center; gap: 2px; margin-top: 3px; padding-bottom: 2px; }
-.hp-s .hp-sched-name { font-size: 13.5px; letter-spacing: .14em; color: #4a4238; }
-.hp-s .hp-sched-meta { display: block; font-size: 10.5px; color: #9b8c74; letter-spacing: .06em; }
-.hp-s .hp-sched-time { margin-top: 3px; font-size: 12px; color: var(--hp-accent, #b98d4f); font-style: italic; letter-spacing: .04em; }
+/* 文字を読ませるための暗いレイヤー（写真の下から立ち上がるグラデーション） */
+.hp-s .hp-sched-thumb::after {
+  content: ''; position: absolute; left: 0; right: 0; bottom: 0; height: 62%; pointer-events: none;
+  background: linear-gradient(to top, rgba(44,32,18,.80), rgba(44,32,18,.34) 44%, rgba(44,32,18,0));
+}
+/* 名前・年齢・出勤時間は写真の中（下端）へ重ねる */
+.hp-s .hp-sched-body {
+  position: absolute; left: 0; right: 0; bottom: 0; z-index: 1;
+  display: flex; flex-direction: column; align-items: center; gap: 1px;
+  margin: 0; padding: 0 8px 11px; text-align: center;
+}
+.hp-s .hp-sched-name { font-size: 15px; letter-spacing: .16em; text-indent: .16em; color: #fff; text-shadow: 0 1px 8px rgba(0,0,0,.4); }
+.hp-s .hp-sched-meta { display: block; font-size: 11px; color: rgba(255,255,255,.85); letter-spacing: .08em; text-shadow: 0 1px 6px rgba(0,0,0,.4); }
+.hp-s .hp-sched-time { margin-top: 3px; font-size: 11.5px; color: var(--hp-accent-soft, #d5b98a); font-style: italic; letter-spacing: .04em; text-shadow: 0 1px 6px rgba(0,0,0,.45); }
 
 .hp-s .hp-embed { border: 1px solid #eadfcd; }
 .hp-s .hp-more { color: var(--hp-accent, #b98d4f); letter-spacing: .2em; border-bottom: 1px solid var(--hp-accent-soft, #d5b98a); padding-bottom: 3px; }

@@ -200,9 +200,8 @@ export function HpTemplate({ data }: { data: HpPageData }) {
                 </span>
                 <span className="hp-sched-body">
                   <span className="hp-sched-name">{t.name}</span>
-                  <span className="hp-sched-meta">
-                    {[t.age !== null ? `${t.age}歳` : '', t.bodyType].filter(Boolean).join(' / ')}
-                  </span>
+                  {/* 出勤欄は名前と年齢だけ（体型・特徴はセラピスト一覧に任せて情報量を絞る） */}
+                  <span className="hp-sched-meta">{t.age !== null ? `${t.age}歳` : ''}</span>
                   <span className="hp-sched-time">{t.todayTime}</span>
                 </span>
               </a>
