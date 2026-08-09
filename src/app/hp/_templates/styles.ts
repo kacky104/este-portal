@@ -383,13 +383,13 @@ ${COMMON}
 /* ── 本日の出勤（ヒーロー直下の主役ブロック）──
    SP2列・PC4列の写真グリッド。セラピスト一覧と同じ寸法感で揃える。 */
 .hp-s .hp-sched-date { display: inline-block; background: #fff; border: 1px solid #eadfcd; padding: 6px 18px; margin: 0 0 22px; font-size: 12px; color: var(--hp-accent, #b98d4f); letter-spacing: .2em; opacity: 1; }
-.hp-s .hp-sched-list { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); justify-content: center; gap: 22px 12px; }
-@media (min-width: 768px) { .hp-s .hp-sched-list { grid-template-columns: repeat(4, minmax(0, 268px)); gap: 34px 20px; } }
+.hp-s .hp-sched-list { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); justify-content: center; gap: 6px 3px; }
+@media (min-width: 768px) { .hp-s .hp-sched-list { grid-template-columns: repeat(4, minmax(0, 268px)); gap: 9px 5px; } }
 .hp-s .hp-sched-row { display: block; padding: 0; border: none; }
-.hp-s .hp-sched-thumb { display: block; border: 1px solid #eadfcd; padding: 6px; background: #fff; box-shadow: 0 6px 20px rgba(120,100,70,.08); }
+.hp-s .hp-sched-thumb { display: block; border: 1px solid #eadfcd; padding: 0; background: #fff; }
 .hp-s .hp-sched-thumb img, .hp-s .hp-sched-noimg { display: block; width: 100%; aspect-ratio: 4 / 5; object-fit: cover; }
 .hp-s .hp-sched-noimg { background: linear-gradient(160deg, #f3ecdf, #e7dcc9); }
-.hp-s .hp-sched-body { display: flex; flex-direction: column; align-items: center; gap: 3px; margin-top: 12px; }
+.hp-s .hp-sched-body { display: flex; flex-direction: column; align-items: center; gap: 2px; margin-top: 3px; padding-bottom: 2px; }
 .hp-s .hp-sched-name { font-size: 13.5px; letter-spacing: .14em; color: #4a4238; }
 .hp-s .hp-sched-meta { display: block; font-size: 10.5px; color: #9b8c74; letter-spacing: .06em; }
 .hp-s .hp-sched-time { margin-top: 3px; font-size: 12px; color: var(--hp-accent, #b98d4f); font-style: italic; letter-spacing: .04em; }
@@ -468,11 +468,13 @@ ${COMMON}
 .hp-s .hp-course-group, .hp-s .hp-info { max-width: 560px; margin-left: auto; margin-right: auto; }
 
 /* 4) 写真は淡い光をまとわせ、内側に金の細枠を重ねる */
-.hp-s .hp-sched-thumb, .hp-s .hp-th-frame { position: relative; box-shadow: 0 12px 34px rgba(150,120,70,.14); }
-.hp-s .hp-sched-thumb::after, .hp-s .hp-th-frame::after {
+.hp-s .hp-th-frame { position: relative; box-shadow: 0 12px 34px rgba(150,120,70,.14); }
+.hp-s .hp-th-frame::after {
   content: ''; position: absolute; inset: 3px; pointer-events: none;
   border: 1px solid color-mix(in srgb, var(--hp-accent, #b98d4f) 26%, transparent);
 }
+/* 出勤のサムネは余白0で敷き詰めるため、影は落とさず細い縁取りだけで見せる */
+.hp-s .hp-sched-thumb { position: relative; box-shadow: none; }
 
 /* 5) 出現はゆっくり浮かび上がるように（タイプSだけ長め・イージングも穏やかに） */
 @media (prefers-reduced-motion: no-preference) {
