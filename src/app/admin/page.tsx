@@ -17,6 +17,7 @@ import SalonEditModal, { type SalonForEdit } from '@/app/components/SalonEditMod
 import ThemeWallpaperManager from '@/app/components/ThemeWallpaperManager';
 import SalonIntakeManager from '@/app/components/SalonIntakeManager';
 import { HpDemoManager } from '@/app/components/HpDemoManager';
+import { HpSitesManager } from '@/app/components/HpSitesManager';
 import OwnerContactManager from '@/app/components/OwnerContactManager';
 import MainArticlesManager from '@/app/components/MainArticlesManager';
 import AdminJobsManager from '@/app/components/AdminJobsManager';
@@ -497,6 +498,11 @@ export default function AdminDashboard() {
 
           <AccordionSection id="salon-intakes" title="新規店舗 入力フォーム発行" expanded={expandedSections} onToggle={toggleSection}>
             <SalonIntakeManager onToast={showToast} />
+          </AccordionSection>
+
+          {/* ── 公式HP管理（契約サイト一覧・発行・運営専用編集・2026-08-09 段階4） ── */}
+          <AccordionSection id="hp-sites" title="公式HP管理（契約サイト）" expanded={expandedSections} onToggle={toggleSection}>
+            <HpSitesManager onToast={showToast} />
           </AccordionSection>
 
           {/* ── 公式HP サンプル店舗（デザイン一覧の「デモ」用・2026-08-09） ── */}

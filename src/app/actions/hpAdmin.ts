@@ -228,6 +228,9 @@ export async function saveHpSiteContent(
     if (!isSafeImageUrl(b.image_url)) return { ok: false, error: 'バナー画像のURLが正しくありません' };
     if (!isSafeHttpUrl(b.link)) return { ok: false, error: 'バナーのリンクは http(s) のURLで入力してください' };
   }
+  if (input.favicon_url !== null && !isSafeImageUrl(input.favicon_url)) {
+    return { ok: false, error: 'ファビコンのURLが正しくありません' };
+  }
 
   const payload = {
     hero_images:       input.hero_images,
@@ -237,6 +240,7 @@ export async function saveHpSiteContent(
     concept_image_url: input.concept_image_url,
     blocks:            sanitizeHpBlocks(input.blocks),
     banners:           input.banners,
+    favicon_url:       input.favicon_url,
     updated_at:        new Date().toISOString(),
   };
 

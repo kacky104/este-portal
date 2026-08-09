@@ -197,6 +197,8 @@ export type HpSite = {
   concept_image_url: string | null;
   blocks:            HpBlocksConfig;
   banners:           HpBanner[];
+  /** ファビコン（512×512 PNG の公開URL）。独自ドメインでのタブアイコン用。null=未設定 */
+  favicon_url:       string | null;
   /** ひな形・カラーの確定ロック。true なら店舗側から変更できない（変更は運営の有償作業） */
   design_locked:     boolean;
   updated_at:        string;
@@ -204,7 +206,7 @@ export type HpSite = {
 
 /** salon_sites から公開ページ・管理画面が読む列（運営専用の契約メモ類は含めない）。 */
 export const HP_SITE_COLUMNS =
-  'salon_id, slug, domain, status, template_key, theme_key, hero_images, hero_catch, concept_title, concept_text, concept_image_url, blocks, banners, design_locked, updated_at';
+  'salon_id, slug, domain, status, template_key, theme_key, hero_images, hero_catch, concept_title, concept_text, concept_image_url, blocks, banners, favicon_url, design_locked, updated_at';
 
 /** DB の1行 → アプリ内の HpSite。公開ページ・管理画面の両方がこれ1本を使う。 */
 export function mapHpSiteRow(row: Record<string, unknown>): HpSite {
@@ -224,6 +226,7 @@ export function mapHpSiteRow(row: Record<string, unknown>): HpSite {
     concept_image_url: (row.concept_image_url as string | null) ?? null,
     blocks:            sanitizeHpBlocks(row.blocks),
     banners:           sanitizeHpBanners(row.banners),
+    favicon_url:       (row.favicon_url as string | null) ?? null,
     design_locked:     row.design_locked === true,
     updated_at:        (row.updated_at as string) ?? '',
   };
@@ -245,6 +248,7 @@ export type HpContentInput = {
   concept_image_url: string | null;
   blocks:            HpBlocksConfig;
   banners:           HpBanner[];
+  favicon_url:       string | null;
 };
 
 // ── ひな形別カラーバリエーション（2026-08-08 デザイン確定にともない追加） ──

@@ -38,6 +38,22 @@ function isAppHost(host: string): boolean {
 }
 
 export async function proxy(request: NextRequest) {
+  // ── ファビコン（2026-08-09 段階4）──
+  // matcher から favicon.ico の除外を外し、ここで最短経路で処理する（Supabase 初期化前）。
+  // 店舗の独自ドメインなら /hp/{ホスト名}/favicon.ico（店舗のアイコンを返すルート）へ、
+  // 本体ホストなら従来どおり静的な public/favicon.ico へ。
+  if (request.nextUrl.pathname === "/favicon.ico") {
+    const favHost = normalizeHost(
+      request.headers.get("x-forwarded-host") ?? request.headers.get("host")
+    );
+    if (!isAppHost(favHost)) {
+      const url = request.nextUrl.clone();
+      url.pathname = `/hp/${favHost}/favicon.ico`;
+      return NextResponse.rewrite(url);
+    }
+    return NextResponse.next();
+  }
+
   let supabaseResponse = NextResponse.next({ request });
 
   const supabase = createServerClient(
@@ -96,5 +112,6 @@ export async function proxy(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)"],
+  // favicon.ico は除外しない（店舗ドメインごとのファビコンを返すため。上の最短経路で処理）
+  matcher: ["/((?!_next/static|_next/image|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)"],
 };

@@ -43,6 +43,10 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
     robots: indexable ? { index: true, follow: true } : { index: false, follow: false },
     // ドメイン接続済みなら正規URLは必ずドメイン側（fukues.com/hp/* から拾われても集約される）
     ...(domain ? { alternates: { canonical: `https://${normalizeHpSiteKey(domain)}/` } } : {}),
+    // 店舗のファビコン（設定時のみ）。独自ドメインで開いたときのタブアイコン。
+    // 未設定の店は <link rel="icon"> を出さない → /favicon.ico にフォールバック
+    // （店舗ドメインでは proxy.ts が /hp/[slug]/favicon.ico ルートへ回す）。
+    ...(data.site.favicon_url ? { icons: { icon: data.site.favicon_url } } : {}),
   };
 }
 

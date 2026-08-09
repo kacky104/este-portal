@@ -41,6 +41,7 @@ type FormState = {
   concept_image_url: string | null;
   blocks:            HpBlocksConfig;
   banners:           (HpBanner | null)[]; // スロット固定3（null=未設定）
+  favicon_url:       string | null;
 };
 
 function siteToForm(site: HpSite): FormState {
@@ -54,6 +55,7 @@ function siteToForm(site: HpSite): FormState {
     concept_image_url: site.concept_image_url,
     blocks:            site.blocks,
     banners:           slots,
+    favicon_url:       site.favicon_url,
   };
 }
 
@@ -89,6 +91,7 @@ export function HpEditor({
     const savedUrls = new Set<string>([
       ...site.hero_images,
       ...(site.concept_image_url ? [site.concept_image_url] : []),
+      ...(site.favicon_url ? [site.favicon_url] : []),
       ...site.banners.map((b) => b.image_url),
     ]);
     if (savedUrls.has(url)) return;
@@ -126,6 +129,7 @@ export function HpEditor({
       concept_image_url: form.concept_image_url,
       blocks:            form.blocks,
       banners:           form.banners.filter((b): b is HpBanner => b !== null && b.image_url !== ''),
+      favicon_url:       form.favicon_url,
     });
     setSaving(false);
     if (!res.ok) { onToast(res.error); return; }
@@ -435,6 +439,52 @@ export function HpEditor({
             </div>
           );
         })}
+      </div>
+
+      {/* ── ファビコン ── */}
+      <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5 space-y-3">
+        <h3 className="text-sm font-black text-slate-800">ファビコン（ブラウザタブのアイコン）</h3>
+        <p className="text-[11px] text-slate-400 leading-relaxed">
+          ※ 独自ドメインで開いたとき、ブラウザのタブに表示される小さなアイコンです。
+          512×512ピクセルの正方形PNG推奨（お店のロゴマークなど）。
+        </p>
+        <div className="flex items-center gap-3">
+          {form.favicon_url ? (
+            <div className="relative">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={form.favicon_url} alt="ファビコン" className="w-16 h-16 object-cover rounded-xl border border-slate-200" />
+              <button
+                onClick={() => {
+                  const url = form.favicon_url;
+                  patch({ favicon_url: null });
+                  if (url) removeIfUnsaved(url);
+                }}
+                className="absolute -top-2 -right-2 w-6 h-6 rounded-full bg-black/50 text-white text-xs font-bold"
+                aria-label="削除"
+              >
+                ×
+              </button>
+            </div>
+          ) : (
+            <label className="flex items-center justify-center w-16 h-16 rounded-xl border-2 border-dashed border-slate-200 text-[10px] text-slate-400 cursor-pointer hover:border-pink-300">
+              {uploadingSlot === 'favicon' ? 'アップ中…' : '選ぶ'}
+              <input
+                type="file"
+                accept="image/png,image/jpeg,image/webp"
+                className="hidden"
+                disabled={uploadingSlot !== null}
+                onChange={async (e) => {
+                  const file = e.target.files?.[0];
+                  e.target.value = '';
+                  if (!file) return;
+                  const publicUrl = await uploadImage('favicon', file);
+                  if (publicUrl) patch({ favicon_url: publicUrl });
+                }}
+              />
+            </label>
+          )}
+          <p className="text-[11px] text-slate-400">保存すると反映されます。</p>
+        </div>
       </div>
 
       {/* ── 保存 ── */}
