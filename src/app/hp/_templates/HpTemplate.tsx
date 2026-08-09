@@ -153,19 +153,28 @@ export function HpTemplate({ data }: { data: HpPageData }) {
                     <div className="hp-th-noimg" />
                   )}
                 </div>
-                <div className="hp-th-name">{t.name}</div>
-                {(t.age !== null || t.bodyType) && (
-                  <div className="hp-th-age">{[t.age !== null ? `${t.age}歳` : '', t.bodyType].filter(Boolean).join(' / ')}</div>
-                )}
-                {t.catchphrase && <div className="hp-th-catch">{t.catchphrase}</div>}
-                {t.badges.length > 0 && (
-                  <div className="hp-th-badges">
-                    {t.badges.slice(0, 4).map((bd) => (
-                      <span key={bd} className="hp-th-badge">{bd}</span>
-                    ))}
-                  </div>
-                )}
-                {t.onDuty && <span className="hp-th-onduty">本日出勤</span>}
+                {/* 名前より下は hp-th-body でひとまとめにする。COMMON で display:contents に
+                    しているので A/B/C の見え方は従来どおり（カード直下に並ぶ）。
+                    タイプSだけがこれを写真の上に重ねるレイヤーとして使う（出勤ブロックと同じ作法）。 */}
+                <div className="hp-th-body">
+                  <div className="hp-th-name">{t.name}</div>
+                  {(t.age !== null || t.bodyType) && (
+                    <div className="hp-th-age">
+                      {t.age !== null && <span className="hp-th-age-num">{t.age}歳</span>}
+                      {/* 体型はタイプSでは非表示（写真に重ねる情報を名前と年齢に絞るため） */}
+                      {t.bodyType && <span className="hp-th-body-type">{t.bodyType}</span>}
+                    </div>
+                  )}
+                  {t.catchphrase && <div className="hp-th-catch">{t.catchphrase}</div>}
+                  {t.badges.length > 0 && (
+                    <div className="hp-th-badges">
+                      {t.badges.slice(0, 4).map((bd) => (
+                        <span key={bd} className="hp-th-badge">{bd}</span>
+                      ))}
+                    </div>
+                  )}
+                  {t.onDuty && <span className="hp-th-onduty">本日出勤</span>}
+                </div>
               </a>
             ))}
           </div>

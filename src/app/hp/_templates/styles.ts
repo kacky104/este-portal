@@ -30,6 +30,11 @@ const COMMON = `
 .hp-th-row { display: flex; gap: 12px; overflow-x: auto; padding-bottom: 8px; }
 .hp-th-card { flex: 0 0 128px; text-decoration: none; }
 .hp-th-frame img, .hp-th-noimg { width: 100%; aspect-ratio: 4 / 5; object-fit: cover; display: block; }
+/* 名前より下のまとまり。A/B/C はカード直下に並ぶ従来の見え方のまま（display:contents）。
+   タイプSだけがこれを写真に重ねるレイヤーとして使う。 */
+.hp-th-body { display: contents; }
+/* 年齢と体型は別要素にして「24歳 / スレンダー」を組み立てる（タイプSは体型だけ隠せる） */
+.hp-th-age-num + .hp-th-body-type::before { content: ' / '; }
 .hp-info-row { display: flex; padding: 12px 2px; font-size: 12px; }
 .hp-info-row dt { flex: 0 0 84px; }
 .hp-info-row dd { line-height: 1.8; }
@@ -366,19 +371,33 @@ ${COMMON}
 .hp-s .hp-course-min { font-size: 12.5px; letter-spacing: .1em; color: #5d5346; }
 .hp-s .hp-course-price { font-size: 15px; color: var(--hp-accent, #b98d4f); font-style: italic; }
 
-/* セラピストは横スクロールではなくグリッド（SP2列・PC4列）で大きく見せる。
-   列幅を上限つきにして justify-content:center → 端数の行も中央に揃う。 */
-.hp-s .hp-th-row { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); justify-content: center; gap: 22px 12px; overflow: visible; padding-bottom: 0; }
-@media (min-width: 768px) { .hp-s .hp-th-row { grid-template-columns: repeat(4, minmax(0, 268px)); gap: 34px 20px; } }
-.hp-s .hp-th-frame { border: 1px solid #eadfcd; padding: 6px; background: #fff; box-shadow: 0 6px 20px rgba(120,100,70,.08); }
+/* セラピストは「本日の出勤」とまったく同じ見せ方に揃える（2026-08-09 要望）:
+   横スクロールではなくグリッド（SP2列・PC4列）、隙間は3px（PC5px）、
+   額縁なしで写真を敷き詰め、名前と年齢は写真の中に重ねる。 */
+.hp-s .hp-th-row { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); justify-content: center; gap: 3px; overflow: visible; padding-bottom: 0; }
+@media (min-width: 768px) { .hp-s .hp-th-row { grid-template-columns: repeat(4, minmax(0, 268px)); gap: 5px; } }
+/* スマホは左右の余白を食い破って画面の端まで（出勤ブロックと同じ） */
+@media (max-width: 639px) { .hp-s .hp-th-row { margin-left: -22px; margin-right: -22px; } }
+.hp-s .hp-th-card { position: relative; overflow: hidden; }
+.hp-s .hp-th-frame { border: none; padding: 0; background: #f3ecdf; position: relative; box-shadow: none; }
 .hp-s .hp-th-noimg { background: linear-gradient(160deg, #f3ecdf, #e7dcc9); }
-.hp-s .hp-th-name { margin-top: 11px; font-size: 12.5px; letter-spacing: .14em; text-align: center; color: #4a4238; }
-.hp-s .hp-th-age { font-size: 10px; color: var(--hp-accent, #b98d4f); text-align: center; margin-top: 3px; }
-.hp-s .hp-th-catch { display: block; margin-top: 6px; font-size: 10px; color: #9b8c74; text-align: center; line-height: 1.7;
-  overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
-.hp-s .hp-th-badges { display: flex; flex-wrap: wrap; gap: 4px; justify-content: center; margin-top: 7px; }
-.hp-s .hp-th-badge { font-size: 8.5px; color: #7a6f60; border: 1px solid #e0d4bf; background: #fff; padding: 2px 7px; letter-spacing: .08em; }
-.hp-s .hp-th-onduty { display: block; width: fit-content; margin: 8px auto 0; font-size: 9px; color: #fff; background: var(--hp-accent, #b98d4f); padding: 2px 10px; letter-spacing: .15em; }
+/* 文字を読ませるための暗いレイヤー */
+.hp-s .hp-th-frame::after {
+  content: ''; position: absolute; left: 0; right: 0; bottom: 0; top: auto; height: 62%; pointer-events: none; border: none;
+  background: linear-gradient(to top, rgba(44,32,18,.80), rgba(44,32,18,.34) 44%, rgba(44,32,18,0));
+}
+.hp-s .hp-th-body {
+  position: absolute; left: 0; right: 0; bottom: 0; z-index: 1;
+  display: flex; flex-direction: column; align-items: center; gap: 1px;
+  margin: 0; padding: 0 8px 11px; text-align: center;
+}
+.hp-s .hp-th-name { margin-top: 0; font-size: 15px; letter-spacing: .16em; text-indent: .16em; text-align: center; color: #fff; text-shadow: 0 1px 8px rgba(0,0,0,.4); }
+.hp-s .hp-th-age { margin-top: 0; font-size: 11px; color: rgba(255,255,255,.85); letter-spacing: .08em; text-align: center; text-shadow: 0 1px 6px rgba(0,0,0,.4); }
+/* 出勤ブロックに合わせ、体型・ひとことキャッチ・特徴バッジは出さない */
+.hp-s .hp-th-body-type, .hp-s .hp-th-catch, .hp-s .hp-th-badges { display: none; }
+/* 「本日出勤」は出勤ブロックの時間と同じ位置・同じ金色で */
+.hp-s .hp-th-onduty { display: block; width: auto; margin: 3px 0 0; padding: 0; background: none;
+  font-size: 11.5px; color: var(--hp-accent-soft, #d5b98a); letter-spacing: .1em; text-shadow: 0 1px 6px rgba(0,0,0,.45); }
 
 /* ── 本日の出勤（ヒーロー直下の主役ブロック）──
    SP2列・PC4列の写真グリッド。セラピスト一覧と同じ寸法感で揃える。 */
@@ -480,13 +499,8 @@ ${COMMON}
 .hp-s .hp-course-group, .hp-s .hp-info { max-width: 560px; margin-left: auto; margin-right: auto; }
 
 /* 4) 写真は淡い光をまとわせ、内側に金の細枠を重ねる */
-.hp-s .hp-th-frame { position: relative; box-shadow: 0 12px 34px rgba(150,120,70,.14); }
-.hp-s .hp-th-frame::after {
-  content: ''; position: absolute; inset: 3px; pointer-events: none;
-  border: 1px solid color-mix(in srgb, var(--hp-accent, #b98d4f) 26%, transparent);
-}
-/* 出勤のサムネは余白0で敷き詰めるため、影は落とさず細い縁取りだけで見せる */
-.hp-s .hp-sched-thumb { position: relative; box-shadow: none; }
+/* 出勤・セラピストとも余白0で敷き詰めるため、写真に影や内枠は付けない
+   （隙間3pxで線や影が重なると濁るため。可読性は暗いレイヤーが担う）。 */
 
 /* 5) 出現はゆっくり浮かび上がるように（タイプSだけ長め・イージングも穏やかに） */
 @media (prefers-reduced-motion: no-preference) {
