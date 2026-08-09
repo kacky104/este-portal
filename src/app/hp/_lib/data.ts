@@ -16,6 +16,7 @@ import { sanitizeBadges } from '@/lib/therapistBadges';
 import {
   type HpSite,
   type HpTemplateKey,
+  HP_DEMO_SLUG,
   HP_SITE_COLUMNS,
   hpSiteKeyColumn,
   mapHpSiteRow,
@@ -118,7 +119,11 @@ export async function fetchHpPageData(
     .select('id, name, catchphrase, area, address, access, hours, closed_days, phone, line_url, jobs_enabled, courses, is_hidden')
     .eq('id', salonId)
     .maybeSingle();
-  if (!salonRow || salonRow.is_hidden) return null;
+  if (!salonRow) return null;
+  // is_hidden の店は公開HPも出さない。ただしデモ店舗（slug='demo'）は例外：
+  // デモ用サロンはフクエス本体の店舗一覧に出したくないので is_hidden=true で作る運用のため
+  // （デザイン一覧 /hp/templates からのプレビュー専用。2026-08-09）。
+  if (salonRow.is_hidden && siteKey !== HP_DEMO_SLUG) return null;
 
   const today = getBusinessDateJST();
 
