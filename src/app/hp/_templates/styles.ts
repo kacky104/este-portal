@@ -332,7 +332,7 @@ ${COMMON}
 /* ── ヒーロー：全幅画像に文字を重ねる（PC=左側の余白へ／SP=下側の余白へ） ── */
 .hp-s .hp-hero { position: relative; }
 .hp-s .hp-hero-img { max-height: none; }
-.hp-s .hp-hero-text { position: absolute; inset: 0; display: flex; flex-direction: column; justify-content: center; align-items: flex-start;
+.hp-s .hp-hero-text { position: absolute; inset: 0; z-index: 1; display: flex; flex-direction: column; justify-content: center; align-items: flex-start;
   text-align: left; padding: 0 0 0 6%; max-width: 56%; }
 /* 大きく見せるのはキャッチコピー（順序はCSSで入れ替え） */
 .hp-s .hp-hero-catch { order: -1; margin: 0 0 4%; font-size: clamp(19px, 3.1vw, 42px); line-height: 1.7; letter-spacing: .1em; color: #4a4238;
@@ -356,8 +356,6 @@ ${COMMON}
 /* ── セクション見出し（金の英字＋明朝＋二重罫線。Aの意匠を明るい地に移植） ── */
 .hp-s .hp-en { letter-spacing: .38em; font-size: 11px; color: var(--hp-accent, #b98d4f); text-transform: uppercase; }
 .hp-s .hp-h2 { font-size: 22px; font-weight: 600; letter-spacing: .16em; margin: 10px 0 6px; color: #3f382e; }
-.hp-s .hp-rule { display: block; width: 56px; height: 5px; margin: 16px 0 28px; background: none; border-top: 1px solid var(--hp-accent, #b98d4f); position: relative; }
-.hp-s .hp-rule::after { content: ''; position: absolute; top: 3px; left: 10px; right: 10px; border-top: 1px solid color-mix(in srgb, var(--hp-accent, #b98d4f) 45%, transparent); }
 
 .hp-s .hp-concept-text { font-size: 13.5px; line-height: 2.4; color: #6b6154; letter-spacing: .06em; white-space: pre-wrap; }
 .hp-s .hp-concept-img { width: 100%; height: auto; margin-bottom: 22px; border: 1px solid #eadfcd; padding: 6px; background: #fff; }
@@ -368,9 +366,10 @@ ${COMMON}
 .hp-s .hp-course-min { font-size: 12.5px; letter-spacing: .1em; color: #5d5346; }
 .hp-s .hp-course-price { font-size: 15px; color: var(--hp-accent, #b98d4f); font-style: italic; }
 
-/* セラピストは横スクロールではなくグリッド（SP2列・PC4列）で大きく見せる */
-.hp-s .hp-th-row { display: grid; grid-template-columns: repeat(2, 1fr); gap: 22px 12px; overflow: visible; padding-bottom: 0; }
-@media (min-width: 768px) { .hp-s .hp-th-row { grid-template-columns: repeat(4, 1fr); gap: 30px 18px; } }
+/* セラピストは横スクロールではなくグリッド（SP2列・PC4列）で大きく見せる。
+   列幅を上限つきにして justify-content:center → 端数の行も中央に揃う。 */
+.hp-s .hp-th-row { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); justify-content: center; gap: 22px 12px; overflow: visible; padding-bottom: 0; }
+@media (min-width: 768px) { .hp-s .hp-th-row { grid-template-columns: repeat(4, minmax(0, 268px)); gap: 34px 20px; } }
 .hp-s .hp-th-frame { border: 1px solid #eadfcd; padding: 6px; background: #fff; box-shadow: 0 6px 20px rgba(120,100,70,.08); }
 .hp-s .hp-th-noimg { background: linear-gradient(160deg, #f3ecdf, #e7dcc9); }
 .hp-s .hp-th-name { margin-top: 11px; font-size: 12.5px; letter-spacing: .14em; text-align: center; color: #4a4238; }
@@ -384,8 +383,8 @@ ${COMMON}
 /* ── 本日の出勤（ヒーロー直下の主役ブロック）──
    SP2列・PC4列の写真グリッド。セラピスト一覧と同じ寸法感で揃える。 */
 .hp-s .hp-sched-date { display: inline-block; background: #fff; border: 1px solid #eadfcd; padding: 6px 18px; margin: 0 0 22px; font-size: 12px; color: var(--hp-accent, #b98d4f); letter-spacing: .2em; opacity: 1; }
-.hp-s .hp-sched-list { display: grid; grid-template-columns: repeat(2, 1fr); gap: 22px 12px; }
-@media (min-width: 768px) { .hp-s .hp-sched-list { grid-template-columns: repeat(4, 1fr); gap: 30px 18px; } }
+.hp-s .hp-sched-list { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); justify-content: center; gap: 22px 12px; }
+@media (min-width: 768px) { .hp-s .hp-sched-list { grid-template-columns: repeat(4, minmax(0, 268px)); gap: 34px 20px; } }
 .hp-s .hp-sched-row { display: block; padding: 0; border: none; }
 .hp-s .hp-sched-thumb { display: block; border: 1px solid #eadfcd; padding: 6px; background: #fff; box-shadow: 0 6px 20px rgba(120,100,70,.08); }
 .hp-s .hp-sched-thumb img, .hp-s .hp-sched-noimg { display: block; width: 100%; aspect-ratio: 4 / 5; object-fit: cover; }
@@ -418,6 +417,64 @@ ${COMMON}
 .hp-s .hp-cta { max-width: none; }
 .hp-s .hp-cta-tel { background: #fff; color: #4a4238; border-top: 1px solid var(--hp-accent-soft, #d5b98a); }
 .hp-s .hp-cta-line { background: var(--hp-accent, #b98d4f); color: #fff; }
+
+/* ══════════ 神秘的な仕上げ（2026-08-09 要望）══════════
+   狙いは「静けさ・左右対称・淡い光」。装飾はCSSだけで完結させ、DOMには手を入れない。 */
+
+/* 1) 霞（かすみ）— 画面全体に淡い光のたまりを置く。スクロールしても位置が変わらないので
+      セクションをまたいで“光の中にいる”感じが続く。 */
+.hp-s {
+  background-image:
+    radial-gradient(1200px 680px at 50% -180px, color-mix(in srgb, var(--hp-accent, #b98d4f) 15%, transparent), transparent 66%),
+    radial-gradient(820px 560px at 4% 38%,   color-mix(in srgb, var(--hp-accent, #b98d4f) 7%,  transparent), transparent 70%),
+    radial-gradient(820px 560px at 96% 76%,  color-mix(in srgb, var(--hp-accent, #b98d4f) 7%,  transparent), transparent 70%);
+}
+
+/* 2) 見出しは左右対称に。英字→和文→飾り罫、を中央で積む */
+.hp-s .hp-en { text-align: center; letter-spacing: .5em; text-indent: .5em; font-size: 10.5px; }
+.hp-s .hp-h2 { text-align: center; letter-spacing: .22em; text-indent: .22em; font-size: 23px; margin: 12px 0 0; }
+/* 飾り罫: 端に向かって消える金の細線＋中央に光る菱形 */
+.hp-s .hp-rule {
+  display: block; width: 156px; height: 1px; margin: 22px auto 34px; border-top: none; position: relative;
+  background: linear-gradient(to right, transparent, var(--hp-accent-soft, #d5b98a) 24%, var(--hp-accent, #b98d4f) 50%, var(--hp-accent-soft, #d5b98a) 76%, transparent);
+}
+.hp-s .hp-rule::after {
+  content: ''; position: absolute; left: 50%; top: 50%; width: 7px; height: 7px; margin: -3.5px 0 0 -3.5px;
+  background: var(--hp-accent, #b98d4f); transform: rotate(45deg);
+  box-shadow: 0 0 12px color-mix(in srgb, var(--hp-accent, #b98d4f) 60%, transparent);
+}
+
+/* 3) 本文まわりも中央寄せ（要望「本日の出勤を中央表示」に合わせ、全体の重心を中央へ） */
+.hp-s .hp-concept-text { text-align: center; line-height: 2.6; }
+.hp-s .hp-note { text-align: center; }
+.hp-s .hp-more { display: block; width: fit-content; margin-left: auto; margin-right: auto; }
+.hp-s .hp-card-title, .hp-s .hp-coupon-discount, .hp-s .hp-card-body, .hp-s .hp-card-meta { text-align: center; }
+.hp-s .hp-course-name { text-align: center; letter-spacing: .2em; text-indent: .2em; }
+/* 出勤の日付は中央のバッジに */
+.hp-s .hp-sched-date { display: block; width: fit-content; margin: 0 auto 24px; }
+/* 料金・店舗情報の行はPCで間延びしないよう中央の細い柱に収める */
+.hp-s .hp-course-group, .hp-s .hp-info { max-width: 560px; margin-left: auto; margin-right: auto; }
+
+/* 4) 写真は淡い光をまとわせ、内側に金の細枠を重ねる */
+.hp-s .hp-sched-thumb, .hp-s .hp-th-frame { position: relative; box-shadow: 0 12px 34px rgba(150,120,70,.14); }
+.hp-s .hp-sched-thumb::after, .hp-s .hp-th-frame::after {
+  content: ''; position: absolute; inset: 3px; pointer-events: none;
+  border: 1px solid color-mix(in srgb, var(--hp-accent, #b98d4f) 26%, transparent);
+}
+
+/* 5) 出現はゆっくり浮かび上がるように（タイプSだけ長め・イージングも穏やかに） */
+@media (prefers-reduced-motion: no-preference) {
+  .hp-s [data-hp-reveal] { transform: translateY(34px); transition: opacity 1.1s ease, transform 1.1s cubic-bezier(.22,.61,.36,1); }
+  .hp-s [data-hp-reveal].hp-revealed { transform: none; }
+}
+
+/* 6) PCのヒーローにも霞を一枚。文字の可読性が上がり、写真との境目がやわらぐ */
+@media (min-width: 640px) {
+  .hp-s .hp-hero::after {
+    content: ''; position: absolute; inset: 0; pointer-events: none;
+    background: radial-gradient(820px 560px at 24% 52%, rgba(253,251,247,.62), rgba(253,251,247,0) 68%);
+  }
+}
 `;
 
 export const TEMPLATE_CSS: Record<'s' | 'a' | 'b' | 'c', string> = {
