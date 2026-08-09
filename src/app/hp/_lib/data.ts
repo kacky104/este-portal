@@ -71,8 +71,9 @@ export type HpPageData = {
 
 // ひな形ごとに敷くテーマ壁紙のキー（theme_wallpapers.theme_key）。
 // A（LUXE・黒基調）はフクエスの「ブラック」壁紙を薄く敷く（2026-08-08 要望）。
-// B/C は現状なし（敷きたくなったらここにキーを足すだけ）。
-const HP_WALLPAPER_THEME: Record<'a' | 'b' | 'c', string | null> = {
+// S/B/C は現状なし（敷きたくなったらここにキーを足すだけ）。
+const HP_WALLPAPER_THEME: Record<HpTemplateKey, string | null> = {
+  s: null,
   a: 'black',
   b: null,
   c: null,

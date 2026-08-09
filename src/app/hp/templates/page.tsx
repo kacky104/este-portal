@@ -42,6 +42,7 @@ export const metadata: Metadata = {
 };
 
 const TEMPLATE_TITLES: Record<HpTemplateKey, { en: string; name: string }> = {
+  s: { en: 'GRACE', name: 'フラッグシップ' },
   a: { en: 'LUXE',  name: '高級・しっとり' },
   b: { en: 'CLEAN', name: '清潔感・癒やし' },
   c: { en: 'MODE',  name: '都会的・シャープ' },

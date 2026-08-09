@@ -9,6 +9,7 @@
 // ひな形は「見た目（配色・フォント・ヒーローの組み方）」だけを変える。
 // ブロックの種類・並び順・設定項目は全ひな形で共通（共通マニュアルの前提。設計メモ6章）。
 export const HP_TEMPLATES = [
+  { key: 's', label: 'タイプS' }, // フラッグシップ（2026-08-09 追加・LPのKVに描かれたサイトの実物化）
   { key: 'a', label: 'タイプA' },
   { key: 'b', label: 'タイプB' },
   { key: 'c', label: 'タイプC' },
@@ -258,6 +259,15 @@ export type HpColorVariant = {
 };
 
 export const HP_COLOR_VARIANTS: Record<HpTemplateKey, HpColorVariant[]> = {
+  // タイプS（フラッグシップ・白×金の明るい高級路線）。明るい地色なのでアクセントは濃いめの色を使う
+  s: [
+    { key: 'gold',     label: 'シャンパンゴールド', css: { '--hp-accent': '#b98d4f', '--hp-accent-soft': '#d5b98a' } },
+    { key: 'rose',     label: 'ロゼ',               css: { '--hp-accent': '#c9808f', '--hp-accent-soft': '#e3b3bc' } },
+    { key: 'platinum', label: 'プラチナ',           css: { '--hp-accent': '#8a8f9a', '--hp-accent-soft': '#b9bec8' } },
+    { key: 'wine',     label: 'ボルドー',           css: { '--hp-accent': '#a05c66', '--hp-accent-soft': '#c99aa2' } },
+    { key: 'blue',     label: 'サフィール',         css: { '--hp-accent': '#7789ad', '--hp-accent-soft': '#a8b6cf' } },
+    { key: 'forest',   label: 'フォレスト',         css: { '--hp-accent': '#7d9a86', '--hp-accent-soft': '#a9c2b1' } },
+  ],
   a: [
     { key: 'gold',     label: 'シャンパンゴールド', css: { '--hp-accent': '#c4a469', '--hp-accent-soft': '#a8905e' } },
     { key: 'platinum', label: 'プラチナ',           css: { '--hp-accent': '#c9ccd4', '--hp-accent-soft': '#a6aab4' } },

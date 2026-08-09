@@ -9,6 +9,7 @@ import { HP_COLOR_VARIANTS, type HpTemplateKey } from '@/app/lib/hpSite';
 // 純粋な表示部品（state なし）なのでサーバー/クライアントどちらからでも使える。
 
 export const HP_TEMPLATE_NOTES: Record<HpTemplateKey, string> = {
+  s: '白×シャンパンゴールドの最上位デザイン。全幅の写真と固定ナビで、王道の高級メンズエステを表現。',
   a: '黒基調・明朝体の高級路線。落ち着いた大人向けの店舗に。',
   b: '生成り地のやわらかい印象。清潔感・癒やし系の店舗に。',
   c: '白地に太字とアクセント。都会的でシャープな印象に。',
@@ -24,6 +25,41 @@ export function hpVariantColors(template: HpTemplateKey, colorKey: string): { ac
 }
 
 export function DesignThumb({ template, accent, deep }: { template: HpTemplateKey; accent: string; deep: string }) {
+  if (template === 's') {
+    // GRACE: 白×金・全幅ヒーローに左寄せ文字＋上部ナビ
+    return (
+      <div style={{ background: '#fdfbf7', color: '#4a4238', height: 168, fontFamily: 'serif' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '7px 10px', borderBottom: '1px solid #eee4d4' }}>
+          <span style={{ fontSize: 7, letterSpacing: '.2em', color: accent }}>SALON</span>
+          <span style={{ display: 'flex', gap: 5 }}>
+            {[0, 1, 2, 3].map((i) => (
+              <span key={i} style={{ width: 12, height: 2, background: '#d8cbb4' }} />
+            ))}
+          </span>
+          <span style={{ fontSize: 6, letterSpacing: '.15em', color: '#fff', background: accent, padding: '2px 7px' }}>RESERVE</span>
+        </div>
+        <div style={{ position: 'relative', height: 66, background: `linear-gradient(105deg, #fbf6ec 42%, ${deep}55 75%, ${accent}44)` }}>
+          <div style={{ position: 'absolute', left: 10, top: 14 }}>
+            <div style={{ width: 58, height: 4, background: '#5d5346', marginBottom: 5 }} />
+            <div style={{ width: 40, height: 4, background: '#5d5346', marginBottom: 8 }} />
+            <div style={{ width: 30, height: 2, background: accent }} />
+          </div>
+          <div style={{ position: 'absolute', right: 12, top: 8, bottom: 8, width: 34, background: `linear-gradient(160deg, ${deep}88, ${accent}66)`, borderRadius: 3 }} />
+        </div>
+        <div style={{ padding: '10px 12px' }}>
+          <div style={{ fontSize: 7, letterSpacing: '.3em', color: accent }}>CONCEPT</div>
+          <div style={{ width: 22, height: 1, background: accent, margin: '5px 0 7px' }} />
+          <div style={{ height: 3, background: '#eadfcd', marginBottom: 4 }} />
+          <div style={{ height: 3, background: '#eadfcd', width: '62%' }} />
+          <div style={{ display: 'flex', gap: 5, marginTop: 9 }}>
+            {[0, 1, 2].map((i) => (
+              <div key={i} style={{ flex: 1, height: 22, background: '#fff', border: '1px solid #eadfcd' }} />
+            ))}
+          </div>
+        </div>
+      </div>
+    );
+  }
   if (template === 'a') {
     // LUXE: 黒基調・明朝・細い金の罫線
     return (

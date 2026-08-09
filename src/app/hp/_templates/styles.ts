@@ -20,6 +20,7 @@ const COMMON = `
 .hp-hero-img { display: block; width: 100%; height: auto; max-height: 78vh; object-fit: cover; }
 .hp-sec { padding: 48px 22px; }
 .hp-idx, .hp-topbar { display: none; }
+.hp-topbar-nav { display: none; }
 .hp-rule { display: none; }
 .hp-embed { display: block; width: 100%; border: none; background: #fff; }
 .hp-more { display: inline-block; margin-top: 12px; text-decoration: none; font-size: 11px; font-weight: 700; }
@@ -264,7 +265,107 @@ ${COMMON}
 .hp-c .hp-sched-date { display: inline-block; background: #111114; color: #fff; padding: 6px 16px; margin: 0 0 16px; font-size: 12px; font-weight: 900; letter-spacing: .15em; opacity: 1; }
 `;
 
-export const TEMPLATE_CSS: Record<'a' | 'b' | 'c', string> = {
+// タイプS（GRACE・フラッグシップ）: LPのキービジュアルに描かれたサイトの実物化（2026-08-09）。
+// 白〜クリーム地×シャンパンゴールド×しっぽり明朝。全幅ヒーローに文字を重ね、
+// 上部固定ナビ（CONCEPT/SYSTEM/…・アンカー）を出す唯一のひな形。
+// 既定ヒーロー画像は public/hp-s/（PC 2.5:1 / SP 4:5・口元から下の構図）。
+const TYPE_S = `
+@import url('https://fonts.googleapis.com/css2?family=Shippori+Mincho:wght@400;500;600&display=swap');
+${COMMON}
+.hp-s { background: #fdfbf7; color: #4a4238; font-family: 'Shippori Mincho', 'Hiragino Mincho ProN', 'Yu Mincho', 'Noto Serif JP', 'Noto Serif CJK JP', serif; }
+/* フラッグシップは全幅（額縁なし）。本文は中央760pxに寄せる */
+.hp-s { max-width: none; }
+.hp-s .hp-sec { padding: 60px 22px; }
+@media (min-width: 768px) { .hp-s .hp-sec { padding: 84px calc((100% - 760px) / 2); } }
+.hp-s .hp-sec-alt { background: #f7f2ea; }
+.hp-s section[id] { scroll-margin-top: 64px; }
+
+/* ── 固定ナビ（白のすりガラス・店名／ナビ／RESERVE） ── */
+.hp-s .hp-topbar { display: flex; justify-content: space-between; align-items: center; gap: 16px; position: sticky; top: 0; z-index: 30;
+  padding: 14px 22px; background: rgba(253,251,247,.92); backdrop-filter: blur(10px); border-bottom: 1px solid #eee4d4; }
+.hp-s .hp-topbar-name { font-size: 14px; letter-spacing: .24em; color: var(--hp-accent, #b98d4f); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.hp-s .hp-topbar-nav { display: none; gap: 26px; }
+@media (min-width: 900px) { .hp-s .hp-topbar-nav { display: flex; } }
+.hp-s .hp-topbar-nav a { font-size: 11px; letter-spacing: .22em; color: #7a6f60; text-decoration: none; padding: 4px 0; border-bottom: 1px solid transparent; transition: color .3s, border-color .3s; }
+.hp-s .hp-topbar-nav a:hover { color: var(--hp-accent, #b98d4f); border-bottom-color: var(--hp-accent, #b98d4f); }
+.hp-s .hp-topbar-cta { font-size: 10px; letter-spacing: .28em; color: #fff; background: var(--hp-accent, #b98d4f); padding: 10px 22px; text-decoration: none; white-space: nowrap; }
+
+/* ── ヒーロー：全幅画像に文字を重ねる（PC=左側の余白へ／SP=下側の余白へ） ── */
+.hp-s .hp-hero { position: relative; }
+.hp-s .hp-hero-img { max-height: none; }
+.hp-s .hp-hero-text { position: absolute; inset: 0; display: flex; flex-direction: column; justify-content: center; align-items: flex-start;
+  text-align: left; padding: 0 0 0 6%; max-width: 56%; }
+/* 大きく見せるのはキャッチコピー（順序はCSSで入れ替え） */
+.hp-s .hp-hero-catch { order: -1; margin: 0 0 4%; font-size: clamp(19px, 3.1vw, 42px); line-height: 1.7; letter-spacing: .1em; color: #4a4238;
+  text-shadow: 0 1px 12px rgba(253,251,247,.8); }
+.hp-s .hp-hero-en { font-size: clamp(9px, 1vw, 12px); letter-spacing: .42em; color: #9b8c74; margin-bottom: 10px; }
+.hp-s .hp-hero-name { font-size: clamp(15px, 1.9vw, 26px); font-weight: 500; letter-spacing: .3em; color: var(--hp-accent, #b98d4f); position: relative; padding-bottom: 12px; }
+.hp-s .hp-hero-name::after { content: ''; position: absolute; left: 2px; bottom: 0; width: 64px; border-top: 1px solid var(--hp-accent-soft, #d5b98a); }
+.hp-s .hp-hero-area { margin-top: 14px; font-size: clamp(8px, .9vw, 11px); color: #9b8c74; letter-spacing: .3em; }
+@media (max-width: 639px) {
+  /* SP: 4:5 画像の下3分の1（明るい余白）に載せる */
+  .hp-s .hp-hero-text { justify-content: flex-end; padding: 0 20px 8%; max-width: 100%; }
+  .hp-s .hp-hero-catch { margin-bottom: 14px; font-size: 20px; }
+}
+
+/* ── セクション見出し（金の英字＋明朝＋二重罫線。Aの意匠を明るい地に移植） ── */
+.hp-s .hp-en { letter-spacing: .38em; font-size: 11px; color: var(--hp-accent, #b98d4f); text-transform: uppercase; }
+.hp-s .hp-h2 { font-size: 22px; font-weight: 600; letter-spacing: .16em; margin: 10px 0 6px; color: #3f382e; }
+.hp-s .hp-rule { display: block; width: 56px; height: 5px; margin: 16px 0 28px; background: none; border-top: 1px solid var(--hp-accent, #b98d4f); position: relative; }
+.hp-s .hp-rule::after { content: ''; position: absolute; top: 3px; left: 10px; right: 10px; border-top: 1px solid color-mix(in srgb, var(--hp-accent, #b98d4f) 45%, transparent); }
+
+.hp-s .hp-concept-text { font-size: 13.5px; line-height: 2.4; color: #6b6154; letter-spacing: .06em; white-space: pre-wrap; }
+.hp-s .hp-concept-img { width: 100%; height: auto; margin-bottom: 22px; border: 1px solid #eadfcd; padding: 6px; background: #fff; }
+
+.hp-s .hp-course-group { margin-bottom: 26px; }
+.hp-s .hp-course-name { font-size: 13px; letter-spacing: .14em; color: var(--hp-accent, #b98d4f); margin-bottom: 6px; font-weight: 600; }
+.hp-s .hp-course-row { display: flex; justify-content: space-between; align-items: baseline; padding: 13px 2px; border-bottom: 1px solid #e7dcc9; }
+.hp-s .hp-course-min { font-size: 12.5px; letter-spacing: .1em; color: #5d5346; }
+.hp-s .hp-course-price { font-size: 15px; color: var(--hp-accent, #b98d4f); font-style: italic; }
+
+.hp-s .hp-th-card { flex-basis: 150px; }
+@media (min-width: 768px) { .hp-s .hp-th-row { flex-wrap: wrap; } .hp-s .hp-th-card { flex-basis: 168px; } }
+.hp-s .hp-th-frame { border: 1px solid #eadfcd; padding: 6px; background: #fff; box-shadow: 0 6px 20px rgba(120,100,70,.08); }
+.hp-s .hp-th-noimg { background: linear-gradient(160deg, #f3ecdf, #e7dcc9); }
+.hp-s .hp-th-name { margin-top: 11px; font-size: 12.5px; letter-spacing: .14em; text-align: center; color: #4a4238; }
+.hp-s .hp-th-age { font-size: 10px; color: var(--hp-accent, #b98d4f); text-align: center; margin-top: 3px; }
+.hp-s .hp-th-catch { display: block; margin-top: 6px; font-size: 10px; color: #9b8c74; text-align: center; line-height: 1.7;
+  overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+.hp-s .hp-th-badges { display: flex; flex-wrap: wrap; gap: 4px; justify-content: center; margin-top: 7px; }
+.hp-s .hp-th-badge { font-size: 8.5px; color: #7a6f60; border: 1px solid #e0d4bf; background: #fff; padding: 2px 7px; letter-spacing: .08em; }
+.hp-s .hp-th-onduty { display: block; width: fit-content; margin: 8px auto 0; font-size: 9px; color: #fff; background: var(--hp-accent, #b98d4f); padding: 2px 10px; letter-spacing: .15em; }
+
+.hp-s .hp-sched-date { display: inline-block; background: #fff; border: 1px solid #eadfcd; padding: 6px 18px; margin: 0 0 18px; font-size: 12px; color: var(--hp-accent, #b98d4f); letter-spacing: .2em; opacity: 1; }
+.hp-s .hp-sched-row { display: flex; justify-content: space-between; padding: 13px 2px; border-bottom: 1px solid #e7dcc9; font-size: 12.5px; letter-spacing: .08em; color: #5d5346; }
+.hp-s .hp-sched-time { color: var(--hp-accent, #b98d4f); font-style: italic; }
+
+.hp-s .hp-embed { border: 1px solid #eadfcd; }
+.hp-s .hp-more { color: var(--hp-accent, #b98d4f); letter-spacing: .2em; border-bottom: 1px solid var(--hp-accent-soft, #d5b98a); padding-bottom: 3px; }
+
+/* カードは白地に淡い金の内飾り枠（Aのカード意匠の明るい版） */
+.hp-s .hp-card { background: #fff; border: 1px solid #eadfcd; padding: 22px; position: relative; box-shadow: 0 6px 20px rgba(120,100,70,.06); }
+.hp-s .hp-card::before { content: ''; position: absolute; inset: 5px; border: 1px solid color-mix(in srgb, var(--hp-accent, #b98d4f) 30%, transparent); pointer-events: none; }
+.hp-s .hp-card-title { font-size: 12.5px; letter-spacing: .1em; margin-bottom: 8px; color: #4a4238; }
+.hp-s .hp-coupon-discount { font-size: 16px; color: var(--hp-accent, #b98d4f); margin-bottom: 6px; }
+.hp-s .hp-card-body { font-size: 11px; color: #8a7d6a; line-height: 1.9; white-space: pre-wrap; }
+.hp-s .hp-card-meta { margin-top: 10px; font-size: 9px; color: #b3a48c; letter-spacing: .1em; }
+
+.hp-s .hp-info-row { border-bottom: 1px solid #e7dcc9; }
+.hp-s .hp-info-row dt { color: var(--hp-accent, #b98d4f); font-size: 10px; letter-spacing: .25em; padding-top: 3px; }
+.hp-s .hp-info-row dd { color: #5d5346; }
+
+.hp-s .hp-footer { background: #3f382e; }
+.hp-s .hp-footer-name { font-size: 13px; letter-spacing: .3em; color: var(--hp-accent-soft, #d5b98a); margin-bottom: 12px; }
+.hp-s .hp-footer-sub { font-size: 9px; color: #a1988a; letter-spacing: .2em; line-height: 2.4; }
+.hp-s .hp-footer-sub a { color: var(--hp-accent-soft, #d5b98a); }
+
+.hp-s .hp-cta { max-width: none; }
+.hp-s .hp-cta-tel { background: #fff; color: #4a4238; border-top: 1px solid var(--hp-accent-soft, #d5b98a); }
+.hp-s .hp-cta-line { background: var(--hp-accent, #b98d4f); color: #fff; }
+`;
+
+export const TEMPLATE_CSS: Record<'s' | 'a' | 'b' | 'c', string> = {
+  s: TYPE_S,
   a: TYPE_A,
   b: TYPE_B,
   c: TYPE_C,

@@ -60,20 +60,38 @@ export function HpTemplate({ data }: { data: HpPageData }) {
         <div className="hp-wallpaper" style={{ backgroundImage: `url(${data.wallpaperUrl})` }} />
       )}
 
-      {/* ── トップバー（タイプCのみCSSで表示） ── */}
+      {/* ── トップバー（表示の有無・見た目は各ひな形のCSSが決める）──
+           ナビ（.hp-topbar-nav）はタイプSのみ表示（COMMON で display:none）。
+           アンカー先の id は各セクションに付与済み。ブロックOFFで対象が無い場合も
+           ただスクロールしないだけなので実害はない。 */}
       <div className="hp-topbar">
         <span className="hp-topbar-name">{salon.name}</span>
+        <nav className="hp-topbar-nav">
+          <a href="#concept">CONCEPT</a>
+          <a href="#menu">SYSTEM</a>
+          <a href="#therapist">THERAPIST</a>
+          <a href="#schedule">SCHEDULE</a>
+          <a href="#info">ACCESS</a>
+        </nav>
         {salon.phone && <a className="hp-topbar-cta" href={`tel:${salon.phone}`}>RESERVE</a>}
       </div>
 
       {/* ── ヒーロー ──
            画像は自然な縦横比で表示しつつ max-height でキャップ（CSS側）。
-           横長バナー＝全体表示／縦長写真＝切り抜き、が自動で切り替わる。 */}
+           横長バナー＝全体表示／縦長写真＝切り抜き、が自動で切り替わる。
+           タイプSは店舗の画像が未設定でも成立するよう、既定のキービジュアル
+           （public/hp-s/・PC 2.5:1 / SP 4:5 を出し分け）にフォールバックする。 */}
       <div className="hp-hero">
-        {heroImage && (
+        {heroImage ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img className="hp-hero-img" src={heroImage} alt={salon.name} />
-        )}
+        ) : site.template_key === 's' ? (
+          <picture>
+            <source media="(max-width: 639px)" srcSet="/hp-s/hero-sp.webp" />
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img className="hp-hero-img" src="/hp-s/hero-pc.webp" alt={salon.name} />
+          </picture>
+        ) : null}
         <div className="hp-hero-text">
           {salon.catchphrase && <div className="hp-hero-en">{salon.catchphrase}</div>}
           <h1 className="hp-hero-name">{salon.name}</h1>
@@ -84,7 +102,7 @@ export function HpTemplate({ data }: { data: HpPageData }) {
 
       {/* ── コンセプト ── */}
       {(site.concept_text || site.concept_title) && (
-        <section data-hp-reveal className="hp-sec hp-sec-concept">
+        <section id="concept" data-hp-reveal className="hp-sec hp-sec-concept">
           <SecHead no="01" en="Concept" jp={site.concept_title || 'コンセプト'} />
           {site.concept_image_url && (
             // eslint-disable-next-line @next/next/no-img-element
@@ -96,7 +114,7 @@ export function HpTemplate({ data }: { data: HpPageData }) {
 
       {/* ── コース料金 ── */}
       {grouped.length > 0 && (
-        <section data-hp-reveal className="hp-sec hp-sec-alt hp-sec-courses">
+        <section id="menu" data-hp-reveal className="hp-sec hp-sec-alt hp-sec-courses">
           <SecHead no="02" en="Menu" jp="コース料金" />
           {grouped.map(([name, items]) => (
             <div key={name} className="hp-course-group">
@@ -115,7 +133,7 @@ export function HpTemplate({ data }: { data: HpPageData }) {
 
       {/* ── セラピスト ── */}
       {b.therapists.on && therapists.length > 0 && (
-        <section data-hp-reveal className="hp-sec hp-sec-therapists">
+        <section id="therapist" data-hp-reveal className="hp-sec hp-sec-therapists">
           <SecHead no="03" en="Therapist" jp="セラピスト" />
           <div className="hp-th-row">
             {therapists.map((t) => (
@@ -149,7 +167,7 @@ export function HpTemplate({ data }: { data: HpPageData }) {
 
       {/* ── 本日の出勤 ── */}
       {b.schedule.on && onDuty.length > 0 && (
-        <section data-hp-reveal className="hp-sec hp-sec-alt hp-sec-schedule">
+        <section id="schedule" data-hp-reveal className="hp-sec hp-sec-alt hp-sec-schedule">
           <SecHead no="04" en="Schedule" jp="本日の出勤" />
           <div className="hp-sched-date">{data.todayLabel}</div>
           {onDuty.map((t) => (
@@ -163,7 +181,7 @@ export function HpTemplate({ data }: { data: HpPageData }) {
 
       {/* ── 写メ日記（埋め込み） ── */}
       {b.diary.on && (
-        <section data-hp-reveal className="hp-sec hp-sec-diary">
+        <section id="diary" data-hp-reveal className="hp-sec hp-sec-diary">
           <SecHead no="05" en="Diary" jp="写メ日記" />
           <iframe className="hp-embed" src={`/embed/salon/${salon.id}/diary`} title="写メ日記" loading="lazy" style={{ height: 480 }} />
           <a className="hp-more" href={`${salonUrl}/diary`} target="_blank" rel="noopener noreferrer">もっと見る →</a>
@@ -172,7 +190,7 @@ export function HpTemplate({ data }: { data: HpPageData }) {
 
       {/* ── 口コミ（埋め込み） ── */}
       {b.reviews.on && (
-        <section data-hp-reveal className="hp-sec hp-sec-alt hp-sec-reviews">
+        <section id="voice" data-hp-reveal className="hp-sec hp-sec-alt hp-sec-reviews">
           <SecHead no="06" en="Voice" jp="口コミ" />
           <iframe className="hp-embed" src={`/embed/salon/${salon.id}/reviews`} title="口コミ" loading="lazy" style={{ height: 420 }} />
           <a className="hp-more" href={`${salonUrl}/reviews`} target="_blank" rel="noopener noreferrer">もっと見る →</a>
@@ -220,7 +238,7 @@ export function HpTemplate({ data }: { data: HpPageData }) {
       ))}
 
       {/* ── 店舗情報 ── */}
-      <section data-hp-reveal className="hp-sec hp-sec-alt hp-sec-info">
+      <section id="info" data-hp-reveal className="hp-sec hp-sec-alt hp-sec-info">
         <SecHead no="12" en="Information" jp="店舗情報" />
         <dl className="hp-info">
           {salon.address && (<div className="hp-info-row"><dt>住所</dt><dd>{salon.address}</dd></div>)}
