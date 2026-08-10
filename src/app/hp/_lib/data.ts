@@ -11,7 +11,6 @@
 //   （重複コンテンツ回避。設計メモ4章）。
 
 import { createPublicClient } from '@/app/lib/supabase/public';
-import { createServiceClient } from '@/app/lib/supabase/service';
 import { getBusinessDateJST } from '@/lib/dutyStatus';
 import { sanitizeBadges } from '@/lib/therapistBadges';
 import {
@@ -36,6 +35,18 @@ export type HpTherapist = {
   catchphrase: string;         // ひとことキャッチ（therapists.catchphrase）
   bodyType:    string;         // 体型（therapists.body_type）
   badges:      string[];       // 特徴バッジ（lib/therapistBadges の sanitizeBadges 済みラベル）
+  /** 週間スケジュール用。days[i] は weekDays[i] に対応（出勤日は「12:00〜22:00」・休みは null） */
+  week:        (string | null)[];
+};
+
+/** 週間スケジュールの日付見出し（本日から blocks.schedule.days 日ぶん）。 */
+export type HpWeekDay = {
+  date:    string;  // 'YYYY-MM-DD'
+  label:   string;  // 「8/9」
+  weekday: string;  // 「日」
+  isToday: boolean;
+  /** 土=sat / 日=sun / 平日=空文字（色分け用） */
+  tone:    'sat' | 'sun' | '';
 };
 
 export type HpCouponItem = { id: string; title: string; discount: string; conditions: string };
@@ -66,6 +77,8 @@ export type HpPageData = {
   jobId:      number | null;
   /** 本日の営業日（JST・午前6時切替）の表示ラベル（例「8/9 (土)」）。出勤ブロックの日付表示用 */
   todayLabel: string;
+  /** 週間スケジュールの日付列（本日から blocks.schedule.days 日ぶん） */
+  weekDays:   HpWeekDay[];
   /** テーマ壁紙のURL（theme_wallpapers・/admin でアップロードした画像を流用）。無ければ null */
   wallpaperUrl: string | null;
 };
@@ -100,14 +113,9 @@ export async function fetchHpPageData(
   key: string,
   designOverride?: { template_key: HpTemplateKey; theme_key: string },
 ): Promise<HpPageData | null> {
-  const siteKey = normalizeHpSiteKey(key);
+  const supabase = createPublicClient();
 
-  // デモ店舗（slug='demo'）だけ service role で読む（2026-08-09 修正）。
-  // デモ用サロンは is_hidden=true で作る運用だが、salons の公開SELECTポリシーは
-  // is_hidden=true の行を anon から隠すため、anon クライアントでは salons 行が引けず
-  // 下の is_hidden 例外判定に到達する前に 404 になっていた（/hp/demo が 404 だった原因）。
-  // service role は読み取り専用のこの関数内でしか使わず、対象もデモ1店舗に限定される。
-  const supabase = siteKey === HP_DEMO_SLUG ? createServiceClient() : createPublicClient();
+  const siteKey = normalizeHpSiteKey(key);
   const { data: siteRow } = await supabase
     .from('salon_sites')
     .select(HP_SITE_COLUMNS)
@@ -133,16 +141,28 @@ export async function fetchHpPageData(
   if (salonRow.is_hidden && siteKey !== HP_DEMO_SLUG) return null;
 
   const today = getBusinessDateJST();
+  // 週間スケジュールの表示日数（1〜7）。sanitizeHpBlocks で丸め済み。
+  const weekDays = buildWeekDays(today, site.blocks.schedule.days);
+  const lastDay = weekDays[weekDays.length - 1]?.date ?? today;
 
-  const [therapistRes, schedRes, couponRes, newsRes, freeRes, jobRes] = await Promise.all([
-    supabase
-      .from('therapists')
-      .select('id, name, age, profile_image_url, catchphrase, body_type, feature_badges')
-      .eq('salon_id', salonId),
-    supabase
-      .from('therapist_schedules')
-      .select('therapist_id, is_active, start_time, end_time')
-      .eq('schedule_date', today),
+  // セラピストだけ先に引く。出勤は therapist_id で自店に絞りたいため
+  // （therapist_schedules に salon_id が無い。絞らないと全店舗ぶんを取ってしまい、
+  //   週間表示で日数が増えたときに PostgREST の既定上限1000行を超えて取りこぼす）。
+  const therapistRes = await supabase
+    .from('therapists')
+    .select('id, name, age, profile_image_url, catchphrase, body_type, feature_badges')
+    .eq('salon_id', salonId);
+  const therapistIds = (therapistRes.data ?? []).map((t) => String(t.id));
+
+  const [schedRes, couponRes, newsRes, freeRes, jobRes] = await Promise.all([
+    therapistIds.length > 0
+      ? supabase
+          .from('therapist_schedules')
+          .select('therapist_id, schedule_date, is_active, start_time, end_time')
+          .in('therapist_id', therapistIds)
+          .gte('schedule_date', today)
+          .lte('schedule_date', lastDay)
+      : Promise.resolve({ data: [] as Record<string, unknown>[] }),
     supabase
       .from('coupons')
       .select('id, title, discount, conditions')
@@ -183,24 +203,27 @@ export async function fetchHpPageData(
     wallpaperUrl = (wp?.image_url as string | undefined) ?? null;
   }
 
-  // 出勤マップ（本日・is_active のみ）
-  const dutyMap = new Map<string, { start: string; end: string }>();
+  // 出勤マップ（`${日付}|${セラピストID}` → 「12:00〜22:00」）。is_active のみ入れる。
+  const dutyMap = new Map<string, string>();
   (schedRes.data ?? []).forEach((r) => {
-    if (r.is_active) dutyMap.set(String(r.therapist_id), { start: hm(r.start_time), end: hm(r.end_time) });
+    if (!r.is_active) return;
+    dutyMap.set(`${String(r.schedule_date)}|${String(r.therapist_id)}`, `${hm(r.start_time)}〜${hm(r.end_time)}`);
   });
 
   const therapists: HpTherapist[] = (therapistRes.data ?? []).map((t) => {
-    const duty = dutyMap.get(String(t.id)) ?? null;
+    const week = weekDays.map((d) => dutyMap.get(`${d.date}|${String(t.id)}`) ?? null);
+    const duty = week[0] ?? null; // 先頭＝本日
     return {
       id:          String(t.id),
       name:        (t.name as string) ?? '',
       age:         (t.age as number | null) ?? null,
       imageUrl:    (t.profile_image_url as string | null) ?? null,
       onDuty:      duty !== null,
-      todayTime:   duty ? `${duty.start}〜${duty.end}` : null,
+      todayTime:   duty,
       catchphrase: (t.catchphrase as string | null) ?? '',
       bodyType:    (t.body_type as string | null) ?? '',
       badges:      sanitizeBadges(t.feature_badges),
+      week,
     };
   });
   // 出勤中を先頭に（並びの安定のため名前で二次ソート）
@@ -245,8 +268,29 @@ export async function fetchHpPageData(
     })),
     jobId: jobRes.data ? Number(jobRes.data.id) : null,
     todayLabel: formatTodayLabel(today),
+    weekDays,
     wallpaperUrl,
   };
+}
+
+const WEEKDAY_JP = ['日', '月', '火', '水', '木', '金', '土'];
+
+/** 本日（営業日基準）から days 日ぶんの日付列を作る。曜日は UTC 基準で計算（ズレ防止）。 */
+function buildWeekDays(todayYmd: string, days: number): HpWeekDay[] {
+  const m = todayYmd.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (!m) return [];
+  const base = Date.UTC(Number(m[1]), Number(m[2]) - 1, Number(m[3]));
+  return Array.from({ length: days }, (_, i) => {
+    const d = new Date(base + i * 86400000);
+    const wd = d.getUTCDay();
+    return {
+      date:    d.toISOString().slice(0, 10),
+      label:   `${d.getUTCMonth() + 1}/${d.getUTCDate()}`,
+      weekday: WEEKDAY_JP[wd],
+      isToday: i === 0,
+      tone:    wd === 6 ? ('sat' as const) : wd === 0 ? ('sun' as const) : ('' as const),
+    };
+  });
 }
 
 /** 'YYYY-MM-DD' → 「M/D (曜)」。営業日基準の日付をそのまま表示する。 */
