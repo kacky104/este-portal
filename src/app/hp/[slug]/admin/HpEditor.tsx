@@ -17,6 +17,7 @@ import {
   MAX_HP_CONCEPT_LEN,
   HP_SECTIONS,
   hpSectionOrder,
+  parseHpBannerCode,
   type HpSectionKey,
   HP_DIARY_COUNT_MIN,
   HP_DIARY_COUNT_MAX,
@@ -87,6 +88,8 @@ export function HpEditor({
   const [saving, setSaving] = useState(false);
   // アップロード中のスロット識別子（'hero0'〜 / 'concept' / 'banner0'〜）
   const [uploadingSlot, setUploadingSlot] = useState<string | null>(null);
+  // 相互リンク用バナーコードの貼り付け欄（保存はしない。取り込んだらバナー枠へ入れる）
+  const [bannerCode, setBannerCode] = useState('');
 
   const patch = (p: Partial<FormState>) => setForm((prev) => ({ ...prev, ...p }));
   const patchBlocks = (p: Partial<HpBlocksConfig>) =>
@@ -168,6 +171,23 @@ export function HpEditor({
     }
     const { data: { publicUrl } } = supabase.storage.from('salon-images').getPublicUrl(path);
     return publicUrl;
+  };
+
+  /** 貼り付けたバナーコードから画像URLとリンク先を取り出し、空いている枠に入れる。 */
+  const importBannerCode = () => {
+    const parsed = parseHpBannerCode(bannerCode);
+    if (!parsed) {
+      onToast('コードを読み取れませんでした。画像URLが https で始まる <img> を含むコードを貼ってください');
+      return;
+    }
+    const slot = form.banners.findIndex((b) => b === null);
+    if (slot === -1) {
+      onToast(`バナーは最大${MAX_HP_BANNERS}枠です。空きを作ってから取り込んでください`);
+      return;
+    }
+    patch({ banners: form.banners.map((v, j) => (j === slot ? parsed : v)) });
+    setBannerCode('');
+    onToast(`バナー${slot + 1}に入れました。表示を確認して「保存する」を押してください`);
   };
 
   const handleSave = async () => {
@@ -527,6 +547,33 @@ export function HpEditor({
             </div>
           );
         })}
+
+        {/* ── バナーのコードから登録（相互リンク用） ──
+             貼られたHTMLをそのまま表示するのではなく、画像URLとリンク先だけを取り出して
+             上のバナー枠に入れる。script や onclick が混ざっていても取り込まれない。 */}
+        <div className="pt-4 border-t border-slate-100 space-y-2">
+          <h4 className="text-xs font-black text-slate-700">バナーのコードから登録</h4>
+          <p className="text-[11px] text-slate-400">
+            ※ フクエスなど相互リンク用のバナーコードを貼って「取り込む」を押すと、空いている枠に入ります。
+            読み取るのは画像URLとリンク先だけです（画像URLは https:// のもののみ）。
+          </p>
+          <textarea
+            value={bannerCode}
+            onChange={(e) => setBannerCode(e.target.value)}
+            rows={3}
+            spellCheck={false}
+            placeholder={'<a href="https://fukues.com/"><img src="https://fukues.com/banner.png" alt="フクエス"></a>'}
+            className={`${inputCls} font-mono text-[11px] leading-relaxed`}
+          />
+          <button
+            type="button"
+            onClick={importBannerCode}
+            disabled={bannerCode.trim() === ''}
+            className="px-4 py-2 rounded-full bg-slate-800 text-white text-xs font-bold disabled:opacity-30"
+          >
+            取り込む
+          </button>
+        </div>
       </div>
 
       {/* ── ファビコン ── */}

@@ -199,6 +199,32 @@ export function isSafeImageUrl(v: string): boolean {
   return typeof v === 'string' && v.length <= MAX_HP_LINK_LEN && /^https:\/\//.test(v);
 }
 
+/**
+ * 相互リンク用のバナーコードから「画像URL」と「リンク先」だけを取り出す（2026-08-10）。
+ *
+ * 例: <a href="https://fukues.com/"><img src="https://fukues.com/banner.png" alt="フクエス"></a>
+ *
+ * ★ HTML をそのまま表示するのではなく、2つのURLを抜き出して既存のバナー枠に入れるだけ。
+ *   これなら script や onclick が混ざったコードを貼られても、URL以外は一切ページに出ない
+ *   （店舗の独自ドメインは管理画面と同じオリジンなので、自由HTMLの許可は事故の元）。
+ * 取り出せない・URLが安全でない場合は null を返す（呼び出し側でエラー表示）。
+ */
+export function parseHpBannerCode(code: string): HpBanner | null {
+  if (typeof code !== 'string' || code.length > 4000) return null;
+  const unescape = (v: string) =>
+    v.replace(/&amp;/gi, '&').replace(/&quot;/gi, '"').replace(/&#0?39;|&apos;/gi, "'").trim();
+  const attr = (tag: string, name: string): string => {
+    const m = new RegExp(`\\s${name}\\s*=\\s*("([^"]*)"|'([^']*)'|([^\\s>]+))`, 'i').exec(tag);
+    return m ? unescape(m[2] ?? m[3] ?? m[4] ?? '') : '';
+  };
+  const imgTag = /<img\b[^>]*>/i.exec(code)?.[0] ?? '';
+  const aTag   = /<a\b[^>]*>/i.exec(code)?.[0] ?? '';
+  const image  = attr(imgTag, 'src');
+  const link   = attr(aTag, 'href');
+  if (!isSafeImageUrl(image)) return null;
+  return { image_url: image, link: isSafeHttpUrl(link) ? link : '' };
+}
+
 /** DB から読んだ banners(jsonb) を安全な形に丸める。不正な要素は捨てる。 */
 export function sanitizeHpBanners(raw: unknown): HpBanner[] {
   if (!Array.isArray(raw)) return [];
