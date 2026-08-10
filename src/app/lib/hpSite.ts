@@ -43,14 +43,65 @@ export const MAX_HP_LINK_LEN      = 300;
 // ブロック自体の説明は設計メモ3章の表を正とする。
 export type HpBlocksConfig = {
   therapists: { on: boolean };                 // セラピスト一覧
-  schedule:   { on: boolean; days: number };   // 本日の出勤（表示日数 1〜7）
+  schedule:   { on: boolean; days: number };   // 本日の出勤（days は週間表の削除でUIから隠した。下の注記参照）
   diary:      { on: boolean; count: number };  // 写メ日記（埋め込み・表示件数 1〜12）
   reviews:    { on: boolean; count: number };  // 口コミ（埋め込み・表示件数 1〜10）
   coupon:     { on: boolean };                 // クーポン
   news:       { on: boolean };                 // お知らせ
   jobs:       { on: boolean };                 // 求人リンク（フクエスワーク）
   freePages:  { on: boolean };                 // フリーページ（最大3・salon_free_pages）
+  /** セクションの表示順。null=ひな形の既定順（従来どおり）。詳細は HP_SECTIONS のコメント参照 */
+  order:      HpSectionKey[] | null;
 };
+
+// ── セクションの表示順（2026-08-10 追加） ──────────────
+// 店舗オーナーが /hp/{key}/admin で上下に動かして決められるセクションの一覧。
+// ここに無いもの（トップバー・ヒーロー・フッター・予約CTA・求人リンク）は常に位置固定。
+//
+// ★ 実装の要:
+//   - blocks.order が null のときは「ひな形の既定」＝ HpTemplate の canonical 順で描画し、
+//     タイプSは styles.ts の CSS `order` が出勤を上に持ち上げる（従来の見え方を維持）。
+//   - blocks.order がある（オーナーが並び替えた）ときは DOM をその順で出力し、
+//     .hp-order-custom クラスがタイプSの CSS `order` を打ち消す。
+//     → どのひな形でも「DOM の順＝画面の順」に一本化される。
+export const HP_SECTIONS = [
+  { key: 'concept',    label: 'コンセプト' },
+  { key: 'courses',    label: 'コース料金' },
+  { key: 'therapists', label: 'セラピスト一覧' },
+  { key: 'schedule',   label: '本日の出勤' },
+  { key: 'diary',      label: '写メ日記' },
+  { key: 'reviews',    label: '口コミ' },
+  { key: 'coupon',     label: 'クーポン' },
+  { key: 'news',       label: 'お知らせ' },
+  { key: 'freePages',  label: 'フリーページ' },
+  { key: 'info',       label: '店舗情報' },
+  { key: 'banners',    label: 'バナー' },
+] as const;
+
+export type HpSectionKey = (typeof HP_SECTIONS)[number]['key'];
+
+/** 既定の表示順（＝HpTemplate の canonical 順）。並び替え未設定の店はこの順。 */
+export const DEFAULT_HP_SECTION_ORDER: HpSectionKey[] = HP_SECTIONS.map((s) => s.key);
+
+/**
+ * 保存された order を安全な形に丸める。
+ * 未知キーは捨て、重複は先勝ち、足りないキーは既定順のまま末尾に足す
+ * （＝あとからセクションを増やしても、既存店の並びを壊さず新セクションが末尾に出る）。
+ */
+export function normalizeHpSectionOrder(raw: unknown): HpSectionKey[] {
+  const known = new Set<string>(DEFAULT_HP_SECTION_ORDER);
+  const out: HpSectionKey[] = [];
+  const seen = new Set<string>();
+  if (Array.isArray(raw)) {
+    for (const v of raw) {
+      if (typeof v !== 'string' || !known.has(v) || seen.has(v)) continue;
+      seen.add(v);
+      out.push(v as HpSectionKey);
+    }
+  }
+  for (const k of DEFAULT_HP_SECTION_ORDER) if (!seen.has(k)) out.push(k);
+  return out;
+}
 
 export const HP_SCHEDULE_DAYS_MIN = 1;
 export const HP_SCHEDULE_DAYS_MAX = 7;
@@ -68,6 +119,7 @@ export const DEFAULT_HP_BLOCKS: HpBlocksConfig = {
   news:       { on: true },
   jobs:       { on: true },
   freePages:  { on: true },
+  order:      null, // 未設定＝ひな形の既定順
 };
 
 function clampInt(v: unknown, min: number, max: number, fallback: number): number {
@@ -82,7 +134,8 @@ function boolOr(v: unknown, fallback: boolean): boolean {
 
 /** DB から読んだ blocks(jsonb) を安全な形に丸める。欠損・型違いはすべて既定値。 */
 export function sanitizeHpBlocks(raw: unknown): HpBlocksConfig {
-  const r = (raw && typeof raw === 'object' ? raw : {}) as Record<string, Record<string, unknown> | undefined>;
+  const rawObj = (raw && typeof raw === 'object' ? raw : {}) as Record<string, unknown>;
+  const r = rawObj as Record<string, Record<string, unknown> | undefined>;
   const d = DEFAULT_HP_BLOCKS;
   return {
     therapists: { on: boolOr(r.therapists?.on, d.therapists.on) },
@@ -102,6 +155,8 @@ export function sanitizeHpBlocks(raw: unknown): HpBlocksConfig {
     news:      { on: boolOr(r.news?.on, d.news.on) },
     jobs:      { on: boolOr(r.jobs?.on, d.jobs.on) },
     freePages: { on: boolOr(r.freePages?.on, d.freePages.on) },
+    // 配列が入っていれば「オーナーが並び替え済み」。それ以外（未設定・型違い）は null＝既定順。
+    order:     Array.isArray(rawObj.order) ? normalizeHpSectionOrder(rawObj.order) : null,
   };
 }
 

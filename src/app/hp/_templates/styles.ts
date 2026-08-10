@@ -40,6 +40,10 @@ const COMMON = `
 .hp-info-row dd { line-height: 1.8; }
 .hp-banner-img { display: block; width: 100%; height: auto; margin-bottom: 10px; }
 .hp-sec-banners { padding-top: 0; }
+/* オーナーがセクションを並び替えたとき（blocks.order あり）だけ付くクラス。
+   flex 化して、HpTemplate が各セクションに振るインライン order で並べる。
+   インラインなのでタイプSの .hp-s .hp-sec-* { order: n } より強く、上書きされる。 */
+.hp-order-custom { display: flex; flex-direction: column; }
 .hp-cta { position: fixed; bottom: 0; left: 50%; transform: translateX(-50%); width: 100%; max-width: 640px; display: flex; z-index: 20; }
 .hp-cta a { flex: 1; text-align: center; padding: 16px 0; font-size: 13px; text-decoration: none; font-weight: 700; letter-spacing: .15em; }
 .hp-footer { padding: 44px 22px 60px; text-align: center; }

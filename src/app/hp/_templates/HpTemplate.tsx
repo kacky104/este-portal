@@ -11,6 +11,7 @@
 
 import { EMBED_SITE_URL } from '@/app/embed/salon/[id]/embedShared';
 import { hpColorCssVars } from '@/app/lib/hpSite';
+import type { HpSectionKey } from '@/app/lib/hpSite';
 import type { HpPageData, HpCourse } from '@/app/hp/_lib/data';
 import { TEMPLATE_CSS } from './styles';
 
@@ -49,9 +50,54 @@ export function HpTemplate({ data }: { data: HpPageData }) {
   const heroSp = site.hero_images[1] ?? null;
   const onDuty = therapists.filter((t) => t.onDuty);
 
+  // ── セクションの表示順（2026-08-10）──
+  //   blocks.order が null＝オーナー未設定なら何もしない（従来の見え方そのまま。
+  //   タイプSは styles.ts の CSS order がヒーロー直下に出勤を持ち上げる）。
+  //   オーナーが並び替えたときだけ .hp-order-custom を付けて flex 化し、
+  //   各セクションにインラインの order を振る（インラインなのでタイプSのCSSより強い）。
+  //   DOM の並びは全ひな形共通のまま＝作業ルール1を維持。
+  const orderList = b.order;
+  const orderCustom = orderList !== null;
+  const ord = (k: HpSectionKey): React.CSSProperties | undefined =>
+    orderList ? { order: orderList.indexOf(k) + 1 } : undefined;
+  // 固定位置のもの。並び替え時も「トップバー→ヒーロー→（並び替え対象）→フッター」は不変。
+  const ordTopbar = orderCustom ? { order: -2 } : undefined;
+  const ordHero   = orderCustom ? { order: -1 } : undefined;
+  const ordFooter = orderCustom ? { order: 100 } : undefined;
+
+  // 交互の地色（.hp-sec-alt）は「実際に画面に出るセクションの並び」で1つおきに付ける。
+  // 並び替えると canonical 前提の固定クラスでは同じ地色が2つ続いてしまうため、
+  // 並び替え時だけ実際の並び＋表示有無から付け直す（未設定時は従来の固定クラスのまま）。
+  const visible: Record<HpSectionKey, boolean> = {
+    concept:    Boolean(site.concept_text || site.concept_title),
+    courses:    grouped.length > 0,
+    therapists: b.therapists.on && therapists.length > 0,
+    schedule:   b.schedule.on && onDuty.length > 0,
+    diary:      b.diary.on,
+    reviews:    b.reviews.on,
+    coupon:     b.coupon.on && coupons.length > 0,
+    news:       b.news.on && news.length > 0,
+    freePages:  b.freePages.on && freePages.length > 0,
+    info:       true,
+    banners:    site.banners.length > 0,
+  };
+  const altKeys = new Set<HpSectionKey>();
+  if (orderList) {
+    let i = 0;
+    for (const k of orderList) {
+      // バナーは地色を持たない枠（上のセクションに続けて見せる）ので数にも入れない
+      if (!visible[k] || k === 'banners') continue;
+      if (i % 2 === 1) altKeys.add(k);
+      i += 1;
+    }
+  }
+  /** セクションのclass。第3引数は「並び替え未設定のときの既定（従来の固定クラス）」。 */
+  const secCls = (k: HpSectionKey, name: string, defaultAlt: boolean) =>
+    `hp-sec${(orderList ? altKeys.has(k) : defaultAlt) ? ' hp-sec-alt' : ''} ${name}`;
+
   return (
     <div
-      className={`hp-root hp-${site.template_key}${data.wallpaperUrl ? ' hp-has-wallpaper' : ''}`}
+      className={`hp-root hp-${site.template_key}${data.wallpaperUrl ? ' hp-has-wallpaper' : ''}${orderCustom ? ' hp-order-custom' : ''}`}
       style={cssVars}
     >
       <style dangerouslySetInnerHTML={{ __html: TEMPLATE_CSS[site.template_key] }} />
@@ -67,7 +113,7 @@ export function HpTemplate({ data }: { data: HpPageData }) {
            ナビ（.hp-topbar-nav）はタイプSのみ表示（COMMON で display:none）。
            アンカー先の id は各セクションに付与済み。ブロックOFFで対象が無い場合も
            ただスクロールしないだけなので実害はない。 */}
-      <div className="hp-topbar">
+      <div className="hp-topbar" style={ordTopbar}>
         <span className="hp-topbar-name">{salon.name}</span>
         <nav className="hp-topbar-nav">
           <a href="#concept">CONCEPT</a>
@@ -85,7 +131,7 @@ export function HpTemplate({ data }: { data: HpPageData }) {
            スマホ用（hero_images[1]）があれば 639px 以下で <picture> が自動で差し替える。
            タイプSは店舗の画像が未設定でも成立するよう、既定のキービジュアル
            （public/hp-s/・PC 2400×960 / SP 1080×760 を出し分け）にフォールバックする。 */}
-      <div className="hp-hero">
+      <div className="hp-hero" style={ordHero}>
         {heroPc ? (
           <picture>
             {heroSp && <source media="(max-width: 639px)" srcSet={heroSp} />}
@@ -109,7 +155,7 @@ export function HpTemplate({ data }: { data: HpPageData }) {
 
       {/* ── コンセプト ── */}
       {(site.concept_text || site.concept_title) && (
-        <section id="concept" data-hp-reveal className="hp-sec hp-sec-concept">
+        <section id="concept" data-hp-reveal className={secCls('concept', 'hp-sec-concept', false)} style={ord('concept')}>
           <SecHead no="01" en="Concept" jp={site.concept_title || 'コンセプト'} />
           {site.concept_image_url && (
             // eslint-disable-next-line @next/next/no-img-element
@@ -121,7 +167,7 @@ export function HpTemplate({ data }: { data: HpPageData }) {
 
       {/* ── コース料金 ── */}
       {grouped.length > 0 && (
-        <section id="menu" data-hp-reveal className="hp-sec hp-sec-alt hp-sec-courses">
+        <section id="menu" data-hp-reveal className={secCls('courses', 'hp-sec-courses', true)} style={ord('courses')}>
           <SecHead no="02" en="Menu" jp="コース料金" />
           {grouped.map(([name, items]) => (
             <div key={name} className="hp-course-group">
@@ -140,7 +186,7 @@ export function HpTemplate({ data }: { data: HpPageData }) {
 
       {/* ── セラピスト ── */}
       {b.therapists.on && therapists.length > 0 && (
-        <section id="therapist" data-hp-reveal className="hp-sec hp-sec-therapists">
+        <section id="therapist" data-hp-reveal className={secCls('therapists', 'hp-sec-therapists', false)} style={ord('therapists')}>
           <SecHead no="03" en="Therapist" jp="セラピスト" />
           <div className="hp-th-row">
             {therapists.map((t) => (
@@ -187,7 +233,7 @@ export function HpTemplate({ data }: { data: HpPageData }) {
            hp-sched-body を display:contents にすることで従来どおり「名前 …… 時間」の
            1行レイアウトのまま（見た目は変わらない）。タイプSだけが写真グリッドとして使う。 */}
       {b.schedule.on && onDuty.length > 0 && (
-        <section id="schedule" data-hp-reveal className="hp-sec hp-sec-alt hp-sec-schedule">
+        <section id="schedule" data-hp-reveal className={secCls('schedule', 'hp-sec-schedule', true)} style={ord('schedule')}>
           <SecHead no="04" en="Schedule" jp="本日の出勤" />
           <div className="hp-sched-date">{data.todayLabel}</div>
           <div className="hp-sched-list">
@@ -228,7 +274,7 @@ export function HpTemplate({ data }: { data: HpPageData }) {
 
       {/* ── 写メ日記（埋め込み） ── */}
       {b.diary.on && (
-        <section id="diary" data-hp-reveal className="hp-sec hp-sec-diary">
+        <section id="diary" data-hp-reveal className={secCls('diary', 'hp-sec-diary', false)} style={ord('diary')}>
           <SecHead no="05" en="Diary" jp="写メ日記" />
           <iframe className="hp-embed" src={`/embed/salon/${salon.id}/diary`} title="写メ日記" loading="lazy" style={{ height: 480 }} />
           <a className="hp-more" href={`${salonUrl}/diary`} target="_blank" rel="noopener noreferrer">もっと見る →</a>
@@ -237,7 +283,7 @@ export function HpTemplate({ data }: { data: HpPageData }) {
 
       {/* ── 口コミ（埋め込み） ── */}
       {b.reviews.on && (
-        <section id="voice" data-hp-reveal className="hp-sec hp-sec-alt hp-sec-reviews">
+        <section id="voice" data-hp-reveal className={secCls('reviews', 'hp-sec-reviews', true)} style={ord('reviews')}>
           <SecHead no="06" en="Voice" jp="口コミ" />
           <iframe className="hp-embed" src={`/embed/salon/${salon.id}/reviews`} title="口コミ" loading="lazy" style={{ height: 420 }} />
           <a className="hp-more" href={`${salonUrl}/reviews`} target="_blank" rel="noopener noreferrer">もっと見る →</a>
@@ -246,7 +292,7 @@ export function HpTemplate({ data }: { data: HpPageData }) {
 
       {/* ── クーポン ── */}
       {b.coupon.on && coupons.length > 0 && (
-        <section data-hp-reveal className="hp-sec hp-sec-coupon">
+        <section data-hp-reveal className={secCls('coupon', 'hp-sec-coupon', false)} style={ord('coupon')}>
           <SecHead no="07" en="Coupon" jp="クーポン" />
           {coupons.map((c) => (
             <div key={c.id} className="hp-card">
@@ -260,7 +306,7 @@ export function HpTemplate({ data }: { data: HpPageData }) {
 
       {/* ── お知らせ ── */}
       {b.news.on && news.length > 0 && (
-        <section data-hp-reveal className="hp-sec hp-sec-alt hp-sec-news">
+        <section data-hp-reveal className={secCls('news', 'hp-sec-news', true)} style={ord('news')}>
           <SecHead no="08" en="News" jp="お知らせ" />
           {news.map((n) => (
             <div key={n.id} className="hp-card">
@@ -274,7 +320,7 @@ export function HpTemplate({ data }: { data: HpPageData }) {
 
       {/* ── フリーページ ── */}
       {b.freePages.on && freePages.length > 0 && freePages.map((f, i) => (
-        <section key={f.id} className="hp-sec hp-sec-free">
+        <section key={f.id} className={secCls('freePages', 'hp-sec-free', false)} style={ord('freePages')}>
           <SecHead no={String(9 + i).padStart(2, '0')} en="Information" jp={f.title} />
           {f.images[0] && (
             // eslint-disable-next-line @next/next/no-img-element
@@ -285,7 +331,7 @@ export function HpTemplate({ data }: { data: HpPageData }) {
       ))}
 
       {/* ── 店舗情報 ── */}
-      <section id="info" data-hp-reveal className="hp-sec hp-sec-alt hp-sec-info">
+      <section id="info" data-hp-reveal className={secCls('info', 'hp-sec-info', true)} style={ord('info')}>
         <SecHead no="12" en="Information" jp="店舗情報" />
         <dl className="hp-info">
           {salon.address && (<div className="hp-info-row"><dt>住所</dt><dd>{salon.address}</dd></div>)}
@@ -297,7 +343,7 @@ export function HpTemplate({ data }: { data: HpPageData }) {
 
       {/* ── バナー ── */}
       {site.banners.length > 0 && (
-        <section data-hp-reveal className="hp-sec hp-sec-banners">
+        <section data-hp-reveal className={secCls('banners', 'hp-sec-banners', false)} style={ord('banners')}>
           {site.banners.map((bn, i) =>
             bn.link ? (
               <a key={i} href={bn.link} target="_blank" rel="noopener noreferrer">
@@ -313,7 +359,7 @@ export function HpTemplate({ data }: { data: HpPageData }) {
       )}
 
       {/* ── フッター ── */}
-      <footer className="hp-footer">
+      <footer className="hp-footer" style={ordFooter}>
         <div className="hp-footer-name">{salon.name}</div>
         <div className="hp-footer-sub">
           © {salon.name} all rights reserved.

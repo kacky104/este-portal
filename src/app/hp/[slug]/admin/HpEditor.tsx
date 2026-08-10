@@ -15,8 +15,9 @@ import {
   MAX_HP_CATCH_LEN,
   MAX_HP_TITLE_LEN,
   MAX_HP_CONCEPT_LEN,
-  HP_SCHEDULE_DAYS_MIN,
-  HP_SCHEDULE_DAYS_MAX,
+  HP_SECTIONS,
+  DEFAULT_HP_SECTION_ORDER,
+  type HpSectionKey,
   HP_DIARY_COUNT_MIN,
   HP_DIARY_COUNT_MAX,
   HP_REVIEWS_COUNT_MIN,
@@ -90,6 +91,46 @@ export function HpEditor({
   const patch = (p: Partial<FormState>) => setForm((prev) => ({ ...prev, ...p }));
   const patchBlocks = (p: Partial<HpBlocksConfig>) =>
     setForm((prev) => ({ ...prev, blocks: { ...prev.blocks, ...p } }));
+
+  // ── セクションの並び順（2026-08-10）────────────────
+  // order が null＝未設定なら「既定の並び」を表示する。▲▼を1回でも押すと配列として保存され、
+  // 以後はその並びが公開ページに反映される（ひな形が持つ既定の並びより優先）。
+  const sectionOrder: HpSectionKey[] = form.blocks.order ?? DEFAULT_HP_SECTION_ORDER;
+  const sectionLabel = (k: HpSectionKey) => HP_SECTIONS.find((s) => s.key === k)?.label ?? k;
+
+  const moveSection = (index: number, dir: -1 | 1) => {
+    const next = [...sectionOrder];
+    const to = index + dir;
+    if (to < 0 || to >= next.length) return;
+    [next[index], next[to]] = [next[to], next[index]];
+    patchBlocks({ order: next });
+  };
+
+  /** ON/OFF を持つセクションの現在値。null＝切り替え不可（中身があるときだけ自動で出る）。 */
+  const sectionOn = (k: HpSectionKey): boolean | null => {
+    switch (k) {
+      case 'therapists': return form.blocks.therapists.on;
+      case 'schedule':   return form.blocks.schedule.on;
+      case 'diary':      return form.blocks.diary.on;
+      case 'reviews':    return form.blocks.reviews.on;
+      case 'coupon':     return form.blocks.coupon.on;
+      case 'news':       return form.blocks.news.on;
+      case 'freePages':  return form.blocks.freePages.on;
+      default:           return null; // concept / courses / info / banners
+    }
+  };
+  const setSectionOn = (k: HpSectionKey, on: boolean) => {
+    switch (k) {
+      case 'therapists': patchBlocks({ therapists: { on } }); break;
+      case 'schedule':   patchBlocks({ schedule: { ...form.blocks.schedule, on } }); break;
+      case 'diary':      patchBlocks({ diary: { ...form.blocks.diary, on } }); break;
+      case 'reviews':    patchBlocks({ reviews: { ...form.blocks.reviews, on } }); break;
+      case 'coupon':     patchBlocks({ coupon: { on } }); break;
+      case 'news':       patchBlocks({ news: { on } }); break;
+      case 'freePages':  patchBlocks({ freePages: { on } }); break;
+      default: break;
+    }
+  };
 
   // 保存済みサイト行で使われていないURLだけ storage から削除する（best-effort）。
   // 保存前に消すと DB が参照中の画像を壊すため、保存済みURLには触らない。
@@ -324,96 +365,108 @@ export function HpEditor({
         </div>
       </div>
 
-      {/* ── ブロック表示設定 ── */}
+      {/* ── ブロック表示設定＋並び順 ── */}
       <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5 space-y-3">
-        <h3 className="text-sm font-black text-slate-800">表示するブロック</h3>
+        <div className="flex items-center justify-between gap-2">
+          <h3 className="text-sm font-black text-slate-800">表示するブロックと並び順</h3>
+          {form.blocks.order !== null && (
+            <button
+              type="button"
+              onClick={() => patchBlocks({ order: null })}
+              className="text-[11px] font-bold text-slate-400 underline underline-offset-2 hover:text-pink-500"
+            >
+              並び順を既定に戻す
+            </button>
+          )}
+        </div>
         <p className="text-[11px] text-slate-400">
-          ※ 各ブロックの中身（セラピスト・出勤・写メ日記・口コミ・クーポン・お知らせ等）は、
-          フクエスのマイページで編集した内容がそのまま表示されます。ここで二重に入力する必要はありません。
+          ※ ▲▼でホームページに表示される順番を入れ替えられます。トップ画像・電話／LINEの予約ボタン・
+          フッターの位置は固定です。各ブロックの中身（セラピスト・出勤・写メ日記・口コミ・クーポン・
+          お知らせ等）は、フクエスのマイページで編集した内容がそのまま表示されます。
         </p>
 
+        <ul className="divide-y divide-slate-100 border-y border-slate-100">
+          {sectionOrder.map((k, i) => {
+            const on = sectionOn(k);
+            return (
+              <li key={k} className="flex items-center gap-2 py-2">
+                <div className="flex flex-col shrink-0">
+                  <button
+                    type="button"
+                    onClick={() => moveSection(i, -1)}
+                    disabled={i === 0}
+                    aria-label={`${sectionLabel(k)}を上へ`}
+                    className="w-7 h-5 rounded-t-md border border-slate-200 text-[10px] leading-none text-slate-500 disabled:opacity-25 hover:border-pink-300 hover:text-pink-500"
+                  >
+                    ▲
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => moveSection(i, 1)}
+                    disabled={i === sectionOrder.length - 1}
+                    aria-label={`${sectionLabel(k)}を下へ`}
+                    className="w-7 h-5 rounded-b-md border border-t-0 border-slate-200 text-[10px] leading-none text-slate-500 disabled:opacity-25 hover:border-pink-300 hover:text-pink-500"
+                  >
+                    ▼
+                  </button>
+                </div>
+
+                <span className="flex-1 text-xs font-bold text-slate-600">
+                  {sectionLabel(k)}
+                  {on === null && (
+                    <span className="ml-2 font-normal text-[10px] text-slate-400">内容があるときだけ表示</span>
+                  )}
+                </span>
+
+                {k === 'diary' && (
+                  <select
+                    value={form.blocks.diary.count}
+                    onChange={(e) => patchBlocks({ diary: { ...form.blocks.diary, count: Number(e.target.value) } })}
+                    disabled={!form.blocks.diary.on}
+                    className="rounded-lg border border-slate-200 px-2 py-1 text-xs text-slate-600 disabled:opacity-40"
+                  >
+                    {Array.from({ length: HP_DIARY_COUNT_MAX - HP_DIARY_COUNT_MIN + 1 }, (_, n) => HP_DIARY_COUNT_MIN + n).map((n) => (
+                      <option key={n} value={n}>{n}件</option>
+                    ))}
+                  </select>
+                )}
+                {k === 'reviews' && (
+                  <select
+                    value={form.blocks.reviews.count}
+                    onChange={(e) => patchBlocks({ reviews: { ...form.blocks.reviews, count: Number(e.target.value) } })}
+                    disabled={!form.blocks.reviews.on}
+                    className="rounded-lg border border-slate-200 px-2 py-1 text-xs text-slate-600 disabled:opacity-40"
+                  >
+                    {Array.from({ length: HP_REVIEWS_COUNT_MAX - HP_REVIEWS_COUNT_MIN + 1 }, (_, n) => HP_REVIEWS_COUNT_MIN + n).map((n) => (
+                      <option key={n} value={n}>{n}件</option>
+                    ))}
+                  </select>
+                )}
+
+                {on === null ? (
+                  <span className="w-4 h-4 shrink-0" />
+                ) : (
+                  <input
+                    type="checkbox"
+                    checked={on}
+                    onChange={(e) => setSectionOn(k, e.target.checked)}
+                    aria-label={`${sectionLabel(k)}を表示する`}
+                    className="w-4 h-4 shrink-0 accent-pink-500"
+                  />
+                )}
+              </li>
+            );
+          })}
+        </ul>
+
+        {/* 求人はセクションではなくフッター内のリンクなので、並び替えの対象外。 */}
         <label className="flex items-center justify-between py-1">
-          <span className="text-xs font-bold text-slate-600">セラピスト一覧</span>
-          <input type="checkbox" checked={form.blocks.therapists.on}
-            onChange={(e) => patchBlocks({ therapists: { on: e.target.checked } })} className="w-4 h-4 accent-pink-500" />
-        </label>
-
-        <div className="flex items-center justify-between py-1 gap-2">
-          <span className="text-xs font-bold text-slate-600">出勤スケジュール</span>
-          <div className="flex items-center gap-2">
-            <select
-              value={form.blocks.schedule.days}
-              onChange={(e) => patchBlocks({ schedule: { ...form.blocks.schedule, days: Number(e.target.value) } })}
-              disabled={!form.blocks.schedule.on}
-              className="rounded-lg border border-slate-200 px-2 py-1 text-xs text-slate-600 disabled:opacity-40"
-            >
-              {Array.from({ length: HP_SCHEDULE_DAYS_MAX - HP_SCHEDULE_DAYS_MIN + 1 }, (_, i) => HP_SCHEDULE_DAYS_MIN + i).map((n) => (
-                <option key={n} value={n}>{n}日分</option>
-              ))}
-            </select>
-            <input type="checkbox" checked={form.blocks.schedule.on}
-              onChange={(e) => patchBlocks({ schedule: { ...form.blocks.schedule, on: e.target.checked } })} className="w-4 h-4 accent-pink-500" />
-          </div>
-        </div>
-
-        <div className="flex items-center justify-between py-1 gap-2">
-          <span className="text-xs font-bold text-slate-600">写メ日記</span>
-          <div className="flex items-center gap-2">
-            <select
-              value={form.blocks.diary.count}
-              onChange={(e) => patchBlocks({ diary: { ...form.blocks.diary, count: Number(e.target.value) } })}
-              disabled={!form.blocks.diary.on}
-              className="rounded-lg border border-slate-200 px-2 py-1 text-xs text-slate-600 disabled:opacity-40"
-            >
-              {Array.from({ length: HP_DIARY_COUNT_MAX - HP_DIARY_COUNT_MIN + 1 }, (_, i) => HP_DIARY_COUNT_MIN + i).map((n) => (
-                <option key={n} value={n}>{n}件</option>
-              ))}
-            </select>
-            <input type="checkbox" checked={form.blocks.diary.on}
-              onChange={(e) => patchBlocks({ diary: { ...form.blocks.diary, on: e.target.checked } })} className="w-4 h-4 accent-pink-500" />
-          </div>
-        </div>
-
-        <div className="flex items-center justify-between py-1 gap-2">
-          <span className="text-xs font-bold text-slate-600">口コミ</span>
-          <div className="flex items-center gap-2">
-            <select
-              value={form.blocks.reviews.count}
-              onChange={(e) => patchBlocks({ reviews: { ...form.blocks.reviews, count: Number(e.target.value) } })}
-              disabled={!form.blocks.reviews.on}
-              className="rounded-lg border border-slate-200 px-2 py-1 text-xs text-slate-600 disabled:opacity-40"
-            >
-              {Array.from({ length: HP_REVIEWS_COUNT_MAX - HP_REVIEWS_COUNT_MIN + 1 }, (_, i) => HP_REVIEWS_COUNT_MIN + i).map((n) => (
-                <option key={n} value={n}>{n}件</option>
-              ))}
-            </select>
-            <input type="checkbox" checked={form.blocks.reviews.on}
-              onChange={(e) => patchBlocks({ reviews: { ...form.blocks.reviews, on: e.target.checked } })} className="w-4 h-4 accent-pink-500" />
-          </div>
-        </div>
-
-        <label className="flex items-center justify-between py-1">
-          <span className="text-xs font-bold text-slate-600">クーポン</span>
-          <input type="checkbox" checked={form.blocks.coupon.on}
-            onChange={(e) => patchBlocks({ coupon: { on: e.target.checked } })} className="w-4 h-4 accent-pink-500" />
-        </label>
-
-        <label className="flex items-center justify-between py-1">
-          <span className="text-xs font-bold text-slate-600">お知らせ</span>
-          <input type="checkbox" checked={form.blocks.news.on}
-            onChange={(e) => patchBlocks({ news: { on: e.target.checked } })} className="w-4 h-4 accent-pink-500" />
-        </label>
-
-        <label className="flex items-center justify-between py-1">
-          <span className="text-xs font-bold text-slate-600">求人（フクエスワークへのリンク）</span>
+          <span className="text-xs font-bold text-slate-600">
+            求人（フクエスワークへのリンク）
+            <span className="ml-2 font-normal text-[10px] text-slate-400">フッター内・位置は固定</span>
+          </span>
           <input type="checkbox" checked={form.blocks.jobs.on}
             onChange={(e) => patchBlocks({ jobs: { on: e.target.checked } })} className="w-4 h-4 accent-pink-500" />
-        </label>
-
-        <label className="flex items-center justify-between py-1">
-          <span className="text-xs font-bold text-slate-600">フリーページ</span>
-          <input type="checkbox" checked={form.blocks.freePages.on}
-            onChange={(e) => patchBlocks({ freePages: { on: e.target.checked } })} className="w-4 h-4 accent-pink-500" />
         </label>
       </div>
 
