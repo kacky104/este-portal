@@ -42,6 +42,8 @@ export const MAX_HP_LINK_LEN      = 300;
 // キーの追加はここ＋公開ページ側の描画だけで完結させる（マイグレーション不要が jsonb の利点）。
 // ブロック自体の説明は設計メモ3章の表を正とする。
 export type HpBlocksConfig = {
+  concept:    { on: boolean };                 // コンセプト（本文か見出しがあるときだけ出る）
+  courses:    { on: boolean };                 // コース料金（登録があるときだけ出る）
   therapists: { on: boolean };                 // セラピスト一覧
   schedule:   { on: boolean; days: number };   // 本日の出勤（days は週間表の削除でUIから隠した。下の注記参照）
   diary:      { on: boolean; count: number };  // 写メ日記（埋め込み・表示件数 1〜12）
@@ -111,6 +113,8 @@ export const HP_REVIEWS_COUNT_MIN = 1;
 export const HP_REVIEWS_COUNT_MAX = 10;
 
 export const DEFAULT_HP_BLOCKS: HpBlocksConfig = {
+  concept:    { on: true },
+  courses:    { on: true },
   therapists: { on: true },
   schedule:   { on: true, days: 7 },
   diary:      { on: true, count: 6 },
@@ -138,6 +142,8 @@ export function sanitizeHpBlocks(raw: unknown): HpBlocksConfig {
   const r = rawObj as Record<string, Record<string, unknown> | undefined>;
   const d = DEFAULT_HP_BLOCKS;
   return {
+    concept:    { on: boolOr(r.concept?.on, d.concept.on) },
+    courses:    { on: boolOr(r.courses?.on, d.courses.on) },
     therapists: { on: boolOr(r.therapists?.on, d.therapists.on) },
     schedule: {
       on:   boolOr(r.schedule?.on, d.schedule.on),

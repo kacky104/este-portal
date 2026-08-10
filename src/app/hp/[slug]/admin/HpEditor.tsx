@@ -109,6 +109,8 @@ export function HpEditor({
   /** ON/OFF を持つセクションの現在値。null＝切り替え不可（中身があるときだけ自動で出る）。 */
   const sectionOn = (k: HpSectionKey): boolean | null => {
     switch (k) {
+      case 'concept':    return form.blocks.concept.on;
+      case 'courses':    return form.blocks.courses.on;
       case 'therapists': return form.blocks.therapists.on;
       case 'schedule':   return form.blocks.schedule.on;
       case 'diary':      return form.blocks.diary.on;
@@ -116,11 +118,13 @@ export function HpEditor({
       case 'coupon':     return form.blocks.coupon.on;
       case 'news':       return form.blocks.news.on;
       case 'freePages':  return form.blocks.freePages.on;
-      default:           return null; // concept / courses / info / banners
+      default:           return null; // info / banners（中身があるときだけ自動で出る）
     }
   };
   const setSectionOn = (k: HpSectionKey, on: boolean) => {
     switch (k) {
+      case 'concept':    patchBlocks({ concept: { on } }); break;
+      case 'courses':    patchBlocks({ courses: { on } }); break;
       case 'therapists': patchBlocks({ therapists: { on } }); break;
       case 'schedule':   patchBlocks({ schedule: { ...form.blocks.schedule, on } }); break;
       case 'diary':      patchBlocks({ diary: { ...form.blocks.diary, on } }); break;

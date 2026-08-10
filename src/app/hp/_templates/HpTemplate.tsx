@@ -69,8 +69,8 @@ export function HpTemplate({ data }: { data: HpPageData }) {
   // 並び替えると canonical 前提の固定クラスでは同じ地色が2つ続いてしまうため、
   // 並び替え時だけ実際の並び＋表示有無から付け直す（未設定時は従来の固定クラスのまま）。
   const visible: Record<HpSectionKey, boolean> = {
-    concept:    Boolean(site.concept_text || site.concept_title),
-    courses:    grouped.length > 0,
+    concept:    b.concept.on && Boolean(site.concept_text || site.concept_title),
+    courses:    b.courses.on && grouped.length > 0,
     therapists: b.therapists.on && therapists.length > 0,
     schedule:   b.schedule.on && onDuty.length > 0,
     diary:      b.diary.on,
@@ -210,7 +210,7 @@ export function HpTemplate({ data }: { data: HpPageData }) {
       </div>
 
       {/* ── コンセプト ── */}
-      {(site.concept_text || site.concept_title) && (
+      {visible.concept && (
         <section id="concept" data-hp-reveal className={secCls('concept', 'hp-sec-concept', false)} style={ord('concept')}>
           <SecHead no="01" en="Concept" jp={site.concept_title || 'コンセプト'} />
           {site.concept_image_url && (
@@ -222,7 +222,7 @@ export function HpTemplate({ data }: { data: HpPageData }) {
       )}
 
       {/* ── コース料金 ── */}
-      {grouped.length > 0 && (
+      {visible.courses && (
         <section id="menu" data-hp-reveal className={secCls('courses', 'hp-sec-courses', true)} style={ord('courses')}>
           <SecHead no="02" en="Menu" jp="コース料金" />
           {grouped.map(([name, items]) => (
