@@ -8,6 +8,12 @@
 // ブロックの ON/OFF・件数は salon_sites.blocks（sanitizeHpBlocks 済み）に従う。
 // 写メ日記・口コミは /embed/salon/[id]/* の iframe（重複コンテンツ回避。設計メモ4章）。
 // 「もっと見る」はフクエス本体への絶対URLリンク（HPからフクエスへの実流入導線）。
+//
+// ★ 外部リンクの rel は "noopener" だけにする（"noreferrer" は付けない）。
+//   noreferrer を付けると Referer が送られず、リンク先のアクセス解析で
+//   「直接アクセス」扱いになる＝HPからフクエスへの流入も、相互リンクの流入も数えられない。
+//   セキュリティ面は noopener で足りる（target="_blank" は最近のブラウザでは既定で noopener）。
+//   例外: LINE予約だけは他社サービスで計測の必要が無いので従来どおり。
 
 import { EMBED_SITE_URL } from '@/app/embed/salon/[id]/embedShared';
 import { hpColorCssVars, hpSectionOrder } from '@/app/lib/hpSite';
@@ -173,7 +179,7 @@ export function HpTemplate({ data }: { data: HpPageData }) {
           {menuItems.map((m) => (
             <li key={m.label}>
               {m.external ? (
-                <a href={m.href} target="_blank" rel="noopener noreferrer">{m.label}</a>
+                <a href={m.href} target="_blank" rel="noopener">{m.label}</a>
               ) : (
                 <a href={m.href}>{m.label}</a>
               )}
@@ -263,7 +269,7 @@ export function HpTemplate({ data }: { data: HpPageData }) {
           <SecHead no="03" en="Therapist" jp="セラピスト" />
           <div className="hp-th-row">
             {therapists.map((t) => (
-              <a key={t.id} className="hp-th-card" href={`${EMBED_SITE_URL}/therapist/${t.id}`} target="_blank" rel="noopener noreferrer">
+              <a key={t.id} className="hp-th-card" href={`${EMBED_SITE_URL}/therapist/${t.id}`} target="_blank" rel="noopener">
                 <div className="hp-th-frame">
                   {t.imageUrl ? (
                     // eslint-disable-next-line @next/next/no-img-element
@@ -316,7 +322,7 @@ export function HpTemplate({ data }: { data: HpPageData }) {
                 className="hp-sched-row"
                 href={`${EMBED_SITE_URL}/therapist/${t.id}`}
                 target="_blank"
-                rel="noopener noreferrer"
+                rel="noopener"
               >
                 <span className="hp-sched-thumb">
                   {t.imageUrl ? (
@@ -339,7 +345,7 @@ export function HpTemplate({ data }: { data: HpPageData }) {
           {/* 週間の出勤はHP側に表を持たず、フクエス本体の店舗スケジュールに集約する（2026-08-10）。
               HPからフクエスへの実流入をつくるのが目的なので、この導線は常に置く。
               ※ 週間データ（data.weekDays / therapist.week）は残してあるので、表を復活させたくなったらここに戻せる。 */}
-          <a className="hp-more" href={`${salonUrl}/schedule`} target="_blank" rel="noopener noreferrer">
+          <a className="hp-more" href={`${salonUrl}/schedule`} target="_blank" rel="noopener">
             出勤スケジュールをもっと見る →
           </a>
         </section>
@@ -350,7 +356,7 @@ export function HpTemplate({ data }: { data: HpPageData }) {
         <section id="diary" data-hp-reveal className={secCls('diary', 'hp-sec-diary', false)} style={ord('diary')}>
           <SecHead no="05" en="Diary" jp="写メ日記" />
           <iframe className="hp-embed" src={`/embed/salon/${salon.id}/diary`} title="写メ日記" loading="lazy" style={{ height: 480 }} />
-          <a className="hp-more" href={`${salonUrl}/diary`} target="_blank" rel="noopener noreferrer">もっと見る →</a>
+          <a className="hp-more" href={`${salonUrl}/diary`} target="_blank" rel="noopener">もっと見る →</a>
         </section>
       )}
 
@@ -359,7 +365,7 @@ export function HpTemplate({ data }: { data: HpPageData }) {
         <section id="voice" data-hp-reveal className={secCls('reviews', 'hp-sec-reviews', true)} style={ord('reviews')}>
           <SecHead no="06" en="Voice" jp="口コミ" />
           <iframe className="hp-embed" src={`/embed/salon/${salon.id}/reviews`} title="口コミ" loading="lazy" style={{ height: 420 }} />
-          <a className="hp-more" href={`${salonUrl}/reviews`} target="_blank" rel="noopener noreferrer">もっと見る →</a>
+          <a className="hp-more" href={`${salonUrl}/reviews`} target="_blank" rel="noopener">もっと見る →</a>
         </section>
       )}
 
@@ -415,6 +421,9 @@ export function HpTemplate({ data }: { data: HpPageData }) {
       </section>
 
       {/* ── リンク（相互リンクのバナー群）──
+           rel は noopener だけ（noreferrer は付けない）。noreferrer を付けると
+           リンク先のアクセス解析に参照元が渡らず「直接アクセス」扱いになり、
+           相互リンク経由の流入を数えられなくなるため。安全性は noopener で足りる。
            貼られたHTMLは保存していない。画像URL・リンク先・表示文字の3つだけを
            持っているので、ここで組み直して表示する。画像が無いものは文字リンクになる。 */}
       {visible.links && (
@@ -423,7 +432,7 @@ export function HpTemplate({ data }: { data: HpPageData }) {
           <div className="hp-links">
             {site.link_banners.map((l, i) =>
               l.link ? (
-                <a key={i} className="hp-link-item" href={l.link} target="_blank" rel="noopener noreferrer">
+                <a key={i} className="hp-link-item" href={l.link} target="_blank" rel="noopener">
                   {l.image_url ? (
                     // eslint-disable-next-line @next/next/no-img-element
                     <img src={l.image_url} alt={l.label} loading="lazy" />
@@ -451,7 +460,7 @@ export function HpTemplate({ data }: { data: HpPageData }) {
         <section data-hp-reveal className={secCls('banners', 'hp-sec-banners', false)} style={ord('banners')}>
           {site.banners.map((bn, i) =>
             bn.link ? (
-              <a key={i} href={bn.link} target="_blank" rel="noopener noreferrer">
+              <a key={i} href={bn.link} target="_blank" rel="noopener">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img className="hp-banner-img" src={bn.image_url} alt="" />
               </a>
@@ -471,7 +480,7 @@ export function HpTemplate({ data }: { data: HpPageData }) {
           {b.jobs.on && salon.jobsEnabled && jobId !== null && (
             <>
               <br />
-              <a href={`${EMBED_SITE_URL}/jobs/${jobId}`} target="_blank" rel="noopener noreferrer">セラピスト求人はこちら</a>
+              <a href={`${EMBED_SITE_URL}/jobs/${jobId}`} target="_blank" rel="noopener">セラピスト求人はこちら</a>
             </>
           )}
         </div>
