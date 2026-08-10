@@ -10,7 +10,7 @@
 // 「もっと見る」はフクエス本体への絶対URLリンク（HPからフクエスへの実流入導線）。
 
 import { EMBED_SITE_URL } from '@/app/embed/salon/[id]/embedShared';
-import { hpColorCssVars } from '@/app/lib/hpSite';
+import { hpColorCssVars, hpSectionOrder } from '@/app/lib/hpSite';
 import type { HpSectionKey } from '@/app/lib/hpSite';
 import type { HpPageData, HpCourse } from '@/app/hp/_lib/data';
 import { TEMPLATE_CSS } from './styles';
@@ -51,19 +51,16 @@ export function HpTemplate({ data }: { data: HpPageData }) {
   const onDuty = therapists.filter((t) => t.onDuty);
 
   // ── セクションの表示順（2026-08-10）──
-  //   blocks.order が null＝オーナー未設定なら何もしない（従来の見え方そのまま。
-  //   タイプSは styles.ts の CSS order がヒーロー直下に出勤を持ち上げる）。
-  //   オーナーが並び替えたときだけ .hp-order-custom を付けて flex 化し、
-  //   各セクションにインラインの order を振る（インラインなのでタイプSのCSSより強い）。
-  //   DOM の並びは全ひな形共通のまま＝作業ルール1を維持。
-  const orderList = b.order;
-  const orderCustom = orderList !== null;
-  const ord = (k: HpSectionKey): React.CSSProperties | undefined =>
-    orderList ? { order: orderList.indexOf(k) + 1 } : undefined;
-  // 固定位置のもの。並び替え時も「トップバー→ヒーロー→（並び替え対象）→フッター」は不変。
-  const ordTopbar = orderCustom ? { order: -2 } : undefined;
-  const ordHero   = orderCustom ? { order: -1 } : undefined;
-  const ordFooter = orderCustom ? { order: 100 } : undefined;
+  //   DOM の並びは全ひな形共通のまま（作業ルール1）で、画面の並びは flex の order で作る。
+  //   使う並びは hpSectionOrder() ただ1つ＝管理画面の一覧と必ず一致する
+  //   （以前はタイプSだけ styles.ts のCSSで並べ替えていたため管理画面とずれていた）。
+  const orderList = hpSectionOrder(site.template_key, b.order);
+  const orderCustom = b.order !== null; // オーナーが自分で並べ替えたか（地色の付け方に使う）
+  const ord = (k: HpSectionKey): React.CSSProperties => ({ order: orderList.indexOf(k) + 1 });
+  // 固定位置のもの。並び替えても「トップバー→ヒーロー→（並び替え対象）→フッター」は不変。
+  const ordTopbar = { order: -2 };
+  const ordHero   = { order: -1 };
+  const ordFooter = { order: 100 };
 
   // 交互の地色（.hp-sec-alt）は「実際に画面に出るセクションの並び」で1つおきに付ける。
   // 並び替えると canonical 前提の固定クラスでは同じ地色が2つ続いてしまうため、
@@ -82,7 +79,7 @@ export function HpTemplate({ data }: { data: HpPageData }) {
     banners:    site.banners.length > 0,
   };
   const altKeys = new Set<HpSectionKey>();
-  if (orderList) {
+  if (orderCustom) {
     let i = 0;
     for (const k of orderList) {
       // バナーは地色を持たない枠（上のセクションに続けて見せる）ので数にも入れない
@@ -93,7 +90,7 @@ export function HpTemplate({ data }: { data: HpPageData }) {
   }
   /** セクションのclass。第3引数は「並び替え未設定のときの既定（従来の固定クラス）」。 */
   const secCls = (k: HpSectionKey, name: string, defaultAlt: boolean) =>
-    `hp-sec${(orderList ? altKeys.has(k) : defaultAlt) ? ' hp-sec-alt' : ''} ${name}`;
+    `hp-sec${(orderCustom ? altKeys.has(k) : defaultAlt) ? ' hp-sec-alt' : ''} ${name}`;
 
   // ── ドロワーメニューの項目（2026-08-10。ヘッダーの RESERVE をハンバーガーに置換）──
   // 中身が無い／OFF のブロックは押しても動かないだけなので、最初からメニューに出さない。
@@ -114,7 +111,7 @@ export function HpTemplate({ data }: { data: HpPageData }) {
 
   return (
     <div
-      className={`hp-root hp-${site.template_key}${data.wallpaperUrl ? ' hp-has-wallpaper' : ''}${orderCustom ? ' hp-order-custom' : ''}`}
+      className={`hp-root hp-${site.template_key}${data.wallpaperUrl ? ' hp-has-wallpaper' : ''} hp-ordered`}
       style={cssVars}
     >
       <style dangerouslySetInnerHTML={{ __html: TEMPLATE_CSS[site.template_key] }} />

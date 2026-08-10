@@ -42,10 +42,10 @@ const COMMON = `
 .hp-sec-banners { padding-top: 0; }
 /* 固定トップバーの下にアンカーが潜らないように（ドロワーからの遷移用） */
 .hp-root [id] { scroll-margin-top: 58px; }
-/* オーナーがセクションを並び替えたとき（blocks.order あり）だけ付くクラス。
-   flex 化して、HpTemplate が各セクションに振るインライン order で並べる。
-   インラインなのでタイプSの .hp-s .hp-sec-* { order: n } より強く、上書きされる。 */
-.hp-order-custom { display: flex; flex-direction: column; }
+/* 画面の並びは flex の order で作る（DOM は全ひな形共通のまま＝作業ルール1）。
+   order の値は HpTemplate がインラインで振る。既定の並びは hpSite.ts の
+   DEFAULT_HP_SECTION_ORDER_BY_TEMPLATE が唯一の正で、管理画面の一覧と一致する。 */
+.hp-ordered { display: flex; flex-direction: column; }
 
 /* ── ハンバーガー＋ドロワーメニュー（全ひな形共通の骨格。色は各ひな形が上書き）──
    開閉は #hp-drawer（チェックボックス）の :checked だけで行う＝JSなしでも動く。
@@ -361,26 +361,10 @@ ${COMMON}
 .hp-s .hp-sec-alt { background: #f7f2ea; }
 .hp-s section[id] { scroll-margin-top: 64px; }
 
-/* ── セクションの並べ替え（タイプSのみ）──
-   DOM は全ひな形共通のまま、flex の order だけで「ヒーロー直下に本日の出勤」を実現する
-   （HpTemplate.tsx に "このひな形だけの並び" を持ち込まないため。作業ルール1）。
+/* 並べ替えは .hp-ordered（COMMON）＋ HpTemplate のインライン order が担う。
+   タイプSの「ヒーロー直下に本日の出勤」は hpSite.ts の既定の並びで表現している。
    <style> と <script> は display:none なので flex アイテムにならない。
-   .hp-wallpaper / .hp-cta は position:fixed なので order の影響を受けない。 */
-.hp-s { display: flex; flex-direction: column; }
-.hp-s .hp-topbar          { order: 1; }
-.hp-s .hp-hero            { order: 2; }
-.hp-s .hp-sec-schedule    { order: 3; }
-.hp-s .hp-sec-concept     { order: 4; }
-.hp-s .hp-sec-courses     { order: 5; }
-.hp-s .hp-sec-therapists  { order: 6; }
-.hp-s .hp-sec-diary       { order: 7; }
-.hp-s .hp-sec-reviews     { order: 8; }
-.hp-s .hp-sec-coupon      { order: 9; }
-.hp-s .hp-sec-news        { order: 10; }
-.hp-s .hp-sec-free        { order: 11; }
-.hp-s .hp-sec-info        { order: 12; }
-.hp-s .hp-sec-banners     { order: 13; }
-.hp-s .hp-footer          { order: 14; }
+   .hp-wallpaper / .hp-cta / .hp-drawer は position:fixed なので order の影響を受けない。 */
 /* 並べ替えで背景の縞（無地↔生成り）がずれるぶんを付け替える。
    schedule=帯 / concept=無地 / courses=帯 / therapists=無地 …と交互に戻す。 */
 .hp-s .hp-sec-diary, .hp-s .hp-sec-coupon, .hp-s .hp-sec-free { background: rgba(247,242,234,.70); }

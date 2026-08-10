@@ -52,7 +52,7 @@ export type HpBlocksConfig = {
   news:       { on: boolean };                 // お知らせ
   jobs:       { on: boolean };                 // 求人リンク（フクエスワーク）
   freePages:  { on: boolean };                 // フリーページ（最大3・salon_free_pages）
-  /** セクションの表示順。null=ひな形の既定順（従来どおり）。詳細は HP_SECTIONS のコメント参照 */
+  /** セクションの表示順。null=ひな形の既定順（DEFAULT_HP_SECTION_ORDER_BY_TEMPLATE） */
   order:      HpSectionKey[] | null;
 };
 
@@ -60,12 +60,9 @@ export type HpBlocksConfig = {
 // 店舗オーナーが /hp/{key}/admin で上下に動かして決められるセクションの一覧。
 // ここに無いもの（トップバー・ヒーロー・フッター・予約CTA・求人リンク）は常に位置固定。
 //
-// ★ 実装の要:
-//   - blocks.order が null のときは「ひな形の既定」＝ HpTemplate の canonical 順で描画し、
-//     タイプSは styles.ts の CSS `order` が出勤を上に持ち上げる（従来の見え方を維持）。
-//   - blocks.order がある（オーナーが並び替えた）ときは DOM をその順で出力し、
-//     .hp-order-custom クラスがタイプSの CSS `order` を打ち消す。
-//     → どのひな形でも「DOM の順＝画面の順」に一本化される。
+// ★ 実装の要（2026-08-10 改）:
+//   DOM の並びは全ひな形共通のまま（作業ルール1）で、実際の並びは flex の order で作る。
+//   使う並びは hpSectionOrder() ただ1つ＝管理画面の一覧と公開ページが必ず一致する。
 export const HP_SECTIONS = [
   { key: 'concept',    label: 'コンセプト' },
   { key: 'courses',    label: 'コース料金' },
@@ -82,8 +79,26 @@ export const HP_SECTIONS = [
 
 export type HpSectionKey = (typeof HP_SECTIONS)[number]['key'];
 
-/** 既定の表示順（＝HpTemplate の canonical 順）。並び替え未設定の店はこの順。 */
+/** 素の既定順（＝HpTemplate の DOM の並び）。ひな形ごとの既定は下の表を使うこと。 */
 export const DEFAULT_HP_SECTION_ORDER: HpSectionKey[] = HP_SECTIONS.map((s) => s.key);
+
+/**
+ * ひな形ごとの既定の並び（2026-08-10）。
+ * タイプSは「ヒーロー直下に本日の出勤」がデザインの肝なので、その順を既定にする。
+ * ここを唯一の正にすることで、管理画面の一覧＝公開ページの並び が常に一致する
+ * （以前はタイプSだけCSSで並べ替えていたため、管理画面の表示とずれていた）。
+ */
+export const DEFAULT_HP_SECTION_ORDER_BY_TEMPLATE: Record<HpTemplateKey, HpSectionKey[]> = {
+  s: ['schedule', 'concept', 'courses', 'therapists', 'diary', 'reviews', 'coupon', 'news', 'freePages', 'info', 'banners'],
+  a: DEFAULT_HP_SECTION_ORDER,
+  b: DEFAULT_HP_SECTION_ORDER,
+  c: DEFAULT_HP_SECTION_ORDER,
+};
+
+/** 実際に使う並び。保存された並びがあればそれ、無ければひな形の既定。 */
+export function hpSectionOrder(templateKey: HpTemplateKey, saved: HpSectionKey[] | null): HpSectionKey[] {
+  return saved ?? DEFAULT_HP_SECTION_ORDER_BY_TEMPLATE[templateKey];
+}
 
 /**
  * 保存された order を安全な形に丸める。

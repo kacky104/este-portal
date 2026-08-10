@@ -16,7 +16,7 @@ import {
   MAX_HP_TITLE_LEN,
   MAX_HP_CONCEPT_LEN,
   HP_SECTIONS,
-  DEFAULT_HP_SECTION_ORDER,
+  hpSectionOrder,
   type HpSectionKey,
   HP_DIARY_COUNT_MIN,
   HP_DIARY_COUNT_MAX,
@@ -93,9 +93,9 @@ export function HpEditor({
     setForm((prev) => ({ ...prev, blocks: { ...prev.blocks, ...p } }));
 
   // ── セクションの並び順（2026-08-10）────────────────
-  // order が null＝未設定なら「既定の並び」を表示する。▲▼を1回でも押すと配列として保存され、
-  // 以後はその並びが公開ページに反映される（ひな形が持つ既定の並びより優先）。
-  const sectionOrder: HpSectionKey[] = form.blocks.order ?? DEFAULT_HP_SECTION_ORDER;
+  // 公開ページと同じ hpSectionOrder() を使う＝この一覧の並び＝実際のサイトの並び。
+  // 未設定ならひな形ごとの既定（タイプSは「本日の出勤」が先頭）を表示する。
+  const sectionOrder: HpSectionKey[] = hpSectionOrder(site.template_key, form.blocks.order);
   const sectionLabel = (k: HpSectionKey) => HP_SECTIONS.find((s) => s.key === k)?.label ?? k;
 
   const moveSection = (index: number, dir: -1 | 1) => {
@@ -384,9 +384,10 @@ export function HpEditor({
           )}
         </div>
         <p className="text-[11px] text-slate-400">
-          ※ ▲▼でホームページに表示される順番を入れ替えられます。トップ画像・電話／LINEの予約ボタン・
-          フッターの位置は固定です。各ブロックの中身（セラピスト・出勤・写メ日記・口コミ・クーポン・
-          お知らせ等）は、フクエスのマイページで編集した内容がそのまま表示されます。
+          ※ 上から順に、ホームページに表示される順番です。▲▼で入れ替えられます。トップ画像・
+          電話／LINEの予約ボタン・フッターの位置は固定です。各ブロックの中身（セラピスト・出勤・
+          写メ日記・口コミ・クーポン・お知らせ等）は、フクエスのマイページで編集した内容が
+          そのまま表示されます。
         </p>
 
         <ul className="divide-y divide-slate-100 border-y border-slate-100">
