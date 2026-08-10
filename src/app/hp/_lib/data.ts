@@ -116,11 +116,16 @@ export async function fetchHpPageData(
   const supabase = createPublicClient();
 
   const siteKey = normalizeHpSiteKey(key);
-  const { data: siteRow } = await supabase
+  const { data: siteRow, error: siteErr } = await supabase
     .from('salon_sites')
     .select(HP_SITE_COLUMNS)
     .eq(hpSiteKeyColumn(siteKey), siteKey)
     .maybeSingle();
+  // ★ エラーは握りつぶさず投げる。null を返すと呼び出し元が notFound() を呼び、
+  //   その404がISRキャッシュに焼き付いて「DBを直しても404のまま」になるため
+  //   （2026-08-10 に実際に発生: 列追加SQLの適用前にデプロイした数分間の404が居座った）。
+  //   例外なら500になりキャッシュされないので、原因を直せば次のアクセスで復旧する。
+  if (siteErr) throw new Error(`salon_sites の取得に失敗: ${siteErr.message}`);
   if (!siteRow) return null;
   const site = mapHpSiteRow(siteRow as Record<string, unknown>);
   if (designOverride) {
@@ -129,11 +134,12 @@ export async function fetchHpPageData(
   }
   const salonId = site.salon_id;
 
-  const { data: salonRow } = await supabase
+  const { data: salonRow, error: salonErr } = await supabase
     .from('salons')
     .select('id, name, catchphrase, area, address, access, hours, closed_days, phone, line_url, jobs_enabled, courses, is_hidden')
     .eq('id', salonId)
     .maybeSingle();
+  if (salonErr) throw new Error(`salons の取得に失敗: ${salonErr.message}`);
   if (!salonRow) return null;
   // is_hidden の店は公開HPも出さない。ただしデモ店舗（slug='demo'）は例外：
   // デモ用サロンはフクエス本体の店舗一覧に出したくないので is_hidden=true で作る運用のため

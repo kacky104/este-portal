@@ -201,6 +201,31 @@ export async function updateHpSiteOperator(
   return { ok: true };
 }
 
+/**
+ * 公開ページのISRキャッシュを手動で作り直す。
+ * DBやSQLを直したのに公開ページが古いまま（404含む）のときの復旧ボタン。
+ */
+export async function revalidateHpSitePages(salonId: number): Promise<{ ok: true; paths: string[] } | Err> {
+  const auth = await requireAdmin();
+  if (!auth.ok) return auth;
+
+  const svc = createServiceClient();
+  const { data, error } = await svc
+    .from('salon_sites')
+    .select('slug, domain')
+    .eq('salon_id', salonId)
+    .maybeSingle();
+  if (error) return { ok: false, error: `取得に失敗しました: ${error.message}` };
+  if (!data) return { ok: false, error: '対象のサイトが見つかりません' };
+
+  const paths: string[] = [];
+  const slug = String(data.slug ?? '');
+  const domain = data.domain ? normalizeHpSiteKey(String(data.domain)) : '';
+  if (slug) { revalidatePath(`/hp/${slug}`); paths.push(`/hp/${slug}`); }
+  if (domain) { revalidatePath(`/hp/${domain}`); paths.push(`/hp/${domain}`); }
+  return { ok: true, paths };
+}
+
 // ── 解約（行の削除） ───────────────────────────────────
 export async function deleteHpSite(salonId: number): Promise<{ ok: true } | Err> {
   const auth = await requireAdmin();
