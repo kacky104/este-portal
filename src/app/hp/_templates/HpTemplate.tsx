@@ -95,6 +95,23 @@ export function HpTemplate({ data }: { data: HpPageData }) {
   const secCls = (k: HpSectionKey, name: string, defaultAlt: boolean) =>
     `hp-sec${(orderList ? altKeys.has(k) : defaultAlt) ? ' hp-sec-alt' : ''} ${name}`;
 
+  // ── ドロワーメニューの項目（2026-08-10。ヘッダーの RESERVE をハンバーガーに置換）──
+  // 中身が無い／OFF のブロックは押しても動かないだけなので、最初からメニューに出さない。
+  // 求人だけはページ内セクションではなくフクエスワークの求人ページへの外部リンク。
+  const menuItems: { href: string; label: string; external?: boolean }[] = [
+    { href: '#top', label: 'TOP' },
+    ...(visible.news       ? [{ href: '#news',      label: '新着情報' }] : []),
+    ...(visible.schedule   ? [{ href: '#schedule',  label: '出勤スケジュール' }] : []),
+    ...(visible.therapists ? [{ href: '#therapist', label: 'セラピスト一覧' }] : []),
+    ...(visible.courses    ? [{ href: '#menu',      label: '料金システム' }] : []),
+    ...(visible.diary      ? [{ href: '#diary',     label: '写メ日記' }] : []),
+    ...(visible.reviews    ? [{ href: '#voice',     label: '口コミ' }] : []),
+    ...(b.jobs.on && salon.jobsEnabled && jobId !== null
+      ? [{ href: `${EMBED_SITE_URL}/jobs/${jobId}`, label: '求人情報', external: true }]
+      : []),
+    { href: '#info', label: '店舗情報' },
+  ];
+
   return (
     <div
       className={`hp-root hp-${site.template_key}${data.wallpaperUrl ? ' hp-has-wallpaper' : ''}${orderCustom ? ' hp-order-custom' : ''}`}
@@ -109,10 +126,14 @@ export function HpTemplate({ data }: { data: HpPageData }) {
         <div className="hp-wallpaper" style={{ backgroundImage: `url(${data.wallpaperUrl})` }} />
       )}
 
-      {/* ── トップバー（表示の有無・見た目は各ひな形のCSSが決める）──
-           ナビ（.hp-topbar-nav）はタイプSのみ表示（COMMON で display:none）。
-           アンカー先の id は各セクションに付与済み。ブロックOFFで対象が無い場合も
-           ただスクロールしないだけなので実害はない。 */}
+      {/* ── トップバー＋ドロワーメニュー（表示の有無・見た目は各ひな形のCSSが決める）──
+           ナビ（.hp-topbar-nav）はタイプSのPCのみ表示（COMMON で display:none）。
+           開閉は素のチェックボックス＋<label>で行う（JSなしでも開ける）。下部の
+           スクリプトはリンク押下・Escでの自動クローズと背面スクロール止めだけを担う。
+           チェックボックスは .hp-topbar の直前に置くこと（+ で見た目を切り替えている）。
+           ドロワー本体をトップバーの外に出しているのは、トップバーの backdrop-filter が
+           position:fixed の基準（包含ブロック）になってしまい全画面に広がらないため。 */}
+      <input type="checkbox" id="hp-drawer" className="hp-drawer-toggle" aria-label="メニュー" />
       <div className="hp-topbar" style={ordTopbar}>
         <span className="hp-topbar-name">{salon.name}</span>
         <nav className="hp-topbar-nav">
@@ -122,8 +143,43 @@ export function HpTemplate({ data }: { data: HpPageData }) {
           <a href="#schedule">SCHEDULE</a>
           <a href="#info">ACCESS</a>
         </nav>
-        {salon.phone && <a className="hp-topbar-cta" href={`tel:${salon.phone}`}>RESERVE</a>}
+        <label className="hp-drawer-btn" htmlFor="hp-drawer" aria-hidden="true">
+          <span /><span /><span />
+        </label>
       </div>
+      <label className="hp-drawer-scrim" htmlFor="hp-drawer" aria-hidden="true" />
+      <nav className="hp-drawer" aria-label="メニュー">
+        {/* ドロワーはトップバーより手前に出るので、閉じるボタンはドロワー側にも置く
+            （スクリムのタップ・Escでも閉じられる） */}
+        <label className="hp-drawer-close" htmlFor="hp-drawer" aria-hidden="true">
+          <span /><span />
+        </label>
+        <ul className="hp-drawer-list">
+          {menuItems.map((m) => (
+            <li key={m.label}>
+              {m.external ? (
+                <a href={m.href} target="_blank" rel="noopener noreferrer">{m.label}</a>
+              ) : (
+                <a href={m.href}>{m.label}</a>
+              )}
+            </li>
+          ))}
+        </ul>
+        <div className="hp-drawer-foot">
+          {salon.hours && (
+            <div className="hp-drawer-hours">
+              <span className="hp-drawer-label">OPEN</span>
+              {salon.hours}{salon.closedDays ? `（${salon.closedDays}）` : ''}
+            </div>
+          )}
+          {salon.phone && (
+            <a className="hp-drawer-tel" href={`tel:${salon.phone}`}>
+              <span className="hp-drawer-label">TEL</span>
+              {salon.phone}
+            </a>
+          )}
+        </div>
+      </nav>
 
       {/* ── ヒーロー ──
            画像は自然な縦横比で表示しつつ max-height でキャップ（CSS側）。
@@ -131,7 +187,7 @@ export function HpTemplate({ data }: { data: HpPageData }) {
            スマホ用（hero_images[1]）があれば 639px 以下で <picture> が自動で差し替える。
            タイプSは店舗の画像が未設定でも成立するよう、既定のキービジュアル
            （public/hp-s/・PC 2400×960 / SP 1080×760 を出し分け）にフォールバックする。 */}
-      <div className="hp-hero" style={ordHero}>
+      <div id="top" className="hp-hero" style={ordHero}>
         {heroPc ? (
           <picture>
             {heroSp && <source media="(max-width: 639px)" srcSet={heroSp} />}
@@ -306,7 +362,7 @@ export function HpTemplate({ data }: { data: HpPageData }) {
 
       {/* ── お知らせ ── */}
       {b.news.on && news.length > 0 && (
-        <section data-hp-reveal className={secCls('news', 'hp-sec-news', true)} style={ord('news')}>
+        <section id="news" data-hp-reveal className={secCls('news', 'hp-sec-news', true)} style={ord('news')}>
           <SecHead no="08" en="News" jp="お知らせ" />
           {news.map((n) => (
             <div key={n.id} className="hp-card">
@@ -377,6 +433,14 @@ export function HpTemplate({ data }: { data: HpPageData }) {
       <script
         dangerouslySetInnerHTML={{
           __html: `(function(){var els=document.querySelectorAll('[data-hp-reveal]');if(!('IntersectionObserver'in window)){els.forEach(function(el){el.classList.add('hp-revealed')});return}var io=new IntersectionObserver(function(entries){entries.forEach(function(e){if(e.isIntersecting){e.target.classList.add('hp-revealed');io.unobserve(e.target)}})},{rootMargin:'0px 0px -8% 0px'});els.forEach(function(el){io.observe(el)})})();`,
+        }}
+      />
+
+      {/* ── ドロワーの補助（無くても開閉はできる）。リンクを押したら閉じる・Escで閉じる・
+           開いている間は背面をスクロールさせない。 ── */}
+      <script
+        dangerouslySetInnerHTML={{
+          __html: `(function(){var c=document.getElementById('hp-drawer');if(!c)return;var d=document.querySelector('.hp-drawer');if(d){d.querySelectorAll('a').forEach(function(a){a.addEventListener('click',function(){c.checked=false;document.body.style.overflow=''})})}c.addEventListener('change',function(){document.body.style.overflow=c.checked?'hidden':''});document.addEventListener('keydown',function(e){if(e.key==='Escape'&&c.checked){c.checked=false;document.body.style.overflow=''}})})();`,
         }}
       />
 
