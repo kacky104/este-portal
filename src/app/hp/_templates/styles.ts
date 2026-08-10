@@ -67,6 +67,11 @@ const COMMON = `
    .hp-drawer は position:fixed。.hp-root は max-width 640px の中央寄せなので、
    right を「画面端」ではなく「本文カラムの右端」に合わせる（PCで枠外に出ないように）。 */
 .hp-drawer-toggle { position: absolute; width: 1px; height: 1px; margin: -1px; overflow: hidden; clip-path: inset(50%); border: 0; }
+/* ヘッダー右側（電話アイコン＋ハンバーガー）。トップバーは space-between なので、
+   2つをまとめて1つの子にしておくと店名・ナビの配置が崩れない。 */
+.hp-topbar-actions { display: flex; align-items: center; gap: 10px; flex: 0 0 auto; }
+.hp-topbar-tel { display: inline-flex; align-items: center; justify-content: center; width: 32px; height: 32px; text-decoration: none; }
+.hp-topbar-tel svg { display: block; }
 .hp-drawer-btn { display: flex; flex-direction: column; justify-content: center; gap: 5px; width: 32px; height: 32px; flex: 0 0 auto; cursor: pointer; }
 .hp-drawer-btn span { display: block; width: 100%; height: 1.5px; background: currentColor; transition: transform .3s, opacity .2s; }
 .hp-drawer-toggle:checked + .hp-topbar .hp-drawer-btn span:nth-child(1) { transform: translateY(6.5px) rotate(45deg); }
@@ -153,6 +158,7 @@ ${COMMON}
 .hp-a .hp-topbar-name { font-size: 13px; letter-spacing: .22em; color: #e8e4dc; }
 /* ドロワー（タイプA・黒地に金） */
 .hp-a .hp-drawer-btn { color: var(--hp-accent, #c4a469); }
+.hp-a .hp-topbar-tel { color: var(--hp-accent, #c4a469); }
 .hp-a .hp-drawer { background: #1f1d22; border-left: 1px solid #3a3742; }
 .hp-a .hp-drawer-list a { color: #cfc9bd; letter-spacing: .16em; }
 .hp-a .hp-drawer-list li + li a { border-top: 1px solid #2a2730; }
@@ -237,6 +243,7 @@ ${COMMON}
 .hp-b .hp-topbar-name { font-size: 13px; font-weight: 900; color: #3d3a35; }
 /* ドロワー（タイプB・生成りの白） */
 .hp-b .hp-drawer-btn { color: #3d3a35; }
+.hp-b .hp-topbar-tel { color: var(--hp-accent-deep, #6b8f67); }
 .hp-b .hp-drawer { background: #faf8f4; border-left: 1px solid #eee7db; }
 .hp-b .hp-drawer-list a { color: #5d574e; font-weight: 800; }
 .hp-b .hp-drawer-list li + li a { border-top: 1px dashed #eee7db; }
@@ -316,6 +323,7 @@ ${COMMON}
 .hp-c .hp-topbar-name { font-size: 15px; font-weight: 900; letter-spacing: .04em; }
 /* ドロワー（タイプC・白地に黒の太罫） */
 .hp-c .hp-drawer-btn { color: #111114; }
+.hp-c .hp-topbar-tel { color: var(--hp-accent, #ff4658); }
 .hp-c .hp-drawer { background: #fff; border-left: 2px solid #111114; }
 .hp-c .hp-drawer-list a { color: #111114; font-weight: 900; }
 .hp-c .hp-drawer-list li + li a { border-top: 1px solid #c9c9cf; }
@@ -421,6 +429,8 @@ ${COMMON}
 .hp-s .hp-topbar-nav a:hover { color: var(--hp-accent, #b98d4f); border-bottom-color: var(--hp-accent, #b98d4f); }
 /* ドロワー（タイプS・生成りのすりガラスに金） */
 .hp-s .hp-drawer-btn { color: var(--hp-accent, #b98d4f); }
+.hp-s .hp-topbar-tel { color: var(--hp-accent, #b98d4f); transition: opacity .3s; }
+.hp-s .hp-topbar-tel:hover { opacity: .65; }
 .hp-s .hp-drawer { background: rgba(253,251,247,.97); border-left: 1px solid #eee4d4; backdrop-filter: blur(10px); }
 .hp-s .hp-drawer-list a { color: #6b6154; letter-spacing: .18em; transition: color .3s; }
 .hp-s .hp-drawer-list li + li a { border-top: 1px solid #f0e7d8; }
