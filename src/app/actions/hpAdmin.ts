@@ -19,6 +19,7 @@ import {
   isSafeHttpUrl,
   isSafeImageUrl,
   sanitizeHpBlocks,
+  sanitizeHpLinkBanners,
   MAX_HP_HERO_IMAGES,
   MAX_HP_BANNERS,
   MAX_HP_CATCH_LEN,
@@ -240,6 +241,8 @@ export async function saveHpSiteContent(
     concept_image_url: input.concept_image_url,
     blocks:            sanitizeHpBlocks(input.blocks),
     banners:           input.banners,
+    // リンク欄は件数・URLの妥当性をここで丸める（画像/文字のどちらも無い行は捨てられる）
+    link_banners:      sanitizeHpLinkBanners(input.link_banners),
     favicon_url:       input.favicon_url,
     updated_at:        new Date().toISOString(),
   };

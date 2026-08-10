@@ -76,6 +76,7 @@ export function HpTemplate({ data }: { data: HpPageData }) {
     news:       b.news.on && news.length > 0,
     freePages:  b.freePages.on && freePages.length > 0,
     info:       true,
+    links:      b.links.on && site.link_banners.length > 0,
     banners:    site.banners.length > 0,
   };
   const altKeys = new Set<HpSectionKey>();
@@ -393,6 +394,38 @@ export function HpTemplate({ data }: { data: HpPageData }) {
           {salon.phone && (<div className="hp-info-row"><dt>電話</dt><dd>{salon.phone}</dd></div>)}
         </dl>
       </section>
+
+      {/* ── リンク（相互リンクのバナー群）──
+           貼られたHTMLは保存していない。画像URL・リンク先・表示文字の3つだけを
+           持っているので、ここで組み直して表示する。画像が無いものは文字リンクになる。 */}
+      {visible.links && (
+        <section id="link" data-hp-reveal className={secCls('links', 'hp-sec-links', false)} style={ord('links')}>
+          <SecHead no="10" en="Link" jp="リンク" />
+          <div className="hp-links">
+            {site.link_banners.map((l, i) =>
+              l.link ? (
+                <a key={i} className="hp-link-item" href={l.link} target="_blank" rel="noopener noreferrer">
+                  {l.image_url ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={l.image_url} alt={l.label} loading="lazy" />
+                  ) : (
+                    <span className="hp-link-text">{l.label}</span>
+                  )}
+                </a>
+              ) : (
+                <span key={i} className="hp-link-item">
+                  {l.image_url ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={l.image_url} alt={l.label} loading="lazy" />
+                  ) : (
+                    <span className="hp-link-text">{l.label}</span>
+                  )}
+                </span>
+              )
+            )}
+          </div>
+        </section>
+      )}
 
       {/* ── バナー ── */}
       {site.banners.length > 0 && (

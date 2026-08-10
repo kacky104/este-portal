@@ -52,6 +52,7 @@ export type HpBlocksConfig = {
   news:       { on: boolean };                 // お知らせ
   jobs:       { on: boolean };                 // 求人リンク（フクエスワーク）
   freePages:  { on: boolean };                 // フリーページ（最大3・salon_free_pages）
+  links:      { on: boolean };                 // リンク（相互リンクのバナー群・link_banners）
   /** セクションの表示順。null=ひな形の既定順（DEFAULT_HP_SECTION_ORDER_BY_TEMPLATE） */
   order:      HpSectionKey[] | null;
 };
@@ -74,6 +75,7 @@ export const HP_SECTIONS = [
   { key: 'news',       label: 'お知らせ' },
   { key: 'freePages',  label: 'フリーページ' },
   { key: 'info',       label: '店舗情報' },
+  { key: 'links',      label: 'リンク' },
   { key: 'banners',    label: 'バナー' },
 ] as const;
 
@@ -89,7 +91,7 @@ export const DEFAULT_HP_SECTION_ORDER: HpSectionKey[] = HP_SECTIONS.map((s) => s
  * （以前はタイプSだけCSSで並べ替えていたため、管理画面の表示とずれていた）。
  */
 export const DEFAULT_HP_SECTION_ORDER_BY_TEMPLATE: Record<HpTemplateKey, HpSectionKey[]> = {
-  s: ['schedule', 'concept', 'courses', 'therapists', 'diary', 'reviews', 'coupon', 'news', 'freePages', 'info', 'banners'],
+  s: ['schedule', 'concept', 'courses', 'therapists', 'diary', 'reviews', 'coupon', 'news', 'freePages', 'info', 'links', 'banners'],
   a: DEFAULT_HP_SECTION_ORDER,
   b: DEFAULT_HP_SECTION_ORDER,
   c: DEFAULT_HP_SECTION_ORDER,
@@ -138,6 +140,7 @@ export const DEFAULT_HP_BLOCKS: HpBlocksConfig = {
   news:       { on: true },
   jobs:       { on: true },
   freePages:  { on: true },
+  links:      { on: true },
   order:      null, // 未設定＝ひな形の既定順
 };
 
@@ -176,6 +179,7 @@ export function sanitizeHpBlocks(raw: unknown): HpBlocksConfig {
     news:      { on: boolOr(r.news?.on, d.news.on) },
     jobs:      { on: boolOr(r.jobs?.on, d.jobs.on) },
     freePages: { on: boolOr(r.freePages?.on, d.freePages.on) },
+    links:     { on: boolOr(r.links?.on, d.links.on) },
     // 配列が入っていれば「オーナーが並び替え済み」。それ以外（未設定・型違い）は null＝既定順。
     order:     Array.isArray(rawObj.order) ? normalizeHpSectionOrder(rawObj.order) : null,
   };
@@ -223,6 +227,85 @@ export function parseHpBannerCode(code: string): HpBanner | null {
   const link   = attr(aTag, 'href');
   if (!isSafeImageUrl(image)) return null;
   return { image_url: image, link: isSafeHttpUrl(link) ? link : '' };
+}
+
+// ── リンク（jsonb: salon_sites.link_banners）──────────
+// 相互リンクのバナー群。掲載サイト・求人サイトから配られるコードを店舗が貼って増やす。
+export type HpLinkBanner = {
+  image_url: string; // 画像バナーのURL（https のみ）。空文字＝文字だけのリンク
+  link:      string; // リンク先（http(s) のみ）。空文字＝リンクなし
+  label:     string; // 文字リンクの表示文字／画像バナーの alt
+};
+
+export const MAX_HP_LINK_BANNERS = 30;
+export const MAX_HP_LINK_LABEL_LEN = 60;
+
+/** DB から読んだ link_banners(jsonb) を安全な形に丸める。不正な要素は捨てる。 */
+export function sanitizeHpLinkBanners(raw: unknown): HpLinkBanner[] {
+  if (!Array.isArray(raw)) return [];
+  const out: HpLinkBanner[] = [];
+  for (const item of raw) {
+    if (out.length >= MAX_HP_LINK_BANNERS) break;
+    if (!item || typeof item !== 'object') continue;
+    const o = item as Record<string, unknown>;
+    const image = typeof o.image_url === 'string' && isSafeImageUrl(o.image_url) ? o.image_url : '';
+    const link  = typeof o.link === 'string' && isSafeHttpUrl(o.link) ? o.link : '';
+    const label = typeof o.label === 'string' ? o.label.slice(0, MAX_HP_LINK_LABEL_LEN) : '';
+    // 画像も文字も無いものは表示できないので捨てる
+    if (image === '' && label === '') continue;
+    out.push({ image_url: image, link, label });
+  }
+  return out;
+}
+
+/**
+ * 相互リンク用に配られたコードから、リンクを何件でも取り出す（2026-08-10）。
+ *
+ * 対応する形:
+ *   <a href="…"><img src="…" alt="…"></a>   → 画像バナー
+ *   <a href="…">サイト名</a>                → 文字リンク
+ * 複数まとめて貼られても全部拾う。
+ *
+ * ★ 貼られたHTMLは表示しない。href / src / 表示文字だけを取り出して保存する。
+ *   script・onclick・javascript: が混ざっていても、この3つ以外は一切残らない。
+ */
+export function parseHpLinkBanners(code: string): HpLinkBanner[] {
+  if (typeof code !== 'string' || code.length > 40000) return [];
+  const unescape = (v: string) =>
+    v.replace(/&amp;/gi, '&').replace(/&quot;/gi, '"').replace(/&#0?39;|&apos;/gi, "'").replace(/&nbsp;/gi, ' ').trim();
+  const attr = (tag: string, name: string): string => {
+    const m = new RegExp(`\\s${name}\\s*=\\s*("([^"]*)"|'([^']*)'|([^\\s>]+))`, 'i').exec(tag);
+    return m ? unescape(m[2] ?? m[3] ?? m[4] ?? '') : '';
+  };
+  const out: HpLinkBanner[] = [];
+  const push = (image: string, link: string, label: string) => {
+    if (out.length >= MAX_HP_LINK_BANNERS) return;
+    const img = isSafeImageUrl(image) ? image : '';
+    const href = isSafeHttpUrl(link) ? link : '';
+    const text = label.replace(/\s+/g, ' ').trim().slice(0, MAX_HP_LINK_LABEL_LEN);
+    if (img === '' && text === '') return;
+    out.push({ image_url: img, link: href, label: text });
+  };
+
+  // <a …>…</a> を順に拾う（入れ子は想定しない＝配布コードは単純な形のため）
+  const anchor = /<a\b([^>]*)>([\s\S]*?)<\/a\s*>/gi;
+  let m: RegExpExecArray | null;
+  let matched = false;
+  while ((m = anchor.exec(code)) !== null) {
+    matched = true;
+    const href = attr(`<a${m[1]}>`, 'href');
+    const inner = m[2];
+    const imgTag = /<img\b[^>]*>/i.exec(inner)?.[0] ?? '';
+    const image = attr(imgTag, 'src');
+    const label = imgTag !== '' ? attr(imgTag, 'alt') : inner.replace(/<[^>]*>/g, '');
+    push(image, href, unescape(label));
+  }
+  // <a> が無く <img> だけのコード（リンクなしバナー）
+  if (!matched) {
+    const img = /<img\b[^>]*>/gi;
+    while ((m = img.exec(code)) !== null) push(attr(m[0], 'src'), '', attr(m[0], 'alt'));
+  }
+  return out;
 }
 
 /** DB から読んだ banners(jsonb) を安全な形に丸める。不正な要素は捨てる。 */
@@ -299,6 +382,8 @@ export type HpSite = {
   concept_image_url: string | null;
   blocks:            HpBlocksConfig;
   banners:           HpBanner[];
+  /** 相互リンクのバナー群（LINK欄）。店舗が配布コードを貼って増やす */
+  link_banners:      HpLinkBanner[];
   /** ファビコン（512×512 PNG の公開URL）。独自ドメインでのタブアイコン用。null=未設定 */
   favicon_url:       string | null;
   /** ひな形・カラーの確定ロック。true なら店舗側から変更できない（変更は運営の有償作業） */
@@ -308,7 +393,7 @@ export type HpSite = {
 
 /** salon_sites から公開ページ・管理画面が読む列（運営専用の契約メモ類は含めない）。 */
 export const HP_SITE_COLUMNS =
-  'salon_id, slug, domain, status, template_key, theme_key, hero_images, hero_catch, concept_title, concept_text, concept_image_url, blocks, banners, favicon_url, design_locked, updated_at';
+  'salon_id, slug, domain, status, template_key, theme_key, hero_images, hero_catch, concept_title, concept_text, concept_image_url, blocks, banners, link_banners, favicon_url, design_locked, updated_at';
 
 /** DB の1行 → アプリ内の HpSite。公開ページ・管理画面の両方がこれ1本を使う。 */
 export function mapHpSiteRow(row: Record<string, unknown>): HpSite {
@@ -328,6 +413,7 @@ export function mapHpSiteRow(row: Record<string, unknown>): HpSite {
     concept_image_url: (row.concept_image_url as string | null) ?? null,
     blocks:            sanitizeHpBlocks(row.blocks),
     banners:           sanitizeHpBanners(row.banners),
+    link_banners:      sanitizeHpLinkBanners(row.link_banners),
     favicon_url:       (row.favicon_url as string | null) ?? null,
     design_locked:     row.design_locked === true,
     updated_at:        (row.updated_at as string) ?? '',
@@ -350,6 +436,7 @@ export type HpContentInput = {
   concept_image_url: string | null;
   blocks:            HpBlocksConfig;
   banners:           HpBanner[];
+  link_banners:      HpLinkBanner[];
   favicon_url:       string | null;
 };
 

@@ -8,6 +8,7 @@ import {
   type HpSite,
   type HpBlocksConfig,
   type HpBanner,
+  type HpLinkBanner,
   HP_TEMPLATES,
   HP_COLOR_VARIANTS,
   MAX_HP_HERO_IMAGES,
@@ -18,6 +19,8 @@ import {
   HP_SECTIONS,
   hpSectionOrder,
   parseHpBannerCode,
+  parseHpLinkBanners,
+  MAX_HP_LINK_BANNERS,
   type HpSectionKey,
   HP_DIARY_COUNT_MIN,
   HP_DIARY_COUNT_MAX,
@@ -43,6 +46,7 @@ type FormState = {
   concept_image_url: string | null;
   blocks:            HpBlocksConfig;
   banners:           (HpBanner | null)[]; // スロット固定3（null=未設定）
+  link_banners:      HpLinkBanner[];      // リンク欄（相互リンク・並びはこの配列の順）
   favicon_url:       string | null;
 };
 
@@ -57,6 +61,7 @@ function siteToForm(site: HpSite): FormState {
     concept_image_url: site.concept_image_url,
     blocks:            site.blocks,
     banners:           slots,
+    link_banners:      site.link_banners,
     favicon_url:       site.favicon_url,
   };
 }
@@ -90,6 +95,8 @@ export function HpEditor({
   const [uploadingSlot, setUploadingSlot] = useState<string | null>(null);
   // 相互リンク用バナーコードの貼り付け欄（保存はしない。取り込んだらバナー枠へ入れる）
   const [bannerCode, setBannerCode] = useState('');
+  // リンク欄（相互リンク）の貼り付け欄
+  const [linkCode, setLinkCode] = useState('');
 
   const patch = (p: Partial<FormState>) => setForm((prev) => ({ ...prev, ...p }));
   const patchBlocks = (p: Partial<HpBlocksConfig>) =>
@@ -190,6 +197,37 @@ export function HpEditor({
     onToast(`バナー${slot + 1}に入れました。表示を確認して「保存する」を押してください`);
   };
 
+  /** 貼り付けたコードからリンクを何件でも取り出して、リンク欄の末尾に足す。 */
+  const addLinkBanners = () => {
+    const parsed = parseHpLinkBanners(linkCode);
+    if (parsed.length === 0) {
+      onToast('リンクを読み取れませんでした。<a href="…"> を含むコードを貼ってください');
+      return;
+    }
+    const room = MAX_HP_LINK_BANNERS - form.link_banners.length;
+    if (room <= 0) {
+      onToast(`リンクは最大${MAX_HP_LINK_BANNERS}件です`);
+      return;
+    }
+    const added = parsed.slice(0, room);
+    patch({ link_banners: [...form.link_banners, ...added] });
+    setLinkCode('');
+    onToast(
+      added.length < parsed.length
+        ? `${added.length}件を追加しました（上限${MAX_HP_LINK_BANNERS}件のため残りは追加していません）`
+        : `${added.length}件を追加しました。「保存する」を押すと反映されます`,
+    );
+  };
+  const moveLinkBanner = (index: number, dir: -1 | 1) => {
+    const next = [...form.link_banners];
+    const to = index + dir;
+    if (to < 0 || to >= next.length) return;
+    [next[index], next[to]] = [next[to], next[index]];
+    patch({ link_banners: next });
+  };
+  const removeLinkBanner = (index: number) =>
+    patch({ link_banners: form.link_banners.filter((_, i) => i !== index) });
+
   const handleSave = async () => {
     setSaving(true);
     const res = await saveHpSiteContent(siteKey, {
@@ -200,6 +238,7 @@ export function HpEditor({
       concept_image_url: form.concept_image_url,
       blocks:            form.blocks,
       banners:           form.banners.filter((b): b is HpBanner => b !== null && b.image_url !== ''),
+      link_banners:      form.link_banners,
       favicon_url:       form.favicon_url,
     });
     setSaving(false);
@@ -574,6 +613,59 @@ export function HpEditor({
             取り込む
           </button>
         </div>
+      </div>
+
+      {/* ── リンク（相互リンク） ── */}
+      <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5 space-y-3">
+        <h3 className="text-sm font-black text-slate-800">リンク（最大{MAX_HP_LINK_BANNERS}件）</h3>
+        <p className="text-[11px] text-slate-400">
+          ※ 掲載サイト・求人サイトから配られる相互リンク用のコードを貼って「追加する」を押すと、
+          ページの「リンク」欄に並びます。複数まとめて貼れます。画像の無い文字だけのリンクにも対応しています。
+          読み取るのは画像URL・リンク先・表示文字だけです。
+        </p>
+
+        <textarea
+          value={linkCode}
+          onChange={(e) => setLinkCode(e.target.value)}
+          rows={4}
+          spellCheck={false}
+          placeholder={'<a href="https://example.com/"><img src="https://example.com/banner.gif" alt="サイト名"></a>'}
+          className={`${inputCls} font-mono text-[11px] leading-relaxed`}
+        />
+        <button
+          type="button"
+          onClick={addLinkBanners}
+          disabled={linkCode.trim() === ''}
+          className="px-4 py-2 rounded-full bg-slate-800 text-white text-xs font-bold disabled:opacity-30"
+        >
+          追加する
+        </button>
+
+        {form.link_banners.length > 0 && (
+          <ul className="divide-y divide-slate-100 border-t border-slate-100 pt-1">
+            {form.link_banners.map((l, i) => (
+              <li key={i} className="flex items-center gap-2 py-2">
+                <div className="flex flex-col shrink-0">
+                  <button type="button" onClick={() => moveLinkBanner(i, -1)} disabled={i === 0} aria-label="上へ"
+                    className="w-7 h-5 rounded-t-md border border-slate-200 text-[10px] leading-none text-slate-500 disabled:opacity-25 hover:border-pink-300">▲</button>
+                  <button type="button" onClick={() => moveLinkBanner(i, 1)} disabled={i === form.link_banners.length - 1} aria-label="下へ"
+                    className="w-7 h-5 rounded-b-md border border-t-0 border-slate-200 text-[10px] leading-none text-slate-500 disabled:opacity-25 hover:border-pink-300">▼</button>
+                </div>
+                <div className="flex-1 min-w-0">
+                  {l.image_url ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={l.image_url} alt={l.label} className="max-h-12 max-w-[220px] object-contain" />
+                  ) : (
+                    <span className="text-xs font-bold text-slate-600">{l.label}</span>
+                  )}
+                  <div className="text-[10px] text-slate-400 truncate">{l.link || 'リンクなし'}</div>
+                </div>
+                <button type="button" onClick={() => removeLinkBanner(i)} aria-label="削除"
+                  className="w-7 h-7 shrink-0 rounded-full bg-slate-100 text-slate-500 text-xs font-bold hover:bg-rose-100 hover:text-rose-500">×</button>
+              </li>
+            ))}
+          </ul>
+        )}
       </div>
 
       {/* ── ファビコン ── */}

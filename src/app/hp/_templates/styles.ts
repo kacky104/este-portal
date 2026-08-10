@@ -39,6 +39,12 @@ const COMMON = `
 .hp-info-row dt { flex: 0 0 84px; }
 .hp-info-row dd { line-height: 1.8; }
 .hp-banner-img { display: block; width: 100%; height: auto; margin-bottom: 10px; }
+/* リンク（相互リンクのバナー群）。配布バナーは幅がバラバラなので、
+   横並び＋中央寄せで詰めて、画像は元の大きさのまま（枠に収まらない時だけ縮小）。 */
+.hp-links { display: flex; flex-wrap: wrap; justify-content: center; align-items: center; gap: 8px; }
+.hp-link-item { display: inline-flex; align-items: center; max-width: 100%; text-decoration: none; }
+.hp-link-item img { display: block; max-width: 100%; height: auto; }
+.hp-link-text { display: inline-block; padding: 4px 10px; font-size: 11.5px; line-height: 1.7; }
 .hp-sec-banners { padding-top: 0; }
 /* 固定トップバーの下にアンカーが潜らないように（ドロワーからの遷移用） */
 .hp-root [id] { scroll-margin-top: calc(58px + var(--hp-topbar-top, 0px)); }
@@ -137,6 +143,8 @@ ${COMMON}
 .hp-a .hp-drawer-list li + li a { border-top: 1px solid #2a2730; }
 .hp-a .hp-drawer-foot { border-top: 1px solid #3a3742; color: #948f85; }
 .hp-a .hp-drawer-tel { color: var(--hp-accent, #c4a469); }
+.hp-a .hp-link-text { color: #cfc9bd; border: 1px solid #3a3742; }
+.hp-a .hp-link-item:hover .hp-link-text { color: var(--hp-accent, #c4a469); border-color: var(--hp-accent-soft, #a8905e); }
 .hp-a .hp-drawer-close { color: #948f85; }
 .hp-a .hp-en { letter-spacing: .35em; font-size: 10px; color: var(--hp-accent, #c4a469); text-transform: uppercase; }
 .hp-a .hp-h2 { font-size: 21px; font-weight: 600; letter-spacing: .18em; margin: 8px 0 6px; }
@@ -216,6 +224,7 @@ ${COMMON}
 .hp-b .hp-drawer-list li + li a { border-top: 1px dashed #eee7db; }
 .hp-b .hp-drawer-foot { border-top: 1px solid #eee7db; color: #9b948a; }
 .hp-b .hp-drawer-tel { color: var(--hp-accent-deep, #6b8f67); font-weight: 900; }
+.hp-b .hp-link-text { color: #5d574e; background: #fff; border: 1px solid #eee7db; border-radius: 999px; font-weight: 700; }
 .hp-b .hp-drawer-close { color: #9b948a; }
 .hp-b .hp-en { display: inline-block; font-size: 10px; font-weight: 700; color: var(--hp-accent-deep, #6b8f67); background: #ffffff; border: 1px solid #eee7db; border-radius: 999px; padding: 5px 14px; letter-spacing: .12em; text-transform: uppercase; }
 .hp-b .hp-h2 { font-size: 19px; font-weight: 800; margin: 14px 0 16px; letter-spacing: .04em; }
@@ -291,6 +300,7 @@ ${COMMON}
 .hp-c .hp-drawer-list li + li a { border-top: 1px solid #c9c9cf; }
 .hp-c .hp-drawer-foot { border-top: 2px solid #111114; color: #77777e; }
 .hp-c .hp-drawer-tel { color: var(--hp-accent, #ff4658); font-weight: 900; }
+.hp-c .hp-link-text { color: #111114; border: 2px solid #111114; font-weight: 800; }
 .hp-c .hp-drawer-close { color: #111114; }
 .hp-c .hp-sec { border-top: 2px solid #111114; padding: 46px 20px; }
 .hp-c .hp-idx { display: block; font-size: 10px; font-weight: 900; letter-spacing: .1em; color: var(--hp-accent, #ff4658); }
@@ -393,6 +403,8 @@ ${COMMON}
 .hp-s .hp-drawer-list a:hover { color: var(--hp-accent, #b98d4f); }
 .hp-s .hp-drawer-foot { border-top: 1px solid #eee4d4; color: #9b8c74; }
 .hp-s .hp-drawer-tel { color: var(--hp-accent, #b98d4f); }
+.hp-s .hp-link-text { color: #6b6154; border: 1px solid #eadfcd; background: rgba(255,255,255,.6); letter-spacing: .04em; }
+.hp-s .hp-link-item:hover .hp-link-text { color: var(--hp-accent, #b98d4f); border-color: var(--hp-accent-soft, #d5b98a); }
 .hp-s .hp-drawer-close { color: #9b8c74; }
 
 /* ── ヒーロー：全幅画像に文字を重ねる（PC=左側の余白へ／SP=下側の余白へ） ── */
