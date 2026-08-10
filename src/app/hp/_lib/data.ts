@@ -20,6 +20,7 @@ import {
   HP_DEMO_SLUG,
   HP_SITE_COLUMNS,
   hpSiteKeyColumn,
+  isHpDomainKey,
   mapHpSiteRow,
   normalizeHpSiteKey,
 } from '@/app/lib/hpSite';
@@ -82,6 +83,13 @@ export type HpPageData = {
   weekDays:   HpWeekDay[];
   /** テーマ壁紙のURL（theme_wallpapers・/admin でアップロードした画像を流用）。無ければ null */
   wallpaperUrl: string | null;
+  /**
+   * このサイトのルート（同一サイト内リンクの前置き）。
+   *   独自ドメイン経由 … '' （/terms でそのまま届く。proxy.ts が /hp/{host}/terms へ rewrite）
+   *   暫定URL         … '/hp/{slug}'
+   * ページ内で「/利用規約」等へ飛ばすときは必ずこれを前に付ける。
+   */
+  basePath: string;
 };
 
 // ひな形ごとに敷くテーマ壁紙のキー（theme_wallpapers.theme_key）。
@@ -253,6 +261,7 @@ export async function fetchHpPageData(
 
   return {
     site,
+    basePath: isHpDomainKey(siteKey) ? '' : `/hp/${siteKey}`,
     salon: {
       id:          Number(salonRow.id),
       name:        (salonRow.name as string) ?? '',

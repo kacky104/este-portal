@@ -183,6 +183,8 @@ export function HpTemplate({ data }: { data: HpPageData }) {
               {salon.phone}
             </a>
           )}
+          {/* 利用規約（全店共通の文面）。独自ドメインなら /terms、暫定URLなら /hp/{slug}/terms */}
+          <a className="hp-drawer-terms" href={`${data.basePath}/terms`}>利用規約</a>
         </div>
       </nav>
 

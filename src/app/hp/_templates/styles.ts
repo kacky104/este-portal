@@ -90,6 +90,17 @@ const COMMON = `
 .hp-drawer-label { display: block; font-size: 9px; letter-spacing: .28em; opacity: .7; margin-bottom: 4px; }
 .hp-drawer-hours { font-size: 12px; line-height: 1.8; }
 .hp-drawer-tel { display: block; margin-top: 16px; font-size: 21px; letter-spacing: .04em; text-decoration: none; }
+.hp-drawer-terms { display: inline-block; margin-top: 18px; font-size: 11px; letter-spacing: .08em; text-decoration: underline; text-underline-offset: 3px; }
+/* 利用規約などの文章ページ。読みやすさ優先で行間を広めに取る */
+.hp-topbar-home { display: inline-flex; align-items: center; text-decoration: none; color: inherit; min-width: 0; }
+.hp-doc-back { font-size: 11px; letter-spacing: .08em; text-decoration: none; white-space: nowrap; }
+.hp-doc-sec + .hp-doc-sec { margin-top: 28px; }
+.hp-doc-h { font-size: 14px; font-weight: 700; letter-spacing: .06em; margin-bottom: 10px; }
+.hp-doc-p { font-size: 13px; line-height: 2.1; }
+.hp-doc-p + .hp-doc-p { margin-top: 12px; }
+.hp-doc-list { margin-top: 10px; padding-left: 1.2em; }
+.hp-doc-list li { font-size: 13px; line-height: 2; list-style: disc; margin-bottom: 2px; }
+.hp-sec-doc { padding-top: 34px; padding-bottom: 46px; }
 @media (prefers-reduced-motion: reduce) {
   .hp-drawer, .hp-drawer-scrim, .hp-drawer-btn span { transition: none; }
 }
@@ -147,6 +158,9 @@ ${COMMON}
 .hp-a .hp-drawer-list li + li a { border-top: 1px solid #2a2730; }
 .hp-a .hp-drawer-foot { border-top: 1px solid #3a3742; color: #948f85; }
 .hp-a .hp-drawer-tel { color: var(--hp-accent, #c4a469); }
+.hp-a .hp-drawer-terms, .hp-a .hp-doc-back { color: #948f85; }
+.hp-a .hp-doc-h { color: var(--hp-accent, #c4a469); }
+.hp-a .hp-doc-p, .hp-a .hp-doc-list li { color: #cfc9bd; }
 .hp-a .hp-link-text { color: #cfc9bd; border: 1px solid #3a3742; }
 .hp-a .hp-link-item:hover .hp-link-text { color: var(--hp-accent, #c4a469); border-color: var(--hp-accent-soft, #a8905e); }
 .hp-a .hp-drawer-close { color: #948f85; }
@@ -228,6 +242,9 @@ ${COMMON}
 .hp-b .hp-drawer-list li + li a { border-top: 1px dashed #eee7db; }
 .hp-b .hp-drawer-foot { border-top: 1px solid #eee7db; color: #9b948a; }
 .hp-b .hp-drawer-tel { color: var(--hp-accent-deep, #6b8f67); font-weight: 900; }
+.hp-b .hp-drawer-terms, .hp-b .hp-doc-back { color: #9b948a; }
+.hp-b .hp-doc-h { color: var(--hp-accent-deep, #6b8f67); font-weight: 800; }
+.hp-b .hp-doc-p, .hp-b .hp-doc-list li { color: #5d574e; }
 .hp-b .hp-link-text { color: #5d574e; background: #fff; border: 1px solid #eee7db; border-radius: 999px; font-weight: 700; }
 .hp-b .hp-drawer-close { color: #9b948a; }
 .hp-b .hp-en { display: inline-block; font-size: 10px; font-weight: 700; color: var(--hp-accent-deep, #6b8f67); background: #ffffff; border: 1px solid #eee7db; border-radius: 999px; padding: 5px 14px; letter-spacing: .12em; text-transform: uppercase; }
@@ -304,6 +321,9 @@ ${COMMON}
 .hp-c .hp-drawer-list li + li a { border-top: 1px solid #c9c9cf; }
 .hp-c .hp-drawer-foot { border-top: 2px solid #111114; color: #77777e; }
 .hp-c .hp-drawer-tel { color: var(--hp-accent, #ff4658); font-weight: 900; }
+.hp-c .hp-drawer-terms, .hp-c .hp-doc-back { color: #77777e; }
+.hp-c .hp-doc-h { color: #111114; font-weight: 900; }
+.hp-c .hp-doc-p, .hp-c .hp-doc-list li { color: #111114; }
 .hp-c .hp-link-text { color: #111114; border: 2px solid #111114; font-weight: 800; }
 .hp-c .hp-drawer-close { color: #111114; }
 .hp-c .hp-sec { border-top: 2px solid #111114; padding: 46px 20px; }
@@ -407,6 +427,11 @@ ${COMMON}
 .hp-s .hp-drawer-list a:hover { color: var(--hp-accent, #b98d4f); }
 .hp-s .hp-drawer-foot { border-top: 1px solid #eee4d4; color: #9b8c74; }
 .hp-s .hp-drawer-tel { color: var(--hp-accent, #b98d4f); }
+.hp-s .hp-drawer-terms, .hp-s .hp-doc-back { color: #9b8c74; }
+.hp-s .hp-doc-h { color: var(--hp-accent, #b98d4f); font-weight: 600; letter-spacing: .12em; }
+.hp-s .hp-doc-p, .hp-s .hp-doc-list li { color: #6b6154; letter-spacing: .04em; }
+.hp-s .hp-sec-doc { padding-left: 22px; padding-right: 22px; }
+@media (min-width: 768px) { .hp-s .hp-sec-doc { padding-left: calc((100% - 760px) / 2); padding-right: calc((100% - 760px) / 2); } }
 .hp-s .hp-link-text { color: #6b6154; border: 1px solid #eadfcd; background: rgba(255,255,255,.6); letter-spacing: .04em; }
 .hp-s .hp-link-item:hover .hp-link-text { color: var(--hp-accent, #b98d4f); border-color: var(--hp-accent-soft, #d5b98a); }
 .hp-s .hp-drawer-close { color: #9b8c74; }
