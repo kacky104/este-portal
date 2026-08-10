@@ -349,8 +349,9 @@ ${COMMON}
 .hp-s { background: #fdfbf7; color: #4a4238; font-family: 'Shippori Mincho', 'Hiragino Mincho ProN', 'Yu Mincho', 'Noto Serif JP', 'Noto Serif CJK JP', serif; }
 /* フラッグシップは全幅（額縁なし）。本文は中央760pxに寄せる */
 .hp-s { max-width: none; }
-.hp-s .hp-sec { padding: 60px 22px; }
-@media (min-width: 768px) { .hp-s .hp-sec { padding: 84px calc((100% - 860px) / 2); } }
+/* ブロックの上下の余白は詰めて、セクション同士を近づける（2026-08-10・従来の1/4） */
+.hp-s .hp-sec { padding: 15px 22px; }
+@media (min-width: 768px) { .hp-s .hp-sec { padding: 21px calc((100% - 860px) / 2); } }
 /* 写真グリッド（出勤・セラピスト）だけは本文より広く取り、1枚を大きく見せる。
    本文は読みやすさ優先で 860px のまま。負の padding にならないよう 1240px 以上でのみ適用。 */
 @media (min-width: 1240px) {
