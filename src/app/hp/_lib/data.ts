@@ -11,6 +11,7 @@
 //   （重複コンテンツ回避。設計メモ4章）。
 
 import { createPublicClient } from '@/app/lib/supabase/public';
+import { createServiceClient } from '@/app/lib/supabase/service';
 import { getBusinessDateJST } from '@/lib/dutyStatus';
 import { sanitizeBadges } from '@/lib/therapistBadges';
 import {
@@ -113,9 +114,14 @@ export async function fetchHpPageData(
   key: string,
   designOverride?: { template_key: HpTemplateKey; theme_key: string },
 ): Promise<HpPageData | null> {
-  const supabase = createPublicClient();
-
   const siteKey = normalizeHpSiteKey(key);
+  // ★ デモ店舗だけ service_role で読む（2026-08-10）。
+  //   デモ用サロンは「フクエス本体の一覧に出さない」ため is_hidden=true で作るが、
+  //   salons は非表示の店を anon から隠す設定になっており、公開ページ（anon）だと
+  //   サロンが取得できず 404 になっていた（/hp/demo だけ404・/hp/test-shop は正常、が症状）。
+  //   デモは運営が作る固定の1件（slug は予約語）なので、ここだけ権限を上げて確実に描画する。
+  //   ※ このファイルはサーバー専用（page.tsx からのみ import）。キーはクライアントに出ない。
+  const supabase = siteKey === HP_DEMO_SLUG ? createServiceClient() : createPublicClient();
   const { data: siteRow, error: siteErr } = await supabase
     .from('salon_sites')
     .select(HP_SITE_COLUMNS)
