@@ -41,7 +41,7 @@ const COMMON = `
 .hp-banner-img { display: block; width: 100%; height: auto; margin-bottom: 10px; }
 .hp-sec-banners { padding-top: 0; }
 /* 固定トップバーの下にアンカーが潜らないように（ドロワーからの遷移用） */
-.hp-root [id] { scroll-margin-top: 58px; }
+.hp-root [id] { scroll-margin-top: calc(58px + var(--hp-topbar-top, 0px)); }
 /* トップバーは position:sticky で最初から追従しているが、地色と同系だと
    「消えた」ように見えるので、少しでもスクロールしたら影で浮かせて境目を作る。
    .hp-scrolled は HpTemplate のスクリプトが付ける（JSが無くても追従自体は効く）。 */
@@ -127,7 +127,7 @@ ${COMMON}
 .hp-a.hp-has-wallpaper .hp-card { background: rgba(35,33,40,.8); }
 .hp-a.hp-has-wallpaper .hp-topbar { background: rgba(23,22,26,.82); }
 /* 固定トップバー（店名＋メニュー）。スクロールしても店名と導線が消えない */
-.hp-a .hp-topbar { display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; z-index: 30;
+.hp-a .hp-topbar { display: flex; justify-content: space-between; align-items: center; position: sticky; top: var(--hp-topbar-top, 0px); z-index: 30;
   padding: 13px 20px; background: rgba(23,22,26,.9); backdrop-filter: blur(8px); border-bottom: 1px solid color-mix(in srgb, var(--hp-accent, #c4a469) 40%, transparent); }
 .hp-a .hp-topbar-name { font-size: 13px; letter-spacing: .22em; color: #e8e4dc; }
 /* ドロワー（タイプA・黒地に金） */
@@ -206,7 +206,7 @@ ${COMMON}
 .hp-b .hp-cta { max-width: 1024px; }
 .hp-b { --hp-col-half: 512px; }
 /* 固定トップバー（白のすりガラス） */
-.hp-b .hp-topbar { display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; z-index: 30;
+.hp-b .hp-topbar { display: flex; justify-content: space-between; align-items: center; position: sticky; top: var(--hp-topbar-top, 0px); z-index: 30;
   padding: 12px 18px; background: rgba(250,248,244,.9); backdrop-filter: blur(8px); border-bottom: 1px solid #eee7db; }
 .hp-b .hp-topbar-name { font-size: 13px; font-weight: 900; color: #3d3a35; }
 /* ドロワー（タイプB・生成りの白） */
@@ -281,7 +281,7 @@ ${COMMON}
 }
 .hp-c .hp-cta { max-width: 1024px; }
 .hp-c { --hp-col-half: 512px; }
-.hp-c .hp-topbar { display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; z-index: 30;
+.hp-c .hp-topbar { display: flex; justify-content: space-between; align-items: center; position: sticky; top: var(--hp-topbar-top, 0px); z-index: 30;
   padding: 14px 20px; background: rgba(244,244,246,.92); backdrop-filter: blur(8px); border-bottom: 2px solid #111114; }
 .hp-c .hp-topbar-name { font-size: 15px; font-weight: 900; letter-spacing: .04em; }
 /* ドロワー（タイプC・白地に黒の太罫） */
@@ -377,7 +377,7 @@ ${COMMON}
 .hp-s .hp-sec-reviews, .hp-s .hp-sec-news, .hp-s .hp-sec-info { background: rgba(253,251,247,.30); }
 
 /* ── 固定ナビ（白のすりガラス・店名／ナビ／メニューボタン） ── */
-.hp-s .hp-topbar { display: flex; justify-content: space-between; align-items: center; gap: 16px; position: sticky; top: 0; z-index: 30;
+.hp-s .hp-topbar { display: flex; justify-content: space-between; align-items: center; gap: 16px; position: sticky; top: var(--hp-topbar-top, 0px); z-index: 30;
   padding: 14px 22px; background: rgba(253,251,247,.86); backdrop-filter: blur(10px); border-bottom: 1px solid #eee4d4; }
 .hp-s.hp-scrolled .hp-topbar { background: rgba(253,251,247,.97); box-shadow: 0 2px 16px rgba(74,66,56,.13); }
 .hp-s .hp-topbar-name { font-size: 14px; letter-spacing: .24em; color: var(--hp-accent, #b98d4f); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }

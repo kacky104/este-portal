@@ -60,9 +60,12 @@ export default async function HpPreviewPage({
   const backLabel = isDemo ? 'デザイン一覧に戻る' : '選択画面に戻る';
 
   return (
-    <div>
+    // --hp-topbar-top は「バナーの高さぶん、ひな形のトップバーを下げる」ための変数。
+    // スマホではバナーが2行に折り返して高くなるので、下のスクリプトが実測値で上書きする。
+    <div style={{ '--hp-topbar-top': '42px' } as React.CSSProperties}>
       {/* プレビュー中バナー（固定・最前面）。公開ページのCTA（下部固定）と被らないよう上に置く */}
       <div
+        id="hp-preview-bar"
         style={{
           position: 'fixed',
           top: 0,
@@ -98,9 +101,17 @@ export default async function HpPreviewPage({
           {backLabel}
         </a>
       </div>
-      {/* バナーの高さぶん下げる */}
-      <div style={{ height: 42 }} />
+      {/* バナーの高さぶん下げる（実際の高さはスクリプトが合わせる） */}
+      <div id="hp-preview-spacer" style={{ height: 42 }} />
       <HpTemplate data={data} />
+      {/* バナーは position:fixed なので、そのままだと sticky のトップバーが下に潜り込む。
+          バナーの実測の高さを余白とトップバーの吸着位置（--hp-topbar-top）に反映して、
+          スマホでバナーが2行になっても重ならないようにする。 */}
+      <script
+        dangerouslySetInnerHTML={{
+          __html: `(function(){var b=document.getElementById('hp-preview-bar'),s=document.getElementById('hp-preview-spacer');if(!b||!s)return;var w=s.parentElement;function u(){var h=b.offsetHeight;s.style.height=h+'px';if(w)w.style.setProperty('--hp-topbar-top',h+'px')}u();window.addEventListener('resize',u,{passive:true});window.addEventListener('load',u);if(window.ResizeObserver)new ResizeObserver(u).observe(b)})();`,
+        }}
+      />
     </div>
   );
 }
