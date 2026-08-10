@@ -408,14 +408,14 @@ ${COMMON}
 .hp-s .hp-hero { position: relative; }
 .hp-s .hp-hero-img { max-height: none; }
 .hp-s .hp-hero-text { position: absolute; inset: 0; z-index: 1; display: flex; flex-direction: column; justify-content: center; align-items: flex-start;
-  text-align: left; padding: 0 0 0 6%; max-width: 56%; }
+  text-align: left; padding: 0 0 0 13%; max-width: 60%; }
 /* 大きく見せるのはキャッチコピー（順序はCSSで入れ替え） */
-.hp-s .hp-hero-catch { order: -1; margin: 0 0 4%; font-size: clamp(19px, 3.1vw, 42px); line-height: 1.7; letter-spacing: .1em; color: #4a4238;
+.hp-s .hp-hero-catch { order: -1; margin: 0 0 4%; font-size: clamp(21px, 3.6vw, 48px); line-height: 1.7; letter-spacing: .1em; color: #4a4238;
   text-shadow: 0 1px 12px rgba(253,251,247,.8); }
-.hp-s .hp-hero-en { font-size: clamp(9px, 1vw, 12px); letter-spacing: .42em; color: #9b8c74; margin-bottom: 10px; }
-.hp-s .hp-hero-name { font-size: clamp(15px, 1.9vw, 26px); font-weight: 500; letter-spacing: .3em; color: var(--hp-accent, #b98d4f); position: relative; padding-bottom: 12px; }
-.hp-s .hp-hero-name::after { content: ''; position: absolute; left: 2px; bottom: 0; width: 64px; border-top: 1px solid var(--hp-accent-soft, #d5b98a); }
-.hp-s .hp-hero-area { margin-top: 14px; font-size: clamp(8px, .9vw, 11px); color: #9b8c74; letter-spacing: .3em; }
+.hp-s .hp-hero-en { font-size: clamp(10px, 1.15vw, 14px); letter-spacing: .42em; color: #9b8c74; margin-bottom: 12px; }
+.hp-s .hp-hero-name { font-size: clamp(17px, 2.2vw, 30px); font-weight: 500; letter-spacing: .3em; color: var(--hp-accent, #b98d4f); position: relative; padding-bottom: 14px; }
+.hp-s .hp-hero-name::after { content: ''; position: absolute; left: 2px; bottom: 0; width: 76px; border-top: 1px solid var(--hp-accent-soft, #d5b98a); }
+.hp-s .hp-hero-area { margin-top: 16px; font-size: clamp(9px, 1.05vw, 13px); color: #9b8c74; letter-spacing: .3em; }
 @media (max-width: 639px) {
   /* SP: キービジュアルは写真1枚で見せる（2026-08-10）。
      スマホ用の画像はもともと文字入りで作るため、店名・キャッチ・エリアを重ねると
