@@ -52,17 +52,6 @@ const COMMON = `
 .hp-sched-row { color: inherit; text-decoration: none; }
 .hp-sched-body { display: contents; }
 .hp-sched-thumb, .hp-sched-meta { display: none; }
-/* 週間スケジュール表（全ひな形共通の骨格。色や罫線は各ひな形が上書きする）。
-   列が多いので横スクロールで見る。セラピスト名の列は左に貼り付けて追従させる。 */
-.hp-week { margin-top: 30px; }
-.hp-week-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; }
-.hp-week-table { border-collapse: collapse; width: 100%; font-size: 12px; white-space: nowrap; }
-.hp-week-table th, .hp-week-table td { padding: 9px 10px; text-align: center; font-weight: inherit; }
-.hp-week-corner, .hp-week-name { position: sticky; left: 0; z-index: 1; text-align: left; }
-.hp-week-day { line-height: 1.3; }
-.hp-week-date { display: block; }
-.hp-week-wd { display: block; font-size: 9px; margin-top: 2px; }
-.hp-week-cell { font-size: 11px; }
 /* テーマ壁紙レイヤー（有効時は .hp-has-wallpaper が付き、ひな形側で透過調整する） */
 .hp-wallpaper { position: fixed; inset: 0; z-index: -1; background-size: cover; background-position: center; pointer-events: none; }
 .hp-wallpaper::after { content: ''; position: absolute; inset: 0; }
@@ -149,19 +138,6 @@ ${COMMON}
 .hp-a .hp-cta { max-width: 1024px; }
 .hp-a .hp-cta-tel { background: #232128; color: #e8e4dc; border-top: 1px solid var(--hp-accent-soft, #a8905e); }
 .hp-a .hp-cta-line { background: var(--hp-accent, #c4a469); color: #17161a; }
-/* 週間スケジュール表（タイプA・黒地に金の細線） */
-.hp-a .hp-week-scroll { border: 1px solid #3a3742; background: rgba(35,33,40,.6); }
-.hp-a .hp-week-table { color: #cfc9bd; }
-.hp-a .hp-week-table th, .hp-a .hp-week-table td { border-bottom: 1px solid #3a3742; }
-.hp-a .hp-week-table tbody tr:last-child th, .hp-a .hp-week-table tbody tr:last-child td { border-bottom: none; }
-.hp-a .hp-week-corner, .hp-a .hp-week-name { background: #1f1d22; border-right: 1px solid #3a3742; }
-.hp-a .hp-week-corner { font-size: 10px; letter-spacing: .18em; color: var(--hp-accent, #c4a469); }
-.hp-a .hp-week-name { font-size: 12px; letter-spacing: .1em; color: #e8e4dc; min-width: 92px; }
-.hp-a .hp-week-wd { color: #948f85; }
-.hp-a .hp-week-day.is-today { background: color-mix(in srgb, var(--hp-accent, #c4a469) 20%, transparent); color: var(--hp-accent, #c4a469); }
-.hp-a .hp-week-cell.is-today { background: color-mix(in srgb, var(--hp-accent, #c4a469) 9%, transparent); }
-.hp-a .hp-week-cell.is-on { color: var(--hp-accent-soft, #a8905e); font-style: italic; }
-.hp-a .hp-week-off { color: #4a4650; }
 .hp-a .hp-sched-date { display: inline-block; background: #2a2730; border: 1px solid #3a3742; padding: 6px 18px; margin: 0 0 18px; font-size: 12px; color: var(--hp-accent, #c4a469); letter-spacing: .2em; opacity: 1; }
 `;
 
@@ -229,19 +205,6 @@ ${COMMON}
 .hp-b .hp-cta a { border-radius: 999px; font-weight: 900; box-shadow: 0 6px 18px rgba(80,70,55,.16); }
 .hp-b .hp-cta-tel { background: #fff; color: #3d3a35; border: 1px solid #eee7db; }
 .hp-b .hp-cta-line { background: var(--hp-accent-deep, #6b8f67); color: #fff; }
-/* 週間スケジュール表（タイプB・白カードに点線） */
-.hp-b .hp-week-scroll { border: 1px solid #eee7db; background: #fff; border-radius: 18px; }
-.hp-b .hp-week-table { color: #5d574e; }
-.hp-b .hp-week-table th, .hp-b .hp-week-table td { border-bottom: 1px dashed #eee7db; }
-.hp-b .hp-week-table tbody tr:last-child th, .hp-b .hp-week-table tbody tr:last-child td { border-bottom: none; }
-.hp-b .hp-week-corner, .hp-b .hp-week-name { background: #faf8f4; border-right: 1px solid #eee7db; }
-.hp-b .hp-week-corner { font-size: 10px; font-weight: 800; color: var(--hp-accent-deep, #6b8f67); }
-.hp-b .hp-week-name { font-size: 12.5px; font-weight: 800; color: #3d3a35; min-width: 92px; }
-.hp-b .hp-week-wd { color: #9b948a; }
-.hp-b .hp-week-day.is-today { background: color-mix(in srgb, var(--hp-accent, #8fae8b) 18%, #ffffff); color: var(--hp-accent-deep, #6b8f67); font-weight: 800; }
-.hp-b .hp-week-cell.is-today { background: color-mix(in srgb, var(--hp-accent, #8fae8b) 8%, #ffffff); }
-.hp-b .hp-week-cell.is-on { color: var(--hp-accent-deep, #6b8f67); font-weight: 700; }
-.hp-b .hp-week-off { color: #cfc7bb; }
 .hp-b .hp-sched-date { display: inline-block; background: color-mix(in srgb, var(--hp-accent, #8fae8b) 16%, #ffffff); color: var(--hp-accent-deep, #6b8f67); border-radius: 999px; padding: 5px 16px; margin: 0 0 16px; font-size: 12px; font-weight: 800; opacity: 1; }
 `;
 
@@ -311,21 +274,6 @@ ${COMMON}
 .hp-c .hp-cta a { font-weight: 900; letter-spacing: .2em; }
 .hp-c .hp-cta-tel { background: #fff; color: #111114; border-right: 2px solid #111114; }
 .hp-c .hp-cta-line { background: var(--hp-accent, #ff4658); color: #fff; }
-/* 週間スケジュール表（タイプC・黒の太罫） */
-.hp-c .hp-week-scroll { border: 2px solid #111114; background: #fff; }
-.hp-c .hp-week-table { color: #111114; font-weight: 700; }
-.hp-c .hp-week-table th, .hp-c .hp-week-table td { border-bottom: 1px solid #c9c9cf; }
-.hp-c .hp-week-table tbody tr:last-child th, .hp-c .hp-week-table tbody tr:last-child td { border-bottom: none; }
-.hp-c .hp-week-corner, .hp-c .hp-week-name { background: #f4f4f6; border-right: 2px solid #111114; }
-.hp-c .hp-week-corner { font-size: 10px; font-weight: 900; letter-spacing: .1em; }
-.hp-c .hp-week-name { font-size: 12.5px; font-weight: 900; min-width: 92px; }
-.hp-c .hp-week-day { font-weight: 900; }
-.hp-c .hp-week-wd { color: #77777e; }
-.hp-c .hp-week-day.is-today { background: #111114; color: #fff; }
-.hp-c .hp-week-day.is-today .hp-week-wd { color: #c9c9cf; }
-.hp-c .hp-week-cell.is-today { background: #f1f1f3; }
-.hp-c .hp-week-cell.is-on { color: var(--hp-accent, #ff4658); font-weight: 900; }
-.hp-c .hp-week-off { color: #c9c9cf; }
 .hp-c .hp-sched-date { display: inline-block; background: #111114; color: #fff; padding: 6px 16px; margin: 0 0 16px; font-size: 12px; font-weight: 900; letter-spacing: .15em; opacity: 1; }
 `;
 
@@ -553,29 +501,6 @@ ${COMMON}
 /* 4) 写真は淡い光をまとわせ、内側に金の細枠を重ねる */
 /* 出勤・セラピストとも余白0で敷き詰めるため、写真に影や内枠は付けない
    （隙間3pxで線や影が重なると濁るため。可読性は暗いレイヤーが担う）。 */
-
-/* ── 週間スケジュール表（タイプS）──
-   白地に金の細い罫線。本日の列だけ淡く色を敷き、休みは点で示す。 */
-.hp-s .hp-week { margin-top: 34px; }
-.hp-s .hp-week-scroll { border: 1px solid #eadfcd; background: rgba(255,255,255,.72); }
-.hp-s .hp-week-table { font-size: 12.5px; color: #5d5346; }
-.hp-s .hp-week-table th, .hp-s .hp-week-table td { border-bottom: 1px solid #efe6d8; }
-.hp-s .hp-week-table tbody tr:last-child th, .hp-s .hp-week-table tbody tr:last-child td { border-bottom: none; }
-.hp-s .hp-week-corner, .hp-s .hp-week-name { background: #fdfbf7; border-right: 1px solid #eadfcd; }
-.hp-s .hp-week-corner { font-size: 10px; letter-spacing: .18em; color: var(--hp-accent, #b98d4f); }
-.hp-s .hp-week-name { font-size: 12.5px; letter-spacing: .1em; color: #4a4238; min-width: 96px; }
-.hp-s .hp-week-day { padding-top: 12px; padding-bottom: 12px; color: #7a6f60; }
-.hp-s .hp-week-date { font-size: 12px; letter-spacing: .04em; }
-.hp-s .hp-week-wd { color: #a08e84; }
-.hp-s .hp-week-day.is-sat .hp-week-wd { color: #7789ad; }
-.hp-s .hp-week-day.is-sun .hp-week-wd { color: #c9808f; }
-/* 本日の列を1本の淡い柱として見せる */
-.hp-s .hp-week-day.is-today { background: color-mix(in srgb, var(--hp-accent, #b98d4f) 14%, transparent); color: var(--hp-accent, #b98d4f); }
-.hp-s .hp-week-cell.is-today { background: color-mix(in srgb, var(--hp-accent, #b98d4f) 7%, transparent); }
-.hp-s .hp-week-cell { font-size: 11.5px; color: #b3a48c; }
-.hp-s .hp-week-cell.is-on { color: var(--hp-accent, #b98d4f); font-style: italic; letter-spacing: .02em; }
-.hp-s .hp-week-off { color: #d8cbb4; }
-.hp-s .hp-week .hp-note { margin-top: 12px; }
 
 /* 5) 出現はゆっくり浮かび上がるように（タイプSだけ長め・イージングも穏やかに） */
 @media (prefers-reduced-motion: no-preference) {

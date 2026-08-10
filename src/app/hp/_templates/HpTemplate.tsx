@@ -48,11 +48,6 @@ export function HpTemplate({ data }: { data: HpPageData }) {
   const heroPc = site.hero_images[0] ?? null;
   const heroSp = site.hero_images[1] ?? null;
   const onDuty = therapists.filter((t) => t.onDuty);
-  // 週間表に載せるのは「期間中に1日でも出勤がある人」だけ（全休の人で表が伸びるのを防ぐ）。
-  // 並びは出勤日数の多い順 → 名前順で安定させる。
-  const weekRoster = therapists
-    .filter((t) => t.week.some(Boolean))
-    .sort((x, y) => y.week.filter(Boolean).length - x.week.filter(Boolean).length || x.name.localeCompare(y.name, 'ja'));
 
   return (
     <div
@@ -222,52 +217,9 @@ export function HpTemplate({ data }: { data: HpPageData }) {
             ))}
           </div>
 
-          {/* ── 週間スケジュール ──
-               表示日数は blocks.schedule.days（1〜7）。1日だけの設定なら表は出さない
-               （上の「本日の出勤」と同じ内容になるため）。
-               縦＝セラピスト／横＝日付。列が多いのでスマホは横スクロールで見る。 */}
-          {data.weekDays.length > 1 && weekRoster.length > 0 && (
-            <div className="hp-week">
-              <div className="hp-week-scroll">
-                <table className="hp-week-table">
-                  <thead>
-                    <tr>
-                      <th className="hp-week-corner" scope="col">セラピスト</th>
-                      {data.weekDays.map((d) => (
-                        <th
-                          key={d.date}
-                          scope="col"
-                          className={`hp-week-day${d.isToday ? ' is-today' : ''}${d.tone ? ` is-${d.tone}` : ''}`}
-                        >
-                          <span className="hp-week-date">{d.label}</span>
-                          <span className="hp-week-wd">{d.weekday}</span>
-                        </th>
-                      ))}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {weekRoster.map((t) => (
-                      <tr key={t.id}>
-                        <th className="hp-week-name" scope="row">{t.name}</th>
-                        {t.week.map((time, i) => (
-                          <td
-                            key={data.weekDays[i]?.date ?? i}
-                            className={`hp-week-cell${time ? ' is-on' : ''}${data.weekDays[i]?.isToday ? ' is-today' : ''}`}
-                          >
-                            {time ?? <span className="hp-week-off">−</span>}
-                          </td>
-                        ))}
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-              <p className="hp-note">※ 出勤予定は変更になる場合があります。</p>
-            </div>
-          )}
-
-          {/* フクエス本体の週間スケジュールへ（写メ日記・口コミと同じ「もっと見る」導線）。
-              HPからフクエスへの実流入をつくるのが目的なので、表を出す・出さないに関わらず常に置く。 */}
+          {/* 週間の出勤はHP側に表を持たず、フクエス本体の店舗スケジュールに集約する（2026-08-10）。
+              HPからフクエスへの実流入をつくるのが目的なので、この導線は常に置く。
+              ※ 週間データ（data.weekDays / therapist.week）は残してあるので、表を復活させたくなったらここに戻せる。 */}
           <a className="hp-more" href={`${salonUrl}/schedule`} target="_blank" rel="noopener noreferrer">
             出勤スケジュールをもっと見る →
           </a>
