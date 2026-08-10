@@ -375,6 +375,8 @@ export type HpSite = {
   status:            HpSiteStatus;
   template_key:      HpTemplateKey;
   theme_key:         string;          // 妥当性は themes.ts の getTheme() が既定値へフォールバック
+  /** ヘッダーのロゴ画像。null=未設定（店名の文字を出す） */
+  logo_url:          string | null;
   hero_images:       string[];
   hero_catch:        string;
   concept_title:     string;
@@ -393,7 +395,7 @@ export type HpSite = {
 
 /** salon_sites から公開ページ・管理画面が読む列（運営専用の契約メモ類は含めない）。 */
 export const HP_SITE_COLUMNS =
-  'salon_id, slug, domain, status, template_key, theme_key, hero_images, hero_catch, concept_title, concept_text, concept_image_url, blocks, banners, link_banners, favicon_url, design_locked, updated_at';
+  'salon_id, slug, domain, status, template_key, theme_key, logo_url, hero_images, hero_catch, concept_title, concept_text, concept_image_url, blocks, banners, link_banners, favicon_url, design_locked, updated_at';
 
 /** DB の1行 → アプリ内の HpSite。公開ページ・管理画面の両方がこれ1本を使う。 */
 export function mapHpSiteRow(row: Record<string, unknown>): HpSite {
@@ -406,6 +408,7 @@ export function mapHpSiteRow(row: Record<string, unknown>): HpSite {
     status:            isHpSiteStatus(status) ? status : 'draft',
     template_key:      isHpTemplateKey(template) ? template : 'a',
     theme_key:         (row.theme_key as string) ?? '',
+    logo_url:          (row.logo_url as string | null) ?? null,
     hero_images:       sanitizeHpHeroImages(row.hero_images),
     hero_catch:        (row.hero_catch as string) ?? '',
     concept_title:     (row.concept_title as string) ?? '',
@@ -429,6 +432,7 @@ export function mapHpSiteRow(row: Record<string, unknown>): HpSite {
  * slug / domain / status も含めない（status は setHpSiteLive・他は運営のみ）。
  */
 export type HpContentInput = {
+  logo_url:          string | null;
   hero_images:       string[];
   hero_catch:        string;
   concept_title:     string;

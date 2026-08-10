@@ -22,6 +22,10 @@ const COMMON = `
 .hp-sec { padding: 48px 22px; }
 .hp-idx, .hp-topbar { display: none; }
 .hp-topbar-nav { display: none; }
+/* ヘッダーのロゴ（未設定なら .hp-topbar-name の文字が出る）。
+   縦を揃えたいので高さで合わせ、横は原寸比のまま。長い横長ロゴは max-width で抑える。 */
+.hp-topbar-logo { display: block; height: 30px; width: auto; max-width: 190px; object-fit: contain; }
+@media (min-width: 768px) { .hp-topbar-logo { height: 36px; max-width: 260px; } }
 .hp-rule { display: none; }
 .hp-embed { display: block; width: 100%; border: none; background: #fff; }
 .hp-more { display: inline-block; margin-top: 12px; text-decoration: none; font-size: 11px; font-weight: 700; }

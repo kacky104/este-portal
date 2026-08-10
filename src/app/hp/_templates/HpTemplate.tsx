@@ -133,7 +133,14 @@ export function HpTemplate({ data }: { data: HpPageData }) {
            position:fixed の基準（包含ブロック）になってしまい全画面に広がらないため。 */}
       <input type="checkbox" id="hp-drawer" className="hp-drawer-toggle" aria-label="メニュー" />
       <div className="hp-topbar" style={ordTopbar}>
-        <span className="hp-topbar-name">{salon.name}</span>
+        {/* ロゴ未設定なら従来どおり店名の文字。設定時も alt に店名を入れるので
+            検索エンジン・読み上げから店名が消えることはない。 */}
+        {site.logo_url ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img className="hp-topbar-logo" src={site.logo_url} alt={salon.name} />
+        ) : (
+          <span className="hp-topbar-name">{salon.name}</span>
+        )}
         <nav className="hp-topbar-nav">
           <a href="#concept">CONCEPT</a>
           <a href="#menu">SYSTEM</a>

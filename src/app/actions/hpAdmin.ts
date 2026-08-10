@@ -233,7 +233,12 @@ export async function saveHpSiteContent(
     return { ok: false, error: 'ファビコンのURLが正しくありません' };
   }
 
+  if (input.logo_url !== null && !isSafeImageUrl(input.logo_url)) {
+    return { ok: false, error: 'ロゴ画像のURLが正しくありません' };
+  }
+
   const payload = {
+    logo_url:          input.logo_url,
     hero_images:       input.hero_images,
     hero_catch:        input.hero_catch.trim(),
     concept_title:     input.concept_title.trim(),

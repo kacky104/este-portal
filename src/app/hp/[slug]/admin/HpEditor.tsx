@@ -44,6 +44,7 @@ type FormState = {
   concept_title:     string;
   concept_text:      string;
   concept_image_url: string | null;
+  logo_url:          string | null;      // ヘッダーのロゴ（null=店名の文字を出す）
   blocks:            HpBlocksConfig;
   banners:           (HpBanner | null)[]; // スロット固定3（null=未設定）
   link_banners:      HpLinkBanner[];      // リンク欄（相互リンク・並びはこの配列の順）
@@ -59,6 +60,7 @@ function siteToForm(site: HpSite): FormState {
     concept_title:     site.concept_title,
     concept_text:      site.concept_text,
     concept_image_url: site.concept_image_url,
+    logo_url:          site.logo_url,
     blocks:            site.blocks,
     banners:           slots,
     link_banners:      site.link_banners,
@@ -152,6 +154,7 @@ export function HpEditor({
     const savedUrls = new Set<string>([
       ...site.hero_images,
       ...(site.concept_image_url ? [site.concept_image_url] : []),
+      ...(site.logo_url ? [site.logo_url] : []),
       ...(site.favicon_url ? [site.favicon_url] : []),
       ...site.banners.map((b) => b.image_url),
     ]);
@@ -236,6 +239,7 @@ export function HpEditor({
       concept_title:     form.concept_title,
       concept_text:      form.concept_text,
       concept_image_url: form.concept_image_url,
+      logo_url:          form.logo_url,
       blocks:            form.blocks,
       banners:           form.banners.filter((b): b is HpBanner => b !== null && b.image_url !== ''),
       link_banners:      form.link_banners,
@@ -666,6 +670,58 @@ export function HpEditor({
             ))}
           </ul>
         )}
+      </div>
+
+      {/* ── ヘッダーのロゴ ── */}
+      <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5 space-y-3">
+        <h3 className="text-sm font-black text-slate-800">ヘッダーのロゴ</h3>
+        <p className="text-[11px] text-slate-400 leading-relaxed">
+          ※ ページ上部の固定ヘッダーに表示されます。未設定のときは店名の文字が出ます。
+          横長の透過PNG推奨（高さ80ピクセル以上・横幅600ピクセルまで）。
+          高さを揃えて表示するので、横幅は元の比率のままになります。
+        </p>
+        <div className="flex items-center gap-3">
+          {form.logo_url ? (
+            <div className="relative">
+              {/* 背景が明るいひな形も暗いひな形もあるので、確認しやすいよう市松模様の上に置く */}
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={form.logo_url}
+                alt="ロゴ"
+                className="h-12 max-w-[240px] object-contain rounded-lg border border-slate-200 bg-[repeating-conic-gradient(#f1f5f9_0_25%,#fff_0_50%)] bg-[length:16px_16px] px-2"
+              />
+              <button
+                onClick={() => {
+                  const url = form.logo_url;
+                  patch({ logo_url: null });
+                  if (url) removeIfUnsaved(url);
+                }}
+                className="absolute -top-2 -right-2 w-6 h-6 rounded-full bg-black/50 text-white text-xs font-bold"
+                aria-label="削除"
+              >
+                ×
+              </button>
+            </div>
+          ) : (
+            <label className="flex items-center justify-center w-40 h-12 rounded-lg border-2 border-dashed border-slate-200 text-[11px] text-slate-400 cursor-pointer hover:border-pink-300">
+              {uploadingSlot === 'logo' ? 'アップ中…' : 'ロゴ画像を選ぶ'}
+              <input
+                type="file"
+                accept="image/png,image/jpeg,image/webp"
+                className="hidden"
+                disabled={uploadingSlot !== null}
+                onChange={async (e) => {
+                  const file = e.target.files?.[0];
+                  e.target.value = '';
+                  if (!file) return;
+                  const publicUrl = await uploadImage('logo', file);
+                  if (publicUrl) patch({ logo_url: publicUrl });
+                }}
+              />
+            </label>
+          )}
+          <p className="text-[11px] text-slate-400">保存すると反映されます。</p>
+        </div>
       </div>
 
       {/* ── ファビコン ── */}
