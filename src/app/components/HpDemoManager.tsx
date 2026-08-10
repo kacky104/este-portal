@@ -7,6 +7,7 @@ import {
   getHpDemoState,
   createHpDemo,
   reseedHpDemoSchedules,
+  syncHpDemoTherapists,
   setHpDemoTherapistImage,
   type DemoState,
 } from '@/app/actions/hpDemo';
@@ -43,6 +44,15 @@ export function HpDemoManager({ onToast }: { onToast: (msg: string) => void }) {
     setBusy(false);
     if (!res.ok) { onToast(res.error); return; }
     onToast('サンプル店舗を作成しました');
+    load();
+  };
+
+  const handleSyncTherapists = async () => {
+    setBusy(true);
+    const res = await syncHpDemoTherapists();
+    setBusy(false);
+    if (!res.ok) { onToast(res.error); return; }
+    onToast(res.added > 0 ? `${res.added}名を追加しました（在籍${res.total}名）` : '追加はありません（名簿と一致しています）');
     load();
   };
 
@@ -116,6 +126,9 @@ export function HpDemoManager({ onToast }: { onToast: (msg: string) => void }) {
           salon_id: {state.salonId}
         </span>
         <span className="inline-flex items-center px-2 py-0.5 rounded-full bg-slate-50 border border-slate-200 text-[10px] font-bold text-slate-500">
+          在籍 {state.therapists.length}名
+        </span>
+        <span className="inline-flex items-center px-2 py-0.5 rounded-full bg-slate-50 border border-slate-200 text-[10px] font-bold text-slate-500">
           出勤 {state.scheduledDays}日分
         </span>
       </div>
@@ -137,6 +150,13 @@ export function HpDemoManager({ onToast }: { onToast: (msg: string) => void }) {
           内容を編集（キャッチ・コンセプト・画像）
         </a>
         <button
+          onClick={handleSyncTherapists}
+          disabled={busy}
+          className="px-4 py-2 rounded-full border border-slate-200 text-xs font-bold text-slate-500 hover:border-slate-300 disabled:opacity-50"
+        >
+          {busy ? '処理中…' : 'セラピストを補充する（名簿8名）'}
+        </button>
+        <button
           onClick={handleReseed}
           disabled={busy}
           className="px-4 py-2 rounded-full border border-slate-200 text-xs font-bold text-slate-500 hover:border-slate-300 disabled:opacity-50"
@@ -153,7 +173,7 @@ export function HpDemoManager({ onToast }: { onToast: (msg: string) => void }) {
       {/* ── セラピスト写真 ── */}
       <div>
         <p className="text-xs font-bold text-slate-600 mb-2">セラピスト写真（クリックでアップロード・顔なし推奨）</p>
-        <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
           {state.therapists.map((t) => (
             <div key={t.id} className="space-y-1">
               <label className="block cursor-pointer group">

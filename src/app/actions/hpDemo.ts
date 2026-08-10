@@ -126,13 +126,35 @@ export async function getHpDemoState(): Promise<{ ok: true; state: DemoState } |
 }
 
 // ── 生成 ─────────────────────────────────────────────
+// サンプル店舗の在籍名簿（この配列が「正」。増やしたら /admin の「セラピストを補充」で反映する）
 const DEMO_THERAPISTS = [
-  { name: 'みれい', age: 24, body_type: 'スレンダー', catchphrase: '透明感あふれる正統派セラピスト' },
-  { name: 'ゆあ',   age: 26, body_type: 'グラマー',   catchphrase: '包み込むような癒やしのひととき' },
-  { name: 'さくら', age: 22, body_type: '癒やし系',   catchphrase: '笑顔がかわいい若手のホープ' },
-  { name: 'れな',   age: 25, body_type: 'モデル系',   catchphrase: '目を惹くスタイルと丁寧な施術' },
-  { name: 'ひなの', age: 23, body_type: '小柄・華奢', catchphrase: '小さな身体で芯のあるトリートメント' },
+  { name: 'みれい', age: 24, body_type: 'スレンダー',   catchphrase: '透明感あふれる正統派セラピスト' },
+  { name: 'ゆあ',   age: 26, body_type: 'グラマー',     catchphrase: '包み込むような癒やしのひととき' },
+  { name: 'さくら', age: 22, body_type: '癒やし系',     catchphrase: '笑顔がかわいい若手のホープ' },
+  { name: 'れな',   age: 25, body_type: 'モデル系',     catchphrase: '目を惹くスタイルと丁寧な施術' },
+  { name: 'ひなの', age: 23, body_type: '小柄・華奢',   catchphrase: '小さな身体で芯のあるトリートメント' },
+  { name: 'あやか', age: 27, body_type: '大人系',       catchphrase: '落ち着いた所作で満たす上質な時間' },
+  { name: 'ことは', age: 21, body_type: '清楚・童顔',   catchphrase: 'やわらかな雰囲気と丁寧な手つき' },
+  { name: 'りお',   age: 26, body_type: 'スレンダー',   catchphrase: '指先まで神経の行き届いた施術を' },
 ] as const;
+
+/** DEMO_THERAPISTS の1件 → therapists への insert 行。 */
+function demoTherapistRow(t: (typeof DEMO_THERAPISTS)[number], salonId: number) {
+  return {
+    salon_id:          salonId,
+    name:              t.name,
+    age:               t.age,
+    body_type:         t.body_type,
+    catchphrase:       t.catchphrase,
+    area:              '中洲・天神・薬院',
+    work_hours:        null,
+    comment:           null,
+    profile_image_url: null,
+    profile_text:      null,
+    is_new_face:       false,
+    new_face_since:    null,
+  };
+}
 
 // 出勤パターン（日替わりで3〜4名・時間帯もばらす）
 const SHIFT_PATTERNS = [
@@ -144,13 +166,15 @@ const SHIFT_PATTERNS = [
 
 async function seedSchedules(svc: Svc, therapistIds: string[]): Promise<string | null> {
   const today = getBusinessDateJST();
+  // 在籍数の6割（最少3・最多6）を「その日の出勤枠」とし、日替わりで回す。
+  // 端数の枠は偶数日だけ出勤にして人数に揺らぎを作る（毎日同じ人数だと不自然なため）。
+  const slots = Math.max(3, Math.min(6, Math.round(therapistIds.length * 0.6)));
   const rows: Record<string, unknown>[] = [];
   for (let day = 0; day < 14; day++) {
     const date = addDays(today, day);
     therapistIds.forEach((id, i) => {
-      // (i + day) % 5 で日替わりローテーション。5名中3〜4名が毎日出勤
       const slot = (i + day) % therapistIds.length;
-      const on = slot < 4 ? slot !== 3 || day % 2 === 0 : false;
+      const on = slot < slots - 1 || (slot === slots - 1 && day % 2 === 0);
       const p = SHIFT_PATTERNS[(i + day) % SHIFT_PATTERNS.length];
       rows.push({
         therapist_id: id,
@@ -235,22 +259,7 @@ export async function createHpDemo(): Promise<{ ok: true; salonId: number } | Er
   // 3) セラピスト5名
   const { data: thRows, error: thErr } = await svc
     .from('therapists')
-    .insert(
-      DEMO_THERAPISTS.map((t) => ({
-        salon_id:          salonId,
-        name:              t.name,
-        age:               t.age,
-        body_type:         t.body_type,
-        catchphrase:       t.catchphrase,
-        area:              '中洲・天神・薬院',
-        work_hours:        null,
-        comment:           null,
-        profile_image_url: null,
-        profile_text:      null,
-        is_new_face:       false,
-        new_face_since:    null,
-      })),
-    )
+    .insert(DEMO_THERAPISTS.map((t) => demoTherapistRow(t, salonId)))
     .select('id');
   if (thErr) return { ok: false, error: `セラピストの作成に失敗しました: ${thErr.message}` };
 
@@ -277,6 +286,43 @@ export async function reseedHpDemoSchedules(): Promise<{ ok: true } | Err> {
   const seedErr = await seedSchedules(svc, ids);
   if (seedErr) return { ok: false, error: `出勤の再生成に失敗しました: ${seedErr}` };
   return { ok: true };
+}
+
+/**
+ * 名簿（DEMO_THERAPISTS）に居るのに DB に居ないセラピストを追加し、出勤も作り直す。
+ * 既存のセラピスト（写真を差し替え済みのもの）は名前で照合して触らない＝何度押しても安全。
+ */
+export async function syncHpDemoTherapists(): Promise<{ ok: true; added: number; total: number } | Err> {
+  const auth = await requireAdmin();
+  if (!auth.ok) return auth;
+
+  const svc = createServiceClient();
+  const salonId = await findDemoSalonId(svc);
+  if (salonId === null) return { ok: false, error: 'サンプル店舗がまだありません' };
+
+  const { data: existing, error: readErr } = await svc
+    .from('therapists')
+    .select('id, name')
+    .eq('salon_id', salonId);
+  if (readErr) return { ok: false, error: `在籍の取得に失敗しました: ${readErr.message}` };
+
+  const have = new Set((existing ?? []).map((r) => String(r.name ?? '')));
+  const missing = DEMO_THERAPISTS.filter((t) => !have.has(t.name));
+
+  if (missing.length > 0) {
+    const { error } = await svc
+      .from('therapists')
+      .insert(missing.map((t) => demoTherapistRow(t, salonId)));
+    if (error) return { ok: false, error: `セラピストの追加に失敗しました: ${error.message}` };
+  }
+
+  // 追加ぶんも出勤に入るよう、全員で作り直す
+  const { data: all } = await svc.from('therapists').select('id').eq('salon_id', salonId);
+  const ids = (all ?? []).map((r) => String(r.id));
+  const seedErr = await seedSchedules(svc, ids);
+  if (seedErr) return { ok: false, error: `出勤の再生成に失敗しました: ${seedErr}` };
+
+  return { ok: true, added: missing.length, total: ids.length };
 }
 
 /** サンプルセラピストの写真を差し替える（url=null で削除）。 */
