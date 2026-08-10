@@ -351,14 +351,15 @@ ${COMMON}
 .hp-s .hp-hero-name::after { content: ''; position: absolute; left: 2px; bottom: 0; width: 64px; border-top: 1px solid var(--hp-accent-soft, #d5b98a); }
 .hp-s .hp-hero-area { margin-top: 14px; font-size: clamp(8px, .9vw, 11px); color: #9b8c74; letter-spacing: .3em; }
 @media (max-width: 639px) {
-  /* SP: 横長寄り（1080×760）のヒーロー下部に文字を載せる。
-     写真の上に直接置くと小さい英字が読めないため、下から明るいスクリムを重ねる。 */
-  .hp-s .hp-hero-text { justify-content: flex-end; padding: 0 20px 26px; max-width: 100%; z-index: 1; }
-  .hp-s .hp-hero-catch { margin-bottom: 12px; font-size: 21px; }
-  .hp-s .hp-hero::after {
-    content: ''; position: absolute; left: 0; right: 0; bottom: 0; height: 68%;
-    background: linear-gradient(to top, rgba(253,251,247,.94), rgba(253,251,247,.6) 42%, rgba(253,251,247,0));
-    pointer-events: none;
+  /* SP: キービジュアルは写真1枚で見せる（2026-08-10）。
+     スマホ用の画像はもともと文字入りで作るため、店名・キャッチ・エリアを重ねると
+     二重表示になり、可読性のための明るいスクリムも写真を白くくすませていた。
+     そこで文字レイヤーごと消す（PCは従来どおり左側に文字を重ねる）。
+     display:none ではなく視覚的に隠すだけにするのは、ページ唯一の h1（店名）を
+     検索エンジンと読み上げに残すため。 */
+  .hp-s .hp-hero-text {
+    position: absolute; inset: auto; width: 1px; height: 1px;
+    padding: 0; margin: -1px; overflow: hidden; clip-path: inset(50%); border: 0;
   }
 }
 
