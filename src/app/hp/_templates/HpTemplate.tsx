@@ -433,6 +433,14 @@ export function HpTemplate({ data }: { data: HpPageData }) {
         }}
       />
 
+      {/* ── トップバーの「浮き上がり」。少しでもスクロールしたら .hp-scrolled を付け、
+           CSS側が影と不透明な地を足す（追従そのものは position:sticky が担当）。 ── */}
+      <script
+        dangerouslySetInnerHTML={{
+          __html: `(function(){var r=(document.currentScript&&document.currentScript.closest('.hp-root'))||document.querySelector('.hp-root');if(!r)return;var t=false;function u(){r.classList.toggle('hp-scrolled',(window.scrollY||document.documentElement.scrollTop)>8);t=false}u();window.addEventListener('scroll',function(){if(!t){t=true;requestAnimationFrame(u)}},{passive:true})})();`,
+        }}
+      />
+
       {/* ── ドロワーの補助（無くても開閉はできる）。リンクを押したら閉じる・Escで閉じる・
            開いている間は背面をスクロールさせない。 ── */}
       <script

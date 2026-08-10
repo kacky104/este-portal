@@ -42,6 +42,11 @@ const COMMON = `
 .hp-sec-banners { padding-top: 0; }
 /* 固定トップバーの下にアンカーが潜らないように（ドロワーからの遷移用） */
 .hp-root [id] { scroll-margin-top: 58px; }
+/* トップバーは position:sticky で最初から追従しているが、地色と同系だと
+   「消えた」ように見えるので、少しでもスクロールしたら影で浮かせて境目を作る。
+   .hp-scrolled は HpTemplate のスクリプトが付ける（JSが無くても追従自体は効く）。 */
+.hp-topbar { transition: background-color .3s ease, box-shadow .3s ease; }
+.hp-scrolled .hp-topbar { box-shadow: 0 2px 14px rgba(20,16,10,.12); }
 /* 画面の並びは flex の order で作る（DOM は全ひな形共通のまま＝作業ルール1）。
    order の値は HpTemplate がインラインで振る。既定の並びは hpSite.ts の
    DEFAULT_HP_SECTION_ORDER_BY_TEMPLATE が唯一の正で、管理画面の一覧と一致する。 */
@@ -374,6 +379,7 @@ ${COMMON}
 /* ── 固定ナビ（白のすりガラス・店名／ナビ／メニューボタン） ── */
 .hp-s .hp-topbar { display: flex; justify-content: space-between; align-items: center; gap: 16px; position: sticky; top: 0; z-index: 30;
   padding: 14px 22px; background: rgba(253,251,247,.86); backdrop-filter: blur(10px); border-bottom: 1px solid #eee4d4; }
+.hp-s.hp-scrolled .hp-topbar { background: rgba(253,251,247,.97); box-shadow: 0 2px 16px rgba(74,66,56,.13); }
 .hp-s .hp-topbar-name { font-size: 14px; letter-spacing: .24em; color: var(--hp-accent, #b98d4f); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .hp-s .hp-topbar-nav { display: none; gap: 26px; }
 @media (min-width: 900px) { .hp-s .hp-topbar-nav { display: flex; } }
