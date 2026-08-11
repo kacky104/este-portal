@@ -7,8 +7,10 @@ import { ADMIN_UUID } from '@/app/lib/admin';
 import {
   HP_DEMO_SLUG,
   HP_RESERVED_SLUGS,
+  hpSitePaths,
   isHpSiteStatus,
   normalizeHpSiteKey,
+  sanitizeHpBlocks,
 } from '@/app/lib/hpSite';
 
 // 公式ホームページの【運営管理】（2026-08-09 段階4）。/admin「公式HP管理」タブから使う。
@@ -17,7 +19,7 @@ import {
 //  - 契約サイトの一覧（契約状況・ドメイン・期限・HP管理者の状態まで一望）
 //  - 新規発行（＝契約成立。salon を選んで slug を発行。従来はSQL手作業だった）
 //  - 運営専用項目の編集: slug / domain / status(suspended含む) / design_locked /
-//    domain_registrar / domain_expires_at / contract_note
+//    multipage（ページ構成） / domain_registrar / domain_expires_at / contract_note
 //  - 解約（行の削除）
 //
 // すべて ADMIN_UUID 限定・書き込みは service_role。
@@ -35,6 +37,8 @@ export type OperatorSite = {
   templateKey: string;
   themeKey: string;
   designLocked: boolean;
+  /** マルチページ構成か（blocks.multipage）。デザインと同じく運営だけが切り替える */
+  multipage: boolean;
   adminEmail: string | null;
   adminLinked: boolean;
   domainRegistrar: string;
@@ -48,6 +52,7 @@ export type OperatorSitePatch = {
   domain: string;          // 空文字=未設定
   status: string;
   designLocked: boolean;
+  multipage: boolean;
   domainRegistrar: string;
   domainExpiresAt: string; // 空文字=未設定
   contractNote: string;
@@ -82,7 +87,7 @@ export async function listHpSites(): Promise<{ ok: true; sites: OperatorSite[] }
   const svc = createServiceClient();
   const { data: rows, error } = await svc
     .from('salon_sites')
-    .select('salon_id, slug, domain, status, template_key, theme_key, design_locked, admin_email, admin_user_id, domain_registrar, domain_expires_at, contract_note, updated_at')
+    .select('salon_id, slug, domain, status, template_key, theme_key, design_locked, blocks, admin_email, admin_user_id, domain_registrar, domain_expires_at, contract_note, updated_at')
     .order('salon_id');
   if (error) return { ok: false, error: `一覧の取得に失敗しました: ${error.message}` };
 
@@ -103,6 +108,7 @@ export async function listHpSites(): Promise<{ ok: true; sites: OperatorSite[] }
     templateKey:     (r.template_key as string) ?? 'a',
     themeKey:        (r.theme_key as string) ?? '',
     designLocked:    r.design_locked === true,
+    multipage:       sanitizeHpBlocks(r.blocks).multipage,
     adminEmail:      (r.admin_email as string | null) ?? null,
     adminLinked:     r.admin_user_id !== null,
     domainRegistrar: (r.domain_registrar as string | null) ?? '',
@@ -175,6 +181,18 @@ export async function updateHpSiteOperator(
   }
 
   const svc = createServiceClient();
+
+  // blocks は jsonb なので丸ごと差し替えになる。現在値を読んで multipage だけ入れ替える
+  // （店舗が編集する他のキーを巻き戻さないため）。
+  const { data: cur, error: curErr } = await svc
+    .from('salon_sites')
+    .select('blocks')
+    .eq('salon_id', salonId)
+    .maybeSingle();
+  if (curErr) return { ok: false, error: `取得に失敗しました: ${curErr.message}` };
+  if (!cur) return { ok: false, error: '対象のサイトが見つかりません' };
+  const blocks = { ...sanitizeHpBlocks(cur.blocks), multipage: patch.multipage };
+
   const { data, error } = await svc
     .from('salon_sites')
     .update({
@@ -182,6 +200,7 @@ export async function updateHpSiteOperator(
       domain:            domain === '' ? null : domain,
       status:            patch.status,
       design_locked:     patch.designLocked,
+      blocks,
       domain_registrar:  patch.domainRegistrar.trim() || null,
       domain_expires_at: expires === '' ? null : expires,
       contract_note:     patch.contractNote.trim(),
@@ -196,8 +215,9 @@ export async function updateHpSiteOperator(
   }
   if (!data) return { ok: false, error: '対象のサイトが見つかりません' };
 
-  revalidatePath(`/hp/${slug}`);
-  if (domain !== '') revalidatePath(`/hp/${domain}`);
+  // slug / ドメインを変えた直後は旧キーのキャッシュも残るが、そちらは DB を引けなくなるため
+  // 次のアクセスで自然に 404 になる。ここでは新しいキー側を作り直す。
+  for (const path of hpSitePaths({ slug, domain: domain === '' ? null : domain })) revalidatePath(path);
   return { ok: true };
 }
 
@@ -218,11 +238,14 @@ export async function revalidateHpSitePages(salonId: number): Promise<{ ok: true
   if (error) return { ok: false, error: `取得に失敗しました: ${error.message}` };
   if (!data) return { ok: false, error: '対象のサイトが見つかりません' };
 
-  const paths: string[] = [];
-  const slug = String(data.slug ?? '');
-  const domain = data.domain ? normalizeHpSiteKey(String(data.domain)) : '';
-  if (slug) { revalidatePath(`/hp/${slug}`); paths.push(`/hp/${slug}`); }
-  if (domain) { revalidatePath(`/hp/${domain}`); paths.push(`/hp/${domain}`); }
+  // ★ トップだけでなく下層ページ（/therapist・/system）と利用規約も対象にする。
+  //   マルチページ化以降、この復旧ボタンがトップしか直せないと
+  //   「セラピスト一覧だけ404のまま」という状態から抜け出せなくなる。
+  const paths = hpSitePaths({
+    slug:   String(data.slug ?? ''),
+    domain: data.domain ? String(data.domain) : null,
+  });
+  for (const path of paths) revalidatePath(path);
   return { ok: true, paths };
 }
 

@@ -1,8 +1,8 @@
 import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import { fetchHpPageData } from '@/app/hp/_lib/data';
+import { buildHpMetadata, HP_NOT_PUBLIC_METADATA } from '@/app/hp/_lib/meta';
 import { HpTemplate } from '@/app/hp/_templates/HpTemplate';
-import { isHpDomainKey, normalizeHpSiteKey } from '@/app/lib/hpSite';
 
 // 掲載店舗の公式ホームページ（2026-08-08 段階2 → 2026-08-09 段階3で独自ドメイン対応）。
 //
@@ -25,29 +25,18 @@ export async function generateStaticParams() {
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {
   const { slug } = await params;
   const data = await fetchHpPageData(slug);
-  if (!data || data.site.status !== 'live') {
-    return { title: '準備中', robots: { index: false, follow: false } };
-  }
+  if (!data || data.site.status !== 'live') return HP_NOT_PUBLIC_METADATA;
+
   const description =
     data.site.hero_catch ||
     (data.site.concept_text ? data.site.concept_text.slice(0, 80) : `${data.salon.name}の公式サイト`);
 
-  const key = normalizeHpSiteKey(slug);
-  const domain = data.site.domain;
-  // 独自ドメインで接続済み かつ そのドメインでアクセスされている時だけ検索に載せる。
-  const indexable = !!domain && isHpDomainKey(key) && key === normalizeHpSiteKey(domain);
-
-  return {
+  // index/noindex・canonical・ファビコンの判定は _lib/meta.ts に集約（下層ページと共通）。
+  return buildHpMetadata(data, slug, {
     title: `${data.salon.name}｜公式サイト`,
     description,
-    robots: indexable ? { index: true, follow: true } : { index: false, follow: false },
-    // ドメイン接続済みなら正規URLは必ずドメイン側（fukues.com/hp/* から拾われても集約される）
-    ...(domain ? { alternates: { canonical: `https://${normalizeHpSiteKey(domain)}/` } } : {}),
-    // 店舗のファビコン（設定時のみ）。独自ドメインで開いたときのタブアイコン。
-    // 未設定の店は <link rel="icon"> を出さない → /favicon.ico にフォールバック
-    // （店舗ドメインでは proxy.ts が /hp/[slug]/favicon.ico ルートへ回す）。
-    ...(data.site.favicon_url ? { icons: { icon: data.site.favicon_url } } : {}),
-  };
+    path: '',
+  });
 }
 
 export default async function HpPage({ params }: { params: Promise<{ slug: string }> }) {

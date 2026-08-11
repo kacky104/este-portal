@@ -96,6 +96,15 @@ const COMMON = `
 .hp-drawer-hours { font-size: 12px; line-height: 1.8; }
 .hp-drawer-tel { display: block; margin-top: 16px; font-size: 21px; letter-spacing: .04em; text-decoration: none; }
 .hp-drawer-terms { display: inline-block; margin-top: 18px; font-size: 11px; letter-spacing: .08em; text-decoration: underline; text-underline-offset: 3px; }
+/* ── マルチページ用（2026-08-11）──
+   パンくず。色は本文色をそのまま薄めて使うので、ひな形ごとの追加指定は要らない。 */
+.hp-crumb { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-bottom: 16px; font-size: 10.5px; letter-spacing: .08em; opacity: .75; }
+.hp-crumb a { color: inherit; text-decoration: none; border-bottom: 1px solid currentColor; padding-bottom: 1px; }
+.hp-crumb-sep { opacity: .55; }
+/* フッターのページ一覧（全ページから全ページへ内部リンクを通すため）。
+   文字色・大きさは .hp-footer-sub の指定をそのまま使い、ここでは並べ方だけ足す。 */
+.hp-footer-links { display: flex; flex-wrap: wrap; justify-content: center; gap: 6px 16px; margin-bottom: 12px; }
+.hp-footer-links a { text-decoration: none; }
 /* 利用規約などの文章ページ。読みやすさ優先で行間を広めに取る */
 .hp-topbar-home { display: inline-flex; align-items: center; text-decoration: none; color: inherit; min-width: 0; }
 .hp-doc-back { font-size: 11px; letter-spacing: .08em; text-decoration: none; white-space: nowrap; }
@@ -376,6 +385,7 @@ ${COMMON}
 .hp-c .hp-info-row dt { font-weight: 900; letter-spacing: .1em; font-size: 10px; padding-top: 2px; }
 .hp-c .hp-info-row dd { font-weight: 600; }
 .hp-c .hp-footer { background: #111114; color: #fff; text-align: left; padding: 40px 20px 60px; }
+.hp-c .hp-footer-links { justify-content: flex-start; }
 .hp-c .hp-footer-name { font-size: 20px; font-weight: 900; }
 .hp-c .hp-footer-sub { margin-top: 10px; font-size: 10px; color: #9a9aa2; font-weight: 700; line-height: 2; }
 .hp-c .hp-footer-sub a { color: #fff; }
@@ -440,6 +450,8 @@ ${COMMON}
 .hp-s .hp-drawer-terms, .hp-s .hp-doc-back { color: #9b8c74; }
 .hp-s .hp-doc-h { color: var(--hp-accent, #b98d4f); font-weight: 600; letter-spacing: .12em; }
 .hp-s .hp-doc-p, .hp-s .hp-doc-list li { color: #6b6154; letter-spacing: .04em; }
+/* タイプSは見出し・本文とも中央寄せなので、パンくずも中央に揃える */
+.hp-s .hp-crumb { justify-content: center; }
 .hp-s .hp-sec-doc { padding-left: 22px; padding-right: 22px; }
 @media (min-width: 768px) { .hp-s .hp-sec-doc { padding-left: calc((100% - 760px) / 2); padding-right: calc((100% - 760px) / 2); } }
 .hp-s .hp-link-text { color: #6b6154; border: 1px solid #eadfcd; background: rgba(255,255,255,.6); letter-spacing: .04em; }

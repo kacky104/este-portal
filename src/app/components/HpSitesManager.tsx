@@ -46,6 +46,7 @@ function siteToPatch(s: OperatorSite): OperatorSitePatch {
     domain:          s.domain ?? '',
     status:          s.status,
     designLocked:    s.designLocked,
+    multipage:       s.multipage,
     domainRegistrar: s.domainRegistrar,
     domainExpiresAt: s.domainExpiresAt ?? '',
     contractNote:    s.contractNote,
@@ -250,6 +251,21 @@ export function HpSitesManager({ onToast }: { onToast: (msg: string) => void }) 
                       <span className="text-[11px] font-bold text-slate-600">
                         デザイン確定ロック
                         <span className="block text-[10px] font-normal text-slate-400">外すとギャラリーから再選択できる状態に戻る（有償作業時）</span>
+                      </span>
+                    </label>
+                    <label className="flex items-end gap-2 pb-1">
+                      <input
+                        type="checkbox"
+                        checked={patch.multipage}
+                        onChange={(e) => setPatch({ ...patch, multipage: e.target.checked })}
+                        className="w-4 h-4 accent-pink-500"
+                      />
+                      <span className="text-[11px] font-bold text-slate-600">
+                        マルチページ構成
+                        <span className="block text-[10px] font-normal text-slate-400">
+                          セラピスト一覧（/therapist）と料金（/system）を独立ページにする。
+                          トップは抜粋＋「もっと見る」になる。戻すと下層ページは404になるので注意
+                        </span>
                       </span>
                     </label>
                     <label className="block">

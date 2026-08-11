@@ -55,6 +55,21 @@ export type HpBlocksConfig = {
   links:      { on: boolean };                 // リンク（相互リンクのバナー群・link_banners）
   /** セクションの表示順。null=ひな形の既定順（DEFAULT_HP_SECTION_ORDER_BY_TEMPLATE） */
   order:      HpSectionKey[] | null;
+  /**
+   * マルチページ構成にするか（2026-08-11）。false=従来の1ページ構成。
+   *
+   * true にすると「セラピスト一覧」と「コース料金」がそれぞれ独立したURL
+   * （/therapist・/system）になり、トップにはその抜粋＋「もっと見る」が出る。
+   * 分け方は運営が決めた固定（HP_SUBPAGE_SEGMENTS）で、店舗側からは切り替えられない
+   * ＝ デザインと同じ扱い。切り替えは運営作業（hpOperator）。
+   *
+   * ★ 既存店を勝手に作り替えないための移行スイッチであって、料金プランの区別ではない。
+   * ★ true→false に戻すと下層ページが 404 になる。一度検索に載ったURLが消えるので、
+   *   戻す運用は想定していない。
+   * ★ 列ではなく blocks(jsonb) に置いているので、追加にマイグレーションが要らない
+   *   （sanitizeHpBlocks が既定値を入れるだけで既存行はそのまま使える）。
+   */
+  multipage:  boolean;
 };
 
 // ── セクションの表示順（2026-08-10 追加） ──────────────
@@ -141,7 +156,8 @@ export const DEFAULT_HP_BLOCKS: HpBlocksConfig = {
   jobs:       { on: true },
   freePages:  { on: true },
   links:      { on: true },
-  order:      null, // 未設定＝ひな形の既定順
+  order:      null,  // 未設定＝ひな形の既定順
+  multipage:  false, // 既定は従来どおりの1ページ構成
 };
 
 function clampInt(v: unknown, min: number, max: number, fallback: number): number {
@@ -182,6 +198,8 @@ export function sanitizeHpBlocks(raw: unknown): HpBlocksConfig {
     links:     { on: boolOr(r.links?.on, d.links.on) },
     // 配列が入っていれば「オーナーが並び替え済み」。それ以外（未設定・型違い）は null＝既定順。
     order:     Array.isArray(rawObj.order) ? normalizeHpSectionOrder(rawObj.order) : null,
+    // ★ order と同じく最上位のキー。ネストしている他のキーと違い r ではなく rawObj から取る。
+    multipage: boolOr(rawObj.multipage, d.multipage),
   };
 }
 
@@ -365,6 +383,39 @@ export function normalizeHpSiteKey(key: string): string {
 /** salon_sites を引くときの列名。ドメインなら domain、そうでなければ slug。 */
 export function hpSiteKeyColumn(key: string): 'domain' | 'slug' {
   return isHpDomainKey(key) ? 'domain' : 'slug';
+}
+
+// ── ページ構成（2026-08-11 マルチページ化） ────────────
+/**
+ * トップから切り出す下層ページのURLセグメント。運営が決める固定の分け方。
+ *
+ * 切り出す基準は「そのページ自体にサーバーが描いた本文があるか」。
+ * 写メ日記・口コミは iframe（中身は /embed/… の noindex ページ）なので、
+ * 独立ページにしても検索エンジンからは本文ゼロの空ページに見える＝切り出さない。
+ * クーポン・お知らせは最大3件の短文なので同じ理由で切り出さない。
+ */
+export const HP_SUBPAGE_SEGMENTS = ['therapist', 'system'] as const;
+export type HpSubpageSegment = (typeof HP_SUBPAGE_SEGMENTS)[number];
+
+/**
+ * この店の公開ページのパス一覧（ISRキャッシュを作り直す対象）。
+ * 暫定URL（/hp/{slug}）と独自ドメイン（/hp/{domain}）の両系統ぶんを返す。
+ *
+ * ★★ 表示条件で絞り込まないこと。
+ *   「今出しているページだけ」を返す作りにすると、multipage を false に戻した・
+ *   セラピスト一覧を OFF にした・在籍が0人になった、といった場合に対象から外れ、
+ *   200 を返していた頃のページが最大600秒キャッシュに残り続ける（消えなくなる）。
+ *   sitemap に「出す／出さない」の判定は別（sitemap.xml 側が持つ）。
+ */
+export function hpSitePaths(site: { slug: string; domain: string | null }): string[] {
+  const keys = [site.slug, site.domain ? normalizeHpSiteKey(site.domain) : ''].filter((k) => k !== '');
+  const out: string[] = [];
+  for (const k of keys) {
+    out.push(`/hp/${k}`);
+    for (const seg of HP_SUBPAGE_SEGMENTS) out.push(`/hp/${k}/${seg}`);
+    out.push(`/hp/${k}/terms`);
+  }
+  return out;
 }
 
 // ── サイト行（アプリ内での形） ────────────────────────

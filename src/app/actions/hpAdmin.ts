@@ -12,6 +12,7 @@ import {
   type HpTemplateKey,
   HP_SITE_COLUMNS,
   hpSiteKeyColumn,
+  hpSitePaths,
   normalizeHpSiteKey,
   mapHpSiteRow,
   isHpTemplateKey,
@@ -129,10 +130,15 @@ function canManageAdmins(role: HpAdminRole): boolean {
   return role === 'operator' || role === 'owner';
 }
 
-/** 保存後に公開ページのISRを飛ばす。暫定URLと独自ドメインの両方のキャッシュを消す。 */
+/**
+ * 保存後に公開ページのISRを飛ばす。暫定URLと独自ドメインの両方のキャッシュを消す。
+ *
+ * ★ 対象は hpSitePaths()（トップ＋下層ページ＋利用規約）。表示条件で絞らないのが肝で、
+ *   絞ると「マルチページを止めた」「セラピスト一覧をOFFにした」ときに旧ページの
+ *   キャッシュが対象から外れ、消えるべきページが最大600秒残り続ける。
+ */
 function revalidateSite(site: HpSite) {
-  if (site.slug) revalidatePath(`/hp/${site.slug}`);
-  if (site.domain) revalidatePath(`/hp/${normalizeHpSiteKey(site.domain)}`);
+  for (const path of hpSitePaths(site)) revalidatePath(path);
 }
 
 // ── 取得 ─────────────────────────────────────────────
@@ -244,7 +250,11 @@ export async function saveHpSiteContent(
     concept_title:     input.concept_title.trim(),
     concept_text:      input.concept_text.trim(),
     concept_image_url: input.concept_image_url,
-    blocks:            sanitizeHpBlocks(input.blocks),
+    // ★ multipage（マルチページ構成にするか）は運営だけが決める設定なので、
+    //   店舗から送られてきた値は捨てて DB の現在値で上書きする。
+    //   デザイン（template_key / theme_key）をこの経路に載せないのと同じ考え方。
+    //   （古いタブから multipage の無い blocks が送られても構成が勝手に戻らない）
+    blocks:            { ...sanitizeHpBlocks(input.blocks), multipage: r.site.blocks.multipage },
     banners:           input.banners,
     // リンク欄は件数・URLの妥当性をここで丸める（画像/文字のどちらも無い行は捨てられる）
     link_banners:      sanitizeHpLinkBanners(input.link_banners),

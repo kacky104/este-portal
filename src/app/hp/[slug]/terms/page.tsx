@@ -2,10 +2,9 @@ import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import { fetchHpPageData } from '@/app/hp/_lib/data';
 import { buildHpTerms } from '@/app/hp/_lib/terms';
-import { hpColorCssVars } from '@/app/lib/hpSite';
-import { TEMPLATE_CSS } from '@/app/hp/_templates/styles';
+import { HpShell } from '@/app/hp/_templates/HpShell';
 
-// 公式ホームページの利用規約ページ（2026-08-10）。
+// 公式ホームページの利用規約ページ（2026-08-10 → 2026-08-11 外枠を HpShell に統一）。
 //
 // - URL: 独自ドメインなら /terms（proxy.ts が /hp/{host}/terms へ rewrite）
 //        暫定URLなら /hp/{slug}/terms
@@ -13,9 +12,14 @@ import { TEMPLATE_CSS } from '@/app/hp/_templates/styles';
 // - ★ 常に noindex。全店で同じ文面になるため、検索に載せると重複コンテンツになる。
 //   ドロワーからのリンクで人が読めれば目的は果たせる（follow は許可してリンクは辿らせる）。
 // - 見た目はひな形のCSSをそのまま使う。トップバーとフッターだけの簡素な作りで、
-//   ドロワーは置かない（代わりに「ホームへ戻る」を上下に置く）。
+//   ドロワーは置かない（代わりに「ホームへ戻る」を上下に置く）＝ HpShell の chrome="doc"。
 
 export const revalidate = 600;
+// ★ Next 16 では revalidate（ISR）を効かせるために空配列の generateStaticParams が要る。
+//   これが無いと revalidate が無視される（2026-08-11 追加。他のページには元から入っていた）。
+export async function generateStaticParams() {
+  return [];
+}
 
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {
   const { slug } = await params;
@@ -35,33 +39,11 @@ export default async function HpTermsPage({ params }: { params: Promise<{ slug: 
   const data = await fetchHpPageData(slug);
   if (!data || data.site.status !== 'live') notFound();
 
-  const { site, salon, basePath } = data;
-  const cssVars = hpColorCssVars(site.template_key, site.theme_key) as React.CSSProperties;
+  const { salon, basePath } = data;
   const sections = buildHpTerms(salon.name);
 
   return (
-    <div
-      className={`hp-root hp-${site.template_key}${data.wallpaperUrl ? ' hp-has-wallpaper' : ''} hp-ordered`}
-      style={cssVars}
-    >
-      <style dangerouslySetInnerHTML={{ __html: TEMPLATE_CSS[site.template_key] }} />
-
-      {data.wallpaperUrl && (
-        <div className="hp-wallpaper" style={{ backgroundImage: `url(${data.wallpaperUrl})` }} />
-      )}
-
-      <div className="hp-topbar" style={{ order: -2 }}>
-        <a className="hp-topbar-home" href={basePath || '/'}>
-          {site.logo_url ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img className="hp-topbar-logo" src={site.logo_url} alt={salon.name} />
-          ) : (
-            <span className="hp-topbar-name">{salon.name}</span>
-          )}
-        </a>
-        <a className="hp-doc-back" href={basePath || '/'}>← ホームへ</a>
-      </div>
-
+    <HpShell data={data} page="terms" chrome="doc">
       <section className="hp-sec hp-sec-doc" style={{ order: 1 }}>
         <div className="hp-en">Terms</div>
         <h1 className="hp-h2">利用規約</h1>
@@ -87,20 +69,6 @@ export default async function HpTermsPage({ params }: { params: Promise<{ slug: 
 
         <a className="hp-more" href={basePath || '/'}>← ホームへ戻る</a>
       </section>
-
-      <footer className="hp-footer" style={{ order: 100 }}>
-        <div className="hp-footer-name">{salon.name}</div>
-        <div className="hp-footer-sub">© {salon.name} all rights reserved.</div>
-      </footer>
-
-      {(salon.phone || salon.lineUrl) && (
-        <div className="hp-cta">
-          {salon.phone && <a className="hp-cta-tel" href={`tel:${salon.phone}`}>電話予約</a>}
-          {salon.lineUrl && (
-            <a className="hp-cta-line" href={salon.lineUrl} target="_blank" rel="noopener noreferrer">LINE予約</a>
-          )}
-        </div>
-      )}
-    </div>
+    </HpShell>
   );
 }

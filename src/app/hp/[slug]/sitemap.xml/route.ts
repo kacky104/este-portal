@@ -1,9 +1,15 @@
 import { createPublicClient } from '@/app/lib/supabase/public';
-import { hpSiteKeyColumn, normalizeHpSiteKey } from '@/app/lib/hpSite';
+import { hpSiteKeyColumn, normalizeHpSiteKey, sanitizeHpBlocks } from '@/app/lib/hpSite';
 
-// 店舗の独自ドメイン用 sitemap.xml（2026-08-09 段階3）。
-// 公式HPは1ページ構成なのでトップ1件のみ。マルチページ化（THERAPIST/SYSTEM/SCHEDULE の分割）を
-// したらここに足す。公開前・暫定URLでは空のサイトマップを返す（存在はするが中身なし）。
+// 店舗の独自ドメイン用 sitemap.xml（2026-08-09 段階3 → 2026-08-11 マルチページ対応）。
+//
+// 出すのは「独自ドメイン接続済み × status=live × そのドメインでのアクセス」のときだけ。
+// それ以外（制作中・暫定URL）は空のサイトマップを返す（ファイルは存在するが中身なし）。
+//
+// ★ ここは hpSitePaths() を使わない。
+//   hpSitePaths() は「ISRキャッシュを消す対象」なので条件で絞ってはいけないのに対し、
+//   サイトマップは逆に「実際に 200 で見えるページだけ」を載せる必要がある（別物）。
+// ★ 利用規約（/terms）は全店同じ文面で常に noindex なので載せない。
 
 export const revalidate = 600;
 
@@ -14,17 +20,48 @@ export async function GET(_request: Request, { params }: { params: Promise<{ slu
   const supabase = createPublicClient();
   const { data } = await supabase
     .from('salon_sites')
-    .select('status, domain, updated_at')
+    .select('salon_id, status, domain, blocks, updated_at')
     .eq(hpSiteKeyColumn(key), key)
     .maybeSingle();
 
   const domain = data?.domain ? normalizeHpSiteKey(String(data.domain)) : null;
   const publish = !!domain && data?.status === 'live' && key === domain;
 
+  const paths: string[] = [];
+  if (publish) {
+    paths.push('/');
+    const blocks = sanitizeHpBlocks(data?.blocks);
+    if (blocks.multipage) {
+      // 下層ページは「ブロックが ON かつ中身がある」ときだけ 200 になる（各 page.tsx の条件）。
+      // 空ページを載せると検索エンジンに 404 を拾わせることになるので、ここでも同じ判定をする。
+      const salonId = Number(data?.salon_id);
+      const [therapistRes, salonRes] = await Promise.all([
+        blocks.therapists.on
+          ? supabase.from('therapists').select('id', { count: 'exact', head: true }).eq('salon_id', salonId)
+          : Promise.resolve({ count: 0 }),
+        blocks.courses.on
+          ? supabase.from('salons').select('courses').eq('id', salonId).maybeSingle()
+          : Promise.resolve({ data: null }),
+      ]);
+      if ((therapistRes.count ?? 0) > 0) paths.push('/therapist');
+      const courses = (salonRes as { data: { courses?: unknown } | null }).data?.courses;
+      const hasCourse =
+        Array.isArray(courses) &&
+        courses.some((c) => {
+          const o = c as Record<string, unknown>;
+          return String(o?.duration ?? '') !== '' && String(o?.price ?? '') !== '';
+        });
+      if (hasCourse) paths.push('/system');
+    }
+  }
+
   const lastmod = String(data?.updated_at ?? '').slice(0, 10);
-  const entries = publish
-    ? `  <url>\n    <loc>https://${domain}/</loc>${lastmod ? `\n    <lastmod>${lastmod}</lastmod>` : ''}\n  </url>\n`
-    : '';
+  const entries = paths
+    .map(
+      (p) =>
+        `  <url>\n    <loc>https://${domain}${p}</loc>${lastmod ? `\n    <lastmod>${lastmod}</lastmod>` : ''}\n  </url>\n`,
+    )
+    .join('');
 
   const xml =
     '<?xml version="1.0" encoding="UTF-8"?>\n' +

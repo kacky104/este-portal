@@ -30,6 +30,8 @@ export async function GET(_request: Request, { params }: { params: Promise<{ slu
         'User-agent: *',
         'Allow: /',
         'Disallow: /admin',
+        // デザインの実物プレビュー。noindex は付けてあるが、クロールさせる意味が無いので塞ぐ
+        'Disallow: /preview',
         '',
         `Sitemap: https://${domain}/sitemap.xml`,
         '',
