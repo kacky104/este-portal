@@ -19,7 +19,8 @@ import { DesignThumb, HP_TEMPLATE_NOTES, hpVariantColors } from '@/app/hp/_templ
 //   2. お悩み → 解決 … vootec の #solutio 相当。「掲載データから自動で中身が埋まる」が勝ち筋
 //      （vootec は素材・原稿が店舗持ち。うちは二重入力ゼロ。第6便メモの差別化ポイント）。
 //   3. 強み4つ … 自動連動・独自ドメイン・デザイン・公開後サポート
-//   4. デザイン一覧 … 3ひな形×6色。ヒーローに合わせた白×ピンク×金の明るいトーン。
+//   4. デザイン一覧 … 4ひな形×カラー（タイプSは2色・A/B/Cは各6色）。
+//      ヒーローに合わせた白×ピンク×金の明るいトーン。総数は HP_PATTERN_COUNT で自動計算。
 //   5. 料金 … 事業設計の確定値（第6便）。制作料165,000円/月々11,000円/更新料 年11,000円（全て税込）、
 //      フクエス契約→制作料0円・＋ワーク両方契約→月々も0円。この数字を変えるときは営業資料・規約と必ず同時に。
 //   6. 制作の流れ 5ステップ → フッター（お問い合わせ）
@@ -38,8 +39,11 @@ import { DesignThumb, HP_TEMPLATE_NOTES, hpVariantColors } from '@/app/hp/_templ
 export const metadata: Metadata = {
   title: 'メンズエステ専門の公式ホームページ制作｜フクエス',
   description:
-    'フクエス掲載店舗さま向け・メンズエステ専門の公式ホームページ制作。集客・信頼・ブランディングを加速させる、高級感のあるデザイン18パターン。ドメイン取得から制作・運用まで運営がすべて対応します。',
+    'フクエス掲載店舗さま向け・メンズエステ専門の公式ホームページ制作。集客・信頼・ブランディングを加速させる、高級感のあるデザイン20パターン。ドメイン取得から制作・運用まで運営がすべて対応します。',
 };
+
+// 掲載する総パターン数は定義から数える（カラーを足し引きしても文言がずれないように・2026-08-11）。
+const HP_PATTERN_COUNT = HP_TEMPLATES.reduce((n, t) => n + HP_COLOR_VARIANTS[t.key].length, 0);
 
 const TEMPLATE_TITLES: Record<HpTemplateKey, { en: string; name: string }> = {
   s: { en: 'GRACE', name: 'フラッグシップ' },
@@ -109,7 +113,7 @@ export default function HpTemplatesPage() {
           {[
             ['掲載データと自動連動', 'セラピスト・出勤・料金・写メ日記・口コミをそのまま表示。フクエスを更新すればHPも常に最新。'],
             ['独自ドメイン', 'お店だけのドメインを運営が取得・管理・自動更新。面倒な手続きは一切ありません。'],
-            ['選べるデザイン18種', '高級感のある3つのひな形×各6カラー。お店の雰囲気に合わせてお選びいただけます。'],
+            [`選べるデザイン${HP_PATTERN_COUNT}種`, '高級感のある4つのひな形×カラー。お店の雰囲気に合わせてお選びいただけます。'],
             ['公開後も安心サポート', '写真や文章は専用の管理画面からいつでも変更OK。ご質問は無料で承ります。'],
           ].map(([t, d], i) => (
             <div key={t} className="rounded-2xl border border-[#f0dde0] bg-white shadow-sm p-5 text-center">
@@ -126,10 +130,10 @@ export default function HpTemplatesPage() {
         <header className="text-center mb-10">
           <p className="text-[11px] tracking-[.3em] text-[#c99ba6] mb-2">DESIGN LINEUP</p>
           <h2 className="text-xl sm:text-2xl font-bold tracking-wider mb-4 text-[#3f342e]">
-            選べるデザイン <span className="text-[#b98d4f]">全18パターン</span>
+            選べるデザイン <span className="text-[#b98d4f]">全{HP_PATTERN_COUNT}パターン</span>
           </h2>
           <p className="text-[13px] leading-relaxed text-[#8a7a70] max-w-xl mx-auto">
-            3つのひな形 × 各6カラーをご用意しました。
+            4つのひな形 × カラーをご用意しました（最上位のタイプSはシャンパンゴールドとワインレッドの2種類）。
             気になるデザインが決まりましたら、担当者までお知らせください。
             <br className="hidden sm:block" />
             ドメイン取得・制作・写真や文章の設定まで、すべて運営がおこなって納品します。
@@ -153,7 +157,7 @@ export default function HpTemplatesPage() {
                   <p className="text-[11px] text-[#a08e84]">{HP_TEMPLATE_NOTES[t.key]}</p>
                 </div>
 
-                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+                <div className={`grid gap-3 ${variants.length <= 2 ? 'grid-cols-1 sm:grid-cols-2' : 'grid-cols-2 sm:grid-cols-3 lg:grid-cols-6'}`}>
                   {variants.map((v) => {
                     const c = hpVariantColors(t.key, v.key);
                     return (
@@ -164,7 +168,7 @@ export default function HpTemplatesPage() {
                         rel="noreferrer"
                         className="group block rounded-xl overflow-hidden border border-[#ecdcdc] hover:border-[#d5a86b] hover:shadow-md transition-all"
                       >
-                        <DesignThumb template={t.key} accent={c.accent} deep={c.deep} />
+                        <DesignThumb template={t.key} accent={c.accent} deep={c.deep} colorKey={v.key} />
                         <span className="flex items-center justify-between px-2.5 py-2 bg-[#faf4f0] text-[10px] font-bold text-[#7a6a60]">
                           <span className="flex items-center gap-1.5 min-w-0">
                             <span
@@ -254,7 +258,7 @@ export default function HpTemplatesPage() {
         <ol className="grid sm:grid-cols-5 gap-3">
           {[
             ['お申し込み', '担当者までご連絡ください。ご契約状況に応じた料金をご案内します。'],
-            ['デザインを決める', 'このページの18パターンから、担当者とご相談のうえお選びいただきます。'],
+            ['デザインを決める', `このページの${HP_PATTERN_COUNT}パターンから、担当者とご相談のうえお選びいただきます。`],
             ['運営が制作', 'ドメイン取得からキービジュアル・写真・文章の設定まで運営が行います。'],
             ['ご確認・公開', '仕上がりをご確認いただき、OKをいただいたら公開します。'],
             ['公開後の更新', 'フクエスを更新するだけでHPも最新に。写真や文章の変更も管理画面から。'],

@@ -33,7 +33,7 @@ import {
 // 旧版からの変更点:
 //  - ひな形・カラーの選択UIを撤去（ギャラリーで確定済み＝ここでは表示のみ）。
 //    保存アクション（saveHpSiteContent）も設計上その2列を書けない。
-//  - カラーの体系は SALON_THEMES ではなく HP_COLOR_VARIANTS（ひな形ごと6色）。
+//  - カラーの体系は SALON_THEMES ではなく HP_COLOR_VARIANTS（ひな形ごとの色。タイプSは2色・A/B/Cは各6色）。
 //  - 保存は画面下部の「保存する」1ボタンに集約（項目ごとの個別保存にしない＝マニュアルを薄く保つ）。
 
 const supabase = createClient();

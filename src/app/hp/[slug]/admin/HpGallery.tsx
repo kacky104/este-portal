@@ -51,7 +51,7 @@ export function HpGallery({
       <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5 space-y-2">
         <h2 className="text-sm font-black text-slate-800">デザインを選ぶ</h2>
         <p className="text-xs text-slate-500 leading-relaxed">
-          ひな形3種類 × カラー6色から1つお選びください。
+          ひな形4種類 × カラー（タイプSは2色・ほかは各6色）から1つお選びください。
           選んだ組み合わせは、<span className="font-bold text-slate-700">お店の実際のデータが入った実物のページ</span>で確認できます。
           <br />
           <span className="font-bold text-rose-500">選んで確定すると、あとから変更できません。</span>
@@ -62,7 +62,7 @@ export function HpGallery({
       {/* ── ひな形 ── */}
       <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5 space-y-3">
         <p className="text-xs font-bold text-slate-600">1. ひな形</p>
-        <div className="grid grid-cols-3 gap-3">
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
           {HP_TEMPLATES.map((t) => {
             const c = hpVariantColors(t.key, HP_COLOR_VARIANTS[t.key][0].key);
             const on = template === t.key;
@@ -75,7 +75,7 @@ export function HpGallery({
                   on ? 'border-pink-400' : 'border-slate-200 hover:border-slate-300'
                 }`}
               >
-                <DesignThumb template={t.key} accent={c.accent} deep={c.deep} />
+                <DesignThumb template={t.key} accent={c.accent} deep={c.deep} colorKey={HP_COLOR_VARIANTS[t.key][0].key} />
                 <span className={`block px-2 py-2 text-[11px] font-bold ${on ? 'bg-pink-50 text-pink-600' : 'bg-white text-slate-500'}`}>
                   {t.label}
                 </span>
@@ -149,7 +149,7 @@ export function HpGallery({
           <div className="w-full max-w-sm rounded-2xl bg-white p-6 space-y-4 shadow-xl">
             <h3 className="text-sm font-black text-slate-800">このデザインで確定しますか？</h3>
             <div className="rounded-xl overflow-hidden border border-slate-200">
-              <DesignThumb template={template} accent={accent} deep={deep} />
+              <DesignThumb template={template} accent={accent} deep={deep} colorKey={color} />
             </div>
             <p className="text-center text-xs font-bold text-slate-700">
               {templateLabel}／{colorLabel}

@@ -186,7 +186,7 @@ function DesignPendingCard() {
         rel="noreferrer"
         className="inline-block px-5 py-2.5 rounded-full bg-pink-500 text-white text-xs font-black hover:bg-pink-600 transition-colors"
       >
-        デザイン一覧を見る（全18パターン）
+        デザイン一覧を見る
       </a>
       <p className="text-[11px] text-slate-400 leading-relaxed">
         デザインの設定が完了すると、この画面で写真や文章の変更ができるようになります。

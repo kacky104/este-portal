@@ -495,25 +495,35 @@ export type HpContentInput = {
 };
 
 // ── ひな形別カラーバリエーション（2026-08-08 デザイン確定にともない追加） ──
-// テーマは「ひな形ごとに用意された6色」から選ぶ（SALON_THEMES の10色とは別体系）。
-// CSS変数の上書きだけで色が変わる設計（デザインモック thumbs.js の VARIANTS と同一の値）。
+// テーマは「ひな形ごとに用意された色」から選ぶ（SALON_THEMES の10色とは別体系）。
+// A/B/C は CSS変数の上書きだけで色が変わる設計（デザインモック thumbs.js の VARIANTS と同一の値）。
 // ひな形と色は最初のギャラリー選択で確定し、以後は変更不可（変更は運営作業・有償）。
+//
+// ★ 2026-08-11: タイプSだけ方針を変えた。
+//   アクセント1色だけを差し替える6色は「文字の色が少し違うだけ」で見分けが付かなかったため、
+//   タイプSは【シャンパンゴールド】【ワインレッド】の2つに絞り、
+//   ワインレッドは地色・帯・フッター・写真の重ね色まで作り替えた別物の見た目にしている
+//   （rootClass で付くクラスを styles.ts の上書きブロックが受ける）。
 export type HpColorVariant = {
   key:   string;
   label: string;
   /** ひな形CSSに注入する CSS 変数（例 { '--hp-accent': '#c4a469' }） */
   css:   Record<string, string>;
+  /**
+   * CSS変数だけでは表せない配色（地色・帯・フッターまで変える配色）に付ける
+   * ルート要素のクラス。styles.ts 側に同名の上書きブロックを置く。
+   * 省略した配色は従来どおり CSS変数の差し替えだけ＝DOMは1バイトも変わらない。
+   */
+  rootClass?: string;
 };
 
 export const HP_COLOR_VARIANTS: Record<HpTemplateKey, HpColorVariant[]> = {
-  // タイプS（フラッグシップ・白×金の明るい高級路線）。明るい地色なのでアクセントは濃いめの色を使う
+  // タイプS（フラッグシップ）。明るい地色なのでアクセントは濃いめの色を使う
   s: [
+    // 白×シャンパンゴールド（従来の既定。ここを変えると既存店の見た目が変わる）
     { key: 'gold',     label: 'シャンパンゴールド', css: { '--hp-accent': '#b98d4f', '--hp-accent-soft': '#d5b98a' } },
-    { key: 'rose',     label: 'ロゼ',               css: { '--hp-accent': '#c9808f', '--hp-accent-soft': '#e3b3bc' } },
-    { key: 'platinum', label: 'プラチナ',           css: { '--hp-accent': '#8a8f9a', '--hp-accent-soft': '#b9bec8' } },
-    { key: 'wine',     label: 'ボルドー',           css: { '--hp-accent': '#a05c66', '--hp-accent-soft': '#c99aa2' } },
-    { key: 'blue',     label: 'サフィール',         css: { '--hp-accent': '#7789ad', '--hp-accent-soft': '#a8b6cf' } },
-    { key: 'forest',   label: 'フォレスト',         css: { '--hp-accent': '#7d9a86', '--hp-accent-soft': '#a9c2b1' } },
+    // 白×ワインレッド（2026-08-11 追加。地色・帯・フッターまで作り替える＝rootClass 付き）
+    { key: 'wine',     label: 'ワインレッド',       css: { '--hp-accent': '#8e1f35', '--hp-accent-soft': '#b8566a' }, rootClass: 'hp-s-wine' },
   ],
   a: [
     { key: 'gold',     label: 'シャンパンゴールド', css: { '--hp-accent': '#c4a469', '--hp-accent-soft': '#a8905e' } },
@@ -550,4 +560,14 @@ export function isValidHpColor(template: HpTemplateKey, colorKey: string): boole
 export function hpColorCssVars(template: HpTemplateKey, colorKey: string): Record<string, string> {
   const list = HP_COLOR_VARIANTS[template];
   return (list.find((v) => v.key === colorKey) ?? list[0]).css;
+}
+
+/**
+ * ひな形＋色キー → ルート要素に足すクラス（無い配色は空文字）。
+ * 地色まで変える配色（タイプSのワインレッド）だけが値を返す。
+ * 空文字のときはクラスを足さないこと＝既存店のDOMを1バイトも変えないため。
+ */
+export function hpColorRootClass(template: HpTemplateKey, colorKey: string): string {
+  const list = HP_COLOR_VARIANTS[template];
+  return (list.find((v) => v.key === colorKey) ?? list[0]).rootClass ?? '';
 }

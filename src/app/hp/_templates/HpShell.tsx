@@ -19,10 +19,10 @@
 // ★ ドロワー本体を .hp-topbar の外に出しているのは従来どおり。トップバーの
 //   backdrop-filter が position:fixed の包含ブロックになり、中に入れると全画面に広がらない。
 
-import { hpColorCssVars } from '@/app/lib/hpSite';
+import { hpColorCssVars, hpColorRootClass } from '@/app/lib/hpSite';
 import type { HpPageData } from '@/app/hp/_lib/data';
 import { hpFooterPageLinks, hpJobsUrl, hpMenuItems, hpTopbarNavItems, type HpPageKey } from '@/app/hp/_lib/sections';
-import { TEMPLATE_CSS } from './styles';
+import { TEMPLATE_CSS, TEMPLATE_VARIANT_CSS } from './styles';
 
 /**
  * 外枠の作り。
@@ -50,6 +50,9 @@ export function HpShell({
 }) {
   const { site, salon, basePath } = data;
   const cssVars = hpColorCssVars(site.template_key, site.theme_key) as React.CSSProperties;
+  // 地色まで変える配色（タイプSのワインレッド）だけがクラスを返す。
+  // 従来の配色は空文字＝クラスが増えないので、既存店のDOMは完全に同じまま。
+  const colorClass = hpColorRootClass(site.template_key, site.theme_key);
   const homeHref = basePath || '/';
   const jobsUrl = hpJobsUrl(data);
   const footerLinks = hpFooterPageLinks(data);
@@ -65,10 +68,16 @@ export function HpShell({
 
   return (
     <div
-      className={`hp-root hp-${site.template_key}${data.wallpaperUrl ? ' hp-has-wallpaper' : ''} hp-ordered`}
+      className={`hp-root hp-${site.template_key}${colorClass ? ` ${colorClass}` : ''}${data.wallpaperUrl ? ' hp-has-wallpaper' : ''} hp-ordered`}
       style={cssVars}
     >
-      <style dangerouslySetInnerHTML={{ __html: TEMPLATE_CSS[site.template_key] }} />
+      {/* ひな形のCSS＋（地色まで変える配色なら）その配色の上書き。
+          配色の上書きは該当の店のページにだけ足す＝従来の配色のHTMLは1バイトも増えない。 */}
+      <style
+        dangerouslySetInnerHTML={{
+          __html: TEMPLATE_CSS[site.template_key] + (colorClass ? TEMPLATE_VARIANT_CSS[colorClass] ?? '' : ''),
+        }}
+      />
 
       {/* ── テーマ壁紙（theme_wallpapers 流用・固定レイヤー）。
            background-attachment: fixed はモバイルで無視されるため /salon/[id] と同じ固定配置レイヤー方式。

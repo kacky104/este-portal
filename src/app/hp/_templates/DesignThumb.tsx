@@ -9,7 +9,7 @@ import { HP_COLOR_VARIANTS, type HpTemplateKey } from '@/app/lib/hpSite';
 // 純粋な表示部品（state なし）なのでサーバー/クライアントどちらからでも使える。
 
 export const HP_TEMPLATE_NOTES: Record<HpTemplateKey, string> = {
-  s: '白×シャンパンゴールドの最上位デザイン。全幅の写真と固定ナビで、王道の高級メンズエステを表現。',
+  s: '白地の最上位デザイン。全幅の写真と固定ナビで、王道の高級メンズエステを表現。シャンパンゴールドとワインレッドの2種類。',
   a: '黒基調・明朝体の高級路線。落ち着いた大人向けの店舗に。',
   b: '生成り地のやわらかい印象。清潔感・癒やし系の店舗に。',
   c: '白地に太字とアクセント。都会的でシャープな印象に。',
@@ -24,24 +24,40 @@ export function hpVariantColors(template: HpTemplateKey, colorKey: string): { ac
   return { accent, deep };
 }
 
-export function DesignThumb({ template, accent, deep }: { template: HpTemplateKey; accent: string; deep: string }) {
+export function DesignThumb({
+  template,
+  accent,
+  deep,
+  colorKey,
+}: {
+  template: HpTemplateKey;
+  accent: string;
+  deep: string;
+  /** タイプSのように「地色まで変わる配色」を持つひな形で、どの配色かを伝える（2026-08-11） */
+  colorKey?: string;
+}) {
   if (template === 's') {
-    // GRACE: 白×金・全幅ヒーローに左寄せ文字＋上部ナビ
+    // GRACE: 白地・全幅ヒーローに左寄せ文字＋上部ナビ。
+    // 配色によって地色まで変わるので、公開ページ（styles.ts の .hp-s / .hp-s-wine）と同じ組で塗る。
+    const wine = colorKey === 'wine';
+    const c = wine
+      ? { bg: '#fdf8f7', ink: '#4a3238', head: '#5d464a', line: '#efdcdd', soft: '#e3cccd', hero: '#fdf1f1', band: '#eeddde' }
+      : { bg: '#fdfbf7', ink: '#4a4238', head: '#5d5346', line: '#eee4d4', soft: '#d8cbb4', hero: '#fbf6ec', band: '#eadfcd' };
     return (
-      <div style={{ background: '#fdfbf7', color: '#4a4238', height: 168, fontFamily: 'serif' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '7px 10px', borderBottom: '1px solid #eee4d4' }}>
+      <div style={{ background: c.bg, color: c.ink, height: 168, fontFamily: 'serif' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '7px 10px', borderBottom: wine ? `2px solid ${accent}` : `1px solid ${c.line}` }}>
           <span style={{ fontSize: 7, letterSpacing: '.2em', color: accent }}>SALON</span>
           <span style={{ display: 'flex', gap: 5 }}>
             {[0, 1, 2, 3].map((i) => (
-              <span key={i} style={{ width: 12, height: 2, background: '#d8cbb4' }} />
+              <span key={i} style={{ width: 12, height: 2, background: c.soft }} />
             ))}
           </span>
           <span style={{ fontSize: 6, letterSpacing: '.15em', color: '#fff', background: accent, padding: '2px 7px' }}>RESERVE</span>
         </div>
-        <div style={{ position: 'relative', height: 66, background: `linear-gradient(105deg, #fbf6ec 42%, ${deep}55 75%, ${accent}44)` }}>
+        <div style={{ position: 'relative', height: 66, background: `linear-gradient(105deg, ${c.hero} 42%, ${deep}55 75%, ${accent}44)` }}>
           <div style={{ position: 'absolute', left: 10, top: 14 }}>
-            <div style={{ width: 58, height: 4, background: '#5d5346', marginBottom: 5 }} />
-            <div style={{ width: 40, height: 4, background: '#5d5346', marginBottom: 8 }} />
+            <div style={{ width: 58, height: 4, background: c.head, marginBottom: 5 }} />
+            <div style={{ width: 40, height: 4, background: c.head, marginBottom: 8 }} />
             <div style={{ width: 30, height: 2, background: accent }} />
           </div>
           <div style={{ position: 'absolute', right: 12, top: 8, bottom: 8, width: 34, background: `linear-gradient(160deg, ${deep}88, ${accent}66)`, borderRadius: 3 }} />
@@ -49,11 +65,12 @@ export function DesignThumb({ template, accent, deep }: { template: HpTemplateKe
         <div style={{ padding: '10px 12px' }}>
           <div style={{ fontSize: 7, letterSpacing: '.3em', color: accent }}>CONCEPT</div>
           <div style={{ width: 22, height: 1, background: accent, margin: '5px 0 7px' }} />
-          <div style={{ height: 3, background: '#eadfcd', marginBottom: 4 }} />
-          <div style={{ height: 3, background: '#eadfcd', width: '62%' }} />
+          {/* ワインはコース名がワインの帯になるので、サムネでも1本を帯で表す */}
+          <div style={{ height: 3, background: wine ? accent : c.band, marginBottom: 4 }} />
+          <div style={{ height: 3, background: c.band, width: '62%' }} />
           <div style={{ display: 'flex', gap: 5, marginTop: 9 }}>
             {[0, 1, 2].map((i) => (
-              <div key={i} style={{ flex: 1, height: 22, background: '#fff', border: '1px solid #eadfcd' }} />
+              <div key={i} style={{ flex: 1, height: 22, background: '#fff', border: `1px solid ${c.band}` }} />
             ))}
           </div>
         </div>

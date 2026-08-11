@@ -687,3 +687,106 @@ export const TEMPLATE_CSS: Record<'s' | 'a' | 'b' | 'c', string> = {
   b: TYPE_B,
   c: TYPE_C,
 };
+
+// ── 配色ごとの追加CSS（2026-08-11）──────────────────
+// 「地色まで変える配色」だけが持つ上書き。ひな形CSSの後ろに足して使う。
+// キーは HP_COLOR_VARIANTS の rootClass（hpColorRootClass が返す値）。
+//
+// ★ 該当の配色のページにだけ足すこと。全ページに常に入れると、
+//   使っていない店（シャンパンゴールド）のHTMLまで重くなる。
+const TYPE_S_WINE = `/* ══════════ 配色2: ワインレッド（2026-08-11）══════════
+   タイプSの2つめの配色。DOM・レイアウト・余白はシャンパンゴールドと【完全に同じ】で、
+   色の面積だけを大きく変えて、一目で別物に見えるようにしたもの
+   （アクセント1色だけ差し替える方式では見分けが付かない、という指摘への回答）。
+
+   ・地は白のまま（#fdf8f7）＝写真が映える明るさは維持する
+   ・見出し・飾り罫・価格・リンク・CTA は --hp-accent(#8e1f35)/--hp-accent-soft(#b8566a) が
+     すでに効くので、ここには書かない（配色の値は hpSite.ts の HP_COLOR_VARIANTS が正）
+   ・ここに書くのは「CSS変数では表せない面」だけ:
+       生成りの帯 → 淡い薔薇色 / コース名 → ワインの帯に白抜き /
+       出勤の日付 → ワインのバッジ / フッター → 濃いワイン /
+       写真に重ねる影 → 茶からワインへ / 罫線の茶系 → 薔薇系
+
+   ★ 付くクラスは HP_COLOR_VARIANTS.s の rootClass（hpColorRootClass → HpShell）。
+   ★ シャンパンゴールドを1バイトも変えないため、上の .hp-s のルールには手を入れず、
+     すべてこのブロックの上書き（.hp-s.hp-s-wine＝詳細度が1段上）で表現すること。 */
+.hp-s.hp-s-wine { background: #fdf8f7; color: #4a3238; }
+/* 壁紙の羽根はワイン用に色を振った別画像（無くても下の霞だけで成立する） */
+.hp-s.hp-s-wine::before { background-image: url('/hp-s/wallpaper-wine.webp'); }
+/* セクションの地色（壁紙を透かすベール）。無地↔薔薇色の帯で縞を作るのは金と同じ */
+.hp-s.hp-s-wine .hp-sec { background: rgba(253,248,247,.34); }
+.hp-s.hp-s-wine .hp-sec-alt { background: rgba(248,235,235,.78); }
+.hp-s.hp-s-wine .hp-sec-diary, .hp-s.hp-s-wine .hp-sec-coupon, .hp-s.hp-s-wine .hp-sec-free { background: rgba(248,235,235,.78); }
+.hp-s.hp-s-wine .hp-sec-reviews, .hp-s.hp-s-wine .hp-sec-news, .hp-s.hp-s-wine .hp-sec-info { background: rgba(253,248,247,.34); }
+
+/* トップバー: 下の罫線をワインの2本線にして、ヘッダーからワインだと分かるように */
+.hp-s.hp-s-wine .hp-topbar { background: rgba(253,248,247,.88); border-bottom: 2px solid var(--hp-accent, #8e1f35); }
+.hp-s.hp-s-wine.hp-scrolled .hp-topbar { background: rgba(253,248,247,.97); box-shadow: 0 2px 16px rgba(90,20,35,.15); }
+.hp-s.hp-s-wine .hp-topbar-nav a { color: #7a5860; }
+/* ドロワー */
+.hp-s.hp-s-wine .hp-drawer { background: rgba(253,248,247,.97); border-left: 1px solid #edd7d9; }
+.hp-s.hp-s-wine .hp-drawer-list a { color: #6b5157; }
+.hp-s.hp-s-wine .hp-drawer-list li + li a { border-top: 1px solid #f3e2e2; }
+.hp-s.hp-s-wine .hp-drawer-foot { border-top: 1px solid #edd7d9; color: #a2828a; }
+.hp-s.hp-s-wine .hp-drawer-terms, .hp-s.hp-s-wine .hp-doc-back, .hp-s.hp-s-wine .hp-drawer-close { color: #a2828a; }
+.hp-s.hp-s-wine .hp-doc-p, .hp-s.hp-s-wine .hp-doc-list li { color: #6b5157; }
+/* SPクイックナビ */
+.hp-s.hp-s-wine .hp-quicknav { background: rgba(253,248,247,.92); border-bottom: 1px solid #efdcdd; }
+.hp-s.hp-s-wine .hp-qn-item + .hp-qn-item { border-left: 1px solid #f3e2e2; }
+.hp-s.hp-s-wine .hp-qn-en { color: #6b5157; }
+.hp-s.hp-s-wine .hp-qn-jp { color: #a2828a; }
+.hp-s.hp-s-wine .hp-link-text { color: #6b5157; border-color: #eeddde; }
+
+/* ヒーロー（PCのみ文字を重ねる。SPは画像だけ＝金と同じ） */
+.hp-s.hp-s-wine .hp-hero-catch { color: #4a3238; text-shadow: 0 1px 12px rgba(253,248,247,.85); }
+.hp-s.hp-s-wine .hp-hero-en, .hp-s.hp-s-wine .hp-hero-area { color: #a2828a; }
+@media (min-width: 640px) {
+  .hp-s.hp-s-wine .hp-hero::after {
+    background: radial-gradient(820px 560px at 24% 52%, rgba(253,248,247,.66), rgba(253,248,247,0) 68%);
+  }
+}
+
+/* 見出し・本文 */
+.hp-s.hp-s-wine .hp-h2 { color: #4a1420; }
+.hp-s.hp-s-wine .hp-concept-text { color: #6b5157; }
+.hp-s.hp-s-wine .hp-concept-img { border-color: #eeddde; }
+
+/* コース料金: グループ名をワインの帯に白抜き（いちばん面積が変わるところ） */
+.hp-s.hp-s-wine .hp-course-name { background: var(--hp-accent, #8e1f35); color: #fff; padding: 8px 10px; margin-bottom: 10px; }
+.hp-s.hp-s-wine .hp-course-row { border-bottom: 1px solid #eedcdc; }
+.hp-s.hp-s-wine .hp-course-min { color: #5d464a; }
+
+/* セラピスト・本日の出勤の写真グリッド（重ねる影を茶からワインへ） */
+.hp-s.hp-s-wine .hp-th-frame, .hp-s.hp-s-wine .hp-sched-thumb { background: #f6e9e9; }
+.hp-s.hp-s-wine .hp-th-noimg, .hp-s.hp-s-wine .hp-sched-noimg { background: linear-gradient(160deg, #f6e9e9, #e9d2d5); }
+.hp-s.hp-s-wine .hp-th-frame::after, .hp-s.hp-s-wine .hp-sched-thumb::after {
+  background: linear-gradient(to top, rgba(58,10,22,.82), rgba(58,10,22,.36) 44%, rgba(58,10,22,0));
+}
+/* 出勤の日付はワインのバッジ（白抜き） */
+.hp-s.hp-s-wine .hp-sched-date { background: var(--hp-accent, #8e1f35); border-color: var(--hp-accent, #8e1f35); color: #fff; }
+/* 写真の上に載るアクセント文字（出勤時間・本日出勤）だけは明るい薔薇色に。
+   --hp-accent-soft(#b8566a) は白地の罫線用の濃さなので、暗い重ね色の上では沈んでしまう
+   （Playwright の実測スクショで判明・2026-08-11）。 */
+.hp-s.hp-s-wine .hp-sched-time, .hp-s.hp-s-wine .hp-th-onduty { color: #f2b8c2; }
+
+/* カード（お知らせ・クーポン・口コミ） */
+.hp-s.hp-s-wine .hp-embed { border-color: #eeddde; }
+.hp-s.hp-s-wine .hp-card { border-color: #eeddde; box-shadow: 0 6px 20px rgba(120,40,55,.07); }
+.hp-s.hp-s-wine .hp-card-title { color: #4a3238; }
+.hp-s.hp-s-wine .hp-card-body { color: #8a6b70; }
+.hp-s.hp-s-wine .hp-card-meta { color: #b3949a; }
+.hp-s.hp-s-wine .hp-info-row { border-bottom: 1px solid #eedcdc; }
+.hp-s.hp-s-wine .hp-info-row dd { color: #5d464a; }
+
+/* フッター・予約CTA（濃いワインで締める）。
+   店名とリンクは --hp-accent-soft のままだと濃い地に沈むので明るい薔薇色に置き換える。 */
+.hp-s.hp-s-wine .hp-footer { background: #4a1420; }
+.hp-s.hp-s-wine .hp-footer-name { color: #e8b4bf; }
+.hp-s.hp-s-wine .hp-footer-sub { color: #c4a7ac; }
+.hp-s.hp-s-wine .hp-footer-sub a { color: #e8b4bf; }
+.hp-s.hp-s-wine .hp-cta-tel { color: #5c1526; }
+`;
+
+export const TEMPLATE_VARIANT_CSS: Record<string, string> = {
+  'hp-s-wine': TYPE_S_WINE,
+};

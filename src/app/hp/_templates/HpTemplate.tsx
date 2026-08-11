@@ -46,6 +46,10 @@ export function HpTemplate({ data }: { data: HpPageData }) {
   // 2枚目が無ければ1枚目を両方に使う（従来どおりの挙動）。
   const heroPc = site.hero_images[0] ?? null;
   const heroSp = site.hero_images[1] ?? null;
+  // タイプSの既定キービジュアル（店舗が画像を入れていないとき用）。
+  // 配色に合わせて色味を振った同じ写真を用意している（2026-08-11 ワインレッド追加）。
+  // 店舗が自分の写真を入れたらこのフォールバックは使われない。
+  const heroFallbackSuffix = site.template_key === 's' && site.theme_key === 'wine' ? '-wine' : '';
   const onDuty = therapists.filter((t) => t.onDuty);
 
   // ── セクションの表示順（2026-08-10）──
@@ -91,9 +95,9 @@ export function HpTemplate({ data }: { data: HpPageData }) {
           </picture>
         ) : site.template_key === 's' ? (
           <picture>
-            <source media="(max-width: 639px)" srcSet="/hp-s/hero-sp.webp" />
+            <source media="(max-width: 639px)" srcSet={`/hp-s/hero-sp${heroFallbackSuffix}.webp`} />
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img className="hp-hero-img" src="/hp-s/hero-pc.webp" alt={salon.name} />
+            <img className="hp-hero-img" src={`/hp-s/hero-pc${heroFallbackSuffix}.webp`} alt={salon.name} />
           </picture>
         ) : null}
         <div className="hp-hero-text">
