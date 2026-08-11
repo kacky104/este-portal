@@ -166,9 +166,6 @@ export async function updateHpSiteOperator(
   if (!auth.ok) return auth;
 
   const slug = normalizeHpSiteKey(patch.slug);
-  const slugErr = validateSlug(slug);
-  if (slugErr) return { ok: false, error: slugErr };
-
   const domain = normalizeHpSiteKey(patch.domain);
   if (domain !== '' && !DOMAIN_RE.test(domain)) {
     return { ok: false, error: 'ドメインの形式が正しくありません（例: example-shop.com・www は不要）' };
@@ -183,14 +180,24 @@ export async function updateHpSiteOperator(
   const svc = createServiceClient();
 
   // blocks は jsonb なので丸ごと差し替えになる。現在値を読んで multipage だけ入れ替える
-  // （店舗が編集する他のキーを巻き戻さないため）。
+  // （店舗が編集する他のキーを巻き戻さないため）。slug も現在値との比較に使う。
   const { data: cur, error: curErr } = await svc
     .from('salon_sites')
-    .select('blocks')
+    .select('slug, blocks')
     .eq('salon_id', salonId)
     .maybeSingle();
   if (curErr) return { ok: false, error: `取得に失敗しました: ${curErr.message}` };
   if (!cur) return { ok: false, error: '対象のサイトが見つかりません' };
+
+  // ★ slug の検証は「変更するときだけ」（2026-08-11 修正）。
+  //   デモ店は予約語 'demo' を slug として正規に持っているため、一律チェックだと
+  //   デモ店の行は slug 以外の項目（マルチページ構成・契約メモ等）も保存できなかった。
+  //   既存の値をそのまま維持するぶんには通し、新たに予約語へ変える操作だけを弾く。
+  if (slug !== normalizeHpSiteKey(String(cur.slug ?? ''))) {
+    const slugErr = validateSlug(slug);
+    if (slugErr) return { ok: false, error: slugErr };
+  }
+
   const blocks = { ...sanitizeHpBlocks(cur.blocks), multipage: patch.multipage };
 
   const { data, error } = await svc
