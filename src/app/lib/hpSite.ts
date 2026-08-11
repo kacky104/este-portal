@@ -389,12 +389,11 @@ export function hpSiteKeyColumn(key: string): 'domain' | 'slug' {
 /**
  * トップから切り出す下層ページのURLセグメント。運営が決める固定の分け方。
  *
- * 切り出す基準は「そのページ自体にサーバーが描いた本文があるか」。
- * 写メ日記・口コミは iframe（中身は /embed/… の noindex ページ）なので、
- * 独立ページにしても検索エンジンからは本文ゼロの空ページに見える＝切り出さない。
- * クーポン・お知らせは最大3件の短文なので同じ理由で切り出さない。
+ * - therapist / system / news … サーバーが本文を描く＝検索にも載せる（indexable）
+ * - diary / voice … 中身は iframe（/embed/… は noindex）＝検索エンジンからは本文ゼロに
+ *   見えるため、人が見る一覧ページとしてだけ作り、常に noindex・sitemap にも載せない。
  */
-export const HP_SUBPAGE_SEGMENTS = ['therapist', 'system'] as const;
+export const HP_SUBPAGE_SEGMENTS = ['therapist', 'system', 'news', 'diary', 'voice'] as const;
 export type HpSubpageSegment = (typeof HP_SUBPAGE_SEGMENTS)[number];
 
 /**

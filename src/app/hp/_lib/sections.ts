@@ -18,13 +18,14 @@ import type { HpPageData, HpCourse } from '@/app/hp/_lib/data';
  *   system    … コース料金（/system）
  *   terms     … 利用規約（/terms）
  */
-export type HpPageKey = 'home' | 'therapist' | 'system' | 'terms';
+export type HpPageKey = 'home' | 'therapist' | 'system' | 'news' | 'diary' | 'voice' | 'terms';
 
 // ── トップに出す抜粋の件数（マルチページ時）──────────────
 // トップと下層で同じ内容をそのまま二度出すと自社ドメイン内で重複コンテンツになるため、
 // トップは「先頭だけ＋もっと見る」にして、全件は下層ページにだけ置く。
 export const HP_DIGEST_THERAPISTS    = 6; // セラピスト（SP2列・PC4列のグリッドが埋まる数）
 export const HP_DIGEST_COURSE_GROUPS = 1; // コース料金（主力コース1グループ）
+export const HP_DIGEST_NEWS          = 3; // お知らせ（従来の表示件数と同じ）
 
 /** courses を同名グループにまとめる（/salon/[id] の CoursesContent と同じ規約）。 */
 export function groupCourses(courses: HpCourse[]): [string, HpCourse[]][] {
@@ -78,11 +79,23 @@ export function hpJobsUrl(data: HpPageData): string | null {
  *   ＝「料金はトップに載せず /system だけで見せたい」という運用ができる。
  *   下層ページ自体を消したいときは、中身（コース登録・在籍）を空にするか multipage を戻す。
  */
-export function hpSubpages(data: HpPageData): { therapist: boolean; system: boolean } {
+export function hpSubpages(data: HpPageData): {
+  therapist: boolean;
+  system:    boolean;
+  news:      boolean;
+  diary:     boolean;
+  voice:     boolean;
+} {
   const multi = data.site.blocks.multipage;
+  const b = data.site.blocks;
   return {
     therapist: multi && data.therapists.length > 0,
     system:    multi && groupCourses(data.courses).length > 0,
+    news:      multi && data.news.length > 0,
+    // 写メ日記・口コミの中身は iframe（サーバー側から件数が見えない）ため、
+    // この2つだけはブロックの ON/OFF をそのまま存在条件に使う。
+    diary:     multi && b.diary.on,
+    voice:     multi && b.reviews.on,
   };
 }
 
@@ -139,15 +152,37 @@ export function hpMenuItems(data: HpPageData, page: HpPageKey): HpMenuItem[] {
       ? { href: hash('menu'), label: '料金システム' }
       : null;
 
+  const newsItem: HpMenuItem | null = multi
+    ? subs.news
+      ? { href: `${basePath}/news`, label: '新着情報', current: page === 'news' }
+      : null
+    : visible.news
+      ? { href: hash('news'), label: '新着情報' }
+      : null;
+  const diaryItem: HpMenuItem | null = multi
+    ? subs.diary
+      ? { href: `${basePath}/diary`, label: '写メ日記', current: page === 'diary' }
+      : null
+    : visible.diary
+      ? { href: hash('diary'), label: '写メ日記' }
+      : null;
+  const voiceItem: HpMenuItem | null = multi
+    ? subs.voice
+      ? { href: `${basePath}/voice`, label: '口コミ', current: page === 'voice' }
+      : null
+    : visible.reviews
+      ? { href: hash('voice'), label: '口コミ' }
+      : null;
+
   return [
     { href: page === 'home' ? '#top' : basePath || '/', label: 'TOP' },
-    ...(visible.news       ? [{ href: hash('news'),     label: '新着情報' }] : []),
-    ...(visible.schedule   ? [{ href: hash('schedule'), label: '出勤スケジュール' }] : []),
+    ...(newsItem !== null ? [newsItem] : []),
+    ...(visible.schedule ? [{ href: hash('schedule'), label: '出勤スケジュール' }] : []),
     ...(therapistItem !== null ? [therapistItem] : []),
     ...(systemItem !== null ? [systemItem] : []),
-    ...(visible.diary      ? [{ href: hash('diary'),    label: '写メ日記' }] : []),
-    ...(visible.reviews    ? [{ href: hash('voice'),    label: '口コミ' }] : []),
-    ...(jobsUrl !== null   ? [{ href: jobsUrl, label: '求人情報', external: true }] : []),
+    ...(diaryItem !== null ? [diaryItem] : []),
+    ...(voiceItem !== null ? [voiceItem] : []),
+    ...(jobsUrl !== null ? [{ href: jobsUrl, label: '求人情報', external: true }] : []),
     { href: hash('info'), label: '店舗情報' },
   ];
 }
@@ -164,6 +199,9 @@ export function hpFooterPageLinks(data: HpPageData): HpMenuItem[] {
     { href: basePath || '/', label: 'ホーム' },
     ...(subs.therapist ? [{ href: `${basePath}/therapist`, label: 'セラピスト一覧' }] : []),
     ...(subs.system    ? [{ href: `${basePath}/system`,    label: '料金・コース' }] : []),
+    ...(subs.news      ? [{ href: `${basePath}/news`,      label: 'お知らせ' }] : []),
+    ...(subs.diary     ? [{ href: `${basePath}/diary`,     label: '写メ日記' }] : []),
+    ...(subs.voice     ? [{ href: `${basePath}/voice`,     label: '口コミ' }] : []),
     { href: `${basePath}/terms`, label: '利用規約' },
   ];
 }

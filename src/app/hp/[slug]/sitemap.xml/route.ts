@@ -34,12 +34,19 @@ export async function GET(_request: Request, { params }: { params: Promise<{ slu
     if (blocks.multipage) {
       // 下層ページは「中身があるか」だけで 200/404 が決まる（各 page.tsx の条件と同じ）。
       // ブロックの ON/OFF は見ない（ON/OFF はトップに抜粋を出すかの意味。OFFでも下層は生きる）。
+      // ★ /diary と /voice はここに載せない（常に noindex の一覧ページ。中身が iframe のため）。
       const salonId = Number(data?.salon_id);
-      const [therapistRes, salonRes] = await Promise.all([
+      const [therapistRes, salonRes, newsRes] = await Promise.all([
         supabase.from('therapists').select('id', { count: 'exact', head: true }).eq('salon_id', salonId),
         supabase.from('salons').select('courses').eq('id', salonId).maybeSingle(),
+        supabase
+          .from('announcements')
+          .select('id', { count: 'exact', head: true })
+          .eq('salon_id', salonId)
+          .eq('is_published', true),
       ]);
       if ((therapistRes.count ?? 0) > 0) paths.push('/therapist');
+      if ((newsRes.count ?? 0) > 0) paths.push('/news');
       const courses = (salonRes as { data: { courses?: unknown } | null }).data?.courses;
       const hasCourse =
         Array.isArray(courses) &&

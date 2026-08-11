@@ -27,6 +27,7 @@ import {
   groupCourses,
   hpVisibleSections,
   HP_DIGEST_COURSE_GROUPS,
+  HP_DIGEST_NEWS,
   HP_DIGEST_THERAPISTS,
 } from '@/app/hp/_lib/sections';
 import { HpShell, HP_ORDER_HERO } from './HpShell';
@@ -226,13 +227,19 @@ export function HpTemplate({ data }: { data: HpPageData }) {
       {visible.news && (
         <section id="news" data-hp-reveal className={secCls('news', 'hp-sec-news', true)} style={ord('news')}>
           <SecHead no="08" en="News" jp="お知らせ" />
-          {news.map((n) => (
+          {/* data.ts は最大20件取るが、トップに出すのは従来どおり先頭3件。残りは /news 用 */}
+          {news.slice(0, HP_DIGEST_NEWS).map((n) => (
             <div key={n.id} className="hp-card">
               <div className="hp-card-title">{n.title}</div>
               <div className="hp-card-body">{n.content}</div>
               {n.createdAt && <div className="hp-card-meta">{n.createdAt.slice(0, 10).replaceAll('-', '/')}</div>}
             </div>
           ))}
+          {multipage && (
+            <a className="hp-more" href={`${basePath}/news`}>
+              {news.length > HP_DIGEST_NEWS ? 'お知らせをすべて見る →' : 'お知らせ一覧へ →'}
+            </a>
+          )}
         </section>
       )}
 

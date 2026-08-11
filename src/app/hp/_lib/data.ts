@@ -196,7 +196,8 @@ export async function fetchHpPageData(
       .eq('salon_id', salonId)
       .eq('is_published', true)
       .order('created_at', { ascending: false })
-      .limit(3),
+      // トップに出すのは先頭3件（HP_DIGEST_NEWS）。残りはお知らせページ（/news）用。
+      .limit(20),
     supabase
       .from('salon_free_pages')
       .select('id, title, body, images')

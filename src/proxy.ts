@@ -20,7 +20,10 @@ const APP_HOSTS = new Set(["fukues.com", "www.fukues.com"]);
 /** rewrite しないパス接頭辞。Next の内部・API・認証コールバックは本体のまま動かす。
  *  ※ /hp は意図的に含めない：店舗ドメインで /hp/他店slug を叩かれても
  *     /hp/{自ドメイン}/hp/他店slug になって 404 する（他店のHPを覗けない）。 */
-const NO_REWRITE_PREFIXES = ["/_next", "/api", "/auth"];
+// /embed … 公式HPの写メ日記・口コミは iframe src="/embed/salon/…" の相対URLで貼っている。
+//           rewrite すると店舗ドメインで /hp/{host}/embed/… になり 404 する（2026-08-11 修正）。
+//           /embed は元々どのサイトからでも貼られる前提の公開ウィジェットなので通してよい。
+const NO_REWRITE_PREFIXES = ["/_next", "/api", "/auth", "/embed"];
 
 function normalizeHost(raw: string | null): string {
   const h = (raw ?? "").toLowerCase().split(":")[0].trim();
