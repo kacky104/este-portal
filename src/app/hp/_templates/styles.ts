@@ -719,22 +719,30 @@ const TYPE_S_WINE = `/* ══════════ 配色2: ワインレッ�
 .hp-s.hp-s-wine .hp-sec-diary, .hp-s.hp-s-wine .hp-sec-coupon, .hp-s.hp-s-wine .hp-sec-free { background: rgba(248,235,235,.78); }
 .hp-s.hp-s-wine .hp-sec-reviews, .hp-s.hp-s-wine .hp-sec-news, .hp-s.hp-s-wine .hp-sec-info { background: rgba(253,248,247,.34); }
 
-/* トップバー: 下の罫線をワインの2本線にして、ヘッダーからワインだと分かるように */
-.hp-s.hp-s-wine .hp-topbar { background: rgba(253,248,247,.88); border-bottom: 2px solid var(--hp-accent, #8e1f35); }
-.hp-s.hp-s-wine.hp-scrolled .hp-topbar { background: rgba(253,248,247,.97); box-shadow: 0 2px 16px rgba(90,20,35,.15); }
-.hp-s.hp-s-wine .hp-topbar-nav a { color: #7a5860; }
-/* ドロワー */
+/* トップバー: 地そのものを濃いワインにして、ヘッダーだけで「赤のサイト」と分かるようにする
+   （2026-08-11 要望。淡い地＋ワインの罫線では赤の印象が弱かった）。
+   地が濃くなるので、店名・ナビ・電話・ハンバーガーはすべて白系に置き換えること。 */
+.hp-s.hp-s-wine .hp-topbar { background: rgba(122,26,46,.93); border-bottom: 1px solid rgba(255,255,255,.16); }
+.hp-s.hp-s-wine.hp-scrolled .hp-topbar { background: #6d1528; box-shadow: 0 2px 16px rgba(60,10,22,.32); }
+.hp-s.hp-s-wine .hp-topbar-name { color: #fff; }
+.hp-s.hp-s-wine .hp-topbar-nav a { color: rgba(255,255,255,.82); }
+.hp-s.hp-s-wine .hp-topbar-nav a:hover { color: #fff; border-bottom-color: #fff; }
+.hp-s.hp-s-wine .hp-topbar-tel, .hp-s.hp-s-wine .hp-drawer-btn { color: #fff; }
+/* 文章ページ（利用規約など）の「← ホームへ」もトップバーの中なので白系に */
+.hp-s.hp-s-wine .hp-doc-back { color: rgba(255,255,255,.85); }
+/* ドロワー（開いた中身は明るいまま＝文字の読みやすさを優先） */
 .hp-s.hp-s-wine .hp-drawer { background: rgba(253,248,247,.97); border-left: 1px solid #edd7d9; }
 .hp-s.hp-s-wine .hp-drawer-list a { color: #6b5157; }
 .hp-s.hp-s-wine .hp-drawer-list li + li a { border-top: 1px solid #f3e2e2; }
 .hp-s.hp-s-wine .hp-drawer-foot { border-top: 1px solid #edd7d9; color: #a2828a; }
-.hp-s.hp-s-wine .hp-drawer-terms, .hp-s.hp-s-wine .hp-doc-back, .hp-s.hp-s-wine .hp-drawer-close { color: #a2828a; }
+.hp-s.hp-s-wine .hp-drawer-terms, .hp-s.hp-s-wine .hp-drawer-close { color: #a2828a; }
 .hp-s.hp-s-wine .hp-doc-p, .hp-s.hp-s-wine .hp-doc-list li { color: #6b5157; }
-/* SPクイックナビ */
-.hp-s.hp-s-wine .hp-quicknav { background: rgba(253,248,247,.92); border-bottom: 1px solid #efdcdd; }
-.hp-s.hp-s-wine .hp-qn-item + .hp-qn-item { border-left: 1px solid #f3e2e2; }
-.hp-s.hp-s-wine .hp-qn-en { color: #6b5157; }
-.hp-s.hp-s-wine .hp-qn-jp { color: #a2828a; }
+/* SPクイックナビ（ヒーロー直下の4分割）。ヘッダーより一段明るいワインの帯にして、
+   ヘッダー→写真→クイックナビ で赤が上下から写真を挟む形にする。 */
+.hp-s.hp-s-wine .hp-quicknav { background: var(--hp-accent, #8e1f35); border-bottom: none; }
+.hp-s.hp-s-wine .hp-qn-item + .hp-qn-item { border-left: 1px solid rgba(255,255,255,.22); }
+.hp-s.hp-s-wine .hp-qn-en { color: #fff; }
+.hp-s.hp-s-wine .hp-qn-jp { color: rgba(255,255,255,.75); }
 .hp-s.hp-s-wine .hp-link-text { color: #6b5157; border-color: #eeddde; }
 
 /* ヒーロー（PCのみ文字を重ねる。SPは画像だけ＝金と同じ） */
