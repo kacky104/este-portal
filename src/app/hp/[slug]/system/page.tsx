@@ -2,7 +2,7 @@ import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import { fetchHpPageData, type HpPageData } from '@/app/hp/_lib/data';
 import { buildHpMetadata, HP_NOT_PUBLIC_METADATA, hpSiteOrigin } from '@/app/hp/_lib/meta';
-import { groupCourses, hpVisibleSections } from '@/app/hp/_lib/sections';
+import { groupCourses } from '@/app/hp/_lib/sections';
 import { HpShell } from '@/app/hp/_templates/HpShell';
 import { CourseGroups, Crumb, SecHead } from '@/app/hp/_templates/parts';
 import { buildBreadcrumbJsonLd, toJsonLdString } from '@/app/lib/jsonLd';
@@ -12,7 +12,9 @@ import { buildBreadcrumbJsonLd, toJsonLdString } from '@/app/lib/jsonLd';
 // - URL: 独自ドメインなら /system、暫定URLなら /hp/{slug}/system
 //   （ヘッダーのナビ表記 SYSTEM に合わせた。/menu は飲食店と紛らわしく、
 //    /price は検索語そのものだがURL内の単語が順位に効く度合いは今は小さい）
-// - 出る条件: blocks.multipage が true ＋ コース料金が ON ＋ コース登録1件以上。
+// - 出る条件: blocks.multipage が true ＋ コース登録1件以上。
+//   ★ ブロックの ON/OFF は見ない。マルチページ時の ON/OFF は「トップに抜粋を出すか」だけの
+//     意味で、OFF＝トップに載せない店でもこのページとメニューの導線は残る（2026-08-11）。
 // - 料金の元データは salons.courses。公式HPのために二重入力させない。
 
 export const revalidate = 600;
@@ -25,7 +27,7 @@ export async function generateStaticParams() {
 function isOpen(data: HpPageData): boolean {
   if (data.site.status !== 'live') return false;
   if (!data.site.blocks.multipage) return false;
-  return hpVisibleSections(data).courses;
+  return groupCourses(data.courses).length > 0; // ON/OFF ではなく中身の有無（冒頭コメント参照）
 }
 
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {

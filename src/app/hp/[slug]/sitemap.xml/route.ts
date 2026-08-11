@@ -32,16 +32,12 @@ export async function GET(_request: Request, { params }: { params: Promise<{ slu
     paths.push('/');
     const blocks = sanitizeHpBlocks(data?.blocks);
     if (blocks.multipage) {
-      // 下層ページは「ブロックが ON かつ中身がある」ときだけ 200 になる（各 page.tsx の条件）。
-      // 空ページを載せると検索エンジンに 404 を拾わせることになるので、ここでも同じ判定をする。
+      // 下層ページは「中身があるか」だけで 200/404 が決まる（各 page.tsx の条件と同じ）。
+      // ブロックの ON/OFF は見ない（ON/OFF はトップに抜粋を出すかの意味。OFFでも下層は生きる）。
       const salonId = Number(data?.salon_id);
       const [therapistRes, salonRes] = await Promise.all([
-        blocks.therapists.on
-          ? supabase.from('therapists').select('id', { count: 'exact', head: true }).eq('salon_id', salonId)
-          : Promise.resolve({ count: 0 }),
-        blocks.courses.on
-          ? supabase.from('salons').select('courses').eq('id', salonId).maybeSingle()
-          : Promise.resolve({ data: null }),
+        supabase.from('therapists').select('id', { count: 'exact', head: true }).eq('salon_id', salonId),
+        supabase.from('salons').select('courses').eq('id', salonId).maybeSingle(),
       ]);
       if ((therapistRes.count ?? 0) > 0) paths.push('/therapist');
       const courses = (salonRes as { data: { courses?: unknown } | null }).data?.courses;

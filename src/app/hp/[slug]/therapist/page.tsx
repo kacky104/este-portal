@@ -2,7 +2,6 @@ import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import { fetchHpPageData, type HpPageData } from '@/app/hp/_lib/data';
 import { buildHpMetadata, HP_NOT_PUBLIC_METADATA, hpSiteOrigin } from '@/app/hp/_lib/meta';
-import { hpVisibleSections } from '@/app/hp/_lib/sections';
 import { HpShell } from '@/app/hp/_templates/HpShell';
 import { Crumb, SecHead, TherapistCards } from '@/app/hp/_templates/parts';
 import { buildBreadcrumbJsonLd, buildItemListJsonLd, toJsonLdString } from '@/app/lib/jsonLd';
@@ -11,8 +10,10 @@ import { EMBED_SITE_URL } from '@/app/embed/salon/[id]/embedShared';
 // セラピスト一覧ページ（2026-08-11 マルチページ化）。
 //
 // - URL: 独自ドメインなら /therapist、暫定URLなら /hp/{slug}/therapist
-// - 出る条件: blocks.multipage が true ＋ セラピスト一覧が ON ＋ 在籍1名以上。
-//   ひとつでも欠けたら 404（中身の無いページを検索に出さないため）。
+// - 出る条件: blocks.multipage が true ＋ 在籍1名以上。
+//   ★ ブロックの ON/OFF は見ない。マルチページ時の ON/OFF は「トップに抜粋を出すか」だけの
+//     意味で、OFF＝トップに載せない店でもこのページとメニューの導線は残る（2026-08-11）。
+//   中身が無ければ 404（空ページを検索に出さないため）。
 // - セラピストの個別ページは公式HP側には作らない。カードのリンク先はフクエス本体の
 //   /therapist/{id}（本体と内容が重複せず、HPからフクエスへの実流入にもなる）。
 
@@ -26,7 +27,7 @@ export async function generateStaticParams() {
 function isOpen(data: HpPageData): boolean {
   if (data.site.status !== 'live') return false;
   if (!data.site.blocks.multipage) return false;
-  return hpVisibleSections(data).therapists;
+  return data.therapists.length > 0; // ON/OFF ではなく中身の有無（冒頭コメント参照）
 }
 
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {

@@ -69,6 +69,23 @@ export function hpJobsUrl(data: HpPageData): string | null {
     : null;
 }
 
+/**
+ * 下層ページが存在するか（マルチページ時）。
+ *
+ * ★ ブロックの ON/OFF は見ない（2026-08-11 の設計判断）。
+ *   マルチページ時、ON/OFF は「トップに抜粋を出すか」だけの意味になる。
+ *   OFF にしてもコースやセラピストが登録されていれば下層ページとメニューの導線は残る
+ *   ＝「料金はトップに載せず /system だけで見せたい」という運用ができる。
+ *   下層ページ自体を消したいときは、中身（コース登録・在籍）を空にするか multipage を戻す。
+ */
+export function hpSubpages(data: HpPageData): { therapist: boolean; system: boolean } {
+  const multi = data.site.blocks.multipage;
+  return {
+    therapist: multi && data.therapists.length > 0,
+    system:    multi && groupCourses(data.courses).length > 0,
+  };
+}
+
 export type HpMenuItem = {
   href:      string;
   label:     string;
@@ -102,21 +119,32 @@ export function hpMenuItems(data: HpPageData, page: HpPageKey): HpMenuItem[] {
   const hash = (id: string) => hpHashHref(basePath, page, id);
   const jobsUrl = hpJobsUrl(data);
   const multi = data.site.blocks.multipage;
+  const subs = hpSubpages(data);
 
-  // マルチページ時だけ、セラピスト一覧と料金は下層ページへの本物のリンクになる。
-  const therapistItem: HpMenuItem = multi
-    ? { href: `${basePath}/therapist`, label: 'セラピスト一覧', current: page === 'therapist' }
-    : { href: hash('therapist'), label: 'セラピスト一覧' };
-  const systemItem: HpMenuItem = multi
-    ? { href: `${basePath}/system`, label: '料金システム', current: page === 'system' }
-    : { href: hash('menu'), label: '料金システム' };
+  // マルチページ時、セラピスト一覧と料金は下層ページへの本物のリンクになる。
+  // ★ 出す条件が1ページ構成と違う: 下層ページが存在するか（＝中身があるか）で決まり、
+  //   ブロックの ON/OFF（トップに抜粋を出すか）には従わない。トップから隠しても導線は残る。
+  const therapistItem: HpMenuItem | null = multi
+    ? subs.therapist
+      ? { href: `${basePath}/therapist`, label: 'セラピスト一覧', current: page === 'therapist' }
+      : null
+    : visible.therapists
+      ? { href: hash('therapist'), label: 'セラピスト一覧' }
+      : null;
+  const systemItem: HpMenuItem | null = multi
+    ? subs.system
+      ? { href: `${basePath}/system`, label: '料金システム', current: page === 'system' }
+      : null
+    : visible.courses
+      ? { href: hash('menu'), label: '料金システム' }
+      : null;
 
   return [
     { href: page === 'home' ? '#top' : basePath || '/', label: 'TOP' },
     ...(visible.news       ? [{ href: hash('news'),     label: '新着情報' }] : []),
     ...(visible.schedule   ? [{ href: hash('schedule'), label: '出勤スケジュール' }] : []),
-    ...(visible.therapists ? [therapistItem] : []),
-    ...(visible.courses    ? [systemItem] : []),
+    ...(therapistItem !== null ? [therapistItem] : []),
+    ...(systemItem !== null ? [systemItem] : []),
     ...(visible.diary      ? [{ href: hash('diary'),    label: '写メ日記' }] : []),
     ...(visible.reviews    ? [{ href: hash('voice'),    label: '口コミ' }] : []),
     ...(jobsUrl !== null   ? [{ href: jobsUrl, label: '求人情報', external: true }] : []),
@@ -130,12 +158,12 @@ export function hpMenuItems(data: HpPageData, page: HpPageKey): HpMenuItem[] {
  */
 export function hpFooterPageLinks(data: HpPageData): HpMenuItem[] {
   if (!data.site.blocks.multipage) return [];
-  const visible = hpVisibleSections(data);
+  const subs = hpSubpages(data);
   const { basePath } = data;
   return [
     { href: basePath || '/', label: 'ホーム' },
-    ...(visible.therapists ? [{ href: `${basePath}/therapist`, label: 'セラピスト一覧' }] : []),
-    ...(visible.courses    ? [{ href: `${basePath}/system`,    label: '料金・コース' }] : []),
+    ...(subs.therapist ? [{ href: `${basePath}/therapist`, label: 'セラピスト一覧' }] : []),
+    ...(subs.system    ? [{ href: `${basePath}/system`,    label: '料金・コース' }] : []),
     { href: `${basePath}/terms`, label: '利用規約' },
   ];
 }
@@ -147,13 +175,15 @@ export function hpFooterPageLinks(data: HpPageData): HpMenuItem[] {
 export function hpTopbarNavItems(data: HpPageData, page: HpPageKey): HpMenuItem[] {
   const { basePath } = data;
   const hash = (id: string) => hpHashHref(basePath, page, id);
-  const multi = data.site.blocks.multipage;
+  const subs = hpSubpages(data);
+  // 下層ページがあるときだけ本物のリンクにする（中身ゼロで404になるページへは飛ばさない）。
+  // 無ければ従来どおりトップ内アンカー（ドロワーと違い、ナビはデザイン都合の固定5項目なので残す）。
   return [
     { href: hash('concept'), label: 'CONCEPT' },
-    multi
+    subs.system
       ? { href: `${basePath}/system`, label: 'SYSTEM', current: page === 'system' }
       : { href: hash('menu'), label: 'SYSTEM' },
-    multi
+    subs.therapist
       ? { href: `${basePath}/therapist`, label: 'THERAPIST', current: page === 'therapist' }
       : { href: hash('therapist'), label: 'THERAPIST' },
     { href: hash('schedule'), label: 'SCHEDULE' },
