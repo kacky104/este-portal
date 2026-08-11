@@ -9,7 +9,7 @@ import { HP_COLOR_VARIANTS, type HpTemplateKey } from '@/app/lib/hpSite';
 // 純粋な表示部品（state なし）なのでサーバー/クライアントどちらからでも使える。
 
 export const HP_TEMPLATE_NOTES: Record<HpTemplateKey, string> = {
-  s: '白地の最上位デザイン。全幅の写真と固定ナビで、王道の高級メンズエステを表現。シャンパンゴールドとワインレッドの2種類。',
+  s: '白地の最上位デザイン。全幅の写真と固定ナビで、王道の高級メンズエステを表現。シャンパンゴールド・ワインレッド・ロイヤルブルーの3種類。',
   a: '黒基調・明朝体の高級路線。落ち着いた大人向けの店舗に。',
   b: '生成り地のやわらかい印象。清潔感・癒やし系の店舗に。',
   c: '白地に太字とアクセント。都会的でシャープな印象に。',
@@ -23,6 +23,15 @@ export function hpVariantColors(template: HpTemplateKey, colorKey: string): { ac
   const deep = v.css['--hp-accent-deep'] ?? v.css['--hp-accent-soft'] ?? accent;
   return { accent, deep };
 }
+
+// タイプSのサムネ用パレット（公開ページの配色と同じ組。bar=濃いヘッダーの地色・null は明るいヘッダー）
+const S_THUMB_PALETTE: Record<string, {
+  bg: string; ink: string; head: string; line: string; soft: string; hero: string; band: string; bar: string | null;
+}> = {
+  gold: { bg: '#fdfbf7', ink: '#4a4238', head: '#5d5346', line: '#eee4d4', soft: '#d8cbb4', hero: '#fbf6ec', band: '#eadfcd', bar: null },
+  wine: { bg: '#fdf8f7', ink: '#4a3238', head: '#5d464a', line: '#efdcdd', soft: '#e3cccd', hero: '#fdf1f1', band: '#eeddde', bar: '#7a1a2e' },
+  blue: { bg: '#f7f9fd', ink: '#2f3646', head: '#454f66', line: '#dfe5f2', soft: '#ccd7ee', hero: '#eef3fd', band: '#dfe5f2', bar: '#1d2c63' },
+};
 
 export function DesignThumb({
   template,
@@ -38,21 +47,33 @@ export function DesignThumb({
 }) {
   if (template === 's') {
     // GRACE: 白地・全幅ヒーローに左寄せ文字＋上部ナビ。
-    // 配色によって地色まで変わるので、公開ページ（styles.ts の .hp-s / .hp-s-wine）と同じ組で塗る。
-    const wine = colorKey === 'wine';
-    const c = wine
-      ? { bg: '#fdf8f7', ink: '#4a3238', head: '#5d464a', line: '#efdcdd', soft: '#e3cccd', hero: '#fdf1f1', band: '#eeddde' }
-      : { bg: '#fdfbf7', ink: '#4a4238', head: '#5d5346', line: '#eee4d4', soft: '#d8cbb4', hero: '#fbf6ec', band: '#eadfcd' };
+    // 配色によって地色・ヘッダーまで変わるので、公開ページ（styles.ts の .hp-s / .hp-s-wine /
+    // .hp-s-blue）と同じ組で塗る。bar が入っている配色はヘッダーが濃い地＋白抜き。
+    const c = S_THUMB_PALETTE[colorKey ?? 'gold'] ?? S_THUMB_PALETTE.gold;
+    const onBar = c.bar !== null;
     return (
       <div style={{ background: c.bg, color: c.ink, height: 168, fontFamily: 'serif' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '7px 10px', borderBottom: wine ? `2px solid ${accent}` : `1px solid ${c.line}` }}>
-          <span style={{ fontSize: 7, letterSpacing: '.2em', color: accent }}>SALON</span>
+        <div
+          style={{
+            display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '7px 10px',
+            background: c.bar ?? 'transparent',
+            borderBottom: onBar ? 'none' : `1px solid ${c.line}`,
+          }}
+        >
+          <span style={{ fontSize: 7, letterSpacing: '.2em', color: onBar ? '#fff' : accent }}>SALON</span>
           <span style={{ display: 'flex', gap: 5 }}>
             {[0, 1, 2, 3].map((i) => (
-              <span key={i} style={{ width: 12, height: 2, background: c.soft }} />
+              <span key={i} style={{ width: 12, height: 2, background: onBar ? 'rgba(255,255,255,.6)' : c.soft }} />
             ))}
           </span>
-          <span style={{ fontSize: 6, letterSpacing: '.15em', color: '#fff', background: accent, padding: '2px 7px' }}>RESERVE</span>
+          <span
+            style={{
+              fontSize: 6, letterSpacing: '.15em', padding: '2px 7px',
+              color: onBar ? c.bar! : '#fff', background: onBar ? '#fff' : accent,
+            }}
+          >
+            RESERVE
+          </span>
         </div>
         <div style={{ position: 'relative', height: 66, background: `linear-gradient(105deg, ${c.hero} 42%, ${deep}55 75%, ${accent}44)` }}>
           <div style={{ position: 'absolute', left: 10, top: 14 }}>
@@ -65,8 +86,8 @@ export function DesignThumb({
         <div style={{ padding: '10px 12px' }}>
           <div style={{ fontSize: 7, letterSpacing: '.3em', color: accent }}>CONCEPT</div>
           <div style={{ width: 22, height: 1, background: accent, margin: '5px 0 7px' }} />
-          {/* ワインはコース名がワインの帯になるので、サムネでも1本を帯で表す */}
-          <div style={{ height: 3, background: wine ? accent : c.band, marginBottom: 4 }} />
+          {/* ワイン・ブルーはコース名が色の帯になるので、サムネでも1本を帯で表す */}
+          <div style={{ height: 3, background: onBar ? accent : c.band, marginBottom: 4 }} />
           <div style={{ height: 3, background: c.band, width: '62%' }} />
           <div style={{ display: 'flex', gap: 5, marginTop: 9 }}>
             {[0, 1, 2].map((i) => (

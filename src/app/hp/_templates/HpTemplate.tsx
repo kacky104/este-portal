@@ -34,6 +34,9 @@ import { hpTopbarNavItems } from '@/app/hp/_lib/sections';
 import { HpShell, HP_ORDER_HERO } from './HpShell';
 import { CourseGroups, QuickNav, SecHead, TherapistCards } from './parts';
 
+/** 色味を振った既定キービジュアル（public/hp-s/hero-pc-{色}.webp）を持つ配色。 */
+const HP_S_HERO_FALLBACK_COLORS = ['wine', 'blue'];
+
 export function HpTemplate({ data }: { data: HpPageData }) {
   const { site, salon, courses, therapists, coupons, news, freePages, basePath } = data;
   const b = site.blocks;
@@ -49,9 +52,13 @@ export function HpTemplate({ data }: { data: HpPageData }) {
   const heroPc = heroImages[0] ?? null;
   const heroSp = heroImages[1] ?? null;
   // タイプSの既定キービジュアル（店舗が画像を入れていないとき用）。
-  // 配色に合わせて色味を振った同じ写真を用意している（2026-08-11 ワインレッド追加）。
-  // 店舗が自分の写真を入れたらこのフォールバックは使われない。
-  const heroFallbackSuffix = site.template_key === 's' && site.theme_key === 'wine' ? '-wine' : '';
+  // 配色に合わせて色味を振った同じ写真を public/hp-s/ に用意している
+  // （2026-08-11: ワインレッド・ロイヤルブルー）。配色を足すときは
+  // 画像を置いてここに1行足すだけ。店舗が自分の写真を入れたらこの経路は使われない。
+  const heroFallbackSuffix =
+    site.template_key === 's' && HP_S_HERO_FALLBACK_COLORS.includes(site.theme_key)
+      ? `-${site.theme_key}`
+      : '';
   const onDuty = therapists.filter((t) => t.onDuty);
 
   // ── セクションの表示順（2026-08-10）──

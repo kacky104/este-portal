@@ -45,6 +45,16 @@ export const metadata: Metadata = {
 // 掲載する総パターン数は定義から数える（カラーを足し引きしても文言がずれないように・2026-08-11）。
 const HP_PATTERN_COUNT = HP_TEMPLATES.reduce((n, t) => n + HP_COLOR_VARIANTS[t.key].length, 0);
 
+// カラー数ごとのサムネ列数。少ない色数のひな形（タイプS）は1枚を大きく見せる。
+const VARIANT_GRID_CLS: Record<number, string> = {
+  1: 'grid-cols-1',
+  2: 'grid-cols-1 sm:grid-cols-2',
+  3: 'grid-cols-1 sm:grid-cols-3',
+  4: 'grid-cols-2 sm:grid-cols-4',
+  5: 'grid-cols-2 sm:grid-cols-3 lg:grid-cols-5',
+  6: 'grid-cols-2 sm:grid-cols-3 lg:grid-cols-6',
+};
+
 const TEMPLATE_TITLES: Record<HpTemplateKey, { en: string; name: string }> = {
   s: { en: 'GRACE', name: 'フラッグシップ' },
   a: { en: 'LUXE',  name: '高級・しっとり' },
@@ -133,7 +143,7 @@ export default function HpTemplatesPage() {
             選べるデザイン <span className="text-[#b98d4f]">全{HP_PATTERN_COUNT}パターン</span>
           </h2>
           <p className="text-[13px] leading-relaxed text-[#8a7a70] max-w-xl mx-auto">
-            4つのひな形 × カラーをご用意しました（最上位のタイプSはシャンパンゴールドとワインレッドの2種類）。
+            4つのひな形 × カラーをご用意しました（最上位のタイプSはシャンパンゴールド・ワインレッド・ロイヤルブルーの3種類）。
             気になるデザインが決まりましたら、担当者までお知らせください。
             <br className="hidden sm:block" />
             ドメイン取得・制作・写真や文章の設定まで、すべて運営がおこなって納品します。
@@ -157,7 +167,9 @@ export default function HpTemplatesPage() {
                   <p className="text-[11px] text-[#a08e84]">{HP_TEMPLATE_NOTES[t.key]}</p>
                 </div>
 
-                <div className={`grid gap-3 ${variants.length <= 2 ? 'grid-cols-1 sm:grid-cols-2' : 'grid-cols-2 sm:grid-cols-3 lg:grid-cols-6'}`}>
+                {/* ★ Tailwind は文字列を組み立てたクラス名を拾えない（未使用として消える）ので、
+                    列数は必ずベタ書きの候補から選ぶこと。 */}
+                <div className={`grid gap-3 ${VARIANT_GRID_CLS[Math.min(variants.length, 6)] ?? VARIANT_GRID_CLS[6]}`}>
                   {variants.map((v) => {
                     const c = hpVariantColors(t.key, v.key);
                     return (

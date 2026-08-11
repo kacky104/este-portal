@@ -795,6 +795,97 @@ const TYPE_S_WINE = `/* ══════════ 配色2: ワインレッ�
 .hp-s.hp-s-wine .hp-cta-tel { color: #5c1526; }
 `;
 
+const TYPE_S_BLUE = `/* ══════════ 配色3: ロイヤルブルー（2026-08-11）══════════
+   ワインレッドとまったく同じ作り方の青版。DOM・レイアウト・余白はシャンパンゴールドと同じで、
+   色の面積だけを大きく変える。地は白（#f7f9fd＝わずかに青みのある白）のまま＝写真が映える明るさは維持。
+
+   ・見出し・飾り罫・価格・リンク・CTA は --hp-accent(#2a4a9e)/--hp-accent-soft(#7089cf) が効く
+   ・ここに書くのは「CSS変数では表せない面」だけ:
+       生成りの帯 → 淡い青の帯 / ヘッダー・クイックナビ → 濃紺の帯（白抜き）/
+       コース名 → 青の帯（白抜き）/ フッター → 濃紺 / 写真に重ねる影 → 茶から紺へ
+
+   ★ 付くクラスは HP_COLOR_VARIANTS.s の rootClass（hp-s-blue）。
+   ★ 他の配色を1バイトも変えないため、上の .hp-s のルールには手を入れないこと。 */
+.hp-s.hp-s-blue { background: #f7f9fd; color: #2f3646; }
+/* 壁紙の羽根は青用に色を振った別画像（無くても下の霞だけで成立する） */
+.hp-s.hp-s-blue::before { background-image: url('/hp-s/wallpaper-blue.webp'); }
+/* セクションの地色（壁紙を透かすベール）。無地↔淡い青の帯で縞を作る */
+.hp-s.hp-s-blue .hp-sec { background: rgba(247,249,253,.34); }
+.hp-s.hp-s-blue .hp-sec-alt { background: rgba(233,238,248,.78); }
+.hp-s.hp-s-blue .hp-sec-diary, .hp-s.hp-s-blue .hp-sec-coupon, .hp-s.hp-s-blue .hp-sec-free { background: rgba(233,238,248,.78); }
+.hp-s.hp-s-blue .hp-sec-reviews, .hp-s.hp-s-blue .hp-sec-news, .hp-s.hp-s-blue .hp-sec-info { background: rgba(247,249,253,.34); }
+
+/* トップバー: 地そのものを濃紺にして、ヘッダーだけで「青のサイト」と分かるようにする。
+   地が濃くなるので、店名・ナビ・電話・ハンバーガーはすべて白系に置き換えること。 */
+.hp-s.hp-s-blue .hp-topbar { background: rgba(29,44,99,.93); border-bottom: 1px solid rgba(255,255,255,.16); }
+.hp-s.hp-s-blue.hp-scrolled .hp-topbar { background: #16204a; box-shadow: 0 2px 16px rgba(12,20,48,.32); }
+.hp-s.hp-s-blue .hp-topbar-name { color: #fff; }
+.hp-s.hp-s-blue .hp-topbar-nav a { color: rgba(255,255,255,.82); }
+.hp-s.hp-s-blue .hp-topbar-nav a:hover { color: #fff; border-bottom-color: #fff; }
+.hp-s.hp-s-blue .hp-topbar-tel, .hp-s.hp-s-blue .hp-drawer-btn { color: #fff; }
+.hp-s.hp-s-blue .hp-doc-back { color: rgba(255,255,255,.85); }
+/* ドロワー（開いた中身は明るいまま＝文字の読みやすさを優先） */
+.hp-s.hp-s-blue .hp-drawer { background: rgba(247,249,253,.97); border-left: 1px solid #dae1f0; }
+.hp-s.hp-s-blue .hp-drawer-list a { color: #4a5468; }
+.hp-s.hp-s-blue .hp-drawer-list li + li a { border-top: 1px solid #e6ebf6; }
+.hp-s.hp-s-blue .hp-drawer-foot { border-top: 1px solid #dae1f0; color: #7b869c; }
+.hp-s.hp-s-blue .hp-drawer-terms, .hp-s.hp-s-blue .hp-drawer-close { color: #7b869c; }
+.hp-s.hp-s-blue .hp-doc-p, .hp-s.hp-s-blue .hp-doc-list li { color: #4a5468; }
+/* SPクイックナビ（ヒーロー直下の4分割）。ヘッダーより一段明るい青の帯で写真を上下から挟む。 */
+.hp-s.hp-s-blue .hp-quicknav { background: var(--hp-accent, #2a4a9e); border-bottom: none; }
+.hp-s.hp-s-blue .hp-qn-item + .hp-qn-item { border-left: 1px solid rgba(255,255,255,.22); }
+.hp-s.hp-s-blue .hp-qn-en { color: #fff; }
+.hp-s.hp-s-blue .hp-qn-jp { color: rgba(255,255,255,.75); }
+.hp-s.hp-s-blue .hp-link-text { color: #4a5468; border-color: #dfe5f2; }
+
+/* ヒーロー（PCのみ文字を重ねる。SPは画像だけ＝金と同じ） */
+.hp-s.hp-s-blue .hp-hero-catch { color: #2f3646; text-shadow: 0 1px 12px rgba(247,249,253,.85); }
+.hp-s.hp-s-blue .hp-hero-en, .hp-s.hp-s-blue .hp-hero-area { color: #7b869c; }
+@media (min-width: 640px) {
+  .hp-s.hp-s-blue .hp-hero::after {
+    background: radial-gradient(820px 560px at 24% 52%, rgba(247,249,253,.66), rgba(247,249,253,0) 68%);
+  }
+}
+
+/* 見出し・本文 */
+.hp-s.hp-s-blue .hp-h2 { color: #16204a; }
+.hp-s.hp-s-blue .hp-concept-text { color: #4a5468; }
+.hp-s.hp-s-blue .hp-concept-img { border-color: #dfe5f2; }
+
+/* コース料金: グループ名を青の帯に白抜き（いちばん面積が変わるところ） */
+.hp-s.hp-s-blue .hp-course-name { background: var(--hp-accent, #2a4a9e); color: #fff; padding: 8px 10px; margin-bottom: 10px; }
+.hp-s.hp-s-blue .hp-course-row { border-bottom: 1px solid #dde4f0; }
+.hp-s.hp-s-blue .hp-course-min { color: #454f66; }
+
+/* セラピスト・本日の出勤の写真グリッド（重ねる影を茶から紺へ） */
+.hp-s.hp-s-blue .hp-th-frame, .hp-s.hp-s-blue .hp-sched-thumb { background: #e9eef8; }
+.hp-s.hp-s-blue .hp-th-noimg, .hp-s.hp-s-blue .hp-sched-noimg { background: linear-gradient(160deg, #e9eef8, #d3dcef); }
+.hp-s.hp-s-blue .hp-th-frame::after, .hp-s.hp-s-blue .hp-sched-thumb::after {
+  background: linear-gradient(to top, rgba(12,22,52,.82), rgba(12,22,52,.36) 44%, rgba(12,22,52,0));
+}
+/* 出勤の日付は青のバッジ（白抜き） */
+.hp-s.hp-s-blue .hp-sched-date { background: var(--hp-accent, #2a4a9e); border-color: var(--hp-accent, #2a4a9e); color: #fff; }
+/* 写真の上に載るアクセント文字は、暗い重ね色に負けないよう明るい空色に */
+.hp-s.hp-s-blue .hp-sched-time, .hp-s.hp-s-blue .hp-th-onduty { color: #a9c4f2; }
+
+/* カード（お知らせ・クーポン・口コミ） */
+.hp-s.hp-s-blue .hp-embed { border-color: #dfe5f2; }
+.hp-s.hp-s-blue .hp-card { border-color: #dfe5f2; box-shadow: 0 6px 20px rgba(30,50,110,.07); }
+.hp-s.hp-s-blue .hp-card-title { color: #2f3646; }
+.hp-s.hp-s-blue .hp-card-body { color: #6a7488; }
+.hp-s.hp-s-blue .hp-card-meta { color: #97a0b3; }
+.hp-s.hp-s-blue .hp-info-row { border-bottom: 1px solid #dde4f0; }
+.hp-s.hp-s-blue .hp-info-row dd { color: #454f66; }
+
+/* フッター・予約CTA（濃紺で締める） */
+.hp-s.hp-s-blue .hp-footer { background: #16204a; }
+.hp-s.hp-s-blue .hp-footer-name { color: #b7c8ee; }
+.hp-s.hp-s-blue .hp-footer-sub { color: #a2accb; }
+.hp-s.hp-s-blue .hp-footer-sub a { color: #b7c8ee; }
+.hp-s.hp-s-blue .hp-cta-tel { color: #1d2c63; }
+`;
+
 export const TEMPLATE_VARIANT_CSS: Record<string, string> = {
   'hp-s-wine': TYPE_S_WINE,
+  'hp-s-blue': TYPE_S_BLUE,
 };

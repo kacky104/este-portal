@@ -51,7 +51,7 @@ export function HpGallery({
       <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5 space-y-2">
         <h2 className="text-sm font-black text-slate-800">デザインを選ぶ</h2>
         <p className="text-xs text-slate-500 leading-relaxed">
-          ひな形4種類 × カラー（タイプSは2色・ほかは各6色）から1つお選びください。
+          ひな形4種類 × カラー（タイプSは3色・ほかは各6色）から1つお選びください。
           選んだ組み合わせは、<span className="font-bold text-slate-700">お店の実際のデータが入った実物のページ</span>で確認できます。
           <br />
           <span className="font-bold text-rose-500">選んで確定すると、あとから変更できません。</span>

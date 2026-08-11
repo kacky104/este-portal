@@ -594,6 +594,8 @@ export const HP_COLOR_VARIANTS: Record<HpTemplateKey, HpColorVariant[]> = {
     { key: 'gold',     label: 'シャンパンゴールド', css: { '--hp-accent': '#b98d4f', '--hp-accent-soft': '#d5b98a' } },
     // 白×ワインレッド（2026-08-11 追加。地色・帯・フッターまで作り替える＝rootClass 付き）
     { key: 'wine',     label: 'ワインレッド',       css: { '--hp-accent': '#8e1f35', '--hp-accent-soft': '#b8566a' }, rootClass: 'hp-s-wine' },
+    // 白×ロイヤルブルー（2026-08-11 追加。作りはワインレッドと同じ）
+    { key: 'blue',     label: 'ロイヤルブルー',     css: { '--hp-accent': '#2a4a9e', '--hp-accent-soft': '#7089cf' }, rootClass: 'hp-s-blue' },
   ],
   a: [
     { key: 'gold',     label: 'シャンパンゴールド', css: { '--hp-accent': '#c4a469', '--hp-accent-soft': '#a8905e' } },
