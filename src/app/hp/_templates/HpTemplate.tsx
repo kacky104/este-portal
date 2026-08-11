@@ -264,6 +264,9 @@ export function HpTemplate({ data }: { data: HpPageData }) {
           {salon.access && (<div className="hp-info-row"><dt>アクセス</dt><dd>{salon.access}</dd></div>)}
           {salon.phone && (<div className="hp-info-row"><dt>電話</dt><dd>{salon.phone}</dd></div>)}
         </dl>
+        {multipage && (
+          <a className="hp-more" href={`${basePath}/info`}>店舗情報の詳細へ →</a>
+        )}
       </section>
 
       {/* ── リンク（相互リンクのバナー群）──

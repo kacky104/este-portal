@@ -18,7 +18,7 @@ import type { HpPageData, HpCourse } from '@/app/hp/_lib/data';
  *   system    … コース料金（/system）
  *   terms     … 利用規約（/terms）
  */
-export type HpPageKey = 'home' | 'therapist' | 'system' | 'news' | 'diary' | 'voice' | 'terms';
+export type HpPageKey = 'home' | 'therapist' | 'system' | 'news' | 'diary' | 'voice' | 'info' | 'terms';
 
 // ── トップに出す抜粋の件数（マルチページ時）──────────────
 // トップと下層で同じ内容をそのまま二度出すと自社ドメイン内で重複コンテンツになるため、
@@ -85,6 +85,7 @@ export function hpSubpages(data: HpPageData): {
   news:      boolean;
   diary:     boolean;
   voice:     boolean;
+  info:      boolean;
 } {
   const multi = data.site.blocks.multipage;
   const b = data.site.blocks;
@@ -96,6 +97,8 @@ export function hpSubpages(data: HpPageData): {
     // この2つだけはブロックの ON/OFF をそのまま存在条件に使う。
     diary:     multi && b.diary.on,
     voice:     multi && b.reviews.on,
+    // 店舗情報は常に中身がある（店名・エリアは必須データ）ので multipage だけで決まる
+    info:      multi,
   };
 }
 
@@ -183,7 +186,9 @@ export function hpMenuItems(data: HpPageData, page: HpPageKey): HpMenuItem[] {
     ...(diaryItem !== null ? [diaryItem] : []),
     ...(voiceItem !== null ? [voiceItem] : []),
     ...(jobsUrl !== null ? [{ href: jobsUrl, label: '求人情報', external: true }] : []),
-    { href: hash('info'), label: '店舗情報' },
+    subs.info
+      ? { href: `${basePath}/info`, label: '店舗情報', current: page === 'info' }
+      : { href: hash('info'), label: '店舗情報' },
   ];
 }
 
@@ -202,6 +207,7 @@ export function hpFooterPageLinks(data: HpPageData): HpMenuItem[] {
     ...(subs.news      ? [{ href: `${basePath}/news`,      label: 'お知らせ' }] : []),
     ...(subs.diary     ? [{ href: `${basePath}/diary`,     label: '写メ日記' }] : []),
     ...(subs.voice     ? [{ href: `${basePath}/voice`,     label: '口コミ' }] : []),
+    ...(subs.info      ? [{ href: `${basePath}/info`,      label: '店舗情報' }] : []),
     { href: `${basePath}/terms`, label: '利用規約' },
   ];
 }
@@ -225,6 +231,8 @@ export function hpTopbarNavItems(data: HpPageData, page: HpPageKey): HpMenuItem[
       ? { href: `${basePath}/therapist`, label: 'THERAPIST', current: page === 'therapist' }
       : { href: hash('therapist'), label: 'THERAPIST' },
     { href: hash('schedule'), label: 'SCHEDULE' },
-    { href: hash('info'),     label: 'ACCESS' },
+    subs.info
+      ? { href: `${basePath}/info`, label: 'ACCESS', current: page === 'info' }
+      : { href: hash('info'), label: 'ACCESS' },
   ];
 }

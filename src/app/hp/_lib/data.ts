@@ -69,6 +69,8 @@ export type HpPageData = {
     phone:       string;
     lineUrl:     string;
     jobsEnabled: boolean;
+    /** 支払い方法のスラッグ（salons.payment_methods）。表示は paymentMethodLabel() で変換 */
+    paymentMethods: string[];
   };
   courses:    HpCourse[];
   therapists: HpTherapist[];
@@ -150,7 +152,7 @@ export async function fetchHpPageData(
 
   const { data: salonRow, error: salonErr } = await supabase
     .from('salons')
-    .select('id, name, catchphrase, area, address, access, hours, closed_days, phone, line_url, jobs_enabled, courses, is_hidden')
+    .select('id, name, catchphrase, area, address, access, hours, closed_days, phone, line_url, jobs_enabled, payment_methods, courses, is_hidden')
     .eq('id', salonId)
     .maybeSingle();
   if (salonErr) throw new Error(`salons の取得に失敗: ${salonErr.message}`);
@@ -275,6 +277,9 @@ export async function fetchHpPageData(
       phone:       (salonRow.phone as string) ?? '',
       lineUrl:     (salonRow.line_url as string) ?? '',
       jobsEnabled: Boolean(salonRow.jobs_enabled),
+      paymentMethods: Array.isArray(salonRow.payment_methods)
+        ? (salonRow.payment_methods as string[]).filter((v) => typeof v === 'string')
+        : [],
     },
     courses,
     therapists,

@@ -389,11 +389,11 @@ export function hpSiteKeyColumn(key: string): 'domain' | 'slug' {
 /**
  * トップから切り出す下層ページのURLセグメント。運営が決める固定の分け方。
  *
- * - therapist / system / news … サーバーが本文を描く＝検索にも載せる（indexable）
+ * - therapist / system / news / info … サーバーが本文を描く＝検索にも載せる（indexable）
  * - diary / voice … 中身は iframe（/embed/… は noindex）＝検索エンジンからは本文ゼロに
  *   見えるため、人が見る一覧ページとしてだけ作り、常に noindex・sitemap にも載せない。
  */
-export const HP_SUBPAGE_SEGMENTS = ['therapist', 'system', 'news', 'diary', 'voice'] as const;
+export const HP_SUBPAGE_SEGMENTS = ['therapist', 'system', 'news', 'diary', 'voice', 'info'] as const;
 export type HpSubpageSegment = (typeof HP_SUBPAGE_SEGMENTS)[number];
 
 /**

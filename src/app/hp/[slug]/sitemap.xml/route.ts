@@ -47,6 +47,7 @@ export async function GET(_request: Request, { params }: { params: Promise<{ slu
       ]);
       if ((therapistRes.count ?? 0) > 0) paths.push('/therapist');
       if ((newsRes.count ?? 0) > 0) paths.push('/news');
+      paths.push('/info'); // 店舗情報は常に中身がある（店名・住所は必須データ）
       const courses = (salonRes as { data: { courses?: unknown } | null }).data?.courses;
       const hasCourse =
         Array.isArray(courses) &&
