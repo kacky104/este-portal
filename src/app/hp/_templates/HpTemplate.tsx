@@ -20,7 +20,7 @@
 //   例外: LINE予約だけは他社サービスで計測の必要が無いので従来どおり（HpShell 側）。
 
 import { EMBED_SITE_URL } from '@/app/embed/salon/[id]/embedShared';
-import { hpSectionOrder } from '@/app/lib/hpSite';
+import { hpHeroImages, hpSectionOrder } from '@/app/lib/hpSite';
 import type { HpSectionKey } from '@/app/lib/hpSite';
 import type { HpPageData } from '@/app/hp/_lib/data';
 import {
@@ -44,8 +44,10 @@ export function HpTemplate({ data }: { data: HpPageData }) {
   const grouped = groupCourses(courses);
   // ヒーローは「1枚目=PC用（横長）／2枚目=スマホ用（縦長・省略可）」の約束。
   // 2枚目が無ければ1枚目を両方に使う（従来どおりの挙動）。
-  const heroPc = site.hero_images[0] ?? null;
-  const heroSp = site.hero_images[1] ?? null;
+  // カラー別の写真（デモ店のプレビュー用・blocks.heroByColor）があればそちらが勝つ。
+  const heroImages = hpHeroImages(site);
+  const heroPc = heroImages[0] ?? null;
+  const heroSp = heroImages[1] ?? null;
   // タイプSの既定キービジュアル（店舗が画像を入れていないとき用）。
   // 配色に合わせて色味を振った同じ写真を用意している（2026-08-11 ワインレッド追加）。
   // 店舗が自分の写真を入れたらこのフォールバックは使われない。

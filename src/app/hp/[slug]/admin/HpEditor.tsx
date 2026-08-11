@@ -26,6 +26,8 @@ import {
   HP_DIARY_COUNT_MAX,
   HP_REVIEWS_COUNT_MIN,
   HP_REVIEWS_COUNT_MAX,
+  HP_DEMO_SLUG,
+  normalizeHpSiteKey,
 } from '@/app/lib/hpSite';
 
 // 公式HPの編集パネル（旧 mypage/HpTab.tsx を店舗ドメイン/admin へ移植・2026-08-09 段階3）。
@@ -93,6 +95,13 @@ export function HpEditor({
 }) {
   const [form, setForm] = useState<FormState>(() => siteToForm(site));
   const [saving, setSaving] = useState(false);
+  // デモ店だけの欄（2026-08-11）。デモは1行で全デザインを見せるため、
+  // 配色ごとのトップ画像を持てるようにしている（実店舗はデザインが1つなので出さない）。
+  const isDemo = normalizeHpSiteKey(siteKey) === HP_DEMO_SLUG;
+  // いま確定している配色【以外】＝プレビュー専用に写真を差し替えたい配色（タイプSならワインレッド）
+  const previewColors = isDemo
+    ? HP_COLOR_VARIANTS[site.template_key].filter((v) => v.key !== site.theme_key)
+    : [];
   // アップロード中のスロット識別子（'hero0'〜 / 'concept' / 'banner0'〜）
   const [uploadingSlot, setUploadingSlot] = useState<string | null>(null);
   // 相互リンク用バナーコードの貼り付け欄（保存はしない。取り込んだらバナー枠へ入れる）
@@ -157,6 +166,7 @@ export function HpEditor({
       ...(site.logo_url ? [site.logo_url] : []),
       ...(site.favicon_url ? [site.favicon_url] : []),
       ...site.banners.map((b) => b.image_url),
+      ...Object.values(site.blocks.heroByColor).flat(),
     ]);
     if (savedUrls.has(url)) return;
     const marker = '/salon-images/';
@@ -366,6 +376,101 @@ export function HpEditor({
           />
         </div>
       </div>
+
+      {/* ── 配色ごとのトップ画像（デモ店だけ・2026-08-11）──
+           デモは1行で全デザインを見せるので、上の「トップ画像」だけだと
+           どの配色のプレビューにも同じ写真が出てしまう。ここに入れた写真は
+           その配色で見たときだけ差し替わる（/hp/demo/preview/{ひな形}/{カラー}）。 */}
+      {previewColors.length > 0 && (
+        <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5 space-y-4">
+          <h3 className="text-sm font-black text-slate-800">配色ごとのトップ画像（デモ専用）</h3>
+          <p className="text-[11px] text-slate-400 leading-relaxed">
+            デザイン一覧のプレビューで、その配色のときだけ差し替える写真です。
+            未設定ならタイプSは色味を合わせた既定画像、それ以外は上の「トップ画像」がそのまま使われます。
+          </p>
+          {previewColors.map((variant) => {
+            const list = form.blocks.heroByColor[variant.key] ?? [];
+            const setList = (next: string[]) => {
+              const map = { ...form.blocks.heroByColor };
+              if (next.length === 0) delete map[variant.key];
+              else map[variant.key] = next;
+              patchBlocks({ heroByColor: map });
+            };
+            return (
+              <div key={variant.key} className="space-y-2">
+                <p className="flex items-center gap-2 text-xs font-bold text-slate-600">
+                  <span
+                    className="w-4 h-4 rounded-full border border-black/10"
+                    style={{ backgroundColor: variant.css['--hp-accent'] }}
+                  />
+                  {templateLabel}／{variant.label} 用
+                </p>
+                <div className="grid grid-cols-2 gap-3">
+                  {HERO_SLOTS.map((slot, i) => {
+                    const url = list[i] ?? null;
+                    const slotKey = `hero_${variant.key}${i}`;
+                    return (
+                      <div key={slot.key} className="space-y-1.5">
+                        <p className="text-[11px] font-bold text-slate-500">
+                          {slot.label}
+                          <span className="ml-1 font-normal text-slate-400">{slot.hint}</span>
+                        </p>
+                        {url ? (
+                          <div className="relative">
+                            {/* eslint-disable-next-line @next/next/no-img-element */}
+                            <img
+                              src={url}
+                              alt={`${variant.label} ${slot.label}`}
+                              className={`w-full object-cover rounded-xl border border-slate-200 ${slot.previewCls}`}
+                            />
+                            <button
+                              onClick={() => {
+                                // 上の「トップ画像」と同じ規則: PC用を消したらスマホ用も一緒に外す
+                                setList(i === 0 ? [] : list.slice(0, 1));
+                                removeIfUnsaved(url);
+                              }}
+                              className="absolute top-1 right-1 w-6 h-6 rounded-full bg-black/50 text-white text-xs font-bold"
+                              aria-label="削除"
+                            >
+                              ×
+                            </button>
+                          </div>
+                        ) : (
+                          <label
+                            className={`flex items-center justify-center w-full rounded-xl border-2 border-dashed border-slate-200 text-[11px] text-slate-400 cursor-pointer hover:border-pink-300 ${slot.previewCls}`}
+                          >
+                            {uploadingSlot === slotKey ? 'アップ中…' : '画像を選ぶ'}
+                            <input
+                              type="file"
+                              accept="image/jpeg,image/png,image/webp"
+                              className="hidden"
+                              disabled={uploadingSlot !== null}
+                              onChange={async (e) => {
+                                const file = e.target.files?.[0];
+                                e.target.value = '';
+                                if (!file) return;
+                                if (i === 1 && !list[0]) {
+                                  onToast('先にパソコン用の画像を設定してください');
+                                  return;
+                                }
+                                const publicUrl = await uploadImage(slotKey, file);
+                                if (!publicUrl) return;
+                                const next = [...list];
+                                next[i] = publicUrl;
+                                setList(next.slice(0, MAX_HP_HERO_IMAGES));
+                              }}
+                            />
+                          </label>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
 
       {/* ── コンセプト ── */}
       <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5 space-y-4">

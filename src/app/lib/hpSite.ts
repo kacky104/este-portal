@@ -70,6 +70,17 @@ export type HpBlocksConfig = {
    *   （sanitizeHpBlocks が既定値を入れるだけで既存行はそのまま使える）。
    */
   multipage:  boolean;
+  /**
+   * カラー別のトップ画像（2026-08-11）。キー=カラーキー / 値=hero_images と同じ並び（[0]=PC・[1]=スマホ）。
+   *
+   * 用途はデモ店（slug='demo'）のデザインプレビューだけ。デモ店は1行で全デザインを見せるため、
+   * シャンパンゴールド用の写真しか持てず、ワインレッドのプレビューだけ色味が合わなかった。
+   * ここに色ごとの写真を入れておくと、その配色で見るときだけ差し替わる。
+   *
+   * ★ 実店舗はデザインが1つに確定するので、この欄は空のまま＝従来どおり hero_images を使う。
+   * ★ 空・未設定なら hero_images →（タイプSは）コード同梱の既定画像、の順にフォールバックする。
+   */
+  heroByColor: Record<string, string[]>;
 };
 
 // ── セクションの表示順（2026-08-10 追加） ──────────────
@@ -158,6 +169,7 @@ export const DEFAULT_HP_BLOCKS: HpBlocksConfig = {
   links:      { on: true },
   order:      null,  // 未設定＝ひな形の既定順
   multipage:  false, // 既定は従来どおりの1ページ構成
+  heroByColor: {},   // 既定は空＝全カラーで hero_images を使う（デモ店だけが使う欄）
 };
 
 function clampInt(v: unknown, min: number, max: number, fallback: number): number {
@@ -200,7 +212,26 @@ export function sanitizeHpBlocks(raw: unknown): HpBlocksConfig {
     order:     Array.isArray(rawObj.order) ? normalizeHpSectionOrder(rawObj.order) : null,
     // ★ order と同じく最上位のキー。ネストしている他のキーと違い r ではなく rawObj から取る。
     multipage: boolOr(rawObj.multipage, d.multipage),
+    heroByColor: sanitizeHpHeroByColor(rawObj.heroByColor),
   };
+}
+
+/**
+ * カラー別トップ画像を安全な形に丸める。
+ * キーは英数字の短いカラーキーだけ、値は https の画像URLだけ、枚数は hero_images と同じ上限。
+ * 空配列になった色は落とす（＝未設定と同じ扱いにして、判定を「あるか無いか」だけにする）。
+ */
+export function sanitizeHpHeroByColor(raw: unknown): Record<string, string[]> {
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return {};
+  const out: Record<string, string[]> = {};
+  for (const [key, value] of Object.entries(raw as Record<string, unknown>)) {
+    if (!/^[a-z][a-z0-9]{1,15}$/.test(key) || !Array.isArray(value)) continue;
+    const urls = value
+      .filter((u): u is string => typeof u === 'string' && isSafeImageUrl(u))
+      .slice(0, MAX_HP_HERO_IMAGES);
+    if (urls.length > 0) out[key] = urls;
+  }
+  return out;
 }
 
 // ── バナー（jsonb: salon_sites.banners） ──────────────
@@ -560,6 +591,16 @@ export function isValidHpColor(template: HpTemplateKey, colorKey: string): boole
 export function hpColorCssVars(template: HpTemplateKey, colorKey: string): Record<string, string> {
   const list = HP_COLOR_VARIANTS[template];
   return (list.find((v) => v.key === colorKey) ?? list[0]).css;
+}
+
+/**
+ * 実際に使うトップ画像（[0]=PC・[1]=スマホ）。
+ * その配色専用の写真（blocks.heroByColor）があればそれ、無ければ従来どおり hero_images。
+ * プレビュー（/preview/{template}/{color}）では theme_key が上書きされるので、
+ * 何も足さなくても「その配色で見たときだけ差し替わる」が成立する。
+ */
+export function hpHeroImages(site: Pick<HpSite, 'hero_images' | 'theme_key' | 'blocks'>): string[] {
+  return site.blocks.heroByColor[site.theme_key] ?? site.hero_images;
 }
 
 /**
