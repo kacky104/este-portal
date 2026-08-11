@@ -524,11 +524,11 @@ ${COMMON}
 .hp-s .hp-concept-img { width: 100%; height: auto; margin-bottom: 22px; border: 1px solid #eadfcd; padding: 6px; background: #fff; }
 
 .hp-s .hp-course-group { margin-bottom: 26px; }
-/* 2026-08-11: 料金の行を読みやすく大きめに（13/12.5/15px → 14/14.5/18px） */
-.hp-s .hp-course-name { font-size: 14px; letter-spacing: .14em; color: var(--hp-accent, #b98d4f); margin-bottom: 6px; font-weight: 600; }
+/* 2026-08-11: 料金の行を読みやすく大きめに（元 13/12.5/15px → 15/16/22px） */
+.hp-s .hp-course-name { font-size: 15px; letter-spacing: .14em; color: var(--hp-accent, #b98d4f); margin-bottom: 6px; font-weight: 600; }
 .hp-s .hp-course-row { display: flex; justify-content: space-between; align-items: baseline; padding: 13px 2px; border-bottom: 1px solid #e7dcc9; }
-.hp-s .hp-course-min { font-size: 14.5px; letter-spacing: .1em; color: #5d5346; }
-.hp-s .hp-course-price { font-size: 18px; color: var(--hp-accent, #b98d4f); font-style: italic; }
+.hp-s .hp-course-min { font-size: 16px; letter-spacing: .1em; color: #5d5346; }
+.hp-s .hp-course-price { font-size: 22px; color: var(--hp-accent, #b98d4f); font-style: italic; }
 
 /* セラピストは「本日の出勤」とまったく同じ見せ方に揃える（2026-08-09 要望）:
    横スクロールではなくグリッド（SP2列・PC4列）、隙間は3px（PC5px）、
