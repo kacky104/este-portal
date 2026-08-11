@@ -23,42 +23,6 @@ const QN_JP: Record<string, string> = {
   ACCESS:    'アクセス',
 };
 
-/** ラベルに対応する線画アイコン（電話アイコンと同じ stroke=currentColor の作法）。 */
-function QnIcon({ label }: { label: string }) {
-  const common = { width: 21, height: 21, viewBox: '0 0 24 24', fill: 'none' as const, stroke: 'currentColor', strokeWidth: 1.5, strokeLinecap: 'round' as const, strokeLinejoin: 'round' as const, 'aria-hidden': true as const, focusable: false as const };
-  switch (label) {
-    case 'NEWS': // 新聞
-      return (
-        <svg {...common}>
-          <path d="M4 5h13v14H6a2 2 0 0 1-2-2V5z" />
-          <path d="M17 8h2a1 1 0 0 1 1 1v8a2 2 0 0 1-2 2" />
-          <path d="M7 9h7M7 12.5h7M7 16h4" />
-        </svg>
-      );
-    case 'SYSTEM': // ¥（料金）
-      return (
-        <svg {...common}>
-          <circle cx="12" cy="12" r="9" />
-          <path d="M9 7.5l3 4.2 3-4.2M12 11.7V17M9.6 13.4h4.8M9.6 15.6h4.8" />
-        </svg>
-      );
-    case 'THERAPIST': // 人
-      return (
-        <svg {...common}>
-          <circle cx="12" cy="8.2" r="3.4" />
-          <path d="M5.5 19.5c.8-3.6 3.4-5.4 6.5-5.4s5.7 1.8 6.5 5.4" />
-        </svg>
-      );
-    default: // ACCESS: 地図ピン
-      return (
-        <svg {...common}>
-          <path d="M20 10.2c0 5.6-8 11.3-8 11.3s-8-5.7-8-11.3a8 8 0 0 1 16 0z" />
-          <circle cx="12" cy="10" r="2.6" />
-        </svg>
-      );
-  }
-}
-
 /**
  * ヒーロー直下のクイックナビ本体。items は hpTopbarNavItems() の戻り値を渡す。
  * 表示のON/OFFはCSS（COMMON の .hp-quicknav が 640px 以上で display:none）。
@@ -68,7 +32,6 @@ export function QuickNav({ items }: { items: HpMenuItem[] }) {
     <nav className="hp-quicknav" style={{ order: 0 }} aria-label="クイックメニュー">
       {items.map((m) => (
         <a key={m.label} className="hp-qn-item" href={m.href} {...(m.current ? { 'aria-current': 'page' as const } : {})}>
-          <QnIcon label={m.label} />
           <span className="hp-qn-en">{m.label}</span>
           <span className="hp-qn-jp">{QN_JP[m.label] ?? ''}</span>
         </a>

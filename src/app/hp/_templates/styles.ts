@@ -102,10 +102,9 @@ const COMMON = `
 .hp-quicknav { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr));
   border-bottom: 1px solid color-mix(in srgb, currentColor 14%, transparent); }
 @media (min-width: 640px) { .hp-quicknav { display: none; } }
-.hp-qn-item { display: flex; flex-direction: column; align-items: center; gap: 3px;
-  padding: 13px 2px 11px; text-decoration: none; color: inherit; min-width: 0; }
+.hp-qn-item { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px;
+  padding: 14px 2px 13px; text-decoration: none; color: inherit; min-width: 0; }
 .hp-qn-item + .hp-qn-item { border-left: 1px solid color-mix(in srgb, currentColor 14%, transparent); }
-.hp-qn-item svg { color: var(--hp-accent, #c4a469); margin-bottom: 2px; }
 .hp-qn-en { font-size: 10px; letter-spacing: .18em; text-indent: .18em; font-weight: 700; }
 .hp-qn-jp { font-size: 8.5px; opacity: .6; letter-spacing: .06em; white-space: nowrap; }
 
