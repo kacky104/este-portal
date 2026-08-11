@@ -97,7 +97,21 @@ const COMMON = `
 .hp-drawer-tel { display: block; margin-top: 16px; font-size: 21px; letter-spacing: .04em; text-decoration: none; }
 .hp-drawer-terms { display: inline-block; margin-top: 18px; font-size: 11px; letter-spacing: .08em; text-decoration: underline; text-underline-offset: 3px; }
 /* ── マルチページ用（2026-08-11）──
-   パンくず。色は本文色をそのまま薄めて使うので、ひな形ごとの追加指定は要らない。 */
+   写メ日記の一覧ページ（/diary）。3列（PC4列）の正方形グリッド＋名前の小さなキャプション。
+   色は本文色と --hp-accent をそのまま継承するので、ひな形ごとの追加指定は要らない。 */
+.hp-dy-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+@media (min-width: 768px) { .hp-dy-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; } }
+.hp-dy-card { display: block; text-decoration: none; color: inherit; min-width: 0; }
+.hp-dy-thumb { display: block; width: 100%; aspect-ratio: 1 / 1; object-fit: cover; }
+.hp-dy-name { display: block; margin-top: 4px; font-size: 10.5px; opacity: .75; letter-spacing: .04em;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+/* 口コミの一覧ページ（/voice）。カードは既存の .hp-card 装飾をそのまま使う。 */
+.hp-voice-stars { color: var(--hp-accent, #c4a469); font-size: 13px; letter-spacing: 2px; }
+.hp-voice-star-off { opacity: .25; }
+.hp-voice-score { margin-left: 6px; font-size: 12px; font-weight: 700; }
+.hp-voice-count { font-size: 11px; opacity: .7; }
+.hp-voice-summary { margin-bottom: 18px; }
+/* パンくず。色は本文色をそのまま薄めて使うので、ひな形ごとの追加指定は要らない。 */
 .hp-crumb { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-bottom: 16px; font-size: 10.5px; letter-spacing: .08em; opacity: .75; }
 .hp-crumb a { color: inherit; text-decoration: none; border-bottom: 1px solid currentColor; padding-bottom: 1px; }
 .hp-crumb-sep { opacity: .55; }
@@ -450,8 +464,9 @@ ${COMMON}
 .hp-s .hp-drawer-terms, .hp-s .hp-doc-back { color: #9b8c74; }
 .hp-s .hp-doc-h { color: var(--hp-accent, #b98d4f); font-weight: 600; letter-spacing: .12em; }
 .hp-s .hp-doc-p, .hp-s .hp-doc-list li { color: #6b6154; letter-spacing: .04em; }
-/* タイプSは見出し・本文とも中央寄せなので、パンくずも中央に揃える */
+/* タイプSは見出し・本文とも中央寄せなので、パンくず・口コミの平均評価も中央に揃える */
 .hp-s .hp-crumb { justify-content: center; }
+.hp-s .hp-voice-summary { text-align: center; }
 .hp-s .hp-sec-doc { padding-left: 22px; padding-right: 22px; }
 @media (min-width: 768px) { .hp-s .hp-sec-doc { padding-left: calc((100% - 760px) / 2); padding-right: calc((100% - 760px) / 2); } }
 .hp-s .hp-link-text { color: #6b6154; border: 1px solid #eadfcd; background: rgba(255,255,255,.6); letter-spacing: .04em; }
