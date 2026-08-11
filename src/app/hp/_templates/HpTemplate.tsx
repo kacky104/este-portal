@@ -30,8 +30,9 @@ import {
   HP_DIGEST_NEWS,
   HP_DIGEST_THERAPISTS,
 } from '@/app/hp/_lib/sections';
+import { hpTopbarNavItems } from '@/app/hp/_lib/sections';
 import { HpShell, HP_ORDER_HERO } from './HpShell';
-import { CourseGroups, SecHead, TherapistCards } from './parts';
+import { CourseGroups, QuickNav, SecHead, TherapistCards } from './parts';
 
 export function HpTemplate({ data }: { data: HpPageData }) {
   const { site, salon, courses, therapists, coupons, news, freePages, basePath } = data;
@@ -104,6 +105,10 @@ export function HpTemplate({ data }: { data: HpPageData }) {
           <p className="hp-hero-area">{salon.area}{salon.hours ? `　${salon.hours}` : ''}</p>
         </div>
       </div>
+
+      {/* ── SPクイックナビ（ヒーロー直下・order:0 で位置固定。並び替えの対象外）──
+           項目とリンク先はPCヘッダーのナビと同じ（hpTopbarNavItems）。スマホ幅のみ表示。 */}
+      <QuickNav items={hpTopbarNavItems(data, 'home')} />
 
       {/* ── コンセプト ── */}
       {visible.concept && (

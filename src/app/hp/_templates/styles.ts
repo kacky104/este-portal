@@ -96,6 +96,19 @@ const COMMON = `
 .hp-drawer-hours { font-size: 12px; line-height: 1.8; }
 .hp-drawer-tel { display: block; margin-top: 16px; font-size: 21px; letter-spacing: .04em; text-decoration: none; }
 .hp-drawer-terms { display: inline-block; margin-top: 18px; font-size: 11px; letter-spacing: .08em; text-decoration: underline; text-underline-offset: 3px; }
+/* ── SPクイックナビ（ヒーロー直下の4分割アイコンメニュー・2026-08-11）──
+   スマホ幅のみ表示（PCはヘッダーのナビが同じ項目を持つ）。骨格はここ・色は各ひな形が上書き。
+   区切り線・地色は currentColor / --hp-accent から作るので、上書きが無くても破綻しない。 */
+.hp-quicknav { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr));
+  border-bottom: 1px solid color-mix(in srgb, currentColor 14%, transparent); }
+@media (min-width: 640px) { .hp-quicknav { display: none; } }
+.hp-qn-item { display: flex; flex-direction: column; align-items: center; gap: 3px;
+  padding: 13px 2px 11px; text-decoration: none; color: inherit; min-width: 0; }
+.hp-qn-item + .hp-qn-item { border-left: 1px solid color-mix(in srgb, currentColor 14%, transparent); }
+.hp-qn-item svg { color: var(--hp-accent, #c4a469); margin-bottom: 2px; }
+.hp-qn-en { font-size: 10px; letter-spacing: .18em; text-indent: .18em; font-weight: 700; }
+.hp-qn-jp { font-size: 8.5px; opacity: .6; letter-spacing: .06em; white-space: nowrap; }
+
 /* ── マルチページ用（2026-08-11）──
    写メ日記の一覧ページ（/diary）。3列（PC4列）の正方形グリッド＋名前の小さなキャプション。
    色は本文色と --hp-accent をそのまま継承するので、ひな形ごとの追加指定は要らない。 */
@@ -464,6 +477,11 @@ ${COMMON}
 .hp-s .hp-drawer-terms, .hp-s .hp-doc-back { color: #9b8c74; }
 .hp-s .hp-doc-h { color: var(--hp-accent, #b98d4f); font-weight: 600; letter-spacing: .12em; }
 .hp-s .hp-doc-p, .hp-s .hp-doc-list li { color: #6b6154; letter-spacing: .04em; }
+/* SPクイックナビ（タイプS: 生成り地×金・トップバーと同じ色帳） */
+.hp-s .hp-quicknav { background: rgba(253,251,247,.92); border-bottom: 1px solid #eee4d4; }
+.hp-s .hp-qn-item + .hp-qn-item { border-left: 1px solid #f0e7d8; }
+.hp-s .hp-qn-en { color: #6b6154; }
+.hp-s .hp-qn-jp { color: #9b8c74; opacity: 1; }
 /* タイプSは見出し・本文とも中央寄せなので、パンくず・口コミの平均評価も中央に揃える */
 .hp-s .hp-crumb { justify-content: center; }
 .hp-s .hp-voice-summary { text-align: center; }
