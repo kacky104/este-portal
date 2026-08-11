@@ -16,8 +16,8 @@ import { HP_DEMO_SLUG, normalizeHpSiteKey } from '@/app/lib/hpSite';
 //   サムネイルはフクエス本体の日記詳細を新しいタブで開く（実流入の導線）。
 // - ★ デモ店（slug='demo'）だけは全店の日記を出す（サンプルサイトとして中身を見せるため。
 //   デモ用サロン自身には日記が無い）。実店舗は必ず自店のぶんだけ。
-// - 出る条件: blocks.multipage が true ＋ 写メ日記ブロックが ON。
-//   therapist/system と違い ON/OFF を存在条件に使う（OFF＝日記をHPに載せない意思表示）。
+// - 出る条件: blocks.multipage が true ＋ 日記1件以上（他ページと同じ「中身の有無」判定。
+//   ON/OFF は「トップに抜粋を出すか」だけの意味＝OFFでもこのページと導線は残る。2026-08-11修正）。
 // - ★ 常に noindex。日記の本文・正規ページはフクエス本体（/diary/[id]）にあり、
 //   ここに一覧を出して index させると本体との重複コンテンツになるため。
 //   人がドロワーやフッターから開く一覧ページとしてだけ機能させる。sitemap にも載せない。
@@ -32,7 +32,7 @@ export async function generateStaticParams() {
 function isOpen(data: HpPageData): boolean {
   if (data.site.status !== 'live') return false;
   if (!data.site.blocks.multipage) return false;
-  return data.site.blocks.diary.on;
+  return data.diaryCount > 0; // ON/OFF ではなく中身の有無（冒頭コメント参照）
 }
 
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {

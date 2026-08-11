@@ -79,6 +79,10 @@ export type HpPageData = {
   freePages:  HpFreePage[];
   /** フクエスワークの求人ID（求人リンクブロック用。無ければ null） */
   jobId:      number | null;
+  /** 写メ日記の件数（/diary の導線・404判定用。デモ店は全店表示なので常に1以上扱い） */
+  diaryCount:  number;
+  /** 承認済み口コミの件数（/voice の同上） */
+  reviewCount: number;
   /** 本日の営業日（JST・午前6時切替）の表示ラベル（例「8/9 (土)」）。出勤ブロックの日付表示用 */
   todayLabel: string;
   /** 週間スケジュールの日付列（本日から blocks.schedule.days 日ぶん） */
@@ -176,7 +180,7 @@ export async function fetchHpPageData(
     .eq('salon_id', salonId);
   const therapistIds = (therapistRes.data ?? []).map((t) => String(t.id));
 
-  const [schedRes, couponRes, newsRes, freeRes, jobRes] = await Promise.all([
+  const [schedRes, couponRes, newsRes, freeRes, jobRes, diaryCountRes, reviewCountRes] = await Promise.all([
     therapistIds.length > 0
       ? supabase
           .from('therapist_schedules')
@@ -212,6 +216,18 @@ export async function fetchHpPageData(
       .eq('salon_id', salonId)
       .eq('is_active', true)
       .maybeSingle(),
+    // 写メ日記・口コミの件数（head count のみ＝行は取らない）。
+    // /diary・/voice の「導線を出すか・404にするか」の判定に使う（2026-08-11）。
+    therapistIds.length > 0
+      ? supabase.from('diary_posts').select('id', { count: 'exact', head: true }).in('therapist_id', therapistIds)
+      : Promise.resolve({ count: 0 }),
+    therapistIds.length > 0
+      ? supabase
+          .from('therapist_reviews')
+          .select('id', { count: 'exact', head: true })
+          .in('therapist_id', therapistIds)
+          .eq('status', 'approved')
+      : Promise.resolve({ count: 0 }),
   ]);
 
   // テーマ壁紙（ひな形に対応するキーがある場合のみ・/salon/[id] と同じ theme_wallpapers を流用）
@@ -294,6 +310,10 @@ export async function fetchHpPageData(
       images: Array.isArray(f.images) ? (f.images as string[]).filter((u) => typeof u === 'string') : [],
     })),
     jobId: jobRes.data ? Number(jobRes.data.id) : null,
+    // デモ店（slug='demo'）の /diary・/voice は全店ぶんを表示するため、自店の件数に関係なく
+    // 「中身あり」として扱う（サンプルサイトの導線を常に見せる）。
+    diaryCount:  siteKey === HP_DEMO_SLUG ? 1 : (diaryCountRes.count ?? 0),
+    reviewCount: siteKey === HP_DEMO_SLUG ? 1 : (reviewCountRes.count ?? 0),
     todayLabel: formatTodayLabel(today),
     weekDays,
     wallpaperUrl,

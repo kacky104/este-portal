@@ -16,7 +16,8 @@ import { HP_DEMO_SLUG, normalizeHpSiteKey } from '@/app/lib/hpSite';
 //   （ひな形のデザインに馴染む・最新30件）。承認済みのみ・取得は lib/reviews.ts に集約。
 // - ★ デモ店（slug='demo'）だけは全店の口コミを出す（サンプルとして中身を見せるため）。
 //   実店舗は必ず自店のぶんだけ＋平均評価も出す。
-// - 出る条件: blocks.multipage が true ＋ 口コミブロックが ON。
+// - 出る条件: blocks.multipage が true ＋ 承認済み口コミ1件以上（他ページと同じ「中身の有無」判定。
+//   ON/OFF は「トップに抜粋を出すか」だけの意味＝OFFでもこのページと導線は残る。2026-08-11修正）。
 // - ★ 常に noindex。口コミの正規ページはフクエス本体（/salon/[id]/reviews）にあり、
 //   ここに一覧を出して index させると本体との重複コンテンツになるため。sitemap にも載せない。
 
@@ -30,7 +31,7 @@ export async function generateStaticParams() {
 function isOpen(data: HpPageData): boolean {
   if (data.site.status !== 'live') return false;
   if (!data.site.blocks.multipage) return false;
-  return data.site.blocks.reviews.on;
+  return data.reviewCount > 0; // ON/OFF ではなく中身の有無（冒頭コメント参照）
 }
 
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {

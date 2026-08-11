@@ -484,9 +484,9 @@ export function HpEditor({
                   {on === null && (
                     <span className="ml-2 font-normal text-[10px] text-slate-400">内容があるときだけ表示</span>
                   )}
-                  {/* マルチページ構成では、この2つのON/OFFは「トップに抜粋を出すか」だけの意味。
-                      OFFでも専用ページ（/therapist・/system）とメニューの導線は残る。 */}
-                  {site.blocks.multipage && (k === 'courses' || k === 'therapists') && (
+                  {/* マルチページ構成では、これらのON/OFFは「トップに抜粋を出すか」だけの意味。
+                      OFFでも専用ページ（/therapist・/system・/diary・/voice）とメニューの導線は残る。 */}
+                  {site.blocks.multipage && (k === 'courses' || k === 'therapists' || k === 'diary' || k === 'reviews') && (
                     <span className="ml-2 font-normal text-[10px] text-slate-400">
                       トップに載せるか（OFFでも専用ページとメニューは残ります）
                     </span>

@@ -88,15 +88,16 @@ export function hpSubpages(data: HpPageData): {
   info:      boolean;
 } {
   const multi = data.site.blocks.multipage;
-  const b = data.site.blocks;
   return {
     therapist: multi && data.therapists.length > 0,
     system:    multi && groupCourses(data.courses).length > 0,
     news:      multi && data.news.length > 0,
-    // 写メ日記・口コミの中身は iframe（サーバー側から件数が見えない）ため、
-    // この2つだけはブロックの ON/OFF をそのまま存在条件に使う。
-    diary:     multi && b.diary.on,
-    voice:     multi && b.reviews.on,
+    // 写メ日記・口コミも「中身の有無」で判定（2026-08-11 修正）。
+    // 以前は iframe で件数が見えず ON/OFF を存在条件にしていたが、HP直接描画に変えて
+    // 件数（diaryCount / reviewCount）を取れるようになったため、他ページと同じ扱いに統一。
+    // ON/OFF は全ページ共通で「トップに抜粋を出すか」だけの意味。
+    diary:     multi && data.diaryCount > 0,
+    voice:     multi && data.reviewCount > 0,
     // 店舗情報は常に中身がある（店名・エリアは必須データ）ので multipage だけで決まる
     info:      multi,
   };
