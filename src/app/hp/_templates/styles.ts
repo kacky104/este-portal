@@ -594,6 +594,11 @@ ${COMMON}
 .hp-s .hp-card-body { font-size: 11px; color: #8a7d6a; line-height: 1.9; white-space: pre-wrap; }
 .hp-s .hp-card-meta { margin-top: 10px; font-size: 9px; color: #b3a48c; letter-spacing: .1em; }
 
+/* 新着情報だけ文字を大きく（トップの抜粋と /news ページの両方に効く。クーポン等の hp-card は据え置き） */
+.hp-s .hp-sec-news .hp-card-title { font-size: 15px; }
+.hp-s .hp-sec-news .hp-card-body { font-size: 13.5px; line-height: 2; }
+.hp-s .hp-sec-news .hp-card-meta { font-size: 10.5px; }
+
 .hp-s .hp-info-row { border-bottom: 1px solid #e7dcc9; }
 .hp-s .hp-info-row dt { color: var(--hp-accent, #b98d4f); font-size: 10px; letter-spacing: .25em; padding-top: 3px; }
 .hp-s .hp-info-row dd { color: #5d5346; }
