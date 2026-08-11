@@ -199,6 +199,19 @@ export function HpShell({
             }}
           />
 
+          {/* ── ヒーロー文字の1行フィット（2026-08-11）──
+               PC幅（640px以上）で店名・キャッチコピーが2行に折り返す場合、
+               1行に収まるサイズまで文字を縮める（下限15px。それでも収まらない長文は従来どおり折り返す）。
+               ★ 比較する幅は要素自身ではなく「親の内側の幅」。タイプSのヒーロー文字は flex の
+                 子要素で、nowrap にすると要素自身が親からはみ出して広がるため、自分の幅との
+                 比較では常に収まって見えてしまう（Playwright 検証で発覚）。
+               ウェブフォント読み込み後・リサイズ時に測り直す。JSなしなら折り返すだけ＝安全側。 ── */}
+          <script
+            dangerouslySetInnerHTML={{
+              __html: `(function(){var els=document.querySelectorAll('[data-hp-fitline]');if(!els.length)return;var mq=window.matchMedia('(min-width: 640px)');function fit(el){el.style.fontSize='';el.style.whiteSpace='';if(!mq.matches)return;var p=el.parentElement;if(!p)return;var pcs=getComputedStyle(p);var avail=p.clientWidth-parseFloat(pcs.paddingLeft)-parseFloat(pcs.paddingRight);el.style.whiteSpace='nowrap';var need=el.scrollWidth;if(need>avail){var cs=parseFloat(getComputedStyle(el).fontSize);var s=cs*avail/need*0.98;if(s<15){el.style.whiteSpace='';return}el.style.fontSize=s+'px'}}function run(){els.forEach(fit)}run();if(document.fonts&&document.fonts.ready){document.fonts.ready.then(run)}var t=false;window.addEventListener('resize',function(){if(!t){t=true;requestAnimationFrame(function(){run();t=false})}},{passive:true})})();`,
+            }}
+          />
+
           {/* ── ドロワーの補助（無くても開閉はできる）。リンクを押したら閉じる・Escで閉じる・
                開いている間は背面をスクロールさせない。 ── */}
           <script

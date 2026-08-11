@@ -97,8 +97,10 @@ export function HpTemplate({ data }: { data: HpPageData }) {
         ) : null}
         <div className="hp-hero-text">
           {salon.catchphrase && <div className="hp-hero-en">{salon.catchphrase}</div>}
-          <h1 className="hp-hero-name">{salon.name}</h1>
-          {site.hero_catch && <p className="hp-hero-catch">{site.hero_catch}</p>}
+          {/* data-hp-fitline: PC幅で2行に折り返す場合、1行に収まるまで文字を自動縮小
+              （HpShell のスクリプト）。JSなしなら従来どおり折り返すだけ。 */}
+          <h1 className="hp-hero-name" data-hp-fitline>{salon.name}</h1>
+          {site.hero_catch && <p className="hp-hero-catch" data-hp-fitline>{site.hero_catch}</p>}
           <p className="hp-hero-area">{salon.area}{salon.hours ? `　${salon.hours}` : ''}</p>
         </div>
       </div>
