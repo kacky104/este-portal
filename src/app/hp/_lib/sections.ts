@@ -213,24 +213,26 @@ export function hpFooterPageLinks(data: HpPageData): HpMenuItem[] {
 }
 
 /**
- * タイプSのPCヘッダーに出る英字ナビ（デザイン都合の固定5項目・ドロワーとは別物）。
+ * タイプSのPCヘッダーに出る英字ナビ（デザイン都合の固定4項目・ドロワーとは別物）。
  * COMMON で display:none なので、タイプS以外では描かれても見えない。
+ * 2026-08-11: CONCEPT・SCHEDULE を外し、NEWS を先頭に（NEWS/SYSTEM/THERAPIST/ACCESS）。
  */
 export function hpTopbarNavItems(data: HpPageData, page: HpPageKey): HpMenuItem[] {
   const { basePath } = data;
   const hash = (id: string) => hpHashHref(basePath, page, id);
   const subs = hpSubpages(data);
   // 下層ページがあるときだけ本物のリンクにする（中身ゼロで404になるページへは飛ばさない）。
-  // 無ければ従来どおりトップ内アンカー（ドロワーと違い、ナビはデザイン都合の固定5項目なので残す）。
+  // 無ければトップ内アンカーに落とす（お知らせ0件の店の NEWS など）。
   return [
-    { href: hash('concept'), label: 'CONCEPT' },
+    subs.news
+      ? { href: `${basePath}/news`, label: 'NEWS', current: page === 'news' }
+      : { href: hash('news'), label: 'NEWS' },
     subs.system
       ? { href: `${basePath}/system`, label: 'SYSTEM', current: page === 'system' }
       : { href: hash('menu'), label: 'SYSTEM' },
     subs.therapist
       ? { href: `${basePath}/therapist`, label: 'THERAPIST', current: page === 'therapist' }
       : { href: hash('therapist'), label: 'THERAPIST' },
-    { href: hash('schedule'), label: 'SCHEDULE' },
     subs.info
       ? { href: `${basePath}/info`, label: 'ACCESS', current: page === 'info' }
       : { href: hash('info'), label: 'ACCESS' },
