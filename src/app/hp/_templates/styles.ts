@@ -885,7 +885,98 @@ const TYPE_S_BLUE = `/* ══════════ 配色3: ロイヤルブ�
 .hp-s.hp-s-blue .hp-cta-tel { color: #1d2c63; }
 `;
 
+const TYPE_S_EMERALD = `/* ══════════ 配色4: エメラルドグリーン（2026-08-11）══════════
+   ワインレッド・ロイヤルブルーとまったく同じ作り方の緑版。
+   地は白（#f6fbf9＝わずかに緑みのある白）のまま＝写真が映える明るさは維持。
+
+   ・見出し・飾り罫・価格・リンク・CTA は --hp-accent(#0e7a5f)/--hp-accent-soft(#5fb39a) が効く
+   ・ここに書くのは「CSS変数では表せない面」だけ:
+       生成りの帯 → 淡い翡翠の帯 / ヘッダー・クイックナビ → 深緑の帯（白抜き）/
+       コース名 → 緑の帯（白抜き）/ フッター → 深緑 / 写真に重ねる影 → 茶から深緑へ
+
+   ★ 付くクラスは HP_COLOR_VARIANTS.s の rootClass（hp-s-emerald）。
+   ★ 他の配色を1バイトも変えないため、上の .hp-s のルールには手を入れないこと。 */
+.hp-s.hp-s-emerald { background: #f6fbf9; color: #2c3a36; }
+/* 壁紙の羽根は緑用に色を振った別画像（無くても下の霞だけで成立する） */
+.hp-s.hp-s-emerald::before { background-image: url('/hp-s/wallpaper-emerald.webp'); }
+/* セクションの地色（壁紙を透かすベール）。無地↔淡い翡翠の帯で縞を作る */
+.hp-s.hp-s-emerald .hp-sec { background: rgba(246,251,249,.34); }
+.hp-s.hp-s-emerald .hp-sec-alt { background: rgba(230,242,238,.78); }
+.hp-s.hp-s-emerald .hp-sec-diary, .hp-s.hp-s-emerald .hp-sec-coupon, .hp-s.hp-s-emerald .hp-sec-free { background: rgba(230,242,238,.78); }
+.hp-s.hp-s-emerald .hp-sec-reviews, .hp-s.hp-s-emerald .hp-sec-news, .hp-s.hp-s-emerald .hp-sec-info { background: rgba(246,251,249,.34); }
+
+/* トップバー: 地そのものを深緑にして、ヘッダーだけで「緑のサイト」と分かるようにする。
+   地が濃くなるので、店名・ナビ・電話・ハンバーガーはすべて白系に置き換えること。 */
+.hp-s.hp-s-emerald .hp-topbar { background: rgba(13,59,49,.93); border-bottom: 1px solid rgba(255,255,255,.16); }
+.hp-s.hp-s-emerald.hp-scrolled .hp-topbar { background: #0a3229; box-shadow: 0 2px 16px rgba(8,40,32,.32); }
+.hp-s.hp-s-emerald .hp-topbar-name { color: #fff; }
+.hp-s.hp-s-emerald .hp-topbar-nav a { color: rgba(255,255,255,.82); }
+.hp-s.hp-s-emerald .hp-topbar-nav a:hover { color: #fff; border-bottom-color: #fff; }
+.hp-s.hp-s-emerald .hp-topbar-tel, .hp-s.hp-s-emerald .hp-drawer-btn { color: #fff; }
+.hp-s.hp-s-emerald .hp-doc-back { color: rgba(255,255,255,.85); }
+/* ドロワー（開いた中身は明るいまま＝文字の読みやすさを優先） */
+.hp-s.hp-s-emerald .hp-drawer { background: rgba(246,251,249,.97); border-left: 1px solid #d5e7e0; }
+.hp-s.hp-s-emerald .hp-drawer-list a { color: #46564f; }
+.hp-s.hp-s-emerald .hp-drawer-list li + li a { border-top: 1px solid #e2efea; }
+.hp-s.hp-s-emerald .hp-drawer-foot { border-top: 1px solid #d5e7e0; color: #7a8d86; }
+.hp-s.hp-s-emerald .hp-drawer-terms, .hp-s.hp-s-emerald .hp-drawer-close { color: #7a8d86; }
+.hp-s.hp-s-emerald .hp-doc-p, .hp-s.hp-s-emerald .hp-doc-list li { color: #46564f; }
+/* SPクイックナビ（ヒーロー直下の4分割）。ヘッダーより一段明るい緑の帯で写真を上下から挟む。 */
+.hp-s.hp-s-emerald .hp-quicknav { background: var(--hp-accent, #0e7a5f); border-bottom: none; }
+.hp-s.hp-s-emerald .hp-qn-item + .hp-qn-item { border-left: 1px solid rgba(255,255,255,.22); }
+.hp-s.hp-s-emerald .hp-qn-en { color: #fff; }
+.hp-s.hp-s-emerald .hp-qn-jp { color: rgba(255,255,255,.75); }
+.hp-s.hp-s-emerald .hp-link-text { color: #46564f; border-color: #dbeae5; }
+
+/* ヒーロー（PCのみ文字を重ねる。SPは画像だけ＝金と同じ） */
+.hp-s.hp-s-emerald .hp-hero-catch { color: #2c3a36; text-shadow: 0 1px 12px rgba(246,251,249,.85); }
+.hp-s.hp-s-emerald .hp-hero-en, .hp-s.hp-s-emerald .hp-hero-area { color: #7a8d86; }
+@media (min-width: 640px) {
+  .hp-s.hp-s-emerald .hp-hero::after {
+    background: radial-gradient(820px 560px at 24% 52%, rgba(246,251,249,.66), rgba(246,251,249,0) 68%);
+  }
+}
+
+/* 見出し・本文 */
+.hp-s.hp-s-emerald .hp-h2 { color: #0d3b31; }
+.hp-s.hp-s-emerald .hp-concept-text { color: #46564f; }
+.hp-s.hp-s-emerald .hp-concept-img { border-color: #dbeae5; }
+
+/* コース料金: グループ名を緑の帯に白抜き（いちばん面積が変わるところ） */
+.hp-s.hp-s-emerald .hp-course-name { background: var(--hp-accent, #0e7a5f); color: #fff; padding: 8px 10px; margin-bottom: 10px; }
+.hp-s.hp-s-emerald .hp-course-row { border-bottom: 1px solid #d9e9e3; }
+.hp-s.hp-s-emerald .hp-course-min { color: #3f524b; }
+
+/* セラピスト・本日の出勤の写真グリッド（重ねる影を茶から深緑へ） */
+.hp-s.hp-s-emerald .hp-th-frame, .hp-s.hp-s-emerald .hp-sched-thumb { background: #e6f2ee; }
+.hp-s.hp-s-emerald .hp-th-noimg, .hp-s.hp-s-emerald .hp-sched-noimg { background: linear-gradient(160deg, #e6f2ee, #cfe3db); }
+.hp-s.hp-s-emerald .hp-th-frame::after, .hp-s.hp-s-emerald .hp-sched-thumb::after {
+  background: linear-gradient(to top, rgba(8,40,32,.82), rgba(8,40,32,.36) 44%, rgba(8,40,32,0));
+}
+/* 出勤の日付は緑のバッジ（白抜き） */
+.hp-s.hp-s-emerald .hp-sched-date { background: var(--hp-accent, #0e7a5f); border-color: var(--hp-accent, #0e7a5f); color: #fff; }
+/* 写真の上に載るアクセント文字は、暗い重ね色に負けないよう明るい翡翠色に */
+.hp-s.hp-s-emerald .hp-sched-time, .hp-s.hp-s-emerald .hp-th-onduty { color: #8fd8c2; }
+
+/* カード（お知らせ・クーポン・口コミ） */
+.hp-s.hp-s-emerald .hp-embed { border-color: #dbeae5; }
+.hp-s.hp-s-emerald .hp-card { border-color: #dbeae5; box-shadow: 0 6px 20px rgba(20,80,65,.07); }
+.hp-s.hp-s-emerald .hp-card-title { color: #2c3a36; }
+.hp-s.hp-s-emerald .hp-card-body { color: #66766f; }
+.hp-s.hp-s-emerald .hp-card-meta { color: #93a49d; }
+.hp-s.hp-s-emerald .hp-info-row { border-bottom: 1px solid #d9e9e3; }
+.hp-s.hp-s-emerald .hp-info-row dd { color: #3f524b; }
+
+/* フッター・予約CTA（深緑で締める） */
+.hp-s.hp-s-emerald .hp-footer { background: #0d3b31; }
+.hp-s.hp-s-emerald .hp-footer-name { color: #9fd7c4; }
+.hp-s.hp-s-emerald .hp-footer-sub { color: #a4bab2; }
+.hp-s.hp-s-emerald .hp-footer-sub a { color: #9fd7c4; }
+.hp-s.hp-s-emerald .hp-cta-tel { color: #0d3b31; }
+`;
+
 export const TEMPLATE_VARIANT_CSS: Record<string, string> = {
   'hp-s-wine': TYPE_S_WINE,
   'hp-s-blue': TYPE_S_BLUE,
+  'hp-s-emerald': TYPE_S_EMERALD,
 };

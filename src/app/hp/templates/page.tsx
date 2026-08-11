@@ -143,7 +143,7 @@ export default function HpTemplatesPage() {
             選べるデザイン <span className="text-[#b98d4f]">全{HP_PATTERN_COUNT}パターン</span>
           </h2>
           <p className="text-[13px] leading-relaxed text-[#8a7a70] max-w-xl mx-auto">
-            4つのひな形 × カラーをご用意しました（最上位のタイプSはシャンパンゴールド・ワインレッド・ロイヤルブルーの3種類）。
+            4つのひな形 × カラーをご用意しました（最上位のタイプSはシャンパンゴールド・ワインレッド・ロイヤルブルー・エメラルドグリーンの4種類）。
             気になるデザインが決まりましたら、担当者までお知らせください。
             <br className="hidden sm:block" />
             ドメイン取得・制作・写真や文章の設定まで、すべて運営がおこなって納品します。

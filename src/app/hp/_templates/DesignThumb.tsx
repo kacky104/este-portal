@@ -9,7 +9,7 @@ import { HP_COLOR_VARIANTS, type HpTemplateKey } from '@/app/lib/hpSite';
 // 純粋な表示部品（state なし）なのでサーバー/クライアントどちらからでも使える。
 
 export const HP_TEMPLATE_NOTES: Record<HpTemplateKey, string> = {
-  s: '白地の最上位デザイン。全幅の写真と固定ナビで、王道の高級メンズエステを表現。シャンパンゴールド・ワインレッド・ロイヤルブルーの3種類。',
+  s: '白地の最上位デザイン。全幅の写真と固定ナビで、王道の高級メンズエステを表現。シャンパンゴールド・ワインレッド・ロイヤルブルー・エメラルドグリーンの4種類。',
   a: '黒基調・明朝体の高級路線。落ち着いた大人向けの店舗に。',
   b: '生成り地のやわらかい印象。清潔感・癒やし系の店舗に。',
   c: '白地に太字とアクセント。都会的でシャープな印象に。',
@@ -31,6 +31,7 @@ const S_THUMB_PALETTE: Record<string, {
   gold: { bg: '#fdfbf7', ink: '#4a4238', head: '#5d5346', line: '#eee4d4', soft: '#d8cbb4', hero: '#fbf6ec', band: '#eadfcd', bar: null },
   wine: { bg: '#fdf8f7', ink: '#4a3238', head: '#5d464a', line: '#efdcdd', soft: '#e3cccd', hero: '#fdf1f1', band: '#eeddde', bar: '#7a1a2e' },
   blue: { bg: '#f7f9fd', ink: '#2f3646', head: '#454f66', line: '#dfe5f2', soft: '#ccd7ee', hero: '#eef3fd', band: '#dfe5f2', bar: '#1d2c63' },
+  emerald: { bg: '#f6fbf9', ink: '#2c3a36', head: '#3f524b', line: '#dbeae5', soft: '#c6e0d7', hero: '#ecf7f3', band: '#dbeae5', bar: '#0d3b31' },
 };
 
 export function DesignThumb({
