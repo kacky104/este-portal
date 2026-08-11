@@ -1,9 +1,9 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { createClient } from '@/app/lib/supabase/client';
 import { STORAGE_CACHE_CONTROL } from '@/app/lib/storage';
-import { saveHpSiteContent } from '@/app/actions/hpAdmin';
+import { listHpTherapists, saveHpSiteContent } from '@/app/actions/hpAdmin';
 import {
   type HpSite,
   type HpBlocksConfig,
@@ -104,6 +104,8 @@ export function HpEditor({
     : [];
   // アップロード中のスロット識別子（'hero0'〜 / 'concept' / 'banner0'〜）
   const [uploadingSlot, setUploadingSlot] = useState<string | null>(null);
+  // 配色ごとのセラピスト写真を設定するための一覧（デモ店だけ・掲載データから引く）
+  const [therapistList, setTherapistList] = useState<{ id: string; name: string; imageUrl: string | null }[]>([]);
   // 相互リンク用バナーコードの貼り付け欄（保存はしない。取り込んだらバナー枠へ入れる）
   const [bannerCode, setBannerCode] = useState('');
   // リンク欄（相互リンク）の貼り付け欄
@@ -112,6 +114,17 @@ export function HpEditor({
   const patch = (p: Partial<FormState>) => setForm((prev) => ({ ...prev, ...p }));
   const patchBlocks = (p: Partial<HpBlocksConfig>) =>
     setForm((prev) => ({ ...prev, blocks: { ...prev.blocks, ...p } }));
+
+  // デモ店のときだけセラピスト一覧を取りに行く（配色ごとの写真を並べるため）。
+  // 失敗しても編集画面そのものは使えるので、エラーは黙って無視する（欄が出ないだけ）。
+  useEffect(() => {
+    if (!isDemo) return;
+    let alive = true;
+    listHpTherapists(siteKey).then((res) => {
+      if (alive && res.ok) setTherapistList(res.therapists);
+    });
+    return () => { alive = false; };
+  }, [isDemo, siteKey]);
 
   // ── セクションの並び順（2026-08-10）────────────────
   // 公開ページと同じ hpSectionOrder() を使う＝この一覧の並び＝実際のサイトの並び。
@@ -167,6 +180,7 @@ export function HpEditor({
       ...(site.favicon_url ? [site.favicon_url] : []),
       ...site.banners.map((b) => b.image_url),
       ...Object.values(site.blocks.heroByColor).flat(),
+      ...Object.values(site.blocks.therapistImagesByColor).flatMap((m) => Object.values(m)),
     ]);
     if (savedUrls.has(url)) return;
     const marker = '/salon-images/';
@@ -380,13 +394,15 @@ export function HpEditor({
       {/* ── 配色ごとのトップ画像（デモ店だけ・2026-08-11）──
            デモは1行で全デザインを見せるので、上の「トップ画像」だけだと
            どの配色のプレビューにも同じ写真が出てしまう。ここに入れた写真は
-           その配色で見たときだけ差し替わる（/hp/demo/preview/{ひな形}/{カラー}）。 */}
+           その配色で見たときだけ差し替わる（/hp/demo/preview/{ひな形}/{カラー}）。
+           セラピスト写真も同じ考え方で、掲載データの写真の代わりに使う。 */}
       {previewColors.length > 0 && (
         <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5 space-y-4">
-          <h3 className="text-sm font-black text-slate-800">配色ごとのトップ画像（デモ専用）</h3>
+          <h3 className="text-sm font-black text-slate-800">配色ごとの画像（デモ専用）</h3>
           <p className="text-[11px] text-slate-400 leading-relaxed">
-            デザイン一覧のプレビューで、その配色のときだけ差し替える写真です。
-            未設定ならタイプSは色味を合わせた既定画像、それ以外は上の「トップ画像」がそのまま使われます。
+            デザイン一覧のプレビューで、その配色のときだけ差し替える写真です（トップ画像とセラピスト写真）。
+            未設定のものは、トップ画像はタイプSなら色味を合わせた既定画像、セラピスト写真は掲載データの写真が
+            そのまま使われます。
           </p>
           {previewColors.map((variant) => {
             const list = form.blocks.heroByColor[variant.key] ?? [];
@@ -466,6 +482,80 @@ export function HpEditor({
                     );
                   })}
                 </div>
+
+                {/* セラピスト写真（配色ごと・2026-08-11）。
+                    掲載データの写真は1人1枚しか持てないので、ワインの回だけ別の写真を出したいときに使う。
+                    未設定の人は掲載データの写真（＝下に薄く出ているもの）のまま。 */}
+                {therapistList.length > 0 && (
+                  <div className="space-y-1.5">
+                    <p className="text-[11px] font-bold text-slate-500">
+                      セラピスト写真
+                      <span className="ml-1 font-normal text-slate-400">縦長 4:5・入れた人だけ差し替わります</span>
+                    </p>
+                    <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
+                      {therapistList.map((t) => {
+                        const map = form.blocks.therapistImagesByColor[variant.key] ?? {};
+                        const url = map[t.id] ?? null;
+                        const slotKey = `th_${variant.key}_${t.id}`;
+                        const setOne = (next: string | null) => {
+                          const all = { ...form.blocks.therapistImagesByColor };
+                          const inner = { ...(all[variant.key] ?? {}) };
+                          if (next === null) delete inner[t.id];
+                          else inner[t.id] = next;
+                          if (Object.keys(inner).length === 0) delete all[variant.key];
+                          else all[variant.key] = inner;
+                          patchBlocks({ therapistImagesByColor: all });
+                        };
+                        return (
+                          <div key={t.id} className="space-y-1">
+                            {url ? (
+                              <div className="relative">
+                                {/* eslint-disable-next-line @next/next/no-img-element */}
+                                <img
+                                  src={url}
+                                  alt={t.name}
+                                  className="w-full aspect-[4/5] object-cover rounded-lg border border-slate-200"
+                                />
+                                <button
+                                  onClick={() => { setOne(null); removeIfUnsaved(url); }}
+                                  className="absolute top-1 right-1 w-5 h-5 rounded-full bg-black/50 text-white text-[10px] font-bold"
+                                  aria-label="削除"
+                                >
+                                  ×
+                                </button>
+                              </div>
+                            ) : (
+                              <label className="relative block w-full aspect-[4/5] rounded-lg border-2 border-dashed border-slate-200 cursor-pointer hover:border-pink-300 overflow-hidden">
+                                {/* 未設定のときは掲載データの写真を薄く敷いて「いま出ている写真」を分かるように */}
+                                {t.imageUrl && (
+                                  // eslint-disable-next-line @next/next/no-img-element
+                                  <img src={t.imageUrl} alt="" className="absolute inset-0 w-full h-full object-cover opacity-30" />
+                                )}
+                                <span className="absolute inset-0 flex items-center justify-center text-[10px] font-bold text-slate-500">
+                                  {uploadingSlot === slotKey ? 'アップ中…' : '画像を選ぶ'}
+                                </span>
+                                <input
+                                  type="file"
+                                  accept="image/jpeg,image/png,image/webp"
+                                  className="hidden"
+                                  disabled={uploadingSlot !== null}
+                                  onChange={async (e) => {
+                                    const file = e.target.files?.[0];
+                                    e.target.value = '';
+                                    if (!file) return;
+                                    const publicUrl = await uploadImage(slotKey, file);
+                                    if (publicUrl) setOne(publicUrl);
+                                  }}
+                                />
+                              </label>
+                            )}
+                            <p className="text-[10px] text-slate-500 text-center truncate">{t.name}</p>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
               </div>
             );
           })}

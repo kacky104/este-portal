@@ -160,6 +160,36 @@ export async function getHpAdminContext(
   };
 }
 
+/**
+ * 配色ごとのセラピスト写真を設定するための一覧（2026-08-11・デモ店の管理画面専用）。
+ * 掲載データのセラピスト（ID・名前・いまの写真）だけを返す。
+ *
+ * ★ service_role で読むのは公開ページ（data.ts）と同じ理由。デモ用サロンは is_hidden=true で
+ *   作るため anon では引けない。権限は resolveAccess が先に確認している。
+ */
+export async function listHpTherapists(
+  siteKey: string,
+): Promise<{ ok: true; therapists: { id: string; name: string; imageUrl: string | null }[] } | Err> {
+  const r = await resolveAccess(siteKey);
+  if ('ok' in r) return r;
+
+  const { data, error } = await r.svc
+    .from('therapists')
+    .select('id, name, profile_image_url')
+    .eq('salon_id', r.site.salon_id)
+    .order('name');
+  if (error) return { ok: false, error: `セラピストの取得に失敗しました: ${error.message}` };
+
+  return {
+    ok: true,
+    therapists: (data ?? []).map((t) => ({
+      id:       String(t.id),
+      name:     (t.name as string | null) ?? '',
+      imageUrl: (t.profile_image_url as string | null) ?? null,
+    })),
+  };
+}
+
 // ── デザイン確定（ギャラリー） ───────────────────────────
 /**
  * ひな形とカラーを確定してロックする。design_locked=false のときだけ通る。

@@ -249,6 +249,10 @@ export async function fetchHpPageData(
     dutyMap.set(`${String(r.schedule_date)}|${String(r.therapist_id)}`, `${hm(r.start_time)}〜${hm(r.end_time)}`);
   });
 
+  // 配色ごとのセラピスト写真（デモ店だけが持つ欄・2026-08-11）。
+  // プレビューでは theme_key が上書きされるので、その配色で見たときだけ写真が差し替わる。
+  const therapistImageByColor = site.blocks.therapistImagesByColor[site.theme_key] ?? {};
+
   const therapists: HpTherapist[] = (therapistRes.data ?? []).map((t) => {
     const week = weekDays.map((d) => dutyMap.get(`${d.date}|${String(t.id)}`) ?? null);
     const duty = week[0] ?? null; // 先頭＝本日
@@ -256,7 +260,7 @@ export async function fetchHpPageData(
       id:          String(t.id),
       name:        (t.name as string) ?? '',
       age:         (t.age as number | null) ?? null,
-      imageUrl:    (t.profile_image_url as string | null) ?? null,
+      imageUrl:    therapistImageByColor[String(t.id)] ?? (t.profile_image_url as string | null) ?? null,
       onDuty:      duty !== null,
       todayTime:   duty,
       catchphrase: (t.catchphrase as string | null) ?? '',

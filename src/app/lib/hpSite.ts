@@ -81,6 +81,17 @@ export type HpBlocksConfig = {
    * ★ 空・未設定なら hero_images →（タイプSは）コード同梱の既定画像、の順にフォールバックする。
    */
   heroByColor: Record<string, string[]>;
+  /**
+   * カラー別のセラピスト写真（2026-08-11）。
+   * キー=カラーキー / 値={ セラピストID: 画像URL }。heroByColor と同じくデモ店専用。
+   *
+   * 掲載データのセラピスト写真は1人1枚しか持てないので、デモ店をワインレッドで
+   * プレビューすると写真だけシャンパンゴールドの色味のまま、という食い違いが出る。
+   * ここに入れた写真は、その配色で見るときだけ profile_image_url の代わりに使う。
+   *
+   * ★ 入っていないセラピストは従来どおり掲載データの写真。実店舗は空のまま。
+   */
+  therapistImagesByColor: Record<string, Record<string, string>>;
 };
 
 // ── セクションの表示順（2026-08-10 追加） ──────────────
@@ -170,6 +181,7 @@ export const DEFAULT_HP_BLOCKS: HpBlocksConfig = {
   order:      null,  // 未設定＝ひな形の既定順
   multipage:  false, // 既定は従来どおりの1ページ構成
   heroByColor: {},   // 既定は空＝全カラーで hero_images を使う（デモ店だけが使う欄）
+  therapistImagesByColor: {}, // 同上（既定は空＝掲載データの写真をそのまま使う）
 };
 
 function clampInt(v: unknown, min: number, max: number, fallback: number): number {
@@ -213,7 +225,34 @@ export function sanitizeHpBlocks(raw: unknown): HpBlocksConfig {
     // ★ order と同じく最上位のキー。ネストしている他のキーと違い r ではなく rawObj から取る。
     multipage: boolOr(rawObj.multipage, d.multipage),
     heroByColor: sanitizeHpHeroByColor(rawObj.heroByColor),
+    therapistImagesByColor: sanitizeHpTherapistImagesByColor(rawObj.therapistImagesByColor),
   };
+}
+
+/** カラーキーとして通す文字列か（英小文字始まりの短い英数字）。 */
+function isColorKeyLike(v: string): boolean {
+  return /^[a-z][a-z0-9]{1,15}$/.test(v);
+}
+
+/**
+ * カラー別セラピスト写真を安全な形に丸める。
+ * 外側のキーはカラーキー、内側のキーはセラピストID（数字またはUUID）、値は https の画像URLだけ。
+ * 空になった色は落とす（＝未設定と同じ扱い）。
+ */
+export function sanitizeHpTherapistImagesByColor(raw: unknown): Record<string, Record<string, string>> {
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return {};
+  const out: Record<string, Record<string, string>> = {};
+  for (const [colorKey, value] of Object.entries(raw as Record<string, unknown>)) {
+    if (!isColorKeyLike(colorKey) || !value || typeof value !== 'object' || Array.isArray(value)) continue;
+    const inner: Record<string, string> = {};
+    for (const [id, url] of Object.entries(value as Record<string, unknown>)) {
+      if (!/^[A-Za-z0-9-]{1,40}$/.test(id)) continue;
+      if (typeof url !== 'string' || !isSafeImageUrl(url)) continue;
+      inner[id] = url;
+    }
+    if (Object.keys(inner).length > 0) out[colorKey] = inner;
+  }
+  return out;
 }
 
 /**
@@ -225,7 +264,7 @@ export function sanitizeHpHeroByColor(raw: unknown): Record<string, string[]> {
   if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return {};
   const out: Record<string, string[]> = {};
   for (const [key, value] of Object.entries(raw as Record<string, unknown>)) {
-    if (!/^[a-z][a-z0-9]{1,15}$/.test(key) || !Array.isArray(value)) continue;
+    if (!isColorKeyLike(key) || !Array.isArray(value)) continue;
     const urls = value
       .filter((u): u is string => typeof u === 'string' && isSafeImageUrl(u))
       .slice(0, MAX_HP_HERO_IMAGES);
