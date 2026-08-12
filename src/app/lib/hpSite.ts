@@ -669,8 +669,39 @@ export function hpColorCssVars(template: HpTemplateKey, colorKey: string): Recor
  * プレビュー（/preview/{template}/{color}）では theme_key が上書きされるので、
  * 何も足さなくても「その配色で見たときだけ差し替わる」が成立する。
  */
-export function hpHeroImages(site: Pick<HpSite, 'template_key' | 'hero_images' | 'theme_key' | 'blocks'>): string[] {
-  return site.blocks.heroByColor[hpImageSlotKey(site.template_key, site.theme_key)] ?? site.hero_images;
+export function hpHeroImages(
+  site: Pick<HpSite, 'slug' | 'template_key' | 'hero_images' | 'theme_key' | 'blocks'>,
+): string[] {
+  const uploaded = site.blocks.heroByColor[hpImageSlotKey(site.template_key, site.theme_key)];
+  if (uploaded) return uploaded;
+  // デモ店だけは「配色ごとに撮り分けた同梱写真」を既定にする（2026-08-12）。
+  // デモは4配色を見比べてもらうための店なので、1枚の写真が全色に出ると比較にならない。
+  // 実店舗はここを通さない＝自分の hero_images が最優先のまま（挙動を変えない）。
+  // 管理画面（デザインごとの画像）から入れた写真があれば、上の uploaded が必ず勝つ。
+  if (site.slug === HP_DEMO_SLUG) {
+    const bundled = hpBundledHeroImages(site.template_key, site.theme_key);
+    if (bundled) return bundled;
+  }
+  return site.hero_images;
+}
+
+/**
+ * 配色ごとに撮り分けて同梱してあるキービジュアル（2026-08-12）。
+ *   public/hp-{ひな形}/hero-pc-{色}.webp（PC 2400×960）
+ *   public/hp-{ひな形}/hero-sp-{色}.webp（SP 1080×760）
+ * 同じ写真の暗部だけに配色の色を差したもの（肌の色は元のまま）。
+ * 生成スクリプトは tools-gen-hp-a-kv.py。配色を足すときは画像を置いてここに1行足す。
+ *
+ * ★ タイプSは 2026-08-11 から別経路（HpTemplate の hero-pc{-色}.webp フォールバック）で
+ *   同じことをしているので、ここには入れない（既存の見え方を変えないため）。
+ */
+const HP_BUNDLED_HERO_COLORS: Partial<Record<HpTemplateKey, string[]>> = {
+  a: ['gold', 'magenta', 'sienna', 'umber'],
+};
+
+export function hpBundledHeroImages(template: HpTemplateKey, colorKey: string): string[] | null {
+  if (!HP_BUNDLED_HERO_COLORS[template]?.includes(colorKey)) return null;
+  return [`/hp-${template}/hero-pc-${colorKey}.webp`, `/hp-${template}/hero-sp-${colorKey}.webp`];
 }
 
 /**

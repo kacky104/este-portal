@@ -5,7 +5,13 @@ import {
   HP_DEMO_SLUG,
   type HpTemplateKey,
 } from '@/app/lib/hpSite';
-import { DesignThumb, HP_TEMPLATE_NOTES, hpDesignThumbSrc, hpVariantColors } from '@/app/hp/_templates/DesignThumb';
+import {
+  DesignThumb,
+  HP_TEMPLATE_NOTES,
+  hpDesignThumbObjectCls,
+  hpDesignThumbSrc,
+  hpVariantColors,
+} from '@/app/hp/_templates/DesignThumb';
 
 // 公式ホームページ制作の【LP 兼 デザイン一覧】（2026-08-09）。
 //
@@ -196,14 +202,17 @@ export default function HpTemplatesPage() {
                       >
                         {src ? (
                           /* 横長（スマホ16:9・PC2:1）＝PCの画面で見ているような比率。
-                             object-right-top: モデルが写真の右上にいるので、右端と上端を基準に切る
-                             （中央基準だと縦を詰めたときに顔が切れる）。 */
+                             切り取り基準（object-position）はひな形ごとにモデルの立ち位置が違うので
+                             hpDesignThumbObjectCls に集約している。 */
                           // eslint-disable-next-line @next/next/no-img-element
                           <img
                             src={src}
                             alt=""
                             loading="lazy"
-                            className="block w-full aspect-video sm:aspect-[2/1] object-cover object-right-top"
+                            className={`block w-full aspect-video sm:aspect-[2/1] object-cover ${hpDesignThumbObjectCls(
+                              t.key,
+                              'list',
+                            )}`}
                           />
                         ) : (
                           <DesignThumb template={t.key} accent={c.accent} deep={c.deep} colorKey={v.key} />

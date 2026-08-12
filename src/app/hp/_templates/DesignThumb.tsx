@@ -24,9 +24,27 @@ export function hpVariantColors(template: HpTemplateKey, colorKey: string): { ac
   return { accent, deep };
 }
 
-// タイプSのサムネ写真が用意されている配色（public/hp-s/thumb-{色}.webp）。
-// ここに無いキーはシャンパンゴールドの写真にフォールバックする。
-const HP_S_THUMB_COLORS = ['gold', 'wine', 'blue', 'emerald'];
+// 実写真のサムネが用意されている配色（public/hp-{ひな形}/thumb-{色}.webp・16:9・640×360）。
+// ここに無いキーは各ひな形の1色目の写真にフォールバックする。配色を足すときは画像を置いて1行足す。
+const HP_THUMB_COLORS: Partial<Record<HpTemplateKey, string[]>> = {
+  s: ['gold', 'wine', 'blue', 'emerald'],
+  a: ['gold', 'magenta', 'sienna', 'umber'],
+};
+
+/**
+ * サムネ写真の切り取り基準（object-position）。モデルの立ち位置がひな形ごとに違うため。
+ * ★ Tailwind は組み立てたクラス名を拾えないので、必ずベタ書きの候補から選ぶこと。
+ *   list … デザイン一覧（横長に潰すので上下の基準が要る）
+ *   card … 管理ギャラリー（168px固定の帯）
+ */
+const HP_THUMB_OBJECT_CLS: Partial<Record<HpTemplateKey, { list: string; card: string }>> = {
+  s: { list: 'object-right-top', card: 'object-right' },   // モデルが写真の右側
+  a: { list: 'object-center', card: 'object-center' },     // モデルが写真の中央
+};
+
+export function hpDesignThumbObjectCls(template: HpTemplateKey, where: 'list' | 'card'): string {
+  return HP_THUMB_OBJECT_CLS[template]?.[where] ?? 'object-center';
+}
 
 /**
  * 実物のキービジュアル写真のURL（用意が無い組み合わせは null）。
@@ -34,9 +52,10 @@ const HP_S_THUMB_COLORS = ['gold', 'wine', 'blue', 'emerald'];
  * URLだけを返して <img> は呼び出し側で置く、という分け方にしている。
  */
 export function hpDesignThumbSrc(template: HpTemplateKey, colorKey?: string): string | null {
-  if (template !== 's') return null;
-  const key = HP_S_THUMB_COLORS.includes(colorKey ?? '') ? colorKey : 'gold';
-  return `/hp-s/thumb-${key}.webp`;
+  const colors = HP_THUMB_COLORS[template];
+  if (!colors) return null;
+  const key = colors.includes(colorKey ?? '') ? colorKey : colors[0];
+  return `/hp-${template}/thumb-${key}.webp`;
 }
 
 export function DesignThumb({
@@ -51,18 +70,17 @@ export function DesignThumb({
   /** タイプSのように「地色まで変わる配色」を持つひな形で、どの配色かを伝える（2026-08-11） */
   colorKey?: string;
 }) {
-  if (template === 's') {
-    // GRACE だけは簡易サムネではなく【実物のキービジュアル写真】を出す（2026-08-12 要望）。
+  const photoSrc = hpDesignThumbSrc(template, colorKey);
+  if (photoSrc) {
+    // 写真があるひな形（S・A）は簡易サムネではなく【実物のキービジュアル】を出す（2026-08-12 要望）。
     // 配色ごとに撮り分けた写真があるので、抽象的なモックより「どんなサイトか」が一目で伝わる。
-    // 画像は public/hp-s/thumb-{色}.webp（16:9・640×360）。配色を足すときはここに1行足す。
-    // object-right: モデルが写真の右側にいるため、カードが細くなっても必ず入るように右端で固定する。
     return (
       // eslint-disable-next-line @next/next/no-img-element
       <img
-        src={hpDesignThumbSrc(template, colorKey) ?? ''}
+        src={photoSrc}
         alt=""
         loading="lazy"
-        className="block w-full object-cover object-right"
+        className={`block w-full object-cover ${hpDesignThumbObjectCls(template, 'card')}`}
         style={{ height: 168 }}
       />
     );

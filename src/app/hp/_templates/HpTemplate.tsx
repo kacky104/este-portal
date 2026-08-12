@@ -20,7 +20,7 @@
 //   例外: LINE予約だけは他社サービスで計測の必要が無いので従来どおり（HpShell 側）。
 
 import { EMBED_SITE_URL } from '@/app/embed/salon/[id]/embedShared';
-import { hpHeroImages, hpSectionOrder } from '@/app/lib/hpSite';
+import { hpBundledHeroImages, hpHeroImages, hpSectionOrder } from '@/app/lib/hpSite';
 import type { HpSectionKey } from '@/app/lib/hpSite';
 import type { HpPageData } from '@/app/hp/_lib/data';
 import {
@@ -59,6 +59,13 @@ export function HpTemplate({ data }: { data: HpPageData }) {
     site.template_key === 's' && HP_S_HERO_FALLBACK_COLORS.includes(site.theme_key)
       ? `-${site.theme_key}`
       : '';
+  // タイプAの既定キービジュアル（2026-08-12）。タイプSと同じ考え方で、同じ写真の暗部だけに
+  // 配色の色を差したものを public/hp-a/ に4色ぶん同梱してある（生成: tools-gen-hp-a-kv.py）。
+  // 店舗が自分の写真を入れていれば heroPc が先に立つので、この経路は使われない。
+  const heroBundledA =
+    site.template_key === 'a'
+      ? hpBundledHeroImages('a', site.theme_key) ?? hpBundledHeroImages('a', 'gold')
+      : null;
   const onDuty = therapists.filter((t) => t.onDuty);
 
   // ── セクションの表示順（2026-08-10）──
@@ -107,6 +114,12 @@ export function HpTemplate({ data }: { data: HpPageData }) {
             <source media="(max-width: 639px)" srcSet={`/hp-s/hero-sp${heroFallbackSuffix}.webp`} />
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img className="hp-hero-img" src={`/hp-s/hero-pc${heroFallbackSuffix}.webp`} alt={salon.name} />
+          </picture>
+        ) : heroBundledA ? (
+          <picture>
+            <source media="(max-width: 639px)" srcSet={heroBundledA[1]} />
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img className="hp-hero-img" src={heroBundledA[0]} alt={salon.name} />
           </picture>
         ) : null}
         <div className="hp-hero-text">
