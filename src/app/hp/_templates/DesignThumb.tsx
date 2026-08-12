@@ -24,15 +24,9 @@ export function hpVariantColors(template: HpTemplateKey, colorKey: string): { ac
   return { accent, deep };
 }
 
-// タイプSのサムネ用パレット（公開ページの配色と同じ組。bar=濃いヘッダーの地色・null は明るいヘッダー）
-const S_THUMB_PALETTE: Record<string, {
-  bg: string; ink: string; head: string; line: string; soft: string; hero: string; band: string; bar: string | null;
-}> = {
-  gold: { bg: '#fdfbf7', ink: '#4a4238', head: '#5d5346', line: '#eee4d4', soft: '#d8cbb4', hero: '#fbf6ec', band: '#eadfcd', bar: null },
-  wine: { bg: '#fdf8f7', ink: '#4a3238', head: '#5d464a', line: '#efdcdd', soft: '#e3cccd', hero: '#fdf1f1', band: '#eeddde', bar: '#7a1a2e' },
-  blue: { bg: '#f7f9fd', ink: '#2f3646', head: '#454f66', line: '#dfe5f2', soft: '#ccd7ee', hero: '#eef3fd', band: '#dfe5f2', bar: '#1d2c63' },
-  emerald: { bg: '#f6fbf9', ink: '#2c3a36', head: '#3f524b', line: '#dbeae5', soft: '#c6e0d7', hero: '#ecf7f3', band: '#dbeae5', bar: '#0d3b31' },
-};
+// タイプSのサムネ写真が用意されている配色（public/hp-s/thumb-{色}.webp）。
+// ここに無いキーはシャンパンゴールドの写真にフォールバックする。
+const HP_S_THUMB_COLORS = ['gold', 'wine', 'blue', 'emerald'];
 
 export function DesignThumb({
   template,
@@ -47,58 +41,23 @@ export function DesignThumb({
   colorKey?: string;
 }) {
   if (template === 's') {
-    // GRACE: 白地・全幅ヒーローに左寄せ文字＋上部ナビ。
-    // 配色によって地色・ヘッダーまで変わるので、公開ページ（styles.ts の .hp-s / .hp-s-wine /
-    // .hp-s-blue）と同じ組で塗る。bar が入っている配色はヘッダーが濃い地＋白抜き。
-    const c = S_THUMB_PALETTE[colorKey ?? 'gold'] ?? S_THUMB_PALETTE.gold;
-    const onBar = c.bar !== null;
+    // GRACE だけは簡易サムネではなく【実物のキービジュアル写真】を出す（2026-08-12 要望）。
+    // 配色ごとに撮り分けた写真があるので、抽象的なモックより「どんなサイトか」が一目で伝わる。
+    // 画像は public/hp-s/thumb-{色}.webp（16:9・640×360）。配色を足すときはここに1行足す。
+    // object-right: モデルが写真の右側にいるため、カードが細くなっても必ず入るように右端で固定する。
+    const key = HP_S_THUMB_COLORS.includes(colorKey ?? '') ? colorKey : 'gold';
     return (
-      <div style={{ background: c.bg, color: c.ink, height: 168, fontFamily: 'serif' }}>
-        <div
-          style={{
-            display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '7px 10px',
-            background: c.bar ?? 'transparent',
-            borderBottom: onBar ? 'none' : `1px solid ${c.line}`,
-          }}
-        >
-          <span style={{ fontSize: 7, letterSpacing: '.2em', color: onBar ? '#fff' : accent }}>SALON</span>
-          <span style={{ display: 'flex', gap: 5 }}>
-            {[0, 1, 2, 3].map((i) => (
-              <span key={i} style={{ width: 12, height: 2, background: onBar ? 'rgba(255,255,255,.6)' : c.soft }} />
-            ))}
-          </span>
-          <span
-            style={{
-              fontSize: 6, letterSpacing: '.15em', padding: '2px 7px',
-              color: onBar ? c.bar! : '#fff', background: onBar ? '#fff' : accent,
-            }}
-          >
-            RESERVE
-          </span>
-        </div>
-        <div style={{ position: 'relative', height: 66, background: `linear-gradient(105deg, ${c.hero} 42%, ${deep}55 75%, ${accent}44)` }}>
-          <div style={{ position: 'absolute', left: 10, top: 14 }}>
-            <div style={{ width: 58, height: 4, background: c.head, marginBottom: 5 }} />
-            <div style={{ width: 40, height: 4, background: c.head, marginBottom: 8 }} />
-            <div style={{ width: 30, height: 2, background: accent }} />
-          </div>
-          <div style={{ position: 'absolute', right: 12, top: 8, bottom: 8, width: 34, background: `linear-gradient(160deg, ${deep}88, ${accent}66)`, borderRadius: 3 }} />
-        </div>
-        <div style={{ padding: '10px 12px' }}>
-          <div style={{ fontSize: 7, letterSpacing: '.3em', color: accent }}>CONCEPT</div>
-          <div style={{ width: 22, height: 1, background: accent, margin: '5px 0 7px' }} />
-          {/* ワイン・ブルーはコース名が色の帯になるので、サムネでも1本を帯で表す */}
-          <div style={{ height: 3, background: onBar ? accent : c.band, marginBottom: 4 }} />
-          <div style={{ height: 3, background: c.band, width: '62%' }} />
-          <div style={{ display: 'flex', gap: 5, marginTop: 9 }}>
-            {[0, 1, 2].map((i) => (
-              <div key={i} style={{ flex: 1, height: 22, background: '#fff', border: `1px solid ${c.band}` }} />
-            ))}
-          </div>
-        </div>
-      </div>
+      // eslint-disable-next-line @next/next/no-img-element
+      <img
+        src={`/hp-s/thumb-${key}.webp`}
+        alt=""
+        loading="lazy"
+        className="block w-full object-cover object-right"
+        style={{ height: 168 }}
+      />
     );
   }
+
   if (template === 'a') {
     // LUXE: 黒基調・明朝・細い金の罫線
     return (
