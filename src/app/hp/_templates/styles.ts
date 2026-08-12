@@ -178,6 +178,15 @@ ${COMMON}
 @media (min-width: 768px) {
   .hp-a .hp-sec { padding: 76px calc((100% - 720px) / 2); }
   .hp-a .hp-hero-text { padding: 48px 24px 56px; }
+  /* ★ ヘッダーとヒーローは画面幅いっぱいに（2026-08-12 要望・タイプSと同じ迫力を出す）。
+     .hp-a は max-width:1024px の中央寄せなので、100vw ＋ 負のマージンで額縁を食い破る。
+     スクロールバーぶんの横はみ出しは /hp/layout.tsx の overflow-x:clip が受ける。
+     本文（セクション・カード・フッター）は従来どおり中央の枠の中。 */
+  .hp-a .hp-topbar, .hp-a .hp-hero { width: 100vw; margin-left: calc(50% - 50vw); margin-right: calc(50% - 50vw); }
+  .hp-a .hp-hero-img { max-height: 82vh; }
+  /* ハンバーガーが画面の右端に来るので、ドロワーも画面の右端から出す
+     （--hp-col-half は .hp-drawer の right 計算にだけ使う変数） */
+  .hp-a { --hp-col-half: 50vw; }
 }
 .hp-a .hp-sec-alt { background: #1f1d22; }
 .hp-a .hp-sec + .hp-sec:not(.hp-sec-alt) { border-top: 1px solid #26242b; }

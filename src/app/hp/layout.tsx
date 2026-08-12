@@ -12,5 +12,8 @@
 export default function HpLayout({ children }: { children: React.ReactNode }) {
   // 額縁背景: /hp はひな形が自分の背景を塗るが、PCでひな形の最大幅より外側に見える領域は
   // ここの濃色が受け持つ（ひな形A/B/C いずれでも破綻しない無彩色）。
-  return <div className="min-h-screen bg-[#101014]">{children}</div>;
+  // overflow-x-clip: ひな形が「額縁より外へ食い破る」演出（タイプAのヘッダー・ヒーロー全幅）で
+  // 100vw を使うため、スクロールバーぶんの横はみ出しをここで受ける。
+  // ★ overflow-x-hidden は不可（他方の軸が auto になり、sticky のトップバーが効かなくなる）。
+  return <div className="min-h-screen bg-[#101014] overflow-x-clip">{children}</div>;
 }

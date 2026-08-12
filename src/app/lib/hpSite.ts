@@ -600,13 +600,14 @@ export const HP_COLOR_VARIANTS: Record<HpTemplateKey, HpColorVariant[]> = {
     // 白×エメラルドグリーン（2026-08-11 追加。作りは同上）
     { key: 'emerald',  label: 'エメラルドグリーン', css: { '--hp-accent': '#0e7a5f', '--hp-accent-soft': '#5fb39a' }, rootClass: 'hp-s-emerald' },
   ],
+  // タイプA（黒基調・明朝）。2026-08-12: 見分けの付かない6色をやめ、
+  // 黒地に映える差し色4本に整理した（タイプSと同じ考え方）。
+  // ★ キー gold は据え置き（既存データを壊さないため）。表示名だけ「アイボリーブラック」に。
   a: [
-    { key: 'gold',     label: 'シャンパンゴールド', css: { '--hp-accent': '#c4a469', '--hp-accent-soft': '#a8905e' } },
-    { key: 'platinum', label: 'プラチナ',           css: { '--hp-accent': '#c9ccd4', '--hp-accent-soft': '#a6aab4' } },
-    { key: 'rose',     label: 'ローズ',             css: { '--hp-accent': '#d4a3ab', '--hp-accent-soft': '#b8878f' } },
-    { key: 'wine',     label: 'ボルドー',           css: { '--hp-accent': '#c98a8a', '--hp-accent-soft': '#ad6f6f' } },
-    { key: 'blue',     label: 'ミッドナイト',       css: { '--hp-accent': '#93a8cc', '--hp-accent-soft': '#7789ad' } },
-    { key: 'forest',   label: 'フォレスト',         css: { '--hp-accent': '#9dbca5', '--hp-accent-soft': '#81a089' } },
+    { key: 'gold',     label: 'アイボリーブラック', css: { '--hp-accent': '#c4a469', '--hp-accent-soft': '#a8905e' } },
+    { key: 'magenta',  label: 'ディープマゼンタ',   css: { '--hp-accent': '#c2477e', '--hp-accent-soft': '#9c3663' } },
+    { key: 'sienna',   label: 'ローシェンナ',       css: { '--hp-accent': '#d9944f', '--hp-accent-soft': '#b3763c' } },
+    { key: 'umber',    label: 'バーントアンバー',   css: { '--hp-accent': '#a85433', '--hp-accent-soft': '#8a4227' } },
   ],
   b: [
     { key: 'green',    label: 'リーフグリーン',     css: { '--hp-accent': '#8fae8b', '--hp-accent-deep': '#6b8f67' } },
