@@ -204,7 +204,7 @@ export async function createHpDemo(): Promise<{ ok: true; salonId: number } | Er
   const { data: salonRow, error: salonErr } = await svc
     .from('salons')
     .insert({
-      name:              'AROMA GRACE',
+      name:              'AROMA FUKUES',
       catchphrase:       'LUXURY AROMA PRIVATE SALON',
       area:              '中洲・天神・薬院',
       price:             '60分 12,000円〜',
