@@ -1270,61 +1270,101 @@ const TYPE_A_SIENNA = `/* ══════════ タイプA 配色: ロ�
 .hp-a.hp-a-sienna .hp-cta-line { color: #402f14; }
 `;
 
-const TYPE_A_UMBER = `/* ══════════ タイプA 配色: バーントアンバー（2026-08-12）══════════
-   焦げ茶を含んだ最も深い黒。落ち着いた赤褐色（バーントアンバー）と組む。
-   タイプAの黒（#17161a）を基準に、地色・帯・カード・フッターまで色みを揃えた版。
-   DOM・レイアウト・余白はアイボリーブラックと完全に同じで、色だけを差し替える。
-   アクセント（--hp-accent / --hp-accent-soft）は HP_COLOR_VARIANTS.a が注入するので
-   ここには書かない。書くのは「変数では表せない地の色」だけ。
-   ★ 他の配色を1バイトも変えないため、上の .hp-a のルールには手を入れないこと。 */
-.hp-a.hp-a-umber { background: #150d0b; color: #ebded7; }
-.hp-a.hp-a-umber .hp-sec-alt { background: #211411; }
-.hp-a.hp-a-umber .hp-sec + .hp-sec:not(.hp-sec-alt) { border-top: 1px solid #2a1a15; }
-/* 壁紙を敷いたときの透け具合（地色に合わせたベール） */
-.hp-a.hp-a-umber .hp-wallpaper::after { background: rgba(21,13,11,.62); }
-.hp-a.hp-a-umber.hp-has-wallpaper .hp-sec-alt { background: rgba(33,20,17,.72); }
-.hp-a.hp-a-umber.hp-has-wallpaper .hp-card { background: rgba(38,24,20,.8); }
-.hp-a.hp-a-umber.hp-has-wallpaper .hp-topbar { background: rgba(21,13,11,.82); }
-/* ヘッダー・ドロワー */
-.hp-a.hp-a-umber .hp-topbar { background: rgba(21,13,11,.9); }
-.hp-a.hp-a-umber .hp-quicknav { background: rgba(21,13,11,.9); }
-.hp-a.hp-a-umber .hp-qn-item + .hp-qn-item { border-left: 1px solid #2a1a15; }
-.hp-a.hp-a-umber .hp-qn-jp { color: #9d887f; }
-.hp-a.hp-a-umber .hp-topbar-nav a { color: #d2c0b7; }
-.hp-a.hp-a-umber .hp-topbar-name { color: #ebded7; }
-.hp-a.hp-a-umber .hp-drawer { background: #211411; border-left: 1px solid #3c2721; }
-.hp-a.hp-a-umber .hp-drawer-list a { color: #d2c0b7; }
-.hp-a.hp-a-umber .hp-drawer-list li + li a { border-top: 1px solid #2a1a15; }
-.hp-a.hp-a-umber .hp-drawer-foot { border-top: 1px solid #3c2721; color: #9d887f; }
-.hp-a.hp-a-umber .hp-drawer-terms, .hp-a.hp-a-umber .hp-doc-back, .hp-a.hp-a-umber .hp-drawer-close { color: #9d887f; }
-.hp-a.hp-a-umber .hp-doc-p, .hp-a.hp-a-umber .hp-doc-list li { color: #d2c0b7; }
-.hp-a.hp-a-umber .hp-link-text { color: #d2c0b7; border-color: #3c2721; }
-/* ヒーロー・本文 */
-.hp-a.hp-a-umber .hp-hero-catch { color: #d2c0b7; }
-.hp-a.hp-a-umber .hp-hero-area { color: #9d887f; }
-.hp-a.hp-a-umber .hp-concept-text { color: #d2c0b7; }
-.hp-a.hp-a-umber .hp-concept-img { border-color: #3c2721; }
-/* 料金・出勤・セラピスト */
-.hp-a.hp-a-umber .hp-course-row { border-bottom: 1px solid #3c2721; }
-.hp-a.hp-a-umber .hp-sched-thumb { background: #211411; }
-.hp-a.hp-a-umber .hp-sched-date { background: #2c1b16; border-color: #3c2721; }
-.hp-a.hp-a-umber .hp-th-frame { background: #211411; border-color: #3c2721; }
-.hp-a.hp-a-umber .hp-th-noimg { background: linear-gradient(160deg, #261812, #37231c); }
-.hp-a.hp-a-umber .hp-th-name { color: #ebded7; }
-.hp-a.hp-a-umber .hp-th-catch { color: #9d887f; }
-.hp-a.hp-a-umber .hp-th-badge { color: #d2c0b7; border-color: #4d332c; }
+const TYPE_A_UMBER = `/* ══════════ タイプA 配色: バーントアンバー（2026-08-12 全面改訂）══════════
+   ディープマゼンタ・ローシェンナと同じ考え方で “色の面積” ごと配色に振った版。
+   DOM・レイアウト・余白はアイボリーブラックと完全に同じ。
+
+   ・バーントアンバー＝アンバー（琥珀土）を焼いた「赤みの濃い焦げ茶」の顔料。
+     ローシェンナが黄みの明るい土色なのに対し、こちらは一段暗く・赤茶寄り・くすんだ色。
+     マゼンタ（鮮やかな青みの赤）とも彩度がまるで違うので、4色並べても取り違えない。
+   ・地を黒（#17161a）から焦げ茶（#2e1b13）へ。壁紙のベールも焦げ茶に寄せる。
+   ・ヘッダー＝濃い焦げ茶、クイックナビ＝アンバーの帯、コース名＝同じ帯に白抜き、
+     出勤の日付＝アンバーのバッジ、フッター／電話CTA＝濃い焦げ茶。
+   ・暗い焦げ茶の上では --hp-accent(#a85433) / --hp-accent-soft(#8a4227) が沈むので、
+     小さな文字（価格・出勤時間・もっと見る等）だけ明るい杏茶色に置き換える。
+   ・アクセント変数そのものは hpSite.ts の HP_COLOR_VARIANTS.a が正なので、ここでは触らない。
+   ★ 他の配色を1バイトも変えないため、上の .hp-a のルールには手を入れず、
+     すべてこのブロックの上書き（.hp-a.hp-a-umber ＝詳細度が1段上）で表現すること。 */
+.hp-a.hp-a-umber { background: #2e1b13; color: #f6e3d6; }
+.hp-a.hp-a-umber .hp-sec-alt { background: #3f251a; }
+.hp-a.hp-a-umber .hp-sec + .hp-sec:not(.hp-sec-alt) { border-top: 1px solid #573225; }
+/* 壁紙（黒ジェム）を焦げ茶のベールで透かす＝ページ全体が煤けた赤茶に染まる */
+.hp-a.hp-a-umber .hp-wallpaper::after { background: rgba(46,27,19,.80); }
+.hp-a.hp-a-umber.hp-has-wallpaper .hp-sec-alt { background: rgba(63,37,26,.78); }
+.hp-a.hp-a-umber.hp-has-wallpaper .hp-card { background: rgba(68,40,28,.82); }
+.hp-a.hp-a-umber.hp-has-wallpaper .hp-topbar { background: rgba(94,47,29,.88); }
+
+/* ヘッダー: 地そのものを濃い焦げ茶にして、ヘッダーだけで「焦げ茶のサイト」と分かるようにする */
+.hp-a.hp-a-umber .hp-topbar { background: rgba(94,47,29,.94); border-bottom: 1px solid rgba(255,255,255,.14); }
+.hp-a.hp-a-umber.hp-scrolled .hp-topbar { background: #5e2f1d; box-shadow: 0 2px 18px rgba(24,12,7,.45); }
+.hp-a.hp-a-umber .hp-topbar-name { color: #fff; }
+.hp-a.hp-a-umber .hp-topbar-nav a { color: rgba(255,255,255,.82); }
+.hp-a.hp-a-umber .hp-topbar-nav a:hover { color: #fff; border-bottom-color: #fff; }
+.hp-a.hp-a-umber .hp-topbar-tel, .hp-a.hp-a-umber .hp-drawer-btn { color: #fff; }
+.hp-a.hp-a-umber .hp-doc-back { color: rgba(255,255,255,.85); }
+/* SPクイックナビ: アンバーの帯に白抜き */
+.hp-a.hp-a-umber .hp-quicknav { background: linear-gradient(90deg, #6e3520, #a85433); border-bottom: none; }
+.hp-a.hp-a-umber .hp-qn-item + .hp-qn-item { border-left: 1px solid rgba(255,255,255,.24); }
+.hp-a.hp-a-umber .hp-qn-en { color: #fff; }
+.hp-a.hp-a-umber .hp-qn-jp { color: rgba(255,255,255,.78); }
+/* ドロワー */
+.hp-a.hp-a-umber .hp-drawer { background: #3f251a; border-left: 1px solid #6e4030; }
+.hp-a.hp-a-umber .hp-drawer-list a { color: #e8c9b4; }
+.hp-a.hp-a-umber .hp-drawer-list li + li a { border-top: 1px solid #573225; }
+.hp-a.hp-a-umber .hp-drawer-foot { border-top: 1px solid #6e4030; color: #bf9682; }
+.hp-a.hp-a-umber .hp-drawer-tel { color: #e8a882; }
+.hp-a.hp-a-umber .hp-drawer-terms, .hp-a.hp-a-umber .hp-drawer-close { color: #bf9682; }
+.hp-a.hp-a-umber .hp-doc-h { color: #e8a882; }
+.hp-a.hp-a-umber .hp-doc-p, .hp-a.hp-a-umber .hp-doc-list li { color: #e8c9b4; }
+.hp-a.hp-a-umber .hp-link-text { color: #e8c9b4; border-color: #6e4030; }
+
+/* 見出し・飾り罫・ヒーロー */
+.hp-a.hp-a-umber .hp-en, .hp-a.hp-a-umber .hp-hero-en { color: #e8a882; }
+.hp-a.hp-a-umber .hp-rule { border-top-color: #c2703f; }
+.hp-a.hp-a-umber .hp-rule::after { border-top-color: rgba(194,112,63,.45); }
+.hp-a.hp-a-umber .hp-hero-catch { color: #e8c9b4; }
+.hp-a.hp-a-umber .hp-concept-text { color: #e8c9b4; }
+.hp-a.hp-a-umber .hp-concept-img { border-color: #6e4030; }
+
+/* コース料金: グループ名をアンバーの帯に白抜き（いちばん面積が変わるところ） */
+.hp-a.hp-a-umber .hp-course-name { background: linear-gradient(90deg, #6e3520, #a85433); color: #fff; padding: 8px 10px; margin-bottom: 10px; }
+.hp-a.hp-a-umber .hp-course-row { border-bottom: 1px solid #573225; }
+.hp-a.hp-a-umber .hp-course-price { color: #e8a882; }
+
+/* 出勤・セラピスト（写真に重ねる影も黒から焦げ茶へ） */
+.hp-a.hp-a-umber .hp-sched-thumb, .hp-a.hp-a-umber .hp-th-frame { background: #3f251a; }
+.hp-a.hp-a-umber .hp-sched-noimg, .hp-a.hp-a-umber .hp-th-noimg { background: linear-gradient(160deg, #45291c, #5e3a28); }
+.hp-a.hp-a-umber .hp-sched-thumb::after {
+  background: linear-gradient(to top, rgba(35,17,9,.86), rgba(35,17,9,.38) 46%, rgba(35,17,9,0));
+}
+/* 日付はアンバーのバッジ（白抜き） */
+.hp-a.hp-a-umber .hp-sched-date { background: #8a4227; border-color: #a85433; color: #fff; }
+/* 写真の上／暗い地に載る小さな文字は明るい杏茶色に置き換える（accent-soft では沈む） */
+.hp-a.hp-a-umber .hp-sched-time { color: #f0bc9a; }
+.hp-a.hp-a-umber .hp-th-name { color: #f6e3d6; }
+.hp-a.hp-a-umber .hp-th-age { color: #d99a76; }
+.hp-a.hp-a-umber .hp-th-catch { color: #bf9682; }
+.hp-a.hp-a-umber .hp-th-badge { color: #e8c9b4; border-color: #7d4a35; }
+.hp-a.hp-a-umber .hp-th-onduty { color: #f0bc9a; border-color: #a85433; }
+.hp-a.hp-a-umber .hp-more { color: #e8a882; border-bottom-color: #a85433; }
+
 /* カード・店舗情報 */
-.hp-a.hp-a-umber .hp-embed { border-color: #3c2721; }
-.hp-a.hp-a-umber .hp-card { background: #211411; border-color: #3c2721; }
-.hp-a.hp-a-umber .hp-card-body { color: #9d887f; }
-.hp-a.hp-a-umber .hp-card-meta { color: #71605a; }
-.hp-a.hp-a-umber .hp-info-row { border-bottom: 1px solid #3c2721; }
-.hp-a.hp-a-umber .hp-info-row dd { color: #d2c0b7; }
-/* フッター・予約CTA */
-.hp-a.hp-a-umber .hp-footer { background: #211411; }
-.hp-a.hp-a-umber .hp-footer-sub { color: #71605a; }
-.hp-a.hp-a-umber .hp-cta-tel { background: #211411; color: #ebded7; }
-.hp-a.hp-a-umber .hp-cta-line { color: #150d0b; }
+.hp-a.hp-a-umber .hp-embed { border-color: #6e4030; }
+.hp-a.hp-a-umber .hp-card { background: #3f251a; border-color: #6e4030; }
+.hp-a.hp-a-umber .hp-coupon-discount { color: #e8a882; }
+.hp-a.hp-a-umber .hp-card-body { color: #bf9682; }
+.hp-a.hp-a-umber .hp-card-meta { color: #8f6852; }
+.hp-a.hp-a-umber .hp-info-row { border-bottom: 1px solid #573225; }
+.hp-a.hp-a-umber .hp-info-row dt { color: #d99a76; }
+.hp-a.hp-a-umber .hp-info-row dd { color: #e8c9b4; }
+
+/* フッター・予約CTA（濃い焦げ茶で締める） */
+.hp-a.hp-a-umber .hp-footer { background: #5e2f1d; }
+.hp-a.hp-a-umber .hp-footer-name { color: #f0bc9a; }
+.hp-a.hp-a-umber .hp-footer-sub { color: #bf9682; }
+.hp-a.hp-a-umber .hp-footer-sub a { color: #f0bc9a; }
+.hp-a.hp-a-umber .hp-cta-tel { background: #5e2f1d; color: #fff; border-top-color: #a85433; }
+.hp-a.hp-a-umber .hp-cta-line { color: #2e1b13; }
 `;
 
 export const TEMPLATE_VARIANT_CSS: Record<string, string> = {
