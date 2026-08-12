@@ -77,7 +77,7 @@ export function HpTherapistView({ data, preview }: ViewProps) {
       <section id="therapist" className="hp-sec hp-sec-therapists" style={{ order: 1 }}>
         <Crumb homeHref={homeHref} label="セラピスト" />
         <SecHead no="03" en="Therapist" jp="セラピスト" />
-        <TherapistCards therapists={therapists} />
+        <TherapistCards therapists={therapists} grid />
         <a className="hp-more" href={homeHref}>← ホームへ戻る</a>
       </section>
 

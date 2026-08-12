@@ -75,10 +75,23 @@ export function SecHead({ no, en, jp }: { no: string; en: string; jp: string }) 
  * カードのリンク先はフクエス本体のセラピストページ（公式HP側には個別ページを作らない）。
  * 本体と内容が重複せず、HPからフクエスへの実流入にもなる。
  */
-export function TherapistCards({ therapists, limit }: { therapists: HpTherapist[]; limit?: number }) {
+export function TherapistCards({
+  therapists,
+  limit,
+  grid = false,
+}: {
+  therapists: HpTherapist[];
+  limit?: number;
+  /**
+   * 一覧ページ（/therapist）向けの並べ方にするか（2026-08-12）。
+   * true だと .hp-th-grid が付き、ひな形側で「トップは横スクロール・一覧ページはグリッド」を
+   * 出し分けられる。トップは抜粋なので横に流す方が収まりが良い、という使い分け。
+   */
+  grid?: boolean;
+}) {
   const list = typeof limit === 'number' ? therapists.slice(0, limit) : therapists;
   return (
-    <div className="hp-th-row">
+    <div className={`hp-th-row${grid ? ' hp-th-grid' : ''}`}>
       {list.map((t) => (
         <a key={t.id} className="hp-th-card" href={`${EMBED_SITE_URL}/therapist/${t.id}`} target="_blank" rel="noopener">
           <div className="hp-th-frame">

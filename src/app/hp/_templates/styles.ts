@@ -266,12 +266,26 @@ ${COMMON}
 @media (min-width: 768px) { .hp-a .hp-th-row { flex-wrap: wrap; } .hp-a .hp-th-card { flex-basis: 158px; } }
 .hp-a .hp-th-frame { border: 1px solid #3a3742; padding: 6px; background: #232128; }
 .hp-a .hp-th-noimg { background: linear-gradient(160deg, #26242b, #34313a); }
-.hp-a .hp-th-name { margin-top: 10px; font-size: 12px; letter-spacing: .12em; text-align: center; color: #e8e4dc; }
-.hp-a .hp-th-age { font-size: 10px; color: var(--hp-accent-soft, #a8905e); text-align: center; margin-top: 3px; }
-.hp-a .hp-th-catch { display: block; margin-top: 6px; font-size: 10px; color: #948f85; text-align: center; line-height: 1.7;
+/* 文字は「本日の出勤」と同じ大きさに（名前14px・年齢11px。2026-08-12 要望） */
+.hp-a .hp-th-name { margin-top: 10px; font-size: 14px; letter-spacing: .12em; text-align: center; color: #e8e4dc; }
+.hp-a .hp-th-age { font-size: 11px; color: var(--hp-accent-soft, #a8905e); text-align: center; margin-top: 3px; }
+
+/* ── セラピスト一覧ページ（/therapist）だけ、写真を「本日の出勤」と同じ寸法のグリッドに ──
+   トップは抜粋なので横スクロールのまま（2026-08-12 要望）。
+   .hp-th-grid は TherapistCards に grid を渡したときだけ付く。 */
+.hp-a .hp-th-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 3px; overflow: visible; padding-bottom: 0; }
+@media (min-width: 768px) { .hp-a .hp-th-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 5px; } }
+/* スマホは左右の余白を食い破って画面の端まで（出勤ブロックと同じ） */
+@media (max-width: 639px) { .hp-a .hp-th-grid { margin-left: -22px; margin-right: -22px; } }
+.hp-a .hp-th-grid .hp-th-card { flex: none; }
+/* 額縁（枠線と内側の余白）を外して、写真そのものを出勤グリッドと同寸にする */
+.hp-a .hp-th-grid .hp-th-frame { border: none; padding: 0; }
+.hp-a .hp-th-grid .hp-th-name, .hp-a .hp-th-grid .hp-th-age,
+.hp-a .hp-th-grid .hp-th-catch, .hp-a .hp-th-grid .hp-th-badges { padding-left: 6px; padding-right: 6px; }
+.hp-a .hp-th-catch { display: block; margin-top: 6px; font-size: 11px; color: #948f85; text-align: center; line-height: 1.7;
   overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
 .hp-a .hp-th-badges { display: flex; flex-wrap: wrap; gap: 4px; justify-content: center; margin-top: 7px; }
-.hp-a .hp-th-badge { font-size: 8.5px; color: #cfc9bd; border: 1px solid #4a4650; padding: 2px 7px; letter-spacing: .08em; }
+.hp-a .hp-th-badge { font-size: 9px; color: #cfc9bd; border: 1px solid #4a4650; padding: 2px 7px; letter-spacing: .08em; }
 .hp-a .hp-th-onduty { display: block; width: fit-content; margin: 8px auto 0; font-size: 9px; color: var(--hp-accent, #c4a469); border: 1px solid var(--hp-accent-soft, #a8905e); padding: 2px 8px; letter-spacing: .15em; }
 /* ── 本日の出勤（2026-08-12: タイプSと同じ写真グリッドに揃えた）──
    SP2列・PC4列で写真を敷き詰め、名前・年齢・出勤時間は写真の中（下端）へ重ねる。
