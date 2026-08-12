@@ -231,6 +231,11 @@ ${COMMON}
 /* 罫線は二重線（内側は淡く）でホテルライクに */
 .hp-a .hp-rule { display: block; width: 56px; height: 5px; margin: 16px 0 26px; background: none; border-top: 1px solid var(--hp-accent, #c4a469); position: relative; }
 .hp-a .hp-rule::after { content: ''; position: absolute; top: 3px; left: 10px; right: 10px; border-top: 1px solid color-mix(in srgb, var(--hp-accent, #c4a469) 45%, transparent); }
+/* ヒーロー写真の左右に細い白い筋が出るのを防ぐ（2026-08-12）。
+   書き出し時に1pxほどの明るい縁が入っている画像があるため、ごくわずかに拡大して枠外を切り落とす。
+   写真は0.8%大きくなるだけで、見た目には分からない。 */
+.hp-a .hp-hero { overflow: hidden; }
+.hp-a .hp-hero-img { transform: scale(1.008); }
 .hp-a .hp-hero-text { padding: 34px 24px 44px; text-align: center; }
 .hp-a .hp-hero-en { font-size: 11px; letter-spacing: .4em; color: var(--hp-accent, #c4a469); margin-bottom: 14px; }
 .hp-a .hp-hero-name { font-size: 32px; font-weight: 500; letter-spacing: .12em; line-height: 1.35; }
