@@ -1173,61 +1173,101 @@ const TYPE_A_MAGENTA = `/* ══════════ タイプA 配色: デ
 .hp-a.hp-a-magenta .hp-cta-line { color: #ffffff; }
 `;
 
-const TYPE_A_SIENNA = `/* ══════════ タイプA 配色: ローシェンナ（2026-08-12）══════════
-   黄土色を落とした暖かい黒。土のような明るい赤茶（ローシェンナ）に合わせた地色。
-   タイプAの黒（#17161a）を基準に、地色・帯・カード・フッターまで色みを揃えた版。
-   DOM・レイアウト・余白はアイボリーブラックと完全に同じで、色だけを差し替える。
-   アクセント（--hp-accent / --hp-accent-soft）は HP_COLOR_VARIANTS.a が注入するので
-   ここには書かない。書くのは「変数では表せない地の色」だけ。
-   ★ 他の配色を1バイトも変えないため、上の .hp-a のルールには手を入れないこと。 */
-.hp-a.hp-a-sienna { background: #1e1813; color: #eee4d6; }
-.hp-a.hp-a-sienna .hp-sec-alt { background: #2a2118; }
-.hp-a.hp-a-sienna .hp-sec + .hp-sec:not(.hp-sec-alt) { border-top: 1px solid #31271c; }
-/* 壁紙を敷いたときの透け具合（地色に合わせたベール） */
-.hp-a.hp-a-sienna .hp-wallpaper::after { background: rgba(30,24,19,.62); }
-.hp-a.hp-a-sienna.hp-has-wallpaper .hp-sec-alt { background: rgba(42,33,24,.72); }
-.hp-a.hp-a-sienna.hp-has-wallpaper .hp-card { background: rgba(46,36,26,.8); }
-.hp-a.hp-a-sienna.hp-has-wallpaper .hp-topbar { background: rgba(30,24,19,.82); }
-/* ヘッダー・ドロワー */
-.hp-a.hp-a-sienna .hp-topbar { background: rgba(30,24,19,.9); }
-.hp-a.hp-a-sienna .hp-quicknav { background: rgba(30,24,19,.9); }
-.hp-a.hp-a-sienna .hp-qn-item + .hp-qn-item { border-left: 1px solid #31271c; }
-.hp-a.hp-a-sienna .hp-qn-jp { color: #a2917b; }
-.hp-a.hp-a-sienna .hp-topbar-nav a { color: #d5c8b5; }
-.hp-a.hp-a-sienna .hp-topbar-name { color: #eee4d6; }
-.hp-a.hp-a-sienna .hp-drawer { background: #2a2118; border-left: 1px solid #453a2a; }
-.hp-a.hp-a-sienna .hp-drawer-list a { color: #d5c8b5; }
-.hp-a.hp-a-sienna .hp-drawer-list li + li a { border-top: 1px solid #31271c; }
-.hp-a.hp-a-sienna .hp-drawer-foot { border-top: 1px solid #453a2a; color: #a2917b; }
-.hp-a.hp-a-sienna .hp-drawer-terms, .hp-a.hp-a-sienna .hp-doc-back, .hp-a.hp-a-sienna .hp-drawer-close { color: #a2917b; }
-.hp-a.hp-a-sienna .hp-doc-p, .hp-a.hp-a-sienna .hp-doc-list li { color: #d5c8b5; }
-.hp-a.hp-a-sienna .hp-link-text { color: #d5c8b5; border-color: #453a2a; }
-/* ヒーロー・本文 */
-.hp-a.hp-a-sienna .hp-hero-catch { color: #d5c8b5; }
-.hp-a.hp-a-sienna .hp-hero-area { color: #a2917b; }
-.hp-a.hp-a-sienna .hp-concept-text { color: #d5c8b5; }
-.hp-a.hp-a-sienna .hp-concept-img { border-color: #453a2a; }
-/* 料金・出勤・セラピスト */
-.hp-a.hp-a-sienna .hp-course-row { border-bottom: 1px solid #453a2a; }
-.hp-a.hp-a-sienna .hp-sched-thumb { background: #2a2118; }
-.hp-a.hp-a-sienna .hp-sched-date { background: #342719; border-color: #453a2a; }
-.hp-a.hp-a-sienna .hp-th-frame { background: #2a2118; border-color: #453a2a; }
-.hp-a.hp-a-sienna .hp-th-noimg { background: linear-gradient(160deg, #2d241a, #3d3124); }
-.hp-a.hp-a-sienna .hp-th-name { color: #eee4d6; }
-.hp-a.hp-a-sienna .hp-th-catch { color: #a2917b; }
-.hp-a.hp-a-sienna .hp-th-badge { color: #d5c8b5; border-color: #584734; }
+const TYPE_A_SIENNA = `/* ══════════ タイプA 配色: ローシェンナ（2026-08-12 全面改訂）══════════
+   ディープマゼンタと同じ考え方で “色の面積” ごと配色に振った版。
+   DOM・レイアウト・余白はアイボリーブラックと完全に同じ。
+
+   ・ローシェンナ＝土から採れる「黄みの茶（黄土色）」の顔料。赤ではない。
+     マゼンタ＝青みの赤、アイボリーブラック＝黒＋シャンパン。この3つが並んでも別物に見えるよう、
+     ここは黄土〜琥珀の帯で埋める。
+   ・地を黒（#17161a）から焼けた土色（#402f14）へ。壁紙のベールも黄土に寄せる。
+   ・ヘッダー＝濃い黄土、クイックナビ＝黄土〜琥珀の帯、コース名＝同じ帯に白抜き、
+     出勤の日付＝黄土のバッジ、フッター／電話CTA＝濃い黄土。
+   ・暗い土色の上では --hp-accent(#d9944f) / --hp-accent-soft(#b3763c) のうち soft が沈むので、
+     小さな文字（年齢・出勤時間・項目名など）だけ明るい杏色に置き換える。
+   ・アクセント変数そのものは hpSite.ts の HP_COLOR_VARIANTS.a が正なので、ここでは触らない。
+   ★ 他の配色を1バイトも変えないため、上の .hp-a のルールには手を入れず、
+     すべてこのブロックの上書き（.hp-a.hp-a-sienna ＝詳細度が1段上）で表現すること。 */
+.hp-a.hp-a-sienna { background: #402f14; color: #f8ecd8; }
+.hp-a.hp-a-sienna .hp-sec-alt { background: #553f1d; }
+.hp-a.hp-a-sienna .hp-sec + .hp-sec:not(.hp-sec-alt) { border-top: 1px solid #6d5228; }
+/* 壁紙（黒ジェム）を黄土のベールで透かす＝ページ全体が土の色に染まる */
+.hp-a.hp-a-sienna .hp-wallpaper::after { background: rgba(64,47,20,.78); }
+.hp-a.hp-a-sienna.hp-has-wallpaper .hp-sec-alt { background: rgba(85,63,29,.78); }
+.hp-a.hp-a-sienna.hp-has-wallpaper .hp-card { background: rgba(90,67,31,.82); }
+.hp-a.hp-a-sienna.hp-has-wallpaper .hp-topbar { background: rgba(106,74,28,.88); }
+
+/* ヘッダー: 地そのものを濃い黄土にして、ヘッダーだけで「土色のサイト」と分かるようにする */
+.hp-a.hp-a-sienna .hp-topbar { background: rgba(106,74,28,.94); border-bottom: 1px solid rgba(255,255,255,.14); }
+.hp-a.hp-a-sienna.hp-scrolled .hp-topbar { background: #6a4a1c; box-shadow: 0 2px 18px rgba(28,20,6,.45); }
+.hp-a.hp-a-sienna .hp-topbar-name { color: #fff; }
+.hp-a.hp-a-sienna .hp-topbar-nav a { color: rgba(255,255,255,.82); }
+.hp-a.hp-a-sienna .hp-topbar-nav a:hover { color: #fff; border-bottom-color: #fff; }
+.hp-a.hp-a-sienna .hp-topbar-tel, .hp-a.hp-a-sienna .hp-drawer-btn { color: #fff; }
+.hp-a.hp-a-sienna .hp-doc-back { color: rgba(255,255,255,.85); }
+/* SPクイックナビ: 黄土〜琥珀の帯に白抜き */
+.hp-a.hp-a-sienna .hp-quicknav { background: linear-gradient(90deg, #8a5c1c, #bf8f3f); border-bottom: none; }
+.hp-a.hp-a-sienna .hp-qn-item + .hp-qn-item { border-left: 1px solid rgba(255,255,255,.24); }
+.hp-a.hp-a-sienna .hp-qn-en { color: #fff; }
+.hp-a.hp-a-sienna .hp-qn-jp { color: rgba(255,255,255,.78); }
+/* ドロワー */
+.hp-a.hp-a-sienna .hp-drawer { background: #553f1d; border-left: 1px solid #8a6a33; }
+.hp-a.hp-a-sienna .hp-drawer-list a { color: #ecd9b4; }
+.hp-a.hp-a-sienna .hp-drawer-list li + li a { border-top: 1px solid #6d5228; }
+.hp-a.hp-a-sienna .hp-drawer-foot { border-top: 1px solid #8a6a33; color: #c6a878; }
+.hp-a.hp-a-sienna .hp-drawer-tel { color: #f2c489; }
+.hp-a.hp-a-sienna .hp-drawer-terms, .hp-a.hp-a-sienna .hp-drawer-close { color: #c6a878; }
+.hp-a.hp-a-sienna .hp-doc-h { color: #f2c489; }
+.hp-a.hp-a-sienna .hp-doc-p, .hp-a.hp-a-sienna .hp-doc-list li { color: #ecd9b4; }
+.hp-a.hp-a-sienna .hp-link-text { color: #ecd9b4; border-color: #8a6a33; }
+
+/* 見出し・飾り罫・ヒーロー */
+.hp-a.hp-a-sienna .hp-en, .hp-a.hp-a-sienna .hp-hero-en { color: #f2c489; }
+.hp-a.hp-a-sienna .hp-rule { border-top-color: #e0ae55; }
+.hp-a.hp-a-sienna .hp-rule::after { border-top-color: rgba(224,174,85,.45); }
+.hp-a.hp-a-sienna .hp-hero-catch { color: #ecd9b4; }
+.hp-a.hp-a-sienna .hp-concept-text { color: #ecd9b4; }
+.hp-a.hp-a-sienna .hp-concept-img { border-color: #8a6a33; }
+
+/* コース料金: グループ名を黄土の帯に白抜き（いちばん面積が変わるところ） */
+.hp-a.hp-a-sienna .hp-course-name { background: linear-gradient(90deg, #8a5c1c, #bf8f3f); color: #fff; padding: 8px 10px; margin-bottom: 10px; }
+.hp-a.hp-a-sienna .hp-course-row { border-bottom: 1px solid #6d5228; }
+.hp-a.hp-a-sienna .hp-course-price { color: #f2c489; }
+
+/* 出勤・セラピスト（写真に重ねる影も黒から焦げ茶へ） */
+.hp-a.hp-a-sienna .hp-sched-thumb, .hp-a.hp-a-sienna .hp-th-frame { background: #553f1d; }
+.hp-a.hp-a-sienna .hp-sched-noimg, .hp-a.hp-a-sienna .hp-th-noimg { background: linear-gradient(160deg, #4b3818, #66502a); }
+.hp-a.hp-a-sienna .hp-sched-thumb::after {
+  background: linear-gradient(to top, rgba(40,28,8,.86), rgba(40,28,8,.38) 46%, rgba(40,28,8,0));
+}
+/* 日付は黄土のバッジ（白抜き） */
+.hp-a.hp-a-sienna .hp-sched-date { background: #a07a28; border-color: #bf8f3f; color: #fff; }
+/* 写真の上／暗い地に載る小さな文字は明るい杏色に置き換える（accent-soft では沈む） */
+.hp-a.hp-a-sienna .hp-sched-time { color: #f7d5a3; }
+.hp-a.hp-a-sienna .hp-th-name { color: #f8ecd8; }
+.hp-a.hp-a-sienna .hp-th-age { color: #e3bb78; }
+.hp-a.hp-a-sienna .hp-th-catch { color: #c6a878; }
+.hp-a.hp-a-sienna .hp-th-badge { color: #ecd9b4; border-color: #8a6c2e; }
+.hp-a.hp-a-sienna .hp-th-onduty { color: #f7d5a3; border-color: #bf8f3f; }
+.hp-a.hp-a-sienna .hp-more { color: #f2c489; border-bottom-color: #bf8f3f; }
+
 /* カード・店舗情報 */
-.hp-a.hp-a-sienna .hp-embed { border-color: #453a2a; }
-.hp-a.hp-a-sienna .hp-card { background: #2a2118; border-color: #453a2a; }
-.hp-a.hp-a-sienna .hp-card-body { color: #a2917b; }
-.hp-a.hp-a-sienna .hp-card-meta { color: #756757; }
-.hp-a.hp-a-sienna .hp-info-row { border-bottom: 1px solid #453a2a; }
-.hp-a.hp-a-sienna .hp-info-row dd { color: #d5c8b5; }
-/* フッター・予約CTA */
-.hp-a.hp-a-sienna .hp-footer { background: #2a2118; }
-.hp-a.hp-a-sienna .hp-footer-sub { color: #756757; }
-.hp-a.hp-a-sienna .hp-cta-tel { background: #2a2118; color: #eee4d6; }
-.hp-a.hp-a-sienna .hp-cta-line { color: #1e1813; }
+.hp-a.hp-a-sienna .hp-embed { border-color: #8a6a33; }
+.hp-a.hp-a-sienna .hp-card { background: #553f1d; border-color: #8a6a33; }
+.hp-a.hp-a-sienna .hp-coupon-discount { color: #f2c489; }
+.hp-a.hp-a-sienna .hp-card-body { color: #c6a878; }
+.hp-a.hp-a-sienna .hp-card-meta { color: #97814f; }
+.hp-a.hp-a-sienna .hp-info-row { border-bottom: 1px solid #6d5228; }
+.hp-a.hp-a-sienna .hp-info-row dt { color: #e3bb78; }
+.hp-a.hp-a-sienna .hp-info-row dd { color: #ecd9b4; }
+
+/* フッター・予約CTA（濃い黄土で締める） */
+.hp-a.hp-a-sienna .hp-footer { background: #6a4a1c; }
+.hp-a.hp-a-sienna .hp-footer-name { color: #f7d5a3; }
+.hp-a.hp-a-sienna .hp-footer-sub { color: #c6a878; }
+.hp-a.hp-a-sienna .hp-footer-sub a { color: #f7d5a3; }
+.hp-a.hp-a-sienna .hp-cta-tel { background: #6a4a1c; color: #fff; border-top-color: #bf8f3f; }
+.hp-a.hp-a-sienna .hp-cta-line { color: #402f14; }
 `;
 
 const TYPE_A_UMBER = `/* ══════════ タイプA 配色: バーントアンバー（2026-08-12）══════════
