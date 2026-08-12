@@ -605,9 +605,9 @@ export const HP_COLOR_VARIANTS: Record<HpTemplateKey, HpColorVariant[]> = {
   // ★ キー gold は据え置き（既存データを壊さないため）。表示名だけ「アイボリーブラック」に。
   a: [
     { key: 'gold',     label: 'アイボリーブラック', css: { '--hp-accent': '#c4a469', '--hp-accent-soft': '#a8905e' } },
-    { key: 'magenta',  label: 'ディープマゼンタ',   css: { '--hp-accent': '#c2477e', '--hp-accent-soft': '#9c3663' } },
-    { key: 'sienna',   label: 'ローシェンナ',       css: { '--hp-accent': '#d9944f', '--hp-accent-soft': '#b3763c' } },
-    { key: 'umber',    label: 'バーントアンバー',   css: { '--hp-accent': '#a85433', '--hp-accent-soft': '#8a4227' } },
+    { key: 'magenta',  label: 'ディープマゼンタ',   css: { '--hp-accent': '#c2477e', '--hp-accent-soft': '#9c3663' }, rootClass: 'hp-a-magenta' },
+    { key: 'sienna',   label: 'ローシェンナ',       css: { '--hp-accent': '#d9944f', '--hp-accent-soft': '#b3763c' }, rootClass: 'hp-a-sienna' },
+    { key: 'umber',    label: 'バーントアンバー',   css: { '--hp-accent': '#a85433', '--hp-accent-soft': '#8a4227' }, rootClass: 'hp-a-umber' },
   ],
   b: [
     { key: 'green',    label: 'リーフグリーン',     css: { '--hp-accent': '#8fae8b', '--hp-accent-deep': '#6b8f67' } },

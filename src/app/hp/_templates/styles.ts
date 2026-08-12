@@ -984,8 +984,170 @@ const TYPE_S_EMERALD = `/* ══════════ 配色4: エメラル�
 .hp-s.hp-s-emerald .hp-cta-tel { color: #0d3b31; }
 `;
 
+const TYPE_A_MAGENTA = `/* ══════════ タイプA 配色: ディープマゼンタ（2026-08-12）══════════
+   黒に紫みを混ぜた地。差し色のマゼンタが最も鮮やかに映える組み合わせ。
+   タイプAの黒（#17161a）を基準に、地色・帯・カード・フッターまで色みを揃えた版。
+   DOM・レイアウト・余白はアイボリーブラックと完全に同じで、色だけを差し替える。
+   アクセント（--hp-accent / --hp-accent-soft）は HP_COLOR_VARIANTS.a が注入するので
+   ここには書かない。書くのは「変数では表せない地の色」だけ。
+   ★ 他の配色を1バイトも変えないため、上の .hp-a のルールには手を入れないこと。 */
+.hp-a.hp-a-magenta { background: #19121a; color: #ece1ea; }
+.hp-a.hp-a-magenta .hp-sec-alt { background: #241a26; }
+.hp-a.hp-a-magenta .hp-sec + .hp-sec:not(.hp-sec-alt) { border-top: 1px solid #2b2130; }
+/* 壁紙を敷いたときの透け具合（地色に合わせたベール） */
+.hp-a.hp-a-magenta .hp-wallpaper::after { background: rgba(25,18,26,.62); }
+.hp-a.hp-a-magenta.hp-has-wallpaper .hp-sec-alt { background: rgba(36,26,38,.72); }
+.hp-a.hp-a-magenta.hp-has-wallpaper .hp-card { background: rgba(40,28,42,.8); }
+.hp-a.hp-a-magenta.hp-has-wallpaper .hp-topbar { background: rgba(25,18,26,.82); }
+/* ヘッダー・ドロワー */
+.hp-a.hp-a-magenta .hp-topbar { background: rgba(25,18,26,.9); }
+.hp-a.hp-a-magenta .hp-topbar-name { color: #ece1ea; }
+.hp-a.hp-a-magenta .hp-drawer { background: #241a26; border-left: 1px solid #3d2c3f; }
+.hp-a.hp-a-magenta .hp-drawer-list a { color: #cfc2cd; }
+.hp-a.hp-a-magenta .hp-drawer-list li + li a { border-top: 1px solid #2b2130; }
+.hp-a.hp-a-magenta .hp-drawer-foot { border-top: 1px solid #3d2c3f; color: #9a8b98; }
+.hp-a.hp-a-magenta .hp-drawer-terms, .hp-a.hp-a-magenta .hp-doc-back, .hp-a.hp-a-magenta .hp-drawer-close { color: #9a8b98; }
+.hp-a.hp-a-magenta .hp-doc-p, .hp-a.hp-a-magenta .hp-doc-list li { color: #cfc2cd; }
+.hp-a.hp-a-magenta .hp-link-text { color: #cfc2cd; border-color: #3d2c3f; }
+/* ヒーロー・本文 */
+.hp-a.hp-a-magenta .hp-hero-catch { color: #cfc2cd; }
+.hp-a.hp-a-magenta .hp-hero-area { color: #9a8b98; }
+.hp-a.hp-a-magenta .hp-concept-text { color: #cfc2cd; }
+.hp-a.hp-a-magenta .hp-concept-img { border-color: #3d2c3f; }
+/* 料金・出勤・セラピスト */
+.hp-a.hp-a-magenta .hp-course-row { border-bottom: 1px solid #3d2c3f; }
+.hp-a.hp-a-magenta .hp-sched-row { border-bottom: 1px solid #3d2c3f; }
+.hp-a.hp-a-magenta .hp-sched-date { background: #2c2030; border-color: #3d2c3f; }
+.hp-a.hp-a-magenta .hp-th-frame { background: #241a26; border-color: #3d2c3f; }
+.hp-a.hp-a-magenta .hp-th-noimg { background: linear-gradient(160deg, #271d29, #362a39); }
+.hp-a.hp-a-magenta .hp-th-name { color: #ece1ea; }
+.hp-a.hp-a-magenta .hp-th-catch { color: #9a8b98; }
+.hp-a.hp-a-magenta .hp-th-badge { color: #cfc2cd; border-color: #4d3a4f; }
+/* カード・店舗情報 */
+.hp-a.hp-a-magenta .hp-embed { border-color: #3d2c3f; }
+.hp-a.hp-a-magenta .hp-card { background: #241a26; border-color: #3d2c3f; }
+.hp-a.hp-a-magenta .hp-card-body { color: #9a8b98; }
+.hp-a.hp-a-magenta .hp-card-meta { color: #6f6270; }
+.hp-a.hp-a-magenta .hp-info-row { border-bottom: 1px solid #3d2c3f; }
+.hp-a.hp-a-magenta .hp-info-row dd { color: #cfc2cd; }
+/* フッター・予約CTA */
+.hp-a.hp-a-magenta .hp-footer { background: #241a26; }
+.hp-a.hp-a-magenta .hp-footer-sub { color: #6f6270; }
+.hp-a.hp-a-magenta .hp-cta-tel { background: #241a26; color: #ece1ea; }
+.hp-a.hp-a-magenta .hp-cta-line { color: #19121a; }
+`;
+
+const TYPE_A_SIENNA = `/* ══════════ タイプA 配色: ローシェンナ（2026-08-12）══════════
+   黄土色を落とした暖かい黒。土のような明るい赤茶（ローシェンナ）に合わせた地色。
+   タイプAの黒（#17161a）を基準に、地色・帯・カード・フッターまで色みを揃えた版。
+   DOM・レイアウト・余白はアイボリーブラックと完全に同じで、色だけを差し替える。
+   アクセント（--hp-accent / --hp-accent-soft）は HP_COLOR_VARIANTS.a が注入するので
+   ここには書かない。書くのは「変数では表せない地の色」だけ。
+   ★ 他の配色を1バイトも変えないため、上の .hp-a のルールには手を入れないこと。 */
+.hp-a.hp-a-sienna { background: #1e1813; color: #eee4d6; }
+.hp-a.hp-a-sienna .hp-sec-alt { background: #2a2118; }
+.hp-a.hp-a-sienna .hp-sec + .hp-sec:not(.hp-sec-alt) { border-top: 1px solid #31271c; }
+/* 壁紙を敷いたときの透け具合（地色に合わせたベール） */
+.hp-a.hp-a-sienna .hp-wallpaper::after { background: rgba(30,24,19,.62); }
+.hp-a.hp-a-sienna.hp-has-wallpaper .hp-sec-alt { background: rgba(42,33,24,.72); }
+.hp-a.hp-a-sienna.hp-has-wallpaper .hp-card { background: rgba(46,36,26,.8); }
+.hp-a.hp-a-sienna.hp-has-wallpaper .hp-topbar { background: rgba(30,24,19,.82); }
+/* ヘッダー・ドロワー */
+.hp-a.hp-a-sienna .hp-topbar { background: rgba(30,24,19,.9); }
+.hp-a.hp-a-sienna .hp-topbar-name { color: #eee4d6; }
+.hp-a.hp-a-sienna .hp-drawer { background: #2a2118; border-left: 1px solid #453a2a; }
+.hp-a.hp-a-sienna .hp-drawer-list a { color: #d5c8b5; }
+.hp-a.hp-a-sienna .hp-drawer-list li + li a { border-top: 1px solid #31271c; }
+.hp-a.hp-a-sienna .hp-drawer-foot { border-top: 1px solid #453a2a; color: #a2917b; }
+.hp-a.hp-a-sienna .hp-drawer-terms, .hp-a.hp-a-sienna .hp-doc-back, .hp-a.hp-a-sienna .hp-drawer-close { color: #a2917b; }
+.hp-a.hp-a-sienna .hp-doc-p, .hp-a.hp-a-sienna .hp-doc-list li { color: #d5c8b5; }
+.hp-a.hp-a-sienna .hp-link-text { color: #d5c8b5; border-color: #453a2a; }
+/* ヒーロー・本文 */
+.hp-a.hp-a-sienna .hp-hero-catch { color: #d5c8b5; }
+.hp-a.hp-a-sienna .hp-hero-area { color: #a2917b; }
+.hp-a.hp-a-sienna .hp-concept-text { color: #d5c8b5; }
+.hp-a.hp-a-sienna .hp-concept-img { border-color: #453a2a; }
+/* 料金・出勤・セラピスト */
+.hp-a.hp-a-sienna .hp-course-row { border-bottom: 1px solid #453a2a; }
+.hp-a.hp-a-sienna .hp-sched-row { border-bottom: 1px solid #453a2a; }
+.hp-a.hp-a-sienna .hp-sched-date { background: #342719; border-color: #453a2a; }
+.hp-a.hp-a-sienna .hp-th-frame { background: #2a2118; border-color: #453a2a; }
+.hp-a.hp-a-sienna .hp-th-noimg { background: linear-gradient(160deg, #2d241a, #3d3124); }
+.hp-a.hp-a-sienna .hp-th-name { color: #eee4d6; }
+.hp-a.hp-a-sienna .hp-th-catch { color: #a2917b; }
+.hp-a.hp-a-sienna .hp-th-badge { color: #d5c8b5; border-color: #584734; }
+/* カード・店舗情報 */
+.hp-a.hp-a-sienna .hp-embed { border-color: #453a2a; }
+.hp-a.hp-a-sienna .hp-card { background: #2a2118; border-color: #453a2a; }
+.hp-a.hp-a-sienna .hp-card-body { color: #a2917b; }
+.hp-a.hp-a-sienna .hp-card-meta { color: #756757; }
+.hp-a.hp-a-sienna .hp-info-row { border-bottom: 1px solid #453a2a; }
+.hp-a.hp-a-sienna .hp-info-row dd { color: #d5c8b5; }
+/* フッター・予約CTA */
+.hp-a.hp-a-sienna .hp-footer { background: #2a2118; }
+.hp-a.hp-a-sienna .hp-footer-sub { color: #756757; }
+.hp-a.hp-a-sienna .hp-cta-tel { background: #2a2118; color: #eee4d6; }
+.hp-a.hp-a-sienna .hp-cta-line { color: #1e1813; }
+`;
+
+const TYPE_A_UMBER = `/* ══════════ タイプA 配色: バーントアンバー（2026-08-12）══════════
+   焦げ茶を含んだ最も深い黒。落ち着いた赤褐色（バーントアンバー）と組む。
+   タイプAの黒（#17161a）を基準に、地色・帯・カード・フッターまで色みを揃えた版。
+   DOM・レイアウト・余白はアイボリーブラックと完全に同じで、色だけを差し替える。
+   アクセント（--hp-accent / --hp-accent-soft）は HP_COLOR_VARIANTS.a が注入するので
+   ここには書かない。書くのは「変数では表せない地の色」だけ。
+   ★ 他の配色を1バイトも変えないため、上の .hp-a のルールには手を入れないこと。 */
+.hp-a.hp-a-umber { background: #150d0b; color: #ebded7; }
+.hp-a.hp-a-umber .hp-sec-alt { background: #211411; }
+.hp-a.hp-a-umber .hp-sec + .hp-sec:not(.hp-sec-alt) { border-top: 1px solid #2a1a15; }
+/* 壁紙を敷いたときの透け具合（地色に合わせたベール） */
+.hp-a.hp-a-umber .hp-wallpaper::after { background: rgba(21,13,11,.62); }
+.hp-a.hp-a-umber.hp-has-wallpaper .hp-sec-alt { background: rgba(33,20,17,.72); }
+.hp-a.hp-a-umber.hp-has-wallpaper .hp-card { background: rgba(38,24,20,.8); }
+.hp-a.hp-a-umber.hp-has-wallpaper .hp-topbar { background: rgba(21,13,11,.82); }
+/* ヘッダー・ドロワー */
+.hp-a.hp-a-umber .hp-topbar { background: rgba(21,13,11,.9); }
+.hp-a.hp-a-umber .hp-topbar-name { color: #ebded7; }
+.hp-a.hp-a-umber .hp-drawer { background: #211411; border-left: 1px solid #3c2721; }
+.hp-a.hp-a-umber .hp-drawer-list a { color: #d2c0b7; }
+.hp-a.hp-a-umber .hp-drawer-list li + li a { border-top: 1px solid #2a1a15; }
+.hp-a.hp-a-umber .hp-drawer-foot { border-top: 1px solid #3c2721; color: #9d887f; }
+.hp-a.hp-a-umber .hp-drawer-terms, .hp-a.hp-a-umber .hp-doc-back, .hp-a.hp-a-umber .hp-drawer-close { color: #9d887f; }
+.hp-a.hp-a-umber .hp-doc-p, .hp-a.hp-a-umber .hp-doc-list li { color: #d2c0b7; }
+.hp-a.hp-a-umber .hp-link-text { color: #d2c0b7; border-color: #3c2721; }
+/* ヒーロー・本文 */
+.hp-a.hp-a-umber .hp-hero-catch { color: #d2c0b7; }
+.hp-a.hp-a-umber .hp-hero-area { color: #9d887f; }
+.hp-a.hp-a-umber .hp-concept-text { color: #d2c0b7; }
+.hp-a.hp-a-umber .hp-concept-img { border-color: #3c2721; }
+/* 料金・出勤・セラピスト */
+.hp-a.hp-a-umber .hp-course-row { border-bottom: 1px solid #3c2721; }
+.hp-a.hp-a-umber .hp-sched-row { border-bottom: 1px solid #3c2721; }
+.hp-a.hp-a-umber .hp-sched-date { background: #2c1b16; border-color: #3c2721; }
+.hp-a.hp-a-umber .hp-th-frame { background: #211411; border-color: #3c2721; }
+.hp-a.hp-a-umber .hp-th-noimg { background: linear-gradient(160deg, #261812, #37231c); }
+.hp-a.hp-a-umber .hp-th-name { color: #ebded7; }
+.hp-a.hp-a-umber .hp-th-catch { color: #9d887f; }
+.hp-a.hp-a-umber .hp-th-badge { color: #d2c0b7; border-color: #4d332c; }
+/* カード・店舗情報 */
+.hp-a.hp-a-umber .hp-embed { border-color: #3c2721; }
+.hp-a.hp-a-umber .hp-card { background: #211411; border-color: #3c2721; }
+.hp-a.hp-a-umber .hp-card-body { color: #9d887f; }
+.hp-a.hp-a-umber .hp-card-meta { color: #71605a; }
+.hp-a.hp-a-umber .hp-info-row { border-bottom: 1px solid #3c2721; }
+.hp-a.hp-a-umber .hp-info-row dd { color: #d2c0b7; }
+/* フッター・予約CTA */
+.hp-a.hp-a-umber .hp-footer { background: #211411; }
+.hp-a.hp-a-umber .hp-footer-sub { color: #71605a; }
+.hp-a.hp-a-umber .hp-cta-tel { background: #211411; color: #ebded7; }
+.hp-a.hp-a-umber .hp-cta-line { color: #150d0b; }
+`;
+
 export const TEMPLATE_VARIANT_CSS: Record<string, string> = {
   'hp-s-wine': TYPE_S_WINE,
   'hp-s-blue': TYPE_S_BLUE,
   'hp-s-emerald': TYPE_S_EMERALD,
+  'hp-a-magenta': TYPE_A_MAGENTA,
+  'hp-a-sienna':  TYPE_A_SIENNA,
+  'hp-a-umber':   TYPE_A_UMBER,
 };
