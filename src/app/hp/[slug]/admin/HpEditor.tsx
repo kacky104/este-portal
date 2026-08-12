@@ -28,6 +28,7 @@ import {
   HP_REVIEWS_COUNT_MAX,
   HP_DEMO_SLUG,
   normalizeHpSiteKey,
+  hpDemoImageSlots,
 } from '@/app/lib/hpSite';
 
 // 公式HPの編集パネル（旧 mypage/HpTab.tsx を店舗ドメイン/admin へ移植・2026-08-09 段階3）。
@@ -95,13 +96,12 @@ export function HpEditor({
 }) {
   const [form, setForm] = useState<FormState>(() => siteToForm(site));
   const [saving, setSaving] = useState(false);
-  // デモ店だけの欄（2026-08-11）。デモは1行で全デザインを見せるため、
-  // 配色ごとのトップ画像を持てるようにしている（実店舗はデザインが1つなので出さない）。
+  // デモ店だけの欄（2026-08-11 → 08-12 ひな形ぶんも）。デモは1行で全デザインを見せるため、
+  // 「いま確定している見た目」以外にも写真を持てるようにしている（実店舗はデザインが1つなので出さない）。
+  //   タイプS … 配色ごと（白地に色を載せる作りなので色ごとに写真を変える意味がある）
+  //   A/B/C  … ひな形ごとに1セット（カラーはアクセント1色しか変わらないため）
   const isDemo = normalizeHpSiteKey(siteKey) === HP_DEMO_SLUG;
-  // いま確定している配色【以外】＝プレビュー専用に写真を差し替えたい配色（タイプSならワインレッド）
-  const previewColors = isDemo
-    ? HP_COLOR_VARIANTS[site.template_key].filter((v) => v.key !== site.theme_key)
-    : [];
+  const previewSlots = isDemo ? hpDemoImageSlots(site.template_key, site.theme_key) : [];
   // アップロード中のスロット識別子（'hero0'〜 / 'concept' / 'banner0'〜）
   const [uploadingSlot, setUploadingSlot] = useState<string | null>(null);
   // 配色ごとのセラピスト写真を設定するための一覧（デモ店だけ・掲載データから引く）
@@ -396,15 +396,16 @@ export function HpEditor({
            どの配色のプレビューにも同じ写真が出てしまう。ここに入れた写真は
            その配色で見たときだけ差し替わる（/hp/demo/preview/{ひな形}/{カラー}）。
            セラピスト写真も同じ考え方で、掲載データの写真の代わりに使う。 */}
-      {previewColors.length > 0 && (
-        <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5 space-y-4">
-          <h3 className="text-sm font-black text-slate-800">配色ごとの画像（デモ専用）</h3>
+      {previewSlots.length > 0 && (
+        <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5 space-y-3">
+          <h3 className="text-sm font-black text-slate-800">デザインごとの画像（デモ専用）</h3>
           <p className="text-[11px] text-slate-400 leading-relaxed">
-            デザイン一覧のプレビューで、その配色のときだけ差し替える写真です（トップ画像とセラピスト写真）。
-            未設定のものは、トップ画像はタイプSなら色味を合わせた既定画像、セラピスト写真は掲載データの写真が
-            そのまま使われます。
+            デザイン一覧のプレビューで、その見た目のときだけ差し替える写真です（トップ画像とセラピスト写真）。
+            タイプSは配色ごと、タイプA・B・Cはひな形ごとに1セット（そのひな形の全カラーで共通）。
+            未設定のものは、トップ画像はタイプSなら色味を合わせた既定画像、それ以外は上の「トップ画像」、
+            セラピスト写真は掲載データの写真がそのまま使われます。
           </p>
-          {previewColors.map((variant) => {
+          {previewSlots.map((variant) => {
             const list = form.blocks.heroByColor[variant.key] ?? [];
             const setList = (next: string[]) => {
               const map = { ...form.blocks.heroByColor };
@@ -412,15 +413,23 @@ export function HpEditor({
               else map[variant.key] = next;
               patchBlocks({ heroByColor: map });
             };
+            const imageCount =
+              (form.blocks.heroByColor[variant.key]?.length ?? 0) +
+              Object.keys(form.blocks.therapistImagesByColor[variant.key] ?? {}).length;
             return (
-              <div key={variant.key} className="space-y-2">
-                <p className="flex items-center gap-2 text-xs font-bold text-slate-600">
+              // 数が増えるので既定は畳んでおく（開いた中身は従来どおり）
+              <details key={variant.key} className="rounded-xl border border-slate-100 bg-slate-50/60 px-3 py-2">
+                <summary className="flex items-center gap-2 text-xs font-bold text-slate-600 cursor-pointer list-none">
                   <span
-                    className="w-4 h-4 rounded-full border border-black/10"
-                    style={{ backgroundColor: variant.css['--hp-accent'] }}
+                    className="w-4 h-4 rounded-full border border-black/10 flex-shrink-0"
+                    style={{ backgroundColor: variant.accent }}
                   />
-                  {templateLabel}／{variant.label} 用
-                </p>
+                  <span className="min-w-0 truncate">{variant.label} 用</span>
+                  <span className="ml-auto text-[10px] font-normal text-slate-400 flex-shrink-0">
+                    {imageCount > 0 ? `設定済み ${imageCount}枚` : '未設定'}
+                  </span>
+                </summary>
+                <div className="pt-3 space-y-2">
                 <div className="grid grid-cols-2 gap-3">
                   {HERO_SLOTS.map((slot, i) => {
                     const url = list[i] ?? null;
@@ -556,7 +565,8 @@ export function HpEditor({
                     </div>
                   </div>
                 )}
-              </div>
+                </div>
+              </details>
             );
           })}
         </div>

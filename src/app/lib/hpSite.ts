@@ -231,7 +231,8 @@ export function sanitizeHpBlocks(raw: unknown): HpBlocksConfig {
 
 /** カラーキーとして通す文字列か（英小文字始まりの短い英数字）。 */
 function isColorKeyLike(v: string): boolean {
-  return /^[a-z][a-z0-9]{1,15}$/.test(v);
+  // 配色キー（gold / wine …）とひな形キー（tpl-a / tpl-b …）の両方を通す
+  return /^[a-z][a-z0-9-]{1,19}$/.test(v);
 }
 
 /**
@@ -642,8 +643,66 @@ export function hpColorCssVars(template: HpTemplateKey, colorKey: string): Recor
  * プレビュー（/preview/{template}/{color}）では theme_key が上書きされるので、
  * 何も足さなくても「その配色で見たときだけ差し替わる」が成立する。
  */
-export function hpHeroImages(site: Pick<HpSite, 'hero_images' | 'theme_key' | 'blocks'>): string[] {
-  return site.blocks.heroByColor[site.theme_key] ?? site.hero_images;
+export function hpHeroImages(site: Pick<HpSite, 'template_key' | 'hero_images' | 'theme_key' | 'blocks'>): string[] {
+  return site.blocks.heroByColor[hpImageSlotKey(site.template_key, site.theme_key)] ?? site.hero_images;
+}
+
+/**
+ * blocks.heroByColor / therapistImagesByColor のキーの決め方（2026-08-12）。
+ *
+ *   タイプS … 配色キーそのもの（gold / wine / blue / emerald）
+ *             ＝白地に色を載せる作りなので、配色ごとに写真を変える意味がある
+ *   A/B/C  … 'tpl-{ひな形}'（tpl-a / tpl-b / tpl-c）
+ *             ＝ひな形ごとに1セット。カラーはアクセント1色しか変わらないので、
+ *               6色ぶん写真を用意しても違いが出ない（管理画面も長くなるだけ）
+ *
+ * ★ タイプSの既存データ（gold/wine/…）をそのまま使い続けられるよう、Sだけ従来のキー。
+ */
+export function hpImageSlotKey(template: HpTemplateKey, colorKey: string): string {
+  return template === 's' ? colorKey : `tpl-${template}`;
+}
+
+/** デモ管理に並べる「配色ごとの画像」スロット。 */
+export type HpImageSlot = {
+  /** blocks.heroByColor / therapistImagesByColor のキー */
+  key:    string;
+  /** 見出し（例「タイプS／ワインレッド」「タイプA（全カラー共通）」） */
+  label:  string;
+  /** 見出しの丸に使う色 */
+  accent: string;
+};
+
+/**
+ * デモ店で写真を差し替えられる組み合わせの一覧。
+ * 「いま確定している見た目」＝公開ページそのものなので一覧には出さず、
+ * それ以外（同じひな形の他の配色＋他のひな形）だけを並べる。
+ */
+export function hpDemoImageSlots(template: HpTemplateKey, colorKey: string): HpImageSlot[] {
+  const templateLabel = (k: HpTemplateKey) => HP_TEMPLATES.find((t) => t.key === k)?.label ?? k;
+  const slots: HpImageSlot[] = [];
+
+  // 同じひな形の他の配色（配色ごとに写真を持てるひな形＝タイプSのみ）
+  if (template === 's') {
+    for (const v of HP_COLOR_VARIANTS.s) {
+      if (v.key === colorKey) continue;
+      slots.push({
+        key:    hpImageSlotKey('s', v.key),
+        label:  `${templateLabel('s')}／${v.label}`,
+        accent: v.css['--hp-accent'] ?? '#b98d4f',
+      });
+    }
+  }
+
+  // 他のひな形（1セットずつ・全カラー共通）
+  for (const t of HP_TEMPLATES) {
+    if (t.key === template) continue;
+    slots.push({
+      key:    hpImageSlotKey(t.key, ''),
+      label:  `${t.label}（全カラー共通）`,
+      accent: HP_COLOR_VARIANTS[t.key][0]?.css['--hp-accent'] ?? '#b98d4f',
+    });
+  }
+  return slots;
 }
 
 /**

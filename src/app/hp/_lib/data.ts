@@ -19,6 +19,7 @@ import {
   type HpTemplateKey,
   HP_DEMO_SLUG,
   HP_SITE_COLUMNS,
+  hpImageSlotKey,
   hpSiteKeyColumn,
   isHpDomainKey,
   mapHpSiteRow,
@@ -251,7 +252,8 @@ export async function fetchHpPageData(
 
   // 配色ごとのセラピスト写真（デモ店だけが持つ欄・2026-08-11）。
   // プレビューでは theme_key が上書きされるので、その配色で見たときだけ写真が差し替わる。
-  const therapistImageByColor = site.blocks.therapistImagesByColor[site.theme_key] ?? {};
+  const therapistImageByColor =
+    site.blocks.therapistImagesByColor[hpImageSlotKey(site.template_key, site.theme_key)] ?? {};
 
   const therapists: HpTherapist[] = (therapistRes.data ?? []).map((t) => {
     const week = weekDays.map((d) => dutyMap.get(`${d.date}|${String(t.id)}`) ?? null);
