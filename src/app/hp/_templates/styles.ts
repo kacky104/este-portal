@@ -175,8 +175,17 @@ ${COMMON}
 .hp-a { max-width: 1024px; background-image:
   radial-gradient(900px 480px at 85% -120px, color-mix(in srgb, var(--hp-accent, #c4a469) 9%, transparent), transparent 70%),
   radial-gradient(700px 420px at -10% 30%, color-mix(in srgb, var(--hp-accent, #c4a469) 5%, transparent), transparent 70%); }
+/* ブロック（セクション）の上下の余白を従来の 3/4 に詰める（2026-08-12 要望）。
+   SP: 48px → 36px ／ PC: 76px → 57px。
+   バナー帯（上0）と規約などの文書ページ（34/46px）は元の性格を保ったまま同じ比率で縮める。
+   PC 側は下の @media の padding を 57px に直してあるので、ここは SP 専用にする。 */
+@media (max-width: 767px) {
+  .hp-a .hp-sec { padding-top: 36px; padding-bottom: 36px; }
+  .hp-a .hp-sec-banners { padding-top: 0; }
+  .hp-a .hp-sec-doc { padding-top: 26px; padding-bottom: 35px; }
+}
 @media (min-width: 768px) {
-  .hp-a .hp-sec { padding: 76px calc((100% - 720px) / 2); }
+  .hp-a .hp-sec { padding: 57px calc((100% - 720px) / 2); }
   .hp-a .hp-hero-text { padding: 48px 24px 56px; }
   /* ★ ヘッダーとヒーローは画面幅いっぱいに（2026-08-12 要望・タイプSと同じ迫力を出す）。
      .hp-a は max-width:1024px の中央寄せなので、100vw ＋ 負のマージンで額縁を食い破る。
