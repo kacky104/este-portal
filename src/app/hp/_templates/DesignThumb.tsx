@@ -28,6 +28,17 @@ export function hpVariantColors(template: HpTemplateKey, colorKey: string): { ac
 // ここに無いキーはシャンパンゴールドの写真にフォールバックする。
 const HP_S_THUMB_COLORS = ['gold', 'wine', 'blue', 'emerald'];
 
+/**
+ * 実物のキービジュアル写真のURL（用意が無い組み合わせは null）。
+ * 大きさは呼び出し側で決めたいので（デザイン一覧は大きく・ギャラリーは168px固定）、
+ * URLだけを返して <img> は呼び出し側で置く、という分け方にしている。
+ */
+export function hpDesignThumbSrc(template: HpTemplateKey, colorKey?: string): string | null {
+  if (template !== 's') return null;
+  const key = HP_S_THUMB_COLORS.includes(colorKey ?? '') ? colorKey : 'gold';
+  return `/hp-s/thumb-${key}.webp`;
+}
+
 export function DesignThumb({
   template,
   accent,
@@ -45,11 +56,10 @@ export function DesignThumb({
     // 配色ごとに撮り分けた写真があるので、抽象的なモックより「どんなサイトか」が一目で伝わる。
     // 画像は public/hp-s/thumb-{色}.webp（16:9・640×360）。配色を足すときはここに1行足す。
     // object-right: モデルが写真の右側にいるため、カードが細くなっても必ず入るように右端で固定する。
-    const key = HP_S_THUMB_COLORS.includes(colorKey ?? '') ? colorKey : 'gold';
     return (
       // eslint-disable-next-line @next/next/no-img-element
       <img
-        src={`/hp-s/thumb-${key}.webp`}
+        src={hpDesignThumbSrc(template, colorKey) ?? ''}
         alt=""
         loading="lazy"
         className="block w-full object-cover object-right"

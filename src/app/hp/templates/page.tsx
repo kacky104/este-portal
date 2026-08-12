@@ -5,7 +5,7 @@ import {
   HP_DEMO_SLUG,
   type HpTemplateKey,
 } from '@/app/lib/hpSite';
-import { DesignThumb, HP_TEMPLATE_NOTES, hpVariantColors } from '@/app/hp/_templates/DesignThumb';
+import { DesignThumb, HP_TEMPLATE_NOTES, hpDesignThumbSrc, hpVariantColors } from '@/app/hp/_templates/DesignThumb';
 
 // 公式ホームページ制作の【LP 兼 デザイン一覧】（2026-08-09）。
 //
@@ -154,33 +154,56 @@ export default function HpTemplatesPage() {
           {HP_TEMPLATES.map((t) => {
             const title = TEMPLATE_TITLES[t.key];
             const variants = HP_COLOR_VARIANTS[t.key];
+            // 実写真のサムネがあるひな形（タイプS）は、白いカードで囲わず地の上に直接大きく並べる
+            // （2026-08-12 要望）。写真そのものを主役にし、スマホの横幅も余さず使うため。
+            const photo = hpDesignThumbSrc(t.key, variants[0]?.key) !== null;
             return (
-              <section key={t.key} className="rounded-2xl border border-[#f0dde0] bg-white shadow-sm p-6 sm:p-8">
+              <section
+                key={t.key}
+                className={photo ? '' : 'rounded-2xl border border-[#f0dde0] bg-white shadow-sm p-6 sm:p-8'}
+              >
                 <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-2 mb-5">
-                  <div>
+                  {/* 見出し側は縮めない（「フラッグシップ」が2行に折り返していたため） */}
+                  <div className="sm:shrink-0">
                     <p className="text-[10px] tracking-[.28em] text-[#b98d4f]">{title.en}</p>
                     <h3 className="text-lg font-bold tracking-wide text-[#3f342e]">
                       {t.label}
                       <span className="ml-3 text-[12px] font-normal text-[#8a7a70]">{title.name}</span>
                     </h3>
                   </div>
-                  <p className="text-[11px] text-[#a08e84]">{HP_TEMPLATE_NOTES[t.key]}</p>
+                  <p className="text-[11px] text-[#a08e84] sm:text-right">{HP_TEMPLATE_NOTES[t.key]}</p>
                 </div>
 
                 {/* ★ Tailwind は文字列を組み立てたクラス名を拾えない（未使用として消える）ので、
                     列数は必ずベタ書きの候補から選ぶこと。 */}
-                <div className={`grid gap-3 ${VARIANT_GRID_CLS[Math.min(variants.length, 6)] ?? VARIANT_GRID_CLS[6]}`}>
+                <div
+                  className={`grid ${photo ? 'gap-2 sm:gap-3' : 'gap-3'} ${
+                    VARIANT_GRID_CLS[Math.min(variants.length, 6)] ?? VARIANT_GRID_CLS[6]
+                  }`}
+                >
                   {variants.map((v) => {
                     const c = hpVariantColors(t.key, v.key);
+                    const src = hpDesignThumbSrc(t.key, v.key);
                     return (
                       <a
                         key={v.key}
                         href={`/hp/${HP_DEMO_SLUG}/preview/${t.key}/${v.key}`}
                         target="_blank"
                         rel="noreferrer"
-                        className="group block rounded-xl overflow-hidden border border-[#ecdcdc] hover:border-[#d5a86b] hover:shadow-md transition-all"
+                        className="group block rounded-xl overflow-hidden border border-[#ecdcdc] bg-white hover:border-[#d5a86b] hover:shadow-md transition-all"
                       >
-                        <DesignThumb template={t.key} accent={c.accent} deep={c.deep} colorKey={v.key} />
+                        {src ? (
+                          /* 横長（スマホ4:3・PC16:9）。object-right はモデルが写真の右側にいるため */
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img
+                            src={src}
+                            alt=""
+                            loading="lazy"
+                            className="block w-full aspect-[4/3] sm:aspect-video object-cover object-right"
+                          />
+                        ) : (
+                          <DesignThumb template={t.key} accent={c.accent} deep={c.deep} colorKey={v.key} />
+                        )}
                         <span className="flex items-center justify-between px-2.5 py-2 bg-[#faf4f0] text-[10px] font-bold text-[#7a6a60]">
                           <span className="flex items-center gap-1.5 min-w-0">
                             <span
