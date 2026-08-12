@@ -200,6 +200,13 @@ ${COMMON}
 .hp-a .hp-topbar { display: flex; justify-content: space-between; align-items: center; position: sticky; top: var(--hp-topbar-top, 0px); z-index: 30;
   padding: 13px 20px; background: rgba(23,22,26,.9); backdrop-filter: blur(8px); border-bottom: 1px solid color-mix(in srgb, var(--hp-accent, #c4a469) 40%, transparent); }
 .hp-a .hp-topbar-name { font-size: 13px; letter-spacing: .22em; color: #e8e4dc; }
+/* PCナビ（NEWS / SYSTEM / THERAPIST / ACCESS）。項目とリンク先は hpTopbarNavItems が作る
+   ＝タイプSとまったく同じ。COMMON で display:none にしてあるのをここで出す（2026-08-12 要望）。 */
+.hp-a .hp-topbar-nav { display: none; gap: 26px; }
+@media (min-width: 900px) { .hp-a .hp-topbar-nav { display: flex; } }
+.hp-a .hp-topbar-nav a { font-size: 11px; letter-spacing: .22em; color: #cfc9bd; text-decoration: none;
+  padding: 4px 0; border-bottom: 1px solid transparent; transition: color .3s, border-color .3s; }
+.hp-a .hp-topbar-nav a:hover { color: var(--hp-accent, #c4a469); border-bottom-color: var(--hp-accent, #c4a469); }
 /* ドロワー（タイプA・黒地に金） */
 .hp-a .hp-drawer-btn { color: var(--hp-accent, #c4a469); }
 .hp-a .hp-topbar-tel { color: var(--hp-accent, #c4a469); }
@@ -1001,6 +1008,7 @@ const TYPE_A_MAGENTA = `/* ══════════ タイプA 配色: デ
 .hp-a.hp-a-magenta.hp-has-wallpaper .hp-topbar { background: rgba(25,18,26,.82); }
 /* ヘッダー・ドロワー */
 .hp-a.hp-a-magenta .hp-topbar { background: rgba(25,18,26,.9); }
+.hp-a.hp-a-magenta .hp-topbar-nav a { color: #cfc2cd; }
 .hp-a.hp-a-magenta .hp-topbar-name { color: #ece1ea; }
 .hp-a.hp-a-magenta .hp-drawer { background: #241a26; border-left: 1px solid #3d2c3f; }
 .hp-a.hp-a-magenta .hp-drawer-list a { color: #cfc2cd; }
@@ -1054,6 +1062,7 @@ const TYPE_A_SIENNA = `/* ══════════ タイプA 配色: ロ�
 .hp-a.hp-a-sienna.hp-has-wallpaper .hp-topbar { background: rgba(30,24,19,.82); }
 /* ヘッダー・ドロワー */
 .hp-a.hp-a-sienna .hp-topbar { background: rgba(30,24,19,.9); }
+.hp-a.hp-a-sienna .hp-topbar-nav a { color: #d5c8b5; }
 .hp-a.hp-a-sienna .hp-topbar-name { color: #eee4d6; }
 .hp-a.hp-a-sienna .hp-drawer { background: #2a2118; border-left: 1px solid #453a2a; }
 .hp-a.hp-a-sienna .hp-drawer-list a { color: #d5c8b5; }
@@ -1107,6 +1116,7 @@ const TYPE_A_UMBER = `/* ══════════ タイプA 配色: バ�
 .hp-a.hp-a-umber.hp-has-wallpaper .hp-topbar { background: rgba(21,13,11,.82); }
 /* ヘッダー・ドロワー */
 .hp-a.hp-a-umber .hp-topbar { background: rgba(21,13,11,.9); }
+.hp-a.hp-a-umber .hp-topbar-nav a { color: #d2c0b7; }
 .hp-a.hp-a-umber .hp-topbar-name { color: #ebded7; }
 .hp-a.hp-a-umber .hp-drawer { background: #211411; border-left: 1px solid #3c2721; }
 .hp-a.hp-a-umber .hp-drawer-list a { color: #d2c0b7; }
