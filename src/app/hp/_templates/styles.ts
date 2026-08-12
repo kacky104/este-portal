@@ -230,10 +230,12 @@ ${COMMON}
 .hp-a .hp-link-text { color: #cfc9bd; border: 1px solid #3a3742; }
 .hp-a .hp-link-item:hover .hp-link-text { color: var(--hp-accent, #c4a469); border-color: var(--hp-accent-soft, #a8905e); }
 .hp-a .hp-drawer-close { color: #948f85; }
-.hp-a .hp-en { letter-spacing: .35em; font-size: 10px; color: var(--hp-accent, #c4a469); text-transform: uppercase; }
-.hp-a .hp-h2 { font-size: 21px; font-weight: 600; letter-spacing: .18em; margin: 8px 0 6px; }
+/* 見出しは中央寄せ（2026-08-12 要望）。英字→和文→飾り罫 を中央で積む。
+   letter-spacing のぶん右に寄って見えるので、text-indent で同じ量を戻して光学的に中央へ。 */
+.hp-a .hp-en { letter-spacing: .35em; text-indent: .35em; font-size: 10px; color: var(--hp-accent, #c4a469); text-transform: uppercase; text-align: center; }
+.hp-a .hp-h2 { font-size: 21px; font-weight: 600; letter-spacing: .18em; text-indent: .18em; margin: 8px 0 6px; text-align: center; }
 /* 罫線は二重線（内側は淡く）でホテルライクに */
-.hp-a .hp-rule { display: block; width: 56px; height: 5px; margin: 16px 0 26px; background: none; border-top: 1px solid var(--hp-accent, #c4a469); position: relative; }
+.hp-a .hp-rule { display: block; width: 56px; height: 5px; margin: 16px auto 26px; background: none; border-top: 1px solid var(--hp-accent, #c4a469); position: relative; }
 .hp-a .hp-rule::after { content: ''; position: absolute; top: 3px; left: 10px; right: 10px; border-top: 1px solid color-mix(in srgb, var(--hp-accent, #c4a469) 45%, transparent); }
 /* ヒーロー写真の左右に細い白い筋が出るのを防ぐ（2026-08-12）。
    書き出し時に1pxほどの明るい縁が入っている画像があるため、ごくわずかに拡大して枠外を切り落とす。
@@ -309,7 +311,7 @@ ${COMMON}
 .hp-a { --hp-col-half: 512px; }
 .hp-a .hp-cta-tel { background: #232128; color: #e8e4dc; border-top: 1px solid var(--hp-accent-soft, #a8905e); }
 .hp-a .hp-cta-line { background: var(--hp-accent, #c4a469); color: #17161a; }
-.hp-a .hp-sched-date { display: inline-block; background: #2a2730; border: 1px solid #3a3742; padding: 6px 18px; margin: 0 0 18px; font-size: 12px; color: var(--hp-accent, #c4a469); letter-spacing: .2em; opacity: 1; }
+.hp-a .hp-sched-date { display: block; width: fit-content; background: #2a2730; border: 1px solid #3a3742; padding: 6px 18px; margin: 0 auto 18px; font-size: 12px; color: var(--hp-accent, #c4a469); letter-spacing: .2em; opacity: 1; }
 `;
 
 const TYPE_B = `
