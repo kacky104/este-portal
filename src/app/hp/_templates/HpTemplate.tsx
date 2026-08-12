@@ -31,7 +31,7 @@ import {
   HP_DIGEST_THERAPISTS,
 } from '@/app/hp/_lib/sections';
 import { hpTopbarNavItems } from '@/app/hp/_lib/sections';
-import { HpShell, HP_ORDER_HERO } from './HpShell';
+import { HpShell, HP_ORDER_HERO, HP_ORDER_QUICKNAV_ABOVE_HERO } from './HpShell';
 import { CourseGroups, QuickNav, SecHead, TherapistCards } from './parts';
 
 /** 色味を振った既定キービジュアル（public/hp-s/hero-pc-{色}.webp）を持つ配色。 */
@@ -119,9 +119,14 @@ export function HpTemplate({ data }: { data: HpPageData }) {
         </div>
       </div>
 
-      {/* ── SPクイックナビ（ヒーロー直下・order:0 で位置固定。並び替えの対象外）──
-           項目とリンク先はPCヘッダーのナビと同じ（hpTopbarNavItems）。スマホ幅のみ表示。 */}
-      <QuickNav items={hpTopbarNavItems(data, 'home')} />
+      {/* ── SPクイックナビ（order で位置固定。並び替えの対象外）──
+           項目とリンク先はPCヘッダーのナビと同じ（hpTopbarNavItems）。スマホ幅のみ表示。
+           タイプAだけヒーロー画像の【上】（ヘッダー直下）に出す（2026-08-12 要望）。
+           タイプAはヒーローの下に店名・キャッチが来る作りなので、ナビは上にまとめた方が収まる。 */}
+      <QuickNav
+        items={hpTopbarNavItems(data, 'home')}
+        order={site.template_key === 'a' ? HP_ORDER_QUICKNAV_ABOVE_HERO : 0}
+      />
 
       {/* ── コンセプト ── */}
       {visible.concept && (

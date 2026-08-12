@@ -33,9 +33,15 @@ import { TEMPLATE_CSS, TEMPLATE_VARIANT_CSS } from './styles';
 export type HpChrome = 'full' | 'doc';
 
 /** 固定位置のもの。並び替えても「トップバー→ヒーロー→（並び替え対象）→フッター」は不変。 */
-export const HP_ORDER_TOPBAR = -2;
+export const HP_ORDER_TOPBAR = -3;
 export const HP_ORDER_HERO   = -1;
 export const HP_ORDER_FOOTER = 100;
+/**
+ * SPクイックナビを「ヒーローより前」に置きたいひな形（タイプA）が使う値（2026-08-12）。
+ * トップバー(-3) < ここ(-2) < ヒーロー(-1) の順。既定は 0（＝ヒーローの直下）。
+ * ★ このために HP_ORDER_TOPBAR を -2 から -3 に下げた。見た目は変わらない（間を空けただけ）。
+ */
+export const HP_ORDER_QUICKNAV_ABOVE_HERO = -2;
 
 export function HpShell({
   data,

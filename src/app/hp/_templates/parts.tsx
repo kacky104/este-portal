@@ -27,9 +27,10 @@ const QN_JP: Record<string, string> = {
  * ヒーロー直下のクイックナビ本体。items は hpTopbarNavItems() の戻り値を渡す。
  * 表示のON/OFFはCSS（COMMON の .hp-quicknav が 640px 以上で display:none）。
  */
-export function QuickNav({ items }: { items: HpMenuItem[] }) {
+export function QuickNav({ items, order = 0 }: { items: HpMenuItem[]; order?: number }) {
   return (
-    <nav className="hp-quicknav" style={{ order: 0 }} aria-label="クイックメニュー">
+    // order の既定は 0（ヒーローの直下）。ヒーローより前に出したいひな形だけ負の値を渡す。
+    <nav className="hp-quicknav" style={{ order }} aria-label="クイックメニュー">
       {items.map((m) => (
         <a key={m.label} className="hp-qn-item" href={m.href} {...(m.current ? { 'aria-current': 'page' as const } : {})}>
           <span className="hp-qn-en">{m.label}</span>
