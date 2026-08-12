@@ -262,9 +262,22 @@ ${COMMON}
 .hp-a .hp-course-row { display: flex; justify-content: space-between; align-items: baseline; padding: 13px 2px; border-bottom: 1px solid #3a3742; }
 .hp-a .hp-course-min { font-size: 16px; letter-spacing: .1em; }
 .hp-a .hp-course-price { font-size: 22px; color: var(--hp-accent, #c4a469); font-style: italic; }
-.hp-a .hp-th-card { flex-basis: 150px; }
-@media (min-width: 768px) { .hp-a .hp-th-row { flex-wrap: wrap; } .hp-a .hp-th-card { flex-basis: 158px; } }
-.hp-a .hp-th-frame { border: 1px solid #3a3742; padding: 6px; background: #232128; }
+/* 写真は「本日の出勤」と同じ大きさに（2026-08-12 要望）。
+   額縁（枠線と内側の余白）は外して、写真そのものを大きく見せる。
+   トップは横スクロール（PCは折り返し）のまま＝一覧ページのグリッドとは並べ方が違う。 */
+.hp-a .hp-th-card { flex-basis: 176px; }
+@media (min-width: 768px) {
+  .hp-a .hp-th-row { flex-wrap: wrap; gap: 5px; }     /* 出勤のPC4列と同じ隙間 */
+  .hp-a .hp-th-card { flex-basis: 176px; }            /* 出勤のPC4列と同じ幅 */
+}
+/* スマホは「横に流れる」と一目で分かるよう、2.2枚ぶんが見える幅にする（2026-08-12 要望）。
+   左右の余白を食い破ったうえで内側に同じだけ padding を戻す＝最初の1枚は本文と頭が揃い、
+   右端の1枚は画面の外へ続いて見える。41vw は「2.2枚＋隙間2つ」がちょうど収まる幅。 */
+@media (max-width: 639px) {
+  .hp-a .hp-th-row { gap: 8px; margin-left: -22px; margin-right: -22px; padding-left: 22px; padding-right: 22px; }
+  .hp-a .hp-th-card { flex-basis: 41vw; }
+}
+.hp-a .hp-th-frame { border: none; padding: 0; background: #232128; }
 .hp-a .hp-th-noimg { background: linear-gradient(160deg, #26242b, #34313a); }
 /* 文字は「本日の出勤」と同じ大きさに（名前14px・年齢11px。2026-08-12 要望） */
 .hp-a .hp-th-name { margin-top: 10px; font-size: 14px; letter-spacing: .12em; text-align: center; color: #e8e4dc; }
@@ -278,8 +291,6 @@ ${COMMON}
 /* スマホは左右の余白を食い破って画面の端まで（出勤ブロックと同じ） */
 @media (max-width: 639px) { .hp-a .hp-th-grid { margin-left: -22px; margin-right: -22px; } }
 .hp-a .hp-th-grid .hp-th-card { flex: none; }
-/* 額縁（枠線と内側の余白）を外して、写真そのものを出勤グリッドと同寸にする */
-.hp-a .hp-th-grid .hp-th-frame { border: none; padding: 0; }
 .hp-a .hp-th-grid .hp-th-name, .hp-a .hp-th-grid .hp-th-age,
 .hp-a .hp-th-grid .hp-th-catch, .hp-a .hp-th-grid .hp-th-badges { padding-left: 6px; padding-right: 6px; }
 .hp-a .hp-th-catch { display: block; margin-top: 6px; font-size: 11px; color: #948f85; text-align: center; line-height: 1.7;
