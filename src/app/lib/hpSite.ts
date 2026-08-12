@@ -659,9 +659,19 @@ export function hpHeroImages(site: Pick<HpSite, 'template_key' | 'hero_images' |
  *
  * ★ タイプSの既存データ（gold/wine/…）をそのまま使い続けられるよう、Sだけ従来のキー。
  */
+/**
+ * 配色ごとに写真を分けるひな形。ここに無いひな形は「ひな形ごとに1セット」（tpl-{ひな形}）。
+ * 配色で地色ごと作り分けているひな形＝写真も色ごとに変える意味がある、という基準。
+ */
+const HP_PER_COLOR_IMAGE_TEMPLATES: HpTemplateKey[] = ['s', 'a'];
+
 export function hpImageSlotKey(template: HpTemplateKey, colorKey: string): string {
-  return template === 's' ? colorKey : `tpl-${template}`;
+  if (!HP_PER_COLOR_IMAGE_TEMPLATES.includes(template)) return `tpl-${template}`;
+  // ★ タイプSだけは配色キーそのもの。2026-08-11 に保存したデータ（gold/wine/…）を
+  //   そのまま引き継ぐため。他のひな形は色キーが被る（Aにも gold がある）ので接頭辞を付ける。
+  return template === 's' ? colorKey : `${template}-${colorKey}`;
 }
+
 
 /** デモ管理に並べる「配色ごとの画像」スロット。 */
 export type HpImageSlot = {
@@ -682,26 +692,26 @@ export function hpDemoImageSlots(template: HpTemplateKey, colorKey: string): HpI
   const templateLabel = (k: HpTemplateKey) => HP_TEMPLATES.find((t) => t.key === k)?.label ?? k;
   const slots: HpImageSlot[] = [];
 
-  // 同じひな形の他の配色（配色ごとに写真を持てるひな形＝タイプSのみ）
-  if (template === 's') {
-    for (const v of HP_COLOR_VARIANTS.s) {
-      if (v.key === colorKey) continue;
+  for (const t of HP_TEMPLATES) {
+    const perColor = HP_PER_COLOR_IMAGE_TEMPLATES.includes(t.key);
+    if (perColor) {
+      // 配色ごとに1枠。自分のひな形は「いま確定している配色」だけ除く（それが公開ページそのもの）
+      for (const v of HP_COLOR_VARIANTS[t.key]) {
+        if (t.key === template && v.key === colorKey) continue;
+        slots.push({
+          key:    hpImageSlotKey(t.key, v.key),
+          label:  `${templateLabel(t.key)}／${v.label}`,
+          accent: v.css['--hp-accent'] ?? '#b98d4f',
+        });
+      }
+    } else if (t.key !== template) {
+      // 配色で地色が変わらないひな形は1セットだけ（全カラー共通）
       slots.push({
-        key:    hpImageSlotKey('s', v.key),
-        label:  `${templateLabel('s')}／${v.label}`,
-        accent: v.css['--hp-accent'] ?? '#b98d4f',
+        key:    hpImageSlotKey(t.key, ''),
+        label:  `${t.label}（全カラー共通）`,
+        accent: HP_COLOR_VARIANTS[t.key][0]?.css['--hp-accent'] ?? '#b98d4f',
       });
     }
-  }
-
-  // 他のひな形（1セットずつ・全カラー共通）
-  for (const t of HP_TEMPLATES) {
-    if (t.key === template) continue;
-    slots.push({
-      key:    hpImageSlotKey(t.key, ''),
-      label:  `${t.label}（全カラー共通）`,
-      accent: HP_COLOR_VARIANTS[t.key][0]?.css['--hp-accent'] ?? '#b98d4f',
-    });
   }
   return slots;
 }
