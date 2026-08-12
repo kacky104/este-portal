@@ -100,11 +100,22 @@ export type HpPageData = {
 };
 
 // ひな形ごとに敷くテーマ壁紙のキー（theme_wallpapers.theme_key）。
-// A（LUXE・黒基調）はフクエスの「ブラック」壁紙を薄く敷く（2026-08-08 要望）。
-// S/B/C は現状なし（敷きたくなったらここにキーを足すだけ）。
+// フクエス本体の壁紙を借りる場合はここにキーを書く。
+// ★ 2026-08-12: タイプAは本体の「ブラック」を借りるのをやめ、公式HP専用の壁紙
+//   （下の HP_BUNDLED_WALLPAPER）に切り替えた。本体のブラックテーマを使っている店に
+//   影響を出さずに、公式HP側だけ画像を差し替えられるようにするため。
 const HP_WALLPAPER_THEME: Record<HpTemplateKey, string | null> = {
   s: null,
-  a: 'black',
+  a: null,
+  b: null,
+  c: null,
+};
+
+// ひな形ごとの専用壁紙（public/ に置いた画像）。theme_wallpapers より優先する。
+// タイプSは CSS（styles.ts の .hp-s::before）で敷いているのでここには書かない。
+const HP_BUNDLED_WALLPAPER: Record<HpTemplateKey, string | null> = {
+  s: null,
+  a: '/hp-a/wallpaper.webp',
   b: null,
   c: null,
 };
@@ -232,9 +243,10 @@ export async function fetchHpPageData(
   ]);
 
   // テーマ壁紙（ひな形に対応するキーがある場合のみ・/salon/[id] と同じ theme_wallpapers を流用）
+  // 専用壁紙があればそれ。無ければ本体のテーマ壁紙（theme_wallpapers）を借りる。
   const wallpaperKey = HP_WALLPAPER_THEME[site.template_key];
-  let wallpaperUrl: string | null = null;
-  if (wallpaperKey) {
+  let wallpaperUrl: string | null = HP_BUNDLED_WALLPAPER[site.template_key];
+  if (!wallpaperUrl && wallpaperKey) {
     const { data: wp } = await supabase
       .from('theme_wallpapers')
       .select('image_url')

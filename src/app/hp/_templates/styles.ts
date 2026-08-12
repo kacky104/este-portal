@@ -192,6 +192,10 @@ ${COMMON}
 .hp-a .hp-sec + .hp-sec:not(.hp-sec-alt) { border-top: 1px solid #26242b; }
 /* 壁紙が有効なとき: 地を透かして壁紙を見せ、帯・カードは半透明のガラス調に */
 .hp-a.hp-has-wallpaper { background-color: transparent; }
+/* タイプAの壁紙（public/hp-a/wallpaper.webp）は継ぎ目のないパターンなので、
+   引き伸ばさずタイル状に繰り返す。粒の大きさはここで決める（2026-08-12）。 */
+.hp-a .hp-wallpaper { background-size: 520px auto; background-repeat: repeat; }
+@media (min-width: 768px) { .hp-a .hp-wallpaper { background-size: 680px auto; } }
 .hp-a .hp-wallpaper::after { background: rgba(23,22,26,.62); }
 .hp-a.hp-has-wallpaper .hp-sec-alt { background: rgba(31,29,34,.72); }
 .hp-a.hp-has-wallpaper .hp-card { background: rgba(35,33,40,.8); }
