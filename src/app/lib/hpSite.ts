@@ -224,9 +224,34 @@ export function sanitizeHpBlocks(raw: unknown): HpBlocksConfig {
     order:     Array.isArray(rawObj.order) ? normalizeHpSectionOrder(rawObj.order) : null,
     // ★ order と同じく最上位のキー。ネストしている他のキーと違い r ではなく rawObj から取る。
     multipage: boolOr(rawObj.multipage, d.multipage),
-    heroByColor: sanitizeHpHeroByColor(rawObj.heroByColor),
-    therapistImagesByColor: sanitizeHpTherapistImagesByColor(rawObj.therapistImagesByColor),
+    heroByColor: renameLegacyImageSlots(sanitizeHpHeroByColor(rawObj.heroByColor)),
+    therapistImagesByColor: renameLegacyImageSlots(sanitizeHpTherapistImagesByColor(rawObj.therapistImagesByColor)),
   };
+}
+
+/**
+ * 画像スロットのキーの引っ越し表（2026-08-12）。
+ * タイプAを「ひな形ごと1セット（tpl-a）」から「配色ごと（a-gold …）」に変えたため、
+ * 先に tpl-a へ入れてあった写真をアイボリーブラック（＝タイプAの基準色）へ移す。
+ *
+ * ★ 読み込み時に付け替えるだけの自動移行。管理画面で一度保存すれば新しいキーで保存し直される。
+ *   移行が済んだら（＝古いキーを持つ行が無くなったら）この表ごと消してよい。
+ */
+const HP_LEGACY_IMAGE_SLOT_KEYS: Record<string, string> = {
+  'tpl-a': 'a-gold',
+};
+
+/** 古いキーを新しいキーへ付け替える（移行先が既にあるときは古い方を捨てる）。 */
+function renameLegacyImageSlots<T>(map: Record<string, T>): Record<string, T> {
+  let changed = false;
+  const out: Record<string, T> = {};
+  for (const [key, value] of Object.entries(map)) {
+    const next = HP_LEGACY_IMAGE_SLOT_KEYS[key];
+    if (next === undefined) { out[key] = value; continue; }
+    changed = true;
+    if (!(next in map)) out[next] = value; // 移行先が空のときだけ引き継ぐ
+  }
+  return changed ? out : map;
 }
 
 /** カラーキーとして通す文字列か（英小文字始まりの短い英数字）。 */
