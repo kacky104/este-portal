@@ -24,7 +24,7 @@ export function ModerationJobs() {
         <h2 className="text-xl font-bold text-slate-900">求人管理（フクエスワーク）</h2>
       </div>
       <p className="text-sm text-slate-500 mb-6">
-        掲載中の求人の編集・公開切替・未掲載店舗への代理作成ができます（/admin と同じ内容です）。
+        掲載中の求人の編集・公開切替・未掲載店舗への代理作成ができます。
       </p>
 
       <AdminJobsManager onToast={showToast} />
