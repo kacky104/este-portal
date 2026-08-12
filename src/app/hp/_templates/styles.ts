@@ -260,8 +260,31 @@ ${COMMON}
 .hp-a .hp-th-badges { display: flex; flex-wrap: wrap; gap: 4px; justify-content: center; margin-top: 7px; }
 .hp-a .hp-th-badge { font-size: 8.5px; color: #cfc9bd; border: 1px solid #4a4650; padding: 2px 7px; letter-spacing: .08em; }
 .hp-a .hp-th-onduty { display: block; width: fit-content; margin: 8px auto 0; font-size: 9px; color: var(--hp-accent, #c4a469); border: 1px solid var(--hp-accent-soft, #a8905e); padding: 2px 8px; letter-spacing: .15em; }
-.hp-a .hp-sched-row { display: flex; justify-content: space-between; padding: 13px 2px; border-bottom: 1px solid #3a3742; font-size: 12px; letter-spacing: .08em; }
-.hp-a .hp-sched-time { color: var(--hp-accent-soft, #a8905e); font-style: italic; }
+/* ── 本日の出勤（2026-08-12: タイプSと同じ写真グリッドに揃えた）──
+   SP2列・PC4列で写真を敷き詰め、名前・年齢・出勤時間は写真の中（下端）へ重ねる。
+   COMMON では hp-sched-thumb / hp-sched-meta を隠して「名前 …… 時間」の1行にしているので、
+   ここで出し直す。DOM は共通のまま（作業ルール1）。 */
+.hp-a .hp-sched-list { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 3px; }
+@media (min-width: 768px) { .hp-a .hp-sched-list { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 5px; } }
+/* スマホは左右の余白を食い破って画面の端まで（セクションの padding 22px ぶん） */
+@media (max-width: 639px) { .hp-a .hp-sched-list { margin-left: -22px; margin-right: -22px; } }
+.hp-a .hp-sched-row { display: block; padding: 0; border: none; position: relative; overflow: hidden; }
+.hp-a .hp-sched-thumb { display: block; border: none; padding: 0; background: #232128; position: relative; }
+.hp-a .hp-sched-thumb img, .hp-a .hp-sched-noimg { display: block; width: 100%; aspect-ratio: 4 / 5; object-fit: cover; }
+.hp-a .hp-sched-noimg { background: linear-gradient(160deg, #26242b, #34313a); }
+/* 文字を読ませるための暗いレイヤー（写真の下から立ち上がるグラデーション） */
+.hp-a .hp-sched-thumb::after {
+  content: ''; position: absolute; left: 0; right: 0; bottom: 0; height: 62%; pointer-events: none;
+  background: linear-gradient(to top, rgba(10,9,12,.86), rgba(10,9,12,.38) 44%, rgba(10,9,12,0));
+}
+.hp-a .hp-sched-body {
+  position: absolute; left: 0; right: 0; bottom: 0; z-index: 1;
+  display: flex; flex-direction: column; align-items: center; gap: 1px;
+  margin: 0; padding: 0 8px 11px; text-align: center;
+}
+.hp-a .hp-sched-name { font-size: 14px; letter-spacing: .14em; text-indent: .14em; color: #fff; text-shadow: 0 1px 8px rgba(0,0,0,.5); }
+.hp-a .hp-sched-meta { display: block; font-size: 11px; color: rgba(255,255,255,.85); letter-spacing: .08em; text-shadow: 0 1px 6px rgba(0,0,0,.5); }
+.hp-a .hp-sched-time { margin-top: 3px; font-size: 11.5px; color: var(--hp-accent-soft, #a8905e); font-style: italic; letter-spacing: .04em; text-shadow: 0 1px 6px rgba(0,0,0,.55); }
 .hp-a .hp-embed { border: 1px solid #3a3742; }
 .hp-a .hp-more { color: var(--hp-accent, #c4a469); letter-spacing: .2em; border-bottom: 1px solid var(--hp-accent-soft, #a8905e); padding-bottom: 3px; }
 /* カードは内側に淡い金の飾り枠（G1 の EVENT 枠のイメージ） */
@@ -1037,7 +1060,7 @@ const TYPE_A_MAGENTA = `/* ══════════ タイプA 配色: デ
 .hp-a.hp-a-magenta .hp-concept-img { border-color: #3d2c3f; }
 /* 料金・出勤・セラピスト */
 .hp-a.hp-a-magenta .hp-course-row { border-bottom: 1px solid #3d2c3f; }
-.hp-a.hp-a-magenta .hp-sched-row { border-bottom: 1px solid #3d2c3f; }
+.hp-a.hp-a-magenta .hp-sched-thumb { background: #241a26; }
 .hp-a.hp-a-magenta .hp-sched-date { background: #2c2030; border-color: #3d2c3f; }
 .hp-a.hp-a-magenta .hp-th-frame { background: #241a26; border-color: #3d2c3f; }
 .hp-a.hp-a-magenta .hp-th-noimg { background: linear-gradient(160deg, #271d29, #362a39); }
@@ -1094,7 +1117,7 @@ const TYPE_A_SIENNA = `/* ══════════ タイプA 配色: ロ�
 .hp-a.hp-a-sienna .hp-concept-img { border-color: #453a2a; }
 /* 料金・出勤・セラピスト */
 .hp-a.hp-a-sienna .hp-course-row { border-bottom: 1px solid #453a2a; }
-.hp-a.hp-a-sienna .hp-sched-row { border-bottom: 1px solid #453a2a; }
+.hp-a.hp-a-sienna .hp-sched-thumb { background: #2a2118; }
 .hp-a.hp-a-sienna .hp-sched-date { background: #342719; border-color: #453a2a; }
 .hp-a.hp-a-sienna .hp-th-frame { background: #2a2118; border-color: #453a2a; }
 .hp-a.hp-a-sienna .hp-th-noimg { background: linear-gradient(160deg, #2d241a, #3d3124); }
@@ -1151,7 +1174,7 @@ const TYPE_A_UMBER = `/* ══════════ タイプA 配色: バ�
 .hp-a.hp-a-umber .hp-concept-img { border-color: #3c2721; }
 /* 料金・出勤・セラピスト */
 .hp-a.hp-a-umber .hp-course-row { border-bottom: 1px solid #3c2721; }
-.hp-a.hp-a-umber .hp-sched-row { border-bottom: 1px solid #3c2721; }
+.hp-a.hp-a-umber .hp-sched-thumb { background: #211411; }
 .hp-a.hp-a-umber .hp-sched-date { background: #2c1b16; border-color: #3c2721; }
 .hp-a.hp-a-umber .hp-th-frame { background: #211411; border-color: #3c2721; }
 .hp-a.hp-a-umber .hp-th-noimg { background: linear-gradient(160deg, #261812, #37231c); }
