@@ -1077,61 +1077,100 @@ const TYPE_S_EMERALD = `/* ══════════ 配色4: エメラル�
 .hp-s.hp-s-emerald .hp-cta-tel { color: #0d3b31; }
 `;
 
-const TYPE_A_MAGENTA = `/* ══════════ タイプA 配色: ディープマゼンタ（2026-08-12）══════════
-   黒に紫みを混ぜた地。差し色のマゼンタが最も鮮やかに映える組み合わせ。
-   タイプAの黒（#17161a）を基準に、地色・帯・カード・フッターまで色みを揃えた版。
-   DOM・レイアウト・余白はアイボリーブラックと完全に同じで、色だけを差し替える。
-   アクセント（--hp-accent / --hp-accent-soft）は HP_COLOR_VARIANTS.a が注入するので
-   ここには書かない。書くのは「変数では表せない地の色」だけ。
-   ★ 他の配色を1バイトも変えないため、上の .hp-a のルールには手を入れないこと。 */
-.hp-a.hp-a-magenta { background: #19121a; color: #ece1ea; }
-.hp-a.hp-a-magenta .hp-sec-alt { background: #241a26; }
-.hp-a.hp-a-magenta .hp-sec + .hp-sec:not(.hp-sec-alt) { border-top: 1px solid #2b2130; }
-/* 壁紙を敷いたときの透け具合（地色に合わせたベール） */
-.hp-a.hp-a-magenta .hp-wallpaper::after { background: rgba(25,18,26,.62); }
-.hp-a.hp-a-magenta.hp-has-wallpaper .hp-sec-alt { background: rgba(36,26,38,.72); }
-.hp-a.hp-a-magenta.hp-has-wallpaper .hp-card { background: rgba(40,28,42,.8); }
-.hp-a.hp-a-magenta.hp-has-wallpaper .hp-topbar { background: rgba(25,18,26,.82); }
-/* ヘッダー・ドロワー */
-.hp-a.hp-a-magenta .hp-topbar { background: rgba(25,18,26,.9); }
-.hp-a.hp-a-magenta .hp-quicknav { background: rgba(25,18,26,.9); }
-.hp-a.hp-a-magenta .hp-qn-item + .hp-qn-item { border-left: 1px solid #2b2130; }
-.hp-a.hp-a-magenta .hp-qn-jp { color: #9a8b98; }
-.hp-a.hp-a-magenta .hp-topbar-nav a { color: #cfc2cd; }
-.hp-a.hp-a-magenta .hp-topbar-name { color: #ece1ea; }
-.hp-a.hp-a-magenta .hp-drawer { background: #241a26; border-left: 1px solid #3d2c3f; }
-.hp-a.hp-a-magenta .hp-drawer-list a { color: #cfc2cd; }
-.hp-a.hp-a-magenta .hp-drawer-list li + li a { border-top: 1px solid #2b2130; }
-.hp-a.hp-a-magenta .hp-drawer-foot { border-top: 1px solid #3d2c3f; color: #9a8b98; }
-.hp-a.hp-a-magenta .hp-drawer-terms, .hp-a.hp-a-magenta .hp-doc-back, .hp-a.hp-a-magenta .hp-drawer-close { color: #9a8b98; }
-.hp-a.hp-a-magenta .hp-doc-p, .hp-a.hp-a-magenta .hp-doc-list li { color: #cfc2cd; }
-.hp-a.hp-a-magenta .hp-link-text { color: #cfc2cd; border-color: #3d2c3f; }
-/* ヒーロー・本文 */
-.hp-a.hp-a-magenta .hp-hero-catch { color: #cfc2cd; }
-.hp-a.hp-a-magenta .hp-hero-area { color: #9a8b98; }
-.hp-a.hp-a-magenta .hp-concept-text { color: #cfc2cd; }
-.hp-a.hp-a-magenta .hp-concept-img { border-color: #3d2c3f; }
-/* 料金・出勤・セラピスト */
-.hp-a.hp-a-magenta .hp-course-row { border-bottom: 1px solid #3d2c3f; }
-.hp-a.hp-a-magenta .hp-sched-thumb { background: #241a26; }
-.hp-a.hp-a-magenta .hp-sched-date { background: #2c2030; border-color: #3d2c3f; }
-.hp-a.hp-a-magenta .hp-th-frame { background: #241a26; border-color: #3d2c3f; }
-.hp-a.hp-a-magenta .hp-th-noimg { background: linear-gradient(160deg, #271d29, #362a39); }
-.hp-a.hp-a-magenta .hp-th-name { color: #ece1ea; }
-.hp-a.hp-a-magenta .hp-th-catch { color: #9a8b98; }
-.hp-a.hp-a-magenta .hp-th-badge { color: #cfc2cd; border-color: #4d3a4f; }
+const TYPE_A_MAGENTA = `/* ══════════ タイプA 配色: ディープマゼンタ（2026-08-12 全面改訂）══════════
+   「文字の色だけ変わっていて見分けが付かない」を避けるため、タイプSのワインレッドと同じ考え方で
+   “色の面積”そのものを赤に振った版。DOM・レイアウト・余白はアイボリーブラックと完全に同じ。
+
+   ・地を黒（#17161a）から濃い臙脂（#2c0b1b）へ。壁紙のベールも赤に寄せるので、
+     黒ジェムの壁紙がそのまま「暗い赤の宝石」に見える。
+   ・ヘッダー＝濃紅、クイックナビ＝マゼンタの帯、コース名＝マゼンタの帯に白抜き、
+     出勤の日付＝マゼンタのバッジ、フッター／電話CTA＝濃紅。これで赤の面積が一気に増える。
+   ・暗い赤の地の上では --hp-accent(#c2477e) / --hp-accent-soft(#9c3663) は沈むので、
+     小さな文字（価格・出勤時間・もっと見る等）だけ明るい薔薇色に置き換える
+     （ワインレッドで実測して分かった対処と同じ）。
+   ・アクセント変数そのものは hpSite.ts の HP_COLOR_VARIANTS.a が正なので、ここでは触らない。
+   ★ 他の配色を1バイトも変えないため、上の .hp-a のルールには手を入れず、
+     すべてこのブロックの上書き（.hp-a.hp-a-magenta ＝詳細度が1段上）で表現すること。 */
+.hp-a.hp-a-magenta { background: #2c0b1b; color: #f5e3ec; }
+.hp-a.hp-a-magenta .hp-sec-alt { background: #3d0f24; }
+.hp-a.hp-a-magenta .hp-sec + .hp-sec:not(.hp-sec-alt) { border-top: 1px solid #551933; }
+/* 壁紙（黒ジェム）を赤いベールで透かす＝ページ全体が赤みを帯びる */
+.hp-a.hp-a-magenta .hp-wallpaper::after { background: rgba(44,11,27,.80); }
+.hp-a.hp-a-magenta.hp-has-wallpaper .hp-sec-alt { background: rgba(61,15,36,.78); }
+.hp-a.hp-a-magenta.hp-has-wallpaper .hp-card { background: rgba(66,17,39,.82); }
+.hp-a.hp-a-magenta.hp-has-wallpaper .hp-topbar { background: rgba(90,13,42,.88); }
+
+/* ヘッダー: 地そのものを濃紅にして、ヘッダーだけで「赤のサイト」と分かるようにする */
+.hp-a.hp-a-magenta .hp-topbar { background: rgba(90,13,42,.94); border-bottom: 1px solid rgba(255,255,255,.14); }
+.hp-a.hp-a-magenta.hp-scrolled .hp-topbar { background: #5a0d2a; box-shadow: 0 2px 18px rgba(30,4,14,.45); }
+.hp-a.hp-a-magenta .hp-topbar-name { color: #fff; }
+.hp-a.hp-a-magenta .hp-topbar-nav a { color: rgba(255,255,255,.82); }
+.hp-a.hp-a-magenta .hp-topbar-nav a:hover { color: #fff; border-bottom-color: #fff; }
+.hp-a.hp-a-magenta .hp-topbar-tel, .hp-a.hp-a-magenta .hp-drawer-btn { color: #fff; }
+.hp-a.hp-a-magenta .hp-doc-back { color: rgba(255,255,255,.85); }
+/* SPクイックナビ: マゼンタの帯に白抜き。ヘッダー→写真→この帯 で赤が写真を挟む */
+.hp-a.hp-a-magenta .hp-quicknav { background: linear-gradient(90deg, #7d0f38, #b3305f); border-bottom: none; }
+.hp-a.hp-a-magenta .hp-qn-item + .hp-qn-item { border-left: 1px solid rgba(255,255,255,.24); }
+.hp-a.hp-a-magenta .hp-qn-en { color: #fff; }
+.hp-a.hp-a-magenta .hp-qn-jp { color: rgba(255,255,255,.76); }
+/* ドロワー */
+.hp-a.hp-a-magenta .hp-drawer { background: #3d0f24; border-left: 1px solid #6b2340; }
+.hp-a.hp-a-magenta .hp-drawer-list a { color: #e7c9d7; }
+.hp-a.hp-a-magenta .hp-drawer-list li + li a { border-top: 1px solid #57192f; }
+.hp-a.hp-a-magenta .hp-drawer-foot { border-top: 1px solid #6b2340; color: #c093a6; }
+.hp-a.hp-a-magenta .hp-drawer-tel { color: #f0a7c6; }
+.hp-a.hp-a-magenta .hp-drawer-terms, .hp-a.hp-a-magenta .hp-drawer-close { color: #c093a6; }
+.hp-a.hp-a-magenta .hp-doc-h { color: #f0a7c6; }
+.hp-a.hp-a-magenta .hp-doc-p, .hp-a.hp-a-magenta .hp-doc-list li { color: #e7c9d7; }
+.hp-a.hp-a-magenta .hp-link-text { color: #e7c9d7; border-color: #6b2340; }
+
+/* 見出し・飾り罫・ヒーロー */
+.hp-a.hp-a-magenta .hp-en, .hp-a.hp-a-magenta .hp-hero-en { color: #ef8fb8; }
+.hp-a.hp-a-magenta .hp-rule { border-top-color: #d4548d; }
+.hp-a.hp-a-magenta .hp-rule::after { border-top-color: rgba(212,84,141,.45); }
+.hp-a.hp-a-magenta .hp-hero-catch { color: #e7c9d7; }
+.hp-a.hp-a-magenta .hp-concept-text { color: #e7c9d7; }
+.hp-a.hp-a-magenta .hp-concept-img { border-color: #6b2340; }
+
+/* コース料金: グループ名をマゼンタの帯に白抜き（いちばん面積が変わるところ） */
+.hp-a.hp-a-magenta .hp-course-name { background: linear-gradient(90deg, #7d0f38, #b3305f); color: #fff; padding: 8px 10px; margin-bottom: 10px; }
+.hp-a.hp-a-magenta .hp-course-row { border-bottom: 1px solid #57192f; }
+.hp-a.hp-a-magenta .hp-course-price { color: #ef8fb8; }
+
+/* 出勤・セラピスト（写真に重ねる影も黒から臙脂へ） */
+.hp-a.hp-a-magenta .hp-sched-thumb, .hp-a.hp-a-magenta .hp-th-frame { background: #3d0f24; }
+.hp-a.hp-a-magenta .hp-sched-noimg, .hp-a.hp-a-magenta .hp-th-noimg { background: linear-gradient(160deg, #431129, #5c1a38); }
+.hp-a.hp-a-magenta .hp-sched-thumb::after {
+  background: linear-gradient(to top, rgba(48,5,22,.86), rgba(48,5,22,.38) 46%, rgba(48,5,22,0));
+}
+/* 日付はマゼンタのバッジ（白抜き） */
+.hp-a.hp-a-magenta .hp-sched-date { background: #8e1244; border-color: #b3305f; color: #fff; }
+/* 写真の上／暗い地に載る小さな文字は明るい薔薇色に置き換える（accent-soft では沈む） */
+.hp-a.hp-a-magenta .hp-sched-time { color: #f4a9c6; }
+.hp-a.hp-a-magenta .hp-th-name { color: #f5e3ec; }
+.hp-a.hp-a-magenta .hp-th-age { color: #dd8fae; }
+.hp-a.hp-a-magenta .hp-th-catch { color: #c093a6; }
+.hp-a.hp-a-magenta .hp-th-badge { color: #e7c9d7; border-color: #7a2848; }
+.hp-a.hp-a-magenta .hp-th-onduty { color: #f4a9c6; border-color: #b3305f; }
+.hp-a.hp-a-magenta .hp-more { color: #f0a7c6; border-bottom-color: #b3305f; }
+
 /* カード・店舗情報 */
-.hp-a.hp-a-magenta .hp-embed { border-color: #3d2c3f; }
-.hp-a.hp-a-magenta .hp-card { background: #241a26; border-color: #3d2c3f; }
-.hp-a.hp-a-magenta .hp-card-body { color: #9a8b98; }
-.hp-a.hp-a-magenta .hp-card-meta { color: #6f6270; }
-.hp-a.hp-a-magenta .hp-info-row { border-bottom: 1px solid #3d2c3f; }
-.hp-a.hp-a-magenta .hp-info-row dd { color: #cfc2cd; }
-/* フッター・予約CTA */
-.hp-a.hp-a-magenta .hp-footer { background: #241a26; }
-.hp-a.hp-a-magenta .hp-footer-sub { color: #6f6270; }
-.hp-a.hp-a-magenta .hp-cta-tel { background: #241a26; color: #ece1ea; }
-.hp-a.hp-a-magenta .hp-cta-line { color: #19121a; }
+.hp-a.hp-a-magenta .hp-embed { border-color: #6b2340; }
+.hp-a.hp-a-magenta .hp-card { background: #3d0f24; border-color: #6b2340; }
+.hp-a.hp-a-magenta .hp-coupon-discount { color: #ef8fb8; }
+.hp-a.hp-a-magenta .hp-card-body { color: #c093a6; }
+.hp-a.hp-a-magenta .hp-card-meta { color: #8f6577; }
+.hp-a.hp-a-magenta .hp-info-row { border-bottom: 1px solid #57192f; }
+.hp-a.hp-a-magenta .hp-info-row dt { color: #dd8fae; }
+.hp-a.hp-a-magenta .hp-info-row dd { color: #e7c9d7; }
+
+/* フッター・予約CTA（濃紅で締める） */
+.hp-a.hp-a-magenta .hp-footer { background: #5a0d2a; }
+.hp-a.hp-a-magenta .hp-footer-name { color: #f4a9c6; }
+.hp-a.hp-a-magenta .hp-footer-sub { color: #c093a6; }
+.hp-a.hp-a-magenta .hp-footer-sub a { color: #f4a9c6; }
+.hp-a.hp-a-magenta .hp-cta-tel { background: #5a0d2a; color: #fff; border-top-color: #b3305f; }
+.hp-a.hp-a-magenta .hp-cta-line { color: #ffffff; }
 `;
 
 const TYPE_A_SIENNA = `/* ══════════ タイプA 配色: ローシェンナ（2026-08-12）══════════
