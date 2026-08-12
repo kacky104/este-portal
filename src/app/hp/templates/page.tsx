@@ -190,16 +190,20 @@ export default function HpTemplatesPage() {
                         href={`/hp/${HP_DEMO_SLUG}/preview/${t.key}/${v.key}`}
                         target="_blank"
                         rel="noreferrer"
-                        className="group block rounded-xl overflow-hidden border border-[#ecdcdc] bg-white hover:border-[#d5a86b] hover:shadow-md transition-all"
+                        className={`group block overflow-hidden border border-[#ecdcdc] bg-white hover:border-[#d5a86b] hover:shadow-md transition-all ${
+                          /* 実写真のサムネは角を直角に（2026-08-12 要望） */ src ? '' : 'rounded-xl'
+                        }`}
                       >
                         {src ? (
-                          /* 横長（スマホ4:3・PC16:9）。object-right はモデルが写真の右側にいるため */
+                          /* 横長（スマホ16:9・PC2:1）＝PCの画面で見ているような比率。
+                             object-right-top: モデルが写真の右上にいるので、右端と上端を基準に切る
+                             （中央基準だと縦を詰めたときに顔が切れる）。 */
                           // eslint-disable-next-line @next/next/no-img-element
                           <img
                             src={src}
                             alt=""
                             loading="lazy"
-                            className="block w-full aspect-[4/3] sm:aspect-video object-cover object-right"
+                            className="block w-full aspect-video sm:aspect-[2/1] object-cover object-right-top"
                           />
                         ) : (
                           <DesignThumb template={t.key} accent={c.accent} deep={c.deep} colorKey={v.key} />
