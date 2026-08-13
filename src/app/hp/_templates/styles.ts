@@ -369,8 +369,17 @@ ${COMMON}
 .hp-b { background: #faf8f4; color: #3d3a35; font-family: 'Zen Maru Gothic', 'Hiragino Maru Gothic ProN', 'Hiragino Kaku Gothic ProN', 'Noto Sans JP', sans-serif; }
 /* PCワイド対応（Aと同じ考え方：帯は全幅・本文720px中央） */
 .hp-b { max-width: 1024px; }
+/* ブロック（セクション）の上下の余白を従来の 1/2 に詰める（2026-08-13 要望）。
+   SP: 48px → 24px ／ PC: 64px → 32px。
+   バナー帯（上0）と規約などの文書ページ（34/46px）は元の性格を保ったまま同じ比率で縮める。
+   PC 側は下の @media の padding を 32px に直してあるので、ここは SP 専用にする。 */
+@media (max-width: 767px) {
+  .hp-b .hp-sec { padding-top: 24px; padding-bottom: 24px; }
+  .hp-b .hp-sec-banners { padding-top: 0; }
+  .hp-b .hp-sec-doc { padding-top: 17px; padding-bottom: 23px; }
+}
 @media (min-width: 768px) {
-  .hp-b .hp-sec { padding: 64px calc((100% - 720px) / 2); }
+  .hp-b .hp-sec { padding: 32px calc((100% - 720px) / 2); }
   .hp-b .hp-hero-name { font-size: 34px; }
   .hp-b .hp-th-row { flex-wrap: wrap; }
 }
