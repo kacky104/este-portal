@@ -420,7 +420,9 @@ ${COMMON}
 .hp-b .hp-hero-en { margin-top: 4px; font-size: 10px; color: var(--hp-accent-deep, #6b8f67); font-weight: 700; letter-spacing: .3em; }
 .hp-b .hp-hero-name { font-size: 26px; font-weight: 900; letter-spacing: .06em; }
 .hp-b .hp-hero-catch { margin-top: 12px; font-size: 13px; line-height: 2; color: #6b6459; }
-.hp-b .hp-hero-area { margin-top: 12px; font-size: 10px; font-weight: 700; color: #9b948a; letter-spacing: .1em; }
+/* エリア・営業時間の行は出さない（2026-08-13 要望。同じ内容は店舗情報ブロックに載る）。
+   display:none ではなく視覚的に隠すだけにして、読み上げ・検索エンジンには残す（タイプAと同じ）。 */
+.hp-b .hp-hero-area { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip-path: inset(50%); }
 .hp-b .hp-concept-text { font-size: 13px; line-height: 2.1; color: #5d574e; background: #fff; border: 1px solid #eee7db; border-radius: 20px; padding: 18px; box-shadow: 0 4px 16px rgba(80,70,55,.05); white-space: pre-wrap; }
 .hp-b .hp-concept-img { width: 100%; height: auto; border-radius: 20px; margin-bottom: 14px; }
 /* ★ コース料金とお知らせ（カード）の文字の大きさは、タイプS・Aと同じ数値に揃えてある
