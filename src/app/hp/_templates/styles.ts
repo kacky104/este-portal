@@ -591,9 +591,10 @@ ${COMMON}
 .hp-c .hp-link-text { color: var(--hp-ink, #111114); border: 2px solid var(--hp-ink, #111114); font-weight: 800; }
 .hp-c .hp-drawer-close { color: var(--hp-ink, #111114); }
 .hp-c .hp-sec { border-top: 2px solid var(--hp-ink, #111114); padding: 46px 20px; }
-.hp-c .hp-idx { display: block; font-size: 10px; font-weight: 900; letter-spacing: .1em; color: var(--hp-accent-deep, var(--hp-accent, #ff4658)); }
-.hp-c .hp-en { display: block; font-size: 28px; font-weight: 900; letter-spacing: -.01em; line-height: 1.05; margin: 6px 0 2px; text-transform: uppercase; color: var(--hp-ink, #111114); }
-.hp-c .hp-h2 { font-size: 11px; font-weight: 700; color: color-mix(in srgb, var(--hp-ink, #111114) 64%, transparent); letter-spacing: .2em; margin-bottom: 20px; }
+/* 連番（01/02…）は出さない（2026-08-13 要望）。COMMON が .hp-idx を display:none に
+   しているので、ここで表示に切り替えなければ消えたまま＝打ち消しの行は不要。 */
+.hp-c .hp-en { display: block; font-size: 28px; font-weight: 900; letter-spacing: -.01em; line-height: 1.05; margin: 6px 0 2px; text-transform: uppercase; color: var(--hp-ink, #111114); text-align: center; }
+.hp-c .hp-h2 { font-size: 11px; font-weight: 700; color: color-mix(in srgb, var(--hp-ink, #111114) 64%, transparent); letter-spacing: .2em; margin-bottom: 20px; text-align: center; }
 .hp-c .hp-hero-img { border-bottom: 2px solid var(--hp-ink, #111114); }
 .hp-c .hp-hero-text { padding: 22px 20px 26px; }
 .hp-c .hp-hero-en { font-size: 10px; font-weight: 900; letter-spacing: .2em; color: var(--hp-accent-deep, var(--hp-accent, #ff4658)); }
@@ -625,7 +626,11 @@ ${COMMON}
 .hp-c .hp-sched-row { display: flex; justify-content: space-between; padding: 14px 2px; border-bottom: 1px solid color-mix(in srgb, var(--hp-ink, #111114) 22%, transparent); font-size: 13px; font-weight: 800; }
 .hp-c .hp-sched-time { font-weight: 900; }
 .hp-c .hp-embed { border: 2px solid var(--hp-ink, #111114); background: #fff; }
-.hp-c .hp-more { color: var(--hp-ink, #111114); font-weight: 900; border-bottom: 3px solid var(--hp-accent, #ff4658); padding-bottom: 2px; letter-spacing: .1em; }
+/* もっと見るは中央寄せ（2026-08-13 要望）。inline-block のままでは text-align では
+   動かないので、幅ぴったりのブロック＋左右マージン auto（タイプBの見出しピルと同じやり方）。
+   margin-top:12px は COMMON の値を引き継ぐ。 */
+.hp-c .hp-more { display: block; width: fit-content; margin-left: auto; margin-right: auto;
+  color: var(--hp-ink, #111114); font-weight: 900; border-bottom: 3px solid var(--hp-accent, #ff4658); padding-bottom: 2px; letter-spacing: .1em; }
 .hp-c .hp-card { border: 2px solid var(--hp-ink, #111114); background: #fff; padding: 16px; box-shadow: 5px 5px 0 var(--hp-ink, #111114); margin-bottom: 16px; }
 .hp-c .hp-card-title { font-size: 13px; font-weight: 900; }
 .hp-c .hp-coupon-discount { font-size: 18px; font-weight: 900; color: var(--hp-accent-deep, var(--hp-accent, #ff4658)); margin: 4px 0; }
