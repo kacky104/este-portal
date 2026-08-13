@@ -193,9 +193,6 @@ ${COMMON}
      本文（セクション・カード・フッター）は従来どおり中央の枠の中。 */
   .hp-a .hp-topbar, .hp-a .hp-hero { width: 100vw; margin-left: calc(50% - 50vw); margin-right: calc(50% - 50vw); }
   .hp-a .hp-hero-img { max-height: 82vh; }
-  /* ハンバーガーが画面の右端に来るので、ドロワーも画面の右端から出す
-     （--hp-col-half は .hp-drawer の right 計算にだけ使う変数） */
-  .hp-a { --hp-col-half: 50vw; }
 }
 .hp-a .hp-sec-alt { background: #1f1d22; }
 .hp-a .hp-sec + .hp-sec:not(.hp-sec-alt) { border-top: 1px solid #26242b; }
@@ -356,6 +353,11 @@ ${COMMON}
 .hp-a .hp-footer-sub a { color: var(--hp-accent-soft, #a8905e); }
 .hp-a .hp-cta { max-width: 1024px; }
 .hp-a { --hp-col-half: 512px; }
+/* ★ ドロワーは画面の右端から出す（2026-08-13 修正）。ハンバーガーは全幅ヘッダーの右端に
+   あるのに、ドロワーだけ額縁の内側（中央1024pxの右端）から出ていた。
+   --hp-col-half は .hp-drawer の right 計算にだけ使う変数で、詳細度が同じなので
+   【必ず上の .hp-a { --hp-col-half: 512px } より後ろ】に書くこと（前に置くと効かない）。 */
+@media (min-width: 768px) { .hp-a { --hp-col-half: 50vw; } }
 .hp-a .hp-cta-tel { background: #232128; color: #e8e4dc; border-top: 1px solid var(--hp-accent-soft, #a8905e); }
 .hp-a .hp-cta-line { background: var(--hp-accent, #c4a469); color: #17161a; }
 .hp-a .hp-sched-date { display: block; width: fit-content; background: #2a2730; border: 1px solid #3a3742; padding: 6px 18px; margin: 0 auto 18px; font-size: 12px; color: var(--hp-accent, #c4a469); letter-spacing: .2em; opacity: 1; }
@@ -551,18 +553,15 @@ const TYPE_S = `
 @import url('https://fonts.googleapis.com/css2?family=Shippori+Mincho:wght@400;500;600&display=swap');
 ${COMMON}
 .hp-s { background: #fdfbf7; color: #4a4238; font-family: 'Shippori Mincho', 'Hiragino Mincho ProN', 'Yu Mincho', 'Noto Serif JP', 'Noto Serif CJK JP', serif; }
-/* フラッグシップは全幅（額縁なし）。本文は中央760pxに寄せる */
-.hp-s { max-width: none; }
+/* 2026-08-13: ページ全体を全幅にする作りをやめ、タイプA/Bと同じ「額縁の中」に揃えた。
+   ヘッダーとヒーローだけがその額縁を食い破って画面幅いっぱいに出る（このファイル末尾）。 */
+.hp-s { max-width: 1024px; }
 /* ブロックの上下の余白は詰めて、セクション同士を近づける（2026-08-10・従来の1/4） */
 .hp-s .hp-sec { padding: 15px 22px; }
-@media (min-width: 768px) { .hp-s .hp-sec { padding: 21px calc((100% - 860px) / 2); } }
-/* 写真グリッド（出勤・セラピスト）だけは本文より広く取り、1枚を大きく見せる。
-   本文は読みやすさ優先で 860px のまま。負の padding にならないよう 1240px 以上でのみ適用。 */
-@media (min-width: 1240px) {
-  .hp-s .hp-sec-schedule, .hp-s .hp-sec-therapists {
-    padding-left: calc((100% - 1180px) / 2); padding-right: calc((100% - 1180px) / 2);
-  }
-}
+/* 本文の幅もタイプA/Bと同じ720px（2026-08-13）。
+   ★ 以前は本文860px＋写真グリッドだけ1180pxに広げていたが、外枠が1024pxになって
+     1180pxが入らなくなった（padding が負になる）ので、広げる指定ごと外した。 */
+@media (min-width: 768px) { .hp-s .hp-sec { padding: 21px calc((100% - 720px) / 2); } }
 .hp-s .hp-sec-alt { background: #f7f2ea; }
 .hp-s section[id] { scroll-margin-top: 64px; }
 
@@ -606,7 +605,7 @@ ${COMMON}
 .hp-s .hp-crumb { justify-content: center; }
 .hp-s .hp-voice-summary { text-align: center; }
 .hp-s .hp-sec-doc { padding-left: 22px; padding-right: 22px; }
-@media (min-width: 768px) { .hp-s .hp-sec-doc { padding-left: calc((100% - 760px) / 2); padding-right: calc((100% - 760px) / 2); } }
+@media (min-width: 768px) { .hp-s .hp-sec-doc { padding-left: calc((100% - 720px) / 2); padding-right: calc((100% - 720px) / 2); } }
 .hp-s .hp-link-text { color: #6b6154; border: 1px solid #eadfcd; background: rgba(255,255,255,.6); letter-spacing: .04em; }
 .hp-s .hp-link-item:hover .hp-link-text { color: var(--hp-accent, #b98d4f); border-color: var(--hp-accent-soft, #d5b98a); }
 .hp-s .hp-drawer-close { color: #9b8c74; }
@@ -729,8 +728,7 @@ ${COMMON}
 .hp-s .hp-footer-sub { font-size: 9px; color: #a1988a; letter-spacing: .2em; line-height: 2.4; }
 .hp-s .hp-footer-sub a { color: var(--hp-accent-soft, #d5b98a); }
 
-.hp-s .hp-cta { max-width: none; }
-.hp-s { --hp-col-half: 50vw; }
+.hp-s .hp-cta { max-width: 1024px; }
 .hp-s .hp-cta-tel { background: #fff; color: #4a4238; border-top: 1px solid var(--hp-accent-soft, #d5b98a); }
 .hp-s .hp-cta-line { background: var(--hp-accent, #b98d4f); color: #fff; }
 
@@ -799,6 +797,20 @@ ${COMMON}
     content: ''; position: absolute; inset: 0; pointer-events: none;
     background: radial-gradient(820px 560px at 24% 52%, rgba(253,251,247,.62), rgba(253,251,247,0) 68%);
   }
+}
+
+/* ── ヘッダーとヒーローだけ画面幅いっぱいに（2026-08-13・タイプA/Bと同じ作り）──
+   .hp-s は max-width:1024px の中央寄せなので、100vw ＋ 負のマージンで額縁を食い破る。
+   横のはみ出しは /hp/layout.tsx の overflow-x:clip が受ける（hidden にすると sticky が壊れる）。
+   ★★ このブロックは必ずタイプSのCSSの【いちばん最後】に置くこと。
+     .hp-s の --hp-col-half（ドロワーの right の計算用）は詳細度が同じなので、
+     前に置くと「後に書いた方」に負けて効かない（メディアクエリの中でも同じ）。
+   ★ 壁紙（::before/::after）は position:fixed なので、額縁の外側にも画面いっぱいに広がる
+     ＝タイプA/Bのような暗い額縁ではなく、壁紙が左右の余白になる（タイプSの持ち味は残る）。 */
+@media (min-width: 768px) {
+  .hp-s .hp-topbar, .hp-s .hp-hero { width: 100vw; margin-left: calc(50% - 50vw); margin-right: calc(50% - 50vw); }
+  /* ハンバーガーが画面の右端に来るので、ドロワーも画面の右端から出す */
+  .hp-s { --hp-col-half: 50vw; }
 }
 `;
 
