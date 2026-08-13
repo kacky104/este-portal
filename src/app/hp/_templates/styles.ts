@@ -567,6 +567,16 @@ ${COMMON}
 .hp-c .hp-topbar { display: flex; justify-content: space-between; align-items: center; position: sticky; top: var(--hp-topbar-top, 0px); z-index: 30;
   padding: 14px 20px; background: color-mix(in srgb, var(--hp-paper, #f4f4f6) 92%, transparent); backdrop-filter: blur(8px); border-bottom: 2px solid var(--hp-ink, #111114); }
 .hp-c .hp-topbar-name { font-size: 15px; font-weight: 900; letter-spacing: .04em; }
+/* PC共通ヘッダーのナビ（2026-08-13 要望・タイプS/A/Bと同じ4項目）。
+   DOM は HpShell が全ひな形ぶん出しているので、ここで表示に切り替えるだけ。出す幅も同じ 900px から。
+   文字は太字の --hp-ink、下線ホバーは --hp-accent（.hp-more と同じ組み合わせ＝MODEの流儀）。
+   どちらも配色の変数なので、4配色ぶんの追加CSSは要らない。 */
+.hp-c .hp-topbar-nav { display: none; gap: 26px; }
+@media (min-width: 900px) { .hp-c .hp-topbar-nav { display: flex; } }
+.hp-c .hp-topbar-nav a { font-size: 11.5px; font-weight: 900; letter-spacing: .14em; color: var(--hp-ink, #111114);
+  text-decoration: none; padding: 4px 0; border-bottom: 3px solid transparent; transition: opacity .3s, border-color .3s; }
+.hp-c .hp-topbar-nav a:hover { opacity: .7; border-bottom-color: var(--hp-accent, #ff4658); }
+.hp-c .hp-topbar-nav a[aria-current='page'] { border-bottom-color: var(--hp-accent, #ff4658); }
 /* ドロワー（タイプC・白地に黒の太罫） */
 .hp-c .hp-drawer-btn { color: var(--hp-ink, #111114); }
 .hp-c .hp-topbar-tel { color: var(--hp-accent-deep, var(--hp-accent, #ff4658)); }
@@ -634,6 +644,27 @@ ${COMMON}
 .hp-c .hp-cta-tel { background: #fff; color: var(--hp-ink, #111114); border-right: 2px solid var(--hp-ink, #111114); }
 .hp-c .hp-cta-line { background: var(--hp-accent, #ff4658); color: #fff; }
 .hp-c .hp-sched-date { display: inline-block; background: var(--hp-ink, #111114); color: #fff; padding: 6px 16px; margin: 0 0 16px; font-size: 12px; font-weight: 900; letter-spacing: .15em; opacity: 1; }
+/* ★ ヘッダーとヒーローは画面幅いっぱいに（2026-08-13 要望・タイプS/A/Bと同じ迫力を出す）。
+   .hp-c は max-width:1024px の中央寄せなので、100vw ＋ 負のマージンで額縁を食い破る。
+   横のはみ出しは /hp/layout.tsx の overflow-x:clip が受ける（hidden にすると sticky ヘッダーが壊れる）。
+   ★★ このブロックは必ずタイプCの共通CSSの【いちばん最後】に置くこと。
+     前方の .hp-c { --hp-col-half: 512px } と詳細度が同じなので、
+     前に置くと「後に書いた方」に負けて効かない（メディアクエリでも同じ）。 */
+@media (min-width: 768px) {
+  .hp-c .hp-topbar, .hp-c .hp-hero { width: 100vw; margin-left: calc(50% - 50vw); margin-right: calc(50% - 50vw); }
+  .hp-c .hp-hero-img { max-height: 82vh; }
+  /* ★ 店名ブロック（写真の下の帯）は中央1024pxの枠へ戻す。
+     .hp-hero ごと全幅にしたので、そのままだと文字が額縁の暗い地の上から始まってしまう
+     （タイプBは固定壁紙が画面全体を覆うので起きない。タイプCは壁紙が無い）。
+     写真だけ全幅・文字は本文と同じ枠の中、がタイプCの形。 */
+  .hp-c .hp-hero-text { max-width: 1024px; margin: 0 auto; }
+  /* ★ 全幅のヘッダーは【不透明】にする。中央1024pxの外側は額縁の暗い地なので、
+     すりガラス（半透明）のままだと左右の端だけ暗く濁って帯が3色に割れて見える。
+     タイプCは地色が変数（--hp-paper）なので、B と違って配色ごとの上書きは要らない。 */
+  .hp-c .hp-topbar { background: var(--hp-paper, #f4f4f6); }
+  /* ハンバーガーが画面の右端に来るので、ドロワーも画面の右端から出す */
+  .hp-c { --hp-col-half: 50vw; }
+}
 `;
 
 // タイプS（GRACE・フラッグシップ）: LPのキービジュアルに描かれたサイトの実物化（2026-08-09）。
