@@ -380,6 +380,16 @@ ${COMMON}
 .hp-b .hp-topbar { display: flex; justify-content: space-between; align-items: center; position: sticky; top: var(--hp-topbar-top, 0px); z-index: 30;
   padding: 12px 18px; background: rgba(250,248,244,.9); backdrop-filter: blur(8px); border-bottom: 1px solid #eee7db; }
 .hp-b .hp-topbar-name { font-size: 13px; font-weight: 900; color: #3d3a35; }
+/* PC共通ヘッダーのナビ（2026-08-13 要望・タイプS/Aと同じ4項目）。
+   DOM は HpShell が全ひな形ぶん出しているので、ここで表示に切り替えるだけ。
+   文字色は --hp-accent-deep（配色ごとの「白地で読める濃さ」）をそのまま使う＝
+   4配色ぶんの追加CSSが要らない。出す幅はタイプS/Aと同じ 900px から。 */
+.hp-b .hp-topbar-nav { display: none; gap: 26px; }
+@media (min-width: 900px) { .hp-b .hp-topbar-nav { display: flex; } }
+.hp-b .hp-topbar-nav a { font-size: 11.5px; font-weight: 800; letter-spacing: .14em; color: var(--hp-accent-deep, #6b8f67);
+  text-decoration: none; padding: 4px 0; border-bottom: 1px solid transparent; transition: opacity .3s, border-color .3s; }
+.hp-b .hp-topbar-nav a:hover { opacity: .7; border-bottom-color: currentColor; }
+.hp-b .hp-topbar-nav a[aria-current='page'] { border-bottom-color: currentColor; }
 /* ドロワー（タイプB・生成りの白） */
 .hp-b .hp-drawer-btn { color: #3d3a35; }
 .hp-b .hp-topbar-tel { color: var(--hp-accent-deep, #6b8f67); }
