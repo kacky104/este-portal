@@ -667,7 +667,9 @@ export const HP_COLOR_VARIANTS: Record<HpTemplateKey, HpColorVariant[]> = {
   //                        白地で読める濃さまで落としてある（タイプBと同じ役割分担）
   c: [
     { key: 'mono',   label: 'オフホワイト',     css: { '--hp-accent': '#16161a', '--hp-accent-deep': '#16161a', '--hp-paper': '#f2f0ea', '--hp-ink': '#16161a' }, rootClass: 'hp-c-mono' },
-    { key: 'purple', label: 'フクシャパープル', css: { '--hp-accent': '#b019b0', '--hp-accent-deep': '#8a1290', '--hp-paper': '#f8f1f9', '--hp-ink': '#2e0b34' }, rootClass: 'hp-c-purple' },
+    // 2026-08-13: 地色を「ほぼ白」からはっきり藤色（#efd5f2）へ。白すぎて紫のサイトに
+    // 見えなかったため。ink 12.7 / deep 6.0 / 弱文字 4.7 と読みやすさは確認済み
+    { key: 'purple', label: 'フクシャパープル', css: { '--hp-accent': '#b019b0', '--hp-accent-deep': '#8a1290', '--hp-paper': '#efd5f2', '--hp-ink': '#2e0b34' }, rootClass: 'hp-c-purple' },
     // ネープルイエローだけは面が明るく白抜きが載らない。面に載る文字は styles.ts 側で焦げ茶に落としてある
     { key: 'yellow', label: 'ネープルイエロー', css: { '--hp-accent': '#f2ca3c', '--hp-accent-deep': '#8a6a00', '--hp-paper': '#faf6e6', '--hp-ink': '#3a2f0a' }, rootClass: 'hp-c-yellow' },
     { key: 'red',    label: 'スカーレット',     css: { '--hp-accent': '#e8280c', '--hp-accent-deep': '#b41c00', '--hp-paper': '#fdf3f0', '--hp-ink': '#3b0f06' }, rootClass: 'hp-c-red' },

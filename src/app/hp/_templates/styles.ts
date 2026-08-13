@@ -1887,8 +1887,9 @@ const TYPE_C_MONO = `/* ── 配色: オフホワイト（無彩色。MODEの�
 
 const TYPE_C_PURPLE = `/* ── 配色: フクシャパープル（淡い藤色地に濃い葡萄色の太罫） ── */
 /* 交互の地色（帯）。地色より一段濃いだけの控えめな面にして、太罫の強さを邪魔しない */
-/* 帯は壁紙（白大理石）をうっすら透かす（2026-08-13・タイプBと同じ考え方） */
-.hp-c.hp-c-purple .hp-sec-alt { background: rgba(240,226,243,.72); }
+/* 帯は壁紙（白大理石）をうっすら透かす（2026-08-13・タイプBと同じ考え方）。
+   地色を藤色に濃くしたのに合わせ、帯はさらに一段濃い藤色（2026-08-13） */
+.hp-c.hp-c-purple .hp-sec-alt { background: rgba(226,187,233,.72); }
 /* SPクイックナビ: ヒーロー直下の色帯。ここがいちばん面積の大きい「配色そのもの」 */
 .hp-c.hp-c-purple .hp-quicknav { background: linear-gradient(90deg, #8a1290, #b52ab5); border-bottom: 2px solid var(--hp-ink); }
 .hp-c.hp-c-purple .hp-qn-item + .hp-qn-item { border-left: 1px solid rgba(255,255,255,.3); }
