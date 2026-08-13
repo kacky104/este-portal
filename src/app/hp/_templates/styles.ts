@@ -393,14 +393,15 @@ ${COMMON}
 .hp-b .hp-doc-p, .hp-b .hp-doc-list li { color: #5d574e; }
 .hp-b .hp-link-text { color: #5d574e; background: #fff; border: 1px solid #eee7db; border-radius: 999px; font-weight: 700; }
 .hp-b .hp-drawer-close { color: #9b948a; }
-.hp-b .hp-en { display: inline-block; font-size: 10px; font-weight: 700; color: var(--hp-accent-deep, #6b8f67); background: #ffffff; border: 1px solid #eee7db; border-radius: 999px; padding: 5px 14px; letter-spacing: .12em; text-transform: uppercase; }
-.hp-b .hp-h2 { font-size: 19px; font-weight: 800; margin: 14px 0 16px; letter-spacing: .04em; }
+/* ブロックの見出しは中央寄せ（2026-08-13 要望）。
+   .hp-en は丸ピルなので text-align では動かない。幅を中身ぶんにして左右マージンautoで中央へ。 */
+.hp-b .hp-en { display: block; width: fit-content; margin-left: auto; margin-right: auto; font-size: 10px; font-weight: 700; color: var(--hp-accent-deep, #6b8f67); background: #ffffff; border: 1px solid #eee7db; border-radius: 999px; padding: 5px 14px; letter-spacing: .12em; text-transform: uppercase; }
+.hp-b .hp-h2 { font-size: 19px; font-weight: 800; margin: 14px 0 16px; letter-spacing: .04em; text-align: center; }
 .hp-b .hp-hero-text { padding: 26px 20px 10px; text-align: center; }
 .hp-b .hp-hero-en { margin-top: 4px; font-size: 10px; color: var(--hp-accent-deep, #6b8f67); font-weight: 700; letter-spacing: .3em; }
 .hp-b .hp-hero-name { font-size: 26px; font-weight: 900; letter-spacing: .06em; }
 .hp-b .hp-hero-catch { margin-top: 12px; font-size: 13px; line-height: 2; color: #6b6459; }
 .hp-b .hp-hero-area { margin-top: 12px; font-size: 10px; font-weight: 700; color: #9b948a; letter-spacing: .1em; }
-.hp-b .hp-hero-img { border-radius: 0 0 28px 28px; }
 .hp-b .hp-concept-text { font-size: 13px; line-height: 2.1; color: #5d574e; background: #fff; border: 1px solid #eee7db; border-radius: 20px; padding: 18px; box-shadow: 0 4px 16px rgba(80,70,55,.05); white-space: pre-wrap; }
 .hp-b .hp-concept-img { width: 100%; height: auto; border-radius: 20px; margin-bottom: 14px; }
 .hp-b .hp-course-group { margin-bottom: 18px; }
@@ -446,13 +447,11 @@ ${COMMON}
    横のはみ出しは /hp/layout.tsx の overflow-x:clip が受ける（hidden にすると sticky ヘッダーが壊れる）。
    本文（セクション・カード・フッター）は従来どおり中央の枠の中。
    ★★ このブロックは必ずタイプBの共通CSSの【いちばん最後】に置くこと。
-     .hp-b .hp-hero-img の角丸／.hp-b の --hp-col-half と詳細度が同じなので、
-     前に置くと「後に書いた方」に負けて効かない（メディアクエリでも同じ）。
-     角丸を残したまま全幅にすると、ヒーロー下端の角から額縁の暗い地色が三角に覗く。 */
+     .hp-b の --hp-col-half（ドロワーの right の計算用）と詳細度が同じなので、
+     前に置くと「後に書いた方」に負けて効かない（メディアクエリでも同じ）。 */
 @media (min-width: 768px) {
   .hp-b .hp-topbar, .hp-b .hp-hero { width: 100vw; margin-left: calc(50% - 50vw); margin-right: calc(50% - 50vw); }
-  /* 全幅になると画面の端で角丸が浮くので、PCでは角を落とす（SPは従来どおり丸いまま） */
-  .hp-b .hp-hero-img { max-height: 82vh; border-radius: 0; }
+  .hp-b .hp-hero-img { max-height: 82vh; }
   /* ★ 全幅のヘッダーは【不透明】にする。中央1024pxの外側は額縁の暗い地なので、
      すりガラス（半透明）のままだと左右の端だけ暗く濁って帯が3色に割れて見える。
      配色ごとの地色は各配色ブロックの同じメディアクエリで上書きしている（詳細度が1段上）。 */
