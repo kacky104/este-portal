@@ -98,8 +98,8 @@ export function HpEditor({
   const [saving, setSaving] = useState(false);
   // デモ店だけの欄（2026-08-11 → 08-12 ひな形ぶんも）。デモは1行で全デザインを見せるため、
   // 「いま確定している見た目」以外にも写真を持てるようにしている（実店舗はデザインが1つなので出さない）。
-  //   タイプS … 配色ごと（白地に色を載せる作りなので色ごとに写真を変える意味がある）
-  //   A/B/C  … ひな形ごとに1セット（カラーはアクセント1色しか変わらないため）
+  //   S / A / B … 配色ごと（地色ごと作り分けているので、色ごとに写真を変える意味がある）
+  //   C         … ひな形ごとに1セット（カラーはアクセント1色しか変わらないため）
   const isDemo = normalizeHpSiteKey(siteKey) === HP_DEMO_SLUG;
   const previewSlots = isDemo ? hpDemoImageSlots(site.template_key, site.theme_key) : [];
   // アップロード中のスロット識別子（'hero0'〜 / 'concept' / 'banner0'〜）
@@ -401,8 +401,8 @@ export function HpEditor({
           <h3 className="text-sm font-black text-slate-800">デザインごとの画像（デモ専用）</h3>
           <p className="text-[11px] text-slate-400 leading-relaxed">
             デザイン一覧のプレビューで、その見た目のときだけ差し替える写真です（トップ画像とセラピスト写真）。
-            タイプSは配色ごと、タイプA・B・Cはひな形ごとに1セット（そのひな形の全カラーで共通）。
-            未設定のものは、トップ画像はタイプSなら色味を合わせた既定画像、それ以外は上の「トップ画像」、
+            タイプS・A・Bは配色ごと、タイプCはひな形ごとに1セット（そのひな形の全カラーで共通）。
+            未設定のものは、トップ画像はタイプS・Aなら色味を合わせた既定画像、それ以外は上の「トップ画像」、
             セラピスト写真は掲載データの写真がそのまま使われます。
           </p>
           {previewSlots.map((variant) => {

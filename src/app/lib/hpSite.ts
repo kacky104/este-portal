@@ -239,6 +239,9 @@ export function sanitizeHpBlocks(raw: unknown): HpBlocksConfig {
  */
 const HP_LEGACY_IMAGE_SLOT_KEYS: Record<string, string> = {
   'tpl-a': 'a-gold',
+  // 2026-08-13: タイプBも配色ごとに変えたので、先に tpl-b へ入れてあった写真を
+  // リーフグリーン（＝タイプBの基準色）へ移す。
+  'tpl-b': 'b-green',
 };
 
 /** 古いキーを新しいキーへ付け替える（移行先が既にあるときは古い方を捨てる）。 */
@@ -715,17 +718,21 @@ export function hpBundledHeroImages(template: HpTemplateKey, colorKey: string): 
  *
  *   タイプS … 配色キーそのもの（gold / wine / blue / emerald）
  *             ＝白地に色を載せる作りなので、配色ごとに写真を変える意味がある
- *   A/B/C  … 'tpl-{ひな形}'（tpl-a / tpl-b / tpl-c）
- *             ＝ひな形ごとに1セット。カラーはアクセント1色しか変わらないので、
- *               6色ぶん写真を用意しても違いが出ない（管理画面も長くなるだけ）
+ *   A / B  … '{ひな形}-{色}'（a-gold / b-green …）＝配色ごと。
+ *             どちらも地色ごと作り分けているので、写真も色ごとに変える意味がある
+ *             （タイプBは 2026-08-13 に tpl-b から移行）
+ *   C      … 'tpl-c' ＝ひな形ごとに1セット。カラーはアクセント1色しか変わらないので、
+ *             色ぶん写真を用意しても違いが出ない（管理画面も長くなるだけ）
  *
  * ★ タイプSの既存データ（gold/wine/…）をそのまま使い続けられるよう、Sだけ従来のキー。
  */
 /**
  * 配色ごとに写真を分けるひな形。ここに無いひな形は「ひな形ごとに1セット」（tpl-{ひな形}）。
  * 配色で地色ごと作り分けているひな形＝写真も色ごとに変える意味がある、という基準。
+ * ★ 2026-08-13: タイプBも4配色を地色ごと作り分けたので b を追加した
+ *   （＝デモ管理の「デザインごとの画像」がタイプBだけ1枠→4枠に増える）。
  */
-const HP_PER_COLOR_IMAGE_TEMPLATES: HpTemplateKey[] = ['s', 'a'];
+const HP_PER_COLOR_IMAGE_TEMPLATES: HpTemplateKey[] = ['s', 'a', 'b'];
 
 export function hpImageSlotKey(template: HpTemplateKey, colorKey: string): string {
   if (!HP_PER_COLOR_IMAGE_TEMPLATES.includes(template)) return `tpl-${template}`;
