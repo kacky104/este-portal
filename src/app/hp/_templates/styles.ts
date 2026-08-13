@@ -404,11 +404,15 @@ ${COMMON}
 .hp-b .hp-hero-area { margin-top: 12px; font-size: 10px; font-weight: 700; color: #9b948a; letter-spacing: .1em; }
 .hp-b .hp-concept-text { font-size: 13px; line-height: 2.1; color: #5d574e; background: #fff; border: 1px solid #eee7db; border-radius: 20px; padding: 18px; box-shadow: 0 4px 16px rgba(80,70,55,.05); white-space: pre-wrap; }
 .hp-b .hp-concept-img { width: 100%; height: auto; border-radius: 20px; margin-bottom: 14px; }
+/* ★ コース料金とお知らせ（カード）の文字の大きさは、タイプS・Aと同じ数値に揃えてある
+   （2026-08-13 要望。グループ名15px / 分16px / 価格22px、カードの見出し12.5px・本文11px・
+   日付9px・クーポン16px）。太さ（700〜900）と丸ゴシックはタイプBのまま。
+   S/A側の数値を動かすときは、ここも一緒に見直すこと。 */
 .hp-b .hp-course-group { margin-bottom: 18px; }
-.hp-b .hp-course-name { font-size: 13px; font-weight: 800; margin-bottom: 8px; color: var(--hp-accent-deep, #6b8f67); }
+.hp-b .hp-course-name { font-size: 15px; font-weight: 800; margin-bottom: 8px; color: var(--hp-accent-deep, #6b8f67); }
 .hp-b .hp-course-row { display: flex; justify-content: space-between; align-items: center; background: #fff; border: 1px solid #eee7db; border-radius: 16px; padding: 14px 18px; margin-bottom: 8px; }
-.hp-b .hp-course-min { font-size: 12px; font-weight: 700; }
-.hp-b .hp-course-price { font-size: 15px; font-weight: 900; color: var(--hp-accent-deep, #6b8f67); }
+.hp-b .hp-course-min { font-size: 16px; font-weight: 700; }
+.hp-b .hp-course-price { font-size: 22px; font-weight: 900; color: var(--hp-accent-deep, #6b8f67); }
 .hp-b .hp-th-card { flex-basis: 118px; }
 .hp-b .hp-th-frame { background: #fff; border: 1px solid #eee7db; border-radius: 18px; overflow: hidden; }
 .hp-b .hp-th-noimg { background: linear-gradient(160deg, #f0ece4, #e2e6da); }
@@ -456,10 +460,15 @@ ${COMMON}
 .hp-b .hp-embed { border: 1px solid #eee7db; border-radius: 20px; }
 .hp-b .hp-more { display: block; text-align: center; color: var(--hp-accent-deep, #6b8f67); font-weight: 800; }
 .hp-b .hp-card { background: #fff; border: 1px solid #eee7db; border-radius: 20px; padding: 18px; box-shadow: 0 4px 16px rgba(80,70,55,.05); }
-.hp-b .hp-card-title { font-size: 13px; font-weight: 800; margin-bottom: 6px; }
-.hp-b .hp-coupon-discount { font-size: 17px; font-weight: 900; color: var(--hp-accent-deep, #6b8f67); margin-bottom: 6px; }
-.hp-b .hp-card-body { font-size: 12px; color: #6b6459; line-height: 1.9; white-space: pre-wrap; }
-.hp-b .hp-card-meta { margin-top: 8px; font-size: 10px; color: #9b948a; }
+.hp-b .hp-card-title { font-size: 12.5px; font-weight: 800; margin-bottom: 6px; }
+.hp-b .hp-coupon-discount { font-size: 16px; font-weight: 900; color: var(--hp-accent-deep, #6b8f67); margin-bottom: 6px; }
+.hp-b .hp-card-body { font-size: 11px; color: #6b6459; line-height: 1.9; white-space: pre-wrap; }
+.hp-b .hp-card-meta { margin-top: 10px; font-size: 9px; color: #9b948a; }
+/* 新着情報だけ文字を大きく（トップの抜粋と /news ページの両方に効く。クーポン等の hp-card は据え置き）。
+   数値はタイプS・Aと同じ（2026-08-13）。 */
+.hp-b .hp-sec-news .hp-card-title { font-size: 15px; }
+.hp-b .hp-sec-news .hp-card-body { font-size: 13.5px; line-height: 2; }
+.hp-b .hp-sec-news .hp-card-meta { font-size: 10.5px; }
 .hp-b .hp-info { background: #fff; border: 1px solid #eee7db; border-radius: 20px; padding: 6px 18px; }
 .hp-b .hp-info-row { border-bottom: 1px dashed #eee7db; }
 .hp-b .hp-info-row:last-child { border-bottom: none; }
