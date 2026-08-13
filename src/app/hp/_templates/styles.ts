@@ -692,6 +692,24 @@ ${COMMON}
     background: var(--hp-accent, #ff4658); margin: 14px auto 0; }
   .hp-c .hp-hero-catch { margin-top: 14px; }
 }
+
+/* ── 壁紙（白大理石・2026-08-13）────────────────────────────
+   タイプS/Bと同じ「固定レイヤー2枚」方式: ::before = 大理石 ／ ::after = 地色のベール。
+   大理石はほぼ無彩色なので、タイプBのように色相を回した4枚は作らず【1枚だけ】敷き、
+   ベールを配色の変数（--hp-paper）で塗って4配色すべてに馴染ませる（Cの変数設計の利点）。
+   タイル繰り返しではなく cover で1枚を画面全体に敷く＝継ぎ目の問題が起きない。
+   負の z-index が使えるのは .hp-root の isolation:isolate のおかげ（COMMON 参照）。
+   ★ 地色を transparent にしないと壁紙が root の背景に隠れる。
+   ★ ベールの濃さ（.62）を変えるときは、各配色ブロックの .hp-sec-alt（.72）も一緒に見ること。 */
+.hp-c { background-color: transparent; }
+.hp-c::before {
+  content: ''; position: fixed; inset: 0; z-index: -2; pointer-events: none;
+  background: url('/hp-c/wallpaper.webp') center / cover no-repeat;
+}
+.hp-c::after {
+  content: ''; position: fixed; inset: 0; z-index: -1; pointer-events: none;
+  background: color-mix(in srgb, var(--hp-paper, #f4f4f6) 62%, transparent);
+}
 `;
 
 // タイプS（GRACE・フラッグシップ）: LPのキービジュアルに描かれたサイトの実物化（2026-08-09）。
@@ -1812,7 +1830,8 @@ const TYPE_B_PINK = `/* ── 配色: ロゼピンク（淡い薔薇色地）�
 
 const TYPE_C_MONO = `/* ── 配色: オフホワイト（無彩色。MODEの素の姿＝白地に黒の太罫） ── */
 /* 交互の地色（帯）。地色より一段濃いだけの控えめな面にして、太罫の強さを邪魔しない */
-.hp-c.hp-c-mono .hp-sec-alt { background: #e9e6dd; }
+/* 帯は壁紙（白大理石）をうっすら透かす（2026-08-13・タイプBと同じ考え方） */
+.hp-c.hp-c-mono .hp-sec-alt { background: rgba(233,230,221,.72); }
 /* SPクイックナビ: ヒーロー直下の色帯。ここがいちばん面積の大きい「配色そのもの」 */
 .hp-c.hp-c-mono .hp-quicknav { background: linear-gradient(90deg, #16161a, #3a3a42); border-bottom: 2px solid var(--hp-ink); }
 .hp-c.hp-c-mono .hp-qn-item + .hp-qn-item { border-left: 1px solid rgba(255,255,255,.3); }
@@ -1822,7 +1841,8 @@ const TYPE_C_MONO = `/* ── 配色: オフホワイト（無彩色。MODEの�
 
 const TYPE_C_PURPLE = `/* ── 配色: フクシャパープル（淡い藤色地に濃い葡萄色の太罫） ── */
 /* 交互の地色（帯）。地色より一段濃いだけの控えめな面にして、太罫の強さを邪魔しない */
-.hp-c.hp-c-purple .hp-sec-alt { background: #f0e2f3; }
+/* 帯は壁紙（白大理石）をうっすら透かす（2026-08-13・タイプBと同じ考え方） */
+.hp-c.hp-c-purple .hp-sec-alt { background: rgba(240,226,243,.72); }
 /* SPクイックナビ: ヒーロー直下の色帯。ここがいちばん面積の大きい「配色そのもの」 */
 .hp-c.hp-c-purple .hp-quicknav { background: linear-gradient(90deg, #8a1290, #b52ab5); border-bottom: 2px solid var(--hp-ink); }
 .hp-c.hp-c-purple .hp-qn-item + .hp-qn-item { border-left: 1px solid rgba(255,255,255,.3); }
@@ -1832,7 +1852,8 @@ const TYPE_C_PURPLE = `/* ── 配色: フクシャパープル（淡い藤色
 
 const TYPE_C_YELLOW = `/* ── 配色: ネープルイエロー（クリーム地に焦げ茶の太罫） ── */
 /* 交互の地色（帯）。地色より一段濃いだけの控えめな面にして、太罫の強さを邪魔しない */
-.hp-c.hp-c-yellow .hp-sec-alt { background: #f4ead0; }
+/* 帯は壁紙（白大理石）をうっすら透かす（2026-08-13・タイプBと同じ考え方） */
+.hp-c.hp-c-yellow .hp-sec-alt { background: rgba(244,234,208,.72); }
 /* SPクイックナビ: ヒーロー直下の色帯。ここがいちばん面積の大きい「配色そのもの」 */
 .hp-c.hp-c-yellow .hp-quicknav { background: linear-gradient(90deg, #f7d95e, #f2ca3c); border-bottom: 2px solid var(--hp-ink); }
 .hp-c.hp-c-yellow .hp-qn-item + .hp-qn-item { border-left: 1px solid rgba(58,47,10,.28); }
@@ -1846,7 +1867,8 @@ const TYPE_C_YELLOW = `/* ── 配色: ネープルイエロー（クリーム
 
 const TYPE_C_RED = `/* ── 配色: スカーレット（血色のよい生成り地に濃い緋色の太罫） ── */
 /* 交互の地色（帯）。地色より一段濃いだけの控えめな面にして、太罫の強さを邪魔しない */
-.hp-c.hp-c-red .hp-sec-alt { background: #fbe5de; }
+/* 帯は壁紙（白大理石）をうっすら透かす（2026-08-13・タイプBと同じ考え方） */
+.hp-c.hp-c-red .hp-sec-alt { background: rgba(251,229,222,.72); }
 /* SPクイックナビ: ヒーロー直下の色帯。ここがいちばん面積の大きい「配色そのもの」 */
 .hp-c.hp-c-red .hp-quicknav { background: linear-gradient(90deg, #b41c00, #e02508); border-bottom: 2px solid var(--hp-ink); }
 .hp-c.hp-c-red .hp-qn-item + .hp-qn-item { border-left: 1px solid rgba(255,255,255,.3); }
