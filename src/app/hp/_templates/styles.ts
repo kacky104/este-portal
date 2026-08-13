@@ -439,6 +439,25 @@ ${COMMON}
 .hp-b .hp-cta-tel { background: #fff; color: #3d3a35; border: 1px solid #eee7db; }
 .hp-b .hp-cta-line { background: var(--hp-accent-deep, #6b8f67); color: #fff; }
 .hp-b .hp-sched-date { display: inline-block; background: color-mix(in srgb, var(--hp-accent, #8fae8b) 16%, #ffffff); color: var(--hp-accent-deep, #6b8f67); border-radius: 999px; padding: 5px 16px; margin: 0 0 16px; font-size: 12px; font-weight: 800; opacity: 1; }
+/* ★ ヘッダーとヒーローは画面幅いっぱいに（2026-08-13 要望・タイプA/Sと同じ迫力を出す）。
+   .hp-b は max-width:1024px の中央寄せなので、100vw ＋ 負のマージンで額縁を食い破る。
+   横のはみ出しは /hp/layout.tsx の overflow-x:clip が受ける（hidden にすると sticky ヘッダーが壊れる）。
+   本文（セクション・カード・フッター）は従来どおり中央の枠の中。
+   ★★ このブロックは必ずタイプBの共通CSSの【いちばん最後】に置くこと。
+     .hp-b .hp-hero-img の角丸／.hp-b の --hp-col-half と詳細度が同じなので、
+     前に置くと「後に書いた方」に負けて効かない（メディアクエリでも同じ）。
+     角丸を残したまま全幅にすると、ヒーロー下端の角から額縁の暗い地色が三角に覗く。 */
+@media (min-width: 768px) {
+  .hp-b .hp-topbar, .hp-b .hp-hero { width: 100vw; margin-left: calc(50% - 50vw); margin-right: calc(50% - 50vw); }
+  /* 全幅になると画面の端で角丸が浮くので、PCでは角を落とす（SPは従来どおり丸いまま） */
+  .hp-b .hp-hero-img { max-height: 82vh; border-radius: 0; }
+  /* ★ 全幅のヘッダーは【不透明】にする。中央1024pxの外側は額縁の暗い地なので、
+     すりガラス（半透明）のままだと左右の端だけ暗く濁って帯が3色に割れて見える。
+     配色ごとの地色は各配色ブロックの同じメディアクエリで上書きしている（詳細度が1段上）。 */
+  .hp-b .hp-topbar { background: #faf8f4; }
+  /* ハンバーガーが画面の右端に来るので、ドロワーも画面の右端から出す */
+  .hp-b { --hp-col-half: 50vw; }
+}
 `;
 
 const TYPE_C = `
@@ -1425,6 +1444,8 @@ const TYPE_B_GREEN = `/* ── 配色: リーフグリーン（若葉を溶か�
 .hp-b.hp-b-green .hp-footer-name, .hp-b.hp-b-green .hp-footer-sub a { color: #fff; }
 .hp-b.hp-b-green .hp-footer-sub { color: rgba(255,255,255,.84); }
 .hp-b.hp-b-green .hp-cta-tel { background: #fff; color: #33382f; }
+/* PCの全幅ヘッダーは不透明に（共通ブロックの注記参照） */
+@media (min-width: 768px) { .hp-b.hp-b-green .hp-topbar { background: #f7f9f4; } }
 `;
 
 const TYPE_B_TERRA = `/* ── 配色: テラコッタ（素焼き・温かいベージュ地）── */
@@ -1470,6 +1491,8 @@ const TYPE_B_TERRA = `/* ── 配色: テラコッタ（素焼き・温かい�
 .hp-b.hp-b-terra .hp-footer-name, .hp-b.hp-b-terra .hp-footer-sub a { color: #fff; }
 .hp-b.hp-b-terra .hp-footer-sub { color: rgba(255,255,255,.84); }
 .hp-b.hp-b-terra .hp-cta-tel { background: #fff; color: #43352c; }
+/* PCの全幅ヘッダーは不透明に（共通ブロックの注記参照） */
+@media (min-width: 768px) { .hp-b.hp-b-terra .hp-topbar { background: #fdf4ef; } }
 `;
 
 const TYPE_B_BLUE = `/* ── 配色: スモークブルー（霞んだ水色地）── */
@@ -1507,6 +1530,8 @@ const TYPE_B_BLUE = `/* ── 配色: スモークブルー（霞んだ水色�
 .hp-b.hp-b-blue .hp-footer-name, .hp-b.hp-b-blue .hp-footer-sub a { color: #fff; }
 .hp-b.hp-b-blue .hp-footer-sub { color: rgba(255,255,255,.84); }
 .hp-b.hp-b-blue .hp-cta-tel { background: #fff; color: #2c3742; }
+/* PCの全幅ヘッダーは不透明に（共通ブロックの注記参照） */
+@media (min-width: 768px) { .hp-b.hp-b-blue .hp-topbar { background: #f3f7fb; } }
 `;
 
 const TYPE_B_PINK = `/* ── 配色: ロゼピンク（淡い薔薇色地）── */
@@ -1544,6 +1569,8 @@ const TYPE_B_PINK = `/* ── 配色: ロゼピンク（淡い薔薇色地）�
 .hp-b.hp-b-pink .hp-footer-name, .hp-b.hp-b-pink .hp-footer-sub a { color: #fff; }
 .hp-b.hp-b-pink .hp-footer-sub { color: rgba(255,255,255,.84); }
 .hp-b.hp-b-pink .hp-cta-tel { background: #fff; color: #43303a; }
+/* PCの全幅ヘッダーは不透明に（共通ブロックの注記参照） */
+@media (min-width: 768px) { .hp-b.hp-b-pink .hp-topbar { background: #fdf3f6; } }
 `;
 
 export const TEMPLATE_VARIANT_CSS: Record<string, string> = {
