@@ -186,9 +186,9 @@ export function HpTemplate({ data }: { data: HpPageData }) {
 
       {/* ── 本日の出勤 ──
            行は「サムネイル＋（名前・年齢体型・時間）」の共通DOM。
-           A/B/C は COMMON で hp-sched-thumb / hp-sched-meta を display:none にし、
-           hp-sched-body を display:contents にすることで従来どおり「名前 …… 時間」の
-           1行レイアウトのまま（見た目は変わらない）。タイプSだけが写真グリッドとして使う。 */}
+           COMMON では hp-sched-thumb / hp-sched-meta を display:none にし、
+           hp-sched-body を display:contents にすることで「名前 …… 時間」の1行レイアウトになる。
+           タイプS・A・B はこれを上書きして写真グリッドとして使う（タイプCだけ1行のまま）。 */}
       {visible.schedule && (
         <section id="schedule" data-hp-reveal className={secCls('schedule', 'hp-sec-schedule', true)} style={ord('schedule')}>
           <SecHead no="04" en="Schedule" jp="本日の出勤" />

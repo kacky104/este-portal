@@ -101,7 +101,7 @@ export function HpShell({
       ) : (
         <>
           {/* ── トップバー＋ドロワーメニュー（表示の有無・見た目は各ひな形のCSSが決める）──
-               ナビ（.hp-topbar-nav）はタイプSのPCのみ表示（COMMON で display:none）。
+               ナビ（.hp-topbar-nav）はタイプS・A・BのPCのみ表示（COMMON で display:none）。
                開閉は素のチェックボックス＋<label>で行う（JSなしでも開ける）。下部の
                スクリプトはリンク押下・Escでの自動クローズと背面スクロール止めだけを担う。 */}
           <input type="checkbox" id="hp-drawer" className="hp-drawer-toggle" aria-label="メニュー" />

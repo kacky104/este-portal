@@ -419,9 +419,40 @@ ${COMMON}
 .hp-b .hp-th-badges { display: flex; flex-wrap: wrap; gap: 4px; justify-content: center; margin-top: 7px; padding: 0 6px; }
 .hp-b .hp-th-badge { font-size: 8.5px; font-weight: 700; color: #7d766c; background: #fff; border: 1px solid #eee7db; border-radius: 999px; padding: 2px 8px; }
 .hp-b .hp-th-onduty { display: block; width: fit-content; margin: 8px auto 0; font-size: 9px; font-weight: 800; color: #fff; background: var(--hp-accent, #8fae8b); border-radius: 999px; padding: 3px 10px; }
-.hp-b .hp-sched-row { display: flex; justify-content: space-between; align-items: center; padding: 11px 4px; border-bottom: 1px dashed #eee7db; font-size: 13px; }
-.hp-b .hp-sched-name { font-weight: 800; }
-.hp-b .hp-sched-time { font-size: 12px; font-weight: 700; color: var(--hp-accent-deep, #6b8f67); background: #ffffff; border: 1px solid #eee7db; border-radius: 999px; padding: 4px 12px; }
+/* ── マルチページのセラピスト一覧（/therapist）── 2026-08-13
+   タイプS・Aと同じ「SP2列・PC4列のグリッド」に。トップは従来どおり横スクロールのまま
+   （.hp-th-grid が付くのは一覧ページだけ＝parts.tsx の TherapistCards grid フラグ）。
+   カードの中身（白い角丸の枠・名前は写真の下）はタイプBのまま＝角は丸いまま。 */
+.hp-b .hp-th-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; overflow: visible; padding-bottom: 0; }
+@media (min-width: 768px) { .hp-b .hp-th-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; } }
+.hp-b .hp-th-grid .hp-th-card { flex: none; }
+/* ── 本日の出勤（2026-08-13: タイプS・Aと同じ写真グリッドに揃えた）──
+   SP2列・PC4列で写真を並べ、名前・年齢・出勤時間は写真の中（下端）へ重ねる。
+   COMMON では hp-sched-thumb / hp-sched-meta を隠して「名前 …… 時間」の1行にしているので、
+   ここで出し直す。DOM は共通のまま（作業ルール1）。
+   ★ タイプS・Aは写真を隙間3〜5pxで敷き詰めて角も直角だが、タイプBは角丸・白枠が持ち味なので
+     隙間を広めに取り、カードは角丸のまま（S/Aのように画面端まで食い破らせない）。
+   ★ 出勤時間は写真の上に載るので、暗いグラデーションではなく【白い丸ピル】のまま出す。
+     配色ごとの文字色（--hp-accent-deep）がそのまま効くので、配色別の追加CSSが要らない。 */
+.hp-b .hp-sched-list { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+@media (min-width: 768px) { .hp-b .hp-sched-list { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; } }
+.hp-b .hp-sched-row { display: block; padding: 0; border: none; position: relative; }
+.hp-b .hp-sched-thumb { display: block; position: relative; background: #fff; border: 1px solid #eee7db; border-radius: 18px; overflow: hidden; }
+.hp-b .hp-sched-thumb img, .hp-b .hp-sched-noimg { display: block; width: 100%; aspect-ratio: 4 / 5; object-fit: cover; }
+.hp-b .hp-sched-noimg { background: linear-gradient(160deg, #f0ece4, #e2e6da); }
+/* 文字を読ませるための暗いレイヤー（写真の下から立ち上がるグラデーション） */
+.hp-b .hp-sched-thumb::after {
+  content: ''; position: absolute; left: 0; right: 0; bottom: 0; height: 58%; pointer-events: none;
+  background: linear-gradient(to top, rgba(30,26,20,.72), rgba(30,26,20,.28) 46%, rgba(30,26,20,0));
+}
+.hp-b .hp-sched-body {
+  position: absolute; left: 0; right: 0; bottom: 0; z-index: 1;
+  display: flex; flex-direction: column; align-items: center; gap: 1px;
+  margin: 0; padding: 0 8px 10px; text-align: center;
+}
+.hp-b .hp-sched-name { font-size: 13px; font-weight: 800; color: #fff; text-shadow: 0 1px 8px rgba(0,0,0,.45); }
+.hp-b .hp-sched-meta { display: block; font-size: 10.5px; font-weight: 700; color: rgba(255,255,255,.88); text-shadow: 0 1px 6px rgba(0,0,0,.45); }
+.hp-b .hp-sched-time { margin-top: 5px; font-size: 10.5px; font-weight: 800; color: var(--hp-accent-deep, #6b8f67); background: #ffffff; border: 1px solid #eee7db; border-radius: 999px; padding: 3px 10px; }
 .hp-b .hp-embed { border: 1px solid #eee7db; border-radius: 20px; }
 .hp-b .hp-more { display: block; text-align: center; color: var(--hp-accent-deep, #6b8f67); font-weight: 800; }
 .hp-b .hp-card { background: #fff; border: 1px solid #eee7db; border-radius: 20px; padding: 18px; box-shadow: 0 4px 16px rgba(80,70,55,.05); }
@@ -441,7 +472,8 @@ ${COMMON}
 .hp-b .hp-cta a { border-radius: 999px; font-weight: 900; box-shadow: 0 6px 18px rgba(80,70,55,.16); }
 .hp-b .hp-cta-tel { background: #fff; color: #3d3a35; border: 1px solid #eee7db; }
 .hp-b .hp-cta-line { background: var(--hp-accent-deep, #6b8f67); color: #fff; }
-.hp-b .hp-sched-date { display: inline-block; background: color-mix(in srgb, var(--hp-accent, #8fae8b) 16%, #ffffff); color: var(--hp-accent-deep, #6b8f67); border-radius: 999px; padding: 5px 16px; margin: 0 0 16px; font-size: 12px; font-weight: 800; opacity: 1; }
+/* 日付のバッジは見出しに合わせて中央へ（2026-08-13・写真グリッド化に合わせて） */
+.hp-b .hp-sched-date { display: block; width: fit-content; background: color-mix(in srgb, var(--hp-accent, #8fae8b) 16%, #ffffff); color: var(--hp-accent-deep, #6b8f67); border-radius: 999px; padding: 5px 16px; margin: 0 auto 16px; font-size: 12px; font-weight: 800; opacity: 1; }
 /* ★ ヘッダーとヒーローは画面幅いっぱいに（2026-08-13 要望・タイプA/Sと同じ迫力を出す）。
    .hp-b は max-width:1024px の中央寄せなので、100vw ＋ 負のマージンで額縁を食い破る。
    横のはみ出しは /hp/layout.tsx の overflow-x:clip が受ける（hidden にすると sticky ヘッダーが壊れる）。
