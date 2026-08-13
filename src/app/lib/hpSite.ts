@@ -634,13 +634,19 @@ export const HP_COLOR_VARIANTS: Record<HpTemplateKey, HpColorVariant[]> = {
     { key: 'sienna',   label: 'ローシェンナ',       css: { '--hp-accent': '#d9944f', '--hp-accent-soft': '#b3763c' }, rootClass: 'hp-a-sienna' },
     { key: 'umber',    label: 'バーントアンバー',   css: { '--hp-accent': '#a85433', '--hp-accent-soft': '#8a4227' }, rootClass: 'hp-a-umber' },
   ],
+  // タイプB（生成り地・丸ゴシック）。2026-08-13: S・Aと同じ考え方で6色→4色に整理した。
+  // 4色とも地色・帯・ヘッダー・クイックナビ・コース名の帯・フッター・電話CTAまで振る
+  // （タイプSの1色目＝シャンパンゴールドにも帯とフッターの地色があるのと同じ揃え方）。
+  // ★ キー green / terra / blue / pink は据え置き。廃止した lavender / mustard の店は
+  //   isValidHpColor が false になり、hpColorCssVars が先頭色（green）へ自動で寄せる。
+  // ★ --hp-accent は面（バッジ・帯）、--hp-accent-deep は白カードに載る小さな文字用。
+  //   タイプA（暗い地）とは逆に、deep は「白地で読める濃さ」まで落としてある。
   b: [
-    { key: 'green',    label: 'リーフグリーン',     css: { '--hp-accent': '#8fae8b', '--hp-accent-deep': '#6b8f67' } },
-    { key: 'terra',    label: 'テラコッタ',         css: { '--hp-accent': '#d99a7e', '--hp-accent-deep': '#bd7e62' } },
-    { key: 'blue',     label: 'スモークブルー',     css: { '--hp-accent': '#8fa8c4', '--hp-accent-deep': '#6f88a8' } },
-    { key: 'lavender', label: 'ラベンダー',         css: { '--hp-accent': '#a89ac4', '--hp-accent-deep': '#8c7eaa' } },
-    { key: 'pink',     label: 'ロゼピンク',         css: { '--hp-accent': '#d49aac', '--hp-accent-deep': '#b87e90' } },
-    { key: 'mustard',  label: 'マスタード',         css: { '--hp-accent': '#c4ae6b', '--hp-accent-deep': '#a8924f' } },
+    { key: 'green',    label: 'リーフグリーン',     css: { '--hp-accent': '#8fae8b', '--hp-accent-deep': '#4e7a4a' }, rootClass: 'hp-b-green' },
+    // 素焼きの温かいベージュ地。小さな文字用の deep は白地で読める濃さまで落としてある
+    { key: 'terra',    label: 'テラコッタ',         css: { '--hp-accent': '#d98a63', '--hp-accent-deep': '#a1552f' }, rootClass: 'hp-b-terra' },
+    { key: 'blue',     label: 'スモークブルー',     css: { '--hp-accent': '#7fa0c4', '--hp-accent-deep': '#345f8c' }, rootClass: 'hp-b-blue' },
+    { key: 'pink',     label: 'ロゼピンク',         css: { '--hp-accent': '#d98fa6', '--hp-accent-deep': '#a34464' }, rootClass: 'hp-b-pink' },
   ],
   c: [
     { key: 'red',      label: 'シグナルレッド',     css: { '--hp-accent': '#ff4658' } },

@@ -1367,6 +1367,185 @@ const TYPE_A_UMBER = `/* ══════════ タイプA 配色: バ�
 .hp-a.hp-a-umber .hp-cta-line { color: #2e1b13; }
 `;
 
+/* ══════════ タイプB（CLEAN）の配色 ══════════
+   2026-08-13: 6色（文字の色だけ変わる）→4色（地色ごと作り分け）へ整理。S・Aと同じ考え方。
+
+   4色とも「その色のときだけ足すブロック」として書く。上の .hp-b（共通ブロック）は一切触らない
+   ＝タイプB以外・タイプBの他の配色の出力は1バイトも変わらない。振る場所は4色でそろえてある:
+
+     地色 → 交互の帯（.hp-sec-alt）→ ヘッダー → SPクイックナビの帯 → コース名の帯 →
+     出勤日付のバッジ → 枠線 → フッター → 電話CTA
+
+   ★ .hp-sec-alt・フッターの地色・クイックナビの帯はタイプBの共通CSSには無かった。
+     4色ぶんここで足している（＝タイプBを選んだ店だけが受け取る）。
+   ★ タイプBは白いカードに小さな文字を載せる作りなので、A（暗い地）とは逆に
+     --hp-accent-deep を「白地で読める濃さ」に落としてある（値は hpSite.ts が正）。
+     ここでは面積の色（帯・フッター）に、それより一段濃い色を直接置いている。 */
+
+const TYPE_B_GREEN = `/* ── 配色: リーフグリーン（若葉を溶かした生成り地）── */
+.hp-b.hp-b-green { background: #f7f9f4; color: #33382f; }
+.hp-b.hp-b-green .hp-sec-alt { background: #e9f0e4; }
+/* ヘッダー（すりガラスの地色ごと生成り緑に寄せる） */
+.hp-b.hp-b-green .hp-topbar { background: rgba(247,249,244,.9); border-bottom: 1px solid #dde6d6; }
+.hp-b.hp-b-green .hp-topbar-name, .hp-b.hp-b-green .hp-drawer-btn { color: #33382f; }
+/* SPクイックナビ: 若葉の帯に白抜き。ヘッダー→写真→この帯 で色が写真を挟む */
+.hp-b.hp-b-green .hp-quicknav { background: linear-gradient(90deg, #416b3e, #57804f); border-bottom: none; }
+.hp-b.hp-b-green .hp-qn-item + .hp-qn-item { border-left: 1px solid rgba(255,255,255,.32); }
+.hp-b.hp-b-green .hp-qn-en { color: #fff; }
+.hp-b.hp-b-green .hp-qn-jp { color: rgba(255,255,255,.8); }
+/* ドロワー */
+.hp-b.hp-b-green .hp-drawer { background: #f7f9f4; border-left: 1px solid #dde6d6; }
+.hp-b.hp-b-green .hp-drawer-list a { color: #56604f; }
+.hp-b.hp-b-green .hp-drawer-list li + li a { border-top: 1px dashed #dde6d6; }
+.hp-b.hp-b-green .hp-drawer-foot { border-top: 1px solid #dde6d6; color: #97a091; }
+.hp-b.hp-b-green .hp-drawer-terms, .hp-b.hp-b-green .hp-drawer-close, .hp-b.hp-b-green .hp-doc-back { color: #97a091; }
+/* ヒーロー・本文 */
+.hp-b.hp-b-green .hp-hero-catch, .hp-b.hp-b-green .hp-concept-text,
+.hp-b.hp-b-green .hp-card-body, .hp-b.hp-b-green .hp-info-row dd,
+.hp-b.hp-b-green .hp-doc-p, .hp-b.hp-b-green .hp-doc-list li,
+.hp-b.hp-b-green .hp-link-text { color: #56604f; }
+.hp-b.hp-b-green .hp-hero-area, .hp-b.hp-b-green .hp-th-age,
+.hp-b.hp-b-green .hp-card-meta { color: #97a091; }
+.hp-b.hp-b-green .hp-th-catch { color: #86907f; }
+.hp-b.hp-b-green .hp-th-name { color: #33382f; }
+.hp-b.hp-b-green .hp-th-badge { color: #6f7a68; }
+/* コース料金: グループ名を若葉の帯に白抜き（いちばん面積が変わるところ） */
+.hp-b.hp-b-green .hp-course-name { background: linear-gradient(90deg, #416b3e, #57804f); color: #fff; border-radius: 999px; padding: 8px 18px; }
+/* 枠線をまとめて若葉色へ（白カード＋生成りの枠 という作りは崩さない） */
+.hp-b.hp-b-green .hp-concept-text, .hp-b.hp-b-green .hp-card, .hp-b.hp-b-green .hp-info,
+.hp-b.hp-b-green .hp-embed, .hp-b.hp-b-green .hp-th-frame, .hp-b.hp-b-green .hp-th-badge,
+.hp-b.hp-b-green .hp-link-text, .hp-b.hp-b-green .hp-sched-time, .hp-b.hp-b-green .hp-course-row,
+.hp-b.hp-b-green .hp-cta-tel { border-color: #dde6d6; }
+.hp-b.hp-b-green .hp-info-row, .hp-b.hp-b-green .hp-sched-row { border-bottom-color: #dde6d6; }
+.hp-b.hp-b-green .hp-th-noimg { background: linear-gradient(160deg, #e9f0e4, #dae5d4); }
+/* 出勤の日付・出勤中バッジはベタ塗り（白抜きの文字が読めるよう deep 側の濃さで塗る） */
+.hp-b.hp-b-green .hp-sched-date, .hp-b.hp-b-green .hp-th-onduty { background: #4e7a4a; color: #fff; }
+/* フッター・予約CTA（濃い若葉で締める） */
+.hp-b.hp-b-green .hp-footer { background: #4e7a4a; }
+.hp-b.hp-b-green .hp-footer-name, .hp-b.hp-b-green .hp-footer-sub a { color: #fff; }
+.hp-b.hp-b-green .hp-footer-sub { color: rgba(255,255,255,.84); }
+.hp-b.hp-b-green .hp-cta-tel { background: #fff; color: #33382f; }
+`;
+
+const TYPE_B_TERRA = `/* ── 配色: テラコッタ（素焼き・温かいベージュ地）── */
+.hp-b.hp-b-terra { background: #fdf4ef; color: #43352c; }
+.hp-b.hp-b-terra .hp-sec-alt { background: #f8e7db; }
+/* ヘッダー（すりガラスの地色ごとベージュに寄せる） */
+.hp-b.hp-b-terra .hp-topbar { background: rgba(253,244,239,.9); border-bottom: 1px solid #f0dbc9; }
+.hp-b.hp-b-terra .hp-topbar-name, .hp-b.hp-b-terra .hp-drawer-btn { color: #43352c; }
+/* SPクイックナビ: テラコッタの帯に白抜き。ヘッダー→写真→この帯 で色が写真を挟む */
+.hp-b.hp-b-terra .hp-quicknav { background: linear-gradient(90deg, #a8552c, #b05f3b); border-bottom: none; }
+.hp-b.hp-b-terra .hp-qn-item + .hp-qn-item { border-left: 1px solid rgba(255,255,255,.32); }
+.hp-b.hp-b-terra .hp-qn-en { color: #fff; }
+.hp-b.hp-b-terra .hp-qn-jp { color: rgba(255,255,255,.8); }
+/* ドロワー */
+.hp-b.hp-b-terra .hp-drawer { background: #fdf4ef; border-left: 1px solid #f0dbc9; }
+.hp-b.hp-b-terra .hp-drawer-list a { color: #6b5344; }
+.hp-b.hp-b-terra .hp-drawer-list li + li a { border-top: 1px dashed #f0dbc9; }
+.hp-b.hp-b-terra .hp-drawer-foot { border-top: 1px solid #f0dbc9; color: #a8907e; }
+.hp-b.hp-b-terra .hp-drawer-terms, .hp-b.hp-b-terra .hp-drawer-close, .hp-b.hp-b-terra .hp-doc-back { color: #a8907e; }
+/* ヒーロー・本文 */
+.hp-b.hp-b-terra .hp-hero-catch, .hp-b.hp-b-terra .hp-concept-text,
+.hp-b.hp-b-terra .hp-card-body, .hp-b.hp-b-terra .hp-info-row dd,
+.hp-b.hp-b-terra .hp-doc-p, .hp-b.hp-b-terra .hp-doc-list li,
+.hp-b.hp-b-terra .hp-link-text { color: #6b5344; }
+.hp-b.hp-b-terra .hp-hero-area, .hp-b.hp-b-terra .hp-th-age,
+.hp-b.hp-b-terra .hp-card-meta { color: #a8907e; }
+.hp-b.hp-b-terra .hp-th-catch { color: #947a68; }
+.hp-b.hp-b-terra .hp-th-name { color: #43352c; }
+.hp-b.hp-b-terra .hp-th-badge { color: #8a6f5d; }
+/* コース料金: グループ名をテラコッタの帯に白抜き（いちばん面積が変わるところ） */
+.hp-b.hp-b-terra .hp-course-name { background: linear-gradient(90deg, #a8552c, #b05f3b); color: #fff; border-radius: 999px; padding: 8px 18px; }
+/* 枠線をまとめてベージュへ（白カード＋生成りの枠 という作りは崩さない） */
+.hp-b.hp-b-terra .hp-concept-text, .hp-b.hp-b-terra .hp-card, .hp-b.hp-b-terra .hp-info,
+.hp-b.hp-b-terra .hp-embed, .hp-b.hp-b-terra .hp-th-frame, .hp-b.hp-b-terra .hp-th-badge,
+.hp-b.hp-b-terra .hp-link-text, .hp-b.hp-b-terra .hp-sched-time, .hp-b.hp-b-terra .hp-course-row,
+.hp-b.hp-b-terra .hp-cta-tel { border-color: #f0dbc9; }
+.hp-b.hp-b-terra .hp-info-row, .hp-b.hp-b-terra .hp-sched-row { border-bottom-color: #f0dbc9; }
+.hp-b.hp-b-terra .hp-th-noimg { background: linear-gradient(160deg, #f5e2d5, #ecd3c0); }
+/* 出勤の日付・出勤中バッジはベタ塗り（白抜きの文字が読めるよう deep 側の濃さで塗る） */
+.hp-b.hp-b-terra .hp-sched-date, .hp-b.hp-b-terra .hp-th-onduty { background: #ab5b38; color: #fff; }
+/* フッター・予約CTA（濃い素焼き色で締める） */
+.hp-b.hp-b-terra .hp-footer { background: #ab5b38; }
+.hp-b.hp-b-terra .hp-footer-name, .hp-b.hp-b-terra .hp-footer-sub a { color: #fff; }
+.hp-b.hp-b-terra .hp-footer-sub { color: rgba(255,255,255,.84); }
+.hp-b.hp-b-terra .hp-cta-tel { background: #fff; color: #43352c; }
+`;
+
+const TYPE_B_BLUE = `/* ── 配色: スモークブルー（霞んだ水色地）── */
+.hp-b.hp-b-blue { background: #f3f7fb; color: #2c3742; }
+.hp-b.hp-b-blue .hp-sec-alt { background: #e6eef7; }
+.hp-b.hp-b-blue .hp-topbar { background: rgba(243,247,251,.9); border-bottom: 1px solid #d9e5f1; }
+.hp-b.hp-b-blue .hp-topbar-name, .hp-b.hp-b-blue .hp-drawer-btn { color: #2c3742; }
+.hp-b.hp-b-blue .hp-quicknav { background: linear-gradient(90deg, #2a527a, #4a7aa8); border-bottom: none; }
+.hp-b.hp-b-blue .hp-qn-item + .hp-qn-item { border-left: 1px solid rgba(255,255,255,.32); }
+.hp-b.hp-b-blue .hp-qn-en { color: #fff; }
+.hp-b.hp-b-blue .hp-qn-jp { color: rgba(255,255,255,.8); }
+.hp-b.hp-b-blue .hp-drawer { background: #f3f7fb; border-left: 1px solid #d9e5f1; }
+.hp-b.hp-b-blue .hp-drawer-list a { color: #4a5a68; }
+.hp-b.hp-b-blue .hp-drawer-list li + li a { border-top: 1px dashed #d9e5f1; }
+.hp-b.hp-b-blue .hp-drawer-foot { border-top: 1px solid #d9e5f1; color: #8b9aa8; }
+.hp-b.hp-b-blue .hp-drawer-terms, .hp-b.hp-b-blue .hp-drawer-close, .hp-b.hp-b-blue .hp-doc-back { color: #8b9aa8; }
+.hp-b.hp-b-blue .hp-hero-catch, .hp-b.hp-b-blue .hp-concept-text,
+.hp-b.hp-b-blue .hp-card-body, .hp-b.hp-b-blue .hp-info-row dd,
+.hp-b.hp-b-blue .hp-doc-p, .hp-b.hp-b-blue .hp-doc-list li,
+.hp-b.hp-b-blue .hp-link-text { color: #4a5a68; }
+.hp-b.hp-b-blue .hp-hero-area, .hp-b.hp-b-blue .hp-th-age,
+.hp-b.hp-b-blue .hp-card-meta { color: #8b9aa8; }
+.hp-b.hp-b-blue .hp-th-catch { color: #7b8b99; }
+.hp-b.hp-b-blue .hp-th-name { color: #2c3742; }
+.hp-b.hp-b-blue .hp-th-badge { color: #6f8090; }
+.hp-b.hp-b-blue .hp-course-name { background: linear-gradient(90deg, #2a527a, #4a7aa8); color: #fff; border-radius: 999px; padding: 8px 18px; }
+.hp-b.hp-b-blue .hp-concept-text, .hp-b.hp-b-blue .hp-card, .hp-b.hp-b-blue .hp-info,
+.hp-b.hp-b-blue .hp-embed, .hp-b.hp-b-blue .hp-th-frame, .hp-b.hp-b-blue .hp-th-badge,
+.hp-b.hp-b-blue .hp-link-text, .hp-b.hp-b-blue .hp-sched-time, .hp-b.hp-b-blue .hp-course-row,
+.hp-b.hp-b-blue .hp-cta-tel { border-color: #d9e5f1; }
+.hp-b.hp-b-blue .hp-info-row, .hp-b.hp-b-blue .hp-sched-row { border-bottom-color: #d9e5f1; }
+.hp-b.hp-b-blue .hp-th-noimg { background: linear-gradient(160deg, #e4edf6, #d3e0ee); }
+.hp-b.hp-b-blue .hp-sched-date, .hp-b.hp-b-blue .hp-th-onduty { background: #2f5a86; color: #fff; }
+.hp-b.hp-b-blue .hp-footer { background: #2f5a86; }
+.hp-b.hp-b-blue .hp-footer-name, .hp-b.hp-b-blue .hp-footer-sub a { color: #fff; }
+.hp-b.hp-b-blue .hp-footer-sub { color: rgba(255,255,255,.84); }
+.hp-b.hp-b-blue .hp-cta-tel { background: #fff; color: #2c3742; }
+`;
+
+const TYPE_B_PINK = `/* ── 配色: ロゼピンク（淡い薔薇色地）── */
+.hp-b.hp-b-pink { background: #fdf3f6; color: #43303a; }
+.hp-b.hp-b-pink .hp-sec-alt { background: #f9e6ed; }
+.hp-b.hp-b-pink .hp-topbar { background: rgba(253,243,246,.9); border-bottom: 1px solid #f2d8e1; }
+.hp-b.hp-b-pink .hp-topbar-name, .hp-b.hp-b-pink .hp-drawer-btn { color: #43303a; }
+.hp-b.hp-b-pink .hp-quicknav { background: linear-gradient(90deg, #8a3253, #b0567a); border-bottom: none; }
+.hp-b.hp-b-pink .hp-qn-item + .hp-qn-item { border-left: 1px solid rgba(255,255,255,.32); }
+.hp-b.hp-b-pink .hp-qn-en { color: #fff; }
+.hp-b.hp-b-pink .hp-qn-jp { color: rgba(255,255,255,.8); }
+.hp-b.hp-b-pink .hp-drawer { background: #fdf3f6; border-left: 1px solid #f2d8e1; }
+.hp-b.hp-b-pink .hp-drawer-list a { color: #6b4f5b; }
+.hp-b.hp-b-pink .hp-drawer-list li + li a { border-top: 1px dashed #f2d8e1; }
+.hp-b.hp-b-pink .hp-drawer-foot { border-top: 1px solid #f2d8e1; color: #ab8d99; }
+.hp-b.hp-b-pink .hp-drawer-terms, .hp-b.hp-b-pink .hp-drawer-close, .hp-b.hp-b-pink .hp-doc-back { color: #ab8d99; }
+.hp-b.hp-b-pink .hp-hero-catch, .hp-b.hp-b-pink .hp-concept-text,
+.hp-b.hp-b-pink .hp-card-body, .hp-b.hp-b-pink .hp-info-row dd,
+.hp-b.hp-b-pink .hp-doc-p, .hp-b.hp-b-pink .hp-doc-list li,
+.hp-b.hp-b-pink .hp-link-text { color: #6b4f5b; }
+.hp-b.hp-b-pink .hp-hero-area, .hp-b.hp-b-pink .hp-th-age,
+.hp-b.hp-b-pink .hp-card-meta { color: #ab8d99; }
+.hp-b.hp-b-pink .hp-th-catch { color: #9a7c88; }
+.hp-b.hp-b-pink .hp-th-name { color: #43303a; }
+.hp-b.hp-b-pink .hp-th-badge { color: #8f6f7c; }
+.hp-b.hp-b-pink .hp-course-name { background: linear-gradient(90deg, #8a3253, #b0567a); color: #fff; border-radius: 999px; padding: 8px 18px; }
+.hp-b.hp-b-pink .hp-concept-text, .hp-b.hp-b-pink .hp-card, .hp-b.hp-b-pink .hp-info,
+.hp-b.hp-b-pink .hp-embed, .hp-b.hp-b-pink .hp-th-frame, .hp-b.hp-b-pink .hp-th-badge,
+.hp-b.hp-b-pink .hp-link-text, .hp-b.hp-b-pink .hp-sched-time, .hp-b.hp-b-pink .hp-course-row,
+.hp-b.hp-b-pink .hp-cta-tel { border-color: #f2d8e1; }
+.hp-b.hp-b-pink .hp-info-row, .hp-b.hp-b-pink .hp-sched-row { border-bottom-color: #f2d8e1; }
+.hp-b.hp-b-pink .hp-th-noimg { background: linear-gradient(160deg, #f7e2ea, #eed0dc); }
+.hp-b.hp-b-pink .hp-sched-date, .hp-b.hp-b-pink .hp-th-onduty { background: #97385c; color: #fff; }
+.hp-b.hp-b-pink .hp-footer { background: #97385c; }
+.hp-b.hp-b-pink .hp-footer-name, .hp-b.hp-b-pink .hp-footer-sub a { color: #fff; }
+.hp-b.hp-b-pink .hp-footer-sub { color: rgba(255,255,255,.84); }
+.hp-b.hp-b-pink .hp-cta-tel { background: #fff; color: #43303a; }
+`;
+
 export const TEMPLATE_VARIANT_CSS: Record<string, string> = {
   'hp-s-wine': TYPE_S_WINE,
   'hp-s-blue': TYPE_S_BLUE,
@@ -1374,4 +1553,8 @@ export const TEMPLATE_VARIANT_CSS: Record<string, string> = {
   'hp-a-magenta': TYPE_A_MAGENTA,
   'hp-a-sienna':  TYPE_A_SIENNA,
   'hp-a-umber':   TYPE_A_UMBER,
+  'hp-b-green':   TYPE_B_GREEN,
+  'hp-b-terra':   TYPE_B_TERRA,
+  'hp-b-blue':    TYPE_B_BLUE,
+  'hp-b-pink':    TYPE_B_PINK,
 };
