@@ -1446,6 +1446,29 @@ const TYPE_B_GREEN = `/* ── 配色: リーフグリーン（若葉を溶か�
 .hp-b.hp-b-green .hp-cta-tel { background: #fff; color: #33382f; }
 /* PCの全幅ヘッダーは不透明に（共通ブロックの注記参照） */
 @media (min-width: 768px) { .hp-b.hp-b-green .hp-topbar { background: #f7f9f4; } }
+
+/* ── 壁紙（水彩の葉・2026-08-13）──────────────────────────
+   リーフグリーンだけに敷く。タイプSと同じ「固定レイヤー2枚」方式:
+     ::before = 壁紙（タイル状に繰り返す） / ::after = 生成り緑のベール
+   どちらも position:fixed なので flex アイテムにならず、並べ替え（order）に影響しない。
+   負の z-index が使えるのは .hp-root の isolation:isolate があるおかげ（COMMON 参照）。
+   ★ 地色を transparent にしないと壁紙が root の背景に隠れる。
+   ★ ベールは厚め（＝うっすら）。タイプBは白いカードに小さな文字を載せる作りなので、
+     柄を出しすぎると本文が読みにくくなる。濃さを変えるときは ::after の alpha だけ触る。
+   ★ 壁紙があるのはリーフグリーンだけなので、必ずこのブロックの中に書くこと
+     （共通の .hp-b に書くと他の3配色の出力まで変わる）。 */
+.hp-b.hp-b-green { background-color: transparent; }
+.hp-b.hp-b-green::before {
+  content: ''; position: fixed; inset: 0; z-index: -2; pointer-events: none;
+  background: url('/hp-b/wallpaper-green.webp') center / 420px auto repeat;
+}
+@media (min-width: 768px) { .hp-b.hp-b-green::before { background-size: 640px auto; } }
+.hp-b.hp-b-green::after {
+  content: ''; position: fixed; inset: 0; z-index: -1; pointer-events: none;
+  background: rgba(247,249,244,.80);
+}
+/* 帯は壁紙を透かす（無地のセクションは地色を持たないので、そのまま柄が出る） */
+.hp-b.hp-b-green .hp-sec-alt { background: rgba(233,240,228,.68); }
 `;
 
 const TYPE_B_TERRA = `/* ── 配色: テラコッタ（素焼き・温かいベージュ地）── */
