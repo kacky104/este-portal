@@ -43,6 +43,8 @@ const HP_THUMB_COLORS: Partial<Record<HpTemplateKey, string[]>> = {
   s: ['gold', 'wine', 'blue', 'emerald'],
   a: ['gold', 'magenta', 'sienna', 'umber'],
   b: ['green', 'terra', 'blue', 'pink'],
+  // タイプC（2026-08-13・生成は tools-gen-hp-c-kv.py）
+  c: ['mono', 'purple', 'yellow', 'red'],
 };
 
 /**
@@ -56,6 +58,9 @@ const HP_THUMB_OBJECT_CLS: Partial<Record<HpTemplateKey, { list: string; card: s
   a: { list: 'object-center', card: 'object-center' },     // モデルが写真の中央
   // タイプBは書き出しの時点でモデルが収まるよう右寄りに切ってあるので、ここは中央でよい
   b: { list: 'object-center', card: 'object-center' },
+  // タイプCは4枚ともモデルが左寄り（Bの逆）。サムネは左寄りで切ってあるが、
+  // 横長に潰す一覧（2:1）と管理ギャラリーの帯では左を基準に見せる
+  c: { list: 'object-left-top', card: 'object-left' },
 };
 
 export function hpDesignThumbObjectCls(template: HpTemplateKey, where: 'list' | 'card'): string {

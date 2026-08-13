@@ -728,6 +728,8 @@ const HP_BUNDLED_HERO_COLORS: Partial<Record<HpTemplateKey, string[]>> = {
   a: ['gold', 'magenta', 'sienna', 'umber'],
   // タイプBも配色ごとに撮り分けた写真を同梱（2026-08-13・生成は tools-gen-hp-b-kv.py）
   b: ['green', 'terra', 'blue', 'pink'],
+  // タイプCも同梱（2026-08-13・生成は tools-gen-hp-c-kv.py。元写真はモデルが左寄り）
+  c: ['mono', 'purple', 'yellow', 'red'],
 };
 
 export function hpBundledHeroImages(template: HpTemplateKey, colorKey: string): string[] | null {

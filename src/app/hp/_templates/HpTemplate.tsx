@@ -45,6 +45,7 @@ const HP_S_HERO_FALLBACK_COLORS = ['wine', 'blue', 'emerald'];
 const HP_BUNDLED_HERO_DEFAULT_COLOR: Partial<Record<HpTemplateKey, string>> = {
   a: 'gold',
   b: 'green',
+  c: 'mono',
 };
 
 export function HpTemplate({ data }: { data: HpPageData }) {
