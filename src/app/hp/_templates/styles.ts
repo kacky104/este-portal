@@ -596,11 +596,13 @@ ${COMMON}
 .hp-c .hp-en { display: block; font-size: 28px; font-weight: 900; letter-spacing: -.01em; line-height: 1.05; margin: 6px 0 2px; text-transform: uppercase; color: var(--hp-ink, #111114); text-align: center; }
 .hp-c .hp-h2 { font-size: 11px; font-weight: 700; color: color-mix(in srgb, var(--hp-ink, #111114) 64%, transparent); letter-spacing: .2em; margin-bottom: 20px; text-align: center; }
 .hp-c .hp-hero-img { border-bottom: 2px solid var(--hp-ink, #111114); }
-.hp-c .hp-hero-text { padding: 22px 20px 26px; }
+.hp-c .hp-hero-text { padding: 22px 20px 26px; text-align: center; }
 .hp-c .hp-hero-en { font-size: 10px; font-weight: 900; letter-spacing: .2em; color: var(--hp-accent-deep, var(--hp-accent, #ff4658)); }
 .hp-c .hp-hero-name { margin-top: 6px; font-size: 34px; font-weight: 900; letter-spacing: -.01em; line-height: 1.1; }
 .hp-c .hp-hero-catch { margin-top: 12px; font-size: 14px; font-weight: 800; line-height: 1.9; }
-.hp-c .hp-hero-area { margin-top: 10px; font-size: 10px; font-weight: 800; color: color-mix(in srgb, var(--hp-ink, #111114) 64%, transparent); letter-spacing: .12em; }
+/* エリア・営業時間の行は視覚的に隠す（2026-08-13 要望・タイプA/Bと同じやり方）。
+   display:none ではなく1pxに畳む＝読み上げ・検索エンジンには残す。 */
+.hp-c .hp-hero-area { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip-path: inset(50%); }
 .hp-c .hp-concept-text { font-size: 13px; line-height: 2.1; font-weight: 500; white-space: pre-wrap; }
 .hp-c .hp-concept-img { width: 100%; height: auto; border: 2px solid var(--hp-ink, #111114); margin-bottom: 16px; }
 .hp-c .hp-course-group { margin-bottom: 20px; }
@@ -687,7 +689,7 @@ ${COMMON}
   /* タイポブロック。英字キャッチ→極太の店名→アクセントの太バー→キャッチコピー */
   .hp-c .hp-hero-text { padding: 26px 20px 22px; }
   .hp-c .hp-hero-name::after { content: ''; display: block; width: 56px; height: 6px;
-    background: var(--hp-accent, #ff4658); margin-top: 14px; }
+    background: var(--hp-accent, #ff4658); margin: 14px auto 0; }
   .hp-c .hp-hero-catch { margin-top: 14px; }
 }
 `;
