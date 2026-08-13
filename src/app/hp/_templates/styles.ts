@@ -693,6 +693,50 @@ ${COMMON}
   .hp-c .hp-hero-catch { margin-top: 14px; }
 }
 
+/* ── マルチページのセラピスト一覧（/therapist）── 2026-08-13
+   タイプS・A・Bと同じ「SP2列・PC4列のグリッド」に。トップは従来どおり横スクロールのまま
+   （.hp-th-grid が付くのは一覧ページだけ＝parts.tsx の TherapistCards grid フラグ）。
+   横スクロール用の「黒い帯にセルを詰める」枠はグリッドでは解き、1枚ずつ黒2px枠の
+   カードにする（MODEの意匠。角は直角のまま）。
+   ★ このブロックは基本の .hp-th-row / .hp-th-card 定義より【後ろ】に置くこと（同じ詳細度＝後勝ち）。 */
+.hp-c .hp-th-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px;
+  border: none; background: transparent; overflow: visible; padding-bottom: 0; }
+@media (min-width: 768px) { .hp-c .hp-th-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; } }
+.hp-c .hp-th-grid .hp-th-card { flex: none; border: 2px solid var(--hp-ink, #111114); background: var(--hp-paper, #f4f4f6); }
+
+/* ── 本日の出勤（2026-08-13: タイプS・A・Bと同じ写真グリッドに揃えた）──
+   SP2列・PC4列で写真を並べ、名前・年齢・出勤時間は写真の中（下端）へ重ねる。
+   COMMON では hp-sched-thumb / hp-sched-meta を隠して「名前 …… 時間」の1行にしているので、
+   ここで出し直す。DOM は共通のまま（作業ルール1）。
+   ★ 写真は黒2px枠・角は直角（MODEの意匠）。S/Aのように画面端までは食い破らせない（Bと同じ）。
+   ★ 出勤時間は暗いグラデの上で配色が沈むので、白い札のまま写真に重ねる（Bと同じ考え方）。
+     文字色は --hp-accent-deep がそのまま効く＝配色別の追加CSSが要らない。 */
+.hp-c .hp-sched-list { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+@media (min-width: 768px) { .hp-c .hp-sched-list { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; } }
+.hp-c .hp-sched-row { display: block; padding: 0; border: none; position: relative; }
+.hp-c .hp-sched-thumb { display: block; position: relative; background: var(--hp-paper, #f4f4f6);
+  border: 2px solid var(--hp-ink, #111114); overflow: hidden; }
+.hp-c .hp-sched-thumb img, .hp-c .hp-sched-noimg { display: block; width: 100%; aspect-ratio: 4 / 5; object-fit: cover; }
+.hp-c .hp-sched-noimg { background: linear-gradient(160deg,
+  color-mix(in srgb, var(--hp-ink, #111114) 9%, var(--hp-paper, #f4f4f6)),
+  color-mix(in srgb, var(--hp-ink, #111114) 17%, var(--hp-paper, #f4f4f6))); }
+/* 文字を読ませるための暗いレイヤー（写真の下から立ち上がるグラデーション） */
+.hp-c .hp-sched-thumb::after {
+  content: ''; position: absolute; left: 0; right: 0; bottom: 0; height: 58%; pointer-events: none;
+  background: linear-gradient(to top, rgba(12,12,14,.74), rgba(12,12,14,.3) 46%, rgba(12,12,14,0));
+}
+.hp-c .hp-sched-body {
+  position: absolute; left: 0; right: 0; bottom: 0; z-index: 1;
+  display: flex; flex-direction: column; align-items: center; gap: 1px;
+  margin: 0; padding: 0 8px 10px; text-align: center;
+}
+.hp-c .hp-sched-name { font-size: 13px; font-weight: 900; color: #fff; text-shadow: 0 1px 8px rgba(0,0,0,.5); }
+.hp-c .hp-sched-meta { display: block; font-size: 10.5px; font-weight: 700; color: rgba(255,255,255,.88); text-shadow: 0 1px 6px rgba(0,0,0,.5); }
+.hp-c .hp-sched-time { margin-top: 5px; font-size: 10.5px; font-weight: 900; color: var(--hp-accent-deep, var(--hp-accent, #ff4658));
+  background: #fff; border: 2px solid var(--hp-ink, #111114); padding: 2px 9px; }
+/* 日付の札は見出しに合わせて中央へ（写真グリッド化に合わせて。塗りは従来のインク色のまま） */
+.hp-c .hp-sched-date { display: block; width: fit-content; margin-left: auto; margin-right: auto; }
+
 /* ── 壁紙（白大理石・2026-08-13）────────────────────────────
    タイプS/Bと同じ「固定レイヤー2枚」方式: ::before = 大理石 ／ ::after = 地色のベール。
    大理石はほぼ無彩色なので、タイプBのように色相を回した4枚は作らず【1枚だけ】敷き、
