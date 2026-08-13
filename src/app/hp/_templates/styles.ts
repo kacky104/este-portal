@@ -1529,8 +1529,10 @@ const TYPE_B_GREEN = `/* ── 配色: リーフグリーン（若葉を溶か�
    ★ 地色を transparent にしないと壁紙が root の背景に隠れる。
    ★ ベールは厚め（＝うっすら）。タイプBは白いカードに小さな文字を載せる作りなので、
      柄を出しすぎると本文が読みにくくなる。濃さを変えるときは ::after の alpha だけ触る。
-   ★ 壁紙があるのはリーフグリーンだけなので、必ずこのブロックの中に書くこと
-     （共通の .hp-b に書くと他の3配色の出力まで変わる）。 */
+   ★ 2026-08-13: 他の3配色にも同じ柄を「色相だけ回した画像」で敷いた
+     （生成は tools-gen-hp-b-wallpaper.py）。各配色ブロックに同じ形で書いてあるので、
+     濃さ（::after の alpha）を変えるときは4か所とも見ること。
+     共通の .hp-b には書かないこと（他ひな形・他配色の出力を変えないため）。 */
 .hp-b.hp-b-green { background-color: transparent; }
 .hp-b.hp-b-green::before {
   content: ''; position: fixed; inset: 0; z-index: -2; pointer-events: none;
@@ -1590,6 +1592,23 @@ const TYPE_B_TERRA = `/* ── 配色: テラコッタ（素焼き・温かい�
 .hp-b.hp-b-terra .hp-cta-tel { background: #fff; color: #43352c; }
 /* PCの全幅ヘッダーは不透明に（共通ブロックの注記参照） */
 @media (min-width: 768px) { .hp-b.hp-b-terra .hp-topbar { background: #fdf4ef; } }
+
+/* ── 壁紙（水彩の葉・テラコッタ）── 2026-08-13
+   リーフグリーンと同じ柄を、色相だけテラコッタへ回した画像に差し替えたもの
+   （生成: tools-gen-hp-b-wallpaper.py）。作りはリーフグリーンの節と完全に同じ。
+   濃さを変えるときは ::after の alpha だけ触ること（4配色そろえてある）。 */
+.hp-b.hp-b-terra { background-color: transparent; }
+.hp-b.hp-b-terra::before {
+  content: ''; position: fixed; inset: 0; z-index: -2; pointer-events: none;
+  background: url('/hp-b/wallpaper-terra.webp') center / 420px auto repeat;
+}
+@media (min-width: 768px) { .hp-b.hp-b-terra::before { background-size: 640px auto; } }
+.hp-b.hp-b-terra::after {
+  content: ''; position: fixed; inset: 0; z-index: -1; pointer-events: none;
+  background: rgba(253,244,239,.80);
+}
+/* 帯は壁紙を透かす（無地のセクションは地色を持たないので、そのまま柄が出る） */
+.hp-b.hp-b-terra .hp-sec-alt { background: rgba(248,231,219,.68); }
 `;
 
 const TYPE_B_BLUE = `/* ── 配色: スモークブルー（霞んだ水色地）── */
@@ -1629,6 +1648,23 @@ const TYPE_B_BLUE = `/* ── 配色: スモークブルー（霞んだ水色�
 .hp-b.hp-b-blue .hp-cta-tel { background: #fff; color: #2c3742; }
 /* PCの全幅ヘッダーは不透明に（共通ブロックの注記参照） */
 @media (min-width: 768px) { .hp-b.hp-b-blue .hp-topbar { background: #f3f7fb; } }
+
+/* ── 壁紙（水彩の葉・スモークブルー）── 2026-08-13
+   リーフグリーンと同じ柄を、色相だけスモークブルーへ回した画像に差し替えたもの
+   （生成: tools-gen-hp-b-wallpaper.py）。作りはリーフグリーンの節と完全に同じ。
+   濃さを変えるときは ::after の alpha だけ触ること（4配色そろえてある）。 */
+.hp-b.hp-b-blue { background-color: transparent; }
+.hp-b.hp-b-blue::before {
+  content: ''; position: fixed; inset: 0; z-index: -2; pointer-events: none;
+  background: url('/hp-b/wallpaper-blue.webp') center / 420px auto repeat;
+}
+@media (min-width: 768px) { .hp-b.hp-b-blue::before { background-size: 640px auto; } }
+.hp-b.hp-b-blue::after {
+  content: ''; position: fixed; inset: 0; z-index: -1; pointer-events: none;
+  background: rgba(243,247,251,.80);
+}
+/* 帯は壁紙を透かす（無地のセクションは地色を持たないので、そのまま柄が出る） */
+.hp-b.hp-b-blue .hp-sec-alt { background: rgba(230,238,247,.68); }
 `;
 
 const TYPE_B_PINK = `/* ── 配色: ロゼピンク（淡い薔薇色地）── */
@@ -1668,6 +1704,23 @@ const TYPE_B_PINK = `/* ── 配色: ロゼピンク（淡い薔薇色地）�
 .hp-b.hp-b-pink .hp-cta-tel { background: #fff; color: #43303a; }
 /* PCの全幅ヘッダーは不透明に（共通ブロックの注記参照） */
 @media (min-width: 768px) { .hp-b.hp-b-pink .hp-topbar { background: #fdf3f6; } }
+
+/* ── 壁紙（水彩の葉・ロゼピンク）── 2026-08-13
+   リーフグリーンと同じ柄を、色相だけロゼピンクへ回した画像に差し替えたもの
+   （生成: tools-gen-hp-b-wallpaper.py）。作りはリーフグリーンの節と完全に同じ。
+   濃さを変えるときは ::after の alpha だけ触ること（4配色そろえてある）。 */
+.hp-b.hp-b-pink { background-color: transparent; }
+.hp-b.hp-b-pink::before {
+  content: ''; position: fixed; inset: 0; z-index: -2; pointer-events: none;
+  background: url('/hp-b/wallpaper-pink.webp') center / 420px auto repeat;
+}
+@media (min-width: 768px) { .hp-b.hp-b-pink::before { background-size: 640px auto; } }
+.hp-b.hp-b-pink::after {
+  content: ''; position: fixed; inset: 0; z-index: -1; pointer-events: none;
+  background: rgba(253,243,246,.80);
+}
+/* 帯は壁紙を透かす（無地のセクションは地色を持たないので、そのまま柄が出る） */
+.hp-b.hp-b-pink .hp-sec-alt { background: rgba(249,230,237,.68); }
 `;
 
 export const TEMPLATE_VARIANT_CSS: Record<string, string> = {
