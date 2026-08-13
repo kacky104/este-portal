@@ -679,18 +679,15 @@ ${COMMON}
 }
 /* ★ スマホの上部は「雑誌の表紙風・文字が先」（2026-08-13 要望）。
    S＝写真に文字を重ねる／A＝色帯→写真→店名／B＝写真→店名→色帯 と全部違う形にするため、
-   Cだけ ヘッダー→店名のタイポブロック→額装した写真→色帯ナビ の順にする。
+   Cだけ ヘッダー→店名のタイポブロック→写真→色帯ナビ の順にする。
    DOM は共通のまま：.hp-hero（picture＋.hp-hero-text）を flex にして picture に order:2 を
    振るだけで入れ替わる（並び替えの order は .hp-ordered 側の話なので干渉しない）。
-   写真の額装（黒2px枠＋右下へアクセントのずらし影）は、お知らせカードの
-   「2px枠＋5pxずらし影」と同じMODEの意匠。PCは従来どおり全幅ヒーローのまま。
-   ★★ 前方の .hp-c .hp-hero-img { border-bottom: 2px } を打ち消すので、
-     このブロックもタイプCのCSSの末尾に置くこと（詳細度が同じ＝後勝ち）。 */
+   写真は他のタイプと同じ【幅いっぱい】（2026-08-13 要望。当初の額装＝黒2px枠＋ずらし影は廃止）。
+   下端の黒2px罫は共通の .hp-c .hp-hero-img がそのまま効く＝写真と色帯ナビの区切りになる。
+   PCは従来どおり全幅ヒーローのまま。 */
 @media (max-width: 767px) {
   .hp-c .hp-hero { display: flex; flex-direction: column; }
-  .hp-c .hp-hero picture { order: 2; margin: 2px 22px 28px; border: 2px solid var(--hp-ink, #111114);
-    box-shadow: 7px 7px 0 var(--hp-accent, #ff4658); }
-  .hp-c .hp-hero-img { border-bottom: none; }
+  .hp-c .hp-hero picture { order: 2; }
   /* タイポブロック。英字キャッチ→極太の店名→アクセントの太バー→キャッチコピー */
   .hp-c .hp-hero-text { padding: 26px 20px 22px; }
   .hp-c .hp-hero-name::after { content: ''; display: block; width: 56px; height: 6px;
