@@ -666,13 +666,18 @@ export const HP_COLOR_VARIANTS: Record<HpTemplateKey, HpColorVariant[]> = {
   //     --hp-accent-deep … 白地に載る小さな文字（連番・出勤中・電話・割引額）。
   //                        白地で読める濃さまで落としてある（タイプBと同じ役割分担）
   c: [
-    { key: 'mono',   label: 'オフホワイト',     css: { '--hp-accent': '#16161a', '--hp-accent-deep': '#16161a', '--hp-paper': '#f2f0ea', '--hp-ink': '#16161a' }, rootClass: 'hp-c-mono' },
+    // 2026-08-13: 地色を白寄り（#f2f0ea）から生成りのグレージュ（#e6e1d2）へ。
+    // 白いカードとの差が出て「オフホワイト（生成り×黒罫）のサイト」に見えるように（ink 13.8）
+    { key: 'mono',   label: 'オフホワイト',     css: { '--hp-accent': '#16161a', '--hp-accent-deep': '#16161a', '--hp-paper': '#e6e1d2', '--hp-ink': '#16161a' }, rootClass: 'hp-c-mono' },
     // 2026-08-13: 地色を「ほぼ白」からはっきり藤色（#efd5f2）へ。白すぎて紫のサイトに
     // 見えなかったため。ink 12.7 / deep 6.0 / 弱文字 4.7 と読みやすさは確認済み
     { key: 'purple', label: 'フクシャパープル', css: { '--hp-accent': '#b019b0', '--hp-accent-deep': '#8a1290', '--hp-paper': '#efd5f2', '--hp-ink': '#2e0b34' }, rootClass: 'hp-c-purple' },
-    // ネープルイエローだけは面が明るく白抜きが載らない。面に載る文字は styles.ts 側で焦げ茶に落としてある
-    { key: 'yellow', label: 'ネープルイエロー', css: { '--hp-accent': '#f2ca3c', '--hp-accent-deep': '#8a6a00', '--hp-paper': '#faf6e6', '--hp-ink': '#3a2f0a' }, rootClass: 'hp-c-yellow' },
-    { key: 'red',    label: 'スカーレット',     css: { '--hp-accent': '#e8280c', '--hp-accent-deep': '#b41c00', '--hp-paper': '#fdf3f0', '--hp-ink': '#3b0f06' }, rootClass: 'hp-c-red' },
+    // ネープルイエローだけは面が明るく白抜きが載らない。面に載る文字は styles.ts 側でインク色に落としてある
+    // 2026-08-13: 地色を「ほぼ白」からはっきりバター色（#f5e7b0）へ（紫と同じ「これぞ」の揃え）。
+    // 地色を濃くしたぶん ink / deep も1段濃くして読みやすさを確保（ink 13.6 / deep 5.8 / 弱文字 4.7）
+    { key: 'yellow', label: 'ネープルイエロー', css: { '--hp-accent': '#f2ca3c', '--hp-accent-deep': '#6e5400', '--hp-paper': '#f5e7b0', '--hp-ink': '#241c04' }, rootClass: 'hp-c-yellow' },
+    // 2026-08-13: 地色をはっきりサーモン（#fad6c9）へ（同上。ink 12.4 / deep 5.0 / 弱文字 4.6）
+    { key: 'red',    label: 'スカーレット',     css: { '--hp-accent': '#e8280c', '--hp-accent-deep': '#b41c00', '--hp-paper': '#fad6c9', '--hp-ink': '#3b0f06' }, rootClass: 'hp-c-red' },
   ],
 };
 

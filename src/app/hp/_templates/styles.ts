@@ -1877,7 +1877,7 @@ const TYPE_B_PINK = `/* ── 配色: ロゼピンク（淡い薔薇色地）�
 const TYPE_C_MONO = `/* ── 配色: オフホワイト（無彩色。MODEの素の姿＝白地に黒の太罫） ── */
 /* 交互の地色（帯）。地色より一段濃いだけの控えめな面にして、太罫の強さを邪魔しない */
 /* 帯は壁紙（白大理石）をうっすら透かす（2026-08-13・タイプBと同じ考え方） */
-.hp-c.hp-c-mono .hp-sec-alt { background: rgba(233,230,221,.72); }
+.hp-c.hp-c-mono .hp-sec-alt { background: rgba(219,211,191,.72); }
 /* SPクイックナビ: ヒーロー直下の色帯。ここがいちばん面積の大きい「配色そのもの」 */
 .hp-c.hp-c-mono .hp-quicknav { background: linear-gradient(90deg, #16161a, #3a3a42); border-bottom: 2px solid var(--hp-ink); }
 .hp-c.hp-c-mono .hp-qn-item + .hp-qn-item { border-left: 1px solid rgba(255,255,255,.3); }
@@ -1900,22 +1900,22 @@ const TYPE_C_PURPLE = `/* ── 配色: フクシャパープル（淡い藤色
 const TYPE_C_YELLOW = `/* ── 配色: ネープルイエロー（クリーム地に焦げ茶の太罫） ── */
 /* 交互の地色（帯）。地色より一段濃いだけの控えめな面にして、太罫の強さを邪魔しない */
 /* 帯は壁紙（白大理石）をうっすら透かす（2026-08-13・タイプBと同じ考え方） */
-.hp-c.hp-c-yellow .hp-sec-alt { background: rgba(244,234,208,.72); }
+.hp-c.hp-c-yellow .hp-sec-alt { background: rgba(239,220,142,.72); }
 /* SPクイックナビ: ヒーロー直下の色帯。ここがいちばん面積の大きい「配色そのもの」 */
 .hp-c.hp-c-yellow .hp-quicknav { background: linear-gradient(90deg, #f7d95e, #f2ca3c); border-bottom: 2px solid var(--hp-ink); }
-.hp-c.hp-c-yellow .hp-qn-item + .hp-qn-item { border-left: 1px solid rgba(58,47,10,.28); }
-.hp-c.hp-c-yellow .hp-qn-en { color: #3a2f0a; }
-.hp-c.hp-c-yellow .hp-qn-jp { color: rgba(58,47,10,.74); opacity: 1; }
+.hp-c.hp-c-yellow .hp-qn-item + .hp-qn-item { border-left: 1px solid rgba(36,28,4,.28); }
+.hp-c.hp-c-yellow .hp-qn-en { color: var(--hp-ink, #241c04); }
+.hp-c.hp-c-yellow .hp-qn-jp { color: rgba(36,28,4,.74); opacity: 1; }
 /* ★ 黄だけの例外: 面が明るいので白抜きが読めない（実測 1.58）。
    面に載る文字だけ焦げ茶へ落とす（実測 8.35）。他の3色は白抜きのままでよい。 */
-.hp-c.hp-c-yellow .hp-course-name { color: #3a2f0a; }
-.hp-c.hp-c-yellow .hp-cta-line { color: #3a2f0a; }
+.hp-c.hp-c-yellow .hp-course-name { color: var(--hp-ink, #241c04); }
+.hp-c.hp-c-yellow .hp-cta-line { color: var(--hp-ink, #241c04); }
 `;
 
 const TYPE_C_RED = `/* ── 配色: スカーレット（血色のよい生成り地に濃い緋色の太罫） ── */
 /* 交互の地色（帯）。地色より一段濃いだけの控えめな面にして、太罫の強さを邪魔しない */
 /* 帯は壁紙（白大理石）をうっすら透かす（2026-08-13・タイプBと同じ考え方） */
-.hp-c.hp-c-red .hp-sec-alt { background: rgba(251,229,222,.72); }
+.hp-c.hp-c-red .hp-sec-alt { background: rgba(246,192,173,.72); }
 /* SPクイックナビ: ヒーロー直下の色帯。ここがいちばん面積の大きい「配色そのもの」 */
 .hp-c.hp-c-red .hp-quicknav { background: linear-gradient(90deg, #b41c00, #e02508); border-bottom: 2px solid var(--hp-ink); }
 .hp-c.hp-c-red .hp-qn-item + .hp-qn-item { border-left: 1px solid rgba(255,255,255,.3); }
