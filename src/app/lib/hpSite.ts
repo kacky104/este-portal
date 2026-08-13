@@ -651,13 +651,24 @@ export const HP_COLOR_VARIANTS: Record<HpTemplateKey, HpColorVariant[]> = {
     { key: 'blue',     label: 'スモークブルー',     css: { '--hp-accent': '#7fa0c4', '--hp-accent-deep': '#345f8c' }, rootClass: 'hp-b-blue' },
     { key: 'pink',     label: 'ロゼピンク',         css: { '--hp-accent': '#d98fa6', '--hp-accent-deep': '#a34464' }, rootClass: 'hp-b-pink' },
   ],
+  // タイプC（白地・極太ゴシック）。2026-08-13: S・A・Bと同じ考え方で6色→4色に整理した。
+  // 4色とも地色・太罫・見出し・フッター・セラピスト帯・予約CTAまで振る。
+  // ★ キー mono / purple / red は据え置き（既存データを壊さないため。見た目と表示名だけ変えた）。
+  //   yellow は新規。廃止した blue / green / orange の店は isValidHpColor が false になり、
+  //   hpColorCssVars が先頭色（mono＝オフホワイト）へ自動で寄せる。
+  // ★ 変数の役割（タイプCだけ4本。styles.ts の TYPE_C 冒頭のコメントも読むこと）
+  //     --hp-paper       … 地色。白いカード（#fff）はそのままなので、紙の色だけが変わる
+  //     --hp-ink         … 2pxの太罫・見出し・フッターの地・セラピスト帯。細罫と弱い文字は
+  //                        これを color-mix で薄めて作るので、ここ1本で全部の線が寄る
+  //     --hp-accent      … 面（コース名の帯・LINE予約ボタン・SPクイックナビ）
+  //     --hp-accent-deep … 白地に載る小さな文字（連番・出勤中・電話・割引額）。
+  //                        白地で読める濃さまで落としてある（タイプBと同じ役割分担）
   c: [
-    { key: 'red',      label: 'シグナルレッド',     css: { '--hp-accent': '#ff4658' } },
-    { key: 'blue',     label: 'クラインブルー',     css: { '--hp-accent': '#2b5cff' } },
-    { key: 'green',    label: 'グリーン',           css: { '--hp-accent': '#00a86b' } },
-    { key: 'orange',   label: 'オレンジ',           css: { '--hp-accent': '#ff7a1a' } },
-    { key: 'purple',   label: 'パープル',           css: { '--hp-accent': '#8a3ffc' } },
-    { key: 'mono',     label: 'モノクローム',       css: { '--hp-accent': '#111114' } },
+    { key: 'mono',   label: 'オフホワイト',     css: { '--hp-accent': '#16161a', '--hp-accent-deep': '#16161a', '--hp-paper': '#f2f0ea', '--hp-ink': '#16161a' }, rootClass: 'hp-c-mono' },
+    { key: 'purple', label: 'フクシャパープル', css: { '--hp-accent': '#b019b0', '--hp-accent-deep': '#8a1290', '--hp-paper': '#f8f1f9', '--hp-ink': '#2e0b34' }, rootClass: 'hp-c-purple' },
+    // ネープルイエローだけは面が明るく白抜きが載らない。面に載る文字は styles.ts 側で焦げ茶に落としてある
+    { key: 'yellow', label: 'ネープルイエロー', css: { '--hp-accent': '#f2ca3c', '--hp-accent-deep': '#8a6a00', '--hp-paper': '#faf6e6', '--hp-ink': '#3a2f0a' }, rootClass: 'hp-c-yellow' },
+    { key: 'red',    label: 'スカーレット',     css: { '--hp-accent': '#e8280c', '--hp-accent-deep': '#b41c00', '--hp-paper': '#fdf3f0', '--hp-ink': '#3b0f06' }, rootClass: 'hp-c-red' },
   ],
 };
 

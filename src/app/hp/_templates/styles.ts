@@ -535,9 +535,24 @@ ${COMMON}
 }
 `;
 
+// タイプC（MODE・都会的でシャープ）: 白地に極太ゴシック＋2pxの罫線、連番付きの見出し。
+// 2026-08-13: S・A・Bと同じ考え方で「アクセント1色しか変わらない6色」を4色へ整理し、
+// 地色・太罫・フッターまで配色ごとに作り分けた。
+//
+// ★ タイプCだけ作りが少し違う（S・A・Bとの差分。次の担当はここを読むこと）:
+//   S・A・B は配色ブロック（TEMPLATE_VARIANT_CSS）に色をベタ書きしているが、
+//   タイプCは「地色（--hp-paper）と太罫・見出しの色（--hp-ink）」の2本だけで
+//   ほぼ全部の面が決まる作りなので、この2本を CSS変数で受けている。
+//   細罫・弱い文字は --hp-ink から color-mix で作る（配色ごとに自動で寄る）。
+//   配色ブロックに書くのは「変数では表せないもの」だけ＝帯のグラデーション・交互の地色・黄の例外。
+//   ＝ 変数の値は hpSite.ts の HP_COLOR_VARIANTS が唯一の正。色を変えるときはまずそこを見る。
+//
+// ★ --hp-accent は面（コース名の帯・LINE予約ボタン・クイックナビ）、
+//   --hp-accent-deep は白地に載る小さな文字（連番・出勤中・電話・割引額）。
+//   タイプBと同じ役割分担。素のCSSは deep が無ければ accent に落ちる。
 const TYPE_C = `
 ${COMMON}
-.hp-c { background: #f4f4f6; color: #1c1c20; font-family: 'Hiragino Kaku Gothic ProN', 'Noto Sans JP', 'Noto Sans CJK JP', sans-serif; }
+.hp-c { background: var(--hp-paper, #f4f4f6); color: var(--hp-ink, #1c1c20); font-family: 'Hiragino Kaku Gothic ProN', 'Noto Sans JP', 'Noto Sans CJK JP', sans-serif; }
 /* PCワイド対応（罫線・帯は全幅・本文760px中央） */
 .hp-c { max-width: 1024px; }
 @media (min-width: 768px) {
@@ -550,72 +565,75 @@ ${COMMON}
 .hp-c .hp-cta { max-width: 1024px; }
 .hp-c { --hp-col-half: 512px; }
 .hp-c .hp-topbar { display: flex; justify-content: space-between; align-items: center; position: sticky; top: var(--hp-topbar-top, 0px); z-index: 30;
-  padding: 14px 20px; background: rgba(244,244,246,.92); backdrop-filter: blur(8px); border-bottom: 2px solid #111114; }
+  padding: 14px 20px; background: color-mix(in srgb, var(--hp-paper, #f4f4f6) 92%, transparent); backdrop-filter: blur(8px); border-bottom: 2px solid var(--hp-ink, #111114); }
 .hp-c .hp-topbar-name { font-size: 15px; font-weight: 900; letter-spacing: .04em; }
 /* ドロワー（タイプC・白地に黒の太罫） */
-.hp-c .hp-drawer-btn { color: #111114; }
-.hp-c .hp-topbar-tel { color: var(--hp-accent, #ff4658); }
-.hp-c .hp-drawer { background: #fff; border-left: 2px solid #111114; }
-.hp-c .hp-drawer-list a { color: #111114; font-weight: 900; }
-.hp-c .hp-drawer-list li + li a { border-top: 1px solid #c9c9cf; }
-.hp-c .hp-drawer-foot { border-top: 2px solid #111114; color: #77777e; }
-.hp-c .hp-drawer-tel { color: var(--hp-accent, #ff4658); font-weight: 900; }
-.hp-c .hp-drawer-terms, .hp-c .hp-doc-back { color: #77777e; }
-.hp-c .hp-doc-h { color: #111114; font-weight: 900; }
-.hp-c .hp-doc-p, .hp-c .hp-doc-list li { color: #111114; }
-.hp-c .hp-link-text { color: #111114; border: 2px solid #111114; font-weight: 800; }
-.hp-c .hp-drawer-close { color: #111114; }
-.hp-c .hp-sec { border-top: 2px solid #111114; padding: 46px 20px; }
-.hp-c .hp-idx { display: block; font-size: 10px; font-weight: 900; letter-spacing: .1em; color: var(--hp-accent, #ff4658); }
-.hp-c .hp-en { display: block; font-size: 28px; font-weight: 900; letter-spacing: -.01em; line-height: 1.05; margin: 6px 0 2px; text-transform: uppercase; color: #111114; }
-.hp-c .hp-h2 { font-size: 11px; font-weight: 700; color: #77777e; letter-spacing: .2em; margin-bottom: 20px; }
-.hp-c .hp-hero-img { border-bottom: 2px solid #111114; }
+.hp-c .hp-drawer-btn { color: var(--hp-ink, #111114); }
+.hp-c .hp-topbar-tel { color: var(--hp-accent-deep, var(--hp-accent, #ff4658)); }
+.hp-c .hp-drawer { background: #fff; border-left: 2px solid var(--hp-ink, #111114); }
+.hp-c .hp-drawer-list a { color: var(--hp-ink, #111114); font-weight: 900; }
+.hp-c .hp-drawer-list li + li a { border-top: 1px solid color-mix(in srgb, var(--hp-ink, #111114) 22%, transparent); }
+.hp-c .hp-drawer-foot { border-top: 2px solid var(--hp-ink, #111114); color: color-mix(in srgb, var(--hp-ink, #111114) 64%, transparent); }
+.hp-c .hp-drawer-tel { color: var(--hp-accent-deep, var(--hp-accent, #ff4658)); font-weight: 900; }
+.hp-c .hp-drawer-terms, .hp-c .hp-doc-back { color: color-mix(in srgb, var(--hp-ink, #111114) 64%, transparent); }
+.hp-c .hp-doc-h { color: var(--hp-ink, #111114); font-weight: 900; }
+.hp-c .hp-doc-p, .hp-c .hp-doc-list li { color: var(--hp-ink, #111114); }
+.hp-c .hp-link-text { color: var(--hp-ink, #111114); border: 2px solid var(--hp-ink, #111114); font-weight: 800; }
+.hp-c .hp-drawer-close { color: var(--hp-ink, #111114); }
+.hp-c .hp-sec { border-top: 2px solid var(--hp-ink, #111114); padding: 46px 20px; }
+.hp-c .hp-idx { display: block; font-size: 10px; font-weight: 900; letter-spacing: .1em; color: var(--hp-accent-deep, var(--hp-accent, #ff4658)); }
+.hp-c .hp-en { display: block; font-size: 28px; font-weight: 900; letter-spacing: -.01em; line-height: 1.05; margin: 6px 0 2px; text-transform: uppercase; color: var(--hp-ink, #111114); }
+.hp-c .hp-h2 { font-size: 11px; font-weight: 700; color: color-mix(in srgb, var(--hp-ink, #111114) 64%, transparent); letter-spacing: .2em; margin-bottom: 20px; }
+.hp-c .hp-hero-img { border-bottom: 2px solid var(--hp-ink, #111114); }
 .hp-c .hp-hero-text { padding: 22px 20px 26px; }
-.hp-c .hp-hero-en { font-size: 10px; font-weight: 900; letter-spacing: .2em; color: var(--hp-accent, #ff4658); }
+.hp-c .hp-hero-en { font-size: 10px; font-weight: 900; letter-spacing: .2em; color: var(--hp-accent-deep, var(--hp-accent, #ff4658)); }
 .hp-c .hp-hero-name { margin-top: 6px; font-size: 34px; font-weight: 900; letter-spacing: -.01em; line-height: 1.1; }
 .hp-c .hp-hero-catch { margin-top: 12px; font-size: 14px; font-weight: 800; line-height: 1.9; }
-.hp-c .hp-hero-area { margin-top: 10px; font-size: 10px; font-weight: 800; color: #77777e; letter-spacing: .12em; }
+.hp-c .hp-hero-area { margin-top: 10px; font-size: 10px; font-weight: 800; color: color-mix(in srgb, var(--hp-ink, #111114) 64%, transparent); letter-spacing: .12em; }
 .hp-c .hp-concept-text { font-size: 13px; line-height: 2.1; font-weight: 500; white-space: pre-wrap; }
-.hp-c .hp-concept-img { width: 100%; height: auto; border: 2px solid #111114; margin-bottom: 16px; }
+.hp-c .hp-concept-img { width: 100%; height: auto; border: 2px solid var(--hp-ink, #111114); margin-bottom: 16px; }
 .hp-c .hp-course-group { margin-bottom: 20px; }
-.hp-c .hp-course-name { font-size: 13px; font-weight: 900; margin-bottom: 4px; }
-.hp-c .hp-course-row { display: flex; justify-content: space-between; align-items: baseline; padding: 15px 0; border-bottom: 1px solid #c9c9cf; }
+/* コース名は配色の帯に白抜き（タイプBのピルと同じ役割。MODEなので角は直角のまま）。
+   ★ 黄のように「面に白抜きが載らない」配色は、配色ブロック側で color だけ上書きする。 */
+.hp-c .hp-course-name { display: inline-block; font-size: 13px; font-weight: 900; margin-bottom: 8px;
+  background: var(--hp-accent, #ff4658); color: #fff; padding: 6px 14px; }
+.hp-c .hp-course-row { display: flex; justify-content: space-between; align-items: baseline; padding: 15px 0; border-bottom: 1px solid color-mix(in srgb, var(--hp-ink, #111114) 22%, transparent); }
 .hp-c .hp-course-min { font-size: 13px; font-weight: 700; }
 .hp-c .hp-course-price { font-size: 18px; font-weight: 900; letter-spacing: -.02em; }
-.hp-c .hp-th-row { border: 2px solid #111114; background: #111114; gap: 0; padding-bottom: 0; }
-.hp-c .hp-th-card { flex: 0 0 44%; background: #f4f4f6; border-right: 2px solid #111114; padding-bottom: 12px; }
+.hp-c .hp-th-row { border: 2px solid var(--hp-ink, #111114); background: var(--hp-ink, #111114); gap: 0; padding-bottom: 0; }
+.hp-c .hp-th-card { flex: 0 0 44%; background: var(--hp-paper, #f4f4f6); border-right: 2px solid var(--hp-ink, #111114); padding-bottom: 12px; }
 .hp-c .hp-th-card:last-child { border-right: none; }
-.hp-c .hp-th-frame img, .hp-c .hp-th-noimg { border-bottom: 2px solid #111114; }
-.hp-c .hp-th-noimg { background: linear-gradient(160deg, #e4e4e8, #d2d2d8); }
-.hp-c .hp-th-name { padding: 10px 12px 0; font-size: 14px; font-weight: 900; color: #1c1c20; }
-.hp-c .hp-th-age { padding: 2px 12px 0; font-size: 10px; font-weight: 700; color: #77777e; letter-spacing: .15em; }
-.hp-c .hp-th-catch { display: block; padding: 6px 12px 0; font-size: 10.5px; font-weight: 600; color: #55555c; line-height: 1.7;
+.hp-c .hp-th-frame img, .hp-c .hp-th-noimg { border-bottom: 2px solid var(--hp-ink, #111114); }
+.hp-c .hp-th-noimg { background: linear-gradient(160deg, color-mix(in srgb, var(--hp-ink, #111114) 9%, var(--hp-paper, #f4f4f6)), color-mix(in srgb, var(--hp-ink, #111114) 17%, var(--hp-paper, #f4f4f6))); }
+.hp-c .hp-th-name { padding: 10px 12px 0; font-size: 14px; font-weight: 900; color: var(--hp-ink, #1c1c20); }
+.hp-c .hp-th-age { padding: 2px 12px 0; font-size: 10px; font-weight: 700; color: color-mix(in srgb, var(--hp-ink, #111114) 64%, transparent); letter-spacing: .15em; }
+.hp-c .hp-th-catch { display: block; padding: 6px 12px 0; font-size: 10.5px; font-weight: 600; color: color-mix(in srgb, var(--hp-ink, #111114) 76%, transparent); line-height: 1.7;
   overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
 .hp-c .hp-th-badges { display: flex; flex-wrap: wrap; gap: 4px; padding: 8px 12px 0; }
-.hp-c .hp-th-badge { font-size: 8.5px; font-weight: 900; color: #111114; border: 1.5px solid #111114; padding: 2px 7px; letter-spacing: .05em; }
-.hp-c .hp-th-onduty { margin: 8px 12px 0; display: inline-block; font-size: 9px; font-weight: 900; color: var(--hp-accent, #ff4658); border: 2px solid var(--hp-accent, #ff4658); padding: 2px 8px; letter-spacing: .1em; }
-.hp-c .hp-sched-row { display: flex; justify-content: space-between; padding: 14px 2px; border-bottom: 1px solid #c9c9cf; font-size: 13px; font-weight: 800; }
+.hp-c .hp-th-badge { font-size: 8.5px; font-weight: 900; color: var(--hp-ink, #111114); border: 1.5px solid var(--hp-ink, #111114); padding: 2px 7px; letter-spacing: .05em; }
+.hp-c .hp-th-onduty { margin: 8px 12px 0; display: inline-block; font-size: 9px; font-weight: 900; color: var(--hp-accent-deep, var(--hp-accent, #ff4658)); border: 2px solid var(--hp-accent-deep, var(--hp-accent, #ff4658)); padding: 2px 8px; letter-spacing: .1em; }
+.hp-c .hp-sched-row { display: flex; justify-content: space-between; padding: 14px 2px; border-bottom: 1px solid color-mix(in srgb, var(--hp-ink, #111114) 22%, transparent); font-size: 13px; font-weight: 800; }
 .hp-c .hp-sched-time { font-weight: 900; }
-.hp-c .hp-embed { border: 2px solid #111114; background: #fff; }
-.hp-c .hp-more { color: #111114; font-weight: 900; border-bottom: 3px solid var(--hp-accent, #ff4658); padding-bottom: 2px; letter-spacing: .1em; }
-.hp-c .hp-card { border: 2px solid #111114; background: #fff; padding: 16px; box-shadow: 5px 5px 0 #111114; margin-bottom: 16px; }
+.hp-c .hp-embed { border: 2px solid var(--hp-ink, #111114); background: #fff; }
+.hp-c .hp-more { color: var(--hp-ink, #111114); font-weight: 900; border-bottom: 3px solid var(--hp-accent, #ff4658); padding-bottom: 2px; letter-spacing: .1em; }
+.hp-c .hp-card { border: 2px solid var(--hp-ink, #111114); background: #fff; padding: 16px; box-shadow: 5px 5px 0 var(--hp-ink, #111114); margin-bottom: 16px; }
 .hp-c .hp-card-title { font-size: 13px; font-weight: 900; }
-.hp-c .hp-coupon-discount { font-size: 18px; font-weight: 900; color: var(--hp-accent, #ff4658); margin: 4px 0; }
+.hp-c .hp-coupon-discount { font-size: 18px; font-weight: 900; color: var(--hp-accent-deep, var(--hp-accent, #ff4658)); margin: 4px 0; }
 .hp-c .hp-card-body { margin-top: 6px; font-size: 12px; line-height: 1.9; font-weight: 500; white-space: pre-wrap; }
-.hp-c .hp-card-meta { margin-top: 10px; font-size: 9px; font-weight: 800; color: #77777e; letter-spacing: .15em; }
-.hp-c .hp-info-row { border-bottom: 1px solid #c9c9cf; padding: 13px 2px; }
+.hp-c .hp-card-meta { margin-top: 10px; font-size: 9px; font-weight: 800; color: color-mix(in srgb, var(--hp-ink, #111114) 64%, transparent); letter-spacing: .15em; }
+.hp-c .hp-info-row { border-bottom: 1px solid color-mix(in srgb, var(--hp-ink, #111114) 22%, transparent); padding: 13px 2px; }
 .hp-c .hp-info-row dt { font-weight: 900; letter-spacing: .1em; font-size: 10px; padding-top: 2px; }
 .hp-c .hp-info-row dd { font-weight: 600; }
-.hp-c .hp-footer { background: #111114; color: #fff; text-align: left; padding: 40px 20px 60px; }
+.hp-c .hp-footer { background: var(--hp-ink, #111114); color: #fff; text-align: left; padding: 40px 20px 60px; }
 .hp-c .hp-footer-links { justify-content: flex-start; }
 .hp-c .hp-footer-name { font-size: 20px; font-weight: 900; }
-.hp-c .hp-footer-sub { margin-top: 10px; font-size: 10px; color: #9a9aa2; font-weight: 700; line-height: 2; }
+.hp-c .hp-footer-sub { margin-top: 10px; font-size: 10px; color: rgba(255,255,255,.66); font-weight: 700; line-height: 2; }
 .hp-c .hp-footer-sub a { color: #fff; }
-.hp-c .hp-cta { border-top: 2px solid #111114; }
+.hp-c .hp-cta { border-top: 2px solid var(--hp-ink, #111114); }
 .hp-c .hp-cta a { font-weight: 900; letter-spacing: .2em; }
-.hp-c .hp-cta-tel { background: #fff; color: #111114; border-right: 2px solid #111114; }
+.hp-c .hp-cta-tel { background: #fff; color: var(--hp-ink, #111114); border-right: 2px solid var(--hp-ink, #111114); }
 .hp-c .hp-cta-line { background: var(--hp-accent, #ff4658); color: #fff; }
-.hp-c .hp-sched-date { display: inline-block; background: #111114; color: #fff; padding: 6px 16px; margin: 0 0 16px; font-size: 12px; font-weight: 900; letter-spacing: .15em; opacity: 1; }
+.hp-c .hp-sched-date { display: inline-block; background: var(--hp-ink, #111114); color: #fff; padding: 6px 16px; margin: 0 0 16px; font-size: 12px; font-weight: 900; letter-spacing: .15em; opacity: 1; }
 `;
 
 // タイプS（GRACE・フラッグシップ）: LPのキービジュアルに描かれたサイトの実物化（2026-08-09）。
@@ -1734,6 +1752,50 @@ const TYPE_B_PINK = `/* ── 配色: ロゼピンク（淡い薔薇色地）�
 .hp-b.hp-b-pink .hp-sec-alt { background: rgba(249,230,237,.68); }
 `;
 
+const TYPE_C_MONO = `/* ── 配色: オフホワイト（無彩色。MODEの素の姿＝白地に黒の太罫） ── */
+/* 交互の地色（帯）。地色より一段濃いだけの控えめな面にして、太罫の強さを邪魔しない */
+.hp-c.hp-c-mono .hp-sec-alt { background: #e9e6dd; }
+/* SPクイックナビ: ヒーロー直下の色帯。ここがいちばん面積の大きい「配色そのもの」 */
+.hp-c.hp-c-mono .hp-quicknav { background: linear-gradient(90deg, #16161a, #3a3a42); border-bottom: 2px solid var(--hp-ink); }
+.hp-c.hp-c-mono .hp-qn-item + .hp-qn-item { border-left: 1px solid rgba(255,255,255,.3); }
+.hp-c.hp-c-mono .hp-qn-en { color: #fff; }
+.hp-c.hp-c-mono .hp-qn-jp { color: rgba(255,255,255,.78); opacity: 1; }
+`;
+
+const TYPE_C_PURPLE = `/* ── 配色: フクシャパープル（淡い藤色地に濃い葡萄色の太罫） ── */
+/* 交互の地色（帯）。地色より一段濃いだけの控えめな面にして、太罫の強さを邪魔しない */
+.hp-c.hp-c-purple .hp-sec-alt { background: #f0e2f3; }
+/* SPクイックナビ: ヒーロー直下の色帯。ここがいちばん面積の大きい「配色そのもの」 */
+.hp-c.hp-c-purple .hp-quicknav { background: linear-gradient(90deg, #8a1290, #b52ab5); border-bottom: 2px solid var(--hp-ink); }
+.hp-c.hp-c-purple .hp-qn-item + .hp-qn-item { border-left: 1px solid rgba(255,255,255,.3); }
+.hp-c.hp-c-purple .hp-qn-en { color: #fff; }
+.hp-c.hp-c-purple .hp-qn-jp { color: rgba(255,255,255,.78); opacity: 1; }
+`;
+
+const TYPE_C_YELLOW = `/* ── 配色: ネープルイエロー（クリーム地に焦げ茶の太罫） ── */
+/* 交互の地色（帯）。地色より一段濃いだけの控えめな面にして、太罫の強さを邪魔しない */
+.hp-c.hp-c-yellow .hp-sec-alt { background: #f4ead0; }
+/* SPクイックナビ: ヒーロー直下の色帯。ここがいちばん面積の大きい「配色そのもの」 */
+.hp-c.hp-c-yellow .hp-quicknav { background: linear-gradient(90deg, #f7d95e, #f2ca3c); border-bottom: 2px solid var(--hp-ink); }
+.hp-c.hp-c-yellow .hp-qn-item + .hp-qn-item { border-left: 1px solid rgba(58,47,10,.28); }
+.hp-c.hp-c-yellow .hp-qn-en { color: #3a2f0a; }
+.hp-c.hp-c-yellow .hp-qn-jp { color: rgba(58,47,10,.74); opacity: 1; }
+/* ★ 黄だけの例外: 面が明るいので白抜きが読めない（実測 1.58）。
+   面に載る文字だけ焦げ茶へ落とす（実測 8.35）。他の3色は白抜きのままでよい。 */
+.hp-c.hp-c-yellow .hp-course-name { color: #3a2f0a; }
+.hp-c.hp-c-yellow .hp-cta-line { color: #3a2f0a; }
+`;
+
+const TYPE_C_RED = `/* ── 配色: スカーレット（血色のよい生成り地に濃い緋色の太罫） ── */
+/* 交互の地色（帯）。地色より一段濃いだけの控えめな面にして、太罫の強さを邪魔しない */
+.hp-c.hp-c-red .hp-sec-alt { background: #fbe5de; }
+/* SPクイックナビ: ヒーロー直下の色帯。ここがいちばん面積の大きい「配色そのもの」 */
+.hp-c.hp-c-red .hp-quicknav { background: linear-gradient(90deg, #b41c00, #e02508); border-bottom: 2px solid var(--hp-ink); }
+.hp-c.hp-c-red .hp-qn-item + .hp-qn-item { border-left: 1px solid rgba(255,255,255,.3); }
+.hp-c.hp-c-red .hp-qn-en { color: #fff; }
+.hp-c.hp-c-red .hp-qn-jp { color: rgba(255,255,255,.78); opacity: 1; }
+`;
+
 export const TEMPLATE_VARIANT_CSS: Record<string, string> = {
   'hp-s-wine': TYPE_S_WINE,
   'hp-s-blue': TYPE_S_BLUE,
@@ -1745,4 +1807,8 @@ export const TEMPLATE_VARIANT_CSS: Record<string, string> = {
   'hp-b-terra':   TYPE_B_TERRA,
   'hp-b-blue':    TYPE_B_BLUE,
   'hp-b-pink':    TYPE_B_PINK,
+  'hp-c-mono':    TYPE_C_MONO,
+  'hp-c-purple':  TYPE_C_PURPLE,
+  'hp-c-yellow':  TYPE_C_YELLOW,
+  'hp-c-red':     TYPE_C_RED,
 };

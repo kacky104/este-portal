@@ -13,8 +13,20 @@ export const HP_TEMPLATE_NOTES: Record<HpTemplateKey, string> = {
   s: '白地に全幅の写真と固定ナビ、王道の高級デザイン。シャンパンゴールド・ワインレッド・ロイヤルブルー・エメラルドグリーンの4種類。',
   a: '黒基調・明朝体の高級路線。落ち着いた大人向けの店舗に。アイボリーブラック・ディープマゼンタ・ローシェンナ・バーントアンバーの4種類。',
   b: '生成り地のやわらかい印象。清潔感・癒やし系の店舗に。リーフグリーン・テラコッタ・スモークブルー・ロゼピンクの4種類。',
-  c: '白地に太字とアクセント。都会的でシャープな印象に。',
+  c: '白地に太字とアクセント。都会的でシャープな印象に。オフホワイト・フクシャパープル・ネープルイエロー・スカーレットの4種類。',
 };
+
+/**
+ * ひな形＋色キー → 地色と太罫の色（タイプCの簡易サムネ用・2026-08-13）。
+ * タイプCは配色ごとに --hp-paper / --hp-ink まで振っているので、
+ * サムネもアクセント1色だけでなく地色・罫線ごと変える（＝一覧で4枚が見分けられる）。
+ * 値を持たないひな形は従来どおりの白地＋黒罫に落ちる。
+ */
+function hpVariantSurfaces(template: HpTemplateKey, colorKey?: string): { paper: string; ink: string } {
+  const list = HP_COLOR_VARIANTS[template];
+  const v = list.find((x) => x.key === colorKey) ?? list[0];
+  return { paper: v.css['--hp-paper'] ?? '#fff', ink: v.css['--hp-ink'] ?? '#111114' };
+}
 
 /** ひな形＋色キー → サムネ用のアクセント2色（deep が無いひな形は accent で代用）。 */
 export function hpVariantColors(template: HpTemplateKey, colorKey: string): { accent: string; deep: string } {
@@ -129,24 +141,26 @@ export function DesignThumb({
       </div>
     );
   }
-  // MODE: 白地・太ゴシック・連番と極太アクセント
+  // MODE: 地色・太罫まで配色ごとに振る（2026-08-13）。連番と極太アクセントは据え置き。
+  const { paper, ink } = hpVariantSurfaces(template, colorKey);
+  const tint = (pct: number) => `color-mix(in srgb, ${ink} ${pct}%, ${paper})`;
   return (
-    <div style={{ background: '#fff', color: '#111114', padding: '14px 12px', height: 168 }}>
-      <div style={{ height: 44, background: '#111114' }} />
+    <div style={{ background: paper, color: ink, padding: '14px 12px', height: 168 }}>
+      <div style={{ height: 44, background: ink }} />
       {/* アクセント帯はヒーローの【下】に置く。中に重ねると mono（黒）が黒地に沈んで見えないため */}
       <div style={{ width: 52, height: 5, background: accent }} />
       <div style={{ display: 'flex', alignItems: 'baseline', gap: 6, marginTop: 12 }}>
-        <span style={{ fontSize: 9, fontWeight: 900, color: accent }}>01</span>
+        <span style={{ fontSize: 9, fontWeight: 900, color: deep }}>01</span>
         <span style={{ fontSize: 9, fontWeight: 900, letterSpacing: '.1em' }}>CONCEPT</span>
       </div>
       <div style={{ marginTop: 8 }}>
-        <div style={{ height: 3, background: '#e3e3e6', marginBottom: 5 }} />
-        <div style={{ height: 3, background: '#e3e3e6', marginBottom: 5 }} />
-        <div style={{ height: 3, background: '#e3e3e6', width: '50%' }} />
+        <div style={{ height: 3, background: tint(14), marginBottom: 5 }} />
+        <div style={{ height: 3, background: tint(14), marginBottom: 5 }} />
+        <div style={{ height: 3, background: tint(14), width: '50%' }} />
       </div>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 4, marginTop: 14 }}>
         {[0, 1, 2, 3].map((i) => (
-          <div key={i} style={{ height: 30, background: '#f1f1f3' }} />
+          <div key={i} style={{ height: 30, background: tint(8) }} />
         ))}
       </div>
     </div>
