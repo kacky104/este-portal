@@ -608,11 +608,11 @@ ${COMMON}
 .hp-c .hp-course-group { margin-bottom: 20px; }
 /* コース名は配色の帯に白抜き（タイプBのピルと同じ役割。MODEなので角は直角のまま）。
    ★ 黄のように「面に白抜きが載らない」配色は、配色ブロック側で color だけ上書きする。 */
-.hp-c .hp-course-name { display: inline-block; font-size: 13px; font-weight: 900; margin-bottom: 8px;
+.hp-c .hp-course-name { display: inline-block; font-size: 15px; font-weight: 900; margin-bottom: 8px;
   background: var(--hp-accent, #ff4658); color: #fff; padding: 6px 14px; }
 .hp-c .hp-course-row { display: flex; justify-content: space-between; align-items: baseline; padding: 15px 0; border-bottom: 1px solid color-mix(in srgb, var(--hp-ink, #111114) 22%, transparent); }
-.hp-c .hp-course-min { font-size: 13px; font-weight: 700; }
-.hp-c .hp-course-price { font-size: 18px; font-weight: 900; letter-spacing: -.02em; }
+.hp-c .hp-course-min { font-size: 16px; font-weight: 700; }
+.hp-c .hp-course-price { font-size: 22px; font-weight: 900; letter-spacing: -.02em; }
 .hp-c .hp-th-row { border: 2px solid var(--hp-ink, #111114); background: var(--hp-ink, #111114); gap: 0; padding-bottom: 0; }
 .hp-c .hp-th-card { flex: 0 0 44%; background: var(--hp-paper, #f4f4f6); border-right: 2px solid var(--hp-ink, #111114); padding-bottom: 12px; }
 .hp-c .hp-th-card:last-child { border-right: none; }
@@ -634,9 +634,14 @@ ${COMMON}
 .hp-c .hp-more { display: block; width: fit-content; margin-left: auto; margin-right: auto;
   color: var(--hp-ink, #111114); font-weight: 900; border-bottom: 3px solid var(--hp-accent, #ff4658); padding-bottom: 2px; letter-spacing: .1em; }
 .hp-c .hp-card { border: 2px solid var(--hp-ink, #111114); background: #fff; padding: 16px; box-shadow: 5px 5px 0 var(--hp-ink, #111114); margin-bottom: 16px; }
-.hp-c .hp-card-title { font-size: 13px; font-weight: 900; }
-.hp-c .hp-coupon-discount { font-size: 18px; font-weight: 900; color: var(--hp-accent-deep, var(--hp-accent, #ff4658)); margin: 4px 0; }
-.hp-c .hp-card-body { margin-top: 6px; font-size: 12px; line-height: 1.9; font-weight: 500; white-space: pre-wrap; }
+.hp-c .hp-card-title { font-size: 12.5px; font-weight: 900; }
+.hp-c .hp-coupon-discount { font-size: 16px; font-weight: 900; color: var(--hp-accent-deep, var(--hp-accent, #ff4658)); margin: 4px 0; }
+.hp-c .hp-card-body { margin-top: 6px; font-size: 11px; line-height: 1.9; font-weight: 500; white-space: pre-wrap; }
+/* 新着情報だけ文字を大きく（トップの抜粋と /news ページの両方に効く。クーポン等の hp-card は据え置き）。
+   数値はタイプS・A・Bと同じ（2026-08-13）。 */
+.hp-c .hp-sec-news .hp-card-title { font-size: 15px; }
+.hp-c .hp-sec-news .hp-card-body { font-size: 13.5px; line-height: 2; }
+.hp-c .hp-sec-news .hp-card-meta { font-size: 10.5px; }
 .hp-c .hp-card-meta { margin-top: 10px; font-size: 9px; font-weight: 800; color: color-mix(in srgb, var(--hp-ink, #111114) 64%, transparent); letter-spacing: .15em; }
 .hp-c .hp-info-row { border-bottom: 1px solid color-mix(in srgb, var(--hp-ink, #111114) 22%, transparent); padding: 13px 2px; }
 .hp-c .hp-info-row dt { font-weight: 900; letter-spacing: .1em; font-size: 10px; padding-top: 2px; }
