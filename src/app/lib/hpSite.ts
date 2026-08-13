@@ -242,6 +242,8 @@ const HP_LEGACY_IMAGE_SLOT_KEYS: Record<string, string> = {
   // 2026-08-13: タイプBも配色ごとに変えたので、先に tpl-b へ入れてあった写真を
   // リーフグリーン（＝タイプBの基準色）へ移す。
   'tpl-b': 'b-green',
+  // 2026-08-13: タイプCも配色ごとに変えたので、tpl-c の写真をオフホワイト（先頭色）へ移す。
+  'tpl-c': 'c-mono',
 };
 
 /** 古いキーを新しいキーへ付け替える（移行先が既にあるときは古い方を捨てる）。 */
@@ -744,8 +746,11 @@ export function hpBundledHeroImages(template: HpTemplateKey, colorKey: string): 
  * 配色で地色ごと作り分けているひな形＝写真も色ごとに変える意味がある、という基準。
  * ★ 2026-08-13: タイプBも4配色を地色ごと作り分けたので b を追加した
  *   （＝デモ管理の「デザインごとの画像」がタイプBだけ1枠→4枠に増える）。
+ * ★ 2026-08-13: タイプCも4配色に整理したので c を追加した（スロットは c-mono / c-purple /
+ *   c-yellow / c-red の4枠）。tpl-c に入れてあった写真は HP_LEGACY_IMAGE_SLOT_KEYS が
+ *   c-mono へ自動で付け替える。
  */
-const HP_PER_COLOR_IMAGE_TEMPLATES: HpTemplateKey[] = ['s', 'a', 'b'];
+const HP_PER_COLOR_IMAGE_TEMPLATES: HpTemplateKey[] = ['s', 'a', 'b', 'c'];
 
 export function hpImageSlotKey(template: HpTemplateKey, colorKey: string): string {
   if (!HP_PER_COLOR_IMAGE_TEMPLATES.includes(template)) return `tpl-${template}`;
