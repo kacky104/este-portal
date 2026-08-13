@@ -30,6 +30,7 @@ export function hpVariantColors(template: HpTemplateKey, colorKey: string): { ac
 const HP_THUMB_COLORS: Partial<Record<HpTemplateKey, string[]>> = {
   s: ['gold', 'wine', 'blue', 'emerald'],
   a: ['gold', 'magenta', 'sienna', 'umber'],
+  b: ['green', 'terra', 'blue', 'pink'],
 };
 
 /**
@@ -41,6 +42,8 @@ const HP_THUMB_COLORS: Partial<Record<HpTemplateKey, string[]>> = {
 const HP_THUMB_OBJECT_CLS: Partial<Record<HpTemplateKey, { list: string; card: string }>> = {
   s: { list: 'object-right-top', card: 'object-right' },   // モデルが写真の右側
   a: { list: 'object-center', card: 'object-center' },     // モデルが写真の中央
+  // タイプBは書き出しの時点でモデルが収まるよう右寄りに切ってあるので、ここは中央でよい
+  b: { list: 'object-center', card: 'object-center' },
 };
 
 export function hpDesignThumbObjectCls(template: HpTemplateKey, where: 'list' | 'card'): string {

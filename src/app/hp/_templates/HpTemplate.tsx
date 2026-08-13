@@ -21,7 +21,7 @@
 
 import { EMBED_SITE_URL } from '@/app/embed/salon/[id]/embedShared';
 import { hpBundledHeroImages, hpHeroImages, hpSectionOrder } from '@/app/lib/hpSite';
-import type { HpSectionKey } from '@/app/lib/hpSite';
+import type { HpSectionKey, HpTemplateKey } from '@/app/lib/hpSite';
 import type { HpPageData } from '@/app/hp/_lib/data';
 import {
   groupCourses,
@@ -36,6 +36,16 @@ import { CourseGroups, QuickNav, SecHead, TherapistCards } from './parts';
 
 /** 色味を振った既定キービジュアル（public/hp-s/hero-pc-{色}.webp）を持つ配色。 */
 const HP_S_HERO_FALLBACK_COLORS = ['wine', 'blue', 'emerald'];
+
+/**
+ * 同梱キービジュアル（hpBundledHeroImages）を持つひな形と、その基準色。
+ * 未設定の配色で見たときは、この色の写真へ落とす（＝必ず1枚は出る）。
+ * ひな形を足すときは hpSite.ts の HP_BUNDLED_HERO_COLORS にも同じキーを足すこと。
+ */
+const HP_BUNDLED_HERO_DEFAULT_COLOR: Partial<Record<HpTemplateKey, string>> = {
+  a: 'gold',
+  b: 'green',
+};
 
 export function HpTemplate({ data }: { data: HpPageData }) {
   const { site, salon, courses, therapists, coupons, news, freePages, basePath } = data;
@@ -59,13 +69,16 @@ export function HpTemplate({ data }: { data: HpPageData }) {
     site.template_key === 's' && HP_S_HERO_FALLBACK_COLORS.includes(site.theme_key)
       ? `-${site.theme_key}`
       : '';
-  // タイプAの既定キービジュアル（2026-08-12）。タイプSと同じ考え方で、同じ写真の暗部だけに
-  // 配色の色を差したものを public/hp-a/ に4色ぶん同梱してある（生成: tools-gen-hp-a-kv.py）。
+  // タイプA・Bの既定キービジュアル（2026-08-12 → 08-13 でタイプBも）。配色ごとに撮り分けた
+  // 写真を public/hp-{ひな形}/ に4色ぶん同梱してある
+  // （生成: tools-gen-hp-a-kv.py / tools-gen-hp-b-kv.py）。
   // 店舗が自分の写真を入れていれば heroPc が先に立つので、この経路は使われない。
-  const heroBundledA =
-    site.template_key === 'a'
-      ? hpBundledHeroImages('a', site.theme_key) ?? hpBundledHeroImages('a', 'gold')
-      : null;
+  // 値は「そのひな形の基準色」＝設定漏れの配色でも1色目の写真に落ちる。
+  const bundledDefaultColor = HP_BUNDLED_HERO_DEFAULT_COLOR[site.template_key];
+  const heroBundled = bundledDefaultColor
+    ? hpBundledHeroImages(site.template_key, site.theme_key) ??
+      hpBundledHeroImages(site.template_key, bundledDefaultColor)
+    : null;
   const onDuty = therapists.filter((t) => t.onDuty);
 
   // ── セクションの表示順（2026-08-10）──
@@ -115,11 +128,11 @@ export function HpTemplate({ data }: { data: HpPageData }) {
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img className="hp-hero-img" src={`/hp-s/hero-pc${heroFallbackSuffix}.webp`} alt={salon.name} />
           </picture>
-        ) : heroBundledA ? (
+        ) : heroBundled ? (
           <picture>
-            <source media="(max-width: 639px)" srcSet={heroBundledA[1]} />
+            <source media="(max-width: 639px)" srcSet={heroBundled[1]} />
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img className="hp-hero-img" src={heroBundledA[0]} alt={salon.name} />
+            <img className="hp-hero-img" src={heroBundled[0]} alt={salon.name} />
           </picture>
         ) : null}
         <div className="hp-hero-text">
