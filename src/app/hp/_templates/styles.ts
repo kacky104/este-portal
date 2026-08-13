@@ -414,6 +414,18 @@ ${COMMON}
 .hp-b .hp-course-min { font-size: 16px; font-weight: 700; }
 .hp-b .hp-course-price { font-size: 22px; font-weight: 900; color: var(--hp-accent-deep, #6b8f67); }
 .hp-b .hp-th-card { flex-basis: 118px; }
+/* ── スマホのセラピスト横スクロール（2026-08-13 要望・タイプAと同じ考え方）──
+   写真を大きくして「2.2枚見える」幅にする＝右端で3枚目が切れて見え、
+   横に流せることが一目で分かる。隙間は 12px → 8px（従来の2/3）。
+   左右のマージンを食い破って画面の端まで使い、padding で本文と同じ位置から始める。
+   ★ :not(.hp-th-grid) は一覧ページ（/therapist）のグリッドに効かせないため。
+     .hp-th-grid と詳細度が同じだと後に書いた方が勝ってしまい、グリッドの隙間まで変わる。 */
+@media (max-width: 639px) {
+  .hp-b .hp-th-row:not(.hp-th-grid) {
+    gap: 8px; margin-left: -22px; margin-right: -22px; padding-left: 22px; padding-right: 22px;
+  }
+  .hp-b .hp-th-row:not(.hp-th-grid) .hp-th-card { flex-basis: 41vw; }
+}
 .hp-b .hp-th-frame { background: #fff; border: 1px solid #eee7db; border-radius: 18px; overflow: hidden; }
 .hp-b .hp-th-noimg { background: linear-gradient(160deg, #f0ece4, #e2e6da); }
 .hp-b .hp-th-name { margin-top: 8px; font-size: 12px; font-weight: 800; text-align: center; color: #3d3a35; }
