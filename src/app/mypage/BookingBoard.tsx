@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   getBookingBoardData,
   createManualBooking,
@@ -16,17 +16,18 @@ import { getBusinessDateJST } from '@/lib/dutyStatus';
 import { useToast } from '@/app/components/useToast';
 
 // /mypage「予約ボード」タブ本体（2026-08-14 新設）。
-// 1日タイムライン：縦＝時間・横＝セラピスト。当日（営業日・朝6時切替）を初期表示し前後に日付送り。
+// 1日タイムライン：縦＝セラピスト（行）・横＝時間（同日中に縦横を反転。当初は縦＝時間だった）。
+// 当日（営業日・朝6時切替）を初期表示し前後に日付送り。
 // できること：予約ブロックタップ→詳細パネル（確定/キャンセル/新規に戻す/削除/時間・担当の変更）、
 //             出勤帯の空き部分タップ→電話予約の手入力（status='confirmed' で登録）。
 // 配色は mypage 既存トーン（白カード・ピンク基調）。ステータス色は一覧と同じ
 // （new=ピンク / confirmed=エメラルド / cancelled=グレー薄表示）。
 
 // ── 寸法定数 ──
-const PX_PER_MIN = 0.8; // 1時間 = 48px
-const COL_W = 132;      // セラピスト列の幅(px)
-const AXIS_W = 44;      // 左の時間軸の幅(px)
-const HEADER_H = 46;    // 列ヘッダーの高さ(px)
+const PX_PER_MIN = 1.2; // 横方向 1分=1.2px（1時間 = 72px）
+const ROW_H = 64;       // セラピスト行の高さ(px)
+const NAME_W = 92;      // 左の名前列の幅(px・sticky)
+const AXIS_H = 22;      // 上の時間軸の高さ(px)
 const STEP_MIN = 15;    // 枠の刻み（ネット予約と同じ15分）
 
 // 検証フィクスチャ用の差し替え口。省略時は本物のサーバーアクションを使う。
@@ -212,7 +213,7 @@ export function BookingBoard({ salonId, active, io = defaultIO }: {
     return { boardStart: lo, boardEnd: hi };
   }, [data, minOf]);
 
-  const boardH = (boardEnd - boardStart) * PX_PER_MIN;
+  const boardW = (boardEnd - boardStart) * PX_PER_MIN; // タイムライン部の幅(px)
   const hours = useMemo(() => {
     const arr: number[] = [];
     for (let m = boardStart; m <= boardEnd; m += 60) arr.push(m);
@@ -222,6 +223,17 @@ export function BookingBoard({ salonId, active, io = defaultIO }: {
   const isToday = date === getBusinessDateJST(0);
   const nowMin = (Date.now() - anchorMs) / 60000;
   const showNowLine = isToday && nowMin > boardStart && nowMin < boardEnd;
+
+  // 当日は現在時刻が画面の左1/3あたりに来るよう初期スクロールする（横＝時間軸のため）。
+  const scrollRef = useRef<HTMLDivElement | null>(null);
+  useEffect(() => {
+    if (!data || !scrollRef.current) return;
+    if (!showNowLine) { scrollRef.current.scrollLeft = 0; return; }
+    const target = (nowMin - boardStart) * PX_PER_MIN - (scrollRef.current.clientWidth - NAME_W) / 3;
+    scrollRef.current.scrollLeft = Math.max(0, target);
+    // data（＝日付切替・再読込）のたびに位置を取り直す。nowMin は毎レンダー変わるため依存に入れない。
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [data]);
 
   const activeCount = (data?.bookings ?? []).filter((b) => b.status !== 'cancelled').length;
   const scheduled = (data?.therapists ?? []).filter((t) => t.schedule);
@@ -392,85 +404,89 @@ export function BookingBoard({ salonId, active, io = defaultIO }: {
         ) : !data || data.therapists.length === 0 ? (
           <p className="text-xs text-slate-400 py-8 text-center">この日は出勤予定がありません。<br />出勤タブでシフトを登録するとボードに表示されます。</p>
         ) : (
-          <div className="overflow-x-auto [contain:inline-size]">
-            {/* ↑ [contain:inline-size]：body が flex flex-col のため、ボードの min-content 幅（列数×132px）が
-                ページ全体を押し広げてしまう。inline-size 封じ込めで「幅の計算上は空」とみなさせ、
-                はみ出し分はこの div の横スクロールに収める。 */}
-            <div className="relative flex" style={{ minWidth: AXIS_W + data.therapists.length * COL_W }}>
-              {/* 時間軸 */}
-              <div className="sticky left-0 z-20 bg-white flex-none" style={{ width: AXIS_W }}>
-                <div style={{ height: HEADER_H }} />
-                <div className="relative" style={{ height: boardH }}>
+          <div ref={scrollRef} className="overflow-x-auto [contain:inline-size]">
+            {/* ↑ [contain:inline-size]：body が flex flex-col のため、ボードの min-content 幅
+                （名前列＋時間幅）がページ全体を押し広げてしまう。inline-size 封じ込めで
+                「幅の計算上は空」とみなさせ、はみ出し分はこの div の横スクロールに収める。 */}
+            <div style={{ minWidth: NAME_W + boardW }}>
+              {/* 時間軸（上） */}
+              <div className="flex">
+                <div className="sticky left-0 z-20 bg-white flex-none" style={{ width: NAME_W, height: AXIS_H }} />
+                <div className="relative flex-none" style={{ width: boardW, height: AXIS_H }}>
                   {hours.map((m) => (
-                    <div key={m} className="absolute right-1.5 -translate-y-1/2 text-[10px] text-slate-400"
-                      style={{ top: (m - boardStart) * PX_PER_MIN }}>
+                    <div key={m} className="absolute bottom-0.5 -translate-x-1/2 text-[10px] text-slate-400 whitespace-nowrap"
+                      style={{ left: (m - boardStart) * PX_PER_MIN }}>
                       {hourLabel(m)}
                     </div>
                   ))}
                 </div>
               </div>
 
-              {/* セラピスト列 */}
+              {/* セラピスト行 */}
               {data.therapists.map((t) => {
                 const sched = t.schedule;
-                const topMin = sched ? Math.max(boardStart, minOf(sched.startISO)) : 0;
-                const botMin = sched ? Math.min(boardEnd, minOf(sched.endISO)) : 0;
-                const colBookings = data.bookings.filter((b) => b.therapistId === t.id);
+                const leftMin = sched ? Math.max(boardStart, minOf(sched.startISO)) : 0;
+                const rightMin = sched ? Math.min(boardEnd, minOf(sched.endISO)) : 0;
+                const rowBookings = data.bookings.filter((b) => b.therapistId === t.id);
                 return (
-                  <div key={t.id} className="flex-none border-l border-slate-100" style={{ width: COL_W }} data-testid={`board-col-${t.id}`}>
-                    {/* 列ヘッダー */}
-                    <div className="px-1.5 flex flex-col justify-center text-center" style={{ height: HEADER_H }}>
+                  <div key={t.id} className="flex border-t border-slate-100" data-testid={`board-col-${t.id}`}>
+                    {/* 名前列（左・sticky） */}
+                    <div className="sticky left-0 z-20 bg-white flex-none px-1.5 flex flex-col justify-center text-center border-r border-slate-100"
+                      style={{ width: NAME_W, height: ROW_H }}>
                       <p className="text-xs font-bold text-slate-700 truncate">{t.name}</p>
-                      <p className="text-[10px] text-slate-400">{sched ? shiftLabel(sched.start, sched.end) : '出勤なし'}</p>
+                      <p className="text-[10px] text-slate-400 truncate">{sched ? shiftLabel(sched.start, sched.end) : '出勤なし'}</p>
                     </div>
-                    {/* タイムライン */}
-                    <div className="relative bg-slate-50/80" style={{ height: boardH }}>
-                      {/* 時間罫線 */}
+                    {/* タイムライン（右） */}
+                    <div className="relative bg-slate-50/80 flex-none" style={{ width: boardW, height: ROW_H }}>
+                      {/* 時間罫線（縦） */}
                       {hours.map((m) => (
-                        <div key={m} className="absolute inset-x-0 border-t border-slate-100"
-                          style={{ top: (m - boardStart) * PX_PER_MIN }} />
+                        <div key={m} className="absolute inset-y-0 border-l border-slate-100"
+                          style={{ left: (m - boardStart) * PX_PER_MIN }} />
                       ))}
                       {/* 出勤帯（白地・タップで手入力） */}
-                      {sched && botMin > topMin && (
+                      {sched && rightMin > leftMin && (
                         <div
-                          className="absolute inset-x-0 bg-white border-x border-slate-100 cursor-pointer"
-                          style={{ top: (topMin - boardStart) * PX_PER_MIN, height: (botMin - topMin) * PX_PER_MIN }}
+                          className="absolute inset-y-0 bg-white border-y border-slate-100 cursor-pointer"
+                          style={{ left: (leftMin - boardStart) * PX_PER_MIN, width: (rightMin - leftMin) * PX_PER_MIN }}
                           title="タップして電話予約を追加"
                           data-testid={`board-band-${t.id}`}
                           onClick={(e) => {
                             const rect = e.currentTarget.getBoundingClientRect();
-                            const clickMin = topMin + (e.clientY - rect.top) / PX_PER_MIN;
+                            const clickMin = leftMin + (e.clientX - rect.left) / PX_PER_MIN;
                             openAdd(t, clickMin);
                           }}
                         />
                       )}
                       {/* 予約ブロック */}
-                      {colBookings.map((b) => {
+                      {rowBookings.map((b) => {
                         const s = Math.max(boardStart, minOf(b.slotStart));
                         const e = Math.min(boardEnd, minOf(b.slotEnd));
                         if (e <= s) return null;
-                        const h = (e - s) * PX_PER_MIN;
+                        const w = (e - s) * PX_PER_MIN;
+                        const sLabel = timeLabel(new Date(b.slotStart).getTime(), date);
+                        const eLabel = timeLabel(new Date(b.slotEnd).getTime(), date);
                         return (
                           <button
                             key={b.id}
                             type="button"
                             onClick={() => setDetail(b)}
                             data-testid={`board-booking-${b.id}`}
-                            className={`absolute inset-x-0.5 rounded-lg border px-1.5 py-0.5 text-left overflow-hidden ${blockCls(b.status)}`}
-                            style={{ top: (s - boardStart) * PX_PER_MIN, height: Math.max(h, 18) }}
+                            className={`absolute inset-y-0.5 rounded-lg border px-1.5 py-0.5 text-left overflow-hidden ${blockCls(b.status)}`}
+                            style={{ left: (s - boardStart) * PX_PER_MIN, width: Math.max(w, 18) }}
                           >
+                            {/* 幅が狭いブロックは開始時刻のみ表示 */}
                             <p className="text-[10px] font-bold leading-tight truncate">
-                              {timeLabel(new Date(b.slotStart).getTime(), date)}〜{timeLabel(new Date(b.slotEnd).getTime(), date)}
+                              {w >= 56 ? `${sLabel}〜${eLabel}` : sLabel}
                             </p>
-                            {h >= 30 && <p className="text-[10px] leading-tight truncate">{b.customerName} 様</p>}
-                            {h >= 44 && <p className="text-[9px] leading-tight truncate opacity-80">{b.courseName}（{b.courseMin}分）</p>}
+                            <p className="text-[10px] leading-tight truncate">{b.customerName} 様</p>
+                            <p className="text-[9px] leading-tight truncate opacity-80">{b.courseName}（{b.courseMin}分）</p>
                           </button>
                         );
                       })}
-                      {/* 現在時刻ライン（当日のみ） */}
+                      {/* 現在時刻ライン（当日のみ・縦）。z は名前列(z-20)より下・予約ブロック(z-10)より上。 */}
                       {showNowLine && (
-                        <div className="absolute inset-x-0 z-30 pointer-events-none" style={{ top: (nowMin - boardStart) * PX_PER_MIN }}>
-                          <div className="h-px bg-rose-400" />
+                        <div className="absolute inset-y-0 z-[15] pointer-events-none" style={{ left: (nowMin - boardStart) * PX_PER_MIN }}>
+                          <div className="w-px h-full bg-rose-400" />
                         </div>
                       )}
                     </div>
