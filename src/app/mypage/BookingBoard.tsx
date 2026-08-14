@@ -25,7 +25,7 @@ import { useToast } from '@/app/components/useToast';
 // （new=ピンク / confirmed=エメラルド / cancelled=グレー薄表示）。
 
 // ── 寸法定数 ──
-const PX_PER_MIN = 1.2; // 横方向 1分=1.2px（1時間 = 72px）
+const PX_PER_MIN = 1.0; // 横方向 1分=1px（1時間 = 60px）。1.2→1.0でスマホの可視時間を約2割増（2026-08-14）
 const ROW_H = 64;       // セラピスト行の高さ(px)
 const NAME_W = 44;      // 左の名前列の幅(px・sticky)。出勤時間を縦3行にしてさらに細く（92→64→44・2026-08-14）
 const AXIS_H = 22;      // 上の時間軸の高さ(px)
@@ -391,7 +391,8 @@ export function BookingBoard({ salonId, active, io = defaultIO }: {
         </div>
       )}
 
-      <div className="bg-white rounded-3xl border border-slate-100 shadow-sm p-4 space-y-3">
+      {/* カードの左右余白は px-2（従来 p-4）＝タイムラインの可視幅を+16px稼ぐ（2026-08-14） */}
+      <div className="bg-white rounded-3xl border border-slate-100 shadow-sm px-2 py-4 space-y-3">
         {/* ── 日付ナビ：今日から7日間のチップを横並び（‹›送りは廃止・2026-08-14）。
             ネット予約の受付範囲（当日〜7日先）と同じ考え方で、ボードもこの7日間だけを扱う。 ── */}
         <div className="flex gap-1" data-testid="board-days">

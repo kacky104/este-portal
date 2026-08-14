@@ -1968,9 +1968,9 @@ export default function MyPage() {
         </div>
       </div>
 
-      {/* 予約ボードタブのときだけ幅を広げる（max-w-6xl=1152px）。他のタブは hidden なので影響しない。
-          ボードは横＝時間軸で 1日分が約1100px（名前列92px＋14時間×72px）あるため、広げるとPCで一望できる。 */}
-      <main className={`${activeTab === 'board' ? 'max-w-6xl' : 'max-w-2xl'} mx-auto px-4 py-6 space-y-6`}>
+      {/* 予約ボードタブのときだけ幅を広げ（max-w-6xl=1152px）、左右余白も px-2 に詰める
+          （スマホの可視タイムラインを+16px稼ぐ・2026-08-14）。他のタブは hidden なので影響しない。 */}
+      <main className={`${activeTab === 'board' ? 'max-w-6xl px-2' : 'max-w-2xl px-4'} mx-auto py-6 space-y-6`}>
 
         {/* ── 店名（最上部・独立ブロック） ──
             常時表示ブロックのため、予約ボードで main が広がっても max-w-2xl のまま中央に固定する
