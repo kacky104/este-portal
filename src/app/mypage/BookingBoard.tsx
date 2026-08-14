@@ -91,10 +91,13 @@ function jstDateStr(ms: number): string {
   return new Intl.DateTimeFormat('sv-SE', { timeZone: 'Asia/Tokyo' }).format(new Date(ms));
 }
 
-// ボード日と違う日（＝深夜帯）は「翌」を付ける。
+// ボード日と違う日は接頭辞を付ける。ボード日より後＝「翌」、前＝「前日」。
+// 前日から日跨ぎした予約（例：前日23:00〜当日0:30）も窓に重なるためボードの左端に出る。
+// 以前は一律「翌」だったため、その尻尾が「翌23:00」と誤表示されていた（2026-08-14 修正）。
 function timeLabel(ms: number, boardDate: string): string {
-  const prefix = jstDateStr(ms) === boardDate ? '' : '翌';
-  return `${prefix}${jstHHMM(ms)}`;
+  const d = jstDateStr(ms);
+  if (d === boardDate) return jstHHMM(ms);
+  return `${d < boardDate ? '前日' : '翌'}${jstHHMM(ms)}`;
 }
 
 function formatDateHeading(dateStr: string): string {

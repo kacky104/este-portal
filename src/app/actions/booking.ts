@@ -932,9 +932,13 @@ export async function moveBooking(
 }
 
 /**
- * 予約ボードの日付チップ用（2026-08-14 追加）：今日から7日間の予約件数を営業日ごとに返す。
+ * 予約ボードの日付チップ用（2026-08-14 追加）：今日から7日間の予約件数を暦日ごとに返す。
  * cancelled は数えない（ボード右上の「◯件」と同じ基準）。
- * 営業日の区切りは朝6時（ボードの窓と同じ）。予約は slot_start の属する営業日で数える。
+ * 日付は暦日（0:00切替）で、各日の窓は 0:00〜翌7:00＝ボードの表示範囲と同じ。
+ * 数える基準もボードの表示条件と同じ「窓に重なる予約」（slot_start < 窓終わり かつ slot_end > 窓始まり）。
+ * ※以前は slot_start が窓内のものだけを数えていたため、前日から日跨ぎしてきた予約
+ *   （例：前日23:00〜当日0:30）がボードには出るのにバッジでは数えられず、
+ *   「◯件」表示と1件ズレていた（2026-08-14 修正）。
  */
 export async function getBookingCountsByDay(
   salonId: number,
@@ -950,13 +954,14 @@ export async function getBookingCountsByDay(
   const to = jstWallToUtc(days[6], '07:00', 1); // 7日目の翌朝7時まで
 
   const svc = createServiceClient();
+  // 取得条件もボード本体（getBookingBoardData）と同じ「窓に重なる」で揃える。
   const { data, error } = await svc
     .from('salon_bookings')
-    .select('slot_start')
+    .select('slot_start, slot_end')
     .eq('salon_id', salonId)
     .neq('status', 'cancelled')
-    .gte('slot_start', from.toISOString())
-    .lt('slot_start', to.toISOString());
+    .lt('slot_start', to.toISOString())
+    .gt('slot_end', from.toISOString());
   if (error) return { ok: false, error: error.message };
 
   const counts: Record<string, number> = Object.fromEntries(days.map((d) => [d, 0]));
@@ -966,9 +971,10 @@ export async function getBookingCountsByDay(
     to: jstWallToUtc(d, '07:00', 1).getTime(),
   }));
   for (const r of data ?? []) {
-    const t = new Date(r.slot_start as string).getTime();
+    const s = new Date(r.slot_start as string).getTime();
+    const e = new Date(r.slot_end as string).getTime();
     for (const w of windows) {
-      if (t >= w.from && t < w.to) counts[w.d] += 1;
+      if (s < w.to && e > w.from) counts[w.d] += 1;
     }
   }
   return { ok: true, counts };
