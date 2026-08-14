@@ -470,7 +470,11 @@ export function BookingBoard({ salonId, active, io = defaultIO }: {
       therapistId,
       startISO: new Date(anchorMs + m * 60000).toISOString(),
       durationMin: firstCourse?.durationMin ?? 60,
-      intervalMin: 0,
+      // 店舗設定の「施術後のインターバル」を初期値にする（その場で変更可・2026-08-15）。
+      // 未設定・古いデータは 0＝なしで従来どおり。
+      intervalMin: INTERVAL_OPTIONS.includes(
+        (data?.defaultIntervalMin ?? 0) as (typeof INTERVAL_OPTIONS)[number],
+      ) ? (data?.defaultIntervalMin ?? 0) : 0,
       courseName: firstCourse?.name ?? '',
       customerName: '',
       customerTel: '',

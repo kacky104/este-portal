@@ -65,7 +65,12 @@ function formatJstHHMM(d: Date): string {
 
 /**
  * 空き枠を生成する。
- * - 出勤 start〜end を 15分刻みで列挙し、各 slotStart に slotEnd = slotStart + courseMin を割り当てる。
+ * - 出勤 start〜end を 15分刻みで列挙し、各 slotStart に
+ *   slotEnd = slotStart + courseMin + intervalMin（＝実際に塞ぐ枠）を割り当てる。
+ * - intervalMin は施術後の準備・片付け時間（salons.default_interval_min・2026-08-15追加）。
+ *   ★「出勤終了に収まるか」の判定にはコース時間だけを使う（インターバルは含めない）。
+ *     片付けは上がり時刻を過ぎてもよい、という運用に合わせた判断。
+ *     ここに intervalMin を足すと各セラピストの最終受付が繰り上がり、予約可能枠が減る。
  * - 状態タグ：
  *    slotStart <= now                    → 'past'（非表示）
  *    now < slotStart <= now + LEAD_TIME   → 'tel'（TEL表示・選択不可）
@@ -78,9 +83,11 @@ export function buildSlots(params: {
   end: string;
   existingBookings: { slot_start: string; slot_end: string }[];
   courseMin: number;
+  intervalMin?: number; // 既定0＝従来と同じ挙動
   now: Date;
 }): Slot[] {
   const { scheduleDate, start, end, existingBookings, courseMin, now } = params;
+  const intervalMin = Number(params.intervalMin ?? 0) || 0;
   const { startUtc, endUtc } = scheduleWindowUtc(scheduleDate, start, end);
 
   const bookings = existingBookings.map((b) => ({
@@ -92,12 +99,12 @@ export function buildSlots(params: {
   const leadCutoff = nowMs + LEAD_TIME_MIN * 60 * 1000;
   const stepMs = SLOT_STEP_MIN * 60 * 1000;
   const courseMs = courseMin * 60 * 1000;
+  const blockMs = (courseMin + intervalMin) * 60 * 1000; // 実際に塞ぐ枠
   const endMs = endUtc.getTime();
 
   const slots: Slot[] = [];
   for (let t = startUtc.getTime(); t < endMs; t += stepMs) {
     const slotStart = t;
-    const slotEnd = t + courseMs;
     const label = formatJstHHMM(new Date(slotStart));
 
     let state: SlotState;
@@ -106,8 +113,9 @@ export function buildSlots(params: {
     } else if (slotStart <= leadCutoff) {
       state = 'tel';
     } else {
-      const fits = slotEnd <= endMs; // コースが出勤終了内に収まるか
-      const overlaps = bookings.some((b) => slotStart < b.end && slotEnd > b.start);
+      const fits = slotStart + courseMs <= endMs; // コースが出勤終了内に収まるか（インターバルは含めない）
+      // 重なり判定は「コース＋インターバル」で見る＝次の予約が詰めて入らない。
+      const overlaps = bookings.some((b) => slotStart < b.end && slotStart + blockMs > b.start);
       state = !fits || overlaps ? 'full' : 'open';
     }
     slots.push({ startISO: new Date(slotStart).toISOString(), label, state });

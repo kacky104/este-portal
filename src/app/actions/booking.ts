@@ -119,6 +119,21 @@ async function fetchOverlappingBookings(
   }));
 }
 
+// 施術後のインターバル（分）を安全な値に正規化する（2026-08-15）。
+// 許可値以外・null・未設定はすべて 0（＝インターバルなし＝従来と同じ挙動）。
+function normalizeIntervalMin(raw: unknown): number {
+  const n = Number(raw ?? 0);
+  return (INTERVAL_OPTIONS_MIN as readonly number[]).includes(n) ? n : 0;
+}
+
+// supabase-js のネスト結合（therapists!inner(salons!inner(...))）は、型の上では
+// オブジェクトにも配列にもなり得る。どちらでも先頭を取り出せるようにする。
+function firstOfRelation(v: unknown): Record<string, unknown> | null {
+  if (Array.isArray(v)) return (v[0] as Record<string, unknown>) ?? null;
+  if (v && typeof v === 'object') return v as Record<string, unknown>;
+  return null;
+}
+
 /** 指定セラピスト・日付・コース時間で、15分刻みの枠配列を返す（個人情報は返さない）。 */
 export async function getSlots(
   therapistId: number,
@@ -133,7 +148,7 @@ export async function getSlots(
   // セラピストの枠は取得できない（＝空配列＝予約不可）。
   const { data: sched, error } = await supabase
     .from('therapist_schedules')
-    .select('schedule_date, start_time, end_time, is_active, therapists!inner(salons!inner(id))')
+    .select('schedule_date, start_time, end_time, is_active, therapists!inner(salons!inner(id, default_interval_min))')
     .eq('therapist_id', therapistId)
     .eq('schedule_date', dateISO)
     .eq('is_active', true)
@@ -147,12 +162,19 @@ export async function getSlots(
 
   const existingBookings = await fetchOverlappingBookings(therapistId, startUtc, endUtc);
 
+  // 店舗設定のインターバル（2026-08-15）。ネスト結合の salons から読む。
+  // 取れなければ 0＝従来と同じ挙動（枠計算が壊れて予約できなくなるより安全側）。
+  const intervalMin = normalizeIntervalMin(
+    firstOfRelation(firstOfRelation(sched.therapists)?.salons)?.default_interval_min,
+  );
+
   return buildSlots({
     scheduleDate: dateISO,
     start,
     end,
     existingBookings,
     courseMin,
+    intervalMin,
     now: new Date(),
   });
 }
@@ -217,7 +239,7 @@ export async function createBooking(input: CreateBookingInput): Promise<CreateBo
   // 1) サロンの予約可否＋予約コースを確認（course の改ざん防止）。
   const { data: salon, error: salonErr } = await svc
     .from('salons')
-    .select('name, booking_enabled, booking_email, booking_courses, is_hidden')
+    .select('name, booking_enabled, booking_email, booking_courses, is_hidden, default_interval_min')
     .eq('id', salonId)
     .maybeSingle();
   if (salonErr || !salon) return { ok: false, error: 'invalid' };
@@ -228,6 +250,10 @@ export async function createBooking(input: CreateBookingInput): Promise<CreateBo
   const courses = parseBookingCourses(salon.booking_courses);
   const matchedCourse = courses.find((c) => c.name === courseName && c.durationMin === courseMin);
   if (!matchedCourse) return { ok: false, error: 'invalid' };
+
+  // 施術後のインターバル（店舗設定・2026-08-15）。予約枠＝コース＋インターバルで塞ぐ。
+  // 手入力（電話予約）と同じ考え方で、列は持たず slot_end に織り込む。
+  const intervalMin = normalizeIntervalMin(salon.default_interval_min);
 
   // 2) セラピストが当該サロン所属＆is_active か。
   const { data: therapist, error: thErr } = await svc
@@ -301,6 +327,7 @@ export async function createBooking(input: CreateBookingInput): Promise<CreateBo
     end: candidate.end,
     existingBookings,
     courseMin,
+    intervalMin,
     now: new Date(),
   });
   const target = slots.find((s) => s.startISO === slotStart.toISOString());
@@ -322,7 +349,9 @@ export async function createBooking(input: CreateBookingInput): Promise<CreateBo
     .eq('status', 'cancelled');
 
   // INSERT（UNIQUE(therapist_id, slot_start) 違反=23505 は「直前に埋まった」として返す）。
-  const slotEnd = new Date(slotStart.getTime() + courseMin * 60 * 1000);
+  // 予約枠＝コース＋インターバル（インターバル分も塞ぐ。course_min はコース時間のみを保存し、
+  // 復元は (slot_end - slot_start) - course_min で行う＝手入力と同じ方式）。
+  const slotEnd = new Date(slotStart.getTime() + (courseMin + intervalMin) * 60 * 1000);
   const { error: insErr } = await svc.from('salon_bookings').insert({
     salon_id: salonId,
     therapist_id: therapistId,
@@ -347,7 +376,13 @@ export async function createBooking(input: CreateBookingInput): Promise<CreateBo
   await sendBookingMail({
     to: (salon.booking_email as string | null) ?? '',
     salonName: (salon.name as string | null) ?? '',
-    slotLabel: formatSlotLabelJST(slotStart.toISOString(), slotEnd.toISOString()),
+    // 通知メールに出すのは「施術の時間」＝コース時間ぶん（2026-08-15）。
+    // slotEnd にはインターバルが織り込まれているため、そのまま出すと
+    // 本文の「アロマ60（60分）」と時刻レンジが食い違って読めてしまう。
+    slotLabel: formatSlotLabelJST(
+      slotStart.toISOString(),
+      new Date(slotStart.getTime() + courseMin * 60 * 1000).toISOString(),
+    ),
     therapistName: (therapist.name as string | null) ?? '',
     courseName,
     courseMin,
@@ -519,14 +554,14 @@ export async function deleteBooking(
 // あわせて booking_courses（手入力フォームのコース候補用）を返す。
 async function assertSalonOwner(
   salonId: number,
-): Promise<{ ok: true; bookingCoursesRaw: unknown } | { ok: false; error: string }> {
+): Promise<{ ok: true; bookingCoursesRaw: unknown; defaultIntervalMin: number } | { ok: false; error: string }> {
   if (!Number.isFinite(salonId)) return { ok: false, error: '対象店舗が不正です' };
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return { ok: false, error: 'ログインが必要です' };
   const { data: salon, error } = await supabase
     .from('salons')
-    .select('owner_id, booking_courses')
+    .select('owner_id, booking_courses, default_interval_min')
     .eq('id', salonId)
     .maybeSingle();
   if (error || !salon) return { ok: false, error: '店舗が見つかりません' };
@@ -534,7 +569,12 @@ async function assertSalonOwner(
   if (ownerId !== user.id && user.id !== ADMIN_UUID) {
     return { ok: false, error: 'この店舗の予約を操作する権限がありません' };
   }
-  return { ok: true, bookingCoursesRaw: salon.booking_courses };
+  return {
+    ok: true,
+    bookingCoursesRaw: salon.booking_courses,
+    // 手入力フォームのインターバル初期値に使う（2026-08-15）。
+    defaultIntervalMin: normalizeIntervalMin(salon.default_interval_min),
+  };
 }
 
 // ※ 2026-08-14：店側の手入力・移動は「出勤枠内」の制約を撤廃した（findScheduleWindow は廃止）。
@@ -551,6 +591,7 @@ export type BookingBoardData = {
   therapists: BoardTherapist[]; // 行＝当日出勤（前日尻尾含む）のセラピスト（＋予約だけ残っているセラピスト）
   bookings: BoardBooking[];     // 窓（0:00〜翌7:00）に重なる全予約（cancelled 含む）。翌0:00〜7:00は翌日のボードにも出る
   courses: BookingCourse[];     // 手入力フォームのコース候補（booking_courses）
+  defaultIntervalMin: number;   // 施術後インターバルの店舗設定（受付フォームの初期値・2026-08-15）
 };
 
 // "YYYY-MM-DD" を days 日ずらす（UTC正午基準で月跨ぎ安全）。
@@ -720,7 +761,13 @@ export async function getBookingBoardData(
 
   return {
     ok: true,
-    data: { date: dateISO, therapists, bookings, courses: parseBookingCourses(auth.bookingCoursesRaw) },
+    data: {
+      date: dateISO,
+      therapists,
+      bookings,
+      courses: parseBookingCourses(auth.bookingCoursesRaw),
+      defaultIntervalMin: auth.defaultIntervalMin,
+    },
   };
 }
 

@@ -280,6 +280,11 @@ type OtherItem   = { label: string; price: string };
 // 入力中は duration_min を空文字許容し、保存時に数値化する。
 type BookingCourseForm = { name: string; duration_min: number | ''; price: string };
 
+// 施術後のインターバル（準備・片付け時間）の選択肢。salons.default_interval_min に保存し、
+// ネット予約が入ったときに予約枠へ自動で加算する（2026-08-15追加）。
+// 予約ボードの手入力フォーム（BookingBoard の INTERVAL_OPTIONS）と同じ並びを保つこと。
+const INTERVAL_MIN_OPTIONS: readonly number[] = [0, 15, 30, 45, 60];
+
 // salons.booking_courses(JSON) → フォーム用に整形（既存店で null/未定義なら空配列）。
 function parseBookingCourses(raw: unknown): BookingCourseForm[] {
   if (!Array.isArray(raw)) return [];
@@ -403,6 +408,7 @@ type Salon = {
   booking_enabled: boolean | null;
   booking_email: string | null;
   booking_courses: unknown;
+  default_interval_min: number | null;
   jobs_enabled: boolean | null;
   popup_image_url: string | null;
   popup_link: string | null;
@@ -620,7 +626,7 @@ export default function MyPage() {
 
       const { data: salonData, error: salonError } = await supabase
         .from('salons')
-        .select('id, name, rating, review_count, tags, price, area, hours, description, appeal, catchphrase, therapist_count, therapist_types, therapist_profile, phone, address, access, closed_days, courses, theme, official_url, fukux_url, line_url, payment_url, payment_cards, payment_methods, booking_enabled, booking_email, booking_courses, jobs_enabled, popup_image_url, popup_link, popup_image_url2, popup_link2, popup_image_url3, popup_link3, popup_enabled, detail_banner_enabled, detail_banner_image_url, detail_banner_link, detail_banner_image_url2, detail_banner_link2, detail_banner_image_url3, detail_banner_link3')
+        .select('id, name, rating, review_count, tags, price, area, hours, description, appeal, catchphrase, therapist_count, therapist_types, therapist_profile, phone, address, access, closed_days, courses, theme, official_url, fukux_url, line_url, payment_url, payment_cards, payment_methods, booking_enabled, booking_email, booking_courses, default_interval_min, jobs_enabled, popup_image_url, popup_link, popup_image_url2, popup_link2, popup_image_url3, popup_link3, popup_enabled, detail_banner_enabled, detail_banner_image_url, detail_banner_link, detail_banner_image_url2, detail_banner_link2, detail_banner_image_url3, detail_banner_link3')
         .eq('owner_id', user.id)
         .single();
 
@@ -1162,6 +1168,10 @@ export default function MyPage() {
     // ネット予約：受付ON時は通知先メール必須（簡易チェック＝@を含む程度）。空欄は null。
     const bookingEnabled = Boolean(salonForm.booking_enabled);
     const bookingEmail = (salonForm.booking_email ?? '').trim() || null;
+    // 施術後インターバル（2026-08-15）。許可値以外は 0＝なしに丸める（DB側にも CHECK 制約あり）。
+    const defaultIntervalMin = INTERVAL_MIN_OPTIONS.includes(Number(salonForm.default_interval_min ?? 0))
+      ? Number(salonForm.default_interval_min ?? 0)
+      : 0;
     if (bookingEnabled) {
       if (!bookingEmail || !bookingEmail.includes('@')) {
         setSaving(false);
@@ -1213,6 +1223,7 @@ export default function MyPage() {
         booking_enabled: bookingEnabled,
         booking_email: bookingEmail,
         booking_courses: bookingCoursesClean,
+        default_interval_min: defaultIntervalMin,
       })
       .eq('id', salon.id);
     setSaving(false);
@@ -2475,6 +2486,26 @@ export default function MyPage() {
               />
               <p className="text-[10px] text-slate-400 mt-1">
                 新しい予約が入ったときの通知先です。ネット予約を受け付ける場合は必須。
+              </p>
+            </div>
+            {/* 施術後のインターバル（2026-08-15追加）。ネット予約の予約枠に自動で加算する */}
+            <div>
+              <label className="block text-[11px] font-bold text-slate-500 mb-1">施術後のインターバル</label>
+              <select
+                data-testid="default-interval-select"
+                className={inputClass}
+                value={Number(salonForm.default_interval_min ?? 0)}
+                onChange={(e) => setSalonForm((p) => ({ ...p, default_interval_min: Number(e.target.value) }))}
+              >
+                {INTERVAL_MIN_OPTIONS.map((m) => (
+                  <option key={m} value={m}>{m === 0 ? 'なし' : `${m}分`}</option>
+                ))}
+              </select>
+              <p className="text-[10px] text-slate-400 mt-1 leading-relaxed">
+                施術後の片付け・準備にかかる時間です。ネット予約が入ったとき、この時間ぶんも自動で枠を塞ぎ、
+                次のお客様が続けて入らないようにします（例：90分コース＋インターバル30分 → 13:00の予約で15:00まで確保）。
+                予約ボードの電話予約フォームでも、この時間が最初から選ばれます（その場で変更できます）。
+                なお、各セラピストの最終受付時刻は変わりません（片付けは上がり時刻を過ぎても構わない扱いです）。
               </p>
             </div>
             <p className="text-[10px] text-slate-400 leading-relaxed">
