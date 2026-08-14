@@ -408,8 +408,8 @@ export async function getSalonBookings(
   if (error) return { ok: false, error: error.message };
 
   const bookingRows = rows ?? [];
-  // セラピスト名を辞書引き（N+1回避）。
-  const therapistIds = [...new Set(bookingRows.map((b) => Number(b.therapist_id)).filter(Number.isFinite))];
+  // セラピスト名を辞書引き（N+1回避）。therapist_id=NULL はフリー客（担当未定・2026-08-14）。
+  const therapistIds = [...new Set(bookingRows.filter((b) => b.therapist_id != null).map((b) => Number(b.therapist_id)).filter(Number.isFinite))];
   const nameById = new Map<number, string>();
   if (therapistIds.length > 0) {
     const { data: ths } = await svc
@@ -423,7 +423,7 @@ export async function getSalonBookings(
     id: String(b.id),
     slotStart: b.slot_start as string,
     slotEnd: b.slot_end as string,
-    therapistName: nameById.get(Number(b.therapist_id)) ?? '(不明)',
+    therapistName: b.therapist_id == null ? 'フリー客' : nameById.get(Number(b.therapist_id)) ?? '(不明)',
     courseName: (b.course_name as string | null) ?? '',
     courseMin: Number(b.course_min) || 0,
     customerName: (b.customer_name as string | null) ?? '',
@@ -541,7 +541,8 @@ async function assertSalonOwner(
 //    開始30分前や終了時間超えの受付など、受付可能時間は店の判断でその都度変わるため。
 //    出勤枠はボード上で薄青の目安表示のみ。客向けネット予約（createBooking）は従来どおり枠内のみ。
 
-export type BoardBooking = OwnerBooking & { therapistId: number };
+// therapistId=null はフリー客（担当未定）の予約＝ボード最上段のフリー客レーンに表示（2026-08-14）。
+export type BoardBooking = OwnerBooking & { therapistId: number | null };
 // fromPrevDay=true は「前日の夜跨ぎシフトの尻尾」（例：前日18:00〜翌2:00 の 0:00〜2:00 部分）。
 export type BoardScheduleWindow = { start: string; end: string; startISO: string; endISO: string; fromPrevDay: boolean };
 export type BoardTherapist = { id: number; name: string; profileImageUrl: string | null; schedules: BoardScheduleWindow[] };
@@ -640,10 +641,10 @@ export async function getBookingBoardData(
 
   const bookings: BoardBooking[] = (rows ?? []).map((b) => ({
     id: String(b.id),
-    therapistId: Number(b.therapist_id),
+    therapistId: b.therapist_id == null ? null : Number(b.therapist_id),
     slotStart: b.slot_start as string,
     slotEnd: b.slot_end as string,
-    therapistName: nameById.get(Number(b.therapist_id)) ?? '(不明)',
+    therapistName: b.therapist_id == null ? 'フリー客' : nameById.get(Number(b.therapist_id)) ?? '(不明)',
     courseName: (b.course_name as string | null) ?? '',
     courseMin: Number(b.course_min) || 0,
     customerName: (b.customer_name as string | null) ?? '',
@@ -658,9 +659,10 @@ export async function getBookingBoardData(
   // ただし行の中は出勤時間に縛られず受付できる（白ボード＋青帯は目安・2026-08-14仕様）。
   // 予約だけ残っているセラピストは末尾に足して、予約がボードから迷子にならないようにする。
   const rowIds = ids.filter((id) => windowsByTherapist.has(id));
-  const extraIds = [...new Set(bookings.map((b) => b.therapistId))].filter(
-    (id) => !rowIds.includes(id),
-  );
+  // フリー客（therapistId=null）はセラピスト行を作らない（クライアント側の固定レーンに出す）。
+  const extraIds = [...new Set(bookings.map((b) => b.therapistId))]
+    .filter((id): id is number => id !== null)
+    .filter((id) => !rowIds.includes(id));
   // extra に在籍外（is_active=false）のセラピストが混ざる場合は名前を別途引く。
   const unknownIds = extraIds.filter((id) => !nameById.has(id));
   if (unknownIds.length > 0) {
@@ -671,7 +673,9 @@ export async function getBookingBoardData(
     });
     // 予約側の表示名も補完しておく。
     for (const b of bookings) {
-      if (b.therapistName === '(不明)') b.therapistName = nameById.get(b.therapistId) ?? '(不明)';
+      if (b.therapistName === '(不明)' && b.therapistId !== null) {
+        b.therapistName = nameById.get(b.therapistId) ?? '(不明)';
+      }
     }
   }
   const therapists: BoardTherapist[] = [
@@ -697,7 +701,7 @@ export async function getBookingBoardData(
 
 export type ManualBookingInput = {
   salonId: number;
-  therapistId: number;
+  therapistId: number | null;
   slotStartISO: string;
   durationMin: number;
   courseName: string;
@@ -705,6 +709,7 @@ export type ManualBookingInput = {
   customerTel: string; // 任意（電話予約でも聞き取れない場合があるため空を許容）
   note: string;
 };
+// therapistId は number | null。null＝フリー客（担当未定）レーンへの受付（2026-08-14）。
 
 /**
  * 電話予約の手入力（オーナー本人 or 運営のみ）。
@@ -714,7 +719,8 @@ export type ManualBookingInput = {
  */
 export async function createManualBooking(input: ManualBookingInput): Promise<{ ok: boolean; error?: string }> {
   const salonId = Number(input.salonId);
-  const therapistId = Number(input.therapistId);
+  // null＝フリー客（担当未定）。それ以外は数値のセラピストID。
+  const therapistId = input.therapistId === null ? null : Number(input.therapistId);
   const durationMin = Number(input.durationMin);
   const courseName = String(input.courseName ?? '').trim();
   const customerName = String(input.customerName ?? '').trim();
@@ -722,7 +728,8 @@ export async function createManualBooking(input: ManualBookingInput): Promise<{ 
   const customerTel = customerTelRaw ? normalizePhone(customerTelRaw) : '';
   const note = String(input.note ?? '').trim();
 
-  if (!Number.isFinite(salonId) || !Number.isFinite(therapistId)) return { ok: false, error: '入力が不正です' };
+  if (!Number.isFinite(salonId)) return { ok: false, error: '入力が不正です' };
+  if (therapistId !== null && !Number.isFinite(therapistId)) return { ok: false, error: '入力が不正です' };
   if (!Number.isInteger(durationMin) || durationMin < SLOT_STEP_MIN || durationMin > 720) {
     return { ok: false, error: '所要時間が不正です' };
   }
@@ -738,30 +745,57 @@ export async function createManualBooking(input: ManualBookingInput): Promise<{ 
 
   const svc = createServiceClient();
 
-  // セラピストが当該サロン所属＆is_active か。
-  const { data: th, error: thErr } = await svc
-    .from('therapists')
-    .select('salon_id, is_active')
-    .eq('id', therapistId)
-    .maybeSingle();
-  if (thErr || !th || Number(th.salon_id) !== salonId || !th.is_active) {
-    return { ok: false, error: 'セラピストが不正です' };
+  // セラピストが当該サロン所属＆is_active か（フリー客はスキップ）。
+  if (therapistId !== null) {
+    const { data: th, error: thErr } = await svc
+      .from('therapists')
+      .select('salon_id, is_active')
+      .eq('id', therapistId)
+      .maybeSingle();
+    if (thErr || !th || Number(th.salon_id) !== salonId || !th.is_active) {
+      return { ok: false, error: 'セラピストが不正です' };
+    }
   }
 
   // 出勤枠内チェックは行わない（2026-08-14仕様変更：受付可能時間は店の判断でその都度変わるため）。
   const slotEnd = new Date(slotStart.getTime() + durationMin * 60 * 1000);
 
-  // 既存予約（cancelled 以外）との重なりチェック。
-  const overlapping = await fetchOverlappingBookings(therapistId, slotStart, slotEnd);
-  if (overlapping.length > 0) return { ok: false, error: 'その時間帯は既に予約が入っています' };
+  // 既存予約（cancelled 以外）との重なりチェック。フリー客はサロン内の therapist_id IS NULL 同士で判定。
+  if (therapistId !== null) {
+    const overlapping = await fetchOverlappingBookings(therapistId, slotStart, slotEnd);
+    if (overlapping.length > 0) return { ok: false, error: 'その時間帯は既に予約が入っています' };
+  } else {
+    const { data: freeRows, error: freeErr } = await svc
+      .from('salon_bookings')
+      .select('id')
+      .eq('salon_id', salonId)
+      .is('therapist_id', null)
+      .neq('status', 'cancelled')
+      .lt('slot_start', slotEnd.toISOString())
+      .gt('slot_end', slotStart.toISOString())
+      .limit(1);
+    if (freeErr) return { ok: false, error: freeErr.message };
+    if (freeRows && freeRows.length > 0) return { ok: false, error: 'その時間帯は既にフリー客の予約が入っています' };
+  }
 
-  // 同一枠に cancelled 行が残っていれば掃除（UNIQUE(therapist_id, slot_start) 対策・createBooking と同じ）。
-  await svc
-    .from('salon_bookings')
-    .delete()
-    .eq('therapist_id', therapistId)
-    .eq('slot_start', slotStart.toISOString())
-    .eq('status', 'cancelled');
+  // 同一枠に cancelled 行が残っていれば掃除（UNIQUE制約対策・createBooking と同じ。
+  // フリー客は部分ユニーク index（salon_id, slot_start WHERE therapist_id IS NULL）が対象）。
+  if (therapistId !== null) {
+    await svc
+      .from('salon_bookings')
+      .delete()
+      .eq('therapist_id', therapistId)
+      .eq('slot_start', slotStart.toISOString())
+      .eq('status', 'cancelled');
+  } else {
+    await svc
+      .from('salon_bookings')
+      .delete()
+      .eq('salon_id', salonId)
+      .is('therapist_id', null)
+      .eq('slot_start', slotStart.toISOString())
+      .eq('status', 'cancelled');
+  }
 
   const { error: insErr } = await svc.from('salon_bookings').insert({
     salon_id: salonId,
@@ -790,11 +824,11 @@ export async function createManualBooking(input: ManualBookingInput): Promise<{ 
  */
 export async function moveBooking(
   bookingId: string,
-  newTherapistId: number,
+  newTherapistId: number | null, // null＝フリー客（担当未定）レーンへ移動（2026-08-14）
   newSlotStartISO: string,
 ): Promise<{ ok: boolean; error?: string }> {
-  const therapistId = Number(newTherapistId);
-  if (!Number.isFinite(therapistId)) return { ok: false, error: '移動先が不正です' };
+  const therapistId = newTherapistId === null ? null : Number(newTherapistId);
+  if (therapistId !== null && !Number.isFinite(therapistId)) return { ok: false, error: '移動先が不正です' };
   const slotStart = new Date(newSlotStartISO);
   if (Number.isNaN(slotStart.getTime())) return { ok: false, error: '開始時刻が不正です' };
 
@@ -815,47 +849,56 @@ export async function moveBooking(
   if (courseMin <= 0) return { ok: false, error: 'コース時間が不正のため移動できません' };
 
   // 変更なし（同じ担当・同じ開始時刻）は何もしない。
+  const currentTherapistId = booking.therapist_id == null ? null : Number(booking.therapist_id);
   if (
-    Number(booking.therapist_id) === therapistId &&
+    currentTherapistId === therapistId &&
     new Date(booking.slot_start as string).getTime() === slotStart.getTime()
   ) {
     return { ok: true };
   }
 
-  // 移動先セラピストが同一サロン所属＆is_active か。
-  const { data: th, error: thErr } = await svc
-    .from('therapists')
-    .select('salon_id, is_active')
-    .eq('id', therapistId)
-    .maybeSingle();
-  if (thErr || !th || Number(th.salon_id) !== Number(booking.salon_id) || !th.is_active) {
-    return { ok: false, error: '移動先セラピストが不正です' };
+  // 移動先セラピストが同一サロン所属＆is_active か（フリー客レーンへの移動はスキップ）。
+  if (therapistId !== null) {
+    const { data: th, error: thErr } = await svc
+      .from('therapists')
+      .select('salon_id, is_active')
+      .eq('id', therapistId)
+      .maybeSingle();
+    if (thErr || !th || Number(th.salon_id) !== Number(booking.salon_id) || !th.is_active) {
+      return { ok: false, error: '移動先セラピストが不正です' };
+    }
   }
 
   // 移動先の出勤枠内チェックは行わない（2026-08-14仕様変更：手入力と同じ理由）。
   const slotEnd = new Date(slotStart.getTime() + courseMin * 60 * 1000);
 
-  // 自分以外の予約（cancelled 以外）との重なりチェック。
-  const { data: others, error: oErr } = await svc
+  // 自分以外の予約（cancelled 以外）との重なりチェック。フリー客はサロン内の NULL 行同士で判定。
+  let overlapQuery = svc
     .from('salon_bookings')
     .select('id')
-    .eq('therapist_id', therapistId)
     .neq('status', 'cancelled')
     .neq('id', bookingId)
     .lt('slot_start', slotEnd.toISOString())
     .gt('slot_end', slotStart.toISOString())
     .limit(1);
+  overlapQuery = therapistId !== null
+    ? overlapQuery.eq('therapist_id', therapistId)
+    : overlapQuery.eq('salon_id', Number(booking.salon_id)).is('therapist_id', null);
+  const { data: others, error: oErr } = await overlapQuery;
   if (oErr) return { ok: false, error: oErr.message };
   if (others && others.length > 0) return { ok: false, error: '移動先の時間帯は既に予約が入っています' };
 
-  // 移動先の同一枠に cancelled 行が残っていれば掃除（UNIQUE(therapist_id, slot_start) 対策）。
-  await svc
+  // 移動先の同一枠に cancelled 行が残っていれば掃除（UNIQUE制約対策）。
+  let cleanupQuery = svc
     .from('salon_bookings')
     .delete()
-    .eq('therapist_id', therapistId)
     .eq('slot_start', slotStart.toISOString())
     .eq('status', 'cancelled')
     .neq('id', bookingId);
+  cleanupQuery = therapistId !== null
+    ? cleanupQuery.eq('therapist_id', therapistId)
+    : cleanupQuery.eq('salon_id', Number(booking.salon_id)).is('therapist_id', null);
+  await cleanupQuery;
 
   const { error: upErr } = await svc
     .from('salon_bookings')
