@@ -496,8 +496,12 @@ export function BookingBoard({ salonId, active, io = defaultIO }: {
               <div className="flex" style={{ width: NAME_W + boardW }}>
                 <div className="sticky left-0 z-20 bg-white flex-none" style={{ width: NAME_W, height: AXIS_H }} />
                 <div className="relative flex-none" style={{ width: boardW, height: AXIS_H }}>
+                  {/* 先頭（0時）は中央寄せだと左半分が名前列の角の下に隠れるため左寄せ、
+                      末尾（翌7時）は右へはみ出すため右寄せにする（2026-08-14修正） */}
                   {hours.map((m) => (
-                    <div key={m} className="absolute bottom-0.5 -translate-x-1/2 text-[10px] text-slate-400 whitespace-nowrap"
+                    <div key={m}
+                      className={`absolute bottom-0.5 text-[10px] text-slate-400 whitespace-nowrap ${
+                        m === boardStart ? '' : m === boardEnd ? '-translate-x-full' : '-translate-x-1/2'}`}
                       style={{ left: (m - boardStart) * PX_PER_MIN }}>
                       {hourLabel(m)}
                     </div>
