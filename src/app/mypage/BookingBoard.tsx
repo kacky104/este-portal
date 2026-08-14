@@ -26,7 +26,7 @@ import { useToast } from '@/app/components/useToast';
 // ── 寸法定数 ──
 const PX_PER_MIN = 1.2; // 横方向 1分=1.2px（1時間 = 72px）
 const ROW_H = 64;       // セラピスト行の高さ(px)
-const NAME_W = 64;      // 左の名前列の幅(px・sticky)。タイムラインを広く見せるため細め（92→64・2026-08-14）
+const NAME_W = 44;      // 左の名前列の幅(px・sticky)。出勤時間を縦3行にしてさらに細く（92→64→44・2026-08-14）
 const AXIS_H = 22;      // 上の時間軸の高さ(px)
 const STEP_MIN = 15;    // 枠の刻み（ネット予約と同じ15分）
 
@@ -90,12 +90,15 @@ function shiftLabel(start: string, end: string): string {
   return `${start}〜${toMin(end) <= toMin(start) ? '翌' : ''}${end}`;
 }
 
-// 名前列（幅64px）用の短い出勤帯表示。"02:00"→"2:00" と頭のゼロを落とし、〜の代わりに半角ハイフンで
-// "12:00-翌2:00" の形にして収める（フォームの選択肢では従来どおり shiftLabel を使う）。
-function shiftLabelShort(start: string, end: string): string {
-  const trim = (t: string) => t.replace(/^0(\d:)/, '$1');
+// 名前列（幅44px）の縦表示用ヘルパー。"02:00"→"2:00" と頭のゼロを落とす。
+function trimHourZero(t: string): string {
+  return t.replace(/^0(\d:)/, '$1');
+}
+
+// 出勤終了が日跨ぎ（＝終了側に「翌」を付ける）か。
+function isOvernight(start: string, end: string): boolean {
   const toMin = (t: string) => { const [h, m] = t.split(':').map(Number); return (h || 0) * 60 + (m || 0); };
-  return `${trim(start)}-${toMin(end) <= toMin(start) ? '翌' : ''}${trim(end)}`;
+  return toMin(end) <= toMin(start);
 }
 
 function hourLabel(min: number): string {
@@ -439,11 +442,20 @@ export function BookingBoard({ salonId, active, io = defaultIO }: {
                 return (
                   <div key={t.id} className="flex border-t border-slate-100" data-testid={`board-col-${t.id}`}>
                     {/* 名前列（左・sticky） */}
+                    {/* 出勤時間は「開始／｜／翌終了」の縦3行（2026-08-14・横幅44pxに収めるため） */}
                     <div className="sticky left-0 z-20 bg-white flex-none px-0.5 flex flex-col justify-center text-center border-r border-slate-100"
                       style={{ width: NAME_W, height: ROW_H }}
                       title={`${t.name}（${sched ? shiftLabel(sched.start, sched.end) : '出勤なし'}）`}>
-                      <p className="text-[11px] font-bold text-slate-700 truncate">{t.name}</p>
-                      <p className="text-[9px] text-slate-400 truncate tracking-tight">{sched ? shiftLabelShort(sched.start, sched.end) : '出勤なし'}</p>
+                      <p className="text-[11px] font-bold text-slate-700 truncate leading-tight">{t.name}</p>
+                      {sched ? (
+                        <>
+                          <p className="text-[9px] text-slate-400 leading-tight tracking-tight">{trimHourZero(sched.start)}</p>
+                          <p className="text-[8px] text-slate-300 leading-none">｜</p>
+                          <p className="text-[9px] text-slate-400 leading-tight tracking-tight">{isOvernight(sched.start, sched.end) ? '翌' : ''}{trimHourZero(sched.end)}</p>
+                        </>
+                      ) : (
+                        <p className="text-[9px] text-slate-400 leading-tight">出勤なし</p>
+                      )}
                     </div>
                     {/* タイムライン（右） */}
                     <div className="relative bg-slate-50/80 flex-none" style={{ width: boardW, height: ROW_H }}>
