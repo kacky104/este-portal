@@ -1902,6 +1902,14 @@ export default function MyPage() {
           <div className="max-w-2xl mx-auto px-4 py-3 flex items-center justify-between">
             <h1 className="text-base font-black text-slate-800 tracking-wide">マイページ</h1>
             <div className="flex items-center gap-4">
+              {/* 予約ボードへの近道（2026-08-14 追加）。営業中いちばん使うタブなのでヘッダーに常設し、
+                  他のリンク（slate-400）と違いピンク太字で目立たせる。 */}
+              <button
+                onClick={() => setActiveTab('board')}
+                className="text-xs text-pink-500 hover:text-pink-600 font-black transition-colors"
+              >
+                予約ボード
+              </button>
               <Link href={salon ? `/salon/${salon.id}` : '/'} target="_blank" rel="noopener noreferrer" className="text-xs text-slate-400 hover:text-pink-600 font-medium transition-colors">
                 サイトを見る
               </Link>
