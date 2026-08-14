@@ -1967,10 +1967,14 @@ export default function MyPage() {
         </div>
       </div>
 
-      <main className="max-w-2xl mx-auto px-4 py-6 space-y-6">
+      {/* 予約ボードタブのときだけ幅を広げる（max-w-6xl=1152px）。他のタブは hidden なので影響しない。
+          ボードは横＝時間軸で 1日分が約1100px（名前列92px＋14時間×72px）あるため、広げるとPCで一望できる。 */}
+      <main className={`${activeTab === 'board' ? 'max-w-6xl' : 'max-w-2xl'} mx-auto px-4 py-6 space-y-6`}>
 
-        {/* ── 店名（最上部・独立ブロック） ── */}
-        <div className="bg-white rounded-3xl border border-slate-100 shadow-sm p-5 text-center">
+        {/* ── 店名（最上部・独立ブロック） ──
+            常時表示ブロックのため、予約ボードで main が広がっても max-w-2xl のまま中央に固定する
+            （通常タブでは main 自体が max-w-2xl なので見た目は従来と同じ）。 */}
+        <div className="max-w-2xl mx-auto w-full bg-white rounded-3xl border border-slate-100 shadow-sm p-5 text-center">
           <h2
             className="font-black text-slate-800 whitespace-nowrap overflow-hidden"
             style={{ fontSize: 'clamp(16px, 4vw, 24px)', textOverflow: 'ellipsis' }}
