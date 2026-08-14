@@ -547,9 +547,14 @@ export function BookingBoard({ salonId, active, io = defaultIO }: {
                         <div key={m} className="absolute inset-y-0 border-l border-slate-100"
                           style={{ left: (m - boardStart) * PX_PER_MIN }} />
                       ))}
+                      {/* 1pxのborder-dottedは高解像度画面で実線に見えるため、
+                          繰り返しグラデーション（2px点＋4px空き）で点線を描く（2026-08-14修正） */}
                       {hours.slice(0, -1).map((m) => (
-                        <div key={`half-${m}`} className="absolute inset-y-0 border-l border-dotted border-slate-200"
-                          style={{ left: (m + 30 - boardStart) * PX_PER_MIN }} />
+                        <div key={`half-${m}`} className="absolute inset-y-0 w-px pointer-events-none"
+                          style={{
+                            left: (m + 30 - boardStart) * PX_PER_MIN,
+                            backgroundImage: 'repeating-linear-gradient(to bottom, #cbd5e1 0px, #cbd5e1 2px, transparent 2px, transparent 6px)',
+                          }} />
                       ))}
                       {/* 出勤帯（薄青・目安表示のみ）。前日尻尾＋当日枠の最大2本。
                           クリックは行側で拾うため pointer-events-none */}
