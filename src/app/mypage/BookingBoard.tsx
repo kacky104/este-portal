@@ -38,6 +38,8 @@ const BOARD_END_MIN = 31 * 60; // 翌7:00 = 1860分
 // フリー客（担当未定）レーンのフォーム内ID。select の value に null を使えないため 0 で代用し、
 // サーバーへは null に変換して渡す（DB上は therapist_id = NULL・2026-08-14）。
 const FREE_LANE_ID = 0;
+// 過去の予約を遡って見られる日数（約3ヶ月・2026-08-14追加）。
+const PAST_DAYS = 90;
 
 // 検証フィクスチャ用の差し替え口。省略時は本物のサーバーアクションを使う。
 export type BoardIO = {
@@ -218,12 +220,18 @@ export function BookingBoard({ salonId, active, io = defaultIO }: {
 }) {
   const { toast, showToast } = useToast();
   const [date, setDate] = useState(() => todayJstCalendar());
+  // 過去表示モード（過去プルダウンで選んだとき true。0:00跨ぎの自動ジャンプを抑止する判定にも使う）。
+  const [pastMode, setPastMode] = useState(false);
+  // 過去日を表示中か（過去90日ぶんの履歴閲覧・2026-08-14）。※days はこの下で定義されるため文字列比較で導出
+  const isPast = date < todayJstCalendar();
+  const pastDayOptions = Array.from({ length: PAST_DAYS }, (_, i) => shiftDateStr(todayJstCalendar(), -(i + 1)));
   // 今日から7日間（暦日・0:00切替）。日付チップと移動フォームの日付選択肢はこの範囲だけ。
   // 0:00 になった瞬間に前日のボードは消え、新しい「今日」が先頭になる（2026-08-14仕様変更）。
   const days = Array.from({ length: 7 }, (_, i) => shiftDateStr(todayJstCalendar(), i));
   // タブを開いたまま 0:00（日付の切替）を跨いだら、選択日を新しい「今日」へ寄せる。
   useEffect(() => {
-    if (!days.includes(date)) setDate(days[0]);
+    // 過去表示中（pastMode）は自動で今日へ寄せない（履歴閲覧を邪魔しない）。
+    if (!days.includes(date) && !pastMode) setDate(days[0]);
     // days は毎レンダー新しい配列になるため、切替検知は先頭日だけ見る。
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [days[0]]);
@@ -274,24 +282,24 @@ export function BookingBoard({ salonId, active, io = defaultIO }: {
     if (!active) return;
     const id = window.setInterval(() => {
       if (document.visibilityState !== 'visible') return;
-      if (hasOpenPanel) return;
+      if (hasOpenPanel || isPast) return;
       void load(date);
       void loadCounts();
     }, 60_000);
     return () => window.clearInterval(id);
-  }, [active, date, hasOpenPanel, load, loadCounts]);
+  }, [active, date, hasOpenPanel, isPast, load, loadCounts]);
 
   // 他のアプリ・タブから戻ってきた瞬間にも取り直す（スマホでの持ち替え運用向け）。
   useEffect(() => {
     if (!active) return;
     const onVisible = () => {
-      if (document.visibilityState !== 'visible' || hasOpenPanel) return;
+      if (document.visibilityState !== 'visible' || hasOpenPanel || isPast) return;
       void load(date);
       void loadCounts();
     };
     document.addEventListener('visibilitychange', onVisible);
     return () => document.removeEventListener('visibilitychange', onVisible);
-  }, [active, date, hasOpenPanel, load, loadCounts]);
+  }, [active, date, hasOpenPanel, isPast, load, loadCounts]);
 
   const anchorMs = useMemo(() => anchorMsOf(date), [date]);
   const minOf = useCallback((iso: string) => (new Date(iso).getTime() - anchorMs) / 60000, [anchorMs]);
@@ -588,7 +596,7 @@ export function BookingBoard({ salonId, active, io = defaultIO }: {
             const wd = head.slice(head.indexOf('('));
             const count = dayCounts?.[d] ?? 0;
             return (
-              <button key={d} type="button" onClick={() => setDate(d)} aria-pressed={selected}
+              <button key={d} type="button" onClick={() => { setPastMode(false); setDate(d); }} aria-pressed={selected}
                 className={`relative flex-1 min-w-0 border py-1.5 text-center transition-colors -ml-px first:ml-0 ${selected
                   ? 'z-10 bg-pink-50 border-pink-300 text-pink-600'
                   : 'bg-white border-slate-200 text-slate-400 hover:text-slate-600 hover:border-slate-300'}`}>
@@ -617,11 +625,32 @@ export function BookingBoard({ salonId, active, io = defaultIO }: {
             <span>空き部分をタップすると電話予約を追加できます（出勤時間外もOK）</span>
           </div>
           <div className="flex items-center gap-2">
+            {/* 過去90日ぶんの履歴閲覧（2026-08-14追加） */}
+            <select
+              value={isPast ? date : ''}
+              onChange={(e) => { if (e.target.value) { setPastMode(true); setDate(e.target.value); } }}
+              className={`${btnBase} ${isPast ? 'border-amber-300 bg-amber-50 text-amber-700' : 'border-slate-200 text-slate-500'} bg-white`}
+              data-testid="board-past-select"
+            >
+              <option value="">過去分</option>
+              {pastDayOptions.map((d) => (
+                <option key={d} value={d}>{formatDateHeading(d)}</option>
+              ))}
+            </select>
             <span className="text-[11px] text-slate-400">{activeCount}件</span>
             <button type="button" onClick={reload} disabled={loading}
               className={`${btnBase} border-slate-200 text-slate-500 hover:bg-slate-50`}>再読み込み</button>
           </div>
         </div>
+
+        {/* 過去表示中のバナー（2026-08-14追加） */}
+        {isPast && (
+          <div className="flex items-center justify-between gap-2 rounded-xl bg-amber-50 border border-amber-200 px-3 py-1.5" data-testid="board-past-banner">
+            <span className="text-[11px] font-bold text-amber-700">過去の予約を表示中：{formatDateHeading(date)}（記録の修正・追加もできます）</span>
+            <button type="button" onClick={() => { setPastMode(false); setDate(days[0]); }}
+              className={`${btnBase} border-amber-300 text-amber-700 hover:bg-amber-100 flex-none`}>今日へ戻る</button>
+          </div>
+        )}
 
         {/* ── 本体 ── */}
         {loadError ? (
@@ -907,6 +936,10 @@ export function BookingBoard({ salonId, active, io = defaultIO }: {
                 </p>
                 {/* 移動先の日付もボードと同じ「今日から7日間」に限定（自由入力の type=date は廃止） */}
                 <select value={moveForm.date} onChange={(e) => void handleMoveDateChange(e.target.value)} className={inputCls}>
+                  {/* 過去日を表示中はその日も選択肢に足す（過去→今日以降への移し替えができるように） */}
+                  {!days.includes(moveForm.date) && (
+                    <option value={moveForm.date}>{formatDateHeading(moveForm.date)}（過去）</option>
+                  )}
                   {days.map((d) => (
                     <option key={d} value={d}>{formatDateHeading(d)}{d === days[0] ? '（今日）' : ''}</option>
                   ))}

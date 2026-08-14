@@ -572,6 +572,11 @@ export async function getBookingBoardData(
   dateISO: string,
 ): Promise<{ ok: true; data: BookingBoardData } | { ok: false; error: string }> {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(dateISO)) return { ok: false, error: '日付が不正です' };
+  // 表示できる範囲：過去90日〜7日先（暦日・2026-08-14 過去閲覧対応）。
+  const todayCal = todayJstCalendar();
+  if (dateISO < shiftDateStr(todayCal, -90) || dateISO > shiftDateStr(todayCal, 6)) {
+    return { ok: false, error: '表示できるのは過去90日から7日先までです' };
+  }
   const auth = await assertSalonOwner(salonId);
   if (!auth.ok) return { ok: false, error: auth.error };
 
