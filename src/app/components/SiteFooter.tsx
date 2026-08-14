@@ -65,6 +65,7 @@ const INFO_LINKS: FooterLinkDef[] = [
   { href: '/terms', label: '利用規約' },
   { href: '/privacy', label: 'プライバシーポリシー' },
   { href: '/listing', label: '掲載について' },
+  { href: '/hp/templates', label: 'ホームページ制作' }, // 公式HP事業の入口（2026-08-14 追加）
   { href: '/contact', label: 'お問い合わせ' },
   { href: '/banner', label: 'リンクバナー' },
 ];
