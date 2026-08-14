@@ -704,12 +704,17 @@ export type ManualBookingInput = {
   therapistId: number | null;
   slotStartISO: string;
   durationMin: number;
+  intervalMin: number; // インターバル（施術後の準備時間・2026-08-14追加）。0/15/30/45/60。予約枠＝コース＋インターバル
   courseName: string;
   customerName: string;
   customerTel: string; // 任意（電話予約でも聞き取れない場合があるため空を許容）
   note: string;
 };
 // therapistId は number | null。null＝フリー客（担当未定）レーンへの受付（2026-08-14）。
+// インターバルは列を持たず slot_end に織り込む（slot_end = slot_start + course_min + interval）。
+// 復元は (slot_end - slot_start) - course_min で行う（マイグレーション不要）。
+
+const INTERVAL_OPTIONS_MIN = [0, 15, 30, 45, 60] as const;
 
 /**
  * 電話予約の手入力（オーナー本人 or 運営のみ）。
@@ -722,6 +727,7 @@ export async function createManualBooking(input: ManualBookingInput): Promise<{ 
   // null＝フリー客（担当未定）。それ以外は数値のセラピストID。
   const therapistId = input.therapistId === null ? null : Number(input.therapistId);
   const durationMin = Number(input.durationMin);
+  const intervalMin = Number(input.intervalMin ?? 0);
   const courseName = String(input.courseName ?? '').trim();
   const customerName = String(input.customerName ?? '').trim();
   const customerTelRaw = String(input.customerTel ?? '').trim();
@@ -732,6 +738,9 @@ export async function createManualBooking(input: ManualBookingInput): Promise<{ 
   if (therapistId !== null && !Number.isFinite(therapistId)) return { ok: false, error: '入力が不正です' };
   if (!Number.isInteger(durationMin) || durationMin < SLOT_STEP_MIN || durationMin > 720) {
     return { ok: false, error: '所要時間が不正です' };
+  }
+  if (!(INTERVAL_OPTIONS_MIN as readonly number[]).includes(intervalMin)) {
+    return { ok: false, error: 'インターバルが不正です' };
   }
   if (!customerName) return { ok: false, error: 'お客様名を入力してください' };
   if (customerTel && !/^\d{6,20}$/.test(customerTel)) {
@@ -758,7 +767,8 @@ export async function createManualBooking(input: ManualBookingInput): Promise<{ 
   }
 
   // 出勤枠内チェックは行わない（2026-08-14仕様変更：受付可能時間は店の判断でその都度変わるため）。
-  const slotEnd = new Date(slotStart.getTime() + durationMin * 60 * 1000);
+  // 予約枠＝コース＋インターバル（インターバル分も枠として塞ぐ）。
+  const slotEnd = new Date(slotStart.getTime() + (durationMin + intervalMin) * 60 * 1000);
 
   // 既存予約（cancelled 以外）との重なりチェック。フリー客はサロン内の therapist_id IS NULL 同士で判定。
   if (therapistId !== null) {
@@ -838,15 +848,16 @@ export async function moveBooking(
 
   const { data: booking, error: bErr } = await svc
     .from('salon_bookings')
-    .select('salon_id, therapist_id, slot_start, course_min, status')
+    .select('salon_id, therapist_id, slot_start, slot_end, course_min, status')
     .eq('id', bookingId)
     .maybeSingle();
   if (bErr || !booking) return { ok: false, error: '予約が見つかりません' };
   if (booking.status === 'cancelled') {
     return { ok: false, error: 'キャンセル済みの予約は移動できません（先に「新規に戻す」を押してください）' };
   }
-  const courseMin = Number(booking.course_min) || 0;
-  if (courseMin <= 0) return { ok: false, error: 'コース時間が不正のため移動できません' };
+  // 枠の全長（コース＋インターバル）を維持して移動する（2026-08-14：インターバル対応）。
+  const spanMs = new Date(booking.slot_end as string).getTime() - new Date(booking.slot_start as string).getTime();
+  if (!Number.isFinite(spanMs) || spanMs <= 0) return { ok: false, error: '予約時間が不正のため移動できません' };
 
   // 変更なし（同じ担当・同じ開始時刻）は何もしない。
   const currentTherapistId = booking.therapist_id == null ? null : Number(booking.therapist_id);
@@ -870,7 +881,7 @@ export async function moveBooking(
   }
 
   // 移動先の出勤枠内チェックは行わない（2026-08-14仕様変更：手入力と同じ理由）。
-  const slotEnd = new Date(slotStart.getTime() + courseMin * 60 * 1000);
+  const slotEnd = new Date(slotStart.getTime() + spanMs);
 
   // 自分以外の予約（cancelled 以外）との重なりチェック。フリー客はサロン内の NULL 行同士で判定。
   let overlapQuery = svc

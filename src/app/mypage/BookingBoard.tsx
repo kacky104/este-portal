@@ -182,11 +182,14 @@ function slotTimeOptions(params: {
 }
 
 const DURATION_OPTIONS = Array.from({ length: 23 }, (_, i) => 30 + i * 15); // 30〜360分
+// インターバル（施術後の準備時間）。予約枠＝コース＋インターバルで塞ぐ（2026-08-14追加）。
+const INTERVAL_OPTIONS = [0, 15, 30, 45, 60] as const;
 
 type AddForm = {
   therapistId: number;
   startISO: string;
   durationMin: number;
+  intervalMin: number; // 0=なし
   courseName: string;
   customerName: string;
   customerTel: string;
@@ -374,6 +377,7 @@ export function BookingBoard({ salonId, active, io = defaultIO }: {
       therapistId,
       startISO: new Date(anchorMs + m * 60000).toISOString(),
       durationMin: firstCourse?.durationMin ?? 60,
+      intervalMin: 0,
       courseName: firstCourse?.name ?? '',
       customerName: '',
       customerTel: '',
@@ -391,6 +395,7 @@ export function BookingBoard({ salonId, active, io = defaultIO }: {
       therapistId: addForm.therapistId === FREE_LANE_ID ? null : addForm.therapistId,
       slotStartISO: addForm.startISO,
       durationMin: addForm.durationMin,
+      intervalMin: addForm.intervalMin,
       courseName: addForm.courseName,
       customerName: addForm.customerName,
       customerTel: addForm.customerTel,
@@ -466,7 +471,7 @@ export function BookingBoard({ salonId, active, io = defaultIO }: {
   const addOptions = addForm
     ? slotTimeOptions({
         therapistId: addForm.therapistId === FREE_LANE_ID ? null : addForm.therapistId,
-        durationMin: addForm.durationMin,
+        durationMin: addForm.durationMin + addForm.intervalMin, // 予約枠＝コース＋インターバル
         bookings: data?.bookings ?? [],
         boardDate: date,
       })
@@ -477,7 +482,8 @@ export function BookingBoard({ salonId, active, io = defaultIO }: {
   const moveOptions = moveForm && detail
     ? slotTimeOptions({
         therapistId: moveForm.therapistId === FREE_LANE_ID ? null : moveForm.therapistId,
-        durationMin: detail.courseMin,
+        // 予約枠の全長（コース＋インターバル）で空き判定（移動してもインターバルは維持される）
+        durationMin: Math.round((new Date(detail.slotEnd).getTime() - new Date(detail.slotStart).getTime()) / 60000),
         bookings: moveData?.bookings ?? [],
         boardDate: moveForm.date,
         excludeId: detail.id,
@@ -716,6 +722,11 @@ export function BookingBoard({ salonId, active, io = defaultIO }: {
               </p>
               <p><span className="text-slate-400">担当：</span>{detail.therapistName}</p>
               <p><span className="text-slate-400">コース：</span>{detail.courseName}（{detail.courseMin}分）</p>
+              {/* インターバル＝予約枠の全長−コース時間（>0のときだけ表示・2026-08-14） */}
+              {(() => {
+                const iv = Math.round((new Date(detail.slotEnd).getTime() - new Date(detail.slotStart).getTime()) / 60000) - detail.courseMin;
+                return iv > 0 ? <p><span className="text-slate-400">インターバル：</span>{iv}分</p> : null;
+              })()}
               <p><span className="text-slate-400">お客様：</span>{detail.customerName} 様</p>
               <p><span className="text-slate-400">電話：</span>
                 {detail.customerTel
@@ -753,7 +764,9 @@ export function BookingBoard({ salonId, active, io = defaultIO }: {
             {/* 移動フォーム */}
             {moveForm && (
               <div className="rounded-xl border border-sky-100 bg-sky-50/30 p-3 space-y-2" data-testid="board-move-form">
-                <p className="text-[11px] font-bold text-slate-600">時間・担当の変更（コース時間 {detail.courseMin}分 のまま移動します）</p>
+                <p className="text-[11px] font-bold text-slate-600">
+                  時間・担当の変更（予約枠 {Math.round((new Date(detail.slotEnd).getTime() - new Date(detail.slotStart).getTime()) / 60000)}分＝コース＋インターバルのまま移動します）
+                </p>
                 {/* 移動先の日付もボードと同じ「今日から7日間」に限定（自由入力の type=date は廃止） */}
                 <select value={moveForm.date} onChange={(e) => void handleMoveDateChange(e.target.value)} className={inputCls}>
                   {days.map((d) => (
@@ -833,13 +846,22 @@ export function BookingBoard({ salonId, active, io = defaultIO }: {
                     ))}
                   </select>
                 </div>
-                <div className="w-28 flex-none">
+                <div className="w-24 flex-none">
                   <label className="block text-[11px] font-bold text-slate-500 mb-1">所要時間</label>
                   <select value={addForm.durationMin} onChange={(e) => setAddForm({ ...addForm, durationMin: Number(e.target.value) })} className={inputCls}>
                     {DURATION_OPTIONS.map((m) => <option key={m} value={m}>{m}分</option>)}
                   </select>
                 </div>
+                <div className="w-24 flex-none">
+                  <label className="block text-[11px] font-bold text-slate-500 mb-1">ｲﾝﾀｰﾊﾞﾙ</label>
+                  <select value={addForm.intervalMin} onChange={(e) => setAddForm({ ...addForm, intervalMin: Number(e.target.value) })} className={inputCls}>
+                    {INTERVAL_OPTIONS.map((m) => <option key={m} value={m}>{m === 0 ? 'なし' : `${m}分`}</option>)}
+                  </select>
+                </div>
               </div>
+              <p className="text-[10px] text-slate-400 leading-relaxed -mt-1">
+                予約枠＝所要時間＋インターバル（施術後の準備時間）。インターバル分も枠として塞がります。
+              </p>
 
               {(data?.courses.length ?? 0) > 0 && (
                 <div className="flex flex-wrap gap-1.5">
