@@ -574,16 +574,30 @@ async function findScheduleWindow(
 }
 
 export type BoardBooking = OwnerBooking & { therapistId: number };
-export type BoardScheduleWindow = { start: string; end: string; startISO: string; endISO: string };
-export type BoardTherapist = { id: number; name: string; schedule: BoardScheduleWindow | null };
+// fromPrevDay=true は「前日の夜跨ぎシフトの尻尾」（例：前日18:00〜翌2:00 の 0:00〜2:00 部分）。
+export type BoardScheduleWindow = { start: string; end: string; startISO: string; endISO: string; fromPrevDay: boolean };
+export type BoardTherapist = { id: number; name: string; schedules: BoardScheduleWindow[] };
 export type BookingBoardData = {
-  date: string;                 // "YYYY-MM-DD"（JST営業日）
-  therapists: BoardTherapist[]; // 列＝当日出勤のセラピスト（＋出勤は無いが予約が残っているセラピスト）
-  bookings: BoardBooking[];     // 営業日窓（JST6:00〜翌6:00・出勤枠がはみ出せば拡張）に重なる全予約（cancelled 含む）
+  date: string;                 // "YYYY-MM-DD"（JSTの暦日。ボード窓は 0:00〜翌7:00 固定・2026-08-14仕様変更）
+  therapists: BoardTherapist[]; // 行＝当日出勤（前日尻尾含む）のセラピスト（＋予約だけ残っているセラピスト）
+  bookings: BoardBooking[];     // 窓（0:00〜翌7:00）に重なる全予約（cancelled 含む）。翌0:00〜7:00は翌日のボードにも出る
   courses: BookingCourse[];     // 手入力フォームのコース候補（booking_courses）
 };
 
-/** 予約ボード用：指定営業日の出勤枠＋予約をまとめて返す。オーナー本人 or 運営のみ。 */
+// "YYYY-MM-DD" を days 日ずらす（UTC正午基準で月跨ぎ安全）。
+function shiftDateStr(dateStr: string, days: number): string {
+  const [y, m, d] = dateStr.split('-').map(Number);
+  const base = new Date(Date.UTC(y, m - 1, d));
+  base.setUTCDate(base.getUTCDate() + days);
+  return `${base.getUTCFullYear()}-${String(base.getUTCMonth() + 1).padStart(2, '0')}-${String(base.getUTCDate()).padStart(2, '0')}`;
+}
+
+// JSTの今日（暦日・0:00切替）。ボードの「今日」は営業日（朝6時切替）ではなくこちらを使う。
+function todayJstCalendar(): string {
+  return new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Tokyo' }).format(new Date());
+}
+
+/** 予約ボード用：指定日（暦日）の 0:00〜翌7:00 窓の出勤枠＋予約をまとめて返す。オーナー本人 or 運営のみ。 */
 export async function getBookingBoardData(
   salonId: number,
   dateISO: string,
@@ -607,39 +621,39 @@ export async function getBookingBoardData(
     therapistRows.map((t) => [Number(t.id), (t.name as string | null) ?? '(名前未設定)']),
   );
 
-  // 当日の出勤枠（is_active のみ）。
+  // ボード窓：当日 0:00〜翌7:00（JST）固定。出勤の有無では変えない（2026-08-14仕様変更）。
+  const windowStart = jstWallToUtc(dateISO, '00:00');
+  const windowEnd = jstWallToUtc(dateISO, '07:00', 1);
+
+  // 出勤枠：当日分＋前日分（夜跨ぎの尻尾が 0:00 以降に掛かるもの）。
   const ids = therapistRows.map((t) => Number(t.id));
-  const scheduleByTherapist = new Map<number, BoardScheduleWindow>();
+  const prevDate = shiftDateStr(dateISO, -1);
+  const windowsByTherapist = new Map<number, BoardScheduleWindow[]>();
   if (ids.length > 0) {
     const { data: sch, error: schErr } = await svc
       .from('therapist_schedules')
-      .select('therapist_id, start_time, end_time, is_active')
+      .select('therapist_id, schedule_date, start_time, end_time, is_active')
       .in('therapist_id', ids)
-      .eq('schedule_date', dateISO)
+      .in('schedule_date', [prevDate, dateISO])
       .eq('is_active', true);
     if (schErr) return { ok: false, error: schErr.message };
     for (const r of sch ?? []) {
       if (!r.start_time || !r.end_time) continue;
+      const schedDate = r.schedule_date as string;
+      const fromPrevDay = schedDate === prevDate;
       const start = String(r.start_time).slice(0, 5);
       const end = String(r.end_time).slice(0, 5);
-      const { startUtc, endUtc } = scheduleWindowUtc(dateISO, start, end);
-      scheduleByTherapist.set(Number(r.therapist_id), {
-        start,
-        end,
-        startISO: startUtc.toISOString(),
-        endISO: endUtc.toISOString(),
-      });
+      const { startUtc, endUtc } = scheduleWindowUtc(schedDate, start, end);
+      // 前日分は夜跨ぎで 0:00 を越えるものだけ（尻尾）。当日分は必ず窓内。
+      if (fromPrevDay && endUtc <= windowStart) continue;
+      const list = windowsByTherapist.get(Number(r.therapist_id)) ?? [];
+      list.push({ start, end, startISO: startUtc.toISOString(), endISO: endUtc.toISOString(), fromPrevDay });
+      windowsByTherapist.set(Number(r.therapist_id), list);
     }
-  }
-
-  // 営業日窓：JST 6:00〜翌6:00 を基本に、出勤枠がはみ出す場合は広げる。
-  let windowStart = jstWallToUtc(dateISO, '06:00');
-  let windowEnd = jstWallToUtc(dateISO, '06:00', 1);
-  for (const w of scheduleByTherapist.values()) {
-    const s = new Date(w.startISO);
-    const e = new Date(w.endISO);
-    if (s < windowStart) windowStart = s;
-    if (e > windowEnd) windowEnd = e;
+    // 前日尻尾→当日の順（時系列）に並べる。
+    for (const list of windowsByTherapist.values()) {
+      list.sort((a, b) => new Date(a.startISO).getTime() - new Date(b.startISO).getTime());
+    }
   }
 
   // 窓に重なる予約（cancelled も返す＝ボードで薄く表示して履歴が追えるように）。
@@ -668,11 +682,11 @@ export async function getBookingBoardData(
     createdAt: b.created_at as string,
   }));
 
-  // 列＝出勤があるセラピスト。出勤は無いが予約が入っている（後から出勤を消した等）セラピストも
-  // 末尾に足して、予約がボードから迷子にならないようにする。
-  const withSchedule = ids.filter((id) => scheduleByTherapist.has(id));
+  // 行＝出勤枠（前日尻尾含む）があるセラピスト。出勤は無いが予約が入っている（後から出勤を消した等）
+  // セラピストも末尾に足して、予約がボードから迷子にならないようにする。
+  const withSchedule = ids.filter((id) => windowsByTherapist.has(id));
   const extraIds = [...new Set(bookings.map((b) => b.therapistId))].filter(
-    (id) => !scheduleByTherapist.has(id),
+    (id) => !windowsByTherapist.has(id),
   );
   // extra に在籍外（is_active=false）のセラピストが混ざる場合は名前を別途引く。
   const unknownIds = extraIds.filter((id) => !nameById.has(id));
@@ -688,9 +702,9 @@ export async function getBookingBoardData(
     ...withSchedule.map((id) => ({
       id,
       name: nameById.get(id) ?? '(不明)',
-      schedule: scheduleByTherapist.get(id) ?? null,
+      schedules: windowsByTherapist.get(id) ?? [],
     })),
-    ...extraIds.map((id) => ({ id, name: nameById.get(id) ?? '(不明)', schedule: null })),
+    ...extraIds.map((id) => ({ id, name: nameById.get(id) ?? '(不明)', schedules: [] })),
   ];
 
   return {
@@ -893,9 +907,12 @@ export async function getBookingCountsByDay(
   const auth = await assertSalonOwner(salonId);
   if (!auth.ok) return { ok: false, error: auth.error };
 
-  const days = Array.from({ length: 7 }, (_, i) => getBusinessDateJST(i));
-  const from = jstWallToUtc(days[0], '06:00');
-  const to = jstWallToUtc(days[6], '06:00', 1); // 7日目の翌朝6時まで
+  // 日付は暦日（0:00切替）・各日の窓は 0:00〜翌7:00（ボードと同じ・2026-08-14仕様変更）。
+  // 翌0:00〜7:00 開始の予約は前日と当日の両方に数える（ボードに両方出るのと同じ基準。
+  // そのためバッジ合計は実件数より多くなり得る＝仕様）。
+  const days = Array.from({ length: 7 }, (_, i) => shiftDateStr(todayJstCalendar(), i));
+  const from = jstWallToUtc(days[0], '00:00');
+  const to = jstWallToUtc(days[6], '07:00', 1); // 7日目の翌朝7時まで
 
   const svc = createServiceClient();
   const { data, error } = await svc
@@ -908,11 +925,16 @@ export async function getBookingCountsByDay(
   if (error) return { ok: false, error: error.message };
 
   const counts: Record<string, number> = Object.fromEntries(days.map((d) => [d, 0]));
+  const windows = days.map((d) => ({
+    d,
+    from: jstWallToUtc(d, '00:00').getTime(),
+    to: jstWallToUtc(d, '07:00', 1).getTime(),
+  }));
   for (const r of data ?? []) {
-    // 営業日＝「6時間戻した時刻」のJST日付（深夜帯は前日の営業日に属する）。
-    const bizDate = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Tokyo' })
-      .format(new Date(new Date(r.slot_start as string).getTime() - 6 * 60 * 60 * 1000));
-    if (bizDate in counts) counts[bizDate] += 1;
+    const t = new Date(r.slot_start as string).getTime();
+    for (const w of windows) {
+      if (t >= w.from && t < w.to) counts[w.d] += 1;
+    }
   }
   return { ok: true, counts };
 }

@@ -11,9 +11,9 @@ import {
   type BookingBoardData,
   type BoardBooking,
   type BoardTherapist,
+  type BoardScheduleWindow,
 } from '@/app/actions/booking';
 import { callbackPrefLabel } from '@/app/lib/booking/callbackPref';
-import { getBusinessDateJST, getBusinessDateRangeJST } from '@/lib/dutyStatus';
 import { useToast } from '@/app/components/useToast';
 
 // /mypage「予約ボード」タブ本体（2026-08-14 新設）。
@@ -30,6 +30,10 @@ const ROW_H = 64;       // セラピスト行の高さ(px)
 const NAME_W = 36;      // 左の名前列の幅(px・sticky)。内側余白0で時間表示が収まる最小幅（92→64→44→36・2026-08-14）
 const AXIS_H = 22;      // 上の時間軸の高さ(px)
 const STEP_MIN = 15;    // 枠の刻み（ネット予約と同じ15分）
+// ボードの時間レンジ：出勤の有無に関係なく 0:00〜翌7:00 固定（2026-08-14仕様変更）。
+// 翌0:00〜7:00 は翌日のボード（0:00〜7:00）にも同じ予約が表示される（7時間の重複窓）。
+const BOARD_START_MIN = 0;
+const BOARD_END_MIN = 31 * 60; // 翌7:00 = 1860分
 
 // 検証フィクスチャ用の差し替え口。省略時は本物のサーバーアクションを使う。
 export type BoardIO = {
@@ -50,6 +54,19 @@ const defaultIO: BoardIO = {
 };
 
 // ── 日付・時刻ヘルパー（すべて JST 基準） ──
+
+// JSTの今日（暦日）。ボードの「今日」は 0:00 切替（営業日の朝6時切替ではない・2026-08-14仕様変更）。
+function todayJstCalendar(): string {
+  return new Intl.DateTimeFormat('sv-SE', { timeZone: 'Asia/Tokyo' }).format(new Date());
+}
+
+// "YYYY-MM-DD" を days 日ずらす（UTC正午基準で月跨ぎ安全）。
+function shiftDateStr(dateStr: string, days: number): string {
+  const [y, m, d] = dateStr.split('-').map(Number);
+  const base = new Date(Date.UTC(y, m - 1, d));
+  base.setUTCDate(base.getUTCDate() + days);
+  return `${base.getUTCFullYear()}-${String(base.getUTCMonth() + 1).padStart(2, '0')}-${String(base.getUTCDate()).padStart(2, '0')}`;
+}
 
 // ボード日の JST 0:00 を epoch ms で（縦位置計算の原点）。
 function anchorMsOf(dateStr: string): number {
@@ -120,7 +137,17 @@ function blockCls(status: string): string {
   }
 }
 
-// 時間選択肢：出勤帯を15分刻みで列挙し、既存予約（cancelled以外・自分以外）と重なる枠に taken を立てる。
+// セレクトの表示用：当日枠があればその時間、前日尻尾だけなら「前日〜HH:MM」。
+function therapistShiftLabel(t: BoardTherapist): string {
+  const today = t.schedules.find((w) => !w.fromPrevDay);
+  if (today) return shiftLabel(today.start, today.end);
+  const tail = t.schedules.find((w) => w.fromPrevDay);
+  if (tail) return `前日〜${tail.end}`;
+  return '出勤なし';
+}
+
+// 時間選択肢：出勤帯（前日尻尾＋当日の複数窓）を15分刻みで列挙し、
+// 既存予約（cancelled以外・自分以外）と重なる枠に taken を立てる。
 function slotTimeOptions(params: {
   therapist: BoardTherapist | null | undefined;
   durationMin: number;
@@ -129,22 +156,28 @@ function slotTimeOptions(params: {
   excludeId?: string;
 }): { iso: string; label: string; taken: boolean }[] {
   const { therapist, durationMin, bookings, boardDate, excludeId } = params;
-  if (!therapist?.schedule || durationMin <= 0) return [];
-  const startMs = new Date(therapist.schedule.startISO).getTime();
-  const endMs = new Date(therapist.schedule.endISO).getTime();
+  if (!therapist || therapist.schedules.length === 0 || durationMin <= 0) return [];
   const durMs = durationMin * 60 * 1000;
+  // ボード窓は当日0:00から。前日尻尾の窓は前日夜から始まっているため、候補は0:00以降に限定する
+  // （前日夜の分は前日のボードで入力する。「翌」誤表記の防止も兼ねる）。
+  const boardZeroMs = anchorMsOf(boardDate);
   const out: { iso: string; label: string; taken: boolean }[] = [];
-  for (let t = startMs; t + durMs <= endMs; t += STEP_MIN * 60 * 1000) {
-    const e = t + durMs;
-    const taken = bookings.some(
-      (b) =>
-        b.therapistId === therapist.id &&
-        b.status !== 'cancelled' &&
-        b.id !== excludeId &&
-        new Date(b.slotStart).getTime() < e &&
-        new Date(b.slotEnd).getTime() > t,
-    );
-    out.push({ iso: new Date(t).toISOString(), label: timeLabel(t, boardDate), taken });
+  for (const w of therapist.schedules) {
+    const startMs = new Date(w.startISO).getTime();
+    const endMs = new Date(w.endISO).getTime();
+    for (let t = startMs; t + durMs <= endMs; t += STEP_MIN * 60 * 1000) {
+      if (t < boardZeroMs) continue;
+      const e = t + durMs;
+      const taken = bookings.some(
+        (b) =>
+          b.therapistId === therapist.id &&
+          b.status !== 'cancelled' &&
+          b.id !== excludeId &&
+          new Date(b.slotStart).getTime() < e &&
+          new Date(b.slotEnd).getTime() > t,
+      );
+      out.push({ iso: new Date(t).toISOString(), label: timeLabel(t, boardDate), taken });
+    }
   }
   return out;
 }
@@ -169,10 +202,11 @@ export function BookingBoard({ salonId, active, io = defaultIO }: {
   io?: BoardIO;
 }) {
   const { toast, showToast } = useToast();
-  const [date, setDate] = useState(() => getBusinessDateJST(0));
-  // 今日から7日間（営業日基準・朝6時切替）。日付チップと移動フォームの日付選択肢はこの範囲だけ。
-  const days = getBusinessDateRangeJST(7);
-  // タブを開いたまま朝6時（営業日の切替）を跨いだら、選択日を新しい「今日」へ寄せる。
+  const [date, setDate] = useState(() => todayJstCalendar());
+  // 今日から7日間（暦日・0:00切替）。日付チップと移動フォームの日付選択肢はこの範囲だけ。
+  // 0:00 になった瞬間に前日のボードは消え、新しい「今日」が先頭になる（2026-08-14仕様変更）。
+  const days = Array.from({ length: 7 }, (_, i) => shiftDateStr(todayJstCalendar(), i));
+  // タブを開いたまま 0:00（日付の切替）を跨いだら、選択日を新しい「今日」へ寄せる。
   useEffect(() => {
     if (!days.includes(date)) setDate(days[0]);
     // days は毎レンダー新しい配列になるため、切替検知は先頭日だけ見る。
@@ -219,25 +253,9 @@ export function BookingBoard({ salonId, active, io = defaultIO }: {
   const anchorMs = useMemo(() => anchorMsOf(date), [date]);
   const minOf = useCallback((iso: string) => (new Date(iso).getTime() - anchorMs) / 60000, [anchorMs]);
 
-  // ボードの縦レンジ（JST 0:00 からの分）。出勤枠と予約の双方を含み、時間単位に丸める。
-  const { boardStart, boardEnd } = useMemo(() => {
-    let lo = Number.POSITIVE_INFINITY;
-    let hi = Number.NEGATIVE_INFINITY;
-    for (const t of data?.therapists ?? []) {
-      if (!t.schedule) continue;
-      lo = Math.min(lo, minOf(t.schedule.startISO));
-      hi = Math.max(hi, minOf(t.schedule.endISO));
-    }
-    for (const b of data?.bookings ?? []) {
-      lo = Math.min(lo, minOf(b.slotStart));
-      hi = Math.max(hi, minOf(b.slotEnd));
-    }
-    if (!Number.isFinite(lo) || !Number.isFinite(hi)) { lo = 600; hi = 1320; } // 出勤なし：10〜22時
-    lo = Math.max(0, Math.floor(lo / 60) * 60);
-    hi = Math.min(1800, Math.ceil(hi / 60) * 60);
-    if (hi <= lo) hi = lo + 60;
-    return { boardStart: lo, boardEnd: hi };
-  }, [data, minOf]);
+  // ボードの時間レンジ：0:00〜翌7:00 固定（出勤の有無で変えない・2026-08-14仕様変更）。
+  const boardStart = BOARD_START_MIN;
+  const boardEnd = BOARD_END_MIN;
 
   const boardW = (boardEnd - boardStart) * PX_PER_MIN; // タイムライン部の幅(px)
   const hours = useMemo(() => {
@@ -246,23 +264,34 @@ export function BookingBoard({ salonId, active, io = defaultIO }: {
     return arr;
   }, [boardStart, boardEnd]);
 
-  const isToday = date === getBusinessDateJST(0);
+  const isToday = date === days[0];
   const nowMin = (Date.now() - anchorMs) / 60000;
   const showNowLine = isToday && nowMin > boardStart && nowMin < boardEnd;
 
-  // 当日は現在時刻が画面の左1/3あたりに来るよう初期スクロールする（横＝時間軸のため）。
+  // 初期スクロール：当日は現在時刻が画面の左1/3あたりに、
+  // 未来日は最初の出勤開始の30分前（出勤なしは9:00）に合わせる（0:00始まりだと深夜が見えるだけのため）。
   const scrollRef = useRef<HTMLDivElement | null>(null);
   useEffect(() => {
     if (!data || !scrollRef.current) return;
-    if (!showNowLine) { scrollRef.current.scrollLeft = 0; return; }
-    const target = (nowMin - boardStart) * PX_PER_MIN - (scrollRef.current.clientWidth - NAME_W) / 3;
-    scrollRef.current.scrollLeft = Math.max(0, target);
+    const el = scrollRef.current;
+    if (showNowLine) {
+      el.scrollLeft = Math.max(0, (nowMin - boardStart) * PX_PER_MIN - (el.clientWidth - NAME_W) / 3);
+      return;
+    }
+    let first = Number.POSITIVE_INFINITY;
+    for (const t of data.therapists) {
+      for (const w of t.schedules) {
+        if (!w.fromPrevDay) first = Math.min(first, minOf(w.startISO));
+      }
+    }
+    const startMin = Number.isFinite(first) ? Math.max(0, first - 30) : 540;
+    el.scrollLeft = startMin * PX_PER_MIN;
     // data（＝日付切替・再読込）のたびに位置を取り直す。nowMin は毎レンダー変わるため依存に入れない。
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [data]);
 
   const activeCount = (data?.bookings ?? []).filter((b) => b.status !== 'cancelled').length;
-  const scheduled = (data?.therapists ?? []).filter((t) => t.schedule);
+  const scheduled = (data?.therapists ?? []).filter((t) => t.schedules.length > 0);
 
   // ── 操作 ──
 
@@ -320,10 +349,10 @@ export function BookingBoard({ salonId, active, io = defaultIO }: {
   };
 
   // 空き部分タップ→手入力フォーム（クリック位置を15分に丸めて初期時刻に）。
-  const openAdd = (t: BoardTherapist, clickMin: number) => {
-    if (!t.schedule) return;
-    const schedStart = minOf(t.schedule.startISO);
-    const schedEnd = minOf(t.schedule.endISO);
+  // w＝タップした出勤帯（前日尻尾 or 当日枠）。丸めはその帯の中に収める。
+  const openAdd = (t: BoardTherapist, clickMin: number, w: BoardScheduleWindow) => {
+    const schedStart = Math.max(boardStart, minOf(w.startISO));
+    const schedEnd = Math.min(boardEnd, minOf(w.endISO));
     let m = schedStart + Math.floor((clickMin - schedStart) / STEP_MIN) * STEP_MIN;
     m = Math.max(schedStart, Math.min(m, schedEnd - STEP_MIN));
     const firstCourse = data?.courses[0];
@@ -371,7 +400,7 @@ export function BookingBoard({ salonId, active, io = defaultIO }: {
     : [];
 
   // 移動フォームの選択肢（移動先日のデータから）。
-  const moveScheduled = (moveData?.therapists ?? []).filter((t) => t.schedule);
+  const moveScheduled = (moveData?.therapists ?? []).filter((t) => t.schedules.length > 0);
   const moveTherapist = moveForm ? moveScheduled.find((t) => t.id === moveForm.therapistId) ?? null : null;
   const moveOptions = moveForm && detail
     ? slotTimeOptions({
@@ -466,23 +495,28 @@ export function BookingBoard({ salonId, active, io = defaultIO }: {
 
               {/* セラピスト行 */}
               {data.therapists.map((t) => {
-                const sched = t.schedule;
-                const leftMin = sched ? Math.max(boardStart, minOf(sched.startISO)) : 0;
-                const rightMin = sched ? Math.min(boardEnd, minOf(sched.endISO)) : 0;
+                // 名前列の表示は「当日枠」を優先。前日尻尾しか無い行は「前日〜HH:MM」表示。
+                const todayWin = t.schedules.find((sw) => !sw.fromPrevDay) ?? null;
+                const tailWin = t.schedules.find((sw) => sw.fromPrevDay) ?? null;
                 const rowBookings = data.bookings.filter((b) => b.therapistId === t.id);
                 return (
                   <div key={t.id} className="flex border-t border-slate-100" data-testid={`board-col-${t.id}`}>
                     {/* 名前列（左・sticky） */}
-                    {/* 出勤時間は「開始／｜／翌終了」の縦3行（2026-08-14・横幅44pxに収めるため） */}
+                    {/* 出勤時間は「開始／｜／翌終了」の縦3行（2026-08-14・横幅を絞るため） */}
                     <div className="sticky left-0 z-20 bg-white flex-none px-0 flex flex-col justify-center text-center border-r border-slate-100"
                       style={{ width: NAME_W, height: ROW_H }}
-                      title={`${t.name}（${sched ? shiftLabel(sched.start, sched.end) : '出勤なし'}）`}>
+                      title={`${t.name}（${therapistShiftLabel(t)}）`}>
                       <p className="text-[11px] font-bold text-slate-700 truncate leading-tight">{t.name}</p>
-                      {sched ? (
+                      {todayWin ? (
                         <>
-                          <p className="text-[9px] text-slate-400 leading-tight tracking-tight">{trimHourZero(sched.start)}</p>
+                          <p className="text-[9px] text-slate-400 leading-tight tracking-tight">{trimHourZero(todayWin.start)}</p>
                           <p className="text-[8px] text-slate-300 leading-none">｜</p>
-                          <p className="text-[9px] text-slate-400 leading-tight tracking-tight">{isOvernight(sched.start, sched.end) ? '翌' : ''}{trimHourZero(sched.end)}</p>
+                          <p className="text-[9px] text-slate-400 leading-tight tracking-tight">{isOvernight(todayWin.start, todayWin.end) ? '翌' : ''}{trimHourZero(todayWin.end)}</p>
+                        </>
+                      ) : tailWin ? (
+                        <>
+                          <p className="text-[9px] text-slate-400 leading-tight">前日</p>
+                          <p className="text-[9px] text-slate-400 leading-tight tracking-tight">〜{trimHourZero(tailWin.end)}</p>
                         </>
                       ) : (
                         <p className="text-[9px] text-slate-400 leading-tight">出勤なし</p>
@@ -495,20 +529,27 @@ export function BookingBoard({ salonId, active, io = defaultIO }: {
                         <div key={m} className="absolute inset-y-0 border-l border-slate-100"
                           style={{ left: (m - boardStart) * PX_PER_MIN }} />
                       ))}
-                      {/* 出勤帯（白地・タップで手入力） */}
-                      {sched && rightMin > leftMin && (
-                        <div
-                          className="absolute inset-y-0 bg-white border-y border-slate-100 cursor-pointer"
-                          style={{ left: (leftMin - boardStart) * PX_PER_MIN, width: (rightMin - leftMin) * PX_PER_MIN }}
-                          title="タップして電話予約を追加"
-                          data-testid={`board-band-${t.id}`}
-                          onClick={(e) => {
-                            const rect = e.currentTarget.getBoundingClientRect();
-                            const clickMin = leftMin + (e.clientX - rect.left) / PX_PER_MIN;
-                            openAdd(t, clickMin);
-                          }}
-                        />
-                      )}
+                      {/* 出勤帯（白地・タップで手入力）。前日尻尾＋当日枠の最大2本 */}
+                      {t.schedules.map((sw) => {
+                        const leftMin = Math.max(boardStart, minOf(sw.startISO));
+                        const rightMin = Math.min(boardEnd, minOf(sw.endISO));
+                        if (rightMin <= leftMin) return null;
+                        return (
+                          <div
+                            key={sw.startISO}
+                            className="absolute inset-y-0 bg-white border-y border-slate-100 cursor-pointer"
+                            style={{ left: (leftMin - boardStart) * PX_PER_MIN, width: (rightMin - leftMin) * PX_PER_MIN }}
+                            title="タップして電話予約を追加"
+                            data-testid={`board-band-${t.id}${sw.fromPrevDay ? '-prev' : ''}`}
+                            onClick={(e) => {
+                              const rect = e.currentTarget.getBoundingClientRect();
+                              if (rect.width <= 0) return;
+                              const clickMin = leftMin + ((e.clientX - rect.left) / rect.width) * (rightMin - leftMin);
+                              openAdd(t, clickMin, sw);
+                            }}
+                          />
+                        );
+                      })}
                       {/* 予約ブロック */}
                       {rowBookings.map((b) => {
                         const s = Math.max(boardStart, minOf(b.slotStart));
@@ -565,7 +606,7 @@ export function BookingBoard({ salonId, active, io = defaultIO }: {
             </div>
             <div className="space-y-1 text-xs text-slate-600">
               <p><span className="text-slate-400">日時：</span>
-                {formatDateHeading(jstDateStr(new Date(detail.slotStart).getTime() - 6 * 3600 * 1000))/* 営業日表記（6時前は前日扱い） */}
+                {formatDateHeading(jstDateStr(new Date(detail.slotStart).getTime()))/* 暦日表記（0:00切替・ボードと同じ基準） */}
                 {' '}{jstHHMM(new Date(detail.slotStart).getTime())}〜{jstHHMM(new Date(detail.slotEnd).getTime())}
               </p>
               <p><span className="text-slate-400">担当：</span>{detail.therapistName}</p>
@@ -621,7 +662,7 @@ export function BookingBoard({ salonId, active, io = defaultIO }: {
                 >
                   {moveScheduled.length === 0 && <option value={moveForm.therapistId}>出勤者がいません</option>}
                   {moveScheduled.map((t) => (
-                    <option key={t.id} value={t.id}>{t.name}（{t.schedule ? shiftLabel(t.schedule.start, t.schedule.end) : ''}）</option>
+                    <option key={t.id} value={t.id}>{t.name}（{therapistShiftLabel(t)}）</option>
                   ))}
                 </select>
                 <select
@@ -665,13 +706,13 @@ export function BookingBoard({ salonId, active, io = defaultIO }: {
                   onChange={(e) => {
                     const id = Number(e.target.value);
                     const th = scheduled.find((t) => t.id === id);
-                    // 担当を変えたら開始時刻はその人の出勤開始に合わせ直す。
-                    setAddForm({ ...addForm, therapistId: id, startISO: th?.schedule?.startISO ?? '' });
+                    // 担当を変えたら開始時刻はその人の最初の出勤帯（前日尻尾含む）の開始に合わせ直す。
+                    setAddForm({ ...addForm, therapistId: id, startISO: th?.schedules[0]?.startISO ?? '' });
                   }}
                   className={inputCls}
                 >
                   {scheduled.map((t) => (
-                    <option key={t.id} value={t.id}>{t.name}（{t.schedule ? shiftLabel(t.schedule.start, t.schedule.end) : ''}）</option>
+                    <option key={t.id} value={t.id}>{t.name}（{therapistShiftLabel(t)}）</option>
                   ))}
                 </select>
               </div>
