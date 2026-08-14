@@ -266,6 +266,20 @@ export function BookingBoard({ salonId, active, io = defaultIO }: {
   // 初期スクロール：当日は現在時刻が画面の左1/3あたりに、
   // 未来日は最初の出勤開始の30分前（出勤なしは9:00）に合わせる（0:00始まりだと深夜が見えるだけのため）。
   const scrollRef = useRef<HTMLDivElement | null>(null);
+  // 時間軸の別枠（本体の横スクロールに同期させる）。
+  const axisWrapRef = useRef<HTMLDivElement | null>(null);
+  // 時間軸の貼り付き位置＝共通ヘッダー（マイページの sticky top-0 z-40 ブロック）の高さ。
+  // ヘッダーはタブ折返しなどで高さが変わるため実測して追従する（フィクスチャ等ヘッダー無し環境は0）。
+  const [stickyTop, setStickyTop] = useState(0);
+  useEffect(() => {
+    const header = document.querySelector<HTMLElement>('div.sticky.top-0.z-40');
+    if (!header) { setStickyTop(0); return; }
+    const update = () => setStickyTop(header.getBoundingClientRect().height);
+    update();
+    const ro = new ResizeObserver(update);
+    ro.observe(header);
+    return () => ro.disconnect();
+  }, []);
   useEffect(() => {
     if (!data || !scrollRef.current) return;
     const el = scrollRef.current;
@@ -468,15 +482,18 @@ export function BookingBoard({ salonId, active, io = defaultIO }: {
         ) : !data || data.therapists.length === 0 ? (
           <p className="text-xs text-slate-400 py-8 text-center">この日は出勤予定がありません。<br />出勤タブでシフトを登録するとボードに表示されます。</p>
         ) : (
-          <div ref={scrollRef} className="overflow-auto [contain:inline-size]" style={{ maxHeight: '70vh' }}>
-            {/* ↑ [contain:inline-size]：body が flex flex-col のため、ボードの min-content 幅
-                （名前列＋時間幅）がページ全体を押し広げてしまう。inline-size 封じ込めで
-                「幅の計算上は空」とみなさせ、はみ出し分はこの div の横スクロールに収める。
-                ↑ maxHeight 70vh＋overflow-auto：行が多いときはこの枠内で縦スクロールし、
-                時間軸（下の sticky top-0）が付いてくる（2026-08-14）。 */}
-            <div style={{ minWidth: NAME_W + boardW }}>
-              {/* 時間軸（上・縦スクロールしても付いてくる sticky。左上の角は左右どちらにも追従） */}
-              <div className="flex sticky top-0 z-30 bg-white border-b border-slate-100">
+          <div>
+            {/* 時間軸＋本体（cardの space-y-3 を間に挟ませないため1つの div にまとめる）。
+                縦は従来どおりページスクロール1本（ボード内の縦スクロール枠は廃止・2026-08-14）。
+                時間軸はページの共通ヘッダー（sticky）の真下に貼り付き、一緒に付いてくる。
+                横方向は本体の横スクロールに onScroll で同期させる。 */}
+            <div
+              ref={axisWrapRef}
+              className="sticky z-30 bg-white border-b border-slate-100 overflow-hidden [contain:inline-size]"
+              style={{ top: stickyTop }}
+              data-testid="board-axis"
+            >
+              <div className="flex" style={{ width: NAME_W + boardW }}>
                 <div className="sticky left-0 z-20 bg-white flex-none" style={{ width: NAME_W, height: AXIS_H }} />
                 <div className="relative flex-none" style={{ width: boardW, height: AXIS_H }}>
                   {hours.map((m) => (
@@ -487,6 +504,20 @@ export function BookingBoard({ salonId, active, io = defaultIO }: {
                   ))}
                 </div>
               </div>
+            </div>
+
+          <div
+            ref={scrollRef}
+            className="overflow-x-auto [contain:inline-size]"
+            onScroll={(e) => {
+              // 時間軸を本体の横スクロールに同期（軸側は overflow-hidden だが scrollLeft は設定可能）
+              if (axisWrapRef.current) axisWrapRef.current.scrollLeft = e.currentTarget.scrollLeft;
+            }}
+          >
+            {/* ↑ [contain:inline-size]：body が flex flex-col のため、ボードの min-content 幅
+                （名前列＋時間幅）がページ全体を押し広げてしまう。inline-size 封じ込めで
+                「幅の計算上は空」とみなさせ、はみ出し分はこの div の横スクロールに収める。 */}
+            <div style={{ minWidth: NAME_W + boardW }}>
 
               {/* セラピスト行 */}
               {data.therapists.map((t) => {
@@ -610,6 +641,7 @@ export function BookingBoard({ salonId, active, io = defaultIO }: {
                 );
               })}
             </div>
+          </div>
           </div>
         )}
       </div>
