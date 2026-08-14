@@ -468,13 +468,15 @@ export function BookingBoard({ salonId, active, io = defaultIO }: {
         ) : !data || data.therapists.length === 0 ? (
           <p className="text-xs text-slate-400 py-8 text-center">この日は出勤予定がありません。<br />出勤タブでシフトを登録するとボードに表示されます。</p>
         ) : (
-          <div ref={scrollRef} className="overflow-x-auto [contain:inline-size]">
+          <div ref={scrollRef} className="overflow-auto [contain:inline-size]" style={{ maxHeight: '70vh' }}>
             {/* ↑ [contain:inline-size]：body が flex flex-col のため、ボードの min-content 幅
                 （名前列＋時間幅）がページ全体を押し広げてしまう。inline-size 封じ込めで
-                「幅の計算上は空」とみなさせ、はみ出し分はこの div の横スクロールに収める。 */}
+                「幅の計算上は空」とみなさせ、はみ出し分はこの div の横スクロールに収める。
+                ↑ maxHeight 70vh＋overflow-auto：行が多いときはこの枠内で縦スクロールし、
+                時間軸（下の sticky top-0）が付いてくる（2026-08-14）。 */}
             <div style={{ minWidth: NAME_W + boardW }}>
-              {/* 時間軸（上） */}
-              <div className="flex">
+              {/* 時間軸（上・縦スクロールしても付いてくる sticky。左上の角は左右どちらにも追従） */}
+              <div className="flex sticky top-0 z-30 bg-white border-b border-slate-100">
                 <div className="sticky left-0 z-20 bg-white flex-none" style={{ width: NAME_W, height: AXIS_H }} />
                 <div className="relative flex-none" style={{ width: boardW, height: AXIS_H }}>
                   {hours.map((m) => (
@@ -540,10 +542,14 @@ export function BookingBoard({ salonId, active, io = defaultIO }: {
                         openAdd(t, clickMin);
                       }}
                     >
-                      {/* 時間罫線（縦） */}
+                      {/* 時間罫線（縦）。正時＝実線、30分＝点線（2026-08-14） */}
                       {hours.map((m) => (
                         <div key={m} className="absolute inset-y-0 border-l border-slate-100"
                           style={{ left: (m - boardStart) * PX_PER_MIN }} />
+                      ))}
+                      {hours.slice(0, -1).map((m) => (
+                        <div key={`half-${m}`} className="absolute inset-y-0 border-l border-dotted border-slate-200"
+                          style={{ left: (m + 30 - boardStart) * PX_PER_MIN }} />
                       ))}
                       {/* 出勤帯（薄青・目安表示のみ）。前日尻尾＋当日枠の最大2本。
                           クリックは行側で拾うため pointer-events-none */}
