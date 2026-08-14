@@ -26,7 +26,7 @@ import { useToast } from '@/app/components/useToast';
 // ── 寸法定数 ──
 const PX_PER_MIN = 1.2; // 横方向 1分=1.2px（1時間 = 72px）
 const ROW_H = 64;       // セラピスト行の高さ(px)
-const NAME_W = 92;      // 左の名前列の幅(px・sticky)
+const NAME_W = 64;      // 左の名前列の幅(px・sticky)。タイムラインを広く見せるため細め（92→64・2026-08-14）
 const AXIS_H = 22;      // 上の時間軸の高さ(px)
 const STEP_MIN = 15;    // 枠の刻み（ネット予約と同じ15分）
 
@@ -88,6 +88,14 @@ function formatDateHeading(dateStr: string): string {
 function shiftLabel(start: string, end: string): string {
   const toMin = (t: string) => { const [h, m] = t.split(':').map(Number); return (h || 0) * 60 + (m || 0); };
   return `${start}〜${toMin(end) <= toMin(start) ? '翌' : ''}${end}`;
+}
+
+// 名前列（幅64px）用の短い出勤帯表示。"02:00"→"2:00" と頭のゼロを落とし、〜の代わりに半角ハイフンで
+// "12:00-翌2:00" の形にして収める（フォームの選択肢では従来どおり shiftLabel を使う）。
+function shiftLabelShort(start: string, end: string): string {
+  const trim = (t: string) => t.replace(/^0(\d:)/, '$1');
+  const toMin = (t: string) => { const [h, m] = t.split(':').map(Number); return (h || 0) * 60 + (m || 0); };
+  return `${trim(start)}-${toMin(end) <= toMin(start) ? '翌' : ''}${trim(end)}`;
 }
 
 function hourLabel(min: number): string {
@@ -213,59 +221,27 @@ export function BookingBoard({ salonId, active, io = defaultIO }: {
     return { boardStart: lo, boardEnd: hi };
   }, [data, minOf]);
 
-  // ── 全体表示（2026-08-14 追加）：タイムラインを画面幅に合わせて縮め、スマホでも
-  //    PCのように1日を一望できるようにする。縮尺はコンテナ実測幅から自動計算。 ──
-  const scrollRef = useRef<HTMLDivElement | null>(null);
-  const [fitAll, setFitAll] = useState(false);
-  const [containerW, setContainerW] = useState(0);
-  useEffect(() => {
-    const el = scrollRef.current;
-    if (!el) return;
-    const update = () => setContainerW(el.clientWidth);
-    update();
-    const ro = new ResizeObserver(update);
-    ro.observe(el);
-    return () => ro.disconnect();
-    // scrollRef の要素は data が入ってから現れるため data を依存にする。
-  }, [data]);
-
-  // 1分あたりのpx。通常＝1.2固定、全体表示＝(コンテナ幅−名前列)÷表示分数（下限0.12）。
-  const pxPerMin = fitAll && containerW > 0
-    ? Math.max(0.12, (containerW - NAME_W) / (boardEnd - boardStart))
-    : PX_PER_MIN;
-  const boardW = (boardEnd - boardStart) * pxPerMin; // タイムライン部の幅(px)・通常表示でのみ使用
-
-  // 位置と幅のスタイル値。通常＝px固定、全体表示＝%（コンテナ実測に依存しないため
-  // スクロールバーの出入りやリサイズでも1pxもはみ出さない）。
-  const span = boardEnd - boardStart;
-  const leftOf = (min: number): string | number =>
-    fitAll ? `${(((min - boardStart) / span) * 100).toFixed(4)}%` : (min - boardStart) * PX_PER_MIN;
-  const sizeOf = (mins: number): string | number =>
-    fitAll ? `${((mins / span) * 100).toFixed(4)}%` : mins * PX_PER_MIN;
-
-  // 時間軸の目盛り。全体表示で1時間の幅が狭いときは2時間/3時間おきに間引く（重なり防止）。
-  const hourPx = pxPerMin * 60;
-  const labelStepMin = hourPx >= 34 ? 60 : hourPx >= 17 ? 120 : 180;
+  const boardW = (boardEnd - boardStart) * PX_PER_MIN; // タイムライン部の幅(px)
   const hours = useMemo(() => {
     const arr: number[] = [];
-    for (let m = boardStart; m <= boardEnd; m += labelStepMin) arr.push(m);
+    for (let m = boardStart; m <= boardEnd; m += 60) arr.push(m);
     return arr;
-  }, [boardStart, boardEnd, labelStepMin]);
+  }, [boardStart, boardEnd]);
 
   const isToday = date === getBusinessDateJST(0);
   const nowMin = (Date.now() - anchorMs) / 60000;
   const showNowLine = isToday && nowMin > boardStart && nowMin < boardEnd;
 
   // 当日は現在時刻が画面の左1/3あたりに来るよう初期スクロールする（横＝時間軸のため）。
-  // 全体表示中はスクロール不要なので先頭固定。
+  const scrollRef = useRef<HTMLDivElement | null>(null);
   useEffect(() => {
     if (!data || !scrollRef.current) return;
-    if (fitAll || !showNowLine) { scrollRef.current.scrollLeft = 0; return; }
+    if (!showNowLine) { scrollRef.current.scrollLeft = 0; return; }
     const target = (nowMin - boardStart) * PX_PER_MIN - (scrollRef.current.clientWidth - NAME_W) / 3;
     scrollRef.current.scrollLeft = Math.max(0, target);
-    // data（＝日付切替・再読込）と全体表示の切替時に位置を取り直す。nowMin は毎レンダー変わるため依存に入れない。
+    // data（＝日付切替・再読込）のたびに位置を取り直す。nowMin は毎レンダー変わるため依存に入れない。
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [data, fitAll]);
+  }, [data]);
 
   const activeCount = (data?.bookings ?? []).filter((b) => b.status !== 'cancelled').length;
   const scheduled = (data?.therapists ?? []).filter((t) => t.schedule);
@@ -415,13 +391,6 @@ export function BookingBoard({ salonId, active, io = defaultIO }: {
           </div>
           <div className="flex items-center gap-2">
             <span className="text-[11px] text-slate-400">{activeCount}件</span>
-            {/* 全体表示：1日分を画面幅に収める（スマホでPCのような一望に）。もう一度押すと通常の縮尺に戻る */}
-            <button type="button" onClick={() => setFitAll((v) => !v)} aria-pressed={fitAll}
-              className={`${btnBase} ${fitAll
-                ? 'border-pink-300 bg-pink-50 text-pink-600'
-                : 'border-slate-200 text-slate-500 hover:bg-slate-50'}`}>
-              {fitAll ? '全体表示中' : '全体表示'}
-            </button>
             <button type="button" onClick={reload} disabled={loading}
               className={`${btnBase} border-slate-200 text-slate-500 hover:bg-slate-50`}>再読み込み</button>
           </div>
@@ -447,18 +416,14 @@ export function BookingBoard({ salonId, active, io = defaultIO }: {
             {/* ↑ [contain:inline-size]：body が flex flex-col のため、ボードの min-content 幅
                 （名前列＋時間幅）がページ全体を押し広げてしまう。inline-size 封じ込めで
                 「幅の計算上は空」とみなさせ、はみ出し分はこの div の横スクロールに収める。 */}
-            <div style={fitAll ? undefined : { minWidth: NAME_W + boardW }}>
+            <div style={{ minWidth: NAME_W + boardW }}>
               {/* 時間軸（上） */}
               <div className="flex">
                 <div className="sticky left-0 z-20 bg-white flex-none" style={{ width: NAME_W, height: AXIS_H }} />
-                <div className={`relative ${fitAll ? 'flex-1 min-w-0' : 'flex-none'}`}
-                  style={fitAll ? { height: AXIS_H } : { width: boardW, height: AXIS_H }}>
-                  {/* 全体表示では右端（100%位置）のラベルが -translate-x-1/2 で半分はみ出すため省く。
-                      先頭ラベルは中央寄せだと名前列の下に半分隠れるので左寄せにする。 */}
-                  {hours.filter((m) => !(fitAll && m === boardEnd)).map((m) => (
-                    <div key={m}
-                      className={`absolute bottom-0.5 text-[10px] text-slate-400 whitespace-nowrap ${m === boardStart ? '' : '-translate-x-1/2'}`}
-                      style={{ left: leftOf(m) }}>
+                <div className="relative flex-none" style={{ width: boardW, height: AXIS_H }}>
+                  {hours.map((m) => (
+                    <div key={m} className="absolute bottom-0.5 -translate-x-1/2 text-[10px] text-slate-400 whitespace-nowrap"
+                      style={{ left: (m - boardStart) * PX_PER_MIN }}>
                       {hourLabel(m)}
                     </div>
                   ))}
@@ -474,31 +439,29 @@ export function BookingBoard({ salonId, active, io = defaultIO }: {
                 return (
                   <div key={t.id} className="flex border-t border-slate-100" data-testid={`board-col-${t.id}`}>
                     {/* 名前列（左・sticky） */}
-                    <div className="sticky left-0 z-20 bg-white flex-none px-1.5 flex flex-col justify-center text-center border-r border-slate-100"
-                      style={{ width: NAME_W, height: ROW_H }}>
-                      <p className="text-xs font-bold text-slate-700 truncate">{t.name}</p>
-                      <p className="text-[10px] text-slate-400 truncate">{sched ? shiftLabel(sched.start, sched.end) : '出勤なし'}</p>
+                    <div className="sticky left-0 z-20 bg-white flex-none px-0.5 flex flex-col justify-center text-center border-r border-slate-100"
+                      style={{ width: NAME_W, height: ROW_H }}
+                      title={`${t.name}（${sched ? shiftLabel(sched.start, sched.end) : '出勤なし'}）`}>
+                      <p className="text-[11px] font-bold text-slate-700 truncate">{t.name}</p>
+                      <p className="text-[9px] text-slate-400 truncate tracking-tight">{sched ? shiftLabelShort(sched.start, sched.end) : '出勤なし'}</p>
                     </div>
                     {/* タイムライン（右） */}
-                    <div className={`relative bg-slate-50/80 ${fitAll ? 'flex-1 min-w-0' : 'flex-none'}`}
-                      style={fitAll ? { height: ROW_H } : { width: boardW, height: ROW_H }}>
-                      {/* 時間罫線（縦）。右端の1本は全体表示でははみ出すため省く */}
-                      {hours.filter((m) => !(fitAll && m === boardEnd)).map((m) => (
+                    <div className="relative bg-slate-50/80 flex-none" style={{ width: boardW, height: ROW_H }}>
+                      {/* 時間罫線（縦） */}
+                      {hours.map((m) => (
                         <div key={m} className="absolute inset-y-0 border-l border-slate-100"
-                          style={{ left: leftOf(m) }} />
+                          style={{ left: (m - boardStart) * PX_PER_MIN }} />
                       ))}
                       {/* 出勤帯（白地・タップで手入力） */}
                       {sched && rightMin > leftMin && (
                         <div
                           className="absolute inset-y-0 bg-white border-y border-slate-100 cursor-pointer"
-                          style={{ left: leftOf(leftMin), width: sizeOf(rightMin - leftMin) }}
+                          style={{ left: (leftMin - boardStart) * PX_PER_MIN, width: (rightMin - leftMin) * PX_PER_MIN }}
                           title="タップして電話予約を追加"
                           data-testid={`board-band-${t.id}`}
                           onClick={(e) => {
-                            // クリック位置→分：帯の実測幅から換算（px/％どちらのモードでも正確）。
                             const rect = e.currentTarget.getBoundingClientRect();
-                            if (rect.width <= 0) return;
-                            const clickMin = leftMin + ((e.clientX - rect.left) / rect.width) * (rightMin - leftMin);
+                            const clickMin = leftMin + (e.clientX - rect.left) / PX_PER_MIN;
                             openAdd(t, clickMin);
                           }}
                         />
@@ -508,7 +471,7 @@ export function BookingBoard({ salonId, active, io = defaultIO }: {
                         const s = Math.max(boardStart, minOf(b.slotStart));
                         const e = Math.min(boardEnd, minOf(b.slotEnd));
                         if (e <= s) return null;
-                        const w = (e - s) * pxPerMin;
+                        const w = (e - s) * PX_PER_MIN;
                         const sLabel = timeLabel(new Date(b.slotStart).getTime(), date);
                         const eLabel = timeLabel(new Date(b.slotEnd).getTime(), date);
                         return (
@@ -518,23 +481,20 @@ export function BookingBoard({ salonId, active, io = defaultIO }: {
                             onClick={() => setDetail(b)}
                             data-testid={`board-booking-${b.id}`}
                             className={`absolute inset-y-0.5 rounded-lg border px-1.5 py-0.5 text-left overflow-hidden ${blockCls(b.status)}`}
-                            style={{ left: leftOf(s), width: fitAll ? sizeOf(e - s) : Math.max(w, 18), minWidth: 14 }}
+                            style={{ left: (s - boardStart) * PX_PER_MIN, width: Math.max(w, 18) }}
                           >
-                            {/* 幅に応じて表示を間引く（全体表示ではブロックが細くなるため、
-                                狭いときは色だけ＝タップで詳細を見る運用）。 */}
-                            {w >= 34 && (
-                              <p className="text-[10px] font-bold leading-tight truncate">
-                                {w >= 56 ? `${sLabel}〜${eLabel}` : sLabel}
-                              </p>
-                            )}
-                            {w >= 34 && <p className="text-[10px] leading-tight truncate">{b.customerName} 様</p>}
-                            {w >= 72 && <p className="text-[9px] leading-tight truncate opacity-80">{b.courseName}（{b.courseMin}分）</p>}
+                            {/* 幅が狭いブロックは開始時刻のみ表示 */}
+                            <p className="text-[10px] font-bold leading-tight truncate">
+                              {w >= 56 ? `${sLabel}〜${eLabel}` : sLabel}
+                            </p>
+                            <p className="text-[10px] leading-tight truncate">{b.customerName} 様</p>
+                            <p className="text-[9px] leading-tight truncate opacity-80">{b.courseName}（{b.courseMin}分）</p>
                           </button>
                         );
                       })}
                       {/* 現在時刻ライン（当日のみ・縦）。z は名前列(z-20)より下・予約ブロック(z-10)より上。 */}
                       {showNowLine && (
-                        <div className="absolute inset-y-0 z-[15] pointer-events-none" style={{ left: leftOf(nowMin) }}>
+                        <div className="absolute inset-y-0 z-[15] pointer-events-none" style={{ left: (nowMin - boardStart) * PX_PER_MIN }}>
                           <div className="w-px h-full bg-rose-400" />
                         </div>
                       )}
