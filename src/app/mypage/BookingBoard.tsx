@@ -643,6 +643,12 @@ export function BookingBoard({ salonId, active, io = defaultIO }: {
           </div>
         </div>
 
+        {/* 補足説明（2026-08-14追加）：深夜帯の二重表示と過去閲覧の案内 */}
+        <p className="text-[10px] text-slate-400 leading-relaxed">
+          深夜帯（翌0時〜翌7時）の予約は本日と翌日の両方のボードに表示され、日付の予約数バッジにも両方の日でカウントされます。
+          「過去分」から過去3ヶ月（90日）まで遡って履歴を見られます。
+        </p>
+
         {/* 過去表示中のバナー（2026-08-14追加） */}
         {isPast && (
           <div className="flex items-center justify-between gap-2 rounded-xl bg-amber-50 border border-amber-200 px-3 py-1.5" data-testid="board-past-banner">
