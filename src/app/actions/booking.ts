@@ -544,7 +544,7 @@ async function assertSalonOwner(
 export type BoardBooking = OwnerBooking & { therapistId: number };
 // fromPrevDay=true は「前日の夜跨ぎシフトの尻尾」（例：前日18:00〜翌2:00 の 0:00〜2:00 部分）。
 export type BoardScheduleWindow = { start: string; end: string; startISO: string; endISO: string; fromPrevDay: boolean };
-export type BoardTherapist = { id: number; name: string; schedules: BoardScheduleWindow[] };
+export type BoardTherapist = { id: number; name: string; profileImageUrl: string | null; schedules: BoardScheduleWindow[] };
 export type BookingBoardData = {
   date: string;                 // "YYYY-MM-DD"（JSTの暦日。ボード窓は 0:00〜翌7:00 固定・2026-08-14仕様変更）
   therapists: BoardTherapist[]; // 行＝当日出勤（前日尻尾含む）のセラピスト（＋予約だけ残っているセラピスト）
@@ -579,7 +579,7 @@ export async function getBookingBoardData(
   // 在籍セラピスト（is_active）。列順は id 昇順（出勤設定タブと同じ並び感）。
   const { data: ths, error: thErr } = await svc
     .from('therapists')
-    .select('id, name')
+    .select('id, name, profile_image_url')
     .eq('salon_id', salonId)
     .eq('is_active', true)
     .order('id', { ascending: true });
@@ -587,6 +587,10 @@ export async function getBookingBoardData(
   const therapistRows = ths ?? [];
   const nameById = new Map<number, string>(
     therapistRows.map((t) => [Number(t.id), (t.name as string | null) ?? '(名前未設定)']),
+  );
+  // 名前列の丸アイコン用（2026-08-14 追加）。
+  const imageById = new Map<number, string | null>(
+    therapistRows.map((t) => [Number(t.id), (t.profile_image_url as string | null) ?? null]),
   );
 
   // ボード窓：当日 0:00〜翌7:00（JST）固定。出勤の有無では変えない（2026-08-14仕様変更）。
@@ -660,8 +664,11 @@ export async function getBookingBoardData(
   // extra に在籍外（is_active=false）のセラピストが混ざる場合は名前を別途引く。
   const unknownIds = extraIds.filter((id) => !nameById.has(id));
   if (unknownIds.length > 0) {
-    const { data: exThs } = await svc.from('therapists').select('id, name').in('id', unknownIds);
-    (exThs ?? []).forEach((t) => nameById.set(Number(t.id), (t.name as string | null) ?? '(名前未設定)'));
+    const { data: exThs } = await svc.from('therapists').select('id, name, profile_image_url').in('id', unknownIds);
+    (exThs ?? []).forEach((t) => {
+      nameById.set(Number(t.id), (t.name as string | null) ?? '(名前未設定)');
+      imageById.set(Number(t.id), (t.profile_image_url as string | null) ?? null);
+    });
     // 予約側の表示名も補完しておく。
     for (const b of bookings) {
       if (b.therapistName === '(不明)') b.therapistName = nameById.get(b.therapistId) ?? '(不明)';
@@ -671,9 +678,15 @@ export async function getBookingBoardData(
     ...rowIds.map((id) => ({
       id,
       name: nameById.get(id) ?? '(不明)',
+      profileImageUrl: imageById.get(id) ?? null,
       schedules: windowsByTherapist.get(id) ?? [],
     })),
-    ...extraIds.map((id) => ({ id, name: nameById.get(id) ?? '(不明)', schedules: [] })),
+    ...extraIds.map((id) => ({
+      id,
+      name: nameById.get(id) ?? '(不明)',
+      profileImageUrl: imageById.get(id) ?? null,
+      schedules: [],
+    })),
   ];
 
   return {

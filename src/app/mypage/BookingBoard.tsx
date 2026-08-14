@@ -25,7 +25,7 @@ import { useToast } from '@/app/components/useToast';
 
 // ── 寸法定数 ──
 const PX_PER_MIN = 1.0; // 横方向 1分=1px（1時間 = 60px）。1.2→1.0でスマホの可視時間を約2割増（2026-08-14）
-const ROW_H = 64;       // セラピスト行の高さ(px)
+const ROW_H = 88;       // セラピスト行の高さ(px)。丸アイコン追加に合わせて 64→88（2026-08-14）
 const NAME_W = 36;      // 左の名前列の幅(px・sticky)。内側余白0で時間表示が収まる最小幅（92→64→44→36・2026-08-14）
 const AXIS_H = 22;      // 上の時間軸の高さ(px)
 const STEP_MIN = 15;    // 枠の刻み（ネット予約と同じ15分）
@@ -495,10 +495,21 @@ export function BookingBoard({ salonId, active, io = defaultIO }: {
                   <div key={t.id} className="flex border-t border-slate-100" data-testid={`board-col-${t.id}`}>
                     {/* 名前列（左・sticky） */}
                     {/* 出勤時間は「開始／｜／翌終了」の縦3行（2026-08-14・横幅を絞るため） */}
-                    <div className="sticky left-0 z-20 bg-white flex-none px-0 flex flex-col justify-center text-center border-r border-slate-100"
+                    <div className="sticky left-0 z-20 bg-white flex-none px-0 flex flex-col items-center justify-center text-center border-r border-slate-100"
                       style={{ width: NAME_W, height: ROW_H }}
                       title={`${t.name}（${therapistShiftLabel(t)}）`}>
-                      <p className="text-[11px] font-bold text-slate-700 truncate leading-tight">{t.name}</p>
+                      {/* 丸アイコン（2026-08-14 追加）。画像未設定は頭文字の丸で代替 */}
+                      {t.profileImageUrl ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img src={t.profileImageUrl} alt="" data-testid={`board-avatar-${t.id}`}
+                          className="w-7 h-7 rounded-full object-cover mb-0.5 flex-none" />
+                      ) : (
+                        <span data-testid={`board-avatar-${t.id}`}
+                          className="w-7 h-7 rounded-full bg-slate-100 text-slate-400 text-[11px] font-bold flex items-center justify-center mb-0.5 flex-none">
+                          {t.name.charAt(0)}
+                        </span>
+                      )}
+                      <p className="w-full text-[11px] font-bold text-slate-700 truncate leading-tight">{t.name}</p>
                       {todayWin ? (
                         <>
                           <p className="text-[9px] text-slate-400 leading-tight tracking-tight">{trimHourZero(todayWin.start)}</p>
