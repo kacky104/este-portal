@@ -514,13 +514,15 @@ export function BookingBoard({ salonId, active, io = defaultIO }: {
                         const w = (e - s) * PX_PER_MIN;
                         const sLabel = timeLabel(new Date(b.slotStart).getTime(), date);
                         const eLabel = timeLabel(new Date(b.slotEnd).getTime(), date);
+                        // px-0：ブロック内の左右余白は0にして文字を縁いっぱいまで見せる（2026-08-14）。
+                        // 角丸は rounded-md に一段落とし、角の丸みで1行目の文字が欠けないようにする。
                         return (
                           <button
                             key={b.id}
                             type="button"
                             onClick={() => setDetail(b)}
                             data-testid={`board-booking-${b.id}`}
-                            className={`absolute inset-y-0.5 rounded-lg border px-1.5 py-0.5 text-left overflow-hidden ${blockCls(b.status)}`}
+                            className={`absolute inset-y-0.5 rounded-md border px-0 py-0.5 text-left overflow-hidden ${blockCls(b.status)}`}
                             style={{ left: (s - boardStart) * PX_PER_MIN, width: Math.max(w, 18) }}
                           >
                             {/* 幅が狭いブロックは開始時刻のみ表示 */}
