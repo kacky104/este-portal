@@ -881,3 +881,38 @@ export async function moveBooking(
   }
   return { ok: true };
 }
+
+/**
+ * 予約ボードの日付チップ用（2026-08-14 追加）：今日から7日間の予約件数を営業日ごとに返す。
+ * cancelled は数えない（ボード右上の「◯件」と同じ基準）。
+ * 営業日の区切りは朝6時（ボードの窓と同じ）。予約は slot_start の属する営業日で数える。
+ */
+export async function getBookingCountsByDay(
+  salonId: number,
+): Promise<{ ok: true; counts: Record<string, number> } | { ok: false; error: string }> {
+  const auth = await assertSalonOwner(salonId);
+  if (!auth.ok) return { ok: false, error: auth.error };
+
+  const days = Array.from({ length: 7 }, (_, i) => getBusinessDateJST(i));
+  const from = jstWallToUtc(days[0], '06:00');
+  const to = jstWallToUtc(days[6], '06:00', 1); // 7日目の翌朝6時まで
+
+  const svc = createServiceClient();
+  const { data, error } = await svc
+    .from('salon_bookings')
+    .select('slot_start')
+    .eq('salon_id', salonId)
+    .neq('status', 'cancelled')
+    .gte('slot_start', from.toISOString())
+    .lt('slot_start', to.toISOString());
+  if (error) return { ok: false, error: error.message };
+
+  const counts: Record<string, number> = Object.fromEntries(days.map((d) => [d, 0]));
+  for (const r of data ?? []) {
+    // 営業日＝「6時間戻した時刻」のJST日付（深夜帯は前日の営業日に属する）。
+    const bizDate = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Tokyo' })
+      .format(new Date(new Date(r.slot_start as string).getTime() - 6 * 60 * 60 * 1000));
+    if (bizDate in counts) counts[bizDate] += 1;
+  }
+  return { ok: true, counts };
+}

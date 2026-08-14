@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   getBookingBoardData,
+  getBookingCountsByDay,
   createManualBooking,
   moveBooking,
   updateBookingStatus,
@@ -33,6 +34,7 @@ const STEP_MIN = 15;    // 枠の刻み（ネット予約と同じ15分）
 // 検証フィクスチャ用の差し替え口。省略時は本物のサーバーアクションを使う。
 export type BoardIO = {
   fetchBoard: typeof getBookingBoardData;
+  fetchCounts: typeof getBookingCountsByDay;
   createManual: typeof createManualBooking;
   move: typeof moveBooking;
   setStatus: typeof updateBookingStatus;
@@ -40,6 +42,7 @@ export type BoardIO = {
 };
 const defaultIO: BoardIO = {
   fetchBoard: getBookingBoardData,
+  fetchCounts: getBookingCountsByDay,
   createManual: createManualBooking,
   move: moveBooking,
   setStatus: updateBookingStatus,
@@ -187,6 +190,9 @@ export function BookingBoard({ salonId, active, io = defaultIO }: {
   const [moveLoading, setMoveLoading] = useState(false);
   const [addForm, setAddForm] = useState<AddForm | null>(null);
 
+  // 日付チップのバッジ用：営業日ごとの予約件数（cancelled除く）。null=未取得。
+  const [dayCounts, setDayCounts] = useState<Record<string, number> | null>(null);
+
   const load = useCallback(async (d: string) => {
     setLoading(true);
     setLoadError('');
@@ -196,10 +202,19 @@ export function BookingBoard({ salonId, active, io = defaultIO }: {
     setData(res.data);
   }, [io, salonId]);
 
+  // 件数バッジの取得。失敗してもボード本体は使えるので黙って据え置く。
+  const loadCounts = useCallback(async () => {
+    const res = await io.fetchCounts(salonId);
+    if (res.ok) setDayCounts(res.counts);
+  }, [io, salonId]);
+
   // タブがアクティブになったとき＆日付が変わったときに読み込む（非アクティブ中は読まない）。
+  // バッジ件数も同時に取り直す（日付切替時も＝他の日に入った予約が反映される）。
   useEffect(() => {
-    if (active) void load(date);
-  }, [active, date, load]);
+    if (!active) return;
+    void load(date);
+    void loadCounts();
+  }, [active, date, load, loadCounts]);
 
   const anchorMs = useMemo(() => anchorMsOf(date), [date]);
   const minOf = useCallback((iso: string) => (new Date(iso).getTime() - anchorMs) / 60000, [anchorMs]);
@@ -251,7 +266,7 @@ export function BookingBoard({ salonId, active, io = defaultIO }: {
 
   // ── 操作 ──
 
-  const reload = () => void load(date);
+  const reload = () => { void load(date); void loadCounts(); };
 
   const handleStatus = async (bookingId: string, next: 'new' | 'confirmed' | 'cancelled') => {
     setBusy(true);
@@ -385,13 +400,21 @@ export function BookingBoard({ salonId, active, io = defaultIO }: {
             const head = formatDateHeading(d); // "8/14(金)"
             const md = head.slice(0, head.indexOf('('));
             const wd = head.slice(head.indexOf('('));
+            const count = dayCounts?.[d] ?? 0;
             return (
               <button key={d} type="button" onClick={() => setDate(d)} aria-pressed={selected}
-                className={`flex-1 min-w-0 rounded-xl border py-1 text-center transition-colors ${selected
+                className={`relative flex-1 min-w-0 rounded-xl border py-1 text-center transition-colors ${selected
                   ? 'bg-pink-50 border-pink-300 text-pink-600'
                   : 'bg-white border-slate-200 text-slate-400 hover:text-slate-600 hover:border-slate-300'}`}>
                 <span className="block text-[11px] font-bold leading-tight">{md}</span>
                 <span className="block text-[9px] leading-tight">{d === days[0] ? '今日' : wd}</span>
+                {/* その日の予約件数バッジ（cancelled除く・0件は非表示）。運営事務局タブの未読バッジと同型 */}
+                {count > 0 && (
+                  <span data-testid={`board-day-badge-${d}`}
+                    className="absolute -top-1.5 -right-1 inline-flex items-center justify-center min-w-[16px] h-[16px] px-1 rounded-full bg-pink-500 text-white text-[9px] font-black leading-none pointer-events-none">
+                    {count > 99 ? '99+' : count}
+                  </span>
+                )}
               </button>
             );
           })}
