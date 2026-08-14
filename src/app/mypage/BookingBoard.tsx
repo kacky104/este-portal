@@ -395,7 +395,8 @@ export function BookingBoard({ salonId, active, io = defaultIO }: {
       <div className="bg-white rounded-3xl border border-slate-100 shadow-sm px-2 py-4 space-y-3">
         {/* ── 日付ナビ：今日から7日間のチップを横並び（‹›送りは廃止・2026-08-14）。
             ネット予約の受付範囲（当日〜7日先）と同じ考え方で、ボードもこの7日間だけを扱う。 ── */}
-        <div className="flex gap-1" data-testid="board-days">
+        {/* チップは角を直角・隙間0（境界線は -ml-px で1本に重ねる）。選択中は z-10 でピンク枠を前面に */}
+        <div className="flex" data-testid="board-days">
           {days.map((d) => {
             const selected = d === date;
             const head = formatDateHeading(d); // "8/14(金)"
@@ -404,15 +405,16 @@ export function BookingBoard({ salonId, active, io = defaultIO }: {
             const count = dayCounts?.[d] ?? 0;
             return (
               <button key={d} type="button" onClick={() => setDate(d)} aria-pressed={selected}
-                className={`relative flex-1 min-w-0 rounded-xl border py-1 text-center transition-colors ${selected
-                  ? 'bg-pink-50 border-pink-300 text-pink-600'
+                className={`relative flex-1 min-w-0 border py-1.5 text-center transition-colors -ml-px first:ml-0 ${selected
+                  ? 'z-10 bg-pink-50 border-pink-300 text-pink-600'
                   : 'bg-white border-slate-200 text-slate-400 hover:text-slate-600 hover:border-slate-300'}`}>
-                <span className="block text-[11px] font-bold leading-tight">{md}</span>
-                <span className="block text-[9px] leading-tight">{d === days[0] ? '今日' : wd}</span>
-                {/* その日の予約件数バッジ（cancelled除く・0件は非表示）。運営事務局タブの未読バッジと同型 */}
+                <span className="block text-[12px] font-bold leading-tight">{md}</span>
+                <span className="block text-[10px] leading-tight">{d === days[0] ? '今日' : wd}</span>
+                {/* その日の予約件数バッジ（cancelled除く・0件は非表示）。運営事務局タブの未読バッジと同型。
+                    隙間0にしたため右へはみ出させず right-0（チップ内）に置く＝隣のチップに隠れない */}
                 {count > 0 && (
                   <span data-testid={`board-day-badge-${d}`}
-                    className="absolute -top-1.5 -right-1 inline-flex items-center justify-center min-w-[16px] h-[16px] px-1 rounded-full bg-pink-500 text-white text-[9px] font-black leading-none pointer-events-none">
+                    className="absolute -top-1.5 right-0 inline-flex items-center justify-center min-w-[16px] h-[16px] px-1 rounded-full bg-pink-500 text-white text-[9px] font-black leading-none pointer-events-none">
                     {count > 99 ? '99+' : count}
                   </span>
                 )}
