@@ -566,6 +566,26 @@ function todayJstCalendar(): string {
   return new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Tokyo' }).format(new Date());
 }
 
+// ボードで扱える日数（過去側）。閲覧・手入力・移動で同じ値を使う（クライアントの PAST_DAYS と対）。
+const BOARD_PAST_DAYS = 90;
+
+/**
+ * ボードで扱える時刻範囲（過去90日の 0:00 〜 7日目の翌朝 7:00・JST）に入っているか。
+ * 入っていなければエラーメッセージ、問題なければ null を返す。
+ * UI 側も同じ範囲に絞っているが、サーバーアクションは直接呼べるため防御としてここでも弾く
+ * （手入力・移動の暴走登録を防ぐ・2026-08-14 追加）。
+ */
+function boardRangeError(slotStart: Date, verb: '登録' | '移動'): string | null {
+  const todayCal = todayJstCalendar();
+  const from = jstWallToUtc(shiftDateStr(todayCal, -BOARD_PAST_DAYS), '00:00').getTime();
+  const to = jstWallToUtc(shiftDateStr(todayCal, 6), '07:00', 1).getTime();
+  const t = slotStart.getTime();
+  if (t < from || t >= to) {
+    return `${verb}できるのは過去${BOARD_PAST_DAYS}日から7日先までです`;
+  }
+  return null;
+}
+
 /** 予約ボード用：指定日（暦日）の 0:00〜翌7:00 窓の出勤枠＋予約をまとめて返す。オーナー本人 or 運営のみ。 */
 export async function getBookingBoardData(
   salonId: number,
@@ -574,8 +594,8 @@ export async function getBookingBoardData(
   if (!/^\d{4}-\d{2}-\d{2}$/.test(dateISO)) return { ok: false, error: '日付が不正です' };
   // 表示できる範囲：過去90日〜7日先（暦日・2026-08-14 過去閲覧対応）。
   const todayCal = todayJstCalendar();
-  if (dateISO < shiftDateStr(todayCal, -90) || dateISO > shiftDateStr(todayCal, 6)) {
-    return { ok: false, error: '表示できるのは過去90日から7日先までです' };
+  if (dateISO < shiftDateStr(todayCal, -BOARD_PAST_DAYS) || dateISO > shiftDateStr(todayCal, 6)) {
+    return { ok: false, error: `表示できるのは過去${BOARD_PAST_DAYS}日から7日先までです` };
   }
   const auth = await assertSalonOwner(salonId);
   if (!auth.ok) return { ok: false, error: auth.error };
@@ -753,6 +773,9 @@ export async function createManualBooking(input: ManualBookingInput): Promise<{ 
   }
   const slotStart = new Date(input.slotStartISO);
   if (Number.isNaN(slotStart.getTime())) return { ok: false, error: '開始時刻が不正です' };
+  // ボードで扱える範囲（過去90日〜7日先）の外には登録させない（2026-08-14 追加）。
+  const rangeErr = boardRangeError(slotStart, '登録');
+  if (rangeErr) return { ok: false, error: rangeErr };
 
   const auth = await assertSalonOwner(salonId);
   if (!auth.ok) return { ok: false, error: auth.error };
@@ -846,6 +869,9 @@ export async function moveBooking(
   if (therapistId !== null && !Number.isFinite(therapistId)) return { ok: false, error: '移動先が不正です' };
   const slotStart = new Date(newSlotStartISO);
   if (Number.isNaN(slotStart.getTime())) return { ok: false, error: '開始時刻が不正です' };
+  // ボードで扱える範囲（過去90日〜7日先）の外へは移動させない（2026-08-14 追加）。
+  const rangeErr = boardRangeError(slotStart, '移動');
+  if (rangeErr) return { ok: false, error: rangeErr };
 
   const auth = await assertBookingOwner(bookingId);
   if (!auth.ok) return { ok: false, error: auth.error };

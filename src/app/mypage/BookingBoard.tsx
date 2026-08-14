@@ -391,7 +391,12 @@ export function BookingBoard({ salonId, active, io = defaultIO }: {
   // フォーム上はフリー客を 0 で表す（select の value に null を使えないため）。
   const openMove = (b: BoardBooking) => {
     setEditForm(null); // 移動と編集は同時に開かない
-    setMoveForm({ date, therapistId: b.therapistId ?? FREE_LANE_ID, startISO: b.slotStart });
+    // 開始時刻の初期値：その予約の開始が表示中の日のボード窓（0:00〜翌6:45の15分刻み）に無いとき
+    // ＝前日から日をまたいできた予約は空にする。空にしないと select は該当optionが無く空表示なのに
+    // React 側には元の時刻が残り、「未選択に見えるのにボタンが押せる」状態になる（2026-08-14 修正）。
+    const offsetMin = (new Date(b.slotStart).getTime() - anchorMs) / 60000;
+    const selectable = offsetMin >= BOARD_START_MIN && offsetMin < BOARD_END_MIN && offsetMin % STEP_MIN === 0;
+    setMoveForm({ date, therapistId: b.therapistId ?? FREE_LANE_ID, startISO: selectable ? b.slotStart : '' });
     setMoveData(data);
   };
 
@@ -577,6 +582,24 @@ export function BookingBoard({ salonId, active, io = defaultIO }: {
         excludeId: detail.id,
       })
     : [];
+
+  // 移動フォームの案内文（開始時刻が未選択のときだけ出す・2026-08-14 追加）。
+  // 前日から日をまたいできた予約は、元の開始時刻が移動先の日の候補（0:00〜翌6:45）に無いため
+  // 空欄で開く。理由が書いていないと「壊れている」と誤解されるので一言添える。
+  const moveHint: { text: string; warn: boolean } | null = (() => {
+    if (!moveForm || !detail || moveForm.startISO || moveLoading) return null;
+    if (moveOptions.length === 0) {
+      return { text: 'この日は選べる時間がありません。別の日を選んでください。', warn: true };
+    }
+    // 表示中の日のまま（＝まだ日付を変えていない）なのに空欄なのは、元の開始が前日側にあるため。
+    if (moveForm.date === date && (new Date(detail.slotStart).getTime() - anchorMs) / 60000 < BOARD_START_MIN) {
+      return {
+        text: 'この予約は前日から日をまたいでいるため、元の開始時刻がこの日の候補にありません。新しい開始時刻を選んでください。',
+        warn: true,
+      };
+    }
+    return { text: '移動先の開始時刻を選んでください。', warn: false };
+  })();
 
   return (
     <div className="space-y-4" data-testid="booking-board">
@@ -975,6 +998,13 @@ export function BookingBoard({ salonId, active, io = defaultIO }: {
                     <option key={o.iso} value={o.iso} disabled={o.taken}>{o.label}{o.taken ? '（埋まり）' : ''}</option>
                   ))}
                 </select>
+                {/* 開始時刻が空のときの理由・案内（日跨ぎ予約や日付変更の直後） */}
+                {moveHint && (
+                  <p data-testid="board-move-hint"
+                    className={`text-[10px] leading-relaxed ${moveHint.warn ? 'text-amber-600' : 'text-slate-400'}`}>
+                    {moveHint.text}
+                  </p>
+                )}
                 <div className="flex gap-2 justify-end">
                   <button type="button" onClick={() => setMoveForm(null)}
                     className={`${btnBase} border-slate-200 text-slate-500 hover:bg-slate-50`}>やめる</button>
