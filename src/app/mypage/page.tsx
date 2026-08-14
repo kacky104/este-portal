@@ -11,6 +11,7 @@ import { SALON_THEMES, type ThemeKey } from '@/app/lib/themes';
 import { COUPON_COLORS, getCouponColor, DEFAULT_COUPON_COLOR_KEY, type CouponColorKey } from '@/app/lib/couponColors';
 import { VipLetterForm } from '@/app/components/VipLetterForm';
 import { JobsTab } from '@/app/mypage/JobsTab';
+import { BookingBoard } from '@/app/mypage/BookingBoard';
 import { SupportTab } from '@/app/mypage/SupportTab';
 import { getBusinessDateJST, getBusinessDateRangeJST } from '@/lib/dutyStatus';
 import { isCastLiveRow } from '@/lib/imasugu';
@@ -96,7 +97,7 @@ async function fetchAnnouncementList(salonId: number): Promise<Announcement[]> {
 }
 
 // タブのアイコン（既存サイトと同系統の tabler/lucide 風アウトラインアイコン）。
-function tabIcon(key: 'salon' | 'schedule' | 'available' | 'profile' | 'diary' | 'coupon' | 'news' | 'vipletter' | 'booking' | 'jobs' | 'popup' | 'support') {
+function tabIcon(key: 'salon' | 'schedule' | 'available' | 'profile' | 'diary' | 'coupon' | 'news' | 'vipletter' | 'board' | 'booking' | 'jobs' | 'popup' | 'support') {
   const common = {
     width: 14, height: 14, viewBox: '0 0 24 24', fill: 'none',
     stroke: 'currentColor', strokeWidth: 2,
@@ -120,6 +121,14 @@ function tabIcon(key: 'salon' | 'schedule' | 'available' | 'profile' | 'diary' |
         <svg {...common}>
           <rect x="3" y="4" width="18" height="18" rx="2" />
           <path d="M16 2v4M8 2v4M3 10h18" />
+        </svg>
+      );
+    case 'board': // 予約ボード（table-column：縦の列に区切ったボード）
+      return (
+        <svg {...common}>
+          <rect x="3" y="3" width="18" height="18" rx="2" />
+          <path d="M9 3v18" />
+          <path d="M15 3v18" />
         </svg>
       );
     case 'booking': // ネット予約（calendar-check）
@@ -492,7 +501,7 @@ export default function MyPage() {
   const { toast, showToast } = useToast();
   const [saving, setSaving] = useState(false);
   const [savingSchedule, setSavingSchedule] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<'salon' | 'schedule' | 'profile' | 'available' | 'diary' | 'coupon' | 'news' | 'vipletter' | 'booking' | 'jobs' | 'popup' | 'support'>('salon');
+  const [activeTab, setActiveTab] = useState<'salon' | 'schedule' | 'profile' | 'available' | 'diary' | 'coupon' | 'news' | 'vipletter' | 'board' | 'booking' | 'jobs' | 'popup' | 'support'>('salon');
   // 「運営から」タブの未読お知らせ件数（SupportTab が読み込み時に通知・タブバッジ表示用）。
   const [supportUnread, setSupportUnread] = useState(0);
   const [expandedSections, setExpandedSections] = useState<Set<string>>(new Set());
@@ -1916,6 +1925,7 @@ export default function MyPage() {
             ['coupon',    'クーポン'],
             ['news',      'お知らせ'],
             ['vipletter', 'VIPレター'],
+            ['board',     '予約ボード'],
             ['booking',   'ネット予約'],
             ['jobs',      '求人'],
             ['support',   '運営事務局'],
@@ -2350,6 +2360,13 @@ export default function MyPage() {
               {saving ? '保存中...' : '保存'}
             </button>
           </div>
+        </div>
+
+        {/* ── タブ: 予約ボード（1日タイムライン・2026-08-14 新設） ── */}
+        {/* hidden 切替で常時マウント（タブを行き来しても日付・パネルの状態を保つ）。
+            データの取得は active になったときだけ（BookingBoard 側で制御）。 */}
+        <div className={`${activeTab === 'board' ? '' : 'hidden'}`}>
+          {salon && <BookingBoard salonId={Number(salon.id)} active={activeTab === 'board'} />}
         </div>
 
         {/* ── タブ: ネット予約設定 ── */}

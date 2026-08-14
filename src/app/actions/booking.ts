@@ -5,7 +5,7 @@ import { createPublicClient } from '@/app/lib/supabase/public';
 import { createServiceClient } from '@/app/lib/supabase/service';
 import { ADMIN_UUID } from '@/app/lib/admin';
 import { getBusinessDateJST } from '@/lib/dutyStatus';
-import { buildSlots, scheduleWindowUtc, type Slot } from '@/app/lib/booking/slots';
+import { buildSlots, scheduleWindowUtc, jstWallToUtc, SLOT_STEP_MIN, type Slot } from '@/app/lib/booking/slots';
 import { normalizeCallbackPref, callbackPrefLabel } from '@/app/lib/booking/callbackPref';
 import { sendBookingMail } from '@/app/lib/booking/sendBookingMail';
 import { normalizePhone } from '@/app/lib/validation/phone';
@@ -505,5 +505,379 @@ export async function deleteBooking(
     .delete()
     .eq('id', bookingId);
   if (error) return { ok: false, error: error.message };
+  return { ok: true };
+}
+
+// ── /mypage 予約ボード（2026-08-14 追加）：1日タイムライン用データ＋電話予約の手入力＋予約移動 ──
+//
+// いずれもオーナー本人（または運営）のみ。読み書きは service_role でサーバー側完結。
+// テーブルは既存の salon_bookings / therapist_schedules をそのまま使う（マイグレーション不要）。
+// 電話予約の手入力は status='confirmed' で INSERT する（電話口で成立済みのため）。
+// ネット予約（createBooking）との区別は callback_pref では付けず、確定済みかどうかの運用に委ねる。
+
+// ログインユーザーが salonId のオーナー本人（または運営）であることを検証する。
+// あわせて booking_courses（手入力フォームのコース候補用）を返す。
+async function assertSalonOwner(
+  salonId: number,
+): Promise<{ ok: true; bookingCoursesRaw: unknown } | { ok: false; error: string }> {
+  if (!Number.isFinite(salonId)) return { ok: false, error: '対象店舗が不正です' };
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { ok: false, error: 'ログインが必要です' };
+  const { data: salon, error } = await supabase
+    .from('salons')
+    .select('owner_id, booking_courses')
+    .eq('id', salonId)
+    .maybeSingle();
+  if (error || !salon) return { ok: false, error: '店舗が見つかりません' };
+  const ownerId = (salon.owner_id as string | null) ?? null;
+  if (ownerId !== user.id && user.id !== ADMIN_UUID) {
+    return { ok: false, error: 'この店舗の予約を操作する権限がありません' };
+  }
+  return { ok: true, bookingCoursesRaw: salon.booking_courses };
+}
+
+// slotStart（UTC）を含むセラピストの出勤枠（UTC窓）を探す。
+// 夜跨ぎシフトは前日 schedule_date に属するため、slotStart の JST 日付とその前日を候補にする
+// （createBooking の 3) と同じロジック。既存コードは触らず helper として複製）。
+async function findScheduleWindow(
+  svc: ReturnType<typeof createServiceClient>,
+  therapistId: number,
+  slotStart: Date,
+): Promise<{ date: string; start: string; end: string; startUtc: Date; endUtc: Date } | null> {
+  const jstDate = jstDateOf(slotStart);
+  const [y, mo, d] = jstDate.split('-').map(Number);
+  const prev = new Date(Date.UTC(y, mo - 1, d));
+  prev.setUTCDate(prev.getUTCDate() - 1);
+  const prevDate = `${prev.getUTCFullYear()}-${String(prev.getUTCMonth() + 1).padStart(2, '0')}-${String(prev.getUTCDate()).padStart(2, '0')}`;
+
+  const { data: rows, error } = await svc
+    .from('therapist_schedules')
+    .select('schedule_date, start_time, end_time, is_active')
+    .eq('therapist_id', therapistId)
+    .eq('is_active', true)
+    .in('schedule_date', [prevDate, jstDate]);
+  if (error || !rows) return null;
+
+  return (
+    rows
+      .filter((r) => r.start_time && r.end_time)
+      .map((r) => {
+        const date = r.schedule_date as string;
+        const start = String(r.start_time).slice(0, 5);
+        const end = String(r.end_time).slice(0, 5);
+        const { startUtc, endUtc } = scheduleWindowUtc(date, start, end);
+        return { date, start, end, startUtc, endUtc };
+      })
+      .find((w) => slotStart >= w.startUtc && slotStart < w.endUtc) ?? null
+  );
+}
+
+export type BoardBooking = OwnerBooking & { therapistId: number };
+export type BoardScheduleWindow = { start: string; end: string; startISO: string; endISO: string };
+export type BoardTherapist = { id: number; name: string; schedule: BoardScheduleWindow | null };
+export type BookingBoardData = {
+  date: string;                 // "YYYY-MM-DD"（JST営業日）
+  therapists: BoardTherapist[]; // 列＝当日出勤のセラピスト（＋出勤は無いが予約が残っているセラピスト）
+  bookings: BoardBooking[];     // 営業日窓（JST6:00〜翌6:00・出勤枠がはみ出せば拡張）に重なる全予約（cancelled 含む）
+  courses: BookingCourse[];     // 手入力フォームのコース候補（booking_courses）
+};
+
+/** 予約ボード用：指定営業日の出勤枠＋予約をまとめて返す。オーナー本人 or 運営のみ。 */
+export async function getBookingBoardData(
+  salonId: number,
+  dateISO: string,
+): Promise<{ ok: true; data: BookingBoardData } | { ok: false; error: string }> {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(dateISO)) return { ok: false, error: '日付が不正です' };
+  const auth = await assertSalonOwner(salonId);
+  if (!auth.ok) return { ok: false, error: auth.error };
+
+  const svc = createServiceClient();
+
+  // 在籍セラピスト（is_active）。列順は id 昇順（出勤設定タブと同じ並び感）。
+  const { data: ths, error: thErr } = await svc
+    .from('therapists')
+    .select('id, name')
+    .eq('salon_id', salonId)
+    .eq('is_active', true)
+    .order('id', { ascending: true });
+  if (thErr) return { ok: false, error: thErr.message };
+  const therapistRows = ths ?? [];
+  const nameById = new Map<number, string>(
+    therapistRows.map((t) => [Number(t.id), (t.name as string | null) ?? '(名前未設定)']),
+  );
+
+  // 当日の出勤枠（is_active のみ）。
+  const ids = therapistRows.map((t) => Number(t.id));
+  const scheduleByTherapist = new Map<number, BoardScheduleWindow>();
+  if (ids.length > 0) {
+    const { data: sch, error: schErr } = await svc
+      .from('therapist_schedules')
+      .select('therapist_id, start_time, end_time, is_active')
+      .in('therapist_id', ids)
+      .eq('schedule_date', dateISO)
+      .eq('is_active', true);
+    if (schErr) return { ok: false, error: schErr.message };
+    for (const r of sch ?? []) {
+      if (!r.start_time || !r.end_time) continue;
+      const start = String(r.start_time).slice(0, 5);
+      const end = String(r.end_time).slice(0, 5);
+      const { startUtc, endUtc } = scheduleWindowUtc(dateISO, start, end);
+      scheduleByTherapist.set(Number(r.therapist_id), {
+        start,
+        end,
+        startISO: startUtc.toISOString(),
+        endISO: endUtc.toISOString(),
+      });
+    }
+  }
+
+  // 営業日窓：JST 6:00〜翌6:00 を基本に、出勤枠がはみ出す場合は広げる。
+  let windowStart = jstWallToUtc(dateISO, '06:00');
+  let windowEnd = jstWallToUtc(dateISO, '06:00', 1);
+  for (const w of scheduleByTherapist.values()) {
+    const s = new Date(w.startISO);
+    const e = new Date(w.endISO);
+    if (s < windowStart) windowStart = s;
+    if (e > windowEnd) windowEnd = e;
+  }
+
+  // 窓に重なる予約（cancelled も返す＝ボードで薄く表示して履歴が追えるように）。
+  const { data: rows, error: bErr } = await svc
+    .from('salon_bookings')
+    .select('id, therapist_id, slot_start, slot_end, course_name, course_min, customer_name, customer_tel, note, callback_pref, status, created_at')
+    .eq('salon_id', salonId)
+    .lt('slot_start', windowEnd.toISOString())
+    .gt('slot_end', windowStart.toISOString())
+    .order('slot_start', { ascending: true });
+  if (bErr) return { ok: false, error: bErr.message };
+
+  const bookings: BoardBooking[] = (rows ?? []).map((b) => ({
+    id: String(b.id),
+    therapistId: Number(b.therapist_id),
+    slotStart: b.slot_start as string,
+    slotEnd: b.slot_end as string,
+    therapistName: nameById.get(Number(b.therapist_id)) ?? '(不明)',
+    courseName: (b.course_name as string | null) ?? '',
+    courseMin: Number(b.course_min) || 0,
+    customerName: (b.customer_name as string | null) ?? '',
+    customerTel: (b.customer_tel as string | null) ?? '',
+    note: (b.note as string | null) ?? null,
+    callbackPref: (b.callback_pref as string | null) ?? null,
+    status: (b.status as string | null) ?? 'new',
+    createdAt: b.created_at as string,
+  }));
+
+  // 列＝出勤があるセラピスト。出勤は無いが予約が入っている（後から出勤を消した等）セラピストも
+  // 末尾に足して、予約がボードから迷子にならないようにする。
+  const withSchedule = ids.filter((id) => scheduleByTherapist.has(id));
+  const extraIds = [...new Set(bookings.map((b) => b.therapistId))].filter(
+    (id) => !scheduleByTherapist.has(id),
+  );
+  // extra に在籍外（is_active=false）のセラピストが混ざる場合は名前を別途引く。
+  const unknownIds = extraIds.filter((id) => !nameById.has(id));
+  if (unknownIds.length > 0) {
+    const { data: exThs } = await svc.from('therapists').select('id, name').in('id', unknownIds);
+    (exThs ?? []).forEach((t) => nameById.set(Number(t.id), (t.name as string | null) ?? '(名前未設定)'));
+    // 予約側の表示名も補完しておく。
+    for (const b of bookings) {
+      if (b.therapistName === '(不明)') b.therapistName = nameById.get(b.therapistId) ?? '(不明)';
+    }
+  }
+  const therapists: BoardTherapist[] = [
+    ...withSchedule.map((id) => ({
+      id,
+      name: nameById.get(id) ?? '(不明)',
+      schedule: scheduleByTherapist.get(id) ?? null,
+    })),
+    ...extraIds.map((id) => ({ id, name: nameById.get(id) ?? '(不明)', schedule: null })),
+  ];
+
+  return {
+    ok: true,
+    data: { date: dateISO, therapists, bookings, courses: parseBookingCourses(auth.bookingCoursesRaw) },
+  };
+}
+
+export type ManualBookingInput = {
+  salonId: number;
+  therapistId: number;
+  slotStartISO: string;
+  durationMin: number;
+  courseName: string;
+  customerName: string;
+  customerTel: string; // 任意（電話予約でも聞き取れない場合があるため空を許容）
+  note: string;
+};
+
+/**
+ * 電話予約の手入力（オーナー本人 or 運営のみ）。
+ * 出勤枠内・既存予約と重ならないことだけ検証し、status='confirmed' で INSERT する。
+ * ネット予約と違い、直前ガード（LEAD_TIME）や tel レートリミットは掛けない
+ * （店側の操作であり、過去時刻の記録入力も許容する）。
+ */
+export async function createManualBooking(input: ManualBookingInput): Promise<{ ok: boolean; error?: string }> {
+  const salonId = Number(input.salonId);
+  const therapistId = Number(input.therapistId);
+  const durationMin = Number(input.durationMin);
+  const courseName = String(input.courseName ?? '').trim();
+  const customerName = String(input.customerName ?? '').trim();
+  const customerTelRaw = String(input.customerTel ?? '').trim();
+  const customerTel = customerTelRaw ? normalizePhone(customerTelRaw) : '';
+  const note = String(input.note ?? '').trim();
+
+  if (!Number.isFinite(salonId) || !Number.isFinite(therapistId)) return { ok: false, error: '入力が不正です' };
+  if (!Number.isInteger(durationMin) || durationMin < SLOT_STEP_MIN || durationMin > 720) {
+    return { ok: false, error: '所要時間が不正です' };
+  }
+  if (!customerName) return { ok: false, error: 'お客様名を入力してください' };
+  if (customerTel && !/^\d{6,20}$/.test(customerTel)) {
+    return { ok: false, error: '電話番号の形式が正しくありません' };
+  }
+  const slotStart = new Date(input.slotStartISO);
+  if (Number.isNaN(slotStart.getTime())) return { ok: false, error: '開始時刻が不正です' };
+
+  const auth = await assertSalonOwner(salonId);
+  if (!auth.ok) return { ok: false, error: auth.error };
+
+  const svc = createServiceClient();
+
+  // セラピストが当該サロン所属＆is_active か。
+  const { data: th, error: thErr } = await svc
+    .from('therapists')
+    .select('salon_id, is_active')
+    .eq('id', therapistId)
+    .maybeSingle();
+  if (thErr || !th || Number(th.salon_id) !== salonId || !th.is_active) {
+    return { ok: false, error: 'セラピストが不正です' };
+  }
+
+  // 出勤枠内か。
+  const win = await findScheduleWindow(svc, therapistId, slotStart);
+  if (!win) return { ok: false, error: 'この時間に出勤予定がありません' };
+  const slotEnd = new Date(slotStart.getTime() + durationMin * 60 * 1000);
+  if (slotEnd > win.endUtc) return { ok: false, error: '出勤終了時刻に収まりません' };
+
+  // 既存予約（cancelled 以外）との重なりチェック。
+  const overlapping = await fetchOverlappingBookings(therapistId, slotStart, slotEnd);
+  if (overlapping.length > 0) return { ok: false, error: 'その時間帯は既に予約が入っています' };
+
+  // 同一枠に cancelled 行が残っていれば掃除（UNIQUE(therapist_id, slot_start) 対策・createBooking と同じ）。
+  await svc
+    .from('salon_bookings')
+    .delete()
+    .eq('therapist_id', therapistId)
+    .eq('slot_start', slotStart.toISOString())
+    .eq('status', 'cancelled');
+
+  const { error: insErr } = await svc.from('salon_bookings').insert({
+    salon_id: salonId,
+    therapist_id: therapistId,
+    slot_start: slotStart.toISOString(),
+    slot_end: slotEnd.toISOString(),
+    course_name: courseName || '電話予約',
+    course_min: durationMin,
+    customer_name: customerName,
+    customer_tel: customerTel,
+    note: note || null,
+    callback_pref: 'none',
+    status: 'confirmed',
+  });
+  if (insErr) {
+    if (insErr.code === '23505') return { ok: false, error: 'その時間帯は既に予約が入っています' };
+    return { ok: false, error: insErr.message };
+  }
+  return { ok: true };
+}
+
+/**
+ * 予約の時間・担当を変更する（オーナー本人 or 運営のみ）。
+ * コース内容・お客様情報は変えず、slot_start / slot_end / therapist_id のみ更新する。
+ * 移動先も出勤枠内・重なり無しを検証。キャンセル済みは移動不可（先に「新規に戻す」）。
+ */
+export async function moveBooking(
+  bookingId: string,
+  newTherapistId: number,
+  newSlotStartISO: string,
+): Promise<{ ok: boolean; error?: string }> {
+  const therapistId = Number(newTherapistId);
+  if (!Number.isFinite(therapistId)) return { ok: false, error: '移動先が不正です' };
+  const slotStart = new Date(newSlotStartISO);
+  if (Number.isNaN(slotStart.getTime())) return { ok: false, error: '開始時刻が不正です' };
+
+  const auth = await assertBookingOwner(bookingId);
+  if (!auth.ok) return { ok: false, error: auth.error };
+  const svc = auth.svc;
+
+  const { data: booking, error: bErr } = await svc
+    .from('salon_bookings')
+    .select('salon_id, therapist_id, slot_start, course_min, status')
+    .eq('id', bookingId)
+    .maybeSingle();
+  if (bErr || !booking) return { ok: false, error: '予約が見つかりません' };
+  if (booking.status === 'cancelled') {
+    return { ok: false, error: 'キャンセル済みの予約は移動できません（先に「新規に戻す」を押してください）' };
+  }
+  const courseMin = Number(booking.course_min) || 0;
+  if (courseMin <= 0) return { ok: false, error: 'コース時間が不正のため移動できません' };
+
+  // 変更なし（同じ担当・同じ開始時刻）は何もしない。
+  if (
+    Number(booking.therapist_id) === therapistId &&
+    new Date(booking.slot_start as string).getTime() === slotStart.getTime()
+  ) {
+    return { ok: true };
+  }
+
+  // 移動先セラピストが同一サロン所属＆is_active か。
+  const { data: th, error: thErr } = await svc
+    .from('therapists')
+    .select('salon_id, is_active')
+    .eq('id', therapistId)
+    .maybeSingle();
+  if (thErr || !th || Number(th.salon_id) !== Number(booking.salon_id) || !th.is_active) {
+    return { ok: false, error: '移動先セラピストが不正です' };
+  }
+
+  // 移動先が出勤枠内か。
+  const win = await findScheduleWindow(svc, therapistId, slotStart);
+  if (!win) return { ok: false, error: '移動先の時間に出勤予定がありません' };
+  const slotEnd = new Date(slotStart.getTime() + courseMin * 60 * 1000);
+  if (slotEnd > win.endUtc) return { ok: false, error: '出勤終了時刻に収まりません' };
+
+  // 自分以外の予約（cancelled 以外）との重なりチェック。
+  const { data: others, error: oErr } = await svc
+    .from('salon_bookings')
+    .select('id')
+    .eq('therapist_id', therapistId)
+    .neq('status', 'cancelled')
+    .neq('id', bookingId)
+    .lt('slot_start', slotEnd.toISOString())
+    .gt('slot_end', slotStart.toISOString())
+    .limit(1);
+  if (oErr) return { ok: false, error: oErr.message };
+  if (others && others.length > 0) return { ok: false, error: '移動先の時間帯は既に予約が入っています' };
+
+  // 移動先の同一枠に cancelled 行が残っていれば掃除（UNIQUE(therapist_id, slot_start) 対策）。
+  await svc
+    .from('salon_bookings')
+    .delete()
+    .eq('therapist_id', therapistId)
+    .eq('slot_start', slotStart.toISOString())
+    .eq('status', 'cancelled')
+    .neq('id', bookingId);
+
+  const { error: upErr } = await svc
+    .from('salon_bookings')
+    .update({
+      therapist_id: therapistId,
+      slot_start: slotStart.toISOString(),
+      slot_end: slotEnd.toISOString(),
+    })
+    .eq('id', bookingId);
+  if (upErr) {
+    if (upErr.code === '23505') return { ok: false, error: '移動先の時間帯は既に予約が入っています' };
+    return { ok: false, error: upErr.message };
+  }
   return { ok: true };
 }
