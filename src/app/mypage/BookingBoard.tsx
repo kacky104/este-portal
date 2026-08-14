@@ -12,7 +12,7 @@ import {
   type BoardTherapist,
 } from '@/app/actions/booking';
 import { callbackPrefLabel } from '@/app/lib/booking/callbackPref';
-import { getBusinessDateJST } from '@/lib/dutyStatus';
+import { getBusinessDateJST, getBusinessDateRangeJST } from '@/lib/dutyStatus';
 import { useToast } from '@/app/components/useToast';
 
 // /mypage「予約ボード」タブ本体（2026-08-14 新設）。
@@ -47,14 +47,6 @@ const defaultIO: BoardIO = {
 };
 
 // ── 日付・時刻ヘルパー（すべて JST 基準） ──
-
-// "YYYY-MM-DD" を days 日ずらす（UTC正午基準で月跨ぎ安全）。
-function shiftDate(dateStr: string, days: number): string {
-  const [y, m, d] = dateStr.split('-').map(Number);
-  const base = new Date(Date.UTC(y, m - 1, d));
-  base.setUTCDate(base.getUTCDate() + days);
-  return `${base.getUTCFullYear()}-${String(base.getUTCMonth() + 1).padStart(2, '0')}-${String(base.getUTCDate()).padStart(2, '0')}`;
-}
 
 // ボード日の JST 0:00 を epoch ms で（縦位置計算の原点）。
 function anchorMsOf(dateStr: string): number {
@@ -175,6 +167,14 @@ export function BookingBoard({ salonId, active, io = defaultIO }: {
 }) {
   const { toast, showToast } = useToast();
   const [date, setDate] = useState(() => getBusinessDateJST(0));
+  // 今日から7日間（営業日基準・朝6時切替）。日付チップと移動フォームの日付選択肢はこの範囲だけ。
+  const days = getBusinessDateRangeJST(7);
+  // タブを開いたまま朝6時（営業日の切替）を跨いだら、選択日を新しい「今日」へ寄せる。
+  useEffect(() => {
+    if (!days.includes(date)) setDate(days[0]);
+    // days は毎レンダー新しい配列になるため、切替検知は先頭日だけ見る。
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [days[0]]);
   const [data, setData] = useState<BookingBoardData | null>(null);
   const [loading, setLoading] = useState(false);
   const [loadError, setLoadError] = useState('');
@@ -377,34 +377,39 @@ export function BookingBoard({ salonId, active, io = defaultIO }: {
       )}
 
       <div className="bg-white rounded-3xl border border-slate-100 shadow-sm p-4 space-y-3">
-        {/* ── 日付ナビ ── */}
+        {/* ── 日付ナビ：今日から7日間のチップを横並び（‹›送りは廃止・2026-08-14）。
+            ネット予約の受付範囲（当日〜7日先）と同じ考え方で、ボードもこの7日間だけを扱う。 ── */}
+        <div className="flex gap-1" data-testid="board-days">
+          {days.map((d) => {
+            const selected = d === date;
+            const head = formatDateHeading(d); // "8/14(金)"
+            const md = head.slice(0, head.indexOf('('));
+            const wd = head.slice(head.indexOf('('));
+            return (
+              <button key={d} type="button" onClick={() => setDate(d)} aria-pressed={selected}
+                className={`flex-1 min-w-0 rounded-xl border py-1 text-center transition-colors ${selected
+                  ? 'bg-pink-50 border-pink-300 text-pink-600'
+                  : 'bg-white border-slate-200 text-slate-400 hover:text-slate-600 hover:border-slate-300'}`}>
+                <span className="block text-[11px] font-bold leading-tight">{md}</span>
+                <span className="block text-[9px] leading-tight">{d === days[0] ? '今日' : wd}</span>
+              </button>
+            );
+          })}
+        </div>
+
+        {/* 凡例＋件数・再読み込み */}
         <div className="flex items-center justify-between gap-2 flex-wrap">
-          <div className="flex items-center gap-1.5">
-            <button type="button" onClick={() => setDate((d) => shiftDate(d, -1))} aria-label="前の日"
-              className="w-8 h-8 rounded-full border border-slate-200 text-slate-500 hover:bg-slate-50 font-bold">‹</button>
-            <span className="text-sm font-black text-slate-700 min-w-[72px] text-center" data-testid="board-date">
-              {formatDateHeading(date)}
-            </span>
-            <button type="button" onClick={() => setDate((d) => shiftDate(d, 1))} aria-label="次の日"
-              className="w-8 h-8 rounded-full border border-slate-200 text-slate-500 hover:bg-slate-50 font-bold">›</button>
-            {!isToday && (
-              <button type="button" onClick={() => setDate(getBusinessDateJST(0))}
-                className={`${btnBase} border-pink-300 text-pink-600 hover:bg-pink-50 ml-1`}>今日</button>
-            )}
+          <div className="flex items-center gap-3 text-[10px] text-slate-400 flex-wrap">
+            <span className="inline-flex items-center gap-1"><i className="w-2.5 h-2.5 rounded-sm bg-pink-100 border border-pink-300 inline-block" />新規</span>
+            <span className="inline-flex items-center gap-1"><i className="w-2.5 h-2.5 rounded-sm bg-emerald-100 border border-emerald-300 inline-block" />確定</span>
+            <span className="inline-flex items-center gap-1"><i className="w-2.5 h-2.5 rounded-sm bg-slate-100 border border-slate-200 inline-block" />キャンセル</span>
+            <span>空き部分をタップすると電話予約を追加できます</span>
           </div>
           <div className="flex items-center gap-2">
             <span className="text-[11px] text-slate-400">{activeCount}件</span>
             <button type="button" onClick={reload} disabled={loading}
               className={`${btnBase} border-slate-200 text-slate-500 hover:bg-slate-50`}>再読み込み</button>
           </div>
-        </div>
-
-        {/* 凡例 */}
-        <div className="flex items-center gap-3 text-[10px] text-slate-400 flex-wrap">
-          <span className="inline-flex items-center gap-1"><i className="w-2.5 h-2.5 rounded-sm bg-pink-100 border border-pink-300 inline-block" />新規</span>
-          <span className="inline-flex items-center gap-1"><i className="w-2.5 h-2.5 rounded-sm bg-emerald-100 border border-emerald-300 inline-block" />確定</span>
-          <span className="inline-flex items-center gap-1"><i className="w-2.5 h-2.5 rounded-sm bg-slate-100 border border-slate-200 inline-block" />キャンセル</span>
-          <span>空き部分をタップすると電話予約を追加できます</span>
         </div>
 
         {/* ── 本体 ── */}
@@ -575,10 +580,12 @@ export function BookingBoard({ salonId, active, io = defaultIO }: {
             {moveForm && (
               <div className="rounded-xl border border-sky-100 bg-sky-50/30 p-3 space-y-2" data-testid="board-move-form">
                 <p className="text-[11px] font-bold text-slate-600">時間・担当の変更（コース時間 {detail.courseMin}分 のまま移動します）</p>
-                <div className="flex gap-2">
-                  <input type="date" value={moveForm.date} onChange={(e) => void handleMoveDateChange(e.target.value)}
-                    className={`${inputCls} flex-1`} />
-                </div>
+                {/* 移動先の日付もボードと同じ「今日から7日間」に限定（自由入力の type=date は廃止） */}
+                <select value={moveForm.date} onChange={(e) => void handleMoveDateChange(e.target.value)} className={inputCls}>
+                  {days.map((d) => (
+                    <option key={d} value={d}>{formatDateHeading(d)}{d === days[0] ? '（今日）' : ''}</option>
+                  ))}
+                </select>
                 <select
                   value={moveForm.therapistId}
                   onChange={(e) => setMoveForm({ ...moveForm, therapistId: Number(e.target.value), startISO: '' })}
