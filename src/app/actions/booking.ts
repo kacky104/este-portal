@@ -537,41 +537,9 @@ async function assertSalonOwner(
   return { ok: true, bookingCoursesRaw: salon.booking_courses };
 }
 
-// slotStart（UTC）を含むセラピストの出勤枠（UTC窓）を探す。
-// 夜跨ぎシフトは前日 schedule_date に属するため、slotStart の JST 日付とその前日を候補にする
-// （createBooking の 3) と同じロジック。既存コードは触らず helper として複製）。
-async function findScheduleWindow(
-  svc: ReturnType<typeof createServiceClient>,
-  therapistId: number,
-  slotStart: Date,
-): Promise<{ date: string; start: string; end: string; startUtc: Date; endUtc: Date } | null> {
-  const jstDate = jstDateOf(slotStart);
-  const [y, mo, d] = jstDate.split('-').map(Number);
-  const prev = new Date(Date.UTC(y, mo - 1, d));
-  prev.setUTCDate(prev.getUTCDate() - 1);
-  const prevDate = `${prev.getUTCFullYear()}-${String(prev.getUTCMonth() + 1).padStart(2, '0')}-${String(prev.getUTCDate()).padStart(2, '0')}`;
-
-  const { data: rows, error } = await svc
-    .from('therapist_schedules')
-    .select('schedule_date, start_time, end_time, is_active')
-    .eq('therapist_id', therapistId)
-    .eq('is_active', true)
-    .in('schedule_date', [prevDate, jstDate]);
-  if (error || !rows) return null;
-
-  return (
-    rows
-      .filter((r) => r.start_time && r.end_time)
-      .map((r) => {
-        const date = r.schedule_date as string;
-        const start = String(r.start_time).slice(0, 5);
-        const end = String(r.end_time).slice(0, 5);
-        const { startUtc, endUtc } = scheduleWindowUtc(date, start, end);
-        return { date, start, end, startUtc, endUtc };
-      })
-      .find((w) => slotStart >= w.startUtc && slotStart < w.endUtc) ?? null
-  );
-}
+// ※ 2026-08-14：店側の手入力・移動は「出勤枠内」の制約を撤廃した（findScheduleWindow は廃止）。
+//    開始30分前や終了時間超えの受付など、受付可能時間は店の判断でその都度変わるため。
+//    出勤枠はボード上で薄青の目安表示のみ。客向けネット予約（createBooking）は従来どおり枠内のみ。
 
 export type BoardBooking = OwnerBooking & { therapistId: number };
 // fromPrevDay=true は「前日の夜跨ぎシフトの尻尾」（例：前日18:00〜翌2:00 の 0:00〜2:00 部分）。
@@ -682,11 +650,12 @@ export async function getBookingBoardData(
     createdAt: b.created_at as string,
   }));
 
-  // 行＝出勤枠（前日尻尾含む）があるセラピスト。出勤は無いが予約が入っている（後から出勤を消した等）
-  // セラピストも末尾に足して、予約がボードから迷子にならないようにする。
-  const withSchedule = ids.filter((id) => windowsByTherapist.has(id));
+  // 行＝出勤枠（前日尻尾含む）があるセラピストのみ（出勤なしの人は行を出さない）。
+  // ただし行の中は出勤時間に縛られず受付できる（白ボード＋青帯は目安・2026-08-14仕様）。
+  // 予約だけ残っているセラピストは末尾に足して、予約がボードから迷子にならないようにする。
+  const rowIds = ids.filter((id) => windowsByTherapist.has(id));
   const extraIds = [...new Set(bookings.map((b) => b.therapistId))].filter(
-    (id) => !windowsByTherapist.has(id),
+    (id) => !rowIds.includes(id),
   );
   // extra に在籍外（is_active=false）のセラピストが混ざる場合は名前を別途引く。
   const unknownIds = extraIds.filter((id) => !nameById.has(id));
@@ -699,7 +668,7 @@ export async function getBookingBoardData(
     }
   }
   const therapists: BoardTherapist[] = [
-    ...withSchedule.map((id) => ({
+    ...rowIds.map((id) => ({
       id,
       name: nameById.get(id) ?? '(不明)',
       schedules: windowsByTherapist.get(id) ?? [],
@@ -766,11 +735,8 @@ export async function createManualBooking(input: ManualBookingInput): Promise<{ 
     return { ok: false, error: 'セラピストが不正です' };
   }
 
-  // 出勤枠内か。
-  const win = await findScheduleWindow(svc, therapistId, slotStart);
-  if (!win) return { ok: false, error: 'この時間に出勤予定がありません' };
+  // 出勤枠内チェックは行わない（2026-08-14仕様変更：受付可能時間は店の判断でその都度変わるため）。
   const slotEnd = new Date(slotStart.getTime() + durationMin * 60 * 1000);
-  if (slotEnd > win.endUtc) return { ok: false, error: '出勤終了時刻に収まりません' };
 
   // 既存予約（cancelled 以外）との重なりチェック。
   const overlapping = await fetchOverlappingBookings(therapistId, slotStart, slotEnd);
@@ -853,11 +819,8 @@ export async function moveBooking(
     return { ok: false, error: '移動先セラピストが不正です' };
   }
 
-  // 移動先が出勤枠内か。
-  const win = await findScheduleWindow(svc, therapistId, slotStart);
-  if (!win) return { ok: false, error: '移動先の時間に出勤予定がありません' };
+  // 移動先の出勤枠内チェックは行わない（2026-08-14仕様変更：手入力と同じ理由）。
   const slotEnd = new Date(slotStart.getTime() + courseMin * 60 * 1000);
-  if (slotEnd > win.endUtc) return { ok: false, error: '出勤終了時刻に収まりません' };
 
   // 自分以外の予約（cancelled 以外）との重なりチェック。
   const { data: others, error: oErr } = await svc

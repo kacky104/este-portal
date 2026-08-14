@@ -11,7 +11,6 @@ import {
   type BookingBoardData,
   type BoardBooking,
   type BoardTherapist,
-  type BoardScheduleWindow,
 } from '@/app/actions/booking';
 import { callbackPrefLabel } from '@/app/lib/booking/callbackPref';
 import { useToast } from '@/app/components/useToast';
@@ -146,38 +145,33 @@ function therapistShiftLabel(t: BoardTherapist): string {
   return '出勤なし';
 }
 
-// 時間選択肢：出勤帯（前日尻尾＋当日の複数窓）を15分刻みで列挙し、
+// 時間選択肢：ボード窓（0:00〜翌7:00）全体を15分刻みで列挙し、
 // 既存予約（cancelled以外・自分以外）と重なる枠に taken を立てる。
+// 2026-08-14仕様変更：出勤帯には縛られない（受付可能時間は店の判断でその都度変わるため）。
 function slotTimeOptions(params: {
-  therapist: BoardTherapist | null | undefined;
+  therapistId: number | null | undefined;
   durationMin: number;
   bookings: BoardBooking[];
   boardDate: string;
   excludeId?: string;
 }): { iso: string; label: string; taken: boolean }[] {
-  const { therapist, durationMin, bookings, boardDate, excludeId } = params;
-  if (!therapist || therapist.schedules.length === 0 || durationMin <= 0) return [];
+  const { therapistId, durationMin, bookings, boardDate, excludeId } = params;
+  if (!therapistId || durationMin <= 0) return [];
   const durMs = durationMin * 60 * 1000;
-  // ボード窓は当日0:00から。前日尻尾の窓は前日夜から始まっているため、候補は0:00以降に限定する
-  // （前日夜の分は前日のボードで入力する。「翌」誤表記の防止も兼ねる）。
-  const boardZeroMs = anchorMsOf(boardDate);
+  const zeroMs = anchorMsOf(boardDate);
   const out: { iso: string; label: string; taken: boolean }[] = [];
-  for (const w of therapist.schedules) {
-    const startMs = new Date(w.startISO).getTime();
-    const endMs = new Date(w.endISO).getTime();
-    for (let t = startMs; t + durMs <= endMs; t += STEP_MIN * 60 * 1000) {
-      if (t < boardZeroMs) continue;
-      const e = t + durMs;
-      const taken = bookings.some(
-        (b) =>
-          b.therapistId === therapist.id &&
-          b.status !== 'cancelled' &&
-          b.id !== excludeId &&
-          new Date(b.slotStart).getTime() < e &&
-          new Date(b.slotEnd).getTime() > t,
-      );
-      out.push({ iso: new Date(t).toISOString(), label: timeLabel(t, boardDate), taken });
-    }
+  for (let min = BOARD_START_MIN; min < BOARD_END_MIN; min += STEP_MIN) {
+    const t = zeroMs + min * 60 * 1000;
+    const e = t + durMs;
+    const taken = bookings.some(
+      (b) =>
+        b.therapistId === therapistId &&
+        b.status !== 'cancelled' &&
+        b.id !== excludeId &&
+        new Date(b.slotStart).getTime() < e &&
+        new Date(b.slotEnd).getTime() > t,
+    );
+    out.push({ iso: new Date(t).toISOString(), label: timeLabel(t, boardDate), taken });
   }
   return out;
 }
@@ -291,7 +285,8 @@ export function BookingBoard({ salonId, active, io = defaultIO }: {
   }, [data]);
 
   const activeCount = (data?.bookings ?? []).filter((b) => b.status !== 'cancelled').length;
-  const scheduled = (data?.therapists ?? []).filter((t) => t.schedules.length > 0);
+  // 手入力の担当候補＝行に出ている全員（出勤の有無を問わない・2026-08-14仕様変更）。
+  const scheduled = data?.therapists ?? [];
 
   // ── 操作 ──
 
@@ -349,12 +344,10 @@ export function BookingBoard({ salonId, active, io = defaultIO }: {
   };
 
   // 空き部分タップ→手入力フォーム（クリック位置を15分に丸めて初期時刻に）。
-  // w＝タップした出勤帯（前日尻尾 or 当日枠）。丸めはその帯の中に収める。
-  const openAdd = (t: BoardTherapist, clickMin: number, w: BoardScheduleWindow) => {
-    const schedStart = Math.max(boardStart, minOf(w.startISO));
-    const schedEnd = Math.min(boardEnd, minOf(w.endISO));
-    let m = schedStart + Math.floor((clickMin - schedStart) / STEP_MIN) * STEP_MIN;
-    m = Math.max(schedStart, Math.min(m, schedEnd - STEP_MIN));
+  // 2026-08-14仕様変更：行全体（0:00〜翌7:00）どこでも受付可。出勤帯（青）には縛られない。
+  const openAdd = (t: BoardTherapist, clickMin: number) => {
+    let m = Math.floor(clickMin / STEP_MIN) * STEP_MIN;
+    m = Math.max(boardStart, Math.min(m, boardEnd - STEP_MIN));
     const firstCourse = data?.courses[0];
     setAddForm({
       therapistId: t.id,
@@ -393,18 +386,16 @@ export function BookingBoard({ salonId, active, io = defaultIO }: {
   const inputCls = 'w-full rounded-xl border border-slate-200 px-3 py-2 text-sm bg-slate-50/50 focus:outline-none focus:ring-2 focus:ring-pink-200';
   const btnBase = 'text-[11px] font-bold px-2.5 py-1 rounded-lg border transition-colors disabled:opacity-50';
 
-  // 手入力フォームの時間選択肢（担当・所要時間に追従）。
-  const addTherapist = addForm ? scheduled.find((t) => t.id === addForm.therapistId) ?? null : null;
+  // 手入力フォームの時間選択肢（担当・所要時間に追従）。窓全体が対象（出勤帯に縛られない）。
   const addOptions = addForm
-    ? slotTimeOptions({ therapist: addTherapist, durationMin: addForm.durationMin, bookings: data?.bookings ?? [], boardDate: date })
+    ? slotTimeOptions({ therapistId: addForm.therapistId, durationMin: addForm.durationMin, bookings: data?.bookings ?? [], boardDate: date })
     : [];
 
-  // 移動フォームの選択肢（移動先日のデータから）。
-  const moveScheduled = (moveData?.therapists ?? []).filter((t) => t.schedules.length > 0);
-  const moveTherapist = moveForm ? moveScheduled.find((t) => t.id === moveForm.therapistId) ?? null : null;
+  // 移動フォームの選択肢（移動先日のデータから）。担当は在籍セラピスト全員から選べる。
+  const moveScheduled = moveData?.therapists ?? [];
   const moveOptions = moveForm && detail
     ? slotTimeOptions({
-        therapist: moveTherapist,
+        therapistId: moveForm.therapistId,
         durationMin: detail.courseMin,
         bookings: moveData?.bookings ?? [],
         boardDate: moveForm.date,
@@ -458,7 +449,8 @@ export function BookingBoard({ salonId, active, io = defaultIO }: {
             <span className="inline-flex items-center gap-1"><i className="w-2.5 h-2.5 rounded-sm bg-pink-100 border border-pink-300 inline-block" />新規</span>
             <span className="inline-flex items-center gap-1"><i className="w-2.5 h-2.5 rounded-sm bg-emerald-100 border border-emerald-300 inline-block" />確定</span>
             <span className="inline-flex items-center gap-1"><i className="w-2.5 h-2.5 rounded-sm bg-slate-100 border border-slate-200 inline-block" />キャンセル</span>
-            <span>空き部分をタップすると電話予約を追加できます</span>
+            <span className="inline-flex items-center gap-1"><i className="w-2.5 h-2.5 rounded-sm bg-sky-100 border border-sky-200 inline-block" />出勤時間</span>
+            <span>空き部分をタップすると電話予約を追加できます（出勤時間外もOK）</span>
           </div>
           <div className="flex items-center gap-2">
             <span className="text-[11px] text-slate-400">{activeCount}件</span>
@@ -519,17 +511,30 @@ export function BookingBoard({ salonId, active, io = defaultIO }: {
                           <p className="text-[9px] text-slate-400 leading-tight tracking-tight">〜{trimHourZero(tailWin.end)}</p>
                         </>
                       ) : (
-                        <p className="text-[9px] text-slate-400 leading-tight">出勤なし</p>
+                        <p className="text-[8px] text-slate-400 leading-tight whitespace-nowrap">出勤なし</p>
                       )}
                     </div>
                     {/* タイムライン（右） */}
-                    <div className="relative bg-slate-50/80 flex-none" style={{ width: boardW, height: ROW_H }}>
+                    {/* 行全体が受付可能（白・タップで手入力）。出勤帯は薄青の目安表示のみ（2026-08-14仕様変更） */}
+                    <div
+                      className="relative bg-white flex-none cursor-pointer"
+                      style={{ width: boardW, height: ROW_H }}
+                      title="タップして電話予約を追加"
+                      data-testid={`board-row-${t.id}`}
+                      onClick={(e) => {
+                        const rect = e.currentTarget.getBoundingClientRect();
+                        if (rect.width <= 0) return;
+                        const clickMin = ((e.clientX - rect.left) / rect.width) * (boardEnd - boardStart);
+                        openAdd(t, clickMin);
+                      }}
+                    >
                       {/* 時間罫線（縦） */}
                       {hours.map((m) => (
                         <div key={m} className="absolute inset-y-0 border-l border-slate-100"
                           style={{ left: (m - boardStart) * PX_PER_MIN }} />
                       ))}
-                      {/* 出勤帯（白地・タップで手入力）。前日尻尾＋当日枠の最大2本 */}
+                      {/* 出勤帯（薄青・目安表示のみ）。前日尻尾＋当日枠の最大2本。
+                          クリックは行側で拾うため pointer-events-none */}
                       {t.schedules.map((sw) => {
                         const leftMin = Math.max(boardStart, minOf(sw.startISO));
                         const rightMin = Math.min(boardEnd, minOf(sw.endISO));
@@ -537,16 +542,9 @@ export function BookingBoard({ salonId, active, io = defaultIO }: {
                         return (
                           <div
                             key={sw.startISO}
-                            className="absolute inset-y-0 bg-white border-y border-slate-100 cursor-pointer"
-                            style={{ left: (leftMin - boardStart) * PX_PER_MIN, width: (rightMin - leftMin) * PX_PER_MIN }}
-                            title="タップして電話予約を追加"
+                            className="absolute inset-y-0 bg-sky-100/70 pointer-events-none"
                             data-testid={`board-band-${t.id}${sw.fromPrevDay ? '-prev' : ''}`}
-                            onClick={(e) => {
-                              const rect = e.currentTarget.getBoundingClientRect();
-                              if (rect.width <= 0) return;
-                              const clickMin = leftMin + ((e.clientX - rect.left) / rect.width) * (rightMin - leftMin);
-                              openAdd(t, clickMin, sw);
-                            }}
+                            style={{ left: (leftMin - boardStart) * PX_PER_MIN, width: (rightMin - leftMin) * PX_PER_MIN }}
                           />
                         );
                       })}
@@ -564,7 +562,7 @@ export function BookingBoard({ salonId, active, io = defaultIO }: {
                           <button
                             key={b.id}
                             type="button"
-                            onClick={() => setDetail(b)}
+                            onClick={(ev) => { ev.stopPropagation(); setDetail(b); }}
                             data-testid={`board-booking-${b.id}`}
                             className={`absolute inset-y-0.5 rounded-md border px-0 py-0.5 text-left overflow-hidden ${blockCls(b.status)}`}
                             style={{ left: (s - boardStart) * PX_PER_MIN, width: Math.max(w, 18) }}
@@ -660,7 +658,7 @@ export function BookingBoard({ salonId, active, io = defaultIO }: {
                   onChange={(e) => setMoveForm({ ...moveForm, therapistId: Number(e.target.value), startISO: '' })}
                   className={inputCls}
                 >
-                  {moveScheduled.length === 0 && <option value={moveForm.therapistId}>出勤者がいません</option>}
+                  {moveScheduled.length === 0 && <option value={moveForm.therapistId}>セラピストがいません</option>}
                   {moveScheduled.map((t) => (
                     <option key={t.id} value={t.id}>{t.name}（{therapistShiftLabel(t)}）</option>
                   ))}
@@ -704,10 +702,8 @@ export function BookingBoard({ salonId, active, io = defaultIO }: {
                 <select
                   value={addForm.therapistId}
                   onChange={(e) => {
-                    const id = Number(e.target.value);
-                    const th = scheduled.find((t) => t.id === id);
-                    // 担当を変えたら開始時刻はその人の最初の出勤帯（前日尻尾含む）の開始に合わせ直す。
-                    setAddForm({ ...addForm, therapistId: id, startISO: th?.schedules[0]?.startISO ?? '' });
+                    // 時間候補は窓全体で共通のため、担当を変えても開始時刻はそのまま維持する。
+                    setAddForm({ ...addForm, therapistId: Number(e.target.value) });
                   }}
                   className={inputCls}
                 >
