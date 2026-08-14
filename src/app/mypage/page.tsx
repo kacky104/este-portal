@@ -1933,7 +1933,8 @@ export default function MyPage() {
             ['coupon',    'クーポン'],
             ['news',      'お知らせ'],
             ['vipletter', 'VIPレター'],
-            ['board',     '予約ボード'],
+            // 予約ボードはタブ列には出さない（ヘッダー常設のピンク「予約ボード」から開く・2026-08-14）。
+            // activeTab='board' とタブ本体はそのまま生きている。
             ['booking',   'ネット予約'],
             ['jobs',      '求人'],
             ['support',   '運営事務局'],
