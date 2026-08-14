@@ -6,6 +6,7 @@ import {
   getBookingCountsByDay,
   createManualBooking,
   moveBooking,
+  updateBookingDetails,
   updateBookingStatus,
   deleteBooking,
   type BookingBoardData,
@@ -44,6 +45,7 @@ export type BoardIO = {
   fetchCounts: typeof getBookingCountsByDay;
   createManual: typeof createManualBooking;
   move: typeof moveBooking;
+  update: typeof updateBookingDetails;
   setStatus: typeof updateBookingStatus;
   remove: typeof deleteBooking;
 };
@@ -52,6 +54,7 @@ const defaultIO: BoardIO = {
   fetchCounts: getBookingCountsByDay,
   createManual: createManualBooking,
   move: moveBooking,
+  update: updateBookingDetails,
   setStatus: updateBookingStatus,
   remove: deleteBooking,
 };
@@ -198,6 +201,16 @@ type AddForm = {
 
 type MoveForm = { date: string; therapistId: number; startISO: string };
 
+// 予約内容の編集フォーム（開始時刻・担当は moveForm の役割なのでここには持たない）。
+type EditForm = {
+  courseName: string;
+  courseMin: number;
+  intervalMin: number;
+  customerName: string;
+  customerTel: string;
+  note: string;
+};
+
 export function BookingBoard({ salonId, active, io = defaultIO }: {
   salonId: number;
   active: boolean;
@@ -225,6 +238,7 @@ export function BookingBoard({ salonId, active, io = defaultIO }: {
   const [moveData, setMoveData] = useState<BookingBoardData | null>(null); // 移動先日のボードデータ
   const [moveLoading, setMoveLoading] = useState(false);
   const [addForm, setAddForm] = useState<AddForm | null>(null);
+  const [editForm, setEditForm] = useState<EditForm | null>(null);
 
   // 日付チップのバッジ用：営業日ごとの予約件数（cancelled除く）。null=未取得。
   const [dayCounts, setDayCounts] = useState<Record<string, number> | null>(null);
@@ -251,6 +265,33 @@ export function BookingBoard({ salonId, active, io = defaultIO }: {
     void load(date);
     void loadCounts();
   }, [active, date, load, loadCounts]);
+
+  // ── 自動更新（2026-08-14 追加）──
+  // 60秒ごとにボードとバッジを取り直す（ネット予約や別端末の操作を反映）。
+  // 画面が非表示のとき・パネルやフォームを開いているとき・操作中はスキップして邪魔しない。
+  const hasOpenPanel = detail !== null || addForm !== null || busy;
+  useEffect(() => {
+    if (!active) return;
+    const id = window.setInterval(() => {
+      if (document.visibilityState !== 'visible') return;
+      if (hasOpenPanel) return;
+      void load(date);
+      void loadCounts();
+    }, 60_000);
+    return () => window.clearInterval(id);
+  }, [active, date, hasOpenPanel, load, loadCounts]);
+
+  // 他のアプリ・タブから戻ってきた瞬間にも取り直す（スマホでの持ち替え運用向け）。
+  useEffect(() => {
+    if (!active) return;
+    const onVisible = () => {
+      if (document.visibilityState !== 'visible' || hasOpenPanel) return;
+      void load(date);
+      void loadCounts();
+    };
+    document.addEventListener('visibilitychange', onVisible);
+    return () => document.removeEventListener('visibilitychange', onVisible);
+  }, [active, date, hasOpenPanel, load, loadCounts]);
 
   const anchorMs = useMemo(() => anchorMsOf(date), [date]);
   const minOf = useCallback((iso: string) => (new Date(iso).getTime() - anchorMs) / 60000, [anchorMs]);
@@ -338,8 +379,44 @@ export function BookingBoard({ salonId, active, io = defaultIO }: {
   // 移動フォームを開く（初期値＝現在の担当・時刻・表示中の日付）。
   // フォーム上はフリー客を 0 で表す（select の value に null を使えないため）。
   const openMove = (b: BoardBooking) => {
+    setEditForm(null); // 移動と編集は同時に開かない
     setMoveForm({ date, therapistId: b.therapistId ?? FREE_LANE_ID, startISO: b.slotStart });
     setMoveData(data);
+  };
+
+  // 内容の編集フォームを開く（2026-08-14 追加）。インターバル＝枠の全長−コース時間で復元。
+  const openEdit = (b: BoardBooking) => {
+    setMoveForm(null); // 移動と編集は同時に開かない
+    const span = Math.round((new Date(b.slotEnd).getTime() - new Date(b.slotStart).getTime()) / 60000);
+    setEditForm({
+      courseName: b.courseName,
+      courseMin: b.courseMin,
+      intervalMin: Math.max(0, span - b.courseMin),
+      customerName: b.customerName,
+      customerTel: b.customerTel,
+      note: b.note ?? '',
+    });
+  };
+
+  const handleEditSubmit = async () => {
+    if (!detail || !editForm) return;
+    if (!editForm.customerName.trim()) { showToast('お客様名を入力してください'); return; }
+    setBusy(true);
+    const res = await io.update({
+      bookingId: detail.id,
+      courseName: editForm.courseName,
+      courseMin: editForm.courseMin,
+      intervalMin: editForm.intervalMin,
+      customerName: editForm.customerName,
+      customerTel: editForm.customerTel,
+      note: editForm.note,
+    });
+    setBusy(false);
+    if (!res.ok) { showToast(res.error ?? '更新に失敗しました'); return; }
+    showToast('予約内容を更新しました');
+    setEditForm(null);
+    setDetail(null);
+    reload();
   };
 
   // 移動先の日付変更→その日のボードデータを取り直して選択肢を作る。
@@ -707,7 +784,7 @@ export function BookingBoard({ salonId, active, io = defaultIO }: {
       {/* ── 詳細パネル ── */}
       {detail && (
         <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center">
-          <div className="absolute inset-0 bg-black/40" onClick={() => { setDetail(null); setMoveForm(null); }} />
+          <div className="absolute inset-0 bg-black/40" onClick={() => { setDetail(null); setMoveForm(null); setEditForm(null); }} />
           <div className="relative bg-white rounded-t-3xl sm:rounded-3xl w-full sm:max-w-md max-h-[85vh] overflow-y-auto p-5 space-y-3" data-testid="board-detail">
             <div className="flex items-center justify-between gap-2">
               <h3 className="text-sm font-black text-slate-700">予約の詳細</h3>
@@ -757,9 +834,70 @@ export function BookingBoard({ salonId, active, io = defaultIO }: {
                 <button type="button" disabled={busy} onClick={() => openMove(detail)}
                   className={`${btnBase} border-sky-300 text-sky-600 hover:bg-sky-50`}>時間・担当を変更</button>
               )}
+              {!editForm && (
+                <button type="button" disabled={busy} onClick={() => openEdit(detail)}
+                  className={`${btnBase} border-violet-300 text-violet-600 hover:bg-violet-50`}>内容を編集</button>
+              )}
               <button type="button" disabled={busy} onClick={() => handleDelete(detail.id)}
                 className={`${btnBase} border-rose-200 text-rose-500 hover:bg-rose-50 ml-auto`}>削除</button>
             </div>
+
+            {/* 内容の編集フォーム（2026-08-14 追加）。開始時刻・担当の変更は「時間・担当を変更」で行う */}
+            {editForm && (
+              <div className="rounded-xl border border-violet-100 bg-violet-50/30 p-3 space-y-2" data-testid="board-edit-form">
+                <p className="text-[11px] font-bold text-slate-600">
+                  内容の編集（開始時刻・担当を変えるときは「時間・担当を変更」を使ってください）
+                </p>
+                <div>
+                  <label className="block text-[11px] font-bold text-slate-500 mb-1">コース名</label>
+                  <input type="text" value={editForm.courseName}
+                    onChange={(e) => setEditForm({ ...editForm, courseName: e.target.value })} className={inputCls} />
+                </div>
+                <div className="flex gap-2">
+                  <div className="flex-1">
+                    <label className="block text-[11px] font-bold text-slate-500 mb-1">コース時間</label>
+                    <select value={editForm.courseMin}
+                      onChange={(e) => setEditForm({ ...editForm, courseMin: Number(e.target.value) })} className={inputCls}>
+                      {/* 現在値が既定の選択肢に無い場合も選べるように先頭へ足す */}
+                      {!DURATION_OPTIONS.includes(editForm.courseMin) && (
+                        <option value={editForm.courseMin}>{editForm.courseMin}分</option>
+                      )}
+                      {DURATION_OPTIONS.map((m) => <option key={m} value={m}>{m}分</option>)}
+                    </select>
+                  </div>
+                  <div className="flex-1">
+                    <label className="block text-[11px] font-bold text-slate-500 mb-1">インターバル</label>
+                    <select value={editForm.intervalMin}
+                      onChange={(e) => setEditForm({ ...editForm, intervalMin: Number(e.target.value) })} className={inputCls}>
+                      {INTERVAL_OPTIONS.map((m) => <option key={m} value={m}>{m === 0 ? 'なし' : `${m}分`}</option>)}
+                    </select>
+                  </div>
+                </div>
+                <div className="flex gap-2">
+                  <div className="flex-1">
+                    <label className="block text-[11px] font-bold text-slate-500 mb-1">お客様名 <span className="text-pink-500">必須</span></label>
+                    <input type="text" value={editForm.customerName}
+                      onChange={(e) => setEditForm({ ...editForm, customerName: e.target.value })} className={inputCls} />
+                  </div>
+                  <div className="flex-1">
+                    <label className="block text-[11px] font-bold text-slate-500 mb-1">電話番号（任意）</label>
+                    <input type="tel" value={editForm.customerTel}
+                      onChange={(e) => setEditForm({ ...editForm, customerTel: e.target.value })} className={inputCls} />
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-[11px] font-bold text-slate-500 mb-1">備考（任意）</label>
+                  <textarea value={editForm.note} rows={2}
+                    onChange={(e) => setEditForm({ ...editForm, note: e.target.value })} className={inputCls} />
+                </div>
+                <div className="flex gap-2 justify-end">
+                  <button type="button" onClick={() => setEditForm(null)}
+                    className={`${btnBase} border-slate-200 text-slate-500 hover:bg-slate-50`}>やめる</button>
+                  <button type="button" disabled={busy} onClick={handleEditSubmit}
+                    className={`${btnBase} bg-violet-500 border-violet-500 text-white hover:bg-violet-600`}>保存する</button>
+                </div>
+              </div>
+            )}
 
             {/* 移動フォーム */}
             {moveForm && (

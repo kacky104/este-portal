@@ -968,3 +968,90 @@ export async function getBookingCountsByDay(
   }
   return { ok: true, counts };
 }
+
+export type UpdateBookingDetailsInput = {
+  bookingId: string;
+  courseName: string;
+  courseMin: number;
+  intervalMin: number; // 0/15/30/45/60。予約枠＝コース＋インターバル
+  customerName: string;
+  customerTel: string; // 任意
+  note: string;
+};
+
+/**
+ * 予約内容の編集（2026-08-14 追加）：コース名・コース時間・インターバル・お客様名・電話・備考を更新する。
+ * 開始時刻と担当は変えない（それは moveBooking の役割）。オーナー本人 or 運営のみ。
+ * コース時間 or インターバルの変更で枠が伸びる場合は、他予約との重なりを再チェックする。
+ */
+export async function updateBookingDetails(
+  input: UpdateBookingDetailsInput,
+): Promise<{ ok: boolean; error?: string }> {
+  const bookingId = String(input.bookingId ?? '');
+  const courseName = String(input.courseName ?? '').trim();
+  const courseMin = Number(input.courseMin);
+  const intervalMin = Number(input.intervalMin ?? 0);
+  const customerName = String(input.customerName ?? '').trim();
+  const customerTelRaw = String(input.customerTel ?? '').trim();
+  const customerTel = customerTelRaw ? normalizePhone(customerTelRaw) : '';
+  const note = String(input.note ?? '').trim();
+
+  if (!Number.isInteger(courseMin) || courseMin < SLOT_STEP_MIN || courseMin > 720) {
+    return { ok: false, error: 'コース時間が不正です' };
+  }
+  if (!(INTERVAL_OPTIONS_MIN as readonly number[]).includes(intervalMin)) {
+    return { ok: false, error: 'インターバルが不正です' };
+  }
+  if (!customerName) return { ok: false, error: 'お客様名を入力してください' };
+  if (customerTel && !/^\d{6,20}$/.test(customerTel)) {
+    return { ok: false, error: '電話番号の形式が正しくありません' };
+  }
+
+  const auth = await assertBookingOwner(bookingId);
+  if (!auth.ok) return { ok: false, error: auth.error };
+  const svc = auth.svc;
+
+  const { data: booking, error: bErr } = await svc
+    .from('salon_bookings')
+    .select('salon_id, therapist_id, slot_start, slot_end, status')
+    .eq('id', bookingId)
+    .maybeSingle();
+  if (bErr || !booking) return { ok: false, error: '予約が見つかりません' };
+
+  const slotStart = new Date(booking.slot_start as string);
+  const newSlotEnd = new Date(slotStart.getTime() + (courseMin + intervalMin) * 60 * 1000);
+
+  // 枠が変わる場合、cancelled 以外は他予約との重なりを再チェック（自分は除外）。
+  if (booking.status !== 'cancelled' && newSlotEnd.toISOString() !== (booking.slot_end as string)) {
+    let overlapQuery = svc
+      .from('salon_bookings')
+      .select('id')
+      .neq('status', 'cancelled')
+      .neq('id', bookingId)
+      .lt('slot_start', newSlotEnd.toISOString())
+      .gt('slot_end', slotStart.toISOString())
+      .limit(1);
+    overlapQuery = booking.therapist_id != null
+      ? overlapQuery.eq('therapist_id', Number(booking.therapist_id))
+      : overlapQuery.eq('salon_id', Number(booking.salon_id)).is('therapist_id', null);
+    const { data: others, error: oErr } = await overlapQuery;
+    if (oErr) return { ok: false, error: oErr.message };
+    if (others && others.length > 0) {
+      return { ok: false, error: '枠を伸ばすと他の予約と重なります（先に移動やインターバル調整をしてください）' };
+    }
+  }
+
+  const { error: upErr } = await svc
+    .from('salon_bookings')
+    .update({
+      course_name: courseName || '電話予約',
+      course_min: courseMin,
+      customer_name: customerName,
+      customer_tel: customerTel,
+      note: note || null,
+      slot_end: newSlotEnd.toISOString(),
+    })
+    .eq('id', bookingId);
+  if (upErr) return { ok: false, error: upErr.message };
+  return { ok: true };
+}
