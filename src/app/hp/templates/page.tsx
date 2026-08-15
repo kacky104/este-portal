@@ -32,7 +32,9 @@ import { HP_TEMPLATES, HP_COLOR_VARIANTS } from '@/app/lib/hpSite';
 //   problem-pc.webp（1672×941・16:9）/ problem-sp.webp（1024×1536・2:3）
 //   solution-pc.webp（1672×941・16:9）/ solution-sp.webp（864×1821・約1:2.1）
 //   strengths-pc.webp（1672×941・16:9）/ strengths-sp.webp（863×1822・約1:2.1）
-//   design-pc.webp（1717×916・約1.87:1）/ design-sp.webp（862×1825・約1:2.1）＋直下に「デザインを見る」ボタン
+//   design-pc.webp（1717×916・約1.87:1）/ design-sp.webp（862×1935・約1:2.24）＋直下に「デザインを見る」ボタン
+//   ※ design-sp は全幅で置くので、中身が画像の中で左右中央に来ているか必ず確認すること。
+//     初版は右側に空白が寄っていて、実機で中身が左にずれて見えた（2026-08-15 に作り直し）。
 // 見出しと本文が焼き込み済み。文章は sr-only で HTML にも残してある
 // （差し替えるときは sr-only の文言も画像と揃えること）。
 //
