@@ -39,7 +39,12 @@ import { buildBreadcrumbJsonLd, toJsonLdString } from '@/app/lib/jsonLd';
 //   design-pc.webp（1717×916・約1.87:1）/ design-sp.webp（862×1935・約1:2.24）
 //   price-pc.webp（1717×916・約1.87:1）/ price-sp.webp（864×1821・約1:2.11）
 //     … 料金の数字が焼き込み。作り直すときは sr-only と SERVICE_JSON_LD の数字も必ず揃えること。
-//   flow-pc.webp（1717×916・約1.87:1）/ flow-sp.webp（864×1820・約1:2.11）
+//   flow-pc.webp（1717×916・約1.87:1）/ flow-sp.webp（864×1821・約1:2.11）
+//     ★ flow-sp は 2026-08-16 に作り直し（下端の継ぎ目が 37 と全ブロック中で最大だったため）。
+//       いただいた原本のままだと下端24。ページ背景となじませるため、下端20pxだけを
+//       #fdf5f5 へグラデーションで寄せる後処理を入れてある（design-sp の外周と同じ考え方）。結果は下端1。
+//       次に作り直してもらうときは【下端20〜30pxを #fdf5f5 に寄せた状態】で書き出してもらうと、この後処理が不要になる。
+//       高さが1820→1821に1px変わっているので、<source> の height と tools-verify-hp.mjs の spWH も直すこと。
 //     … ステップ02の「16パターンから選択」が焼き込み（sr-only は HP_PATTERN_COUNT で自動計算）。
 //   ＋直下のボタン btn-design-pc.webp（1564×413）/ btn-design-sp.webp（900×276）… どちらも背景が透明の webp。
 //     ★元データは黒背景の JPEG で届いたため、黒を抜いて透明化し、暗い背景用に描かれていた
@@ -515,7 +520,7 @@ export default function HpTemplatesPage() {
             フッターとの段差よけの役目はFAQブロック側の pb-12 sm:pb-14 に移した。 */}
       <section className="pt-10 sm:pt-12 pb-12 sm:pb-14">
         <picture>
-          <source media="(max-width: 639px)" srcSet="/hp-lp/flow-sp.webp" width={864} height={1820} />
+          <source media="(max-width: 639px)" srcSet="/hp-lp/flow-sp.webp" width={864} height={1821} />
           <img
             src="/hp-lp/flow-pc.webp"
             loading="lazy"

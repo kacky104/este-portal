@@ -61,7 +61,8 @@ const BLOCKS = [
   { key: 'strengths', pc: '/hp-lp/strengths-pc.webp', sp: '/hp-lp/strengths-sp.webp', pcWH: [1672, 941], spWH: [863, 1822], eager: false, alt: '' },
   { key: 'design', pc: '/hp-lp/design-pc.webp', sp: '/hp-lp/design-sp.webp', pcWH: [1717, 916], spWH: [862, 1935], eager: false, alt: '' },
   { key: 'price', pc: '/hp-lp/price-pc.webp', sp: '/hp-lp/price-sp.webp', pcWH: [1717, 916], spWH: [864, 1821], eager: false, alt: '' },
-  { key: 'flow', pc: '/hp-lp/flow-pc.webp', sp: '/hp-lp/flow-sp.webp', pcWH: [1717, 916], spWH: [864, 1820], eager: false, alt: '' },
+  // flow-sp は 2026-08-16 に作り直して 1820 → 1821 になった（下端の継ぎ目 37 → 1）。
+  { key: 'flow', pc: '/hp-lp/flow-pc.webp', sp: '/hp-lp/flow-sp.webp', pcWH: [1717, 916], spWH: [864, 1821], eager: false, alt: '' },
 ];
 
 // ボタンは同じ画像を3か所で使う（ヒーロー直下・DESIGN LINEUP 直下・FLOW 直下）ので、出現回数の期待値だけ別で持つ。
