@@ -68,6 +68,17 @@ const BLOCKS = [
 // ボタンは同じ画像を3か所で使う（ヒーロー直下・DESIGN LINEUP 直下・FLOW 直下）ので、出現回数の期待値だけ別で持つ。
 const BTN_COUNT = 3;
 
+// デザイン一覧（/hp/templates/designs）のヒーロー（2026-08-16 追加）。
+// CSSで組んでいた見出し帯を、文字が焼き込まれたキービジュアルに置き換えたもの。
+// ★ 画像を作り直したら寸法をここも直す。「16」が焼き込まれているので、
+//   カラーを増減したときの作り直し対象は strengths / design / flow ＋この2枚。
+const DESIGNS_HERO = {
+  pc: '/hp-lp/designs-hero-pc.webp',
+  sp: '/hp-lp/designs-hero-sp.webp',
+  pcWH: [1672, 941],
+  spWH: [864, 1821],
+};
+
 /**
  * sr-only に必ず入っていてほしい文字列。画像に焼き込まれた文言と揃っていることの確認。
  * ★ 画像を作り直して文言が変わったら、ここも一緒に直す（危険地帯25）。
@@ -386,8 +397,26 @@ console.log('\n■ /hp/templates/designs（PC 1440x900）');
     internal: 21,
   });
   ok(`[designs] h1 が「選べるデザイン全${PATTERN_COUNT}パターン」`, m.h1[0] === `選べるデザイン全${PATTERN_COUNT}パターン`, m.h1[0] ?? '');
-  ok(`[designs] サムネが${PATTERN_COUNT}枚`, m.imgs.length === PATTERN_COUNT, `${m.imgs.length}枚`);
-  ok('[designs] サムネはすべて lazy', m.imgs.every((i) => i.loading === 'lazy'), m.imgs.filter((i) => i.loading !== 'lazy').map((i) => i.src).join(','));
+
+  // ── ヒーロー（2026-08-16 追加）──
+  // ★ ヒーローが増えたぶんサムネの判定から除外している。除外するかわりに、
+  //   ヒーロー自身の属性（寸法・alt・eager・<source>）をここで見張ること。
+  //   「サムネ16枚」の期待値を17に緩めるのは禁止（危険地帯41）。
+  const hero = m.imgs.filter((i) => (i.src ?? '').startsWith(DESIGNS_HERO.pc));
+  ok('[designs] ヒーローの <img> が1個', hero.length === 1, `${hero.length}個`);
+  for (const i of hero) {
+    ok(`[designs] ヒーローの width/height が ${DESIGNS_HERO.pcWH.join('x')}`, i.w === String(DESIGNS_HERO.pcWH[0]) && i.h === String(DESIGNS_HERO.pcWH[1]), `${i.w}x${i.h}`);
+    ok('[designs] ヒーローの alt が ""', i.alt === '', JSON.stringify(i.alt));
+    // 最初の画面に入るので lazy にしない（loading 未指定＝eager）
+    ok('[designs] ヒーローが eager', i.loading === null || i.loading === 'eager', String(i.loading));
+  }
+  const heroSrc = m.sources.find((s) => s.srcset === DESIGNS_HERO.sp);
+  ok(`[designs] ヒーローの <source> が ${DESIGNS_HERO.sp}`, !!heroSrc);
+  ok(`[designs] ヒーローの <source> に ${DESIGNS_HERO.spWH.join('x')}`, heroSrc?.w === String(DESIGNS_HERO.spWH[0]) && heroSrc?.h === String(DESIGNS_HERO.spWH[1]), `${heroSrc?.w}x${heroSrc?.h}`);
+
+  const thumbs = m.imgs.filter((i) => !(i.src ?? '').startsWith('/hp-lp/designs-hero'));
+  ok(`[designs] サムネが${PATTERN_COUNT}枚`, thumbs.length === PATTERN_COUNT, `${thumbs.length}枚`);
+  ok('[designs] サムネはすべて lazy', thumbs.every((i) => i.loading === 'lazy'), thumbs.filter((i) => i.loading !== 'lazy').map((i) => i.src).join(','));
   const demoLinks = await page.evaluate(() => [...document.querySelectorAll('a')].filter((a) => (a.getAttribute('href') || '').startsWith('/hp/demo/preview/')).length);
   ok(`[designs] デモへのリンクが${PATTERN_COUNT}本`, demoLinks === PATTERN_COUNT, `${demoLinks}本`);
   ok('[designs] LPへ戻るリンクがある', (await page.locator('a[href="/hp/templates"]').count()) > 0);

@@ -125,34 +125,76 @@ export default function HpDesignsPage() {
           ),
         }}
       />
-      {/* ── 見出し帯（華やか）──
-          背景は白→桜→シャンパンの3色グラデ。上下に金のヘアラインを1本ずつ入れて額装っぽく見せる。
-          写真は使っていないので、文字が主役でも寂しく見えないよう飾りを多めに置いている。 */}
-      <section className="relative overflow-hidden border-b border-[#f0dde0] bg-gradient-to-b from-[#ffffff] via-[#fdeef1] to-[#f9e6dc]">
-        {/* 隅のぼかし玉（装飾） */}
-        <span aria-hidden="true" className="pointer-events-none absolute -top-16 -left-16 w-64 h-64 rounded-full bg-[#f7d9de] opacity-60 blur-3xl" />
-        <span aria-hidden="true" className="pointer-events-none absolute -bottom-20 -right-10 w-72 h-72 rounded-full bg-[#f2e0c6] opacity-60 blur-3xl" />
-        <span aria-hidden="true" className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-[#d5a86b] to-transparent" />
+      {/* ── ヒーロー（KV・文字焼き込み済み）── 2026-08-16
+          もともとここは CSSグラデーションで組んだ「見出し帯」だったが、いただいたキービジュアルに
+          同じ文言（DESIGN COLLECTION／全16パターン／4つのひな形×カラー）が焼き込まれており、
+          並べると同じことを2回言う形になるため、帯を画像に置き換えた。
 
-        <div className="relative mx-auto max-w-5xl px-5 pt-10 pb-12 sm:pt-12 sm:pb-14 text-center">
+          LP（/hp/templates）と同じ作法で置いている:
+            ・全幅・原寸比率のまま（文字が焼き込まれているので cover で切り抜かない）
+            ・画像は装飾扱い（alt=""）。文章は下の可視テキストと sr-only で持つ
+            ・<source> にも width/height を入れる（入れないとスマホでレイアウトが跳ねる）
+          ★ ヒーローは最初の画面に入るので lazy にしないこと（loading 未指定＝eager）。
+          ★「16」は画像に焼き込まれている。カラーを増減したら designs-hero-pc/sp も作り直すこと
+            （LP側の strengths / design / flow と合わせて計5枚になる）。
+
+          画像: public/hp-lp/designs-hero-pc.webp（1672×941・16:9）
+                public/hp-lp/designs-hero-sp.webp（864×1821・約1:2.11）
+          ※ 下端の色（PC #efded4・SP #f0dbcc）はページ背景 #fdf5f5 と差があるため、
+            画像の直後に白い面を置かないこと。下の h1 ブロックはページ背景のままにしてある。 */}
+      <section>
+        <picture>
+          <source media="(max-width: 639px)" srcSet="/hp-lp/designs-hero-sp.webp" width={864} height={1821} />
+          <img
+            src="/hp-lp/designs-hero-pc.webp"
+            width={1672}
+            height={941}
+            alt=""
+            className="block w-full h-auto"
+            fetchPriority="high"
+          />
+        </picture>
+        <div className="sr-only">
+          <p>
+            お店に似合う、デザインを。メンズエステ専門ホームページ。
+            高級感のある4つのひな形に、それぞれ4色のカラーをご用意しました。
+          </p>
+        </div>
+      </section>
+
+      {/* ── ヒーロー下端の継ぎ目つなぎ（2026-08-16）──
+          画像の下端はページ背景 #fdf5f5 と色差がある（PC 33 / SP 41・チャンネル最大）。
+          ★ 画像側を背景色になじませる加工（flow-sp でやった手）は使えない。
+            この画像は下端に金の飾りとダイヤが入っており、なじませると飾りが消えるため。
+          そこで画像は無加工のまま、直下に「画像の下端色 → ページ背景」のグラデーションを敷いて繋ぐ。
+          ★ 画像を作り直したら from- の色も測り直すこと（下端の平均色）。
+            2026-08-16 の実測: PC #efded4 / SP #f0dbcc。 */}
+      <div aria-hidden="true" className="h-6 bg-gradient-to-b from-[#f0dbcc] to-[#fdf5f5] sm:hidden" />
+      <div aria-hidden="true" className="hidden h-8 bg-gradient-to-b from-[#efded4] to-[#fdf5f5] sm:block" />
+
+      {/* ── ページ見出し（可視の h1）── 2026-08-16
+          ★ 帯を画像化したあとも、可視の h1 はここに文字で残すこと。
+            画像に焼き込まれた見出しだけにすると、このページの主題が画面上の文字から消える
+            （LP側で 2026-08-15 に同じ理由で sr-only の h1 を可視へ戻したのと同じ判断）。
+          ★ 文言を変えたら tools-verify-hp.mjs の designs 側の h1 期待値も直すこと（危険地帯41）。
+          戻るリンクは画像の下へ移した（画像より上に置くと、ヒーローの前に細い帯が挟まって見えるため）。 */}
+      <section className="pt-8 sm:pt-10">
+        <div className="mx-auto max-w-5xl px-5 text-center">
           <Link
             href="/hp/templates"
-            className="inline-flex items-center gap-1 text-[11px] font-bold text-[#a08e84] hover:text-[#c9808f] transition-colors"
+            className="inline-flex items-center gap-1 text-[11px] font-bold text-[#a08e84] transition-colors hover:text-[#c9808f]"
           >
             ← ホームページ制作のご案内へ戻る
           </Link>
 
-          <p className="mt-6 text-[11px] tracking-[.36em] text-[#b98d4f]">DESIGN LINEUP</p>
-          <h1 className="mt-3 text-[26px] sm:text-[34px] font-bold tracking-wider leading-tight text-[#3f342e]">
+          <h1 className="mt-5 text-[22px] font-bold leading-tight tracking-wider text-[#3f342e] sm:text-[28px]">
             選べるデザイン
-            <span className="block sm:inline sm:ml-3 text-[#c9808f]">全{HP_PATTERN_COUNT}パターン</span>
+            <span className="block text-[#c9808f] sm:ml-3 sm:inline">全{HP_PATTERN_COUNT}パターン</span>
           </h1>
-          <div className="mt-5 mb-6">
+          <div className="mt-4 mb-5">
             <GoldRule />
           </div>
-          <p className="text-[13px] sm:text-[14px] leading-loose text-[#6d5d53] max-w-2xl mx-auto">
-            高級感のある4つのひな形に、それぞれ4色のカラーをご用意しました。
-            <br className="hidden sm:block" />
+          <p className="mx-auto max-w-2xl text-[13px] leading-loose text-[#6d5d53] sm:text-[14px]">
             下のサムネイルはすべて<span className="font-bold text-[#3f342e]">実際のキービジュアル</span>です。
             気になるデザインは「デモを見る」から、サンプル店舗のデータが入った実物のページをご覧いただけます。
           </p>
