@@ -22,7 +22,7 @@ import { buildBreadcrumbJsonLd, toJsonLdString } from '@/app/lib/jsonLd';
 //      フクエス契約→制作料0円・＋ワーク両方契約→月々も0円。この数字を変えるときは営業資料・規約と必ず同時に。
 //      2026-08-15 に他ブロックと同じく1枚画像へ差し替え（数字は焼き込み／sr-only と JSON-LD にも同じ数字がある）。
 //      ※注意書き（作業依頼 3,300円・ドメインメール対象外）だけは画像に入っていないので可視テキストで残してある。
-//   6. 制作の流れ 5ステップ → フッター（お問い合わせ）
+//   6. 制作の流れ … 5ステップを1枚画像に（2026-08-15）→ フッター（お問い合わせ）
 //
 // 画像: public/hp-lp/hero-pc.webp（1983×793・2.5:1）/ hero-sp.webp（864×1821・約1:2.1）。
 // 差し替え時は同名で上書きすればよい（文字が焼き込まれているので比率を守ること）。
@@ -31,13 +31,15 @@ import { buildBreadcrumbJsonLd, toJsonLdString } from '@/app/lib/jsonLd';
 // ※ スマホは 4:5（1080×1350）から縦長の約1:2.1 へ差し替え（2026-08-15）。
 //   ノートPC・タブレットの端末写真まで入れたぶん縦に伸びており、iPhone（幅390px）で高さ約822px＝ほぼ1画面。
 //
-// PROBLEM / SOLUTION / 強み4つ / DESIGN LINEUP / 料金 のブロックも画像化（すべて全幅・2026-08-15）:
+// PROBLEM / SOLUTION / 強み4つ / DESIGN LINEUP / 料金 / 制作の流れ のブロックも画像化（すべて全幅・2026-08-15）:
 //   problem-pc.webp（1672×941・16:9）/ problem-sp.webp（1024×1536・2:3）
 //   solution-pc.webp（1672×941・16:9）/ solution-sp.webp（864×1821・約1:2.1）
 //   strengths-pc.webp（1672×941・16:9）/ strengths-sp.webp（863×1822・約1:2.1）
 //   design-pc.webp（1717×916・約1.87:1）/ design-sp.webp（862×1935・約1:2.24）
 //   price-pc.webp（1717×916・約1.87:1）/ price-sp.webp（864×1821・約1:2.11）
 //     … 料金の数字が焼き込み。作り直すときは sr-only と SERVICE_JSON_LD の数字も必ず揃えること。
+//   flow-pc.webp（1717×916・約1.87:1）/ flow-sp.webp（864×1820・約1:2.11）
+//     … ステップ02の「16パターンから選択」が焼き込み（sr-only は HP_PATTERN_COUNT で自動計算）。
 //   ＋直下のボタン btn-design-pc.webp（1564×413）/ btn-design-sp.webp（900×276）… どちらも背景が透明の webp。
 //     ★元データは黒背景の JPEG で届いたため、黒を抜いて透明化し、暗い背景用に描かれていた
 //       外周の光彩（黄〜赤）はページのピンク地で汚れて見えるので削ってある（2026-08-15）。
@@ -360,29 +362,41 @@ export default function HpTemplatesPage() {
         </div>
       </section>
 
-      {/* ── 制作の流れ ── */}
-      <section className="mx-auto max-w-5xl px-5 py-14 sm:py-16">
-        <header className="text-center mb-10">
-          <p className="text-[11px] tracking-[.3em] text-[#c99ba6] mb-2">FLOW</p>
-          <h2 className="text-xl sm:text-2xl font-bold tracking-wider text-[#3f342e]">制作の流れ</h2>
-        </header>
-        <ol className="grid sm:grid-cols-5 gap-3">
-          {[
-            ['お申し込み', '担当者までご連絡ください。ご契約状況に応じた料金をご案内します。'],
-            ['デザインを決める', `デザイン一覧の${HP_PATTERN_COUNT}パターンから、担当者とご相談のうえお選びいただきます。`],
-            ['運営が制作', 'ドメイン取得からキービジュアル・写真・文章の設定まで運営が行います。'],
-            ['ご確認・公開', '仕上がりをご確認いただき、OKをいただいたら公開します。'],
-            ['公開後の更新', 'フクエスを更新するだけでHPも最新に。写真や文章の変更も管理画面から。'],
-          ].map(([t, d], i) => (
-            <li key={t} className="relative rounded-2xl border border-[#f0dde0] bg-white shadow-sm p-5 pt-6">
-              <span className="absolute -top-3 left-5 inline-flex items-center justify-center w-7 h-7 rounded-full bg-[#c9808f] text-white text-[12px] font-black shadow">
-                {i + 1}
-              </span>
-              <p className="text-[13px] font-bold text-[#3f342e] mb-2">{t}</p>
-              <p className="text-[11px] leading-relaxed text-[#8a7a70]">{d}</p>
-            </li>
-          ))}
-        </ol>
+      {/* ── 制作の流れ（FLOW）── */}
+      {/* 見出し＋01〜05のステップが焼き込まれた1枚画像（2026-08-15）。他ブロックと同じ全幅。
+          画像は装飾扱い（alt=""）にして、見出しと本文は sr-only の実テキストで持つ。
+          手順なので sr-only 側は <ol> のまま（番号の意味を読み上げ・検索エンジンに残す）。
+          ★ ステップ02の「16パターンから選択」は画像に焼き込まれている（sr-only 側は HP_PATTERN_COUNT で
+            自動計算）。カラーを足し引きしたときは flow-pc/sp も作り直すこと。
+          ★ 下の pb-12 は詰めないこと：画像下端（PC #f6e7e0・SP #f3ddd0）と白いフッターが直接ぶつかると
+            色の段差が出る。間にページ背景（#fdf5f5）を挟んでいる。 */}
+      <section className="pt-10 sm:pt-12 pb-12 sm:pb-14">
+        <picture>
+          <source media="(max-width: 639px)" srcSet="/hp-lp/flow-sp.webp" width={864} height={1820} />
+          <img
+            src="/hp-lp/flow-pc.webp"
+            loading="lazy"
+            width={1717}
+            height={916}
+            alt=""
+            className="block w-full h-auto"
+            decoding="async"
+          />
+        </picture>
+        <div className="sr-only">
+          <h2>制作の流れ</h2>
+          <ol>
+            {[
+              ['お申し込み', '担当者までご連絡ください。ご契約状況に応じた料金をご案内します。'],
+              ['デザインを決める', `デザイン一覧の${HP_PATTERN_COUNT}パターンから、担当者とご相談のうえお選びいただきます。`],
+              ['運営が制作', 'ドメイン取得からキービジュアル・写真・文章の設定まで運営が行います。'],
+              ['ご確認・公開', '仕上がりをご確認いただき、OKをいただいたら公開します。'],
+              ['公開後の更新', 'フクエスを更新するだけでHPも最新に。写真や文章の変更も管理画面から。'],
+            ].map(([t, d]) => (
+              <li key={t}>{t}：{d}</li>
+            ))}
+          </ol>
+        </div>
       </section>
 
       {/* ── フッター（お問い合わせ）── */}
