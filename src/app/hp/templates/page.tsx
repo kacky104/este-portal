@@ -1,17 +1,6 @@
 import type { Metadata } from 'next';
-import {
-  HP_TEMPLATES,
-  HP_COLOR_VARIANTS,
-  HP_DEMO_SLUG,
-  type HpTemplateKey,
-} from '@/app/lib/hpSite';
-import {
-  DesignThumb,
-  HP_TEMPLATE_NOTES,
-  hpDesignThumbObjectCls,
-  hpDesignThumbSrc,
-  hpVariantColors,
-} from '@/app/hp/_templates/DesignThumb';
+import Link from 'next/link';
+import { HP_TEMPLATES, HP_COLOR_VARIANTS } from '@/app/lib/hpSite';
 
 // 公式ホームページ制作の【LP 兼 デザイン一覧】（2026-08-09）。
 //
@@ -25,8 +14,9 @@ import {
 //   2. お悩み → 解決 … vootec の #solutio 相当。「掲載データから自動で中身が埋まる」が勝ち筋
 //      （vootec は素材・原稿が店舗持ち。うちは二重入力ゼロ。第6便メモの差別化ポイント）。
 //   3. 強み4つ … 自動連動・独自ドメイン・デザイン・公開後サポート
-//   4. デザイン一覧 … 4ひな形×カラー（タイプSは2色・A/B/Cは各6色）。
-//      ヒーローに合わせた白×ピンク×金の明るいトーン。総数は HP_PATTERN_COUNT で自動計算。
+//   4. デザインへの導線 … サムネ一覧そのものは /hp/templates/designs（専用ページ）へ移した
+//      （2026-08-15。LPが縦に長く、料金・お問い合わせまで遠かったため）。
+//      ここには「デザインを見る」ボタンだけを置く。総数は HP_PATTERN_COUNT で自動計算。
 //   5. 料金 … 事業設計の確定値（第6便）。制作料165,000円/月々11,000円/更新料 年11,000円（全て税込）、
 //      フクエス契約→制作料0円・＋ワーク両方契約→月々も0円。この数字を変えるときは営業資料・規約と必ず同時に。
 //   6. 制作の流れ 5ステップ → フッター（お問い合わせ）
@@ -44,9 +34,9 @@ import {
 // 見出しと本文が焼き込み済み。文章は sr-only で HTML にも残してある
 // （差し替えるときは sr-only の文言も画像と揃えること）。
 //
-// 各デザインの「デモを見る」は /hp/demo/preview/{template}/{color} へ。
-// demo は HP_DEMO_SLUG の予約 slug で、この slug に限りプレビューがログイン不要
-// （★デモ用サロンの用意は保留中・2026-08-09。行が無い間は 404 になる）。
+// デザイン一覧（サムネ16枚と各デザインの「デモを見る」）は /hp/templates/designs にある。
+// デモのリンク先は /hp/demo/preview/{template}/{color}。demo は HP_DEMO_SLUG の予約 slug で、
+// この slug に限りプレビューがログイン不要（★デモ用サロンの用意は保留中・2026-08-09。行が無い間は 404 になる）。
 //
 // 静的セグメントなので /hp/[slug] より優先される（slug='templates' は発行禁止。HP_RESERVED_SLUGS）。
 
@@ -58,23 +48,6 @@ export const metadata: Metadata = {
 
 // 掲載する総パターン数は定義から数える（カラーを足し引きしても文言がずれないように・2026-08-11）。
 const HP_PATTERN_COUNT = HP_TEMPLATES.reduce((n, t) => n + HP_COLOR_VARIANTS[t.key].length, 0);
-
-// カラー数ごとのサムネ列数。少ない色数のひな形（タイプS）は1枚を大きく見せる。
-const VARIANT_GRID_CLS: Record<number, string> = {
-  1: 'grid-cols-1',
-  2: 'grid-cols-1 sm:grid-cols-2',
-  3: 'grid-cols-1 sm:grid-cols-3',
-  4: 'grid-cols-2 sm:grid-cols-4',
-  5: 'grid-cols-2 sm:grid-cols-3 lg:grid-cols-5',
-  6: 'grid-cols-2 sm:grid-cols-3 lg:grid-cols-6',
-};
-
-const TEMPLATE_TITLES: Record<HpTemplateKey, { en: string; name: string }> = {
-  s: { en: 'GRACE', name: 'フラッグシップ' },
-  a: { en: 'LUXE',  name: '高級・しっとり' },
-  b: { en: 'CLEAN', name: '清潔感・癒やし' },
-  c: { en: 'MODE',  name: '都会的・シャープ' },
-};
 
 export default function HpTemplatesPage() {
   return (
@@ -166,99 +139,39 @@ export default function HpTemplatesPage() {
         </div>
       </section>
 
-      {/* ── デザイン一覧 ── */}
+      {/* ── デザインへの導線（一覧は /hp/templates/designs へ移した・2026-08-15）── */}
       <section id="design" className="mx-auto max-w-5xl px-5 py-14 sm:py-16">
-        <header className="text-center mb-10">
-          <p className="text-[11px] tracking-[.3em] text-[#c99ba6] mb-2">DESIGN LINEUP</p>
-          <h2 className="text-xl sm:text-2xl font-bold tracking-wider mb-4 text-[#3f342e]">
-            選べるデザイン <span className="text-[#b98d4f]">全{HP_PATTERN_COUNT}パターン</span>
-          </h2>
-          <p className="text-[13px] leading-relaxed text-[#8a7a70] max-w-xl mx-auto">
-            4つのひな形 × カラーをご用意しました（最上位のタイプSはシャンパンゴールド・ワインレッド・ロイヤルブルー・エメラルドグリーンの4種類）。
-            気になるデザインが決まりましたら、担当者までお知らせください。
-            <br className="hidden sm:block" />
-            ドメイン取得・制作・写真や文章の設定まで、すべて運営がおこなって納品します。
-          </p>
-        </header>
+        <div className="relative overflow-hidden rounded-3xl border border-[#f0dde0] bg-gradient-to-b from-white via-[#fdeef1] to-[#f9e6dc] shadow-sm">
+          {/* 隅のぼかし玉（装飾） */}
+          <span aria-hidden="true" className="pointer-events-none absolute -top-16 -left-12 w-56 h-56 rounded-full bg-[#f7d9de] opacity-60 blur-3xl" />
+          <span aria-hidden="true" className="pointer-events-none absolute -bottom-16 -right-8 w-56 h-56 rounded-full bg-[#f2e0c6] opacity-60 blur-3xl" />
+          <span aria-hidden="true" className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-[#d5a86b] to-transparent" />
 
-        <div className="space-y-8">
-          {HP_TEMPLATES.map((t) => {
-            const title = TEMPLATE_TITLES[t.key];
-            const variants = HP_COLOR_VARIANTS[t.key];
-            // 実写真のサムネがあるひな形（タイプS）は、白いカードで囲わず地の上に直接大きく並べる
-            // （2026-08-12 要望）。写真そのものを主役にし、スマホの横幅も余さず使うため。
-            const photo = hpDesignThumbSrc(t.key, variants[0]?.key) !== null;
-            return (
-              <section
-                key={t.key}
-                className={photo ? '' : 'rounded-2xl border border-[#f0dde0] bg-white shadow-sm p-6 sm:p-8'}
-              >
-                <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-2 mb-5">
-                  {/* 見出し側は縮めない（「フラッグシップ」が2行に折り返していたため） */}
-                  <div className="sm:shrink-0">
-                    <p className="text-[10px] tracking-[.28em] text-[#b98d4f]">{title.en}</p>
-                    <h3 className="text-lg font-bold tracking-wide text-[#3f342e]">
-                      {t.label}
-                      <span className="ml-3 text-[12px] font-normal text-[#8a7a70]">{title.name}</span>
-                    </h3>
-                  </div>
-                  <p className="text-[11px] text-[#a08e84] sm:text-right">{HP_TEMPLATE_NOTES[t.key]}</p>
-                </div>
-
-                {/* ★ Tailwind は文字列を組み立てたクラス名を拾えない（未使用として消える）ので、
-                    列数は必ずベタ書きの候補から選ぶこと。 */}
-                <div
-                  className={`grid ${photo ? 'gap-2 sm:gap-3' : 'gap-3'} ${
-                    VARIANT_GRID_CLS[Math.min(variants.length, 6)] ?? VARIANT_GRID_CLS[6]
-                  }`}
-                >
-                  {variants.map((v) => {
-                    const c = hpVariantColors(t.key, v.key);
-                    const src = hpDesignThumbSrc(t.key, v.key);
-                    return (
-                      <a
-                        key={v.key}
-                        href={`/hp/${HP_DEMO_SLUG}/preview/${t.key}/${v.key}`}
-                        target="_blank"
-                        rel="noreferrer"
-                        className={`group block overflow-hidden border border-[#ecdcdc] bg-white hover:border-[#d5a86b] hover:shadow-md transition-all ${
-                          /* 実写真のサムネは角を直角に（2026-08-12 要望） */ src ? '' : 'rounded-xl'
-                        }`}
-                      >
-                        {src ? (
-                          /* 横長（スマホ16:9・PC2:1）＝PCの画面で見ているような比率。
-                             切り取り基準（object-position）はひな形ごとにモデルの立ち位置が違うので
-                             hpDesignThumbObjectCls に集約している。 */
-                          // eslint-disable-next-line @next/next/no-img-element
-                          <img
-                            src={src}
-                            alt=""
-                            loading="lazy"
-                            className={`block w-full aspect-video sm:aspect-[2/1] object-cover ${hpDesignThumbObjectCls(
-                              t.key,
-                              'list',
-                            )}`}
-                          />
-                        ) : (
-                          <DesignThumb template={t.key} accent={c.accent} deep={c.deep} colorKey={v.key} />
-                        )}
-                        <span className="flex items-center justify-between px-2.5 py-2 bg-[#faf4f0] text-[10px] font-bold text-[#7a6a60]">
-                          <span className="flex items-center gap-1.5 min-w-0">
-                            <span
-                              className="inline-block w-3 h-3 rounded-full border border-black/10 flex-shrink-0"
-                              style={{ backgroundColor: c.accent }}
-                            />
-                            <span className="truncate">{v.label}</span>
-                          </span>
-                          <span className="text-[#b98d4f] flex-shrink-0">デモ →</span>
-                        </span>
-                      </a>
-                    );
-                  })}
-                </div>
-              </section>
-            );
-          })}
+          <div className="relative px-6 py-12 sm:px-10 sm:py-14 text-center">
+            <p className="text-[11px] tracking-[.3em] text-[#b98d4f] mb-3">DESIGN LINEUP</p>
+            <h2 className="text-xl sm:text-2xl font-bold tracking-wider text-[#3f342e]">
+              選べるデザイン <span className="text-[#c9808f]">全{HP_PATTERN_COUNT}パターン</span>
+            </h2>
+            <span className="mt-5 mb-6 flex items-center justify-center gap-2 text-[#d5a86b]" aria-hidden="true">
+              <span className="block h-px w-10 sm:w-16 bg-gradient-to-r from-transparent to-[#d5a86b]" />
+              <span className="block w-1.5 h-1.5 rotate-45 bg-[#d5a86b]" />
+              <span className="block h-px w-10 sm:w-16 bg-gradient-to-l from-transparent to-[#d5a86b]" />
+            </span>
+            <p className="text-[13px] leading-relaxed text-[#6d5d53] max-w-xl mx-auto">
+              高級感のある4つのひな形 × それぞれ4色のカラー。
+              <br className="hidden sm:block" />
+              実際のキービジュアルとデモページで、仕上がりをそのままご確認いただけます。
+            </p>
+            <Link
+              href="/hp/templates/designs"
+              data-testid="lp-design-cta"
+              className="mt-7 inline-flex items-center justify-center gap-2 rounded-full px-9 py-3.5 text-[14px] font-bold text-white shadow-md bg-gradient-to-r from-[#d18f9d] to-[#c9808f] hover:from-[#c9808f] hover:to-[#b96f7e] transition-colors"
+            >
+              デザインを見る
+              <span aria-hidden="true">→</span>
+            </Link>
+            <p className="mt-4 text-[11px] text-[#a08e84]">タイプS・A・B・C の全{HP_PATTERN_COUNT}パターンを一覧でご覧いただけます。</p>
+          </div>
         </div>
       </section>
 
@@ -331,7 +244,7 @@ export default function HpTemplatesPage() {
         <ol className="grid sm:grid-cols-5 gap-3">
           {[
             ['お申し込み', '担当者までご連絡ください。ご契約状況に応じた料金をご案内します。'],
-            ['デザインを決める', `このページの${HP_PATTERN_COUNT}パターンから、担当者とご相談のうえお選びいただきます。`],
+            ['デザインを決める', `デザイン一覧の${HP_PATTERN_COUNT}パターンから、担当者とご相談のうえお選びいただきます。`],
             ['運営が制作', 'ドメイン取得からキービジュアル・写真・文章の設定まで運営が行います。'],
             ['ご確認・公開', '仕上がりをご確認いただき、OKをいただいたら公開します。'],
             ['公開後の更新', 'フクエスを更新するだけでHPも最新に。写真や文章の変更も管理画面から。'],
@@ -351,7 +264,8 @@ export default function HpTemplatesPage() {
       <footer className="border-t border-[#f0dde0] bg-white">
         <div className="mx-auto max-w-5xl px-5 py-10 text-center space-y-3">
           <p className="text-[13px] leading-relaxed text-[#6d5d53]">
-            「デモ →」から、サンプル店舗のデータが入った実際のページをご覧いただけます。
+            <Link href="/hp/templates/designs" className="underline text-[#c9808f] hover:text-[#b96f7e]">デザイン一覧</Link>
+            の「デモを見る」から、サンプル店舗のデータが入った実際のページをご覧いただけます。
             <br className="hidden sm:block" />
             写真・文章・表示する内容は、お店ごとに運営がカスタマイズしてお納めします。
           </p>
