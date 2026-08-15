@@ -1,0 +1,15 @@
+# 改行コードの正規化（2026-08-16 追加）
+#
+# ★ 入れた経緯
+#   予約ボードまわりの5ファイル（booking.ts / slots.ts / BookingBoard.tsx /
+#   mypage/page.tsx / 20260815_salons_default_interval.sql）が、ディスク上だけCRLFで
+#   保存されていたため、中身が同じなのに git status で常に M 表示になっていた。
+#   ファイル側はLFに戻して解消済み。この1行は再発防止用。
+#
+# text=auto … テキストかバイナリかは git に判定させる（webp/jpg/png などは自動で対象外）。
+#             リポジトリ（index）には常にLFで格納される。
+# eol=lf     … checkout したときの作業ツリーもLFにする。Windowsで作業してもCRLFにならない。
+#
+# ※ 導入時点で index 側がCRLFのファイルは0件だったため、このファイルを足しても
+#   既存ファイルの内容差分は1バイトも出ない（renormalize も不要）。
+* text=auto eol=lf
