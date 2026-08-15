@@ -51,14 +51,20 @@ import { HP_TEMPLATES, HP_COLOR_VARIANTS } from '@/app/lib/hpSite';
 //
 // 静的セグメントなので /hp/[slug] より優先される（slug='templates' は発行禁止。HP_RESERVED_SLUGS）。
 
+// 掲載する総パターン数は定義から数える（カラーを足し引きしても文言がずれないように・2026-08-11）。
+// ※ metadata の description からも参照するので、metadata より前に置いておくこと（2026-08-15）。
+const HP_PATTERN_COUNT = HP_TEMPLATES.reduce((n, t) => n + HP_COLOR_VARIANTS[t.key].length, 0);
+
 export const metadata: Metadata = {
   title: 'メンズエステ専門の公式ホームページ制作｜フクエス',
+  // パターン数は HP_PATTERN_COUNT から作る。以前は「20パターン」とベタ書きで、
+  // 実際の16と食い違っていた（2026-08-15 修正）。
   description:
-    'フクエス掲載店舗さま向け・メンズエステ専門の公式ホームページ制作。集客・信頼・ブランディングを加速させる、高級感のあるデザイン20パターン。ドメイン取得から制作・運用まで運営がすべて対応します。',
+    `フクエス掲載店舗さま向け・メンズエステ専門の公式ホームページ制作。集客・信頼・ブランディングを加速させる、高級感のあるデザイン${HP_PATTERN_COUNT}パターン。ドメイン取得から制作・運用まで運営がすべて対応します。`,
+  // ★ canonical は必ずページごとに入れること。省くと layout.tsx の { canonical: '/' } を継承し、
+  //   「このページはトップの複製」と伝わって検索結果から外れる（2026-08-15 修正。サイトの他50ページと同じ作法）。
+  alternates: { canonical: '/hp/templates' },
 };
-
-// 掲載する総パターン数は定義から数える（カラーを足し引きしても文言がずれないように・2026-08-11）。
-const HP_PATTERN_COUNT = HP_TEMPLATES.reduce((n, t) => n + HP_COLOR_VARIANTS[t.key].length, 0);
 
 /**
  * デザイン一覧への画像ボタン（2026-08-15）。ヒーロー直下と DESIGN LINEUP の直下の2か所で使う。
@@ -105,18 +111,27 @@ export default function HpTemplatesPage() {
   return (
     <div className="min-h-screen bg-[#fdf5f5] text-[#4a3f3a]">
       {/* ── ヒーロー（KV・文字焼き込み済み）──
-          PC は 2.5:1・スマホは縦長を <picture> で出し分け。文字が欠けるため cover 切り抜きはしない */}
+          PC は 2.5:1・スマホは縦長を <picture> で出し分け。文字が欠けるため cover 切り抜きはしない。
+          ★ h1 はここだけ。以前はページ内に h1 が1つも無く、見出しが h2 から始まっていた（2026-08-15 追加）。
+            他ブロックと同じで、画像は装飾扱い（alt=""）にして文章は sr-only の実テキストで持つ。 */}
       <section>
         <picture>
           <source media="(max-width: 639px)" srcSet="/hp-lp/hero-sp.webp" />
           {/* ※ eslint-disable は不要（no-img-element は <picture> 内の <img> には出ない）・2026-08-15 */}
           <img
             src="/hp-lp/hero-pc.webp"
-            alt="メンズエステ専門のホームページ制作 — 集客・信頼・ブランディングを加速させる。デザイン性・スマホ対応・集客サポート。すべてのデバイスで美しく、使いやすく。"
+            alt=""
             className="block w-full h-auto"
             fetchPriority="high"
           />
         </picture>
+        <div className="sr-only">
+          <h1>メンズエステ専門の公式ホームページ制作</h1>
+          <p>
+            集客につながる、公式ホームページを。フクエスの掲載情報と自動で連動します。
+            デザイン性・スマホ対応・集客サポートまで、すべてのデバイスで美しく、使いやすく。
+          </p>
+        </div>
       </section>
 
       {/* ── ヒーロー直下のデザイン導線（2026-08-15 追加）──

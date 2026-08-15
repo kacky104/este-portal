@@ -108,6 +108,12 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     // フクエスワークの規約・ポリシー（本体の特則。/x/terms 等と同じ yearly 0.3）。
     { url: `${SITE_URL}/jobs/terms`, changeFrequency: 'yearly', priority: 0.3 },
     { url: `${SITE_URL}/jobs/privacy`, changeFrequency: 'yearly', priority: 0.3 },
+    // 公式ホームページ制作の案内（LP）とデザイン一覧（2026-08-15 追加）。
+    // 店舗向けの集客導線なので /join と同じ monthly 0.5、その下層のデザイン一覧は 0.4。
+    // どちらも noindex ではなく canonical も自ページを指していることを確認済み。
+    // ※店舗ごとの公開HP（/hp/[slug]）は各店の独自ドメインで見せるものなのでここには入れない。
+    { url: `${SITE_URL}/hp/templates`, changeFrequency: 'monthly', priority: 0.5 },
+    { url: `${SITE_URL}/hp/templates/designs`, changeFrequency: 'monthly', priority: 0.4 },
   ];
 
   // 本体フクエスのエリア別サロンページ（/area/[slug]・全6スラッグ）。
