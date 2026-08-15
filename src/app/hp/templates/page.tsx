@@ -188,8 +188,9 @@ export default function HpTemplatesPage() {
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: toJsonLdString(SERVICE_JSON_LD) }} />
       {/* ── ヒーロー（KV・文字焼き込み済み）──
           PC は 2.5:1・スマホは縦長を <picture> で出し分け。文字が欠けるため cover 切り抜きはしない。
-          ★ h1 はここだけ。以前はページ内に h1 が1つも無く、見出しが h2 から始まっていた（2026-08-15 追加）。
-            他ブロックと同じで、画像は装飾扱い（alt=""）にして文章は sr-only の実テキストで持つ。 */}
+          他ブロックと同じで、画像は装飾扱い（alt=""）にして文章は sr-only の実テキストで持つ。
+          ★ h1 は 2026-08-15 に【この下の可視セクション】へ移した。ここの sr-only には h1 を戻さないこと
+            （h1 が2本になる）。リード文の <p> だけが sr-only に残っている。 */}
       <section>
         <picture>
           <source media="(max-width: 639px)" srcSet="/hp-lp/hero-sp.webp" width={864} height={1821} />
@@ -204,11 +205,29 @@ export default function HpTemplatesPage() {
           />
         </picture>
         <div className="sr-only">
-          <h1>メンズエステ専門の公式ホームページ制作</h1>
           <p>
             集客につながる、公式ホームページを。フクエスの掲載情報と自動で連動します。
             デザイン性・スマホ対応・集客サポートまで、すべてのデバイスで美しく、使いやすく。
           </p>
+        </div>
+      </section>
+
+      {/* ── ページ見出し（可視の h1）── 2026-08-15 追加
+          それまで h1 はヒーローの sr-only の中だけにあり、LPの画面上には可視の見出しが1つも無かった
+          （全ブロックを画像化したため、可視テキストが283文字＝※注意書きとフッターだけになっていた）。
+          ヒーロー画像に焼き込まれた「メンズエステ専門」「集客につながる、公式ホームページを。」を、
+          そのまま文字で受け直す位置に置いてある。
+          ★ ここが LP で唯一の可視 h1。ボタンより上に置くこと（下に回すとページの主題がCTAの後ろになる）。
+          ★ 文言を変えたら tools-verify-hp.mjs の VISIBLE_MUST と LP_HEADINGS も同時に直す（危険地帯41）。
+          ※ スマホではヒーローだけで1画面（390px幅で約822px）が埋まるので、このぶんボタンが73px下がっても
+            初回表示に見えるものは変わらない（2026-08-15 実測）。 */}
+      <section className="pt-8 sm:pt-10">
+        <div className="mx-auto max-w-5xl px-5 text-center">
+          <h1 className="text-base font-semibold leading-relaxed tracking-[0.04em] text-[#8a6a55] sm:text-[19px]">
+            メンズエステ専門の公式ホームページ制作
+          </h1>
+          {/* 金の細い罫（両端が透明に抜けるグラデーション）。下のボタンとの区切り。 */}
+          <div className="mx-auto mt-3.5 h-px w-14 bg-gradient-to-r from-transparent via-[#d8b98a] to-transparent" />
         </div>
       </section>
 

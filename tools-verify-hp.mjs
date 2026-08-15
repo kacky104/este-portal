@@ -22,7 +22,9 @@
  *     PW_CHANNEL   … 'chrome' | 'msedge' など。既定は chrome →（無ければ）既定の Chromium
  *
  * ── 直し方 ──────────────────────────────────────────
- * 画像を差し替えたら EXPECT の寸法を直す。文言を変えたら SR_MUST を直す。
+ * 画像を差し替えたら EXPECT の寸法を直す。文言を変えたら SR_MUST / VISIBLE_MUST / LP_HEADINGS を直す。
+ * ※ 文言を sr-only ⇄ 可視テキストの間で移したときは、SR_MUST から抜いて VISIBLE_MUST へ足す
+ *   （2026-08-15 に h1「メンズエステ専門の公式ホームページ制作」でこれをやった）。
  * ★ここを直さずにテストだけ通す、は禁止。数字がズレていないことを見張るのがこのスクリプトの仕事。
  *
  * 終了コード: 0=全部PASS / 1=FAILあり / 2=準備不足（playwright-core が無い等）
@@ -70,7 +72,8 @@ const BTN_COUNT = 3;
  * ★ 画像を作り直して文言が変わったら、ここも一緒に直す（危険地帯25）。
  */
 const SR_MUST = [
-  'メンズエステ専門の公式ホームページ制作',
+  // ※「メンズエステ専門の公式ホームページ制作」は 2026-08-15 に sr-only から
+  //   可視の h1 へ移したので、ここではなく VISIBLE_MUST 側で見張っている。
   'こんなお悩みはありませんか？',
   'フクエスの掲載データが、そのまま公式ホームページに。',
   'フクエスの公式ホームページ制作の強み',
@@ -91,8 +94,11 @@ const SR_MUST = [
   '公開後の更新',
 ];
 
-// 可視テキストで残さなければいけない取引条件（画像にも sr-only にも入れていない部分）。
-const VISIBLE_MUST = ['3,300円', '独自ドメインのメールアドレスは対象外'];
+// 可視テキストで残さなければいけない文字列。
+//  ・取引条件（画像にも sr-only にも入れていない部分）… sr-only に落としてはいけない（危険地帯37）
+//  ・ページ見出し … 2026-08-15 に h1 を sr-only から可視へ移した。sr-only へ戻すと
+//    LPの可視テキストがまた※注意書きとフッターだけになるので、ここで見張る。
+const VISIBLE_MUST = ['メンズエステ専門の公式ホームページ制作', '3,300円', '独自ドメインのメールアドレスは対象外'];
 
 // LP の見出し。順番まで含めて固定（h1 は1本だけ・h2 から始まらないこと）。
 const LP_HEADINGS = [
@@ -293,7 +299,8 @@ console.log('\n■ /hp/templates（PC 1440x900）');
   for (const v of VISIBLE_MUST) {
     // 可視テキストにも残っていること（sr-only に落としてはいけない取引条件）
     const inVisible = await page.evaluate((needle) => {
-      return [...document.querySelectorAll('p,li,span')].some((el) => {
+      // h1〜h3 も対象に入れる（2026-08-15。可視 h1 を見張るようになったため）
+      return [...document.querySelectorAll('h1,h2,h3,p,li,span')].some((el) => {
         if (el.closest('.sr-only')) return false;
         if (!el.textContent.includes(needle)) return false;
         const r = el.getBoundingClientRect();
