@@ -20,6 +20,8 @@ import { buildBreadcrumbJsonLd, toJsonLdString } from '@/app/lib/jsonLd';
 //      ここには「デザインを見る」ボタンだけを置く。総数は HP_PATTERN_COUNT で自動計算。
 //   5. 料金 … 事業設計の確定値（第6便）。制作料165,000円/月々11,000円/更新料 年11,000円（全て税込）、
 //      フクエス契約→制作料0円・＋ワーク両方契約→月々も0円。この数字を変えるときは営業資料・規約と必ず同時に。
+//      2026-08-15 に他ブロックと同じく1枚画像へ差し替え（数字は焼き込み／sr-only と JSON-LD にも同じ数字がある）。
+//      ※注意書き（作業依頼 3,300円・ドメインメール対象外）だけは画像に入っていないので可視テキストで残してある。
 //   6. 制作の流れ 5ステップ → フッター（お問い合わせ）
 //
 // 画像: public/hp-lp/hero-pc.webp（1983×793・2.5:1）/ hero-sp.webp（864×1821・約1:2.1）。
@@ -29,11 +31,13 @@ import { buildBreadcrumbJsonLd, toJsonLdString } from '@/app/lib/jsonLd';
 // ※ スマホは 4:5（1080×1350）から縦長の約1:2.1 へ差し替え（2026-08-15）。
 //   ノートPC・タブレットの端末写真まで入れたぶん縦に伸びており、iPhone（幅390px）で高さ約822px＝ほぼ1画面。
 //
-// PROBLEM / SOLUTION / 強み4つ / DESIGN LINEUP のブロックも画像化（すべて全幅・2026-08-15）:
+// PROBLEM / SOLUTION / 強み4つ / DESIGN LINEUP / 料金 のブロックも画像化（すべて全幅・2026-08-15）:
 //   problem-pc.webp（1672×941・16:9）/ problem-sp.webp（1024×1536・2:3）
 //   solution-pc.webp（1672×941・16:9）/ solution-sp.webp（864×1821・約1:2.1）
 //   strengths-pc.webp（1672×941・16:9）/ strengths-sp.webp（863×1822・約1:2.1）
 //   design-pc.webp（1717×916・約1.87:1）/ design-sp.webp（862×1935・約1:2.24）
+//   price-pc.webp（1717×916・約1.87:1）/ price-sp.webp（864×1821・約1:2.11）
+//     … 料金の数字が焼き込み。作り直すときは sr-only と SERVICE_JSON_LD の数字も必ず揃えること。
 //   ＋直下のボタン btn-design-pc.webp（1564×413）/ btn-design-sp.webp（900×276）… どちらも背景が透明の webp。
 //     ★元データは黒背景の JPEG で届いたため、黒を抜いて透明化し、暗い背景用に描かれていた
 //       外周の光彩（黄〜赤）はページのピンク地で汚れて見えるので削ってある（2026-08-15）。
@@ -308,60 +312,48 @@ export default function HpTemplatesPage() {
       </section>
 
 
-      {/* ── 料金 ──
-          数字は事業設計の確定値（2026-08-08・第6便メモ）。変更時は営業資料・規約と必ず同時に直すこと */}
-      <section className="bg-white border-y border-[#f0dde0]">
-        <div className="mx-auto max-w-5xl px-5 py-14 sm:py-16">
-          <header className="text-center mb-10">
-            <p className="text-[11px] tracking-[.3em] text-[#c99ba6] mb-2">PRICE</p>
-            <h2 className="text-xl sm:text-2xl font-bold tracking-wider text-[#3f342e]">料金プラン</h2>
-            <p className="mt-3 text-[13px] text-[#8a7a70]">表示はすべて税込です。</p>
-          </header>
-
-          <div className="grid sm:grid-cols-3 gap-3 mb-8">
+      {/* ── 料金（PRICE）── */}
+      {/* 見出し＋料金3つ＋特別優待が焼き込まれた1枚画像（2026-08-15）。他ブロックと同じ全幅。
+          画像は装飾扱い（alt=""）にして、見出しと本文は sr-only の実テキストで持つ。
+          ★ 数字は事業設計の確定値（2026-08-08・第6便メモ）。画像・sr-only・SERVICE_JSON_LD の
+            3か所に同じ数字があるので、料金を変えるときは【画像の作り直し＋sr-only＋JSON-LD＋営業資料＋規約】を必ず同時に。
+          ★ ※注意書き（作業依頼 3,300円／ドメインメール対象外）は画像に入っていない。
+            取引条件そのものなので sr-only ではなく可視テキストのまま残すこと。 */}
+      <section className="pt-10 sm:pt-12">
+        <picture>
+          <source media="(max-width: 639px)" srcSet="/hp-lp/price-sp.webp" width={864} height={1821} />
+          <img
+            src="/hp-lp/price-pc.webp"
+            loading="lazy"
+            width={1717}
+            height={916}
+            alt=""
+            className="block w-full h-auto"
+            decoding="async"
+          />
+        </picture>
+        <div className="sr-only">
+          <h2>料金プラン</h2>
+          <p>表示はすべて税込です。</p>
+          <ul>
             {[
-              ['制作料', '165,000', '円', '初回のみ。デザイン設定・キービジュアル制作・写真や文章の設定まで込み'],
-              ['月額利用料', '11,000', '円/月', 'サーバー・システム利用・掲載データとの自動連動'],
-              ['ドメイン更新料', '11,000', '円/年', 'お店の独自ドメインの維持費。取得・管理・更新は運営が代行'],
-            ].map(([t, n, u, d]) => (
-              <div key={t} className="rounded-2xl border border-[#f0dde0] bg-[#fdf8f6] p-6 text-center">
-                <p className="text-[12px] font-bold text-[#8a7a70] mb-2">{t}</p>
-                <p className="text-[#3f342e]">
-                  <span className="text-[30px] font-black tracking-tight">{n}</span>
-                  <span className="ml-1 text-[12px] font-bold text-[#8a7a70]">{u}</span>
-                </p>
-                <p className="mt-3 text-[11px] leading-relaxed text-[#a08e84] text-left">{d}</p>
-              </div>
+              ['制作料', '165,000円（初回のみ）', 'デザイン設定・キービジュアル制作・写真や文章の設定まで込み'],
+              ['月額利用料', '11,000円/月', 'サーバー・システム利用・掲載データとの自動連動'],
+              ['ドメイン更新料', '11,000円/年', 'お店の独自ドメインの維持費。取得・管理・更新は運営が代行'],
+            ].map(([t, n, d]) => (
+              <li key={t}>{t}：{n}。{d}</li>
             ))}
-          </div>
+          </ul>
+          <h3>フクエス掲載店さま限定の特別優待</h3>
+          <ul>
+            <li>フクエスに掲載中なら、制作料 165,000円 → 0円。</li>
+            <li>フクエスワークにもご掲載なら、月額 11,000円 → 0円。</li>
+          </ul>
+          <p>両方ご掲載のお店は、年間 11,000円（ドメイン更新料のみ）で公式ホームページを持てます。</p>
+        </div>
 
-          {/* 無料条件（いちばん言いたいところ） */}
-          <div className="rounded-2xl bg-gradient-to-r from-[#f7dee3] via-[#fbeee7] to-[#f3e3d3] p-[1px]">
-            <div className="rounded-2xl bg-white/95 px-6 py-7 sm:px-10">
-              <p className="text-center text-[12px] tracking-[.2em] font-bold text-[#b98d4f] mb-4">
-                フクエス掲載店さまの特別優待
-              </p>
-              <div className="grid sm:grid-cols-2 gap-3">
-                <div className="rounded-xl border border-[#ecd9c8] bg-[#fdf8f2] p-5 text-center">
-                  <p className="text-[12px] font-bold text-[#6d5d53] mb-1.5">フクエスに掲載中なら</p>
-                  <p className="text-[15px] font-black text-[#3f342e]">
-                    制作料 165,000円 → <span className="text-[24px] text-[#c9808f]">0円</span>
-                  </p>
-                </div>
-                <div className="rounded-xl border border-[#ecd9c8] bg-[#fdf8f2] p-5 text-center">
-                  <p className="text-[12px] font-bold text-[#6d5d53] mb-1.5">フクエスワークにもご掲載なら</p>
-                  <p className="text-[15px] font-black text-[#3f342e]">
-                    月額 11,000円 → <span className="text-[24px] text-[#c9808f]">0円</span>
-                  </p>
-                </div>
-              </div>
-              <p className="mt-4 text-center text-[13px] font-bold text-[#3f342e]">
-                両方ご掲載のお店は、<span className="text-[#c9808f]">年間 11,000円（ドメイン更新料のみ）</span>で公式ホームページを持てます。
-              </p>
-            </div>
-          </div>
-
-          <p className="mt-5 text-[11px] leading-relaxed text-[#a08e84] text-center">
+        <div className="mx-auto max-w-5xl px-5">
+          <p className="mt-6 sm:mt-7 text-[11px] leading-relaxed text-[#a08e84] text-center">
             ※ ご質問は無料。ページ内容の変更などの作業をご依頼いただく場合は1回 3,300円（複雑な作業はお見積り）。
             ※ 独自ドメインのメールアドレスは対象外です。詳細はお申し込み時の利用規約をご確認ください。
           </p>
