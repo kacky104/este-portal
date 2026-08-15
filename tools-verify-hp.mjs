@@ -110,6 +110,23 @@ const LP_HEADINGS = [
   'H2:料金プラン',
   'H3:フクエス掲載店さま限定の特別優待',
   'H2:制作の流れ',
+  // 2026-08-16 追加。LP で唯一の「まとまった可視テキスト」ブロック。
+  'H2:よくあるご質問',
+];
+
+// FAQ（2026-08-16 追加）。可視テキストとして出ていること＋件数＋FAQPage 構造化データとの一致を見る。
+// ★ HP_FAQ を増減したら FAQ_COUNT を直す。文言を変えたら FAQ_MUST を直す。
+const FAQ_COUNT = 9;
+const FAQ_MUST = [
+  '写真や文章は自分で用意する必要がありますか？',
+  'フクエスに掲載していなくても作れますか？',
+  '料金はいくらですか？',
+  'フクエスに掲載していると割引がありますか？',
+  '公開したあとの更新は誰がおこないますか？',
+  'デザインは選べますか？',
+  '独自ドメインの取得や更新はどうなりますか？',
+  'お申し込みからどのように進みますか？',
+  '制作期間はどれくらいですか？',
 ];
 
 // ── ここから下は基本いじらない ─────────────────────────
@@ -255,7 +272,7 @@ console.log('\n■ /hp/templates（PC 1440x900）');
   const m = await checkSeo(page, 'LP', {
     canonical: 'https://fukues.com/hp/templates',
     descHasCount: true,
-    jsonld: ['BreadcrumbList', 'Service'],
+    jsonld: ['BreadcrumbList', 'Service', 'FAQPage'], // FAQPage は 2026-08-16 追加
     internal: 7, // デザイン一覧ボタン3 + フッターのnav3 + フッター本文1 …のうち / で始まるもの
   });
 
@@ -264,6 +281,29 @@ console.log('\n■ /hp/templates（PC 1440x900）');
   // 料金の数字は 画像 / sr-only / JSON-LD の3か所にある。JSON-LD と表示のズレは構造化データ違反。
   const svc = m.jsonld.find((x) => x['@type'] === 'Service');
   ok('[LP] JSON-LD の価格が 165000 / 11000 / 11000', JSON.stringify((svc?.offers ?? []).map((o) => o.price)) === JSON.stringify(['165000', '11000', '11000']), JSON.stringify(svc?.offers ?? []));
+
+  // ── FAQ（2026-08-16）──
+  // ★ 画面の可視テキストと FAQPage 構造化データが同じ HP_FAQ から作られていることの確認。
+  //   片方だけ直した状態で通ってしまうと、このブロックを入れた意味が無い。
+  const faq = m.jsonld.find((x) => x['@type'] === 'FAQPage');
+  const faqLd = (faq?.mainEntity ?? []).map((e) => e.name);
+  ok(`[LP] FAQPage の設問が${FAQ_COUNT}件`, faqLd.length === FAQ_COUNT, `${faqLd.length}件`);
+  ok('[LP] FAQPage の設問が HP_FAQ と一致', JSON.stringify(faqLd) === JSON.stringify(FAQ_MUST), faqLd.join(' / '));
+  ok(
+    '[LP] FAQ の answer が全件 10文字以上',
+    (faq?.mainEntity ?? []).every((e) => (e.acceptedAnswer?.text ?? '').length >= 10),
+    (faq?.mainEntity ?? []).map((e) => (e.acceptedAnswer?.text ?? '').length).join(','),
+  );
+  // 可視テキストとしても出ていること（<details> で畳んだり画像化したりしたら落ちる）
+  const faqVisible = await page.evaluate((qs) => {
+    const dts = [...document.querySelectorAll('dt')].filter((el) => {
+      const r = el.getBoundingClientRect();
+      return r.width > 2 && r.height > 2 && !el.closest('.sr-only');
+    });
+    const texts = dts.map((el) => el.textContent.replace(/^\s*Q\.\s*/, '').trim());
+    return qs.map((q) => texts.includes(q));
+  }, FAQ_MUST);
+  FAQ_MUST.forEach((q, i) => ok(`[LP] FAQ が可視テキストで出ている「${q}」`, faqVisible[i]));
 
   // ブロック画像の属性
   for (const b of BLOCKS) {

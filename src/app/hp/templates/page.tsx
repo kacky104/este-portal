@@ -171,6 +171,96 @@ const SERVICE_JSON_LD = {
   ],
 };
 
+/**
+ * よくあるご質問（2026-08-16 追加）。
+ *
+ * ★ 画面に出す可視テキストと FAQ_JSON_LD の両方が、この1か所から作られる。
+ *   文言を直すときはここだけを直せば両方そろう（片方だけ古くなる事故を防ぐ）。
+ *
+ * ★ 中身はすべて、このページの他ブロック（料金・強み・制作の流れ・※注意書き）に
+ *   すでに書いてある事実だけで構成してある。ここに新しい取引条件を書き足さないこと。
+ *   料金を変えるときは【画像の作り直し＋sr-only＋SERVICE_JSON_LD＋ここ＋営業資料＋規約】を必ず同時に。
+ *
+ * ※ このブロックを入れた理由: LP を全ブロック画像化した結果、可視テキストが302文字
+ *   （h1・※注意書き・フッターのみ）まで減っていたため。FAQ は画像にせず文字のまま置く。
+ * ※ アコーディオン（<details>）にしていないのは、閉じている状態だと可視テキストとして数えられず、
+ *   このブロックを入れた意味が薄れるため。7件なら開きっぱなしでも長すぎない。
+ */
+const HP_FAQ: { q: string; a: string }[] = [
+  {
+    q: '写真や文章は自分で用意する必要がありますか？',
+    a: '必要ありません。フクエスに掲載中のセラピスト・本日の出勤・料金・写メ日記・口コミが、そのまま公式ホームページに反映されます。ドメインの取得からキービジュアルの制作、写真や文章の設定まで運営がおこないます。',
+  },
+  {
+    // 2026-08-16 追加（オーナー確認済み）。営業でよく聞かれる前提条件なので料金より前に置く。
+    q: 'フクエスに掲載していなくても作れますか？',
+    a: 'はい、フクエスに掲載していないお店でも制作できます。ただし、掲載中のお店は制作料が0円になるほか、セラピスト・本日の出勤・料金・写メ日記・口コミがそのまま公式ホームページに反映されるなど、ご掲載いただくことで受けられる恩恵が多くあります。公式ホームページをお作りになるなら、フクエスへのご掲載も同時にご検討いただくのがおすすめです。',
+  },
+  {
+    q: '料金はいくらですか？',
+    a: '制作料165,000円（初回のみ）、月額利用料11,000円、ドメイン更新料11,000円（年額）です。表示はすべて税込です。',
+  },
+  {
+    q: 'フクエスに掲載していると割引がありますか？',
+    a: 'フクエスに掲載中のお店は、制作料165,000円が0円になります。フクエスワークにもご掲載のお店は、月額利用料11,000円も0円です。両方ご掲載の場合、年間11,000円（ドメイン更新料のみ）で公式ホームページを持てます。',
+  },
+  {
+    q: '公開したあとの更新は誰がおこないますか？',
+    a: 'いつものフクエスの管理画面を更新すれば、公式ホームページにも自動で反映されます。写真や文章は専用の管理画面からいつでも変更いただけます。ご質問は無料です。ページ内容の変更などの作業をご依頼いただく場合は、1回3,300円（複雑な作業はお見積り）です。',
+  },
+  {
+    q: 'デザインは選べますか？',
+    a: `4つのひな形×カラーの全${HP_PATTERN_COUNT}パターンからお選びいただけます。デザイン一覧のページで、実際のキービジュアルとデモページをご覧いただけます。`,
+  },
+  {
+    q: '独自ドメインの取得や更新はどうなりますか？',
+    a: 'お店だけの独自ドメインを、運営が取得・管理・自動更新します。面倒な手続きは一切ありません。なお、独自ドメインのメールアドレスは対象外です。',
+  },
+  {
+    q: 'お申し込みからどのように進みますか？',
+    a: 'お申し込み → デザインを決める → 運営が制作 → ご確認・公開 → 公開後の更新、の5ステップです。担当者までご連絡いただければ、ご契約状況に応じた料金をご案内します。',
+  },
+  {
+    // 2026-08-16 追加（オーナー確認済み）。「1週間前後」はここにしか書いていない数字なので、
+    // 変えるときは営業資料と必ず同時に直すこと。
+    q: '制作期間はどれくらいですか？',
+    a: 'お申し込みから1週間前後での納品となります。デザインをお決めいただいたあと、ドメインの取得からキービジュアルの制作、写真や文章の設定まで運営がおこないます。',
+  },
+];
+
+/**
+ * FAQ の構造化データ（2026-08-16）。上の HP_FAQ から自動生成するので文言のズレは起きない。
+ *
+ * ※ Google は 2023-08 に FAQ リッチリザルトの表示対象を「政府・医療などの公式サイト」へ絞ったため、
+ *   【この markup で検索結果の見た目が変わることは期待できない】。それでも入れているのは、
+ *   ページの意味づけが正しくなることと、他の検索エンジン・AIクローラーが読む余地があるため。
+ *   リッチリザルト目当ての施策ではない、と理解しておくこと。
+ */
+const FAQ_JSON_LD = {
+  '@context': 'https://schema.org/',
+  '@type': 'FAQPage',
+  mainEntity: HP_FAQ.map(({ q, a }) => ({
+    '@type': 'Question',
+    name: q,
+    acceptedAnswer: { '@type': 'Answer', text: a },
+  })),
+};
+
+/**
+ * 金の細い罫とダイヤの飾り（FAQ の見出しの下）。
+ * ※ /hp/templates/designs にも同じ見た目のものがあるが、あちらはあちらで完結させてある。
+ *   共通化していないのは、片方のデザインを触ったときに、もう片方が巻き添えで変わるのを避けるため。
+ */
+function GoldRule() {
+  return (
+    <span className="flex items-center justify-center gap-2 text-[#d5a86b]" aria-hidden="true">
+      <span className="block h-px w-10 bg-gradient-to-r from-transparent to-[#d5a86b] sm:w-16" />
+      <span className="block h-1.5 w-1.5 rotate-45 bg-[#d5a86b]" />
+      <span className="block h-px w-10 bg-gradient-to-l from-transparent to-[#d5a86b] sm:w-16" />
+    </span>
+  );
+}
+
 export default function HpTemplatesPage() {
   return (
     <div className="min-h-screen bg-[#fdf5f5] text-[#4a3f3a]">
@@ -186,6 +276,9 @@ export default function HpTemplatesPage() {
         }}
       />
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: toJsonLdString(SERVICE_JSON_LD) }} />
+      {/* FAQ（2026-08-16）。画面下部の「よくあるご質問」と同じ HP_FAQ から作っているので、
+          表示と構造化データが食い違うことはない。※リッチリザルトは期待できない（FAQ_JSON_LD のコメント参照）。 */}
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: toJsonLdString(FAQ_JSON_LD) }} />
       {/* ── ヒーロー（KV・文字焼き込み済み）──
           PC は 2.5:1・スマホは縦長を <picture> で出し分け。文字が欠けるため cover 切り抜きはしない。
           他ブロックと同じで、画像は装飾扱い（alt=""）にして文章は sr-only の実テキストで持つ。
@@ -417,8 +510,9 @@ export default function HpTemplatesPage() {
           手順なので sr-only 側は <ol> のまま（番号の意味を読み上げ・検索エンジンに残す）。
           ★ ステップ02の「16パターンから選択」は画像に焼き込まれている（sr-only 側は HP_PATTERN_COUNT で
             自動計算）。カラーを足し引きしたときは flow-pc/sp も作り直すこと。
-          ★ 下の pb-12 は詰めないこと：画像下端（PC #f6e7e0・SP #f3ddd0）と白いフッターが直接ぶつかると
-            色の段差が出る。間にページ背景（#fdf5f5）を挟んでいる。 */}
+          ※ 下の pb-12 は、もともと白いフッターとの段差よけだった（危険地帯38）。2026-08-16 に
+            直下へFAQブロックが入ったので、いまは FAQ との間隔として効いている。
+            フッターとの段差よけの役目はFAQブロック側の pb-12 sm:pb-14 に移した。 */}
       <section className="pt-10 sm:pt-12 pb-12 sm:pb-14">
         <picture>
           <source media="(max-width: 639px)" srcSet="/hp-lp/flow-sp.webp" width={864} height={1820} />
@@ -451,6 +545,42 @@ export default function HpTemplatesPage() {
             ★ testId は他の2か所と必ず変えること（同じだと検証スクリプトが1つ目しか掴めない）。
             画像はヒーロー直下のボタンと同じ btn-design-*.webp なので、追加の転送は発生しない。 */}
         <DesignCtaButton testId="lp-design-cta-flow" padCls="pt-8 sm:pt-10" />
+      </section>
+
+      {/* ── よくあるご質問（FAQ）── 2026-08-16 追加
+          LPで唯一の「まとまった可視テキスト」。他ブロックと違い画像化しないこと（画像にすると
+          このブロックを入れた意味が消える。可視テキストが302文字まで減っていたのが発端）。
+          中身は HP_FAQ（上）から作る。文言を直すときはあちらだけを直せば JSON-LD もそろう。
+          ★ pb-12 sm:pb-14 は詰めないこと：直下が白いフッター（border-t bg-white）で、
+            白いカードと直接ぶつかると境目が消えて1枚に見える。間にページ背景を挟んでいる
+            （FLOWブロックが持っていた役目が、このブロックに移った・危険地帯38）。 */}
+      <section id="faq" className="pb-12 sm:pb-14">
+        <div className="mx-auto max-w-3xl px-5">
+          <p className="text-center text-[11px] font-bold tracking-[0.3em] text-[#c9a06a]">FAQ</p>
+          <h2 className="mt-2 text-center text-lg font-semibold tracking-[0.04em] text-[#4a3f3a] sm:text-2xl">
+            よくあるご質問
+          </h2>
+          <div className="mt-3">
+            <GoldRule />
+          </div>
+
+          {/* dl/dt/dd で組む（Q&A の意味がそのまま構造になる）。
+              Q. / A. の記号は装飾なので aria-hidden にして読み上げから外す。 */}
+          <dl className="mt-8 space-y-4 text-left sm:mt-10">
+            {HP_FAQ.map(({ q, a }) => (
+              <div key={q} className="rounded-2xl border border-[#f0dde0] bg-white/80 px-5 py-5 sm:px-7 sm:py-6">
+                <dt className="flex gap-3 text-[15px] font-semibold leading-relaxed text-[#4a3f3a] sm:text-base">
+                  <span aria-hidden="true" className="shrink-0 font-bold text-[#c9a06a]">Q.</span>
+                  <span>{q}</span>
+                </dt>
+                <dd className="mt-3 flex gap-3 text-[13px] leading-[1.9] text-[#7a6a62] sm:text-sm">
+                  <span aria-hidden="true" className="shrink-0 font-bold text-[#c9808f]">A.</span>
+                  <span>{a}</span>
+                </dd>
+              </div>
+            ))}
+          </dl>
+        </div>
       </section>
 
       {/* ── フッター（お問い合わせ）── */}
