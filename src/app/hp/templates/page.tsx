@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { HP_TEMPLATES, HP_COLOR_VARIANTS } from '@/app/lib/hpSite';
+import { buildBreadcrumbJsonLd, toJsonLdString } from '@/app/lib/jsonLd';
 
 // 公式ホームページ制作の【LP 兼 デザイン一覧】（2026-08-09）。
 //
@@ -75,14 +76,18 @@ export const metadata: Metadata = {
  * （alt="" にすると読み上げでリンク名が消える）。
  * ホバーはわずかな拡大のみ。透明画像なので box-shadow は使わないこと（四角い影が出る）。
  * ★ testId は2か所で必ず変えること（同じだと検証スクリプトが1つ目しか掴めない）。
+ * eager: ヒーロー直下のボタンは最初の画面に入るので true（遅延させると表示が遅れる）。
+ *        ページ下部のボタンは false＝loading="lazy"。
  */
 function DesignCtaButton({
   testId,
   padCls,
+  eager = false,
   children,
 }: {
   testId: string;
   padCls: string;
+  eager?: boolean;
   children?: React.ReactNode;
 }) {
   return (
@@ -94,10 +99,13 @@ function DesignCtaButton({
         className="group inline-block w-full max-w-[340px] sm:max-w-[520px] align-middle"
       >
         <picture>
-          <source media="(max-width: 639px)" srcSet="/hp-lp/btn-design-sp.webp" />
+          <source media="(max-width: 639px)" srcSet="/hp-lp/btn-design-sp.webp" width={900} height={276} />
           <img
             src="/hp-lp/btn-design-pc.webp"
             alt="デザインを見る"
+            loading={eager ? undefined : 'lazy'}
+            width={1564}
+            height={413}
             className="block w-full h-auto transition-transform duration-300 ease-out group-hover:scale-[1.03] group-active:scale-100"
           />
         </picture>
@@ -107,19 +115,53 @@ function DesignCtaButton({
   );
 }
 
+// 構造化データ（2026-08-15 追加）。
+// ★ 画面に出ていない内容を書かないこと。料金の3つはこのページの「料金プラン」に実際に出ている数字で、
+//   変えるときは表示・営業資料・規約と必ず同時に直す（ベタ書きの数字が食い違うと構造化データ違反になる）。
+const SERVICE_JSON_LD = {
+  '@context': 'https://schema.org/',
+  '@type': 'Service',
+  name: 'メンズエステ専門の公式ホームページ制作',
+  serviceType: 'ホームページ制作',
+  description:
+    'フクエス掲載店舗さま向けの公式ホームページ制作。掲載中のセラピスト・出勤・料金・写メ日記・口コミが自動で連動し、ドメイン取得から制作・運用まで運営が対応します。',
+  url: 'https://fukues.com/hp/templates',
+  areaServed: { '@type': 'AdministrativeArea', name: '福岡県' },
+  provider: { '@type': 'Organization', name: 'フクエス', url: 'https://fukues.com/' },
+  offers: [
+    { '@type': 'Offer', name: '制作料（初回のみ）', price: '165000', priceCurrency: 'JPY' },
+    { '@type': 'Offer', name: '月額利用料', price: '11000', priceCurrency: 'JPY' },
+    { '@type': 'Offer', name: 'ドメイン更新料（年額）', price: '11000', priceCurrency: 'JPY' },
+  ],
+};
+
 export default function HpTemplatesPage() {
   return (
     <div className="min-h-screen bg-[#fdf5f5] text-[#4a3f3a]">
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{
+          __html: toJsonLdString(
+            buildBreadcrumbJsonLd([
+              { name: 'トップ', path: '/' },
+              { name: 'ホームページ制作', path: '/hp/templates' },
+            ]),
+          ),
+        }}
+      />
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: toJsonLdString(SERVICE_JSON_LD) }} />
       {/* ── ヒーロー（KV・文字焼き込み済み）──
           PC は 2.5:1・スマホは縦長を <picture> で出し分け。文字が欠けるため cover 切り抜きはしない。
           ★ h1 はここだけ。以前はページ内に h1 が1つも無く、見出しが h2 から始まっていた（2026-08-15 追加）。
             他ブロックと同じで、画像は装飾扱い（alt=""）にして文章は sr-only の実テキストで持つ。 */}
       <section>
         <picture>
-          <source media="(max-width: 639px)" srcSet="/hp-lp/hero-sp.webp" />
+          <source media="(max-width: 639px)" srcSet="/hp-lp/hero-sp.webp" width={864} height={1821} />
           {/* ※ eslint-disable は不要（no-img-element は <picture> 内の <img> には出ない）・2026-08-15 */}
           <img
             src="/hp-lp/hero-pc.webp"
+            width={1983}
+            height={793}
             alt=""
             className="block w-full h-auto"
             fetchPriority="high"
@@ -138,7 +180,7 @@ export default function HpTemplatesPage() {
           ページを下まで読まなくてもデザイン一覧へ行けるように、同じボタンをもう1つ置く。
           下の PROBLEM 側は pt-14 のままにしておくこと（ヒーロー下端とPROBLEM画像上端は色が違うため、
           間にページ背景を挟んで継ぎ目を目立たなくしている）。 */}
-      <DesignCtaButton testId="lp-design-cta-hero" padCls="pt-8 sm:pt-10" />
+      <DesignCtaButton testId="lp-design-cta-hero" padCls="pt-8 sm:pt-10" eager />
 
       {/* ── お悩み（PROBLEM）── */}
       {/* 見出し＋お悩み3枚が焼き込まれた1枚画像（2026-08-15）。ヒーローと同じ全幅で置く。
@@ -148,9 +190,12 @@ export default function HpTemplatesPage() {
             直付けすると横一直線の継ぎ目が出る。間にページ背景（#fdf5f5）を挟むと目立たない。 */}
       <section className="pt-14 sm:pt-16">
         <picture>
-          <source media="(max-width: 639px)" srcSet="/hp-lp/problem-sp.webp" />
+          <source media="(max-width: 639px)" srcSet="/hp-lp/problem-sp.webp" width={1024} height={1536} />
           <img
             src="/hp-lp/problem-pc.webp"
+            loading="lazy"
+            width={1672}
+            height={941}
             alt=""
             className="block w-full h-auto"
             decoding="async"
@@ -176,9 +221,12 @@ export default function HpTemplatesPage() {
           文言は画像の焼き込みと同じ。差し替えるときは両方そろえること。 */}
       <section className="pt-10 sm:pt-12">
         <picture>
-          <source media="(max-width: 639px)" srcSet="/hp-lp/solution-sp.webp" />
+          <source media="(max-width: 639px)" srcSet="/hp-lp/solution-sp.webp" width={864} height={1821} />
           <img
             src="/hp-lp/solution-pc.webp"
+            loading="lazy"
+            width={1672}
+            height={941}
             alt=""
             className="block w-full h-auto"
             decoding="async"
@@ -201,9 +249,12 @@ export default function HpTemplatesPage() {
             HP_PATTERN_COUNT で自動計算）。カラーを足し引きしたときは画像も作り直すこと。 */}
       <section className="pt-10 sm:pt-12">
         <picture>
-          <source media="(max-width: 639px)" srcSet="/hp-lp/strengths-sp.webp" />
+          <source media="(max-width: 639px)" srcSet="/hp-lp/strengths-sp.webp" width={863} height={1822} />
           <img
             src="/hp-lp/strengths-pc.webp"
+            loading="lazy"
+            width={1672}
+            height={941}
             alt=""
             className="block w-full h-auto"
             decoding="async"
@@ -230,9 +281,12 @@ export default function HpTemplatesPage() {
             カラーを足し引きしたときは画像も作り直すこと。 */}
       <section id="design" className="pt-10 sm:pt-12">
         <picture>
-          <source media="(max-width: 639px)" srcSet="/hp-lp/design-sp.webp" />
+          <source media="(max-width: 639px)" srcSet="/hp-lp/design-sp.webp" width={862} height={1935} />
           <img
             src="/hp-lp/design-pc.webp"
+            loading="lazy"
+            width={1717}
+            height={916}
             alt=""
             className="block w-full h-auto"
             decoding="async"
@@ -353,6 +407,14 @@ export default function HpTemplatesPage() {
             <a href="mailto:info@fukues.com" className="underline text-[#b98d4f] hover:text-[#9a743c]">info@fukues.com</a>
             ）
           </p>
+          {/* サイト内への戻り導線（2026-08-15 追加）。
+              /hp 配下は本体のヘッダー・フッターを出さない作りなので、ここが唯一の出口になる。
+              これが無いとこのページからサイト内の他ページへ1本もリンクが無い状態だった。 */}
+          <nav aria-label="サイト内リンク" className="flex items-center justify-center gap-x-4 gap-y-1 flex-wrap pt-1 text-[12px]">
+            <Link href="/" className="text-[#b98d4f] hover:text-[#9a743c] underline">フクエス トップ</Link>
+            <Link href="/listing" className="text-[#b98d4f] hover:text-[#9a743c] underline">掲載について</Link>
+            <Link href="/hp/templates/designs" className="text-[#b98d4f] hover:text-[#9a743c] underline">デザイン一覧</Link>
+          </nav>
         </div>
       </footer>
     </div>

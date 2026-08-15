@@ -12,6 +12,7 @@ import {
   hpDesignThumbSrc,
   hpVariantColors,
 } from '@/app/hp/_templates/DesignThumb';
+import { buildBreadcrumbJsonLd, toJsonLdString } from '@/app/lib/jsonLd';
 
 // 公式ホームページ制作の【デザイン一覧・専用ページ】（2026-08-15 新設）。
 //
@@ -80,6 +81,21 @@ function GoldRule() {
 export default function HpDesignsPage() {
   return (
     <div className="min-h-screen bg-[#fdf5f5] text-[#4a3f3a]">
+      {/* パンくず構造化データ（2026-08-15）。
+          ※デザイン16件の ItemList は入れていない。リンク先のデモ（/hp/[slug]/preview/…）が
+            noindex, nofollow なので、そこへ向けた ItemList を出しても意味がないため。 */}
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{
+          __html: toJsonLdString(
+            buildBreadcrumbJsonLd([
+              { name: 'トップ', path: '/' },
+              { name: 'ホームページ制作', path: '/hp/templates' },
+              { name: 'デザイン一覧', path: '/hp/templates/designs' },
+            ]),
+          ),
+        }}
+      />
       {/* ── 見出し帯（華やか）──
           背景は白→桜→シャンパンの3色グラデ。上下に金のヘアラインを1本ずつ入れて額装っぽく見せる。
           写真は使っていないので、文字が主役でも寂しく見えないよう飾りを多めに置いている。 */}
@@ -178,6 +194,8 @@ export default function HpDesignsPage() {
                           src={src}
                           alt={`${t.label}（${v.label}）のキービジュアル`}
                           loading="lazy"
+                          width={640}
+                          height={360}
                           className={`block w-full aspect-video object-cover ${hpDesignThumbObjectCls(t.key, 'list')}`}
                         />
                       ) : (
@@ -243,6 +261,12 @@ export default function HpDesignsPage() {
             <a href="mailto:info@fukues.com" className="underline text-[#b98d4f] hover:text-[#9a743c]">info@fukues.com</a>
             ）
           </p>
+          {/* サイト内への戻り導線（2026-08-15 追加）。/hp 配下は本体のヘッダー・フッターを出さないため。 */}
+          <nav aria-label="サイト内リンク" className="flex items-center justify-center gap-x-4 gap-y-1 flex-wrap mt-3 text-[12px]">
+            <Link href="/" className="text-[#b98d4f] hover:text-[#9a743c] underline">フクエス トップ</Link>
+            <Link href="/listing" className="text-[#b98d4f] hover:text-[#9a743c] underline">掲載について</Link>
+            <Link href="/hp/templates" className="text-[#b98d4f] hover:text-[#9a743c] underline">ホームページ制作のご案内</Link>
+          </nav>
         </div>
       </section>
     </div>
