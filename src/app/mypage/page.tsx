@@ -22,6 +22,7 @@ import { PAYMENT_CARD_OPTIONS } from '@/app/lib/paymentCards';
 import { PAYMENT_METHOD_OPTIONS } from '@/app/lib/paymentMethods';
 import { getSalonBookings, updateBookingStatus, deleteBooking, type OwnerBooking } from '@/app/actions/booking';
 import { callbackPrefLabel } from '@/app/lib/booking/callbackPref';
+import { SALON_BOOKINGS_LIMIT } from '@/app/lib/booking/limits';
 import { STORAGE_CACHE_CONTROL } from '@/app/lib/storage';
 import SalonFreePagesManager from '@/app/components/SalonFreePagesManager';
 import AccordionCard from '@/app/components/AccordionCard';
@@ -2400,8 +2401,22 @@ export default function MyPage() {
         <div className="bg-white rounded-3xl border border-slate-100 shadow-sm p-5 space-y-3">
           <div className="flex items-center justify-between">
             <h2 className="text-sm font-black text-slate-700">予約一覧</h2>
-            <span className="text-[11px] text-slate-400">{bookings.length}件</span>
+            {/* 上限に達したときは「200件」と出すと実際の総数に見えてしまうので「直近200件」に変える（2026-08-16）。 */}
+            <span className="text-[11px] text-slate-400">
+              {bookings.length >= SALON_BOOKINGS_LIMIT ? `直近${SALON_BOOKINGS_LIMIT}件` : `${bookings.length}件`}
+            </span>
           </div>
+          {/* ── 表示上限の案内（2026-08-16 追加）──
+              getSalonBookings() が .limit(SALON_BOOKINGS_LIMIT) で読んでいるため、
+              上限に達すると件数表示が黙って頭打ちになり「古い予約が消えた」と誤解されやすい。
+              ★ データは消えていないことを必ず明記すること（自動削除・保持期間の仕組みは存在しない）。
+              ちょうど上限と同数のときも出るが、「◯件まで表示しています」は事実として正しい。 */}
+          {!bookingsError && !bookingsLoading && bookings.length >= SALON_BOOKINGS_LIMIT && (
+            <p className="rounded-xl border border-slate-100 bg-slate-50 px-3 py-2 text-[11px] leading-relaxed text-slate-500">
+              予約日時が新しい順に{SALON_BOOKINGS_LIMIT}件まで表示しています。
+              これより古い予約も削除されておらず、データはすべて残っています。
+            </p>
+          )}
           {bookingsError ? (
             <p className="text-xs text-rose-600">予約一覧の取得に失敗しました：{bookingsError}</p>
           ) : bookingsLoading ? (

@@ -7,6 +7,7 @@ import { ADMIN_UUID } from '@/app/lib/admin';
 import { getBusinessDateJST } from '@/lib/dutyStatus';
 import { buildSlots, scheduleWindowUtc, jstWallToUtc, SLOT_STEP_MIN, type Slot } from '@/app/lib/booking/slots';
 import { normalizeCallbackPref, callbackPrefLabel } from '@/app/lib/booking/callbackPref';
+import { SALON_BOOKINGS_LIMIT } from '@/app/lib/booking/limits';
 import { sendBookingMail } from '@/app/lib/booking/sendBookingMail';
 import { normalizePhone } from '@/app/lib/validation/phone';
 
@@ -439,7 +440,9 @@ export async function getSalonBookings(
     .select('id, therapist_id, slot_start, slot_end, course_name, course_min, customer_name, customer_tel, note, callback_pref, status, created_at')
     .eq('salon_id', salonId)
     .order('slot_start', { ascending: false })
-    .limit(200);
+    // 表示の上限であって、データの保持期間ではない（詳しくは lib/booking/limits.ts のコメント）。
+    // 上限に達したことは画面側でも同じ定数を使って案内している（2026-08-16）。
+    .limit(SALON_BOOKINGS_LIMIT);
   if (error) return { ok: false, error: error.message };
 
   const bookingRows = rows ?? [];
