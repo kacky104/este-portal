@@ -63,15 +63,44 @@ import { buildBreadcrumbJsonLd, toJsonLdString } from '@/app/lib/jsonLd';
 // ※ metadata の description からも参照するので、metadata より前に置いておくこと（2026-08-15）。
 const HP_PATTERN_COUNT = HP_TEMPLATES.reduce((n, t) => n + HP_COLOR_VARIANTS[t.key].length, 0);
 
+// title / description / OGP で同じ文言を使うので定数にまとめてある（2026-08-15）。
+// ここを直せば検索結果・SNSカードの両方が一度に揃う（片方だけ古くなる事故を防ぐ）。
+const PAGE_TITLE = 'メンズエステ専門の公式ホームページ制作｜フクエス';
+// パターン数は HP_PATTERN_COUNT から作る。以前は「20パターン」とベタ書きで、
+// 実際の16と食い違っていた（2026-08-15 修正）。
+const PAGE_DESCRIPTION = `フクエス掲載店舗さま向け・メンズエステ専門の公式ホームページ制作。集客・信頼・ブランディングを加速させる、高級感のあるデザイン${HP_PATTERN_COUNT}パターン。ドメイン取得から制作・運用まで運営がすべて対応します。`;
+
+// OGP画像（1200×630＝OGP標準の1.91:1）。hero-pc.webp を横幅に合わせて縮め、
+// 上下の余りをページ背景 #fdf5f5 で埋めたもの（文字が焼き込まれているので切り抜かない）。
+// ★ webp ではなく jpg にしてあるのは、LINE など webp のOGPを表示しない環境があるため。
+// ★ ヒーロー画像を差し替えたら、この画像も作り直すこと。
+const PAGE_OGP_IMAGE = '/hp-lp/ogp-hp-templates.jpg';
+
 export const metadata: Metadata = {
-  title: 'メンズエステ専門の公式ホームページ制作｜フクエス',
-  // パターン数は HP_PATTERN_COUNT から作る。以前は「20パターン」とベタ書きで、
-  // 実際の16と食い違っていた（2026-08-15 修正）。
-  description:
-    `フクエス掲載店舗さま向け・メンズエステ専門の公式ホームページ制作。集客・信頼・ブランディングを加速させる、高級感のあるデザイン${HP_PATTERN_COUNT}パターン。ドメイン取得から制作・運用まで運営がすべて対応します。`,
+  title: PAGE_TITLE,
+  description: PAGE_DESCRIPTION,
   // ★ canonical は必ずページごとに入れること。省くと layout.tsx の { canonical: '/' } を継承し、
   //   「このページはトップの複製」と伝わって検索結果から外れる（2026-08-15 修正。サイトの他50ページと同じ作法）。
   alternates: { canonical: '/hp/templates' },
+  // ★ OGP もページごとに入れること（2026-08-15 追加）。省くと layout.tsx の
+  //   「福岡メンズエステ情報・口コミポータルサイト【フクエス】」＋ /ogp.png をそのまま継承し、
+  //   営業でこのURLを掲載店さまへLINE・メールで送ったときのカードが
+  //   「ポータルサイトの宣伝」になってしまう（title/description は上書き済みなのにOGPだけ漏れていた）。
+  openGraph: {
+    title: PAGE_TITLE,
+    description: PAGE_DESCRIPTION,
+    url: '/hp/templates',
+    siteName: 'フクエス',
+    images: [{ url: PAGE_OGP_IMAGE, width: 1200, height: 630 }],
+    locale: 'ja_JP',
+    type: 'website',
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: PAGE_TITLE,
+    description: PAGE_DESCRIPTION,
+    images: [PAGE_OGP_IMAGE],
+  },
 };
 
 /**
