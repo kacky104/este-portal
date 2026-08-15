@@ -38,6 +38,10 @@ import {
 // ※ スマホは 4:5（1080×1350）から縦長の約1:2.1 へ差し替え（2026-08-15）。
 //   ノートPC・タブレットの端末写真まで入れたぶん縦に伸びており、iPhone（幅390px）で高さ約822px＝ほぼ1画面。
 //
+// PROBLEM ブロックも画像化: public/hp-lp/problem-pc.webp（1672×941・16:9）/ problem-sp.webp（1024×1536・2:3）。
+// 見出し「こんなお悩みはありませんか？」とお悩み3枚が焼き込み済み。文章は sr-only で HTML にも残してある
+// （差し替えるときは sr-only の文言も画像と揃えること・2026-08-15）。
+//
 // 各デザインの「デモを見る」は /hp/demo/preview/{template}/{color} へ。
 // demo は HP_DEMO_SLUG の予約 slug で、この slug に限りプレビューがログイン不要
 // （★デモ用サロンの用意は保留中・2026-08-09。行が無い間は 404 になる）。
@@ -78,7 +82,7 @@ export default function HpTemplatesPage() {
       <section>
         <picture>
           <source media="(max-width: 639px)" srcSet="/hp-lp/hero-sp.webp" />
-          {/* eslint-disable-next-line @next/next/no-img-element */}
+          {/* ※ eslint-disable は不要（no-img-element は <picture> 内の <img> には出ない）・2026-08-15 */}
           <img
             src="/hp-lp/hero-pc.webp"
             alt="メンズエステ専門のホームページ制作 — 集客・信頼・ブランディングを加速させる。デザイン性・スマホ対応・集客サポート。すべてのデバイスで美しく、使いやすく。"
@@ -88,28 +92,38 @@ export default function HpTemplatesPage() {
         </picture>
       </section>
 
-      {/* ── お悩み → 解決 ── */}
-      <section className="mx-auto max-w-5xl px-5 pt-14 sm:pt-16">
-        <header className="text-center mb-8">
-          <p className="text-[11px] tracking-[.3em] text-[#c99ba6] mb-2">PROBLEM</p>
-          <h2 className="text-xl sm:text-2xl font-bold tracking-wider text-[#3f342e]">
-            こんなお悩みは<span className="text-[#c9808f]">ありませんか？</span>
-          </h2>
-        </header>
-        <div className="grid sm:grid-cols-3 gap-3 mb-8">
-          {[
-            ['ポータル頼みになっている', '検索してくれたお客様に見せる「お店の公式の顔」がなく、信頼感・ブランドづくりで一歩届かない。'],
-            ['制作会社は高くて面倒', '見積もりも打ち合わせも大ごと。写真や原稿も全部自分で用意してほしいと言われてしまう。'],
-            ['作っても更新が続かない', 'セラピストの入れ替わりや出勤の変化にHPが追いつかず、気づけば古い情報のまま放置。'],
-          ].map(([t, d]) => (
-            <div key={t} className="rounded-2xl border border-[#f0dde0] bg-white shadow-sm p-5">
-              <p className="text-[13px] font-bold text-[#3f342e] mb-2">{t}</p>
-              <p className="text-[12px] leading-relaxed text-[#8a7a70]">{d}</p>
-            </div>
-          ))}
+      {/* ── お悩み（PROBLEM）── */}
+      {/* 見出し＋お悩み3枚が焼き込まれた1枚画像（2026-08-15）。ヒーローと同じ全幅で置く。
+          画像は装飾扱い（alt=""）にして、見出しと本文は sr-only の実テキストで持つ。
+          こうすると読み上げで画像altと本文が二重に読まれず、検索エンジンには文章が残る。
+          ※上の pt-14 は詰めないこと：ヒーロー下端（#f2e9e5〜）とこの画像の上端（#fdf1f0）は色が違うため、
+            直付けすると横一直線の継ぎ目が出る。間にページ背景（#fdf5f5）を挟むと目立たない。 */}
+      <section className="pt-14 sm:pt-16">
+        <picture>
+          <source media="(max-width: 639px)" srcSet="/hp-lp/problem-sp.webp" />
+          <img
+            src="/hp-lp/problem-pc.webp"
+            alt=""
+            className="block w-full h-auto"
+            decoding="async"
+          />
+        </picture>
+        <div className="sr-only">
+          <h2>こんなお悩みはありませんか？</h2>
+          <ul>
+            {[
+              ['ポータル頼みになっている', '検索してくれたお客様に見せる「お店の公式の顔」がなく、信頼感・ブランドづくりで一歩届かない。'],
+              ['制作会社は高くて面倒', '見積もりも打ち合わせも大ごと。写真や原稿も全部自分で用意してほしいと言われてしまう。'],
+              ['作っても更新が続かない', 'セラピストの入れ替わりや出勤の変化にHPが追いつかず、気づけば古い情報のまま放置。'],
+            ].map(([t, d]) => (
+              <li key={t}>{t}：{d}</li>
+            ))}
+          </ul>
         </div>
+      </section>
 
-        {/* 解決（勝ち筋） */}
+      {/* ── 解決（勝ち筋）── */}
+      <section className="mx-auto max-w-5xl px-5 pt-10 sm:pt-12">
         <div className="rounded-2xl bg-gradient-to-r from-[#f7dee3] via-[#fbeee7] to-[#f3e3d3] p-[1px] shadow-sm">
           <div className="rounded-2xl bg-white/95 px-6 py-8 sm:px-10 text-center">
             <p className="text-[11px] tracking-[.3em] text-[#b98d4f] mb-3">SOLUTION</p>
