@@ -34,13 +34,42 @@ import { buildBreadcrumbJsonLd, toJsonLdString } from '@/app/lib/jsonLd';
 //
 // ★ DesignThumb.tsx は店舗管理画面（/hp/[slug]/admin）と共用なので、ここからは import だけして触らない。
 
+// title / description / OGP で同じ文言を使うので定数にまとめてある（2026-08-15）。
+// ここを直せば検索結果・SNSカードの両方が一度に揃う（片方だけ古くなる事故を防ぐ）。
+const PAGE_TITLE = 'デザイン一覧｜メンズエステ専門の公式ホームページ制作｜フクエス';
+const PAGE_DESCRIPTION =
+  'フクエスの公式ホームページ制作で選べるデザイン一覧。高級感のある4つのひな形×カラーをご用意。実際のデモページで仕上がりをご確認いただけます。';
+
+// OGP画像（1200×630＝OGP標準の1.91:1）。design-pc.webp（約1.87:1）を縮めて、
+// 左右のわずかな余りをページ背景 #fdf5f5 で埋めたもの。
+// ★ webp ではなく jpg にしてあるのは、LINE など webp のOGPを表示しない環境があるため。
+// ★ design-pc.webp を差し替えたら、この画像も作り直すこと（サムネ16枚が焼き込まれている）。
+const PAGE_OGP_IMAGE = '/hp-lp/ogp-hp-designs.jpg';
+
 export const metadata: Metadata = {
-  title: 'デザイン一覧｜メンズエステ専門の公式ホームページ制作｜フクエス',
-  description:
-    'フクエスの公式ホームページ制作で選べるデザイン一覧。高級感のある4つのひな形×カラーをご用意。実際のデモページで仕上がりをご確認いただけます。',
+  title: PAGE_TITLE,
+  description: PAGE_DESCRIPTION,
   // ★ canonical は必ずページごとに入れること。省くと layout.tsx の { canonical: '/' } を継承し、
   //   「このページはトップの複製」と伝わって検索結果から外れる（2026-08-15 修正）。
   alternates: { canonical: '/hp/templates/designs' },
+  // ★ OGP もページごとに入れること（2026-08-15 追加）。省くと layout.tsx の
+  //   「福岡メンズエステ情報・口コミポータルサイト【フクエス】」＋ /ogp.png を継承してしまう。
+  //   理由と経緯は /hp/templates 側のコメントに詳しく書いてある。
+  openGraph: {
+    title: PAGE_TITLE,
+    description: PAGE_DESCRIPTION,
+    url: '/hp/templates/designs',
+    siteName: 'フクエス',
+    images: [{ url: PAGE_OGP_IMAGE, width: 1200, height: 630 }],
+    locale: 'ja_JP',
+    type: 'website',
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: PAGE_TITLE,
+    description: PAGE_DESCRIPTION,
+    images: [PAGE_OGP_IMAGE],
+  },
 };
 
 // 掲載する総パターン数は定義から数える（カラーを足し引きしても文言がずれないように）。
