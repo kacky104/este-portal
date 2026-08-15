@@ -60,6 +60,47 @@ export const metadata: Metadata = {
 // 掲載する総パターン数は定義から数える（カラーを足し引きしても文言がずれないように・2026-08-11）。
 const HP_PATTERN_COUNT = HP_TEMPLATES.reduce((n, t) => n + HP_COLOR_VARIANTS[t.key].length, 0);
 
+/**
+ * デザイン一覧への画像ボタン（2026-08-15）。ヒーロー直下と DESIGN LINEUP の直下の2か所で使う。
+ * 見た目を1か所にまとめてあるので、片方だけズレることがない。
+ *
+ * btn-design-pc/sp.webp は背景が透明なので、ページのピンク地にそのまま乗る。
+ * ボタンの文字は画像に焼き込まれているため、alt に「デザインを見る」を入れてリンク名にする
+ * （alt="" にすると読み上げでリンク名が消える）。
+ * ホバーはわずかな拡大のみ。透明画像なので box-shadow は使わないこと（四角い影が出る）。
+ * ★ testId は2か所で必ず変えること（同じだと検証スクリプトが1つ目しか掴めない）。
+ */
+function DesignCtaButton({
+  testId,
+  padCls,
+  children,
+}: {
+  testId: string;
+  padCls: string;
+  children?: React.ReactNode;
+}) {
+  return (
+    <div className={`mx-auto max-w-5xl px-5 text-center ${padCls}`}>
+      <Link
+        href="/hp/templates/designs"
+        data-testid={testId}
+        aria-label="デザインを見る"
+        className="group inline-block w-full max-w-[340px] sm:max-w-[520px] align-middle"
+      >
+        <picture>
+          <source media="(max-width: 639px)" srcSet="/hp-lp/btn-design-sp.webp" />
+          <img
+            src="/hp-lp/btn-design-pc.webp"
+            alt="デザインを見る"
+            className="block w-full h-auto transition-transform duration-300 ease-out group-hover:scale-[1.03] group-active:scale-100"
+          />
+        </picture>
+      </Link>
+      {children}
+    </div>
+  );
+}
+
 export default function HpTemplatesPage() {
   return (
     <div className="min-h-screen bg-[#fdf5f5] text-[#4a3f3a]">
@@ -77,6 +118,12 @@ export default function HpTemplatesPage() {
           />
         </picture>
       </section>
+
+      {/* ── ヒーロー直下のデザイン導線（2026-08-15 追加）──
+          ページを下まで読まなくてもデザイン一覧へ行けるように、同じボタンをもう1つ置く。
+          下の PROBLEM 側は pt-14 のままにしておくこと（ヒーロー下端とPROBLEM画像上端は色が違うため、
+          間にページ背景を挟んで継ぎ目を目立たなくしている）。 */}
+      <DesignCtaButton testId="lp-design-cta-hero" padCls="pt-8 sm:pt-10" />
 
       {/* ── お悩み（PROBLEM）── */}
       {/* 見出し＋お悩み3枚が焼き込まれた1枚画像（2026-08-15）。ヒーローと同じ全幅で置く。
@@ -184,32 +231,11 @@ export default function HpTemplatesPage() {
           </p>
         </div>
 
-        {/* 画像のすぐ下に置くボタン（2026-08-15 に画像ボタンへ差し替え）。
-            btn-design-pc/sp.webp は背景が透明なので、ページのピンク地にそのまま乗る。
-            ボタンの文字は画像に焼き込まれているため、alt に「デザインを見る」を入れてリンク名にする
-            （alt="" にすると読み上げでリンク名が消える）。
-            ホバーはわずかな拡大＋ドロップシャドウのみ。透明PNGなので box-shadow は使わないこと
-            （四角い影が出る）。 */}
-        <div className="mx-auto max-w-5xl px-5 pt-8 sm:pt-10 text-center">
-          <Link
-            href="/hp/templates/designs"
-            data-testid="lp-design-cta"
-            aria-label="デザインを見る"
-            className="group inline-block w-full max-w-[340px] sm:max-w-[520px] align-middle"
-          >
-            <picture>
-              <source media="(max-width: 639px)" srcSet="/hp-lp/btn-design-sp.webp" />
-              <img
-                src="/hp-lp/btn-design-pc.webp"
-                alt="デザインを見る"
-                className="block w-full h-auto transition-transform duration-300 ease-out group-hover:scale-[1.03] group-active:scale-100"
-              />
-            </picture>
-          </Link>
+        <DesignCtaButton testId="lp-design-cta" padCls="pt-8 sm:pt-10">
           <p className="mt-3 sm:mt-4 text-[11px] sm:text-[12px] text-[#a08e84]">
             タイプS・A・B・C の全{HP_PATTERN_COUNT}パターンを、実際のキービジュアルとデモページでご覧いただけます。
           </p>
-        </div>
+        </DesignCtaButton>
       </section>
 
 
