@@ -28,10 +28,11 @@ import { HP_TEMPLATES, HP_COLOR_VARIANTS } from '@/app/lib/hpSite';
 // ※ スマホは 4:5（1080×1350）から縦長の約1:2.1 へ差し替え（2026-08-15）。
 //   ノートPC・タブレットの端末写真まで入れたぶん縦に伸びており、iPhone（幅390px）で高さ約822px＝ほぼ1画面。
 //
-// PROBLEM / SOLUTION / 強み4つ のブロックも画像化（すべて全幅・2026-08-15）:
+// PROBLEM / SOLUTION / 強み4つ / DESIGN LINEUP のブロックも画像化（すべて全幅・2026-08-15）:
 //   problem-pc.webp（1672×941・16:9）/ problem-sp.webp（1024×1536・2:3）
 //   solution-pc.webp（1672×941・16:9）/ solution-sp.webp（864×1821・約1:2.1）
 //   strengths-pc.webp（1672×941・16:9）/ strengths-sp.webp（863×1822・約1:2.1）
+//   design-pc.webp（1717×916・約1.87:1）/ design-sp.webp（862×1825・約1:2.1）＋直下に「デザインを見る」ボタン
 // 見出しと本文が焼き込み済み。文章は sr-only で HTML にも残してある
 // （差し替えるときは sr-only の文言も画像と揃えること）。
 //
@@ -152,41 +153,61 @@ export default function HpTemplatesPage() {
         </div>
       </section>
 
-      {/* ── デザインへの導線（一覧は /hp/templates/designs へ移した・2026-08-15）── */}
-      <section id="design" className="mx-auto max-w-5xl px-5 py-14 sm:py-16">
-        <div className="relative overflow-hidden rounded-3xl border border-[#f0dde0] bg-gradient-to-b from-white via-[#fdeef1] to-[#f9e6dc] shadow-sm">
-          {/* 隅のぼかし玉（装飾） */}
-          <span aria-hidden="true" className="pointer-events-none absolute -top-16 -left-12 w-56 h-56 rounded-full bg-[#f7d9de] opacity-60 blur-3xl" />
-          <span aria-hidden="true" className="pointer-events-none absolute -bottom-16 -right-8 w-56 h-56 rounded-full bg-[#f2e0c6] opacity-60 blur-3xl" />
-          <span aria-hidden="true" className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-[#d5a86b] to-transparent" />
+      {/* ── デザイン一覧への導線（見出し・サムネは画像／一覧本体は /hp/templates/designs）── */}
+      {/* 画像は装飾扱い（alt=""）。見出しと本文は sr-only の実テキストで持つ。
+          ★「全◯パターン」の数字が画像に焼き込まれている（sr-only 側は HP_PATTERN_COUNT で自動計算）。
+            カラーを足し引きしたときは画像も作り直すこと。 */}
+      <section id="design" className="pt-10 sm:pt-12">
+        <picture>
+          <source media="(max-width: 639px)" srcSet="/hp-lp/design-sp.webp" />
+          <img
+            src="/hp-lp/design-pc.webp"
+            alt=""
+            className="block w-full h-auto"
+            decoding="async"
+          />
+        </picture>
+        <div className="sr-only">
+          <h2>選べるデザイン 全{HP_PATTERN_COUNT}パターン</h2>
+          <p>
+            4つのひな形 × カラーをご用意しました。気になるデザインが決まりましたら、担当者までお知らせください。
+            ドメイン取得・制作・写真や文章の設定まで、すべて運営がおこなって納品します。
+          </p>
+        </div>
 
-          <div className="relative px-6 py-12 sm:px-10 sm:py-14 text-center">
-            <p className="text-[11px] tracking-[.3em] text-[#b98d4f] mb-3">DESIGN LINEUP</p>
-            <h2 className="text-xl sm:text-2xl font-bold tracking-wider text-[#3f342e]">
-              選べるデザイン <span className="text-[#c9808f]">全{HP_PATTERN_COUNT}パターン</span>
-            </h2>
-            <span className="mt-5 mb-6 flex items-center justify-center gap-2 text-[#d5a86b]" aria-hidden="true">
-              <span className="block h-px w-10 sm:w-16 bg-gradient-to-r from-transparent to-[#d5a86b]" />
-              <span className="block w-1.5 h-1.5 rotate-45 bg-[#d5a86b]" />
-              <span className="block h-px w-10 sm:w-16 bg-gradient-to-l from-transparent to-[#d5a86b]" />
-            </span>
-            <p className="text-[13px] leading-relaxed text-[#6d5d53] max-w-xl mx-auto">
-              高級感のある4つのひな形 × それぞれ4色のカラー。
-              <br className="hidden sm:block" />
-              実際のキービジュアルとデモページで、仕上がりをそのままご確認いただけます。
-            </p>
+        {/* 画像のすぐ下に置く大きめのボタン。押したくなるよう、
+            光の輪（ゆっくり明滅）＋ホバーで走る光沢＋浮き上がりを重ねている。
+            アニメーションは CSS だけなので 'use client' は不要。 */}
+        <div className="mx-auto max-w-5xl px-5 pt-8 sm:pt-10 text-center">
+          <div className="relative inline-block">
+            <span
+              aria-hidden="true"
+              className="pointer-events-none absolute -inset-3 rounded-full bg-[#f0b9c6] opacity-50 blur-2xl animate-pulse"
+            />
             <Link
               href="/hp/templates/designs"
               data-testid="lp-design-cta"
-              className="mt-7 inline-flex items-center justify-center gap-2 rounded-full px-9 py-3.5 text-[14px] font-bold text-white shadow-md bg-gradient-to-r from-[#d18f9d] to-[#c9808f] hover:from-[#c9808f] hover:to-[#b96f7e] transition-colors"
+              className="group relative inline-flex items-center gap-3 sm:gap-4 overflow-hidden rounded-full pl-8 pr-3 py-3.5 sm:pl-11 sm:pr-4 sm:py-4 text-white shadow-lg ring-1 ring-white/60 bg-gradient-to-r from-[#d9909f] via-[#c9808f] to-[#c08a6a] hover:shadow-2xl hover:-translate-y-0.5 transition-all duration-300"
             >
-              デザインを見る
-              <span aria-hidden="true">→</span>
+              {/* ホバーで左から右へ走る光沢 */}
+              <span aria-hidden="true" className="pointer-events-none absolute inset-0 overflow-hidden rounded-full">
+                <span className="absolute top-0 -left-1/3 h-full w-1/3 -skew-x-12 bg-gradient-to-r from-transparent via-white/45 to-transparent transition-transform duration-700 ease-out group-hover:translate-x-[420%]" />
+              </span>
+              <span className="relative flex flex-col items-start leading-tight">
+                <span className="text-[10px] tracking-[.28em] text-white/80">DESIGN LINEUP</span>
+                <span className="text-[17px] sm:text-[19px] font-black tracking-wide">デザインを見る</span>
+              </span>
+              <span className="relative inline-flex items-center justify-center w-10 h-10 sm:w-11 sm:h-11 rounded-full bg-white/25 group-hover:bg-white/35 group-hover:translate-x-0.5 transition-all duration-300 flex-none">
+                <span aria-hidden="true" className="text-[18px] font-bold leading-none">→</span>
+              </span>
             </Link>
-            <p className="mt-4 text-[11px] text-[#a08e84]">タイプS・A・B・C の全{HP_PATTERN_COUNT}パターンを一覧でご覧いただけます。</p>
           </div>
+          <p className="mt-4 text-[11px] sm:text-[12px] text-[#a08e84]">
+            タイプS・A・B・C の全{HP_PATTERN_COUNT}パターンを、実際のキービジュアルとデモページでご覧いただけます。
+          </p>
         </div>
       </section>
+
 
       {/* ── 料金 ──
           数字は事業設計の確定値（2026-08-08・第6便メモ）。変更時は営業資料・規約と必ず同時に直すこと */}
