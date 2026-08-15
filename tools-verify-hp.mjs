@@ -62,8 +62,8 @@ const BLOCKS = [
   { key: 'flow', pc: '/hp-lp/flow-pc.webp', sp: '/hp-lp/flow-sp.webp', pcWH: [1717, 916], spWH: [864, 1820], eager: false, alt: '' },
 ];
 
-// ボタンは同じ画像を2か所で使う（ヒーロー直下・DESIGN LINEUP 直下）ので、出現回数の期待値だけ別で持つ。
-const BTN_COUNT = 2;
+// ボタンは同じ画像を3か所で使う（ヒーロー直下・DESIGN LINEUP 直下・FLOW 直下）ので、出現回数の期待値だけ別で持つ。
+const BTN_COUNT = 3;
 
 /**
  * sr-only に必ず入っていてほしい文字列。画像に焼き込まれた文言と揃っていることの確認。
@@ -250,7 +250,7 @@ console.log('\n■ /hp/templates（PC 1440x900）');
     canonical: 'https://fukues.com/hp/templates',
     descHasCount: true,
     jsonld: ['BreadcrumbList', 'Service'],
-    internal: 6,
+    internal: 7, // デザイン一覧ボタン3 + フッターのnav3 + フッター本文1 …のうち / で始まるもの
   });
 
   ok('[LP] 見出しの並びが想定どおり', m.headings.join('|') === LP_HEADINGS.join('|'), m.headings.join(' | '));
