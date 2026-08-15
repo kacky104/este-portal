@@ -38,9 +38,11 @@ import {
 // ※ スマホは 4:5（1080×1350）から縦長の約1:2.1 へ差し替え（2026-08-15）。
 //   ノートPC・タブレットの端末写真まで入れたぶん縦に伸びており、iPhone（幅390px）で高さ約822px＝ほぼ1画面。
 //
-// PROBLEM ブロックも画像化: public/hp-lp/problem-pc.webp（1672×941・16:9）/ problem-sp.webp（1024×1536・2:3）。
-// 見出し「こんなお悩みはありませんか？」とお悩み3枚が焼き込み済み。文章は sr-only で HTML にも残してある
-// （差し替えるときは sr-only の文言も画像と揃えること・2026-08-15）。
+// PROBLEM / SOLUTION ブロックも画像化（どちらも全幅・2026-08-15）:
+//   problem-pc.webp（1672×941・16:9）/ problem-sp.webp（1024×1536・2:3）
+//   solution-pc.webp（1672×941・16:9）/ solution-sp.webp（864×1821・約1:2.1）
+// 見出しと本文が焼き込み済み。文章は sr-only で HTML にも残してある
+// （差し替えるときは sr-only の文言も画像と揃えること）。
 //
 // 各デザインの「デモを見る」は /hp/demo/preview/{template}/{color} へ。
 // demo は HP_DEMO_SLUG の予約 slug で、この slug に限りプレビューがログイン不要
@@ -122,20 +124,27 @@ export default function HpTemplatesPage() {
         </div>
       </section>
 
-      {/* ── 解決（勝ち筋）── */}
-      <section className="mx-auto max-w-5xl px-5 pt-10 sm:pt-12">
-        <div className="rounded-2xl bg-gradient-to-r from-[#f7dee3] via-[#fbeee7] to-[#f3e3d3] p-[1px] shadow-sm">
-          <div className="rounded-2xl bg-white/95 px-6 py-8 sm:px-10 text-center">
-            <p className="text-[11px] tracking-[.3em] text-[#b98d4f] mb-3">SOLUTION</p>
-            <p className="text-lg sm:text-xl font-bold leading-relaxed text-[#3f342e]">
-              フクエスの掲載データが、<span className="text-[#c9808f]">そのまま公式ホームページに。</span>
-            </p>
-            <p className="mt-4 text-[13px] leading-relaxed text-[#6d5d53] max-w-2xl mx-auto">
-              セラピスト・本日の出勤・料金・写メ日記・口コミは、いつものフクエスの管理画面を更新するだけで
-              公式ホームページにも自動で反映。<span className="font-bold">HPのための二重入力はゼロ</span>です。
-              写真や原稿をイチから用意する必要はありません。
-            </p>
-          </div>
+      {/* ── 解決（SOLUTION・勝ち筋）── */}
+      {/* 見出し＋本文＋連動イメージ図が焼き込まれた1枚画像（2026-08-15）。PROBLEM と同じ全幅。
+          画像は装飾扱い（alt=""）にして、見出しと本文は sr-only の実テキストで持つ。
+          文言は画像の焼き込みと同じ。差し替えるときは両方そろえること。 */}
+      <section className="pt-10 sm:pt-12">
+        <picture>
+          <source media="(max-width: 639px)" srcSet="/hp-lp/solution-sp.webp" />
+          <img
+            src="/hp-lp/solution-pc.webp"
+            alt=""
+            className="block w-full h-auto"
+            decoding="async"
+          />
+        </picture>
+        <div className="sr-only">
+          <h2>フクエスの掲載データが、そのまま公式ホームページに。</h2>
+          <p>
+            セラピスト・本日の出勤・料金・写メ日記・口コミは、いつものフクエスの管理画面を更新するだけで
+            公式ホームページにも自動で反映。HPのための二重入力はゼロです。
+            写真や原稿をイチから用意する必要はありません。
+          </p>
         </div>
       </section>
 
