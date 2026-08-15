@@ -13,7 +13,7 @@ import { HP_TEMPLATES, HP_COLOR_VARIANTS } from '@/app/lib/hpSite';
 //      （フルHDでほぼ画面ぴったり。切り抜くと端の文字が欠ける）。
 //   2. お悩み → 解決 … vootec の #solutio 相当。「掲載データから自動で中身が埋まる」が勝ち筋
 //      （vootec は素材・原稿が店舗持ち。うちは二重入力ゼロ。第6便メモの差別化ポイント）。
-//   3. 強み4つ … 自動連動・独自ドメイン・デザイン・公開後サポート
+//   3. 強み4つ … 自動連動・独自ドメイン・デザイン・公開後サポート（2026-08-15 に画像化）
 //   4. デザインへの導線 … サムネ一覧そのものは /hp/templates/designs（専用ページ）へ移した
 //      （2026-08-15。LPが縦に長く、料金・お問い合わせまで遠かったため）。
 //      ここには「デザインを見る」ボタンだけを置く。総数は HP_PATTERN_COUNT で自動計算。
@@ -28,9 +28,10 @@ import { HP_TEMPLATES, HP_COLOR_VARIANTS } from '@/app/lib/hpSite';
 // ※ スマホは 4:5（1080×1350）から縦長の約1:2.1 へ差し替え（2026-08-15）。
 //   ノートPC・タブレットの端末写真まで入れたぶん縦に伸びており、iPhone（幅390px）で高さ約822px＝ほぼ1画面。
 //
-// PROBLEM / SOLUTION ブロックも画像化（どちらも全幅・2026-08-15）:
+// PROBLEM / SOLUTION / 強み4つ のブロックも画像化（すべて全幅・2026-08-15）:
 //   problem-pc.webp（1672×941・16:9）/ problem-sp.webp（1024×1536・2:3）
 //   solution-pc.webp（1672×941・16:9）/ solution-sp.webp（864×1821・約1:2.1）
+//   strengths-pc.webp（1672×941・16:9）/ strengths-sp.webp（863×1822・約1:2.1）
 // 見出しと本文が焼き込み済み。文章は sr-only で HTML にも残してある
 // （差し替えるときは sr-only の文言も画像と揃えること）。
 //
@@ -122,20 +123,32 @@ export default function HpTemplatesPage() {
       </section>
 
       {/* ── 強み4つ ── */}
-      <section className="mx-auto max-w-5xl px-5 pt-12 sm:pt-14">
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-          {[
-            ['掲載データと自動連動', 'セラピスト・出勤・料金・写メ日記・口コミをそのまま表示。フクエスを更新すればHPも常に最新。'],
-            ['独自ドメイン', 'お店だけのドメインを運営が取得・管理・自動更新。面倒な手続きは一切ありません。'],
-            [`選べるデザイン${HP_PATTERN_COUNT}種`, '高級感のある4つのひな形×カラー。お店の雰囲気に合わせてお選びいただけます。'],
-            ['公開後も安心サポート', '写真や文章は専用の管理画面からいつでも変更OK。ご質問は無料で承ります。'],
-          ].map(([t, d], i) => (
-            <div key={t} className="rounded-2xl border border-[#f0dde0] bg-white shadow-sm p-5 text-center">
-              <p className="text-[20px] font-black text-[#d5a86b] mb-1">{String(i + 1).padStart(2, '0')}</p>
-              <p className="text-[13px] font-bold text-[#3f342e] mb-2">{t}</p>
-              <p className="text-[11px] leading-relaxed text-[#8a7a70] text-left">{d}</p>
-            </div>
-          ))}
+      {/* 01〜04が焼き込まれた1枚画像（2026-08-15）。PROBLEM / SOLUTION と同じ全幅。
+          画像は装飾扱い（alt=""）にして、見出しと本文は sr-only の実テキストで持つ。
+          ★「選べるデザイン◯種」の数字だけは画像に焼き込まれている（sr-only 側は
+            HP_PATTERN_COUNT で自動計算）。カラーを足し引きしたときは画像も作り直すこと。 */}
+      <section className="pt-10 sm:pt-12">
+        <picture>
+          <source media="(max-width: 639px)" srcSet="/hp-lp/strengths-sp.webp" />
+          <img
+            src="/hp-lp/strengths-pc.webp"
+            alt=""
+            className="block w-full h-auto"
+            decoding="async"
+          />
+        </picture>
+        <div className="sr-only">
+          <h2>フクエスの公式ホームページ制作の強み</h2>
+          <ul>
+            {[
+              ['掲載データと自動連動', 'セラピスト・出勤・料金・写メ日記・口コミをそのまま表示。フクエスを更新すればHPも常に最新。'],
+              ['独自ドメイン', 'お店だけのドメインを運営が取得・管理・自動更新。面倒な手続きは一切ありません。'],
+              [`選べるデザイン${HP_PATTERN_COUNT}種`, '高級感のある4つのひな形×カラー。お店の雰囲気に合わせてお選びいただけます。'],
+              ['公開後も安心サポート', '写真や文章は専用の管理画面からいつでも変更OK。ご質問は無料で承ります。'],
+            ].map(([t, d]) => (
+              <li key={t}>{t}：{d}</li>
+            ))}
+          </ul>
         </div>
       </section>
 
