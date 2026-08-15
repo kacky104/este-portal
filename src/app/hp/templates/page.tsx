@@ -32,7 +32,11 @@ import { HP_TEMPLATES, HP_COLOR_VARIANTS } from '@/app/lib/hpSite';
 //   problem-pc.webp（1672×941・16:9）/ problem-sp.webp（1024×1536・2:3）
 //   solution-pc.webp（1672×941・16:9）/ solution-sp.webp（864×1821・約1:2.1）
 //   strengths-pc.webp（1672×941・16:9）/ strengths-sp.webp（863×1822・約1:2.1）
-//   design-pc.webp（1717×916・約1.87:1）/ design-sp.webp（862×1935・約1:2.24）＋直下に「デザインを見る」ボタン
+//   design-pc.webp（1717×916・約1.87:1）/ design-sp.webp（862×1935・約1:2.24）
+//   ＋直下のボタン btn-design-pc.webp（1564×413）/ btn-design-sp.webp（900×276）… どちらも背景が透明の webp。
+//     ★元データは黒背景の JPEG で届いたため、黒を抜いて透明化し、暗い背景用に描かれていた
+//       外周の光彩（黄〜赤）はページのピンク地で汚れて見えるので削ってある（2026-08-15）。
+//       作り直すときは【透過PNG・外周の光彩なし】で書き出してもらうと、この加工が不要になる。
 //   ※ design-sp は全幅で置くので、中身が画像の中で左右中央に来ているか必ず確認すること。
 //     初版は右側に空白が寄っていて、実機で中身が左にずれて見えた（2026-08-15 に作り直し）。
 // 見出しと本文が焼き込み済み。文章は sr-only で HTML にも残してある
@@ -177,34 +181,29 @@ export default function HpTemplatesPage() {
           </p>
         </div>
 
-        {/* 画像のすぐ下に置く大きめのボタン。押したくなるよう、
-            光の輪（ゆっくり明滅）＋ホバーで走る光沢＋浮き上がりを重ねている。
-            アニメーションは CSS だけなので 'use client' は不要。 */}
+        {/* 画像のすぐ下に置くボタン（2026-08-15 に画像ボタンへ差し替え）。
+            btn-design-pc/sp.webp は背景が透明なので、ページのピンク地にそのまま乗る。
+            ボタンの文字は画像に焼き込まれているため、alt に「デザインを見る」を入れてリンク名にする
+            （alt="" にすると読み上げでリンク名が消える）。
+            ホバーはわずかな拡大＋ドロップシャドウのみ。透明PNGなので box-shadow は使わないこと
+            （四角い影が出る）。 */}
         <div className="mx-auto max-w-5xl px-5 pt-8 sm:pt-10 text-center">
-          <div className="relative inline-block">
-            <span
-              aria-hidden="true"
-              className="pointer-events-none absolute -inset-3 rounded-full bg-[#f0b9c6] opacity-50 blur-2xl animate-pulse"
-            />
-            <Link
-              href="/hp/templates/designs"
-              data-testid="lp-design-cta"
-              className="group relative inline-flex items-center gap-3 sm:gap-4 overflow-hidden rounded-full pl-8 pr-3 py-3.5 sm:pl-11 sm:pr-4 sm:py-4 text-white shadow-lg ring-1 ring-white/60 bg-gradient-to-r from-[#d9909f] via-[#c9808f] to-[#c08a6a] hover:shadow-2xl hover:-translate-y-0.5 transition-all duration-300"
-            >
-              {/* ホバーで左から右へ走る光沢 */}
-              <span aria-hidden="true" className="pointer-events-none absolute inset-0 overflow-hidden rounded-full">
-                <span className="absolute top-0 -left-1/3 h-full w-1/3 -skew-x-12 bg-gradient-to-r from-transparent via-white/45 to-transparent transition-transform duration-700 ease-out group-hover:translate-x-[420%]" />
-              </span>
-              <span className="relative flex flex-col items-start leading-tight">
-                <span className="text-[10px] tracking-[.28em] text-white/80">DESIGN LINEUP</span>
-                <span className="text-[17px] sm:text-[19px] font-black tracking-wide">デザインを見る</span>
-              </span>
-              <span className="relative inline-flex items-center justify-center w-10 h-10 sm:w-11 sm:h-11 rounded-full bg-white/25 group-hover:bg-white/35 group-hover:translate-x-0.5 transition-all duration-300 flex-none">
-                <span aria-hidden="true" className="text-[18px] font-bold leading-none">→</span>
-              </span>
-            </Link>
-          </div>
-          <p className="mt-4 text-[11px] sm:text-[12px] text-[#a08e84]">
+          <Link
+            href="/hp/templates/designs"
+            data-testid="lp-design-cta"
+            aria-label="デザインを見る"
+            className="group inline-block w-full max-w-[340px] sm:max-w-[520px] align-middle"
+          >
+            <picture>
+              <source media="(max-width: 639px)" srcSet="/hp-lp/btn-design-sp.webp" />
+              <img
+                src="/hp-lp/btn-design-pc.webp"
+                alt="デザインを見る"
+                className="block w-full h-auto transition-transform duration-300 ease-out group-hover:scale-[1.03] group-active:scale-100"
+              />
+            </picture>
+          </Link>
+          <p className="mt-3 sm:mt-4 text-[11px] sm:text-[12px] text-[#a08e84]">
             タイプS・A・B・C の全{HP_PATTERN_COUNT}パターンを、実際のキービジュアルとデモページでご覧いただけます。
           </p>
         </div>
