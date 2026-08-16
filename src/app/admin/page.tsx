@@ -35,6 +35,7 @@ import ReviewCampaignManager from '@/app/components/ReviewCampaignManager';
 import { JOBS_PAGE_HERO_KEYS } from '@/app/lib/pageHero';
 import ListingInquiryManager from '@/app/components/ListingInquiryManager';
 import HpInquiryManager from '@/app/components/HpInquiryManager';
+import EmailEventManager from '@/app/components/EmailEventManager';
 import WorkMatchManager from '@/app/components/WorkMatchManager';
 import WorkAppStats from '@/app/components/WorkAppStats';
 import FreeSalonListingsManager from '@/app/components/FreeSalonListingsManager';
@@ -156,6 +157,10 @@ export default function AdminDashboard() {
   // 公式HP制作のお申し込み（hp_inquiries）の未対応件数。
   // 「公式HP」タブのチップと、アコーディオン見出しのバッジの両方に使う（HpInquiryManager が通知）。
   const [hpInquiryOpenCount, setHpInquiryOpenCount] = useState(0);
+  // メール配信トラブル（email_events）の未対応件数。
+  // 「店舗管理」タブのチップと、アコーディオン見出しのバッジの両方に使う（EmailEventManager が通知）。
+  // ★ ここに数字が出る＝どこかの店に予約通知が届いていない、という意味。最優先で見る。
+  const [emailTroubleOpenCount, setEmailTroubleOpenCount] = useState(0);
   // 掲載店舗一覧の表示/非表示サブタブ（is_hidden で分割）。永続化しないクライアントstateのみ。
   const [salonListTab, setSalonListTab] = useState<'visible' | 'hidden'>('visible');
 
@@ -430,6 +435,16 @@ export default function AdminDashboard() {
                   {hpInquiryOpenCount}
                 </span>
               )}
+              {/* 店舗管理タブ：届かなかったメールの未対応バッジ（2026-08-16 追加）。
+                  ★ 他のバッジがピンクなのに対して、ここだけ赤にしてある。
+                    「予約を取りこぼしている」という意味なので、他の要対応と区別が付くようにする。
+                  ★ 件数は EmailEventManager が通知する。あちらはタブが非表示でもマウント
+                    されているので、他のタブを開いていてもこのバッジは出る。 */}
+              {key === 'salon' && emailTroubleOpenCount > 0 && (
+                <span className="inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 rounded-full bg-rose-600 text-white text-[10px] font-black leading-none">
+                  {emailTroubleOpenCount}
+                </span>
+              )}
             </button>
           );
         })}
@@ -493,6 +508,27 @@ export default function AdminDashboard() {
 
         {/* 店舗管理タブ（本体から移動：店舗登録・サロン一覧・オーナー連絡・優先順位・コラム記事） */}
         <div className={`space-y-4 ${activeTab === 'salon' ? '' : 'hidden'}`}>
+
+          {/* ── 届かなかったメール（email_events・2026-08-16 新設／第19便） ──
+              Resend の Webhook（/api/webhooks/resend）が記録したバウンス等の一覧。
+              ★ タブ最上部に置いてあるのは、ここに行があると【ネット予約を取りこぼしている】ため。
+                店の booking_email が間違っていると、予約は入るのに店には何も届かない。
+                他のどのアコーディオンより先に目に入る位置であること。 */}
+          <AccordionSection
+            id="email-events"
+            title="メール配信トラブル"
+            meta={
+              emailTroubleOpenCount > 0 ? (
+                <span className="text-[10px] px-2 py-0.5 rounded-full font-bold bg-rose-50 text-rose-600 border border-rose-200">
+                  未対応{emailTroubleOpenCount}件
+                </span>
+              ) : undefined
+            }
+            expanded={expandedSections}
+            onToggle={toggleSection}
+          >
+            <EmailEventManager onToast={showToast} onOpenCount={setEmailTroubleOpenCount} />
+          </AccordionSection>
 
           {/* ── 店舗別のPV・送客アクション集計（2026-08-06 新設。契約更新やレポートの根拠に使う） ── */}
           <AccordionSection id="salon-stats" title="店舗別アクセス・送客数" expanded={expandedSections} onToggle={toggleSection}>
