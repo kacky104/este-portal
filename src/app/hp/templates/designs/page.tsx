@@ -166,24 +166,73 @@ export default function HpDesignsPage() {
         </div>
       </section>
 
-      {/* ── ヒーロー下端の継ぎ目つなぎ（2026-08-16）──
-          画像の下端はページ背景 #fdf5f5 と色差がある（PC 31 / SP 41・チャンネル最大）。
+      {/* ── ヒーローと DESIGN GUIDE の継ぎ目つなぎ（2026-08-16）──
           ★ 画像側を背景色になじませる加工（flow-sp でやった手）は使えない。
-            この画像は下端に金の飾りとダイヤが入っており、なじませると飾りが消えるため。
-          そこで画像は無加工のまま、直下に「画像の下端色 → ページ背景」のグラデーションを敷いて繋ぐ。
-          ★ 画像を作り直したら from- の色も測り直すこと（下端の平均色）。
-            2026-08-16 の実測: PC #f1e0d6（2.5:1 に差し替えた新画像の下端16行平均）/ SP #f0dbcc。
-            旧 1672×941 の PC 画像は #efded4 だった。 */}
-      <div aria-hidden="true" className="h-6 bg-gradient-to-b from-[#f0dbcc] to-[#fdf5f5] sm:hidden" />
-      <div aria-hidden="true" className="hidden h-8 bg-gradient-to-b from-[#f1e0d6] to-[#fdf5f5] sm:block" />
+            ヒーローは下端に金の飾りとダイヤが入っており、なじませると飾りが消えるため。
+          そこで画像は無加工のまま、あいだに「ヒーロー下端色 → 次の画像の上端色」の
+          グラデーションを敷いて繋ぐ。
+          ★ もとは to- がページ背景 #fdf5f5 だった。下に DESIGN GUIDE 画像を置いたことで、
+            背景色まで一度明るくしてから画像色へ戻る形になり、細い帯が見えていた。
+            to- は「すぐ下に来るものの色」に合わせること。下の画像を差し替えたらここも測り直す。
+          ★ 2026-08-16 の実測（16行平均）:
+              ヒーロー下端  PC #f1e0d6 / SP #f0dbcc
+              GUIDE 上端    PC #f8e9de / SP #f9ebe1
+            継ぎ目の色差はチャンネル最大で PC 9 / SP 21。 */}
+      <div aria-hidden="true" className="h-6 bg-gradient-to-b from-[#f0dbcc] to-[#f9ebe1] sm:hidden" />
+      <div aria-hidden="true" className="hidden h-8 bg-gradient-to-b from-[#f1e0d6] to-[#f8e9de] sm:block" />
 
-      {/* ── ページ見出し（可視の h1）── 2026-08-16
-          ★ 帯を画像化したあとも、可視の h1 はここに文字で残すこと。
-            画像に焼き込まれた見出しだけにすると、このページの主題が画面上の文字から消える
-            （LP側で 2026-08-15 に同じ理由で sr-only の h1 を可視へ戻したのと同じ判断）。
-          ★ 文言を変えたら tools-verify-hp.mjs の designs 側の h1 期待値も直すこと（危険地帯41）。
-          戻るリンクは画像の下へ移した（画像より上に置くと、ヒーローの前に細い帯が挟まって見えるため）。 */}
-      <section className="pt-8 sm:pt-10">
+      {/* ── DESIGN GUIDE（見出し＋選び方の案内・文字焼き込み済み）── 2026-08-16
+          もとは「可視の h1 ＋ 金罫線 ＋ 説明文」と「選び方の案内（白いカード3枚）」の2セクション
+          だったが、いただいた画像に同じ内容（選べるデザイン 全16パターン／01 ひな形を選ぶ・
+          02 カラーを選ぶ・03 あとは運営が制作／下のサムネイルは…）が焼き込まれているため、
+          2セクションまとめて画像1枚に置き換えた。
+
+          ★ h1 を sr-only にしているのはオーナー判断（2026-08-16）。
+            同じ見出しがヒーロー画像・h1・この画像で3回出るのを避けるため。
+            ただし /hp/templates（LP）側は 2026-08-15 に sr-only から可視へ戻した経緯があるので、
+            あちらの h1 を sr-only に戻さないこと。ここだけの例外。
+          ★ h1 の文言は tools-verify-hp.mjs の designs 側の期待値と1文字も違えないこと（危険地帯41）。
+            改行を挟んでも JSX が行頭行末の空白を落とすので textContent は「選べるデザイン全16パターン」。
+          ★ ファーストビューではないので lazy。eager にするのはヒーローだけ。
+          ★ 画像は必ず /hp-lp/ 配下に置くこと。
+            tools-verify-hp.mjs はサムネを「src が /hp-lp/ で始まらない画像」で数えており、
+            別フォルダに置くと「サムネが16枚」の判定に混ざって落ちる。
+
+          画像: public/hp-lp/designs-guide-pc.webp（1717×916・約1.87:1）
+                public/hp-lp/designs-guide-sp.webp（864×1821・約1:2.11）
+          ※ 端の色はページ背景 #fdf5f5 に近いので、ヒーローのような継ぎ目グラデーションは要らない。
+            2026-08-16 の実測（16行平均）: PC 上 #f8e9de / 下 #f9ede5、SP 上 #f9ebe1 / 下 #f9e9df。
+            背景とのチャンネル最大差は PC 上23・下16、SP 上22・下22。 */}
+      <section>
+        <picture>
+          <source media="(max-width: 639px)" srcSet="/hp-lp/designs-guide-sp.webp" width={864} height={1821} />
+          <img
+            src="/hp-lp/designs-guide-pc.webp"
+            width={1717}
+            height={916}
+            alt=""
+            className="block w-full h-auto"
+            loading="lazy"
+          />
+        </picture>
+        <h1 className="sr-only">選べるデザイン全{HP_PATTERN_COUNT}パターン</h1>
+        <div className="sr-only">
+          <p>
+            下のサムネイルはすべて実際のキービジュアルです。
+            気になるデザインは「デモを見る」から、サンプル店舗のデータが入った実物のページをご覧いただけます。
+          </p>
+          <ul>
+            <li>ひな形を選ぶ：タイプS・A・B・Cの4つから全体の雰囲気を選びます。</li>
+            <li>カラーを選ぶ：同じひな形でも配色で印象が大きく変わります。</li>
+            <li>あとは運営が制作：ドメイン取得・写真や文章の設定・公開まで運営が行います。</li>
+          </ul>
+        </div>
+      </section>
+
+      {/* ── LPへ戻るリンク ── 2026-08-16
+          もとは h1 ブロックの中にあった。見出しを画像化したのでここへ移した。
+          ★ 画像より上に置かないこと。ヒーローと DESIGN GUIDE の間に細い帯が挟まって見える。 */}
+      <section className="pt-6 sm:pt-8">
         <div className="mx-auto max-w-5xl px-5 text-center">
           <Link
             href="/hp/templates"
@@ -191,40 +240,6 @@ export default function HpDesignsPage() {
           >
             ← ホームページ制作のご案内へ戻る
           </Link>
-
-          <h1 className="mt-5 text-[22px] font-bold leading-tight tracking-wider text-[#3f342e] sm:text-[28px]">
-            選べるデザイン
-            <span className="block text-[#c9808f] sm:ml-3 sm:inline">全{HP_PATTERN_COUNT}パターン</span>
-          </h1>
-          <div className="mt-4 mb-5">
-            <GoldRule />
-          </div>
-          <p className="mx-auto max-w-2xl text-[13px] leading-loose text-[#6d5d53] sm:text-[14px]">
-            下のサムネイルはすべて<span className="font-bold text-[#3f342e]">実際のキービジュアル</span>です。
-            気になるデザインは「デモを見る」から、サンプル店舗のデータが入った実物のページをご覧いただけます。
-          </p>
-        </div>
-      </section>
-
-      {/* ── 選び方の案内（3点）── */}
-      <section className="mx-auto max-w-5xl px-5 pt-10 sm:pt-12">
-        <div className="grid sm:grid-cols-3 gap-3">
-          {[
-            ['ひな形を選ぶ', 'まずは全体の雰囲気から。タイプS・A・B・Cの4つは、写真の見せ方も文字の組み方も別ものです。'],
-            ['カラーを選ぶ', '同じひな形でも配色で印象が大きく変わります。実物のキービジュアルで見比べてください。'],
-            ['あとは運営が制作', 'ドメイン取得・写真や文章の設定・公開まで運営が行います。写真や原稿をイチからご用意いただく必要はありません。'],
-          ].map(([t, d], i) => (
-            <div
-              key={t}
-              className="relative rounded-2xl border border-[#f0dde0] bg-white shadow-sm px-5 pt-7 pb-5"
-            >
-              <span className="absolute -top-3 left-5 inline-flex items-center justify-center w-7 h-7 rounded-full bg-gradient-to-br from-[#d5a86b] to-[#b98d4f] text-white text-[12px] font-black shadow">
-                {i + 1}
-              </span>
-              <p className="text-[13px] font-bold text-[#3f342e] mb-2">{t}</p>
-              <p className="text-[12px] leading-relaxed text-[#8a7a70]">{d}</p>
-            </div>
-          ))}
         </div>
       </section>
 

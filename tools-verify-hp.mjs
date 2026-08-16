@@ -81,6 +81,17 @@ const DESIGNS_HERO = {
   spWH: [864, 1821],
 };
 
+// デザイン一覧の DESIGN GUIDE 画像（2026-08-16 追加）。
+// 「可視の h1 ＋ 説明文」と「選び方の案内3点カード」を1枚の画像へ置き換えたもの。
+// ★ h1 はこのページだけ sr-only。文言チェックは下の h1 判定がそのまま効く。
+// ★ ヒーローと違って lazy が正しい（ファーストビューに入らない）。
+const DESIGNS_GUIDE = {
+  pc: '/hp-lp/designs-guide-pc.webp',
+  sp: '/hp-lp/designs-guide-sp.webp',
+  pcWH: [1717, 916],
+  spWH: [864, 1821],
+};
+
 /**
  * sr-only に必ず入っていてほしい文字列。画像に焼き込まれた文言と揃っていることの確認。
  * ★ 画像を作り直して文言が変わったら、ここも一緒に直す（危険地帯25）。
@@ -416,7 +427,24 @@ console.log('\n■ /hp/templates/designs（PC 1440x900）');
   ok(`[designs] ヒーローの <source> が ${DESIGNS_HERO.sp}`, !!heroSrc);
   ok(`[designs] ヒーローの <source> に ${DESIGNS_HERO.spWH.join('x')}`, heroSrc?.w === String(DESIGNS_HERO.spWH[0]) && heroSrc?.h === String(DESIGNS_HERO.spWH[1]), `${heroSrc?.w}x${heroSrc?.h}`);
 
-  const thumbs = m.imgs.filter((i) => !(i.src ?? '').startsWith('/hp-lp/designs-hero'));
+  // ── DESIGN GUIDE（2026-08-16 追加）──
+  // 見出しと選び方の案内を1枚にまとめた画像。ヒーローと同じく属性をここで見張る。
+  const guide = m.imgs.filter((i) => (i.src ?? '').startsWith(DESIGNS_GUIDE.pc));
+  ok('[designs] DESIGN GUIDE の <img> が1個', guide.length === 1, `${guide.length}個`);
+  for (const i of guide) {
+    ok(`[designs] DESIGN GUIDE の width/height が ${DESIGNS_GUIDE.pcWH.join('x')}`, i.w === String(DESIGNS_GUIDE.pcWH[0]) && i.h === String(DESIGNS_GUIDE.pcWH[1]), `${i.w}x${i.h}`);
+    ok('[designs] DESIGN GUIDE の alt が ""', i.alt === '', JSON.stringify(i.alt));
+    // ファーストビューに入らないので lazy であること（eager にするのはヒーローだけ）
+    ok('[designs] DESIGN GUIDE が lazy', i.loading === 'lazy', String(i.loading));
+  }
+  const guideSrc = m.sources.find((s) => s.srcset === DESIGNS_GUIDE.sp);
+  ok(`[designs] DESIGN GUIDE の <source> が ${DESIGNS_GUIDE.sp}`, !!guideSrc);
+  ok(`[designs] DESIGN GUIDE の <source> に ${DESIGNS_GUIDE.spWH.join('x')}`, guideSrc?.w === String(DESIGNS_GUIDE.spWH[0]) && guideSrc?.h === String(DESIGNS_GUIDE.spWH[1]), `${guideSrc?.w}x${guideSrc?.h}`);
+
+  // ★ サムネの数え方は「/hp-lp/ で始まらない画像」。
+  //   ヒーローと DESIGN GUIDE を個別に列挙して除外すると、画像が増えるたびに漏れる。
+  //   期待値を16から緩めるのは禁止（危険地帯41）。
+  const thumbs = m.imgs.filter((i) => !(i.src ?? '').startsWith('/hp-lp/'));
   ok(`[designs] サムネが${PATTERN_COUNT}枚`, thumbs.length === PATTERN_COUNT, `${thumbs.length}枚`);
   ok('[designs] サムネはすべて lazy', thumbs.every((i) => i.loading === 'lazy'), thumbs.filter((i) => i.loading !== 'lazy').map((i) => i.src).join(','));
   const demoLinks = await page.evaluate(() => [...document.querySelectorAll('a')].filter((a) => (a.getAttribute('href') || '').startsWith('/hp/demo/preview/')).length);
