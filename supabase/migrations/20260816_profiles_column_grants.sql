@@ -1,0 +1,58 @@
+-- profiles を「id と nickname だけ」公開に絞る（2026-08-16 / 第16便）
+--
+-- ── なぜ入れたか ────────────────────────────────────────────
+-- 本番の RLS を棚卸ししたところ、profiles にこのポリシーが付いていた:
+--     ポリシー名: public can read profiles
+--     操作: SELECT / 対象ロール: {anon, authenticated} / 条件式: true
+-- つまり【誰でも全会員の行を無条件で読める】状態だった。
+--
+-- これは意図的なもので、消してはいけない。口コミの投稿者名を出すために
+-- src/app/lib/reviews.ts の fetchNicknameMap() が匿名クライアント
+-- （createPublicClient）で profiles を引いているため。ポリシーを削ると
+-- 口コミの投稿者が全員「ゲスト」表示に化ける。
+-- ★ しかも fetchNicknameMap() はエラーを握りつぶす作りなので、権限が足りなく
+--   なっても例外は出ず、静かに全員ゲストになる。触ったら必ず画面で確認すること。
+--
+-- 実害は当時なかった（profiles は id / nickname / created_at / updated_at の
+-- 4列だけで、nickname は口コミ上で既に公開されている）。
+-- 問題は将来のほう。RLS は行単位でしか効かず【列は守れない】ので、
+-- このテーブルにメールアドレスや電話番号の列を1つ足した瞬間、
+-- それが全世界に公開されてしまう。
+--
+-- ── どう直したか ────────────────────────────────────────────
+-- RLS ではなく GRANT で対処する。GRANT は列単位で指定できる。
+-- これで id / nickname 以外は、匿名でもログイン会員でも読めない。
+-- 将来カラムを足しても、ここに明示的に追記しない限り公開されない。
+--
+-- ── アプリ側への影響（2026-08-16 時点で確認済み・影響なし）──────
+--   ・profiles から SELECT しているのは 'nickname' か 'id, nickname' のみ（7か所）
+--   ・select('*') も、join での埋め込み参照も 0件
+--   ・書き込みは { id, nickname, updated_at } の upsert のみ。
+--     supabase-js は .select() を繋がない限り return=minimal なので SELECT 権限は不要
+--   ・service_role は別ロールなので、この REVOKE の影響を受けない
+--     （運営画面・サーバーアクションはすべて service_role 経由）
+--
+-- ── 列を追加するときの手順 ──────────────────────────────────
+--   1. 公開してよい列か判断する。個人情報なら【GRANT に足さない】
+--   2. 公開してよい場合だけ、下の grant に列名を追記して再実行する
+--
+-- ★ Supabase ダッシュボードの SQL Editor で実行してください（このリポジトリの
+--   SQL は差分適用スクリプト集で、自動では流れません）。実行済み: 2026-08-16。
+
+revoke select on public.profiles from anon, authenticated;
+grant  select (id, nickname) on public.profiles to anon, authenticated;
+
+
+-- ── 確認用（実行後にこれで見られる。上とは別に流すこと）────────────
+-- 期待する結果: anon / authenticated が id と nickname の2行だけ持っている。
+--
+-- select grantee, column_name, privilege_type
+-- from information_schema.column_privileges
+-- where table_schema = 'public'
+--   and table_name = 'profiles'
+--   and grantee in ('anon', 'authenticated')
+-- order by grantee, column_name;
+--
+-- 画面側の確認（どちらも 2026-08-16 に実施済み）:
+--   ・/reviews で口コミの投稿者名が出ていること（「ゲスト」に化けていないこと）
+--   ・/member/profile でニックネームの表示と保存ができること
