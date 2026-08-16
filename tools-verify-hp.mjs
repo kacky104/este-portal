@@ -65,8 +65,9 @@ const BLOCKS = [
   { key: 'flow', pc: '/hp-lp/flow-pc.webp', sp: '/hp-lp/flow-sp.webp', pcWH: [1717, 916], spWH: [864, 1821], eager: false, alt: '' },
 ];
 
-// ボタンは同じ画像を3か所で使う（ヒーロー直下・DESIGN LINEUP 直下・FLOW 直下）ので、出現回数の期待値だけ別で持つ。
-const BTN_COUNT = 3;
+// ボタンは同じ画像を4か所で使う（ヒーロー直下・DESIGN LINEUP 直下・FLOW 直下・FAQ 直下）ので、
+// 出現回数の期待値だけ別で持つ。2026-08-16: FAQ 直下を追加して 3→4。
+const BTN_COUNT = 4;
 
 // デザイン一覧（/hp/templates/designs）のヒーロー（2026-08-16 追加）。
 // CSSで組んでいた見出し帯を、文字が焼き込まれたキービジュアルに置き換えたもの。
@@ -298,7 +299,9 @@ console.log('\n■ /hp/templates（PC 1440x900）');
     canonical: 'https://fukues.com/hp/templates',
     descHasCount: true,
     jsonld: ['BreadcrumbList', 'Service', 'FAQPage'], // FAQPage は 2026-08-16 追加
-    internal: 7, // デザイン一覧ボタン3 + フッターのnav3 + フッター本文1 …のうち / で始まるもの
+    // デザイン一覧ボタン4 + FAQ下の申し込みボタン1 + フッターのnav3 + フッター本文1
+    // …のうち / で始まるもの。2026-08-16: FAQ 直下に2本足したので 7→9。
+    internal: 9,
   });
 
   ok('[LP] 見出しの並びが想定どおり', m.headings.join('|') === LP_HEADINGS.join('|'), m.headings.join(' | '));

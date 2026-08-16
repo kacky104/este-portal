@@ -586,6 +586,28 @@ export default function HpTemplatesPage() {
             ))}
           </dl>
         </div>
+
+        {/* ── FAQ を読み終えた人の受け皿（2026-08-16 追加）──
+            上から「デザインを見る」→「制作について問い合わせる」の順。
+            ここまで読んだ人は検討が進んでいるので、見るだけで終わらせず申し込みまで置く。
+            ★ testId は他の3か所と必ず変えること（同じだと検証スクリプトが1つ目しか掴めない）。
+            ★ ボタン画像を1か所増やしたので tools-verify-hp.mjs の BTN_COUNT を 3→4 に、
+              内部リンクが2本増えたので internal を 7→9 に直してある。
+              片方だけ直すと回帰チェックが落ちる。 */}
+        <DesignCtaButton testId="lp-design-cta-faq" padCls="pt-10 sm:pt-12" />
+
+        <div className="mx-auto max-w-5xl px-5 pt-4 sm:pt-5 text-center">
+          <Link
+            href="/hp/templates/contact"
+            data-testid="lp-contact-cta-faq"
+            className="inline-flex w-full max-w-[340px] sm:max-w-[380px] items-center justify-center rounded-full px-8 py-3.5 text-[14px] sm:text-[15px] font-bold text-white shadow-md bg-gradient-to-r from-[#d18f9d] to-[#c9808f] hover:from-[#c9808f] hover:to-[#b96f7e] transition-colors focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[#f3d4da]"
+          >
+            制作について問い合わせる
+          </Link>
+          <p className="mt-3 text-[12px] leading-relaxed text-[#a08e84]">
+            ご相談だけでも構いません。この時点で費用は発生しません。
+          </p>
+        </div>
       </section>
 
       {/* ── フッター（お問い合わせ）── */}
