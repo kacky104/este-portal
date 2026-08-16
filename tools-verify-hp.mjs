@@ -407,7 +407,9 @@ console.log('\n■ /hp/templates/designs（PC 1440x900）');
     canonical: 'https://fukues.com/hp/templates/designs',
     descHasCount: false,
     jsonld: ['BreadcrumbList'],
-    internal: 21,
+    // 2026-08-16: CTA の「制作について問い合わせる」を mailto から
+    // /hp/templates/contact（申し込みフォーム）へ変えたので 21→22。
+    internal: 22,
   });
   ok(`[designs] h1 が「選べるデザイン全${PATTERN_COUNT}パターン」`, m.h1[0] === `選べるデザイン全${PATTERN_COUNT}パターン`, m.h1[0] ?? '');
 

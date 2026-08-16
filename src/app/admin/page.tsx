@@ -34,6 +34,7 @@ import PageHeroManager from '@/app/components/PageHeroManager';
 import ReviewCampaignManager from '@/app/components/ReviewCampaignManager';
 import { JOBS_PAGE_HERO_KEYS } from '@/app/lib/pageHero';
 import ListingInquiryManager from '@/app/components/ListingInquiryManager';
+import HpInquiryManager from '@/app/components/HpInquiryManager';
 import WorkMatchManager from '@/app/components/WorkMatchManager';
 import WorkAppStats from '@/app/components/WorkAppStats';
 import FreeSalonListingsManager from '@/app/components/FreeSalonListingsManager';
@@ -495,6 +496,13 @@ export default function AdminDashboard() {
           {/* ── 新規店舗の初回情報入力フォーム（ワンタイムURL発行・入力内容の確認） ── */}
           <AccordionSection id="listing-inquiries" title="掲載お問い合わせ" expanded={expandedSections} onToggle={toggleSection}>
             <ListingInquiryManager onToast={showToast} />
+          </AccordionSection>
+
+          {/* ── 公式ホームページ制作のお申し込み（/hp/templates/contact のフォーム・2026-08-16 新設） ──
+              掲載お問い合わせ（listing_inquiries）とは別テーブル・別タブ。
+              「掲載の相談」と「HP制作の申し込み」は対応する人も流れも違うので混ぜないこと。 */}
+          <AccordionSection id="hp-inquiries" title="HP制作のお申し込み" expanded={expandedSections} onToggle={toggleSection}>
+            <HpInquiryManager onToast={showToast} />
           </AccordionSection>
 
           <AccordionSection id="salon-intakes" title="新規店舗 入力フォーム発行" expanded={expandedSections} onToggle={toggleSection}>

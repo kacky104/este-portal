@@ -451,8 +451,12 @@ export default function HpDesignsPage() {
             ★ 画像を差し替えたら、この%も測り直すこと。ズレると「押しても反応しない帯」ができる。
           ★ 切り替えは 768px。<source> の (max-width: 767px) と Tailwind の md: を必ず揃えること。
             片方だけ直すと、SP画像にPCの座標が重なって全く押せなくなる。
-          ★ リンク先は作り直し前と同じ。問い合わせ = mailto:info@fukues.com、
+          ★ リンク先: 問い合わせ = /hp/templates/contact（申し込みフォーム）、
             料金・制作の流れ = /hp/templates。ここを推測で変えないこと。
+            2026-08-16: 問い合わせ側は mailto:info@fukues.com から申し込みフォームへ変更した。
+            mailto はメールアプリが無い環境で押しても何も起きず、届く内容もバラバラだったため。
+            ★ 内部リンクが1本増えるので tools-verify-hp.mjs の designs の internal も
+              21→22 に直してある。片方だけ直すと回帰チェックが落ちる。
 
           画像: public/hp-lp/designs-cta-pc.webp（1983×793・約2.5:1）
                 public/hp-lp/designs-cta-sp.webp（941×1672・約1:1.78） */}
@@ -472,9 +476,9 @@ export default function HpDesignsPage() {
           </picture>
 
           {/* 画像の「制作について問い合わせる」ボタンに重ねる透明リンク */}
-          <a
-            href="mailto:info@fukues.com"
-            aria-label="制作について問い合わせる（メールを送る）"
+          <Link
+            href="/hp/templates/contact"
+            aria-label="制作について問い合わせる（お申し込みフォームへ）"
             className="absolute cursor-pointer rounded-full left-[6.8%] top-[69.0%] w-[86.6%] h-[11.6%] md:left-[38.2%] md:top-[72.1%] md:w-[26.3%] md:h-[15.2%] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[#c9808f] focus-visible:ring-offset-2"
           />
 
