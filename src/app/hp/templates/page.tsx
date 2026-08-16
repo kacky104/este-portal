@@ -593,16 +593,31 @@ export default function HpTemplatesPage() {
             ★ testId は他の3か所と必ず変えること（同じだと検証スクリプトが1つ目しか掴めない）。
             ★ ボタン画像を1か所増やしたので tools-verify-hp.mjs の BTN_COUNT を 3→4 に、
               内部リンクが2本増えたので internal を 7→9 に直してある。
-              片方だけ直すと回帰チェックが落ちる。 */}
+              片方だけ直すと回帰チェックが落ちる。
+            ★ 問い合わせボタンは btn-contact-pc.webp（1564×425・背景透過）。
+              デザインボタンと違い SP 用の別画像は無いので <picture> にしていない。
+              いただいた元画像は背景が白のPNGだったので、外周から連結した白だけを
+              透過に落として切り抜いてある（内側の白いハイライト・真珠・文字は残している）。
+              作り直すときも背景透過のまま渡すこと。白背景のまま置くと、ページの
+              ピンク地（#fdf5f5）の上に白い長方形が浮く。 */}
         <DesignCtaButton testId="lp-design-cta-faq" padCls="pt-10 sm:pt-12" />
 
-        <div className="mx-auto max-w-5xl px-5 pt-4 sm:pt-5 text-center">
+        <div className="mx-auto max-w-5xl px-5 pt-3 sm:pt-4 text-center">
           <Link
             href="/hp/templates/contact"
             data-testid="lp-contact-cta-faq"
-            className="inline-flex w-full max-w-[340px] sm:max-w-[380px] items-center justify-center rounded-full px-8 py-3.5 text-[14px] sm:text-[15px] font-bold text-white shadow-md bg-gradient-to-r from-[#d18f9d] to-[#c9808f] hover:from-[#c9808f] hover:to-[#b96f7e] transition-colors focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[#f3d4da]"
+            aria-label="制作について問い合わせる"
+            className="group inline-block w-full max-w-[340px] sm:max-w-[520px] align-middle"
           >
-            制作について問い合わせる
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src="/hp-lp/btn-contact-pc.webp"
+              alt="制作について問い合わせる"
+              loading="lazy"
+              width={1564}
+              height={425}
+              className="block w-full h-auto transition-transform duration-300 ease-out group-hover:scale-[1.03] group-active:scale-100"
+            />
           </Link>
           <p className="mt-3 text-[12px] leading-relaxed text-[#a08e84]">
             ご相談だけでも構いません。この時点で費用は発生しません。

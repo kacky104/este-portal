@@ -265,7 +265,12 @@ async function checkSeams(page, label) {
     const out = [];
     for (const el of document.querySelectorAll('img')) {
       const src = el.currentSrc || el.src;
-      if (!/\/hp-lp\//.test(src) || /btn-design/.test(src) || !el.naturalWidth) continue;
+      // ★ /hp-lp/btn-*.webp（デザイン・申し込みのボタン画像）は継ぎ目の対象外。
+      //   全幅で縦に積むブロック画像と違い、背景が透過でページ地の上に浮かせて置くもの。
+      //   端の行はまるごと透明なので、canvas から読むと 0,0,0 になり必ず落ちる。
+      //   2026-08-16: btn-design だけを外していたのを btn- 全部に広げた
+      //   （btn-contact-pc.webp を足したときに引っかかったため）。
+      if (!/\/hp-lp\//.test(src) || /\/btn-/.test(src) || !el.naturalWidth) continue;
       const c = document.createElement('canvas');
       c.width = el.naturalWidth;
       c.height = el.naturalHeight;
@@ -305,6 +310,21 @@ console.log('\n■ /hp/templates（PC 1440x900）');
   });
 
   ok('[LP] 見出しの並びが想定どおり', m.headings.join('|') === LP_HEADINGS.join('|'), m.headings.join(' | '));
+
+  // ── FAQ 下の申し込みボタン（2026-08-16 追加）──
+  // デザインボタンと違い SP 用の別画像が無いので BLOCKS には入れず、ここで単独に見張る。
+  // ★ 画像を作り直したら寸法をここも直すこと。
+  {
+    const CONTACT_BTN = { src: '/hp-lp/btn-contact-pc.webp', wh: [1564, 425], alt: '制作について問い合わせる' };
+    const found = m.imgs.filter((i) => i.src === CONTACT_BTN.src);
+    ok('[LP] 申し込みボタンの <img> が1個', found.length === 1, `${found.length}個`);
+    for (const i of found) {
+      ok(`[LP] 申し込みボタンの width/height が ${CONTACT_BTN.wh.join('x')}`, i.w === String(CONTACT_BTN.wh[0]) && i.h === String(CONTACT_BTN.wh[1]), `${i.w}x${i.h}`);
+      ok(`[LP] 申し込みボタンの alt が ${JSON.stringify(CONTACT_BTN.alt)}`, i.alt === CONTACT_BTN.alt, JSON.stringify(i.alt));
+      // ページ下部なので lazy でよい（eager にするのはヒーロー周りだけ）
+      ok('[LP] 申し込みボタンが lazy', i.loading === 'lazy', String(i.loading));
+    }
+  }
 
   // 料金の数字は 画像 / sr-only / JSON-LD の3か所にある。JSON-LD と表示のズレは構造化データ違反。
   const svc = m.jsonld.find((x) => x['@type'] === 'Service');
