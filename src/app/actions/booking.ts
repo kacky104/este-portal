@@ -203,6 +203,21 @@ function jstDateOf(d: Date): string {
 }
 
 // 予約枠を JST の "M/D(曜) HH:MM〜HH:MM" に整形（通知メール本文用）。
+/**
+ * 「予約枠の取り合いに負けた」ことを表すDBエラーかどうか（2026-08-16）。
+ *
+ *   23505 = unique_violation    … UNIQUE(therapist_id, slot_start)。開始時刻が完全に一致したとき。
+ *   23P01 = exclusion_violation … salon_bookings_no_overlap（2026-08-16 追加の EXCLUDE 制約）。
+ *                                 開始はずれるが時間帯が重なるとき。
+ *
+ * ★ EXCLUDE 制約は 23505 ではなく 23P01 を返す。ここに 23P01 を入れ忘れると、
+ *   利用者の画面に「conflicting key value violates exclusion constraint ...」という
+ *   生のDBメッセージがそのまま出る。制約を足したら必ずこの関数も見直すこと。
+ */
+function isSlotConflictError(code: string | undefined): boolean {
+  return code === '23505' || code === '23P01';
+}
+
 function formatSlotLabelJST(startISO: string, endISO: string): string {
   const s = new Date(startISO);
   const e = new Date(endISO);
@@ -368,7 +383,7 @@ export async function createBooking(input: CreateBookingInput): Promise<CreateBo
     status: 'new',
   });
   if (insErr) {
-    if (insErr.code === '23505') return { ok: false, error: 'slot_taken' };
+    if (isSlotConflictError(insErr.code)) return { ok: false, error: 'slot_taken' };
     return { ok: false, error: insErr.message };
   }
 
@@ -934,7 +949,7 @@ export async function createManualBooking(input: ManualBookingInput): Promise<{ 
     status: 'confirmed',
   });
   if (insErr) {
-    if (insErr.code === '23505') return { ok: false, error: 'その時間帯は既に予約が入っています' };
+    if (isSlotConflictError(insErr.code)) return { ok: false, error: 'その時間帯は既に予約が入っています' };
     return { ok: false, error: insErr.message };
   }
   return { ok: true };
@@ -1036,7 +1051,7 @@ export async function moveBooking(
     })
     .eq('id', bookingId);
   if (upErr) {
-    if (upErr.code === '23505') return { ok: false, error: '移動先の時間帯は既に予約が入っています' };
+    if (isSlotConflictError(upErr.code)) return { ok: false, error: '移動先の時間帯は既に予約が入っています' };
     return { ok: false, error: upErr.message };
   }
   return { ok: true };
@@ -1174,6 +1189,12 @@ export async function updateBookingDetails(
       slot_end: newSlotEnd.toISOString(),
     })
     .eq('id', bookingId);
-  if (upErr) return { ok: false, error: upErr.message };
+  if (upErr) {
+    // 上の事前チェックをすり抜けた同時操作は、EXCLUDE 制約（23P01）がここで止める（2026-08-16）。
+    if (isSlotConflictError(upErr.code)) {
+      return { ok: false, error: '枠を伸ばすと他の予約と重なります（先に移動やインターバル調整をしてください）' };
+    }
+    return { ok: false, error: upErr.message };
+  }
   return { ok: true };
 }
