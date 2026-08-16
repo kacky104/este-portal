@@ -180,16 +180,9 @@ const DEMO_BTN_CLS =
   'transition-all duration-300 sm:group-hover/card:-translate-y-0.5 ' +
   'sm:group-hover/card:shadow-[0_6px_14px_rgba(74,54,24,.28),inset_0_1px_0_rgba(255,255,255,.85)]';
 
-// 金の細い罫とダイヤの飾り（見出しの下に置く）。
-function GoldRule() {
-  return (
-    <span className="flex items-center justify-center gap-2 text-[#d5a86b]" aria-hidden="true">
-      <span className="block h-px w-10 sm:w-16 bg-gradient-to-r from-transparent to-[#d5a86b]" />
-      <span className="block w-1.5 h-1.5 rotate-45 bg-[#d5a86b]" />
-      <span className="block h-px w-10 sm:w-16 bg-gradient-to-l from-transparent to-[#d5a86b]" />
-    </span>
-  );
-}
+// ※ 金の罫とダイヤの飾り（GoldRule）は 2026-08-16 に削除した。
+//    見出しブロックと CTA を画像化して、このページから使う場所が無くなったため。
+//    /hp/templates（LP）側には同じ飾りが別に置いてあるので、そちらは触っていない。
 
 export default function HpDesignsPage() {
   return (
@@ -444,40 +437,67 @@ export default function HpDesignsPage() {
         })}
       </div>
 
-      {/* ── まとめ・お問い合わせ ── */}
-      <section className="border-t border-[#f0dde0] bg-white">
-        <div className="mx-auto max-w-5xl px-5 py-12 sm:py-14">
-          <div className="rounded-2xl bg-gradient-to-r from-[#f7dee3] via-[#fbeee7] to-[#f3e3d3] p-[1px] shadow-sm">
-            <div className="rounded-2xl bg-white/95 px-6 py-8 sm:px-10 text-center">
-              <div className="mb-4">
-                <GoldRule />
-              </div>
-              <p className="text-lg sm:text-xl font-bold leading-relaxed text-[#3f342e]">
-                気になるデザインが決まりましたら、
-                <span className="block sm:inline text-[#c9808f]">担当者までお知らせください。</span>
-              </p>
-              <p className="mt-4 text-[13px] leading-relaxed text-[#6d5d53] max-w-2xl mx-auto">
-                写真・文章・表示する内容は、お店ごとに運営がカスタマイズしてお納めします。
-                ドメイン取得から公開まで、すべて運営が対応しますのでお手間はかかりません。
-              </p>
-              <div className="mt-6 flex flex-wrap items-center justify-center gap-3">
-                <a
-                  href="mailto:info@fukues.com"
-                  className="inline-flex items-center justify-center rounded-full px-7 py-3 text-[13px] font-bold text-white shadow-md bg-gradient-to-r from-[#d18f9d] to-[#c9808f] hover:from-[#c9808f] hover:to-[#b96f7e] transition-colors"
-                >
-                  制作について問い合わせる
-                </a>
-                <Link
-                  href="/hp/templates"
-                  className="inline-flex items-center justify-center rounded-full border border-[#e6cba0] px-7 py-3 text-[13px] font-bold text-[#b98d4f] bg-white hover:bg-[#fdf8f2] transition-colors"
-                >
-                  料金・制作の流れを見る
-                </Link>
-              </div>
-            </div>
-          </div>
+      {/* ── まとめ・お問い合わせ（NEXT STEP・文字焼き込み済み）── 2026-08-16
+          もとは白いカードに見出し・説明文・ボタン2つを組んでいたが、いただいた見本の画像に
+          同じ内容（NEXT STEP／気になるデザインが決まりましたら、担当者までお知らせください。／
+          写真・文章・表示内容は…／相談無料・制作おまかせ・公開まで対応／ボタン2つ）が
+          焼き込まれているため、画像1枚＋透明リンクに置き換えた。
 
-          <p className="mt-6 text-[11px] leading-relaxed text-[#a08e84] text-center">
+          ★ 画像にはリンクを張れないので、ボタンの絵の上に透明な <a> を絶対配置で重ねている。
+            位置は「画像の何%か」で指定しているので、画像が拡大縮小しても常に重なる。
+            ★ %の値は画像そのものをピクセル解析して出したもの（2026-08-16 実測）。
+              PC 1983×793: ピンク x758-1278 / y572-691、アイボリー x1295-1783 / y572-691
+              SP  941×1672: ピンク x65-877 / y1155-1346、アイボリー x63-877 / y1386-1572
+            ★ 画像を差し替えたら、この%も測り直すこと。ズレると「押しても反応しない帯」ができる。
+          ★ 切り替えは 768px。<source> の (max-width: 767px) と Tailwind の md: を必ず揃えること。
+            片方だけ直すと、SP画像にPCの座標が重なって全く押せなくなる。
+          ★ リンク先は作り直し前と同じ。問い合わせ = mailto:info@fukues.com、
+            料金・制作の流れ = /hp/templates。ここを推測で変えないこと。
+
+          画像: public/hp-lp/designs-cta-pc.webp（1983×793・約2.5:1）
+                public/hp-lp/designs-cta-sp.webp（941×1672・約1:1.78） */}
+      <section className="border-t border-[#f0dde0] bg-white">
+        <div className="relative">
+          <picture>
+            <source media="(max-width: 767px)" srcSet="/hp-lp/designs-cta-sp.webp" width={941} height={1672} />
+            <img
+              src="/hp-lp/designs-cta-pc.webp"
+              width={1983}
+              height={793}
+              alt="気になるデザインが決まりましたら担当者までお知らせください。制作のお問い合わせと料金・制作の流れをご案内します。"
+              loading="lazy"
+              draggable={false}
+              className="block w-full h-auto select-none [-webkit-user-drag:none]"
+            />
+          </picture>
+
+          {/* 画像の「制作について問い合わせる」ボタンに重ねる透明リンク */}
+          <a
+            href="mailto:info@fukues.com"
+            aria-label="制作について問い合わせる（メールを送る）"
+            className="absolute cursor-pointer rounded-full left-[6.8%] top-[69.0%] w-[86.6%] h-[11.6%] md:left-[38.2%] md:top-[72.1%] md:w-[26.3%] md:h-[15.2%] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[#c9808f] focus-visible:ring-offset-2"
+          />
+
+          {/* 画像の「料金・制作の流れを見る」ボタンに重ねる透明リンク */}
+          <Link
+            href="/hp/templates"
+            aria-label="料金・制作の流れを見る"
+            className="absolute cursor-pointer rounded-full left-[6.7%] top-[82.9%] w-[86.5%] h-[11.2%] md:left-[65.3%] md:top-[72.1%] md:w-[24.7%] md:h-[15.2%] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[#b98d4f] focus-visible:ring-offset-2"
+          />
+
+          {/* 画像に焼き込んだ文言のうち、alt に入り切らない説明を文字でも残す。
+              ★ alt と重複させないこと（読み上げが二重になる）。 */}
+          <div className="sr-only">
+            <p>
+              写真・文章・表示する内容は、お店ごとに運営がカスタマイズしてお納めします。
+              ドメイン取得から公開まで、すべて運営が対応しますのでお手間はかかりません。
+            </p>
+            <p>ご相談は無料です。制作はすべて運営におまかせいただけます。公開まで対応します。</p>
+          </div>
+        </div>
+
+        <div className="mx-auto max-w-5xl px-5 pt-8 pb-12 sm:pb-14">
+          <p className="text-[11px] leading-relaxed text-[#a08e84] text-center">
             掲載・制作のご相談：フクエス運営事務局（
             <a href="mailto:info@fukues.com" className="underline text-[#b98d4f] hover:text-[#9a743c]">info@fukues.com</a>
             ）
