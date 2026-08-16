@@ -69,7 +69,54 @@ export default function HpContactPage() {
         }}
       />
 
-      <section className="mx-auto max-w-3xl px-5 pt-10 sm:pt-14">
+      {/* ── ヒーロー（KV・文字焼き込み済み）── 2026-08-16
+          もとは「CONTACT ＋ 可視の h1 ＋ 金罫線」を文字で組んでいたが、いただいた
+          キービジュアルに同じ文言（CONTACT／ホームページ制作のお申し込み・ご相談／
+          メンズエステ専門ホームページ／はじめてでも、安心してご相談ください。／
+          相談無料・丁寧にご案内・公開までサポート）が焼き込まれているため、画像に置き換えた。
+
+          デザイン一覧のヒーローと同じ作法で置いている:
+            ・全幅・原寸比率のまま（文字が焼き込まれているので cover で切り抜かない）
+            ・画像は装飾扱い（alt=""）。文章は h1 と sr-only で持つ
+            ・<source> にも width/height を入れる（入れないとスマホでレイアウトが跳ねる）
+          ★ ヒーローは最初の画面に入るので lazy にしないこと（loading 未指定＝eager）。
+          ★ h1 は sr-only。見出しがヒーロー画像と文字で2回出るのを避けるための判断で、
+            デザイン一覧の DESIGN GUIDE と同じ扱い（2026-08-16 オーナー判断）。
+            /hp/templates（LP）側の可視 h1 は別物なので、あちらは sr-only に戻さないこと。
+          ★ 切り替えは 640px（デザイン一覧のヒーローと同じ）。SP画像は縦長なので、
+            これより広い幅で出すと画面が縦に埋まってしまう。
+
+          画像: public/hp-lp/contact-hero-pc.webp（1983×793・約2.5:1）
+                public/hp-lp/contact-hero-sp.webp（941×1672・約1:1.78）
+          ※ SP画像の下端 #e7cbc2 はページ背景 #fdf5f5 と差があるので（チャンネル最大 51）、
+            画像の直後にグラデーションで繋いでいる。画像を差し替えたら色を測り直すこと。
+            2026-08-16 の実測: PC 上 #f6e9e2 / 下 #f3e5de、SP 上 #f5e2da / 下 #e7cbc2。 */}
+      <section>
+        <picture>
+          <source media="(max-width: 639px)" srcSet="/hp-lp/contact-hero-sp.webp" width={941} height={1672} />
+          <img
+            src="/hp-lp/contact-hero-pc.webp"
+            width={1983}
+            height={793}
+            alt=""
+            className="block w-full h-auto"
+            fetchPriority="high"
+          />
+        </picture>
+        <h1 className="sr-only">ホームページ制作のお申し込み・ご相談</h1>
+        <div className="sr-only">
+          <p>メンズエステ専門ホームページ。はじめてでも、安心してご相談ください。</p>
+          <p>ご相談は無料です。丁寧にご案内し、公開までサポートします。</p>
+        </div>
+      </section>
+
+      {/* ヒーロー下端の継ぎ目つなぎ。SP画像の下端はページ背景と差があるので繋ぐ。 */}
+      <div aria-hidden="true" className="h-6 bg-gradient-to-b from-[#e7cbc2] to-[#fdf5f5] sm:hidden" />
+      <div aria-hidden="true" className="hidden h-6 bg-gradient-to-b from-[#f3e5de] to-[#fdf5f5] sm:block" />
+
+      <section className="mx-auto max-w-3xl px-5 pt-6 sm:pt-8">
+        {/* ★ 戻るリンクは画像の下。上に置くとヒーローの前に細い帯が挟まって見える
+            （デザイン一覧で同じことをやった）。 */}
         <Link
           href="/hp/templates"
           className="inline-flex items-center gap-1 text-[11px] font-bold text-[#a08e84] transition-colors hover:text-[#c9808f]"
@@ -77,19 +124,7 @@ export default function HpContactPage() {
           ← ホームページ制作のご案内へ戻る
         </Link>
 
-        <p className="mt-6 text-[10px] tracking-[.3em] text-[#b98d4f]">CONTACT</p>
-        <h1 className="mt-1 text-[22px] sm:text-[28px] font-bold leading-tight tracking-wider text-[#3f342e]">
-          ホームページ制作の
-          <span className="block sm:inline sm:ml-2 text-[#c9808f]">お申し込み・ご相談</span>
-        </h1>
-
-        <span className="mt-4 mb-5 flex items-center gap-2 text-[#d5a86b]" aria-hidden="true">
-          <span className="block h-px w-10 sm:w-16 bg-gradient-to-r from-transparent to-[#d5a86b]" />
-          <span className="block w-1.5 h-1.5 rotate-45 bg-[#d5a86b]" />
-          <span className="block h-px flex-1 bg-gradient-to-l from-transparent to-[#d5a86b]" />
-        </span>
-
-        <p className="text-[13px] sm:text-[14px] leading-loose text-[#6d5d53]">
+        <p className="mt-5 text-[13px] sm:text-[14px] leading-loose text-[#6d5d53]">
           下のフォームからお申し込み・ご相談いただけます。
           <span className="font-bold text-[#3f342e]">ご相談だけでも構いません</span>
           し、この時点で費用は発生しません。
