@@ -174,7 +174,7 @@ const COLOR_LABEL_CLS =
 // 光沢と立体感のあるシャンパンゴールド。上半分を明るく、中央で一段落として金属の折れを作る。
 // ★ ホバーの浮き上がりと光の流れは sm 以上だけ（タッチ端末では :hover が張り付くため）。
 const DEMO_BTN_CLS =
-  'relative mt-2 xl:mt-3 flex h-11 sm:h-10 xl:h-12 items-center justify-center overflow-hidden rounded-full ' +
+  'relative mt-1.5 sm:mt-2 xl:mt-3 flex h-8 sm:h-10 xl:h-12 items-center justify-center overflow-hidden rounded-full ' +
   'border border-[#b6883f] bg-[linear-gradient(180deg,#fbeecd_0%,#eed6a2_46%,#d9b471_54%,#eddcb4_100%)] ' +
   'shadow-[0_1px_2px_rgba(74,54,24,.25),inset_0_1px_0_rgba(255,255,255,.75)] ' +
   'transition-all duration-300 sm:group-hover/card:-translate-y-0.5 ' +
@@ -350,7 +350,7 @@ export default function HpDesignsPage() {
             カード1枚が 640px を超えると拡大表示になってぼける。
             カード幅 ≒ (画面幅 - 464) ÷ 4 なので、2400px でも約484pxで実寸内に収まる。
             1920pxのとき1枚あたり約363px・写真の高さ約204px（実測）。 */}
-      <div className="mx-auto w-full max-w-[2400px] px-4 sm:px-6 lg:px-8 xl:px-10 py-12 sm:py-14 space-y-8 sm:space-y-10">
+      <div className="mx-auto w-full max-w-[2400px] px-2 sm:px-6 lg:px-8 xl:px-10 py-12 sm:py-14 space-y-8 sm:space-y-10">
         {HP_TEMPLATES.map((t) => {
           const th = TYPE_THEME[t.key];
           const variants = HP_COLOR_VARIANTS[t.key];
@@ -358,7 +358,9 @@ export default function HpDesignsPage() {
             <section key={t.key} id={`type-${t.key}`} aria-labelledby={`type-${t.key}-heading`}>
               {/* 金の細枠。1pxの面を敷いて、その上に地色のパネルを載せる */}
               <div className={`rounded-[20px] p-[1.5px] shadow-sm ${th.frame}`}>
-                <div className={`rounded-[19px] p-4 sm:p-5 lg:p-6 xl:p-8 ${th.panel}`}>
+                {/* ★ スマホのパネル内側の余白は 6px まで詰めてある（2026-08-16 オーナー要望）。
+                    その分サムネが大きくなる。ここを広げると写真が小さくなるので戻さないこと。 */}
+                <div className={`rounded-[19px] p-1.5 sm:p-5 lg:p-6 xl:p-8 ${th.panel}`}>
                   <div className="lg:flex lg:items-start lg:gap-6 xl:gap-8">
                     {/* 見出しプレート。PCは左の固定幅・SPは上の全幅 */}
                     <header
@@ -376,13 +378,15 @@ export default function HpDesignsPage() {
                         TYPE {t.key.toUpperCase()}
                       </h2>
                       <p className={`mt-2 text-[12px] sm:text-[13px] xl:text-[14px] leading-relaxed ${th.leadCls}`}>
+                        {/* ★ スマホは1行（2026-08-16 オーナー要望）。lg 以上だけ2行に折る。
+                            一番長いのは「余白を活かした、モード＆スタイリッシュ」の19文字。 */}
                         {th.tagline[0]}
-                        <span className="block">{th.tagline[1]}</span>
+                        <span className="lg:block">{th.tagline[1]}</span>
                       </p>
                     </header>
 
                     <div
-                      className={`mt-4 grid gap-2.5 sm:gap-3 xl:gap-4 lg:mt-0 lg:min-w-0 lg:flex-1 ${VARIANT_GRID_CLS[Math.min(variants.length, 6)] ?? VARIANT_GRID_CLS[6]}`}
+                      className={`mt-2 grid gap-[5px] sm:mt-4 sm:gap-3 xl:gap-4 lg:mt-0 lg:min-w-0 lg:flex-1 ${VARIANT_GRID_CLS[Math.min(variants.length, 6)] ?? VARIANT_GRID_CLS[6]}`}
                     >
                       {variants.map((v) => {
                         const c = hpVariantColors(t.key, v.key);
@@ -397,7 +401,7 @@ export default function HpDesignsPage() {
                             className="group/card block rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#b98d4f] focus-visible:ring-offset-2"
                           >
                             <span
-                              className={`block overflow-hidden rounded-lg border ${th.thumbFrame} shadow-sm transition-shadow duration-300 sm:group-hover/card:shadow-md`}
+                              className={`block overflow-hidden rounded-none sm:rounded-lg border ${th.thumbFrame} shadow-sm transition-shadow duration-300 sm:group-hover/card:shadow-md`}
                             >
                               {src ? (
                                 // eslint-disable-next-line @next/next/no-img-element
@@ -419,7 +423,7 @@ export default function HpDesignsPage() {
 
                             {/* 「デモを見る」。ボタンに見えるが <span>（親の <a> が受ける） */}
                             <span className={DEMO_BTN_CLS}>
-                              <span className="relative z-10 text-[13px] xl:text-[15px] font-bold tracking-wide text-[#4a3618]">
+                              <span className="relative z-10 text-[11px] sm:text-[13px] xl:text-[15px] font-bold tracking-wide text-[#4a3618]">
                                 デモを見る
                               </span>
                               {/* ホバーで左から右へ抜ける光。PCだけ動かす */}
