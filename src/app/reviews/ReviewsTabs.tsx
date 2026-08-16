@@ -11,6 +11,7 @@ import { NotificationBell } from '@/app/components/NotificationBell';
 import { VipLetterIcon } from '@/app/components/VipLetterIcon';
 import { Breadcrumb } from '@/app/components/Breadcrumb';
 import { PageHero } from '@/app/components/PageHero';
+import type { PageHeroImages } from '@/app/lib/pageHero';
 import { AdBanner } from '@/app/components/AdBanner';
 import type { AdBanner as AdBannerData } from '@/app/lib/adBanners';
 import { SiteNoticeBanner } from '@/app/components/SiteNoticeBanner';
@@ -195,7 +196,8 @@ export default function ReviewsTabs({
   reviews: ApprovedReview[];
   ranking: TherapistReviewRankItem[];
   hallOfFame: TherapistReviewRankItem[];
-  heroes: { new: string | null; therapist: string | null; hall: string | null };
+  // ★ 2026-08-17: fetchPageHero が PC/SP の組を返すようになったので型を広げた（値はそのまま素通し）。
+  heroes: { new: PageHeroImages | null; therapist: PageHeroImages | null; hall: PageHeroImages | null };
   wallpapers: Record<string, string>;
   adBanners: AdBannerData[];
 }) {
