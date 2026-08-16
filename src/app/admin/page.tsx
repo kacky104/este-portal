@@ -153,6 +153,9 @@ export default function AdminDashboard() {
   // 求職マッチングの未対応エントリー件数（WorkMatchManager が読み込み/更新時に通知）。
   // 求人タブのバッジ（新規応募との合算）とアコーディオン見出しの「未対応n件」に使う。
   const [matchOpenCount, setMatchOpenCount] = useState(0);
+  // 公式HP制作のお申し込み（hp_inquiries）の未対応件数。
+  // 「公式HP」タブのチップと、アコーディオン見出しのバッジの両方に使う（HpInquiryManager が通知）。
+  const [hpInquiryOpenCount, setHpInquiryOpenCount] = useState(0);
   // 掲載店舗一覧の表示/非表示サブタブ（is_hidden で分割）。永続化しないクライアントstateのみ。
   const [salonListTab, setSalonListTab] = useState<'visible' | 'hidden'>('visible');
 
@@ -419,6 +422,14 @@ export default function AdminDashboard() {
                   {jobStats.newCount + matchOpenCount}
                 </span>
               )}
+              {/* 公式HPタブ：HP制作のお申し込みの未対応バッジ（2026-08-16 追加）。
+                  ★ 件数は HpInquiryManager が通知する。あちらは公式HPタブが非表示でも
+                    マウントされているので、他のタブを開いていてもこのバッジは出る。 */}
+              {key === 'hp' && hpInquiryOpenCount > 0 && (
+                <span className="inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 rounded-full bg-pink-500 text-white text-[10px] font-black leading-none">
+                  {hpInquiryOpenCount}
+                </span>
+              )}
             </button>
           );
         })}
@@ -496,13 +507,6 @@ export default function AdminDashboard() {
           {/* ── 新規店舗の初回情報入力フォーム（ワンタイムURL発行・入力内容の確認） ── */}
           <AccordionSection id="listing-inquiries" title="掲載お問い合わせ" expanded={expandedSections} onToggle={toggleSection}>
             <ListingInquiryManager onToast={showToast} />
-          </AccordionSection>
-
-          {/* ── 公式ホームページ制作のお申し込み（/hp/templates/contact のフォーム・2026-08-16 新設） ──
-              掲載お問い合わせ（listing_inquiries）とは別テーブル・別タブ。
-              「掲載の相談」と「HP制作の申し込み」は対応する人も流れも違うので混ぜないこと。 */}
-          <AccordionSection id="hp-inquiries" title="HP制作のお申し込み" expanded={expandedSections} onToggle={toggleSection}>
-            <HpInquiryManager onToast={showToast} />
           </AccordionSection>
 
           <AccordionSection id="salon-intakes" title="新規店舗 入力フォーム発行" expanded={expandedSections} onToggle={toggleSection}>
@@ -804,6 +808,27 @@ export default function AdminDashboard() {
 
         {/* ══════════ 公式HPタブ（掲載店舗向け公式ホームページ事業・2026-08-09） ══════════ */}
         <div className={`space-y-4 ${activeTab === 'hp' ? '' : 'hidden'}`}>
+
+          {/* ── 公式ホームページ制作のお申し込み（/hp/templates/contact のフォーム・2026-08-16 新設） ──
+              要対応が最初に目に入るようタブ最上部に配置し、未対応件数を見出しバッジで表示
+              （求職マッチング エントリーと同じ考え方）。
+              ★ 掲載お問い合わせ（listing_inquiries）とは別テーブル・別タブ。
+                「掲載の相談」と「HP制作の申し込み」は対応する人も流れも違うので混ぜないこと。 */}
+          <AccordionSection
+            id="hp-inquiries"
+            title="HP制作のお申し込み"
+            meta={
+              hpInquiryOpenCount > 0 ? (
+                <span className="text-[10px] px-2 py-0.5 rounded-full font-bold bg-pink-50 text-pink-600 border border-pink-200">
+                  未対応{hpInquiryOpenCount}件
+                </span>
+              ) : undefined
+            }
+            expanded={expandedSections}
+            onToggle={toggleSection}
+          >
+            <HpInquiryManager onToast={showToast} onOpenCount={setHpInquiryOpenCount} />
+          </AccordionSection>
 
           {/* ── 契約サイト一覧・発行・運営専用編集（段階4） ── */}
           <AccordionSection id="hp-sites" title="公式HP管理（契約サイト）" expanded={expandedSections} onToggle={toggleSection}>

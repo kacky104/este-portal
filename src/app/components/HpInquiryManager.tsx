@@ -44,7 +44,14 @@ function designLabel(templateKey: string | null, colorKey: string | null): strin
   return `${tLabel}／${cLabel}`;
 }
 
-export default function HpInquiryManager({ onToast }: { onToast: (msg: string) => void }) {
+export default function HpInquiryManager({
+  onToast,
+  onOpenCount,
+}: {
+  onToast: (msg: string) => void;
+  /** 未対応件数を親（/admin）へ通知する。タブのチップとアコーディオン見出しのバッジに使う。 */
+  onOpenCount?: (n: number) => void;
+}) {
   const supabase = createClient();
   const [inquiries, setInquiries] = useState<HpInquiry[]>([]);
   const [loading, setLoading] = useState(true);
@@ -69,6 +76,15 @@ export default function HpInquiryManager({ onToast }: { onToast: (msg: string) =
 
   useEffect(() => { fetchList(); }, [fetchList]);
 
+  // 未対応件数を親へ通知（読み込み・状態切替・削除のたびに inquiries から再計算）。
+  // ★ このコンポーネントはアコーディオンが閉じていても、タブが非表示でもマウントされている
+  //   （閉時は display:none にするだけで unmount しない作り）。
+  //   だから /admin を開いた瞬間に件数が分かり、タブのチップにバッジが出る。
+  //   ここを「開いたときだけ読む」に変えると、バッジが出なくなるので注意。
+  useEffect(() => {
+    onOpenCount?.(inquiries.filter((q) => q.status === 'open').length);
+  }, [inquiries, onOpenCount]);
+
   const toggleStatus = async (q: HpInquiry) => {
     const next = q.status === 'open' ? 'done' : 'open';
     setBusyId(q.id);
@@ -91,22 +107,16 @@ export default function HpInquiryManager({ onToast }: { onToast: (msg: string) =
     onToast('お申し込みを削除しました');
   };
 
-  const openCount = inquiries.filter(q => q.status === 'open').length;
   // 未対応を先頭に（同状態内は新着順のまま＝取得順を保持する安定ソート）。
   const sorted = [...inquiries].sort((a, b) => (a.status === b.status ? 0 : a.status === 'open' ? -1 : 1));
 
   return (
     <div className="bg-white rounded-3xl border border-slate-100 shadow-sm p-6">
-      <div className="flex items-center gap-2 mb-4 flex-wrap">
-        <p className="text-[11px] text-slate-400 leading-relaxed">
-          /hp/templates/contact のフォームから送られたホームページ制作のお申し込み一覧です。対応したら「対応済み」に切り替えてください。
-        </p>
-        {openCount > 0 && (
-          <span className="inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 rounded-full bg-pink-500 text-white text-[10px] font-black leading-none">
-            未対応{openCount}件
-          </span>
-        )}
-      </div>
+      {/* ★ 未対応件数のバッジはここには出さない。アコーディオンの見出しと
+          「公式HP」タブのチップに出しているので、中にも置くと同じ数字が3回並ぶ。 */}
+      <p className="text-[11px] text-slate-400 leading-relaxed mb-4">
+        /hp/templates/contact のフォームから送られたホームページ制作のお申し込み一覧です。対応したら「対応済み」に切り替えてください。
+      </p>
 
       {loading ? (
         <p className="text-xs text-slate-400 text-center py-6">読み込み中...</p>
