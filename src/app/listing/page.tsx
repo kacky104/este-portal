@@ -7,6 +7,7 @@ import { NotificationBell } from '@/app/components/NotificationBell';
 import { VipLetterIcon } from '@/app/components/VipLetterIcon';
 import { ListingInquiryForm } from './ListingInquiryForm';
 import { ListingAbout } from './ListingAbout';
+import { ListingFeatures } from './ListingFeatures';
 import { SiteNoticeBanner } from '@/app/components/SiteNoticeBanner';
 import { SiteFooter } from '@/app/components/SiteFooter';
 import { getTheme } from '@/app/lib/themes';
@@ -71,66 +72,17 @@ export default async function ListingPage() {
               中に戻すと左右16pxの余白が付いて全幅にならないので、動かすときは注意。 */}
         <PageHero url={hero} alt="掲載について" fullBleed />
 
-        {/* 「掲載について」＋「掲載店舗様でできること」の見出しと説明文（デザイン見本の再現）。
-            ★ 文章はここへ移しただけで一字も変えていない。 */}
+        {/* 「掲載について」＋「掲載店舗様でできること」（オーナー作成のデザイン画像・全幅）。
+            ★ 文章は sr-only で ListingAbout の中に持っている。 */}
         <ListingAbout />
 
-        <div className="max-w-3xl mx-auto px-4 pb-10">
-        {/* ── 掲載店舗様向け機能（2026-08-07 ページ下部から上部へ移動＋訴求を肉付け）──
-            フォームより先に「掲載すると何ができるか」を見せて問い合わせにつなげる構成。 */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-2 mt-10">
-          <div className="rounded-2xl border border-slate-200 bg-white px-4 py-3">
-            <p className="text-sm font-bold text-pink-600 mb-1">店舗ページ</p>
-            <p className="text-xs text-slate-500 leading-relaxed">
-              店舗情報・料金コース・写真を掲載。テーマカラーや壁紙でお店の雰囲気に合わせたページが作れます。
-            </p>
-          </div>
-          <div className="rounded-2xl border border-slate-200 bg-white px-4 py-3">
-            <p className="text-sm font-bold text-pink-600 mb-1">セラピスト紹介・出勤スケジュール</p>
-            <p className="text-xs text-slate-500 leading-relaxed">
-              プロフィールページと出勤表で「今日誰がいるか」を毎日発信。出勤中の店舗はトップページにも表示されます。
-            </p>
-          </div>
-          <div className="rounded-2xl border border-slate-200 bg-white px-4 py-3">
-            <p className="text-sm font-bold text-pink-600 mb-1">写メ日記</p>
-            <p className="text-xs text-slate-500 leading-relaxed">
-              セラピストが自分のスマホから投稿できます。日記はトップページ・一覧にも流れ、ファンづくりとリピートにつながります。
-            </p>
-          </div>
-          <div className="rounded-2xl border border-slate-200 bg-white px-4 py-3">
-            <p className="text-sm font-bold text-pink-600 mb-1">予約につながる導線</p>
-            <p className="text-xs text-slate-500 leading-relaxed">
-              電話・LINE予約・ネット予約をワンタップで。クーポンやお知らせの配信で来店のきっかけを作れます。
-            </p>
-          </div>
-          <div className="rounded-2xl border border-slate-200 bg-white px-4 py-3">
-            <p className="text-sm font-bold text-pink-600 mb-1">口コミ・ランキング</p>
-            <p className="text-xs text-slate-500 leading-relaxed">
-              口コミは運営の承認制なので安心。評価は店舗ページと週間ランキングに反映され、新規のお客様の後押しになります。
-            </p>
-          </div>
-          <div className="rounded-2xl border border-slate-200 bg-white px-4 py-3">
-            <p className="text-sm font-bold text-pink-600 mb-1">セラピスト求人（フクエスワーク）</p>
-            <p className="text-xs text-slate-500 leading-relaxed">
-              求人サイト「フクエスワーク」に求人を掲載できます。応募はメール・LINEで直接届きます。
-            </p>
-          </div>
-          <div className="rounded-2xl border border-slate-200 bg-white px-4 py-3">
-            <p className="text-sm font-bold text-pink-600 mb-1">公式サイトへの埋め込み</p>
-            <p className="text-xs text-slate-500 leading-relaxed">
-              フクエスの写メ日記・口コミを、店舗様の公式ホームページにそのまま表示できる埋め込みパーツをご用意しています。
-            </p>
-          </div>
-          {/* ※「掲載効果を数字で確認（レポート）」カードはサイトのPVが育ってから載せる予定（2026-08-07 差し替え）。 */}
-          <div className="rounded-2xl border border-slate-200 bg-white px-4 py-3">
-            <p className="text-sm font-bold text-pink-600 mb-1">fukuX（フクエックス）</p>
-            <p className="text-xs text-slate-500 leading-relaxed">
-              メンズエステ専用SNS「fukuX」で承認店舗になれます。店舗アカウントでの投稿・宣伝や所属セラピストとの連携など、利用の幅が広がります。
-            </p>
-          </div>
-        </div>
+        {/* 「お店の成長を支える10の機能」（2026-08-17 / 第19便でカード8枚から画像へ差し替え）。
+            ★ 09 予約ボード・10 公式ホームページ制作 が増えて 8 → 10 機能になった。
+            ★ 文章は sr-only で ListingFeatures の中に持っている。 */}
+        <ListingFeatures />
 
-        <h2 className="text-lg font-bold text-slate-800 mt-8 mb-3">掲載をご希望の店舗様へ</h2>
+        <div className="max-w-3xl mx-auto px-4 pt-10 pb-10">
+        <h2 className="text-lg font-bold text-slate-800 mb-3">掲載をご希望の店舗様へ</h2>
         <p className="text-sm text-slate-600 leading-relaxed mb-4">
           本サイトへの掲載をご希望の店舗様は、下記フォームからお気軽にお問い合わせください。掲載内容・条件等の詳細をご案内いたします。
         </p>
