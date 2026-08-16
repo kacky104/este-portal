@@ -6,6 +6,7 @@ import { HamburgerMenu } from '@/app/components/HamburgerMenu';
 import { NotificationBell } from '@/app/components/NotificationBell';
 import { VipLetterIcon } from '@/app/components/VipLetterIcon';
 import { ListingInquiryForm } from './ListingInquiryForm';
+import { ListingAbout } from './ListingAbout';
 import { SiteNoticeBanner } from '@/app/components/SiteNoticeBanner';
 import { SiteFooter } from '@/app/components/SiteFooter';
 import { getTheme } from '@/app/lib/themes';
@@ -56,26 +57,27 @@ export default async function ListingPage() {
       </header>
       <SiteNoticeBanner />
 
-      <main className="max-w-3xl mx-auto px-4 py-10">
-        {/* ページ別ヒーロー画像（/admin「ページ別ヒーロー画像設定」の listing 枠・2026-08-08 追加）。
-            未設定なら何も描画しない。main は max-w-3xl なので contentMax は 768。 */}
-        <PageHero url={hero} alt="掲載について" fullBleedMobile contentMax={768} />
+      {/* ★ <main> 自体は幅を持たせず、内側のラッパーで幅を決める（2026-08-17 / 第19便）。
+          「掲載について」〜「掲載店舗様でできること」の装飾セクション（ListingAbout）だけ
+          1280px にしたいため。従来の max-w-3xl / px-4 / py-10 はそのまま内側のラッパーへ移してあり、
+          セクション以外の見た目は変わらない。
+          ★ 100vw で親からはみ出させる手法は使わないこと。Windows のスクロールバー幅ぶん
+            （約15px）横スクロールが出る。帯そのものを全幅に置く今の形なら起きない。 */}
+      <main>
+        <div className="max-w-3xl mx-auto px-4 pt-10">
+          {/* ページ別ヒーロー画像（/admin「ページ別ヒーロー画像設定」の listing 枠・2026-08-08 追加）。
+              未設定なら何も描画しない。ラッパーは max-w-3xl なので contentMax は 768。 */}
+          <PageHero url={hero} alt="掲載について" fullBleedMobile contentMax={768} />
+        </div>
 
-        <h1 className="text-2xl font-bold text-slate-900 mb-6">掲載について</h1>
+        {/* 「掲載について」＋「掲載店舗様でできること」の見出しと説明文（デザイン見本の再現）。
+            ★ 文章はここへ移しただけで一字も変えていない。 */}
+        <ListingAbout />
 
-        <p className="text-sm text-slate-600 leading-relaxed">
-          フクエスは、福岡県のメンズエステ専門ポータルサイトです。博多・天神・北九州・久留米など福岡全域の店舗様の情報を掲載しています。
-        </p>
-
+        <div className="max-w-3xl mx-auto px-4 pb-10">
         {/* ── 掲載店舗様向け機能（2026-08-07 ページ下部から上部へ移動＋訴求を肉付け）──
             フォームより先に「掲載すると何ができるか」を見せて問い合わせにつなげる構成。 */}
-        <h2 className="text-lg font-bold text-slate-800 mt-8 mb-3">掲載店舗様でできること</h2>
-        <p className="text-sm text-slate-600 leading-relaxed mb-4">
-          掲載店舗様には、集客からリピートづくりまでに必要な機能をまとめてご用意しています。
-          店舗情報の更新・写メ日記・出勤管理はすべて専用の管理画面から、店舗様ご自身でいつでも行えます。
-          また、セラピストの求人掲載や、お仕事を探しているセラピストへのオファーもできるようになります。
-        </p>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-2">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-2 mt-10">
           <div className="rounded-2xl border border-slate-200 bg-white px-4 py-3">
             <p className="text-sm font-bold text-pink-600 mb-1">店舗ページ</p>
             <p className="text-xs text-slate-500 leading-relaxed">
@@ -202,6 +204,7 @@ export default async function ListingPage() {
 
         <div className="mt-10 text-sm text-slate-500 leading-relaxed">
           <p>フクエス運営事務局</p>
+        </div>
         </div>
       </main>
 
