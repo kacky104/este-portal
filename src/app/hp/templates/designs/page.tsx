@@ -87,14 +87,98 @@ const VARIANT_GRID_CLS: Record<number, string> = {
   6: 'grid-cols-2 sm:grid-cols-3 lg:grid-cols-6',
 };
 
-// 説明文は HP_TEMPLATE_NOTES（管理画面と共用）と同じ中身だが、
-// 配色名はサムネの下に色見本つきで出るのでここでは省き、雰囲気だけを1行で書いている。
-const TEMPLATE_TITLES: Record<HpTemplateKey, { en: string; name: string; lead: string }> = {
-  s: { en: 'GRACE', name: 'フラッグシップ', lead: '白地に全幅の写真と固定ナビ。王道の高級デザインで、いちばん上位のひな形です。' },
-  a: { en: 'LUXE',  name: '高級・しっとり', lead: '黒基調・明朝体の高級路線。落ち着いた大人向けの店舗に。' },
-  b: { en: 'CLEAN', name: '清潔感・癒やし', lead: '生成り地のやわらかい印象。清潔感・癒やし系の店舗に。' },
-  c: { en: 'MODE',  name: '都会的・シャープ', lead: '白地に太字とアクセント。都会的でシャープな印象に。' },
+// ひな形ごとの見た目（2026-08-16・いただいたデザイン見本の再現）。
+//
+// ★ ここは「デザイン一覧ページの見せ方」だけを持つ。配色の値そのもの（--hp-accent など）は
+//   lib/hpSite.ts の HP_COLOR_VARIANTS が唯一の正なので、色を変えるときはまずそちらを見る。
+// ★ Tailwind は文字列を組み立てたクラス名を拾えない（未使用として消える）。
+//   ここの値は必ずベタ書きのまま置くこと。テンプレートリテラルで作らないこと。
+// ★ 見本にあった外枠の「DESIGN COLLECTION／4つのひな形 × 4カラー」の大見出しは入れていない。
+//   すぐ上のヒーローと DESIGN GUIDE 画像が同じ文言を持っており、3回目の重複になるため。
+type TypeTheme = {
+  /** 見本の2行タグライン */
+  tagline: [string, string];
+  /** 外周の金の細枠（1pxのグラデーション面。内側の panel を載せる） */
+  frame: string;
+  /** パネルの地色 */
+  panel: string;
+  /** 「TYPE S」を載せるプレート */
+  plate: string;
+  /** 「TYPE S」の文字 */
+  typeCls: string;
+  /** タグラインの文字 */
+  leadCls: string;
+  /** サムネ写真の枠線 */
+  thumbFrame: string;
+  /** プレート上のダイヤ飾り */
+  diamond: string;
 };
+
+const TYPE_THEME: Record<HpTemplateKey, TypeTheme> = {
+  // 白・淡いピンク・シャンパンゴールド
+  s: {
+    tagline: ['華やかで上品な、', '王道エレガント'],
+    frame: 'bg-gradient-to-br from-[#e9d3b4] via-[#f7e8d1] to-[#e4c69f]',
+    panel: 'bg-gradient-to-br from-[#fffcfa] via-[#fdf4f3] to-[#fbeef0]',
+    plate: 'bg-gradient-to-b from-white/90 to-[#fdeef0]/70 border border-[#eedbc4]',
+    typeCls: 'text-[#a9793f]',
+    leadCls: 'text-[#7b6558]',
+    thumbFrame: 'border-[#e3c9a5]',
+    diamond: 'bg-[#d5a86b]',
+  },
+  // 黒・ワインレッド・ゴールド
+  a: {
+    tagline: ['深みと重厚感のある、', 'ラグジュアリー'],
+    frame: 'bg-gradient-to-br from-[#c9a262] via-[#8d6a35] to-[#c9a262]',
+    panel: 'bg-gradient-to-br from-[#3b2226] via-[#2a1b1f] to-[#1f1517]',
+    plate: 'bg-gradient-to-b from-[#5c2b34]/75 to-[#2c1a1e]/60 border border-[#8d6a35]',
+    typeCls: 'text-[#eed6a4]',
+    leadCls: 'text-[#e3d0c7]',
+    thumbFrame: 'border-[#9b7a44]',
+    diamond: 'bg-[#e0c07c]',
+  },
+  // アイボリー・リーフグリーン・ゴールド
+  b: {
+    tagline: ['やさしい光に包まれた、', 'ナチュラル'],
+    frame: 'bg-gradient-to-br from-[#dcd0ac] via-[#f1e9ce] to-[#ccd7b7]',
+    panel: 'bg-gradient-to-br from-[#fbfaf2] via-[#f5f3e6] to-[#eaf0e2]',
+    plate: 'bg-gradient-to-b from-white/90 to-[#eef2e5]/70 border border-[#d8dcc2]',
+    typeCls: 'text-[#4e7a4a]',
+    leadCls: 'text-[#5f6b56]',
+    thumbFrame: 'border-[#cfd3ae]',
+    diamond: 'bg-[#c2a35f]',
+  },
+  // 淡いパープル・モード系・ゴールド
+  c: {
+    tagline: ['余白を活かした、', 'モード＆スタイリッシュ'],
+    frame: 'bg-gradient-to-br from-[#ddc9ea] via-[#f1e8f7] to-[#cdb6e0]',
+    panel: 'bg-gradient-to-br from-[#faf6fd] via-[#f3ecf8] to-[#eae0f3]',
+    plate: 'bg-gradient-to-b from-white/90 to-[#eee4f5]/70 border border-[#ddcbea]',
+    typeCls: 'text-[#6b4a86]',
+    leadCls: 'text-[#5f5470]',
+    thumbFrame: 'border-[#d5c3e4]',
+    diamond: 'bg-[#b98d4f]',
+  },
+};
+
+// 色名ラベル（金の縁取り・明るいアイボリー）と「デモを見る」ボタン（シャンパンゴールド）は
+// ひな形をまたいで共通。★ 4タイプで同じ見た目にするのは見本どおり。ここをタイプ別にしないこと。
+const COLOR_LABEL_CLS =
+  'relative z-10 -mt-3 mx-auto block w-fit max-w-full rounded-full border border-[#c9a05c] ' +
+  'bg-[linear-gradient(180deg,#fffdf6_0%,#f8edd6_100%)] px-2 min-[360px]:px-2.5 sm:px-3 py-[3px] ' +
+  'text-[11px] min-[360px]:text-[12px] font-bold leading-snug text-[#5a4326] shadow-sm whitespace-nowrap';
+// ★ 一番長い色名は「シャンパンゴールド」（9文字）。画面幅320pxのカード幅118pxに
+//   11px＋px-2 でちょうど収まる。文字を大きくするか余白を足すとはみ出すので、
+//   色名を増やすときは320px幅で実測すること（2026-08-16 実測）。
+
+// 光沢と立体感のあるシャンパンゴールド。上半分を明るく、中央で一段落として金属の折れを作る。
+// ★ ホバーの浮き上がりと光の流れは sm 以上だけ（タッチ端末では :hover が張り付くため）。
+const DEMO_BTN_CLS =
+  'relative mt-2 flex h-11 sm:h-10 items-center justify-center overflow-hidden rounded-full ' +
+  'border border-[#b6883f] bg-[linear-gradient(180deg,#fbeecd_0%,#eed6a2_46%,#d9b471_54%,#eddcb4_100%)] ' +
+  'shadow-[0_1px_2px_rgba(74,54,24,.25),inset_0_1px_0_rgba(255,255,255,.75)] ' +
+  'transition-all duration-300 sm:group-hover/card:-translate-y-0.5 ' +
+  'sm:group-hover/card:shadow-[0_6px_14px_rgba(74,54,24,.28),inset_0_1px_0_rgba(255,255,255,.85)]';
 
 // 金の細い罫とダイヤの飾り（見出しの下に置く）。
 function GoldRule() {
@@ -243,71 +327,106 @@ export default function HpDesignsPage() {
         </div>
       </section>
 
-      {/* ── ひな形ごとの4ブロック ── */}
-      <div className="mx-auto max-w-5xl px-5 py-12 sm:py-14 space-y-10 sm:space-y-14">
-        {HP_TEMPLATES.map((t, idx) => {
-          const title = TEMPLATE_TITLES[t.key];
+      {/* ── ひな形ごとの4ブロック ── 2026-08-16 いただいたデザイン見本で作り直し
+          見た目のねらい:
+            ・タイプごとに地色・枠・見出しの雰囲気を変える（配色は TYPE_THEME）
+            ・PC は「見出し（左）＋サムネ4枚（右）」の横並び、SP は「見出し（上）＋2列×2段」
+            ・色名は金の縁取りのアイボリーのラベル。写真の下端に少し重ねる
+            ・「デモを見る」は光沢のあるシャンパンゴールド。PCのホバーで浮き上がり＋光が流れる
+
+          ★ カード全体が1本の <a>。「デモを見る」を別の <a> にしないこと。
+            見た目はボタンだが中身は <span> で、写真もラベルもボタンも同じリンクの中にある。
+            ＝写真とボタンのどちらを押しても同じデモが開き、リンク数は16本のまま
+            （tools-verify-hp.mjs が「デモへのリンクが16本」で見張っている。
+              2本に割ると32本になって落ちる）。
+          ★ リンク先 /hp/{demo}/preview/{ひな形}/{色} と data-testid は作り直し前と同じ。
+            ここを変えると管理画面のプレビューや回帰チェックの参照が切れる。
+          ★ 写真は既存の /hp-{ひな形}/thumb-{色}.webp（640×360）をそのまま出す。
+            作り直したり縮めたりしないこと。切り取り基準は hpDesignThumbObjectCls が正。 */}
+      <div className="mx-auto max-w-5xl px-5 py-12 sm:py-14 space-y-8 sm:space-y-10">
+        {HP_TEMPLATES.map((t) => {
+          const th = TYPE_THEME[t.key];
           const variants = HP_COLOR_VARIANTS[t.key];
           return (
-            <section key={t.key} id={`type-${t.key}`}>
-              {/* 見出し：番号入りの金バッジ＋英名＋和名 */}
-              <header className="mb-5">
-                <div className="flex items-center gap-3 mb-3">
-                  <span className="inline-flex items-center justify-center w-9 h-9 rounded-full border border-[#e6cba0] bg-gradient-to-br from-[#fdf6ec] to-[#f4e3c8] text-[12px] font-black text-[#b98d4f] shadow-sm flex-none">
-                    {String(idx + 1).padStart(2, '0')}
-                  </span>
-                  <span className="h-px flex-1 bg-gradient-to-r from-[#e6cba0] to-transparent" />
-                </div>
-                <p className="text-[10px] tracking-[.3em] text-[#b98d4f]">{title.en}</p>
-                <h2 className="mt-1 text-[20px] sm:text-[22px] font-bold tracking-wide text-[#3f342e]">
-                  {t.label}
-                  <span className="ml-3 text-[13px] font-normal text-[#c9808f]">{title.name}</span>
-                </h2>
-                <p className="mt-2 text-[13px] leading-relaxed text-[#6d5d53]">{title.lead}</p>
-              </header>
-
-              <div className={`grid gap-3 sm:gap-4 ${VARIANT_GRID_CLS[Math.min(variants.length, 6)] ?? VARIANT_GRID_CLS[6]}`}>
-                {variants.map((v) => {
-                  const c = hpVariantColors(t.key, v.key);
-                  const src = hpDesignThumbSrc(t.key, v.key);
-                  return (
-                    <a
-                      key={v.key}
-                      href={`/hp/${HP_DEMO_SLUG}/preview/${t.key}/${v.key}`}
-                      target="_blank"
-                      rel="noreferrer"
-                      data-testid={`design-card-${t.key}-${v.key}`}
-                      className="group block overflow-hidden rounded-xl border border-[#ecdcdc] bg-white shadow-sm hover:border-[#d5a86b] hover:shadow-lg hover:-translate-y-0.5 transition-all"
+            <section key={t.key} id={`type-${t.key}`} aria-labelledby={`type-${t.key}-heading`}>
+              {/* 金の細枠。1pxの面を敷いて、その上に地色のパネルを載せる */}
+              <div className={`rounded-[20px] p-[1.5px] shadow-sm ${th.frame}`}>
+                <div className={`rounded-[19px] p-4 sm:p-5 lg:p-6 ${th.panel}`}>
+                  <div className="lg:flex lg:items-start lg:gap-6">
+                    {/* 見出しプレート。PCは左の固定幅・SPは上の全幅 */}
+                    <header
+                      className={`rounded-2xl px-4 py-3 text-center lg:w-[188px] lg:flex-none lg:self-stretch lg:flex lg:flex-col lg:justify-center ${th.plate}`}
                     >
-                      {src ? (
-                        // eslint-disable-next-line @next/next/no-img-element
-                        <img
-                          src={src}
-                          alt={`${t.label}（${v.label}）のキービジュアル`}
-                          loading="lazy"
-                          width={640}
-                          height={360}
-                          className={`block w-full aspect-video object-cover ${hpDesignThumbObjectCls(t.key, 'list')}`}
-                        />
-                      ) : (
-                        <DesignThumb template={t.key} accent={c.accent} deep={c.deep} colorKey={v.key} />
-                      )}
-                      {/* 色名の帯。左に配色の丸、右に「デモを見る」 */}
-                      <span className="flex items-center justify-between gap-1.5 px-3 py-2.5 bg-gradient-to-r from-[#fdf6f2] to-[#faf0ea] border-t border-[#f3e2df]">
-                        <span className="flex items-center gap-1.5 min-w-0">
-                          <span
-                            className="inline-block w-3.5 h-3.5 rounded-full border border-black/10 shadow-inner flex-none"
-                            style={{ backgroundColor: c.accent }}
-                          />
-                          <span className="truncate text-[11px] font-bold text-[#6d5d53]">{v.label}</span>
-                        </span>
-                        <span className="text-[10px] font-bold text-[#b98d4f] group-hover:text-[#c9808f] transition-colors flex-none">
-                          デモを見る →
-                        </span>
+                      <span aria-hidden="true" className="flex items-center justify-center gap-1.5">
+                        <span className={`block h-px w-5 bg-current opacity-40 ${th.typeCls}`} />
+                        <span className={`block w-1.5 h-1.5 rotate-45 ${th.diamond}`} />
+                        <span className={`block h-px w-5 bg-current opacity-40 ${th.typeCls}`} />
                       </span>
-                    </a>
-                  );
-                })}
+                      <h2
+                        id={`type-${t.key}-heading`}
+                        className={`mt-1.5 font-serif text-[22px] sm:text-[26px] font-bold tracking-[.12em] leading-none ${th.typeCls}`}
+                      >
+                        TYPE {t.key.toUpperCase()}
+                      </h2>
+                      <p className={`mt-2 text-[12px] sm:text-[13px] leading-relaxed ${th.leadCls}`}>
+                        {th.tagline[0]}
+                        <span className="block">{th.tagline[1]}</span>
+                      </p>
+                    </header>
+
+                    <div
+                      className={`mt-4 grid gap-2.5 sm:gap-3 lg:mt-0 lg:flex-1 ${VARIANT_GRID_CLS[Math.min(variants.length, 6)] ?? VARIANT_GRID_CLS[6]}`}
+                    >
+                      {variants.map((v) => {
+                        const c = hpVariantColors(t.key, v.key);
+                        const src = hpDesignThumbSrc(t.key, v.key);
+                        return (
+                          <a
+                            key={v.key}
+                            href={`/hp/${HP_DEMO_SLUG}/preview/${t.key}/${v.key}`}
+                            target="_blank"
+                            rel="noreferrer"
+                            data-testid={`design-card-${t.key}-${v.key}`}
+                            className="group/card block rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#b98d4f] focus-visible:ring-offset-2"
+                          >
+                            <span
+                              className={`block overflow-hidden rounded-lg border ${th.thumbFrame} shadow-sm transition-shadow duration-300 sm:group-hover/card:shadow-md`}
+                            >
+                              {src ? (
+                                // eslint-disable-next-line @next/next/no-img-element
+                                <img
+                                  src={src}
+                                  alt={`${t.label}（${v.label}）のキービジュアル`}
+                                  loading="lazy"
+                                  width={640}
+                                  height={360}
+                                  className={`block w-full aspect-video object-cover ${hpDesignThumbObjectCls(t.key, 'list')}`}
+                                />
+                              ) : (
+                                <DesignThumb template={t.key} accent={c.accent} deep={c.deep} colorKey={v.key} />
+                              )}
+                            </span>
+
+                            {/* 色名（金の縁取り・明るいアイボリー）。写真の下端に少し重ねる */}
+                            <span className={COLOR_LABEL_CLS}>{v.label}</span>
+
+                            {/* 「デモを見る」。ボタンに見えるが <span>（親の <a> が受ける） */}
+                            <span className={DEMO_BTN_CLS}>
+                              <span className="relative z-10 text-[13px] font-bold tracking-wide text-[#4a3618]">
+                                デモを見る
+                              </span>
+                              {/* ホバーで左から右へ抜ける光。PCだけ動かす */}
+                              <span
+                                aria-hidden="true"
+                                className="pointer-events-none absolute inset-y-0 -left-1/2 w-1/2 -skew-x-12 bg-[linear-gradient(90deg,transparent,rgba(255,255,255,.85),transparent)] transition-[left] duration-700 ease-out sm:group-hover/card:left-full"
+                              />
+                            </span>
+                          </a>
+                        );
+                      })}
+                    </div>
+                  </div>
+                </div>
               </div>
             </section>
           );
