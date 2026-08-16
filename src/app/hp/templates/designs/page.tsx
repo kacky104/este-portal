@@ -165,8 +165,8 @@ const TYPE_THEME: Record<HpTemplateKey, TypeTheme> = {
 // ひな形をまたいで共通。★ 4タイプで同じ見た目にするのは見本どおり。ここをタイプ別にしないこと。
 const COLOR_LABEL_CLS =
   'relative z-10 -mt-3 mx-auto block w-fit max-w-full rounded-full border border-[#c9a05c] ' +
-  'bg-[linear-gradient(180deg,#fffdf6_0%,#f8edd6_100%)] px-2 min-[360px]:px-2.5 sm:px-3 py-[3px] ' +
-  'text-[11px] min-[360px]:text-[12px] font-bold leading-snug text-[#5a4326] shadow-sm whitespace-nowrap';
+  'bg-[linear-gradient(180deg,#fffdf6_0%,#f8edd6_100%)] px-2 min-[360px]:px-2.5 sm:px-3 xl:px-4 py-[3px] xl:py-[5px] ' +
+  'text-[11px] min-[360px]:text-[12px] xl:text-[13px] font-bold leading-snug text-[#5a4326] shadow-sm whitespace-nowrap';
 // ★ 一番長い色名は「シャンパンゴールド」（9文字）。画面幅320pxのカード幅118pxに
 //   11px＋px-2 でちょうど収まる。文字を大きくするか余白を足すとはみ出すので、
 //   色名を増やすときは320px幅で実測すること（2026-08-16 実測）。
@@ -174,7 +174,7 @@ const COLOR_LABEL_CLS =
 // 光沢と立体感のあるシャンパンゴールド。上半分を明るく、中央で一段落として金属の折れを作る。
 // ★ ホバーの浮き上がりと光の流れは sm 以上だけ（タッチ端末では :hover が張り付くため）。
 const DEMO_BTN_CLS =
-  'relative mt-2 flex h-11 sm:h-10 items-center justify-center overflow-hidden rounded-full ' +
+  'relative mt-2 xl:mt-3 flex h-11 sm:h-10 xl:h-12 items-center justify-center overflow-hidden rounded-full ' +
   'border border-[#b6883f] bg-[linear-gradient(180deg,#fbeecd_0%,#eed6a2_46%,#d9b471_54%,#eddcb4_100%)] ' +
   'shadow-[0_1px_2px_rgba(74,54,24,.25),inset_0_1px_0_rgba(255,255,255,.75)] ' +
   'transition-all duration-300 sm:group-hover/card:-translate-y-0.5 ' +
@@ -343,7 +343,14 @@ export default function HpDesignsPage() {
             ここを変えると管理画面のプレビューや回帰チェックの参照が切れる。
           ★ 写真は既存の /hp-{ひな形}/thumb-{色}.webp（640×360）をそのまま出す。
             作り直したり縮めたりしないこと。切り取り基準は hpDesignThumbObjectCls が正。 */}
-      <div className="mx-auto max-w-5xl px-5 py-12 sm:py-14 space-y-8 sm:space-y-10">
+      {/* ★ このブロックだけページ幅いっぱいに広げてある（2026-08-16 オーナー要望）。
+          ほかのセクション（この下のCTAなど）は max-w-5xl のまま。
+          上のヒーローと DESIGN GUIDE が全幅の画像なので、並べても違和感は出ない。
+          ★ 上限 2400px は「写真を引き伸ばさない」ための保険。サムネの実寸は 640×360 なので、
+            カード1枚が 640px を超えると拡大表示になってぼける。
+            カード幅 ≒ (画面幅 - 464) ÷ 4 なので、2400px でも約484pxで実寸内に収まる。
+            1920pxのとき1枚あたり約363px・写真の高さ約204px（実測）。 */}
+      <div className="mx-auto w-full max-w-[2400px] px-4 sm:px-6 lg:px-8 xl:px-10 py-12 sm:py-14 space-y-8 sm:space-y-10">
         {HP_TEMPLATES.map((t) => {
           const th = TYPE_THEME[t.key];
           const variants = HP_COLOR_VARIANTS[t.key];
@@ -351,11 +358,11 @@ export default function HpDesignsPage() {
             <section key={t.key} id={`type-${t.key}`} aria-labelledby={`type-${t.key}-heading`}>
               {/* 金の細枠。1pxの面を敷いて、その上に地色のパネルを載せる */}
               <div className={`rounded-[20px] p-[1.5px] shadow-sm ${th.frame}`}>
-                <div className={`rounded-[19px] p-4 sm:p-5 lg:p-6 ${th.panel}`}>
-                  <div className="lg:flex lg:items-start lg:gap-6">
+                <div className={`rounded-[19px] p-4 sm:p-5 lg:p-6 xl:p-8 ${th.panel}`}>
+                  <div className="lg:flex lg:items-start lg:gap-6 xl:gap-8">
                     {/* 見出しプレート。PCは左の固定幅・SPは上の全幅 */}
                     <header
-                      className={`rounded-2xl px-4 py-3 text-center lg:w-[188px] lg:flex-none lg:self-stretch lg:flex lg:flex-col lg:justify-center ${th.plate}`}
+                      className={`rounded-2xl px-4 py-3 text-center lg:w-[188px] xl:w-[240px] lg:flex-none lg:self-stretch lg:flex lg:flex-col lg:justify-center ${th.plate}`}
                     >
                       <span aria-hidden="true" className="flex items-center justify-center gap-1.5">
                         <span className={`block h-px w-5 bg-current opacity-40 ${th.typeCls}`} />
@@ -364,18 +371,18 @@ export default function HpDesignsPage() {
                       </span>
                       <h2
                         id={`type-${t.key}-heading`}
-                        className={`mt-1.5 font-serif text-[22px] sm:text-[26px] font-bold tracking-[.12em] leading-none ${th.typeCls}`}
+                        className={`mt-1.5 font-serif text-[22px] sm:text-[26px] xl:text-[30px] font-bold tracking-[.12em] leading-none ${th.typeCls}`}
                       >
                         TYPE {t.key.toUpperCase()}
                       </h2>
-                      <p className={`mt-2 text-[12px] sm:text-[13px] leading-relaxed ${th.leadCls}`}>
+                      <p className={`mt-2 text-[12px] sm:text-[13px] xl:text-[14px] leading-relaxed ${th.leadCls}`}>
                         {th.tagline[0]}
                         <span className="block">{th.tagline[1]}</span>
                       </p>
                     </header>
 
                     <div
-                      className={`mt-4 grid gap-2.5 sm:gap-3 lg:mt-0 lg:flex-1 ${VARIANT_GRID_CLS[Math.min(variants.length, 6)] ?? VARIANT_GRID_CLS[6]}`}
+                      className={`mt-4 grid gap-2.5 sm:gap-3 xl:gap-4 lg:mt-0 lg:min-w-0 lg:flex-1 ${VARIANT_GRID_CLS[Math.min(variants.length, 6)] ?? VARIANT_GRID_CLS[6]}`}
                     >
                       {variants.map((v) => {
                         const c = hpVariantColors(t.key, v.key);
@@ -412,7 +419,7 @@ export default function HpDesignsPage() {
 
                             {/* 「デモを見る」。ボタンに見えるが <span>（親の <a> が受ける） */}
                             <span className={DEMO_BTN_CLS}>
-                              <span className="relative z-10 text-[13px] font-bold tracking-wide text-[#4a3618]">
+                              <span className="relative z-10 text-[13px] xl:text-[15px] font-bold tracking-wide text-[#4a3618]">
                                 デモを見る
                               </span>
                               {/* ホバーで左から右へ抜ける光。PCだけ動かす */}
