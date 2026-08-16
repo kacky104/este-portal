@@ -18,16 +18,36 @@ export function PageHero({
   url,
   alt,
   fullBleedMobile = false,
+  fullBleed = false,
   contentMax = 1024,
 }: {
   url: string | null;
   alt: string;
   fullBleedMobile?: boolean;
+  /** 画面幅いっぱいに表示する。★親の左右パディングの【外】に置くこと（2026-08-17 追加）。 */
+  fullBleed?: boolean;
   /** 置き場所の <main> の最大幅(px)。max-w-3xl=768 / max-w-4xl=896 / max-w-5xl=1024。 */
   contentMax?: 768 | 896 | 1024;
 }) {
   if (!url) return null;
-  const sizes = `(min-width: ${contentMax}px) ${contentMax - 32}px, 100vw`;
+  const sizes = fullBleed ? '100vw' : `(min-width: ${contentMax}px) ${contentMax - 32}px, 100vw`;
+
+  // ── 全幅表示（2026-08-17 追加・第19便／いまは /listing だけが使う）──────────
+  // ★ fullBleedMobile のような -mx-4 は【付けていない】。
+  //   パディングを持つ親の中で使うと打ち消しが効かず、逆に横スクロールが出るため。
+  //   必ず親のパディングの外に置くこと。
+  // ★ sizes は 100vw。contentMax（本文幅）はここでは意味を持たない。
+  //   そのままにすると大画面で本文幅ぶんの小さい画像を引き伸ばしてぼやける。
+  // ★ 下マージンは付けない。全幅ヒーローは直下のセクションと地続きに見せるのが自然で、
+  //   余白が要るときは呼び出し側で足すほうが崩れにくい。
+  if (fullBleed) {
+    return (
+      <div className="w-full">
+        <Image src={url} alt={alt} width={2400} height={960} priority sizes={sizes} className="block w-full h-auto" />
+      </div>
+    );
+  }
+
   return (
     // fullBleedMobile: スマホは親の px-4 を -mx-4 で打ち消して全幅表示（ランキングのヒーロー同様）。sm+ は従来通り。
     <div className={`mb-6${fullBleedMobile ? ' -mx-4 sm:mx-0' : ''}`}>
