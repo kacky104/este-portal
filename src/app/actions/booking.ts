@@ -8,7 +8,8 @@ import { getBusinessDateJST } from '@/lib/dutyStatus';
 import { buildSlots, scheduleWindowUtc, jstWallToUtc, SLOT_STEP_MIN, type Slot } from '@/app/lib/booking/slots';
 import { normalizeCallbackPref, callbackPrefLabel } from '@/app/lib/booking/callbackPref';
 import { SALON_BOOKINGS_LIMIT } from '@/app/lib/booking/limits';
-import { sendBookingMail } from '@/app/lib/booking/sendBookingMail';
+import { sendBookingMail, sendBookingTestMail } from '@/app/lib/booking/sendBookingMail';
+import { isValidEmail, normalizeEmail } from '@/app/lib/validation/email';
 import { normalizePhone } from '@/app/lib/validation/phone';
 
 // ネット予約フェーズ1（客向け予約フロー）のサーバーアクション群。
@@ -473,6 +474,40 @@ export async function getSalonBookings(
   }));
 
   return { ok: true, bookings };
+}
+
+/**
+ * 通知先メールの疎通確認（2026-08-16 追加）。オーナー本人 or 運営のみ。
+ *
+ * ★ 保存済みの salons.booking_email 宛にだけ送る。宛先をクライアントから受け取らないこと。
+ *   任意の宛先を受け取ると、ログインさえすれば誰でも自由にメールを送れる踏み台になる。
+ *
+ * ★ ok:true は「Resend が受け付けた」までしか意味しない。届いたかどうかは別。
+ *   打ち間違い宛のバウンスは後から非同期で起きるため、最終確認はお店の受信箱で行う
+ *   （UI 側の文言もそう書くこと）。
+ */
+export async function sendBookingTestMailForSalon(
+  salonId: number,
+): Promise<{ ok: true; to: string } | { ok: false; error: string }> {
+  const auth = await assertSalonOwner(salonId);
+  if (!auth.ok) return { ok: false, error: auth.error };
+
+  // assertSalonOwner は svc を返さない（予約コースとインターバルだけを返す）ので、ここで取り直す。
+  const svc = createServiceClient();
+  const { data: salon, error } = await svc
+    .from('salons')
+    .select('name, booking_email')
+    .eq('id', salonId)
+    .maybeSingle();
+  if (error || !salon) return { ok: false, error: '店舗が見つかりません' };
+
+  const to = normalizeEmail((salon.booking_email as string | null) ?? '');
+  if (!to) return { ok: false, error: '通知先メールアドレスが未設定です。先に入力して保存してください' };
+  if (!isValidEmail(to)) return { ok: false, error: `通知先メールアドレスの形式が正しくありません（${to}）` };
+
+  const res = await sendBookingTestMail({ to, salonName: (salon.name as string | null) ?? '' });
+  if (!res.ok) return { ok: false, error: res.error };
+  return { ok: true, to };
 }
 
 // ── 予約管理（ステータス変更・削除）：オーナー本人 or 運営のみ ──

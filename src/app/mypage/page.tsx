@@ -20,9 +20,10 @@ import { inviteCast, resendCastInvite, unlinkCast, cancelCastInvite } from '@/ap
 import { deleteTherapistWithCleanup } from '@/app/actions/therapistAdmin';
 import { PAYMENT_CARD_OPTIONS } from '@/app/lib/paymentCards';
 import { PAYMENT_METHOD_OPTIONS } from '@/app/lib/paymentMethods';
-import { getSalonBookings, updateBookingStatus, deleteBooking, type OwnerBooking } from '@/app/actions/booking';
+import { getSalonBookings, updateBookingStatus, deleteBooking, sendBookingTestMailForSalon, type OwnerBooking } from '@/app/actions/booking';
 import { callbackPrefLabel } from '@/app/lib/booking/callbackPref';
 import { SALON_BOOKINGS_LIMIT } from '@/app/lib/booking/limits';
+import { isValidEmail, normalizeEmail, suggestEmailDomain } from '@/app/lib/validation/email';
 import { STORAGE_CACHE_CONTROL } from '@/app/lib/storage';
 import SalonFreePagesManager from '@/app/components/SalonFreePagesManager';
 import AccordionCard from '@/app/components/AccordionCard';
@@ -507,6 +508,9 @@ export default function MyPage() {
   // トーストは共通フックで一元管理（タイマー直書きは連続表示・unmount後setStateのバグ源）。
   const { toast, showToast } = useToast();
   const [saving, setSaving] = useState(false);
+  // 通知先メールのテスト送信（2026-08-16）。送信中の二度押し防止＋結果メッセージの保持。
+  const [mailTesting, setMailTesting] = useState(false);
+  const [mailTestResult, setMailTestResult] = useState<{ ok: boolean; msg: string } | null>(null);
   const [savingSchedule, setSavingSchedule] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<'salon' | 'schedule' | 'profile' | 'available' | 'diary' | 'coupon' | 'news' | 'vipletter' | 'board' | 'booking' | 'jobs' | 'popup' | 'support'>('salon');
   // 「運営から」タブの未読お知らせ件数（SupportTab が読み込み時に通知・タブバッジ表示用）。
@@ -1166,18 +1170,45 @@ export default function MyPage() {
       paymentUrl = payRaw;
     }
 
-    // ネット予約：受付ON時は通知先メール必須（簡易チェック＝@を含む程度）。空欄は null。
+    // ネット予約：受付ON時は通知先メール必須。空欄は null。
+    // ★ 2026-08-16 まで検証は「@ を含むか」だけで、gamil.com のような打ち間違いが素通りしていた。
+    //   Resend は送信APIとしては成功を返し、バウンスは後から非同期で起きるため、
+    //   アプリ側には「送れなかった」情報が戻ってこない（実機で確認済み）。
+    //   → 入口で止める。ここを緩めると、また静かに通知が届かない店が生まれる。
     const bookingEnabled = Boolean(salonForm.booking_enabled);
-    const bookingEmail = (salonForm.booking_email ?? '').trim() || null;
+    const bookingEmail = normalizeEmail(salonForm.booking_email ?? '') || null;
     // 施術後インターバル（2026-08-15）。許可値以外は 0＝なしに丸める（DB側にも CHECK 制約あり）。
     const defaultIntervalMin = INTERVAL_MIN_OPTIONS.includes(Number(salonForm.default_interval_min ?? 0))
       ? Number(salonForm.default_interval_min ?? 0)
       : 0;
     if (bookingEnabled) {
-      if (!bookingEmail || !bookingEmail.includes('@')) {
+      if (!bookingEmail) {
         setSaving(false);
         showToast('ネット予約を受け付けるには、通知先メールアドレスを入力してください');
         return;
+      }
+      if (!isValidEmail(bookingEmail)) {
+        setSaving(false);
+        showToast('通知先メールアドレスの形式が正しくありません。もう一度ご確認ください');
+        return;
+      }
+    }
+    // 打ち間違いドメインの疑い（ネット予約OFFでも、入力されていれば見る）。
+    // ★ ここは【保存をブロックしない】こと。似ているだけの正当な独自ドメインがあるため、
+    //   弾いてしまうと正しい宛先を保存できなくなる。確認を1回挟むだけにする。
+    if (bookingEmail) {
+      const suggest = suggestEmailDomain(bookingEmail);
+      if (suggest && suggest !== bookingEmail.split('@')[1]) {
+        const ok = window.confirm(
+          `通知先メールのドメインが「${bookingEmail.split('@')[1]}」になっています。\n` +
+            `「${suggest}」の打ち間違いではありませんか？\n\n` +
+            `このまま保存すると、予約通知が届かない可能性があります。\n` +
+            `OK＝このまま保存 / キャンセル＝入力し直す`,
+        );
+        if (!ok) {
+          setSaving(false);
+          return;
+        }
       }
     }
 
@@ -2502,6 +2533,56 @@ export default function MyPage() {
               <p className="text-[10px] text-slate-400 mt-1">
                 新しい予約が入ったときの通知先です。ネット予約を受け付ける場合は必須。
               </p>
+
+              {/* ── 通知先メールのテスト送信（2026-08-16 追加）──
+                  宛先の打ち間違いは、保存時のチェックだけでは拾いきれない
+                  （形式は正しいが別人のアドレス、など）。Resend のバウンスはアプリに返ってこないので、
+                  最後は「お店の受信箱に届いたか」を人が見るしかない。その導線がこのボタン。
+                  ★ 送るのは保存済みの booking_email 宛だけ。入力中の値は送らない
+                    （サーバー側も salons から読み直す。任意の宛先を受け取ると踏み台になる）。
+                  ★ 文言で「保存後に押す」ことを明示すること。入力しただけで押されると、
+                    前の宛先に飛んで「届いた」と誤解される。 */}
+              <div className="mt-2 flex flex-wrap items-center gap-2">
+                <button
+                  type="button"
+                  disabled={mailTesting || saving}
+                  onClick={async () => {
+                    if (!salon) return;
+                    setMailTesting(true);
+                    setMailTestResult(null);
+                    const res = await sendBookingTestMailForSalon(Number(salon.id));
+                    setMailTesting(false);
+                    setMailTestResult(
+                      res.ok
+                        ? { ok: true, msg: `${res.to} へ送信しました。受信箱をご確認ください（迷惑メールもご確認ください）` }
+                        : { ok: false, msg: res.error },
+                    );
+                  }}
+                  className="rounded-full border border-slate-200 bg-white px-3 py-1.5 text-[11px] font-bold text-slate-600 transition-colors hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  {mailTesting ? '送信中…' : '保存済みの宛先にテスト送信'}
+                </button>
+                <span className="text-[10px] text-slate-400">
+                  ※ 先に「保存」してから押してください
+                </span>
+              </div>
+              {mailTestResult && (
+                <p
+                  className={`mt-2 rounded-xl border px-3 py-2 text-[11px] leading-relaxed ${
+                    mailTestResult.ok
+                      ? 'border-emerald-100 bg-emerald-50 text-emerald-700'
+                      : 'border-rose-100 bg-rose-50 text-rose-700'
+                  }`}
+                >
+                  {mailTestResult.msg}
+                  {mailTestResult.ok && (
+                    <>
+                      <br />
+                      届かない場合はアドレスの打ち間違いが疑われます。修正して保存し、もう一度お試しください。
+                    </>
+                  )}
+                </p>
+              )}
             </div>
             {/* 施術後のインターバル（2026-08-15追加）。ネット予約の予約枠に自動で加算する */}
             <div>

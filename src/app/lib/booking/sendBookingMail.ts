@@ -25,15 +25,28 @@ function esc(s: string): string {
     .replace(/>/g, '&gt;');
 }
 
-export async function sendBookingMail(input: BookingMailInput): Promise<void> {
+/**
+ * 送信結果。2026-08-16 に void から変更した。
+ *
+ * ★ 予約通知の呼び出し側（createBooking）は、この戻り値を【使わない】こと。
+ *   予約はすでに INSERT 済みで、メールの失敗で巻き戻してはいけない（従来どおりの方針）。
+ * ★ 戻り値を足したのは、ネット予約設定タブの【テスト送信】ボタンへ成否を返すため。
+ *
+ * ※ ok:true でも「届いた」ことまでは保証しない。Resend が受け付けた、までしか分からない。
+ *   宛先の打ち間違いによるバウンスは後から非同期で起きる（2026-08-16 に実機で確認済み。
+ *   Resend のログには Bounced が残るが、アプリ側には何も返ってこない）。
+ */
+export type SendMailResult = { ok: true } | { ok: false; error: string };
+
+export async function sendBookingMail(input: BookingMailInput): Promise<SendMailResult> {
   const apiKey = process.env.RESEND_API_KEY;
   if (!apiKey) {
     console.error('[sendBookingMail] RESEND_API_KEY 未設定のため送信スキップ');
-    return;
+    return { ok: false, error: 'RESEND_API_KEY が設定されていません（運営にお問い合わせください）' };
   }
   if (!input.to) {
     console.error('[sendBookingMail] 宛先(booking_email)未設定のため送信スキップ');
-    return;
+    return { ok: false, error: '通知先メールアドレスが未設定です' };
   }
   const resend = new Resend(apiKey);
 
@@ -91,8 +104,77 @@ export async function sendBookingMail(input: BookingMailInput): Promise<void> {
     });
     if (error) {
       console.error('[sendBookingMail] Resend送信エラー:', error);
+      return { ok: false, error: error.message ?? '送信に失敗しました' };
     }
+    return { ok: true };
   } catch (e) {
     console.error('[sendBookingMail] 送信例外:', e);
+    return { ok: false, error: e instanceof Error ? e.message : '送信に失敗しました' };
+  }
+}
+
+/**
+ * 通知先メールの疎通確認用テストメール（2026-08-16 追加）。
+ *
+ * ★ 本物の予約通知と【絶対に見分けがつく】文面にすること。
+ *   お店が本物の予約と勘違いして、存在しないお客様へ折り返し電話をかけてしまう。
+ *   件名の先頭に「テスト送信」を入れ、お客様の氏名・電話は一切載せない。
+ * ★ 予約通知のテンプレート（上の sendBookingMail）とは別物にしてある。
+ *   条件分岐で共用すると、本番の文面を触ったときにテスト側が壊れる（またはその逆）。
+ */
+export async function sendBookingTestMail(input: { to: string; salonName: string }): Promise<SendMailResult> {
+  const apiKey = process.env.RESEND_API_KEY;
+  if (!apiKey) {
+    console.error('[sendBookingTestMail] RESEND_API_KEY 未設定のため送信スキップ');
+    return { ok: false, error: 'RESEND_API_KEY が設定されていません（運営にお問い合わせください）' };
+  }
+  if (!input.to) return { ok: false, error: '通知先メールアドレスが未設定です' };
+
+  const resend = new Resend(apiKey);
+  const subject = `【フクエス】テスト送信（${input.salonName}）`;
+  const html = `
+    <div style="font-family:sans-serif;color:#334155;line-height:1.7;max-width:560px">
+      <p style="background:#fef3c7;border:1px solid #fde68a;border-radius:8px;padding:10px 12px;margin:0 0 16px">
+        <strong>これはテスト送信です。実際の予約ではありません。</strong>
+      </p>
+      <p>${esc(input.salonName)} 御中</p>
+      <p>
+        ネット予約の通知先メールアドレスの確認のため、フクエスの管理画面から送信されたテストメールです。<br>
+        このメールが届いていれば、予約通知は正しくこのアドレスへ届きます。
+      </p>
+      <p style="font-size:12px;color:#94a3b8">
+        ※お客様の情報は含まれていません。折り返しのお電話は不要です。<br>
+        ※心当たりがない場合は、このメールを破棄してください。
+      </p>
+    </div>
+  `;
+  const text = [
+    '【これはテスト送信です。実際の予約ではありません】',
+    '',
+    `${input.salonName} 御中`,
+    '',
+    'ネット予約の通知先メールアドレスの確認のため、フクエスの管理画面から送信されたテストメールです。',
+    'このメールが届いていれば、予約通知は正しくこのアドレスへ届きます。',
+    '',
+    '※お客様の情報は含まれていません。折り返しのお電話は不要です。',
+    '※心当たりがない場合は、このメールを破棄してください。',
+  ].join('\n');
+
+  try {
+    const { error } = await resend.emails.send({
+      from: 'フクエス予約 <yoyaku@send.fukues.com>',
+      to: input.to,
+      subject,
+      html,
+      text,
+    });
+    if (error) {
+      console.error('[sendBookingTestMail] Resend送信エラー:', error);
+      return { ok: false, error: error.message ?? '送信に失敗しました' };
+    }
+    return { ok: true };
+  } catch (e) {
+    console.error('[sendBookingTestMail] 送信例外:', e);
+    return { ok: false, error: e instanceof Error ? e.message : '送信に失敗しました' };
   }
 }
