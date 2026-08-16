@@ -138,17 +138,21 @@ export default function HpDesignsPage() {
           ★「16」は画像に焼き込まれている。カラーを増減したら designs-hero-pc/sp も作り直すこと
             （LP側の strengths / design / flow と合わせて計5枚になる）。
 
-          画像: public/hp-lp/designs-hero-pc.webp（1672×941・16:9）
+          画像: public/hp-lp/designs-hero-pc.webp（1983×793・約2.5:1）
                 public/hp-lp/designs-hero-sp.webp（864×1821・約1:2.11）
-          ※ 下端の色（PC #efded4・SP #f0dbcc）はページ背景 #fdf5f5 と差があるため、
+          ★ PC画像は 2026-08-16 に 1672×941（16:9）から 1983×793（2.5:1）へ差し替えた。
+            16:9 だと全幅表示で高さが 856px になり（ブラウザ幅1536pxで実測）、
+            表示領域639pxを 217px はみ出して「全16パターン」まで見えなかった。
+            2.5:1 なら同条件で 608px に収まる。★ 作り直すときも横長を保つこと。
+          ※ 下端の色（PC #f1e0d6・SP #f0dbcc）はページ背景 #fdf5f5 と差があるため、
             画像の直後に白い面を置かないこと。下の h1 ブロックはページ背景のままにしてある。 */}
       <section>
         <picture>
           <source media="(max-width: 639px)" srcSet="/hp-lp/designs-hero-sp.webp" width={864} height={1821} />
           <img
             src="/hp-lp/designs-hero-pc.webp"
-            width={1672}
-            height={941}
+            width={1983}
+            height={793}
             alt=""
             className="block w-full h-auto"
             fetchPriority="high"
@@ -163,14 +167,15 @@ export default function HpDesignsPage() {
       </section>
 
       {/* ── ヒーロー下端の継ぎ目つなぎ（2026-08-16）──
-          画像の下端はページ背景 #fdf5f5 と色差がある（PC 33 / SP 41・チャンネル最大）。
+          画像の下端はページ背景 #fdf5f5 と色差がある（PC 31 / SP 41・チャンネル最大）。
           ★ 画像側を背景色になじませる加工（flow-sp でやった手）は使えない。
             この画像は下端に金の飾りとダイヤが入っており、なじませると飾りが消えるため。
           そこで画像は無加工のまま、直下に「画像の下端色 → ページ背景」のグラデーションを敷いて繋ぐ。
           ★ 画像を作り直したら from- の色も測り直すこと（下端の平均色）。
-            2026-08-16 の実測: PC #efded4 / SP #f0dbcc。 */}
+            2026-08-16 の実測: PC #f1e0d6（2.5:1 に差し替えた新画像の下端16行平均）/ SP #f0dbcc。
+            旧 1672×941 の PC 画像は #efded4 だった。 */}
       <div aria-hidden="true" className="h-6 bg-gradient-to-b from-[#f0dbcc] to-[#fdf5f5] sm:hidden" />
-      <div aria-hidden="true" className="hidden h-8 bg-gradient-to-b from-[#efded4] to-[#fdf5f5] sm:block" />
+      <div aria-hidden="true" className="hidden h-8 bg-gradient-to-b from-[#f1e0d6] to-[#fdf5f5] sm:block" />
 
       {/* ── ページ見出し（可視の h1）── 2026-08-16
           ★ 帯を画像化したあとも、可視の h1 はここに文字で残すこと。

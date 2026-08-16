@@ -75,7 +75,9 @@ const BTN_COUNT = 3;
 const DESIGNS_HERO = {
   pc: '/hp-lp/designs-hero-pc.webp',
   sp: '/hp-lp/designs-hero-sp.webp',
-  pcWH: [1672, 941],
+  // 2026-08-16: PC を 1672×941（16:9）から 1983×793（2.5:1）へ差し替え。
+  // 16:9 は全幅表示だとファーストビューに収まらなかった（幅1536pxで高さ856px）。
+  pcWH: [1983, 793],
   spWH: [864, 1821],
 };
 
