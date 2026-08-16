@@ -8,6 +8,7 @@ import { getBusinessDateJST } from '@/lib/dutyStatus';
 import { buildSlots, scheduleWindowUtc, jstWallToUtc, SLOT_STEP_MIN, type Slot } from '@/app/lib/booking/slots';
 import { normalizeCallbackPref, callbackPrefLabel } from '@/app/lib/booking/callbackPref';
 import { SALON_BOOKINGS_LIMIT } from '@/app/lib/booking/limits';
+import { BOOKING_SOURCE_WEB, BOOKING_SOURCE_MANUAL } from '@/app/lib/booking/source';
 import { sendBookingMail, sendBookingTestMail } from '@/app/lib/booking/sendBookingMail';
 import { isValidEmail, normalizeEmail } from '@/app/lib/validation/email';
 import { normalizePhone } from '@/app/lib/validation/phone';
@@ -381,6 +382,10 @@ export async function createBooking(input: CreateBookingInput): Promise<CreateBo
     note: note || null,
     callback_pref: callbackPref,
     status: 'new',
+    // ★ お客様のネット予約。/mypage の予約一覧はこの値だけを表示する（2026-08-16）。
+    //   省略すると DB の default('web') に頼ることになるが、手入力側と対にして
+    //   両方に明示しておくほうが、どちらの経路か読んで分かる。
+    source: BOOKING_SOURCE_WEB,
   });
   if (insErr) {
     if (isSlotConflictError(insErr.code)) return { ok: false, error: 'slot_taken' };
@@ -429,7 +434,15 @@ export type OwnerBooking = {
   createdAt: string;
 };
 
-/** ログインオーナーの自店の予約一覧を新しい順で返す（表示のみ）。 */
+/**
+ * ログインオーナーの自店の【ネット予約】一覧を新しい順で返す。
+ *
+ * ★ source='web' だけを返す（2026-08-16）。予約ボードで手入力した電話予約
+ *   （createManualBooking / source='manual'）は、このタブには出さない。
+ *   ここはお客様がフォームから入れた予約＝店に通知メールが飛んだ予約を確認する場所で、
+ *   折り返し希望や「確定にする」ボタンも、お店が自分で書いた予約には意味がないため。
+ *   ★ 手入力の予約は予約ボード（getBookingBoard）に従来どおり全部出る。消えたわけではない。
+ */
 export async function getSalonBookings(
   salonId: number,
 ): Promise<{ ok: true; bookings: OwnerBooking[] } | { ok: false; error: string }> {
@@ -455,6 +468,9 @@ export async function getSalonBookings(
     .from('salon_bookings')
     .select('id, therapist_id, slot_start, slot_end, course_name, course_min, customer_name, customer_tel, note, callback_pref, status, created_at')
     .eq('salon_id', salonId)
+    // ★ ネット予約だけ。予約ボードへの手入力（source='manual'）は除外する（2026-08-16）。
+    //   この1行を外すと手入力の電話予約までこのタブに並ぶ。
+    .eq('source', BOOKING_SOURCE_WEB)
     .order('slot_start', { ascending: false })
     // 表示の上限であって、データの保持期間ではない（詳しくは lib/booking/limits.ts のコメント）。
     // 上限に達したことは画面側でも同じ定数を使って案内している（2026-08-16）。
@@ -601,7 +617,12 @@ export async function deleteBooking(
 // いずれもオーナー本人（または運営）のみ。読み書きは service_role でサーバー側完結。
 // テーブルは既存の salon_bookings / therapist_schedules をそのまま使う（マイグレーション不要）。
 // 電話予約の手入力は status='confirmed' で INSERT する（電話口で成立済みのため）。
-// ネット予約（createBooking）との区別は callback_pref では付けず、確定済みかどうかの運用に委ねる。
+//
+// ★ ネット予約（createBooking）との区別は salon_bookings.source で持つ（2026-08-16 追加）。
+//   以前はここに「callback_pref では区別を付けず、確定済みかどうかの運用に委ねる」と書いていたが、
+//   status は運用で変わるうえ callback_pref の未選択は両者とも 'none' なので、
+//   実際には【あとから区別できなかった】。列で持つように変えた。
+//   ネット予約タブの一覧（getSalonBookings）は source='web' だけを表示する。
 
 // ログインユーザーが salonId のオーナー本人（または運営）であることを検証する。
 // あわせて booking_courses（手入力フォームのコース候補用）を返す。
@@ -749,6 +770,8 @@ export async function getBookingBoardData(
   }
 
   // 窓に重なる予約（cancelled も返す＝ボードで薄く表示して履歴が追えるように）。
+  // ★ ボードは source で絞らない。ネット予約も手入力もすべて出す（2026-08-16）。
+  //   絞っているのはネット予約タブの一覧（getSalonBookings）だけ。
   const { data: rows, error: bErr } = await svc
     .from('salon_bookings')
     .select('id, therapist_id, slot_start, slot_end, course_name, course_min, customer_name, customer_tel, note, callback_pref, status, created_at')
@@ -947,6 +970,9 @@ export async function createManualBooking(input: ManualBookingInput): Promise<{ 
     note: note || null,
     callback_pref: 'none',
     status: 'confirmed',
+    // ★ 予約ボードへの手入力。これが 'manual' なので、ネット予約タブの一覧には出ない（2026-08-16）。
+    //   予約ボードには従来どおり出る（getBookingBoard は source で絞っていない）。
+    source: BOOKING_SOURCE_MANUAL,
   });
   if (insErr) {
     if (isSlotConflictError(insErr.code)) return { ok: false, error: 'その時間帯は既に予約が入っています' };

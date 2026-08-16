@@ -2428,15 +2428,22 @@ export default function MyPage() {
         {/* ── タブ: ネット予約設定 ── */}
         <div className={`space-y-4 ${activeTab === 'booking' ? '' : 'hidden'}`}>
 
-        {/* 予約一覧（新しい順・表示のみ。ステータス変更/削除は後日） */}
+        {/* 予約一覧（新しい順・お客様からのネット予約のみ） */}
         <div className="bg-white rounded-3xl border border-slate-100 shadow-sm p-5 space-y-3">
           <div className="flex items-center justify-between">
-            <h2 className="text-sm font-black text-slate-700">予約一覧</h2>
+            <h2 className="text-sm font-black text-slate-700">ネット予約一覧</h2>
             {/* 上限に達したときは「200件」と出すと実際の総数に見えてしまうので「直近200件」に変える（2026-08-16）。 */}
             <span className="text-[11px] text-slate-400">
               {bookings.length >= SALON_BOOKINGS_LIMIT ? `直近${SALON_BOOKINGS_LIMIT}件` : `${bookings.length}件`}
             </span>
           </div>
+          {/* ── 何が出て何が出ないかの明示（2026-08-16 追加）──
+              getSalonBookings() が source='web' で絞っているため、予約ボードに手入力した予約は
+              ここに出ない。★ 常時表示にしてある。条件付きにすると「入れたはずの予約が無い」と
+              思ったときに限って読めない。データが消えたわけではないことも必ず書くこと。 */}
+          <p className="text-[11px] leading-relaxed text-slate-400">
+            お客様からのネット予約のみを表示しています。予約ボードに手入力した予約（電話予約など）はここには出ません（予約ボードには残っています）。
+          </p>
           {/* ── 表示上限の案内（2026-08-16 追加）──
               getSalonBookings() が .limit(SALON_BOOKINGS_LIMIT) で読んでいるため、
               上限に達すると件数表示が黙って頭打ちになり「古い予約が消えた」と誤解されやすい。
@@ -2444,7 +2451,7 @@ export default function MyPage() {
               ちょうど上限と同数のときも出るが、「◯件まで表示しています」は事実として正しい。 */}
           {!bookingsError && !bookingsLoading && bookings.length >= SALON_BOOKINGS_LIMIT && (
             <p className="rounded-xl border border-slate-100 bg-slate-50 px-3 py-2 text-[11px] leading-relaxed text-slate-500">
-              予約日時が新しい順に{SALON_BOOKINGS_LIMIT}件まで表示しています。
+              ネット予約を予約日時が新しい順に{SALON_BOOKINGS_LIMIT}件まで表示しています。
               これより古い予約も削除されておらず、データはすべて残っています。
             </p>
           )}
