@@ -1,11 +1,21 @@
 // /listing「掲載をご希望の店舗様へ」の見出しブロック（2026-08-17 / 第20便）。
 // もともと <h2> と説明文の <p> だった部分を、オーナー作成のデザイン画像に差し替えたもの。
 //
-// ★ 幅は本文ラッパー（max-w-3xl）の【中】。全幅にしていない（2026-08-17 オーナー判断）。
-//   この帯は「すぐ下のPDF案内と入力フォームの見出し」なので、
-//   フォームと左右が揃っているほうが、何の見出しなのかが伝わる。
-//   上の3ブロック（ListingAbout / ListingFeatures / ListingHpPromo）は全幅だが、
-//   あちらは独立した紹介セクションで役割が違う。
+// ★ 幅は【画面いっぱい】。本文ラッパー（max-w-3xl）の外に置いてある（2026-08-17 オーナー判断）。
+//   いったん max-w-3xl の中に入れて実測したが、全幅のほうが見栄えが良いという判断で変更した。
+//   動かすときは page.tsx 側で本文ラッパーの外に置くこと。中に入れると左右16pxの余白が付いて全幅にならない。
+//
+// ★ 上に 40px の黒い隔たり（pt-10）を入れている。すぐ上の ListingHpPromo も全幅の暗い帯なので、
+//   隙間なしで並べると2枚が1枚の大きな黒い塊に見える。かといってページ背景（薄いピンク）を
+//   挟むと帯が分断されて見えるため、黒のまま間隔だけ空ける形にした。
+//
+// ★ ★ 背景色を 768px で切り替えているのは【継ぎ目を消すため】。
+//   画像の上端の色を実測すると PC=#1e1e1d ／ SP=#171514 で微妙に違う。
+//   単色1つで済ませると、どちらかの画面幅で隔たりと画像の境目に線が出る。
+//   Tailwind の md: はちょうど 768px で、下の <source media="(max-width: 767px)"> の
+//   境界と一致する。★ 画像を差し替えたら、上端の色を測り直してここも直すこと。
+//
+// ★ 角丸は付けていない。全幅の帯なので、角を丸めると左右の端で背景が三角に覗く。
 //
 // ★ リンクを付けていない。画像の「下のフォームから相談する↓」が指しているのは
 //   すぐ下にある実物のフォームで、押させる先が別にあるわけではない。
@@ -25,7 +35,7 @@
 
 export function ListingContactHeading() {
   return (
-    <section className="mb-4">
+    <section className="w-full bg-[#171514] md:bg-[#1e1e1d] pt-10">
       {/* ── 画面に出さないテキスト（検索エンジン・読み上げ用）。画像の文言と一致させること。 */}
       <h2 className="sr-only">掲載をご希望の店舗様へ</h2>
       <p className="sr-only">CONTACT　福岡で、もっと選ばれるお店へ。</p>
@@ -34,7 +44,7 @@ export function ListingContactHeading() {
       </p>
       <p className="sr-only">ご相談無料／資料請求OK</p>
 
-      {/* ── 見た目（画像）。alt="" ＝ 装飾扱い（内容は上の sr-only が持っている）。 */}
+      {/* ── 見た目（全幅の画像）。alt="" ＝ 装飾扱い（内容は上の sr-only が持っている）。 */}
       <picture>
         <source media="(max-width: 767px)" srcSet="/listing/contact-sp.webp" width={1254} height={1254} />
         <img
@@ -44,7 +54,7 @@ export function ListingContactHeading() {
           alt=""
           loading="lazy"
           decoding="async"
-          className="block w-full h-auto rounded-2xl"
+          className="block w-full h-auto"
         />
       </picture>
     </section>

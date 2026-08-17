@@ -90,12 +90,16 @@ export default async function ListingPage() {
             ★ 本文ラッパー（max-w-3xl px-4）の【外】。中に入れると全幅にならない。 */}
         <ListingHpPromo />
 
-        <div className="max-w-3xl mx-auto px-4 pt-10 pb-10">
         {/* 「掲載をご希望の店舗様へ」の見出しブロック（2026-08-17 / 第20便でデザイン画像に差し替え）。
-            ★ ここは全幅にしない。すぐ下のPDF案内・入力フォームの見出しなので、
-              max-w-3xl の【中】に置いて左右を揃える（2026-08-17 オーナー判断）。
+            ★ 本文ラッパー（max-w-3xl px-4）の【外】＝画面いっぱい（2026-08-17 オーナー判断）。
+              いったんラッパーの中に入れてフォームと幅を揃えたが、全幅のほうが見栄えが良いと判断して外へ出した。
+              中に戻すと左右16pxの余白が付いて全幅にならない。
+            ★ すぐ上の ListingHpPromo と黒がつながって見えないよう、
+              コンポーネント側で 40px の黒い隔たり（pt-10）を持たせている。
             ★ h2 と説明文は ListingContactHeading の中に sr-only で残してある。 */}
         <ListingContactHeading />
+
+        <div className="max-w-3xl mx-auto px-4 pt-10 pb-10">
 
         {/* 掲載案内PDF（public/docs/fukues-listing-guide.pdf・2026-08-07 追加）。
             料金を問い合わせ前に知りたいオーナーが多いため、フォームより先に置く。 */}
