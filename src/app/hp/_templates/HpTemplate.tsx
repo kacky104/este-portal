@@ -138,11 +138,18 @@ export function HpTemplate({ data }: { data: HpPageData }) {
         ) : null}
         <div className="hp-hero-text">
           {salon.catchphrase && <div className="hp-hero-en">{salon.catchphrase}</div>}
-          {/* data-hp-fitline: PC幅で2行に折り返す場合、1行に収まるまで文字を自動縮小
+          {/* data-hp-fitline: 2行に折り返す場合、1行に収まるまで文字を自動縮小
               （HpShell のスクリプト）。JSなしなら従来どおり折り返すだけ。
-              タイプCだけ "always"＝スマホ幅でも1行に収める（2026-08-13 要望）。
-              他のひな形は真偽値のまま＝出力されるHTMLは1バイトも変わらない。 */}
-          <h1 className="hp-hero-name" data-hp-fitline={site.template_key === 'c' ? 'always' : true}>{salon.name}</h1>
+
+              ★ 2026-08-17（第20便）に店名を【全ひな形 "always"】にした。
+                それまでスマホ幅で縮むのはタイプCだけで、A・B・S は折り返していた
+                （タイプAで「THE LABYRINTH ～ラビリンス～」が3行になっていた）。
+                店名はヒーローの主役なので、どのひな形でも1行に収める。
+
+              ★ キャッチコピー（hp-hero-catch）は【真偽値のまま】＝PC幅だけ縮める。
+                こちらは1行に収める必然性が薄く、長文も入る欄なので、
+                スマホでは無理に縮めず折り返すほうが読みやすい。 */}
+          <h1 className="hp-hero-name" data-hp-fitline="always">{salon.name}</h1>
           {site.hero_catch && <p className="hp-hero-catch" data-hp-fitline>{site.hero_catch}</p>}
           <p className="hp-hero-area">{salon.area}{salon.hours ? `　${salon.hours}` : ''}</p>
         </div>

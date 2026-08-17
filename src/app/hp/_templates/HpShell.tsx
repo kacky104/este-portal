@@ -214,19 +214,37 @@ export function HpShell({
             }}
           />
 
-          {/* ── ヒーロー文字の1行フィット（2026-08-11）──
-               PC幅（640px以上）で店名・キャッチコピーが2行に折り返す場合、
-               1行に収まるサイズまで文字を縮める（下限15px。それでも収まらない長文は従来どおり折り返す）。
-               ★ data-hp-fitline="always" の要素だけはスマホ幅でも縮める（2026-08-13）。
-                 タイプCの店名が使う（雑誌風の上部は店名が主役＝2行に折れると崩れるため）。
-                 S/A/B は従来どおりPC幅のみ＝挙動は変わらない。
+          {/* ── ヒーロー文字の1行フィット（2026-08-11／2026-08-17 に改訂）──
+               店名・キャッチコピーが2行に折り返す場合、1行に収まるサイズまで文字を縮める。
+               収まらない長文は従来どおり折り返す（＝下限より小さくはしない）。
+
+               ★ data-hp-fitline="always" の要素はスマホ幅でも縮める。
+                 2026-08-17（第20便）から【店名は全ひな形が "always"】。
+                 それ以外（キャッチコピー）は従来どおり 640px 以上でのみ縮める。
+
+               ★ 2026-08-17 に足した2点。どちらもスマホで店名を1行にするために要る。
+                 ① 文字間を先に詰める。縮める必要があるとき、まず letter-spacing を半分にして
+                   測り直す。タイプAは .12em あるので、これだけで数%ぶん幅が浮き、
+                   そのぶんフォントサイズを大きく保てる（先に文字を小さくすると損）。
+                   ★ 半分にするのは見た目を保つため。0 にすると字面が詰まって別物になる。
+                   ★★ 必ず【em】で入れること。px で入れると、そのあとフォントを縮めても
+                     文字間だけ元の太さで残り、「幅はフォントサイズに比例する」という
+                     下の計算の前提が崩れて文字がはみ出す（実測: 390pxで6px・320pxで13px）。
+                 ② 下限をスマホだけ 13px にする（PCは従来どおり15px）。
+                   スマホは表示幅が狭く、15px 止まりだと「THE LABYRINTH ～ラビリンス～」級の
+                   店名が下限に当たって結局折り返してしまう。
+
                ★ 比較する幅は要素自身ではなく「親の内側の幅」。タイプSのヒーロー文字は flex の
                  子要素で、nowrap にすると要素自身が親からはみ出して広がるため、自分の幅との
                  比較では常に収まって見えてしまう（Playwright 検証で発覚）。
+
+               ★ 毎回 fontSize / whiteSpace / letterSpacing を空に戻してから測ること。
+                 戻さないと、リサイズのたびに前回縮めた値を基準に測って際限なく小さくなる。
+
                ウェブフォント読み込み後・リサイズ時に測り直す。JSなしなら折り返すだけ＝安全側。 ── */}
           <script
             dangerouslySetInnerHTML={{
-              __html: `(function(){var els=document.querySelectorAll('[data-hp-fitline]');if(!els.length)return;var mq=window.matchMedia('(min-width: 640px)');function fit(el){el.style.fontSize='';el.style.whiteSpace='';if(!mq.matches&&el.getAttribute('data-hp-fitline')!=='always')return;var p=el.parentElement;if(!p)return;var pcs=getComputedStyle(p);var avail=p.clientWidth-parseFloat(pcs.paddingLeft)-parseFloat(pcs.paddingRight);el.style.whiteSpace='nowrap';var need=el.scrollWidth;if(need>avail){var cs=parseFloat(getComputedStyle(el).fontSize);var s=cs*avail/need*0.98;if(s<15){el.style.whiteSpace='';return}el.style.fontSize=s+'px'}}function run(){els.forEach(fit)}run();if(document.fonts&&document.fonts.ready){document.fonts.ready.then(run)}var t=false;window.addEventListener('resize',function(){if(!t){t=true;requestAnimationFrame(function(){run();t=false})}},{passive:true})})();`,
+              __html: `(function(){var els=document.querySelectorAll('[data-hp-fitline]');if(!els.length)return;var mq=window.matchMedia('(min-width: 640px)');function fit(el){el.style.fontSize='';el.style.whiteSpace='';el.style.letterSpacing='';var wide=mq.matches;if(!wide&&el.getAttribute('data-hp-fitline')!=='always')return;var p=el.parentElement;if(!p)return;var pcs=getComputedStyle(p);var avail=p.clientWidth-parseFloat(pcs.paddingLeft)-parseFloat(pcs.paddingRight);el.style.whiteSpace='nowrap';var need=el.scrollWidth;if(need<=avail)return;if(!wide){var f0=parseFloat(getComputedStyle(el).fontSize);var ls=parseFloat(getComputedStyle(el).letterSpacing);if(ls>0&&f0>0){el.style.letterSpacing=(ls/f0/2)+'em';need=el.scrollWidth;if(need<=avail)return}}var cs=parseFloat(getComputedStyle(el).fontSize);var s=cs*avail/need*0.98;var min=wide?15:13;if(s<min){el.style.whiteSpace='';el.style.letterSpacing='';return}el.style.fontSize=s+'px'}function run(){els.forEach(fit)}run();if(document.fonts&&document.fonts.ready){document.fonts.ready.then(run)}var t=false;window.addEventListener('resize',function(){if(!t){t=true;requestAnimationFrame(function(){run();t=false})}},{passive:true})})();`,
             }}
           />
 
