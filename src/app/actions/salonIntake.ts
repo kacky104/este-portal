@@ -149,6 +149,8 @@ export async function submitSalonIntake(
     `担当者: ${contactName}（${contactEmail}）`,
     '',
     '内容の確認: https://fukues.com/admin →「新規店舗 入力フォーム発行」→ 内容を見る',
-  ]);
+    // ★ replyTo（2026-08-17 / 第20便）＝この通知で「返信」を押すとご担当者への返事になる。
+    //   形が不正な値は notifyAdmin 側で捨てられるので、ここでの検証は不要。
+  ], { replyTo: contactEmail });
   return { ok: true };
 }

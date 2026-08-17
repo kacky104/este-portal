@@ -102,6 +102,8 @@ export async function submitHpInquiry(
     '',
     '─── 備考 ───',
     note || '(なし)',
-  ]);
+    // ★ replyTo（2026-08-17 / 第20便）＝この通知で「返信」を押すと申込者への返事になる。
+    //   形が不正な値は notifyAdmin 側で捨てられるので、ここでの検証は不要。
+  ], { replyTo: email });
   return { ok: true };
 }

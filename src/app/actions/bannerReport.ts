@@ -101,7 +101,9 @@ export async function submitBannerReport(
     comment ? `補足: ${comment}` : '',
     '',
     '確認・対応: https://fukues.com/x/admin →「報告」タブ',
-  ]);
+    // ★ replyTo（2026-08-17 / 第20便）＝この通知で「返信」を押すと報告者への返事になる。
+    //   形が不正な値は notifyAdmin 側で捨てられるので、ここでの検証は不要。
+  ], { replyTo: email });
   return { ok: true };
 }
 
@@ -174,6 +176,7 @@ export async function submitMyBannerReport(input: {
     comment ? `補足: ${comment}` : '',
     '',
     '確認・対応: https://fukues.com/x/admin →「報告」タブ',
-  ]);
+    // ★ replyTo（2026-08-17 / 第20便）＝この通知で「返信」を押すと報告者への返事になる。
+  ], { replyTo: email });
   return { ok: true };
 }

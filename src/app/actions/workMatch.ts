@@ -139,7 +139,11 @@ export async function submitWorkMatchEntry(
     note || '(なし)',
     '',
     '※ /admin ＞ 店舗管理 ＞ 求職マッチング エントリー から、条件に合う店舗の提案が確認できます。',
-  ]);
+    // ★ replyTo（2026-08-17 / 第20便）＝この通知で「返信」を押すと応募者への返事になる。
+    //   ★ このフォームはメールが任意項目で、空のことがある。
+    //     その場合 notifyAdmin 側が Reply-To を付けずに送るので、ここでの分岐は不要。
+    //     メールが無いときは本文の電話/LINEを見て連絡すること。
+  ], { replyTo: contactEmail });
   return { ok: true };
 }
 

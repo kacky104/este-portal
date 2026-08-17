@@ -70,6 +70,9 @@ export async function submitListingInquiry(
 
   await Promise.all([
     // 1) 運営宛の通知。
+    //    ★ replyTo に店舗様のアドレスを渡している（2026-08-17 / 第20便）。
+    //      この通知で「返信」を押すだけで、そのまま店舗様への返事になる。
+    //      「2営業日以内にご連絡」と約束したので、この一手間を省くのが効く。
     notifyAdmin('【フクエス】掲載のお問い合わせ', [
       `店舗名: ${shopName}`,
       `所在エリア: ${area}`,
@@ -80,7 +83,7 @@ export async function submitListingInquiry(
       '',
       '─── メッセージ ───',
       message || '(なし)',
-    ]),
+    ], { replyTo: email }),
     // 2) 店舗様宛の自動返信（送信内容の控え＋返信の目安）。
     //    ★ 宛先の打ち間違いはここでバウンスし、/admin の「配信トラブル」に出る
     //      （Resend Webhook は店舗と紐づかない宛先も email_events に記録するため）。

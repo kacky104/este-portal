@@ -42,6 +42,8 @@ export async function submitOwnerInquiry(
   if (error) return { ok: false, error: '送信に失敗しました。時間をおいてお試しください' };
 
   // 運営へメール通知。返信用にオーナーのログインメールを本文へ含める。
+  // ★ 2026-08-17（第20便）から Reply-To にも同じアドレスを入れている。
+  //   本文にアドレスが載っているだけだと、返事のたびに手でコピーする必要があった。
   await notifyAdmin(`【フクエス】オーナーお問い合わせ（${salon.name}）`, [
     `店舗: ${salon.name}（ID: ${salon.id}）`,
     `件名: ${subject}`,
@@ -51,6 +53,8 @@ export async function submitOwnerInquiry(
     body,
     '',
     '確認・対応: https://fukues.com/admin →「オーナー連絡」',
-  ]);
+    // ★ user.email は null になり得る（メール以外の手段でログインした場合）。
+    //   その場合 notifyAdmin 側が Reply-To を付けずに送るので、ここでの分岐は不要。
+  ], { replyTo: user.email ?? null });
   return { ok: true };
 }
