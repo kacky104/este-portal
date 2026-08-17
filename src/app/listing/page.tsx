@@ -8,6 +8,7 @@ import { VipLetterIcon } from '@/app/components/VipLetterIcon';
 import { ListingInquiryForm } from './ListingInquiryForm';
 import { ListingAbout } from './ListingAbout';
 import { ListingFeatures } from './ListingFeatures';
+import { ListingPricePlans } from './ListingPricePlans';
 import { ListingHpPromo } from './ListingHpPromo';
 import { ListingContactHeading } from './ListingContactHeading';
 import { SiteNoticeBanner } from '@/app/components/SiteNoticeBanner';
@@ -83,10 +84,19 @@ export default async function ListingPage() {
             ★ 文章は sr-only で ListingFeatures の中に持っている。 */}
         <ListingFeatures />
 
+        {/* 料金プラン（2026-08-17 / 第20便で追加）。
+            ★ それまで金額は掲載案内PDFの中にしか無く、ページ上には割引（→0円）だけが出ていた。
+              その割引の条件がいくらなのかが分からない状態だったので、定価をページに出した。
+            ★ 順番が重要。10機能 → 料金 → 公式HP 0円 → 問い合わせ。
+              料金を先に見せることで、下の 0円 が「既知の価格に乗る特典」として読める。
+              入れ替えると 0円 が何に対する割引なのか分からなくなる。
+            ★ 上下（10機能・公式HP）が暗い画像なのに対しここはクリーム。
+              色が交互になるので、帯どうしがつながって見えず隔たりは要らない。 */}
+        <ListingPricePlans />
+
         {/* 「公式ホームページ制作 0円」の案内バナー（2026-08-17 / 第20便）。
             ★ 帯まるごとが /hp/templates へのリンク。ボタンは画像に描き込まれている。
-            ★ 10機能の「10 公式ホームページ制作」の直後に置いている。
-              機能紹介 → その料金、の順になるので、位置を動かすと話の流れが切れる。
+            ★ 料金プランの直後。「66,000円/33,000円 → その掲載店なら公式HPは0円」と続ける。
             ★ 本文ラッパー（max-w-3xl px-4）の【外】。中に入れると全幅にならない。 */}
         <ListingHpPromo />
 
