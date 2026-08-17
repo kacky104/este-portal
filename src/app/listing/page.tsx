@@ -8,6 +8,7 @@ import { VipLetterIcon } from '@/app/components/VipLetterIcon';
 import { ListingInquiryForm } from './ListingInquiryForm';
 import { ListingAbout } from './ListingAbout';
 import { ListingFeatures } from './ListingFeatures';
+import { ListingHpPromo } from './ListingHpPromo';
 import { SiteNoticeBanner } from '@/app/components/SiteNoticeBanner';
 import { SiteFooter } from '@/app/components/SiteFooter';
 import { getTheme } from '@/app/lib/themes';
@@ -80,6 +81,13 @@ export default async function ListingPage() {
             ★ 09 予約ボード・10 公式ホームページ制作 が増えて 8 → 10 機能になった。
             ★ 文章は sr-only で ListingFeatures の中に持っている。 */}
         <ListingFeatures />
+
+        {/* 「公式ホームページ制作 0円」の案内バナー（2026-08-17 / 第20便）。
+            ★ 帯まるごとが /hp/templates へのリンク。ボタンは画像に描き込まれている。
+            ★ 10機能の「10 公式ホームページ制作」の直後に置いている。
+              機能紹介 → その料金、の順になるので、位置を動かすと話の流れが切れる。
+            ★ 本文ラッパー（max-w-3xl px-4）の【外】。中に入れると全幅にならない。 */}
+        <ListingHpPromo />
 
         <div className="max-w-3xl mx-auto px-4 pt-10 pb-10">
         <h2 className="text-lg font-bold text-slate-800 mb-3">掲載をご希望の店舗様へ</h2>
