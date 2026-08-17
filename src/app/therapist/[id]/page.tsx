@@ -315,6 +315,9 @@ export default async function TherapistPublicPage({
     // 同じ店の他のセラピスト（サイドバーの相互リンク用・2026-08-06）。
     // 従来はセラピスト詳細から他のセラピスト詳細へ行く導線が1本も無く、
     // セラピストページ同士がサイト内で孤立していた。
+    // ★ 上限は 8 → 9（2026-08-17・第20便）。スマホ表示を3列にしたため、
+    //   8名だと最後の行が2人だけになって欠ける。9名なら3列×3行がちょうど埋まる。
+    //   PCサイドバーは縦1列のままなので、1行（約44px）だけ縦に伸びる。
     supabase
       .from('therapists')
       .select('id, name, profile_image_url')
@@ -322,7 +325,7 @@ export default async function TherapistPublicPage({
       .eq('is_active', true)
       .neq('id', therapistId)
       .order('id')
-      .limit(8),
+      .limit(9),
   ]);
 
   const sameSalonTherapists = ((sameSalonRes.data ?? []) as Array<{
@@ -750,26 +753,39 @@ export default async function TherapistPublicPage({
             )}
 
             {/* 同じ店の他のセラピスト（2026-08-06 追加）。
-                在籍が本人だけなら非表示。8名までで、続きは店舗の在籍一覧へ。 */}
+                在籍が本人だけなら非表示。9名までで、続きは店舗の在籍一覧へ。
+
+                ★ 2026-08-17（第20便）にスマホの並びを縦1列 → 3列へ変更した。
+                  8名が縦に並ぶと 430px 幅で高さ450px を使い、間延びして見えていた。
+                  3列（アイコン上・名前下）にすると385pxに収まり、
+                  同時にアイコンが 32px → 52px（面積で2.6倍）になって顔が見分けやすくなる。
+
+                ★ 多列化は lg 未満だけ。lg 以上はこのブロックがサイドバー（幅272px）に入るため、
+                  3列にすると1列あたり約80pxしか取れず名前がほぼ全部 … になる。
+                  lg 以上は従来どおり「アイコン左・名前右」の縦1列に戻している。
+                  ul は grid → lg:block に戻し、そのうえで lg:space-y-1 を効かせている
+                  （space-y は display:grid のままだと gap と二重になるため）。 */}
             {sameSalonTherapists.length > 0 && salon && (
               <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-5">
                 <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wide mb-3">同じ店の他のセラピスト</p>
-                <ul className="space-y-1">
+                <ul className="grid grid-cols-3 gap-x-2 gap-y-2.5 lg:block lg:space-y-1">
                   {sameSalonTherapists.map((t) => (
-                    <li key={t.id}>
+                    <li key={t.id} className="min-w-0">
                       <Link
                         href={`/therapist/${t.id}`}
-                        className="flex items-center gap-2.5 py-1.5 rounded-lg hover:bg-pink-50/70 transition-colors"
+                        className="flex flex-col items-center gap-1.5 py-2 px-0.5 rounded-xl hover:bg-pink-50/70 transition-colors lg:flex-row lg:gap-2.5 lg:py-1.5 lg:px-0 lg:rounded-lg"
                       >
-                        <span className="w-8 h-8 rounded-full bg-slate-100 overflow-hidden flex-shrink-0 flex items-center justify-center">
+                        <span className="w-[52px] h-[52px] lg:w-8 lg:h-8 rounded-full bg-slate-100 overflow-hidden flex-shrink-0 flex items-center justify-center">
                           {t.image ? (
                             // eslint-disable-next-line @next/next/no-img-element
                             <img src={t.image} alt="" loading="lazy" decoding="async" className="w-full h-full object-cover" />
                           ) : (
-                            <span className="text-[11px] font-bold text-slate-400">{(t.name || '?').charAt(0)}</span>
+                            <span className="text-[15px] lg:text-[11px] font-bold text-slate-400">{(t.name || '?').charAt(0)}</span>
                           )}
                         </span>
-                        <span className="text-[13px] font-semibold text-slate-700 truncate">{t.name}</span>
+                        <span className="w-full lg:w-auto text-center lg:text-left text-[11.5px] lg:text-[13px] font-semibold text-slate-700 truncate">
+                          {t.name}
+                        </span>
                       </Link>
                     </li>
                   ))}
