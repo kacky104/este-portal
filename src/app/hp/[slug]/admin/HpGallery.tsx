@@ -16,8 +16,13 @@ import { DesignThumb, HP_TEMPLATE_NOTES, hpVariantColors } from '@/app/hp/_templ
 //   role==='operator' のときだけ表示）。実物プレビュー（/hp/[slug]/preview/…）で
 //   その店の実データが入った状態を確認してから確定できる。
 //
-// 確定するとロックされ、以後ひな形・カラーは saveHpSiteContent では変更できない
-// （解除は SQL で design_locked=false に戻す）。
+// 確定するとロックされ、以後ひな形・カラーは saveHpSiteContent では変更できない。
+//
+// ★ 解除の方法（2026-08-17 / 第20便に更新）。以前ここには「SQL で design_locked=false に
+//   戻す」と書いてあったが、段階4（2026-08-09）で /admin から切り替えられるようになっている。
+//   /admin →「公式HP管理（契約サイト）」→ その店の「編集」→ デザイン確定ロックを外して保存。
+//   そのあとこの画面を運営として開けば選び直せる（確定すると自動で再ロック）。
+//   ★ ロックを外しても公開ページは止まらない（公開判定は status==='live' だけ）。
 
 export function HpGallery({
   onConfirm,

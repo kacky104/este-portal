@@ -248,9 +248,24 @@ export function HpSitesManager({ onToast }: { onToast: (msg: string) => void }) 
                         onChange={(e) => setPatch({ ...patch, designLocked: e.target.checked })}
                         className="w-4 h-4 accent-pink-500"
                       />
+                      {/* ★ 2026-08-17（第20便）に手順を書き足した。
+                          このチェックを外した先に何が起きるかがどこにも書かれておらず、
+                          「タイプ・カラーの変更依頼が来たらどうするか」を毎回コードから
+                          読み解く必要があった。手順は3ステップで完結する。 */}
                       <span className="text-[11px] font-bold text-slate-600">
                         デザイン確定ロック
-                        <span className="block text-[10px] font-normal text-slate-400">外すとギャラリーから再選択できる状態に戻る（有償作業時）</span>
+                        <span className="block text-[10px] font-normal text-slate-400 leading-relaxed">
+                          ひな形・カラーの変更依頼（有償作業）はこの手順で行う。
+                          <br />① このチェックを外して保存
+                          <br />② その店の「管理画面」を開く → デザイン選択が出るので選び直して確定
+                          <br />③ 確定すると自動でロックが戻る（ここを手で戻す必要はない）
+                          <br />
+                          <strong className="text-slate-500">公開中のHPは止まらない。</strong>
+                          公開判定は上の「公開状態」だけを見ているので、②で確定するまで旧デザインのまま表示され続ける。
+                          写真・文章・並び順も引き継がれる（実店舗はデザインごとの画像を持たないため）。
+                          <br />
+                          店舗がこの間に管理画面を開くと「デザインを準備中です」の案内になる。
+                        </span>
                       </span>
                     </label>
                     <label className="flex items-end gap-2 pb-1">

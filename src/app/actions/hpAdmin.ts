@@ -193,7 +193,18 @@ export async function listHpTherapists(
 // ── デザイン確定（ギャラリー） ───────────────────────────
 /**
  * ひな形とカラーを確定してロックする。design_locked=false のときだけ通る。
- * 確定後の変更は運営の有償作業（運営が SQL で design_locked=false に戻して再選択させる）。
+ *
+ * 確定後の変更は運営の有償作業。手順は3ステップ（2026-08-17 / 第20便に更新）:
+ *   ① /admin →「公式HP管理（契約サイト）」→ その店の「編集」→ デザイン確定ロックを外して保存
+ *   ② その店の /hp/{slug}/admin を運営として開く → デザイン選択が出るので選び直して確定
+ *   ③ この関数が design_locked=true を書くので、手でロックを戻す必要はない
+ *
+ * ★ 以前ここには「運営が SQL で design_locked=false に戻して」と書いてあったが、
+ *   段階4（2026-08-09）で /admin の編集パネルから切り替えられるようになっている。
+ *   SQL を直接叩く必要はもう無い。
+ *
+ * ★ ロックを外しても公開ページは止まらない。公開判定は status==='live' だけで、
+ *   design_locked は見ていない（②で確定するまで旧デザインのまま表示され続ける）。
  */
 export async function confirmHpDesign(
   siteKey: string,
