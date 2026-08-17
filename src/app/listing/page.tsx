@@ -122,14 +122,36 @@ export default async function ListingPage() {
             ★ h2 と説明文は ListingContactHeading の中に sr-only で残してある。 */}
         <ListingContactHeading />
 
+        {/* ── お問い合わせフォームの帯（2026-08-17 / 第20便で追加）──────────────
+            ★ なぜ帯にしたか。PCではCONTACT画像が全幅（1521px）なのに対しフォームは768pxで、
+              淡いページ背景の上に左右約390pxの空白を作って浮いて見えていた。
+              フォームの幅を広げても直らない（入力欄が間延びするだけ）。
+              直し方は「フォームを載せる土台を全幅で敷く」。中身は768pxのまま動かさない。
+
+            ★ 背景色 #1f1f1e は CONTACT画像の【下端の実測色】。同じ色を下へ続けているので
+              画像と帯のあいだに継ぎ目が出ず、画像＋フォームが1つのセクションとして読める。
+              ★ CONTACT の画像を差し替えたら、下端の色を測り直してここも合わせること。
+                ずれると帯の始まりに横線が1本入る。
+
+            ★ 暗い面なので、この中のテキスト色は通常のページと変える必要がある。
+              slate-500 のままだと読めない。下の注記は #cbb89a、リンクは #f0b27a。
+              ★ この帯の中に要素を足すときは色を必ず確認すること。
+
+            ★ 帯はフォームと注記まで。「無料掲載について」以降は明るい背景に戻す。 */}
+        <section className="w-full bg-[#1f1f1e]">
+          <div className="max-w-3xl mx-auto px-4 pt-10 pb-12">
+            <p className="text-sm font-black text-[#f5ead6] mb-3.5">下記フォームよりお問い合わせください</p>
+
+            {/* 掲載お問い合わせフォーム（未ログインで送信可・運営宛メール通知＋listing_inquiriesに保存） */}
+            <ListingInquiryForm />
+
+            <p className="text-xs text-[#cbb89a] leading-relaxed mt-3">
+              メールでのお問い合わせも受け付けています：<a href="mailto:info@fukues.com" className="text-[#f0b27a] hover:underline">info@fukues.com</a>
+            </p>
+          </div>
+        </section>
+
         <div className="max-w-3xl mx-auto px-4 pt-10 pb-10">
-
-        {/* 掲載お問い合わせフォーム（未ログインで送信可・運営宛メール通知＋listing_inquiriesに保存） */}
-        <ListingInquiryForm />
-
-        <p className="text-xs text-slate-500 leading-relaxed mt-3">
-          メールでのお問い合わせも受け付けています：<a href="mailto:info@fukues.com" className="text-pink-600 hover:underline">info@fukues.com</a>
-        </p>
 
         {/* ── 無料掲載（テキスト掲載）の案内（2026-08-07 追加）──
             条件＝公式HPに3サイトのリンクバナー設置。確認後 /admin の「無料掲載枠」に手入力で
