@@ -1103,6 +1103,24 @@ export default function MyPage() {
   const updateBookingCourse = (index: number, patch: Partial<BookingCourseForm>) =>
     setBookingCourses((prev) => prev.map((c, i) => (i === index ? { ...c, ...patch } : c)));
 
+  // ネット予約タブのチップに出す「未処理」件数（2026-08-17 / 第20便）。
+  //
+  // ★ 開いた瞬間に「対応すべき予約がある」と分かるようにするためのもの。
+  //   通知メールは届くが、メールを見落とすと予約一覧を開くまで気づけなかった。
+  //
+  // ★ bookings は【タブを開いていなくても】ページ読み込み時に取得済み。
+  //   だから他のタブを見ているときでもこの件数は出る（/admin の各バッジと同じ考え方）。
+  //
+  // ★ status==='new'（＝画面の「新規リクエスト」）だけを数える。
+  //   確定・キャンセルは対応済みなので数えない。
+  //   「確定にする」「キャンセル」を押すと handleBookingStatus が bookings を
+  //   その場で書き換えるため、バッジもリロードなしで減る。
+  //
+  // ★ 数える対象は【一覧に出ている予約】そのもの。別のクエリを投げていない。
+  //   投げると、一覧の上限（SALON_BOOKINGS_LIMIT）を超えたぶんで
+  //   「バッジは3なのに一覧に3件見当たらない」というズレが起きる。
+  const bookingNewCount = bookings.filter((b) => b.status === 'new').length;
+
   // 予約管理：ステータス変更（確定/キャンセル/新規に戻す）。成功時はローカルstateを書き換え。
   const handleBookingStatus = async (bookingId: string, nextStatus: 'new' | 'confirmed' | 'cancelled') => {
     setBookingBusyId(bookingId);
@@ -1999,6 +2017,15 @@ export default function MyPage() {
               >
                 {tabIcon(key)}
                 {label}
+                {/* 「ネット予約」タブ: 未処理（新規リクエスト）件数のバッジ（2026-08-17 / 第20便）。
+                    ★ 一覧は他のタブを見ていても読み込み済みなので、どのタブからでも出る。
+                    ★ 色は運営事務局の未読バッジと同じピンク＝「要対応」。
+                      赤（rose）は /admin でメール不達＝取りこぼし専用にしてあるので使わない。 */}
+                {key === 'booking' && bookingNewCount > 0 && (
+                  <span className="inline-flex items-center justify-center min-w-[16px] h-[16px] px-1 rounded-full bg-pink-500 text-white text-[9px] font-black leading-none">
+                    {bookingNewCount}
+                  </span>
+                )}
                 {/* 「運営から」タブ: 未読お知らせ件数の赤バッジ（/admin 求人タブのバッジと同型） */}
                 {key === 'support' && supportUnread > 0 && (
                   <span className="inline-flex items-center justify-center min-w-[16px] h-[16px] px-1 rounded-full bg-pink-500 text-white text-[9px] font-black leading-none">
