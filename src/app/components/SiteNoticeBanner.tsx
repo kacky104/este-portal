@@ -30,7 +30,7 @@ export function SiteNoticeBanner({ variant = 'default' }: { variant?: Variant })
   return (
     <div className={`sticky top-14 z-40 border-b ${v.box}`}>
       <p className={`${v.inner} mx-auto px-4 py-2 text-center text-xs sm:text-sm font-bold leading-relaxed ${v.text}`}>
-        現在テスト運用中です。8月中旬サイトオープン予定。
+        現在テスト運用中です。9月1日サイトオープン予定。
       </p>
     </div>
   );
