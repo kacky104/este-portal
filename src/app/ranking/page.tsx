@@ -15,7 +15,7 @@ import { fetchActiveAdBanners } from '@/app/lib/adBanners';
 // アクセス集計は随時更新されるため短めのISR（5分）。週境界は fetch 時に月曜JSTで判定。
 export const revalidate = 300;
 
-const RANKING_TITLE = '週間ランキング｜福岡メンズエステ【フクエス】';
+const RANKING_TITLE = '福岡メンズエステランキング【フクエス】';
 const RANKING_DESCRIPTION =
   '福岡のメンズエステ 週間アクセスランキング。人気の店舗・セラピストを毎週更新でチェックできます（毎週月曜リセット）。';
 
