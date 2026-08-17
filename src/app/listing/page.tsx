@@ -140,7 +140,7 @@ export default async function ListingPage() {
             ★ 帯はフォームと注記まで。「無料掲載について」以降は明るい背景に戻す。 */}
         <section className="w-full bg-[#1f1f1e]">
           <div className="max-w-3xl mx-auto px-4 pt-10 pb-12">
-            <p className="text-sm font-black text-[#f5ead6] mb-3.5">下記フォームよりお問い合わせください</p>
+            <p className="text-sm font-black text-[#f5ead6] text-center mb-3.5">下記フォームよりお問い合わせください</p>
 
             {/* 掲載お問い合わせフォーム（未ログインで送信可・運営宛メール通知＋listing_inquiriesに保存） */}
             <ListingInquiryForm />
@@ -156,7 +156,7 @@ export default async function ListingPage() {
         {/* ── 無料掲載（テキスト掲載）の案内（2026-08-07 追加）──
             条件＝公式HPに3サイトのリンクバナー設置。確認後 /admin の「無料掲載枠」に手入力で
             /salons のテキスト一覧へ掲載する運用（free_salon_listings）。 */}
-        <h2 className="text-lg font-bold text-slate-800 mt-8 mb-3">無料掲載について</h2>
+        <h2 className="text-lg font-bold text-slate-800 text-center mt-8 mb-3">無料掲載について</h2>
         <p className="text-sm text-slate-600 leading-relaxed mb-3">
           店舗様の公式ホームページに、フクエス・フクエスワーク・fukuX（フクエックス）の3つの
           <a href="/banner" className="text-pink-600 hover:underline">リンクバナー</a>
@@ -185,7 +185,7 @@ export default async function ListingPage() {
           ※ 掲載期間中はバナーの設置継続をお願いします。バナーが確認できなくなった場合、掲載を終了することがあります。
         </p>
 
-        <h2 className="text-lg font-bold text-slate-800 mt-8 mb-3">掲載できる店舗について</h2>
+        <h2 className="text-lg font-bold text-slate-800 text-center mt-8 mb-3">掲載できる店舗について</h2>
         <p className="text-sm text-slate-600 leading-relaxed mb-2">
           以下に該当する店舗様の掲載はお断りしています。
         </p>
@@ -195,7 +195,7 @@ export default async function ListingPage() {
           <li>その他、当事務局が掲載にふさわしくないと判断した場合</li>
         </ul>
 
-        <div className="mt-10 text-sm text-slate-500 leading-relaxed">
+        <div className="mt-10 text-sm text-slate-500 leading-relaxed text-right">
           <p>フクエス運営事務局</p>
         </div>
         </div>
