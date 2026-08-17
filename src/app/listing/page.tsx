@@ -9,6 +9,7 @@ import { ListingInquiryForm } from './ListingInquiryForm';
 import { ListingAbout } from './ListingAbout';
 import { ListingFeatures } from './ListingFeatures';
 import { ListingHpPromo } from './ListingHpPromo';
+import { ListingContactHeading } from './ListingContactHeading';
 import { SiteNoticeBanner } from '@/app/components/SiteNoticeBanner';
 import { SiteFooter } from '@/app/components/SiteFooter';
 import { getTheme } from '@/app/lib/themes';
@@ -90,10 +91,11 @@ export default async function ListingPage() {
         <ListingHpPromo />
 
         <div className="max-w-3xl mx-auto px-4 pt-10 pb-10">
-        <h2 className="text-lg font-bold text-slate-800 mb-3">掲載をご希望の店舗様へ</h2>
-        <p className="text-sm text-slate-600 leading-relaxed mb-4">
-          本サイトへの掲載をご希望の店舗様は、下記フォームからお気軽にお問い合わせください。掲載内容・条件等の詳細をご案内いたします。
-        </p>
+        {/* 「掲載をご希望の店舗様へ」の見出しブロック（2026-08-17 / 第20便でデザイン画像に差し替え）。
+            ★ ここは全幅にしない。すぐ下のPDF案内・入力フォームの見出しなので、
+              max-w-3xl の【中】に置いて左右を揃える（2026-08-17 オーナー判断）。
+            ★ h2 と説明文は ListingContactHeading の中に sr-only で残してある。 */}
+        <ListingContactHeading />
 
         {/* 掲載案内PDF（public/docs/fukues-listing-guide.pdf・2026-08-07 追加）。
             料金を問い合わせ前に知りたいオーナーが多いため、フォームより先に置く。 */}
