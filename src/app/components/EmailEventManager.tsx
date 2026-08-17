@@ -115,12 +115,31 @@ export default function EmailEventManager({
 
   return (
     <div className="bg-white rounded-3xl border border-slate-100 shadow-sm p-6">
+      {/* ★ 2026-08-17（第20便）に説明文を書き足した。
+          第19便の時点では、ここに出る不達は【掲載店舗への予約通知】だけだった。
+          その後 /listing の掲載お問い合わせに自動返信メールを足したため、
+          店舗と紐づかない不達（＝お問い合わせした店舗様のアドレス間違い）も出るようになった。
+          店舗名の有無で対処がまったく違うので、両方書いてある。
+          ★ 今後さらに別のメールを増やしたら、ここの案内も足すこと。
+            「何が届かなかったのか」が分からない行は、放置されるだけで終わる。 */}
       <p className="text-[11px] text-slate-400 leading-relaxed mb-4">
         フクエスから送ったメールのうち、<strong className="text-slate-500">相手に届かなかったもの</strong>の一覧です（Resend からの通知を自動記録）。
-        店舗名が出ているものは、その店の<strong className="text-slate-500">予約通知が届いていません</strong>。
-        店舗編集の「予約通知メール」を直し、ネット予約設定の「テスト送信」で疎通を確認してから「対応済み」にしてください。
-        {events.length >= LIMIT && <>（表示は直近{LIMIT}件までです）</>}
+        対処は<strong className="text-slate-500">店舗名が出ているかどうか</strong>で変わります。
       </p>
+      <ul className="text-[11px] text-slate-400 leading-relaxed mb-4 space-y-1.5 pl-4 list-disc marker:text-slate-300">
+        <li>
+          <strong className="text-slate-500">店舗名が出ている</strong>…その店の<strong className="text-slate-500">予約通知が届いていません</strong>。
+          店舗編集の「予約通知メール」を直し、ネット予約設定の「テスト送信」で疎通を確認してから「対応済み」にしてください。
+        </li>
+        <li>
+          <strong className="text-slate-500">店舗名が空欄</strong>…掲載や求人のお問い合わせをくださった方への<strong className="text-slate-500">自動返信が届いていません</strong>
+          （件名で見分けられます）。相手が入力したメールアドレスの打ち間違いが原因なので、こちらから直す方法はありません。
+          <strong className="text-slate-500">電話番号が分かればそちらへ連絡</strong>し、分からなければそのまま「対応済み」にしてください。
+        </li>
+      </ul>
+      {events.length >= LIMIT && (
+        <p className="text-[11px] text-slate-400 leading-relaxed mb-4">（表示は直近{LIMIT}件までです）</p>
+      )}
 
       {loading ? (
         <p className="text-xs text-slate-400 text-center py-6">読み込み中...</p>
