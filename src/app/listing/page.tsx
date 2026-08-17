@@ -11,6 +11,7 @@ import { ListingFeatures } from './ListingFeatures';
 import { ListingPricePlans } from './ListingPricePlans';
 import { ListingHpPromo } from './ListingHpPromo';
 import { ListingContactHeading } from './ListingContactHeading';
+import { ListingGuidePdfLink } from './ListingGuidePdfLink';
 import { SiteNoticeBanner } from '@/app/components/SiteNoticeBanner';
 import { SiteFooter } from '@/app/components/SiteFooter';
 import { getTheme } from '@/app/lib/themes';
@@ -112,23 +113,12 @@ export default async function ListingPage() {
         <div className="max-w-3xl mx-auto px-4 pt-10 pb-10">
 
         {/* 掲載案内PDF（public/docs/fukues-listing-guide.pdf・2026-08-07 追加）。
-            料金を問い合わせ前に知りたいオーナーが多いため、フォームより先に置く。 */}
-        <a
-          href="/docs/fukues-listing-guide.pdf"
-          target="_blank"
-          rel="noopener noreferrer"
-          className="flex items-center gap-3 rounded-2xl border border-pink-200 bg-pink-50/50 px-4 py-3 mb-4 hover:border-pink-300 hover:bg-pink-50 transition-colors"
-        >
-          <span className="flex-shrink-0 inline-flex items-center justify-center w-9 h-9 rounded-xl bg-white border border-pink-200 text-pink-500 text-[10px] font-black">
-            PDF
-          </span>
-          <span className="min-w-0">
-            <span className="block text-sm font-bold text-pink-600">掲載店舗募集のご案内（PDF）</span>
-            <span className="block text-xs text-slate-500 mt-0.5">
-              料金体系など詳しく知りたい方は、こちらのご案内資料をご覧ください。
-            </span>
-          </span>
-        </a>
+            料金を問い合わせ前に知りたいオーナーが多いため、フォームより先に置く。
+            ★ 2026-08-17（第20便）にHTMLのピンクのカードからデザイン画像へ差し替えた。
+            ★ ここは全幅にしない。下のお問い合わせフォームと対の導線なので、
+              本文ラッパー（max-w-3xl）の中でフォームと左右を揃える。
+            ★ 説明文は ListingGuidePdfLink の中に sr-only で残してある。 */}
+        <ListingGuidePdfLink />
 
         {/* 掲載お問い合わせフォーム（未ログインで送信可・運営宛メール通知＋listing_inquiriesに保存） */}
         <ListingInquiryForm />
