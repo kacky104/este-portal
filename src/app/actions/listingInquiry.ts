@@ -2,11 +2,22 @@
 
 import { createServiceClient } from '@/app/lib/supabase/service';
 import { notifyAdmin } from '@/app/lib/notifyAdmin';
+import { sendListingAutoReply } from '@/app/lib/listing/sendListingAutoReply';
 
 // 掲載お問い合わせ（/listing の公開フォーム）。未ログインで送信できるため、
 // INSERT は service_role で行い、テーブルに公開INSERTポリシーは持たせない（直叩きスパム遮断）。
 // honeypot（画面に見えない company 欄）が埋まっていたらボットとみなし、成功を装って静かに捨てる。
-// 送信成立後に運営宛メール通知（notifyAdmin・失敗しても送信自体は成功扱い）。
+//
+// 送信成立後に【2通】メールを出す（どちらも失敗しても送信自体は成功扱い）:
+//   1. 運営宛の通知（notifyAdmin）
+//   2. 店舗様宛の自動返信（sendListingAutoReply・2026-08-17 / 第20便 追加）
+//
+// ★ メール送信は必ず INSERT のあと。順番を入れ替えないこと。
+//   先に送ると、DBに残っていないのに「承りました」というメールだけが届く事故が起きる。
+//
+// ★ 2通は並行して送る（Promise.all）。直列にすると、運営宛が詰まったぶんだけ
+//   店舗様の完了画面が出るのが遅れる。どちらのヘルパーも例外を投げないので
+//   Promise.all が reject することはない。
 
 export type ListingInquiryInput = {
   shopName: string;
@@ -57,16 +68,31 @@ export async function submitListingInquiry(
   });
   if (error) return { ok: false, error: '送信に失敗しました。時間をおいてお試しください' };
 
-  await notifyAdmin('【フクエス】掲載のお問い合わせ', [
-    `店舗名: ${shopName}`,
-    `所在エリア: ${area}`,
-    `ご担当者名: ${contactName}`,
-    `メール: ${email}`,
-    `電話: ${phone || '(未記入)'}`,
-    `ホームページ: ${website || '(未記入)'}`,
-    '',
-    '─── メッセージ ───',
-    message || '(なし)',
+  await Promise.all([
+    // 1) 運営宛の通知。
+    notifyAdmin('【フクエス】掲載のお問い合わせ', [
+      `店舗名: ${shopName}`,
+      `所在エリア: ${area}`,
+      `ご担当者名: ${contactName}`,
+      `メール: ${email}`,
+      `電話: ${phone || '(未記入)'}`,
+      `ホームページ: ${website || '(未記入)'}`,
+      '',
+      '─── メッセージ ───',
+      message || '(なし)',
+    ]),
+    // 2) 店舗様宛の自動返信（送信内容の控え＋返信の目安）。
+    //    ★ 宛先の打ち間違いはここでバウンスし、/admin の「配信トラブル」に出る
+    //      （Resend Webhook は店舗と紐づかない宛先も email_events に記録するため）。
+    sendListingAutoReply({
+      to: email,
+      shopName,
+      area,
+      contactName,
+      phone,
+      website,
+      message,
+    }),
   ]);
   return { ok: true };
 }

@@ -42,12 +42,25 @@ export function ListingInquiryForm() {
     }
   };
 
+  // 送信完了画面。
+  // ★ 2026-08-17（第20便）に自動返信メールを追加したので、文言もそれに合わせてある。
+  //   「確認メールを送った」と明示することで、届かなかった人が
+  //   【アドレスを打ち間違えたかも】と自分で気づける。
+  //   迷惑メールフォルダの案内も入れている（自動返信は迷惑メール判定されやすい）。
+  // ★ 返信の目安「2営業日以内」は sendListingAutoReply.ts の REPLY_LEAD_TIME と対。
+  //   片方だけ変えると、画面とメールで違う日数を約束することになる。
   if (done) {
     return (
       <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-8 text-center">
         <p className="text-sm font-bold text-slate-800 mb-1">お問い合わせを送信しました</p>
         <p className="text-xs text-slate-500 leading-relaxed">
-          ご入力いただいたメールアドレス宛に、担当より折り返しご連絡いたします。数日お待ちください。
+          ご入力いただいたメールアドレス宛に確認メールをお送りしました。<br />
+          担当より<strong className="text-slate-700">2営業日以内</strong>にご連絡いたしますので、今しばらくお待ちください。
+        </p>
+        <p className="text-[11px] text-slate-400 leading-relaxed mt-3">
+          確認メールが届かない場合は、迷惑メールフォルダをご確認ください。
+          それでも見当たらないときは、メールアドレスの入力に誤りがあった可能性があります。
+          お手数ですが <a href="mailto:info@fukues.com" className="text-pink-600 hover:underline">info@fukues.com</a> までご連絡ください。
         </p>
       </div>
     );
