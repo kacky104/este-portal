@@ -73,3 +73,8 @@ task_*.md
 
 # 店舗様への案内・配布文面のドラフト（個人メモ・コミット禁止）
 /*-guide.md
+
+# Claude Code 用の作業指示書（使い捨て・コミット禁止）
+# 例: fukux-shop-guide-claude-code-instructions.md（2026-08-18・第22便で3本受領）
+# 上の「/指示書_*.md」では英語ファイル名を拾えないので別に書く。
+/*-claude-code-instructions.md
