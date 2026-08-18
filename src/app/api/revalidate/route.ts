@@ -3,6 +3,7 @@ import { revalidatePath } from "next/cache";
 import { createClient } from "@/app/lib/supabase/server";
 import { areaHref } from "@/app/lib/areas";
 import { PAGE_HERO_PATHS, PAGE_HERO_LAYOUT_PATHS } from '@/app/lib/pageHero';
+import { hpSitePaths } from '@/app/lib/hpSite';
 
 // ISR キャッシュを即時更新するエンドポイント。
 // 認証で保護：cookie のログインセッションから getUser し、認証済みユーザー（オーナー/管理者）
@@ -58,6 +59,35 @@ export async function POST(req: Request) {
     // サロン新着情報の横断一覧（/news）もお知らせ保存の即時反映対象にする（トップの5件ブロックは top で反映）。
     revalidatePath("/news");
     revalidated.push("/news");
+
+    // ── 店舗の公式ホームページ（/hp/…）も無効化する（2026-08-18 第23便）──
+    //
+    // ★★ ここが抜けていたため、出勤・セラピスト情報を保存しても公式HPだけは
+    //   revalidate=600 の時間切れ（最大10分）まで古いままだった。
+    //   公式HPはフクエス本体と同じ salons / therapists / therapist_schedules を読んでいるので、
+    //   本体を無効化するときは必ず公式HPも一緒に無効化しなければならない。
+    //
+    // ★ 対象パスは lib/hpSite.ts の hpSitePaths() 一本に任せる（表示条件で絞らない）。
+    //   絞ると「今は404のページ」が対象から外れ、200を返していた頃のキャッシュが居座る
+    //   （hpSitePaths のコメント参照）。下層ページを増やしたときも直しが要らない。
+    // ★ salon_sites の slug / domain は anon にも select 権限がある列なので、
+    //   service_role を持ち出さずログイン中のクライアントでそのまま引ける
+    //   （20260809_salon_sites_admin_lock.sql の列単位 grant）。
+    // ★ サイトを持たない店（salon_sites に行が無い）では何もしない。
+    const { data: siteRow } = await supabase
+      .from("salon_sites")
+      .select("slug, domain")
+      .eq("salon_id", Number(salonId))
+      .maybeSingle();
+    if (siteRow?.slug) {
+      for (const path of hpSitePaths({
+        slug: String(siteRow.slug),
+        domain: siteRow.domain ? String(siteRow.domain) : null,
+      })) {
+        revalidatePath(path);
+        revalidated.push(path);
+      }
+    }
   }
 
   if (therapistId != null && String(therapistId).trim() !== "") {

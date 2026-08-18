@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { createClient } from '@/app/lib/supabase/client';
-import { revalidateTop } from '@/app/lib/revalidateTop';
+import { revalidateSalon, revalidateTherapist } from '@/app/lib/revalidateTop';
 import {
   BADGE_CATEGORY_ORDER,
   BADGE_CATEGORY_LABELS,
@@ -210,7 +210,16 @@ export default function TherapistEditPage() {
 
     setSaving(false);
     if (!error) {
-      revalidateTop(); // 成功時：トップのISRを即時更新
+      // ★★ 2026-08-18（第23便）に revalidateTop() から差し替え。
+      //   ここで保存しているのは特徴バッジ・年齢・体型・キャッチ・写真＝
+      //   【店舗ページとセラピストページに出る情報】なのに、無効化していたのはトップ(/)だけだった。
+      //   そのため「保存したのに反映されない（最大10分）」が起きていた。実際に古いままだった場所:
+      //     /salon/{id}（セラピスト一覧）・/salon/{id}/schedule・/salon/{id}/therapists
+      //     /therapist/{id}（本人ページ）・/hp/{slug}（公式ホームページ）
+      //   revalidateSalon は既定でトップ(/)と全エリアページも無効化するので、
+      //   従来 revalidateTop() が担っていたぶんはそのまま含まれている（減っていない）。
+      revalidateSalon(therapist.salon_id);
+      revalidateTherapist(therapist.id);
       // 差し替え・スロット削除で不要になった旧画像を掃除（best-effort・失敗しても保存は成立）。
       // 対象＝「DB保存済みだった画像」＋「このセッションでアップロードした画像」のうち最終形に残らなかったもの。
       const keep = new Set(images);
