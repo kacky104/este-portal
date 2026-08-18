@@ -21,7 +21,9 @@ import {
   isSafeImageUrl,
   sanitizeHpBlocks,
   sanitizeHpLinkBanners,
-  MAX_HP_HERO_IMAGES,
+  sanitizeHpHeroSlides,
+  hpHeroSlidesToImages,
+  MAX_HP_HERO_SLIDES,
   MAX_HP_BANNERS,
   MAX_HP_CATCH_LEN,
   MAX_HP_TITLE_LEN,
@@ -251,10 +253,13 @@ export async function saveHpSiteContent(
   if ('ok' in r) return r;
 
   // ── バリデーション（不正はエラーで返す。黙って丸めるのはブロック設定のみ） ──
-  if (!Array.isArray(input.hero_images) || input.hero_images.length > MAX_HP_HERO_IMAGES) {
-    return { ok: false, error: `トップ画像は最大${MAX_HP_HERO_IMAGES}枚です` };
+  if (!Array.isArray(input.hero_slides) || input.hero_slides.length > MAX_HP_HERO_SLIDES) {
+    return { ok: false, error: `トップ画像は最大${MAX_HP_HERO_SLIDES}枚です` };
   }
-  if (input.hero_images.some((u) => !isSafeImageUrl(u))) {
+  // 形は sanitize に丸めさせ、丸めた結果が送られてきたものと枚数で食い違ったときだけ
+  // エラーにする（＝黙って画像を1枚捨てたまま「保存しました」と出さないため）。
+  const heroSlides = sanitizeHpHeroSlides(input.hero_slides);
+  if (heroSlides.length !== input.hero_slides.length) {
     return { ok: false, error: 'トップ画像のURLが正しくありません' };
   }
   if (input.hero_catch.length > MAX_HP_CATCH_LEN) {
@@ -286,7 +291,11 @@ export async function saveHpSiteContent(
 
   const payload = {
     logo_url:          input.logo_url,
-    hero_images:       input.hero_images,
+    hero_slides:       heroSlides,
+    // ★ 旧列にも1枚目だけ書き続ける（2026-08-18 第21便）。
+    //   万が一コードを前の版に戻しても、全店のトップ画像が空になって崩れることを防ぐ保険。
+    //   画面からは hero_images を送れない形にしてあるので、両者がズレることはない。
+    hero_images:       hpHeroSlidesToImages(heroSlides),
     hero_catch:        input.hero_catch.trim(),
     concept_title:     input.concept_title.trim(),
     concept_text:      input.concept_text.trim(),

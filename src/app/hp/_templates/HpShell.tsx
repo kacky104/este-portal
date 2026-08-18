@@ -248,6 +248,27 @@ export function HpShell({
             }}
           />
 
+          {/* ── トップ画像のスライダー（2026-08-18 第21便）──
+               店舗がトップ画像を2枚以上入れたときだけ動く。4秒ごとに次の写真へ、
+               切り替わりは opacity のクロスフェード0.8秒（長さはCSS側 .hp-hero-slide）。
+
+               ★ JSが動かなくても1枚目は必ず見える。HpTemplate が1枚目に is-on を
+                 付けた状態で吐いているので、このスクリプトが落ちても従来どおりの
+                 静止ヒーローになるだけ（真っ白にはならない）。
+               ★ 1枚しか無い店には [data-hp-hero-slides] 自体が出ない。念のため
+                 ここでも slides.length<2 で降りている。
+               ★ 動きを減らす設定（prefers-reduced-motion）の人には自動送りをしない。
+                 ドットとスワイプは効くので、見たい人は自分で送れる。
+               ★ タブが裏に回っている間は止める。裏で送り続けても誰も見ておらず、
+                 戻ってきた瞬間に何枚も飛んだように見えるだけなので。
+               ★ 手で操作したら必ず start() でタイマーを取り直す。取り直さないと
+                 「押した直後に自動送りが来て2枚飛ぶ」ことがある。 ── */}
+          <script
+            dangerouslySetInnerHTML={{
+              __html: `(function(){var roots=document.querySelectorAll('[data-hp-hero-slides]');if(!roots.length)return;var reduce=!!(window.matchMedia&&window.matchMedia('(prefers-reduced-motion: reduce)').matches);roots.forEach(function(root){var slides=root.querySelectorAll('.hp-hero-slide');if(slides.length<2)return;var dots=root.querySelectorAll('.hp-hero-dot');var cur=0,timer=null;function show(n){cur=(n+slides.length)%slides.length;slides.forEach(function(el,i){el.classList.toggle('is-on',i===cur)});dots.forEach(function(el,i){el.classList.toggle('is-on',i===cur)})}function stop(){if(timer){clearInterval(timer);timer=null}}function start(){if(reduce)return;stop();timer=setInterval(function(){show(cur+1)},4000)}dots.forEach(function(el,i){el.addEventListener('click',function(){show(i);start()})});var x0=null;root.addEventListener('touchstart',function(e){x0=e.touches[0].clientX},{passive:true});root.addEventListener('touchend',function(e){if(x0===null)return;var dx=e.changedTouches[0].clientX-x0;x0=null;if(Math.abs(dx)<40)return;show(cur+(dx<0?1:-1));start()},{passive:true});document.addEventListener('visibilitychange',function(){if(document.hidden){stop()}else{start()}});start()})})();`,
+            }}
+          />
+
           {/* ── ドロワーの補助（無くても開閉はできる）。リンクを押したら閉じる・Escで閉じる・
                開いている間は背面をスクロールさせない。 ── */}
           <script

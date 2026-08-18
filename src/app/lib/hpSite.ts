@@ -32,6 +32,8 @@ export function isHpSiteStatus(v: unknown): v is HpSiteStatus {
 
 // ── 上限値 ───────────────────────────────────────────
 export const MAX_HP_HERO_IMAGES   = 3;
+/** トップ画像のスライド枚数の上限（2026-08-18）。1枚 ＝ { pc, sp } の組。 */
+export const MAX_HP_HERO_SLIDES   = 3;
 export const MAX_HP_BANNERS       = 3;
 export const MAX_HP_CATCH_LEN     = 40;
 export const MAX_HP_TITLE_LEN     = 30;
@@ -451,6 +453,48 @@ export function sanitizeHpHeroImages(raw: unknown): string[] {
     .slice(0, MAX_HP_HERO_IMAGES);
 }
 
+// ── トップ画像のスライド（jsonb: salon_sites.hero_slides・2026-08-18 第21便） ──
+/**
+ * スライド1枚ぶん。pc は必須・sp は省略可（省略時はスマホでも pc を使う＝従来と同じ）。
+ *
+ * ★ なぜ hero_images を3枚に読み替えなかったか（禁則110）:
+ *   hero_images は「3枚の写真」ではなく [0]=パソコン用 / [1]=スマートフォン用 という
+ *   位置に意味のある2枠だった。ここを3枚のスライドに読み替えると、スマホ用画像の
+ *   指定が行き場を失って壊れる。そこで「1枚 = { pc, sp }」を並べる別の形にしている。
+ */
+export type HpHeroSlide = {
+  pc: string;
+  sp: string | null;
+};
+
+/**
+ * DB から読んだ hero_slides(jsonb) を安全な形に丸める。
+ * pc が無い／URLとして不正な要素はスライドごと捨てる（穴を残さない）。
+ * sp だけが不正なら sp を null にしてスライド自体は生かす（PC用だけで表示できるため）。
+ *
+ * ★ 保存と読み出しの両方でこれを通す。DB 側に CHECK 制約は置いていない
+ *   （blocks / banners / hero_images と同じで「形はアプリ側が正」という家のルール）。
+ */
+export function sanitizeHpHeroSlides(raw: unknown): HpHeroSlide[] {
+  if (!Array.isArray(raw)) return [];
+  const out: HpHeroSlide[] = [];
+  for (const item of raw) {
+    if (!item || typeof item !== 'object' || Array.isArray(item)) continue;
+    const { pc, sp } = item as { pc?: unknown; sp?: unknown };
+    if (typeof pc !== 'string' || !isSafeImageUrl(pc)) continue;
+    out.push({ pc, sp: typeof sp === 'string' && isSafeImageUrl(sp) ? sp : null });
+    if (out.length >= MAX_HP_HERO_SLIDES) break;
+  }
+  return out;
+}
+
+/** スライド配列 → 旧 hero_images（[0]=PC・[1]=スマホ）。1枚目だけを写す。 */
+export function hpHeroSlidesToImages(slides: HpHeroSlide[]): string[] {
+  const first = slides[0];
+  if (!first) return [];
+  return first.sp ? [first.pc, first.sp] : [first.pc];
+}
+
 // ── URLキー（slug または独自ドメイン） ─────────────────
 // 段階3から /hp/[slug] の [slug] には2種類が入る:
 //   - 'test-shop'       … 暫定URL（fukues.com/hp/test-shop）。salon_sites.slug
@@ -528,7 +572,15 @@ export type HpSite = {
   theme_key:         string;          // 妥当性は themes.ts の getTheme() が既定値へフォールバック
   /** ヘッダーのロゴ画像。null=未設定（店名の文字を出す） */
   logo_url:          string | null;
+  /**
+   * 旧・トップ画像（[0]=パソコン用 / [1]=スマートフォン用）。
+   * ★ 2026-08-18 以降、表示に使うのは hero_slides のほう。この列は
+   *   「コードを前の版に戻してもトップ画像が消えない」ための控えとして
+   *   1枚目のぶんだけ書き続けている（落とすのはオープン後に様子を見てから）。
+   */
   hero_images:       string[];
+  /** トップ画像のスライド（最大3枚）。表示はこちらが正。 */
+  hero_slides:       HpHeroSlide[];
   hero_catch:        string;
   concept_title:     string;
   concept_text:      string;
@@ -544,9 +596,15 @@ export type HpSite = {
   updated_at:        string;
 };
 
-/** salon_sites から公開ページ・管理画面が読む列（運営専用の契約メモ類は含めない）。 */
+/**
+ * salon_sites から公開ページ・管理画面が読む列（運営専用の契約メモ類は含めない）。
+ *
+ * ★★ hero_slides は 20260818_salon_sites_hero_slides.sql で足した列。
+ *   マイグレーションを流す前にこのコードを本番へ出すと、この select が
+ *   「列が無い」で落ちて【全店のHPが表示できなくなる】。必ずDBが先（禁則65）。
+ */
 export const HP_SITE_COLUMNS =
-  'salon_id, slug, domain, status, template_key, theme_key, logo_url, hero_images, hero_catch, concept_title, concept_text, concept_image_url, blocks, banners, link_banners, favicon_url, design_locked, updated_at';
+  'salon_id, slug, domain, status, template_key, theme_key, logo_url, hero_images, hero_slides, hero_catch, concept_title, concept_text, concept_image_url, blocks, banners, link_banners, favicon_url, design_locked, updated_at';
 
 /** DB の1行 → アプリ内の HpSite。公開ページ・管理画面の両方がこれ1本を使う。 */
 export function mapHpSiteRow(row: Record<string, unknown>): HpSite {
@@ -561,6 +619,7 @@ export function mapHpSiteRow(row: Record<string, unknown>): HpSite {
     theme_key:         (row.theme_key as string) ?? '',
     logo_url:          (row.logo_url as string | null) ?? null,
     hero_images:       sanitizeHpHeroImages(row.hero_images),
+    hero_slides:       sanitizeHpHeroSlides(row.hero_slides),
     hero_catch:        (row.hero_catch as string) ?? '',
     concept_title:     (row.concept_title as string) ?? '',
     concept_text:      (row.concept_text as string) ?? '',
@@ -584,7 +643,13 @@ export function mapHpSiteRow(row: Record<string, unknown>): HpSite {
  */
 export type HpContentInput = {
   logo_url:          string | null;
-  hero_images:       string[];
+  /**
+   * トップ画像のスライド（最大3枚）。
+   * ★ 旧 hero_images は【含めない】。サーバー側（saveHpSiteContent）が
+   *   hpHeroSlidesToImages() で1枚目から作って一緒に保存する。
+   *   画面から2つ送れるようにすると、両者がズレた状態を作れてしまうため。
+   */
+  hero_slides:       HpHeroSlide[];
   hero_catch:        string;
   concept_title:     string;
   concept_text:      string;
@@ -692,26 +757,46 @@ export function hpColorCssVars(template: HpTemplateKey, colorKey: string): Recor
   return (list.find((v) => v.key === colorKey) ?? list[0]).css;
 }
 
+/** [PC, スマホ] の形の配列 → スライド1枚。配列が空なら null。 */
+function pairToSlide(pair: string[] | null | undefined): HpHeroSlide | null {
+  const pc = pair?.[0];
+  if (typeof pc !== 'string' || pc === '') return null;
+  const sp = pair?.[1];
+  return { pc, sp: typeof sp === 'string' && sp !== '' ? sp : null };
+}
+
 /**
- * 実際に使うトップ画像（[0]=PC・[1]=スマホ）。
- * その配色専用の写真（blocks.heroByColor）があればそれ、無ければ従来どおり hero_images。
- * プレビュー（/preview/{template}/{color}）では theme_key が上書きされるので、
- * 何も足さなくても「その配色で見たときだけ差し替わる」が成立する。
+ * 実際に画面へ出すトップ画像のスライド（2026-08-18 に hpHeroImages から改称・複数枚化）。
+ *
+ * 優先順位は【従来と同じ】:
+ *   1. その配色専用の写真（blocks.heroByColor）… デモ店のプレビュー用
+ *   2. デモ店なら配色ごとに撮り分けた同梱写真
+ *   3. 店舗が入れたスライド（hero_slides）
+ *   4. 旧 hero_images（マイグレーション直後などスライドが空の行への保険）
+ *
+ * ★ 1と2はどちらも「その配色の1枚」なので【スライダーにならない】（第21便でオーナー確認済み）。
+ *   デモ店もスライダーで見せたくなったら、4配色×3枚×PC/SP＝最大24枚の写真が要る。
+ * ★ プレビュー（/preview/{template}/{color}）では theme_key が上書きされるので、
+ *   何も足さなくても「その配色で見たときだけ差し替わる」が成立する。
  */
-export function hpHeroImages(
-  site: Pick<HpSite, 'slug' | 'template_key' | 'hero_images' | 'theme_key' | 'blocks'>,
-): string[] {
-  const uploaded = site.blocks.heroByColor[hpImageSlotKey(site.template_key, site.theme_key)];
-  if (uploaded) return uploaded;
+export function hpHeroSlides(
+  site: Pick<HpSite, 'slug' | 'template_key' | 'hero_images' | 'hero_slides' | 'theme_key' | 'blocks'>,
+): HpHeroSlide[] {
+  const uploaded = pairToSlide(site.blocks.heroByColor[hpImageSlotKey(site.template_key, site.theme_key)]);
+  if (uploaded) return [uploaded];
   // デモ店だけは「配色ごとに撮り分けた同梱写真」を既定にする（2026-08-12）。
   // デモは4配色を見比べてもらうための店なので、1枚の写真が全色に出ると比較にならない。
-  // 実店舗はここを通さない＝自分の hero_images が最優先のまま（挙動を変えない）。
+  // 実店舗はここを通さない＝自分の写真が最優先のまま（挙動を変えない）。
   // 管理画面（デザインごとの画像）から入れた写真があれば、上の uploaded が必ず勝つ。
   if (site.slug === HP_DEMO_SLUG) {
-    const bundled = hpBundledHeroImages(site.template_key, site.theme_key);
-    if (bundled) return bundled;
+    const bundled = pairToSlide(hpBundledHeroImages(site.template_key, site.theme_key));
+    if (bundled) return [bundled];
   }
-  return site.hero_images;
+  if (site.hero_slides.length > 0) return site.hero_slides;
+  // ここに落ちるのは「マイグレーションは通ったが hero_slides がまだ空」の行。
+  // 旧列から1枚だけ組み立てて、従来どおりの静止ヒーローとして出す。
+  const legacy = pairToSlide(site.hero_images);
+  return legacy ? [legacy] : [];
 }
 
 /**

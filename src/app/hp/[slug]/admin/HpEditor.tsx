@@ -9,9 +9,11 @@ import {
   type HpBlocksConfig,
   type HpBanner,
   type HpLinkBanner,
+  type HpHeroSlide,
   HP_TEMPLATES,
   HP_COLOR_VARIANTS,
   MAX_HP_HERO_IMAGES,
+  MAX_HP_HERO_SLIDES,
   MAX_HP_BANNERS,
   MAX_HP_CATCH_LEN,
   MAX_HP_TITLE_LEN,
@@ -42,7 +44,8 @@ import {
 const supabase = createClient();
 
 type FormState = {
-  hero_images:       string[];
+  /** トップ画像のスライド（最大3枚）。旧 hero_images はサーバー側が1枚目から作る。 */
+  hero_slides:       HpHeroSlide[];
   hero_catch:        string;
   concept_title:     string;
   concept_text:      string;
@@ -58,7 +61,7 @@ function siteToForm(site: HpSite): FormState {
   const slots: (HpBanner | null)[] = [null, null, null];
   site.banners.slice(0, MAX_HP_BANNERS).forEach((b, i) => { slots[i] = b; });
   return {
-    hero_images:       site.hero_images,
+    hero_slides:       site.hero_slides,
     hero_catch:        site.hero_catch,
     concept_title:     site.concept_title,
     concept_text:      site.concept_text,
@@ -71,7 +74,9 @@ function siteToForm(site: HpSite): FormState {
   };
 }
 
-// ヒーローのスロット定義（位置＝用途）。hero_images[0]=PC / [1]=スマホ。
+// スライド1枚ぶんの枠（位置＝用途）。pc が必須で、sp は省略可。
+// ★ 2026-08-18（第21便）から、この2枠が「スライド1枚」の単位になった。
+//   以前は hero_images[0]=PC / [1]=スマホ という配列の位置で表していた（禁則110）。
 const HERO_SLOTS = [
   { key: 'pc', label: 'パソコン用', hint: '横長 2400×960', previewCls: 'aspect-[5/2]' },
   { key: 'sp', label: 'スマートフォン用', hint: '1080×760・省略可', previewCls: 'aspect-[27/19]' },
@@ -175,6 +180,9 @@ export function HpEditor({
   const removeIfUnsaved = (url: string) => {
     const savedUrls = new Set<string>([
       ...site.hero_images,
+      // スライドは pc / sp の両方を「使用中」として数える。片方だけ数えると、
+      // 保存済みのスマホ用画像を storage から消してしまう。
+      ...site.hero_slides.flatMap((s) => (s.sp ? [s.pc, s.sp] : [s.pc])),
       ...(site.concept_image_url ? [site.concept_image_url] : []),
       ...(site.logo_url ? [site.logo_url] : []),
       ...(site.favicon_url ? [site.favicon_url] : []),
@@ -255,10 +263,30 @@ export function HpEditor({
   const removeLinkBanner = (index: number) =>
     patch({ link_banners: form.link_banners.filter((_, i) => i !== index) });
 
+  // ── トップ画像のスライド操作（2026-08-18 第21便）──
+  // ★ スライドは「パソコン用が入って初めて1枚」。パソコン用を消したら
+  //   スマートフォン用も一緒に外し、そのスライドごと配列から取り除く
+  //   （PCなし・SPありは表示できないため。従来の2枠のときと同じ考え方）。
+  const setHeroSlide = (index: number, slide: HpHeroSlide | null) => {
+    const next = [...form.hero_slides];
+    if (slide) next[index] = slide;
+    else next.splice(index, 1);
+    patch({ hero_slides: next.slice(0, MAX_HP_HERO_SLIDES) });
+  };
+  const moveHeroSlide = (index: number, dir: -1 | 1) => {
+    const next = [...form.hero_slides];
+    const to = index + dir;
+    if (to < 0 || to >= next.length) return;
+    [next[index], next[to]] = [next[to], next[index]];
+    patch({ hero_slides: next });
+  };
+  // 表示する枠の数＝いま入っている枚数＋（まだ増やせるなら）追加用の1枠。
+  const heroRowCount = Math.min(form.hero_slides.length + 1, MAX_HP_HERO_SLIDES);
+
   const handleSave = async () => {
     setSaving(true);
     const res = await saveHpSiteContent(siteKey, {
-      hero_images:       form.hero_images,
+      hero_slides:       form.hero_slides,
       hero_catch:        form.hero_catch,
       concept_title:     form.concept_title,
       concept_text:      form.concept_text,
@@ -308,67 +336,110 @@ export function HpEditor({
       {/* ── トップ（ヒーロー） ── */}
       <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5 space-y-4">
         <h3 className="text-sm font-black text-slate-800">トップ画像・キャッチコピー</h3>
-        {/* PC用（横長）とスマホ用（縦長）の2枚。位置に意味があるので
-            hero_images[0]=PC / [1]=スマホ を厳密に守る（末尾追加にしない）。 */}
-        <div className="grid grid-cols-2 gap-3">
-          {HERO_SLOTS.map((slot, i) => {
-            const url = form.hero_images[i] ?? null;
-            const slotKey = `hero${i}`;
+        {/* スライド1枚 ＝ パソコン用（横長・必須）＋スマートフォン用（縦長・省略可）。
+            2枚以上入れると自動で切り替わるスライダーになる（最大3枚）。
+            ★ 位置に意味があるので、枠を消したら後ろを詰める（末尾に穴を残さない）。 */}
+        <div className="space-y-3">
+          {Array.from({ length: heroRowCount }, (_, si) => {
+            const slide = form.hero_slides[si] ?? null;
+            const isNew = slide === null;
             return (
-              <div key={slot.key} className="space-y-1.5">
-                <p className="text-xs font-bold text-slate-600">
-                  {slot.label}
-                  <span className="ml-1 font-normal text-slate-400">{slot.hint}</span>
-                </p>
-                {url ? (
-                  <div className="relative">
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img
-                      src={url}
-                      alt={slot.label}
-                      className={`w-full object-cover rounded-xl border border-slate-200 ${slot.previewCls}`}
-                    />
-                    <button
-                      onClick={() => {
-                        // 位置を保つため、後ろを詰めるのは「PC用を消したときにスマホ用しか残らない」場合を
-                        // 避けるため。PC用を消したらスマホ用も一緒に外す（PCなしSPありは表示できないため）。
-                        const next = i === 0 ? [] : form.hero_images.slice(0, 1);
-                        patch({ hero_images: next });
-                        removeIfUnsaved(url);
-                      }}
-                      className="absolute top-1 right-1 w-6 h-6 rounded-full bg-black/50 text-white text-xs font-bold"
-                      aria-label="削除"
-                    >
-                      ×
-                    </button>
-                  </div>
-                ) : (
-                  <label
-                    className={`flex items-center justify-center w-full rounded-xl border-2 border-dashed border-slate-200 text-[11px] text-slate-400 cursor-pointer hover:border-pink-300 ${slot.previewCls}`}
-                  >
-                    {uploadingSlot === slotKey ? 'アップ中…' : '画像を選ぶ'}
-                    <input
-                      type="file"
-                      accept="image/jpeg,image/png,image/webp"
-                      className="hidden"
-                      disabled={uploadingSlot !== null}
-                      onChange={async (e) => {
-                        const file = e.target.files?.[0];
-                        e.target.value = '';
-                        if (!file) return;
-                        if (i === 1 && !form.hero_images[0]) {
-                          onToast('先にパソコン用の画像を設定してください');
-                          return;
-                        }
-                        const publicUrl = await uploadImage(slotKey, file);
-                        if (!publicUrl) return;
-                        const next = [...form.hero_images];
-                        next[i] = publicUrl;
-                        patch({ hero_images: next.slice(0, MAX_HP_HERO_IMAGES) });
-                      }}
-                    />
-                  </label>
-                )}
+              <div key={si} className="rounded-xl border border-slate-100 bg-slate-50/70 p-3 space-y-2">
+                <div className="flex items-center justify-between gap-2">
+                  <p className="text-xs font-bold text-slate-600">
+                    {si + 1}枚目
+                    {isNew && <span className="ml-1 font-normal text-slate-400">（増やす場合はここに）</span>}
+                  </p>
+                  {!isNew && form.hero_slides.length > 1 && (
+                    <div className="flex items-center gap-1">
+                      <button
+                        type="button"
+                        onClick={() => moveHeroSlide(si, -1)}
+                        disabled={si === 0}
+                        className="px-2 py-0.5 rounded-lg border border-slate-200 bg-white text-[11px] text-slate-600 disabled:opacity-30"
+                      >
+                        ↑ 前へ
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => moveHeroSlide(si, 1)}
+                        disabled={si === form.hero_slides.length - 1}
+                        className="px-2 py-0.5 rounded-lg border border-slate-200 bg-white text-[11px] text-slate-600 disabled:opacity-30"
+                      >
+                        ↓ 次へ
+                      </button>
+                    </div>
+                  )}
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  {HERO_SLOTS.map((slot) => {
+                    const isPc = slot.key === 'pc';
+                    const url = (isPc ? slide?.pc : slide?.sp) ?? null;
+                    const slotKey = `hero${si}-${slot.key}`;
+                    return (
+                      <div key={slot.key} className="space-y-1.5">
+                        <p className="text-xs font-bold text-slate-600">
+                          {slot.label}
+                          <span className="ml-1 font-normal text-slate-400">{slot.hint}</span>
+                        </p>
+                        {url ? (
+                          <div className="relative">
+                            {/* eslint-disable-next-line @next/next/no-img-element */}
+                            <img
+                              src={url}
+                              alt={slot.label}
+                              className={`w-full object-cover rounded-xl border border-slate-200 ${slot.previewCls}`}
+                            />
+                            <button
+                              onClick={() => {
+                                if (isPc) {
+                                  // パソコン用を消す＝このスライドごと外す。
+                                  // 一緒に外れるスマートフォン用も未保存なら消しておく。
+                                  const sp = slide?.sp ?? null;
+                                  setHeroSlide(si, null);
+                                  removeIfUnsaved(url);
+                                  if (sp) removeIfUnsaved(sp);
+                                } else if (slide) {
+                                  setHeroSlide(si, { pc: slide.pc, sp: null });
+                                  removeIfUnsaved(url);
+                                }
+                              }}
+                              className="absolute top-1 right-1 w-6 h-6 rounded-full bg-black/50 text-white text-xs font-bold"
+                              aria-label="削除"
+                            >
+                              ×
+                            </button>
+                          </div>
+                        ) : (
+                          <label
+                            className={`flex items-center justify-center w-full rounded-xl border-2 border-dashed border-slate-200 text-[11px] text-slate-400 cursor-pointer hover:border-pink-300 ${slot.previewCls}`}
+                          >
+                            {uploadingSlot === slotKey ? 'アップ中…' : '画像を選ぶ'}
+                            <input
+                              type="file"
+                              accept="image/jpeg,image/png,image/webp"
+                              className="hidden"
+                              disabled={uploadingSlot !== null}
+                              onChange={async (e) => {
+                                const file = e.target.files?.[0];
+                                e.target.value = '';
+                                if (!file) return;
+                                if (!isPc && !slide) {
+                                  onToast('先にパソコン用の画像を設定してください');
+                                  return;
+                                }
+                                const publicUrl = await uploadImage(slotKey, file);
+                                if (!publicUrl) return;
+                                if (isPc) setHeroSlide(si, { pc: publicUrl, sp: slide?.sp ?? null });
+                                else if (slide) setHeroSlide(si, { pc: slide.pc, sp: publicUrl });
+                              }}
+                            />
+                          </label>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
               </div>
             );
           })}
@@ -377,6 +448,11 @@ export function HpEditor({
           ※ スマートフォン用を設定すると、スマホで見たときだけそちらに自動で切り替わります（未設定ならパソコン用を共用）。
           <br />
           ※ 推奨サイズ：パソコン用 2400×960px ／ スマートフォン用 1080×760px。
+          <br />
+          ※ 2枚以上を設定すると、4秒ごとに自動で切り替わるスライドショーになります（最大{MAX_HP_HERO_SLIDES}枚）。
+          <br />
+          ※ <b className="text-slate-500">3枚とも同じサイズ（2400×960px）でご用意ください。</b>
+          サイズが違うと、1枚目の高さに合わせて2枚目以降の上下または左右が切れて表示されます。
         </p>
         <div>
           <p className="text-xs font-bold text-slate-600 mb-1">キャッチコピー（最大{MAX_HP_CATCH_LEN}文字）</p>

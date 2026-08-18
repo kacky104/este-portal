@@ -20,8 +20,8 @@
 //   例外: LINE予約だけは他社サービスで計測の必要が無いので従来どおり（HpShell 側）。
 
 import { EMBED_SITE_URL } from '@/app/embed/salon/[id]/embedShared';
-import { hpBundledHeroImages, hpHeroImages, hpSectionOrder } from '@/app/lib/hpSite';
-import type { HpSectionKey, HpTemplateKey } from '@/app/lib/hpSite';
+import { hpBundledHeroImages, hpHeroSlides, hpSectionOrder } from '@/app/lib/hpSite';
+import type { HpHeroSlide, HpSectionKey, HpTemplateKey } from '@/app/lib/hpSite';
 import type { HpPageData } from '@/app/hp/_lib/data';
 import {
   groupCourses,
@@ -56,12 +56,10 @@ export function HpTemplate({ data }: { data: HpPageData }) {
   const multipage = b.multipage;
   const salonUrl = `${EMBED_SITE_URL}/salon/${salon.id}`;
   const grouped = groupCourses(courses);
-  // ヒーローは「1枚目=PC用（横長）／2枚目=スマホ用（縦長・省略可）」の約束。
-  // 2枚目が無ければ1枚目を両方に使う（従来どおりの挙動）。
-  // カラー別の写真（デモ店のプレビュー用・blocks.heroByColor）があればそちらが勝つ。
-  const heroImages = hpHeroImages(site);
-  const heroPc = heroImages[0] ?? null;
-  const heroSp = heroImages[1] ?? null;
+  // ヒーローは「スライド1枚 = { pc, sp }」を最大3枚並べたもの（2026-08-18 第21便）。
+  // sp が無ければ pc をスマホでも使う（従来どおりの挙動）。
+  // カラー別の写真（デモ店のプレビュー用・blocks.heroByColor）があればそちらが勝つ（1枚だけ）。
+  const storeSlides = hpHeroSlides(site);
   // タイプSの既定キービジュアル（店舗が画像を入れていないとき用）。
   // 配色に合わせて色味を振った同じ写真を public/hp-s/ に用意している
   // （2026-08-11: ワインレッド・ロイヤルブルー・エメラルドグリーン）。配色を足すときは
@@ -73,13 +71,23 @@ export function HpTemplate({ data }: { data: HpPageData }) {
   // タイプA・Bの既定キービジュアル（2026-08-12 → 08-13 でタイプBも）。配色ごとに撮り分けた
   // 写真を public/hp-{ひな形}/ に4色ぶん同梱してある
   // （生成: tools-gen-hp-a-kv.py / tools-gen-hp-b-kv.py）。
-  // 店舗が自分の写真を入れていれば heroPc が先に立つので、この経路は使われない。
+  // 店舗が自分の写真を入れていれば storeSlides が先に立つので、この経路は使われない。
   // 値は「そのひな形の基準色」＝設定漏れの配色でも1色目の写真に落ちる。
   const bundledDefaultColor = HP_BUNDLED_HERO_DEFAULT_COLOR[site.template_key];
   const heroBundled = bundledDefaultColor
     ? hpBundledHeroImages(site.template_key, site.theme_key) ??
       hpBundledHeroImages(site.template_key, bundledDefaultColor)
     : null;
+  // 実際に出すスライド。店舗の写真が無いときだけ既定のキービジュアル1枚に落ちる
+  // （＝既定画像はスライダーにならない。従来と同じ静止のまま）。
+  const heroSlides: HpHeroSlide[] =
+    storeSlides.length > 0
+      ? storeSlides
+      : site.template_key === 's'
+        ? [{ pc: `/hp-s/hero-pc${heroFallbackSuffix}.webp`, sp: `/hp-s/hero-sp${heroFallbackSuffix}.webp` }]
+        : heroBundled
+          ? [{ pc: heroBundled[0], sp: heroBundled[1] ?? null }]
+          : [];
   const onDuty = therapists.filter((t) => t.onDuty);
 
   // ── セクションの表示順（2026-08-10）──
@@ -113,29 +121,52 @@ export function HpTemplate({ data }: { data: HpPageData }) {
       {/* ── ヒーロー ──
            画像は自然な縦横比で表示しつつ max-height でキャップ（CSS側）。
            横長バナー＝全体表示／縦長写真＝切り抜き、が自動で切り替わる。
-           スマホ用（hero_images[1]）があれば 639px 以下で <picture> が自動で差し替える。
+           スマホ用（スライドの sp）があれば 639px 以下で <picture> が自動で差し替える。
            タイプSは店舗の画像が未設定でも成立するよう、既定のキービジュアル
-           （public/hp-s/・PC 2400×960 / SP 1080×760 を出し分け）にフォールバックする。 */}
+           （public/hp-s/・PC 2400×960 / SP 1080×760 を出し分け）にフォールバックする。
+
+           ★ 2026-08-18（第21便）から最大3枚のスライダー。ただし
+             【1枚のときは包む div を出さない】＝DOMは従来と1バイトも変わらない。
+             複数枚のときだけ .hp-hero-slides で包み、HpShell のスクリプトが送る。
+           ★ 1枚目だけが通常の流れに置かれ、2枚目以降はその上に重なる（CSS側）。
+             つまり【高さは1枚目が決める】。縦横比の違う写真は切り抜かれるかわりに、
+             送っても下の内容が上下に飛び跳ねない。
+           ★ JSが動かない環境では1枚目だけが見える＝従来どおりの静止ヒーロー。 */}
       <div id="top" className="hp-hero" style={{ order: HP_ORDER_HERO }}>
-        {heroPc ? (
+        {heroSlides.length === 0 ? null : heroSlides.length === 1 ? (
           <picture>
-            {heroSp && <source media="(max-width: 639px)" srcSet={heroSp} />}
+            {heroSlides[0].sp && <source media="(max-width: 639px)" srcSet={heroSlides[0].sp} />}
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img className="hp-hero-img" src={heroPc} alt={salon.name} />
+            <img className="hp-hero-img" src={heroSlides[0].pc} alt={salon.name} />
           </picture>
-        ) : site.template_key === 's' ? (
-          <picture>
-            <source media="(max-width: 639px)" srcSet={`/hp-s/hero-sp${heroFallbackSuffix}.webp`} />
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img className="hp-hero-img" src={`/hp-s/hero-pc${heroFallbackSuffix}.webp`} alt={salon.name} />
-          </picture>
-        ) : heroBundled ? (
-          <picture>
-            <source media="(max-width: 639px)" srcSet={heroBundled[1]} />
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img className="hp-hero-img" src={heroBundled[0]} alt={salon.name} />
-          </picture>
-        ) : null}
+        ) : (
+          <div className="hp-hero-slides" data-hp-hero-slides>
+            {heroSlides.map((slide, i) => (
+              <picture key={i} className={`hp-hero-slide${i === 0 ? ' is-on' : ''}`}>
+                {slide.sp && <source media="(max-width: 639px)" srcSet={slide.sp} />}
+                {/* 1枚目はLCPになるので通常読み込み。2枚目以降は遅延（初回表示を遅らせない）。
+                    alt は1枚目だけ店名にする（同じ店名を3回読み上げても意味が無い）。 */}
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  className="hp-hero-img"
+                  src={slide.pc}
+                  alt={i === 0 ? salon.name : ''}
+                  loading={i === 0 ? undefined : 'lazy'}
+                />
+              </picture>
+            ))}
+            <div className="hp-hero-dots">
+              {heroSlides.map((_, i) => (
+                <button
+                  key={i}
+                  type="button"
+                  className={`hp-hero-dot${i === 0 ? ' is-on' : ''}`}
+                  aria-label={`${i + 1}枚目の写真を表示`}
+                />
+              ))}
+            </div>
+          </div>
+        )}
         <div className="hp-hero-text">
           {salon.catchphrase && <div className="hp-hero-en">{salon.catchphrase}</div>}
           {/* data-hp-fitline: 2行に折り返す場合、1行に収まるまで文字を自動縮小

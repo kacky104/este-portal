@@ -19,6 +19,27 @@ const COMMON = `
 .hp-root * { margin: 0; padding: 0; box-sizing: border-box; }
 .hp-hero picture { display: block; }
 .hp-hero-img { display: block; width: 100%; height: auto; max-height: 78vh; object-fit: cover; }
+/* ── トップ画像のスライダー（2026-08-18 第21便）──
+   店舗が2枚以上入れたときだけ HpTemplate が .hp-hero-slides で包む。
+   1枚の店はこの塊がまるごと出ない＝従来と同じDOM・同じ見え方。
+
+   ★ 1枚目だけが通常の流れに置かれ、2枚目以降は position:absolute で重なる。
+     つまり【高さは1枚目が決める】。縦横比の違う写真は object-fit:cover で切り抜かれるが、
+     そのかわり送っても下の内容が上下に飛び跳ねない（実測: 幅1058pxで423pxのまま）。
+   ★ 2枚目以降に max-height:none を入れているのは、共通の .hp-hero-img が持つ
+     max-height:78vh が効いたままだと、重ねた写真だけ縦に足りなくなるため。
+   ★ 切り替えは opacity のクロスフェード0.8秒／自動送り4秒（HpShell のスクリプト）。 */
+.hp-hero-slides { position: relative; }
+.hp-hero-slides .hp-hero-slide { display: block; opacity: 0; transition: opacity .8s ease; }
+.hp-hero-slides .hp-hero-slide.is-on { opacity: 1; }
+.hp-hero-slides .hp-hero-slide + .hp-hero-slide { position: absolute; inset: 0; }
+.hp-hero-slides .hp-hero-slide + .hp-hero-slide .hp-hero-img { height: 100%; max-height: none; }
+.hp-hero-dots { position: absolute; left: 0; right: 0; bottom: 12px; z-index: 2; display: flex; justify-content: center; gap: 8px; }
+.hp-hero-dot { width: 8px; height: 8px; padding: 0; border: 0; border-radius: 999px; cursor: pointer;
+  background: rgba(255,255,255,.45); box-shadow: 0 0 0 1px rgba(0,0,0,.25); transition: background .3s, width .3s; }
+.hp-hero-dot.is-on { background: #fff; width: 20px; }
+/* 動きを減らす設定の人にはフェードも自動送りもしない（自動送りはスクリプト側で止める） */
+@media (prefers-reduced-motion: reduce) { .hp-hero-slides .hp-hero-slide { transition: none; } }
 .hp-sec { padding: 48px 22px; }
 .hp-idx, .hp-topbar { display: none; }
 .hp-topbar-nav { display: none; }
@@ -687,7 +708,12 @@ ${COMMON}
    PCは従来どおり全幅ヒーローのまま。 */
 @media (max-width: 767px) {
   .hp-c .hp-hero { display: flex; flex-direction: column; }
-  .hp-c .hp-hero picture { order: 2; }
+  /* ★★ スライダー（2枚以上）のときは picture が .hp-hero-slides の中に入るので、
+     picture への order だけでは効かない（並び順を決めるのは .hp-hero の直接の子）。
+     包む div にも同じ order を振ること。これを忘れると、タイプCのスマホだけ
+     写真と文字の上下が元に戻る。 */
+  .hp-c .hp-hero > picture,
+  .hp-c .hp-hero > .hp-hero-slides { order: 2; }
   /* タイポブロック。英字キャッチ→極太の店名→アクセントの太バー→キャッチコピー */
   .hp-c .hp-hero-text { padding: 26px 20px 22px; }
   .hp-c .hp-hero-name::after { content: ''; display: block; width: 56px; height: 6px;
