@@ -138,3 +138,25 @@
 [data-x-theme='white'] .x-guide-hero {
   box-shadow: 0 2px 10px rgba(15, 23, 42, 0.1);
 }
+
+/* ── 認証バッジの赤（/x/guide/therapist）──
+   セラピストの認証バッジは実物が #EF4444（VerifiedBadge.tsx の kind='therapist'）。
+   その赤をそのまま文字色に使うと、濃紫の面でも白い面でも本文としては読みにくいので、
+   バッジ図形は #EF4444 のまま・文字だけテーマごとに読める赤へ差し替える。
+   ★ 赤はバッジと「大幅にアップ」などの重要語だけに使うこと。ページ全体は紫のままにする。 */
+.x-guide-red {
+  color: #fca5a5; /* red-300 相当。濃紫の沈み面で 7.4:1 */
+}
+[data-x-theme='white'] .x-guide-red {
+  color: #b91c1c; /* red-700。白系の面で 6.7:1 */
+}
+
+/* 赤バッジのサブカード（STEP4 の中）。上品な赤の細枠にとどめ、点滅などはしない。 */
+.x-guide-red-box {
+  border-color: rgba(252, 165, 165, 0.55);
+  background-color: rgba(239, 68, 68, 0.10);
+}
+[data-x-theme='white'] .x-guide-red-box {
+  border-color: #fca5a5;
+  background-color: #fef2f2; /* red-50 */
+}
