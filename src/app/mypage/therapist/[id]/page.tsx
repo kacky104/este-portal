@@ -203,7 +203,7 @@ export default function TherapistEditPage() {
         body_type:         form.body_type ?? null,
         profile_text:      form.profile_text ?? null,
         catchphrase:       (form.catchphrase ?? '').trim().slice(0, 16) || null,
-        // 念のため保存前に正規化（既知バッジのみ・最大3つ）
+        // 念のため保存前に正規化（既知バッジのみ・カテゴリ順に並べ替え・最大 MAX_BADGES 件）
         feature_badges:    sanitizeBadges(badges),
       })
       .eq('id', therapist.id);
@@ -427,7 +427,7 @@ export default function TherapistEditPage() {
           />
         </div>
 
-        {/* 特徴バッジ（最大3つ） */}
+        {/* 特徴バッジ（上限は therapistBadges.ts の MAX_BADGES。見出しの数字もそこから引いている） */}
         <div className="bg-white rounded-3xl border border-slate-100 shadow-sm p-5 space-y-4">
           <div className="flex items-center justify-between">
             <h2 className="text-sm font-black text-slate-700">

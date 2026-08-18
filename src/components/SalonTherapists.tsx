@@ -91,7 +91,7 @@ export type Therapist = {
   reviewCount:     number;   // 承認済み口コミ件数（0なら非表示）
   onFukuX:         boolean;   // fukuX（approved な therapist プロフィール）を利用中か
   xHandle:         string | null; // fukuX プロフィールのハンドル（/x/u/{handle} へのリンク用。未連携は null）
-  featureBadges:   string[]; // 特徴バッジ（最大3）
+  featureBadges:   string[]; // 特徴バッジ（上限は therapistBadges.ts の MAX_BADGES）
   salonId?:        number;   // 保存ボタン用（/saved のセラピストカードで使用）
 };
 

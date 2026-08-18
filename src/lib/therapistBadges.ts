@@ -36,7 +36,9 @@ export const BADGES_BY_CATEGORY: Record<BadgeCategory, string[]> = {
 };
 
 // 1セラピストあたりの最大選択数。
-export const MAX_BADGES = 5;
+// ★ ここを変えると編集UI（/mypage/therapist/[id]）・保存・カード表示のすべてが追随する。
+//   ただし公式HP（/hp/○○）の parts.tsx だけは意図的に別の上限（4個）を持つ。理由はそちらのコメント参照。
+export const MAX_BADGES = 6;
 
 // ラベル → カテゴリ の逆引き表。
 const LABEL_TO_CATEGORY: Record<string, BadgeCategory> = (() => {
@@ -46,6 +48,29 @@ const LABEL_TO_CATEGORY: Record<string, BadgeCategory> = (() => {
   }
   return map;
 })();
+
+// ラベル → 表示順の通し番号。BADGE_CATEGORY_ORDER × BADGES_BY_CATEGORY の並びをそのまま番号にしたもの。
+const LABEL_ORDER: Record<string, number> = (() => {
+  const map: Record<string, number> = {};
+  let i = 0;
+  for (const cat of BADGE_CATEGORY_ORDER) {
+    for (const label of BADGES_BY_CATEGORY[cat]) map[label] = i++;
+  }
+  return map;
+})();
+
+/**
+ * カテゴリ順（ランク・人気 → 経験・キャリア → 外見 → 雰囲気 → スキル）に並べ替える。
+ * ★ カードは2行までで切り落とす（FeatureBadges の max-h-[33px] + overflow-hidden）ので、
+ *   幅が狭いと後ろのバッジが消える。つまり並び順が「どれが消えるか」を決める。
+ *   選んだ順のままだと、たまたま最後に押した「NO.1」が消えて「スレンダー」だけ残る、
+ *   といったことが起きるのでここで必ず揃える。
+ */
+export function sortBadges(list: string[]): string[] {
+  return [...list].sort(
+    (a, b) => (LABEL_ORDER[a] ?? Number.MAX_SAFE_INTEGER) - (LABEL_ORDER[b] ?? Number.MAX_SAFE_INTEGER),
+  );
+}
 
 /** ラベルからカテゴリを引く（未知なら null）。 */
 export function getBadgeCategory(label: string): BadgeCategory | null {
@@ -59,8 +84,10 @@ export function getBadgeColors(label: string): BadgeColors | null {
 }
 
 /**
- * 保存前バリデーション/正規化。
- * 未知ラベル・重複・非文字列を除外し、最大 MAX_BADGES 件に切り詰める。
+ * 保存前バリデーション/正規化。読み出し側でも必ずこれを通す。
+ * 未知ラベル・重複・非文字列を除外し、カテゴリ順に並べ替えてから最大 MAX_BADGES 件に切り詰める。
+ * ★ 並べ替えてから切り詰める順番が大事。先に切り詰めると、上限を超えている古い行で
+ *   「ランク・人気」のバッジが落ちて「スキル」だけが残ることがある。
  */
 export function sanitizeBadges(input: unknown): string[] {
   if (!Array.isArray(input)) return [];
@@ -72,7 +99,6 @@ export function sanitizeBadges(input: unknown): string[] {
     if (seen.has(v)) continue;
     seen.add(v);
     out.push(v);
-    if (out.length >= MAX_BADGES) break;
   }
-  return out;
+  return sortBadges(out).slice(0, MAX_BADGES);
 }

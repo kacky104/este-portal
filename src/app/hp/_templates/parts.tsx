@@ -116,6 +116,10 @@ export function TherapistCards({
             )}
             {t.catchphrase && <div className="hp-th-catch">{t.catchphrase}</div>}
             {t.badges.length > 0 && (
+              /* ★ ここだけ意図的に MAX_BADGES を使わず 4個で固定している。
+                 公式HPのセラピストカードは幅118〜176pxしかなく、ポータルのカード（192〜260px）より
+                 かなり狭い。ここを MAX_BADGES に追随させると、タイプA/B/C すべてでバッジが3〜4行に
+                 なりカードが縦に伸びて店舗様のレイアウトが崩れる。増やす前に必ず実測すること。 */
               <div className="hp-th-badges">
                 {t.badges.slice(0, 4).map((bd) => (
                   <span key={bd} className="hp-th-badge">{bd}</span>
