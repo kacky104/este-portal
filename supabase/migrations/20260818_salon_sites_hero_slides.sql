@@ -32,6 +32,19 @@ alter table public.salon_sites
 comment on column public.salon_sites.hero_slides is
   'トップ画像のスライド。{pc, sp} の配列・最大3。sp は省略可（省略時は pc をスマホでも使う）。形の正は lib/hpSite.ts';
 
+-- ★★★ この1行を絶対に忘れないこと（2026-08-18 に忘れて本番を落とした）★★★
+-- salon_sites は 20260809_salon_sites_admin_lock.sql でテーブル単位の select を revoke し、
+-- 【列単位で grant し直している】テーブル。列を足しただけでは anon から読めない。
+--
+-- 忘れるとこうなる（第21便で実際に起きた症状）:
+--   - /hp/demo は【無事】… デモ店だけ service_role で読む作り（data.ts）なので権限を素通りする
+--   - /hp/test-shop は【500】… anon で読むので新しい列が読めず、data.ts が例外を投げる
+--   - ヒーローを描かない /hp/{slug}/info まで500になる（落ちているのは表示ではなく取得のため）
+-- 「demo だけ無事」なので原因を見誤りやすい。列を足したらまずこの grant を疑うこと。
+--
+-- 保存側（管理画面）は service_role で書くので update の grant は要らない。
+grant select (hero_slides) on public.salon_sites to anon, authenticated;
+
 -- ── 既存行の移行（hero_images → hero_slides の1枚目）──
 -- ★ 何度流しても安全: すでにスライドが入っている行（hero_slides <> '[]'）には触らない。
 -- ★ hero_images[0] が文字列でない壊れた行は空のまま残す（アプリ側が既定画像に落とす）。
