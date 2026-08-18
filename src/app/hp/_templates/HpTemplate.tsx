@@ -31,8 +31,9 @@ import {
   HP_DIGEST_THERAPISTS,
 } from '@/app/hp/_lib/sections';
 import { hpTopbarNavItems } from '@/app/hp/_lib/sections';
+import { hpSubpages } from '@/app/hp/_lib/sections';
 import { HpShell, HP_ORDER_HERO, HP_ORDER_QUICKNAV_ABOVE_HERO } from './HpShell';
-import { CourseGroups, QuickNav, SecHead, TherapistCards } from './parts';
+import { CourseGroups, QuickNav, ScheduleRows, SecHead, TherapistCards } from './parts';
 
 /** 色味を振った既定キービジュアル（public/hp-s/hero-pc-{色}.webp）を持つ配色。 */
 const HP_S_HERO_FALLBACK_COLORS = ['wine', 'blue', 'emerald'];
@@ -54,6 +55,8 @@ export function HpTemplate({ data }: { data: HpPageData }) {
   // マルチページ時はセラピストと料金を抜粋にして、全件は下層ページ（/therapist・/system）へ送る。
   // 同じ内容をトップと下層にそのまま二度出すと自社ドメイン内で重複コンテンツになるため。
   const multipage = b.multipage;
+  // 下層ページが実在するか（/schedule への導線を出すかの判定に使う。2026-08-18 第23便）
+  const subs = hpSubpages(data);
   const salonUrl = `${EMBED_SITE_URL}/salon/${salon.id}`;
   const grouped = groupCourses(courses);
   // ヒーローは「スライド1枚 = { pc, sp }」を最大3枚並べたもの（2026-08-18 第21便）。
@@ -247,39 +250,25 @@ export function HpTemplate({ data }: { data: HpPageData }) {
         <section id="schedule" data-hp-reveal className={secCls('schedule', 'hp-sec-schedule', true)} style={ord('schedule')}>
           <SecHead no="04" en="Schedule" jp="本日の出勤" />
           <div className="hp-sched-date">{data.todayLabel}</div>
-          <div className="hp-sched-list">
-            {onDuty.map((t) => (
-              <a
-                key={t.id}
-                className="hp-sched-row"
-                href={`${EMBED_SITE_URL}/therapist/${t.id}`}
-                target="_blank"
-                rel="noopener"
-              >
-                <span className="hp-sched-thumb">
-                  {t.imageUrl ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img src={t.imageUrl} alt={t.name} />
-                  ) : (
-                    <span className="hp-sched-noimg" />
-                  )}
-                </span>
-                <span className="hp-sched-body">
-                  <span className="hp-sched-name">{t.name}</span>
-                  {/* 出勤欄は名前と年齢だけ（体型・特徴はセラピスト一覧に任せて情報量を絞る） */}
-                  <span className="hp-sched-meta">{t.age !== null ? `${t.age}歳` : ''}</span>
-                  <span className="hp-sched-time">{t.todayTime}</span>
-                </span>
-              </a>
-            ))}
-          </div>
+          {/* 行の DOM は /schedule と共用（parts.tsx の ScheduleRows）。
+              片方だけ直して食い違うのを防ぐため、ここに書き写さないこと。 */}
+          <ScheduleRows rows={onDuty.map((t) => ({ t, time: t.todayTime ?? '' }))} />
 
-          {/* 週間の出勤はHP側に表を持たず、フクエス本体の店舗スケジュールに集約する（2026-08-10）。
-              HPからフクエスへの実流入をつくるのが目的なので、この導線は常に置く。
-              ※ 週間データ（data.weekDays / therapist.week）は残してあるので、表を復活させたくなったらここに戻せる。 */}
-          <a className="hp-more" href={`${salonUrl}/schedule`} target="_blank" rel="noopener">
-            出勤スケジュールをもっと見る →
-          </a>
+          {/* 週間の出勤（2026-08-18 第23便で自社の /schedule に変更）。
+              それまではフクエス本体の店舗スケジュールへ外部リンクしていたが、
+              7日タブの出勤ページを公式HP側に作ったので、同一ドメイン内リンクに切り替えた
+              （内部リンクが全ページに通るぶんSEOにも効く）。
+              ★ 7日ぶんの出勤が1件も無い店では /schedule が404なので、リンクも出さない。
+                そのときだけ従来どおりフクエス本体へ送る（導線を絶やさない）。 */}
+          {multipage && subs.schedule ? (
+            <a className="hp-more" href={`${basePath}/schedule`}>
+              週間の出勤スケジュールを見る →
+            </a>
+          ) : (
+            <a className="hp-more" href={`${salonUrl}/schedule`} target="_blank" rel="noopener">
+              出勤スケジュールをもっと見る →
+            </a>
+          )}
         </section>
       )}
 

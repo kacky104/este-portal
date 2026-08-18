@@ -534,11 +534,14 @@ export function hpSiteKeyColumn(key: string): 'domain' | 'slug' {
 /**
  * トップから切り出す下層ページのURLセグメント。運営が決める固定の分け方。
  *
- * - therapist / system / news / info … サーバーが本文を描く＝検索にも載せる（indexable）
+ * - therapist / system / news / schedule / info … サーバーが本文を描く＝検索にも載せる（indexable）
  * - diary / voice … 中身は iframe（/embed/… は noindex）＝検索エンジンからは本文ゼロに
  *   見えるため、人が見る一覧ページとしてだけ作り、常に noindex・sitemap にも載せない。
+ *
+ * ★ schedule は 2026-08-18（第23便）に追加。7日ぶんの出勤表を持つ独立ページ
+ *   （/hp/{slug}/schedule）。本文はサーバーが全日ぶん描くので indexable。
  */
-export const HP_SUBPAGE_SEGMENTS = ['therapist', 'system', 'news', 'diary', 'voice', 'info'] as const;
+export const HP_SUBPAGE_SEGMENTS = ['therapist', 'system', 'news', 'schedule', 'diary', 'voice', 'info'] as const;
 export type HpSubpageSegment = (typeof HP_SUBPAGE_SEGMENTS)[number];
 
 /**

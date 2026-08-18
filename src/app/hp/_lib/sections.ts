@@ -16,9 +16,10 @@ import type { HpPageData, HpCourse } from '@/app/hp/_lib/data';
  *   home      … トップ（/ または /hp/{slug}）
  *   therapist … セラピスト一覧（/therapist）
  *   system    … コース料金（/system）
+ *   schedule  … 出勤スケジュール（/schedule・7日タブ。2026-08-18 第23便）
  *   terms     … 利用規約（/terms）
  */
-export type HpPageKey = 'home' | 'therapist' | 'system' | 'news' | 'diary' | 'voice' | 'info' | 'terms';
+export type HpPageKey = 'home' | 'therapist' | 'system' | 'news' | 'schedule' | 'diary' | 'voice' | 'info' | 'terms';
 
 // ── トップに出す抜粋の件数（マルチページ時）──────────────
 // トップと下層で同じ内容をそのまま二度出すと自社ドメイン内で重複コンテンツになるため、
@@ -62,6 +63,14 @@ export function hpVisibleSections(data: HpPageData): Record<HpSectionKey, boolea
   };
 }
 
+/**
+ * 7日ぶんの出勤予定が1件でもあるか（/schedule の存在条件）。
+ * therapist.week は data.ts が weekDays と同じ並びで作った配列（出勤日は「12:00〜22:00」・休みは null）。
+ */
+export function hpHasAnyDuty(data: HpPageData): boolean {
+  return data.therapists.some((t) => t.week.some((v) => v !== null));
+}
+
 /** 求人リンク（フクエスワークの求人ページ）を出すか。出すなら絶対URL、出さないなら null。 */
 export function hpJobsUrl(data: HpPageData): string | null {
   const { site, salon, jobId } = data;
@@ -83,6 +92,7 @@ export function hpSubpages(data: HpPageData): {
   therapist: boolean;
   system:    boolean;
   news:      boolean;
+  schedule:  boolean;
   diary:     boolean;
   voice:     boolean;
   info:      boolean;
@@ -92,6 +102,10 @@ export function hpSubpages(data: HpPageData): {
     therapist: multi && data.therapists.length > 0,
     system:    multi && groupCourses(data.courses).length > 0,
     news:      multi && data.news.length > 0,
+    // 出勤スケジュール（2026-08-18 第23便）。7日ぶんのどこかに1人でも出勤があれば出す。
+    // ★ 本日だけで判定しない。「今日は全員休みだが明日から出勤がある」店のページを
+    //   404 にしてしまうため（週間表なのだから本日以外も中身に数える）。
+    schedule:  multi && hpHasAnyDuty(data),
     // 写メ日記・口コミも「中身の有無」で判定（2026-08-11 修正）。
     // 以前は iframe で件数が見えず ON/OFF を存在条件にしていたが、HP直接描画に変えて
     // 件数（diaryCount / reviewCount）を取れるようになったため、他ページと同じ扱いに統一。
@@ -177,11 +191,20 @@ export function hpMenuItems(data: HpPageData, page: HpPageKey): HpMenuItem[] {
     : visible.reviews
       ? { href: hash('voice'), label: '口コミ' }
       : null;
+  // 出勤スケジュール（2026-08-18 第23便）。マルチページ時は7日タブの独立ページへ。
+  // 1ページ構成のときは従来どおりトップの「本日の出勤」セクションへのアンカー。
+  const scheduleItem: HpMenuItem | null = multi
+    ? subs.schedule
+      ? { href: `${basePath}/schedule`, label: '出勤スケジュール', current: page === 'schedule' }
+      : null
+    : visible.schedule
+      ? { href: hash('schedule'), label: '出勤スケジュール' }
+      : null;
 
   return [
     { href: page === 'home' ? '#top' : basePath || '/', label: 'TOP' },
     ...(newsItem !== null ? [newsItem] : []),
-    ...(visible.schedule ? [{ href: hash('schedule'), label: '出勤スケジュール' }] : []),
+    ...(scheduleItem !== null ? [scheduleItem] : []),
     ...(therapistItem !== null ? [therapistItem] : []),
     ...(systemItem !== null ? [systemItem] : []),
     ...(diaryItem !== null ? [diaryItem] : []),
@@ -205,6 +228,7 @@ export function hpFooterPageLinks(data: HpPageData): HpMenuItem[] {
     { href: basePath || '/', label: 'ホーム' },
     ...(subs.therapist ? [{ href: `${basePath}/therapist`, label: 'セラピスト一覧' }] : []),
     ...(subs.system    ? [{ href: `${basePath}/system`,    label: '料金・コース' }] : []),
+    ...(subs.schedule  ? [{ href: `${basePath}/schedule`,  label: '出勤スケジュール' }] : []),
     ...(subs.news      ? [{ href: `${basePath}/news`,      label: 'お知らせ' }] : []),
     ...(subs.diary     ? [{ href: `${basePath}/diary`,     label: '写メ日記' }] : []),
     ...(subs.voice     ? [{ href: `${basePath}/voice`,     label: '口コミ' }] : []),

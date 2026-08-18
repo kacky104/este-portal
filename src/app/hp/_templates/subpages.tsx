@@ -16,11 +16,11 @@
 import { EMBED_SITE_URL } from '@/app/embed/salon/[id]/embedShared';
 import type { HpPageData } from '@/app/hp/_lib/data';
 import { hpSiteOrigin } from '@/app/hp/_lib/meta';
-import { groupCourses } from '@/app/hp/_lib/sections';
+import { groupCourses, hpHasAnyDuty } from '@/app/hp/_lib/sections';
 import { fetchHpDiaryItems, fetchHpReviews } from '@/app/hp/_lib/subpageData';
 import { buildHpTerms } from '@/app/hp/_lib/terms';
 import { HpShell } from '@/app/hp/_templates/HpShell';
-import { CourseGroups, Crumb, SecHead, TherapistCards } from '@/app/hp/_templates/parts';
+import { CourseGroups, Crumb, ScheduleRows, SecHead, TherapistCards } from '@/app/hp/_templates/parts';
 import { HP_DEMO_SLUG, normalizeHpSiteKey } from '@/app/lib/hpSite';
 import { buildBreadcrumbJsonLd, buildItemListJsonLd, toJsonLdString } from '@/app/lib/jsonLd';
 import { paymentMethodLabel } from '@/app/lib/paymentMethods';
@@ -98,6 +98,114 @@ export function HpTherapistView({ data, preview }: ViewProps) {
           }}
         />
       )}
+    </HpShell>
+  );
+}
+
+// ── 出勤スケジュール（7日タブ・2026-08-18 第23便）──────
+//
+// トップの「本日の出勤」は本日1日ぶんだけ。ここは7日ぶんを日付タブで切り替える。
+// 行の見た目（写真グリッド／1行表示）はひな形ごとの既存CSSがそのまま効く。
+//
+// ★★ タブの切り替えは【CSSだけ】で行う（素のラジオボタン＋<label>）。
+//   理由: 公式HPには 'use client' の部品が1つも無く、ページは全部サーバーで
+//   HTMLを吐き切る作りになっている。ここだけクライアント部品を入れると、
+//   4ひな形ぶんのCSS文字列（styles.ts）を注入する仕組みと噛み合わない。
+//   おまけにJSが動かない環境でも全日ぶんが切り替えられる。
+// ★ 7日ぶんの中身はすべてHTMLに出ている（隠しているのは display:none だけ）。
+//   1日ぶんずつ取りに行かないので、押した瞬間に切り替わる。
+
+export function isHpScheduleOpen(data: HpPageData): boolean {
+  // ★ 本日だけで判定しない。「今日は全員休みだが明日から出勤がある」店を404にしないため。
+  return isMultipageLive(data) && hpHasAnyDuty(data);
+}
+
+export function HpScheduleView({ data, preview }: ViewProps) {
+  const { salon, therapists, weekDays, basePath } = data;
+  const homeHref = basePath || '/';
+
+  // 日ごとの出勤者。並びは「出勤開始が早い順 → 同時刻は名前順」。
+  // therapists 自体は data.ts が「本日出勤が先頭」で並べているが、それは本日限定の順序なので
+  // 明日以降のタブでは意味を持たない。各日ごとに並べ直す。
+  const byDay = weekDays.map((_d, i) =>
+    therapists
+      .flatMap((t) => {
+        const time = t.week[i];
+        return time ? [{ t, time }] : [];
+      })
+      .sort((x, y) => x.time.localeCompare(y.time) || x.t.name.localeCompare(y.t.name, 'ja')),
+  );
+
+  return (
+    <HpShell data={data} page="schedule">
+      <section id="schedule" className="hp-sec hp-sec-schedule" style={{ order: 1 }}>
+        <Crumb homeHref={homeHref} label="出勤スケジュール" />
+        <SecHead no="04" en="Schedule" jp="出勤スケジュール" />
+
+        {/* ★★ ラジオ・タブ・パネルは【必ずこの div の直接の子】に並べること。
+             CSS が「#hp-sd-N:checked ~ #hp-sp-N」という後方兄弟セレクタで出し分けている。
+             間にラッパーを1枚挟むと全パネルが display:none のまま＝真っ白になる
+             （HpShell のドロワーと同じ仕掛け・同じ落とし穴）。 */}
+        <div className="hp-sched-week">
+          {weekDays.map((d, i) => (
+            <input
+              key={`radio-${d.date}`}
+              type="radio"
+              name="hp-sched-day"
+              id={`hp-sd-${i}`}
+              className="hp-sched-radio"
+              defaultChecked={i === 0}
+            />
+          ))}
+
+          <div className="hp-sched-tabs">
+            {weekDays.map((d, i) => (
+              <label
+                key={`tab-${d.date}`}
+                className={`hp-sched-tab${d.tone ? ` hp-sched-tab-${d.tone}` : ''}`}
+                htmlFor={`hp-sd-${i}`}
+              >
+                <span className="hp-sched-tab-md">{d.label}</span>
+                <span className="hp-sched-tab-wd">{d.weekday}</span>
+              </label>
+            ))}
+          </div>
+
+          {weekDays.map((d, i) => (
+            <div key={`panel-${d.date}`} id={`hp-sp-${i}`} className="hp-sched-panel">
+              {/* 日付はタブにも出ているが、ここにも置く。押した日がどこか一目で分かるのと、
+                  CSSが効かない環境（読み上げ・検索エンジン）で名前と日付が結びつくため。 */}
+              <div className="hp-sched-date">
+                {d.label}（{d.weekday}）{d.isToday ? ' 本日' : ''}
+              </div>
+              {byDay[i].length === 0 ? (
+                <p className="hp-note">この日の出勤予定はありません</p>
+              ) : (
+                <ScheduleRows rows={byDay[i]} />
+              )}
+            </div>
+          ))}
+        </div>
+
+        {/* フクエス本体への導線は残す（第23便でトップの「もっと見る」を自社/scheduleへ
+            付け替えたぶん、本体への流入をここで受ける）。
+            2本のリンクは div で1本ずつ包んで全ひな形で縦に並べる（A/C の hp-more は inline-block）。 */}
+        <div>
+          <a
+            className="hp-more"
+            href={`${EMBED_SITE_URL}/salon/${salon.id}/schedule`}
+            target="_blank"
+            rel="noopener"
+          >
+            フクエスで出勤スケジュールを見る →
+          </a>
+        </div>
+        <div>
+          <a className="hp-more" href={homeHref}>← ホームへ戻る</a>
+        </div>
+      </section>
+
+      <CrumbJsonLd data={data} label="出勤スケジュール" path="/schedule" preview={preview} />
     </HpShell>
   );
 }

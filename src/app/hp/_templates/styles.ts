@@ -12,6 +12,30 @@
 //  - .hp-idx（連番）と .hp-topbar はタイプCだけ表示
 //  - .hp-rule（短い罫線）はタイプAだけ表示
 
+/**
+ * 出勤スケジュールページ（/schedule）の日付タブの出し分け（2026-08-18 第23便）。
+ *
+ * JSを使わず、素のラジオボタン（#hp-sd-N）が checked のときに
+ *   ・対応するタブ（label[for=hp-sd-N]）を選択中の見た目にする
+ *   ・対応するパネル（#hp-sp-N）だけ display:block にする
+ * という2本のルールを7日ぶん並べる。DOM は subpages.tsx の HpScheduleView が吐く。
+ *
+ * ★ 後方兄弟セレクタ（~）なので、ラジオ・タブ・パネルは同じ親の直接の子であること。
+ * ★ 日数を7から変えるときはここの HP_SCHED_TAB_COUNT も直すこと（多すぎるぶんには
+ *   使われないルールが増えるだけで害はないが、少ないと切り替わらない日が出る）。
+ */
+const HP_SCHED_TAB_COUNT = 7;
+const HP_SCHED_TAB_RULES = Array.from({ length: HP_SCHED_TAB_COUNT }, (_, i) => `
+#hp-sd-${i}:checked ~ .hp-sched-tabs label[for="hp-sd-${i}"] {
+  opacity: 1; font-weight: 700;
+  border-color: var(--hp-accent, #c4a469);
+  background: color-mix(in srgb, var(--hp-accent, #c4a469) 12%, transparent);
+  box-shadow: inset 0 -3px 0 0 var(--hp-accent, #c4a469);
+}
+#hp-sd-${i}:checked ~ #hp-sp-${i} { display: block; }
+#hp-sd-${i}:focus-visible ~ .hp-sched-tabs label[for="hp-sd-${i}"] { outline: 2px solid var(--hp-accent, #c4a469); outline-offset: 2px; }
+`).join('');
+
 const COMMON = `
 /* isolation: isolate は壁紙レイヤー（z-index:-1）のため必須。
    これが無いと負の z-index がページ全体の背面（レイアウトの額縁背景の裏）まで潜って見えなくなる。 */
@@ -177,6 +201,31 @@ const COMMON = `
 .hp-sched-row { color: inherit; text-decoration: none; }
 .hp-sched-body { display: contents; }
 .hp-sched-thumb, .hp-sched-meta { display: none; }
+/* ── 出勤スケジュールページ（/schedule）の日付タブ（2026-08-18 第23便）──
+   中身の行（.hp-sched-list 以下）はトップの「本日の出勤」と同じクラスなので、
+   ひな形ごとの装飾はすでに効いている。ここで足すのはタブと出し分けだけ。
+   ★ ラジオは display:none にしない。消すとキーボードで選べなくなるので、
+     見えない1pxに畳んで残す（読み上げソフトからも触れる）。 */
+.hp-sched-radio { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; border: 0; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+.hp-sched-tabs { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 3px; margin-bottom: 20px; }
+.hp-sched-tab {
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px;
+  min-width: 0; padding: 8px 1px; cursor: pointer; line-height: 1; text-align: center; opacity: .92;
+  border: 1px solid color-mix(in srgb, currentColor 26%, transparent);
+  transition: opacity .2s ease, background-color .2s ease, border-color .2s ease;
+}
+.hp-sched-tab-md { font-size: 11.5px; letter-spacing: 0; white-space: nowrap; }
+.hp-sched-tab-wd { font-size: 10px; letter-spacing: 0; }
+/* 土日は曜日だけ色を変える（選択中は上のルールが効くので、色は曜日の文字だけに留める） */
+.hp-sched-tab-sat .hp-sched-tab-wd { color: #4f7fd0; }
+.hp-sched-tab-sun .hp-sched-tab-wd { color: #d05a5a; }
+/* パネルは既定で隠し、checked のものだけ出す（実際の出し分けは HP_SCHED_TAB_RULES） */
+.hp-sched-panel { display: none; }
+/* 出勤ゼロの日。素の .hp-note（10px・ひな形によっては左寄せ）だと
+   「読み込みに失敗して空」に見えるので、このページの中だけ点線の枠に入れる。
+   ★ .hp-note そのものは触らないこと（/system の「※ 表示料金は…」にも効いてしまう）。 */
+.hp-sched-panel .hp-note { text-align: center; font-size: 11.5px; padding: 26px 12px; border: 1px dashed color-mix(in srgb, currentColor 25%, transparent); }
+${HP_SCHED_TAB_RULES}
 /* テーマ壁紙レイヤー（有効時は .hp-has-wallpaper が付き、ひな形側で透過調整する） */
 .hp-wallpaper { position: fixed; inset: 0; z-index: -1; background-size: cover; background-position: center; pointer-events: none; }
 .hp-wallpaper::after { content: ''; position: absolute; inset: 0; }

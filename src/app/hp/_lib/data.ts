@@ -18,6 +18,7 @@ import {
   type HpSite,
   type HpTemplateKey,
   HP_DEMO_SLUG,
+  HP_SCHEDULE_DAYS_MAX,
   HP_SITE_COLUMNS,
   hpImageSlotKey,
   hpSiteKeyColumn,
@@ -42,7 +43,7 @@ export type HpTherapist = {
   week:        (string | null)[];
 };
 
-/** 週間スケジュールの日付見出し（本日から blocks.schedule.days 日ぶん）。 */
+/** 週間スケジュールの日付見出し（本日から7日ぶん。/schedule のタブと本文に使う）。 */
 export type HpWeekDay = {
   date:    string;  // 'YYYY-MM-DD'
   label:   string;  // 「8/9」
@@ -86,7 +87,7 @@ export type HpPageData = {
   reviewCount: number;
   /** 本日の営業日（JST・午前6時切替）の表示ラベル（例「8/9 (土)」）。出勤ブロックの日付表示用 */
   todayLabel: string;
-  /** 週間スケジュールの日付列（本日から blocks.schedule.days 日ぶん） */
+  /** 週間スケジュールの日付列（本日から7日ぶん） */
   weekDays:   HpWeekDay[];
   /** テーマ壁紙のURL（theme_wallpapers・/admin でアップロードした画像を流用）。無ければ null */
   wallpaperUrl: string | null;
@@ -179,8 +180,12 @@ export async function fetchHpPageData(
   if (salonRow.is_hidden && siteKey !== HP_DEMO_SLUG) return null;
 
   const today = getBusinessDateJST();
-  // 週間スケジュールの表示日数（1〜7）。sanitizeHpBlocks で丸め済み。
-  const weekDays = buildWeekDays(today, site.blocks.schedule.days);
+  // 週間スケジュールの日付列は【常に7日】（2026-08-18 第23便）。
+  // ★ 以前は site.blocks.schedule.days（1〜7）に従っていたが、この設定は店舗向けUIから
+  //   隠してあり（既定7）、出勤スケジュールページ（/schedule）は全店7日のタブで揃える、と
+  //   オーナー判断で決めた。days 列は sanitizeHpBlocks が丸めるだけの死に設定になっている。
+  //   トップの「本日の出勤」が使うのは weekDays[0] だけなので、ここを7に固定しても影響は無い。
+  const weekDays = buildWeekDays(today, HP_SCHEDULE_DAYS_MAX);
   const lastDay = weekDays[weekDays.length - 1]?.date ?? today;
 
   // セラピストだけ先に引く。出勤は therapist_id で自店に絞りたいため

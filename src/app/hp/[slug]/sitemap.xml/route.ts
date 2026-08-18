@@ -1,5 +1,6 @@
 import { createPublicClient } from '@/app/lib/supabase/public';
 import { hpSiteKeyColumn, normalizeHpSiteKey, sanitizeHpBlocks } from '@/app/lib/hpSite';
+import { getBusinessDateRangeJST } from '@/lib/dutyStatus';
 
 // 店舗の独自ドメイン用 sitemap.xml（2026-08-09 段階3 → 2026-08-11 マルチページ対応）。
 //
@@ -37,7 +38,8 @@ export async function GET(_request: Request, { params }: { params: Promise<{ slu
       // ★ /diary と /voice はここに載せない（常に noindex の一覧ページ。中身が iframe のため）。
       const salonId = Number(data?.salon_id);
       const [therapistRes, salonRes, newsRes] = await Promise.all([
-        supabase.from('therapists').select('id', { count: 'exact', head: true }).eq('salon_id', salonId),
+        // ★ head:true にしないこと。/schedule の判定で therapist_id の一覧が要る（2026-08-18 第23便）。
+        supabase.from('therapists').select('id', { count: 'exact' }).eq('salon_id', salonId),
         supabase.from('salons').select('courses').eq('id', salonId).maybeSingle(),
         supabase
           .from('announcements')
@@ -47,6 +49,23 @@ export async function GET(_request: Request, { params }: { params: Promise<{ slu
       ]);
       if ((therapistRes.count ?? 0) > 0) paths.push('/therapist');
       if ((newsRes.count ?? 0) > 0) paths.push('/news');
+
+      // 出勤スケジュール（2026-08-18 第23便）。7日間に有効な出勤が1件でもあれば載せる。
+      // ★ ページ側（isHpScheduleOpen）とまったく同じ条件にすること。
+      //   ここが緩いと、404 のURLをサイトマップに書いて検索エンジンに出すことになる。
+      const therapistIds = (therapistRes.data ?? []).map((t) => String(t.id));
+      if (therapistIds.length > 0) {
+        const dates = getBusinessDateRangeJST(7);
+        const { count: dutyCount } = await supabase
+          .from('therapist_schedules')
+          .select('therapist_id', { count: 'exact', head: true })
+          .in('therapist_id', therapistIds)
+          .eq('is_active', true)
+          .gte('schedule_date', dates[0])
+          .lte('schedule_date', dates[dates.length - 1]);
+        if ((dutyCount ?? 0) > 0) paths.push('/schedule');
+      }
+
       paths.push('/info'); // 店舗情報は常に中身がある（店名・住所は必須データ）
       const courses = (salonRes as { data: { courses?: unknown } | null }).data?.courses;
       const hasCourse =

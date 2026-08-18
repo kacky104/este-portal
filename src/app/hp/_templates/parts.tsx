@@ -135,6 +135,49 @@ export function TherapistCards({
 }
 
 /**
+ * 出勤の行（トップの「本日の出勤」と /schedule の各日タブが共用する。2026-08-18 第23便）。
+ *
+ * ★★ この DOM は 4ひな形すべての CSS の前提になっている。要素を足す・入れ替えると
+ *   タイプS/A/B の写真グリッド（.hp-sched-thumb::after のグラデーション、
+ *   .hp-sched-body の絶対配置）が丸ごと崩れる。styles.ts の「本日の出勤」の節を必ず読むこと。
+ * ★ ラッパーを足さないこと。COMMON が .hp-sched-body を display:contents にして
+ *   A/B/C の「名前 …… 時間」1行レイアウトを作っている。
+ *
+ * time は「その日の出勤時間」（例「12:00〜22:00」）。トップは本日ぶん（todayTime）、
+ * /schedule は week[i] を渡す＝同じ部品で日替わりの表になる。
+ */
+export function ScheduleRows({ rows }: { rows: { t: HpTherapist; time: string }[] }) {
+  return (
+    <div className="hp-sched-list">
+      {rows.map(({ t, time }) => (
+        <a
+          key={t.id}
+          className="hp-sched-row"
+          href={`${EMBED_SITE_URL}/therapist/${t.id}`}
+          target="_blank"
+          rel="noopener"
+        >
+          <span className="hp-sched-thumb">
+            {t.imageUrl ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={t.imageUrl} alt={t.name} />
+            ) : (
+              <span className="hp-sched-noimg" />
+            )}
+          </span>
+          <span className="hp-sched-body">
+            <span className="hp-sched-name">{t.name}</span>
+            {/* 出勤欄は名前と年齢だけ（体型・特徴はセラピスト一覧に任せて情報量を絞る） */}
+            <span className="hp-sched-meta">{t.age !== null ? `${t.age}歳` : ''}</span>
+            <span className="hp-sched-time">{time}</span>
+          </span>
+        </a>
+      ))}
+    </div>
+  );
+}
+
+/**
  * コース料金のグループ一覧（groupCourses() の結果をそのまま渡す）。
  * limit を渡すと先頭 n グループだけ（トップの抜粋用）。
  */
