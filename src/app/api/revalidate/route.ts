@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/app/lib/supabase/server";
 import { areaHref } from "@/app/lib/areas";
-import { PAGE_HERO_PATHS } from '@/app/lib/pageHero';
+import { PAGE_HERO_PATHS, PAGE_HERO_LAYOUT_PATHS } from '@/app/lib/pageHero';
 
 // ISR キャッシュを即時更新するエンドポイント。
 // 認証で保護：cookie のログインセッションから getUser し、認証済みユーザー（オーナー/管理者）
@@ -92,6 +92,13 @@ export async function POST(req: Request) {
     for (const path of Object.values(PAGE_HERO_PATHS)) {
       revalidatePath(path);
       revalidated.push(path);
+    }
+    // 配下の動的ルートにも同じ画像を出しているページ（コラムのカテゴリ別一覧）は
+    // 'layout' 指定でまとめて作り直す。パス1本の revalidatePath では
+    // /column/category/[key] のような動的ルートに届かないため（2026-08-18 第23便）。
+    for (const path of PAGE_HERO_LAYOUT_PATHS) {
+      revalidatePath(path, 'layout');
+      revalidated.push(`${path} (layout)`);
     }
   }
 

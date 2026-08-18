@@ -14,7 +14,9 @@ export type PageHeroKey =
   | 'salons'
   | 'join'
   | 'listing'
-  | 'jobs-matching';
+  | 'column'
+  | 'jobs-matching'
+  | 'jobs-column';
 
 export const PAGE_HERO_LABELS: Record<PageHeroKey, string> = {
   therapists: '特徴で探す',
@@ -28,7 +30,9 @@ export const PAGE_HERO_LABELS: Record<PageHeroKey, string> = {
   salons: 'メンズエステ店一覧',
   join: '会員登録案内',
   listing: '掲載について',
+  column: 'コラム',
   'jobs-matching': 'お仕事マッチング',
+  'jobs-column': 'お仕事コラム',
 };
 
 // 各キーの公開ページパス。/api/revalidate（pageHeroes指定時）の無効化対象はこの表から生成する。
@@ -44,17 +48,36 @@ export const PAGE_HERO_PATHS: Record<PageHeroKey, string> = {
   salons: '/salons',
   join: '/join',
   listing: '/listing',
+  column: '/column',
   'jobs-matching': '/jobs/matching',
+  'jobs-column': '/jobs/column',
 };
+
+/**
+ * ヒーロー画像の変更で「配下のページもまとめて」無効化したいルート（2026-08-18 第23便）。
+ *
+ * コラムだけは同じ画像を【一覧とカテゴリ別一覧の両方】に出しているが、
+ * カテゴリ別は /column/category/[key] という動的ルートなので、
+ * PAGE_HERO_PATHS の1本（/column）を revalidatePath() しても道連れにできない。
+ * ここに書いたルートは /api/revalidate が 'layout' 指定で無効化する＝配下ごと作り直す。
+ *
+ * ★ 記事本文（/column/[slug]）にはヒーローを出していないが、'layout' 指定なので
+ *   ついでに作り直される。中身は変わらないので害は無い（無駄な再生成が数本増えるだけ）。
+ */
+export const PAGE_HERO_LAYOUT_PATHS: readonly string[] = ['/column', '/jobs/column'];
 
 // 管理画面のグループ分け：本体タブ＝MAIN／求人タブ＝JOBS（PageHeroManager の keys に渡す）。
 // ヒーロー設定対象のページを増やす手順：
 //   1. PageHeroKey・PAGE_HERO_LABELS・PAGE_HERO_PATHS に追加
-//   2. admin_set_page_hero の許可キーへ追加する migration を作成（Supabaseへ適用）
+//   2. 許可キーへ追加する migration を作成（Supabaseへ適用）
+//      ★ 関数は【2本ある】。admin_set_page_hero（旧・PC専用／残してある）と
+//        admin_set_page_hero_image（現行・PC/SP対応）の両方の許可リストを直すこと。
+//        片方だけ直すと、片方の関数から見て「不正なキー」のまま残る。
 //   3. 下のどちらかのグループ（または新グループ）へ追加 → 該当タブの管理UIに自動で並ぶ
 //   4. 公開ページ側で fetchPageHero('<key>') → <PageHero> を表示
-export const MAIN_PAGE_HERO_KEYS: readonly PageHeroKey[] = ['therapists', 'diary', 'reviews', 'reviews-therapist', 'reviews-hall', 'newface', 'xshops', 'news', 'salons', 'join', 'listing'];
-export const JOBS_PAGE_HERO_KEYS: readonly PageHeroKey[] = ['jobs-matching'];
+//   5. 配下の動的ルートにも同じ画像を出すなら PAGE_HERO_LAYOUT_PATHS にも追加
+export const MAIN_PAGE_HERO_KEYS: readonly PageHeroKey[] = ['therapists', 'diary', 'reviews', 'reviews-therapist', 'reviews-hall', 'newface', 'xshops', 'news', 'salons', 'join', 'listing', 'column'];
+export const JOBS_PAGE_HERO_KEYS: readonly PageHeroKey[] = ['jobs-matching', 'jobs-column'];
 
 /**
  * ページ別ヒーロー画像のPC/SPの組（2026-08-17 / 第19便で追加）。

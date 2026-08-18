@@ -4,6 +4,8 @@ import { fetchPublishedArticles } from '@/app/lib/workArticles';
 import { ArticleCard } from './ArticleCard';
 import { CategoryChips } from './CategoryChips';
 import { buildBreadcrumbJsonLd, toJsonLdString } from '@/app/lib/jsonLd';
+import { PageHero } from '@/app/components/PageHero';
+import { fetchPageHero } from '@/app/lib/pageHero';
 
 // ISR：既存 /jobs 系公開ページと同じ10分。anon クライアント読取のみ＝cookie不使用で動的化しない。
 export const revalidate = 600;
@@ -28,7 +30,11 @@ export const metadata: Metadata = {
 };
 
 export default async function ColumnListPage() {
-  const articles = await fetchPublishedArticles();
+  // 記事一覧とヘッダー画像は互いに独立なので並列取得。
+  const [articles, hero] = await Promise.all([
+    fetchPublishedArticles(),
+    fetchPageHero('jobs-column'),
+  ]);
 
   return (
     <main className="max-w-3xl mx-auto px-4 py-8">
@@ -47,6 +53,12 @@ export default async function ColumnListPage() {
           コラム
         </span>
       </nav>
+
+      {/* ページ別ヒーロー画像（/admin の「求人ページ別ヒーロー画像設定」→「お仕事コラム」から設定・
+          未設定なら何も出ない）。contentMax は <main> の max-w-3xl と同じ 768。
+          ★ 同じ画像をカテゴリ別一覧（/jobs/column/category/[key]）にも出している。文言や置き場所を
+            変えるときは両方そろえること。 */}
+      <PageHero url={hero} alt={PAGE_TITLE} fullBleedMobile contentMax={768} />
 
       <header className="mb-6">
         <h1 className="text-xl sm:text-2xl font-extrabold text-slate-900">{PAGE_TITLE}</h1>

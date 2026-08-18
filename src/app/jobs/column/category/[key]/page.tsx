@@ -10,6 +10,8 @@ import { fetchPublishedArticlesByCategory } from '@/app/lib/workArticles';
 import { ArticleCard } from '../../ArticleCard';
 import { CategoryChips } from '../../CategoryChips';
 import { buildBreadcrumbJsonLd, toJsonLdString } from '@/app/lib/jsonLd';
+import { PageHero } from '@/app/components/PageHero';
+import { fetchPageHero } from '@/app/lib/pageHero';
 
 // ISR：一覧と同じ10分。
 export const revalidate = 600;
@@ -56,7 +58,12 @@ export default async function ColumnCategoryPage({
   if (!isValidArticleCategory(key)) notFound();
 
   const label = articleCategoryLabel(key);
-  const articles = await fetchPublishedArticlesByCategory(key);
+  // 記事一覧とヘッダー画像は互いに独立なので並列取得。
+  // ★ ヒーローは一覧ページ（/jobs/column）と【同じ 'jobs-column' キー】。カテゴリごとに別画像は持たない。
+  const [articles, hero] = await Promise.all([
+    fetchPublishedArticlesByCategory(key),
+    fetchPageHero('jobs-column'),
+  ]);
 
   return (
     <main className="max-w-3xl mx-auto px-4 py-8">
@@ -80,6 +87,9 @@ export default async function ColumnCategoryPage({
           {label}
         </span>
       </nav>
+
+      {/* ページ別ヒーロー画像（/jobs/column と同じ画像・同じ置き場所）。設定は /admin の「お仕事コラム」1か所。 */}
+      <PageHero url={hero} alt="セラピストのお仕事コラム" fullBleedMobile contentMax={768} />
 
       <header className="mb-6">
         <h1 className="text-xl sm:text-2xl font-extrabold text-slate-900">{label}のコラム</h1>

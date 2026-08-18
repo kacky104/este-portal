@@ -10,6 +10,8 @@ import { fetchPublishedMainArticlesByCategory } from '@/app/lib/mainArticles';
 import { ArticleCard } from '../../ArticleCard';
 import { CategoryChips } from '../../CategoryChips';
 import { buildBreadcrumbJsonLd, toJsonLdString } from '@/app/lib/jsonLd';
+import { PageHero } from '@/app/components/PageHero';
+import { fetchPageHero } from '@/app/lib/pageHero';
 
 // 本体コラムのカテゴリ別一覧（ワーク側 jobs/column/category/[key] のピンクテーマ版）。
 
@@ -56,7 +58,13 @@ export default async function MainColumnCategoryPage({
   if (!isValidMainArticleCategory(key)) notFound();
 
   const label = mainArticleCategoryLabel(key);
-  const articles = await fetchPublishedMainArticlesByCategory(key);
+  // 記事一覧とヘッダー画像は互いに独立なので並列取得。
+  // ★ ヒーローは一覧ページ（/column）と【同じ 'column' キー】。カテゴリごとに別画像は持たない
+  //   （カテゴリのチップを押した瞬間にヒーローが入れ替わると、別サイトに来たように見えるため）。
+  const [articles, hero] = await Promise.all([
+    fetchPublishedMainArticlesByCategory(key),
+    fetchPageHero('column'),
+  ]);
 
   return (
     <main className="max-w-3xl mx-auto px-4 py-8">
@@ -80,6 +88,9 @@ export default async function MainColumnCategoryPage({
           {label}
         </span>
       </nav>
+
+      {/* ページ別ヒーロー画像（/column と同じ画像・同じ置き場所）。設定は /admin の「コラム」1か所。 */}
+      <PageHero url={hero} alt="メンズエステコラム" fullBleedMobile contentMax={768} />
 
       <header className="mb-6">
         <h1 className="text-xl sm:text-2xl font-extrabold text-slate-900">{label}のコラム</h1>
