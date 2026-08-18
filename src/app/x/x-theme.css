@@ -69,3 +69,72 @@
   border-color: rgb(226 232 240); /* slate-200 */
   color: rgb(71 85 105); /* slate-600 */
 }
+
+/* ══════════════════════════════════════════════════════════════════════════
+   /x/guide/shop（お店向け使い方ガイド）専用。2026-08-18（第22便）追加。
+   ★ どれも「ページ側がクラスを出したときだけ効く」opt-in。クラスを出していない
+     /x の他ページ（タイムライン・プロフィール・DM・他のガイド2本）には一切影響しない。
+   ══════════════════════════════════════════════════════════════════════════ */
+
+/* ── 本文を 900px まで広げる ──
+   /x の <main> は layout.tsx の max-w-2xl（672px）が全ページ共通。ガイドは画像で手順を
+   見せるため広げたいが、layout.tsx を書き換えるとタイムラインやプロフィールまで広がる。
+   そこで「ページが .x-main-wide を出したときだけ広げる」形にした。
+   ★ 詳細度は #x-root main:has(...) = (1,0,1) で、Tailwind の .max-w-2xl (0,1,0) に勝つ。
+   ★ :has() 非対応の古いブラウザでは単に 672px のままになるだけで、崩れはしない。
+   ★ ヘッダーと「テスト運用中」バナーは max-w-2xl のまま（共通部品なので触らない）。
+     本文だけが広い同心の配置になる。 */
+#x-root main:has(.x-main-wide) {
+  max-width: 900px;
+}
+
+/* ── ガイドのピンク差し色 ──
+   グラデ背景では明るいピンク、白背景では濃いピンクへ差し替える。
+   ★ Tailwind の text-pink-300 を直接使わないこと。白テーマ（背景が白）だと
+     pink-300 は白地にほぼ溶けて読めなくなる。 */
+.x-guide-pink {
+  color: #f9a8d4; /* pink-300 相当。濃紫の面で 8.0:1 */
+}
+[data-x-theme='white'] .x-guide-pink {
+  color: #be185d; /* pink-700。白地で 6.9:1 */
+}
+
+/* ── ピンクの細枠ボックス（ヒーロー直下の強調・STEP4・8枚カード・注意事項）──
+   白テーマでは紫のグローをやめ、枠線だけをはっきりさせる。 */
+.x-guide-hilite {
+  border-color: rgba(249, 168, 212, 0.6);
+  box-shadow: 0 4px 16px rgba(109, 40, 217, 0.25);
+}
+[data-x-theme='white'] .x-guide-hilite {
+  border-color: #f9a8d4;
+  box-shadow: none;
+}
+
+/* ── 「認証店のみ」ラベル ── */
+.x-guide-tag {
+  border-color: rgba(249, 168, 212, 0.7);
+  background-color: rgba(236, 72, 153, 0.16);
+  color: #f9a8d4;
+}
+[data-x-theme='white'] .x-guide-tag {
+  border-color: #f9a8d4;
+  background-color: #fdf2f8; /* pink-50 */
+  color: #be185d;
+}
+
+/* ── 説明画像の枠（控えめな影）──
+   白テーマでは紫の影が浮くので、淡いグレーの影に差し替える。 */
+.x-guide-figure {
+  box-shadow: 0 2px 10px rgba(76, 29, 149, 0.22);
+}
+[data-x-theme='white'] .x-guide-figure {
+  box-shadow: 0 1px 4px rgba(15, 23, 42, 0.08);
+}
+
+/* ── ヒーローの影 ── */
+.x-guide-hero {
+  box-shadow: 0 8px 24px rgba(76, 29, 149, 0.35);
+}
+[data-x-theme='white'] .x-guide-hero {
+  box-shadow: 0 2px 10px rgba(15, 23, 42, 0.1);
+}
