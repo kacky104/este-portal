@@ -20,6 +20,29 @@ export const MAIN_ARTICLE_CATEGORIES: Record<MainArticleCategory, string> = {
   'glossary': '用語解説',
 };
 
+// キー → カテゴリ別一覧ページの説明文（2026-08-18 第23便）。
+//
+// カテゴリ別一覧（/column/category/[key]）は見出ししか無く、検索エンジンから見ると
+// 「記事カードのタイトルだけが並ぶページ」だった。ここに1〜2文の説明を置いて、
+// そのカテゴリが何のページなのかを本文として持たせる。
+//
+// ★ 文章はここ1か所だけに置くこと。画面（ColumnHeading）と <meta description> の
+//   両方がここを読む。ページ側に書き写すと、そのうち食い違う。
+// ★ 特定の記事があることを前提にした書き方をしないこと（記事は増減する）。
+//   「そのカテゴリが扱う話題の範囲」を書く。
+export const MAIN_ARTICLE_CATEGORY_DESCRIPTIONS: Record<MainArticleCategory, string> = {
+  'howto': '初めての一軒選びから、いつものお店の見直しまで。料金の見方・お店の雰囲気・セラピストの探し方など、福岡のメンズエステを選ぶときに知っておきたいことをまとめています。',
+  'beginner': 'メンズエステが初めての方に向けたコラムです。予約の取り方から当日の流れ、服装や持ち物まで、行く前の不安をひとつずつ解消していきます。',
+  'manner': 'お店とセラピストの双方が気持ちよく過ごすための、楽しみ方とマナーのコラムです。基本の心づかいから、また会いたいと思ってもらうための距離感まで扱います。',
+  'glossary': 'お店選びや予約のときに見かける言葉、施術や技法の名前をやさしく解説します。意味が分かると、お店選びの精度がぐっと上がります。',
+};
+
+/** カテゴリ別一覧ページの説明文（未知キーは空文字＝画面に何も出ない）。 */
+export function mainArticleCategoryDescription(key: string | null | undefined): string {
+  if (!key) return '';
+  return MAIN_ARTICLE_CATEGORY_DESCRIPTIONS[key as MainArticleCategory] ?? '';
+}
+
 /** カテゴリキーが有効（check制約に載っている）か。サーバー側バリデーションでも使う。 */
 export function isValidMainArticleCategory(v: unknown): v is MainArticleCategory {
   return typeof v === 'string' && (MAIN_ARTICLE_CATEGORY_ORDER as readonly string[]).includes(v);

@@ -3,6 +3,7 @@ import type { Metadata } from 'next';
 import { fetchPublishedMainArticles } from '@/app/lib/mainArticles';
 import { ArticleCard } from './ArticleCard';
 import { CategoryChips } from './CategoryChips';
+import { ColumnHeading } from './ColumnHeading';
 import { buildBreadcrumbJsonLd, toJsonLdString } from '@/app/lib/jsonLd';
 import { PageHero } from '@/app/components/PageHero';
 import { fetchPageHero } from '@/app/lib/pageHero';
@@ -12,8 +13,13 @@ export const revalidate = 600;
 
 const SITE_URL = 'https://fukues.com';
 const PAGE_TITLE = 'メンズエステコラム';
+// ★ 画面の説明文と <meta description> は同じ1本（2026-08-18 第23便）。
+//   以前は画面が「福岡のメンズエステをもっと楽しむための情報コラム。」の一文だけ、
+//   meta はそれとは別の文、と二重に持っていた。カテゴリ別ページと同じ「1か所」の作りにそろえる。
+//   4つのカテゴリ（選び方・初めての方・マナー・用語）に触れておくと、
+//   すぐ下のカテゴリチップと内容が呼応して、このページが何の入口なのかが伝わる。
 const PAGE_DESC =
-  '福岡のメンズエステをもっと楽しむための選び方ガイド・初めての方向けガイド・マナー・用語解説のコラム。フクエス編集部がお届けします。';
+  '福岡のメンズエステをもっと楽しむための情報コラムです。お店の選び方、初めての方に向けた基礎知識、当日の楽しみ方とマナー、よく見かける用語の解説まで、フクエス編集部がまとめてお届けします。';
 
 export const metadata: Metadata = {
   // 同一セグメントには layout の title.template が効かない（Next仕様）ためフルタイトルを明示。
@@ -62,12 +68,9 @@ export default async function MainColumnListPage() {
             変えるときは両方そろえること。 */}
       <PageHero url={hero} alt={PAGE_TITLE} fullBleedMobile contentMax={768} />
 
-      <header className="mb-6">
-        <h1 className="text-xl sm:text-2xl font-extrabold text-slate-900">{PAGE_TITLE}</h1>
-        <p className="mt-2 text-sm text-slate-500 leading-relaxed">
-          福岡のメンズエステをもっと楽しむための情報コラム。
-        </p>
-      </header>
+      {/* 見出し・説明文・カテゴリチップは中央寄せ（2026-08-18 第23便）。
+          中身は ColumnHeading が持つ＝カテゴリ別一覧と必ず同じ見た目になる。 */}
+      <ColumnHeading title={PAGE_TITLE} description={PAGE_DESC} />
 
       <CategoryChips activeKey={null} />
 

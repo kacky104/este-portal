@@ -20,6 +20,21 @@ export const ARTICLE_CATEGORIES: Record<ArticleCategory, string> = {
   'industry': '業界知識',
 };
 
+// キー → カテゴリ別一覧ページの説明文（2026-08-18 第23便）。
+// ねらいと注意は本体側 mainArticleCategories.ts と同じ（文章はここ1か所・記事の存在を前提にしない）。
+export const ARTICLE_CATEGORY_DESCRIPTIONS: Record<ArticleCategory, string> = {
+  'work-guide': 'メンズエステで働くとはどういうことか、その全体像をまとめたコラムです。仕事の内容や勤務のスタイル、1日の流れなど、はじめる前に知っておきたいことを扱います。',
+  'money': 'お給料まわりのコラムです。バック率や日払いのしくみ、指名料の考え方、手取りの目安など、お金の疑問をわかりやすく整理しています。',
+  'interview': '応募から面接、体験入店までの流れをまとめたコラムです。当日の服装や持ち物、よく聞かれること、お店を見極めるポイントを扱います。',
+  'industry': '業界のしくみを知るためのコラムです。お店の種類や集客の考え方、安全に働くためのルールなど、長く続けていくために役立つ知識をまとめています。',
+};
+
+/** カテゴリ別一覧ページの説明文（未知キーは空文字＝画面に何も出ない）。 */
+export function articleCategoryDescription(key: string | null | undefined): string {
+  if (!key) return '';
+  return ARTICLE_CATEGORY_DESCRIPTIONS[key as ArticleCategory] ?? '';
+}
+
 /** カテゴリキーが有効（check制約に載っている）か。サーバー側バリデーションでも使う。 */
 export function isValidArticleCategory(v: unknown): v is ArticleCategory {
   return typeof v === 'string' && (ARTICLE_CATEGORY_ORDER as readonly string[]).includes(v);

@@ -3,6 +3,7 @@ import type { Metadata } from 'next';
 import { fetchPublishedArticles } from '@/app/lib/workArticles';
 import { ArticleCard } from './ArticleCard';
 import { CategoryChips } from './CategoryChips';
+import { ColumnHeading } from './ColumnHeading';
 import { buildBreadcrumbJsonLd, toJsonLdString } from '@/app/lib/jsonLd';
 import { PageHero } from '@/app/components/PageHero';
 import { fetchPageHero } from '@/app/lib/pageHero';
@@ -12,8 +13,10 @@ export const revalidate = 600;
 
 const SITE_URL = 'https://fukues.com';
 const PAGE_TITLE = 'セラピストのお仕事コラム';
+// ★ 画面の説明文と <meta description> は同じ1本（2026-08-18 第23便）。本体コラムと同じ考え方。
+//   4つのカテゴリ（働き方・お金・面接・業界知識）に触れて、すぐ下のチップと呼応させている。
 const PAGE_DESC =
-  '福岡のメンズエステで働くための働き方ガイド・お金/給料・面接対策・業界知識のコラム。フクエスワーク編集部がセラピストのお仕事に役立つ情報をお届けします。';
+  '福岡のメンズエステで働くセラピストのための情報コラムです。仕事の内容と働き方、お給料のしくみ、面接・体験入店の流れ、業界のきほんまで、フクエスワーク編集部がまとめてお届けします。';
 
 export const metadata: Metadata = {
   title: PAGE_TITLE,
@@ -60,12 +63,8 @@ export default async function ColumnListPage() {
             変えるときは両方そろえること。 */}
       <PageHero url={hero} alt={PAGE_TITLE} fullBleedMobile contentMax={768} />
 
-      <header className="mb-6">
-        <h1 className="text-xl sm:text-2xl font-extrabold text-slate-900">{PAGE_TITLE}</h1>
-        <p className="mt-2 text-sm text-slate-500 leading-relaxed">
-          福岡のメンズエステで働くセラピストのための情報コラム。
-        </p>
-      </header>
+      {/* 見出し・説明文・カテゴリチップは中央寄せ（2026-08-18 第23便）。本体コラムと同じ作り。 */}
+      <ColumnHeading title={PAGE_TITLE} description={PAGE_DESC} />
 
       <CategoryChips activeKey={null} />
 

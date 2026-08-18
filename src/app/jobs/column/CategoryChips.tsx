@@ -21,7 +21,8 @@ export function CategoryChips({ activeKey }: { activeKey: string | null }) {
   );
 
   return (
-    <div className="flex flex-wrap gap-2 mb-6">
+    // 中央寄せ（2026-08-18 第23便）。★ 本体側 app/column/CategoryChips.tsx も同じにしてある。
+    <div className="flex flex-wrap justify-center gap-2 mb-6">
       {chip('/jobs/column', 'すべて', activeKey === null)}
       {ARTICLE_CATEGORY_ORDER.map((key) =>
         chip(`/jobs/column/category/${key}`, articleCategoryLabel(key), activeKey === key),

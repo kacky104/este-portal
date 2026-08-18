@@ -4,11 +4,13 @@ import { notFound } from 'next/navigation';
 import {
   MAIN_ARTICLE_CATEGORY_ORDER,
   mainArticleCategoryLabel,
+  mainArticleCategoryDescription,
   isValidMainArticleCategory,
 } from '@/app/lib/mainArticleCategories';
 import { fetchPublishedMainArticlesByCategory } from '@/app/lib/mainArticles';
 import { ArticleCard } from '../../ArticleCard';
 import { CategoryChips } from '../../CategoryChips';
+import { ColumnHeading } from '../../ColumnHeading';
 import { buildBreadcrumbJsonLd, toJsonLdString } from '@/app/lib/jsonLd';
 import { PageHero } from '@/app/components/PageHero';
 import { fetchPageHero } from '@/app/lib/pageHero';
@@ -33,7 +35,10 @@ export async function generateMetadata({
   if (!isValidMainArticleCategory(key)) return {};
   const label = mainArticleCategoryLabel(key);
   const title = `${label}のコラム`;
-  const description = `福岡のメンズエステをもっと楽しむための「${label}」に関するコラム記事一覧。フクエス編集部がお届けします。`;
+  // ★ 画面に出している説明文とまったく同じものを使う（2026-08-18 第23便）。
+  //   以前はここだけ「福岡のメンズエステをもっと楽しむための『◯◯』に関するコラム記事一覧。」という
+  //   カテゴリ名を差し替えただけの定型文で、4カテゴリがほぼ同じ文面になっていた。
+  const description = mainArticleCategoryDescription(key);
   return {
     title,
     description,
@@ -92,9 +97,9 @@ export default async function MainColumnCategoryPage({
       {/* ページ別ヒーロー画像（/column と同じ画像・同じ置き場所）。設定は /admin の「コラム」1か所。 */}
       <PageHero url={hero} alt="メンズエステコラム" fullBleedMobile contentMax={768} />
 
-      <header className="mb-6">
-        <h1 className="text-xl sm:text-2xl font-extrabold text-slate-900">{label}のコラム</h1>
-      </header>
+      {/* 見出し・説明文・カテゴリチップは中央寄せ（2026-08-18 第23便）。
+          説明文は lib/mainArticleCategories.ts の1か所から。<meta description> と同じ出どころ。 */}
+      <ColumnHeading title={`${label}のコラム`} description={mainArticleCategoryDescription(key)} />
 
       <CategoryChips activeKey={key} />
 

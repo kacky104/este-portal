@@ -4,11 +4,13 @@ import { notFound } from 'next/navigation';
 import {
   ARTICLE_CATEGORY_ORDER,
   articleCategoryLabel,
+  articleCategoryDescription,
   isValidArticleCategory,
 } from '@/app/lib/articleCategories';
 import { fetchPublishedArticlesByCategory } from '@/app/lib/workArticles';
 import { ArticleCard } from '../../ArticleCard';
 import { CategoryChips } from '../../CategoryChips';
+import { ColumnHeading } from '../../ColumnHeading';
 import { buildBreadcrumbJsonLd, toJsonLdString } from '@/app/lib/jsonLd';
 import { PageHero } from '@/app/components/PageHero';
 import { fetchPageHero } from '@/app/lib/pageHero';
@@ -33,7 +35,9 @@ export async function generateMetadata({
   if (!isValidArticleCategory(key)) return {};
   const label = articleCategoryLabel(key);
   const title = `${label}のコラム`;
-  const description = `福岡のメンズエステで働くための「${label}」に関するコラム記事一覧。フクエスワーク編集部がお届けします。`;
+  // ★ 画面に出している説明文とまったく同じものを使う（2026-08-18 第23便）。
+  //   以前はカテゴリ名を差し替えただけの定型文で、4カテゴリがほぼ同じ文面になっていた。
+  const description = articleCategoryDescription(key);
   return {
     title,
     description,
@@ -91,9 +95,9 @@ export default async function ColumnCategoryPage({
       {/* ページ別ヒーロー画像（/jobs/column と同じ画像・同じ置き場所）。設定は /admin の「お仕事コラム」1か所。 */}
       <PageHero url={hero} alt="セラピストのお仕事コラム" fullBleedMobile contentMax={768} />
 
-      <header className="mb-6">
-        <h1 className="text-xl sm:text-2xl font-extrabold text-slate-900">{label}のコラム</h1>
-      </header>
+      {/* 見出し・説明文・カテゴリチップは中央寄せ（2026-08-18 第23便）。
+          説明文は lib/articleCategories.ts の1か所から。<meta description> と同じ出どころ。 */}
+      <ColumnHeading title={`${label}のコラム`} description={articleCategoryDescription(key)} />
 
       <CategoryChips activeKey={key} />
 
