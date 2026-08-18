@@ -277,9 +277,15 @@ export function GridCard({ therapist, index, showJoinDate = false, from, enableW
   }, [therapist.name, therapist.age, displayHours, ss]);
 
   const card = (
+    // ★ 大カードの高さは min-h（最低168px・中身が多いときだけ伸びる）。2026-08-19 修正。
+    //   週間出勤ページのカードで「バッジ2行＋口コミ＋写メ日記」が全部載ると中身が168pxを超え、
+    //   バッジの2行目が半分切れるバグが出た（WeeklySchedule.tsx のコメント参照）。
+    //   このカードは今の中身なら168pxに収まっている（実測済み）が、同じ構造なので
+    //   将来の行追加で同じ事故にならないよう先に min-h へ揃えておく。
+    //   ★ 小カード（h-28）は据え置き。今すぐ・保存の横スクロールで高さが揃っている前提のため。
     <Link
       href={from ? `/therapist/${therapist.id}?from=${from}` : `/therapist/${therapist.id}`}
-      className={`text-left w-full border border-pink-50 bg-white shadow-sm flex ${largeImage ? 'h-[168px]' : 'h-28'} overflow-hidden hover:border-pink-200 hover:shadow-md transition-all duration-200${working ? ' therapist-working-shimmer' : ''}`}
+      className={`text-left w-full border border-pink-50 bg-white shadow-sm flex ${largeImage ? 'min-h-[168px]' : 'h-28'} overflow-hidden hover:border-pink-200 hover:shadow-md transition-all duration-200${working ? ' therapist-working-shimmer' : ''}`}
     >
       <div className={`relative ${largeImage ? 'w-[140px]' : 'w-28'} bg-gradient-to-br ${grad} flex items-center justify-center flex-shrink-0 overflow-hidden`}>
         {therapist.profileImageUrl ? (

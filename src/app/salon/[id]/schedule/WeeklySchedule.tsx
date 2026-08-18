@@ -117,9 +117,15 @@ function TherapistCard({ t, isToday, salonId }: { t: DaySchedule; isToday: boole
 
   return (
     <div className="relative">
+    {/* ★ カードの高さは min-h（最低168px・中身が多いときだけ伸びる）。2026-08-19 修正。
+        以前は h-[168px] 固定で、「バッジ2行＋口コミ＋写メ日記」が全部載ると中身が約180px必要になり、
+        あふれた分を flex が子要素の圧縮で吸収していた。縮められるのは overflow-hidden を持つ
+        バッジ容器（FeatureBadges の max-h-[33px]）だけなので、そこだけ 33px→26px に潰されて
+        バッジの2行目が半分切れていた（口コミの無いカードは168pxに収まるので無事＝発見が遅れた）。
+        固定に戻すなら「全部載ったときに何を削るか」を先に決めること。 */}
     <Link
       href={`/therapist/${t.id}?from=schedule`}
-      className={`border border-slate-200 bg-white shadow-sm flex h-[168px] overflow-hidden hover:shadow-md transition-all duration-200${working ? ' therapist-working-shimmer' : ''}`}
+      className={`border border-slate-200 bg-white shadow-sm flex min-h-[168px] overflow-hidden hover:shadow-md transition-all duration-200${working ? ' therapist-working-shimmer' : ''}`}
     >
       <div className="relative w-[140px] flex-shrink-0 overflow-hidden bg-gradient-to-br from-pink-300 to-rose-400 flex items-center justify-center">
         {t.imageUrl ? (
