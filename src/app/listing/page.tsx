@@ -1,4 +1,6 @@
 import type { Metadata } from 'next';
+import Link from 'next/link';
+import { buildBreadcrumbJsonLd, toJsonLdString } from '@/app/lib/jsonLd';
 import { Logo } from '@/app/components/Logo';
 import { SavedSalonsMenu } from '@/app/components/SavedSalonsMenu';
 import { AccountMenu } from '@/app/components/AccountMenu';
@@ -69,6 +71,34 @@ export default async function ListingPage() {
           ★ 100vw で親からはみ出させる手法は使わないこと。Windows のスクロールバー幅ぶん
             （約15px）横スクロールが出る。帯そのものを全幅に置く今の形なら起きない。 */}
       <main>
+        {/* ── パンくず＋可視の h1（2026-08-18 第23便）─────────────────────
+            それまで h1 は ListingAbout の中の sr-only だけで、このページには
+            【見える見出しが1本も無かった】（見出し10本のうち8本が sr-only）。
+            店舗様向けの入口ページなので、他の公開ページ（/salon/… /news）と同じ作法で
+            パンくず＋見出しをヒーロー画像の上に置く。パンくずの構造化データ
+            （BreadcrumbList）もこのページには無かったので一緒に足した。
+            ★ h1 はページに1本。ListingAbout 側の sr-only h1 は削除済み（二重にしない）。
+            ★ デザイン画像には一切触っていない。 */}
+        <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: toJsonLdString(buildBreadcrumbJsonLd([
+          { name: 'トップ', path: '/' },
+          { name: '掲載について', path: '/listing' },
+        ])) }} />
+        <div className="max-w-3xl mx-auto px-4 pt-4 pb-4">
+          <nav aria-label="パンくずリスト" className="flex items-center gap-1.5 mb-2" style={{ fontSize: '13px' }}>
+            <Link href="/" className="text-pink-600 hover:opacity-80 transition-opacity flex-shrink-0 whitespace-nowrap">
+              トップ
+            </Link>
+            <span aria-hidden className="flex-shrink-0 text-slate-400">›</span>
+            <span aria-current="page" className="flex-shrink-0 whitespace-nowrap font-semibold text-slate-600">
+              掲載について
+            </span>
+          </nav>
+          <h1 className="text-xl sm:text-2xl font-extrabold text-slate-900">掲載について</h1>
+          <p className="mt-1 text-sm text-slate-500 leading-relaxed">
+            福岡のメンズエステポータル「フクエス」への店舗掲載をご検討の店舗様へのご案内です。
+          </p>
+        </div>
+
         {/* ページ別ヒーロー画像（/admin「ページ別ヒーロー画像設定」の listing 枠・2026-08-08 追加）。
             未設定なら何も描画しない。
             ★ 2026-08-17（第19便）に【画面幅いっぱい】へ変更した（オーナー要望）。
