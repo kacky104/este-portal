@@ -161,6 +161,9 @@ export default function AdminDashboard() {
   // 「店舗管理」タブのチップと、アコーディオン見出しのバッジの両方に使う（EmailEventManager が通知）。
   // ★ ここに数字が出る＝どこかの店に予約通知が届いていない、という意味。最優先で見る。
   const [emailTroubleOpenCount, setEmailTroubleOpenCount] = useState(0);
+  // 掲載お問い合わせ（listing_inquiries）の未対応件数。
+  // 「店舗管理」タブのチップと、アコーディオン見出しのバッジの両方に使う（ListingInquiryManager が通知・2026-08-19 第24便）。
+  const [listingInquiryOpenCount, setListingInquiryOpenCount] = useState(0);
   // 掲載店舗一覧の表示/非表示サブタブ（is_hidden で分割）。永続化しないクライアントstateのみ。
   const [salonListTab, setSalonListTab] = useState<'visible' | 'hidden'>('visible');
 
@@ -445,6 +448,16 @@ export default function AdminDashboard() {
                   {emailTroubleOpenCount}
                 </span>
               )}
+              {/* 店舗管理タブ：掲載お問い合わせの未対応バッジ（2026-08-19 第24便）。
+                  ★ メール配信トラブル（赤）とは別バッジ。赤＝予約の取りこぼし・ピンク＝要対応の問い合わせ、
+                    という色の使い分けを崩さないため合算しない。
+                  ★ 件数は ListingInquiryManager が通知する。あちらはタブが非表示でもマウント
+                    されているので、他のタブを開いていてもこのバッジは出る。 */}
+              {key === 'salon' && listingInquiryOpenCount > 0 && (
+                <span className="inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 rounded-full bg-pink-500 text-white text-[10px] font-black leading-none">
+                  {listingInquiryOpenCount}
+                </span>
+              )}
             </button>
           );
         })}
@@ -541,8 +554,20 @@ export default function AdminDashboard() {
           </AccordionSection>
 
           {/* ── 新規店舗の初回情報入力フォーム（ワンタイムURL発行・入力内容の確認） ── */}
-          <AccordionSection id="listing-inquiries" title="掲載お問い合わせ" expanded={expandedSections} onToggle={toggleSection}>
-            <ListingInquiryManager onToast={showToast} />
+          <AccordionSection
+            id="listing-inquiries"
+            title="掲載お問い合わせ"
+            meta={
+              listingInquiryOpenCount > 0 ? (
+                <span className="text-[10px] px-2 py-0.5 rounded-full font-bold bg-pink-50 text-pink-600 border border-pink-200">
+                  未対応{listingInquiryOpenCount}件
+                </span>
+              ) : undefined
+            }
+            expanded={expandedSections}
+            onToggle={toggleSection}
+          >
+            <ListingInquiryManager onToast={showToast} onOpenCount={setListingInquiryOpenCount} />
           </AccordionSection>
 
           <AccordionSection id="salon-intakes" title="新規店舗 入力フォーム発行" expanded={expandedSections} onToggle={toggleSection}>

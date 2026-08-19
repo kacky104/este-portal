@@ -27,7 +27,14 @@ function formatDateTimeJST(iso: string): string {
   }).format(d);
 }
 
-export default function ListingInquiryManager({ onToast }: { onToast: (msg: string) => void }) {
+export default function ListingInquiryManager({
+  onToast,
+  onOpenCount,
+}: {
+  onToast: (msg: string) => void;
+  /** 未対応件数を親（/admin）へ通知する。タブのチップとアコーディオン見出しのバッジに使う。 */
+  onOpenCount?: (n: number) => void;
+}) {
   const supabase = createClient();
   const [inquiries, setInquiries] = useState<ListingInquiry[]>([]);
   const [loading, setLoading] = useState(true);
@@ -51,6 +58,16 @@ export default function ListingInquiryManager({ onToast }: { onToast: (msg: stri
   }, [supabase]);
 
   useEffect(() => { fetchList(); }, [fetchList]);
+
+  // 未対応件数を親へ通知（読み込み・状態切替・削除のたびに inquiries から再計算）。
+  // ★ このコンポーネントはアコーディオンが閉じていても、タブが非表示でもマウントされている
+  //   （閉時は display:none にするだけで unmount しない作り）。
+  //   だから /admin を開いた瞬間に件数が分かり、タブのチップにバッジが出る。
+  //   ここを「開いたときだけ読む」に変えると、バッジが出なくなるので注意
+  //   （HpInquiryManager と同じ作法・2026-08-19 第24便）。
+  useEffect(() => {
+    onOpenCount?.(inquiries.filter((q) => q.status === 'open').length);
+  }, [inquiries, onOpenCount]);
 
   const toggleStatus = async (q: ListingInquiry) => {
     const next = q.status === 'open' ? 'done' : 'open';
