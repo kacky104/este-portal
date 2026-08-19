@@ -108,8 +108,11 @@ export function HpShell({
           <div className="hp-topbar" style={{ order: HP_ORDER_TOPBAR }}>
             {/* トップでは従来どおり素のロゴ。下層ページではロゴがホームへの導線になる。 */}
             {page === 'home' ? logo : <a className="hp-topbar-home" href={homeHref}>{logo}</a>}
+            {/* PCナビは SCHEDULE 入りの5項目（2026-08-19 第25便）。
+                SPクイックナビ（HpTemplate 側）は withSchedule を渡さない4項目のまま
+                ＝4分割グリッドを崩さない。理由は hpTopbarNavItems のコメント参照。 */}
             <nav className="hp-topbar-nav">
-              {hpTopbarNavItems(data, page).map((m) => (
+              {hpTopbarNavItems(data, page, { withSchedule: true }).map((m) => (
                 <a key={m.label} href={m.href} {...(m.current ? { 'aria-current': 'page' as const } : {})}>
                   {m.label}
                 </a>

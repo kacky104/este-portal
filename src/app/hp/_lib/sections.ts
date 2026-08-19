@@ -238,11 +238,24 @@ export function hpFooterPageLinks(data: HpPageData): HpMenuItem[] {
 }
 
 /**
- * タイプSのPCヘッダーに出る英字ナビ（デザイン都合の固定4項目・ドロワーとは別物）。
- * COMMON で display:none なので、タイプS以外では描かれても見えない。
+ * PCヘッダーに出る英字ナビ（デザイン都合の固定項目・ドロワーとは別物）。
+ * COMMON で display:none なので、900px 未満では描かれても見えない。
  * 2026-08-11: CONCEPT・SCHEDULE を外し、NEWS を先頭に（NEWS/SYSTEM/THERAPIST/ACCESS）。
+ * 2026-08-19（第25便・オーナー要望）: SCHEDULE を SYSTEM の右隣に復帰。
+ *   遷移先はマルチページの週間スケジュール（/schedule）。
+ *
+ * ★ opts.withSchedule は【PCヘッダー（HpShell）だけ true】。
+ *   SPクイックナビ（HpTemplate → parts.tsx の QuickNav）は既定の false のまま
+ *   ＝従来どおり4項目。.hp-quicknav が repeat(4, 1fr) の4分割グリッドなので、
+ *   5項目渡すと5個目だけ2段目に落ちて崩れる（スマホの導線はドロワーに
+ *   「出勤スケジュール」が既にある）。SPにも足したくなったらグリッドの列数と
+ *   文字サイズ（THERAPIST が入る幅）を先に確認すること。
  */
-export function hpTopbarNavItems(data: HpPageData, page: HpPageKey): HpMenuItem[] {
+export function hpTopbarNavItems(
+  data: HpPageData,
+  page: HpPageKey,
+  opts?: { withSchedule?: boolean },
+): HpMenuItem[] {
   const { basePath } = data;
   const hash = (id: string) => hpHashHref(basePath, page, id);
   const subs = hpSubpages(data);
@@ -255,6 +268,16 @@ export function hpTopbarNavItems(data: HpPageData, page: HpPageKey): HpMenuItem[
     subs.system
       ? { href: `${basePath}/system`, label: 'SYSTEM', current: page === 'system' }
       : { href: hash('menu'), label: 'SYSTEM' },
+    // SCHEDULE（2026-08-19）。週間スケジュールの下層ページが実在するときだけ本物のリンク。
+    // 無い店（1ページ構成・7日ぶん出勤ゼロ）はトップの「本日の出勤」アンカーに落とす
+    // ＝NEWS と同じ作法（404になるページへは飛ばさない・禁則の hpSubpages 判定を通す）。
+    ...(opts?.withSchedule
+      ? [
+          subs.schedule
+            ? { href: `${basePath}/schedule`, label: 'SCHEDULE', current: page === 'schedule' }
+            : { href: hash('schedule'), label: 'SCHEDULE' },
+        ]
+      : []),
     subs.therapist
       ? { href: `${basePath}/therapist`, label: 'THERAPIST', current: page === 'therapist' }
       : { href: hash('therapist'), label: 'THERAPIST' },

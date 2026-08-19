@@ -14,11 +14,16 @@ import type { HpMenuItem } from '@/app/hp/_lib/sections';
 
 // ── SPクイックナビ（2026-08-11）──────────────────────
 // ヒーロー直下に出す4分割のアイコンメニュー（スマホ幅のみ・PCはヘッダーのナビが担当）。
-// 項目とリンク先は hpTopbarNavItems() をそのまま使う＝PCナビと必ず一致する。
+// 項目とリンク先は hpTopbarNavItems() をそのまま使う。
+// ★ 2026-08-19（第25便）から PCナビだけ SCHEDULE 入りの5項目（withSchedule: true）。
+//   こちらは既定の4項目のまま＝.hp-quicknav の repeat(4, 1fr) の4分割を崩さない
+//   （スマホの出勤スケジュールへの導線はドロワーが持っている）。
+//   SPにも SCHEDULE を足すなら styles.ts の列数・文字サイズとセットで変えること。
 
 const QN_JP: Record<string, string> = {
   NEWS:      '新着情報',
   SYSTEM:    '料金システム',
+  SCHEDULE:  '出勤情報', // 予備（現状SPには渡していない。渡すなら上の★を読むこと）
   THERAPIST: 'セラピスト',
   ACCESS:    'アクセス',
 };
