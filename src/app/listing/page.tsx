@@ -84,7 +84,7 @@ export default async function ListingPage() {
           { name: '掲載について', path: '/listing' },
         ])) }} />
         <div className="max-w-3xl mx-auto px-4 pt-4 pb-4">
-          <nav aria-label="パンくずリスト" className="flex items-center gap-1.5 mb-2" style={{ fontSize: '13px' }}>
+          <nav aria-label="パンくずリスト" className="flex items-center gap-1.5 mb-3" style={{ fontSize: '13px' }}>
             <Link href="/" className="text-pink-600 hover:opacity-80 transition-opacity flex-shrink-0 whitespace-nowrap">
               トップ
             </Link>
@@ -93,10 +93,33 @@ export default async function ListingPage() {
               掲載について
             </span>
           </nav>
-          <h1 className="text-xl sm:text-2xl font-extrabold text-slate-900">掲載について</h1>
-          <p className="mt-1 text-sm text-slate-500 leading-relaxed">
-            福岡のメンズエステポータル「フクエス」への店舗掲載をご検討の店舗様へのご案内です。
-          </p>
+          {/* ── 見出し・説明文は中央寄せ（2026-08-19 第25便・オーナー要望）──────────
+              英字のアイブロウ → グラデーションの大見出し → 細い罫線 → 説明文。
+              ＝ /column（ColumnHeading）・/news・/reviews と【同じ作法】。
+              ★ この形はサイト共通。数値（tracking-[0.35em] / w-24 の罫線 / max-w-xl の説明文）を
+                動かすと /listing だけ揃わなくなる。変えるなら ColumnHeading 側と一緒に。
+              ★ 文字色は実測でコントラスト比を取っている（白 #ffffff 上・ブラウザで実測）。
+                アイブロウ pink-700 = 5.91:1（小文字なので 4.5:1 以上が必要・OK）／
+                説明文 slate-600 = 7.58:1（旧 slate-500 は 4.76:1 だった＝濃くした）／
+                見出しのグラデーション最明部 rose-500 = 3.75:1。
+                ★ 見出しは 24px 以上の太字＝大きい文字の基準（3:1）で判定している。
+                  ここを小さい文字に落とすと 3.75:1 では足りなくなるので、
+                  文字サイズを下げるときは色も濃くすること。
+                明るい側（pink-500 / rose-400 など）へ動かすと基準を割るので必ず測り直すこと。
+                罫線の pink-400 は 2.76:1 だが aria-hidden の装飾なので対象外。
+              ★ パンくずは左寄せのまま（/column・/news と同じ）。ここだけ中央にしない。
+              ★ text-balance は説明文の行末が「す。」だけになるのを防ぐため。
+                外すと PC で最終行が1〜2文字だけの見た目になる。 */}
+          <header className="mb-2 text-center">
+            <p className="text-[11px] font-semibold tracking-[0.35em] text-pink-700">LISTING</p>
+            <h1 className="mt-2 bg-gradient-to-r from-pink-700 via-rose-500 to-pink-700 bg-clip-text text-2xl sm:text-4xl font-black tracking-[0.04em] text-transparent drop-shadow-[0_1px_10px_rgba(236,72,153,0.18)]">
+              掲載について
+            </h1>
+            <div aria-hidden className="mx-auto mt-4 h-px w-24 bg-gradient-to-r from-transparent via-pink-400 to-transparent" />
+            <p className="mx-auto mt-4 max-w-xl text-xs sm:text-sm leading-relaxed text-balance text-slate-600">
+              福岡のメンズエステポータル「フクエス」への店舗掲載をご検討の店舗様へのご案内です。
+            </p>
+          </header>
         </div>
 
         {/* ページ別ヒーロー画像（/admin「ページ別ヒーロー画像設定」の listing 枠・2026-08-08 追加）。
