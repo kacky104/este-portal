@@ -133,10 +133,25 @@ export async function POST(req: Request) {
   }
 
   if (adBanners) {
-    // 細い広告バナー（ad_banners）の設定後、差し込み先ページを無効化する（今後の差し込み先も含む）。
-    for (const path of ["/therapists", "/diary", "/reviews", "/therapist/new", "/x-shops", "/ranking"]) {
+    // 細い広告バナー（ad_banners）の設定後、差し込み先ページを無効化する。
+    // ★★ AdBanner を置くページを増やしたら、必ずこの一覧にも足すこと。
+    //   ここに無いISRページは、バナーを保存しても revalidate の時間切れ（最大10分）まで
+    //   古いままになる（公式HPの反映漏れ・禁則142と同種のバグになる）。
+    //   /member は force-dynamic なので不要。
+    // 2026-08-19 第24便: コラム（/column・/jobs/column）を追加。あわせて、AdBanner を
+    //   表示しているのに従来この一覧から漏れていた /news・/salons・/join・/working も追加した。
+    for (const path of [
+      "/therapists", "/diary", "/reviews", "/therapist/new", "/x-shops", "/ranking",
+      "/news", "/salons", "/join", "/working",
+      "/column", "/jobs/column",
+    ]) {
       revalidatePath(path);
       revalidated.push(path);
+    }
+    // コラムのカテゴリ別一覧（動的ルート）はルート単位で無効化（areasAll の /area/[slug] と同じ作法）。
+    for (const route of ["/column/category/[key]", "/jobs/column/category/[key]"]) {
+      revalidatePath(route, "page");
+      revalidated.push(route);
     }
   }
 

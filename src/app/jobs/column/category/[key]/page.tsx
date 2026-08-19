@@ -14,6 +14,8 @@ import { ColumnHeading } from '../../ColumnHeading';
 import { buildBreadcrumbJsonLd, toJsonLdString } from '@/app/lib/jsonLd';
 import { PageHero } from '@/app/components/PageHero';
 import { fetchPageHero } from '@/app/lib/pageHero';
+import { AdBanner } from '@/app/components/AdBanner';
+import { fetchActiveAdBanners } from '@/app/lib/adBanners';
 
 // ISR：一覧と同じ10分。
 export const revalidate = 600;
@@ -62,11 +64,12 @@ export default async function ColumnCategoryPage({
   if (!isValidArticleCategory(key)) notFound();
 
   const label = articleCategoryLabel(key);
-  // 記事一覧とヘッダー画像は互いに独立なので並列取得。
+  // 記事一覧・ヘッダー画像・ルックバナーは互いに独立なので並列取得。
   // ★ ヒーローは一覧ページ（/jobs/column）と【同じ 'jobs-column' キー】。カテゴリごとに別画像は持たない。
-  const [articles, hero] = await Promise.all([
+  const [articles, hero, adBanners] = await Promise.all([
     fetchPublishedArticlesByCategory(key),
     fetchPageHero('jobs-column'),
+    fetchActiveAdBanners(),
   ]);
 
   return (
@@ -101,6 +104,10 @@ export default async function ColumnCategoryPage({
 
       <CategoryChips activeKey={key} />
 
+      {/* ルックバナー（タブの下）。一覧（/jobs/column）と同じ2枠（2026-08-19 第24便）。
+          ここに置かないと、タブを押した瞬間にバナーが消える（ヒーロー画像と同じ判断基準）。 */}
+      <AdBanner banners={adBanners} />
+
       {articles.length === 0 ? (
         <div className="rounded-2xl border border-emerald-100 bg-white p-10 text-center text-slate-500 text-sm shadow-sm">
           このカテゴリのコラムは準備中です。
@@ -114,6 +121,9 @@ export default async function ColumnCategoryPage({
           ))}
         </ul>
       )}
+
+      {/* ルックバナー（最後のコラムカードの下）。上の枠とは独立にランダム抽選。 */}
+      <AdBanner banners={adBanners} />
     </main>
   );
 }

@@ -7,6 +7,8 @@ import { ColumnHeading } from './ColumnHeading';
 import { buildBreadcrumbJsonLd, toJsonLdString } from '@/app/lib/jsonLd';
 import { PageHero } from '@/app/components/PageHero';
 import { fetchPageHero } from '@/app/lib/pageHero';
+import { AdBanner } from '@/app/components/AdBanner';
+import { fetchActiveAdBanners } from '@/app/lib/adBanners';
 
 // ISR：本体公開ページと同じ10分。anon クライアント読取のみ＝cookie不使用で動的化しない。
 export const revalidate = 600;
@@ -37,10 +39,11 @@ export const metadata: Metadata = {
 };
 
 export default async function MainColumnListPage() {
-  // 記事一覧とヘッダー画像は互いに独立なので並列取得。
-  const [articles, hero] = await Promise.all([
+  // 記事一覧・ヘッダー画像・ルックバナーは互いに独立なので並列取得。
+  const [articles, hero, adBanners] = await Promise.all([
     fetchPublishedMainArticles(),
     fetchPageHero('column'),
+    fetchActiveAdBanners(),
   ]);
 
   return (
@@ -74,6 +77,11 @@ export default async function MainColumnListPage() {
 
       <CategoryChips activeKey={null} />
 
+      {/* ルックバナー（タブの下）。公開中からランダム1枚・0件なら非表示（2026-08-19 第24便）。
+          ★ カテゴリ別一覧（/column/category/[key]）にも同じ2枠を置いてある。動かすときは4ページ
+            （本体2・求人2）そろえること。保存の即時反映は /api/revalidate の adBanners 分岐が担う。 */}
+      <AdBanner banners={adBanners} />
+
       {articles.length === 0 ? (
         <div className="rounded-2xl border border-pink-100 bg-white p-10 text-center text-slate-500 text-sm shadow-sm">
           コラム記事は準備中です。
@@ -87,6 +95,10 @@ export default async function MainColumnListPage() {
           ))}
         </ul>
       )}
+
+      {/* ルックバナー（最後のコラムカードの下）。上の枠とは独立にランダム抽選
+          （枚数が少ないと同じ枠になることもある・/salons と同じ作法）。 */}
+      <AdBanner banners={adBanners} />
     </main>
   );
 }
