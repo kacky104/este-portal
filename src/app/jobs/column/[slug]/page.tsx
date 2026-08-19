@@ -5,6 +5,8 @@ import { notFound } from 'next/navigation';
 import { articleCategoryLabel } from '@/app/lib/articleCategories';
 import { AREA_ORDER, ALL_AREA, DISPATCH_AREA, jobsAreaHref } from '@/app/lib/areas';
 import { areaLabel } from '@/app/lib/areaLabel';
+import { truncateMarkdown } from '@/app/lib/markdownPlain';
+import { extractArticleHeadings, TOC_MIN_HEADINGS } from '@/app/lib/articleToc';
 import {
   fetchPublishedArticleBySlug,
   fetchPublishedArticleSlugs,
@@ -13,10 +15,15 @@ import {
 } from '@/app/lib/workArticles';
 import { ArticleBody } from '../ArticleBody';
 import { ArticleCard } from '../ArticleCard';
+import { ArticleToc } from '../ArticleToc';
 import { formatColumnDate } from '../format';
 
 const SITE_URL = 'https://fukues.com';
 const AUTHOR_NAME = 'フクエスワーク編集部';
+
+// description の目安字数。日本語の検索結果は概ね120字前後まで表示されるため、
+// 抜粋（管理画面の目安150字）が空のときの本文フォールバックもここに合わせる（第24便）。
+const DESCRIPTION_MAX = 120;
 
 // ISR：一覧・詳細とも10分。
 export const revalidate = 600;
@@ -27,10 +34,12 @@ export async function generateStaticParams() {
   return slugs.map((slug) => ({ slug }));
 }
 
-function truncatePlain(text: string | null, max: number): string {
-  if (!text) return '';
-  const flat = text.replace(/\s+/g, ' ').trim();
-  return flat.length > max ? `${flat.slice(0, max)}…` : flat;
+// description は「抜粋があればそれ、無ければ本文の先頭」。
+// ★ 本文は Markdown なので、必ず truncateMarkdown（記号を落とす）を通すこと。
+//   素の truncatePlain に戻すと、抜粋が空の記事の検索結果に「## 見出し **強調**」が
+//   そのまま出る（第24便で修正・禁則参照）。
+function articleDescription(article: WorkArticleDetail): string {
+  return article.excerpt?.trim() || truncateMarkdown(article.body, DESCRIPTION_MAX);
 }
 
 // updated_at が published_at より「後」なら更新日として表示する（同時刻・以前は非表示）。
@@ -53,7 +62,7 @@ export async function generateMetadata({
 
   // title は layout の template「%s｜フクエスワーク」に合成される（＝「記事タイトル｜フクエスワーク」）。
   const title = article.title;
-  const description = article.excerpt || truncatePlain(article.body, 90);
+  const description = articleDescription(article);
   const shareImage = article.heroImageUrl || `${SITE_URL}/ogp-fukuwork.png`;
   return {
     title,
@@ -82,6 +91,7 @@ function buildArticleJsonLd(article: WorkArticleDetail): Record<string, unknown>
     '@context': 'https://schema.org/',
     '@type': 'Article',
     headline: article.title,
+    description: articleDescription(article),
     author: { '@type': 'Organization', name: AUTHOR_NAME, url: `${SITE_URL}/jobs/column` },
     publisher: {
       '@type': 'Organization',
@@ -91,7 +101,13 @@ function buildArticleJsonLd(article: WorkArticleDetail): Record<string, unknown>
     mainEntityOfPage: { '@type': 'WebPage', '@id': `${SITE_URL}/jobs/column/${article.slug}` },
   };
   if (article.publishedAt) ld.datePublished = article.publishedAt;
-  ld.dateModified = article.updatedAt || article.publishedAt || undefined;
+  // ★ dateModified は画面の「公開から1分以上あとの更新だけ更新日として出す」ルールに揃える。
+  //   updated_at をそのまま入れると、記事を1文字も直していないDB操作でも
+  //   検索エンジンに「更新した」と伝わってしまう（第24便で修正）。
+  const modified = isMeaningfulUpdate(article.publishedAt, article.updatedAt)
+    ? article.updatedAt
+    : article.publishedAt;
+  if (modified) ld.dateModified = modified;
   if (article.heroImageUrl) ld.image = [article.heroImageUrl];
   return ld;
 }
@@ -120,6 +136,10 @@ export default async function ColumnDetailPage({
 
   const related = await fetchRelatedArticles(article.category, article.slug, 3);
   const showUpdated = isMeaningfulUpdate(article.publishedAt, article.updatedAt);
+
+  // 目次（h2 が TOC_MIN_HEADINGS 本以上の記事だけ）。id は本文側 h2 と同じ関数で作る。
+  const headings = extractArticleHeadings(article.body);
+  const showToc = headings.length >= TOC_MIN_HEADINGS;
 
   // エリア別求人ページへの導線（AREA_ORDER 準拠。全域・出張は /jobs に集約されるため除外）。
   const areaLinks = AREA_ORDER.filter((a) => a !== ALL_AREA && a !== DISPATCH_AREA);
@@ -185,6 +205,9 @@ export default async function ColumnDetailPage({
               />
             </div>
           )}
+
+          {/* 目次（見出しが少ない記事では出さない） */}
+          {showToc && <ArticleToc headings={headings} />}
 
           {/* 本文（Markdown） */}
           <div className="mt-6">
