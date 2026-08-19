@@ -1,9 +1,7 @@
 import { NextResponse } from "next/server";
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/app/lib/supabase/server";
-import { areaHref } from "@/app/lib/areas";
 import { PAGE_HERO_PATHS, PAGE_HERO_LAYOUT_PATHS } from '@/app/lib/pageHero';
-import { hpSitePaths } from '@/app/lib/hpSite';
 
 // ISR キャッシュを即時更新するエンドポイント。
 // 認証で保護：cookie のログインセッションから getUser し、認証済みユーザー（オーナー/管理者）
@@ -54,54 +52,49 @@ export async function POST(req: Request) {
 
   if (salonId != null && String(salonId).trim() !== "") {
     // 本体＋配下サブページを一括無効化。
-    revalidatePath(`/salon/${salonId}`, "layout");
-    revalidated.push(`/salon/${salonId}`);
+    //
+    // ★★ 2026-08-19（第25便）: 実URL指定（`/salon/${salonId}` + 'layout'）→
+    //   ルート雛形指定（'/salon/[id]' + 'layout'）に変更。
+    //   Next 16.2.9 では、generateStaticParams に載せていない動的ページ
+    //   （このサイトの全ページがそう＝空配列のランタイムISR）に対して、
+    //   実URLの revalidatePath が【一切効かない】。'layout'・'page'・型無しの全てで効かない。
+    //   ミニアプリで実測: 実URL指定＝キャッシュHITのまま古い値／雛形指定＝即MISSで新しい値。
+    //   このため /mypage で店舗情報（公式サイトURL等）を保存しても、/salon/[id]/info などが
+    //   revalidate=600 の時間切れ（最大10分）まで古いままだった（2026-08-19 オーナー報告で発覚）。
+    //
+    // ★ 雛形指定は【全店舗ぶん】の無効化になる（1店だけには絞れない）。
+    //   ランタイムISRなので次のアクセス時にその場で作り直されるだけ＝ビルドは走らず害は無い。
+    //   /area/[slug]・/column/category/[key]（禁則153）と同じ作法に統一。
+    revalidatePath("/salon/[id]", "layout");
+    revalidated.push("/salon/[id] (layout)");
     // サロン新着情報の横断一覧（/news）もお知らせ保存の即時反映対象にする（トップの5件ブロックは top で反映）。
     revalidatePath("/news");
     revalidated.push("/news");
 
     // ── 店舗の公式ホームページ（/hp/…）も無効化する（2026-08-18 第23便）──
     //
-    // ★★ ここが抜けていたため、出勤・セラピスト情報を保存しても公式HPだけは
-    //   revalidate=600 の時間切れ（最大10分）まで古いままだった。
-    //   公式HPはフクエス本体と同じ salons / therapists / therapist_schedules を読んでいるので、
+    // ★★ 公式HPはフクエス本体と同じ salons / therapists / therapist_schedules を読んでいるので、
     //   本体を無効化するときは必ず公式HPも一緒に無効化しなければならない。
-    //
-    // ★ 対象パスは lib/hpSite.ts の hpSitePaths() 一本に任せる（表示条件で絞らない）。
-    //   絞ると「今は404のページ」が対象から外れ、200を返していた頃のキャッシュが居座る
-    //   （hpSitePaths のコメント参照）。下層ページを増やしたときも直しが要らない。
-    // ★ salon_sites の slug / domain は anon にも select 権限がある列なので、
-    //   service_role を持ち出さずログイン中のクライアントでそのまま引ける
-    //   （20260809_salon_sites_admin_lock.sql の列単位 grant）。
-    // ★ サイトを持たない店（salon_sites に行が無い）では何もしない。
-    const { data: siteRow } = await supabase
-      .from("salon_sites")
-      .select("slug, domain")
-      .eq("salon_id", Number(salonId))
-      .maybeSingle();
-    if (siteRow?.slug) {
-      for (const path of hpSitePaths({
-        slug: String(siteRow.slug),
-        domain: siteRow.domain ? String(siteRow.domain) : null,
-      })) {
-        revalidatePath(path);
-        revalidated.push(path);
-      }
-    }
+    // ★ 2026-08-19（第25便）: hpSitePaths() の実URLループ → 雛形指定に変更（理由は上の salon と同じ。
+    //   実URLの revalidatePath は効いていなかった）。暫定URL（/hp/{slug}）も独自ドメイン
+    //   （/hp/{domain} への書き換え）も同じ /hp/[slug] ルートなので、この1本で両系統とも消える。
+    //   salon_sites を引く必要も無くなった（サイトを持たない店でも無駄が無い＝ただの空振り）。
+    revalidatePath("/hp/[slug]", "layout");
+    revalidated.push("/hp/[slug] (layout)");
   }
 
   if (therapistId != null && String(therapistId).trim() !== "") {
     // 公開セラピストページ本体＋配下サブページ（/diary・/reviews）を一括無効化。
-    // 出勤保存後の即時反映用。salon の作法（'layout' 指定）に合わせる。
-    revalidatePath(`/therapist/${therapistId}`, "layout");
-    revalidated.push(`/therapist/${therapistId}`);
+    // 出勤保存後の即時反映用。salon と同じく雛形指定（2026-08-19 第25便・理由は上のコメント参照）。
+    revalidatePath("/therapist/[id]", "layout");
+    revalidated.push("/therapist/[id] (layout)");
   }
 
   if (area != null && area.trim() !== "") {
-    // 該当の地域ページ（/area/<slug>）を無効化。
-    const path = areaHref(area);
-    revalidatePath(path);
-    revalidated.push(path);
+    // 該当の地域ページを無効化。実URL指定（areaHref）が効かないため（第25便・上のコメント参照）、
+    // 単一エリア指定でも areasAll と同じ雛形指定で全 /area/[slug] を無効化する。
+    revalidatePath("/area/[slug]", "page");
+    revalidated.push("/area/[slug]");
   }
 
   if (areasAll) {

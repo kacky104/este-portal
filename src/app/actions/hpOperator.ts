@@ -225,6 +225,10 @@ export async function updateHpSiteOperator(
   // slug / ドメインを変えた直後は旧キーのキャッシュも残るが、そちらは DB を引けなくなるため
   // 次のアクセスで自然に 404 になる。ここでは新しいキー側を作り直す。
   for (const path of hpSitePaths({ slug, domain: domain === '' ? null : domain })) revalidatePath(path);
+  // ★ 2026-08-19（第25便）: 実URLの revalidatePath は Next 16 の動的ページに効かないため、
+  //   確実に効くルート雛形指定も併せて飛ばす（/api/revalidate の同日コメント参照）。
+  //   雛形指定なら旧キー側の残キャッシュもまとめて消える。
+  revalidatePath('/hp/[slug]', 'layout');
   return { ok: true };
 }
 
@@ -253,7 +257,10 @@ export async function revalidateHpSitePages(salonId: number): Promise<{ ok: true
     domain: data.domain ? String(data.domain) : null,
   });
   for (const path of paths) revalidatePath(path);
-  return { ok: true, paths };
+  // ★ 2026-08-19（第25便）: 実URLの revalidatePath は Next 16 の動的ページに効かないため、
+  //   確実に効くルート雛形指定も併せて飛ばす（/api/revalidate の同日コメント参照）。
+  revalidatePath('/hp/[slug]', 'layout');
+  return { ok: true, paths: [...paths, '/hp/[slug] (layout)'] };
 }
 
 // ── 解約（行の削除） ───────────────────────────────────

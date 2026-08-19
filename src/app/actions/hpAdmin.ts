@@ -141,6 +141,11 @@ function canManageAdmins(role: HpAdminRole): boolean {
  */
 function revalidateSite(site: HpSite) {
   for (const path of hpSitePaths(site)) revalidatePath(path);
+  // ★ 2026-08-19（第25便）: Next 16.2.9 では、generateStaticParams に無い動的ページへの
+  //   実URLの revalidatePath が効かないことが実測で分かった（/api/revalidate の同日コメント参照）。
+  //   上の実URLループは（効く環境もあり得るので）残しつつ、確実に効くルート雛形指定を追加する。
+  //   全サイトぶんの無効化になるが、ランタイムISRなので次アクセス時に作り直されるだけ＝害は無い。
+  revalidatePath('/hp/[slug]', 'layout');
 }
 
 // ── 取得 ─────────────────────────────────────────────
