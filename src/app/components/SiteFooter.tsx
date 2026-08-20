@@ -88,8 +88,8 @@ function FooterLink({ href, label, mobile, textColor }: FooterLinkDef & { textCo
   return (
     <Link
       href={href}
-      className={`block py-2 text-[13px] leading-tight sm:py-1 sm:text-xs hover:text-pink-600 transition-colors${
-        textColor ? '' : ' text-slate-500'
+      className={`block py-2 text-[13px] leading-tight sm:py-1 sm:text-xs hover:text-pink-600 transition-colors ${
+        textColor ? '' : 'text-slate-500'
       }`}
       style={textColor ? { color: textColor } : undefined}
     >
@@ -123,7 +123,7 @@ function FooterGroup({
     <nav aria-label={title} className={className}>
       {/* 見出しはスマホ・PCとも表示（PCは3カラムの列見出しになる） */}
       <p
-        className={`text-[11px] font-bold tracking-[0.15em] mb-1 sm:mb-2${textColor ? ' opacity-60' : ' text-slate-400'}`}
+        className={`text-[11px] font-bold tracking-[0.15em] mb-1 sm:mb-2 ${textColor ? 'opacity-60' : 'text-slate-400'}`}
         style={textColor ? { color: textColor } : undefined}
       >
         {title}
@@ -157,7 +157,16 @@ export function SiteFooter({
           </div>
         )}
 
-        {/* sm以上は3カラム。スマホは1列に積み、2本目以降は区切り線で分ける。 */}
+        {/* sm以上は3カラム。スマホは1列に積み、2本目以降は区切り線で分ける。
+            PC（sm以上）では sm:border-t-0 で区切り線を消す＝横並びの列の上に線は出さない。
+
+            ★★ 2026-08-19（第25便）に見つけた実害バグ:
+              クラス名を書いた【直後】に `${'${'}` を続けると、Tailwind v4 のスキャナが
+              「sm:border-t-0${'${'}textColor」を1つの語として読み、そのクラスのCSSを生成しない。
+              その結果 sm:border-t-0 が存在せず、PCでも区切り線が出たままになっていた
+              （本番CSSを実測: .sm\:border-t-0 が1件も無かった。同じ理由で sm:mb-2・sm:mt-8 も欠落）。
+              ★ 対策は簡単で、`${'${'}` の前に【必ず半角スペースを1つ空ける】こと。
+                この規則はフッターに限らず className のテンプレート文字列すべてに当てはまる。 */}
         <div className="grid grid-cols-1 sm:grid-cols-3 sm:gap-8">
           <FooterGroup title="エリアから探す" links={AREA_LINKS} textColor={textColor} />
 
@@ -165,19 +174,19 @@ export function SiteFooter({
             title="さがす"
             links={CONTENT_LINKS}
             textColor={textColor}
-            className={`mt-4 pt-4 border-t sm:mt-0 sm:pt-0 sm:border-t-0${textColor ? ' border-slate-400/25' : ' border-slate-100'}`}
+            className={`mt-4 pt-4 border-t sm:mt-0 sm:pt-0 sm:border-t-0 ${textColor ? 'border-slate-400/25' : 'border-slate-100'}`}
           />
 
           <FooterGroup
             title="サイト情報"
             links={INFO_LINKS}
             textColor={textColor}
-            className={`mt-4 pt-4 border-t sm:mt-0 sm:pt-0 sm:border-t-0${textColor ? ' border-slate-400/25' : ' border-slate-100'}`}
+            className={`mt-4 pt-4 border-t sm:mt-0 sm:pt-0 sm:border-t-0 ${textColor ? 'border-slate-400/25' : 'border-slate-100'}`}
           />
         </div>
 
         <p
-          className={`text-center text-xs mt-5 sm:mt-8${textColor ? ' opacity-70' : ' text-slate-400'}`}
+          className={`text-center text-xs mt-5 sm:mt-8 ${textColor ? 'opacity-70' : 'text-slate-400'}`}
           style={textColor ? { color: textColor } : undefined}
         >
           © 2026 フクエス. All rights reserved.
