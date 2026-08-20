@@ -401,6 +401,8 @@ type Salon = {
   access: string | null;
   closed_days: string | null;
   courses: unknown;
+  /** 料金表の備考（改行保持・未入力なら表示側で欄ごと非表示） */
+  course_note: string | null;
   theme: string | null;
   official_url: string | null;
   fukux_url: string | null;
@@ -631,7 +633,7 @@ export default function MyPage() {
 
       const { data: salonData, error: salonError } = await supabase
         .from('salons')
-        .select('id, name, rating, review_count, tags, price, area, hours, description, appeal, catchphrase, therapist_count, therapist_types, therapist_profile, phone, address, access, closed_days, courses, theme, official_url, fukux_url, line_url, payment_url, payment_cards, payment_methods, booking_enabled, booking_email, booking_courses, default_interval_min, jobs_enabled, popup_image_url, popup_link, popup_image_url2, popup_link2, popup_image_url3, popup_link3, popup_enabled, detail_banner_enabled, detail_banner_image_url, detail_banner_link, detail_banner_image_url2, detail_banner_link2, detail_banner_image_url3, detail_banner_link3')
+        .select('id, name, rating, review_count, tags, price, area, hours, description, appeal, catchphrase, therapist_count, therapist_types, therapist_profile, phone, address, access, closed_days, courses, course_note, theme, official_url, fukux_url, line_url, payment_url, payment_cards, payment_methods, booking_enabled, booking_email, booking_courses, default_interval_min, jobs_enabled, popup_image_url, popup_link, popup_image_url2, popup_link2, popup_image_url3, popup_link3, popup_enabled, detail_banner_enabled, detail_banner_image_url, detail_banner_link, detail_banner_image_url2, detail_banner_link2, detail_banner_image_url3, detail_banner_link3')
         .eq('owner_id', user.id)
         // ★ .single() は「0件でも2件以上でも」エラーになる。
         //   2026-08-20：テスト用の非表示店舗に同じオーナーUUIDが残っていたため2件ヒットし、
@@ -1264,6 +1266,8 @@ export default function MyPage() {
       .from('salons')
       .update({
         courses: buildCoursesJson(courseGroups, otherItems),
+        // 料金表の備考。空欄は null で保存し、表示側で欄ごと出さない。
+        course_note: (salonForm.course_note ?? '').trim() || null,
         price: buildRepresentativePrice(courseGroups),
         hours: salonForm.hours,
         description: salonForm.description,
@@ -2198,6 +2202,20 @@ export default function MyPage() {
               >
                 + その他メニューを追加
               </button>
+            </div>
+            {/* 備考（salons.course_note）。料金表の一番下・税込注記の上に出る。空欄なら表示されない。 */}
+            <div className="mt-4 rounded-2xl border border-pink-100 bg-pink-50/20 p-3 space-y-2">
+              <p className="text-xs font-bold text-slate-600">備考</p>
+              <textarea
+                rows={3}
+                placeholder="例：全コース指名料込みの料金です。&#10;入浴のみのご利用はできません。"
+                value={salonForm.course_note ?? ''}
+                onChange={(e) => setSalonForm((p) => ({ ...p, course_note: e.target.value }))}
+                className="w-full px-2 py-1.5 rounded-xl border border-slate-200 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-pink-200 resize-none"
+              />
+              <p className="text-[10px] text-slate-400 leading-relaxed">
+                料金表の一番下（税込みの注記の上）に表示されます。改行はそのまま反映されます。空欄のときは何も表示されません。
+              </p>
             </div>
           </div>
           <div>
