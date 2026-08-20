@@ -11,6 +11,7 @@
 //   実店舗の公式HPは必ず自店のぶんだけ。
 
 import { createPublicClient } from '@/app/lib/supabase/public';
+import { createServiceClient } from '@/app/lib/supabase/service';
 import { getAllApprovedReviews, getSalonApprovedReviews, type ApprovedReview } from '@/app/lib/reviews';
 
 export const HP_DIARY_PAGE_LIMIT = 36; // 3列×12段ぶん。続きはフクエス本体へ
@@ -77,4 +78,51 @@ export async function fetchHpReviews(salonId: number, allSalons: boolean): Promi
     ? await getAllApprovedReviews(HP_VOICE_PAGE_LIMIT)
     : await getSalonApprovedReviews(salonId);
   return reviews.slice(0, HP_VOICE_PAGE_LIMIT);
+}
+
+// ── セラピスト個別ページ（2026-08-20 第25便）────────────────
+//
+// HpPageData の therapists には一覧用の項目しか無い（プロフィール文と複数写真が無い）。
+// 個別ページで足りないその2つだけをここで追加取得する。
+//
+// ★ 呼び出し前に「そのセラピストが data.therapists に居るか」を必ず確認すること
+//   （page.tsx がやっている）。ここで id を直接引くため、確認せずに呼ぶと
+//   URLに数字以外を入れられたとき Postgres の型エラー＝500 になり得る。
+// ★ demo=true はデモ店（slug='demo'）専用。デモ用サロンは is_hidden=true のため
+//   anon では引けない可能性があり、data.ts と同じ作法で service_role に切り替える。
+
+export type HpTherapistDetail = {
+  /** プロフィール文（無ければ空文字） */
+  profileText: string;
+  /** 写真（profile_images 優先・無ければメイン写真1枚・それも無ければ空配列） */
+  images: string[];
+};
+
+export async function fetchHpTherapistDetail(
+  salonId: number,
+  therapistId: string,
+  opts?: { demo?: boolean },
+): Promise<HpTherapistDetail | null> {
+  const supabase = opts?.demo ? createServiceClient() : createPublicClient();
+  const { data, error } = await supabase
+    .from('therapists')
+    .select('id, salon_id, is_active, profile_text, profile_images, profile_image_url')
+    .eq('id', therapistId)
+    .maybeSingle();
+  // ★ エラーは握りつぶさず投げる（data.ts と同じ理由。null で返すと 404 が
+  //   ISRキャッシュに焼き付き、原因を直しても最大10分 404 のままになる）。
+  if (error) throw new Error(`therapists の取得に失敗: ${error.message}`);
+  if (!data) return null;
+  // 他店のセラピスト・退店済みは404にする（URLの id を差し替えられても他店の情報は出さない）
+  if (Number(data.salon_id) !== salonId || data.is_active === false) return null;
+
+  const extra = Array.isArray(data.profile_images)
+    ? (data.profile_images as unknown[]).map((u) => String(u ?? '')).filter((u) => u !== '')
+    : [];
+  const main = (data.profile_image_url as string | null) ?? null;
+  const images = extra.length > 0 ? extra : main ? [main] : [];
+  return {
+    profileText: ((data.profile_text as string | null) ?? '').trim(),
+    images,
+  };
 }

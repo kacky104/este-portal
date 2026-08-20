@@ -14,10 +14,10 @@
 // プレビューは noindex の一時的なURLなので、canonical と食い違う JSON-LD を出さないため。
 
 import { EMBED_SITE_URL } from '@/app/embed/salon/[id]/embedShared';
-import type { HpPageData } from '@/app/hp/_lib/data';
+import type { HpPageData, HpTherapist } from '@/app/hp/_lib/data';
 import { hpSiteOrigin } from '@/app/hp/_lib/meta';
 import { groupCourses, hpHasAnyDuty } from '@/app/hp/_lib/sections';
-import { fetchHpDiaryItems, fetchHpReviews } from '@/app/hp/_lib/subpageData';
+import { fetchHpDiaryItems, fetchHpReviews, type HpTherapistDetail } from '@/app/hp/_lib/subpageData';
 import { buildHpTerms } from '@/app/hp/_lib/terms';
 import { HpShell } from '@/app/hp/_templates/HpShell';
 import { CourseGroups, Crumb, ScheduleRows, SecHead, TherapistCards } from '@/app/hp/_templates/parts';
@@ -77,7 +77,9 @@ export function HpTherapistView({ data, preview }: ViewProps) {
       <section id="therapist" className="hp-sec hp-sec-therapists" style={{ order: 1 }}>
         <Crumb homeHref={homeHref} label="セラピスト" />
         <SecHead no="03" en="Therapist" jp="セラピスト" />
-        <TherapistCards therapists={therapists} grid />
+        {/* このページが出ている時点で個別ページの存在条件（マルチページ＋在籍1名以上）は満たすので、
+            detailBase は常に basePath（2026-08-20 第25便・HP内の個別ページへ） */}
+        <TherapistCards therapists={therapists} grid detailBase={basePath} />
         <a className="hp-more" href={homeHref}>← ホームへ戻る</a>
       </section>
 
@@ -88,16 +90,125 @@ export function HpTherapistView({ data, preview }: ViewProps) {
           dangerouslySetInnerHTML={{
             __html: toJsonLdString(
               // 順序・件数は画面に出しているカードと同じにすること（非表示コンテンツはNG）。
-              // ★ セラピストの個別ページは公式HP側に無くフクエス本体にあるので、
-              //   この ItemList だけは origin が本体（fukues.com）になる。
+              // ★ 2026-08-20（第25便）: カードのリンク先がHP内の個別ページになったので、
+              //   ItemList の origin も自サイトに変更（画面のリンクと食い違わせない）。
+              //   個別ページは noindex だが、実在するURLなので ItemList に載せて問題ない。
               buildItemListJsonLd(
                 therapists.map((t) => ({ name: t.name, path: `/therapist/${t.id}` })),
-                { name: `${salon.name} セラピスト一覧`, origin: EMBED_SITE_URL },
+                { name: `${salon.name} セラピスト一覧`, origin },
               ),
             ),
           }}
         />
       )}
+    </HpShell>
+  );
+}
+
+// ── セラピスト個別ページ（2026-08-20 第25便）──────────────
+//
+// マルチページの店だけが持つ。一覧・トップ・出勤表のカードから同じタブで遷移する。
+// ★ このページは【noindex】（オーナー判断・2026-08-20）。フクエス本体の /therapist/[id] と
+//   内容が重複するため、検索対象は本体側に一本化する。よって JSON-LD も出さない。
+// ★ 写メ日記・口コミは本体のセラピストページに任せ、ここからは外部リンクで送る
+//   （「HPからフクエスへの実流入」という従来設計の導線を絶やさないため）。
+// ★ 新しい hp-thd-* のCSSは styles.ts の COMMON に1式だけ持つ（配色は --hp-accent 変数で
+//   受けるので、ひな形・配色ごとの追加CSSは不要）。
+
+export function HpTherapistDetailView({
+  data,
+  therapist,
+  detail,
+}: {
+  data: HpPageData;
+  /** data.therapists の中の1人（page.tsx が存在確認済みのものを渡す） */
+  therapist: HpTherapist;
+  detail: HpTherapistDetail;
+}) {
+  const { weekDays, basePath } = data;
+  const homeHref = basePath || '/';
+  const listHref = `${basePath}/therapist`;
+  const t = therapist;
+  // 写真: 複数写真（profile_images）優先。無ければ一覧と同じメイン写真1枚。
+  const images = detail.images.length > 0 ? detail.images : t.imageUrl ? [t.imageUrl] : [];
+  const [main, ...others] = images;
+
+  return (
+    <HpShell data={data} page="therapist">
+      <section id="therapist" className="hp-sec hp-sec-therapists" style={{ order: 1 }}>
+        {/* パンくず（3階層）。共通の Crumb は「ホーム › 現在地」の2階層専用なので、
+            同じクラス構成で直接組む（見た目は各ひな形の .hp-crumb がそのまま効く）。 */}
+        <nav className="hp-crumb" aria-label="パンくずリスト">
+          <a href={homeHref}>ホーム</a>
+          <span className="hp-crumb-sep" aria-hidden="true">›</span>
+          <a href={listHref}>セラピスト</a>
+          <span className="hp-crumb-sep" aria-hidden="true">›</span>
+          <span>{t.name}</span>
+        </nav>
+        <SecHead no="03" en="Therapist" jp={t.name} />
+
+        <div className="hp-thd">
+          {/* ── 写真（メイン1枚＋残りはサムネイルのグリッド。JSなし＝拡大はしない）── */}
+          <div className="hp-thd-photos">
+            {main ? (
+              <div className="hp-thd-main">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={main} alt={t.name} />
+              </div>
+            ) : (
+              <div className="hp-thd-main hp-th-noimg" />
+            )}
+            {others.length > 0 && (
+              <div className="hp-thd-thumbs">
+                {others.map((u, i) => (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img key={u} src={u} alt={`${t.name}の写真${i + 2}`} loading="lazy" decoding="async" />
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* ── プロフィール ── */}
+          <div className="hp-thd-info">
+            <div className="hp-thd-meta">
+              {t.age !== null && <span>{t.age}歳</span>}
+              {t.bodyType && <span>{t.bodyType}</span>}
+              {t.onDuty && <span className="hp-th-onduty">本日出勤</span>}
+            </div>
+            {t.badges.length > 0 && (
+              <div className="hp-thd-badges">
+                {t.badges.map((b) => (
+                  <span key={b} className="hp-thd-badge">{b}</span>
+                ))}
+              </div>
+            )}
+            {t.catchphrase && <p className="hp-thd-catch">{t.catchphrase}</p>}
+            {detail.profileText && <p className="hp-thd-text">{detail.profileText}</p>}
+
+            {/* ── 週間出勤（7日ぶん・データは一覧と同じ t.week）── */}
+            <h3 className="hp-thd-subhead">出勤スケジュール</h3>
+            <div className="hp-thd-week">
+              {weekDays.map((d, i) => (
+                <div key={d.date} className={`hp-thd-day${d.isToday ? ' is-today' : ''}`}>
+                  <span className={`hp-thd-date${d.tone ? ` is-${d.tone}` : ''}`}>
+                    {d.label}（{d.weekday}）{d.isToday ? ' 本日' : ''}
+                  </span>
+                  <span className="hp-thd-time">{t.week[i] ?? '−'}</span>
+                </div>
+              ))}
+            </div>
+
+            {/* 写メ日記・口コミはフクエス本体のセラピストページで（実流入の導線を残す） */}
+            <div>
+              <a className="hp-more" href={`${EMBED_SITE_URL}/therapist/${t.id}`} target="_blank" rel="noopener">
+                写メ日記・口コミを見る（フクエス）→
+              </a>
+            </div>
+          </div>
+        </div>
+
+        <a className="hp-more" href={listHref}>← セラピスト一覧へ戻る</a>
+      </section>
     </HpShell>
   );
 }
@@ -181,7 +292,8 @@ export function HpScheduleView({ data, preview }: ViewProps) {
               {byDay[i].length === 0 ? (
                 <p className="hp-note">この日の出勤予定はありません</p>
               ) : (
-                <ScheduleRows rows={byDay[i]} />
+                // detailBase: マルチページで在籍が居る店（このページが出ている時点で満たす）はHP内の個別ページへ（2026-08-20）
+                <ScheduleRows rows={byDay[i]} detailBase={therapists.length > 0 ? basePath : null} />
               )}
             </div>
           ))}

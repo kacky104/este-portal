@@ -77,13 +77,21 @@ export function SecHead({ no, en, jp }: { no: string; en: string; jp: string }) 
  * limit を渡すと先頭 n 人だけ（トップの抜粋用）。並びは data.ts のソート済みのまま
  * （出勤中が先頭・同着は名前順）なので、抜粋しても「本日出勤の人が優先で出る」。
  *
- * カードのリンク先はフクエス本体のセラピストページ（公式HP側には個別ページを作らない）。
- * 本体と内容が重複せず、HPからフクエスへの実流入にもなる。
+ * カードのリンク先:
+ *   - detailBase が渡されたとき（マルチページの店・2026-08-20 第25便）… HP内の個別ページ
+ *     `${detailBase}/therapist/{id}`（同じタブで遷移）
+ *   - 渡されないとき（1ページ構成の店・従来）… フクエス本体の /therapist/{id}（別タブ）。
+ *     本体と内容が重複せず、HPからフクエスへの実流入にもなる、という従来の設計のまま。
+ * ★ detailBase は「個別ページが実在する店」だけが渡すこと（呼び出し側で hpSubpages の
+ *   therapist を確認する）。実在しない店に渡すと404へのリンクになる。
+ * ★ 独自ドメインの店は detailBase が【空文字】で正しい（basePath=''）。
+ *   null 判定を `!detailBase` で書くと空文字が弾かれて壊れる。typeof で判定すること。
  */
 export function TherapistCards({
   therapists,
   limit,
   grid = false,
+  detailBase = null,
 }: {
   therapists: HpTherapist[];
   limit?: number;
@@ -93,12 +101,20 @@ export function TherapistCards({
    * 出し分けられる。トップは抜粋なので横に流す方が収まりが良い、という使い分け。
    */
   grid?: boolean;
+  /** HP内のセラピスト個別ページへ飛ばすときの basePath（''も有効）。null なら従来どおり本体へ */
+  detailBase?: string | null;
 }) {
   const list = typeof limit === 'number' ? therapists.slice(0, limit) : therapists;
+  const internal = typeof detailBase === 'string';
   return (
     <div className={`hp-th-row${grid ? ' hp-th-grid' : ''}`}>
       {list.map((t) => (
-        <a key={t.id} className="hp-th-card" href={`${EMBED_SITE_URL}/therapist/${t.id}`} target="_blank" rel="noopener">
+        <a
+          key={t.id}
+          className="hp-th-card"
+          href={internal ? `${detailBase}/therapist/${t.id}` : `${EMBED_SITE_URL}/therapist/${t.id}`}
+          {...(internal ? {} : { target: '_blank', rel: 'noopener' })}
+        >
           <div className="hp-th-frame">
             {t.imageUrl ? (
               // eslint-disable-next-line @next/next/no-img-element
@@ -150,17 +166,21 @@ export function TherapistCards({
  *
  * time は「その日の出勤時間」（例「12:00〜22:00」）。トップは本日ぶん（todayTime）、
  * /schedule は week[i] を渡す＝同じ部品で日替わりの表になる。
+ *
+ * 行のリンク先は TherapistCards と同じ規約（2026-08-20 第25便）:
+ * detailBase が渡されたらHP内の個別ページ（同じタブ）、null なら従来どおり本体へ（別タブ）。
+ * ★ 空文字も有効な detailBase（独自ドメイン）。typeof で判定すること。
  */
-export function ScheduleRows({ rows }: { rows: { t: HpTherapist; time: string }[] }) {
+export function ScheduleRows({ rows, detailBase = null }: { rows: { t: HpTherapist; time: string }[]; detailBase?: string | null }) {
+  const internal = typeof detailBase === 'string';
   return (
     <div className="hp-sched-list">
       {rows.map(({ t, time }) => (
         <a
           key={t.id}
           className="hp-sched-row"
-          href={`${EMBED_SITE_URL}/therapist/${t.id}`}
-          target="_blank"
-          rel="noopener"
+          href={internal ? `${detailBase}/therapist/${t.id}` : `${EMBED_SITE_URL}/therapist/${t.id}`}
+          {...(internal ? {} : { target: '_blank', rel: 'noopener' })}
         >
           <span className="hp-sched-thumb">
             {t.imageUrl ? (

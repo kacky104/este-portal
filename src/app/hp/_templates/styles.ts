@@ -229,6 +229,45 @@ const COMMON = `
    ★ .hp-note そのものは触らないこと（/system の「※ 表示料金は…」にも効いてしまう）。 */
 .hp-sched-panel .hp-note { text-align: center; font-size: 11.5px; padding: 26px 12px; border: 1px dashed color-mix(in srgb, currentColor 25%, transparent); }
 ${HP_SCHED_TAB_RULES}
+/* ── セラピスト個別ページ（/therapist/[id]・2026-08-20 第25便）──
+   配色は --hp-accent / --hp-accent-deep と currentColor で受けるので、
+   ひな形・配色ごとの追加CSSは【不要】（4ひな形×全配色で1式だけ）。
+   文字色はひな形の本文色をそのまま継承する＝タイプAの暗地でもそのまま読める。 */
+.hp-thd { display: flex; flex-direction: column; gap: 20px; }
+@media (min-width: 640px) {
+  .hp-thd { flex-direction: row; align-items: flex-start; gap: 26px; }
+  .hp-thd-photos { width: 44%; flex-shrink: 0; }
+}
+.hp-thd-main { display: block; }
+.hp-thd-main img { display: block; width: 100%; height: auto; aspect-ratio: 3 / 4; object-fit: cover; }
+.hp-thd-main.hp-th-noimg { width: 100%; aspect-ratio: 3 / 4; }
+.hp-thd-thumbs { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; margin-top: 6px; }
+.hp-thd-thumbs img { display: block; width: 100%; aspect-ratio: 3 / 4; object-fit: cover; }
+.hp-thd-info { flex: 1; min-width: 0; }
+.hp-thd-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; font-size: 13px; opacity: .85; }
+/* 「本日出勤」バッジは各ひな形の .hp-th-onduty（写真に重ねる前提の配色。タイプSは淡い金＋影で
+   白地だと読めない）を引き継がず、本文色のピルに上書きする。
+   ★ セレクタを4クラスにしているのは意図的（ひな形側の .hp-s.hp-s-wine .hp-th-onduty 等が
+     3クラスで COMMON より後に来るため、それより強くしないと負ける）。 */
+.hp-root .hp-thd .hp-thd-meta .hp-th-onduty { display: inline-block; width: auto; margin: 0; padding: 3px 10px;
+  font-size: 10px; font-weight: 700; letter-spacing: .08em; color: inherit; background: none;
+  border: 1px solid color-mix(in srgb, currentColor 45%, transparent); border-radius: 999px; text-shadow: none; }
+.hp-thd-badges { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 10px; }
+.hp-thd-badge { font-size: 10px; line-height: 1; padding: 4px 9px; border-radius: 999px;
+  border: 1px solid color-mix(in srgb, var(--hp-accent, #c4a469) 55%, transparent);
+  color: var(--hp-accent-deep, var(--hp-accent, inherit)); }
+.hp-thd-catch { margin-top: 12px; font-size: 14px; font-weight: 700; color: var(--hp-accent-deep, var(--hp-accent, inherit)); }
+.hp-thd-text { margin-top: 12px; font-size: 13px; line-height: 1.95; white-space: pre-wrap; overflow-wrap: break-word; }
+.hp-thd-subhead { margin-top: 22px; font-size: 12px; font-weight: 700; letter-spacing: .14em; opacity: .8; }
+.hp-thd-week { margin-top: 6px; }
+.hp-thd-day { display: flex; justify-content: space-between; align-items: baseline; gap: 8px;
+  padding: 7px 2px; font-size: 12.5px;
+  border-bottom: 1px solid color-mix(in srgb, currentColor 13%, transparent); }
+.hp-thd-day.is-today { font-weight: 700; }
+/* 土日の色は /schedule のタブと同じトーン（COMMONの .hp-sched-tab-sat/sun と揃える） */
+.hp-thd-date.is-sat { color: #4f7fd0; }
+.hp-thd-date.is-sun { color: #d05a5a; }
+.hp-thd-time { font-variant-numeric: tabular-nums; white-space: nowrap; }
 /* テーマ壁紙レイヤー（有効時は .hp-has-wallpaper が付き、ひな形側で透過調整する） */
 .hp-wallpaper { position: fixed; inset: 0; z-index: -1; background-size: cover; background-position: center; pointer-events: none; }
 .hp-wallpaper::after { content: ''; position: absolute; inset: 0; }

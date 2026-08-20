@@ -230,7 +230,8 @@ export function HpTemplate({ data }: { data: HpPageData }) {
       {visible.therapists && (
         <section id="therapist" data-hp-reveal className={secCls('therapists', 'hp-sec-therapists', false)} style={ord('therapists')}>
           <SecHead no="03" en="Therapist" jp="セラピスト" />
-          <TherapistCards therapists={therapists} limit={multipage ? HP_DIGEST_THERAPISTS : undefined} />
+          {/* detailBase: 個別ページが実在する店（subs.therapist）だけHP内へ。それ以外は従来どおり本体へ（2026-08-20 第25便） */}
+          <TherapistCards therapists={therapists} limit={multipage ? HP_DIGEST_THERAPISTS : undefined} detailBase={subs.therapist ? basePath : null} />
           {multipage && (
             <a className="hp-more" href={`${basePath}/therapist`}>
               {therapists.length > HP_DIGEST_THERAPISTS
@@ -252,7 +253,7 @@ export function HpTemplate({ data }: { data: HpPageData }) {
           <div className="hp-sched-date">{data.todayLabel}</div>
           {/* 行の DOM は /schedule と共用（parts.tsx の ScheduleRows）。
               片方だけ直して食い違うのを防ぐため、ここに書き写さないこと。 */}
-          <ScheduleRows rows={onDuty.map((t) => ({ t, time: t.todayTime ?? '' }))} />
+          <ScheduleRows rows={onDuty.map((t) => ({ t, time: t.todayTime ?? '' }))} detailBase={subs.therapist ? basePath : null} />
 
           {/* 週間の出勤（2026-08-18 第23便で自社の /schedule に変更）。
               それまではフクエス本体の店舗スケジュールへ外部リンクしていたが、
