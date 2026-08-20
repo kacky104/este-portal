@@ -80,6 +80,34 @@ export async function fetchHpReviews(salonId: number, allSalons: boolean): Promi
   return reviews.slice(0, HP_VOICE_PAGE_LIMIT);
 }
 
+// ── セラピスト個別ページの写メ日記（2026-08-20 第25便）──────
+//
+// その子の日記だけを新しい順で取る。表示条件は店の /diary と同じ「画像がある日記のみ」
+// （サムネイルにできないため。多めに取得して間引く作法も fetchHpDiaryItems と同じ）。
+// 「全部見る」の行き先はフクエス本体の /therapist/{id}/diary。
+
+export const HP_THERAPIST_DIARY_LIMIT = 6; // 3列×2段ぶん。続きは本体へ
+export const HP_THERAPIST_VOICE_LIMIT = 3; // 口コミは最新3件。続きは本体へ
+
+export async function fetchHpTherapistDiaryItems(therapistId: string): Promise<HpDiaryItem[]> {
+  const supabase = createPublicClient();
+  const { data } = await supabase
+    .from('diary_posts')
+    .select('id, images, title')
+    .eq('therapist_id', Number(therapistId))
+    .order('created_at', { ascending: false })
+    .limit(HP_THERAPIST_DIARY_LIMIT * 3);
+  return ((data ?? []) as { id: number | string; images: string[] | null; title: string | null }[])
+    .map((r) => ({
+      id:            String(r.id),
+      image:         (r.images ?? [])[0] ?? '',
+      title:         r.title ?? '',
+      therapistName: '', // 本人のページなので名前は出さない（呼び出し側も使わない）
+    }))
+    .filter((e) => e.image !== '')
+    .slice(0, HP_THERAPIST_DIARY_LIMIT);
+}
+
 // ── セラピスト個別ページ（2026-08-20 第25便）────────────────
 //
 // HpPageData の therapists には一覧用の項目しか無い（プロフィール文と複数写真が無い）。

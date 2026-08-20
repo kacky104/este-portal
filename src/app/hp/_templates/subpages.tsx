@@ -17,14 +17,20 @@ import { EMBED_SITE_URL } from '@/app/embed/salon/[id]/embedShared';
 import type { HpPageData, HpTherapist } from '@/app/hp/_lib/data';
 import { hpSiteOrigin } from '@/app/hp/_lib/meta';
 import { groupCourses, hpHasAnyDuty } from '@/app/hp/_lib/sections';
-import { fetchHpDiaryItems, fetchHpReviews, type HpTherapistDetail } from '@/app/hp/_lib/subpageData';
+import {
+  fetchHpDiaryItems,
+  fetchHpReviews,
+  fetchHpTherapistDiaryItems,
+  HP_THERAPIST_VOICE_LIMIT,
+  type HpTherapistDetail,
+} from '@/app/hp/_lib/subpageData';
 import { buildHpTerms } from '@/app/hp/_lib/terms';
 import { HpShell } from '@/app/hp/_templates/HpShell';
 import { CourseGroups, Crumb, ScheduleRows, SecHead, TherapistCards } from '@/app/hp/_templates/parts';
 import { HP_DEMO_SLUG, normalizeHpSiteKey } from '@/app/lib/hpSite';
 import { buildBreadcrumbJsonLd, buildItemListJsonLd, toJsonLdString } from '@/app/lib/jsonLd';
 import { paymentMethodLabel } from '@/app/lib/paymentMethods';
-import { getSalonReviewStats } from '@/app/lib/reviews';
+import { getApprovedReviews, getSalonReviewStats } from '@/app/lib/reviews';
 
 type ViewProps = {
   data: HpPageData;
@@ -115,7 +121,7 @@ export function HpTherapistView({ data, preview }: ViewProps) {
 // ★ 新しい hp-thd-* のCSSは styles.ts の COMMON に1式だけ持つ（配色は --hp-accent 変数で
 //   受けるので、ひな形・配色ごとの追加CSSは不要）。
 
-export function HpTherapistDetailView({
+export async function HpTherapistDetailView({
   data,
   therapist,
   detail,
@@ -132,6 +138,16 @@ export function HpTherapistDetailView({
   // 写真: 複数写真（profile_images）優先。無ければ一覧と同じメイン写真1枚。
   const images = detail.images.length > 0 ? detail.images : t.imageUrl ? [t.imageUrl] : [];
   const [main, ...others] = images;
+
+  // この子の写メ日記と口コミ（2026-08-20 追記・オーナー要望）。
+  // 見た目は店の /diary・/voice と同じ部品（hp-dy-* / hp-card）を使い回す。
+  // 「全部見る」はフクエス本体のセラピスト別ページ（/therapist/{id}/diary・/reviews）へ
+  // ＝店単位の一覧ではなく【その子の掲載場所】へ飛ばす。
+  const [diaryItems, allReviews] = await Promise.all([
+    fetchHpTherapistDiaryItems(t.id),
+    getApprovedReviews(Number(t.id)),
+  ]);
+  const reviews = allReviews.slice(0, HP_THERAPIST_VOICE_LIMIT);
 
   return (
     <HpShell data={data} page="therapist">
@@ -198,14 +214,74 @@ export function HpTherapistDetailView({
               ))}
             </div>
 
-            {/* 写メ日記・口コミはフクエス本体のセラピストページで（実流入の導線を残す） */}
-            <div>
-              <a className="hp-more" href={`${EMBED_SITE_URL}/therapist/${t.id}`} target="_blank" rel="noopener">
-                写メ日記・口コミを見る（フクエス）→
-              </a>
-            </div>
+            {/* 日記も口コミも1件も無い子だけ、従来の合同リンクで本体へ送る
+                （下の2セクションが両方消えると本体への導線がゼロになるため） */}
+            {diaryItems.length === 0 && reviews.length === 0 && (
+              <div>
+                <a className="hp-more" href={`${EMBED_SITE_URL}/therapist/${t.id}`} target="_blank" rel="noopener">
+                  写メ日記・口コミを見る（フクエス）→
+                </a>
+              </div>
+            )}
           </div>
         </div>
+
+        {/* ── この子の写メ日記（最新6件・2026-08-20 追記）──
+             見た目は店の /diary と同じ部品（hp-dy-grid / hp-dy-card）。
+             本人のページなのでサムネ下の名前は出さない（therapistName は空で来る）。
+             「全部見る」は【その子の】日記ページ（フクエス本体 /therapist/{id}/diary）へ。 */}
+        {diaryItems.length > 0 && (
+          <>
+            <h3 className="hp-thd-subhead">写メ日記</h3>
+            <div className="hp-dy-grid">
+              {diaryItems.map((e) => (
+                <a
+                  key={e.id}
+                  className="hp-dy-card"
+                  href={`${EMBED_SITE_URL}/diary/${e.id}`}
+                  target="_blank"
+                  rel="noopener"
+                  title={e.title || `${t.name}の写メ日記`}
+                >
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img className="hp-dy-thumb" src={e.image} alt={e.title || `${t.name}の写メ日記`} loading="lazy" />
+                </a>
+              ))}
+            </div>
+            <div>
+              <a className="hp-more" href={`${EMBED_SITE_URL}/therapist/${t.id}/diary`} target="_blank" rel="noopener">
+                {t.name}の写メ日記を全部見る →
+              </a>
+            </div>
+          </>
+        )}
+
+        {/* ── この子の口コミ（最新3件・2026-08-20 追記）──
+             見た目は店の /voice と同じ部品（hp-card ＋ Stars）。
+             「全部見る」は【その子の】口コミページ（フクエス本体 /therapist/{id}/reviews）へ。 */}
+        {reviews.length > 0 && (
+          <>
+            <h3 className="hp-thd-subhead">口コミ</h3>
+            {reviews.map((r) => (
+              <div key={r.id} className="hp-card">
+                <div className="hp-card-title">
+                  <Stars value={r.overall} />
+                  <span className="hp-voice-score">{r.overall.toFixed(1)}</span>
+                </div>
+                <div className="hp-card-body">{r.body}</div>
+                <div className="hp-card-meta">
+                  {r.nickname} さん
+                  {r.createdAt ? `｜${r.createdAt.slice(0, 10).replaceAll('-', '/')}` : ''}
+                </div>
+              </div>
+            ))}
+            <div>
+              <a className="hp-more" href={`${EMBED_SITE_URL}/therapist/${t.id}/reviews`} target="_blank" rel="noopener">
+                {t.name}の口コミを全部見る →
+              </a>
+            </div>
+          </>
+        )}
 
         <a className="hp-more" href={listHref}>← セラピスト一覧へ戻る</a>
       </section>
