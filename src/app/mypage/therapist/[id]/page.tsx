@@ -107,7 +107,8 @@ export default function TherapistEditPage() {
         .select('id')
         .eq('id', tData.salon_id)
         .eq('owner_id', user.id)
-        .single();
+        // 0 件（他店のセラピスト）は想定内の分岐なので maybeSingle。single だと 0 件でもエラーを吐く。
+        .maybeSingle();
 
       if (!salonData) {
         setLoadError('このセラピストを編集する権限がありません');

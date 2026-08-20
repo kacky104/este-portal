@@ -91,6 +91,26 @@ export default function SalonEditModal({ salon, onClose, onSaved }: Props) {
   const [resetBusy, setResetBusy] = useState(false);
   const [emailMsg, setEmailMsg] = useState<{ kind: 'ok' | 'err'; text: string } | null>(null);
 
+  // ── オーナーUUIDの重複チェック ──
+  // 同じ UUID が他店（非表示店舗も含む）に入っていると、/mypage の店舗取得が 2 件ヒットして
+  // 「店舗情報が見つかりません」になる（2026-08-20 の事故：テスト店 tesut に本番店と同じ UUID が残っていた）。
+  // 入力が止まってから他店を照会して警告を出す。保存自体はブロックしない。
+  const [uuidDupes, setUuidDupes] = useState<{ id: number; name: string | null }[]>([]);
+  useEffect(() => {
+    const uid = form.owner_id.trim();
+    if (!uid) { setUuidDupes([]); return; }
+    let alive = true;
+    const timer = setTimeout(async () => {
+      const { data } = await supabase
+        .from('salons')
+        .select('id, name')
+        .eq('owner_id', uid)
+        .neq('id', salon.id);
+      if (alive) setUuidDupes(data ?? []);
+    }, 400);
+    return () => { alive = false; clearTimeout(timer); };
+  }, [form.owner_id, salon.id]);
+
   // モーダルを開いた際に現在のログインメールを取得（admin 専用サーバーアクション経由）。
   useEffect(() => {
     let alive = true;
@@ -346,6 +366,18 @@ export default function SalonEditModal({ salon, onClose, onSaved }: Props) {
 
           {/* オーナーUUID */}
           {textField('オーナーUUID', 'owner_id', 'xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx', true)}
+
+          {/* 他店と同じオーナーUUIDが入っていると /mypage が開けなくなるため警告する */}
+          {uuidDupes.length > 0 && (
+            <div className="rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-[11px] text-rose-600 leading-relaxed">
+              <span className="font-bold">このオーナーUUIDは他の店舗でも使われています。</span>
+              <br />
+              {uuidDupes.map(d => `ID:${d.id} ${d.name ?? '(名称なし)'}`).join(' / ')}
+              <br />
+              同じUUIDが複数店に入っていると、そのオーナーの /mypage が
+              「店舗情報が見つかりません」になります。どちらかのUUIDを空にしてください。
+            </div>
+          )}
 
           {/* ── ログインメール（オーナーアカウント）管理 ── */}
           <div className="rounded-2xl border border-slate-200 bg-slate-50/60 p-4 space-y-3">

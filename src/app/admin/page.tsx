@@ -327,6 +327,13 @@ export default function AdminDashboard() {
   );
 
   // 掲載店舗一覧を「表示中（is_hidden でない）／非表示（is_hidden）」で振り分け。
+  // ★ 新規追加フォームのオーナーUUID重複チェック（2026-08-20 の事故対策）。
+  //   同じ UUID が複数店に入ると、そのオーナーの /mypage が「店舗情報が見つかりません」になる。
+  //   salons は非表示店舗も含む全件なので、これだけで漏れなく検出できる。
+  const addOwnerUuidDupes = form.owner_id.trim()
+    ? salons.filter(s => s.owner_id === form.owner_id.trim())
+    : [];
+
   const visibleSalons = salons.filter(s => !s.is_hidden);
   const hiddenSalons = salons.filter(s => s.is_hidden);
   const listedSalons = salonListTab === 'hidden' ? hiddenSalons : visibleSalons;
@@ -643,6 +650,16 @@ export default function AdminDashboard() {
                   onChange={e => setForm(p => ({ ...p, owner_id: e.target.value }))}
                   className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs bg-slate-50/50 focus:outline-none focus:ring-2 focus:ring-pink-200 font-mono"
                 />
+                {addOwnerUuidDupes.length > 0 && (
+                  <div className="rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-[11px] text-rose-600 leading-relaxed">
+                    <span className="font-bold">このオーナーUUIDは既に使われています。</span>
+                    <br />
+                    {addOwnerUuidDupes.map(d => `ID:${d.id} ${d.name ?? '(名称なし)'}`).join(' / ')}
+                    <br />
+                    このまま登録すると、そのオーナーの /mypage が
+                    「店舗情報が見つかりません」になります。
+                  </div>
+                )}
               </div>
             </div>
 
