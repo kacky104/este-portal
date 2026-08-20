@@ -386,9 +386,24 @@ export default async function SalonPage({
   // 掲載中のセラピスト求人（あれば「求人情報」セクションを出す。createPublicClient 内部使用で ISR を壊さない）。
   const salonJobs = await fetchActiveJobsBySalon(Number(id));
 
-  // 「女性求人」アイコンのリンク先：アクティブな求人があればその求人詳細へ、無ければ準備中ページへ。
+  // 「女性求人」アイコンのリンク先：アクティブな求人があればその求人詳細へ。
+  // フクエスワーク未契約・準備中（アクティブ求人ゼロ）の店舗は null＝リンクを張らず、
+  // fukuX 未設定時と同じ「薄いクリック不可」表示にする（準備中ページへは飛ばさない）。
   // 判定は上で取得済みの salonJobs を再利用（追加クエリ不要）。
-  const jobsHref = salonJobs.length > 0 ? `/jobs/${salonJobs[0].id}` : '/jobs/coming-soon';
+  const activeJobHref = salonJobs.length > 0 ? `/jobs/${salonJobs[0].id}` : null;
+
+  // 女性求人セルの中身（リンク時／無効時で共通。lucide HeartHandshake グリフをインライン化）。
+  const jobsCellInner = (
+    <>
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="flex-shrink-0" style={{ color: qn.icon }}>
+        <path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z" />
+        <path d="M12 5 9.04 7.96a2.17 2.17 0 0 0 0 3.08c.82.82 2.13.85 3 .07l2.07-1.9a2.82 2.82 0 0 1 3.79 0l2.96 2.66" />
+        <path d="m18 15-2-2" />
+        <path d="m15 18-2-2" />
+      </svg>
+      <span className="text-[11px] sm:text-sm font-bold leading-none whitespace-nowrap" style={{ color: qn.text }}>女性求人</span>
+    </>
+  );
 
   // 店舗基本情報の中身（スマホ=サロンについての下／デスクトップ=右サイドバー の2箇所で共用）
   const shopInfoRows = (
@@ -717,18 +732,19 @@ export default async function SalonPage({
                   <span className="text-[11px] sm:text-sm font-bold leading-none whitespace-nowrap" style={{ color: qn.text }}>fukuX</span>
                 </div>
               )}
-              {/* 女性求人：アクティブ求人があればその詳細 /jobs/[id] へ、無ければ準備中 /jobs/coming-soon へ。
-                  お客様向けページのため「別サイトへ移動」を強調せず、他セルと同一デザインで自然に馴染ませる。
-                  アイコンは lucide の HeartHandshake グリフをインライン化（本リポジトリはアイコンライブラリ非使用でSVG統一）。 */}
-              <Link href={jobsHref} className="flex flex-col items-center justify-center gap-1.5 rounded-lg border px-1.5 py-3 sm:py-4 shadow-sm cursor-pointer hover:shadow-md hover:brightness-95 transition-all" style={{ backgroundColor: qn.bg, borderColor: qn.border }}>
-                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="flex-shrink-0" style={{ color: qn.icon }}>
-                  <path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z" />
-                  <path d="M12 5 9.04 7.96a2.17 2.17 0 0 0 0 3.08c.82.82 2.13.85 3 .07l2.07-1.9a2.82 2.82 0 0 1 3.79 0l2.96 2.66" />
-                  <path d="m18 15-2-2" />
-                  <path d="m15 18-2-2" />
-                </svg>
-                <span className="text-[11px] sm:text-sm font-bold leading-none whitespace-nowrap" style={{ color: qn.text }}>女性求人</span>
-              </Link>
+              {/* 女性求人：アクティブ求人があればその詳細 /jobs/[id] へ。
+                  未契約・準備中（アクティブ求人ゼロ）は fukuX 未設定時と同じ opacity-50 のクリック不可表示。
+                  お客様向けページのため「別サイトへ移動」を強調せず、他セルと同一デザインで自然に馴染ませる。 */}
+              {activeJobHref ? (
+                <Link href={activeJobHref} className="flex flex-col items-center justify-center gap-1.5 rounded-lg border px-1.5 py-3 sm:py-4 shadow-sm cursor-pointer hover:shadow-md hover:brightness-95 transition-all" style={{ backgroundColor: qn.bg, borderColor: qn.border }}>
+                  {jobsCellInner}
+                </Link>
+              ) : (
+                // 未契約・準備中：リンクなし・opacity-50 で無効であることを視覚化（aria-disabled）。
+                <div aria-disabled="true" className="flex flex-col items-center justify-center gap-1.5 rounded-lg border px-1.5 py-3 sm:py-4 shadow-sm opacity-50 cursor-default" style={{ backgroundColor: qn.bg, borderColor: qn.border }}>
+                  {jobsCellInner}
+                </div>
+              )}
             </div>
             </div>
 
