@@ -2208,7 +2208,7 @@ export default function MyPage() {
               <p className="text-xs font-bold text-slate-600">備考</p>
               <textarea
                 rows={3}
-                placeholder="例：全コース指名料込みの料金です。&#10;入浴のみのご利用はできません。"
+                placeholder="例：初回指名料は無料。&#10;延長はできない場合もあります。"
                 value={salonForm.course_note ?? ''}
                 onChange={(e) => setSalonForm((p) => ({ ...p, course_note: e.target.value }))}
                 className="w-full px-2 py-1.5 rounded-xl border border-slate-200 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-pink-200 resize-none"
