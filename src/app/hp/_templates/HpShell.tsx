@@ -106,8 +106,13 @@ export function HpShell({
                スクリプトはリンク押下・Escでの自動クローズと背面スクロール止めだけを担う。 */}
           <input type="checkbox" id="hp-drawer" className="hp-drawer-toggle" aria-label="メニュー" />
           <div className="hp-topbar" style={{ order: HP_ORDER_TOPBAR }}>
-            {/* トップでは従来どおり素のロゴ。下層ページではロゴがホームへの導線になる。 */}
-            {page === 'home' ? logo : <a className="hp-topbar-home" href={homeHref}>{logo}</a>}
+            {/* ロゴ（店名）は常にトップへの導線（2026-08-19 第25便・オーナー要望）。
+                トップページ自身でも #top のアンカーではなく【ホームURLそのもの】に飛ばす
+                ＝トップに居ても押せばトップが再読み込みされる（オーナー指定の挙動）。
+                素の <a>（next/link 不使用）なので、同じURLへの遷移は自然にフル再読み込みになる。
+                ★ 見た目は従来と同じ（.hp-topbar-home は color:inherit・下線なし。
+                  下層ページでは以前からこの形で、それと同じになるだけ）。 */}
+            <a className="hp-topbar-home" href={homeHref}>{logo}</a>
             {/* PCナビは SCHEDULE 入りの5項目（2026-08-19 第25便）。
                 SPクイックナビ（HpTemplate 側）は withSchedule を渡さない4項目のまま
                 ＝4分割グリッドを崩さない。理由は hpTopbarNavItems のコメント参照。 */}
