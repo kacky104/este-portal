@@ -294,15 +294,18 @@ export default async function SalonPage({
   // 列が未追加の環境でも本体表示を壊さないよう単独取得（失敗＝バナー無し扱い）。
   const { data: bannerRow } = await supabase
     .from('salons')
-    .select('detail_banner_enabled, detail_banner_image_url, detail_banner_link, detail_banner_image_url2, detail_banner_link2, detail_banner_image_url3, detail_banner_link3')
+    .select('detail_banner_enabled, detail_banner_image_url, detail_banner_link, detail_banner_image_url2, detail_banner_link2, detail_banner_image_url3, detail_banner_link3, detail_banner_image_url_sp, detail_banner_image_url2_sp, detail_banner_image_url3_sp')
     .eq('id', Number(id))
     .maybeSingle();
+  // PC用（imgPc）とSP用（imgSp）の2枚構成。片方しか無いスロットは、あるほうを両画面で使う。
   const detailBanners = (bannerRow && bannerRow.detail_banner_enabled)
     ? [
-        { img: bannerRow.detail_banner_image_url as string | null,  link: sanitizeInternalPath(bannerRow.detail_banner_link as string | null) },
-        { img: bannerRow.detail_banner_image_url2 as string | null, link: sanitizeInternalPath(bannerRow.detail_banner_link2 as string | null) },
-        { img: bannerRow.detail_banner_image_url3 as string | null, link: sanitizeInternalPath(bannerRow.detail_banner_link3 as string | null) },
-      ].filter((b): b is { img: string; link: string } => Boolean(b.img))
+        { pc: bannerRow.detail_banner_image_url  as string | null, sp: bannerRow.detail_banner_image_url_sp  as string | null, link: sanitizeInternalPath(bannerRow.detail_banner_link  as string | null) },
+        { pc: bannerRow.detail_banner_image_url2 as string | null, sp: bannerRow.detail_banner_image_url2_sp as string | null, link: sanitizeInternalPath(bannerRow.detail_banner_link2 as string | null) },
+        { pc: bannerRow.detail_banner_image_url3 as string | null, sp: bannerRow.detail_banner_image_url3_sp as string | null, link: sanitizeInternalPath(bannerRow.detail_banner_link3 as string | null) },
+      ]
+        .map((b) => ({ imgPc: b.pc || b.sp, imgSp: b.sp || b.pc, link: b.link }))
+        .filter((b): b is { imgPc: string; imgSp: string; link: string } => Boolean(b.imgPc))
     : [];
   const qn = QUICKNAV_COLORS[theme.key];
   const heart = HEART_COLORS[theme.key];
@@ -756,13 +759,19 @@ export default async function SalonPage({
               <SalonTherapists salonId={Number(id)} />
             </div>
 
-            {/* 詳細バナー枠（最大3・出勤セラピストの下）。SP: 高さ117px（PUバナーの約3/4）／PC: aspect 31:9。クリックでリンク先へ。 */}
+            {/* 詳細バナー枠（最大3・出勤セラピストの下）。SP: 高さ117px（PUバナーの約3/4）／PC: aspect 31:9。クリックでリンク先へ。
+                画像は picture で出し分ける（640px以上=PC用／640px未満=スマホ用）。
+                片方しか登録が無いスロットは上の map であるほうを両方に入れてあるので、ここでは常に2つとも値がある。
+                ※ 2枚とも同じURLのときも picture の挙動は変わらない（ブラウザは1枚だけ取得する）。 */}
             {detailBanners.length > 0 && (
               <div className="mt-3 space-y-1.5">
                 {detailBanners.map((b, i) => {
                   const img = (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img src={b.img} alt="" className="block w-full h-[117px] sm:h-auto sm:aspect-[31/9] object-cover shadow-sm" />
+                    <picture>
+                      <source media="(min-width: 640px)" srcSet={b.imgPc} />
+                      {/* picture 配下の img は @next/next/no-img-element の対象外（disable 不要） */}
+                      <img src={b.imgSp} alt="" className="block w-full h-[117px] sm:h-auto sm:aspect-[31/9] object-cover shadow-sm" />
+                    </picture>
                   );
                   return b.link ? (
                     <Link key={i} href={b.link} className="block">{img}</Link>

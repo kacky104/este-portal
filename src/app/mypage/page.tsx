@@ -428,6 +428,10 @@ type Salon = {
   detail_banner_link2: string | null;
   detail_banner_image_url3: string | null;
   detail_banner_link3: string | null;
+  // 詳細ページバナーのSP（スマホ）用画像。未設定のスロットはPC用画像を流用する。
+  detail_banner_image_url_sp: string | null;
+  detail_banner_image_url2_sp: string | null;
+  detail_banner_image_url3_sp: string | null;
 };
 
 type Therapist = {
@@ -462,11 +466,20 @@ const POPUP_COLS = [
 ] as const;
 
 // 詳細ページバナー（最大3枚）→ salons の列名の対応。
+// imgSp はスマホ用の画像列（2026-08-21 追加）。未設定なら表示側で img を流用する。
 const DETAIL_COLS = [
-  { img: 'detail_banner_image_url',  link: 'detail_banner_link'  },
-  { img: 'detail_banner_image_url2', link: 'detail_banner_link2' },
-  { img: 'detail_banner_image_url3', link: 'detail_banner_link3' },
+  { img: 'detail_banner_image_url',  imgSp: 'detail_banner_image_url_sp',  link: 'detail_banner_link'  },
+  { img: 'detail_banner_image_url2', imgSp: 'detail_banner_image_url2_sp', link: 'detail_banner_link2' },
+  { img: 'detail_banner_image_url3', imgSp: 'detail_banner_image_url3_sp', link: 'detail_banner_link3' },
 ] as const;
+
+// 詳細ページバナーの推奨サイズ（説明文とスロットUIの見出しで使う。数字を1か所にまとめる）。
+// ※ プレビュー枠のアスペクト比クラスは Tailwind に拾わせるため JSX に直接書く
+//    （PC=aspect-[31/9] / SP=aspect-[3/1]）。禁則160。
+const DETAIL_BANNER_SIZE = {
+  pc: { label: 'PC・タブレット用', ratio: '約31:9', example: '1240×360px' },
+  sp: { label: 'スマホ用',         ratio: '約3:1',  example: '1080×360px' },
+} as const;
 
 // ポップアップのリンク先候補。自分のサロン内のページ＋自店セラピストの個別ページのみ（外部URLは選べない）。
 // value は保存される実パス。'' は「リンクなし」。
@@ -541,9 +554,12 @@ export default function MyPage() {
   const [popupEnabled, setPopupEnabled] = useState(false);
   const [uploadingPopupSlot, setUploadingPopupSlot] = useState<number | null>(null);
   const [detailBanners, setDetailBanners] = useState<(string | null)[]>([null, null, null]);
+  // SP（スマホ）用バナー画像。未設定のスロットは表示側でPC用画像を流用する。
+  const [detailBannersSp, setDetailBannersSp] = useState<(string | null)[]>([null, null, null]);
   const [detailLinks, setDetailLinks] = useState<string[]>(['', '', '']);
   const [detailEnabled, setDetailEnabled] = useState(false);
-  const [uploadingDetailSlot, setUploadingDetailSlot] = useState<number | null>(null);
+  // アップロード中の対象。PC用とSP用を区別するため `${slot}:pc` / `${slot}:sp` を入れる。
+  const [uploadingDetailKey, setUploadingDetailKey] = useState<string | null>(null);
   const [savingDetail, setSavingDetail] = useState(false);
   const [freePagesForLinks, setFreePagesForLinks] = useState<{ id: number; title: string }[]>([]);
   const [savingPopup,  setSavingPopup]  = useState(false);
@@ -633,7 +649,7 @@ export default function MyPage() {
 
       const { data: salonData, error: salonError } = await supabase
         .from('salons')
-        .select('id, name, rating, review_count, tags, price, area, hours, description, appeal, catchphrase, therapist_count, therapist_types, therapist_profile, phone, address, access, closed_days, courses, course_note, theme, official_url, fukux_url, line_url, payment_url, payment_cards, payment_methods, booking_enabled, booking_email, booking_courses, default_interval_min, jobs_enabled, popup_image_url, popup_link, popup_image_url2, popup_link2, popup_image_url3, popup_link3, popup_enabled, detail_banner_enabled, detail_banner_image_url, detail_banner_link, detail_banner_image_url2, detail_banner_link2, detail_banner_image_url3, detail_banner_link3')
+        .select('id, name, rating, review_count, tags, price, area, hours, description, appeal, catchphrase, therapist_count, therapist_types, therapist_profile, phone, address, access, closed_days, courses, course_note, theme, official_url, fukux_url, line_url, payment_url, payment_cards, payment_methods, booking_enabled, booking_email, booking_courses, default_interval_min, jobs_enabled, popup_image_url, popup_link, popup_image_url2, popup_link2, popup_image_url3, popup_link3, popup_enabled, detail_banner_enabled, detail_banner_image_url, detail_banner_link, detail_banner_image_url2, detail_banner_link2, detail_banner_image_url3, detail_banner_link3, detail_banner_image_url_sp, detail_banner_image_url2_sp, detail_banner_image_url3_sp')
         .eq('owner_id', user.id)
         // ★ .single() は「0件でも2件以上でも」エラーになる。
         //   2026-08-20：テスト用の非表示店舗に同じオーナーUUIDが残っていたため2件ヒットし、
@@ -678,6 +694,11 @@ export default function MyPage() {
         salonData.detail_banner_image_url  ?? null,
         salonData.detail_banner_image_url2 ?? null,
         salonData.detail_banner_image_url3 ?? null,
+      ]);
+      setDetailBannersSp([
+        salonData.detail_banner_image_url_sp  ?? null,
+        salonData.detail_banner_image_url2_sp ?? null,
+        salonData.detail_banner_image_url3_sp ?? null,
       ]);
       setDetailLinks([
         salonData.detail_banner_link  ?? '',
@@ -889,43 +910,54 @@ export default function MyPage() {
   };
 
   // ── 詳細ページバナー：画像アップロード/削除/保存（ポップアップと同方式） ──
-  const handleDetailImageUpload = async (slot: number, e: React.ChangeEvent<HTMLInputElement>) => {
+  // kind='pc' … 640px以上で表示する横長画像（従来の1枚）
+  // kind='sp' … 640px未満で表示するスマホ用画像（未設定ならPC用を流用するため任意）
+  // 保存列・ストレージのパス・stateだけが kind で切り替わり、処理の流れはPC/SPで共通。
+  const handleDetailImageUpload = async (slot: number, kind: 'pc' | 'sp', e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file || !salon) return;
     const err = validateImageFile(file);
     if (err) { showToast(err); return; }
-    setUploadingDetailSlot(slot);
+    const isSp = kind === 'sp';
+    const col  = isSp ? DETAIL_COLS[slot].imgSp : DETAIL_COLS[slot].img;
+    setUploadingDetailKey(`${slot}:${kind}`);
     const ext  = file.name.split('.').pop() ?? 'jpg';
-    const path = `${Number(salon.id)}/detailbanner${slot + 1}_${Date.now()}.${ext}`;
+    // PC用（detailbanner{n}_…）と衝突しないよう、SP用は _sp サフィックスで分離する。
+    const path = `${Number(salon.id)}/detailbanner${slot + 1}${isSp ? '_sp' : ''}_${Date.now()}.${ext}`;
     const { error: uploadError } = await supabase.storage.from('salon-images').upload(path, file, { upsert: false, cacheControl: STORAGE_CACHE_CONTROL });
-    if (uploadError) { showToast(`アップロードに失敗しました: ${uploadError.message}`); setUploadingDetailSlot(null); e.target.value = ''; return; }
+    if (uploadError) { showToast(`アップロードに失敗しました: ${uploadError.message}`); setUploadingDetailKey(null); e.target.value = ''; return; }
     const { data: { publicUrl } } = supabase.storage.from('salon-images').getPublicUrl(path);
-    const { error: dbErr } = await supabase.from('salons').update({ [DETAIL_COLS[slot].img]: publicUrl }).eq('id', salon.id);
-    setUploadingDetailSlot(null); e.target.value = '';
+    const { error: dbErr } = await supabase.from('salons').update({ [col]: publicUrl }).eq('id', salon.id);
+    setUploadingDetailKey(null); e.target.value = '';
     if (dbErr) { showToast(`保存に失敗しました: ${dbErr.message}`); await supabase.storage.from('salon-images').remove([path]); return; }
-    const oldUrl = detailBanners[slot];
-    setDetailBanners(prev => prev.map((u, i) => (i === slot ? publicUrl : u)));
+    const oldUrl = isSp ? detailBannersSp[slot] : detailBanners[slot];
+    const setter = isSp ? setDetailBannersSp : setDetailBanners;
+    setter(prev => prev.map((u, i) => (i === slot ? publicUrl : u)));
     if (oldUrl) storageRemove(oldUrl);
     revalidateSalon(salon.id);
-    showToast('バナー画像をアップロードしました');
+    showToast(isSp ? 'スマホ用バナー画像をアップロードしました' : 'バナー画像をアップロードしました');
   };
 
-  const handleDetailImageDelete = async (slot: number) => {
+  const handleDetailImageDelete = async (slot: number, kind: 'pc' | 'sp') => {
     if (!salon) return;
-    const url = detailBanners[slot];
+    const isSp = kind === 'sp';
+    const url  = isSp ? detailBannersSp[slot] : detailBanners[slot];
     if (!url) return;
-    if (!window.confirm('この画像を削除しますか？')) return;
-    const { error } = await supabase.from('salons').update({ [DETAIL_COLS[slot].img]: null }).eq('id', salon.id);
+    if (!window.confirm(isSp ? 'このスマホ用画像を削除しますか？（PC用画像がスマホでも表示されるようになります）' : 'この画像を削除しますか？')) return;
+    const col = isSp ? DETAIL_COLS[slot].imgSp : DETAIL_COLS[slot].img;
+    const { error } = await supabase.from('salons').update({ [col]: null }).eq('id', salon.id);
     if (error) { showToast(`削除に失敗しました: ${error.message}`); return; }
     storageRemove(url);
-    setDetailBanners(prev => prev.map((u, i) => (i === slot ? null : u)));
+    const setter = isSp ? setDetailBannersSp : setDetailBanners;
+    setter(prev => prev.map((u, i) => (i === slot ? null : u)));
     revalidateSalon(salon.id);
     showToast('画像を削除しました');
   };
 
   const handleDetailSave = async () => {
     if (!salon) return;
-    const anyImage = detailBanners.some(Boolean);
+    // PC用・SP用のどちらか1枚でもあれば公開できる（表示側も img ?? imgSp で拾う）。
+    const anyImage = detailBanners.some(Boolean) || detailBannersSp.some(Boolean);
     if (detailEnabled && !anyImage) { showToast('先に画像を1枚以上アップロードしてください'); return; }
     setSavingDetail(true);
     const update: Record<string, unknown> = { detail_banner_enabled: detailEnabled };
@@ -3790,12 +3822,29 @@ export default function MyPage() {
             <div>
               <p className="mt-1 text-[11px] leading-relaxed text-slate-400">
                 店舗詳細ページの「本日の出勤セラピスト」の下に、登録した順で縦に表示されます（最大3枚）。各バナーにリンク先（自店ページ・フリーページ）を設定でき、「表示する」をONにすると公開されます。<br />
-                推奨：横長バナー（PC比率 約31:9・例 1240×360px）／各5MBまで／JPEG・PNG・WebP。
+                <span className="text-slate-500 font-bold">画面ごとに横幅の比率が違うため、1つのバナーに「PC・タブレット用」と「スマホ用」の2枚を登録できます。</span>スマホ用が未登録のときは、これまでどおりPC用画像がスマホでも表示されます（左右が少し切れます）。
               </p>
+              {/* 推奨サイズはここ1か所にまとめて書く（スロット内の見出しにも同じ数字を出す） */}
+              <div className="mt-2 rounded-xl bg-slate-50 border border-slate-100 p-2.5 space-y-1">
+                <p className="text-[11px] font-bold text-slate-500">推奨サイズ</p>
+                <p className="text-[11px] leading-relaxed text-slate-400">
+                  <span className="text-slate-500 font-bold">🖥 {DETAIL_BANNER_SIZE.pc.label}</span>（640px以上で表示）：横長 {DETAIL_BANNER_SIZE.pc.ratio}／例 {DETAIL_BANNER_SIZE.pc.example}<br />
+                  <span className="text-slate-500 font-bold">📱 {DETAIL_BANNER_SIZE.sp.label}</span>（640px未満で表示）：横長 {DETAIL_BANNER_SIZE.sp.ratio}／例 {DETAIL_BANNER_SIZE.sp.example}
+                </p>
+                <p className="text-[10px] leading-relaxed text-slate-400">
+                  ※ 画像は枠に合わせて中央から切り取られます。端末の横幅によって上下または左右が数％切れるため、<span className="text-pink-500 font-bold">文字やロゴは端から10%ほど内側</span>に置いてください。<br />
+                  ※ 形式：JPEG・PNG・WebP／各5MBまで。
+                </p>
+              </div>
             </div>
             {[0, 1, 2].map((slot) => (
               <div key={slot} className="rounded-2xl border border-slate-100 p-3 space-y-2">
                 <p className="text-[11px] font-bold text-slate-500">バナー {slot + 1}</p>
+
+                {/* PC・タブレット用（従来の1枚。640px以上で表示される） */}
+                <p className="text-[10px] font-bold text-slate-400">
+                  🖥 {DETAIL_BANNER_SIZE.pc.label}（{DETAIL_BANNER_SIZE.pc.ratio}・例 {DETAIL_BANNER_SIZE.pc.example}）
+                </p>
                 <div className="rounded-xl border border-slate-200 overflow-hidden bg-slate-50 aspect-[31/9] flex items-center justify-center">
                   {detailBanners[slot] ? (
                     // eslint-disable-next-line @next/next/no-img-element
@@ -3806,18 +3855,53 @@ export default function MyPage() {
                 </div>
                 <div className="flex flex-wrap items-center gap-2">
                   <label className="inline-block">
-                    <span className={`inline-flex items-center gap-1 px-3 py-1.5 rounded-full text-[11px] font-bold ${uploadingDetailSlot === slot ? 'bg-slate-100 text-slate-400 cursor-default' : 'bg-pink-50 text-pink-600 border border-pink-300 hover:bg-pink-100 cursor-pointer'}`}>
-                      {uploadingDetailSlot === slot ? 'アップロード中…' : (detailBanners[slot] ? '画像を差し替える' : '画像をアップロード')}
+                    <span className={`inline-flex items-center gap-1 px-3 py-1.5 rounded-full text-[11px] font-bold ${uploadingDetailKey === `${slot}:pc` ? 'bg-slate-100 text-slate-400 cursor-default' : 'bg-pink-50 text-pink-600 border border-pink-300 hover:bg-pink-100 cursor-pointer'}`}>
+                      {uploadingDetailKey === `${slot}:pc` ? 'アップロード中…' : (detailBanners[slot] ? '画像を差し替える' : '画像をアップロード')}
                     </span>
-                    <input type="file" accept="image/jpeg,image/png,image/webp" className="hidden" onChange={(e) => handleDetailImageUpload(slot, e)} disabled={uploadingDetailSlot === slot} />
+                    <input type="file" accept="image/jpeg,image/png,image/webp" className="hidden" onChange={(e) => handleDetailImageUpload(slot, 'pc', e)} disabled={uploadingDetailKey === `${slot}:pc`} />
                   </label>
                   {detailBanners[slot] && (
-                    <button type="button" onClick={() => handleDetailImageDelete(slot)} className="text-[11px] text-slate-400 hover:text-red-500 underline">
+                    <button type="button" onClick={() => handleDetailImageDelete(slot, 'pc')} className="text-[11px] text-slate-400 hover:text-red-500 underline">
                       画像を削除
                     </button>
                   )}
                 </div>
-                <label className="block text-[10px] text-slate-500">クリック時のリンク先</label>
+
+                {/* スマホ用（任意。未登録ならPC用画像がそのまま使われる） */}
+                <p className="pt-1 text-[10px] font-bold text-slate-400">
+                  📱 {DETAIL_BANNER_SIZE.sp.label}（{DETAIL_BANNER_SIZE.sp.ratio}・例 {DETAIL_BANNER_SIZE.sp.example}）
+                  <span className="ml-1 font-normal">※任意</span>
+                </p>
+                <div className="rounded-xl border border-slate-200 overflow-hidden bg-slate-50 aspect-[3/1] flex items-center justify-center">
+                  {detailBannersSp[slot] ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={detailBannersSp[slot] as string} alt={`バナー${slot + 1}スマホ用プレビュー`} className="w-full h-full object-cover" />
+                  ) : detailBanners[slot] ? (
+                    // 未登録のときはPC用画像がスマホでどう見えるかをそのまま見せる（実際の表示と同じ切り取り）。
+                    <div className="relative w-full h-full">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img src={detailBanners[slot] as string} alt={`バナー${slot + 1}スマホ表示プレビュー`} className="w-full h-full object-cover opacity-60" />
+                      <span className="absolute inset-0 flex items-center justify-center text-[10px] font-bold text-slate-500">PC用画像を使用中</span>
+                    </div>
+                  ) : (
+                    <span className="text-[10px] text-slate-400">未設定</span>
+                  )}
+                </div>
+                <div className="flex flex-wrap items-center gap-2">
+                  <label className="inline-block">
+                    <span className={`inline-flex items-center gap-1 px-3 py-1.5 rounded-full text-[11px] font-bold ${uploadingDetailKey === `${slot}:sp` ? 'bg-slate-100 text-slate-400 cursor-default' : 'bg-sky-50 text-sky-600 border border-sky-300 hover:bg-sky-100 cursor-pointer'}`}>
+                      {uploadingDetailKey === `${slot}:sp` ? 'アップロード中…' : (detailBannersSp[slot] ? 'スマホ用を差し替える' : 'スマホ用をアップロード')}
+                    </span>
+                    <input type="file" accept="image/jpeg,image/png,image/webp" className="hidden" onChange={(e) => handleDetailImageUpload(slot, 'sp', e)} disabled={uploadingDetailKey === `${slot}:sp`} />
+                  </label>
+                  {detailBannersSp[slot] && (
+                    <button type="button" onClick={() => handleDetailImageDelete(slot, 'sp')} className="text-[11px] text-slate-400 hover:text-red-500 underline">
+                      スマホ用を削除
+                    </button>
+                  )}
+                </div>
+
+                <label className="block pt-1 text-[10px] text-slate-500">クリック時のリンク先（PC・スマホ共通）</label>
                 <select
                   value={detailLinks[slot]}
                   onChange={(e) => setDetailLinks(prev => prev.map((l, i) => (i === slot ? e.target.value : l)))}
