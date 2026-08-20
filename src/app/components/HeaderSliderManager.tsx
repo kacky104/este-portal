@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { createClient } from '@/app/lib/supabase/client';
 import { revalidateTop } from '@/app/lib/revalidateTop';
 import { STORAGE_CACHE_CONTROL } from '@/app/lib/storage';
+import { MAX_HEADER_SLIDER_IMAGES } from '@/app/lib/headerSlider';
 
 type SliderImage = {
   id: string;
@@ -48,6 +49,16 @@ export default function HeaderSliderManager() {
   const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
+
+    // ★ 上限チェック（2026-08-20 第25便）。ボタン側でも出さないようにしているが、
+    //   別タブで同時に追加した・読み込み直後に押した等の取りこぼしをここで止める。
+    //   先にストレージへ上げてしまうと、DB登録だけ弾かれて【孤児ファイルが残る】ので
+    //   必ずアップロードより前に判定すること。
+    if (images.length >= MAX_HEADER_SLIDER_IMAGES) {
+      alert(`ヒーロー画像は最大${MAX_HEADER_SLIDER_IMAGES}枚までです。追加するには、どれかを削除してください。`);
+      e.target.value = '';
+      return;
+    }
 
     setUploading(true);
 
@@ -223,16 +234,38 @@ export default function HeaderSliderManager() {
   return (
     <div className="space-y-4 border rounded-lg p-4">
       <div>
-        <label className="inline-block bg-blue-600 text-white px-4 py-2 rounded cursor-pointer">
-          {uploading ? 'アップロード中...' : 'PC用画像を追加'}
-          <input
-            type="file"
-            accept="image/jpeg,image/png,image/webp"
-            onChange={handleUpload}
-            disabled={uploading}
-            className="hidden"
-          />
-        </label>
+        {/* 追加ボタン。上限（MAX_HEADER_SLIDER_IMAGES）に達したら押せなくする（2026-08-20 第25便）。
+            ★ label + input[type=file] の組み合わせは disabled 属性が効かない
+              （label をクリックすると input が開いてしまう）。上限時は【label自体を出さない】。 */}
+        {images.length < MAX_HEADER_SLIDER_IMAGES ? (
+          <label className="inline-block bg-blue-600 text-white px-4 py-2 rounded cursor-pointer">
+            {uploading ? 'アップロード中...' : 'PC用画像を追加'}
+            <input
+              type="file"
+              accept="image/jpeg,image/png,image/webp"
+              onChange={handleUpload}
+              disabled={uploading}
+              className="hidden"
+            />
+          </label>
+        ) : (
+          <span className="inline-block bg-gray-200 text-gray-500 px-4 py-2 rounded cursor-not-allowed">
+            PC用画像を追加（上限{MAX_HEADER_SLIDER_IMAGES}枚）
+          </span>
+        )}
+        <p className="text-sm font-medium text-gray-600 mt-2">
+          登録中 {images.length} / {MAX_HEADER_SLIDER_IMAGES} 枚
+          {images.length >= MAX_HEADER_SLIDER_IMAGES && (
+            <span className="ml-2 text-gray-500 font-normal">
+              上限に達しています。入れ替えるには、どれかを削除してください。
+            </span>
+          )}
+          {images.length === 1 && (
+            <span className="ml-2 text-gray-500 font-normal">
+              1枚だけのときは切り替わりません。2枚以上でスライダーになります。
+            </span>
+          )}
+        </p>
         <p className="text-sm text-gray-500 mt-1">JPEG / PNG / WebP、5MBまで</p>
         <p className="text-sm text-gray-500">
           PC用推奨サイズ: <span className="font-medium">横長 約2.6:1（例 1600×620）</span>

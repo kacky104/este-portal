@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import Image from 'next/image';
 import { createClient } from '@/app/lib/supabase/client';
+import { MAX_HEADER_SLIDER_IMAGES } from '@/app/lib/headerSlider';
 
 const AUTOPLAY_INTERVAL = 3000;
 
@@ -23,7 +24,12 @@ export default function HeaderImageSlider() {
       const { data } = await supabase
         .from('header_slider_images')
         .select('image_url, image_url_sp')
-        .order('display_order', { ascending: true });
+        .order('display_order', { ascending: true })
+        // ★ 上限は lib/headerSlider.ts の1本（2026-08-20 第25便で3枚に制限）。
+        //   /admin 側でも同じ数で追加を止めているが、【表示側でも必ず切る】こと。
+        //   上限導入前に登録された行やSQLで直接入れた行が残っていても、
+        //   トップには先頭3枚しか出ないようにするため。
+        .limit(MAX_HEADER_SLIDER_IMAGES);
 
       if (data) {
         setSlides(
