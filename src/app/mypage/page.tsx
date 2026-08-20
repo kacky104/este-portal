@@ -2938,7 +2938,8 @@ export default function MyPage() {
               />
               <span className="text-xs font-bold text-slate-600">新人マークを付ける</span>
               <span style={{ background: '#22c55e', color: 'white', fontSize: '11px', fontWeight: 700, padding: '2px 8px', borderRadius: '20px' }}>NEW</span>
-              <span className="text-[10px] text-slate-400">（30日間表示）</span>
+              {/* ★ 日数は lib/newFace.ts の NEW_FACE_WINDOW_DAYS（60日）と対の文言。片方だけ直さないこと。 */}
+              <span className="text-[10px] text-slate-400">（60日間表示）</span>
             </label>
             {addError && (
               <p className="text-xs text-rose-500 bg-rose-50 border border-rose-100 rounded-xl px-3 py-2 leading-relaxed">

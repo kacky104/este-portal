@@ -78,7 +78,7 @@ export default async function Home() {
       .eq('therapists.salons.is_hidden', false),
     // ピックアップ直下の「おすすめサロンバナー」（サロン紐づけ・ピックアップ同一オーバーレイ）。0件なら非表示。
     fetchActiveRecommendedSalonBanners(),
-    // 新人セラピスト（is_new_face=true かつ30日以内）を新しい順に最大35件。サロンカード30枚目直下に挿入。0件なら非表示。
+    // 新人セラピスト（is_new_face=true かつ60日以内）を新しい順に最大35件。サロンカード30枚目直下に挿入。0件なら非表示。
     fetchNewFaceTherapists(supabase, 35),
     // セラピストピックアップ枠（横長画像1枚・20枚目直下・クライアント抽選）。0件なら非表示。
     fetchActiveTherapistPickupBanners(),

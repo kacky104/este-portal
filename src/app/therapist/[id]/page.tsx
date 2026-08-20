@@ -297,7 +297,7 @@ export default async function TherapistPublicPage({
       ? buildDisplayHours(todaySched.start_time, todaySched.end_time)
       : null;
 
-  // NEW バッジ：is_new_face かつ new_face_since から30日以内
+  // NEW バッジ：is_new_face かつ new_face_since から60日以内
   const showNew = isNewFaceActive(therapist.isNewFace, therapist.newFaceSince);
   const newBadgeNode = showNew ? (
     <NewBadge className="shadow-[0_1px_4px_rgba(0,0,0,0.3)]" />

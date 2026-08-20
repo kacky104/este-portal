@@ -140,7 +140,7 @@ function TherapistCard({ t, isToday, salonId }: { t: DaySchedule; isToday: boole
             今すぐ
           </span>
         )}
-        {/* NEWバッジ（写真左下オーバーレイ）。表示条件は従来どおり新規30日以内の子のみ。 */}
+        {/* NEWバッジ（写真左下オーバーレイ）。表示条件は新規60日以内の子のみ（判定は lib/newFace.ts の1本）。 */}
         {isNew && <NewBadge className="absolute bottom-1.5 left-1.5 z-10" />}
       </div>
       <div className="p-3 flex-1 flex flex-col justify-start min-w-0">

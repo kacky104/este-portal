@@ -20,7 +20,7 @@ import { SiteNoticeBanner } from '@/app/components/SiteNoticeBanner';
 import { SiteFooter } from '@/app/components/SiteFooter';
 
 // 新人セラピスト一覧ページ（トップ「新人セラピスト一覧」の「一覧を見る →」先）。/working の構成に倣う。
-// 新人リストは変動が遅い（30日ウィンドウ）ため ISR（10分）と相性が良い。全件を新しい順で表示。
+// 新人リストは変動が遅い（60日ウィンドウ・2026-08-19 第25便で30日から変更）ため ISR（10分）と相性が良い。全件を新しい順で表示。
 // 静的セグメント "new" は動的 /therapist/[id] より優先されるため衝突しない（実IDは "new" と非衝突）。
 export const revalidate = 600;
 
@@ -103,7 +103,9 @@ export default async function NewFacePage() {
           </h1>
           <div className="mx-auto mt-4 h-px w-24 bg-gradient-to-r from-transparent via-emerald-400/70 to-transparent" />
           <p className="mx-auto mt-4 max-w-md text-xs sm:text-sm leading-relaxed text-slate-600">
-            入店から1ヶ月以内のフレッシュな新人セラピストをご紹介<br />福岡全域から、デビューした新しい出会いを新着順でチェック
+            {/* ★ 「2ヶ月以内」は lib/newFace.ts の NEW_FACE_WINDOW_DAYS（60日）と対の文言。
+                   期間を変えたらここも必ず直すこと（画面の説明と実際の判定がずれる）。 */}
+            入店から2ヶ月以内のフレッシュな新人セラピストをご紹介<br />福岡全域から、デビューした新しい出会いを新着順でチェック
           </p>
         </div>
 

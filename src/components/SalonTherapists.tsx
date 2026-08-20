@@ -311,7 +311,7 @@ export function GridCard({ therapist, index, showJoinDate = false, from, enableW
             今すぐ
           </span>
         )}
-        {/* NEWバッジ（写真左下オーバーレイ）。表示条件は従来どおり新規30日以内の子のみ。 */}
+        {/* NEWバッジ（写真左下オーバーレイ）。表示条件は新規60日以内の子のみ（判定は lib/newFace.ts の1本）。 */}
         {isNewFaceActive(therapist.isNewFace, therapist.newFaceSince) && (
           <NewBadge className="absolute bottom-1.5 left-1.5 z-10" />
         )}
@@ -886,7 +886,7 @@ export function SalonNewFaceTherapists({
         salonId,  // 保存ボタン用（このサロンに在籍）
       }));
 
-      // is_new_face かつ new_face_since から30日以内のみ。new_face_since が新しい順。
+      // is_new_face かつ new_face_since から60日以内のみ。new_face_since が新しい順。
       const newFaces = mapped
         .filter(t => isNewFaceActive(t.isNewFace, t.newFaceSince))
         .sort((a, b) => {
