@@ -214,15 +214,9 @@ export async function HpTherapistDetailView({
               ))}
             </div>
 
-            {/* 日記も口コミも1件も無い子だけ、従来の合同リンクで本体へ送る
-                （下の2セクションが両方消えると本体への導線がゼロになるため） */}
-            {diaryItems.length === 0 && reviews.length === 0 && (
-              <div>
-                <a className="hp-more" href={`${EMBED_SITE_URL}/therapist/${t.id}`} target="_blank" rel="noopener">
-                  写メ日記・口コミを見る（フクエス）→
-                </a>
-              </div>
-            )}
+            {/* ★ 日記も口コミも0件の子への「写メ日記・口コミを見る（フクエス）」の
+                合同リンクは 2026-08-20 に置いたが、同日オーナー要望で【削除済み】。
+                （0件の子は下の2セクションごと出ない＝本体への導線なしで確定。復活させない） */}
           </div>
         </div>
 
