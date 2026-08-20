@@ -27,11 +27,16 @@ export async function submitOwnerInquiry(
   if (!user) return { ok: false, error: 'ログインが必要です。再度ログインしてからお試しください' };
 
   // ログインオーナーの担当サロンを解決（mypage 本体と同じ owner_id 紐付け）。
+  // ★ .single() は 2 件ヒットでもエラーになる（オーナーUUID重複事故・2026-08-20）。
+  //   /mypage 本体と同じ並び順で「表示中の店舗を優先して 1 件」に揃える。
   const { data: salon } = await supabase
     .from('salons')
     .select('id, name')
     .eq('owner_id', user.id)
-    .single();
+    .order('is_hidden', { ascending: true })
+    .order('id', { ascending: true })
+    .limit(1)
+    .maybeSingle();
   if (!salon) return { ok: false, error: '店舗情報が見つかりません' };
 
   const { error } = await supabase.from('owner_inquiries').insert({

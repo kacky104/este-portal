@@ -633,10 +633,20 @@ export default function MyPage() {
         .from('salons')
         .select('id, name, rating, review_count, tags, price, area, hours, description, appeal, catchphrase, therapist_count, therapist_types, therapist_profile, phone, address, access, closed_days, courses, theme, official_url, fukux_url, line_url, payment_url, payment_cards, payment_methods, booking_enabled, booking_email, booking_courses, default_interval_min, jobs_enabled, popup_image_url, popup_link, popup_image_url2, popup_link2, popup_image_url3, popup_link3, popup_enabled, detail_banner_enabled, detail_banner_image_url, detail_banner_link, detail_banner_image_url2, detail_banner_link2, detail_banner_image_url3, detail_banner_link3')
         .eq('owner_id', user.id)
-        .single();
+        // ★ .single() は「0件でも2件以上でも」エラーになる。
+        //   2026-08-20：テスト用の非表示店舗に同じオーナーUUIDが残っていたため2件ヒットし、
+        //   正常な店舗まで「店舗情報が見つかりません」になる事故が起きた。
+        //   重複しても落ちないよう、表示中の店舗を優先して 1 件だけ取る。
+        //   is_hidden で絞り込まないのは、休止中（非表示）の店舗のオーナーも /mypage を使うため。
+        .order('is_hidden', { ascending: true })
+        .order('id', { ascending: true })
+        .limit(1)
+        .maybeSingle();
 
       if (salonError || !salonData) {
-        setLoadError('店舗情報が見つかりません');
+        // 運営アカウントのまま /mypage を開いてもここに来るので、
+        // 切り分けができるようログイン中のアカウントを併記する。
+        setLoadError(`店舗情報が見つかりません\nログイン中: ${user.email ?? user.id}`);
         return;
       }
 
@@ -1937,7 +1947,7 @@ export default function MyPage() {
   if (loadError) {
     return (
       <div className="min-h-screen bg-pink-50/30 flex items-center justify-center">
-        <p className="text-slate-500 text-sm">{loadError}</p>
+        <p className="text-slate-500 text-sm whitespace-pre-line text-center leading-relaxed px-6">{loadError}</p>
       </div>
     );
   }
