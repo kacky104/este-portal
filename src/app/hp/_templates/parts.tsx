@@ -10,6 +10,7 @@
 
 import { EMBED_SITE_URL } from '@/app/embed/salon/[id]/embedShared';
 import type { HpCourse, HpTherapist } from '@/app/hp/_lib/data';
+import { displayCoursePrice } from '@/lib/coursePrice';
 import type { HpMenuItem } from '@/app/hp/_lib/sections';
 
 // ── SPクイックナビ（2026-08-11）──────────────────────
@@ -206,8 +207,11 @@ export function ScheduleRows({ rows, detailBase = null }: { rows: { t: HpTherapi
  * コース料金のグループ一覧（groupCourses() の結果をそのまま渡す）。
  * limit を渡すと先頭 n グループだけ（トップの抜粋用）。
  */
-export function CourseGroups({ grouped, limit }: { grouped: [string, HpCourse[]][]; limit?: number }) {
+// note＝salons.course_note（料金表の備考）。空なら欄ごと描かない。
+// フクエス側の CoursesContent と同じ内容・同じ位置（税込注記の上）に出す。
+export function CourseGroups({ grouped, limit, note }: { grouped: [string, HpCourse[]][]; limit?: number; note?: string }) {
   const list = typeof limit === 'number' ? grouped.slice(0, limit) : grouped;
+  const noteText = (note ?? '').trim();
   return (
     <>
       {list.map(([name, items]) => (
@@ -216,11 +220,18 @@ export function CourseGroups({ grouped, limit }: { grouped: [string, HpCourse[]]
           {items.map((c, i) => (
             <div key={i} className="hp-course-row">
               <span className="hp-course-min">{c.duration}</span>
-              <span className="hp-course-price">{c.price}</span>
+              {/* 0円は「無料」と出す（displayCoursePrice・保存値は ¥0 のまま） */}
+              <span className="hp-course-price">{displayCoursePrice(c.price)}</span>
             </div>
           ))}
         </div>
       ))}
+      {noteText && (
+        <div className="hp-course-group">
+          <h3 className="hp-course-name">備考</h3>
+          <p className="hp-course-note">{noteText}</p>
+        </div>
+      )}
     </>
   );
 }

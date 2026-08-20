@@ -224,7 +224,7 @@ export default async function SalonPage({
   ] = await Promise.all([
     supabase
       .from('salons')
-      .select('id, name, rating, review_count, tags, price, area, area2, hours, description, appeal, phone, address, access, closed_days, courses, theme, official_url, fukux_url, line_url, payment_methods, is_hidden, dispatch_type, postal_code')
+      .select('id, name, rating, review_count, tags, price, area, area2, hours, description, appeal, phone, address, access, closed_days, courses, course_note, theme, official_url, fukux_url, line_url, payment_methods, is_hidden, dispatch_type, postal_code')
       .eq('id', Number(id))
       .single(),
     supabase
@@ -272,6 +272,8 @@ export default async function SalonPage({
     description: (row.description as string) ?? '',
     appeal:      (row.appeal as string) ?? '',
     courses:     ((row.courses as { name: string; duration: string; price: string }[] | null) ?? []),
+    // 料金表の備考（salons.course_note）。未入力なら CoursesContent 側で欄ごと出さない。
+    courseNote:  (row.course_note as string | null) ?? null,
     phone:       (row.phone as string) ?? '',
     address:     (row.address as string) ?? '',
     access:      (row.access as string) ?? '',
@@ -773,7 +775,7 @@ export default async function SalonPage({
 
             {/* Courses — shown only when DB data is available（折り畳み式） */}
             {salon.courses.length > 0 && (
-              <CollapsibleCourses courses={salon.courses} theme={theme} />
+              <CollapsibleCourses courses={salon.courses} theme={theme} note={salon.courseNote} />
             )}
 
             {/* All therapists（折り畳み式） */}

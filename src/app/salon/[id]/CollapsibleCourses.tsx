@@ -8,7 +8,7 @@ import { CoursesContent, type Course } from './CoursesContent';
 // 初期状態はタイトルのみ表示（閉）。ヘッダーをタップで内容を開閉する。
 // タップ可能であることを示すため、右側に「タップで開く／閉じる」ラベルと回転するシェブロンを配置。
 // 内容描画は CoursesContent を共有し large 指定（/salon/[id]/price と同一デザイン・同一文字サイズ21px）。
-export function CollapsibleCourses({ courses, theme }: { courses: Course[]; theme: SalonTheme }) {
+export function CollapsibleCourses({ courses, theme, note }: { courses: Course[]; theme: SalonTheme; note?: string | null }) {
   const [open, setOpen] = useState(false);
 
   return (
@@ -40,7 +40,7 @@ export function CollapsibleCourses({ courses, theme }: { courses: Course[]; them
       {/* 開閉アニメーション（grid-rows 0fr→1fr） */}
       <div className={`grid transition-all duration-300 ease-out ${open ? 'grid-rows-[1fr] opacity-100 mt-5' : 'grid-rows-[0fr] opacity-0'}`}>
         <div className="overflow-hidden">
-          <CoursesContent courses={courses} theme={theme} large />
+          <CoursesContent courses={courses} theme={theme} large note={note} />
         </div>
       </div>
     </section>

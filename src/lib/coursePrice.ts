@@ -27,6 +27,21 @@ function hasMinutes(duration: string): boolean {
 }
 
 /**
+ * 料金表の表示用フォーマット。0 円の行は「無料」と表示する（2026-08-20 / 第26便・オーナー要望）。
+ * 「本指名料無料」「初回指名料」など 0 円で登録された行が「¥0」と出て分かりにくかったため。
+ *
+ * ・保存値（salons.courses の price 文字列「¥0」）は一切変えない＝既存データもその場で直る。
+ * ・数字が1つも無い行（「応相談」等）はそのまま返す。
+ * ・使う場所：CoursesContent（フクエス側の料金表）と CourseGroups（公式HPの料金表）。
+ *   カード用の cheapestCoursePrice には意図的に効かせていない（一覧の表記ゆれを避けるため）。
+ */
+export function displayCoursePrice(price: string | null | undefined): string {
+  const raw = String(price ?? '').trim();
+  if (!raw) return '';
+  return priceToNumber(raw) === 0 ? '無料' : raw;
+}
+
+/**
  * courses の中で「時間付き かつ price 最小」のコースを「duration price」で返す（例「60分 ¥8,000」）。
  * 対象が無ければ空文字を返す（呼び出し側でフォールバック）。同額複数は先に見つかった最安を採用。
  */

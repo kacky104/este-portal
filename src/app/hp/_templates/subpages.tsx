@@ -398,7 +398,7 @@ export function isHpSystemOpen(data: HpPageData): boolean {
 }
 
 export function HpSystemView({ data, preview }: ViewProps) {
-  const { salon, courses, basePath } = data;
+  const { salon, courses, courseNote, basePath } = data;
   const grouped = groupCourses(courses);
   const homeHref = basePath || '/';
 
@@ -407,7 +407,7 @@ export function HpSystemView({ data, preview }: ViewProps) {
       <section id="menu" className="hp-sec hp-sec-courses" style={{ order: 1 }}>
         <Crumb homeHref={homeHref} label="コース料金" />
         <SecHead no="02" en="Menu" jp="コース料金" />
-        <CourseGroups grouped={grouped} />
+        <CourseGroups grouped={grouped} note={courseNote} />
         <p className="hp-note">※ 表示料金はすべて税込みです。</p>
         {(salon.hours || salon.phone) && (
           <dl className="hp-info">

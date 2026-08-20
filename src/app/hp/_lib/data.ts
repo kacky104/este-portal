@@ -75,6 +75,8 @@ export type HpPageData = {
     paymentMethods: string[];
   };
   courses:    HpCourse[];
+  /** 料金表の備考（salons.course_note）。空文字なら表示しない。フクエス側の /salon/{id}/price と同じ文面 */
+  courseNote: string;
   therapists: HpTherapist[];
   coupons:    HpCouponItem[];
   news:       HpNewsItem[];
@@ -169,7 +171,7 @@ export async function fetchHpPageData(
 
   const { data: salonRow, error: salonErr } = await supabase
     .from('salons')
-    .select('id, name, catchphrase, area, address, access, hours, closed_days, phone, line_url, jobs_enabled, payment_methods, courses, is_hidden')
+    .select('id, name, catchphrase, area, address, access, hours, closed_days, phone, line_url, jobs_enabled, payment_methods, courses, course_note, is_hidden')
     .eq('id', salonId)
     .maybeSingle();
   if (salonErr) throw new Error(`salons の取得に失敗: ${salonErr.message}`);
@@ -321,6 +323,7 @@ export async function fetchHpPageData(
         : [],
     },
     courses,
+    courseNote: String(salonRow.course_note ?? '').trim(),
     therapists,
     coupons: (couponRes.data ?? []).map((c) => ({
       id: String(c.id), title: (c.title as string) ?? '', discount: (c.discount as string) ?? '', conditions: (c.conditions as string) ?? '',

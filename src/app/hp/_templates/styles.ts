@@ -75,6 +75,9 @@ const COMMON = `
 .hp-embed { display: block; width: 100%; border: none; background: #fff; }
 .hp-more { display: inline-block; margin-top: 12px; text-decoration: none; font-size: 11px; font-weight: 700; }
 .hp-note { margin-top: 14px; font-size: 10px; opacity: .7; }
+/* 料金表の備考（salons.course_note）。改行を保持し、ひな形の文字色をそのまま継ぐ。
+   ★ 配色はひな形ごとに変えない（currentColor＋opacity）。A/S の濃い背景でも読める。 */
+.hp-course-note { font-size: 13px; line-height: 1.9; opacity: .85; white-space: pre-line; word-break: break-word; padding: 6px 2px; }
 .hp-card { margin-bottom: 12px; }
 .hp-th-row { display: flex; gap: 12px; overflow-x: auto; padding-bottom: 8px; }
 .hp-th-card { flex: 0 0 128px; text-decoration: none; }

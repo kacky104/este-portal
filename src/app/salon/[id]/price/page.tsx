@@ -45,7 +45,7 @@ export default async function SalonPricePage({
   // データ源は salons.courses(JSON)。既存「コースメニュー・料金表」ブロックと同じ読み方・フィールド対応。
   const { data: salonRow, error } = await supabase
     .from('salons')
-    .select('id, name, theme, courses, payment_url, payment_cards')
+    .select('id, name, theme, courses, course_note, payment_url, payment_cards')
     .eq('id', Number(id))
     .single();
 
@@ -76,6 +76,8 @@ export default async function SalonPricePage({
 
   // 既存ブロックと同一の JSON 読み方（name / duration / price）。
   const courses = ((salonRow.courses as Course[] | null) ?? []);
+  // 料金表の備考（salons.course_note）。未入力なら CoursesContent 側で欄ごと出さない。
+  const courseNote = (salonRow.course_note as string | null) ?? null;
 
   // クレジットカード決済（外部リンク）。payment_url 未設定ならセクションごと非表示。
   const paymentUrl = ((salonRow.payment_url as string | null) ?? '').trim();
@@ -139,7 +141,7 @@ export default async function SalonPricePage({
           {courses.length === 0 ? (
             <p className="text-center py-8 text-sm" style={{ color: theme.body }}>準備中</p>
           ) : (
-            <CoursesContent courses={courses} theme={theme} large />
+            <CoursesContent courses={courses} theme={theme} large note={courseNote} />
           )}
         </section>
 

@@ -1,5 +1,6 @@
 import type { SalonTheme } from '@/app/lib/themes';
 import { AutoFitText } from '@/app/components/AutoFitText';
+import { displayCoursePrice } from '@/lib/coursePrice';
 
 // salons.courses(JSON) の1要素。duration＝行ラベル（例「70分」「指名料」「極液」）、price＝表示用料金文字列（例「¥11,000」）。
 // duration_min＝ネット予約の枠計算用の数値(分)。時間としてパースできた行のみ数値、それ以外は null/未設定（内部用・表示には使わない）。
@@ -9,7 +10,9 @@ export type Course = { name: string; duration: string; price: string; descriptio
 // 同名コースをカテゴリとしてグループ化し、ピンク●＋カテゴリ名／各行（ラベル左・料金右・区切り線）／税込注記を描画する。
 // CollapsibleCourses（折り畳みブロック）と /salon/[id]/price ページの両方で共有してデザインのズレを防ぐ。
 //   large=true（/price と詳細ページの折り畳みブロックで使用）：文字サイズと行間・余白を約1.5倍に拡大。デフォルト（小）は現在未使用。
-export function CoursesContent({ courses, theme, large = false }: { courses: Course[]; theme: SalonTheme; large?: boolean }) {
+// note＝salons.course_note（料金表の備考）。空文字/null なら欄ごと描かない。
+export function CoursesContent({ courses, theme, large = false, note }: { courses: Course[]; theme: SalonTheme; large?: boolean; note?: string | null }) {
+  const noteText = (note ?? '').trim();
   // 同名コースをグループ化（従来の表示ロジックを踏襲）。
   const grouped = Array.from(
     courses.reduce((map, c) => {
@@ -47,12 +50,24 @@ export function CoursesContent({ courses, theme, large = false }: { courses: Cou
               {items.map((item, i) => (
                 <div key={i} className={`flex items-center justify-between gap-3 ${rowCls} border-b last:border-0 last:pb-0`} style={{ borderColor: theme.cardBorder }}>
                   <span className="min-w-0 break-words" style={{ color: theme.body }}>{item.duration}</span>
-                  <span className="font-bold text-pink-600 flex-shrink-0 break-words text-right">{item.price}</span>
+                  {/* 0円は「無料」と出す（displayCoursePrice・保存値は ¥0 のまま） */}
+                  <span className="font-bold text-pink-600 flex-shrink-0 break-words text-right">{displayCoursePrice(item.price)}</span>
                 </div>
               ))}
             </div>
           </div>
         ))}
+
+        {/* 備考（/mypage で入力・未入力なら非表示）。コースと同じ●見出しに揃える。 */}
+        {noteText && (
+          <div>
+            <div className={`flex items-center gap-2 ${headerMb}`}>
+              <span className={`${dotCls} rounded-full bg-pink-400 flex-shrink-0`} />
+              <h3 className={`${nameCls} font-bold min-w-0 break-words`} style={{ color: theme.heading }}>備考</h3>
+            </div>
+            <p className={`pl-4 ${rowCls} whitespace-pre-line break-words`} style={{ color: theme.body }}>{noteText}</p>
+          </div>
+        )}
       </div>
       <p className={`${noteCls} mt-5 opacity-70`} style={{ color: theme.body }}>※ 表示料金はすべて税込み価格です。</p>
     </>

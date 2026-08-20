@@ -50,7 +50,7 @@ const HP_BUNDLED_HERO_DEFAULT_COLOR: Partial<Record<HpTemplateKey, string>> = {
 };
 
 export function HpTemplate({ data }: { data: HpPageData }) {
-  const { site, salon, courses, therapists, coupons, news, freePages, basePath } = data;
+  const { site, salon, courses, courseNote, therapists, coupons, news, freePages, basePath } = data;
   const b = site.blocks;
   // マルチページ時はセラピストと料金を抜粋にして、全件は下層ページ（/therapist・/system）へ送る。
   // 同じ内容をトップと下層にそのまま二度出すと自社ドメイン内で重複コンテンツになるため。
@@ -214,7 +214,8 @@ export function HpTemplate({ data }: { data: HpPageData }) {
       {visible.courses && (
         <section id="menu" data-hp-reveal className={secCls('courses', 'hp-sec-courses', true)} style={ord('courses')}>
           <SecHead no="02" en="Menu" jp="コース料金" />
-          <CourseGroups grouped={grouped} limit={multipage ? HP_DIGEST_COURSE_GROUPS : undefined} />
+          {/* 備考はマルチページの店では出さない（トップは抜粋なので /system 側に置く） */}
+          <CourseGroups grouped={grouped} limit={multipage ? HP_DIGEST_COURSE_GROUPS : undefined} note={multipage ? undefined : courseNote} />
           {multipage ? (
             /* 税込みの注記は下層ページ側に置く（トップは抜粋なので導線を優先） */
             <a className="hp-more" href={`${basePath}/system`}>
