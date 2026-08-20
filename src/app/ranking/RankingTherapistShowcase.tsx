@@ -91,10 +91,14 @@ export function RankingTherapistShowcase({
     <div className={`p-[2.5px] shadow-md ${rank >= 30 && rank <= 39 ? 'mb-[5px]' : rank >= 20 && rank <= 29 ? 'mb-[10px]' : rank >= 10 && rank <= 19 ? 'mb-[15px]' : 'mb-5'}`} style={{ background: m.border }}>
       <div style={{ background: darkTheme ? theme.card : '#ffffff' }}>
         <div className={`flex ${nano ? 'aspect-[16/3]' : compact ? 'h-44 sm:h-auto' : ''}`}>
-          {/* 左半分：セラピストの大きな写真カード */}
+          {/* 左半分：セラピストの大きな写真カード。
+              ★ 1〜3位（既定サイズ）だけ lg 以上で 1/2 → 1/4 に細くする（2026-08-20 第25便・案A-2）。
+                カードの高さは縦長写真（3:4）が決めるため、PCの広い幅（1150px）で 1/2 のままだと
+                写真が縦に伸び、右の情報欄の下6割が空白になる（実測: 空き291px）。
+                lg:w-1/4 なら高さが下がって情報欄と釣り合う。lg 未満（スマホ・タブレット）は従来のまま。 */}
           <Link
             href={`/therapist/${id}`}
-            className={`relative block flex-shrink-0 overflow-hidden bg-slate-100 group ${nano ? 'w-[14.0625%] h-full' : micro ? 'w-[18.75%] aspect-[3/4]' : mini ? 'w-1/4 aspect-[3/4]' : compact ? 'w-[37.5%] h-full sm:h-auto sm:aspect-[3/4]' : 'w-1/2 aspect-[3/4]'}`}
+            className={`relative block flex-shrink-0 overflow-hidden bg-slate-100 group ${nano ? 'w-[14.0625%] h-full' : micro ? 'w-[18.75%] aspect-[3/4]' : mini ? 'w-1/4 aspect-[3/4]' : compact ? 'w-[37.5%] h-full sm:h-auto sm:aspect-[3/4]' : 'w-1/2 lg:w-1/4 aspect-[3/4]'}`}
           >
             {profileImageUrl ? (
               <Image
@@ -102,7 +106,7 @@ export function RankingTherapistShowcase({
                 alt={name}
                 fill
                 className="object-cover group-hover:scale-105 transition-transform duration-300"
-                sizes="(max-width:640px) 46vw, 230px"
+                sizes="(max-width:640px) 46vw, 288px"
               />
             ) : (
               <span className="absolute inset-0 flex items-center justify-center text-slate-300 font-bold text-3xl">{name.charAt(0) || '—'}</span>

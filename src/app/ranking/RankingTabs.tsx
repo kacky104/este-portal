@@ -298,33 +298,71 @@ export default function RankingTabs({
                 </div>
               ) : (
                 <>
-                  {therapistRanking.slice(0, 40).map((t) => (
-                    <RankingTherapistShowcase
-                      key={t.id}
-                      rank={t.rank}
-                      compact={t.rank >= 4 && t.rank <= 10}
-                      mini={t.rank >= 11}
-                      micro={t.rank >= 21}
-                      nano={t.rank >= 31}
-                      id={t.id}
-                      name={t.name}
-                      salonName={t.salonName}
-                      area={t.area}
-                      profileImageUrl={t.profileImageUrl}
-                      bodyType={t.bodyType}
-                      featureBadges={t.featureBadges}
-                      catchphrase={t.catchphrase}
-                      isAvailableNow={t.isAvailableNow}
-                      availableUntil={t.availableUntil}
-                      isAvailableNowCast={t.isAvailableNowCast}
-                      availableUntilCast={t.availableUntilCast}
-                      todayIsActive={t.todayIsActive}
-                      todayStart={t.todayStart}
-                      todayEnd={t.todayEnd}
-                      prevRank={prevRanks.therapist[String(t.id)]}
-                      theme={theme}
-                    />
-                  ))}
+                  {/* ── PC（lg以上）だけの多列レイアウト（2026-08-20 第25便・オーナー選択の案A-2）──
+                       それまでPCもスマホの1列レイアウトのままで、本文768px＝画面の約38%しか
+                       使えず、ページ全長も1万px超だった（実測）。lg以上では
+                       ・リスト全体を本文の枠から食み出させて min(1150px, 100vw-32px) に広げ、
+                       ・4位以降を段階的な多列グリッドにする（4〜10位=2列 / 11〜30位=3列 / 31〜40位=2列）。
+                       実測でページ全長 10,462px → 4,279px（59%短縮・ダミー40件）。
+
+                       ★ スマホ〜タブレット（lg未満）は【1pxも変えない】。全て lg: 接頭辞。
+                         グリッドのラッパーは lg 未満ではただの <div>（display:block）で、
+                         カード自身の mb-* がそのまま縦の間隔になる＝従来と同一の描画。
+                       ★ グリッドは gap-x のみ（縦の間隔はカードの mb-* に任せる）。
+                         gap-y を足すと mb と二重になって段間が開きすぎる。
+                       ★ items-start は必須。外すと grid の stretch で背の低いカードの
+                         グラデーション枠だけが伸び、白い中身との間に隙間が出る。
+                       ★ はみ出しラッパーの作り: lg:relative + left-1/2 + -translate-x-1/2 で
+                         【画面中央】に据える（親 max-w-3xl の中央ではない）。
+                         幅の -32px はスクロールバーと左右余白ぶん。100vw をそのまま使うと
+                         Windows のスクロールバー幅で横スクロールが出る（禁則・第19便と同じ話）。
+                       ★ 見出し・広告バナー・41位以降のリストは従来の768pxのまま
+                         （リスト化された41位以降まで広げると1行が間延びする）。 */}
+                  <div className="lg:relative lg:left-1/2 lg:-translate-x-1/2 lg:w-[min(1150px,calc(100vw-32px))]">
+                    {([
+                      [0, 3, ''],
+                      [3, 10, 'lg:grid lg:grid-cols-2 lg:gap-x-3.5 lg:items-start'],
+                      [10, 20, 'lg:grid lg:grid-cols-3 lg:gap-x-3.5 lg:items-start'],
+                      [20, 30, 'lg:grid lg:grid-cols-3 lg:gap-x-3.5 lg:items-start'],
+                      [30, 40, 'lg:grid lg:grid-cols-2 lg:gap-x-3.5 lg:items-start'],
+                    ] as const).map(([from, to, gridCls]) => {
+                      const group = therapistRanking.slice(0, 40).slice(from, to);
+                      if (group.length === 0) return null;
+                      const cards = group.map((t) => (
+                        <RankingTherapistShowcase
+                          key={t.id}
+                          rank={t.rank}
+                          compact={t.rank >= 4 && t.rank <= 10}
+                          mini={t.rank >= 11}
+                          micro={t.rank >= 21}
+                          nano={t.rank >= 31}
+                          id={t.id}
+                          name={t.name}
+                          salonName={t.salonName}
+                          area={t.area}
+                          profileImageUrl={t.profileImageUrl}
+                          bodyType={t.bodyType}
+                          featureBadges={t.featureBadges}
+                          catchphrase={t.catchphrase}
+                          isAvailableNow={t.isAvailableNow}
+                          availableUntil={t.availableUntil}
+                          isAvailableNowCast={t.isAvailableNowCast}
+                          availableUntilCast={t.availableUntilCast}
+                          todayIsActive={t.todayIsActive}
+                          todayStart={t.todayStart}
+                          todayEnd={t.todayEnd}
+                          prevRank={prevRanks.therapist[String(t.id)]}
+                          theme={theme}
+                        />
+                      ));
+                      // 1〜3位はラッパーなし（従来どおり縦積み・lgでは写真だけ細くなる）
+                      return gridCls === '' ? (
+                        <div key={from}>{cards}</div>
+                      ) : (
+                        <div key={from} className={gridCls}>{cards}</div>
+                      );
+                    })}
+                  </div>
                   {therapistRanking.length > 40 && (
                     <div className="rounded-3xl border shadow-sm overflow-hidden transition-colors duration-300" style={cardStyle}>
                       <ul>
