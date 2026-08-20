@@ -216,10 +216,21 @@ export default async function ColumnDetailPage({
 
           {/* 著者表記 */}
           <div className="mt-10 rounded-2xl border border-emerald-100 bg-emerald-50/40 p-5 flex items-start gap-3">
-            <div className="flex-shrink-0 w-10 h-10 rounded-full flex items-center justify-center" style={{ background: 'linear-gradient(135deg,#10B981,#84CC16)' }}>
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" /><circle cx="12" cy="7" r="4" />
-              </svg>
+            {/* 著者アイコン（2026-08-20 第25便）。本体コラム（/column/[slug]）の緑テーマ版。
+                ★ 作りは本体側と同一。注意書きも本体側のコメントを参照すること
+                  （画像は256×256・元絵の上70%で切り抜き・白い丸＋薄い枠・next/image は通さない）。
+                ★ 枠だけ emerald-200（本体はピンク）。片方だけ直すと2サイトで見た目がずれる。 */}
+            <div className="flex-shrink-0 w-10 h-10 rounded-full overflow-hidden bg-white border border-emerald-200">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src="/column/author-fukueswork.webp"
+                width={256}
+                height={256}
+                alt=""
+                loading="lazy"
+                decoding="async"
+                className="w-full h-full object-cover"
+              />
             </div>
             <div className="min-w-0">
               <p className="text-sm font-bold text-slate-800">{AUTHOR_NAME}</p>

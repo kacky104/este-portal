@@ -216,10 +216,28 @@ export default async function MainColumnDetailPage({
 
           {/* 著者表記 */}
           <div className="mt-10 rounded-2xl border border-pink-100 bg-pink-50/40 p-5 flex items-start gap-3">
-            <div className="flex-shrink-0 w-10 h-10 rounded-full flex items-center justify-center bg-gradient-to-br from-pink-400 to-rose-500">
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" /><circle cx="12" cy="7" r="4" />
-              </svg>
+            {/* 著者アイコン（2026-08-20 第25便）。人物SVG → オーナー作成のイラストへ差し替え。
+                ★ 画像は 256×256 の正方形（public/column/author-fukues.webp）。
+                  元絵は全身だが、40pxの丸に入れると顔が10px程度になり潰れるため
+                  【上70%で切り抜いた】ものを置いている（実測で比較・オーナー選択）。
+                  差し替えるときも「顔と肩まわりが丸に収まる正方形」で用意すること。
+                ★ 白い丸＋薄いピンクの枠。イラストの背景が純白（四隅 #ffffff を実測）なので
+                  丸の中で背景が浮かない。背景に色が付いた絵に替えるならこの枠の作りも見直す。
+                ★ next/image は通していない（原寸配信の小さなWebP＝変換を挟む意味が無い。
+                  /listing の about 画像・/hp/templates と同じ作法）。
+                ★ alt="" ＝装飾扱い。すぐ右に「フクエス編集部」の文字があるので、
+                  alt を入れると読み上げが二重になる。 */}
+            <div className="flex-shrink-0 w-10 h-10 rounded-full overflow-hidden bg-white border border-pink-200">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src="/column/author-fukues.webp"
+                width={256}
+                height={256}
+                alt=""
+                loading="lazy"
+                decoding="async"
+                className="w-full h-full object-cover"
+              />
             </div>
             <div className="min-w-0">
               <p className="text-sm font-bold text-slate-800">{AUTHOR_NAME}</p>
