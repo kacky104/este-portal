@@ -88,9 +88,12 @@ const COMMON = `
 .hp-info-row dt { flex: 0 0 84px; }
 .hp-info-row dd { line-height: 1.8; }
 .hp-banner-img { display: block; width: 100%; height: auto; margin-bottom: 10px; }
-/* リンク（相互リンクのバナー群）。配布バナーは幅がバラバラなので、
-   横並び＋中央寄せで詰めて、画像は元の大きさのまま（枠に収まらない時だけ縮小）。 */
-.hp-links { display: flex; flex-wrap: wrap; justify-content: center; align-items: center; gap: 8px; }
+/* リンク（相互リンクのバナー群）。
+   ★ 2026-08-19（第25便・オーナー要望）: 横並びの詰め込み（flex-wrap）→ 一列配置に変更。
+     1行に1つずつ・中央揃え。配布バナーは幅がバラバラなため、横に詰めると
+     「大きいバナーの横に文字リンクがくっつく」など行ごとに見た目が揃わなかった。
+     画像は元の大きさのまま（枠に収まらない時だけ縮小）＝従来と同じ。 */
+.hp-links { display: flex; flex-direction: column; align-items: center; gap: 10px; }
 .hp-link-item { display: inline-flex; align-items: center; max-width: 100%; text-decoration: none; }
 .hp-link-item img { display: block; max-width: 100%; height: auto; }
 .hp-link-text { display: inline-block; padding: 4px 10px; font-size: 11.5px; line-height: 1.7; }
