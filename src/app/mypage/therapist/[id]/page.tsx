@@ -15,6 +15,7 @@ import {
 } from '@/lib/therapistBadges';
 import { STORAGE_CACHE_CONTROL } from '@/app/lib/storage';
 import { cleanupTherapistPhotos } from '@/app/actions/therapistAdmin';
+import { getOrCreateDiaryMailAddress } from '@/app/actions/diaryMail';
 import { useToast } from '@/app/components/useToast';
 import { SiteNoticeBanner } from '@/app/components/SiteNoticeBanner';
 
@@ -77,7 +78,21 @@ export default function TherapistEditPage() {
   const [bodyParts, setBodyParts] = useState<BodyParts>({ height: '', bust: '', cup: '', waist: '', hip: '' });
   const [badges, setBadges] = useState<string[]>([]);
   const [loadError, setLoadError] = useState('');
+  // 写メ日記のメール投稿アドレス（2026-08-21 第27便）。ベンリー等の更新代行に登録する。
+  // トークンは server action がオーナー検証のうえ発行・返却する（クライアントから直接は引けない）。
+  const [diaryMailAddress, setDiaryMailAddress] = useState<string | null>(null);
+  const [diaryMailError, setDiaryMailError] = useState('');
   const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    getOrCreateDiaryMailAddress({ therapistId }).then((r) => {
+      if (cancelled) return;
+      if (r.ok) setDiaryMailAddress(r.address);
+      else setDiaryMailError(r.error);
+    });
+    return () => { cancelled = true; };
+  }, [therapistId]);
   const [uploadingSlot, setUploadingSlot] = useState<number | null>(null);
   // トーストは共通フックで一元管理（タイマー直書きは連続表示・unmount後setStateのバグ源）。
   const { toast, showToast } = useToast();
@@ -502,6 +517,39 @@ export default function TherapistEditPage() {
               </div>
             );
           })}
+        </div>
+
+        {/* 写メ日記 メール投稿アドレス（2026-08-21 第27便）。
+            ベンリー等の更新代行システムの「日記転送先」にこのアドレスを登録すると、
+            件名=タイトル・本文=日記・添付=写真 のメールで自動投稿される。 */}
+        <div className="bg-white rounded-3xl border border-slate-100 shadow-sm p-5 space-y-3">
+          <h2 className="text-sm font-black text-slate-700">写メ日記 メール投稿アドレス</h2>
+          <p className="text-[11px] text-slate-400 leading-relaxed">
+            更新代行システム（ベンリー等）の「日記転送先」にこのアドレスを登録すると、写メ日記が自動で投稿されます。
+            件名がタイトル、本文が日記、添付画像が写真になります。
+          </p>
+          {diaryMailAddress ? (
+            <div className="flex items-center gap-2">
+              <code className="flex-1 min-w-0 truncate rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-700">{diaryMailAddress}</code>
+              <button
+                type="button"
+                onClick={() => {
+                  navigator.clipboard?.writeText(diaryMailAddress).then(
+                    () => showToast('アドレスをコピーしました'),
+                    () => showToast('コピーに失敗しました'),
+                  );
+                }}
+                className="flex-shrink-0 px-3 py-2 rounded-xl border border-pink-200 text-pink-600 text-xs font-bold hover:bg-pink-50 transition-colors"
+              >
+                コピー
+              </button>
+            </div>
+          ) : (
+            <p className="text-[11px] text-slate-400">{diaryMailError || '読み込み中...'}</p>
+          )}
+          <p className="text-[10px] text-amber-600 bg-amber-50 border border-amber-100 rounded-xl px-3 py-2 leading-relaxed">
+            ※ このアドレスを知っている人は誰でもこのセラピストとして日記を投稿できます。代行業者以外には教えないでください。
+          </p>
         </div>
 
        <div className="flex justify-between items-center pb-4">
