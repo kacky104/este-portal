@@ -240,7 +240,7 @@ export async function createBooking(input: CreateBookingInput): Promise<CreateBo
   // ハイフン除去後の数字のみに正規化（桁ルールは従来どおり 6〜20 桁）。保存値もこの正規化後に統一。
   const customerTel = normalizePhone(String(input.customerTel ?? ''));
   const note = String(input.note ?? '').trim();
-  // 折り返し希望時間帯：有効な slug 以外は 'none' に正規化（改ざん耐性）。
+  // ご連絡希望時間帯：有効な slug 以外は 'none' に正規化（改ざん耐性）。
   const callbackPref = normalizeCallbackPref(input.callbackPref);
 
   // 基本バリデーション
@@ -440,7 +440,7 @@ export type OwnerBooking = {
  * ★ source='web' だけを返す（2026-08-16）。予約ボードで手入力した電話予約
  *   （createManualBooking / source='manual'）は、このタブには出さない。
  *   ここはお客様がフォームから入れた予約＝店に通知メールが飛んだ予約を確認する場所で、
- *   折り返し希望や「確定にする」ボタンも、お店が自分で書いた予約には意味がないため。
+ *   ご連絡希望や「確定にする」ボタンも、お店が自分で書いた予約には意味がないため。
  *   ★ 手入力の予約は予約ボード（getBookingBoard）に従来どおり全部出る。消えたわけではない。
  */
 export async function getSalonBookings(

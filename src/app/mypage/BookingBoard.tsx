@@ -875,7 +875,7 @@ export function BookingBoard({ salonId, active, io = defaultIO }: {
                   ? <a href={`tel:${detail.customerTel}`} className="text-pink-600 underline">{detail.customerTel}</a>
                   : <span className="text-slate-400">未登録</span>}
               </p>
-              <p><span className="text-slate-400">折り返し希望：</span>{callbackPrefLabel(detail.callbackPref)}</p>
+              <p><span className="text-slate-400">ご連絡希望：</span>{callbackPrefLabel(detail.callbackPref)}</p>
               {detail.note && (
                 <p className="whitespace-pre-wrap break-words"><span className="text-slate-400">備考：</span>{detail.note}</p>
               )}

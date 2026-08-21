@@ -418,9 +418,9 @@ export function BookingFlow({
                 className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm bg-slate-50/50 focus:outline-none focus:ring-2 focus:ring-pink-200"
               />
             </div>
-            {/* 折り返しお電話の希望時間帯（任意・デフォルト「希望なし」） */}
+            {/* ご連絡（お電話・SMS）の希望時間帯（任意・デフォルト「希望なし」） */}
             <div>
-              <span id="book-callback-pref-label" className="block text-[11px] font-bold text-slate-500 mb-1">折り返しお電話の希望時間帯（任意）</span>
+              <span id="book-callback-pref-label" className="block text-[11px] font-bold text-slate-500 mb-1">ご連絡の希望時間帯（任意）</span>
               <div className="flex flex-wrap gap-2" role="radiogroup" aria-labelledby="book-callback-pref-label">
                 {CALLBACK_PREF_OPTIONS.map((o) => (
                   <label
@@ -444,21 +444,30 @@ export function BookingFlow({
                 ))}
               </div>
             </div>
-            {/* お電話についての注意書き（固定文言） */}
+            {/* ご連絡についての注意書き（固定文言）。
+                2026-08-21: 可否の連絡が「電話のみ」→「電話またはSMS」になったため改訂。
+                電話のルールは従来どおり。SMSは返信が確認できない場合に一旦キャンセルとする旨を明記。
+                キャンセルまでの具体的な時間は、店舗ごとの運用差に対応できるよう意図的に書かない。 */}
             <div className="rounded-xl border border-amber-200 bg-amber-50/60 p-3 text-[11px] text-amber-800 leading-relaxed">
-              <p className="font-bold mb-1">お電話について</p>
-              <p>
-                ご予約の可否をお伝えするため、店舗より折り返しお電話いたします。
-                <span className="font-bold">お電話に出られなかった場合、当店からの掛け直しはいたしません。</span>
-                その際は、ご予約が確定していた場合でも予約枠を解放させていただきます。恐れ入りますが、
-                できるだけ早めに折り返しのお電話にご対応いただけますようお願いいたします。
-              </p>
+              <p className="font-bold mb-1">ご連絡について</p>
+              <p>ご予約の可否をお伝えするため、店舗よりお電話またはSMSにてご連絡いたします。</p>
+              <ul className="mt-1 space-y-1 list-disc pl-4">
+                <li>
+                  <span className="font-bold">お電話に出られなかった場合、当店からの掛け直しはいたしません。</span>
+                  その際は、ご予約が確定していた場合でも予約枠を解放させていただきます。
+                </li>
+                <li>
+                  <span className="font-bold">SMSにご返信をいただけない場合は、ご予約を一旦キャンセルとさせていただきます。</span>
+                  改めてご予約いただくことは可能です。
+                </li>
+              </ul>
+              <p className="mt-1">恐れ入りますが、できるだけ早めにご対応いただけますようお願いいたします。</p>
             </div>
             {/* 料金についての注意書き（固定文言） */}
             <div className="rounded-xl border border-amber-200 bg-amber-50/60 p-3 text-[11px] text-amber-800 leading-relaxed">
               <p className="font-bold mb-1">料金について</p>
               <p>
-                コース料金のほかに、別途指名料等が必要となる場合があります。総額はお電話にてお伝えいたします。
+                コース料金のほかに、別途指名料等が必要となる場合があります。総額はご連絡の際にお伝えいたします。
               </p>
             </div>
             <div>
@@ -497,11 +506,11 @@ export function BookingFlow({
             <Row label="日時" value={selectedSlotLabel} />
             <Row label="お名前" value={customerName} />
             <Row label="電話番号" value={customerTel} />
-            <Row label="折り返し希望" value={callbackPrefLabel(callbackPref)} />
+            <Row label="ご連絡希望" value={callbackPrefLabel(callbackPref)} />
             {note.trim() && <Row label="備考" value={note} />}
           </dl>
           <p className="text-[11px] text-slate-400 leading-relaxed mt-3">
-            送信後、店舗が内容を確認し、折り返しお電話にてご予約を確定いたします（この時点ではまだ確定ではありません）。
+            送信後、店舗が内容を確認し、お電話またはSMSにてご予約を確定いたします（この時点ではまだ確定ではありません）。
           </p>
           <button
             type="button"
@@ -526,7 +535,7 @@ export function BookingFlow({
           <p className="text-sm font-black text-slate-700">予約リクエストを受け付けました</p>
           <p className="text-xs text-slate-500 leading-relaxed">
             こちらはまだ予約確定ではありません。<br />
-            店舗が内容を確認し、折り返しお電話にてご予約を確定いたします。
+            店舗が内容を確認し、お電話またはSMSにてご予約を確定いたします。
           </p>
           <div className="rounded-xl bg-slate-50 p-3 text-left text-xs text-slate-600 space-y-1">
             <p><span className="text-slate-400">セラピスト：</span>{therapist?.name}</p>

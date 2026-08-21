@@ -2569,7 +2569,7 @@ export default function MyPage() {
                     <div className="flex flex-wrap gap-x-3 gap-y-0.5 text-xs text-slate-600">
                       <span><span className="text-slate-400">お客様：</span>{b.customerName}</span>
                       <span><span className="text-slate-400">電話：</span><a href={`tel:${b.customerTel}`} className="text-pink-600 underline">{b.customerTel}</a></span>
-                      <span><span className="text-slate-400">折り返し希望：</span>{callbackPrefLabel(b.callbackPref)}</span>
+                      <span><span className="text-slate-400">ご連絡希望：</span>{callbackPrefLabel(b.callbackPref)}</span>
                     </div>
                     {b.note && (
                       <p className="text-xs text-slate-500 whitespace-pre-wrap break-words"><span className="text-slate-400">備考：</span>{b.note}</p>
@@ -2711,7 +2711,7 @@ export default function MyPage() {
               ここに登録したコースがネット予約の選択肢になります。料金ページとは別に設定できます（ネット予約限定メニューも登録できます）。
             </p>
             <p className="text-[10px] text-slate-400 leading-relaxed">
-              ※ 指名料やオプション料金などの追加料金は、ここでは設定しません。ご予約が入った際に、折り返しのお電話でお客様に総額をお伝えする運用です。
+              ※ 指名料やオプション料金などの追加料金は、ここでは設定しません。ご予約が入った際に、お電話またはSMSでお客様に総額をお伝えする運用です。
             </p>
             {bookingCourses.length > 0 && (
               <div className="space-y-2">

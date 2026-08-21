@@ -1,4 +1,6 @@
-// 折り返し電話の希望時間帯（予約入力・mypage一覧・サーバー検証で共用）。
+// ご連絡（お電話・SMS）の希望時間帯（予約入力・mypage一覧・サーバー検証で共用）。
+// 2026-08-21: 可否の連絡が電話のみ→電話またはSMSになったため、UIのラベルを「ご連絡の希望時間帯」に変更。
+// slug・DB列（callback_pref）は互換のため据え置き。
 // slug は salon_bookings.callback_pref に保存する文字列。未選択のデフォルトは 'none'。
 export const CALLBACK_PREF_OPTIONS = [
   { slug: '12-15', label: '12時〜15時' },

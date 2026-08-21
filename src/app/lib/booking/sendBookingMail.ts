@@ -55,7 +55,7 @@ export async function sendBookingMail(input: BookingMailInput): Promise<SendMail
   const html = `
     <div style="font-family:sans-serif;color:#334155;line-height:1.7;max-width:560px">
       <p>${esc(input.salonName)} 御中</p>
-      <p>ネット予約が入りました。お客様へ折り返しお電話にて<strong>ご予約の可否</strong>をお伝えください。</p>
+      <p>ネット予約が入りました。お客様へお電話またはSMSにて<strong>ご予約の可否</strong>をお伝えください。</p>
       <div style="border:1px solid #e2e8f0;border-radius:12px;padding:16px;margin:16px 0">
         <p style="margin:0 0 8px;font-weight:bold;color:#db2777">■ 予約内容</p>
         <p style="margin:2px 0">日時：${esc(input.slotLabel)}</p>
@@ -64,12 +64,12 @@ export async function sendBookingMail(input: BookingMailInput): Promise<SendMail
         <p style="margin:12px 0 8px;font-weight:bold;color:#db2777">■ お客様</p>
         <p style="margin:2px 0">お名前：${esc(input.customerName)}</p>
         <p style="margin:2px 0">電話番号：${esc(input.customerTel)}</p>
-        <p style="margin:2px 0">折り返し希望：${esc(input.callbackLabel)}</p>
+        <p style="margin:2px 0">ご連絡希望：${esc(input.callbackLabel)}</p>
         ${input.note ? `<p style="margin:2px 0">備考：${esc(input.note)}</p>` : ''}
       </div>
       <p style="font-size:12px;color:#94a3b8">
         ※このメールはネット予約の自動通知です。<br>
-        ※予約はまだ確定ではありません。お客様へお電話のうえ確定してください。
+        ※予約はまだ確定ではありません。お客様へご連絡のうえ確定してください。
       </p>
     </div>
   `;
@@ -77,7 +77,7 @@ export async function sendBookingMail(input: BookingMailInput): Promise<SendMail
   const text = [
     `${input.salonName} 御中`,
     ``,
-    `ネット予約が入りました。お客様へ折り返しお電話にてご予約の可否をお伝えください。`,
+    `ネット予約が入りました。お客様へお電話またはSMSにてご予約の可否をお伝えください。`,
     ``,
     `■ 予約内容`,
     `日時：${input.slotLabel}`,
@@ -87,11 +87,11 @@ export async function sendBookingMail(input: BookingMailInput): Promise<SendMail
     `■ お客様`,
     `お名前：${input.customerName}`,
     `電話番号：${input.customerTel}`,
-    `折り返し希望：${input.callbackLabel}`,
+    `ご連絡希望：${input.callbackLabel}`,
     ...(input.note ? [`備考：${input.note}`] : []),
     ``,
     `※このメールはネット予約の自動通知です。`,
-    `※予約はまだ確定ではありません。お客様へお電話のうえ確定してください。`,
+    `※予約はまだ確定ではありません。お客様へご連絡のうえ確定してください。`,
   ].join('\n');
 
   try {
