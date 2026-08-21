@@ -16,7 +16,9 @@ import { ADMIN_UUID } from '@/app/lib/admin';
 //    取得経路はこの server action ただ1つ。呼び出しごとにオーナー検証を行う。
 //  - therapists テーブルに列を足さないこと（anon SELECT で世界に漏れる）。
 
-export const DIARY_MAIL_DOMAIN = 'diary.fukues.com';
+// ⚠ 'use server' ファイルは async 関数以外を export できない（Next のビルド時チェック）。
+// この定数は export しないこと（2026-08-21 のビルド失敗の原因）。
+const DIARY_MAIL_DOMAIN = 'diary.fukues.com';
 
 type AddressResult = { ok: true; address: string } | { ok: false; error: string };
 
