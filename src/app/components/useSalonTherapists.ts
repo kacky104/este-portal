@@ -107,11 +107,19 @@ export function useSalonTherapists(
       const result: Record<number, TherapistThumb[]> = {};
       for (const [sid, items] of Object.entries(bySalon)) {
         // 「今すぐ」フラグを最優先 → 今すぐ同士は残り時間少ない順（有効期限昇順）→ 次に出勤中を優先
+        // → 最後に写真ありを優先（写真なしのイニシャル代替サムネが店舗カードの先頭に
+        //    並ぶと見栄えが悪いため・2026-08-22 オーナー指摘）。
+        const photo = (t: TherapistThumb) => (t.imageUrl ? 0 : 1);
         result[Number(sid)] = items.sort((a, b) => {
           const la = isAvailableNowActive(a), lb = isAvailableNowActive(b);
           if (la !== lb) return Number(lb) - Number(la);
-          if (la && lb) return imasuguUntilCamel(a) - imasuguUntilCamel(b);
-          return Number(b.onDuty) - Number(a.onDuty);
+          if (la && lb) {
+            const d = photo(a) - photo(b);
+            if (d !== 0) return d;
+            return imasuguUntilCamel(a) - imasuguUntilCamel(b);
+          }
+          if (a.onDuty !== b.onDuty) return Number(b.onDuty) - Number(a.onDuty);
+          return photo(a) - photo(b);
         });
       }
 

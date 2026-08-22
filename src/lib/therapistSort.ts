@@ -49,11 +49,19 @@ export function sameRankOrder<T extends SortableTherapist>(rank: number, a: T, b
   return 0;
 }
 
+/**
+ * 写真の有無（0=あり / 1=なし）。並び替えのキーに使う。
+ * ★ どのブロックでも「写真なしは後ろ」に揃える。イニシャル代替のカードが
+ *   先頭に並ぶと店全体が準備中に見えるため（2026-08-22 オーナー指摘）。
+ */
+export function photoRank(t: { profileImageUrl: string | null }): number {
+  return t.profileImageUrl ? 0 : 1;
+}
+
 /** 在籍一覧用の並べ替え（写真あり優先 → 出勤状況）。元配列は壊さない。 */
 export function sortSalonTherapists<T extends SortableTherapist>(list: T[]): T[] {
-  const hasPhoto = (t: T) => (t.profileImageUrl ? 0 : 1);
   return [...list].sort((a, b) => {
-    const pa = hasPhoto(a), pb = hasPhoto(b);
+    const pa = photoRank(a), pb = photoRank(b);
     if (pa !== pb) return pa - pb;          // 写真あり(0) が先
     const ra = dutyRank(a), rb = dutyRank(b);
     if (ra !== rb) return ra - rb;

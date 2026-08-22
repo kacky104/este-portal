@@ -13,7 +13,7 @@ import { sanitizeBadges } from '@/lib/therapistBadges';
 import { SaveButton } from '@/app/components/SaveButton';
 import { isImasuguLiveCamel, imasuguUntilCamel } from '@/lib/imasugu';
 // 並び替えは lib/therapistSort.ts に集約（サーバー側 lib/salonTherapists.ts と共有するため）。
-import { dutyRank, sameRankOrder, sortSalonTherapists } from '@/lib/therapistSort';
+import { dutyRank, sameRankOrder, sortSalonTherapists, photoRank } from '@/lib/therapistSort';
 import type { SalonTheme } from '@/app/lib/themes';
 
 // GridCard は initialList 経由でサーバー描画されるようになった（SEO対応 2026-07-28）。
@@ -609,12 +609,14 @@ export function SalonTherapists({ salonId }: { salonId: number }) {
       });
 
       // 表示順: 1.今すぐ → 2.出勤中・出勤予定(開始時間が早い順) → 3.受付終了 → 4.お休み
-      // ★ 判定は dutyRank（在籍一覧と共有）。ここは写真の有無では並べ替えない
-      //   （出勤中の子を出す枠なので、写真より「今会えるか」を優先する）。
+      // ★ 出勤状況（dutyRank）を最優先。同じ状況の中では写真ありを先に出す
+      //   （写真なしのイニシャル代替カードが先頭に並ぶと見栄えが悪いため・2026-08-22）。
       const availableNowActive = (t: Therapist) => isImasuguLiveCamel(t);
       const sorted = [...mapped].sort((a, b) => {
         const ra = dutyRank(a), rb = dutyRank(b);
         if (ra !== rb) return ra - rb;
+        const pa = photoRank(a), pb = photoRank(b);
+        if (pa !== pb) return pa - pb;
         return sameRankOrder(ra, a, b);
       });
       // 「本日出勤」ブロックは 今すぐ / 出勤中・出勤予定 / 受付終了 を表示。
@@ -706,6 +708,9 @@ export function SalonOnDutyExcludingNow({ salonId, theme }: { salonId: number; t
       const sorted = [...mapped].sort((a, b) => {
         const ra = rank(a), rb = rank(b);
         if (ra !== rb) return ra - rb;
+        // 同じ出勤状況なら写真ありを先に（2026-08-22）。
+        const pa = photoRank(a), pb = photoRank(b);
+        if (pa !== pb) return pa - pb;
         // 今すぐ（rank 0）同士は残り時間少ない順（有効期限昇順）。
         if (ra === 0) return imasuguUntilCamel(a) - imasuguUntilCamel(b);
         if (ra === 1) {

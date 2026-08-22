@@ -226,15 +226,18 @@ export function TherapistScroller({ showAge = false, filterSalonIds, workingHref
 
       const onDuty = mapped.filter(t => getScheduleStatus(t.today).status === 'onDuty');
       // 1. 今すぐ：残り時間少ない順（有効期限昇順。既存ロジック維持）。
+      // ★ 各グループ内で「写真あり」を先に出す（写真なしのイニシャル代替カードが
+      //   帯の先頭に並ぶと見栄えが悪いため・2026-08-22 オーナー指摘）。
+      const photo = (t: TherapistItem) => (t.profileImageUrl ? 0 : 1);
       const imasugu = onDuty
         .filter(isAvailableNowActive)
-        .sort((a, b) => imasuguUntilCamel(a) - imasuguUntilCamel(b));
+        .sort((a, b) => (photo(a) - photo(b)) || (imasuguUntilCamel(a) - imasuguUntilCamel(b)));
       // 2. 非今すぐの出勤中：開始時刻 昇順＋同時刻内は30分seedシャッフル。
       //    先にシャッフル→開始時刻で安定ソート（同時刻の相対順はシャッフル結果が残る）。
       const rest = seededShuffle(
         onDuty.filter(t => !isAvailableNowActive(t)),
         thirtyMinSeed(),
-      ).sort((a, b) => startMinutes(a) - startMinutes(b));
+      ).sort((a, b) => (photo(a) - photo(b)) || (startMinutes(a) - startMinutes(b)));
       setList([...imasugu, ...rest]);
     })();
   }, [filterSalonIds?.join(',')]); // eslint-disable-line react-hooks/exhaustive-deps
