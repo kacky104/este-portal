@@ -1,7 +1,11 @@
 import { createPublicClient } from '@/app/lib/supabase/public';
 import { getBusinessDateJST } from '@/lib/dutyStatus';
 import { sanitizeBadges } from '@/lib/therapistBadges';
-import { sortSalonTherapists, type Therapist } from '@/components/SalonTherapists';
+import type { Therapist } from '@/components/SalonTherapists';
+// ★ 並び替えは lib/therapistSort.ts から取る。components/SalonTherapists.tsx（'use client'）から
+//   import すると、このサーバー専用モジュール経由でクライアント一式がビルドに巻き込まれ
+//   `supabaseUrl is required` でビルドが落ちる（2026-08-22 実測）。
+import { sortSalonTherapists } from '@/lib/therapistSort';
 
 type PublicClient = ReturnType<typeof createPublicClient>;
 

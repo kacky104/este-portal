@@ -12,6 +12,8 @@ import { FeatureBadges } from '@/components/FeatureBadges';
 import { sanitizeBadges } from '@/lib/therapistBadges';
 import { SaveButton } from '@/app/components/SaveButton';
 import { isImasuguLiveCamel, imasuguUntilCamel } from '@/lib/imasugu';
+// 並び替えは lib/therapistSort.ts に集約（サーバー側 lib/salonTherapists.ts と共有するため）。
+import { dutyRank, sameRankOrder, sortSalonTherapists } from '@/lib/therapistSort';
 import type { SalonTheme } from '@/app/lib/themes';
 
 // GridCard は initialList 経由でサーバー描画されるようになった（SEO対応 2026-07-28）。
@@ -49,52 +51,6 @@ function getScheduleStatus(s: TodaySchedule): StatusResult {
 }
 
 // 入店日表示用（new_face_since → "2026年6月18日入店"）。JST基準でフォーマット。
-/**
- * 在籍セラピスト一覧の表示順（2026-08-22 第27便）。
- *
- * 1. 写真あり × 今すぐ（残り時間の少ない順）
- * 2. 写真あり × 出勤中・出勤予定（開始時間が早い順）
- * 3. 写真あり × 受付終了
- * 4. 写真あり × 本日お休み
- * 5. 写真なし（同グループ内は同じく出勤状況順）
- *
- * ★ 写真の有無を最上位のキーにしているのは、掲載直後で写真が未登録の子が
- *   一覧の先頭を占めると「準備中の店」に見えてしまうため（2026-08-22 アイリス145名の登録時に判明）。
- *   写真が揃えば自然に出勤順の並びへ寄っていく。
- * ★ 出勤状況の判定は「本日出勤」ブロック（SalonTherapists）と同じロジックを共有する。
- *   別々に書くと、同じ店の2箇所で並びが食い違う。
- */
-export function dutyRank(t: Therapist): number {
-  if (isImasuguLiveCamel(t)) return 0;
-  const s = getScheduleStatus(t.today).status;
-  if (s === 'onDuty' || s === 'before') return 1;
-  if (s === 'after') return 2;
-  return 3; // off（お休み）
-}
-
-/** 同一ランク内の細かい並び（今すぐ=残り時間昇順 / 出勤=開始時刻昇順）。 */
-function sameRankOrder(rank: number, a: Therapist, b: Therapist): number {
-  if (rank === 0) return imasuguUntilCamel(a) - imasuguUntilCamel(b);
-  if (rank === 1) {
-    const sa = a.today.start_time ?? '99:99';
-    const sb = b.today.start_time ?? '99:99';
-    return sa.localeCompare(sb);
-  }
-  return 0;
-}
-
-/** 在籍一覧用の並べ替え（写真あり優先 → 出勤状況）。元配列は壊さない。 */
-export function sortSalonTherapists(list: Therapist[]): Therapist[] {
-  const hasPhoto = (t: Therapist) => (t.profileImageUrl ? 0 : 1);
-  return [...list].sort((a, b) => {
-    const pa = hasPhoto(a), pb = hasPhoto(b);
-    if (pa !== pb) return pa - pb;          // 写真あり(0) が先
-    const ra = dutyRank(a), rb = dutyRank(b);
-    if (ra !== rb) return ra - rb;
-    return sameRankOrder(ra, a, b);
-  });
-}
-
 function formatJoinDate(since: string | null): string {
   if (!since) return '';
   const d = new Date(since);
