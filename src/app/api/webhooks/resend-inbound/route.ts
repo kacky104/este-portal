@@ -169,9 +169,10 @@ export async function POST(req: Request) {
   const therapistId = Number(mailRow.therapist_id);
 
   const { data: therapist } = await svc
-    .from('therapists').select('id, salon_id').eq('id', therapistId).maybeSingle();
+    .from('therapists').select('id, salon_id, user_id').eq('id', therapistId).maybeSingle();
   if (!therapist) { await finishLog('rejected:no-therapist', therapistId); return NextResponse.json({ ok: true, skipped: 'therapist gone' }); }
   const salonId = Number(therapist.salon_id);
+  const therapistUserId = (therapist.user_id as string | null) ?? null;
 
   try {
     // ── 本文の取得 ──
@@ -237,8 +238,50 @@ export async function POST(req: Request) {
     });
     if (insErr) throw new Error(`diary insert: ${insErr.message}`);
 
+    // ── fukuX 同時投稿（2026-08-22 追加）──────────────────────────
+    // /cast の手投稿は「連携済みならデフォルトON」でフォークしている（CastDiary.tsx）。
+    // メール投稿にはチェックボックスが無いので、連携済み＝常にフォークする（同じ結果になる）。
+    //
+    // ★ 手投稿はユーザー自身の認証クライアントで insert し、x_posts の INSERT ポリシー
+    //   （author_profile_id = x_my_profile_id()）を正規に通している。こちらはメール経由で
+    //   本人セッションが無いため service_role で入れる。なりすまし防止は
+    //   「宛先トークン → therapist_id → その therapist の user_id」という経路で担保する
+    //   （他人の profile_id を指定する余地がない）。
+    //
+    // ★ 付随処理なので best-effort。失敗しても日記投稿は成功のまま（手投稿と同じ作法）。
+    let crossposted = false;
+    if (therapistUserId) {
+      try {
+        const { data: xp } = await svc
+          .from('x_profiles')
+          .select('id, handle, status, kind')
+          .eq('auth_user_id', therapistUserId)
+          .eq('kind', 'therapist')
+          .eq('status', 'approved')
+          .not('handle', 'is', null)
+          .limit(1)
+          .maybeSingle();
+        if (xp?.id) {
+          // body = タイトル行 + 空行 + 本文（手投稿 CastDiary.tsx と同じ組み立て）
+          const body = title && content ? `${title}\n\n${content}` : (title || content);
+          if ((body && body.length > 0) || images.length > 0) {
+            const { error: xErr } = await svc.from('x_posts').insert({
+              author_profile_id: xp.id,
+              body: body || null,
+              images,                    // diary と同じフルURL配列をそのままコピー
+              replies_disabled: false,   // 手投稿のデフォルトに合わせる
+            });
+            if (xErr) console.error('[diary-mail] fukuX 同時投稿に失敗:', xErr.message);
+            else crossposted = true;
+          }
+        }
+      } catch (e) {
+        console.error('[diary-mail] fukuX 同時投稿でエラー:', e instanceof Error ? e.message : e);
+      }
+    }
+
     await finishLog('posted', therapistId);
-    return NextResponse.json({ ok: true, posted: true, images: images.length });
+    return NextResponse.json({ ok: true, posted: true, images: images.length, crossposted });
   } catch (e) {
     // 一時障害は log 行を消して 500 → Resend が再送してくれる（email_id 衝突しないように）。
     console.error('[diary-mail] 処理失敗:', e instanceof Error ? e.message : e);
