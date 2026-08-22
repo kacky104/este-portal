@@ -19,6 +19,8 @@ export const BADGE_TO_SLUG: Record<string, string> = {
   '新人': 'newcomer',
   'ベテラン': 'veteran',
   '女子大生': 'college',
+  'OL': 'ol',
+  'お嬢様': 'ojousama',
   // look
   'ギャル': 'gal',
   '清楚': 'seiso',
