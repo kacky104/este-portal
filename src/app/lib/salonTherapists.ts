@@ -1,7 +1,7 @@
 import { createPublicClient } from '@/app/lib/supabase/public';
 import { getBusinessDateJST } from '@/lib/dutyStatus';
 import { sanitizeBadges } from '@/lib/therapistBadges';
-import type { Therapist } from '@/components/SalonTherapists';
+import { sortSalonTherapists, type Therapist } from '@/components/SalonTherapists';
 
 type PublicClient = ReturnType<typeof createPublicClient>;
 
@@ -80,7 +80,9 @@ export async function fetchSalonTherapists(
     if (r.handle) xHandles.set(String(r.auth_user_id), String(r.handle));
   });
 
-  return rows.map((t) => {
+  // ★ 並び順は sortSalonTherapists（写真あり優先 → 出勤状況）に集約。
+  //   初期HTML（SEO対象）の時点で正しい順序にしておく＝クライアント側で並び替え直さない。
+  const mapped = rows.map((t) => {
     const key = String(t.id);
     return {
       id: key,
@@ -107,4 +109,6 @@ export async function fetchSalonTherapists(
       salonId, // 保存ボタン用（このサロンに在籍）
     };
   });
+
+  return sortSalonTherapists(mapped);
 }

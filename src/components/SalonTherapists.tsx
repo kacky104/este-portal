@@ -49,6 +49,52 @@ function getScheduleStatus(s: TodaySchedule): StatusResult {
 }
 
 // 入店日表示用（new_face_since → "2026年6月18日入店"）。JST基準でフォーマット。
+/**
+ * 在籍セラピスト一覧の表示順（2026-08-22 第27便）。
+ *
+ * 1. 写真あり × 今すぐ（残り時間の少ない順）
+ * 2. 写真あり × 出勤中・出勤予定（開始時間が早い順）
+ * 3. 写真あり × 受付終了
+ * 4. 写真あり × 本日お休み
+ * 5. 写真なし（同グループ内は同じく出勤状況順）
+ *
+ * ★ 写真の有無を最上位のキーにしているのは、掲載直後で写真が未登録の子が
+ *   一覧の先頭を占めると「準備中の店」に見えてしまうため（2026-08-22 アイリス145名の登録時に判明）。
+ *   写真が揃えば自然に出勤順の並びへ寄っていく。
+ * ★ 出勤状況の判定は「本日出勤」ブロック（SalonTherapists）と同じロジックを共有する。
+ *   別々に書くと、同じ店の2箇所で並びが食い違う。
+ */
+export function dutyRank(t: Therapist): number {
+  if (isImasuguLiveCamel(t)) return 0;
+  const s = getScheduleStatus(t.today).status;
+  if (s === 'onDuty' || s === 'before') return 1;
+  if (s === 'after') return 2;
+  return 3; // off（お休み）
+}
+
+/** 同一ランク内の細かい並び（今すぐ=残り時間昇順 / 出勤=開始時刻昇順）。 */
+function sameRankOrder(rank: number, a: Therapist, b: Therapist): number {
+  if (rank === 0) return imasuguUntilCamel(a) - imasuguUntilCamel(b);
+  if (rank === 1) {
+    const sa = a.today.start_time ?? '99:99';
+    const sb = b.today.start_time ?? '99:99';
+    return sa.localeCompare(sb);
+  }
+  return 0;
+}
+
+/** 在籍一覧用の並べ替え（写真あり優先 → 出勤状況）。元配列は壊さない。 */
+export function sortSalonTherapists(list: Therapist[]): Therapist[] {
+  const hasPhoto = (t: Therapist) => (t.profileImageUrl ? 0 : 1);
+  return [...list].sort((a, b) => {
+    const pa = hasPhoto(a), pb = hasPhoto(b);
+    if (pa !== pb) return pa - pb;          // 写真あり(0) が先
+    const ra = dutyRank(a), rb = dutyRank(b);
+    if (ra !== rb) return ra - rb;
+    return sameRankOrder(ra, a, b);
+  });
+}
+
 function formatJoinDate(since: string | null): string {
   if (!since) return '';
   const d = new Date(since);
@@ -607,25 +653,13 @@ export function SalonTherapists({ salonId }: { salonId: number }) {
       });
 
       // 表示順: 1.今すぐ → 2.出勤中・出勤予定(開始時間が早い順) → 3.受付終了 → 4.お休み
+      // ★ 判定は dutyRank（在籍一覧と共有）。ここは写真の有無では並べ替えない
+      //   （出勤中の子を出す枠なので、写真より「今会えるか」を優先する）。
       const availableNowActive = (t: Therapist) => isImasuguLiveCamel(t);
-      const rank = (t: Therapist): number => {
-        if (availableNowActive(t)) return 0;
-        const s = getScheduleStatus(t.today).status;
-        if (s === 'onDuty' || s === 'before') return 1;
-        if (s === 'after') return 2;
-        return 3; // off（お休み）
-      };
       const sorted = [...mapped].sort((a, b) => {
-        const ra = rank(a), rb = rank(b);
+        const ra = dutyRank(a), rb = dutyRank(b);
         if (ra !== rb) return ra - rb;
-        // 今すぐ（rank 0）同士は残り時間少ない順（有効期限昇順）。
-        if (ra === 0) return imasuguUntilCamel(a) - imasuguUntilCamel(b);
-        if (ra === 1) {
-          const sa = a.today.start_time ?? '99:99';
-          const sb = b.today.start_time ?? '99:99';
-          return sa.localeCompare(sb);
-        }
-        return 0;
+        return sameRankOrder(ra, a, b);
       });
       // 「本日出勤」ブロックは 今すぐ / 出勤中・出勤予定 / 受付終了 を表示。
       // 受付終了になっても非表示にせずカードを出し続ける。お休み(off)のみ除外。
@@ -758,7 +792,8 @@ export function SalonOnDutyExcludingNow({ salonId, theme }: { salonId: number; t
 // （未指定なら従来どおりクライアントで取得。既存の呼び出し箇所は変更不要）
 export function SalonAllTherapists({ salonId, limit, from, showSaveButton = false, singleColumn = false, hideSaveOnMobile = false, initialList }: { salonId: number; limit?: number; from?: string; showSaveButton?: boolean; singleColumn?: boolean; hideSaveOnMobile?: boolean; initialList?: Therapist[] }) {
   const hasInitial = Array.isArray(initialList);
-  const [list, setList] = useState<Therapist[]>(initialList ?? []);
+  // サーバー側で既に並べ替え済みだが、props の並びに依存しないようここでも通す（冪等）。
+  const [list, setList] = useState<Therapist[]>(initialList ? sortSalonTherapists(initialList) : []);
 
   useEffect(() => {
     if (hasInitial) return;  // サーバー取得済み。二重フェッチしない。
@@ -803,7 +838,9 @@ export function SalonAllTherapists({ salonId, limit, from, showSaveButton = fals
         salonId,  // 保存ボタン用（このサロンに在籍）
       }));
 
-      setList(mapped);
+      // 写真あり優先 → 出勤状況の順（sortSalonTherapists）。
+      // サーバー取得（lib/salonTherapists.ts）と同じ並びに揃える。
+      setList(sortSalonTherapists(mapped));
     })();
   }, [salonId, hasInitial]);
 
