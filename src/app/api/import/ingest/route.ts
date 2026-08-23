@@ -70,9 +70,11 @@ export async function POST(req: Request) {
   const runId = run?.id as number | undefined;
 
   // 3. フクエスの在籍を読み、正規化名の索引を作る（同名は重複として記録）
+  //    name に加えて import_aliases（取り込み用別名）も索引に載せる。
+  //    駅ちか側だけ表記が違う子（例: 駅ちか「愛」⇔フクエス「アイ」）を名前を変えずに結びつける。
   const { data: therapists, error: thErr } = await supabase
     .from('therapists')
-    .select('id, name')
+    .select('id, name, import_aliases')
     .eq('salon_id', source.salon_id);
   if (thErr) {
     if (runId) await supabase.from('salon_import_runs').update({ status: 'error', error: thErr.message, finished_at: new Date().toISOString() }).eq('id', runId);
@@ -81,10 +83,16 @@ export async function POST(req: Request) {
   const byName = new Map<string, number>();      // 正規化名 → therapist_id
   const dupNames = new Set<string>();            // フクエス側で重複する正規化名
   for (const t of therapists ?? []) {
-    const key = normalizeName(t.name as string);
-    if (!key) continue;
-    if (byName.has(key)) dupNames.add(key);
-    else byName.set(key, t.id as number);
+    const id = t.id as number;
+    const raws = [t.name as string, ...((t.import_aliases as string[] | null) ?? [])];
+    for (const raw of raws) {
+      const key = normalizeName(raw);
+      if (!key) continue;
+      const existing = byName.get(key);
+      // 同じ子の name と別名が同じ正規化名になるのは重複扱いにしない
+      if (existing !== undefined && existing !== id) dupNames.add(key);
+      else byName.set(key, id);
+    }
   }
 
   const unmatched: string[] = [];
