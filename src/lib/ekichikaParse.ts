@@ -84,7 +84,10 @@ function normTime(raw: string | null): string | null {
  */
 export function parseEkichikaCast(html: string, todayISO: string): EkichikaCast {
   const name = pick(/<h2\s+class="profile-name">([^<]+)<\/h2>/, html);
-  const cup = pick(/<p\s+class="bust-size">([^<]*)<\/p>/, html);
+  // カップは <p class="bust-size">D</p>。未設定の店は "-" や空になるので、その場合は無しにする
+  // （そのまま使うと body_type が "B86(-)" のように壊れる）。
+  const cupRaw = pick(/<p\s+class="bust-size">([^<]*)<\/p>/, html);
+  const cup = cupRaw && /^[A-Z]+$/.test(cupRaw) ? cupRaw : null;
 
   const dataSize = pick(/<p\s+class="data-size">([\s\S]*?)<\/p>/, html) ?? '';
   const age = pick(/(\d+)\s*歳/, dataSize);
