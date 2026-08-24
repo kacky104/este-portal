@@ -10,6 +10,11 @@ import { createServiceClient } from '@/app/lib/supabase/service';
 //   2) 各 shopUrl を取得 → 正規表現 /\/{externalId}\/(\d+)\// で個人ページIDを抽出
 //   3) 各個人ページ（shopUrl + castId + '/'）を取得
 //   4) POST /api/import/ingest { sourceId, todayISO, casts:[{castId, html}] }
+//
+// ★ 非表示店（salons.is_hidden=true）は必ず除外する（第31便）。
+//   フクエスに店舗削除機能は無く、掲載終了した店は is_hidden で伏せて残す設計。
+//   ここで絞らないと、掲載終了後も毎時05分に駅ちかを取りに行き、
+//   「再掲載時にすぐ復活できるように」残してあるデータを裏で書き換え続けてしまう。
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
@@ -22,8 +27,9 @@ export async function GET(req: Request) {
   const supabase = createServiceClient();
   const { data, error } = await supabase
     .from('salon_import_sources')
-    .select('id, salon_id, provider, external_id, shop_url, import_schedule, import_profile, create_missing')
+    .select('id, salon_id, provider, external_id, shop_url, import_schedule, import_profile, create_missing, salons!inner(is_hidden)')
     .eq('is_enabled', true)
+    .eq('salons.is_hidden', false)
     .order('id');
 
   if (error) return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
@@ -39,5 +45,7 @@ export async function GET(req: Request) {
     createMissing: s.create_missing,
   }));
 
-  return NextResponse.json({ ok: true, count: targets.length, targets });
+  return NextResponse.json({ ok: true, count: targets.length, targets }, {
+    headers: { 'content-type': 'application/json; charset=utf-8' },
+  });
 }

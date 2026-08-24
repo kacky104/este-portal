@@ -56,11 +56,18 @@ export async function POST(req: Request) {
   // 1. 取り込み設定を読む
   const { data: source, error: srcErr } = await supabase
     .from('salon_import_sources')
-    .select('id, salon_id, is_enabled, import_schedule, import_profile, create_missing')
+    .select('id, salon_id, is_enabled, import_schedule, import_profile, create_missing, salons!inner(is_hidden)')
     .eq('id', sourceId)
     .single();
   if (srcErr || !source) return NextResponse.json({ ok: false, error: 'source not found' }, { status: 404 });
   if (!source.is_enabled) return NextResponse.json({ ok: true, skipped: 'disabled' });
+
+  // ★ 非表示店（salons.is_hidden=true）は取り込まない（第31便）。
+  //   targets 側でも除外しているが、VPSが古いリストを持っていた場合や
+  //   手動実行に備えて受け口側でも止める（禁則207と同じ安全弁の考え方）。
+  const salonRel = (source as unknown as { salons?: { is_hidden?: boolean } | { is_hidden?: boolean }[] | null }).salons;
+  const isHidden = Array.isArray(salonRel) ? salonRel[0]?.is_hidden === true : salonRel?.is_hidden === true;
+  if (isHidden) return NextResponse.json({ ok: true, skipped: 'hidden' });
 
   // 2. 実行ログ開始
   const { data: run } = await supabase
@@ -174,5 +181,7 @@ export async function POST(req: Request) {
     unmatched,
     schedulesUpserted,
     profilesUpdated,
+  }, {
+    headers: { 'content-type': 'application/json; charset=utf-8' },
   });
 }
