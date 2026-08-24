@@ -256,6 +256,17 @@ export default function TherapistEditPage() {
   // 写真あり・なしで枠は分かれない（第30便でオーナーが合算に確定）。運営アカウントは無制限。
   const aiOutOfQuota = aiQuota ? !aiQuota.unlimited && aiQuota.used >= aiQuota.limit : false;
 
+  // ★ 素材がゼロのときだけ生成を止める（第30便）。
+  //   画面の並びが「AIボタン → 特徴バッジ」なので、上から埋めるとバッジ前にボタンへ着く。
+  //   ただしバッジ6個を必須にはしない（6は上限であって適正値ではなく、
+  //   ボタンを押したいがために当てはまらないバッジを選ばせると、
+  //   嘘のバッジからAIが嘘の紹介文を書き、検索用データも汚れるため）。
+  //   写真かバッジのどちらか一方でもあれば、その人らしい文章は書ける（実測: バッジ1個でも可）。
+  const aiNoMaterial = images.length === 0 && badges.length === 0;
+  // 写真を使わない設定にしていて、バッジも無い＝文字素材が年齢・サイズだけになる場合も止める。
+  const aiNoMaterialForText = !aiUseImage && badges.length === 0;
+  const aiBlocked = aiNoMaterial || aiNoMaterialForText;
+
   const handleAiUndo = () => {
     if (!aiUndo) return;
     setForm((p) => ({ ...p, catchphrase: aiUndo.catchphrase, profile_text: aiUndo.profile_text }));
@@ -511,18 +522,37 @@ export default function TherapistEditPage() {
             プロフィール写真も見て書く（外すと文字情報だけで作成します）
           </label>
 
+          {/* 素材ゼロ＝止める。無駄に1回消費させないため、押す前に理由を出す。 */}
+          {aiBlocked ? (
+            <p className="text-[11px] font-bold text-amber-800 bg-amber-50 border border-amber-200 rounded-xl px-3 py-2 leading-relaxed">
+              {aiNoMaterial
+                ? 'まだ材料がありません。プロフィール写真を登録するか、下の「特徴バッジ」を選んでから作成してください。'
+                : '写真を使わない設定のときは、下の「特徴バッジ」を選んでから作成してください。'}
+            </p>
+          ) : (
+            /* 材料はあるが少ない＝案内だけ出して、押すこと自体は止めない。 */
+            badges.length < 3 && (
+              <p className="text-[11px] text-violet-900/70 bg-white/60 border border-violet-100 rounded-xl px-3 py-2 leading-relaxed">
+                下の「特徴バッジ」を設定してから作ると、その人らしい文章になります
+                （現在 {badges.length}つ）。このまま作ることもできます。
+              </p>
+            )
+          )}
+
           <div className="flex flex-wrap items-center gap-2">
             <button
               type="button"
               onClick={handleAiDraft}
-              disabled={aiLoading || aiOutOfQuota}
+              disabled={aiLoading || aiOutOfQuota || aiBlocked}
               className="rounded-full bg-violet-600 hover:bg-violet-700 disabled:bg-violet-300 text-white text-xs font-black px-5 py-2.5 transition-colors"
             >
               {aiLoading
                 ? '作成中…（20秒ほどかかります）'
                 : aiOutOfQuota
                   ? '今月の回数を使い切りました'
-                  : 'AIで下書きを作る'}
+                  : aiBlocked
+                    ? '写真かバッジを設定してください'
+                    : 'AIで下書きを作る'}
             </button>
             {aiUndo && !aiLoading && (
               <button

@@ -267,6 +267,17 @@ export async function generateTherapistCopy(
   }
   const hasImage = image !== null;
 
+  // ★ 素材ゼロなら叩かない（第30便）。画面側でもボタンを止めているが、
+  //   直接呼ばれた場合や「写真を使う設定なのに画像が読めなかった」場合をここで受ける。
+  //   年齢・サイズだけでは誰にでも当てはまる文章にしかならず、枠の無駄遣いになる。
+  if (!hasImage && badges.length === 0) {
+    return {
+      ok: false,
+      error: 'プロフィール写真を登録するか、特徴バッジを選んでから作成してください',
+      quota,
+    };
+  }
+
   // 生成 →（短ければ）作り直し。最大 1 + MAX_RETRY 回。
   let last: CopyOutput | null = null;
   let tries = 0;
