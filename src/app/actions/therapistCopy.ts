@@ -3,41 +3,24 @@
 import { createClient } from '@/app/lib/supabase/server';
 import { createServiceClient } from '@/app/lib/supabase/service';
 import { ADMIN_UUID } from '@/app/lib/admin';
-import {
-  SYSTEM_PROMPT,
-  buildUserPrompt,
-  parseCopyResponse,
-  isLongEnough,
-  MAX_RETRY,
-  MIN_PROFILE_LEN,
-  type CopyInput,
-  type CopyOutput,
-} from '@/lib/therapistCopyPrompt';
+import { generateCopyForTherapist } from '@/app/lib/therapistCopyCore';
 
 // ── AI紹介文生成（第30便・2026-08-24）────────────────────────────
 // /mypage/therapist/[id] の「AIで下書き」ボタンから呼ぶ server action。
-// セラピストの素材（名前・年齢・サイズ・特徴バッジ・プロフィール写真）を Claude に渡し、
-// キャッチフレーズと詳細プロフィールの下書きを作る。保存はしない（フォームに入れるだけ）。
+// 生成そのものは app/lib/therapistCopyCore.ts に置き、ここは
+// 「認可」「月間枠の管理」「利用ログ」だけを担う。
+// （運営用の一括生成 /api/admin/therapist-copy-batch も同じ core を使う）
 //
 // ⚠ セキュリティ（therapistAdmin.ts と同方針・厳守）:
-//  - ANTHROPIC_API_KEY はこのサーバー専用モジュール内でのみ使用。クライアントへ出さない。
+//  - ANTHROPIC_API_KEY はサーバー専用モジュール内でのみ使用。クライアントへ出さない。
 //  - 先頭で assertOwner（salons.owner_id === auth.uid() または ADMIN_UUID）を再検証。
-//  - 対象セラピストが本当にその salon のものかも確認する（他店のIDを渡されても拾わない）。
-//
-// ★ 品質ルール（第29便オーナー確定）:
-//  - 字数の上限は指定しない。下限（150字）だけここで担保し、足りなければ作り直す（最大2回）。
-//  - 2回作り直しても短ければ、そのまま下書きとして返して人の目に委ねる（無限ループ防止）。
+//  - 対象セラピストが本当にその salon のものかは core 側でも確認する。
 //
 // ★ 月間枠（第30便オーナー確定）:
 //  - 写真あり・なしを合算した1つの枠。既定20回 / フクエスワーク契約店は40回。
 //  - 1回のボタン押下＝1消費（作り直しで複数回APIを叩いても消費は1）。
 //  - 失敗した回は消費しない。毎月1日（JST）にリセット。
 //  - 運営（ADMIN_UUID）の代行生成は枠を消費しない（新店舗の初期設定を代行するため）。
-
-const MODEL = 'claude-sonnet-4-5';
-const MAX_TOKENS = 1500;
-/** Anthropic API が受ける画像の上限に対する安全側の自主制限（バイト）。 */
-const MAX_IMAGE_BYTES = 4 * 1024 * 1024;
 
 /** 今月の利用状況。unlimited=true は運営アカウント（枠を見ない）。 */
 export type QuotaState = {
@@ -132,76 +115,6 @@ export async function getTherapistCopyQuota(
   }
 }
 
-/** 画像URLを取得して base64 に変換する。失敗しても null を返すだけ（写真なしで生成を続ける）。 */
-async function fetchImageAsBase64(
-  url: string,
-): Promise<{ mediaType: string; data: string } | null> {
-  try {
-    const res = await fetch(url, { cache: 'no-store' });
-    if (!res.ok) return null;
-    const type = (res.headers.get('content-type') ?? '').split(';')[0].trim().toLowerCase();
-    // Anthropic が受けるのは jpeg / png / gif / webp のみ。
-    if (!['image/jpeg', 'image/png', 'image/gif', 'image/webp'].includes(type)) return null;
-    const buf = Buffer.from(await res.arrayBuffer());
-    if (buf.byteLength === 0 || buf.byteLength > MAX_IMAGE_BYTES) return null;
-    return { mediaType: type, data: buf.toString('base64') };
-  } catch {
-    return null;
-  }
-}
-
-type AnthropicBlock =
-  | { type: 'text'; text: string }
-  | { type: 'image'; source: { type: 'base64'; media_type: string; data: string } };
-
-/** Anthropic Messages API を1回叩いて、本文テキストを返す。 */
-async function callClaude(
-  apiKey: string,
-  userBlocks: AnthropicBlock[],
-): Promise<{ text: string } | { error: string }> {
-  let res: Response;
-  try {
-    res = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: {
-        'content-type': 'application/json',
-        'x-api-key': apiKey,
-        'anthropic-version': '2023-06-01',
-      },
-      body: JSON.stringify({
-        model: MODEL,
-        max_tokens: MAX_TOKENS,
-        system: SYSTEM_PROMPT,
-        messages: [{ role: 'user', content: userBlocks }],
-      }),
-    });
-  } catch {
-    return { error: 'AIサービスに接続できませんでした。時間をおいて試してください' };
-  }
-
-  if (!res.ok) {
-    // レスポンス本文にキーが混ざることは無いが、念のため生のまま画面に出さない。
-    const status = res.status;
-    if (status === 401) return { error: 'AIの認証に失敗しました（管理者にお問い合わせください）' };
-    if (status === 429) return { error: 'AIが混み合っています。少し待ってから試してください' };
-    if (status >= 500) return { error: 'AI側で一時的な障害が起きています。時間をおいて試してください' };
-    return { error: `AIの呼び出しに失敗しました（${status}）` };
-  }
-
-  try {
-    const json = (await res.json()) as { content?: Array<{ type: string; text?: string }> };
-    const text = (json.content ?? [])
-      .filter((b) => b.type === 'text' && typeof b.text === 'string')
-      .map((b) => b.text as string)
-      .join('\n')
-      .trim();
-    if (!text) return { error: 'AIの応答が空でした。もう一度試してください' };
-    return { text };
-  } catch {
-    return { error: 'AIの応答を読み取れませんでした' };
-  }
-}
-
 /**
  * セラピストのキャッチ・紹介文の下書きを生成する。DBには保存しない。
  * @param salonId  対象店舗
@@ -216,20 +129,7 @@ export async function generateTherapistCopy(
   const auth = await assertOwner(salonId);
   if ('error' in auth) return { ok: false, error: auth.error };
 
-  const apiKey = process.env.ANTHROPIC_API_KEY;
-  if (!apiKey) return { ok: false, error: 'AI機能が未設定です（管理者にお問い合わせください）' };
-
-  // 素材はサーバー側で引き直す（クライアントから渡された値を信用しない）。
   const svc = createServiceClient();
-  const { data: t, error: tErr } = await svc
-    .from('therapists')
-    .select('id, salon_id, name, age, body_type, catchphrase, profile_text, feature_badges, profile_image_url, profile_images')
-    .eq('id', therapistId)
-    .maybeSingle();
-  if (tErr || !t) return { ok: false, error: 'セラピストが見つかりません' };
-  if (Number(t.salon_id) !== Number(salonId)) return { ok: false, error: '対象セラピストが不正です' };
-
-  const { data: salon } = await svc.from('salons').select('name').eq('id', salonId).maybeSingle();
 
   // ── 月間枠のチェック ──────────────────────────────────────
   // 運営（ADMIN_UUID）は代行のため枠を見ない。新店舗の初期設定を運営が引き受ける前提。
@@ -242,88 +142,17 @@ export async function generateTherapistCopy(
     };
   }
 
-  const badges = Array.isArray(t.feature_badges)
-    ? (t.feature_badges as unknown[]).filter((b): b is string => typeof b === 'string')
-    : [];
-
-  const input: CopyInput = {
-    name: String(t.name ?? ''),
-    age: (t.age as string | null) ?? null,
-    bodyType: (t.body_type as string | null) ?? null,
-    badges,
-    salonName: (salon?.name as string | undefined) ?? null,
-    currentCatch: (t.catchphrase as string | null) ?? null,
-    currentText: (t.profile_text as string | null) ?? null,
-  };
-
-  // 写真は1枚目だけ使う（複数枚渡してもコストが増えるわりに描写は良くならない）。
-  let image: { mediaType: string; data: string } | null = null;
-  if (useImage) {
-    const imgs = Array.isArray(t.profile_images)
-      ? (t.profile_images as unknown[]).filter((u): u is string => typeof u === 'string' && !!u)
-      : [];
-    const first = imgs[0] ?? ((t.profile_image_url as string | null) ?? null);
-    if (first) image = await fetchImageAsBase64(first);
-  }
-  const hasImage = image !== null;
-
-  // ★ 素材ゼロなら叩かない（第30便）。画面側でもボタンを止めているが、
-  //   直接呼ばれた場合や「写真を使う設定なのに画像が読めなかった」場合をここで受ける。
-  //   年齢・サイズだけでは誰にでも当てはまる文章にしかならず、枠の無駄遣いになる。
-  if (!hasImage && badges.length === 0) {
-    return {
-      ok: false,
-      error: 'プロフィール写真を登録するか、特徴バッジを選んでから作成してください',
-      quota,
-    };
-  }
-
-  // 生成 →（短ければ）作り直し。最大 1 + MAX_RETRY 回。
-  let last: CopyOutput | null = null;
-  let tries = 0;
-  let retryReason: string | undefined;
-
-  for (let i = 0; i <= MAX_RETRY; i++) {
-    tries++;
-    const blocks: AnthropicBlock[] = [];
-    if (image) {
-      blocks.push({
-        type: 'image',
-        source: { type: 'base64', media_type: image.mediaType, data: image.data },
-      });
-    }
-    blocks.push({ type: 'text', text: buildUserPrompt(input, { hasImage, retryReason }) });
-
-    const r = await callClaude(apiKey, blocks);
-    // 1回目で通信・認証エラーなら諦める。2回目以降なら手前の結果を活かす。
-    if ('error' in r) {
-      if (last) break;
-      return { ok: false, error: r.error, quota };
-    }
-
-    const parsed = parseCopyResponse(r.text);
-    if (!parsed) {
-      retryReason = '前回の出力がJSON形式ではありませんでした。指定のJSONだけを返してください。';
-      continue;
-    }
-    last = parsed;
-    if (isLongEnough(parsed.profileText)) break;
-
-    // 短い → 理由を添えて作り直す。
-    retryReason =
-      `前回の紹介文は${parsed.profileText.replace(/\s/g, '').length}文字で短すぎました。` +
-      `${MIN_PROFILE_LEN}文字以上になるよう、容姿・雰囲気・人柄の描写を厚くして書き直してください。`;
-  }
+  const gen = await generateCopyForTherapist(svc, salonId, therapistId, useImage);
 
   // 失敗した回は記録しない＝枠を消費しない（オーナー確定のルール）。
-  if (!last) return { ok: false, error: 'AIが下書きを作れませんでした。もう一度試してください', quota };
+  if (!gen.ok) return { ok: false, error: gen.error, quota };
 
   // 記録する。kind は「実際に写真を渡せたか」＝原価の把握用で、枠の計算には使わない。
   const { error: logErr } = await svc.from('ai_copy_usage').insert({
     salon_id: salonId,
     therapist_id: Number(therapistId),
-    kind: hasImage ? 'image' : 'text',
-    api_calls: tries,
+    kind: gen.usedImage ? 'image' : 'text',
+    api_calls: gen.tries,
     by_admin: auth.isAdmin,
   });
   // 記録に失敗しても下書きは返す（店舗の作業を止めない）。枠の取りこぼしは許容する。
@@ -336,11 +165,11 @@ export async function generateTherapistCopy(
 
   return {
     ok: true,
-    catchphrase: last.catchphrase,
-    profileText: last.profileText,
-    tries,
-    short: !isLongEnough(last.profileText),
-    usedImage: hasImage,
+    catchphrase: gen.catchphrase,
+    profileText: gen.profileText,
+    tries: gen.tries,
+    short: gen.short,
+    usedImage: gen.usedImage,
     quota: after,
   };
 }
