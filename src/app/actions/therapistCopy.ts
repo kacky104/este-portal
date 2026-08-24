@@ -27,11 +27,24 @@ import {
 // ★ 品質ルール（第29便オーナー確定）:
 //  - 字数の上限は指定しない。下限（150字）だけここで担保し、足りなければ作り直す（最大2回）。
 //  - 2回作り直しても短ければ、そのまま下書きとして返して人の目に委ねる（無限ループ防止）。
+//
+// ★ 月間枠（第30便オーナー確定）:
+//  - 写真あり・なしを合算した1つの枠。既定20回 / フクエスワーク契約店は40回。
+//  - 1回のボタン押下＝1消費（作り直しで複数回APIを叩いても消費は1）。
+//  - 失敗した回は消費しない。毎月1日（JST）にリセット。
+//  - 運営（ADMIN_UUID）の代行生成は枠を消費しない（新店舗の初期設定を代行するため）。
 
 const MODEL = 'claude-sonnet-4-5';
 const MAX_TOKENS = 1500;
 /** Anthropic API が受ける画像の上限に対する安全側の自主制限（バイト）。 */
 const MAX_IMAGE_BYTES = 4 * 1024 * 1024;
+
+/** 今月の利用状況。unlimited=true は運営アカウント（枠を見ない）。 */
+export type QuotaState = {
+  used: number;
+  limit: number;
+  unlimited: boolean;
+};
 
 export type GenerateResult =
   | {
@@ -46,13 +59,29 @@ export type GenerateResult =
     }
   | { ok: false; error: string; quota?: QuotaState };
 
-/** 今月の利用状況。text=写真なし / image=写真あり。 */
-export type QuotaState = {
-  textUsed: number;
-  textLimit: number;
-  imageUsed: number;
-  imageLimit: number;
-};
+// ログインユーザーがその salon の owner（または管理者UID）かをサーバー側で検証。
+async function assertOwner(
+  salonId: number,
+): Promise<{ userId: string; isAdmin: boolean } | { error: string }> {
+  if (!Number.isFinite(salonId)) return { error: '対象店舗が不正です' };
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { error: 'ログインが必要です' };
+
+  const { data: salon, error } = await supabase
+    .from('salons')
+    .select('owner_id')
+    .eq('id', salonId)
+    .maybeSingle();
+  if (error || !salon) return { error: '店舗が見つかりません' };
+
+  const ownerId = (salon.owner_id as string | null) ?? null;
+  const isAdmin = user.id === ADMIN_UUID;
+  if (ownerId !== user.id && !isAdmin) {
+    return { error: 'この店舗の操作権限がありません' };
+  }
+  return { userId: user.id, isAdmin };
+}
 
 /**
  * カレンダー月の初日（JST）を UTC の ISO 文字列で返す。
@@ -65,24 +94,28 @@ function monthStartIsoJst(now = new Date()): string {
   return new Date(Date.UTC(jst.getUTCFullYear(), jst.getUTCMonth(), 1, -9, 0, 0)).toISOString();
 }
 
-/** 今月の利用件数と店舗の枠を引く。 */
+/** 今月の利用件数と店舗の枠を引く。運営の代行分（by_admin）は数えない。 */
 async function loadQuota(
   svc: ReturnType<typeof createServiceClient>,
   salonId: number,
+  isAdmin: boolean,
 ): Promise<QuotaState> {
   const since = monthStartIsoJst();
   const [salonRes, usageRes] = await Promise.all([
-    svc.from('salons').select('ai_copy_quota_text, ai_copy_quota_image').eq('id', salonId).maybeSingle(),
-    svc.from('ai_copy_usage').select('kind').eq('salon_id', salonId).gte('created_at', since),
+    svc.from('salons').select('ai_copy_quota_text').eq('id', salonId).maybeSingle(),
+    svc
+      .from('ai_copy_usage')
+      .select('id', { count: 'exact', head: true })
+      .eq('salon_id', salonId)
+      .eq('by_admin', false)
+      .gte('created_at', since),
   ]);
 
-  const rows = (usageRes.data ?? []) as Array<{ kind: string }>;
   return {
-    textUsed:   rows.filter((r) => r.kind === 'text').length,
-    imageUsed:  rows.filter((r) => r.kind === 'image').length,
-    // 列が無い/引けない場合でも機能を止めないよう既定値に倒す（マイグレーション前でも動く）。
-    textLimit:  Number(salonRes.data?.ai_copy_quota_text  ?? 20),
-    imageLimit: Number(salonRes.data?.ai_copy_quota_image ?? 5),
+    used: usageRes.count ?? 0,
+    // 列が引けない場合でも機能を止めないよう既定値に倒す（マイグレーション前でも動く）。
+    limit: Number(salonRes.data?.ai_copy_quota_text ?? 20),
+    unlimited: isAdmin,
   };
 }
 
@@ -93,31 +126,10 @@ export async function getTherapistCopyQuota(
   const auth = await assertOwner(salonId);
   if ('error' in auth) return { ok: false, error: auth.error };
   try {
-    return { ok: true, quota: await loadQuota(createServiceClient(), salonId) };
+    return { ok: true, quota: await loadQuota(createServiceClient(), salonId, auth.isAdmin) };
   } catch {
     return { ok: false, error: '利用状況を取得できませんでした' };
   }
-}
-
-// ログインユーザーがその salon の owner（または管理者UID）かをサーバー側で検証。
-async function assertOwner(salonId: number): Promise<{ userId: string } | { error: string }> {
-  if (!Number.isFinite(salonId)) return { error: '対象店舗が不正です' };
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return { error: 'ログインが必要です' };
-
-  const { data: salon, error } = await supabase
-    .from('salons')
-    .select('owner_id, name')
-    .eq('id', salonId)
-    .maybeSingle();
-  if (error || !salon) return { error: '店舗が見つかりません' };
-
-  const ownerId = (salon.owner_id as string | null) ?? null;
-  if (ownerId !== user.id && user.id !== ADMIN_UUID) {
-    return { error: 'この店舗の操作権限がありません' };
-  }
-  return { userId: user.id };
 }
 
 /** 画像URLを取得して base64 に変換する。失敗しても null を返すだけ（写真なしで生成を続ける）。 */
@@ -194,7 +206,7 @@ async function callClaude(
  * セラピストのキャッチ・紹介文の下書きを生成する。DBには保存しない。
  * @param salonId  対象店舗
  * @param therapistId  対象セラピスト（salonId 配下であることを検証する）
- * @param useImage  プロフィール写真をAIに渡すか（店舗が都度選べる）
+ * @param useImage  プロフィール写真をAIに渡すか（店舗が都度選べる。枠の消費量は変わらない）
  */
 export async function generateTherapistCopy(
   salonId: number,
@@ -219,26 +231,13 @@ export async function generateTherapistCopy(
 
   const { data: salon } = await svc.from('salons').select('name').eq('id', salonId).maybeSingle();
 
-  // ── 月間枠のチェック（第30便）───────────────────────────────
-  // ★ 写真の取得に成功したかどうかで消費する枠が変わるので、
-  //   「写真ありのつもりが読み込めなかった」場合は text 枠を使う（下で kind を確定させる）。
-  //   ここでは希望どおりに枠が残っているかだけを先に見る。
-  const quota = await loadQuota(svc, salonId);
-  if (useImage && quota.imageUsed >= quota.imageLimit) {
-    // 画像枠が尽きていても文章枠が残っていれば、写真なしで作れることを案内する。
-    const hint = quota.textUsed < quota.textLimit
-      ? '「プロフィール写真も見て書く」のチェックを外せば、文章のみの枠で作成できます。'
-      : '来月1日に回数がリセットされます。';
+  // ── 月間枠のチェック ──────────────────────────────────────
+  // 運営（ADMIN_UUID）は代行のため枠を見ない。新店舗の初期設定を運営が引き受ける前提。
+  const quota = await loadQuota(svc, salonId, auth.isAdmin);
+  if (!quota.unlimited && quota.used >= quota.limit) {
     return {
       ok: false,
-      error: `今月の写真ありの作成回数（${quota.imageLimit}回）を使い切りました。${hint}`,
-      quota,
-    };
-  }
-  if (!useImage && quota.textUsed >= quota.textLimit) {
-    return {
-      ok: false,
-      error: `今月の作成回数（${quota.textLimit}回）を使い切りました。来月1日にリセットされます。`,
+      error: `今月の作成回数（${quota.limit}回）を使い切りました。来月1日にリセットされます。`,
       quota,
     };
   }
@@ -288,7 +287,7 @@ export async function generateTherapistCopy(
     // 1回目で通信・認証エラーなら諦める。2回目以降なら手前の結果を活かす。
     if ('error' in r) {
       if (last) break;
-      return { ok: false, error: r.error };
+      return { ok: false, error: r.error, quota };
     }
 
     const parsed = parseCopyResponse(r.text);
@@ -308,22 +307,20 @@ export async function generateTherapistCopy(
   // 失敗した回は記録しない＝枠を消費しない（オーナー確定のルール）。
   if (!last) return { ok: false, error: 'AIが下書きを作れませんでした。もう一度試してください', quota };
 
-  // ★ 消費する枠は「実際に写真を渡せたか」で決める。写真ありのつもりでも
-  //   画像が読めなかったときは文章のみの生成なので text 枠を使う。
-  const kind: 'text' | 'image' = hasImage ? 'image' : 'text';
+  // 記録する。kind は「実際に写真を渡せたか」＝原価の把握用で、枠の計算には使わない。
   const { error: logErr } = await svc.from('ai_copy_usage').insert({
     salon_id: salonId,
     therapist_id: Number(therapistId),
-    kind,
+    kind: hasImage ? 'image' : 'text',
     api_calls: tries,
+    by_admin: auth.isAdmin,
   });
   // 記録に失敗しても下書きは返す（店舗の作業を止めない）。枠の取りこぼしは許容する。
   if (logErr) console.error('[therapistCopy] usage log failed:', logErr.message);
 
   const after: QuotaState = {
     ...quota,
-    textUsed:  quota.textUsed  + (kind === 'text'  && !logErr ? 1 : 0),
-    imageUsed: quota.imageUsed + (kind === 'image' && !logErr ? 1 : 0),
+    used: quota.used + (quota.unlimited || logErr ? 0 : 1),
   };
 
   return {

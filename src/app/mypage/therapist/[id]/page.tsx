@@ -252,12 +252,9 @@ export default function TherapistEditPage() {
     );
   };
 
-  // いま選んでいるモード（写真あり/なし）の枠が尽きているか。枠が読めないときは押させる（サーバー側でも弾く）。
-  const aiOutOfQuota = aiQuota
-    ? aiUseImage
-      ? aiQuota.imageUsed >= aiQuota.imageLimit
-      : aiQuota.textUsed >= aiQuota.textLimit
-    : false;
+  // 今月の枠が尽きているか。枠が読めないときは押させる（サーバー側でも弾く）。
+  // 写真あり・なしで枠は分かれない（第30便でオーナーが合算に確定）。運営アカウントは無制限。
+  const aiOutOfQuota = aiQuota ? !aiQuota.unlimited && aiQuota.used >= aiQuota.limit : false;
 
   const handleAiUndo = () => {
     if (!aiUndo) return;
@@ -491,7 +488,9 @@ export default function TherapistEditPage() {
             <h2 className="text-sm font-black text-violet-800">AIで下書きを作る</h2>
             {aiQuota && (
               <span className="text-[10px] font-bold text-violet-600 bg-white/70 rounded-full px-2 py-0.5 whitespace-nowrap">
-                今月の残り　文章 {Math.max(0, aiQuota.textLimit - aiQuota.textUsed)}回 ／ 写真あり {Math.max(0, aiQuota.imageLimit - aiQuota.imageUsed)}回
+                {aiQuota.unlimited
+                  ? '運営アカウント（回数制限なし）'
+                  : `今月の残り ${Math.max(0, aiQuota.limit - aiQuota.used)}回 / ${aiQuota.limit}回`}
               </span>
             )}
           </div>
@@ -511,15 +510,6 @@ export default function TherapistEditPage() {
             />
             プロフィール写真も見て書く（外すと文字情報だけで作成します）
           </label>
-
-          {/* 写真ありの枠だけ尽きている場合の逃げ道を明示する。 */}
-          {aiQuota && aiUseImage && aiQuota.imageUsed >= aiQuota.imageLimit
-            && aiQuota.textUsed < aiQuota.textLimit && (
-            <p className="text-[11px] font-bold text-amber-800 bg-amber-50 border border-amber-200 rounded-xl px-3 py-2">
-              写真ありの回数を使い切りました。上のチェックを外すと、文章のみの枠（残り
-              {Math.max(0, aiQuota.textLimit - aiQuota.textUsed)}回）で作成できます。
-            </p>
-          )}
 
           <div className="flex flex-wrap items-center gap-2">
             <button
