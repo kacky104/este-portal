@@ -152,17 +152,23 @@ export async function POST(req: Request) {
   }
 
   const done = apply ? results.filter((r) => r.ok).length : 0;
-  return NextResponse.json({
-    ok: true,
-    salon: salon.name,
-    apply,
-    在籍: all.length,
-    今回処理: batch.length,
-    成功: results.filter((r) => r.ok).length,
-    失敗: results.filter((r) => !r.ok).length,
-    // apply=false のときは保存していないので remaining は減らない（試し打ちの目安として返す）。
-    remaining: Math.max(0, targets.length - done),
-    素材なしで対象外: skippedNoMaterial,
-    results,
-  });
+  return NextResponse.json(
+    {
+      ok: true,
+      salon: salon.name,
+      apply,
+      在籍: all.length,
+      今回処理: batch.length,
+      成功: results.filter((r) => r.ok).length,
+      失敗: results.filter((r) => !r.ok).length,
+      // apply=false のときは保存していないので remaining は減らない（試し打ちの目安として返す）。
+      remaining: Math.max(0, targets.length - done),
+      素材なしで対象外: skippedNoMaterial,
+      results,
+    },
+    // ★ charset を明示する（第30便・禁則209）。
+    //   これが無いと Windows PowerShell 5.1 の Invoke-RestMethod が
+    //   UTF-8 を ISO-8859-1 として読み、日本語が全部文字化けする。
+    { headers: { 'content-type': 'application/json; charset=utf-8' } },
+  );
 }
