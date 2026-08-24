@@ -16,7 +16,10 @@
 //   ※ td 内の状態は3種:
 //       start/end   … 出勤（時刻あり）
 //       none (ー)    … 休み（is_active=false で確定）
-//       commuting_no_data … 未入力（触らない＝スキップ。fukues の既存値を壊さない）
+//       commuting_no_data … 未入力。★第30便から「休み」と同じ扱い（is_active=false）。
+//         旧仕様は「触らない＝スキップ」だったが、駅ちかで出勤を取り消して未入力に戻した日の
+//         古い出勤がフクエスに残り続ける不具合を生んだ（禁則206）。取り込み対象店は駅ちかが
+//         正本なので「駅ちかに出ていない＝出勤なし」で揃える。
 
 export type EkichikaDay = {
   date: string;          // 'YYYY-MM-DD'
@@ -34,7 +37,7 @@ export type EkichikaCast = {
   waist: string | null;      // '54'
   hip: string | null;        // '85'
   bodyType: string | null;   // 'T164 B87(D) W54 H85'（fukues の body_type 表記）
-  schedule: EkichikaDay[];   // 出勤（最大7日・未入力日は含めない）
+  schedule: EkichikaDay[];   // 出勤（最大7日。未入力日も 'off' として含める＝第30便）
 };
 
 function pick(re: RegExp, html: string): string | null {
@@ -115,14 +118,22 @@ export function parseEkichikaCast(html: string, todayISO: string): EkichikaCast 
       rows.forEach((row, i) => {
         const td = row[1];
         const date = addDays(todayISO, i);
-        if (/class="none"/.test(td)) {
-          schedule.push({ date, status: 'off', start: null, end: null });
-        } else if (/class="start"/.test(td)) {
+        if (/class="start"/.test(td)) {
           const start = normTime(pick(/<li\s+class="start">([^<]+)<\/li>/, td));
           const end = normTime(pick(/<li\s+class="end">([^<]+)<\/li>/, td));
           schedule.push({ date, status: 'work', start, end });
+        } else if (/class="none"/.test(td) || /class="commuting_no_data"/.test(td)) {
+          // none（ー＝休み）も commuting_no_data（未入力）も「出勤なし」に倒す。
+          // ★ 第30便（2026-08-24）で「未入力＝触らない」から変更。
+          //   旧仕様だと、店が駅ちかで一度入れた出勤を後から取り消して未入力に戻したとき、
+          //   フクエス側に取り消し前の古い出勤が残り続けた（実測4件・禁則206）。
+          //   取り込み対象店は駅ちかが正本なので「駅ちかに出ていない＝出勤なし」で揃える。
+          schedule.push({ date, status: 'off', start: null, end: null });
         }
-        // commuting_no_data（未入力）はスキップ＝配列に含めない（既存値を壊さない）
+        // ★ 上記3クラスのどれでもない＝想定外のマークアップ。触らずスキップする。
+        //   駅ちかのレイアウト変更で class 名が変わったとき、全員の出勤を一斉に
+        //   消してしまわないための安全弁（禁則207）。この場合は unmatched ではなく
+        //   「出勤が更新されない」形で現れるので、runs の schedules 数の急減で気づく。
       });
     }
   }

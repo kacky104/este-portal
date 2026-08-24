@@ -7,7 +7,8 @@ import { parseEkichikaCast, normalizeName } from '@/lib/ekichikaParse';
 // 中継役VPSが集めた個人ページの生HTMLを受け取り、
 //   1) パーサーで {名前・年齢・サイズ・出勤} に変換
 //   2) 名前でフクエスのセラピストと照合（正規化して完全一致）
-//   3) 出勤を therapist_schedules に upsert（出勤=時刻あり / 休み=is_active false / 未入力=触らない）
+//   3) 出勤を therapist_schedules に upsert
+//      （出勤=時刻あり / 休み・未入力=is_active false。未入力の扱いは第30便で「触らない」から変更）
 //   4) 年齢・サイズを therapists に update（設定でON時のみ）
 //   5) 公開ページ（/salon・/hp・/therapist・トップ）を即時無効化
 //   6) 実行結果を salon_import_runs に記録
