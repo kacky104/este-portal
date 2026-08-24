@@ -15,6 +15,7 @@ import {
 } from '@/lib/therapistBadges';
 import { STORAGE_CACHE_CONTROL } from '@/app/lib/storage';
 import { cleanupTherapistPhotos } from '@/app/actions/therapistAdmin';
+import { generateTherapistCopy, getTherapistCopyQuota, type QuotaState } from '@/app/actions/therapistCopy';
 import { getOrCreateDiaryMailAddress } from '@/app/actions/diaryMail';
 import { useToast } from '@/app/components/useToast';
 import { SiteNoticeBanner } from '@/app/components/SiteNoticeBanner';
@@ -83,6 +84,13 @@ export default function TherapistEditPage() {
   const [diaryMailAddress, setDiaryMailAddress] = useState<string | null>(null);
   const [diaryMailError, setDiaryMailError] = useState('');
   const [saving, setSaving] = useState(false);
+  // AI下書き（第30便）。生成中フラグと「写真をAIに渡すか」の選択。保存はせずフォームに入れるだけ。
+  const [aiLoading, setAiLoading] = useState(false);
+  const [aiUseImage, setAiUseImage] = useState(true);
+  // 直前の内容（AI下書きを1回だけ元に戻せるようにする）。null なら戻せる状態にない。
+  const [aiUndo, setAiUndo] = useState<{ catchphrase: string | null; profile_text: string | null } | null>(null);
+  // 今月の残り回数（第30便）。読めなければ null のまま＝表示を出さない。
+  const [aiQuota, setAiQuota] = useState<QuotaState | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -144,6 +152,10 @@ export default function TherapistEditPage() {
       setBodyParts(parseBodyType(tData.body_type));
       // 現在の特徴バッジをプリフィル（不正値除去・最大3つに正規化）
       setBadges(sanitizeBadges(tData.feature_badges));
+
+      // AI下書きの今月の残り回数（第30便）。失敗しても画面は出す（表示を省くだけ）。
+      const q = await getTherapistCopyQuota(Number(tData.salon_id));
+      if (q.ok) setAiQuota(q.quota);
     })();
   }, [therapistId, router]);
 
@@ -203,6 +215,55 @@ export default function TherapistEditPage() {
       if (prev.length >= MAX_BADGES) return prev;
       return [...prev, label];
     });
+  };
+
+  // AI下書き生成（第30便）。素材はサーバー側で引き直すので、ここでは未保存の編集内容は渡らない。
+  // ★ 保存はしない。フォームに入れるだけなので、気に入らなければ「元に戻す」か保存せず離れればよい。
+  const handleAiDraft = async () => {
+    if (!therapist || aiLoading) return;
+    setAiLoading(true);
+    const before = {
+      catchphrase: form.catchphrase ?? null,
+      profile_text: form.profile_text ?? null,
+    };
+    const r = await generateTherapistCopy(therapist.salon_id, Number(therapistId), aiUseImage);
+    setAiLoading(false);
+
+    if (!r.ok) {
+      if (r.quota) setAiQuota(r.quota);
+      showToast(r.error);
+      return;
+    }
+
+    setAiQuota(r.quota);
+    setAiUndo(before);
+    setForm((p) => ({
+      ...p,
+      catchphrase: r.catchphrase || p.catchphrase,
+      profile_text: r.profileText,
+    }));
+
+    const notes: string[] = [];
+    if (!r.usedImage && aiUseImage) notes.push('写真は読み込めなかったため文字情報のみで作成');
+    if (r.short) notes.push('短めなので加筆をおすすめします');
+    showToast(
+      'AIの下書きを入れました（まだ保存されていません）' +
+      (notes.length ? '。' + notes.join('・') : ''),
+    );
+  };
+
+  // いま選んでいるモード（写真あり/なし）の枠が尽きているか。枠が読めないときは押させる（サーバー側でも弾く）。
+  const aiOutOfQuota = aiQuota
+    ? aiUseImage
+      ? aiQuota.imageUsed >= aiQuota.imageLimit
+      : aiQuota.textUsed >= aiQuota.textLimit
+    : false;
+
+  const handleAiUndo = () => {
+    if (!aiUndo) return;
+    setForm((p) => ({ ...p, catchphrase: aiUndo.catchphrase, profile_text: aiUndo.profile_text }));
+    setAiUndo(null);
+    showToast('AI下書きを取り消して元の内容に戻しました');
   };
 
   const handleSave = async () => {
@@ -422,6 +483,67 @@ export default function TherapistEditPage() {
               保存値: <span className="font-mono text-slate-600">{form.body_type}</span>
             </p>
           )}
+        </div>
+
+        {/* AI下書き（第30便）。キャッチ＋詳細プロフィールをまとめて生成してフォームに入れる。 */}
+        <div className="bg-gradient-to-br from-violet-50 to-pink-50 rounded-3xl border border-violet-100 shadow-sm p-5 space-y-3">
+          <div className="flex items-center justify-between gap-2">
+            <h2 className="text-sm font-black text-violet-800">AIで下書きを作る</h2>
+            {aiQuota && (
+              <span className="text-[10px] font-bold text-violet-600 bg-white/70 rounded-full px-2 py-0.5 whitespace-nowrap">
+                今月の残り　文章 {Math.max(0, aiQuota.textLimit - aiQuota.textUsed)}回 ／ 写真あり {Math.max(0, aiQuota.imageLimit - aiQuota.imageUsed)}回
+              </span>
+            )}
+          </div>
+          <p className="text-[11px] text-violet-900/70 leading-relaxed">
+            登録済みの年齢・サイズ・特徴バッジ（と写真）から、キャッチフレーズと詳細プロフィールの下書きを作ります。
+            <strong className="font-bold">押しただけでは保存されません</strong>ので、
+            内容を確認して手直ししてから保存してください。回数は毎月1日にリセットされます。
+          </p>
+
+          <label className="flex items-center gap-2 text-[11px] font-bold text-violet-900/80 cursor-pointer">
+            <input
+              type="checkbox"
+              className="accent-violet-600 w-4 h-4"
+              checked={aiUseImage}
+              onChange={(e) => setAiUseImage(e.target.checked)}
+              disabled={aiLoading}
+            />
+            プロフィール写真も見て書く（外すと文字情報だけで作成します）
+          </label>
+
+          {/* 写真ありの枠だけ尽きている場合の逃げ道を明示する。 */}
+          {aiQuota && aiUseImage && aiQuota.imageUsed >= aiQuota.imageLimit
+            && aiQuota.textUsed < aiQuota.textLimit && (
+            <p className="text-[11px] font-bold text-amber-800 bg-amber-50 border border-amber-200 rounded-xl px-3 py-2">
+              写真ありの回数を使い切りました。上のチェックを外すと、文章のみの枠（残り
+              {Math.max(0, aiQuota.textLimit - aiQuota.textUsed)}回）で作成できます。
+            </p>
+          )}
+
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              onClick={handleAiDraft}
+              disabled={aiLoading || aiOutOfQuota}
+              className="rounded-full bg-violet-600 hover:bg-violet-700 disabled:bg-violet-300 text-white text-xs font-black px-5 py-2.5 transition-colors"
+            >
+              {aiLoading
+                ? '作成中…（20秒ほどかかります）'
+                : aiOutOfQuota
+                  ? '今月の回数を使い切りました'
+                  : 'AIで下書きを作る'}
+            </button>
+            {aiUndo && !aiLoading && (
+              <button
+                type="button"
+                onClick={handleAiUndo}
+                className="rounded-full bg-white border border-violet-200 text-violet-700 text-xs font-bold px-4 py-2.5 hover:bg-violet-50 transition-colors"
+              >
+                元に戻す
+              </button>
+            )}
+          </div>
         </div>
 
         {/* キャッチフレーズ */}
