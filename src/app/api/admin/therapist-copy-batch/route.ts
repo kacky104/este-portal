@@ -146,9 +146,18 @@ export async function POST(req: Request) {
   }
 
   // 保存したぶんだけ公開ページを無効化する（試し打ちのときは触らない）。
+  //
+  // ★★ 第31便で修正: 実URL指定（`/salon/${salonId}`・`/therapist/${id}`）は【効かない】。
+  //   Next 16.2.9 では generateStaticParams を空配列にした動的ページに対し、
+  //   実URLの revalidatePath が 'layout'・'page'・型無しの全てで効かない（第25便の実測）。
+  //   このサイトは全ページがその作りなので、ルート雛形指定に揃える必要がある。
+  //   第30便の初版は実URL指定のままで、一括生成しても即時反映されていなかった。
+  //   ingest ルート（/api/import/ingest）と同じ書き方に統一する。
+  //   紹介文は公式HP（/hp/[slug]）にも出るので、そちらも無効化する。
   if (apply && results.some((r) => r.ok)) {
-    revalidatePath(`/salon/${salonId}`);
-    for (const r of results) if (r.ok) revalidatePath(`/therapist/${r.id}`);
+    revalidatePath('/salon/[id]', 'layout');
+    revalidatePath('/therapist/[id]', 'layout');
+    revalidatePath('/hp/[slug]', 'layout');
   }
 
   const done = apply ? results.filter((r) => r.ok).length : 0;
