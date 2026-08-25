@@ -478,6 +478,9 @@ function MiniCard({ therapist, index, fill = false }: { therapist: Therapist; in
 
   const displayHours = buildDisplayHours(therapist.today.start_time, therapist.today.end_time);
   const availableNow = isImasuguLiveCamel(therapist);
+  // 3サイズ（例: T164 B87(D) W54 H85）。GridCard と同じ整形を使う。
+  // カルーセル（fill）のときだけ出す。PCの小さいカードは従来どおり名前・時間・キャッチのみ。
+  const bodySizes = formatBodySizes(therapist.bodyType);
 
   return (
     <Link
@@ -522,16 +525,19 @@ function MiniCard({ therapist, index, fill = false }: { therapist: Therapist; in
       )}
 
       {/* text overlay */}
-      <div className={`absolute bottom-0 left-0 right-0 text-white ${fill ? 'p-3' : 'p-2'}`}>
+      <div className={`absolute bottom-0 left-0 right-0 text-white ${fill ? 'p-3 text-center' : 'p-2'}`}>
         {isNewFaceActive(therapist.isNewFace, therapist.newFaceSince) && (
-          <div className="mb-0.5"><NewBadge /></div>
+          <div className={`mb-0.5 ${fill ? 'flex justify-center' : ''}`}><NewBadge /></div>
         )}
-        <div className="flex items-center gap-1 min-w-0">
+        <div className={`flex items-center gap-1 min-w-0 ${fill ? 'justify-center' : ''}`}>
           <p className={`font-bold leading-tight drop-shadow line-clamp-1 min-w-0 ${fill ? 'text-[17px]' : 'text-[11px]'}`}>{therapist.name}</p>
           {therapist.age && (
             <span className={`font-bold leading-tight drop-shadow flex-shrink-0 ${fill ? 'text-[17px]' : 'text-[11px]'}`}>（{therapist.age}）</span>
           )}
         </div>
+        {fill && bodySizes && (
+          <p className="text-[14px] text-white/85 leading-tight drop-shadow mt-0.5 whitespace-nowrap overflow-hidden text-ellipsis" style={{ fontVariantNumeric: 'tabular-nums' }}>{bodySizes}</p>
+        )}
         {(ss?.status === 'onDuty' || ss?.status === 'before') && (displayHours || therapist.workHours) && (
           <p className={`text-pink-200 font-medium mt-0.5 text-center whitespace-nowrap ${fill ? 'text-[19px]' : 'text-[13px]'}`}>{displayHours || therapist.workHours}</p>
         )}
