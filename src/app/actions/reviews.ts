@@ -14,13 +14,17 @@ import { syncSalonRating } from '@/app/lib/reviews';
 // - 承認/却下/削除のみ assertModerator（モデレーター許可リスト）通過後に createServiceClient を使う。
 
 // /therapist/[id] の ISR キャッシュを即時更新。
-function revalidateTherapist(therapistId: number | string): void {
-  revalidatePath(`/therapist/${therapistId}`);
+// ★★ 第33便で修正（禁則227）: 実URL指定は効かない。/therapist/[id] は generateStaticParams が
+// 空配列のランタイムISRで、第25便の実測どおり 'page'・'layout'・型無しのいずれでも効かなかった。
+// ルート雛形＋'layout' に統一する（ingest・AI紹介文と同じ書き方）。
+function revalidateTherapist(): void {
+  revalidatePath('/therapist/[id]', 'layout');
 }
 
 // /salon/[id] の ISR キャッシュを即時更新（店舗集計の反映用）。
-function revalidateSalon(salonId: number | string): void {
-  revalidatePath(`/salon/${salonId}`);
+// ★★ 第33便で修正（禁則227）: 同上。実URLをやめてルート雛形＋'layout'。
+function revalidateSalon(): void {
+  revalidatePath('/salon/[id]', 'layout');
 }
 
 // ログインユーザーが管理者本人かをサーバー側で検証。通過しなければ throw し、
@@ -167,8 +171,8 @@ export async function submitReview(input: SubmitInput): Promise<void> {
   if (error) throw new Error(error.message);
 
   // 承認前は公開ページに出ないが、整合のため両ページを revalidate。
-  revalidateTherapist(therapistId);
-  revalidateSalon(salonId);
+  revalidateTherapist();
+  revalidateSalon();
 }
 
 // therapist_id から salon_id を引く（service_role）。見つからなければ null。
@@ -203,8 +207,8 @@ export async function approveReview(reviewId: string): Promise<void> {
   // salons のキャッシュ列を最新化してから revalidate（同期後の値を反映させるため）。
   const salonId = await getSalonIdOfTherapist(svc, therapistId);
   if (salonId != null) await syncSalonRating(salonId);
-  revalidateTherapist(therapistId);
-  if (salonId != null) revalidateSalon(salonId);
+  revalidateTherapist();
+  revalidateSalon();
 }
 
 // 却下：assertAdmin 通過後に service_role で status='rejected' / reviewed_at=now()。
@@ -228,8 +232,8 @@ export async function rejectReview(reviewId: string): Promise<void> {
     const therapistId = row.therapist_id as number;
     const salonId = await getSalonIdOfTherapist(svc, therapistId);
     if (salonId != null) await syncSalonRating(salonId);
-    revalidateTherapist(therapistId);
-    if (salonId != null) revalidateSalon(salonId);
+    revalidateTherapist();
+    revalidateSalon();
   }
 }
 
@@ -252,7 +256,7 @@ export async function deleteReview(reviewId: string): Promise<void> {
     const therapistId = row.therapist_id as number;
     const salonId = await getSalonIdOfTherapist(svc, therapistId);
     if (salonId != null) await syncSalonRating(salonId);
-    revalidateTherapist(therapistId);
-    if (salonId != null) revalidateSalon(salonId);
+    revalidateTherapist();
+    revalidateSalon();
   }
 }

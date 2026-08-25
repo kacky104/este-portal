@@ -4,7 +4,6 @@ import { revalidatePath } from 'next/cache';
 import { createClient } from '@/app/lib/supabase/server';
 import { createServiceClient } from '@/app/lib/supabase/service';
 import { ADMIN_UUID, MODERATOR_UUIDS } from '@/app/lib/admin';
-import { AREA_SLUGS_LIST } from '@/app/lib/areas';
 import { sendApplicationMail } from '@/app/lib/jobs/sendApplicationMail';
 import { normalizePhone, isValidPhone } from '@/app/lib/validation/phone';
 // 'use server' ファイルは async 関数以外を export できないため、定数・型は非serverモジュールから import する。
@@ -138,7 +137,7 @@ function mapJob(row: Record<string, unknown>): MyJob {
 }
 
 // ── 公開側ISRの即時再検証（書き込み成功時に呼ぶ） ──
-function revalidateJobsPublic(salonId?: number): void {
+function revalidateJobsPublic(): void {
   revalidatePath('/jobs');
   revalidatePath('/jobs/[id]', 'page');
   // 新着情報（work_news）の過去ページ専用ルート（2ページ目以降）。投稿・編集・削除・公開切替で
@@ -146,8 +145,9 @@ function revalidateJobsPublic(salonId?: number): void {
   revalidatePath('/jobs/[id]/news/[page]', 'page');
   // 特徴タグページ（全slug一括）。タグ付け替えでどのタグページにも影響しうるため全体を再検証。
   revalidatePath('/jobs/tag/[slug]', 'page');
-  revalidatePath('/salon/[id]', 'page');
-  if (salonId != null) revalidatePath(`/salon/${salonId}`, 'layout');
+  // ★★ 第33便で修正（禁則227）: 実URL指定（`/salon/${salonId}`）は効かないためルート雛形に統一。
+  // 'layout' は配下の page も含めて無効化するので、旧2行（雛形'page' + 実URL'layout'）はこの1行で足りる。
+  revalidatePath('/salon/[id]', 'layout');
   // sitemap にも求人URL／タグページが含まれるため更新。
   revalidatePath('/sitemap.xml');
 }
@@ -484,7 +484,7 @@ export async function upsertMyJob(
       .select(JOB_COLUMNS)
       .maybeSingle();
     if (error || !data) return { ok: false, error: error?.message ?? '更新に失敗しました' };
-    revalidateJobsPublic(salonId);
+    revalidateJobsPublic();
     return { ok: true, job: mapJob(data) };
   }
 
@@ -500,7 +500,7 @@ export async function upsertMyJob(
     }
     return { ok: false, error: error?.message ?? '作成に失敗しました' };
   }
-  revalidateJobsPublic(salonId);
+  revalidateJobsPublic();
   return { ok: true, job: mapJob(data) };
 }
 
@@ -529,7 +529,7 @@ export async function toggleMyJobActive(
     .update({ is_active: next, updated_at: new Date().toISOString() })
     .eq('id', jobId);
   if (upErr) return { ok: false, error: upErr.message };
-  revalidateJobsPublic(salonId);
+  revalidateJobsPublic();
   return { ok: true, is_active: next };
 }
 
@@ -542,11 +542,9 @@ export async function toggleMyJobActive(
 // admin UUID のみ許可）で行うため、この関数は純粋なキャッシュ無効化のみを担う。
 export async function revalidateFeaturedJobs(): Promise<void> {
   revalidatePath('/jobs');
-  for (const slug of AREA_SLUGS_LIST) {
-    // 出張は /jobs/area/<slug> パターンに乗らない単独ルートのため、ループ内では扱わずループ外で明示追加する。
-    if (slug === 'dispatch') continue;
-    revalidatePath(`/jobs/area/${slug}`);
-  }
+  // ★★ 第33便で修正（禁則227）: 実URL（`/jobs/area/<slug>`）ではなくルート雛形で通常5エリアを一括再検証。
+  // 出張は /jobs/area/[slug] に乗らない単独の静的ルートなので、これまでどおり別に指定する。
+  revalidatePath('/jobs/area/[slug]', 'page');
   revalidatePath('/jobs/dispatch');
 }
 
@@ -554,8 +552,8 @@ export async function revalidateFeaturedJobs(): Promise<void> {
 // work_news はオーナーが mypage から authenticated クライアント直（RLSで自店のみ許可）で
 // 書き込むため、この関数は純粋なキャッシュ無効化のみを担う（求人の upsert 等と同じ revalidateJobsPublic を流用）。
 // 表示側（求人詳細のタブUI）は段階3で実装予定だが、投稿時点で /jobs 系のISRを更新しておく。
-export async function revalidateJobsForOwner(salonId?: number): Promise<void> {
-  revalidateJobsPublic(salonId);
+export async function revalidateJobsForOwner(): Promise<void> {
+  revalidateJobsPublic();
 }
 
 // ── 新着情報（work_news）のローリング上限（サロンごと最新 WORK_NEWS_MAX=20 件） ──
@@ -621,7 +619,7 @@ export async function enforceWorkNewsLimit(
     if (rmErr) console.error('[WorkNews] ローリング削除に伴う画像削除に失敗:', paths, rmErr);
   }
 
-  revalidateJobsPublic(salonId);
+  revalidateJobsPublic();
   return { ok: true, deleted: deletedIds.size };
 }
 
@@ -675,7 +673,7 @@ export async function deleteMyJob(jobId: number): Promise<{ ok: boolean; error?:
     if (rmErr) console.error('[deleteMyJob] 求人画像の削除に失敗:', paths, rmErr);
   }
 
-  revalidateJobsPublic(salonId);
+  revalidateJobsPublic();
   return { ok: true };
 }
 
@@ -805,10 +803,8 @@ export async function adminSetJobBoost(
 
   // 求人一覧の並びに影響するため /jobs と各エリア・出張・タグページを再検証（revalidateFeaturedJobs と同方針＋タグ）。
   revalidatePath('/jobs');
-  for (const slug of AREA_SLUGS_LIST) {
-    if (slug === 'dispatch') continue;
-    revalidatePath(`/jobs/area/${slug}`);
-  }
+  // ★★ 第33便で修正（禁則227）: 同上。実URLのループをルート雛形1行に置き換え。
+  revalidatePath('/jobs/area/[slug]', 'page');
   revalidatePath('/jobs/dispatch');
   revalidatePath('/jobs/tag/[slug]', 'page');
   revalidatePath('/jobs/area/[slug]/tag/[tag]', 'page');
