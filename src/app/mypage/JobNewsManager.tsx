@@ -236,7 +236,7 @@ export function JobNewsManager({ salonId }: { salonId: number }) {
     setNewCrosspostX(true); // 投稿後もデフォルトONへ戻す
     setNewCrosspostNoReplies(false);
     setAdding(false);
-    await revalidateJobsForOwner(salonId);
+    await revalidateJobsForOwner();
     const base = xOk ? '新着情報を追加しました' : '新着情報を追加しました（fukuX投稿は失敗しました）';
     setMsg({ kind: 'ok', text: pruned > 0 ? `${base}（古い${pruned}件を自動削除）` : base });
   };
@@ -272,7 +272,7 @@ export function JobNewsManager({ salonId }: { salonId: number }) {
     setItems((prev) => prev.map((n) => n.id === id ? { ...n, title, content, is_published, image_url: newImageUrl } : n));
     setSavingId(null);
     setExpandedId(null); // 保存完了でコンパクト表示へ戻す
-    await revalidateJobsForOwner(salonId);
+    await revalidateJobsForOwner();
     setMsg({ kind: 'ok', text: '新着情報を保存しました' });
   };
 
@@ -298,7 +298,7 @@ export function JobNewsManager({ salonId }: { salonId: number }) {
     setItems((prev) => prev.filter((n) => n.id !== id));
     setForms((prev) => { const n = { ...prev }; delete n[id]; return n; });
     if (expandedId === id) setExpandedId(null);
-    await revalidateJobsForOwner(salonId);
+    await revalidateJobsForOwner();
     setMsg({ kind: 'ok', text: '新着情報を削除しました' });
   };
 
