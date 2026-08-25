@@ -103,6 +103,12 @@ export async function POST(req: Request) {
     }
   }
 
+  // ★ この chunk が書いた行の印（第34便・禁則234）。
+  //   掃除処理（/api/import/targets）はこの列だけを見る。updated_at は手作業でも動くので使えない。
+  //   VPSは10件ずつに割って送ってくる（禁則222）ので、chunk ごとに別の時刻が入る。
+  //   掃除側は「その店の最新 imported_at から30分以上古い行」を対象にして chunk の差を吸収する。
+  const importedAt = new Date().toISOString();
+
   const unmatched: string[] = [];
   let matched = 0;
   let schedulesUpserted = 0;
@@ -129,6 +135,7 @@ export async function POST(req: Request) {
         is_active: d.status === 'work',
         start_time: d.status === 'work' ? d.start : null,
         end_time: d.status === 'work' ? d.end : null,
+        imported_at: importedAt,
       }));
       const { error } = await supabase
         .from('therapist_schedules')
