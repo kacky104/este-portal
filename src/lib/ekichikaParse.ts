@@ -136,6 +136,24 @@ export function parseEkichikaCast(html: string, todayISO: string): EkichikaCast 
         //   「出勤が更新されない」形で現れるので、runs の schedules 数の急減で気づく。
       });
     }
+
+    // ★ 「出勤予定を公開していない」ケース（第32便・2026-08-25）
+    //   駅ちかは、予定を入れていないセラピストの個人ページで、出勤表の代わりに
+    //   「お店にお問い合わせください」＋電話番号を出す。これは想定外のマークアップでは
+    //   なく、駅ちかが明示的に「予定は無い」と言っている状態。
+    //   禁則207の安全弁がここにも効いてしまい、フクエス側の古い出勤が永久に残っていた
+    //   （実測: アイリスで85名が「照合できているのに出勤だけ古い」状態・禁則220）。
+    //   なので、この文言が出ているときだけ7日ぶんを「出勤なし」に倒す。
+    //   ★ 安全弁は殺していない。文言が無いまま行が1つも取れない場合（＝レイアウト変更）は
+    //     従来どおり触らずスキップする。
+    if (schedule.length === 0) {
+      const afterText = after.replace(/<[^>]*>/g, '');
+      if (afterText.includes('お問い合わせ')) {
+        for (let i = 0; i < 7; i++) {
+          schedule.push({ date: addDays(todayISO, i), status: 'off', start: null, end: null });
+        }
+      }
+    }
   }
 
   return { name, age, height, bust, cup, waist, hip, bodyType, schedule };
