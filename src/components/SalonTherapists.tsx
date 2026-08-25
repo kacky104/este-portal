@@ -549,20 +549,22 @@ function MiniCard({ therapist, index, fill = false }: { therapist: Therapist; in
   );
 }
 
-// ── ViewAllCard（横スクロール末尾の「全部見る」カード。クリックで遷移） ──
+// ── ViewAllCard（PCの横スクロール末尾の「全部見る」カード。クリックで遷移） ──
+// ★ 第35便: スマホのカルーセルからは外した（ヘッダー右上に「全部見る」があり重複のため）。
+//   使うのは PC の横スクロールのみなので fill（カード全面に広げる）対応も畳んだ。
 
-function ViewAllCard({ href, fill = false }: { href: string; fill?: boolean }) {
+function ViewAllCard({ href }: { href: string }) {
   return (
     <Link
       href={href}
-      className={`relative rounded-2xl overflow-hidden border border-pink-200 bg-gradient-to-b from-pink-50 to-fuchsia-100 flex flex-col items-center justify-center gap-2 hover:from-pink-100 hover:to-fuchsia-200 transition-colors shadow-sm ${fill ? 'w-full h-full' : 'flex-shrink-0 w-[105px] h-[153px] md:w-[150px] md:h-56'}`}
+      className="relative rounded-2xl overflow-hidden border border-pink-200 bg-gradient-to-b from-pink-50 to-fuchsia-100 flex flex-col items-center justify-center gap-2 hover:from-pink-100 hover:to-fuchsia-200 transition-colors shadow-sm flex-shrink-0 w-[105px] h-[153px] md:w-[150px] md:h-56"
     >
-      <div className={`rounded-full bg-white/70 flex items-center justify-center shadow-sm ${fill ? 'w-14 h-14' : 'w-10 h-10'}`}>
+      <div className="rounded-full bg-white/70 flex items-center justify-center shadow-sm w-10 h-10">
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="text-pink-500">
           <path d="M5 12h14M12 5l7 7-7 7" />
         </svg>
       </div>
-      <p className={`font-bold text-pink-600 text-center leading-snug ${fill ? 'text-[17px]' : 'text-[12px]'}`}>全部見る</p>
+      <p className="font-bold text-pink-600 text-center leading-snug text-[12px]">全部見る</p>
     </Link>
   );
 }
@@ -573,10 +575,10 @@ function ViewAllCard({ href, fill = false }: { href: string; fill?: boolean }) {
 // サムネイルは付けない（オーナー指定）。スワイプ・見切れカードのタップ・矢印で切替。
 // 高さは幅から自動で決まる: 中央カード=幅90%、カードの縦横比 105:153 → 全体 1000:1311。
 // PC（md以上）は従来どおりの横スクロールを使うので、ここは md:hidden。
-function TodayCardCarousel({ list, salonId }: { list: Therapist[]; salonId: number }) {
+function TodayCardCarousel({ list }: { list: Therapist[] }) {
   const [idx, setIdx] = useState(0);
   const dragStartX = useRef<number | null>(null);
-  const slides = list.length + 1; // 末尾は「全部見る」カード
+  const slides = list.length; // ★ 第35便: 末尾の「全部見る」カードは廃止（右上のリンクと重複）
 
   const go = (delta: number) => setIdx((prev) => (prev + delta + slides) % slides);
 
@@ -620,29 +622,32 @@ function TodayCardCarousel({ list, salonId }: { list: Therapist[]; salonId: numb
               pointerEvents: visible ? 'auto' : 'none',
             }}
           >
-            {i < list.length
-              ? <MiniCard therapist={list[i]} index={i} fill />
-              : <ViewAllCard href={`/salon/${salonId}/schedule`} fill />}
+            <MiniCard therapist={list[i]} index={i} fill />
           </div>
         );
       })}
 
-      <button
-        type="button"
-        onClick={() => go(-1)}
-        aria-label="前のセラピスト"
-        className="absolute left-2 top-1/2 -translate-y-1/2 z-30 w-8 h-8 rounded-full bg-black/40 text-white flex items-center justify-center hover:bg-black/60 transition-colors"
-      >
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M15 18l-6-6 6-6" /></svg>
-      </button>
-      <button
-        type="button"
-        onClick={() => go(1)}
-        aria-label="次のセラピスト"
-        className="absolute right-2 top-1/2 -translate-y-1/2 z-30 w-8 h-8 rounded-full bg-black/40 text-white flex items-center justify-center hover:bg-black/60 transition-colors"
-      >
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M9 18l6-6-6-6" /></svg>
-      </button>
+      {/* ★ 第35便: 1枚しか無いときは押しても動かないので矢印を出さない */}
+      {slides > 1 && (
+        <>
+          <button
+            type="button"
+            onClick={() => go(-1)}
+            aria-label="前のセラピスト"
+            className="absolute left-2 top-1/2 -translate-y-1/2 z-30 w-8 h-8 rounded-full bg-black/40 text-white flex items-center justify-center hover:bg-black/60 transition-colors"
+          >
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M15 18l-6-6 6-6" /></svg>
+          </button>
+          <button
+            type="button"
+            onClick={() => go(1)}
+            aria-label="次のセラピスト"
+            className="absolute right-2 top-1/2 -translate-y-1/2 z-30 w-8 h-8 rounded-full bg-black/40 text-white flex items-center justify-center hover:bg-black/60 transition-colors"
+          >
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M9 18l6-6-6-6" /></svg>
+          </button>
+        </>
+      )}
     </div>
   );
 }
@@ -725,7 +730,7 @@ export function SalonTherapists({ salonId }: { salonId: number }) {
   return (
     <>
       {/* スマホ: センターモードのカルーセル（第34便） */}
-      <TodayCardCarousel list={list} salonId={salonId} />
+      <TodayCardCarousel list={list} />
       {/* PC: 従来どおりの横スクロール（見た目は変更なし） */}
       <div className="hidden md:flex gap-[3px] overflow-x-auto pb-2 scrollbar-pink">
         {list.map((t, i) => (
