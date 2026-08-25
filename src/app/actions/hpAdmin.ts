@@ -12,7 +12,6 @@ import {
   type HpTemplateKey,
   HP_SITE_COLUMNS,
   hpSiteKeyColumn,
-  hpSitePaths,
   normalizeHpSiteKey,
   mapHpSiteRow,
   isHpTemplateKey,
@@ -135,16 +134,17 @@ function canManageAdmins(role: HpAdminRole): boolean {
 /**
  * 保存後に公開ページのISRを飛ばす。暫定URLと独自ドメインの両方のキャッシュを消す。
  *
- * ★ 対象は hpSitePaths()（トップ＋下層ページ＋利用規約）。表示条件で絞らないのが肝で、
- *   絞ると「マルチページを止めた」「セラピスト一覧をOFFにした」ときに旧ページの
- *   キャッシュが対象から外れ、消えるべきページが最大600秒残り続ける。
+ * ★★ 2026-08-25（第35便・禁則227の残り）: 実URLの revalidatePath ループを外した。
+ *   Next 16.2.9 では generateStaticParams に無い動的ページへの実URL指定が効かない（第25便で実測）。
+ *   第25便では「効く環境もあり得るので」併記のまま残していたが、効かないことは確定しており、
+ *   残しておくと「実URLでも消えている」と誤読される。ルート雛形指定の1本だけにする。
+ *
+ * ★ 雛形指定は全サイトぶんの無効化になる（1店には絞れない）。ランタイムISRなので
+ *   次のアクセス時にその場で作り直されるだけ＝ビルドは走らず害は無い。
+ *   暫定URL（/hp/{slug}）も独自ドメイン（/hp/{domain}）も同じ /hp/[slug] ルートなので、
+ *   この1本で両系統とも消える。表示条件で絞る余地がそもそも無いのも利点。
  */
-function revalidateSite(site: HpSite) {
-  for (const path of hpSitePaths(site)) revalidatePath(path);
-  // ★ 2026-08-19（第25便）: Next 16.2.9 では、generateStaticParams に無い動的ページへの
-  //   実URLの revalidatePath が効かないことが実測で分かった（/api/revalidate の同日コメント参照）。
-  //   上の実URLループは（効く環境もあり得るので）残しつつ、確実に効くルート雛形指定を追加する。
-  //   全サイトぶんの無効化になるが、ランタイムISRなので次アクセス時に作り直されるだけ＝害は無い。
+function revalidateSite() {
   revalidatePath('/hp/[slug]', 'layout');
 }
 
@@ -244,7 +244,7 @@ export async function confirmHpDesign(
   if (!data) return { ok: false, error: 'デザインは確定済みです。運営事務局までご連絡ください' };
 
   const site = mapHpSiteRow(data as Record<string, unknown>);
-  revalidateSite(site);
+  revalidateSite();
   return { ok: true, site };
 }
 
@@ -327,7 +327,7 @@ export async function saveHpSiteContent(
   if (!data) return { ok: false, error: '保存できませんでした。運営事務局までお問い合わせください' };
 
   const site = mapHpSiteRow(data as Record<string, unknown>);
-  revalidateSite(site);
+  revalidateSite();
   return { ok: true, site };
 }
 
@@ -354,7 +354,7 @@ export async function setHpSiteLive(
     .neq('status', 'suspended'); // 競合で suspended になっていたら書き換えない
   if (error) return { ok: false, error: `切替に失敗しました: ${error.message}` };
 
-  revalidateSite(r.site);
+  revalidateSite();
   return { ok: true, status: next };
 }
 

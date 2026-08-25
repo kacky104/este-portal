@@ -545,8 +545,18 @@ export const HP_SUBPAGE_SEGMENTS = ['therapist', 'system', 'news', 'schedule', '
 export type HpSubpageSegment = (typeof HP_SUBPAGE_SEGMENTS)[number];
 
 /**
- * この店の公開ページのパス一覧（ISRキャッシュを作り直す対象）。
+ * この店の公開ページのパス一覧。
  * 暫定URL（/hp/{slug}）と独自ドメイン（/hp/{domain}）の両系統ぶんを返す。
+ *
+ * ★★★ 2026-08-25（第35便・禁則227）: 【revalidatePath に渡してはいけない】。
+ *   Next 16.2.9 では generateStaticParams に無い動的ページへの実URL指定が効かない（第25便で実測）。
+ *   /hp/… は全部この条件に当たるので、ここが返すパスを revalidatePath に流しても【消えない】。
+ *   公式HPのキャッシュを消したいときは、常に revalidatePath('/hp/[slug]', 'layout') の1本を使うこと。
+ *   （静的ルート —— /ranking や /therapists —— への実URL指定は従来どおり効く。効かないのは動的ルート。）
+ *
+ * ★ 現在この関数の呼び出し元は無い（第35便で hpAdmin.ts・hpOperator.ts の3箇所を外した）。
+ *   「この店の公開ページはどれか」を人に見せる用途のために残してある。
+ *   使い道が無いままなら次便以降で消してよい。
  *
  * ★★ 表示条件で絞り込まないこと。
  *   「今出しているページだけ」を返す作りにすると、multipage を false に戻した・

@@ -7,7 +7,6 @@ import { ADMIN_UUID } from '@/app/lib/admin';
 import {
   HP_DEMO_SLUG,
   HP_RESERVED_SLUGS,
-  hpSitePaths,
   isHpSiteStatus,
   normalizeHpSiteKey,
   sanitizeHpBlocks,
@@ -222,12 +221,10 @@ export async function updateHpSiteOperator(
   }
   if (!data) return { ok: false, error: '対象のサイトが見つかりません' };
 
-  // slug / ドメインを変えた直後は旧キーのキャッシュも残るが、そちらは DB を引けなくなるため
-  // 次のアクセスで自然に 404 になる。ここでは新しいキー側を作り直す。
-  for (const path of hpSitePaths({ slug, domain: domain === '' ? null : domain })) revalidatePath(path);
-  // ★ 2026-08-19（第25便）: 実URLの revalidatePath は Next 16 の動的ページに効かないため、
-  //   確実に効くルート雛形指定も併せて飛ばす（/api/revalidate の同日コメント参照）。
-  //   雛形指定なら旧キー側の残キャッシュもまとめて消える。
+  // ★ 2026-08-25（第35便・禁則227の残り）: 実URLの revalidatePath ループを外した。
+  //   Next 16 の動的ページには効かない（第25便で実測）。雛形指定の1本で
+  //   新しいキー側も旧キー側も、全サイトぶんまとめて消える。
+  //   （slug / ドメインを変えた直後の旧キーは、DB を引けなくなるので次のアクセスで自然に 404 になる。）
   revalidatePath('/hp/[slug]', 'layout');
   return { ok: true };
 }
@@ -249,18 +246,13 @@ export async function revalidateHpSitePages(salonId: number): Promise<{ ok: true
   if (error) return { ok: false, error: `取得に失敗しました: ${error.message}` };
   if (!data) return { ok: false, error: '対象のサイトが見つかりません' };
 
-  // ★ トップだけでなく下層ページ（/therapist・/system）と利用規約も対象にする。
-  //   マルチページ化以降、この復旧ボタンがトップしか直せないと
-  //   「セラピスト一覧だけ404のまま」という状態から抜け出せなくなる。
-  const paths = hpSitePaths({
-    slug:   String(data.slug ?? ''),
-    domain: data.domain ? String(data.domain) : null,
-  });
-  for (const path of paths) revalidatePath(path);
-  // ★ 2026-08-19（第25便）: 実URLの revalidatePath は Next 16 の動的ページに効かないため、
-  //   確実に効くルート雛形指定も併せて飛ばす（/api/revalidate の同日コメント参照）。
+  // ★ 2026-08-25（第35便・禁則227の残り）: 実URLの revalidatePath ループを外した。
+  //   Next 16 の動的ページには効かない（第25便で実測）ので、下層ページ（/therapist・/system）や
+  //   利用規約を実URLで並べても消えていなかった。雛形指定はルート配下を layout ごと落とすため、
+  //   下層ページも利用規約もこの1本で確実に消える（＝復旧ボタンの目的はむしろこちらで果たせる）。
+  //   返す paths も実態に合わせる。以前は消えていない実URLを列挙していて、トーストが嘘になっていた。
   revalidatePath('/hp/[slug]', 'layout');
-  return { ok: true, paths: [...paths, '/hp/[slug] (layout)'] };
+  return { ok: true, paths: ['/hp/[slug] (layout)'] };
 }
 
 // ── 解約（行の削除） ───────────────────────────────────
