@@ -17,7 +17,8 @@ import { generateCopyForTherapist } from '@/app/lib/therapistCopyCore';
 //  - 対象セラピストが本当にその salon のものかは core 側でも確認する。
 //
 // ★ 月間枠（第30便オーナー確定）:
-//  - 写真あり・なしを合算した1つの枠。既定20回 / フクエスワーク契約店は40回。
+//  - 写真あり・なしを合算した1つの枠。既定10回 / フクエスワーク契約店は20回。
+//    （第35便で 20/40 から引き下げた。値は salons.ai_copy_quota_text が正で、ここは既定値のみ）
 //  - 1回のボタン押下＝1消費（作り直しで複数回APIを叩いても消費は1）。
 //  - 失敗した回は消費しない。毎月1日（JST）にリセット。
 //  - 運営（ADMIN_UUID）の代行生成は枠を消費しない（新店舗の初期設定を代行するため）。
@@ -97,7 +98,7 @@ async function loadQuota(
   return {
     used: usageRes.count ?? 0,
     // 列が引けない場合でも機能を止めないよう既定値に倒す（マイグレーション前でも動く）。
-    limit: Number(salonRes.data?.ai_copy_quota_text ?? 20),
+    limit: Number(salonRes.data?.ai_copy_quota_text ?? 10),
     unlimited: isAdmin,
   };
 }
