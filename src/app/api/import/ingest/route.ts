@@ -6,7 +6,8 @@ import { parseEkichikaCast, normalizeName } from '@/lib/ekichikaParse';
 // ── 外部媒体取り込み: 個人ページHTMLを受けて解析・照合・反映（第28便）──────
 // 中継役VPSが集めた個人ページの生HTMLを受け取り、
 //   1) パーサーで {名前・年齢・サイズ・出勤} に変換
-//   2) 名前でフクエスのセラピストと照合（正規化して完全一致）
+//   2) castId → 名前 の順でフクエスのセラピストと照合（名前は正規化して完全一致）
+//      設定 create_missing が ON なら、どちらでも当たらなかった子を非公開で新規作成する（第35便）
 //   3) 出勤を therapist_schedules に upsert
 //      （出勤=時刻あり / 休み・未入力=is_active false。未入力の扱いは第30便で「触らない」から変更）
 //   4) 年齢・サイズを therapists に update（設定でON時のみ）
@@ -17,6 +18,17 @@ import { parseEkichikaCast, normalizeName } from '@/lib/ekichikaParse';
 //
 // ★ 原則: 「駅ちかが正本」の店舗だけ取り込む（A モード）。フクエスの手入力は上書きされる。
 //   同名がフクエスに2人いる場合は誤更新を避けて両方スキップ（unmatched に記録）。
+//
+// ★★ create_missing（第35便・禁則242の解消）
+//   駅ちかにいてフクエスにいない子を作る。作るのは salon_id・name・area・年齢・サイズ・castId だけで、
+//   写真もキャッチも入らない。そのまま公開すると写真なしのカードが一斉に並ぶので
+//   is_active=false（非公開）で作り、オーナーが中身を入れてから公開する運用にした。
+//   作られたことはサイトからは分からないので、salon_import_runs.created / created_names に残す。
+//
+// ★★ 照合に castId を使う理由（第35便）
+//   名前だけで照合していると、フクエス側で名前を変えた子が「未登録」に見えて、
+//   create_missing が重複レコードを静かに作ってしまう。castId が入っている子は castId を先に見る。
+//   既存の子は import_cast_id が空なので、当面は実質これまでどおり名前照合で動く。
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 export const maxDuration = 60;
@@ -29,6 +41,20 @@ type IngestBody = {
 
 function isValidISO(s: unknown): s is string {
   return typeof s === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(s);
+}
+
+// ★ create_missing で作ってよい名前か（第35便）。
+//   駅ちかには伏字がそのまま入っていることがある（アイリスに「〇〇」が実在した）。
+//   これを作ると「〇〇」というセラピストが生まれてしまうので弾く。
+//   ここで落ちた子は unmatched に理由つきで残るので、オーナーが手で登録すればよい。
+const MASK_ONLY = /^[〇○●◯＊*xX×✕✖?？!！_＿\-ー–—\s]*$/;
+function isCreatableName(raw: string): boolean {
+  const name = raw.trim();
+  if (!name) return false;
+  if (name.length > 20) return false;   // 解析失敗で本文が丸ごと入った類を弾く
+  if (MASK_ONLY.test(name)) return false;
+  if (!normalizeName(name)) return false;
+  return true;
 }
 
 export async function POST(req: Request) {
@@ -56,7 +82,7 @@ export async function POST(req: Request) {
   // 1. 取り込み設定を読む
   const { data: source, error: srcErr } = await supabase
     .from('salon_import_sources')
-    .select('id, salon_id, is_enabled, import_schedule, import_profile, create_missing, salons!inner(is_hidden)')
+    .select('id, salon_id, is_enabled, import_schedule, import_profile, create_missing, salons!inner(is_hidden, area)')
     .eq('id', sourceId)
     .single();
   if (srcErr || !source) return NextResponse.json({ ok: false, error: 'source not found' }, { status: 404 });
@@ -65,9 +91,12 @@ export async function POST(req: Request) {
   // ★ 非表示店（salons.is_hidden=true）は取り込まない（第31便）。
   //   targets 側でも除外しているが、VPSが古いリストを持っていた場合や
   //   手動実行に備えて受け口側でも止める（禁則207と同じ安全弁の考え方）。
-  const salonRel = (source as unknown as { salons?: { is_hidden?: boolean } | { is_hidden?: boolean }[] | null }).salons;
-  const isHidden = Array.isArray(salonRel) ? salonRel[0]?.is_hidden === true : salonRel?.is_hidden === true;
+  type SalonRel = { is_hidden?: boolean; area?: string | null };
+  const salonRel = (source as unknown as { salons?: SalonRel | SalonRel[] | null }).salons;
+  const salonRow: SalonRel | undefined = Array.isArray(salonRel) ? salonRel[0] : (salonRel ?? undefined);
+  const isHidden = salonRow?.is_hidden === true;
   if (isHidden) return NextResponse.json({ ok: true, skipped: 'hidden' });
+  const salonArea = salonRow?.area ?? null;
 
   // 2. 実行ログ開始
   const { data: run } = await supabase
@@ -82,16 +111,19 @@ export async function POST(req: Request) {
   //    駅ちか側だけ表記が違う子（例: 駅ちか「愛」⇔フクエス「アイ」）を名前を変えずに結びつける。
   const { data: therapists, error: thErr } = await supabase
     .from('therapists')
-    .select('id, name, import_aliases')
+    .select('id, name, import_aliases, import_cast_id')
     .eq('salon_id', source.salon_id);
   if (thErr) {
     if (runId) await supabase.from('salon_import_runs').update({ status: 'error', error: thErr.message, finished_at: new Date().toISOString() }).eq('id', runId);
     return NextResponse.json({ ok: false, error: thErr.message }, { status: 500 });
   }
   const byName = new Map<string, number>();      // 正規化名 → therapist_id
+  const byCastId = new Map<string, number>();    // 駅ちかの castId → therapist_id（第35便）
   const dupNames = new Set<string>();            // フクエス側で重複する正規化名
   for (const t of therapists ?? []) {
     const id = t.id as number;
+    const cid = t.import_cast_id as string | null;
+    if (cid) byCastId.set(cid, id);
     const raws = [t.name as string, ...((t.import_aliases as string[] | null) ?? [])];
     for (const raw of raws) {
       const key = normalizeName(raw);
@@ -110,6 +142,7 @@ export async function POST(req: Request) {
   const importedAt = new Date().toISOString();
 
   const unmatched: string[] = [];
+  const createdNames: string[] = [];
   let matched = 0;
   let schedulesUpserted = 0;
   let profilesUpdated = 0;
@@ -122,10 +155,48 @@ export async function POST(req: Request) {
     const key = normalizeName(cast.name);
     if (!key) continue;
 
-    if (dupNames.has(key)) { unmatched.push(`${cast.name}（同名2名以上・自動更新を保留）`); continue; }
-    const therapistId = byName.get(key);
-    if (!therapistId) { unmatched.push(cast.name); continue; }
-    matched++;
+    // 4-0. 照合: castId（確実）→ 名前（従来）の順に引く。
+    //   castId が入っているのは第35便以降に新規作成した子だけなので、当面はほぼ名前照合で動く。
+    let therapistId: number | undefined = c.castId ? byCastId.get(c.castId) : undefined;
+    if (therapistId === undefined) {
+      if (dupNames.has(key)) { unmatched.push(`${cast.name}（同名2名以上・自動更新を保留）`); continue; }
+      therapistId = byName.get(key);
+    }
+
+    // 4-0b. どちらでも当たらなかった子。create_missing が ON なら非公開で作る（第35便）。
+    let isNew = false;
+    if (therapistId === undefined) {
+      if (!source.create_missing) { unmatched.push(cast.name); continue; }
+      if (!isCreatableName(cast.name)) {
+        unmatched.push(`${cast.name}（伏字・記号のみ・作成せず）`);
+        continue;
+      }
+      const { data: made, error: mkErr } = await supabase
+        .from('therapists')
+        .insert({
+          salon_id: source.salon_id,
+          name: cast.name.trim(),
+          area: salonArea,
+          is_active: false,                 // ★ 非公開で作る。公開はオーナーが中身を入れてから。
+          import_cast_id: c.castId ?? null,
+          age: source.import_profile ? cast.age : null,
+          body_type: source.import_profile ? cast.bodyType : null,
+        })
+        .select('id')
+        .single();
+      if (mkErr || !made) {
+        unmatched.push(`${cast.name}（作成失敗: ${mkErr?.message ?? 'unknown'}）`);
+        continue;
+      }
+      therapistId = made.id as number;
+      // 同じ chunk に同名がもう一度来ても二重に作らないよう、その場で索引へ入れる。
+      byName.set(key, therapistId);
+      if (c.castId) byCastId.set(c.castId, therapistId);
+      createdNames.push(cast.name.trim());
+      isNew = true;
+    }
+
+    if (!isNew) matched++;
 
     // 4a. 出勤（設定ON かつ 出勤/休みの行があるときだけ）
     if (source.import_schedule && cast.schedule.length > 0) {
@@ -172,6 +243,8 @@ export async function POST(req: Request) {
       unmatched,
       schedules_upserted: schedulesUpserted,
       profiles_updated: profilesUpdated,
+      created: createdNames.length,
+      created_names: createdNames,
     }).eq('id', runId);
   }
   await supabase.from('salon_import_sources').update({
@@ -188,6 +261,8 @@ export async function POST(req: Request) {
     unmatched,
     schedulesUpserted,
     profilesUpdated,
+    created: createdNames.length,
+    createdNames,
   }, {
     headers: { 'content-type': 'application/json; charset=utf-8' },
   });
