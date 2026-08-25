@@ -135,11 +135,17 @@ export default async function TherapistPublicPage({
 
   const { data: tRow, error: tError } = await supabase
     .from('therapists')
-    .select('id, name, profile_image_url, profile_images, age, body_type, profile_text, work_hours, comment, area, salon_id, user_id, is_new_face, new_face_since, is_available_now, available_until, is_available_now_cast, available_until_cast, feature_badges, catchphrase')
+    .select('id, name, profile_image_url, profile_images, age, body_type, profile_text, work_hours, comment, area, salon_id, user_id, is_new_face, new_face_since, is_available_now, available_until, is_available_now_cast, available_until_cast, feature_badges, catchphrase, is_active')
     .eq('id', id)
     .single();
 
   if (tError || !tRow) notFound();
+
+  // ★ 退店（is_active=false）は404にする（第34便）。
+  //   ランキング・検索・sitemap は元から is_active で絞っているが、このページと店舗詳細の
+  //   在籍一覧だけは絞っていなかったため、直リンクで退店者のプロフィールが見えていた。
+  //   運用: 戻ってきた子はこのレコードを復活させず新しく作る（オーナー判断・第34便）。
+  if (tRow.is_active === false) notFound();
 
   const { data: salonRow } = await supabase
     .from('salons')

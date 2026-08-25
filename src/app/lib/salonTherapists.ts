@@ -19,7 +19,12 @@ type PublicClient = ReturnType<typeof createPublicClient>;
 //   ここで取得して props で渡すことで、同じカードがそのままサーバー描画され HTML にリンクが載る。
 //
 // - createPublicClient（cookie を触らない anon）を使うので、呼び出し元の revalidate（ISR）が効く。
-// - 取得条件は従来のクライアント実装と完全に同じ（is_active で絞らない＝表示内容を変えない）。
+// - ★ is_active=false（退店）は返さない（第34便）。
+//   もとは「クライアント実装と完全に同じ＝is_active で絞らない」だったが、それは is_active=false の
+//   セラピストが全店で1件も存在しなかった時期の話。第34便で初めて退店を7名登録したところ、
+//   店舗詳細の在籍一覧と /therapist/[id] にだけ退店者が残ることが分かったため絞るようにした。
+//   ランキング・検索・公式HP・予約・sitemap は元から is_active=true で絞っている。
+//   運用: 退店した子が戻ってきたら、このレコードを復活させず新しく作る（オーナー判断・第34便）。
 // - N+1 回避のため、出勤・写メ日記・口コミ件数・fukuX ハンドルはそれぞれ1クエリでまとめて引く。
 const THERAPIST_SELECT =
   'id, name, age, work_hours, area, comment, profile_image_url, is_available_now, available_until, is_available_now_cast, available_until_cast, is_new_face, new_face_since, body_type, feature_badges, user_id, catchphrase';
@@ -31,7 +36,8 @@ export async function fetchSalonTherapists(
   const { data: rows } = await supabase
     .from('therapists')
     .select(THERAPIST_SELECT)
-    .eq('salon_id', salonId);
+    .eq('salon_id', salonId)
+    .eq('is_active', true);
 
   if (!rows || rows.length === 0) return [];
 
