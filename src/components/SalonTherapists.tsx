@@ -467,8 +467,12 @@ export function GridCard({ therapist, index, showJoinDate = false, from, enableW
 // ── MiniCard（トップページの個別サロンカード内セラピストカードと同レイアウト） ──
 // 横スクロール用の縦長カード（写真背景＋名前/年齢/出勤時間オーバーレイ＋各バッジ）。
 
-function MiniCard({ therapist, index }: { therapist: Therapist; index: number }) {
+function MiniCard({ therapist, index, fill = false }: { therapist: Therapist; index: number; fill?: boolean }) {
   const grad = GRADS[index % GRADS.length];
+  // fill: カルーセル用の大きい表示。文字・バッジも比例して大きくする。
+  const badgeCls = fill
+    ? 'absolute top-2.5 right-2.5 text-[12px] font-bold px-2 py-1 rounded-full'
+    : 'absolute top-1.5 right-1.5 text-[9px] font-bold px-1.5 py-0.5 rounded-full';
   const [ss, setSS] = useState<StatusResult | null>(null);
   useEffect(() => { setSS(getScheduleStatus(therapist.today)); }, [therapist.today]);
 
@@ -478,7 +482,7 @@ function MiniCard({ therapist, index }: { therapist: Therapist; index: number })
   return (
     <Link
       href={`/therapist/${therapist.id}`}
-      className="relative flex-shrink-0 w-[105px] h-[153px] md:w-[150px] md:h-56 overflow-hidden shadow-md hover:-translate-y-1 hover:shadow-xl transition-all duration-300"
+      className={`relative overflow-hidden shadow-md transition-all duration-300 ${fill ? 'block w-full h-full' : 'flex-shrink-0 w-[105px] h-[153px] md:w-[150px] md:h-56 hover:-translate-y-1 hover:shadow-xl'}`}
     >
       {/* background */}
       {therapist.profileImageUrl ? (
@@ -495,44 +499,44 @@ function MiniCard({ therapist, index }: { therapist: Therapist; index: number })
 
       {/* 今すぐバッジ — top left */}
       {availableNow && (
-        <span className="absolute top-1.5 left-1.5" style={{ background: 'linear-gradient(to right, #ec4899, #f97316)', color: 'white', fontSize: '11px', fontWeight: 700, padding: '2px 8px', borderRadius: '20px' }}>
+        <span className={fill ? 'absolute top-2.5 left-2.5 text-[15px]' : 'absolute top-1.5 left-1.5 text-[11px]'} style={{ background: 'linear-gradient(to right, #ec4899, #f97316)', color: 'white', fontWeight: 700, padding: '2px 8px', borderRadius: '20px' }}>
           今すぐ
         </span>
       )}
 
       {/* duty status badge — top right */}
       {ss?.status === 'onDuty' && (
-        <span className="absolute top-1.5 right-1.5 text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-white text-emerald-500 border border-emerald-100 animate-pulse">
+        <span className={`${badgeCls} bg-white text-emerald-500 border border-emerald-100 animate-pulse`}>
           出勤中
         </span>
       )}
       {ss?.status === 'before' && (
-        <span className="absolute top-1.5 right-1.5 text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-white/90 text-blue-500 border border-blue-100">
+        <span className={`${badgeCls} bg-white/90 text-blue-500 border border-blue-100`}>
           出勤予定
         </span>
       )}
       {ss?.status === 'after' && (
-        <span className="absolute top-1.5 right-1.5 text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-white/90 text-slate-400 border border-slate-200">
+        <span className={`${badgeCls} bg-white/90 text-slate-400 border border-slate-200`}>
           受付終了
         </span>
       )}
 
       {/* text overlay */}
-      <div className="absolute bottom-0 left-0 right-0 p-2 text-white">
+      <div className={`absolute bottom-0 left-0 right-0 text-white ${fill ? 'p-3' : 'p-2'}`}>
         {isNewFaceActive(therapist.isNewFace, therapist.newFaceSince) && (
           <div className="mb-0.5"><NewBadge /></div>
         )}
         <div className="flex items-center gap-1 min-w-0">
-          <p className="font-bold text-[11px] leading-tight drop-shadow line-clamp-1 min-w-0">{therapist.name}</p>
+          <p className={`font-bold leading-tight drop-shadow line-clamp-1 min-w-0 ${fill ? 'text-[17px]' : 'text-[11px]'}`}>{therapist.name}</p>
           {therapist.age && (
-            <span className="font-bold text-[11px] leading-tight drop-shadow flex-shrink-0">（{therapist.age}）</span>
+            <span className={`font-bold leading-tight drop-shadow flex-shrink-0 ${fill ? 'text-[17px]' : 'text-[11px]'}`}>（{therapist.age}）</span>
           )}
         </div>
         {(ss?.status === 'onDuty' || ss?.status === 'before') && (displayHours || therapist.workHours) && (
-          <p className="text-[13px] text-pink-200 font-medium mt-0.5 text-center whitespace-nowrap">{displayHours || therapist.workHours}</p>
+          <p className={`text-pink-200 font-medium mt-0.5 text-center whitespace-nowrap ${fill ? 'text-[19px]' : 'text-[13px]'}`}>{displayHours || therapist.workHours}</p>
         )}
         {therapist.catchphrase && (
-          <p className="text-[11.5px] font-bold leading-tight drop-shadow whitespace-nowrap overflow-hidden text-ellipsis mt-0.5">{therapist.catchphrase}</p>
+          <p className={`font-bold leading-tight drop-shadow whitespace-nowrap overflow-hidden text-ellipsis mt-0.5 ${fill ? 'text-[16px]' : 'text-[11.5px]'}`}>{therapist.catchphrase}</p>
         )}
       </div>
     </Link>
@@ -541,19 +545,99 @@ function MiniCard({ therapist, index }: { therapist: Therapist; index: number })
 
 // ── ViewAllCard（横スクロール末尾の「全部見る」カード。クリックで遷移） ──
 
-function ViewAllCard({ href }: { href: string }) {
+function ViewAllCard({ href, fill = false }: { href: string; fill?: boolean }) {
   return (
     <Link
       href={href}
-      className="relative flex-shrink-0 w-[105px] h-[153px] md:w-[150px] md:h-56 rounded-2xl overflow-hidden border border-pink-200 bg-gradient-to-b from-pink-50 to-fuchsia-100 flex flex-col items-center justify-center gap-2 hover:from-pink-100 hover:to-fuchsia-200 transition-colors shadow-sm"
+      className={`relative rounded-2xl overflow-hidden border border-pink-200 bg-gradient-to-b from-pink-50 to-fuchsia-100 flex flex-col items-center justify-center gap-2 hover:from-pink-100 hover:to-fuchsia-200 transition-colors shadow-sm ${fill ? 'w-full h-full' : 'flex-shrink-0 w-[105px] h-[153px] md:w-[150px] md:h-56'}`}
     >
-      <div className="w-10 h-10 rounded-full bg-white/70 flex items-center justify-center shadow-sm">
+      <div className={`rounded-full bg-white/70 flex items-center justify-center shadow-sm ${fill ? 'w-14 h-14' : 'w-10 h-10'}`}>
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="text-pink-500">
           <path d="M5 12h14M12 5l7 7-7 7" />
         </svg>
       </div>
-      <p className="text-[12px] font-bold text-pink-600 text-center leading-snug">全部見る</p>
+      <p className={`font-bold text-pink-600 text-center leading-snug ${fill ? 'text-[17px]' : 'text-[12px]'}`}>全部見る</p>
     </Link>
+  );
+}
+
+// ── TodayCardCarousel（スマホ用センターモード・第34便）────────────────────
+// 個別セラピストページの画像スライダー（TherapistImageSlider）と同じ考え方を
+// セラピストカードに移植したもの。中央のカードを大きく出し、前後を左右に見切れさせる。
+// サムネイルは付けない（オーナー指定）。スワイプ・見切れカードのタップ・矢印で切替。
+// 高さは幅から自動で決まる: 中央カード=幅90%、カードの縦横比 105:153 → 全体 1000:1311。
+// PC（md以上）は従来どおりの横スクロールを使うので、ここは md:hidden。
+function TodayCardCarousel({ list, salonId }: { list: Therapist[]; salonId: number }) {
+  const [idx, setIdx] = useState(0);
+  const dragStartX = useRef<number | null>(null);
+  const slides = list.length + 1; // 末尾は「全部見る」カード
+
+  const go = (delta: number) => setIdx((prev) => (prev + delta + slides) % slides);
+
+  const onPointerDown = (e: React.PointerEvent) => { dragStartX.current = e.clientX; };
+  const onPointerUp = (e: React.PointerEvent) => {
+    if (dragStartX.current === null) return;
+    const dx = e.clientX - dragStartX.current;
+    dragStartX.current = null;
+    if (Math.abs(dx) > 40) go(dx < 0 ? 1 : -1); // 左へスワイプ＝次、右へ＝前
+  };
+
+  return (
+    <div
+      className="relative w-full overflow-hidden select-none touch-pan-y md:hidden"
+      style={{ aspectRatio: '1000 / 1311' }}
+      onPointerDown={onPointerDown}
+      onPointerUp={onPointerUp}
+      onPointerLeave={() => (dragStartX.current = null)}
+    >
+      {Array.from({ length: slides }, (_, i) => {
+        // 円環状の最短オフセット（端と端をつなげて自然に回す）
+        let offset = i - idx;
+        if (offset > slides / 2) offset -= slides;
+        if (offset < -slides / 2) offset += slides;
+        const isActive = offset === 0;
+        const visible = Math.abs(offset) <= 1; // 中央と左右1枚だけ描く
+
+        return (
+          <div
+            key={i}
+            // 見切れカードを押したときは遷移させず、そのカードを中央へ持ってくる
+            onClickCapture={(e) => {
+              if (!isActive) { e.preventDefault(); e.stopPropagation(); setIdx(i); }
+            }}
+            className={`absolute top-0 left-1/2 h-full w-[90%] transition-all duration-300 ease-out ${isActive ? 'z-20' : 'z-10 cursor-pointer'}`}
+            style={{
+              transform: `translateX(calc(-50% + ${offset * 100}%)) scale(${isActive ? 1 : 0.82})`,
+              // 縮小の基点を中央側の端に固定し、見切れ部分が痩せて消えないようにする
+              transformOrigin: isActive ? 'center' : offset < 0 ? 'right center' : 'left center',
+              opacity: visible ? (isActive ? 1 : 0.6) : 0,
+              pointerEvents: visible ? 'auto' : 'none',
+            }}
+          >
+            {i < list.length
+              ? <MiniCard therapist={list[i]} index={i} fill />
+              : <ViewAllCard href={`/salon/${salonId}/schedule`} fill />}
+          </div>
+        );
+      })}
+
+      <button
+        type="button"
+        onClick={() => go(-1)}
+        aria-label="前のセラピスト"
+        className="absolute left-2 top-1/2 -translate-y-1/2 z-30 w-8 h-8 rounded-full bg-black/40 text-white flex items-center justify-center hover:bg-black/60 transition-colors"
+      >
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M15 18l-6-6 6-6" /></svg>
+      </button>
+      <button
+        type="button"
+        onClick={() => go(1)}
+        aria-label="次のセラピスト"
+        className="absolute right-2 top-1/2 -translate-y-1/2 z-30 w-8 h-8 rounded-full bg-black/40 text-white flex items-center justify-center hover:bg-black/60 transition-colors"
+      >
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M9 18l6-6-6-6" /></svg>
+      </button>
+    </div>
   );
 }
 
@@ -633,12 +717,17 @@ export function SalonTherapists({ salonId }: { salonId: number }) {
     </div>
   );
   return (
-    <div className="flex gap-[3px] overflow-x-auto pb-2 scrollbar-pink">
-      {list.map((t, i) => (
-        <MiniCard key={t.id} therapist={t} index={i} />
-      ))}
-      <ViewAllCard href={`/salon/${salonId}/schedule`} />
-    </div>
+    <>
+      {/* スマホ: センターモードのカルーセル（第34便） */}
+      <TodayCardCarousel list={list} salonId={salonId} />
+      {/* PC: 従来どおりの横スクロール（見た目は変更なし） */}
+      <div className="hidden md:flex gap-[3px] overflow-x-auto pb-2 scrollbar-pink">
+        {list.map((t, i) => (
+          <MiniCard key={t.id} therapist={t} index={i} />
+        ))}
+        <ViewAllCard href={`/salon/${salonId}/schedule`} />
+      </div>
+    </>
   );
 }
 
