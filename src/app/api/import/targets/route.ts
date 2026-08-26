@@ -12,6 +12,15 @@ import { createServiceClient } from '@/app/lib/supabase/service';
 //   3) 各個人ページ（shopUrl + castId + '/'）を取得
 //   4) POST /api/import/ingest { sourceId, todayISO, casts:[{castId, html}] }
 //
+// ★★★ mode（第36便・フェーズ4）— 毎時と1日1回で役割を分ける
+//   GET /api/import/targets?mode=list … 毎時の周。listMode=true の店は個人ページを1件も取らず、
+//     girlslist を1〜2ページ取って POST /api/import/ingest-list に送る（当日の出勤だけ）。
+//   GET /api/import/targets            … 1日1回の周（既定・従来どおり）。個人ページで週間予定を維持。
+//   ※ 引数なしが従来の挙動なので、VPSが古いままでも壊れない。
+//   実測（第36便）: 1周 343リクエスト・約12分 → 毎時13リクエスト・約20秒 ＋ 1日1回330リクエスト。
+//   もともとVPSは毎周 girlslist を取っていたのに、castId を抜いたあとHTMLを捨てていた。
+//   その捨てていたHTMLに本日の出勤時刻・名前・年齢・サイズが全部載っていた。
+//
 // ★ 非表示店（salons.is_hidden=true）は必ず除外する（第31便）。
 //   フクエスに店舗削除機能は無く、掲載終了した店は is_hidden で伏せて残す設計。
 //   ここで絞らないと、掲載終了後も毎時05分に駅ちかを取りに行き、
@@ -44,10 +53,17 @@ export async function GET(req: Request) {
   if (req.headers.get('authorization') !== `Bearer ${secret}`)
     return NextResponse.json({ ok: false, error: 'unauthorized' }, { status: 401 });
 
+  // ★ mode（第36便・フェーズ4）
+  //   'list' … 毎時の周。girlslist方式の店（listMode=true）は当日の掃除を
+  //            /api/import/ingest-list が自分でやるので、ここでは掃除しない。
+  //   'full' … 1日1回の周（既定）。従来どおり全店を「今日以降」で掃除する。
+  //   ※ 引数なし＝'full'。VPSが古いままでも挙動が変わらないようにしてある。
+  const mode = new URL(req.url).searchParams.get('mode') === 'list' ? 'list' : 'full';
+
   const supabase = createServiceClient();
   const { data, error } = await supabase
     .from('salon_import_sources')
-    .select('id, salon_id, provider, external_id, shop_url, import_schedule, import_profile, create_missing, salons!inner(is_hidden)')
+    .select('id, salon_id, provider, external_id, shop_url, import_schedule, import_profile, create_missing, list_mode, salons!inner(is_hidden)')
     .eq('is_enabled', true)
     .eq('salons.is_hidden', false)
     .order('id');
@@ -63,6 +79,7 @@ export async function GET(req: Request) {
     importSchedule: s.import_schedule,
     importProfile: s.import_profile,
     createMissing: s.create_missing,
+    listMode: s.list_mode,
   }));
 
   // ── 前周ぶんの掃除 ────────────────────────────────────────────────
@@ -77,6 +94,12 @@ export async function GET(req: Request) {
 
     for (const t of targets) {
       const log: SweepLog = { sourceId: t.sourceId, salonId: t.salonId, swept: 0 };
+
+      // ★ girlslist方式の店を毎時ここで掃除してはいけない（第36便）。
+      //   この掃除は「今日以降」の行を見るが、その店の明日以降の行は1日1回の full 周でしか
+      //   更新されない。毎時打つと、明日以降の予定が丸ごと「古い」と判定されて倒れる。
+      //   当日ぶんは ingest-list が「一覧に居ない＝在籍から消えた」で直接倒している。
+      if (mode === 'list' && t.listMode) { log.skipped = 'list mode（当日ぶんは ingest-list が掃除する）'; sweep.push(log); continue; }
 
       // 安全弁1: 直近1時間に成功した回があり、失敗した回が無いこと。
       // 取得に失敗した周のあとで倒すと、届かなかったのを「消えた」と誤認する。
@@ -165,7 +188,7 @@ export async function GET(req: Request) {
     }
   }
 
-  return NextResponse.json({ ok: true, count: targets.length, targets, sweep }, {
+  return NextResponse.json({ ok: true, mode, count: targets.length, targets, sweep }, {
     headers: { 'content-type': 'application/json; charset=utf-8' },
   });
 }
