@@ -165,14 +165,35 @@ export function CastDiary({
       return;
     }
     setDiaryPosting(true);
-    const { error } = await supabase.from('diary_posts').insert({
+    const { data: posted, error } = await supabase.from('diary_posts').insert({
       therapist_id: Number(therapistId),
       salon_id:     salonId,
       images:       diaryImage ? [diaryImage] : [],
       title:        diaryTitle.trim() || null,
       content:      diaryBody.trim() || null,
-    });
+    }).select('id').single();
     if (error) { setDiaryPosting(false); showToast(`投稿に失敗しました: ${error.message}`); return; }
+
+    // ── 他媒体への転送（第36便・第2弾）────────────────────────────
+    // 店舗の salons.diary_source が 'fukues' のときだけ、駅ちか・エスラブの投稿用アドレスへ送る。
+    // 既定は 'benry' なので、切り替えていない店舗では何も起きない。
+    // ★ 日記の保存は上で成功済み。転送は付随処理＝失敗しても日記投稿は成功扱い（fukuX と同じ）。
+    //   結果は diary_forward_log に残るので、あとから再送できる。
+    // ★ 即時反映が売りなので await して送る（cron に積むと10分遅れのベンリー経由と変わらなくなる）。
+    if (posted?.id) {
+      try {
+        const fr = await fetch('/api/diary/forward', {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ diaryId: posted.id }),
+        });
+        const fj = (await fr.json().catch(() => null)) as { 宛先?: Array<{ status?: string }> } | null;
+        const sent = (fj?.宛先 ?? []).filter((x) => x.status === 'sent').length;
+        if (sent > 0) showToast(`他媒体へ ${sent} 件送信しました`);
+      } catch (e) {
+        console.error('diary forward failed:', e); // 握りつぶしてログのみ
+      }
+    }
 
     // ── fukuX 同時投稿（チェックON かつ連携あり時のみ・ワンタイムのフォーク）──
     // 日記の保存は上で成功済み。fukuX への投稿は付随処理＝失敗しても日記投稿は成功扱い（best-effort）。

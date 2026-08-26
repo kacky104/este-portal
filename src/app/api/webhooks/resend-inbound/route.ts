@@ -174,6 +174,22 @@ export async function POST(req: Request) {
   const salonId = Number(therapist.salon_id);
   const therapistUserId = (therapist.user_id as string | null) ?? null;
 
+  // ★★★ 正本がフクエスの店舗宛のメールは【受け取らない】（第36便・第2弾）
+  //   その店舗はフクエスで日記を書き、そこから駅ちか・エスラブへ送っている。
+  //   ベンリー側の転送設定が外し忘れられていると、自分が送った日記がここへ戻ってきて
+  //   同じ日記が2つ並ぶ。**受け取ってから重複判定する形にしてはいけない** ——
+  //   本文が媒体側で整形されたり、時刻が数分ずれたりして、判定は必ずどこかで外れる。
+  //   「送る側の店舗からは受け取らない」という一本の線で切るのが唯一確実。
+  //   ★ 切り替えは salons.diary_source（既定 'benry'＝従来どおり受け取る）。
+  const { data: salonRow } = await svc
+    .from('salons').select('diary_source').eq('id', salonId).maybeSingle();
+  const diarySource = (salonRow?.diary_source as string | null) ?? 'benry';
+  if (diarySource === 'fukues') {
+    await finishLog('rejected:source_is_fukues', therapistId);
+    console.warn(`[diary-mail] 正本がフクエスの店舗宛のため受け取らない: salon_id=${salonId} therapist_id=${therapistId}`);
+    return NextResponse.json({ ok: true, skipped: 'source_is_fukues' });
+  }
+
   try {
     // ── 本文の取得 ──
     const emailRes = await fetch(`https://api.resend.com/emails/receiving/${emailId}`, {
