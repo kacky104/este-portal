@@ -17,6 +17,7 @@ import { STORAGE_CACHE_CONTROL } from '@/app/lib/storage';
 import { cleanupTherapistPhotos } from '@/app/actions/therapistAdmin';
 import { generateTherapistCopy, getTherapistCopyQuota, type QuotaState } from '@/app/actions/therapistCopy';
 import { getOrCreateDiaryMailAddress } from '@/app/actions/diaryMail';
+import { getDiaryForwards, saveDiaryForward, getSalonDiarySource, setSalonDiarySource } from '@/app/actions/diaryForward';
 import { useToast } from '@/app/components/useToast';
 import { SiteNoticeBanner } from '@/app/components/SiteNoticeBanner';
 
@@ -83,6 +84,15 @@ export default function TherapistEditPage() {
   // トークンは server action がオーナー検証のうえ発行・返却する（クライアントから直接は引けない）。
   const [diaryMailAddress, setDiaryMailAddress] = useState<string | null>(null);
   const [diaryMailError, setDiaryMailError] = useState('');
+  // 写メ日記の転送先（第36便・第2弾）。フクエスで書いた日記を駅ちか／エスラブへ送る宛先。
+  // ★ 上の diaryMailAddress とは【向きが逆】。あちらは受け取る側、こちらは送る側。
+  const [forwardDraft, setForwardDraft] = useState<Record<string, string>>({});
+  const [forwardLoaded, setForwardLoaded] = useState(false);
+  const [forwardSaving, setForwardSaving] = useState<string | null>(null);
+  // 店舗の「写メ日記の正本」。'benry'=他媒体で書く（既定） / 'fukues'=フクエスで書く。
+  // ★★★ これが二重投稿を防ぐ唯一の仕掛け（fukues にすると他媒体からの受信を止める）。
+  const [diarySource, setDiarySource] = useState<string | null>(null);
+  const [sourceSaving, setSourceSaving] = useState(false);
   const [saving, setSaving] = useState(false);
   // AI下書き（第30便）。生成中フラグと「写真をAIに渡すか」の選択。保存はせずフォームに入れるだけ。
   const [aiLoading, setAiLoading] = useState(false);
@@ -98,6 +108,17 @@ export default function TherapistEditPage() {
       if (cancelled) return;
       if (r.ok) setDiaryMailAddress(r.address);
       else setDiaryMailError(r.error);
+    });
+    getDiaryForwards({ therapistId }).then((r) => {
+      if (cancelled || !r.ok) return;
+      const draft: Record<string, string> = {};
+      for (const f of r.data) draft[f.provider] = f.address;
+      setForwardDraft(draft);
+      setForwardLoaded(true);
+    });
+    getSalonDiarySource({ therapistId }).then((r) => {
+      if (cancelled || !r.ok) return;
+      setDiarySource(r.data.source);
     });
     return () => { cancelled = true; };
   }, [therapistId]);
@@ -691,6 +712,89 @@ export default function TherapistEditPage() {
           )}
           <p className="text-[10px] text-amber-600 bg-amber-50 border border-amber-100 rounded-xl px-3 py-2 leading-relaxed">
             ※ このアドレスを知っている人は誰でもこのセラピストとして日記を投稿できます。代行業者以外には教えないでください。
+          </p>
+        </div>
+
+        {/* 写メ日記の転送先（第36便・第2弾）。
+            フクエスで書いた日記を、駅ちか／エスラブの投稿用アドレスへ自動で送る。
+            ★ 上のカードとは向きが逆（あちらは受け取る側、こちらは送る側）。
+            ★ 送るかどうかは店舗単位の「どこで書くか」で決まる。ここは宛先の登録だけ。 */}
+        <div className="bg-white rounded-3xl border border-slate-100 shadow-sm p-5 space-y-4">
+          <h2 className="text-sm font-black text-slate-700">写メ日記の転送先</h2>
+
+          {/* 店舗全体の設定 */}
+          <div className="rounded-2xl border border-slate-200 bg-slate-50 p-3 space-y-2">
+            <p className="text-[11px] font-bold text-slate-600">写メ日記をどこで書きますか（店舗全体の設定）</p>
+            {diarySource === null ? (
+              <p className="text-[11px] text-slate-400">読み込み中...</p>
+            ) : (
+              <div className="space-y-1.5">
+                {[
+                  { v: 'benry',  t: '他媒体で書く',   d: '駅ちか等で書いた日記を、代行システム経由でフクエスが受け取ります（現在の運用）' },
+                  { v: 'fukues', t: 'フクエスで書く', d: 'フクエスで書いた日記を、下に登録した宛先へ即時で送ります' },
+                ].map((o) => (
+                  <label key={o.v} className={`flex gap-2 items-start p-2 rounded-xl cursor-pointer transition-colors ${diarySource === o.v ? 'bg-white border border-pink-200' : 'hover:bg-white/60'}`}>
+                    <input
+                      type="radio" name="diarySource" value={o.v} checked={diarySource === o.v} disabled={sourceSaving}
+                      onChange={async () => {
+                        setSourceSaving(true);
+                        const r = await setSalonDiarySource({ therapistId, source: o.v });
+                        setSourceSaving(false);
+                        if (r.ok) { setDiarySource(o.v); showToast('保存しました'); }
+                        else showToast(r.error);
+                      }}
+                      className="mt-0.5 flex-shrink-0"
+                    />
+                    <span className="min-w-0">
+                      <span className="block text-xs font-bold text-slate-700">{o.t}</span>
+                      <span className="block text-[10px] text-slate-400 leading-relaxed">{o.d}</span>
+                    </span>
+                  </label>
+                ))}
+              </div>
+            )}
+            {diarySource === 'fukues' && (
+              <p className="text-[10px] text-amber-600 bg-amber-50 border border-amber-100 rounded-xl px-3 py-2 leading-relaxed">
+                ※ 代行システム（ベンリー等）側の「日記転送先」の設定は外してください。外さなくても同じ日記が二重に載ることはありませんが、代行側の送信が無駄になります。
+              </p>
+            )}
+          </div>
+
+          {/* 媒体ごとの宛先 */}
+          <p className="text-[11px] text-slate-400 leading-relaxed">
+            各媒体の管理画面で発行された「日記の投稿用メールアドレス」を貼ってください。空にすると、その媒体へは送りません。
+          </p>
+          {!forwardLoaded ? (
+            <p className="text-[11px] text-slate-400">読み込み中...</p>
+          ) : (
+            [{ p: 'ekichika', label: '駅ちか' }, { p: 'esulove', label: 'エスラブ' }].map((m) => (
+              <div key={m.p} className="space-y-1">
+                <label className="block text-[11px] font-bold text-slate-500">{m.label}</label>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="email" inputMode="email" autoComplete="off" placeholder="未登録"
+                    value={forwardDraft[m.p] ?? ''}
+                    onChange={(e) => setForwardDraft((d) => ({ ...d, [m.p]: e.target.value }))}
+                    className="flex-1 min-w-0 rounded-xl border border-slate-200 px-3 py-2 text-xs text-slate-700 focus:border-pink-300 focus:outline-none"
+                  />
+                  <button
+                    type="button" disabled={forwardSaving === m.p}
+                    onClick={async () => {
+                      setForwardSaving(m.p);
+                      const r = await saveDiaryForward({ therapistId, provider: m.p, address: forwardDraft[m.p] ?? '' });
+                      setForwardSaving(null);
+                      showToast(r.ok ? (r.data.saved ? `${m.label}の宛先を保存しました` : `${m.label}へは送らない設定にしました`) : r.error);
+                    }}
+                    className="flex-shrink-0 px-3 py-2 rounded-xl border border-pink-200 text-pink-600 text-xs font-bold hover:bg-pink-50 transition-colors disabled:opacity-50"
+                  >
+                    {forwardSaving === m.p ? '保存中...' : '保存'}
+                  </button>
+                </div>
+              </div>
+            ))
+          )}
+          <p className="text-[10px] text-amber-600 bg-amber-50 border border-amber-100 rounded-xl px-3 py-2 leading-relaxed">
+            ※ この宛先を知っている人は誰でもこのセラピストとして各媒体に投稿できます。取り扱いにご注意ください。
           </p>
         </div>
 
