@@ -78,8 +78,10 @@ export default async function MainColumnListPage() {
       <CategoryChips activeKey={null} />
 
       {/* ルックバナー（タブの下）。公開中からランダム1枚・0件なら非表示（2026-08-19 第24便）。
-          ★ カテゴリ別一覧（/column/category/[key]）にも同じ2枠を置いてある。動かすときは4ページ
-            （本体2・求人2）そろえること。保存の即時反映は /api/revalidate の adBanners 分岐が担う。 */}
+          ★ カテゴリ別一覧（/column/category/[key]）にも同じ2枠を置いてある。動かすときは
+            この2ページをそろえること。保存の即時反映は /api/revalidate の adBanners 分岐が担う。
+          ★ 求人側（/jobs/column・/jobs/column/category/[key]）の2枠は第36便で外した（2026-08-26）。
+            以前は「4ページそろえること」と書いてあったが、いまは本体2ページだけ。 */}
       <AdBanner banners={adBanners} />
 
       {articles.length === 0 ? (
