@@ -162,8 +162,23 @@ export async function POST(req: Request) {
   //   従来の ingest は1人ずつ別々に upsert していたので表面化しなかった。
   //   ★ どちらが正しいか決められないので【両方とも書かない】。間違った出勤を書くより、
   //     触らないほうが安全（禁則267）。理由は unmatched に残してオーナーが直せるようにする。
-  const claimedBy = new Map<number, string>();   // therapist_id → 先に結びついた castId
-  const conflicted = new Set<number>();          // 複数の castId が奪い合った therapist_id
+  //   ★★★ 決着のつけ方（第36便・アイリスの「つかさ」「えれな」で実測）:
+  //     駅ちかには同じ子が2回載っていることがある（古い登録が消されずに残る）。
+  //     castId は駅ちかが振る一意の番号なので、名前より確実な手がかり。
+  //       ・片方が castId で確定していれば【そちらを採用】し、名前だけで当たった重複は無視する
+  //       ・どちらも名前だけなら決められないので【両方とも書かない】
+  //     これでフクエス側の therapists.import_cast_id を1つ指定するだけで解決できる。
+  //     店舗や媒体に重複の削除を依頼しなくてよい（依頼できるとは限らないため）。
+  const claimedBy = new Map<number, { castId: string; viaCastId: boolean }>();
+  const conflicted = new Set<number>();          // どちらも名前照合で決着がつかなかった therapist_id
+  let ignoredDup = 0;                            // castId で確定済みのため無視した重複掲載の数
+
+  // その therapist のぶんとして積んだものを取り消す（castId 確定の子に差し替えるとき）。
+  const dropPending = (tid: number) => {
+    for (let i = rows.length - 1; i >= 0; i--) if (rows[i]!.therapist_id === tid) rows.splice(i, 1);
+    for (let i = diffs.length - 1; i >= 0; i--) if (diffs[i]!.id === tid) diffs.splice(i, 1);
+    for (let i = profilePatches.length - 1; i >= 0; i--) if (profilePatches[i]!.id === tid) profilePatches.splice(i, 1);
+  };
   const rows: Array<{ therapist_id: number; schedule_date: string; is_active: boolean; start_time: string | null; end_time: string | null; imported_at: string }> = [];
   const profilePatches: Array<{ id: number; age?: string; body_type?: string }> = [];
   let matched = 0, unknownStatus = 0;
@@ -172,6 +187,7 @@ export async function POST(req: Request) {
     if (!c.name || !c.nameKey) { unmatched.push(`${c.name ?? c.castId}（名前が読めない）`); continue; }
 
     let id: number | undefined = byCastId.get(c.castId);
+    const viaCastId = id !== undefined;          // ★ castId で確定したか（名前照合より確実）
     if (id === undefined) {
       if (dupNames.has(c.nameKey)) { unmatched.push(`${c.name}（同名2名以上・自動更新を保留）`); continue; }
       id = byName.get(c.nameKey);
@@ -198,13 +214,28 @@ export async function POST(req: Request) {
     seenIds.add(id);   // ★ 衝突した子も「一覧に居た」ので掃除の対象からは外す
 
     // ★★★ 同じセラピストを2人以上が奪い合っていないか（第36便）
-    const prevCast = claimedBy.get(id);
-    if (prevCast !== undefined) {
-      conflicted.add(id);
-      unmatched.push(`${c.name}（駅ちかの複数の子が同じセラピストに結びつく: castId ${prevCast} と ${c.castId}・自動更新を保留）`);
-      continue;
+    const prev = claimedBy.get(id);
+    if (prev !== undefined) {
+      if (viaCastId && !prev.viaCastId) {
+        // こちらが castId で確定 → 先に積んだ「名前だけの子」を取り消して差し替える。
+        dropPending(id);
+        unmatched.push(`${c.name}（castId ${c.castId} で確定・castId ${prev.castId} の重複掲載を無視）`);
+        ignoredDup++;
+        claimedBy.set(id, { castId: c.castId, viaCastId: true });
+      } else if (!viaCastId && prev.viaCastId) {
+        // 先に castId で確定済み → こちらの重複掲載を無視する。
+        unmatched.push(`${c.name}（castId ${prev.castId} で確定・castId ${c.castId} の重複掲載を無視）`);
+        ignoredDup++;
+        continue;
+      } else {
+        // どちらも名前照合＝決められない。間違った出勤を書くより触らない（禁則267）。
+        conflicted.add(id);
+        unmatched.push(`${c.name}（駅ちかの複数の子が同じセラピストに結びつく: castId ${prev.castId} と ${c.castId}・自動更新を保留）`);
+        continue;
+      }
+    } else {
+      claimedBy.set(id, { castId: c.castId, viaCastId });
     }
-    claimedBy.set(id, c.castId);
 
     // ★★ castId の一括埋め（第36便）
     //   girlslist には在籍全員の castId が載っている。名前で当たった子のうち import_cast_id が
@@ -312,6 +343,7 @@ export async function POST(req: Request) {
       休み: rowsSafe.filter((r) => !r.is_active).length,
       判定不能で触らず: unknownStatus,
       結びつきが重複して触らず: conflicted.size,
+      castId確定により無視した重複掲載: ignoredDup,
     },
     掃除: { 候補: sweepIds.length, 実行: swept, 中止理由: sweepSkipped },
     書込: { 出勤行: upserted, プロフィール: profilesUpdated, castId埋め: castIdWritten },
