@@ -89,6 +89,9 @@ export default function TherapistEditPage() {
   const [forwardDraft, setForwardDraft] = useState<Record<string, string>>({});
   const [forwardLoaded, setForwardLoaded] = useState(false);
   const [forwardSaving, setForwardSaving] = useState<string | null>(null);
+  // ★ 読み込みに失敗したら理由を出す。黙って「読み込み中...」のままにしない
+  //   （第36便で実際にそうなり、原因が画面から分からなかった）。
+  const [forwardError, setForwardError] = useState('');
   // 店舗の「写メ日記の正本」。'benry'=他媒体で書く（既定） / 'fukues'=フクエスで書く。
   // ★★★ これが二重投稿を防ぐ唯一の仕掛け（fukues にすると他媒体からの受信を止める）。
   const [diarySource, setDiarySource] = useState<string | null>(null);
@@ -110,16 +113,18 @@ export default function TherapistEditPage() {
       else setDiaryMailError(r.error);
     });
     getDiaryForwards({ therapistId }).then((r) => {
-      if (cancelled || !r.ok) return;
+      if (cancelled) return;
+      if (!r.ok) { setForwardError(r.error); return; }
       const draft: Record<string, string> = {};
       for (const f of r.data) draft[f.provider] = f.address;
       setForwardDraft(draft);
       setForwardLoaded(true);
-    });
+    }).catch((e) => { if (!cancelled) setForwardError(String(e)); });
     getSalonDiarySource({ therapistId }).then((r) => {
-      if (cancelled || !r.ok) return;
+      if (cancelled) return;
+      if (!r.ok) { setForwardError((prev) => prev || r.error); return; }
       setDiarySource(r.data.source);
-    });
+    }).catch((e) => { if (!cancelled) setForwardError((prev) => prev || String(e)); });
     return () => { cancelled = true; };
   }, [therapistId]);
   const [uploadingSlot, setUploadingSlot] = useState<number | null>(null);
@@ -764,7 +769,11 @@ export default function TherapistEditPage() {
           <p className="text-[11px] text-slate-400 leading-relaxed">
             各媒体の管理画面で発行された「日記の投稿用メールアドレス」を貼ってください。空にすると、その媒体へは送りません。
           </p>
-          {!forwardLoaded ? (
+          {forwardError ? (
+            <p className="text-[11px] text-rose-600 bg-rose-50 border border-rose-100 rounded-xl px-3 py-2 leading-relaxed">
+              読み込めませんでした: {forwardError}
+            </p>
+          ) : !forwardLoaded ? (
             <p className="text-[11px] text-slate-400">読み込み中...</p>
           ) : (
             [{ p: 'ekichika', label: '駅ちか' }, { p: 'esulove', label: 'エスラブ' }].map((m) => (
