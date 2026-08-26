@@ -116,10 +116,12 @@ export async function POST(req: Request) {
   const byCastId = new Map<string, number>();
   const dupNames = new Set<string>();
   const nameOf = new Map<number, string>();
+  const castIdOf = new Map<number, string | null>();   // therapist_id → 現在の import_cast_id（第36便）
   for (const t of therapists ?? []) {
     const id = t.id as number;
     nameOf.set(id, t.name as string);
     const cid = t.import_cast_id as string | null;
+    castIdOf.set(id, cid);
     if (cid) byCastId.set(cid, id);
     for (const raw of [t.name as string, ...((t.import_aliases as string[] | null) ?? [])]) {
       const key = normalizeName(raw);
@@ -153,6 +155,7 @@ export async function POST(req: Request) {
   const createdNames: string[] = [];
   const diffs: Diff[] = [];
   const seenIds = new Set<number>();          // 一覧に居た＝掃除の対象外
+  const castIdFills: Array<{ id: number; castId: string; name: string }> = [];
   const rows: Array<{ therapist_id: number; schedule_date: string; is_active: boolean; start_time: string | null; end_time: string | null; imported_at: string }> = [];
   const profilePatches: Array<{ id: number; age?: string; body_type?: string }> = [];
   let matched = 0, unknownStatus = 0;
@@ -185,6 +188,17 @@ export async function POST(req: Request) {
     }
     if (!isNew) matched++;
     seenIds.add(id);
+
+    // ★★ castId の一括埋め（第36便）
+    //   girlslist には在籍全員の castId が載っている。名前で当たった子のうち import_cast_id が
+    //   空のものをここで埋めておくと、次回から castId 照合に乗る。
+    //   これで「フクエス側で名前を変えた子が未登録に見えて重複が増える」（禁則249）が消える。
+    //   ★ 既に別の子がその castId を持っている場合は埋めない。取り違えを固定してしまうため。
+    if (!isNew && !castIdOf.get(id) && !byCastId.has(c.castId)) {
+      castIdFills.push({ id, castId: c.castId, name: nameOf.get(id) ?? c.name });
+      castIdOf.set(id, c.castId);
+      byCastId.set(c.castId, id);   // 同じ一覧の中で2人が同じ castId を取り合わないように
+    }
 
     // ★ 'unknown'（waiting-cont が読めない）は触らない。全員を一斉に倒す事故を防ぐ安全弁。
     if (c.status === 'unknown') { unknownStatus++; continue; }
@@ -227,7 +241,7 @@ export async function POST(req: Request) {
     diffs.push({ name: nameOf.get(id) ?? String(id), 現在: show(true, current.get(id)?.start ?? null, current.get(id)?.end ?? null), 新規: '休み（一覧から消えた）' });
 
   // 7. 書き込み（apply のときだけ）
-  let upserted = 0, swept = 0, profilesUpdated = 0;
+  let upserted = 0, swept = 0, profilesUpdated = 0, castIdWritten = 0;
   if (apply) {
     if (rows.length > 0) {
       const { error } = await supabase.from('therapist_schedules').upsert(rows, { onConflict: 'therapist_id,schedule_date' });
@@ -240,6 +254,10 @@ export async function POST(req: Request) {
         .in('therapist_id', sweepIds).eq('schedule_date', todayISO).eq('is_active', true);
       if (error) return NextResponse.json({ ok: false, error: error.message, stage: 'sweep' }, { status: 500 });
       swept = sweepIds.length;
+    }
+    for (const f of castIdFills) {
+      const { error } = await supabase.from('therapists').update({ import_cast_id: f.castId }).eq('id', f.id);
+      if (!error) castIdWritten++;
     }
     for (const p of profilePatches) {
       const { id, ...patch } = p;
@@ -273,7 +291,8 @@ export async function POST(req: Request) {
       判定不能で触らず: unknownStatus,
     },
     掃除: { 候補: sweepIds.length, 実行: swept, 中止理由: sweepSkipped },
-    書込: { 出勤行: upserted, プロフィール: profilesUpdated },
+    書込: { 出勤行: upserted, プロフィール: profilesUpdated, castId埋め: castIdWritten },
+    castIdを埋める予定: castIdFills.map((f) => `${f.name}=${f.castId}`),
     差分: diffs,
   }, { headers: { 'content-type': 'application/json; charset=utf-8' } });
 }

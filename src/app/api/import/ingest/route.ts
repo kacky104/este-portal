@@ -119,10 +119,12 @@ export async function POST(req: Request) {
   }
   const byName = new Map<string, number>();      // 正規化名 → therapist_id
   const byCastId = new Map<string, number>();    // 駅ちかの castId → therapist_id（第35便）
+  const castIdOf = new Map<number, string | null>(); // therapist_id → 現在の import_cast_id（第36便）
   const dupNames = new Set<string>();            // フクエス側で重複する正規化名
   for (const t of therapists ?? []) {
     const id = t.id as number;
     const cid = t.import_cast_id as string | null;
+    castIdOf.set(id, cid);
     if (cid) byCastId.set(cid, id);
     const raws = [t.name as string, ...((t.import_aliases as string[] | null) ?? [])];
     for (const raw of raws) {
@@ -146,6 +148,7 @@ export async function POST(req: Request) {
   let matched = 0;
   let schedulesUpserted = 0;
   let profilesUpdated = 0;
+  let castIdFilled = 0;
 
   // 4. 個人ページごとに解析・照合・反映
   for (const c of casts) {
@@ -197,6 +200,19 @@ export async function POST(req: Request) {
     }
 
     if (!isNew) matched++;
+
+    // ★★ castId の一括埋め（第36便）
+    //   名前で当たった子のうち import_cast_id が空のものを埋めておくと、次回から castId 照合に乗る。
+    //   「フクエス側で名前を変えた子が未登録に見えて重複が増える」（禁則249）を防ぐ。
+    //   ★ 既に別の子がその castId を持っている場合は埋めない（取り違えを固定しないため）。
+    if (!isNew && c.castId && !castIdOf.get(therapistId) && !byCastId.has(c.castId)) {
+      const { error } = await supabase.from('therapists').update({ import_cast_id: c.castId }).eq('id', therapistId);
+      if (!error) {
+        castIdOf.set(therapistId, c.castId);
+        byCastId.set(c.castId, therapistId);
+        castIdFilled++;
+      }
+    }
 
     // 4a. 出勤（設定ON かつ 出勤/休みの行があるときだけ）
     if (source.import_schedule && cast.schedule.length > 0) {
@@ -261,6 +277,7 @@ export async function POST(req: Request) {
     unmatched,
     schedulesUpserted,
     profilesUpdated,
+    castIdFilled,
     created: createdNames.length,
     createdNames,
   }, {
