@@ -63,14 +63,14 @@ export async function GET(req: Request) {
   const supabase = createServiceClient();
   const { data, error } = await supabase
     .from('salon_import_sources')
-    .select('id, salon_id, provider, external_id, shop_url, import_schedule, import_profile, create_missing, list_mode, salons!inner(is_hidden)')
+    .select('id, salon_id, provider, external_id, shop_url, import_schedule, import_profile, create_missing, list_mode, import_interval_min, last_run_at, salons!inner(is_hidden)')
     .eq('is_enabled', true)
     .eq('salons.is_hidden', false)
     .order('id');
 
   if (error) return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
 
-  const targets = (data ?? []).map((s) => ({
+  const all = (data ?? []).map((s) => ({
     sourceId: s.id,
     salonId: s.salon_id,
     provider: s.provider,
@@ -80,7 +80,28 @@ export async function GET(req: Request) {
     importProfile: s.import_profile,
     createMissing: s.create_missing,
     listMode: s.list_mode,
+    intervalMin: (s.import_interval_min as number | null) ?? 60,
+    lastRunAt: (s.last_run_at as string | null) ?? null,
   }));
+
+  // ★★★ 取り込み間隔でふるいにかける（第36便・禁則271）
+  //   crontab は15分ごとに叩いてくるが、店ごとの import_interval_min を満たさない店は返さない。
+  //   これで「頻度は上げたまま、総量は店舗ごとに制御する」ができる。プランの差にも使える。
+  //   ★ mode=full（1日1回・03:20）は週間予定の維持が目的なので間隔を無視して全店を回す。
+  //   ★ MARGIN を引いているのは、cron の刻みと間隔がぴったりのときに1回飛ぶのを防ぐため。
+  //     例: 15分間隔の店を15分ごとの cron で回すと、処理時間ぶんだけ毎回足りずに
+  //     30分に1回になってしまう。
+  const MARGIN_MS = 2 * 60 * 1000;
+  const nowMs = Date.now();
+  const skippedByInterval: Array<{ sourceId: number; salonId: number; intervalMin: number; 経過分: number }> = [];
+  const targets = mode === 'full' ? all : all.filter((t) => {
+    const last = t.lastRunAt ? new Date(t.lastRunAt).getTime() : 0;
+    const elapsed = nowMs - last;
+    if (elapsed >= t.intervalMin * 60 * 1000 - MARGIN_MS) return true;
+    // ★ 0件を報告するときは0の理由が読み取れる形にする（第35便の反省6）。
+    skippedByInterval.push({ sourceId: t.sourceId, salonId: t.salonId, intervalMin: t.intervalMin, 経過分: Math.floor(elapsed / 60000) });
+    return false;
+  });
 
   // ── 前周ぶんの掃除 ────────────────────────────────────────────────
   // 有効化は環境変数で行う（IMPORT_SWEEP=on）。既定は off なので、デプロイしただけでは
@@ -188,7 +209,7 @@ export async function GET(req: Request) {
     }
   }
 
-  return NextResponse.json({ ok: true, mode, count: targets.length, targets, sweep }, {
+  return NextResponse.json({ ok: true, mode, count: targets.length, targets, skippedByInterval, sweep }, {
     headers: { 'content-type': 'application/json; charset=utf-8' },
   });
 }

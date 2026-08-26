@@ -44,6 +44,25 @@ set -euo pipefail
 
 MODE="${1:-full}"
 
+# ★★★ サーキットブレーカー（第36便・禁則273）
+#   駅ちかが 429（多すぎる）や 5xx を返したら、30分は取りに行かない。
+#   「相手が重いと言ってきたら引く」のが取得側のいちばん基本的な作法で、
+#   リクエスト数を絞ること以上に大事。解除は /root/import.backoff を消すだけ。
+BACKOFF_FILE=/root/import.backoff
+if [ -f "$BACKOFF_FILE" ]; then
+  UNTIL_TS="$(cat "$BACKOFF_FILE" 2>/dev/null || echo 0)"
+  # ★ 中身が空・壊れているときに [ -lt ] がエラーになり、set -e で取り込みごと
+  #   静かに止まるのを防ぐ。数字でなければ 0（＝すぐ解除）扱いにする。
+  case "$UNTIL_TS" in ""|*[!0-9]*) UNTIL_TS=0 ;; esac
+  NOW_TS="$(date +%s)"
+  if [ "$NOW_TS" -lt "$UNTIL_TS" ]; then
+    echo "=== $(TZ=Asia/Tokyo date '+%F %T') backoff 中（$(TZ=Asia/Tokyo date -d "@$UNTIL_TS" '+%F %T') まで）-> skip ==="
+    exit 0
+  fi
+  rm -f "$BACKOFF_FILE"
+  echo "=== $(TZ=Asia/Tokyo date '+%F %T') backoff 解除 ==="
+fi
+
 exec 9>/root/import.lock
 flock -n 9 || { echo "already running -> skip"; exit 0; }
 
@@ -63,6 +82,24 @@ curl -s -H "Authorization: Bearer $SECRET" "$BASE/api/import/targets$Q" | python
 import sys,json,re,subprocess,time
 BASE=sys.argv[1]; SECRET=sys.argv[2]; UA=sys.argv[3]; TODAY=sys.argv[4]; MODE=sys.argv[5]
 CHUNK=10
+BACKOFF_FILE="/root/import.backoff"
+BACKOFF_SEC=1800
+
+# 駅ちかから1ページ取る。429/5xx が返ったら30分の停止を書いて即座に終わる（禁則273）。
+# ★ 200 以外（404など）はその店だけスキップする。全体は止めない。
+def fetch(u):
+    out=subprocess.run(["curl","-s","-A",UA,"-w","\n%{http_code}",u],capture_output=True,text=True).stdout
+    i=out.rfind("\n")
+    body,code=(out[:i],out[i+1:].strip()) if i>=0 else ("","000")
+    if code=="429" or code.startswith("5"):
+        with open(BACKOFF_FILE,"w") as f: f.write(str(int(time.time())+BACKOFF_SEC))
+        print("★★★ %s が %s を返した。%d分停止する（解除: rm %s）" % (u,code,BACKOFF_SEC//60,BACKOFF_FILE),flush=True)
+        raise SystemExit(2)
+    if code!="200":
+        print("★ %s が %s を返した（スキップ）" % (u,code),flush=True)
+        return ""
+    return body
+
 data=json.load(sys.stdin)
 for t in data.get("targets",[]):
     shop=t["shopUrl"]; ext=str(t["externalId"]); sid=t["sourceId"]
@@ -84,7 +121,7 @@ for t in data.get("targets",[]):
     PAGE_SIZE=100
     for pg in range(1,6):
         lu=shop.rstrip("/")+"/girlslist/"+("" if pg==1 else "page%d/"%pg)
-        lh=subprocess.run(["curl","-s","-A",UA,lu],capture_output=True,text=True).stdout
+        lh=fetch(lu)
         found=list(dict.fromkeys(re.findall(r"/%s/(\d+)/"%ext,lh)))
         new=[c for c in found if c not in ids]
         if not new: break
@@ -104,7 +141,7 @@ for t in data.get("targets",[]):
     casts=[]
     for cid in ids:
         u=shop.rstrip("/")+"/"+cid+"/"
-        h=subprocess.run(["curl","-s","-A",UA,u],capture_output=True,text=True).stdout
+        h=fetch(u)
         casts.append({"castId":cid,"html":h}); time.sleep(1)
     if not casts:
         print("source",sid,"casts 0 -> skipped (no cast ids found)",flush=True); continue
