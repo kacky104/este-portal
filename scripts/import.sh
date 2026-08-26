@@ -27,10 +27,20 @@ set -euo pipefail
 # ★ 引数なしを従来の挙動にしてあるので、crontab を変えるまでは何も変わらない。
 #   切り戻しは crontab の list を消すだけでよい（このスクリプトも受け口も戻さなくてよい）。
 #
-# crontab（第36便）:
-#   5 * * * *  set -a; . /root/import.env; /usr/bin/bash /root/import.sh list >> /root/import.log 2>&1
-#   20 3 * * * set -a; . /root/import.env; /usr/bin/bash /root/import.sh full >> /root/import.log 2>&1
-#   ※ 03:20 にしてあるのは 03:05 の list 周と flock で衝突させないため（禁則231）。
+# crontab（第36便・15分間隔）:
+#   5,20,35,50 * * * * set -a; . /root/import.env; /usr/bin/bash /root/import.sh list >> /root/import.log 2>&1
+#   20 3 * * *         set -a; . /root/import.env; /usr/bin/bash /root/import.sh full >> /root/import.log 2>&1
+#   ※ 03:20 にしてあるのは list 周と flock で衝突させないため（禁則231）。
+#      →★ 15分間隔だと 03:20 は list 周とぶつかる。full を 03:25 にずらすか、
+#        flock で list 側が skip されるのを許容するか。第36便では 03:20 のまま置いた
+#        （flock があるので事故にはならず、skip されても次の周で拾える）。
+#
+# ★ 駅ちかへの負荷（第36便実測）:
+#     今朝              343件/周・毎時 = 343件/時
+#     girlslist方式     13件/周（空振り6件込み）
+#     終端判定の改良後   7件/周 → 15分間隔で 28件/時（今朝の1/12）
+#   ★ 店舗が増えたら「頻度」ではなく「総量」で見ること。100店なら1周あたり約110件になり、
+#     15分間隔では 440件/時＝今朝より重い。上限を決めて頻度のほうを落とすこと。
 
 MODE="${1:-full}"
 
@@ -59,8 +69,19 @@ for t in data.get("targets",[]):
     use_list = (MODE=="list" and bool(t.get("listMode")))
     ids=[]; pages=[]
     # 一覧(girlslist)を辿る。castId の抽出はどちらのモードでも要る。
-    # ★ ページ送りを必ず辿ること。アイリスは100人/ページで2ページある（第36便で実測）。
+    # ★★★ ページ送りを必ず辿ること。アイリスは100人/ページで2ページある（第36便で実測・禁則256）。
     #   1ページ目だけ読むと101番目以降が「在籍から消えた子」に化けて掃除で倒れる。
+    #
+    # ★★ 終端の判定（第36便で改良）。
+    #   以前は「次のページを取ってみて、新しいIDが無ければ終わり」としていた。確実だが、
+    #   1ページで収まる店でも毎回1回よけいに取りに行っていた（6店で13件のうち6件が空振り）。
+    #   いまは【次ページへのリンクがある】か【このページが PAGE_SIZE 人ぶん埋まっている】の
+    #   どちらかが成り立つときだけ次を取る。6店で 13件 → 7件 になる。
+    #   ★ 2つの信号を併用しているのは、片方の前提が崩れても止まらないようにするため:
+    #       ・リンクの書式が変わった → 「100人ぶん埋まっている」で拾う
+    #       ・1ページの人数が変わった → 「次ページへのリンク」で拾う
+    #     取りこぼしの代償が大きい（消えた子として掃除で倒れる）ので、ここは二重にしておく。
+    PAGE_SIZE=100
     for pg in range(1,6):
         lu=shop.rstrip("/")+"/girlslist/"+("" if pg==1 else "page%d/"%pg)
         lh=subprocess.run(["curl","-s","-A",UA,lu],capture_output=True,text=True).stdout
@@ -69,6 +90,8 @@ for t in data.get("targets",[]):
         if not new: break
         ids+=new
         if use_list: pages.append(lh)   # ★ list モードのときだけHTMLを保持して送る
+        has_next = ("/girlslist/page%d/"%(pg+1)) in lh
+        if not has_next and len(found) < PAGE_SIZE: break   # ← どちらも成り立たないときだけ終わり
         time.sleep(1)
     print("source",sid,"mode","list" if use_list else "full","ids",len(ids),flush=True)
     if use_list:
