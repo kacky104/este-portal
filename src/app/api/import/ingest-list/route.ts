@@ -54,7 +54,7 @@ function isValidISO(s: unknown): s is string {
 }
 
 type Body = { sourceId?: number; todayISO?: string; pages?: unknown; apply?: boolean };
-type Diff = { name: string; 現在: string; 新規: string };
+type Diff = { id: number; name: string; 現在: string; 新規: string };
 
 const show = (a: boolean, s: string | null, e: string | null) =>
   a ? `出勤 ${s ?? '?'}→${e ?? '?'}` : '休み';
@@ -156,6 +156,14 @@ export async function POST(req: Request) {
   const diffs: Diff[] = [];
   const seenIds = new Set<number>();          // 一覧に居た＝掃除の対象外
   const castIdFills: Array<{ id: number; castId: string; name: string }> = [];
+  // ★★★ 駅ちかの複数の子が、フクエスの同じ1人に結びつくことがある（第36便・アイリスで実測）。
+  //   そのまま upsert すると同じ (therapist_id, 日付) が2行できて Postgres が
+  //   「ON CONFLICT DO UPDATE command cannot affect row a second time」で全体を弾く。
+  //   従来の ingest は1人ずつ別々に upsert していたので表面化しなかった。
+  //   ★ どちらが正しいか決められないので【両方とも書かない】。間違った出勤を書くより、
+  //     触らないほうが安全（禁則267）。理由は unmatched に残してオーナーが直せるようにする。
+  const claimedBy = new Map<number, string>();   // therapist_id → 先に結びついた castId
+  const conflicted = new Set<number>();          // 複数の castId が奪い合った therapist_id
   const rows: Array<{ therapist_id: number; schedule_date: string; is_active: boolean; start_time: string | null; end_time: string | null; imported_at: string }> = [];
   const profilePatches: Array<{ id: number; age?: string; body_type?: string }> = [];
   let matched = 0, unknownStatus = 0;
@@ -187,7 +195,16 @@ export async function POST(req: Request) {
       isNew = true;
     }
     if (!isNew) matched++;
-    seenIds.add(id);
+    seenIds.add(id);   // ★ 衝突した子も「一覧に居た」ので掃除の対象からは外す
+
+    // ★★★ 同じセラピストを2人以上が奪い合っていないか（第36便）
+    const prevCast = claimedBy.get(id);
+    if (prevCast !== undefined) {
+      conflicted.add(id);
+      unmatched.push(`${c.name}（駅ちかの複数の子が同じセラピストに結びつく: castId ${prevCast} と ${c.castId}・自動更新を保留）`);
+      continue;
+    }
+    claimedBy.set(id, c.castId);
 
     // ★★ castId の一括埋め（第36便）
     //   girlslist には在籍全員の castId が載っている。名前で当たった子のうち import_cast_id が
@@ -216,7 +233,7 @@ export async function POST(req: Request) {
     const cur = current.get(id);
     const 現在 = cur ? show(cur.is_active, cur.start, cur.end) : '（行なし）';
     const 新規 = show(active, c.start, c.end);
-    if (現在 !== 新規) diffs.push({ name: nameOf.get(id) ?? c.name, 現在, 新規 });
+    if (現在 !== 新規) diffs.push({ id, name: nameOf.get(id) ?? c.name, 現在, 新規 });
 
     if (source.import_profile) {
       const patch: { id: number; age?: string; body_type?: string } = { id };
@@ -225,6 +242,11 @@ export async function POST(req: Request) {
       if (patch.age || patch.body_type) profilePatches.push(patch);
     }
   }
+
+  // ★★★ 衝突した子は書かない（先に積んだ行も取り消す）。
+  const rowsSafe = rows.filter((r) => !conflicted.has(r.therapist_id));
+  const patchesSafe = profilePatches.filter((p) => !conflicted.has(p.id));
+  const diffsSafe = diffs.filter((d) => !conflicted.has(d.id));
 
   // 6. 掃除: 在籍しているのに一覧に居なかった子の、当日の出勤を倒す。
   //    ★ imported_at が null の行（＝人が SQL や管理画面で入れた行）は触らない（禁則243）。
@@ -238,15 +260,15 @@ export async function POST(req: Request) {
   if (liveToday > 0 && sweepIds.length / liveToday > SWEEP_MAX_RATIO)
     sweepSkipped = `too many (${sweepIds.length}/${liveToday}) — 駅ちか側の不調を疑うこと`;
   for (const id of sweepSkipped ? [] : sweepIds)
-    diffs.push({ name: nameOf.get(id) ?? String(id), 現在: show(true, current.get(id)?.start ?? null, current.get(id)?.end ?? null), 新規: '休み（一覧から消えた）' });
+    diffsSafe.push({ id, name: nameOf.get(id) ?? String(id), 現在: show(true, current.get(id)?.start ?? null, current.get(id)?.end ?? null), 新規: '休み（一覧から消えた）' });
 
   // 7. 書き込み（apply のときだけ）
   let upserted = 0, swept = 0, profilesUpdated = 0, castIdWritten = 0;
   if (apply) {
-    if (rows.length > 0) {
-      const { error } = await supabase.from('therapist_schedules').upsert(rows, { onConflict: 'therapist_id,schedule_date' });
+    if (rowsSafe.length > 0) {
+      const { error } = await supabase.from('therapist_schedules').upsert(rowsSafe, { onConflict: 'therapist_id,schedule_date' });
       if (error) return NextResponse.json({ ok: false, error: error.message, stage: 'schedules' }, { status: 500 });
-      upserted = rows.length;
+      upserted = rowsSafe.length;
     }
     if (!sweepSkipped && sweepIds.length > 0) {
       const { error } = await supabase.from('therapist_schedules')
@@ -259,7 +281,7 @@ export async function POST(req: Request) {
       const { error } = await supabase.from('therapists').update({ import_cast_id: f.castId }).eq('id', f.id);
       if (!error) castIdWritten++;
     }
-    for (const p of profilePatches) {
+    for (const p of patchesSafe) {
       const { id, ...patch } = p;
       const { error } = await supabase.from('therapists').update(patch).eq('id', id);
       if (!error) profilesUpdated++;
@@ -286,13 +308,14 @@ export async function POST(req: Request) {
     作成: createdNames.length, 作成した名前: createdNames,
     未照合: unmatched,
     当日の内訳: {
-      出勤: rows.filter((r) => r.is_active).length,
-      休み: rows.filter((r) => !r.is_active).length,
+      出勤: rowsSafe.filter((r) => r.is_active).length,
+      休み: rowsSafe.filter((r) => !r.is_active).length,
       判定不能で触らず: unknownStatus,
+      結びつきが重複して触らず: conflicted.size,
     },
     掃除: { 候補: sweepIds.length, 実行: swept, 中止理由: sweepSkipped },
     書込: { 出勤行: upserted, プロフィール: profilesUpdated, castId埋め: castIdWritten },
     castIdを埋める予定: castIdFills.map((f) => `${f.name}=${f.castId}`),
-    差分: diffs,
+    差分: diffsSafe.map(({ id: _id, ...rest }) => rest),
   }, { headers: { 'content-type': 'application/json; charset=utf-8' } });
 }
