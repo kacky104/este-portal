@@ -33,9 +33,20 @@
 //                 <li class="waiting-cont today">10:00<span>▶︎</span>17:00</li></ul>
 //           </div>
 //
-// ★★ 状態は実測で2種類しか無い（アイリス100名・enju63名で例外ゼロ）:
-//     waiting-cont today  … 本日出勤。必ず "HH:MM ▶︎ HH:MM" が入る
-//     waiting-cont normal … 本日出勤なし。中身は空
+// ★★★ 状態のクラスは1種類ではない（第36便 13:05 に実地で判明）:
+//     waiting-cont today    … 本日出勤
+//     waiting-cont sokuiku  … 即イキ（いますぐ案内可能）。出勤中の子に付く
+//     waiting-cont shihatu  … 始発
+//     waiting-cont normal   … 本日出勤なし。中身は空
+//   today 以外の3つは【営業時間中にしか現れない】。朝08:35の調査ではアイリス100名・enju63名とも
+//   today と normal しか出ておらず、「2種類しか無い」と誤って結論した。13:05 の周で enju の5名が
+//   判定不能になって発覚した（sokuiku 4・shihatu 1）。時刻はどれも正しく入っていた。
+//
+// ★★★ だから判定はクラス名の列挙ではなく「時刻が読めるか」で行う:
+//     normal            → 休み（時刻の有無を問わない）
+//     normal 以外＋時刻2つ → 出勤（クラス名を問わない。新しい待機状態が増えても追随する）
+//     それ以外           → 'unknown'＝触らない（レイアウト変更に対する安全弁は殺していない）
+//
 //   日跨ぎは「翌」を付けず素の時刻で出る（例 16:00 ▶︎ 05:00）。個人ページ側の
 //   normTime が「翌」を外した形と揃うので、両者の値は一致する。
 //
@@ -136,21 +147,25 @@ export function parseEkichikaList(html: string, externalId: string): EkichikaLis
     const bodyType = bt.length ? bt.join(' ') : null;
 
     // 当日の出勤。クラスの並び順に依存しないよう、class 属性を取り出してから判定する。
+    // ★ 出勤の判定は「クラス名が today か」ではなく「時刻が2つ読めるか」で行う（第36便）。
+    //   駅ちかは営業時間中に today → sokuiku（即イキ）/ shihatu（始発）へ表示を変える。
+    //   クラス名を列挙する作りだと、新しい待機状態が増えるたびに取りこぼす。
     const contCls = pick(/<li[^>]*class="([^"]*\bwaiting-cont\b[^"]*)"[^>]*>/, seg);
     let status: 'work' | 'off' | 'unknown' = 'unknown';
     let start: string | null = null;
     let end: string | null = null;
-    if (contCls && /\btoday\b/.test(contCls)) {
+    if (contCls) {
+      const isNormal = /\bnormal\b/.test(contCls);
       const inner = pick(/<li[^>]*class="[^"]*\bwaiting-cont\b[^"]*"[^>]*>([\s\S]*?)<\/li>/, seg) ?? '';
       const times = stripTags(inner).match(/\d{1,2}:\d{2}/g) ?? [];
-      if (times.length >= 2) {
+      if (isNormal) {
+        status = 'off';                       // normal は必ず「本日出勤なし」
+      } else if (times.length >= 2) {
         status = 'work';
         start = normTime(times[0] ?? null);
         end = normTime(times[1] ?? null);
       }
-      // 時刻が読めない today は 'unknown' のまま＝触らない（安全弁）。
-    } else if (contCls && /\bnormal\b/.test(contCls)) {
-      status = 'off';
+      // normal でもなく時刻も読めない＝想定外。'unknown' のまま＝触らない（安全弁）。
     }
     // waiting-cont 自体が無い＝レイアウト変更。'unknown' のまま＝触らない（安全弁）。
 
