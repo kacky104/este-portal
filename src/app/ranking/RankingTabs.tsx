@@ -348,6 +348,8 @@ export default function RankingTabs({
                           availableUntil={t.availableUntil}
                           isAvailableNowCast={t.isAvailableNowCast}
                           availableUntilCast={t.availableUntilCast}
+                          isAvailableNowImport={t.isAvailableNowImport}
+                          availableUntilImport={t.availableUntilImport}
                           todayIsActive={t.todayIsActive}
                           todayStart={t.todayStart}
                           todayEnd={t.todayEnd}

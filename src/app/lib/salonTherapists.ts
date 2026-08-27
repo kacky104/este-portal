@@ -6,6 +6,7 @@ import type { Therapist } from '@/components/SalonTherapists';
 //   import すると、このサーバー専用モジュール経由でクライアント一式がビルドに巻き込まれ
 //   `supabaseUrl is required` でビルドが落ちる（2026-08-22 実測）。
 import { sortSalonTherapists } from '@/lib/therapistSort';
+import { SALON_THERAPIST_COLUMNS } from '@/lib/therapistColumns';
 
 type PublicClient = ReturnType<typeof createPublicClient>;
 
@@ -27,7 +28,7 @@ type PublicClient = ReturnType<typeof createPublicClient>;
 //   運用: 退店した子が戻ってきたら、このレコードを復活させず新しく作る（オーナー判断・第34便）。
 // - N+1 回避のため、出勤・写メ日記・口コミ件数・fukuX ハンドルはそれぞれ1クエリでまとめて引く。
 const THERAPIST_SELECT =
-  'id, name, age, work_hours, area, comment, profile_image_url, is_available_now, available_until, is_available_now_cast, available_until_cast, is_new_face, new_face_since, body_type, feature_badges, user_id, catchphrase';
+  SALON_THERAPIST_COLUMNS;
 
 export async function fetchSalonTherapists(
   salonId: number,
@@ -107,6 +108,8 @@ export async function fetchSalonTherapists(
       availableUntil: (t.available_until as string | null) ?? null,
       isAvailableNowCast: Boolean(t.is_available_now_cast),
       availableUntilCast: (t.available_until_cast as string | null) ?? null,
+      isAvailableNowImport: Boolean(t.is_available_now_import),
+      availableUntilImport: (t.available_until_import as string | null) ?? null,
       isNewFace: Boolean(t.is_new_face),
       newFaceSince: (t.new_face_since as string | null) ?? null,
       bodyType: (t.body_type as string | null) ?? null,

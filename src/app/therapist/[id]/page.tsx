@@ -36,6 +36,7 @@ import { ReviewList } from '@/app/components/ReviewList';
 import { getLinkedXProfileForTherapist } from '@/app/lib/xLink';
 import { SiteNoticeBanner } from '@/app/components/SiteNoticeBanner';
 import { SiteFooter } from '@/app/components/SiteFooter';
+import { IMASUGU_COLUMNS } from '@/lib/therapistColumns';
 
 // ── helpers ───────────────────────────────────────────────────
 
@@ -135,7 +136,7 @@ export default async function TherapistPublicPage({
 
   const { data: tRow, error: tError } = await supabase
     .from('therapists')
-    .select('id, name, profile_image_url, profile_images, age, body_type, profile_text, work_hours, comment, area, salon_id, user_id, is_new_face, new_face_since, is_available_now, available_until, is_available_now_cast, available_until_cast, feature_badges, catchphrase, is_active')
+    .select(`id, name, profile_image_url, profile_images, age, body_type, profile_text, work_hours, comment, area, salon_id, user_id, is_new_face, new_face_since, ${IMASUGU_COLUMNS}, feature_badges, catchphrase, is_active`)
     .eq('id', id)
     .single();
 
@@ -288,6 +289,9 @@ export default async function TherapistPublicPage({
     ownerUntil: (tRow.available_until as string | null) ?? null,
     castOn: Boolean(tRow.is_available_now_cast),
     castUntil: (tRow.available_until_cast as string | null) ?? null,
+    // ★ 駅ちかの即ヒメから取り込んだ枠（第39便）。3枠は和集合。
+    importOn: Boolean(tRow.is_available_now_import),
+    importUntil: (tRow.available_until_import as string | null) ?? null,
     todayIsActive: Boolean(todaySched?.is_active),
     todayStart: (todaySched?.start_time as string | null) ?? null,
     todayEnd: (todaySched?.end_time as string | null) ?? null,

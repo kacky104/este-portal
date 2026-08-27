@@ -17,6 +17,7 @@ import type { Metadata } from "next";
 import { buildSalonSubpageMetadata } from "../subpageMetadata";
 import { SiteNoticeBanner } from '@/app/components/SiteNoticeBanner';
 import { buildBreadcrumbJsonLd, toJsonLdString } from '@/app/lib/jsonLd';
+import { IMASUGU_COLUMNS } from '@/lib/therapistColumns';
 
 // 自己参照 canonical＋固有 title（root の canonical '/' 継承による重複扱いを防ぐ）。詳細は ../subpageMetadata.ts。
 export async function generateMetadata({
@@ -57,7 +58,7 @@ export default async function SalonSchedulePage({
       .single(),
     supabase
       .from('therapists')
-      .select('id, name, age, profile_image_url, is_available_now, available_until, is_available_now_cast, available_until_cast, is_new_face, new_face_since, body_type, feature_badges, user_id')
+      .select(`id, name, age, profile_image_url, ${IMASUGU_COLUMNS}, is_new_face, new_face_since, body_type, feature_badges, user_id`)
       .eq('salon_id', Number(id)),
   ]);
 
@@ -163,6 +164,8 @@ export default async function SalonSchedulePage({
       availableUntil: (t.available_until as string | null) ?? null,
       isAvailableNowCast: Boolean(t.is_available_now_cast),
       availableUntilCast: (t.available_until_cast as string | null) ?? null,
+      isAvailableNowImport: Boolean(t.is_available_now_import),
+      availableUntilImport: (t.available_until_import as string | null) ?? null,
       isNewFace:      Boolean(t.is_new_face),
       newFaceSince:   (t.new_face_since as string | null) ?? null,
       bodyType:       (t.body_type as string | null) ?? null,

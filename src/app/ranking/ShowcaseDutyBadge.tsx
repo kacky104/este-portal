@@ -10,6 +10,8 @@ export function ShowcaseDutyBadge({
   availableUntil,
   isAvailableNowCast,
   availableUntilCast,
+  isAvailableNowImport,
+  availableUntilImport,
   todayIsActive,
   todayStart,
   todayEnd,
@@ -19,6 +21,8 @@ export function ShowcaseDutyBadge({
   availableUntil: string | null;
   isAvailableNowCast: boolean;
   availableUntilCast: string | null;
+  isAvailableNowImport: boolean;
+  availableUntilImport: string | null;
   todayIsActive: boolean;
   todayStart: string | null;
   todayEnd: string | null;
@@ -32,13 +36,15 @@ export function ShowcaseDutyBadge({
         ownerUntil: availableUntil,
         castOn: isAvailableNowCast,
         castUntil: availableUntilCast,
+        importOn: isAvailableNowImport,
+        importUntil: availableUntilImport,
         todayIsActive,
         todayStart,
         todayEnd,
         now: new Date(),
       }),
     );
-  }, [isAvailableNow, availableUntil, isAvailableNowCast, availableUntilCast, todayIsActive, todayStart, todayEnd]);
+  }, [isAvailableNow, availableUntil, isAvailableNowCast, availableUntilCast, isAvailableNowImport, availableUntilImport, todayIsActive, todayStart, todayEnd]);
 
   if (!badge) return null;
   return (

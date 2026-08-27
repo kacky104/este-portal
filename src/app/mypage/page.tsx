@@ -14,7 +14,7 @@ import { JobsTab } from '@/app/mypage/JobsTab';
 import { BookingBoard } from '@/app/mypage/BookingBoard';
 import { SupportTab } from '@/app/mypage/SupportTab';
 import { getBusinessDateJST, getBusinessDateRangeJST } from '@/lib/dutyStatus';
-import { isCastLiveRow } from '@/lib/imasugu';
+import { isCastLiveRow, isOwnerLiveRow, isImportLiveRow } from '@/lib/imasugu';
 import { MyDiaryList } from './MyDiaryList';
 import { inviteCast, resendCastInvite, unlinkCast, cancelCastInvite } from '@/app/actions/castInvite';
 import { deleteTherapistWithCleanup } from '@/app/actions/therapistAdmin';
@@ -33,22 +33,21 @@ import { SiteNoticeBanner } from '@/app/components/SiteNoticeBanner';
 import { SalonBumpButton } from '@/app/components/SalonBumpButton';
 import { EmbedCodePanel } from './EmbedCodePanel';
 import { MediaLinkPanel } from './MediaLinkPanel';
+import { IMASUGU_COLUMNS } from '@/lib/therapistColumns';
 
 const supabase = createClient();
 
 const WEEKDAYS = ['日', '月', '火', '水', '木', '金', '土'];
 
-// 「今すぐ」が現時点で有効か（公開サイトのバッジ表示と同じ時刻ベース判定）。
-// is_available_now=true かつ available_until が未来のときのみ true。
-// 期限切れ（available_until が過去 / NULL）は cron の実行を待たず false 扱いにする。
-function isAvailableNowLive(t: { is_available_now?: boolean | null; available_until?: string | null }): boolean {
-  return Boolean(t.is_available_now) && t.available_until != null && new Date(t.available_until) > new Date();
-}
+// ★ ここにあった isAvailableNowLive() は src/lib/imasugu.ts の isOwnerLiveRow() の複製だった（第40便で撤去）。
+//   ヘルパーの外にある複製は、枠が増えても追随しない。判定は必ず src/lib/imasugu.ts を通すこと。
+//   ★ /mypage が見るのは【オーナー枠だけ】。取り込み枠（駅ちか由来）は読み取り専用で表示するのみで、
+//     3名制限にも一括保存にも混ぜない（第40便の決定）。
 
 async function fetchTherapistList(salonId: string): Promise<Therapist[]> {
   const { data, error } = await supabase
     .from('therapists')
-    .select('id, name, work_hours, area, comment, profile_image_url, age, body_type, profile_text, is_available_now, available_until, is_available_now_cast, available_until_cast, user_id, invited_email')
+    .select(`id, name, work_hours, area, comment, profile_image_url, age, body_type, profile_text, ${IMASUGU_COLUMNS}, user_id, invited_email`)
     .eq('salon_id', salonId);
   if (!error) return (data ?? []) as Therapist[];
   console.warn('[mypage] クエリ失敗（カラム未作成の可能性）:', error.message);
@@ -56,7 +55,7 @@ async function fetchTherapistList(salonId: string): Promise<Therapist[]> {
     .from('therapists')
     .select('id, name, work_hours, area, comment, profile_image_url, age, body_type, profile_text')
     .eq('salon_id', salonId);
-  return (fb ?? []).map(t => ({ ...(t as Omit<Therapist, 'is_available_now' | 'available_until' | 'is_available_now_cast' | 'available_until_cast' | 'user_id' | 'invited_email'>), is_available_now: false, available_until: null, is_available_now_cast: false, available_until_cast: null, user_id: null, invited_email: null }));
+  return (fb ?? []).map(t => ({ ...(t as Omit<Therapist, 'is_available_now' | 'available_until' | 'is_available_now_cast' | 'available_until_cast' | 'is_available_now_import' | 'available_until_import' | 'user_id' | 'invited_email'>), is_available_now: false, available_until: null, is_available_now_cast: false, available_until_cast: null, is_available_now_import: false, available_until_import: null, user_id: null, invited_email: null }));
 }
 
 type Coupon = {
@@ -456,6 +455,9 @@ type Therapist = {
   available_until: string | null;
   is_available_now_cast: boolean;
   available_until_cast: string | null;
+  // ★ 駅ちかの「即ヒメ」から取り込んだ枠（第39便）。店舗もキャストも操作しない・読み取り専用。
+  is_available_now_import: boolean;
+  available_until_import: string | null;
   user_id: string | null;
   invited_email: string | null;
 };
@@ -763,7 +765,7 @@ export default function MyPage() {
       const list = await fetchTherapistList(String(salonData.id));
       setTherapists(list);
       const initAvail: Record<string, boolean> = {};
-      list.forEach(t => { initAvail[String(t.id)] = isAvailableNowLive(t); });
+      list.forEach(t => { initAvail[String(t.id)] = isOwnerLiveRow(t); });
       setAvailableNow(initAvail);
 
       const forms: Record<string, Partial<Therapist>> = {};
@@ -1530,7 +1532,7 @@ export default function MyPage() {
       // 既にオーナー枠がライブだった子は available_until を維持（保存のたびの巻き戻し防止）。
       // 新規にオンにする子だけ now+30分。保存前の判定は state（t）の値で行う。
       const until = isLive
-        ? (isAvailableNowLive(t) && t.available_until ? t.available_until : availableUntil)
+        ? (isOwnerLiveRow(t) && t.available_until ? t.available_until : availableUntil)
         : null;
       await supabase
         .from('therapists')
@@ -1545,7 +1547,7 @@ export default function MyPage() {
       setTherapists(refreshed);
       // ローカルのチェック状態もDBに合わせて同期（出勤外・期限切れの取りこぼしを解除）
       const sync: Record<string, boolean> = {};
-      refreshed.forEach(t => { sync[String(t.id)] = isAvailableNowLive(t); });
+      refreshed.forEach(t => { sync[String(t.id)] = isOwnerLiveRow(t); });
       setAvailableNow(sync);
     }
     setSavingAvailable(false);
@@ -2939,11 +2941,24 @@ export default function MyPage() {
                       今すぐは最大3名までです
                     </p>
                   )}
+                  {onDutyTherapists.some(t => isImportLiveRow(t, now)) && (
+                    <p className="text-[11px] text-sky-700 bg-sky-50 border border-sky-100 rounded-xl px-3 py-2 leading-relaxed">
+                      「駅ちか連動中」のセラピストは、駅ちかで<strong>即ヒメ</strong>に設定されているため、
+                      フクエスでも「今すぐ」として表示されています。<br />
+                      この枠はこちらの3名の上限には含まれません。チェックはこれまでどおりお使いいただけます。
+                      表示をやめるときは駅ちか側で即ヒメを解除してください（最大15分ほどで消えます）。
+                    </p>
+                  )}
                   {onDutyTherapists.map(t => {
                     const sid = String(t.id);
                     const isChecked = availableNow[sid] ?? false;
                     // 排他制御：キャスト本人が受付中の枠はオーナーが選べない（グレーアウト）。
                     const castLive = isCastLiveRow(t, now);
+                    // ★ 駅ちかの「即ヒメ」から取り込んだ枠。【表示だけ】。
+                    //   ★ チェックボックスを無効にしないこと。3枠は和集合であって排他ではないので、
+                    //     取り込み中でも店舗は自分の枠を押せる。
+                    //   ★ 3名制限（checkedCount / atLimit）にも数えていない。数えると店舗が自分の枠を押せなくなる。
+                    const importLive = isImportLiveRow(t, now);
                     const remainingMin = t.available_until
                       ? Math.floor((new Date(t.available_until).getTime() - now.getTime()) / 60000)
                       : 0;
@@ -2985,6 +3000,11 @@ export default function MyPage() {
                         {castLive && (
                           <span className="text-[11px] font-bold text-pink-600 bg-pink-50 border border-pink-200 rounded-full px-2 py-0.5 flex-shrink-0 whitespace-nowrap">
                             本人が受付中
+                          </span>
+                        )}
+                        {importLive && (
+                          <span className="text-[11px] font-bold text-sky-700 bg-sky-50 border border-sky-200 rounded-full px-2 py-0.5 flex-shrink-0 whitespace-nowrap">
+                            駅ちか連動中
                           </span>
                         )}
                       </label>

@@ -12,6 +12,8 @@ export function TherapistStatusBadge({
   ownerUntil,
   castOn,
   castUntil,
+  importOn,
+  importUntil,
   todayIsActive,
   todayStart,
   todayEnd,
@@ -21,6 +23,9 @@ export function TherapistStatusBadge({
   ownerUntil: string | null;
   castOn: boolean;
   castUntil: string | null;
+  // ★ 取り込み枠（駅ちかの即ヒメ）。必須なので渡し忘れは型エラーになる。
+  importOn: boolean;
+  importUntil: string | null;
   todayIsActive: boolean;
   todayStart: string | null;
   todayEnd: string | null;
@@ -32,7 +37,7 @@ export function TherapistStatusBadge({
     const recompute = () =>
       setData(
         deriveTherapistStatusBadge({
-          ownerOn, ownerUntil, castOn, castUntil,
+          ownerOn, ownerUntil, castOn, castUntil, importOn, importUntil,
           todayIsActive, todayStart, todayEnd,
           now: new Date(),
         }),
@@ -41,7 +46,7 @@ export function TherapistStatusBadge({
     // 今すぐ失効・出勤窓の切り替わりに追従するため1分ごとに再評価。
     const id = window.setInterval(recompute, 60 * 1000);
     return () => window.clearInterval(id);
-  }, [ownerOn, ownerUntil, castOn, castUntil, todayIsActive, todayStart, todayEnd]);
+  }, [ownerOn, ownerUntil, castOn, castUntil, importOn, importUntil, todayIsActive, todayStart, todayEnd]);
 
   return (
     <span

@@ -5,6 +5,7 @@ import { createClient } from '@/app/lib/supabase/client';
 import { getBusinessDateJST } from '@/lib/dutyStatus';
 import { isImasuguLiveCamel, imasuguUntilCamel } from '@/lib/imasugu';
 import type { Salon } from '@/app/lib/salons';
+import { IMASUGU_COLUMNS } from '@/lib/therapistColumns';
 
 export type TherapistThumb = {
   id:             string;
@@ -17,6 +18,8 @@ export type TherapistThumb = {
   availableUntil: string | null;
   isAvailableNowCast: boolean;
   availableUntilCast: string | null;
+  isAvailableNowImport: boolean;
+  availableUntilImport: string | null;
   isNewFace:      boolean;
   newFaceSince:   string | null;
 };
@@ -40,7 +43,7 @@ export function useSalonTherapists(
 
       const { data: therapistRowsWithAvail, error: tErr } = await supabase
         .from('therapists')
-        .select('id, name, age, salon_id, profile_image_url, work_hours, is_available_now, available_until, is_available_now_cast, available_until_cast, is_new_face, new_face_since')
+        .select(`id, name, age, salon_id, profile_image_url, work_hours, ${IMASUGU_COLUMNS}, is_new_face, new_face_since`)
         .in('salon_id', salonIds);
 
       let therapistRows = therapistRowsWithAvail;
@@ -49,7 +52,8 @@ export function useSalonTherapists(
           .from('therapists')
           .select('id, name, age, salon_id, profile_image_url, work_hours')
           .in('salon_id', salonIds);
-        therapistRows = (fb ?? []).map(t => ({ ...t, is_available_now: false, available_until: null, is_available_now_cast: false, available_until_cast: null, is_new_face: false, new_face_since: null }));
+        // ★ 列が無い環境へのフォールバック。3枠すべてを明示的に埋めること（枠を増やしたらここも増やす）。
+        therapistRows = (fb ?? []).map(t => ({ ...t, is_available_now: false, available_until: null, is_available_now_cast: false, available_until_cast: null, is_available_now_import: false, available_until_import: null, is_new_face: false, new_face_since: null }));
       }
 
       if (!therapistRows || therapistRows.length === 0) {
@@ -97,6 +101,8 @@ export function useSalonTherapists(
           availableUntil: ((t as { available_until?: unknown }).available_until as string | null) ?? null,
           isAvailableNowCast: Boolean((t as { is_available_now_cast?: unknown }).is_available_now_cast),
           availableUntilCast: ((t as { available_until_cast?: unknown }).available_until_cast as string | null) ?? null,
+          isAvailableNowImport: Boolean((t as { is_available_now_import?: unknown }).is_available_now_import),
+          availableUntilImport: ((t as { available_until_import?: unknown }).available_until_import as string | null) ?? null,
           isNewFace:      Boolean((t as { is_new_face?: unknown }).is_new_face),
           newFaceSince:   ((t as { new_face_since?: unknown }).new_face_since as string | null) ?? null,
         });

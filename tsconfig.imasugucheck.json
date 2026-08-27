@@ -1,0 +1,45 @@
+// 「今すぐ」3枠まわりだけを型検査する（第40便 §7-1）。
+//
+//   npx tsc --noEmit -p tsconfig.imasugucheck.json
+//
+// ★ 第38便 §0 と同じ但し書き: 【手元の npm run build の代わりにはならない】。
+//   Next.js のルート型（.next/types）を見ていないので、page.tsx / route.ts の
+//   シグネチャ違反はここでは出ない。最後は必ず手元でビルドすること。
+//
+// ★ include は「今すぐ関連の語を含むファイル」を機械的に集めたもの。
+//   枠を増やしたときはこのファイルも作り直すこと。
+{
+  "extends": "./tsconfig.json",
+  "include": [
+    "next-env.d.ts",
+    "src/app/actions/castImasugu.ts",
+    "src/app/api/import/ingest-list/route.ts",
+    "src/app/cast/CastImasugu.tsx",
+    "src/app/cast/CastTabs.tsx",
+    "src/app/cast/page.tsx",
+    "src/app/components/ImasuguCountBadge.tsx",
+    "src/app/components/ShuffledSalons.tsx",
+    "src/app/components/TherapistScroller.tsx",
+    "src/app/components/TherapistSearch.tsx",
+    "src/app/components/useSalonTherapists.ts",
+    "src/app/lib/newFaceTherapists.ts",
+    "src/app/lib/ranking.ts",
+    "src/app/lib/salonTherapists.ts",
+    "src/app/lib/therapistPool.ts",
+    "src/app/mypage/page.tsx",
+    "src/app/ranking/RankingTabs.tsx",
+    "src/app/ranking/RankingTherapistShowcase.tsx",
+    "src/app/ranking/ShowcaseDutyBadge.tsx",
+    "src/app/salon/[id]/imasugu/ImasuguList.tsx",
+    "src/app/salon/[id]/schedule/WeeklySchedule.tsx",
+    "src/app/salon/[id]/schedule/page.tsx",
+    "src/app/therapist/[id]/page.tsx",
+    "src/app/working/WorkingTherapists.tsx",
+    "src/components/SalonTherapists.tsx",
+    "src/components/TherapistStatusBadge.tsx",
+    "src/lib/imasugu.ts",
+    "src/lib/therapistColumns.ts",
+    "src/lib/therapistSort.ts",
+    "src/lib/therapistStatusBadge.ts"
+  ]
+}

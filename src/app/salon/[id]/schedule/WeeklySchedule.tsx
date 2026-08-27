@@ -23,6 +23,8 @@ export type DaySchedule = {
   availableUntil: string | null;
   isAvailableNowCast: boolean;
   availableUntilCast: string | null;
+  isAvailableNowImport: boolean;
+  availableUntilImport: string | null;
   isNewFace:      boolean;
   newFaceSince:   string | null;
   bodyType:       string | null;

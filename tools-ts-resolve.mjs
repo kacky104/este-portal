@@ -11,10 +11,29 @@
 //   register('./tools-ts-resolve.mjs', import.meta.url);
 //   const M = await import('./src/lib/xxx.ts');   // ← register 後なので動的 import で
 
+// ★ 第40便で追加: `@/...`（tsconfig の paths エイリアス）も解決する。
+//   src/lib/therapistStatusBadge.ts のように、アプリ側が `@/lib/imasugu` と書いているファイルを
+//   テストから読めるようにするため。★ アプリのコードは触らない、という方針は同じ。
+
 import { existsSync } from 'node:fs';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
+import path from 'node:path';
+
+const SRC = path.join(path.dirname(fileURLToPath(import.meta.url)), 'src');
+
+function withTsExtension(absNoExt) {
+  for (const ext of ['.ts', '.tsx', '']) {
+    if (existsSync(absNoExt + ext)) return absNoExt + ext;
+  }
+  return null;
+}
 
 export function resolve(specifier, context, next) {
+  // `@/lib/xxx` → <repo>/src/lib/xxx.ts
+  if (specifier.startsWith('@/')) {
+    const hit = withTsExtension(path.join(SRC, specifier.slice(2)));
+    if (hit) return next(pathToFileURL(hit).href, context);
+  }
   if (specifier.startsWith('.') && !/\.(ts|tsx|js|mjs|cjs|json)$/i.test(specifier)) {
     const candidate = new URL(specifier + '.ts', context.parentURL);
     if (existsSync(fileURLToPath(candidate))) return next(specifier + '.ts', context);

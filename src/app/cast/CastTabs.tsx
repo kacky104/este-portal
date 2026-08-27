@@ -32,6 +32,8 @@ export function CastTabs({
   imasuguUntil,
   ownerImasuguOn,
   ownerImasuguUntil,
+  importImasuguOn,
+  importImasuguUntil,
   today,
 }: {
   therapistId: string;
@@ -43,6 +45,9 @@ export function CastTabs({
   imasuguUntil: string | null;
   ownerImasuguOn: boolean;
   ownerImasuguUntil: string | null;
+  // ★ 駅ちかの「即ヒメ」から取り込んだ枠（第39便）。表示だけに使う。排他制御には混ぜない。
+  importImasuguOn: boolean;
+  importImasuguUntil: string | null;
   today: { is_active: boolean; start_time: string | null; end_time: string | null };
 }) {
   const [activeTab, setActiveTab] = useState<CastTab>('diary');
@@ -96,6 +101,8 @@ export function CastTabs({
           initialUntil={imasuguUntil}
           ownerOn={ownerImasuguOn}
           ownerUntil={ownerImasuguUntil}
+          importOn={importImasuguOn}
+          importUntil={importImasuguUntil}
           today={today}
         />
       )}

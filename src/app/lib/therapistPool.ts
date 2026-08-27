@@ -12,11 +12,12 @@ import { createPublicClient } from '@/app/lib/supabase/public';
 import { getBusinessDateJST } from '@/lib/dutyStatus';
 import { sanitizeBadges } from '@/lib/therapistBadges';
 import type { TherapistItem } from '@/app/components/TherapistScroller';
+import { THERAPIST_CARD_COLUMNS } from '@/lib/therapistColumns';
 
 export type SalonAreaInfo = { area: string; area2: string; dispatchType: string };
 
 const THERAPIST_SELECT =
-  'id, name, work_hours, area, comment, salon_id, profile_image_url, age, is_available_now, available_until, is_available_now_cast, available_until_cast, is_new_face, new_face_since, feature_badges, salons!inner(is_hidden)';
+  THERAPIST_CARD_COLUMNS;
 
 export async function fetchTherapistPool(
   opts: { activeOnly?: boolean; filterSalonIds?: number[] } = {},
@@ -86,6 +87,8 @@ export async function fetchTherapistPool(
     availableUntil: (t.available_until as string | null) ?? null,
     isAvailableNowCast: Boolean(t.is_available_now_cast),
     availableUntilCast: (t.available_until_cast as string | null) ?? null,
+    isAvailableNowImport: Boolean(t.is_available_now_import),
+    availableUntilImport: (t.available_until_import as string | null) ?? null,
     isNewFace: Boolean(t.is_new_face),
     newFaceSince: (t.new_face_since as string | null) ?? null,
     featureBadges: sanitizeBadges(t.feature_badges),

@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { createClient } from '@/app/lib/supabase/client';
 import { isImasuguLiveRow } from '@/lib/imasugu';
+import { IMASUGU_COLUMNS } from '@/lib/therapistColumns';
 
 // サロン詳細の「今すぐ」件数ハートバッジ。
 // 「今すぐ」は is_available_now=true かつ available_until が未来か、という時刻ベース判定（30分で自動失効）。
@@ -18,7 +19,7 @@ export function ImasuguCountBadge({ salonId, fill, num }: { salonId: number; fil
         const supabase = createClient();
         const { data } = await supabase
           .from('therapists')
-          .select('is_available_now, available_until, is_available_now_cast, available_until_cast')
+          .select(IMASUGU_COLUMNS)
           .eq('salon_id', salonId);
         if (!active) return;
         const now = new Date();

@@ -8,6 +8,7 @@ import { CastThemeProvider } from './CastTheme';
 import { CastTabs } from './CastTabs';
 import { getLinkedXProfileForTherapist } from '@/app/lib/xLink';
 import { SiteNoticeBanner } from '@/app/components/SiteNoticeBanner';
+import { IMASUGU_COLUMNS } from '@/lib/therapistColumns';
 
 // キャスト管理トップ（フェーズ1：最小実装）。
 // ガードはページ内 redirect 方式（proxy.ts は触らない）。
@@ -20,7 +21,7 @@ export default async function CastHomePage() {
 
   const { data: therapist } = await supabase
     .from('therapists')
-    .select('id, name, salon_id, profile_image_url, cast_theme, is_available_now_cast, available_until_cast, is_available_now, available_until')
+    .select(`id, name, salon_id, profile_image_url, cast_theme, ${IMASUGU_COLUMNS}`)
     .eq('user_id', user.id)
     .maybeSingle();
 
@@ -129,6 +130,8 @@ export default async function CastHomePage() {
               imasuguUntil={(therapist.available_until_cast as string | null) ?? null}
               ownerImasuguOn={Boolean(therapist.is_available_now)}
               ownerImasuguUntil={(therapist.available_until as string | null) ?? null}
+              importImasuguOn={Boolean(therapist.is_available_now_import)}
+              importImasuguUntil={(therapist.available_until_import as string | null) ?? null}
               today={today}
             />
           </div>

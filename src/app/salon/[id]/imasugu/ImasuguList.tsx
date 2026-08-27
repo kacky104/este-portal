@@ -6,6 +6,7 @@ import { createClient } from '@/app/lib/supabase/client';
 import { getBusinessDateJST } from '@/lib/dutyStatus';
 import { formatBodySizes } from '@/lib/bodyType';
 import { isImasuguLiveRow, imasuguUntilRow } from '@/lib/imasugu';
+import { IMASUGU_COLUMNS } from '@/lib/therapistColumns';
 
 // "HH:MM〜HH:MM"（日跨ぎは終了側に「翌」）。
 function buildDisplayHours(start: string | null, end: string | null): string {
@@ -50,7 +51,7 @@ export function ImasuguList({
         const supabase = createClient();
         const { data: rows } = await supabase
           .from('therapists')
-          .select('id, name, age, work_hours, body_type, profile_image_url, is_available_now, available_until, is_available_now_cast, available_until_cast')
+          .select(`id, name, age, work_hours, body_type, profile_image_url, ${IMASUGU_COLUMNS}`)
           .eq('salon_id', salonId);
 
         const now = new Date();

@@ -1,6 +1,6 @@
 // セラピストの名前隣ステータスバッジの導出（今すぐ ＞ 出勤中 ＞ 出勤予定 ＞ 受付終了 ＞ お休み）。
 // サーバー初期描画（ISR）とクライアント（マウント時の現在時刻）の両方から同じロジックで呼べる純関数。
-// 今すぐ判定はオーナー枠 OR キャスト枠の和集合（src/lib/imasugu）、出勤中判定は共有の getScheduleWindowStatus を使う。
+// 今すぐ判定はオーナー枠 OR キャスト枠 OR 取り込み枠の和集合（src/lib/imasugu）、出勤中判定は共有の getScheduleWindowStatus を使う。
 import { isImasuguLiveValues } from '@/lib/imasugu';
 import { getScheduleWindowStatus } from '@/lib/dutyStatus';
 
@@ -11,13 +11,18 @@ export function deriveTherapistStatusBadge(p: {
   ownerUntil: string | null;
   castOn: boolean;
   castUntil: string | null;
+  // ★ 取り込み枠（駅ちかの即ヒメ・第39便）。必須にしてあるので、渡し忘れは型エラーになる。
+  importOn: boolean;
+  importUntil: string | null;
   todayIsActive: boolean;
   todayStart: string | null;
   todayEnd: string | null;
   now: Date;
 }): StatusBadgeData {
-  // 今すぐ（オーナー発・キャスト発の和集合。available_until が未来か＝時刻依存判定）。
-  const availableNow = isImasuguLiveValues(p.ownerOn, p.ownerUntil, p.castOn, p.castUntil, p.now);
+  // 今すぐ（オーナー発・キャスト発・駅ちか取り込みの和集合。available_until が未来か＝時刻依存判定）。
+  const availableNow = isImasuguLiveValues(
+    p.ownerOn, p.ownerUntil, p.castOn, p.castUntil, p.importOn, p.importUntil, p.now,
+  );
   // 本日の出勤窓（出勤日かつ実シフト時刻の時間帯。時刻未設定は出勤中扱い＝サイト標準）。
   const todayWindow: 'off' | 'onDuty' | 'before' | 'after' = !p.todayIsActive
     ? 'off'

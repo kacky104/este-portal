@@ -15,6 +15,7 @@ import { isImasuguLiveCamel, imasuguUntilCamel } from '@/lib/imasugu';
 // 並び替えは lib/therapistSort.ts に集約（サーバー側 lib/salonTherapists.ts と共有するため）。
 import { dutyRank, sameRankOrder, sortSalonTherapists, photoRank } from '@/lib/therapistSort';
 import type { SalonTheme } from '@/app/lib/themes';
+import { IMASUGU_COLUMNS, SALON_THERAPIST_COLUMNS } from '@/lib/therapistColumns';
 
 // GridCard は initialList 経由でサーバー描画されるようになった（SEO対応 2026-07-28）。
 // useLayoutEffect はサーバーでは動作せず React が警告を出すため、SSR時は useEffect にフォールバックする。
@@ -86,6 +87,8 @@ export type Therapist = {
   availableUntil:  string | null;
   isAvailableNowCast: boolean;
   availableUntilCast: string | null;
+  isAvailableNowImport: boolean;
+  availableUntilImport: string | null;
   isNewFace:       boolean;
   newFaceSince:    string | null;
   bodyType:        string | null;
@@ -99,7 +102,7 @@ export type Therapist = {
 
 // セラピストカードの取得列（全コンポーネントで共有）。
 const THERAPIST_SELECT =
-  'id, name, age, work_hours, area, comment, profile_image_url, is_available_now, available_until, is_available_now_cast, available_until_cast, is_new_face, new_face_since, body_type, feature_badges, salon_id, user_id, catchphrase';
+  `id, name, age, work_hours, area, comment, profile_image_url, ${IMASUGU_COLUMNS}, is_new_face, new_face_since, body_type, feature_badges, salon_id, user_id, catchphrase`;
 
 // ── shared schedule fetch ──────────────────────────────────────
 
@@ -199,6 +202,8 @@ function buildTherapist(
     availableUntil:  (t.available_until as string | null) ?? null,
     isAvailableNowCast: Boolean(t.is_available_now_cast),
     availableUntilCast: (t.available_until_cast as string | null) ?? null,
+    isAvailableNowImport: Boolean(t.is_available_now_import),
+    availableUntilImport: (t.available_until_import as string | null) ?? null,
     isNewFace:       Boolean(t.is_new_face),
     newFaceSince:    (t.new_face_since as string | null) ?? null,
     bodyType:        (t.body_type as string | null) ?? null,
@@ -662,7 +667,7 @@ export function SalonTherapists({ salonId }: { salonId: number }) {
       const supabase = createClient();
       const { data: rows } = await supabase
         .from('therapists')
-        .select('id, name, age, work_hours, area, comment, profile_image_url, is_available_now, available_until, is_available_now_cast, available_until_cast, is_new_face, new_face_since, body_type, feature_badges, user_id, catchphrase')
+        .select(SALON_THERAPIST_COLUMNS)
         .eq('salon_id', salonId);
 
       const rawIds = (rows ?? []).map(t => t.id);
@@ -691,6 +696,8 @@ export function SalonTherapists({ salonId }: { salonId: number }) {
           availableUntil:  (t.available_until as string | null) ?? null,
           isAvailableNowCast: Boolean(t.is_available_now_cast),
           availableUntilCast: (t.available_until_cast as string | null) ?? null,
+          isAvailableNowImport: Boolean(t.is_available_now_import),
+          availableUntilImport: (t.available_until_import as string | null) ?? null,
           isNewFace:       Boolean(t.is_new_face),
           newFaceSince:    (t.new_face_since as string | null) ?? null,
           bodyType:        (t.body_type as string | null) ?? null,
@@ -755,7 +762,7 @@ export function SalonOnDutyExcludingNow({ salonId, theme }: { salonId: number; t
       const supabase = createClient();
       const { data: rows } = await supabase
         .from('therapists')
-        .select('id, name, age, work_hours, area, comment, profile_image_url, is_available_now, available_until, is_available_now_cast, available_until_cast, is_new_face, new_face_since, body_type, feature_badges, user_id, catchphrase')
+        .select(SALON_THERAPIST_COLUMNS)
         .eq('salon_id', salonId);
 
       const rawIds = (rows ?? []).map(t => t.id);
@@ -783,6 +790,8 @@ export function SalonOnDutyExcludingNow({ salonId, theme }: { salonId: number; t
           availableUntil:  (t.available_until as string | null) ?? null,
           isAvailableNowCast: Boolean(t.is_available_now_cast),
           availableUntilCast: (t.available_until_cast as string | null) ?? null,
+          isAvailableNowImport: Boolean(t.is_available_now_import),
+          availableUntilImport: (t.available_until_import as string | null) ?? null,
           isNewFace:       Boolean(t.is_new_face),
           newFaceSince:    (t.new_face_since as string | null) ?? null,
           bodyType:        (t.body_type as string | null) ?? null,
@@ -862,7 +871,7 @@ export function SalonAllTherapists({ salonId, limit, from, showSaveButton = fals
       const supabase = createClient();
       const { data: rows } = await supabase
         .from('therapists')
-        .select('id, name, age, work_hours, area, comment, profile_image_url, is_available_now, available_until, is_available_now_cast, available_until_cast, is_new_face, new_face_since, body_type, feature_badges, user_id, catchphrase')
+        .select(SALON_THERAPIST_COLUMNS)
         .eq('salon_id', salonId);
 
       const rawIds = (rows ?? []).map(t => t.id);
@@ -887,6 +896,8 @@ export function SalonAllTherapists({ salonId, limit, from, showSaveButton = fals
         availableUntil:  (t.available_until as string | null) ?? null,
         isAvailableNowCast: Boolean(t.is_available_now_cast),
         availableUntilCast: (t.available_until_cast as string | null) ?? null,
+        isAvailableNowImport: Boolean(t.is_available_now_import),
+        availableUntilImport: (t.available_until_import as string | null) ?? null,
         isNewFace:       Boolean(t.is_new_face),
         newFaceSince:    (t.new_face_since as string | null) ?? null,
         bodyType:        (t.body_type as string | null) ?? null,
@@ -947,7 +958,7 @@ export function SalonNewFaceTherapists({
       const supabase = createClient();
       const { data: rows } = await supabase
         .from('therapists')
-        .select('id, name, age, work_hours, area, comment, profile_image_url, is_available_now, available_until, is_available_now_cast, available_until_cast, is_new_face, new_face_since, body_type, feature_badges, user_id, catchphrase')
+        .select(SALON_THERAPIST_COLUMNS)
         .eq('salon_id', salonId);
 
       const rawIds = (rows ?? []).map(t => t.id);
@@ -972,6 +983,8 @@ export function SalonNewFaceTherapists({
         availableUntil:  (t.available_until as string | null) ?? null,
         isAvailableNowCast: Boolean(t.is_available_now_cast),
         availableUntilCast: (t.available_until_cast as string | null) ?? null,
+        isAvailableNowImport: Boolean(t.is_available_now_import),
+        availableUntilImport: (t.available_until_import as string | null) ?? null,
         isNewFace:       Boolean(t.is_new_face),
         newFaceSince:    (t.new_face_since as string | null) ?? null,
         bodyType:        (t.body_type as string | null) ?? null,

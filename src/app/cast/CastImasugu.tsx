@@ -2,7 +2,10 @@
 
 // /cast「今すぐ」タブ：セラピスト本人がキャスト専用枠（is_available_now_cast / available_until_cast）を
 // 自分で ON/OFF する。ON で30分有効・自動失効。判定はマウント時＋1分ごとの現在時刻で行う（ISR焼き付き回避）。
-// このタブはキャスト枠のみを扱う（オーナー枠 is_available_now は考慮しない。公開側の和集合は次ステップ）。
+// このタブが【操作する】のはキャスト枠のみ。
+// ★ オーナー枠は排他制御にだけ使う（お店が設定中は本人が操作できない）。
+// ★ 取り込み枠（駅ちかの即ヒメ）は【表示だけ】。排他制御には混ぜない（第40便の決定）。
+//   3枠は和集合であって排他ではないので、駅ちか由来で表示中でも本人は自分の枠を押せる。
 
 import { useEffect, useState } from 'react';
 import { setCastImasugu } from '@/app/actions/castImasugu';
@@ -29,12 +32,17 @@ export function CastImasugu({
   initialUntil,
   ownerOn,
   ownerUntil,
+  importOn,
+  importUntil,
   today,
 }: {
   initialOn: boolean;
   initialUntil: string | null;
   ownerOn: boolean;
   ownerUntil: string | null;
+  // ★ 表示専用。canTurnOn には入れないこと。
+  importOn: boolean;
+  importUntil: string | null;
   today: TodaySchedule;
 }) {
   // until を真実の状態として持つ（ON/OFFは until の有無＋未来かで判定）。
@@ -61,7 +69,10 @@ export function CastImasugu({
   // getScheduleStatus は内部で現在JST時刻を参照するため、now（1分ごと更新）の再描画で再評価される。
   void now;
   const onDuty = getScheduleStatus(today).status === 'onDuty';
+  // ★ 駅ちか由来の表示中か（読み取り専用）。★ canTurnOn には入れない。
+  const importLive = isFrameLive(importOn, importUntil, new Date(now));
   // 新規にONできる条件：出勤中 かつ オーナー枠が設定中でない。
+  // ★ importLive を条件に足さないこと。足すと駅ちかが即ヒメにしている間、本人が自分の枠を押せなくなる。
   const canTurnOn = onDuty && !ownerLive;
 
   const handle = async (on: boolean) => {
@@ -148,6 +159,13 @@ export function CastImasugu({
             {loading ? '処理中...' : '今すぐ受付中にする'}
           </button>
         </div>
+      )}
+
+      {importLive && (
+        <p className="text-[11px] text-sky-700 bg-sky-50 border border-sky-100 rounded-lg px-3 py-2 leading-relaxed">
+          いま駅ちかで<strong>即ヒメ</strong>に設定されているため、サイトには「今すぐ」と表示されています。<br />
+          この表示は駅ちか側で即ヒメを解除すると消えます（最大15分ほどかかります）。
+        </p>
       )}
 
       {error && (

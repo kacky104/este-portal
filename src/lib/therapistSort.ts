@@ -26,6 +26,8 @@ export type SortableTherapist = {
   availableUntil: string | null;
   isAvailableNowCast: boolean;
   availableUntilCast: string | null;
+  isAvailableNowImport: boolean;
+  availableUntilImport: string | null;
 };
 
 /** 出勤状況のランク（0=今すぐ / 1=出勤中・出勤予定 / 2=受付終了 / 3=お休み）。 */

@@ -3,6 +3,7 @@ import { getBusinessDateJST } from '@/lib/dutyStatus';
 import { isNewFaceActive } from '@/lib/newFace';
 import { sanitizeBadges } from '@/lib/therapistBadges';
 import type { TherapistItem } from '@/app/components/TherapistScroller';
+import { THERAPIST_CARD_COLUMNS } from '@/lib/therapistColumns';
 
 type PublicClient = ReturnType<typeof createPublicClient>;
 
@@ -18,7 +19,7 @@ export async function fetchNewFaceTherapists(
 ): Promise<TherapistItem[]> {
   const { data: therapistData } = await supabase
     .from('therapists')
-    .select('id, name, work_hours, area, comment, salon_id, profile_image_url, age, is_available_now, available_until, is_available_now_cast, available_until_cast, is_new_face, new_face_since, feature_badges, salons!inner(is_hidden)')
+    .select(THERAPIST_CARD_COLUMNS)
     .eq('salons.is_hidden', false)
     .eq('is_new_face', true);
 
@@ -77,6 +78,8 @@ export async function fetchNewFaceTherapists(
     availableUntil: (t.available_until as string | null) ?? null,
     isAvailableNowCast: Boolean(t.is_available_now_cast),
     availableUntilCast: (t.available_until_cast as string | null) ?? null,
+    isAvailableNowImport: Boolean(t.is_available_now_import),
+    availableUntilImport: (t.available_until_import as string | null) ?? null,
     isNewFace: Boolean(t.is_new_face),
     newFaceSince: (t.new_face_since as string | null) ?? null,
     featureBadges: sanitizeBadges(t.feature_badges),

@@ -23,6 +23,8 @@ export function RankingTherapistShowcase({
   availableUntil,
   isAvailableNowCast,
   availableUntilCast,
+  isAvailableNowImport,
+  availableUntilImport,
   todayIsActive,
   todayStart,
   todayEnd,
@@ -46,6 +48,8 @@ export function RankingTherapistShowcase({
   availableUntil: string | null;
   isAvailableNowCast: boolean;
   availableUntilCast: string | null;
+  isAvailableNowImport: boolean;
+  availableUntilImport: string | null;
   todayIsActive: boolean;
   todayStart: string | null;
   todayEnd: string | null;
@@ -123,6 +127,8 @@ export function RankingTherapistShowcase({
                 availableUntil={availableUntil}
                 isAvailableNowCast={isAvailableNowCast}
                 availableUntilCast={availableUntilCast}
+                isAvailableNowImport={isAvailableNowImport}
+                availableUntilImport={availableUntilImport}
                 todayIsActive={todayIsActive}
                 todayStart={todayStart}
                 todayEnd={todayEnd}
@@ -171,6 +177,8 @@ export function RankingTherapistShowcase({
                         availableUntil={availableUntil}
                         isAvailableNowCast={isAvailableNowCast}
                         availableUntilCast={availableUntilCast}
+                        isAvailableNowImport={isAvailableNowImport}
+                        availableUntilImport={availableUntilImport}
                         todayIsActive={todayIsActive}
                         todayStart={todayStart}
                         todayEnd={todayEnd}
@@ -213,6 +221,8 @@ export function RankingTherapistShowcase({
                     availableUntil={availableUntil}
                     isAvailableNowCast={isAvailableNowCast}
                     availableUntilCast={availableUntilCast}
+                    isAvailableNowImport={isAvailableNowImport}
+                    availableUntilImport={availableUntilImport}
                     todayIsActive={todayIsActive}
                     todayStart={todayStart}
                     todayEnd={todayEnd}

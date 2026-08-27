@@ -5,6 +5,7 @@
 import { createPublicClient } from '@/app/lib/supabase/public';
 import { sanitizeBadges } from '@/lib/therapistBadges';
 import { getBusinessDateJST } from '@/lib/dutyStatus';
+import { IMASUGU_COLUMNS } from '@/lib/therapistColumns';
 
 export type SalonRankItem = {
   rank: number;
@@ -30,6 +31,8 @@ export type TherapistRankItem = {
   availableUntil: string | null;
   isAvailableNowCast: boolean;
   availableUntilCast: string | null;
+  isAvailableNowImport: boolean;
+  availableUntilImport: string | null;
   todayIsActive: boolean;
   todayStart: string | null;
   todayEnd: string | null;
@@ -186,7 +189,7 @@ export async function fetchTherapistWeeklyRanking(limit = 30, week: string = cur
 
   const { data: tRows } = await supabase
     .from('therapists')
-    .select('id, name, area, salon_id, profile_image_url, body_type, feature_badges, catchphrase, is_available_now, available_until, is_available_now_cast, available_until_cast, ranking_bonus, is_active, salons!inner(id, name, is_hidden)')
+    .select(`id, name, area, salon_id, profile_image_url, body_type, feature_badges, catchphrase, ${IMASUGU_COLUMNS}, ranking_bonus, is_active, salons!inner(id, name, is_hidden)`)
     .in('id', candidateIds)
     .eq('is_active', true)
     .eq('salons.is_hidden', false);
@@ -204,6 +207,8 @@ export async function fetchTherapistWeeklyRanking(limit = 30, week: string = cur
     available_until: string | null;
     is_available_now_cast: boolean | null;
     available_until_cast: string | null;
+    is_available_now_import: boolean | null;
+    available_until_import: string | null;
     ranking_bonus: number | null;
     salons: { id: number; name: string | null; is_hidden: boolean } | null;
   };
@@ -225,6 +230,8 @@ export async function fetchTherapistWeeklyRanking(limit = 30, week: string = cur
         availableUntil: (t.available_until as string | null) ?? null,
         isAvailableNowCast: Boolean(t.is_available_now_cast),
         availableUntilCast: (t.available_until_cast as string | null) ?? null,
+        isAvailableNowImport: Boolean(t.is_available_now_import),
+        availableUntilImport: (t.available_until_import as string | null) ?? null,
         _score: effective,
       };
     })
@@ -265,6 +272,8 @@ export async function fetchTherapistWeeklyRanking(limit = 30, week: string = cur
       availableUntil: x.availableUntil,
       isAvailableNowCast: x.isAvailableNowCast,
       availableUntilCast: x.availableUntilCast,
+      isAvailableNowImport: x.isAvailableNowImport,
+      availableUntilImport: x.availableUntilImport,
       todayIsActive: sch?.active ?? false,
       todayStart: sch?.start ?? null,
       todayEnd: sch?.end ?? null,
