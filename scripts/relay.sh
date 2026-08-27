@@ -134,6 +134,7 @@ def send(job):
 
 deadline = time.time() + SPAN
 picked = 0
+empty = 0
 while time.time() < deadline:
     got = call(BASE + "/api/relay/lease", {})
     if not got.get("ok"):
@@ -141,7 +142,17 @@ while time.time() < deadline:
     job = got.get("job")
     if not job:
         # ★ 0件のときも理由が返ってくる（フクエス側でそう作ってある）
+        empty += 1
+        # ★★★ 空振りで居座らない。
+        #   毎分起動して50秒ポーリングし続けると、ジョブが無い日でも
+        #   1日1万回以上フクエスを叩くことになる（関数呼び出しの空回り）。
+        #   ・この周でまだ1件も扱っていない → すぐ抜ける（次の分の周で拾う。最大60秒待ち）
+        #   ・扱ったあとの空振り → 2回続いたら抜ける（続きのジョブを取りこぼさないため）
+        #   ★ 出勤の書き込みは1日数回。待ち時間より、空回りを減らすほうが大事。
+        if picked == 0 or empty >= 2:
+            break
         time.sleep(IDLE_SLEEP); continue
+    empty = 0
 
     picked += 1
     jid = job["id"]
