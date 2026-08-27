@@ -86,7 +86,10 @@ export default function TherapistEditPage() {
   const [diaryMailError, setDiaryMailError] = useState('');
   // 写メ日記の転送先（第36便・第2弾）。フクエスで書いた日記を駅ちか／エスラブへ送る宛先。
   // ★ 上の diaryMailAddress とは【向きが逆】。あちらは受け取る側、こちらは送る側。
-  const [forwardRows, setForwardRows] = useState<Array<{ provider: string; slot: number; address: string; persisted: boolean }>>([]);
+  // saved = いまDBに入っている値。address（入力中の値）と違えば【未保存】。
+  // ★ 画面に保存ボタンが2種類あると「保存しましたと出たのに入っていない」が起きるため、
+  //   未保存かどうかを常に判定できる形にしておく（第37便）。
+  const [forwardRows, setForwardRows] = useState<Array<{ provider: string; slot: number; address: string; saved: string }>>([]);
   const [forwardLoaded, setForwardLoaded] = useState(false);
   const [forwardSaving, setForwardSaving] = useState<string | null>(null);
   // ★ 読み込みに失敗したら理由を出す。黙って「読み込み中...」のままにしない
@@ -115,10 +118,10 @@ export default function TherapistEditPage() {
     getDiaryForwards({ therapistId }).then((r) => {
       if (cancelled) return;
       if (!r.ok) { setForwardError(r.error); return; }
-      const loaded = r.data.map((f) => ({ provider: f.provider, slot: f.slot, address: f.address, persisted: true }));
+      const loaded = r.data.map((f) => ({ provider: f.provider, slot: f.slot, address: f.address, saved: f.address }));
       // 未登録の媒体には、そのまま入力できる空の1枠目を出しておく（初回登録を1クリック減らす）。
       for (const mp of ['ekichika', 'esulove']) {
-        if (!loaded.some((x) => x.provider === mp)) loaded.push({ provider: mp, slot: 1, address: '', persisted: false });
+        if (!loaded.some((x) => x.provider === mp)) loaded.push({ provider: mp, slot: 1, address: '', saved: '' });
       }
       setForwardRows(loaded);
       setForwardLoaded(true);
@@ -303,6 +306,40 @@ export default function TherapistEditPage() {
     showToast('AI下書きを取り消して元の内容に戻しました');
   };
 
+  /**
+   * 転送先のうち【未保存の行】をまとめて保存する。下部の「保存」からも呼ぶ。
+   * ★★ 第37便で判明した問題への対処。
+   *   1画面に保存ボタンが2種類あり、下の大きい保存は転送先を保存していなかった。
+   *   しかも正本のラジオ側が「保存しました」と出すため、
+   *   【保存したつもりで実際は入っていない】ことに気づけなかった。
+   *   下の保存でも画面全体が保存される形にして、取りこぼしを無くす。
+   * @returns 失敗した場合はその理由。全部成功したら null。
+   */
+  const flushForwardRows = async (): Promise<string | null> => {
+    const dirty = forwardRows.filter((r) => r.address.trim() !== r.saved);
+    if (dirty.length === 0) return null;
+
+    let firstError: string | null = null;
+    const done: Array<{ provider: string; slot: number; address: string; removed: boolean }> = [];
+    for (const r of dirty) {
+      const res = await saveDiaryForward({ therapistId, provider: r.provider, slot: r.slot, address: r.address });
+      if (!res.ok) { firstError = firstError ?? res.error; continue; }
+      done.push({ provider: r.provider, slot: r.slot, address: r.address.trim(), removed: !res.data.saved });
+    }
+
+    setForwardRows((rs) => rs
+      .map((x) => {
+        const d = done.find((y) => y.provider === x.provider && y.slot === x.slot);
+        return d ? { ...x, address: d.address, saved: d.address } : x;
+      })
+      // 空にして保存＝その枠は削除。ただし1枠目は入力欄として残す（未登録の状態に戻るだけ）。
+      .filter((x) => {
+        const d = done.find((y) => y.provider === x.provider && y.slot === x.slot);
+        return !(d?.removed && x.slot > 1);
+      }));
+    return firstError;
+  };
+
   const handleSave = async () => {
     if (!therapist) return;
     setSaving(true);
@@ -321,6 +358,9 @@ export default function TherapistEditPage() {
         feature_badges:    sanitizeBadges(badges),
       })
       .eq('id', therapist.id);
+
+    // ★ 転送先も一緒に保存する（下の「保存」で画面全体が保存される、という自然な期待に合わせる）。
+    const fwdErr = await flushForwardRows();
 
     setSaving(false);
     if (!error) {
@@ -350,7 +390,11 @@ export default function TherapistEditPage() {
       setSavedImages(images);
       sessionUploadsRef.current = [];
     }
-    showToast(error ? '保存に失敗しました' : '保存しました');
+    showToast(
+      error ? '保存に失敗しました'
+        : fwdErr ? `保存しました（転送先だけ失敗: ${fwdErr}）`
+        : '保存しました',
+    );
   };
 
   const inputClass = 'w-full px-3 py-2 rounded-xl border border-slate-200 text-sm bg-slate-50/50 focus:outline-none focus:ring-2 focus:ring-pink-200';
@@ -789,9 +833,18 @@ export default function TherapistEditPage() {
                   ) : mediaRows.map((row) => {
                     const rowKey = `${m.p}:${row.slot}`;
                     const suffix = row.slot > 1 ? `（${row.slot}枠目）` : '';
+                    // ★ 入力しただけで保存したつもりにならないよう、未保存を目に見える形で出す（第37便）。
+                    const dirty = row.address.trim() !== row.saved;
                     return (
                       <div key={rowKey} className="space-y-1">
-                        {row.slot > 1 && <span className="block text-[10px] text-slate-400">{row.slot}枠目</span>}
+                        <div className="flex items-center gap-2">
+                          {row.slot > 1 && <span className="text-[10px] text-slate-400">{row.slot}枠目</span>}
+                          {dirty && (
+                            <span className="text-[10px] font-bold text-rose-600 bg-rose-50 border border-rose-100 rounded-full px-2 py-0.5">
+                              未保存
+                            </span>
+                          )}
+                        </div>
                         <div className="flex items-center gap-2">
                           <input
                             type="email" inputMode="email" autoComplete="off" placeholder="未登録"
@@ -806,12 +859,17 @@ export default function TherapistEditPage() {
                               const r = await saveDiaryForward({ therapistId, provider: m.p, slot: row.slot, address: row.address });
                               setForwardSaving(null);
                               if (!r.ok) { showToast(r.error); return; }
+                              const v = row.address.trim();
                               if (r.data.saved) {
-                                setForwardRows((rs) => rs.map((x) => (x.provider === m.p && x.slot === row.slot ? { ...x, persisted: true } : x)));
+                                setForwardRows((rs) => rs.map((x) => (x.provider === m.p && x.slot === row.slot ? { ...x, address: v, saved: v } : x)));
                                 showToast(`${m.label}${suffix}の宛先を保存しました`);
-                              } else {
+                              } else if (row.slot > 1) {
                                 setForwardRows((rs) => rs.filter((x) => !(x.provider === m.p && x.slot === row.slot)));
-                                showToast(`${m.label}${suffix}へは送らない設定にしました`);
+                                showToast(`${m.label}${suffix}の枠を削除しました`);
+                              } else {
+                                // 1枠目は入力欄として残す（未登録の状態に戻るだけ）
+                                setForwardRows((rs) => rs.map((x) => (x.provider === m.p && x.slot === row.slot ? { ...x, address: '', saved: '' } : x)));
+                                showToast(`${m.label}へは送らない設定にしました`);
                               }
                             }}
                             className="flex-shrink-0 px-3 py-2 rounded-xl border border-pink-200 text-pink-600 text-xs font-bold hover:bg-pink-50 transition-colors disabled:opacity-50"
@@ -827,7 +885,7 @@ export default function TherapistEditPage() {
                     onClick={() => setForwardRows((rs) => {
                       const slots = rs.filter((x) => x.provider === m.p).map((x) => x.slot);
                       const next = slots.length ? Math.max(...slots) + 1 : 1;
-                      return [...rs, { provider: m.p, slot: next, address: '', persisted: false }];
+                      return [...rs, { provider: m.p, slot: next, address: '', saved: '' }];
                     })}
                     className="text-[11px] font-bold text-pink-600 hover:text-pink-700"
                   >

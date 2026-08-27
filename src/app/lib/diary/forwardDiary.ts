@@ -59,42 +59,38 @@ function mask(addr: string): string {
   return `${local.slice(0, 2)}****${local.slice(-2)}${dom}`;
 }
 
-/**
- * 1件の写メ日記を、その子の転送先ぜんぶへ送る。
- * @param diaryId diary_posts.id（uuid）
- * @param apply   true で実際に送る。既定 false は試し打ち（1通も送らない）。
- */
-export async function forwardDiary(diaryId: string, apply = false): Promise<ForwardResult> {
-  const base: ForwardResult = {
-    ok: true, apply,
-    注意: apply ? '送信しました' : '試し打ち（1通も送っていません）',
-    diaryId, 宛先: [],
-  };
-  const svc = createServiceClient();
+type Svc = ReturnType<typeof createServiceClient>;
 
-  // 1. 日記
+type Payload = {
+  therapistId: number;
+  salonId: number;
+  source: string;
+  title: string | null;
+  content: string | null;
+  attachments: Array<{ filename: string; content: string }>;
+  外した理由: string[];
+  totalBytes: number;
+};
+
+/**
+ * 日記1件から「送る中身」を組み立てる（件名・本文・添付画像）。
+ * ★ 初回送信（forwardDiary）と再送（retryFailedForwards）で同じものを使う。
+ *   別々に書くと、片方だけ直して食い違う。
+ */
+async function buildPayload(svc: Svc, diaryId: string): Promise<{ ok: true; payload: Payload } | { ok: false; error: string }> {
   const { data: diary, error: dErr } = await svc
     .from('diary_posts')
     .select('id, therapist_id, salon_id, images, title, content')
     .eq('id', diaryId)
     .maybeSingle();
-  if (dErr || !diary) return { ...base, ok: false, 注意: `日記が見つかりません（${dErr?.message ?? 'not found'}）` };
+  if (dErr || !diary) return { ok: false, error: `日記が見つかりません（${dErr?.message ?? 'not found'}）` };
 
   const therapistId = diary.therapist_id as number;
   const salonId = diary.salon_id as number;
 
-  // 2. 正本の選択
   const { data: salon } = await svc.from('salons').select('diary_source').eq('id', salonId).maybeSingle();
   const source = (salon?.diary_source as string | null) ?? 'benry';
 
-  // 3. 転送先
-  const { data: fwd } = await svc
-    .from('therapist_diary_forward')
-    .select('provider, slot, address, is_enabled')
-    .eq('therapist_id', therapistId);
-  const rows = fwd ?? [];
-
-  // 4. 送る中身を組み立てる
   const title = (diary.title as string | null)?.trim() || null;
   const content = (diary.content as string | null)?.trim() || null;
   const urls = ((diary.images as string[] | null) ?? []).filter(Boolean);
@@ -117,12 +113,40 @@ export async function forwardDiary(diaryId: string, apply = false): Promise<Forw
     }
   }
 
+  return { ok: true, payload: { therapistId, salonId, source, title, content, attachments, 外した理由, totalBytes: total } };
+}
+
+/**
+ * 1件の写メ日記を、その子の転送先ぜんぶへ送る。
+ * @param diaryId diary_posts.id（uuid）
+ * @param apply   true で実際に送る。既定 false は試し打ち（1通も送らない）。
+ */
+export async function forwardDiary(diaryId: string, apply = false): Promise<ForwardResult> {
+  const base: ForwardResult = {
+    ok: true, apply,
+    注意: apply ? '送信しました' : '試し打ち（1通も送っていません）',
+    diaryId, 宛先: [],
+  };
+  const svc = createServiceClient();
+
+  // 1〜2. 日記本体と「送る中身」（件名・本文・添付）を組み立てる
+  const built = await buildPayload(svc, diaryId);
+  if (!built.ok) return { ...base, ok: false, 注意: built.error };
+  const { therapistId, salonId, source, title, content, attachments, 外した理由, totalBytes } = built.payload;
+
+  // 3. 転送先（媒体×枠）
+  const { data: fwd } = await svc
+    .from('therapist_diary_forward')
+    .select('provider, slot, address, is_enabled')
+    .eq('therapist_id', therapistId);
+  const rows = fwd ?? [];
+
   const result: ForwardResult = {
     ...base,
     therapistId, salonId, 正本: source,
     件名: title ?? '(タイトルなし)',
     本文の文字数: content?.length ?? 0,
-    添付: { 枚数: attachments.length, 合計KB: Math.round(total / 1024), ...(外した理由.length ? { 外した理由 } : {}) },
+    添付: { 枚数: attachments.length, 合計KB: Math.round(totalBytes / 1024), ...(外した理由.length ? { 外した理由 } : {}) },
     宛先: [],
   };
 
@@ -203,4 +227,149 @@ export async function forwardDiary(diaryId: string, apply = false): Promise<Forw
   }
 
   return result;
+}
+
+// ── 失敗した転送の再送（第37便）────────────────────────────────────
+//
+// ★★★ 5分ルール（2026-08-27 に駅ちかの写メ投稿画面で確認）
+//   駅ちかには「同じ女性から同じタイトル（件名）での5分以内の投稿は反映されません」
+//   という重複防止がある。再送は件名も本文も同じなので、失敗直後に投げ直すと
+//   【Resendは成功を返すのに媒体側は黙って捨てる】＝新しい「送ったつもり」が生まれる。
+//   だから MIN_AGE_MIN 以上あいたものだけを拾う。5分きっかりではなく余裕を持たせる。
+//
+// ★★ 二重送信の防止
+//   拾うときに attempts を版番号として compare-and-swap する
+//   （読んだ attempts と一致する行だけ 'retrying' に書き換えられる）。
+//   cronの周が重なっても、同じ行を2回送らない。
+//   途中で落ちて 'retrying' のまま残った行も、時間が経てば対象に戻る。
+//
+// ★ 正本が 'benry' に戻っていたら送らない。
+//   「フクエスをやめた店舗に、あとから再送で届く」を防ぐ。
+
+/** 失敗から再送までに最低これだけあける（分）。駅ちかの5分ルールに余裕を足した値。 */
+const MIN_AGE_MIN = 10;
+/** 何回まで再送するか（初回を含む）。これを超えたら諦めてログに残したままにする。 */
+const MAX_ATTEMPTS = 3;
+
+export type RetryResult = {
+  ok: boolean;
+  apply: boolean;
+  注意: string;
+  対象件数: number;
+  再送: Array<{ diaryId: string; provider: string; 枠: number; 宛先: string; status: string; error?: string }>;
+};
+
+/**
+ * 失敗した転送を拾い直して送る（VPSのcronから叩く想定）。
+ * @param opts.apply true で実際に送る。既定 false は試し打ち（1通も送らない）。
+ * @param opts.limit 1回で拾う最大件数（既定20・上限100）。
+ */
+export async function retryFailedForwards(opts: { limit?: number; apply?: boolean } = {}): Promise<RetryResult> {
+  const apply = opts.apply === true;
+  const limit = Math.min(Math.max(Math.trunc(opts.limit ?? 20), 1), 100);
+  const svc = createServiceClient();
+  const out: RetryResult = {
+    ok: true, apply,
+    注意: apply ? '再送しました' : '試し打ち（1通も送っていません）',
+    対象件数: 0, 再送: [],
+  };
+
+  const cutoff = new Date(Date.now() - MIN_AGE_MIN * 60_000).toISOString();
+  const { data: rows, error } = await svc
+    .from('diary_forward_log')
+    .select('id, diary_id, therapist_id, provider, slot, attempts')
+    .in('status', ['failed', 'retrying'])
+    .lt('attempts', MAX_ATTEMPTS)
+    .lt('created_at', cutoff)
+    .order('created_at', { ascending: true })
+    .limit(limit);
+  if (error) return { ...out, ok: false, 注意: `対象の取得に失敗しました（${error.message}）` };
+
+  const targets = rows ?? [];
+  out.対象件数 = targets.length;
+  if (targets.length === 0) {
+    // ★ 「0件」を報告するときは0の理由が読み取れる形にする（第35便の反省）
+    out.注意 = `再送が必要な転送はありません（${MIN_AGE_MIN}分以上前・${MAX_ATTEMPTS}回未満の failed/retrying が対象）`;
+    return out;
+  }
+
+  const apiKey = process.env.RESEND_API_KEY;
+  if (apply && !apiKey) return { ...out, ok: false, 注意: 'RESEND_API_KEY 未設定' };
+  const resend = new Resend(apiKey ?? 'dry-run');
+
+  for (const row of targets) {
+    const diaryId = String(row.diary_id);
+    const provider = String(row.provider);
+    const slot = Number((row as { slot?: number }).slot ?? 1);
+    const attempts = Number(row.attempts ?? 1);
+    const note = (status: string, 宛先: string, err?: string) =>
+      out.再送.push({ diaryId, provider, 枠: slot, 宛先, status, ...(err ? { error: err } : {}) });
+    const mark = async (status: string, err?: string | null) => {
+      await svc.from('diary_forward_log').update({ status, error: err ?? null, attempts: attempts + 1 }).eq('id', row.id);
+    };
+
+    // 宛先（消されている・無効化されていることがある）
+    const { data: fwd } = await svc
+      .from('therapist_diary_forward')
+      .select('address, is_enabled')
+      .eq('therapist_id', row.therapist_id)
+      .eq('provider', provider)
+      .eq('slot', slot)
+      .maybeSingle();
+    if (!fwd || fwd.is_enabled === false) {
+      note('skipped:no_address', '-');
+      if (apply) await mark('skipped:no_address');
+      continue;
+    }
+    const address = String(fwd.address);
+
+    const built = await buildPayload(svc, diaryId);
+    if (!built.ok) {
+      note('skipped:diary_gone', mask(address), built.error);
+      if (apply) await mark('skipped:diary_gone', built.error);
+      continue;
+    }
+    if (built.payload.source !== 'fukues') {
+      note('skipped:source_is_benry', mask(address));
+      if (apply) await mark('skipped:source_is_benry');
+      continue;
+    }
+
+    if (!apply) { note('would_retry', mask(address)); continue; }
+
+    // ★ 先に取りにいく（attempts を版番号にした compare-and-swap）
+    const { data: claimed } = await svc
+      .from('diary_forward_log')
+      .update({ status: 'retrying', attempts: attempts + 1 })
+      .eq('id', row.id)
+      .eq('attempts', attempts)
+      .select('id');
+    if (!claimed || claimed.length === 0) { note('skipped:taken', mask(address)); continue; }
+
+    const { title, content, attachments } = built.payload;
+    try {
+      const { error: sErr } = await resend.emails.send({
+        from: FROM,
+        to: address,
+        subject: title ?? '写メ日記',
+        text: content ?? '',
+        ...(attachments.length ? { attachments } : {}),
+      });
+      if (sErr) {
+        note('failed', mask(address), sErr.message);
+        await svc.from('diary_forward_log').update({ status: 'failed', error: sErr.message }).eq('id', row.id);
+        out.ok = false;
+      } else {
+        note('sent', mask(address));
+        await svc.from('diary_forward_log').update({ status: 'sent', error: null }).eq('id', row.id);
+      }
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : 'unknown';
+      note('failed', mask(address), msg);
+      await svc.from('diary_forward_log').update({ status: 'failed', error: msg }).eq('id', row.id);
+      out.ok = false;
+    }
+  }
+
+  return out;
 }
