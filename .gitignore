@@ -83,3 +83,8 @@ task_*.md
 # 例: fukux-shop-guide-claude-code-instructions.md（2026-08-18・第22便で3本受領）
 # 上の「/指示書_*.md」では英語ファイル名を拾えないので別に書く。
 /*-claude-code-instructions.md
+
+# 媒体の管理画面から保存したHTMLの検証用置き場（第38便・コミット厳禁）
+# ★ 駅ちかの管理画面HTMLには fuel_csrf_token と、cocoa-job.jp の【平文パスワード】が入る。
+#   絶対にコミットしない。確認が済んだら消すこと。
+/_tmp*/
