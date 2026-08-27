@@ -2,7 +2,7 @@
 //
 // ★ `npm run build` と `tsc -p tsconfig.json` は Claude の実行環境（端末VM）では
 //   45秒制限に収まらない（引き継ぎメモ 第38便 §0）。プロジェクト全体ではなく
-//   中継の6ファイルだけに絞ると数十秒で終わるので、こちらで一次確認する。
+//   中継まわりのファイルだけに絞ると数十秒で終わるので、こちらで一次確認する。
 //
 //   npx tsc --noEmit -p tsconfig.relaycheck.json
 //
@@ -18,6 +18,8 @@
     "src/app/api/relay/lease/route.ts",
     "src/app/api/relay/result/route.ts",
     "src/app/api/admin/relay-selftest/route.ts",
-    "src/lib/relayJob.ts"
+    "src/lib/relayJob.ts",
+    "src/lib/mediaAudit.ts",
+    "src/app/lib/media/mediaAudit.ts"
   ]
 }

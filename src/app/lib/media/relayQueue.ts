@@ -13,6 +13,7 @@
 //   このファイルは【運び方】だけを持ち、何を運ぶかは知らない。
 
 import { createServiceClient } from '@/app/lib/supabase/service';
+import { recordMediaAudit } from '@/app/lib/media/mediaAudit';
 import {
   buildRelayRequest,
   sealRequest,
@@ -169,7 +170,8 @@ export async function completeRelayJob(params: {
 
   const { data: row, error: selErr } = await supabase
     .from('media_relay_jobs')
-    .select('id, status, attempts')
+    // ★ 監査ログに「誰の・どの枠の・何の処理か」を残すので、ここで一緒に読む
+    .select('id, status, attempts, salon_id, provider, slot, purpose')
     .eq('id', params.jobId)
     .maybeSingle();
 
@@ -191,6 +193,23 @@ export async function completeRelayJob(params: {
         updated_at: new Date().toISOString(),
       })
       .eq('id', params.jobId);
+
+    // ★★ 監査に残すのは【終端だけ】。投げ直しの途中経過は業務のできごとではない。
+    //   毎回書くと、店舗の画面が「失敗しました」で埋まって、本当に止まった行が読めなくなる。
+    if (giveUp) {
+      // ★ 宛先の検査で弾かれたものは、回数の問題ではないので別の名前で残す
+      const rejected = params.error.includes('allowlist');
+      await recordMediaAudit({
+        salonId: row.salon_id as number,
+        provider: row.provider as string,
+        slot: row.slot as number,
+        event: rejected ? 'relay_rejected' : 'relay_gave_up',
+        outcome: 'stopped',
+        detail: { purpose: row.purpose as string, attempts: row.attempts },
+        jobId: params.jobId,
+      });
+    }
+
     return { ok: true, note: giveUp ? '3回失敗したので諦めた' : '失敗。次の周で投げ直す' };
   }
 
@@ -209,6 +228,23 @@ export async function completeRelayJob(params: {
       updated_at: new Date().toISOString(),
     })
     .eq('id', params.jobId);
+
+  // ★★ 成功した「往復」を、成功した「ログイン」と混同しない。
+  //   302 が返ったことと、ログインできたことは別の話。応答を解釈するのは
+  //   advanceRelayFlow の仕事なので、login / read_work / write_work / verify_work の
+  //   監査ログは【そちらで書く】。ここで書くと「送ったつもり」の監査ログになる。
+  //   ★ 疎通確認だけは、解釈の余地なく「疎通を試した」と言えるので残す。
+  if (row.purpose === 'selftest') {
+    await recordMediaAudit({
+      salonId: row.salon_id as number,
+      provider: row.provider as string,
+      slot: row.slot as number,
+      event: 'selftest',
+      outcome: 'ok',
+      detail: { httpStatus: res.status, bytes: res.bodyPacked.length },
+      jobId: params.jobId,
+    });
+  }
 
   // ★★★ ここが状態遷移の場所（第3弾の本体）。
   //   login の結果を見て read_work を積む、read の結果を見て write_work を積む…を書く。
@@ -246,7 +282,8 @@ export async function expireStuckRelayJobs(
 
   const { data: rows, error: selErr } = await supabase
     .from('media_relay_jobs')
-    .select('id')
+    // ★ 監査ログに「どの店舗の・どの枠が」打ち切られたかを残すので一緒に読む
+    .select('id, salon_id, provider, slot')
     .eq('status', 'leased')
     .lt('leased_until', cutoff)
     .gte('attempts', MAX_ATTEMPTS);
@@ -269,6 +306,24 @@ export async function expireStuckRelayJobs(
     .select('id');
 
   if (error) throw new Error('居座ったジョブを打ち切れなかった: ' + error.message);
+
+  // ★★ 実際に打ち切れた行だけ記録する。読んだ時点の ids ではない
+  //   （読んでから更新までの間に閉じられた行は触っていないので、監査にも書かない）。
+  const byId = new Map((rows ?? []).map((r) => [r.id as string, r]));
+  for (const r of data ?? []) {
+    const src = byId.get(r.id as string);
+    if (!src) continue;
+    await recordMediaAudit({
+      salonId: src.salon_id as number,
+      provider: src.provider as string,
+      slot: src.slot as number,
+      event: 'relay_expired',
+      outcome: 'stopped',
+      detail: { graceMinutes: grace },
+      jobId: r.id as string,
+    });
+  }
+
   return { expired: (data ?? []).length, ids };
 }
 
