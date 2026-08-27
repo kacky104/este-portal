@@ -1,4 +1,4 @@
-// 中継まわりだけを型検査する（第38便の残り物・第39便）。
+// 中継・取り込みまわりだけを型検査する（第38便の残り物・第39便）。
 //
 // ★ `npm run build` と `tsc -p tsconfig.json` は Claude の実行環境（端末VM）では
 //   45秒制限に収まらない（引き継ぎメモ 第38便 §0）。プロジェクト全体ではなく
@@ -24,6 +24,8 @@
     "src/lib/mediaConsent.ts",
     "src/app/actions/mediaCredentials.ts",
     "src/app/mypage/MediaLinkPanel.tsx",
-    "src/app/mypage/page.tsx"
+    "src/app/mypage/page.tsx",
+    "src/lib/ekichikaListParse.ts",
+    "src/app/api/import/ingest-list/route.ts"
   ]
 }

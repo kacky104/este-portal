@@ -38,6 +38,22 @@ export const maxDuration = 60;
 // 一覧が短く返ったとき、全員を休みに倒す事故を防ぐ（targets の SWEEP_MAX_RATIO と同じ思想）。
 const SWEEP_MAX_RATIO = 0.3;
 
+// ── 即ヒメ（駅ちか）→ 今すぐ（フクエス）の取り込み（第39便）──────────────
+//
+// ★★★ 期限は「寿命」ではなく「保険」。
+//   即ヒメの残り時間は公開ページに出ていない（管理画面にしか出ない）。
+//   実際に消すのは【次の周】＝駅ちかが外せば最大15分後に落ちる。
+//   この分数は「取り込みが止まったときに自動で消えるまで」なので、
+//   次の周（15分間隔）を少し越える程度でよい。★ 長くすると、切れたものが残る。
+const IMASUGU_IMPORT_MINUTES = 20;
+
+// ★★★ 読み違えの安全弁（第39便で実際に踏みかけた形）
+//   駅ちかの外側 <div class="waiting sokuiku"> は【休みの子にも付いている】。
+//   もしパーサがそちらを拾う作りに戻ると、在籍全員が即ヒメになる。
+//   即ヒメは店舗あたり5枠までなので、在籍の半数を超えることは仕様上ありえない。
+//   → 超えたらその周は即ヒメを書かない。★ ただし黙って止めず、理由を返す。
+const SOKUHIME_SANITY_RATIO = 0.5;
+
 // 伏字よけ。駅ちかには「〇〇」のような表記が実在する（第35便・アイリスで実測）。
 const MASK_ONLY = /^[〇○●◯＊*xX×✕✖?？!！_＿\-ー–—\s]*$/;
 function isCreatableName(raw: string): boolean {
@@ -81,7 +97,7 @@ export async function POST(req: Request) {
   // 1. 取り込み設定
   const { data: source, error: srcErr } = await supabase
     .from('salon_import_sources')
-    .select('id, salon_id, is_enabled, external_id, import_schedule, import_profile, create_missing, salons!inner(is_hidden, area)')
+    .select('id, salon_id, is_enabled, external_id, import_schedule, import_profile, import_imasugu, create_missing, salons!inner(is_hidden, area)')
     .eq('id', sourceId)
     .single();
   if (srcErr || !source) return NextResponse.json({ ok: false, error: 'source not found' }, { status: 404 });
@@ -181,6 +197,10 @@ export async function POST(req: Request) {
   };
   const rows: Array<{ therapist_id: number; schedule_date: string; is_active: boolean; start_time: string | null; end_time: string | null; imported_at: string }> = [];
   const profilePatches: Array<{ id: number; age?: string; body_type?: string }> = [];
+  // ★ 即ヒメ（第39便）。sokuhimeIds＝いま即ヒメの子／imasuguSeenIds＝一覧に居て状態が読めた子
+  //   一覧に居なかった子は【触らない】。取り込みが届かなくても available_until_import で自然に消える。
+  const sokuhimeIds: number[] = [];
+  const imasuguSeenIds: number[] = [];
   let matched = 0, unknownStatus = 0;
 
   for (const c of listed.values()) {
@@ -250,6 +270,13 @@ export async function POST(req: Request) {
 
     // ★ 'unknown'（waiting-cont が読めない）は触らない。全員を一斉に倒す事故を防ぐ安全弁。
     if (c.status === 'unknown') { unknownStatus++; continue; }
+
+    // ★★ 即ヒメ（第39便）。出勤の取り込み設定とは独立して集める
+    //   （import_schedule を切っていても今すぐだけ取り込みたい店がありうる）。
+    //   ★ 即ヒメは「出勤中の子」にしか付かない仕様なので、work 以外は無視する。
+    if (c.sokuhime && c.status === 'work') sokuhimeIds.push(id);
+    imasuguSeenIds.push(id);
+
     if (!source.import_schedule) continue;
 
     const active = c.status === 'work';
@@ -279,6 +306,22 @@ export async function POST(req: Request) {
   const patchesSafe = profilePatches.filter((p) => !conflicted.has(p.id));
   const diffsSafe = diffs.filter((d) => !conflicted.has(d.id));
 
+  // ★★ 即ヒメの取り込み対象を確定する（第39便）。
+  //   衝突した子は触らない（出勤・プロフィールと同じ扱い）。
+  const sokuhimeSafe = sokuhimeIds.filter((id) => !conflicted.has(id));
+  const imasuguSeenSafe = imasuguSeenIds.filter((id) => !conflicted.has(id));
+  // ★ 在籍の半数を超えたら読み違いを疑う（外側の div を拾った形）。その周は書かない。
+  let imasuguSkipped: string | undefined;
+  if (!source.import_imasugu) {
+    imasuguSkipped = 'この店舗は即ヒメの取り込みを有効にしていない（salon_import_sources.import_imasugu）';
+  } else if (listed.size > 0 && sokuhimeSafe.length / listed.size > SOKUHIME_SANITY_RATIO) {
+    imasuguSkipped = `即ヒメが多すぎる（${sokuhimeSafe.length}/${listed.size}）— 駅ちかのHTMLの読み違いを疑うこと`;
+  }
+  const imasuguUntil = new Date(Date.now() + IMASUGU_IMPORT_MINUTES * 60 * 1000).toISOString();
+  // 落とす対象＝一覧に居たが即ヒメではない子
+  const sokuhimeSet = new Set(sokuhimeSafe);
+  const imasuguClearIds = imasuguSeenSafe.filter((id) => !sokuhimeSet.has(id));
+
   // 6. 掃除: 在籍しているのに一覧に居なかった子の、当日の出勤を倒す。
   //    ★ imported_at が null の行（＝人が SQL や管理画面で入れた行）は触らない（禁則243）。
   const sweepIds = allIds.filter((id) => {
@@ -295,6 +338,7 @@ export async function POST(req: Request) {
 
   // 7. 書き込み（apply のときだけ）
   let upserted = 0, swept = 0, profilesUpdated = 0, castIdWritten = 0;
+  let imasuguSet = 0, imasuguCleared = 0;
   if (apply) {
     if (rowsSafe.length > 0) {
       const { error } = await supabase.from('therapist_schedules').upsert(rowsSafe, { onConflict: 'therapist_id,schedule_date' });
@@ -308,6 +352,27 @@ export async function POST(req: Request) {
       if (error) return NextResponse.json({ ok: false, error: error.message, stage: 'sweep' }, { status: 500 });
       swept = sweepIds.length;
     }
+    // ★★★ 即ヒメの反映（第39便）。★ 触るのは取り込み枠の2列だけ。
+    //   店舗が押した枠（is_available_now / _cast）には一切触らない。
+    if (!imasuguSkipped) {
+      if (sokuhimeSafe.length > 0) {
+        const { error } = await supabase.from('therapists')
+          .update({ is_available_now_import: true, available_until_import: imasuguUntil })
+          .in('id', sokuhimeSafe);
+        if (error) return NextResponse.json({ ok: false, error: error.message, stage: 'imasugu-set' }, { status: 500 });
+        imasuguSet = sokuhimeSafe.length;
+      }
+      if (imasuguClearIds.length > 0) {
+        // ★ すでに false の子は触らない（毎周37行を無駄に書き換えない）
+        const { data: cleared, error } = await supabase.from('therapists')
+          .update({ is_available_now_import: false, available_until_import: null })
+          .in('id', imasuguClearIds).eq('is_available_now_import', true)
+          .select('id');
+        if (error) return NextResponse.json({ ok: false, error: error.message, stage: 'imasugu-clear' }, { status: 500 });
+        imasuguCleared = (cleared ?? []).length;
+      }
+    }
+
     for (const f of castIdFills) {
       const { error } = await supabase.from('therapists').update({ import_cast_id: f.castId }).eq('id', f.id);
       if (!error) castIdWritten++;
@@ -317,7 +382,7 @@ export async function POST(req: Request) {
       const { error } = await supabase.from('therapists').update(patch).eq('id', id);
       if (!error) profilesUpdated++;
     }
-    if (upserted > 0 || swept > 0) {
+    if (upserted > 0 || swept > 0 || imasuguSet > 0 || imasuguCleared > 0) {
       revalidatePath('/salon/[id]', 'layout');
       revalidatePath('/hp/[slug]', 'layout');
       revalidatePath('/therapist/[id]', 'layout');
@@ -346,6 +411,16 @@ export async function POST(req: Request) {
       castId確定により無視した重複掲載: ignoredDup,
     },
     掃除: { 候補: sweepIds.length, 実行: swept, 中止理由: sweepSkipped },
+    // ★ 即ヒメ（第39便）。★ 0 のときも理由が読み取れる形にする（第35便の反省6）
+    即ヒメ: {
+      一覧で即ヒメ: sokuhimeSafe.length,
+      名前: sokuhimeSafe.map((id) => nameOf.get(id) ?? String(id)),
+      立てた: imasuguSet,
+      落とした: imasuguCleared,
+      期限: imasuguSkipped ? null : imasuguUntil,
+      中止理由: imasuguSkipped,
+      注意: '取り込み枠のみ。店舗が押した今すぐには触っていない',
+    },
     書込: { 出勤行: upserted, プロフィール: profilesUpdated, castId埋め: castIdWritten },
     castIdを埋める予定: castIdFills.map((f) => `${f.name}=${f.castId}`),
     差分: diffsSafe.map(({ id: _id, ...rest }) => rest),

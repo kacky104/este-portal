@@ -35,9 +35,39 @@
 //
 // ★★★ 状態のクラスは1種類ではない（第36便 13:05 に実地で判明）:
 //     waiting-cont today    … 本日出勤
-//     waiting-cont sokuiku  … 即イキ（いますぐ案内可能）。出勤中の子に付く
-//     waiting-cont shihatu  … 始発
-//     waiting-cont normal   … 本日出勤なし。中身は空
+//     waiting-cont sokuiku  … ★ 即ヒメ（いますぐ案内可能）。出勤中の子に付く
+//     waiting-cont shihatu  … 始発姫。★ 出勤開始から1時間以内に即ヒメ設定した子（＝即ヒメの一種）
+//     waiting-cont normal   … 本日出勤なし
+//
+// ★★★ 名前の訂正（第39便・店舗の管理画面 /admin/sokuiku/ で確認）
+//   クラス名は sokuiku だが、駅ちかの【表示名は「即ヒメ」】。第36便で「即イキ」と書いたのは誤り。
+//   店舗と話すときは「即ヒメ」。コードのクラス名だけ昔のまま残っている。
+//
+// ★★★ 外側の div の sokuiku に意味は無い（第39便・実物37人で確認）
+//     <div class="waiting sokuiku  normal ">   ← ★ 休みの子にも sokuiku が付いている
+//     <div class="waiting sokuiku ">           ← 即ヒメ中の子
+//   外側は「この店は即ヒメ対応」程度の印。★ 個人の状態は内側の waiting-cont でしか判らない。
+//   外側を見て判定する作りにすると、全員が即ヒメになる。
+//
+// ★★ 即ヒメの印は2か所に出る（どちらも実測）:
+//     <li class="waiting-cont sokuiku">17:00<span> ▶︎ </span>00:00</li>
+//     <p class="attend-ico sokuiku"><span>即ヒメ!!</span></p>
+//   ここでは waiting-cont 側だけを見る（出勤判定と同じ場所＝ずれようがない）。
+//
+// ★★★ 即ヒメの残り時間は公開ページに出ていない（第39便で確認）
+//   管理画面には「[〜20:37迄] 残り4分2秒」が出るが、公開ページの waiting-cont には
+//   出勤時刻しか無い。→ 取り込み側は【次の周で消す】設計にすること。期限を推測しない。
+//
+// ★★ 即ヒメは店舗あたり5枠まで（管理画面の仕様）。
+//   フクエスの「今すぐ」に人数制限は無いので、★ 取り込むと常に5人以下になる。
+//   「駅ちかの人数とフクエスの今すぐの人数が合わない」は異常ではない。
+//
+// ★★ normal に「要TEL」が入ることがある（第39便・37人中22人）
+//   第36便は「normal の中身は空」と書いたが、実物では "要TEL" が入っていた。
+//   ★ 意味は【休み】（2026-08-27・福岡メンズエステ業界の慣行としてオーナー様に確認済み）。
+//   → normal＝休み のままで正しい。第36便の判断は変えない。
+//   ★ 中身のテキストで判定しないこと。normal かどうかだけを見る。
+//     「要TEL」以外の文言が入っても、normal である限り休みとして扱えばよい。
 //   today 以外の3つは【営業時間中にしか現れない】。朝08:35の調査ではアイリス100名・enju63名とも
 //   today と normal しか出ておらず、「2種類しか無い」と誤って結論した。13:05 の周で enju の5名が
 //   判定不能になって発覚した（sokuiku 4・shihatu 1）。時刻はどれも正しく入っていた。
@@ -73,6 +103,8 @@ export type EkichikaListCast = {
   hip: string | null;
   bodyType: string | null;                  // 'T150 B84(D) W55 H88'（fukues 表記）
   status: 'work' | 'off' | 'unknown';       // 当日の出勤
+  /** ★ 即ヒメ（いますぐ案内可能）。始発姫も即ヒメの一種なので true にする。 */
+  sokuhime: boolean;
   start: string | null;                     // 'HH:MM'（status==='work' のみ）
   end: string | null;                       // 'HH:MM'（日跨ぎも素の時刻。表示側が「翌」を付ける）
 };
@@ -151,6 +183,10 @@ export function parseEkichikaList(html: string, externalId: string): EkichikaLis
     //   駅ちかは営業時間中に today → sokuiku（即イキ）/ shihatu（始発）へ表示を変える。
     //   クラス名を列挙する作りだと、新しい待機状態が増えるたびに取りこぼす。
     const contCls = pick(/<li[^>]*class="([^"]*\bwaiting-cont\b[^"]*)"[^>]*>/, seg);
+    // ★ 即ヒメ。始発姫（shihatu）は「出勤開始から1時間以内に即ヒメ設定した子」なので同じ扱い。
+    //   ★ 外側の <div class="waiting sokuiku"> ではなく、必ず waiting-cont 側を見ること
+    //     （外側は休みの子にも付いている・第39便で実測）。
+    const sokuhime = Boolean(contCls && /\b(sokuiku|shihatu)\b/.test(contCls));
     let status: 'work' | 'off' | 'unknown' = 'unknown';
     let start: string | null = null;
     let end: string | null = null;
@@ -172,7 +208,7 @@ export function parseEkichikaList(html: string, externalId: string): EkichikaLis
     out.push({
       castId, name, nameKey: normalizeName(name), age,
       height, bust, cup, waist, hip, bodyType,
-      status, start, end,
+      status, sokuhime, start, end,
     });
   }
 
