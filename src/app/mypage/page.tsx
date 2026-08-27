@@ -32,6 +32,7 @@ import { useToast } from '@/app/components/useToast';
 import { SiteNoticeBanner } from '@/app/components/SiteNoticeBanner';
 import { SalonBumpButton } from '@/app/components/SalonBumpButton';
 import { EmbedCodePanel } from './EmbedCodePanel';
+import { MediaLinkPanel } from './MediaLinkPanel';
 
 const supabase = createClient();
 
@@ -99,7 +100,7 @@ async function fetchAnnouncementList(salonId: number): Promise<Announcement[]> {
 }
 
 // タブのアイコン（既存サイトと同系統の tabler/lucide 風アウトラインアイコン）。
-function tabIcon(key: 'salon' | 'schedule' | 'available' | 'profile' | 'diary' | 'coupon' | 'news' | 'vipletter' | 'board' | 'booking' | 'jobs' | 'popup' | 'support') {
+function tabIcon(key: 'salon' | 'schedule' | 'available' | 'profile' | 'diary' | 'coupon' | 'news' | 'vipletter' | 'board' | 'booking' | 'jobs' | 'popup' | 'support' | 'media') {
   const common = {
     width: 14, height: 14, viewBox: '0 0 24 24', fill: 'none',
     stroke: 'currentColor', strokeWidth: 2,
@@ -116,6 +117,13 @@ function tabIcon(key: 'salon' | 'schedule' | 'available' | 'profile' | 'diary' |
           <path d="M5 21v-9" />
           <path d="M19 21v-9" />
           <path d="M9 21v-4a2 2 0 0 1 2 -2h2a2 2 0 0 1 2 2v4" />
+        </svg>
+      );
+    case 'media': // 媒体連携（link：他媒体とつながっている）
+      return (
+        <svg {...common}>
+          <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
+          <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" />
         </svg>
       );
     case 'schedule': // 出勤（calendar）
@@ -527,7 +535,7 @@ export default function MyPage() {
   const [mailTesting, setMailTesting] = useState(false);
   const [mailTestResult, setMailTestResult] = useState<{ ok: boolean; msg: string } | null>(null);
   const [savingSchedule, setSavingSchedule] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<'salon' | 'schedule' | 'profile' | 'available' | 'diary' | 'coupon' | 'news' | 'vipletter' | 'board' | 'booking' | 'jobs' | 'popup' | 'support'>('salon');
+  const [activeTab, setActiveTab] = useState<'salon' | 'schedule' | 'profile' | 'available' | 'diary' | 'coupon' | 'news' | 'vipletter' | 'board' | 'booking' | 'jobs' | 'popup' | 'support' | 'media'>('salon');
   // 「運営から」タブの未読お知らせ件数（SupportTab が読み込み時に通知・タブバッジ表示用）。
   const [supportUnread, setSupportUnread] = useState(0);
   const [expandedSections, setExpandedSections] = useState<Set<string>>(new Set());
@@ -2066,6 +2074,7 @@ export default function MyPage() {
             // activeTab='board' とタブ本体はそのまま生きている。
             ['booking',   'ネット予約'],
             ['jobs',      '求人'],
+            ['media',     '媒体連携'],
             ['support',   '運営事務局'],
           ] as const)
             // 求人タブはフクエスワーク掲載（jobs_enabled）契約店のみ表示。
@@ -4025,6 +4034,17 @@ export default function MyPage() {
               />
             </AccordionCard>
           )}
+        </div>
+
+        {/* ── 媒体連携（駅ちかへの出勤の書き込み・第39便） ── */}
+        {/* ★ 認証情報を預かる画面なので、説明・登録・記録・停止を1画面にまとめている。
+              どれか1つでも別の場所にあると、店舗は見に行かない。 */}
+        <div className={`${activeTab === 'media' ? '' : 'hidden'}`}>
+          <MediaLinkPanel
+            salonId={salon ? Number(salon.id) : null}
+            active={activeTab === 'media'}
+            onToast={showToast}
+          />
         </div>
 
         {/* ── 運営から（お知らせ受信＋お問い合わせ） ── */}
