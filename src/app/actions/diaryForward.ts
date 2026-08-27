@@ -46,9 +46,9 @@ async function assertCanEdit(therapistId: number): Promise<Result<{ salonId: num
   return { ok: true, data: { salonId: Number(t.salon_id) } };
 }
 
-/** そのセラピストの転送先を全部返す。未登録の媒体は address 空で返す（画面が2欄を必ず出せるように）。 */
+/** そのセラピストの転送先を全部返す（媒体×枠）。行がそのまま並ぶ＝画面は枠を動的に描ける。 */
 export async function getDiaryForwards(input: { therapistId: string | number }):
-  Promise<Result<Array<{ provider: string; address: string; isEnabled: boolean }>>> {
+  Promise<Result<Array<{ provider: string; slot: number; address: string; isEnabled: boolean }>>> {
   const therapistId = Number(input.therapistId);
   if (!Number.isFinite(therapistId)) return { ok: false, error: '対象セラピストが不正です' };
   const guard = await assertCanEdit(therapistId);
@@ -57,26 +57,33 @@ export async function getDiaryForwards(input: { therapistId: string | number }):
   const svc = createServiceClient();
   const { data, error } = await svc
     .from('therapist_diary_forward')
-    .select('provider, address, is_enabled')
+    .select('provider, slot, address, is_enabled')
     .eq('therapist_id', therapistId);
   if (error) return { ok: false, error: error.message };
 
-  const byProvider = new Map((data ?? []).map((r) => [r.provider as string, r]));
-  return {
-    ok: true,
-    data: PROVIDERS.map((p) => {
-      const row = byProvider.get(p);
-      return { provider: p, address: (row?.address as string | undefined) ?? '', isEnabled: row ? row.is_enabled !== false : true };
-    }),
-  };
+  const rows = (data ?? [])
+    .map((r) => ({
+      provider: r.provider as string,
+      slot: Number((r as { slot?: number }).slot ?? 1),
+      address: (r.address as string | undefined) ?? '',
+      isEnabled: r.is_enabled !== false,
+    }))
+    // 媒体順（PROVIDERS の並び）→ 枠順。画面が安定して並ぶように。
+    .sort((a, b) => {
+      const pi = PROVIDERS.indexOf(a.provider) - PROVIDERS.indexOf(b.provider);
+      return pi !== 0 ? pi : a.slot - b.slot;
+    });
+  return { ok: true, data: rows };
 }
 
-/** 転送先を保存する。address が空なら削除（＝その媒体へは送らない）。 */
-export async function saveDiaryForward(input: { therapistId: string | number; provider: string; address: string }):
+/** 転送先を保存する（媒体×枠）。address が空なら その枠を削除（＝送らない）。 */
+export async function saveDiaryForward(input: { therapistId: string | number; provider: string; slot?: number; address: string }):
   Promise<Result<{ saved: boolean }>> {
   const therapistId = Number(input.therapistId);
   if (!Number.isFinite(therapistId)) return { ok: false, error: '対象セラピストが不正です' };
   if (!PROVIDERS.includes(input.provider)) return { ok: false, error: '媒体の指定が不正です' };
+  const slot = Math.trunc(Number(input.slot ?? 1));
+  if (!Number.isFinite(slot) || slot < 1 || slot > 20) return { ok: false, error: '枠の指定が不正です' };
   const guard = await assertCanEdit(therapistId);
   if (!guard.ok) return guard;
 
@@ -86,7 +93,7 @@ export async function saveDiaryForward(input: { therapistId: string | number; pr
   // ★ 空にしたら削除。「送らない」を明示的に表せるようにしておく。
   if (!address) {
     const { error } = await svc.from('therapist_diary_forward')
-      .delete().eq('therapist_id', therapistId).eq('provider', input.provider);
+      .delete().eq('therapist_id', therapistId).eq('provider', input.provider).eq('slot', slot);
     if (error) return { ok: false, error: error.message };
     return { ok: true, data: { saved: false } };
   }
@@ -99,10 +106,11 @@ export async function saveDiaryForward(input: { therapistId: string | number; pr
   const { error } = await svc.from('therapist_diary_forward').upsert({
     therapist_id: therapistId,
     provider: input.provider,
+    slot,
     address,
     is_enabled: true,
     updated_at: new Date().toISOString(),
-  }, { onConflict: 'therapist_id,provider' });
+  }, { onConflict: 'therapist_id,provider,slot' });
   if (error) return { ok: false, error: error.message };
   return { ok: true, data: { saved: true } };
 }

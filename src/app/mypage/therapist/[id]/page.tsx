@@ -86,7 +86,7 @@ export default function TherapistEditPage() {
   const [diaryMailError, setDiaryMailError] = useState('');
   // 写メ日記の転送先（第36便・第2弾）。フクエスで書いた日記を駅ちか／エスラブへ送る宛先。
   // ★ 上の diaryMailAddress とは【向きが逆】。あちらは受け取る側、こちらは送る側。
-  const [forwardDraft, setForwardDraft] = useState<Record<string, string>>({});
+  const [forwardRows, setForwardRows] = useState<Array<{ provider: string; slot: number; address: string; persisted: boolean }>>([]);
   const [forwardLoaded, setForwardLoaded] = useState(false);
   const [forwardSaving, setForwardSaving] = useState<string | null>(null);
   // ★ 読み込みに失敗したら理由を出す。黙って「読み込み中...」のままにしない
@@ -115,9 +115,12 @@ export default function TherapistEditPage() {
     getDiaryForwards({ therapistId }).then((r) => {
       if (cancelled) return;
       if (!r.ok) { setForwardError(r.error); return; }
-      const draft: Record<string, string> = {};
-      for (const f of r.data) draft[f.provider] = f.address;
-      setForwardDraft(draft);
+      const loaded = r.data.map((f) => ({ provider: f.provider, slot: f.slot, address: f.address, persisted: true }));
+      // 未登録の媒体には、そのまま入力できる空の1枠目を出しておく（初回登録を1クリック減らす）。
+      for (const mp of ['ekichika', 'esulove']) {
+        if (!loaded.some((x) => x.provider === mp)) loaded.push({ provider: mp, slot: 1, address: '', persisted: false });
+      }
+      setForwardRows(loaded);
       setForwardLoaded(true);
     }).catch((e) => { if (!cancelled) setForwardError(String(e)); });
     getSalonDiarySource({ therapistId }).then((r) => {
@@ -776,31 +779,63 @@ export default function TherapistEditPage() {
           ) : !forwardLoaded ? (
             <p className="text-[11px] text-slate-400">読み込み中...</p>
           ) : (
-            [{ p: 'ekichika', label: '駅ちか' }, { p: 'esulove', label: 'エスラブ' }].map((m) => (
-              <div key={m.p} className="space-y-1">
-                <label className="block text-[11px] font-bold text-slate-500">{m.label}</label>
-                <div className="flex items-center gap-2">
-                  <input
-                    type="email" inputMode="email" autoComplete="off" placeholder="未登録"
-                    value={forwardDraft[m.p] ?? ''}
-                    onChange={(e) => setForwardDraft((d) => ({ ...d, [m.p]: e.target.value }))}
-                    className="flex-1 min-w-0 rounded-xl border border-slate-200 px-3 py-2 text-xs text-slate-700 focus:border-pink-300 focus:outline-none"
-                  />
+            [{ p: 'ekichika', label: '駅ちか' }, { p: 'esulove', label: 'エスラブ' }].map((m) => {
+              const mediaRows = forwardRows.filter((r) => r.provider === m.p).sort((a, b) => a.slot - b.slot);
+              return (
+                <div key={m.p} className="space-y-2">
+                  <label className="block text-[11px] font-bold text-slate-500">{m.label}</label>
+                  {mediaRows.length === 0 ? (
+                    <p className="text-[11px] text-slate-400">未登録</p>
+                  ) : mediaRows.map((row) => {
+                    const rowKey = `${m.p}:${row.slot}`;
+                    const suffix = row.slot > 1 ? `（${row.slot}枠目）` : '';
+                    return (
+                      <div key={rowKey} className="space-y-1">
+                        {row.slot > 1 && <span className="block text-[10px] text-slate-400">{row.slot}枠目</span>}
+                        <div className="flex items-center gap-2">
+                          <input
+                            type="email" inputMode="email" autoComplete="off" placeholder="未登録"
+                            value={row.address}
+                            onChange={(e) => setForwardRows((rs) => rs.map((x) => (x.provider === m.p && x.slot === row.slot ? { ...x, address: e.target.value } : x)))}
+                            className="flex-1 min-w-0 rounded-xl border border-slate-200 px-3 py-2 text-xs text-slate-700 focus:border-pink-300 focus:outline-none"
+                          />
+                          <button
+                            type="button" disabled={forwardSaving === rowKey}
+                            onClick={async () => {
+                              setForwardSaving(rowKey);
+                              const r = await saveDiaryForward({ therapistId, provider: m.p, slot: row.slot, address: row.address });
+                              setForwardSaving(null);
+                              if (!r.ok) { showToast(r.error); return; }
+                              if (r.data.saved) {
+                                setForwardRows((rs) => rs.map((x) => (x.provider === m.p && x.slot === row.slot ? { ...x, persisted: true } : x)));
+                                showToast(`${m.label}${suffix}の宛先を保存しました`);
+                              } else {
+                                setForwardRows((rs) => rs.filter((x) => !(x.provider === m.p && x.slot === row.slot)));
+                                showToast(`${m.label}${suffix}へは送らない設定にしました`);
+                              }
+                            }}
+                            className="flex-shrink-0 px-3 py-2 rounded-xl border border-pink-200 text-pink-600 text-xs font-bold hover:bg-pink-50 transition-colors disabled:opacity-50"
+                          >
+                            {forwardSaving === rowKey ? '保存中...' : '保存'}
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })}
                   <button
-                    type="button" disabled={forwardSaving === m.p}
-                    onClick={async () => {
-                      setForwardSaving(m.p);
-                      const r = await saveDiaryForward({ therapistId, provider: m.p, address: forwardDraft[m.p] ?? '' });
-                      setForwardSaving(null);
-                      showToast(r.ok ? (r.data.saved ? `${m.label}の宛先を保存しました` : `${m.label}へは送らない設定にしました`) : r.error);
-                    }}
-                    className="flex-shrink-0 px-3 py-2 rounded-xl border border-pink-200 text-pink-600 text-xs font-bold hover:bg-pink-50 transition-colors disabled:opacity-50"
+                    type="button"
+                    onClick={() => setForwardRows((rs) => {
+                      const slots = rs.filter((x) => x.provider === m.p).map((x) => x.slot);
+                      const next = slots.length ? Math.max(...slots) + 1 : 1;
+                      return [...rs, { provider: m.p, slot: next, address: '', persisted: false }];
+                    })}
+                    className="text-[11px] font-bold text-pink-600 hover:text-pink-700"
                   >
-                    {forwardSaving === m.p ? '保存中...' : '保存'}
+                    ＋ {m.label}の枠を追加
                   </button>
                 </div>
-              </div>
-            ))
+              );
+            })
           )}
           <p className="text-[10px] text-amber-600 bg-amber-50 border border-amber-100 rounded-xl px-3 py-2 leading-relaxed">
             ※ この宛先を知っている人は誰でもこのセラピストとして各媒体に投稿できます。取り扱いにご注意ください。

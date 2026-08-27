@@ -29,6 +29,7 @@ const MAX_TOTAL_BYTES = 8 * 1024 * 1024;
 
 export type ForwardTarget = {
   provider: string;
+  枠?: number;           // 同一媒体の何枠目か（本枠=1・B枠=2…）。skip系では付かないことがある。
   宛先: string;          // 伏字（ログや画面に出しても安全な形）
   status: string;        // 'sent' | 'would_send' | 'failed:…' | 'skipped:…'
   error?: string;
@@ -89,7 +90,7 @@ export async function forwardDiary(diaryId: number, apply = false): Promise<Forw
   // 3. 転送先
   const { data: fwd } = await svc
     .from('therapist_diary_forward')
-    .select('provider, address, is_enabled')
+    .select('provider, slot, address, is_enabled')
     .eq('therapist_id', therapistId);
   const rows = fwd ?? [];
 
@@ -126,14 +127,22 @@ export async function forwardDiary(diaryId: number, apply = false): Promise<Forw
   };
 
   // 5. 送らない条件をここで確定させる（理由が読み取れる形で残す）
-  const log = async (provider: string, status: string, error?: string) => {
-    await svc.from('diary_forward_log').insert({ diary_id: diaryId, therapist_id: therapistId, provider, status, error: error ?? null });
+  const log = async (provider: string, status: string, error?: string, slot?: number) => {
+    await svc.from('diary_forward_log').insert({ diary_id: diaryId, therapist_id: therapistId, provider, slot: slot ?? null, status, error: error ?? null });
   };
 
+  // ★★ 試し打ち（apply:false）は、正本が 'benry' でも止めずに宛先まで見せる。
+  //   「送る前に目で確かめる」ためのものなのに、確かめるために salons.diary_source を
+  //   'fukues' へ切り替えねばならない、という順序の逆転を避けるため。
+  //   切り替えると受信側（resend-inbound）がベンリー経由の日記を捨て始める＝本番の運用が変わってしまう。
+  //   実際に送るのは apply:true のときだけなので、誤送信は増えない。
   if (source !== 'fukues') {
-    result.宛先.push({ provider: '-', 宛先: '-', status: 'skipped:source_is_benry' });
-    if (apply) await log('-', 'skipped:source_is_benry');
-    return result;
+    if (apply) {
+      result.宛先.push({ provider: '-', 宛先: '-', status: 'skipped:source_is_benry' });
+      await log('-', 'skipped:source_is_benry');
+      return result;
+    }
+    result.注意 = '試し打ち（1通も送っていません）／この店舗の正本は benry のため、実運用では送られません';
   }
   if (rows.length === 0) {
     result.宛先.push({ provider: '-', 宛先: '-', status: 'skipped:no_address' });
@@ -147,24 +156,26 @@ export async function forwardDiary(diaryId: number, apply = false): Promise<Forw
   }
 
   const apiKey = process.env.RESEND_API_KEY;
-  if (!apiKey) {
+  if (apply && !apiKey) {
     result.ok = false;
     result.宛先.push({ provider: '-', 宛先: '-', status: 'failed:RESEND_API_KEY 未設定' });
     return result;
   }
-  const resend = new Resend(apiKey);
+  // ★ 試し打ちでは1通も送らないため、キーが無くても宛先の確認だけは進める。
+  const resend = new Resend(apiKey ?? 'dry-run');
 
   // 6. 送る
   for (const row of rows) {
     const provider = row.provider as string;
+    const slot = Number((row as { slot?: number }).slot ?? 1);
     const address = row.address as string;
     if (row.is_enabled === false) {
-      result.宛先.push({ provider, 宛先: mask(address), status: 'skipped:disabled' });
-      if (apply) await log(provider, 'skipped:disabled');
+      result.宛先.push({ provider, 枠: slot, 宛先: mask(address), status: 'skipped:disabled' });
+      if (apply) await log(provider, 'skipped:disabled', undefined, slot);
       continue;
     }
     if (!apply) {
-      result.宛先.push({ provider, 宛先: mask(address), status: 'would_send' });
+      result.宛先.push({ provider, 枠: slot, 宛先: mask(address), status: 'would_send' });
       continue;
     }
     try {
@@ -176,17 +187,17 @@ export async function forwardDiary(diaryId: number, apply = false): Promise<Forw
         ...(attachments.length ? { attachments } : {}),
       });
       if (error) {
-        result.宛先.push({ provider, 宛先: mask(address), status: 'failed', error: error.message });
-        await log(provider, 'failed', error.message);
+        result.宛先.push({ provider, 枠: slot, 宛先: mask(address), status: 'failed', error: error.message });
+        await log(provider, 'failed', error.message, slot);
         result.ok = false;
       } else {
-        result.宛先.push({ provider, 宛先: mask(address), status: 'sent' });
-        await log(provider, 'sent');
+        result.宛先.push({ provider, 枠: slot, 宛先: mask(address), status: 'sent' });
+        await log(provider, 'sent', undefined, slot);
       }
     } catch (e) {
       const msg = e instanceof Error ? e.message : 'unknown';
-      result.宛先.push({ provider, 宛先: mask(address), status: 'failed', error: msg });
-      await log(provider, 'failed', msg);
+      result.宛先.push({ provider, 枠: slot, 宛先: mask(address), status: 'failed', error: msg });
+      await log(provider, 'failed', msg, slot);
       result.ok = false;
     }
   }
