@@ -1,0 +1,23 @@
+// 中継まわりだけを型検査する（第38便の残り物・第39便）。
+//
+// ★ `npm run build` と `tsc -p tsconfig.json` は Claude の実行環境（端末VM）では
+//   45秒制限に収まらない（引き継ぎメモ 第38便 §0）。プロジェクト全体ではなく
+//   中継の6ファイルだけに絞ると数十秒で終わるので、こちらで一次確認する。
+//
+//   npx tsc --noEmit -p tsconfig.relaycheck.json
+//
+// ★★ これは【手元の npm run build の代わりにはならない】。
+//   Next.js のルート型（.next/types）を見ていないので、route.ts の
+//   シグネチャ違反はここでは出ない。最後は必ず手元でビルドすること。
+{
+  "extends": "./tsconfig.json",
+  "include": [
+    "next-env.d.ts",
+    "src/app/lib/media/relayQueue.ts",
+    "src/app/api/admin/relay-purge/route.ts",
+    "src/app/api/relay/lease/route.ts",
+    "src/app/api/relay/result/route.ts",
+    "src/app/api/admin/relay-selftest/route.ts",
+    "src/lib/relayJob.ts"
+  ]
+}

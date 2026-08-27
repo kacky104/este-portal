@@ -219,12 +219,83 @@ export async function completeRelayJob(params: {
 }
 
 /**
+ * ★★★ 掴まれたまま上限に達したジョブを 'expired' に落とす。
+ *
+ *   VPS が lease した直後に落ちると、その行は status='leased' のまま残る。
+ *   attempts < MAX_ATTEMPTS のうちは leaseRelayJob() が leased_until 超過分として
+ *   拾い直すが、**3回目で落ちた行は誰も拾わない**:
+ *     ・lease は attempts < MAX_ATTEMPTS で絞っているので拾わない
+ *     ・result は VPS からしか来ないので閉じられない
+ *   → status in ('queued','leased') の部分ユニーク索引に残り続け、
+ *     **その (salon_id, provider, slot) は以後ずっと enqueue が busy になる。**
+ *     出勤の書き込みが「静かに始まらない」形で止まる（第37便 §2 と同じ形）。
+ *
+ * ★ leased_until を過ぎてさらに猶予を置いてから落とす。遅れて届いた result で
+ *   completeRelayJob() が閉じられる可能性を、こちらから潰さないため。
+ * ★ 落とすだけで、投げ直しはしない。3回失敗しているものを自動で再開すると、
+ *   §2「ログインに CAPTCHA が無い＝失敗が安く見える」の事故に近づく。人が見る。
+ */
+export const STUCK_GRACE_MINUTES = 10;
+
+export async function expireStuckRelayJobs(
+  opts: { apply?: boolean; graceMinutes?: number } = {},
+): Promise<{ expired: number; ids: string[] }> {
+  const supabase = createServiceClient();
+  const grace = opts.graceMinutes ?? STUCK_GRACE_MINUTES;
+  const cutoff = new Date(Date.now() - grace * 60 * 1000).toISOString();
+
+  const { data: rows, error: selErr } = await supabase
+    .from('media_relay_jobs')
+    .select('id')
+    .eq('status', 'leased')
+    .lt('leased_until', cutoff)
+    .gte('attempts', MAX_ATTEMPTS);
+
+  if (selErr) throw new Error('居座ったジョブを読めなかった: ' + selErr.message);
+  const ids = (rows ?? []).map((r) => r.id as string);
+  if (ids.length === 0 || opts.apply !== true) return { expired: 0, ids };
+
+  const { data, error } = await supabase
+    .from('media_relay_jobs')
+    .update({
+      status: 'expired',
+      leased_until: null,
+      // ★ 平文の秘密を入れない（error 欄の約束）。何が起きたかだけ書く
+      error: 'VPSが掴んだまま戻らず、上限回数に達していたので打ち切った（掃除の周）',
+      updated_at: new Date().toISOString(),
+    })
+    .in('id', ids)
+    .eq('status', 'leased') // ★ 読んでから更新までの間に閉じられていたら触らない
+    .select('id');
+
+  if (error) throw new Error('居座ったジョブを打ち切れなかった: ' + error.message);
+  return { expired: (data ?? []).length, ids };
+}
+
+/**
  * 終わったジョブの中身を消す。★ 秘密が残り続ける場所を作らない。
  * メタ（誰の・いつ・どの purpose・httpステータス）は監査のため残す。
+ *
+ * ★ apply 既定 false（試し打ち）。何件消すつもりかだけ返す。
+ *   取り込み・日記の再送と同じ作法（第36便）。
  */
-export async function purgeRelayJobs(olderThanMinutes = 60): Promise<{ purged: number }> {
+export async function purgeRelayJobs(
+  opts: { apply?: boolean; olderThanMinutes?: number } = {},
+): Promise<{ purged: number }> {
   const supabase = createServiceClient();
+  const olderThanMinutes = opts.olderThanMinutes ?? 60;
   const cutoff = new Date(Date.now() - olderThanMinutes * 60 * 1000).toISOString();
+
+  if (opts.apply !== true) {
+    const { count, error } = await supabase
+      .from('media_relay_jobs')
+      .select('id', { count: 'exact', head: true })
+      .is('purged_at', null)
+      .in('status', ['done', 'failed', 'expired'])
+      .lt('updated_at', cutoff);
+    if (error) throw new Error('掃除の下見に失敗: ' + error.message);
+    return { purged: count ?? 0 };
+  }
 
   const { data, error } = await supabase
     .from('media_relay_jobs')
@@ -236,4 +307,53 @@ export async function purgeRelayJobs(olderThanMinutes = 60): Promise<{ purged: n
 
   if (error) throw new Error('掃除に失敗: ' + error.message);
   return { purged: (data ?? []).length };
+}
+
+/**
+ * 掃除の周（cron から1日数回）。順番に意味がある。
+ *   1. 居座ったジョブを 'expired' に落とす  … 枠が塞がったままにしない
+ *   2. 終わったジョブの中身を消す          … 秘密を残さない
+ * ★ 1 を先にやることで、この周で expired にしたものが同じ周で掃除の対象にもなる。
+ *
+ * ★ 併せて「積まれたまま長く動いていないジョブ」の数も返す。
+ *   これは触らない（VPS が止まっているだけかもしれない）が、
+ *   **枠が塞がっているのに誰も気づかない**のがいちばん困るので、数だけは見えるようにする。
+ */
+export async function sweepRelayJobs(
+  opts: { apply?: boolean; olderThanMinutes?: number; graceMinutes?: number } = {},
+): Promise<{
+  apply: boolean;
+  expired: number;
+  expiredIds: string[];
+  purged: number;
+  stuckQueued: number;
+  note: string;
+}> {
+  const apply = opts.apply === true;
+  const expired = await expireStuckRelayJobs({
+    apply,
+    ...(opts.graceMinutes !== undefined ? { graceMinutes: opts.graceMinutes } : {}),
+  });
+  const purged = await purgeRelayJobs({
+    apply,
+    ...(opts.olderThanMinutes !== undefined ? { olderThanMinutes: opts.olderThanMinutes } : {}),
+  });
+
+  const supabase = createServiceClient();
+  const staleCutoff = new Date(Date.now() - 60 * 60 * 1000).toISOString();
+  const { count, error } = await supabase
+    .from('media_relay_jobs')
+    .select('id', { count: 'exact', head: true })
+    .eq('status', 'queued')
+    .lt('created_at', staleCutoff);
+  if (error) throw new Error('積み残しを数えられなかった: ' + error.message);
+  const stuckQueued = count ?? 0;
+
+  const note =
+    (apply ? '掃除した' : '試し打ち（何も変えていない）') +
+    (stuckQueued > 0
+      ? ' ★ 1時間以上積まれたままのジョブが ' + stuckQueued + ' 件ある。VPSの relay.sh が動いているか確かめること'
+      : '');
+
+  return { apply, expired: expired.expired, expiredIds: expired.ids, purged: purged.purged, stuckQueued, note };
 }
