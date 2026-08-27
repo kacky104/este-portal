@@ -177,3 +177,27 @@ test('★ ステータスバッジも取り込み枠だけで「今すぐ」に�
   });
   assert.equal(badge.label, '今すぐ');
 });
+
+
+// ── 取り込み間隔と取り込み枠の期限の整合（第40便 §10）─────────────────
+// ★ available_until_import は「直近の周 + IMASUGU_IMPORT_MINUTES」。
+//   公開側は until > now を見るので、【取り込み間隔がこの分数を越えると途切れる】。
+//   例: 間隔60分・期限20分 → 20分出て40分消える（エラーは出ない）。
+// ★ DB側は check (import_imasugu = false or import_interval_min <= 20) で止めている
+//   （supabase/migrations/20260827_import_interval_default.sql）。
+//   ★ 片方だけ動かすと静かにちらつくので、ここで両者が揃っていることを見張る。
+
+const DB_MAX_INTERVAL_MIN = 20; // ★ 上記マイグレーションの CHECK 制約の値
+
+test('★ IMASUGU_IMPORT_MINUTES が DB の間隔上限を下回っていない', () => {
+  const src = fs.readFileSync('src/app/api/import/ingest-list/route.ts', 'utf8');
+  const m = src.match(/const\s+IMASUGU_IMPORT_MINUTES\s*=\s*(\d+)/);
+  assert.ok(m, 'IMASUGU_IMPORT_MINUTES が見つからない（名前を変えたなら DB 制約も見直すこと）');
+  const minutes = Number(m[1]);
+  assert.ok(
+    minutes >= DB_MAX_INTERVAL_MIN,
+    `IMASUGU_IMPORT_MINUTES=${minutes} が DB の上限 ${DB_MAX_INTERVAL_MIN} 分を下回っている。` +
+    'この状態だと、上限ぎりぎりの間隔の店で「今すぐ」が途切れる。' +
+    '期限を縮めるなら supabase/migrations の CHECK 制約も同じ値へ下げること。',
+  );
+});
