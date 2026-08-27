@@ -25,6 +25,12 @@ set -euo pipefail
 #     出勤の更新は login→read→write→再read の4往復。1分に1件しか引かない形だと
 #     1サイクル4分かかる。起動の中で回すことで1分弱に収まる。
 #   ★ flock があるので、前の周が長引いても二重に走らない。
+#
+# ★★ ログは【仕事をしたときと、異常のときだけ】書く。
+#   毎分「0 件」を書くと 1日約1,440行 育つうえに、本当に見たい行が埋もれる。
+#   「動いているか」は /root/relay.heartbeat の更新時刻で分かる（毎周かならず上書き＝育たない）:
+#     ls -l --time-style=full-iso /root/relay.heartbeat
+#   ★ 育つログではなく、育たない1ファイルで生存を示す。
 
 SPAN="${1:-50}"
 BASE="https://fukues.com"
@@ -60,6 +66,7 @@ IDLE_SLEEP = 5         # ジョブが無いときの待ち
 
 HDR = "/tmp/relay.h"
 BDY = "/tmp/relay.b"
+HEARTBEAT = "/root/relay.heartbeat"
 
 def log(msg):
     print("%s relay: %s" % (time.strftime("%F %T"), msg), flush=True)
@@ -183,5 +190,14 @@ while time.time() < deadline:
         log("★★★ 駅ちかが %d を返した。%d分停止する（解除: rm %s）" % (status, BACKOFF_SEC // 60, BACKOFF_FILE))
         break
 
-log("この周で扱ったジョブ: %d 件" % picked)
+# ★ 生存の記録は「育たない1ファイル」に。ログには何も書かない。
+try:
+    with open(HEARTBEAT, "w") as f:
+        f.write("%s picked=%d\n" % (time.strftime("%F %T"), picked))
+except OSError as e:
+    log("heartbeat を書けない: %s" % str(e)[:120])
+
+# ★ 何もなかった周は黙る。仕事をした周だけ1行残す。
+if picked:
+    log("この周で扱ったジョブ: %d 件" % picked)
 PY
