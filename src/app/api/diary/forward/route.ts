@@ -5,7 +5,7 @@ import { ADMIN_UUID } from '@/app/lib/admin';
 import { forwardDiary } from '@/app/lib/diary/forwardDiary';
 
 // ── 写メ日記の他媒体転送・投稿画面から呼ぶ入口（第36便・第2弾）──────────
-//   POST /api/diary/forward   body: { diaryId:number }
+//   POST /api/diary/forward   body: { diaryId:string(uuid) }
 //
 // ★ 誰が呼べるか: その日記のセラピスト本人 / 所属サロンのオーナー / 運営。
 //   転送先アドレスは秘密値なので、service_role でしか触らない（diaryMail.ts と同じ流儀）。
@@ -25,8 +25,11 @@ export async function POST(req: Request) {
   try { body = (await req.json()) as { diaryId?: unknown }; }
   catch { return NextResponse.json({ ok: false, error: 'invalid json' }, { status: 400 }); }
 
-  const diaryId = Number(body.diaryId);
-  if (!Number.isFinite(diaryId)) return NextResponse.json({ ok: false, error: 'diaryId is required' }, { status: 400 });
+  // ★ diary_posts.id は uuid。Number() で数値化すると必ず NaN になり、
+  //   「投稿しても転送が静かに何も起きない」状態になる（第37便で判明）。
+  const diaryId = typeof body.diaryId === 'string' ? body.diaryId.trim() : '';
+  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(diaryId))
+    return NextResponse.json({ ok: false, error: 'diaryId は日記のUUIDを指定してください' }, { status: 400 });
 
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();

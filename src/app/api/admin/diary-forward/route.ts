@@ -3,7 +3,7 @@ import { forwardDiary } from '@/app/lib/diary/forwardDiary';
 
 // ── 写メ日記の転送・運営用の単発実行（第36便・第2弾の試し打ち）──────────
 //   POST /api/admin/diary-forward  (Authorization: Bearer <CRON_SECRET>)
-//   body: { diaryId:number, apply?:boolean }
+//   body: { diaryId:string(uuid), apply?:boolean }
 //
 // ★ apply の既定は false。1通も送らずに「何を、どこへ、どんな形で送るつもりか」を返す。
 //   本番の投稿の流れに組み込む前に、ここで体裁と宛先を目で確かめるためのもの。
@@ -25,8 +25,11 @@ export async function POST(req: Request) {
   try { body = (await req.json()) as { diaryId?: unknown; apply?: unknown }; }
   catch { return NextResponse.json({ ok: false, error: 'invalid json' }, { status: 400 }); }
 
-  const diaryId = Number(body.diaryId);
-  if (!Number.isFinite(diaryId)) return NextResponse.json({ ok: false, error: 'diaryId is required' }, { status: 400 });
+  // ★ diary_posts.id は uuid。Number() で数値化すると必ず NaN になり、
+  //   「投稿しても転送が静かに何も起きない」状態になる（第37便で判明）。
+  const diaryId = typeof body.diaryId === 'string' ? body.diaryId.trim() : '';
+  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(diaryId))
+    return NextResponse.json({ ok: false, error: 'diaryId は日記のUUIDを指定してください' }, { status: 400 });
 
   const result = await forwardDiary(diaryId, body.apply === true);
   return NextResponse.json(result, { headers: { 'content-type': 'application/json; charset=utf-8' } });

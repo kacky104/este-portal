@@ -39,7 +39,7 @@ export type ForwardResult = {
   ok: boolean;
   apply: boolean;
   注意: string;
-  diaryId: number;
+  diaryId: string;
   therapistId?: number;
   salonId?: number;
   正本?: string;
@@ -61,10 +61,10 @@ function mask(addr: string): string {
 
 /**
  * 1件の写メ日記を、その子の転送先ぜんぶへ送る。
- * @param diaryId diary_posts.id
+ * @param diaryId diary_posts.id（uuid）
  * @param apply   true で実際に送る。既定 false は試し打ち（1通も送らない）。
  */
-export async function forwardDiary(diaryId: number, apply = false): Promise<ForwardResult> {
+export async function forwardDiary(diaryId: string, apply = false): Promise<ForwardResult> {
   const base: ForwardResult = {
     ok: true, apply,
     注意: apply ? '送信しました' : '試し打ち（1通も送っていません）',
