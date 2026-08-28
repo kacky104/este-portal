@@ -369,6 +369,72 @@ export async function startMediaWorkDryRun(input: {
 }
 
 /**
+ * ★★★ 保存してある「反映内容」（試し打ちの結果）を返す（第44便）。
+ *
+ * ★ まだ送っていない計画。**送った記録ではない。** 画面の文言もそう読めるようにすること。
+ * ★ media_work_plans は service_role でしか読めない。ここでオーナー検証を通したものだけ返す。
+ * ★ 差分は最大でも「人数 × 7日」なので、そのまま返してよい大きさ（送信項目1000件の上限が効くため）。
+ */
+export type WorkPlanView = {
+  createdAt: string;
+  sendable: boolean;
+  targets: number;
+  activeShifts: number;
+  changeCount: number;
+  fieldCount: number;
+  dateLabels: string[];
+  countsBefore: number[];
+  countsAfter: number[];
+  diff: Array<{ girlId: string; name: string; dayIndex: number; before: string; after: string }>;
+  blockers: Array<{ kind: string; detail: string; count?: number }>;
+  notes: Array<{ kind: string; detail: string; count?: number }>;
+};
+
+export async function getMediaWorkPlan(input: {
+  salonId: string | number; provider: string; slot?: number;
+}): Promise<Result<WorkPlanView | null>> {
+  const salonId = Number(input.salonId);
+  if (!Number.isFinite(salonId)) return { ok: false, error: '店舗の指定が不正です' };
+  const slot = Math.trunc(Number(input.slot ?? 1));
+  const ng = validTarget(input.provider, slot);
+  if (ng) return { ok: false, error: ng };
+
+  const guard = await assertSalonOwner(salonId);
+  if (!guard.ok) return guard;
+
+  const svc = createServiceClient();
+  const { data, error } = await svc
+    .from('media_work_plans')
+    .select('created_at, sendable, targets, active_shifts, change_count, field_count, date_labels, counts_before, counts_after, diff, blockers, notes')
+    .eq('salon_id', salonId).eq('provider', input.provider).eq('slot', slot)
+    .maybeSingle();
+  if (error) {
+    console.error('[media] 反映内容を読めなかった', error.message);
+    return { ok: false, error: '反映内容を取得できませんでした' };
+  }
+  if (!data) return { ok: true, data: null };
+
+  const r = data as Record<string, unknown>;
+  return {
+    ok: true,
+    data: {
+      createdAt: String(r['created_at']),
+      sendable: r['sendable'] === true,
+      targets: Number(r['targets'] ?? 0),
+      activeShifts: Number(r['active_shifts'] ?? 0),
+      changeCount: Number(r['change_count'] ?? 0),
+      fieldCount: Number(r['field_count'] ?? 0),
+      dateLabels: (r['date_labels'] as string[] | null) ?? [],
+      countsBefore: (r['counts_before'] as number[] | null) ?? [],
+      countsAfter: (r['counts_after'] as number[] | null) ?? [],
+      diff: (r['diff'] as WorkPlanView['diff'] | null) ?? [],
+      blockers: (r['blockers'] as WorkPlanView['blockers'] | null) ?? [],
+      notes: (r['notes'] as WorkPlanView['notes'] | null) ?? [],
+    },
+  };
+}
+
+/**
  * この店舗の連携の記録を返す（画面の「履歴」）。
  * ★★ listMediaAudit は service_role で読む。salonId は必ずオーナー検証を通したものを渡す。
  */

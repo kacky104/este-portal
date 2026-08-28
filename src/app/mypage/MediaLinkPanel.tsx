@@ -14,6 +14,8 @@ import {
   getMediaAuditRows,
   startMediaConnectionTest,
   startMediaWorkDryRun,
+  getMediaWorkPlan,
+  type WorkPlanView,
 } from '@/app/actions/mediaCredentials';
 
 // mypage「媒体連携」タブ（第39便・第3弾の入口）。
@@ -74,6 +76,8 @@ export function MediaLinkPanel({
   const [loading, setLoading] = useState(false);
   const [rows, setRows] = useState<CredRow[]>([]);
   const [audit, setAudit] = useState<AuditRow[]>([]);
+  /** 保存してある「反映内容」（試し打ちの結果）。★ まだ送っていない計画（第44便） */
+  const [plan, setPlan] = useState<WorkPlanView | null>(null);
 
   const [slot, setSlot] = useState(1);
   const [shopId, setShopId] = useState('');
@@ -95,15 +99,19 @@ export function MediaLinkPanel({
   const load = useCallback(async () => {
     if (!salonId) return;
     setLoading(true);
-    const [c, a] = await Promise.all([
+    const [c, a, p] = await Promise.all([
       getMediaCredentials({ salonId }),
       getMediaAuditRows({ salonId, limit: 30 }),
+      getMediaWorkPlan({ salonId, provider: PROVIDER, slot }),
     ]);
     if (c.ok) setRows(c.data.rows);
     else onToast(c.error);
     if (a.ok) setAudit(a.data);
+    // ★ 反映内容は「無い」のが普通の状態（まだ一度も確認していない）。エラーだけ黙らない。
+    if (p.ok) setPlan(p.data);
+    else onToast(p.error);
     setLoading(false);
-  }, [salonId, onToast]);
+  }, [salonId, slot, onToast]);
 
   useEffect(() => {
     if (active) void load();
@@ -174,7 +182,7 @@ export function MediaLinkPanel({
     try {
       const res = await startMediaWorkDryRun({ salonId, provider: r.provider, slot: r.slot });
       if (!res.ok) { onToast(res.error); return; }
-      onToast('確認を受け付けました。数分後に下の「連携の記録」でご確認ください（まだ送っていません）');
+      onToast('確認を受け付けました。数分後にこの画面を開き直すと、下に「駅ちかへ反映する内容」が出ます（まだ送っていません）');
       await load();
     } finally {
       setPlanning(null);
@@ -423,6 +431,131 @@ export function MediaLinkPanel({
           </div>
         ))}
       </div>
+
+      {/* ── 反映内容（試し打ちの結果）──
+          ★★★ この画面でいちばん誤解が起きやすい場所。**まだ送っていない**を繰り返し書く。
+            「確認しました」と「反映しました」は別。前者しか起きていない。
+          ★ 並びは【止めた理由 → 伝えること → 差分の表】。
+            人が承認する前に見るべきものから先に出す（差分を先に出すと理由が読まれない）。 */}
+      {plan && (
+        <div className="bg-white rounded-3xl border border-slate-100 shadow-sm p-5 space-y-3">
+          <div className="flex items-baseline justify-between gap-2 flex-wrap">
+            <h3 className="text-sm font-bold text-slate-700">駅ちかへ反映する内容</h3>
+            <span className="text-[11px] text-slate-400">{fmt(plan.createdAt)} に確認</span>
+          </div>
+          <p className="text-[11px] text-pink-500 font-bold">
+            これは「反映したらこうなる」という内容です。駅ちかへはまだ送っていません。
+          </p>
+
+          {/* ★ 突き合わせ0人は「一致」ではない。ここを最初に出す（第43便-b） */}
+          {plan.targets === 0 ? (
+            <p className="text-[12px] text-rose-600 bg-rose-50 rounded-xl px-3 py-2">
+              駅ちかの出勤表と結びつく方が1人も見つかりませんでした。内容を比べられていません。
+            </p>
+          ) : (
+            <p className="text-[12px] text-slate-500">
+              {plan.targets}名を突き合わせ、フクエス側の出勤 {plan.activeShifts}件を確認しました。
+            </p>
+          )}
+
+          {/* 止めた理由 */}
+          {plan.blockers.length > 0 && (
+            <ul className="space-y-1.5">
+              {plan.blockers.map((b, i) => (
+                <li key={`b-${i}`} className="text-[12px] text-rose-600 bg-rose-50 rounded-xl px-3 py-2">
+                  {b.detail}
+                </li>
+              ))}
+            </ul>
+          )}
+
+          {/* 送るが伝えること */}
+          {plan.notes.length > 0 && (
+            <ul className="space-y-1.5">
+              {plan.notes.map((n, i) => (
+                <li key={`n-${i}`} className="text-[12px] text-slate-500 bg-slate-50 rounded-xl px-3 py-2">
+                  {n.detail}
+                </li>
+              ))}
+            </ul>
+          )}
+
+          {/* 差分の表 */}
+          {plan.changeCount === 0 ? (
+            plan.targets > 0 && (
+              <p className="text-[12px] text-slate-500">
+                いまの駅ちかの内容と一致しています。変えるところはありません。
+              </p>
+            )
+          ) : (
+            <div className="space-y-2">
+              <p className="text-[12px] font-bold text-slate-700">変わるところ（{plan.changeCount}件）</p>
+              <div className="overflow-x-auto">
+                <table className="w-full text-[12px]">
+                  <thead>
+                    <tr className="text-slate-400 text-left">
+                      <th className="font-medium py-1 pr-3 whitespace-nowrap">セラピスト</th>
+                      <th className="font-medium py-1 pr-3 whitespace-nowrap">日付</th>
+                      <th className="font-medium py-1 pr-3 whitespace-nowrap">いまの駅ちか</th>
+                      <th className="font-medium py-1 whitespace-nowrap">反映後</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {plan.diff.map((d, i) => (
+                      <tr key={`d-${i}`} className="border-t border-slate-100 align-top">
+                        <td className="py-1.5 pr-3 text-slate-700 break-words">{d.name || d.girlId}</td>
+                        <td className="py-1.5 pr-3 text-slate-500 whitespace-nowrap">
+                          {plan.dateLabels[d.dayIndex] ?? `日${d.dayIndex}`}
+                        </td>
+                        <td className="py-1.5 pr-3 text-slate-400 whitespace-nowrap">{d.before}</td>
+                        <td className="py-1.5 text-pink-600 font-bold whitespace-nowrap">{d.after}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              {/* 日別の増減（総量の見張りを人にも見せる） */}
+              {plan.dateLabels.length > 0 && (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-[11px] text-slate-500">
+                    <tbody>
+                      <tr className="border-t border-slate-100">
+                        <td className="py-1 pr-3 whitespace-nowrap text-slate-400">日付</td>
+                        {plan.dateLabels.map((l) => (
+                          <td key={l} className="py-1 px-2 whitespace-nowrap">{l}</td>
+                        ))}
+                      </tr>
+                      <tr className="border-t border-slate-100">
+                        <td className="py-1 pr-3 whitespace-nowrap text-slate-400">いま</td>
+                        {plan.countsBefore.map((c, i) => (
+                          <td key={`cb-${i}`} className="py-1 px-2 tabular-nums">{c}</td>
+                        ))}
+                      </tr>
+                      <tr className="border-t border-slate-100">
+                        <td className="py-1 pr-3 whitespace-nowrap text-slate-400">反映後</td>
+                        {plan.countsAfter.map((c, i) => (
+                          <td
+                            key={`ca-${i}`}
+                            className={`py-1 px-2 tabular-nums ${
+                              c < (plan.countsBefore[i] ?? 0) ? 'text-rose-600 font-bold' : ''
+                            }`}
+                          >
+                            {c}
+                          </td>
+                        ))}
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          )}
+
+          <p className="text-[10px] text-slate-400">
+            送信する機能はまだありません。この内容は「反映内容を確認」を押すたびに新しくなります。
+          </p>
+        </div>
+      )}
 
       {/* ── 履歴 ──
           ★ 免責より先に「記録が残る・止められる」を見せる（第37便 §12）。

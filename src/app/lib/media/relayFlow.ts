@@ -143,7 +143,7 @@ export async function advanceRelayFlow(params: {
   //   純粋関数側（advanceFlow）は「読めた。あとは突き合わせ」までしか言わない。
   //   ★ この枝は **次のジョブを積まない** ＝ 駅ちかへ何も飛ばない。
   if (outcome.kind === 'plan_work') {
-    const r = await planWorkDryRun(params, outcome.page);
+    const r = await planWorkDryRun(params, outcome.page, context.flowId);
     audits.push(r.audit);
     note = outcome.note + ' → ' + r.note;
   }
@@ -191,6 +191,7 @@ export async function advanceRelayFlow(params: {
 async function planWorkDryRun(
   params: { salonId: number; provider: string; slot: number },
   page: WorkPage,
+  flowId: string,
 ): Promise<{ audit: FlowAudit; note: string }> {
   const supabase = createServiceClient();
   const todayISO = new Date(Date.now() + 9 * 60 * 60 * 1000).toISOString().slice(0, 10); // Asia/Tokyo
@@ -266,6 +267,32 @@ async function planWorkDryRun(
 
   const plan = buildWorkPlan({ page, todayISO, shifts, castIdOf });
   const s = summarizePlan(plan);
+
+  // ★★★ 計画そのものを保存する（第44便）。件数だけでは人は承認できない。
+  //   ★ 店舗×媒体×枠で1件だけ持つ（上書き）。送っていない計画を貯めない。
+  //   ★ ここが失敗しても本筋（監査ログ）は止めない。ただし黙らない。
+  const { error: planErr } = await supabase.from('media_work_plans').upsert(
+    {
+      salon_id: params.salonId,
+      provider: params.provider,
+      slot: params.slot,
+      flow_id: flowId,
+      created_at: new Date().toISOString(),
+      sendable: plan.ok,
+      targets: plan.targets,
+      active_shifts: plan.activeShifts,
+      change_count: plan.changes.length,
+      field_count: plan.fieldCount,
+      date_labels: plan.dateLabels,
+      counts_before: plan.countsBefore,
+      counts_after: plan.countsAfter,
+      diff: plan.diff,
+      blockers: plan.blockers,
+      notes: plan.notes,
+    },
+    { onConflict: 'salon_id,provider,slot' },
+  );
+  if (planErr) console.error('[relay] 反映内容を保存できなかった', planErr.message);
 
   return {
     audit: {

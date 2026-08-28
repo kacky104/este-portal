@@ -88,6 +88,13 @@ export type WorkPlan = {
   diff: WorkDiff[];
   countsBefore: number[];
   countsAfter: number[];
+  /**
+   * 駅ちかの7日ぶんの日付見出し（"08/28(金)" 形式）。
+   * ★ 画面で差分を出すときに dayIndex だけでは「何日の話か」が分からないので一緒に持ち回す。
+   *   ★ こちらで日付を組み立て直さない。**駅ちかの画面に出ている文字をそのまま使う。**
+   *     組み立て直すと、ずれたときに「こちらの思っている日」を表示してしまう（§1 の逆）。
+   */
+  dateLabels: string[];
 };
 
 // ───────────────────────────── 見張りの閾値 ─────────────────────────────
@@ -373,6 +380,7 @@ export function buildWorkPlan(input: {
       ok: false,
       targets: wanted.size,
       activeShifts: activeCount,
+      dateLabels: page.dateLabels,
       changes,
       sent: page.girls,
       fieldCount: 0,
@@ -439,6 +447,7 @@ export function buildWorkPlan(input: {
     ok: blockers.length === 0,
     targets: wanted.size,
     activeShifts: activeCount,
+    dateLabels: page.dateLabels,
     changes,
     sent,
     fieldCount: fields.length,
