@@ -77,8 +77,13 @@ plan = wp.buildWorkPlan({page, todayISO: today, shifts: [
   {therapistId:1, dateISO:'2026-08-28', active:true, start:'20:07', end:'03:00'},
   {therapistId:2, dateISO:'2026-08-28', active:true, start:'20:00', end:'03:00'},
 ], castIdOf});
-eq('⑤ 選択肢外で止まる', plan.blockers.map(b=>b.kind).includes('time_not_selectable'), true);
-eq('⑤ 触っていない子の日0は現在値のまま', plan.sent.find(g=>g.girlId==='111').days[0].work, false);
+// ★ 決定（2026-08-28）: 選択肢に無い時刻は【その枠だけ送らない】。全体は止めない。
+//   1人が 20:15 を入れただけで店舗ぜんぶの反映が止まると、道具として使えないため。
+eq('⑤ 全体は止めない', plan.ok, true);
+eq('⑤ 止める理由には入れない', plan.blockers.map(b=>b.kind).includes('time_not_selectable'), false);
+eq('⑤ ★ 理由つきで報告する', plan.notes.map(n=>n.kind).includes('time_not_selectable'), true);
+eq('⑤ 選択肢外の子は現在値のまま', plan.sent.find(g=>g.girlId==='111').days[0].work, false);
+eq('⑤ ★ もう一人はちゃんと反映される', plan.sent.find(g=>g.girlId==='222').days[0], {start:'20:00', end:'27:00', work:true});
 
 // 6) castId が無い子は notes に出る（静かにこぼさない）
 plan = wp.buildWorkPlan({page, todayISO: today, shifts: [
@@ -87,6 +92,15 @@ plan = wp.buildWorkPlan({page, todayISO: today, shifts: [
 ], castIdOf});
 eq('⑥ 番号が無い子を報告', plan.notes.some(n=>n.kind==='unmapped_therapist' && n.count===1), true);
 
+// 6b) ★ 突き合わせる相手が0人のときは「一致」と言わせない（第43便・実データで踏んだ穴）
+//     castIdOf が空＝比べる相手が居ない。changes は 0 になるが、それは「一致」ではない。
+plan = wp.buildWorkPlan({page, todayISO: today, shifts: [
+  {therapistId:1, dateISO:'2026-08-28', active:true, start:'20:00', end:'03:00'},
+], castIdOf: new Map()});
+eq('⑥b 対象0人', plan.targets, 0);
+eq('⑥b 変更も0件', plan.changes.length, 0);
+eq('⑥b ★ 「一致」と言わない', wp.summarizePlan(plan).summary.includes('一致'), false);
+
 // 7) 同じ内容なら変更0件
 const page3 = mkPage([{girlId:'111', name:'あ', days: days(true,'20:00','27:00')}], labels);
 plan = wp.buildWorkPlan({page: page3, todayISO: today, shifts:
@@ -94,6 +108,8 @@ plan = wp.buildWorkPlan({page: page3, todayISO: today, shifts:
   castIdOf: new Map([[1,'111']])});
 eq('⑦ 一致していれば変更0件', plan.changes.length, 0);
 eq('⑦ それでも送れる状態', plan.ok, true);
+eq('⑦ 突き合わせた人数が記録される', plan.targets, 1);
+eq('⑦ 一致の文には人数が入る', wp.summarizePlan(plan).summary.includes('1名を突き合わせ'), true);
 
 // 8) 選択肢の読み取り
 const html = '<form id="frmfix" action="https://ranking-deli.jp/admin/girlswork/1/">' +

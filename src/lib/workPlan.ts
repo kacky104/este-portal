@@ -68,6 +68,17 @@ export type WorkDiff = {
 export type WorkPlan = {
   /** blockers が空なら「このまま送れる」。★ 送るかどうかを決めるのは人（第43便では送らない） */
   ok: boolean;
+  /**
+   * ★★★ 突き合わせた人数（第43便・追い直し）。
+   *   「変更0件」には2つの意味がある:
+   *     ① 本当に一致している（targets が居て、差が無い）
+   *     ② ★ 比べる相手が1人も居なかった（targets が 0）
+   *   ★ 件数だけでは区別できず、②を①と読み違える。**0の理由が読み取れる形にする**
+   *     （第35便の反省6）。1回目の実データでこれに引っかかった。
+   */
+  targets: number;
+  /** フクエス側で「出勤」になっている行の数（7日ぶん）。0なら no_schedule で止まる */
+  activeShifts: number;
   changes: WorkChange[];
   /** 送るとしたらこの内容（駅ちかの全員ぶん）。verifyAfterWrite に渡すのもこれ */
   sent: GirlWork[];
@@ -108,6 +119,23 @@ export function addDaysISO(iso: string, days: number): string {
 }
 
 // ───────────────────────────── 時刻の向き直し ─────────────────────────────
+
+/**
+ * ★★★ 駅ちかの時刻プルダウン（2026-08-28 実機で確定・ラビリンス様の管理画面）
+ *
+ *   件数 60
+ *   先頭  value="00:00" 表示"0:00" / "00:30" / "01:00" / "01:30"
+ *   末尾  value="28:00" 表示"4:00" / "28:30" / "29:00" / "29:30" 表示"5:30"
+ *
+ *   ★ **value は24時超え表記。表示だけが素の時刻。**
+ *     画面で「3:00」に見えているセルの value は "27:00"。
+ *     → こちらの 03:00 → 27:00 の直し方は**正しい**（実機で確定）。
+ *   ★ 刻みは【30分】。範囲は 00:00〜29:30（＝翌5:30まで）。
+ *
+ * ★★ いっぽうフクエスの入力は【15分刻み】（src/components/TimeRangePicker.tsx の MINS）。
+ *   → 20:15 のような時刻は駅ちかの選択肢に無い。翌6:00終わりも無い。
+ *   ★ 丸めない。送らない。**理由をつけて画面に出す**（canSelect / time_not_selectable）。
+ */
 
 /**
  * ★★★ フクエスの終了時刻を、駅ちかの表記に直す。
@@ -309,13 +337,19 @@ export function buildWorkPlan(input: {
   }
 
   if (notSelectable.length > 0) {
-    blockers.push({
+    // ★★★ カッキーさんの決定（2026-08-28）: **その枠だけ送らない。全体は止めない。**
+    //   駅ちかは30分刻み・翌5:30まで。フクエスは15分刻み（TimeRangePicker の MINS）。
+    //   ★ 1人が 20:15 を入れただけで店舗ぜんぶの反映が止まるのは、使えない道具になる。
+    //   ★ かといって丸めない（静かに解釈を足さない）。**送らずに、理由をつけて画面に出す。**
+    //     設計メモ §14-3 案A「静かにこぼさない。出ていない人を画面に出す」と同じ形。
+    notes.push({
       kind: 'time_not_selectable',
       count: notSelectable.length,
       detail:
         notSelectable.length +
-        '件、駅ちかの選択肢に無い時刻がありました。' +
-        '送っても何が起きるか分からないため、その枠は触らずに止めます',
+        '件は、駅ちかで選べない時刻のため反映していません' +
+        '（駅ちかは30分刻み・翌5:30まで。15分単位の時刻や、それより遅い終了時刻は選べません）。' +
+        'その枠は駅ちかの元の内容のままです',
     });
   }
   if (missingRowAsRest > 0) {
@@ -337,6 +371,8 @@ export function buildWorkPlan(input: {
     // ★ ここへ来るのは枠の取り違え。計画そのものが成り立たない
     return {
       ok: false,
+      targets: wanted.size,
+      activeShifts: activeCount,
       changes,
       sent: page.girls,
       fieldCount: 0,
@@ -401,6 +437,8 @@ export function buildWorkPlan(input: {
 
   return {
     ok: blockers.length === 0,
+    targets: wanted.size,
+    activeShifts: activeCount,
     changes,
     sent,
     fieldCount: fields.length,
@@ -423,6 +461,9 @@ export function summarizePlan(plan: WorkPlan): {
 } {
   const detail = {
     changes: plan.changes.length,
+    // ★ targets / active を必ず入れる。これが無いと「変更0件」の意味が読めない
+    targets: plan.targets,
+    active: plan.activeShifts,
     people: plan.sent.length,
     fields: plan.fieldCount,
     blockers: plan.blockers.length,
@@ -432,8 +473,24 @@ export function summarizePlan(plan: WorkPlan): {
   if (!plan.ok) {
     return { detail, summary: '駅ちかへの反映を止めました: ' + (plan.blockers[0]?.detail ?? '理由不明') };
   }
+  // ★★★ 突き合わせる相手が0人なら「一致している」と言ってはいけない。
+  //   何も比べていないのに「一致」と出すのが、この機能でいちばん危ない嘘になる。
+  if (plan.targets === 0) {
+    return {
+      detail,
+      summary:
+        '駅ちかの出勤表と結びつく方が1人も見つからなかったため、比較できませんでした' +
+        '（駅ちか側の番号がフクエスに登録されていない可能性があります）',
+    };
+  }
   if (plan.changes.length === 0) {
-    return { detail, summary: '駅ちかの出勤は、フクエスの内容と既に一致しています（変更はありません）' };
+    return {
+      detail,
+      summary:
+        '駅ちかの出勤は、フクエスの内容と既に一致しています（' +
+        plan.targets +
+        '名を突き合わせ、変更はありません）',
+    };
   }
   return {
     detail,
