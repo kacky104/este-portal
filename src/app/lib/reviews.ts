@@ -321,6 +321,73 @@ export async function getAllApprovedReviews(limit = 200): Promise<ApprovedReview
     });
 }
 
+// ── エリアの口コミ（/area/[slug] のブロック用）──────────────────────────
+//
+// ★★★ なぜ「全店の新着を取ってから絞る」ではないか
+//   全店の新着N件を取ってからエリアで間引くと、そのエリアに最近の口コミが無いだけで
+//   【古い口コミがあっても0件】になる。0件の理由が「本当に無い」のか
+//   「窓から溢れただけ」なのか、画面からは区別がつかない（第35便の反省6と同じ形）。
+//   → ★ 先に店舗で絞り、そのうえで新着N件を取る。この順序でしか「無い」と言い切れない。
+//
+// ★★ 公開ルールは getAllApprovedReviews と同じ（非在籍セラピスト・非表示店を除く）。
+//   ここでは埋め込み（therapists!inner → salons!inner）でDB側に判定させている。
+//   ★ 一覧（/reviews）と食い違わせないこと。食い違うと「一覧に無い口コミがエリアに出る」になる。
+export async function getAreaApprovedReviews(
+  salonIds: number[],
+  limit = 3,
+): Promise<ApprovedReview[]> {
+  if (salonIds.length === 0) return [];
+  const supabase = createPublicClient();
+
+  const { data, error } = await supabase
+    .from('therapist_reviews')
+    .select(
+      `${REVIEW_COLUMNS}, therapists!inner(id, name, profile_image_url, salon_id, salons!inner(name, is_hidden))`,
+    )
+    .eq('status', 'approved')
+    .eq('therapists.is_active', true)
+    .eq('therapists.salons.is_hidden', false)
+    .in('therapists.salon_id', salonIds)
+    .order('created_at', { ascending: false })
+    .limit(limit);
+  if (error || !data || data.length === 0) return [];
+
+  type Embedded = ReviewRow & {
+    therapists:
+      | { id: number; name: string; profile_image_url: string | null; salon_id: number; salons: { name?: string } | { name?: string }[] | null }
+      | Array<{ id: number; name: string; profile_image_url: string | null; salon_id: number; salons: { name?: string } | { name?: string }[] | null }>
+      | null;
+  };
+  const rows = data as unknown as Embedded[];
+
+  const nameMap = await fetchNicknameMap(supabase, rows.map((r) => r.user_id));
+
+  return rows.map((r) => {
+    // 埋め込みは1件でも配列で返ることがある（PostgREST の関係の解釈による）。両方に耐える。
+    const t = Array.isArray(r.therapists) ? r.therapists[0] : r.therapists;
+    const sal = t ? (Array.isArray(t.salons) ? t.salons[0] : t.salons) : null;
+    const service = Number(r.rating_service);
+    const technique = Number(r.rating_technique);
+    const reception = Number(r.rating_reception);
+    return {
+      id: String(r.id),
+      therapistId: r.therapist_id,
+      ratingService: service,
+      ratingTechnique: technique,
+      ratingReception: reception,
+      overall: overallOf(service, technique, reception),
+      body: r.body ?? '',
+      visitedOn: String(r.visited_on),
+      createdAt: String(r.created_at),
+      nickname: nicknameOf(nameMap, r.user_id),
+      therapistName: t?.name ?? '',
+      therapistImage: t?.profile_image_url ?? null,
+      salonName: sal?.name ?? '',
+      salonId: t?.salon_id,
+    };
+  });
+}
+
 // ── 口コミ数によるセラピストランキング（/reviews のタブ用） ──
 // 「セラピスト」タブ＝口コミ50件以下を件数の多い順（TOP50人まで）／「殿堂入り」タブ＝51件以上。
 // 同数のときは総合平均が高い順 → さらに同点なら最新口コミが新しい順。

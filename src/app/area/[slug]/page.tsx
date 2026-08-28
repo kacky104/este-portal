@@ -18,6 +18,8 @@ import { areaFromSlug, AREA_ORDER, AREA_SLUGS_LIST, DISPATCH_AREA, salonInArea }
 import { areaLabel } from '@/app/lib/areaLabel';
 import { toJsonLdString, buildBreadcrumbJsonLd, buildFaqPageJsonLd, buildItemListJsonLd } from '@/app/lib/jsonLd';
 import { AREA_SEO_CONTENT } from '@/app/lib/areaSeoContent';
+import { getAreaApprovedReviews } from '@/app/lib/reviews';
+import { LatestReviewsBlock } from '@/app/components/LatestReviewsBlock';
 import { fetchActiveTherapistPickupBanners } from '@/app/lib/therapistPickupBanners';
 import { TherapistPickupBanner } from '@/app/components/TherapistPickupBanner';
 import { AutoFitHeadingText } from '@/app/components/AutoFitHeadingText';
@@ -79,6 +81,12 @@ export default async function AreaPage({ params }: { params: Promise<{ slug: str
   // 判定は共有の salonInArea（ShuffledSalons の matchesArea と同一）。サロン一覧と同じ所属になる。
   const areaSalons = salons.filter((s) => salonInArea(s, area));
   const areaSalonIds = areaSalons.map((s) => s.id);
+
+  // このエリアの店舗に付いた口コミの新着3件（スマホ=FAQ直下 / PC=右カラム）。
+  // ★ エリアが決まってからでないと引けないので、上の Promise.all には入れられない。
+  // ★★ 0件なら出さない。**全店の新着でフォールバックしない**
+  //   （全エリアで同じものが並び、しかも「このエリアの口コミ」に見えるため）。
+  const areaReviews = await getAreaApprovedReviews(areaSalonIds, 3);
 
   // ItemList 構造化データ（2026-08-06 追加）。このエリアに掲載しているサロンの一覧
   // （画面の ShuffledSalons と同じ集合。並びは6時間ごとのシャッフルなので順序は保証しない）。
@@ -175,6 +183,7 @@ export default async function AreaPage({ params }: { params: Promise<{ slug: str
           nameBanner
           wideDesktop
           mobileSingleColumn
+          sideNode={areaReviews.length > 0 ? <LatestReviewsBlock reviews={areaReviews} variant="sidebar" /> : undefined}
           bleedTherapists
           largeThumbs
           insertBlocks={
@@ -276,6 +285,12 @@ export default async function AreaPage({ params }: { params: Promise<{ slug: str
             </details>
           </section>
         )}
+
+        {/* ─── このエリアの新着口コミ（スマホのみ・よくある質問の直下）───
+            PCは右カラム（ShuffledSalons の sideNode）に出しているので lg では隠す＝二重に出さない。
+            ★ エリア固有の内容にしてあるのは、FAQ をエリア固有にしたのと同じ理由。
+              全店の新着を全エリアに並べると、そのページ固有の中身が1文字も増えない。 */}
+        <LatestReviewsBlock reviews={areaReviews} variant="section" />
       </main>
 
       {/* ─── Footer ──────────────────────────────────────── */}
