@@ -460,6 +460,24 @@ export function buildWorkPlan(input: {
 }
 
 /**
+ * ★★★ 承認した内容の指紋（第46便）。
+ *
+ *   人が画面で見て承認したのは【そのときの差分】。送るのは【送る直前に読み直した差分】。
+ *   ★ そのあいだに駅ちか側やフクエス側が変われば、**承認していない内容を送る**ことになる。
+ *   → 指紋を突き合わせ、違ったら送らずに止めて、もう一度人に見せる。
+ *
+ * ★ 指紋に入れるのは「何をどう変えるか」だけ（girlId・日・変更後の中身）。
+ *   変更前の値は入れない（駅ちか側が別の理由で変わっただけのときに、無用に止めないため）。
+ *   ★ 順序で結果が変わらないように並べ替えてから連結する。
+ */
+export function planFingerprint(plan: WorkPlan): string {
+  return plan.changes
+    .map((c) => c.girlId + ':' + c.dayIndex + ':' + (c.cell.work ? c.cell.start + '-' + c.cell.end : 'off'))
+    .sort()
+    .join('|');
+}
+
+/**
  * 監査ログの detail に入れる形にする。
  * ★ 名前・URL・時刻の羅列を入れない。**件数と、店舗が読める1行だけ。**
  *   （mediaAudit の scrubAuditDetail が落とすが、落とされる前提のものを渡さない）

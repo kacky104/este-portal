@@ -434,6 +434,42 @@ export function countWorkingByDay(girls: GirlWork[]): number[] {
   return counts;
 }
 
+// ────────────────── 送る内容を持ち回す（段をまたぐため）──────────────────
+
+/**
+ * ★★★ なぜ要るか（第46便）
+ *   write_work と verify_work は別のジョブ（別の往復）になる。
+ *   照合するには「何を送ったか」を段のあいだ持ち回す必要があるが、
+ *   フロー文脈は JSON にして暗号化して DB に置く。GirlWork[] をそのまま入れると
+ *   37人ぶんで 15KB を超える。★ 詰めた文字列にして持つ。
+ *
+ *   形:  girlId|HH:MM,HH:MM,1;HH:MM,HH:MM,0;…（7日ぶん）  を改行で連結
+ *   ★ 名前は入れない（照合に使わない。秘密ではないが、要らないものを暗号文に入れない）。
+ */
+export function encodeGirlWork(girls: GirlWork[]): string {
+  return girls
+    .map((g) => g.girlId + '|' + g.days.map((d) => d.start + ',' + d.end + ',' + (d.work ? '1' : '0')).join(';'))
+    .join('\n');
+}
+
+export function decodeGirlWork(packed: string): GirlWork[] {
+  if (!packed) return [];
+  return packed.split('\n').filter(Boolean).map((line) => {
+    const bar = line.indexOf('|');
+    if (bar < 0) throw new Error('送信内容を戻せない（区切りが無い）');
+    const girlId = line.slice(0, bar);
+    const days = line.slice(bar + 1).split(';').map((cell) => {
+      const [start, end, work] = cell.split(',');
+      if (start === undefined || end === undefined || work === undefined) {
+        throw new Error('送信内容を戻せない（セルの形が違う）');
+      }
+      return { start, end, work: work === '1' };
+    });
+    if (days.length !== WORK_DAYS) throw new Error('送信内容を戻せない（日数が ' + days.length + '）');
+    return { girlId, name: '', days };
+  });
+}
+
 // ────────────────────────── 送ったあとに突き合わせる ──────────────────────────
 
 /**

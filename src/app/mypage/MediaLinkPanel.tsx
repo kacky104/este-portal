@@ -15,6 +15,8 @@ import {
   startMediaConnectionTest,
   startMediaWorkDryRun,
   getMediaWorkPlan,
+  setMediaLinkMode,
+  startMediaWorkPush,
   type WorkPlanView,
 } from '@/app/actions/mediaCredentials';
 
@@ -119,6 +121,11 @@ export function MediaLinkPanel({
   const [testing, setTesting] = useState<number | null>(null);
   /** 試し打ちを投げた枠（第43便）。★ こちらも結果は履歴に出る */
   const [planning, setPlanning] = useState<number | null>(null);
+  /** 向きの切り替え中／反映の送信中（二度押し防止・第46便） */
+  const [switching, setSwitching] = useState(false);
+  const [pushing, setPushing] = useState(false);
+  /** 反映ボタンの確認（1回目で確認・2回目で実行） */
+  const [confirmPush, setConfirmPush] = useState(false);
 
   const current = rows.find((r) => r.provider === PROVIDER && r.slot === slot) ?? null;
   // ★ すでにいまの版で同意済みの枠は、毎回チェックを求めない
@@ -214,6 +221,50 @@ export function MediaLinkPanel({
       await load();
     } finally {
       setPlanning(null);
+    }
+  };
+
+  /**
+   * 連携の向きを変える（第46便）。★ 切り替えただけでは駅ちかへ何も送らない。
+   * ★★ read へ戻すときは、フクエスの出勤が駅ちかの内容で上書きされることを先に伝える（§11-4）。
+   */
+  const onSwitchMode = async (r: CredRow, mode: 'read' | 'write') => {
+    if (!salonId) return;
+    if (mode === 'read') {
+      if (!confirm('駅ちかから取り込む向きに戻します。\n\nフクエスの出勤は、次の取り込みで駅ちかの内容に置き換わります。よろしいですか？')) return;
+    }
+    setSwitching(true);
+    try {
+      const res = await setMediaLinkMode({ salonId, provider: r.provider, slot: r.slot, mode });
+      if (!res.ok) { onToast(res.error); return; }
+      onToast(mode === 'write'
+        ? '「フクエスから駅ちかへ反映する」に変更しました。まず「反映内容を確認」を押してください'
+        : '「駅ちかから取り込む」に戻しました');
+      setConfirmPush(false);
+      await load();
+    } finally {
+      setSwitching(false);
+    }
+  };
+
+  /**
+   * ★★★ 承認して実際に送る（第46便）。**ここが駅ちかを書き換える唯一の場所。**
+   * ★ 送るのは「いま画面に出ている差分」ではなく、中継が読み直して作り直した差分。
+   *   指紋が変わっていたら送らずに止まる。だから古い差分を送ることはない。
+   */
+  const onPush = async (r: CredRow) => {
+    if (!salonId || !plan) return;
+    setPushing(true);
+    try {
+      const res = await startMediaWorkPush({
+        salonId, provider: r.provider, slot: r.slot, fingerprint: plan.fingerprint,
+      });
+      if (!res.ok) { onToast(res.error); return; }
+      onToast('反映を受け付けました。数分後に下の「連携の記録」で結果をご確認ください');
+      setConfirmPush(false);
+      await load();
+    } finally {
+      setPushing(false);
     }
   };
 
@@ -451,6 +502,19 @@ export function MediaLinkPanel({
                 <p className="text-[11px] text-slate-400 leading-relaxed">
                   {LINK_MODE_LABEL[r.linkMode].desc}
                 </p>
+                {/* ★ 切り替え。押しても駅ちかへは何も送らない（送るのは承認ボタンだけ）。 */}
+                {(r.linkMode === 'read' || r.linkMode === 'write') && (
+                  <button
+                    type="button"
+                    onClick={() => onSwitchMode(r, r.linkMode === 'read' ? 'write' : 'read')}
+                    disabled={switching || !r.isEnabled}
+                    className="mt-1 px-3 py-1 rounded-full border border-slate-300 text-[11px] font-bold text-slate-600 hover:bg-white disabled:opacity-40"
+                  >
+                    {r.linkMode === 'read'
+                      ? 'フクエスから駅ちかへ反映する向きに変える'
+                      : '駅ちかから取り込む向きに戻す'}
+                  </button>
+                )}
               </div>
             )}
             {r.lastError && (
@@ -591,9 +655,57 @@ export function MediaLinkPanel({
             </div>
           )}
 
-          <p className="text-[10px] text-slate-400">
-            送信する機能はまだありません。この内容は「反映内容を確認」を押すたびに新しくなります。
-          </p>
+          {/* ★★★ 承認して送る。**この画面で唯一、駅ちかを書き換えるボタン。**
+              ★ 出すのは「向きが write」かつ「送れる状態」かつ「変えるところがある」ときだけ。
+                §11-5「選ばなかった側を出さない」。read の店にこのボタンは出さない。 */}
+          {plan.sendable && plan.changeCount > 0 && current?.linkMode === 'write' ? (
+            <div className="pt-1 space-y-2">
+              {!confirmPush ? (
+                <button
+                  type="button"
+                  onClick={() => setConfirmPush(true)}
+                  className="w-full px-4 py-2.5 rounded-xl text-sm font-bold text-white shadow-sm"
+                  style={{ background: 'linear-gradient(95deg,#FB923C,#DB2777)' }}
+                >
+                  この内容で駅ちかへ反映する
+                </button>
+              ) : (
+                <div className="rounded-xl border border-rose-200 bg-rose-50 p-3 space-y-2">
+                  {/* ★★ 押す前に、取り消せないことを伝える。第38便 §17-12 */}
+                  <p className="text-[12px] text-rose-700 leading-relaxed">
+                    駅ちかの出勤を <span className="font-bold">{plan.changeCount}件</span> 変更します。
+                    駅ちかに書き込むと、連携している他の媒体にもすぐ反映されるため、
+                    <span className="font-bold">あとから「なかったこと」にはできません。</span>
+                    上の表をもう一度ご確認ください。
+                  </p>
+                  <div className="flex gap-2">
+                    <button
+                      type="button"
+                      onClick={() => current && onPush(current)}
+                      disabled={pushing}
+                      className="flex-1 px-4 py-2 rounded-xl text-sm font-bold text-white shadow-sm disabled:opacity-40"
+                      style={{ background: 'linear-gradient(95deg,#FB923C,#DB2777)' }}
+                    >
+                      {pushing ? '送信中…' : 'この内容で反映する'}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setConfirmPush(false)}
+                      className="px-4 py-2 rounded-xl border border-slate-300 text-sm font-bold text-slate-600"
+                    >
+                      やめる
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+          ) : (
+            <p className="text-[10px] text-slate-400">
+              {current?.linkMode === 'write'
+                ? 'この内容は「反映内容を確認」を押すたびに新しくなります。'
+                : '駅ちかへ反映するには、上で「フクエスから駅ちかへ反映する向き」に変えてください。'}
+            </p>
+          )}
         </div>
       )}
 

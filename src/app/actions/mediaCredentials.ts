@@ -404,6 +404,8 @@ export type WorkPlanView = {
   dateLabels: string[];
   countsBefore: number[];
   countsAfter: number[];
+  /** ★ 承認したときに送る指紋。空なら承認できない（第46便） */
+  fingerprint: string;
   diff: Array<{ girlId: string; name: string; dayIndex: number; before: string; after: string }>;
   blockers: Array<{ kind: string; detail: string; count?: number }>;
   notes: Array<{ kind: string; detail: string; count?: number }>;
@@ -424,7 +426,7 @@ export async function getMediaWorkPlan(input: {
   const svc = createServiceClient();
   const { data, error } = await svc
     .from('media_work_plans')
-    .select('created_at, sendable, targets, active_shifts, change_count, field_count, date_labels, counts_before, counts_after, diff, blockers, notes')
+    .select('created_at, sendable, targets, active_shifts, change_count, field_count, date_labels, counts_before, counts_after, diff, blockers, notes, fingerprint')
     .eq('salon_id', salonId).eq('provider', input.provider).eq('slot', slot)
     .maybeSingle();
   if (error) {
@@ -446,11 +448,128 @@ export async function getMediaWorkPlan(input: {
       dateLabels: (r['date_labels'] as string[] | null) ?? [],
       countsBefore: (r['counts_before'] as number[] | null) ?? [],
       countsAfter: (r['counts_after'] as number[] | null) ?? [],
+      fingerprint: String(r['fingerprint'] ?? ''),
       diff: (r['diff'] as WorkPlanView['diff'] | null) ?? [],
       blockers: (r['blockers'] as WorkPlanView['blockers'] | null) ?? [],
       notes: (r['notes'] as WorkPlanView['notes'] | null) ?? [],
     },
   };
+}
+
+/**
+ * ★★★ 連携の向きを変える（第46便・設計メモ §11-2）。
+ *
+ * ★ 'read' ↔ 'write' は【1つの列の別の値】なので、同時に立つことはない。
+ * ★★ 向きを変えたら、保存してある計画は消す。前の向きで作った差分は意味が違う。
+ * ★ 切り替えただけでは駅ちかへ何も送らない。送るのは承認ボタンを押したときだけ。
+ */
+export async function setMediaLinkMode(input: {
+  salonId: string | number; provider: string; slot?: number; mode: string;
+}): Promise<Result<{ mode: string }>> {
+  const salonId = Number(input.salonId);
+  if (!Number.isFinite(salonId)) return { ok: false, error: '店舗の指定が不正です' };
+  const slot = Math.trunc(Number(input.slot ?? 1));
+  const ng = validTarget(input.provider, slot);
+  if (ng) return { ok: false, error: ng };
+  if (!['none', 'read', 'write'].includes(input.mode)) return { ok: false, error: '向きの指定が不正です' };
+
+  const guard = await assertSalonOwner(salonId);
+  if (!guard.ok) return guard;
+
+  const svc = createServiceClient();
+  const { data: updated, error } = await svc
+    .from('salon_import_sources')
+    .update({ link_mode: input.mode, updated_at: new Date().toISOString() })
+    .eq('salon_id', salonId).eq('provider', input.provider).eq('slot', slot)
+    .select('id');
+  if (error) return { ok: false, error: '向きを変更できませんでした' };
+  if (!updated || updated.length === 0) {
+    return { ok: false, error: 'この枠の連携設定が見つかりません（運営にお問い合わせください）' };
+  }
+
+  // ★ 前の向きで作った計画を残さない
+  await svc.from('media_work_plans').delete()
+    .eq('salon_id', salonId).eq('provider', input.provider).eq('slot', slot);
+
+  await recordMediaAudit({
+    salonId, provider: input.provider, slot,
+    event: 'link_mode_changed', outcome: 'ok',
+    detail: { mode: input.mode },
+    actor: 'shop:' + guard.data.userId,
+  });
+
+  return { ok: true, data: { mode: input.mode } };
+}
+
+/**
+ * ★★★ 承認して実際に送る（第46便）。**駅ちかを書き換える唯一の入口。**
+ *
+ * ★ 承認は「その場で読み直して、その場で送る」と一体。承認だけを保存して後で送る形にしない。
+ *   → ここで渡すのは【指紋】だけ。実際に送る内容は、中継が読み直したページから作り直す。
+ *     指紋が違えば送らずに止まる（src/app/lib/media/relayFlow.ts の planWork）。
+ * ★ 向きが 'write' の枠でしか受け付けない。
+ */
+export async function startMediaWorkPush(input: {
+  salonId: string | number; provider: string; slot?: number; fingerprint: string;
+}): Promise<Result<{ jobId: string; note: string }>> {
+  const salonId = Number(input.salonId);
+  if (!Number.isFinite(salonId)) return { ok: false, error: '店舗の指定が不正です' };
+  const slot = Math.trunc(Number(input.slot ?? 1));
+  const ng = validTarget(input.provider, slot);
+  if (ng) return { ok: false, error: ng };
+
+  const guard = await assertSalonOwner(salonId);
+  if (!guard.ok) return guard;
+
+  const svc = createServiceClient();
+  const { data: cred } = await svc
+    .from('salon_media_credentials')
+    .select('consent_version')
+    .eq('salon_id', salonId).eq('provider', input.provider).eq('slot', slot)
+    .maybeSingle();
+  if (!cred) return { ok: false, error: 'ログイン情報が登録されていません' };
+  if (needsConsent(cred.consent_version as string | null)) {
+    return { ok: false, error: '連携の説明に同意してから実行してください' };
+  }
+
+  // ★ 向きが 'write' でなければ送らない
+  const { data: src } = await svc
+    .from('salon_import_sources')
+    .select('link_mode')
+    .eq('salon_id', salonId).eq('provider', input.provider).eq('slot', slot)
+    .maybeSingle();
+  if (!src || String((src as { link_mode?: string }).link_mode) !== 'write') {
+    return { ok: false, error: '「フクエスから駅ちかへ反映する」に切り替えてから実行してください' };
+  }
+
+  // ★★ 画面が見ていた計画と、いま保存されている計画が同じであること。
+  //   別の端末で「反映内容を確認」を押し直していたら、画面の指紋は古い。
+  const { data: plan } = await svc
+    .from('media_work_plans')
+    .select('sendable, change_count, fingerprint')
+    .eq('salon_id', salonId).eq('provider', input.provider).eq('slot', slot)
+    .maybeSingle();
+  if (!plan) return { ok: false, error: '反映する内容がありません。先に「反映内容を確認」を押してください' };
+  if (plan.sendable !== true) return { ok: false, error: 'いまの内容は送れません。止めた理由をご確認ください' };
+  if (Number(plan.change_count ?? 0) === 0) return { ok: false, error: '変えるところがありません' };
+  const saved = String(plan.fingerprint ?? '');
+  if (!saved || saved !== input.fingerprint) {
+    return { ok: false, error: '内容が新しくなっています。画面を開き直してご確認ください' };
+  }
+
+  try {
+    const r = await startRelayFlow({
+      salonId, provider: input.provider, slot,
+      intent: 'work_push',
+      approvedFingerprint: saved,
+      actor: 'shop:' + guard.data.userId,
+    });
+    if (!r.ok) return { ok: false, error: r.note };
+    return { ok: true, data: { jobId: r.jobId, note: r.note } };
+  } catch (e) {
+    console.error('[media] 反映を始められなかった', (e as Error).message);
+    return { ok: false, error: '反映を開始できませんでした。時間をおいてお試しください' };
+  }
 }
 
 /**

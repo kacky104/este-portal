@@ -20,14 +20,16 @@ import { decryptSecret } from '@/lib/mediaCredentials';
 import {
   advanceFlow,
   buildLoginRequest,
+  buildWriteWorkRequest,
   newFlowContext,
   type FlowAudit,
+  type FlowNextRequest,
   type RelayFlowContext,
   type RelayFlowIntent,
 } from '@/lib/relayFlow';
 import { loadCastIds } from '@/lib/mediaCastIds';
-import { addDaysISO, buildWorkPlan, summarizePlan, type FukuesShift } from '@/lib/workPlan';
-import { WORK_DAYS, type WorkPage } from '@/lib/ekichikaWorkParse';
+import { addDaysISO, buildWorkPlan, planFingerprint, summarizePlan, type FukuesShift } from '@/lib/workPlan';
+import { WORK_DAYS, encodeGirlWork, type WorkPage } from '@/lib/ekichikaWorkParse';
 
 /** いまフローを組み立てられる媒体。★ 増やすときは buildLoginRequest 側も要る */
 const SUPPORTED_PROVIDERS = ['ekichika'] as const;
@@ -47,6 +49,11 @@ export async function startRelayFlow(params: {
   provider: string;
   slot: number;
   intent: RelayFlowIntent;
+  /**
+   * ★ 人が画面で見て承認した計画の指紋（intent='work_push' のときだけ）。
+   *   送る直前に読み直して作った計画と突き合わせ、違ったら送らない。
+   */
+  approvedFingerprint?: string;
   /** 'shop:<auth_user_id>' など。監査ログに残す */
   actor?: string;
 }): Promise<StartFlowResult> {
@@ -96,11 +103,16 @@ export async function startRelayFlow(params: {
     password,
   });
 
-  const context = newFlowContext({
-    flowId: crypto.randomUUID(),
-    intent: params.intent,
-    startedAt: new Date().toISOString(),
-  });
+  const context: RelayFlowContext = {
+    ...newFlowContext({
+      flowId: crypto.randomUUID(),
+      intent: params.intent,
+      startedAt: new Date().toISOString(),
+    }),
+    ...(params.approvedFingerprint !== undefined
+      ? { approvedFingerprint: params.approvedFingerprint }
+      : {}),
+  };
 
   const r = await enqueueRelayJob({
     salonId: params.salonId,
@@ -152,27 +164,33 @@ export async function advanceRelayFlow(params: {
 
   const audits: FlowAudit[] = [...outcome.audits];
   let note = outcome.note;
+  let next: FlowNextRequest | null = outcome.kind === 'next' ? outcome.next : null;
 
-  // ★★★ 試し打ち（第43便）。ここで初めて DB を読む。
+  // ★★★ 読めたあと、DB を読んで計画を立てる（第43便＝試し打ち／第46便＝送信）。
   //   純粋関数側（advanceFlow）は「読めた。あとは突き合わせ」までしか言わない。
-  //   ★ この枝は **次のジョブを積まない** ＝ 駅ちかへ何も飛ばない。
+  //   ★ 試し打ちのときは次を積まない ＝ 駅ちかへ何も飛ばない。
+  //   ★ 送信のときだけ、承認の指紋が一致していれば write_work を積む。
   if (outcome.kind === 'plan_work') {
-    const r = await planWorkDryRun(params, outcome.page, context.flowId);
-    audits.push(r.audit);
+    const r = await planWork(params, outcome.page, context);
+    audits.push(...r.audits);
     note = outcome.note + ' → ' + r.note;
+    next = r.next ?? null;
   }
 
   await writeAudits(params, audits, context);
 
   // ★ 接続テストの結果を、店舗が画面で見られる形にも残す（last_verified_at / last_error）
-  // ★★ 試し打ちは 'done' として扱う。**ログインと読み取りは実際に成功している**ので、
+  // ★★ 計画の段は 'done' として扱う。**ログインと読み取りは実際に成功している**ので、
   //   認証情報は健全。計画が止まったことは last_error（＝認証の話）ではなく監査ログに残す。
   //   ここを 'stop' にすると「ログイン情報がおかしい」と読める文が店舗の画面に出てしまう。
-  await stampCredential(params, outcome.kind === 'plan_work' ? 'done' : outcome.kind, audits);
+  const settle: 'next' | 'done' | 'stop' = next
+    ? 'next'
+    : outcome.kind === 'plan_work'
+      ? 'done'
+      : outcome.kind;
+  await stampCredential(params, settle, audits);
 
-  if (outcome.kind !== 'next') return { note };
-
-  const next = outcome.next;
+  if (!next) return { note };
   const r = await enqueueRelayJob({
     salonId: params.salonId,
     provider: params.provider,
@@ -202,11 +220,13 @@ export async function advanceRelayFlow(params: {
  * ★ 7日窓の起点は【こちらの今日（Asia/Tokyo）】。
  *   駅ちか側の先頭がこことずれていたら buildWorkPlan が date_shifted で止める。
  */
-async function planWorkDryRun(
+async function planWork(
   params: { salonId: number; provider: string; slot: number },
   page: WorkPage,
-  flowId: string,
-): Promise<{ audit: FlowAudit; note: string }> {
+  ctx: RelayFlowContext,
+): Promise<{ audits: FlowAudit[]; note: string; next?: FlowNextRequest }> {
+  const flowId = ctx.flowId;
+  const pushing = ctx.intent === 'work_push';
   const supabase = createServiceClient();
   const todayISO = new Date(Date.now() + 9 * 60 * 60 * 1000).toISOString().slice(0, 10); // Asia/Tokyo
 
@@ -216,12 +236,12 @@ async function planWorkDryRun(
     .eq('salon_id', params.salonId);
   if (thErr) {
     return {
-      audit: {
+      audits: [{
         event: 'plan_work',
         outcome: 'failed',
         summary: '反映する内容を組み立てられませんでした（フクエス側の読み取りに失敗）',
         detail: { reason: 'therapists_read_failed' },
-      },
+      }],
       note: 'セラピストを読めなかった: ' + thErr.message,
     };
   }
@@ -234,12 +254,12 @@ async function planWorkDryRun(
   });
   if (castErr) {
     return {
-      audit: {
+      audits: [{
         event: 'plan_work',
         outcome: 'failed',
         summary: '反映する内容を組み立てられませんでした（媒体の番号を読めませんでした）',
         detail: { reason: 'cast_ids_read_failed' },
-      },
+      }],
       note: '媒体IDを読めなかった: ' + castErr,
     };
   }
@@ -261,12 +281,12 @@ async function planWorkDryRun(
     : { data: [] as unknown[], error: null };
   if (schErr) {
     return {
-      audit: {
+      audits: [{
         event: 'plan_work',
         outcome: 'failed',
         summary: '反映する内容を組み立てられませんでした（出勤の読み取りに失敗）',
         detail: { reason: 'schedules_read_failed' },
-      },
+      }],
       note: '出勤を読めなかった: ' + schErr.message,
     };
   }
@@ -297,6 +317,8 @@ async function planWorkDryRun(
       active_shifts: plan.activeShifts,
       change_count: plan.changes.length,
       field_count: plan.fieldCount,
+      // ★ 承認ボタンはこの値を「承認した内容」として持ち回す（第46便）
+      fingerprint: planFingerprint(plan),
       date_labels: plan.dateLabels,
       counts_before: plan.countsBefore,
       counts_after: plan.countsAfter,
@@ -308,22 +330,103 @@ async function planWorkDryRun(
   );
   if (planErr) console.error('[relay] 反映内容を保存できなかった', planErr.message);
 
+  const planAudit: FlowAudit = {
+    event: 'plan_work',
+    // ★ 止めたことは 'failed'（こちらの不具合）ではなく 'stopped'（判断して止めた）
+    outcome: plan.ok ? 'ok' : 'stopped',
+    summary: s.summary,
+    detail: s.detail,
+  };
+
+  // ── ここまで試し打ちと共通。以下は送る側だけ（第46便）──────────────────
+  if (!pushing) {
+    return {
+      audits: [planAudit],
+      note:
+        '試し打ちを組み立てた（送っていない）: 変更' +
+        plan.changes.length +
+        '件 / 送信項目' +
+        plan.fieldCount +
+        '件 / 止めた理由' +
+        plan.blockers.length +
+        '件',
+    };
+  }
+
+  // ★★★ 承認された内容と、いま組み立てた内容が同じか。
+  //   違えば **送らない**。人が見て承認したのは前の内容であって、いまの内容ではない。
+  const fingerprint = planFingerprint(plan);
+  if (fingerprint !== (ctx.approvedFingerprint ?? '')) {
+    return {
+      audits: [
+        {
+          event: 'plan_work',
+          outcome: 'stopped',
+          summary:
+            'ご確認いただいた内容から変わっていたため、送らずに止めました。' +
+            'いまの内容をもう一度ご確認ください',
+          detail: { reason: 'plan_changed', changes: plan.changes.length },
+        },
+      ],
+      note: '承認時と指紋が違うので送らない',
+    };
+  }
+
+  // ★ 止める理由があるなら送らない（0件・急減・上限超えなど）。
+  if (!plan.ok) {
+    return { audits: [planAudit], note: '止める理由があるので送らない' };
+  }
+
+  // ★ 送るものが無いなら送らない。全件上書きのフォームを、意味なく投げない。
+  if (plan.changes.length === 0) {
+    return { audits: [planAudit], note: '変更が無いので送らない' };
+  }
+
+  // ★★ ここまで来て初めて書き込みを組み立てる。
+  //   assertWithinInputVars は buildWriteWorkRequest の中でもう一度通る。
+  let write: ReturnType<typeof buildWriteWorkRequest>;
+  try {
+    write = buildWriteWorkRequest(page, plan.sent, ctx.cookie);
+  } catch (e) {
+    return {
+      audits: [
+        {
+          event: 'write_work',
+          outcome: 'stopped',
+          summary: '駅ちかへ送る内容を組み立てられなかったため、送りませんでした',
+          detail: { reason: 'build_failed' },
+        },
+      ],
+      note: '書き込みを組み立てられなかった: ' + (e as Error).message.slice(0, 200),
+    };
+  }
+
+  // ★ 承認して送るので、画面に残っていた計画は消す。
+  //   ★★ 残すと「送ったあとの画面に、送る前の差分が出ている」ことになる。
+  await supabase
+    .from('media_work_plans')
+    .delete()
+    .eq('salon_id', params.salonId)
+    .eq('provider', params.provider)
+    .eq('slot', params.slot);
+
   return {
-    audit: {
-      event: 'plan_work',
-      // ★ 止めたことは 'failed'（こちらの不具合）ではなく 'stopped'（判断して止めた）
-      outcome: plan.ok ? 'ok' : 'stopped',
-      summary: s.summary,
-      detail: s.detail,
+    audits: [],   // ★ 送る前に監査ログを書かない。成否は照合してから（afterVerifyWork）
+    note: '承認された内容と一致したので送る（変更' + plan.changes.length + '件）',
+    next: {
+      purpose: 'write_work',
+      method: write.method,
+      url: write.url,
+      headers: write.headers,
+      body: write.body,
+      context: {
+        ...ctx,
+        sentPacked: encodeGirlWork(plan.sent),
+        sentCount: plan.sent.length,
+        expectedDateLabels: plan.dateLabels,
+        changeCount: plan.changes.length,
+      },
     },
-    note:
-      '試し打ちを組み立てた（送っていない）: 変更' +
-      plan.changes.length +
-      '件 / 送信項目' +
-      plan.fieldCount +
-      '件 / 止めた理由' +
-      plan.blockers.length +
-      '件',
   };
 }
 

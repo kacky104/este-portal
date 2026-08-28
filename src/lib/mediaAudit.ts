@@ -19,6 +19,7 @@ export const MEDIA_AUDIT_EVENTS = [
   'login',               // 媒体にログインした
   'read_work',           // 出勤を読んだ
   'plan_work',           // ★ 試し打ち。送るとどうなるかを組み立てただけ（第43便）
+  'link_mode_changed',   // ★ 連携の向きを変えた（読む↔書く・第46便）
   'write_work',          // 出勤を書き換えた
   'verify_work',         // 書き換えた結果を照合した
   'relay_gave_up',       // 3回失敗したので諦めた
@@ -178,6 +179,16 @@ export function defaultAuditSummary(input: {
         ? `${t}へ反映する内容を確認しました（まだ送っていません` +
           (changes !== null ? `。変更 ${changes}件` : '') + `）`
         : `${t}へ反映する内容を確認し、送らずに止めました`;
+      break;
+    }
+    case 'link_mode_changed': {
+      const mode = d?.['mode'];
+      s =
+        mode === 'write'
+          ? `${t}の連携を「フクエスから駅ちかへ反映する」に変更しました`
+          : mode === 'read'
+            ? `${t}の連携を「駅ちかから取り込む」に戻しました`
+            : `${t}の連携を「連携しない」に変更しました`;
       break;
     }
     case 'write_work':

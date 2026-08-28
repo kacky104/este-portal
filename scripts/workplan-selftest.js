@@ -117,5 +117,31 @@ const html = '<form id="frmfix" action="https://ranking-deli.jp/admin/girlswork/
   '</form>';
 eq('⑧ timeOptions を拾う', parse.parseWorkPage(html).timeOptions, ['00:00','20:00']);
 
+// ⑨ 送る内容の詰め方（第46便）。★ 段をまたいで持ち回すので、戻せることが命。
+const packed = parse.encodeGirlWork(page.girls);
+const back = parse.decodeGirlWork(packed);
+eq('⑨ 人数が戻る', back.length, page.girls.length);
+eq('⑨ girlId が戻る', back.map(g=>g.girlId), page.girls.map(g=>g.girlId));
+eq('⑨ セルが戻る', back[2].days[0], page.girls[2].days[0]);
+eq('⑨ 名前は入れていない', back[0].name, '');
+eq('⑨ 壊れた文字列は例外にする', (()=>{ try { parse.decodeGirlWork('111|10:00,18:00,1'); return 'throwなし'; } catch { return 'throw'; } })(), 'throw');
+
+// ⑩ 承認の指紋（第46便）。★ 同じ変更なら同じ指紋・違えば違う指紋。
+const planA = wp.buildWorkPlan({page, todayISO: today, shifts: [
+  {therapistId:1, dateISO:'2026-08-28', active:true, start:'20:00', end:'03:00'},
+], castIdOf});
+const planA2 = wp.buildWorkPlan({page, todayISO: today, shifts: [
+  {therapistId:1, dateISO:'2026-08-28', active:true, start:'20:00', end:'03:00'},
+], castIdOf});
+const planB = wp.buildWorkPlan({page, todayISO: today, shifts: [
+  {therapistId:1, dateISO:'2026-08-28', active:true, start:'20:00', end:'03:00'},
+  {therapistId:2, dateISO:'2026-08-28', active:true, start:'20:00', end:'03:00'},
+], castIdOf});
+eq('⑩ 同じ計画は同じ指紋', wp.planFingerprint(planA), wp.planFingerprint(planA2));
+eq('⑩ ★ 違う計画は違う指紋', wp.planFingerprint(planA) !== wp.planFingerprint(planB), true);
+eq('⑩ 変更0件なら空の指紋', wp.planFingerprint(wp.buildWorkPlan({page: page3, todayISO: today, shifts:
+  Array.from({length:7},(_,d)=>({therapistId:1, dateISO: wp.addDaysISO(today,d), active:true, start:'20:00', end:'03:00'})),
+  castIdOf: new Map([[1,'111']])})), '');
+
 console.log(fail === 0 ? '\n★ 全部通った' : '\n★ 失敗 ' + fail + '件');
 process.exit(fail === 0 ? 0 : 1);

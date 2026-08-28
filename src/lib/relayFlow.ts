@@ -24,7 +24,17 @@
 //   ログイン失敗の再送ではない。ID/PWが違うまま3回投げると相手のアカウントが凍る（設計メモ §17-1）。
 //   → ここが 'stop' を返したら、そのフローは終わり。人が直すまで再開しない。
 
-import { parseWorkPage, checkWorkPage, encodePayload, type WorkPage } from './ekichikaWorkParse';
+import {
+  parseWorkPage,
+  checkWorkPage,
+  encodePayload,
+  buildPayload,
+  assertWithinInputVars,
+  decodeGirlWork,
+  verifyAfterWrite,
+  type GirlWork,
+  type WorkPage,
+} from './ekichikaWorkParse';
 import { mergeCookies } from './relayJob';
 import type { AuditDetail, MediaAuditEvent, MediaAuditOutcome } from './mediaAudit';
 
@@ -39,7 +49,9 @@ export const RELAY_USER_AGENT =
   'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0 Safari/537.36';
 
 /** フロー文脈の版。★ 形を変えるときは上げる。走っている途中のジョブは版違いで止まる（黙って壊れない）。 */
-export const RELAY_FLOW_VERSION = 1;
+// ★ 第46便で文脈の形が変わった（承認の指紋・送った内容を持ち回すため）ので 1 → 2。
+//   走っている途中のジョブは版違いで止まる。**黙って古い形のまま進めない。**
+export const RELAY_FLOW_VERSION = 2;
 
 /**
  * このフローが何をしに来たか。
@@ -52,7 +64,13 @@ export type RelayFlowIntent =
    * ★★★ 試し打ち（第43便）。読んだうえで「送るとこうなる」を組み立てて終わる。
    *   ★ **送らない。** 設計メモ §11-3「切り替え直後の1回目は必ず試し打ち → 人が承認」。
    */
-  | 'work_dryrun';
+  | 'work_dryrun'
+  /**
+   * ★★★ 承認された内容を実際に書く（第46便）。**駅ちかを書き換える唯一の intent。**
+   *   login → read_work →（読み直して計画）→ write_work → verify_work
+   *   ★ 承認の時点と送る時点で内容が変わっていたら **送らない**（指紋を突き合わせる）。
+   */
+  | 'work_push';
 
 /**
  * 段と段のあいだで持ち回す状態。
@@ -67,6 +85,22 @@ export type RelayFlowContext = {
   cookie: string;
   /** ISO文字列。フローが長引いたときに気づくため */
   startedAt: string;
+
+  // ── ここから下は intent='work_push' のときだけ入る（第46便）──
+  /**
+   * ★★★ 人が画面で見て承認した計画の指紋（workPlan.planFingerprint）。
+   *   送る直前に読み直して作った計画の指紋と比べ、**違ったら送らない。**
+   *   ★ 指紋だけを持つので文脈が太らない。
+   */
+  approvedFingerprint?: string;
+  /** ★ 送った内容（encodeGirlWork の詰めた文字列）。verify_work で照合するのに要る */
+  sentPacked?: string;
+  /** 送った人数。★ 切り捨て（max_input_vars）の主症状はここに出る */
+  sentCount?: number;
+  /** 送信前の日付見出し。送信の前後で日がずれていないかを見る */
+  expectedDateLabels?: string[];
+  /** 変更した件数（監査ログの文面に使う） */
+  changeCount?: number;
 };
 
 export type FlowAudit = {
@@ -176,6 +210,39 @@ export function buildReadWorkRequest(cookie: string): FlowNextRequest['headers']
   };
 }
 
+/**
+ * ★★★ 出勤の書き込み（第46便）。**このプロジェクトで唯一、相手を書き換えるリクエスト。**
+ *
+ * ★ 宛先は【読んだページの form action】をそのまま使う（.../girlswork/<番号>/）。
+ *   こちらで組み立てない。番号なしの検索フォームへ投げると静かに何も起きない（§17-2）。
+ *   ★ parseWorkPage / checkWorkPage が action の形を検査済み。
+ *
+ * ★★ assertWithinInputVars をここでも通す。計画の時点でも数えているが、
+ *   **送る直前にもう一度数える。** 超えた分は相手に黙って捨てられ、全件上書きなので出勤が消える。
+ */
+export function buildWriteWorkRequest(
+  page: WorkPage,
+  sent: GirlWork[],
+  cookie: string,
+): { url: string; method: 'POST'; headers: Record<string, string>; body: string } {
+  const fields = buildPayload(page, sent);
+  assertWithinInputVars(fields);
+  return {
+    url: page.action,
+    method: 'POST',
+    headers: {
+      'user-agent': RELAY_USER_AGENT,
+      'content-type': 'application/x-www-form-urlencoded',
+      accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+      'accept-language': 'ja,en-US;q=0.9,en;q=0.8',
+      origin: EKICHIKA_ORIGIN,
+      referer: EKICHIKA_WORK_URL,
+      cookie,
+    },
+    body: encodePayload(fields),
+  };
+}
+
 // ────────────────────────── ログイン画面かどうか ──────────────────────────
 
 /**
@@ -236,9 +303,9 @@ export function advanceFlow(input: {
     case 'read_work':
       return afterReadWork(input, ctx);
     case 'write_work':
+      return afterWriteWork(input, ctx);
     case 'verify_work':
-      // ★ 第43便でも積まない（試し打ちまで）。来たら黙って進めない
-      return stop([], 'この便では書き込みの段を扱わない（第44便）: ' + input.purpose);
+      return afterVerifyWork(input, ctx);
     default:
       return stop([], '知らない段: ' + String(input.purpose));
   }
@@ -431,6 +498,15 @@ function finishRead(audits: FlowAudit[], ctx: RelayFlowContext, page: WorkPage):
         audits,
         note: '出勤ページを読めた。★ ここでフクエスの出勤と突き合わせる（送らない）',
       };
+    case 'work_push':
+      // ★ 送る側も、まず同じ形で計画を立て直す。**承認の時点ではなく、いま読んだページで組む。**
+      //   指紋が承認時と違えば呼び出し側が止める（設計メモ §11-3）。
+      return {
+        kind: 'plan_work',
+        page,
+        audits,
+        note: '出勤ページを読めた。★ 承認された内容と一致するか確かめてから送る',
+      };
     default: {
       // ★★ intent を増やしたらここがコンパイルエラーになる。
       //   「足したのに繋いでいない」を静かに通さないための見張り（第40便 §4 と同じ形）
@@ -438,4 +514,150 @@ function finishRead(audits: FlowAudit[], ctx: RelayFlowContext, page: WorkPage):
       return stop(audits, '扱い方の決まっていない intent: ' + String(never));
     }
   }
+}
+
+// ────────────────────────── 書き込みの応答 ──────────────────────────
+
+/**
+ * 出勤を書いたあとの応答（第46便）。
+ *
+ * ★★★ ここでは【成否を判定しない】。ログインのときとまったく同じ理由（このファイル冒頭）。
+ *   駅ちかが更新に成功したとき何を返すか（302か200か・本文に何が出るか）は**未確認**。
+ *   推測で「成功」と書くと、書けていないのに「更新しました」という監査ログが残る。
+ *   → ★ **読み直して突き合わせた結果を、書き込みの成否そのものとする。**
+ *
+ * ★★ 失敗しても投げ直さない。全件上書きのフォームを再送するのは危険度が高い。
+ *   人が画面を見て、もう一度承認するところからやり直す。
+ */
+function afterWriteWork(
+  input: { status: number; headers: Record<string, string | string[]>; body: string },
+  ctx: RelayFlowContext,
+): FlowOutcome {
+  const flowId = ctx.flowId;
+
+  if (input.status >= 400) {
+    return stop(
+      [
+        {
+          event: 'write_work',
+          outcome: 'failed',
+          summary:
+            '駅ちかの出勤を更新できませんでした（応答 ' + input.status + '）。' +
+            '更新されたかどうかは確認が必要です',
+          detail: { httpStatus: input.status, reason: 'http_error', flowId },
+        },
+      ],
+      '書き込みの応答が ' + input.status + ' だった',
+    );
+  }
+
+  // ★ ログイン画面へ戻された＝セッションが切れた。書けていない可能性が高いが、
+  //   ★★ 「書けていない」と言い切らない。読み直して確かめる術がこの段では無い。
+  const location = String(input.headers['location'] ?? '');
+  if (input.status >= 300 && input.status < 400 && location.includes('/admin/login')) {
+    return stop(
+      [
+        {
+          event: 'write_work',
+          outcome: 'failed',
+          summary:
+            '駅ちかの出勤を更新中にログイン画面へ戻されました。更新されたかどうかは確認が必要です',
+          detail: { httpStatus: input.status, reason: 'back_to_login', flowId },
+        },
+      ],
+      '書き込み中にログイン画面へ戻された',
+    );
+  }
+
+  // ★ ここで「成功」と書かない。次の段（読み直し）だけが成否を知っている。
+  return {
+    kind: 'next',
+    next: {
+      purpose: 'verify_work',
+      method: 'GET',
+      url: EKICHIKA_WORK_URL,
+      headers: buildReadWorkRequest(ctx.cookie),
+      body: '',
+      context: ctx,
+    },
+    audits: [],
+    note: '書き込みの応答を受け取った。★ 成否は読み直して突き合わせてから判定する',
+  };
+}
+
+/**
+ * 書いたあとに読み直したページ（第46便）。★ ここが【書き込みの成否そのもの】。
+ *
+ * 見ているのは3系統（verifyAfterWrite）:
+ *   1. 人数        … 切り捨て（max_input_vars）の主症状
+ *   2. セルの中身  … 1件ずつ
+ *   3. 日別出勤人数… 画面側が自分で数えた値＝こちらの計算と独立した第2の目
+ */
+function afterVerifyWork(
+  input: { status: number; headers: Record<string, string | string[]>; body: string },
+  ctx: RelayFlowContext,
+): FlowOutcome {
+  const flowId = ctx.flowId;
+  const changed = ctx.changeCount ?? 0;
+
+  const unknown = (reason: string, note: string): FlowOutcome =>
+    stop(
+      [
+        {
+          event: 'verify_work',
+          outcome: 'failed',
+          // ★★ 「更新できませんでした」と書かない。**確かめられなかった**が正確
+          summary:
+            '★ 駅ちかの出勤を更新後に読み直せませんでした。更新されたかどうかは確認が必要です',
+          detail: { reason, flowId },
+        },
+      ],
+      note,
+    );
+
+  if (input.status !== 200) return unknown('http_error', '読み直しの応答が ' + input.status + ' だった');
+
+  let after: WorkPage | null = null;
+  try {
+    after = parseWorkPage(input.body);
+  } catch {
+    return unknown('parse_error', '読み直したページを解析できなかった');
+  }
+  if (checkWorkPage(after).length > 0) return unknown('page_broken', '読み直したページが読めない形だった');
+
+  let sent: GirlWork[];
+  try {
+    sent = decodeGirlWork(ctx.sentPacked ?? '');
+  } catch {
+    return unknown('sent_broken', '送った内容を復元できなかった');
+  }
+  if (sent.length === 0) return unknown('sent_missing', '送った内容が文脈に残っていない');
+
+  const v = verifyAfterWrite(sent, after, { expectedDateLabels: ctx.expectedDateLabels });
+
+  if (v.ok) {
+    // ★★ ここで初めて「更新した」と言える。write_work の 'ok' もこの瞬間に書く。
+    return {
+      kind: 'done',
+      audits: [
+        { event: 'write_work', outcome: 'ok', detail: { changed, people: sent.length, flowId } },
+        { event: 'verify_work', outcome: 'ok', detail: { people: after.girls.length, flowId } },
+      ],
+      note: '書き込みと照合が終わった（変更' + changed + '件・' + sent.length + '名）',
+    };
+  }
+
+  // ★★★ 一致しなかった。**ここは黙ってはいけない場所。**
+  //   「送ったつもり」を作らないために、店舗に見える文言も強くしてある（mediaAudit）。
+  return stop(
+    [
+      { event: 'write_work', outcome: 'ok', detail: { changed, people: sent.length, flowId } },
+      {
+        event: 'verify_work',
+        outcome: 'failed',
+        detail: { problems: v.problems.length, people: after.girls.length, flowId },
+      },
+    ],
+    '書き込み後の照合が一致しない: ' + v.problems.map((p) => p.kind + ' ' + p.detail).join(' / ').slice(0, 300),
+  );
 }
