@@ -226,7 +226,10 @@ async function planWork(
   ctx: RelayFlowContext,
 ): Promise<{ audits: FlowAudit[]; note: string; next?: FlowNextRequest }> {
   const flowId = ctx.flowId;
-  const pushing = ctx.intent === 'work_push';
+  // ★ 送る intent は2つ（第48便）。work_auto は人が見ずに送る。
+  const pushing = ctx.intent === 'work_push' || ctx.intent === 'work_auto';
+  //   ★★ 無人かどうかで見張りの強さが変わる（設計メモ §56）。緩くはならない
+  const unattended = ctx.intent === 'work_auto';
   const supabase = createServiceClient();
   const todayISO = new Date(Date.now() + 9 * 60 * 60 * 1000).toISOString().slice(0, 10); // Asia/Tokyo
 
@@ -299,7 +302,7 @@ async function planWork(
     end: typeof r['end_time'] === 'string' ? r['end_time'].slice(0, 5) : null,
   }));
 
-  const plan = buildWorkPlan({ page, todayISO, shifts, castIdOf });
+  const plan = buildWorkPlan({ page, todayISO, shifts, castIdOf, unattended });
   const s = summarizePlan(plan);
 
   // ★★★ 計画そのものを保存する（第44便）。件数だけでは人は承認できない。
@@ -355,8 +358,13 @@ async function planWork(
 
   // ★★★ 承認された内容と、いま組み立てた内容が同じか。
   //   違えば **送らない**。人が見て承認したのは前の内容であって、いまの内容ではない。
+  //
+  // ★★ 自動反映（work_auto）はここを通らない（第48便・設計メモ §53）。
+  //   人が見た内容が存在しないので、いま組んだ計画と照合しても【必ず一致する】＝何も検証していない。
+  //   ★ 通ることが分かっている検査は、検査ではなく飾りになる。だから置かない。
+  //   ★ そのぶんの担保は上の buildWorkPlan(unattended: true) が持っている。
   const fingerprint = planFingerprint(plan);
-  if (fingerprint !== (ctx.approvedFingerprint ?? '')) {
+  if (!unattended && fingerprint !== (ctx.approvedFingerprint ?? '')) {
     return {
       audits: [
         {

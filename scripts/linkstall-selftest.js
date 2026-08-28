@@ -33,6 +33,10 @@ eq('none は対象外', judge({
 eq('null は対象外', judge({
   linkMode: null, switchedToWriteAt: hoursAgo(100), lastWriteOkAt: null,
 }).stalled, false);
+// ★ 自動の枠も見張る（第48便）。自動にしたまま止まることは起きる
+eq('write_auto も見張る', judge({
+  linkMode: 'write_auto', switchedToWriteAt: hoursAgo(100), lastWriteOkAt: hoursAgo(30),
+}).stalled, true);
 
 // ── ★★★ 根拠が無いときは黙る（嘘の警告を出さない）──
 //   監査ログが取れなかった／切り替えの記録が無い場合に「一度も送っていない」と

@@ -26,6 +26,8 @@
     "src/app/lib/media/mediaAudit.ts",
     "src/lib/mediaConsent.ts",
     "src/lib/mediaLinkStall.ts",
+    "src/lib/mediaLinkMode.ts",
+    "src/app/api/admin/media-auto-push/route.ts",
     "src/app/actions/mediaCredentials.ts",
     "src/app/mypage/MediaLinkPanel.tsx",
     "src/app/mypage/page.tsx",

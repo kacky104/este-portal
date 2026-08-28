@@ -70,7 +70,16 @@ export type RelayFlowIntent =
    *   login → read_work →（読み直して計画）→ write_work → verify_work
    *   ★ 承認の時点と送る時点で内容が変わっていたら **送らない**（指紋を突き合わせる）。
    */
-  | 'work_push';
+  | 'work_push'
+  /**
+   * ★★★ 自動反映（第48便・設計メモ 追記14）。**人が見ずに書く。**
+   *   login → read_work →（読み直して計画）→ write_work → verify_work
+   *   ★ 指紋は使わない。人が見た内容が存在しないので、照合しても何も検証していない（§53）。
+   *   ★★ 代わりに blockers を厳しくする（workPlan の unattended: true / §56）。
+   *   ★ 立てられるのは link_mode='write_auto' の枠だけ。それには
+   *     【いまの向きになってから1回でも反映が成功していること】が要る（§54）。
+   */
+  | 'work_auto';
 
 /**
  * 段と段のあいだで持ち回す状態。
@@ -506,6 +515,15 @@ function finishRead(audits: FlowAudit[], ctx: RelayFlowContext, page: WorkPage):
         page,
         audits,
         note: '出勤ページを読めた。★ 承認された内容と一致するか確かめてから送る',
+      };
+    case 'work_auto':
+      // ★★★ 自動反映（第48便）。組み立てから送信までを1回のフローで閉じる。
+      //   ★ 指紋は突き合わせない（人が見た内容が無い・§53）。担保は厳しい方の blockers。
+      return {
+        kind: 'plan_work',
+        page,
+        audits,
+        note: '出勤ページを読めた。★ 自動反映：厳しい方の見張りを通ったら送る',
       };
     default: {
       // ★★ intent を増やしたらここがコンパイルエラーになる。

@@ -16,6 +16,8 @@
 //   理由は workPlan.ts / relayFlow.ts と同じ:【判断は、固定して見返せる形に置く】。
 //   ★ Date.now() をこの中で呼ぶと、点検で「24時間経った状態」を作れなくなる。
 
+import { isWriteDirection } from './mediaLinkMode';
+
 /** これだけ反映が無ければ、止まっているとみなす。 */
 export const WRITE_STALL_HOURS = 24;
 
@@ -61,7 +63,8 @@ function msOf(iso: string | null): number | null {
  *     ★ 分からないことは、分からないままにする。
  */
 export function judgeWriteStall(input: StallInput): StallResult {
-  if (input.linkMode !== 'write') return NOT_STALLED(null);
+  // ★ write / write_auto のどちらも見張る（第48便）。自動の枠も止まりうる
+  if (!isWriteDirection(input.linkMode)) return NOT_STALLED(null);
 
   const lastOk = msOf(input.lastWriteOkAt);
   const switched = msOf(input.switchedToWriteAt);

@@ -143,5 +143,51 @@ eq('⑩ 変更0件なら空の指紋', wp.planFingerprint(wp.buildWorkPlan({page
   Array.from({length:7},(_,d)=>({therapistId:1, dateISO: wp.addDaysISO(today,d), active:true, start:'20:00', end:'03:00'})),
   castIdOf: new Map([[1,'111']])})), '');
 
+// ⑪ ★★★ 無人（自動反映）のときは見張りが厳しくなる（第48便・設計メモ §56）。
+//    ★ 「同じ入力で、手動は通る／自動は止まる」を1組で見る。
+//      片方だけ書くと、厳しくしたつもりで何も変わっていないことに気づけない。
+{
+  // 駅ちか10人が7日とも出勤。フクエス側は8人ぶんだけ入っている（＝毎日2名減る）
+  const shifts8 = [];
+  for (let t = 1; t <= 8; t++)
+    for (let d = 0; d < 7; d++)
+      shifts8.push({therapistId:t, dateISO: wp.addDaysISO(today,d), active:true, start:'10:00', end:'18:00'});
+
+  const manual = wp.buildWorkPlan({page: page2, todayISO: today, shifts: shifts8, castIdOf: cast2});
+  const auto   = wp.buildWorkPlan({page: page2, todayISO: today, shifts: shifts8, castIdOf: cast2, unattended: true});
+
+  // 10名 → 8名。減り2名は 手動のしきい値（3名以上かつ3割超）に届かない
+  eq('⑪ 10→8 は手動なら通る', manual.blockers.map(b=>b.kind).includes('shrink_too_much'), false);
+  // ★ 自動は 2名以上かつ1.5割超。2 > 10*0.15 = 1.5 なので止まる
+  eq('⑪ ★ 同じ内容でも自動なら止まる', auto.blockers.map(b=>b.kind).includes('shrink_too_much'), true);
+  eq('⑪ 前後の人数は同じ', [auto.countsBefore[0], auto.countsAfter[0]], [10,8]);
+}
+
+// ⑫ ★ 無人でも「減っていない」なら止めない。★ 厳しくするのは減る方向だけ
+{
+  const shifts10 = [];
+  for (let t = 1; t <= 10; t++)
+    for (let d = 0; d < 7; d++)
+      shifts10.push({therapistId:t, dateISO: wp.addDaysISO(today,d), active:true, start:'10:00', end:'18:00'});
+  const auto = wp.buildWorkPlan({page: page2, todayISO: today, shifts: shifts10, castIdOf: cast2, unattended: true});
+  eq('⑫ 変更0なら自動でも止まらない', auto.blockers.length, 0);
+  eq('⑫ 変更0件', auto.changes.length, 0);
+}
+
+// ⑬ ★★ 作り直し級の差分は、自動では送らない（change_too_large）
+//    ★ 人数は変わらないので急減では拾えない。**別の見張りが要る**ことの確認
+{
+  const shiftsAll = [];
+  for (let t = 1; t <= 10; t++)
+    for (let d = 0; d < 7; d++)
+      shiftsAll.push({therapistId:t, dateISO: wp.addDaysISO(today,d), active:true, start:'18:00', end:'27:00'});
+  const manual = wp.buildWorkPlan({page: page2, todayISO: today, shifts: shiftsAll, castIdOf: cast2});
+  const auto   = wp.buildWorkPlan({page: page2, todayISO: today, shifts: shiftsAll, castIdOf: cast2, unattended: true});
+  eq('⑬ 70枠すべて時刻が変わる', auto.changes.length, 70);
+  eq('⑬ 人数は減っていない', [auto.countsBefore[0], auto.countsAfter[0]], [10,10]);
+  eq('⑬ 手動なら通る', manual.blockers.length, 0);
+  eq('⑬ ★ 自動は差分が大きすぎて止まる', auto.blockers.map(b=>b.kind).includes('change_too_large'), true);
+}
+
 console.log(fail === 0 ? '\n★ 全部通った' : '\n★ 失敗 ' + fail + '件');
 process.exit(fail === 0 ? 0 : 1);

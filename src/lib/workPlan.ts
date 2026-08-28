@@ -47,6 +47,7 @@ export type PlanIssue = {
     | 'date_shifted'          // 駅ちかの先頭がこちらの今日ではない（深夜またぎ）
     | 'no_schedule'           // フクエス側に7日ぶんの出勤が1件も無い
     | 'shrink_too_much'       // 出勤が大きく減る方向の差
+    | 'change_too_large'      // ★ 無人のとき限定。作り直し級の差分（第48便）
     | 'time_not_selectable'   // 駅ちかのプルダウンに無い時刻
     | 'too_many_fields'       // max_input_vars を超える
     | 'unmapped_therapist'    // この枠での castId が無い＝駅ちかに出せない
@@ -107,6 +108,25 @@ export type WorkPlan = {
 export const SHRINK_MAX_RATIO = 0.3;
 /** 割合が大きくても、人数が小さいうちは止めない（3人→2人で止めない）。 */
 export const SHRINK_MIN_PEOPLE = 3;
+
+/**
+ * ★★★ 無人（自動反映）のときの、厳しい方のしきい値（第48便・設計メモ §56）。
+ *
+ * ★ なぜ変えるのか — 手動と自動では**担保の数が違う**。
+ *     手動 … ① 人が見た内容と送る内容が同じ（指紋）＋ ② この見張り
+ *     自動 … ★ ①が無い。②だけ
+ *   → 担保が1本減るぶん、②を厳しくする。「人が見ているかどうかで強さを変える」。
+ *
+ * ★★ 数字の根拠は【手動の半分にしただけ】。実データを数日見てから決め直すこと。
+ *   ★ 決め打ちであることを、決め打ちのまま忘れないために、ここに書いておく。
+ */
+export const AUTO_SHRINK_MAX_RATIO = 0.15;
+export const AUTO_SHRINK_MIN_PEOPLE = 2;
+/**
+ * ★ 無人のとき、変更セルが「対象人数 × 7日」の何割を超えたら止めるか。
+ *   ★ 作り直し級の差分（名簿の入れ替え・7日窓のずれ等）を、人が見ないまま流さない。
+ */
+export const AUTO_CHANGE_MAX_RATIO = 0.5;
 
 // ───────────────────────────── 日付 ─────────────────────────────
 
@@ -202,6 +222,11 @@ export function buildWorkPlan(input: {
   castIdOf: Map<number, string>;
   /** max_input_vars。分かっていれば店舗の設定値を渡す */
   inputVarLimit?: number;
+  /**
+   * ★★★ 人が見ずに送るのか（自動反映・第48便）。
+   *   true にすると見張りが厳しくなる（AUTO_* のしきい値）。★ 緩くはならない。
+   */
+  unattended?: boolean;
 }): WorkPlan {
   const { page, todayISO, shifts } = input;
   const blockers: PlanIssue[] = [];
@@ -401,8 +426,11 @@ export function buildWorkPlan(input: {
     const after = countsAfter[d] ?? 0;
     const lost = before - after;
     if (lost <= 0) continue;
-    if (lost < SHRINK_MIN_PEOPLE) continue;
-    if (lost <= before * SHRINK_MAX_RATIO) continue;
+    // ★ 無人なら厳しい方を使う（§56）。★ どちらでも「減る方向だけ」見るのは同じ
+    const minPeople = input.unattended ? AUTO_SHRINK_MIN_PEOPLE : SHRINK_MIN_PEOPLE;
+    const maxRatio = input.unattended ? AUTO_SHRINK_MAX_RATIO : SHRINK_MAX_RATIO;
+    if (lost < minPeople) continue;
+    if (lost <= before * maxRatio) continue;
     blockers.push({
       kind: 'shrink_too_much',
       count: lost,
@@ -431,6 +459,22 @@ export function buildWorkPlan(input: {
         limit +
         '件を超えます。超えた分は相手側で黙って捨てられ、出勤が消えるため送りません',
     });
+  }
+
+  // ★★★ 無人のとき、差分が大きすぎるなら送らない（第48便・§56）。
+  //   ★ 「大きい差分が間違いだ」とは言えない。言えるのは【人が見ずに流す量ではない】だけ。
+  //     だから止め方は blocker（送らない）で、直し方は「人が画面で承認する」。
+  if (input.unattended && wanted.size > 0) {
+    const cells = wanted.size * WORK_DAYS;
+    if (changes.length > cells * AUTO_CHANGE_MAX_RATIO) {
+      blockers.push({
+        kind: 'change_too_large',
+        count: changes.length,
+        detail:
+          '変更が ' + changes.length + '件（対象 ' + cells + '枠）と大きいため、' +
+          '自動では送りません。画面で内容をご確認のうえ承認してください',
+      });
+    }
   }
 
   // 駅ちかに居てフクエスに居ない子（触らないことを伝える）

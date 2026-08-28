@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
+import { isWriteDirection } from '@/lib/mediaLinkMode';
 import {
   MEDIA_CONSENT_SECTIONS,
   MEDIA_CONSENT_AGREE_LABEL,
@@ -8,6 +9,7 @@ import {
 } from '@/lib/mediaConsent';
 import {
   getMediaCredentials,
+  getMediaAutoEligible,
   saveMediaCredential,
   setMediaCredentialEnabled,
   deleteMediaCredential,
@@ -68,6 +70,11 @@ const LINK_MODE_LABEL: Record<string, { title: string; desc: string; tone: strin
     desc: 'フクエスの内容を駅ちかへ書き込みます。この向きのあいだ、駅ちかからの取り込みは行いません。',
     tone: 'text-pink-600',
   },
+  write_auto: {
+    title: 'フクエスから駅ちかへ自動で反映しています',
+    desc: 'フクエスの内容を、承認なしで駅ちかへ反映します。反映できない理由があるときは送らずに止め、この画面に出します。',
+    tone: 'text-pink-600',
+  },
   none: {
     title: '連携していません',
     desc: '読み取りも書き込みも行いません。',
@@ -126,6 +133,8 @@ export function MediaLinkPanel({
   const [pushing, setPushing] = useState(false);
   /** 反映ボタンの確認（1回目で確認・2回目で実行） */
   const [confirmPush, setConfirmPush] = useState(false);
+  /** ★ 自動にできる枠（`provider#slot`）。1回目の承認が済んでいるものだけ入る（第48便） */
+  const [autoEligible, setAutoEligible] = useState<Set<string>>(new Set());
 
   const current = rows.find((r) => r.provider === PROVIDER && r.slot === slot) ?? null;
   // ★ すでにいまの版で同意済みの枠は、毎回チェックを求めない
@@ -134,13 +143,16 @@ export function MediaLinkPanel({
   const load = useCallback(async () => {
     if (!salonId) return;
     setLoading(true);
-    const [c, a, p] = await Promise.all([
+    const [c, a, p, e] = await Promise.all([
       getMediaCredentials({ salonId }),
       getMediaAuditRows({ salonId, limit: 30 }),
       getMediaWorkPlan({ salonId, provider: PROVIDER, slot }),
+      getMediaAutoEligible({ salonId }),
     ]);
     if (c.ok) setRows(c.data.rows);
     else onToast(c.error);
+    // ★ 自動にできる枠（第48便）。★ 取れなかったらスイッチを出さないだけ（黙って空にする）
+    setAutoEligible(new Set((e.ok ? e.data : []).filter((x) => x.eligible).map((x) => `${x.provider}#${x.slot}`)));
     if (a.ok) setAudit(a.data);
     // ★ 反映内容は「無い」のが普通の状態（まだ一度も確認していない）。エラーだけ黙らない。
     if (p.ok) setPlan(p.data);
@@ -228,7 +240,7 @@ export function MediaLinkPanel({
    * 連携の向きを変える（第46便）。★ 切り替えただけでは駅ちかへ何も送らない。
    * ★★ read へ戻すときは、フクエスの出勤が駅ちかの内容で上書きされることを先に伝える（§11-4）。
    */
-  const onSwitchMode = async (r: CredRow, mode: 'read' | 'write') => {
+  const onSwitchMode = async (r: CredRow, mode: 'read' | 'write' | 'write_auto') => {
     if (!salonId) return;
     if (mode === 'read') {
       if (!confirm('駅ちかから取り込む向きに戻します。\n\nフクエスの出勤は、次の取り込みで駅ちかの内容に置き換わります。よろしいですか？')) return;
@@ -245,12 +257,25 @@ export function MediaLinkPanel({
         + '変えたあとは「反映内容を確認」→ 内容を見て承認、の順に進みます。よろしいですか？'
       )) return;
     }
+    // ★★★ 自動にする＝【人が見ずに駅ちかを書き換える】に変える。ここは重い門でよい。
+    //   ★ 切り替え（軽い）と違い、これは押した瞬間から効く性質のもの。
+    if (mode === 'write_auto') {
+      if (!confirm(
+        '毎回の承認をやめて、自動で反映するように変えます。\n\n'
+        + '・以降、フクエスの出勤が自動で駅ちかへ反映されます\n'
+        + '・人が見ずに送るため、見張りは厳しくします。止まった回は送りません\n'
+        + '・止まった内容は、この画面でご確認のうえ承認してください\n'
+        + '・3回続けて送れなかったときは、自動をやめて「毎回ご承認」に戻します\n\n'
+        + 'よろしいですか？'
+      )) return;
+    }
     setSwitching(true);
     try {
       const res = await setMediaLinkMode({ salonId, provider: r.provider, slot: r.slot, mode });
       if (!res.ok) { onToast(res.error); return; }
-      onToast(mode === 'write'
-        ? '「フクエスから駅ちかへ反映する」に変更しました。まず「反映内容を確認」を押してください'
+      onToast(
+        mode === 'write_auto' ? '自動で反映するように変更しました'
+        : mode === 'write' ? '「フクエスから駅ちかへ反映する」に変更しました。まず「反映内容を確認」を押してください'
         : '「駅ちかから取り込む」に戻しました');
       setConfirmPush(false);
       await load();
@@ -515,6 +540,8 @@ export function MediaLinkPanel({
                   {LINK_MODE_LABEL[r.linkMode].desc}
                 </p>
                 {/* ★ 切り替え。押しても駅ちかへは何も送らない（送るのは承認ボタンだけ）。 */}
+                {/* ★ write_auto からは直接 read へ戻さない。まず自動をやめてもらう。
+                      ★ 一度に2つ変えると「どちらのつもりで押したのか」が分からなくなる */}
                 {(r.linkMode === 'read' || r.linkMode === 'write') && (
                   <button
                     type="button"
@@ -525,6 +552,29 @@ export function MediaLinkPanel({
                     {r.linkMode === 'read'
                       ? 'フクエスから駅ちかへ反映する向きに変える'
                       : '駅ちかから取り込む向きに戻す'}
+                  </button>
+                )}
+                {/* ★★★ 自動のスイッチ（第48便・設計メモ §54）。
+                      ★ 1回目の承認が済むまで出さない。§32 と同じ作法で、
+                        「立てられない状態を作ってから禁じる」をしない。 */}
+                {r.linkMode === 'write' && autoEligible.has(`${r.provider}#${r.slot}`) && (
+                  <button
+                    type="button"
+                    onClick={() => onSwitchMode(r, 'write_auto')}
+                    disabled={switching || !r.isEnabled}
+                    className="mt-1 ml-1 px-3 py-1 rounded-full border border-slate-300 text-[11px] font-bold text-slate-600 hover:bg-white disabled:opacity-40"
+                  >
+                    毎回の承認をやめて自動にする
+                  </button>
+                )}
+                {r.linkMode === 'write_auto' && (
+                  <button
+                    type="button"
+                    onClick={() => onSwitchMode(r, 'write')}
+                    disabled={switching || !r.isEnabled}
+                    className="mt-1 px-3 py-1 rounded-full border border-slate-300 text-[11px] font-bold text-slate-600 hover:bg-white disabled:opacity-40"
+                  >
+                    自動をやめて毎回ご承認に戻す
                   </button>
                 )}
               </div>
@@ -670,7 +720,8 @@ export function MediaLinkPanel({
           {/* ★★★ 承認して送る。**この画面で唯一、駅ちかを書き換えるボタン。**
               ★ 出すのは「向きが write」かつ「送れる状態」かつ「変えるところがある」ときだけ。
                 §11-5「選ばなかった側を出さない」。read の店にこのボタンは出さない。 */}
-          {plan.sendable && plan.changeCount > 0 && current?.linkMode === 'write' ? (
+          {/* ★ write_auto の枠でも承認ボタンは出す（第48便）。自動が止まった回を人が通せるように */}
+          {plan.sendable && plan.changeCount > 0 && isWriteDirection(current?.linkMode) ? (
             <div className="pt-1 space-y-2">
               {!confirmPush ? (
                 <button
@@ -713,7 +764,7 @@ export function MediaLinkPanel({
             </div>
           ) : (
             <p className="text-[10px] text-slate-400">
-              {current?.linkMode === 'write'
+              {isWriteDirection(current?.linkMode)
                 ? 'この内容は「反映内容を確認」を押すたびに新しくなります。'
                 : '駅ちかへ反映するには、上で「フクエスから駅ちかへ反映する向き」に変えてください。'}
             </p>

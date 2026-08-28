@@ -8,6 +8,7 @@ import { MEDIA_CONSENT_VERSION, needsConsent } from '@/lib/mediaConsent';
 import { recordMediaAudit, listMediaAudit } from '@/app/lib/media/mediaAudit';
 import { startRelayFlow } from '@/app/lib/media/relayFlow';
 import { judgeWriteStall, stallMessage, mediaSlotLabel, type MediaLinkAlert } from '@/lib/mediaLinkStall';
+import { isWriteDirection, isLinkMode, hasApprovedOnce } from '@/lib/mediaLinkMode';
 
 // 他媒体の管理画面ログイン情報の登録（第39便・第3弾の入口）。
 //
@@ -472,12 +473,32 @@ export async function setMediaLinkMode(input: {
   const slot = Math.trunc(Number(input.slot ?? 1));
   const ng = validTarget(input.provider, slot);
   if (ng) return { ok: false, error: ng };
-  if (!['none', 'read', 'write'].includes(input.mode)) return { ok: false, error: '向きの指定が不正です' };
+  if (!isLinkMode(input.mode)) return { ok: false, error: '向きの指定が不正です' };
 
   const guard = await assertSalonOwner(salonId);
   if (!guard.ok) return guard;
 
   const svc = createServiceClient();
+
+  // ★★★ 自動にできるのは「いまの向きになってから1回でも反映が成功している枠」だけ（§54）。
+  //   ★ 画面にもスイッチを出さないが、**画面だけで守らない**。ここでも見る。
+  //     第38便 §17-16 と同じ作法（受け口でも判定する）。
+  if (input.mode === 'write_auto') {
+    const h = await readWriteHistory(svc, salonId, input.provider, slot);
+    if (!hasApprovedOnce(h)) {
+      return {
+        ok: false,
+        error: 'まず1回、画面で内容をご確認のうえ承認してください。自動にできるのはそのあとです',
+      };
+    }
+  }
+
+  const { data: before } = await svc
+    .from('salon_import_sources')
+    .select('link_mode')
+    .eq('salon_id', salonId).eq('provider', input.provider).eq('slot', slot)
+    .maybeSingle();
+
   const { data: updated, error } = await svc
     .from('salon_import_sources')
     .update({ link_mode: input.mode, updated_at: new Date().toISOString() })
@@ -495,7 +516,8 @@ export async function setMediaLinkMode(input: {
   await recordMediaAudit({
     salonId, provider: input.provider, slot,
     event: 'link_mode_changed', outcome: 'ok',
-    detail: { mode: input.mode },
+    // ★ from も残す（第48便）。「どこから来たか」が無いと、あとで区間を数えるのに苦労する
+    detail: { mode: input.mode, from: String(before?.link_mode ?? '') },
     actor: 'shop:' + guard.data.userId,
   });
 
@@ -539,7 +561,8 @@ export async function startMediaWorkPush(input: {
     .select('link_mode')
     .eq('salon_id', salonId).eq('provider', input.provider).eq('slot', slot)
     .maybeSingle();
-  if (!src || String((src as { link_mode?: string }).link_mode) !== 'write') {
+  // ★ write / write_auto のどちらでも受ける（自動の枠でも、人がその場で押せる方が良い）
+  if (!src || !isWriteDirection(String((src as { link_mode?: string }).link_mode))) {
     return { ok: false, error: '「フクエスから駅ちかへ反映する」に切り替えてから実行してください' };
   }
 
@@ -601,6 +624,51 @@ export async function getMediaAuditRows(input: { salonId: string | number; limit
 }
 
 /**
+ * ★★ 監査ログから「最後に書く向きへ切り替えた時刻」と「最後に反映できた時刻」を拾う（第48便）。
+ *
+ * ★ 新しい箱を作らない。第47便の見張りと同じ材料をそのまま使う（設計メモ §54）。
+ * ★ 追記専用の監査ログなので、消えることはあっても書き換わることはない。
+ */
+async function readWriteHistory(
+  svc: ReturnType<typeof createServiceClient>,
+  salonId: number,
+  provider: string,
+  slot: number,
+): Promise<{ switchedToWriteAt: string | null; lastWriteOkAt: string | null }> {
+  const { data } = await svc
+    .from('salon_media_audit')
+    .select('event, outcome, detail, created_at')
+    .eq('salon_id', salonId).eq('provider', provider).eq('slot', slot)
+    .in('event', ['link_mode_changed', 'write_work'])
+    .order('created_at', { ascending: false })
+    .limit(100);
+
+  // ★★★ 欲しいのは「いまの書く向きが、いつ始まったか」。
+  //   ★ write → write_auto の切り替えで【1回目の承認をやり直させない】ため、
+  //     直前の書く向きへの切り替えではなく、**書く向きが連続している区間の先頭**を取る。
+  //     危ないのは read/none から来たときだけ（§11-3）。向きの中での模様替えは危なくない。
+  //   → 新しい順に見て、書く向き以外の切り替えに当たったら、そこで打ち切る。
+  let switchedToWriteAt: string | null = null;
+  let lastWriteOkAt: string | null = null;
+  let leftWrite = false;
+  for (const r of data ?? []) {
+    const at = String(r.created_at);
+    if (r.event === 'write_work' && r.outcome === 'ok') {
+      if (lastWriteOkAt === null) lastWriteOkAt = at;   // 新しい順なので最初の1件が最新
+      continue;
+    }
+    if (r.event !== 'link_mode_changed' || leftWrite) continue;
+    const mode = (r.detail as { mode?: unknown } | null)?.mode;
+    if (mode === 'write' || mode === 'write_auto') {
+      switchedToWriteAt = at;      // ★ さらに古い書く向きの切り替えがあれば、そちらで上書きされる
+    } else {
+      leftWrite = true;            // ★ ここで書く向きが途切れている。これ以上さかのぼらない
+    }
+  }
+  return { switchedToWriteAt, lastWriteOkAt };
+}
+
+/**
  * ★★★ 「書き込みの向きにしたまま止まっている枠」を返す（第47便）。
  *
  * ★ 追記11 §32 の裏返し。向きを write にすると取り込みが止まるので、
@@ -622,7 +690,7 @@ export async function getMediaLinkAlerts(input: { salonId: string | number }): P
     .from('salon_import_sources')
     .select('provider, slot, link_mode')
     .eq('salon_id', salonId)
-    .eq('link_mode', 'write');
+    .in('link_mode', ['write', 'write_auto']);   // ★ 自動の枠も止まりうる（第48便）
   if (srcErr) return { ok: false, error: '連携の状態を確認できませんでした' };
   if (!sources || sources.length === 0) return { ok: true, data: [] };
 
@@ -668,4 +736,37 @@ export async function getMediaLinkAlerts(input: { salonId: string | number }): P
     alerts.push({ provider, slot, reason: verdict.reason, elapsedHours: verdict.elapsedHours, message });
   }
   return { ok: true, data: alerts };
+}
+
+/**
+ * ★ 「自動にできる枠」を返す（第48便）。画面のスイッチを出すかどうかの判定に使う。
+ *
+ * ★★ 画面だけで守らない。setMediaLinkMode 側でも同じ判定をしている（§54）。
+ *   ここは**出す／出さない**を決めるだけ。守りは受け口側。
+ */
+export async function getMediaAutoEligible(input: { salonId: string | number }): Promise<
+  Result<Array<{ provider: string; slot: number; eligible: boolean }>>
+> {
+  const salonId = Number(input.salonId);
+  if (!Number.isFinite(salonId)) return { ok: false, error: '店舗の指定が不正です' };
+  const guard = await assertSalonOwner(salonId);
+  if (!guard.ok) return guard;
+
+  const svc = createServiceClient();
+  const { data: sources, error } = await svc
+    .from('salon_import_sources')
+    .select('provider, slot, link_mode')
+    .eq('salon_id', salonId);
+  if (error) return { ok: false, error: '連携の状態を確認できませんでした' };
+
+  const out: Array<{ provider: string; slot: number; eligible: boolean }> = [];
+  for (const s of sources ?? []) {
+    const provider = String(s.provider);
+    const slot = Number(s.slot);
+    // ★ 書く向きの枠だけ見る。read/none の枠に自動の話は出さない（§11-5「選ばなかった側を出さない」）
+    if (!isWriteDirection(String(s.link_mode))) { out.push({ provider, slot, eligible: false }); continue; }
+    const h = await readWriteHistory(svc, salonId, provider, slot);
+    out.push({ provider, slot, eligible: hasApprovedOnce(h) });
+  }
+  return { ok: true, data: out };
 }
