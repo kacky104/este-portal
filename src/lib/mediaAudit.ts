@@ -18,6 +18,7 @@ export const MEDIA_AUDIT_EVENTS = [
   'credential_deleted',  // 登録そのものを消した
   'login',               // 媒体にログインした
   'read_work',           // 出勤を読んだ
+  'plan_work',           // ★ 試し打ち。送るとどうなるかを組み立てただけ（第43便）
   'write_work',          // 出勤を書き換えた
   'verify_work',         // 書き換えた結果を照合した
   'relay_gave_up',       // 3回失敗したので諦めた
@@ -170,6 +171,15 @@ export function defaultAuditSummary(input: {
         ? `${t}の出勤を読み取りました` + (people !== null ? `（在籍${people}人）` : '')
         : `${t}の出勤を読み取れませんでした`;
       break;
+    case 'plan_work': {
+      // ★★ 「送った」と読める文にしないこと。これは【送っていない】記録。
+      const changes = count(d, 'changes');
+      s = input.outcome === 'ok'
+        ? `${t}へ反映する内容を確認しました（まだ送っていません` +
+          (changes !== null ? `。変更 ${changes}件` : '') + `）`
+        : `${t}へ反映する内容を確認し、送らずに止めました`;
+      break;
+    }
     case 'write_work':
       s = input.outcome === 'ok'
         ? `${t}の出勤を更新しました` + (changed !== null ? `（${changed}人ぶんを変更）` : '')

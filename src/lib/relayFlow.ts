@@ -24,7 +24,7 @@
 //   ログイン失敗の再送ではない。ID/PWが違うまま3回投げると相手のアカウントが凍る（設計メモ §17-1）。
 //   → ここが 'stop' を返したら、そのフローは終わり。人が直すまで再開しない。
 
-import { parseWorkPage, checkWorkPage, encodePayload } from './ekichikaWorkParse';
+import { parseWorkPage, checkWorkPage, encodePayload, type WorkPage } from './ekichikaWorkParse';
 import { mergeCookies } from './relayJob';
 import type { AuditDetail, MediaAuditEvent, MediaAuditOutcome } from './mediaAudit';
 
@@ -45,7 +45,14 @@ export const RELAY_FLOW_VERSION = 1;
  * このフローが何をしに来たか。
  * ★ 増やすときは advanceFlow の switch がコンパイルエラーになる（末尾の never で見張っている）。
  */
-export type RelayFlowIntent = 'connect_test';
+export type RelayFlowIntent =
+  /** ログイン＋出勤の読み取りまで。★ 駅ちかを書き換えない */
+  | 'connect_test'
+  /**
+   * ★★★ 試し打ち（第43便）。読んだうえで「送るとこうなる」を組み立てて終わる。
+   *   ★ **送らない。** 設計メモ §11-3「切り替え直後の1回目は必ず試し打ち → 人が承認」。
+   */
+  | 'work_dryrun';
 
 /**
  * 段と段のあいだで持ち回す状態。
@@ -82,7 +89,14 @@ export type FlowNextRequest = {
 export type FlowOutcome =
   | { kind: 'next'; next: FlowNextRequest; audits: FlowAudit[]; note: string }
   | { kind: 'done'; audits: FlowAudit[]; note: string }
-  | { kind: 'stop'; audits: FlowAudit[]; note: string };
+  | { kind: 'stop'; audits: FlowAudit[]; note: string }
+  /**
+   * ★★★ 読めた。ここから先は【DBを読まないと決められない】（第43便）。
+   *   フクエスの出勤は DB にあり、このファイルは DB を触らない約束なので、
+   *   ページを持ったまま呼び出し側へ返す。★ 判断そのものは workPlan.ts（これも純粋関数）が持つ。
+   *   ★ ここで「次のジョブ」を返さないのが大事: **返さない＝駅ちかへ何も飛ばない。**
+   */
+  | { kind: 'plan_work'; page: WorkPage; audits: FlowAudit[]; note: string };
 
 // ────────────────────────── フローの入口（login を組み立てる） ──────────────────────────
 
@@ -223,8 +237,8 @@ export function advanceFlow(input: {
       return afterReadWork(input, ctx);
     case 'write_work':
     case 'verify_work':
-      // ★ 第41便では積まないので、ここへは来ない。来たら黙って進めない
-      return stop([], 'この便では書き込みの段を扱わない（第42便）: ' + input.purpose);
+      // ★ 第43便でも積まない（試し打ちまで）。来たら黙って進めない
+      return stop([], 'この便では書き込みの段を扱わない（第44便）: ' + input.purpose);
     default:
       return stop([], '知らない段: ' + String(input.purpose));
   }
@@ -360,7 +374,7 @@ function afterReadWork(
         detail: { people: page.girls.length, days: page.dateLabels.length, flowId },
       },
     ];
-    return finishRead(audits, ctx);
+    return finishRead(audits, ctx, page);
   }
 
   // ★ 読めなかった。ここで初めて「ログイン画面が返ったのか」を疑う
@@ -401,7 +415,7 @@ function afterReadWork(
 }
 
 /** 読み取りまで成功したあと、intent ごとに次を決める。 */
-function finishRead(audits: FlowAudit[], ctx: RelayFlowContext): FlowOutcome {
+function finishRead(audits: FlowAudit[], ctx: RelayFlowContext, page: WorkPage): FlowOutcome {
 
   switch (ctx.intent) {
     case 'connect_test':
@@ -409,6 +423,13 @@ function finishRead(audits: FlowAudit[], ctx: RelayFlowContext): FlowOutcome {
         kind: 'done',
         audits,
         note: '接続テストに成功した（ログイン＋出勤ページの読み取りまで。書き換えはしていない）',
+      };
+    case 'work_dryrun':
+      return {
+        kind: 'plan_work',
+        page,
+        audits,
+        note: '出勤ページを読めた。★ ここでフクエスの出勤と突き合わせる（送らない）',
       };
     default: {
       // ★★ intent を増やしたらここがコンパイルエラーになる。

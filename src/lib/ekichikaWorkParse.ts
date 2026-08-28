@@ -70,6 +70,16 @@ export type WorkPage = {
   /** 画面に出ている日別の出勤人数。必ず 7 件。★ 照合の第2の目 */
   headerCounts: number[];
   girls: GirlWork[];
+  /**
+   * ★★★ 時刻の選択肢（先頭の select が持つ option の value を出現順で）。第43便。
+   *   駅ちかの時刻は自由入力ではなく **プルダウン**。選択肢に無い値を送ったとき、
+   *   相手が弾くのか・黙って無視するのか・別の値に丸めるのかは **未確認**。
+   *   → ★ 相手の挙動に賭けない。**こちらで選択肢を読んで、外れる時刻は送らない**
+   *     （第38便 §17-16 の max_input_vars と同じ作法）。
+   *   ★ 全部の select を舐めない（実測 518個）。先頭1つだけ読み、他も同じとみなす。
+   *     ★ この「同じとみなす」は仮定。破れたら checkWorkPage ではなく送信後の照合で出る。
+   */
+  timeOptions: string[];
 };
 
 export type WorkChange = {
@@ -215,9 +225,17 @@ export function parseWorkPage(html: string): WorkPage {
   const selectRe =
     /<select\b[^>]*name="girl_work\[(\d+)\]\[(\d)\]\[(start_time|end_time)\]"[^>]*>(.*?)<\/select>/g;
   let sm: RegExpExecArray | null;
+  const timeOptions: string[] = [];
   while ((sm = selectRe.exec(h)) !== null) {
     const day = Number(sm[2]);
     if (day < 0 || day >= WORK_DAYS) continue;
+    // ★ 選択肢は先頭の select から1回だけ拾う（第43便）。518個ぶん舐める意味は無い。
+    if (timeOptions.length === 0) {
+      for (const o of sm[4].match(/<option\b[^>]*>/g) ?? []) {
+        const v = attr(o, 'value');
+        if (v !== null && v !== '') timeOptions.push(v);
+      }
+    }
     const g = ensure(sm[1]);
     const value = selectedOptionValue(sm[4]);
     if (sm[3] === 'start_time') g.days[day].start = value;
@@ -247,7 +265,7 @@ export function parseWorkPage(html: string): WorkPage {
     }
   }
 
-  return { csrfToken, action, dateLabels, headerCounts, girls: [...byId.values()] };
+  return { csrfToken, action, dateLabels, headerCounts, girls: [...byId.values()], timeOptions };
 }
 
 // ────────────────────── 送る前に止める（assert 系） ──────────────────────
@@ -271,6 +289,9 @@ export function checkWorkPage(page: WorkPage): string[] {
     problems.push('日別出勤人数が ' + page.headerCounts.length + ' 件（' + WORK_DAYS + ' 件のはず）');
   }
   if (page.girls.length === 0) problems.push('女性が1人も取れていない');
+  // ★ 選択肢が0件＝select の中身を読めていない。読めないまま送ると、送れない時刻を
+  //   送れると思い込むことになる（第43便）。
+  if (page.timeOptions.length === 0) problems.push('時刻の選択肢が1つも取れていない');
   for (const g of page.girls) {
     if (g.days.length !== WORK_DAYS) {
       problems.push(g.girlId + ': 日数が ' + g.days.length + ' 件');

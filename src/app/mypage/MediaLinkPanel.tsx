@@ -13,6 +13,7 @@ import {
   deleteMediaCredential,
   getMediaAuditRows,
   startMediaConnectionTest,
+  startMediaWorkDryRun,
 } from '@/app/actions/mediaCredentials';
 
 // mypage「媒体連携」タブ（第39便・第3弾の入口）。
@@ -84,6 +85,8 @@ export function MediaLinkPanel({
   const [confirmDelete, setConfirmDelete] = useState<number | null>(null);
   /** 接続テストを投げた枠。★ 押しっぱなしの二度押しを止めるだけ（結果は履歴に出る） */
   const [testing, setTesting] = useState<number | null>(null);
+  /** 試し打ちを投げた枠（第43便）。★ こちらも結果は履歴に出る */
+  const [planning, setPlanning] = useState<number | null>(null);
 
   const current = rows.find((r) => r.provider === PROVIDER && r.slot === slot) ?? null;
   // ★ すでにいまの版で同意済みの枠は、毎回チェックを求めない
@@ -157,6 +160,24 @@ export function MediaLinkPanel({
       await load();
     } finally {
       setTesting(null);
+    }
+  };
+
+  /**
+   * 試し打ち（第43便）。★ 読むだけ。駅ちかへは送らない。
+   * ★★ 文言で「送った」と読めないようにすること。ここが崩れると
+   *   「押したから反映された」と思われる＝いちばん危ない誤解になる。
+   */
+  const onDryRun = async (r: CredRow) => {
+    if (!salonId) return;
+    setPlanning(r.slot);
+    try {
+      const res = await startMediaWorkDryRun({ salonId, provider: r.provider, slot: r.slot });
+      if (!res.ok) { onToast(res.error); return; }
+      onToast('確認を受け付けました。数分後に下の「連携の記録」でご確認ください（まだ送っていません）');
+      await load();
+    } finally {
+      setPlanning(null);
     }
   };
 
@@ -346,6 +367,14 @@ export function MediaLinkPanel({
                 </button>
                 <button
                   type="button"
+                  onClick={() => onDryRun(r)}
+                  disabled={!r.hasPassword || !r.isEnabled || planning === r.slot}
+                  className="px-3 py-1 rounded-full border border-pink-200 text-[11px] font-bold text-pink-500 hover:bg-pink-50 disabled:opacity-40"
+                >
+                  {planning === r.slot ? '確認中…' : '反映内容を確認'}
+                </button>
+                <button
+                  type="button"
                   onClick={() => onToggle(r)}
                   className="px-3 py-1 rounded-full border border-slate-200 text-[11px] font-bold text-slate-500 hover:text-slate-700"
                 >
@@ -384,6 +413,12 @@ export function MediaLinkPanel({
             <p className="text-[10px] text-slate-400">
               接続テストは駅ちかにログインして出勤ページを1回読むだけです。出勤内容は書き換えません。
               結果は少し経ってから下の記録に出ます。
+            </p>
+            {/* ★ 「反映内容を確認」も読むだけであることを、押す場所のそばに書く。
+                ★★ 「確認」という言葉は「実行」と誤読されやすい。**送らない**と明記する */}
+            <p className="text-[10px] text-slate-400">
+              「反映内容を確認」は、フクエスの出勤を駅ちかへ反映したら何がどう変わるかを調べるだけです。
+              <span className="text-pink-500 font-bold">駅ちかへは送りません。</span>
             </p>
           </div>
         ))}

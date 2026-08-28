@@ -6,7 +6,8 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "check:workplan": "tsc src/lib/workPlan.ts --outDir _tmpcheck --module commonjs --target ES2020 --strict --skipLibCheck --esModuleInterop && node scripts/workplan-selftest.js"
   },
   "dependencies": {
     "@supabase/ssr": "^0.12.0",

@@ -321,6 +321,54 @@ export async function startMediaConnectionTest(input: {
 }
 
 /**
+ * ★★★ 試し打ち（第43便）。「いまフクエスの出勤を駅ちかへ反映したら、何がどう変わるか」を
+ *   組み立てて記録に残すだけ。★★ **駅ちかへは1文字も送らない。**
+ *
+ * ★ 接続テストとの違いは、読んだあとフクエス側と突き合わせるところまで進むこと。
+ *   ★ どちらも【読むだけ】なので、何度押しても店舗に影響が無い。
+ *
+ * ★★ 設計メモ §11-3: 読み取り→書き込みへ切り替えた直後の1回目は、
+ *   必ず試し打ちで差分を見せ、人が承認してから送る。その「差分を見せる」側がこれ。
+ *   ★ 送る側（承認して実際に書く）は第44便。ここにはまだ無い。
+ */
+export async function startMediaWorkDryRun(input: {
+  salonId: string | number; provider: string; slot?: number;
+}): Promise<Result<{ jobId: string; note: string }>> {
+  const salonId = Number(input.salonId);
+  if (!Number.isFinite(salonId)) return { ok: false, error: '店舗の指定が不正です' };
+  const slot = Math.trunc(Number(input.slot ?? 1));
+  const ng = validTarget(input.provider, slot);
+  if (ng) return { ok: false, error: ng };
+
+  const guard = await assertSalonOwner(salonId);
+  if (!guard.ok) return guard;
+
+  const svc = createServiceClient();
+  const { data: row } = await svc
+    .from('salon_media_credentials')
+    .select('consent_version')
+    .eq('salon_id', salonId).eq('provider', input.provider).eq('slot', slot)
+    .maybeSingle();
+  if (!row) return { ok: false, error: 'ログイン情報が登録されていません' };
+  if (needsConsent(row.consent_version as string | null)) {
+    return { ok: false, error: '連携の説明に同意してから実行してください' };
+  }
+
+  try {
+    const r = await startRelayFlow({
+      salonId, provider: input.provider, slot,
+      intent: 'work_dryrun',
+      actor: 'shop:' + guard.data.userId,
+    });
+    if (!r.ok) return { ok: false, error: r.note };
+    return { ok: true, data: { jobId: r.jobId, note: r.note } };
+  } catch (e) {
+    console.error('[media] 試し打ちを始められなかった', (e as Error).message);
+    return { ok: false, error: '確認を開始できませんでした。時間をおいてお試しください' };
+  }
+}
+
+/**
  * この店舗の連携の記録を返す（画面の「履歴」）。
  * ★★ listMediaAudit は service_role で読む。salonId は必ずオーナー検証を通したものを渡す。
  */

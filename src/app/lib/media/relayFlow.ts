@@ -25,6 +25,9 @@ import {
   type RelayFlowContext,
   type RelayFlowIntent,
 } from '@/lib/relayFlow';
+import { loadCastIds } from '@/lib/mediaCastIds';
+import { addDaysISO, buildWorkPlan, summarizePlan, type FukuesShift } from '@/lib/workPlan';
+import { WORK_DAYS, type WorkPage } from '@/lib/ekichikaWorkParse';
 
 /** いまフローを組み立てられる媒体。★ 増やすときは buildLoginRequest 側も要る */
 const SUPPORTED_PROVIDERS = ['ekichika'] as const;
@@ -133,12 +136,27 @@ export async function advanceRelayFlow(params: {
     context,
   });
 
-  await writeAudits(params, outcome.audits, context);
+  const audits: FlowAudit[] = [...outcome.audits];
+  let note = outcome.note;
+
+  // ★★★ 試し打ち（第43便）。ここで初めて DB を読む。
+  //   純粋関数側（advanceFlow）は「読めた。あとは突き合わせ」までしか言わない。
+  //   ★ この枝は **次のジョブを積まない** ＝ 駅ちかへ何も飛ばない。
+  if (outcome.kind === 'plan_work') {
+    const r = await planWorkDryRun(params, outcome.page);
+    audits.push(r.audit);
+    note = outcome.note + ' → ' + r.note;
+  }
+
+  await writeAudits(params, audits, context);
 
   // ★ 接続テストの結果を、店舗が画面で見られる形にも残す（last_verified_at / last_error）
-  await stampCredential(params, outcome.kind, outcome.audits);
+  // ★★ 試し打ちは 'done' として扱う。**ログインと読み取りは実際に成功している**ので、
+  //   認証情報は健全。計画が止まったことは last_error（＝認証の話）ではなく監査ログに残す。
+  //   ここを 'stop' にすると「ログイン情報がおかしい」と読める文が店舗の画面に出てしまう。
+  await stampCredential(params, outcome.kind === 'plan_work' ? 'done' : outcome.kind, audits);
 
-  if (outcome.kind !== 'next') return { note: outcome.note };
+  if (outcome.kind !== 'next') return { note };
 
   const next = outcome.next;
   const r = await enqueueRelayJob({
@@ -160,6 +178,112 @@ export async function advanceRelayFlow(params: {
     return { note: '次の段（' + next.purpose + '）を積めなかった: ' + r.detail };
   }
   return { note: outcome.note + ' → 次に ' + next.purpose + ' を積んだ' };
+}
+
+/**
+ * ★★★ 試し打ちの本体（第43便）。
+ *   駅ちかから読んだページ ＋ フクエスの出勤 → 「送るとこうなる」を組み立てるだけ。
+ *   ★ 送らない。積まない。**この関数の出口に駅ちかへの通信は無い。**
+ *
+ * ★ 7日窓の起点は【こちらの今日（Asia/Tokyo）】。
+ *   駅ちか側の先頭がこことずれていたら buildWorkPlan が date_shifted で止める。
+ */
+async function planWorkDryRun(
+  params: { salonId: number; provider: string; slot: number },
+  page: WorkPage,
+): Promise<{ audit: FlowAudit; note: string }> {
+  const supabase = createServiceClient();
+  const todayISO = new Date(Date.now() + 9 * 60 * 60 * 1000).toISOString().slice(0, 10); // Asia/Tokyo
+
+  const { data: therapists, error: thErr } = await supabase
+    .from('therapists')
+    .select('id, import_cast_id')
+    .eq('salon_id', params.salonId);
+  if (thErr) {
+    return {
+      audit: {
+        event: 'plan_work',
+        outcome: 'failed',
+        summary: '反映する内容を組み立てられませんでした（フクエス側の読み取りに失敗）',
+        detail: { reason: 'therapists_read_failed' },
+      },
+      note: 'セラピストを読めなかった: ' + thErr.message,
+    };
+  }
+
+  const rows = (therapists ?? []) as Array<{ id: number; import_cast_id?: string | null }>;
+  const { maps, error: castErr } = await loadCastIds(supabase, {
+    therapists: rows,
+    provider: params.provider,
+    slot: params.slot,
+  });
+  if (castErr) {
+    return {
+      audit: {
+        event: 'plan_work',
+        outcome: 'failed',
+        summary: '反映する内容を組み立てられませんでした（媒体の番号を読めませんでした）',
+        detail: { reason: 'cast_ids_read_failed' },
+      },
+      note: '媒体IDを読めなかった: ' + castErr,
+    };
+  }
+
+  // ★ null を落として「番号が分かっている子」だけにする。
+  //   null のまま渡すと「番号がある」と誤解する形になる（型で防ぐ）。
+  const castIdOf = new Map<number, string>();
+  for (const [tid, cid] of maps.castIdOf) if (cid) castIdOf.set(tid, cid);
+
+  const ids = rows.map((t) => t.id);
+  const lastISO = addDaysISO(todayISO, WORK_DAYS - 1);
+  const { data: sched, error: schErr } = ids.length
+    ? await supabase
+        .from('therapist_schedules')
+        .select('therapist_id, schedule_date, is_active, start_time, end_time')
+        .in('therapist_id', ids)
+        .gte('schedule_date', todayISO)
+        .lte('schedule_date', lastISO)
+    : { data: [] as unknown[], error: null };
+  if (schErr) {
+    return {
+      audit: {
+        event: 'plan_work',
+        outcome: 'failed',
+        summary: '反映する内容を組み立てられませんでした（出勤の読み取りに失敗）',
+        detail: { reason: 'schedules_read_failed' },
+      },
+      note: '出勤を読めなかった: ' + schErr.message,
+    };
+  }
+
+  const shifts: FukuesShift[] = ((sched ?? []) as Array<Record<string, unknown>>).map((r) => ({
+    therapistId: r['therapist_id'] as number,
+    dateISO: String(r['schedule_date']),
+    active: r['is_active'] === true,
+    start: typeof r['start_time'] === 'string' ? r['start_time'].slice(0, 5) : null,
+    end: typeof r['end_time'] === 'string' ? r['end_time'].slice(0, 5) : null,
+  }));
+
+  const plan = buildWorkPlan({ page, todayISO, shifts, castIdOf });
+  const s = summarizePlan(plan);
+
+  return {
+    audit: {
+      event: 'plan_work',
+      // ★ 止めたことは 'failed'（こちらの不具合）ではなく 'stopped'（判断して止めた）
+      outcome: plan.ok ? 'ok' : 'stopped',
+      summary: s.summary,
+      detail: s.detail,
+    },
+    note:
+      '試し打ちを組み立てた（送っていない）: 変更' +
+      plan.changes.length +
+      '件 / 送信項目' +
+      plan.fieldCount +
+      '件 / 止めた理由' +
+      plan.blockers.length +
+      '件',
+  };
 }
 
 async function writeAudits(
