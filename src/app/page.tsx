@@ -30,6 +30,8 @@ import { ArticleCard } from "./column/ArticleCard";
 import { HomeSearchBar } from "./components/HomeSearchBar";
 import { SiteNoticeBanner } from '@/app/components/SiteNoticeBanner';
 import { SiteFooter } from '@/app/components/SiteFooter';
+import { getAllApprovedReviews } from "./lib/reviews";
+import { LatestReviewsBlock } from "./components/LatestReviewsBlock";
 
 // TOPの WebSite 構造化データ（サイト名のリッチリザルト狙い）。
 // サイト内検索ページが無いため potentialAction (SearchAction) は入れない。
@@ -65,7 +67,7 @@ export default async function Home() {
 
   // ── 互いに依存しない3処理を並列実行（往復の積み上がりを解消） ──
   // ピックアップは area=null の共通セット（＝トップ用）。地域ページは各エリアの設定を使う。
-  const [salons, featuredSalons, todaySchedRes, recommendedBanners, newFaceTherapists, pickupBanners, salonNews, latestColumns] = await Promise.all([
+  const [salons, featuredSalons, todaySchedRes, recommendedBanners, newFaceTherapists, pickupBanners, salonNews, latestColumns, allReviews] = await Promise.all([
     fetchSalons(supabase, { showOnTopOnly: true }), // トップは show_on_top=true のみ表示
     getFeaturedSalons(supabase, null),
     supabase
@@ -86,7 +88,15 @@ export default async function Home() {
     fetchLatestSalonNews(supabase, 5),
     // 本体コラム新着3件（FAQ直上のセクション）。0件なら非表示。/jobs トップの新着コラムと同方式。
     fetchPublishedMainArticles(3),
+    // 新着の口コミ（スマホ=FAQ直下 / PC=右カラム）。0件なら非表示。
+    // ★ /reviews と同じ関数を使う＝公開ルール（非表示店・非在籍セラピストを除く）が自動で揃う。
+    // ★ 40件取るのは、この関数が「新着40件を取ってから公開フィルタ」する形だから。
+    //   3件だけ取ると、非公開の口コミが混ざっていたときに3件に満たなくなる。
+    getAllApprovedReviews(40),
   ]);
+
+  // TOPに出すのは先頭3件だけ。続きは /reviews。
+  const topReviews = allReviews.slice(0, 3);
 
   const todaySchedules = todaySchedRes.data;
 
@@ -259,6 +269,10 @@ export default async function Home() {
           {/* スマホは左右余白を px-4(16px)→px-1(4px) に詰めてカードを幅広に。PC(lg)は従来の16pxのまま。 */}
           <div className="max-w-5xl mx-auto px-1 lg:px-4">
             {/* 地域バッジ列を最上部に出し、その下に見出し＋説明文→カード（heading で順序制御） */}
+            {/* ★ sideNode: PCの右カラム（旧「PRこの枠は準備中です」）を新着口コミに差し替える。
+                ★ 0件のときは undefined を渡す＝ShuffledSalons 側が元の「準備中」に戻る。
+                  ここで <LatestReviewsBlock/> を常に渡してはいけない。中で null を返しても
+                  【要素そのものは truthy】なので、?? のフォールバックが効かず枠が消える。 */}
             <ShuffledSalons
               salons={withBumpedFirst(weightedShuffleEvery6h(salons, 'home', (s) => (s.cardBoost ? CARD_BOOST_WEIGHT : 1)))}
               areas={[...AREA_ORDER]}
@@ -273,6 +287,7 @@ export default async function Home() {
               nameBanner
               wideDesktop
               mobileSingleColumn
+              sideNode={topReviews.length > 0 ? <LatestReviewsBlock reviews={topReviews} variant="sidebar" /> : undefined}
               bleedTherapists
               largeThumbs
               insertBlocks={[
@@ -440,7 +455,11 @@ export default async function Home() {
               </details>
             </section>
 
-            {/* ─── 福岡のメンズエステ店一覧（/salons）への導線（FAQ直下）───
+            {/* ─── 新着の口コミ（スマホのみ・よくある質問の直下）───
+                PCは右カラム（ShuffledSalons の sideNode）に出しているので lg では隠す＝二重に出さない。 */}
+            <LatestReviewsBlock reviews={topReviews} variant="section" />
+
+            {/* ─── 福岡のメンズエステ店一覧（/salons）への導線 ───
                 見出しは無し。中央の丸ボタンのみで /salons へ内部リンク。 */}
             <section className="mt-12">
               <div className="flex justify-center">

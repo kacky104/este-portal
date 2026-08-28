@@ -571,7 +571,7 @@ function SalonCardSkeleton() {
 
 // ── ShuffledSalons ────────────────────────────────────────────
 
-export function ShuffledSalons({ salons, areas, showAge = false, areaNextToDuty = false, ratingAtBottom = false, compactTherapists = false, showSaveButton = false, wideDesktop = false, mobileSingleColumn = false, bleedTherapists = false, largeThumbs = false, nameBanner = false, tabsAsLinks = false, currentArea, includeDispatch = false, heading, showAreaTitle = false, insertBlocks }: { salons: Salon[]; areas: string[]; showAge?: boolean; areaNextToDuty?: boolean; ratingAtBottom?: boolean; compactTherapists?: boolean; showSaveButton?: boolean; wideDesktop?: boolean; mobileSingleColumn?: boolean; bleedTherapists?: boolean; largeThumbs?: boolean; nameBanner?: boolean; tabsAsLinks?: boolean; currentArea?: string; includeDispatch?: boolean; heading?: React.ReactNode; showAreaTitle?: boolean; insertBlocks?: { afterIndex: number; node: React.ReactNode; zoom?: boolean }[] }) {
+export function ShuffledSalons({ salons, areas, showAge = false, areaNextToDuty = false, ratingAtBottom = false, compactTherapists = false, showSaveButton = false, wideDesktop = false, mobileSingleColumn = false, bleedTherapists = false, largeThumbs = false, nameBanner = false, tabsAsLinks = false, currentArea, includeDispatch = false, heading, showAreaTitle = false, insertBlocks, sideNode }: { salons: Salon[]; areas: string[]; showAge?: boolean; areaNextToDuty?: boolean; ratingAtBottom?: boolean; compactTherapists?: boolean; showSaveButton?: boolean; wideDesktop?: boolean; mobileSingleColumn?: boolean; bleedTherapists?: boolean; largeThumbs?: boolean; nameBanner?: boolean; tabsAsLinks?: boolean; currentArea?: string; includeDispatch?: boolean; heading?: React.ReactNode; showAreaTitle?: boolean; insertBlocks?: { afterIndex: number; node: React.ReactNode; zoom?: boolean }[]; sideNode?: React.ReactNode }) {
   // 並び順は呼び出し元（RSC）で確定済みのものをそのまま使う（2026-07-26変更）。
   // 従来は「初期 list=[] ＋ mount時の useEffect シャッフル」だったが、初期HTMLがスケルトンになり
   // SEO（Googlebot のJSレンダリング第2波待ち）に不利だった。シャッフルは決定的（6時間シード）なので
@@ -768,7 +768,12 @@ export function ShuffledSalons({ salons, areas, showAge = false, areaNextToDuty 
                 className="w-full h-auto"
               />
             </Link>
-            {/* 既存「PRこの枠は準備中です」ブロック（中身・見た目とも不変。flex-1 で残り高さを埋める）。 */}
+            {/* 右カラムの中身。sideNode が渡されていればそれを、無ければ従来の
+                「PRこの枠は準備中です」を出す＝渡さないページ（エリアページ等）は何も変わらない。
+                ★ 呼び出し側は「出すものが無いとき」に undefined を渡すこと。
+                  中で null を返すコンポーネントを常に渡すと、要素そのものは truthy なので
+                  ここのフォールバックが効かず【枠ごと消える】。 */}
+            {sideNode ?? (
             <aside className="flex-1 flex flex-col rounded-2xl border border-pink-100 bg-gradient-to-b from-pink-50 via-white to-fuchsia-50/40 overflow-hidden shadow-sm">
               <div className="p-6 text-center">
                 <div className="w-12 h-12 mx-auto rounded-full bg-white border border-pink-200 flex items-center justify-center shadow-sm mb-3">
@@ -778,6 +783,7 @@ export function ShuffledSalons({ salons, areas, showAge = false, areaNextToDuty 
                 <p className="text-[11px] text-slate-400 leading-relaxed">この枠は準備中です</p>
               </div>
             </aside>
+            )}
           </div>
         </div>
       </>
