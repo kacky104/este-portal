@@ -101,23 +101,40 @@ export function newFlowContext(input: {
 }
 
 /**
+ * ★★★ 送信ボタンの value（2026-08-28 実機確認）。
+ *   空で送ると「ボタンを押していない」扱いになり、ログイン画面がそのまま返る。
+ *   ★ 実際にそれで3回失敗した。**空に戻さないこと。**
+ */
+export const EKICHIKA_LOGIN_SUBMIT_VALUE = 'ログイン';
+
+/**
  * ログインの POST を組み立てる。
- * ★★ 預かるのは3点（shopid / email / password）。2点だと思って作ると1つ落ちる（設計メモ §17-9）。
- * ★ submit の値は実機で未確認。空で通らなかったら、まずここを疑うこと。
+ *
+ * ★★★ 2026-08-28 の訂正 — 送るのは【2点】。設計メモ §17-9 の「3点」は誤りだった。
+ *   実機のログイン画面を読んだ結果:
+ *     <form> の中にあるのは email / password / submit の3つだけ。
+ *     ★ `shopid` は hidden で存在するが **<form> の外（body直下）** にあり、
+ *       ブラウザは送っていない（値も空）。
+ *   ★ 誤りの原因: HTML を検索して `name="shopid"` を見つけただけで
+ *     「フォームの項目」と判断した。**送られるかどうかは form の中にあるかで決まる。**
+ *   → こちらが余計に shopid を送っていた。ブラウザと同じものだけ送る。
+ *
+ * ★ shopId は引数に残してあるが**送らない**（DBには保管し続ける。画面に出して
+ *   「どのアカウントを登録したか」を店舗が確かめるために使う）。
  */
 export function buildLoginRequest(cred: {
-  shopId: string;
+  shopId?: string;
   loginId: string;
   password: string;
 }): { method: 'POST'; url: string; headers: Record<string, string>; body: string } {
-  if (!cred.shopId || !cred.loginId || !cred.password) {
-    throw new Error('ログインに要る3点（shopid / email / password）のどれかが空');
+  if (!cred.loginId || !cred.password) {
+    throw new Error('ログインに要る2点（ログインID / パスワード）のどちらかが空');
   }
+  // ★ 並びもブラウザと同じにする（email → password → submit）
   const body = encodePayload([
     ['email', cred.loginId],
     ['password', cred.password],
-    ['shopid', cred.shopId],
-    ['submit', ''],
+    ['submit', EKICHIKA_LOGIN_SUBMIT_VALUE],
   ]);
   return {
     method: 'POST',

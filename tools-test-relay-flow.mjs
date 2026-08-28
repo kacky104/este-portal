@@ -90,23 +90,27 @@ function events(outcome) {
 
 // ────────────────────────── ログインの組み立て ──────────────────────────
 
-test('ログインは3点（shopid / email / password）を送る', () => {
-  const req = F.buildLoginRequest({ shopId: '37168', loginId: 'shop@example.com', password: 'p@ss&word' });
+test('★ ログインはブラウザと同じものだけ送る（email / password / submit）', () => {
+  const req = F.buildLoginRequest({ shopId: '37168', loginId: '37168', password: 'p@ss&word' });
   assert.equal(req.method, 'POST');
   assert.equal(req.url, F.EKICHIKA_LOGIN_URL);
   assert.equal(req.headers['content-type'], 'application/x-www-form-urlencoded');
-  // ★ 3点そろっていること。1つ落ちても通ってしまう形にしない
-  assert.match(req.body, /(^|&)email=shop%40example\.com(&|$)/);
-  assert.match(req.body, /(^|&)shopid=37168(&|$)/);
+  assert.match(req.body, /(^|&)email=37168(&|$)/);
   // ★ 記号がそのまま出ない（URLエンコードされている）
   assert.match(req.body, /(^|&)password=p%40ss%26word(&|$)/);
-  assert.match(req.body, /(^|&)submit=(&|$)/);
+  // ★★★ submit は空にしない。空だと「ボタンを押していない」扱いでログイン画面が返る
+  //   （2026-08-28 に実際に3回失敗した）
+  assert.match(req.body, /(^|&)submit=%E3%83%AD%E3%82%B0%E3%82%A4%E3%83%B3(&|$)/);
+  assert.equal(F.EKICHIKA_LOGIN_SUBMIT_VALUE, 'ログイン');
+  // ★★★ shopid は送らない。<form> の外にある hidden なので、ブラウザも送っていない
+  assert.ok(!/shopid/.test(req.body), 'shopid を送っている: ' + req.body);
 });
 
-test('3点のどれかが空なら組み立てない', () => {
-  assert.throws(() => F.buildLoginRequest({ shopId: '', loginId: 'a', password: 'b' }), /3点/);
-  assert.throws(() => F.buildLoginRequest({ shopId: '1', loginId: '', password: 'b' }), /3点/);
-  assert.throws(() => F.buildLoginRequest({ shopId: '1', loginId: 'a', password: '' }), /3点/);
+test('ログインIDかパスワードが空なら組み立てない', () => {
+  assert.throws(() => F.buildLoginRequest({ loginId: '', password: 'b' }), /2点/);
+  assert.throws(() => F.buildLoginRequest({ loginId: 'a', password: '' }), /2点/);
+  // ★ shopId は送らないので、空でも組み立てられる
+  assert.ok(F.buildLoginRequest({ shopId: '', loginId: 'a', password: 'b' }).body.length > 0);
 });
 
 // ────────────────────────── login の段 ──────────────────────────
