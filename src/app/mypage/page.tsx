@@ -33,6 +33,8 @@ import { SiteNoticeBanner } from '@/app/components/SiteNoticeBanner';
 import { SalonBumpButton } from '@/app/components/SalonBumpButton';
 import { EmbedCodePanel } from './EmbedCodePanel';
 import { MediaLinkPanel } from './MediaLinkPanel';
+import { getMediaLinkAlerts } from '@/app/actions/mediaCredentials';
+import type { MediaLinkAlert } from '@/lib/mediaLinkStall';
 import { IMASUGU_COLUMNS } from '@/lib/therapistColumns';
 
 const supabase = createClient();
@@ -538,6 +540,8 @@ export default function MyPage() {
   const [mailTestResult, setMailTestResult] = useState<{ ok: boolean; msg: string } | null>(null);
   const [savingSchedule, setSavingSchedule] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<'salon' | 'schedule' | 'profile' | 'available' | 'diary' | 'coupon' | 'news' | 'vipletter' | 'board' | 'booking' | 'jobs' | 'popup' | 'support' | 'media'>('salon');
+  /** ★ 媒体連携が「書き込みの向きのまま止まっている」警告（第47便）。トップに出す */
+  const [mediaAlerts, setMediaAlerts] = useState<MediaLinkAlert[]>([]);
   // 「運営から」タブの未読お知らせ件数（SupportTab が読み込み時に通知・タブバッジ表示用）。
   const [supportUnread, setSupportUnread] = useState(0);
   const [expandedSections, setExpandedSections] = useState<Set<string>>(new Set());
@@ -812,6 +816,19 @@ export default function MyPage() {
     const timer = setInterval(() => setNow(new Date()), 60000);
     return () => clearInterval(timer);
   }, []);
+
+  // ★ 媒体連携の見張り（第47便）。開いたとき1回だけ。
+  //   ★ 失敗しても画面は止めない。**警告が出せないことは、警告が無いことと同じにする**
+  //     （出せないのに「異常なし」と見せない。ここは静かに空のままにするだけ）。
+  useEffect(() => {
+    if (!salon?.id) return;
+    let alive = true;
+    (async () => {
+      const res = await getMediaLinkAlerts({ salonId: Number(salon.id) });
+      if (alive && res.ok) setMediaAlerts(res.data);
+    })();
+    return () => { alive = false; };
+  }, [salon?.id]);
 
   const updateDay = (therapistId: string, dateStr: string, patch: Partial<DaySchedule>) => {
     setSchedules(prev => {
@@ -2059,6 +2076,29 @@ export default function MyPage() {
           </div>
         </header>
         <SiteNoticeBanner />
+
+        {/* ★★★ 媒体連携が「書き込みの向きのまま止まっている」ときの警告（第47便）。
+            ★ タブの中ではなくトップに出す。媒体連携タブを開かない限り気づけない、では見張りにならない
+              （設計メモ §2-3「失敗を店舗に届ける」・追記11 §40）。 */}
+        {mediaAlerts.length > 0 && (
+          <div className="max-w-2xl mx-auto px-3 pt-2">
+            {mediaAlerts.map((a) => (
+              <div
+                key={a.provider + '#' + a.slot}
+                className="mb-2 rounded-xl border-2 border-rose-300 bg-rose-50 px-3 py-2.5"
+              >
+                <p className="text-[12px] font-bold text-rose-700">媒体連携が止まっています</p>
+                <p className="mt-1 text-[12px] leading-relaxed text-rose-900">{a.message}</p>
+                <button
+                  onClick={() => setActiveTab('media')}
+                  className="mt-2 text-[12px] font-bold text-rose-700 underline"
+                >
+                  媒体連携をひらく
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
 
         {/* タブナビゲーション（アイコン＋短縮ラベルのチップ。横に並びきらなければ折り返す） */}
         <div className="max-w-2xl mx-auto px-3 py-2 flex flex-wrap justify-center gap-1.5">

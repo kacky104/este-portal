@@ -7,6 +7,7 @@ import { encryptSecret, maskSecret } from '@/lib/mediaCredentials';
 import { MEDIA_CONSENT_VERSION, needsConsent } from '@/lib/mediaConsent';
 import { recordMediaAudit, listMediaAudit } from '@/app/lib/media/mediaAudit';
 import { startRelayFlow } from '@/app/lib/media/relayFlow';
+import { judgeWriteStall, stallMessage, mediaSlotLabel, type MediaLinkAlert } from '@/lib/mediaLinkStall';
 
 // 他媒体の管理画面ログイン情報の登録（第39便・第3弾の入口）。
 //
@@ -597,4 +598,74 @@ export async function getMediaAuditRows(input: { salonId: string | number; limit
   } catch (e) {
     return { ok: false, error: (e as Error).message };
   }
+}
+
+/**
+ * ★★★ 「書き込みの向きにしたまま止まっている枠」を返す（第47便）。
+ *
+ * ★ 追記11 §32 の裏返し。向きを write にすると取り込みが止まるので、
+ *   承認しないまま放置されると【出勤がどこからも更新されない】。
+ *   店舗もこちらも気づけないので、こちらが気づいて画面に出す（設計メモ §2-3）。
+ *
+ * ★★ 判定そのものは src/lib/mediaLinkStall.ts の純粋関数。ここは値を集めるだけ。
+ *   now もそちらへ渡す。★ 判定の中で時刻を取らない＝点検で作れる状態にしておく。
+ */
+export async function getMediaLinkAlerts(input: { salonId: string | number }): Promise<Result<MediaLinkAlert[]>> {
+  const salonId = Number(input.salonId);
+  if (!Number.isFinite(salonId)) return { ok: false, error: '店舗の指定が不正です' };
+  const guard = await assertSalonOwner(salonId);
+  if (!guard.ok) return guard;
+
+  const svc = createServiceClient();
+
+  const { data: sources, error: srcErr } = await svc
+    .from('salon_import_sources')
+    .select('provider, slot, link_mode')
+    .eq('salon_id', salonId)
+    .eq('link_mode', 'write');
+  if (srcErr) return { ok: false, error: '連携の状態を確認できませんでした' };
+  if (!sources || sources.length === 0) return { ok: true, data: [] };
+
+  // ★ 監査ログは追記専用で消えない（migration のとおり）。新しい順に少しだけ読む。
+  //   ★ 枠ごとに問い合わせを分けない（枠が増えるほど往復が増える形にしない）。
+  const { data: audit, error: auErr } = await svc
+    .from('salon_media_audit')
+    .select('provider, slot, event, outcome, detail, created_at')
+    .eq('salon_id', salonId)
+    .in('event', ['link_mode_changed', 'write_work'])
+    .order('created_at', { ascending: false })
+    .limit(200);
+  if (auErr) return { ok: false, error: '連携の記録を確認できませんでした' };
+
+  const key = (p: string, s: number) => p + '#' + s;
+  const switchedAt = new Map<string, string>();
+  const lastOkAt = new Map<string, string>();
+  for (const r of audit ?? []) {
+    const k = key(String(r.provider), Number(r.slot));
+    const at = String(r.created_at);
+    if (r.event === 'write_work' && r.outcome === 'ok') {
+      if (!lastOkAt.has(k)) lastOkAt.set(k, at);          // 新しい順なので最初の1件が最新
+    } else if (r.event === 'link_mode_changed') {
+      const mode = (r.detail as { mode?: unknown } | null)?.mode;
+      if (mode === 'write' && !switchedAt.has(k)) switchedAt.set(k, at);
+    }
+  }
+
+  const now = new Date();
+  const alerts: MediaLinkAlert[] = [];
+  for (const s of sources) {
+    const provider = String(s.provider);
+    const slot = Number(s.slot);
+    const k = key(provider, slot);
+    const verdict = judgeWriteStall({
+      linkMode: String(s.link_mode),
+      switchedToWriteAt: switchedAt.get(k) ?? null,
+      lastWriteOkAt: lastOkAt.get(k) ?? null,
+      now,
+    });
+    const message = stallMessage(verdict, mediaSlotLabel(provider, slot));
+    if (!verdict.stalled || !message) continue;
+    alerts.push({ provider, slot, reason: verdict.reason, elapsedHours: verdict.elapsedHours, message });
+  }
+  return { ok: true, data: alerts };
 }

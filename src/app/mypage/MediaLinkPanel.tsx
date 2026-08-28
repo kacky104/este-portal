@@ -233,6 +233,18 @@ export function MediaLinkPanel({
     if (mode === 'read') {
       if (!confirm('駅ちかから取り込む向きに戻します。\n\nフクエスの出勤は、次の取り込みで駅ちかの内容に置き換わります。よろしいですか？')) return;
     }
+    // ★★ read → write は【送る前なら戻せる】軽い操作なので、重い門にはしない（重い門は承認側）。
+    //   ★ ただし「取り込みが止まる」ことだけは、押す前に必ず目に入れる。
+    //     押したまま放置されると出勤がどこからも更新されない（mediaLinkStall.ts の見張りが拾う側）。
+    if (mode === 'write') {
+      if (!confirm(
+        'フクエスから駅ちかへ反映する向きに変えます。\n\n'
+        + '・駅ちかからの取り込みが止まります（出勤・プロフィール・今すぐ）\n'
+        + '・この操作では駅ちかへ何も送りません\n'
+        + '・いつでも「駅ちかから取り込む」に戻せます\n\n'
+        + '変えたあとは「反映内容を確認」→ 内容を見て承認、の順に進みます。よろしいですか？'
+      )) return;
+    }
     setSwitching(true);
     try {
       const res = await setMediaLinkMode({ salonId, provider: r.provider, slot: r.slot, mode });
