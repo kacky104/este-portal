@@ -63,7 +63,7 @@ export async function GET(req: Request) {
   const supabase = createServiceClient();
   const { data, error } = await supabase
     .from('salon_import_sources')
-    .select('id, salon_id, provider, external_id, shop_url, import_schedule, import_profile, create_missing, list_mode, import_interval_min, last_run_at, salons!inner(is_hidden)')
+    .select('id, salon_id, provider, slot, external_id, shop_url, import_schedule, import_profile, create_missing, list_mode, import_interval_min, last_run_at, salons!inner(is_hidden)')
     .eq('is_enabled', true)
     .eq('salons.is_hidden', false)
     .order('id');
@@ -74,6 +74,7 @@ export async function GET(req: Request) {
     sourceId: s.id,
     salonId: s.salon_id,
     provider: s.provider,
+    slot: (s as unknown as { slot?: number | null }).slot ?? 1,   // ★ 同一媒体の何枠目か（第42便）
     externalId: s.external_id,
     shopUrl: s.shop_url,
     importSchedule: s.import_schedule,

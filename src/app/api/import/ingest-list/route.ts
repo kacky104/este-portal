@@ -3,6 +3,7 @@ import { revalidatePath } from 'next/cache';
 import { createServiceClient } from '@/app/lib/supabase/service';
 import { normalizeName } from '@/lib/ekichikaParse';
 import { parseEkichikaList, type EkichikaListCast } from '@/lib/ekichikaListParse';
+import { loadCastIds, rememberCastId } from '@/lib/mediaCastIds';
 
 // ── 外部媒体取り込み・girlslist方式（第36便・フェーズ4）────────────────────
 // 駅ちかの「女の子一覧」(girlslist) のHTMLを受け取り、当日ぶんの出勤を反映する。
@@ -97,7 +98,7 @@ export async function POST(req: Request) {
   // 1. 取り込み設定
   const { data: source, error: srcErr } = await supabase
     .from('salon_import_sources')
-    .select('id, salon_id, is_enabled, external_id, import_schedule, import_profile, import_imasugu, create_missing, salons!inner(is_hidden, area)')
+    .select('id, salon_id, is_enabled, provider, slot, external_id, import_schedule, import_profile, import_imasugu, create_missing, salons!inner(is_hidden, area)')
     .eq('id', sourceId)
     .single();
   if (srcErr || !source) return NextResponse.json({ ok: false, error: 'source not found' }, { status: 404 });
@@ -109,6 +110,11 @@ export async function POST(req: Request) {
   if (salonRow?.is_hidden === true) return NextResponse.json({ ok: true, skipped: 'hidden' });
   const salonArea = salonRow?.area ?? null;
   const externalId = String(source.external_id);
+  // ★★★ 枠（第42便）。駅ちかは同じ店舗が別エリア・別IDで複数掲載を持ち、
+  //   同一人物でも枠が違えば castId は別番号になる（第38便 §17-11）。
+  //   照合も castId の書き戻しも、必ずこの (provider, slot) の中だけで行う。
+  const provider = String((source as unknown as { provider?: string | null }).provider ?? 'ekichika');
+  const slot = Number((source as unknown as { slot?: number | null }).slot ?? 1);
 
   // 2. 全ページを解析して castId で1本にまとめる（ページ間で重複しても先勝ち）
   const listed = new Map<string, EkichikaListCast>();
@@ -129,16 +135,11 @@ export async function POST(req: Request) {
   if (thErr) return NextResponse.json({ ok: false, error: thErr.message }, { status: 500 });
 
   const byName = new Map<string, number>();
-  const byCastId = new Map<string, number>();
   const dupNames = new Set<string>();
   const nameOf = new Map<number, string>();
-  const castIdOf = new Map<number, string | null>();   // therapist_id → 現在の import_cast_id（第36便）
   for (const t of therapists ?? []) {
     const id = t.id as number;
     nameOf.set(id, t.name as string);
-    const cid = t.import_cast_id as string | null;
-    castIdOf.set(id, cid);
-    if (cid) byCastId.set(cid, id);
     for (const raw of [t.name as string, ...((t.import_aliases as string[] | null) ?? [])]) {
       const key = normalizeName(raw);
       if (!key) continue;
@@ -147,6 +148,17 @@ export async function POST(req: Request) {
       else byName.set(key, id);
     }
   }
+
+  // 3-b. castId の索引（★ 媒体×枠で引く・第42便）。
+  //   旧 therapists.import_cast_id は「駅ちかの枠1」としてだけ混ざる（mediaCastIds.ts）。
+  const { maps: castMaps, error: castErr } = await loadCastIds(supabase, {
+    therapists: (therapists ?? []) as Array<{ id: number; import_cast_id?: string | null }>,
+    provider,
+    slot,
+  });
+  if (castErr) return NextResponse.json({ ok: false, error: castErr, stage: 'cast-ids' }, { status: 500 });
+  const byCastId = castMaps.byCastId;                  // castId → therapist_id
+  const castIdOf = castMaps.castIdOf;                  // therapist_id → いまの castId
 
   // 4. 当日ぶんの既存行（差分表示と掃除に使う）
   const allIds = [...nameOf.keys()];
@@ -220,12 +232,15 @@ export async function POST(req: Request) {
       if (!apply) { createdNames.push(c.name.trim()); continue; }   // 試し打ちでは作らない
       const { data: made, error: mkErr } = await supabase.from('therapists').insert({
         salon_id: source.salon_id, name: c.name.trim(), area: salonArea,
-        is_active: false, import_cast_id: c.castId,
+        is_active: false,
         age: source.import_profile ? c.age : null,
         body_type: source.import_profile ? c.bodyType : null,
       }).select('id').single();
       if (mkErr || !made) { unmatched.push(`${c.name}（作成失敗: ${mkErr?.message ?? 'unknown'}）`); continue; }
       id = made.id as number;
+      // ★ 新規作成した子の castId は、枠ごとの表に記録する（第42便）。
+      await rememberCastId(supabase, { therapistId: id, provider, slot, castId: c.castId });
+      castIdOf.set(id, c.castId);
       byName.set(c.nameKey, id); byCastId.set(c.castId, id); nameOf.set(id, c.name.trim());
       createdNames.push(c.name.trim());
       isNew = true;
@@ -374,8 +389,9 @@ export async function POST(req: Request) {
     }
 
     for (const f of castIdFills) {
-      const { error } = await supabase.from('therapists').update({ import_cast_id: f.castId }).eq('id', f.id);
-      if (!error) castIdWritten++;
+      // ★ 枠ごとの表へ。駅ちかの枠1なら旧列にも同じ値を写す（併存・第42便）。
+      const { ok } = await rememberCastId(supabase, { therapistId: f.id, provider, slot, castId: f.castId });
+      if (ok) castIdWritten++;
     }
     for (const p of patchesSafe) {
       const { id, ...patch } = p;
