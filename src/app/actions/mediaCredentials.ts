@@ -6,6 +6,7 @@ import { ADMIN_UUID } from '@/app/lib/admin';
 import { encryptSecret, maskSecret } from '@/lib/mediaCredentials';
 import { MEDIA_CONSENT_VERSION, needsConsent } from '@/lib/mediaConsent';
 import { recordMediaAudit, listMediaAudit } from '@/app/lib/media/mediaAudit';
+import { startRelayFlow } from '@/app/lib/media/relayFlow';
 
 // 他媒体の管理画面ログイン情報の登録（第39便・第3弾の入口）。
 //
@@ -267,6 +268,56 @@ export async function deleteMediaCredential(input: {
   });
 
   return { ok: true, data: { deleted: true } };
+}
+
+/**
+ * ★★★ 接続テスト（第41便）。
+ *   実際に駅ちかへログインし、出勤ページが読めるところまでを1回だけ試す。
+ *
+ * ★★ 読むだけ。**駅ちかを一切書き換えない。** だから何度押しても店舗に影響が無い。
+ * ★★ 結果はその場では返らない。中継役（VPS）が1分ごとに引き取り、
+ *   終わると last_verified_at / last_error と履歴に出る。
+ *   → 画面には「受け付けました」と出し、しばらくして履歴を見てもらう。
+ *   ★ ここで待たない（Vercel の関数は最長でも数十秒。相手のサーバーを待つ場所ではない）。
+ *
+ * ★ 同意が済んでいない枠では走らせない。認証情報を使う操作は、同意の後ろにしか置かない。
+ */
+export async function startMediaConnectionTest(input: {
+  salonId: string | number; provider: string; slot?: number;
+}): Promise<Result<{ jobId: string; note: string }>> {
+  const salonId = Number(input.salonId);
+  if (!Number.isFinite(salonId)) return { ok: false, error: '店舗の指定が不正です' };
+  const slot = Math.trunc(Number(input.slot ?? 1));
+  const ng = validTarget(input.provider, slot);
+  if (ng) return { ok: false, error: ng };
+
+  const guard = await assertSalonOwner(salonId);
+  if (!guard.ok) return guard;
+
+  const svc = createServiceClient();
+  const { data: row } = await svc
+    .from('salon_media_credentials')
+    .select('consent_version')
+    .eq('salon_id', salonId).eq('provider', input.provider).eq('slot', slot)
+    .maybeSingle();
+  if (!row) return { ok: false, error: 'ログイン情報が登録されていません' };
+  if (needsConsent(row.consent_version as string | null)) {
+    return { ok: false, error: '連携の説明に同意してから実行してください' };
+  }
+
+  try {
+    const r = await startRelayFlow({
+      salonId, provider: input.provider, slot,
+      intent: 'connect_test',
+      actor: 'shop:' + guard.data.userId,
+    });
+    if (!r.ok) return { ok: false, error: r.note };
+    return { ok: true, data: { jobId: r.jobId, note: r.note } };
+  } catch (e) {
+    // ★ 例外文に秘密が混ざらないよう、こちら側で作った文言だけ返す
+    console.error('[media] 接続テストを始められなかった', (e as Error).message);
+    return { ok: false, error: '接続テストを開始できませんでした。時間をおいてお試しください' };
+  }
 }
 
 /**

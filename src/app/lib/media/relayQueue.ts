@@ -19,6 +19,7 @@ import {
   sealRequest,
   openRequest,
   sealResponse,
+  sealContext,
   type RelayRequest,
   type RelayResponse,
 } from '@/lib/relayJob';
@@ -61,6 +62,12 @@ export async function enqueueRelayJob(params: {
   url: string;
   headers?: Record<string, string>;
   body?: string;
+  /**
+   * 段と段のあいだで持ち回す状態（src/lib/relayFlow.ts の RelayFlowContext）。
+   * ★ セッション Cookie が入るので、request_enc と同じく暗号化して入れる。
+   * ★ 単発のジョブ（selftest）には無い。無いジョブは「フローに属していない」という意味になる。
+   */
+  context?: unknown;
 }): Promise<{ ok: true; jobId: string } | { ok: false; reason: 'busy'; detail: string }> {
   // ★ 積む前に検査する。DBに入ってから弾くのでは、消し忘れた行が残る
   const request = buildRelayRequest({
@@ -81,6 +88,7 @@ export async function enqueueRelayJob(params: {
     purpose: params.purpose,
     status: 'queued',
     request_enc: sealRequest(request, jobId),
+    ...(params.context === undefined ? {} : { context_enc: sealContext(params.context, jobId) }),
   });
 
   if (error) {
@@ -171,7 +179,8 @@ export async function completeRelayJob(params: {
   const { data: row, error: selErr } = await supabase
     .from('media_relay_jobs')
     // ★ 監査ログに「誰の・どの枠の・何の処理か」を残すので、ここで一緒に読む
-    .select('id, status, attempts, salon_id, provider, slot, purpose')
+    // ★ 第41便: フローを進めるので context_enc も読む
+    .select('id, status, attempts, salon_id, provider, slot, purpose, context_enc')
     .eq('id', params.jobId)
     .maybeSingle();
 
@@ -246,12 +255,38 @@ export async function completeRelayJob(params: {
     });
   }
 
-  // ★★★ ここが状態遷移の場所（第3弾の本体）。
-  //   login の結果を見て read_work を積む、read の結果を見て write_work を積む…を書く。
-  //   第38便では【運び方】だけを通した。何を運ぶかはまだ知らない。
-  //   → 次に足すときは advanceRelayFlow(jobId, res) をここから呼ぶ。
+  // ★★★ ここが状態遷移の場所（第3弾の本体）。第41便で advanceRelayFlow を繋いだ。
+  //   login の応答を見て read_work を積む／読めたらログイン成功として監査に残す、を向こうでやる。
+  //
+  // ★★ import が動的なのは【循環を静的に作らないため】。
+  //   relayFlow は enqueueRelayJob（このファイル）を使う。ここから relayFlow を
+  //   static import すると相互参照になる。★ ここを普通の import に直さないこと。
+  //
+  // ★★ フローが進まなくても、結果を受け取ったこと自体は成功として返す。
+  //   ここで例外を投げると VPS が「結果を渡せなかった」と見なして投げ直し、
+  //   同じ応答をもう一度処理することになる（＝二重に進む）。
+  let flowNote = '';
+  if (row.context_enc) {
+    try {
+      const { advanceRelayFlow } = await import('./relayFlow');
+      const r = await advanceRelayFlow({
+        jobId: params.jobId,
+        salonId: row.salon_id as number,
+        provider: row.provider as string,
+        slot: row.slot as number,
+        purpose: row.purpose as string,
+        contextEnc: row.context_enc as string,
+        response: res,
+      });
+      flowNote = ' / ' + r.note;
+    } catch (e) {
+      // ★ 黙らない。フローが進まなかったことは Vercel のログに必ず残す
+      console.error('[relay] advanceRelayFlow が落ちた', params.jobId, (e as Error).message);
+      flowNote = ' / ★ 次の段へ進めなかった（ログを見ること）';
+    }
+  }
 
-  return { ok: true, note: '結果を受け取った' };
+  return { ok: true, note: '結果を受け取った' + flowNote };
 }
 
 /**
@@ -354,7 +389,13 @@ export async function purgeRelayJobs(
 
   const { data, error } = await supabase
     .from('media_relay_jobs')
-    .update({ request_enc: '(purged)', response_enc: null, purged_at: new Date().toISOString() })
+    // ★ context_enc にもセッション Cookie が入る（第41便）。一緒に消すこと
+    .update({
+      request_enc: '(purged)',
+      response_enc: null,
+      context_enc: null,
+      purged_at: new Date().toISOString(),
+    })
     .is('purged_at', null)
     .in('status', ['done', 'failed', 'expired'])
     .lt('updated_at', cutoff)

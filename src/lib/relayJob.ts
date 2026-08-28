@@ -151,7 +151,7 @@ export function unpackBody(packed: string): string {
 // ────────────────────────────── ジョブの組み立て ──────────────────────────────
 
 /** 暗号文をそのジョブに縛るための AAD。★ 別ジョブの中身を貼り替えても復号できない。 */
-export function relayAad(jobId: string, part: 'request' | 'response'): string {
+export function relayAad(jobId: string, part: 'request' | 'response' | 'context'): string {
   if (!jobId) throw new Error('jobId が空');
   return 'relay|' + jobId + '|' + part;
 }
@@ -200,6 +200,19 @@ export function sealResponse(res: RelayResponse, jobId: string): string {
 
 export function openResponse(sealed: string, jobId: string): RelayResponse {
   return JSON.parse(decryptWithAad(sealed, relayAad(jobId, 'response'))) as RelayResponse;
+}
+
+/**
+ * フローの持ち回り状態（src/lib/relayFlow.ts の RelayFlowContext）を封じる／開ける。
+ * ★★ 中身にセッション Cookie が入る＝【秘密】。request_enc と同じ扱いにする。
+ * ★ ここは形を知らないまま運ぶだけ（<T> のまま）。中身の意味は relayFlow が持つ。
+ */
+export function sealContext(context: unknown, jobId: string): string {
+  return encryptWithAad(JSON.stringify(context), relayAad(jobId, 'context'));
+}
+
+export function openContext<T>(sealed: string, jobId: string): T {
+  return JSON.parse(decryptWithAad(sealed, relayAad(jobId, 'context'))) as T;
 }
 
 // ────────────────────────────── Cookie の持ち回り ──────────────────────────────

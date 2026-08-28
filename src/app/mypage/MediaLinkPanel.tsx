@@ -12,6 +12,7 @@ import {
   setMediaCredentialEnabled,
   deleteMediaCredential,
   getMediaAuditRows,
+  startMediaConnectionTest,
 } from '@/app/actions/mediaCredentials';
 
 // mypage「媒体連携」タブ（第39便・第3弾の入口）。
@@ -81,6 +82,8 @@ export function MediaLinkPanel({
   const [openConsent, setOpenConsent] = useState(true);
   const [saving, setSaving] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState<number | null>(null);
+  /** 接続テストを投げた枠。★ 押しっぱなしの二度押しを止めるだけ（結果は履歴に出る） */
+  const [testing, setTesting] = useState<number | null>(null);
 
   const current = rows.find((r) => r.provider === PROVIDER && r.slot === slot) ?? null;
   // ★ すでにいまの版で同意済みの枠は、毎回チェックを求めない
@@ -137,6 +140,24 @@ export function MediaLinkPanel({
     if (!res.ok) { onToast(res.error); return; }
     onToast(r.isEnabled ? '連携を停止しました' : '連携を再開しました');
     await load();
+  };
+
+  /**
+   * 接続テスト。★ 読むだけ（ログイン → 出勤ページを1回読む）。駅ちかを書き換えない。
+   * ★★ 結果はその場では返らない。中継役が引き取ってから履歴に出る。
+   *   「押した ＝ 終わった」と読めてしまう文言にしないこと。
+   */
+  const onTest = async (r: CredRow) => {
+    if (!salonId) return;
+    setTesting(r.slot);
+    try {
+      const res = await startMediaConnectionTest({ salonId, provider: r.provider, slot: r.slot });
+      if (!res.ok) { onToast(res.error); return; }
+      onToast('接続テストを受け付けました。数分後に下の「連携の記録」でご確認ください');
+      await load();
+    } finally {
+      setTesting(null);
+    }
   };
 
   const onDelete = async (r: CredRow) => {
@@ -317,6 +338,14 @@ export function MediaLinkPanel({
               <div className="flex gap-1.5">
                 <button
                   type="button"
+                  onClick={() => onTest(r)}
+                  disabled={!r.hasPassword || !r.isEnabled || testing === r.slot}
+                  className="px-3 py-1 rounded-full border border-pink-200 text-[11px] font-bold text-pink-500 hover:bg-pink-50 disabled:opacity-40"
+                >
+                  {testing === r.slot ? '送信中…' : '接続テスト'}
+                </button>
+                <button
+                  type="button"
                   onClick={() => onToggle(r)}
                   className="px-3 py-1 rounded-full border border-slate-200 text-[11px] font-bold text-slate-500 hover:text-slate-700"
                 >
@@ -344,9 +373,18 @@ export function MediaLinkPanel({
             <p className="text-[11px] text-slate-400">
               店舗ID {r.shopId} ／ ログインID {r.loginId} ／ パスワード {r.passwordMask || '未登録'}
             </p>
+            <p className="text-[11px] text-slate-400">
+              最後に接続を確認できた日時：{fmt(r.lastVerifiedAt)}
+            </p>
             {r.lastError && (
               <p className="text-[11px] text-rose-500">直近のエラー：{r.lastError}</p>
             )}
+            {/* ★ 「読むだけ」であることを、押す場所のそばに書く。
+                別の場所に書くと、店舗は押す前に読まない */}
+            <p className="text-[10px] text-slate-400">
+              接続テストは駅ちかにログインして出勤ページを1回読むだけです。出勤内容は書き換えません。
+              結果は少し経ってから下の記録に出ます。
+            </p>
           </div>
         ))}
       </div>
