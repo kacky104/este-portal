@@ -457,7 +457,7 @@ export default async function Home() {
 
             {/* ─── 新着の口コミ（スマホのみ・よくある質問の直下）───
                 PCは右カラム（ShuffledSalons の sideNode）に出しているので lg では隠す＝二重に出さない。 */}
-            <LatestReviewsBlock reviews={topReviews} variant="section" />
+            <LatestReviewsBlock reviews={topReviews} variant="section" mobileOnly />
 
             {/* ─── 福岡のメンズエステ店一覧（/salons）への導線 ───
                 見出しは無し。中央の丸ボタンのみで /salons へ内部リンク。 */}

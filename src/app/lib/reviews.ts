@@ -321,7 +321,7 @@ export async function getAllApprovedReviews(limit = 200): Promise<ApprovedReview
     });
 }
 
-// ── エリアの口コミ（/area/[slug] のブロック用）──────────────────────────
+// ── 指定した店舗の新着口コミ（/area/[slug] と /salon/[id] のブロック用）──────
 //
 // ★★★ なぜ「全店の新着を取ってから絞る」ではないか
 //   全店の新着N件を取ってからエリアで間引くと、そのエリアに最近の口コミが無いだけで
@@ -332,7 +332,7 @@ export async function getAllApprovedReviews(limit = 200): Promise<ApprovedReview
 // ★★ 公開ルールは getAllApprovedReviews と同じ（非在籍セラピスト・非表示店を除く）。
 //   ここでは埋め込み（therapists!inner → salons!inner）でDB側に判定させている。
 //   ★ 一覧（/reviews）と食い違わせないこと。食い違うと「一覧に無い口コミがエリアに出る」になる。
-export async function getAreaApprovedReviews(
+export async function getLatestReviewsForSalons(
   salonIds: number[],
   limit = 3,
 ): Promise<ApprovedReview[]> {

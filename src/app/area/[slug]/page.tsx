@@ -18,7 +18,7 @@ import { areaFromSlug, AREA_ORDER, AREA_SLUGS_LIST, DISPATCH_AREA, salonInArea }
 import { areaLabel } from '@/app/lib/areaLabel';
 import { toJsonLdString, buildBreadcrumbJsonLd, buildFaqPageJsonLd, buildItemListJsonLd } from '@/app/lib/jsonLd';
 import { AREA_SEO_CONTENT } from '@/app/lib/areaSeoContent';
-import { getAreaApprovedReviews } from '@/app/lib/reviews';
+import { getLatestReviewsForSalons } from '@/app/lib/reviews';
 import { LatestReviewsBlock } from '@/app/components/LatestReviewsBlock';
 import { fetchActiveTherapistPickupBanners } from '@/app/lib/therapistPickupBanners';
 import { TherapistPickupBanner } from '@/app/components/TherapistPickupBanner';
@@ -86,7 +86,7 @@ export default async function AreaPage({ params }: { params: Promise<{ slug: str
   // ★ エリアが決まってからでないと引けないので、上の Promise.all には入れられない。
   // ★★ 0件なら出さない。**全店の新着でフォールバックしない**
   //   （全エリアで同じものが並び、しかも「このエリアの口コミ」に見えるため）。
-  const areaReviews = await getAreaApprovedReviews(areaSalonIds, 3);
+  const areaReviews = await getLatestReviewsForSalons(areaSalonIds, 3);
 
   // ItemList 構造化データ（2026-08-06 追加）。このエリアに掲載しているサロンの一覧
   // （画面の ShuffledSalons と同じ集合。並びは6時間ごとのシャッフルなので順序は保証しない）。
@@ -290,7 +290,7 @@ export default async function AreaPage({ params }: { params: Promise<{ slug: str
             PCは右カラム（ShuffledSalons の sideNode）に出しているので lg では隠す＝二重に出さない。
             ★ エリア固有の内容にしてあるのは、FAQ をエリア固有にしたのと同じ理由。
               全店の新着を全エリアに並べると、そのページ固有の中身が1文字も増えない。 */}
-        <LatestReviewsBlock reviews={areaReviews} variant="section" />
+        <LatestReviewsBlock reviews={areaReviews} variant="section" mobileOnly />
       </main>
 
       {/* ─── Footer ──────────────────────────────────────── */}

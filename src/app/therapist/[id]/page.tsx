@@ -707,9 +707,11 @@ export default async function TherapistPublicPage({
               </div>
 
               <ReviewSummary stats={reviewStats} />
-              {/* 詳細ページでは最新1件のみ表示（getApprovedReviews は新しい順）。2件以上あれば専用ページへ。 */}
-              <ReviewList reviews={reviews.slice(0, 1)} />
-              {reviews.length > 1 && (
+              {/* 詳細ページでは最新3件を表示（getApprovedReviews は新しい順）。4件以上あれば専用ページへ。
+                  ★ 1件→3件（2026-08-28）: 口コミ本文はこのページ固有の一次情報なので、
+                    正規ページ側に厚く置く。専用ページ（/therapist/[id]/reviews）は続きの受け皿。 */}
+              <ReviewList reviews={reviews.slice(0, 3)} />
+              {reviews.length > 3 && (
                 <div className="text-right">
                   <Link
                     href={`/therapist/${id}/reviews`}

@@ -55,7 +55,8 @@ import { CollapsibleCourses } from "./CollapsibleCourses";
 import { CollapsibleSection } from "./CollapsibleSection";
 import { ViewHistoryLogger } from "@/app/components/ViewHistoryLogger";
 import { ImasuguCountBadge } from "@/app/components/ImasuguCountBadge";
-import { getSalonReviewStats } from "@/app/lib/reviews";
+import { getSalonReviewStats, getLatestReviewsForSalons } from "@/app/lib/reviews";
+import { LatestReviewsBlock } from "@/app/components/LatestReviewsBlock";
 import { fetchActiveJobsBySalon } from "@/app/lib/jobs";
 import { Stars } from "@/app/components/Stars";
 import SalonScrollPopup from "@/app/components/SalonScrollPopup";
@@ -382,6 +383,9 @@ export default async function SalonPage({
   // 店舗の口コミ評価（在籍セラピストへの承認済み口コミを束ねて計算）。
   // getSalonReviewStats は内部で createPublicClient を使う（cookies() を呼ばない）ため ISR を壊さない。
   const salonReviewStats = await getSalonReviewStats(Number(id));
+  // 評価カードの直下に出す新着3件。★ この店舗の在籍セラピストへの承認済みだけ（公開ルールは一覧と同じ）。
+  //   0件なら LatestReviewsBlock が何も出さない。
+  const salonLatestReviews = await getLatestReviewsForSalons([Number(id)], 3);
 
   // 掲載中のセラピスト求人（あれば「求人情報」セクションを出す。createPublicClient 内部使用で ISR を壊さない）。
   const salonJobs = await fetchActiveJobsBySalon(Number(id));
@@ -889,6 +893,18 @@ export default async function SalonPage({
                 </div>
               </Link>
             )}
+
+            {/* 新着の口コミ（評価カードの直下）。★ 0件なら出ない。
+                ここは店舗ごとの色テーマを持つ列なので、カードの地色だけテーマに合わせる。
+                続きは既存の口コミ一覧（/salon/[id]/reviews）へ。 */}
+            <LatestReviewsBlock
+              reviews={salonLatestReviews}
+              variant="section"
+              className="mt-0"
+              moreHref={`/salon/${id}/reviews`}
+              moreLabel="この店舗の口コミをもっとみる"
+              cardStyle={{ backgroundColor: theme.card, borderColor: theme.cardBorder }}
+            />
 
             {/* Shop info（デスクトップのみ：右サイドバーに常時展開で表示。スマホは左カラムのサロンについての下） */}
             <CollapsibleSection theme={theme} className="hidden lg:block rounded-2xl border shadow-sm p-5" title="店舗基本情報" mobileOnly>
