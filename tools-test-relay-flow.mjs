@@ -61,7 +61,15 @@ const GIRLS = [
   { girlId: '5232190', name: 'るい', cells: [DAY, OFF, DAY, OFF, OFF, OFF, OFF] },
 ];
 
-const WORK_HTML = `<!DOCTYPE html><html><body>
+// ★★★ 実物の出勤ページには、ログイン画面と同じ手がかりが【両方】入っている（2026-08-28 に踏んだ）:
+//   ・shopid … <form> の外にあるページ共通のテンプレート ＝ ログイン後の全ページに入る
+//   ・password … 管理画面に埋め込まれた求人サイトの自動ログインフォーム（設計メモ §17-6）
+//   ★ この2つを fixture に入れておかないと、今日の事故を再現できない。**外さないこと。**
+const WORK_HTML = `<!DOCTYPE html><html><head><title>駅ちかランキング|出勤管理</title></head><body>
+  <input type="hidden" name="shopid" value="">
+  <form action="https://cocoa-job.jp/entry/login/" method="post">
+    <input name="email" type="hidden" value="x"><input name="password" type="hidden" value="y">
+  </form>
   <form action="https://ranking-deli.jp/admin/girlswork" method="post" id="frmSearch"></form>
   <form id="frmfix" action="https://ranking-deli.jp/admin/girlswork/1/" accept-charset="utf-8" method="post">
     <input type="hidden" name="fuel_csrf_token" value="${'a'.repeat(128)}">
@@ -71,11 +79,15 @@ const WORK_HTML = `<!DOCTYPE html><html><body>
   </form></body></html>`;
 
 // ★ 実物のログイン画面の形（設計メモ §17-9）。password と shopid が揃っているのが目印
-const LOGIN_HTML = `<!DOCTYPE html><html><body>
+// ★ 実物のログイン画面（2026-08-28 にブラウザで読んだ形）。
+//   shopid は <form> の【外】、submit の value は「ログイン」。
+const LOGIN_HTML = `<!DOCTYPE html><html><head><title>駅ちかランキング|ログイン</title></head><body>
   <form action="https://ranking-deli.jp/admin/login" accept-charset="utf-8" method="post">
     <input type="text" name="email"><input type="password" name="password">
-    <input type="text" name="shopid"><input type="submit" name="submit" value="">
-  </form></body></html>`;
+    <input type="submit" name="submit" value="ログイン">
+  </form>
+  <input type="hidden" name="shopid" value="">
+  </body></html>`;
 
 function ctx(overrides = {}) {
   return {
@@ -209,9 +221,28 @@ test('★ 出勤ページが読めて初めて「ログインできた」と記�
   assert.equal(out.audits[1].detail.days, 7);
 });
 
-test('ログイン画面の見分けは、出勤ページを誤判定しない', () => {
-  assert.equal(F.looksLikeEkichikaLoginPage(LOGIN_HTML), true);
+test('★★★ 出勤ページをログイン画面と誤判定しない（2026-08-28 に実際に踏んだ）', () => {
+  // ★ 出勤ページにも password と shopid が入っている。それでもログイン画面ではない
+  assert.ok(/name="password"/.test(WORK_HTML), 'fixture から password が消えている');
+  assert.ok(/name="shopid"/.test(WORK_HTML), 'fixture から shopid が消えている');
   assert.equal(F.looksLikeEkichikaLoginPage(WORK_HTML), false);
+  assert.equal(F.looksLikeEkichikaLoginPage(LOGIN_HTML), true);
+});
+
+test('★★★ 出勤ページとして読めれば、ほかの手がかりに関係なくログイン成功にする', () => {
+  const out = F.advanceFlow({
+    purpose: 'read_work', status: 200, headers: {}, body: WORK_HTML,
+    context: ctx({ cookie: 'ci_session=abc' }),
+  });
+  // ★ ここが 'stop' に戻ったら、2026-08-28 の事故が再発している
+  assert.equal(out.kind, 'done');
+  assert.deepEqual(events(out), ['login:ok', 'read_work:ok']);
+});
+
+test('他社ドメインへ POST する埋め込みフォームを、駅ちかのログイン画面と見なさない', () => {
+  const embedded = '<html><body><form action="https://cocoa-job.jp/admin/login" method="post">'
+    + '<input name="password"></form></body></html>';
+  assert.equal(F.looksLikeEkichikaLoginPage(embedded), false);
 });
 
 // ────────────────────────── 進めない場合 ──────────────────────────

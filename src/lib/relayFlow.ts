@@ -166,12 +166,28 @@ export function buildReadWorkRequest(cookie: string): FlowNextRequest['headers']
 
 /**
  * 返ってきたHTMLが【ログイン画面】か。
- * ★ shopid はログイン画面にしか無い（出勤ページには無い）。password と2つ揃ったときだけ真。
- *   片方だけで判定すると、将来どこかの画面に password 欄が増えたときに誤判定する。
+ *
+ * ★★★ 2026-08-28 の訂正 — 最初の実装は【誤検知していた】。
+ *   （誤）`name="password"` と `name="shopid"` が両方あればログイン画面
+ *   → **ログイン済みの出勤ページも両方を満たす**:
+ *       ・`shopid` は <form> の外にあるページ共通のテンプレート ＝ 全ページに入っている
+ *       ・`name="password"` は管理画面に埋め込まれた求人サイトの自動ログインフォーム（設計メモ §17-6）
+ *   → 実際に「ログインは302で成功しているのに、ログイン失敗と記録する」事故になった。
+ *
+ * ★★★ 教訓（同じ日に2回踏んだ）: **HTMLに文字列が在るかどうかで構造を判断しない。**
+ *   朝の `shopid`（<form> の外にあるのに「フォームの項目」と判断した）とまったく同じ形。
+ *
+ * → いまは【駅ちかのログインへ POST する form があるか】で見る。
+ *   ★ 他社ドメイン（cocoa-job など）へ POST する埋め込みフォームは拾わない。
+ * ★ そもそもこの判定は**保険**になった。成否はまず「出勤ページとして読めたか」で決める（afterReadWork）。
  */
 export function looksLikeEkichikaLoginPage(html: string): boolean {
   const h = String(html ?? '');
-  return /name=["']?password["']?/i.test(h) && /name=["']?shopid["']?/i.test(h);
+  // <form ... action="(https://ranking-deli.jp)?/admin/login" ...>
+  const form = /<form[^>]+action=["']?(?:https?:\/\/ranking-deli\.jp)?\/admin\/login\/?["'\s>]/i;
+  if (form.test(h)) return true;
+  // 念のため題名でも見る（駅ちかランキング|ログイン）
+  return /<title>[^<]*\|\s*ログイン\s*<\/title>/i.test(h);
 }
 
 // ────────────────────────── 状態遷移 ──────────────────────────
@@ -319,8 +335,36 @@ function afterReadWork(
     );
   }
 
+  // ★★★ 順序が大事。**まず「出勤ページとして読めるか」を試す。**
+  //   読めた ＝ ログインできている。これがいちばん確かな証拠で、
+  //   ログイン画面らしさの判定（誤検知しうるもの）を先に置いてはいけない。
+  //   ★ 2026-08-28: 先に置いていたせいで「302で成功しているのに失敗と記録」した。
+  let page: ReturnType<typeof parseWorkPage> | null = null;
+  let parseError = '';
+  try {
+    page = parseWorkPage(input.body);
+  } catch (e) {
+    parseError = (e as Error).message.slice(0, 200);
+  }
+
+  const problems = page ? checkWorkPage(page) : ['読み取れなかった: ' + parseError];
+
+  if (page && problems.length === 0) {
+    // ★★ ここまで来て初めて「ログインできた」と言える
+    const audits: FlowAudit[] = [
+      { event: 'login', outcome: 'ok', detail: { flowId } },
+      {
+        event: 'read_work',
+        outcome: 'ok',
+        // ★ people は defaultAuditSummary が「（在籍N人）」に使う
+        detail: { people: page.girls.length, days: page.dateLabels.length, flowId },
+      },
+    ];
+    return finishRead(audits, ctx);
+  }
+
+  // ★ 読めなかった。ここで初めて「ログイン画面が返ったのか」を疑う
   if (looksLikeEkichikaLoginPage(input.body)) {
-    // ★ 302 ではなく 200 でログイン画面を返す作りだった場合。こちらでも同じ結論になる
     return stop(
       [
         {
@@ -328,62 +372,36 @@ function afterReadWork(
           outcome: 'failed',
           summary:
             '駅ちかにログインできませんでした（ログイン画面が返りました）。' +
-            '店舗ID・ログインID・パスワードをご確認ください',
-          detail: { httpStatus: 200, reason: 'login_page', flowId },
+            'ログインID・パスワードをご確認ください',
+          detail: { httpStatus: 200, reason: 'login_page', bytes: input.body.length, flowId },
         },
       ],
       'ログイン後の出勤ページとしてログイン画面が返った＝ログインできていない',
     );
   }
 
-  let page;
-  try {
-    page = parseWorkPage(input.body);
-  } catch (e) {
-    return stop(
-      [
-        {
-          event: 'read_work',
-          outcome: 'failed',
-          summary: '駅ちかの出勤ページを読み取れませんでした（画面の作りが変わった可能性があります）',
-          detail: { reason: 'parse_error', bytes: input.body.length, flowId },
+  // ★ ログイン画面でもない＝読めたはずのページが読めていない。画面の作りが変わった疑い
+  return stop(
+    [
+      {
+        event: 'read_work',
+        outcome: 'failed',
+        summary: '駅ちかの出勤ページを読み取れませんでした（画面の作りが変わった可能性があります）',
+        // ★ problems の文面には駅ちかのURLが混ざる。detail には件数だけ入れる
+        detail: {
+          reason: page ? 'page_broken' : 'parse_error',
+          problems: problems.length,
+          bytes: input.body.length,
+          flowId,
         },
-      ],
-      '出勤ページを解釈できなかった: ' + (e as Error).message.slice(0, 200),
-    );
-  }
+      },
+    ],
+    '出勤ページが読めない: ' + problems.join(' / ').slice(0, 300),
+  );
+}
 
-  const problems = checkWorkPage(page);
-  if (problems.length > 0) {
-    // ★ problems の文面には駅ちかのURLが混ざる。監査の detail には件数だけ入れる
-    //   （valueLooksSecret がURLを落とすので、入れても落ちる。落ちるものを入れない）
-    return stop(
-      [
-        {
-          event: 'read_work',
-          outcome: 'failed',
-          summary: '駅ちかの出勤ページを読み取れませんでした（画面の作りが変わった可能性があります）',
-          detail: { reason: 'page_broken', problems: problems.length, flowId },
-        },
-      ],
-      '出勤ページが壊れて見える: ' + problems.join(' / ').slice(0, 300),
-    );
-  }
-
-  // ★★ ここまで来て初めて「ログインできた」と言える
-  const audits: FlowAudit[] = [
-    {
-      event: 'login',
-      outcome: 'ok',
-      detail: { flowId },
-    },
-    {
-      event: 'read_work',
-      outcome: 'ok',
-      // ★ people は defaultAuditSummary が「（在籍N人）」に使う
-      detail: { people: page.girls.length, days: page.dateLabels.length, flowId },
-    },
-  ];
+/** 読み取りまで成功したあと、intent ごとに次を決める。 */
+function finishRead(audits: FlowAudit[], ctx: RelayFlowContext): FlowOutcome {
 
   switch (ctx.intent) {
     case 'connect_test':
