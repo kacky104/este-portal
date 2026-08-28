@@ -43,6 +43,34 @@ type CredRow = {
   consentAgreedAt: string | null;
   lastVerifiedAt: string | null;
   lastError: string | null;
+  /** 連携の向き（第45便）。null は取り込み設定の行がまだ無い枠 */
+  linkMode: string | null;
+};
+
+/**
+ * 連携の向きの見せ方（第45便・設計メモ §11-2）。
+ * ★★ 3択は【1つの決定】。「出勤は書くけどプロフィールは読む」のような混ぜ方はできない。
+ *   画面でもそう見えるように、1行で言い切る。
+ * ★ 切り替えのボタンはまだ置かない（書き込みの経路ができてから・第46便）。
+ *   いま切り替えられるようにすると、write にした瞬間【読み取りが止まり、書き込みもできない】
+ *   という何も動かない状態を店舗が自分で作れてしまう。
+ */
+const LINK_MODE_LABEL: Record<string, { title: string; desc: string; tone: string }> = {
+  read: {
+    title: '駅ちかから取り込んでいます',
+    desc: '出勤・プロフィール・即ヒメを駅ちかから読み取って、フクエスに反映しています。フクエスから駅ちかへは書き込みません。',
+    tone: 'text-sky-600',
+  },
+  write: {
+    title: 'フクエスから駅ちかへ反映します',
+    desc: 'フクエスの内容を駅ちかへ書き込みます。この向きのあいだ、駅ちかからの取り込みは行いません。',
+    tone: 'text-pink-600',
+  },
+  none: {
+    title: '連携していません',
+    desc: '読み取りも書き込みも行いません。',
+    tone: 'text-slate-500',
+  },
 };
 
 type AuditRow = {
@@ -413,6 +441,18 @@ export function MediaLinkPanel({
             <p className="text-[11px] text-slate-400">
               最後に接続を確認できた日時：{fmt(r.lastVerifiedAt)}
             </p>
+            {/* ★ 連携の向き（第45便）。★★ 読みと書きは同時に立たない＝1行で言い切る。
+                切り替えのボタンは書き込みができてから（第46便）。 */}
+            {r.linkMode && LINK_MODE_LABEL[r.linkMode] && (
+              <div className="rounded-xl bg-slate-50 px-3 py-2 space-y-0.5">
+                <p className={`text-[12px] font-bold ${LINK_MODE_LABEL[r.linkMode].tone}`}>
+                  いまの向き：{LINK_MODE_LABEL[r.linkMode].title}
+                </p>
+                <p className="text-[11px] text-slate-400 leading-relaxed">
+                  {LINK_MODE_LABEL[r.linkMode].desc}
+                </p>
+              </div>
+            )}
             {r.lastError && (
               <p className="text-[11px] text-rose-500">直近のエラー：{r.lastError}</p>
             )}

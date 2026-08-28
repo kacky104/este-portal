@@ -68,6 +68,12 @@ export async function getMediaCredentials(input: { salonId: string | number }): 
       consentAgreedAt: string | null;
       lastVerifiedAt: string | null;
       lastError: string | null;
+      /**
+       * 連携の向き（第45便）。'none' | 'read' | 'write'。
+       * ★ null は「取り込みの設定行そのものが無い」＝まだ連携の向きが決まっていない枠。
+       *   'none'（連携しない）とは別物なので、まとめないこと。
+       */
+      linkMode: string | null;
     }>;
   }>
 > {
@@ -83,6 +89,18 @@ export async function getMediaCredentials(input: { salonId: string | number }): 
     .eq('salon_id', salonId);
   if (error) return { ok: false, error: error.message };
 
+  // ★ 向きは取り込み設定（salon_import_sources）が持つ。認証情報とは別のテーブルなので引き直す。
+  //   ★★ 読み取りだけの店は認証情報を持たない（公開ページを読むだけ）ので、
+  //     向きを認証情報の側に置くことはできない。逆に書き込みの店は両方を持つ。
+  const { data: srcs } = await svc
+    .from('salon_import_sources')
+    .select('provider, slot, link_mode')
+    .eq('salon_id', salonId);
+  const modeOf = new Map<string, string>();
+  for (const s of srcs ?? []) {
+    modeOf.set(`${String(s.provider)}:${Number(s.slot ?? 1)}`, String(s.link_mode ?? 'read'));
+  }
+
   const rows = (data ?? [])
     .map((r) => ({
       provider: r.provider as string,
@@ -96,6 +114,7 @@ export async function getMediaCredentials(input: { salonId: string | number }): 
       consentAgreedAt: (r.consent_agreed_at as string | null) ?? null,
       lastVerifiedAt: (r.last_verified_at as string | null) ?? null,
       lastError: (r.last_error as string | null) ?? null,
+      linkMode: modeOf.get(`${String(r.provider)}:${Number(r.slot ?? 1)}`) ?? null,
     }))
     .sort((a, b) => {
       const pi = PROVIDERS.indexOf(a.provider) - PROVIDERS.indexOf(b.provider);

@@ -65,6 +65,20 @@ export async function startRelayFlow(params: {
 
   if (error) throw new Error('ログイン情報を読めなかった: ' + error.message);
   if (!cred) return { ok: false, reason: 'no_credential', note: 'ログイン情報が登録されていません' };
+
+  // ★★ 連携の向きが 'none'（連携しない）の枠では、認証情報を使わない（第45便）。
+  //   ★ 行が無いときは止めない。向きがまだ決まっていないだけで、
+  //     「連携しない」と決めた状態とは別物（そこを一緒にすると、設定前の店が何もできなくなる）。
+  const { data: src } = await supabase
+    .from('salon_import_sources')
+    .select('link_mode')
+    .eq('salon_id', params.salonId)
+    .eq('provider', params.provider)
+    .eq('slot', params.slot)
+    .maybeSingle();
+  if (src && String((src as { link_mode?: string }).link_mode) === 'none') {
+    return { ok: false, reason: 'disabled', note: 'この枠は「連携しない」に設定されています' };
+  }
   if (cred.is_enabled !== true) {
     // ★ 停止中の連携を、こちらの都合で勝手に動かさない
     return { ok: false, reason: 'disabled', note: 'この連携は停止中です。再開してからお試しください' };

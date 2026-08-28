@@ -98,11 +98,16 @@ export async function POST(req: Request) {
   // 1. 取り込み設定
   const { data: source, error: srcErr } = await supabase
     .from('salon_import_sources')
-    .select('id, salon_id, is_enabled, provider, slot, external_id, import_schedule, import_profile, import_imasugu, create_missing, salons!inner(is_hidden, area)')
+    .select('id, salon_id, is_enabled, provider, slot, link_mode, external_id, import_schedule, import_profile, import_imasugu, create_missing, salons!inner(is_hidden, area)')
     .eq('id', sourceId)
     .single();
   if (srcErr || !source) return NextResponse.json({ ok: false, error: 'source not found' }, { status: 404 });
   if (!source.is_enabled) return NextResponse.json({ ok: true, skipped: 'disabled' });
+  // ★★ 向きが 'read' でない店は取り込まない（第45便）。targets 側でも弾いているが、
+  //   VPSが古いリストを持っていた場合や手動実行に備えて受け口側でも止める
+  //   （第31便の is_hidden と同じ、二重の安全弁）。
+  if ((source as unknown as { link_mode?: string }).link_mode !== 'read')
+    return NextResponse.json({ ok: true, skipped: 'not-read-mode' });
 
   type SalonRel = { is_hidden?: boolean; area?: string | null };
   const rel = (source as unknown as { salons?: SalonRel | SalonRel[] | null }).salons;

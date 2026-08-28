@@ -65,6 +65,11 @@ export async function GET(req: Request) {
     .from('salon_import_sources')
     .select('id, salon_id, provider, slot, external_id, shop_url, import_schedule, import_profile, create_missing, list_mode, import_interval_min, last_run_at, salons!inner(is_hidden)')
     .eq('is_enabled', true)
+    // ★★★ 向きが 'read' の店だけ読みに行く（第45便・設計メモ §11-2）。
+    //   'write' の店を読むと【自分が書いたものを読み戻す輪】ができる。
+    //   ★ 条件で輪を止めているのではなく、link_mode が1列3値なので
+    //     そもそも read と write が同時に立たない。ここはその1列を素直に見ているだけ。
+    .eq('link_mode', 'read')
     .eq('salons.is_hidden', false)
     .order('id');
 
