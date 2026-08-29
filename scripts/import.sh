@@ -29,11 +29,32 @@ set -euo pipefail
 #
 # crontab（第36便・15分間隔）:
 #   5,20,35,50 * * * * set -a; . /root/import.env; /usr/bin/bash /root/import.sh list >> /root/import.log 2>&1
-#   20 3 * * *         set -a; . /root/import.env; /usr/bin/bash /root/import.sh full >> /root/import.log 2>&1
-#   ※ 03:20 にしてあるのは list 周と flock で衝突させないため（禁則231）。
-#      →★ 15分間隔だと 03:20 は list 周とぶつかる。full を 03:25 にずらすか、
-#        flock で list 側が skip されるのを許容するか。第36便では 03:20 のまま置いた
-#        （flock があるので事故にはならず、skip されても次の周で拾える）。
+#   25 3 * * *         set -a; . /root/import.env; /usr/bin/bash /root/import.sh full >> /root/import.log 2>&1
+#
+# ★★★ 2026-08-29 訂正 — full を 03:25 にした。03:20 のままでは【一度も走らなかった】。
+#   第36便のコメントはこう書いていた:
+#     「flock があるので事故にはならず、skip されても次の周で拾える」
+#   ★★ これは **list には当てはまるが full には当てはまらない。**
+#     list は15分後に次の周がある。★ full は1日1回で、次の周が【翌日の同じ時刻】しかない。
+#     3:20 に list（crontab で先に書いてある方）が flock を取り、full は
+#       flock -n 9 || { echo "already running -> skip"; exit 0; }
+#     で即終了する。★ しかも mode を印字する前に抜けるので、ログに mode=full が1行も残らない。
+#     → 翌日も同じ負け方をするので、**毎日負け続けて一度も走らない。**
+#
+#   実害（2026-08-29 に発見・第36便の 08-26 から3日間）:
+#     ・当日ぶんは list が維持していたので、画面上は正常に見えていた
+#     ・★ 明日以降の週間予定が 08-26 03:29 のまま止まっていた
+#     ・★ salon_import_runs が更新されず、名簿の突き合わせの根拠が古いままだった
+#
+#   ★★★ 教訓: 「skip されても次の周で拾える」は【周が複数あるもの】にしか言えない。
+#     1日1回の周は、skip されたら次が無い。★ 頻度の違うものを同じ理屈で扱わないこと。
+#
+#   ★ 見張りの注意（第51便で入れるなら）:
+#     salon_import_sources.last_run_at は **list が15分ごとに更新する**ので、
+#     この事故では【ずっと新しいまま】だった。★ last_run_at を見ても捕まらない。
+#     full が走ったかは salon_import_runs の最終、または
+#     未来日の therapist_schedules.imported_at で見ること。
+#     ★★ 1つの時計で2つの周を見張ることはできない。
 #
 # ★ 駅ちかへの負荷（第36便実測）:
 #     今朝              343件/周・毎時 = 343件/時
