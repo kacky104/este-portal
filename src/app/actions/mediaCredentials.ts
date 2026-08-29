@@ -992,3 +992,54 @@ export async function startMediaRosterRead(input: {
     return { ok: false, error: '名簿の読み取りを開始できませんでした。時間をおいてお試しください' };
   }
 }
+
+/**
+ * ★★ 投稿用メールアドレスを駅ちかから取り込む（第53便・設計メモ 追記26）。
+ *
+ * ★★★ 駅ちかへは1文字も書かない。読むだけ。
+ *   書き換えるのは【フクエス側の】therapist_diary_forward（写メ日記の転送先）。
+ *
+ * ★★ 2段（第43便の作法）:
+ *   apply=false（既定） … 何件入れるつもりかを数えるだけ。★ 1行も書かない
+ *   apply=true          … 実際に登録する。★ 常に上書き（カッキーさんの決定）
+ *
+ * ★ 結果は非同期。中継役が引き取ってから「連携の記録」に件数が出る。
+ *   ★ アドレスの値は記録にも画面にも出さない（秘密値）。
+ */
+export async function startMediaMailImport(input: {
+  salonId: string | number; provider: string; slot?: number; apply?: boolean;
+}): Promise<Result<{ jobId: string; note: string }>> {
+  const salonId = Number(input.salonId);
+  if (!Number.isFinite(salonId)) return { ok: false, error: '店舗の指定が不正です' };
+  const slot = Math.trunc(Number(input.slot ?? 1));
+  const ng = validTarget(input.provider, slot);
+  if (ng) return { ok: false, error: ng };
+
+  const guard = await assertSalonOwner(salonId);
+  if (!guard.ok) return guard;
+
+  const svc = createServiceClient();
+  const { data: row } = await svc
+    .from('salon_media_credentials')
+    .select('consent_version')
+    .eq('salon_id', salonId).eq('provider', input.provider).eq('slot', slot)
+    .maybeSingle();
+  if (!row) return { ok: false, error: 'ログイン情報が登録されていません' };
+  if (needsConsent(row.consent_version as string | null)) {
+    return { ok: false, error: '連携の説明に同意してから実行してください' };
+  }
+
+  try {
+    const r = await startRelayFlow({
+      salonId, provider: input.provider, slot,
+      // ★ 既定は試し打ち。★ apply を明示したときだけ書く
+      intent: input.apply === true ? 'mail_apply' : 'mail_dryrun',
+      actor: 'shop:' + guard.data.userId,
+    });
+    if (!r.ok) return { ok: false, error: r.note };
+    return { ok: true, data: { jobId: r.jobId, note: r.note } };
+  } catch (e) {
+    console.error('[media] 投稿用アドレスの取り込みを始められなかった', (e as Error).message);
+    return { ok: false, error: '取り込みを開始できませんでした。時間をおいてお試しください' };
+  }
+}

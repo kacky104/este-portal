@@ -34,6 +34,7 @@ export type RelayPurpose =
   | 'login'
   | 'read_work'
   | 'read_girls'   // ★ 媒体側の名簿を読む（第50便）。読むだけ
+  | 'read_maillist' // ★ 投稿用メールアドレス一覧を読む（第53便）。読むだけ
   | 'write_work'
   | 'verify_work'
   | 'selftest';

@@ -36,6 +36,7 @@ import {
   type WorkPage,
 } from './ekichikaWorkParse';
 import { parseEkichikaGirls, girlsPageUsable, type EkichikaGirlsPage } from './ekichikaGirlsParse';
+import { parseEkichikaMailList, mailListUsable, type EkichikaMailListPage } from './ekichikaMailListParse';
 import { mergeCookies } from './relayJob';
 import type { AuditDetail, MediaAuditEvent, MediaAuditOutcome } from './mediaAudit';
 
@@ -45,6 +46,8 @@ export const EKICHIKA_LOGIN_URL = 'https://ranking-deli.jp/admin/login';
 export const EKICHIKA_WORK_URL = 'https://ranking-deli.jp/admin/girlswork/';
 /** 女の子一覧（管理画面）。★ 読むだけ。ここから castId と名前が取れる（第50便） */
 export const EKICHIKA_GIRLS_URL = 'https://ranking-deli.jp/admin/girls/';
+/** 投稿用メールアドレス一覧（管理画面）。★ 読むだけ。写メ日記の転送先がここに載る（第53便） */
+export const EKICHIKA_MAILLIST_URL = 'https://ranking-deli.jp/admin/maillist/';
 export const EKICHIKA_ORIGIN = 'https://ranking-deli.jp';
 
 /** relay-selftest と同じものを使う。★ 片方だけ変えない。 */
@@ -89,7 +92,17 @@ export type RelayFlowIntent =
    *   ★ connect_test と同じ「読むだけ」の仲間だが、読む先が違う（出勤ページではなく女の子一覧）。
    *   ★ 向きが write の枠でも使える。取り込みの周とは別に、明示的に1回読むものだから。
    */
-  | 'roster_read';
+  | 'roster_read'
+  /**
+   * ★★ 投稿用メールアドレスの取り込み（第53便・設計メモ 追記26 §123）。
+   *   login → read_maillist → 終わり。★ **駅ちかへは何も書かない。**
+   *   ★ 2つに分かれているのは第43便の作法（試し打ち → 本番）:
+   *     mail_dryrun … 何件入れるつもりかを数えるだけ。フクエスのDBも書き換えない
+   *     mail_apply  … 実際に therapist_diary_forward を更新する
+   *   ★ 駅ちかへの通信はどちらも同じ（読むだけ）。違うのはフクエス側を書くかどうか。
+   */
+  | 'mail_dryrun'
+  | 'mail_apply';
 
 /**
  * 段と段のあいだで持ち回す状態。
@@ -131,7 +144,7 @@ export type FlowAudit = {
 };
 
 export type FlowNextRequest = {
-  purpose: 'read_work' | 'write_work' | 'verify_work' | 'read_girls';
+  purpose: 'read_work' | 'write_work' | 'verify_work' | 'read_girls' | 'read_maillist';
   method: 'GET' | 'POST';
   url: string;
   headers: Record<string, string>;
@@ -155,7 +168,13 @@ export type FlowOutcome =
    *   （このファイルは DB を触らない約束）。呼び出し側が写しを1件だけ上書きで残す。
    *   ★ ここで「次のジョブ」を返さない＝**駅ちかへ何も飛ばない。**
    */
-  | { kind: 'roster'; page: EkichikaGirlsPage; audits: FlowAudit[]; note: string };
+  | { kind: 'roster'; page: EkichikaGirlsPage; audits: FlowAudit[]; note: string }
+  /**
+   * ★ 投稿用メールアドレス一覧を読めた（第53便）。roster と同じ理由でここでは保存しない。
+   *   ★★ page.rows には【秘密値（アドレス）】が入っている。
+   *     ★ 監査ログにも note にも値を出さないこと。件数とドメインだけ。
+   */
+  | { kind: 'maillist'; page: EkichikaMailListPage; audits: FlowAudit[]; note: string };
 
 // ────────────────────────── フローの入口（login を組み立てる） ──────────────────────────
 
@@ -329,6 +348,8 @@ export function advanceFlow(input: {
       return afterReadWork(input, ctx);
     case 'read_girls':
       return afterReadGirls(input, ctx);
+    case 'read_maillist':
+      return afterReadMailList(input, ctx);
     case 'write_work':
       return afterWriteWork(input, ctx);
     case 'verify_work':
@@ -379,6 +400,22 @@ function afterLogin(
   // ★★ 何を読みに行くかは intent で決まる（第50便）。
   //   ★ 「ログインの成否は、次に読むページが読めたかで判定する」という作法は変えない。
   //     出勤の用事なら出勤ページ、名簿の用事なら女の子一覧。どちらも「読めた＝ログインできた」。
+  if (ctx.intent === 'mail_dryrun' || ctx.intent === 'mail_apply') {
+    return {
+      kind: 'next',
+      next: {
+        purpose: 'read_maillist',
+        method: 'GET',
+        url: EKICHIKA_MAILLIST_URL,
+        headers: buildReadWorkRequest(cookie),
+        body: '',
+        context: { ...ctx, cookie },
+      },
+      audits: [],
+      note: 'ログインの応答を受け取った。★ 成否はメールアドレス一覧が読めるかどうかで判定する',
+    };
+  }
+
   if (ctx.intent === 'roster_read') {
     return {
       kind: 'next',
@@ -526,6 +563,117 @@ function afterReadGirls(
 }
 
 /**
+ * メールアドレス一覧の応答（第53便）。★ afterReadGirls と同じ順序の作法。
+ *
+ * ★★★ page.rows には【秘密値（投稿用アドレス）】が入る。
+ *   ★ 監査ログにも note にも【値を出さない】。件数だけ。
+ *   ★ 失敗の理由（problems）にもアドレスは混ざらない作りにしてある（パーサ側で castId しか出さない）。
+ */
+function afterReadMailList(
+  input: { status: number; headers: Record<string, string | string[]>; body: string },
+  ctx: RelayFlowContext,
+): FlowOutcome {
+  const flowId = ctx.flowId;
+
+  if (input.status >= 300 && input.status < 400) {
+    const location = String(input.headers['location'] ?? '');
+    if (location.includes('/admin/login')) {
+      return stop(
+        [
+          {
+            event: 'login',
+            outcome: 'failed',
+            summary:
+              '駅ちかにログインできませんでした（ログイン画面へ戻されました）。' +
+              '店舗ID・ログインID・パスワードをご確認ください',
+            detail: { httpStatus: input.status, reason: 'back_to_login', flowId },
+          },
+        ],
+        'ログイン後のメールアドレス一覧がログイン画面へ戻された＝ログインできていない',
+      );
+    }
+    return stop(
+      [
+        {
+          event: 'read_maillist',
+          outcome: 'failed',
+          summary: '駅ちかのメールアドレス一覧を開けませんでした（別の場所へ転送されました）',
+          detail: { httpStatus: input.status, reason: 'redirected', flowId },
+        },
+      ],
+      'メールアドレス一覧が想定外の場所へ転送された',
+    );
+  }
+
+  if (input.status !== 200) {
+    return stop(
+      [
+        {
+          event: 'read_maillist',
+          outcome: 'failed',
+          detail: { httpStatus: input.status, reason: 'http_error', flowId },
+        },
+      ],
+      'メールアドレス一覧の応答が ' + input.status + ' だった',
+    );
+  }
+
+  const page = parseEkichikaMailList(input.body);
+
+  if (mailListUsable(page)) {
+    return {
+      kind: 'maillist',
+      page,
+      audits: [
+        { event: 'login', outcome: 'ok', detail: { flowId } },
+        {
+          event: 'read_maillist',
+          outcome: 'ok',
+          // ★ 件数だけ。★ アドレスも名前も入れない
+          detail: { people: page.rows.length, flowId },
+        },
+      ],
+      note: 'メールアドレス一覧を読めた（' + page.rows.length + '名）。★ 駅ちかへは何も書いていない',
+    };
+  }
+
+  if (looksLikeEkichikaLoginPage(input.body)) {
+    return stop(
+      [
+        {
+          event: 'login',
+          outcome: 'failed',
+          summary:
+            '駅ちかにログインできませんでした（ログイン画面が返りました）。' +
+            'ログインID・パスワードをご確認ください',
+          detail: { httpStatus: 200, reason: 'login_page', bytes: input.body.length, flowId },
+        },
+      ],
+      'ログイン後のメールアドレス一覧としてログイン画面が返った＝ログインできていない',
+    );
+  }
+
+  return stop(
+    [
+      {
+        event: 'read_maillist',
+        outcome: 'failed',
+        summary:
+          '駅ちかのメールアドレス一覧を読み取れませんでした（画面の作りが変わった可能性があります）',
+        detail: {
+          reason: page.rows.length === 0 ? 'parse_error' : 'page_broken',
+          problems: page.problems.length,
+          people: page.rows.length,
+          bytes: input.body.length,
+          flowId,
+        },
+      },
+    ],
+    'メールアドレス一覧が読めない: ' + page.problems.join(' / ').slice(0, 300),
+  );
+}
+
+/**
  * 出勤ページの応答。★ ここが【ログインの成否そのもの】。
  */
 function afterReadWork(
@@ -668,6 +816,10 @@ function finishRead(audits: FlowAudit[], ctx: RelayFlowContext, page: WorkPage):
         audits,
         note: '出勤ページを読めた。★ 承認された内容と一致するか確かめてから送る',
       };
+    case 'mail_dryrun':
+    case 'mail_apply':
+      // ★ ここへは来ない（メールの用事は出勤ページを読みに行かない）。★ 網羅は外さない
+      return stop(audits, 'メールアドレスの取り込みは出勤ページを使わない（ここへは来ないはず）');
     case 'roster_read':
       // ★★ ここへは来ない（roster_read は出勤ページを読みに行かない）。
       //   ★ だが switch は網羅させる。網羅を外すと「足したのに繋いでいない」が静かに通る。

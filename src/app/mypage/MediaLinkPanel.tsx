@@ -22,6 +22,7 @@ import {
   startMediaWorkPush,
   getMediaRoster,
   startMediaRosterRead,
+  startMediaMailImport,
   type WorkPlanView,
 } from '@/app/actions/mediaCredentials';
 
@@ -145,6 +146,10 @@ export function MediaLinkPanel({
   const [roster, setRoster] = useState<RosterResult[]>([]);
   /** ★ 名簿を読みに行った直後（二度押し防止）。結果は非同期で届く */
   const [readingRoster, setReadingRoster] = useState(false);
+  /** ★ 投稿用アドレスの取り込み中（二度押し防止）。結果は「連携の記録」に出る */
+  const [importingMail, setImportingMail] = useState(false);
+  /** ★ 登録の確認（1回目で確認・2回目で実行）。★ 上書きするので一度止める */
+  const [confirmMail, setConfirmMail] = useState(false);
 
   const current = rows.find((r) => r.provider === PROVIDER && r.slot === slot) ?? null;
   // ★ この枠の突き合わせ。★ 見つからない＝「0名」ではなく「取り込みの設定がまだ無い」
@@ -218,6 +223,25 @@ export function MediaLinkPanel({
     setReadingRoster(false);
     if (!res.ok) { onToast(res.error); return; }
     onToast('駅ちかの名簿を読みに行きました。数分後にこの画面を開き直してください');
+  };
+
+  /**
+   * ★★ 駅ちかの投稿用メールアドレスを取り込む（第53便）。
+   *   ★ 駅ちかへは1文字も書かない。書き換えるのはフクエス側の転送先。
+   *   ★ apply=false が既定（試し打ち）。★ 登録は確認を1回挟む。
+   */
+  const onImportMail = async (apply: boolean) => {
+    if (!salonId) return;
+    setImportingMail(true);
+    const res = await startMediaMailImport({ salonId, provider: PROVIDER, slot, apply });
+    setImportingMail(false);
+    setConfirmMail(false);
+    if (!res.ok) { onToast(res.error); return; }
+    onToast(
+      apply
+        ? '投稿先の登録を始めました。数分後に「連携の記録」でご確認ください'
+        : '取り込む内容を確認しています。数分後に「連携の記録」でご確認ください',
+    );
   };
 
   const onToggle = async (r: CredRow) => {
@@ -799,6 +823,70 @@ export function MediaLinkPanel({
                 : '駅ちかへ反映するには、上で「フクエスから駅ちかへ反映する向き」に変えてください。'}
             </p>
           )}
+        </div>
+      )}
+
+      {/* ── 写メ日記の投稿先（第53便・設計メモ 追記26）──
+          ★★ 駅ちかが発行した投稿用メールアドレスを、こちらから読み取って登録する。
+            ★ 手で登録させると40名の店で40回の入力になる（§2-2「操作回数がゼロになること」）。
+          ★ 置き場所は将来 /mypage/media のセラピスト情報へ移す（カッキーさんの決定）。
+            ★ その画面がまだ無いので、当面ここに置く。 */}
+      {current && current.hasPassword && (
+        <div className="bg-white rounded-3xl border border-slate-100 shadow-sm p-5 space-y-3">
+          <div className="flex items-baseline justify-between gap-2 flex-wrap">
+            <h3 className="text-sm font-bold text-slate-700">写メ日記の投稿先</h3>
+            <span className="text-[11px] text-slate-400">駅ちか（枠{slot}）</span>
+          </div>
+          <p className="text-[12px] text-slate-500 leading-relaxed">
+            駅ちかがセラピストごとに発行している投稿用メールアドレスを読み取って、
+            フクエスの転送先に登録します。駅ちかの内容は変更しません。
+          </p>
+
+          <div className="flex items-center gap-2 flex-wrap">
+            <button
+              type="button"
+              onClick={() => onImportMail(false)}
+              disabled={importingMail}
+              className="px-3 py-1.5 rounded-full border border-slate-200 text-[12px] text-slate-600 hover:bg-slate-50 disabled:opacity-50"
+            >
+              {importingMail ? '受付中…' : '取り込む内容を確認'}
+            </button>
+            {!confirmMail ? (
+              <button
+                type="button"
+                onClick={() => setConfirmMail(true)}
+                disabled={importingMail}
+                className="px-3 py-1.5 rounded-full border border-pink-200 text-[12px] text-pink-600 hover:bg-pink-50 disabled:opacity-50"
+              >
+                取り込んで登録する
+              </button>
+            ) : (
+              <>
+                <button
+                  type="button"
+                  onClick={() => onImportMail(true)}
+                  disabled={importingMail}
+                  className="px-3 py-1.5 rounded-full bg-pink-500 text-white text-[12px] font-bold hover:bg-pink-600 disabled:opacity-50"
+                >
+                  登録します
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setConfirmMail(false)}
+                  className="px-3 py-1.5 rounded-full border border-slate-200 text-[12px] text-slate-500 hover:bg-slate-50"
+                >
+                  やめる
+                </button>
+              </>
+            )}
+          </div>
+
+          {/* ★ 上書きすることを隠さない。★ 押す前に読める場所に書く */}
+          <p className="text-[11px] text-slate-400 leading-relaxed">
+            登録すると、いま入っている投稿先は<strong className="text-slate-500">駅ちかの内容で上書き</strong>されます。
+            駅ちか側でアドレスが再発行されたときに、古いまま送り続けないためです。
+            結果の件数は下の「連携の記録」に出ます。
+          </p>
         </div>
       )}
 

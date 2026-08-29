@@ -30,6 +30,7 @@
     "src/lib/mediaLinkMode.ts",
     "src/lib/mediaRoster.ts",
     "src/lib/ekichikaGirlsParse.ts",
+    "src/lib/ekichikaMailListParse.ts",
     "src/lib/mediaCastIds.ts",
     "src/app/api/admin/media-auto-push/route.ts",
     "src/app/actions/mediaCredentials.ts",

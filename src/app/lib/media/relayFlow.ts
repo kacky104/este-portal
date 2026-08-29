@@ -31,6 +31,7 @@ import { loadCastIds } from '@/lib/mediaCastIds';
 import { addDaysISO, buildWorkPlan, planFingerprint, summarizePlan, type FukuesShift } from '@/lib/workPlan';
 import { WORK_DAYS, encodeGirlWork, type WorkPage } from '@/lib/ekichikaWorkParse';
 import type { EkichikaGirlsPage } from '@/lib/ekichikaGirlsParse';
+import type { EkichikaMailListPage } from '@/lib/ekichikaMailListParse';
 
 /** いまフローを組み立てられる媒体。★ 増やすときは buildLoginRequest 側も要る */
 const SUPPORTED_PROVIDERS = ['ekichika'] as const;
@@ -179,6 +180,15 @@ export async function advanceRelayFlow(params: {
     note = outcome.note + ' → ' + r.note;
   }
 
+  // ★★★ 投稿用メールアドレスを読めた（第53便）。
+  //   ★ 次を積まない ＝ 駅ちかとのやりとりはここで終わり。何も書き換えていない。
+  //   ★ フクエス側を書くかどうかは intent で決まる（mail_dryrun は数えるだけ）。
+  if (outcome.kind === 'maillist') {
+    const r = await saveMailList(params, outcome.page, context);
+    audits.push(...r.audits);
+    note = outcome.note + ' → ' + r.note;
+  }
+
   if (outcome.kind === 'plan_work') {
     const r = await planWork(params, outcome.page, context);
     audits.push(...r.audits);
@@ -195,7 +205,7 @@ export async function advanceRelayFlow(params: {
   //   ★ 名簿の読み取りも 'done'。ログインと読み取りは実際に成功しているので認証情報は健全。
   const settle: 'next' | 'done' | 'stop' = next
     ? 'next'
-    : outcome.kind === 'plan_work' || outcome.kind === 'roster'
+    : outcome.kind === 'plan_work' || outcome.kind === 'roster' || outcome.kind === 'maillist'
       ? 'done'
       : outcome.kind;
   await stampCredential(params, settle, audits);
@@ -220,6 +230,115 @@ export async function advanceRelayFlow(params: {
     return { note: '次の段（' + next.purpose + '）を積めなかった: ' + r.detail };
   }
   return { note: outcome.note + ' → 次に ' + next.purpose + ' を積んだ' };
+}
+
+/**
+ * ★★ 投稿用メールアドレスを取り込む（第53便・設計メモ 追記26）。
+ *
+ * ★★★ この関数の出口に駅ちかへの通信は無い。★ 読んだものをフクエス側に写すだけ。
+ *
+ * ★★★ アドレスは秘密値。★ 監査ログにも note にも【値を出さない】。件数とドメインだけ。
+ *
+ * ★★ 2段（第43便の作法）:
+ *   mail_dryrun … 何件入れるつもりかを数えるだけ。★ 1行も書かない
+ *   mail_apply  … 実際に therapist_diary_forward を更新する
+ *
+ * ★★ 上書きの方針は【常に上書き】（カッキーさんの決定・2026-08-29）。
+ *   アドレスの正本は駅ちか側。空き枠だけ埋める形だと、駅ちかで再発行されたとき
+ *   古いまま送り続ける＝【静かに失敗する形】を自分で作ることになる。
+ *
+ * ★ ガラケー欄（@s.…）は【保存しない】。フクエスは Resend で送るので使わない。
+ *   ★ 使わない秘密値を保管する場所を増やさない（第38便の作法）。
+ *   ★ ただしパーサは読む（74=37×2 の突き合わせに要るため）。
+ */
+async function saveMailList(
+  params: { salonId: number; provider: string; slot: number },
+  page: EkichikaMailListPage,
+  ctx: RelayFlowContext,
+): Promise<{ audits: FlowAudit[]; note: string }> {
+  const apply = ctx.intent === 'mail_apply';
+  const supabase = createServiceClient();
+
+  // 1. その店の在籍と castId（★ 名前ではなく castId で結びつける）
+  const { data: therapists, error: thErr } = await supabase
+    .from('therapists')
+    .select('id, import_cast_id')
+    .eq('salon_id', params.salonId);
+  if (thErr) {
+    return { audits: [], note: '★ 読めたが在籍を引けなかった: ' + thErr.message.slice(0, 120) };
+  }
+  const { maps, error: castErr } = await loadCastIds(supabase, {
+    therapists: (therapists ?? []) as Array<{ id: number; import_cast_id?: string | null }>,
+    provider: params.provider,
+    slot: params.slot,
+  });
+  if (castErr) return { audits: [], note: '★ 読めたが媒体側の番号を引けなかった: ' + castErr };
+
+  // 2. いま入っている転送先（★ 値の比較に要る。★ 値はここから外へ出さない）
+  const ids = (therapists ?? []).map((t) => Number(t.id));
+  const { data: current } = ids.length
+    ? await supabase
+        .from('therapist_diary_forward')
+        .select('therapist_id, address')
+        .eq('provider', params.provider)
+        .eq('slot', params.slot)
+        .in('therapist_id', ids)
+    : { data: [] as Array<{ therapist_id: number; address: string }> };
+  const now = new Map<number, string>();
+  for (const r of current ?? []) now.set(Number(r.therapist_id), String(r.address));
+
+  // 3. 数える
+  let matched = 0, unmatched = 0, willCreate = 0, willUpdate = 0, unchanged = 0;
+  const rows: Array<{ therapist_id: number; provider: string; slot: number; address: string }> = [];
+  for (const r of page.rows) {
+    const tid = maps.byCastId.get(r.castId);
+    if (tid === undefined) { unmatched++; continue; }
+    matched++;
+    const before = now.get(tid);
+    if (before === undefined) willCreate++;
+    else if (before !== r.address) willUpdate++;
+    else { unchanged++; continue; }        // ★ 同じ値は書かない（updated_at を無駄に動かさない）
+    rows.push({ therapist_id: tid, provider: params.provider, slot: params.slot, address: r.address });
+  }
+
+  const counts = {
+    found: page.rows.length,
+    matched,
+    unmatched,
+    created: willCreate,
+    updated: willUpdate,
+    unchanged,
+  };
+
+  if (!apply) {
+    // ★ 試し打ち。1行も書かない
+    return {
+      audits: [{ event: 'read_maillist', outcome: 'ok', detail: { ...counts, applied: false, flowId: ctx.flowId } }],
+      note:
+        '試し打ち: ' + matched + '名を結びつけ、新規 ' + willCreate + '名・更新 ' + willUpdate +
+        '名・変更なし ' + unchanged + '名。★ まだ登録していません',
+    };
+  }
+
+  if (rows.length > 0) {
+    const { error } = await supabase
+      .from('therapist_diary_forward')
+      .upsert(rows, { onConflict: 'therapist_id,provider,slot' });
+    if (error) {
+      console.error('[relay] 投稿用アドレスを登録できなかった', params.salonId, error.message);
+      return {
+        audits: [{ event: 'read_maillist', outcome: 'failed', detail: { ...counts, applied: true, flowId: ctx.flowId } }],
+        note: '★ 読めたが登録できなかった: ' + error.message.slice(0, 120),
+      };
+    }
+  }
+
+  return {
+    audits: [{ event: 'read_maillist', outcome: 'ok', detail: { ...counts, applied: true, flowId: ctx.flowId } }],
+    note:
+      '登録しました: 新規 ' + willCreate + '名・更新 ' + willUpdate + '名・変更なし ' + unchanged +
+      '名' + (unmatched > 0 ? '（★ 結びつかなかった ' + unmatched + '名）' : ''),
+  };
 }
 
 /**
