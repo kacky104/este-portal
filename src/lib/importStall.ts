@@ -106,6 +106,12 @@ export function importSlotLabel(provider: string, slot: number): string {
   return name + '（枠' + slot + '）';
 }
 
+/**
+ * 店舗が読む1行を組み立てる。
+ * ★★ ここに「★」を書かないこと（2026-08-29 に一度漏らした）。
+ *   ★ は設計メモとコードの注記の記号で、**店舗はその意味を知らない。**
+ *   mediaLinkStall の文言にも入っていない。★ 内部の記法を画面へ持ち出さない。
+ */
 function buildMessage(
   clock: ImportClockKind,
   reason: ImportStallReason,
@@ -133,7 +139,7 @@ function buildMessage(
   }
   return (
     slotLabel + 'の週間予定の取り込みが' + t + '止まっています。' +
-    '本日の出勤は取り込めていますが、★ 明日以降の出勤が古いままです'
+    '本日の出勤は取り込めていますが、明日以降の出勤が古いままです'
   );
 }
 

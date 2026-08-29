@@ -123,6 +123,15 @@ eq('47時間はまだ時間', s.importElapsedLabel(47), '47時間');
   eq('文言に英語の状態名が出ない',
     all.some((f) => /never|stale|list|full/.test(f.message)), false);
 }
+// ★★ 内部の記法（★）を店舗の画面に出さない。2026-08-29 に一度漏らした
+{
+  const all = [
+    ...s.judgeImportStall(base({ listLastRunAt: hoursAgo(9), fullLastRunAt: hoursAgo(72) })),
+    ...s.judgeImportStall(base({ listLastRunAt: null, fullLastRunAt: null, createdAt: hoursAgo(72) })),
+  ];
+  eq('★ 文言に「★」を混ぜない', all.some((f) => f.message.indexOf('★') >= 0), false);
+  eq('★ 文言を4通りとも点検している', all.length, 4);
+}
 eq('未知の provider はそのまま出す', s.importSlotLabel('esulove', 2), 'esulove（枠2）');
 eq('駅ちかは日本語にする', s.importSlotLabel('ekichika', 1), '駅ちか（枠1）');
 
