@@ -169,6 +169,34 @@ export function defaultAuditSummary(input: {
         ? `${t}にログインしました`
         : `${t}にログインできませんでした`;
       break;
+    case 'read_girls':
+      // ★ 名簿の読み取り（第50便）。★ 既定の「処理を行いました」に落とさない
+      s = input.outcome === 'ok'
+        ? `${t}の名簿を読み取りました` + (people !== null ? `（${people}名）` : '')
+        : `${t}の名簿を読み取れませんでした`;
+      break;
+    case 'read_maillist': {
+      // ★★ 投稿用アドレスの取り込み（第53便）。★ 件数を画面に出すのがこの記録の目的。
+      //   ★ 読み取りの段（applied が無い）と、登録の段（applied あり）を書き分ける。
+      //     ★ 同じ文言だと、記録に2行並んだときにどちらがどちらか分からない。
+      if (input.outcome !== 'ok') { s = `${t}の投稿用アドレスを読み取れませんでした`; break; }
+      const applied = input.detail?.['applied'];
+      if (applied === undefined) {
+        s = `${t}の投稿用アドレスを読み取りました` + (people !== null ? `（${people}名）` : '');
+        break;
+      }
+      const created = count(d, 'created');
+      const updated = count(d, 'updated');
+      const unchanged = count(d, 'unchanged');
+      const unmatched = count(d, 'unmatched');
+      const nums =
+        `新規${created ?? 0}名・更新${updated ?? 0}名・変更なし${unchanged ?? 0}名` +
+        (unmatched ? `・結びつかず${unmatched}名` : '');
+      s = applied === true
+        ? `${t}の写メ日記の投稿先を登録しました（${nums}）`
+        : `${t}の写メ日記の投稿先を確認しました（${nums}）★ まだ登録していません`;
+      break;
+    }
     case 'read_work':
       s = input.outcome === 'ok'
         ? `${t}の出勤を読み取りました` + (people !== null ? `（在籍${people}人）` : '')

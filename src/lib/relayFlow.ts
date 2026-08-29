@@ -630,6 +630,8 @@ function afterReadMailList(
           event: 'read_maillist',
           outcome: 'ok',
           // ★ 件数だけ。★ アドレスも名前も入れない
+          // ★★ applied を入れない。入れないことが「読み取りの段」の目印になっている
+          //   （mediaAudit.defaultAuditSummary が applied の有無で文言を分けている）
           detail: { people: page.rows.length, flowId },
         },
       ],
