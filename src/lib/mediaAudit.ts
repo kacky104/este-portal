@@ -132,6 +132,13 @@ function count(detail: AuditDetail | null | undefined, key: string): number | nu
  *   ★ 分からない組み合わせでも「何も書かない」にしないこと。
  *     空欄の監査ログは、記録が無いのと同じ。
  */
+/**
+ * ★★★ ここで作る文字列は【店舗が読む文】。
+ *   ★ 「★」を書かないこと。★ は設計メモとコードの注記の記号で、店舗はその意味を知らない。
+ *   ★★ 2026-08-29 に2回同じ失敗をした（importStall で直した直後に、ここで繰り返した）。
+ *     → 直したのは1か所だけで、同じ失敗が起きない形にしていなかった。
+ *     → ★ 点検 check:auditsummary で全イベントの文言を走査するようにした。
+ */
 export function defaultAuditSummary(input: {
   event: MediaAuditEvent;
   outcome: MediaAuditOutcome;
@@ -194,7 +201,7 @@ export function defaultAuditSummary(input: {
         (unmatched ? `・結びつかず${unmatched}名` : '');
       s = applied === true
         ? `${t}の写メ日記の投稿先を登録しました（${nums}）`
-        : `${t}の写メ日記の投稿先を確認しました（${nums}）★ まだ登録していません`;
+        : `${t}の写メ日記の投稿先を確認しました（${nums}）。まだ登録していません`;
       break;
     }
     case 'read_work':
@@ -229,7 +236,8 @@ export function defaultAuditSummary(input: {
     case 'verify_work':
       s = input.outcome === 'ok'
         ? `${t}の出勤を更新後に読み直し、内容が一致することを確認しました`
-        : `★ ${t}の出勤を更新後に読み直したところ、内容が一致しませんでした。確認が必要です`;
+        // ★ ここに「★」を書かない（内部記法）。失敗は画面側が赤で描くので、記号は要らない
+        : `${t}の出勤を更新後に読み直したところ、内容が一致しませんでした。確認をお願いします`;
       break;
     case 'relay_gave_up':
       s = `${t}への接続に続けて失敗したため、いったん止めました`;
