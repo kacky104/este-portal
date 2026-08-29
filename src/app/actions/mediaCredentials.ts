@@ -17,6 +17,7 @@ import {
   type RosterTherapist,
   type RosterRun,
   type RosterSnapshot,
+  type RosterLink,
 } from '@/lib/mediaRoster';
 
 // 他媒体の管理画面ログイン情報の登録（第39便・第3弾の入口）。
@@ -882,13 +883,13 @@ export async function getMediaRoster(input: { salonId: string | number }): Promi
     //   ここで自前に読み替えると、その規則が2か所に分かれる。必ず loadCastIds を通すこと。
     const { maps, error: castErr } = await loadCastIds(svc, { therapists: castIdRows, provider, slot });
     if (castErr) return { ok: false, error: '媒体側の番号を読めませんでした' };
-    const linkedIds: number[] = [];
-    // ★ フクエス側が知っている媒体の番号。写しとの差（媒体だけにいる人）を出すのに要る
-    const knownCastIds: string[] = [];
+    // ★★ 結びつきは【対で1本】にして渡す（第52便）。
+    //   以前は therapist_id の配列と castId の配列を別々に渡しており、
+    //   ★ 片方だけ渡す・順番がずれるといった食い違いが作れる形だった。
+    const links: RosterLink[] = [];
     for (const [id, castId] of maps.castIdOf) {
       if (!castId) continue;
-      linkedIds.push(id);
-      knownCastIds.push(castId);
+      links.push({ therapistId: id, castId });
     }
 
     // ★ 直近の取り込み1回ぶんだけ。★ 無ければ null のまま渡す（0件に潰さない）。
@@ -930,8 +931,7 @@ export async function getMediaRoster(input: { salonId: string | number }): Promi
         slot,
         linkMode: (s.link_mode as string | null) ?? null,
         therapists: people,
-        linkedIds,
-        knownCastIds,
+        links,
         lastRun,
         snapshot,
         now,

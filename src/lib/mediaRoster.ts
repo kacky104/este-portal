@@ -68,19 +68,25 @@ export type RosterSnapshot = {
   entries: Array<{ castId: string; name: string }>;
 };
 
+/** セラピスト1人と、その媒体側の番号の対。★ 必ず対で持つ（片方だけにしない） */
+export type RosterLink = { therapistId: number; castId: string };
+
 export type RosterInput = {
   provider: string;
   slot: number;
   /** 連携の向き。'none' | 'read' | 'write' | 'write_auto' | null */
   linkMode: string | null;
   therapists: RosterTherapist[];
-  /** この媒体・この枠で castId が付いている therapist_id（therapist_media_ids ＋ 旧列） */
-  linkedIds: readonly number[];
+  /**
+   * この媒体・この枠での結びつき。
+   * ★★ 第52便で1本にした。以前は「therapist_id の配列」と「castId の配列」を別々に受けており、
+   *   ★ 2つが食い違いうる形だった（第50便 §84「同じものを2か所で判断しない」と同じ危険）。
+   *   → 対にして1つの表で受ける。片方だけ渡すことができなくなる。
+   */
+  links: readonly RosterLink[];
   lastRun: RosterRun | null;
   /** ★ 媒体側の名簿の写し。あれば lastRun より優先する（第50便） */
   snapshot?: RosterSnapshot | null;
-  /** ★ フクエス側が知っている castId（この媒体・枠）。写しとの差を出すのに要る */
-  knownCastIds?: readonly string[];
   now: Date;
   /** 既定 ROSTER_STALE_HOURS。点検で短くするためだけに開けてある */
   staleHours?: number;
@@ -132,10 +138,22 @@ export type RosterResult = {
   /** ③ 媒体に居てフクエスに居ない名前 */
   onlyOnMedia: string[];
   /**
+   * ④ こちらが番号を知っているのに、媒体側にいない人（第52便）。
+   *
+   * ★★★ 2つの意味がある。**どちらかを機械が決めつけない。**
+   *   ・媒体側で削除された … §8「人数が揃わない」の、これまで見えていなかった側
+   *   ・★ 一覧を取りこぼした … ページ送りがあって1ページ目しか読めていない場合、
+   *     結びついている人の一部が「いない」ように見える（設計メモ §87）
+   * ★ 少数なら前者、大量なら後者を疑う。★ しきい値は置かない（根拠が無いため・§107）。
+   */
+  missingOnMedia: RosterPerson[];
+  /**
    * ★★★ ③を数字として信じてよいか。false のとき onlyOnMedia は必ず空だが、
    *   それは「0人」ではなく【分からない】の意味。★ 画面で 0 と書かないこと。
    */
   onlyOnMediaKnown: boolean;
+  /** ★ ④を数字として信じてよいか。写しが無ければ false（0人ではなく「分からない」） */
+  missingOnMediaKnown: boolean;
   /**
    * ★ ③の数字がどこから来たか。
    *   'snapshot' … 管理画面の名簿を直接読んだ（強い）
@@ -222,7 +240,10 @@ export function judgeRosterEvidence(input: {
  *   画面を開くたびに人の並びが変わると、店舗は「増えた・減った」を目で追えない。
  */
 export function buildRoster(input: RosterInput): RosterResult {
-  const linkedSet = new Set<number>(input.linkedIds);
+  // ★ 1本の表から2つの索引を作る。★ 呼び出し側に2つ渡させない（食い違いを作らない）
+  const castIdOf = new Map<number, string>();
+  for (const l of input.links) castIdOf.set(l.therapistId, l.castId);
+  const linkedSet = new Set<number>(castIdOf.keys());
 
   const people = [...input.therapists].sort((a, b) => a.id - b.id);
 
@@ -270,13 +291,24 @@ export function buildRoster(input: RosterInput): RosterResult {
   let source: 'snapshot' | 'run' | null;
   let mediaTotal: number | null;
 
+  // ④ こちらが番号を知っているのに、媒体側にいない人（第52便）
+  let missingOnMedia: RosterPerson[] = [];
+
   if (snapshot) {
-    const knownCast = new Set<string>(input.knownCastIds ?? []);
+    const knownCast = new Set<string>(castIdOf.values());
+    const onMedia = new Set<string>(snapshot.entries.map((e) => e.castId));
     mediaTotal = snapshot.entries.length;
     source = 'snapshot';
     // ★ 媒体側にいて、こちらが番号を知らない子。★ 並びは写しの順のまま（相手の並び順）
     onlyOnMedia = known
       ? snapshot.entries.filter((e) => !knownCast.has(e.castId)).map((e) => e.name)
+      : [];
+    // ★ 逆向き。★ 並びは id 昇順のまま（people は既に並べ替えてある）
+    missingOnMedia = known
+      ? people.filter((t) => {
+          const cast = castIdOf.get(t.id);
+          return cast !== undefined && !onMedia.has(cast);
+        }).map((t) => ({ id: t.id, name: t.name, isActive: t.isActive }))
       : [];
   } else {
     mediaTotal = null;
@@ -294,7 +326,10 @@ export function buildRoster(input: RosterInput): RosterResult {
     linkedButHidden,
     mediaTotal,
     onlyOnMedia,
+    missingOnMedia,
     onlyOnMediaKnown: known,
+    // ★ ④は写しがあるときにしか言えない。取り込みの未照合からは出せない
+    missingOnMediaKnown: snapshot !== null && known,
     source,
     evidence,
   };
@@ -350,5 +385,10 @@ export function evidenceMessage(e: RosterEvidence, source: 'snapshot' | 'run' | 
  * ★ 「無い」を返せることが大事。異常が無い店に赤い箱を出さない。
  */
 export function rosterHasFindings(r: RosterResult): boolean {
-  return r.unlinked.length > 0 || r.linkedButHidden.length > 0 || r.onlyOnMedia.length > 0;
+  return (
+    r.unlinked.length > 0 ||
+    r.linkedButHidden.length > 0 ||
+    r.onlyOnMedia.length > 0 ||
+    r.missingOnMedia.length > 0
+  );
 }

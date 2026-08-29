@@ -33,10 +33,20 @@ const PEOPLE = [
   { id: 20, name: 'もえ', isActive: false },
 ];
 
-const build = (o) => r.buildRoster(Object.assign({
-  provider: 'ekichika', slot: 1, linkMode: 'read',
-  therapists: PEOPLE, linkedIds: [10, 20, 30], lastRun: run(), now: NOW,
-}, o));
+// therapist_id → 媒体側の castId（点検を読みやすくするための対応表）。
+// ★ 本体は links（対の配列）1本で受ける。点検では therapist_id で書きたいので、ここで対にする。
+const CAST = { 10: '100', 20: '200', 30: '900' };
+const linksOf = (ids) => ids.map((id) => ({ therapistId: id, castId: CAST[id] || String(id) }));
+
+const build = (o) => {
+  const opt = Object.assign({ linkedIds: [10, 20, 30] }, o || {});
+  const ids = opt.linkedIds;
+  delete opt.linkedIds;
+  return r.buildRoster(Object.assign({
+    provider: 'ekichika', slot: 1, linkMode: 'read',
+    therapists: PEOPLE, links: linksOf(ids), lastRun: run(), now: NOW,
+  }, opt));
+};
 
 const judge = (o) => r.judgeRosterEvidence(Object.assign({
   linkMode: 'read', lastRun: run(), now: NOW,
@@ -179,7 +189,7 @@ const snap = (o) => Object.assign({
 {
   const 写し無し = build({ linkMode: 'write', lastRun: run({ startedAt: hoursAgo(72) }) });
   const 写しあり = build({ linkMode: 'write', lastRun: run({ startedAt: hoursAgo(72) }),
-    snapshot: snap(), knownCastIds: ['100', '200'] });
+    snapshot: snap() });
   eq('★ 写し無し・書き込みの向き → paused', 写し無し.evidence.kind, 'paused');
   eq('★ 写し無しでは3が分からない', 写し無し.onlyOnMediaKnown, false);
   eq('★ 写しありなら同じ向きでも fresh', 写しあり.evidence.kind, 'fresh');
@@ -189,20 +199,20 @@ const snap = (o) => Object.assign({
 
 // ★ 写しから3を出す。★ こちらが番号を知らない子だけが出ること
 {
-  const r = build({ snapshot: snap(), knownCastIds: ['100', '200'] });
+  const r = build({ snapshot: snap(), linkedIds: [10, 20] });
   eq('媒体だけにいる人が出る', r.onlyOnMedia, ['のこり']);
   eq('媒体側の人数が出る', r.mediaTotal, 3);
   eq('出典は写し', r.source, 'snapshot');
 }
 // ★ 全員こちらが知っていれば0件。★ これは「分からない」ではなく本当に0
 {
-  const r = build({ snapshot: snap(), knownCastIds: ['100', '200', '900'] });
+  const r = build({ snapshot: snap(), linkedIds: [10, 20, 30] });
   eq('全員知っていれば0件', r.onlyOnMedia, []);
   eq('★ その0は信じてよい', r.onlyOnMediaKnown, true);
 }
-// ★ knownCastIds を渡し忘れたら全員が「媒体だけ」になる。★ 0件に化けないこと
+// ★ 1つも結びついていなければ、媒体側の全員が「媒体だけ」になる。★ 0件に化けないこと
 {
-  const r = build({ snapshot: snap() });
+  const r = build({ snapshot: snap(), linkedIds: [] });
   eq('番号を1つも知らなければ全員出る', r.onlyOnMedia.length, 3);
 }
 
@@ -218,7 +228,7 @@ eq('根拠が無ければ出典も無い', build({ lastRun: null }).source, null
 
 // ★ 写しが古ければ stale。★ ただし「その時点のもの」として読めるので known は true
 {
-  const r = build({ snapshot: snap({ readAtISO: hoursAgo(48) }), knownCastIds: ['100'] });
+  const r = build({ snapshot: snap({ readAtISO: hoursAgo(48) }), linkedIds: [10] });
   eq('48時間前の写しは stale', r.evidence.kind, 'stale');
   eq('★ stale でも写しの中身は読める', r.onlyOnMediaKnown, true);
   eq('35時間前ならまだ fresh',
@@ -236,6 +246,49 @@ eq('根拠が無ければ出典も無い', build({ lastRun: null }).source, null
   eq('空の写しでも落ちない', r.mediaTotal, 0);
   eq('空の写しでは3も0件', r.onlyOnMedia, []);
 }
+
+console.log('\n── 4-b. ★★★ 4「番号を知っているのに媒体にいない人」（第52便）──');
+
+// ★ 媒体側の写しに 900（＝ゆい）が無い形。★ 駅ちかで削除された、または取りこぼした
+const snapWithout900 = () => snap({ entries: [
+  { castId: '100', name: 'こう' }, { castId: '200', name: 'おつ' },
+] });
+{
+  const r = build({ snapshot: snapWithout900(), linkedIds: [10, 20, 30] });
+  eq('★ 媒体にいない人が名前で出る', r.missingOnMedia.map((p) => p.name), ['ゆい']);
+  eq('★ その数字は信じてよい', r.missingOnMediaKnown, true);
+  eq('媒体側の人数は写しのとおり', r.mediaTotal, 2);
+  // ★★ ここが取りこぼしの見え方。媒体側の人数 < 結びついている人数 ＝ ありえない形
+  eq('★ 媒体の人数が結びつきより少なくなる', r.mediaTotal < r.linked, true);
+}
+// ★ 全員が媒体側にいれば0件
+eq('全員いれば4は0件',
+  build({ snapshot: snap(), linkedIds: [10, 20, 30] }).missingOnMedia, []);
+// ★★★ 写しが無ければ【分からない】。★ 0件と言わない
+{
+  const r = build({ lastRun: run({ unmatched: ['あや'] }) });
+  eq('★ 写しが無ければ4は空', r.missingOnMedia, []);
+  eq('★ だがそれは0人ではなく分からない', r.missingOnMediaKnown, false);
+}
+// ★ 取り込みの未照合からは4を出せない（向きが逆の情報なので）
+eq('★ 取り込みが出典でも4は分からないまま',
+  build({ lastRun: run({ startedAt: hoursAgo(1) }) }).missingOnMediaKnown, false);
+// ★ 結びついていない人は4に出ない（そもそも番号を知らない）
+{
+  const r = build({ snapshot: snapWithout900(), linkedIds: [10] });
+  eq('★ 番号を知らない人は4に出ない', r.missingOnMedia.map((p) => p.name), []);
+  eq('その人たちは1に出る', r.unlinked.map((p) => p.name), ['もえ', 'ゆい']);
+}
+// ★ 並びは id 昇順（画面で追えるように）
+{
+  const r = build({ snapshot: snap({ entries: [] }), linkedIds: [10, 20, 30] });
+  eq('4も id 昇順', r.missingOnMedia.map((p) => p.id), [10, 20, 30]);
+}
+// ★ 4があれば findings（異常なしと言わない）
+eq('★ 4だけでも findings になる',
+  r.rosterHasFindings(build({ snapshot: snapWithout900(), linkedIds: [10, 20, 30],
+    therapists: [{ id: 10, name: 'こう', isActive: true }, { id: 20, name: 'おつ', isActive: true },
+                 { id: 30, name: 'ゆい', isActive: true }] })), true);
 
 console.log('\n── 5. ★★★ 出典で文言が変わる（第51便・2026-08-29 の誤解を直した）──');
 

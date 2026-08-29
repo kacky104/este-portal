@@ -923,6 +923,37 @@ export function MediaLinkPanel({
                       : '比べる相手がまだありません。「駅ちかの名簿を読む」を押すと分かります。'}
                 </p>
               </li>
+
+              {/* ④ 第52便。★ 削除された方が見える唯一の場所であり、
+                  一覧を取りこぼしたときも同じ形で現れる（設計メモ §87・§107）。
+                  ★ どちらかを機械が決めつけない。人数を見て人が判断する。 */}
+              <li>
+                <p
+                  className={`text-[12px] font-bold ${
+                    !currentRoster.missingOnMediaKnown
+                      ? 'text-amber-700'
+                      : currentRoster.missingOnMedia.length > 0
+                        ? 'text-rose-600'
+                        : 'text-slate-500'
+                  }`}
+                >
+                  駅ちかにもういない（フクエスは番号を控えている）　
+                  {currentRoster.missingOnMediaKnown
+                    ? `${currentRoster.missingOnMedia.length}名`
+                    : 'いまは分かりません'}
+                </p>
+                {currentRoster.missingOnMedia.length > 0 && (
+                  <p className="text-[11px] text-slate-500 leading-relaxed">
+                    {currentRoster.missingOnMedia.map((x) => x.name).join('、')}
+                  </p>
+                )}
+                <p className="text-[11px] text-slate-400">
+                  駅ちか側で削除された方です。人数が多いときは、名簿を最後まで読み取れていない可能性もあります。
+                  {currentRoster.mediaTotal !== null && currentRoster.mediaTotal < currentRoster.linked && (
+                    <>　駅ちかの人数（{currentRoster.mediaTotal}名）が、結びついている人数（{currentRoster.linked}名）より少なくなっています。</>
+                  )}
+                </p>
+              </li>
             </ul>
 
             {/* ★ 設計メモ §8。ここを書かないと「連携すれば人数も揃う」と読まれる */}
