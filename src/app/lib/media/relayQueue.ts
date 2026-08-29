@@ -30,7 +30,13 @@ export const MAX_ATTEMPTS = 3;
 /** 掴んだまま落ちた VPS を待つ時間。過ぎたら別の周が拾い直してよい。 */
 export const DEFAULT_LEASE_SECONDS = 120;
 
-export type RelayPurpose = 'login' | 'read_work' | 'write_work' | 'verify_work' | 'selftest';
+export type RelayPurpose =
+  | 'login'
+  | 'read_work'
+  | 'read_girls'   // ★ 媒体側の名簿を読む（第50便）。読むだけ
+  | 'write_work'
+  | 'verify_work'
+  | 'selftest';
 
 export type LeasedJob = {
   id: string;

@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import { isWriteDirection } from '@/lib/mediaLinkMode';
+import { evidenceMessage, rosterHasFindings, type RosterResult } from '@/lib/mediaRoster';
 import {
   MEDIA_CONSENT_SECTIONS,
   MEDIA_CONSENT_AGREE_LABEL,
@@ -19,6 +20,8 @@ import {
   getMediaWorkPlan,
   setMediaLinkMode,
   startMediaWorkPush,
+  getMediaRoster,
+  startMediaRosterRead,
   type WorkPlanView,
 } from '@/app/actions/mediaCredentials';
 
@@ -135,25 +138,38 @@ export function MediaLinkPanel({
   const [confirmPush, setConfirmPush] = useState(false);
   /** ★ 自動にできる枠（`provider#slot`）。1回目の承認が済んでいるものだけ入る（第48便） */
   const [autoEligible, setAutoEligible] = useState<Set<string>>(new Set());
+  /**
+   * ★ 名簿の突き合わせ（第49便）。取り込みの設定行がある枠だけが入る。
+   *   ★ 配列に無い枠は「0人」ではなく「設定がまだ無い」。まとめないこと。
+   */
+  const [roster, setRoster] = useState<RosterResult[]>([]);
+  /** ★ 名簿を読みに行った直後（二度押し防止）。結果は非同期で届く */
+  const [readingRoster, setReadingRoster] = useState(false);
 
   const current = rows.find((r) => r.provider === PROVIDER && r.slot === slot) ?? null;
+  // ★ この枠の突き合わせ。★ 見つからない＝「0名」ではなく「取り込みの設定がまだ無い」
+  const currentRoster = roster.find((x) => x.provider === PROVIDER && x.slot === slot) ?? null;
   // ★ すでにいまの版で同意済みの枠は、毎回チェックを求めない
   const consentRequired = !current || current.needsConsent;
 
   const load = useCallback(async () => {
     if (!salonId) return;
     setLoading(true);
-    const [c, a, p, e] = await Promise.all([
+    const [c, a, p, e, ro] = await Promise.all([
       getMediaCredentials({ salonId }),
       getMediaAuditRows({ salonId, limit: 30 }),
       getMediaWorkPlan({ salonId, provider: PROVIDER, slot }),
       getMediaAutoEligible({ salonId }),
+      getMediaRoster({ salonId }),
     ]);
     if (c.ok) setRows(c.data.rows);
     else onToast(c.error);
     // ★ 自動にできる枠（第48便）。★ 取れなかったらスイッチを出さないだけ（黙って空にする）
     setAutoEligible(new Set((e.ok ? e.data : []).filter((x) => x.eligible).map((x) => `${x.provider}#${x.slot}`)));
     if (a.ok) setAudit(a.data);
+    // ★ 名簿は取れなかったら黙って空にする（節ごと出さない）。
+    //   ここで「0名」と出すと、揃っているように見えてしまう（§1-5 の全国0人と同じ形）。
+    setRoster(ro.ok ? ro.data : []);
     // ★ 反映内容は「無い」のが普通の状態（まだ一度も確認していない）。エラーだけ黙らない。
     if (p.ok) setPlan(p.data);
     else onToast(p.error);
@@ -188,6 +204,20 @@ export function MediaLinkPanel({
     onToast('保存しました');
     setPassword('');
     await load();
+  };
+
+  /**
+   * ★★ 駅ちかの名簿を読みに行く（第50便）。★ 読むだけ。駅ちかへは1文字も書かない。
+   *   ★ 結果は中継役が引き取ってから届くので、ここでは待たない。
+   *     「押した」と「読めた」を混ぜないこと（第43便-b の教訓と同じ形）。
+   */
+  const onReadRoster = async () => {
+    if (!salonId) return;
+    setReadingRoster(true);
+    const res = await startMediaRosterRead({ salonId, provider: PROVIDER, slot });
+    setReadingRoster(false);
+    if (!res.ok) { onToast(res.error); return; }
+    onToast('駅ちかの名簿を読みに行きました。数分後にこの画面を開き直してください');
   };
 
   const onToggle = async (r: CredRow) => {
@@ -771,6 +801,138 @@ export function MediaLinkPanel({
           )}
         </div>
       )}
+
+      {/* ── 名簿の突き合わせ（第49便・設計メモ §1-4 / §2-1の2 / §8）──
+          ★★★ ここは【見るだけ】。直す機能はまだ無い。
+            §4「新人登録を先にやらない。登録は人を増やす＝失敗すると重複掲載を自分で作る」。
+            ズレを直す前に、まずズレが見えることを作る。ベンリーが 0人のまま8日放置されたのは
+            機能が無かったからではなく、**誰の目にも入らなかったから**（§1-5）。
+
+          ★★★ この節でいちばん大事なのは③の【分かりません】。
+            「駅ちかにいてフクエスにいない人が0名」と「取り込んだ記録が無いので分からない」は
+            画面上まったく同じ見た目になる。★ 0名と書かない。判定は mediaRoster.ts が持っている。 */}
+      <div className="bg-white rounded-3xl border border-slate-100 shadow-sm p-5 space-y-3">
+        <div className="flex items-baseline justify-between gap-2 flex-wrap">
+          <h3 className="text-sm font-bold text-slate-700">名簿の突き合わせ</h3>
+          <span className="text-[11px] text-slate-400">駅ちか（枠{slot}）</span>
+        </div>
+
+        {/* ★★ 名簿を読みに行く（第50便）。★ 読むだけ。向きが書き込みの枠でも押してよい
+            （取り込みの周とは別に、明示的に1回読むものだから） */}
+        {current && current.hasPassword && (
+          <div className="flex items-center gap-3 flex-wrap">
+            <button
+              type="button"
+              onClick={onReadRoster}
+              disabled={readingRoster}
+              className="px-3 py-1.5 rounded-full border border-slate-200 text-[12px] text-slate-600 hover:bg-slate-50 disabled:opacity-50"
+            >
+              {readingRoster ? '受付中…' : '駅ちかの名簿を読む'}
+            </button>
+            <span className="text-[11px] text-slate-400">
+              駅ちかの管理画面から在籍の一覧を読み取ります。書き換えはしません。
+            </span>
+          </div>
+        )}
+
+        {!currentRoster ? (
+          <p className="text-[11px] text-slate-400">
+            この枠には取り込みの設定がまだありません。設定が入ると、フクエスと駅ちかの在籍を突き合わせて出します。
+          </p>
+        ) : (
+          <>
+            {/* ★ 根拠。fresh のときだけ何も出ない（「異常なし」の行を作らない） */}
+            {evidenceMessage(currentRoster.evidence) && (
+              <p
+                className={`text-[12px] rounded-xl px-3 py-2 ${
+                  currentRoster.evidence.kind === 'error'
+                    ? 'text-rose-600 bg-rose-50'
+                    : 'text-amber-700 bg-amber-50'
+                }`}
+              >
+                {evidenceMessage(currentRoster.evidence)}
+              </p>
+            )}
+
+            {/* ★ 設計メモ §2-1の2「サイトごとの登録人数を並べて出す」。
+                ★ 駅ちか側の人数は【名簿を読んだときだけ】出る。読んでいなければ出さない
+                  （0名と書かないのと同じ理由で、知らない数字を書かない） */}
+            <p className="text-[12px] text-slate-600">
+              フクエス {currentRoster.total}名（公開中 {currentRoster.active}名）
+              {currentRoster.mediaTotal !== null && (
+                <>　／　駅ちか {currentRoster.mediaTotal}名</>
+              )}
+              　／　結びついている {currentRoster.linked}名
+            </p>
+
+            <ul className="space-y-2">
+              <li>
+                <p className={`text-[12px] font-bold ${currentRoster.unlinked.length > 0 ? 'text-rose-600' : 'text-slate-500'}`}>
+                  駅ちかと結びついていない　{currentRoster.unlinked.length}名
+                </p>
+                {currentRoster.unlinked.length > 0 && (
+                  <p className="text-[11px] text-slate-500 leading-relaxed">
+                    {currentRoster.unlinked.map((x) => x.name).join('、')}
+                  </p>
+                )}
+                <p className="text-[11px] text-slate-400">
+                  駅ちかに登録が無いか、名前の書き方が違って結びついていない方です。
+                </p>
+              </li>
+
+              <li>
+                <p className={`text-[12px] font-bold ${currentRoster.linkedButHidden.length > 0 ? 'text-rose-600' : 'text-slate-500'}`}>
+                  駅ちかと結びついているが、フクエスに出ていない　{currentRoster.linkedButHidden.length}名
+                </p>
+                {currentRoster.linkedButHidden.length > 0 && (
+                  <p className="text-[11px] text-slate-500 leading-relaxed">
+                    {currentRoster.linkedButHidden.map((x) => x.name).join('、')}
+                  </p>
+                )}
+                <p className="text-[11px] text-slate-400">
+                  取り込みが自動で作った方は非公開で始まるため、公開にしない限りフクエスには出ません。
+                  退店にされた方が駅ちか側に残っている場合も、ここに出ます。
+                </p>
+              </li>
+
+              <li>
+                {/* ★★★ 0名と書かない場所。根拠が無いときは「分かりません」 */}
+                <p
+                  className={`text-[12px] font-bold ${
+                    !currentRoster.onlyOnMediaKnown
+                      ? 'text-amber-700'
+                      : currentRoster.onlyOnMedia.length > 0
+                        ? 'text-rose-600'
+                        : 'text-slate-500'
+                  }`}
+                >
+                  駅ちかにいて、フクエスにいない　
+                  {currentRoster.onlyOnMediaKnown ? `${currentRoster.onlyOnMedia.length}名` : 'いまは分かりません'}
+                </p>
+                {currentRoster.onlyOnMedia.length > 0 && (
+                  <p className="text-[11px] text-slate-500 leading-relaxed">
+                    {currentRoster.onlyOnMedia.join('、')}
+                  </p>
+                )}
+                {/* ★★ 同じ数字でも意味の強さが違う。どこから来た数字かを必ず添える */}
+                <p className="text-[11px] text-slate-400">
+                  {currentRoster.source === 'snapshot'
+                    ? '駅ちかの管理画面から読み取った名簿と比べています。'
+                    : currentRoster.source === 'run'
+                      ? '駅ちかの公開ページからの取り込みと比べています。管理画面にいて公開ページに出ていない方は含まれません。'
+                      : '比べる相手がまだありません。「駅ちかの名簿を読む」を押すと分かります。'}
+                </p>
+              </li>
+            </ul>
+
+            {/* ★ 設計メモ §8。ここを書かないと「連携すれば人数も揃う」と読まれる */}
+            <p className="text-[11px] text-slate-400 leading-relaxed">
+              ※ 出勤やプロフィールが揃っても、登録人数は自動では揃いません。駅ちかから退店された方を消す操作は、
+              フクエスからは行っていないためです。人数のズレが気になるときはご相談ください。
+            </p>
+          </>
+        )}
+      </div>
 
       {/* ── 履歴 ──
           ★ 免責より先に「記録が残る・止められる」を見せる（第37便 §12）。

@@ -18,6 +18,7 @@ export const MEDIA_AUDIT_EVENTS = [
   'credential_deleted',  // 登録そのものを消した
   'login',               // 媒体にログインした
   'read_work',           // 出勤を読んだ
+  'read_girls',          // ★ 媒体側の名簿（女の子一覧）を読んだ（第50便）。読むだけ
   'plan_work',           // ★ 試し打ち。送るとどうなるかを組み立てただけ（第43便）
   'link_mode_changed',   // ★ 連携の向きを変えた（読む↔書く・第46便）
   'write_work',          // 出勤を書き換えた

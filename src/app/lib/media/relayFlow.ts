@@ -30,6 +30,7 @@ import {
 import { loadCastIds } from '@/lib/mediaCastIds';
 import { addDaysISO, buildWorkPlan, planFingerprint, summarizePlan, type FukuesShift } from '@/lib/workPlan';
 import { WORK_DAYS, encodeGirlWork, type WorkPage } from '@/lib/ekichikaWorkParse';
+import type { EkichikaGirlsPage } from '@/lib/ekichikaGirlsParse';
 
 /** いまフローを組み立てられる媒体。★ 増やすときは buildLoginRequest 側も要る */
 const SUPPORTED_PROVIDERS = ['ekichika'] as const;
@@ -170,6 +171,14 @@ export async function advanceRelayFlow(params: {
   //   純粋関数側（advanceFlow）は「読めた。あとは突き合わせ」までしか言わない。
   //   ★ 試し打ちのときは次を積まない ＝ 駅ちかへ何も飛ばない。
   //   ★ 送信のときだけ、承認の指紋が一致していれば write_work を積む。
+  // ★★★ 名簿を読めた（第50便）。写しを1件だけ上書きで残す。
+  //   ★ 次を積まない ＝ ここで駅ちかとのやりとりは終わり。**何も書き換えていない。**
+  if (outcome.kind === 'roster') {
+    const r = await saveRoster(params, outcome.page, context);
+    audits.push(...r.audits);
+    note = outcome.note + ' → ' + r.note;
+  }
+
   if (outcome.kind === 'plan_work') {
     const r = await planWork(params, outcome.page, context);
     audits.push(...r.audits);
@@ -183,9 +192,10 @@ export async function advanceRelayFlow(params: {
   // ★★ 計画の段は 'done' として扱う。**ログインと読み取りは実際に成功している**ので、
   //   認証情報は健全。計画が止まったことは last_error（＝認証の話）ではなく監査ログに残す。
   //   ここを 'stop' にすると「ログイン情報がおかしい」と読める文が店舗の画面に出てしまう。
+  //   ★ 名簿の読み取りも 'done'。ログインと読み取りは実際に成功しているので認証情報は健全。
   const settle: 'next' | 'done' | 'stop' = next
     ? 'next'
-    : outcome.kind === 'plan_work'
+    : outcome.kind === 'plan_work' || outcome.kind === 'roster'
       ? 'done'
       : outcome.kind;
   await stampCredential(params, settle, audits);
@@ -210,6 +220,48 @@ export async function advanceRelayFlow(params: {
     return { note: '次の段（' + next.purpose + '）を積めなかった: ' + r.detail };
   }
   return { note: outcome.note + ' → 次に ' + next.purpose + ' を積んだ' };
+}
+
+/**
+ * ★★ 媒体側の名簿の写しを残す（第50便）。
+ *
+ * ★★★ この関数の出口に駅ちかへの通信は無い。**読んだものを置くだけ。**
+ * ★ 店舗×媒体×枠につき最新1件を上書き（media_work_plans と同じ考え方）。
+ *   名前が並ぶ表を貯めない。履歴が要るのは「何をしたか」＝監査ログのほう。
+ * ★ 0人は保存しない。★ そもそも girlsPageUsable が 0人を通さないので、ここへは来ない。
+ *   来たときに黙って空を書くと、画面が「駅ちかに誰もいない」と読める形になる。
+ */
+async function saveRoster(
+  params: { salonId: number; provider: string; slot: number },
+  page: EkichikaGirlsPage,
+  ctx: RelayFlowContext,
+): Promise<{ audits: FlowAudit[]; note: string }> {
+  if (page.rows.length === 0) {
+    return { audits: [], note: '★ 0名だったので写しを残さなかった（読み取り失敗として扱う）' };
+  }
+
+  const supabase = createServiceClient();
+  const { error } = await supabase.from('media_roster_snapshots').upsert(
+    {
+      salon_id: params.salonId,
+      provider: params.provider,
+      slot: params.slot,
+      flow_id: ctx.flowId,
+      read_at: new Date().toISOString(),
+      total: page.rows.length,
+      entries: page.rows.map((r) => ({ castId: r.castId, name: r.name, workState: r.workState })),
+    },
+    { onConflict: 'salon_id,provider,slot' },
+  );
+
+  if (error) {
+    // ★ 読めたことは事実。保存に失敗したことは黙らないが、失敗として扱わない
+    //   （駅ちか側には何も起きていないので、店舗の認証情報の話ではない）
+    console.error('[relay] 名簿の写しを保存できなかった', params.salonId, error.message);
+    return { audits: [], note: '★ 読めたが写しを保存できなかった: ' + error.message.slice(0, 120) };
+  }
+
+  return { audits: [], note: page.rows.length + '名の写しを残した' };
 }
 
 /**

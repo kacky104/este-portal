@@ -35,6 +35,7 @@ import {
   type GirlWork,
   type WorkPage,
 } from './ekichikaWorkParse';
+import { parseEkichikaGirls, girlsPageUsable, type EkichikaGirlsPage } from './ekichikaGirlsParse';
 import { mergeCookies } from './relayJob';
 import type { AuditDetail, MediaAuditEvent, MediaAuditOutcome } from './mediaAudit';
 
@@ -42,6 +43,8 @@ import type { AuditDetail, MediaAuditEvent, MediaAuditOutcome } from './mediaAud
 export const EKICHIKA_LOGIN_URL = 'https://ranking-deli.jp/admin/login';
 /** 出勤管理。★ 末尾の番号なしが一覧、番号つきが更新用の action（§17-2） */
 export const EKICHIKA_WORK_URL = 'https://ranking-deli.jp/admin/girlswork/';
+/** 女の子一覧（管理画面）。★ 読むだけ。ここから castId と名前が取れる（第50便） */
+export const EKICHIKA_GIRLS_URL = 'https://ranking-deli.jp/admin/girls/';
 export const EKICHIKA_ORIGIN = 'https://ranking-deli.jp';
 
 /** relay-selftest と同じものを使う。★ 片方だけ変えない。 */
@@ -79,7 +82,14 @@ export type RelayFlowIntent =
    *   ★ 立てられるのは link_mode='write_auto' の枠だけ。それには
    *     【いまの向きになってから1回でも反映が成功していること】が要る（§54）。
    */
-  | 'work_auto';
+  | 'work_auto'
+  /**
+   * ★★★ 媒体側の名簿を読むだけ（第50便・設計メモ 追記18 §81の1）。
+   *   login → read_girls → 終わり。★ **駅ちかへ何も書かない。**
+   *   ★ connect_test と同じ「読むだけ」の仲間だが、読む先が違う（出勤ページではなく女の子一覧）。
+   *   ★ 向きが write の枠でも使える。取り込みの周とは別に、明示的に1回読むものだから。
+   */
+  | 'roster_read';
 
 /**
  * 段と段のあいだで持ち回す状態。
@@ -121,7 +131,7 @@ export type FlowAudit = {
 };
 
 export type FlowNextRequest = {
-  purpose: 'read_work' | 'write_work' | 'verify_work';
+  purpose: 'read_work' | 'write_work' | 'verify_work' | 'read_girls';
   method: 'GET' | 'POST';
   url: string;
   headers: Record<string, string>;
@@ -139,7 +149,13 @@ export type FlowOutcome =
    *   ページを持ったまま呼び出し側へ返す。★ 判断そのものは workPlan.ts（これも純粋関数）が持つ。
    *   ★ ここで「次のジョブ」を返さないのが大事: **返さない＝駅ちかへ何も飛ばない。**
    */
-  | { kind: 'plan_work'; page: WorkPage; audits: FlowAudit[]; note: string };
+  | { kind: 'plan_work'; page: WorkPage; audits: FlowAudit[]; note: string }
+  /**
+   * ★ 媒体側の名簿を読めた（第50便）。plan_work と同じ理由でここでは保存しない
+   *   （このファイルは DB を触らない約束）。呼び出し側が写しを1件だけ上書きで残す。
+   *   ★ ここで「次のジョブ」を返さない＝**駅ちかへ何も飛ばない。**
+   */
+  | { kind: 'roster'; page: EkichikaGirlsPage; audits: FlowAudit[]; note: string };
 
 // ────────────────────────── フローの入口（login を組み立てる） ──────────────────────────
 
@@ -311,6 +327,8 @@ export function advanceFlow(input: {
       return afterLogin(input, ctx);
     case 'read_work':
       return afterReadWork(input, ctx);
+    case 'read_girls':
+      return afterReadGirls(input, ctx);
     case 'write_work':
       return afterWriteWork(input, ctx);
     case 'verify_work':
@@ -358,6 +376,26 @@ function afterLogin(
     );
   }
 
+  // ★★ 何を読みに行くかは intent で決まる（第50便）。
+  //   ★ 「ログインの成否は、次に読むページが読めたかで判定する」という作法は変えない。
+  //     出勤の用事なら出勤ページ、名簿の用事なら女の子一覧。どちらも「読めた＝ログインできた」。
+  if (ctx.intent === 'roster_read') {
+    return {
+      kind: 'next',
+      next: {
+        purpose: 'read_girls',
+        method: 'GET',
+        url: EKICHIKA_GIRLS_URL,
+        // ★ ヘッダは出勤ページを読むときと同じでよい（GET・Cookie・Referer だけ）
+        headers: buildReadWorkRequest(cookie),
+        body: '',
+        context: { ...ctx, cookie },
+      },
+      audits: [],
+      note: 'ログインの応答を受け取った。★ 成否は女の子一覧が読めるかどうかで判定する',
+    };
+  }
+
   return {
     kind: 'next',
     next: {
@@ -371,6 +409,120 @@ function afterLogin(
     audits: [],
     note: 'ログインの応答を受け取った。★ 成否は出勤ページが読めるかどうかで判定する',
   };
+}
+
+/**
+ * 女の子一覧の応答（第50便）。★ afterReadWork とまったく同じ順序の作法で判定する。
+ *
+ * ★★★ 順序が大事。**まず「一覧として読めるか」を試す。**
+ *   読めた ＝ ログインできている。ログイン画面らしさの判定（誤検知しうるもの）を先に置かない。
+ *   ★ 2026-08-28 に踏んだ形（302で成功しているのに失敗と記録した）を繰り返さない。
+ */
+function afterReadGirls(
+  input: { status: number; headers: Record<string, string | string[]>; body: string },
+  ctx: RelayFlowContext,
+): FlowOutcome {
+  const flowId = ctx.flowId;
+
+  if (input.status >= 300 && input.status < 400) {
+    const location = String(input.headers['location'] ?? '');
+    if (location.includes('/admin/login')) {
+      return stop(
+        [
+          {
+            event: 'login',
+            outcome: 'failed',
+            summary:
+              '駅ちかにログインできませんでした（ログイン画面へ戻されました）。' +
+              '店舗ID・ログインID・パスワードをご確認ください',
+            detail: { httpStatus: input.status, reason: 'back_to_login', flowId },
+          },
+        ],
+        'ログイン後の女の子一覧がログイン画面へ戻された＝ログインできていない',
+      );
+    }
+    return stop(
+      [
+        {
+          event: 'read_girls',
+          outcome: 'failed',
+          summary: '駅ちかの女の子一覧を開けませんでした（別の場所へ転送されました）',
+          detail: { httpStatus: input.status, reason: 'redirected', flowId },
+        },
+      ],
+      '女の子一覧が想定外の場所へ転送された',
+    );
+  }
+
+  if (input.status !== 200) {
+    return stop(
+      [
+        {
+          event: 'read_girls',
+          outcome: 'failed',
+          detail: { httpStatus: input.status, reason: 'http_error', flowId },
+        },
+      ],
+      '女の子一覧の応答が ' + input.status + ' だった',
+    );
+  }
+
+  const page = parseEkichikaGirls(input.body);
+
+  if (girlsPageUsable(page)) {
+    // ★★ ここまで来て初めて「ログインできた」と言える
+    return {
+      kind: 'roster',
+      page,
+      audits: [
+        { event: 'login', outcome: 'ok', detail: { flowId } },
+        {
+          event: 'read_girls',
+          outcome: 'ok',
+          // ★ people は defaultAuditSummary が「（在籍N人）」に使う
+          detail: { people: page.rows.length, flowId },
+        },
+      ],
+      note: '女の子一覧を読めた（' + page.rows.length + '名）。★ 駅ちかへは何も書いていない',
+    };
+  }
+
+  // ★ 読めなかった。ここで初めて「ログイン画面が返ったのか」を疑う
+  if (looksLikeEkichikaLoginPage(input.body)) {
+    return stop(
+      [
+        {
+          event: 'login',
+          outcome: 'failed',
+          summary:
+            '駅ちかにログインできませんでした（ログイン画面が返りました）。' +
+            'ログインID・パスワードをご確認ください',
+          detail: { httpStatus: 200, reason: 'login_page', bytes: input.body.length, flowId },
+        },
+      ],
+      'ログイン後の女の子一覧としてログイン画面が返った＝ログインできていない',
+    );
+  }
+
+  // ★ ログイン画面でもない＝読めたはずのページが読めていない。画面の作りが変わった疑い
+  //   ★★ problems の本文には名前が混ざりうる。detail には件数だけ入れる（第44便の作法）
+  return stop(
+    [
+      {
+        event: 'read_girls',
+        outcome: 'failed',
+        summary: '駅ちかの女の子一覧を読み取れませんでした（画面の作りが変わった可能性があります）',
+        detail: {
+          reason: page.rows.length === 0 ? 'parse_error' : 'page_broken',
+          problems: page.problems.length,
+          people: page.rows.length,
+          bytes: input.body.length,
+          flowId,
+        },
+      },
+    ],
+    '女の子一覧が読めない: ' + page.problems.join(' / ').slice(0, 300),
+  );
 }
 
 /**
@@ -516,6 +668,10 @@ function finishRead(audits: FlowAudit[], ctx: RelayFlowContext, page: WorkPage):
         audits,
         note: '出勤ページを読めた。★ 承認された内容と一致するか確かめてから送る',
       };
+    case 'roster_read':
+      // ★★ ここへは来ない（roster_read は出勤ページを読みに行かない）。
+      //   ★ だが switch は網羅させる。網羅を外すと「足したのに繋いでいない」が静かに通る。
+      return stop(audits, '名簿の読み取りは出勤ページを使わない（ここへは来ないはず）');
     case 'work_auto':
       // ★★★ 自動反映（第48便）。組み立てから送信までを1回のフローで閉じる。
       //   ★ 指紋は突き合わせない（人が見た内容が無い・§53）。担保は厳しい方の blockers。

@@ -9,6 +9,14 @@ import { recordMediaAudit, listMediaAudit } from '@/app/lib/media/mediaAudit';
 import { startRelayFlow } from '@/app/lib/media/relayFlow';
 import { judgeWriteStall, stallMessage, mediaSlotLabel, type MediaLinkAlert } from '@/lib/mediaLinkStall';
 import { isWriteDirection, isLinkMode, hasApprovedOnce } from '@/lib/mediaLinkMode';
+import { loadCastIds } from '@/lib/mediaCastIds';
+import {
+  buildRoster,
+  type RosterResult,
+  type RosterTherapist,
+  type RosterRun,
+  type RosterSnapshot,
+} from '@/lib/mediaRoster';
 
 // 他媒体の管理画面ログイン情報の登録（第39便・第3弾の入口）。
 //
@@ -769,4 +777,174 @@ export async function getMediaAutoEligible(input: { salonId: string | number }):
     out.push({ provider, slot, eligible: hasApprovedOnce(h) });
   }
   return { ok: true, data: out };
+}
+
+/**
+ * 名簿の突き合わせ（第49便・設計メモ §1-4 / §2-1 の2 / §8）。
+ *
+ * ★★★ 読み取りだけ。1行も書かない。
+ *   §4「新人登録を先にやらない。登録は人を増やす＝失敗すると重複掲載を自分で作る（禁則269）」。
+ *   まず「揃っていないこと」が見えるようにする。直すのは駅ちかの登録フォームを実機で調べたあと。
+ *
+ * ★ 返すのは【取り込みの設定行がある枠】だけ。
+ *   設定が無い枠に「0人」と出すと、揃っているように見えてしまう（§1-5 の全国0人と同じ形）。
+ *   画面側は、この配列に無い枠については「設定がまだありません」と出すこと。
+ *
+ * ★ 判断そのものは src/lib/mediaRoster.ts（純粋関数・now も引数）に置いてある。
+ *   ここは【読んで渡すだけ】。★ ここで数えたり判定したりしないこと。
+ */
+export async function getMediaRoster(input: { salonId: string | number }): Promise<Result<RosterResult[]>> {
+  const salonId = Number(input.salonId);
+  if (!Number.isFinite(salonId)) return { ok: false, error: '店舗の指定が不正です' };
+  const guard = await assertSalonOwner(salonId);
+  if (!guard.ok) return guard;
+
+  const svc = createServiceClient();
+
+  const { data: sources, error: srcErr } = await svc
+    .from('salon_import_sources')
+    .select('id, provider, slot, link_mode')
+    .eq('salon_id', salonId)
+    .order('provider')
+    .order('slot');
+  if (srcErr) return { ok: false, error: '連携の設定を読めませんでした' };
+  if (!sources || sources.length === 0) return { ok: true, data: [] };
+
+  // ★ 在籍は1回だけ読む。枠ごとに読み直さない（枠が増えても問い合わせを増やさない）。
+  const { data: therapists, error: thErr } = await svc
+    .from('therapists')
+    .select('id, name, is_active, import_cast_id')
+    .eq('salon_id', salonId);
+  if (thErr) return { ok: false, error: 'セラピストを読めませんでした' };
+
+  const people: RosterTherapist[] = (therapists ?? []).map((t) => ({
+    id: Number(t.id),
+    name: String(t.name ?? ''),
+    isActive: t.is_active === true,
+  }));
+  const castIdRows = (therapists ?? []).map((t) => ({
+    id: Number(t.id),
+    import_cast_id: (t.import_cast_id as string | null) ?? null,
+  }));
+
+  const now = new Date();
+  const out: RosterResult[] = [];
+
+  for (const s of sources) {
+    const provider = String(s.provider);
+    const slot = Number(s.slot);
+
+    // ★ 旧 therapists.import_cast_id は「駅ちかの枠1」としてだけ混ざる（mediaCastIds.ts）。
+    //   ここで自前に読み替えると、その規則が2か所に分かれる。必ず loadCastIds を通すこと。
+    const { maps, error: castErr } = await loadCastIds(svc, { therapists: castIdRows, provider, slot });
+    if (castErr) return { ok: false, error: '媒体側の番号を読めませんでした' };
+    const linkedIds: number[] = [];
+    // ★ フクエス側が知っている媒体の番号。写しとの差（媒体だけにいる人）を出すのに要る
+    const knownCastIds: string[] = [];
+    for (const [id, castId] of maps.castIdOf) {
+      if (!castId) continue;
+      linkedIds.push(id);
+      knownCastIds.push(castId);
+    }
+
+    // ★ 直近の取り込み1回ぶんだけ。★ 無ければ null のまま渡す（0件に潰さない）。
+    const { data: runs } = await svc
+      .from('salon_import_runs')
+      .select('started_at, status, unmatched')
+      .eq('source_id', Number(s.id))
+      .order('started_at', { ascending: false })
+      .limit(1);
+    const run = (runs ?? [])[0];
+    const lastRun: RosterRun | null = run
+      ? {
+          startedAt: String(run.started_at),
+          status: String(run.status),
+          unmatched: ((run.unmatched as string[] | null) ?? []).map((n) => String(n)),
+        }
+      : null;
+
+    // ★ 媒体側の名簿の写し（第50便）。★ 無ければ null のまま渡す（0人に潰さない）
+    const { data: snapRow } = await svc
+      .from('media_roster_snapshots')
+      .select('read_at, entries')
+      .eq('salon_id', salonId)
+      .eq('provider', provider)
+      .eq('slot', slot)
+      .maybeSingle();
+    const snapshot: RosterSnapshot | null = snapRow
+      ? {
+          readAtISO: String(snapRow.read_at),
+          entries: ((snapRow.entries as Array<{ castId?: unknown; name?: unknown }> | null) ?? []).map(
+            (e) => ({ castId: String(e?.castId ?? ''), name: String(e?.name ?? '') }),
+          ),
+        }
+      : null;
+
+    out.push(
+      buildRoster({
+        provider,
+        slot,
+        linkMode: (s.link_mode as string | null) ?? null,
+        therapists: people,
+        linkedIds,
+        knownCastIds,
+        lastRun,
+        snapshot,
+        now,
+      }),
+    );
+  }
+
+  return { ok: true, data: out };
+}
+
+/**
+ * ★★ 媒体側の名簿を読みに行く（第50便・設計メモ 追記18 §81の1）。
+ *
+ * ★★★ **読むだけ。駅ちかへは1文字も書かない。**
+ *   接続テスト（connect_test）と同じ「読むだけ」の仲間で、読む先が違う
+ *   （出勤ページではなく /admin/girls/ の女の子一覧）。
+ *
+ * ★ 向きが write / write_auto の枠でも実行してよい。
+ *   取り込みの周とは別に、明示的に1回読むものだから（追記17 §72 の「古くて当然」に当たらない）。
+ *
+ * ★ 結果は非同期。中継役が1分ごとに引き取り、media_roster_snapshots に写しが1件残る。
+ *   ★ ここで結果を待たない（待つと関数が中継の都合に縛られる）。
+ */
+export async function startMediaRosterRead(input: {
+  salonId: string | number; provider: string; slot?: number;
+}): Promise<Result<{ jobId: string; note: string }>> {
+  const salonId = Number(input.salonId);
+  if (!Number.isFinite(salonId)) return { ok: false, error: '店舗の指定が不正です' };
+  const slot = Math.trunc(Number(input.slot ?? 1));
+  const ng = validTarget(input.provider, slot);
+  if (ng) return { ok: false, error: ng };
+
+  const guard = await assertSalonOwner(salonId);
+  if (!guard.ok) return guard;
+
+  const svc = createServiceClient();
+  const { data: row } = await svc
+    .from('salon_media_credentials')
+    .select('consent_version')
+    .eq('salon_id', salonId).eq('provider', input.provider).eq('slot', slot)
+    .maybeSingle();
+  if (!row) return { ok: false, error: 'ログイン情報が登録されていません' };
+  if (needsConsent(row.consent_version as string | null)) {
+    return { ok: false, error: '連携の説明に同意してから実行してください' };
+  }
+
+  try {
+    const r = await startRelayFlow({
+      salonId, provider: input.provider, slot,
+      intent: 'roster_read',
+      actor: 'shop:' + guard.data.userId,
+    });
+    if (!r.ok) return { ok: false, error: r.note };
+    return { ok: true, data: { jobId: r.jobId, note: r.note } };
+  } catch (e) {
+    // ★ 例外文に秘密が混ざらないよう、こちら側で作った文言だけ返す
+    console.error('[media] 名簿の読み取りを始められなかった', (e as Error).message);
+    return { ok: false, error: '名簿の読み取りを開始できませんでした。時間をおいてお試しください' };
+  }
 }
