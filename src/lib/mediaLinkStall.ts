@@ -123,7 +123,16 @@ export function stallMessage(result: StallResult, slotLabel: string): string | n
 export type MediaLinkAlert = {
   provider: string;
   slot: number;
-  reason: StallReason;
+  /**
+   * ★★★ どの見張りが出したか（第51便）。
+   *   'write'  … 書く向きにしたまま送っていない（このファイル・第47便）
+   *   'import' … 読む向きのまま取り込みが止まっている（importStall.ts・第51便）
+   * ★ 文言だけでは区別できないので持たせる。★ 画面の見出しと key もこれで分ける
+   *   （同じ枠で2つ鳴ることがあり、provider#slot だけでは key が衝突する）。
+   */
+  watch: 'write' | 'import';
+  /** ★ 見張りごとに語彙が違う（never_sent / stale / never …）。表示と記録のためだけに持つ */
+  reason: string;
   /** 経過（時間）。★ 画面では elapsedLabel を通す */
   elapsedHours: number;
   /** 店舗が読んで分かる1行 */

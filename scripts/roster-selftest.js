@@ -125,10 +125,10 @@ eq('在籍が空でも壊れない', build({ therapists: [], linkedIds: [10] }).
 console.log('\n── 3. 文言 ──');
 
 // ★ 異常が無ければ文言も出ない（「異常なし」の行を作らない・mediaLinkStall と同じ）
-eq('fresh は文言を出さない', r.evidenceMessage(judge({})), null);
+eq('fresh は文言を出さない', r.evidenceMessage(judge({}), 'run'), null);
 // ★★ 記録が無いときの文言は「0人」ではなく「分からない」と言い切ること
 {
-  const m = r.evidenceMessage(judge({ lastRun: null }));
+  const m = r.evidenceMessage(judge({ lastRun: null }), null);
   eq('記録なしの文言に【分からない】が入る', m.indexOf('分からない') > 0, true);
   eq('記録なしの文言に「0人ではなく」が入る', m.indexOf('0人ではなく') > 0, true);
 }
@@ -139,7 +139,7 @@ for (const [name, e] of [
   ['error', judge({ lastRun: run({ status: 'error' }) })],
   ['stale', judge({ lastRun: run({ startedAt: hoursAgo(72) }) })],
 ]) {
-  const m = r.evidenceMessage(e);
+  const m = r.evidenceMessage(e, 'run');
   eq(name + ' の文言に英語の状態名が出ない',
     /none|paused|error|stale|fresh/.test(m), false);
 }
@@ -235,6 +235,35 @@ eq('根拠が無ければ出典も無い', build({ lastRun: null }).source, null
   const r = build({ snapshot: snap({ entries: [] }) });
   eq('空の写しでも落ちない', r.mediaTotal, 0);
   eq('空の写しでは3も0件', r.onlyOnMedia, []);
+}
+
+console.log('\n── 5. ★★★ 出典で文言が変わる（第51便・2026-08-29 の誤解を直した）──');
+
+// ★★★ この1組が要。**同じ「古い」でも、何が古いのかが違う。**
+//   第49便は出典を見ずに「直近の取り込みから2日経っています」と出していた。
+//   実データでは出勤の取り込み（15分ごと）は正常だったのに、
+//   店舗が読めば「連携が止まっている」と受け取る文面だった。
+{
+  const 古い = judge({ linkMode: 'read', lastRun: run({ startedAt: hoursAgo(48) }) });
+  const 取り込みから = r.evidenceMessage(古い, 'run');
+  const 写しから = r.evidenceMessage(古い, 'snapshot');
+  eq('★ 取り込みが出典なら「出勤が止まっている意味ではない」と断る',
+    取り込みから.indexOf('出勤が止まっているという意味ではありません') > 0, true);
+  eq('★ 取り込みが出典なら「1日1回」と「15分ごと」を区別して言う',
+    取り込みから.indexOf('1日1回') > 0 && 取り込みから.indexOf('15分ごと') > 0, true);
+  eq('★ 写しが出典なら、押し直せば済む話にする',
+    写しから.indexOf('押すと新しくできます') > 0, true);
+  eq('★ 写しが出典なら「取り込み」の話をしない',
+    写しから.indexOf('15分ごと') < 0, true);
+  eq('★ 同じ根拠でも文言が割れる（出典を見ている証拠）', 取り込みから === 写しから, false);
+}
+// ★ 押せば解決する場面では、必ず押す場所を書く（第2弾の「失敗を店舗に届ける」）
+for (const [name, e] of [
+  ['none', judge({ linkMode: 'read', lastRun: null })],
+  ['paused', judge({ linkMode: 'write', lastRun: null })],
+]) {
+  eq(name + ' の文言が押す場所を教える',
+    r.evidenceMessage(e, null).indexOf('駅ちかの名簿を読む') > 0, true);
 }
 
 console.log(fail === 0 ? '\n★ すべて通った' : '\n★ NG ' + fail + ' 件');

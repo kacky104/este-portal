@@ -11,7 +11,8 @@
     "check:linkstall": "tsc src/lib/mediaLinkStall.ts --outDir _tmpcheck --module commonjs --target ES2020 --strict --skipLibCheck --esModuleInterop && node scripts/linkstall-selftest.js",
     "check:linkmode": "tsc src/lib/mediaLinkMode.ts --outDir _tmpcheck --module commonjs --target ES2020 --strict --skipLibCheck --esModuleInterop && node scripts/linkmode-selftest.js",
     "check:roster": "tsc src/lib/mediaRoster.ts --outDir _tmpcheck --module commonjs --target ES2020 --strict --skipLibCheck --esModuleInterop && node scripts/roster-selftest.js",
-    "check:girlsparse": "tsc src/lib/ekichikaGirlsParse.ts --outDir _tmpcheck --module commonjs --target ES2020 --strict --skipLibCheck --esModuleInterop && node scripts/girlsparse-selftest.js"
+    "check:girlsparse": "tsc src/lib/ekichikaGirlsParse.ts --outDir _tmpcheck --module commonjs --target ES2020 --strict --skipLibCheck --esModuleInterop && node scripts/girlsparse-selftest.js",
+    "check:importstall": "tsc src/lib/importStall.ts --outDir _tmpcheck --module commonjs --target ES2020 --strict --skipLibCheck --esModuleInterop && node scripts/importstall-selftest.js"
   },
   "dependencies": {
     "@supabase/ssr": "^0.12.0",

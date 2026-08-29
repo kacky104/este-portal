@@ -2084,10 +2084,17 @@ export default function MyPage() {
           <div className="max-w-2xl mx-auto px-3 pt-2">
             {mediaAlerts.map((a) => (
               <div
-                key={a.provider + '#' + a.slot}
+                // ★ 同じ枠で2つ鳴ることがある（書く向きの見張りと取り込みの見張り・第51便）。
+                //   ★ provider#slot だけでは key が衝突する。reason まで入れて分ける
+                key={a.watch + ':' + a.reason + ':' + a.provider + '#' + a.slot}
                 className="mb-2 rounded-xl border-2 border-rose-300 bg-rose-50 px-3 py-2.5"
               >
-                <p className="text-[12px] font-bold text-rose-700">媒体連携が止まっています</p>
+                {/* ★★ 見出しを見張りごとに変える（第51便）。
+                    ★ 「媒体連携が止まっています」は【書く向き】の話。取り込みが止まったときに
+                      同じ見出しを出すと、店舗はどちらを直せばよいか分からない。 */}
+                <p className="text-[12px] font-bold text-rose-700">
+                  {a.watch === 'import' ? '駅ちかからの取り込みが止まっています' : '媒体連携が止まっています'}
+                </p>
                 <p className="mt-1 text-[12px] leading-relaxed text-rose-900">{a.message}</p>
                 <button
                   onClick={() => setActiveTab('media')}

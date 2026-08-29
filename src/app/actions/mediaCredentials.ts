@@ -8,6 +8,7 @@ import { MEDIA_CONSENT_VERSION, needsConsent } from '@/lib/mediaConsent';
 import { recordMediaAudit, listMediaAudit } from '@/app/lib/media/mediaAudit';
 import { startRelayFlow } from '@/app/lib/media/relayFlow';
 import { judgeWriteStall, stallMessage, mediaSlotLabel, type MediaLinkAlert } from '@/lib/mediaLinkStall';
+import { judgeImportStall } from '@/lib/importStall';
 import { isWriteDirection, isLinkMode, hasApprovedOnce } from '@/lib/mediaLinkMode';
 import { loadCastIds } from '@/lib/mediaCastIds';
 import {
@@ -694,11 +695,14 @@ export async function getMediaLinkAlerts(input: { salonId: string | number }): P
 
   const svc = createServiceClient();
 
+  // ★★ 第51便から【全部の枠】を読む。向きで担当が分かれる:
+  //   書く向き（write / write_auto）… judgeWriteStall（第47便）
+  //   読む向き・未設定               … judgeImportStall（第51便）
+  //   ★ 以前は書く向きだけを読んでいた。★ 読む向きの停止を誰も見張っていなかった（追記20 §91）
   const { data: sources, error: srcErr } = await svc
     .from('salon_import_sources')
-    .select('provider, slot, link_mode')
-    .eq('salon_id', salonId)
-    .in('link_mode', ['write', 'write_auto']);   // ★ 自動の枠も止まりうる（第48便）
+    .select('id, provider, slot, link_mode, is_enabled, last_run_at, import_interval_min, created_at')
+    .eq('salon_id', salonId);
   if (srcErr) return { ok: false, error: '連携の状態を確認できませんでした' };
   if (!sources || sources.length === 0) return { ok: true, data: [] };
 
@@ -733,15 +737,55 @@ export async function getMediaLinkAlerts(input: { salonId: string | number }): P
     const provider = String(s.provider);
     const slot = Number(s.slot);
     const k = key(provider, slot);
-    const verdict = judgeWriteStall({
-      linkMode: String(s.link_mode),
-      switchedToWriteAt: switchedAt.get(k) ?? null,
-      lastWriteOkAt: lastOkAt.get(k) ?? null,
+    const linkMode = (s.link_mode as string | null) ?? null;
+
+    // ── 書く向き: 押したまま送っていないか（第47便）─────────────────
+    if (isWriteDirection(linkMode)) {
+      const verdict = judgeWriteStall({
+        linkMode,
+        switchedToWriteAt: switchedAt.get(k) ?? null,
+        lastWriteOkAt: lastOkAt.get(k) ?? null,
+        now,
+      });
+      const message = stallMessage(verdict, mediaSlotLabel(provider, slot));
+      if (verdict.stalled && message) {
+        alerts.push({
+          provider, slot, watch: 'write',
+          reason: verdict.reason, elapsedHours: verdict.elapsedHours, message,
+        });
+      }
+      continue;   // ★ 書く向きの枠では取り込みは止まっていて当然。二重に鳴らさない
+    }
+
+    // ── 読む向き: 取り込みが止まっていないか（第51便）───────────────
+    //   ★★ 時計は2本。★ どちらか片方だけを見ると、2026-08-29 の事故は捕まらない:
+    //     当日の周（list・15分ごと）は正常なのに、週間の周（full・1日1回）が3日止まっていた。
+    //   ★ full が走ったかは salon_import_runs にしか残らない（ingest-list は書かない）。
+    const { data: runs } = await svc
+      .from('salon_import_runs')
+      .select('started_at')
+      .eq('source_id', Number(s.id))
+      .order('started_at', { ascending: false })
+      .limit(1);
+    const fullLastRunAt = (runs ?? [])[0] ? String((runs ?? [])[0].started_at) : null;
+
+    for (const f of judgeImportStall({
+      provider, slot,
+      linkMode,
+      isEnabled: s.is_enabled === true,
+      listLastRunAt: (s.last_run_at as string | null) ?? null,
+      fullLastRunAt,
+      intervalMin: (s.import_interval_min as number | null) ?? null,
+      createdAt: (s.created_at as string | null) ?? null,
       now,
-    });
-    const message = stallMessage(verdict, mediaSlotLabel(provider, slot));
-    if (!verdict.stalled || !message) continue;
-    alerts.push({ provider, slot, reason: verdict.reason, elapsedHours: verdict.elapsedHours, message });
+    })) {
+      alerts.push({
+        provider, slot, watch: 'import',
+        reason: f.clock + '_' + f.reason,     // ★ 'list_stale' / 'full_never' …
+        elapsedHours: f.elapsedHours,
+        message: f.message,
+      });
+    }
   }
   return { ok: true, data: alerts };
 }

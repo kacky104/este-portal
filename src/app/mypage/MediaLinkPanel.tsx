@@ -842,7 +842,7 @@ export function MediaLinkPanel({
         ) : (
           <>
             {/* ★ 根拠。fresh のときだけ何も出ない（「異常なし」の行を作らない） */}
-            {evidenceMessage(currentRoster.evidence) && (
+            {evidenceMessage(currentRoster.evidence, currentRoster.source) && (
               <p
                 className={`text-[12px] rounded-xl px-3 py-2 ${
                   currentRoster.evidence.kind === 'error'
@@ -850,7 +850,7 @@ export function MediaLinkPanel({
                     : 'text-amber-700 bg-amber-50'
                 }`}
               >
-                {evidenceMessage(currentRoster.evidence)}
+                {evidenceMessage(currentRoster.evidence, currentRoster.source)}
               </p>
             )}
 
