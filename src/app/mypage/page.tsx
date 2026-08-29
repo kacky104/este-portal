@@ -35,6 +35,8 @@ import { EmbedCodePanel } from './EmbedCodePanel';
 import { MediaLinkPanel } from './MediaLinkPanel';
 import { getMediaLinkAlerts } from '@/app/actions/mediaCredentials';
 import type { MediaLinkAlert } from '@/lib/mediaLinkStall';
+import { ADMIN_UUID } from '@/app/lib/admin';
+import { canSeeMedia, readUnlockIntent, MEDIA_UNLOCK_KEY } from '@/lib/mediaVisibility';
 import { IMASUGU_COLUMNS } from '@/lib/therapistColumns';
 
 const supabase = createClient();
@@ -542,6 +544,21 @@ export default function MyPage() {
   const [activeTab, setActiveTab] = useState<'salon' | 'schedule' | 'profile' | 'available' | 'diary' | 'coupon' | 'news' | 'vipletter' | 'board' | 'booking' | 'jobs' | 'popup' | 'support' | 'media'>('salon');
   /** ★ 媒体連携が「書き込みの向きのまま止まっている」警告（第47便）。トップに出す */
   const [mediaAlerts, setMediaAlerts] = useState<MediaLinkAlert[]>([]);
+  /**
+   * ★★★ 媒体連携を出すかどうか（第54便）。★ 既定は【出さない】。
+   *   他社の担当者が店舗のマイページを覗きに来るため（設計メモ 追記28）。
+   *   ★ /mypage は owner_id = user.id で店舗を引いているので、
+   *     ログイン中のUIDがそのまま持ち主のUID。★ owner_id を引き直さなくてよい。
+   */
+  const [userId, setUserId] = useState<string | null>(null);
+  /** ★ そのブラウザで目隠しを外してあるか（?media=1）。★ 鍵ではなく目隠し */
+  const [mediaUnlocked, setMediaUnlocked] = useState(false);
+  /**
+   * ★★★ 媒体連携を出すか。★ 既定は false（出さない）。
+   *   ★ これは【表示の出し分け】であって認可ではない。
+   *     server action 側は従来どおりオーナー検証をしている（assertSalonOwner）。
+   */
+  const mediaVisible = canSeeMedia({ ownerId: userId, adminUuid: ADMIN_UUID, unlocked: mediaUnlocked });
   // 「運営から」タブの未読お知らせ件数（SupportTab が読み込み時に通知・タブバッジ表示用）。
   const [supportUnread, setSupportUnread] = useState(0);
   const [expandedSections, setExpandedSections] = useState<Set<string>>(new Set());
@@ -660,6 +677,7 @@ export default function MyPage() {
         router.push('/owner/login?redirectTo=' + encodeURIComponent(window.location.pathname));
         return;
       }
+      setUserId(user.id);
 
       const { data: salonData, error: salonError } = await supabase
         .from('salons')
@@ -817,18 +835,34 @@ export default function MyPage() {
     return () => clearInterval(timer);
   }, []);
 
+  // ★★ 目隠しの読み書き（第54便）。開いたとき1回だけ。
+  //   ?media=1 を付けて開いたブラウザにだけ媒体連携を出す。?media=0 で消す。
+  //   ★ 指定が無いときは【いまの状態を変えない】（ふつうに開くたびに消えない）。
+  useEffect(() => {
+    try {
+      const intent = readUnlockIntent(window.location.search);
+      if (intent === 'on') window.localStorage.setItem(MEDIA_UNLOCK_KEY, '1');
+      else if (intent === 'off') window.localStorage.removeItem(MEDIA_UNLOCK_KEY);
+      setMediaUnlocked(window.localStorage.getItem(MEDIA_UNLOCK_KEY) === '1');
+    } catch {
+      // ★ localStorage が使えない環境（プライベートウィンドウ等）では出さない側に倒す
+      setMediaUnlocked(false);
+    }
+  }, []);
+
   // ★ 媒体連携の見張り（第47便）。開いたとき1回だけ。
   //   ★ 失敗しても画面は止めない。**警告が出せないことは、警告が無いことと同じにする**
   //     （出せないのに「異常なし」と見せない。ここは静かに空のままにするだけ）。
   useEffect(() => {
-    if (!salon?.id) return;
+    // ★ 出さない相手には取りに行かない（赤い箱そのものが媒体連携の存在を明かすため）
+    if (!salon?.id || !mediaVisible) { setMediaAlerts([]); return; }
     let alive = true;
     (async () => {
       const res = await getMediaLinkAlerts({ salonId: Number(salon.id) });
       if (alive && res.ok) setMediaAlerts(res.data);
     })();
     return () => { alive = false; };
-  }, [salon?.id]);
+  }, [salon?.id, mediaVisible]);
 
   const updateDay = (therapistId: string, dateStr: string, patch: Partial<DaySchedule>) => {
     setSchedules(prev => {
@@ -2080,7 +2114,7 @@ export default function MyPage() {
         {/* ★★★ 媒体連携が「書き込みの向きのまま止まっている」ときの警告（第47便）。
             ★ タブの中ではなくトップに出す。媒体連携タブを開かない限り気づけない、では見張りにならない
               （設計メモ §2-3「失敗を店舗に届ける」・追記11 §40）。 */}
-        {mediaAlerts.length > 0 && (
+        {mediaVisible && mediaAlerts.length > 0 && (
           <div className="max-w-2xl mx-auto px-3 pt-2">
             {mediaAlerts.map((a) => (
               <div
@@ -2128,6 +2162,8 @@ export default function MyPage() {
           ] as const)
             // 求人タブはフクエスワーク掲載（jobs_enabled）契約店のみ表示。
             .filter(([key]) => key !== 'jobs' || Boolean(salon?.jobs_enabled))
+            // ★★ 媒体連携タブは出す相手を絞る（第54便・設計メモ 追記28）。★ 既定は出さない
+            .filter(([key]) => key !== 'media' || mediaVisible)
             .map(([key, label]) => {
             const selected = activeTab === key;
             return (
@@ -4106,13 +4142,20 @@ export default function MyPage() {
         {/* ── 媒体連携（駅ちかへの出勤の書き込み・第39便） ── */}
         {/* ★ 認証情報を預かる画面なので、説明・登録・記録・停止を1画面にまとめている。
               どれか1つでも別の場所にあると、店舗は見に行かない。 */}
-        <div className={`${activeTab === 'media' ? '' : 'hidden'}`}>
-          <MediaLinkPanel
-            salonId={salon ? Number(salon.id) : null}
-            active={activeTab === 'media'}
-            onToast={showToast}
-          />
-        </div>
+        {/* ★ 出さない相手には【描かない】。hidden で隠すだけだと、
+            ページの中身を見れば内容が読める（第54便） */}
+        {/* ★★ 出さない相手には【そもそも描かない】（第54便）。
+            ★ hidden で隠すだけだと、ページの中身を見れば内容が読める。
+              画面に出さないのではなく、送らない。 */}
+        {mediaVisible && (
+          <div className={`${activeTab === 'media' ? '' : 'hidden'}`}>
+            <MediaLinkPanel
+              salonId={salon ? Number(salon.id) : null}
+              active={activeTab === 'media'}
+              onToast={showToast}
+            />
+          </div>
+        )}
 
         {/* ── 運営から（お知らせ受信＋お問い合わせ） ── */}
         {/* 常時マウント（hidden 切替）＝未読件数をタブバッジへ即時反映。タブを開くと既読化される。 */}

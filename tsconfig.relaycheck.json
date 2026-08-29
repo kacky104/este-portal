@@ -26,6 +26,7 @@
     "src/app/lib/media/mediaAudit.ts",
     "src/lib/mediaConsent.ts",
     "src/lib/mediaLinkStall.ts",
+    "src/lib/mediaVisibility.ts",
     "src/lib/importStall.ts",
     "src/lib/mediaLinkMode.ts",
     "src/lib/mediaRoster.ts",
