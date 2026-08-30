@@ -34,7 +34,7 @@ const NAV: Array<{ key: MediaNavKey; label: string; href: string; group?: string
 
 function NavIcon({ k }: { k: MediaNavKey }) {
   const p = {
-    width: 15, height: 15, viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor',
+    width: 18, height: 18, viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor',
     strokeWidth: 2, strokeLinecap: 'round' as const, strokeLinejoin: 'round' as const,
     className: 'flex-shrink-0',
   };
@@ -102,27 +102,27 @@ export function MediaShell({
   return (
     <div className="min-h-screen bg-slate-100 md:flex">
       {toast && (
-        <div className="fixed top-4 left-1/2 -translate-x-1/2 z-50 bg-white border border-indigo-200 shadow-lg rounded-xl px-6 py-3 text-sm font-bold text-indigo-700">
+        <div className="fixed top-4 left-1/2 -translate-x-1/2 z-50 bg-white border border-indigo-200 shadow-lg px-6 py-3 text-sm font-bold text-indigo-700">
           {toast}
         </div>
       )}
 
       {/* ── 左サイドバー（スマホでは上の横並び）───────────────────── */}
-      <aside className="bg-white border-b md:border-b-0 md:border-r border-slate-200 md:w-[212px] md:flex-none md:min-h-screen md:sticky md:top-0 md:self-start">
-        <div className="flex items-center gap-2.5 px-3.5 py-3 border-b border-slate-100">
-          <span className="w-7 h-7 flex-none rounded-lg grid place-items-center text-white bg-gradient-to-br from-indigo-700 to-indigo-500">
-            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
+      <aside className="bg-white border-b md:border-b-0 md:border-r border-slate-200 md:w-[252px] md:flex-none md:min-h-screen md:sticky md:top-0 md:self-start">
+        <div className="flex items-center gap-2.5 px-3.5 md:px-4 py-3 md:py-4 border-b border-slate-100">
+          <span className="w-7 h-7 md:w-9 md:h-9 flex-none grid place-items-center text-white bg-gradient-to-br from-indigo-700 to-indigo-500">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
               <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
               <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" />
             </svg>
           </span>
-          <b className="text-[14px] font-black text-slate-800 tracking-tight">フクエスリンク</b>
+          <b className="text-[14px] md:text-[16px] font-black text-slate-800 tracking-tight">フクエスリンク</b>
         </div>
 
         {salonName && (
-          <div className="hidden md:block px-3.5 py-2.5 border-b border-slate-100">
-            <div className="text-[10px] font-bold text-slate-400 tracking-wider">店舗</div>
-            <div className="text-[12.5px] font-bold text-slate-600 mt-0.5 break-words">{salonName}</div>
+          <div className="hidden md:block px-4 py-3 border-b border-slate-100">
+            <div className="text-[10.5px] font-bold text-slate-400 tracking-wider">店舗</div>
+            <div className="text-[13.5px] font-bold text-slate-600 mt-0.5 leading-snug break-words">{salonName}</div>
           </div>
         )}
 
@@ -132,14 +132,14 @@ export function MediaShell({
             return (
               <div key={n.key} className="contents">
                 {n.group && (
-                  <div className="hidden md:block px-3.5 pt-2.5 pb-1 text-[10px] font-bold text-slate-400 tracking-wider">
+                  <div className="hidden md:block px-4 pt-3.5 pb-1 text-[11px] font-bold text-slate-400 tracking-wider">
                     {n.group}
                   </div>
                 )}
                 <Link
                   href={n.href}
                   aria-current={on ? 'true' : undefined}
-                  className={`relative flex items-center gap-2 whitespace-nowrap rounded-lg md:rounded-none px-3 md:px-3.5 py-1.5 md:py-2.5 text-[12.5px] font-bold transition-colors ${
+                  className={`relative flex items-center gap-2 md:gap-2.5 whitespace-nowrap px-3 md:px-4 py-1.5 md:py-3 text-[12.5px] md:text-[14px] font-bold transition-colors ${
                     on
                       ? 'bg-gradient-to-r from-indigo-700 to-indigo-500 text-white'
                       : 'text-slate-600 hover:bg-indigo-50'
@@ -149,7 +149,7 @@ export function MediaShell({
                   {n.label}
                   {/* ★ 選択中の右端に三角（ベンリーと同じ合図）。★ スマホでは出さない */}
                   {on && (
-                    <span className="hidden md:block absolute -right-px top-1/2 -translate-y-1/2 w-0 h-0 border-y-[7px] border-y-transparent border-r-[7px] border-r-slate-100" />
+                    <span className="hidden md:block absolute -right-px top-1/2 -translate-y-1/2 w-0 h-0 border-y-[8px] border-y-transparent border-r-[8px] border-r-slate-100" />
                   )}
                 </Link>
               </div>
@@ -157,7 +157,7 @@ export function MediaShell({
           })}
         </nav>
 
-        <p className="hidden md:block px-3.5 py-3 mt-2 border-t border-slate-100 text-[10.5px] text-slate-400 leading-relaxed">
+        <p className="hidden md:block px-4 py-3.5 mt-2 border-t border-slate-100 text-[11.5px] text-slate-400 leading-relaxed">
           駅ちか・エステラブ・エステ魂・全国エステランキングとの連携をまとめて扱います。
         </p>
       </aside>
@@ -177,7 +177,7 @@ export function MediaShell({
               {alerts.map((a) => (
                 <div
                   key={a.watch + ':' + a.reason + ':' + a.provider + '#' + a.slot}
-                  className="mb-2 rounded-lg border border-rose-300 bg-rose-50 px-3 py-2.5"
+                  className="mb-2 border border-rose-300 bg-rose-50 px-3 py-2.5"
                 >
                   <p className="text-[12px] font-bold text-rose-700">
                     {a.watch === 'import' ? '駅ちかからの取り込みが止まっています' : '媒体連携が止まっています'}
