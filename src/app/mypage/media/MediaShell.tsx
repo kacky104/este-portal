@@ -18,9 +18,11 @@ import type { MediaPageDecision } from '@/lib/mediaVisibility';
 //
 // ★★ 中身の決めごとは変えていない。
 //   状態を上に、説明は本文から追い出す、できないことは理由といっしょに出す。
-// ★ /mypage/media/all（全部入り）は足場なので、この外枠だけ被せて中身は触らない。
+// ★ 足場だった /mypage/media/all（全部入り）は第65便で畳んだ。
+//   ★ 6つの画面すべてが、この外枠を被って同じ形で並ぶ。
 
-export type MediaNavKey = 'home' | 'work' | 'diary' | 'roster' | 'login' | 'log' | 'all';
+// ★ 'all'（全部入り）は第65便で畳んだ。★ 型からも外して、行き先を作れなくする
+export type MediaNavKey = 'home' | 'work' | 'diary' | 'roster' | 'login' | 'log';
 
 const NAV: Array<{ key: MediaNavKey; label: string; href: string; group?: string }> = [
   { key: 'home',   label: 'ホーム',           href: '/mypage/media' },

@@ -83,6 +83,16 @@ export function hasLogFilter(f: LogFilter): boolean {
   return (f?.provider ?? '') !== '' || (f?.outcome ?? '') !== '';
 }
 
+/**
+ * ★★ 上に出す件数のための絞り込み。サイトだけを残し、結果の絞り込みは外す（第65便・§205）。
+ *   ★ 「うまくいかなかったものだけ」を見ているときこそ、
+ *     【全体のうち何件か】を知りたい。両方に結果の絞り込みを効かせると、
+ *     上の2つの数が同じ値になって、片方が何も語らなくなる。
+ */
+export function siteOnlyFilter(f: LogFilter): LogFilter {
+  return { provider: f?.provider ?? '', outcome: '' };
+}
+
 export function filterLogRows(rows: readonly MediaLogRow[], f: LogFilter): MediaLogRow[] {
   const list = Array.isArray(rows) ? rows : [];
   const provider = f?.provider ?? '';

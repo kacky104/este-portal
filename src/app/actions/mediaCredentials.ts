@@ -1079,6 +1079,12 @@ export async function getMediaOverview(input: { salonId: string | number }): Pro
       statusLabel: string;
       /** 向きの切り替えボタンを出してよいか（★ 読める媒体だけ） */
       canSwitch: boolean;
+      /**
+       * ★ いま自動で反映しているか（link_mode === 'write_auto'）。
+       *   ★★ direction は write_auto も 'write' に畳むので、これが無いと画面から区別できない。
+       *     自動の入り切りは「出勤を送る」に置くので、そこで要る（第65便・設計メモ §206）。
+       */
+      autoOn: boolean;
       hasCredential: boolean;
       /** 最後にその管理画面へログインできた時刻 */
       lastVerifiedAt: string | null;
@@ -1153,7 +1159,7 @@ export async function getMediaOverview(input: { salonId: string | number }): Pro
 
   const sites: Array<{
     provider: string; slot: number; label: string; direction: string; statusLabel: string;
-    canSwitch: boolean; hasCredential: boolean; lastVerifiedAt: string | null;
+    canSwitch: boolean; autoOn: boolean; hasCredential: boolean; lastVerifiedAt: string | null;
     listLastRunAt: string | null; fullLastRunAt: string | null; lastWriteOkAt: string | null;
     nextImportAt: string | null;
   }> = [];
@@ -1204,6 +1210,8 @@ export async function getMediaOverview(input: { salonId: string | number }): Pro
       direction,
       statusLabel: directionLabel(direction),
       canSwitch: canSwitchDirection(facts),
+      // ★ 生の link_mode を画面へ流さず、要る1点だけを boolean にして渡す
+      autoOn: facts.linkMode === 'write_auto',
       hasCredential: facts.hasCredential,
       lastVerifiedAt: cred?.lastVerifiedAt ?? null,
       listLastRunAt,

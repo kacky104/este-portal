@@ -109,7 +109,7 @@ export function DiaryTargets({ salonId, onToast }: { salonId: number | null; onT
     <div className="space-y-3">
 
       {/* ── どのサイトを見るか ─────────────────────────── */}
-      <div className="bg-white -[10px] border border-slate-200 shadow-[0_1px_2px_rgba(31,35,51,0.05)] p-5">
+      <div className="bg-white border border-slate-200 shadow-[0_1px_2px_rgba(31,35,51,0.05)] p-5">
         <h3 className="text-sm font-bold text-slate-700 mb-3">どのサイトの投稿先を見ますか？</h3>
 
         {loading ? (
@@ -158,7 +158,7 @@ export function DiaryTargets({ salonId, onToast }: { salonId: number | null; onT
       )}
 
       {!loading && !error && site && !site.hasCredential ? (
-        <div className="bg-white -[10px] border border-slate-200 shadow-[0_1px_2px_rgba(31,35,51,0.05)] p-5">
+        <div className="bg-white border border-slate-200 shadow-[0_1px_2px_rgba(31,35,51,0.05)] p-5">
           <p className="text-[17px] font-black text-slate-800">{site.label}とはまだ連携していません</p>
           <p className="mt-1 text-[12px] text-slate-500 leading-relaxed">
             ログイン情報を登録すると、{site.label}が発行している投稿用アドレスを読み取れます。
@@ -173,7 +173,7 @@ export function DiaryTargets({ salonId, onToast }: { salonId: number | null; onT
       ) : !loading && !error && site ? (
         <>
           {/* ── いまの状態 ────────────────────────────── */}
-          <div className="bg-white -[10px] border border-slate-200 shadow-[0_1px_2px_rgba(31,35,51,0.05)] p-5">
+          <div className="bg-white border border-slate-200 shadow-[0_1px_2px_rgba(31,35,51,0.05)] p-5">
             <div className="flex items-start justify-between gap-3">
               <div>
                 <p className="text-[17px] font-black text-slate-800">
@@ -270,7 +270,7 @@ export function DiaryTargets({ salonId, onToast }: { salonId: number | null; onT
           </div>
 
           {/* ── だれの日記が、どこへ届くか ────────────────── */}
-          <div className="bg-white -[10px] border border-slate-200 shadow-[0_1px_2px_rgba(31,35,51,0.05)] p-5">
+          <div className="bg-white border border-slate-200 shadow-[0_1px_2px_rgba(31,35,51,0.05)] p-5">
             <h3 className="text-sm font-bold text-slate-700 mb-3">だれの日記が、どこへ届くか</h3>
 
             {withAddress.length === 0 ? (

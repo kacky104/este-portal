@@ -78,6 +78,18 @@ eq('★ 記録の無いサイトを選ぶと空', f({ provider: 'esutama' }).map
 eq('絞り込みが立っているか（空）', v.hasLogFilter({ provider: '', outcome: '' }), false);
 eq('絞り込みが立っているか（サイト）', v.hasLogFilter({ provider: 'ekichika', outcome: '' }), true);
 
+console.log('\n── 3-2. ★★ 上に出す件数は、サイトだけで絞る（§205）──');
+eq('結果の絞り込みを外す',
+   v.siteOnlyFilter({ provider: 'ekichika', outcome: 'failed' }), { provider: 'ekichika', outcome: '' });
+eq('サイトは残す', v.siteOnlyFilter({ provider: '', outcome: 'ok' }), { provider: '', outcome: '' });
+// ★★★ 対になる主張。同じ絞り込みでも、一覧と件数で行数が割れる
+eq('★★ 一覧は6件のうち失敗だけ',
+   v.filterLogRows(rows, { provider: '', outcome: 'failed' }).length, 2);
+eq('★★ 件数は全体を数える（同じ値にならない）',
+   v.filterLogRows(rows, v.siteOnlyFilter({ provider: '', outcome: 'failed' })).length, 4);
+eq('★ サイトを選んでいれば、件数もそのサイトぶん',
+   v.filterLogRows(rows, v.siteOnlyFilter({ provider: 'esulove', outcome: 'failed' })).length, 1);
+
 console.log('\n── 4. ★★★ 数えられないものを 0 と書かない ──');
 eq('読めていれば数える',
    v.logTally({ known: true, rows }), { total: 4, failed: 2 });

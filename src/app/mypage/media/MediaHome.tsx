@@ -14,9 +14,9 @@ import { getMediaOverview } from '@/app/actions/mediaCredentials';
 // ★★ この画面が引き受けるのは【状態を見せること】だけ。操作は各画面へ渡す。
 //   ★ 説明文はここに置かない。必要なところに置き直す（画面案の決定）。
 //
-// ★ いまは各タイルの行き先が /mypage/media/all の中の節（#login など）。
-//   ★★ 節を1つずつ独立したページに割っていくが、割り終わるまでのあいだも
-//     店舗が全部の操作にたどり着ける形を残しておく（途中で機能が消えないため）。
+// ★ タイルの行き先は、すべて独立したページ（第65便で割り終わった）。
+//   /mypage/media/therapists ・ /work ・ /diary ・ /login ・ /log
+//   ★★ 途中の足場だった /mypage/media/all は畳んだ。★ もう存在しない。
 
 type Site = {
   provider: string;
@@ -92,7 +92,7 @@ function Tile({ href, icon, title, sub }: {
   return (
     <Link
       href={href}
-      className="flex flex-col gap-0.5 text-left bg-white -[10px] border border-slate-200 shadow-[0_1px_2px_rgba(31,35,51,0.05)] p-4 hover:border-indigo-200 transition-colors"
+      className="flex flex-col gap-0.5 text-left bg-white border border-slate-200 shadow-[0_1px_2px_rgba(31,35,51,0.05)] p-4 hover:border-indigo-200 transition-colors"
     >
       <span className="w-7 h-7 mb-1.5 grid place-items-center bg-indigo-50 text-indigo-600">
         <TileIcon name={icon} />
@@ -131,7 +131,7 @@ export function MediaHome({ salonId, salonName }: { salonId: number | null; salo
 
       {/* ── 取り込みの状態 ────────────────────────────────
           ★ いちばん上は【状態】だけ。★ 操作も説明も置かない。 */}
-      <div className="bg-white -[10px] border border-slate-200 shadow-[0_1px_2px_rgba(31,35,51,0.05)] p-5">
+      <div className="bg-white border border-slate-200 shadow-[0_1px_2px_rgba(31,35,51,0.05)] p-5">
         {loading ? (
           <p className="text-[12px] text-slate-400">読み込み中…</p>
         ) : error ? (
@@ -194,7 +194,7 @@ export function MediaHome({ salonId, salonName }: { salonId: number | null; salo
       </div>
 
       {/* ── 連携しているサイト ──────────────────────────── */}
-      <div className="bg-white -[10px] border border-slate-200 shadow-[0_1px_2px_rgba(31,35,51,0.05)] p-5">
+      <div className="bg-white border border-slate-200 shadow-[0_1px_2px_rgba(31,35,51,0.05)] p-5">
         <div className="flex items-center justify-between gap-2 mb-3">
           <h3 className="text-sm font-bold text-slate-700">連携しているサイト</h3>
           <Link

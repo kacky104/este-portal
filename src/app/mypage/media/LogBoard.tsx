@@ -10,6 +10,7 @@ import {
   logTally,
   logEmptyReason,
   logEmptyMessage,
+  siteOnlyFilter,
   outcomeTone,
   outcomeLabel,
   nextLogLimit,
@@ -111,7 +112,10 @@ export function LogBoard({ salonId }: { salonId: number | null }) {
 
   const sorted = useMemo(() => sortLogRows(rows), [rows]);
   const shown = useMemo(() => filterLogRows(sorted, filter), [sorted, filter]);
-  const tally = logTally({ known, rows: shown });
+  // ★★ 上の数はサイトだけで絞る（§205）。結果の絞り込みは一覧にだけ効かせる。
+  //   ★ そうしないと「うまくいかなかったもの」を選んだとき、2つの数が同じ値になる。
+  const forTally = useMemo(() => filterLogRows(sorted, siteOnlyFilter(filter)), [sorted, filter]);
+  const tally = logTally({ known, rows: forTally });
 
   const reason = logEmptyReason({ known, filter, totalBeforeFilter: sorted.length });
   const filteredSiteName = filter.provider === '' ? '' : providerLabel(filter.provider);
@@ -134,7 +138,7 @@ export function LogBoard({ salonId }: { salonId: number | null }) {
       <div className={`${CARD} grid grid-cols-2`}>
         <div className="px-3 py-2.5 border-r border-slate-200">
           <div className="text-[10.5px] font-bold text-slate-400">
-            {hasLogFilter(filter) ? '絞り込んだ記録' : '記録'}
+            {filter.provider === '' ? '記録' : `${providerLabel(filter.provider)}の記録`}
           </div>
           <div className="text-[19px] font-black tabular-nums text-slate-800">
             {/* ★★ 読めていなければ 0 ではなく「—」 */}

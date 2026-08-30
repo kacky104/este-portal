@@ -4,7 +4,9 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import {
   getMediaOverview,
+  getMediaAutoEligible,
   getMediaWorkPlan,
+  setMediaLinkMode,
   startMediaWorkDryRun,
   startMediaWorkPush,
   type WorkPlanView,
@@ -32,6 +34,8 @@ import { pushAvailability, pushButtonLabel } from '@/lib/mediaOverview';
 type Site = {
   provider: string; slot: number; label: string;
   direction: string; statusLabel: string; hasCredential: boolean;
+  /** ★ いま自動で反映しているか（第65便・㉞ その7 で /all から移した） */
+  autoOn: boolean;
 };
 
 const keyOf = (p: string, s: number) => p + '#' + s;
@@ -58,6 +62,13 @@ export function WorkSend({ salonId, onToast }: { salonId: number | null; onToast
   const [error, setError] = useState('');
   const [busy, setBusy] = useState<string | null>(null);
   const [confirmPush, setConfirmPush] = useState<string | null>(null);
+  /**
+   * ★★ 自動にしてよい枠（1回は人が承認した枠）。
+   *   ★ 承認が1回も無いうちは、自動のボタンそのものを出さない（設計メモ §32 の作法）。
+   *     「立てられない状態を作ってから禁じる」をしない。
+   */
+  const [autoEligible, setAutoEligible] = useState<Set<string>>(new Set());
+  const [switching, setSwitching] = useState<string | null>(null);
   /** ★ 確かめた結果を待っている枠。値は押した時点の作成時刻（変わったら届いた合図） */
   const [waiting, setWaiting] = useState<Record<string, string>>({});
   const pollCount = useRef(0);
@@ -79,8 +90,37 @@ export function WorkSend({ salonId, onToast }: { salonId: number | null; onToast
       next[keyOf(s.provider, s.slot)] = r.ok ? r.data : null;
     });
     setPlans(next);
+
+    // ★ 自動にしてよい枠。★ 失敗しても画面は止めない（自動のボタンが出ないだけ）
+    const el = await getMediaAutoEligible({ salonId });
+    setAutoEligible(el.ok
+      ? new Set(el.data.filter((r) => r.eligible).map((r) => keyOf(r.provider, r.slot)))
+      : new Set());
+
     setLoading(false);
   }, [salonId]);
+
+  /**
+   * 自動の入り切り。
+   * ★★★ 押しても送り先へは何も送らない。次からの【承認の要否】が変わるだけ。
+   * ★ write_auto から read へは直接戻さない（まず自動をやめてもらう）。
+   *   ★ 一度に2つ変えると「どちらのつもりで押したのか」が分からなくなる。
+   */
+  const onSwitchAuto = async (site: Site, toAuto: boolean) => {
+    if (salonId == null) return;
+    const k = keyOf(site.provider, site.slot);
+    setSwitching(k);
+    const res = await setMediaLinkMode({
+      salonId, provider: site.provider, slot: site.slot,
+      mode: toAuto ? 'write_auto' : 'write',
+    });
+    setSwitching(null);
+    if (!res.ok) { onToast(res.error); return; }
+    await load();
+    onToast(toAuto
+      ? 'これから自動で反映します。送れない理由があるときは送らずに止めます'
+      : '毎回ご承認いただく形に戻しました');
+  };
 
   useEffect(() => { void load(); }, [load]);
 
@@ -157,7 +197,7 @@ export function WorkSend({ salonId, onToast }: { salonId: number | null; onToast
 
       {/* ── どのサイトへ送るか ───────────────────────────
           ★ 問いかけはこれ1つだけ。★ はじめから全部にチェックが入っている */}
-      <div className="bg-white -[10px] border border-slate-200 shadow-[0_1px_2px_rgba(31,35,51,0.05)] p-5">
+      <div className="bg-white border border-slate-200 shadow-[0_1px_2px_rgba(31,35,51,0.05)] p-5">
         <div className="flex items-baseline justify-between gap-2 mb-3">
           <h3 className="text-sm font-bold text-slate-700">どのサイトへ送りますか？</h3>
           <span className="text-[11px] font-bold text-indigo-600 tabular-nums">
@@ -242,7 +282,7 @@ export function WorkSend({ salonId, onToast }: { salonId: number | null; onToast
         const isBusy = busy === k;
 
         return (
-          <div key={k} className="bg-white -[10px] border border-slate-200 shadow-[0_1px_2px_rgba(31,35,51,0.05)] p-5 space-y-3">
+          <div key={k} className="bg-white border border-slate-200 shadow-[0_1px_2px_rgba(31,35,51,0.05)] p-5 space-y-3">
             <div className="flex items-baseline justify-between gap-2 flex-wrap">
               <h3 className="text-sm font-bold text-slate-700">{s.label}へ送る内容</h3>
               {plan && <span className="text-[11px] text-slate-400">{fmt(plan.createdAt)} に確認</span>}
@@ -427,6 +467,43 @@ export function WorkSend({ salonId, onToast }: { salonId: number | null; onToast
                 </p>
               </>
             )}
+
+            {/* ── 毎回の承認をやめる ──────────────────────
+                ★★★ 承認の話なので、置き場はこの画面（第65便・㉞ その7）。
+                  第64便まで /mypage/media/all にあったものを移した。
+                ★ 1回も承認していない枠には、ボタンそのものを出さない（設計メモ §32）。
+                  ★ 押せないボタンを灰色で置くのは「立てられない状態を作ってから禁じる」形。 */}
+            {s.autoOn ? (
+              <div className="border-t border-slate-100 pt-3 space-y-1.5">
+                <p className="text-[12px] font-bold text-indigo-700">
+                  いまは自動で反映しています
+                </p>
+                <p className="text-[11px] text-slate-400 leading-relaxed">
+                  ご承認なしで{s.label}へ反映します。送れない理由があるときは送らずに止め、この画面に出します。
+                </p>
+                <button
+                  onClick={() => onSwitchAuto(s, false)}
+                  disabled={switching === k}
+                  className="px-3 py-1.5 border border-slate-300 bg-white text-[11.5px] font-bold text-slate-600 hover:bg-slate-50 disabled:opacity-40"
+                >
+                  {switching === k ? '切り替えています…' : '自動をやめて毎回ご承認に戻す'}
+                </button>
+              </div>
+            ) : autoEligible.has(k) ? (
+              <div className="border-t border-slate-100 pt-3 space-y-1.5">
+                <p className="text-[11px] text-slate-400 leading-relaxed">
+                  一度ご承認いただいたので、これ以降を自動にできます。
+                  自動にすると、この画面で送るボタンを押さなくても反映します。
+                </p>
+                <button
+                  onClick={() => onSwitchAuto(s, true)}
+                  disabled={switching === k}
+                  className="px-3 py-1.5 border border-slate-300 bg-white text-[11.5px] font-bold text-slate-600 hover:bg-slate-50 disabled:opacity-40"
+                >
+                  {switching === k ? '切り替えています…' : '毎回の承認をやめて自動にする'}
+                </button>
+              </div>
+            ) : null}
           </div>
         );
       })}
