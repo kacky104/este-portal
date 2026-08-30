@@ -419,7 +419,8 @@ export function MediaLinkPanel({
       </div>
 
       {/* ── 登録フォーム ── */}
-      <div className="bg-white rounded-3xl border border-slate-100 shadow-sm p-5 space-y-3">
+      {/* ★ id は入口（/mypage/media）のタイルから飛ぶ先（第56便）。★ 節を別ページに割るまでの足場 */}
+      <div id="login" className="scroll-mt-24 bg-white rounded-3xl border border-slate-100 shadow-sm p-5 space-y-3">
         <h3 className="text-sm font-bold text-slate-700">ログイン情報の登録</h3>
 
         <div>
@@ -659,7 +660,7 @@ export function MediaLinkPanel({
             人が承認する前に見るべきものから先に出す（差分を先に出すと理由が読まれない）。 */}
       {plan && (
         <div className="bg-white rounded-3xl border border-slate-100 shadow-sm p-5 space-y-3">
-          <div className="flex items-baseline justify-between gap-2 flex-wrap">
+          <div id="work" className="scroll-mt-24 flex items-baseline justify-between gap-2 flex-wrap">
             <h3 className="text-sm font-bold text-slate-700">駅ちかへ反映する内容</h3>
             <span className="text-[11px] text-slate-400">{fmt(plan.createdAt)} に確認</span>
           </div>
@@ -833,7 +834,7 @@ export function MediaLinkPanel({
             ★ その画面がまだ無いので、当面ここに置く。 */}
       {current && current.hasPassword && (
         <div className="bg-white rounded-3xl border border-slate-100 shadow-sm p-5 space-y-3">
-          <div className="flex items-baseline justify-between gap-2 flex-wrap">
+          <div id="diary" className="scroll-mt-24 flex items-baseline justify-between gap-2 flex-wrap">
             <h3 className="text-sm font-bold text-slate-700">写メ日記の投稿先</h3>
             <span className="text-[11px] text-slate-400">駅ちか（枠{slot}）</span>
           </div>
@@ -900,7 +901,7 @@ export function MediaLinkPanel({
             「駅ちかにいてフクエスにいない人が0名」と「取り込んだ記録が無いので分からない」は
             画面上まったく同じ見た目になる。★ 0名と書かない。判定は mediaRoster.ts が持っている。 */}
       <div className="bg-white rounded-3xl border border-slate-100 shadow-sm p-5 space-y-3">
-        <div className="flex items-baseline justify-between gap-2 flex-wrap">
+        <div id="roster" className="scroll-mt-24 flex items-baseline justify-between gap-2 flex-wrap">
           <h3 className="text-sm font-bold text-slate-700">名簿の突き合わせ</h3>
           <span className="text-[11px] text-slate-400">駅ちか（枠{slot}）</span>
         </div>
@@ -1056,7 +1057,7 @@ export function MediaLinkPanel({
       {/* ── 履歴 ──
           ★ 免責より先に「記録が残る・止められる」を見せる（第37便 §12）。
             画面の並びもその順にしてある。 */}
-      <div className="bg-white rounded-3xl border border-slate-100 shadow-sm p-5 space-y-2">
+      <div id="log" className="scroll-mt-24 bg-white rounded-3xl border border-slate-100 shadow-sm p-5 space-y-2">
         <h3 className="text-sm font-bold text-slate-700">連携の記録</h3>
         <p className="text-[11px] text-slate-400">
           フクエスが駅ちかに対して行ったことの記録です。あとから書き換えられません。

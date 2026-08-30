@@ -768,7 +768,7 @@ export default function TherapistEditPage() {
         </div>
 
         {/* 写メ日記の転送先（第36便・第2弾）。
-            フクエスで書いた日記を、駅ちか／エスラブの投稿用アドレスへ自動で送る。
+            フクエスで書いた日記を、駅ちか／エステラブの投稿用アドレスへ自動で送る。
             ★ 上のカードとは向きが逆（あちらは受け取る側、こちらは送る側）。
             ★ 送るかどうかは店舗単位の「どこで書くか」で決まる。ここは宛先の登録だけ。 */}
         <div className="bg-white rounded-3xl border border-slate-100 shadow-sm p-5 space-y-4">
@@ -823,7 +823,10 @@ export default function TherapistEditPage() {
           ) : !forwardLoaded ? (
             <p className="text-[11px] text-slate-400">読み込み中...</p>
           ) : (
-            [{ p: 'ekichika', label: '駅ちか' }, { p: 'esulove', label: 'エスラブ' }].map((m) => {
+            // ★ 呼び名は mediaAudit.PROVIDER_LABELS に合わせる（2026-08-30）。
+            //   ★ ここだけ「エスラブ」になっていて、媒体連携の画面と食い違っていた。
+            //     店舗が読む文言なので、1つの言い方に揃える。
+            [{ p: 'ekichika', label: '駅ちか' }, { p: 'esulove', label: 'エステラブ' }].map((m) => {
               const mediaRows = forwardRows.filter((r) => r.provider === m.p).sort((a, b) => a.slot - b.slot);
               return (
                 <div key={m.p} className="space-y-2">

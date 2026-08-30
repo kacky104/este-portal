@@ -11,6 +11,13 @@ import { judgeWriteStall, stallMessage, mediaSlotLabel, type MediaLinkAlert } fr
 import { judgeImportStall } from '@/lib/importStall';
 import { isWriteDirection, isLinkMode, hasApprovedOnce } from '@/lib/mediaLinkMode';
 import { loadCastIds } from '@/lib/mediaCastIds';
+import { providerLabel } from '@/lib/mediaAudit';
+import {
+  siteDirection,
+  directionLabel,
+  canSwitchDirection,
+  nextImportAt,
+} from '@/lib/mediaOverview';
 import {
   buildRoster,
   type RosterResult,
@@ -1042,4 +1049,177 @@ export async function startMediaMailImport(input: {
     console.error('[media] 投稿用アドレスの取り込みを始められなかった', (e as Error).message);
     return { ok: false, error: '取り込みを開始できませんでした。時間をおいてお試しください' };
   }
+}
+
+/**
+ * 媒体連携の入口（/mypage/media）に出す状態をまとめて返す（第56便・㉞）。
+ *
+ * ★★★ なぜ1本にまとめたか
+ *   入口は「いま何が起きているか」を1枚で見せる画面。★ 枠ごと・媒体ごとに往復すると、
+ *   サイトが4つになったときに問い合わせが4倍になる。★ 1回で足りる形にしておく。
+ *
+ * ★ 判定そのものは src/lib/mediaOverview.ts（純粋関数）が持つ。ここは材料を集めるだけ。
+ *   ★ 時刻も now を作って渡す。★ 判定の中で now を呼ばない（引き継ぎメモ 3-1）。
+ *
+ * ★★ 失敗しても画面は止めない、は呼び出し側の作法。ここは素直にエラーを返す。
+ */
+export async function getMediaOverview(input: { salonId: string | number }): Promise<
+  Result<{
+    /** フクエスに登録されているセラピストの人数 */
+    therapistCount: number;
+    sites: Array<{
+      provider: string;
+      slot: number;
+      /** 店舗が読む媒体名（'ekichika' とは書かない） */
+      label: string;
+      /** 'read' | 'write' | 'unset' */
+      direction: string;
+      /** 「読み込み」「反映のみ」「未設定」 */
+      statusLabel: string;
+      /** 向きの切り替えボタンを出してよいか（★ 読める媒体だけ） */
+      canSwitch: boolean;
+      hasCredential: boolean;
+      /** 最後にその管理画面へログインできた時刻 */
+      lastVerifiedAt: string | null;
+      /** 最後の取り込み（当日の周） */
+      listLastRunAt: string | null;
+      /** 最後のフル取り込み（週間の周） */
+      fullLastRunAt: string | null;
+      /** 最後に反映できた時刻 */
+      lastWriteOkAt: string | null;
+      /** ★ 次の取り込み。分からない・止まっているときは null */
+      nextImportAt: string | null;
+    }>;
+  }>
+> {
+  const salonId = Number(input.salonId);
+  if (!Number.isFinite(salonId)) return { ok: false, error: '店舗の指定が不正です' };
+  const guard = await assertSalonOwner(salonId);
+  if (!guard.ok) return guard;
+
+  const svc = createServiceClient();
+  const now = new Date();
+
+  const { data: sources, error: srcErr } = await svc
+    .from('salon_import_sources')
+    .select('id, provider, slot, link_mode, is_enabled, last_run_at, import_interval_min')
+    .eq('salon_id', salonId);
+  if (srcErr) return { ok: false, error: '連携の状態を確認できませんでした' };
+
+  const { data: creds, error: crErr } = await svc
+    .from('salon_media_credentials')
+    .select('provider, slot, is_enabled, password_enc, last_verified_at')
+    .eq('salon_id', salonId);
+  if (crErr) return { ok: false, error: 'ログイン情報を確認できませんでした' };
+
+  // ★ 最後に反映できた時刻。★ 枠ごとに問い合わせを分けない（枠が増えるほど往復が増える形にしない）
+  const { data: audit } = await svc
+    .from('salon_media_audit')
+    .select('provider, slot, event, outcome, created_at')
+    .eq('salon_id', salonId)
+    .eq('event', 'write_work')
+    .eq('outcome', 'ok')
+    .order('created_at', { ascending: false })
+    .limit(200);
+
+  const { count: therapistCount } = await svc
+    .from('therapists')
+    .select('id', { count: 'exact', head: true })
+    .eq('salon_id', salonId);
+
+  const key = (p: string, s: number) => p + '#' + s;
+
+  const credOf = new Map<string, { hasCredential: boolean; lastVerifiedAt: string | null }>();
+  for (const c of creds ?? []) {
+    credOf.set(key(String(c.provider), Number(c.slot ?? 1)), {
+      // ★ 「行がある」ではなく「使える」かどうか。止めてある枠・パスワードが無い枠は持っていない扱い
+      hasCredential: c.is_enabled !== false && Boolean(c.password_enc),
+      lastVerifiedAt: (c.last_verified_at as string | null) ?? null,
+    });
+  }
+
+  const writeOkOf = new Map<string, string>();
+  for (const a of audit ?? []) {
+    const k = key(String(a.provider), Number(a.slot));
+    if (!writeOkOf.has(k)) writeOkOf.set(k, String(a.created_at));   // 新しい順なので最初が最新
+  }
+
+  // ★ 取り込みの枠と、ログイン情報だけある枠の【両方】を出す。
+  //   ★ 片方しか無い状態は普通にある（読むだけの店は鍵を持たない／登録しただけで向き未決定）。
+  const keys = new Set<string>([...(sources ?? []).map((s) => key(String(s.provider), Number(s.slot ?? 1))), ...credOf.keys()]);
+  const sourceOf = new Map<string, (typeof sources extends (infer U)[] | null ? U : never)>();
+  for (const s of sources ?? []) sourceOf.set(key(String(s.provider), Number(s.slot ?? 1)), s);
+
+  const sites: Array<{
+    provider: string; slot: number; label: string; direction: string; statusLabel: string;
+    canSwitch: boolean; hasCredential: boolean; lastVerifiedAt: string | null;
+    listLastRunAt: string | null; fullLastRunAt: string | null; lastWriteOkAt: string | null;
+    nextImportAt: string | null;
+  }> = [];
+
+  for (const k of keys) {
+    const [provider, slotStr] = k.split('#');
+    const slot = Number(slotStr);
+    const src = sourceOf.get(k);
+    const cred = credOf.get(k);
+
+    const facts = {
+      provider,
+      slot,
+      linkMode: (src?.link_mode as string | null) ?? null,
+      // ★ 取り込み設定の行そのものが無い枠は、止めているのではなく「まだ決めていない」。
+      //   ★ どちらにせよ向きは unset になるが、意味が違うので false を作らず true で渡す
+      sourceEnabled: src ? src.is_enabled === true : true,
+      hasCredential: cred?.hasCredential === true,
+    };
+
+    const direction = siteDirection(facts);
+
+    // ★ フル取り込み（週間の周）は runs にしか残らない。★ 読む向きの枠だけ引く
+    let fullLastRunAt: string | null = null;
+    if (direction === 'read' && src?.id != null) {
+      const { data: runs } = await svc
+        .from('salon_import_runs')
+        .select('started_at')
+        .eq('source_id', Number(src.id))
+        .order('started_at', { ascending: false })
+        .limit(1);
+      fullLastRunAt = (runs ?? [])[0] ? String((runs ?? [])[0].started_at) : null;
+    }
+
+    const listLastRunAt = (src?.last_run_at as string | null) ?? null;
+    const next = direction === 'read'
+      ? nextImportAt({
+          lastRunAt: listLastRunAt,
+          intervalMin: (src?.import_interval_min as number | null) ?? null,
+          now,
+        })
+      : null;
+
+    sites.push({
+      provider,
+      slot,
+      label: providerLabel(provider),
+      direction,
+      statusLabel: directionLabel(direction),
+      canSwitch: canSwitchDirection(facts),
+      hasCredential: facts.hasCredential,
+      lastVerifiedAt: cred?.lastVerifiedAt ?? null,
+      listLastRunAt,
+      fullLastRunAt,
+      lastWriteOkAt: writeOkOf.get(k) ?? null,
+      nextImportAt: next ? next.toISOString() : null,
+    });
+  }
+
+  // ★ 並びは媒体の順。★ 知らない媒体は後ろへ（消さない）
+  sites.sort((a, b) => {
+    const ia = PROVIDERS.indexOf(a.provider);
+    const ib = PROVIDERS.indexOf(b.provider);
+    const na = ia < 0 ? 999 : ia;
+    const nb = ib < 0 ? 999 : ib;
+    return na !== nb ? na - nb : a.slot - b.slot;
+  });
+
+  return { ok: true, data: { therapistCount: therapistCount ?? 0, sites } };
 }

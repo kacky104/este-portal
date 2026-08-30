@@ -2132,8 +2132,13 @@ export default function MyPage() {
                 {/* ★ 第55便: 媒体連携はタブではなく専用ページ（/mypage/media）になった。
                     ★ 見張りはここ（マイページのトップ）に残す。
                       媒体連携を開かない限り気づけない、では見張りにならない（設計メモ §2-3） */}
+                {/* ★ 新しいタブで開く（2026-08-30・カッキーさんの決定）。
+                    ★ マイページを開いたまま媒体連携を見られるようにする。
+                      店舗は「マイページの内容を見ながら媒体連携をいじる」ため、行き来が要る。 */}
                 <Link
                   href="/mypage/media"
+                  target="_blank"
+                  rel="noopener noreferrer"
                   className="mt-2 inline-block text-[12px] font-bold text-rose-700 underline"
                 >
                   媒体連携をひらく
@@ -2202,9 +2207,14 @@ export default function MyPage() {
               ★ 出す相手にしか描かない（第54便の方針は変えていない）。
                 ★ 隠すのではなく描かない: hidden だとページの中身から読める。
               ★★ 中身の出し分けはページ側の decideMediaPage が持つ。ここは入口の見た目だけ。 */}
+          {/* ★ 新しいタブで開く（2026-08-30・カッキーさんの決定）。
+              ★ マイページを開いたまま媒体連携を見られるようにする。
+              ★ ヘッダーの「サイトを見る」と同じ扱い（別物を並べて見るリンク）。 */}
           {mediaVisible && (
             <Link
               href="/mypage/media"
+              target="_blank"
+              rel="noopener noreferrer"
               className="inline-flex items-center gap-1 px-3 py-1.5 rounded-full border text-[11px] font-bold transition-colors bg-white text-slate-400 border-slate-200 hover:text-slate-600 hover:border-slate-300"
             >
               {tabIcon('media')}
