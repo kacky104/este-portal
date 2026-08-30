@@ -111,7 +111,15 @@ eq('★★ 0件・止めた理由あり → blocked（理由の方を先に言�
 
 // ★★★ もう1組。同じ「変わるところ3件」でも、指紋の有無で割れる
 eq('★★ 指紋があれば ready', av({ fingerprint: 'abc' }), 'ready');
-eq('★★ 指紋が空なら blocked（見た目は送れそうでも送らせない）', av({ fingerprint: '' }), 'blocked');
+eq('★★ 変更があるのに指紋が空なら blocked（起きないはずだが送らせない）', av({ fingerprint: '' }), 'blocked');
+
+// ★★★ 実物で起きる組み合わせ（2026-08-30 に取り違えた）。
+//   planFingerprint() は変更の一覧から作るので、変更0件なら指紋は【必ず空になる】。
+//   ★ 「指紋が空」と「変更0件」は同じことの裏表。★ 0件を先に見ないと別の理由が出る
+eq('★★★ 0件かつ指紋が空 → no_change（実物はいつもこの形）',
+   av({ changeCount: 0, fingerprint: '' }), 'no_change');
+eq('★★ 0件・指紋が空でも、止めた理由があれば blocked',
+   av({ changeCount: 0, fingerprint: '', sendable: false }), 'blocked');
 
 eq('★ 件数が負なら no_change', av({ changeCount: -1 }), 'no_change');
 eq('★ 件数が数値でなければ no_change', av({ changeCount: '3' }), 'no_change');

@@ -149,11 +149,17 @@ export function pushAvailability(input: {
   fingerprint: string;
 }): PushAvailability {
   if (input.hasPlan !== true) return 'not_confirmed';
-  // ★ 止めた理由がある枠は、まずそれを言う。0件かどうかはそのあと
+  // ★ 止めた理由がある枠は、まずそれを言う
   if (input.sendable !== true) return 'blocked';
-  // ★ 指紋が無い＝送る先が特定できない。★ 見た目は送れそうでも送らせない
-  if (typeof input.fingerprint !== 'string' || input.fingerprint.length === 0) return 'blocked';
+  // ★★★ 0件は【指紋より先に】見る（2026-08-30 の取り違え）。
+  //   planFingerprint() は【変更の一覧】から作るので、変更0件なら指紋は必ず空になる。
+  //   ★ 「指紋が空」と「変更0件」は同じことの裏表。
+  //     指紋を先に見ると、いちばん多い場面（変えるところが無い）で
+  //     「いまは送れません」という別の理由が出てしまう。
   if (!Number.isFinite(input.changeCount) || input.changeCount <= 0) return 'no_change';
+  // ★ ここまで来て指紋が空なのは、変更があるのに指紋が作れていない＝おかしい。
+  //   ★ 起きないはずだが、起きたら送らせない側に倒す
+  if (typeof input.fingerprint !== 'string' || input.fingerprint.length === 0) return 'blocked';
   return 'ready';
 }
 
