@@ -164,7 +164,7 @@ export function DiaryTargets({ salonId, onToast }: { salonId: number | null; onT
             ログイン情報を登録すると、{site.label}が発行している投稿用アドレスを読み取れます。
           </p>
           <Link
-            href="/mypage/media/all#login"
+            href="/mypage/media/login"
             className="mt-3 inline-block text-[12px] font-bold px-3 py-1.5 border border-slate-200 text-slate-600"
           >
             ログイン情報を登録する

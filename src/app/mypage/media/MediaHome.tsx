@@ -198,7 +198,7 @@ export function MediaHome({ salonId, salonName }: { salonId: number | null; salo
         <div className="flex items-center justify-between gap-2 mb-3">
           <h3 className="text-sm font-bold text-slate-700">連携しているサイト</h3>
           <Link
-            href="/mypage/media/all#login"
+            href="/mypage/media/login"
             className="text-[11px] font-bold px-3 py-1.5 border border-slate-200 text-slate-500 hover:border-slate-300"
           >
             ログイン情報
@@ -230,7 +230,7 @@ export function MediaHome({ salonId, salonName }: { salonId: number | null; salo
                     ★ 書くだけのサイトに出すと、選べるように見えて選べない画面になる */}
                 {s.canSwitch && (
                   <Link
-                    href="/mypage/media/all#login"
+                    href="/mypage/media/login"
                     className="flex-none text-[11px] font-bold px-3 py-1.5 border border-slate-200 text-slate-500 hover:border-slate-300"
                   >
                     向きを変える

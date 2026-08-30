@@ -225,7 +225,7 @@ export function WorkSend({ salonId, onToast }: { salonId: number | null; onToast
               変えると駅ちかからの取り込みは止まります。
             </p>
             <Link
-              href="/mypage/media/all#login"
+              href="/mypage/media/login"
               className="mt-2 inline-block text-[12px] font-bold text-sky-700 underline"
             >
               向きを変える
