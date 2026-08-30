@@ -201,3 +201,45 @@ export function maskAddress(address: string | null | undefined): string {
   const local = s.slice(0, at);
   return local.slice(0, 2) + '****' + s.slice(at);
 }
+
+// ───────────────── セラピストが、その媒体に出ているか（第62便） ─────────────────
+
+/**
+ * ★★★ 4値。★ 「いません」と言ってよい場面を狭くするための型。
+ *
+ *   present  … 向こうの名簿で見つかった
+ *   missing  … 番号は知っているのに、向こうの名簿に無かった
+ *   unlinked … ★ そもそも番号が結びついていない。★ 「いない」ではない
+ *   unknown  … ★ 向こうの名簿をまだ読めていない。★ これも「いない」ではない
+ *
+ * ★★ 画面に「いません」と出すのは missing のときだけ。
+ *   ★ unlinked を「いません」と書くと、名前が違うだけの人を「消えた」と読ませる。
+ *   ★ unknown を「います」と書くと、確かめていないことを確かめたことにする。
+ *   → 引き継ぎメモ 3-5「0件と分からないを混ぜない」の、人単位の版。
+ */
+export type TherapistSiteState = 'present' | 'missing' | 'unlinked' | 'unknown';
+
+export function therapistSiteState(input: {
+  /** 媒体側の番号（castId）が結びついていないか */
+  isUnlinked: boolean;
+  /** 番号は知っているのに、向こうの名簿に無かったか */
+  isMissing: boolean;
+  /** 向こうの名簿を読めているか（読めていなければ何も言えない） */
+  known: boolean;
+}): TherapistSiteState {
+  // ★ 番号が無い人は、向こうを読めていても判定できない。★ ここが最優先
+  if (input.isUnlinked === true) return 'unlinked';
+  // ★ 読んでいないのに「います」と言わない
+  if (input.known !== true) return 'unknown';
+  return input.isMissing === true ? 'missing' : 'present';
+}
+
+/** 画面に出す言い方。★ 知らない値は「まだ確かめていません」に落とす（断定しない側）。 */
+export function therapistSiteLabel(s: TherapistSiteState | string): string {
+  switch (s) {
+    case 'present': return 'います';
+    case 'missing': return 'いません';
+    case 'unlinked': return 'まだ結びついていません';
+    default: return 'まだ確かめていません';
+  }
+}

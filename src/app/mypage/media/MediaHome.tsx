@@ -266,10 +266,10 @@ export function MediaHome({ salonId, salonName }: { salonId: number | null; salo
           sub="駅ちか・エステラブ"
         />
         <Tile
-          href="/mypage/media/all#roster"
+          href="/mypage/media/therapists"
           icon="roster"
-          title="名簿の突き合わせ"
-          sub="駅ちかと見比べます"
+          title="セラピスト一覧"
+          sub="どのサイトに出ているか"
         />
         <Tile
           href="/mypage/media/all#log"

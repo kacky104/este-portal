@@ -1318,3 +1318,48 @@ export async function getSalonDiaryForwards(input: { salonId: string | number })
     },
   };
 }
+
+/**
+ * セラピスト一覧に出すフクエス側の情報（第62便・㉞ その4）。
+ *
+ * ★★★ この画面の主役は【フクエスに登録されているセラピスト】。
+ *   各サイトはその出先として横に並べる（設計メモ §180）。
+ *   ★ だから、ここが返すのはフクエスの側だけ。媒体側の状態は getMediaRoster が持つ。
+ *
+ * ★ 写真は公開ページにも出ているものなので秘密値ではない。そのまま返してよい。
+ */
+export async function getSalonTherapists(input: { salonId: string | number }): Promise<
+  Result<Array<{
+    id: string;
+    name: string;
+    age: string | null;
+    imageUrl: string | null;
+    isNewFace: boolean;
+    newFaceSince: string | null;
+  }>>
+> {
+  const salonId = Number(input.salonId);
+  if (!Number.isFinite(salonId)) return { ok: false, error: '店舗の指定が不正です' };
+  const guard = await assertSalonOwner(salonId);
+  if (!guard.ok) return guard;
+
+  const svc = createServiceClient();
+  const { data, error } = await svc
+    .from('therapists')
+    .select('id, name, age, profile_image_url, is_new_face, new_face_since')
+    .eq('salon_id', salonId)
+    .order('id', { ascending: true });
+  if (error) return { ok: false, error: 'セラピストを読み込めませんでした' };
+
+  return {
+    ok: true,
+    data: (data ?? []).map((t) => ({
+      id: String(t.id),
+      name: (t.name as string | null) ?? '',
+      age: t.age == null ? null : String(t.age),
+      imageUrl: (t.profile_image_url as string | null) ?? null,
+      isNewFace: t.is_new_face === true,
+      newFaceSince: (t.new_face_since as string | null) ?? null,
+    })),
+  };
+}

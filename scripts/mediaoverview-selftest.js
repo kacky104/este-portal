@@ -157,5 +157,37 @@ eq('★ null は空文字', v.maskAddress(null), '');
 eq('★ 文字列でなければ空文字', v.maskAddress(123), '');
 eq('★ 前後の空白は落とす', v.maskAddress('  sakura@shame.jp  '), 'sa****@shame.jp');
 
+console.log('\n── 9. ★★★ セラピストが媒体に出ているか。★「いません」と言える場面を狭くする ──');
+const st = (o) => v.therapistSiteState(Object.assign(
+  { isUnlinked: false, isMissing: false, known: true }, o || {}
+));
+
+eq('番号あり・向こうにいる → present', st({}), 'present');
+eq('番号あり・向こうに無い → missing', st({ isMissing: true }), 'missing');
+
+// ★★★ 対になる主張。同じ「向こうに無い」でも、番号の有無で答えが割れる
+eq('★★ 番号があるなら missing（いません）', st({ isMissing: true, isUnlinked: false }), 'missing');
+eq('★★ 番号が無ければ unlinked（★「いません」と言わない）',
+   st({ isMissing: true, isUnlinked: true }), 'unlinked');
+
+// ★★★ もう1組。同じ「向こうに無い印が付いていない」でも、読めているかで割れる
+eq('★★ 読めていれば present', st({ known: true }), 'present');
+eq('★★ 読めていなければ unknown（★「います」と言わない）', st({ known: false }), 'unknown');
+
+eq('★ 番号が無ければ、読めていなくても unlinked（番号の話が先）',
+   st({ isUnlinked: true, known: false }), 'unlinked');
+eq("★ known が 'true' という文字列なら unknown", st({ known: 'true' }), 'unknown');
+eq('★ isUnlinked が 1 では unlinked にしない', st({ isUnlinked: 1, isMissing: true }), 'missing');
+
+console.log('\n── 9-2. 言い方 ──');
+eq('present の言い方', v.therapistSiteLabel('present'), 'います');
+eq('missing の言い方', v.therapistSiteLabel('missing'), 'いません');
+eq('unlinked の言い方', v.therapistSiteLabel('unlinked'), 'まだ結びついていません');
+eq('unknown の言い方', v.therapistSiteLabel('unknown'), 'まだ確かめていません');
+eq('★ 知らない値は断定しない側へ', v.therapistSiteLabel('なにか'), 'まだ確かめていません');
+// ★★ 「いません」と書いてよいのは missing だけ
+eq('★★ missing 以外に「いません」と書かない',
+   ['present', 'unlinked', 'unknown'].some((s) => v.therapistSiteLabel(s) === 'いません'), false);
+
 console.log(fail === 0 ? '\n★ すべて通った' : '\n★ NG ' + fail + ' 件');
 process.exit(fail === 0 ? 0 : 1);

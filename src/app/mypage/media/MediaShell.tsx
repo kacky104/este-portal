@@ -24,10 +24,10 @@ export type MediaNavKey = 'home' | 'work' | 'diary' | 'roster' | 'login' | 'log'
 
 const NAV: Array<{ key: MediaNavKey; label: string; href: string; group?: string }> = [
   { key: 'home',   label: 'ホーム',           href: '/mypage/media' },
+  // ★ セラピスト一覧は【基本の情報】なので、送る作業より上に置く（カッキーさん・2026-08-30）
+  { key: 'roster', label: 'セラピスト一覧',    href: '/mypage/media/therapists' },
   { key: 'work',   label: '出勤を送る',        href: '/mypage/media/work',       group: '送る・確かめる' },
   { key: 'diary',  label: '写メ日記の投稿先',   href: '/mypage/media/diary' },
-  // ★ 名簿はまだ専用ページが無い。★ 足場（/all）の節へ飛ばす
-  { key: 'roster', label: '名簿の突き合わせ',   href: '/mypage/media/all#roster' },
   { key: 'login',  label: 'ログイン情報',      href: '/mypage/media/all#login',  group: '設定・記録' },
   { key: 'log',    label: '連携の記録',        href: '/mypage/media/all#log' },
 ];
