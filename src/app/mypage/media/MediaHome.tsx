@@ -250,7 +250,7 @@ export function MediaHome({ salonId, salonName }: { salonId: number | null; salo
       {/* ── 用事のタイル ───────────────────────────────── */}
       <div className="grid grid-cols-2 gap-2.5">
         <Tile
-          href="/mypage/media/all#work"
+          href="/mypage/media/work"
           icon="work"
           title="出勤を送る"
           sub={
