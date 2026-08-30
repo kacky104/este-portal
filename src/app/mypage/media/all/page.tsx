@@ -25,9 +25,9 @@ export default function MediaLinkAllPage() {
       decision={decision}
       loadError={loadError}
       salonId={salon ? Number(salon.id) : null}
-      title="媒体連携の設定"
-      backHref="/mypage/media"
-      backLabel="媒体連携へ戻る"
+      salonName={salon?.name ?? null}
+      title="媒体連携の設定（全部入り）"
+      current="all"
       toast={toast}
     >
       <MediaLinkPanel

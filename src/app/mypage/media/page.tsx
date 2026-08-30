@@ -23,9 +23,9 @@ export default function MediaLinkPage() {
       decision={decision}
       loadError={loadError}
       salonId={salon ? Number(salon.id) : null}
-      title="媒体連携"
-      backHref="/mypage"
-      backLabel="マイページへ戻る"
+      salonName={salon?.name ?? null}
+      title="ホーム"
+      current="home"
     >
       <MediaHome
         salonId={salon ? Number(salon.id) : null}

@@ -92,9 +92,9 @@ function Tile({ href, icon, title, sub }: {
   return (
     <Link
       href={href}
-      className="flex flex-col gap-0.5 text-left bg-white rounded-2xl border border-slate-100 shadow-sm p-4 hover:border-pink-200 transition-colors"
+      className="flex flex-col gap-0.5 text-left bg-white rounded-[10px] border border-slate-200 shadow-[0_1px_2px_rgba(31,35,51,0.05)] p-4 hover:border-indigo-200 transition-colors"
     >
-      <span className="w-7 h-7 rounded-xl mb-1.5 grid place-items-center bg-pink-50 text-pink-500">
+      <span className="w-7 h-7 rounded-lg mb-1.5 grid place-items-center bg-indigo-50 text-indigo-600">
         <TileIcon name={icon} />
       </span>
       <span className="text-[13px] font-bold text-slate-700">{title}</span>
@@ -131,7 +131,7 @@ export function MediaHome({ salonId, salonName }: { salonId: number | null; salo
 
       {/* ── 取り込みの状態 ────────────────────────────────
           ★ いちばん上は【状態】だけ。★ 操作も説明も置かない。 */}
-      <div className="bg-white rounded-3xl border border-slate-100 shadow-sm p-5">
+      <div className="bg-white rounded-[10px] border border-slate-200 shadow-[0_1px_2px_rgba(31,35,51,0.05)] p-5">
         {loading ? (
           <p className="text-[12px] text-slate-400">読み込み中…</p>
         ) : error ? (
@@ -147,12 +147,12 @@ export function MediaHome({ salonId, salonName }: { salonId: number | null; salo
                 </p>
                 <p className="mt-0.5 text-[12px] text-slate-500">{salonName ?? ''}</p>
               </div>
-              <span className={`flex-none text-[11px] font-bold px-3 py-1 rounded-full border ${PILL.read}`}>
+              <span className={`flex-none text-[11px] font-bold px-3 py-0.5 rounded-md border ${PILL.read}`}>
                 読み込み
               </span>
             </div>
 
-            <dl className="mt-4 grid grid-cols-3 gap-px bg-slate-100 border border-slate-100 rounded-2xl overflow-hidden">
+            <dl className="mt-4 grid grid-cols-3 gap-px bg-slate-100 border border-slate-100 rounded-lg overflow-hidden">
               <div className="bg-white px-3 py-2.5">
                 <dt className="text-[10px] font-bold text-slate-400">セラピスト</dt>
                 <dd className="text-[18px] font-black text-slate-800 tabular-nums">
@@ -194,12 +194,12 @@ export function MediaHome({ salonId, salonName }: { salonId: number | null; salo
       </div>
 
       {/* ── 連携しているサイト ──────────────────────────── */}
-      <div className="bg-white rounded-3xl border border-slate-100 shadow-sm p-5">
+      <div className="bg-white rounded-[10px] border border-slate-200 shadow-[0_1px_2px_rgba(31,35,51,0.05)] p-5">
         <div className="flex items-center justify-between gap-2 mb-3">
           <h3 className="text-sm font-bold text-slate-700">連携しているサイト</h3>
           <Link
             href="/mypage/media/all#login"
-            className="text-[11px] font-bold px-3 py-1.5 rounded-xl border border-slate-200 text-slate-500 hover:border-slate-300"
+            className="text-[11px] font-bold px-3 py-1.5 rounded-lg border border-slate-200 text-slate-500 hover:border-slate-300"
           >
             ログイン情報
           </Link>
@@ -223,7 +223,7 @@ export function MediaHome({ salonId, salonName }: { salonId: number | null; salo
                         : (s.hasCredential ? '向きが決まっていません' : 'ログイン情報がまだありません')}
                   </span>
                 </span>
-                <span className={`flex-none text-[11px] font-bold px-3 py-1 rounded-full border ${PILL[s.direction] ?? PILL.unset}`}>
+                <span className={`flex-none text-[11px] font-bold px-3 py-0.5 rounded-md border ${PILL[s.direction] ?? PILL.unset}`}>
                   {s.statusLabel}
                 </span>
                 {/* ★ 切り替えを出すのは読める媒体だけ（mediaOverview.canSwitchDirection）。
@@ -231,7 +231,7 @@ export function MediaHome({ salonId, salonName }: { salonId: number | null; salo
                 {s.canSwitch && (
                   <Link
                     href="/mypage/media/all#login"
-                    className="flex-none text-[11px] font-bold px-3 py-1.5 rounded-xl border border-slate-200 text-slate-500 hover:border-slate-300"
+                    className="flex-none text-[11px] font-bold px-3 py-1.5 rounded-lg border border-slate-200 text-slate-500 hover:border-slate-300"
                   >
                     向きを変える
                   </Link>

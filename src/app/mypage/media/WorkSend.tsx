@@ -157,10 +157,10 @@ export function WorkSend({ salonId, onToast }: { salonId: number | null; onToast
 
       {/* ── どのサイトへ送るか ───────────────────────────
           ★ 問いかけはこれ1つだけ。★ はじめから全部にチェックが入っている */}
-      <div className="bg-white rounded-3xl border border-slate-100 shadow-sm p-5">
+      <div className="bg-white rounded-[10px] border border-slate-200 shadow-[0_1px_2px_rgba(31,35,51,0.05)] p-5">
         <div className="flex items-baseline justify-between gap-2 mb-3">
           <h3 className="text-sm font-bold text-slate-700">どのサイトへ送りますか？</h3>
-          <span className="text-[11px] font-bold text-pink-500 tabular-nums">
+          <span className="text-[11px] font-bold text-indigo-600 tabular-nums">
             {chosen.length} / {sendable.length}サイト
           </span>
         </div>
@@ -185,12 +185,12 @@ export function WorkSend({ salonId, onToast }: { salonId: number | null; onToast
                     return n;
                   })}
                   aria-pressed={on}
-                  className={`inline-flex items-center gap-2 px-3 py-2 rounded-xl border text-[12px] font-bold transition-colors ${
-                    on ? 'bg-pink-50 text-pink-600 border-pink-200' : 'bg-white text-slate-400 border-slate-200'
+                  className={`inline-flex items-center gap-2 px-3 py-2 rounded-lg border text-[12px] font-bold transition-colors ${
+                    on ? 'bg-indigo-50 text-indigo-700 border-indigo-200' : 'bg-white text-slate-400 border-slate-200'
                   }`}
                 >
                   <span className={`w-[15px] h-[15px] rounded-[5px] border grid place-items-center ${
-                    on ? 'bg-pink-500 border-pink-500' : 'bg-white border-slate-300'
+                    on ? 'bg-indigo-600 border-indigo-600' : 'bg-white border-slate-300'
                   }`}>
                     {on && (
                       <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="4"
@@ -206,7 +206,7 @@ export function WorkSend({ salonId, onToast }: { salonId: number | null; onToast
             {others.map((s) => (
               <span
                 key={keyOf(s.provider, s.slot)}
-                className="inline-flex items-center gap-2 px-3 py-2 rounded-xl border border-slate-200 bg-white text-[12px] font-bold text-slate-300"
+                className="inline-flex items-center gap-2 px-3 py-2 rounded-lg border border-slate-200 bg-white text-[12px] font-bold text-slate-300"
               >
                 {s.label}
                 <span className="font-medium text-slate-400">
@@ -218,7 +218,7 @@ export function WorkSend({ salonId, onToast }: { salonId: number | null; onToast
         )}
 
         {!loading && !error && sendable.length === 0 && (
-          <div className="mt-3 rounded-xl border border-sky-200 bg-sky-50 px-3 py-2.5">
+          <div className="mt-3 rounded-lg border border-sky-200 bg-sky-50 px-3 py-2.5">
             <p className="text-[12px] leading-relaxed text-slate-600">
               <b className="font-bold text-sky-700">いま送れるサイトがありません。</b>{' '}
               駅ちかは読み込み中のあいだは送れません。送るには向きを変えてください。
@@ -242,14 +242,14 @@ export function WorkSend({ salonId, onToast }: { salonId: number | null; onToast
         const isBusy = busy === k;
 
         return (
-          <div key={k} className="bg-white rounded-3xl border border-slate-100 shadow-sm p-5 space-y-3">
+          <div key={k} className="bg-white rounded-[10px] border border-slate-200 shadow-[0_1px_2px_rgba(31,35,51,0.05)] p-5 space-y-3">
             <div className="flex items-baseline justify-between gap-2 flex-wrap">
               <h3 className="text-sm font-bold text-slate-700">{s.label}へ送る内容</h3>
               {plan && <span className="text-[11px] text-slate-400">{fmt(plan.createdAt)} に確認</span>}
             </div>
 
             {/* ★★ この画面でいちばん誤解が起きやすい場所。**まだ送っていない**を繰り返し書く */}
-            <p className="text-[11px] font-bold text-pink-500">
+            <p className="text-[11px] font-bold text-indigo-600">
               これは「送ったらこうなる」という内容です。まだ送っていません。
             </p>
 
@@ -266,7 +266,7 @@ export function WorkSend({ salonId, onToast }: { salonId: number | null; onToast
                   <button
                     onClick={() => onDryRun(s)}
                     disabled={isBusy}
-                    className="px-4 py-2 rounded-xl border border-slate-200 text-[12px] font-bold text-slate-600 disabled:opacity-50"
+                    className="px-4 py-2 rounded-lg border border-slate-200 text-[12px] font-bold text-slate-600 disabled:opacity-50"
                   >
                     内容を確かめる
                   </button>
@@ -276,12 +276,12 @@ export function WorkSend({ salonId, onToast }: { salonId: number | null; onToast
               <>
                 {/* ★ 突き合わせ0人は「一致」ではない。ここを最初に出す（第43便-b §26） */}
                 {plan.targets === 0 ? (
-                  <p className="text-[12px] text-rose-600 bg-rose-50 rounded-xl px-3 py-2 leading-relaxed">
+                  <p className="text-[12px] text-rose-600 bg-rose-50 rounded-lg px-3 py-2 leading-relaxed">
                     {s.label}の出勤表と結びつく方が1人も見つかりませんでした。内容を比べられていません。
                   </p>
                 ) : (
                   <>
-                    <dl className="grid grid-cols-3 gap-px bg-slate-100 border border-slate-100 rounded-2xl overflow-hidden">
+                    <dl className="grid grid-cols-3 gap-px bg-slate-100 border border-slate-100 rounded-lg overflow-hidden">
                       <div className="bg-white px-3 py-2.5">
                         <dt className="text-[10px] font-bold text-slate-400">送る相手</dt>
                         <dd className="text-[18px] font-black text-slate-800 tabular-nums">
@@ -313,7 +313,7 @@ export function WorkSend({ salonId, onToast }: { salonId: number | null; onToast
                 {plan.blockers.length > 0 && (
                   <ul className="space-y-1.5">
                     {plan.blockers.map((b, i) => (
-                      <li key={`b-${i}`} className="text-[12px] text-rose-600 bg-rose-50 rounded-xl px-3 py-2 leading-relaxed">
+                      <li key={`b-${i}`} className="text-[12px] text-rose-600 bg-rose-50 rounded-lg px-3 py-2 leading-relaxed">
                         {b.detail}
                       </li>
                     ))}
@@ -323,7 +323,7 @@ export function WorkSend({ salonId, onToast }: { salonId: number | null; onToast
                 {plan.notes.length > 0 && (
                   <ul className="space-y-1.5">
                     {plan.notes.map((n, i) => (
-                      <li key={`n-${i}`} className="text-[12px] text-slate-500 bg-slate-50 rounded-xl px-3 py-2 leading-relaxed">
+                      <li key={`n-${i}`} className="text-[12px] text-slate-500 bg-slate-50 rounded-lg px-3 py-2 leading-relaxed">
                         {n.detail}
                       </li>
                     ))}
@@ -357,7 +357,7 @@ export function WorkSend({ salonId, onToast }: { salonId: number | null; onToast
                                 {plan.dateLabels[d.dayIndex] ?? `日${d.dayIndex}`}
                               </td>
                               <td className="py-1.5 pr-3 text-slate-400 whitespace-nowrap">{d.before}</td>
-                              <td className="py-1.5 text-pink-600 font-bold whitespace-nowrap">{d.after}</td>
+                              <td className="py-1.5 text-indigo-700 font-bold whitespace-nowrap">{d.after}</td>
                             </tr>
                           ))}
                         </tbody>
@@ -373,7 +373,7 @@ export function WorkSend({ salonId, onToast }: { salonId: number | null; onToast
                   <button
                     onClick={() => onDryRun(s)}
                     disabled={isBusy}
-                    className="px-4 py-2 rounded-xl border border-slate-200 text-[12px] font-bold text-slate-600 disabled:opacity-50"
+                    className="px-4 py-2 rounded-lg border border-slate-200 text-[12px] font-bold text-slate-600 disabled:opacity-50"
                   >
                     内容を確かめ直す
                   </button>
@@ -383,14 +383,14 @@ export function WorkSend({ salonId, onToast }: { salonId: number | null; onToast
                     <>
                       <button
                         onClick={() => setConfirmPush(null)}
-                        className="px-4 py-2 rounded-xl border border-slate-200 text-[12px] font-bold text-slate-500"
+                        className="px-4 py-2 rounded-lg border border-slate-200 text-[12px] font-bold text-slate-500"
                       >
                         やめる
                       </button>
                       <button
                         onClick={() => onPush(s)}
                         disabled={isBusy}
-                        className="px-4 py-2 rounded-xl bg-gradient-to-r from-pink-500 to-fuchsia-500 text-white text-[12px] font-bold shadow-sm disabled:opacity-50"
+                        className="px-4 py-2 rounded-lg bg-gradient-to-r from-indigo-500 to-indigo-700 text-white text-[12px] font-bold shadow-sm disabled:opacity-50"
                       >
                         {isBusy ? '送っています…' : 'この内容で送る（確定）'}
                       </button>
@@ -409,9 +409,9 @@ export function WorkSend({ salonId, onToast }: { salonId: number | null; onToast
                       <button
                         onClick={() => setConfirmPush(k)}
                         disabled={av !== 'ready'}
-                        className={`px-4 py-2 rounded-xl text-[12px] font-bold shadow-sm ${
+                        className={`px-4 py-2 rounded-lg text-[12px] font-bold shadow-sm ${
                           av === 'ready'
-                            ? 'bg-gradient-to-r from-pink-500 to-fuchsia-500 text-white'
+                            ? 'bg-gradient-to-r from-indigo-500 to-indigo-700 text-white'
                             : 'bg-slate-100 text-slate-400 shadow-none cursor-not-allowed'
                         }`}
                       >

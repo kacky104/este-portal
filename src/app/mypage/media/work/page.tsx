@@ -18,9 +18,9 @@ export default function MediaWorkPage() {
       decision={decision}
       loadError={loadError}
       salonId={salon ? Number(salon.id) : null}
+      salonName={salon?.name ?? null}
       title="出勤を送る"
-      backHref="/mypage/media"
-      backLabel="媒体連携へ戻る"
+      current="work"
       toast={toast}
     >
       <WorkSend salonId={salon ? Number(salon.id) : null} onToast={showToast} />

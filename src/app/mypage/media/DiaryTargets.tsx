@@ -109,7 +109,7 @@ export function DiaryTargets({ salonId, onToast }: { salonId: number | null; onT
     <div className="space-y-3">
 
       {/* ── どのサイトを見るか ─────────────────────────── */}
-      <div className="bg-white rounded-3xl border border-slate-100 shadow-sm p-5">
+      <div className="bg-white rounded-[10px] border border-slate-200 shadow-[0_1px_2px_rgba(31,35,51,0.05)] p-5">
         <h3 className="text-sm font-bold text-slate-700 mb-3">どのサイトの投稿先を見ますか？</h3>
 
         {loading ? (
@@ -127,8 +127,8 @@ export function DiaryTargets({ salonId, onToast }: { salonId: number | null; onT
                   key={s.provider}
                   onClick={() => { setPicked(s.provider); setConfirmApply(false); setShowAll(false); }}
                   aria-pressed={on}
-                  className={`px-3 py-2 rounded-xl border text-[12px] font-bold transition-colors ${
-                    on ? 'bg-pink-50 text-pink-600 border-pink-200' : 'bg-white text-slate-400 border-slate-200'
+                  className={`px-3 py-2 rounded-lg border text-[12px] font-bold transition-colors ${
+                    on ? 'bg-indigo-50 text-indigo-700 border-indigo-200' : 'bg-white text-slate-400 border-slate-200'
                   }`}
                 >
                   {s.label}
@@ -148,7 +148,7 @@ export function DiaryTargets({ salonId, onToast }: { salonId: number | null; onT
 
       {/* ── 正本の注意（二重投稿を防ぐ唯一の仕掛け）───────── */}
       {!loading && !error && data?.diarySource !== 'fukues' && (
-        <div className="rounded-2xl border border-sky-200 bg-sky-50 px-4 py-3">
+        <div className="rounded-lg border border-sky-200 bg-sky-50 px-4 py-3">
           <p className="text-[12px] leading-relaxed text-slate-600">
             <b className="font-bold text-sky-700">いまは、フクエスから写メ日記を転送していません。</b>{' '}
             投稿先を登録しても、フクエスが正本になるまでは送りません。
@@ -158,14 +158,14 @@ export function DiaryTargets({ salonId, onToast }: { salonId: number | null; onT
       )}
 
       {!loading && !error && site && !site.hasCredential ? (
-        <div className="bg-white rounded-3xl border border-slate-100 shadow-sm p-5">
+        <div className="bg-white rounded-[10px] border border-slate-200 shadow-[0_1px_2px_rgba(31,35,51,0.05)] p-5">
           <p className="text-[17px] font-black text-slate-800">{site.label}とはまだ連携していません</p>
           <p className="mt-1 text-[12px] text-slate-500 leading-relaxed">
             ログイン情報を登録すると、{site.label}が発行している投稿用アドレスを読み取れます。
           </p>
           <Link
             href="/mypage/media/all#login"
-            className="mt-3 inline-block text-[12px] font-bold px-3 py-1.5 rounded-xl border border-slate-200 text-slate-600"
+            className="mt-3 inline-block text-[12px] font-bold px-3 py-1.5 rounded-lg border border-slate-200 text-slate-600"
           >
             ログイン情報を登録する
           </Link>
@@ -173,7 +173,7 @@ export function DiaryTargets({ salonId, onToast }: { salonId: number | null; onT
       ) : !loading && !error && site ? (
         <>
           {/* ── いまの状態 ────────────────────────────── */}
-          <div className="bg-white rounded-3xl border border-slate-100 shadow-sm p-5">
+          <div className="bg-white rounded-[10px] border border-slate-200 shadow-[0_1px_2px_rgba(31,35,51,0.05)] p-5">
             <div className="flex items-start justify-between gap-3">
               <div>
                 <p className="text-[17px] font-black text-slate-800">
@@ -186,13 +186,13 @@ export function DiaryTargets({ salonId, onToast }: { salonId: number | null; onT
                     : `まだ${site.label}から読み取っていません`}
                 </p>
               </div>
-              <span className="flex-none text-[11px] font-bold px-3 py-1 rounded-full border bg-white text-slate-400 border-slate-200 tabular-nums">
+              <span className="flex-none text-[11px] font-bold px-3 py-0.5 rounded-md border bg-white text-slate-400 border-slate-200 tabular-nums">
                 全{total}名中
               </span>
             </div>
 
             {data?.lastRead && (
-              <dl className="mt-4 grid grid-cols-3 gap-px bg-slate-100 border border-slate-100 rounded-2xl overflow-hidden">
+              <dl className="mt-4 grid grid-cols-3 gap-px bg-slate-100 border border-slate-100 rounded-lg overflow-hidden">
                 <div className="bg-white px-3 py-2.5">
                   <dt className="text-[10px] font-bold text-slate-400">新しく増えた</dt>
                   <dd className="text-[18px] font-black text-slate-800 tabular-nums">
@@ -215,14 +215,14 @@ export function DiaryTargets({ salonId, onToast }: { salonId: number | null; onT
             )}
 
             {data?.lastRead && data.lastRead.unmatched > 0 && (
-              <p className="mt-2.5 text-[12px] text-rose-600 bg-rose-50 rounded-xl px-3 py-2 leading-relaxed">
+              <p className="mt-2.5 text-[12px] text-rose-600 bg-rose-50 rounded-lg px-3 py-2 leading-relaxed">
                 {data.lastRead.unmatched}名は、フクエスのセラピストと結びつきませんでした。
                 お名前が違っている可能性があります。
               </p>
             )}
 
             {data?.lastRead && !data.lastRead.applied && (
-              <p className="mt-2.5 text-[11px] font-bold text-pink-500">
+              <p className="mt-2.5 text-[11px] font-bold text-indigo-600">
                 これは確認したときの件数です。まだ登録していません。
               </p>
             )}
@@ -237,7 +237,7 @@ export function DiaryTargets({ salonId, onToast }: { salonId: number | null; onT
               <button
                 onClick={() => onImport(false)}
                 disabled={busy}
-                className="px-4 py-2 rounded-xl border border-slate-200 text-[12px] font-bold text-slate-600 disabled:opacity-50"
+                className="px-4 py-2 rounded-lg border border-slate-200 text-[12px] font-bold text-slate-600 disabled:opacity-50"
               >
                 取り込む内容を確認
               </button>
@@ -245,14 +245,14 @@ export function DiaryTargets({ salonId, onToast }: { salonId: number | null; onT
                 <>
                   <button
                     onClick={() => setConfirmApply(false)}
-                    className="px-4 py-2 rounded-xl border border-slate-200 text-[12px] font-bold text-slate-500"
+                    className="px-4 py-2 rounded-lg border border-slate-200 text-[12px] font-bold text-slate-500"
                   >
                     やめる
                   </button>
                   <button
                     onClick={() => onImport(true)}
                     disabled={busy}
-                    className="px-4 py-2 rounded-xl bg-gradient-to-r from-pink-500 to-fuchsia-500 text-white text-[12px] font-bold shadow-sm disabled:opacity-50"
+                    className="px-4 py-2 rounded-lg bg-gradient-to-r from-indigo-500 to-indigo-700 text-white text-[12px] font-bold shadow-sm disabled:opacity-50"
                   >
                     上書きして登録する（確定）
                   </button>
@@ -261,7 +261,7 @@ export function DiaryTargets({ salonId, onToast }: { salonId: number | null; onT
                 <button
                   onClick={() => setConfirmApply(true)}
                   disabled={busy}
-                  className="px-4 py-2 rounded-xl bg-gradient-to-r from-pink-500 to-fuchsia-500 text-white text-[12px] font-bold shadow-sm disabled:opacity-50"
+                  className="px-4 py-2 rounded-lg bg-gradient-to-r from-indigo-500 to-indigo-700 text-white text-[12px] font-bold shadow-sm disabled:opacity-50"
                 >
                   取り込んで登録する
                 </button>
@@ -270,7 +270,7 @@ export function DiaryTargets({ salonId, onToast }: { salonId: number | null; onT
           </div>
 
           {/* ── だれの日記が、どこへ届くか ────────────────── */}
-          <div className="bg-white rounded-3xl border border-slate-100 shadow-sm p-5">
+          <div className="bg-white rounded-[10px] border border-slate-200 shadow-[0_1px_2px_rgba(31,35,51,0.05)] p-5">
             <h3 className="text-sm font-bold text-slate-700 mb-3">だれの日記が、どこへ届くか</h3>
 
             {withAddress.length === 0 ? (
@@ -297,11 +297,11 @@ export function DiaryTargets({ salonId, onToast }: { salonId: number | null; onT
                           <td className="py-1.5 pr-3 text-slate-500 whitespace-nowrap tabular-nums">{r.addressMask}</td>
                           <td className="py-1.5 whitespace-nowrap">
                             {r.isEnabled ? (
-                              <span className="text-[11px] font-bold px-2.5 py-0.5 rounded-full border bg-emerald-50 text-emerald-700 border-emerald-200">
+                              <span className="text-[11px] font-bold px-2.5 py-0.5 rounded-md border bg-emerald-50 text-emerald-700 border-emerald-200">
                                 使えます
                               </span>
                             ) : (
-                              <span className="text-[11px] font-bold px-2.5 py-0.5 rounded-full border bg-white text-slate-400 border-slate-200">
+                              <span className="text-[11px] font-bold px-2.5 py-0.5 rounded-md border bg-white text-slate-400 border-slate-200">
                                 止めています
                               </span>
                             )}

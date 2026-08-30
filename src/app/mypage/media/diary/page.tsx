@@ -17,9 +17,9 @@ export default function MediaDiaryPage() {
       decision={decision}
       loadError={loadError}
       salonId={salon ? Number(salon.id) : null}
+      salonName={salon?.name ?? null}
       title="写メ日記の投稿先"
-      backHref="/mypage/media"
-      backLabel="媒体連携へ戻る"
+      current="diary"
       toast={toast}
     >
       <DiaryTargets salonId={salon ? Number(salon.id) : null} onToast={showToast} />
