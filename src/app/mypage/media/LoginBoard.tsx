@@ -289,6 +289,9 @@ export function LoginBoard({
 
         const canRegister = canRegisterSite(site);
         const needConsent = !row || row.needsConsent;
+        // ★ 枠と登録済みの表示を出すか。受け付けていて選ぶ意味があるとき、
+        //   または既に行があるとき（止める・消すの口が要る）
+        const showSlots = canRegister || siteRows.length > 0;
 
         return (
           <div key={site.provider} className={`${CARD} border-l-[3px] ${accent}`}>
@@ -357,7 +360,11 @@ export function LoginBoard({
                   )}
                 </div>
 
-                {/* ── 枠 ── */}
+                {/* ── 枠 ──
+                    ★ 受け付けていないサイトでは出さない（第64便・設計メモ §200）。
+                      ★ 登録できないのに枠を選べるのは、選ぶ意味が無い。
+                      ★ ただし既に行があるサイトでは出す（止める・消すのために要る）。 */}
+                {showSlots && (
                 <div>
                   <div className="text-[11px] font-bold text-slate-500">掲載枠</div>
                   <div className="flex gap-1.5 mt-1.5 flex-wrap">
@@ -384,9 +391,10 @@ export function LoginBoard({
                     掲載枠が複数ある場合は、枠ごとにログイン情報が異なります。枠ごとにご登録ください。
                   </p>
                 </div>
+                )}
 
                 {/* ── 登録済みの枠 ── */}
-                {row ? (
+                {!showSlots ? null : row ? (
                   <div className="border border-slate-200 p-3 space-y-2">
                     <p className="text-[11.5px] text-slate-500 leading-relaxed tabular-nums">
                       店舗ID <b className="text-slate-700">{row.shopId}</b> ／ ログインID{' '}

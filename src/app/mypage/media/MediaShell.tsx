@@ -29,7 +29,7 @@ const NAV: Array<{ key: MediaNavKey; label: string; href: string; group?: string
   { key: 'work',   label: '出勤を送る',        href: '/mypage/media/work',       group: '送る・確かめる' },
   { key: 'diary',  label: '写メ日記の投稿先',   href: '/mypage/media/diary' },
   { key: 'login',  label: 'ログイン情報',      href: '/mypage/media/login',      group: '設定・記録' },
-  { key: 'log',    label: '連携の記録',        href: '/mypage/media/all#log' },
+  { key: 'log',    label: '連携の記録',        href: '/mypage/media/log' },
 ];
 
 function NavIcon({ k }: { k: MediaNavKey }) {

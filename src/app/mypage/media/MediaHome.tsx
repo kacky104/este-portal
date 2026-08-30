@@ -272,7 +272,7 @@ export function MediaHome({ salonId, salonName }: { salonId: number | null; salo
           sub="どのサイトに出ているか"
         />
         <Tile
-          href="/mypage/media/all#log"
+          href="/mypage/media/log"
           icon="log"
           title="連携の記録"
           sub="したことが残ります"

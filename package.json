@@ -17,8 +17,9 @@
     "check:auditsummary": "tsc src/lib/mediaAudit.ts --outDir _tmpcheck --module commonjs --target ES2020 --strict --skipLibCheck --esModuleInterop && node scripts/auditsummary-selftest.js",
     "check:mediavisibility": "tsc src/lib/mediaVisibility.ts --outDir _tmpcheck --module commonjs --target ES2020 --strict --skipLibCheck --esModuleInterop && node scripts/mediavisibility-selftest.js",
     "check:mediaoverview": "tsc src/lib/mediaOverview.ts --outDir _tmpcheck --module commonjs --target ES2020 --strict --skipLibCheck --esModuleInterop && node scripts/mediaoverview-selftest.js",
-    "check:all": "npm run check:workplan && npm run check:linkstall && npm run check:linkmode && npm run check:roster && npm run check:girlsparse && npm run check:importstall && npm run check:maillistparse && npm run check:auditsummary && npm run check:mediavisibility && npm run check:mediaoverview && npm run check:mediasites",
-    "check:mediasites": "tsc src/lib/mediaSites.ts --outDir _tmpcheck --module commonjs --target ES2020 --strict --skipLibCheck --esModuleInterop && node scripts/mediasites-selftest.js"
+    "check:all": "npm run check:workplan && npm run check:linkstall && npm run check:linkmode && npm run check:roster && npm run check:girlsparse && npm run check:importstall && npm run check:maillistparse && npm run check:auditsummary && npm run check:mediavisibility && npm run check:mediaoverview && npm run check:mediasites && npm run check:medialogview",
+    "check:mediasites": "tsc src/lib/mediaSites.ts --outDir _tmpcheck --module commonjs --target ES2020 --strict --skipLibCheck --esModuleInterop && node scripts/mediasites-selftest.js",
+    "check:medialogview": "tsc src/lib/mediaLogView.ts src/lib/mediaSites.ts src/lib/mediaAudit.ts --outDir _tmpcheck --module commonjs --target ES2020 --strict --skipLibCheck --esModuleInterop && node scripts/medialogview-selftest.js"
   },
   "dependencies": {
     "@supabase/ssr": "^0.12.0",
