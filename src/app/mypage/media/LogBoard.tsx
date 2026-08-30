@@ -11,6 +11,9 @@ import {
   logEmptyReason,
   logEmptyMessage,
   siteOnlyFilter,
+  logScope,
+  logCountLabel,
+  logScopeNote,
   outcomeTone,
   outcomeLabel,
   nextLogLimit,
@@ -117,6 +120,10 @@ export function LogBoard({ salonId }: { salonId: number | null }) {
   const forTally = useMemo(() => filterLogRows(sorted, siteOnlyFilter(filter)), [sorted, filter]);
   const tally = logTally({ known, rows: forTally });
 
+  // ★★ 数えた範囲。★ 読めた件数が上限ちょうどなら「直近◯件」と断る（第66便・§210）
+  const scope = logScope({ known, loaded: sorted.length, limit });
+  const scopeNote = logScopeNote({ scope, limit });
+
   const reason = logEmptyReason({ known, filter, totalBeforeFilter: sorted.length });
   const filteredSiteName = filter.provider === '' ? '' : providerLabel(filter.provider);
   const more = nextLogLimit(limit);
@@ -138,7 +145,11 @@ export function LogBoard({ salonId }: { salonId: number | null }) {
       <div className={`${CARD} grid grid-cols-2`}>
         <div className="px-3 py-2.5 border-r border-slate-200">
           <div className="text-[10.5px] font-bold text-slate-400">
-            {filter.provider === '' ? '記録' : `${providerLabel(filter.provider)}の記録`}
+            {logCountLabel({
+              scope,
+              siteName: filter.provider === '' ? '' : providerLabel(filter.provider),
+              limit,
+            })}
           </div>
           <div className="text-[19px] font-black tabular-nums text-slate-800">
             {/* ★★ 読めていなければ 0 ではなく「—」 */}
@@ -154,6 +165,11 @@ export function LogBoard({ salonId }: { salonId: number | null }) {
           </div>
         </div>
       </div>
+
+      {/* ★★ 窓のときだけ、数えた範囲を書く。★ 全部読めているときは何も書かない */}
+      {scopeNote !== '' && (
+        <p className="text-[11.5px] text-amber-700 leading-relaxed px-1">{scopeNote}</p>
+      )}
 
       {/* ── 絞り込み ── */}
       <div className={`${CARD} p-3.5 space-y-2.5`}>

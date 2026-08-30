@@ -162,6 +162,46 @@ export function logEmptyMessage(reason: string, siteName: string): string {
 }
 
 // ────────────────────────────────────────────────
+// ★★★ 数えた範囲を言う（第66便・2026-08-30 の実データで見つかった）
+// ────────────────────────────────────────────────
+
+/**
+ * ★★★ 見つかったこと：
+ *   19:27「うまくいかなかったもの 6件」→ 19:51「3件」。★ 記録は消えないのに減った。
+ *   ★ 直近50件だけを読んでいたので、取り込みが回って古い3件が窓の外へ押し出されていた。
+ *   → 「もっと見る」で200件にしたら 59件／6件 に戻り、見立てが確かめられた。
+ *
+ * ★★ つまり「記録 50件」は総数ではなく【窓の大きさ】。画面はそう書いていなかった。
+ *   ★ 数えた範囲を言わずに数だけ出すと、読む人は総数だと受け取る。
+ *   ★★ 引き継ぎメモ 3-5「0件と分からないを混ぜない」と同じ形。
+ *     ここでは「全部で6件」と「読んだ範囲に6件」を混ぜない。
+ */
+export type LogScope = 'unknown' | 'all' | 'window';
+
+export function logScope(input: { known: boolean; loaded: number; limit: number }): LogScope {
+  if (input.known !== true) return 'unknown';
+  const loaded = Number.isFinite(input.loaded) ? input.loaded : 0;
+  const limit = Number.isFinite(input.limit) ? input.limit : 0;
+  // ★ 読めた件数が上限ちょうど ＝ この先にまだあるかもしれない。
+  //   ★ 「ちょうど全部が上限と同じ数だった」場合も window と言う。
+  //     ★ 多めに断る側へ倒す（総数だと言い切らない）。
+  return loaded >= limit && limit > 0 ? 'window' : 'all';
+}
+
+/** 件数の見出し。★ 窓のときだけ「直近◯件」と断る */
+export function logCountLabel(input: { scope: string; siteName: string; limit: number }): string {
+  const base = (input.siteName ?? '') === '' ? '記録' : `${input.siteName}の記録`;
+  if (input.scope === 'window') return `${base}（直近${input.limit}件）`;
+  return base;
+}
+
+/** 数の下に出す断り書き。★ 窓でなければ何も書かない（空文字） */
+export function logScopeNote(input: { scope: string; limit: number }): string {
+  if (input.scope !== 'window') return '';
+  return `いまは直近${input.limit}件だけを数えています。「もっと見る」を押すと増えることがあります。`;
+}
+
+// ────────────────────────────────────────────────
 // もっと見る
 // ────────────────────────────────────────────────
 
