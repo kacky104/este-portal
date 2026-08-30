@@ -51,5 +51,26 @@ eq('media=false で off', v.readUnlockIntent('?media=FALSE'), 'off');
 eq('★ 指定なしは off ではない', v.readUnlockIntent('?other=1') === 'off', false);
 eq('他のクエリと混ざっても読める', v.readUnlockIntent('?x=1&media=1&y=2'), 'on');
 
+console.log('\n── 4. ページとしての入口（第55便・㉜）──');
+// ★★ ここは【対になる主張】で見張る。同じ入力なのに ready の有無で答えが割れること。
+const page = (o) => v.decideMediaPage(Object.assign({ ownerId: SHOP, adminUuid: ADMIN, unlocked: false, ready: true }, o || {}));
+
+eq('★ 読み込み前は wait（出さないではない）', page({ ready: false }), 'wait');
+// ★★★ 対になる主張。同じ「持ち主・目隠しあり」でも ready で割れる
+eq('★★ 目隠しを外していても、読み込み前は wait', page({ unlocked: true, ready: false }), 'wait');
+eq('★★ 目隠しを外していて、読み込み後なら show', page({ unlocked: true, ready: true }), 'show');
+// ★★★ もう1組。読み込み前の「ふつうの店舗」を leave にしない（毎回弾かれる事故の防止）
+eq('★★ ふつうの店舗も、読み込み前は leave にしない', page({ ready: false }) === 'leave', false);
+eq('★★ ふつうの店舗は、読み込み後なら leave', page({ ready: true }), 'leave');
+
+eq('① 持ち主が運営アカウントなら show', page({ ownerId: ADMIN }), 'show');
+eq('★ 持ち主が空なら leave', page({ ownerId: '' }), 'leave');
+eq('★★ 空同士でも show にしない', v.decideMediaPage({ ownerId: '', adminUuid: '', unlocked: false, ready: true }), 'leave');
+// ★ ready も真偽値のみ（unlocked と同じ扱い）。★ 文字列で通ると読み込み前に描いてしまう
+eq("★ ready が 'true' という文字列なら wait", v.decideMediaPage({ ownerId: ADMIN, adminUuid: ADMIN, unlocked: false, ready: 'true' }), 'wait');
+eq('★ ready が 1 なら wait', v.decideMediaPage({ ownerId: ADMIN, adminUuid: ADMIN, unlocked: false, ready: 1 }), 'wait');
+// ★ wait は「描かない」。★ show 以外では中身を送らない、が画面側の約束
+eq('★ wait は show ではない', page({ ready: false }) === 'show', false);
+
 console.log(fail === 0 ? '\n★ すべて通った' : '\n★ NG ' + fail + ' 件');
 process.exit(fail === 0 ? 0 : 1);

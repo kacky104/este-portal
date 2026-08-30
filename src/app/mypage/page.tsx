@@ -32,7 +32,6 @@ import { useToast } from '@/app/components/useToast';
 import { SiteNoticeBanner } from '@/app/components/SiteNoticeBanner';
 import { SalonBumpButton } from '@/app/components/SalonBumpButton';
 import { EmbedCodePanel } from './EmbedCodePanel';
-import { MediaLinkPanel } from './MediaLinkPanel';
 import { getMediaLinkAlerts } from '@/app/actions/mediaCredentials';
 import type { MediaLinkAlert } from '@/lib/mediaLinkStall';
 import { ADMIN_UUID } from '@/app/lib/admin';
@@ -541,7 +540,7 @@ export default function MyPage() {
   const [mailTesting, setMailTesting] = useState(false);
   const [mailTestResult, setMailTestResult] = useState<{ ok: boolean; msg: string } | null>(null);
   const [savingSchedule, setSavingSchedule] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<'salon' | 'schedule' | 'profile' | 'available' | 'diary' | 'coupon' | 'news' | 'vipletter' | 'board' | 'booking' | 'jobs' | 'popup' | 'support' | 'media'>('salon');
+  const [activeTab, setActiveTab] = useState<'salon' | 'schedule' | 'profile' | 'available' | 'diary' | 'coupon' | 'news' | 'vipletter' | 'board' | 'booking' | 'jobs' | 'popup' | 'support'>('salon');
   /** ★ 媒体連携が「書き込みの向きのまま止まっている」警告（第47便）。トップに出す */
   const [mediaAlerts, setMediaAlerts] = useState<MediaLinkAlert[]>([]);
   /**
@@ -2130,12 +2129,15 @@ export default function MyPage() {
                   {a.watch === 'import' ? '駅ちかからの取り込みが止まっています' : '媒体連携が止まっています'}
                 </p>
                 <p className="mt-1 text-[12px] leading-relaxed text-rose-900">{a.message}</p>
-                <button
-                  onClick={() => setActiveTab('media')}
-                  className="mt-2 text-[12px] font-bold text-rose-700 underline"
+                {/* ★ 第55便: 媒体連携はタブではなく専用ページ（/mypage/media）になった。
+                    ★ 見張りはここ（マイページのトップ）に残す。
+                      媒体連携を開かない限り気づけない、では見張りにならない（設計メモ §2-3） */}
+                <Link
+                  href="/mypage/media"
+                  className="mt-2 inline-block text-[12px] font-bold text-rose-700 underline"
                 >
                   媒体連携をひらく
-                </button>
+                </Link>
               </div>
             ))}
           </div>
@@ -2157,13 +2159,12 @@ export default function MyPage() {
             // activeTab='board' とタブ本体はそのまま生きている。
             ['booking',   'ネット予約'],
             ['jobs',      '求人'],
-            ['media',     '媒体連携'],
+            // ★ 第55便: 媒体連携はタブではなく専用ページ（/mypage/media）にした。
+            //   ★ タブ列から毎回 filter で外すのではなく、そもそもタブにしない（設計メモ §142）
             ['support',   '運営事務局'],
           ] as const)
             // 求人タブはフクエスワーク掲載（jobs_enabled）契約店のみ表示。
             .filter(([key]) => key !== 'jobs' || Boolean(salon?.jobs_enabled))
-            // ★★ 媒体連携タブは出す相手を絞る（第54便・設計メモ 追記28）。★ 既定は出さない
-            .filter(([key]) => key !== 'media' || mediaVisible)
             .map(([key, label]) => {
             const selected = activeTab === key;
             return (
@@ -2197,6 +2198,19 @@ export default function MyPage() {
               </button>
             );
           })}
+          {/* ★★★ 媒体連携（第55便・㉜）。★ タブではなく専用ページ /mypage/media への入口。
+              ★ 出す相手にしか描かない（第54便の方針は変えていない）。
+                ★ 隠すのではなく描かない: hidden だとページの中身から読める。
+              ★★ 中身の出し分けはページ側の decideMediaPage が持つ。ここは入口の見た目だけ。 */}
+          {mediaVisible && (
+            <Link
+              href="/mypage/media"
+              className="inline-flex items-center gap-1 px-3 py-1.5 rounded-full border text-[11px] font-bold transition-colors bg-white text-slate-400 border-slate-200 hover:text-slate-600 hover:border-slate-300"
+            >
+              {tabIcon('media')}
+              媒体連携
+            </Link>
+          )}
         </div>
       </div>
 
@@ -4139,23 +4153,11 @@ export default function MyPage() {
           )}
         </div>
 
-        {/* ── 媒体連携（駅ちかへの出勤の書き込み・第39便） ── */}
-        {/* ★ 認証情報を預かる画面なので、説明・登録・記録・停止を1画面にまとめている。
-              どれか1つでも別の場所にあると、店舗は見に行かない。 */}
-        {/* ★ 出さない相手には【描かない】。hidden で隠すだけだと、
-            ページの中身を見れば内容が読める（第54便） */}
-        {/* ★★ 出さない相手には【そもそも描かない】（第54便）。
-            ★ hidden で隠すだけだと、ページの中身を見れば内容が読める。
-              画面に出さないのではなく、送らない。 */}
-        {mediaVisible && (
-          <div className={`${activeTab === 'media' ? '' : 'hidden'}`}>
-            <MediaLinkPanel
-              salonId={salon ? Number(salon.id) : null}
-              active={activeTab === 'media'}
-              onToast={showToast}
-            />
-          </div>
-        )}
+        {/* ── 媒体連携 ──
+            ★★★ 第55便（㉜）で専用ページ /mypage/media へ移した。ここには描かない。
+            ★ 認証情報を預かる画面なので、説明・登録・記録・停止は1画面にまとまったまま
+              （MediaLinkPanel ごと移しただけで、中身は分けていない）。
+            ★ ここに残っているのは入口（タブ列のリンク）と見張り（トップの赤い箱）だけ。 */}
 
         {/* ── 運営から（お知らせ受信＋お問い合わせ） ── */}
         {/* 常時マウント（hidden 切替）＝未読件数をタブバッジへ即時反映。タブを開くと既読化される。 */}

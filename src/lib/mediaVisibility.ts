@@ -68,3 +68,24 @@ export function readUnlockIntent(search: string): 'on' | 'off' | 'none' {
   if (v === '0' || v === 'off' || v === 'false') return 'off';
   return 'on';
 }
+
+/**
+ * ページとして開いたときの入口の判定（第55便・㉜）。★ 3値。
+ *
+ * ★★★ なぜ canSeeMedia をそのまま使わないか
+ *   ページ単位にすると「出さない＝別の場所へ戻す」になる。
+ *   ★ 読み込みが終わる前の値は【まだ分からない】であって【出さない】ではない。
+ *     userId も目隠しも、読み終わるまでは false 相当に見えるので、
+ *     そのまま canSeeMedia に渡すと **正しい持ち主が毎回 /mypage へ弾かれる。**
+ *   → 'wait' が「まだ分からない」を受け持つ。★ 描かないが、戻しもしない。
+ *
+ * ★ 倒れる向きは第54便と同じ。分からないときは【描かない】側に倒す。
+ *   ★ ただし「描かない」と「戻す」は別。分からないうちは戻さない。
+ */
+export type MediaPageDecision = 'wait' | 'show' | 'leave';
+
+export function decideMediaPage(input: MediaVisibilityInput & { ready: boolean }): MediaPageDecision {
+  // ★ ready は真偽値のみ。★ 'false' のような文字列で通さない（canSeeMedia の unlocked と同じ扱い）
+  if (input.ready !== true) return 'wait';
+  return canSeeMedia(input) ? 'show' : 'leave';
+}
