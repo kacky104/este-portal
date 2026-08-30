@@ -17,6 +17,7 @@ import {
   directionLabel,
   canSwitchDirection,
   nextImportAt,
+  maskAddress,
 } from '@/lib/mediaOverview';
 import {
   buildRoster,
@@ -1222,4 +1223,98 @@ export async function getMediaOverview(input: { salonId: string | number }): Pro
   });
 
   return { ok: true, data: { therapistCount: therapistCount ?? 0, sites } };
+}
+
+/**
+ * 写メ日記の投稿先を、店舗ぶんまとめて返す（第58便・㉞ その3）。
+ *
+ * ★★★ 写メ日記を受け取れるのは【駅ちかとエステラブだけ】。
+ *   エステ魂はメール投稿が無く、全国エステランキングは写メ日記機能そのものが無い
+ *   （2026-08-26 調査・migration 20260826_diary_forward.sql の冒頭）。
+ *   ★ だから「4サイトのうち2つだけ」を画面にそう書く。
+ *
+ * ★★ アドレスは秘密値。★ 伏せ字にして返す（maskAddress）。
+ *   ★ 生の値を返す口をここに作らない。1人ぶんを直すのはセラピスト画面の仕事。
+ */
+export async function getSalonDiaryForwards(input: { salonId: string | number }): Promise<
+  Result<{
+    /** 写メ日記の正本（'fukues' なら他媒体へ転送する） */
+    diarySource: string;
+    /** 名前つきのセラピスト（フクエスに登録されている全員） */
+    therapists: Array<{ id: string; name: string }>;
+    /** 登録済みの投稿先（★ アドレスは伏せ字） */
+    forwards: Array<{ therapistId: string; provider: string; slot: number; addressMask: string; isEnabled: boolean }>;
+    /** ★ 最後に読み取った記録（無ければ null）。★ 「0件」と「まだ読んでいない」を混ぜない */
+    lastRead: { at: string; applied: boolean; created: number; updated: number; unchanged: number; unmatched: number } | null;
+  }>
+> {
+  const salonId = Number(input.salonId);
+  if (!Number.isFinite(salonId)) return { ok: false, error: '店舗の指定が不正です' };
+  const guard = await assertSalonOwner(salonId);
+  if (!guard.ok) return guard;
+
+  const svc = createServiceClient();
+
+  const { data: ths, error: thErr } = await svc
+    .from('therapists')
+    .select('id, name')
+    .eq('salon_id', salonId)
+    .order('id', { ascending: true });
+  if (thErr) return { ok: false, error: 'セラピストを読み込めませんでした' };
+
+  const ids = (ths ?? []).map((t) => Number(t.id));
+  let forwards: Array<{ therapistId: string; provider: string; slot: number; addressMask: string; isEnabled: boolean }> = [];
+  if (ids.length > 0) {
+    const { data: fw, error: fwErr } = await svc
+      .from('therapist_diary_forward')
+      .select('therapist_id, provider, slot, address, is_enabled')
+      .in('therapist_id', ids);
+    if (fwErr) return { ok: false, error: '投稿先を読み込めませんでした' };
+    forwards = (fw ?? []).map((r) => ({
+      therapistId: String(r.therapist_id),
+      provider: String(r.provider),
+      slot: Number(r.slot ?? 1),
+      // ★★ ここで伏せる。★ 生のアドレスはこの関数の外へ出さない
+      addressMask: maskAddress(r.address as string | null),
+      isEnabled: r.is_enabled !== false,
+    }));
+  }
+
+  // ★ 最後の読み取り（read_maillist）。★ 見つからない＝「0件」ではなく「まだ読んでいない」
+  const { data: audit } = await svc
+    .from('salon_media_audit')
+    .select('detail, created_at, outcome')
+    .eq('salon_id', salonId)
+    .eq('event', 'read_maillist')
+    .eq('outcome', 'ok')
+    .order('created_at', { ascending: false })
+    .limit(1);
+  const a0 = (audit ?? [])[0];
+  const d = (a0?.detail as Record<string, unknown> | null) ?? null;
+  const num = (k: string) => {
+    const v = d?.[k];
+    return typeof v === 'number' && Number.isFinite(v) ? v : 0;
+  };
+  const lastRead = a0
+    ? {
+        at: String(a0.created_at),
+        applied: d?.['applied'] === true,
+        created: num('created'),
+        updated: num('updated'),
+        unchanged: num('unchanged'),
+        unmatched: num('unmatched'),
+      }
+    : null;
+
+  const { data: salon } = await svc.from('salons').select('diary_source').eq('id', salonId).maybeSingle();
+
+  return {
+    ok: true,
+    data: {
+      diarySource: (salon?.diary_source as string | null) ?? 'benry',
+      therapists: (ths ?? []).map((t) => ({ id: String(t.id), name: (t.name as string | null) ?? '' })),
+      forwards,
+      lastRead,
+    },
+  };
 }

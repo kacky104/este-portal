@@ -1,4 +1,4 @@
-// 媒体連携の入口（/mypage/media）に出す状態の判定（第56便・㉞・純粋関数）。
+// 媒体連携の画面に出す状態の判定（第56便で新設・第58便で送信ボタンを追加・純粋関数）。
 //
 // ★★★ なぜ要るか
 //   連携先が4サイトになる（2026-08-30・カッキーさん）:
@@ -121,4 +121,77 @@ export function nextImportAt(input: {
   const next = last + intervalMin * 60 * 1000;
   if (next <= nowMs) return null;   // ★ 過ぎている「次」は出さない
   return new Date(next);
+}
+
+// ───────────────────────── 送信ボタンの状態（第58便） ─────────────────────────
+
+/**
+ * ★★★ 「この内容で送る」を押せるか。押せないときは【なぜ押せないか】。
+ *
+ * ★ きっかけ: 変わるところが0件のとき、ボタンが灰色になるだけで理由を持っていなかった。
+ *   すぐ上に「変えるところはありません」と書いてあるので読めば分かるが、
+ *   ★★ ボタン自体が理由を持っていないと、押せないことしか伝わらない。
+ *   → §159 と同じ作法を、ボタンにも通す:
+ *     **できないことを、できない理由といっしょに出す。**
+ *
+ * ★ 判定の順番が意味を持つ。★ 止めた理由がある枠は、0件かどうかより先に「止まっている」と言う。
+ */
+export type PushAvailability = 'not_confirmed' | 'blocked' | 'no_change' | 'ready';
+
+export function pushAvailability(input: {
+  /** 確かめた結果（計画）があるか */
+  hasPlan: boolean;
+  /** 計画が「送れる」状態か（止めた理由が無いか） */
+  sendable: boolean;
+  /** 変わるところの件数 */
+  changeCount: number;
+  /** 承認に添える指紋。★ 空なら送れない（第46便） */
+  fingerprint: string;
+}): PushAvailability {
+  if (input.hasPlan !== true) return 'not_confirmed';
+  // ★ 止めた理由がある枠は、まずそれを言う。0件かどうかはそのあと
+  if (input.sendable !== true) return 'blocked';
+  // ★ 指紋が無い＝送る先が特定できない。★ 見た目は送れそうでも送らせない
+  if (typeof input.fingerprint !== 'string' || input.fingerprint.length === 0) return 'blocked';
+  if (!Number.isFinite(input.changeCount) || input.changeCount <= 0) return 'no_change';
+  return 'ready';
+}
+
+/**
+ * ボタンに出す文字。★ 押せないときは、押せない理由が文字になっている。
+ * ★ 知らない値は「いまは送れません」に落とす（送る側に倒さない）。
+ */
+export function pushButtonLabel(a: PushAvailability | string): string {
+  switch (a) {
+    case 'ready': return 'この内容で送る';
+    case 'no_change': return '送るものがありません';
+    case 'not_confirmed': return 'まだ確かめていません';
+    default: return 'いまは送れません';
+  }
+}
+
+// ───────────────────────── 投稿用アドレスの伏せ字（第58便） ─────────────────────────
+
+/**
+ * ★★★ 写メ日記の投稿用アドレスを伏せ字にする。
+ *
+ * ★ このアドレスを知っている者は、誰でもその媒体に投稿できる（migration 20260826 のとおり）。
+ *   ★ 一覧に丸ごと出すと、隣で画面を覗いた人がそのまま持ち帰れる。
+ *   ★★ 一方で「どのセラピストの宛先が入っているか」は店舗が確かめたい。
+ *   → **頭2文字とドメインだけ出す。** 見分けはつくが、書き写しても使えない。
+ *
+ * ★ 形が分からない値（@ が無い・文字列でない）は【全部隠す】。
+ *   ★ 分からないときは出さない側に倒す。★ 元の値をそのまま返す枝を作らない。
+ */
+export function maskAddress(address: string | null | undefined): string {
+  if (typeof address !== 'string') return '';
+  const s = address.trim();
+  if (s.length === 0) return '';
+  const at = s.lastIndexOf('@');
+  // ★ @ が先頭・無い ときは形が読めない。★ 中身を出さない
+  if (at <= 0) return '****';
+  // ★ 頭2文字は【ローカル部から】取る。
+  //   ★ 元は s.slice(0,2) にしていて、'a@shame.jp' が 'a@****@shame.jp' になっていた（点検が捕まえた）
+  const local = s.slice(0, at);
+  return local.slice(0, 2) + '****' + s.slice(at);
 }

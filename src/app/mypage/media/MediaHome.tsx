@@ -260,7 +260,7 @@ export function MediaHome({ salonId, salonName }: { salonId: number | null; salo
           }
         />
         <Tile
-          href="/mypage/media/all#diary"
+          href="/mypage/media/diary"
           icon="diary"
           title="写メ日記の投稿先"
           sub="駅ちか・エステラブ"

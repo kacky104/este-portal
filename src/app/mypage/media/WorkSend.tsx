@@ -9,6 +9,7 @@ import {
   startMediaWorkPush,
   type WorkPlanView,
 } from '@/app/actions/mediaCredentials';
+import { pushAvailability, pushButtonLabel } from '@/lib/mediaOverview';
 
 // 出勤を送る（第57便・㉞ その2）。
 //
@@ -394,15 +395,30 @@ export function WorkSend({ salonId, onToast }: { salonId: number | null; onToast
                         {isBusy ? '送っています…' : 'この内容で送る（確定）'}
                       </button>
                     </>
-                  ) : (
-                    <button
-                      onClick={() => setConfirmPush(k)}
-                      disabled={!plan.sendable || plan.changeCount === 0 || !plan.fingerprint}
-                      className="px-4 py-2 rounded-xl bg-gradient-to-r from-pink-500 to-fuchsia-500 text-white text-[12px] font-bold shadow-sm disabled:opacity-40"
-                    >
-                      この内容で送る
-                    </button>
-                  )}
+                  ) : (() => {
+                    // ★★ 押せないときは、ボタン自体に理由を書く（第58便・設計メモ §173）。
+                    //   ★ 灰色にして終わりにしない。すぐ上に理由が書いてあっても、
+                    //     ボタンが「押せない」としか言わないと、なぜ押せないかは伝わらない。
+                    const av = pushAvailability({
+                      hasPlan: true,
+                      sendable: plan.sendable,
+                      changeCount: plan.changeCount,
+                      fingerprint: plan.fingerprint,
+                    });
+                    return (
+                      <button
+                        onClick={() => setConfirmPush(k)}
+                        disabled={av !== 'ready'}
+                        className={`px-4 py-2 rounded-xl text-[12px] font-bold shadow-sm ${
+                          av === 'ready'
+                            ? 'bg-gradient-to-r from-pink-500 to-fuchsia-500 text-white'
+                            : 'bg-slate-100 text-slate-400 shadow-none cursor-not-allowed'
+                        }`}
+                      >
+                        {pushButtonLabel(av)}
+                      </button>
+                    );
+                  })()}
                 </div>
 
                 <p className="text-[11px] text-slate-400 text-right leading-relaxed">
