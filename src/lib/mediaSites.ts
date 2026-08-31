@@ -55,6 +55,26 @@ export type MediaSite = {
    *   → 開ける代わりに、**いまどこまでできるかを同じ行に書く**。
    */
   stageNote: string;
+  /**
+   * ★★ 店舗ID をこちらで預かるか（第81便）。
+   *
+   * ★★★ なぜ足したか —— カッキー様の指摘「店舗オーナーはここで？になります」
+   *   エステラブのログインは login_id と login_password の2つだけ（追記53 §286・実測）。
+   *   ★ 店舗ID は【ログインに使わない】。★ 出すと「何を入れるのか」で必ず止まる。
+   *
+   * ★★★ しかも紛らわしい二重の意味がある:
+   *   ログインID     shop837865   ← 画面で入れるもの
+   *   出勤の shop_id 37865        ← 出勤を送るときに要る番号（掲載ページ /shop/37865）
+   *   ★ 別物なのに、どちらも「店舗ID」と呼べてしまう。
+   *   → 入れさせない。★ 出勤の shop_id は【向こうの出勤ページから読む】（hidden に入っている）。
+   *     「読めるものを人に入れさせない」。§260 の「推測で埋めない」と同じ筋。
+   *
+   * ★ 駅ちかも実はログインに使っていない（email + password の2つ）が、
+   *   いま登録済みの店舗が居るので **この便では触らない**（true のまま）。
+   * ★ エステ魂・全国は実物を見ていないので決めない。見たときに直す。
+   */
+  needsShopId: boolean;
+  /** ★ needsShopId が true のときだけ使う */
   idLabel: string;
   idHint: string;
 };
@@ -69,6 +89,7 @@ export const MEDIA_SITES: readonly MediaSite[] = [
     accepting: true,
     notYet: '',
     stageNote: '',
+    needsShopId: true,
     idLabel: '店舗ID（shopid）',
     idHint:
       '駅ちかのログイン画面で入力している「店舗ID」です。掲載ページのURLに出ている番号とは別の番号なのでご注意ください。分からない場合はお知らせください、こちらでお調べします。',
@@ -87,8 +108,10 @@ export const MEDIA_SITES: readonly MediaSite[] = [
     stageNote:
       'いまできるのは、エステラブの名簿を読んで「送るとこうなる」を確かめるところまでです。' +
       '出勤を実際に送る機能は、続けて作っています。',
-    idLabel: '店舗ID',
-    idHint: 'エステラブの管理画面にログインするときの店舗IDです。',
+    // ★★ エステラブのログインは login_id と login_password の2つだけ。店舗IDは使わない
+    needsShopId: false,
+    idLabel: '',
+    idHint: '',
   },
   {
     provider: 'esutama',
@@ -99,6 +122,8 @@ export const MEDIA_SITES: readonly MediaSite[] = [
     accepting: false,
     notYet: 'エステ魂へ送る仕組みを準備しています。できあがるまで、ログイン情報はお預かりしません。',
     stageNote: '',
+    // ★ 実物を見ていないので決めない。★ 受け付けていないので画面には出ない
+    needsShopId: true,
     idLabel: '店舗ID',
     idHint: 'エステ魂の管理画面にログインするときの店舗IDです。',
   },
@@ -111,6 +136,8 @@ export const MEDIA_SITES: readonly MediaSite[] = [
     accepting: false,
     notYet: '全国エステランキングへ送る仕組みを準備しています。できあがるまで、ログイン情報はお預かりしません。',
     stageNote: '',
+    // ★ 実物を見ていないので決めない。★ 受け付けていないので画面には出ない
+    needsShopId: true,
     idLabel: '店舗ID',
     idHint: '全国エステランキングの管理画面にログインするときの店舗IDです。',
   },

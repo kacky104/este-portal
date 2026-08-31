@@ -39,6 +39,18 @@ eq('★ エステラブは「どこまでできるか」を書いてある',
   v.findMediaSite('esulove').stageNote.length > 0, true);
 eq('駅ちかは段の断りが要らない', v.findMediaSite('ekichika').stageNote, '');
 
+
+// ── ★★ 店舗IDを預かるか（第81便）──
+// ★ エステラブはログインに店舗IDを使わない（実測）。★ 出すとオーナーが「？」になる
+eq('★ エステラブは店舗IDを預からない', v.findMediaSite('esulove').needsShopId, false);
+eq('駅ちかは店舗IDを預かる', v.findMediaSite('ekichika').needsShopId, true);
+// ★ 預からないサイトでは、欄の見出しも説明も持たない（出さないものに文言を残さない）
+eq('★ 預からないサイトに欄の見出しを残さない', v.findMediaSite('esulove').idLabel, '');
+eq('★ 預からないサイトに説明を残さない', v.findMediaSite('esulove').idHint, '');
+// ★ 預かるサイトには必ず見出しと説明がある（空欄だけ出さない）
+eq('預かるサイトには見出しがある',
+  v.MEDIA_SITES.filter((s) => s.needsShopId && (!s.idLabel || !s.idHint)).length, 0);
+
 console.log('── 1. 表そのもの ──');
 eq('4サイトある', v.MEDIA_SITES.length, 4);
 eq('★ 読めるのは1つだけ（駅ちか）', v.MEDIA_SITES.filter((s) => s.readable).length, 1);

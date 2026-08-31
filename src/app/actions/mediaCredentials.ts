@@ -12,6 +12,7 @@ import { judgeImportStall } from '@/lib/importStall';
 import { isWriteDirection, isLinkMode, hasApprovedOnce } from '@/lib/mediaLinkMode';
 import { loadCastIds } from '@/lib/mediaCastIds';
 import { providerLabel } from '@/lib/mediaAudit';
+import { findMediaSite } from '@/lib/mediaSites';
 import {
   siteDirection,
   directionLabel,
@@ -198,7 +199,14 @@ export async function saveMediaCredential(input: {
   const loginId = (input.loginId ?? '').trim();
   const password = input.password ?? '';
 
-  if (!shopId) return { ok: false, error: '店舗ID（shopid）を入れてください' };
+  // ★★ 店舗IDを預かるサイトでだけ必須にする（第81便）。
+  //   ★ エステラブはログインに店舗IDを使わない（追記53 §286）。画面にも欄を出していない。
+  //   ★ ここを直さないと、欄が無いのに「入れてください」と言われて詰まる。
+  //   ★ 出勤に要る shop_id は、向こうの画面から読む（人に入れさせない）。
+  const site = findMediaSite(input.provider);
+  if (site?.needsShopId !== false && !shopId) {
+    return { ok: false, error: '店舗ID（shopid）を入れてください' };
+  }
   if (!loginId) return { ok: false, error: 'ログインIDを入れてください' };
   if (shopId.length > 100 || loginId.length > 200) return { ok: false, error: '入力が長すぎます' };
   if (password.length > 200) return { ok: false, error: 'パスワードが長すぎます' };

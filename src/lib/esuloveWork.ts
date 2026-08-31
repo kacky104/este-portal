@@ -147,3 +147,38 @@ export function esuloveWorkSummary(rows: readonly EsuloveWorkRow[]): string {
   const people = new Set(rows.map((r) => r.castId)).size;
   return people + '人 / ' + days + '日ぶん（' + rows.length + '枠）をエステラブへ送ります';
 }
+
+
+// ─────────────────────────────────────────────────────────
+// 出勤ページから shop_id を読む（第81便）
+// ─────────────────────────────────────────────────────────
+
+/**
+ * 出勤（日別）のページから、この店の shop_id を読む。
+ *
+ * ★★★ なぜ人に入力させないか —— カッキー様の指摘「店舗オーナーはここで？になります」
+ *   エステラブには「店舗ID」と呼べる値が2つある:
+ *     ログインID      shop837865   ← 店舗が知っている値
+ *     出勤の shop_id  37865        ← 掲載ページ /shop/37865 の番号
+ *   ★ 別物なのに、どちらも「店舗ID」と呼べてしまう。★ 必ず取り違える。
+ *   → **こちらが読む。** 出勤ページの hidden にそのまま入っている（実測・§258）。
+ *
+ * ★ 読めなければ null。★ 「たぶんこれ」で組み立てない（間違った店に書き込む）。
+ */
+export function readEsuloveShopId(html: string): string | null {
+  if (typeof html !== 'string' || html.length === 0) return null;
+  // name="TherapistSchedules[0][shop_id]" value="37865"（属性の並びは前後どちらでもよい）
+  const re = /<input\b[^>]*>/gi;
+  let m: RegExpExecArray | null;
+  const found = new Set<string>();
+  while ((m = re.exec(html)) !== null) {
+    const tag = m[0];
+    if (!/name\s*=\s*["'][^"']*\[shop_id\]["']/.test(tag)) continue;
+    const v = /value\s*=\s*("([^"]*)"|'([^']*)')/i.exec(tag);
+    const val = v ? (v[2] ?? v[3] ?? '') : '';
+    if (/^\d+$/.test(val)) found.add(val);
+  }
+  // ★★ 2つ以上あったら、どれが正しいか決められない。★ 決めつけずに null
+  if (found.size !== 1) return null;
+  return Array.from(found)[0] ?? null;
+}

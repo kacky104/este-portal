@@ -160,7 +160,10 @@ export function LoginBoard({
     setSaving(true);
     const res = await saveMediaCredential({
       salonId, provider: site.provider, slot,
-      shopId, loginId, password,
+      // ★ 店舗IDを預からないサイトには空を送る（第81便）。
+      //   ★ 画面に出していない値を、前のサイトの入力のまま持ち回さない
+      shopId: site.needsShopId ? shopId : '',
+      loginId, password,
       agreed,
       consentVersion,
     });
@@ -397,7 +400,12 @@ export function LoginBoard({
                 {!showSlots ? null : row ? (
                   <div className="border border-slate-200 p-3 space-y-2">
                     <p className="text-[11.5px] text-slate-500 leading-relaxed tabular-nums">
-                      店舗ID <b className="text-slate-700">{row.shopId}</b> ／ ログインID{' '}
+                      {/* ★ 預かっていないサイトでは店舗IDを見せない（第81便）。
+                          ★ 見せると「これは何の番号か」で迷う */}
+                      {site.needsShopId && (
+                        <>店舗ID <b className="text-slate-700">{row.shopId}</b> ／ </>
+                      )}
+                      ログインID{' '}
                       <b className="text-slate-700">{row.loginId}</b> ／ パスワード{' '}
                       <b className="text-slate-700">{row.passwordMask || '未登録'}</b>
                     </p>
@@ -483,17 +491,22 @@ export function LoginBoard({
                       {row ? `枠${slot}の内容を変更する` : `枠${slot}を登録する`}
                     </div>
 
-                    <div>
-                      <label className="text-[11px] font-bold text-slate-500">{site.idLabel}</label>
-                      <input
-                        value={shopId}
-                        onChange={(e) => setShopId(e.target.value)}
-                        inputMode="numeric"
-                        placeholder="例: 37168"
-                        className="w-full mt-1 border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-200"
-                      />
-                      <p className="text-[11px] text-slate-400 mt-1 leading-relaxed">{site.idHint}</p>
-                    </div>
+                    {/* ★★ 店舗IDを預かるサイトだけ出す（第81便）。
+                        ★ エステラブはログインに店舗IDを使わない。出すと「何を入れるのか」で必ず止まる。
+                        ★ 出勤に要る shop_id は、こちらが向こうの画面から読む（人に入れさせない）。 */}
+                    {site.needsShopId && (
+                      <div>
+                        <label className="text-[11px] font-bold text-slate-500">{site.idLabel}</label>
+                        <input
+                          value={shopId}
+                          onChange={(e) => setShopId(e.target.value)}
+                          inputMode="numeric"
+                          placeholder="例: 37168"
+                          className="w-full mt-1 border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-200"
+                        />
+                        <p className="text-[11px] text-slate-400 mt-1 leading-relaxed">{site.idHint}</p>
+                      </div>
+                    )}
 
                     <div className="grid md:grid-cols-2 gap-3">
                       <div>

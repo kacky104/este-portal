@@ -81,5 +81,20 @@ eq('0行なら空', Object.keys(w.buildEsuloveWorkBody('37865', [])).length, 0);
 eq('内訳を言う', w.esuloveWorkSummary(rows), '2人 / 1日ぶん（2枠）をエステラブへ送ります');
 eq('0件はそう言う', w.esuloveWorkSummary([]), 'エステラブへ送る出勤はありません');
 
+// ── ★★ 出勤ページから shop_id を読む（第81便）──
+// ★ 店舗に入力させない。「店舗ID」と呼べる値が2つあって、必ず取り違えるため
+const hidden = (i, v) => '<input type="hidden" name="TherapistSchedules[' + i + '][shop_id]" value="' + v + '">';
+eq('hidden から読める', w.readEsuloveShopId('<form>' + hidden(0, '37865') + '</form>'), '37865');
+eq('複数行あっても同じ値なら読める',
+  w.readEsuloveShopId('<form>' + hidden(0, '37865') + hidden(1, '37865') + '</form>'), '37865');
+// ★★ 違う値が混ざっていたら決めつけない（間違った店に書き込むため）
+eq('★ 値が食い違えば null', w.readEsuloveShopId('<form>' + hidden(0, '37865') + hidden(1, '99999') + '</form>'), null);
+eq('無ければ null', w.readEsuloveShopId('<form><input name="other" value="1"></form>'), null);
+eq('空は null', w.readEsuloveShopId(''), null);
+// ★ 数字でない値は採らない（推測でURLや番号を作らない）
+eq('数字でなければ null', w.readEsuloveShopId('<form>' + hidden(0, 'shop837865') + '</form>'), null);
+eq('シングル引用符でも読める',
+  w.readEsuloveShopId("<input name='TherapistSchedules[0][shop_id]' value='37865'>"), '37865');
+
 console.log(fail === 0 ? '\nすべて通りました' : '\n' + fail + '件 失敗');
 process.exit(fail === 0 ? 0 : 1);
