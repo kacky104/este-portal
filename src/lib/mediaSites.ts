@@ -308,13 +308,13 @@ export function loginDirectionText(d: string, siteName: string): { title: string
   if (d === 'write') {
     return {
       title: `フクエスから${siteName}へ反映します`,
-      desc: `フクエスの内容を${siteName}へ書き込みます。この向きのあいだ、${siteName}からの取り込みは行いません。`,
+      desc: `フクエスの内容を${siteName}へ書き込みます。このあいだ、${siteName}からの取り込みは行いません。`,
     };
   }
   // ★ unset。★ 「連携しません」と言い切らない（まだ決まっていないだけ）
   return {
-    title: '連携の向きが、まだ決まっていません',
-    desc: 'ログイン情報を登録すると、こちらで向きを設定します。それまで、このサイトへは何も送りません。',
+    title: '出勤を入力する場所が、まだ決まっていません',
+    desc: 'ログイン情報を登録すると、こちらで入力する場所を決めます。それまで、このサイトへは何も送りません。',
   };
 }
 

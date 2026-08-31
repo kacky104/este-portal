@@ -502,7 +502,7 @@ export async function setMediaLinkMode(input: {
   const slot = Math.trunc(Number(input.slot ?? 1));
   const ng = validTarget(input.provider, slot);
   if (ng) return { ok: false, error: ng };
-  if (!isLinkMode(input.mode)) return { ok: false, error: '向きの指定が不正です' };
+  if (!isLinkMode(input.mode)) return { ok: false, error: '入力する場所の指定が不正です' };
 
   const guard = await assertSalonOwner(salonId);
   if (!guard.ok) return guard;
@@ -533,7 +533,7 @@ export async function setMediaLinkMode(input: {
     .update({ link_mode: input.mode, updated_at: new Date().toISOString() })
     .eq('salon_id', salonId).eq('provider', input.provider).eq('slot', slot)
     .select('id');
-  if (error) return { ok: false, error: '向きを変更できませんでした' };
+  if (error) return { ok: false, error: '入力する場所を変えられませんでした' };
   if (!updated || updated.length === 0) {
     return { ok: false, error: 'この枠の連携設定が見つかりません（運営にお問い合わせください）' };
   }
@@ -1219,7 +1219,8 @@ export async function getMediaOverview(input: { salonId: string | number }): Pro
       slot,
       label: providerLabel(provider),
       direction,
-      statusLabel: directionLabel(direction),
+      // ★ read の文言には媒体の名前が入る（第86便）。★ 決め打ちにしない
+      statusLabel: directionLabel(direction, providerLabel(provider)),
       canSwitch: canSwitchDirection(facts),
       // ★ 生の link_mode を画面へ流さず、要る1点だけを boolean にして渡す
       autoOn: facts.linkMode === 'write_auto',

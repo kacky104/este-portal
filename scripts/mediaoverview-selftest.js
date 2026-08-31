@@ -58,13 +58,19 @@ eq('★★ 読める媒体の read は read', dir({ provider: EKI, linkMode: 're
 eq('★ 知らない値は unset（勝手に読み替えない）', dir({ linkMode: 'よみこみ' }), 'unset');
 
 console.log('\n── 4. 画面に出す名前 ──');
-eq('read の名前', v.directionLabel('read'), '読み込み');
-eq('write の名前', v.directionLabel('write'), '反映のみ');
-eq('unset の名前', v.directionLabel('unset'), '未設定');
-eq('★ 知らない値でも未設定に落とす', v.directionLabel('なにか'), '未設定');
+// ★★ 「向き」「読み込み／反映」と呼ばない（第86便）。店舗様には【どこで入力するか】の話
+eq('read の名前', v.directionLabel('read', '駅ちか'), '駅ちかで入力');
+eq('★ 媒体の名前は決め打ちにしない', v.directionLabel('read', 'エステ魂'), 'エステ魂で入力');
+eq('★ 名前が分からないときは名前を出さない', v.directionLabel('read', ''), 'サイト側で入力');
+eq('write の名前', v.directionLabel('write', '駅ちか'), 'フクエスで入力');
+eq('unset の名前', v.directionLabel('unset', '駅ちか'), '入力する場所が未設定');
+eq('★ 知らない値でも未設定に落とす', v.directionLabel('なにか', '駅ちか'), '入力する場所が未設定');
 // ★ 店舗が読む文言。内部名が混ざっていないこと
 eq('★ 名前に内部名が混ざらない',
-   ['read', 'write', 'unset'].some((d) => /[a-z]/.test(v.directionLabel(d))), false);
+   ['read', 'write', 'unset'].some((d) => /[a-z]/.test(v.directionLabel(d, '駅ちか'))), false);
+// ★★ 仕組み側の言葉を画面に出さない。★ 決めごとは点検で固定する（引き継ぎメモ 6）
+eq('★★ 「向き」と書かない',
+   ['read', 'write', 'unset'].some((d) => v.directionLabel(d, '駅ちか').includes('向き')), false);
 
 console.log('\n── 5. ★ 切り替えを出すのは読める媒体だけ ──');
 const sw = (o) => v.canSwitchDirection(facts(o));

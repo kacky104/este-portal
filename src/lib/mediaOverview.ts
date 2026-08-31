@@ -76,12 +76,24 @@ export function siteDirection(f: SiteFacts): SiteDirection {
   return 'unset';
 }
 
-/** 画面に出す状態の名前。★ 店舗が読む文言なので媒体の内部名を出さない。 */
-export function directionLabel(d: SiteDirection): string {
+/**
+ * 画面に出す状態の名前。★ 店舗が読む文言なので媒体の内部名を出さない。
+ *
+ * ★★★ 「向き」「読み込み／反映」と呼ばない（第86便・カッキーさんの指摘）。
+ *   ★ どちらも仕組み側の言葉で、店舗様が読んで浮かぶ絵が無い。
+ *   ★ 店舗様にとっての違いは【どちらの画面に出勤を入力するか】の1点しかないので、
+ *     そのまま「◯◯で入力」と書く。
+ *
+ * ★★ read の文言には媒体の名前が要る。★ だから siteLabel を受け取る。
+ *   ★ 「駅ちか」と決め打ちにしない。READABLE_PROVIDERS は増える前提で書いてある
+ *     （このファイルの上）。決め打ちにすると、増やした日に文言だけが嘘になる。
+ *   ★ 名前が分からないときは、名前のない言い方に倒す（嘘の名前を出さない）。
+ */
+export function directionLabel(d: SiteDirection, siteLabel?: string): string {
   switch (d) {
-    case 'read': return '読み込み';
-    case 'write': return '反映のみ';
-    default: return '未設定';
+    case 'read': return siteLabel ? `${siteLabel}で入力` : 'サイト側で入力';
+    case 'write': return 'フクエスで入力';
+    default: return '入力する場所が未設定';
   }
 }
 

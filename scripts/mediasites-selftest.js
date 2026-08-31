@@ -153,7 +153,7 @@ eq('★★ send_only では「取り込んでいます」と書かない',
    v.loginDirectionText('send_only', 'エステ魂').title.includes('取り込'), false);
 eq('read はサイト名が入る', v.loginDirectionText('read', '駅ちか').title, '駅ちかから取り込んでいます');
 eq('★★ unset で「連携しません」と言い切らない',
-   v.loginDirectionText('unset', '駅ちか').title, '連携の向きが、まだ決まっていません');
+   v.loginDirectionText('unset', '駅ちか').title, '出勤を入力する場所が、まだ決まっていません');
 eq('★ 知らない値は unset の文', v.loginDirectionText('なにか', '駅ちか').title,
    v.loginDirectionText('unset', '駅ちか').title);
 

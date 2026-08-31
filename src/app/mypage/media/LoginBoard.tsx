@@ -215,7 +215,7 @@ export function LoginBoard({
     setBusy('');
     if (!res.ok) { onToast(res.error); return; }
     await load();
-    onToast('連携の向きを変えました');
+    onToast('入力する場所を変えました');
   };
 
   // ★ 上の3つの数。★ 読めていなければ null（0 と書かない）
@@ -369,8 +369,8 @@ export function LoginBoard({
                       className="mt-2 px-3 py-1 border border-slate-300 bg-white text-[11.5px] font-bold text-slate-600 hover:bg-slate-50 disabled:opacity-40"
                     >
                       {dir === 'read'
-                        ? `フクエスから${site.name}へ反映する向きに変える`
-                        : `${site.name}から取り込む向きに戻す`}
+                        ? 'フクエスで入力するように変える'
+                        : `${site.name}で入力するように戻す`}
                     </button>
                   )}
                   {row?.linkMode === 'write_auto' && (

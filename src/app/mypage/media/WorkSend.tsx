@@ -261,14 +261,14 @@ export function WorkSend({ salonId, onToast }: { salonId: number | null; onToast
           <div className="mt-3 border border-sky-200 bg-sky-50 px-3 py-2.5">
             <p className="text-[12px] leading-relaxed text-slate-600">
               <b className="font-bold text-sky-700">いま送れるサイトがありません。</b>{' '}
-              駅ちかは読み込み中のあいだは送れません。送るには向きを変えてください。
+              駅ちかで入力しているあいだは送れません。送るには、入力する場所をフクエスに変えてください。
               変えると駅ちかからの取り込みは止まります。
             </p>
             <Link
               href="/mypage/media/login"
               className="mt-2 inline-block text-[12px] font-bold text-sky-700 underline"
             >
-              向きを変える
+              入力する場所を変える
             </Link>
           </div>
         )}

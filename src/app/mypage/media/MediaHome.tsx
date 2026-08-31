@@ -147,8 +147,10 @@ export function MediaHome({ salonId, salonName }: { salonId: number | null; salo
                 </p>
                 <p className="mt-0.5 text-[12px] text-slate-500">{salonName ?? ''}</p>
               </div>
+              {/* ★ 見出しが「◯◯から取り込んでいます」なので、印も同じ言葉で置く。
+                  ★ 「読み込み」は下の行の【どこで入力するか】とぶつかる（第86便） */}
               <span className={`flex-none text-[11px] font-bold px-3 py-0.5 border ${PILL.read}`}>
-                読み込み
+                取り込み中
               </span>
             </div>
 
@@ -186,7 +188,7 @@ export function MediaHome({ salonId, salonName }: { salonId: number | null; salo
             <p className="text-[17px] font-black text-slate-800">取り込みはしていません</p>
             <p className="mt-1 text-[12px] text-slate-500 leading-relaxed">
               {writing.length > 0
-                ? 'いまはフクエスから各サイトへ反映する向きになっています。'
+                ? 'いまはフクエスで入力して、各サイトへ反映しています。'
                 : 'まだどのサイトとも連携していません。ログイン情報を登録すると始められます。'}
             </p>
           </>
@@ -217,10 +219,10 @@ export function MediaHome({ salonId, salonName }: { salonId: number | null; salo
                   <b className="block text-[13px] font-bold text-slate-700">{s.label}</b>
                   <span className="block text-[11px] text-slate-400 tabular-nums">
                     {s.direction === 'read'
-                      ? (fmt(s.listLastRunAt) ? `読み込み中 ・ ${fmt(s.listLastRunAt)}` : '読み込み中')
+                      ? (fmt(s.listLastRunAt) ? `最後の読み取り ${fmt(s.listLastRunAt)}` : 'まだ読み取っていません')
                       : s.direction === 'write'
                         ? (fmt(s.lastWriteOkAt) ? `最後の反映 ${fmt(s.lastWriteOkAt)}` : 'まだ反映していません')
-                        : (s.hasCredential ? '向きが決まっていません' : 'ログイン情報がまだありません')}
+                        : (s.hasCredential ? '入力する場所が決まっていません' : 'ログイン情報がまだありません')}
                   </span>
                 </span>
                 <span className={`flex-none text-[11px] font-bold px-3 py-0.5 border ${PILL[s.direction] ?? PILL.unset}`}>
@@ -233,7 +235,7 @@ export function MediaHome({ salonId, salonName }: { salonId: number | null; salo
                     href="/mypage/media/login"
                     className="flex-none text-[11px] font-bold px-3 py-1.5 border border-slate-200 text-slate-500 hover:border-slate-300"
                   >
-                    向きを変える
+                    入力する場所を変える
                   </Link>
                 )}
               </div>
@@ -242,8 +244,9 @@ export function MediaHome({ salonId, salonName }: { salonId: number | null; salo
         )}
 
         <p className="mt-3 text-[11px] text-slate-400 leading-relaxed">
-          向きを選べるのは駅ちかだけです。読み込みか反映のどちらか一方で、両方はできません。
-          ほかのサイトは反映だけなので、選ぶところはありません。
+          出勤を入力する場所は、駅ちかとフクエスのどちらか一方です。両方には入れられません。
+          駅ちかで入力すると、フクエスがその内容を読み取ります。フクエスで入力すると、各サイトへ反映します。
+          選べるのは駅ちかだけです。ほかのサイトは反映するだけなので、選ぶところはありません。
         </p>
       </div>
 
