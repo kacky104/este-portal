@@ -202,13 +202,13 @@ export function MediaHome({ salonId, salonName, onToast }: {
                 </dd>
               </div>
               <div className="bg-white px-3 py-2.5">
-                <dt className="text-[10px] font-bold text-slate-400">最後の取り込み</dt>
+                <dt className="text-[10px] font-bold text-slate-400">最後の反映</dt>
                 <dd className="text-[15px] font-black text-slate-800 tabular-nums">
                   {fmt(reading.listLastRunAt) || '—'}
                 </dd>
               </div>
               <div className="bg-white px-3 py-2.5">
-                <dt className="text-[10px] font-bold text-slate-400">次の取り込み</dt>
+                <dt className="text-[10px] font-bold text-slate-400">次の反映</dt>
                 {/* ★★ 分からない・止まっているときは時刻を出さない。
                     ★ 過ぎている時刻を「次」と書かない（mediaOverview.nextImportAt） */}
                 <dd className="text-[15px] font-black text-slate-800 tabular-nums">
