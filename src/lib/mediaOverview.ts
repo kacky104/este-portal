@@ -242,6 +242,95 @@ export function nextImportAt(input: {
   return new Date(next);
 }
 
+// ─────────────── ログインを一時停止する（第89便） ───────────────
+
+/**
+ * ★★★ このボタンが止めるのは【ログイン】だけ。連携そのものではない。
+ *
+ * ★ 倒すのは salon_media_credentials.is_enabled（鍵の旗）。
+ *   ★ 取り込みが見ているのは salon_import_sources の別の旗（第87便で確かめた）。
+ *   ★★ だから「連携を停止」と書いてはいけない。取り込みまで止まったと読める。
+ *
+ * ★★★ 押しどきは【パスワードを変えた・サイト側で止められた】ときだけ。滅多に起きない。
+ *   ★ 「もう送りたくない」は "フクエスだけで使う"（link_mode='none'）が正解。
+ *     ★ そこを取り違えさせないための1行を、押す場所のそばに必ず置く
+ *       （CREDENTIAL_PAUSE_NOT_FOR_STOPPING）。
+ *
+ * ★★ 文言はここに集める。★ 画面に散らすと、2か所でずれる（§327・第87便と同じ形）。
+ */
+
+/**
+ * ボタンに書く文字。★ 【行き先】を名前にする（§352）。
+ *
+ * ★★ 「一時停止する」だけにしない。★ 何が止まるのかが読めない。
+ *   ★ 止まるのはログインであって、連携でも取り込みでもない。
+ * ★★ いまの状態は書かない。★ 押した先だけを書く（switchChoices と同じ作法）。
+ */
+export function credentialPauseLabel(isEnabled: boolean): string {
+  return isEnabled === true ? 'ログインを一時停止' : 'ログインを再開';
+}
+
+/** ★ 押しどき。★ 滅多に押さないボタンなので、いつ使うのかを添える。 */
+export const CREDENTIAL_PAUSE_WHEN =
+  'パスワードを変えたときや、サイト側でアカウントが止められたときに使います。'
+  + '直したら「ログインを再開」を押してください。';
+
+/**
+ * ★★★ 取り違え防止の1行。★ このボタンのすぐそばに置く。
+ *   ★ 「もう送りたくない」人がここを押すと、鍵だけ止まって設定は残る。
+ *     ★ 残った設定を見張りが読んで、止まりとして毎日届けることになる（§223・第87便）。
+ */
+export const CREDENTIAL_PAUSE_NOT_FOR_STOPPING =
+  'もう送りたくないだけのときは、こちらではありません。'
+  + '媒体連携のホームで「フクエスだけで使う」をお選びください。';
+
+/**
+ * ★★★ 押す前に出す問い（§353 の第88便版と対）。
+ *
+ * ★★ 本文には【止まるほう】と【止まらないほう】の両方を書く。
+ *   ★ 止まらないほう（取り込み）を書かないと、押した人は全部止まったと思う。
+ * ★ canRead は【その媒体を読めるか】。★ 読めない媒体に取り込みの話を書かない
+ *   （書くと、起きていないことを起きるように書くことになる）。
+ */
+export function credentialPauseAskText(
+  to: 'pause' | 'resume', siteLabel: string, canRead: boolean,
+): { title: string; body: string } {
+  if (to === 'pause') {
+    return {
+      title: `${siteLabel}へのログインを一時停止しますか？`,
+      body: `フクエスは${siteLabel}の管理画面に入らなくなり、出勤も写メ日記も送りません。`
+        + (canRead === true ? `${siteLabel}からの取り込みは、これまでどおり続きます。` : '')
+        + 'パスワードを直したら、いつでも再開できます。',
+    };
+  }
+  return {
+    title: `${siteLabel}へのログインを再開しますか？`,
+    body: `フクエスが${siteLabel}の管理画面に入るようになり、次の反映から送ります。`,
+  };
+}
+
+/**
+ * ★★★ 押したあとに出す文。★ 上の問いと【対にする】。
+ *   ★ どちらにも同じことが書いてあること。★ 片方だけ直すと嘘になる（点検で見張る）。
+ */
+export function credentialPauseDoneText(
+  to: 'pause' | 'resume', siteLabel: string, canRead: boolean,
+): string {
+  if (to === 'pause') {
+    return `${siteLabel}へのログインを一時停止しました。出勤も写メ日記も送りません`
+      + (canRead === true ? `（${siteLabel}からの取り込みは続きます）` : '');
+  }
+  return `${siteLabel}へのログインを再開しました。次の反映から送ります`;
+}
+
+/**
+ * ★ いま一時停止していることを、画面に出す1行。
+ *   ★ ボタンには状態を書かない代わりに、状態はここで言い切る。
+ */
+export function credentialPausedNotice(siteLabel: string): string {
+  return `いま${siteLabel}へのログインを一時停止しています。この枠へは何も送りません。`;
+}
+
 // ───────────────────────── 送信ボタンの状態（第58便） ─────────────────────────
 
 /**

@@ -270,5 +270,82 @@ eq('★ 知らない値は断定しない側へ', v.therapistSiteLabel('なに�
 eq('★★ missing 以外に「いません」と書かない',
    ['present', 'unlinked', 'unknown'].some((s) => v.therapistSiteLabel(s) === 'いません'), false);
 
+console.log('\n── 10. ★★★ ログインの一時停止（第89便）──');
+// ★★★ このボタンが止めるのは【ログイン】だけ。連携でも取り込みでもない（第87便）。
+//   ★ ここが崩れると、店舗は「送るのをやめたつもり」で押して、設定だけ残る。
+
+const SITE = 'テスト媒体';   // ★ 媒体名は引数で受ける。★ 決め打ちしていないことも見る
+
+console.log('  ボタンの文字');
+eq('使っている枠 → 一時停止', v.credentialPauseLabel(true), 'ログインを一時停止');
+eq('止めてある枠 → 再開', v.credentialPauseLabel(false), 'ログインを再開');
+// ★ 分からない値は【何も止めない側】に倒す。★ 再開は押しても何も止まらない
+eq("★ boolean でなければ再開側に倒す", v.credentialPauseLabel('true'), 'ログインを再開');
+eq('★ undefined でも再開側', v.credentialPauseLabel(undefined), 'ログインを再開');
+// ★★ 「一時停止する」だけにしない。★ 何が止まるのかを名前に入れる
+eq('★★ どちらの文字にも「ログイン」が入る',
+   [true, false].every((b) => v.credentialPauseLabel(b).indexOf('ログイン') >= 0), true);
+// ★★★ 「連携」と書かない。★ 連携は止まらない
+eq('★★★ ボタンの文字に「連携」を出さない',
+   [true, false].some((b) => v.credentialPauseLabel(b).indexOf('連携') >= 0), false);
+
+console.log('  押す前の問いと、押したあとの文が【対】になっているか');
+const askP = v.credentialPauseAskText('pause', SITE, true);
+const askPw = v.credentialPauseAskText('pause', SITE, false);
+const askR = v.credentialPauseAskText('resume', SITE, true);
+const doneP = v.credentialPauseDoneText('pause', SITE, true);
+const donePw = v.credentialPauseDoneText('pause', SITE, false);
+const doneR = v.credentialPauseDoneText('resume', SITE, true);
+
+// ★★ 止まるほうを、どちらにも書く（引き継ぎメモの作法）
+eq('★★ 問いに「送りません」が入る', askP.body.indexOf('送りません') >= 0, true);
+eq('★★ 押したあとにも「送りません」が入る', doneP.indexOf('送りません') >= 0, true);
+// ★★★ 止まらないほう（取り込み）も、どちらにも書く。★ 書かないと全部止まったと思われる
+eq('★★★ 読める媒体なら、問いに取り込みが続くと書く', askP.body.indexOf('取り込み') >= 0, true);
+eq('★★★ 読める媒体なら、押したあとにも取り込みが続くと書く', doneP.indexOf('取り込み') >= 0, true);
+// ★★★ 対になる主張。読めない媒体に、起きていない取り込みの話を書かない
+eq('★★★ 読めない媒体では、問いに取り込みを書かない', askPw.body.indexOf('取り込み') >= 0, false);
+eq('★★★ 読めない媒体では、押したあとにも取り込みを書かない', donePw.indexOf('取り込み') >= 0, false);
+// ★ 問いと結果が食い違わない（片方だけ直すと、ここで落ちる）
+eq('★★ 取り込みの扱いが、問いと結果で食い違わない',
+   (askP.body.indexOf('取り込み') >= 0) === (doneP.indexOf('取り込み') >= 0), true);
+eq('★★ 読めない媒体でも食い違わない',
+   (askPw.body.indexOf('取り込み') >= 0) === (donePw.indexOf('取り込み') >= 0), true);
+
+console.log('  再開のほう');
+eq('★ 再開の問いに「次の反映から送ります」', askR.body.indexOf('次の反映から送ります') >= 0, true);
+eq('★ 再開の結果にも「次の反映から送ります」', doneR.indexOf('次の反映から送ります') >= 0, true);
+// ★ 再開で止まるものは無い。★ 「送りません」と書かない
+eq('★★ 再開の文に「送りません」を出さない',
+   askR.body.indexOf('送りません') >= 0 || doneR.indexOf('送りません') >= 0, false);
+
+console.log('  ★★★ 「連携を停止」と書かない（第87便で消した言い方）');
+const ALL = [
+  askP.title, askP.body, askPw.title, askPw.body, askR.title, askR.body,
+  doneP, donePw, doneR,
+  v.credentialPauseLabel(true), v.credentialPauseLabel(false),
+  v.credentialPausedNotice(SITE),
+  v.CREDENTIAL_PAUSE_WHEN, v.CREDENTIAL_PAUSE_NOT_FOR_STOPPING,
+];
+eq('★★★ どの文にも「連携を停止」が出ない',
+   ALL.some((t) => t.indexOf('連携を停止') >= 0), false);
+// ★★ 仕組み側の言葉を出さない（§351・「向き」「読み込み」）
+eq('★★ どの文にも「向き」が出ない', ALL.some((t) => t.indexOf('向き') >= 0), false);
+// ★ 媒体名は引数で受ける。★ 決め打ちの「駅ちか」が混ざらない
+eq('★ どの文にも「駅ちか」が焼き付いていない', ALL.some((t) => t.indexOf('駅ちか') >= 0), false);
+
+console.log('  ★ 押しどきと、取り違え防止の1行');
+// ★ 滅多に押さないボタン。★ いつ押すのか（パスワード）を必ず書く
+eq('★ 押しどきに「パスワード」が入る', v.CREDENTIAL_PAUSE_WHEN.indexOf('パスワード') >= 0, true);
+eq('★ 押しどきに「再開」が入る', v.CREDENTIAL_PAUSE_WHEN.indexOf('再開') >= 0, true);
+// ★★★ 「もう送りたくない」人を、正しい口へ渡す
+eq('★★★ 取り違え防止に「フクエスだけで使う」が入る',
+   v.CREDENTIAL_PAUSE_NOT_FOR_STOPPING.indexOf('フクエスだけで使う') >= 0, true);
+
+console.log('  ★ 止めているあいだ、状態は文で言い切る');
+eq('★ 媒体名が入る', v.credentialPausedNotice(SITE).indexOf(SITE) >= 0, true);
+eq('★ 「何も送りません」と言い切る',
+   v.credentialPausedNotice(SITE).indexOf('何も送りません') >= 0, true);
+
 console.log(fail === 0 ? '\n★ すべて通った' : '\n★ NG ' + fail + ' 件');
 process.exit(fail === 0 ? 0 : 1);

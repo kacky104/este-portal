@@ -19,7 +19,13 @@ import {
   MEDIA_CONSENT_AGREE_LABEL,
 } from '@/lib/mediaConsent';
 // ★ 「変える」の選択肢と文は1か所から出す（第87便）。★ ホームと同じものを使う
-import { switchChoices, switchDoneText } from '@/lib/mediaOverview';
+import {
+  switchChoices, switchDoneText,
+  canReadProvider,
+  credentialPauseLabel, credentialPauseAskText, credentialPauseDoneText,
+  credentialPausedNotice,
+  CREDENTIAL_PAUSE_WHEN, CREDENTIAL_PAUSE_NOT_FOR_STOPPING,
+} from '@/lib/mediaOverview';
 import {
   getMediaCredentials,
   saveMediaCredential,
@@ -111,6 +117,9 @@ export function LoginBoard({
   const [saving, setSaving] = useState(false);
   const [busy, setBusy] = useState('');
   const [confirmDelete, setConfirmDelete] = useState('');
+  // ★ ログインの一時停止／再開を押す前の問い（第89便）。★ null のあいだは何も出さない
+  const [askPause, setAskPause] =
+    useState<{ site: MediaSite; slot: number; to: 'pause' | 'resume' } | null>(null);
 
   const load = useCallback(async () => {
     if (salonId == null) return;
@@ -197,9 +206,10 @@ export function LoginBoard({
     await load();
     // ★★ このボタンが倒すのは【鍵】の旗であって、連携そのものではない（第87便で確かめた）。
     //   ★ 「連携を停止しました」と書くと、取り込みまで止まったと読める。★ 止まらない
-    onToast(next
-      ? 'このログイン情報を、また使うようにしました'
-      : 'このログイン情報を使わないようにしました。送るのをやめるときは、ホームで「フクエスだけで使う」を押してください');
+    //   ★★ 文言は mediaOverview に集めた（第89便）。★ 押す前の問いと【対】（点検で見張る）
+    onToast(credentialPauseDoneText(
+      next ? 'resume' : 'pause', site.name, canReadProvider(site.provider),
+    ));
   };
 
   const onDelete = async (site: MediaSite, slot: number) => {
@@ -447,23 +457,61 @@ export function LoginBoard({
                     {row.lastError && (
                       <p className="text-[11.5px] text-rose-600">直近のエラー：{row.lastError}</p>
                     )}
-                    <div className="flex gap-1.5 flex-wrap">
-                      <button
-                        type="button"
-                        onClick={() => onTest(site, slot)}
-                        disabled={!row.hasPassword || !row.isEnabled || busy !== ''}
-                        className="px-3 py-1 border border-indigo-200 text-[11.5px] font-bold text-indigo-700 hover:bg-indigo-50 disabled:opacity-40"
-                      >
-                        {busy === `test:${site.provider}:${slot}` ? '送信中…' : '接続テスト'}
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => onToggleEnabled(site, slot, !row.isEnabled)}
-                        disabled={busy !== ''}
-                        className="px-3 py-1 border border-slate-200 text-[11.5px] font-bold text-slate-500 hover:text-slate-700 disabled:opacity-40"
-                      >
-                        {row.isEnabled ? 'このログイン情報を使わない' : 'また使う'}
-                      </button>
+                    {/* ★★ いま一時停止しているなら、まずそれを言い切る（第89便）。
+                        ★ ボタンには状態を書かない代わりに、状態はここに出す */}
+                    {!row.isEnabled && (
+                      <p className="border border-amber-200 bg-amber-50 px-3 py-2 text-[11.5px] font-bold text-amber-800 leading-relaxed">
+                        {credentialPausedNotice(site.name)}
+                      </p>
+                    )}
+
+                    {/* ── うまくいかないとき（第89便）─────────────────
+                        ★★★ 接続テストと一時停止は【困ったときに押すもの】。
+                          ★ ふだんの操作と同じ列に並べていたので、押しどきが読めなかった
+                            （カッキーさんの指摘・2026-08-31 夜）。
+                        ★ 削除は戻せないので、この区画には入れず下に分ける。 */}
+                    <div className="border border-slate-200 bg-slate-50 px-3 py-2.5 space-y-2">
+                      <p className="text-[12px] font-bold text-slate-600">うまくいかないとき</p>
+                      <div className="flex gap-1.5 flex-wrap">
+                        <button
+                          type="button"
+                          onClick={() => onTest(site, slot)}
+                          disabled={!row.hasPassword || !row.isEnabled || busy !== ''}
+                          className="px-3 py-1 border border-indigo-200 bg-white text-[11.5px] font-bold text-indigo-700 hover:bg-indigo-50 disabled:opacity-40"
+                        >
+                          {busy === `test:${site.provider}:${slot}` ? '送信中…' : '接続テスト'}
+                        </button>
+                        {/* ★★ その場では変えない。★ 押す前に1度だけ問う（§353・第88便と同じ形） */}
+                        <button
+                          type="button"
+                          onClick={() => setAskPause({ site, slot, to: row.isEnabled ? 'pause' : 'resume' })}
+                          disabled={busy !== ''}
+                          className="px-3 py-1 border border-slate-300 bg-white text-[11.5px] font-bold text-slate-600 hover:bg-slate-100 disabled:opacity-40"
+                        >
+                          {busy === `enable:${site.provider}:${slot}`
+                            ? '変えています…'
+                            : credentialPauseLabel(row.isEnabled)}
+                        </button>
+                      </div>
+                      {/* ★ 「読むだけ」であることを、押す場所のそばに書く */}
+                      <p className="text-[11px] text-slate-400 leading-relaxed">
+                        接続テストは、{site.name}にログインして1回読むだけです。掲載内容は書き換えません。
+                        結果は少し経ってから「連携の記録」に出ます。
+                      </p>
+                      {/* ★ 滅多に押さないボタンなので、押しどきを一緒に置く */}
+                      <p className="text-[11px] text-slate-400 leading-relaxed">{CREDENTIAL_PAUSE_WHEN}</p>
+                      {/* ★★★ 取り違え防止。★ ここを押しても【送る設定は残る】。
+                          ★ 残った設定を見張りが読んで、止まりとして毎日届けることになる（第87便） */}
+                      <p className="text-[11px] text-slate-400 leading-relaxed">
+                        {CREDENTIAL_PAUSE_NOT_FOR_STOPPING}{' '}
+                        <Link href="/mypage/media" className="font-bold underline">
+                          媒体連携のホームを開く
+                        </Link>
+                      </p>
+                    </div>
+
+                    {/* ── 削除 ──★ 戻せないので、他のボタンと並べない */}
+                    <div className="flex justify-end">
                       {confirmDelete === `${site.provider}:${slot}` ? (
                         <button
                           type="button"
@@ -483,11 +531,6 @@ export function LoginBoard({
                         </button>
                       )}
                     </div>
-                    {/* ★ 「読むだけ」であることを、押す場所のそばに書く */}
-                    <p className="text-[11px] text-slate-400 leading-relaxed">
-                      接続テストは、{site.name}にログインして1回読むだけです。掲載内容は書き換えません。
-                      結果は少し経ってから「連携の記録」に出ます。
-                    </p>
                   </div>
                 ) : (
                   <p className="border border-dashed border-slate-200 p-3 text-[12px] text-slate-400 leading-relaxed">
@@ -632,6 +675,56 @@ export function LoginBoard({
           </div>
         );
       })}
+
+      {/* ── ★★★ 押す前の問い（第89便）───────────────────
+          ★ ホームの切り替えと同じ形にする（MediaHome の ask と対）。
+          ★ 既定は「やめる」側。★ 何もしないほうを、押しやすい位置に置く。
+          ★★ 文言は mediaOverview から出す。★ 押したあとのトーストと対（点検で見張る） */}
+      {askPause && (
+        <div
+          className="fixed inset-0 z-50 bg-slate-900/40 grid place-items-center p-4"
+          role="dialog"
+          aria-modal="true"
+          onClick={() => setAskPause(null)}
+        >
+          <div
+            className="w-full max-w-[360px] bg-white border border-slate-200 shadow-lg p-5"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <p className="text-[15px] font-black text-slate-800">
+              {credentialPauseAskText(
+                askPause.to, askPause.site.name, canReadProvider(askPause.site.provider),
+              ).title}
+            </p>
+            <p className="mt-2 text-[12px] text-slate-500 leading-relaxed">
+              {credentialPauseAskText(
+                askPause.to, askPause.site.name, canReadProvider(askPause.site.provider),
+              ).body}
+            </p>
+            <div className="mt-4 flex justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => setAskPause(null)}
+                className="px-4 py-1.5 border border-slate-200 text-[12px] font-bold text-slate-500 hover:bg-slate-50"
+              >
+                やめる
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  const a = askPause;
+                  setAskPause(null);
+                  void onToggleEnabled(a.site, a.slot, a.to === 'resume');
+                }}
+                disabled={busy !== ''}
+                className="px-4 py-1.5 border border-indigo-600 bg-indigo-600 text-[12px] font-bold text-white hover:bg-indigo-700 disabled:opacity-40"
+              >
+                {credentialPauseLabel(askPause.to === 'pause')}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

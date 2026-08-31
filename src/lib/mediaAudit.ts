@@ -13,8 +13,8 @@
 export const MEDIA_AUDIT_EVENTS = [
   'consent_agreed',      // 同意文言に同意した（★ 認証情報を預かる前に必ずこれが来る）
   'credential_saved',    // 認証情報を登録・更新した
-  'credential_disabled', // 失効させた（画面OFF）
-  'credential_enabled',  // 停止していた連携を再開した
+  'credential_disabled', // ★ ログインを一時停止した（鍵の旗を倒した・第89便）
+  'credential_enabled',  // ★ ログインを再開した
   'credential_deleted',  // 登録そのものを消した
   'login',               // 媒体にログインした
   'read_work',           // 出勤を読んだ
@@ -167,10 +167,11 @@ export function defaultAuditSummary(input: {
       s = `${t}のログイン情報を登録しました`;
       break;
     case 'credential_disabled':
-      s = `${t}の連携を停止しました。次回の更新から書き込みません`;
+      // ★★ 倒したのは【鍵】の旗だけ（第87便）。★ 「連携を停止」と書くと取り込みまで止まったと読める
+      s = `${t}へのログインを一時停止しました。再開するまで、この枠へは送りません`;
       break;
     case 'credential_enabled':
-      s = `${t}の連携を再開しました`;
+      s = `${t}へのログインを再開しました。次の反映から送ります`;
       break;
     case 'credential_deleted':
       s = `${t}のログイン情報を削除しました。以後この枠へは書き込みません`;
