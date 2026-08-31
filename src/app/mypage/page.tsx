@@ -33,6 +33,7 @@ import { SiteNoticeBanner } from '@/app/components/SiteNoticeBanner';
 import { SalonBumpButton } from '@/app/components/SalonBumpButton';
 import { EmbedCodePanel } from './EmbedCodePanel';
 import { getMediaLinkAlerts } from '@/app/actions/mediaCredentials';
+import { postAnnouncementManually } from '@/app/actions/announcePost';
 import type { MediaLinkAlert } from '@/lib/mediaLinkStall';
 import { ADMIN_UUID } from '@/app/lib/admin';
 import { canSeeMedia, readUnlockIntent, MEDIA_UNLOCK_KEY } from '@/lib/mediaVisibility';
@@ -1889,13 +1890,13 @@ export default function MyPage() {
     const title = newAnnouncement.title.trim();
     const content = newAnnouncement.content.trim();
     const imageUrl = newAnnouncement.image_url || null;
-    const { error } = await supabase.from('announcements').insert({
+    const { data: inserted, error } = await supabase.from('announcements').insert({
       salon_id:     Number(salon.id),
       title,
       content,
       is_published: newAnnouncement.is_published,
       image_url:    imageUrl,
-    });
+    }).select('id').maybeSingle();
     if (error) {
       setAddingAnnouncement(false);
       showToast(
@@ -1904,6 +1905,15 @@ export default function MyPage() {
           : `追加に失敗しました: ${error.message}`
       );
       return;
+    }
+    // ★★ 書いた事実をサーバ側に残す（第68便・§192）。
+    //   「その日に手動があったか」は自動配信のスキップ判定の材料。ここで残さないと取りこぼす。
+    //   ★ 新規は待たせない（kind:'new'）。失敗しても、書けたものは書けている
+    if (inserted?.id && newAnnouncement.is_published) {
+      const r = await postAnnouncementManually({
+        salonId: Number(salon.id), announcementId: String(inserted.id), kind: 'new',
+      });
+      if (!r.ok) console.error('[announce] 手動配信の記録に失敗:', r.error);
     }
     const list = await fetchAnnouncementList(Number(salon.id));
     setAnnouncements(list);
@@ -1973,18 +1983,25 @@ export default function MyPage() {
   // 元の投稿日時は上書きされ、新しい投稿として扱われる。再投稿時のみ fukuX 同時投稿（best-effort）。
   const confirmAnnouncementRepost = async () => {
     const id = repostModalId;
-    if (!id) return;
+    if (!id || !salon) return;
     const target = announcements.find(a => a.id === id);
     setRepostingAnnouncement(id);
     const newIso = new Date().toISOString();
-    const { error } = await supabase.from('announcements').update({ published_at: newIso }).eq('id', id);
-    if (error) { setRepostingAnnouncement(null); showToast(`再投稿に失敗しました: ${error.message}`); return; }
-    // 同じ行の published_at を更新し、新しい順で再ソート（元の古い投稿は残らない）
-    setAnnouncements(prev =>
-      prev
-        .map(a => a.id === id ? { ...a, published_at: newIso } : a)
-        .sort((x, y) => new Date(y.published_at).getTime() - new Date(x.published_at).getTime())
-    );
+    // ★★ 画面から直に published_at を書かない（第68便・§191 守り3）。
+    //   同じ本文の押し直しは、フクエスTOPの並びを最短30分に1回しか動かさない。
+    //   ★ 新しく書いたものは待たせない（そちらは kind:'new' で通る）。
+    const res = await postAnnouncementManually({
+      salonId: Number(salon.id), announcementId: id, kind: 'repost',
+    });
+    if (!res.ok) { setRepostingAnnouncement(null); showToast(`再投稿に失敗しました: ${res.error}`); return; }
+    // ★ 並びが動いたときだけ、画面の並びも動かす。動かなかったのに動いて見せない
+    if (res.data.bumped) {
+      setAnnouncements(prev =>
+        prev
+          .map(a => a.id === id ? { ...a, published_at: newIso } : a)
+          .sort((x, y) => new Date(y.published_at).getTime() - new Date(x.published_at).getTime())
+      );
+    }
     // 再投稿成功後のみ fukuX 同時投稿。失敗しても再投稿は成功のまま。
     const xOk = target
       ? await maybeCrosspostAnnouncementToX(repostCrosspostX, repostCrosspostNoReplies, target.title, target.content, target.image_url)
@@ -1992,7 +2009,9 @@ export default function MyPage() {
     setRepostingAnnouncement(null);
     setRepostModalId(null);
     if (salon) revalidateSalon(salon.id);
-    showToast(xOk ? '再投稿しました' : '再投稿しました（fukuX投稿は失敗しました）');
+    // ★★ 黙って何も起きないのが最悪。起きたことを必ず言葉にする（§191）。
+    //   ★ 「再投稿しました」と言い切らない——並びが動かなかった回もあるため
+    showToast(xOk ? res.data.message : `${res.data.message}（fukuX投稿は失敗しました）`);
   };
 
   // お知らせ→fukuX 同時投稿チェックの共通UI（新規フォーム・再投稿モーダルで共用）。
@@ -3751,6 +3770,11 @@ export default function MyPage() {
               >
                 <p className="text-sm font-bold text-slate-700 whitespace-pre-line leading-relaxed">
                   {`このお知らせを再投稿しますか？\n投稿日時が現在時刻に更新され、一覧の先頭に表示されます。\n（元の投稿日時は失われ、再び新着「NEW!!」扱いになります）`}
+                </p>
+                {/* ★★ 押す前に言う（第68便・§191 守り3）。押したあとに知らせると「壊れている」に見える。
+                    ★ ボタンを灰色にして押させないのではなく、押せるまま・理由を先に出す（作法3-7）。 */}
+                <p className="text-[11px] text-slate-500 leading-relaxed bg-slate-50 rounded-xl p-3">
+                  {`同じ内容の再投稿でトップの新着が上がるのは、30分に1回までです。\n内容を書き替えた場合は、すぐに上がります。`}
                 </p>
                 {renderCrosspostChecks(repostCrosspostX, setRepostCrosspostX, repostCrosspostNoReplies, setRepostCrosspostNoReplies)}
                 <div className="flex justify-end gap-2 pt-1">

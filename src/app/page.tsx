@@ -85,7 +85,8 @@ export default async function Home() {
     // セラピストピックアップ枠（横長画像1枚・20枚目直下・クライアント抽選）。0件なら非表示。
     fetchActiveTherapistPickupBanners(),
     // サロン新着情報（ピックアップ直下・最新5件・1行×5段）。0件なら非表示。続きは /news。
-    fetchLatestSalonNews(supabase, 5),
+    // ★ 第3引数 true ＝1店舗1件（守り1・設計メモ 追記37 §191）。同じ店で5枠が埋まらない。
+    fetchLatestSalonNews(supabase, 5, true),
     // 本体コラム新着3件（FAQ直上のセクション）。0件なら非表示。/jobs トップの新着コラムと同方式。
     fetchPublishedMainArticles(3),
     // 新着の口コミ（スマホ=FAQ直下 / PC=右カラム）。0件なら非表示。
