@@ -32,8 +32,13 @@ export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 export const maxDuration = 60;
 
-/** ローテで拾う上限。★ これを超える店は、超えたぶんが回ってこない（その旨を返す） */
-const ROTATION_MAX = 200;
+// ★★★ 本数の上限は【無い】（第70便・カッキーさんの確認から）。
+//   第69便は古い順に先頭200本だけ読んで、その中から1本を選んでいた。
+//   ★ 201本目以降に印を付けても、画面は何も言わないのに回ってこない——**無言で消える形**だった。
+//   → 全件を読むのをやめ、【件数を数えて、順番の位置の1本だけを取り出す】形に変えた。
+//     読む行は常に1行。上限を持つ理由そのものが消えた（＋ むしろ軽くなった）。
+//   ★ 上限で押させない代わりに、画面に周期を出す（rotationCycleMessage）。
+//     「10本付けると10日に1回」と数字で言えば、店舗が自分で減らす判断ができる。
 
 type Target = { id: string; title: string | null; content: string | null };
 
@@ -67,19 +72,16 @@ export async function POST(req: Request) {
   const failed: Array<{ salonId: number; why: string }> = [];
 
   for (const salonId of salonIds) {
-    // ★ ローテの順は created_at 昇順 → id 昇順で固定する（並べ替えない）
-    const { data: list, error: listErr } = await svc
+    // ★ まず本数だけ数える（行は取らない）。★ 上限は無い
+    const { count, error: cntErr } = await svc
       .from('announcements')
-      .select('id, title, content')
+      .select('id', { count: 'exact', head: true })
       .eq('salon_id', salonId)
       .eq('auto_rotate', true)
-      .eq('is_published', true)
-      .order('created_at', { ascending: true })
-      .order('id', { ascending: true })
-      .limit(ROTATION_MAX);
-    if (listErr) { failed.push({ salonId, why: listErr.message.slice(0, 200) }); continue; }
-
-    const targets = (list ?? []) as Target[];
+      .eq('is_published', true);
+    // ★★ 数えられなかったときは【何もしない】。0件と混ぜない（作法3-5）
+    if (cntErr) { failed.push({ salonId, why: cntErr.message.slice(0, 200) }); continue; }
+    const targetCount = count ?? 0;
 
     const { data: state, error: stErr } = await svc
       .from('salon_announce_state')
@@ -93,19 +95,32 @@ export async function POST(req: Request) {
     const judged = shouldAutoPost({
       now,
       salonId,
-      // ★ 読めた件数を渡す。読めていない場合はここへ来ていない（上で continue）
-      autoTargetCount: targets.length,
+      // ★ 数えられた件数を渡す。数えられていない場合はここへ来ていない（上で continue）
+      autoTargetCount: targetCount,
       lastAutoDay: (state?.last_auto_day as string | null) ?? null,
       lastManualAt: (state?.last_manual_at as string | null) ?? null,
       rotationIndex: (state?.rotation_index as number | null) ?? null,
     });
 
     if (!judged.post) { skipped.push({ salonId, why: judged.reason }); continue; }
-
-    const pick = targets[judged.index];
-    if (!pick) { failed.push({ salonId, why: '順番の位置に該当するお知らせがありません' }); continue; }
-
     if (!apply) { posted.push(`${salonId}#${judged.index}`); continue; }
+
+    // ★★ 順番の位置の1本だけを取り出す（全件は読まない）。
+    //   ★ 並びは created_at 昇順 → id 昇順で固定する。ここがぶれると順番が飛ぶ。
+    //   ★ judged.index は nextRotationIndex で本数の範囲に収まっている
+    const { data: picked, error: pickErr } = await svc
+      .from('announcements')
+      .select('id, title, content')
+      .eq('salon_id', salonId)
+      .eq('auto_rotate', true)
+      .eq('is_published', true)
+      .order('created_at', { ascending: true })
+      .order('id', { ascending: true })
+      .range(judged.index, judged.index);
+    if (pickErr) { failed.push({ salonId, why: pickErr.message.slice(0, 200) }); continue; }
+    const pick = ((picked ?? []) as Target[])[0];
+    // ★ 数えた直後に店舗が消した／非公開にした、が起こりうる。そのときは黙って飛ばさず数える
+    if (!pick) { failed.push({ salonId, why: '順番の位置のお知らせが見つかりません（数えた直後に変わった可能性）' }); continue; }
 
     // ★ 出す＝新着で上へ出す（published_at を進める）。トリガは service role を通す
     const { error: upErr } = await svc

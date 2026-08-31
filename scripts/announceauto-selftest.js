@@ -145,6 +145,14 @@ eq('読めていないときは、読めていないと言う',
   st({ now: jst('2026-08-31T12:00:00'), autoTargetCount: null }),
   'いまは自動配信の状態を読み取れていません');
 
+// ── 上限を決めない代わりに、周期を見せる（第70便）─────────
+// ★ 「たくさん付けたのに出ない」は壊れているのではなく、そういう仕組み。数字で言う
+eq('0本のときは言うことが無い', a.rotationCycleMessage(0), null);
+eq('1本なら毎日', a.rotationCycleMessage(1), '1本だけなので、毎日この1本が出ます');
+eq('5本なら5日に1回', a.rotationCycleMessage(5), '5本あるので、1本が出るのは 5日に1回です');
+eq('30本なら30日に1回', a.rotationCycleMessage(30), '30本あるので、1本が出るのは 30日に1回です');
+eq('数でなければ言わない', a.rotationCycleMessage(NaN), null);
+
 // ── 守り3：押し直しは30分に1回。新しく書いたものは即 ────────
 const FP_A = a.announceFingerprint('A', '本文A');
 const FP_B = a.announceFingerprint('B', '本文B');

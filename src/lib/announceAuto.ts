@@ -217,6 +217,22 @@ export function autoStateMessage(result: AutoPostResult, timeLabel: string | nul
   }
 }
 
+/**
+ * 「いま何本あると、1本が何日に1回回ってくるか」の1行。★ 0本のときは null（言うことが無い）。
+ *
+ * ★★★ なぜ出すか —— 上限を決めない代わりに、周期を見せる（第70便）。
+ *   自動は1店舗1日1件なので、印を10本付けると1本が回ってくるのは10日に1回になる。
+ *   ★ 「たくさん付けたのに出ない」は、壊れているのではなく**そういう仕組み**。
+ *     数字を出しておけば、店舗が自分で減らす判断ができる。
+ *   ★ 上限で押させないより、こちらのほうが短い（作法3-7・§185）。
+ */
+export function rotationCycleMessage(targetCount: number): string | null {
+  if (!Number.isFinite(targetCount) || targetCount <= 0) return null;
+  const n = Math.trunc(targetCount);
+  if (n === 1) return '1本だけなので、毎日この1本が出ます';
+  return n + '本あるので、1本が出るのは ' + n + '日に1回です';
+}
+
 /** 出さなかった理由を、店舗が読んで分かる1行にする。★ 出したときは null。 */
 export function autoSkipMessage(result: AutoPostResult): string | null {
   if (result.post) return null;

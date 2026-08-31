@@ -9,6 +9,7 @@ import {
   manualPostMessage,
   shouldAutoPost,
   autoStateMessage,
+  rotationCycleMessage,
   autoPostTimeLabel,
 } from '@/lib/announceAuto';
 
@@ -161,6 +162,8 @@ export async function getAnnounceState(input: { salonId: string | number }): Pro
     targetCount: number;
     /** そのまま画面に出す1行 */
     message: string;
+    /** 「5本あるので、1本が出るのは 5日に1回です」。0本のときは null */
+    cycleMessage: string | null;
   }>
 > {
   const salonId = Number(input.salonId);
@@ -204,6 +207,8 @@ export async function getAnnounceState(input: { salonId: string | number }): Pro
       autoTimeLabel: timeLabel,
       targetCount: targetCount ?? 0,
       message: autoStateMessage(judged, timeLabel),
+      // ★ 本数の上限は決めていない。代わりに周期を数字で出す（第70便）
+      cycleMessage: targetCount === null ? null : rotationCycleMessage(targetCount),
     },
   };
 }

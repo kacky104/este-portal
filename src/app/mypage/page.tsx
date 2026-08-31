@@ -623,7 +623,7 @@ export default function MyPage() {
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
   // お知らせ：自動配信の状態（第69便）。★ 周（/api/admin/announce-auto）と同じ判定から来る1行。
   //   ★ 読めなければ null のまま。読めていないことを「お休みです」と書き替えない
-  const [announceState, setAnnounceState] = useState<{ message: string; targetCount: number; autoTimeLabel: string | null } | null>(null);
+  const [announceState, setAnnounceState] = useState<{ message: string; targetCount: number; autoTimeLabel: string | null; cycleMessage: string | null } | null>(null);
   const refreshAnnounceState = async () => {
     if (!salon) return;
     const r = await getAnnounceState({ salonId: Number(salon.id) });
@@ -3725,8 +3725,14 @@ export default function MyPage() {
                   {`いま「自動で回す」に印が付いているお知らせ：${announceState.targetCount}件`}
                   {announceState.autoTimeLabel ? `　／　この店舗の自動配信の時刻：${announceState.autoTimeLabel}ごろ（変更できません）` : ''}
                 </p>
+                {/* ★ 本数の上限は決めていない。代わりに周期を数字で出す（第70便）。
+                    「たくさん付けたのに出ない」は壊れているのではなく、そういう仕組み。 */}
+                {announceState.cycleMessage && (
+                  <p className="text-[11px] text-slate-600 leading-relaxed">{announceState.cycleMessage}</p>
+                )}
                 <p className="text-[10px] text-slate-400 leading-relaxed pt-1">
                   1日1回、印を付けたお知らせを順番に1本ずつ出します。手動で出した日は、その日の自動はお休みします。
+                  印を付ける本数に上限はありません（増やすほど、1本が回ってくる間隔が長くなります）。
                 </p>
               </>
             ) : (
