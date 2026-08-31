@@ -1,5 +1,7 @@
 // テスト運用中の共通お知らせバナー。各サイトのヘッダー直下に sticky で表示する。
 // 文言は全サイト共通。開設時期などの変更はこの1ファイルを直せば全ページに反映される。
+// ★ 2026-08-31：開店が延びたため「9月1日」→「9月初旬」（全60ページ以上に効く）。
+//   ★ 日付は他のどこにも書かれていない（grep 済み）。★ 増やさないこと——次に延びたときに書き漏らす。
 // 配色だけサイトごとに出し分ける（本体=amber / フクエスワーク=green / フクエックス=fukuXテーマ）。
 
 type Variant = 'default' | 'work' | 'x';
@@ -30,7 +32,7 @@ export function SiteNoticeBanner({ variant = 'default' }: { variant?: Variant })
   return (
     <div className={`sticky top-14 z-40 border-b ${v.box}`}>
       <p className={`${v.inner} mx-auto px-4 py-2 text-center text-xs sm:text-sm font-bold leading-relaxed ${v.text}`}>
-        現在テスト運用中です。9月1日サイトオープン予定。
+        現在テスト運用中です。9月初旬サイトオープン予定。
       </p>
     </div>
   );
