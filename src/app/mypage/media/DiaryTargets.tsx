@@ -108,6 +108,10 @@ export function DiaryTargets({ salonId, onToast }: { salonId: number | null; onT
   const total = data?.therapists.length ?? 0;
   // ★ このサイトの投稿先アドレスは、こちらで読めるか／手で入れてもらうか（mediaSites が正本）
   const manualAddress = findMediaSite(picked)?.diaryAddressSource === 'manual';
+  // ★ そのサイトに投稿先が何人ぶん入っているか（★ タブに出す）。
+  //   ★ 読めていないときは 0 と書かない——このページは自分のDBを見ているので 0 は 0 でよい
+  const countOf = (provider: string) =>
+    (data?.forwards ?? []).filter((f) => f.provider === provider && f.addressMask.length > 0).length;
 
   return (
     <div className="space-y-3">
@@ -136,25 +140,37 @@ export function DiaryTargets({ salonId, onToast }: { salonId: number | null; onT
                   }`}
                 >
                   {s.label}
-                  {!s.hasCredential && <span className="ml-1 font-medium text-slate-400">（未設定）</span>}
+                  {/* ★★ 「（未設定）」をやめた（第85便・カッキー様の指摘）。
+                      ★ もとは hasCredential（ログイン情報の有無）を出していたが、
+                        ・投稿先の登録にも、送信にも、ログイン情報は要らない（手で入れれば送れる）
+                        ・エステラブはログイン情報を預からないので【永久に「未設定」】だった
+                      ★ 「設定していない＝使えない」と読まれ、しかも直しようが無かった。
+                      → ★ このページの関心事は【何人ぶん入っているか】。それを出す。 */}
+                  <span className="ml-1 font-medium text-slate-400 tabular-nums">
+                    （{countOf(s.provider)}/{total}名）
+                  </span>
                 </button>
               );
             })}
           </div>
         )}
 
-        {/* ★ 2サイトだけであることを、その場に書く */}
+        {/* ★ 2026-08-31（第85便・カッキー様）: 店舗が読む文として短くした。
+            ★ もとは「エステ魂はメールでの投稿ができず、全国エステランキングには
+              写メ日記そのものがありません」と、出ていない2サイトの理由まで書いていた。
+            ★ その理由は mediaSites.ts の diaryAddressSource: 'none' に残してある。 */}
         <p className="mt-3 text-[11px] text-slate-400 leading-relaxed">
-          写メ日記を受け取れるのはこの2サイトだけです。
-          エステ魂はメールでの投稿ができず、全国エステランキングには写メ日記そのものがありません。
+          駅ちかとエステラブは写メ日記の自動転送ができます。
         </p>
       </div>
 
       {/* ── 正本の注意（二重投稿を防ぐ唯一の仕掛け）───────── */}
+      {/* ★ 青→赤（第85便・カッキー様）。★ ここは「登録しても送っていない」という
+          いちばん誤解される点。★ 目に留まる色にする。 */}
       {!loading && !error && data?.diarySource !== 'fukues' && (
-        <div className="border border-sky-200 bg-sky-50 px-4 py-3">
+        <div className="border border-rose-200 bg-rose-50 px-4 py-3">
           <p className="text-[12px] leading-relaxed text-slate-600">
-            <b className="font-bold text-sky-700">いまは、フクエスから写メ日記を転送していません。</b>{' '}
+            <b className="font-bold text-rose-700">いまは、フクエスから写メ日記を転送していません。</b>{' '}
             投稿先を登録しても、フクエスが正本になるまでは送りません。
             他社経由の転送と二重にならないようにするためです。
           </p>
