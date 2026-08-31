@@ -124,10 +124,10 @@ eq('★★ unregistered 以外に「未登録」と書かない',
 console.log('\n── 6. ★★★ 数えられないものを 0 と書かない ──');
 eq('読めていれば数える',
    v.loginTally({ known: true, statuses: ['enabled', 'unregistered', 'unregistered', 'unregistered'] }),
-   { enabled: 1, disabled: 0, unregistered: 3 });
+   { enabled: 1, disabled: 0, unregistered: 3, closed: 0 });
 // ★★★ 対になる主張。同じ「enabled が無い」でも、読めたかどうかで 0 と null に割れる
 eq('★★ 読めていて1つも無ければ 0',
-   v.loginTally({ known: true, statuses: ['unregistered'] }), { enabled: 0, disabled: 0, unregistered: 1 });
+   v.loginTally({ known: true, statuses: ['unregistered'] }), { enabled: 0, disabled: 0, unregistered: 1, closed: 0 });
 eq('★★ 読めていなければ null（★ 0 と書かない）',
    v.loginTally({ known: false, statuses: ['enabled'] }), null);
 eq("★ known が 'true' という文字列なら null", v.loginTally({ known: 'true', statuses: [] }), null);
@@ -169,6 +169,34 @@ eq('★ 写メ日記は使えることも書く（全部止まったと読ませ
 eq('★ エステ魂はまだ受け付けない', v.canRegisterSite(v.findMediaSite('esutama')), false);
 eq('★ 全国もまだ受け付けない', v.canRegisterSite(v.findMediaSite('zenkoku')), false);
 eq('★ accepting が 1 では受け付けない側に倒す', v.canRegisterSite(site({ accepting: 1 })), false);
+
+
+// ── ★★★ 7-b. サイト側の都合で使えない（第83便）──
+// ★ 第82便でエステラブを閉じ直したあと、画面に【連携中】と【準備中】が同時に出た。
+//   ★ 「連携中」が accepting を見ていなかった。★ 送れないのに「連携中」＝§185 の逆
+eq('★★ 受け付けていないのに登録が残っていれば site_closed',
+   st({ rows: [{ isEnabled: true }], accepting: false }), 'site_closed');
+// ★ 受け付けていなくて登録が無ければ、今までどおり「未登録」（エステ魂・全国）
+eq('受け付けていなくて登録が無ければ unregistered',
+   st({ rows: [], accepting: false }), 'unregistered');
+// ★ 受け付けていれば今までどおり
+eq('受け付けていれば enabled', st({ rows: [{ isEnabled: true }], accepting: true }), 'enabled');
+eq('accepting を渡さなければ今までどおり', st({ rows: [{ isEnabled: true }] }), 'enabled');
+// ★★ 「停止中」と混ぜない（あちらは店舗が止めたもの）
+eq('★ 停止中とは別の言い方', v.loginStatusLabel('site_closed'), '使えません');
+eq('★ 停止中と同じ言葉にしない',
+   v.loginStatusLabel('site_closed') === v.loginStatusLabel('disabled'), false);
+// ★★ 数え落とさない（合計がサイト数に足りなくなるのは §210 の逆）
+eq('★ 使えないものも数える',
+   v.loginTally({ known: true, statuses: ['enabled', 'site_closed', 'unregistered', 'unregistered'] }),
+   { enabled: 1, disabled: 0, unregistered: 2, closed: 1 });
+eq('★★ 4つの合計がサイト数と一致する', (() => {
+     const t = v.loginTally({ known: true, statuses: ['enabled', 'site_closed', 'unregistered', 'unregistered'] });
+     return t.enabled + t.disabled + t.unregistered + t.closed;
+   })(), 4);
+// ★ site_closed を enabled に数えない（「連携中 2」になっていた不具合そのもの）
+eq('★★ 使えないものを連携中に数えない',
+   v.loginTally({ known: true, statuses: ['enabled', 'site_closed'] }).enabled, 1);
 
 console.log(fail === 0 ? '\n★ すべて通った' : '\n★ NG ' + fail + ' 件');
 process.exit(fail === 0 ? 0 : 1);

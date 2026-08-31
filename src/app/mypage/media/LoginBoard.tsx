@@ -218,7 +218,8 @@ export function LoginBoard({
   };
 
   // ★ 上の3つの数。★ 読めていなければ null（0 と書かない）
-  const statuses = MEDIA_SITES.map((s) => siteLoginStatus({ known, rows: rowsOf(s.provider) }));
+  // ★ accepting を渡す（第83便）。★ 渡さないと、送れないサイトが「連携中」になる
+  const statuses = MEDIA_SITES.map((s) => siteLoginStatus({ known, rows: rowsOf(s.provider), accepting: s.accepting }));
   const tally = loginTally({ known, statuses });
 
   return (
@@ -239,6 +240,11 @@ export function LoginBoard({
           ['連携中', tally ? tally.enabled : null, 'text-emerald-700'],
           ['停止中', tally ? tally.disabled : null, 'text-slate-500'],
           ['未登録', tally ? tally.unregistered : null, 'text-amber-700'],
+          // ★ サイト側の都合で使えないもの（第83便）。★ 0 のときは出さない
+          //   ★ 「停止中」に混ぜない（あちらは店舗が止めたもの）
+          ...(tally && tally.closed > 0
+            ? [['使えません', tally.closed, 'text-rose-700'] as [string, number, string]]
+            : []),
         ] as Array<[string, number | null, string]>).map(([label, n, tone], i) => (
           <div key={label} className={`px-3 py-2.5 ${i < 2 ? 'border-r border-slate-200' : ''}`}>
             <div className="text-[10.5px] font-bold text-slate-400">{label}</div>
@@ -265,7 +271,7 @@ export function LoginBoard({
       {/* ── サイトごと ── */}
       {MEDIA_SITES.map((site) => {
         const siteRows = rowsOf(site.provider);
-        const status = siteLoginStatus({ known, rows: siteRows });
+        const status = siteLoginStatus({ known, rows: siteRows, accepting: site.accepting });
         const open = openKey === site.provider;
         const slot = slotOf[site.provider] ?? mediaSiteSlots(site)[0];
         const row = rowAt(site.provider, slot);
@@ -282,13 +288,19 @@ export function LoginBoard({
         const chip =
           status === 'enabled' ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
           : status === 'unregistered' ? 'bg-amber-50 text-amber-700 border-amber-200'
+          // ★ サイト側の都合で使えない（第83便）。★ 停止中の灰色と分ける
+          : status === 'site_closed' ? 'bg-rose-50 text-rose-700 border-rose-200'
           : 'bg-slate-50 text-slate-500 border-slate-200';
 
         const meta = !known
           ? 'まだ読み込めていません'
-          : siteRows.length > 0
-            ? `${siteRows.map((r) => `枠${r.slot}`).join('・')} を登録済み ／ 最後に確認できた ${fmt(anyRow?.lastVerifiedAt ?? null)}`
-            : 'まだ登録されていません';
+          // ★★ 使えないサイトで「登録済み」とだけ書かない（第83便）。
+          //   ★ 登録は残っているが、送っていない。★ そこを言葉にする
+          : status === 'site_closed'
+            ? `${siteRows.map((r) => `枠${r.slot}`).join('・')} の登録は残っていますが、いまは使っていません`
+            : siteRows.length > 0
+              ? `${siteRows.map((r) => `枠${r.slot}`).join('・')} を登録済み ／ 最後に確認できた ${fmt(anyRow?.lastVerifiedAt ?? null)}`
+              : 'まだ登録されていません';
 
         const canRegister = canRegisterSite(site);
         const needConsent = !row || row.needsConsent;
@@ -311,14 +323,18 @@ export function LoginBoard({
                   <span className={`text-[11px] font-bold px-2 py-0.5 border ${chip}`}>
                     {loginStatusLabel(status)}
                   </span>
-                  {!canRegister && (
+                  {/* ★ 「使えません」と出しているときは、重ねて「準備中」を出さない（第83便）。
+                      ★ 2つのバッジが同時に出て、どちらを読めばよいか分からなくなっていた。 */}
+                  {!canRegister && status !== 'site_closed' && (
                     <span className="text-[11px] font-bold px-2 py-0.5 border bg-white text-slate-400 border-slate-200">
                       準備中
                     </span>
                   )}
                 </span>
                 {/* ★★ カッキーさんの要望：このサイトに何が送れるかの可視化 */}
-                <span className="block text-[11.5px] text-slate-400">
+                {/* ★★ 受け付けていないサイトでは「送れるもの」を出さない（第83便）。
+                    ★ 送れないのに「送れるもの：出勤」と出ていた。★ 理由は下の notYet に書いてある。 */}
+                <span className={`block text-[11.5px] text-slate-400 ${canRegister ? '' : 'hidden'}`}>
                   送れるもの：
                   {siteCapabilityLabels(site).map((c) => (
                     <span key={c} className="inline-block border border-slate-200 text-slate-500 px-1.5 mr-1">

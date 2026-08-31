@@ -191,14 +191,34 @@ export function mediaSiteSlots(site: { slots: number }): number[] {
  *   読み込めていないのか、登録が無いのかは別のこと。
  *   ★ 混ぜると「未登録です」と言い切ってしまい、店舗が二重に登録しに行く。
  */
-export type SiteLoginStatus = 'unknown' | 'unregistered' | 'enabled' | 'disabled';
+export type SiteLoginStatus =
+  | 'unknown'
+  | 'unregistered'
+  | 'enabled'
+  | 'disabled'
+  /**
+   * ★★★ サイト側の都合で使えない（第83便）。
+   *   登録は残っているが、こちらから送れない（accepting: false）。
+   *
+   * ★★ なぜ足したか —— カッキー様の指摘で見つかった
+   *   第82便でエステラブを閉じ直したあと、画面に【連携中】と【準備中】が**同時に出た**。
+   *   ★ 「連携中」は登録済みの行があるかだけで決めていて、accepting を見ていなかった。
+   *   ★ **送れないのに「連携中」**。★ §185 の逆で、いちばん悪い形。
+   * ★ 'disabled'（店舗が止めた）と混ぜないこと。★ こちらの都合で止まっているのは別のこと。
+   */
+  | 'site_closed';
 
 export function siteLoginStatus(input: {
   known: boolean;
   rows: ReadonlyArray<{ isEnabled: boolean }>;
+  /** ★ サイトが受け付けているか（mediaSites の accepting）。省略時は true 扱い */
+  accepting?: boolean;
 }): SiteLoginStatus {
   if (input.known !== true) return 'unknown';
   const rows = Array.isArray(input.rows) ? input.rows : [];
+  // ★★ 受け付けていないサイト。★ 登録が無ければ今までどおり「未登録」（エステ魂・全国）。
+  //   ★ 登録が残っているときだけ「使えません」と言う。★ 「連携中」と言わない
+  if (input.accepting === false) return rows.length === 0 ? 'unregistered' : 'site_closed';
   if (rows.length === 0) return 'unregistered';
   return rows.some((r) => r.isEnabled === true) ? 'enabled' : 'disabled';
 }
@@ -207,6 +227,8 @@ export function loginStatusLabel(s: string): string {
   if (s === 'enabled') return '連携中';
   if (s === 'disabled') return '停止中';
   if (s === 'unregistered') return '未登録';
+  // ★ 「停止中」と分ける。停止中は【店舗が止めた】。こちらは【サイト側の都合】
+  if (s === 'site_closed') return '使えません';
   return 'まだ分かりません';
 }
 
@@ -218,13 +240,17 @@ export function loginStatusLabel(s: string): string {
 export function loginTally(input: {
   known: boolean;
   statuses: readonly string[];
-}): { enabled: number; disabled: number; unregistered: number } | null {
+}): { enabled: number; disabled: number; unregistered: number; closed: number } | null {
   if (input.known !== true) return null;
   const list = Array.isArray(input.statuses) ? input.statuses : [];
   return {
     enabled: list.filter((s) => s === 'enabled').length,
     disabled: list.filter((s) => s === 'disabled').length,
     unregistered: list.filter((s) => s === 'unregistered').length,
+    // ★★ 4つ目を足した（第83便）。★ 「停止中」に混ぜない。
+    //   ★ 混ぜると「店舗が止めた」と読める。★ 数えないと合計がサイト数に足りなくなる
+    //     （それは「数えた範囲を言う」§210 の逆）。★ だから足す。
+    closed: list.filter((s) => s === 'site_closed').length,
   };
 }
 
