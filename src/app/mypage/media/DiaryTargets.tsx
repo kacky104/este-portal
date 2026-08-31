@@ -7,6 +7,8 @@ import {
   getMediaOverview,
   startMediaMailImport,
 } from '@/app/actions/mediaCredentials';
+// ★ サイトごとの「投稿先アドレスをどう手に入れるか」は mediaSites.ts が正本（第84便）
+import { findMediaSite } from '@/lib/mediaSites';
 
 // 写メ日記の投稿先（第58便・㉞ その3）。
 //
@@ -104,6 +106,8 @@ export function DiaryTargets({ salonId, onToast }: { salonId: number | null; onT
   const withAddress = rows.filter((r) => r.addressMask.length > 0);
   const shown = showAll ? withAddress : withAddress.slice(0, 5);
   const total = data?.therapists.length ?? 0;
+  // ★ このサイトの投稿先アドレスは、こちらで読めるか／手で入れてもらうか（mediaSites が正本）
+  const manualAddress = findMediaSite(picked)?.diaryAddressSource === 'manual';
 
   return (
     <div className="space-y-3">
@@ -157,7 +161,69 @@ export function DiaryTargets({ salonId, onToast }: { salonId: number | null; onT
         </div>
       )}
 
-      {!loading && !error && site && !site.hasCredential ? (
+      {/* ★★★ 手で入れてもらうサイト（第84便）。
+          ★ これまでは「ログイン情報を登録すると読み取れます」と出していたが、
+            エステラブは /admin へ到達できず（403）**読み取れない**。
+            しかもログイン情報の登録も閉じた。★ **二重に嘘**になっていた。
+          ★ 入力の口は【セラピストさんのページ】に既にある。★ 新しく作らず、そこへ案内する。 */}
+      {!loading && !error && site && manualAddress ? (
+        <div className="bg-white border border-slate-200 shadow-[0_1px_2px_rgba(31,35,51,0.05)] p-5 space-y-3">
+          <div>
+            <p className="text-[17px] font-black text-slate-800">
+              {site.label}の投稿先は、手でご入力ください
+            </p>
+            <p className="mt-1 text-[12px] text-slate-500 leading-relaxed">
+              {site.label}は、フクエスのサーバからの接続を受け付けていないため、
+              投稿用アドレスを自動で読み取れません。お手数ですが、
+              セラピストさんごとに{site.label}の投稿用アドレスをご登録ください。
+              <br />
+              ★ 登録は、セラピストさんのページの「写メ日記の転送先」で行えます。
+            </p>
+          </div>
+
+          {total === 0 ? (
+            <p className="text-[12px] text-slate-400">セラピストさんが登録されていません。</p>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-[12px]">
+                <thead>
+                  <tr className="text-slate-400 text-left">
+                    <th className="font-medium py-1 pr-3 whitespace-nowrap">セラピスト</th>
+                    <th className="font-medium py-1 pr-3 whitespace-nowrap">投稿先</th>
+                    <th className="font-medium py-1 whitespace-nowrap"></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {(data?.therapists ?? []).map((t) => {
+                    const f = rows.find((r) => r.therapistId === t.id);
+                    return (
+                      <tr key={t.id} className="border-t border-slate-100">
+                        <td className="py-1.5 pr-3 text-slate-700 break-words">{t.name || '（名前なし）'}</td>
+                        <td className="py-1.5 pr-3 whitespace-nowrap tabular-nums">
+                          {f && f.addressMask.length > 0 ? (
+                            <span className="text-slate-500">{f.addressMask}</span>
+                          ) : (
+                            // ★ 「未登録」と言い切ってよい（読めていないのではなく、こちらのDBを見ている）
+                            <span className="text-amber-700 font-bold">未登録</span>
+                          )}
+                        </td>
+                        <td className="py-1.5 whitespace-nowrap">
+                          <Link
+                            href={`/mypage/therapist/${t.id}`}
+                            className="text-[11.5px] font-bold px-2.5 py-1 border border-slate-200 text-slate-600"
+                          >
+                            {f && f.addressMask.length > 0 ? '変える' : '入力する'}
+                          </Link>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      ) : !loading && !error && site && !site.hasCredential ? (
         <div className="bg-white border border-slate-200 shadow-[0_1px_2px_rgba(31,35,51,0.05)] p-5">
           <p className="text-[17px] font-black text-slate-800">{site.label}とはまだ連携していません</p>
           <p className="mt-1 text-[12px] text-slate-500 leading-relaxed">

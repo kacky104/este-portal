@@ -73,6 +73,19 @@ export type MediaSite = {
    *   いま登録済みの店舗が居るので **この便では触らない**（true のまま）。
    * ★ エステ魂・全国は実物を見ていないので決めない。見たときに直す。
    */
+  /**
+   * ★★ 写メ日記の投稿先アドレスを、どう手に入れるか（第84便）。
+   *   'read'   … 管理画面から読み取れる（駅ちか /admin/maillist/・第53便）
+   *   'manual' … ★ 手で入力してもらう（★ こちらから読めない）
+   *   'none'   … そもそも写メ日記を受け取れない
+   *
+   * ★★★ なぜ要るか
+   *   エステラブは /admin へ到達できない（403・追記61 §333）。★ 読み取れない。
+   *   ★ それなのに画面は「ログイン情報を登録すると読み取れます」と書いていた。
+   *     ★ 登録もできない（第82便で閉じた）ので、**二重に嘘**になっていた。
+   *   → サイトごとの手の入れ方を、ここ1か所に書く。★ 画面はここを読む。
+   */
+  diaryAddressSource: 'read' | 'manual' | 'none';
   needsShopId: boolean;
   /** ★ needsShopId が true のときだけ使う */
   idLabel: string;
@@ -89,6 +102,8 @@ export const MEDIA_SITES: readonly MediaSite[] = [
     accepting: true,
     notYet: '',
     stageNote: '',
+    // ★ /admin/maillist/ から読み取れる（第53便）
+    diaryAddressSource: 'read',
     needsShopId: true,
     idLabel: '店舗ID（shopid）',
     idHint:
@@ -117,6 +132,8 @@ export const MEDIA_SITES: readonly MediaSite[] = [
       'エステラブは、フクエスのサーバからの接続を受け付けていませんでした。' +
       'そのため出勤を送ることができません。写メ日記の転送（メール）は、これまでどおりお使いいただけます。',
     stageNote: '',
+    // ★★ /admin が 403 なので読み取れない。★ 手で入れてもらう（第84便）
+    diaryAddressSource: 'manual',
     // ★★ エステラブのログインは login_id と login_password の2つだけ。店舗IDは使わない
     needsShopId: false,
     idLabel: '',
@@ -131,6 +148,8 @@ export const MEDIA_SITES: readonly MediaSite[] = [
     accepting: false,
     notYet: 'エステ魂へ送る仕組みを準備しています。できあがるまで、ログイン情報はお預かりしません。',
     stageNote: '',
+    // ★ メールでの投稿ができない（画面にもそう書いてある）
+    diaryAddressSource: 'none',
     // ★ 実物を見ていないので決めない。★ 受け付けていないので画面には出ない
     needsShopId: true,
     idLabel: '店舗ID',
@@ -145,6 +164,8 @@ export const MEDIA_SITES: readonly MediaSite[] = [
     accepting: false,
     notYet: '全国エステランキングへ送る仕組みを準備しています。できあがるまで、ログイン情報はお預かりしません。',
     stageNote: '',
+    // ★ 写メ日記そのものが無い
+    diaryAddressSource: 'none',
     // ★ 実物を見ていないので決めない。★ 受け付けていないので画面には出ない
     needsShopId: true,
     idLabel: '店舗ID',

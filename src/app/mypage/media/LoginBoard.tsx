@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
+import Link from 'next/link';
 import {
   MEDIA_SITES,
   siteCapabilityLabels,
@@ -491,6 +492,19 @@ export function LoginBoard({
                       {site.name}のログイン情報は、まだお預かりしていません
                     </p>
                     <p className="text-[11.5px] text-amber-900/80 leading-relaxed mt-0.5">{site.notYet}</p>
+                    {/* ★★ 手で入れれば写メ日記だけは送れるサイト（第84便）。
+                        ★ 「使えません」で終わらせず、**できることへの道**を出す。
+                        ★ できないことだけ言うと、店舗は使える機能まで諦める。 */}
+                    {site.diaryAddressSource === 'manual' && (
+                      <p className="text-[11.5px] text-amber-900/80 leading-relaxed mt-2">
+                        ★ 写メ日記は、これまでどおりお送りできます。
+                        {site.name}の投稿用アドレスは自動で読み取れないため、
+                        セラピストさんごとに手でご入力いただく形になります。{' '}
+                        <Link href="/mypage/media/diary" className="font-bold underline">
+                          写メ日記の投稿先を開く
+                        </Link>
+                      </p>
+                    )}
                   </div>
                 ) : (
                   <div className="border-t border-slate-100 pt-4 space-y-3">

@@ -198,5 +198,20 @@ eq('★★ 4つの合計がサイト数と一致する', (() => {
 eq('★★ 使えないものを連携中に数えない',
    v.loginTally({ known: true, statuses: ['enabled', 'site_closed'] }).enabled, 1);
 
+
+// ── ★★ 写メ日記の投稿先アドレスを、どう手に入れるか（第84便）──
+// ★ エステラブは /admin へ到達できない（403）。★ 読み取れないので手で入れてもらう
+eq('★ エステラブは手で入れる', v.findMediaSite('esulove').diaryAddressSource, 'manual');
+eq('駅ちかは読み取れる（/admin/maillist/）', v.findMediaSite('ekichika').diaryAddressSource, 'read');
+// ★ 写メ日記を受け取れないサイトは 'none'
+eq('エステ魂は写メ日記を受け取れない', v.findMediaSite('esutama').diaryAddressSource, 'none');
+eq('全国も写メ日記を受け取れない', v.findMediaSite('zenkoku').diaryAddressSource, 'none');
+// ★★ can に diary があるサイトは、必ず read か manual（★ 送れると書いて手が無い状態を作らない）
+eq('★ 写メ日記が送れるサイトには、必ずアドレスの入手手段がある',
+  v.MEDIA_SITES.filter((s) => s.can.includes('diary') && s.diaryAddressSource === 'none').length, 0);
+// ★★ 逆も。read/manual なのに can に diary が無いのはおかしい
+eq('★ 入手手段があるサイトは、写メ日記が送れると書いてある',
+  v.MEDIA_SITES.filter((s) => s.diaryAddressSource !== 'none' && !s.can.includes('diary')).length, 0);
+
 console.log(fail === 0 ? '\n★ すべて通った' : '\n★ NG ' + fail + ' 件');
 process.exit(fail === 0 ? 0 : 1);
