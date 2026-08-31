@@ -33,16 +33,16 @@ eq('受け付けていないサイトには理由がある',
 // ★ 受け付けているサイトに notYet を残さない（古い理由が出続けるため）
 eq('★ 受け付けたら notYet を消す',
   v.MEDIA_SITES.filter(s => s.accepting && s.notYet !== '').length, 0);
-// ★ エステラブは開いていて、まだ全部はできないと書いてある
-eq('エステラブは受け付けている', v.findMediaSite('esulove').accepting, true);
-eq('★ エステラブは「どこまでできるか」を書いてある',
-  v.findMediaSite('esulove').stageNote.length > 0, true);
+// ★ 第82便でエステラブを閉じ直したので、stageNote は空・notYet に理由がある
+eq('エステラブは受け付けていない', v.findMediaSite('esulove').accepting, false);
+eq('★ 閉じたので stageNote は空', v.findMediaSite('esulove').stageNote, '');
 eq('駅ちかは段の断りが要らない', v.findMediaSite('ekichika').stageNote, '');
 
 
 // ── ★★ 店舗IDを預かるか（第81便）──
 // ★ エステラブはログインに店舗IDを使わない（実測）。★ 出すとオーナーが「？」になる
 eq('★ エステラブは店舗IDを預からない', v.findMediaSite('esulove').needsShopId, false);
+// ★ 受け付けていないので画面には出ないが、決めたことは残す
 eq('駅ちかは店舗IDを預かる', v.findMediaSite('ekichika').needsShopId, true);
 // ★ 預からないサイトでは、欄の見出しも説明も持たない（出さないものに文言を残さない）
 eq('★ 預からないサイトに欄の見出しを残さない', v.findMediaSite('esulove').idLabel, '');
@@ -55,9 +55,10 @@ console.log('── 1. 表そのもの ──');
 eq('4サイトある', v.MEDIA_SITES.length, 4);
 eq('★ 読めるのは1つだけ（駅ちか）', v.MEDIA_SITES.filter((s) => s.readable).length, 1);
 eq('★ 読めるのは駅ちか', v.MEDIA_SITES.find((s) => s.readable).provider, 'ekichika');
-// ★ 2026-08-31（第80便）でエステラブを開けた。★ 増やすときは、ここも一緒に直す
-eq('★ いま受け付けているのは駅ちかとエステラブ',
-   v.MEDIA_SITES.filter((s) => s.accepting).map((s) => s.provider), ['ekichika', 'esulove']);
+// ★ 第80便でエステラブを開けたが、★ 第82便で閉じ直した（403・追記61 §333）。
+//   ★ 増やす／減らすときは、ここも一緒に直す
+eq('★ いま受け付けているのは駅ちかだけ',
+   v.MEDIA_SITES.filter((s) => s.accepting).map((s) => s.provider), ['ekichika']);
 // ★★ 受け付けていないサイトには、必ず理由の文がある（黙って押せない口を作らない）
 eq('★★ 受け付けないサイトには理由が書いてある',
    v.MEDIA_SITES.filter((s) => !s.accepting).every((s) => s.notYet.length > 0), true);
@@ -158,8 +159,13 @@ eq('★ 知らない値は unset の文', v.loginDirectionText('なにか', '駅
 
 console.log('\n── 8. 受け付けているか ──');
 eq('駅ちかは受け付ける', v.canRegisterSite(v.findMediaSite('ekichika')), true);
-// ★★ 2026-08-31（第80便）で開けた。★ ただし出勤はまだ送れないので stageNote で断る
-eq('★ エステラブも受け付ける（第80便で開けた）', v.canRegisterSite(v.findMediaSite('esulove')), true);
+// ★★ 第82便で閉じ直した。★ 送り先が無いのに鍵だけ預からない（§185）
+eq('★ エステラブは受け付けない（第82便で閉じ直した）',
+   v.canRegisterSite(v.findMediaSite('esulove')), false);
+// ★ 閉じたなら、理由が書いてあること
+eq('★ 閉じた理由が書いてある', v.findMediaSite('esulove').notYet.length > 0, true);
+eq('★ 写メ日記は使えることも書く（全部止まったと読ませない）',
+   /写メ日記/.test(v.findMediaSite('esulove').notYet), true);
 eq('★ エステ魂はまだ受け付けない', v.canRegisterSite(v.findMediaSite('esutama')), false);
 eq('★ 全国もまだ受け付けない', v.canRegisterSite(v.findMediaSite('zenkoku')), false);
 eq('★ accepting が 1 では受け付けない側に倒す', v.canRegisterSite(site({ accepting: 1 })), false);
