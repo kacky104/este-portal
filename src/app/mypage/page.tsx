@@ -14,6 +14,7 @@ import { JobsTab } from '@/app/mypage/JobsTab';
 import { BookingBoard } from '@/app/mypage/BookingBoard';
 import { SupportTab } from '@/app/mypage/SupportTab';
 import { getBusinessDateJST, getBusinessDateRangeJST } from '@/lib/dutyStatus';
+import { snapClockPair } from '@/lib/timeSnap';
 import { isCastLiveRow, isOwnerLiveRow, isImportLiveRow } from '@/lib/imasugu';
 import { MyDiaryList } from './MyDiaryList';
 import { inviteCast, resendCastInvite, unlinkCast, cancelCastInvite } from '@/app/actions/castInvite';
@@ -1415,14 +1416,32 @@ export default function MyPage() {
 
   const handleScheduleSave = async (therapistId: string) => {
     setSavingSchedule(therapistId);
+    // ★★ 保存の前に30分刻みへ内側に寄せる（第75便）。
+    //   ★ 手打ちの欄からは 12:15 のような時刻を入れられるので、ピッカーだけでは揃わない。
+    //   ★ 黙って書き換えない——寄せた枠は数えて、保存後にそのまま伝える。
+    //   ★ 寄せると勤務が無くなる枠（12:15〜12:30）は【そのまま残し】、別に伝える。
+    let snappedCount = 0;
+    const keptAsIs: string[] = [];
     const rows = sevenDays.map(dateStr => {
       const s = schedules[therapistId]?.[dateStr] ?? { is_active: false, start_time: null, end_time: null };
+      let start = s.start_time;
+      let end = s.end_time;
+      if (s.is_active && start && end) {
+        const snapped = snapClockPair(start, end);
+        if (snapped.ok) {
+          if (snapped.changed) snappedCount += 1;
+          start = snapped.start;
+          end = snapped.end;
+        } else {
+          keptAsIs.push(start + '〜' + end);
+        }
+      }
       return {
         therapist_id: therapistId,
         schedule_date: dateStr,
         is_active: s.is_active,
-        start_time: s.is_active ? s.start_time : null,
-        end_time: s.is_active ? s.end_time : null,
+        start_time: s.is_active ? start : null,
+        end_time: s.is_active ? end : null,
       };
     });
     const { error } = await supabase
@@ -1434,8 +1453,25 @@ export default function MyPage() {
       // これが無いと出勤表は revalidate=600 の時間経過まで古いキャッシュのまま固着する。
       if (salon) revalidateSalon(salon.id);
       revalidateTherapist(therapistId);
+      // ★ 画面の値も、保存した値に合わせる（寄せた結果が見えないと「効いていない」に見える）
+      setSchedules(prev => {
+        const next = { ...prev };
+        const cur = { ...(next[therapistId] ?? {}) };
+        rows.forEach(r => {
+          const before = cur[r.schedule_date];
+          if (before) cur[r.schedule_date] = { ...before, start_time: r.start_time, end_time: r.end_time };
+        });
+        next[therapistId] = cur;
+        return next;
+      });
     }
-    showToast(error ? '保存に失敗しました' : 'スケジュールを保存しました');
+    // ★★ 起きたことを必ず言葉にする（§14-3）。黙って時刻を書き換えない
+    if (error) showToast('保存に失敗しました');
+    else if (keptAsIs.length > 0)
+      showToast('スケジュールを保存しました（' + keptAsIs.join('・') + ' は30分単位にできないため、そのままです）');
+    else if (snappedCount > 0)
+      showToast('スケジュールを保存しました（' + snappedCount + '件を30分単位に寄せました）');
+    else showToast('スケジュールを保存しました');
   };
 
   const handleTherapistAdd = async () => {
