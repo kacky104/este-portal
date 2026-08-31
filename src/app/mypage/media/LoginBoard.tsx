@@ -18,6 +18,8 @@ import {
   MEDIA_CONSENT_SECTIONS,
   MEDIA_CONSENT_AGREE_LABEL,
 } from '@/lib/mediaConsent';
+// ★ 「変える」の選択肢と文は1か所から出す（第87便）。★ ホームと同じものを使う
+import { switchChoices, switchDoneText } from '@/lib/mediaOverview';
 import {
   getMediaCredentials,
   saveMediaCredential,
@@ -193,7 +195,11 @@ export function LoginBoard({
     setBusy('');
     if (!res.ok) { onToast(res.error); return; }
     await load();
-    onToast(next ? '連携を再開しました' : '連携を停止しました');
+    // ★★ このボタンが倒すのは【鍵】の旗であって、連携そのものではない（第87便で確かめた）。
+    //   ★ 「連携を停止しました」と書くと、取り込みまで止まったと読める。★ 止まらない
+    onToast(next
+      ? 'このログイン情報を、また使うようにしました'
+      : 'このログイン情報を使わないようにしました。送るのをやめるときは、ホームで「フクエスだけで使う」を押してください');
   };
 
   const onDelete = async (site: MediaSite, slot: number) => {
@@ -208,14 +214,15 @@ export function LoginBoard({
     onToast('ログイン情報を削除しました');
   };
 
-  const onSwitchMode = async (site: MediaSite, slot: number, mode: string) => {
+  const onSwitchMode = async (site: MediaSite, slot: number, mode: 'read' | 'write' | 'none') => {
     if (salonId == null) return;
     setBusy(`mode:${site.provider}:${slot}`);
     const res = await setMediaLinkMode({ salonId, provider: site.provider, slot, mode });
     setBusy('');
     if (!res.ok) { onToast(res.error); return; }
     await load();
-    onToast('入力する場所を変えました');
+    // ★ ホームと同じ文を使う。★ 2か所で違う言い方をしない（第87便）
+    onToast(switchDoneText(mode, site.name));
   };
 
   // ★ 上の3つの数。★ 読めていなければ null（0 と書かない）
@@ -360,16 +367,25 @@ export function LoginBoard({
                 <div className="border border-slate-200 bg-slate-50 px-3 py-2.5">
                   <p className="text-[12.5px] font-bold text-indigo-700">{dirText.title}</p>
                   <p className="text-[11.5px] text-slate-500 leading-relaxed mt-0.5">{dirText.desc}</p>
-                  {/* ★ 切り替えは読めるサイトだけ。★ 押しても向こうへは何も送らない */}
-                  {site.readable && row && (dir === 'read' || dir === 'write') && row.linkMode !== 'write_auto' && (
-                    <button
-                      type="button"
-                      onClick={() => onSwitchMode(site, slot, dir === 'read' ? 'write' : 'read')}
-                      disabled={busy !== '' || !row.isEnabled}
-                      className="mt-2 px-3 py-1 border border-slate-300 bg-white text-[11.5px] font-bold text-slate-600 hover:bg-slate-50 disabled:opacity-40"
-                    >
-                      {dir === 'read' ? 'フクエスに変える' : `${site.name}に変える`}
-                    </button>
+                  {/* ★ 切り替えは読めるサイトだけ。★ 押しても向こうへは何も送らない
+                      ★★ 選択肢はホームと同じ関数から出す（第87便）。★ 2か所でずれない */}
+                  {site.readable && row && row.linkMode !== 'write_auto' && (
+                    <div className="mt-2 flex flex-wrap gap-2">
+                      {switchChoices(
+                        dir === 'read' || dir === 'write' || dir === 'off' ? dir : 'unset',
+                        site.name,
+                      ).map((c) => (
+                        <button
+                          key={c.mode}
+                          type="button"
+                          onClick={() => onSwitchMode(site, slot, c.mode)}
+                          disabled={busy !== '' || !row.isEnabled}
+                          className="px-3 py-1 border border-slate-300 bg-white text-[11.5px] font-bold text-slate-600 hover:bg-slate-50 disabled:opacity-40"
+                        >
+                          {c.label}
+                        </button>
+                      ))}
+                    </div>
                   )}
                   {row?.linkMode === 'write_auto' && (
                     <p className="mt-1.5 text-[11px] text-slate-400 leading-relaxed">
@@ -446,7 +462,7 @@ export function LoginBoard({
                         disabled={busy !== ''}
                         className="px-3 py-1 border border-slate-200 text-[11.5px] font-bold text-slate-500 hover:text-slate-700 disabled:opacity-40"
                       >
-                        {row.isEnabled ? '連携を停止' : '再開する'}
+                        {row.isEnabled ? 'このログイン情報を使わない' : 'また使う'}
                       </button>
                       {confirmDelete === `${site.provider}:${slot}` ? (
                         <button

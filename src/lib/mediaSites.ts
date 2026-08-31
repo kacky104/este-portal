@@ -283,10 +283,12 @@ export function loginTally(input: {
  * ★★ 'send_only' は【向きの選択肢ではない】。読む口が無いサイトの事実。
  *   ★ link_mode に何が入っていても、読めないサイトを read と見せてはいけない。
  */
-export type LoginDirection = 'send_only' | 'read' | 'write' | 'unset';
+export type LoginDirection = 'send_only' | 'read' | 'write' | 'off' | 'unset';
 
 export function loginDirection(input: { readable: boolean; linkMode: string | null }): LoginDirection {
   if (input.readable !== true) return 'send_only';
+  // ★★ 'none' は【選んだ結果】。★ 未設定と混ぜない（第87便・mediaOverview と揃える）
+  if (input.linkMode === 'none') return 'off';
   if (input.linkMode === 'read') return 'read';
   if (input.linkMode === 'write' || input.linkMode === 'write_auto') return 'write';
   return 'unset';
@@ -309,6 +311,13 @@ export function loginDirectionText(d: string, siteName: string): { title: string
     return {
       title: `フクエスから${siteName}へ反映します`,
       desc: `フクエスの内容を${siteName}へ書き込みます。このあいだ、${siteName}からの取り込みは行いません。`,
+    };
+  }
+  if (d === 'off') {
+    return {
+      title: 'フクエスだけで使っています',
+      // ★★ 選んで止めているのだから、失敗のようにも「使えていない」ようにも書かない（§223）
+      desc: `出勤はフクエスに入力します。${siteName}をはじめ、どのサイトへも送りません。${siteName}からの取り込みもしません。ホームでいつでも変えられます。`,
     };
   }
   // ★ unset。★ 「連携しません」と言い切らない（まだ決まっていないだけ）

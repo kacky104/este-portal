@@ -41,7 +41,13 @@ console.log('\n── 2-2. ★★ 分からないときは書かない側（unse
 eq('★ 止めてある枠は unset', dir({ sourceEnabled: false }), 'unset');
 eq('★★ 止めてある枠は read でも unset', dir({ linkMode: 'read', sourceEnabled: false }), 'unset');
 eq('★ link_mode が null なら unset', dir({ linkMode: null }), 'unset');
-eq("★ link_mode が 'none' なら unset", dir({ linkMode: 'none' }), 'unset');
+// ★★★ 'none' は「選んだ結果」。★ 未設定と混ぜない（第87便・§223 と同じ形）
+eq("★★ link_mode が 'none' なら off（unset ではない）", dir({ linkMode: 'none' }), 'off');
+eq('★★ 鍵が無くても off は off（送らないのに鍵は要らない）',
+   dir({ linkMode: 'none', hasCredential: false }), 'off');
+eq('★★ 枠を止めてあっても、選んだ off のほうが強い',
+   dir({ linkMode: 'none', sourceEnabled: false }), 'off');
+eq('★★ 書くだけの媒体でも none は off', dir({ provider: LOVE, linkMode: 'none' }), 'off');
 // ★★★ 対になる主張。書くだけの媒体でも、null を write に読み替えない
 eq('★★ 書くだけの媒体でも、null を write に読み替えない',
    dir({ provider: LOVE, linkMode: null }), 'unset');
@@ -63,7 +69,11 @@ eq('read の名前', v.directionLabel('read', '駅ちか'), '駅ちかで入力'
 eq('★ 媒体の名前は決め打ちにしない', v.directionLabel('read', 'エステ魂'), 'エステ魂で入力');
 eq('★ 名前が分からないときは名前を出さない', v.directionLabel('read', ''), 'サイト側で入力');
 eq('write の名前', v.directionLabel('write', '駅ちか'), 'フクエスで入力');
+eq('off の名前', v.directionLabel('off', '駅ちか'), 'フクエスだけ');
 eq('unset の名前', v.directionLabel('unset', '駅ちか'), '未設定');
+// ★★ 対になる主張。選んだ off を「未設定」と書かない
+eq('★★ off と unset は同じ名前にしない',
+   v.directionLabel('off', '駅ちか') === v.directionLabel('unset', '駅ちか'), false);
 eq('★ 知らない値でも未設定に落とす', v.directionLabel('なにか', '駅ちか'), '未設定');
 // ★ 店舗が読む文言。内部名が混ざっていないこと
 eq('★ 名前に内部名が混ざらない',
@@ -72,23 +82,38 @@ eq('★ 名前に内部名が混ざらない',
 eq('★★ 「向き」と書かない',
    ['read', 'write', 'unset'].some((d) => v.directionLabel(d, '駅ちか').includes('向き')), false);
 
-console.log('\n── 4-2. ★★★ 「変える」ボタンは行き先を名前にする（第86便その2）──');
-eq('read から押すとフクエスへ', v.switchButtonLabel('read', '駅ちか'), 'フクエスに変える');
-eq('write から押すと媒体へ', v.switchButtonLabel('write', '駅ちか'), '駅ちかに変える');
-eq('★ 媒体の名前は決め打ちにしない', v.switchButtonLabel('write', 'エステ魂'), 'エステ魂に変える');
-// ★★ 対になる主張。変える先が決まっていないのに「変える」と書かない
-eq('★★ 未設定では文字を出さない', v.switchButtonLabel('unset', '駅ちか'), '');
-eq('★ 知らない値でも文字を出さない', v.switchButtonLabel('なにか', '駅ちか'), '');
+console.log('\n── 4-2. ★★★ 「変える」ボタンは行き先を名前にする（第86便その2・第87便）──');
+const modes = (d, name) => v.switchChoices(d, name || '駅ちか').map((c) => c.mode);
+const labels = (d, name) => v.switchChoices(d, name || '駅ちか').map((c) => c.label);
+
+eq('read からは write と none の2つ', modes('read'), ['write', 'none']);
+eq('write からは read と none の2つ', modes('write'), ['read', 'none']);
+eq('off からは read と write の2つ', modes('off'), ['read', 'write']);
+// ★★★ 対になる主張。いまの状態は選択肢に出さない（押しても何も起きないボタンを作らない）
+eq('★★★ いまの状態は出さない',
+   ['read', 'write', 'off'].some((d) => modes(d).includes(d === 'off' ? 'none' : d)), false);
+// ★★ 変える先が決まっていないのに「変える」と書かない
+eq('★★ 未設定からは1つも出さない', modes('unset'), []);
+eq('★ 知らない値からも出さない', modes('なにか'), []);
+
+eq('read の文字', labels('read'), ['フクエスに変える', 'フクエスだけで使う']);
+eq('write の文字', labels('write'), ['駅ちかに変える', 'フクエスだけで使う']);
+eq('★ 媒体の名前は決め打ちにしない', labels('write', 'エステ魂')[0], 'エステ魂に変える');
+// ★★★ off の店はもうフクエスで入力している。★ そこに「フクエスに変える」と書かない
+eq('★★★ off から write は「フクエスに変える」と書かない',
+   labels('off').includes('フクエスに変える'), false);
+eq('off の文字', labels('off'), ['駅ちかに変える', '各サイトへ送るようにする']);
+
 // ★★ 1回押すだけで変わる。★ だから【止まるほう】を押した直後に必ず言う
-eq('★★ read → 止まるのは取り込み',
-   v.switchDoneText('read', '駅ちか').includes('取り込みは止まります'), true);
-eq('★★ write → 止まるのは反映',
-   v.switchDoneText('write', '駅ちか').includes('反映は止まります'), true);
-eq('★ 未設定では文を出さない', v.switchDoneText('unset', '駅ちか'), '');
-eq('read の行き先は write', v.switchTargetMode('read'), 'write');
-eq('write の行き先は read', v.switchTargetMode('write'), 'read');
-eq('★★ 未設定からは決めない', v.switchTargetMode('unset'), null);
-eq('★ 知らない値からも決めない', v.switchTargetMode('なにか'), null);
+eq('★★ write へ → 止まるのは取り込み',
+   v.switchDoneText('write', '駅ちか').includes('取り込みは止まります'), true);
+eq('★★ read へ → 送らないことを言う',
+   v.switchDoneText('read', '駅ちか').includes('フクエスからは送りません'), true);
+eq('★★★ none へ → 送らないことと取り込まないことの両方を言う',
+   v.switchDoneText('none', '駅ちか').includes('どのサイトへも送らず')
+   && v.switchDoneText('none', '駅ちか').includes('取り込みもしません'), true);
+eq('★ どの行き先でも文が空にならない',
+   ['read', 'write', 'none'].every((m) => v.switchDoneText(m, '駅ちか').length > 0), true);
 
 console.log('\n── 5. ★ 切り替えを出すのは読める媒体だけ ──');
 const sw = (o) => v.canSwitchDirection(facts(o));
@@ -98,6 +123,8 @@ eq('★★ エステラブには出さない', sw({ provider: LOVE }), false);
 // ★ 切り替え（read → write）には鍵が要る。★ 鍵が無いうちはボタンを出さない
 eq('★ ログイン情報が無ければ出さない', sw({ hasCredential: false }), false);
 eq('★ 止めてある枠にも出す（戻せるように）', sw({ sourceEnabled: false }), true);
+// ★★ off にした店にも出す。★ 出さないと、戻す道が画面から消える
+eq('★★ off の枠にも出す（戻せるように）', sw({ linkMode: 'none' }), true);
 
 console.log('\n── 6. ★★ 次の取り込み。★ 過ぎている「次」は出さない ──');
 const NOW = new Date('2026-08-30T06:20:00+09:00');

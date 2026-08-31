@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { getMediaOverview, setMediaLinkMode } from '@/app/actions/mediaCredentials';
-import { switchButtonLabel, switchDoneText, switchTargetMode, type SiteDirection } from '@/lib/mediaOverview';
+import { switchChoices, switchDoneText, type SiteDirection } from '@/lib/mediaOverview';
 
 // 媒体連携の入口（第56便・㉞）。
 //
@@ -62,6 +62,8 @@ function fmtTime(iso: string | null): string {
 const PILL: Record<string, string> = {
   read: 'bg-emerald-50 text-emerald-700 border-emerald-200',
   write: 'bg-sky-50 text-sky-700 border-sky-200',
+  // ★ off は【選んだ結果】。★ 未設定の灰色と分ける（第87便）
+  off: 'bg-slate-100 text-slate-600 border-slate-300',
   unset: 'bg-white text-slate-400 border-slate-200',
 };
 
@@ -138,18 +140,15 @@ export function MediaHome({ salonId, salonName, onToast }: {
    * ★ 自動で反映しているあいだは出さない。★ 一度に2つ変えると、
    *   どちらのつもりで押したのかが分からなくなる（WorkSend.onSwitchAuto と同じ理由）。
    */
-  const onSwitch = async (s: Site) => {
+  const onSwitch = async (s: Site, mode: 'read' | 'write' | 'none') => {
     if (salonId == null) return;
-    const from = s.direction as SiteDirection;
-    const mode = switchTargetMode(from);
-    if (mode == null) return;
     setSwitching(s.provider + '#' + s.slot);
     const res = await setMediaLinkMode({ salonId, provider: s.provider, slot: s.slot, mode });
     if (!res.ok) { setSwitching(''); onToast(res.error); return; }
     const back = await getMediaOverview({ salonId });
     if (back.ok) setData(back.data);
     setSwitching('');
-    onToast(switchDoneText(from, s.label));
+    onToast(switchDoneText(mode, s.label));
   };
 
   const sites = data?.sites ?? [];
@@ -244,7 +243,8 @@ export function MediaHome({ salonId, salonName, onToast }: {
         ) : (
           <div className="divide-y divide-slate-100">
             {sites.map((s) => (
-              <div key={s.provider + '#' + s.slot} className="flex items-center gap-3 py-3">
+              <div key={s.provider + '#' + s.slot} className="py-3">
+                <div className="flex items-center gap-3">
                 <span className="min-w-0 flex-1">
                   <b className="block text-[13px] font-bold text-slate-700">{s.label}</b>
                   <span className="block text-[11px] text-slate-400 tabular-nums">
@@ -252,7 +252,10 @@ export function MediaHome({ salonId, salonName, onToast }: {
                       ? (fmt(s.listLastRunAt) ? `最後の読み取り ${fmt(s.listLastRunAt)}` : 'まだ読み取っていません')
                       : s.direction === 'write'
                         ? (fmt(s.lastWriteOkAt) ? `最後の反映 ${fmt(s.lastWriteOkAt)}` : 'まだ反映していません')
-                        : (s.hasCredential ? '入力する場所が決まっていません' : 'ログイン情報がまだありません')}
+                        // ★★ 選んで止めているのだから、失敗のように書かない（§223）
+                        : s.direction === 'off'
+                          ? 'どこにも送らず、取り込みもしていません'
+                          : (s.hasCredential ? '入力する場所が決まっていません' : 'ログイン情報がまだありません')}
                   </span>
                 </span>
                 <span className={`flex-none text-[11px] font-bold px-3 py-0.5 border ${PILL[s.direction] ?? PILL.unset}`}>
@@ -269,7 +272,7 @@ export function MediaHome({ salonId, salonName, onToast }: {
                     自動をやめる
                   </Link>
                 )}
-                {/* ★★ 未設定のときはボタンを出さない。★ 変える先が決まっていない */}
+                {/* ★★ 未設定のときは「変える」を出さない。★ 変える先が決まっていない */}
                 {s.canSwitch && !s.autoOn && s.direction === 'unset' && (
                   <Link
                     href="/mypage/media/login"
@@ -278,17 +281,24 @@ export function MediaHome({ salonId, salonName, onToast }: {
                     設定する
                   </Link>
                 )}
-                {s.canSwitch && !s.autoOn && s.direction !== 'unset' && (
-                  <button
-                    type="button"
-                    onClick={() => void onSwitch(s)}
-                    disabled={switching !== ''}
-                    className="flex-none text-[11px] font-bold px-3 py-1.5 border border-slate-300 bg-white text-slate-600 hover:bg-slate-50 disabled:opacity-40"
-                  >
-                    {switching === s.provider + '#' + s.slot
-                      ? '変えています…'
-                      : switchButtonLabel(s.direction as SiteDirection, s.label)}
-                  </button>
+                </div>
+
+                {/* ★★ 選べる先は2つある（第87便）。★ 横に並べると名前が読めなくなるので下の段へ。
+                    ★ いまの状態は出さない（switchChoices が外している） */}
+                {s.canSwitch && !s.autoOn && (
+                  <div className="mt-2 flex flex-wrap gap-2">
+                    {switchChoices(s.direction as SiteDirection, s.label).map((c) => (
+                      <button
+                        key={c.mode}
+                        type="button"
+                        onClick={() => void onSwitch(s, c.mode)}
+                        disabled={switching !== ''}
+                        className="text-[11px] font-bold px-3 py-1.5 border border-slate-300 bg-white text-slate-600 hover:bg-slate-50 disabled:opacity-40"
+                      >
+                        {switching === s.provider + '#' + s.slot ? '変えています…' : c.label}
+                      </button>
+                    ))}
+                  </div>
                 )}
               </div>
             ))}
@@ -297,6 +307,7 @@ export function MediaHome({ salonId, salonName, onToast }: {
 
         <p className="mt-3 text-[11px] text-slate-400 leading-relaxed">
           出勤を入力する場所は、駅ちかとフクエスのどちらか一方です。両方には入れられません。
+          「フクエスだけで使う」を選ぶと、どのサイトへも送らず、取り込みもしません。
           選べるのは駅ちかだけで、ほかのサイトへは反映するだけです。
         </p>
       </div>

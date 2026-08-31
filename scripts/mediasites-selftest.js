@@ -142,7 +142,8 @@ eq('★★ 書くだけのサイトは link_mode が null でも send_only',
 eq('write は write', v.loginDirection({ readable: true, linkMode: 'write' }), 'write');
 eq('★ write_auto も画面上は write', v.loginDirection({ readable: true, linkMode: 'write_auto' }), 'write');
 eq('★ 駅ちかで link_mode が null なら unset', v.loginDirection({ readable: true, linkMode: null }), 'unset');
-eq("★ 'none' も unset", v.loginDirection({ readable: true, linkMode: 'none' }), 'unset');
+// ★★ 第87便で 'none' は off（選んだ結果）になった。★ unset（まだ決めていない）と分ける
+eq("★★ 'none' は off。unset と混ぜない", v.loginDirection({ readable: true, linkMode: 'none' }), 'off');
 eq('★ readable が 1 では読める側にしない',
    v.loginDirection({ readable: 1, linkMode: 'read' }), 'send_only');
 
@@ -156,6 +157,16 @@ eq('★★ unset で「連携しません」と言い切らない',
    v.loginDirectionText('unset', '駅ちか').title, '出勤を入力する場所が、まだ決まっていません');
 eq('★ 知らない値は unset の文', v.loginDirectionText('なにか', '駅ちか').title,
    v.loginDirectionText('unset', '駅ちか').title);
+// ★★★ 「フクエスだけで使う」は選んだ結果（第87便）。★ 未設定と混ぜない
+eq("★★ link_mode が 'none' なら off",
+   v.loginDirection({ readable: true, linkMode: 'none' }), 'off');
+eq('★★ off と unset で違う文を出す',
+   v.loginDirectionText('off', '駅ちか').title === v.loginDirectionText('unset', '駅ちか').title, false);
+eq('★★ off で「決まっていません」と書かない',
+   v.loginDirectionText('off', '駅ちか').title.includes('決まっていません'), false);
+eq('★★ off では送らないことと取り込まないことの両方を書く',
+   v.loginDirectionText('off', '駅ちか').desc.includes('どのサイトへも送りません')
+   && v.loginDirectionText('off', '駅ちか').desc.includes('取り込みもしません'), true);
 
 console.log('\n── 8. 受け付けているか ──');
 eq('駅ちかは受け付ける', v.canRegisterSite(v.findMediaSite('ekichika')), true);

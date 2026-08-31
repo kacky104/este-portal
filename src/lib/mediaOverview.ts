@@ -27,12 +27,18 @@ export function canReadProvider(provider: string): boolean {
 }
 
 /**
- * 入口に出す向き。★ 3値。
+ * 入口に出す状態。★ 4値。
  *   read   … 向こうから取り込んでいる
  *   write  … フクエスから反映している
- *   unset  … まだ何もしていない（ログイン情報が無い・止めてある・分からない）
+ *   off    … ★ フクエスだけで使う。どのサイトへも送らず、取り込みもしない
+ *   unset  … まだ何もしていない（ログイン情報が無い・分からない）
+ *
+ * ★★★ off と unset を1つにしない（第87便・カッキーさんの問い）。
+ *   ★ off は【店舗が選んだ結果】、unset は【まだ決めていない】。
+ *   ★ 混ぜると、選んだことを決め忘れとして画面に書くことになる。
+ *     引き継ぎメモ 3-5「0件と分からないを混ぜない」・§223・§253 と同じ形。
  */
-export type SiteDirection = 'read' | 'write' | 'unset';
+export type SiteDirection = 'read' | 'write' | 'off' | 'unset';
 
 export type SiteFacts = {
   provider: string;
@@ -63,6 +69,12 @@ export type SiteFacts = {
  *   ★ 反映するかどうかは、店舗が決めたことだけを写す。
  */
 export function siteDirection(f: SiteFacts): SiteDirection {
+  // ★★★ 'none' は【選んだ結果】。★ いちばん先に見る。
+  //   ★ 枠を止めているかどうかより、店舗の選択のほうが強い。
+  //   ★★ 'none' なら見張りは両方とも鳴らない
+  //     （importStall は 'none' で return []、mediaLinkStall は write でないので黙る）。
+  //     ★ つまり「フクエスだけで使う」店は、警告を見せられない。
+  if (f.linkMode === 'none') return 'off';
   if (f.sourceEnabled !== true) return 'unset';
   if (isWriteDirection(f.linkMode)) {
     // ★ 書くには管理画面に入る必要がある。鍵が無ければ書けない
@@ -93,24 +105,43 @@ export function directionLabel(d: SiteDirection, siteLabel?: string): string {
   switch (d) {
     case 'read': return siteLabel ? `${siteLabel}で入力` : 'サイト側で入力';
     case 'write': return 'フクエスで入力';
+    case 'off': return 'フクエスだけ';
     default: return '未設定';
   }
 }
 
+/** ★ 押したら何になるか（link_mode の値）と、ボタンに書く文字。 */
+export type SwitchChoice = { mode: 'read' | 'write' | 'none'; label: string };
+
 /**
- * ★★★ 「変える」ボタンの文字。★ 押した先の【行き先】を名前にする。
+ * ★★★ 「変える」ボタンを、いまの状態から出す。★ 押した先の【行き先】を名前にする。
  *
  * ★★ 「向きを変える」も「入力する場所を変える」も、押すと何になるのかが読めない
  *   （第86便その2・カッキーさんの指摘）。★ 行き先を書けば、考える場所が消える。
- * ★★ 未設定のときは空文字。★ 変える先が決まっていないのに「変える」と書かない
+ * ★★★ いまの状態は出さない。★ 出すと「押すと何かが起きる」ように見える。
+ * ★★ 未設定からは1つも出さない。★ 変える先が決まっていないのに「変える」と書かない
  *   （画面ではボタンを出さず、ログイン情報へ案内する）。
  * ★ 読める媒体は駅ちかだけで増やさない運営（2026-08-31・カッキーさん）。
  *   ★ それでも媒体名は引数で受ける。文言に店の名前を焼き付けない。
+ *
+ * ★★★ off から write へ戻す文字だけ「フクエスに変える」ではない。
+ *   ★ off の店はもうフクエスで入力している。★ 変わるのは【送るかどうか】だけ。
+ *     そこに「フクエスに変える」と書くと、いま何が変わるのかが嘘になる。
  */
-export function switchButtonLabel(from: SiteDirection, siteLabel: string): string {
-  if (from === 'read') return 'フクエスに変える';
-  if (from === 'write') return `${siteLabel}に変える`;
-  return '';
+export function switchChoices(from: SiteDirection, siteLabel: string): SwitchChoice[] {
+  if (from === 'read') return [
+    { mode: 'write', label: 'フクエスに変える' },
+    { mode: 'none', label: 'フクエスだけで使う' },
+  ];
+  if (from === 'write') return [
+    { mode: 'read', label: `${siteLabel}に変える` },
+    { mode: 'none', label: 'フクエスだけで使う' },
+  ];
+  if (from === 'off') return [
+    { mode: 'read', label: `${siteLabel}に変える` },
+    { mode: 'write', label: '各サイトへ送るようにする' },
+  ];
+  return [];
 }
 
 /**
@@ -118,18 +149,13 @@ export function switchButtonLabel(from: SiteDirection, siteLabel: string): strin
  *
  * ★ 1回押すだけで変わる形にした（第86便その2）。★ 押す前の確認が無いぶん、
  *   何が止まったのかを、押した直後に本人へ返す。★ 黙って止めない。
+ * ★★ 受け取るのは【行き先】。★ どこから来たかで文を変えない。
+ *   ★ 行き先の状態を書けば、どの道から来ても正しい文になる。
  */
-export function switchDoneText(from: SiteDirection, siteLabel: string): string {
-  if (from === 'read') return `フクエスに変えました。${siteLabel}からの取り込みは止まります`;
-  if (from === 'write') return `${siteLabel}に変えました。フクエスからの反映は止まります`;
-  return '';
-}
-
-/** ★ 押したら何になるか。★ 未設定からは決められない（null）。 */
-export function switchTargetMode(from: SiteDirection): 'read' | 'write' | null {
-  if (from === 'read') return 'write';
-  if (from === 'write') return 'read';
-  return null;
+export function switchDoneText(to: 'read' | 'write' | 'none', siteLabel: string): string {
+  if (to === 'read') return `${siteLabel}に変えました。フクエスからは送りません`;
+  if (to === 'write') return `フクエスに変えました。${siteLabel}からの取り込みは止まります`;
+  return `フクエスだけで使います。どのサイトへも送らず、${siteLabel}からの取り込みもしません`;
 }
 
 /**

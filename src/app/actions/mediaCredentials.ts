@@ -751,6 +751,24 @@ export async function getMediaLinkAlerts(input: { salonId: string | number }): P
     }
   }
 
+  // ★★★ 鍵が使えない枠で「反映していない」を止まりと呼ばない（第87便で見つけた食い違い）。
+  //   ★ ログイン情報の「このログイン情報を使わない」は salon_media_credentials の旗を倒すだけで、
+  //     salon_import_sources.link_mode は 'write' のまま残る。
+  //     ★ すると judgeWriteStall が24時間後から鳴り続けた。
+  //     ★★ 店舗が自分で選んだ結果を、毎日「止まっています」と届けていたことになる（§223）。
+  //   ★ 送るのをやめる正しい口は link_mode = 'none'（ホームの「フクエスだけで使う」）。
+  const { data: creds } = await svc
+    .from('salon_media_credentials')
+    .select('provider, slot, is_enabled, password_enc')
+    .eq('salon_id', salonId);
+  const usableCred = new Set<string>();
+  for (const c of creds ?? []) {
+    // ★ getMediaOverview の hasCredential と同じ判定にする（2か所でずらさない）
+    if (c.is_enabled !== false && Boolean(c.password_enc)) {
+      usableCred.add(key(String(c.provider), Number(c.slot ?? 1)));
+    }
+  }
+
   const now = new Date();
   const alerts: MediaLinkAlert[] = [];
   for (const s of sources) {
@@ -761,6 +779,8 @@ export async function getMediaLinkAlerts(input: { salonId: string | number }): P
 
     // ── 書く向き: 押したまま送っていないか（第47便）─────────────────
     if (isWriteDirection(linkMode)) {
+      // ★★ 鍵が使えないなら、そもそも送れない。★ それは「止まった」ではなく「送らない設定」
+      if (!usableCred.has(k)) continue;
       const verdict = judgeWriteStall({
         linkMode,
         switchedToWriteAt: switchedAt.get(k) ?? null,

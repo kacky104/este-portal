@@ -135,7 +135,7 @@ export function WorkSend({ salonId, onToast }: { salonId: number | null; onToast
     setSwitching(null);
     if (!res.ok) { onToast(res.error); return; }
     await load();
-    onToast(switchDoneText('read', site.label));
+    onToast(switchDoneText('write', site.label));
   };
 
   useEffect(() => { void load(); }, [load]);
@@ -209,6 +209,8 @@ export function WorkSend({ salonId, onToast }: { salonId: number | null; onToast
   const others = sites.filter((s) => s.direction !== 'write');
   // ★ いま読み取りに使っているサイト。★ 居なければ「変える」ボタンを出さない
   const readSite = sites.find((s) => s.direction === 'read') ?? null;
+  // ★ 自分で「送らない」を選んでいる枠。★ 未設定と混ぜて書かない（第87便・§223）
+  const offSite = sites.find((s) => s.direction === 'off') ?? null;
 
   return (
     <div className="space-y-3">
@@ -268,7 +270,9 @@ export function WorkSend({ salonId, onToast }: { salonId: number | null; onToast
               >
                 {s.label}
                 <span className="font-medium text-slate-400">
-                  （{s.direction === 'read' ? `いまは${s.label}で入力` : '未設定'}）
+                  （{s.direction === 'read'
+                      ? `いまは${s.label}で入力`
+                      : s.direction === 'off' ? 'フクエスだけで使う設定' : '未設定'}）
                 </span>
               </span>
             ))}
@@ -281,7 +285,9 @@ export function WorkSend({ salonId, onToast }: { salonId: number | null; onToast
               <b className="font-bold text-sky-700">いま送れるサイトがありません。</b>{' '}
               {readSite
                 ? `いまは${readSite.label}で入力しています。送るにはフクエスに変えてください。変えると${readSite.label}からの取り込みは止まります。`
-                : '入力する場所がまだ決まっていません。「ログイン情報」で設定してください。'}
+                : offSite
+                  ? '「フクエスだけで使う」を選んでいます。送るには、ホームで「各サイトへ送るようにする」を押してください。'
+                  : '入力する場所がまだ決まっていません。「ログイン情報」で設定してください。'}
             </p>
             {readSite ? (
               <button
@@ -294,10 +300,10 @@ export function WorkSend({ salonId, onToast }: { salonId: number | null; onToast
               </button>
             ) : (
               <Link
-                href="/mypage/media/login"
+                href={offSite ? '/mypage/media' : '/mypage/media/login'}
                 className="mt-2 inline-block text-[12px] font-bold text-sky-700 underline"
               >
-                ログイン情報へ
+                {offSite ? 'ホームへ' : 'ログイン情報へ'}
               </Link>
             )}
           </div>
