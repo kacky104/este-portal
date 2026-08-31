@@ -63,14 +63,32 @@ eq('read の名前', v.directionLabel('read', '駅ちか'), '駅ちかで入力'
 eq('★ 媒体の名前は決め打ちにしない', v.directionLabel('read', 'エステ魂'), 'エステ魂で入力');
 eq('★ 名前が分からないときは名前を出さない', v.directionLabel('read', ''), 'サイト側で入力');
 eq('write の名前', v.directionLabel('write', '駅ちか'), 'フクエスで入力');
-eq('unset の名前', v.directionLabel('unset', '駅ちか'), '入力する場所が未設定');
-eq('★ 知らない値でも未設定に落とす', v.directionLabel('なにか', '駅ちか'), '入力する場所が未設定');
+eq('unset の名前', v.directionLabel('unset', '駅ちか'), '未設定');
+eq('★ 知らない値でも未設定に落とす', v.directionLabel('なにか', '駅ちか'), '未設定');
 // ★ 店舗が読む文言。内部名が混ざっていないこと
 eq('★ 名前に内部名が混ざらない',
    ['read', 'write', 'unset'].some((d) => /[a-z]/.test(v.directionLabel(d, '駅ちか'))), false);
 // ★★ 仕組み側の言葉を画面に出さない。★ 決めごとは点検で固定する（引き継ぎメモ 6）
 eq('★★ 「向き」と書かない',
    ['read', 'write', 'unset'].some((d) => v.directionLabel(d, '駅ちか').includes('向き')), false);
+
+console.log('\n── 4-2. ★★★ 「変える」ボタンは行き先を名前にする（第86便その2）──');
+eq('read から押すとフクエスへ', v.switchButtonLabel('read', '駅ちか'), 'フクエスに変える');
+eq('write から押すと媒体へ', v.switchButtonLabel('write', '駅ちか'), '駅ちかに変える');
+eq('★ 媒体の名前は決め打ちにしない', v.switchButtonLabel('write', 'エステ魂'), 'エステ魂に変える');
+// ★★ 対になる主張。変える先が決まっていないのに「変える」と書かない
+eq('★★ 未設定では文字を出さない', v.switchButtonLabel('unset', '駅ちか'), '');
+eq('★ 知らない値でも文字を出さない', v.switchButtonLabel('なにか', '駅ちか'), '');
+// ★★ 1回押すだけで変わる。★ だから【止まるほう】を押した直後に必ず言う
+eq('★★ read → 止まるのは取り込み',
+   v.switchDoneText('read', '駅ちか').includes('取り込みは止まります'), true);
+eq('★★ write → 止まるのは反映',
+   v.switchDoneText('write', '駅ちか').includes('反映は止まります'), true);
+eq('★ 未設定では文を出さない', v.switchDoneText('unset', '駅ちか'), '');
+eq('read の行き先は write', v.switchTargetMode('read'), 'write');
+eq('write の行き先は read', v.switchTargetMode('write'), 'read');
+eq('★★ 未設定からは決めない', v.switchTargetMode('unset'), null);
+eq('★ 知らない値からも決めない', v.switchTargetMode('なにか'), null);
 
 console.log('\n── 5. ★ 切り替えを出すのは読める媒体だけ ──');
 const sw = (o) => v.canSwitchDirection(facts(o));

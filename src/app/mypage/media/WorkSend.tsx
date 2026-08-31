@@ -11,7 +11,7 @@ import {
   startMediaWorkPush,
   type WorkPlanView,
 } from '@/app/actions/mediaCredentials';
-import { pushAvailability, pushButtonLabel } from '@/lib/mediaOverview';
+import { pushAvailability, pushButtonLabel, switchDoneText } from '@/lib/mediaOverview';
 
 // 出勤を送る（第57便・㉞ その2）。
 //
@@ -122,6 +122,22 @@ export function WorkSend({ salonId, onToast }: { salonId: number | null; onToast
       : '毎回ご承認いただく形に戻しました');
   };
 
+  /**
+   * ★★★ その場でフクエスに変える（第86便その2・カッキーさん）。
+   * ★ ここまで来た人は「送りたい」と分かっている。★ ログイン情報の画面へ回さない。
+   * ★ 止まるほう（取り込み）は、押した直後に文で返す（switchDoneText）。
+   */
+  const onSwitchToWrite = async (site: Site) => {
+    if (salonId == null) return;
+    const k = keyOf(site.provider, site.slot);
+    setSwitching(k);
+    const res = await setMediaLinkMode({ salonId, provider: site.provider, slot: site.slot, mode: 'write' });
+    setSwitching(null);
+    if (!res.ok) { onToast(res.error); return; }
+    await load();
+    onToast(switchDoneText('read', site.label));
+  };
+
   useEffect(() => { void load(); }, [load]);
 
   // ★★ 確かめた結果は中継が動いたあとに届く（その場では返ってこない）。
@@ -191,6 +207,8 @@ export function WorkSend({ salonId, onToast }: { salonId: number | null; onToast
   const sendable = sites.filter((s) => s.direction === 'write');
   const chosen = sendable.filter((s) => !off.has(keyOf(s.provider, s.slot)));
   const others = sites.filter((s) => s.direction !== 'write');
+  // ★ いま読み取りに使っているサイト。★ 居なければ「変える」ボタンを出さない
+  const readSite = sites.find((s) => s.direction === 'read') ?? null;
 
   return (
     <div className="space-y-3">
@@ -250,7 +268,7 @@ export function WorkSend({ salonId, onToast }: { salonId: number | null; onToast
               >
                 {s.label}
                 <span className="font-medium text-slate-400">
-                  （{s.direction === 'read' ? 'いまは読み込み中' : '未設定'}）
+                  （{s.direction === 'read' ? `いまは${s.label}で入力` : '未設定'}）
                 </span>
               </span>
             ))}
@@ -261,15 +279,27 @@ export function WorkSend({ salonId, onToast }: { salonId: number | null; onToast
           <div className="mt-3 border border-sky-200 bg-sky-50 px-3 py-2.5">
             <p className="text-[12px] leading-relaxed text-slate-600">
               <b className="font-bold text-sky-700">いま送れるサイトがありません。</b>{' '}
-              駅ちかで入力しているあいだは送れません。送るには、入力する場所をフクエスに変えてください。
-              変えると駅ちかからの取り込みは止まります。
+              {readSite
+                ? `いまは${readSite.label}で入力しています。送るにはフクエスに変えてください。変えると${readSite.label}からの取り込みは止まります。`
+                : '入力する場所がまだ決まっていません。「ログイン情報」で設定してください。'}
             </p>
-            <Link
-              href="/mypage/media/login"
-              className="mt-2 inline-block text-[12px] font-bold text-sky-700 underline"
-            >
-              入力する場所を変える
-            </Link>
+            {readSite ? (
+              <button
+                type="button"
+                onClick={() => void onSwitchToWrite(readSite)}
+                disabled={switching !== null}
+                className="mt-2 px-3 py-1.5 border border-sky-300 bg-white text-[12px] font-bold text-sky-700 hover:bg-sky-100 disabled:opacity-40"
+              >
+                {switching === keyOf(readSite.provider, readSite.slot) ? '変えています…' : 'フクエスに変える'}
+              </button>
+            ) : (
+              <Link
+                href="/mypage/media/login"
+                className="mt-2 inline-block text-[12px] font-bold text-sky-700 underline"
+              >
+                ログイン情報へ
+              </Link>
+            )}
           </div>
         )}
       </div>

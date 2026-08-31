@@ -93,8 +93,43 @@ export function directionLabel(d: SiteDirection, siteLabel?: string): string {
   switch (d) {
     case 'read': return siteLabel ? `${siteLabel}で入力` : 'サイト側で入力';
     case 'write': return 'フクエスで入力';
-    default: return '入力する場所が未設定';
+    default: return '未設定';
   }
+}
+
+/**
+ * ★★★ 「変える」ボタンの文字。★ 押した先の【行き先】を名前にする。
+ *
+ * ★★ 「向きを変える」も「入力する場所を変える」も、押すと何になるのかが読めない
+ *   （第86便その2・カッキーさんの指摘）。★ 行き先を書けば、考える場所が消える。
+ * ★★ 未設定のときは空文字。★ 変える先が決まっていないのに「変える」と書かない
+ *   （画面ではボタンを出さず、ログイン情報へ案内する）。
+ * ★ 読める媒体は駅ちかだけで増やさない運営（2026-08-31・カッキーさん）。
+ *   ★ それでも媒体名は引数で受ける。文言に店の名前を焼き付けない。
+ */
+export function switchButtonLabel(from: SiteDirection, siteLabel: string): string {
+  if (from === 'read') return 'フクエスに変える';
+  if (from === 'write') return `${siteLabel}に変える`;
+  return '';
+}
+
+/**
+ * ★★★ 変えたあとに出す文。★ **止まるほうを必ず一緒に言う。**
+ *
+ * ★ 1回押すだけで変わる形にした（第86便その2）。★ 押す前の確認が無いぶん、
+ *   何が止まったのかを、押した直後に本人へ返す。★ 黙って止めない。
+ */
+export function switchDoneText(from: SiteDirection, siteLabel: string): string {
+  if (from === 'read') return `フクエスに変えました。${siteLabel}からの取り込みは止まります`;
+  if (from === 'write') return `${siteLabel}に変えました。フクエスからの反映は止まります`;
+  return '';
+}
+
+/** ★ 押したら何になるか。★ 未設定からは決められない（null）。 */
+export function switchTargetMode(from: SiteDirection): 'read' | 'write' | null {
+  if (from === 'read') return 'write';
+  if (from === 'write') return 'read';
+  return null;
 }
 
 /**

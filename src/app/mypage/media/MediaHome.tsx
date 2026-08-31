@@ -2,7 +2,8 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { getMediaOverview } from '@/app/actions/mediaCredentials';
+import { getMediaOverview, setMediaLinkMode } from '@/app/actions/mediaCredentials';
+import { switchButtonLabel, switchDoneText, switchTargetMode, type SiteDirection } from '@/lib/mediaOverview';
 
 // 媒体連携の入口（第56便・㉞）。
 //
@@ -25,6 +26,8 @@ type Site = {
   direction: string;
   statusLabel: string;
   canSwitch: boolean;
+  /** ★ いま自動で反映しているか。★ 自動のまま戻させない（先に自動をやめてもらう） */
+  autoOn: boolean;
   hasCredential: boolean;
   lastVerifiedAt: string | null;
   listLastRunAt: string | null;
@@ -103,10 +106,13 @@ function Tile({ href, icon, title, sub }: {
   );
 }
 
-export function MediaHome({ salonId, salonName }: { salonId: number | null; salonName: string | null }) {
+export function MediaHome({ salonId, salonName, onToast }: {
+  salonId: number | null; salonName: string | null; onToast: (m: string) => void;
+}) {
   const [data, setData] = useState<Overview | null>(null);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(true);
+  const [switching, setSwitching] = useState('');
 
   useEffect(() => {
     if (salonId == null) return;
@@ -121,6 +127,30 @@ export function MediaHome({ salonId, salonName }: { salonId: number | null; salo
     })();
     return () => { alive = false; };
   }, [salonId]);
+
+  /**
+   * ★★★ 入力する場所を、その場で変える（第86便その2・カッキーさん）。
+   *
+   * ★ これまではログイン情報の画面へ飛ばしていた。★ 画面を1枚またぐと、
+   *   何のために飛んだのかを覚えていなければならない。★ ここで終わらせる。
+   * ★★ 押す前の確認は置かない。★ 代わりに【止まるほう】を押した直後に必ず言い、
+   *   反対向きのボタンをその場に出す（1回押せば戻せる）。
+   * ★ 自動で反映しているあいだは出さない。★ 一度に2つ変えると、
+   *   どちらのつもりで押したのかが分からなくなる（WorkSend.onSwitchAuto と同じ理由）。
+   */
+  const onSwitch = async (s: Site) => {
+    if (salonId == null) return;
+    const from = s.direction as SiteDirection;
+    const mode = switchTargetMode(from);
+    if (mode == null) return;
+    setSwitching(s.provider + '#' + s.slot);
+    const res = await setMediaLinkMode({ salonId, provider: s.provider, slot: s.slot, mode });
+    if (!res.ok) { setSwitching(''); onToast(res.error); return; }
+    const back = await getMediaOverview({ salonId });
+    if (back.ok) setData(back.data);
+    setSwitching('');
+    onToast(switchDoneText(from, s.label));
+  };
 
   const sites = data?.sites ?? [];
   const reading = sites.find((s) => s.direction === 'read') ?? null;
@@ -230,13 +260,35 @@ export function MediaHome({ salonId, salonName }: { salonId: number | null; salo
                 </span>
                 {/* ★ 切り替えを出すのは読める媒体だけ（mediaOverview.canSwitchDirection）。
                     ★ 書くだけのサイトに出すと、選べるように見えて選べない画面になる */}
-                {s.canSwitch && (
+                {/* ★ 自動で反映しているあいだは変えさせない。★ 先に自動をやめてもらう */}
+                {s.canSwitch && s.autoOn && (
+                  <Link
+                    href="/mypage/media/work"
+                    className="flex-none text-[11px] font-bold px-3 py-1.5 border border-slate-200 text-slate-500 hover:border-slate-300"
+                  >
+                    自動をやめる
+                  </Link>
+                )}
+                {/* ★★ 未設定のときはボタンを出さない。★ 変える先が決まっていない */}
+                {s.canSwitch && !s.autoOn && s.direction === 'unset' && (
                   <Link
                     href="/mypage/media/login"
                     className="flex-none text-[11px] font-bold px-3 py-1.5 border border-slate-200 text-slate-500 hover:border-slate-300"
                   >
-                    入力する場所を変える
+                    設定する
                   </Link>
+                )}
+                {s.canSwitch && !s.autoOn && s.direction !== 'unset' && (
+                  <button
+                    type="button"
+                    onClick={() => void onSwitch(s)}
+                    disabled={switching !== ''}
+                    className="flex-none text-[11px] font-bold px-3 py-1.5 border border-slate-300 bg-white text-slate-600 hover:bg-slate-50 disabled:opacity-40"
+                  >
+                    {switching === s.provider + '#' + s.slot
+                      ? '変えています…'
+                      : switchButtonLabel(s.direction as SiteDirection, s.label)}
+                  </button>
                 )}
               </div>
             ))}
@@ -245,8 +297,7 @@ export function MediaHome({ salonId, salonName }: { salonId: number | null; salo
 
         <p className="mt-3 text-[11px] text-slate-400 leading-relaxed">
           出勤を入力する場所は、駅ちかとフクエスのどちらか一方です。両方には入れられません。
-          駅ちかで入力すると、フクエスがその内容を読み取ります。フクエスで入力すると、各サイトへ反映します。
-          選べるのは駅ちかだけです。ほかのサイトは反映するだけなので、選ぶところはありません。
+          選べるのは駅ちかだけで、ほかのサイトへは反映するだけです。
         </p>
       </div>
 

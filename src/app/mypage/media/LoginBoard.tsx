@@ -368,9 +368,7 @@ export function LoginBoard({
                       disabled={busy !== '' || !row.isEnabled}
                       className="mt-2 px-3 py-1 border border-slate-300 bg-white text-[11.5px] font-bold text-slate-600 hover:bg-slate-50 disabled:opacity-40"
                     >
-                      {dir === 'read'
-                        ? 'フクエスで入力するように変える'
-                        : `${site.name}で入力するように戻す`}
+                      {dir === 'read' ? 'フクエスに変える' : `${site.name}に変える`}
                     </button>
                   )}
                   {row?.linkMode === 'write_auto' && (

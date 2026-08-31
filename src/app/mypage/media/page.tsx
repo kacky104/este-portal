@@ -3,6 +3,7 @@
 import { useMediaGate } from './useMediaGate';
 import { MediaShell } from './MediaShell';
 import { MediaHome } from './MediaHome';
+import { useToast } from '@/app/components/useToast';
 
 // 媒体連携の入口（第55便で新設・第56便で中身を入れ替え）。
 //
@@ -19,6 +20,8 @@ import { MediaHome } from './MediaHome';
 
 export default function MediaLinkPage() {
   const { decision, salon, loadError } = useMediaGate();
+  // ★ 入力する場所をこの画面で変えられるようにした（第86便その2）。★ 結果をその場で返す
+  const { toast, showToast } = useToast();
 
   return (
     <MediaShell
@@ -28,10 +31,12 @@ export default function MediaLinkPage() {
       salonName={salon?.name ?? null}
       title="ホーム"
       current="home"
+      toast={toast}
     >
       <MediaHome
         salonId={salon ? Number(salon.id) : null}
         salonName={salon?.name ?? null}
+        onToast={showToast}
       />
     </MediaShell>
   );
