@@ -25,6 +25,19 @@ const eq = (name, got, want) => {
 eq('20:00-03:00 → 27:00', wp.toEkichikaEnd('20:00','03:00'), {ok:true, value:'27:00'});
 eq('10:00-18:00 はそのまま', wp.toEkichikaEnd('10:00','18:00'), {ok:true, value:'18:00'});
 eq('同じ時刻は送らない', wp.toEkichikaEnd('20:00','20:00').ok, false);
+
+// ── ★★★ 30分刻みへ内側に寄せる（第73便・カッキーさんの決定 2026-08-31）──
+//   ★ 2026-08-28 は「丸めない。送らない」だったが、エステラブ（同じ30分刻み）を足すとき
+//     媒体ごとに違うと「駅ちかには出ないのにエステラブには出る」になる。★ 揃えた。
+eq('寄せる必要が無ければそのまま', wp.toEkichikaRange('20:00','03:00'),
+  {ok:true, start:'20:00', end:'27:00', snappedNote:null});
+// ★ 開始は遅いほう・終了は早いほうへ（実際より長く出さない）
+eq('20:15〜02:45 → 20:30〜26:30', [wp.toEkichikaRange('20:15','02:45').start, wp.toEkichikaRange('20:15','02:45').end],
+  ['20:30','26:30']);
+eq('★ 寄せたことを言葉で残す', wp.toEkichikaRange('20:15','02:45').snappedNote, '20:15〜26:45 → 20:30〜26:30');
+// ★ 寄せると勤務が無くなるものは送らない（店舗が入れていない時間を足さない）
+eq('20:15〜20:30 は送らない', wp.toEkichikaRange('20:15','20:30').ok, false);
+eq('同じ時刻はこちらでも送らない', wp.toEkichikaRange('20:00','20:00').ok, false);
 eq('日付の足し算(月跨ぎ)', wp.addDaysISO('2026-08-30', 3), '2026-09-02');
 
 // ── ページの雛形（2人×7日）──
@@ -84,6 +97,32 @@ eq('⑤ 止める理由には入れない', plan.blockers.map(b=>b.kind).include
 eq('⑤ ★ 理由つきで報告する', plan.notes.map(n=>n.kind).includes('time_not_selectable'), true);
 eq('⑤ 選択肢外の子は現在値のまま', plan.sent.find(g=>g.girlId==='111').days[0].work, false);
 eq('⑤ ★ もう一人はちゃんと反映される', plan.sent.find(g=>g.girlId==='222').days[0], {start:'20:00', end:'27:00', work:true});
+
+// 5b) ★★ 寄せた先がプルダウンにあれば、寄せて反映する（第73便）
+{
+  const page5b = {
+    csrfToken:'t', action:'https://x/admin/girlswork/1/', dateLabels: labels,
+    headerCounts:[0,0,0,0,0,0,0],
+    girls: [
+      {girlId:'111', name:'あ', days: days(false,'00:00','00:00')},
+      {girlId:'222', name:'い', days: days(false,'00:00','00:00')},
+    ],
+    // ★ 20:30 と 26:30 を選べるページ
+    timeOptions: ['00:00','10:00','18:00','20:00','20:30','26:30','27:00','03:00'],
+  };
+  const p5b = wp.buildWorkPlan({page: page5b, todayISO: today, shifts: [
+    {therapistId:1, dateISO:'2026-08-28', active:true, start:'20:15', end:'02:45'},
+  ], castIdOf});
+  eq('⑤b 寄せて反映される', p5b.sent.find(g=>g.girlId==='111').days[0], {start:'20:30', end:'26:30', work:true});
+  // ★★ 店舗が入れた時刻を書き換えている。黙ってやらない
+  eq('⑤b ★ 寄せたことを notes に出す', p5b.notes.map(n=>n.kind).includes('time_snapped'), true);
+  eq('⑤b 件数も出す', p5b.notes.find(n=>n.kind==='time_snapped').count, 1);
+  // ★ 寄せていない枠では出さない（毎回出ると意味が薄れる）
+  const p5c = wp.buildWorkPlan({page: page5b, todayISO: today, shifts: [
+    {therapistId:1, dateISO:'2026-08-28', active:true, start:'20:00', end:'03:00'},
+  ], castIdOf});
+  eq('⑤c 寄せていなければ出さない', p5c.notes.map(n=>n.kind).includes('time_snapped'), false);
+}
 
 // 6) castId が無い子は notes に出る（静かにこぼさない）
 plan = wp.buildWorkPlan({page, todayISO: today, shifts: [

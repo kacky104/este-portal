@@ -30,6 +30,7 @@ import {
   type WorkChange,
   type WorkPage,
 } from './ekichikaWorkParse';
+import { snapInward, snapNote } from './timeSnap';
 
 /** フクエス側の1人1日ぶんの出勤。therapist_schedules の1行に対応する。 */
 export type FukuesShift = {
@@ -49,6 +50,7 @@ export type PlanIssue = {
     | 'shrink_too_much'       // 出勤が大きく減る方向の差
     | 'change_too_large'      // ★ 無人のとき限定。作り直し級の差分（第48便）
     | 'time_not_selectable'   // 駅ちかのプルダウンに無い時刻
+    | 'time_snapped'          // ★ 30分刻みへ内側に寄せて反映した（第73便）
     | 'too_many_fields'       // max_input_vars を超える
     | 'unmapped_therapist'    // この枠での castId が無い＝駅ちかに出せない
     | 'unknown_girl'          // 駅ちかに居てフクエスに居ない＝読んだまま返す
@@ -161,8 +163,45 @@ export function addDaysISO(iso: string, days: number): string {
  *
  * ★★ いっぽうフクエスの入力は【15分刻み】（src/components/TimeRangePicker.tsx の MINS）。
  *   → 20:15 のような時刻は駅ちかの選択肢に無い。翌6:00終わりも無い。
- *   ★ 丸めない。送らない。**理由をつけて画面に出す**（canSelect / time_not_selectable）。
+ *   ★★ 2026-08-28 の決定は「丸めない。送らない。理由をつけて画面に出す」だった。
+ *   ★★★ 2026-08-31 カッキー様の決定で **「内側に寄せる」に変えた**（第73便・timeSnap.ts）。
+ *     変えた理由: エステラブ（同じく30分刻み）を足すときに、寄せる／送らないが媒体ごとに
+ *     違うと、同じ出勤が **駅ちかには出ないのにエステラブには出る**。店舗に説明できない。
+ *     ★ 揃えるなら、出勤が出ないより出るほうがよい。
+ *   ★ 寄せるのは【内側】だけ（開始は遅いほう・終了は早いほう）。実際より長く出さない。
+ *   ★ 寄せた件数と中身は notes（time_snapped）に必ず出す。**黙って書き換えない。**
  */
+
+/**
+ * ★★★ フクエスの出勤（15分刻み）を、駅ちかへ送れる形（30分刻み・24時超え表記）に直す。
+ *   ★ 第73便で追加。★ 寄せた場合は snappedNote に「20:15〜26:45 → 20:30〜26:30」が入る。
+ *   ★ 寄せると勤務が無くなる場合は ok:false（送らない。時間を勝手に足さない）。
+ */
+export function toEkichikaRange(
+  start: string,
+  end: string,
+): { ok: true; start: string; end: string; snappedNote: string | null } | { ok: false; reason: string } {
+  let s: number, e: number;
+  try {
+    s = ekichikaTimeToMinutes(start);
+    e = ekichikaTimeToMinutes(end);
+  } catch (err) {
+    return { ok: false, reason: (err as Error).message };
+  }
+  // ★ 等しいものは「静かに解釈を足さない」。24時間勤務と決めつけない（§157 のまま）
+  if (e === s) return { ok: false, reason: '開始と終了が同じ時刻（' + start + '）' };
+  const endMin = e > s ? e : e + 24 * 60;
+  if (endMin > 47 * 60 + 59) return { ok: false, reason: '終了が遠すぎる（' + start + '〜' + end + '）' };
+
+  const snapped = snapInward(s, endMin);
+  if (!snapped.ok) return { ok: false, reason: snapped.reason };
+  return {
+    ok: true,
+    start: minutesToEkichikaTime(snapped.startMin),
+    end: minutesToEkichikaTime(snapped.endMin),
+    snappedNote: snapNote(s, endMin, snapped),
+  };
+}
 
 /**
  * ★★★ フクエスの終了時刻を、駅ちかの表記に直す。
@@ -329,6 +368,8 @@ export function buildWorkPlan(input: {
   const diff: WorkDiff[] = [];
   let missingRowAsRest = 0;
   const notSelectable: string[] = [];
+  // ★ 刻みに合わせて寄せたもの。★ 黙って書き換えないので、必ず数えて notes に出す
+  const snappedList: string[] = [];
 
   for (const g of page.girls) {
     const row = wanted.get(g.girlId);
@@ -340,16 +381,19 @@ export function buildWorkPlan(input: {
 
       let next: WorkCell;
       if (sh && sh.active && sh.start && sh.end) {
-        const end = toEkichikaEnd(sh.start, sh.end);
-        if (!end.ok) {
-          notSelectable.push(g.girlId + '/日' + d + '（' + end.reason + '）');
-          continue; // ★ 解釈できない時刻は触らない。現在値のまま
+        // ★ 第73便: 30分刻みへ内側に寄せてから、選べるかを見る
+        const r = toEkichikaRange(sh.start, sh.end);
+        if (!r.ok) {
+          notSelectable.push(g.girlId + '/日' + d + '（' + r.reason + '）');
+          continue; // ★ 解釈できない・寄せると無くなる時刻は触らない。現在値のまま
         }
-        if (!canSelect(sh.start) || !canSelect(end.value)) {
-          notSelectable.push(g.girlId + '/日' + d + '（' + sh.start + '〜' + end.value + '）');
-          continue; // ★ プルダウンに無い＝送っても何が起きるか分からない。触らない
+        if (!canSelect(r.start) || !canSelect(r.end)) {
+          // ★ 寄せてもプルダウンに無い（範囲の外＝翌6:00終わりなど）。★ 触らない
+          notSelectable.push(g.girlId + '/日' + d + '（' + r.start + '〜' + r.end + '）');
+          continue;
         }
-        next = { start: sh.start, end: end.value, work: true };
+        if (r.snappedNote) snappedList.push(g.girlId + '/日' + d + '（' + r.snappedNote + '）');
+        next = { start: r.start, end: r.end, work: true };
       } else {
         // 休み。★ 時刻は現在値のまま残す（work_flg を出さないだけ）
         if (!sh) missingRowAsRest += 1;
@@ -380,8 +424,20 @@ export function buildWorkPlan(input: {
       detail:
         notSelectable.length +
         '件は、駅ちかで選べない時刻のため反映していません' +
-        '（駅ちかは30分刻み・翌5:30まで。15分単位の時刻や、それより遅い終了時刻は選べません）。' +
-        'その枠は駅ちかの元の内容のままです',
+        '（駅ちかは30分刻み・翌5:30まで。30分に寄せると勤務時間が無くなる場合や、' +
+        'それより遅い終了時刻は選べません）。その枠は駅ちかの元の内容のままです',
+    });
+  }
+  if (snappedList.length > 0) {
+    // ★★★ 店舗が入れた時刻を書き換えている。**黙ってやらない**（§14-3・第73便）。
+    //   ★ 内側にしか寄せていない＝実際より長く出していないことも、文で言う。
+    notes.push({
+      kind: 'time_snapped',
+      count: snappedList.length,
+      detail:
+        snappedList.length +
+        '件は、駅ちかが30分刻みのため時刻を寄せて反映しました' +
+        '（開始は遅いほう・終了は早いほうへ。実際より長くは出しません）',
     });
   }
   if (missingRowAsRest > 0) {
