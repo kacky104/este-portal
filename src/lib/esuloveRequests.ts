@@ -18,7 +18,8 @@
 //     組み立てた時点で事故の種になる（追記46 §249）。★ この語をここに置かない。
 
 import { encodePayload } from './ekichikaWorkParse';
-import { RELAY_USER_AGENT } from './relayFlow';
+// ★ relayFlow.ts からではなく、依存の無い relayUserAgent.ts から取る（循環参照を作らない・§310）
+import { RELAY_USER_AGENT } from './relayUserAgent';
 
 export const ESULOVE_ORIGIN = 'https://eslove.jp';
 export const ESULOVE_LOGIN_URL = 'https://eslove.jp/admin/login';

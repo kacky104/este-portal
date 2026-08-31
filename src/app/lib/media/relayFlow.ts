@@ -196,6 +196,16 @@ export async function advanceRelayFlow(params: {
     next = r.next ?? null;
   }
 
+  // ★★ エステラブの名簿を読めた（第78便）。★ この便では【保存しない】。
+  //   ★ 読めたことと、同名が居るかを note に出すだけ。次を積まないので何も書き換えていない。
+  //   ★ warnings は黙って捨てない（記録に残す）。
+  if (outcome.kind === 'esulove_roster') {
+    if (outcome.warnings.length > 0) {
+      console.warn('[relay] エステラブ名簿の気になること:', outcome.warnings.join(' / '));
+    }
+    note = outcome.note;
+  }
+
   await writeAudits(params, audits, context);
 
   // ★ 接続テストの結果を、店舗が画面で見られる形にも残す（last_verified_at / last_error）
@@ -206,6 +216,7 @@ export async function advanceRelayFlow(params: {
   const settle: 'next' | 'done' | 'stop' = next
     ? 'next'
     : outcome.kind === 'plan_work' || outcome.kind === 'roster' || outcome.kind === 'maillist'
+        || outcome.kind === 'esulove_roster'
       ? 'done'
       : outcome.kind;
   await stampCredential(params, settle, audits);

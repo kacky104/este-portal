@@ -37,6 +37,9 @@ export type RelayPurpose =
   | 'read_maillist' // ★ 投稿用メールアドレス一覧を読む（第53便）。読むだけ
   | 'write_work'
   | 'verify_work'
+  // ★ エステラブの段（第78便）。★ 駅ちかの段名と分けている
+  | 'esulove_login'
+  | 'esulove_therapists'
   | 'selftest';
 
 export type LeasedJob = {

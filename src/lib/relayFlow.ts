@@ -38,6 +38,10 @@ import {
 import { parseEkichikaGirls, girlsPageUsable, type EkichikaGirlsPage } from './ekichikaGirlsParse';
 import { parseEkichikaMailList, mailListUsable, type EkichikaMailListPage } from './ekichikaMailListParse';
 import { mergeCookies } from './relayJob';
+import { RELAY_USER_AGENT } from './relayUserAgent';
+// ★ エステラブ（第78便）。★ 駅ちかの段には一切触れず、別の段名で足す
+import { buildEsuloveTherapistListRequest, judgeEsuloveLogin, ESULOVE_THERAPIST_URL } from './esuloveRequests';
+import { parseEsuloveTherapists, duplicateNames, type EsuloveTherapistRow } from './esuloveTherapistParse';
 import type { AuditDetail, MediaAuditEvent, MediaAuditOutcome } from './mediaAudit';
 
 /** 駅ちかのログインフォーム（設計メモ §17-9・2026-08-27 実測）。 */
@@ -50,9 +54,12 @@ export const EKICHIKA_GIRLS_URL = 'https://ranking-deli.jp/admin/girls/';
 export const EKICHIKA_MAILLIST_URL = 'https://ranking-deli.jp/admin/maillist/';
 export const EKICHIKA_ORIGIN = 'https://ranking-deli.jp';
 
-/** relay-selftest と同じものを使う。★ 片方だけ変えない。 */
-export const RELAY_USER_AGENT =
-  'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0 Safari/537.36';
+/**
+ * relay-selftest と同じものを使う。★ 片方だけ変えない。
+ * ★ 実体は relayUserAgent.ts（第78便）。★ ここからも今までどおり import できるよう再エクスポートする。
+ *   ★ 移した理由: esuloveRequests.ts がこれを使うので、ここに置くと循環参照になる。
+ */
+export { RELAY_USER_AGENT } from './relayUserAgent';
 
 /** フロー文脈の版。★ 形を変えるときは上げる。走っている途中のジョブは版違いで止まる（黙って壊れない）。 */
 // ★ 第46便で文脈の形が変わった（承認の指紋・送った内容を持ち回すため）ので 1 → 2。
@@ -144,7 +151,10 @@ export type FlowAudit = {
 };
 
 export type FlowNextRequest = {
-  purpose: 'read_work' | 'write_work' | 'verify_work' | 'read_girls' | 'read_maillist';
+  purpose:
+    | 'read_work' | 'write_work' | 'verify_work' | 'read_girls' | 'read_maillist'
+    // ★ エステラブの段（第78便）。★ 名前を分けることで、駅ちかの段の判定に一切触れない
+    | 'esulove_therapists';
   method: 'GET' | 'POST';
   url: string;
   headers: Record<string, string>;
@@ -174,7 +184,13 @@ export type FlowOutcome =
    *   ★★ page.rows には【秘密値（アドレス）】が入っている。
    *     ★ 監査ログにも note にも値を出さないこと。件数とドメインだけ。
    */
-  | { kind: 'maillist'; page: EkichikaMailListPage; audits: FlowAudit[]; note: string };
+  | { kind: 'maillist'; page: EkichikaMailListPage; audits: FlowAudit[]; note: string }
+  /**
+   * ★ エステラブの名簿を読めた（第78便）。roster と同じ理由でここでは保存しない。
+   *   ★ ここで「次のジョブ」を返さない＝**エステラブへ何も飛ばない。**
+   *   ★ warnings は必ず呼び出し側が人に見せること（黙って捨てない）。
+   */
+  | { kind: 'esulove_roster'; rows: EsuloveTherapistRow[]; warnings: string[]; audits: FlowAudit[]; note: string };
 
 // ────────────────────────── フローの入口（login を組み立てる） ──────────────────────────
 
@@ -354,6 +370,11 @@ export function advanceFlow(input: {
       return afterWriteWork(input, ctx);
     case 'verify_work':
       return afterVerifyWork(input, ctx);
+    // ── エステラブ（第78便）★ 段名で分けている。駅ちかの case には触っていない ──
+    case 'esulove_login':
+      return afterEsuloveLogin(input, ctx);
+    case 'esulove_therapists':
+      return afterEsuloveTherapists(input, ctx);
     default:
       return stop([], '知らない段: ' + String(input.purpose));
   }
@@ -988,4 +1009,172 @@ function afterVerifyWork(
     ],
     '書き込み後の照合が一致しない: ' + v.problems.map((p) => p.kind + ' ' + p.detail).join(' / ').slice(0, 300),
   );
+}
+
+// ══════════════════════════════════════════════════════════════════
+// エステラブの段（第78便）
+//
+// ★★★ 駅ちかの段（login / read_work / …）には一切触れていない。
+//   段の名前を分けることで、既存の判定に手を入れずに足せる。
+//   ★ フロー文脈の形も変えていないので RELAY_FLOW_VERSION も据え置き。
+//     → **走っている途中の駅ちかのジョブは、この便で止まらない。**
+//
+// ★★★ この2段でやるのは【ログインして名簿を読む】まで。**1文字も書き換えない。**
+//   ★ 出勤を書く段（esulove_write_work）は、突き合わせ（mediaMatch）を挟んでから足す。
+// ══════════════════════════════════════════════════════════════════
+
+/**
+ * エステラブのログインの応答。
+ * ★ ここでは監査ログを書かない。まだ成否が分からないから（駅ちかの afterLogin と同じ作法）。
+ */
+function afterEsuloveLogin(
+  input: { status: number; headers: Record<string, string | string[]>; body: string },
+  ctx: RelayFlowContext,
+): FlowOutcome {
+  const flowId = ctx.flowId;
+
+  if (input.status >= 400) {
+    return stop(
+      [{ event: 'login', outcome: 'failed', detail: { httpStatus: input.status, reason: 'http_error', flowId } }],
+      'エステラブのログインの応答が ' + input.status + ' だった',
+    );
+  }
+
+  const cookie = mergeCookies(ctx.cookie, input.headers['set-cookie'] as string | string[] | undefined);
+  if (!cookie) {
+    // ★ 解釈の余地なく失敗。セッションが無ければ次の GET は必ずログイン画面になる
+    return stop(
+      [{
+        event: 'login',
+        outcome: 'failed',
+        summary:
+          'エステラブにログインできませんでした（セッションが返りませんでした）。' +
+          'ログインID・パスワードをご確認ください',
+        detail: { httpStatus: input.status, reason: 'no_cookie', flowId },
+      }],
+      'エステラブのログインで Cookie が返らなかった',
+    );
+  }
+
+  // ★★ エステラブは失敗しても 200 を返す作り。★ 本文でログイン画面かどうかを見る
+  const judged = judgeEsuloveLogin(input.body);
+  if (judged !== null && !judged.ok) {
+    return stop(
+      [{
+        event: 'login',
+        outcome: 'failed',
+        summary:
+          'エステラブにログインできませんでした（ログイン画面が返りました）。' +
+          'ログインID・パスワードをご確認ください',
+        detail: { httpStatus: input.status, reason: 'back_to_login', flowId },
+      }],
+      'エステラブのログイン後にログイン画面が返った',
+    );
+  }
+  // ★ judged === null は「見分けがつかない」。★ ここで止めない——次の一覧の応答で分かる。
+  //   止めると、画面の作りが少し変わっただけで連携が全部止まる。★ 判断は材料が揃う段でする。
+
+  const next = buildEsuloveTherapistListRequest(cookie);
+  return {
+    kind: 'next',
+    audits: [],
+    note: 'エステラブにログインできた（' + (judged === null ? '確証は次の段で' : '確認済み') + '）',
+    next: {
+      purpose: 'esulove_therapists',
+      method: next.method,
+      url: next.url,
+      headers: next.headers,
+      body: '',
+      context: { ...ctx, cookie },
+    },
+  };
+}
+
+/**
+ * エステラブのセラピスト一覧の応答。
+ * ★★ 読めたら【次を積まない】。★ ここでエステラブとのやりとりは終わり。何も書き換えていない。
+ */
+function afterEsuloveTherapists(
+  input: { status: number; headers: Record<string, string | string[]>; body: string },
+  ctx: RelayFlowContext,
+): FlowOutcome {
+  const flowId = ctx.flowId;
+
+  if (input.status >= 300 && input.status < 400) {
+    const location = String(input.headers['location'] ?? '');
+    if (location.includes('/admin/login')) {
+      return stop(
+        [{
+          event: 'login',
+          outcome: 'failed',
+          summary:
+            'エステラブにログインできませんでした（ログイン画面へ戻されました）。' +
+            'ログインID・パスワードをご確認ください',
+          detail: { httpStatus: input.status, reason: 'back_to_login', flowId },
+        }],
+        'ログイン後のセラピスト一覧がログイン画面へ戻された＝ログインできていない',
+      );
+    }
+    return stop(
+      [{
+        event: 'read_girls',
+        outcome: 'failed',
+        summary: 'エステラブのセラピスト一覧を開けませんでした（別の場所へ転送されました）',
+        detail: { httpStatus: input.status, reason: 'redirected', flowId },
+      }],
+      'セラピスト一覧が ' + input.status + ' で転送された（' + ESULOVE_THERAPIST_URL + '）',
+    );
+  }
+
+  if (input.status >= 400) {
+    return stop(
+      [{
+        event: 'read_girls',
+        outcome: 'failed',
+        summary: 'エステラブのセラピスト一覧を開けませんでした',
+        detail: { httpStatus: input.status, reason: 'http_error', flowId },
+      }],
+      'セラピスト一覧の応答が ' + input.status + ' だった',
+    );
+  }
+
+  const parsed = parseEsuloveTherapists(input.body);
+  if (parsed.rows.length === 0) {
+    // ★★ 0人 と 読めなかった を混ぜない。★ ここへ来るのは「読めなかった」ほう
+    //   （ログインできていない／画面の作りが変わった）。★ 「0人でした」と言わない
+    return stop(
+      [{
+        event: 'read_girls',
+        outcome: 'failed',
+        summary: 'エステラブのセラピスト一覧を読み取れませんでした（画面の作りが変わった可能性があります）',
+        detail: { httpStatus: input.status, reason: 'parse_empty', flowId },
+      }],
+      'セラピスト一覧を1人も読み取れなかった: ' + (parsed.warnings[0] ?? '理由不明'),
+    );
+  }
+
+  const dup = duplicateNames(parsed.rows);
+  return {
+    kind: 'esulove_roster',
+    rows: parsed.rows,
+    warnings: parsed.warnings,
+    audits: [{
+      event: 'read_girls',
+      outcome: 'ok',
+      // ★ 名前を監査ログに入れない。★ 件数だけ（mediaAudit の scrubAuditDetail と同じ考え）
+      summary:
+        'エステラブのセラピストを ' + parsed.rows.length + '人 読み取りました' +
+        (dup.length > 0 ? '（★ 同じ名前が ' + dup.length + '組 あります）' : ''),
+      detail: {
+        count: parsed.rows.length,
+        duplicates: dup.length,
+        warnings: parsed.warnings.length,
+        flowId,
+      },
+    }],
+    note:
+      'エステラブの名簿を ' + parsed.rows.length + '人 読めた' +
+      (dup.length > 0 ? ' / ★ 同名 ' + dup.length + '組' : '') +
+      (parsed.warnings.length > 0 ? ' / ★ 気になること ' + parsed.warnings.length + '件' : ''),
+  };
 }
