@@ -32,7 +32,6 @@ export const DAY_START_HOUR_JST = 6;
 export const BUMP_COOLDOWN_MINUTES = 30;
 
 const JST_OFFSET_MS = 9 * 3_600_000;
-const DAY_MS = 24 * 3_600_000;
 
 /**
  * その時刻が属する「区切りの日」を YYYY-MM-DD で返す。
@@ -189,6 +188,33 @@ export function nextRotationIndex(current: number | null, count: number): number
   const c = current === null || !Number.isFinite(current) ? -1 : Math.trunc(current);
   const n = (c + 1) % count;
   return n < 0 ? n + count : n;
+}
+
+/**
+ * 画面に出す「今日の自動配信」の1行。★ 判定そのものと同じ結果から作る。
+ *
+ * ★★★ 画面と実行で別々に判断しない。
+ *   画面が「今日は出ます」と言い、周は出さない——が起きうる形にしない。
+ *   ★ どちらも shouldAutoPost の結果だけを見る（設計メモ §196 と同じ「1か所に書く」）。
+ *
+ * @param timeLabel autoPostTimeLabel の結果（'11:37' など）
+ */
+export function autoStateMessage(result: AutoPostResult, timeLabel: string | null): string {
+  const t = timeLabel ?? '未定';
+  // ★ 時刻は過ぎているのに、まだ周が回っていない
+  if (result.post) return 'まもなく、この日のぶんが1本、自動で出ます（' + t + 'ごろ）';
+  switch (result.reason) {
+    case 'unknown':
+      return 'いまは自動配信の状態を読み取れていません';
+    case 'no_targets':
+      return '「自動で回す」に印を付けたお知らせがないため、自動配信はお休みです';
+    case 'not_yet':
+      return '今日は ' + t + 'ごろに、1本を自動で出します';
+    case 'done_today':
+      return '今日のぶんは出しました（次は明日 ' + t + 'ごろ）';
+    case 'manual_today':
+      return '今日は手動で出したので、自動配信はお休みです（順番も進めません）';
+  }
 }
 
 /** 出さなかった理由を、店舗が読んで分かる1行にする。★ 出したときは null。 */

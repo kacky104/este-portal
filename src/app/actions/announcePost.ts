@@ -7,7 +7,8 @@ import {
   announceFingerprint,
   judgeManualPost,
   manualPostMessage,
-  dayKeyJST,
+  shouldAutoPost,
+  autoStateMessage,
   autoPostTimeLabel,
 } from '@/lib/announceAuto';
 
@@ -147,19 +148,19 @@ export async function postAnnouncementManually(input: {
 
 /**
  * 画面に出すための、その店の自動配信の状態。
- * ★★ まだ自動配信は回っていない（§195 の4）。ここは「今日、手動があったか」だけを返す。
- *   ★ 回っていないものを「回っています」と見せないこと。
+ *
+ * ★★★ 周（/api/admin/announce-auto）と【同じ判定】から文を作る。
+ *   画面が「今日は出ます」と言い、周は出さない——が起きうる形にしない。
+ *   ★ 材料の集め方まで周と揃える（対象は auto_rotate かつ公開中）。
  */
 export async function getAnnounceState(input: { salonId: string | number }): Promise<
   Result<{
     /** この店の自動配信の時刻（IDから割り当て・選べない）。例 '11:37' */
     autoTimeLabel: string | null;
-    /** 今日（朝6時区切り）の区切りの日 */
-    todayKey: string | null;
-    /** 今日、手動で出したか */
-    postedManuallyToday: boolean;
-    /** 最後にフクエスTOPの並びを動かした時刻（ISO）。まだ無ければ null */
-    lastBumpAt: string | null;
+    /** 「自動で回す」に印の付いた、公開中のお知らせの本数 */
+    targetCount: number;
+    /** そのまま画面に出す1行 */
+    message: string;
   }>
 > {
   const salonId = Number(input.salonId);
@@ -168,27 +169,41 @@ export async function getAnnounceState(input: { salonId: string | number }): Pro
   if (!guard.ok) return guard;
 
   const svc = createServiceClient();
-  const { data, error } = await svc
+
+  // ★ 周と同じ条件で数える（auto_rotate かつ公開中）
+  const { count, error: cntErr } = await svc
+    .from('announcements')
+    .select('id', { count: 'exact', head: true })
+    .eq('salon_id', salonId)
+    .eq('auto_rotate', true)
+    .eq('is_published', true);
+
+  const { data: state, error: stErr } = await svc
     .from('salon_announce_state')
-    .select('last_manual_at, last_bump_at')
+    .select('last_auto_day, rotation_index, last_manual_at')
     .eq('salon_id', salonId)
     .maybeSingle();
-  if (error) return { ok: false, error: error.message };
 
-  const now = new Date();
-  const todayKey = dayKeyJST(now);
-  const lastManual = (data?.last_manual_at as string | null) ?? null;
-  // ★ 「今日」は朝6:00〜翌5:59（JST）。salon_bump の区切りと同じ
-  const postedManuallyToday =
-    lastManual !== null && todayKey !== null && dayKeyJST(new Date(lastManual)) === todayKey;
+  // ★★ 読めなかったときは null を渡す。0件と混ぜない（作法3-5）。
+  //   shouldAutoPost が 'unknown' を返し、画面は「読み取れていません」と言う
+  const targetCount = cntErr || stErr ? null : (count ?? 0);
 
+  const judged = shouldAutoPost({
+    now: new Date(),
+    salonId,
+    autoTargetCount: targetCount,
+    lastAutoDay: (state?.last_auto_day as string | null) ?? null,
+    lastManualAt: (state?.last_manual_at as string | null) ?? null,
+    rotationIndex: (state?.rotation_index as number | null) ?? null,
+  });
+
+  const timeLabel = autoPostTimeLabel(salonId);
   return {
     ok: true,
     data: {
-      autoTimeLabel: autoPostTimeLabel(salonId),
-      todayKey,
-      postedManuallyToday,
-      lastBumpAt: (data?.last_bump_at as string | null) ?? null,
+      autoTimeLabel: timeLabel,
+      targetCount: targetCount ?? 0,
+      message: autoStateMessage(judged, timeLabel),
     },
   };
 }

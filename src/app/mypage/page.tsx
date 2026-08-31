@@ -33,7 +33,7 @@ import { SiteNoticeBanner } from '@/app/components/SiteNoticeBanner';
 import { SalonBumpButton } from '@/app/components/SalonBumpButton';
 import { EmbedCodePanel } from './EmbedCodePanel';
 import { getMediaLinkAlerts } from '@/app/actions/mediaCredentials';
-import { postAnnouncementManually } from '@/app/actions/announcePost';
+import { postAnnouncementManually, getAnnounceState } from '@/app/actions/announcePost';
 import type { MediaLinkAlert } from '@/lib/mediaLinkStall';
 import { ADMIN_UUID } from '@/app/lib/admin';
 import { canSeeMedia, readUnlockIntent, MEDIA_UNLOCK_KEY } from '@/lib/mediaVisibility';
@@ -90,12 +90,14 @@ type Announcement = {
   is_published: boolean;
   published_at: string;
   image_url: string | null;
+  /** 自動配信のローテに乗せるか（第69便・設計メモ 追記37 §192）。★ 既定 false */
+  auto_rotate: boolean;
 };
 
 async function fetchAnnouncementList(salonId: number): Promise<Announcement[]> {
   const { data, error } = await supabase
     .from('announcements')
-    .select('id, title, content, is_published, published_at, image_url')
+    .select('id, title, content, is_published, published_at, image_url, auto_rotate')
     .eq('salon_id', salonId)
     .order('published_at', { ascending: false });
   if (error) console.warn('[mypage] お知らせ取得失敗:', error.message);
@@ -619,6 +621,15 @@ export default function MyPage() {
   const [deletingCoupon, setDeletingCoupon] = useState<string | null>(null);
   // お知らせ管理タブ
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
+  // お知らせ：自動配信の状態（第69便）。★ 周（/api/admin/announce-auto）と同じ判定から来る1行。
+  //   ★ 読めなければ null のまま。読めていないことを「お休みです」と書き替えない
+  const [announceState, setAnnounceState] = useState<{ message: string; targetCount: number; autoTimeLabel: string | null } | null>(null);
+  const refreshAnnounceState = async () => {
+    if (!salon) return;
+    const r = await getAnnounceState({ salonId: Number(salon.id) });
+    setAnnounceState(r.ok ? r.data : null);
+  };
+
   const [announcementForms, setAnnouncementForms] = useState<Record<string, Partial<Announcement>>>({});
   const [newAnnouncement, setNewAnnouncement] = useState<{ title: string; content: string; is_published: boolean; image_url: string | null }>({ title: '', content: '', is_published: true, image_url: null });
   const [addingAnnouncement, setAddingAnnouncement] = useState(false);
@@ -834,6 +845,20 @@ export default function MyPage() {
     const timer = setInterval(() => setNow(new Date()), 60000);
     return () => clearInterval(timer);
   }, []);
+
+  // ★ お知らせタブを開いたときに、自動配信の状態を取り直す（第69便）。
+  //   ★ 開かないタブのために毎回サーバへ行かない。
+  //   ★ eslint の依存警告を避けるため、関数はここでは呼ばず id とタブだけを見る
+  useEffect(() => {
+    if (activeTab !== 'news' || !salon) return;
+    let alive = true;
+    (async () => {
+      const r = await getAnnounceState({ salonId: Number(salon.id) });
+      if (alive) setAnnounceState(r.ok ? r.data : null);
+    })();
+    return () => { alive = false; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeTab, salon?.id]);
 
   // ★★ 目隠しの読み書き（第54便）。開いたとき1回だけ。
   //   ?media=1 を付けて開いたブラウザにだけ媒体連携を出す。?media=0 で消す。
@@ -1840,7 +1865,7 @@ export default function MyPage() {
   const rebuildAnnouncementForms = (list: Announcement[]) => {
     const map: Record<string, Partial<Announcement>> = {};
     list.forEach(a => {
-      map[a.id] = { title: a.title, content: a.content, is_published: a.is_published, image_url: a.image_url };
+      map[a.id] = { title: a.title, content: a.content, is_published: a.is_published, image_url: a.image_url, auto_rotate: a.auto_rotate };
     });
     setAnnouncementForms(map);
   };
@@ -1925,6 +1950,7 @@ export default function MyPage() {
     setNewAnnCrosspostNoReplies(false);
     setAddingAnnouncement(false);
     if (salon) revalidateSalon(salon.id);
+    void refreshAnnounceState();
     showToast(xOk ? 'お知らせを追加しました' : 'お知らせを追加しました（fukuX投稿は失敗しました）');
   };
 
@@ -1940,11 +1966,14 @@ export default function MyPage() {
     const content = ((form.content ?? '') as string).trim();
     const is_published = form.is_published ?? true;
     const image_url = (form.image_url as string | null) ?? null;
+    const auto_rotate = form.auto_rotate ?? false;
     const { error } = await supabase.from('announcements').update({
       title: form.title.trim(),
       content,
       is_published,
       image_url,
+      auto_rotate,
+      updated_at: new Date().toISOString(),
     }).eq('id', id);
     setSavingAnnouncement(null);
     if (error) { showToast(`保存に失敗しました: ${error.message}`); return; }
@@ -1952,9 +1981,11 @@ export default function MyPage() {
     const prevImageUrl = announcements.find(a => a.id === id)?.image_url ?? null;
     if (prevImageUrl && prevImageUrl !== image_url) removeAnnouncementImage(prevImageUrl);
     setAnnouncements(prev => prev.map(a => a.id === id
-      ? { ...a, title: form.title!.trim(), content, is_published, image_url }
+      ? { ...a, title: form.title!.trim(), content, is_published, image_url, auto_rotate }
       : a));
     if (salon) revalidateSalon(salon.id);
+    // ★ 「自動で回す」の印は自動配信の対象件数を変える。状態の1行も取り直す
+    void refreshAnnounceState();
     showToast('お知らせを保存しました');
   };
 
@@ -1968,6 +1999,8 @@ export default function MyPage() {
     setAnnouncements(prev => prev.map(a => a.id === id ? { ...a, is_published: next } : a));
     setAnnouncementForms(prev => ({ ...prev, [id]: { ...prev[id], is_published: next } }));
     if (salon) revalidateSalon(salon.id);
+    // ★ 非公開にすると自動配信の対象から外れる。状態の1行も取り直す
+    void refreshAnnounceState();
     showToast(next ? '公開にしました' : '非公開にしました');
   };
 
@@ -2009,6 +2042,8 @@ export default function MyPage() {
     setRepostingAnnouncement(null);
     setRepostModalId(null);
     if (salon) revalidateSalon(salon.id);
+    // ★ 手動で出した日は、その日の自動がお休みになる。状態の1行も取り直す
+    void refreshAnnounceState();
     // ★★ 黙って何も起きないのが最悪。起きたことを必ず言葉にする（§191）。
     //   ★ 「再投稿しました」と言い切らない——並びが動かなかった回もあるため
     showToast(xOk ? res.data.message : `${res.data.message}（fukuX投稿は失敗しました）`);
@@ -2068,6 +2103,7 @@ export default function MyPage() {
     setAnnouncements(prev => prev.filter(a => a.id !== id));
     setAnnouncementForms(prev => { const n = { ...prev }; delete n[id]; return n; });
     if (salon) revalidateSalon(salon.id);
+    void refreshAnnounceState();
     showToast('お知らせを削除しました');
   };
 
@@ -3676,6 +3712,29 @@ export default function MyPage() {
         {/* ── タブ7: お知らせ ── */}
         <div className={`space-y-4 ${activeTab === 'news' ? '' : 'hidden'}`}>
 
+          {/* ── 自動配信の状態（第69便・設計メモ 追記37 §192）──
+              ★★ 周（/api/admin/announce-auto）と同じ判定から来た1行をそのまま出す。
+                 画面が「今日は出ます」と言い、周は出さない、が起きうる形にしない。
+              ★ 時刻は店舗IDから決まる（選べない）。設定項目を1つ増やさないため。 */}
+          <div className="bg-white rounded-3xl border border-pink-100 shadow-sm p-5 space-y-1.5">
+            <h3 className="text-xs font-black text-pink-600">自動でお知らせを回す</h3>
+            {announceState ? (
+              <>
+                <p className="text-[11px] text-slate-600 leading-relaxed">{announceState.message}</p>
+                <p className="text-[10px] text-slate-400 leading-relaxed">
+                  {`いま「自動で回す」に印が付いているお知らせ：${announceState.targetCount}件`}
+                  {announceState.autoTimeLabel ? `　／　この店舗の自動配信の時刻：${announceState.autoTimeLabel}ごろ（変更できません）` : ''}
+                </p>
+                <p className="text-[10px] text-slate-400 leading-relaxed pt-1">
+                  1日1回、印を付けたお知らせを順番に1本ずつ出します。手動で出した日は、その日の自動はお休みします。
+                </p>
+              </>
+            ) : (
+              // ★ 読めていないことを「お休みです」と書き替えない（作法3-5）
+              <p className="text-[11px] text-slate-400">自動配信の状態を読み込み中です…</p>
+            )}
+          </div>
+
           {/* 新規追加フォーム */}
           <div className="bg-white rounded-3xl border border-pink-100 shadow-sm p-5 space-y-3">
             <h3 className="text-xs font-black text-pink-600">お知らせを新規追加</h3>
@@ -3907,6 +3966,23 @@ export default function MyPage() {
                     )}
                     <p className="text-[10px] text-slate-400 mt-1">※ 画像の差し替え・削除は「保存」で確定します。</p>
                   </div>
+                  {/* ★ 自動配信のローテに乗せるか（第69便）。★ 既定はオフ——黙って回さない。
+                      ★ 季節外れ（年末年始の告知が3月に出る）を防ぐ。有効期限は作らない。 */}
+                  <label className="flex items-start gap-2 cursor-pointer select-none pt-1">
+                    <input
+                      type="checkbox"
+                      checked={(form.auto_rotate as boolean | undefined) ?? false}
+                      onChange={(e) => setAnnouncementForms(prev => ({ ...prev, [a.id]: { ...prev[a.id], auto_rotate: e.target.checked } }))}
+                      className="w-4 h-4 accent-pink-500 flex-shrink-0 mt-0.5"
+                    />
+                    <span className="min-w-0">
+                      <span className="text-xs font-bold text-slate-600">自動で回す</span>
+                      <span className="block text-[10px] text-slate-400 leading-relaxed">
+                        印を付けたお知らせを、1日1回・順番に1本ずつ自動で出します（「保存」で確定します）
+                      </span>
+                    </span>
+                  </label>
+
                   <div className="flex justify-end">
                     <button
                       className={saveBtn}
