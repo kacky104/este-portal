@@ -110,6 +110,52 @@ export function directionLabel(d: SiteDirection, siteLabel?: string): string {
   }
 }
 
+/**
+ * ★★★ 入口のいちばん上に出す1行。★ 何がどこへ流れているかを、そのまま書く。
+ *
+ * ★★ 「◯◯から取り込んでいます」「取り込みはしていません」は、こちらの仕組みの言葉だった
+ *   （第88便・カッキーさんの指摘）。★ 事情を知らない人が最初に見る1行なので、
+ *   **どこの情報が、どこへ行くのか**だけを書く。
+ * ★ off を「していません」で終わらせるのは、それが事実だから（§223 に反しない）。
+ *   ★ 失敗として書かないために、【選んだ結果】であることは下の行と印で示す。
+ */
+export function homeHeadline(d: SiteDirection, siteLabel: string): string {
+  if (d === 'read') return `${siteLabel}の情報をフクエスに反映`;
+  if (d === 'write') return 'フクエスの情報を他サイトに反映';
+  if (d === 'off') return `${siteLabel}の反映もフクエスからの反映もしていません`;
+  return 'まだどのサイトとも連携していません';
+}
+
+/**
+ * ★★★ 押す前に出す問い（第88便・カッキーさん）。
+ *
+ * ★ 1回押すだけで変わる形にしたが、【取り込みが止まる】のように後戻りに時間がかかる
+ *   変化がある。★ 押す前に、何が起きるかを1度だけ見せる。
+ * ★★ 問いには**行き先の名前**を書く（「変更しますか？」だけにしない）。
+ *   ★ 押し間違えた人は、自分が何を押したのかを確かめたい。
+ * ★★ 本文には【止まるほう】を必ず書く。★ 押したあとの文（switchDoneText）と対にする。
+ */
+export function switchAskText(to: 'read' | 'write' | 'none', siteLabel: string): {
+  title: string; body: string;
+} {
+  if (to === 'read') {
+    return {
+      title: `${siteLabel}に変えますか？`,
+      body: `${siteLabel}に入れた出勤を、フクエスが読み取るようになります。フクエスから各サイトへは送らなくなります。`,
+    };
+  }
+  if (to === 'write') {
+    return {
+      title: 'フクエスに変えますか？',
+      body: `フクエスに入れた出勤を、各サイトへ反映するようになります。${siteLabel}からの取り込みは止まります。`,
+    };
+  }
+  return {
+    title: 'フクエスだけで使いますか？',
+    body: `出勤はフクエスにだけ入ります。どのサイトへも送らず、${siteLabel}からの取り込みもしません。`,
+  };
+}
+
 /** ★ 押したら何になるか（link_mode の値）と、ボタンに書く文字。 */
 export type SwitchChoice = { mode: 'read' | 'write' | 'none'; label: string };
 

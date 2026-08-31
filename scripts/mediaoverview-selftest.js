@@ -115,6 +115,36 @@ eq('★★★ none へ → 送らないことと取り込まないことの両�
 eq('★ どの行き先でも文が空にならない',
    ['read', 'write', 'none'].every((m) => v.switchDoneText(m, '駅ちか').length > 0), true);
 
+console.log('\n── 4-3. ★★★ 入口の1行と、押す前の問い（第88便）──');
+eq('read の1行', v.homeHeadline('read', '駅ちか'), '駅ちかの情報をフクエスに反映');
+eq('write の1行', v.homeHeadline('write', '駅ちか'), 'フクエスの情報を他サイトに反映');
+eq('off の1行', v.homeHeadline('off', '駅ちか'), '駅ちかの反映もフクエスからの反映もしていません');
+eq('unset の1行', v.homeHeadline('unset', '駅ちか'), 'まだどのサイトとも連携していません');
+eq('★ 媒体の名前は決め打ちにしない', v.homeHeadline('read', 'エステ魂'), 'エステ魂の情報をフクエスに反映');
+// ★★★ 仕組みの言葉を、いちばん目立つ1行に出さない
+eq('★★★ 「取り込」と書かない',
+   ['read', 'write', 'off', 'unset'].some((d) => v.homeHeadline(d, '駅ちか').includes('取り込')), false);
+eq('★ どの状態でも1行が空にならない',
+   ['read', 'write', 'off', 'unset'].every((d) => v.homeHeadline(d, '駅ちか').length > 0), true);
+
+// ★★ 問いは「変更しますか？」で終わらせない。行き先の名前を書く
+eq('write の問い', v.switchAskText('write', '駅ちか').title, 'フクエスに変えますか？');
+eq('read の問い', v.switchAskText('read', '駅ちか').title, '駅ちかに変えますか？');
+eq('none の問い', v.switchAskText('none', '駅ちか').title, 'フクエスだけで使いますか？');
+eq('★ 媒体の名前は決め打ちにしない', v.switchAskText('read', 'エステ魂').title, 'エステ魂に変えますか？');
+eq('★★ 問いは必ず「？」で終わる',
+   ['read', 'write', 'none'].every((m) => v.switchAskText(m, '駅ちか').title.endsWith('？')), true);
+// ★★★ 押す前の本文には【止まるほう】を必ず書く。★ 押したあとの文と対にする
+eq('★★★ write の本文は取り込みが止まると書く',
+   v.switchAskText('write', '駅ちか').body.includes('取り込みは止まります'), true);
+eq('★★★ read の本文は送らなくなると書く',
+   v.switchAskText('read', '駅ちか').body.includes('送らなくなります'), true);
+eq('★★★ none の本文は両方とも止まると書く',
+   v.switchAskText('none', '駅ちか').body.includes('どのサイトへも送らず')
+   && v.switchAskText('none', '駅ちか').body.includes('取り込みもしません'), true);
+eq('★ どの行き先でも本文が空にならない',
+   ['read', 'write', 'none'].every((m) => v.switchAskText(m, '駅ちか').body.length > 0), true);
+
 console.log('\n── 5. ★ 切り替えを出すのは読める媒体だけ ──');
 const sw = (o) => v.canSwitchDirection(facts(o));
 // ★★★ 対になる主張。同じ状態でも媒体で割れる

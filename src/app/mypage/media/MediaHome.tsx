@@ -3,7 +3,10 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { getMediaOverview, setMediaLinkMode } from '@/app/actions/mediaCredentials';
-import { switchChoices, switchDoneText, type SiteDirection } from '@/lib/mediaOverview';
+import {
+  switchChoices, switchDoneText, switchAskText, homeHeadline,
+  type SiteDirection, type SwitchChoice,
+} from '@/lib/mediaOverview';
 
 // 媒体連携の入口（第56便・㉞）。
 //
@@ -115,6 +118,8 @@ export function MediaHome({ salonId, salonName, onToast }: {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(true);
   const [switching, setSwitching] = useState('');
+  // ★ 押す前の問い（第88便）。★ null のあいだは何も出さない
+  const [ask, setAsk] = useState<{ site: Site; choice: SwitchChoice } | null>(null);
 
   useEffect(() => {
     if (salonId == null) return;
@@ -154,6 +159,12 @@ export function MediaHome({ salonId, salonName, onToast }: {
   const sites = data?.sites ?? [];
   const reading = sites.find((s) => s.direction === 'read') ?? null;
   const writing = sites.filter((s) => s.direction === 'write');
+  // ★ 自分で「送らない」を選んでいる枠。★ 未設定と混ぜて書かない（§223）
+  const offSite = sites.find((s) => s.direction === 'off') ?? null;
+  // ★ いちばん上の1行は、この3つで決まる。★ 文言は mediaOverview に置いてある（点検で固定）
+  const topDirection: SiteDirection =
+    reading ? 'read' : writing.length > 0 ? 'write' : offSite ? 'off' : 'unset';
+  const topLabel = reading?.label ?? offSite?.label ?? '';
 
   return (
     <div className="space-y-3">
@@ -172,14 +183,14 @@ export function MediaHome({ salonId, salonName, onToast }: {
             <div className="flex items-start justify-between gap-3">
               <div>
                 <p className="text-[17px] font-black text-slate-800">
-                  {reading.label}から取り込んでいます
+                  {homeHeadline('read', reading.label)}
                 </p>
                 <p className="mt-0.5 text-[12px] text-slate-500">{salonName ?? ''}</p>
               </div>
-              {/* ★ 見出しが「◯◯から取り込んでいます」なので、印も同じ言葉で置く。
+              {/* ★ 見出しと同じ言葉を置く（第88便で見出しを「◯◯の情報をフクエスに反映」に変えた）。
                   ★ 「読み込み」は下の行の【どこで入力するか】とぶつかる（第86便） */}
               <span className={`flex-none text-[11px] font-bold px-3 py-0.5 border ${PILL.read}`}>
-                取り込み中
+                反映中
               </span>
             </div>
 
@@ -214,11 +225,17 @@ export function MediaHome({ salonId, salonName, onToast }: {
           </>
         ) : (
           <>
-            <p className="text-[17px] font-black text-slate-800">取り込みはしていません</p>
+            <p className="text-[17px] font-black text-slate-800">
+              {homeHeadline(topDirection, topLabel)}
+            </p>
             <p className="mt-1 text-[12px] text-slate-500 leading-relaxed">
+              {/* ★★ off は【選んだ結果】。★ 「していません」の1行だけで終わらせず、
+                     選んだことと、戻せることを、すぐ下に書く（§223） */}
               {writing.length > 0
-                ? 'いまはフクエスで入力して、各サイトへ反映しています。'
-                : 'まだどのサイトとも連携していません。ログイン情報を登録すると始められます。'}
+                ? (salonName ?? '')
+                : offSite
+                  ? '「フクエスだけで使う」を選んでいます。下のボタンでいつでも戻せます。'
+                  : 'ログイン情報を登録すると始められます。'}
             </p>
           </>
         )}
@@ -291,7 +308,7 @@ export function MediaHome({ salonId, salonName, onToast }: {
                       <button
                         key={c.mode}
                         type="button"
-                        onClick={() => void onSwitch(s, c.mode)}
+                        onClick={() => setAsk({ site: s, choice: c })}
                         disabled={switching !== ''}
                         className="text-[11px] font-bold px-3 py-1.5 border border-slate-300 bg-white text-slate-600 hover:bg-slate-50 disabled:opacity-40"
                       >
@@ -311,6 +328,47 @@ export function MediaHome({ salonId, salonName, onToast }: {
           選べるのは駅ちかだけで、ほかのサイトへは反映するだけです。
         </p>
       </div>
+
+      {/* ── ★★★ 押す前の問い（第88便）─────────────────────
+          ★ ここで初めて【何が止まるか】を出す。★ 押したあとの文（switchDoneText）と対。
+          ★ 既定は「やめる」側。★ 何もしないほうを、押しやすい位置に置く。 */}
+      {ask && (
+        <div
+          className="fixed inset-0 z-50 bg-slate-900/40 grid place-items-center p-4"
+          role="dialog"
+          aria-modal="true"
+          onClick={() => setAsk(null)}
+        >
+          <div
+            className="w-full max-w-[360px] bg-white border border-slate-200 shadow-lg p-5"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <p className="text-[15px] font-black text-slate-800">
+              {switchAskText(ask.choice.mode, ask.site.label).title}
+            </p>
+            <p className="mt-2 text-[12px] text-slate-500 leading-relaxed">
+              {switchAskText(ask.choice.mode, ask.site.label).body}
+            </p>
+            <div className="mt-4 flex justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => setAsk(null)}
+                className="px-4 py-1.5 border border-slate-200 text-[12px] font-bold text-slate-500 hover:bg-slate-50"
+              >
+                やめる
+              </button>
+              <button
+                type="button"
+                onClick={() => { const a = ask; setAsk(null); void onSwitch(a.site, a.choice.mode); }}
+                disabled={switching !== ''}
+                className="px-4 py-1.5 border border-indigo-600 bg-indigo-600 text-[12px] font-bold text-white hover:bg-indigo-700 disabled:opacity-40"
+              >
+                {ask.choice.label}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ── 用事のタイル ───────────────────────────────── */}
       <div className="grid grid-cols-2 gap-2.5">
