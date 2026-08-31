@@ -470,6 +470,15 @@ export function LoginBoard({
                   </div>
                 ) : (
                   <div className="border-t border-slate-100 pt-4 space-y-3">
+                    {/* ★★ 受け付けてはいるが、まだ全部はできない段（第80便）。
+                        ★ 開ける代わりに、いまどこまでできるかを同じ場所に書く。
+                        ★ 黙って開けると『連携したつもり』になる —— それは §185 の逆。 */}
+                    {site.stageNote && (
+                      <div className="border border-sky-200 bg-sky-50 px-3 py-2.5">
+                        <p className="text-[12.5px] font-bold text-sky-800">いまできること</p>
+                        <p className="text-[11.5px] text-sky-900/80 leading-relaxed mt-0.5">{site.stageNote}</p>
+                      </div>
+                    )}
                     <div className="text-[13px] font-bold text-slate-700">
                       {row ? `枠${slot}の内容を変更する` : `枠${slot}を登録する`}
                     </div>

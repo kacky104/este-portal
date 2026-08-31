@@ -59,7 +59,8 @@ BASE, SECRET, SPAN, BACKOFF_FILE = sys.argv[1], sys.argv[2], int(sys.argv[3]), s
 
 # ★★★ VPS 側の allowlist。フクエス側にも同じ表がある（src/lib/relayJob.ts）。
 #   片方だけに頼らない。フクエス側が壊れても、ここで止まる。
-ALLOWED_HOSTS = {"ranking-deli.jp"}
+# ★ 2026-08-31（第80便）で eslove.jp を追加。★ フクエス側（src/lib/relayJob.ts）と同じ組にすること
+ALLOWED_HOSTS = {"ranking-deli.jp", "eslove.jp"}
 MAX_TIME = 30          # 1リクエストの上限（秒）
 BACKOFF_SEC = 1800     # 429/5xx を見たら30分引く
 IDLE_SLEEP = 5         # ジョブが無いときの待ち

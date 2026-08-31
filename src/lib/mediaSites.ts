@@ -44,6 +44,17 @@ export type MediaSite = {
   accepting: boolean;
   /** 受け付けていない理由。★ accepting が false のときだけ画面に出す */
   notYet: string;
+  /**
+   * ★★ いまどこまでできるか。★ accepting が true のときだけ画面に出す（第80便）。
+   *   空文字なら出さない（＝ひととおりできる、という意味）。
+   *
+   * ★★★ なぜ要るか
+   *   accepting を true にした瞬間、店舗から見れば「連携できる」に見える。
+   *   ★ だが段階を踏んで作っている途中は、できることが限られている。
+   *   ★ 黙って開けると『連携したつもり』になる —— それは §185 の逆。
+   *   → 開ける代わりに、**いまどこまでできるかを同じ行に書く**。
+   */
+  stageNote: string;
   idLabel: string;
   idHint: string;
 };
@@ -57,6 +68,7 @@ export const MEDIA_SITES: readonly MediaSite[] = [
     readable: true,
     accepting: true,
     notYet: '',
+    stageNote: '',
     idLabel: '店舗ID（shopid）',
     idHint:
       '駅ちかのログイン画面で入力している「店舗ID」です。掲載ページのURLに出ている番号とは別の番号なのでご注意ください。分からない場合はお知らせください、こちらでお調べします。',
@@ -67,8 +79,14 @@ export const MEDIA_SITES: readonly MediaSite[] = [
     can: ['work', 'diary'],
     slots: 2,
     readable: false,
-    accepting: false,
-    notYet: 'エステラブへ送る仕組みを準備しています。できあがるまで、ログイン情報はお預かりしません。',
+    // ★★ 2026-08-31（第80便）で開けた。★ ただし、まだ出勤は送れない。
+    //   駅ちかで踏んだ順番（第43便 試し打ち → 第46便 送信）を、エステラブでも踏む。
+    //   ★ 試し打ちにもログイン情報が要るので、ここを先に開ける必要があった。
+    accepting: true,
+    notYet: '',
+    stageNote:
+      'いまできるのは、エステラブの名簿を読んで「送るとこうなる」を確かめるところまでです。' +
+      '出勤を実際に送る機能は、続けて作っています。',
     idLabel: '店舗ID',
     idHint: 'エステラブの管理画面にログインするときの店舗IDです。',
   },
@@ -80,6 +98,7 @@ export const MEDIA_SITES: readonly MediaSite[] = [
     readable: false,
     accepting: false,
     notYet: 'エステ魂へ送る仕組みを準備しています。できあがるまで、ログイン情報はお預かりしません。',
+    stageNote: '',
     idLabel: '店舗ID',
     idHint: 'エステ魂の管理画面にログインするときの店舗IDです。',
   },
@@ -91,6 +110,7 @@ export const MEDIA_SITES: readonly MediaSite[] = [
     readable: false,
     accepting: false,
     notYet: '全国エステランキングへ送る仕組みを準備しています。できあがるまで、ログイン情報はお預かりしません。',
+    stageNote: '',
     idLabel: '店舗ID',
     idHint: '全国エステランキングの管理画面にログインするときの店舗IDです。',
   },

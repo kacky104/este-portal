@@ -32,9 +32,35 @@ import { addDaysISO, buildWorkPlan, planFingerprint, summarizePlan, type FukuesS
 import { WORK_DAYS, encodeGirlWork, type WorkPage } from '@/lib/ekichikaWorkParse';
 import type { EkichikaGirlsPage } from '@/lib/ekichikaGirlsParse';
 import type { EkichikaMailListPage } from '@/lib/ekichikaMailListParse';
+// ★ エステラブ（第80便）。★ 送るのは次便。ここでは「ログイン → 名簿 → 計画」まで
+import { buildEsuloveLoginRequest } from '@/lib/esuloveRequests';
+import { planEsuloveWork } from '@/lib/esulovePlan';
+import type { EsuloveTherapistRow } from '@/lib/esuloveTherapistParse';
 
-/** いまフローを組み立てられる媒体。★ 増やすときは buildLoginRequest 側も要る */
-const SUPPORTED_PROVIDERS = ['ekichika'] as const;
+/**
+ * いまフローを組み立てられる媒体。
+ * ★ 増やすときは、下の「最初の段」の分岐も一緒に直すこと。
+ * ★ 2026-08-31（第80便）でエステラブを追加。★ ただしエステラブは
+ *   【ログイン → 名簿を読む → 送るとこうなるを組み立てる】まで。**まだ送らない。**
+ */
+const SUPPORTED_PROVIDERS = ['ekichika', 'esulove'] as const;
+
+/**
+ * 媒体ごとの「最初の段」。
+ * ★★ 段の名前を分けているので、判定はここ1か所で済む（第78便 §310）。
+ * ★ 知らない媒体はここへ来ない（SUPPORTED_PROVIDERS で弾いてある）。
+ */
+function firstStep(
+  provider: string,
+  cred: { shopId: string; loginId: string; password: string },
+): { purpose: 'login' | 'esulove_login'; method: 'POST'; url: string; headers: Record<string, string>; body: string } {
+  if (provider === 'esulove') {
+    const r = buildEsuloveLoginRequest({ loginId: cred.loginId, password: cred.password });
+    return { purpose: 'esulove_login', method: 'POST', url: r.url, headers: r.headers, body: r.body ?? '' };
+  }
+  const r = buildLoginRequest({ shopId: cred.shopId, loginId: cred.loginId, password: cred.password });
+  return { purpose: 'login', method: 'POST', url: r.url, headers: r.headers, body: r.body };
+}
 
 export type StartFlowResult =
   | { ok: true; jobId: string; flowId: string; note: string }
@@ -99,7 +125,7 @@ export async function startRelayFlow(params: {
     slot: params.slot,
   });
 
-  const login = buildLoginRequest({
+  const login = firstStep(params.provider, {
     shopId: String(cred.shop_id ?? ''),
     loginId: String(cred.login_id ?? ''),
     password,
@@ -120,7 +146,7 @@ export async function startRelayFlow(params: {
     salonId: params.salonId,
     provider: params.provider,
     slot: params.slot,
-    purpose: 'login',
+    purpose: login.purpose,
     method: login.method,
     url: login.url,
     headers: login.headers,
@@ -203,7 +229,10 @@ export async function advanceRelayFlow(params: {
     if (outcome.warnings.length > 0) {
       console.warn('[relay] エステラブ名簿の気になること:', outcome.warnings.join(' / '));
     }
-    note = outcome.note;
+    const r = await planEsulove(params, outcome.rows, context);
+    audits.push(...r.audits);
+    note = outcome.note + ' → ' + r.note;
+    // ★★ 次は積まない。★ この便では【送らない】。駅ちかで踏んだ順番（第43便 試し打ち → 第46便 送信）と同じ
   }
 
   await writeAudits(params, audits, context);
@@ -402,6 +431,103 @@ async function saveRoster(
  * ★ 7日窓の起点は【こちらの今日（Asia/Tokyo）】。
  *   駅ちか側の先頭がこことずれていたら buildWorkPlan が date_shifted で止める。
  */
+/**
+ * ★★★ エステラブの名簿を読めたあと、フクエスの出勤と突き合わせて「送るとこうなる」を組み立てる（第80便）。
+ *
+ * ★★ この便では **1件も送らない**。組み立てて、監査ログに残すだけ。
+ *   駅ちかで踏んだ順番（第43便 試し打ち → 第46便 送信）を、エステラブでも踏む。
+ *   ★ 先に「何が送られるか」を人が見られる状態を作る。
+ *
+ * ★ 判断そのものは src/lib/esulovePlan.ts（純粋関数・自己点検あり）が持つ。
+ *   ここは【DBを読んで渡し、結果を記録する】だけ。
+ */
+async function planEsulove(
+  params: { salonId: number; provider: string; slot: number },
+  rosterRows: EsuloveTherapistRow[],
+  ctx: RelayFlowContext,
+): Promise<{ audits: FlowAudit[]; note: string }> {
+  const flowId = ctx.flowId;
+  const supabase = createServiceClient();
+  const todayISO = new Date(Date.now() + 9 * 60 * 60 * 1000).toISOString().slice(0, 10); // Asia/Tokyo
+
+  const { data: therapists, error: thErr } = await supabase
+    .from('therapists')
+    .select('id, name')
+    .eq('salon_id', params.salonId)
+    .eq('is_active', true);
+  if (thErr) {
+    return {
+      audits: [{
+        event: 'plan_work',
+        outcome: 'failed',
+        summary: 'エステラブへ送る内容を組み立てられませんでした（フクエス側の読み取りに失敗）',
+        detail: { reason: 'therapists_read_failed', flowId },
+      }],
+      note: 'セラピストを読めなかった: ' + thErr.message,
+    };
+  }
+
+  const people = ((therapists ?? []) as Array<{ id: number; name: string | null }>)
+    .map((t) => ({ therapistId: t.id, name: String(t.name ?? '') }))
+    .filter((t) => t.name.length > 0);
+
+  const ids = people.map((t) => t.therapistId);
+  const lastISO = addDaysISO(todayISO, WORK_DAYS - 1);
+  const { data: sched, error: schErr } = ids.length
+    ? await supabase
+        .from('therapist_schedules')
+        .select('therapist_id, schedule_date, is_active, start_time, end_time')
+        .in('therapist_id', ids)
+        .gte('schedule_date', todayISO)
+        .lte('schedule_date', lastISO)
+    : { data: [] as unknown[], error: null };
+  if (schErr) {
+    return {
+      audits: [{
+        event: 'plan_work',
+        outcome: 'failed',
+        summary: 'エステラブへ送る内容を組み立てられませんでした（出勤の読み取りに失敗）',
+        detail: { reason: 'schedules_read_failed', flowId },
+      }],
+      note: '出勤を読めなかった: ' + schErr.message,
+    };
+  }
+
+  const shifts = ((sched ?? []) as Array<Record<string, unknown>>).map((r) => ({
+    therapistId: r['therapist_id'] as number,
+    dateISO: String(r['schedule_date']),
+    active: r['is_active'] === true,
+    start: typeof r['start_time'] === 'string' ? r['start_time'].slice(0, 5) : null,
+    end: typeof r['end_time'] === 'string' ? r['end_time'].slice(0, 5) : null,
+  }));
+
+  const plan = planEsuloveWork({
+    roster: rosterRows.map((r) => ({ castId: r.castId, name: r.name })),
+    therapists: people,
+    shifts,
+  });
+
+  // ★ 監査ログには件数と1行だけ。★ 名前を入れない（scrubAuditDetail と同じ考え）
+  return {
+    audits: [{
+      event: 'plan_work',
+      // ★★ 送らないので 'ok' とは言わない。★ 組み立てただけ＝ 'stopped'（判断して止めた）。
+      //   ★ 'ok' にすると、店舗の画面で「反映できました」と読める文になる。
+      outcome: 'stopped',
+      summary: 'エステラブへの反映内容を組み立てました（まだ送っていません）。' + plan.summary,
+      detail: {
+        rows: plan.rows.length,
+        blocked: plan.blocked.length,
+        notes: plan.notes.length,
+        roster: rosterRows.length,
+        targets: people.length,
+        flowId,
+      },
+    }],
+    note: plan.summary,
+  };
+}
+
 async function planWork(
   params: { salonId: number; provider: string; slot: number },
   page: WorkPage,

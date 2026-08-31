@@ -22,8 +22,17 @@
 import zlib from 'node:zlib';
 import { encryptWithAad, decryptWithAad } from './mediaCredentials';
 
-/** ★ 転送を許すホスト。ここに無いものは投げない。VPS側にも同じ表を置くこと。 */
-export const RELAY_ALLOWED_HOSTS: readonly string[] = ['ranking-deli.jp'];
+/**
+ * ★ 転送を許すホスト。ここに無いものは投げない。★ VPS側（scripts/relay.sh）にも同じ表を置くこと。
+ *
+ * ★★★ 2か所に置いてあるのは、片方だけに頼らないため。
+ *   ★ **両方を直さないと通らない。** 片方だけ直すと、
+ *     ・こちらだけ足した → VPS が「許可していない宛先」で拒否する（記録には残る）
+ *     ・VPS だけ足した   → こちらが投げる前に例外で止まる
+ *   ★ どちらも「静かに通ってしまう」ことは無い。★ そこは意図した形。
+ * ★ 2026-08-31（第80便）で eslove.jp を追加。
+ */
+export const RELAY_ALLOWED_HOSTS: readonly string[] = ['ranking-deli.jp', 'eslove.jp'];
 
 /**
  * ★ 送ってよいリクエストヘッダー。ここに無いものは落とす。

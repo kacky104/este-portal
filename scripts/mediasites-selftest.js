@@ -21,12 +21,31 @@ const site = (o) => Object.assign(
   o || {}
 );
 
+
+// ── ★★ stageNote（いまどこまでできるか・第80便）──
+// ★ accepting が false のサイトは notYet を出すので、stageNote は空であること
+//   （2つ同時に出すと、どちらを読めばよいか分からなくなる）
+eq('★ 受け付けていないサイトに stageNote を書かない',
+  v.MEDIA_SITES.filter(s => !s.accepting && s.stageNote !== '').length, 0);
+// ★ 受け付けていないサイトには理由がある（§185）
+eq('受け付けていないサイトには理由がある',
+  v.MEDIA_SITES.filter(s => !s.accepting && !s.notYet).length, 0);
+// ★ 受け付けているサイトに notYet を残さない（古い理由が出続けるため）
+eq('★ 受け付けたら notYet を消す',
+  v.MEDIA_SITES.filter(s => s.accepting && s.notYet !== '').length, 0);
+// ★ エステラブは開いていて、まだ全部はできないと書いてある
+eq('エステラブは受け付けている', v.findMediaSite('esulove').accepting, true);
+eq('★ エステラブは「どこまでできるか」を書いてある',
+  v.findMediaSite('esulove').stageNote.length > 0, true);
+eq('駅ちかは段の断りが要らない', v.findMediaSite('ekichika').stageNote, '');
+
 console.log('── 1. 表そのもの ──');
 eq('4サイトある', v.MEDIA_SITES.length, 4);
 eq('★ 読めるのは1つだけ（駅ちか）', v.MEDIA_SITES.filter((s) => s.readable).length, 1);
 eq('★ 読めるのは駅ちか', v.MEDIA_SITES.find((s) => s.readable).provider, 'ekichika');
-eq('★ いま受け付けているのは駅ちかだけ',
-   v.MEDIA_SITES.filter((s) => s.accepting).map((s) => s.provider), ['ekichika']);
+// ★ 2026-08-31（第80便）でエステラブを開けた。★ 増やすときは、ここも一緒に直す
+eq('★ いま受け付けているのは駅ちかとエステラブ',
+   v.MEDIA_SITES.filter((s) => s.accepting).map((s) => s.provider), ['ekichika', 'esulove']);
 // ★★ 受け付けていないサイトには、必ず理由の文がある（黙って押せない口を作らない）
 eq('★★ 受け付けないサイトには理由が書いてある',
    v.MEDIA_SITES.filter((s) => !s.accepting).every((s) => s.notYet.length > 0), true);
@@ -127,7 +146,10 @@ eq('★ 知らない値は unset の文', v.loginDirectionText('なにか', '駅
 
 console.log('\n── 8. 受け付けているか ──');
 eq('駅ちかは受け付ける', v.canRegisterSite(v.findMediaSite('ekichika')), true);
-eq('★ エステラブはまだ受け付けない', v.canRegisterSite(v.findMediaSite('esulove')), false);
+// ★★ 2026-08-31（第80便）で開けた。★ ただし出勤はまだ送れないので stageNote で断る
+eq('★ エステラブも受け付ける（第80便で開けた）', v.canRegisterSite(v.findMediaSite('esulove')), true);
+eq('★ エステ魂はまだ受け付けない', v.canRegisterSite(v.findMediaSite('esutama')), false);
+eq('★ 全国もまだ受け付けない', v.canRegisterSite(v.findMediaSite('zenkoku')), false);
 eq('★ accepting が 1 では受け付けない側に倒す', v.canRegisterSite(site({ accepting: 1 })), false);
 
 console.log(fail === 0 ? '\n★ すべて通った' : '\n★ NG ' + fail + ' 件');
