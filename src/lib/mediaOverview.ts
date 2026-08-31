@@ -120,8 +120,11 @@ export function directionLabel(d: SiteDirection, siteLabel?: string): string {
  *   ★ 失敗として書かないために、【選んだ結果】であることは下の行と印で示す。
  */
 export function homeHeadline(d: SiteDirection, siteLabel: string): string {
-  if (d === 'read') return `${siteLabel}の情報をフクエスに反映`;
-  if (d === 'write') return 'フクエスの情報を他サイトに反映';
+  // ★★ いま動いている2つには「中」を付ける（第90便・カッキーさん）。
+  //   ★ 「反映」だけだと、これから反映するのか、もう反映したのかが読めない。
+  //   ★ 画面ではこの2つだけを【ゆっくり点滅】させる。★ 動いていることを絵でも見せる。
+  if (d === 'read') return `${siteLabel}の情報をフクエスに反映中`;
+  if (d === 'write') return 'フクエスの情報を他サイトに反映中';
   if (d === 'off') return `${siteLabel}の反映もフクエスからの反映もしていません`;
   return 'まだどのサイトとも連携していません';
 }
@@ -140,18 +143,18 @@ export function switchAskText(to: 'read' | 'write' | 'none', siteLabel: string):
 } {
   if (to === 'read') {
     return {
-      title: `${siteLabel}に変えますか？`,
+      title: `${siteLabel}から反映しますか？`,
       body: `${siteLabel}に入れた出勤を、フクエスが読み取るようになります。フクエスから各サイトへは送らなくなります。`,
     };
   }
   if (to === 'write') {
     return {
-      title: 'フクエスに変えますか？',
+      title: 'フクエスから反映しますか？',
       body: `フクエスに入れた出勤を、各サイトへ反映するようになります。${siteLabel}からの取り込みは止まります。`,
     };
   }
   return {
-    title: 'フクエスだけで使いますか？',
+    title: 'どのサイトにも反映しないようにしますか？',
     body: `出勤はフクエスにだけ入ります。どのサイトへも送らず、${siteLabel}からの取り込みもしません。`,
   };
 }
@@ -170,24 +173,43 @@ export type SwitchChoice = { mode: 'read' | 'write' | 'none'; label: string };
  * ★ 読める媒体は駅ちかだけで増やさない運営（2026-08-31・カッキーさん）。
  *   ★ それでも媒体名は引数で受ける。文言に店の名前を焼き付けない。
  *
- * ★★★ off から write へ戻す文字だけ「フクエスに変える」ではない。
- *   ★ off の店はもうフクエスで入力している。★ 変わるのは【送るかどうか】だけ。
- *     そこに「フクエスに変える」と書くと、いま何が変わるのかが嘘になる。
+ * ★★★ 第90便（カッキーさん）で【行き先の状態】を名前にした。
+ *   旧: 「フクエスに変える」「駅ちかに変える」「フクエスだけで使う」「各サイトへ送るようにする」
+ *   新: 「フクエスから反映」「駅ちかから反映」「反映しない」
+ *   ★★ 「変える」は【動き】であって、押した先がどうなるかを言っていない。
+ *     ★ 状態の名前にすると、どこから押しても同じ言葉になる。
+ *   ★★★ 以前は off → write だけ「各サイトへ送るようにする」と別の文字にしていた。
+ *     ★ off の店はもうフクエスで入力していて、変わるのは【送るかどうか】だけだったため。
+ *     ★★ 行き先の状態を名前にすると、この例外が要らなくなる。★ 例外が消えたぶん、ずれない。
  */
+export function switchLabel(mode: 'read' | 'write' | 'none', siteLabel: string): string {
+  if (mode === 'read') return `${siteLabel}から反映`;
+  if (mode === 'write') return 'フクエスから反映';
+  return '反映しない';
+}
+
 export function switchChoices(from: SiteDirection, siteLabel: string): SwitchChoice[] {
-  if (from === 'read') return [
-    { mode: 'write', label: 'フクエスに変える' },
-    { mode: 'none', label: 'フクエスだけで使う' },
-  ];
-  if (from === 'write') return [
-    { mode: 'read', label: `${siteLabel}に変える` },
-    { mode: 'none', label: 'フクエスだけで使う' },
-  ];
-  if (from === 'off') return [
-    { mode: 'read', label: `${siteLabel}に変える` },
-    { mode: 'write', label: '各サイトへ送るようにする' },
-  ];
+  const c = (mode: 'read' | 'write' | 'none'): SwitchChoice =>
+    ({ mode, label: switchLabel(mode, siteLabel) });
+  if (from === 'read') return [c('write'), c('none')];
+  if (from === 'write') return [c('read'), c('none')];
+  if (from === 'off') return [c('read'), c('write')];
   return [];
+}
+
+/**
+ * ★★★ 選ぶボタンの下に置く、短い説明（第90便・カッキーさん）。
+ *
+ * ★★ 前は3文あった。★ 「両方には入れられません」「選べるのは駅ちかだけで、ほかのサイトへは
+ *   反映するだけです」は、1文目と同じことを別の言い方でもう一度書いていた。
+ *   ★ 説明が長いほど読まれない。★ 押す前の問いに全部書いてあるので、ここは2文に絞る。
+ * ★★★ ボタンの名前は switchLabel から出す。★ 手で書くと、名前を直した日にここだけ残る。
+ * ★ 媒体名は引数で受ける。★ 読めないときは名前のない言い方に倒す（嘘の名前を出さない）。
+ */
+export function homeChoiceNote(siteLabel: string): string {
+  const where = typeof siteLabel === 'string' && siteLabel.length > 0 ? siteLabel : 'サイト側';
+  return `出勤の反映は、${where}とフクエスのどちらか一方です。`
+    + `「${switchLabel('none', where)}」を選ぶと、どのサイトへも送りません。`;
 }
 
 /**
@@ -199,9 +221,9 @@ export function switchChoices(from: SiteDirection, siteLabel: string): SwitchCho
  *   ★ 行き先の状態を書けば、どの道から来ても正しい文になる。
  */
 export function switchDoneText(to: 'read' | 'write' | 'none', siteLabel: string): string {
-  if (to === 'read') return `${siteLabel}に変えました。フクエスからは送りません`;
-  if (to === 'write') return `フクエスに変えました。${siteLabel}からの取り込みは止まります`;
-  return `フクエスだけで使います。どのサイトへも送らず、${siteLabel}からの取り込みもしません`;
+  if (to === 'read') return `${siteLabel}から反映するようにしました。フクエスからは送りません`;
+  if (to === 'write') return `フクエスから反映するようにしました。${siteLabel}からの取り込みは止まります`;
+  return `反映しないようにしました。どのサイトへも送らず、${siteLabel}からの取り込みもしません`;
 }
 
 /**
@@ -282,7 +304,7 @@ export const CREDENTIAL_PAUSE_WHEN =
  */
 export const CREDENTIAL_PAUSE_NOT_FOR_STOPPING =
   'もう送りたくないだけのときは、こちらではありません。'
-  + '媒体連携のホームで「フクエスだけで使う」をお選びください。';
+  + '媒体連携のホームで「反映しない」をお選びください。';
 
 /**
  * ★★★ 押す前に出す問い（§353 の第88便版と対）。

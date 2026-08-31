@@ -118,12 +118,12 @@ export function DiaryTargets({ salonId, onToast }: { salonId: number | null; onT
 
       {/* ── どのサイトを見るか ─────────────────────────── */}
       <div className="bg-white border border-slate-200 shadow-[0_1px_2px_rgba(31,35,51,0.05)] p-5">
-        <h3 className="text-sm font-bold text-slate-700 mb-3">どのサイトの投稿先を見ますか？</h3>
+        <h3 className="text-[16px] font-bold text-slate-700 mb-3">どのサイトの投稿先を見ますか？</h3>
 
         {loading ? (
-          <p className="text-[12px] text-slate-400">読み込み中…</p>
+          <p className="text-[14px] text-slate-400">読み込み中…</p>
         ) : error ? (
-          <p className="text-[12px] text-rose-600 leading-relaxed">
+          <p className="text-[14px] text-rose-600 leading-relaxed">
             投稿先を読み込めませんでした（{error}）。しばらくしてから開き直してください。
           </p>
         ) : (
@@ -135,7 +135,7 @@ export function DiaryTargets({ salonId, onToast }: { salonId: number | null; onT
                   key={s.provider}
                   onClick={() => { setPicked(s.provider); setConfirmApply(false); setShowAll(false); }}
                   aria-pressed={on}
-                  className={`px-3 py-2 border text-[12px] font-bold transition-colors ${
+                  className={`px-3 py-2 border text-[14px] font-bold transition-colors ${
                     on ? 'bg-indigo-50 text-indigo-700 border-indigo-200' : 'bg-white text-slate-400 border-slate-200'
                   }`}
                 >
@@ -159,7 +159,7 @@ export function DiaryTargets({ salonId, onToast }: { salonId: number | null; onT
             ★ もとは「エステ魂はメールでの投稿ができず、全国エステランキングには
               写メ日記そのものがありません」と、出ていない2サイトの理由まで書いていた。
             ★ その理由は mediaSites.ts の diaryAddressSource: 'none' に残してある。 */}
-        <p className="mt-3 text-[11px] text-slate-400 leading-relaxed">
+        <p className="mt-3 text-[13px] text-slate-400 leading-relaxed">
           駅ちかとエステラブは写メ日記の自動転送ができます。
         </p>
       </div>
@@ -169,7 +169,7 @@ export function DiaryTargets({ salonId, onToast }: { salonId: number | null; onT
           いちばん誤解される点。★ 目に留まる色にする。 */}
       {!loading && !error && data?.diarySource !== 'fukues' && (
         <div className="border border-rose-200 bg-rose-50 px-4 py-3">
-          <p className="text-[12px] leading-relaxed text-slate-600">
+          <p className="text-[14px] leading-relaxed text-slate-600">
             <b className="font-bold text-rose-700">いまは、フクエスから写メ日記を転送していません。</b>{' '}
             投稿先を登録しても、フクエスが正本になるまでは送りません。
             他社経由の転送と二重にならないようにするためです。
@@ -185,10 +185,10 @@ export function DiaryTargets({ salonId, onToast }: { salonId: number | null; onT
       {!loading && !error && site && manualAddress ? (
         <div className="bg-white border border-slate-200 shadow-[0_1px_2px_rgba(31,35,51,0.05)] p-5 space-y-3">
           <div>
-            <p className="text-[17px] font-black text-slate-800">
+            <p className="text-[19px] font-black text-slate-800">
               {site.label}の投稿先は、手でご入力ください
             </p>
-            <p className="mt-1 text-[12px] text-slate-500 leading-relaxed">
+            <p className="mt-1 text-[14px] text-slate-500 leading-relaxed">
               {site.label}は、フクエスのサーバからの接続を受け付けていないため、
               投稿用アドレスを自動で読み取れません。お手数ですが、
               セラピストさんごとに{site.label}の投稿用アドレスをご登録ください。
@@ -198,10 +198,10 @@ export function DiaryTargets({ salonId, onToast }: { salonId: number | null; onT
           </div>
 
           {total === 0 ? (
-            <p className="text-[12px] text-slate-400">セラピストさんが登録されていません。</p>
+            <p className="text-[14px] text-slate-400">セラピストさんが登録されていません。</p>
           ) : (
             <div className="overflow-x-auto">
-              <table className="w-full text-[12px]">
+              <table className="w-full text-[14px]">
                 <thead>
                   <tr className="text-slate-400 text-left">
                     <th className="font-medium py-1 pr-3 whitespace-nowrap">セラピスト</th>
@@ -226,7 +226,7 @@ export function DiaryTargets({ salonId, onToast }: { salonId: number | null; onT
                         <td className="py-1.5 whitespace-nowrap">
                           <Link
                             href={`/mypage/therapist/${t.id}`}
-                            className="text-[11.5px] font-bold px-2.5 py-1 border border-slate-200 text-slate-600"
+                            className="text-[13.5px] font-bold px-2.5 py-1 border border-slate-200 text-slate-600"
                           >
                             {f && f.addressMask.length > 0 ? '変える' : '入力する'}
                           </Link>
@@ -241,13 +241,13 @@ export function DiaryTargets({ salonId, onToast }: { salonId: number | null; onT
         </div>
       ) : !loading && !error && site && !site.hasCredential ? (
         <div className="bg-white border border-slate-200 shadow-[0_1px_2px_rgba(31,35,51,0.05)] p-5">
-          <p className="text-[17px] font-black text-slate-800">{site.label}とはまだ連携していません</p>
-          <p className="mt-1 text-[12px] text-slate-500 leading-relaxed">
+          <p className="text-[19px] font-black text-slate-800">{site.label}とはまだ連携していません</p>
+          <p className="mt-1 text-[14px] text-slate-500 leading-relaxed">
             ログイン情報を登録すると、{site.label}が発行している投稿用アドレスを読み取れます。
           </p>
           <Link
             href="/mypage/media/login"
-            className="mt-3 inline-block text-[12px] font-bold px-3 py-1.5 border border-slate-200 text-slate-600"
+            className="mt-3 inline-block text-[14px] font-bold px-3 py-1.5 border border-slate-200 text-slate-600"
           >
             ログイン情報を登録する
           </Link>
@@ -258,17 +258,17 @@ export function DiaryTargets({ salonId, onToast }: { salonId: number | null; onT
           <div className="bg-white border border-slate-200 shadow-[0_1px_2px_rgba(31,35,51,0.05)] p-5">
             <div className="flex items-start justify-between gap-3">
               <div>
-                <p className="text-[17px] font-black text-slate-800">
+                <p className="text-[19px] font-black text-slate-800">
                   {withAddress.length}名ぶん 登録済み
                 </p>
-                <p className="mt-0.5 text-[12px] text-slate-500">
+                <p className="mt-0.5 text-[14px] text-slate-500">
                   {/* ★ 読んだ記録が無いことを「0件」と書かない */}
                   {data?.lastRead
                     ? `${fmt(data.lastRead.at)} に${site.label}から読み取りました`
                     : `まだ${site.label}から読み取っていません`}
                 </p>
               </div>
-              <span className="flex-none text-[11px] font-bold px-3 py-0.5 border bg-white text-slate-400 border-slate-200 tabular-nums">
+              <span className="flex-none text-[13px] font-bold px-3 py-0.5 border bg-white text-slate-400 border-slate-200 tabular-nums">
                 全{total}名中
               </span>
             </div>
@@ -276,41 +276,41 @@ export function DiaryTargets({ salonId, onToast }: { salonId: number | null; onT
             {data?.lastRead && (
               <dl className="mt-4 grid grid-cols-3 gap-px bg-slate-100 border border-slate-100 overflow-hidden">
                 <div className="bg-white px-3 py-2.5">
-                  <dt className="text-[10px] font-bold text-slate-400">新しく増えた</dt>
-                  <dd className="text-[18px] font-black text-slate-800 tabular-nums">
-                    {data.lastRead.created}<span className="text-[11px] font-bold text-slate-400 ml-0.5">名</span>
+                  <dt className="text-[12px] font-bold text-slate-400">新しく増えた</dt>
+                  <dd className="text-[20px] font-black text-slate-800 tabular-nums">
+                    {data.lastRead.created}<span className="text-[13px] font-bold text-slate-400 ml-0.5">名</span>
                   </dd>
                 </div>
                 <div className="bg-white px-3 py-2.5">
-                  <dt className="text-[10px] font-bold text-slate-400">宛先が変わった</dt>
-                  <dd className="text-[18px] font-black text-slate-800 tabular-nums">
-                    {data.lastRead.updated}<span className="text-[11px] font-bold text-slate-400 ml-0.5">名</span>
+                  <dt className="text-[12px] font-bold text-slate-400">宛先が変わった</dt>
+                  <dd className="text-[20px] font-black text-slate-800 tabular-nums">
+                    {data.lastRead.updated}<span className="text-[13px] font-bold text-slate-400 ml-0.5">名</span>
                   </dd>
                 </div>
                 <div className="bg-white px-3 py-2.5">
-                  <dt className="text-[10px] font-bold text-slate-400">変わりなし</dt>
-                  <dd className="text-[18px] font-black text-slate-800 tabular-nums">
-                    {data.lastRead.unchanged}<span className="text-[11px] font-bold text-slate-400 ml-0.5">名</span>
+                  <dt className="text-[12px] font-bold text-slate-400">変わりなし</dt>
+                  <dd className="text-[20px] font-black text-slate-800 tabular-nums">
+                    {data.lastRead.unchanged}<span className="text-[13px] font-bold text-slate-400 ml-0.5">名</span>
                   </dd>
                 </div>
               </dl>
             )}
 
             {data?.lastRead && data.lastRead.unmatched > 0 && (
-              <p className="mt-2.5 text-[12px] text-rose-600 bg-rose-50 px-3 py-2 leading-relaxed">
+              <p className="mt-2.5 text-[14px] text-rose-600 bg-rose-50 px-3 py-2 leading-relaxed">
                 {data.lastRead.unmatched}名は、フクエスのセラピストと結びつきませんでした。
                 お名前が違っている可能性があります。
               </p>
             )}
 
             {data?.lastRead && !data.lastRead.applied && (
-              <p className="mt-2.5 text-[11px] font-bold text-indigo-600">
+              <p className="mt-2.5 text-[13px] font-bold text-indigo-600">
                 これは確認したときの件数です。まだ登録していません。
               </p>
             )}
 
             {/* ★ 上書きすることを、押す前に読める場所に書く */}
-            <p className="mt-3 text-[11px] text-slate-400 leading-relaxed">
+            <p className="mt-3 text-[13px] text-slate-400 leading-relaxed">
               登録すると、いま入っている投稿先は{site.label}の内容で上書きされます。
               {site.label}側でアドレスが出し直されたときに、古いまま送り続けないためです。
             </p>
@@ -319,7 +319,7 @@ export function DiaryTargets({ salonId, onToast }: { salonId: number | null; onT
               <button
                 onClick={() => onImport(false)}
                 disabled={busy}
-                className="px-4 py-2 border border-slate-200 text-[12px] font-bold text-slate-600 disabled:opacity-50"
+                className="px-4 py-2 border border-slate-200 text-[14px] font-bold text-slate-600 disabled:opacity-50"
               >
                 取り込む内容を確認
               </button>
@@ -327,14 +327,14 @@ export function DiaryTargets({ salonId, onToast }: { salonId: number | null; onT
                 <>
                   <button
                     onClick={() => setConfirmApply(false)}
-                    className="px-4 py-2 border border-slate-200 text-[12px] font-bold text-slate-500"
+                    className="px-4 py-2 border border-slate-200 text-[14px] font-bold text-slate-500"
                   >
                     やめる
                   </button>
                   <button
                     onClick={() => onImport(true)}
                     disabled={busy}
-                    className="px-4 py-2 bg-gradient-to-r from-indigo-500 to-indigo-700 text-white text-[12px] font-bold shadow-sm disabled:opacity-50"
+                    className="px-4 py-2 bg-gradient-to-r from-indigo-500 to-indigo-700 text-white text-[14px] font-bold shadow-sm disabled:opacity-50"
                   >
                     上書きして登録する（確定）
                   </button>
@@ -343,7 +343,7 @@ export function DiaryTargets({ salonId, onToast }: { salonId: number | null; onT
                 <button
                   onClick={() => setConfirmApply(true)}
                   disabled={busy}
-                  className="px-4 py-2 bg-gradient-to-r from-indigo-500 to-indigo-700 text-white text-[12px] font-bold shadow-sm disabled:opacity-50"
+                  className="px-4 py-2 bg-gradient-to-r from-indigo-500 to-indigo-700 text-white text-[14px] font-bold shadow-sm disabled:opacity-50"
                 >
                   取り込んで登録する
                 </button>
@@ -353,16 +353,16 @@ export function DiaryTargets({ salonId, onToast }: { salonId: number | null; onT
 
           {/* ── だれの日記が、どこへ届くか ────────────────── */}
           <div className="bg-white border border-slate-200 shadow-[0_1px_2px_rgba(31,35,51,0.05)] p-5">
-            <h3 className="text-sm font-bold text-slate-700 mb-3">だれの日記が、どこへ届くか</h3>
+            <h3 className="text-[16px] font-bold text-slate-700 mb-3">だれの日記が、どこへ届くか</h3>
 
             {withAddress.length === 0 ? (
-              <p className="text-[12px] text-slate-400">
+              <p className="text-[14px] text-slate-400">
                 まだ登録されていません。「取り込んで登録する」を押すと、{site.label}から読み取って入れます。
               </p>
             ) : (
               <>
                 <div className="overflow-x-auto">
-                  <table className="w-full text-[12px]">
+                  <table className="w-full text-[14px]">
                     <thead>
                       <tr className="text-slate-400 text-left">
                         <th className="font-medium py-1 pr-3 whitespace-nowrap">セラピスト</th>
@@ -379,11 +379,11 @@ export function DiaryTargets({ salonId, onToast }: { salonId: number | null; onT
                           <td className="py-1.5 pr-3 text-slate-500 whitespace-nowrap tabular-nums">{r.addressMask}</td>
                           <td className="py-1.5 whitespace-nowrap">
                             {r.isEnabled ? (
-                              <span className="text-[11px] font-bold px-2.5 py-0.5 border bg-emerald-50 text-emerald-700 border-emerald-200">
+                              <span className="text-[13px] font-bold px-2.5 py-0.5 border bg-emerald-50 text-emerald-700 border-emerald-200">
                                 使えます
                               </span>
                             ) : (
-                              <span className="text-[11px] font-bold px-2.5 py-0.5 border bg-white text-slate-400 border-slate-200">
+                              <span className="text-[13px] font-bold px-2.5 py-0.5 border bg-white text-slate-400 border-slate-200">
                                 止めています
                               </span>
                             )}
@@ -397,14 +397,14 @@ export function DiaryTargets({ salonId, onToast }: { salonId: number | null; onT
                 {withAddress.length > shown.length && (
                   <button
                     onClick={() => setShowAll(true)}
-                    className="mt-3 text-[12px] font-bold text-slate-500 underline"
+                    className="mt-3 text-[14px] font-bold text-slate-500 underline"
                   >
                     残り{withAddress.length - shown.length}名を見る
                   </button>
                 )}
 
                 {/* ★ アドレスを丸ごと出さない理由を書く。★ 隠していることを隠さない */}
-                <p className="mt-3 text-[11px] text-slate-400 leading-relaxed">
+                <p className="mt-3 text-[13px] text-slate-400 leading-relaxed">
                   アドレスは頭とドメインだけをお見せしています。
                   このアドレスを知っている人は誰でもその媒体に投稿できるためです。
                   全部を見たり直したりするときは、セラピストの画面をお使いください。

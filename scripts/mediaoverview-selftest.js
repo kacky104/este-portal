@@ -96,13 +96,24 @@ eq('★★★ いまの状態は出さない',
 eq('★★ 未設定からは1つも出さない', modes('unset'), []);
 eq('★ 知らない値からも出さない', modes('なにか'), []);
 
-eq('read の文字', labels('read'), ['フクエスに変える', 'フクエスだけで使う']);
-eq('write の文字', labels('write'), ['駅ちかに変える', 'フクエスだけで使う']);
-eq('★ 媒体の名前は決め打ちにしない', labels('write', 'エステ魂')[0], 'エステ魂に変える');
-// ★★★ off の店はもうフクエスで入力している。★ そこに「フクエスに変える」と書かない
-eq('★★★ off から write は「フクエスに変える」と書かない',
-   labels('off').includes('フクエスに変える'), false);
-eq('off の文字', labels('off'), ['駅ちかに変える', '各サイトへ送るようにする']);
+// ★★★ 第90便: 【行き先の状態】を名前にした。★ 「変える」という動きでは呼ばない
+eq('read の文字', labels('read'), ['フクエスから反映', '反映しない']);
+eq('write の文字', labels('write'), ['駅ちかから反映', '反映しない']);
+eq('off の文字', labels('off'), ['駅ちかから反映', 'フクエスから反映']);
+eq('★ 媒体の名前は決め打ちにしない', labels('write', 'エステ魂')[0], 'エステ魂から反映');
+// ★★★ 同じ行き先なら、どこから押しても同じ文字になる（例外を作らない）
+eq('★★★ read へは、write からも off からも同じ文字',
+   labels('write')[0], labels('off')[0]);
+eq('★★★ write へは、read からも off からも同じ文字',
+   labels('read')[0], labels('off')[1]);
+// ★★ 「変える」は動きであって、押した先がどうなるかを言っていない
+eq('★★ どの文字にも「変える」と書かない',
+   ['read', 'write', 'off'].some((d) => labels(d).some((t) => t.includes('変える'))), false);
+// ★ 消した言い方が戻っていないこと
+eq('★ 「フクエスだけで使う」は使わない',
+   ['read', 'write', 'off'].some((d) => labels(d).includes('フクエスだけで使う')), false);
+eq('★ 「各サイトへ送るようにする」は使わない',
+   ['read', 'write', 'off'].some((d) => labels(d).includes('各サイトへ送るようにする')), false);
 
 // ★★ 1回押すだけで変わる。★ だから【止まるほう】を押した直後に必ず言う
 eq('★★ write へ → 止まるのは取り込み',
@@ -116,11 +127,17 @@ eq('★ どの行き先でも文が空にならない',
    ['read', 'write', 'none'].every((m) => v.switchDoneText(m, '駅ちか').length > 0), true);
 
 console.log('\n── 4-3. ★★★ 入口の1行と、押す前の問い（第88便）──');
-eq('read の1行', v.homeHeadline('read', '駅ちか'), '駅ちかの情報をフクエスに反映');
-eq('write の1行', v.homeHeadline('write', '駅ちか'), 'フクエスの情報を他サイトに反映');
+eq('read の1行', v.homeHeadline('read', '駅ちか'), '駅ちかの情報をフクエスに反映中');
+eq('write の1行', v.homeHeadline('write', '駅ちか'), 'フクエスの情報を他サイトに反映中');
 eq('off の1行', v.homeHeadline('off', '駅ちか'), '駅ちかの反映もフクエスからの反映もしていません');
 eq('unset の1行', v.homeHeadline('unset', '駅ちか'), 'まだどのサイトとも連携していません');
-eq('★ 媒体の名前は決め打ちにしない', v.homeHeadline('read', 'エステ魂'), 'エステ魂の情報をフクエスに反映');
+eq('★ 媒体の名前は決め打ちにしない', v.homeHeadline('read', 'エステ魂'), 'エステ魂の情報をフクエスに反映中');
+// ★★★ 動いている2つにだけ「中」を付ける（第90便）。★ 止まっているものに「中」と書かない
+//   ★ 画面はこの2つだけを点滅させる。★ 文と絵がずれると、止まっているのに動いて見える
+eq('★★ 動いている2つには「中」が付く',
+   ['read', 'write'].every((d) => v.homeHeadline(d, '駅ちか').endsWith('中')), true);
+eq('★★★ 止まっている2つには「中」を付けない',
+   ['off', 'unset'].some((d) => v.homeHeadline(d, '駅ちか').endsWith('中')), false);
 // ★★★ 仕組みの言葉を、いちばん目立つ1行に出さない
 eq('★★★ 「取り込」と書かない',
    ['read', 'write', 'off', 'unset'].some((d) => v.homeHeadline(d, '駅ちか').includes('取り込')), false);
@@ -128,10 +145,15 @@ eq('★ どの状態でも1行が空にならない',
    ['read', 'write', 'off', 'unset'].every((d) => v.homeHeadline(d, '駅ちか').length > 0), true);
 
 // ★★ 問いは「変更しますか？」で終わらせない。行き先の名前を書く
-eq('write の問い', v.switchAskText('write', '駅ちか').title, 'フクエスに変えますか？');
-eq('read の問い', v.switchAskText('read', '駅ちか').title, '駅ちかに変えますか？');
-eq('none の問い', v.switchAskText('none', '駅ちか').title, 'フクエスだけで使いますか？');
-eq('★ 媒体の名前は決め打ちにしない', v.switchAskText('read', 'エステ魂').title, 'エステ魂に変えますか？');
+eq('write の問い', v.switchAskText('write', '駅ちか').title, 'フクエスから反映しますか？');
+eq('read の問い', v.switchAskText('read', '駅ちか').title, '駅ちかから反映しますか？');
+eq('none の問い', v.switchAskText('none', '駅ちか').title, 'どのサイトにも反映しないようにしますか？');
+eq('★ 媒体の名前は決め打ちにしない', v.switchAskText('read', 'エステ魂').title, 'エステ魂から反映しますか？');
+// ★★★ 問いの見出しは、ボタンの文字と同じ言葉で始める（第90便）。
+//   ★ 押したボタンと違う言葉が出ると、何を押したのか分からなくなる
+eq('★★★ 問いの見出しは、ボタンの文字で始まる',
+   ['read', 'write'].every((m) =>
+     v.switchAskText(m, '駅ちか').title.startsWith(v.switchLabel(m, '駅ちか'))), true);
 eq('★★ 問いは必ず「？」で終わる',
    ['read', 'write', 'none'].every((m) => v.switchAskText(m, '駅ちか').title.endsWith('？')), true);
 // ★★★ 押す前の本文には【止まるほう】を必ず書く。★ 押したあとの文と対にする
@@ -144,6 +166,21 @@ eq('★★★ none の本文は両方とも止まると書く',
    && v.switchAskText('none', '駅ちか').body.includes('取り込みもしません'), true);
 eq('★ どの行き先でも本文が空にならない',
    ['read', 'write', 'none'].every((m) => v.switchAskText(m, '駅ちか').body.length > 0), true);
+
+console.log('\n── 4-4. ★ ボタンの下に置く短い説明（第90便）──');
+eq('★ 媒体名とフクエスの両方が入る',
+   v.homeChoiceNote('駅ちか').indexOf('駅ちか') >= 0
+   && v.homeChoiceNote('駅ちか').indexOf('フクエス') >= 0, true);
+// ★★★ ボタンの名前は switchLabel から出す。★ 手で書くと、名前を直した日にここだけ残る
+eq('★★★ 説明の中の名前は、ボタンの文字と同じ',
+   v.homeChoiceNote('駅ちか').indexOf('「' + v.switchLabel('none', '駅ちか') + '」') >= 0, true);
+eq('★ 媒体の名前は決め打ちにしない', v.homeChoiceNote('エステ魂').indexOf('エステ魂') >= 0, true);
+// ★★ 名前が読めないときは、嘘の名前を出さない
+eq('★★ 名前が無ければ名前のない言い方に倒す',
+   v.homeChoiceNote('').indexOf('サイト側') >= 0, true);
+eq('★★ 名前が無いのに「駅ちか」と書かない', v.homeChoiceNote('').indexOf('駅ちか') >= 0, false);
+// ★ 短くする（読まれない長さにしない）。★ 2文まで
+eq('★ 「。」は2つまで', v.homeChoiceNote('駅ちか').split('。').length - 1 <= 2, true);
 
 console.log('\n── 5. ★ 切り替えを出すのは読める媒体だけ ──');
 const sw = (o) => v.canSwitchDirection(facts(o));
@@ -339,8 +376,8 @@ console.log('  ★ 押しどきと、取り違え防止の1行');
 eq('★ 押しどきに「パスワード」が入る', v.CREDENTIAL_PAUSE_WHEN.indexOf('パスワード') >= 0, true);
 eq('★ 押しどきに「再開」が入る', v.CREDENTIAL_PAUSE_WHEN.indexOf('再開') >= 0, true);
 // ★★★ 「もう送りたくない」人を、正しい口へ渡す
-eq('★★★ 取り違え防止に「フクエスだけで使う」が入る',
-   v.CREDENTIAL_PAUSE_NOT_FOR_STOPPING.indexOf('フクエスだけで使う') >= 0, true);
+eq('★★★ 取り違え防止に「反映しない」が入る',
+   v.CREDENTIAL_PAUSE_NOT_FOR_STOPPING.indexOf('反映しない') >= 0, true);
 
 console.log('  ★ 止めているあいだ、状態は文で言い切る');
 eq('★ 媒体名が入る', v.credentialPausedNotice(SITE).indexOf(SITE) >= 0, true);

@@ -68,7 +68,7 @@ function Pills({
 }) {
   return (
     <div className="flex items-center gap-2 flex-wrap">
-      <span className="text-[11px] font-bold text-slate-400 w-9 flex-none">{label}</span>
+      <span className="text-[13px] font-bold text-slate-400 w-9 flex-none">{label}</span>
       <div className="flex gap-1.5 flex-wrap">
         {options.map((o) => (
           <button
@@ -76,7 +76,7 @@ function Pills({
             type="button"
             onClick={() => onChange(o.v)}
             aria-pressed={value === o.v}
-            className={`px-2.5 py-1 border text-[11.5px] font-bold transition-colors ${
+            className={`px-2.5 py-1 border text-[13.5px] font-bold transition-colors ${
               value === o.v
                 ? 'bg-indigo-50 text-indigo-700 border-indigo-200'
                 : 'bg-white text-slate-400 border-slate-200 hover:text-slate-600'
@@ -132,7 +132,7 @@ export function LogBoard({ salonId }: { salonId: number | null }) {
     <div className="space-y-3">
       {/* ── この画面は何か ── */}
       <div className={`${CARD} p-4`}>
-        <p className="text-[12.5px] text-slate-500 leading-relaxed">
+        <p className="text-[14.5px] text-slate-500 leading-relaxed">
           フクエスが各サイトに対して行ったことの記録です。
           <b className="text-slate-700">あとから書き換えられません。</b>
           <br />
@@ -144,31 +144,31 @@ export function LogBoard({ salonId }: { salonId: number | null }) {
       {/* ── 数 ── */}
       <div className={`${CARD} grid grid-cols-2`}>
         <div className="px-3 py-2.5 border-r border-slate-200">
-          <div className="text-[10.5px] font-bold text-slate-400">
+          <div className="text-[12.5px] font-bold text-slate-400">
             {logCountLabel({
               scope,
               siteName: filter.provider === '' ? '' : providerLabel(filter.provider),
               limit,
             })}
           </div>
-          <div className="text-[19px] font-black tabular-nums text-slate-800">
+          <div className="text-[21px] font-black tabular-nums text-slate-800">
             {/* ★★ 読めていなければ 0 ではなく「—」 */}
             {tally === null ? '—' : tally.total}
-            {tally !== null && <span className="text-[11.5px] font-bold text-slate-400 ml-0.5">件</span>}
+            {tally !== null && <span className="text-[13.5px] font-bold text-slate-400 ml-0.5">件</span>}
           </div>
         </div>
         <div className="px-3 py-2.5">
-          <div className="text-[10.5px] font-bold text-slate-400">うまくいかなかったもの</div>
-          <div className={`text-[19px] font-black tabular-nums ${tally && tally.failed > 0 ? 'text-rose-600' : 'text-slate-800'}`}>
+          <div className="text-[12.5px] font-bold text-slate-400">うまくいかなかったもの</div>
+          <div className={`text-[21px] font-black tabular-nums ${tally && tally.failed > 0 ? 'text-rose-600' : 'text-slate-800'}`}>
             {tally === null ? '—' : tally.failed}
-            {tally !== null && <span className="text-[11.5px] font-bold text-slate-400 ml-0.5">件</span>}
+            {tally !== null && <span className="text-[13.5px] font-bold text-slate-400 ml-0.5">件</span>}
           </div>
         </div>
       </div>
 
       {/* ★★ 窓のときだけ、数えた範囲を書く。★ 全部読めているときは何も書かない */}
       {scopeNote !== '' && (
-        <p className="text-[11.5px] text-amber-700 leading-relaxed px-1">{scopeNote}</p>
+        <p className="text-[13.5px] text-amber-700 leading-relaxed px-1">{scopeNote}</p>
       )}
 
       {/* ── 絞り込み ── */}
@@ -198,7 +198,7 @@ export function LogBoard({ salonId }: { salonId: number | null }) {
           <button
             type="button"
             onClick={() => setFilter(EMPTY_LOG_FILTER)}
-            className="text-[11.5px] font-bold text-indigo-700 hover:underline"
+            className="text-[13.5px] font-bold text-indigo-700 hover:underline"
           >
             絞り込みを外す
           </button>
@@ -206,7 +206,7 @@ export function LogBoard({ salonId }: { salonId: number | null }) {
       </div>
 
       {loadError && (
-        <p className="text-[12px] text-rose-600 leading-relaxed px-1">
+        <p className="text-[14px] text-rose-600 leading-relaxed px-1">
           記録を読み込めませんでした：{loadError}
           <br />
           記録が無いのか読めていないのかが分からないため、この画面では件数を「—」にしています。
@@ -216,7 +216,7 @@ export function LogBoard({ salonId }: { salonId: number | null }) {
       {/* ── 記録 ── */}
       <div className={`${CARD} p-4`}>
         {shown.length === 0 ? (
-          <p className="text-[12px] text-slate-400 leading-relaxed">
+          <p className="text-[14px] text-slate-400 leading-relaxed">
             {logEmptyMessage(reason, filteredSiteName)}
           </p>
         ) : (
@@ -231,16 +231,16 @@ export function LogBoard({ salonId }: { salonId: number | null }) {
                   />
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-2 flex-wrap">
-                      <span className="text-[11px] text-slate-400 tabular-nums">{fmt(r.createdAt)}</span>
+                      <span className="text-[13px] text-slate-400 tabular-nums">{fmt(r.createdAt)}</span>
                       {/* ★★ 4サイトになったので、どこへの記録かを毎行に出す */}
-                      <span className="text-[11px] font-bold px-1.5 border border-slate-200 text-slate-500">
+                      <span className="text-[13px] font-bold px-1.5 border border-slate-200 text-slate-500">
                         {providerLabel(r.provider)}（枠{r.slot}）
                       </span>
-                      <span className={`text-[11px] font-bold ${TONE_TEXT[tone]}`}>
+                      <span className={`text-[13px] font-bold ${TONE_TEXT[tone]}`}>
                         {outcomeLabel(r.outcome)}
                       </span>
                     </div>
-                    <p className="text-[12px] text-slate-600 leading-relaxed mt-0.5">{r.summary}</p>
+                    <p className="text-[14px] text-slate-600 leading-relaxed mt-0.5">{r.summary}</p>
                   </div>
                 </li>
               );
@@ -253,14 +253,14 @@ export function LogBoard({ salonId }: { salonId: number | null }) {
       {known && sorted.length >= limit && (
         <div className="text-center">
           {more === null ? (
-            <p className="text-[11.5px] text-slate-400">
+            <p className="text-[13.5px] text-slate-400">
               直近{limit}件まで表示しています。これより古い記録はこの画面には出しません。
             </p>
           ) : (
             <button
               type="button"
               onClick={() => setLimit(more)}
-              className="px-4 py-2 border border-slate-300 bg-white text-[12px] font-bold text-slate-600 hover:bg-slate-50"
+              className="px-4 py-2 border border-slate-300 bg-white text-[14px] font-bold text-slate-600 hover:bg-slate-50"
             >
               もっと見る（{more}件まで）
             </button>

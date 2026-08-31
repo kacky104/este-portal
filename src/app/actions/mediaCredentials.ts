@@ -1117,6 +1117,12 @@ export async function getMediaOverview(input: { salonId: string | number }): Pro
        */
       autoOn: boolean;
       hasCredential: boolean;
+      /**
+       * ★★★ 同意の取り直しが要るか（第89便）。
+       *   ★ 要るあいだ、この枠へは何も送らない（送信・接続テストが受け口で止まる）。
+       *   ★ 鍵が無い枠では意味が無いので false。
+       */
+      needsConsent: boolean;
       /** 最後にその管理画面へログインできた時刻 */
       lastVerifiedAt: string | null;
       /** 最後の取り込み（当日の周） */
@@ -1146,7 +1152,7 @@ export async function getMediaOverview(input: { salonId: string | number }): Pro
 
   const { data: creds, error: crErr } = await svc
     .from('salon_media_credentials')
-    .select('provider, slot, is_enabled, password_enc, last_verified_at')
+    .select('provider, slot, is_enabled, password_enc, last_verified_at, consent_version')
     .eq('salon_id', salonId);
   if (crErr) return { ok: false, error: 'ログイン情報を確認できませんでした' };
 
@@ -1167,12 +1173,17 @@ export async function getMediaOverview(input: { salonId: string | number }): Pro
 
   const key = (p: string, s: number) => p + '#' + s;
 
-  const credOf = new Map<string, { hasCredential: boolean; lastVerifiedAt: string | null }>();
+  const credOf = new Map<string, {
+    hasCredential: boolean; lastVerifiedAt: string | null; needsConsent: boolean;
+  }>();
   for (const c of creds ?? []) {
     credOf.set(key(String(c.provider), Number(c.slot ?? 1)), {
       // ★ 「行がある」ではなく「使える」かどうか。止めてある枠・パスワードが無い枠は持っていない扱い
       hasCredential: c.is_enabled !== false && Boolean(c.password_enc),
       lastVerifiedAt: (c.last_verified_at as string | null) ?? null,
+      // ★★★ 同意の取り直しが要る枠は、送信も接続テストも止まる（第89便）。
+      //   ★ 止まっていることを入口でも言えるように、ここで持って上がる。
+      needsConsent: needsConsent((c.consent_version as string | null) ?? null),
     });
   }
 
@@ -1190,7 +1201,8 @@ export async function getMediaOverview(input: { salonId: string | number }): Pro
 
   const sites: Array<{
     provider: string; slot: number; label: string; direction: string; statusLabel: string;
-    canSwitch: boolean; autoOn: boolean; hasCredential: boolean; lastVerifiedAt: string | null;
+    canSwitch: boolean; autoOn: boolean; hasCredential: boolean; needsConsent: boolean;
+    lastVerifiedAt: string | null;
     listLastRunAt: string | null; fullLastRunAt: string | null; lastWriteOkAt: string | null;
     nextImportAt: string | null;
   }> = [];
@@ -1245,6 +1257,8 @@ export async function getMediaOverview(input: { salonId: string | number }): Pro
       // ★ 生の link_mode を画面へ流さず、要る1点だけを boolean にして渡す
       autoOn: facts.linkMode === 'write_auto',
       hasCredential: facts.hasCredential,
+      // ★ 鍵が無い枠に「同意の取り直し」を出さない（取り直す相手がいない）
+      needsConsent: cred != null && cred.needsConsent === true,
       lastVerifiedAt: cred?.lastVerifiedAt ?? null,
       listLastRunAt,
       fullLastRunAt,

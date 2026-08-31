@@ -4,9 +4,11 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { getMediaOverview, setMediaLinkMode } from '@/app/actions/mediaCredentials';
 import {
-  switchChoices, switchDoneText, switchAskText, homeHeadline,
+  switchChoices, switchDoneText, switchAskText, homeHeadline, homeChoiceNote,
   type SiteDirection, type SwitchChoice,
 } from '@/lib/mediaOverview';
+// ★ 同意の取り直しは、ログイン情報の中だけでは気づけない（第89便）。★ 入口にも出す
+import { CONSENT_RECHECK_BADGE, consentRecheckNotice } from '@/lib/mediaConsent';
 
 // 媒体連携の入口（第56便・㉞）。
 //
@@ -32,6 +34,8 @@ type Site = {
   /** ★ いま自動で反映しているか。★ 自動のまま戻させない（先に自動をやめてもらう） */
   autoOn: boolean;
   hasCredential: boolean;
+  /** ★★★ 同意の取り直しが要るか。★ 要るあいだ、この枠へは何も送っていない（第89便） */
+  needsConsent: boolean;
   lastVerifiedAt: string | null;
   listLastRunAt: string | null;
   fullLastRunAt: string | null;
@@ -61,6 +65,21 @@ function fmtTime(iso: string | null): string {
     hour: 'numeric', minute: '2-digit', timeZone: 'Asia/Tokyo',
   }).format(new Date(t));
 }
+
+/**
+ * ★★★ 動いていることを示す、ゆっくりした点滅（第90便・カッキーさん）。
+ *
+ * ★ 使うのは【いま動いている状態】だけ（read・write）。
+ *   ★★ 止まっている状態（off・未設定）に付けない。★ 付けると、止まっているのに動いて見える。
+ * ★ 速い点滅は「異常」に見える。★ ここは正常に動いている合図なので、ゆっくりにする。
+ */
+const LIVE_BLINK = 'animate-pulse';
+/**
+ * ★ 速さは style で渡す。★ Tailwind の animate-pulse は animation の一括指定なので、
+ *   クラスで長さだけ足すと、並び順しだいで効いたり効かなかったりする。
+ *   ★★ 見え方が並び順で変わる書き方をしない。★ style ならいつでも勝つ。
+ */
+const LIVE_BLINK_STYLE = { animationDuration: '2.5s' } as const;
 
 const PILL: Record<string, string> = {
   read: 'bg-emerald-50 text-emerald-700 border-emerald-200',
@@ -105,8 +124,8 @@ function Tile({ href, icon, title, sub }: {
       <span className="w-7 h-7 mb-1.5 grid place-items-center bg-indigo-50 text-indigo-600">
         <TileIcon name={icon} />
       </span>
-      <span className="text-[13px] font-bold text-slate-700">{title}</span>
-      <span className="text-[11px] text-slate-400">{sub}</span>
+      <span className="text-[15px] font-bold text-slate-700">{title}</span>
+      <span className="text-[13px] text-slate-400">{sub}</span>
     </Link>
   );
 }
@@ -157,6 +176,8 @@ export function MediaHome({ salonId, salonName, onToast }: {
   };
 
   const sites = data?.sites ?? [];
+  // ★★★ 同意の取り直しが要る枠（第89便）。★ 入口のいちばん上に出す
+  const recheck = sites.filter((s) => s.needsConsent);
   const reading = sites.find((s) => s.direction === 'read') ?? null;
   const writing = sites.filter((s) => s.direction === 'write');
   // ★ 自分で「送らない」を選んでいる枠。★ 未設定と混ぜて書かない（§223）
@@ -169,73 +190,107 @@ export function MediaHome({ salonId, salonName, onToast }: {
   return (
     <div className="space-y-3">
 
+      {/* ── ★★★ 同意の取り直し（第89便）─────────────────────
+          ★★ ログイン情報の画面まで行かないと気づけない、をやめる。
+            ★ 止まっているのに、入口には何も出ていなかった（§223）。 */}
+      {recheck.length > 0 && (
+        <div className="border-2 border-amber-300 bg-amber-50 p-4">
+          <p className="text-[15.5px] font-black text-amber-900">
+            {consentRecheckNotice(recheck.map((s) => s.label)).title}
+          </p>
+          <p className="mt-1 text-[14px] text-amber-900/80 leading-relaxed">
+            {consentRecheckNotice(recheck.map((s) => s.label)).body}
+          </p>
+          <Link
+            href="/mypage/media/login"
+            className="inline-block mt-2.5 px-3 py-1.5 border border-amber-400 bg-white text-[13.5px] font-bold text-amber-900 hover:bg-amber-100"
+          >
+            同意する場所を開く
+          </Link>
+        </div>
+      )}
+
       {/* ── 取り込みの状態 ────────────────────────────────
           ★ いちばん上は【状態】だけ。★ 操作も説明も置かない。 */}
       <div className="bg-white border border-slate-200 shadow-[0_1px_2px_rgba(31,35,51,0.05)] p-5">
         {loading ? (
-          <p className="text-[12px] text-slate-400">読み込み中…</p>
+          <p className="text-[14px] text-slate-400">読み込み中…</p>
         ) : error ? (
-          <p className="text-[12px] text-rose-600 leading-relaxed">
+          <p className="text-[14px] text-rose-600 leading-relaxed">
             連携の状態を読み込めませんでした（{error}）。しばらくしてから開き直してください。
           </p>
         ) : reading ? (
           <>
-            <div className="flex items-start justify-between gap-3">
-              <div>
-                <p className="text-[17px] font-black text-slate-800">
-                  {homeHeadline('read', reading.label)}
-                </p>
-                <p className="mt-0.5 text-[12px] text-slate-500">{salonName ?? ''}</p>
-              </div>
-              {/* ★ 見出しと同じ言葉を置く（第88便で見出しを「◯◯の情報をフクエスに反映」に変えた）。
-                  ★ 「読み込み」は下の行の【どこで入力するか】とぶつかる（第86便） */}
-              <span className={`flex-none text-[11px] font-bold px-3 py-0.5 border ${PILL.read}`}>
-                反映中
-              </span>
+            {/* ★★★ いちばん上は【いま何が動いているか】の1行だけ（第90便・カッキーさん）。
+                ★ 右にあった「反映中」のバッジは外した。★ 見出しに「中」が入ったので同じことを2回書いていた。
+                ★★ 中央に置き、ゆっくり点滅させる。★ 動いていることを、言葉と絵の両方で言う。
+                ★ 点滅は【動いている状態だけ】。止まっているときは点滅させない（下の枝）。 */}
+            <div className="text-center">
+              <p
+                className={`text-[19px] font-black text-slate-800 ${LIVE_BLINK}`}
+                style={LIVE_BLINK_STYLE}
+              >
+                {homeHeadline('read', reading.label)}
+              </p>
+              <p className="mt-0.5 text-[14px] text-slate-500">{salonName ?? ''}</p>
             </div>
 
+            {/* ★ 3つとも中央表示（第90便・カッキーさん）。★ 見出しの中央寄せと揃える */}
             <dl className="mt-4 grid grid-cols-3 gap-px bg-slate-100 border border-slate-100 overflow-hidden">
-              <div className="bg-white px-3 py-2.5">
-                <dt className="text-[10px] font-bold text-slate-400">セラピスト</dt>
-                <dd className="text-[18px] font-black text-slate-800 tabular-nums">
-                  {data?.therapistCount ?? 0}<span className="text-[11px] font-bold text-slate-400 ml-0.5">名</span>
+              <div className="bg-white px-3 py-2.5 text-center">
+                <dt className="text-[12px] font-bold text-slate-400">セラピスト</dt>
+                <dd className="text-[20px] font-black text-slate-800 tabular-nums">
+                  {data?.therapistCount ?? 0}<span className="text-[13px] font-bold text-slate-400 ml-0.5">名</span>
                 </dd>
               </div>
-              <div className="bg-white px-3 py-2.5">
-                <dt className="text-[10px] font-bold text-slate-400">最後の反映</dt>
-                <dd className="text-[15px] font-black text-slate-800 tabular-nums">
+              <div className="bg-white px-3 py-2.5 text-center">
+                <dt className="text-[12px] font-bold text-slate-400">最後の反映</dt>
+                <dd className="text-[17px] font-black text-slate-800 tabular-nums">
                   {fmt(reading.listLastRunAt) || '—'}
                 </dd>
               </div>
-              <div className="bg-white px-3 py-2.5">
-                <dt className="text-[10px] font-bold text-slate-400">次の反映</dt>
+              <div className="bg-white px-3 py-2.5 text-center">
+                <dt className="text-[12px] font-bold text-slate-400">次の反映</dt>
                 {/* ★★ 分からない・止まっているときは時刻を出さない。
                     ★ 過ぎている時刻を「次」と書かない（mediaOverview.nextImportAt） */}
-                <dd className="text-[15px] font-black text-slate-800 tabular-nums">
+                <dd className="text-[17px] font-black text-slate-800 tabular-nums">
                   {reading.nextImportAt ? `${fmtTime(reading.nextImportAt)}ごろ` : '—'}
                 </dd>
               </div>
             </dl>
 
             {reading.fullLastRunAt && (
-              <p className="mt-2.5 text-[11px] text-slate-400">
-                週間の予定は1日1回まとめて取り込みます（最後は {fmt(reading.fullLastRunAt)}）。
+              // ★★ 上のカードは「最後の反映」「次の反映」に揃えた（第88便）。
+              //   ★ ここだけ「取り込みます」が残っていた（第90便で揃えた・引き継ぎメモ §5④）
+              <p className="mt-2.5 text-[13px] text-slate-400 text-center">
+                週間の予定は1日1回の反映（最後は {fmt(reading.fullLastRunAt)}）。
               </p>
             )}
           </>
+        ) : writing.length > 0 ? (
+          /* ★★ フクエスで入力しているときも【動いている】。★ read と同じ形にする（第90便）。
+              ★ 2つの動いている状態で見え方が違うと、どちらかが止まって見える。 */
+          <div className="text-center">
+            <p
+              className={`text-[19px] font-black text-slate-800 ${LIVE_BLINK}`}
+              style={LIVE_BLINK_STYLE}
+            >
+              {homeHeadline('write', topLabel)}
+            </p>
+            <p className="mt-0.5 text-[14px] text-slate-500">{salonName ?? ''}</p>
+          </div>
         ) : (
           <>
-            <p className="text-[17px] font-black text-slate-800">
+            {/* ★ ここは【止まっている】2つ（off・未設定）。★ 点滅させない */}
+            <p className="text-[19px] font-black text-slate-800">
               {homeHeadline(topDirection, topLabel)}
             </p>
-            <p className="mt-1 text-[12px] text-slate-500 leading-relaxed">
+            <p className="mt-1 text-[14px] text-slate-500 leading-relaxed">
               {/* ★★ off は【選んだ結果】。★ 「していません」の1行だけで終わらせず、
                      選んだことと、戻せることを、すぐ下に書く（§223） */}
-              {writing.length > 0
-                ? (salonName ?? '')
-                : offSite
-                  ? '「フクエスだけで使う」を選んでいます。下のボタンでいつでも戻せます。'
-                  : 'ログイン情報を登録すると始められます。'}
+              {offSite
+                ? '「反映しない」を選んでいます。下のボタンでいつでも戻せます。'
+                : 'ログイン情報を登録すると始められます。'}
             </p>
           </>
         )}
@@ -243,89 +298,111 @@ export function MediaHome({ salonId, salonName, onToast }: {
 
       {/* ── 連携しているサイト ──────────────────────────── */}
       <div className="bg-white border border-slate-200 shadow-[0_1px_2px_rgba(31,35,51,0.05)] p-5">
-        <div className="flex items-center justify-between gap-2 mb-3">
-          <h3 className="text-sm font-bold text-slate-700">連携しているサイト</h3>
-          <Link
-            href="/mypage/media/login"
-            className="text-[11px] font-bold px-3 py-1.5 border border-slate-200 text-slate-500 hover:border-slate-300"
-          >
-            ログイン情報
-          </Link>
-        </div>
-
+        {/* ★★★ 見出し・ログイン情報のリンク・サイト名・最後の読み取り・いまの状態の印を外した
+            （第90便・カッキーさん）。★ すぐ上のブロックに同じことが書いてあり、二度読ませていた。
+            ★ ログイン情報へは左の並びから行ける。
+          ★★★ ただし【選ぶボタンが出ない行】では外さない。★ 外すと行が空になる。
+            ★ 書くだけのサイト・未設定・自動で反映中の枠がそれにあたる。 */}
         {loading ? (
-          <p className="text-[12px] text-slate-400">読み込み中…</p>
+          <p className="text-[14px] text-slate-400">読み込み中…</p>
         ) : sites.length === 0 ? (
-          <p className="text-[12px] text-slate-400">まだ登録されていません。</p>
+          <p className="text-[14px] text-slate-400">まだ登録されていません。</p>
         ) : (
           <div className="divide-y divide-slate-100">
-            {sites.map((s) => (
-              <div key={s.provider + '#' + s.slot} className="py-3">
-                <div className="flex items-center gap-3">
-                <span className="min-w-0 flex-1">
-                  <b className="block text-[13px] font-bold text-slate-700">{s.label}</b>
-                  <span className="block text-[11px] text-slate-400 tabular-nums">
-                    {s.direction === 'read'
-                      ? (fmt(s.listLastRunAt) ? `最後の読み取り ${fmt(s.listLastRunAt)}` : 'まだ読み取っていません')
-                      : s.direction === 'write'
-                        ? (fmt(s.lastWriteOkAt) ? `最後の反映 ${fmt(s.lastWriteOkAt)}` : 'まだ反映していません')
-                        // ★★ 選んで止めているのだから、失敗のように書かない（§223）
-                        : s.direction === 'off'
-                          ? 'どこにも送らず、取り込みもしていません'
-                          : (s.hasCredential ? '入力する場所が決まっていません' : 'ログイン情報がまだありません')}
-                  </span>
-                </span>
-                <span className={`flex-none text-[11px] font-bold px-3 py-0.5 border ${PILL[s.direction] ?? PILL.unset}`}>
-                  {s.statusLabel}
-                </span>
-                {/* ★ 切り替えを出すのは読める媒体だけ（mediaOverview.canSwitchDirection）。
-                    ★ 書くだけのサイトに出すと、選べるように見えて選べない画面になる */}
-                {/* ★ 自動で反映しているあいだは変えさせない。★ 先に自動をやめてもらう */}
-                {s.canSwitch && s.autoOn && (
-                  <Link
-                    href="/mypage/media/work"
-                    className="flex-none text-[11px] font-bold px-3 py-1.5 border border-slate-200 text-slate-500 hover:border-slate-300"
-                  >
-                    自動をやめる
-                  </Link>
-                )}
-                {/* ★★ 未設定のときは「変える」を出さない。★ 変える先が決まっていない */}
-                {s.canSwitch && !s.autoOn && s.direction === 'unset' && (
-                  <Link
-                    href="/mypage/media/login"
-                    className="flex-none text-[11px] font-bold px-3 py-1.5 border border-slate-200 text-slate-500 hover:border-slate-300"
-                  >
-                    設定する
-                  </Link>
-                )}
-                </div>
+            {sites.map((s) => {
+              // ★ 切り替えを出すのは読める媒体だけ（mediaOverview.canSwitchDirection）。
+              //   ★ 書くだけのサイトに出すと、選べるように見えて選べない画面になる。
+              // ★ 自動で反映しているあいだは変えさせない。★ 先に自動をやめてもらう。
+              const choices = s.canSwitch && !s.autoOn
+                ? switchChoices(s.direction as SiteDirection, s.label)
+                : [];
 
-                {/* ★★ 選べる先は2つある（第87便）。★ 横に並べると名前が読めなくなるので下の段へ。
-                    ★ いまの状態は出さない（switchChoices が外している） */}
-                {s.canSwitch && !s.autoOn && (
-                  <div className="mt-2 flex flex-wrap gap-2">
-                    {switchChoices(s.direction as SiteDirection, s.label).map((c) => (
-                      <button
-                        key={c.mode}
-                        type="button"
-                        onClick={() => setAsk({ site: s, choice: c })}
-                        disabled={switching !== ''}
-                        className="text-[11px] font-bold px-3 py-1.5 border border-slate-300 bg-white text-slate-600 hover:bg-slate-50 disabled:opacity-40"
-                      >
-                        {switching === s.provider + '#' + s.slot ? '変えています…' : c.label}
-                      </button>
-                    ))}
+              // ── 選ぶだけの行。★ ボタン以外は出さない ──────────────
+              if (choices.length > 0) {
+                return (
+                  <div key={s.provider + '#' + s.slot} className="py-4">
+                    {/* ★★★ 同意の取り直しだけは消さない。
+                        ★ 消すと、止まっていることが行から消える（第89便で足したばかり） */}
+                    {s.needsConsent && (
+                      <p className="mb-3 text-center">
+                        <span className="text-[13px] font-bold px-3 py-1 border bg-amber-50 text-amber-800 border-amber-300">
+                          {CONSENT_RECHECK_BADGE}
+                        </span>
+                      </p>
+                    )}
+                    {/* ★ 中央に大きく（第90便）。★ ここが、この画面でいちばん押すところ */}
+                    <div className="flex flex-wrap justify-center gap-3">
+                      {choices.map((c) => (
+                        <button
+                          key={c.mode}
+                          type="button"
+                          onClick={() => setAsk({ site: s, choice: c })}
+                          disabled={switching !== ''}
+                          className="min-w-[210px] text-[16px] font-bold px-7 py-3.5 border border-slate-300 bg-white text-slate-700 hover:bg-slate-50 hover:border-slate-400 transition-colors disabled:opacity-40"
+                        >
+                          {switching === s.provider + '#' + s.slot ? '変えています…' : c.label}
+                        </button>
+                      ))}
+                    </div>
                   </div>
-                )}
-              </div>
-            ))}
+                );
+              }
+
+              // ── 選ぶボタンが出ない行。★ 名前と状態を出す（出さないと空の行になる）──
+              return (
+                <div key={s.provider + '#' + s.slot} className="py-3">
+                  <div className="flex items-center gap-3">
+                    <span className="min-w-0 flex-1">
+                      <b className="block text-[15px] font-bold text-slate-700">{s.label}</b>
+                      <span className="block text-[13px] text-slate-400 tabular-nums">
+                        {/* ★★ 止まっているときは、時刻より先に【止まっていること】を書く（第89便） */}
+                        {s.needsConsent
+                          ? '同意の取り直しが必要です。いまは何も送っていません'
+                          : s.direction === 'read'
+                          ? (fmt(s.listLastRunAt) ? `最後の読み取り ${fmt(s.listLastRunAt)}` : 'まだ読み取っていません')
+                          : s.direction === 'write'
+                            ? (fmt(s.lastWriteOkAt) ? `最後の反映 ${fmt(s.lastWriteOkAt)}` : 'まだ反映していません')
+                            // ★★ 選んで止めているのだから、失敗のように書かない（§223）
+                            : s.direction === 'off'
+                              ? 'どこにも送らず、取り込みもしていません'
+                              : (s.hasCredential ? '入力する場所が決まっていません' : 'ログイン情報がまだありません')}
+                      </span>
+                    </span>
+                    {s.needsConsent && (
+                      <span className="flex-none text-[13px] font-bold px-3 py-0.5 border bg-amber-50 text-amber-800 border-amber-300">
+                        {CONSENT_RECHECK_BADGE}
+                      </span>
+                    )}
+                    <span className={`flex-none text-[13px] font-bold px-3 py-0.5 border ${PILL[s.direction] ?? PILL.unset}`}>
+                      {s.statusLabel}
+                    </span>
+                    {s.canSwitch && s.autoOn && (
+                      <Link
+                        href="/mypage/media/work"
+                        className="flex-none text-[13px] font-bold px-3 py-1.5 border border-slate-200 text-slate-500 hover:border-slate-300"
+                      >
+                        自動をやめる
+                      </Link>
+                    )}
+                    {/* ★★ 未設定のときは「変える」を出さない。★ 変える先が決まっていない */}
+                    {s.canSwitch && !s.autoOn && s.direction === 'unset' && (
+                      <Link
+                        href="/mypage/media/login"
+                        className="flex-none text-[13px] font-bold px-3 py-1.5 border border-slate-200 text-slate-500 hover:border-slate-300"
+                      >
+                        設定する
+                      </Link>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
           </div>
         )}
 
-        <p className="mt-3 text-[11px] text-slate-400 leading-relaxed">
-          出勤を入力する場所は、駅ちかとフクエスのどちらか一方です。両方には入れられません。
-          「フクエスだけで使う」を選ぶと、どのサイトへも送らず、取り込みもしません。
-          選べるのは駅ちかだけで、ほかのサイトへは反映するだけです。
+        {/* ★ 3文 → 2文にした（第90便）。★ 残りは押す前の問いに書いてある */}
+        <p className="mt-3 text-[13px] text-slate-400 leading-relaxed text-center">
+          {homeChoiceNote(sites.find((s) => s.canSwitch && !s.autoOn)?.label ?? '')}
         </p>
       </div>
 
@@ -343,17 +420,17 @@ export function MediaHome({ salonId, salonName, onToast }: {
             className="w-full max-w-[360px] bg-white border border-slate-200 shadow-lg p-5"
             onClick={(e) => e.stopPropagation()}
           >
-            <p className="text-[15px] font-black text-slate-800">
+            <p className="text-[17px] font-black text-slate-800">
               {switchAskText(ask.choice.mode, ask.site.label).title}
             </p>
-            <p className="mt-2 text-[12px] text-slate-500 leading-relaxed">
+            <p className="mt-2 text-[14px] text-slate-500 leading-relaxed">
               {switchAskText(ask.choice.mode, ask.site.label).body}
             </p>
             <div className="mt-4 flex justify-end gap-2">
               <button
                 type="button"
                 onClick={() => setAsk(null)}
-                className="px-4 py-1.5 border border-slate-200 text-[12px] font-bold text-slate-500 hover:bg-slate-50"
+                className="px-4 py-1.5 border border-slate-200 text-[14px] font-bold text-slate-500 hover:bg-slate-50"
               >
                 やめる
               </button>
@@ -361,7 +438,7 @@ export function MediaHome({ salonId, salonName, onToast }: {
                 type="button"
                 onClick={() => { const a = ask; setAsk(null); void onSwitch(a.site, a.choice.mode); }}
                 disabled={switching !== ''}
-                className="px-4 py-1.5 border border-indigo-600 bg-indigo-600 text-[12px] font-bold text-white hover:bg-indigo-700 disabled:opacity-40"
+                className="px-4 py-1.5 border border-indigo-600 bg-indigo-600 text-[14px] font-bold text-white hover:bg-indigo-700 disabled:opacity-40"
               >
                 {ask.choice.label}
               </button>

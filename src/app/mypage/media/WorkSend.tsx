@@ -219,16 +219,16 @@ export function WorkSend({ salonId, onToast }: { salonId: number | null; onToast
           ★ 問いかけはこれ1つだけ。★ はじめから全部にチェックが入っている */}
       <div className="bg-white border border-slate-200 shadow-[0_1px_2px_rgba(31,35,51,0.05)] p-5">
         <div className="flex items-baseline justify-between gap-2 mb-3">
-          <h3 className="text-sm font-bold text-slate-700">どのサイトへ送りますか？</h3>
-          <span className="text-[11px] font-bold text-indigo-600 tabular-nums">
+          <h3 className="text-[16px] font-bold text-slate-700">どのサイトへ送りますか？</h3>
+          <span className="text-[13px] font-bold text-indigo-600 tabular-nums">
             {chosen.length} / {sendable.length}サイト
           </span>
         </div>
 
         {loading ? (
-          <p className="text-[12px] text-slate-400">読み込み中…</p>
+          <p className="text-[14px] text-slate-400">読み込み中…</p>
         ) : error ? (
-          <p className="text-[12px] text-rose-600 leading-relaxed">
+          <p className="text-[14px] text-rose-600 leading-relaxed">
             連携の状態を読み込めませんでした（{error}）。しばらくしてから開き直してください。
           </p>
         ) : (
@@ -245,7 +245,7 @@ export function WorkSend({ salonId, onToast }: { salonId: number | null; onToast
                     return n;
                   })}
                   aria-pressed={on}
-                  className={`inline-flex items-center gap-2 px-3 py-2 border text-[12px] font-bold transition-colors ${
+                  className={`inline-flex items-center gap-2 px-3 py-2 border text-[14px] font-bold transition-colors ${
                     on ? 'bg-indigo-50 text-indigo-700 border-indigo-200' : 'bg-white text-slate-400 border-slate-200'
                   }`}
                 >
@@ -266,13 +266,13 @@ export function WorkSend({ salonId, onToast }: { salonId: number | null; onToast
             {others.map((s) => (
               <span
                 key={keyOf(s.provider, s.slot)}
-                className="inline-flex items-center gap-2 px-3 py-2 border border-slate-200 bg-white text-[12px] font-bold text-slate-300"
+                className="inline-flex items-center gap-2 px-3 py-2 border border-slate-200 bg-white text-[14px] font-bold text-slate-300"
               >
                 {s.label}
                 <span className="font-medium text-slate-400">
                   （{s.direction === 'read'
                       ? `いまは${s.label}で入力`
-                      : s.direction === 'off' ? 'フクエスだけで使う設定' : '未設定'}）
+                      : s.direction === 'off' ? '反映しない設定' : '未設定'}）
                 </span>
               </span>
             ))}
@@ -281,12 +281,12 @@ export function WorkSend({ salonId, onToast }: { salonId: number | null; onToast
 
         {!loading && !error && sendable.length === 0 && (
           <div className="mt-3 border border-sky-200 bg-sky-50 px-3 py-2.5">
-            <p className="text-[12px] leading-relaxed text-slate-600">
+            <p className="text-[14px] leading-relaxed text-slate-600">
               <b className="font-bold text-sky-700">いま送れるサイトがありません。</b>{' '}
               {readSite
                 ? `いまは${readSite.label}で入力しています。送るにはフクエスに変えてください。変えると${readSite.label}からの取り込みは止まります。`
                 : offSite
-                  ? '「フクエスだけで使う」を選んでいます。送るには、ホームで「各サイトへ送るようにする」を押してください。'
+                  ? '「反映しない」を選んでいます。送るには、ホームで「フクエスから反映」を押してください。'
                   : '入力する場所がまだ決まっていません。「ログイン情報」で設定してください。'}
             </p>
             {readSite ? (
@@ -294,14 +294,14 @@ export function WorkSend({ salonId, onToast }: { salonId: number | null; onToast
                 type="button"
                 onClick={() => void onSwitchToWrite(readSite)}
                 disabled={switching !== null}
-                className="mt-2 px-3 py-1.5 border border-sky-300 bg-white text-[12px] font-bold text-sky-700 hover:bg-sky-100 disabled:opacity-40"
+                className="mt-2 px-3 py-1.5 border border-sky-300 bg-white text-[14px] font-bold text-sky-700 hover:bg-sky-100 disabled:opacity-40"
               >
                 {switching === keyOf(readSite.provider, readSite.slot) ? '変えています…' : 'フクエスに変える'}
               </button>
             ) : (
               <Link
                 href={offSite ? '/mypage/media' : '/mypage/media/login'}
-                className="mt-2 inline-block text-[12px] font-bold text-sky-700 underline"
+                className="mt-2 inline-block text-[14px] font-bold text-sky-700 underline"
               >
                 {offSite ? 'ホームへ' : 'ログイン情報へ'}
               </Link>
@@ -320,29 +320,29 @@ export function WorkSend({ salonId, onToast }: { salonId: number | null; onToast
         return (
           <div key={k} className="bg-white border border-slate-200 shadow-[0_1px_2px_rgba(31,35,51,0.05)] p-5 space-y-3">
             <div className="flex items-baseline justify-between gap-2 flex-wrap">
-              <h3 className="text-sm font-bold text-slate-700">{s.label}へ送る内容</h3>
-              {plan && <span className="text-[11px] text-slate-400">{fmt(plan.createdAt)} に確認</span>}
+              <h3 className="text-[16px] font-bold text-slate-700">{s.label}へ送る内容</h3>
+              {plan && <span className="text-[13px] text-slate-400">{fmt(plan.createdAt)} に確認</span>}
             </div>
 
             {/* ★★ この画面でいちばん誤解が起きやすい場所。**まだ送っていない**を繰り返し書く */}
-            <p className="text-[11px] font-bold text-indigo-600">
+            <p className="text-[13px] font-bold text-indigo-600">
               これは「送ったらこうなる」という内容です。まだ送っていません。
             </p>
 
             {isWaiting ? (
-              <p className="text-[12px] text-slate-500">
+              <p className="text-[14px] text-slate-500">
                 内容を確かめています。できあがるとここに出ます（数分かかります）。
               </p>
             ) : !plan ? (
               <>
-                <p className="text-[12px] text-slate-500">
+                <p className="text-[14px] text-slate-500">
                   まだ内容を確かめていません。「内容を確かめる」を押すと、送ったらどうなるかをお見せします。
                 </p>
                 <div className="flex justify-end">
                   <button
                     onClick={() => onDryRun(s)}
                     disabled={isBusy}
-                    className="px-4 py-2 border border-slate-200 text-[12px] font-bold text-slate-600 disabled:opacity-50"
+                    className="px-4 py-2 border border-slate-200 text-[14px] font-bold text-slate-600 disabled:opacity-50"
                   >
                     内容を確かめる
                   </button>
@@ -352,33 +352,33 @@ export function WorkSend({ salonId, onToast }: { salonId: number | null; onToast
               <>
                 {/* ★ 突き合わせ0人は「一致」ではない。ここを最初に出す（第43便-b §26） */}
                 {plan.targets === 0 ? (
-                  <p className="text-[12px] text-rose-600 bg-rose-50 px-3 py-2 leading-relaxed">
+                  <p className="text-[14px] text-rose-600 bg-rose-50 px-3 py-2 leading-relaxed">
                     {s.label}の出勤表と結びつく方が1人も見つかりませんでした。内容を比べられていません。
                   </p>
                 ) : (
                   <>
                     <dl className="grid grid-cols-3 gap-px bg-slate-100 border border-slate-100 overflow-hidden">
                       <div className="bg-white px-3 py-2.5">
-                        <dt className="text-[10px] font-bold text-slate-400">送る相手</dt>
-                        <dd className="text-[18px] font-black text-slate-800 tabular-nums">
-                          {plan.targets}<span className="text-[11px] font-bold text-slate-400 ml-0.5">名</span>
+                        <dt className="text-[12px] font-bold text-slate-400">送る相手</dt>
+                        <dd className="text-[20px] font-black text-slate-800 tabular-nums">
+                          {plan.targets}<span className="text-[13px] font-bold text-slate-400 ml-0.5">名</span>
                         </dd>
                       </div>
                       <div className="bg-white px-3 py-2.5">
-                        <dt className="text-[10px] font-bold text-slate-400">送る範囲</dt>
-                        <dd className="text-[18px] font-black text-slate-800 tabular-nums">
-                          {plan.dateLabels.length || 7}<span className="text-[11px] font-bold text-slate-400 ml-0.5">日ぶん</span>
+                        <dt className="text-[12px] font-bold text-slate-400">送る範囲</dt>
+                        <dd className="text-[20px] font-black text-slate-800 tabular-nums">
+                          {plan.dateLabels.length || 7}<span className="text-[13px] font-bold text-slate-400 ml-0.5">日ぶん</span>
                         </dd>
                       </div>
                       <div className="bg-white px-3 py-2.5">
-                        <dt className="text-[10px] font-bold text-slate-400">変わるところ</dt>
-                        <dd className="text-[18px] font-black text-slate-800 tabular-nums">
-                          {plan.changeCount}<span className="text-[11px] font-bold text-slate-400 ml-0.5">件</span>
+                        <dt className="text-[12px] font-bold text-slate-400">変わるところ</dt>
+                        <dd className="text-[20px] font-black text-slate-800 tabular-nums">
+                          {plan.changeCount}<span className="text-[13px] font-bold text-slate-400 ml-0.5">件</span>
                         </dd>
                       </div>
                     </dl>
                     {/* ★★ 選ばせない理由を、その場に書く。★ 「選べないのか」で終わらせない */}
-                    <p className="text-[11px] text-slate-400 leading-relaxed">
+                    <p className="text-[13px] text-slate-400 leading-relaxed">
                       選ぶところはありません。フクエスに入っている出勤が、そのまま{s.label}の内容になります。
                       送りたくない方がいるときは、フクエスの出勤を直してから送ってください。
                     </p>
@@ -389,7 +389,7 @@ export function WorkSend({ salonId, onToast }: { salonId: number | null; onToast
                 {plan.blockers.length > 0 && (
                   <ul className="space-y-1.5">
                     {plan.blockers.map((b, i) => (
-                      <li key={`b-${i}`} className="text-[12px] text-rose-600 bg-rose-50 px-3 py-2 leading-relaxed">
+                      <li key={`b-${i}`} className="text-[14px] text-rose-600 bg-rose-50 px-3 py-2 leading-relaxed">
                         {b.detail}
                       </li>
                     ))}
@@ -399,7 +399,7 @@ export function WorkSend({ salonId, onToast }: { salonId: number | null; onToast
                 {plan.notes.length > 0 && (
                   <ul className="space-y-1.5">
                     {plan.notes.map((n, i) => (
-                      <li key={`n-${i}`} className="text-[12px] text-slate-500 bg-slate-50 px-3 py-2 leading-relaxed">
+                      <li key={`n-${i}`} className="text-[14px] text-slate-500 bg-slate-50 px-3 py-2 leading-relaxed">
                         {n.detail}
                       </li>
                     ))}
@@ -408,15 +408,15 @@ export function WorkSend({ salonId, onToast }: { salonId: number | null; onToast
 
                 {plan.changeCount === 0 ? (
                   plan.targets > 0 && (
-                    <p className="text-[12px] text-slate-500">
+                    <p className="text-[14px] text-slate-500">
                       いまの{s.label}の内容と一致しています。変えるところはありません。
                     </p>
                   )
                 ) : (
                   <div className="space-y-2">
-                    <p className="text-[12px] font-bold text-slate-700">変わるところ（{plan.changeCount}件）</p>
+                    <p className="text-[14px] font-bold text-slate-700">変わるところ（{plan.changeCount}件）</p>
                     <div className="overflow-x-auto">
-                      <table className="w-full text-[12px]">
+                      <table className="w-full text-[14px]">
                         <thead>
                           <tr className="text-slate-400 text-left">
                             <th className="font-medium py-1 pr-3 whitespace-nowrap">セラピスト</th>
@@ -439,7 +439,7 @@ export function WorkSend({ salonId, onToast }: { salonId: number | null; onToast
                         </tbody>
                       </table>
                     </div>
-                    <p className="text-[11px] text-slate-400">
+                    <p className="text-[13px] text-slate-400">
                       同じ内容の行は出していません。{plan.dateLabels.length || 7}日ぶんのうち、変わる{plan.changeCount}件だけです。
                     </p>
                   </div>
@@ -449,7 +449,7 @@ export function WorkSend({ salonId, onToast }: { salonId: number | null; onToast
                   <button
                     onClick={() => onDryRun(s)}
                     disabled={isBusy}
-                    className="px-4 py-2 border border-slate-200 text-[12px] font-bold text-slate-600 disabled:opacity-50"
+                    className="px-4 py-2 border border-slate-200 text-[14px] font-bold text-slate-600 disabled:opacity-50"
                   >
                     内容を確かめ直す
                   </button>
@@ -459,14 +459,14 @@ export function WorkSend({ salonId, onToast }: { salonId: number | null; onToast
                     <>
                       <button
                         onClick={() => setConfirmPush(null)}
-                        className="px-4 py-2 border border-slate-200 text-[12px] font-bold text-slate-500"
+                        className="px-4 py-2 border border-slate-200 text-[14px] font-bold text-slate-500"
                       >
                         やめる
                       </button>
                       <button
                         onClick={() => onPush(s)}
                         disabled={isBusy}
-                        className="px-4 py-2 bg-gradient-to-r from-indigo-500 to-indigo-700 text-white text-[12px] font-bold shadow-sm disabled:opacity-50"
+                        className="px-4 py-2 bg-gradient-to-r from-indigo-500 to-indigo-700 text-white text-[14px] font-bold shadow-sm disabled:opacity-50"
                       >
                         {isBusy ? '送っています…' : 'この内容で送る（確定）'}
                       </button>
@@ -485,7 +485,7 @@ export function WorkSend({ salonId, onToast }: { salonId: number | null; onToast
                       <button
                         onClick={() => setConfirmPush(k)}
                         disabled={av !== 'ready'}
-                        className={`px-4 py-2 text-[12px] font-bold shadow-sm ${
+                        className={`px-4 py-2 text-[14px] font-bold shadow-sm ${
                           av === 'ready'
                             ? 'bg-gradient-to-r from-indigo-500 to-indigo-700 text-white'
                             : 'bg-slate-100 text-slate-400 shadow-none cursor-not-allowed'
@@ -497,7 +497,7 @@ export function WorkSend({ salonId, onToast }: { salonId: number | null; onToast
                   })()}
                 </div>
 
-                <p className="text-[11px] text-slate-400 text-right leading-relaxed">
+                <p className="text-[13px] text-slate-400 text-right leading-relaxed">
                   いま見えている内容と送る内容が同じであることを確かめてから送ります。
                   途中で内容が新しくなっていたときは、送らずに止まります。
                 </p>
@@ -511,30 +511,30 @@ export function WorkSend({ salonId, onToast }: { salonId: number | null; onToast
                   ★ 押せないボタンを灰色で置くのは「立てられない状態を作ってから禁じる」形。 */}
             {s.autoOn ? (
               <div className="border-t border-slate-100 pt-3 space-y-1.5">
-                <p className="text-[12px] font-bold text-indigo-700">
+                <p className="text-[14px] font-bold text-indigo-700">
                   いまは自動で反映しています
                 </p>
-                <p className="text-[11px] text-slate-400 leading-relaxed">
+                <p className="text-[13px] text-slate-400 leading-relaxed">
                   ご承認なしで{s.label}へ反映します。送れない理由があるときは送らずに止め、この画面に出します。
                 </p>
                 <button
                   onClick={() => onSwitchAuto(s, false)}
                   disabled={switching === k}
-                  className="px-3 py-1.5 border border-slate-300 bg-white text-[11.5px] font-bold text-slate-600 hover:bg-slate-50 disabled:opacity-40"
+                  className="px-3 py-1.5 border border-slate-300 bg-white text-[13.5px] font-bold text-slate-600 hover:bg-slate-50 disabled:opacity-40"
                 >
                   {switching === k ? '切り替えています…' : '自動をやめて毎回ご承認に戻す'}
                 </button>
               </div>
             ) : autoEligible.has(k) ? (
               <div className="border-t border-slate-100 pt-3 space-y-1.5">
-                <p className="text-[11px] text-slate-400 leading-relaxed">
+                <p className="text-[13px] text-slate-400 leading-relaxed">
                   一度ご承認いただいたので、これ以降を自動にできます。
                   自動にすると、この画面で送るボタンを押さなくても反映します。
                 </p>
                 <button
                   onClick={() => onSwitchAuto(s, true)}
                   disabled={switching === k}
-                  className="px-3 py-1.5 border border-slate-300 bg-white text-[11.5px] font-bold text-slate-600 hover:bg-slate-50 disabled:opacity-40"
+                  className="px-3 py-1.5 border border-slate-300 bg-white text-[13.5px] font-bold text-slate-600 hover:bg-slate-50 disabled:opacity-40"
                 >
                   {switching === k ? '切り替えています…' : '毎回の承認をやめて自動にする'}
                 </button>

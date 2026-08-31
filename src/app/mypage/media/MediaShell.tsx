@@ -88,7 +88,7 @@ export function MediaShell({
   if (loadError) {
     return (
       <div className="min-h-screen bg-slate-100 flex items-center justify-center">
-        <p className="text-slate-500 text-sm whitespace-pre-line text-center leading-relaxed px-6">{loadError}</p>
+        <p className="text-slate-500 text-[16px] whitespace-pre-line text-center leading-relaxed px-6">{loadError}</p>
       </div>
     );
   }
@@ -96,7 +96,7 @@ export function MediaShell({
   if (decision !== 'show') {
     return (
       <div className="min-h-screen bg-slate-100 flex items-center justify-center">
-        <p className="text-slate-400 text-sm">読み込み中...</p>
+        <p className="text-slate-400 text-[16px]">読み込み中...</p>
       </div>
     );
   }
@@ -104,7 +104,7 @@ export function MediaShell({
   return (
     <div className="min-h-screen bg-slate-100 md:flex">
       {toast && (
-        <div className="fixed top-4 left-1/2 -translate-x-1/2 z-50 bg-white border border-indigo-200 shadow-lg px-6 py-3 text-sm font-bold text-indigo-700">
+        <div className="fixed top-4 left-1/2 -translate-x-1/2 z-50 bg-white border border-indigo-200 shadow-lg px-6 py-3 text-[16px] font-bold text-indigo-700">
           {toast}
         </div>
       )}
@@ -118,13 +118,13 @@ export function MediaShell({
               <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" />
             </svg>
           </span>
-          <b className="text-[14px] md:text-[16px] font-black text-slate-800 tracking-tight">フクエスリンク</b>
+          <b className="text-[16px] md:text-[18px] font-black text-slate-800 tracking-tight">フクエスリンク</b>
         </div>
 
         {salonName && (
           <div className="hidden md:block px-4 py-3 border-b border-slate-100">
-            <div className="text-[10.5px] font-bold text-slate-400 tracking-wider">店舗</div>
-            <div className="text-[13.5px] font-bold text-slate-600 mt-0.5 leading-snug break-words">{salonName}</div>
+            <div className="text-[12.5px] font-bold text-slate-400 tracking-wider">店舗</div>
+            <div className="text-[15.5px] font-bold text-slate-600 mt-0.5 leading-snug break-words">{salonName}</div>
           </div>
         )}
 
@@ -134,14 +134,14 @@ export function MediaShell({
             return (
               <div key={n.key} className="contents">
                 {n.group && (
-                  <div className="hidden md:block px-4 pt-3.5 pb-1 text-[11px] font-bold text-slate-400 tracking-wider">
+                  <div className="hidden md:block px-4 pt-3.5 pb-1 text-[13px] font-bold text-slate-400 tracking-wider">
                     {n.group}
                   </div>
                 )}
                 <Link
                   href={n.href}
                   aria-current={on ? 'true' : undefined}
-                  className={`relative flex items-center gap-2 md:gap-2.5 whitespace-nowrap px-3 md:px-4 py-1.5 md:py-3 text-[12.5px] md:text-[14px] font-bold transition-colors ${
+                  className={`relative flex items-center gap-2 md:gap-2.5 whitespace-nowrap px-3 md:px-4 py-1.5 md:py-3 text-[14.5px] md:text-[16px] font-bold transition-colors ${
                     on
                       ? 'bg-gradient-to-r from-indigo-700 to-indigo-500 text-white'
                       : 'text-slate-600 hover:bg-indigo-50'
@@ -159,7 +159,7 @@ export function MediaShell({
           })}
         </nav>
 
-        <p className="hidden md:block px-4 py-3.5 mt-2 border-t border-slate-100 text-[11.5px] text-slate-400 leading-relaxed">
+        <p className="hidden md:block px-4 py-3.5 mt-2 border-t border-slate-100 text-[13.5px] text-slate-400 leading-relaxed">
           駅ちか・エステラブ・エステ魂・全国エステランキングとの連携をまとめて扱います。
         </p>
       </aside>
@@ -168,8 +168,8 @@ export function MediaShell({
       <div className="flex-1 min-w-0 flex flex-col">
         <header className="bg-white border-b border-slate-200 sticky top-0 z-30">
           <div className="px-4 md:px-6 py-3 flex items-center justify-between gap-3">
-            <h1 className="text-[15px] font-black text-slate-800">{title}</h1>
-            <Link href="/mypage" className="text-[11.5px] font-bold text-slate-400 hover:text-indigo-600 transition-colors">
+            <h1 className="text-[17px] font-black text-slate-800">{title}</h1>
+            <Link href="/mypage" className="text-[13.5px] font-bold text-slate-400 hover:text-indigo-600 transition-colors">
               マイページへ戻る
             </Link>
           </div>
@@ -181,10 +181,10 @@ export function MediaShell({
                   key={a.watch + ':' + a.reason + ':' + a.provider + '#' + a.slot}
                   className="mb-2 border border-rose-300 bg-rose-50 px-3 py-2.5"
                 >
-                  <p className="text-[12px] font-bold text-rose-700">
+                  <p className="text-[14px] font-bold text-rose-700">
                     {a.watch === 'import' ? '駅ちかからの取り込みが止まっています' : '媒体連携が止まっています'}
                   </p>
-                  <p className="mt-1 text-[12px] leading-relaxed text-rose-900">{a.message}</p>
+                  <p className="mt-1 text-[14px] leading-relaxed text-rose-900">{a.message}</p>
                 </div>
               ))}
             </div>

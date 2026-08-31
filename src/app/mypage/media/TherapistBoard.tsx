@@ -60,7 +60,7 @@ function Photo({ url, name }: { url: string | null; name: string }) {
   }
   // ★ 空白にしない。★ 写真が無いのか読み込めていないのか、空白では分からない
   return (
-    <span className="w-[46px] h-[58px] flex-none border border-slate-200 bg-slate-100 grid place-items-center text-[9px] font-bold leading-tight text-slate-400 text-center">
+    <span className="w-[46px] h-[58px] flex-none border border-slate-200 bg-slate-100 grid place-items-center text-[11px] font-bold leading-tight text-slate-400 text-center">
       写真<br />なし
     </span>
   );
@@ -142,55 +142,55 @@ export function TherapistBoard({ salonId, onToast }: { salonId: number | null; o
       {/* ── いまの状態 ─────────────────────────────── */}
       <div className="bg-white border border-slate-200 shadow-[0_1px_2px_rgba(31,35,51,0.05)] p-4">
         {loading ? (
-          <p className="text-[12px] text-slate-400">読み込み中…</p>
+          <p className="text-[14px] text-slate-400">読み込み中…</p>
         ) : error ? (
-          <p className="text-[12px] text-rose-600 leading-relaxed">
+          <p className="text-[14px] text-rose-600 leading-relaxed">
             セラピストを読み込めませんでした（{error}）。しばらくしてから開き直してください。
           </p>
         ) : (
           <>
             <div className="flex items-start justify-between gap-3">
               <div>
-                <p className="text-[17px] font-black text-slate-800">
+                <p className="text-[19px] font-black text-slate-800">
                   フクエスのセラピスト {therapists.length}名
                 </p>
-                <p className="mt-0.5 text-[12px] text-slate-500">
+                <p className="mt-0.5 text-[14px] text-slate-500">
                   フクエスに登録されている方だけを出しています。ここが元になります。
                 </p>
               </div>
-              <span className="flex-none text-[11px] font-bold px-3 py-0.5 border bg-indigo-50 text-indigo-700 border-indigo-200">
+              <span className="flex-none text-[13px] font-bold px-3 py-0.5 border bg-indigo-50 text-indigo-700 border-indigo-200">
                 フクエスが元
               </span>
             </div>
 
             <dl className="mt-3.5 grid grid-cols-3 border border-slate-200">
               <div className="px-3 py-2.5 border-r border-slate-200">
-                <dt className="text-[10.5px] font-bold text-slate-400">フクエスの登録</dt>
-                <dd className="text-[19px] font-black text-slate-800 tabular-nums">
-                  {therapists.length}<span className="text-[11.5px] font-bold text-slate-400 ml-0.5">名</span>
+                <dt className="text-[12.5px] font-bold text-slate-400">フクエスの登録</dt>
+                <dd className="text-[21px] font-black text-slate-800 tabular-nums">
+                  {therapists.length}<span className="text-[13.5px] font-bold text-slate-400 ml-0.5">名</span>
                 </dd>
               </div>
               <div className="px-3 py-2.5 border-r border-slate-200">
-                <dt className="text-[10.5px] font-bold text-slate-400">
+                <dt className="text-[12.5px] font-bold text-slate-400">
                   {readSite ? `${readSite.label}で確かめられていない` : '確かめられていない'}
                 </dt>
-                <dd className="text-[19px] font-black text-slate-800 tabular-nums">
-                  {todoCount}<span className="text-[11.5px] font-bold text-slate-400 ml-0.5">名</span>
+                <dd className="text-[21px] font-black text-slate-800 tabular-nums">
+                  {todoCount}<span className="text-[13.5px] font-bold text-slate-400 ml-0.5">名</span>
                 </dd>
               </div>
               <div className="px-3 py-2.5">
-                <dt className="text-[10.5px] font-bold text-slate-400">
+                <dt className="text-[12.5px] font-bold text-slate-400">
                   {readSite ? `${readSite.label}に残っている` : '媒体に残っている'}
                 </dt>
-                <dd className="text-[19px] font-black text-slate-800 tabular-nums">
+                <dd className="text-[21px] font-black text-slate-800 tabular-nums">
                   {/* ★ 読めていないときに 0 と書かない */}
                   {onlyKnown ? onlyOnMedia.length : '—'}
-                  {onlyKnown && <span className="text-[11.5px] font-bold text-slate-400 ml-0.5">名</span>}
+                  {onlyKnown && <span className="text-[13.5px] font-bold text-slate-400 ml-0.5">名</span>}
                 </dd>
               </div>
             </dl>
 
-            <p className="mt-2.5 text-[11.5px] text-slate-400 leading-relaxed">
+            <p className="mt-2.5 text-[13.5px] text-slate-400 leading-relaxed">
               各サイトへの掲載は、フクエスを直せば揃います。名前やプロフィールを変えるときも、直すのはフクエスだけです。
             </p>
           </>
@@ -201,16 +201,16 @@ export function TherapistBoard({ salonId, onToast }: { salonId: number | null; o
       {!loading && !error && (
         <div className="bg-white border border-slate-200 shadow-[0_1px_2px_rgba(31,35,51,0.05)] p-4">
           <div className="flex items-center justify-between gap-2 mb-3 flex-wrap">
-            <h3 className="text-[13.5px] font-bold text-slate-700">どのサイトに出ているか</h3>
+            <h3 className="text-[15.5px] font-bold text-slate-700">どのサイトに出ているか</h3>
             <div className="flex items-center gap-2">
-              <span className="text-[11px] font-bold text-slate-400 tabular-nums">
+              <span className="text-[13px] font-bold text-slate-400 tabular-nums">
                 {shown.length} / {therapists.length}名中
               </span>
               {readSite && (
                 <button
                   onClick={() => onRead(readSite)}
                   disabled={reading}
-                  className="text-[11px] font-bold px-3 py-1.5 border border-slate-200 text-slate-600 disabled:opacity-50"
+                  className="text-[13px] font-bold px-3 py-1.5 border border-slate-200 text-slate-600 disabled:opacity-50"
                 >
                   {readSite.label}の名簿を読み直す
                 </button>
@@ -224,7 +224,7 @@ export function TherapistBoard({ salonId, onToast }: { salonId: number | null; o
                 key={k}
                 onClick={() => { setFilter(k); setShowAll(false); }}
                 aria-pressed={filter === k}
-                className={`px-3 py-1.5 border text-[12px] font-bold transition-colors ${
+                className={`px-3 py-1.5 border text-[14px] font-bold transition-colors ${
                   filter === k ? 'bg-indigo-50 text-indigo-700 border-indigo-200' : 'bg-white text-slate-400 border-slate-200'
                 }`}
               >
@@ -234,11 +234,11 @@ export function TherapistBoard({ salonId, onToast }: { salonId: number | null; o
           </div>
 
           <div className="overflow-x-auto border border-slate-200">
-            <table className="w-full text-[12.5px] min-w-[520px]">
+            <table className="w-full text-[14.5px] min-w-[520px]">
               <thead>
                 <tr className="bg-slate-50 text-left">
-                  <th className="font-bold text-[10.5px] text-slate-400 px-3 py-2">セラピスト</th>
-                  <th className="font-bold text-[10.5px] text-slate-400 px-3 py-2 whitespace-nowrap">
+                  <th className="font-bold text-[12.5px] text-slate-400 px-3 py-2">セラピスト</th>
+                  <th className="font-bold text-[12.5px] text-slate-400 px-3 py-2 whitespace-nowrap">
                     {readSite ? readSite.label : '媒体'}
                     <br />
                     <span className="font-bold">向こうを読んだ結果</span>
@@ -246,7 +246,7 @@ export function TherapistBoard({ salonId, onToast }: { salonId: number | null; o
                   {sites
                     .filter((s) => s.direction === 'write')
                     .map((s) => (
-                      <th key={s.provider + '#' + s.slot} className="font-bold text-[10.5px] text-slate-400 px-3 py-2 whitespace-nowrap">
+                      <th key={s.provider + '#' + s.slot} className="font-bold text-[12.5px] text-slate-400 px-3 py-2 whitespace-nowrap">
                         {s.label}
                         <br />
                         <span className="font-bold">送った記録</span>
@@ -263,10 +263,10 @@ export function TherapistBoard({ salonId, onToast }: { salonId: number | null; o
                         <span className="flex gap-2.5 items-start">
                           <Photo url={t.imageUrl} name={t.name} />
                           <span className="min-w-0">
-                            <b className="block text-[13px] font-bold text-slate-800 break-words">{t.name || '（名前なし）'}</b>
-                            {t.age && <span className="block text-[11px] text-slate-400">{t.age}歳</span>}
+                            <b className="block text-[15px] font-bold text-slate-800 break-words">{t.name || '（名前なし）'}</b>
+                            {t.age && <span className="block text-[13px] text-slate-400">{t.age}歳</span>}
                             {t.isNewFace && (
-                              <span className="inline-block mt-1 text-[10px] font-bold px-1.5 py-px border border-rose-200 bg-rose-50 text-rose-700">
+                              <span className="inline-block mt-1 text-[12px] font-bold px-1.5 py-px border border-rose-200 bg-rose-50 text-rose-700">
                                 新人{t.newFaceSince ? ` ${fmtDate(t.newFaceSince)}` : ''}
                               </span>
                             )}
@@ -274,7 +274,7 @@ export function TherapistBoard({ salonId, onToast }: { salonId: number | null; o
                         </span>
                       </td>
                       <td className="px-3 py-2.5 whitespace-nowrap">
-                        <span className={`text-[11px] font-bold px-2.5 py-0.5 border ${STATE_CLASS[st]}`}>
+                        <span className={`text-[13px] font-bold px-2.5 py-0.5 border ${STATE_CLASS[st]}`}>
                           {therapistSiteLabel(st)}
                         </span>
                       </td>
@@ -293,25 +293,25 @@ export function TherapistBoard({ salonId, onToast }: { salonId: number | null; o
           </div>
 
           {filtered.length > shown.length && (
-            <button onClick={() => setShowAll(true)} className="mt-3 text-[12px] font-bold text-slate-500 underline">
+            <button onClick={() => setShowAll(true)} className="mt-3 text-[14px] font-bold text-slate-500 underline">
               残り{filtered.length - shown.length}名を見る
             </button>
           )}
 
           {/* ★ 言い方の意味を書く。★ 「いません」と「まだ結びついていません」は別 */}
-          <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1.5 text-[11px] text-slate-400">
+          <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1.5 text-[13px] text-slate-400">
             <span><b className="font-bold text-emerald-700">います</b>　向こうの名簿で確かめました</span>
             <span><b className="font-bold text-rose-700">いません</b>　番号は知っているのに、向こうの名簿にありませんでした</span>
             <span><b className="font-bold text-slate-500">まだ結びついていません</b>　向こうの番号が分かっていません</span>
             <span><b className="font-bold text-slate-500">まだ確かめていません</b>　向こうの名簿をまだ読めていません</span>
           </div>
 
-          <p className="mt-3 text-[11.5px] text-slate-400 leading-relaxed">
+          <p className="mt-3 text-[13.5px] text-slate-400 leading-relaxed">
             写真はフクエスに登録されているものです。まだ入っていない方は「写真なし」と出ます。
           </p>
 
           <div className="mt-3 border border-sky-200 bg-sky-50 px-3 py-2.5">
-            <p className="text-[12px] leading-relaxed text-slate-600">
+            <p className="text-[14px] leading-relaxed text-slate-600">
               <b className="font-bold text-sky-700">この画面は見るだけです。</b>{' '}
               各サイトへ出す・消すは、まだ付けていません。出すのは取り返しが付きにくい操作なので、
               先に各サイトの振る舞いを確かめてから作ります。
@@ -324,30 +324,30 @@ export function TherapistBoard({ salonId, onToast }: { salonId: number | null; o
       {!loading && !error && readSite && (
         <div className="bg-white border border-slate-200 shadow-[0_1px_2px_rgba(31,35,51,0.05)] p-4">
           <div className="flex items-center justify-between gap-2 mb-3">
-            <h3 className="text-[13.5px] font-bold text-slate-700">
+            <h3 className="text-[15.5px] font-bold text-slate-700">
               フクエスにいないのに、{readSite.label}に残っている方
             </h3>
-            <span className="text-[11px] font-bold px-2.5 py-0.5 border bg-white text-slate-400 border-slate-200 tabular-nums">
+            <span className="text-[13px] font-bold px-2.5 py-0.5 border bg-white text-slate-400 border-slate-200 tabular-nums">
               {onlyKnown ? `${onlyOnMedia.length}名` : '—'}
             </span>
           </div>
 
           {!onlyKnown ? (
             /* ★ 読めていないことを「0名」と書かない */
-            <p className="text-[12px] text-slate-500 leading-relaxed">
+            <p className="text-[14px] text-slate-500 leading-relaxed">
               {readSite.label}の名簿をまだ読めていないので、分かりません。
               上の「{readSite.label}の名簿を読み直す」を押すと確かめられます。
             </p>
           ) : onlyOnMedia.length === 0 ? (
-            <p className="text-[12px] text-slate-500">ありません。</p>
+            <p className="text-[14px] text-slate-500">ありません。</p>
           ) : (
             <>
               <ul className="border border-slate-200 divide-y divide-slate-100">
                 {onlyOnMedia.map((n) => (
-                  <li key={n} className="px-3 py-2.5 text-[13px] text-slate-700">{n}</li>
+                  <li key={n} className="px-3 py-2.5 text-[15px] text-slate-700">{n}</li>
                 ))}
               </ul>
-              <p className="mt-3 text-[11.5px] text-slate-400 leading-relaxed">
+              <p className="mt-3 text-[13.5px] text-slate-400 leading-relaxed">
                 フクエスを辞めた方が、{readSite.label}側に残っていることがあります。
                 フクエスにいない方なので上の一覧には出ません。ここだけ別に出しています。
               </p>
@@ -358,11 +358,11 @@ export function TherapistBoard({ salonId, onToast }: { salonId: number | null; o
 
       {!loading && !error && !readSite && (
         <div className="border border-sky-200 bg-sky-50 px-4 py-3">
-          <p className="text-[12px] leading-relaxed text-slate-600">
+          <p className="text-[14px] leading-relaxed text-slate-600">
             <b className="font-bold text-sky-700">向こうの名簿を読めるサイトがありません。</b>{' '}
             駅ちかで入力するようにすると、だれがどのサイトに出ているかを確かめられます。
           </p>
-          <Link href="/mypage/media" className="mt-2 inline-block text-[12px] font-bold text-sky-700 underline">
+          <Link href="/mypage/media" className="mt-2 inline-block text-[14px] font-bold text-sky-700 underline">
             ホームで確かめる
           </Link>
         </div>
