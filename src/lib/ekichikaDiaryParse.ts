@@ -692,3 +692,45 @@ export function selectDiariesToFetch(
 
   return { fetch, skippedDone, skippedWaiting, skippedOld };
 }
+
+// ────────────────────────────────────────────────────────────
+// 初回の遡り（ページ送り）
+// ────────────────────────────────────────────────────────────
+
+/** あと何ページまで遡ってよいか。★ 暴走の歯止め（実物は5ページ以上あった）。 */
+export const DIARY_MAX_PAGES = 10;
+
+/**
+ * 次のページを読みに行くか。
+ *
+ * ★★★ 止める条件を【3つとも】持つ。★ 1つだけだと、どれかが効かない日に止まらない。
+ *   ① そのページに【期間の外】が出てきた … もう古い方しか無い＝遡り終わり
+ *   ② 次のページ番号が一覧に出ていない   … これ以上のページが無い
+ *   ③ 残りページ数を使い切った           … ★ 相手の作りが変わっても必ず止まる歯止め
+ *
+ * ★★ 通常運転（since を渡さない周）では、そもそも呼ばない＝1ページ目だけ読む（§371）。
+ */
+export function planDiaryPaging(input: {
+  /** いま読んだページ番号（1始まり） */
+  pageNumber: number;
+  /** 一覧に出ていたページ番号 */
+  pageNumbers: number[];
+  /** そのページで「期間の外」として見送った件数 */
+  skippedOldCount: number;
+  /** あと何ページ読んでよいか */
+  pagesLeft: number;
+}): { next: number | null; reason: string } {
+  const here = Math.floor(Number(input.pageNumber));
+  const want = (Number.isFinite(here) ? here : 1) + 1;
+
+  if (input.skippedOldCount > 0) {
+    return { next: null, reason: '期間より古い投稿が出てきたので、これ以上は遡らない' };
+  }
+  if (!Number.isFinite(input.pagesLeft) || input.pagesLeft <= 0) {
+    return { next: null, reason: '★ 遡ってよいページ数を使い切った（歯止め）' };
+  }
+  if (!input.pageNumbers.includes(want)) {
+    return { next: null, reason: want + 'ページ目が一覧に出ていないので、これで最後' };
+  }
+  return { next: want, reason: want + 'ページ目へ遡る' };
+}

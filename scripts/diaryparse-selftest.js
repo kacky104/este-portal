@@ -465,6 +465,24 @@ console.log('\n── 10-2. ★★ 非公開だった日記の開き直しは【
   eq('間隔は24時間', m.DIARY_RECHECK_HOURS, 24);
 }
 
+console.log('\n── 10-3. ★ 初回の遡り（ページ送り）の止めどき ──');
+{
+  const nums = [2, 3, 4, 5];
+  eq('次のページへ進む',
+    m.planDiaryPaging({ pageNumber: 1, pageNumbers: nums, skippedOldCount: 0, pagesLeft: 9 }).next, 2);
+  eq('★ 期間の外が出てきたら、そこで止める',
+    m.planDiaryPaging({ pageNumber: 1, pageNumbers: nums, skippedOldCount: 1, pagesLeft: 9 }).next, null);
+  eq('★ 次のページ番号が無ければ止める',
+    m.planDiaryPaging({ pageNumber: 5, pageNumbers: nums, skippedOldCount: 0, pagesLeft: 9 }).next, null);
+  eq('★★ 残りページを使い切ったら止める（歯止め）',
+    m.planDiaryPaging({ pageNumber: 1, pageNumbers: nums, skippedOldCount: 0, pagesLeft: 0 }).next, null);
+  eq('★ 止めた理由が読める',
+    m.planDiaryPaging({ pageNumber: 1, pageNumbers: nums, skippedOldCount: 1, pagesLeft: 9 }).reason.indexOf('古い') > 0, true);
+  eq('★ 一覧が空でも落ちない',
+    m.planDiaryPaging({ pageNumber: 1, pageNumbers: [], skippedOldCount: 0, pagesLeft: 9 }).next, null);
+  eq('歯止めの既定は10ページ', m.DIARY_MAX_PAGES, 10);
+}
+
 // ────────────────────────────────────────────────
 // 11. ★★★ 実物との突き合わせ（_fixtures/ があるときだけ動く）
 // ────────────────────────────────────────────────

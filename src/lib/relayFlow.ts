@@ -186,6 +186,18 @@ export type RelayFlowContext = {
   /** いま読みに行っている一覧のページ番号（1始まり）。★ ページ送りで遡るときに使う */
   diaryPage?: number;
   /**
+   * これから開く日記の残り。★ 先頭から1件ずつ開く。★ 空になったら終わり。
+   * ★★ 投稿日時を一緒に持ち回すのは、**詳細ページに投稿日時が無いから**。
+   *   ★ 記録（salon_diary_imports.posted_at）に残すには、一覧で見た値を運ぶしかない。
+   */
+  diaryQueue?: DiaryQueueItem[];
+  /** いま開いている日記の投稿日時（一覧で見た値）。★ 記録に残すために詳細の段まで運ぶ */
+  diaryPostedAt?: string | null;
+  /** 初回の遡り範囲。★ これより古い投稿は開かない。★ 通常運転では入れない（1ページ目だけ） */
+  diarySince?: string | null;
+  /** あと何ページ遡ってよいか。★ 暴走の歯止め */
+  diaryPagesLeft?: number;
+  /**
    * ★★★ いま開きに行っている日記ID。
    *   ★ 応答を読むときに **パーサへ渡して突き合わせる**。★ 別の日記が返っていたら止めるため。
    */
@@ -1287,6 +1299,9 @@ function afterEsuloveTherapists(
 // ★★ どの日記を開くかは、ここでは決めない。★ salon_diary_imports を読まないと決められないため、
 //   一覧を読めたら呼び出し側へ返す（plan_work / maillist と同じ形）。
 
+/** これから開く日記1件ぶん。★ 投稿日時は一覧でしか取れないので、ここで運ぶ。 */
+export type DiaryQueueItem = { id: string; postedAt: string | null };
+
 /** 一覧のNページ目を読む GET を組み立てる。★ 何ページ目かは文脈に残す。 */
 export function buildReadDiaryListRequest(ctx: RelayFlowContext, pageNumber: number): FlowNextRequest {
   const n = Number.isFinite(pageNumber) && pageNumber > 1 ? Math.floor(pageNumber) : 1;
@@ -1306,7 +1321,11 @@ export function buildReadDiaryListRequest(ctx: RelayFlowContext, pageNumber: num
  * ★★★ 開きに行った日記IDを【文脈に残す】。★ 応答をパーサに渡すとき、突き合わせに使う。
  *   ★ 残さないと「別の日記が返ってきた」を見つけられない（＝Aさんの日記がBさんの名前で載る）。
  */
-export function buildReadDiaryDetailRequest(ctx: RelayFlowContext, diaryId: string): FlowNextRequest {
+export function buildReadDiaryDetailRequest(
+  ctx: RelayFlowContext,
+  diaryId: string,
+  postedAt?: string | null,
+): FlowNextRequest {
   const url = ekichikaDiaryDetailUrl(diaryId); // ★ 数字でなければここで例外
   return {
     purpose: 'read_diary_detail',
@@ -1314,7 +1333,7 @@ export function buildReadDiaryDetailRequest(ctx: RelayFlowContext, diaryId: stri
     url,
     headers: buildReadWorkRequest(ctx.cookie),
     body: '',
-    context: { ...ctx, diaryId: String(diaryId) },
+    context: { ...ctx, diaryId: String(diaryId), diaryPostedAt: postedAt ?? null },
   };
 }
 

@@ -196,6 +196,12 @@ console.log('\n── 5. 次のジョブの組み立て ──');
   eq('Cookie を引き継ぐ', next.headers.cookie, 'S=1');
 }
 {
+  // ★★ 投稿日時は【一覧にしか無い】。詳細の段まで運べていることを固定する
+  const next = f.buildReadDiaryDetailRequest(ctx({}), '414840669', '2026-08-31T17:12:00+09:00');
+  eq('★★ 投稿日時を詳細の段まで運ぶ', next.context.diaryPostedAt, '2026-08-31T17:12:00+09:00');
+  eq('渡さなければ null', f.buildReadDiaryDetailRequest(ctx({}), '1').context.diaryPostedAt, null);
+}
+{
   const next = f.buildReadDiaryDetailRequest(ctx({}), '414840669');
   eq('詳細を読む', next.purpose, 'read_diary_detail');
   eq('URL', next.url, 'https://ranking-deli.jp/admin/maildiary/edit/414840669/');

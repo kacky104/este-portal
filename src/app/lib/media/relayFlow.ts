@@ -21,12 +21,25 @@ import {
   advanceFlow,
   buildLoginRequest,
   buildWriteWorkRequest,
+  buildReadDiaryListRequest,
+  buildReadDiaryDetailRequest,
   newFlowContext,
   type FlowAudit,
   type FlowNextRequest,
   type RelayFlowContext,
   type RelayFlowIntent,
+  type DiaryQueueItem,
 } from '@/lib/relayFlow';
+// ★ 写メ日記（第95便）。★ 判断は純粋関数側にある。ここは決まったことを実行するだけ
+import {
+  selectDiariesToFetch,
+  planDiaryPaging,
+  diaryDetailUsable,
+  DIARY_MAX_PAGES,
+  type EkichikaDiaryListPage,
+  type EkichikaDiaryDetail,
+  type KnownDiary,
+} from '@/lib/ekichikaDiaryParse';
 import { loadCastIds } from '@/lib/mediaCastIds';
 import { addDaysISO, buildWorkPlan, planFingerprint, summarizePlan, type FukuesShift } from '@/lib/workPlan';
 import { WORK_DAYS, encodeGirlWork, type WorkPage } from '@/lib/ekichikaWorkParse';
@@ -82,6 +95,14 @@ export async function startRelayFlow(params: {
    *   送る直前に読み直して作った計画と突き合わせ、違ったら送らない。
    */
   approvedFingerprint?: string;
+  /**
+   * intent='diary_read' で【初回の遡り】をするときだけ。
+   * ★ 渡さなければ通常運転＝一覧の1ページ目だけを見る（§371）。
+   * ★★★ ここで**受け取っていないと、呼び出し側が渡しても静かに落ちる**。
+   *   ★ 型の上は通ってしまう（余分な項目は素通りする）。★ 受け取り〜文脈に入れるまでを1組にしてある。
+   */
+  diarySince?: string | null;
+  diaryPagesLeft?: number;
   /** 'shop:<auth_user_id>' など。監査ログに残す */
   actor?: string;
 }): Promise<StartFlowResult> {
@@ -139,6 +160,11 @@ export async function startRelayFlow(params: {
     }),
     ...(params.approvedFingerprint !== undefined
       ? { approvedFingerprint: params.approvedFingerprint }
+      : {}),
+    // ★ 初回の遡り（第95便）。★ 渡されたときだけ入れる
+    ...(params.diarySince ? { diarySince: params.diarySince } : {}),
+    ...(Number.isFinite(params.diaryPagesLeft)
+      ? { diaryPagesLeft: Number(params.diaryPagesLeft) }
       : {}),
   };
 
@@ -225,15 +251,23 @@ export async function advanceRelayFlow(params: {
   // ★★ エステラブの名簿を読めた（第78便）。★ この便では【保存しない】。
   //   ★ 読めたことと、同名が居るかを note に出すだけ。次を積まないので何も書き換えていない。
   //   ★ warnings は黙って捨てない（記録に残す）。
-  // ★★★ 写メ日記の段（第94便）。★ この便では【まだ何も保存しない】。
-  //   ★ 読めたこと・何件あったかを note に残すだけ。★ 次を積まないので駅ちかへ何も飛ばない。
-  //   ★★ 反映（照合・保存・salon_diary_imports への記録）は次便（②反映側）で足す。
-  //     ★ ここを空のまま実装したことにしない。★ 積む道がまだ無いので、この枝は現状どこからも来ない。
+  // ★★★ 写メ日記の一覧を読めた（第95便）。
+  //   ★ どれを開くかは DB（salon_diary_imports）を読まないと決められない。
+  //     ★ 判断そのものは selectDiariesToFetch / planDiaryPaging（純粋関数）が持つ。
   if (outcome.kind === 'diary_list') {
-    note = outcome.note + ' → ★ この便では保存しない（反映側は次便）';
+    const r = await planDiaryList(params, outcome.page, outcome.pageNumber, context);
+    audits.push(...r.audits);
+    note = outcome.note + ' → ' + r.note;
+    next = r.next ?? null;
   }
+
+  // ★★★ 写メ日記を1件開いた（第95便）。★ ここで初めてフクエス側に書く。
+  //   ★ 読めなかった1件も、記録だけ残して次へ進む（店ごと止めない）。
   if (outcome.kind === 'diary_detail') {
-    note = outcome.note + ' → ★ この便では保存しない（反映側は次便）';
+    const r = await saveDiaryDetail(params, outcome.detail, outcome.diaryId, context);
+    audits.push(...r.audits);
+    note = outcome.note + ' → ' + r.note;
+    next = r.next ?? null;
   }
 
   if (outcome.kind === 'esulove_roster') {
@@ -832,4 +866,342 @@ function shopFacingReason(
       detail: failed.detail ?? null,
     })
   ).slice(0, 300);
+}
+
+// ────────────────────────── 写メ日記の反映（第95便）──────────────────────────
+//
+// ★★★ ここが「読むだけ」から「フクエス側に書く」へ変わる場所。★ 駅ちかへは相変わらず何も書かない。
+//
+// ★★ 記録（salon_diary_imports）の意味を、ここでも崩さない:
+//   行が無い          … まだ取り込んでいない  → 次の周で取りに行く
+//   imported          … 取り込んだ（post が null なら店舗様が消した）→ ★ 二度と開かない
+//   skipped:private   … 駅ちかで非公開        → 1日1回だけ開き直す（§375）
+//   skipped:no_match  … 当たるセラピストが居ない → 1日1回だけ開き直す
+//   skipped:unreadable… 読み取れなかった1件    → 1日1回だけ開き直す（★ 第94便で足した）
+
+/** 写メ日記の上限。★ メール受信の口（resend-inbound）と同じ値にそろえる。別の上限を作らない。 */
+const DIARY_MAX_TITLE_LEN = 100;
+const DIARY_MAX_CONTENT_LEN = 5000;
+const DIARY_MAX_IMAGE_BYTES = 10 * 1024 * 1024;
+const DIARY_BUCKET = 'diary-images';
+const DIARY_IMAGE_EXT: Record<string, string> = {
+  'image/jpeg': 'jpg',
+  'image/jpg': 'jpg',
+  'image/png': 'png',
+  'image/webp': 'webp',
+};
+
+type DiaryStep = { audits: FlowAudit[]; note: string; next?: FlowNextRequest | null };
+
+/** 記録の1行を書く（無ければ作る）。★ 主キーは 店舗×媒体×枠×日記ID。 */
+async function markDiary(
+  params: { salonId: number; provider: string; slot: number },
+  input: {
+    diaryId: string;
+    status: string;
+    therapistId?: number | null;
+    diaryPostId?: string | null;
+    postedAt?: string | null;
+  },
+): Promise<string | null> {
+  const supabase = createServiceClient();
+  const now = new Date().toISOString();
+  const { error } = await supabase.from('salon_diary_imports').upsert(
+    {
+      salon_id: params.salonId,
+      provider: params.provider,
+      slot: params.slot,
+      external_diary_id: input.diaryId,
+      status: input.status,
+      therapist_id: input.therapistId ?? null,
+      diary_post_id: input.diaryPostId ?? null,
+      posted_at: input.postedAt ?? null,
+      // ★ 最後に見に行った時刻。★ 見送った行は、ここから24時間で開き直す（§375）
+      checked_at: now,
+      // ★★ imported_at は【取り込んだ時刻】。★ 見送りの周で上書きしない（§376・混ぜない）。
+      //   ★ 見送りの行では「その行を作った時刻」が既定で入るだけ。★ 開き直すたびに動かさない
+      ...(input.status === 'imported' ? { imported_at: now } : {}),
+    },
+    { onConflict: 'salon_id,provider,slot,external_diary_id' },
+  );
+  return error ? error.message : null;
+}
+
+/** 次の1件を積む。★ 残りが無ければ null（＝そこでフローは終わり）。 */
+function nextDiaryJob(ctx: RelayFlowContext): FlowNextRequest | null {
+  const queue = Array.isArray(ctx.diaryQueue) ? ctx.diaryQueue : [];
+  const head = queue[0];
+  if (!head) return null;
+  const rest = queue.slice(1);
+  return buildReadDiaryDetailRequest({ ...ctx, diaryQueue: rest }, head.id, head.postedAt);
+}
+
+/**
+ * 一覧を読めた。★ どれを開くかを決める。
+ *
+ * ★★★ ここで DB を読む理由: 「もう取り込んだか」「いつ見たか」は DB にしか無い（§369・§375）。
+ * ★★ 通常運転（diarySince なし）は **1ページ目だけ**。★ 遡るのは初回だけ（§371）。
+ */
+async function planDiaryList(
+  params: { salonId: number; provider: string; slot: number },
+  page: EkichikaDiaryListPage,
+  pageNumber: number,
+  ctx: RelayFlowContext,
+): Promise<DiaryStep> {
+  const supabase = createServiceClient();
+
+  // 1. この店の記録を読む（★ 取り込み済み・見送り済みの一覧）
+  const { data: rows, error } = await supabase
+    .from('salon_diary_imports')
+    .select('external_diary_id, status, checked_at')
+    .eq('salon_id', params.salonId)
+    .eq('provider', params.provider)
+    .eq('slot', params.slot);
+  if (error) {
+    // ★★ 記録が読めないまま進むと、取り込み済みをもう一度入れてしまう。★ ここは止める
+    return {
+      audits: [
+        {
+          event: 'read_diary_list',
+          outcome: 'failed',
+          summary: '写メ日記の取り込み記録を読めませんでした。二重取り込みを避けるため中止しました',
+          detail: { reason: 'known_read_error', page: pageNumber, flowId: ctx.flowId },
+        },
+      ],
+      note: '★ 取り込み済みの記録を読めなかったので進めない: ' + error.message.slice(0, 120),
+      next: null,
+    };
+  }
+
+  const known: KnownDiary[] = (rows ?? []).map((r) => ({
+    diaryId: String((r as { external_diary_id: string }).external_diary_id),
+    status: String((r as { status?: string }).status ?? 'imported'),
+    checkedAt: ((r as { checked_at?: string | null }).checked_at ?? null) as string | null,
+  }));
+
+  // 2. 開くものを決める（★ 判断は純粋関数）
+  const plan = selectDiariesToFetch(page, {
+    known,
+    since: ctx.diarySince ?? null,
+    now: new Date().toISOString(),
+  });
+
+  const queue: DiaryQueueItem[] = [
+    ...(Array.isArray(ctx.diaryQueue) ? ctx.diaryQueue : []),
+    ...plan.fetch.map((r) => ({ id: r.diaryId, postedAt: r.postedAt })),
+  ];
+
+  // 3. まだ遡るか（★ 初回だけ。★ 止める条件は3つとも純粋関数の中）
+  const pagesLeft = Number.isFinite(ctx.diaryPagesLeft) ? Number(ctx.diaryPagesLeft) : 0;
+  const paging = ctx.diarySince
+    ? planDiaryPaging({
+        pageNumber,
+        pageNumbers: page.pageNumbers,
+        skippedOldCount: plan.skippedOld.length,
+        pagesLeft,
+      })
+    : { next: null, reason: '通常運転なので1ページ目だけ読む（§371）' };
+
+  const base: RelayFlowContext = { ...ctx, diaryQueue: queue };
+
+  if (paging.next !== null) {
+    return {
+      audits: [],
+      note:
+        pageNumber + 'ページ目で ' + plan.fetch.length + '件を積んだ（開く予定 ' + queue.length +
+        '件）。★ ' + paging.reason,
+      next: buildReadDiaryListRequest({ ...base, diaryPagesLeft: pagesLeft - 1 }, paging.next),
+    };
+  }
+
+  const next = nextDiaryJob(base);
+  if (!next) {
+    return {
+      audits: [],
+      note:
+        '新しい写メ日記はありませんでした（取り込み済み ' + plan.skippedDone.length +
+        '件・待ち ' + plan.skippedWaiting.length + '件・期間外 ' + plan.skippedOld.length +
+        '件）。★ ' + paging.reason,
+      next: null,
+    };
+  }
+  return {
+    audits: [],
+    note: '開く写メ日記は ' + queue.length + '件。★ ' + paging.reason,
+    next,
+  };
+}
+
+/**
+ * 写真を取ってきて diary-images に保存する。
+ *
+ * ★★★ 取れなくても **日記そのものは入れる**。★ 写真の失敗で本文まで落とさない。
+ * ★★ 到達性は 2026-09-01 時点で **未測定**（測ろうとしたが、こちら側の事情で測れなかった）。
+ *   ★ だから「落とせた／落とせなかった」を必ず note に残す。★ 1店1日流せば本番の記録で分かる。
+ */
+async function fetchDiaryImage(
+  url: string,
+  therapistId: number,
+  diaryId: string,
+): Promise<{ publicUrl: string | null; note: string }> {
+  try {
+    const res = await fetch(url, {
+      // ★ 相手のS3。★ Cookie も認証も付けない（公開URL）
+      signal: AbortSignal.timeout(15000),
+      redirect: 'follow',
+    });
+    if (!res.ok) return { publicUrl: null, note: '写真を取れなかった（' + res.status + '）' };
+
+    const contentType = String(res.headers.get('content-type') ?? '').split(';')[0].toLowerCase();
+    const ext = DIARY_IMAGE_EXT[contentType];
+    if (!ext) return { publicUrl: null, note: '写真の種類が想定外（' + (contentType || '不明') + '）' };
+
+    const buf = Buffer.from(await res.arrayBuffer());
+    if (buf.byteLength === 0) return { publicUrl: null, note: '写真が空だった' };
+    if (buf.byteLength > DIARY_MAX_IMAGE_BYTES) {
+      return { publicUrl: null, note: '写真が大きすぎた（' + buf.byteLength + 'バイト）' };
+    }
+
+    const supabase = createServiceClient();
+    // ★ 同じ日記を入れ直しても同じ場所になる名前にする（★ 二重取り込みは記録側で防ぐが、名前でも重ねない）
+    const path = therapistId + '/ekichika_' + diaryId + '.' + ext;
+    const { error: upErr } = await supabase.storage
+      .from(DIARY_BUCKET)
+      .upload(path, buf, { contentType, upsert: true });
+    if (upErr) return { publicUrl: null, note: '写真を保存できなかった: ' + upErr.message.slice(0, 80) };
+
+    const { data } = supabase.storage.from(DIARY_BUCKET).getPublicUrl(path);
+    return { publicUrl: data.publicUrl, note: '写真1枚' };
+  } catch (e) {
+    // ★★ ここが「フクエスから直接落とせるか」の答えが出る場所。★ 握りつぶさない
+    return { publicUrl: null, note: '写真を取りに行けなかった: ' + String((e as Error).message).slice(0, 80) };
+  }
+}
+
+/**
+ * 日記1件を反映する。
+ *
+ * ★★★ どの道を通っても【記録を1行残してから次へ進む】。
+ *   ★ 記録を残さずに次へ行くと、次の周で同じ日記をまた開く（永久に同じ所で足踏みする）。
+ */
+async function saveDiaryDetail(
+  params: { salonId: number; provider: string; slot: number },
+  detail: EkichikaDiaryDetail,
+  diaryId: string,
+  ctx: RelayFlowContext,
+): Promise<DiaryStep> {
+  const postedAt = ctx.diaryPostedAt ?? null;
+  const next = nextDiaryJob(ctx);
+  const done = (note: string, audits: FlowAudit[] = []): DiaryStep => ({ audits, note, next });
+
+  // ① 読めなかった1件（★ 第94便の決めごと。★ 店ごと止めない）
+  if (!diaryDetailUsable(detail)) {
+    const err = await markDiary(params, { diaryId, status: 'skipped:unreadable', postedAt });
+    return done(
+      '日記 ' + diaryId + ' は読み取れなかったので見送った（1日後にもう一度開く）' +
+        (err ? '。★ 記録も残せなかった: ' + err.slice(0, 80) : ''),
+    );
+  }
+
+  // ② 駅ちかで非公開（★ こちらで公開しない・設計メモ §6②）
+  if (detail.isPublic !== true) {
+    const err = await markDiary(params, { diaryId, status: 'skipped:private', postedAt });
+    return done(
+      '日記 ' + diaryId + ' は駅ちかで非公開なので取り込まなかった（1日後にもう一度見る）' +
+        (err ? '。★ 記録を残せなかった: ' + err.slice(0, 80) : ''),
+    );
+  }
+
+  // ③ 誰の日記か（★ castId だけで照合する・§367。★ 名前では照合しない）
+  const supabase = createServiceClient();
+  const { data: therapists, error: thErr } = await supabase
+    .from('therapists')
+    .select('id, import_cast_id')
+    .eq('salon_id', params.salonId);
+  if (thErr) return done('★ 在籍を引けなかったので日記 ' + diaryId + ' は保留: ' + thErr.message.slice(0, 80));
+
+  const { maps, error: castErr } = await loadCastIds(supabase, {
+    therapists: (therapists ?? []) as Array<{ id: number; import_cast_id?: string | null }>,
+    provider: params.provider,
+    slot: params.slot,
+  });
+  if (castErr) return done('★ 媒体側の番号を引けなかったので日記 ' + diaryId + ' は保留: ' + castErr.slice(0, 80));
+
+  const therapistId = detail.castId ? maps.byCastId.get(detail.castId) ?? null : null;
+  if (!therapistId) {
+    const err = await markDiary(params, { diaryId, status: 'skipped:no_match', postedAt });
+    return done(
+      '日記 ' + diaryId + ' に当たるセラピストがフクエスに居ない（1日後にもう一度見る）' +
+        (err ? '。★ 記録を残せなかった: ' + err.slice(0, 80) : ''),
+    );
+  }
+
+  // ④ 写真（★ 取れなくても本文は入れる）
+  let images: string[] = [];
+  let imageNote = '写真なし';
+  if (detail.imageUrl) {
+    const img = await fetchDiaryImage(detail.imageUrl, therapistId, diaryId);
+    imageNote = img.note;
+    if (img.publicUrl) images = [img.publicUrl];
+  }
+
+  // ⑤ 日記そのもの
+  const title = (detail.title ?? '').slice(0, DIARY_MAX_TITLE_LEN) || null;
+  const content = detail.bodyText.slice(0, DIARY_MAX_CONTENT_LEN);
+  const { data: inserted, error: insErr } = await supabase
+    .from('diary_posts')
+    .insert({
+      therapist_id: therapistId,
+      salon_id: params.salonId,
+      images,
+      title,
+      content,
+      // ★★ 並び順は【駅ちかに載った日時】にそろえる。★ 取り込んだ日時で並べると、
+      //   初回の40日ぶんを流した日に、40日ぶんが全部「今日」の日記として並んでしまう。
+      ...(postedAt ? { created_at: postedAt } : {}),
+    })
+    .select('id')
+    .single();
+  if (insErr) {
+    // ★★ 記録は残さない。★ 入っていないのに「取り込んだ」と書くと、二度と取りに行かなくなる
+    return done('★ 日記 ' + diaryId + ' を保存できなかった（次の周でもう一度）: ' + insErr.message.slice(0, 80));
+  }
+
+  const diaryPostId = String((inserted as { id: string }).id);
+  const err = await markDiary(params, {
+    diaryId,
+    status: 'imported',
+    therapistId,
+    diaryPostId,
+    postedAt,
+  });
+  if (err) {
+    // ★★★ 日記は入ったが記録が残らなかった＝次の周でもう1件入る（二重）。★ 黙らない
+    console.error('[diary] 取り込みの記録を残せなかった', params.salonId, diaryId, err);
+  }
+
+  return done(
+    '日記 ' + diaryId + ' を取り込んだ（' + imageNote + '）' +
+      (err ? '。★★ 記録を残せなかった（次の周で二重になるおそれ）: ' + err.slice(0, 80) : ''),
+    [
+      {
+        event: 'read_diary_detail',
+        outcome: 'ok',
+        summary: '駅ちかの写メ日記を1件フクエスに取り込みました',
+        detail: { hasImage: images.length > 0, imported: true, flowId: ctx.flowId },
+      },
+    ],
+  );
+}
+
+/** 初回の遡りを始めるときの文脈（★ 呼び出し側が使う）。 */
+export function diaryBackfillContext(input: {
+  since: string;
+  maxPages?: number;
+}): Pick<RelayFlowContext, 'diarySince' | 'diaryPagesLeft'> {
+  const n = Number(input.maxPages);
+  return {
+    diarySince: input.since,
+    diaryPagesLeft: Number.isFinite(n) && n > 0 ? Math.min(Math.floor(n), DIARY_MAX_PAGES) : DIARY_MAX_PAGES,
+  };
 }
