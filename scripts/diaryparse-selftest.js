@@ -481,6 +481,36 @@ console.log('\n── 10-2. ★★ 非公開だった日記の開き直しは【
   eq('間隔は24時間', m.DIARY_RECHECK_HOURS, 24);
 }
 
+console.log('\n── 10-4. ★★ 1周で開く件数に上限を置く（§378） ──');
+{
+  const rows = [];
+  for (let i = 0; i < 8; i++) rows.push(listRow(String(800 + i), '2026 08/3' + (i % 2) + ' 17:12'));
+  const page = m.parseEkichikaDiaryList(listPage(rows));
+  eq('8件ある', page.rows.length, 8);
+
+  const plan = m.selectDiariesToFetch(page, { now: NOW });
+  eq('★★ 既定は5件まで', plan.fetch.length, 5);
+  eq('★ 残りは【次の周へ回す】', plan.deferred.length, 3);
+  eq('★★ 見送り（待ち）とは別のもの', plan.skippedWaiting, []);
+  eq('★ 取り込み済みでもない', plan.skippedDone, []);
+  eq('上限は5', m.DIARY_MAX_PER_RUN, 5);
+
+  eq('★ 上限は変えられる', m.selectDiariesToFetch(page, { now: NOW, limit: 2 }).fetch.length, 2);
+  eq('★ 0 を渡せば1件も開かない', m.selectDiariesToFetch(page, { now: NOW, limit: 0 }).fetch.length, 0);
+  eq('★ 全部より大きくても落ちない', m.selectDiariesToFetch(page, { now: NOW, limit: 99 }).fetch.length, 8);
+}
+{
+  // ★ 開き直しの相手も、同じ上限の中で数える（★ 上限をすり抜ける道を作らない）
+  const rows = [];
+  for (let i = 0; i < 8; i++) rows.push(listRow(String(900 + i), '2026 08/31 17:12'));
+  const page = m.parseEkichikaDiaryList(listPage(rows));
+  const known = [];
+  for (let i = 0; i < 8; i++) known.push({ diaryId: String(900 + i), status: 'skipped:private', checkedAt: null });
+  const plan = m.selectDiariesToFetch(page, { known, now: NOW });
+  eq('★★ 開き直しも5件まで', plan.fetch.length, 5);
+  eq('残りは次の周', plan.deferred.length, 3);
+}
+
 console.log('\n── 10-3. ★ 初回の遡り（ページ送り）の止めどき ──');
 {
   const nums = [2, 3, 4, 5];

@@ -1027,7 +1027,10 @@ async function planDiaryList(
   }
   return {
     audits: [],
-    note: '開く写メ日記は ' + queue.length + '件。★ ' + paging.reason,
+    note:
+      '開く写メ日記は ' + queue.length + '件' +
+      (plan.deferred.length > 0 ? '（★ あと ' + plan.deferred.length + '件は次の周へ）' : '') +
+      '。★ ' + paging.reason,
     next,
   };
 }

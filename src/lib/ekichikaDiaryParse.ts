@@ -624,9 +624,32 @@ export type KnownDiary = {
  */
 export const DIARY_RECHECK_HOURS = 24;
 
+/**
+ * 1周で詳細を開く上限（第97便）。
+ *
+ * ★★★ なぜ要るか（2026-09-01・実弾で分かった）
+ *   初回の30件を、中継役が **8秒で連続して開いていた**（1件ごとに1分ではなかった）。
+ *   ★ いまは新着だけなので1周0〜2件だが、**次に鍵を預けていただく店の初回**でまた同じことが起きる。
+ *   ★★ §6-2 で【ログインの回数】を数えて15分に決めたのに、
+ *     【開く回数の詰まり具合】は数えていなかった。★ 同じ物差しで見るべきだった。
+ *
+ * ★★ 直し方に「1件ごとに数秒待つ」を選ばなかった理由:
+ *   ★ 待つ仕組みを新しく作ることになる（ジョブに「いつ以降に実行してよいか」を足す＝表もVPSも触る）。
+ *   ★★ **15分の巡回そのものを間隔として使えば、何も作らずに済む。**
+ *     ★ 1周5件・15分間隔 ＝ 初回30件は6周（1時間半）かけて入る。★ 遅くて困るものではない。
+ *   ★ 溢れた分は【記録に残していない】ので、次の周にそのまま拾われる（作りが増えない）。
+ */
+export const DIARY_MAX_PER_RUN = 5;
+
 export type DiaryFetchPlan = {
   /** これから詳細を開く行。★ 一覧の並びのまま */
   fetch: EkichikaDiaryListRow[];
+  /**
+   * 上限を超えたので、この周では開かない日記ID（§378）。
+   * ★★ 記録には残さない。★ 次の周でふつうに拾われる。
+   * ★ 「見送った」ではなく「まだ順番が来ていない」。★ skippedWaiting と混ぜない。
+   */
+  deferred: string[];
   /** 取り込み済みなので二度と開かない（§369） */
   skippedDone: string[];
   /** 開き直す相手だが、まだその時刻ではない（1日1回・§375） */
@@ -679,6 +702,8 @@ export function selectDiariesToFetch(
     since?: string | null;
     /** いまの時刻（ISO）。★ 渡さなければ実時刻。点検で固定するために受け取る */
     now?: string | null;
+    /** この周で開いてよい上限。★ 渡さなければ DIARY_MAX_PER_RUN */
+    limit?: number | null;
   },
 ): DiaryFetchPlan {
   const known = new Map<string, KnownDiary>();
@@ -688,7 +713,11 @@ export function selectDiariesToFetch(
   }
   const sinceMs = options?.since ? Date.parse(options.since) : Number.NaN;
 
+  const rawLimit = Number(options?.limit);
+  const limit = Number.isFinite(rawLimit) && rawLimit >= 0 ? Math.floor(rawLimit) : DIARY_MAX_PER_RUN;
+
   const fetch: EkichikaDiaryListRow[] = [];
+  const deferred: string[] = [];
   const skippedDone: string[] = [];
   const skippedWaiting: string[] = [];
   const skippedOld: string[] = [];
@@ -701,7 +730,9 @@ export function selectDiariesToFetch(
         else skippedWaiting.push(row.diaryId);
         continue;
       }
-      fetch.push(row); // ★ 開き直し。★ since は当てない（上記）
+      // ★ 開き直し。★ since は当てない（上記）
+      if (fetch.length >= limit) { deferred.push(row.diaryId); continue; }
+      fetch.push(row);
       continue;
     }
     if (!Number.isNaN(sinceMs) && row.postedAt !== null) {
@@ -711,10 +742,12 @@ export function selectDiariesToFetch(
         continue;
       }
     }
+    // ★★ 上限に達したら、以降は【次の周へ回す】。★ 記録には残さない
+    if (fetch.length >= limit) { deferred.push(row.diaryId); continue; }
     fetch.push(row);
   }
 
-  return { fetch, skippedDone, skippedWaiting, skippedOld };
+  return { fetch, deferred, skippedDone, skippedWaiting, skippedOld };
 }
 
 // ────────────────────────────────────────────────────────────
