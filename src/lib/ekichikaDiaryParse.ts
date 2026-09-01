@@ -9,9 +9,36 @@
 //   採ったのは②ベンリー方式＝管理画面を15分ごとに読む（§1）。店舗様の手間はゼロ。
 //   ★ 出勤と違い、写メ日記は【管理画面】なので鍵が要る。★ いま動くのは1店だけ。
 //
-// ★★★★ このファイルの立場（2026-09-01 時点）
-//   ★ **実物のHTMLはまだ1枚も読んでいない。** 形は設計メモ §3 の採録だけを見て組んである。
-//   ★ _fixtures/ に一覧と詳細を1枚ずつ保存して突き合わせるまで、**本番の巡回に載せない**。
+// ★★★★ 実物と突き合わせた（2026-09-01・第92便の直し）
+//   ★ 最初は設計メモ §3 の採録だけを見て組んだ。★ 実物を1枚ずつ保存して流したら **2か所が違った**。
+//
+//   ① 写真のURLに `/diary/` が挟まる（★ 設計メモ §3-3 の記述と違う）
+//        メモ  files.ranking-deli.jp/<日記ID>/diaries_<日記ID>_file_name….jpeg
+//        実物  files.ranking-deli.jp/**diary**/<日記ID>/diaries_<日記ID>_file_name….jpeg
+//      ★★★ この1つで、写真が1枚ある日記を **「写真 0枚」と答えていた**。
+//        ★ しかも problems は空だった＝【読めなかったのに、無いと言った】。作法の芯に反する。
+//      → 直し方: 見つけたURLは **組み立て直さず、そのまま使う**。
+//        ★ 組み立ては「欄しか無い」ときの最後の手段にする（形が変わると壊れるのは組み立てのほう）。
+//      ★ おまけに紛らわしいホストが同居している: `systemfiles.ranking-deli.jp`（cloudfront）。
+//        ★ ホストの境目まで見る（`…/files.` か `.files.` の直前が / か . であること）。
+//
+//   ② 一覧の投稿日時を、**本文の中の日付**と取り違えた（30件中2件）
+//        本文に「8月28日(金)12:00～19:00」のような出勤の案内が入っていた。
+//        ★ 行の中の【最後の日付】を採っていたため、本文の日付を拾った。
+//      → 直し方: 日付は【日付の列】から取る（実物 `md_date_column`）。
+//        ★ 無ければ行の【最初の日付】。★ 本文は日付の列より後ろにあるので、最初なら当たる。
+//
+//   ★★ 実物の1行はこの形（2026-09-01・ラビリンス様の管理画面・30件）:
+//     <li class="md_list_column_disp clearfix">
+//       <div class="md_column md_delete_column"><input name="delete[]" value="414840669" …></div>
+//       <div class="md_column md_date_column">2026 08/31 17:12</div>
+//       <div class="md_column md_poster_column">さくら</div>
+//       <div class="md_column md_img_column"><img src="…/diary/414840669/diaries_…jpeg" /></div>
+//       <div class="md_column md_diary_column"><span class="title">…</span><span class="body">…</span></div>
+//       <div class="md_column md_edit_column"><a href='…/admin/maildiary/edit/414840669/'>編集する</a></div>
+//     </li>
+//   ★ 30件すべてで 編集リンク・md_date_column・delete[]・「編集する」が **どれも30** で揃っていた。
+//     → ★★ delete[] の日記IDを【2通り目の数え方】に使う（第53便の作法）。
 //   ★ 第53便で同じ落とし穴を踏んでいる（ekichikaMailListParse.ts の頭）:
 //     「作り物の点検は通るのに、実物では0件」。★ タグの並びは想像で当たらない。
 //   → だから、このパーサは【想像した形に寄りかからない】作りにしてある:
@@ -72,9 +99,13 @@ export type EkichikaDiaryDetail = {
   problems: string[];
 };
 
-/** 駅ちかの写メ日記の画像置き場。★ 一覧・詳細のどちらにも出てくる形。 */
+/**
+ * 駅ちかの写メ日記の画像置き場（★ 2026-09-01 実測）。
+ * ★★ `diary/` を含む。★ 設計メモ §3-3 にはこれが無かった（実物に合わせてある）。
+ * ★ 組み立てに使うのは【欄にファイル名しか無いとき】だけ。★ 実物のURLはそのまま使う。
+ */
 export const EKICHIKA_DIARY_IMAGE_BASE =
-  'https://s3-ap-northeast-1.amazonaws.com/files.ranking-deli.jp/';
+  'https://s3-ap-northeast-1.amazonaws.com/files.ranking-deli.jp/diary/';
 
 // ────────────────────────────────────────────────────────────
 // 小道具
@@ -110,7 +141,9 @@ function decodeEntities(input: string): string {
  * ★ 前に空白を要求する（`\bname` にすると `data-name=` や `file_name=` を拾いうる）。
  */
 function attrOf(tag: string, name: string): string | null {
-  const re = new RegExp('[\\s]' + name + '\\s*=\\s*(?:"([^"]*)"|\'([^\']*)\'|([^\\s"\'>]+))', 'i');
+  // ★ 属性名に記号が入ることがある（実物の `delete[]`）。★ 正規表現として解釈させない
+  const esc = String(name).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const re = new RegExp('[\\s]' + esc + '\\s*=\\s*(?:"([^"]*)"|\'([^\']*)\'|([^\\s"\'>]+))', 'i');
   const m = re.exec(String(tag ?? ''));
   if (!m) return null;
   const raw = m[1] ?? m[2] ?? m[3] ?? '';
@@ -247,7 +280,7 @@ export function parseEkichikaDiaryList(html: string | null | undefined): Ekichik
     }
     seen.add(a.id);
 
-    const stampText = lastStampIn(chunk);
+    const stampText = rowStamp(chunk);
     const postedAt = diaryStampToIso(stampText);
     if (postedAt !== null) stampCount++;
 
@@ -256,6 +289,28 @@ export function parseEkichikaDiaryList(html: string | null | undefined): Ekichik
 
   // 2. ★★★ 数を2通りで数えて突き合わせる（第53便の気づき方を検査として残す）
   //   ★ 1通りだけだと、その1通りが間違っていても気づけない。
+  //
+  // ★★ 2-1. 削除欄の日記ID（実物 `<input name="delete[]" value="414840669">`）と突き合わせる。
+  //   ★ 2026-09-01 の実物では 編集リンク30・delete[]30 で【中身も完全に一致】していた。
+  //   ★ 片方にしか無いIDが出たら、行の切り出しがずれている。
+  const delIds = new Set<string>();
+  for (const tag of inputsNamed(src, 'delete[]')) {
+    const v = (attrOf(tag, 'value') ?? '').trim();
+    if (/^\d+$/.test(v)) delIds.add(v);
+  }
+  if (delIds.size > 0) {
+    const linkIds = new Set(anchors.map((a) => a.id));
+    const onlyDel = Array.from(delIds).filter((id) => !linkIds.has(id));
+    const onlyLink = Array.from(linkIds).filter((id) => !delIds.has(id));
+    if (onlyDel.length > 0 || onlyLink.length > 0) {
+      problems.push(
+        '数が合わない: 削除欄の日記IDは ' + delIds.size + ' 件、編集リンクは ' + linkIds.size +
+          ' 件で中身が違う（削除欄だけ ' + onlyDel.length + ' 件 / リンクだけ ' + onlyLink.length +
+          ' 件）。★ 行を取りこぼしている可能性がある',
+      );
+    }
+  }
+
   const editWords = (src.match(/編集する/g) ?? []).length;
   if (editWords > 0 && editWords !== anchors.length) {
     problems.push(
@@ -274,12 +329,44 @@ export function parseEkichikaDiaryList(html: string | null | undefined): Ekichik
   return { rows, pageNumbers: pageNumbersOf(src), problems };
 }
 
-/** 塊の中のいちばん後ろの日付らしき文字列。 */
-function lastStampIn(chunk: string): string | null {
-  const re = /\d{4}[^\d]{0,4}\d{1,2}[^\d]{1,3}\d{1,2}[^\d]{0,10}?\d{1,2}:\d{2}/g;
-  let last: string | null = null;
-  for (let m = re.exec(chunk); m !== null; m = re.exec(chunk)) last = m[0];
-  return last;
+const STAMP = /\d{4}[^\d]{0,4}\d{1,2}[^\d]{1,3}\d{1,2}[^\d]{0,10}?\d{1,2}:\d{2}/;
+
+/** 行の始まりまで詰める。★ 先頭の行に、上のメニューや見出しが混ざるのを防ぐ。 */
+function rowStartOf(chunk: string): string {
+  const re = /<(?:li|tr)\b/gi;
+  let last = -1;
+  for (let m = re.exec(chunk); m !== null; m = re.exec(chunk)) last = m.index;
+  return last >= 0 ? chunk.slice(last) : chunk;
+}
+
+/**
+ * 【日付の列】から取る（実物 `<div class="md_column md_date_column">2026 08/31 17:12</div>`）。
+ * ★ クラス名に頼りきらないよう、これは【優先】でしかない。無ければ呼び出し側が別の手で拾う。
+ * ★★ 'update' のように date を含むだけの語に釣られないよう、語の区切りまで見る。
+ */
+function stampFromDateCell(chunk: string): string | null {
+  const re = /<(div|td|th|span|p)\b([^>]*)>([\s\S]*?)<\/\1\s*>/gi;
+  for (let m = re.exec(chunk); m !== null; m = re.exec(chunk)) {
+    const cls = attrOf('<x' + m[2] + '>', 'class') ?? '';
+    if (!/(^|[^a-z])date([^a-z]|$)/i.test(cls)) continue;
+    const hit = STAMP.exec(m[3]);
+    if (hit) return hit[0];
+  }
+  return null;
+}
+
+/**
+ * 1行ぶんの投稿日時。
+ *
+ * ★★★ 【最初の日付】を採る。★ 最後ではない（2026-09-01・実物で30件中2件を取り違えた）。
+ *   ★ 本文に「8月28日(金)12:00～19:00」のような出勤の案内が入っていることがある。
+ *   ★ 本文は日付の列より後ろにあるので、最初を採れば当たる。
+ */
+function rowStamp(chunk: string): string | null {
+  const row = rowStartOf(chunk);
+  const cell = stampFromDateCell(row);
+  if (cell !== null) return cell;
+  return STAMP.exec(row)?.[0] ?? null;
 }
 
 /** ページ送りに出ている番号（重複を除いて昇順）。 */
@@ -302,10 +389,20 @@ export function diaryListUsable(page: EkichikaDiaryListPage): boolean {
 // 詳細　/admin/maildiary/edit/<日記ID>/
 // ────────────────────────────────────────────────────────────
 
-const IMG_IN_URL = /https?:\/\/[^\s"'<>]*files\.ranking-deli\.jp\/(\d+)\/(diaries_\d+_file_name\d+\.(?:jpe?g|png|webp))/gi;
-const IMG_FILE_ONLY = /^diaries_(\d+)_file_name\d+\.(?:jpe?g|png|webp)$/i;
+// ★★ ホストの境目まで見る。★ `systemfiles.ranking-deli.jp` という別のホストが同居している。
+//   ★ `files.ranking-deli.jp` の直前が / か . であることを要求する（`systemfiles.` は m なので当たらない）。
+// ★★ `diary/` は【あってもなくても】読む。★ 実物には有る（2026-09-01）。設計メモには無かった。
+const IMG_IN_URL =
+  /https?:\/\/[^\s"'<>]*[/.]files\.ranking-deli\.jp\/(?:diary\/)?\d+\/diaries_\d+_file_name\d+\.(?:jpe?g|png|webp)/gi;
+// ★ 欄の値。実物は `414840669/diaries_414840669_file_name….jpeg`（日記ID付き）。★ ファイル名だけの形も許す。
+const IMG_FIELD = /^(?:(\d+)\/)?(diaries_(\d+)_file_name\d+\.(?:jpe?g|png|webp))$/i;
+const IMG_ID_IN_URL = /\/(?:diary\/)?(\d+)\/diaries_\d+_file_name/;
 
-/** 日記IDとファイル名から画像URLを組み立てる。 */
+/**
+ * 日記IDとファイル名から画像URLを組み立てる。
+ * ★★ これを使うのは【URLがどこにも無く、欄しか無い】ときだけ。
+ *   ★ 実物のURLがあるなら、そのまま使う。★ 組み立てはホストや階層が変わると黙って壊れる。
+ */
 export function diaryImageUrl(diaryId: string, fileName: string): string {
   return EKICHIKA_DIARY_IMAGE_BASE + diaryId + '/' + fileName;
 }
@@ -339,13 +436,15 @@ export function parseEkichikaDiaryDetail(
   const urls = new Set<string>();
   IMG_IN_URL.lastIndex = 0;
   for (let m = IMG_IN_URL.exec(src); m !== null; m = IMG_IN_URL.exec(src)) {
-    urls.add(diaryImageUrl(m[1], m[2]));
+    urls.add(m[0]); // ★★ 見つけたURLは、そのまま使う（組み立て直さない）
   }
-  // ★ 欄にファイル名だけが入っている形もありうる（設計メモ §3-2 の img）
-  for (const tag of inputsNamed(src, 'img')) {
-    const v = (attrOf(tag, 'value') ?? '').trim();
-    const fm = IMG_FILE_ONLY.exec(v);
-    if (fm) urls.add(diaryImageUrl(actionId ?? fm[1], v));
+  // ★ URLがどこにも無いときだけ、欄の値から組み立てる（実物の img 欄は `<日記ID>/<ファイル名>`）
+  if (urls.size === 0) {
+    for (const tag of inputsNamed(src, 'img')) {
+      const v = (attrOf(tag, 'value') ?? '').trim();
+      const fm = IMG_FIELD.exec(v);
+      if (fm) urls.add(diaryImageUrl(fm[1] ?? actionId ?? fm[3], fm[2]));
+    }
   }
   let imageUrl: string | null = null;
   if (urls.size === 1) imageUrl = Array.from(urls)[0];
@@ -355,7 +454,7 @@ export function parseEkichikaDiaryDetail(
   }
 
   // 3. 日記IDの突き合わせ（★ 2通りで数える）
-  const imgId = imageUrl ? /files\.ranking-deli\.jp\/(\d+)\//.exec(imageUrl)?.[1] ?? null : null;
+  const imgId = imageUrl ? IMG_ID_IN_URL.exec(imageUrl)?.[1] ?? null : null;
   const diaryId = actionId ?? imgId;
   if (actionId && imgId && actionId !== imgId) {
     problems.push('日記IDが食い違う（フォーム ' + actionId + ' / 写真 ' + imgId + '）');
@@ -482,39 +581,103 @@ export function shouldImportDiary(d: EkichikaDiaryDetail): boolean {
 // 巡回のときに「どれを開くか」（§369・§371・初回40日）
 // ────────────────────────────────────────────────────────────
 
+/** 取り込み済みの記録1行ぶん（salon_diary_imports の行に当たる）。 */
+export type KnownDiary = {
+  diaryId: string;
+  /** 'imported' | 'skipped:private' | 'skipped:no_match' */
+  status: string;
+  /** 最後に詳細を開いた時刻（ISO）。★ 開き直しの判断に使う。分からなければ null */
+  checkedAt?: string | null;
+};
+
+/**
+ * 開き直しの間隔（時間）。★ **1日1回**（2026-09-01・カッキーさんの判断・§375）。
+ *
+ * ★★ なぜ「毎回」でも「二度と」でもないか:
+ *   毎回  … 非公開の日記があるだけで、その店は毎周ずっと詳細を開き続ける（駅ちかへの負担・§6-2 と逆向き）
+ *   二度と… 店舗様が公開に切り替えても、二度と載らない（黙って落ちる）
+ *   1日1回… 遅くとも翌日には載る。★ 詳細を開くのは1日1回だけ増える
+ */
+export const DIARY_RECHECK_HOURS = 24;
+
 export type DiaryFetchPlan = {
   /** これから詳細を開く行。★ 一覧の並びのまま */
   fetch: EkichikaDiaryListRow[];
-  /** 取り込み済みなので開かない（§369） */
-  skippedKnown: string[];
+  /** 取り込み済みなので二度と開かない（§369） */
+  skippedDone: string[];
+  /** 開き直す相手だが、まだその時刻ではない（1日1回・§375） */
+  skippedWaiting: string[];
   /** 期間の外なので開かない（初回40日ぶん） */
   skippedOld: string[];
 };
 
+function normalizeKnown(v: string | KnownDiary): KnownDiary {
+  // ★ 文字列で渡されたら【取り込み済み】とみなす（いちばん安全なほう＝もう開かない）
+  return typeof v === 'string' ? { diaryId: v, status: 'imported', checkedAt: null } : v;
+}
+
+/**
+ * その記録を、もう一度開きに行くか。
+ *
+ * ★★★ 'imported' は **二度と開かない**（§369）。
+ *   ★ 取り込んだあと店舗様が消したものも 'imported' のまま。★ ここが消した日記を戻さない芯。
+ * ★ それ以外（非公開だった・当たるセラピストが居なかった）は【1日1回だけ】開き直す。
+ * ★★ 最後に開いた時刻が分からないときは **開く**。
+ *   ★ 「分からない」を「まだ待て」と読み替えない（作法 3-5）。
+ */
+export function shouldRecheckDiary(known: KnownDiary, nowIso?: string | null): boolean {
+  if (known.status === 'imported') return false;
+  const last = known.checkedAt ? Date.parse(known.checkedAt) : Number.NaN;
+  if (Number.isNaN(last)) return true;
+  const now = nowIso ? Date.parse(nowIso) : Date.now();
+  if (Number.isNaN(now)) return true;
+  return now - last >= DIARY_RECHECK_HOURS * 60 * 60 * 1000;
+}
+
 /**
  * 一覧から【詳細を開くもの】だけを選ぶ。
  *
- * ★★★ §369 の芯: known に入っている日記IDは **二度と開かない**。
- *   ★ known には「取り込んだ」だけでなく「取り込んで、そのあと店舗様が消した」も入れること。
- *   ★ 消えたことを known から外すと、次の巡回で必ず戻ってくる。
+ * ★★★ §369 の芯: 取り込み済み（'imported'）の日記IDは **二度と開かない**。
+ *   ★ 「取り込んで、そのあと店舗様が消した」も 'imported' のまま渡すこと。
+ *   ★ 消えたことを理由に記録を外すと、次の巡回で必ず戻ってくる。
+ * ★★ 'skipped:…' の記録は【1日1回だけ】開き直す（§375）。
+ *   ★ 非公開だった日記が公開に変わる／居なかったセラピストが登録される、を拾うため。
  * ★★ since を渡すと、それより古い投稿は開かない（初回40日ぶん・設計メモ §6 ①）。
- *   ★ 投稿日時が読めなかった行（postedAt=null）は **落とさずに開く**。
- *     ★ 「日付が読めない」を「古い」と読み替えると、取りこぼしが黙って起きる。
+ *   ★ ただし **開き直しの相手には since を当てない**。★ こちらが一度わざと見送ったものなので、
+ *     期間で二重に落とすと、いつまでも拾えない。
+ * ★★★ 投稿日時が読めなかった行（postedAt=null）は **落とさずに開く**。
+ *   ★ 「日付が読めない」を「古い」と読み替えると、取りこぼしが黙って起きる。
  */
 export function selectDiariesToFetch(
   page: EkichikaDiaryListPage,
-  options?: { known?: Iterable<string> | null; since?: string | null },
+  options?: {
+    known?: Iterable<string | KnownDiary> | null;
+    since?: string | null;
+    /** いまの時刻（ISO）。★ 渡さなければ実時刻。点検で固定するために受け取る */
+    now?: string | null;
+  },
 ): DiaryFetchPlan {
-  const known = new Set<string>(options?.known ?? []);
+  const known = new Map<string, KnownDiary>();
+  for (const k of options?.known ?? []) {
+    const n = normalizeKnown(k);
+    if (n && typeof n.diaryId === 'string') known.set(n.diaryId, n);
+  }
   const sinceMs = options?.since ? Date.parse(options.since) : Number.NaN;
 
   const fetch: EkichikaDiaryListRow[] = [];
-  const skippedKnown: string[] = [];
+  const skippedDone: string[] = [];
+  const skippedWaiting: string[] = [];
   const skippedOld: string[] = [];
 
   for (const row of page.rows) {
-    if (known.has(row.diaryId)) {
-      skippedKnown.push(row.diaryId);
+    const rec = known.get(row.diaryId);
+    if (rec) {
+      if (!shouldRecheckDiary(rec, options?.now)) {
+        if (rec.status === 'imported') skippedDone.push(row.diaryId);
+        else skippedWaiting.push(row.diaryId);
+        continue;
+      }
+      fetch.push(row); // ★ 開き直し。★ since は当てない（上記）
       continue;
     }
     if (!Number.isNaN(sinceMs) && row.postedAt !== null) {
@@ -527,5 +690,5 @@ export function selectDiariesToFetch(
     fetch.push(row);
   }
 
-  return { fetch, skippedKnown, skippedOld };
+  return { fetch, skippedDone, skippedWaiting, skippedOld };
 }

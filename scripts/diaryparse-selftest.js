@@ -28,16 +28,24 @@ const eq = (name, got, want) => {
 // ────────────────────────────────────────────────
 // 作り物の一覧。★ クラス名は【わざと2種類】混ぜる（第53便 §123-1 と同じ罠を張る）
 // ────────────────────────────────────────────────
+// ★★ 2026-09-01 に実物（ラビリンス様・30件）を読んで、その形に写した。
+const IMG = 'https://s3-ap-northeast-1.amazonaws.com/files.ranking-deli.jp/diary/';
 const listRow = (id, stamp, opt) => {
   const o = opt || {};
   const cls = o.cls === undefined ? 'md_list_column_disp clearfix' : o.cls;
+  const dateCls = o.noDateCls ? 'md_column' : 'md_column md_date_column';
+  const del = o.noDel ? '' :
+    '<div class="md_column md_delete_column"><input name="delete[]" value="' + (o.delId || id) + '" type="checkbox" /></div>';
+  const img = o.noImg ? '' :
+    '<div class="md_column md_img_column"><img alt="" src="' + IMG + id + '/diaries_' + id + '_file_name20260831171241.jpeg" /></div>';
   return (
-    '<li class="' + cls + '">' +
-    '<div class="md_column"><span class="title">投稿日時</span>' +
-    (o.noStamp ? '' : stamp) + '</div>' +
-    '<div class="md_column">' + (o.name || 'ゆき') + '</div>' +
-    '<div class="md_column">' + (o.title || 'きょうのごはん') + '</div>' +
-    '<a href="/admin/maildiary/edit/' + id + '/" class="btn">編集する</a>' +
+    '<li class="' + cls + '">' + del +
+    '<div class="' + dateCls + '">' + (o.noStamp ? '' : stamp) + '</div>' +
+    '<div class="md_column md_poster_column">' + (o.name || 'ゆき') + '</div>' + img +
+    '<div class="md_column md_diary_column"><span class="title">' + (o.title || 'きょうのごはん') +
+      '</span><span class="body">' + (o.body || 'ふつうの本文です') + '</span></div>' +
+    "<div class=\"md_column md_edit_column\"><a href='https://ranking-deli.jp/admin/maildiary/edit/" +
+      id + "/'>編集する</a></div>" +
     '</li>'
   );
 };
@@ -123,6 +131,35 @@ console.log('\n── 2. 一覧: 読めないときは黙らない ──');
   eq('★ 見出しの日付を拾わない', p.rows[0].postedAt, '2026-08-31T17:12:00+09:00');
 }
 
+console.log('\n── 2-2. ★★★ 本文の日付を、投稿日時と取り違えない（2026-09-01 実物で出た） ──');
+{
+  // ★★★ 実物30件のうち2件が、本文に出勤の案内を書いていた。
+  //   ★ 行の【最後の日付】を採っていたため、本文の日付を拾っていた。★ 最初を採る。
+  const p = m.parseEkichikaDiaryList(listPage([
+    listRow('500', '2026 08/31 17:12', { body: '2026 08/28 12:00 から出勤します' }),
+    listRow('501', '2026 08/30 09:05', { body: 'つぎは 2026 07/24 14:00 です' }),
+  ]));
+  eq('★★★ 本文の日付を投稿日時にしない',
+    p.rows.map((r) => r.postedAt), ['2026-08-31T17:12:00+09:00', '2026-08-30T09:05:00+09:00']);
+  eq('問題なし', p.problems, []);
+}
+{
+  // ★ 日付の列のクラスが変わっても、行の最初の日付なら当たる（本文は後ろにあるため）
+  const p = m.parseEkichikaDiaryList(listPage([
+    listRow('600', '2026 08/31 17:12', { noDateCls: true, body: '2026 08/28 12:00 から出勤します' }),
+  ]));
+  eq('★ 日付の列が無くても取り違えない', p.rows[0].postedAt, '2026-08-31T17:12:00+09:00');
+}
+{
+  // ★★ 2通り目の数え方（実物の delete[] と突き合わせる）
+  const p = m.parseEkichikaDiaryList(listPage([
+    listRow('700', '2026 08/31 17:12', { delId: '999' }),
+  ]));
+  eq('★★ 削除欄と編集リンクの中身が違えば言う',
+    p.problems.filter((x) => x.indexOf('削除欄') > 0).length, 1);
+  eq('★ 使ってはいけない', m.diaryListUsable(p), false);
+}
+
 console.log('\n── 3. 投稿日時の読み取り ──');
 eq('実測の形', m.diaryStampToIso('2026 08/31 17:12'), '2026-08-31T17:12:00+09:00');
 eq('スラッシュ区切り', m.diaryStampToIso('2026/08/31 17:12'), '2026-08-31T17:12:00+09:00');
@@ -154,7 +191,6 @@ eq('null でも落ちない', m.diaryBodyToText(null), '');
 // ────────────────────────────────────────────────
 // 作り物の詳細ページ
 // ────────────────────────────────────────────────
-const IMG = 'https://s3-ap-northeast-1.amazonaws.com/files.ranking-deli.jp/';
 const detail = (opt) => {
   const o = opt || {};
   const id = o.id === undefined ? '414840669' : o.id;
@@ -176,8 +212,9 @@ const detail = (opt) => {
     '<input type="text" name="title" value="' + (o.title === undefined ? 'きょうのごはん' : o.title) + '">' +
     '<textarea name="body">' + (o.body === undefined ? '<p>おはよう</p><br>' : o.body) + '</textarea>' +
     flg +
-    '<input type="file" name="md_img_upload">' +
-    (o.imgField ? '<input type="hidden" name="img" value="' + o.imgField + '">' : '') +
+    '<input style="display:none;" id="md_img_upload" name="md_img_upload" type="file" value="" />' +
+    // ★ 実物は `<日記ID>/<ファイル名>` が入っている（2026-09-01）
+    (o.imgField === undefined ? '' : '<input type="hidden" name="img" id="form_img" value="' + o.imgField + '">') +
     img +
     '</form></body></html>'
   );
@@ -285,6 +322,32 @@ console.log('\n── 8. 詳細: 写真は1枚（§370） ──');
   eq('★ プロフィール写真を日記の写真にしない', d.imageUrl, null);
   eq('問題なし', d.problems, []);
 }
+{
+  // ★★★ 2026-09-01 の見落とし。★ 実物のURLには `/diary/` が挟まっていて、拾えていなかった。
+  //   ★ しかも problems は空だった＝【写真が1枚あるのに「0枚」と答えた】。
+  const real = IMG + '414840669/diaries_414840669_file_name20260831171241.jpeg';
+  const d = m.parseEkichikaDiaryDetail(detail({
+    flg: '1', imgs: [real], imgField: '414840669/diaries_414840669_file_name20260831171241.jpeg',
+  }));
+  eq('★★★ /diary/ 付きの実物のURLを拾う', d.imageUrl, real);
+  eq('★ URLと欄が同じ写真を指していても2枚にしない', d.problems, []);
+}
+{
+  // ★★ 紛らわしいホストが同居している（実物のページにある cloudfront の systemfiles…）
+  const d = m.parseEkichikaDiaryDetail(detail({
+    flg: '1',
+    imgs: ['https://dv6drgre1bci1.cloudfront.net/systemfiles.ranking-deli.jp/diary/1/diaries_1_file_name20260831171241.jpeg'],
+  }));
+  eq('★★ systemfiles.ranking-deli.jp を日記の写真にしない', d.imageUrl, null);
+}
+{
+  // ★ URLがどこにも無いときだけ、欄から組み立てる
+  const d = m.parseEkichikaDiaryDetail(detail({
+    flg: '1', imgs: [], imgField: '414840669/diaries_414840669_file_name20260831171241.jpeg',
+  }));
+  eq('★ 欄が <日記ID>/<ファイル名> でも組み立てる',
+    d.imageUrl, IMG + '414840669/diaries_414840669_file_name20260831171241.jpeg');
+}
 
 console.log('\n── 9. 詳細: 取り違えを見つける ──');
 {
@@ -311,42 +374,95 @@ console.log('\n── 9. 詳細: 取り違えを見つける ──');
   eq('★ 中身が何も無いものは使わせない', m.diaryDetailUsable(d), false);
 }
 
-console.log('\n── 10. どれを開くか（§369・§371・初回40日） ──');
+console.log('\n── 10. どれを開くか（§369・§371・§375・初回40日） ──');
+const NOW = '2026-09-01T13:00:00+09:00';
 {
   const page = m.parseEkichikaDiaryList(listPage([
     listRow('300', '2026 08/31 17:12'),
     listRow('200', '2026 08/20 10:00'),
     listRow('100', '2026 07/01 10:00'),
   ]));
-  const all = m.selectDiariesToFetch(page);
+  const all = m.selectDiariesToFetch(page, { now: NOW });
   eq('何も知らなければ全部開く', all.fetch.map((r) => r.diaryId), ['300', '200', '100']);
 
-  const some = m.selectDiariesToFetch(page, { known: ['200', '100'] });
+  const some = m.selectDiariesToFetch(page, { known: ['200', '100'], now: NOW });
   eq('★ 取り込み済みは開かない（§371 新着だけ）', some.fetch.map((r) => r.diaryId), ['300']);
-  eq('開かなかった理由が分かる', some.skippedKnown, ['200', '100']);
+  eq('理由が分かる', some.skippedDone, ['200', '100']);
+  eq('★ 文字列で渡したら【取り込み済み】＝いちばん安全なほうに倒す', some.skippedWaiting, []);
 
-  const ranged = m.selectDiariesToFetch(page, { since: '2026-08-01T00:00:00+09:00' });
+  const ranged = m.selectDiariesToFetch(page, { since: '2026-08-01T00:00:00+09:00', now: NOW });
   eq('★ 期間の外は開かない（初回40日）', ranged.fetch.map((r) => r.diaryId), ['300', '200']);
   eq('古いほうの理由も分かる', ranged.skippedOld, ['100']);
 }
 {
+  // ★★★ 消した日記が戻ってこないこと（§369）
   const page = m.parseEkichikaDiaryList(listPage([listRow('300', '2026 08/31 17:12')]));
-  const plan = m.selectDiariesToFetch(page, { known: ['300'] });
+  const plan = m.selectDiariesToFetch(page, {
+    known: [{ diaryId: '300', status: 'imported', checkedAt: '2026-01-01T00:00:00+09:00' }],
+    now: NOW,
+  });
   eq('★★★ 店舗様が消した日記を、次の巡回で開かない', plan.fetch.length, 0);
-  eq('理由は「取り込み済み」', plan.skippedKnown, ['300']);
+  eq('★★ 何年経っても開かない（1日1回の対象ではない）', plan.skippedDone, ['300']);
 }
 {
+  // ★★ 日付が読めない行を「古い」と読み替えない
   const page = m.parseEkichikaDiaryList(listPage([
     listRow('300', '2026 08/31 17:12'), listRow('400', '', { noStamp: true }),
   ]));
-  const plan = m.selectDiariesToFetch(page, { since: '2026-08-01T00:00:00+09:00' });
+  const plan = m.selectDiariesToFetch(page, { since: '2026-08-01T00:00:00+09:00', now: NOW });
   eq('★★ 日付が読めない行は開く（取りこぼさない）', plan.fetch.map((r) => r.diaryId), ['300', '400']);
   eq('古いとは言わない', plan.skippedOld, []);
 }
 {
   const page = m.parseEkichikaDiaryList('');
-  const plan = m.selectDiariesToFetch(page, { known: ['1'] });
+  const plan = m.selectDiariesToFetch(page, { known: ['1'], now: NOW });
   eq('読めない一覧からは何も開かない', plan.fetch.length, 0);
+}
+
+console.log('\n── 10-2. ★★ 非公開だった日記の開き直しは【1日1回】（§375） ──');
+{
+  const page = m.parseEkichikaDiaryList(listPage([listRow('300', '2026 08/31 17:12')]));
+  const priv = (checkedAt) => m.selectDiariesToFetch(page, {
+    known: [{ diaryId: '300', status: 'skipped:private', checkedAt }], now: NOW,
+  });
+
+  eq('★ 23時間前に見たものは、まだ開かない', priv('2026-09-01T14:00:00+09:00').fetch.length, 0);
+  eq('★ 待っている理由が分かる（取り込み済みとは別）',
+    priv('2026-09-01T14:00:00+09:00').skippedWaiting, ['300']);
+  eq('★ 取り込み済みには入れない', priv('2026-09-01T14:00:00+09:00').skippedDone, []);
+
+  eq('★★ ちょうど24時間で開き直す',
+    priv('2026-08-31T13:00:00+09:00').fetch.map((r) => r.diaryId), ['300']);
+  eq('★★ 25時間前なら開き直す',
+    priv('2026-08-31T12:00:00+09:00').fetch.map((r) => r.diaryId), ['300']);
+  eq('★★★ 最後に見た時刻が分からなければ開く（分からないを「待て」と読まない）',
+    priv(null).fetch.map((r) => r.diaryId), ['300']);
+  eq('壊れた時刻でも開く', priv('こわれている').fetch.map((r) => r.diaryId), ['300']);
+}
+{
+  // ★ 当たるセラピストが居なかったものも、同じく1日1回（あとで登録されたら拾う）
+  const page = m.parseEkichikaDiaryList(listPage([listRow('300', '2026 08/31 17:12')]));
+  const plan = m.selectDiariesToFetch(page, {
+    known: [{ diaryId: '300', status: 'skipped:no_match', checkedAt: '2026-08-30T13:00:00+09:00' }],
+    now: NOW,
+  });
+  eq('★ 居なかった子の日記も、1日たてば開き直す', plan.fetch.map((r) => r.diaryId), ['300']);
+}
+{
+  // ★★ 開き直しの相手には、期間（初回40日）を当てない
+  const page = m.parseEkichikaDiaryList(listPage([listRow('100', '2026 07/01 10:00')]));
+  const plan = m.selectDiariesToFetch(page, {
+    known: [{ diaryId: '100', status: 'skipped:private', checkedAt: '2026-08-30T13:00:00+09:00' }],
+    since: '2026-08-01T00:00:00+09:00', now: NOW,
+  });
+  eq('★★ 一度わざと見送ったものを、期間で二重に落とさない', plan.fetch.map((r) => r.diaryId), ['100']);
+  eq('古い扱いにしない', plan.skippedOld, []);
+}
+{
+  // ★ 単体でも確かめる
+  eq('imported は開き直さない',
+    m.shouldRecheckDiary({ diaryId: '1', status: 'imported', checkedAt: null }, NOW), false);
+  eq('間隔は24時間', m.DIARY_RECHECK_HOURS, 24);
 }
 
 // ────────────────────────────────────────────────
@@ -375,7 +491,8 @@ console.log('\n── 11. 実物との突き合わせ（_fixtures/） ──');
     eq('★ 実物の日付が全件読めている', p.rows.filter((r) => !r.postedAt).length, 0);
   }
   if (fs.existsSync(detailFile)) {
-    const d = m.parseEkichikaDiaryDetail(fs.readFileSync(detailFile, 'utf8'));
+    const rawDetail = fs.readFileSync(detailFile, 'utf8');
+    const d = m.parseEkichikaDiaryDetail(rawDetail);
     console.log('   実物の詳細: castId ' + (d.castId ? 'あり' : 'なし') +
       ' / タイトル ' + (d.title === null ? '欄なし' : d.title.length + '字') +
       ' / 本文 ' + d.bodyText.length + '字 / 写真 ' + (d.imageUrl ? '1枚' : '0枚') +
@@ -384,6 +501,12 @@ console.log('\n── 11. 実物との突き合わせ（_fixtures/） ──');
     eq('★ 実物から castId が取れている', d.castId !== null, true);
     eq('★ 実物の公開・非公開が読めている', d.isPublic !== null, true);
     eq('★ 実物の本文が空でない', d.bodyText.length > 0, true);
+    // ★★★ 【HTMLに写真があるのに拾えていない】を捕まえる。
+    //   ★ 2026-09-01 は、まさにこれを見逃して「写真 0枚」と答えていた。
+    //   ★ 写真の無い日記を保存した場合は、この検査そのものが動かない（それでよい）。
+    if (/diaries_\d+_file_name\d+\.(?:jpe?g|png|webp)/i.test(rawDetail)) {
+      eq('★★★ HTMLに写真があるなら、必ず拾えていること', d.imageUrl !== null, true);
+    }
   }
 }
 
