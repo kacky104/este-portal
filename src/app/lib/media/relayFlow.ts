@@ -15,6 +15,7 @@ import { createServiceClient } from '@/app/lib/supabase/service';
 import { recordMediaAudit } from '@/app/lib/media/mediaAudit';
 import { defaultAuditSummary } from '@/lib/mediaAudit';
 import { enqueueRelayJob } from '@/app/lib/media/relayQueue';
+import { stampDiaryListed } from '@/app/lib/media/diaryWatch';
 import { openContext, unpackBody, type RelayResponse } from '@/lib/relayJob';
 import { decryptSecret } from '@/lib/mediaCredentials';
 import {
@@ -949,6 +950,14 @@ async function planDiaryList(
   ctx: RelayFlowContext,
 ): Promise<DiaryStep> {
   const supabase = createServiceClient();
+
+  // ★★★ 一覧を読めた（第100便）。★★ 新着が無くても、ここで必ず心拍を刻む。
+  //   ★ 「取り込めたときだけ刻む」形にすると salon_diary_imports と同じものになり、
+  //     「新着が無かった」と「巡回が止まっている」が また見分けられなくなる。
+  await stampDiaryListed(
+    { salonId: params.salonId, provider: params.provider, slot: params.slot },
+    pageNumber + 'ページ目・' + page.rows.length + '件',
+  );
 
   // 1. この店の記録を読む（★ 取り込み済み・見送り済みの一覧）
   const { data: rows, error } = await supabase

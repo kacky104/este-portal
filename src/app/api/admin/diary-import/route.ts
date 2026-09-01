@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { createServiceClient } from '@/app/lib/supabase/service';
 import { startRelayFlow, diaryBackfillContext } from '@/app/lib/media/relayFlow';
 import { importsDiaryFromEkichika, readDiarySource } from '@/lib/diarySource';
+import { stampDiaryQueued } from '@/app/lib/media/diaryWatch';
 
 // ── 写メ日記の取り込みを1回まわす（第95便）─────────────────────────────
 //   POST /api/admin/diary-import  (Authorization: Bearer <CRON_SECRET>)
@@ -132,6 +133,8 @@ export async function POST(req: Request) {
         ...(since ? diaryBackfillContext({ since, maxPages: Number(body.maxPages) }) : {}),
       });
       started.push({ salonId, slot, jobId: r.ok ? r.jobId : undefined, note: r.note });
+      // ★★ 積めた【後】に心拍を刻む（第100便）。★ 前に刻むと、積めていないのに新しくなる
+      if (r.ok) await stampDiaryQueued({ salonId, provider: 'ekichika', slot });
     } catch (e) {
       // ★ 1店で転んでも、ほかの店を止めない
       started.push({ salonId, slot, note: '★ 始められなかった: ' + String((e as Error).message).slice(0, 120) });
