@@ -209,9 +209,33 @@ export function diaryStampToIso(text: string | null | undefined): string | null 
  * ★ `<br>` 単体は改行。★ それ以外のタグは落とす。★ 文字参照はほどく。
  * ★★ 空行は本文の一部なので潰さない。★ ただし3行以上の連続は2行にそろえる。
  */
+/**
+ * ★★★ 駅ちかの本文は【HTMLエスケープされた形】で textarea に入っている（2026-09-01・実物）。
+ *
+ *   <textarea name="body">&lt;p&gt;こんにちは&lt;/p&gt;&lt;p&gt;&lt;br&gt;&lt;/p&gt;…</textarea>
+ *
+ * ★★★ これに気づかず「タグを落としてから文字参照をほどく」順にしていた。
+ *   ★ タグ落としが1つも当たらず、最後にほどいた時点で **タグが文字として復活**した。
+ *   ★ 実際に店舗様の画面へ `<p>こんにちは</p><p><br></p>…` がそのまま出た（第96便で発覚）。
+ *   ★★ 作り物の点検は生のタグで書いていたので通っていた。★ 第53便とまったく同じ形。
+ *
+ * → **山括弧だけ先に戻す。**
+ *   ★ `&amp;` はここでは戻さない。★ 戻すと `&amp;lt;` が `<` になり、二重にほどいてしまう。
+ * ★ 生のタグで来る形もありうるので、**エスケープされたタグがあり、生のタグが無い**ときだけ戻す。
+ *   ★ 混ざっているときは触らない（どちらが本物か決められないため）。
+ */
+const TAGISH = 'p|br|div|span|a|b|i|strong|em|font|img';
+function unescapeTagsIfNeeded(s: string): string {
+  const raw = new RegExp('<\\s*/?\\s*(?:' + TAGISH + ')\\b', 'i').test(s);
+  const escaped = new RegExp('&lt;\\s*/?\\s*(?:' + TAGISH + ')\\b', 'i').test(s);
+  if (escaped && !raw) return s.replace(/&lt;/gi, '<').replace(/&gt;/gi, '>');
+  return s;
+}
+
 export function diaryBodyToText(html: string | null | undefined): string {
   let s = String(html ?? '');
   if (s === '') return '';
+  s = unescapeTagsIfNeeded(s);
   s = s.replace(/<(script|style)\b[\s\S]*?<\/\1\s*>/gi, '');
   s = s.replace(/\r\n?/g, '\n');
   // ★ </p><br> は合わせて1つの改行（上記）

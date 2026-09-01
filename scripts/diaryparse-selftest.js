@@ -185,6 +185,22 @@ eq('script は中身ごと落とす', m.diaryBodyToText('<p>本文</p><script>al
 eq('空行は残すが3行以上は畳む', m.diaryBodyToText('a<br><br><br><br>b'), 'a\n\nb');
 eq('行末の空白は落とす', m.diaryBodyToText('a   <br>b'), 'a\nb');
 eq('★ 行の中の全角空白は残す', m.diaryBodyToText('<p>あ　い</p>'), 'あ　い');
+// ★★★ 2026-09-01 実物で出た形。★ 駅ちかは本文を【エスケープして】textarea に入れている。
+//   ★ これを直す前は、店舗様の画面に <p>…</p> がそのまま出ていた。
+eq('★★★ エスケープされたタグを、ちゃんと落とす',
+  m.diaryBodyToText('&lt;p&gt;こんにちは&lt;/p&gt;&lt;p&gt;&lt;br&gt;&lt;/p&gt;&lt;p&gt;今週のシフトは&lt;/p&gt;'),
+  'こんにちは\n\n今週のシフトは');
+eq('★ エスケープされた style つきの span も落とす',
+  m.diaryBodyToText('&lt;p&gt;&lt;span style="color: rgb(240, 102, 102);"&gt;火曜日&lt;/span&gt;&lt;/p&gt;'),
+  '火曜日');
+eq('★ 生のタグの形も、これまでどおり読める',
+  m.diaryBodyToText('<p>こんにちは</p><p><br></p><p>今週のシフトは</p>'),
+  'こんにちは\n\n今週のシフトは');
+eq('★★ 二重エスケープは文字として残す（&lt; を < にしない）',
+  m.diaryBodyToText('&lt;p&gt;&amp;lt;&lt;/p&gt;'), '&lt;');
+eq('★ 生とエスケープが混ざっていたら、山括弧は戻さない（どちらが本物か決められない）',
+  m.diaryBodyToText('<p>ほんもの</p>&lt;p&gt;もじ&lt;/p&gt;'), 'ほんもの\n<p>もじ</p>');
+eq('タグらしきものが無ければ、そのまま', m.diaryBodyToText('&lt;3 と書いただけ'), '<3 と書いただけ');
 eq('空でも落ちない', m.diaryBodyToText(''), '');
 eq('null でも落ちない', m.diaryBodyToText(null), '');
 
@@ -519,6 +535,11 @@ console.log('\n── 11. 実物との突き合わせ（_fixtures/） ──');
     eq('★ 実物から castId が取れている', d.castId !== null, true);
     eq('★ 実物の公開・非公開が読めている', d.isPublic !== null, true);
     eq('★ 実物の本文が空でない', d.bodyText.length > 0, true);
+    // ★★★ 2026-09-01 の見落とし。「空でない」しか見ていなかったので、
+    //   本文が <p>…</p> のまま入っていることに **点検では気づけなかった**（実機で発覚）。
+    //   ★ 中身は出さず、【タグの痕跡が残っていないこと】だけを見る。
+    eq('★★★ 実物の本文にタグの痕跡が残っていない',
+      /<\/?(?:p|br|div|span)\b|&lt;|&gt;|&amp;nbsp;/i.test(d.bodyText), false);
     // ★★★ 【HTMLに写真があるのに拾えていない】を捕まえる。
     //   ★ 2026-09-01 は、まさにこれを見逃して「写真 0枚」と答えていた。
     //   ★ 写真の無い日記を保存した場合は、この検査そのものが動かない（それでよい）。
