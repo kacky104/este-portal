@@ -1,5 +1,6 @@
 import { Resend } from 'resend';
 import { createServiceClient } from '@/app/lib/supabase/service';
+import { forwardsDiaryFromFukues, readDiarySource } from '@/lib/diarySource';
 
 // ── 写メ日記の他媒体転送（第36便・第2弾）────────────────────────────────
 //
@@ -160,13 +161,18 @@ export async function forwardDiary(diaryId: string, apply = false): Promise<Forw
   //   'fukues' へ切り替えねばならない、という順序の逆転を避けるため。
   //   切り替えると受信側（resend-inbound）がベンリー経由の日記を捨て始める＝本番の運用が変わってしまう。
   //   実際に送るのは apply:true のときだけなので、誤送信は増えない。
-  if (source !== 'fukues') {
+  // ★★ 判定は src/lib/diarySource.ts の一本線（第99便）。★ ここに値を直書きしない。
+  if (!forwardsDiaryFromFukues(source)) {
+    // ★ 送らなかった理由に【どの入口だったか】を残す（§372: 一緒くたにしない）。
+    //   ★ 以前は入口が2つしか無かったので 'skipped:source_is_benry' と決め打っていた。
+    //     'ekichika' の店が増えた今、決め打つと記録が嘘になる。
+    const why = 'skipped:source_is_' + readDiarySource(source);
     if (apply) {
-      result.宛先.push({ provider: '-', 宛先: '-', status: 'skipped:source_is_benry' });
-      await log('-', 'skipped:source_is_benry');
+      result.宛先.push({ provider: '-', 宛先: '-', status: why });
+      await log('-', why);
       return result;
     }
-    result.注意 = '試し打ち（1通も送っていません）／この店舗の正本は benry のため、実運用では送られません';
+    result.注意 = `試し打ち（1通も送っていません）／この店舗の正本は ${readDiarySource(source)} のため、実運用では送られません`;
   }
   if (rows.length === 0) {
     result.宛先.push({ provider: '-', 宛先: '-', status: 'skipped:no_address' });
@@ -329,9 +335,10 @@ export async function retryFailedForwards(opts: { limit?: number; apply?: boolea
       if (apply) await mark('skipped:diary_gone', built.error);
       continue;
     }
-    if (built.payload.source !== 'fukues') {
-      note('skipped:source_is_benry', mask(address));
-      if (apply) await mark('skipped:source_is_benry');
+    if (!forwardsDiaryFromFukues(built.payload.source)) {
+      const why = 'skipped:source_is_' + readDiarySource(built.payload.source);
+      note(why, mask(address));
+      if (apply) await mark(why);
       continue;
     }
 

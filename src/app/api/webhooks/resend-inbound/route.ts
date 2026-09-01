@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import crypto from 'node:crypto';
 import { createServiceClient } from '@/app/lib/supabase/service';
 import { STORAGE_CACHE_CONTROL } from '@/app/lib/storage';
+import { acceptsDiaryMail, diaryMailRejectReason } from '@/lib/diarySource';
 
 // 写メ日記のメール投稿の受け口（2026-08-21 第27便）。
 //   URL:  https://fukues.com/api/webhooks/resend-inbound
@@ -174,20 +175,28 @@ export async function POST(req: Request) {
   const salonId = Number(therapist.salon_id);
   const therapistUserId = (therapist.user_id as string | null) ?? null;
 
-  // ★★★ 正本がフクエスの店舗宛のメールは【受け取らない】（第36便・第2弾）
-  //   その店舗はフクエスで日記を書き、そこから駅ちか・エスラブへ送っている。
-  //   ベンリー側の転送設定が外し忘れられていると、自分が送った日記がここへ戻ってきて
-  //   同じ日記が2つ並ぶ。**受け取ってから重複判定する形にしてはいけない** ——
+  // ★★★ 【受け取る店だけ】から受け取る（第36便・第2弾 → 第99便で3値化）
+  //   'fukues' の店はフクエスで日記を書いて駅ちか・エスラブへ送っており、
+  //   'ekichika' の店はフクエスが駅ちかから取り込んでいる。どちらもベンリー側の転送設定が
+  //   生きていると、同じ日記がここへ届いて2件並ぶ。
+  //   **受け取ってから重複判定する形にしてはいけない** ——
   //   本文が媒体側で整形されたり、時刻が数分ずれたりして、判定は必ずどこかで外れる。
-  //   「送る側の店舗からは受け取らない」という一本の線で切るのが唯一確実。
+  //   「入口を1つに絞る」という一本の線で切るのが唯一確実。
   //   ★ 切り替えは salons.diary_source（既定 'benry'＝従来どおり受け取る）。
+  //
+  // ★★★★ 次にここへ入口を足す人へ（第99便）
+  //   判定は【許可した値だけ受ける】形にしてある。以前は「'fukues' 以外なら受ける」だったため、
+  //   第92便で足した 'ekichika'（駅ちかから取り込む店）が素通りし、同じ日記が2件並ぶ形になっていた。
+  //   ★ 入口を1つ足したら、必ず src/lib/diarySource.ts の一本線へ繋ぐこと。
+  //     ★ 繋がなければ scripts/diarysource-selftest.js が落ちる（npm run check:diarysource）。
   const { data: salonRow } = await svc
     .from('salons').select('diary_source').eq('id', salonId).maybeSingle();
-  const diarySource = (salonRow?.diary_source as string | null) ?? 'benry';
-  if (diarySource === 'fukues') {
-    await finishLog('rejected:source_is_fukues', therapistId);
-    console.warn(`[diary-mail] 正本がフクエスの店舗宛のため受け取らない: salon_id=${salonId} therapist_id=${therapistId}`);
-    return NextResponse.json({ ok: true, skipped: 'source_is_fukues' });
+  const diarySource = (salonRow?.diary_source as string | null) ?? null;
+  if (!acceptsDiaryMail(diarySource)) {
+    // ★ 「受け取らなかった」を一緒くたにしない。理由まで記録に残す（§372 と同じ芯）
+    await finishLog(diaryMailRejectReason(diarySource), therapistId);
+    console.warn(`[diary-mail] 入口が違うため受け取らない: salon_id=${salonId} therapist_id=${therapistId} diary_source=${String(diarySource)}`);
+    return NextResponse.json({ ok: true, skipped: diaryMailRejectReason(diarySource) });
   }
 
   try {

@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createServiceClient } from '@/app/lib/supabase/service';
 import { startRelayFlow, diaryBackfillContext } from '@/app/lib/media/relayFlow';
+import { importsDiaryFromEkichika, readDiarySource } from '@/lib/diarySource';
 
 // ── 写メ日記の取り込みを1回まわす（第95便）─────────────────────────────
 //   POST /api/admin/diary-import  (Authorization: Bearer <CRON_SECRET>)
@@ -8,6 +9,12 @@ import { startRelayFlow, diaryBackfillContext } from '@/app/lib/media/relayFlow'
 //
 // ★★★ この口がすること: 中継ジョブ（login）を1件積むだけ。
 //   ★ 実際に駅ちかを読むのは毎分の relay.sh（VPS）。★ VPS側に新しい実装は要らない。
+//
+// ★★★★ 動くのは【入口が 'ekichika' の店】だけ（第99便）。
+//   ★ salons.diary_source が 'ekichika' の店だけ回す。★ 'benry'（メールで受け取る）の店を
+//     ここで回すと、同じ日記がメールと取り込みで2件並ぶ。
+//   ★ 判定は src/lib/diarySource.ts の一本線。★ ここに条件を書き足さないこと。
+//   ★ 鍵があっても入口が違えば回さない。★ 切り替えるまでは 0件（＝安全側に止まる）。
 //
 // ★★★ 動くのは【鍵を預けていただいた店】だけ（設計メモ §6-1）。
 //   ★ 出勤は公開ページなので鍵が要らないが、写メ日記は管理画面なので鍵が要る。
@@ -63,16 +70,48 @@ export async function POST(req: Request) {
   const { data: creds, error } = await q;
   if (error) return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
 
-  const targets = (creds ?? []).filter((c) => {
-    // ★ 同意していない枠は動かさない（第89便の作法）
-    return typeof (c as { consent_version?: string | null }).consent_version === 'string';
-  });
+  // ★ 同意していない枠は動かさない（第89便の作法）
+  const consented = (creds ?? []).filter(
+    (c) => typeof (c as { consent_version?: string | null }).consent_version === 'string'
+  );
+  const noConsent = (creds ?? []).length - consented.length;
+
+  // ★★★ 入口が 'ekichika' の店だけに絞る（第99便）
+  //   ★ 鍵の有無ではなく【店舗が選んだ入口】で決める。
+  //   ★ 引けなかったときは回さない。★「分からない」を「回してよい」と読まない（作法 3-5）。
+  const salonIds = Array.from(new Set(consented.map((c) => Number((c as { salon_id: number }).salon_id))));
+  const sourceOf = new Map<number, string>();
+  if (salonIds.length > 0) {
+    const { data: salonRows, error: salonErr } = await svc
+      .from('salons').select('id, diary_source').in('id', salonIds);
+    if (salonErr) return NextResponse.json({ ok: false, error: salonErr.message }, { status: 500 });
+    for (const r of salonRows ?? []) {
+      sourceOf.set(Number((r as { id: number }).id), readDiarySource((r as { diary_source: unknown }).diary_source));
+    }
+  }
+
+  const targets = consented.filter((c) =>
+    importsDiaryFromEkichika(sourceOf.get(Number((c as { salon_id: number }).salon_id)))
+  );
+
+  // ★★ 「0件」の理由が読み取れる形で返す（第35便の反省6）。
+  //   ★ 鍵はあるのに回らない店を、黙って数から消さない。
+  const skipped = consented
+    .filter((c) => !importsDiaryFromEkichika(sourceOf.get(Number((c as { salon_id: number }).salon_id))))
+    .map((c) => ({
+      salonId: Number((c as { salon_id: number }).salon_id),
+      slot: Number((c as { slot: number }).slot),
+      diarySource: sourceOf.get(Number((c as { salon_id: number }).salon_id)) ?? '★ 店舗が引けなかった',
+      note: '★ 入口が ekichika ではないため回さない',
+    }));
 
   if (!apply) {
     return NextResponse.json({
       ok: true,
       applied: false,
       targets: targets.length,
+      skipped,
+      noConsent,
       note: '試し打ち。★ apply:true で実際に積みます',
       since,
     });
@@ -99,5 +138,5 @@ export async function POST(req: Request) {
     }
   }
 
-  return NextResponse.json({ ok: true, applied: true, targets: targets.length, since, started });
+  return NextResponse.json({ ok: true, applied: true, targets: targets.length, skipped, noConsent, since, started });
 }

@@ -3,6 +3,7 @@
 import { createClient } from '@/app/lib/supabase/server';
 import { createServiceClient } from '@/app/lib/supabase/service';
 import { ADMIN_UUID } from '@/app/lib/admin';
+import { isDiarySource } from '@/lib/diarySource';
 
 // 写メ日記の転送先の登録（第36便・第2弾）。
 //
@@ -129,21 +130,40 @@ export async function getSalonDiarySource(input: { therapistId: string | number 
 }
 
 /**
- * 店舗の「写メ日記の正本」を切り替える。
- * ★★★ これが二重投稿を防ぐ唯一の仕掛け。
- *   'fukues' にすると、その店舗宛に他媒体から届いたメールは受け取らなくなる
- *   （/api/webhooks/resend-inbound が捨てる）。
- *   ベンリー側の転送設定を外し忘れても日記が2つ並ばない。
+ * 店舗の「写メ日記の入口」を切り替える。
+ * ★★★ これが二重投稿を防ぐ唯一の仕掛け。★ 入口は常に1つだけ（第99便で3値化）。
+ *   'benry'    … メールで受け取る（駅ちかの取り込みは回さない）
+ *   'ekichika' … 駅ちかの管理画面から取り込む（メールは受け取らない）
+ *   'fukues'   … フクエスで書いて各媒体へ送る（どちらも受け取らない）
+ * ★ 判定は src/lib/diarySource.ts。★ ここに値を直書きしない。
  */
 export async function setSalonDiarySource(input: { therapistId: string | number; source: string }):
   Promise<Result<{ source: string }>> {
   const therapistId = Number(input.therapistId);
   if (!Number.isFinite(therapistId)) return { ok: false, error: '対象セラピストが不正です' };
-  if (input.source !== 'benry' && input.source !== 'fukues') return { ok: false, error: '指定が不正です' };
+  if (!isDiarySource(input.source)) return { ok: false, error: '指定が不正です' };
   const guard = await assertCanEdit(therapistId);
   if (!guard.ok) return guard;
 
   const svc = createServiceClient();
+
+  // ★★★ 'ekichika' は【鍵を預けていただいた店】でしか動かない（第99便）。
+  //   ★ 鍵が無いまま切り替えると、メールも受け取らず取り込みも回らない＝
+  //     **日記が1件も入らない状態**になる。★ しかも誰も気づかない。
+  //   ★ 「保存したのに何も起きない」を作らないため、ここで止めて理由を返す。
+  if (input.source === 'ekichika') {
+    const { data: cred } = await svc
+      .from('salon_media_credentials')
+      .select('salon_id, is_enabled, consent_version')
+      .eq('salon_id', guard.data.salonId)
+      .eq('provider', 'ekichika')
+      .eq('is_enabled', true);
+    const ready = (cred ?? []).some((c) => typeof (c as { consent_version?: string | null }).consent_version === 'string');
+    if (!ready) {
+      return { ok: false, error: '駅ちかのログイン情報がまだご登録されていないため、この設定にはできません。先に「媒体連携」で駅ちかのログイン情報とご同意をご登録ください。' };
+    }
+  }
+
   const { error } = await svc.from('salons').update({ diary_source: input.source }).eq('id', guard.data.salonId);
   if (error) return { ok: false, error: error.message };
   return { ok: true, data: { source: input.source } };

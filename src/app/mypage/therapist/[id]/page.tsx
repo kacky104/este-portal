@@ -781,8 +781,12 @@ export default function TherapistEditPage() {
               <p className="text-[11px] text-slate-400">読み込み中...</p>
             ) : (
               <div className="space-y-1.5">
+                {/* ★★★ 入口は常に1つだけ（第99便）。★ 2つ選べる形にしないこと。
+                    2つ開くと、同じ日記が2件並ぶ（メールで1件・駅ちかの取り込みで1件）。
+                    ★ 判定は src/lib/diarySource.ts。★ 値を足すときは、そちらと点検も一緒に直す。 */}
                 {[
-                  { v: 'benry',  t: '他媒体で書く',   d: '駅ちか等で書いた日記を、代行システム経由でフクエスが受け取ります（現在の運用）' },
+                  { v: 'benry',  t: '他媒体で書く（代行システム経由）', d: '駅ちか等で書いた日記を、代行システムからのメールでフクエスが受け取ります（現在の運用）' },
+                  { v: 'ekichika', t: '他媒体で書く（駅ちかから取り込む）', d: '駅ちかに載った日記を、フクエスが15分ごとに取り込みます。★ 駅ちかのログイン情報をお預かりしている店舗のみ。★ このとき代行システムからのメールは受け取りません（二重に載らないようにするため）' },
                   { v: 'fukues', t: 'フクエスで書く', d: 'フクエスで書いた日記を、下に登録した宛先へ即時で送ります' },
                 ].map((o) => (
                   <label key={o.v} className={`flex gap-2 items-start p-2 rounded-xl cursor-pointer transition-colors ${diarySource === o.v ? 'bg-white border border-pink-200' : 'hover:bg-white/60'}`}>
@@ -805,7 +809,7 @@ export default function TherapistEditPage() {
                 ))}
               </div>
             )}
-            {diarySource === 'fukues' && (
+            {(diarySource === 'fukues' || diarySource === 'ekichika') && (
               <p className="text-[10px] text-amber-600 bg-amber-50 border border-amber-100 rounded-xl px-3 py-2 leading-relaxed">
                 ※ 代行システム（ベンリー等）側の「日記転送先」の設定は外してください。外さなくても同じ日記が二重に載ることはありませんが、代行側の送信が無駄になります。
               </p>
