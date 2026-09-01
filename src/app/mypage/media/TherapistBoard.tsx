@@ -360,7 +360,7 @@ export function TherapistBoard({ salonId, onToast }: { salonId: number | null; o
         <div className="border border-sky-200 bg-sky-50 px-4 py-3">
           <p className="text-[14px] leading-relaxed text-slate-600">
             <b className="font-bold text-sky-700">向こうの名簿を読めるサイトがありません。</b>{' '}
-            駅ちかで入力するようにすると、だれがどのサイトに出ているかを確かめられます。
+            駅ちかから反映するようにすると、だれがどのサイトに出ているかを確かめられます。
           </p>
           <Link href="/mypage/media" className="mt-2 inline-block text-[14px] font-bold text-sky-700 underline">
             ホームで確かめる

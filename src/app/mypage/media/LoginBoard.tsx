@@ -27,6 +27,7 @@ import {
   credentialPauseLabel, credentialPauseAskText, credentialPauseDoneText,
   credentialPausedNotice,
   CREDENTIAL_PAUSE_WHEN, CREDENTIAL_PAUSE_NOT_FOR_STOPPING,
+  CREDENTIAL_PAUSE_BLOCKS_SWITCH,
 } from '@/lib/mediaOverview';
 import {
   getMediaCredentials,
@@ -460,6 +461,13 @@ export function LoginBoard({
                   {row?.linkMode === 'write_auto' && (
                     <p className="mt-1.5 text-[13px] text-slate-400 leading-relaxed">
                       いまは自動で反映しています。自動をやめる操作は「出勤を送る」にあります。
+                    </p>
+                  )}
+                  {/* ★★★ 灰色のボタンだけ見せない（§185・第91便）。
+                      ★ 押せない理由と、押せるようにする方法を、その場に書く */}
+                  {site.readable && row && row.linkMode !== 'write_auto' && !row.isEnabled && (
+                    <p className="mt-1.5 text-[13px] text-amber-700 leading-relaxed">
+                      {CREDENTIAL_PAUSE_BLOCKS_SWITCH}
                     </p>
                   )}
                 </div>

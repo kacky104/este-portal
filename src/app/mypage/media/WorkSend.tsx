@@ -270,9 +270,10 @@ export function WorkSend({ salonId, onToast }: { salonId: number | null; onToast
               >
                 {s.label}
                 <span className="font-medium text-slate-400">
+                  {/* ★ 印の言い方は mediaOverview.directionLabel に揃える（第91便） */}
                   （{s.direction === 'read'
-                      ? `いまは${s.label}で入力`
-                      : s.direction === 'off' ? '反映しない設定' : '未設定'}）
+                      ? `いまは${s.label}から反映中`
+                      : s.direction === 'off' ? '反映なし' : '未設定'}）
                 </span>
               </span>
             ))}
@@ -284,7 +285,7 @@ export function WorkSend({ salonId, onToast }: { salonId: number | null; onToast
             <p className="text-[14px] leading-relaxed text-slate-600">
               <b className="font-bold text-sky-700">いま送れるサイトがありません。</b>{' '}
               {readSite
-                ? `いまは${readSite.label}で入力しています。送るにはフクエスに変えてください。変えると${readSite.label}からの取り込みは止まります。`
+                ? `いまは${readSite.label}から反映しています。送るには「フクエスから反映」に変えてください。変えると${readSite.label}からの反映は止まります。`
                 : offSite
                   ? '「反映しない」を選んでいます。送るには、ホームで「フクエスから反映」を押してください。'
                   : '入力する場所がまだ決まっていません。「ログイン情報」で設定してください。'}

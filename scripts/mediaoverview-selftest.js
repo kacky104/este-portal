@@ -65,12 +65,31 @@ eq('★ 知らない値は unset（勝手に読み替えない）', dir({ linkMo
 
 console.log('\n── 4. 画面に出す名前 ──');
 // ★★ 「向き」「読み込み／反映」と呼ばない（第86便）。店舗様には【どこで入力するか】の話
-eq('read の名前', v.directionLabel('read', '駅ちか'), '駅ちかで入力');
-eq('★ 媒体の名前は決め打ちにしない', v.directionLabel('read', 'エステ魂'), 'エステ魂で入力');
-eq('★ 名前が分からないときは名前を出さない', v.directionLabel('read', ''), 'サイト側で入力');
-eq('write の名前', v.directionLabel('write', '駅ちか'), 'フクエスで入力');
-eq('off の名前', v.directionLabel('off', '駅ちか'), 'フクエスだけ');
+// ★★★ 第91便: ボタンの言葉に揃えた。★ 同じ状態に2つの呼び名を残さない（§327）
+eq('read の名前', v.directionLabel('read', '駅ちか'), '駅ちかから反映中');
+eq('★ 媒体の名前は決め打ちにしない', v.directionLabel('read', 'エステ魂'), 'エステ魂から反映中');
+eq('★ 名前が分からないときは名前を出さない', v.directionLabel('read', ''), 'サイト側から反映中');
+eq('write の名前', v.directionLabel('write', '駅ちか'), 'フクエスから反映中');
+eq('off の名前', v.directionLabel('off', '駅ちか'), '反映なし');
 eq('unset の名前', v.directionLabel('unset', '駅ちか'), '未設定');
+// ★★ 動いている2つにだけ「中」を付ける。★ homeHeadline と同じ決めごと（第90便）
+eq('★★ 動いている2つには「中」が付く',
+   ['read', 'write'].every((d) => v.directionLabel(d, '駅ちか').endsWith('中')), true);
+eq('★★★ 止まっている2つには「中」を付けない',
+   ['off', 'unset'].some((d) => v.directionLabel(d, '駅ちか').endsWith('中')), false);
+// ★★★ 印とボタンを【同じ文字にしない】。★ 押せるものと、いまの状態を見分けられなくなる
+eq('★★★ 印は、ボタンの文字とは違う',
+   ['read', 'write'].some((d) => v.directionLabel(d, '駅ちか') === v.switchLabel(d, '駅ちか')), false);
+eq('★★★ off の印も、ボタンの文字とは違う',
+   v.directionLabel('off', '駅ちか') === v.switchLabel('none', '駅ちか'), false);
+// ★★ それでも【同じ語彙】であること。★ 別々の言葉に散らさない
+eq('★★ 動いている2つの印は、ボタンと同じ語で始まる',
+   ['read', 'write'].every((d) => v.directionLabel(d, '駅ちか').startsWith(v.switchLabel(d, '駅ちか'))), true);
+// ★ 消した言い方が戻っていないこと
+eq('★ 「で入力」と書かない',
+   ['read', 'write', 'off', 'unset'].some((d) => v.directionLabel(d, '駅ちか').includes('で入力')), false);
+eq('★ 「フクエスだけ」と書かない',
+   ['read', 'write', 'off', 'unset'].some((d) => v.directionLabel(d, '駅ちか') === 'フクエスだけ'), false);
 // ★★ 対になる主張。選んだ off を「未設定」と書かない
 eq('★★ off と unset は同じ名前にしない',
    v.directionLabel('off', '駅ちか') === v.directionLabel('unset', '駅ちか'), false);
@@ -363,6 +382,7 @@ const ALL = [
   v.credentialPauseLabel(true), v.credentialPauseLabel(false),
   v.credentialPausedNotice(SITE),
   v.CREDENTIAL_PAUSE_WHEN, v.CREDENTIAL_PAUSE_NOT_FOR_STOPPING,
+  v.CREDENTIAL_PAUSE_BLOCKS_SWITCH,
 ];
 eq('★★★ どの文にも「連携を停止」が出ない',
    ALL.some((t) => t.indexOf('連携を停止') >= 0), false);
@@ -378,6 +398,14 @@ eq('★ 押しどきに「再開」が入る', v.CREDENTIAL_PAUSE_WHEN.indexOf('
 // ★★★ 「もう送りたくない」人を、正しい口へ渡す
 eq('★★★ 取り違え防止に「反映しない」が入る',
    v.CREDENTIAL_PAUSE_NOT_FOR_STOPPING.indexOf('反映しない') >= 0, true);
+
+console.log('  ★ 押せない理由を、その場に書く（§185・第91便）');
+// ★ きっかけ: 一時停止するとボタンが灰色になるが、なぜ押せないかが画面に無かった
+eq('★★ 何が押せないかを書く',
+   v.CREDENTIAL_PAUSE_BLOCKS_SWITCH.indexOf('入力する場所を変えられません') >= 0, true);
+// ★★★ 「押せません」で終わらせない。★ 戻し方まで書く
+eq('★★★ 戻し方（ログインを再開）を書く',
+   v.CREDENTIAL_PAUSE_BLOCKS_SWITCH.indexOf(v.credentialPauseLabel(false)) >= 0, true);
 
 console.log('  ★ 止めているあいだ、状態は文で言い切る');
 eq('★ 媒体名が入る', v.credentialPausedNotice(SITE).indexOf(SITE) >= 0, true);

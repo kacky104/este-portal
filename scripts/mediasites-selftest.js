@@ -149,10 +149,26 @@ eq('★ readable が 1 では読める側にしない',
 
 console.log('\n── 7-2. 向きの文 ──');
 eq('★★ send_only は「読み取りません」と書く',
-   v.loginDirectionText('send_only', 'エステ魂').desc.includes('読み取ることはありません'), true);
+   v.loginDirectionText('send_only', 'エステ魂').desc.includes('反映することはありません'), true);
 eq('★★ send_only では「取り込んでいます」と書かない',
    v.loginDirectionText('send_only', 'エステ魂').title.includes('取り込'), false);
-eq('read はサイト名が入る', v.loginDirectionText('read', '駅ちか').title, '駅ちかから取り込んでいます');
+eq('read はサイト名が入る', v.loginDirectionText('read', '駅ちか').title, '駅ちかの情報をフクエスに反映中');
+// ★★★ 第91便: §351 で消したはずの「取り込」が、この画面にだけ残っていた。
+//   ★ カッキーさんが実機で見つけた。★ もう戻らないように、全部の状態で見張る。
+eq('★★★ どの状態の見出しにも「取り込」を書かない',
+   ['send_only', 'read', 'write', 'off', 'unset'].some(
+     (d) => v.loginDirectionText(d, '駅ちか').title.includes('取り込')), false);
+eq('★★★ どの状態の説明にも「取り込」を書かない',
+   ['send_only', 'read', 'write', 'off', 'unset'].some(
+     (d) => v.loginDirectionText(d, '駅ちか').desc.includes('取り込')), false);
+// ★★ 動いている2つには「中」を付ける（ホームの homeHeadline と揃える・第90便）
+eq('★★ read と write の見出しは「中」で終わる',
+   ['read', 'write'].every((d) => v.loginDirectionText(d, '駅ちか').title.endsWith('中')), true);
+eq('★★ 止まっている2つには「中」を付けない',
+   ['off', 'unset'].some((d) => v.loginDirectionText(d, '駅ちか').title.endsWith('中')), false);
+// ★ off の見出しは、ボタンの文字と同じ言葉にする（第90便・§358）
+eq('★★ off の見出しに「反映しない」が入る',
+   v.loginDirectionText('off', '駅ちか').title.includes('反映しない'), true);
 eq('★★ unset で「連携しません」と言い切らない',
    v.loginDirectionText('unset', '駅ちか').title, '出勤を入力する場所が、まだ決まっていません');
 eq('★ 知らない値は unset の文', v.loginDirectionText('なにか', '駅ちか').title,
@@ -164,9 +180,9 @@ eq('★★ off と unset で違う文を出す',
    v.loginDirectionText('off', '駅ちか').title === v.loginDirectionText('unset', '駅ちか').title, false);
 eq('★★ off で「決まっていません」と書かない',
    v.loginDirectionText('off', '駅ちか').title.includes('決まっていません'), false);
-eq('★★ off では送らないことと取り込まないことの両方を書く',
+eq('★★ off では送らないことと、向こうから来ないことの両方を書く',
    v.loginDirectionText('off', '駅ちか').desc.includes('どのサイトへも送りません')
-   && v.loginDirectionText('off', '駅ちか').desc.includes('取り込みもしません'), true);
+   && v.loginDirectionText('off', '駅ちか').desc.includes('フクエスへの反映もしません'), true);
 
 console.log('\n── 8. 受け付けているか ──');
 eq('駅ちかは受け付ける', v.canRegisterSite(v.findMediaSite('ekichika')), true);
