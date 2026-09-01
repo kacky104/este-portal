@@ -412,5 +412,25 @@ eq('★ 媒体名が入る', v.credentialPausedNotice(SITE).indexOf(SITE) >= 0, 
 eq('★ 「何も送りません」と言い切る',
    v.credentialPausedNotice(SITE).indexOf('何も送りません') >= 0, true);
 
+console.log('\n── 取り込んだ日記の印（第98便） ──');
+eq('印は「◯◯から反映」', v.importedDiaryLabel('駅ちか'), '駅ちかから反映');
+eq('★ 媒体名を焼き付けない', v.importedDiaryLabel('エステラブ'), 'エステラブから反映');
+// ★ 「中」を付けない（動いている状態ではなく、どこから来たかという済んだ話）
+eq('★ 「中」を付けない', v.importedDiaryLabel('駅ちか').indexOf('中') < 0, true);
+// ★★ §365: 状態を読む場所で「取り込み」を使わない
+eq('★★ 「取り込」と書かない', v.importedDiaryLabel('駅ちか').indexOf('取り込') < 0, true);
+{
+  const c = v.importedDiaryDeleteConfirm('駅ちか');
+  eq('★ 相手には残ると言う', c.indexOf('駅ちかには残ります') > 0, true);
+  eq('★★ 戻ってこないと言う（§369）', c.indexOf('戻ってきません') > 0, true);
+  eq('★ 媒体名を焼き付けない', v.importedDiaryDeleteConfirm('エステラブ').indexOf('エステラブには残ります') > 0, true);
+}
+
+{
+  const n = v.importedDiaryEditNote('駅ちか');
+  eq('★ 一方通行だと言う（§6-3）', n.indexOf('駅ちか側は変わりません') > 0, true);
+  eq('★ 媒体名を焼き付けない', v.importedDiaryEditNote('エステラブ').indexOf('エステラブ側は変わりません') > 0, true);
+}
+
 console.log(fail === 0 ? '\n★ すべて通った' : '\n★ NG ' + fail + ' 件');
 process.exit(fail === 0 ? 0 : 1);

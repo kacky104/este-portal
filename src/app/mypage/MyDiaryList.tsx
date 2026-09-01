@@ -5,6 +5,10 @@ import { useSearchParams, useRouter, usePathname } from 'next/navigation';
 import { createClient } from '@/app/lib/supabase/client';
 import { revalidateSalon } from '@/app/lib/revalidateTop';
 import { STORAGE_CACHE_CONTROL } from '@/app/lib/storage';
+// ★ 取り込んだ日記の印（第98便）。★ 文言は媒体連携の画面と同じ関数から出す（手で書かない）
+import { listImportedDiaries } from '@/app/actions/diaryImports';
+import { importedDiaryLabel, importedDiaryDeleteConfirm, importedDiaryEditNote } from '@/lib/mediaOverview';
+import { providerLabel } from '@/lib/mediaAudit';
 
 const supabase = createClient();
 const TITLE_MAX = 10;
@@ -53,6 +57,8 @@ export function MyDiaryList({
   onToast: (msg: string) => void;
 }) {
   const [posts, setPosts] = useState<MyDiaryPost[]>([]);
+  // ★ diary_posts.id → 媒体。★ 取り込んだ日記だけが入る（第98便）
+  const [importedOf, setImportedOf] = useState<Record<string, string>>({});
   const [total, setTotal] = useState(0); // 総件数（COUNT専用クエリで取得）
 
   // 編集中の状態
@@ -127,6 +133,19 @@ export function MyDiaryList({
 
   useEffect(() => { loadPosts(); }, [loadPosts, reloadSignal]);
 
+  // ★★ 「どれが取り込んだ日記か」を別口で引く（salon_diary_imports は画面から直接読めない）。
+  //   ★ 引けなくても日記の一覧は出す。★ 印が出ないだけ（ここで一覧を止めない）。
+  useEffect(() => {
+    let alive = true;
+    const ids = posts.map((p) => p.id);
+    // ★ 0件のときは呼ばない。★ 印の持ち回しは残るが、出す相手が居ないので害はない
+    if (ids.length === 0) return;
+    listImportedDiaries({ diaryPostIds: ids })
+      .then((r) => { if (alive && r.ok && r.data) setImportedOf(r.data); })
+      .catch(() => { /* ★ 印が出ないだけ。黙って進む */ });
+    return () => { alive = false; };
+  }, [posts]);
+
   const startEdit = (post: MyDiaryPost) => {
     setEditingId(post.id);
     setEditTherapistId(post.therapistId);
@@ -185,7 +204,13 @@ export function MyDiaryList({
   };
 
   const handleDelete = async (post: MyDiaryPost) => {
-    if (!window.confirm('この投稿を削除しますか？\nこの操作は取り消せません。')) return;
+    // ★★★ 取り込んだ日記は、消したら【次の反映でも戻ってこない】（§369）。
+    //   ★ 「また入ってくるだろう」と思って消す人が必ず出る。★ 先に言う。
+    const site = importedOf[post.id];
+    const ok = site
+      ? window.confirm(importedDiaryDeleteConfirm(providerLabel(site)))
+      : window.confirm('この投稿を削除しますか？\nこの操作は取り消せません。');
+    if (!ok) return;
     setDeletingId(post.id);
 
     // 先にDB削除
@@ -221,6 +246,12 @@ export function MyDiaryList({
               /* ── 編集フォーム（インライン） ── */
               <div className="space-y-3">
                 <p className="text-[11px] font-bold text-pink-500">編集中：{post.therapistName}</p>
+                {/* ★ 編集は一方通行（§6-3）。★ 直したのに向こうが変わらない、と言われる前に言う */}
+                {importedOf[post.id] && (
+                  <p className="text-[11px] font-bold text-sky-700 bg-sky-50 border border-sky-200 rounded-lg px-2 py-1">
+                    {importedDiaryEditNote(providerLabel(importedOf[post.id]))}
+                  </p>
+                )}
 
                 {/* 画像 */}
                 <div>
@@ -304,7 +335,15 @@ export function MyDiaryList({
                   )}
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="text-[11px] font-bold text-pink-600 truncate">{post.therapistName}</p>
+                  <div className="flex items-center gap-1.5 min-w-0">
+                    <p className="text-[11px] font-bold text-pink-600 truncate">{post.therapistName}</p>
+                    {/* ★ 取り込んだ日記の印（第98便）。★ 店舗様が「自分で書いたもの」と区別できるように */}
+                    {importedOf[post.id] && (
+                      <span className="flex-shrink-0 px-1.5 py-0.5 rounded-md bg-sky-50 text-sky-700 border border-sky-200 text-[10px] font-bold">
+                        {importedDiaryLabel(providerLabel(importedOf[post.id]))}
+                      </span>
+                    )}
+                  </div>
                   {post.title && <p className="text-sm font-bold text-slate-800 truncate">{post.title}</p>}
                   <p className="text-[10px] text-slate-400 mt-0.5">📅 {formatDateTime(post.createdAt)}</p>
                 </div>

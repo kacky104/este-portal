@@ -12,6 +12,10 @@ import { useSearchParams, useRouter, usePathname } from 'next/navigation';
 import { createClient } from '@/app/lib/supabase/client';
 import { revalidateSalon } from '@/app/lib/revalidateTop';
 import { STORAGE_CACHE_CONTROL } from '@/app/lib/storage';
+// ★ 取り込んだ日記の印（第98便）。★ セラピスト様が「書いていない日記が載っている」と驚かないように
+import { listImportedDiaries } from '@/app/actions/diaryImports';
+import { importedDiaryLabel, importedDiaryDeleteConfirm } from '@/lib/mediaOverview';
+import { providerLabel } from '@/lib/mediaAudit';
 
 const supabase = createClient();
 const TITLE_MAX = 10;
@@ -77,6 +81,8 @@ export function CastDiary({
 
   // ── 一覧 ──
   const [posts, setPosts] = useState<CastDiaryPost[]>([]);
+  // ★ diary_posts.id → 媒体。★ 取り込んだ日記だけが入る（第98便）
+  const [importedOf, setImportedOf] = useState<Record<string, string>>({});
   const [total, setTotal] = useState(0);
 
   // ── 編集中の状態（オーナー版 MyDiaryList と同じ） ──
@@ -138,6 +144,18 @@ export function CastDiary({
   }, [therapistId, page, goTo]);
 
   useEffect(() => { loadPosts(); }, [loadPosts]);
+
+  // ★★ どれが取り込んだ日記かを別口で引く。★ 引けなくても一覧は出す（印が出ないだけ）
+  useEffect(() => {
+    let alive = true;
+    const ids = posts.map((p) => p.id);
+    // ★ 0件のときは呼ばない。★ 印の持ち回しは残るが、出す相手が居ないので害はない
+    if (ids.length === 0) return;
+    listImportedDiaries({ diaryPostIds: ids })
+      .then((r) => { if (alive && r.ok && r.data) setImportedOf(r.data); })
+      .catch(() => { /* ★ 印が出ないだけ。黙って進む */ });
+    return () => { alive = false; };
+  }, [posts]);
 
   // ── 投稿フォーム：画像アップロード（パスは必ず本人の therapist_id 配下に固定） ──
   const handleDiaryImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -285,7 +303,12 @@ export function CastDiary({
   };
 
   const handleDelete = async (post: CastDiaryPost) => {
-    if (!window.confirm('この投稿を削除しますか？\nこの操作は取り消せません。')) return;
+    // ★★★ 取り込んだ日記は、消したら次の反映でも戻ってこない（§369）
+    const site = importedOf[post.id];
+    const okToDelete = site
+      ? window.confirm(importedDiaryDeleteConfirm(providerLabel(site)))
+      : window.confirm('この投稿を削除しますか？\nこの操作は取り消せません。');
+    if (!okToDelete) return;
     setDeletingId(post.id);
 
     // 先にDB削除
@@ -521,6 +544,12 @@ export function CastDiary({
                       )}
                     </div>
                     <div className="flex-1 min-w-0">
+                      {/* ★ 取り込んだ日記の印（第98便）。★ 自分で書いたものと区別できるように */}
+                      {importedOf[post.id] && (
+                        <span className="inline-block mb-0.5 px-1.5 py-0.5 rounded-md bg-sky-50 text-sky-700 border border-sky-200 text-[10px] font-bold">
+                          {importedDiaryLabel(providerLabel(importedOf[post.id]))}
+                        </span>
+                      )}
                       {post.title && <p className="text-sm font-bold text-slate-800 truncate">{post.title}</p>}
                       <p className="text-[10px] text-slate-400 mt-0.5">📅 {formatDateTime(post.createdAt)}</p>
                     </div>
