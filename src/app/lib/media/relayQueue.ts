@@ -35,6 +35,9 @@ export type RelayPurpose =
   | 'read_work'
   | 'read_girls'   // ★ 媒体側の名簿を読む（第50便）。読むだけ
   | 'read_maillist' // ★ 投稿用メールアドレス一覧を読む（第53便）。読むだけ
+  // ★ 写メ日記の段（第94便）。読むだけ
+  | 'read_diary_list'
+  | 'read_diary_detail'
   | 'write_work'
   | 'verify_work'
   // ★ エステラブの段（第78便）。★ 駅ちかの段名と分けている

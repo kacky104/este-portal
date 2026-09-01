@@ -37,6 +37,15 @@ import {
 } from './ekichikaWorkParse';
 import { parseEkichikaGirls, girlsPageUsable, type EkichikaGirlsPage } from './ekichikaGirlsParse';
 import { parseEkichikaMailList, mailListUsable, type EkichikaMailListPage } from './ekichikaMailListParse';
+// ★ 写メ日記（第94便）。★ 駅ちかの既存の段には一切触れず、段名を分けて足す
+import {
+  parseEkichikaDiaryList,
+  parseEkichikaDiaryDetail,
+  diaryListUsable,
+  diaryDetailUsable,
+  type EkichikaDiaryListPage,
+  type EkichikaDiaryDetail,
+} from './ekichikaDiaryParse';
 import { mergeCookies } from './relayJob';
 import { RELAY_USER_AGENT } from './relayUserAgent';
 // ★ エステラブ（第78便）。★ 駅ちかの段には一切触れず、別の段名で足す
@@ -52,6 +61,29 @@ export const EKICHIKA_WORK_URL = 'https://ranking-deli.jp/admin/girlswork/';
 export const EKICHIKA_GIRLS_URL = 'https://ranking-deli.jp/admin/girls/';
 /** 投稿用メールアドレス一覧（管理画面）。★ 読むだけ。写メ日記の転送先がここに載る（第53便） */
 export const EKICHIKA_MAILLIST_URL = 'https://ranking-deli.jp/admin/maillist/';
+
+/**
+ * 写メ日記の一覧（第94便・2026-09-01 実測）。
+ * ★ ページ送りは `/admin/maildiary/2`、`/3` …（★ 末尾のスラッシュは付かない形で出ている）
+ */
+export const EKICHIKA_DIARY_LIST_URL = 'https://ranking-deli.jp/admin/maildiary/';
+
+/** 一覧のNページ目。★ 1ページ目は番号を付けない（別のURLにしない）。 */
+export function ekichikaDiaryListUrl(pageNumber: number): string {
+  const n = Math.floor(Number(pageNumber));
+  if (!Number.isFinite(n) || n <= 1) return EKICHIKA_DIARY_LIST_URL;
+  return EKICHIKA_DIARY_LIST_URL + String(n);
+}
+
+/**
+ * 写メ日記1件の編集ページ。★ **読むだけ**。ここへ POST は投げない。
+ * ★ 日記IDは相手から受け取った値。★ 数字以外が来たら組み立てない（URLを作らせない）。
+ */
+export function ekichikaDiaryDetailUrl(diaryId: string): string {
+  const id = String(diaryId ?? '');
+  if (!/^\d+$/.test(id)) throw new Error('日記IDが数字ではない: ' + id);
+  return EKICHIKA_DIARY_LIST_URL + 'edit/' + id + '/';
+}
 export const EKICHIKA_ORIGIN = 'https://ranking-deli.jp';
 
 /**
@@ -109,7 +141,16 @@ export type RelayFlowIntent =
    *   ★ 駅ちかへの通信はどちらも同じ（読むだけ）。違うのはフクエス側を書くかどうか。
    */
   | 'mail_dryrun'
-  | 'mail_apply';
+  | 'mail_apply'
+  /**
+   * ★★★ 写メ日記の取り込み（第94便・設計メモ_写メ日記の取り込みの口）。
+   *   login → read_diary_list →（DBを見て開くものを決める）→ read_diary_detail ×N → 終わり。
+   *   ★★ **駅ちかへは何も書かない。** 読むだけ。
+   *   ★ 新しい口（/api/import/diary）を作らずここに寄せた理由:
+   *     管理画面に入る道は中継フローだけ。★ 口を分けると **ログインの段が2系統になる**。
+   *     ★ 片方だけ直す日が必ず来る。
+   */
+  | 'diary_read';
 
 /**
  * 段と段のあいだで持ち回す状態。
@@ -140,6 +181,15 @@ export type RelayFlowContext = {
   expectedDateLabels?: string[];
   /** 変更した件数（監査ログの文面に使う） */
   changeCount?: number;
+
+  // ── ここから下は intent='diary_read' のときだけ入る（第94便）──
+  /** いま読みに行っている一覧のページ番号（1始まり）。★ ページ送りで遡るときに使う */
+  diaryPage?: number;
+  /**
+   * ★★★ いま開きに行っている日記ID。
+   *   ★ 応答を読むときに **パーサへ渡して突き合わせる**。★ 別の日記が返っていたら止めるため。
+   */
+  diaryId?: string;
 };
 
 export type FlowAudit = {
@@ -153,6 +203,8 @@ export type FlowAudit = {
 export type FlowNextRequest = {
   purpose:
     | 'read_work' | 'write_work' | 'verify_work' | 'read_girls' | 'read_maillist'
+    // ★ 写メ日記の段（第94便）。★ 読むだけ
+    | 'read_diary_list' | 'read_diary_detail'
     // ★ エステラブの段（第78便）。★ 名前を分けることで、駅ちかの段の判定に一切触れない
     | 'esulove_therapists';
   method: 'GET' | 'POST';
@@ -185,6 +237,38 @@ export type FlowOutcome =
    *     ★ 監査ログにも note にも値を出さないこと。件数とドメインだけ。
    */
   | { kind: 'maillist'; page: EkichikaMailListPage; audits: FlowAudit[]; note: string }
+  /**
+   * ★ 写メ日記の一覧を読めた（第94便）。maillist と同じ理由でここでは保存しない。
+   *   ★★★ ここで「次のジョブ」を返さないのが大事。
+   *     どの日記を開くかは **salon_diary_imports を読まないと決められない**（§369・§375）。
+   *     ★ 判断そのものは ekichikaDiaryParse.selectDiariesToFetch が持っている（純粋関数）。
+   */
+  | {
+      kind: 'diary_list';
+      page: EkichikaDiaryListPage;
+      /** 何ページ目を読んだか（1始まり）。★ 遡るときに呼び出し側が使う */
+      pageNumber: number;
+      audits: FlowAudit[];
+      note: string;
+    }
+  /**
+   * ★ 写メ日記を1件開いた（第94便）。
+   *
+   * ★★★ **読めなかったときも、この kind で返す（stop にしない）。**
+   *   ★ 1件おかしいだけで、その店の取り込みが永久に止まるのを避けるため。
+   *     ★ stop にすると、次の周も同じ日記で止まり、以降ずっと1件も入らなくなる。
+   *   ★ 呼び出し側は **必ず diaryDetailUsable(detail) を見ること**。
+   *     読めなかったものは `skipped:unreadable` として記録し、§375 のとおり1日1回だけ開き直す。
+   *   ★ ログインが切れた・ページの形が変わった等、**全件に効く**failure は stop で返す。
+   */
+  | {
+      kind: 'diary_detail';
+      detail: EkichikaDiaryDetail;
+      /** 開きに行った日記ID。★ 記録を書く相手を取り違えないため、返り値にも入れる */
+      diaryId: string;
+      audits: FlowAudit[];
+      note: string;
+    }
   /**
    * ★ エステラブの名簿を読めた（第78便）。roster と同じ理由でここでは保存しない。
    *   ★ ここで「次のジョブ」を返さない＝**エステラブへ何も飛ばない。**
@@ -366,6 +450,11 @@ export function advanceFlow(input: {
       return afterReadGirls(input, ctx);
     case 'read_maillist':
       return afterReadMailList(input, ctx);
+    // ── 写メ日記（第94便）★ 段名で分けている。既存の case には触れていない ──
+    case 'read_diary_list':
+      return afterReadDiaryList(input, ctx);
+    case 'read_diary_detail':
+      return afterReadDiaryDetail(input, ctx);
     case 'write_work':
       return afterWriteWork(input, ctx);
     case 'verify_work':
@@ -434,6 +523,15 @@ function afterLogin(
       },
       audits: [],
       note: 'ログインの応答を受け取った。★ 成否はメールアドレス一覧が読めるかどうかで判定する',
+    };
+  }
+
+  if (ctx.intent === 'diary_read') {
+    return {
+      kind: 'next',
+      next: buildReadDiaryListRequest({ ...ctx, cookie }, 1),
+      audits: [],
+      note: 'ログインの応答を受け取った。★ 成否は写メ日記の一覧が読めるかどうかで判定する',
     };
   }
 
@@ -847,6 +945,10 @@ function finishRead(audits: FlowAudit[], ctx: RelayFlowContext, page: WorkPage):
       // ★★ ここへは来ない（roster_read は出勤ページを読みに行かない）。
       //   ★ だが switch は網羅させる。網羅を外すと「足したのに繋いでいない」が静かに通る。
       return stop(audits, '名簿の読み取りは出勤ページを使わない（ここへは来ないはず）');
+    case 'diary_read':
+      // ★ ここへは来ない（写メ日記は出勤ページを読みに行かない）。★ 網羅は外さない
+      //   ★★ この見張りが、いま実際に働いた: diary_read を足した時点でコンパイルが止まった（第94便）
+      return stop(audits, '写メ日記の取り込みは出勤ページを使わない（ここへは来ないはず）');
     case 'work_auto':
       // ★★★ 自動反映（第48便）。組み立てから送信までを1回のフローで閉じる。
       //   ★ 指紋は突き合わせない（人が見た内容が無い・§53）。担保は厳しい方の blockers。
@@ -1176,5 +1278,264 @@ function afterEsuloveTherapists(
       'エステラブの名簿を ' + parsed.rows.length + '人 読めた' +
       (dup.length > 0 ? ' / ★ 同名 ' + dup.length + '組' : '') +
       (parsed.warnings.length > 0 ? ' / ★ 気になること ' + parsed.warnings.length + '件' : ''),
+  };
+}
+
+// ────────────────────────── 写メ日記（第94便）──────────────────────────
+//
+// ★★★ この段は【読むだけ】。★ 駅ちかへ POST は1本も投げない。
+// ★★ どの日記を開くかは、ここでは決めない。★ salon_diary_imports を読まないと決められないため、
+//   一覧を読めたら呼び出し側へ返す（plan_work / maillist と同じ形）。
+
+/** 一覧のNページ目を読む GET を組み立てる。★ 何ページ目かは文脈に残す。 */
+export function buildReadDiaryListRequest(ctx: RelayFlowContext, pageNumber: number): FlowNextRequest {
+  const n = Number.isFinite(pageNumber) && pageNumber > 1 ? Math.floor(pageNumber) : 1;
+  return {
+    purpose: 'read_diary_list',
+    method: 'GET',
+    url: ekichikaDiaryListUrl(n),
+    headers: buildReadWorkRequest(ctx.cookie),
+    body: '',
+    // ★ diaryId は前の段の残りが混ざらないよう、ここで必ず消す
+    context: { ...ctx, diaryPage: n, diaryId: undefined },
+  };
+}
+
+/**
+ * 日記1件を開く GET を組み立てる。
+ * ★★★ 開きに行った日記IDを【文脈に残す】。★ 応答をパーサに渡すとき、突き合わせに使う。
+ *   ★ 残さないと「別の日記が返ってきた」を見つけられない（＝Aさんの日記がBさんの名前で載る）。
+ */
+export function buildReadDiaryDetailRequest(ctx: RelayFlowContext, diaryId: string): FlowNextRequest {
+  const url = ekichikaDiaryDetailUrl(diaryId); // ★ 数字でなければここで例外
+  return {
+    purpose: 'read_diary_detail',
+    method: 'GET',
+    url,
+    headers: buildReadWorkRequest(ctx.cookie),
+    body: '',
+    context: { ...ctx, diaryId: String(diaryId) },
+  };
+}
+
+/**
+ * ログインが切れていないかを見る（写メ日記の段で共通）。
+ * ★ 転送でログイン画面へ戻された／本文がログイン画面だった、を1か所にまとめる。
+ * ★ null なら「ログインは生きている」。
+ */
+function diaryLoginLost(
+  input: { status: number; headers: Record<string, string | string[]>; body: string },
+  ctx: RelayFlowContext,
+  what: string,
+): FlowOutcome | null {
+  if (input.status >= 300 && input.status < 400) {
+    const location = String(input.headers['location'] ?? '');
+    if (location.includes('/admin/login')) {
+      return stop(
+        [
+          {
+            event: 'login',
+            outcome: 'failed',
+            summary:
+              '駅ちかにログインできませんでした（ログイン画面へ戻されました）。' +
+              '店舗ID・ログインID・パスワードをご確認ください',
+            detail: { httpStatus: input.status, reason: 'back_to_login', flowId: ctx.flowId },
+          },
+        ],
+        what + 'がログイン画面へ戻された＝ログインできていない',
+      );
+    }
+    return null;
+  }
+  if (input.status === 200 && looksLikeEkichikaLoginPage(input.body)) {
+    return stop(
+      [
+        {
+          event: 'login',
+          outcome: 'failed',
+          summary:
+            '駅ちかにログインできませんでした（ログイン画面が返りました）。' +
+            'ログインID・パスワードをご確認ください',
+          detail: { httpStatus: 200, reason: 'login_page', bytes: input.body.length, flowId: ctx.flowId },
+        },
+      ],
+      what + 'としてログイン画面が返った＝ログインできていない',
+    );
+  }
+  return null;
+}
+
+/**
+ * 一覧の応答。
+ * ★★ 読めなければ **止める**。★ 一覧が読めない＝この店では1件も進められない（全件に効く failure）。
+ */
+function afterReadDiaryList(
+  input: { status: number; headers: Record<string, string | string[]>; body: string },
+  ctx: RelayFlowContext,
+): FlowOutcome {
+  const flowId = ctx.flowId;
+  const pageNumber = Number.isFinite(ctx.diaryPage) && (ctx.diaryPage ?? 0) > 0 ? Number(ctx.diaryPage) : 1;
+
+  const lost = diaryLoginLost(input, ctx, '写メ日記の一覧');
+  if (lost) return lost;
+
+  if (input.status >= 300 && input.status < 400) {
+    return stop(
+      [
+        {
+          event: 'read_diary_list',
+          outcome: 'failed',
+          summary: '駅ちかの写メ日記の一覧を開けませんでした（別の場所へ転送されました）',
+          detail: { httpStatus: input.status, reason: 'redirected', page: pageNumber, flowId },
+        },
+      ],
+      '写メ日記の一覧が想定外の場所へ転送された',
+    );
+  }
+
+  if (input.status !== 200) {
+    return stop(
+      [
+        {
+          event: 'read_diary_list',
+          outcome: 'failed',
+          detail: { httpStatus: input.status, reason: 'http_error', page: pageNumber, flowId },
+        },
+      ],
+      '写メ日記の一覧の応答が ' + input.status + ' だった',
+    );
+  }
+
+  const page = parseEkichikaDiaryList(input.body);
+
+  if (diaryListUsable(page)) {
+    return {
+      kind: 'diary_list',
+      page,
+      pageNumber,
+      audits: [
+        // ★ 一覧が読めた＝ログインできた（この作法は出勤・名簿と同じ）
+        { event: 'login', outcome: 'ok', detail: { flowId } },
+        {
+          event: 'read_diary_list',
+          outcome: 'ok',
+          // ★ 件数とページ番号だけ。★ 日記の中身も名前も入れない
+          detail: { diaries: page.rows.length, page: pageNumber, flowId },
+        },
+      ],
+      note:
+        '写メ日記の一覧を読めた（' + pageNumber + 'ページ目・' + page.rows.length + '件）。' +
+        '★ 駅ちかへは何も書いていない。★ どれを開くかは呼び出し側が決める',
+    };
+  }
+
+  return stop(
+    [
+      {
+        event: 'read_diary_list',
+        outcome: 'failed',
+        summary: '駅ちかの写メ日記の一覧を読み取れませんでした（画面の作りが変わった可能性があります）',
+        detail: {
+          reason: page.rows.length === 0 ? 'parse_error' : 'page_broken',
+          problems: page.problems.length,
+          diaries: page.rows.length,
+          page: pageNumber,
+          bytes: input.body.length,
+          flowId,
+        },
+      },
+    ],
+    '写メ日記の一覧を読み取れなかった: ' + (page.problems[0] ?? '理由なし'),
+  );
+}
+
+/**
+ * 日記1件の応答。
+ *
+ * ★★★ 読めなかったときも 'diary_detail' で返す（stop にしない）。理由は FlowOutcome の説明のとおり。
+ *   ★ 呼び出し側は必ず diaryDetailUsable() を見て、読めていないものは
+ *     `skipped:unreadable` として記録すること（§375 のとおり1日1回だけ開き直る）。
+ */
+function afterReadDiaryDetail(
+  input: { status: number; headers: Record<string, string | string[]>; body: string },
+  ctx: RelayFlowContext,
+): FlowOutcome {
+  const flowId = ctx.flowId;
+  const diaryId = String(ctx.diaryId ?? '');
+
+  if (!diaryId) {
+    // ★ どの日記を開いたのか分からない応答は、記録の書き先も決められない。★ 進めない
+    return stop(
+      [{ event: 'read_diary_detail', outcome: 'failed', detail: { reason: 'no_diary_id', flowId } }],
+      '開きに行った日記IDが文脈に無い（buildReadDiaryDetailRequest を通していない）',
+    );
+  }
+
+  const lost = diaryLoginLost(input, ctx, '写メ日記');
+  if (lost) return lost;
+
+  if (input.status !== 200) {
+    // ★★ 1件のHTTP失敗で店ごと止めない。★ その日記だけ見送って、次の周へ回す
+    const detail = parseEkichikaDiaryDetail('', diaryId);
+    return {
+      kind: 'diary_detail',
+      detail,
+      diaryId,
+      audits: [
+        {
+          event: 'read_diary_detail',
+          outcome: 'failed',
+          summary: '駅ちかの写メ日記を1件開けませんでした',
+          detail: { httpStatus: input.status, reason: 'http_error', flowId },
+        },
+      ],
+      note: '日記 ' + diaryId + ' の応答が ' + input.status + ' だった。★ この1件だけ見送る',
+    };
+  }
+
+  // ★★★ 開きに行った日記IDを必ず渡す（取り違えを見つけるため）
+  const detail = parseEkichikaDiaryDetail(input.body, diaryId);
+
+  if (diaryDetailUsable(detail)) {
+    return {
+      kind: 'diary_detail',
+      detail,
+      diaryId,
+      audits: [
+        {
+          event: 'read_diary_detail',
+          outcome: 'ok',
+          // ★ 中身は入れない。★ 公開か・写真があるか、までにとどめる
+          detail: {
+            hasImage: detail.imageUrl !== null,
+            isPublic: detail.isPublic === true,
+            flowId,
+          },
+        },
+      ],
+      note:
+        '日記 ' + diaryId + ' を読めた（' + (detail.isPublic ? '公開' : '非公開') + '・写真' +
+        (detail.imageUrl ? 'あり' : 'なし') + '）。★ 駅ちかへは何も書いていない',
+    };
+  }
+
+  return {
+    kind: 'diary_detail',
+    detail,
+    diaryId,
+    audits: [
+      {
+        event: 'read_diary_detail',
+        outcome: 'failed',
+        summary: '駅ちかの写メ日記を1件読み取れませんでした（画面の作りが変わった可能性があります）',
+        detail: {
+          reason: 'parse_error',
+          problems: detail.problems.length,
+          bytes: input.body.length,
+          flowId,
+        },
+      },
+    ],
+    note: '日記 ' + diaryId + ' を読み取れなかった: ' + (detail.problems[0] ?? '理由なし'),
   };
 }

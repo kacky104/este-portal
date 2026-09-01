@@ -225,6 +225,17 @@ export async function advanceRelayFlow(params: {
   // ★★ エステラブの名簿を読めた（第78便）。★ この便では【保存しない】。
   //   ★ 読めたことと、同名が居るかを note に出すだけ。次を積まないので何も書き換えていない。
   //   ★ warnings は黙って捨てない（記録に残す）。
+  // ★★★ 写メ日記の段（第94便）。★ この便では【まだ何も保存しない】。
+  //   ★ 読めたこと・何件あったかを note に残すだけ。★ 次を積まないので駅ちかへ何も飛ばない。
+  //   ★★ 反映（照合・保存・salon_diary_imports への記録）は次便（②反映側）で足す。
+  //     ★ ここを空のまま実装したことにしない。★ 積む道がまだ無いので、この枝は現状どこからも来ない。
+  if (outcome.kind === 'diary_list') {
+    note = outcome.note + ' → ★ この便では保存しない（反映側は次便）';
+  }
+  if (outcome.kind === 'diary_detail') {
+    note = outcome.note + ' → ★ この便では保存しない（反映側は次便）';
+  }
+
   if (outcome.kind === 'esulove_roster') {
     if (outcome.warnings.length > 0) {
       console.warn('[relay] エステラブ名簿の気になること:', outcome.warnings.join(' / '));
@@ -242,10 +253,14 @@ export async function advanceRelayFlow(params: {
   //   認証情報は健全。計画が止まったことは last_error（＝認証の話）ではなく監査ログに残す。
   //   ここを 'stop' にすると「ログイン情報がおかしい」と読める文が店舗の画面に出てしまう。
   //   ★ 名簿の読み取りも 'done'。ログインと読み取りは実際に成功しているので認証情報は健全。
+  //   ★ 写メ日記の段も 'done'（第94便）。★ 一覧が読めた＝ログインは実際に成功している。
+  //     ★★ 日記1件が読めなかった周も認証情報は健全なので、ここを 'stop' にしない
+  //       （店舗の画面に「ログイン情報がおかしい」と読める文を出さない）。
   const settle: 'next' | 'done' | 'stop' = next
     ? 'next'
     : outcome.kind === 'plan_work' || outcome.kind === 'roster' || outcome.kind === 'maillist'
         || outcome.kind === 'esulove_roster'
+        || outcome.kind === 'diary_list' || outcome.kind === 'diary_detail'
       ? 'done'
       : outcome.kind;
   await stampCredential(params, settle, audits);

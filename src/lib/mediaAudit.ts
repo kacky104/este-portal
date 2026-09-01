@@ -20,6 +20,8 @@ export const MEDIA_AUDIT_EVENTS = [
   'read_work',           // 出勤を読んだ
   'read_girls',          // ★ 媒体側の名簿（女の子一覧）を読んだ（第50便）。読むだけ
   'read_maillist',       // ★ 投稿用メールアドレス一覧を読んだ（第53便）。読むだけ
+  'read_diary_list',     // ★ 写メ日記の一覧を読んだ（第94便）。読むだけ
+  'read_diary_detail',   // ★ 写メ日記を1件開いた（第94便）。読むだけ
   'plan_work',           // ★ 試し打ち。送るとどうなるかを組み立てただけ（第43便）
   'link_mode_changed',   // ★ 連携の向きを変えた（読む↔書く・第46便）
   'write_work',          // 出勤を書き換えた
@@ -209,6 +211,23 @@ export function defaultAuditSummary(input: {
         : `${t}の写メ日記の投稿先を確認しました（${nums}）。まだ登録していません`;
       break;
     }
+    case 'read_diary_list': {
+      // ★ 写メ日記の一覧（第94便）。★ 何ページ目かまで出す（初回は遡るので、記録に何行も並ぶ）
+      const diaries = count(d, 'diaries');
+      const pageNo = count(d, 'page');
+      const where = pageNo !== null && pageNo > 1 ? `（${pageNo}ページ目` : '（';
+      s = input.outcome === 'ok'
+        ? `${t}の写メ日記の一覧を読み取りました` +
+          (diaries !== null ? `${where}${diaries}件）` : (pageNo !== null && pageNo > 1 ? `${where}）` : ''))
+        : `${t}の写メ日記の一覧を読み取れませんでした`;
+      break;
+    }
+    case 'read_diary_detail':
+      // ★ 1件ずつなので件数は出さない。★ 「読めた／読めなかった」だけ
+      s = input.outcome === 'ok'
+        ? `${t}の写メ日記を1件読み取りました`
+        : `${t}の写メ日記を1件読み取れませんでした`;
+      break;
     case 'read_work':
       s = input.outcome === 'ok'
         ? `${t}の出勤を読み取りました` + (people !== null ? `（在籍${people}人）` : '')
