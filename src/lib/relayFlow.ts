@@ -1672,11 +1672,32 @@ export function buildReadPhotoPageRequest(ctx: RelayFlowContext): FlowNextReques
   };
 }
 
-function photoStop(ctx: RelayFlowContext, reason: string, summary: string, note: string): FlowOutcome {
+function photoStop(
+  ctx: RelayFlowContext,
+  reason: string,
+  summary: string,
+  note: string,
+  extra?: Record<string, string | number | boolean | null>,
+): FlowOutcome {
   return stop(
-    [{ event: 'push_photo', outcome: 'stopped', summary, detail: { reason, slot: ctx.photoSlot ?? null, flowId: ctx.flowId } }],
+    [{ event: 'push_photo', outcome: 'stopped', summary, detail: { reason, slot: ctx.photoSlot ?? null, flowId: ctx.flowId, ...(extra ?? {}) } }],
     note,
   );
+}
+
+/**
+ * ★★ 応答が読めなかったときに、原因を絞れるだけの材料を記録に残す（第107便の実弾で足りなかった）。
+ *   ★ 2026-09-02 の初回: 大画像は駅ちかに入ったのに「応答が読めない」で止まり、番号しか残らず原因が絞れなかった。
+ *   ★ 先頭100文字だけ。★ JSON なら { で始まるので、URL として落とされない（mediaAudit の scrub）。
+ */
+function responseClue(input: { status: number; headers: Record<string, string | string[]>; body: string }): Record<string, string | number | null> {
+  const ct = input.headers['content-type'];
+  return {
+    httpStatus: input.status,
+    responseType: Array.isArray(ct) ? String(ct[0] ?? '') : String(ct ?? ''),
+    bodyBytes: input.body.length,
+    bodyHead: input.body.slice(0, 100).replace(/\s+/g, ' '),
+  };
 }
 
 /**
@@ -1788,7 +1809,12 @@ function afterUploadPhoto(
   if (lost) return lost;
   const j = parsePhotoJson(input.body);
   if (j.problems.length > 0 || input.status !== 200) {
-    return photoStop(ctx, 'upload_bad_response', '駅ちかへの写真のアップロードで想定外の応答がありました（' + input.status + '）', 'upload の応答が読めない: ' + (j.problems[0] ?? input.status));
+    return photoStop(
+      ctx, 'upload_bad_response',
+      '駅ちかへの写真のアップロードで想定外の応答がありました（' + input.status + '／' + (j.problems[0] ?? '形は読めたが番号が200ではない') + '）',
+      'upload の応答が読めない: ' + (j.problems[0] ?? input.status),
+      responseClue(input),
+    );
   }
   if (!j.src) {
     return photoStop(ctx, 'upload_rejected', '駅ちかが写真を受け付けませんでした: ' + j.message.slice(0, 120), 'upload が断られた: ' + j.message);
@@ -1814,7 +1840,12 @@ function afterCropPhoto(
   const j = parsePhotoJson(input.body);
   const stage = ctx.photoStage;
   if (j.problems.length > 0 || input.status !== 200) {
-    return photoStop(ctx, 'crop_bad_response', '駅ちかでの切り抜きで想定外の応答がありました（' + input.status + '）', 'crop の応答が読めない: ' + (j.problems[0] ?? input.status));
+    return photoStop(
+      ctx, 'crop_bad_response',
+      '駅ちかでの切り抜きで想定外の応答がありました（' + input.status + '／' + (j.problems[0] ?? '形は読めたが番号が200ではない') + '）',
+      'crop の応答が読めない: ' + (j.problems[0] ?? input.status),
+      responseClue(input),
+    );
   }
   if (!j.src) {
     return photoStop(ctx, 'crop_rejected', '駅ちかが切り抜きを受け付けませんでした: ' + j.message.slice(0, 120), 'crop が断られた: ' + j.message);

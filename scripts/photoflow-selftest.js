@@ -90,7 +90,16 @@ eq('★ to_thumb=0', p.parsePhotoJson('{"src":"https://s3/x.jpg","to_thumb":0}')
 eq('★ src 空 + message = 断られた', p.parsePhotoJson('{"src":"","message":"10MB以下にしてください"}'), { src: '', toThumb: false, message: '10MB以下にしてください', problems: [] });
 eq('★ src も message も空は problems', p.parsePhotoJson('{"src":""}').problems.length, 1);
 eq('★★ JSON でなければ problems（ログイン画面など）', p.parsePhotoJson(LOGIN_PAGE).problems.length, 1);
-eq('★ src が https でなければ problems', p.parsePhotoJson('{"src":"javascript:alert(1)"}').problems.length, 1);
+eq('★ src が javascript: なら problems', p.parsePhotoJson('{"src":"javascript:alert(1)"}').problems.length, 1);
+console.log('\n── 3-2. ★★★ 駅ちかが返した src は【そのまま】返す（2026-09-02 の実弾で分かった）──');
+eq('★★★ 相対パスの src も受ける（https を条件にしない）', p.parsePhotoJson('{"src":"/files/37168/5232204/img8_20260902174406.jpg","to_thumb":1}'), { src: '/files/37168/5232204/img8_20260902174406.jpg', toThumb: true, message: '', problems: [] });
+eq('★ http の src も受ける', p.parsePhotoJson('{"src":"http://s3/x.jpg"}').problems, []);
+eq('★ 拡張子の無い src も受ける（決めつけない）', p.parsePhotoJson('{"src":"https://s3/x"}').problems, []);
+eq('★ data: は断る', p.parsePhotoJson('{"src":"data:image/png;base64,AAAA"}').problems.length, 1);
+eq('★ 空白入りは断る', p.parsePhotoJson('{"src":"https://s3/x y.jpg"}').problems.length, 1);
+eq('★ 引用符入りは断る（form に混ぜない）', p.parsePhotoJson('{"src":"https://s3/x\\"y.jpg"}').problems.length, 1);
+eq('★ 切り抜きの image にも相対パスをそのまま渡せる', Object.fromEntries(p.buildThumbCropFields({ girlId: GIRL, shopId: SHOP, slot: 8, csrfToken: TOKEN }, '/files/a/b.jpg', { x: 60, y: 110, w: 180, h: 180 })).image, '/files/a/b.jpg');
+eq('★ 切り抜きの image に javascript: は渡せない', /危ない/.test(throws(() => p.buildThumbCropFields({ girlId: GIRL, shopId: SHOP, slot: 8, csrfToken: TOKEN }, 'javascript:x', { x: 60, y: 110, w: 180, h: 180 }))), true);
 
 console.log('\n── 4. 切り抜きの範囲 ──');
 eq('★ 600×800 はそのまま全体（3:4）', p.centeredMainCrop(600, 800), { x: 0, y: 0, w: 600, h: 800 });

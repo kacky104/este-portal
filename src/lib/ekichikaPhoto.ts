@@ -138,8 +138,22 @@ export function parsePhotoJson(body: string): PhotoJson {
   const message = typeof obj.message === 'string' ? obj.message : '';
   const toThumb = obj.to_thumb === 1 || obj.to_thumb === '1' || obj.to_thumb === true;
   if (src === '' && message === '') problems.push('src も message も空（駅ちかが理由を返していない）');
-  if (src !== '' && !/^https:\/\//.test(src)) problems.push('src が https の URL ではない');
+  if (src !== '' && !isSafeSrc(src)) problems.push('src の形が危ない（javascript: / 制御文字など）');
   return { src, toThumb, message, problems };
+}
+
+/**
+ * ★★★ 駅ちかが返した src は、駅ちかに【そのまま】返す（2026-09-02 の実弾で分かった）。
+ *   ★ 最初は「https の URL であること」を条件にしていた → 200 で保存もされたのに「読めない」で止まった。
+ *   ★ 駅ちかの JS は res['src'] を次の form の image にそのまま入れているだけ。★ こちらが形を決めつけない。
+ *   ★ 断るのは【危ないもの】だけ: javascript: / data: / vbscript: / 制御文字・空白 / 長すぎる。
+ */
+export function isSafeSrc(src: string): boolean {
+  const v = String(src ?? '');
+  if (v === '' || v.length > 1000) return false;
+  if (/[\u0000-\u001f\u007f\s"'<>]/.test(v)) return false;
+  if (/^\s*(javascript|data|vbscript|file):/i.test(v)) return false;
+  return true;
 }
 
 // ────────────────────────── 切り抜きの範囲 ──────────────────────────
@@ -194,7 +208,7 @@ export function buildUploadFields(ids: PhotoIds): Record<string, string> {
 /** ②大画像の 3:4 切り抜き。★ sh_w/sh_h に実寸を入れて、x/y/w/h も実寸で送る（比が1）。 */
 export function buildMainCropFields(ids: PhotoIds, imageSrc: string, rect: Rect, size: { width: number; height: number }): Array<[string, string]> {
   assertIds(ids);
-  if (!/^https:\/\//.test(imageSrc)) throw new Error('image の URL が不正');
+  if (!isSafeSrc(imageSrc)) throw new Error('image の形が危ない');
   if (rect.x < 0 || rect.y < 0 || rect.w < 1 || rect.h < 1) throw new Error('切り抜きの範囲が不正');
   if (rect.x + rect.w > size.width || rect.y + rect.h > size.height) throw new Error('切り抜きが画像の外に出ている');
   return [
@@ -208,7 +222,7 @@ export function buildMainCropFields(ids: PhotoIds, imageSrc: string, rect: Rect,
 /** ③サムネイル。★ x/y/w/h は 300×400 の表示空間。sh_w/sh_h は送らない（駅ちかの JS もそうしている）。 */
 export function buildThumbCropFields(ids: PhotoIds, imageSrc: string, rect: Rect): Array<[string, string]> {
   assertIds(ids);
-  if (!/^https:\/\//.test(imageSrc)) throw new Error('image の URL が不正');
+  if (!isSafeSrc(imageSrc)) throw new Error('image の形が危ない');
   if (!isValidThumbRect(rect)) throw new Error('サムネイルの範囲が 300×400 の正方形に収まっていない');
   return [
     ['x', String(rect.x)], ['y', String(rect.y)], ['w', String(rect.w)], ['h', String(rect.h)],
