@@ -106,6 +106,10 @@ const ctxW = Object.assign({}, ctxR, { esutamaPeople: people, esutamaIndex: 0 })
   eq('④: 別の人の表なら止める', [wrong.kind, wrong.audits[0].detail.reason], ['stop', 'cast_mismatch']);
   const shifted = F.afterEsutamaWorkRead({ status: 200, headers: {}, body: pageRemi }, Object.assign({}, ctxW, { startedAt: '2026-09-03T12:00:00+09:00' }), Date.parse('2026-09-03T12:00:00+09:00'));
   eq('④: 1日目が今日と違えば止める', [shifted.kind, shifted.audits[0].detail.reason], ['stop', 'date_shifted']);
+  // ★★★ 第112便: 【何日とずれたか】を残す。★ 残さないと、相手の切り替わり時刻を何度流しても絞れない
+  eq('④: ★★★ ずれた日付を両方とも残す',
+     [shifted.audits[0].detail.mediaFirstDate, shifted.audits[0].detail.fukuesToday],
+     ['2026-09-02', '2026-09-03']);
   const back = F.afterEsutamaWorkRead({ status: 302, headers: { location: '/login/' }, body: '' }, ctxW, NOW);
   eq('④: ログイン切れは止める', [back.kind, back.audits[0].detail.reason], ['stop', 'back_to_login']);
 }

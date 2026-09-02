@@ -265,7 +265,14 @@ function readWorkPageOrStop(input: Input, ctx: RelayFlowContext, stage: string, 
     return { stop: stop([{ event: 'read_work', outcome: 'failed', summary: 'エステ魂の出勤表が別の人のものでした', detail: { reason: 'cast_mismatch', stage, flowId } }], '読んだ cast_id ' + page.castId + ' が計画の ' + person.castId + ' と違う') };
   }
   if ((page.days[0]?.date ?? '') !== todayISO) {
-    return { stop: stop([{ event: 'read_work', outcome: 'failed', summary: 'エステ魂の出勤表の1日目がこちらの今日と違うため止めました', detail: { reason: 'date_shifted', stage, flowId } }], '1日目 ' + (page.days[0]?.date ?? '') + ' ≠ 今日 ' + todayISO) };
+    // ★★★ 第112便（2026-09-03）: 【何日とずれたか】を監査に残す。
+    //   ★ これまでは reason だけで、相手の1日目が何日だったかが**どこにも残らなかった**。
+    //     ★ note には書いていたが、note は VPS への応答に混ざって消える
+    //       （relay.sh は ok:false のときしかログに書かない）。
+    //   ★★ 「止めた」ことは分かるのに「何とずれたか」が分からないと、
+    //     深夜の切り替わり時刻のような **相手の性質** を、何度流しても絞れない。
+    //   ★ どちらもただの日付。★ 秘密でも宛先でもないので detail に入れてよい。
+    return { stop: stop([{ event: 'read_work', outcome: 'failed', summary: 'エステ魂の出勤表の1日目がこちらの今日と違うため止めました', detail: { reason: 'date_shifted', mediaFirstDate: page.days[0]?.date ?? '', fukuesToday: todayISO, stage, flowId } }], '1日目 ' + (page.days[0]?.date ?? '') + ' ≠ 今日 ' + todayISO) };
   }
   return { page };
 }
