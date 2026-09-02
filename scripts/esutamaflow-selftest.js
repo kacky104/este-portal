@@ -141,11 +141,50 @@ const ctxP = Object.assign({}, ctxW, { intent: 'work_push' });
   eq('送信: done のまとめ（1人ぶん反映・2人確認）', /1人ぶん 反映しました（2人を確認）/.test(last.audits[1].summary), true);
 }
 
-// ── work_auto はまだ書かない（ESUTAMA_AUTO_WRITE_ENABLED=false のあいだ試し打ちと同じ）──
+// ── 第110便: 店舗の画面に出す計画（diffs / 指紋）と、承認した内容との突き合わせ ──
 {
-  eq('自動反映の旗はまだ倒れている', F.ESUTAMA_AUTO_WRITE_ENABLED, false);
-  const a = F.afterEsutamaWorkRead({ status: 200, headers: {}, body: pageRemi }, Object.assign({}, ctxW, { intent: 'work_auto' }), NOW);
-  eq('work_auto: 保存を積まず次の人へ（読んで記録するだけ）', [a.kind, a.next.purpose, a.audits.map((x) => x.event).join(',')], ['next', 'esutama_work_read', 'read_work,plan_work']);
+  const ctxD = Object.assign({}, ctxW, { esutamaWindow: D, esutamaDiffs: [], esutamaBlocked: ['ねねさんは未登録'], esutamaNotes: [] });
+  const r1 = F.afterEsutamaWorkRead({ status: 200, headers: {}, body: pageRemi }, ctxD, NOW);
+  eq('計画: 変わるところを文脈に足す（dayIndex は窓の添え字）', r1.next.context.esutamaDiffs, [{ castId: '757480', name: 'れみ', dayIndex: 1, before: '21:00〜24:00', after: '20:00〜25:00' }]);
+  const r2 = F.afterEsutamaWorkRead({ status: 200, headers: {}, body: pageSara }, r1.next.context, NOW);
+  eq('計画: 終わりに esutamaPlan を返す', [r2.kind, !!r2.esutamaPlan], ['done', true]);
+  eq('計画: sendable（変更あり・送る相手あり）', r2.esutamaPlan.sendable, true);
+  eq('計画: 指紋は castId:dayIndex:after', r2.esutamaPlan.fingerprint, '757480:1:20:00〜25:00');
+  eq('計画: 送らない人の理由を持ち回る', r2.esutamaPlan.blocked, ['ねねさんは未登録']);
+  eq('鍵: 順序に依らない', F.esutamaPersonKey([{ dayIndex: 3, after: 'b' }, { dayIndex: 1, after: 'a' }]), '1=a|3=b');
+  eq('承認の形: media_work_plans.diff から castId → 鍵', F.esutamaApprovedFromDiff([{ girlId: '757480', dayIndex: 1, after: '20:00〜25:00' }]), { '757480': '1=20:00〜25:00' });
+
+  // 承認どおり → 送る
+  const okCtx = Object.assign({}, ctxD, { intent: 'work_push', esutamaApproved: { '757480': '1=20:00〜25:00' } });
+  const p1 = F.afterEsutamaWorkRead({ status: 200, headers: {}, body: pageRemi }, okCtx, NOW);
+  eq('承認どおりなら保存を積む', [p1.kind, p1.next.purpose], ['next', 'esutama_work_save']);
+  // 承認と違う → その人は送らない・次へ
+  const ngCtx = Object.assign({}, ctxD, { intent: 'work_push', esutamaApproved: { '757480': '1=20:00〜24:30' } });
+  const p2 = F.afterEsutamaWorkRead({ status: 200, headers: {}, body: pageRemi }, ngCtx, NOW);
+  eq('承認と違えば送らず次の人へ（plan_changed）', [p2.kind, p2.next.purpose, p2.audits[1].detail.reason], ['next', 'esutama_work_read', 'plan_changed']);
+  eq('承認に無い人も送らない', F.afterEsutamaWorkRead({ status: 200, headers: {}, body: pageRemi }, Object.assign({}, ngCtx, { esutamaApproved: {} }), NOW).audits[1].detail.reason, 'plan_changed');
+  eq('運営の口（承認なし）は突き合わせない', F.afterEsutamaWorkRead({ status: 200, headers: {}, body: pageRemi }, Object.assign({}, ctxD, { intent: 'work_push' }), NOW).next.purpose, 'esutama_work_save');
+  // 照合が通った人の行は「残り」から外れる
+  const s1 = F.afterEsutamaWorkSave({ status: 200, headers: {}, body: '["OK"]' }, p1.next.context);
+  const after = pageHtml('757480', [dayHtml(D[0]), dayHtml(D[1], { start: '20:00', end: '25:00', values: Object.fromEntries(AXIS.slice(0, 11).map((l) => [l, '1'])) }), dayHtml(D[2])]);
+  const v1 = F.afterEsutamaWorkVerify({ status: 200, headers: {}, body: after }, s1.next.context, NOW);
+  eq('送れた人の行は残りから外す', v1.next.context.esutamaDiffs, []);
+  const end = F.afterEsutamaWorkRead({ status: 200, headers: {}, body: pageSara }, v1.next.context, NOW);
+  eq('送ったあとの計画は「残り0・送れる=false」', [end.esutamaPlan.diffs.length, end.esutamaPlan.sendable, end.esutamaPlan.saved], [0, false, 1]);
+}
+
+// ── 第110便: work_auto は書く（旗 true）。ただし「その人の ○ が全部消える」書き換えは自動では送らない ──
+{
+  eq('自動反映の旗が立っている', F.ESUTAMA_AUTO_WRITE_ENABLED, true);
+  const ctxA = Object.assign({}, ctxW, { intent: 'work_auto', esutamaWindow: D });
+  const a = F.afterEsutamaWorkRead({ status: 200, headers: {}, body: pageRemi }, ctxA, NOW);
+  eq('work_auto: ふつうの変更は保存を積む', [a.kind, a.next.purpose], ['next', 'esutama_work_save']);
+  // れみ の計画を「全部なし」にする → 21:00〜24:00 が消える書き換え
+  const clearPeople = [Object.assign({}, people[0], { days: [{ dateISO: D[0], range: null }, { dateISO: D[1], range: null }, { dateISO: D[2], range: null }] }), people[1]];
+  const c = F.afterEsutamaWorkRead({ status: 200, headers: {}, body: pageRemi }, Object.assign({}, ctxA, { esutamaPeople: clearPeople }), NOW);
+  eq('work_auto: ○ が全部消える人は送らず次へ（auto_would_clear）', [c.kind, c.next.purpose, c.audits[1].detail.reason], ['next', 'esutama_work_read', 'auto_would_clear']);
+  const cp = F.afterEsutamaWorkRead({ status: 200, headers: {}, body: pageRemi }, Object.assign({}, ctxA, { intent: 'work_push', esutamaPeople: clearPeople }), NOW);
+  eq('人が押す work_push なら全消しも送る', cp.next.purpose, 'esutama_work_save');
 }
 
 // ── advanceFlow から段へ届く ──

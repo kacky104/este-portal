@@ -51,8 +51,9 @@ import { buildEsuloveLoginRequest } from '@/lib/esuloveRequests';
 // ★ エステ魂（第109便）
 import { buildEsutamaLoginPageRequest, buildEsutamaLoginRequest, buildEsutamaWorkReadRequest } from '@/lib/esutamaRequests';
 import { planEsutamaWork } from '@/lib/esutamaPlan';
-import { esutamaWindowDates, esutamaTodayISO } from '@/lib/esutamaFlow';
+import { esutamaWindowDates, esutamaTodayISO, esutamaApprovedFromDiff } from '@/lib/esutamaFlow';
 import type { EsutamaRosterRow } from '@/lib/esutamaParse';
+import type { EsutamaPlanSummary } from '@/lib/relayFlow';
 import { planEsuloveWork } from '@/lib/esulovePlan';
 import type { EsuloveTherapistRow } from '@/lib/esuloveTherapistParse';
 
@@ -341,6 +342,13 @@ export async function advanceRelayFlow(params: {
       note = note + ' → ' + r.note;
       next = r.next ?? null;
     }
+  }
+
+  // ★★★ エステ魂の流れが終わった（第110便）。店舗の画面「出勤を送る」に出す計画を残す。
+  //   ★ 試し打ちなら「これから送る内容」、送ったあとなら「送らずに残った内容」。駅ちかの media_work_plans と同じ表。
+  if (outcome.kind === 'done' && outcome.esutamaPlan) {
+    const r = await saveEsutamaPlan(params, outcome.esutamaPlan, context);
+    note = note + ' → ' + r.note;
   }
 
   await writeAudits(params, audits, context);
@@ -655,6 +663,30 @@ async function planEsutama(
   if (plan.notes.length > 0) console.warn('[relay] エステ魂の計画の注記:', plan.notes.join(' / '));
   if (!plan.ok) return { audits: [planAudit], note: plan.summary };
 
+  // ★★★ 店舗が画面から送る（work_push ＋ 指紋）とき: 保存してある計画と同じか（第110便）。
+  //   ★ 違えば1人も送らない。★ 同じなら人ごとの鍵を文脈に入れ、読み直した結果と突き合わせる（esutamaFlow）。
+  //   ★ approvedFingerprint が無いのは運営の口（work-flow）。★ 照合しない（undefined のまま）。
+  let approved: Record<string, string> | undefined;
+  if (ctx.intent === 'work_push' && ctx.approvedFingerprint !== undefined) {
+    const { data: row } = await supabase
+      .from('media_work_plans')
+      .select('fingerprint, diff')
+      .eq('salon_id', params.salonId).eq('provider', params.provider).eq('slot', params.slot)
+      .maybeSingle();
+    const saved = String(row?.fingerprint ?? '');
+    if (!row || !saved || saved !== ctx.approvedFingerprint) {
+      return {
+        audits: [planAudit, {
+          event: 'write_work', outcome: 'stopped',
+          summary: '内容が新しくなっているため送りませんでした。画面を開き直して「反映内容を確認」からやり直してください',
+          detail: { reason: 'fingerprint_mismatch', flowId },
+        }],
+        note: '承認した計画と保存してある計画が違うので送らない',
+      };
+    }
+    approved = esutamaApprovedFromDiff((row.diff as Array<{ girlId?: string; dayIndex: number; after: string }> | null) ?? []);
+  }
+
   // ★ 1人目の出勤表を読みに行く。★ 以降は段の中（esutamaFlow）が人を進める
   const first = plan.people[0];
   const req = buildEsutamaWorkReadRequest(ctx.cookie, first.castId);
@@ -663,9 +695,62 @@ async function planEsutama(
     note: plan.summary,
     next: {
       purpose: 'esutama_work_read', method: req.method, url: req.url, headers: req.headers, body: '',
-      context: { ...ctx, esutamaPeople: plan.people, esutamaIndex: 0, esutamaChanged: 0, esutamaSaved: 0 },
+      context: {
+        ...ctx, esutamaPeople: plan.people, esutamaIndex: 0, esutamaChanged: 0, esutamaSaved: 0,
+        esutamaWindow: windowDates, esutamaDiffs: [],
+        esutamaBlocked: plan.blocked.map((b) => b.message), esutamaNotes: plan.notes,
+        ...(approved !== undefined ? { esutamaApproved: approved } : {}),
+      },
     },
   };
+}
+
+/** 'YYYY-MM-DD' → '9/4(金)'。★ 店舗の画面の日付見出し（駅ちかの見出しと同じ読み） */
+function esutamaDateLabel(iso: string): string {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(iso);
+  if (!m) return iso;
+  const d = new Date(Date.UTC(Number(m[1]), Number(m[2]) - 1, Number(m[3])));
+  const w = ['日', '月', '火', '水', '木', '金', '土'][d.getUTCDay()];
+  return Number(m[2]) + '/' + Number(m[3]) + '(' + w + ')';
+}
+
+/**
+ * ★ エステ魂の計画を media_work_plans に残す（第110便）。★ 店舗×媒体×枠で1件（上書き）。
+ *   ★ 駅ちかの planWork と同じ表・同じ形（diff の girlId に castId を入れる）。画面（WorkSend）はそのまま読める。
+ */
+async function saveEsutamaPlan(
+  params: { salonId: number; provider: string; slot: number },
+  plan: EsutamaPlanSummary,
+  ctx: RelayFlowContext,
+): Promise<{ note: string }> {
+  const supabase = createServiceClient();
+  const { error } = await supabase.from('media_work_plans').upsert(
+    {
+      salon_id: params.salonId,
+      provider: params.provider,
+      slot: params.slot,
+      flow_id: ctx.flowId,
+      created_at: new Date().toISOString(),
+      sendable: plan.sendable,
+      targets: plan.people,
+      active_shifts: plan.diffs.filter((d) => d.after !== '─').length,
+      change_count: plan.diffs.length,
+      field_count: 0,
+      fingerprint: plan.fingerprint,
+      date_labels: plan.window.map(esutamaDateLabel),
+      counts_before: [],
+      counts_after: [],
+      diff: plan.diffs.map((d) => ({ girlId: d.castId, name: d.name, dayIndex: d.dayIndex, before: d.before, after: d.after })),
+      blockers: plan.blocked.map((m) => ({ kind: 'unmapped_therapist', detail: m })),
+      notes: plan.notes.map((n) => ({ kind: 'time_snapped', detail: n })),
+    },
+    { onConflict: 'salon_id,provider,slot' },
+  );
+  if (error) {
+    console.error('[relay] エステ魂の計画を保存できなかった', params.salonId, error.message);
+    return { note: '★ 計画を保存できなかった: ' + error.message.slice(0, 120) };
+  }
+  return { note: '計画を残した（変更' + plan.diffs.length + '件・送れる=' + plan.sendable + '）' };
 }
 
 async function saveRoster(

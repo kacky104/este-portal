@@ -13,7 +13,7 @@
 // ★★★ パスワードは文脈に入れない。ログイン POST を組むのは DB 側（startRelayFlow と同じ場所で復号する）。
 // ★★★ ここは純粋関数。DBもネットワークも触らない＝自己点検で固定できる（scripts/esutamaflow-selftest.js）。
 
-import type { FlowAudit, FlowOutcome, RelayFlowContext } from './relayFlow';
+import type { FlowAudit, FlowOutcome, RelayFlowContext, EsutamaDiffRow, EsutamaPlanSummary } from './relayFlow';
 import { mergeCookies } from './relayJob';
 import { readEsutamaCsrf, parseEsutamaJson, parseEsutamaRoster } from './esutamaParse';
 import {
@@ -29,13 +29,38 @@ type Input = { status: number; headers: Record<string, string | string[]>; body:
 
 /**
  * ★★★ 無人の自動反映（work_auto）をエステ魂で許すか。
- *   ★ いまは false。人が押す work_push で実弾を確かめ、照合まで通ることを見てから true にする。
- *   ★ false のあいだ、work_auto は【試し打ちと同じ】（読んで記録するだけ。1文字も書き換えない）。
+ *   ★ 第109便では false（人が押す work_push で実弾を確かめた）。第110便で true。
+ *   ★ false にすると work_auto は【試し打ちと同じ】（読んで記録するだけ。1文字も書き換えない）。★ 止めたいときの旗として残す。
+ *   ★ 無人のときの守りは afterEsutamaWorkRead（その人の ○ が 0 になる書き換えは自動では送らない）。
  */
-export const ESUTAMA_AUTO_WRITE_ENABLED = false;
+export const ESUTAMA_AUTO_WRITE_ENABLED = true;   // ★ 2026-09-02 第110便で true（実弾: 延ばす・戻す の両方が照合まで通った）
 
 function stop(audits: FlowAudit[], note: string): FlowOutcome {
   return { kind: 'stop', audits, note };
+}
+
+/** 1人ぶんの「変更の鍵」（dayIndex=送ったあと を並べ替えて連結）。★ 承認した内容と読み直した内容の突き合わせに使う */
+export function esutamaPersonKey(changes: ReadonlyArray<{ dayIndex: number; after: string }>): string {
+  return changes.map((c) => c.dayIndex + '=' + c.after).sort().join('|');
+}
+
+/** 計画全体の指紋（駅ちかの planFingerprint と同じ考え: 誰の・どの日を・どう変えるか だけ） */
+export function esutamaFingerprint(diffs: ReadonlyArray<EsutamaDiffRow>): string {
+  return diffs.map((d) => d.castId + ':' + d.dayIndex + ':' + d.after).sort().join('|');
+}
+
+/** media_work_plans.diff（[{girlId,name,dayIndex,before,after}]）から castId → 鍵 を作る */
+export function esutamaApprovedFromDiff(diff: ReadonlyArray<{ girlId?: string; castId?: string; dayIndex: number; after: string }>): Record<string, string> {
+  const by = new Map<string, Array<{ dayIndex: number; after: string }>>();
+  for (const d of diff) {
+    const id = String(d.castId ?? d.girlId ?? '');
+    if (!id) continue;
+    if (!by.has(id)) by.set(id, []);
+    by.get(id)!.push({ dayIndex: Number(d.dayIndex), after: String(d.after) });
+  }
+  const out: Record<string, string> = {};
+  for (const [id, cs] of by) out[id] = esutamaPersonKey(cs);
+  return out;
 }
 
 function isPushing(ctx: RelayFlowContext): boolean {
@@ -186,8 +211,23 @@ export function nextEsutamaPerson(ctx: RelayFlowContext, audits: FlowAudit[], no
     const changed = ctx.esutamaChanged ?? 0;
     const saved = ctx.esutamaSaved ?? 0;
     const pushing = isPushing(ctx);
+    const diffs = ctx.esutamaDiffs ?? [];
+    const blocked = ctx.esutamaBlocked ?? [];
+    const plan: EsutamaPlanSummary = {
+      window: ctx.esutamaWindow ?? [],
+      diffs,
+      blocked,
+      notes: ctx.esutamaNotes ?? [],
+      people: people.length,
+      changed,
+      saved,
+      // ★ 送る相手が1人でも居て、送らずに残った変更があるとき「送れる」
+      sendable: people.length > 0 && diffs.length > 0,
+      fingerprint: esutamaFingerprint(diffs),
+    };
     return {
       kind: 'done',
+      esutamaPlan: plan,
       audits: [
         ...audits,
         pushing
@@ -254,7 +294,12 @@ export function afterEsutamaWorkRead(input: Input, ctx: RelayFlowContext, now?: 
   const lines = d.changes.map((c) => c.dateISO + ' ' + c.before + '→' + c.after);
   const skips = d.skipped.map((s) => s.dateISO + '（' + s.reason + '）');
   const changedCount = (ctx.esutamaChanged ?? 0) + (d.changed ? 1 : 0);
-  const base: RelayFlowContext = { ...ctx, cookie, esutamaChanged: changedCount };
+  // ★ 店舗の画面に出す「変わるところ」（第110便）。dayIndex は窓の添え字
+  const window = ctx.esutamaWindow ?? [];
+  const rows: EsutamaDiffRow[] = d.changes.map((c) => ({
+    castId: d.castId, name: d.name, dayIndex: window.indexOf(c.dateISO), before: c.before, after: c.after,
+  }));
+  const base: RelayFlowContext = { ...ctx, cookie, esutamaChanged: changedCount, esutamaDiffs: [...(ctx.esutamaDiffs ?? []), ...rows] };
 
   if (!isPushing(ctx)) {
     const planAudit: FlowAudit = {
@@ -266,6 +311,27 @@ export function afterEsutamaWorkRead(input: Input, ctx: RelayFlowContext, now?: 
   }
   if (!d.changed) {
     return nextEsutamaPerson(base, [readAudit], '変更なし');
+  }
+  // ★★★ 店舗が画面で承認した内容と同じか（第110便・人ごと）。★ 違えばその人は送らない（駅ちかの指紋と同じ守り）
+  if (ctx.esutamaApproved !== undefined) {
+    const want = ctx.esutamaApproved[d.castId];
+    const got = esutamaPersonKey(rows);
+    if (want === undefined || want !== got) {
+      // ★ 送らなかったぶんは diffs に残る（画面に「送らずに残った」として出る）
+      return nextEsutamaPerson(base, [readAudit, {
+        event: 'write_work', outcome: 'stopped',
+        summary: '内容が新しくなっていたため、この方の出勤は送りませんでした。画面を開き直して「反映内容を確認」からやり直してください',
+        detail: { castId: d.castId, reason: 'plan_changed', flowId },
+      }], '承認した内容と違うので送らない');
+    }
+  }
+  // ★★★ 無人（work_auto）の守り: その人の ○ が全部消える書き換えは自動では送らない（人が見て送る）
+  if (ctx.intent === 'work_auto' && d.workingBefore > 0 && d.workingAfter === 0) {
+    return nextEsutamaPerson(base, [readAudit, {
+      event: 'write_work', outcome: 'stopped',
+      summary: 'この方の出勤がすべて無くなる内容のため、自動では送りませんでした。「出勤を送る」の画面から確認して送ってください',
+      detail: { castId: d.castId, reason: 'auto_would_clear', workingBefore: d.workingBefore, flowId },
+    }], '無人で全消しはしない');
   }
   // ★★ 送る。読んだ表そのもの（当てたあと）を丸ごと送る
   let fields: Array<[string, string]>;
@@ -342,7 +408,9 @@ export function afterEsutamaWorkVerify(input: Input, ctx: RelayFlowContext, now?
     summary: 'エステ魂に反映されました（' + expect.map((e) => e.dateISO.slice(5) + ' ' + e.after).join(' / ') + '）',
     detail: { castId: person.castId, days: expect.length, flowId },
   };
-  return nextEsutamaPerson({ ...ctx, esutamaSaved: saved }, [audit], '照合 OK');
+  // ★ 送れた人の行は「残り」から外す（第110便: 画面には送らずに残ったものだけを出す）
+  const rest = (ctx.esutamaDiffs ?? []).filter((r) => r.castId !== person.castId);
+  return nextEsutamaPerson({ ...ctx, esutamaSaved: saved, esutamaDiffs: rest }, [audit], '照合 OK');
 }
 
 /** 計画に入れる窓（今日〜13日後）。★ 表の日数と揃える。DB 側が出勤を読むときに使う */

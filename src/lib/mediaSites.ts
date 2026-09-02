@@ -150,7 +150,7 @@ export const MEDIA_SITES: readonly MediaSite[] = [
     //   ★ 実弾（work_push）はまだ運営の口からだけ。無人の自動反映は esutamaFlow.ESUTAMA_AUTO_WRITE_ENABLED（false）が止めている。
     accepting: true,
     notYet: '',
-    stageNote: 'ログインID欄にはエステ魂のメールアドレスを入れてください。出勤の自動反映はいま確かめているところで、まずは「試し打ち」まで使えます。',
+    stageNote: 'ログインID欄にはエステ魂のメールアドレスを入れてください。セラピストの名前がエステ魂と少しでも違う（カナ・漢字など）場合は、名簿で結んでから送ります。',
     // ★ メールでの投稿ができない（画面にもそう書いてある）
     diaryAddressSource: 'none',
     // ★★ 実測（2026-09-02・設計メモ_エステ魂の出勤書き込み §2）: ログインはメールアドレスとパスワードの2つだけ。店舗IDは無い

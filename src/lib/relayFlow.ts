@@ -263,6 +263,39 @@ export type RelayFlowContext = {
   /** 変更があった人数／保存できた人数（done のまとめ用） */
   esutamaChanged?: number;
   esutamaSaved?: number;
+  // ── 第110便: 店舗の画面「出勤を送る」に出すための材料 ──
+  /** 計画の窓（14日の 'YYYY-MM-DD'）。diff の dayIndex はこの添え字 */
+  esutamaWindow?: string[];
+  /** ここまでに見つかった「変わるところ」（人ごとに足していく） */
+  esutamaDiffs?: EsutamaDiffRow[];
+  /** 送らない人の理由（計画の段で決まる） */
+  esutamaBlocked?: string[];
+  /** 時刻を寄せた等の注記 */
+  esutamaNotes?: string[];
+  /**
+   * ★★ 人が画面で見て承認した内容（castId → その人の変更の鍵）。work_push で店舗が押したときだけ入る。
+   *   ★ 読み直した結果がこれと違えば、その人は送らない（駅ちかの指紋と同じ守り・人ごと）。
+   *   ★ undefined は「運営の口」（照合しない）。★ 空 {} とは別物
+   */
+  esutamaApproved?: Record<string, string>;
+};
+
+/** 店舗の画面に出す「変わるところ」1行（第110便）。★ media_work_plans.diff と同じ形（girlId=castId） */
+export type EsutamaDiffRow = { castId: string; name: string; dayIndex: number; before: string; after: string };
+
+/** エステ魂の流れが終わったときのまとめ（第110便）。DB 側が media_work_plans に書く */
+export type EsutamaPlanSummary = {
+  /** 'work_dryrun' なら「これから送る内容」、送ったあとなら「送らずに残った内容」 */
+  window: string[];
+  diffs: EsutamaDiffRow[];
+  blocked: string[];
+  notes: string[];
+  people: number;
+  changed: number;
+  saved: number;
+  /** 人が押して送ってよいか（送らない理由が無く、変更がある） */
+  sendable: boolean;
+  fingerprint: string;
 };
 
 export type FlowAudit = {
@@ -296,7 +329,7 @@ export type FlowNextRequest = {
 
 export type FlowOutcome =
   | { kind: 'next'; next: FlowNextRequest; audits: FlowAudit[]; note: string }
-  | { kind: 'done'; audits: FlowAudit[]; note: string }
+  | { kind: 'done'; audits: FlowAudit[]; note: string; /** ★ エステ魂の流れの終わりだけ（第110便） */ esutamaPlan?: EsutamaPlanSummary }
   | { kind: 'stop'; audits: FlowAudit[]; note: string }
   /**
    * ★★★ 読めた。ここから先は【DBを読まないと決められない】（第43便）。
