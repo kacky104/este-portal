@@ -22,6 +22,8 @@ export const MEDIA_AUDIT_EVENTS = [
   'read_maillist',       // ★ 投稿用メールアドレス一覧を読んだ（第53便）。読むだけ
   'read_diary_list',     // ★ 写メ日記の一覧を読んだ（第94便）。読むだけ
   'read_diary_detail',   // ★ 写メ日記を1件開いた（第94便）。読むだけ
+  'read_photo_page',     // ★ 女の子の編集ページ（画像登録）を読んだ（第107便）。読むだけ
+  'push_photo',          // ★★ 駅ちかへ写真を送った（第107便）。★ 書き換える
   'plan_work',           // ★ 試し打ち。送るとどうなるかを組み立てただけ（第43便）
   'link_mode_changed',   // ★ 連携の向きを変えた（読む↔書く・第46便）
   'write_work',          // 出勤を書き換えた

@@ -104,6 +104,17 @@ export async function startRelayFlow(params: {
    */
   diarySince?: string | null;
   diaryPagesLeft?: number;
+  /**
+   * intent='photo_push' のときだけ（第107便）。★ 写真の在処・枠・切り抜きの範囲。
+   * ★★ ここで受け取っていないと、呼び出し側が渡しても静かに落ちる（diarySince と同じ作法）。
+   */
+  photo?: {
+    girlId: string;
+    slot: number;
+    file: { bucket: string; path: string; filename: string; contentType: string; width: number; height: number };
+    mainRect?: { x: number; y: number; w: number; h: number };
+    thumbRect?: { x: number; y: number; w: number; h: number };
+  };
   /** 'shop:<auth_user_id>' など。監査ログに残す */
   actor?: string;
 }): Promise<StartFlowResult> {
@@ -167,7 +178,21 @@ export async function startRelayFlow(params: {
     ...(Number.isFinite(params.diaryPagesLeft)
       ? { diaryPagesLeft: Number(params.diaryPagesLeft) }
       : {}),
+    // ★ 写真の送信（第107便）。★ 渡されたときだけ入れる
+    ...(params.photo
+      ? {
+          photoGirlId: params.photo.girlId,
+          photoSlot: params.photo.slot,
+          photoFile: params.photo.file,
+          ...(params.photo.mainRect ? { photoMainRect: params.photo.mainRect } : {}),
+          ...(params.photo.thumbRect ? { photoThumbRect: params.photo.thumbRect } : {}),
+          photoStage: 'upload' as const,
+        }
+      : {}),
   };
+  if (params.intent === 'photo_push' && !params.photo) {
+    throw new Error('photo_push には photo（girlId / slot / file）が要る');
+  }
 
   const r = await enqueueRelayJob({
     salonId: params.salonId,
@@ -291,11 +316,19 @@ export async function advanceRelayFlow(params: {
   //   ★ 写メ日記の段も 'done'（第94便）。★ 一覧が読めた＝ログインは実際に成功している。
   //     ★★ 日記1件が読めなかった周も認証情報は健全なので、ここを 'stop' にしない
   //       （店舗の画面に「ログイン情報がおかしい」と読める文を出さない）。
+  //   ★ 写真の段（第107便）で止まった（枠が使用中・駅ちかが断った等）も、ログインは成功している。
+  //     ★ 監査に理由は残す。★ last_error（認証の話）には書かない
+  const photoStoppedButLoggedIn =
+    outcome.kind === 'stop' &&
+    context.intent === 'photo_push' &&
+    outcome.audits.length > 0 &&
+    outcome.audits.every((a) => a.event !== 'login');
   const settle: 'next' | 'done' | 'stop' = next
     ? 'next'
     : outcome.kind === 'plan_work' || outcome.kind === 'roster' || outcome.kind === 'maillist'
         || outcome.kind === 'esulove_roster'
         || outcome.kind === 'diary_list' || outcome.kind === 'diary_detail'
+        || photoStoppedButLoggedIn
       ? 'done'
       : outcome.kind;
   await stampCredential(params, settle, audits);
@@ -310,6 +343,7 @@ export async function advanceRelayFlow(params: {
     url: next.url,
     headers: next.headers,
     body: next.body,
+    ...(next.multipart !== undefined ? { multipart: next.multipart } : {}),
     context: next.context,
   });
 

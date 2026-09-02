@@ -47,6 +47,8 @@ export const RELAY_ALLOWED_REQUEST_HEADERS: readonly string[] = [
   'accept-language',
   'referer',
   'origin',
+  // ★ 第107便: 駅ちかの画像登録は jQuery の ajax（X-Requested-With が付く）。★ 付けないと is_ajax で弾かれうる
+  'x-requested-with',
 ];
 
 /** ★ 持ち帰るレスポンスヘッダー。セッションの持ち回りと、リダイレクト・WAF判定に要るものだけ。 */

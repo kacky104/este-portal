@@ -23,6 +23,7 @@ import {
   type RelayRequest,
   type RelayResponse,
 } from '@/lib/relayJob';
+import type { RelayMultipart } from '@/lib/relayMultipart';
 
 /** 何回まで投げ直すか。★ 相手のアカウントが凍る形の事故を避けるため、少なくしてある（§17-1）。 */
 export const MAX_ATTEMPTS = 3;
@@ -43,6 +44,10 @@ export type RelayPurpose =
   // ★ エステラブの段（第78便）。★ 駅ちかの段名と分けている
   | 'esulove_login'
   | 'esulove_therapists'
+  // ★ 写真の段（第107便）。★ upload_photo だけがファイル付き
+  | 'read_photo_page'
+  | 'upload_photo'
+  | 'crop_photo'
   | 'selftest';
 
 export type LeasedJob = {
@@ -81,6 +86,8 @@ export async function enqueueRelayJob(params: {
    * ★ 単発のジョブ（selftest）には無い。無いジョブは「フローに属していない」という意味になる。
    */
   context?: unknown;
+  /** ★ ファイル付き POST（第106便）。★ 検査は buildRelayRequest → assertRelayMultipart */
+  multipart?: RelayMultipart;
 }): Promise<{ ok: true; jobId: string } | { ok: false; reason: 'busy'; detail: string }> {
   // ★ 積む前に検査する。DBに入ってから弾くのでは、消し忘れた行が残る
   const request = buildRelayRequest({
@@ -88,6 +95,7 @@ export async function enqueueRelayJob(params: {
     url: params.url,
     ...(params.headers ? { headers: params.headers } : {}),
     ...(params.body !== undefined ? { body: params.body } : {}),
+    ...(params.multipart !== undefined ? { multipart: params.multipart } : {}),
   });
 
   const supabase = createServiceClient();

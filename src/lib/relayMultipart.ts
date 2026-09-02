@@ -112,3 +112,12 @@ export function assertRelayFileUrl(url: string): URL {
   if (u.pathname !== RELAY_FILE_PATH_PREFIX) fail('取りに行く口ではない: ' + u.pathname.slice(0, 60));
   return u;
 }
+
+/** ★ フクエスの口の URL を組む（★ 取り先はここで組んだものしか通らない）。 */
+export function relayFileUrl(bucket: string, path: string): string {
+  if (!/^[a-z][a-z0-9\-]{1,40}$/.test(bucket)) throw new Error('bucket の形が不正');
+  if (!/^[A-Za-z0-9_\-][A-Za-z0-9_\-./]{0,200}$/.test(path) || path.includes('..') || path.includes('//')) {
+    throw new Error('path の形が不正');
+  }
+  return 'https://' + RELAY_FILE_HOSTS[0] + RELAY_FILE_PATH_PREFIX + '?bucket=' + encodeURIComponent(bucket) + '&path=' + encodeURIComponent(path);
+}

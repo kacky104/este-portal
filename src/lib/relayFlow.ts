@@ -48,6 +48,22 @@ import {
 } from './ekichikaDiaryParse';
 import { mergeCookies } from './relayJob';
 import { RELAY_USER_AGENT } from './relayUserAgent';
+// ★ 写真の送信（第107便）。★ 既存の段には触れず、段名を分けて足す
+import {
+  parsePhotoPage,
+  parsePhotoJson,
+  buildUploadFields,
+  buildMainCropFields,
+  buildThumbCropFields,
+  centeredMainCrop,
+  ekichikaGirlEditUrl,
+  isPhotoSlot,
+  THUMB_DEFAULT_RECT,
+  EKICHIKA_PHOTO_UPLOAD_URL,
+  EKICHIKA_PHOTO_CROP_URL,
+  type Rect,
+} from './ekichikaPhoto';
+import { relayFileUrl, type RelayMultipart } from './relayMultipart';
 // ★ エステラブ（第78便）。★ 駅ちかの段には一切触れず、別の段名で足す
 import { buildEsuloveTherapistListRequest, judgeEsuloveLogin, ESULOVE_THERAPIST_URL } from './esuloveRequests';
 import { parseEsuloveTherapists, duplicateNames, type EsuloveTherapistRow } from './esuloveTherapistParse';
@@ -150,7 +166,16 @@ export type RelayFlowIntent =
    *     管理画面に入る道は中継フローだけ。★ 口を分けると **ログインの段が2系統になる**。
    *     ★ 片方だけ直す日が必ず来る。
    */
-  | 'diary_read';
+  | 'diary_read'
+  /**
+   * ★★★ 写真の送信（第107便・設計メモ_駅ちかの画像アップロード 追記 A〜E）。
+   *   login → read_photo_page → upload_photo → read_photo_page → crop_photo(3:4) → read_photo_page → crop_photo(正方形) → 終わり
+   *   ★★ **駅ちかを書き換える intent（work_push / work_auto に次ぐ3つ目）。**
+   *   ★ 写真そのものはジョブに載せない。VPS が fukues.com の口から取って multipart で投げる（第106便・案B）。
+   *   ★ POST のたびに編集ページを読み直す（★ fuel_csrf_token を毎回そのページから拾う。使い捨てでも壊れない）。
+   *   ★ 触るのは【指定した1枠】だけ。★ 枠1（トップ画像）を指定するのは呼び出し側で止める。
+   */
+  | 'photo_push';
 
 /**
  * 段と段のあいだで持ち回す状態。
@@ -202,6 +227,22 @@ export type RelayFlowContext = {
    *   ★ 応答を読むときに **パーサへ渡して突き合わせる**。★ 別の日記が返っていたら止めるため。
    */
   diaryId?: string;
+
+  // ── ここから下は intent='photo_push' のときだけ入る（第107便）──
+  /** 駅ちかの girl_id（= castId） */
+  photoGirlId?: string;
+  /** 画像の枠（image_set_id 1〜8） */
+  photoSlot?: number;
+  /** 送る写真の在処（フクエスの Storage）と寸法。★ VPS はここから取る */
+  photoFile?: { bucket: string; path: string; filename: string; contentType: string; width: number; height: number };
+  /** ②大画像の 3:4 の範囲（実寸）。無ければ中央 */
+  photoMainRect?: Rect;
+  /** ③サムネイルの正方形（300×400 の空間）。無ければ駅ちかの既定（中央 180×180） */
+  photoThumbRect?: Rect;
+  /** いまどの段のために編集ページを読みに行っているか */
+  photoStage?: 'upload' | 'crop_main' | 'crop_thumb';
+  /** 直近の応答の src（①の大画像 → ②の 3:4 → ③のサムネイル） */
+  photoSrc?: string;
 };
 
 export type FlowAudit = {
@@ -218,11 +259,15 @@ export type FlowNextRequest = {
     // ★ 写メ日記の段（第94便）。★ 読むだけ
     | 'read_diary_list' | 'read_diary_detail'
     // ★ エステラブの段（第78便）。★ 名前を分けることで、駅ちかの段の判定に一切触れない
-    | 'esulove_therapists';
+    | 'esulove_therapists'
+    // ★ 写真の段（第107便）。★ upload_photo だけがファイル付き
+    | 'read_photo_page' | 'upload_photo' | 'crop_photo';
   method: 'GET' | 'POST';
   url: string;
   headers: Record<string, string>;
   body: string;
+  /** ★ ファイル付き POST（第106便）。upload_photo のときだけ。★ 付けるときは body を空にする */
+  multipart?: RelayMultipart;
   context: RelayFlowContext;
 };
 
@@ -476,6 +521,13 @@ export function advanceFlow(input: {
       return afterEsuloveLogin(input, ctx);
     case 'esulove_therapists':
       return afterEsuloveTherapists(input, ctx);
+    // ── 写真（第107便）★ 段名で分けている。既存の case には触れていない ──
+    case 'read_photo_page':
+      return afterReadPhotoPage(input, ctx);
+    case 'upload_photo':
+      return afterUploadPhoto(input, ctx);
+    case 'crop_photo':
+      return afterCropPhoto(input, ctx);
     default:
       return stop([], '知らない段: ' + String(input.purpose));
   }
@@ -544,6 +596,15 @@ function afterLogin(
       next: buildReadDiaryListRequest({ ...ctx, cookie }, 1),
       audits: [],
       note: 'ログインの応答を受け取った。★ 成否は写メ日記の一覧が読めるかどうかで判定する',
+    };
+  }
+
+  if (ctx.intent === 'photo_push') {
+    return {
+      kind: 'next',
+      next: buildReadPhotoPageRequest({ ...ctx, cookie, photoStage: ctx.photoStage ?? 'upload' }),
+      audits: [],
+      note: 'ログインの応答を受け取った。★ 成否は女の子の編集ページが読めるかどうかで判定する',
     };
   }
 
@@ -961,6 +1022,10 @@ function finishRead(audits: FlowAudit[], ctx: RelayFlowContext, page: WorkPage):
       // ★ ここへは来ない（写メ日記は出勤ページを読みに行かない）。★ 網羅は外さない
       //   ★★ この見張りが、いま実際に働いた: diary_read を足した時点でコンパイルが止まった（第94便）
       return stop(audits, '写メ日記の取り込みは出勤ページを使わない（ここへは来ないはず）');
+    case 'photo_push':
+      // ★ ここへは来ない（写真の送信は出勤ページを読みに行かない）。★ 網羅は外さない
+      //   ★★ この見張りがまた働いた: photo_push を足した時点でコンパイルが止まった（第107便）
+      return stop(audits, '写真の送信は出勤ページを使わない（ここへは来ないはず）');
     case 'work_auto':
       // ★★★ 自動反映（第48便）。組み立てから送信までを1回のフローで閉じる。
       //   ★ 指紋は突き合わせない（人が見た内容が無い・§53）。担保は厳しい方の blockers。
@@ -1557,4 +1622,220 @@ function afterReadDiaryDetail(
     ],
     note: '日記 ' + diaryId + ' を読み取れなかった: ' + (detail.problems[0] ?? '理由なし'),
   };
+}
+
+
+// ────────────────────────── 写真の送信（第107便） ──────────────────────────
+//
+// ★★★ 3つの POST（upload / crop 3:4 / crop 正方形）のあいだに、必ず編集ページを読み直す。
+//   ★ fuel_csrf_token をそのページから拾う。★ 使い捨てでも、cookie で回っていても、どちらでも壊れない。
+//   ★ 代償は GET が2回増えるだけ。★ 写真の送信は1日に何度も無い。
+//
+// ★★ 応答は JSON。★ src が空なら message が理由（駅ちかの JS もそう読む）。
+//   ★ JSON でなければ、ログイン画面が返った可能性 → diaryLoginLost と同じ形で止める。
+
+function photoHeadersGet(ctx: RelayFlowContext): Record<string, string> {
+  return {
+    'user-agent': RELAY_USER_AGENT,
+    accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+    'accept-language': 'ja,en-US;q=0.9,en;q=0.8',
+    referer: EKICHIKA_LOGIN_URL,
+    cookie: ctx.cookie,
+  };
+}
+
+function photoHeadersPost(ctx: RelayFlowContext, urlencoded: boolean): Record<string, string> {
+  const h: Record<string, string> = {
+    'user-agent': RELAY_USER_AGENT,
+    accept: 'application/json, text/javascript, */*; q=0.01',
+    'accept-language': 'ja,en-US;q=0.9,en;q=0.8',
+    origin: EKICHIKA_ORIGIN,
+    referer: ekichikaGirlEditUrl(ctx.photoGirlId ?? '0'),
+    'x-requested-with': 'XMLHttpRequest',
+    cookie: ctx.cookie,
+  };
+  // ★ ファイル付きのときは content-type を付けない（境界は curl が付ける・第106便）
+  if (urlencoded) h['content-type'] = 'application/x-www-form-urlencoded';
+  return h;
+}
+
+/** 編集ページを読みに行く。★ photoStage が「次に何をするか」を持っている。 */
+export function buildReadPhotoPageRequest(ctx: RelayFlowContext): FlowNextRequest {
+  if (!ctx.photoGirlId) throw new Error('photoGirlId が無い');
+  return {
+    purpose: 'read_photo_page',
+    method: 'GET',
+    url: ekichikaGirlEditUrl(ctx.photoGirlId),
+    headers: photoHeadersGet(ctx),
+    body: '',
+    context: ctx,
+  };
+}
+
+function photoStop(ctx: RelayFlowContext, reason: string, summary: string, note: string): FlowOutcome {
+  return stop(
+    [{ event: 'push_photo', outcome: 'stopped', summary, detail: { reason, slot: ctx.photoSlot ?? null, flowId: ctx.flowId } }],
+    note,
+  );
+}
+
+/**
+ * 編集ページの応答。★ 読めた＝ログインできている。★ ここから photoStage に応じて次の POST を組む。
+ */
+function afterReadPhotoPage(
+  input: { status: number; headers: Record<string, string | string[]>; body: string },
+  ctx: RelayFlowContext,
+): FlowOutcome {
+  const lost = diaryLoginLost(input, ctx, '編集ページ');
+  if (lost) return lost;
+  if (input.status !== 200) {
+    return photoStop(ctx, 'http_' + input.status, '駅ちかの編集ページを開けませんでした（' + input.status + '）', '編集ページが ' + input.status);
+  }
+  const girlId = ctx.photoGirlId ?? '';
+  const slot = ctx.photoSlot;
+  const file = ctx.photoFile;
+  if (!girlId || !isPhotoSlot(slot) || !file) {
+    return photoStop(ctx, 'context_missing', '写真の送信に要る情報が揃っていません', '文脈に girlId / slot / file が無い');
+  }
+
+  const page = parsePhotoPage(input.body, girlId);
+  if (page.problems.length > 0) {
+    return stop(
+      [{ event: 'read_photo_page', outcome: 'failed', summary: '駅ちかの編集ページの形が想定と違ったため止めました', detail: { reason: page.problems[0].slice(0, 100), slot, flowId: ctx.flowId } }],
+      '編集ページが読めない: ' + page.problems.join(' / '),
+    );
+  }
+  const ids = { girlId, shopId: page.shopId, slot, csrfToken: page.csrfToken };
+  const stage = ctx.photoStage ?? 'upload';
+
+  if (stage === 'upload') {
+    // ★★ 枠に既に大画像があるかを見る。★ 上書きは呼び出し側が明示したときだけ…ではなく、
+    //   第107便では【空き枠だけ】に送る（★ 初回の実弾は空き枠→目で見る→削除、の作法）。
+    const target = page.slots.find((x) => x.slot === slot);
+    if (target && target.hasImage) {
+      return photoStop(ctx, 'slot_occupied', '指定した画像の枠（' + slot + '）には既に写真が入っているため送りませんでした', '枠 ' + slot + ' は使用中');
+    }
+    const multipart: RelayMultipart = {
+      fields: buildUploadFields(ids),
+      files: [{
+        field: 'upfile',
+        url: relayFileUrl(file.bucket, file.path),
+        filename: file.filename,
+        contentType: file.contentType,
+      }],
+    };
+    return {
+      kind: 'next',
+      next: {
+        purpose: 'upload_photo',
+        method: 'POST',
+        url: EKICHIKA_PHOTO_UPLOAD_URL,
+        headers: photoHeadersPost(ctx, false),
+        body: '',
+        multipart,
+        context: { ...ctx, photoStage: 'upload' },
+      },
+      audits: [{ event: 'read_photo_page', outcome: 'ok', detail: { slot, flowId: ctx.flowId } }],
+      note: '編集ページを読めた（枠 ' + slot + ' は空き）。★ 次は大画像のアップロード',
+    };
+  }
+
+  const src = ctx.photoSrc ?? '';
+  if (!src) return photoStop(ctx, 'no_src', '前の段の応答に画像の場所がありませんでした', 'photoSrc が無い');
+
+  if (stage === 'crop_main') {
+    const rect = ctx.photoMainRect ?? centeredMainCrop(file.width, file.height);
+    const fields = buildMainCropFields(ids, src, rect, { width: file.width, height: file.height });
+    return {
+      kind: 'next',
+      next: {
+        purpose: 'crop_photo',
+        method: 'POST',
+        url: EKICHIKA_PHOTO_CROP_URL,
+        headers: photoHeadersPost(ctx, true),
+        body: encodePayload(fields),
+        context: { ...ctx, photoStage: 'crop_main' },
+      },
+      audits: [],
+      note: '編集ページを読み直した。★ 次は大画像を 3:4 に切る（' + rect.w + '×' + rect.h + ' / 実寸 ' + file.width + '×' + file.height + '）',
+    };
+  }
+
+  // crop_thumb
+  const rect = ctx.photoThumbRect ?? { ...THUMB_DEFAULT_RECT };
+  const fields = buildThumbCropFields(ids, src, rect);
+  return {
+    kind: 'next',
+    next: {
+      purpose: 'crop_photo',
+      method: 'POST',
+      url: EKICHIKA_PHOTO_CROP_URL,
+      headers: photoHeadersPost(ctx, true),
+      body: encodePayload(fields),
+      context: { ...ctx, photoStage: 'crop_thumb' },
+    },
+    audits: [],
+    note: '編集ページを読み直した。★ 次はサムネイルを正方形に切る（' + rect.w + '×' + rect.h + ' @ 300×400）',
+  };
+}
+
+/** ①の応答。★ src と to_thumb を見て、②へ行くか③へ飛ぶかを決める。 */
+function afterUploadPhoto(
+  input: { status: number; headers: Record<string, string | string[]>; body: string },
+  ctx: RelayFlowContext,
+): FlowOutcome {
+  const lost = diaryLoginLost(input, ctx, 'アップロードの応答');
+  if (lost) return lost;
+  const j = parsePhotoJson(input.body);
+  if (j.problems.length > 0 || input.status !== 200) {
+    return photoStop(ctx, 'upload_bad_response', '駅ちかへの写真のアップロードで想定外の応答がありました（' + input.status + '）', 'upload の応答が読めない: ' + (j.problems[0] ?? input.status));
+  }
+  if (!j.src) {
+    return photoStop(ctx, 'upload_rejected', '駅ちかが写真を受け付けませんでした: ' + j.message.slice(0, 120), 'upload が断られた: ' + j.message);
+  }
+  const cookie = mergeCookies(ctx.cookie, input.headers['set-cookie'] as string | string[] | undefined) || ctx.cookie;
+  const nextStage: 'crop_main' | 'crop_thumb' = j.toThumb ? 'crop_thumb' : 'crop_main';
+  const next = buildReadPhotoPageRequest({ ...ctx, cookie, photoSrc: j.src, photoStage: nextStage });
+  return {
+    kind: 'next',
+    next,
+    audits: [{ event: 'push_photo', outcome: 'ok', summary: '駅ちかへ写真を1枚アップロードしました（切り抜きはこれから）', detail: { stage: 'upload', toThumb: j.toThumb, slot: ctx.photoSlot ?? null, flowId: ctx.flowId } }],
+    note: '大画像を上げた（to_thumb=' + (j.toThumb ? 1 : 0) + '）。★ 次は ' + (j.toThumb ? 'サムネイル' : '3:4 の切り抜き') + 'のために編集ページを読み直す',
+  };
+}
+
+/** ②③の応答。★ ②なら③へ、③なら終わり。 */
+function afterCropPhoto(
+  input: { status: number; headers: Record<string, string | string[]>; body: string },
+  ctx: RelayFlowContext,
+): FlowOutcome {
+  const lost = diaryLoginLost(input, ctx, '切り抜きの応答');
+  if (lost) return lost;
+  const j = parsePhotoJson(input.body);
+  const stage = ctx.photoStage;
+  if (j.problems.length > 0 || input.status !== 200) {
+    return photoStop(ctx, 'crop_bad_response', '駅ちかでの切り抜きで想定外の応答がありました（' + input.status + '）', 'crop の応答が読めない: ' + (j.problems[0] ?? input.status));
+  }
+  if (!j.src) {
+    return photoStop(ctx, 'crop_rejected', '駅ちかが切り抜きを受け付けませんでした: ' + j.message.slice(0, 120), 'crop が断られた: ' + j.message);
+  }
+  const cookie = mergeCookies(ctx.cookie, input.headers['set-cookie'] as string | string[] | undefined) || ctx.cookie;
+
+  if (stage === 'crop_main') {
+    const next = buildReadPhotoPageRequest({ ...ctx, cookie, photoSrc: j.src, photoStage: 'crop_thumb' });
+    return {
+      kind: 'next',
+      next,
+      audits: [{ event: 'push_photo', outcome: 'ok', summary: '大画像を 3:4 に切り抜きました（サムネイルはこれから）', detail: { stage: 'crop_main', slot: ctx.photoSlot ?? null, flowId: ctx.flowId } }],
+      note: '3:4 に切れた。★ 次はサムネイルのために編集ページを読み直す',
+    };
+  }
+  if (stage === 'crop_thumb') {
+    return {
+      kind: 'done',
+      audits: [{ event: 'push_photo', outcome: 'ok', summary: '駅ちかの画像の枠 ' + (ctx.photoSlot ?? '?') + ' に写真を1枚登録しました', detail: { stage: 'crop_thumb', slot: ctx.photoSlot ?? null, flowId: ctx.flowId } }],
+      note: 'サムネイルまで切れた。★ 枠 ' + (ctx.photoSlot ?? '?') + ' に写真が入った',
+    };
+  }
+  return photoStop(ctx, 'stage_unknown', '写真の送信の段が分からなくなったため止めました', 'photoStage が想定外: ' + String(stage));
 }
