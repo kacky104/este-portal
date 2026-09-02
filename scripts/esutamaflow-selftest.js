@@ -86,8 +86,9 @@ const people = [
   { therapistId: 10, castId: '757480', name: 'れみ', days: [{ dateISO: D[0], range: null }, { dateISO: D[1], range: { startMin: 1200, endMin: 1500 } }, { dateISO: D[2], range: null }] },
   { therapistId: 11, castId: '757481', name: 'さら', days: [{ dateISO: D[1], range: { startMin: 1260, endMin: 1440 } }] },
 ];
-const pageRemi = pageHtml('757480', [dayHtml(D[0]), dayHtml(D[1], { start: '21:00', end: '24:00', values: { '21:00': '1', '21:30': '1', '22:00': '1', '22:30': '1', '23:00': '1', '23:30': '1' } }), dayHtml(D[2])]);
-const pageSara = pageHtml('757481', [dayHtml(D[0]), dayHtml(D[1], { start: '21:00', end: '24:00', values: { '21:00': '1', '21:30': '1', '22:00': '1', '22:30': '1', '23:00': '1', '23:30': '1' } }), dayHtml(D[2])]);
+const V2124 = { '21:00': '1', '21:30': '1', '22:00': '1', '22:30': '1', '23:00': '1', '23:30': '1', '24:00': '1' };   // ★ 24:00 の枠まで ○
+const pageRemi = pageHtml('757480', [dayHtml(D[0]), dayHtml(D[1], { start: '21:00', end: '24:00', values: V2124 }), dayHtml(D[2])]);
+const pageSara = pageHtml('757481', [dayHtml(D[0]), dayHtml(D[1], { start: '21:00', end: '24:00', values: V2124 }), dayHtml(D[2])]);
 const ctxW = Object.assign({}, ctxR, { esutamaPeople: people, esutamaIndex: 0 });
 {
   const r = F.afterEsutamaWorkRead({ status: 200, headers: {}, body: pageRemi }, ctxW, NOW);
@@ -126,7 +127,7 @@ const ctxP = Object.assign({}, ctxW, { intent: 'work_push' });
   const rd = F.afterEsutamaWorkSave({ status: 200, headers: {}, body: '["REDIRECT","/login/"]' }, r.next.context);
   eq('⑤: REDIRECT はログイン切れ', rd.audits[0].detail.reason, 'back_to_login');
   // ⑥ 一致
-  const after = pageHtml('757480', [dayHtml(D[0]), dayHtml(D[1], { start: '20:00', end: '25:00', values: Object.fromEntries(AXIS.slice(0, 10).map((l) => [l, '1'])) }), dayHtml(D[2])]);
+  const after = pageHtml('757480', [dayHtml(D[0]), dayHtml(D[1], { start: '20:00', end: '25:00', values: Object.fromEntries(AXIS.slice(0, 11).map((l) => [l, '1'])) }), dayHtml(D[2])]);
   const v = F.afterEsutamaWorkVerify({ status: 200, headers: {}, body: after }, s.next.context, NOW);
   eq('⑥: 一致 → verify_work ok → 次の人', [v.kind, v.audits[0].event + ':' + v.audits[0].outcome, v.next.purpose], ['next', 'verify_work:ok', 'esutama_work_read']);
   eq('⑥: 保存人数を数える', v.next.context.esutamaSaved, 1);

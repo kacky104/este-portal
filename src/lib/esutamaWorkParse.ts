@@ -277,7 +277,10 @@ export function applyEsutamaShift(page: EsutamaWorkPage, dateISO: string, range:
   }
   const period = day.period.map((p) => {
     const t = esutamaLabelToMinutes(p.label);
-    const inside = range !== null && t !== null && t >= range.startMin && t < range.endMin;
+    // ★★★ 終了の枠も ○ にする（両端を含む）。2026-09-02 22:03 の試し打ちで判明:
+    //   エステ魂の 20:00〜25:00 は「25:00 の枠まで ○」（select_end の枠を含む。schedule.js: val_open <= val_c && val_close >= val_c）。
+    //   ★ 終了を含めないと、店舗が手で入れた表と必ず30分ずれて「変更あり」になる（4人とも +30 のずれで気づいた）。
+    const inside = range !== null && t !== null && t >= range.startMin && t <= range.endMin;
     let value = p.value;
     if (inside) {
       if (value === '0') value = '1';            // ★ 2 / 3 は残す
@@ -324,14 +327,15 @@ export function buildEsutamaPayload(page: EsutamaWorkPage): Array<[string, strin
 
 // ────────────────────────────── 見せる形 ──────────────────────────────
 
-/** 1日の ○ の範囲を "20:00〜25:00" に。○ が無ければ '─'。飛び飛びなら区間を '、' で並べる */
+/** 1日の ○ の範囲を "20:00〜25:00" に（★ 終了は最後に ○ の枠。エステ魂の表示と同じ）。○ が無ければ '─'。飛び飛びなら区間を '、' で並べる */
 export function esutamaDayLabel(day: EsutamaDay): string {
   if (day.off) return 'お休み';
   const parts: string[] = [];
   let runStart: number | null = null;
   let prev: number | null = null;
+  // ★ 終了は【最後に ○ の枠のラベル】そのもの（エステ魂の「20:00 ～ 25:00」と同じ読み。+30 しない）
   const flush = () => {
-    if (runStart !== null && prev !== null) parts.push(esutamaMinutesToLabel(runStart) + '〜' + esutamaMinutesToLabel(prev + 30));
+    if (runStart !== null && prev !== null) parts.push(esutamaMinutesToLabel(runStart) + '〜' + esutamaMinutesToLabel(prev));
     runStart = null; prev = null;
   };
   for (const p of day.period) {

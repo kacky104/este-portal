@@ -57,7 +57,8 @@ function pageHtml(days, opts) {
 const D = ['2026-09-02', '2026-09-03', '2026-09-04'];
 const html = pageHtml([
   dayHtml(D[0]),
-  dayHtml(D[1], { start: '21:00', end: '24:00', values: { '21:00': '1', '21:30': '1', '22:00': '2', '22:30': '1', '23:00': '3', '23:30': '1' } }),
+  // ★ 実物の読み: 21:00〜24:00 は「24:00 の枠まで ○」（両端を含む）
+  dayHtml(D[1], { start: '21:00', end: '24:00', values: { '21:00': '1', '21:30': '1', '22:00': '2', '22:30': '1', '23:00': '3', '23:30': '1', '24:00': '1' } }),
   dayHtml(D[2], { off: true }),
 ]);
 
@@ -69,7 +70,7 @@ eq('日を3つ読む', page.days.map((d) => d.date), D);
 eq('軸は13枠', page.axis.length, 13);
 eq('選択値（selected）を読む', [page.days[1].start, page.days[1].end], ['21:00', '24:00']);
 eq('未選択は空', [page.days[0].start, page.days[0].end], ['', '']);
-eq('period の値を読む', page.days[1].period.slice(2, 8).map((p) => p.value), ['1', '1', '2', '1', '3', '1']);
+eq('period の値を読む', page.days[1].period.slice(2, 9).map((p) => p.value), ['1', '1', '2', '1', '3', '1', '1']);
 eq('お休み checkbox', [page.days[0].off, page.days[2].off], [false, true]);
 eq('退勤の選択肢に 99:99 が入る', page.days[0].endOptions[0], '99:99');
 eq('フォーム外の select を拾わない', page.days.every((d) => d.period.length === 13), true);
@@ -114,7 +115,8 @@ eq('24時超えの入力は断る（二重に +24 しない）', K.toEsutamaRang
   const r1 = W.applyEsutamaShift(page, D[1], { startMin: 1200, endMin: 1500 });
   eq('範囲の中で 0 → 1', r1.day.period.slice(0, 2).map((p) => p.value), ['1', '1']);
   eq('範囲の中の × / TEL は残す', [r1.day.period[4].value, r1.day.period[6].value], ['2', '3']);
-  eq('範囲の外（25:00〜）は 0', r1.day.period.slice(10).map((p) => p.value), ['0', '0', '0']);
+  eq('★ 終了の枠（25:00）も ○（両端を含む・実物の読み）', r1.day.period[10].value, '1');
+  eq('範囲の外（25:30〜）は 0', r1.day.period.slice(11).map((p) => p.value), ['0', '0']);
   eq('select も揃える', [r1.day.start, r1.day.end], ['20:00', '25:00']);
   eq('変わったと言う', r1.changed, true);
   const r2 = W.applyEsutamaShift(page, D[1], null);
@@ -124,7 +126,7 @@ eq('24時超えの入力は断る（二重に +24 しない）', K.toEsutamaRang
   const r4 = W.applyEsutamaShift(page, '2026-09-20', null);
   eq('表に無い日は作らない', [r4.ok, r4.reason], [false, 'no_such_day']);
   const same = W.applyEsutamaShift(page, D[1], { startMin: 1260, endMin: 1440 });
-  eq('同じ内容なら changed=false', same.changed, false);
+  eq('同じ内容なら changed=false（21:00〜24:00 ＝ 24:00 の枠まで ○）', same.changed, false);
   eq('元のページは触っていない', page.days[1].period[0].value, '0');
 }
 
@@ -147,8 +149,8 @@ eq('24時超えの入力は断る（二重に +24 しない）', K.toEsutamaRang
 eq('○×TEL の範囲を1行に', W.esutamaDayLabel(page.days[1]), '21:00〜24:00');
 eq('○ が無ければ ─', W.esutamaDayLabel(page.days[0]), '─');
 eq('お休みは お休み', W.esutamaDayLabel(page.days[2]), 'お休み');
-eq('飛び飛びは区間で並べる', W.esutamaDayLabel({ off: false, period: [{ label: '20:00', value: '1' }, { label: '20:30', value: '0' }, { label: '21:00', value: '1' }] }), '20:00〜20:30、21:00〜21:30');
-eq('○ の数', W.countEsutamaWorking(page), 4);
+eq('飛び飛びは区間で並べる（終了は最後に ○ の枠）', W.esutamaDayLabel({ off: false, period: [{ label: '20:00', value: '1' }, { label: '20:30', value: '0' }, { label: '21:00', value: '1' }] }), '20:00〜20:00、21:00〜21:00');
+eq('○ の数', W.countEsutamaWorking(page), 5);
 
 // ── 名簿 ──
 {
@@ -230,7 +232,7 @@ eq('知らない札は unknown', P.parseEsutamaJson('["NG"]').kind, 'unknown');
   const ap = L.applyEsutamaPerson(page, plan.people[0]);
   eq('適用: 9/3 が 21:00〜24:00 → 20:00〜25:00', ap.diff.changes, [{ dateISO: D[1], before: '21:00〜24:00', after: '20:00〜25:00' }]);
   eq('適用: お休みの 9/4 は skipped', ap.diff.skipped.map((s) => s.reason), ['day_off_on_media']);
-  eq('適用: ○ の数 4 → 8', [ap.diff.workingBefore, ap.diff.workingAfter], [4, 8]);
+  eq('適用: ○ の数 5 → 9（20:00〜25:00 は 20:00..25:00 の11枠。×/TEL の2枠は残す）', [ap.diff.workingBefore, ap.diff.workingAfter], [5, 9]);
   eq('適用: changed', ap.diff.changed, true);
   eq('適用: 元の page は触らない', page.days[1].start, '21:00');
   const again = L.applyEsutamaPerson(ap.page, plan.people[0]);
