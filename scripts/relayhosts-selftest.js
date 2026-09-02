@@ -59,9 +59,9 @@ if (fukues && vps) {
   eq('★ スキームを書かない（ホスト名だけ）', sortU(fukues).some((h) => h.includes('/')), false);
   eq('★ ポートを書かない', sortU(fukues).some((h) => h.includes(':')), false);
 
-  // ★ いま許しているのはこの2つだけ。★ 増やすときはここも直す（気づかず増えないように）
-  eq('★ いま許しているのは駅ちかとエステラブだけ',
-    sortU(fukues), ['eslove.jp', 'ranking-deli.jp']);
+  // ★ いま許しているのはこの3つだけ。★ 増やすときはここも直す（気づかず増えないように）
+  eq('★ いま許しているのは駅ちか・エステラブ・エステ魂だけ（第109便）',
+    sortU(fukues), ['eslove.jp', 'estama.jp', 'ranking-deli.jp']);
 }
 
 // ── 判定の規則そのもの（両方に同じ文言でコメントがあること）──

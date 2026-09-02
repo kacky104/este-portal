@@ -67,6 +67,13 @@ import { relayFileUrl, type RelayMultipart } from './relayMultipart';
 // ★ エステラブ（第78便）。★ 駅ちかの段には一切触れず、別の段名で足す
 import { buildEsuloveTherapistListRequest, judgeEsuloveLogin, ESULOVE_THERAPIST_URL } from './esuloveRequests';
 import { parseEsuloveTherapists, duplicateNames, type EsuloveTherapistRow } from './esuloveTherapistParse';
+// ★ エステ魂の段（第109便）。★ 段の中身は esutamaFlow.ts に置き、ここは振り分けだけ
+import {
+  afterEsutamaLoginPage, afterEsutamaLogin, afterEsutamaRoster,
+  afterEsutamaWorkRead, afterEsutamaWorkSave, afterEsutamaWorkVerify,
+} from './esutamaFlow';
+import type { EsutamaPerson } from './esutamaPlan';
+import type { EsutamaRosterRow } from './esutamaParse';
 import type { AuditDetail, MediaAuditEvent, MediaAuditOutcome } from './mediaAudit';
 
 /** 駅ちかのログインフォーム（設計メモ §17-9・2026-08-27 実測）。 */
@@ -243,6 +250,19 @@ export type RelayFlowContext = {
   photoStage?: 'upload' | 'crop_main' | 'crop_thumb';
   /** 直近の応答の src（①の大画像 → ②の 3:4 → ③のサムネイル） */
   photoSrc?: string;
+
+  // ── ここから下は エステ魂（provider='esutama'）のときだけ入る（第109便）──
+  /** ログイン画面で拾った csrf。★ ログイン POST を組むまでの間だけ持つ */
+  esutamaCsrf?: string;
+  /** 送る人と日付ごとの範囲（esutamaPlan.planEsutamaWork の people）。★ 名簿を読んだあと DB 側が入れる */
+  esutamaPeople?: EsutamaPerson[];
+  /** いま何人目を処理しているか（0始まり） */
+  esutamaIndex?: number;
+  /** 保存したあと照合で確かめる「変えた日とその見た目」 */
+  esutamaExpect?: Array<{ dateISO: string; after: string }>;
+  /** 変更があった人数／保存できた人数（done のまとめ用） */
+  esutamaChanged?: number;
+  esutamaSaved?: number;
 };
 
 export type FlowAudit = {
@@ -261,7 +281,10 @@ export type FlowNextRequest = {
     // ★ エステラブの段（第78便）。★ 名前を分けることで、駅ちかの段の判定に一切触れない
     | 'esulove_therapists'
     // ★ 写真の段（第107便）。★ upload_photo だけがファイル付き
-    | 'read_photo_page' | 'upload_photo' | 'crop_photo';
+    | 'read_photo_page' | 'upload_photo' | 'crop_photo'
+    // ★ エステ魂の段（第109便）。★ 名前を分けることで、駅ちか・エステラブの段の判定に一切触れない
+    | 'esutama_login_page' | 'esutama_login' | 'esutama_roster'
+    | 'esutama_work_read' | 'esutama_work_save' | 'esutama_work_verify';
   method: 'GET' | 'POST';
   url: string;
   headers: Record<string, string>;
@@ -331,7 +354,18 @@ export type FlowOutcome =
    *   ★ ここで「次のジョブ」を返さない＝**エステラブへ何も飛ばない。**
    *   ★ warnings は必ず呼び出し側が人に見せること（黙って捨てない）。
    */
-  | { kind: 'esulove_roster'; rows: EsuloveTherapistRow[]; warnings: string[]; audits: FlowAudit[]; note: string };
+  | { kind: 'esulove_roster'; rows: EsuloveTherapistRow[]; warnings: string[]; audits: FlowAudit[]; note: string }
+  /**
+   * ★ エステ魂のログイン画面を読めた（第109便）。★ ログイン POST には認証情報が要るので、ここでは組まない。
+   *   DB 側（startRelayFlow と同じ場所）が復号して積む。★ パスワードを文脈に入れない。
+   */
+  | { kind: 'esutama_login_needed'; csrf: string; context: RelayFlowContext; audits: FlowAudit[]; note: string }
+  /**
+   * ★ エステ魂の名簿を読めた（第109便）。誰に何を送るかは DB（フクエスの出勤）を読まないと決められない。
+   *   DB 側が planEsutamaWork で people を作って文脈に入れ、1人目の出勤表 GET を積む。
+   *   ★ connect_test / roster_read のときは次を積まない＝ここで終わり。何も書き換えていない。
+   */
+  | { kind: 'esutama_roster'; rows: EsutamaRosterRow[]; warnings: string[]; context: RelayFlowContext; audits: FlowAudit[]; note: string };
 
 // ────────────────────────── フローの入口（login を組み立てる） ──────────────────────────
 
@@ -528,6 +562,19 @@ export function advanceFlow(input: {
       return afterUploadPhoto(input, ctx);
     case 'crop_photo':
       return afterCropPhoto(input, ctx);
+    // ── エステ魂（第109便）★ 段名で分けている。既存の case には触れていない ──
+    case 'esutama_login_page':
+      return afterEsutamaLoginPage(input, ctx);
+    case 'esutama_login':
+      return afterEsutamaLogin(input, ctx);
+    case 'esutama_roster':
+      return afterEsutamaRoster(input, ctx);
+    case 'esutama_work_read':
+      return afterEsutamaWorkRead(input, ctx);
+    case 'esutama_work_save':
+      return afterEsutamaWorkSave(input, ctx);
+    case 'esutama_work_verify':
+      return afterEsutamaWorkVerify(input, ctx);
     default:
       return stop([], '知らない段: ' + String(input.purpose));
   }

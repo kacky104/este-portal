@@ -48,6 +48,11 @@ import type { EkichikaGirlsPage } from '@/lib/ekichikaGirlsParse';
 import type { EkichikaMailListPage } from '@/lib/ekichikaMailListParse';
 // ★ エステラブ（第80便）。★ 送るのは次便。ここでは「ログイン → 名簿 → 計画」まで
 import { buildEsuloveLoginRequest } from '@/lib/esuloveRequests';
+// ★ エステ魂（第109便）
+import { buildEsutamaLoginPageRequest, buildEsutamaLoginRequest, buildEsutamaWorkReadRequest } from '@/lib/esutamaRequests';
+import { planEsutamaWork } from '@/lib/esutamaPlan';
+import { esutamaWindowDates, esutamaTodayISO } from '@/lib/esutamaFlow';
+import type { EsutamaRosterRow } from '@/lib/esutamaParse';
 import { planEsuloveWork } from '@/lib/esulovePlan';
 import type { EsuloveTherapistRow } from '@/lib/esuloveTherapistParse';
 
@@ -57,7 +62,8 @@ import type { EsuloveTherapistRow } from '@/lib/esuloveTherapistParse';
  * ★ 2026-08-31（第80便）でエステラブを追加。★ ただしエステラブは
  *   【ログイン → 名簿を読む → 送るとこうなるを組み立てる】まで。**まだ送らない。**
  */
-const SUPPORTED_PROVIDERS = ['ekichika', 'esulove'] as const;
+// ★ 2026-09-02（第109便）でエステ魂を追加。★ ログイン → 名簿 → 出勤表（人ごと）→ 保存 → 照合。
+const SUPPORTED_PROVIDERS = ['ekichika', 'esulove', 'esutama'] as const;
 
 /**
  * 媒体ごとの「最初の段」。
@@ -67,7 +73,12 @@ const SUPPORTED_PROVIDERS = ['ekichika', 'esulove'] as const;
 function firstStep(
   provider: string,
   cred: { shopId: string; loginId: string; password: string },
-): { purpose: 'login' | 'esulove_login'; method: 'POST'; url: string; headers: Record<string, string>; body: string } {
+): { purpose: 'login' | 'esulove_login' | 'esutama_login_page'; method: 'GET' | 'POST'; url: string; headers: Record<string, string>; body: string } {
+  if (provider === 'esutama') {
+    // ★ エステ魂は先にログイン画面を GET して csrf と Cookie を拾う（第109便）。★ 認証情報はまだ使わない
+    const r = buildEsutamaLoginPageRequest();
+    return { purpose: 'esutama_login_page', method: 'GET', url: r.url, headers: r.headers, body: '' };
+  }
   if (provider === 'esulove') {
     const r = buildEsuloveLoginRequest({ loginId: cred.loginId, password: cred.password });
     return { purpose: 'esulove_login', method: 'POST', url: r.url, headers: r.headers, body: r.body ?? '' };
@@ -306,6 +317,32 @@ export async function advanceRelayFlow(params: {
     // ★★ 次は積まない。★ この便では【送らない】。駅ちかで踏んだ順番（第43便 試し打ち → 第46便 送信）と同じ
   }
 
+  // ★★★ エステ魂のログイン画面を読めた（第109便）。★ ここで初めて認証情報を復号してログイン POST を組む。
+  //   ★ 純粋関数側は csrf と Cookie しか持っていない。パスワードは文脈に入れない（この関数の中だけ）。
+  if (outcome.kind === 'esutama_login_needed') {
+    const r = await buildEsutamaLoginStep(params, outcome.csrf, outcome.context);
+    if ('stop' in r) {
+      audits.push(...r.stop.audits);
+      note = outcome.note + ' → ' + r.stop.note;
+    } else {
+      next = r.next;
+    }
+  }
+
+  // ★★★ エステ魂の名簿を読めた（第109便）。写しを残し、intent に応じて出勤表の段へ進む。
+  //   ★ connect_test / roster_read はここで終わり（何も書き換えていない）。
+  if (outcome.kind === 'esutama_roster') {
+    if (outcome.warnings.length > 0) console.warn('[relay] エステ魂名簿の気になること:', outcome.warnings.join(' / '));
+    const snap = await saveEsutamaRoster(params, outcome.rows, outcome.context);
+    note = outcome.note + ' → ' + snap.note;
+    if (context.intent === 'work_dryrun' || context.intent === 'work_push' || context.intent === 'work_auto') {
+      const r = await planEsutama(params, outcome.rows, outcome.context);
+      audits.push(...r.audits);
+      note = note + ' → ' + r.note;
+      next = r.next ?? null;
+    }
+  }
+
   await writeAudits(params, audits, context);
 
   // ★ 接続テストの結果を、店舗が画面で見られる形にも残す（last_verified_at / last_error）
@@ -323,14 +360,22 @@ export async function advanceRelayFlow(params: {
     context.intent === 'photo_push' &&
     outcome.audits.length > 0 &&
     outcome.audits.every((a) => a.event !== 'login');
+  // ★ エステ魂のログイン POST を組めなかった（認証情報が読めない等）は stop（認証の話なので店舗に見せる）
+  const esutamaLoginFailed = outcome.kind === 'esutama_login_needed' && !next;
   const settle: 'next' | 'done' | 'stop' = next
     ? 'next'
+    : esutamaLoginFailed
+      ? 'stop'
     : outcome.kind === 'plan_work' || outcome.kind === 'roster' || outcome.kind === 'maillist'
         || outcome.kind === 'esulove_roster'
+        // ★ エステ魂（第109便）: 名簿が読めた＝ログインは成功している。計画で止まっても認証の話ではない
+        || outcome.kind === 'esutama_roster'
         || outcome.kind === 'diary_list' || outcome.kind === 'diary_detail'
         || photoStoppedButLoggedIn
       ? 'done'
-      : outcome.kind;
+      : outcome.kind === 'esutama_login_needed'
+        ? 'stop'   // ★ 上の esutamaLoginFailed で拾っている。型を閉じるためだけ
+        : outcome.kind;
   await stampCredential(params, settle, audits);
 
   if (!next) return { note };
@@ -474,6 +519,155 @@ async function saveMailList(
  * ★ 0人は保存しない。★ そもそも girlsPageUsable が 0人を通さないので、ここへは来ない。
  *   来たときに黙って空を書くと、画面が「駅ちかに誰もいない」と読める形になる。
  */
+// ══════════════════════════════════════════════════════════════════
+// ★ エステ魂（第109便）
+// ══════════════════════════════════════════════════════════════════
+
+/**
+ * ★★★ エステ魂のログイン POST を組む。**ここだけが認証情報を復号する（startRelayFlow 以外で唯一）。**
+ *   ★ 純粋関数側（esutamaFlow）には csrf と Cookie しか無い。パスワードは文脈に入れない。
+ */
+async function buildEsutamaLoginStep(
+  params: { salonId: number; provider: string; slot: number },
+  csrf: string,
+  ctx: RelayFlowContext,
+): Promise<{ next: FlowNextRequest } | { stop: { audits: FlowAudit[]; note: string } }> {
+  const supabase = createServiceClient();
+  const { data: cred, error } = await supabase
+    .from('salon_media_credentials')
+    .select('login_id, password_enc, is_enabled')
+    .eq('salon_id', params.salonId)
+    .eq('provider', params.provider)
+    .eq('slot', params.slot)
+    .maybeSingle();
+  if (error || !cred) {
+    return { stop: { audits: [{ event: 'login', outcome: 'failed', summary: 'エステ魂のログイン情報を読めませんでした', detail: { reason: 'credential_read_failed', flowId: ctx.flowId } }], note: 'ログイン情報を読めなかった: ' + (error?.message ?? '行が無い') } };
+  }
+  if (cred.is_enabled !== true) {
+    return { stop: { audits: [{ event: 'login', outcome: 'stopped', summary: 'この連携は停止中のため、ログインしませんでした', detail: { reason: 'disabled', flowId: ctx.flowId } }], note: '停止中' } };
+  }
+  const password = decryptSecret(cred.password_enc as string, { salonId: params.salonId, provider: params.provider, slot: params.slot });
+  const r = buildEsutamaLoginRequest({ loginId: String(cred.login_id ?? ''), password }, csrf, ctx.cookie);
+  return {
+    next: {
+      purpose: 'esutama_login', method: r.method, url: r.url, headers: r.headers, body: r.body ?? '',
+      // ★ csrf は POST を組んだら文脈から消す（持ち回らない）
+      context: { ...ctx, esutamaCsrf: undefined },
+    },
+  };
+}
+
+/** エステ魂の名簿の写しを残す（駅ちかの saveRoster と同じ表・同じ形）。★ 名簿画面（mediaRoster）がこれを読む */
+async function saveEsutamaRoster(
+  params: { salonId: number; provider: string; slot: number },
+  rows: EsutamaRosterRow[],
+  ctx: RelayFlowContext,
+): Promise<{ note: string }> {
+  if (rows.length === 0) return { note: '★ 0名だったので写しを残さなかった' };
+  const supabase = createServiceClient();
+  const { error } = await supabase.from('media_roster_snapshots').upsert(
+    {
+      salon_id: params.salonId,
+      provider: params.provider,
+      slot: params.slot,
+      flow_id: ctx.flowId,
+      read_at: new Date().toISOString(),
+      total: rows.length,
+      entries: rows.map((r) => ({ castId: r.castId, name: r.name })),
+    },
+    { onConflict: 'salon_id,provider,slot' },
+  );
+  if (error) {
+    console.error('[relay] エステ魂の名簿の写しを保存できなかった', params.salonId, error.message);
+    return { note: '★ 読めたが写しを保存できなかった: ' + error.message.slice(0, 120) };
+  }
+  return { note: rows.length + '名の写しを残した' };
+}
+
+/**
+ * ★★★ エステ魂: 名簿とフクエスの出勤を突き合わせ、人ごとの計画を文脈に入れて 1人目の出勤表 GET を積む。
+ *   ★ 判断は src/lib/esutamaPlan.ts（純粋関数・自己点検あり）。ここは DB を読んで渡すだけ。
+ *   ★ 送るかどうか（試し打ち／送信）は intent。段の中（esutamaFlow）が見る。
+ */
+async function planEsutama(
+  params: { salonId: number; provider: string; slot: number },
+  rosterRows: EsutamaRosterRow[],
+  ctx: RelayFlowContext,
+): Promise<{ audits: FlowAudit[]; note: string; next?: FlowNextRequest }> {
+  const flowId = ctx.flowId;
+  const supabase = createServiceClient();
+  const todayISO = esutamaTodayISO(ctx, Date.now());
+  const windowDates = esutamaWindowDates(todayISO);
+
+  const { data: therapists, error: thErr } = await supabase
+    .from('therapists')
+    .select('id, name, import_cast_id')
+    .eq('salon_id', params.salonId)
+    .eq('is_active', true);
+  if (thErr) {
+    return { audits: [{ event: 'plan_work', outcome: 'failed', summary: 'エステ魂へ送る内容を組み立てられませんでした（フクエス側の読み取りに失敗）', detail: { reason: 'therapists_read_failed', flowId } }], note: 'セラピストを読めなかった: ' + thErr.message };
+  }
+  const rows = (therapists ?? []) as Array<{ id: number; name: string | null; import_cast_id?: string | null }>;
+  const people = rows.map((t) => ({ therapistId: t.id, name: String(t.name ?? '') })).filter((t) => t.name.length > 0);
+
+  // ★ 名簿画面で結んだ番号（therapist_media_ids）。あれば名前で探さない
+  const { maps, error: castErr } = await loadCastIds(supabase, { therapists: rows, provider: params.provider, slot: params.slot });
+  if (castErr) {
+    return { audits: [{ event: 'plan_work', outcome: 'failed', summary: 'エステ魂へ送る内容を組み立てられませんでした（媒体の番号を読めませんでした）', detail: { reason: 'cast_ids_read_failed', flowId } }], note: '媒体IDを読めなかった: ' + castErr };
+  }
+  const links: Array<{ therapistId: number; castId: string }> = [];
+  for (const [tid, cid] of maps.castIdOf) if (cid) links.push({ therapistId: tid, castId: cid });
+
+  const ids = people.map((t) => t.therapistId);
+  const { data: sched, error: schErr } = ids.length
+    ? await supabase
+        .from('therapist_schedules')
+        .select('therapist_id, schedule_date, is_active, start_time, end_time')
+        .in('therapist_id', ids)
+        .gte('schedule_date', windowDates[0])
+        .lte('schedule_date', windowDates[windowDates.length - 1])
+    : { data: [] as unknown[], error: null };
+  if (schErr) {
+    return { audits: [{ event: 'plan_work', outcome: 'failed', summary: 'エステ魂へ送る内容を組み立てられませんでした（出勤の読み取りに失敗）', detail: { reason: 'schedules_read_failed', flowId } }], note: '出勤を読めなかった: ' + schErr.message };
+  }
+  const shifts = ((sched ?? []) as Array<Record<string, unknown>>).map((r) => ({
+    therapistId: r['therapist_id'] as number,
+    dateISO: String(r['schedule_date']),
+    active: r['is_active'] === true,
+    start: typeof r['start_time'] === 'string' ? r['start_time'].slice(0, 5) : null,
+    end: typeof r['end_time'] === 'string' ? r['end_time'].slice(0, 5) : null,
+  }));
+
+  const plan = planEsutamaWork({
+    roster: rosterRows.map((r) => ({ castId: r.castId, name: r.name })),
+    therapists: people,
+    shifts,
+    windowDates,
+    links,
+  });
+
+  const planAudit: FlowAudit = {
+    event: 'plan_work',
+    outcome: plan.ok ? 'ok' : 'stopped',
+    summary: plan.summary + (plan.blocked.length ? '。送らない人: ' + plan.blocked.map((b) => b.message).join(' / ').slice(0, 160) : ''),
+    detail: { people: plan.people.length, blocked: plan.blocked.length, notes: plan.notes.length, roster: rosterRows.length, targets: people.length, flowId },
+  };
+  if (plan.notes.length > 0) console.warn('[relay] エステ魂の計画の注記:', plan.notes.join(' / '));
+  if (!plan.ok) return { audits: [planAudit], note: plan.summary };
+
+  // ★ 1人目の出勤表を読みに行く。★ 以降は段の中（esutamaFlow）が人を進める
+  const first = plan.people[0];
+  const req = buildEsutamaWorkReadRequest(ctx.cookie, first.castId);
+  return {
+    audits: [planAudit],
+    note: plan.summary,
+    next: {
+      purpose: 'esutama_work_read', method: req.method, url: req.url, headers: req.headers, body: '',
+      context: { ...ctx, esutamaPeople: plan.people, esutamaIndex: 0, esutamaChanged: 0, esutamaSaved: 0 },
+    },
+  };
+}
+
 async function saveRoster(
   params: { salonId: number; provider: string; slot: number },
   page: EkichikaGirlsPage,

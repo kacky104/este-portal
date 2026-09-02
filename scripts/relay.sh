@@ -60,7 +60,8 @@ BASE, SECRET, SPAN, BACKOFF_FILE = sys.argv[1], sys.argv[2], int(sys.argv[3]), s
 # ★★★ VPS 側の allowlist。フクエス側にも同じ表がある（src/lib/relayJob.ts）。
 #   片方だけに頼らない。フクエス側が壊れても、ここで止まる。
 # ★ 2026-08-31（第80便）で eslove.jp を追加。★ フクエス側（src/lib/relayJob.ts）と同じ組にすること
-ALLOWED_HOSTS = {"ranking-deli.jp", "eslove.jp"}
+# ★ 2026-09-02（第109便）で estama.jp（エステ魂）を追加。
+ALLOWED_HOSTS = {"ranking-deli.jp", "eslove.jp", "estama.jp"}
 # ★★★ 第106便: ファイル付き POST のとき、画像を【取りに行ってよい先】。★ 宛先の表とは別（混ぜない）。
 #   ★ フクエス側（src/lib/relayMultipart.ts RELAY_FILE_HOSTS）と同じ組にすること。relayhosts の点検で突き合わせる。
 #   ★ 取りに行く口も1つに限る（/api/relay/file）。任意のURLを取りに行く道具にしない。

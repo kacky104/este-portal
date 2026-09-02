@@ -145,15 +145,19 @@ export const MEDIA_SITES: readonly MediaSite[] = [
     can: ['work'],
     slots: 2,
     readable: false,
-    accepting: false,
-    notYet: 'エステ魂へ送る仕組みを準備しています。できあがるまで、ログイン情報はお預かりしません。',
-    stageNote: '',
+    // ★★ 2026-09-02（第109便）: 仕組みができた（ログイン → 名簿 → 出勤表 → 保存 → 照合）。
+    //   ★ VPS から estama.jp が開けることを確かめてから開けた（/login/ 200・/admin/ 307。エステラブの 403 とは違う）。
+    //   ★ 実弾（work_push）はまだ運営の口からだけ。無人の自動反映は esutamaFlow.ESUTAMA_AUTO_WRITE_ENABLED（false）が止めている。
+    accepting: true,
+    notYet: '',
+    stageNote: 'ログインID欄にはエステ魂のメールアドレスを入れてください。出勤の自動反映はいま確かめているところで、まずは「試し打ち」まで使えます。',
     // ★ メールでの投稿ができない（画面にもそう書いてある）
     diaryAddressSource: 'none',
-    // ★ 実物を見ていないので決めない。★ 受け付けていないので画面には出ない
-    needsShopId: true,
-    idLabel: '店舗ID',
-    idHint: 'エステ魂の管理画面にログインするときの店舗IDです。',
+    // ★★ 実測（2026-09-02・設計メモ_エステ魂の出勤書き込み §2）: ログインはメールアドレスとパスワードの2つだけ。店舗IDは無い
+    //   ★ 画面の「ログインID」欄にメールアドレスを入れてもらう（欄の名前を変えるのは別便）
+    needsShopId: false,
+    idLabel: '',
+    idHint: '',
   },
   {
     provider: 'zenkoku',

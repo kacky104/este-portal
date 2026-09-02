@@ -48,7 +48,8 @@ type Result<T> = { ok: true; data: T } | { ok: false; error: string };
 // ★ 受け付ける媒体。★ src/lib/mediaSites.ts の accepting と揃えること（第80便でエステラブを追加）。
 //   ★ 片方だけ変えると、画面には登録フォームが出るのに server action が弾く形になる。
 //   ★ DB 側の CHECK 制約（20260831_import_sources_esulove.sql）も同じ組でそろえる。
-const PROVIDERS = ['ekichika', 'esulove'];
+//   ★ 2026-09-02（第109便）でエステ魂（esutama）を追加。★ 画面の accepting は実弾で確かめてから開ける。
+const PROVIDERS = ['ekichika', 'esulove', 'esutama'];
 
 /** その店舗を操作してよいか（オーナー本人・運営）。 */
 async function assertSalonOwner(salonId: number): Promise<Result<{ userId: string }>> {

@@ -57,8 +57,8 @@ eq('★ 読めるのは1つだけ（駅ちか）', v.MEDIA_SITES.filter((s) => s
 eq('★ 読めるのは駅ちか', v.MEDIA_SITES.find((s) => s.readable).provider, 'ekichika');
 // ★ 第80便でエステラブを開けたが、★ 第82便で閉じ直した（403・追記61 §333）。
 //   ★ 増やす／減らすときは、ここも一緒に直す
-eq('★ いま受け付けているのは駅ちかだけ',
-   v.MEDIA_SITES.filter((s) => s.accepting).map((s) => s.provider), ['ekichika']);
+eq('★ いま受け付けているのは駅ちかとエステ魂（第109便）',
+   v.MEDIA_SITES.filter((s) => s.accepting).map((s) => s.provider), ['ekichika', 'esutama']);
 // ★★ 受け付けていないサイトには、必ず理由の文がある（黙って押せない口を作らない）
 eq('★★ 受け付けないサイトには理由が書いてある',
    v.MEDIA_SITES.filter((s) => !s.accepting).every((s) => s.notYet.length > 0), true);
@@ -193,7 +193,8 @@ eq('★ エステラブは受け付けない（第82便で閉じ直した）',
 eq('★ 閉じた理由が書いてある', v.findMediaSite('esulove').notYet.length > 0, true);
 eq('★ 写メ日記は使えることも書く（全部止まったと読ませない）',
    /写メ日記/.test(v.findMediaSite('esulove').notYet), true);
-eq('★ エステ魂はまだ受け付けない', v.canRegisterSite(v.findMediaSite('esutama')), false);
+eq('★ エステ魂は受け付ける（第109便・VPS から開けることを確かめてから）', v.canRegisterSite(v.findMediaSite('esutama')), true);
+eq('★ エステ魂の注意書き（メールアドレス）が書いてある', /メールアドレス/.test(v.findMediaSite('esutama').stageNote), true);
 eq('★ 全国もまだ受け付けない', v.canRegisterSite(v.findMediaSite('zenkoku')), false);
 eq('★ accepting が 1 では受け付けない側に倒す', v.canRegisterSite(site({ accepting: 1 })), false);
 

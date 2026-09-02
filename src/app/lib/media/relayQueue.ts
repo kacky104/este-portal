@@ -48,6 +48,13 @@ export type RelayPurpose =
   | 'read_photo_page'
   | 'upload_photo'
   | 'crop_photo'
+  // ★ エステ魂の段（第109便）。★ 駅ちか・エステラブの段名と分けている
+  | 'esutama_login_page'
+  | 'esutama_login'
+  | 'esutama_roster'
+  | 'esutama_work_read'
+  | 'esutama_work_save'
+  | 'esutama_work_verify'
   | 'selftest';
 
 export type LeasedJob = {
