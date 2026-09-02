@@ -23,9 +23,12 @@
 // ★ 30分刻みへの寄せは timeSnap.ts を共用する（駅ちかと同じ判断・追記49）。2か所に書かない。
 
 import { snapInward, snapNote, minutesLabel } from './timeSnap';
+import { DAY_START_HOUR } from './dutyStatus';
 
-/** エステラブの1日の始まり（分）。★ 6:00。フクエスの営業日と同じ。 */
-export const ESULOVE_DAY_START_MIN = 6 * 60;
+/** エステラブの1日の始まり（分）。★ 6:00。フクエスの営業日と同じ。
+ *  ★ 第104便: 数字を自前で持つのをやめ、dutyStatus から借りる（★ 6 を3か所に書かない）。
+ *  ★ 駅ちか側（workPlan.toBusinessDayMinutes）も同じ物差し。 */
+export const ESULOVE_DAY_START_MIN = DAY_START_HOUR * 60;
 /** エステラブの1日の終わり（分）。★ 3000＝翌6:00。 */
 export const ESULOVE_DAY_END_MIN = 30 * 60;
 

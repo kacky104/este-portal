@@ -31,6 +31,7 @@ import {
   type WorkPage,
 } from './ekichikaWorkParse';
 import { snapInward, snapNote } from './timeSnap';
+import { DAY_START_HOUR } from './dutyStatus';
 
 /** フクエス側の1人1日ぶんの出勤。therapist_schedules の1行に対応する。 */
 export type FukuesShift = {
@@ -182,17 +183,10 @@ export function toEkichikaRange(
   start: string,
   end: string,
 ): { ok: true; start: string; end: string; snappedNote: string | null } | { ok: false; reason: string } {
-  let s: number, e: number;
-  try {
-    s = ekichikaTimeToMinutes(start);
-    e = ekichikaTimeToMinutes(end);
-  } catch (err) {
-    return { ok: false, reason: (err as Error).message };
-  }
-  // ★ 等しいものは「静かに解釈を足さない」。24時間勤務と決めつけない（§157 のまま）
-  if (e === s) return { ok: false, reason: '開始と終了が同じ時刻（' + start + '）' };
-  const endMin = e > s ? e : e + 24 * 60;
-  if (endMin > 47 * 60 + 59) return { ok: false, reason: '終了が遠すぎる（' + start + '〜' + end + '）' };
+  const b = toBusinessDayMinutes(start, end);
+  if (!b.ok) return b;
+  const s = b.startMin;
+  const endMin = b.endMin;
 
   const snapped = snapInward(s, endMin);
   if (!snapped.ok) return { ok: false, reason: snapped.reason };
@@ -217,6 +211,38 @@ export function toEkichikaRange(
  *       静かに解釈を足さない。
  */
 export function toEkichikaEnd(start: string, end: string): { ok: true; value: string } | { ok: false; reason: string } {
+  const b = toBusinessDayMinutes(start, end);
+  if (!b.ok) return b;
+  return { ok: true, value: minutesToEkichikaTime(b.endMin) };
+}
+
+/**
+ * ★★★ フクエスの素の時刻（0:00〜23:59）を、駅ちかの【営業日の中の位置】に直す（第104便）。
+ *
+ * ★★★ なぜ要るか —— §272 の宿題。2026-09-02 に駅ちかの実物で確かめた（ひなこ様・enju）
+ *   ```
+ *   駅ちかの個人ページ   09/03(木)  翌1:00 ▼ 翌6:00     ★ 開始にも「翌」が付く
+ *   フクエス             schedule_date=09/03 / 01:00〜06:00
+ *   ```
+ *   ★ 駅ちかの1行は【6時始まりの営業日】。★ フクエスも同じ（dutyStatus.ts DAY_START_HOUR=6）。
+ *   ★ だから【読む向き】はずれていない（09/03 の行の翌1:00 ＝ 09/04 の 1:00 ＝ フクエスも同じ意味）。
+ *   ★★ だが【書く向き】は、01:00 をそのまま "01:00" で送っていた。
+ *     駅ちかの 09/03 の行で "01:00" は 09/03 の朝1時（営業日の外）。★ 正しくは "25:00"（翌1:00）。
+ *   ★ 一度も送っていないので実害はゼロ。★ 送る前に見つかった。
+ *
+ * ★★ 物差しはこれ1本。★ toEkichikaRange と toEkichikaEnd の両方がここを通る。
+ *   ★ 2つの関数が別々の解釈を持つと、片方だけ直した日に嘘になる。
+ *
+ * ★ 6:00 より前の開始は【翌】（+24時間）。★ 6:00 ちょうどは当日（境界・§271 と同じ）。
+ * ★ 終了は開始より後になるまで +24時間。★ 06:00 終わりは 30:00（翌6:00）になる。
+ *   ★ 30:00 が駅ちかの選択肢に無ければ、呼び出し側の canSelect で止まる（第43便の守り）。
+ * ★ 24時超えの表記（25:00 など）が【入力】に来たら断る。★ それはフクエスの値ではない。
+ *   ★ 通すと、+24 が二重に掛かって丸1日ずれる。
+ */
+export function toBusinessDayMinutes(
+  start: string,
+  end: string,
+): { ok: true; startMin: number; endMin: number } | { ok: false; reason: string } {
   let s: number, e: number;
   try {
     s = ekichikaTimeToMinutes(start);
@@ -224,10 +250,22 @@ export function toEkichikaEnd(start: string, end: string): { ok: true; value: st
   } catch (err) {
     return { ok: false, reason: (err as Error).message };
   }
+  // ★ 入力はフクエスの素の時刻。24時超えは受け取らない（+24 が二重に掛かる）
+  if (s >= 24 * 60 || e >= 24 * 60) {
+    return { ok: false, reason: '24時超えの表記はフクエスの値ではない（' + start + '〜' + end + '）' };
+  }
+  // ★ 等しいものは「静かに解釈を足さない」。24時間勤務と決めつけない（§157 のまま）
   if (e === s) return { ok: false, reason: '開始と終了が同じ時刻（' + start + '）' };
-  const minutes = e > s ? e : e + 24 * 60;
-  if (minutes > 47 * 60 + 59) return { ok: false, reason: '終了が遠すぎる（' + start + '〜' + end + '）' };
-  return { ok: true, value: minutesToEkichikaTime(minutes) };
+
+  const dayStart = DAY_START_HOUR * 60;
+  // ★ 営業日の中の位置。6:00 より前は【翌】
+  const startMin = s < dayStart ? s + 24 * 60 : s;
+  let endMin = e < dayStart ? e + 24 * 60 : e;
+  // ★ それでも開始以下なら、もう1日先（10:00〜06:00 → 10:00〜30:00 など）
+  if (endMin <= startMin) endMin += 24 * 60;
+
+  if (endMin > 47 * 60 + 59) return { ok: false, reason: '終了が遠すぎる（' + start + '〜' + end + '）' };
+  return { ok: true, startMin, endMin };
 }
 
 /** 見た目が違っても同じ時刻か（"27:00" と "27:00"、前ゼロ違いなど）。 */

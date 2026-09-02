@@ -38,6 +38,43 @@ eq('★ 寄せたことを言葉で残す', wp.toEkichikaRange('20:15','02:45').
 // ★ 寄せると勤務が無くなるものは送らない（店舗が入れていない時間を足さない）
 eq('20:15〜20:30 は送らない', wp.toEkichikaRange('20:15','20:30').ok, false);
 eq('同じ時刻はこちらでも送らない', wp.toEkichikaRange('20:00','20:00').ok, false);
+
+// ── ★★★ 深夜開始は【翌】として送る（第104便・§272 の決着）──
+//   2026-09-02 に駅ちかの実物（ひなこ様・enju）で確かめた:
+//     駅ちかの 09/03 の行 … 「翌1:00 ▼ 翌6:00」 ★ 開始にも「翌」が付く
+//     フクエス            … schedule_date=09/03 / 01:00〜06:00
+//   ★ 駅ちかの1行は【6時始まりの営業日】。フクエスも同じ（dutyStatus DAY_START_HOUR=6）。
+//   ★ 読む向きはずれていない。★ 書く向きだけ、01:00 をそのまま送っていた → 25:00 に直す。
+eq('★★★ 01:00〜06:00 → 25:00〜30:00（翌1:00〜翌6:00）', wp.toEkichikaRange('01:00','06:00'),
+  {ok:true, start:'25:00', end:'30:00', snappedNote:null});
+eq('★★ 00:00〜05:00 → 24:00〜29:00', [wp.toEkichikaRange('00:00','05:00').start, wp.toEkichikaRange('00:00','05:00').end],
+  ['24:00','29:00']);
+eq('★ 05:30〜06:00 も翌（境界の手前）', [wp.toEkichikaRange('05:30','06:00').start, wp.toEkichikaRange('05:30','06:00').end],
+  ['29:30','30:00']);
+eq('★ 06:00 ちょうどは当日（境界・§271 と同じ）', wp.toEkichikaRange('06:00','12:00'),
+  {ok:true, start:'06:00', end:'12:00', snappedNote:null});
+eq('★ 06:30 は当日', wp.toEkichikaRange('06:30','12:00').start, '06:30');
+eq('★ 22:00〜06:00 は 22:00〜30:00（翌6:00終わり）', [wp.toEkichikaRange('22:00','06:00').start, wp.toEkichikaRange('22:00','06:00').end],
+  ['22:00','30:00']);
+eq('★ 10:00〜06:00 は 10:00〜30:00（開店から翌6:00）', wp.toEkichikaRange('10:00','06:00').end, '30:00');
+// ★ 既存の日跨ぎ（夜に始まって朝に終わる）は今までどおり
+eq('★ 20:00〜03:00 は変わらず 20:00〜27:00', [wp.toEkichikaRange('20:00','03:00').start, wp.toEkichikaRange('20:00','03:00').end],
+  ['20:00','27:00']);
+eq('★ 10:00〜18:00 も変わらず', [wp.toEkichikaRange('10:00','18:00').start, wp.toEkichikaRange('10:00','18:00').end],
+  ['10:00','18:00']);
+// ★★ toEkichikaEnd も同じ物差し（★ 2つの関数が別々の解釈を持たない）
+eq('★★ toEkichikaEnd も 01:00〜06:00 → 30:00', wp.toEkichikaEnd('01:00','06:00'), {ok:true, value:'30:00'});
+eq('★★ toEkichikaEnd も 22:00〜06:00 → 30:00', wp.toEkichikaEnd('22:00','06:00'), {ok:true, value:'30:00'});
+eq('★ toEkichikaRange と toEkichikaEnd の終了が一致（8通り）',
+  [['01:00','06:00'],['00:00','05:00'],['20:00','03:00'],['10:00','18:00'],['22:00','06:00'],['06:00','12:00'],['05:30','06:00'],['10:00','06:00']]
+    .every(([a,b]) => wp.toEkichikaRange(a,b).end === wp.toEkichikaEnd(a,b).value), true);
+// ★★ 24時超えの表記を【入力】に渡したら断る（★ +24 が二重に掛かって丸1日ずれるのを防ぐ）
+eq('★★ 入力の 25:00 は断る', wp.toEkichikaRange('25:00','30:00').ok, false);
+eq('★ 断る理由が言葉で出る', wp.toEkichikaRange('20:00','27:00').ok === false && /フクエスの値ではない/.test(wp.toEkichikaRange('20:00','27:00').reason), true);
+eq('★ 深夜開始の同時刻も送らない', wp.toEkichikaRange('01:00','01:00').ok, false);
+eq('★ 深夜開始でも寄せは効く（01:15〜05:45 → 25:30〜29:30）',
+  [wp.toEkichikaRange('01:15','05:45').start, wp.toEkichikaRange('01:15','05:45').end], ['25:30','29:30']);
+eq('★ 営業日の物差しは dutyStatus と同じ6時', wp.toBusinessDayMinutes('05:59','12:00').ok && wp.toBusinessDayMinutes('05:59','12:00').startMin, 5*60+59+24*60);
 eq('日付の足し算(月跨ぎ)', wp.addDaysISO('2026-08-30', 3), '2026-09-02');
 
 // ── ページの雛形（2人×7日）──
@@ -219,7 +256,10 @@ eq('⑩ 変更0件なら空の指紋', wp.planFingerprint(wp.buildWorkPlan({page
   const shiftsAll = [];
   for (let t = 1; t <= 10; t++)
     for (let d = 0; d < 7; d++)
-      shiftsAll.push({therapistId:t, dateISO: wp.addDaysISO(today,d), active:true, start:'18:00', end:'27:00'});
+      // ★ 第104便で '27:00' → '03:00' に直した。★ フクエスは素の時刻で持つ（日跨ぎでも 18:00〜03:00）。
+      //   駅ちか流の 27:00 を入力に渡すと「フクエスの値ではない」で断られる（★ +24 が二重に掛かるのを防ぐ守り）。
+      //   ★ 見たい中身（70枠すべて時刻が変わる・自動は止まる）は変えていない。
+      shiftsAll.push({therapistId:t, dateISO: wp.addDaysISO(today,d), active:true, start:'18:00', end:'03:00'});
   const manual = wp.buildWorkPlan({page: page2, todayISO: today, shifts: shiftsAll, castIdOf: cast2});
   const auto   = wp.buildWorkPlan({page: page2, todayISO: today, shifts: shiftsAll, castIdOf: cast2, unattended: true});
   eq('⑬ 70枠すべて時刻が変わる', auto.changes.length, 70);
