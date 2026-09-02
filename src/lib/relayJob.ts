@@ -21,6 +21,7 @@
 
 import zlib from 'node:zlib';
 import { encryptWithAad, decryptWithAad } from './mediaCredentials';
+import { assertRelayMultipart, type RelayMultipart } from './relayMultipart';
 
 /**
  * ★ 転送を許すホスト。ここに無いものは投げない。★ VPS側（scripts/relay.sh）にも同じ表を置くこと。
@@ -66,8 +67,14 @@ export type RelayRequest = {
   method: 'GET' | 'POST';
   url: string;
   headers: Record<string, string>;
-  /** application/x-www-form-urlencoded の文字列。GET のときは空 */
+  /** application/x-www-form-urlencoded の文字列。GET のときは空。★ multipart のときも空 */
   body: string;
+  /**
+   * ★ 第106便: ファイル付き POST（multipart/form-data）。無ければ従来どおり body を送る。
+   *   ★ 画像そのものは載せない。VPS が files[].url（fukues.com だけ）から取って投げる。
+   *   ★ 検査は src/lib/relayMultipart.ts。★ 封じる前と開けた後の両方で通す。
+   */
+  multipart?: RelayMultipart;
 };
 
 export type RelayResponse = {
@@ -173,6 +180,8 @@ export function buildRelayRequest(input: {
   url: string;
   headers?: Record<string, string>;
   body?: string;
+  /** ★ ファイル付き POST。付けるときは body を空にし、content-type を指定しない */
+  multipart?: RelayMultipart;
 }): RelayRequest {
   const method = String(input.method ?? '').toUpperCase();
   if (method !== 'GET' && method !== 'POST') {
@@ -187,7 +196,21 @@ export function buildRelayRequest(input: {
   if (method === 'GET' && body.length > 0) {
     throw new Error('GET にボディを付けない');
   }
-  return { method, url: input.url, headers: filterRequestHeaders(input.headers ?? {}), body };
+  const headers = filterRequestHeaders(input.headers ?? {});
+
+  if (input.multipart === undefined) {
+    return { method, url: input.url, headers, body };
+  }
+
+  // ── ★ ファイル付き POST（第106便）──
+  if (method !== 'POST') throw new Error('ファイル付きは POST だけ');
+  if (body.length > 0) throw new Error('ファイル付きのときは body を空にする（項目は multipart.fields へ）');
+  if ('content-type' in headers) {
+    // ★ 境界（boundary）は curl が付ける。こちらで指定すると壊れる
+    throw new Error('ファイル付きのときは content-type を指定しない');
+  }
+  const multipart = assertRelayMultipart(input.multipart);
+  return { method, url: input.url, headers, body, multipart };
 }
 
 /** DBに入れる形（暗号化済み文字列）にする。 */
@@ -200,6 +223,13 @@ export function openRequest(sealed: string, jobId: string): RelayRequest {
   // ★ 復号できても、もう一度 allowlist を通す。
   //   DBが書き換えられた場合に、暗号化されているという理由だけで信用しないため。
   assertAllowedUrl(req.url);
+  // ★ 同じ理由で、ファイル付きなら取り先ももう一度検査する（★ DB を信用しない）
+  if (req.multipart !== undefined) {
+    req.multipart = assertRelayMultipart(req.multipart);
+    if (req.method !== 'POST' || req.body.length > 0) {
+      throw new Error('ファイル付きの形が壊れている（POST ではない・body がある）');
+    }
+  }
   return req;
 }
 

@@ -61,6 +61,13 @@ BASE, SECRET, SPAN, BACKOFF_FILE = sys.argv[1], sys.argv[2], int(sys.argv[3]), s
 #   片方だけに頼らない。フクエス側が壊れても、ここで止まる。
 # ★ 2026-08-31（第80便）で eslove.jp を追加。★ フクエス側（src/lib/relayJob.ts）と同じ組にすること
 ALLOWED_HOSTS = {"ranking-deli.jp", "eslove.jp"}
+# ★★★ 第106便: ファイル付き POST のとき、画像を【取りに行ってよい先】。★ 宛先の表とは別（混ぜない）。
+#   ★ フクエス側（src/lib/relayMultipart.ts RELAY_FILE_HOSTS）と同じ組にすること。relayhosts の点検で突き合わせる。
+#   ★ 取りに行く口も1つに限る（/api/relay/file）。任意のURLを取りに行く道具にしない。
+FILE_HOSTS = {"fukues.com"}
+FILE_PATH = "/api/relay/file"
+FILE_MAX_BYTES = 10 * 1024 * 1024   # 駅ちかの画面の注記「10MB 以下」
+FILE_TMP = "/tmp/relay.f"
 MAX_TIME = 30          # 1リクエストの上限（秒）
 BACKOFF_SEC = 1800     # 429/5xx を見たら30分引く
 IDLE_SLEEP = 5         # ジョブが無いときの待ち
@@ -95,6 +102,33 @@ def check_url(url):
         return "許可していない宛先: %s" % u.hostname
     return None
 
+def check_file_url(url):
+    """★ 画像の取り先の検査。フクエス側（relayMultipart.ts）と同じ規則。"""
+    u = urlparse(url)
+    if u.scheme != "https":      return "https 以外から取らない: %s" % u.scheme
+    if u.username or u.password: return "ユーザー情報つきURLから取らない"
+    if u.port:                   return "ポート指定つきURLから取らない"
+    if u.hostname not in FILE_HOSTS:
+        return "取りに行ってよい先ではない: %s" % u.hostname
+    if u.path != FILE_PATH:
+        return "取りに行く口ではない: %s" % u.path[:60]
+    return None
+
+def fetch_file(url, dest):
+    """★ フクエスから画像を1つ取ってくる。★ 中身は見ない。サイズだけ守る。"""
+    try: os.remove(dest)
+    except OSError: pass
+    r = subprocess.run(
+        ["curl", "-s", "--max-time", "60", "--max-filesize", str(FILE_MAX_BYTES),
+         "-H", "Authorization: Bearer " + SECRET,
+         "-o", dest, "-w", "%{http_code}", url],
+        capture_output=True, text=True)
+    code = (r.stdout or "0").strip()
+    if code != "200":
+        raise Exception("画像を取れなかった（%s）" % code)
+    if not os.path.exists(dest) or os.path.getsize(dest) == 0:
+        raise Exception("画像が空だった")
+
 def send(job):
     """駅ちかへ1回投げて、(status, headers, body) を返す。"""
     for f in (HDR, BDY):
@@ -102,18 +136,42 @@ def send(job):
         except OSError: pass
 
     req = job["request"]
+    mp = req.get("multipart")
     args = ["curl", "-s", "--max-time", str(MAX_TIME), "-D", HDR, "-o", BDY,
             "-w", "%{http_code}", "-X", req["method"], req["url"]]
     for k, v in (req.get("headers") or {}).items():
+        # ★ ファイル付きのときは content-type を渡さない（境界は curl が付ける）
+        if mp and k.lower() == "content-type": continue
         args += ["-H", "%s: %s" % (k, v)]
     # ★ リダイレクトを追わない（-L を付けない）。302 と Location は
     #   フクエス側が見て判断する。ここで追うと「中身を理解しない」が崩れる。
     body = req.get("body") or ""
-    if req["method"] == "POST":
-        args += ["--data-binary", "@-"]
-        r = subprocess.run(args, input=body, capture_output=True, text=True)
-    else:
-        r = subprocess.run(args, capture_output=True, text=True)
+    tmpfiles = []
+    try:
+        if mp:
+            # ── ★ 第106便: ファイル付き POST。フクエスから取って -F で投げる ──
+            #   ★ 文字の項目は --form-string（★ -F だと先頭の @ や < がファイル扱いになる）
+            for k, v in (mp.get("fields") or {}).items():
+                args += ["--form-string", "%s=%s" % (k, v)]
+            for i, f in enumerate(mp.get("files") or []):
+                ng = check_file_url(f["url"])
+                if ng: raise Exception("画像の取り先を拒否: " + ng)
+                dest = FILE_TMP + str(i)
+                fetch_file(f["url"], dest)
+                tmpfiles.append(dest)
+                # ★ filename と type はフクエス側で英数字に限ってある（; や " が入らない）
+                args += ["-F", "%s=@%s;type=%s;filename=%s" % (f["field"], dest, f["contentType"], f["filename"])]
+            r = subprocess.run(args, capture_output=True, text=True)
+        elif req["method"] == "POST":
+            args += ["--data-binary", "@-"]
+            r = subprocess.run(args, input=body, capture_output=True, text=True)
+        else:
+            r = subprocess.run(args, capture_output=True, text=True)
+    finally:
+        # ★ 画像を VPS に残さない（秘密ではないが、置き場を作らない）
+        for t in tmpfiles:
+            try: os.remove(t)
+            except OSError: pass
 
     code = (r.stdout or "0").strip()
     status = int(code) if code.isdigit() else 0

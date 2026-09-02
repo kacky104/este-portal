@@ -69,5 +69,34 @@ eq('★ フクエス側に「前方一致・後方一致で判定しない」の
   /前方一致・後方一致で判定しない/.test(ts), true);
 eq('★ VPS側にも同じ注意がある', /前方一致・後方一致で書かないこと/.test(sh), true);
 
+// ── ★★★ 第106便: 画像の【取り先】の表も2か所でそろっているか（★ 宛先の表とは別の表）──
+//   フクエス側  src/lib/relayMultipart.ts   RELAY_FILE_HOSTS / RELAY_FILE_PATH_PREFIX
+//   VPS 側      scripts/relay.sh            FILE_HOSTS / FILE_PATH
+{
+  const mp = fs.readFileSync(path.join(root, 'src/lib/relayMultipart.ts'), 'utf8');
+  const mpM = /RELAY_FILE_HOSTS:\s*readonly string\[\]\s*=\s*\[([^\]]*)\]/.exec(mp);
+  const fukuesFile = mpM ? mpM[1].split(',').map((x) => x.trim().replace(/^['"]|['"]$/g, '')).filter(Boolean) : null;
+  const shFM = /FILE_HOSTS\s*=\s*\{([^}]*)\}/.exec(sh);
+  const vpsFile = shFM ? shFM[1].split(',').map((x) => x.trim().replace(/^['"]|['"]$/g, '')).filter(Boolean) : null;
+  eq('★ フクエス側の【取り先】の表を読める', fukuesFile !== null, true);
+  eq('★ VPS側の【取り先】の表を読める', vpsFile !== null, true);
+  if (fukuesFile && vpsFile) {
+    const sortU = (a) => Array.from(new Set(a)).sort();
+    eq('★★★ 2か所の【取り先】が一致する', sortU(fukuesFile), sortU(vpsFile));
+    eq('★ 取り先は fukues.com だけ', sortU(fukuesFile), ['fukues.com']);
+    // ★★ 宛先の表と取り先の表を【混ぜていない】（fukues.com へ投げない・駅ちかから取らない）
+    const dest = /RELAY_ALLOWED_HOSTS:\s*readonly string\[\]\s*=\s*\[([^\]]*)\]/.exec(ts);
+    const destHosts = dest ? dest[1].split(',').map((x) => x.trim().replace(/^['"]|['"]$/g, '')).filter(Boolean) : [];
+    eq('★★ 宛先の表と取り先の表が重ならない', destHosts.filter((h) => fukuesFile.includes(h)), []);
+  }
+  const pfx = /RELAY_FILE_PATH_PREFIX\s*=\s*'([^']+)'/.exec(mp);
+  const shP = /FILE_PATH\s*=\s*"([^"]+)"/.exec(sh);
+  eq('★★ 取りに行く口も2か所で一致する', pfx && pfx[1], shP && shP[1]);
+  eq('★ 口は /api/relay/file', pfx && pfx[1], '/api/relay/file');
+  // ★ VPS が文字の項目を --form-string で渡していること（-F だと先頭の @ がファイル扱いになる）
+  eq('★ VPS は文字の項目を --form-string で渡す', /--form-string/.test(sh), true);
+  eq('★ VPS はファイル付きのとき content-type を渡さない', /content-type.*continue/.test(sh), true);
+}
+
 console.log(fail === 0 ? '\nすべて通りました' : '\n' + fail + '件 失敗');
 process.exit(fail === 0 ? 0 : 1);
