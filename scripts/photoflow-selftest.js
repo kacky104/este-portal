@@ -113,7 +113,9 @@ console.log('\n── 4. 切り抜きの範囲 ──');
 eq('★ 600×800 はそのまま全体（3:4）', p.centeredMainCrop(600, 800), { x: 0, y: 0, w: 600, h: 800 });
 eq('★ 横長 1600×800 → 中央の 600×800', p.centeredMainCrop(1600, 800), { x: 500, y: 0, w: 600, h: 800 });
 eq('★ 縦長 600×1200 → 上下を削って 600×800', p.centeredMainCrop(600, 1200), { x: 0, y: 200, w: 600, h: 800 });
-eq('★ 既定のサムネイルは駅ちかの既定と同じ（60,110,180,180）', p.THUMB_DEFAULT_RECT, { x: 60, y: 110, w: 180, h: 180 });
+eq('★★ 既定のサムネイルは【上寄せ】（60,0,180,180）。★ 実弾で中央だと胴体だけになった（2026-09-02）', p.THUMB_DEFAULT_RECT, { x: 60, y: 0, w: 180, h: 180 });
+eq('★ 駅ちかの既定（中央）は参考として残す', p.EKICHIKA_THUMB_CENTER_RECT, { x: 60, y: 110, w: 180, h: 180 });
+eq('★ 上寄せは 300×400 に収まる', p.isValidThumbRect(p.THUMB_DEFAULT_RECT), true);
 eq('★ 既定は 300×400 に収まる', p.isValidThumbRect(p.THUMB_DEFAULT_RECT), true);
 eq('★ 正方形でなければ不可', p.isValidThumbRect({ x: 0, y: 0, w: 180, h: 200 }), false);
 eq('★ はみ出せば不可', p.isValidThumbRect({ x: 200, y: 0, w: 180, h: 180 }), false);
@@ -213,7 +215,7 @@ eq('★ JSON でなければ止める', (() => { const r = run('upload_photo', {
 }
 {
   const r = run('read_photo_page', { body: editPage(), context: ctx({ photoStage: 'crop_thumb', photoSrc: 'https://s3/main.jpg' }) });
-  eq('★★ 段 crop_thumb → 既定の正方形（60,110,180,180）・edt_type=2', /x=60&y=110&w=180&h=180&edt_type=2/.test(r.next.body), true);
+  eq('★★ 段 crop_thumb → 既定の正方形は上寄せ（60,0,180,180）・edt_type=2', /x=60&y=0&w=180&h=180&edt_type=2/.test(r.next.body), true);
   eq('★ sh_w/sh_h は送らない', /sh_w=/.test(r.next.body), false);
 }
 eq('★ 指定した正方形が使われる', /x=0&y=0&w=300&h=300/.test(run('read_photo_page', { body: editPage(), context: ctx({ photoStage: 'crop_thumb', photoSrc: 'https://s3/main.jpg', photoThumbRect: { x: 0, y: 0, w: 300, h: 300 } }) }).next.body), true);

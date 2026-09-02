@@ -24,8 +24,16 @@ export const PHOTO_SLOT_MAX = 8;
 
 /** ③サムネイルの座標空間（★ crop_image は width=300 height=400 で固定表示・実測）。 */
 export const THUMB_SPACE = { w: 300, h: 400 } as const;
-/** ★ 駅ちかの既定の枠（girlsupload.js の setSelect [60,110,240,290]）。★ 中央の 180×180 */
-export const THUMB_DEFAULT_RECT = { x: 60, y: 110, w: 180, h: 180 } as const;
+/**
+ * ★★ こちらの既定の正方形は【上寄せ】（2026-09-02・カッキーさんの決定）。
+ *   ★ 駅ちかの既定は中央 [60,110,240,290] だが、実弾で【全身写真だと胴体だけ】になった（レミ様・枠7）。
+ *   ★ この業界の写真はほぼ全身か上半身なので、上端から 180×180（写真の上45%・横中央）のほうが当たりが多い。
+ *   ★ 顔のアップで外れたときは、店舗様が駅ちかの「アップロード/編集」で切り抜き直す（既にある機能・一方通行）。
+ *   ★ フクエス側で範囲を決める画面（設計メモ §9 案③）は、媒体が2つになってから（第108便は保留）。
+ */
+export const THUMB_DEFAULT_RECT = { x: 60, y: 0, w: 180, h: 180 } as const;
+/** 駅ちかの既定（中央）。★ 参考のために残す。★ こちらでは使わない */
+export const EKICHIKA_THUMB_CENTER_RECT = { x: 60, y: 110, w: 180, h: 180 } as const;
 
 export type Rect = { x: number; y: number; w: number; h: number };
 

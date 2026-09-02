@@ -42,11 +42,19 @@ async function readBody(req: Request): Promise<Record<string, unknown>> {
   new URLSearchParams(text).forEach((v, k) => { o[k] = v; });
   if (o.apply === 'true') o.apply = true;         // ★ 文字の true を真偽に（form では文字で来る）
   for (const k of ['thumbRect', 'mainRect']) {
-    if (typeof o[k] === 'string') { try { o[k] = JSON.parse(o[k] as string); } catch { delete o[k]; } }
+    // ★ JSON なら開く。★ "60,0,180,180" の形は readRect が読むのでそのまま残す
+    if (typeof o[k] === 'string' && /^\s*[{[]/.test(o[k] as string)) {
+      try { o[k] = JSON.parse(o[k] as string); } catch { delete o[k]; }
+    }
   }
   return o;
 }
 function readRect(v: unknown): Rect | null {
+  // ★ "60,0,180,180" の形でも受ける（★ PowerShell → ssh で JSON の " が壊れるため。第107便の実弾で要った）
+  if (typeof v === 'string' && /^\s*\d+\s*,\s*\d+\s*,\s*\d+\s*,\s*\d+\s*$/.test(v)) {
+    const [x, y, w, h] = v.split(',').map((t) => Number(t.trim()));
+    return { x, y, w, h };
+  }
   if (!v || typeof v !== 'object') return null;
   const r = v as Record<string, unknown>;
   const n = (k: string) => Number(r[k]);
