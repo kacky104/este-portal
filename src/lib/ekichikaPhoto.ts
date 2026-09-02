@@ -50,6 +50,19 @@ export type PhotoPage = {
   problems: string[];
 };
 
+/**
+ * ★★★ 枠に【本物の写真】が入っているか（2026-09-02・レミ様の実物で確認）。
+ *   ★ 駅ちかは空き枠に仮画像 `…/files.ranking-deli.jp/noimage2.jpg` を入れる。★ 空文字ではない。
+ *   ★ 最初の実装は「image が空なら空き」だったので、23人全員が「8枠すべてあり」に見えた。
+ *   → 空き ＝ 空文字 か noimage の仮画像。★ それ以外（知らない形も）は「あり」＝送らない側に倒す。
+ */
+export function slotHasPhoto(imageValue: string): boolean {
+  const v = String(imageValue ?? '').trim();
+  if (v === '') return false;
+  if (/\/noimage[^/]*\.(jpe?g|png|gif)(\?.*)?$/i.test(v)) return false;
+  return true;
+}
+
 function attr(tag: string, name: string): string | null {
   const m = new RegExp('\\s' + name + '\\s*=\\s*"([^"]*)"', 'i').exec(tag) ?? new RegExp("\\s" + name + "\\s*=\\s*'([^']*)'", 'i').exec(tag);
   return m ? m[1] : null;
@@ -81,7 +94,7 @@ export function parsePhotoPage(html: string, expectGirlId: string): PhotoPage {
     if (!girlId && kv.get('id')) girlId = kv.get('id') ?? '';
     // ★ 既存画像の切り抜き直し form（edt_type=2）の image が、その枠の大画像の在処
     if (kv.get('edt_type') === '2') {
-      slotMap.set(setId, (kv.get('image') ?? '') !== '');
+      slotMap.set(setId, slotHasPhoto(kv.get('image') ?? ''));
     } else if (!slotMap.has(setId)) {
       slotMap.set(setId, false);
     }

@@ -71,6 +71,18 @@ console.log('\n── 2. 編集ページの読み取り ──');
   eq('★ ログイン画面（画像の form が無い）は problems', p.parsePhotoPage(LOGIN_PAGE, GIRL).problems.length > 0, true);
   eq('★ 埋め込みの他社ログイン form を画像の form と取り違えない', pg.slots.every((s) => p.isPhotoSlot(s.slot)), true);
 }
+console.log('\n── 2-2. ★★★ 空き枠は「空」ではなく仮画像（2026-09-02・実物で確認）──');
+eq('★★★ noimage2.jpg は【空き】', p.slotHasPhoto('https://s3-ap-northeast-1.amazonaws.com/files.ranking-deli.jp/noimage2.jpg'), false);
+eq('★ noimage.jpg も空き', p.slotHasPhoto('https://x/files.ranking-deli.jp/noimage.jpg'), false);
+eq('★ 空文字も空き', p.slotHasPhoto(''), false);
+eq('★ 本物の写真は【あり】', p.slotHasPhoto('https://s3-ap-northeast-1.amazonaws.com/files.ranking-deli.jp/37168/5232204/img6_20260510224402.jpg'), true);
+eq('★★ 知らない形は【あり】（送らない側に倒す）', p.slotHasPhoto('https://cdn.example.com/whatever.jpg'), true);
+eq('★ 名前に noimage を含むだけの本物は【あり】（ファイル名の頭が noimage のときだけ空き）', p.slotHasPhoto('https://x/37168/5232204/img3_noimage_20260510.jpg'), true);
+{
+  const html = editPage({ occupied: [1, 2] }).replace(/name="image" value=""/g, 'name="image" value="https://s3-ap-northeast-1.amazonaws.com/files.ranking-deli.jp/noimage2.jpg"');
+  const pg = p.parsePhotoPage(html, GIRL);
+  eq('★★★ 仮画像の入った枠を「空き」と読む（1,2 あり・3〜8 空き）', pg.slots.map((s) => s.hasImage), [true,true,false,false,false,false,false,false]);
+}
 
 console.log('\n── 3. 応答（JSON）の読み取り ──');
 eq('★ src と to_thumb=1', p.parsePhotoJson('{"src":"https://s3/x.jpg","to_thumb":1,"message":""}'), { src: 'https://s3/x.jpg', toThumb: true, message: '', problems: [] });
