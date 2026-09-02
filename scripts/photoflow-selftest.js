@@ -91,6 +91,14 @@ eq('★ src 空 + message = 断られた', p.parsePhotoJson('{"src":"","message"
 eq('★ src も message も空は problems', p.parsePhotoJson('{"src":""}').problems.length, 1);
 eq('★★ JSON でなければ problems（ログイン画面など）', p.parsePhotoJson(LOGIN_PAGE).problems.length, 1);
 eq('★ src が javascript: なら problems', p.parsePhotoJson('{"src":"javascript:alert(1)"}').problems.length, 1);
+console.log('\n── 3-1. ★★★ src は【配列】で返る（2026-09-02 18:10 の実弾・bodyHead で確認）──');
+eq('★★★ {"src":["https:\\/\\/s3…"]} を読める（1つ目を取る）',
+  p.parsePhotoJson('{"src":["https:\\/\\/s3-ap-northeast-1.amazonaws.com\\/files.ranking-deli.jp\\/37168\\/5232204\\/img8_20260902181004.jpg"],"to_thumb":1}'),
+  { src: 'https://s3-ap-northeast-1.amazonaws.com/files.ranking-deli.jp/37168/5232204/img8_20260902181004.jpg', toThumb: true, message: '', problems: [] });
+eq('★ to_thumb も配列なら1つ目', p.parsePhotoJson('{"src":["https://s3/x.jpg"],"to_thumb":[1]}').toThumb, true);
+eq('★ message が配列でも読める', p.parsePhotoJson('{"src":[],"message":["容量オーバー"]}'), { src: '', toThumb: false, message: '容量オーバー', problems: [] });
+eq('★ 空の配列は src 空（断られた扱い・message が無ければ problems）', p.parsePhotoJson('{"src":[]}').problems.length, 1);
+eq('★ 配列の中が文字でなければ空', p.parsePhotoJson('{"src":[123],"message":"x"}').src, '');
 console.log('\n── 3-2. ★★★ 駅ちかが返した src は【そのまま】返す（2026-09-02 の実弾で分かった）──');
 eq('★★★ 相対パスの src も受ける（https を条件にしない）', p.parsePhotoJson('{"src":"/files/37168/5232204/img8_20260902174406.jpg","to_thumb":1}'), { src: '/files/37168/5232204/img8_20260902174406.jpg', toThumb: true, message: '', problems: [] });
 eq('★ http の src も受ける', p.parsePhotoJson('{"src":"http://s3/x.jpg"}').problems, []);

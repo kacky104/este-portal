@@ -134,12 +134,26 @@ export function parsePhotoJson(body: string): PhotoJson {
   if (!obj) {
     return { src: '', toThumb: false, message: '', problems: ['JSON として読めない（ログイン画面などが返った可能性）'] };
   }
-  const src = typeof obj.src === 'string' ? obj.src : '';
-  const message = typeof obj.message === 'string' ? obj.message : '';
-  const toThumb = obj.to_thumb === 1 || obj.to_thumb === '1' || obj.to_thumb === true;
+  // ★★★ src は【1要素の配列】で返る（2026-09-02 の実弾で確認: {"src":["https:\/\/s3-…"]}）。
+  //   ★ 駅ちかの JS は res['src'] をそのまま val() に入れる。jQuery が1要素の配列を文字にするので、向こうでは動く。
+  //   ★ こちらも同じ結果になるように、配列なら1つ目を取る。★ 文字列で来ても受ける（決めつけない）。
+  const src = firstString(obj.src);
+  const message = firstString(obj.message);
+  const tt = Array.isArray(obj.to_thumb) ? obj.to_thumb[0] : obj.to_thumb;
+  const toThumb = tt === 1 || tt === '1' || tt === true;
   if (src === '' && message === '') problems.push('src も message も空（駅ちかが理由を返していない）');
   if (src !== '' && !isSafeSrc(src)) problems.push('src の形が危ない（javascript: / 制御文字など）');
   return { src, toThumb, message, problems };
+}
+
+/** 文字列ならそのまま、配列なら最初の文字列、それ以外は空。★ 駅ちかの JSON は配列で返ることがある。 */
+function firstString(v: unknown): string {
+  if (typeof v === 'string') return v;
+  if (Array.isArray(v)) {
+    const f = v.find((x) => typeof x === 'string');
+    return typeof f === 'string' ? f : '';
+  }
+  return '';
 }
 
 /**
