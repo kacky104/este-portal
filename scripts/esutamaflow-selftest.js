@@ -63,6 +63,9 @@ const ctxL = Object.assign({}, ctx0, { cookie: 'sid=abc', esutamaCsrf: CSRF });
   eq('②: OUT の summary に文言を入れない', /違います/.test(out.audits[0].summary), false);
   const html = F.afterEsutamaLogin({ status: 200, headers: {}, body: '<html>' }, ctxL);
   eq('②: HTML が返ったら止める', [html.kind, html.audits[0].detail.reason], ['stop', 'unexpected_response']);
+  eq('②: 止めるときは先頭100文字を残す', html.audits[0].detail.bodyHead, '<html>');
+  const ok = F.afterEsutamaLogin({ status: 200, headers: { 'set-cookie': ['sid=login2; Path=/'] }, body: '["OK","/admin/"]' }, ctxL);
+  eq('②: ["OK", …] も成功として名簿へ（確証は名簿の段）', [ok.kind, ok.next.purpose], ['next', 'esutama_roster']);
 }
 
 // ── ③ 名簿 ──

@@ -104,10 +104,18 @@ export function afterEsutamaLogin(input: Input, ctx: RelayFlowContext): FlowOutc
       'エステ魂のログインが OUT（入力の不備）: ' + j.messages.length + '件',
     );
   }
-  if (j.kind !== 'redirect_ok') {
+  // ★★ 成功の札は REDIRECT_OK だけと決めつけない（2026-09-02 21:05 の実弾で止まった）。
+  //   post.js の .send-post は OUT / REDIRECT_OK 以外を「成功→data[1] へ移動」と扱う（ログイン画面の step_3「管理画面に移動します」がそれ）。
+  //   → 'ok'（['OK', …]）も成功として先へ進む。★ 本当にログインできたかは次の名簿の段で確かめる（駅ちかと同じ作法）。
+  if (j.kind !== 'redirect_ok' && j.kind !== 'ok') {
     return stop(
-      [{ event: 'login', outcome: 'failed', summary: 'エステ魂のログインの応答を読み取れませんでした（画面の作りが変わった可能性があります）', detail: { httpStatus: input.status, reason: 'unexpected_response', kind: j.kind, flowId } }],
-      'エステ魂のログイン応答が REDIRECT_OK ではない（' + j.kind + '）',
+      [{
+        event: 'login', outcome: 'failed',
+        summary: 'エステ魂のログインの応答を読み取れませんでした（画面の作りが変わった可能性があります）',
+        // ★ 先頭100文字を残す（第107便の作法: 番号だけでは原因が絞れない）。★ 応答は JSON か HTML で、秘密は入らない
+        detail: { httpStatus: input.status, reason: 'unexpected_response', kind: j.kind, bodyHead: (input.body ?? '').slice(0, 100), flowId },
+      }],
+      'エステ魂のログイン応答が REDIRECT_OK / OK ではない（' + j.kind + '）',
     );
   }
   if (!cookie) {
