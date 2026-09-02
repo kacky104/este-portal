@@ -290,9 +290,13 @@ export function loginTally(input: {
 export type LoginDirection = 'send_only' | 'read' | 'write' | 'off' | 'unset';
 
 export function loginDirection(input: { readable: boolean; linkMode: string | null }): LoginDirection {
-  if (input.readable !== true) return 'send_only';
   // ★★ 'none' は【選んだ結果】。★ 未設定と混ぜない（第87便・mediaOverview と揃える）
+  // ★★★ 第111便（2026-09-02）で【媒体の性質より先に】見るようにした。
+  //   ★ 書くだけの媒体にも「反映しない」を選べるようにしたため（mediaOverview.switchChoices）。
+  //   ★ ここを直さないと、選んで止めた店の画面に「このサイトへは、送るだけです」と出たままになる。
+  //     ★★ 送っていないのに送っていると書くことになる（§223 の逆）。
   if (input.linkMode === 'none') return 'off';
+  if (input.readable !== true) return 'send_only';
   if (input.linkMode === 'read') return 'read';
   if (input.linkMode === 'write' || input.linkMode === 'write_auto') return 'write';
   return 'unset';

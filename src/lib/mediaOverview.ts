@@ -145,10 +145,38 @@ export function homeHeadline(d: SiteDirection, siteLabel: string): string {
  * ★★ 問いには**行き先の名前**を書く（「変更しますか？」だけにしない）。
  *   ★ 押し間違えた人は、自分が何を押したのかを確かめたい。
  * ★★ 本文には【止まるほう】を必ず書く。★ 押したあとの文（switchDoneText）と対にする。
+ *
+ * ★★★ 第111便（2026-09-02）で provider を受けるようにした。
+ *   ★ 「◯◯からの取り込みは止まります」は【読める媒体だけの事実】。
+ *     ★ 書くだけの媒体（エステ魂・エステラブ・全国）には取り込みが無いので、
+ *       同じ文を出すと **止まらないものが止まると書く**ことになる。★ それは嘘。
+ *   ★★ 引数を増やして呼び出し側に選ばせない。★ provider を渡せば中で分かれる。
+ *     ★ 呼び忘れは TypeScript が落とす（省略できる形にしない）。
  */
-export function switchAskText(to: 'read' | 'write' | 'none', siteLabel: string): {
+export function switchAskText(to: 'read' | 'write' | 'none', siteLabel: string, provider: string): {
   title: string; body: string;
 } {
+  // ★★★ 書くだけの媒体。★ 取り込みに触れない（無いものを止めると書かない）
+  if (!canReadProvider(provider)) {
+    if (to === 'write') {
+      return {
+        title: 'フクエスから反映しますか？',
+        body: `フクエスに入れた出勤を、${siteLabel}へ反映するようになります。送る前に、毎回内容をご確認いただきます。`,
+      };
+    }
+    if (to === 'none') {
+      return {
+        title: `${siteLabel}へ反映しないようにしますか？`,
+        body: `${siteLabel}へは何も送らなくなります。フクエスに入れた出勤は、そのまま残ります。`,
+      };
+    }
+    // ★ 書くだけの媒体に 'read' は出てこない（switchChoices が出さない）。
+    //   ★ それでも来たときに、読み取れるように読める文を返さない。★ 事実を書く
+    return {
+      title: `${siteLabel}へは、送ることしかできません`,
+      body: `${siteLabel}の内容をフクエスへ読み取ることはできません。このサイトへは送るだけです。`,
+    };
+  }
   if (to === 'read') {
     return {
       title: `${siteLabel}から反映しますか？`,
@@ -171,13 +199,26 @@ export function switchAskText(to: 'read' | 'write' | 'none', siteLabel: string):
 export type SwitchChoice = { mode: 'read' | 'write' | 'none'; label: string };
 
 /**
+ * ★★★ ボタンに書く文字。★ 【行き先の状態】を名前にする（第90便・カッキーさん）。
+ *
+ * ★★ 「変える」は動きであって、押した先がどうなるかを言っていない。
+ *   ★ 状態の名前にすると、どこから押しても同じ言葉になる。
+ * ★ 媒体名は引数で受ける。★ 文言に店の名前を焼き付けない。
+ * ★★ 書くだけの媒体でも同じ文字を使う（第111便）。★ 'read' はそもそも出さないので、
+ *   ここに媒体ごとの分かれ道は要らない。★ 分かれ道は switchChoices の1か所だけに置く。
+ */
+export function switchLabel(mode: 'read' | 'write' | 'none', siteLabel: string): string {
+  if (mode === 'read') return `${siteLabel}から反映`;
+  if (mode === 'write') return 'フクエスから反映';
+  return '反映しない';
+}
+
+/**
  * ★★★ 「変える」ボタンを、いまの状態から出す。★ 押した先の【行き先】を名前にする。
  *
  * ★★ 「向きを変える」も「入力する場所を変える」も、押すと何になるのかが読めない
  *   （第86便その2・カッキーさんの指摘）。★ 行き先を書けば、考える場所が消える。
  * ★★★ いまの状態は出さない。★ 出すと「押すと何かが起きる」ように見える。
- * ★★ 未設定からは1つも出さない。★ 変える先が決まっていないのに「変える」と書かない
- *   （画面ではボタンを出さず、ログイン情報へ案内する）。
  * ★ 読める媒体は駅ちかだけで増やさない運営（2026-08-31・カッキーさん）。
  *   ★ それでも媒体名は引数で受ける。文言に店の名前を焼き付けない。
  *
@@ -186,19 +227,29 @@ export type SwitchChoice = { mode: 'read' | 'write' | 'none'; label: string };
  *   新: 「フクエスから反映」「駅ちかから反映」「反映しない」
  *   ★★ 「変える」は【動き】であって、押した先がどうなるかを言っていない。
  *     ★ 状態の名前にすると、どこから押しても同じ言葉になる。
- *   ★★★ 以前は off → write だけ「各サイトへ送るようにする」と別の文字にしていた。
- *     ★ off の店はもうフクエスで入力していて、変わるのは【送るかどうか】だけだったため。
- *     ★★ 行き先の状態を名前にすると、この例外が要らなくなる。★ 例外が消えたぶん、ずれない。
+ *
+ * ★★★ 第111便（2026-09-02・カッキーさん）: 【書くだけの媒体にも出す】。
+ *   ★ これまでは読める媒体だけに出していた（canSwitchDirection）。
+ *     ★ その結果、エステ魂を write にした店には **止める道が画面に無かった**。
+ *       ★ 戻すには運営が SQL を流すしかない。★ 「戻せる」と書いてあるのに戻せない
+ *         ＝ §223 の逆。★ ここが第111便で見つかった穴。
+ *   ★★ ただし出す選択肢は違う。★ 書くだけの媒体に 'read' を出さない
+ *     （選べるように見えて選べない画面を作らない）。
+ *   ★★★ 未設定からも 'write' を出す。★ 読める媒体では行き先が2つあって決められないから
+ *     出さなかったが、書くだけの媒体は **行き先が1つしかない**。★ 迷う余地が無い。
+ *     ★ 押すと setMediaLinkMode が取り込み設定の行を作る（第111便）。
  */
-export function switchLabel(mode: 'read' | 'write' | 'none', siteLabel: string): string {
-  if (mode === 'read') return `${siteLabel}から反映`;
-  if (mode === 'write') return 'フクエスから反映';
-  return '反映しない';
-}
-
-export function switchChoices(from: SiteDirection, siteLabel: string): SwitchChoice[] {
+export function switchChoices(from: SiteDirection, siteLabel: string, provider: string): SwitchChoice[] {
   const c = (mode: 'read' | 'write' | 'none'): SwitchChoice =>
     ({ mode, label: switchLabel(mode, siteLabel) });
+  // ★★★ 書くだけの媒体。★ 'read' は絶対に出さない
+  if (!canReadProvider(provider)) {
+    if (from === 'write') return [c('none')];
+    if (from === 'off') return [c('write')];
+    // ★★ 未設定からも出す（行き先が1つしかない）。★ 知らない値からは出さない
+    if (from === 'unset') return [c('write')];
+    return [];
+  }
   if (from === 'read') return [c('write'), c('none')];
   if (from === 'write') return [c('read'), c('none')];
   if (from === 'off') return [c('read'), c('write')];
@@ -213,11 +264,29 @@ export function switchChoices(from: SiteDirection, siteLabel: string): SwitchCho
  *   ★ 説明が長いほど読まれない。★ 押す前の問いに全部書いてあるので、ここは2文に絞る。
  * ★★★ ボタンの名前は switchLabel から出す。★ 手で書くと、名前を直した日にここだけ残る。
  * ★ 媒体名は引数で受ける。★ 読めないときは名前のない言い方に倒す（嘘の名前を出さない）。
+ *
+ * ★★ これは【読める媒体があるとき】の説明。★ 書くだけの媒体には sendOnlyChoiceNote を使う
+ *   （第111便）。★ 画面はどちらを出すか provider で決める。
  */
 export function homeChoiceNote(siteLabel: string): string {
   const where = typeof siteLabel === 'string' && siteLabel.length > 0 ? siteLabel : 'サイト側';
   return `出勤の反映は、${where}とフクエスのどちらか一方です。`
     + `「${switchLabel('none', where)}」を選ぶと、どのサイトへも送りません。`;
+}
+
+/**
+ * ★★★ 書くだけの媒体の、ボタンの下に置く1行（第111便・2026-09-02）。
+ *
+ * ★★★ homeChoiceNote をそのまま使わない。★ あちらは「◯◯とフクエスのどちらか一方」と書く。
+ *   ★ 書くだけの媒体には【どちらか一方】が無い。送るか送らないかしかない。
+ *   ★ 使い回すと、選べないものを選べると書くことになる。
+ * ★ 名前が読めないときは名前のない言い方に倒す（嘘の名前を出さない）。
+ * ★★ ボタンの名前は switchLabel から出す（手で書かない）。
+ */
+export function sendOnlyChoiceNote(siteLabel: string): string {
+  const where = typeof siteLabel === 'string' && siteLabel.length > 0 ? siteLabel : 'このサイト';
+  return `${where}へは送るだけです。`
+    + `「${switchLabel('none', where)}」を選ぶと、${where}へは何も送りません。`;
 }
 
 /**
@@ -227,8 +296,18 @@ export function homeChoiceNote(siteLabel: string): string {
  *   何が止まったのかを、押した直後に本人へ返す。★ 黙って止めない。
  * ★★ 受け取るのは【行き先】。★ どこから来たかで文を変えない。
  *   ★ 行き先の状態を書けば、どの道から来ても正しい文になる。
+ *
+ * ★★★ 第111便: switchAskText と同じ理由で provider を受ける。
+ *   ★ 問い（前）と結果（後）で書いてあることがずれると、押した意味が分からなくなる。
+ *     ★ 片方だけ直さない。★ 両方に同じ分かれ道を置く。
  */
-export function switchDoneText(to: 'read' | 'write' | 'none', siteLabel: string): string {
+export function switchDoneText(to: 'read' | 'write' | 'none', siteLabel: string, provider: string): string {
+  // ★★★ 書くだけの媒体。★ 取り込みに触れない
+  if (!canReadProvider(provider)) {
+    if (to === 'write') return `フクエスから${siteLabel}へ反映するようにしました。送る前に、毎回内容をご確認いただきます`;
+    if (to === 'none') return `${siteLabel}へは反映しないようにしました。フクエスに入れた出勤は、そのまま残ります`;
+    return `${siteLabel}へは、送ることしかできません`;
+  }
   if (to === 'read') return `${siteLabel}から反映するようにしました。フクエスからは送りません`;
   if (to === 'write') return `フクエスから反映するようにしました。${siteLabel}からの取り込みは止まります`;
   return `反映しないようにしました。どのサイトへも送らず、${siteLabel}からの取り込みもしません`;
@@ -237,12 +316,17 @@ export function switchDoneText(to: 'read' | 'write' | 'none', siteLabel: string)
 /**
  * ★★★ 向きの切り替えボタンを出してよいか。
  *
- * ★ 出すのは【読める媒体】だけ。書くだけの媒体に切り替えを出すと、
- *   選べるように見えて選べない、という画面になる。
  * ★ ログイン情報が無いうちは出さない（切り替える相手がいない）。
+ *
+ * ★★★ 第111便（2026-09-02）で【読める媒体だけ】をやめた。
+ *   旧: hasCredential && canReadProvider(provider)
+ *   ★ 理由は switchChoices の頭に書いたとおり。★ 書くだけの媒体を write にした店に、
+ *     止める道が画面から消えていた。★ 「いつでも戻せます」と書きながら戻せなかった。
+ *   ★★ 出すこと自体は媒体で分けない。★ 分けるのは【何を出すか】（switchChoices）。
+ *     ★ 出す／出さないで分けると、選択肢の中身を直したときに片方だけ古くなる。
  */
 export function canSwitchDirection(f: SiteFacts): boolean {
-  return f.hasCredential === true && canReadProvider(f.provider);
+  return f.hasCredential === true;
 }
 
 /**

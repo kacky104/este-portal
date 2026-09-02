@@ -135,7 +135,7 @@ export function WorkSend({ salonId, onToast }: { salonId: number | null; onToast
     setSwitching(null);
     if (!res.ok) { onToast(res.error); return; }
     await load();
-    onToast(switchDoneText('write', site.label));
+    onToast(switchDoneText('write', site.label, site.provider));
   };
 
   useEffect(() => { void load(); }, [load]);

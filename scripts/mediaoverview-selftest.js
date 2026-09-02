@@ -102,8 +102,9 @@ eq('★★ 「向き」と書かない',
    ['read', 'write', 'unset'].some((d) => v.directionLabel(d, '駅ちか').includes('向き')), false);
 
 console.log('\n── 4-2. ★★★ 「変える」ボタンは行き先を名前にする（第86便その2・第87便）──');
-const modes = (d, name) => v.switchChoices(d, name || '駅ちか').map((c) => c.mode);
-const labels = (d, name) => v.switchChoices(d, name || '駅ちか').map((c) => c.label);
+// ★ 第111便で provider を受けるようになった。★ 省略時は読める媒体（駅ちか）
+const modes = (d, name, prov) => v.switchChoices(d, name || '駅ちか', prov || EKI).map((c) => c.mode);
+const labels = (d, name, prov) => v.switchChoices(d, name || '駅ちか', prov || EKI).map((c) => c.label);
 
 eq('read からは write と none の2つ', modes('read'), ['write', 'none']);
 eq('write からは read と none の2つ', modes('write'), ['read', 'none']);
@@ -136,14 +137,14 @@ eq('★ 「各サイトへ送るようにする」は使わない',
 
 // ★★ 1回押すだけで変わる。★ だから【止まるほう】を押した直後に必ず言う
 eq('★★ write へ → 止まるのは取り込み',
-   v.switchDoneText('write', '駅ちか').includes('取り込みは止まります'), true);
+   v.switchDoneText('write', '駅ちか', EKI).includes('取り込みは止まります'), true);
 eq('★★ read へ → 送らないことを言う',
-   v.switchDoneText('read', '駅ちか').includes('フクエスからは送りません'), true);
+   v.switchDoneText('read', '駅ちか', EKI).includes('フクエスからは送りません'), true);
 eq('★★★ none へ → 送らないことと取り込まないことの両方を言う',
-   v.switchDoneText('none', '駅ちか').includes('どのサイトへも送らず')
-   && v.switchDoneText('none', '駅ちか').includes('取り込みもしません'), true);
+   v.switchDoneText('none', '駅ちか', EKI).includes('どのサイトへも送らず')
+   && v.switchDoneText('none', '駅ちか', EKI).includes('取り込みもしません'), true);
 eq('★ どの行き先でも文が空にならない',
-   ['read', 'write', 'none'].every((m) => v.switchDoneText(m, '駅ちか').length > 0), true);
+   ['read', 'write', 'none'].every((m) => v.switchDoneText(m, '駅ちか', EKI).length > 0), true);
 
 console.log('\n── 4-3. ★★★ 入口の1行と、押す前の問い（第88便）──');
 eq('read の1行', v.homeHeadline('read', '駅ちか'), '駅ちかの情報をフクエスに反映中');
@@ -164,27 +165,27 @@ eq('★ どの状態でも1行が空にならない',
    ['read', 'write', 'off', 'unset'].every((d) => v.homeHeadline(d, '駅ちか').length > 0), true);
 
 // ★★ 問いは「変更しますか？」で終わらせない。行き先の名前を書く
-eq('write の問い', v.switchAskText('write', '駅ちか').title, 'フクエスから反映しますか？');
-eq('read の問い', v.switchAskText('read', '駅ちか').title, '駅ちかから反映しますか？');
-eq('none の問い', v.switchAskText('none', '駅ちか').title, 'どのサイトにも反映しないようにしますか？');
-eq('★ 媒体の名前は決め打ちにしない', v.switchAskText('read', 'エステ魂').title, 'エステ魂から反映しますか？');
+eq('write の問い', v.switchAskText('write', '駅ちか', EKI).title, 'フクエスから反映しますか？');
+eq('read の問い', v.switchAskText('read', '駅ちか', EKI).title, '駅ちかから反映しますか？');
+eq('none の問い', v.switchAskText('none', '駅ちか', EKI).title, 'どのサイトにも反映しないようにしますか？');
+eq('★ 媒体の名前は決め打ちにしない', v.switchAskText('read', 'エステ魂', EKI).title, 'エステ魂から反映しますか？');
 // ★★★ 問いの見出しは、ボタンの文字と同じ言葉で始める（第90便）。
 //   ★ 押したボタンと違う言葉が出ると、何を押したのか分からなくなる
 eq('★★★ 問いの見出しは、ボタンの文字で始まる',
    ['read', 'write'].every((m) =>
-     v.switchAskText(m, '駅ちか').title.startsWith(v.switchLabel(m, '駅ちか'))), true);
+     v.switchAskText(m, '駅ちか', EKI).title.startsWith(v.switchLabel(m, '駅ちか'))), true);
 eq('★★ 問いは必ず「？」で終わる',
-   ['read', 'write', 'none'].every((m) => v.switchAskText(m, '駅ちか').title.endsWith('？')), true);
+   ['read', 'write', 'none'].every((m) => v.switchAskText(m, '駅ちか', EKI).title.endsWith('？')), true);
 // ★★★ 押す前の本文には【止まるほう】を必ず書く。★ 押したあとの文と対にする
 eq('★★★ write の本文は取り込みが止まると書く',
-   v.switchAskText('write', '駅ちか').body.includes('取り込みは止まります'), true);
+   v.switchAskText('write', '駅ちか', EKI).body.includes('取り込みは止まります'), true);
 eq('★★★ read の本文は送らなくなると書く',
-   v.switchAskText('read', '駅ちか').body.includes('送らなくなります'), true);
+   v.switchAskText('read', '駅ちか', EKI).body.includes('送らなくなります'), true);
 eq('★★★ none の本文は両方とも止まると書く',
-   v.switchAskText('none', '駅ちか').body.includes('どのサイトへも送らず')
-   && v.switchAskText('none', '駅ちか').body.includes('取り込みもしません'), true);
+   v.switchAskText('none', '駅ちか', EKI).body.includes('どのサイトへも送らず')
+   && v.switchAskText('none', '駅ちか', EKI).body.includes('取り込みもしません'), true);
 eq('★ どの行き先でも本文が空にならない',
-   ['read', 'write', 'none'].every((m) => v.switchAskText(m, '駅ちか').body.length > 0), true);
+   ['read', 'write', 'none'].every((m) => v.switchAskText(m, '駅ちか', EKI).body.length > 0), true);
 
 console.log('\n── 4-4. ★ ボタンの下に置く短い説明（第90便）──');
 eq('★ 媒体名とフクエスの両方が入る',
@@ -201,16 +202,76 @@ eq('★★ 名前が無いのに「駅ちか」と書かない', v.homeChoiceNot
 // ★ 短くする（読まれない長さにしない）。★ 2文まで
 eq('★ 「。」は2つまで', v.homeChoiceNote('駅ちか').split('。').length - 1 <= 2, true);
 
-console.log('\n── 5. ★ 切り替えを出すのは読める媒体だけ ──');
+console.log('\n── 5. ★ 切り替えを出すのは鍵がある枠だけ（第111便で媒体を問わなくした）──');
 const sw = (o) => v.canSwitchDirection(facts(o));
-// ★★★ 対になる主張。同じ状態でも媒体で割れる
 eq('★★ 駅ちかには切り替えを出す', sw({ provider: EKI }), true);
-eq('★★ エステラブには出さない', sw({ provider: LOVE }), false);
+// ★★★ 第111便: 書くだけの媒体にも出す。★ 出さないと、write にした店から【止める道が消える】
+//   ★ 「いつでも戻せます」と書きながら戻せない画面を作らない（§223 の逆）
+eq('★★★ 書くだけの媒体にも出す（第111便）', sw({ provider: LOVE }), true);
 // ★ 切り替え（read → write）には鍵が要る。★ 鍵が無いうちはボタンを出さない
 eq('★ ログイン情報が無ければ出さない', sw({ hasCredential: false }), false);
+eq('★★ 書くだけの媒体でも、鍵が無ければ出さない',
+   sw({ provider: LOVE, hasCredential: false }), false);
 eq('★ 止めてある枠にも出す（戻せるように）', sw({ sourceEnabled: false }), true);
 // ★★ off にした店にも出す。★ 出さないと、戻す道が画面から消える
 eq('★★ off の枠にも出す（戻せるように）', sw({ linkMode: 'none' }), true);
+
+console.log('\n── 5-2. ★★★ 書くだけの媒体の選択肢（第111便）──');
+// ★★★ いちばん大事: 'read' を絶対に出さない。★ 選べるように見えて選べない画面を作らない
+eq('★★★ どの状態からも read を出さない',
+   ['read', 'write', 'off', 'unset'].some((d) => modes(d, 'エステ魂', LOVE).includes('read')), false);
+eq('write からは none だけ', modes('write', 'エステ魂', LOVE), ['none']);
+eq('off からは write だけ', modes('off', 'エステ魂', LOVE), ['write']);
+// ★★★ 読める媒体とは違う決め。★ 行き先が1つしかないので、未設定からも出す
+//   ★ 読める媒体では2つあって決められないから出さない（4-2）。★ 理由ごと分ける
+eq('★★★ 未設定からも write を出す（行き先が1つしかない）',
+   modes('unset', 'エステ魂', LOVE), ['write']);
+eq('★ 読める媒体は未設定からは出さないまま', modes('unset', '駅ちか', EKI), []);
+eq('★ 知らない値からは出さない', modes('なにか', 'エステ魂', LOVE), []);
+// ★ ボタンの文字は同じ関数から出す（2か所で違う言い方をしない）
+eq('★ 文字は読める媒体と同じ関数から', labels('off', 'エステ魂', LOVE), ['フクエスから反映']);
+eq('★ 「反映しない」の文字も同じ', labels('write', 'エステ魂', LOVE), ['反映しない']);
+
+console.log('\n── 5-3. ★★★ 書くだけの媒体の文言。★ 取り込みに触れない（第111便）──');
+// ★★★ 「取り込み」は読める媒体だけの事実。★ 無いものが止まると書かない
+eq('★★★ 押す前の問いに「取り込」と書かない',
+   ['write', 'none'].some((m) => v.switchAskText(m, 'エステ魂', LOVE).body.includes('取り込')), false);
+eq('★★★ 押したあとの文にも「取り込」と書かない',
+   ['write', 'none'].some((m) => v.switchDoneText(m, 'エステ魂', LOVE).includes('取り込')), false);
+// ★★ 対になる主張。★ 同じ行き先でも、媒体で書いてあることが割れる
+eq('★★ 読める媒体の write には「取り込み」が入る',
+   v.switchAskText('write', '駅ちか', EKI).body.includes('取り込みは止まります'), true);
+// ★★ 問いの見出しは、ボタンの文字で始まる（読める媒体と同じ決め）
+eq('★★ write の問いはボタンの文字で始まる',
+   v.switchAskText('write', 'エステ魂', LOVE).title.startsWith(v.switchLabel('write', 'エステ魂')), true);
+eq('★ 問いは「？」で終わる',
+   ['write', 'none'].every((m) => v.switchAskText(m, 'エステ魂', LOVE).title.endsWith('？')), true);
+// ★★ 名前を決め打ちにしない
+eq('★ 媒体の名前が入る', v.switchAskText('none', 'エステ魂', LOVE).title.includes('エステ魂'), true);
+eq('★ どの行き先でも空にならない',
+   ['read', 'write', 'none'].every((m) =>
+     v.switchAskText(m, 'エステ魂', LOVE).body.length > 0
+     && v.switchDoneText(m, 'エステ魂', LOVE).length > 0), true);
+// ★★★ 'read' が来ても、読み取れるように読める文を返さない
+eq('★★★ read の問いは「送ることしかできません」',
+   v.switchAskText('read', 'エステ魂', LOVE).title.includes('送ることしかできません'), true);
+
+console.log('\n── 5-4. ★★★ ボタンの下の1行を、媒体で分ける（第111便）──');
+// ★★★ homeChoiceNote は「◯◯とフクエスのどちらか一方」と書く。
+//   ★ 書くだけの媒体には【どちらか一方】が無い。★ 使い回すと嘘になる
+eq('★★★ 書くだけの1行に「どちらか一方」と書かない',
+   v.sendOnlyChoiceNote('エステ魂').includes('どちらか一方'), false);
+eq('★ 媒体の名前が入る', v.sendOnlyChoiceNote('エステ魂').includes('エステ魂'), true);
+// ★★ ボタンの名前は switchLabel から出す（手で書かない）
+eq('★★ 説明の中の名前は、ボタンの文字と同じ',
+   v.sendOnlyChoiceNote('エステ魂').indexOf('「' + v.switchLabel('none', 'エステ魂') + '」') >= 0, true);
+// ★★ 名前が読めないときは、嘘の名前を出さない
+eq('★★ 名前が無ければ名前のない言い方に倒す',
+   v.sendOnlyChoiceNote('').includes('このサイト'), true);
+eq('★★ 名前が無いのに「駅ちか」と書かない', v.sendOnlyChoiceNote('').includes('駅ちか'), false);
+eq('★ 「。」は2つまで', v.sendOnlyChoiceNote('エステ魂').split('。').length - 1 <= 2, true);
+// ★ 取り込みに触れない
+eq('★★ 「取り込」と書かない', v.sendOnlyChoiceNote('エステ魂').includes('取り込'), false);
 
 console.log('\n── 6. ★★ 次の取り込み。★ 過ぎている「次」は出さない ──');
 const NOW = new Date('2026-08-30T06:20:00+09:00');

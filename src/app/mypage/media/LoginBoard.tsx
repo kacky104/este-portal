@@ -251,7 +251,7 @@ export function LoginBoard({
     if (!res.ok) { onToast(res.error); return; }
     await load();
     // ★ ホームと同じ文を使う。★ 2か所で違う言い方をしない（第87便）
-    onToast(switchDoneText(mode, site.name));
+    onToast(switchDoneText(mode, site.name, site.provider));
   };
 
   // ★ 上の3つの数。★ 読めていなければ null（0 と書かない）
@@ -445,6 +445,9 @@ export function LoginBoard({
                       {switchChoices(
                         dir === 'read' || dir === 'write' || dir === 'off' ? dir : 'unset',
                         site.name,
+                        // ★ 第111便で provider を受けるようになった。★ ここは site.readable で
+                        //   囲ってあるので読める媒体しか来ないが、決め打ちにしない
+                        site.provider,
                       ).map((c) => (
                         <button
                           key={c.mode}

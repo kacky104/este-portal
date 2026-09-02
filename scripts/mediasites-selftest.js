@@ -139,6 +139,14 @@ eq('★★ エステラブ＋read → send_only（読む口が無い）',
    v.loginDirection({ readable: false, linkMode: 'read' }), 'send_only');
 eq('★★ 書くだけのサイトは link_mode が null でも send_only',
    v.loginDirection({ readable: false, linkMode: null }), 'send_only');
+// ★★★ 第111便（2026-09-02）: 'none' だけは例外。★ 【店舗が選んだ結果】は媒体の性質より強い。
+//   ★ 書くだけの媒体にも「反映しない」を選べるようにした（mediaOverview.switchChoices）。
+//   ★ ここを直さないと、止めた店の画面に「送るだけです」と出たままになる。
+//     ★★ 送っていないのに送っていると書くことになる（§223 の逆）。
+eq("★★★ 書くだけのサイトでも 'none' は off（第111便）",
+   v.loginDirection({ readable: false, linkMode: 'none' }), 'off');
+eq('★★ 対になる主張: 書くだけ＋write は send_only のまま',
+   v.loginDirection({ readable: false, linkMode: 'write' }), 'send_only');
 eq('write は write', v.loginDirection({ readable: true, linkMode: 'write' }), 'write');
 eq('★ write_auto も画面上は write', v.loginDirection({ readable: true, linkMode: 'write_auto' }), 'write');
 eq('★ 駅ちかで link_mode が null なら unset', v.loginDirection({ readable: true, linkMode: null }), 'unset');

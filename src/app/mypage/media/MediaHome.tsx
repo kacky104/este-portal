@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { getMediaOverview, setMediaLinkMode } from '@/app/actions/mediaCredentials';
 import {
   switchChoices, switchDoneText, switchAskText, homeHeadline, homeChoiceNote,
+  sendOnlyChoiceNote, canReadProvider,
   type SiteDirection, type SwitchChoice,
 } from '@/lib/mediaOverview';
 // ★ 同意の取り直しは、ログイン情報の中だけでは気づけない（第89便）。★ 入口にも出す
@@ -172,7 +173,7 @@ export function MediaHome({ salonId, salonName, onToast }: {
     const back = await getMediaOverview({ salonId });
     if (back.ok) setData(back.data);
     setSwitching('');
-    onToast(switchDoneText(mode, s.label));
+    onToast(switchDoneText(mode, s.label, s.provider));
   };
 
   const sites = data?.sites ?? [];
@@ -313,12 +314,18 @@ export function MediaHome({ salonId, salonName, onToast }: {
               // ★ 切り替えを出すのは読める媒体だけ（mediaOverview.canSwitchDirection）。
               //   ★ 書くだけのサイトに出すと、選べるように見えて選べない画面になる。
               // ★ 自動で反映しているあいだは変えさせない。★ 先に自動をやめてもらう。
+              // ★★ 第111便: provider を渡す。★ 書くだけのサイトには 'read' を出さない
               const choices = s.canSwitch && !s.autoOn
-                ? switchChoices(s.direction as SiteDirection, s.label)
+                ? switchChoices(s.direction as SiteDirection, s.label, s.provider)
                 : [];
 
               // ── 選ぶだけの行。★ ボタン以外は出さない ──────────────
-              if (choices.length > 0) {
+              // ★★★ 大きく中央に出すのは【読める媒体】だけ（第111便）。
+              //   ★ 書くだけのサイトにも選ぶボタンが出るようになったが、
+              //     同じ形にすると **名前の無いボタンだけの行が2つ**並ぶ。
+              //   ★ どちらのサイトのボタンなのかが読めなくなる。
+              //   → 書くだけのサイトは、名前と状態の行に小さく添える（下の枝）。
+              if (choices.length > 0 && canReadProvider(s.provider)) {
                 return (
                   <div key={s.provider + '#' + s.slot} className="py-4">
                     {/* ★★★ 同意の取り直しだけは消さない。
@@ -384,8 +391,27 @@ export function MediaHome({ salonId, salonName, onToast }: {
                         自動をやめる
                       </Link>
                     )}
-                    {/* ★★ 未設定のときは「変える」を出さない。★ 変える先が決まっていない */}
-                    {s.canSwitch && !s.autoOn && s.direction === 'unset' && (
+                    {/* ★★★ 書くだけのサイトの選ぶボタン（第111便）。
+                        ★ 名前と状態の右に小さく置く。★ これが無いと、write にした店に
+                          【止める道が画面から消える】（第111便で見つかった穴）。 */}
+                    {choices.length > 0 && !canReadProvider(s.provider) && (
+                      <span className="flex-none flex flex-wrap gap-2">
+                        {choices.map((c) => (
+                          <button
+                            key={c.mode}
+                            type="button"
+                            onClick={() => setAsk({ site: s, choice: c })}
+                            disabled={switching !== ''}
+                            className="text-[13px] font-bold px-3 py-1.5 border border-slate-300 bg-white text-slate-600 hover:bg-slate-50 hover:border-slate-400 transition-colors disabled:opacity-40"
+                          >
+                            {switching === s.provider + '#' + s.slot ? '変えています…' : c.label}
+                          </button>
+                        ))}
+                      </span>
+                    )}
+                    {/* ★★ 未設定のときは「変える」を出さない。★ 変える先が決まっていない
+                        ★ 書くだけのサイトは行き先が1つなので、すぐ上のボタンが出る（第111便） */}
+                    {canReadProvider(s.provider) && s.canSwitch && !s.autoOn && s.direction === 'unset' && (
                       <Link
                         href="/mypage/media/login"
                         className="flex-none text-[13px] font-bold px-3 py-1.5 border border-slate-200 text-slate-500 hover:border-slate-300"
@@ -400,10 +426,24 @@ export function MediaHome({ salonId, salonName, onToast }: {
           </div>
         )}
 
-        {/* ★ 3文 → 2文にした（第90便）。★ 残りは押す前の問いに書いてある */}
-        <p className="mt-3 text-[13px] text-slate-400 leading-relaxed text-center">
-          {homeChoiceNote(sites.find((s) => s.canSwitch && !s.autoOn)?.label ?? '')}
-        </p>
+        {/* ★ 3文 → 2文にした（第90便）。★ 残りは押す前の問いに書いてある
+            ★★★ 第111便: 読める媒体が無い店では homeChoiceNote が嘘になる。
+              ★ 「◯◯とフクエスのどちらか一方です」は【選べる媒体がある店の事実】。
+              ★ エステ魂だけの店には「どちらか一方」が無い。★ 別の1行に分ける。
+            ★★ 選ぶボタンが1つも無いときは、選び方の説明そのものを出さない。 */}
+        {(() => {
+          const readableSite = sites.find((s) => s.canSwitch && !s.autoOn && canReadProvider(s.provider));
+          const sendOnlySite = sites.find((s) => s.canSwitch && !s.autoOn && !canReadProvider(s.provider));
+          const note = readableSite
+            ? homeChoiceNote(readableSite.label)
+            : sendOnlySite
+              ? sendOnlyChoiceNote(sendOnlySite.label)
+              : '';
+          if (!note) return null;
+          return (
+            <p className="mt-3 text-[13px] text-slate-400 leading-relaxed text-center">{note}</p>
+          );
+        })()}
       </div>
 
       {/* ── ★★★ 押す前の問い（第88便）─────────────────────
@@ -421,10 +461,10 @@ export function MediaHome({ salonId, salonName, onToast }: {
             onClick={(e) => e.stopPropagation()}
           >
             <p className="text-[17px] font-black text-slate-800">
-              {switchAskText(ask.choice.mode, ask.site.label).title}
+              {switchAskText(ask.choice.mode, ask.site.label, ask.site.provider).title}
             </p>
             <p className="mt-2 text-[14px] text-slate-500 leading-relaxed">
-              {switchAskText(ask.choice.mode, ask.site.label).body}
+              {switchAskText(ask.choice.mode, ask.site.label, ask.site.provider).body}
             </p>
             <div className="mt-4 flex justify-end gap-2">
               <button

@@ -17,6 +17,8 @@ import {
   siteDirection,
   directionLabel,
   canSwitchDirection,
+  canReadProvider,
+  switchLabel,
   nextImportAt,
   maskAddress,
 } from '@/lib/mediaOverview';
@@ -70,6 +72,78 @@ function validTarget(provider: string, slot: number): string | null {
   if (!PROVIDERS.includes(provider)) return '媒体の指定が不正です';
   if (!Number.isFinite(slot) || slot < 1 || slot > 20) return '枠の指定が不正です';
   return null;
+}
+
+/**
+ * ★★★ 書くだけの媒体に、取り込み設定（salon_import_sources）の行を作る（第111便・2026-09-02）。
+ *
+ * ★★★ なぜ要るか —— 第110便で見つかった穴
+ *   「出勤を送る」の向き（link_mode）は salon_import_sources が持っている。
+ *   ★ ところが駅ちか以外には、この行を作る口が画面のどこにも無かった。
+ *   ★ エステ魂のログイン情報を入れても【未設定】のままで、送る画面に何も出せない。
+ *     ★ 運営が SQL を流すまで、店舗からは何をしても始まらない
+ *       （2026-09-02 23:01 に実際に起きた。確認SQL_エステ魂の名簿結び ⑥）。
+ *   → ログイン情報を保存したときに、ここで作る。
+ *
+ * ★★★ 作るのは【書くだけの媒体】だけ。★ 駅ちかでは絶対に作らない。
+ *   ★ 駅ちかは向きを店舗が選ぶ媒体。勝手に 'write' を入れると **取り込みが止まる**。
+ *   ★ しかも external_id / shop_url が空の行を作ると、取り込みそのものが壊れる。
+ *
+ * ★★★ すでに行があるときは【何もしない】。
+ *   ★ 店舗が「反映しない」を選んでいたら、パスワードを入れ直しただけで送る側へ戻ってしまう。
+ *   ★ 「店舗が決めたことを、こちらの都合で書き換えない」（mediaOverview.siteDirection の頭）。
+ *
+ * ★★ 行を作っても、それだけでは何も送らない。
+ *   ★ 送るには毎回の承認（指紋の突き合わせ）が要る（startMediaWorkPush）。
+ *   ★ 自動反映（write_auto）は、1回目の承認が通るまで選べない（hasApprovedOnce）。
+ *   → 「ログイン情報を入れた瞬間に勝手に送られる」ことは起きない。
+ *
+ * ★ 作れなくても保存そのものは成功として返す（鍵は保存できている）。
+ *   ★ ただし黙らない。★ 監査に outcome 'failed' で残す（記録が無い＝何もしていない、にしない）。
+ */
+async function ensureSendOnlySource(input: {
+  svc: ReturnType<typeof createServiceClient>;
+  salonId: number; provider: string; slot: number; actor: string;
+}): Promise<void> {
+  const site = findMediaSite(input.provider);
+  if (!site) return;                              // ★ 知らない媒体には作らない
+  if (site.accepting !== true) return;            // ★ 送り先が無い媒体には作らない
+  if (canReadProvider(input.provider)) return;    // ★★★ 読める媒体（駅ちか）には作らない
+
+  const { data: existing, error: readErr } = await input.svc
+    .from('salon_import_sources')
+    .select('id')
+    .eq('salon_id', input.salonId).eq('provider', input.provider).eq('slot', input.slot)
+    .maybeSingle();
+  // ★★ 読めなかったときは作らない。★ 「無い」と決めつけて二重に作らない（引き継ぎメモ 3-5）
+  if (readErr) return;
+  if (existing) return;
+
+  const nowISO = new Date().toISOString();
+  const { error } = await input.svc.from('salon_import_sources').insert({
+    salon_id: input.salonId,
+    provider: input.provider,
+    slot: input.slot,
+    // ★ どちらも駅ちか用の必須列。★ 書くだけの媒体には無いので空文字
+    external_id: '',
+    shop_url: '',
+    // ★★ 取り込みは何もしない。★ 旗を立てておくと、あとで誰かが回したときに動いてしまう
+    import_schedule: false,
+    import_profile: false,
+    create_missing: false,
+    is_enabled: true,
+    link_mode: 'write',
+    updated_at: nowISO,
+  });
+
+  await recordMediaAudit({
+    salonId: input.salonId, provider: input.provider, slot: input.slot,
+    event: 'link_mode_changed',
+    outcome: error ? 'failed' : 'ok',
+    // ★ from は空（どこからも来ていない＝新しく作った）。★ 第48便の決めごとに揃える
+    detail: { mode: 'write', from: '', by: 'credential_saved' },
+    actor: input.actor,
+  });
 }
 
 /**
@@ -254,6 +328,11 @@ export async function saveMediaCredential(input: {
     detail: { shop_id: shopId, passwordChanged: Boolean(password) },
     actor,
   });
+
+  // ★★★ 書くだけの媒体は、ここで取り込み設定の行を作る（第111便）。
+  //   ★ これが無いと、鍵を預けても「出勤を送る」に何も出ない（第110便で見つかった穴）。
+  //   ★ 中で駅ちかを弾いている。★ ここで媒体を数えない（数える場所を2つ作らない）。
+  await ensureSendOnlySource({ svc, salonId, provider: input.provider, slot, actor });
 
   return { ok: true, data: { saved: true } };
 }
@@ -505,6 +584,14 @@ export async function setMediaLinkMode(input: {
   if (ng) return { ok: false, error: ng };
   if (!isLinkMode(input.mode)) return { ok: false, error: '入力する場所の指定が不正です' };
 
+  // ★★★ 読めない媒体に 'read' を入れない（第111便）。
+  //   ★ 入ると siteDirection が unset になり、**送れないのに理由が画面に出ない**＝黙って止まる。
+  //   ★ 画面はそもそも出さない（switchChoices が read を返さない）が、
+  //     【画面だけで守らない】。★ 受け口でも見る（第38便 §17-16 と同じ作法）。
+  if (input.mode === 'read' && !canReadProvider(input.provider)) {
+    return { ok: false, error: 'このサイトからフクエスへ反映することはできません' };
+  }
+
   const guard = await assertSalonOwner(salonId);
   if (!guard.ok) return guard;
 
@@ -525,9 +612,16 @@ export async function setMediaLinkMode(input: {
 
   const { data: before } = await svc
     .from('salon_import_sources')
-    .select('link_mode')
+    .select('link_mode, is_enabled')
     .eq('salon_id', salonId).eq('provider', input.provider).eq('slot', slot)
     .maybeSingle();
+
+  // ★★ 枠そのものが止められている（運営が止めた）。★ 向きを変えても動かない。
+  //   ★ 「変えました」と返すと、動いていないのに動いたことになる（§223・3-5）。
+  //   ★ 'none'（反映しない）だけは通す。★ 止まっているものを止めるのは矛盾しない。
+  if (before && (before as { is_enabled?: boolean }).is_enabled === false && input.mode !== 'none') {
+    return { ok: false, error: 'この枠はいま止まっています。運営にお問い合わせください' };
+  }
 
   const { data: updated, error } = await svc
     .from('salon_import_sources')
@@ -536,7 +630,30 @@ export async function setMediaLinkMode(input: {
     .select('id');
   if (error) return { ok: false, error: '入力する場所を変えられませんでした' };
   if (!updated || updated.length === 0) {
-    return { ok: false, error: 'この枠の連携設定が見つかりません（運営にお問い合わせください）' };
+    // ★★★ 行がまだ無い枠（第111便）。
+    //   ★ 書くだけの媒体は、ここで作ってよい。★ 作る口が他に無いため
+    //     （第111便より前に鍵だけ登録した店が、これにあたる）。
+    //   ★★ 読める媒体（駅ちか）では作らない。★ external_id / shop_url が要る行で、
+    //     空のまま作ると取り込みが壊れる。★ そこは運営が正しい番号を入れて作る。
+    const site = findMediaSite(input.provider);
+    const canCreate = site != null && site.accepting === true && !canReadProvider(input.provider);
+    if (!canCreate) {
+      return { ok: false, error: 'この枠の連携設定が見つかりません（運営にお問い合わせください）' };
+    }
+    const { error: insErr } = await svc.from('salon_import_sources').insert({
+      salon_id: salonId,
+      provider: input.provider,
+      slot,
+      external_id: '',
+      shop_url: '',
+      import_schedule: false,
+      import_profile: false,
+      create_missing: false,
+      is_enabled: true,
+      link_mode: input.mode,
+      updated_at: new Date().toISOString(),
+    });
+    if (insErr) return { ok: false, error: '入力する場所を変えられませんでした' };
   }
 
   // ★ 前の向きで作った計画を残さない
@@ -593,7 +710,10 @@ export async function startMediaWorkPush(input: {
     .maybeSingle();
   // ★ write / write_auto のどちらでも受ける（自動の枠でも、人がその場で押せる方が良い）
   if (!src || !isWriteDirection(String((src as { link_mode?: string }).link_mode))) {
-    return { ok: false, error: '「フクエスから駅ちかへ反映する」に切り替えてから実行してください' };
+    // ★★★ 第111便: 「フクエスから駅ちかへ反映する」と焼き付けていた。
+    //   ★ エステ魂へ送ろうとした店には【存在しないボタンの名前】が出ていた。
+    //   ★ ボタンの文字は switchLabel から出す（2か所で違う言い方をしない・第90便）。
+    return { ok: false, error: `「${switchLabel('write', providerLabel(input.provider))}」に切り替えてから実行してください` };
   }
 
   // ★★ 画面が見ていた計画と、いま保存されている計画が同じであること。
