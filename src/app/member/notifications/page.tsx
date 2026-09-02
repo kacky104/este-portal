@@ -42,7 +42,7 @@ export default async function NotificationsPage() {
   }
 
   // ── 新着フィードを取得（認証済みクライアント・RLS尊重）。表示後に既読化する。 ──
-  const { items } = await getNotificationFeed(supabase);
+  const { items, cappedSalons } = await getNotificationFeed(supabase);
 
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900">
@@ -115,10 +115,39 @@ export default async function NotificationsPage() {
                     </div>
                     <p className="text-sm font-bold text-slate-700 line-clamp-2">{item.title}</p>
                   </Link>
+                  {/* ★★ この店には出していない新着がまだある（第103便）。
+                      ★ 件数は出さない——「ほか300件」になりうるため。
+                        会員は件数で何かを決めるわけではなく、「ほかにもある」と分かればよい。 */}
+                  {item.hasMore && (
+                    <div className="pl-4 pt-1.5">
+                      <Link
+                        href={`/salon/${item.salonId}`}
+                        className="inline-flex items-center gap-1 text-[11px] text-slate-400 hover:text-pink-600 transition-colors"
+                      >
+                        この店のお知らせ・クーポンをすべて見る
+                        <span aria-hidden="true">›</span>
+                      </Link>
+                    </div>
+                  )}
                 </li>
               );
             })}
           </ul>
+        )}
+
+        {/* ★ 何を出しているかを、見た人が言えるようにしておく（★ 静かに切らない） */}
+        {items.length > 0 && (
+          <div className="mt-6 space-y-1 text-[11px] text-slate-400 leading-relaxed">
+            <p>直近14日ぶんを、お店ごとに新しいもの1件ずつ表示しています。</p>
+            {cappedSalons > 0 && (
+              <p>
+                新着のあるお店が多いため、ここには表示しきれていないお店が{cappedSalons}店あります。
+                保存したお店は
+                <Link href="/saved#salons" className="text-pink-600 hover:underline mx-0.5">保存したお店</Link>
+                からご覧いただけます。
+              </p>
+            )}
+          </div>
         )}
       </main>
 
