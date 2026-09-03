@@ -3,6 +3,7 @@
 import { useMediaGate } from '../useMediaGate';
 import { MediaShell } from '../MediaShell';
 import { TherapistBoard } from '../TherapistBoard';
+import { RosterLinkBoard } from '../RosterLinkBoard';
 import { useToast } from '@/app/components/useToast';
 
 // セラピスト一覧（第62便・㉞ その4・★ いまは見るだけ）。
@@ -22,7 +23,11 @@ export default function MediaTherapistsPage() {
       current="roster"
       toast={toast}
     >
-      <TherapistBoard salonId={salon ? Number(salon.id) : null} onToast={showToast} />
+      <div className="space-y-3">
+        <TherapistBoard salonId={salon ? Number(salon.id) : null} onToast={showToast} />
+        {/* ★ 名簿の結び（第115便）。★ これまで運営が SQL で入れていたものを、店舗様が画面から */}
+        <RosterLinkBoard salonId={salon ? Number(salon.id) : null} onToast={showToast} />
+      </div>
     </MediaShell>
   );
 }

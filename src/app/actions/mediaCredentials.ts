@@ -11,6 +11,8 @@ import { judgeWriteStall, stallMessage, mediaSlotLabel, type MediaLinkAlert } fr
 import { judgeImportStall } from '@/lib/importStall';
 import { isWriteDirection, isLinkMode, hasApprovedOnce } from '@/lib/mediaLinkMode';
 import { loadCastIds } from '@/lib/mediaCastIds';
+import { isLegacyCastIdScope } from '@/lib/mediaCastIds';
+import { buildLinkPairs, canLink, canUnlink, type LinkPairs } from '@/lib/mediaLinkPairs';
 import { providerLabel } from '@/lib/mediaAudit';
 import { findMediaSite } from '@/lib/mediaSites';
 import {
@@ -1537,4 +1539,227 @@ export async function getSalonTherapists(input: { salonId: string | number }): P
       newFaceSince: (t.new_face_since as string | null) ?? null,
     })),
   };
+}
+
+// ── 名簿の結び（第115便・2026-09-03）────────────────────────────────
+//
+// ★★★ なぜ画面から結べるようにするか
+//   第109便の実弾で「20人は送りません（まだ登録されていない）」と出たが、実際は登録されていて
+//   フクエス「レミ」／エステ魂「れみ」のように【表記が違う】だけだった。
+//   ★ 送るときの突き合わせは「読みが同じでも別の文字なら別人」と決めてある（mediaMatch）。
+//     ★ そこを緩めると、他人の欄に出勤を書き込む。★ 緩めない。
+//   → 人が見て結ぶ。★ これまでは運営が SQL を流していた（確認SQL_エステ魂の名簿結び_2026-09-02）。
+//
+// ★★★ 判断は src/lib/mediaLinkPairs.ts（純粋関数）に置いてある。
+//   ★ 画面もここも canLink を呼ぶ。★ **画面が言ってきたことを信じない**（ここでも必ず組み直す）。
+//
+// ★ 誰が使えるか: 店舗オーナー様と運営（assertSalonOwner）。★ 名前をいちばん知っているのはオーナー様。
+
+/** この枠の結び状況を組み立てる。★ 3つの口が同じものを見る（判断を2か所に置かない） */
+async function loadLinkPairs(
+  svc: ReturnType<typeof createServiceClient>,
+  salonId: number,
+  provider: string,
+  slot: number,
+): Promise<{ ok: true; pairs: LinkPairs; readAtISO: string | null } | { ok: false; error: string }> {
+  const { data: therapists, error: thErr } = await svc
+    .from('therapists')
+    .select('id, name, is_active, import_cast_id')
+    .eq('salon_id', salonId)
+    .order('id', { ascending: true });
+  if (thErr) return { ok: false, error: 'セラピストを読めませんでした' };
+
+  const rows = therapists ?? [];
+  // ★ 旧 therapists.import_cast_id の混ぜ方は mediaCastIds.loadCastIds が1か所で決めている
+  const { maps, error: castErr } = await loadCastIds(svc, {
+    therapists: rows.map((t) => ({ id: Number(t.id), import_cast_id: (t.import_cast_id as string | null) ?? null })),
+    provider,
+    slot,
+  });
+  if (castErr) return { ok: false, error: '媒体側の番号を読めませんでした' };
+
+  const links: Array<{ therapistId: number; castId: string }> = [];
+  for (const [id, castId] of maps.castIdOf) {
+    if (!castId) continue;
+    links.push({ therapistId: id, castId });
+  }
+
+  // ★★ 名簿の写しが無ければ null のまま渡す。★ 0人に潰さない（「読めていない」と「0人」は別）
+  const { data: snapRow } = await svc
+    .from('media_roster_snapshots')
+    .select('read_at, entries')
+    .eq('salon_id', salonId)
+    .eq('provider', provider)
+    .eq('slot', slot)
+    .maybeSingle();
+  const entries = snapRow
+    ? ((snapRow.entries as Array<{ castId?: unknown; name?: unknown }> | null) ?? []).map((e) => ({
+        castId: String(e?.castId ?? ''),
+        name: String(e?.name ?? ''),
+      }))
+    : null;
+
+  const pairs = buildLinkPairs({
+    therapists: rows.map((t) => ({
+      id: Number(t.id),
+      name: (t.name as string | null) ?? '',
+      isActive: t.is_active === true,
+    })),
+    links,
+    entries,
+  });
+  return { ok: true, pairs, readAtISO: snapRow ? String(snapRow.read_at) : null };
+}
+
+/**
+ * この枠の「結びついている人／まだの人／空いている登録」を返す（第115便）。
+ * ★ 読むだけ。1行も書かない。
+ */
+export async function getMediaLinkPairs(input: {
+  salonId: string | number;
+  provider: string;
+  slot: number;
+}): Promise<Result<{ pairs: LinkPairs; readAtISO: string | null }>> {
+  const salonId = Number(input.salonId);
+  if (!Number.isFinite(salonId)) return { ok: false, error: '店舗の指定が不正です' };
+  const guard = await assertSalonOwner(salonId);
+  if (!guard.ok) return guard;
+
+  const provider = String(input.provider);
+  const slot = Number(input.slot);
+  const bad = validTarget(provider, slot);
+  if (bad) return { ok: false, error: bad };
+
+  const svc = createServiceClient();
+  const loaded = await loadLinkPairs(svc, salonId, provider, slot);
+  if (!loaded.ok) return { ok: false, error: loaded.error };
+  return { ok: true, data: { pairs: loaded.pairs, readAtISO: loaded.readAtISO } };
+}
+
+/**
+ * セラピストと媒体側の登録を結ぶ（第115便）。
+ *
+ * ★★★ 結び先の番号は【名簿にあるものだけ】。★ 手打ちを受け付けない（canLink が弾く）。
+ * ★★ 付け替えは「外してから」。★ 黙って上書きしない（誰の出勤がどこへ行くかが変わる操作）。
+ * ★ 旧列（駅ちかの枠1）を使う枠では、両方に書く（mediaCastIds の決めごと）。
+ */
+export async function linkTherapistMediaId(input: {
+  salonId: string | number;
+  provider: string;
+  slot: number;
+  therapistId: number | string;
+  castId: string;
+}): Promise<Result<{ therapistId: number; castId: string }>> {
+  const salonId = Number(input.salonId);
+  if (!Number.isFinite(salonId)) return { ok: false, error: '店舗の指定が不正です' };
+  const guard = await assertSalonOwner(salonId);
+  if (!guard.ok) return guard;
+
+  const provider = String(input.provider);
+  const slot = Number(input.slot);
+  const bad = validTarget(provider, slot);
+  if (bad) return { ok: false, error: bad };
+
+  const therapistId = Number(input.therapistId);
+  if (!Number.isFinite(therapistId)) return { ok: false, error: 'セラピストの指定が不正です' };
+  const castId = String(input.castId ?? '').trim();
+
+  const svc = createServiceClient();
+  // ★★★ 画面が出した候補をそのまま信じない。★ ここで組み直してから判定する
+  const loaded = await loadLinkPairs(svc, salonId, provider, slot);
+  if (!loaded.ok) return { ok: false, error: loaded.error };
+
+  const verdict = canLink(loaded.pairs, therapistId, castId);
+  if (!verdict.ok) return { ok: false, error: verdict.error };
+
+  const person = loaded.pairs.unlinked.find((p) => p.therapistId === therapistId);
+  const entry = loaded.pairs.free.find((e) => e.castId === castId);
+
+  const nowISO = new Date().toISOString();
+  const { error: upErr } = await svc
+    .from('therapist_media_ids')
+    .upsert(
+      { therapist_id: therapistId, provider, slot, external_cast_id: castId, updated_at: nowISO },
+      { onConflict: 'therapist_id,provider,slot' },
+    );
+  if (upErr) return { ok: false, error: '結びつきを保存できませんでした' };
+
+  // ★★ 旧列は「駅ちかの枠1」のときだけ。★ 他の枠に旧列を書くと、枠Aの番号で枠Bを更新する形になる
+  if (isLegacyCastIdScope(provider, slot)) {
+    await svc.from('therapists').update({ import_cast_id: castId }).eq('id', therapistId);
+  }
+
+  await recordMediaAudit({
+    salonId,
+    provider,
+    slot,
+    event: 'cast_id_linked',
+    outcome: 'ok',
+    // ★ 誰と誰を結んだかを、店舗が読んで分かる形で残す（あとで「なぜこの人に送ったか」を辿れる）
+    summary: `${mediaSlotLabel(provider, slot)}の「${entry?.name ?? ''}」と、${person?.name ?? ''}さんを結びつけました`,
+    detail: { therapistId, castId },
+    actor: 'shop:' + guard.data.userId,
+  });
+
+  return { ok: true, data: { therapistId, castId } };
+}
+
+/**
+ * 結びつきを外す（第115便）。
+ * ★★ 「戻せます」と書いた画面には、必ず戻すボタンがあること（第113便の作法）。
+ * ★ 外したあとは、送るときに名前で突き合わせる形に戻る（mediaMatch）。★ 消えるのは結びだけ。
+ */
+export async function unlinkTherapistMediaId(input: {
+  salonId: string | number;
+  provider: string;
+  slot: number;
+  therapistId: number | string;
+}): Promise<Result<{ therapistId: number }>> {
+  const salonId = Number(input.salonId);
+  if (!Number.isFinite(salonId)) return { ok: false, error: '店舗の指定が不正です' };
+  const guard = await assertSalonOwner(salonId);
+  if (!guard.ok) return guard;
+
+  const provider = String(input.provider);
+  const slot = Number(input.slot);
+  const bad = validTarget(provider, slot);
+  if (bad) return { ok: false, error: bad };
+
+  const therapistId = Number(input.therapistId);
+  if (!Number.isFinite(therapistId)) return { ok: false, error: 'セラピストの指定が不正です' };
+
+  const svc = createServiceClient();
+  const loaded = await loadLinkPairs(svc, salonId, provider, slot);
+  if (!loaded.ok) return { ok: false, error: loaded.error };
+
+  const verdict = canUnlink(loaded.pairs, therapistId);
+  if (!verdict.ok) return { ok: false, error: verdict.error };
+
+  const person = loaded.pairs.linked.find((p) => p.therapistId === therapistId);
+
+  const { error: delErr } = await svc
+    .from('therapist_media_ids')
+    .delete()
+    .eq('therapist_id', therapistId)
+    .eq('provider', provider)
+    .eq('slot', slot);
+  if (delErr) return { ok: false, error: '結びつきを外せませんでした' };
+
+  // ★★ 旧列にも同じ番号が入っている。★ 片方だけ消すと、外したのに結ばれたままに見える
+  if (isLegacyCastIdScope(provider, slot)) {
+    await svc.from('therapists').update({ import_cast_id: null }).eq('id', therapistId);
+  }
+
+  await recordMediaAudit({
+    salonId,
+    provider,
+    slot,
+    event: 'cast_id_unlinked',
+    outcome: 'ok',
+    summary: `${mediaSlotLabel(provider, slot)}と、${person?.name ?? ''}さんの結びつきを外しました`,
+    detail: { therapistId },
+    actor: 'shop:' + guard.data.userId,
+  });
+
+  return { ok: true, data: { therapistId } };
 }

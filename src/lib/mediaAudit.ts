@@ -26,6 +26,8 @@ export const MEDIA_AUDIT_EVENTS = [
   'push_photo',          // ★★ 駅ちかへ写真を送った（第107便）。★ 書き換える
   'plan_work',           // ★ 試し打ち。送るとどうなるかを組み立てただけ（第43便）
   'link_mode_changed',   // ★ 連携の向きを変えた（読む↔書く・第46便）
+  'cast_id_linked',      // ★ 名簿の結びを画面から作った（第115便）。★ 送り先が決まる
+  'cast_id_unlinked',    // ★ 名簿の結びを画面から外した（第115便）
   'write_work',          // 出勤を書き換えた
   'verify_work',         // 書き換えた結果を照合した
   'relay_gave_up',       // 3回失敗したので諦めた
@@ -254,6 +256,18 @@ export function defaultAuditSummary(input: {
             : `${t}の連携を「連携しない」に変更しました`;
       break;
     }
+    case 'cast_id_linked':
+      // ★★ 誰と誰を結んだかは、呼び出し側が summary に名前を入れて記録する。
+      //   ★ ここは既定の1行。★ 内部の番号は出さない（店舗が読む場所）
+      s = input.outcome === 'ok'
+        ? `${t}の登録と、フクエスのセラピストを結びつけました`
+        : `${t}の登録と結びつけられませんでした`;
+      break;
+    case 'cast_id_unlinked':
+      s = input.outcome === 'ok'
+        ? `${t}の登録との結びつきを外しました`
+        : `${t}の登録との結びつきを外せませんでした`;
+      break;
     case 'write_work':
       s = input.outcome === 'ok'
         ? `${t}の出勤を更新しました` + (changed !== null ? `（${changed}人ぶんを変更）` : '')
