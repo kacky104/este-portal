@@ -3,6 +3,7 @@ import { revalidatePath } from 'next/cache';
 import { createServiceClient } from '@/app/lib/supabase/service';
 import { generateBadgesForTherapist } from '@/app/lib/therapistBadgeCore';
 import { parseAdminBody, truthy, num } from '@/lib/adminBody';
+import { tallyBadges } from '@/lib/therapistBadgePrompt';
 
 // ── 運営用: 特徴バッジの一括生成（第113便・2026-09-03）────────────────
 //
@@ -15,6 +16,14 @@ import { parseAdminBody, truthy, num } from '@/lib/adminBody';
 //     limit?        1回で処理する人数（既定3・最大10）
 //     apply?        true で DB に保存。既定 false（試し打ち＝選んで返すだけ）
 //     useImage?     写真も見る（既定 true）
+//     tally?        ★ 数えるだけ（AIを叩かない・保存しない・API キーも要らない）
+//
+// ★★★ 数える口（第114便・2026-09-03）
+//   -d salonId=12 -d tally=true  … いま入っているバッジの分布を返す。
+//   ★ 第113便は【流し切ってから】偏りに気づいた（スレンダー59%）。
+//     ★ 数えるのを毎回 SQL でやると、忙しい日に数えなくなる。→ 口にした。
+//   ★ 試し打ち（apply なし）の返事にも「今回の分布」を入れてある。
+//     ★★ 試し打ちは保存しないので、この分布は tally では出てこない。★ その場で見る。
 //
 // ★★★ フォーム形式で渡すこと（2026-09-03 実測）。★ JSON も受けるが PowerShell からは渡せない。
 //   ★ PowerShell 5.1 が ssh.exe へ渡すときに JSON の " を落とし、`invalid json` になる。
@@ -75,13 +84,15 @@ export async function POST(req: Request) {
   if (req.headers.get('authorization') !== `Bearer ${secret}`)
     return NextResponse.json({ ok: false, error: 'unauthorized' }, { status: 401 });
 
-  if (!process.env.ANTHROPIC_API_KEY)
-    return NextResponse.json({ ok: false, error: 'ANTHROPIC_API_KEY is not set' }, { status: 500 });
-
   // ★★★ フォーム形式・JSON・クエリ文字列のどれでも受ける（adminBody.parseAdminBody）
   const body = parseAdminBody(await req.text(), req.url);
   if (body === null)
     return NextResponse.json({ ok: false, error: '本文を読み取れませんでした（JSONのつもりなら形が壊れています）' }, { status: 400 });
+
+  // ★★ 数えるだけなら AI を使わない。★ キーが無くても数えられる（確認の口を止めない）
+  const tallyOnly = truthy(body.tally);
+  if (!tallyOnly && !process.env.ANTHROPIC_API_KEY)
+    return NextResponse.json({ ok: false, error: 'ANTHROPIC_API_KEY is not set' }, { status: 500 });
 
   const salonId = num(body.salonId);
   if (salonId === null) return NextResponse.json({ ok: false, error: 'salonId が不正です' }, { status: 400 });
@@ -115,6 +126,21 @@ export async function POST(req: Request) {
   const empty = all.filter((r) => isEmptyBadges(r.feature_badges));
   const targets = empty.filter(hasMaterial);
   const skippedNoMaterial = empty.length - targets.length;
+
+  // ★★★ 数えるだけ（tally=true）。★ ここで返す＝AIを1回も叩かない・1行も書かない
+  if (tallyOnly) {
+    return NextResponse.json(
+      {
+        ok: true,
+        salon: salon.name,
+        数えただけ: true,
+        在籍: all.length,
+        バッジが空: empty.length,
+        分布: tallyBadges(all.map((r) => r.feature_badges)),
+      },
+      { headers: { 'content-type': 'application/json; charset=utf-8' } },
+    );
+  }
 
   // ★ 1人だけ試す口。★ 対象外なら理由を返して止まる（黙って別の人を処理しない）
   let batch: Row[];
@@ -202,6 +228,9 @@ export async function POST(req: Request) {
       失敗: results.filter((r) => !r.ok).length,
       remaining: Math.max(0, targets.length - done),
       材料なしで対象外: skippedNoMaterial,
+      // ★★★ 今回選んだぶんの偏り。★ 試し打ちは保存しないので、ここでしか見られない
+      //   ★ 3人では見えない。★ 10人×何回かを見て、同じ語が並んでいたら線引きを疑う
+      今回の分布: tallyBadges(results.map((r) => r.保存する内容)),
       results,
     },
     // ★ charset を明示する（第30便・禁則209）。PowerShell 5.1 の文字化け防止

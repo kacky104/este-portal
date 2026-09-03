@@ -39,7 +39,7 @@
     "check:photoflow": "tsc src/lib/relayFlow.ts --outDir _tmpcheck --module commonjs --target ES2020 --strict --skipLibCheck --esModuleInterop && node scripts/photoflow-selftest.js",
     "check:esutama": "tsc src/lib/esutamaPlan.ts src/lib/esutamaRequests.ts --outDir _tmpcheck --module commonjs --target ES2020 --strict --skipLibCheck --esModuleInterop && node scripts/esutama-selftest.js",
     "check:esutamaflow": "tsc src/lib/relayFlow.ts --outDir _tmpcheck --module commonjs --target ES2020 --strict --skipLibCheck --esModuleInterop && node scripts/esutamaflow-selftest.js",
-    "check:badgeprompt": "tsc src/lib/therapistBadgePrompt.ts src/lib/therapistBadges.ts src/lib/adminBody.ts --outDir _tmpcheck --module commonjs --target ES2020 --strict --skipLibCheck --esModuleInterop && node scripts/badgeprompt-selftest.js"
+    "check:badgeprompt": "tsc src/lib/therapistBadgePrompt.ts src/lib/therapistBadges.ts src/lib/therapistCopyPrompt.ts src/lib/adminBody.ts --outDir _tmpcheck --module commonjs --target ES2020 --strict --skipLibCheck --esModuleInterop && node scripts/badgeprompt-selftest.js"
   },
   "dependencies": {
     "@supabase/ssr": "^0.12.0",

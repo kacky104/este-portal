@@ -10,6 +10,8 @@ const path = require('path');
 const v = require(path.join(__dirname, '..', '_tmpcheck', 'therapistBadgePrompt.js'));
 const B = require(path.join(__dirname, '..', '_tmpcheck', 'therapistBadges.js'));
 const A = require(path.join(__dirname, '..', '_tmpcheck', 'adminBody.js'));
+// ★ 紹介文のプロンプト。★ 戒めがバッジ側に持ち込まれているかを見る（第114便）
+const C = require(path.join(__dirname, '..', '_tmpcheck', 'therapistCopyPrompt.js'));
 
 let fail = 0;
 const eq = (name, got, want) => {
@@ -95,6 +97,32 @@ eq('★★ 上限の数が書いてある', v.SYSTEM_PROMPT_BADGE.includes(Strin
 eq('★★ 無理に埋めないと書いてある', v.SYSTEM_PROMPT_BADGE.includes('無理に'), true);
 eq('★★ 空でよいと書いてある', v.SYSTEM_PROMPT_BADGE.includes('空の配列'), true);
 
+console.log('\n── 4-2. ★★★ ありふれた語の戒め（第114便・2026-09-03）──');
+// ★★★ 第113便の失敗そのもの: copyPrompt にあった戒めを badgePrompt に写し忘れた。
+//   ★ 実測でスレンダー59%・かわいい54%・お姉さん系48%。★ 半数に付く語は見分けの役に立たない。
+//   ★★ 手で写すのをやめて import した。★ ここが「写し忘れ」を毎回見張る点検。
+eq('★★★ copyPrompt の決まり文句のうちバッジにある語は、必ず戒めに入る',
+   C.CLICHE_WORDS.filter((w) => v.PHOTO_BADGES.includes(w) && !v.COMMON_BADGES.includes(w)), []);
+eq('★★ 色白・透明感はバッジの語彙に無いので入らない',
+   ['色白', '透明感'].filter((w) => v.COMMON_BADGES.includes(w)), []);
+eq('★★ ありふれた語は全部 PHOTO_BADGES の中にある（AIに見せない語を戒めても意味がない）',
+   v.COMMON_BADGES.filter((b) => !v.PHOTO_BADGES.includes(b)), []);
+eq('★★ 数値で決まる語は入らない', v.COMMON_BADGES.filter((b) => v.NUMERIC_BADGES.includes(b)), []);
+eq('★ 重複していない', v.COMMON_BADGES.length, new Set(v.COMMON_BADGES).size);
+// ★★★ 線引きは【何人に付くか】で決めた（2026-09-03・AROMAMay 様101人）
+eq('★★★ 実測3割以上の6語', [...v.OVERUSED_BADGES],
+   ['スレンダー', 'かわいい', 'お姉さん系', '清楚', '美脚', '癒し系']);
+eq('★★ キレイ（27%）は入れていない', v.OVERUSED_BADGES.includes('キレイ'), false);
+// ★★ 禁止ではない。★ 全部を戒めると、確かに言える人からも語が消える
+eq('★★ 戒めていない語のほうが多い',
+   v.PHOTO_BADGES.filter((b) => !v.COMMON_BADGES.includes(b)).length > v.COMMON_BADGES.length, true);
+// ★★ プロンプトに書かれていなければ、定数だけ直しても何も変わらない
+eq('★★★ 戒めの語が system プロンプトに全部書いてある',
+   v.COMMON_BADGES.filter((b) => !v.SYSTEM_PROMPT_BADGE.includes(b)), []);
+eq('★★ 何個までかが書いてある',
+   v.SYSTEM_PROMPT_BADGE.includes(String(v.MAX_COMMON_PICK) + '個まで'), true);
+eq('★ 上限は選べる数（6）より少ない', v.MAX_COMMON_PICK < v.MAX_PICK, true);
+
 console.log('\n── 5. user プロンプト ──');
 const inp = { name: 'ありな', age: '23', bodyType: 'T149 B86(E) W55 H84', salonName: 'AROMA-May-' };
 eq('★ 素材が入る',
@@ -135,6 +163,44 @@ eq('★★ 知らない語（美少女系）は落ちる', merged.includes('美�
 eq('★★ 数値ぶんは残る', merged.includes('低身長') && merged.includes('巨乳'), true);
 eq('★★ 上限6を超えない',
    B.sanitizeBadges(['低身長', '巨乳', 'かわいい', '癒し系', '清楚', '美脚', 'モデル系', '明るい']).length <= 6, true);
+
+console.log('\n── 7-2. ★★★ 分布を数える（tallyBadges・第114便）──');
+// ★★★ 第113便は【流し切ってから】偏りに気づいた。★ 数えるところをコードに置く
+const 実データ風 = [
+  ['スレンダー', 'かわいい'], ['スレンダー', 'かわいい'], ['スレンダー', 'かわいい'],
+  ['スレンダー', 'かわいい'], ['スレンダー', 'かわいい'], ['スレンダー', '清楚'],
+  ['清楚', '童顔'], ['美脚'], ['キレイ'], ['明るい'],
+  [],            // ★ バッジが空の人
+  null,          // ★ null の人（この列は default '[]' だが、古い行は null のことがある）
+];
+const t = v.tallyBadges(実データ風);
+eq('★★★ 母数は【バッジが入っている人】だけ（空の子で薄めない）', t.母数, 10);
+eq('★ 延べ個数', t.延べ, 17);
+eq('★ 平均は小数1桁', t.平均, 1.7);
+eq('★★★ 多い順に並ぶ', t.語ごと.map((r) => r.語 + ':' + r.人数),
+   ['スレンダー:6', 'かわいい:5', '清楚:2', 'キレイ:1', '童顔:1', '美脚:1', '明るい:1']);
+eq('★★ 割合は母数ぶんの人数', [t.語ごと[0].割合, t.語ごと[2].割合], [60, 20]);
+// ★★★ 一覧（COMMON_BADGES）ではなく、いま数えた結果から出す。★ 直したかどうかはここで分かる
+eq('★★★ 3割以上の語を【データから】出す', t.ありふれた語, ['スレンダー', 'かわいい']);
+eq('★★ 2割の語は入らない（線は COMMON_RATIO の1か所）', t.ありふれた語.includes('清楚'), false);
+// ★ 同じ人に2回入っていても1人と数える（人数が膨らむと線引きを間違える）
+eq('★★ 同じ人の重複は1回', v.tallyBadges([['清楚', '清楚']]).語ごと, [{ 語: '清楚', 人数: 1, 割合: 100 }]);
+eq('★ 延べも重複を数えない', v.tallyBadges([['清楚', '清楚']]).延べ, 1);
+// ★★★ 0件と分からないを混ぜない（引き継ぎメモ 3-5）。★ 誰も居なければ 0 で返す（null にしない）
+eq('★★★ 空の名簿は 0（落ちない）', [v.tallyBadges([]).母数, v.tallyBadges([]).平均, v.tallyBadges([]).語ごと],
+   [0, 0, []]);
+eq('★★ 全員空でも 0', v.tallyBadges([[], null, undefined]).母数, 0);
+// ★★ 壊れた値が混ざっても落ちない（jsonb は何でも入る）
+eq('★★ 配列でない値は「バッジが無い人」', v.tallyBadges(['清楚', 12, {}]).母数, 0);
+eq('★★ 文字列でない要素は数えない', v.tallyBadges([['清楚', 1, null]]).延べ, 1);
+eq('★ 前後の空白は落として同じ語にする', v.tallyBadges([[' 清楚 '], ['清楚']]).語ごと[0].人数, 2);
+eq('★ 空文字は数えない', v.tallyBadges([['', '清楚']]).延べ, 1);
+// ★★ 知らない語も見せる（落とすのは sanitizeBadges の1か所）
+eq('★★ 知らない語も数える', v.tallyBadges([['美少女系']]).語ごと[0].語, '美少女系');
+// ★ 同数のときの並びが毎回同じ（語彙の順）
+eq('★ 同数なら語彙の並び順', v.tallyBadges([['癒し系', '清楚']]).語ごと.map((r) => r.語), ['清楚', '癒し系']);
+// ★★★ 線引きは1か所（COMMON_RATIO）。★ 画面にも文言にも焼き付けない
+eq('★★★ ありふれた語の線は3割', v.COMMON_RATIO, 30);
 
 console.log('\n── 8. ★★★ 運営の口の受け取り（adminBody・第113便）──');
 // ★★★ PowerShell から JSON を渡せない（" が落ちる）。★ フォーム形式で受けられること
