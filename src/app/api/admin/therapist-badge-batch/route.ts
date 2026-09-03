@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { revalidatePath } from 'next/cache';
 import { createServiceClient } from '@/app/lib/supabase/service';
 import { generateBadgesForTherapist } from '@/app/lib/therapistBadgeCore';
+import { parseAdminBody, truthy, num } from '@/lib/adminBody';
 
 // ── 運営用: 特徴バッジの一括生成（第113便・2026-09-03）────────────────
 //
@@ -9,13 +10,17 @@ import { generateBadgesForTherapist } from '@/app/lib/therapistBadgeCore';
 // きっかけ: AROMAMay（salon_id=12）の101人が、駅ちかの取り込みで作られたためバッジが空（[]）。
 //
 //   POST /api/admin/therapist-badge-batch  (Authorization: Bearer <CRON_SECRET>)
-//   body: {
-//     salonId: number,        // 対象店舗（必須）
-//     therapistId?: number,   // ★ 1人だけ試す
-//     limit?: number,         // 1回で処理する人数（既定3・最大10）
-//     apply?: boolean,        // true で DB に保存。既定 false（試し打ち＝選んで返すだけ）
-//     useImage?: boolean,     // 写真も見る（既定 true）
-//   }
+//     salonId       対象店舗（必須）
+//     therapistId?  ★ 1人だけ試す
+//     limit?        1回で処理する人数（既定3・最大10）
+//     apply?        true で DB に保存。既定 false（試し打ち＝選んで返すだけ）
+//     useImage?     写真も見る（既定 true）
+//
+// ★★★ フォーム形式で渡すこと（2026-09-03 実測）。★ JSON も受けるが PowerShell からは渡せない。
+//   ★ PowerShell 5.1 が ssh.exe へ渡すときに JSON の " を落とし、`invalid json` になる。
+//   ★ work-flow の口と同じ形に揃えた（第109便からの実績がある形）:
+//     curl ... -d salonId=12 -d limit=1
+//     curl ... -d salonId=12 -d limit=3 -d apply=true
 //
 // ★★★ 守り（ここが本体）
 //   ① 対象は【バッジが空の子だけ】。★ null でも [] でも空として扱う。
@@ -73,23 +78,23 @@ export async function POST(req: Request) {
   if (!process.env.ANTHROPIC_API_KEY)
     return NextResponse.json({ ok: false, error: 'ANTHROPIC_API_KEY is not set' }, { status: 500 });
 
-  let body: Record<string, unknown>;
-  try {
-    body = (await req.json()) as Record<string, unknown>;
-  } catch {
-    return NextResponse.json({ ok: false, error: 'invalid json' }, { status: 400 });
-  }
+  // ★★★ フォーム形式・JSON・クエリ文字列のどれでも受ける（adminBody.parseAdminBody）
+  const body = parseAdminBody(await req.text(), req.url);
+  if (body === null)
+    return NextResponse.json({ ok: false, error: '本文を読み取れませんでした（JSONのつもりなら形が壊れています）' }, { status: 400 });
 
-  const salonId = Number(body.salonId);
-  if (!Number.isFinite(salonId)) return NextResponse.json({ ok: false, error: 'salonId が不正です' }, { status: 400 });
+  const salonId = num(body.salonId);
+  if (salonId === null) return NextResponse.json({ ok: false, error: 'salonId が不正です' }, { status: 400 });
 
-  const onlyId = body.therapistId != null ? Number(body.therapistId) : null;
-  if (onlyId !== null && !Number.isFinite(onlyId))
+  const onlyId = body.therapistId != null ? num(body.therapistId) : null;
+  if (body.therapistId != null && onlyId === null)
     return NextResponse.json({ ok: false, error: 'therapistId が不正です' }, { status: 400 });
 
-  const limit = Math.min(MAX_LIMIT, Math.max(1, Number(body.limit ?? DEFAULT_LIMIT)));
-  const apply = body.apply === true;
-  const useImage = body.useImage !== false;
+  const limitRaw = num(body.limit);
+  const limit = Math.min(MAX_LIMIT, Math.max(1, limitRaw ?? DEFAULT_LIMIT));
+  const apply = truthy(body.apply);
+  // ★ 書いていなければ true（写真を見る）。★ はっきり false と書いたときだけ止める
+  const useImage = body.useImage == null ? true : truthy(body.useImage);
 
   const svc = createServiceClient();
 

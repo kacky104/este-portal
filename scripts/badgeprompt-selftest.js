@@ -9,6 +9,7 @@
 const path = require('path');
 const v = require(path.join(__dirname, '..', '_tmpcheck', 'therapistBadgePrompt.js'));
 const B = require(path.join(__dirname, '..', '_tmpcheck', 'therapistBadges.js'));
+const A = require(path.join(__dirname, '..', '_tmpcheck', 'adminBody.js'));
 
 let fail = 0;
 const eq = (name, got, want) => {
@@ -127,6 +128,42 @@ eq('★★ 知らない語（美少女系）は落ちる', merged.includes('美�
 eq('★★ 数値ぶんは残る', merged.includes('低身長') && merged.includes('巨乳'), true);
 eq('★★ 上限6を超えない',
    B.sanitizeBadges(['低身長', '巨乳', 'かわいい', '癒し系', '清楚', '美脚', 'モデル系', '明るい']).length <= 6, true);
+
+console.log('\n── 8. ★★★ 運営の口の受け取り（adminBody・第113便）──');
+// ★★★ PowerShell から JSON を渡せない（" が落ちる）。★ フォーム形式で受けられること
+const U = 'https://fukues.com/api/admin/therapist-badge-batch';
+eq('★★★ フォーム形式で読める', A.parseAdminBody('salonId=12&limit=1', U),
+   { salonId: '12', limit: '1' });
+eq('★ JSON も読める', A.parseAdminBody('{"salonId":12,"limit":1}', U),
+   { salonId: 12, limit: 1 });
+eq('★ クエリ文字列も読める', A.parseAdminBody('', U + '?salonId=12'), { salonId: '12' });
+// ★ 本文のほうが後から上書きする
+eq('★ 本文がクエリを上書きする',
+   A.parseAdminBody('salonId=99', U + '?salonId=12'), { salonId: '99' });
+eq('★ 空の本文は空の組（null ではない）', A.parseAdminBody('', U), {});
+// ★★★ 「読めなかった」と「空だった」を混ぜない（引き継ぎメモ 3-5）
+eq('★★★ 壊れたJSONは null', A.parseAdminBody('{"salonId":12', U), null);
+eq('★★ 配列は null（名前と値の組ではない）', A.parseAdminBody('[1,2]', U), null);
+// ★★ '{' で始まっていたらフォーム形式として読み直さない（黙って別の意味に取らない）
+eq('★★ 壊れたJSONをフォームとして読み直さない',
+   A.parseAdminBody('{salonId=12}', U), null);
+eq('★ URL が壊れていても本文は読める', A.parseAdminBody('salonId=12', 'これはURLではない'), { salonId: '12' });
+
+console.log('\n── 8-2. ★★ 文字列と真偽値のどちらで来ても同じに読む ──');
+// ★ フォーム形式は 'true'、JSON は true
+eq("★★ 'true' も true も真", [A.truthy('true'), A.truthy(true)], [true, true]);
+eq("★ '1' と 'yes' も真", [A.truthy('1'), A.truthy('yes')], [true, true]);
+eq('★ 大文字でも読む', A.truthy('TRUE'), true);
+// ★★★ 分からない値は false に倒す（実弾を勝手に撃たない）
+eq('★★★ 分からない値は false', [A.truthy('maybe'), A.truthy(1), A.truthy(null), A.truthy(undefined)],
+   [false, false, false, false]);
+eq("★★★ 'false' は false", A.truthy('false'), false);
+
+eq('★ 数は文字列でも数でも読む', [A.num('12'), A.num(12)], [12, 12]);
+// ★ 読めなければ null（0 と混ぜない）
+eq('★★ 読めなければ null（0 にしない）', [A.num('abc'), A.num(''), A.num(null), A.num(undefined)],
+   [null, null, null, null]);
+eq('★ 0 は 0（null にしない）', A.num('0'), 0);
 
 console.log(fail === 0 ? '\n★ すべて通りました' : '\n' + fail + ' 件 通りませんでした');
 process.exit(fail === 0 ? 0 : 1);
