@@ -202,7 +202,12 @@ eq('★ 閉じた理由が書いてある', v.findMediaSite('esulove').notYet.le
 eq('★ 写メ日記は使えることも書く（全部止まったと読ませない）',
    /写メ日記/.test(v.findMediaSite('esulove').notYet), true);
 eq('★ エステ魂は受け付ける（第109便・VPS から開けることを確かめてから）', v.canRegisterSite(v.findMediaSite('esutama')), true);
-eq('★ エステ魂の注意書き（メールアドレス）が書いてある', /メールアドレス/.test(v.findMediaSite('esutama').stageNote), true);
+// ★★ 第116便: 「メールアドレスを入れる」ことは【欄の名前】が言う。★ 注意書きに頼らない
+//   ★ 注意書きは読み飛ばされる。★ 読み飛ばした店舗様は店舗IDを入れて詰まる
+eq('★★ エステ魂はメールアドレスだと欄の名前で分かる',
+   /メールアドレス/.test(v.loginIdLabelOf(v.findMediaSite('esutama'))), true);
+// ★ 注意書きには、欄の名前では言えないこと（名簿の結び）だけを残す
+eq('★ 注意書きは名簿の結びのことを言う', /結んで/.test(v.findMediaSite('esutama').stageNote), true);
 eq('★ 全国もまだ受け付けない', v.canRegisterSite(v.findMediaSite('zenkoku')), false);
 eq('★ accepting が 1 では受け付けない側に倒す', v.canRegisterSite(site({ accepting: 1 })), false);
 
@@ -248,6 +253,22 @@ eq('★ 写メ日記が送れるサイトには、必ずアドレスの入手手
 // ★★ 逆も。read/manual なのに can に diary が無いのはおかしい
 eq('★ 入手手段があるサイトは、写メ日記が送れると書いてある',
   v.MEDIA_SITES.filter((s) => s.diaryAddressSource !== 'none' && !s.can.includes('diary')).length, 0);
+
+console.log('\n── ★★ ログインID欄の呼び名（第116便）──');
+// ★★★ エステ魂はメールアドレスでログインする（2026-09-02 実測）。★ 欄の名前を媒体に合わせる
+eq('★★★ エステ魂は「メールアドレス」', v.loginIdLabelOf(v.findMediaSite('esutama')), 'メールアドレス');
+eq('★ 駅ちかは「ログインID」（既定）', v.loginIdLabelOf(v.findMediaSite('ekichika')), 'ログインID');
+// ★★ 空・未知・null でも欄が名無しにならない（画面のラベルが消えると何を入れるか分からない）
+eq('★★ 空なら既定に落ちる', v.loginIdLabelOf({ loginIdLabel: '' }), 'ログインID');
+eq('★★ 空白だけでも既定に落ちる', v.loginIdLabelOf({ loginIdLabel: '  ' }), 'ログインID');
+eq('★★ 持っていなくても落ちない', v.loginIdLabelOf({}), 'ログインID');
+eq('★★★ null でも落ちない（サイトが見つからないとき）', v.loginIdLabelOf(null), 'ログインID');
+// ★ 全サイトが必ず答えを持つ（増やしたときの書き忘れを拾う）
+eq('★ 全サイトで空にならない',
+  v.MEDIA_SITES.filter((s) => !v.loginIdLabelOf(s)).length, 0);
+// ★★ 欄の名前で言えることを、注意書き（stageNote）で二重に言わない
+eq('★★ 欄の名前になったので stageNote から「ログインID欄には」を落とす',
+  v.MEDIA_SITES.filter((s) => s.stageNote.indexOf('ログインID欄') >= 0).length, 0);
 
 console.log(fail === 0 ? '\n★ すべて通った' : '\n★ NG ' + fail + ' 件');
 process.exit(fail === 0 ? 0 : 1);

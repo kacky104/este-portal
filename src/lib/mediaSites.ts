@@ -56,6 +56,16 @@ export type MediaSite = {
    */
   stageNote: string;
   /**
+   * ★★ ログインID欄の呼び名（第116便・2026-09-03）。空なら「ログインID」。
+   *
+   * ★★★ なぜ要るか —— エステ魂は【メールアドレス】でログインする（2026-09-02 実測）。
+   *   ★ 画面が「ログインID」としか書けなかったので、第109便では stageNote に
+   *     「ログインID欄にはメールアドレスを入れてください」と**注意書きで補っていた**。
+   *   ★ 注意書きで補うと、読み飛ばした店舗様は必ず店舗IDを入れて詰まる。
+   *   → 欄の名前そのものを媒体に合わせる。★ 画面に直接書かず、ここ1か所で決める。
+   */
+  loginIdLabel: string;
+  /**
    * ★★ 店舗ID をこちらで預かるか（第81便）。
    *
    * ★★★ なぜ足したか —— カッキー様の指摘「店舗オーナーはここで？になります」
@@ -102,6 +112,8 @@ export const MEDIA_SITES: readonly MediaSite[] = [
     accepting: true,
     notYet: '',
     stageNote: '',
+    // ★ 駅ちかの画面も「ログインID」と書いてある。★ 既定のまま
+    loginIdLabel: '',
     // ★ /admin/maillist/ から読み取れる（第53便）
     diaryAddressSource: 'read',
     needsShopId: true,
@@ -132,6 +144,8 @@ export const MEDIA_SITES: readonly MediaSite[] = [
       'エステラブは、フクエスのサーバからの接続を受け付けていませんでした。' +
       'そのため出勤を送ることができません。写メ日記の転送（メール）は、これまでどおりお使いいただけます。',
     stageNote: '',
+    // ★ エステラブは login_id。★ 既定のまま
+    loginIdLabel: '',
     // ★★ /admin が 403 なので読み取れない。★ 手で入れてもらう（第84便）
     diaryAddressSource: 'manual',
     // ★★ エステラブのログインは login_id と login_password の2つだけ。店舗IDは使わない
@@ -150,7 +164,10 @@ export const MEDIA_SITES: readonly MediaSite[] = [
     //   ★ 実弾（work_push）はまだ運営の口からだけ。無人の自動反映は esutamaFlow.ESUTAMA_AUTO_WRITE_ENABLED（false）が止めている。
     accepting: true,
     notYet: '',
-    stageNote: 'ログインID欄にはエステ魂のメールアドレスを入れてください。セラピストの名前がエステ魂と少しでも違う（カナ・漢字など）場合は、名簿で結んでから送ります。',
+    // ★★ 第116便で「ログインID欄には…」の1文を落とした。★ 欄の名前そのものが【メールアドレス】になったため
+    stageNote: 'セラピストの名前がエステ魂と少しでも違う（カナ・漢字など）場合は、セラピスト一覧で結んでから送ります。',
+    // ★★★ エステ魂はメールアドレスでログインする（2026-09-02 実測）。★ 欄の名前を合わせる
+    loginIdLabel: 'メールアドレス',
     // ★ メールでの投稿ができない（画面にもそう書いてある）
     diaryAddressSource: 'none',
     // ★★ 実測（2026-09-02・設計メモ_エステ魂の出勤書き込み §2）: ログインはメールアドレスとパスワードの2つだけ。店舗IDは無い
@@ -168,6 +185,8 @@ export const MEDIA_SITES: readonly MediaSite[] = [
     accepting: false,
     notYet: '全国エステランキングへ送る仕組みを準備しています。できあがるまで、ログイン情報はお預かりしません。',
     stageNote: '',
+    // ★ 実物を見ていないので決めない（受け付けていないので画面にも出ない）
+    loginIdLabel: '',
     // ★ 写メ日記そのものが無い
     diaryAddressSource: 'none',
     // ★ 実物を見ていないので決めない。★ 受け付けていないので画面には出ない
@@ -201,6 +220,15 @@ export function findMediaSite(provider: string): MediaSite | null {
 }
 
 /** 枠の番号。★ slots が壊れていても最低1枠は出す（登録の口を消さない） */
+/**
+ * ログインID欄の見出し。★ 空なら「ログインID」。
+ * ★★ 画面はこの関数だけを呼ぶ。★ 「エステ魂なら…」を画面に書かない（媒体が増えるたび書き漏らす）
+ */
+export function loginIdLabelOf(site: { loginIdLabel?: string } | null): string {
+  const v = site?.loginIdLabel ?? '';
+  return v.trim() === '' ? 'ログインID' : v;
+}
+
 export function mediaSiteSlots(site: { slots: number }): number[] {
   const n = Number.isFinite(site.slots) ? Math.trunc(site.slots) : 1;
   const count = n < 1 ? 1 : n > 20 ? 20 : n;

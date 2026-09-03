@@ -44,6 +44,13 @@ export function RosterLinkBoard({ salonId, onToast }: { salonId: number | null; 
   const [error, setError] = useState('');
   const [pick, setPick] = useState<Record<number, string>>({});
   const [onlyCandidates, setOnlyCandidates] = useState(false);
+  /**
+   * ★★★ 非公開の方を出すか（第116便）。★ 既定は出さない。
+   *   ★ 出勤を送る相手は is_active=true の人だけ（relayFlow）。★ 非公開の方は送らない＝結ぶ必要もない。
+   *   ★ 既定で出すと「まだ14名」と大きく出て、手当てが要る人が埋もれる（2026-09-03 実物で確認）。
+   *   ★ ただし【隠すだけ】。★ チェック1つで出せる（数えたものを黙って捨てない）。
+   */
+  const [showHidden, setShowHidden] = useState(false);
   const [showAll, setShowAll] = useState(false);
   const [reloadKey, setReloadKey] = useState(0);
 
@@ -124,9 +131,10 @@ export function RosterLinkBoard({ salonId, onToast }: { salonId: number | null; 
   if (salonId == null) return null;
   if (sites.length === 0 && !loading) return null;
 
-  const unlinked = pairs
-    ? pairs.unlinked.filter((p) => (onlyCandidates ? p.candidates.length > 0 : true))
-    : [];
+  // ★ 既定は【公開中の方】だけ。★ 非公開の方は送る相手ではないので、既定では出さない
+  const visible = pairs ? pairs.unlinked.filter((p) => showHidden || p.isActive) : [];
+  const hiddenCount = pairs ? pairs.unlinked.filter((p) => !p.isActive).length : 0;
+  const unlinked = visible.filter((p) => (onlyCandidates ? p.candidates.length > 0 : true));
   const shown = showAll ? unlinked : unlinked.slice(0, 10);
 
   return (
@@ -188,7 +196,15 @@ export function RosterLinkBoard({ salonId, onToast }: { salonId: number | null; 
       ) : (
         <>
           <div className="mt-3 flex items-center justify-between gap-2 flex-wrap">
-            <p className="text-[14px] font-bold text-slate-700">{pairsSummary(pairs)}</p>
+            <div>
+              <p className="text-[14px] font-bold text-slate-700">{pairsSummary(pairs)}</p>
+              {/* ★★ 隠した数は必ず言う。★ 黙って減らすと「もう無い」と読まれる */}
+              {!showHidden && hiddenCount > 0 && (
+                <p className="text-[13px] text-slate-400 mt-0.5">
+                  うち非公開の{hiddenCount}名は出していません（出勤を送る相手ではありません）
+                </p>
+              )}
+            </div>
             <span className="text-[13px] text-slate-400">
               {target?.label}の登録 {pairs.free.length + pairs.takenCastIds.length}件
               {readAt && <>／読んだのは {fmtAt(readAt)}</>}
@@ -200,14 +216,27 @@ export function RosterLinkBoard({ salonId, onToast }: { salonId: number | null; 
             <div className="mt-3">
               <div className="flex items-center justify-between gap-2 flex-wrap mb-2">
                 <h4 className="text-[14.5px] font-bold text-slate-700">まだ結びついていない方</h4>
-                <label className="text-[13px] text-slate-500 flex items-center gap-1.5">
-                  <input
-                    type="checkbox"
-                    checked={onlyCandidates}
-                    onChange={(e) => { setOnlyCandidates(e.target.checked); setShowAll(false); }}
-                  />
-                  候補がある方だけ
-                </label>
+                <div className="flex items-center gap-3 flex-wrap">
+                  <label className="text-[13px] text-slate-500 flex items-center gap-1.5">
+                    <input
+                      type="checkbox"
+                      checked={onlyCandidates}
+                      onChange={(e) => { setOnlyCandidates(e.target.checked); setShowAll(false); }}
+                    />
+                    候補がある方だけ
+                  </label>
+                  {/* ★ 隠しているだけ。★ いつでも出せる */}
+                  {hiddenCount > 0 && (
+                    <label className="text-[13px] text-slate-500 flex items-center gap-1.5">
+                      <input
+                        type="checkbox"
+                        checked={showHidden}
+                        onChange={(e) => { setShowHidden(e.target.checked); setShowAll(false); }}
+                      />
+                      非公開の方も出す（{hiddenCount}名）
+                    </label>
+                  )}
+                </div>
               </div>
 
               <ul className="border border-slate-200 divide-y divide-slate-100">
@@ -267,8 +296,13 @@ export function RosterLinkBoard({ salonId, onToast }: { salonId: number | null; 
                 </button>
               )}
 
+              {/* ★★ 空の理由を言い分ける。★ 「いません」だけだと、隠しただけなのか本当に居ないのか分からない */}
               {unlinked.length === 0 && (
-                <p className="text-[14px] text-slate-500">候補がある方はいません。一覧から選んで結んでください。</p>
+                <p className="text-[14px] text-slate-500">
+                  {visible.length === 0
+                    ? '公開中の方は、全員が結びついています。'
+                    : '候補がある方はいません。一覧から選んで結んでください。'}
+                </p>
               )}
             </div>
           )}

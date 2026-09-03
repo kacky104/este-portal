@@ -12,6 +12,7 @@ import {
   loginDirection,
   loginDirectionText,
   canRegisterSite,
+  loginIdLabelOf,
   type MediaSite,
 } from '@/lib/mediaSites';
 import {
@@ -517,7 +518,7 @@ export function LoginBoard({
                       {site.needsShopId && (
                         <>店舗ID <b className="text-slate-700">{row.shopId}</b> ／ </>
                       )}
-                      ログインID{' '}
+                      {loginIdLabelOf(site)}{' '}
                       <b className="text-slate-700">{row.loginId}</b> ／ パスワード{' '}
                       <b className="text-slate-700">{row.passwordMask || '未登録'}</b>
                     </p>
@@ -668,7 +669,8 @@ export function LoginBoard({
 
                     <div className="grid md:grid-cols-2 gap-3">
                       <div>
-                        <label className="text-[13px] font-bold text-slate-500">ログインID</label>
+                        {/* ★ 欄の名前は媒体ごと（mediaSites.loginIdLabel）。★ エステ魂は「メールアドレス」 */}
+                        <label className="text-[13px] font-bold text-slate-500">{loginIdLabelOf(site)}</label>
                         <input
                           value={loginId}
                           onChange={(e) => setLoginId(e.target.value)}
