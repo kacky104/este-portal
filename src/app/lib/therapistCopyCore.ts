@@ -20,7 +20,7 @@ import {
 //
 // ⚠ ANTHROPIC_API_KEY はサーバー専用。このファイルはクライアントから import しないこと。
 
-const MODEL = 'claude-sonnet-4-5';
+export const MODEL = 'claude-sonnet-4-5';
 const MAX_TOKENS = 1500;
 /** Anthropic API が受ける画像の上限に対する安全側の自主制限（バイト）。 */
 const MAX_IMAGE_BYTES = 4 * 1024 * 1024;
@@ -31,8 +31,9 @@ export type CoreResult =
   | { ok: true; catchphrase: string; profileText: string; tries: number; short: boolean; usedImage: boolean }
   | { ok: false; error: string };
 
-/** 画像URLを取得して base64 に変換する。失敗しても null を返すだけ（写真なしで生成を続ける）。 */
-async function fetchImageAsBase64(url: string): Promise<{ mediaType: string; data: string } | null> {
+/** 画像URLを取得して base64 に変換する。失敗しても null を返すだけ（写真なしで生成を続ける）。
+ *  ★ 第113便でバッジ生成（therapistBadgeCore）からも使うので export した。★ 複製しない。 */
+export async function fetchImageAsBase64(url: string): Promise<{ mediaType: string; data: string } | null> {
   try {
     const res = await fetch(url, { cache: 'no-store' });
     if (!res.ok) return null;
@@ -47,14 +48,18 @@ async function fetchImageAsBase64(url: string): Promise<{ mediaType: string; dat
   }
 }
 
-type AnthropicBlock =
+export type AnthropicBlock =
   | { type: 'text'; text: string }
   | { type: 'image'; source: { type: 'base64'; media_type: string; data: string } };
 
-/** Anthropic Messages API を1回叩いて、本文テキストを返す。 */
-async function callClaude(
+/** Anthropic Messages API を1回叩いて、本文テキストを返す。
+ *  ★ 第113便で system と max_tokens を引数にした（バッジ生成は別の system・短い出力）。
+ *    ★ 省略時はこれまでどおり紹介文の設定。★ 呼び出し側は1文字も変えなくてよい。 */
+export async function callClaude(
   apiKey: string,
   userBlocks: AnthropicBlock[],
+  system: string = SYSTEM_PROMPT,
+  maxTokens: number = MAX_TOKENS,
 ): Promise<{ text: string } | { error: string }> {
   let res: Response;
   try {
@@ -67,8 +72,8 @@ async function callClaude(
       },
       body: JSON.stringify({
         model: MODEL,
-        max_tokens: MAX_TOKENS,
-        system: SYSTEM_PROMPT,
+        max_tokens: maxTokens,
+        system,
         messages: [{ role: 'user', content: userBlocks }],
       }),
     });
