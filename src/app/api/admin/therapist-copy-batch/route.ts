@@ -3,19 +3,30 @@ import { revalidatePath } from 'next/cache';
 import { createServiceClient } from '@/app/lib/supabase/service';
 import { generateCopyForTherapist } from '@/app/lib/therapistCopyCore';
 import { MIN_PROFILE_LEN } from '@/lib/therapistCopyPrompt';
+import { parseAdminBody, truthy, num } from '@/lib/adminBody';
 
 // ── 運営用: セラピスト紹介文の一括生成（第30便・2026-08-24）────────────
 // 店舗の紹介文がまとめて短い・薄いときに、運営が一括で作り直すためのルート。
 // 初出のきっかけ: アイリス（salon_id=3）134名の紹介文が平均47〜75字と短かったため。
 //
 //   POST /api/admin/therapist-copy-batch  (Authorization: Bearer <CRON_SECRET>)
-//   body: {
-//     salonId: number,        // 対象店舗（必須）
-//     limit?: number,         // 1回で処理する人数（既定3・最大5）
-//     apply?: boolean,        // true で DB に保存。既定 false（試し打ち＝生成して返すだけ）
-//     minLen?: number,        // この字数未満の紹介文だけ対象にする（既定 MIN_PROFILE_LEN=150）
-//     useImage?: boolean,     // 写真も見て書く（既定 true）
-//   }
+//
+// ★★★ 叩き方（第120便でフォーム形式に揃えた・2026-09-03）
+//   curl ... -d salonId=12 -d limit=3            … 試し打ち（保存しない）
+//   curl ... -d salonId=12 -d therapistId=483    … 1人だけ試す
+//   curl ... -d salonId=12 -d limit=5 -d apply=true
+//   ★★ それまで req.json() だけだったので、PowerShell → ssh → bash → curl の道では
+//     JSON の " が落ちて【必ず invalid json】になっていた（引き継ぎメモ 作法 3-10）。
+//     ★ 逃がし方で直さない。★ 動いている形（work-flow / badge-batch）に揃えるのが正解。
+//   ★ JSON もクエリ文字列も引き続き受ける（adminBody.parseAdminBody）。
+//
+//   受け取る値:
+//     salonId       対象店舗（必須）
+//     therapistId?  ★ 1人だけ試す。★ 指定すると limit は無視する
+//     limit?        1回で処理する人数（既定3・最大5）
+//     apply?        true で DB に保存。既定 false（試し打ち＝生成して返すだけ）
+//     minLen?       この字数未満の紹介文だけ対象にする（既定 MIN_PROFILE_LEN=150）
+//     useImage?     写真も見て書く（既定 true）
 //
 // ★ Vercel の実行上限が60秒なので、1回では全員を処理できない。
 //   「まだ残っている人数（remaining）」を返すので、呼び出し側で 0 になるまで繰り返す。
@@ -64,20 +75,25 @@ export async function POST(req: Request) {
   if (!process.env.ANTHROPIC_API_KEY)
     return NextResponse.json({ ok: false, error: 'ANTHROPIC_API_KEY is not set' }, { status: 500 });
 
-  let body: Record<string, unknown>;
-  try {
-    body = (await req.json()) as Record<string, unknown>;
-  } catch {
-    return NextResponse.json({ ok: false, error: 'invalid json' }, { status: 400 });
-  }
+  // ★★★ フォーム形式・JSON・クエリ文字列のどれでも受ける（adminBody.parseAdminBody）
+  const body = parseAdminBody(await req.text(), req.url);
+  if (body === null)
+    return NextResponse.json({ ok: false, error: '本文を読み取れませんでした（JSONのつもりなら形が壊れています）' }, { status: 400 });
 
-  const salonId = Number(body.salonId);
-  if (!Number.isFinite(salonId)) return NextResponse.json({ ok: false, error: 'salonId が不正です' }, { status: 400 });
+  const salonId = num(body.salonId);
+  if (salonId === null) return NextResponse.json({ ok: false, error: 'salonId が不正です' }, { status: 400 });
 
-  const limit = Math.min(MAX_LIMIT, Math.max(1, Number(body.limit ?? DEFAULT_LIMIT)));
-  const apply = body.apply === true;
-  const minLen = Number(body.minLen ?? MIN_PROFILE_LEN);
-  const useImage = body.useImage !== false;
+  // ★ 1人だけ試す口。★ 読めない値は 0 と混ぜずに弾く
+  const onlyId = body.therapistId != null ? num(body.therapistId) : null;
+  if (body.therapistId != null && onlyId === null)
+    return NextResponse.json({ ok: false, error: 'therapistId が不正です' }, { status: 400 });
+
+  const limitRaw = num(body.limit);
+  const limit = Math.min(MAX_LIMIT, Math.max(1, limitRaw ?? DEFAULT_LIMIT));
+  const apply = truthy(body.apply);
+  const minLen = num(body.minLen) ?? MIN_PROFILE_LEN;
+  // ★ 書いていなければ true（写真を見る）。★ はっきり false と書いたときだけ止める
+  const useImage = body.useImage == null ? true : truthy(body.useImage);
 
   const svc = createServiceClient();
 
@@ -98,7 +114,24 @@ export async function POST(req: Request) {
   // 素材が無くて手を付けられない人は、件数だけ返して気づけるようにする。
   const skippedNoMaterial = all.filter((r) => len(r.profile_text) < minLen && !hasMaterial(r)).length;
 
-  const batch = targets.slice(0, limit);
+  // ★ 1人だけ試す口。★ 対象外なら理由を返して止まる（黙って別の人を処理しない）
+  let batch: Row[];
+  if (onlyId !== null) {
+    const one = all.find((r) => Number(r.id) === onlyId);
+    if (!one)
+      return NextResponse.json({ ok: false, error: 'そのセラピストはこの店舗に居ません（または非公開）' }, { status: 404 });
+    if (len(one.profile_text) >= minLen)
+      return NextResponse.json(
+        { ok: false, error: `そのセラピストの紹介文は既に ${len(one.profile_text)} 字あります（minLen=${minLen}・触りません）` },
+        { status: 409 },
+      );
+    if (!hasMaterial(one))
+      return NextResponse.json({ ok: false, error: '写真もバッジも無いため、書く材料がありません' }, { status: 409 });
+    batch = [one];
+  } else {
+    batch = targets.slice(0, limit);
+  }
+
   const results: Array<Record<string, unknown>> = [];
 
   for (const t of batch) {
