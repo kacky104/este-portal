@@ -5,6 +5,7 @@ import {
   parseCopyResponse,
   isLongEnough,
   hasSizeExpression,
+  findForbiddenInText,
   MAX_RETRY,
   MIN_PROFILE_LEN,
   type CopyInput,
@@ -38,6 +39,8 @@ export type CoreResult =
       usedImage: boolean;
       /** ★ キャッチにサイズ表現が残ったので空にした（第122便）。★ 黙って消さないための印。 */
       catchDropped: boolean;
+      /** ★ やり直しても紹介文に残った「使わないと決めた語」（第123便）。★ 空なら守られた。 */
+      forbiddenLeft: string[];
     }
   | { ok: false; error: string };
 
@@ -197,22 +200,40 @@ export async function generateCopyForTherapist(
     }
     last = parsed;
 
-    // ★★★ キャッチにサイズ表現（Eカップ・スリーサイズ等）が入っていたら作り直す（第122便）。
-    //   ★ 注意書きだけに頼らない。★ 決まるものはコードで決める（第113便の作法）。
-    //   ★ 紹介文の中は止めない。★ 止めるのはキャッチだけ。
+    // ★★★ 直すべき点を【1回にまとめて】伝える（第123便）。
+    //   ★ 1つずつ continue すると、やり直しの回数（最大3回）を1項目で使い切ってしまう。
+    //   ★★ 決まるものはコードで決める。★ プロンプトに書いただけでは守られなかった（第122便で実測）。
+    const problems: string[] = [];
+
+    // ★ キャッチのサイズ表現（第122便）。★ 紹介文の中で触れるのは止めない
     if (hasSizeExpression(parsed.catchphrase)) {
-      retryReason =
-        `前回のキャッチフレーズ「${parsed.catchphrase}」にサイズ表現が入っていました。` +
-        'カップ・スリーサイズ・身長の数値・「巨乳」などをキャッチに入れず、書き直してください。' +
-        '（紹介文の中で触れるのは構いません）';
-      continue;
+      problems.push(
+        `・キャッチフレーズ「${parsed.catchphrase}」にサイズ表現が入っていました。` +
+          'カップ・スリーサイズ・身長の数値・「巨乳」などをキャッチに入れないでください' +
+          '（紹介文の中で触れるのは構いません）。',
+      );
     }
 
-    if (isLongEnough(parsed.profileText)) break;
+    // ★★★ 使わないと決めた言い回し（第123便）。★ 入っていた語をそのまま見せる
+    const forbidden = findForbiddenInText(parsed.profileText);
+    if (forbidden.length > 0) {
+      problems.push(
+        `・紹介文に、使わないと決めた言い回しが入っていました: ${forbidden.map((w) => `「${w}」`).join('')}。` +
+          'これらは誰の体型にも当てはまる要約です。' +
+          '★ 別の似た語に置き換えるのではなく、要約するのをやめて、' +
+          '写真に実際に見えるもの（姿勢・手足の見え方・服の印象・髪の落ち方など）を具体的に書いてください。',
+      );
+    }
 
-    retryReason =
-      `前回の紹介文は${parsed.profileText.replace(/\s/g, '').length}文字で短すぎました。` +
-      `${MIN_PROFILE_LEN}文字以上になるよう、容姿・雰囲気・人柄の描写を厚くして書き直してください。`;
+    if (!isLongEnough(parsed.profileText)) {
+      problems.push(
+        `・紹介文が${parsed.profileText.replace(/\s/g, '').length}文字で短すぎました。` +
+          `${MIN_PROFILE_LEN}文字以上になるよう、容姿・雰囲気・人柄の描写を厚くしてください。`,
+      );
+    }
+
+    if (problems.length === 0) break;
+    retryReason = problems.join('\n');
   }
 
   if (!last) return { ok: false, error: 'AIが下書きを作れませんでした。もう一度試してください' };
@@ -222,9 +243,14 @@ export async function generateCopyForTherapist(
   //   ★★ ただし黙って消さない。★ catchDropped で理由が読み取れるようにする。
   const catchDropped = hasSizeExpression(last.catchphrase);
 
+  // ★★ 紹介文は空にできない（本体なので）。★ だが黙って通さない。
+  //   ★ 残った語を返して、あとで数えられるようにする（第123便）。
+  const forbiddenLeft = findForbiddenInText(last.profileText);
+
   return {
     ok: true,
     catchDropped,
+    forbiddenLeft,
     catchphrase: catchDropped ? '' : last.catchphrase,
     profileText: last.profileText,
     tries,

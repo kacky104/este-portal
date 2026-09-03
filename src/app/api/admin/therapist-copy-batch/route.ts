@@ -195,6 +195,8 @@ export async function POST(req: Request) {
       usedImage: gen.usedImage,
       // ★ キャッチを空にしたなら理由が分かるように返す（第122便）
       catchDropped: gen.catchDropped,
+      // ★ やり直しても残った「使わないと決めた語」（第123便）。★ [] なら守られた
+      禁止語が残った: gen.forbiddenLeft,
       tries: gen.tries,
       beforeLen: len(t.profile_text),
       afterLen: len(gen.profileText),

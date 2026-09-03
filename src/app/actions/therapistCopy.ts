@@ -43,6 +43,8 @@ export type GenerateResult =
        * ★★ 黙って消さないための印。★ 画面ではまだ出していない（第123便の候補）。
        */
       catchDropped: boolean;
+      /** ★ やり直しても紹介文に残った「使わないと決めた語」（第123便）。★ 空なら守られた。 */
+      forbiddenLeft: string[];
       /** 消費後の残り回数（画面表示用） */
       quota: QuotaState;
     }
@@ -179,6 +181,7 @@ export async function generateTherapistCopy(
     // ★ キャッチにサイズ表現が残ったので空にした（第122便）。★ 黙って消さないための印。
     //   ★★ 画面ではまだ出していない（第123便の候補）。★ 値だけは呼び出し側へ渡す。
     catchDropped: gen.catchDropped,
+    forbiddenLeft: gen.forbiddenLeft,
     quota: after,
   };
 }
