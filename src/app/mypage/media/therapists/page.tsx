@@ -23,11 +23,11 @@ export default function MediaTherapistsPage() {
       current="roster"
       toast={toast}
     >
-      <div className="space-y-3">
-        <TherapistBoard salonId={salon ? Number(salon.id) : null} onToast={showToast} />
-        {/* ★ 名簿の結び（第115便）。★ これまで運営が SQL で入れていたものを、店舗様が画面から */}
+      {/* ★ 第119便: 2つの塊をタブにした（縦に長すぎたため）。
+          ★ 「媒体側の登録と結びつける」はタブが選ばれたときだけ描かれる */}
+      <TherapistBoard salonId={salon ? Number(salon.id) : null} onToast={showToast}>
         <RosterLinkBoard salonId={salon ? Number(salon.id) : null} onToast={showToast} />
-      </div>
+      </TherapistBoard>
     </MediaShell>
   );
 }

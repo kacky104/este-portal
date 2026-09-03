@@ -574,8 +574,14 @@ export function therapistSiteLabel(s: TherapistSiteState | string): string {
   switch (s) {
     case 'present': return 'います';
     case 'missing': return 'いません';
-    case 'unlinked': return 'まだ結びついていません';
-    default: return 'まだ確かめていません';
+    // ★★★ 第119便（カッキーさん・2026-09-03）: 店舗様の言葉に直した。
+    //   ★ 「まだ結びついていません／向こうの番号が分かっていません」は**こちらの言葉**（castId のこと）。
+    //   ★★ しかも「まだ確かめていません」と並ぶと、どちらがどちらか読み分けられなかった。
+    //     ・読んでいない          → 'まだ読んでいません'
+    //     ・読んだが判断できない  → '確かめられません'
+    //   ★ 4つは減らさない。★ 理由が違えば、店舗様がやることも違う（減らすと「なぜ出ないのか」に戻る）。
+    case 'unlinked': return '確かめられません';
+    default: return 'まだ読んでいません';
   }
 }
 

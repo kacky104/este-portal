@@ -67,7 +67,15 @@ function Photo({ url, name }: { url: string | null; name: string }) {
   );
 }
 
-export function TherapistBoard({ salonId, onToast }: { salonId: number | null; onToast: (m: string) => void }) {
+export function TherapistBoard({ salonId, onToast, children }: {
+  salonId: number | null;
+  onToast: (m: string) => void;
+  /**
+   * ★ 2つ目のタブの中身（媒体側の登録と結びつける）。★ 第119便でタブにした（縦に長すぎたため）。
+   * ★★ タブが選ばれるまで**描かない**ので、開くまで読みに行かない（無駄な問い合わせを増やさない）。
+   */
+  children?: React.ReactNode;
+}) {
   const [therapists, setTherapists] = useState<Therapist[]>([]);
   const [roster, setRoster] = useState<RosterResult[]>([]);
   const [sites, setSites] = useState<Site[]>([]);
@@ -76,6 +84,7 @@ export function TherapistBoard({ salonId, onToast }: { salonId: number | null; o
   const [filter, setFilter] = useState<Filter>('all');
   const [reading, setReading] = useState(false);
   const [showAll, setShowAll] = useState(false);
+  const [tab, setTab] = useState<'list' | 'link'>('list');
 
   const load = useCallback(async () => {
     if (salonId == null) return;
@@ -219,14 +228,38 @@ export function TherapistBoard({ salonId, onToast }: { salonId: number | null; o
         )}
       </div>
 
-      {/* ── 一覧 ──────────────────────────────────── */}
+      {/* ── ★ タブ（第119便・カッキーさん）───────────────────
+          ★ 縦に長くなりすぎたので、2つの塊を切り替えにした。
+          ★★ 見出しはタブが兼ねる（同じ言葉を2回出さない）。 */}
       {!loading && !error && (
+        <div className="flex flex-wrap gap-2">
+          {([['list', 'どのサイトに出ているか'], ['link', '媒体側の登録と結びつける']] as const).map(([k, label]) => (
+            <button
+              key={k}
+              type="button"
+              onClick={() => setTab(k)}
+              aria-pressed={tab === k}
+              className={`px-3.5 py-2 border text-[14.5px] font-bold transition-colors ${
+                tab === k
+                  ? 'bg-indigo-50 text-indigo-700 border-indigo-200'
+                  : 'bg-white text-slate-400 border-slate-200 hover:bg-slate-50'
+              }`}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+      )}
+
+      {/* ── 一覧 ──────────────────────────────────── */}
+      {tab === 'list' && !loading && !error && (
         <div className="bg-white border border-slate-200 shadow-[0_1px_2px_rgba(31,35,51,0.05)] p-4">
           <div className="flex items-center justify-between gap-2 mb-3 flex-wrap">
-            <h3 className="text-[15.5px] font-bold text-slate-700">どのサイトに出ているか</h3>
             <div className="flex items-center gap-2">
+              {/* ★ 第119便: 「10 / 37名中」→「37 / 37名中」。★ いま何行見えているかではなく、
+                  ★ 【選び方で何名が対象か】を出す。★ 「残り27名を見る」を押すまで数が動く必要はない */}
               <span className="text-[13px] font-bold text-slate-400 tabular-nums">
-                {shown.length} / {therapists.length}名中
+                {filtered.length} / {therapists.length}名中
               </span>
               {readSite && (
                 <button
@@ -321,11 +354,35 @@ export function TherapistBoard({ salonId, onToast }: { salonId: number | null; o
           )}
 
           {/* ★ 言い方の意味を書く。★ 「いません」と「まだ結びついていません」は別 */}
-          <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1.5 text-[13px] text-slate-400">
-            <span><b className="font-bold text-emerald-700">います</b>　向こうの名簿で確かめました</span>
-            <span><b className="font-bold text-rose-700">いません</b>　番号は知っているのに、向こうの名簿にありませんでした</span>
-            <span><b className="font-bold text-slate-500">まだ結びついていません</b>　向こうの番号が分かっていません</span>
-            <span><b className="font-bold text-slate-500">まだ確かめていません</b>　向こうの名簿をまだ読めていません</span>
+          {/* ★★★ 第119便: 「状態の説明」から【次にすること】へ書き換えた（カッキーさん）。
+              ★ こちらの言葉（番号・結びつき）を店舗様に読ませない。
+              ★ 4つは減らさない。★ 出ない理由が違えば、やることも違う。 */}
+          <div className="mt-3 space-y-1 text-[13px] text-slate-400 leading-relaxed">
+            <p><b className="font-bold text-emerald-700">います</b>　{readSite ? readSite.label : '媒体'}の名簿で確かめました</p>
+            <p>
+              <b className="font-bold text-rose-700">いません</b>　
+              {readSite ? readSite.label : '媒体'}の名簿に見つかりませんでした（退店・お名前の変更かもしれません）
+            </p>
+            <p>
+              <b className="font-bold text-slate-500">確かめられません</b>　
+              どの登録の方か分からないため確かめられません
+              {/* ★ タブをまたぐ案内なので、その場で切り替えられるようにする（第119便）。
+                  ★ 「〜で結ぶと分かります」と書くだけだと、上に戻ってタブを探すことになる */}
+              　→{' '}
+              <button
+                type="button"
+                onClick={() => setTab('link')}
+                className="font-bold text-indigo-600 underline"
+              >
+                媒体側の登録と結びつける
+              </button>
+              <span className="text-slate-400">　で結ぶと分かります</span>
+            </p>
+            <p>
+              <b className="font-bold text-slate-500">まだ読んでいません</b>　
+              {readSite ? readSite.label : '媒体'}の名簿をまだ読んでいません
+              <span className="text-slate-400">　→ 上の「{readSite ? readSite.label : '媒体'}の名簿を読み直す」を押してください</span>
+            </p>
           </div>
 
           <p className="mt-3 text-[13.5px] text-slate-400 leading-relaxed">
@@ -343,7 +400,7 @@ export function TherapistBoard({ salonId, onToast }: { salonId: number | null; o
       )}
 
       {/* ── フクエスにいないのに、媒体に残っている方 ───────────── */}
-      {!loading && !error && readSite && (
+      {tab === 'list' && !loading && !error && readSite && (
         <div className="bg-white border border-slate-200 shadow-[0_1px_2px_rgba(31,35,51,0.05)] p-4">
           <div className="flex items-center justify-between gap-2 mb-3">
             <h3 className="text-[15.5px] font-bold text-slate-700">
@@ -378,7 +435,7 @@ export function TherapistBoard({ salonId, onToast }: { salonId: number | null; o
         </div>
       )}
 
-      {!loading && !error && !readSite && (
+      {tab === 'list' && !loading && !error && !readSite && (
         <div className="border border-sky-200 bg-sky-50 px-4 py-3">
           <p className="text-[14px] leading-relaxed text-slate-600">
             <b className="font-bold text-sky-700">向こうの名簿を読めるサイトがありません。</b>{' '}
@@ -389,6 +446,9 @@ export function TherapistBoard({ salonId, onToast }: { salonId: number | null; o
           </Link>
         </div>
       )}
+
+      {/* ★ 2つ目のタブ。★ 選ばれるまで描かない（開くまで読みに行かない） */}
+      {tab === 'link' && !loading && !error && children}
     </div>
   );
 }

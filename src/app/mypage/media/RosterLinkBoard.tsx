@@ -141,8 +141,8 @@ export function RosterLinkBoard({ salonId, onToast }: { salonId: number | null; 
     <div className="bg-white border border-slate-200 shadow-[0_1px_2px_rgba(31,35,51,0.05)] p-4">
       <div className="flex items-start justify-between gap-3 flex-wrap">
         <div>
-          <h3 className="text-[15.5px] font-bold text-slate-700">媒体側の登録と結びつける</h3>
-          <p className="mt-0.5 text-[13.5px] text-slate-500 leading-relaxed">
+          {/* ★ 見出しはタブが兼ねる（第119便）。★ 同じ言葉を2回出さない */}
+          <p className="text-[13.5px] text-slate-500 leading-relaxed">
             名前の書き方が違う方（例: レミ ／ れみ）は、そのままでは送れません。ここで結びつけると送れるようになります。
           </p>
         </div>

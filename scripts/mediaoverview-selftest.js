@@ -380,9 +380,16 @@ eq('★ isUnlinked が 1 では unlinked にしない', st({ isUnlinked: 1, isMi
 console.log('\n── 9-2. 言い方 ──');
 eq('present の言い方', v.therapistSiteLabel('present'), 'います');
 eq('missing の言い方', v.therapistSiteLabel('missing'), 'いません');
-eq('unlinked の言い方', v.therapistSiteLabel('unlinked'), 'まだ結びついていません');
-eq('unknown の言い方', v.therapistSiteLabel('unknown'), 'まだ確かめていません');
-eq('★ 知らない値は断定しない側へ', v.therapistSiteLabel('なにか'), 'まだ確かめていません');
+// ★★ 第119便: 店舗様の言葉に直した。★ 「読んでいない」と「読んだが分からない」を書き分ける
+eq('unlinked の言い方', v.therapistSiteLabel('unlinked'), '確かめられません');
+eq('unknown の言い方', v.therapistSiteLabel('unknown'), 'まだ読んでいません');
+eq('★ 知らない値は断定しない側へ', v.therapistSiteLabel('なにか'), 'まだ読んでいません');
+// ★★ 4つが全部ちがう言葉であること（★ 読み分けられないと、状態を分けた意味が消える）
+eq('★★ 4つの言い方が重ならない',
+   new Set(['present', 'missing', 'unlinked', 'unknown'].map((s) => v.therapistSiteLabel(s))).size, 4);
+// ★ こちらの言葉（番号・結びつき）を画面の札に出さない
+eq('★★★ 札に内部の言葉を出さない',
+   ['present', 'missing', 'unlinked', 'unknown'].filter((s) => /番号|結びつ/.test(v.therapistSiteLabel(s))), []);
 // ★★ 「いません」と書いてよいのは missing だけ
 eq('★★ missing 以外に「いません」と書かない',
    ['present', 'unlinked', 'unknown'].some((s) => v.therapistSiteLabel(s) === 'いません'), false);

@@ -218,12 +218,9 @@ export function WorkSend({ salonId, onToast }: { salonId: number | null; onToast
       {/* ── どのサイトへ送るか ───────────────────────────
           ★ 問いかけはこれ1つだけ。★ はじめから全部にチェックが入っている */}
       <div className="bg-white border border-slate-200 shadow-[0_1px_2px_rgba(31,35,51,0.05)] p-5">
-        <div className="flex items-baseline justify-between gap-2 mb-3">
-          <h3 className="text-[16px] font-bold text-slate-700">どのサイトへ送りますか？</h3>
-          <span className="text-[13px] font-bold text-indigo-600 tabular-nums">
-            {chosen.length} / {sendable.length}サイト
-          </span>
-        </div>
+        {/* ★ 「1 / 1サイト」は第119便で外した（カッキーさん・2026-09-03）。
+            ★ 下のチェックを見れば分かる数だった。★ 意味を読むのに一拍かかる表示は置かない */}
+        <h3 className="text-[16px] font-bold text-slate-700 mb-3">どのサイトへ送りますか？</h3>
 
         {loading ? (
           <p className="text-[14px] text-slate-400">読み込み中…</p>
@@ -288,7 +285,9 @@ export function WorkSend({ salonId, onToast }: { salonId: number | null; onToast
                 ? `いまは${readSite.label}から反映しています。送るには「フクエスから反映」に変えてください。変えると${readSite.label}からの反映は止まります。`
                 : offSite
                   ? '「反映しない」を選んでいます。送るには、ホームで「フクエスから反映」を押してください。'
-                  : '入力する場所がまだ決まっていません。「ログイン情報」で設定してください。'}
+                  // ★ ホームと同じ言い方に揃える（第119便）。★ 2か所で違う言い方をしない（第90便）
+                  //   ★ 「設定してください」だと、何を設定するのかが読めなかった。★ 入口は【登録】
+                  : 'ログイン情報を登録すると始められます。'}
             </p>
             {readSite ? (
               <button
