@@ -5,6 +5,7 @@ import { createServiceClient } from '@/app/lib/supabase/service';
 import { ADMIN_UUID } from '@/app/lib/admin';
 import { isDiarySource } from '@/lib/diarySource';
 import { isConsentState } from '@/lib/therapistMediaConsent';
+import { findMediaSite } from '@/lib/mediaSites';
 
 // 写メ日記の転送先の登録（第36便・第2弾）。
 //
@@ -189,7 +190,11 @@ export async function getSalonDiaryConsents(input: { salonId: string | number; p
 > {
   const salonId = Number(input.salonId);
   if (!Number.isFinite(salonId)) return { ok: false, error: '店舗の指定が不正です' };
-  if (!PROVIDERS.includes(input.provider)) return { ok: false, error: '媒体の指定が不正です' };
+  // ★★★ ここで PROVIDERS を使わない（2026-09-03 の実機で判明）。
+  //   ★ このファイルの PROVIDERS は【メールで投稿できる媒体】＝駅ちか・エステラブ。
+  //   ★★ エステ魂は「メールで投稿できない」から本人のアカウントで投稿する——**入っていないのが当たり前**。
+  //   ★ 同じ名前の一覧でも意味が違う。★ 了承は【連携する媒体】かどうかで見る（mediaSites が正本）。
+  if (!findMediaSite(input.provider)) return { ok: false, error: '媒体の指定が不正です' };
 
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
@@ -252,7 +257,8 @@ export async function setDiaryConsent(input: {
 }): Promise<Result<{ state: string }>> {
   const therapistId = Number(input.therapistId);
   if (!Number.isFinite(therapistId)) return { ok: false, error: '対象セラピストが不正です' };
-  if (!PROVIDERS.includes(input.provider)) return { ok: false, error: '媒体の指定が不正です' };
+  // ★ 上と同じ理由。★ メール投稿の一覧（PROVIDERS）で了承を弾かない
+  if (!findMediaSite(input.provider)) return { ok: false, error: '媒体の指定が不正です' };
   if (!isConsentState(input.state)) return { ok: false, error: '了承の指定が不正です' };
 
   // ★ 本人・店舗オーナー・運営（既存の判定をそのまま使う）
