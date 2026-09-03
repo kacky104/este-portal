@@ -1516,6 +1516,8 @@ export async function getSalonTherapists(input: { salonId: string | number }): P
     imageUrl: string | null;
     isNewFace: boolean;
     newFaceSince: string | null;
+    /** ★ 公開中か（第119便）。★ 同名の重複を数えるのは公開中だけ */
+    isActive: boolean;
   }>>
 > {
   const salonId = Number(input.salonId);
@@ -1526,7 +1528,7 @@ export async function getSalonTherapists(input: { salonId: string | number }): P
   const svc = createServiceClient();
   const { data, error } = await svc
     .from('therapists')
-    .select('id, name, age, profile_image_url, is_new_face, new_face_since')
+    .select('id, name, age, profile_image_url, is_new_face, new_face_since, is_active')
     .eq('salon_id', salonId)
     .order('id', { ascending: true });
   if (error) return { ok: false, error: 'セラピストを読み込めませんでした' };
@@ -1540,6 +1542,7 @@ export async function getSalonTherapists(input: { salonId: string | number }): P
       imageUrl: (t.profile_image_url as string | null) ?? null,
       isNewFace: t.is_new_face === true,
       newFaceSince: (t.new_face_since as string | null) ?? null,
+      isActive: t.is_active === true,
     })),
   };
 }

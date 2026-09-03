@@ -10,6 +10,7 @@ import {
 } from '@/app/actions/mediaCredentials';
 import type { RosterResult } from '@/lib/mediaRoster';
 import { therapistSiteState, therapistSiteLabel, type TherapistSiteState } from '@/lib/mediaOverview';
+import { findDuplicateNames, duplicateNotice } from '@/lib/therapistDuplicates';
 
 // セラピスト一覧（第62便・㉞ その4・★ いまは【見るだけ】）。
 //
@@ -27,7 +28,7 @@ import { therapistSiteState, therapistSiteLabel, type TherapistSiteState } from 
 
 type Therapist = {
   id: string; name: string; age: string | null; imageUrl: string | null;
-  isNewFace: boolean; newFaceSince: string | null;
+  isNewFace: boolean; newFaceSince: string | null; isActive: boolean;
 };
 type Site = { provider: string; slot: number; label: string; direction: string; hasCredential: boolean };
 type Filter = 'all' | 'todo' | 'new';
@@ -124,6 +125,8 @@ export function TherapistBoard({ salonId, onToast }: { salonId: number | null; o
       known,
     });
 
+  // ★ 同じ名前で公開中の方（★ 0件なら空文字が返り、何も出さない）
+  const dupNotice = duplicateNotice(findDuplicateNames(therapists));
   const todoCount = therapists.filter((t) => stateOf(t) !== 'present').length;
   const filtered = therapists.filter((t) => {
     if (filter === 'new') return t.isNewFace;
@@ -154,14 +157,33 @@ export function TherapistBoard({ salonId, onToast }: { salonId: number | null; o
                 <p className="text-[19px] font-black text-slate-800">
                   フクエスのセラピスト {therapists.length}名
                 </p>
-                <p className="mt-0.5 text-[14px] text-slate-500">
-                  フクエスに登録されている方だけを出しています。ここが元になります。
+                {/* ★★ 第119便（カッキーさん・2026-09-03）: 「ここが元になります」だけでは、
+                    ★ 新人さんが各サイトに出ないときに【何をすればよいか】が分からなかった。
+                    ★ 出るのはフクエスに登録した方だけ＝**登録が入口**、と言い切る。 */}
+                <p className="mt-0.5 text-[14px] text-slate-500 leading-relaxed">
+                  各サイトへの転送はフクエスでの登録が必要です。
+                  新しく入った方がまだの場合は、先に<b className="font-bold text-slate-700">フクエスでセラピスト登録</b>をしてください。{' '}
+                  {/* ★ 「登録してください」で終わらせない。★ 探しに戻らせず、その場から行ける道を置く */}
+                  <Link href="/mypage" className="font-bold text-indigo-600 underline">
+                    ⇨ マイページのセラピストを開く
+                  </Link>
                 </p>
               </div>
-              <span className="flex-none text-[13px] font-bold px-3 py-0.5 border bg-indigo-50 text-indigo-700 border-indigo-200">
-                フクエスが元
-              </span>
+
             </div>
+
+            {/* ★★★ 同じ名前で公開中の方がいたら知らせる（第119便・カッキーさん）。
+                ★ フクエスは【受け取る側】にもなった（外から登録が入る）。★ 二重に作られることがある。
+                ★★ ここは【気づかせるだけ】。★ 消さない・止めない・原因を決めつけない
+                  （他社名を書かない。★ 店舗様がご自身で窓口に確かめられればよい）。 */}
+            {dupNotice && (
+              <div className="mt-3 border border-amber-200 bg-amber-50 px-3 py-2.5">
+                <p className="text-[14px] leading-relaxed text-slate-700">{dupNotice}</p>
+                <p className="mt-1 text-[13px] text-slate-500 leading-relaxed">
+                  同じ方であれば、どちらか一方を非公開にしてください。別の方であればそのままで問題ありません。
+                </p>
+              </div>
+            )}
 
             <dl className="mt-3.5 grid grid-cols-3 border border-slate-200">
               <div className="px-3 py-2.5 border-r border-slate-200">
@@ -191,7 +213,7 @@ export function TherapistBoard({ salonId, onToast }: { salonId: number | null; o
             </dl>
 
             <p className="mt-2.5 text-[13.5px] text-slate-400 leading-relaxed">
-              各サイトへの掲載は、フクエスを直せば揃います。名前やプロフィールを変えるときも、直すのはフクエスだけです。
+              各サイトへの掲載の内容、名前やプロフィールの変更などもフクエスを直せば揃います。
             </p>
           </>
         )}

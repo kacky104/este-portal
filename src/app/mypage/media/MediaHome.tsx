@@ -92,8 +92,12 @@ const PILL: Record<string, string> = {
 
 // ★ 用事のタイル（Tile / TileIcon）は第117便で外した。★ 左サイドバーと同じ行き先が二度並んでいたため
 
-export function MediaHome({ salonId, salonName, onToast }: {
-  salonId: number | null; salonName: string | null; onToast: (m: string) => void;
+export function MediaHome({ salonId, onToast }: {
+  salonId: number | null;
+  /** ★ 店舗名は第119便で画面から外した（左のサイドバーに常に出ているため）。
+      ★ 受け取らないが、型には残す（呼び出し側を変えない） */
+  salonName?: string | null;
+  onToast: (m: string) => void;
 }) {
   const [data, setData] = useState<Overview | null>(null);
   const [error, setError] = useState('');
@@ -194,7 +198,6 @@ export function MediaHome({ salonId, salonName, onToast }: {
               >
                 {homeHeadline('read', reading.label)}
               </p>
-              <p className="mt-0.5 text-[14px] text-slate-500">{salonName ?? ''}</p>
             </div>
 
             {/* ★ 3つとも中央表示（第90便・カッキーさん）。★ 見出しの中央寄せと揃える */}
@@ -239,7 +242,6 @@ export function MediaHome({ salonId, salonName, onToast }: {
             >
               {homeHeadline('write', topLabel)}
             </p>
-            <p className="mt-0.5 text-[14px] text-slate-500">{salonName ?? ''}</p>
           </div>
         ) : (
           <>
