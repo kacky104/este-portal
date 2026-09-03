@@ -57,16 +57,23 @@ eq('★ 小文字の t でも読む', v.parseBodyType('t164 B87(d) W54 H85'), { 
 
 console.log('\n── 3. ★★★ 数値だけで決まるバッジ。★ AIを通さない＝毎回同じ答え ──');
 eq('149cm → 低身長', v.badgesFromNumbers('T149 B86(C) W55 H84'), ['低身長']);
-eq('168cm → 高身長', v.badgesFromNumbers('T168 B86(C) W55 H84'), ['高身長']);
-eq('Eカップ → 巨乳', v.badgesFromNumbers('T160 B90(E) W55 H84'), ['巨乳']);
-eq('低身長＋巨乳は両方', v.badgesFromNumbers('T149 B90(F) W55 H84'), ['低身長', '巨乳']);
+eq('165cm → 高身長', v.badgesFromNumbers('T165 B86(C) W55 H84'), ['高身長']);
+eq('Gカップ → 巨乳', v.badgesFromNumbers('T160 B95(G) W55 H84'), ['巨乳']);
+// ★★★ 2026-09-03: E以上は101人中62人（61.4%）だった。★ 6割に付く語はバッジの役に立たない
+eq('★★★ Eカップは巨乳にしない（実データで61.4%だった）', v.badgesFromNumbers('T160 B90(E) W55 H84'), []);
+eq('★★ Fカップも巨乳にしない（36.6%）', v.badgesFromNumbers('T160 B92(F) W55 H84'), []);
+eq('★ Hカップは巨乳', v.badgesFromNumbers('T160 B98(H) W55 H84'), ['巨乳']);
+eq('低身長＋巨乳は両方', v.badgesFromNumbers('T149 B95(G) W55 H84'), ['低身長', '巨乳']);
 // ★★★ 線引きは【ここ1か所】。★ 境目をまたいだ瞬間に変わることを固定する
 eq('★★★ 線引きの境目（低身長）', [v.SHORT_CM, v.badgesFromNumbers('T' + v.SHORT_CM + ' B80(C) W55 H84')],
    [150, []]);
 eq('★★★ 線引きの境目（高身長）', [v.TALL_CM, v.badgesFromNumbers('T' + (v.TALL_CM - 1) + ' B80(C) W55 H84')],
-   [168, []]);
-eq('★ 境目ちょうどは高身長に入る', v.badgesFromNumbers('T168 B80(C) W55 H84'), ['高身長']);
+   [165, []]);
+eq('★ 境目ちょうどは高身長に入る', v.badgesFromNumbers('T165 B80(C) W55 H84'), ['高身長']);
 eq('★ Dカップは巨乳にしない', v.badgesFromNumbers('T160 B88(D) W55 H84'), []);
+// ★★★ 線引きは【何人に付くか】で決めた。★ 3つとも 5〜12% に収まっている（101人で6〜12人）
+eq('★★★ 巨乳の線は G', v.BUST_CUP_FROM, 'G');
+eq('★★★ 低身長 150 / 高身長 165', [v.SHORT_CM, v.TALL_CM], [150, 165]);
 // ★★ 読めないときは何も出さない（分からないときは付けない側へ倒す）
 eq('★★ 読めないサイズからは何も出さない', v.badgesFromNumbers('サイズ非公開'), []);
 eq('★★ null からも何も出さない', v.badgesFromNumbers(null), []);
@@ -123,7 +130,7 @@ eq('★★ 知らない語もそのまま返す（落とすのは呼び出し側
 
 console.log('\n── 7. ★★ 合わせたあと（呼び出し側と同じ手順）──');
 // ★ generateBadgesForTherapist の中と同じ: 数値 → AI の順で並べて sanitizeBadges
-const merged = B.sanitizeBadges([...v.badgesFromNumbers('T149 B90(F) W55 H84'), ...['かわいい', '美少女系', '癒し系']]);
+const merged = B.sanitizeBadges([...v.badgesFromNumbers('T149 B95(G) W55 H84'), ...['かわいい', '美少女系', '癒し系']]);
 eq('★★ 知らない語（美少女系）は落ちる', merged.includes('美少女系'), false);
 eq('★★ 数値ぶんは残る', merged.includes('低身長') && merged.includes('巨乳'), true);
 eq('★★ 上限6を超えない',
