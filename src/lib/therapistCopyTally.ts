@@ -142,3 +142,39 @@ export function allSharedPhrases(result: TallyResult): string[] {
   if (result.母数 < 2) return [];
   return result.頻出.filter((p) => p.count === result.母数).map((p) => p.phrase);
 }
+
+/**
+ * ★★★ 戒めた語が【何人に出たか】を数える（第122便・2026-09-03）。
+ *
+ * ★★★ tallyPhrases との違い（★ 目的が違うので両方要る）
+ *   tallyPhrases      … 語彙の一覧が無い。★ **まだ知らない**決まり文句を見つける。
+ *   countWatchedWords … 語彙の一覧がある。★ **知っている戒め**が効いているか測る。
+ *
+ * ★★★ なぜ要ったか: tallyPhrases は「バランスの取れた」を2人としか報告できなかった。
+ *   ★ 3人目は「バランスの良い」で、共通部分の「バランスの」は5文字＝既定の minLen(8) 未満。
+ *   ★★ **数える道具にも取りこぼしがある。** ★ 一覧のある語は、照合で確実に数える。
+ *
+ * ★★★ 出なかった語も返す。★ 一覧が既知なので「0人」と言い切れる。
+ *   ★ tallyPhrases の「行が無い＝0人」とは違い、こちらは0を明示できる（守りが効いた証拠になる）。
+ */
+export function countWatchedWords(
+  texts: Array<string | null | undefined>,
+  words: readonly string[],
+): { 母数: number; 出た: PhraseCount[]; 出なかった: string[] } {
+  const docs = texts.map(norm).filter((t) => t.length > 0);
+  const 母数 = docs.length;
+
+  const 出た: PhraseCount[] = [];
+  const 出なかった: string[] = [];
+  for (const w of words) {
+    const key = norm(w);
+    // ★ 空の語は数えない（全文に一致してしまう）
+    if (key.length === 0) continue;
+    const count = docs.filter((d) => d.includes(key)).length;
+    if (count > 0) 出た.push({ phrase: w, count, ratio: 母数 > 0 ? Math.round((count / 母数) * 100) : 0 });
+    else 出なかった.push(w);
+  }
+  // ★ 多い順 → 長い順 → 五十音順（★ 並びを固定する）
+  出た.sort((a, b) => b.count - a.count || b.phrase.length - a.phrase.length || (a.phrase < b.phrase ? -1 : 1));
+  return { 母数, 出た, 出なかった };
+}

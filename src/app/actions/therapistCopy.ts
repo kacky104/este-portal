@@ -38,6 +38,11 @@ export type GenerateResult =
       tries: number;
       short: boolean;
       usedImage: boolean;
+      /**
+       * ★ キャッチにサイズ表現（カップ・スリーサイズ等）が残ったので空にした（第122便）。
+       * ★★ 黙って消さないための印。★ 画面ではまだ出していない（第123便の候補）。
+       */
+      catchDropped: boolean;
       /** 消費後の残り回数（画面表示用） */
       quota: QuotaState;
     }
@@ -171,6 +176,9 @@ export async function generateTherapistCopy(
     tries: gen.tries,
     short: gen.short,
     usedImage: gen.usedImage,
+    // ★ キャッチにサイズ表現が残ったので空にした（第122便）。★ 黙って消さないための印。
+    //   ★★ 画面ではまだ出していない（第123便の候補）。★ 値だけは呼び出し側へ渡す。
+    catchDropped: gen.catchDropped,
     quota: after,
   };
 }

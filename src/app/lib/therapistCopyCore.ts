@@ -4,6 +4,7 @@ import {
   buildUserPrompt,
   parseCopyResponse,
   isLongEnough,
+  hasSizeExpression,
   MAX_RETRY,
   MIN_PROFILE_LEN,
   type CopyInput,
@@ -28,7 +29,16 @@ const MAX_IMAGE_BYTES = 4 * 1024 * 1024;
 type Svc = ReturnType<typeof createServiceClient>;
 
 export type CoreResult =
-  | { ok: true; catchphrase: string; profileText: string; tries: number; short: boolean; usedImage: boolean }
+  | {
+      ok: true;
+      catchphrase: string;
+      profileText: string;
+      tries: number;
+      short: boolean;
+      usedImage: boolean;
+      /** ★ キャッチにサイズ表現が残ったので空にした（第122便）。★ 黙って消さないための印。 */
+      catchDropped: boolean;
+    }
   | { ok: false; error: string };
 
 /** 画像URLを取得して base64 に変換する。失敗しても null を返すだけ（写真なしで生成を続ける）。
@@ -186,6 +196,18 @@ export async function generateCopyForTherapist(
       continue;
     }
     last = parsed;
+
+    // ★★★ キャッチにサイズ表現（Eカップ・スリーサイズ等）が入っていたら作り直す（第122便）。
+    //   ★ 注意書きだけに頼らない。★ 決まるものはコードで決める（第113便の作法）。
+    //   ★ 紹介文の中は止めない。★ 止めるのはキャッチだけ。
+    if (hasSizeExpression(parsed.catchphrase)) {
+      retryReason =
+        `前回のキャッチフレーズ「${parsed.catchphrase}」にサイズ表現が入っていました。` +
+        'カップ・スリーサイズ・身長の数値・「巨乳」などをキャッチに入れず、書き直してください。' +
+        '（紹介文の中で触れるのは構いません）';
+      continue;
+    }
+
     if (isLongEnough(parsed.profileText)) break;
 
     retryReason =
@@ -195,9 +217,15 @@ export async function generateCopyForTherapist(
 
   if (!last) return { ok: false, error: 'AIが下書きを作れませんでした。もう一度試してください' };
 
+  // ★★★ やり直しても直らなかったら、キャッチは【空で返す】。
+  //   ★ 「迷ったら、間違った値を書くより何も書かないほうを選ぶ」（第36便）。
+  //   ★★ ただし黙って消さない。★ catchDropped で理由が読み取れるようにする。
+  const catchDropped = hasSizeExpression(last.catchphrase);
+
   return {
     ok: true,
-    catchphrase: last.catchphrase,
+    catchDropped,
+    catchphrase: catchDropped ? '' : last.catchphrase,
     profileText: last.profileText,
     tries,
     short: !isLongEnough(last.profileText),

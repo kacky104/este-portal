@@ -27,8 +27,9 @@ eq('★★ CLICHE_WORDS が system に載っている',
    C.CLICHE_WORDS.filter((w) => !C.SYSTEM_PROMPT.includes(w)), []);
 eq('★★ 「言い換えて回避しない」が system に載っている',
    C.SYSTEM_PROMPT.includes('言い換えて回避しない'), true);
-eq('★★ 「対比でまとめない」が system に載っている',
-   C.SYSTEM_PROMPT.includes('の対比でまとめない'), true);
+// ★ 第122便で文言を強めたので、点検も追随させた（★ 片方だけ古くならないように）
+eq('★★ 「Aなのに（ながら）B」の対比を戒めていること',
+   C.SYSTEM_PROMPT.includes('「Aなのに（ながら）B」の対比'), true);
 // ★ 2つの一覧は役割が違う。★ 同じ語を両方に入れない（どちらを直すか迷わないため）
 eq('★ CLICHE_WORDS と BORROWED_PHRASES は重ならない',
    C.BORROWED_PHRASES.filter((p) => C.CLICHE_WORDS.includes(p)), []);
@@ -105,6 +106,61 @@ eq('★★ 同じ入力なら同じ並び',
 // ★ 入力の並びが変わっても結果は変わらない（人の並び順に結果が左右されない）
 eq('★★ 入力の順番を変えても同じ結果',
    JSON.stringify(T.tallyPhrases(A3).頻出) === JSON.stringify(T.tallyPhrases([A3[2], A3[0], A3[1]]).頻出), true);
+
+console.log('\n── 8. ★★★ 第122便: 体型の要約と、キャッチのサイズ表現 ──');
+// ★★★ 戒めた語の代わりに次の語が入るのを止める（第121便で実際に起きた）
+eq('★★★ BODY_SUMMARY_WORDS が system に載っている',
+   C.BODY_SUMMARY_WORDS.filter((w) => !C.SYSTEM_PROMPT.includes(w)), []);
+eq('★★ 「体型を【一言でまとめない】」が system に載っている',
+   C.SYSTEM_PROMPT.includes('体型を【一言でまとめない】'), true);
+// ★ BODY_SUMMARY_WORDS はお手本に無くても出てくる語。★ BORROWED_PHRASES と混ぜない
+eq('★ BODY_SUMMARY_WORDS と BORROWED_PHRASES は重ならない',
+   C.BODY_SUMMARY_WORDS.filter((w) => C.BORROWED_PHRASES.some((p) => p.includes(w) || w.includes(p))), []);
+eq('★ WATCHED_WORDS は3つの一覧を全部含む',
+   [...C.CLICHE_WORDS, ...C.BORROWED_PHRASES, ...C.BODY_SUMMARY_WORDS]
+     .filter((w) => !C.WATCHED_WORDS.includes(w)), []);
+// ★★ 実際に3人へ出た語（2026-09-03 20:57 の試し打ち）
+eq('★★★ 実際に出た「バランスの良い／取れた」を両方とも見張っている',
+   ['バランスの良い', 'バランスの取れた'].filter((w) => !C.WATCHED_WORDS.includes(w)), []);
+
+console.log('\n── 8-2. キャッチのサイズ表現 ──');
+// ★ 第122便でカッキーさんが決めた: キャッチには入れない（紹介文は可）
+eq('★★★ カップ表現を見つける',
+   ['小柄な体に溢れる笑顔とEカップ', 'Ｅカップの魅力', 'E カップが目を引く'].map(C.hasSizeExpression),
+   [true, true, true]);
+eq('★★ スリーサイズ・身長を見つける',
+   ['T160の美脚', 'B90の存在感', '149cmの小さな体', '149センチの笑顔'].map(C.hasSizeExpression),
+   [true, true, true, true]);
+eq('★★ 「巨乳」なども見つける', ['巨乳の癒し系', 'バスト自慢'].map(C.hasSizeExpression), [true, true]);
+// ★★★ 普通のキャッチを誤って弾かないこと（弾きすぎると作り直しが無駄に走る）
+eq('★★★ 普通のキャッチは通す',
+   ['真っ直ぐな瞳で見つめられる瞬間', '胸元のネックレスに視線が泳ぐ',
+    '照れ笑いから始まる絶妙な距離感', 'クールビューティなモデル体型'].map(C.hasSizeExpression),
+   [false, false, false, false]);
+eq('★ 空文字は false', C.hasSizeExpression(''), false);
+
+console.log('\n── 9. ★★★ 戒めた語を数える（countWatchedWords）──');
+// ★★★ tallyPhrases が取りこぼした形。★ 「バランスの良い」と「バランスの取れた」は別の語
+const B3 = [
+  '手足がすらりと長く見えるバランスの良いスタイル',
+  '華奢なのにバランスの取れたスタイル',
+  'バランスの取れた曲線的なスタイルは存在感抜群',
+];
+const w = T.countWatchedWords(B3, ['バランスの良い', 'バランスの取れた', 'スレンダー']);
+eq('★★★ 語ごとに何人に出たかを数える',
+   w.出た.map((x) => [x.phrase, x.count]), [['バランスの取れた', 2], ['バランスの良い', 1]]);
+// ★★★ 出なかった語も返す。★ 一覧が既知なので「0人」と言い切れる（行が無い＝0人ではない）
+eq('★★★ 出なかった語は名指しで返る', w.出なかった, ['スレンダー']);
+eq('★ 母数は3', w.母数, 3);
+// ★ 1人が2回使っても1（tallyPhrases と数え方を揃える）
+eq('★★ 1人が2回使っても1と数える',
+   T.countWatchedWords(['スレンダーでスレンダー'], ['スレンダー']).出た[0].count, 1);
+eq('★ 空の人は母数に入らない', T.countWatchedWords([null, ''], ['スレンダー']).母数, 0);
+eq('★ 空の語は数えない', T.countWatchedWords(['あいうえお'], ['']).出た, []);
+// ★★ 実際の戒めの一覧をそのまま当てられること（型の食い違いが無い）
+eq('★★ WATCHED_WORDS をそのまま渡せる',
+   T.countWatchedWords(B3, C.WATCHED_WORDS).出た.map((x) => x.phrase),
+   ['バランスの取れた', 'バランスの良い']);
 
 console.log(fail === 0 ? '\n★ すべて通りました' : '\n' + fail + ' 件 通りませんでした');
 process.exit(fail === 0 ? 0 : 1);

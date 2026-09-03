@@ -2,9 +2,9 @@ import { NextResponse } from 'next/server';
 import { revalidatePath } from 'next/cache';
 import { createServiceClient } from '@/app/lib/supabase/service';
 import { generateCopyForTherapist } from '@/app/lib/therapistCopyCore';
-import { MIN_PROFILE_LEN } from '@/lib/therapistCopyPrompt';
+import { MIN_PROFILE_LEN, WATCHED_WORDS } from '@/lib/therapistCopyPrompt';
 import { parseAdminBody, truthy, num } from '@/lib/adminBody';
-import { tallyPhrases, allSharedPhrases } from '@/lib/therapistCopyTally';
+import { tallyPhrases, allSharedPhrases, countWatchedWords } from '@/lib/therapistCopyTally';
 
 // ── 運営用: セラピスト紹介文の一括生成（第30便・2026-08-24）────────────
 // 店舗の紹介文がまとめて短い・薄いときに、運営が一括で作り直すためのルート。
@@ -130,6 +130,8 @@ export async function POST(req: Request) {
         紹介文が短い: all.filter((r) => len(r.profile_text) < minLen).length,
         ...t,
         全員に出た言い回し: allSharedPhrases(t),
+        // ★★ 戒めた語が何人に出たか。★ 出なかった語も返す（一覧が既知なので 0人 と言い切れる）
+        戒めた語: countWatchedWords(all.map((r) => r.profile_text), WATCHED_WORDS),
       },
       { headers: { 'content-type': 'application/json; charset=utf-8' } },
     );
@@ -191,6 +193,8 @@ export async function POST(req: Request) {
       ok: true,
       saved: apply,
       usedImage: gen.usedImage,
+      // ★ キャッチを空にしたなら理由が分かるように返す（第122便）
+      catchDropped: gen.catchDropped,
       tries: gen.tries,
       beforeLen: len(t.profile_text),
       afterLen: len(gen.profileText),
@@ -235,6 +239,11 @@ export async function POST(req: Request) {
       今回の頻出: 今回.頻出,
       // ★ 全員に出た言い回しがあれば名指しで返す。★ 黙って通さない
       今回全員に出た言い回し: allSharedPhrases(今回),
+      // ★★★ 戒めた語が守られているか。★ tallyPhrases が取りこぼす短い語もここで確実に数える
+      今回の戒めた語: countWatchedWords(
+        results.filter((r) => r.ok).map((r) => r.profileText as string),
+        WATCHED_WORDS,
+      ).出た,
       results,
     },
     // ★ charset を明示する（第30便・禁則209）。
