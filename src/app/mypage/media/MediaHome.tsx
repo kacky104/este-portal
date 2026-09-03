@@ -90,46 +90,7 @@ const PILL: Record<string, string> = {
   unset: 'bg-white text-slate-400 border-slate-200',
 };
 
-function TileIcon({ name }: { name: 'work' | 'diary' | 'roster' | 'log' }) {
-  const common = {
-    width: 16, height: 16, viewBox: '0 0 24 24', fill: 'none',
-    stroke: 'currentColor', strokeWidth: 2,
-    strokeLinecap: 'round' as const, strokeLinejoin: 'round' as const,
-  };
-  switch (name) {
-    case 'work':
-      return (<svg {...common}><path d="M12 19V5" /><path d="M5 12l7-7 7 7" /></svg>);
-    case 'diary':
-      return (<svg {...common}><rect x="3" y="5" width="18" height="14" rx="2" /><path d="M3 7l9 6 9-6" /></svg>);
-    case 'roster':
-      return (
-        <svg {...common}>
-          <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
-          <circle cx="9" cy="7" r="4" />
-          <path d="M22 21v-2a4 4 0 0 0-3-3.87" />
-        </svg>
-      );
-    default:
-      return (<svg {...common}><circle cx="12" cy="12" r="9" /><path d="M12 7v5l3 2" /></svg>);
-  }
-}
-
-function Tile({ href, icon, title, sub }: {
-  href: string; icon: 'work' | 'diary' | 'roster' | 'log'; title: string; sub: string;
-}) {
-  return (
-    <Link
-      href={href}
-      className="flex flex-col gap-0.5 text-left bg-white border border-slate-200 shadow-[0_1px_2px_rgba(31,35,51,0.05)] p-4 hover:border-indigo-200 transition-colors"
-    >
-      <span className="w-7 h-7 mb-1.5 grid place-items-center bg-indigo-50 text-indigo-600">
-        <TileIcon name={icon} />
-      </span>
-      <span className="text-[15px] font-bold text-slate-700">{title}</span>
-      <span className="text-[13px] text-slate-400">{sub}</span>
-    </Link>
-  );
-}
+// ★ 用事のタイル（Tile / TileIcon）は第117便で外した。★ 左サイドバーと同じ行き先が二度並んでいたため
 
 export function MediaHome({ salonId, salonName, onToast }: {
   salonId: number | null; salonName: string | null; onToast: (m: string) => void;
@@ -487,37 +448,10 @@ export function MediaHome({ salonId, salonName, onToast }: {
         </div>
       )}
 
-      {/* ── 用事のタイル ───────────────────────────────── */}
-      <div className="grid grid-cols-2 gap-2.5">
-        <Tile
-          href="/mypage/media/work"
-          icon="work"
-          title="出勤を送る"
-          sub={
-            writing.length === 0
-              ? 'いまは送っていません'
-              : `${writing.length}サイトへ` + (fmt(writing[0].lastWriteOkAt) ? ` ・ 最後 ${fmt(writing[0].lastWriteOkAt)}` : '')
-          }
-        />
-        <Tile
-          href="/mypage/media/diary"
-          icon="diary"
-          title="写メ日記の投稿先"
-          sub="駅ちか・エステラブ"
-        />
-        <Tile
-          href="/mypage/media/therapists"
-          icon="roster"
-          title="セラピスト一覧"
-          sub="どのサイトに出ているか"
-        />
-        <Tile
-          href="/mypage/media/log"
-          icon="log"
-          title="連携の記録"
-          sub="したことが残ります"
-        />
-      </div>
+      {/* ★★ 用事のタイル（4枚）は第117便で外した（カッキーさん・2026-09-03）。
+          ★ 左サイドバーに同じ4つが常に出ているので、同じ行き先が画面に二度並んでいた。
+          ★ 出勤の「最後に送った日時」だけはこのタイルにしか無かったが、
+            上の枠（媒体ごとの行）に「最後の反映 9/2 22:38」として出ているので落として差し支えない。 */}
     </div>
   );
 }

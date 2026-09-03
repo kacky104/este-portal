@@ -43,7 +43,11 @@ eq('駅ちかは段の断りが要らない', v.findMediaSite('ekichika').stageN
 // ★ エステラブはログインに店舗IDを使わない（実測）。★ 出すとオーナーが「？」になる
 eq('★ エステラブは店舗IDを預からない', v.findMediaSite('esulove').needsShopId, false);
 // ★ 受け付けていないので画面には出ないが、決めたことは残す
-eq('駅ちかは店舗IDを預かる', v.findMediaSite('ekichika').needsShopId, true);
+// ★★★ 2026-09-03（第117便）: 駅ちかも預からないことにした。
+//   ★ 実物はログインIDと同じ番号だった／★ 駅ちかのログインでも送っていない（form の外の hidden）
+eq('★★★ 駅ちかも店舗IDを預からない（第117便）', v.findMediaSite('ekichika').needsShopId, false);
+eq('★ 預からないので見出しも説明も持たない',
+   [v.findMediaSite('ekichika').idLabel, v.findMediaSite('ekichika').idHint], ['', '']);
 // ★ 預からないサイトでは、欄の見出しも説明も持たない（出さないものに文言を残さない）
 eq('★ 預からないサイトに欄の見出しを残さない', v.findMediaSite('esulove').idLabel, '');
 eq('★ 預からないサイトに説明を残さない', v.findMediaSite('esulove').idHint, '');
@@ -206,8 +210,9 @@ eq('★ エステ魂は受け付ける（第109便・VPS から開けること�
 //   ★ 注意書きは読み飛ばされる。★ 読み飛ばした店舗様は店舗IDを入れて詰まる
 eq('★★ エステ魂はメールアドレスだと欄の名前で分かる',
    /メールアドレス/.test(v.loginIdLabelOf(v.findMediaSite('esutama'))), true);
-// ★ 注意書きには、欄の名前では言えないこと（名簿の結び）だけを残す
-eq('★ 注意書きは名簿の結びのことを言う', /結んで/.test(v.findMediaSite('esutama').stageNote), true);
+// ★★ 第117便: 名簿の結びの断りも落とした（カッキーさん）。
+//   ★ 結びは【セラピスト一覧】の画面にその場で書いてある。★ ここで先に言う話ではない
+eq('★ エステ魂の段の断りは空', v.findMediaSite('esutama').stageNote, '');
 eq('★ 全国もまだ受け付けない', v.canRegisterSite(v.findMediaSite('zenkoku')), false);
 eq('★ accepting が 1 では受け付けない側に倒す', v.canRegisterSite(site({ accepting: 1 })), false);
 
@@ -269,6 +274,48 @@ eq('★ 全サイトで空にならない',
 // ★★ 欄の名前で言えることを、注意書き（stageNote）で二重に言わない
 eq('★★ 欄の名前になったので stageNote から「ログインID欄には」を落とす',
   v.MEDIA_SITES.filter((s) => s.stageNote.indexOf('ログインID欄') >= 0).length, 0);
+
+console.log('\n── ★★ 使えないサイトの分け方と並び（第117便）──');
+// ★★★ 「準備中（待てば使える）」と「接続できない（待っても使えない）」は別のこと
+eq('★★★ エステラブは接続できない側', v.findMediaSite('esulove').notYetKind, 'blocked');
+eq('★ 全国はこれから作る側', v.findMediaSite('zenkoku').notYetKind, 'preparing');
+eq('★ 受け付けているサイトは種類を持たない',
+   v.MEDIA_SITES.filter((s) => s.accepting && s.notYetKind !== '').map((s) => s.provider), []);
+eq('★★ 札の言葉が分かれる',
+   [v.notYetLabel(v.findMediaSite('esulove')), v.notYetLabel(v.findMediaSite('zenkoku'))],
+   ['接続できません', '準備中']);
+eq('★ 受け付けているサイトには札を出さない', v.notYetLabel(v.findMediaSite('ekichika')), '');
+// ★ 種類を書き忘れても「準備中」に落ちる（言葉が消えない）
+eq('★★ 種類が無ければ準備中に落ちる', v.notYetLabel({ accepting: false }), '準備中');
+
+console.log('\n── ★★ ログイン情報の並び ──');
+{
+  const order = v.sortSitesForLogin(v.MEDIA_SITES).map((s) => s.provider);
+  eq('★★★ 接続できないサイトがいちばん下', order[order.length - 1], 'esulove');
+  eq('★★ 使えるサイトが先（駅ちか・エステ魂）', order.slice(0, 2), ['ekichika', 'esutama']);
+  eq('★ 全部そろっている（落ちも増えもしない）', order.length, v.MEDIA_SITES.length);
+  eq('★ 同じ組の中では元の並びのまま',
+     v.sortSitesForLogin([
+       { provider: 'a', accepting: true }, { provider: 'b', accepting: true },
+     ]).map((s) => s.provider), ['a', 'b']);
+  // ★★ 元の表は並べ替えない（他の画面もこの順を使う）
+  eq('★★ MEDIA_SITES そのものは動かない',
+     v.MEDIA_SITES.map((s) => s.provider), ['ekichika', 'esulove', 'esutama', 'zenkoku']);
+}
+
+console.log('\n── ★★★ いま送れるもの（第117便）──');
+// ★★★ 「全部だめ」でも「全部いける」でもない。★ 送れるものだけを出す
+eq('★★★ エステラブは写メ日記だけ送れる（出勤は403で送れない）',
+   v.sendableCapabilities(v.findMediaSite('esulove')), ['diary']);
+eq('★ 駅ちかは can のまま', v.sendableCapabilities(v.findMediaSite('ekichika')),
+   [...v.findMediaSite('ekichika').can]);
+eq('★ エステ魂は出勤', v.sendableCapabilities(v.findMediaSite('esutama')), ['work']);
+// ★★ 準備中はまだ何も送れない（★ 空を返す。★ can をそのまま出さない）
+eq('★★ 全国（準備中）は空', v.sendableCapabilities(v.findMediaSite('zenkoku')), []);
+// ★★ 写メ日記の口が無い媒体では、接続できなくても何も残らない
+eq('★★ メールの口が無ければ空',
+   v.sendableCapabilities({ accepting: false, notYetKind: 'blocked', can: ['work', 'diary'], diaryAddressSource: 'none' }), []);
+eq('★ can が空でも落ちない', v.sendableCapabilities({ accepting: true, can: [] }), []);
 
 console.log(fail === 0 ? '\n★ すべて通った' : '\n★ NG ' + fail + ' 件');
 process.exit(fail === 0 ? 0 : 1);

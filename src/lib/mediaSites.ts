@@ -45,6 +45,18 @@ export type MediaSite = {
   /** 受け付けていない理由。★ accepting が false のときだけ画面に出す */
   notYet: string;
   /**
+   * ★★★ 受け付けていない【種類】（第117便・2026-09-03）。★ accepting が false のときだけ意味がある。
+   *   'preparing' … これから作る（全国エステランキング）
+   *   'blocked'   … ★ 作ったが【相手が受け付けない】（エステラブ・/admin が 403・第82便）
+   *
+   * ★★★ なぜ分けたか（カッキーさん・2026-09-03）
+   *   どちらも「未登録＋準備中」の同じ見た目だった。★ でも店舗にとっては別のこと:
+   *     準備中     … 待てば使えるようになる
+   *     接続できない … ★ 待っても使えない（こちらから直せない）
+   *   → 札の言葉・色・並び順の3つで分ける。★ 分ける根拠はこの1か所。
+   */
+  notYetKind: '' | 'preparing' | 'blocked';
+  /**
    * ★★ いまどこまでできるか。★ accepting が true のときだけ画面に出す（第80便）。
    *   空文字なら出さない（＝ひととおりできる、という意味）。
    *
@@ -111,15 +123,21 @@ export const MEDIA_SITES: readonly MediaSite[] = [
     readable: true,
     accepting: true,
     notYet: '',
+    notYetKind: '',
     stageNote: '',
     // ★ 駅ちかの画面も「ログインID」と書いてある。★ 既定のまま
     loginIdLabel: '',
     // ★ /admin/maillist/ から読み取れる（第53便）
     diaryAddressSource: 'read',
-    needsShopId: true,
-    idLabel: '店舗ID（shopid）',
-    idHint:
-      '駅ちかのログイン画面で入力している「店舗ID」です。掲載ページのURLに出ている番号とは別の番号なのでご注意ください。分からない場合はお知らせください、こちらでお調べします。',
+    // ★★★ 2026-09-03（第117便）で false にした（カッキーさん）。
+    //   ★ 実物の登録はログインIDと同じ番号だった（37168 / 37168）。★ ベンリーにも店舗IDの欄は無い。
+    //   ★★ そして駅ちかのログインでも【送っていない】（relayFlow.buildLoginRequest の頭）:
+    //     shopid は hidden だが <form> の外にあり、ブラウザも送っていない。
+    //   → 入れてもらう意味が無い欄だった。★ 欄を出すと「何の番号か」で必ず止まる（第81便と同じ理由）。
+    // ★ すでに入っている shop_id は消さない（保存時に空で上書きしない）。
+    needsShopId: false,
+    idLabel: '',
+    idHint: '',
   },
   {
     provider: 'esulove',
@@ -143,6 +161,8 @@ export const MEDIA_SITES: readonly MediaSite[] = [
     notYet:
       'エステラブは、フクエスのサーバからの接続を受け付けていませんでした。' +
       'そのため出勤を送ることができません。写メ日記の転送（メール）は、これまでどおりお使いいただけます。',
+    // ★★★ 待っても使えない側（相手の /admin が 403）。★ 準備中と同じ札にしない
+    notYetKind: 'blocked',
     stageNote: '',
     // ★ エステラブは login_id。★ 既定のまま
     loginIdLabel: '',
@@ -164,8 +184,11 @@ export const MEDIA_SITES: readonly MediaSite[] = [
     //   ★ 実弾（work_push）はまだ運営の口からだけ。無人の自動反映は esutamaFlow.ESUTAMA_AUTO_WRITE_ENABLED（false）が止めている。
     accepting: true,
     notYet: '',
-    // ★★ 第116便で「ログインID欄には…」の1文を落とした。★ 欄の名前そのものが【メールアドレス】になったため
-    stageNote: 'セラピストの名前がエステ魂と少しでも違う（カナ・漢字など）場合は、セラピスト一覧で結んでから送ります。',
+    notYetKind: '',
+    // ★★ 第116便で「ログインID欄には…」の1文を落とし、第117便で残り（名簿の結び）も落とした。
+    //   ★ 結びは【セラピスト一覧】の画面にその場で書いてある。★ ログイン情報の画面で先に言う話ではない。
+    //   ★ 段の断りが要るときは、ここに1行入れれば画面に出る（仕組みは残してある）。
+    stageNote: '',
     // ★★★ エステ魂はメールアドレスでログインする（2026-09-02 実測）。★ 欄の名前を合わせる
     loginIdLabel: 'メールアドレス',
     // ★ メールでの投稿ができない（画面にもそう書いてある）
@@ -184,6 +207,8 @@ export const MEDIA_SITES: readonly MediaSite[] = [
     readable: false,
     accepting: false,
     notYet: '全国エステランキングへ送る仕組みを準備しています。できあがるまで、ログイン情報はお預かりしません。',
+    // ★ これから作る側。★ 待てば使えるようになる
+    notYetKind: 'preparing',
     stageNote: '',
     // ★ 実物を見ていないので決めない（受け付けていないので画面にも出ない）
     loginIdLabel: '',
@@ -374,6 +399,58 @@ export function loginDirectionText(d: string, siteName: string): { title: string
 }
 
 /** ★ 受け付けていないサイトでは、保存の口そのものを出さない */
+/**
+ * 受け付けていないサイトの札の言葉。★ 受け付けているサイトでは空。
+ * ★★ 「準備中」と「接続できません」を分ける。★ 待てば使えるのか、待っても使えないのかは別のこと。
+ */
+export function notYetLabel(site: { accepting: boolean; notYetKind?: string }): string {
+  if (site.accepting === true) return '';
+  return site.notYetKind === 'blocked' ? '接続できません' : '準備中';
+}
+
+/**
+ * ログイン情報の画面に出す並び（第117便・カッキーさん）。
+ *
+ * ★★★ 使えるサイトを上、使えないサイトを下。★ その中でも【接続できない】がいちばん下。
+ *   ★ 上から順に用事があるように並べる。★ 待っても使えないサイトを真ん中に置かない。
+ * ★★ MEDIA_SITES そのものは並べ替えない（表の順は他の画面も使う）。★ 並びは【出すときに決める】。
+ * ★ 同じ組の中では元の並びのまま（安定）。
+ */
+export function sortSitesForLogin<T extends { accepting: boolean; notYetKind?: string }>(
+  sites: readonly T[],
+): T[] {
+  const rank = (s: T): number => (s.accepting === true ? 0 : s.notYetKind === 'blocked' ? 2 : 1);
+  return [...sites]
+    .map((s, i) => ({ s, i }))
+    .sort((a, b) => rank(a.s) - rank(b.s) || a.i - b.i)
+    .map((x) => x.s);
+}
+
+/**
+ * ★★★ そのサイトへ【いま】送れるもの（第117便・2026-09-03）。
+ *
+ * ★★ can（もともと送れるもの）と分ける理由:
+ *   エステラブは can に出勤と写メ日記を持っているが、出勤は送れない（/admin が 403・第82便）。
+ *   ★ 一方で **写メ日記はメールなので送れる**（相手のサーバを叩かない）。
+ *   → 「全部だめ」でも「全部いける」でもない。★ 送れるものだけを出す。
+ *
+ * ★ 受け付けているサイト … can そのまま
+ * ★ 接続できないサイト   … ログインが要らない道（メールの写メ日記）だけ
+ * ★ 準備中のサイト       … まだ何も送れない（空）
+ */
+export function sendableCapabilities(site: {
+  accepting: boolean;
+  notYetKind?: string;
+  can: readonly string[];
+  diaryAddressSource?: string;
+}): string[] {
+  const can = Array.isArray(site.can) ? [...site.can] : [];
+  if (site.accepting === true) return can;
+  if (site.notYetKind !== 'blocked') return [];
+  // ★ メールで届く写メ日記だけは生きている。★ 投稿先を手で入れてもらう形（第84便）
+  return can.filter((c) => c === 'diary' && site.diaryAddressSource !== 'none');
+}
+
 export function canRegisterSite(site: { accepting: boolean }): boolean {
   return site.accepting === true;
 }

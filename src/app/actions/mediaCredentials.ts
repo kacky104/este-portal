@@ -254,7 +254,8 @@ export async function saveMediaCredential(input: {
   const svc = createServiceClient();
   const { data: existing } = await svc
     .from('salon_media_credentials')
-    .select('password_enc, consent_version')
+    // ★ shop_id も読む（第117便）。★ 欄を出さないサイトで、空の上書きから守るため
+    .select('password_enc, consent_version, shop_id')
     .eq('salon_id', salonId).eq('provider', input.provider).eq('slot', slot)
     .maybeSingle();
 
@@ -300,7 +301,9 @@ export async function saveMediaCredential(input: {
       salon_id: salonId,
       provider: input.provider,
       slot,
-      shop_id: shopId,
+      // ★★ 空で上書きしない（第117便）。★ 店舗IDの欄を出さなくした駅ちかでも、
+      //   すでに入っている値を消さない（あとで何を登録したか辿れなくなるため）。
+      shop_id: shopId || ((existing?.shop_id as string | null) ?? ''),
       login_id: loginId,
       password_enc: passwordEnc,
       is_enabled: true,

@@ -4,14 +4,14 @@ import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
 import {
   MEDIA_SITES,
-  siteCapabilityLabels,
+  capabilityLabel,
   mediaSiteSlots,
   siteLoginStatus,
   loginStatusLabel,
-  loginTally,
-  loginDirection,
-  loginDirectionText,
   canRegisterSite,
+  notYetLabel,
+  sendableCapabilities,
+  sortSitesForLogin,
   loginIdLabelOf,
   type MediaSite,
 } from '@/lib/mediaSites';
@@ -23,12 +23,10 @@ import {
 } from '@/lib/mediaConsent';
 // ★ 「変える」の選択肢と文は1か所から出す（第87便）。★ ホームと同じものを使う
 import {
-  switchChoices, switchDoneText,
   canReadProvider,
   credentialPauseLabel, credentialPauseAskText, credentialPauseDoneText,
   credentialPausedNotice,
   CREDENTIAL_PAUSE_WHEN, CREDENTIAL_PAUSE_NOT_FOR_STOPPING,
-  CREDENTIAL_PAUSE_BLOCKS_SWITCH,
 } from '@/lib/mediaOverview';
 import {
   getMediaCredentials,
@@ -36,7 +34,6 @@ import {
   setMediaCredentialEnabled,
   deleteMediaCredential,
   startMediaConnectionTest,
-  setMediaLinkMode,
 } from '@/app/actions/mediaCredentials';
 
 // ログイン情報（第63便・㉞ その5）。
@@ -244,21 +241,11 @@ export function LoginBoard({
     onToast('ログイン情報を削除しました');
   };
 
-  const onSwitchMode = async (site: MediaSite, slot: number, mode: 'read' | 'write' | 'none') => {
-    if (salonId == null) return;
-    setBusy(`mode:${site.provider}:${slot}`);
-    const res = await setMediaLinkMode({ salonId, provider: site.provider, slot, mode });
-    setBusy('');
-    if (!res.ok) { onToast(res.error); return; }
-    await load();
-    // ★ ホームと同じ文を使う。★ 2か所で違う言い方をしない（第87便）
-    onToast(switchDoneText(mode, site.name, site.provider));
-  };
+  // ★ 向きの切り替え（onSwitchMode）は第117便で外した。★ ホーム（MediaHome）に1か所だけ置く
 
-  // ★ 上の3つの数。★ 読めていなければ null（0 と書かない）
-  // ★ accepting を渡す（第83便）。★ 渡さないと、送れないサイトが「連携中」になる
-  const statuses = MEDIA_SITES.map((s) => siteLoginStatus({ known, rows: rowsOf(s.provider), accepting: s.accepting }));
-  const tally = loginTally({ known, statuses });
+  // ★ 状態の要約（連携中／停止中／未登録の3つ）は第117便で画面から外した。
+  //   ★ すぐ下にサイトごとの行が並び、そこに同じ状態が1つずつ出ているため。
+  //   ★ loginTally（数える関数）と自己点検はそのまま残してある（また出すかもしれない）。
   // ★★★ 同意の取り直しが要る枠（第89便）。★ 要るあいだ、その枠へは何も送っていない
   const recheck = MEDIA_SITES
     .map((site) => ({ site, rows: rowsOf(site.provider).filter((r) => r.needsConsent) }))
@@ -269,10 +256,9 @@ export function LoginBoard({
       {/* ── この画面は何か ── */}
       <div className={`${CARD} p-4`}>
         <p className="text-[14.5px] text-slate-500 leading-relaxed">
+          {/* ★ 「登録があるサイトへ送ります／無いサイトへは送りません」の2文は第117便で外した
+              （カッキーさん・2026-09-03）。★ 下の行に1サイトずつ状態が出ているので言わなくても分かる */}
           各サイトの管理画面へ<b className="text-slate-700">フクエスがログインするための情報</b>をお預かりします。
-          <br />
-          ここに登録があるサイトへ、出勤や写メ日記を送ります。
-          <b className="text-slate-700">登録がないサイトへは、何も送りません。</b>
         </p>
       </div>
 
@@ -304,30 +290,9 @@ export function LoginBoard({
         </div>
       )}
 
-      {/* ── 状態の要約 ── */}
-      <div className={`${CARD} grid grid-cols-3`}>
-        {([
-          ['連携中', tally ? tally.enabled : null, 'text-emerald-700'],
-          ['停止中', tally ? tally.disabled : null, 'text-slate-500'],
-          ['未登録', tally ? tally.unregistered : null, 'text-amber-700'],
-          // ★ サイト側の都合で使えないもの（第83便）。★ 0 のときは出さない
-          //   ★ 「停止中」に混ぜない（あちらは店舗が止めたもの）
-          ...(tally && tally.closed > 0
-            ? [['使えません', tally.closed, 'text-rose-700'] as [string, number, string]]
-            : []),
-        ] as Array<[string, number | null, string]>).map(([label, n, tone], i) => (
-          <div key={label} className={`px-3 py-2.5 ${i < 2 ? 'border-r border-slate-200' : ''}`}>
-            <div className="text-[12.5px] font-bold text-slate-400">{label}</div>
-            <div className={`text-[21px] font-black tabular-nums ${tone}`}>
-              {/* ★★ 読めていなければ 0 ではなく「—」。数えられないものを 0 と書かない */}
-              {n === null ? '—' : n}
-              <span className="text-[13.5px] font-bold text-slate-400 ml-0.5">
-                {n === null ? '' : `／${MEDIA_SITES.length}サイト`}
-              </span>
-            </div>
-          </div>
-        ))}
-      </div>
+      {/* ★★ 状態の要約（連携中／停止中／未登録の3つ）は第117便で外した（カッキーさん・2026-09-03）。
+          ★ すぐ下にサイトごとの行が並んでいて、そこに同じ状態が1つずつ出ている。
+          ★ 数を先に見せても、けっきょく下の行を見に行くことになる（同じことを二度言っていた）。 */}
 
       {loading && <p className="text-[14px] text-slate-400 px-1">読み込み中…</p>}
       {loadError && (
@@ -339,7 +304,9 @@ export function LoginBoard({
       )}
 
       {/* ── サイトごと ── */}
-      {MEDIA_SITES.map((site) => {
+      {/* ★★ 並びは sortSitesForLogin が決める（第117便）。★ 使えるサイトが上、
+          ★ 接続できないサイト（エステラブ）がいちばん下。★ 表そのものは並べ替えない */}
+      {sortSitesForLogin(MEDIA_SITES).map((site) => {
         const siteRows = rowsOf(site.provider);
         const status = siteLoginStatus({ known, rows: siteRows, accepting: site.accepting });
         const open = openKey === site.provider;
@@ -347,22 +314,30 @@ export function LoginBoard({
         const row = rowAt(site.provider, slot);
         const anyRow = siteRows[0] ?? null;
 
-        const dir = loginDirection({ readable: site.readable, linkMode: row?.linkMode ?? null });
-        const dirText = loginDirectionText(dir, site.name);
 
+        // ★★★ 接続できないサイト（エステラブ）は、状態より先に【使えない】ことで色を決める（第117便）。
+        //   ★ 「未登録（琥珀）」だと、登録すれば使えるように見える。★ 待っても使えないので分ける。
+        const blocked = site.accepting === false && site.notYetKind === 'blocked';
         const accent =
-          status === 'enabled' ? 'border-l-emerald-600'
+          blocked ? 'border-l-sky-400'
+          : status === 'enabled' ? 'border-l-emerald-600'
           : status === 'unregistered' ? 'border-l-amber-300'
           : status === 'unknown' ? 'border-l-slate-300'
           : 'border-l-slate-400';
         const chip =
-          status === 'enabled' ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+          blocked ? 'bg-rose-50 text-rose-700 border-rose-200'
+          : status === 'enabled' ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
           : status === 'unregistered' ? 'bg-amber-50 text-amber-700 border-amber-200'
           // ★ サイト側の都合で使えない（第83便）。★ 停止中の灰色と分ける
           : status === 'site_closed' ? 'bg-rose-50 text-rose-700 border-rose-200'
           : 'bg-slate-50 text-slate-500 border-slate-200';
 
-        const meta = !known
+        const meta = blocked
+          // ★ 接続できないサイトでは、登録の有無を言わない（第117便）。
+          //   ★ 登録できないサイトに「まだ登録されていません」と書くと、登録すれば使えるように読める。
+          //   ★ 代わりに「送れるもの：写メ日記」を出す（下の行）。理由は開けば書いてある。
+          ? ''
+          : !known
           ? 'まだ読み込めていません'
           // ★★ 使えないサイトで「登録済み」とだけ書かない（第83便）。
           //   ★ 登録は残っているが、送っていない。★ そこを言葉にする
@@ -393,14 +368,22 @@ export function LoginBoard({
               <span className="flex-1 min-w-0 space-y-1.5">
                 <span className="flex items-center gap-2 flex-wrap">
                   <b className="text-[16.5px] font-black text-slate-800">{site.name}</b>
-                  <span className={`text-[13px] font-bold px-2 py-0.5 border ${chip}`}>
-                    {loginStatusLabel(status)}
-                  </span>
+                  {/* ★ 接続できないサイトでは状態の札を出さない（第117便）。
+                      ★ 「未登録」と出すと、登録すれば使えるように読める。★ 送れるものだけを出す */}
+                  {!blocked && (
+                    <span className={`text-[13px] font-bold px-2 py-0.5 border ${chip}`}>
+                      {loginStatusLabel(status)}
+                    </span>
+                  )}
                   {/* ★ 「使えません」と出しているときは、重ねて「準備中」を出さない（第83便）。
                       ★ 2つのバッジが同時に出て、どちらを読めばよいか分からなくなっていた。 */}
-                  {!canRegister && status !== 'site_closed' && (
+                  {/* ★★ 「準備中」と「接続できません」を分ける（第117便）。
+                      ★ 準備中は待てば使える。★ 接続できないのは、待っても使えない */}
+                  {/* ★ 準備中の札は出す（待てば使える）。★ 接続できないサイトには出さない（第117便）。
+                      ★ 理由は開いたときの黄色い枠に書いてある */}
+                  {!canRegister && !blocked && status !== 'site_closed' && (
                     <span className="text-[13px] font-bold px-2 py-0.5 border bg-white text-slate-400 border-slate-200">
-                      準備中
+                      {notYetLabel(site)}
                     </span>
                   )}
                   {/* ★★★ 開かなくても分かるようにする（第89便）。
@@ -411,18 +394,23 @@ export function LoginBoard({
                     </span>
                   )}
                 </span>
-                {/* ★★ カッキーさんの要望：このサイトに何が送れるかの可視化 */}
-                {/* ★★ 受け付けていないサイトでは「送れるもの」を出さない（第83便）。
-                    ★ 送れないのに「送れるもの：出勤」と出ていた。★ 理由は下の notYet に書いてある。 */}
-                <span className={`block text-[13.5px] text-slate-400 ${canRegister ? '' : 'hidden'}`}>
-                  送れるもの：
-                  {siteCapabilityLabels(site).map((c) => (
-                    <span key={c} className="inline-block border border-slate-200 text-slate-500 px-1.5 mr-1">
-                      {c}
-                    </span>
-                  ))}
-                </span>
-                <span className="block text-[13.5px] text-slate-500 tabular-nums">{meta}</span>
+                {/* ★★ カッキーさんの要望：このサイトに何が送れるかの可視化
+                    ★★★ 出すのは【いま送れるもの】だけ（第117便・sendableCapabilities）。
+                      ★ 第83便で「送れないのに 送れるもの：出勤 と出る」を直したとき、
+                        受け付けていないサイトでは丸ごと隠した。★ だが**全部だめではない**:
+                        エステラブは出勤が送れないだけで、写メ日記（メール）は送れる。
+                      ★ 全部隠すと、使える機能まで店舗が諦める（§185 の逆）。 */}
+                {sendableCapabilities(site).length > 0 && (
+                  <span className="block text-[13.5px] text-slate-400">
+                    送れるもの：
+                    {sendableCapabilities(site).map((c) => (
+                      <span key={c} className="inline-block border border-slate-200 text-slate-500 px-1.5 mr-1">
+                        {capabilityLabel(c)}
+                      </span>
+                    ))}
+                  </span>
+                )}
+                {meta && <span className="block text-[13.5px] text-slate-500 tabular-nums">{meta}</span>}
               </span>
               <svg
                 width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
@@ -435,46 +423,11 @@ export function LoginBoard({
 
             {open && (
               <div className="border-t border-slate-100 p-4 space-y-4">
-                {/* ── 向き ── */}
-                <div className="border border-slate-200 bg-slate-50 px-3 py-2.5">
-                  <p className="text-[14.5px] font-bold text-indigo-700">{dirText.title}</p>
-                  <p className="text-[13.5px] text-slate-500 leading-relaxed mt-0.5">{dirText.desc}</p>
-                  {/* ★ 切り替えは読めるサイトだけ。★ 押しても向こうへは何も送らない
-                      ★★ 選択肢はホームと同じ関数から出す（第87便）。★ 2か所でずれない */}
-                  {site.readable && row && row.linkMode !== 'write_auto' && (
-                    <div className="mt-2 flex flex-wrap gap-2">
-                      {switchChoices(
-                        dir === 'read' || dir === 'write' || dir === 'off' ? dir : 'unset',
-                        site.name,
-                        // ★ 第111便で provider を受けるようになった。★ ここは site.readable で
-                        //   囲ってあるので読める媒体しか来ないが、決め打ちにしない
-                        site.provider,
-                      ).map((c) => (
-                        <button
-                          key={c.mode}
-                          type="button"
-                          onClick={() => onSwitchMode(site, slot, c.mode)}
-                          disabled={busy !== '' || !row.isEnabled}
-                          className="px-3 py-1 border border-slate-300 bg-white text-[13.5px] font-bold text-slate-600 hover:bg-slate-50 disabled:opacity-40"
-                        >
-                          {c.label}
-                        </button>
-                      ))}
-                    </div>
-                  )}
-                  {row?.linkMode === 'write_auto' && (
-                    <p className="mt-1.5 text-[13px] text-slate-400 leading-relaxed">
-                      いまは自動で反映しています。自動をやめる操作は「出勤を送る」にあります。
-                    </p>
-                  )}
-                  {/* ★★★ 灰色のボタンだけ見せない（§185・第91便）。
-                      ★ 押せない理由と、押せるようにする方法を、その場に書く */}
-                  {site.readable && row && row.linkMode !== 'write_auto' && !row.isEnabled && (
-                    <p className="mt-1.5 text-[13px] text-amber-700 leading-relaxed">
-                      {CREDENTIAL_PAUSE_BLOCKS_SWITCH}
-                    </p>
-                  )}
-                </div>
+                {/* ★★ 向きの枠（「◯◯の情報をフクエスに反映中」＋フクエスから反映／反映しない）は
+                    第117便で外した（カッキーさん・2026-09-03）。
+                    ★ ホーム（MediaHome）に同じ切り替えが1か所あり、そちらが本体。
+                    ★ 2か所に置くと、片方だけ直したときに言い方がずれる（第87便で揃えたばかりの場所）。
+                    ★ 切り替えの判断（switchChoices / loginDirection）は lib に残してある。 */}
 
                 {/* ── 枠 ──
                     ★ 受け付けていないサイトでは出さない（第64便・設計メモ §200）。
@@ -509,132 +462,32 @@ export function LoginBoard({
                 </div>
                 )}
 
-                {/* ── 登録済みの枠 ── */}
-                {!showSlots ? null : row ? (
-                  <div className="border border-slate-200 p-3 space-y-2">
-                    <p className="text-[13.5px] text-slate-500 leading-relaxed tabular-nums">
-                      {/* ★ 預かっていないサイトでは店舗IDを見せない（第81便）。
-                          ★ 見せると「これは何の番号か」で迷う */}
-                      {site.needsShopId && (
-                        <>店舗ID <b className="text-slate-700">{row.shopId}</b> ／ </>
-                      )}
-                      {loginIdLabelOf(site)}{' '}
-                      <b className="text-slate-700">{row.loginId}</b> ／ パスワード{' '}
-                      <b className="text-slate-700">{row.passwordMask || '未登録'}</b>
-                    </p>
-                    <p className="text-[13.5px] text-slate-500 tabular-nums">
-                      最後に接続を確認できた日時：<b className="text-slate-700">{fmt(row.lastVerifiedAt)}</b>
-                      {row.consentAgreedAt && !row.needsConsent && `　／　${fmt(row.consentAgreedAt)} に同意済み`}
-                    </p>
-                    {row.lastError && (
-                      <p className="text-[13.5px] text-rose-600">直近のエラー：{row.lastError}</p>
-                    )}
-                    {/* ★★ いま一時停止しているなら、まずそれを言い切る（第89便）。
-                        ★ ボタンには状態を書かない代わりに、状態はここに出す */}
-                    {!row.isEnabled && (
-                      <p className="border border-amber-200 bg-amber-50 px-3 py-2 text-[13.5px] font-bold text-amber-800 leading-relaxed">
-                        {credentialPausedNotice(site.name)}
-                      </p>
-                    )}
-
-                    {/* ── うまくいかないとき（第89便）─────────────────
-                        ★★★ 接続テストと一時停止は【困ったときに押すもの】。
-                          ★ ふだんの操作と同じ列に並べていたので、押しどきが読めなかった
-                            （カッキーさんの指摘・2026-08-31 夜）。
-                        ★ 削除は戻せないので、この区画には入れず下に分ける。 */}
-                    <div className="border border-slate-200 bg-slate-50 px-3 py-2.5 space-y-2">
-                      <p className="text-[14px] font-bold text-slate-600">うまくいかないとき</p>
-                      <div className="flex gap-1.5 flex-wrap">
-                        <button
-                          type="button"
-                          onClick={() => onTest(site, slot)}
-                          disabled={!row.hasPassword || !row.isEnabled || busy !== ''}
-                          className="px-3 py-1 border border-indigo-200 bg-white text-[13.5px] font-bold text-indigo-700 hover:bg-indigo-50 disabled:opacity-40"
-                        >
-                          {busy === `test:${site.provider}:${slot}` ? '送信中…' : '接続テスト'}
-                        </button>
-                        {/* ★★ その場では変えない。★ 押す前に1度だけ問う（§353・第88便と同じ形） */}
-                        <button
-                          type="button"
-                          onClick={() => setAskPause({ site, slot, to: row.isEnabled ? 'pause' : 'resume' })}
-                          disabled={busy !== ''}
-                          className="px-3 py-1 border border-slate-300 bg-white text-[13.5px] font-bold text-slate-600 hover:bg-slate-100 disabled:opacity-40"
-                        >
-                          {busy === `enable:${site.provider}:${slot}`
-                            ? '変えています…'
-                            : credentialPauseLabel(row.isEnabled)}
-                        </button>
-                      </div>
-                      {/* ★ 「読むだけ」であることを、押す場所のそばに書く */}
-                      <p className="text-[13px] text-slate-400 leading-relaxed">
-                        接続テストは、{site.name}にログインして1回読むだけです。掲載内容は書き換えません。
-                        結果は少し経ってから「連携の記録」に出ます。
-                      </p>
-                      {/* ★ 滅多に押さないボタンなので、押しどきを一緒に置く */}
-                      <p className="text-[13px] text-slate-400 leading-relaxed">{CREDENTIAL_PAUSE_WHEN}</p>
-                      {/* ★★★ 取り違え防止。★ ここを押しても【送る設定は残る】。
-                          ★ 残った設定を見張りが読んで、止まりとして毎日届けることになる（第87便） */}
-                      <p className="text-[13px] text-slate-400 leading-relaxed">
-                        {CREDENTIAL_PAUSE_NOT_FOR_STOPPING}{' '}
-                        <Link href="/mypage/media" className="font-bold underline">
-                          媒体連携のホームを開く
-                        </Link>
-                      </p>
-                    </div>
-
-                    {/* ── 削除 ──★ 戻せないので、他のボタンと並べない */}
-                    <div className="flex justify-end">
-                      {confirmDelete === `${site.provider}:${slot}` ? (
-                        <button
-                          type="button"
-                          onClick={() => onDelete(site, slot)}
-                          disabled={busy !== ''}
-                          className="px-3 py-1 bg-rose-600 text-white text-[13.5px] font-bold disabled:opacity-40"
-                        >
-                          本当に削除
-                        </button>
-                      ) : (
-                        <button
-                          type="button"
-                          onClick={() => setConfirmDelete(`${site.provider}:${slot}`)}
-                          className="px-3 py-1 border border-rose-200 text-[13.5px] font-bold text-rose-600 hover:bg-rose-50"
-                        >
-                          削除
-                        </button>
-                      )}
-                    </div>
-                  </div>
-                ) : (
-                  <p className="border border-dashed border-slate-200 p-3 text-[14px] text-slate-400 leading-relaxed">
-                    {known
-                      ? `枠${slot}は、まだ登録されていません。`
-                      : `枠${slot}の登録は、まだ読み込めていません。`}
-                  </p>
-                )}
-
+                {/* ★★ 第117便で【フォームを上、登録済みの内容を下】に入れ替えた（カッキーさん・2026-09-03）。
+                    ★ この画面に来る用事は「入れる・直す」。★ 先に用事、確認はその下。 */}
                 {/* ── 登録フォーム ──
                     ★★★ 受け付けていないサイトでは、そもそも出さない。
                       押せないボタンを見せるより、無いほうがよい（§185 と同じ作法）。 */}
                 {!canRegister ? (
+                  blocked ? (
+                    /* ★★ 接続できないサイトは【できることだけ】を1行で（第117便・カッキーさん）。
+                       ★ 403 の事情はこちらの話。★ 店舗様に要るのは「何ができて、次にどこへ行くか」。
+                       ★ 出勤が送れないことは、上の「送れるもの：写メ日記」が言っている。 */
+                    <div className="border border-sky-200 bg-sky-50 px-3 py-2.5">
+                      <p className="text-[14px] leading-relaxed text-slate-600">
+                        {site.name}へは写メ日記の転送のみ可能です。転送するには設定が必要になります。{' '}
+                        <Link href="/mypage/media/diary" className="font-bold text-sky-700 underline">
+                          ⇨ 写メ日記の投稿先を開く
+                        </Link>
+                      </p>
+                    </div>
+                  ) : (
                   <div className="border border-amber-200 bg-amber-50 px-3 py-2.5">
                     <p className="text-[14.5px] font-bold text-amber-800">
                       {site.name}のログイン情報は、まだお預かりしていません
                     </p>
                     <p className="text-[13.5px] text-amber-900/80 leading-relaxed mt-0.5">{site.notYet}</p>
-                    {/* ★★ 手で入れれば写メ日記だけは送れるサイト（第84便）。
-                        ★ 「使えません」で終わらせず、**できることへの道**を出す。
-                        ★ できないことだけ言うと、店舗は使える機能まで諦める。 */}
-                    {site.diaryAddressSource === 'manual' && (
-                      <p className="text-[13.5px] text-amber-900/80 leading-relaxed mt-2">
-                        ★ 写メ日記は、これまでどおりお送りできます。
-                        {site.name}の投稿用アドレスは自動で読み取れないため、
-                        セラピストさんごとに手でご入力いただく形になります。{' '}
-                        <Link href="/mypage/media/diary" className="font-bold underline">
-                          写メ日記の投稿先を開く
-                        </Link>
-                      </p>
-                    )}
                   </div>
+                  )
                 ) : (
                   <div className="border-t border-slate-100 pt-4 space-y-3">
                     {/* ★★ 受け付けてはいるが、まだ全部はできない段（第80便）。
@@ -646,8 +499,10 @@ export function LoginBoard({
                         <p className="text-[13.5px] text-sky-900/80 leading-relaxed mt-0.5">{site.stageNote}</p>
                       </div>
                     )}
+                    {/* ★ 見出しは「ログイン・パスワード設定」（カッキーさん・2026-09-03）。
+                        ★ 枠が1つしかないサイトでは枠番号を言わない（言っても選べない） */}
                     <div className="text-[15px] font-bold text-slate-700">
-                      {row ? `枠${slot}の内容を変更する` : `枠${slot}を登録する`}
+                      ログイン・パスワード設定{mediaSiteSlots(site).length > 1 ? `（枠${slot}）` : ''}
                     </div>
 
                     {/* ★★ 店舗IDを預かるサイトだけ出す（第81便）。
@@ -747,6 +602,117 @@ export function LoginBoard({
                     )}
                   </div>
                 )}
+                {/* ── 登録済みの枠 ── */}
+                {!showSlots ? null : row ? (
+                  <div className="border border-slate-200 p-3 space-y-2">
+                    <p className="text-[13.5px] text-slate-500 leading-relaxed tabular-nums">
+                      {/* ★ 預かっていないサイトでは店舗IDを見せない（第81便）。
+                          ★ 見せると「これは何の番号か」で迷う */}
+                      {site.needsShopId && (
+                        <>店舗ID <b className="text-slate-700">{row.shopId}</b> ／ </>
+                      )}
+                      {loginIdLabelOf(site)}{' '}
+                      <b className="text-slate-700">{row.loginId}</b> ／ パスワード{' '}
+                      <b className="text-slate-700">{row.passwordMask || '未登録'}</b>
+                    </p>
+                    <p className="text-[13.5px] text-slate-500 tabular-nums">
+                      最後に接続を確認できた日時：<b className="text-slate-700">{fmt(row.lastVerifiedAt)}</b>
+                      {row.consentAgreedAt && !row.needsConsent && `　／　${fmt(row.consentAgreedAt)} に同意済み`}
+                    </p>
+                    {row.lastError && (
+                      <p className="text-[13.5px] text-rose-600">直近のエラー：{row.lastError}</p>
+                    )}
+                    {/* ★★ いま一時停止しているなら、まずそれを言い切る（第89便）。
+                        ★ ボタンには状態を書かない代わりに、状態はここに出す */}
+                    {!row.isEnabled && (
+                      <p className="border border-amber-200 bg-amber-50 px-3 py-2 text-[13.5px] font-bold text-amber-800 leading-relaxed">
+                        {credentialPausedNotice(site.name)}
+                      </p>
+                    )}
+
+                    {/* ── うまくいかないとき（第89便）─────────────────
+                        ★★★ 接続テストと一時停止は【困ったときに押すもの】。
+                          ★ ふだんの操作と同じ列に並べていたので、押しどきが読めなかった
+                            （カッキーさんの指摘・2026-08-31 夜）。
+                        ★ 削除は戻せないので、この区画には入れず下に分ける。 */}
+                    {/* ★★ 第117便: たたんで置く（カッキーさん・2026-09-03）。
+                        ★ 困ったときだけ開く場所。★ 開いていると、ふだんの操作と同じ重さに見える。
+                        ★ details なので JavaScript を足していない（開閉の状態を持つ必要が無い）。 */}
+                    <details className="border border-slate-200 bg-slate-50">
+                      <summary className="cursor-pointer list-none px-3 py-2.5 text-[14px] font-bold text-slate-600 flex items-center justify-between gap-2">
+                        うまくいかないとき
+                        <span className="text-[12.5px] font-bold text-slate-400">接続テスト・一時停止</span>
+                      </summary>
+                      <div className="px-3 pb-2.5 space-y-2">
+                      <div className="flex gap-1.5 flex-wrap">
+                        <button
+                          type="button"
+                          onClick={() => onTest(site, slot)}
+                          disabled={!row.hasPassword || !row.isEnabled || busy !== ''}
+                          className="px-3 py-1 border border-indigo-200 bg-white text-[13.5px] font-bold text-indigo-700 hover:bg-indigo-50 disabled:opacity-40"
+                        >
+                          {busy === `test:${site.provider}:${slot}` ? '送信中…' : '接続テスト'}
+                        </button>
+                        {/* ★★ その場では変えない。★ 押す前に1度だけ問う（§353・第88便と同じ形） */}
+                        <button
+                          type="button"
+                          onClick={() => setAskPause({ site, slot, to: row.isEnabled ? 'pause' : 'resume' })}
+                          disabled={busy !== ''}
+                          className="px-3 py-1 border border-slate-300 bg-white text-[13.5px] font-bold text-slate-600 hover:bg-slate-100 disabled:opacity-40"
+                        >
+                          {busy === `enable:${site.provider}:${slot}`
+                            ? '変えています…'
+                            : credentialPauseLabel(row.isEnabled)}
+                        </button>
+                      </div>
+                      {/* ★ 「読むだけ」であることを、押す場所のそばに書く */}
+                      <p className="text-[13px] text-slate-400 leading-relaxed">
+                        接続テストは、{site.name}にログインして1回読むだけです。掲載内容は書き換えません。
+                        結果は少し経ってから「連携の記録」に出ます。
+                      </p>
+                      {/* ★ 滅多に押さないボタンなので、押しどきを一緒に置く */}
+                      <p className="text-[13px] text-slate-400 leading-relaxed">{CREDENTIAL_PAUSE_WHEN}</p>
+                      {/* ★★★ 取り違え防止。★ ここを押しても【送る設定は残る】。
+                          ★ 残った設定を見張りが読んで、止まりとして毎日届けることになる（第87便） */}
+                      <p className="text-[13px] text-slate-400 leading-relaxed">
+                        {CREDENTIAL_PAUSE_NOT_FOR_STOPPING}{' '}
+                        <Link href="/mypage/media" className="font-bold underline">
+                          媒体連携のホームを開く
+                        </Link>
+                      </p>
+                      </div>
+                    </details>
+
+                    {/* ── 削除 ──★ 戻せないので、他のボタンと並べない */}
+                    <div className="flex justify-end">
+                      {confirmDelete === `${site.provider}:${slot}` ? (
+                        <button
+                          type="button"
+                          onClick={() => onDelete(site, slot)}
+                          disabled={busy !== ''}
+                          className="px-3 py-1 bg-rose-600 text-white text-[13.5px] font-bold disabled:opacity-40"
+                        >
+                          本当に削除
+                        </button>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => setConfirmDelete(`${site.provider}:${slot}`)}
+                          className="px-3 py-1 border border-rose-200 text-[13.5px] font-bold text-rose-600 hover:bg-rose-50"
+                        >
+                          削除
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                ) : (
+                  <p className="border border-dashed border-slate-200 p-3 text-[14px] text-slate-400 leading-relaxed">
+                    {known
+                      ? `枠${slot}は、まだ登録されていません。`
+                      : `枠${slot}の登録は、まだ読み込めていません。`}
+                  </p>
+                )}
+
               </div>
             )}
           </div>

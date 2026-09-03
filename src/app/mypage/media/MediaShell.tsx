@@ -26,12 +26,16 @@ export type MediaNavKey = 'home' | 'work' | 'diary' | 'roster' | 'login' | 'log'
 
 const NAV: Array<{ key: MediaNavKey; label: string; href: string; group?: string }> = [
   { key: 'home',   label: 'ホーム',           href: '/mypage/media' },
+  // ★★ ログイン情報はホームの次（カッキーさん・2026-09-03）。
+  //   ★ ここが埋まらないと他の画面が何もできない＝【最初にやること】なので、いちばん近くに置く。
+  //   ★ 以前は下の「設定・記録」に入れていたが、始めるときにいちばん探されるのがここだった。
+  { key: 'login',  label: 'ログイン情報',      href: '/mypage/media/login' },
   // ★ セラピスト一覧は【基本の情報】なので、送る作業より上に置く（カッキーさん・2026-08-30）
   { key: 'roster', label: 'セラピスト一覧',    href: '/mypage/media/therapists' },
   { key: 'work',   label: '出勤を送る',        href: '/mypage/media/work',       group: '送る・確かめる' },
   { key: 'diary',  label: '写メ日記の投稿先',   href: '/mypage/media/diary' },
-  { key: 'login',  label: 'ログイン情報',      href: '/mypage/media/login',      group: '設定・記録' },
-  { key: 'log',    label: '連携の記録',        href: '/mypage/media/log' },
+  // ★ 設定（ログイン情報）が上へ移ったので、この見出しは「記録」だけになった
+  { key: 'log',    label: '連携の記録',        href: '/mypage/media/log',        group: '記録' },
 ];
 
 function NavIcon({ k }: { k: MediaNavKey }) {
@@ -110,7 +114,7 @@ export function MediaShell({
       )}
 
       {/* ── 左サイドバー（スマホでは上の横並び）───────────────────── */}
-      <aside className="bg-white border-b md:border-b-0 md:border-r border-slate-200 md:w-[252px] md:flex-none md:min-h-screen md:sticky md:top-0 md:self-start">
+      <aside className="bg-white border-b md:border-b-0 md:border-r border-slate-200 md:w-[288px] md:flex-none md:min-h-screen md:sticky md:top-0 md:self-start">
         <div className="flex items-center gap-2.5 px-3.5 md:px-4 py-3 md:py-4 border-b border-slate-100">
           <span className="w-7 h-7 md:w-9 md:h-9 flex-none grid place-items-center text-white bg-gradient-to-br from-indigo-700 to-indigo-500">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
