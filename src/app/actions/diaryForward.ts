@@ -4,6 +4,7 @@ import { createClient } from '@/app/lib/supabase/server';
 import { createServiceClient } from '@/app/lib/supabase/service';
 import { ADMIN_UUID } from '@/app/lib/admin';
 import { isDiarySource } from '@/lib/diarySource';
+import { isConsentState } from '@/lib/therapistMediaConsent';
 
 // 写メ日記の転送先の登録（第36便・第2弾）。
 //
@@ -167,4 +168,113 @@ export async function setSalonDiarySource(input: { therapistId: string | number;
   const { error } = await svc.from('salons').update({ diary_source: input.source }).eq('id', guard.data.salonId);
   if (error) return { ok: false, error: error.message };
   return { ok: true, data: { source: input.source } };
+}
+
+// ── セラピスト本人の了承（第118便・2026-09-03）────────────────────────
+//
+// ★★★ なぜ要るか
+//   エステ魂の写メ日記は【本人のアカウント】から投稿する（店舗の管理画面からは投稿できない・9/3 実測）。
+//   ★ 店舗が繋いだからといって全員ぶん送ると、了承していない人の日記が本人のアカウントから出る。
+//   → 送る相手は1人ずつ決める（カッキーさん・2026-09-03）。★ 既定は送らない。
+//
+// ★★ ここに入るのは【店舗様の申告】。★ 本人の署名ではない。★ 画面にもそう書く。
+// ★ 判断（送ってよいか）は src/lib/therapistMediaConsent.ts の canSendDiary 1か所。
+
+/** その店舗の在籍と、了承の記録をまとめて返す（★ 読むだけ）。 */
+export async function getSalonDiaryConsents(input: { salonId: string | number; provider: string }): Promise<
+  Result<{
+    therapists: Array<{ id: string; name: string; isActive: boolean }>;
+    consents: Array<{ therapistId: string; state: string; decidedAt: string | null }>;
+  }>
+> {
+  const salonId = Number(input.salonId);
+  if (!Number.isFinite(salonId)) return { ok: false, error: '店舗の指定が不正です' };
+  if (!PROVIDERS.includes(input.provider)) return { ok: false, error: '媒体の指定が不正です' };
+
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { ok: false, error: 'ログインが必要です' };
+
+  const svc = createServiceClient();
+  const { data: salon } = await svc.from('salons').select('owner_id').eq('id', salonId).maybeSingle();
+  if (!salon) return { ok: false, error: '店舗が見つかりません' };
+  if ((salon.owner_id as string | null) !== user.id && user.id !== ADMIN_UUID) {
+    return { ok: false, error: 'この店舗の操作権限がありません' };
+  }
+
+  const { data: ths, error: thErr } = await svc
+    .from('therapists')
+    .select('id, name, is_active')
+    .eq('salon_id', salonId)
+    .order('id', { ascending: true });
+  if (thErr) return { ok: false, error: 'セラピストを読み込めませんでした' };
+
+  const ids = (ths ?? []).map((t) => Number(t.id));
+  let consents: Array<{ therapistId: string; state: string; decidedAt: string | null }> = [];
+  if (ids.length > 0) {
+    const { data: cs, error: csErr } = await svc
+      .from('therapist_media_consent')
+      .select('therapist_id, state, decided_at')
+      .eq('provider', input.provider)
+      .eq('kind', 'diary')
+      .in('therapist_id', ids);
+    // ★★ 読めなかったことを「0件（＝全員未確認）」と見せない。★ 混ぜると、聞いた記録が消えたように見える
+    if (csErr) return { ok: false, error: '了承の記録を読み込めませんでした' };
+    consents = (cs ?? []).map((r) => ({
+      therapistId: String(r.therapist_id),
+      state: String(r.state ?? 'unknown'),
+      decidedAt: (r.decided_at as string | null) ?? null,
+    }));
+  }
+
+  return {
+    ok: true,
+    data: {
+      therapists: (ths ?? []).map((t) => ({
+        id: String(t.id),
+        name: (t.name as string | null) ?? '',
+        isActive: t.is_active === true,
+      })),
+      consents,
+    },
+  };
+}
+
+/**
+ * 1人ぶんの了承を記録する。
+ * ★★ 'unknown' に戻せる（取り消せる）。★ 「戻せます」と書いた画面には戻すボタンがあること。
+ * ★ 記録するのは state と、いつ・誰が入れたか。★ 本人の同意そのものではない。
+ */
+export async function setDiaryConsent(input: {
+  therapistId: string | number;
+  provider: string;
+  state: string;
+}): Promise<Result<{ state: string }>> {
+  const therapistId = Number(input.therapistId);
+  if (!Number.isFinite(therapistId)) return { ok: false, error: '対象セラピストが不正です' };
+  if (!PROVIDERS.includes(input.provider)) return { ok: false, error: '媒体の指定が不正です' };
+  if (!isConsentState(input.state)) return { ok: false, error: '了承の指定が不正です' };
+
+  // ★ 本人・店舗オーナー・運営（既存の判定をそのまま使う）
+  const guard = await assertCanEdit(therapistId);
+  if (!guard.ok) return guard;
+
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  const svc = createServiceClient();
+  const nowISO = new Date().toISOString();
+
+  const { error } = await svc.from('therapist_media_consent').upsert({
+    therapist_id: therapistId,
+    provider: input.provider,
+    kind: 'diary',
+    state: input.state,
+    // ★ 「まだ確認していません」に戻したときは、いつ誰が、を消す（残すと決めたように見える）
+    decided_at: input.state === 'unknown' ? null : nowISO,
+    decided_by: input.state === 'unknown' ? null : (user?.id ?? null),
+    updated_at: nowISO,
+  }, { onConflict: 'therapist_id,provider,kind' });
+  if (error) return { ok: false, error: '了承を保存できませんでした' };
+
+  return { ok: true, data: { state: input.state } };
 }
