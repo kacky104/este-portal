@@ -4,6 +4,7 @@ import { createServiceClient } from '@/app/lib/supabase/service';
 import { generateCopyForTherapist } from '@/app/lib/therapistCopyCore';
 import { MIN_PROFILE_LEN } from '@/lib/therapistCopyPrompt';
 import { parseAdminBody, truthy, num } from '@/lib/adminBody';
+import { tallyPhrases, allSharedPhrases } from '@/lib/therapistCopyTally';
 
 // ── 運営用: セラピスト紹介文の一括生成（第30便・2026-08-24）────────────
 // 店舗の紹介文がまとめて短い・薄いときに、運営が一括で作り直すためのルート。
@@ -72,13 +73,15 @@ export async function POST(req: Request) {
   if (req.headers.get('authorization') !== `Bearer ${secret}`)
     return NextResponse.json({ ok: false, error: 'unauthorized' }, { status: 401 });
 
-  if (!process.env.ANTHROPIC_API_KEY)
-    return NextResponse.json({ ok: false, error: 'ANTHROPIC_API_KEY is not set' }, { status: 500 });
-
   // ★★★ フォーム形式・JSON・クエリ文字列のどれでも受ける（adminBody.parseAdminBody）
   const body = parseAdminBody(await req.text(), req.url);
   if (body === null)
     return NextResponse.json({ ok: false, error: '本文を読み取れませんでした（JSONのつもりなら形が壊れています）' }, { status: 400 });
+
+  // ★★ 数えるだけなら AI を使わない。★ キーが無くても数えられる（確認の口を止めない）
+  const tallyOnly = truthy(body.tally);
+  if (!tallyOnly && !process.env.ANTHROPIC_API_KEY)
+    return NextResponse.json({ ok: false, error: 'ANTHROPIC_API_KEY is not set' }, { status: 500 });
 
   const salonId = num(body.salonId);
   if (salonId === null) return NextResponse.json({ ok: false, error: 'salonId が不正です' }, { status: 400 });
@@ -113,6 +116,24 @@ export async function POST(req: Request) {
   const targets = all.filter((r) => len(r.profile_text) < minLen && hasMaterial(r));
   // 素材が無くて手を付けられない人は、件数だけ返して気づけるようにする。
   const skippedNoMaterial = all.filter((r) => len(r.profile_text) < minLen && !hasMaterial(r)).length;
+
+  // ★★★ 数えるだけ（tally=true）。★ ここで返す＝AIを1回も叩かない・1行も書かない
+  //   ★ 返事の1行目（数えただけ:true）が、新しいコードが動いている証拠にもなる（第114便）
+  if (tallyOnly) {
+    const t = tallyPhrases(all.map((r) => r.profile_text));
+    return NextResponse.json(
+      {
+        ok: true,
+        salon: salon.name,
+        数えただけ: true,
+        在籍: all.length,
+        紹介文が短い: all.filter((r) => len(r.profile_text) < minLen).length,
+        ...t,
+        全員に出た言い回し: allSharedPhrases(t),
+      },
+      { headers: { 'content-type': 'application/json; charset=utf-8' } },
+    );
+  }
 
   // ★ 1人だけ試す口。★ 対象外なら理由を返して止まる（黙って別の人を処理しない）
   let batch: Row[];
@@ -194,6 +215,11 @@ export async function POST(req: Request) {
   }
 
   const done = apply ? results.filter((r) => r.ok).length : 0;
+
+  // ★★★ 今回書いたぶんの偏りを、その場で数える（第114便の作法）。
+  //   ★ 試し打ちは保存しないので tally では出てこない。★ ここで見るしかない。
+  //   ★★ 3人とも同じ言い回しなら、相手の性質ではなく【こちらのプロンプト】を疑う。
+  const 今回 = tallyPhrases(results.filter((r) => r.ok).map((r) => r.profileText as string));
   return NextResponse.json(
     {
       ok: true,
@@ -206,6 +232,9 @@ export async function POST(req: Request) {
       // apply=false のときは保存していないので remaining は減らない（試し打ちの目安として返す）。
       remaining: Math.max(0, targets.length - done),
       素材なしで対象外: skippedNoMaterial,
+      今回の頻出: 今回.頻出,
+      // ★ 全員に出た言い回しがあれば名指しで返す。★ 黙って通さない
+      今回全員に出た言い回し: allSharedPhrases(今回),
       results,
     },
     // ★ charset を明示する（第30便・禁則209）。
