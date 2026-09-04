@@ -133,32 +133,36 @@ export function afterEsutamaDiaryToken(input: Input, ctx: RelayFlowContext): Flo
 export function afterEsutamaDiaryProxy(input: Input, ctx: RelayFlowContext): FlowOutcome {
   const cookie = mergeCookies(ctx.cookie, input.headers['set-cookie'] as string | string[] | undefined);
   const name = String(ctx.esutamaDiaryCastName ?? '');
-  const matched = isProxyLoggedInAs(input.body, name);
-  // ★★★ 画面に出ていた名前をそのまま残す（第134便）。★ 「入れなかった」だけでは理由が分からない
-  //   ★ null なら「ログイン中です」の表示自体が無かった＝入れていない（別人ではない）
-  const loggedInAs = parseProxyLoggedInName(input.body);
-  const audits: FlowAudit[] = [{
-    event: 'diary_proxy_login',
-    outcome: input.status >= 200 && input.status < 400 && matched ? 'ok' : 'failed',
-    detail: { status: input.status, castId: ctx.esutamaDiaryCastId ?? null, name, matched, loggedInAs },
-  }];
   const next = { ...ctx, cookie, esutamaProxyOpen: true };
+
+  // ★★★ 2026-09-04（第135便）: ここで本人確認をしていたが【できない】ことが実測で分かった。
+  //   ★ 代理ログインの応答は **307（リダイレクト）**。★ 中継役は追わないので本文が空。
+  //   ★★ 「【◯◯】さんにログイン中です」が無い → 人違いを疑って止まる、を繰り返していた。
+  //     ★ 名前は合っていた（さら／757481）。★ 突き合わせる相手がそもそも無かった。
+  //
+  // ★★★ 直し方: **Location を追わない。** ★ 知らない宛先へ飛ばないため。
+  //   → 本人確認は【これから書き込む投稿ページ】で行う（afterEsutamaDiaryPage）。
+  //   ★★ 回避ではなく設計として強くなる: 入り口ではなく **書く直前の画面** で確かめる。
+  //     ★ 途中で何が起きても、書くページが本人であることを見る。
+  //
+  // ★★★ ここでは【何も主張しない】。★ 分からないことを記録に書かない（作法 3-5）。
+  //   ★ だから成功時は監査を出さない。★ diary_proxy_login は投稿ページの段で出す。
   if (input.status < 200 || input.status >= 400) {
-    return stopViaEndProxy(next, audits, '代理ログインに入れませんでした（' + input.status + '）');
-  }
-  if (!matched) {
-    // ★★★ ここが最後の砦。★ 別の人のアカウントに日記を出さない
-    //   ★ 何が出ていたかまで書く。★ 「入れなかった」だけだと、名前の表記違いか人違いか区別できない
-    return stopViaEndProxy(next, audits, loggedInAs === null
-      ? 'ログイン中の表示が見つかりませんでした（' + name + 'さんとして入れていません）'
-      : '入ったのは【' + loggedInAs + '】さんでした（頼んだのは ' + name + 'さん）');
+    return stopViaEndProxy(
+      next,
+      [{
+        event: 'diary_proxy_login', outcome: 'failed',
+        detail: { status: input.status, castId: ctx.esutamaDiaryCastId ?? null, name, matched: false, loggedInAs: null },
+      }],
+      '代理ログインに入れませんでした（' + input.status + '）',
+    );
   }
   return {
     kind: 'next',
     next: (() => { const r = buildEsutamaDiaryPageRequest(cookie);
       return { purpose: 'esutama_diary_page' as const, method: r.method, url: r.url, headers: r.headers, body: '', context: next }; })(),
-    audits,
-    note: name + 'さんとして入れました。投稿ページを読みます',
+    audits: [],
+    note: '代理ログインの応答は ' + input.status + ' でした。★ 本人確認は投稿ページで行います',
   };
 }
 
@@ -170,7 +174,15 @@ export function afterEsutamaDiaryPage(input: Input, ctx: RelayFlowContext): Flow
   const cookie = mergeCookies(ctx.cookie, input.headers['set-cookie'] as string | string[] | undefined);
   const ctk = parseEsutamaCtk(input.body);
   const draft = ctx.esutamaDiaryDraft;
+  const name = String(ctx.esutamaDiaryCastName ?? '');
+  // ★★★ ここが最後の砦（第135便で入り口から移した）。★ **これから書き込むページ**で本人を確かめる
+  const matched = isProxyLoggedInAs(input.body, name);
+  const loggedInAs = parseProxyLoggedInName(input.body);
   const audits: FlowAudit[] = [{
+    event: 'diary_proxy_login',
+    outcome: matched ? 'ok' : 'failed',
+    detail: { status: input.status, castId: ctx.esutamaDiaryCastId ?? null, name, matched, loggedInAs },
+  }, {
     event: 'diary_post_page',
     outcome: !!ctk && input.status >= 200 && input.status < 400 ? 'ok' : 'failed',
     detail: { status: input.status, hasCtk: !!ctk },
@@ -178,6 +190,12 @@ export function afterEsutamaDiaryPage(input: Input, ctx: RelayFlowContext): Flow
   const next = { ...ctx, cookie, esutamaDiaryCtk: ctk ?? undefined };
   if (input.status < 200 || input.status >= 400) {
     return stopViaEndProxy(next, audits, '投稿ページを読めませんでした（' + input.status + '）');
+  }
+  // ★★★ 別の人のアカウントに日記を出さない。★ ctk より先に見る（★ 書く相手が違えば ctk は要らない）
+  if (!matched) {
+    return stopViaEndProxy(next, audits, loggedInAs === null
+      ? '投稿ページに「ログイン中です」の表示が見つかりませんでした（' + name + 'さんとして入れていません）'
+      : '投稿ページに出ていたのは【' + loggedInAs + '】さんでした（頼んだのは ' + name + 'さん）');
   }
   if (!ctk) return stopViaEndProxy(next, audits, '投稿ページの ctk が見つかりませんでした');
   if (!draft) return stopViaEndProxy(next, audits, '送る中身がありません');
@@ -199,7 +217,7 @@ export function afterEsutamaDiaryPage(input: Input, ctx: RelayFlowContext): Flow
     next: (() => { const r = buildEsutamaDiaryPostRequest(cookie, built.fields);
       return { purpose: 'esutama_diary_post' as const, method: r.method, url: r.url, headers: r.headers, body: r.body ?? '', context: next }; })(),
     audits,
-    note: '写メ日記を送ります' + (dropped.length > 0 ? '（★ 上限を超えたので ' + dropped.join('・') + ' 切りました）' : ''),
+    note: name + 'さんとして投稿ページを開けました。写メ日記を送ります' + (dropped.length > 0 ? '（★ 上限を超えたので ' + dropped.join('・') + ' 切りました）' : ''),
   };
 }
 

@@ -48,40 +48,56 @@ eq('★ 期限は監査に残す', r2.audits[0].detail.expiresAt, '2026-09-04 12
 const r2ng = F.afterEsutamaDiaryToken(res(200, JSON.stringify({ success: false, message: '利用中ではありません' })), ctx({}));
 eq('★★ 断られたら止まる', [r2ng.kind, r2ng.note.includes('利用中ではありません')], ['stop', true]);
 
-console.log('\n── 3. ★★★ 別の人に入っていたら書かずに戻る ──');
-const okBody = '<div>【さら】さんにログイン中です</div>';
-const r3 = F.afterEsutamaDiaryProxy(res(200, okBody), ctx({ esutamaDiaryCastName: 'さら', esutamaProxyOpen: true }));
-eq('★ 名前が合えば投稿ページへ', [r3.kind, r3.next.purpose], ['next', 'esutama_diary_page']);
-// ★★★ ここが最後の砦。★ 2026-09-04 に道具が「さら」を探して「さくら」を返した
-const r3ng = F.afterEsutamaDiaryProxy(res(200, '<div>【さくら】さんにログイン中です</div>'), ctx({ esutamaDiaryCastName: 'さら', esutamaProxyOpen: true }));
-eq('★★★ 別人なら投稿ページへ進まない', r3ng.next.purpose, 'esutama_diary_end');
-eq('★★★ 別人なら【end_proxy を通してから】止める', r3ng.next.purpose, 'esutama_diary_end');
-// ★★★ 第134便: 「入れませんでした」だけでは、人違いか表記違いか区別できなかった。
-//   ★ 2026-09-04 の1通目が実際にここで止まり、理由が分からなかった。★ 名前をそのまま書く
-eq('★★★ 入った相手の名前を書く', r3ng.next.context.esutamaDiaryStopNote.includes('【さくら】'), true);
-eq('★★ 頼んだ相手も書く', r3ng.next.context.esutamaDiaryStopNote.includes('さら'), true);
-eq('★★ 画面に出ていた名前を記録に残す', r3ng.audits[0].detail.loggedInAs, 'さくら');
-// ★★ 「ログイン中です」の表示が無い＝そもそも入れていない。★ 人違いとは別の話
-const r3none = F.afterEsutamaDiaryProxy(res(200, '<div>ログイン画面</div>'), ctx({ esutamaDiaryCastName: 'さら', esutamaProxyOpen: true }));
-eq('★★★ 表示が無ければ「入れていません」と書く',
-   r3none.next.context.esutamaDiaryStopNote.includes('入れていません'), true);
-eq('★★ そのときの記録は null（別人ではない）', r3none.audits[0].detail.loggedInAs, null);
-eq('★★ 入れなかったときも end_proxy を通す',
-   F.afterEsutamaDiaryProxy(res(500), ctx({ esutamaDiaryCastName: 'さら', esutamaProxyOpen: true })).next.purpose, 'esutama_diary_end');
+console.log('\n── 3. ★★★ 代理ログインの応答では本人確認できない（第135便）──');
+// ★★★ 2026-09-04 実測: 代理ログインの応答は **307**。★ 中継役は追わないので本文が空。
+//   ★ ここで本人確認しようとして、名前が合っているのに2回止まった。
+//   → **入り口では何も主張しない。** ★ 本人確認は【これから書き込む投稿ページ】で行う。
+const r3 = F.afterEsutamaDiaryProxy(res(307, ''), ctx({ esutamaDiaryCastName: 'さら', esutamaProxyOpen: true }));
+eq('★★★ 307 でも止まらず投稿ページへ進む', [r3.kind, r3.next.purpose], ['next', 'esutama_diary_page']);
+// ★★★ 分からないことを記録に書かない（作法 3-5）。★ 「入りました」と言わない
+eq('★★★ 入り口では監査を出さない（まだ何も分かっていない）', r3.audits.length, 0);
+eq('★ note には応答だけ書く', r3.note.includes('307'), true);
+// ★ 通信そのものが失敗したときは、今までどおり止める
+const r3ng = F.afterEsutamaDiaryProxy(res(500), ctx({ esutamaDiaryCastName: 'さら', esutamaProxyOpen: true }));
+eq('★★ 入れなかったときは end_proxy を通す', r3ng.next.purpose, 'esutama_diary_end');
+eq('★ そのときは記録を残す', r3ng.audits[0].outcome, 'failed');
+
+console.log('\n── 3-b. ★★★ 最後の砦は【投稿ページ】に移した ──');
+const PAGE_OK = '<div>【さら】さんにログイン中です</div>' + CTK;
+const r3b = F.afterEsutamaDiaryPage(res(200, PAGE_OK), ctx({ esutamaProxyOpen: true, esutamaDiaryCastName: 'さら', esutamaDiaryDraft: DRAFT }));
+eq('★ 本人なら投稿へ進む', [r3b.kind, r3b.next.purpose], ['next', 'esutama_diary_post']);
+eq('★★ 本人だと確かめてから記録する', r3b.audits[0].outcome, 'ok');
+// ★★★ 別人なら書かない。★ 2026-09-04 に道具が「さら」を探して「さくら」を返した
+const PAGE_NG = '<div>【さくら】さんにログイン中です</div>' + CTK;
+const r3c = F.afterEsutamaDiaryPage(res(200, PAGE_NG), ctx({ esutamaProxyOpen: true, esutamaDiaryCastName: 'さら', esutamaDiaryDraft: DRAFT }));
+eq('★★★ 別人なら投稿へ進まない', r3c.next.purpose, 'esutama_diary_end');
+eq('★★★ 入った相手の名前を書く', r3c.next.context.esutamaDiaryStopNote.includes('【さくら】'), true);
+eq('★★ 記録にも残す', r3c.audits[0].detail.loggedInAs, 'さくら');
+// ★★ 表示が無い＝入れていない。★ 人違いとは別の話
+const r3d = F.afterEsutamaDiaryPage(res(200, CTK), ctx({ esutamaProxyOpen: true, esutamaDiaryCastName: 'さら', esutamaDiaryDraft: DRAFT }));
+eq('★★★ 表示が無ければ書かない', r3d.next.purpose, 'esutama_diary_end');
+eq('★★ そのときは「入れていません」と書く', r3d.next.context.esutamaDiaryStopNote.includes('入れていません'), true);
+eq('★ 記録は null（別人ではない）', r3d.audits[0].detail.loggedInAs, null);
+// ★★★ 本人確認は ctk より先。★ 書く相手が違えば ctk は要らない
+const r3e = F.afterEsutamaDiaryPage(res(200, '<div>【さくら】さんにログイン中です</div>'), ctx({ esutamaProxyOpen: true, esutamaDiaryCastName: 'さら', esutamaDiaryDraft: DRAFT }));
+eq('★★ 別人なら ctk が無くても人違いとして止める',
+   r3e.next.context.esutamaDiaryStopNote.includes('【さくら】'), true);
 
 console.log('\n── 4. ★★★ 空の記事を出さない・ctk が無ければ送らない ──');
-const r4 = F.afterEsutamaDiaryPage(res(200, CTK), ctx({ esutamaProxyOpen: true, esutamaDiaryDraft: DRAFT }));
+const IN = '<div>【さら】さんにログイン中です</div>';
+const NAMED = { esutamaProxyOpen: true, esutamaDiaryCastName: 'さら', esutamaDiaryDraft: DRAFT };
+const r4 = F.afterEsutamaDiaryPage(res(200, IN + CTK), ctx(NAMED));
 eq('★ 中身があれば投稿へ', [r4.kind, r4.next.purpose], ['next', 'esutama_diary_post']);
 eq('★★★ 本文が空なら送らず戻る',
-   F.afterEsutamaDiaryPage(res(200, CTK), ctx({ esutamaProxyOpen: true, esutamaDiaryDraft: { title: 'a', content: '  ' } })).next.purpose,
+   F.afterEsutamaDiaryPage(res(200, IN + CTK), ctx({ ...NAMED, esutamaDiaryDraft: { title: 'a', content: '  ' } })).next.purpose,
    'esutama_diary_end');
 eq('★★★ ctk が無ければ送らず戻る',
-   F.afterEsutamaDiaryPage(res(200, '<div>x</div>'), ctx({ esutamaProxyOpen: true, esutamaDiaryDraft: DRAFT })).next.purpose,
+   F.afterEsutamaDiaryPage(res(200, IN), ctx(NAMED)).next.purpose,
    'esutama_diary_end');
 eq('★★ 下書きが無ければ送らず戻る',
-   F.afterEsutamaDiaryPage(res(200, CTK), ctx({ esutamaProxyOpen: true })).next.purpose, 'esutama_diary_end');
+   F.afterEsutamaDiaryPage(res(200, IN + CTK), ctx({ esutamaProxyOpen: true, esutamaDiaryCastName: 'さら' })).next.purpose, 'esutama_diary_end');
 // ★★ 切ったことを黙らせない
-const long = F.afterEsutamaDiaryPage(res(200, CTK), ctx({ esutamaProxyOpen: true, esutamaDiaryDraft: { title: 'あ'.repeat(40), content: 'い'.repeat(2100) } }));
+const long = F.afterEsutamaDiaryPage(res(200, IN + CTK), ctx({ ...NAMED, esutamaDiaryDraft: { title: 'あ'.repeat(40), content: 'い'.repeat(2100) } }));
 eq('★★ 切ったら監査に残る', long.audits.some((a) => a.event === 'diary_post_clamped'), true);
 eq('★★ 切ったら note にも出る', long.note.includes('切りました'), true);
 
