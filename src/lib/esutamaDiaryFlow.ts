@@ -24,7 +24,7 @@ import type { FlowAudit, FlowOutcome, RelayFlowContext } from './relayFlow';
 import { mergeCookies } from './relayJob';
 import {
   parseEsutamaProxyTherapists, parseEsutamaCtk, parseEsutamaShopToken, isProxyLoggedInAs,
-  esutamaDiaryPostSignals, parseProxyLoggedInName,
+  esutamaDiaryPostSignals, parseProxyLoggedInName, judgeEsutamaDiaryPost,
 } from './esutamaTherapistParse';
 import { buildEsutamaDiaryPost } from './esutamaDiaryPost';
 import {
@@ -231,18 +231,32 @@ export function afterEsutamaDiaryPage(input: Input, ctx: RelayFlowContext): Flow
  */
 export function afterEsutamaDiaryPost(input: Input, ctx: RelayFlowContext): FlowOutcome {
   const cookie = mergeCookies(ctx.cookie, input.headers['set-cookie'] as string | string[] | undefined);
-  const posted = input.status >= 200 && input.status < 400;
-  // ★★★ 合図を残す（第133便）。★ ここで成否は決めない。★ 1通目を人が読んで確かめるための材料
   const sig = esutamaDiaryPostSignals(input.body);
+  // ★★★ 第136便: ここで判定する（第133便では保留していた）。
+  //   ★★ 以前は 200〜399 を全部「送れた」と数えていた。
+  //     ★ 200 + 投稿フォームが戻った（＝差し戻し）も「送れた」になり、
+  //       **印が残って二度と送れなくなる**。★ 静かな取りこぼし。
+  const j = judgeEsutamaDiaryPost(input.status, sig);
+  const name = ctx.esutamaDiaryCastName ?? '';
+  // ★★★ 印を残すか外すかは【ここ】で決まる（呼び出し側は esutamaDiaryPosted を見る）。
+  //   ★ 'unknown' は【残す】。★ 消せない相手に、分からないまま二度送らない。
+  const posted = j.verdict !== 'rejected';
   const audits: FlowAudit[] = [{
     event: 'push_diary',
-    outcome: posted ? 'ok' : 'failed',
+    outcome: j.verdict === 'sent' ? 'ok' : j.verdict === 'rejected' ? 'failed' : 'stopped',
+    // ★ 店舗様が読む1行。★ 「送った」と「載った」を混ぜない
+    summary: j.verdict === 'sent'
+      ? 'エステ魂へ' + (name ? name + 'さんの' : '') + '写メ日記を送りました。掲載は媒体側でご確認ください'
+      : j.verdict === 'rejected'
+        ? 'エステ魂へ' + (name ? name + 'さんの' : '') + '写メ日記を送れませんでした（' + j.reason + '）。もう一度お送りできます'
+        : 'エステ魂へ送りましたが、受け取られたか判定できませんでした（' + j.reason + '）。★ 二度送りを避けるため、この日記は送信済みとして扱います。媒体側でご確認ください',
     detail: {
       status: input.status,
+      verdict: j.verdict,
       castId: ctx.esutamaDiaryCastId ?? null,
       name: ctx.esutamaDiaryCastName ?? null,
       diaryPostId: ctx.esutamaDiaryPostId ?? null,
-      // ★ 「200なのに載っていない」を追えるようにする
+      // ★ 「200なのに載っていない」を追えるようにする（★ 判定の材料をそのまま残す）
       formStillThere: sig.formStillThere,
       hasErrorWord: sig.hasErrorWord,
       bodyLength: sig.length,
@@ -255,12 +269,11 @@ export function afterEsutamaDiaryPost(input: Input, ctx: RelayFlowContext): Flow
     next: (() => { const r = buildEsutamaEndProxyRequest(cookie);
       return { purpose: 'esutama_diary_end' as const, method: r.method, url: r.url, headers: r.headers, body: '', context: next }; })(),
     audits,
-    note: posted
-      ? '送りました（★ 載ったかは読み返しで確かめます'
-        + (sig.formStillThere ? '。★★ 投稿フォームが戻ってきています＝弾かれた可能性' : '')
-        + (sig.hasErrorWord ? '。★★ 応答に差し戻しらしい語があります' : '')
-        + '）。代理ログインを終えます'
-      : '送れませんでした（' + input.status + '）。代理ログインを終えます',
+    note: j.verdict === 'sent'
+      ? '送りました（' + j.reason + '）。★ 掲載は媒体側で確かめてください。代理ログインを終えます'
+      : j.verdict === 'rejected'
+        ? '送れませんでした（' + j.reason + '）。★ 印を外すのでもう一度送れます。代理ログインを終えます'
+        : '★ 送れたか判定できません（' + j.reason + '）。★ 二度送りを避けるため印は残します。代理ログインを終えます',
   };
 }
 

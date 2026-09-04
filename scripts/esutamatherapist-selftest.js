@@ -112,5 +112,25 @@ eq('★★ 表示が無ければ null（空文字にしない）',
 eq('★ 空でも落ちない', T.parseProxyLoggedInName(''), null);
 eq('★ null でも落ちない', T.parseProxyLoggedInName(undefined), null);
 
+console.log('\n── 7. ★★★ 投稿の結果を判定する（第136便・実測1件）──');
+const sig = T.esutamaDiaryPostSignals;
+const J = (st, body) => T.judgeEsutamaDiaryPost(st, sig(body || ''));
+// ★★★ 2026-09-04 16:42、1通目が実際に載ったときの応答: 303・本文0
+eq('★★★ 303＋本文0 は送れた（実測）', J(303, '').verdict, 'sent');
+eq('★ 302 でも送れた扱い', J(302, '').verdict, 'sent');
+// ★★★ ここが今回の穴。★ 200＋フォームが戻る＝差し戻し。★ 以前は「送れた」と数えていた
+eq('★★★ 200＋投稿フォームが戻ったら送れていない',
+   J(200, '<form><input name="ctk" value="x"><span>本文は必須です</span></form>').verdict, 'rejected');
+eq('★★ 差し戻しの理由が読める',
+   J(200, '<input name="ctk" value="x">').reason.includes('投稿フォームが戻ってきました'), true);
+// ★ 通信そのものの失敗
+eq('★ 500 は送れていない', J(500, '').verdict, 'rejected');
+eq('★ 403 は送れていない', J(403, '').verdict, 'rejected');
+// ★★★ 見たことのない形は【決めつけない】。★ 印は残す側（消せない相手なので）
+eq('★★★ 200でフォームも無い形は unknown', J(200, '<div>ありがとうございました</div>').verdict, 'unknown');
+eq('★★ 差し戻しらしい語だけあるのも unknown',
+   J(200, '<div>エラーが起きました</div>').verdict, 'unknown');
+eq('★ unknown の理由にも中身が入る', J(200, '<div>x</div>').reason.includes('見たことのない'), true);
+
 console.log(fail === 0 ? '\n★ すべて通りました' : '\n' + fail + ' 件 通りませんでした');
 process.exit(fail === 0 ? 0 : 1);

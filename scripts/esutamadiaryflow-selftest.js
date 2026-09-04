@@ -101,14 +101,36 @@ const long = F.afterEsutamaDiaryPage(res(200, IN + CTK), ctx({ ...NAMED, esutama
 eq('★★ 切ったら監査に残る', long.audits.some((a) => a.event === 'diary_post_clamped'), true);
 eq('★★ 切ったら note にも出る', long.note.includes('切りました'), true);
 
+console.log('\n── 4-b. ★★★ 送れたか／差し戻されたかを分ける（第136便）──');
+// ★★★ 2026-09-04 の1通目（実際に載った）と同じ応答
+const sent = F.afterEsutamaDiaryPost(res(303, ''), ctx({ esutamaProxyOpen: true, esutamaDiaryCastName: 'さら' }));
+eq('★★★ 303 は送れた', sent.next.context.esutamaDiaryPosted, true);
+eq('★ 記録は ok', sent.audits[0].outcome, 'ok');
+eq('★★ 「載った」とは言い切らない', sent.audits[0].summary.includes('媒体側でご確認'), true);
+// ★★★ ここが穴だった。★ 200＋フォームが戻る＝差し戻し。★ 印を外して、もう一度送れるようにする
+const back = F.afterEsutamaDiaryPost(res(200, '<form><input name="ctk" value="x"></form>'), ctx({ esutamaProxyOpen: true, esutamaDiaryCastName: 'さら' }));
+eq('★★★ 差し戻しは送れていない扱い', back.next.context.esutamaDiaryPosted, false);
+eq('★★ 記録は failed', back.audits[0].outcome, 'failed');
+eq('★★ もう一度送れると書く', back.audits[0].summary.includes('もう一度'), true);
+// ★★★ 分からないときは印を【残す】。★ 消せない相手に二度送らない
+const unk = F.afterEsutamaDiaryPost(res(200, '<div>ありがとうございました</div>'), ctx({ esutamaProxyOpen: true, esutamaDiaryCastName: 'さら' }));
+eq('★★★ 分からないときは印を残す（送信済み扱い）', unk.next.context.esutamaDiaryPosted, true);
+eq('★★★ ただし ok とは書かない', unk.audits[0].outcome, 'stopped');
+eq('★★ 「判定できませんでした」と書く', unk.audits[0].summary.includes('判定できませんでした'), true);
+// ★ どの結果でも end_proxy は必ず通る
+for (const r of [sent, back, unk]) eq('★★★ どの結果でも代理ログインを終える', r.next.purpose, 'esutama_diary_end');
+
 console.log('\n── 5. ★★★ 送ったあとは必ず代理ログインを終える ──');
-const r5 = F.afterEsutamaDiaryPost(res(200), ctx({ esutamaProxyOpen: true, esutamaDiaryCastName: 'さら' }));
+// ★ 303（実測の成功の形）で見る。★ res(200) だと第136便から unknown になる
+const r5 = F.afterEsutamaDiaryPost(res(303, ''), ctx({ esutamaProxyOpen: true, esutamaDiaryCastName: 'さら' }));
 eq('★★★ 成功でも end_proxy を通す', r5.next.purpose, 'esutama_diary_end');
 eq('★★★ 失敗でも end_proxy を通す',
    F.afterEsutamaDiaryPost(res(500), ctx({ esutamaProxyOpen: true })).next.purpose, 'esutama_diary_end');
 eq('★ 送れたかは文脈に残す', r5.next.context.esutamaDiaryPosted, true);
-// ★★ 成否を決めつけない（読み返しで確かめる）
-eq('★★ note で「載った」と言い切らない', r5.note.includes('読み返しで確かめます'), true);
+// ★★★ 「送った」と「載った」を混ぜない（第136便で文面を変えた）。
+//   ★ 303 は「相手が受け取った」ところまで。★ 掲載されたかは媒体側でしか分からない
+eq('★★ note で「載った」と言い切らない', r5.note.includes('掲載は媒体側で確かめてください'), true);
+eq('★ 送れたことは書く', r5.note.includes('送りました'), true);
 
 console.log('\n── 6. 終わり方 ──');
 eq('★ 送れていれば done',

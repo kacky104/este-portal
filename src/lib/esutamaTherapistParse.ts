@@ -174,3 +174,54 @@ export function parseProxyLoggedInName(html: string): string | null {
   const name = m?.[1]?.trim() ?? '';
   return name.length > 0 ? name : null;
 }
+
+/**
+ * ★★★ 投稿の応答を【判定する】（第136便・2026-09-04）。
+ *
+ * ★★ 第133便では判定しなかった。★ 相手が成功時に何を返すかを知らなかったから。
+ *   ★ 「推測で『送れました』と書かない」を守って、合図だけ残していた。
+ *
+ * ★★★ 2026-09-04 16:42、**1通目が実際に載った**。★ そのときの応答:
+ *     status 303 ／ formStillThere false ／ hasErrorWord false ／ bodyLength 0
+ *   ★ 303 See Other ＝ 受け取って別のページへ送り返す（POST後のリダイレクト）。
+ *   ★★ **実測1件。★ これを「成功の姿」とする。**
+ *
+ * ★★★ 逆に、弾かれたときは **200 で投稿フォームが戻ってくる**はず（未実測）。
+ *   ★ だから 200 + フォーム = 差し戻し と読む。★ ここはまだ推測を含む。
+ *
+ * ★★★ 3つに分ける理由（★ 2値に潰さない）
+ *   sent     … 送れた           → 印を残す
+ *   rejected … 送れていない     → ★ 印を外す（もう一度送れるようにする）
+ *   unknown  … 分からない       → ★★ 印は【残す】
+ *       ★ エステ魂は店舗側から消せない。★ 分からないまま二度送るほうが害が大きい。
+ *       ★ 「分からない」と書いて人に判断してもらう。★ 黙って成功にしない。
+ */
+export type EsutamaPostVerdict = 'sent' | 'rejected' | 'unknown';
+
+export function judgeEsutamaDiaryPost(
+  status: number,
+  signals: EsutamaDiaryPostSignals,
+): { verdict: EsutamaPostVerdict; reason: string } {
+  // ★ 通信そのものが失敗。★ 相手は受け取っていない
+  if (status >= 400 || status < 200) {
+    return { verdict: 'rejected', reason: '応答が ' + status + ' でした' };
+  }
+  // ★★★ 実測の成功の形: 3xx（303）で本文が空
+  if (status >= 300 && status < 400) {
+    return { verdict: 'sent', reason: '受け取られました（' + status + '）' };
+  }
+  // ★★ 200 で投稿フォームが戻ってきた ＝ 書き直しを求められた
+  if (signals.formStillThere) {
+    return {
+      verdict: 'rejected',
+      reason: '投稿フォームが戻ってきました'
+        + (signals.hasErrorWord ? '（差し戻しらしい語もあります）' : ''),
+    };
+  }
+  if (signals.hasErrorWord) {
+    // ★ フォームは無いが差し戻しらしい語がある。★ どちらとも言えない
+    return { verdict: 'unknown', reason: '応答に差し戻しらしい語がありました' };
+  }
+  // ★ 200 でフォームも無い。★ 実測していない形なので決めつけない
+  return { verdict: 'unknown', reason: '見たことのない応答でした（' + status + '・' + signals.length + '文字）' };
+}
