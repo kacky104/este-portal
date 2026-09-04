@@ -30,6 +30,9 @@ eq('★★★ 下見はログインの次に魂セラピスト一覧へ行く', 
 const p = E.afterEsutamaLogin({ status: 200, headers: H, body: LOGIN_OK }, ctx('diary_push'));
 eq('★★★ 実弾も同じ道を通る', p.next && p.next.purpose, 'esutama_therapist_list');
 // ★ 出勤の用事は今までどおり名簿へ（★ 道を分けても既存を壊していない）
+// ★★★ 第137便: 自動の周（diary_auto）も同じ道を通ること
+const a = E.afterEsutamaLogin({ status: 200, headers: H, body: LOGIN_OK }, ctx('diary_auto'));
+eq('★★★ 自動の周も魂セラピスト一覧へ行く', a.next && a.next.purpose, 'esutama_therapist_list');
 const w = E.afterEsutamaLogin({ status: 200, headers: H, body: LOGIN_OK }, ctx('work_dryrun'));
 eq('★★ 出勤の用事は名簿のまま', w.next && w.next.purpose, 'esutama_roster');
 // ★ 日記の用事では出勤名簿を読みに行かない（用の無いページを開かない）

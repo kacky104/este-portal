@@ -262,7 +262,7 @@ export function afterEsutamaDiaryPost(input: Input, ctx: RelayFlowContext): Flow
       bodyLength: sig.length,
     },
   }];
-  const next = { ...ctx, cookie, esutamaDiaryPosted: posted };
+  const next = { ...ctx, cookie, esutamaDiaryPosted: posted, esutamaDiaryVerdict: j.verdict };
   // ★★★ 成功でも失敗でも end_proxy を通す。★ 本人のセッションを残さない
   return {
     kind: 'next',

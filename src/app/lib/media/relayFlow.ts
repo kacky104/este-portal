@@ -61,6 +61,8 @@ import {
   type DiaryCandidate,
 } from '@/lib/esutamaDiaryPlan';
 import { toConsentState } from '@/lib/therapistMediaConsent';
+// ★ 失敗を覚えて、やめどきを決める（第137便）
+import { decideDiaryRetry, MAX_DIARY_ATTEMPTS } from '@/lib/esutamaDiaryRetry';
 import { buildEsutamaDiaryTokenStep } from '@/lib/esutamaDiaryFlow';
 import type { EsuloveTherapistRow } from '@/lib/esuloveTherapistParse';
 
@@ -391,12 +393,12 @@ export async function advanceRelayFlow(params: {
     note = note + ' → ' + r.note;
   }
 
-  // ★★★ 送れずに終わったら、送った印を消す（第133便）。
-  //   ★ 印は送る【前】に立ててある（消せない相手に二度送らないため）。
-  //   ★★ 消さないと、その日記は【二度と送れない】ままになる。★ 静かな取りこぼしを作らない。
-  //   ★ 判定は「印を立てた」かつ「投稿の POST が通っていない」。★ 文脈に diaryId があるだけでは消さない。
-  if (!next && context.esutamaDiaryMarked === true && context.esutamaDiaryPosted !== true) {
-    const r = await clearDiaryMark(params, context);
+  // ★★★ 流れが終わったら、送った印の【状態】を決める（第137便）。
+  //   ★ 印は送る【前】に 'pending' で立ててある。★ ここで sent / failed / unknown に落とす。
+  //   ★★ 落とし忘れると 'pending' のまま残り、**二度と送られない**（安全側だが取りこぼし）。
+  //   ★ 判定が文脈に無い＝POST まで届かなかった＝何も送っていない → failed（あとで再挑戦）。
+  if (!next && context.esutamaDiaryMarked === true) {
+    const r = await settleDiaryMark(params, context, note);
     audits.push(...r.audits);
     note = note + ' → ' + r.note;
   }
@@ -1615,7 +1617,9 @@ async function planEsutamaDiary(
 ): Promise<{ audits: FlowAudit[]; note: string; next?: FlowNextRequest }> {
   const flowId = ctx.flowId;
   const supabase = createServiceClient();
-  const push = ctx.intent === 'diary_push';
+  // ★ 実弾は2つ: 運営が相手を名指しする diary_push と、周が自動で1件選ぶ diary_auto
+  const auto = ctx.intent === 'diary_auto';
+  const push = ctx.intent === 'diary_push' || auto;
 
   // ★ 読めなかったことを「0件」と見せない（引き継ぎメモ 3-5）。★ 必ず理由を返す
   const fail = (reason: string, note: string): { audits: FlowAudit[]; note: string } => ({
@@ -1697,18 +1701,25 @@ async function planEsutamaDiary(
     }));
   }
 
-  // ⑤ 送った印
-  const sentSet = new Set<string>();
+  // ⑤ 送った印（★ 第137便から【状態】と【試した回数】を持つ）
+  //   ★ 「行がある＝もう送らない」ではない。★ failed は条件つきでもう一度試す
+  const now = new Date();
+  const sentSet = new Set<string>();      // ★ もう送らないもの
+  const retrySet = new Map<string, number>(); // ★ 再挑戦するもの → 次の回数
   if (diaries.length > 0) {
     const { data: sent, error: sErr } = await supabase
       .from('diary_post_sent')
-      .select('diary_id')
+      .select('diary_id, state, attempts, updated_at')
       .eq('provider', params.provider)
       .eq('slot', params.slot)
       .in('diary_id', diaries.map((d) => d.id));
     // ★★★ 印を読めないまま送ると【二度送る】。★ 読めなければ必ず止まる
     if (sErr) return fail('sent_read_failed', '送った印を読めなかった: ' + sErr.message);
-    for (const r of (sent ?? []) as Array<{ diary_id: string }>) sentSet.add(String(r.diary_id));
+    for (const r of (sent ?? []) as Array<{ diary_id: string; state: string; attempts: number; updated_at: string | null }>) {
+      const v = decideDiaryRetry({ state: r.state, attempts: r.attempts, updatedAt: r.updated_at }, now);
+      if (v.send) retrySet.set(String(r.diary_id), v.attempts);
+      else sentSet.add(String(r.diary_id));
+    }
   }
 
   // ⑥ 材料をまとめる
@@ -1760,7 +1771,15 @@ async function planEsutamaDiary(
 
   // ────── ここから実弾（1人だけ）──────
 
-  const wantId = Number(ctx.esutamaDiaryTherapistId ?? 0);
+  // ★★★ 自動のときは【送れる人の先頭1人】を選ぶ（第137便）。
+  //   ★ 相手を決めるのに要る材料（了承・結び・利用状況・未送信）が全部そろっているのはここだけ。
+  //   ★★ それでも **1回のフローで送るのは1件だけ**。★ 「全員に送る」は作らない。
+  const autoRow = auto ? rows.find((r) => r.ok) : undefined;
+  if (auto && !autoRow) {
+    // ★ 送るものが無いのは【正常】。★ 故障として数えない
+    return { audits: [planAudit], note: summary + '（★ いま送れるものはありません）' };
+  }
+  const wantId = auto ? Number(autoRow?.therapistId ?? 0) : Number(ctx.esutamaDiaryTherapistId ?? 0);
   // ★★★ 相手が指定されていなければ何もしない。★ 「全員に送る」を作らない
   if (!Number.isFinite(wantId) || wantId <= 0) {
     return {
@@ -1844,17 +1863,45 @@ async function planEsutamaDiary(
     };
   }
 
-  // ⑧ ★★★ 送る【前】に印を立てる。★ 主キーが二度送りを弾く（第132便）
-  const { error: insErr } = await supabase.from('diary_post_sent').insert({
-    diary_id: diaryId,
-    provider: params.provider,
-    slot: params.slot,
-    therapist_id: row.therapistId,
-    external_cast_id: castId,
-  });
-  if (insErr) {
-    // ★ 23505 = 主キー衝突 ＝ すでに送ってある。★ 故障ではない
-    const dup = String((insErr as { code?: string }).code ?? '') === '23505';
+  // ⑧ ★★★ 送る【前】に印を立てる。★ DB が二度送りを弾く（第132便・第137便で状態つきに）
+  //   ★ 行が無ければ insert。★ 行があるのは【前回失敗した】ぶんだけ（retrySet に入っている）。
+  //   ★★ そのときは **state='failed' の行だけを狙った条件つき update** にする。
+  //     ★ upsert にしない。★ upsert だと「送れた行」まで上書きして二度送りが通ってしまう。
+  //     ★ 条件つき update なら、同時に別の周が動いても DB がどちらか一方しか通さない。
+  const retryAttempts = retrySet.get(diaryId);
+  let marked = false;
+  let markProblem = '';
+  if (retryAttempts === undefined) {
+    const { error: insErr } = await supabase.from('diary_post_sent').insert({
+      diary_id: diaryId,
+      provider: params.provider,
+      slot: params.slot,
+      therapist_id: row.therapistId,
+      external_cast_id: castId,
+      state: 'pending',
+      attempts: 1,
+      updated_at: now.toISOString(),
+    });
+    if (insErr) {
+      const dup = String((insErr as { code?: string }).code ?? '') === '23505';
+      markProblem = dup ? 'already_sent' : 'mark_failed';
+      if (!dup) markProblem = 'mark_failed:' + insErr.message;
+    } else marked = true;
+  } else {
+    const { data: upd, error: updErr } = await supabase
+      .from('diary_post_sent')
+      .update({ state: 'pending', attempts: retryAttempts, updated_at: now.toISOString(), therapist_id: row.therapistId, external_cast_id: castId })
+      .eq('diary_id', diaryId).eq('provider', params.provider).eq('slot', params.slot)
+      // ★★★ ここが要。★ 失敗した行だけを動かす。★ 送れた行・判定できない行には触れない
+      .eq('state', 'failed')
+      .lt('attempts', MAX_DIARY_ATTEMPTS)
+      .select('diary_id');
+    if (updErr) markProblem = 'mark_failed:' + updErr.message;
+    else if (!upd || upd.length === 0) markProblem = 'already_sent';
+    else marked = true;
+  }
+  if (!marked) {
+    const dup = markProblem === 'already_sent';
     return {
       audits: [planAudit, {
         event: dup ? 'push_diary' : 'diary_mark_set',
@@ -1864,7 +1911,7 @@ async function planEsutamaDiary(
           : '二度送りを防ぐ印を付けられなかったため、送りませんでした',
         detail: { reason: dup ? 'already_sent' : 'mark_failed', therapistId: wantId, flowId },
       }],
-      note: summary + (dup ? ' → もう送ってある' : ' → 印を立てられなかった: ' + insErr.message),
+      note: summary + (dup ? ' → もう送ってある' : ' → 印を立てられなかった: ' + markProblem),
     };
   }
 
@@ -1900,41 +1947,74 @@ async function planEsutamaDiary(
 }
 
 /**
- * ★★★ 送れずに終わったので、送った印を消す（第133便）。
+ * ★★★ 流れが終わったので、送った印の【状態】を決める（第137便）。
  *
- * ★ 印は送る【前】に立ててある（消せない相手に二度送らないため・第132便）。
- * ★★ 消さないと、その日記は **二度と送れない**。★ 静かな取りこぼしを作らない。
- * ★★★ 消せなかったことも黙らせない。★ 記録に残して、人が気づけるようにする。
+ * ★ 印は送る【前】に 'pending' で立ててある（消せない相手に二度送らないため・第132便）。
+ * ★★ 第136便までは「送れなければ【消す】」だった。★ 手で1発ずつ撃つ間はそれでよかった。
+ *   ★★★ 自動の周を回すと、消した瞬間に次の周がまた送る＝**同じ日記を永遠に送り続ける**。
+ *   → 消さずに 'failed' として残し、**試した回数**を覚える（esutamaDiaryRetry が やめどきを決める）。
+ *
+ * ★★★ 判定が文脈に無い＝POST まで届かなかった＝何も送っていない → 'failed'（再挑戦する）。
  */
-async function clearDiaryMark(
+async function settleDiaryMark(
   params: { salonId: number; provider: string; slot: number },
   ctx: RelayFlowContext,
+  note: string,
 ): Promise<{ audits: FlowAudit[]; note: string }> {
   const diaryId = String(ctx.esutamaDiaryPostId ?? '').trim();
   if (!diaryId) return { audits: [], note: '' };
+  // ★ 'sent' 以外は、まだ載っていない。★ rejected はやり直す・unknown はやり直さない
+  const verdict = ctx.esutamaDiaryVerdict ?? 'rejected';
+  const state = verdict === 'sent' ? 'sent' : verdict === 'unknown' ? 'unknown' : 'failed';
   const supabase = createServiceClient();
   const { error } = await supabase
     .from('diary_post_sent')
-    .delete()
+    .update({
+      state,
+      updated_at: new Date().toISOString(),
+      // ★ 人が読む文。★ 秘密は入らない（note は店舗様向けの日本語）
+      last_error: state === 'sent' ? null : note.slice(0, 300),
+    })
     .eq('diary_id', diaryId)
     .eq('provider', params.provider)
     .eq('slot', params.slot);
   if (error) {
+    // ★★★ 黙らせない。★ 'pending' のまま残ると、その日記は二度と送られない
     return {
       audits: [{
         event: 'diary_mark_cleared', outcome: 'failed',
-        summary: '送れなかったのに印を外せませんでした。この写メ日記は送信済みの扱いのままです',
-        detail: { reason: 'delete_failed', flowId: ctx.flowId },
+        summary: '送信の記録を更新できませんでした。この写メ日記は送信済みの扱いのままになります',
+        detail: { reason: 'settle_failed', verdict, flowId: ctx.flowId },
       }],
-      note: '★ 印を消せなかった: ' + error.message,
+      note: '★ 印の状態を更新できなかった: ' + error.message,
+    };
+  }
+  if (state === 'sent') {
+    return {
+      audits: [{
+        event: 'diary_mark_set', outcome: 'ok',
+        summary: 'お送りしたことを記録しました（同じ日記は二度送りません）',
+        detail: { verdict, flowId: ctx.flowId },
+      }],
+      note: '印を「送った」にした',
+    };
+  }
+  if (state === 'unknown') {
+    return {
+      audits: [{
+        event: 'diary_mark_set', outcome: 'stopped',
+        summary: '受け取られたか判定できないため、この写メ日記は送信済みとして扱います（媒体側でご確認ください）',
+        detail: { verdict, flowId: ctx.flowId },
+      }],
+      note: '印を「判定できない」にした（★ 二度は送りません）',
     };
   }
   return {
     audits: [{
       event: 'diary_mark_cleared', outcome: 'ok',
-      summary: '送れなかったため印を外しました（あとでもう一度お送りできます）',
-      detail: { flowId: ctx.flowId },
+      summary: '送れなかったため、あとでもう一度お送りします',
+      detail: { verdict, flowId: ctx.flowId },
     }],
-    note: '印を消した（もう一度送れます）',
+    note: '印を「送れていない」にした（★ しばらく置いて再挑戦します）',
   };
 }

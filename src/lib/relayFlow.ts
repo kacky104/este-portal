@@ -201,7 +201,15 @@ export type RelayFlowIntent =
    * ★★★ diary_dryrun は【1文字も書かない】。★ 代理ログインもしない（一覧を読んで終わり）。
    */
   | 'diary_dryrun'
-  | 'diary_push';
+  | 'diary_push'
+  /**
+   * ★★★ 自動で1件だけ送る（第137便・2026-09-05）。
+   *   ★ diary_push との違いは【相手をこちらで決めない】こと。
+   *     ★ 魂セラピスト一覧を読んだあと、**送れる人の先頭1人**を DB 側が選ぶ。
+   *   ★★ それでも **1回のフローで送るのは1件だけ**。★ 「全員に送る」は作らない。
+   *   ★ 周（cron）から呼ぶ。★ 送るものが無ければ何もせず終わる。
+   */
+  | 'diary_auto';
 
 /**
  * 段と段のあいだで持ち回す状態。
@@ -296,6 +304,13 @@ export type RelayFlowContext = {
   esutamaDiaryStopNote?: string;
   /** ★ 投稿の POST が通ったか。★ 「載ったか」は読み返しで確かめる（ここでは決めつけない） */
   esutamaDiaryPosted?: boolean;
+  /**
+   * ★★★ 投稿の判定（第137便）。★ 印の状態をここから決める。
+   *   'sent' … 送れた ／ 'rejected' … 送れていない（★ あとで再挑戦する）
+   *   'unknown' … 判定できない（★ 二度と送らない）
+   * ★ 入っていなければ【POST まで届かなかった】＝ rejected として扱う（何も送っていない）。
+   */
+  esutamaDiaryVerdict?: 'sent' | 'rejected' | 'unknown';
   /**
    * ★★★ 送った印（diary_post_sent）を【立てたか】（第133便）。
    *   ★ 印は送る【前】に立てる（消せない相手に二度送らないため）。
@@ -1191,6 +1206,7 @@ function finishRead(audits: FlowAudit[], ctx: RelayFlowContext, page: WorkPage):
       return stop(audits, '写真の送信は出勤ページを使わない（ここへは来ないはず）');
     case 'diary_dryrun':
     case 'diary_push':
+    case 'diary_auto':
       // ★ ここへは来ない（エステ魂の日記は出勤ページを読みに行かない）。★ 網羅は外さない
       //   ★★★ 第130便でもこの見張りが働いた。★ intent を足した時点でコンパイルが止まった。
       return stop(audits, 'エステ魂の写メ日記は出勤ページを使わない（ここへは来ないはず）');

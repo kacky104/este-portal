@@ -154,7 +154,7 @@ export function afterEsutamaLogin(input: Input, ctx: RelayFlowContext): FlowOutc
   // ★★★ ここで道が分かれる（第133便）。
   //   ★ 写メ日記の用事は【出勤名簿を読まない】。★ 用の無いページを相手に読みに行かない。
   //   ★★ 「ログインできた」の確証は、日記の道では【魂セラピスト一覧が読めたこと】で取る。
-  if (ctx.intent === 'diary_dryrun' || ctx.intent === 'diary_push') {
+  if (ctx.intent === 'diary_dryrun' || ctx.intent === 'diary_push' || ctx.intent === 'diary_auto') {
     const t = buildEsutamaTherapistAdminRequest(cookie);
     return {
       kind: 'next',
