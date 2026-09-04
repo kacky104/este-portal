@@ -43,6 +43,10 @@ export const MEDIA_AUDIT_EVENTS = [
   'diary_proxy_end',     // ★★★ 代理ログインを終えた。★ 本人のセッションを残さない
   // ── 送った印（第133便・2026-09-04）★ 送る【前】に立て、送れなかったら倒す ──
   'plan_diary',          // ★ 誰のどの日記を送るかを組み立てた（★ dryrun はここで終わり）
+  // ── 即セラ（第143便・2026-09-04）★ 本人のアカウントの状態を変える ──
+  'read_sokusera',       // ★ 即セラの設定ページを読んだ（状態と呼びかけ）。読むだけ
+  'push_sokusera',       // ★★★ 即セラをONにした。★ 相手を書き換える
+  'verify_sokusera',     // ★★★ 読み返して、本当にONになったかを確かめた
   'diary_mark_set',      // ★★★ 送る前に印を立てた（★ 主キーで二度送りを弾く）
   'diary_mark_cleared',  // ★★ 送れなかったので印を消した（★ 消し忘れると二度と送れない）
   'selftest',            // 認証情報を使わない疎通確認
@@ -69,12 +73,13 @@ export function shouldDropAutoAudits(
   hasNext: boolean,
   audits: ReadonlyArray<{ event: string; outcome: string }>,
 ): boolean {
-  if (intent !== 'diary_auto') return false;
+  // ★ 自動の周だけ。★ 第143便で即セラの周も同じ扱いにした
+  //   ★★ 即セラは「今すぐ」の人が居ない時間のほうが長い。★ 放っておくと日記より積む
+  if (intent !== 'diary_auto' && intent !== 'sokusera_auto') return false;
   if (hasNext) return false;
   if (audits.length === 0) return false;
-  return audits.every(
-    (a) => (a.event === 'read_diary_targets' || a.event === 'plan_diary') && a.outcome === 'ok',
-  );
+  const looked = ['read_diary_targets', 'plan_diary', 'read_sokusera'];
+  return audits.every((a) => looked.includes(a.event) && a.outcome === 'ok');
 }
 
 /** どうなったか。★ 'ok' 以外は理由が summary に出ていること。 */
@@ -375,6 +380,26 @@ export function defaultAuditSummary(input: {
       s = input.outcome === 'ok'
         ? `${t}のご本人ページから出ました`
         : `${t}のご本人ページから出られませんでした。媒体の管理画面で「代理ログイン終了」をお願いします`;
+      break;
+    case 'read_sokusera':
+      s = input.outcome === 'ok'
+        ? `${t}の即セラの設定を確認しました`
+        : `${t}の即セラの設定を確認できませんでした`;
+      break;
+    case 'push_sokusera': {
+      const nm = typeof d?.['name'] === 'string' ? String(d['name']) : '';
+      // ★★ 「送った」と「ONになった」を混ぜない。★ 確かめるのは verify_sokusera
+      s = input.outcome === 'ok'
+        ? `${t}へ${nm ? nm + 'さんの' : ''}即セラをONにする指示を送りました`
+        : `${t}へ${nm ? nm + 'さんの' : ''}即セラをONにできませんでした`;
+      break;
+    }
+    case 'verify_sokusera':
+      s = input.outcome === 'ok'
+        ? `${t}で即セラがONになったことを確認しました`
+        : input.outcome === 'failed'
+          ? `${t}で即セラがONになっていませんでした`
+          : `${t}で即セラの状態を読み取れませんでした`;
       break;
     case 'plan_diary':
       // ★ 0名でも「なぜ0なのか」が summary に入っている（呼び出し側が入れる）

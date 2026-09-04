@@ -130,6 +130,23 @@ eq('★★★ 中止が混ざれば残す', a.shouldDropAutoAudits('diary_auto',
 eq('★★★ 送った記録が混ざれば残す', a.shouldDropAutoAudits('diary_auto', false,
    [look[0], { event: 'push_diary', outcome: 'ok' }]), false);
 eq('★ 空なら落とすものが無い', a.shouldDropAutoAudits('diary_auto', false, []), false);
+// ★★ 第143便: 即セラの周も同じ扱い。★ 「今すぐ」の人が居ない時間のほうが長い
+const look2 = [{ event: 'read_sokusera', outcome: 'ok' }];
+eq('★★★ 即セラの周も、見ただけなら落とす', a.shouldDropAutoAudits('sokusera_auto', false, look2), true);
+eq('★★★ 手で撃った即セラは残す', a.shouldDropAutoAudits('sokusera_push', false, look2), false);
+eq('★★★ ONにしに行くなら残す', a.shouldDropAutoAudits('sokusera_auto', true, look2), false);
+eq('★★★ ONにした記録が混ざれば残す', a.shouldDropAutoAudits('sokusera_auto', false,
+   [look2[0], { event: 'push_sokusera', outcome: 'ok' }]), false);
+
+console.log('\n── ★★ 即セラの文言（第143便）──');
+const sk = (event, outcome, detail) => a.defaultAuditSummary({ event, outcome, provider: 'esutama', slot: 1, detail: detail || null });
+// ★★★ 「送った」と「ONになった」を混ぜない
+eq('★★★ 送った記録は「指示を送りました」', sk('push_sokusera', 'ok', { name: 'さら' }).includes('指示を送りました'), true);
+eq('★★★ 送った記録で「ONになりました」と言わない', sk('push_sokusera', 'ok', { name: 'さら' }).includes('ONになった'), false);
+eq('★★★ 読み返しで初めて「確認しました」', sk('verify_sokusera', 'ok').includes('ONになったことを確認'), true);
+// ★★ 読めなかった（stopped）を成功と書かない
+eq('★★★ 読み取れなければそう書く', sk('verify_sokusera', 'stopped').includes('読み取れませんでした'), true);
+eq('★★ ONになっていなければそう書く', sk('verify_sokusera', 'failed').includes('なっていませんでした'), true);
 
 console.log(fail === 0 ? '\n★ すべて通った' : '\n★ NG ' + fail + ' 件');
 process.exit(fail === 0 ? 0 : 1);

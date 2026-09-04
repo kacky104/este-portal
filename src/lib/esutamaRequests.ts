@@ -252,3 +252,47 @@ export function buildEsutamaEndProxyRequest(cookie: string): RelayRequest {
 export function isCsrfShape(v: unknown): v is string {
   return typeof v === 'string' && /^[A-Za-z0-9]{16,64}$/.test(v);
 }
+
+// ────────────────────── 即セラ（第143便・2026-09-04） ──────────────────────
+//
+// ★★★ 2026-09-04 20:00 に実物で確かめた（ラビリンス様・サラさんの許可のもと・GETと静的JSのみ）
+//   GET  /tamathera/sokuthera/            … 「現在のステータス ON/OFF」と呼びかけが読める
+//   POST /tamathera/sokuthera/ajax_start  … ONにする（★ 本文は message=… だけ）
+//   ★★ ctk は要らない（main.min.js に "ctk" が1文字も無い）
+//   ★★★ ajax_stop は【使わない】。★ 60分で相手が勝手にOFFにする。
+//     ★ 業界の風習として、誰も手動でOFFを打たない（★ 流しっぱなしが好まれる）。
+//     → **このファイルに ajax_stop の宛先を置かない。** ★ 置くと、いつか誰かが使う。
+
+/** 即セラの設定ページ。★ 状態と呼びかけを読む。★ 読み返しにも同じURLを使う */
+export const ESUTAMA_SOKUSERA_PAGE_URL = 'https://estama.jp/tamathera/sokuthera/';
+/** ★★ 即セラをONにする唯一の宛先。★ OFFの宛先はここに置かない */
+export const ESUTAMA_SOKUSERA_START_URL = 'https://estama.jp/tamathera/sokuthera/ajax_start';
+
+/** 即セラの設定ページを読む GET。★ 状態・呼びかけ・本人確認をここで行う */
+export function buildEsutamaSokuseraPageRequest(cookie: string): RelayRequest {
+  return {
+    method: 'GET',
+    url: ESUTAMA_SOKUSERA_PAGE_URL,
+    headers: { ...baseHeaders(), ...(cookie ? { cookie } : {}) },
+  };
+}
+
+/**
+ * ★★★ 即セラをONにする POST。
+ * ★ 本文は message だけ（実測）。★ 呼びかけは**読んだ値をそのまま**渡すこと。
+ *   ★★ 空で送ると本人の呼びかけが【消える】（2026-09-04 に事故で確認）。
+ *   ★ 判断は esutamaSokuseraParse.decideSokuseraStart が持つ。★ ここは組み立てるだけ。
+ */
+export function buildEsutamaSokuseraStartRequest(cookie: string, body: string): RelayRequest {
+  return {
+    method: 'POST',
+    url: ESUTAMA_SOKUSERA_START_URL,
+    headers: {
+      ...baseHeaders(),
+      'content-type': 'application/x-www-form-urlencoded',
+      referer: ESUTAMA_SOKUSERA_PAGE_URL,
+      ...(cookie ? { cookie } : {}),
+    },
+    body,
+  };
+}

@@ -63,6 +63,14 @@ export type RelayPurpose =
   | 'esutama_diary_page'
   | 'esutama_diary_post'
   | 'esutama_diary_end'
+  // ★ 即セラ（第143便）。★ 代理ログインを通るので段が多い
+  //   ★★ esutama_sokusera_end は【必ず通る】。★ 本人のセッションを残さないため
+  | 'esutama_sokusera_token'
+  | 'esutama_sokusera_proxy'
+  | 'esutama_sokusera_page'
+  | 'esutama_sokusera_start'
+  | 'esutama_sokusera_verify'
+  | 'esutama_sokusera_end'
   | 'selftest';
 
 export type LeasedJob = {

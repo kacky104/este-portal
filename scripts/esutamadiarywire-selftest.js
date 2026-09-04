@@ -33,6 +33,11 @@ eq('★★★ 実弾も同じ道を通る', p.next && p.next.purpose, 'esutama_t
 // ★★★ 第137便: 自動の周（diary_auto）も同じ道を通ること
 const a = E.afterEsutamaLogin({ status: 200, headers: H, body: LOGIN_OK }, ctx('diary_auto'));
 eq('★★★ 自動の周も魂セラピスト一覧へ行く', a.next && a.next.purpose, 'esutama_therapist_list');
+// ★★★ 第143便: 即セラも同じ道（ログイン → 魂セラピスト一覧）を通ること
+const sp = E.afterEsutamaLogin({ status: 200, headers: H, body: LOGIN_OK }, ctx('sokusera_push'));
+eq('★★★ 即セラ（手動）も魂セラピスト一覧へ行く', sp.next && sp.next.purpose, 'esutama_therapist_list');
+const sa = E.afterEsutamaLogin({ status: 200, headers: H, body: LOGIN_OK }, ctx('sokusera_auto'));
+eq('★★★ 即セラ（自動）も魂セラピスト一覧へ行く', sa.next && sa.next.purpose, 'esutama_therapist_list');
 const w = E.afterEsutamaLogin({ status: 200, headers: H, body: LOGIN_OK }, ctx('work_dryrun'));
 eq('★★ 出勤の用事は名簿のまま', w.next && w.next.purpose, 'esutama_roster');
 // ★ 日記の用事では出勤名簿を読みに行かない（用の無いページを開かない）
@@ -47,7 +52,10 @@ eq('★★★ 一覧の段が呼ばれる', r1.kind, 'esutama_therapists');
 eq('★ 代理ログインできる人を読めている', r1.rows.length, 1);
 eq('★ ctk も読めている', typeof r1.ctk, 'string');
 
-for (const purpose of ['esutama_diary_token', 'esutama_diary_proxy', 'esutama_diary_page', 'esutama_diary_post', 'esutama_diary_end']) {
+for (const purpose of ['esutama_diary_token', 'esutama_diary_proxy', 'esutama_diary_page', 'esutama_diary_post', 'esutama_diary_end',
+                       // ★ 第143便: 即セラの6段も繋がっていること
+                       'esutama_sokusera_token', 'esutama_sokusera_proxy', 'esutama_sokusera_page',
+                       'esutama_sokusera_start', 'esutama_sokusera_verify', 'esutama_sokusera_end']) {
   const r = F.advanceFlow({ purpose, status: 200, headers: {}, body: '', context: ctx('diary_push') });
   // ★ 中身の成否はここでは問わない。★ 「知らない段」で落ちないことだけを見る
   eq('★★★ ' + purpose + ' が呼ばれる（知らない段ではない）',

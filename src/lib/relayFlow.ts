@@ -78,6 +78,11 @@ import {
   afterEsutamaTherapistList, afterEsutamaDiaryToken, afterEsutamaDiaryProxy,
   afterEsutamaDiaryPage, afterEsutamaDiaryPost, afterEsutamaDiaryEnd,
 } from './esutamaDiaryFlow';
+// ★ 即セラの段（第143便）
+import {
+  afterEsutamaSokuseraToken, afterEsutamaSokuseraProxy, afterEsutamaSokuseraPage,
+  afterEsutamaSokuseraStart, afterEsutamaSokuseraVerify, afterEsutamaSokuseraEnd,
+} from './esutamaSokuseraFlow';
 import type { EsutamaPerson } from './esutamaPlan';
 import type { EsutamaRosterRow } from './esutamaParse';
 import type { AuditDetail, MediaAuditEvent, MediaAuditOutcome } from './mediaAudit';
@@ -209,7 +214,15 @@ export type RelayFlowIntent =
    *   ★★ それでも **1回のフローで送るのは1件だけ**。★ 「全員に送る」は作らない。
    *   ★ 周（cron）から呼ぶ。★ 送るものが無ければ何もせず終わる。
    */
-  | 'diary_auto';
+  | 'diary_auto'
+  /**
+   * ★★★ 即セラを自動でONにする（第143便・2026-09-05）。
+   *   ★ フクエスの「今すぐ」がONの人の、エステ魂の即セラをONにする。
+   *   ★★ OFFは打たない（★ 60分で相手が勝手に切る。★ 業界の風習として誰も手動OFFしない）。
+   *   ★ sokusera_push は運営が1人だけ試すため。★ sokusera_auto は周から。
+   */
+  | 'sokusera_push'
+  | 'sokusera_auto';
 
 /**
  * 段と段のあいだで持ち回す状態。
@@ -319,6 +332,23 @@ export type RelayFlowContext = {
    */
   esutamaDiaryMarked?: boolean;
 
+  // ── ここから下は intent='sokusera_*' のときだけ入る（第143便）──
+  /** 即セラをONにする相手（フクエス側の therapist_id）。★ 周が1人だけ選ぶ */
+  esutamaSokuseraTherapistId?: number;
+  /** エステ魂の cast_id */
+  esutamaSokuseraCastId?: string;
+  /** ★★★ 突き合わせに使う名前。★ 【エステ魂側の名前】（第134便の教訓） */
+  esutamaSokuseraCastName?: string;
+  /**
+   * ★★★ 送った「ひとこと呼びかけ」。★ 読み返しで消えていないか見る。
+   *   ★ 2026-09-04 に空で送って本人の呼びかけを消した事故がある。
+   */
+  esutamaSokuseraSentMessage?: string;
+  /** ★ 読み返しでONを確かめられたか */
+  esutamaSokuseraOn?: boolean;
+  /** ★ 途中で止めた理由。★ end_proxy を通したあとで stop に落とすために運ぶ */
+  esutamaSokuseraStopNote?: string;
+
   // ── ここから下は エステ魂（provider='esutama'）のときだけ入る（第109便）──
   /** ログイン画面で拾った csrf。★ ログイン POST を組むまでの間だけ持つ */
   esutamaCsrf?: string;
@@ -387,6 +417,8 @@ export type FlowNextRequest = {
     | 'esutama_login_page' | 'esutama_login' | 'esutama_roster'
     | 'esutama_work_read' | 'esutama_work_save' | 'esutama_work_verify'
     // ★ エステ魂の写メ日記（第130便）。★ 代理ログインを通るので段が多い
+    | 'esutama_sokusera_token' | 'esutama_sokusera_proxy' | 'esutama_sokusera_page'
+    | 'esutama_sokusera_start' | 'esutama_sokusera_verify' | 'esutama_sokusera_end'
     | 'esutama_therapist_list' | 'esutama_diary_token' | 'esutama_diary_proxy'
     | 'esutama_diary_page' | 'esutama_diary_post' | 'esutama_diary_end';
   method: 'GET' | 'POST';
@@ -706,6 +738,19 @@ export function advanceFlow(input: {
       return afterEsutamaDiaryPost(input, ctx);
     case 'esutama_diary_end':
       return afterEsutamaDiaryEnd(input, ctx);
+    // ── 即セラ（第143便）★ 段名で分けている ──
+    case 'esutama_sokusera_token':
+      return afterEsutamaSokuseraToken(input, ctx);
+    case 'esutama_sokusera_proxy':
+      return afterEsutamaSokuseraProxy(input, ctx);
+    case 'esutama_sokusera_page':
+      return afterEsutamaSokuseraPage(input, ctx);
+    case 'esutama_sokusera_start':
+      return afterEsutamaSokuseraStart(input, ctx);
+    case 'esutama_sokusera_verify':
+      return afterEsutamaSokuseraVerify(input, ctx);
+    case 'esutama_sokusera_end':
+      return afterEsutamaSokuseraEnd(input, ctx);
     default:
       return stop([], '知らない段: ' + String(input.purpose));
   }
@@ -1207,6 +1252,8 @@ function finishRead(audits: FlowAudit[], ctx: RelayFlowContext, page: WorkPage):
     case 'diary_dryrun':
     case 'diary_push':
     case 'diary_auto':
+    case 'sokusera_push':
+    case 'sokusera_auto':
       // ★ ここへは来ない（エステ魂の日記は出勤ページを読みに行かない）。★ 網羅は外さない
       //   ★★★ 第130便でもこの見張りが働いた。★ intent を足した時点でコンパイルが止まった。
       return stop(audits, 'エステ魂の写メ日記は出勤ページを使わない（ここへは来ないはず）');

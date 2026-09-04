@@ -58,13 +58,19 @@ import { planEsuloveWork } from '@/lib/esulovePlan';
 // ★ エステ魂の写メ日記（第133便）。★ 判断は純粋関数側。ここは DB から材料を集めて渡すだけ
 import {
   planEsutamaDiaries, tallyDiaryPlan, diaryPlanSummary, pickOneToSend, checkSalonDiarySource,
-  excludeImportedDiaries,
+  excludeImportedDiaries, esutamaAccountState,
   type DiaryCandidate,
 } from '@/lib/esutamaDiaryPlan';
 import { toConsentState } from '@/lib/therapistMediaConsent';
 import { shouldDropAutoAudits } from '@/lib/mediaAudit';
 // ★ 失敗を覚えて、やめどきを決める（第137便）
 import { decideDiaryRetry, MAX_DIARY_ATTEMPTS } from '@/lib/esutamaDiaryRetry';
+// ★ 即セラ（第143便）。★ 判断は純粋関数側
+import {
+  decideSokuseraTarget, tallySokusera, sokuseraSummary, SOKUSERA_COOLDOWN_MIN,
+} from '@/lib/esutamaSokuseraTargets';
+import { buildEsutamaSokuseraTokenStep } from '@/lib/esutamaSokuseraFlow';
+import { isImasuguLiveRow, type ImasuguRow } from '@/lib/imasugu';
 import { buildEsutamaDiaryTokenStep } from '@/lib/esutamaDiaryFlow';
 import type { EsuloveTherapistRow } from '@/lib/esuloveTherapistParse';
 
@@ -150,6 +156,11 @@ export async function startRelayFlow(params: {
     /** 送る日記（diary_posts.id・uuid）。★ 省略すると【未送信のうち一番新しい1件】 */
     diaryId?: string;
   };
+  /**
+   * intent='sokusera_push' のときだけ（第143便）。★ ONにする相手は1人だけ。
+   * ★ sokusera_auto では渡さない（★ 周の中で1人選ぶ）。
+   */
+  sokusera?: { therapistId: number };
   /** 'shop:<auth_user_id>' など。監査ログに残す */
   actor?: string;
 }): Promise<StartFlowResult> {
@@ -224,6 +235,8 @@ export async function startRelayFlow(params: {
           photoStage: 'upload' as const,
         }
       : {}),
+    // ★ 即セラ（第143便）。★ 渡されたときだけ入れる
+    ...(params.sokusera ? { esutamaSokuseraTherapistId: params.sokusera.therapistId } : {}),
     // ★ エステ魂の写メ日記（第133便）。★ 渡されたときだけ入れる
     ...(params.diary
       ? {
@@ -235,6 +248,9 @@ export async function startRelayFlow(params: {
   // ★★★ 実弾なのに相手が指定されていないのは、呼び出し側の間違い。★ 黙って始めない
   if (params.intent === 'diary_push' && !params.diary) {
     throw new Error('diary_push には diary（therapistId）が要る');
+  }
+  if (params.intent === 'sokusera_push' && !params.sokusera) {
+    throw new Error('sokusera_push には sokusera（therapistId）が要る');
   }
   if (params.intent === 'photo_push' && !params.photo) {
     throw new Error('photo_push には photo（girlId / slot / file）が要る');
@@ -381,7 +397,14 @@ export async function advanceRelayFlow(params: {
   // ★★★ 魂セラピスト一覧を読めた（第133便）。★ ここで初めて【誰のどの日記を送るか】が決まる。
   //   ★ 判断は純粋関数（esutamaDiaryPlan）。ここは DB から材料を集めて渡すだけ。
   //   ★★ diary_dryrun はここで終わり＝**代理ログインもしない・1文字も書かない。**
-  if (outcome.kind === 'esutama_therapists') {
+  if (outcome.kind === 'esutama_therapists'
+      && (context.intent === 'sokusera_push' || context.intent === 'sokusera_auto')) {
+    // ★ 即セラ（第143便）。★ 同じ一覧を使うが、決めることが違う
+    const r = await planEsutamaSokusera(params, outcome.rows, outcome.ctk, outcome.context);
+    audits.push(...r.audits);
+    note = outcome.note + ' → ' + r.note;
+    next = r.next ?? null;
+  } else if (outcome.kind === 'esutama_therapists') {
     const r = await planEsutamaDiary(params, outcome.rows, outcome.ctk, outcome.context);
     audits.push(...r.audits);
     note = outcome.note + ' → ' + r.note;
@@ -2148,4 +2171,164 @@ export async function hasDiarySendCandidate(params: {
   if (left === 0) return { ok: false, why: '新しい写メ日記はすべてお送りしています' };
 
   return { ok: true, count: left };
+}
+
+// ────────────────────── 即セラ（第143便・2026-09-04） ──────────────────────
+
+/**
+ * ★★★ 誰の即セラをONにするかを決める（第143便）。
+ *
+ * ★ 判断そのものは src/lib/esutamaSokuseraTargets.ts（純粋関数）が持つ。
+ *   ここは DB から材料を集めて渡し、決まった1人ぶんの段を積むだけ。
+ *
+ * ★★★ **1回のフローでONにするのは1人だけ。** ★ 「全員にまとめて」は作らない。
+ *   ★ 相手のアカウントを触る操作なので、1人ずつ・確かめながら進む。
+ */
+async function planEsutamaSokusera(
+  params: { salonId: number; provider: string; slot: number },
+  mediaRows: Array<{ castId: string; name: string; state: string }>,
+  ctk: string | null,
+  ctx: RelayFlowContext,
+): Promise<{ audits: FlowAudit[]; note: string; next?: FlowNextRequest }> {
+  const flowId = ctx.flowId;
+  const supabase = createServiceClient();
+  const now = new Date();
+  const auto = ctx.intent === 'sokusera_auto';
+
+  const fail = (reason: string, note: string) => ({
+    audits: [{
+      event: 'read_sokusera' as const, outcome: 'failed' as const,
+      summary: '即セラの対象を確認できませんでした（' + note + '）',
+      detail: { reason, flowId },
+    }],
+    note,
+  });
+
+  // ① 在籍＋「今すぐ」の3枠（★ 列を引き忘れると静かに false になる。★ 全部引く）
+  const { data: ths, error: thErr } = await supabase
+    .from('therapists')
+    .select('id, name, import_cast_id, is_available_now, available_until, is_available_now_cast, available_until_cast, is_available_now_import, available_until_import')
+    .eq('salon_id', params.salonId)
+    .eq('is_active', true)
+    .order('id', { ascending: true });
+  if (thErr) return fail('therapists_read_failed', 'セラピストを読めなかった: ' + thErr.message);
+  const trows = (ths ?? []) as Array<Record<string, unknown>>;
+  const ids = trows.map((t) => Number(t['id']));
+
+  // ② 名簿の結び
+  const { maps, error: castErr } = await loadCastIds(supabase, {
+    therapists: trows.map((t) => ({ id: Number(t['id']), import_cast_id: (t['import_cast_id'] as string | null) ?? null })),
+    provider: params.provider, slot: params.slot,
+  });
+  if (castErr) return fail('cast_ids_read_failed', '名簿の結びを読めなかった: ' + castErr);
+
+  // ③ 了承（★ 写メ日記の了承を共用する・カッキーさんの判断 2026-09-04）
+  const consentOf = new Map<number, string>();
+  if (ids.length > 0) {
+    const { data: cs, error: csErr } = await supabase
+      .from('therapist_media_consent').select('therapist_id, state')
+      .eq('provider', params.provider).eq('kind', 'diary').in('therapist_id', ids);
+    // ★★ 読めなかったことを「全員未確認」と見せない
+    if (csErr) return fail('consent_read_failed', '了承の記録を読めなかった: ' + csErr.message);
+    for (const r of (cs ?? []) as Array<{ therapist_id: number; state: string | null }>) {
+      consentOf.set(Number(r.therapist_id), String(r.state ?? 'unknown'));
+    }
+  }
+
+  // ④ ★ 直近にONにした時刻。★ 表を増やさず、監査ログから引く（★ 追記専用で消えない）
+  const lastOf = new Map<string, string>();
+  {
+    const since = new Date(now.getTime() - (SOKUSERA_COOLDOWN_MIN + 5) * 60000).toISOString();
+    const { data: au, error: auErr } = await supabase
+      .from('salon_media_audit')
+      .select('detail, created_at')
+      .eq('salon_id', params.salonId).eq('provider', params.provider)
+      .eq('event', 'verify_sokusera').eq('outcome', 'ok')
+      .gte('created_at', since)
+      .order('created_at', { ascending: false })
+      .limit(200);
+    // ★ 読めなければ「打っていない」と決めつけない → 打たない側へ倒すため、ここで止める
+    if (auErr) return fail('audit_read_failed', '直近の記録を読めなかった: ' + auErr.message);
+    for (const r of (au ?? []) as Array<{ detail: Record<string, unknown> | null; created_at: string }>) {
+      const cid = String(r.detail?.['castId'] ?? '');
+      if (cid && !lastOf.has(cid)) lastOf.set(cid, String(r.created_at));
+    }
+  }
+
+  const activeCastIds = new Set(mediaRows.map((r) => String(r.castId).trim()));
+  const rows = trows.map((t) => {
+    const id = Number(t['id']);
+    const castId = maps.castIdOf.get(id) ?? null;
+    return {
+      therapistId: id,
+      name: String(t['name'] ?? ''),
+      castId,
+      input: {
+        consent: toConsentState(consentOf.get(id)),
+        account: esutamaAccountState(castId, activeCastIds, true),
+        castId,
+        // ★ 3枠の和集合。★ 既存の判定をそのまま使う（★ 別に書かない）
+        imasuguLive: isImasuguLiveRow(t as unknown as ImasuguRow, now),
+        lastStartedAt: castId ? (lastOf.get(String(castId).trim()) ?? null) : null,
+      },
+    };
+  });
+
+  const tally = tallySokusera(rows.map((r) => r.input), now);
+  const summary = sokuseraSummary(tally);
+  const planAudit: FlowAudit = {
+    event: 'read_sokusera', outcome: 'ok', summary,
+    detail: {
+      people: tally.母数, willStart: tally.ONにする, notImasugu: tally.今すぐでない,
+      cooling: tally.打ったばかり, notAgreed: tally.了承なし, noCastId: tally.名簿未結び,
+      notStarted: tally.未開始, accountUnknown: tally.利用状況が不明, hasCtk: !!ctk, flowId,
+    },
+  };
+
+  // ★★★ ONにする人を1人だけ選ぶ。★ 「全員にまとめて」は作らない
+  const wantId = auto ? 0 : Number(ctx.esutamaSokuseraTherapistId ?? 0);
+  const picked = auto
+    ? rows.find((r) => decideSokuseraTarget(r.input, now).ok)
+    : rows.find((r) => r.therapistId === wantId);
+  if (!picked) {
+    // ★ 対象が居ないのは【正常】。★ 故障として数えない
+    return { audits: [planAudit], note: summary + '（★ いまONにする方はいません）' };
+  }
+  const v = decideSokuseraTarget(picked.input, now);
+  if (!v.ok) {
+    return {
+      audits: [planAudit, {
+        event: 'push_sokusera', outcome: 'stopped',
+        summary: picked.name + 'さん: ' + v.message,
+        detail: { reason: v.reason, therapistId: picked.therapistId, flowId },
+      }],
+      note: summary + ' → ONにしない: ' + v.message,
+    };
+  }
+  if (!ctk) {
+    return {
+      audits: [planAudit, {
+        event: 'push_sokusera', outcome: 'stopped',
+        summary: '一覧ページの ctk が見つからなかったため、ONにしませんでした',
+        detail: { reason: 'no_ctk', therapistId: picked.therapistId, flowId },
+      }],
+      note: summary + ' → ctk が無いので打たない',
+    };
+  }
+
+  const castId = String(picked.castId ?? '');
+  // ★★★ 突き合わせる名前は【エステ魂側の名前】（第134便の教訓）
+  const mediaName = mediaRows.find((r) => r.castId === castId)?.name ?? '';
+  const nextCtx: RelayFlowContext = {
+    ...ctx,
+    esutamaSokuseraCastId: castId,
+    esutamaSokuseraCastName: mediaName || picked.name,
+    esutamaSokuseraTherapistId: picked.therapistId,
+  };
+  const step = buildEsutamaSokuseraTokenStep(nextCtx, castId, ctk);
+  return {
+    audits: [planAudit],
+    note: summary + ' → ' + picked.name + 'さんの即セラをONにします',
+    next: { purpose: step.purpose, method: step.method, url: step.url, headers: step.headers, body: step.body, context: nextCtx },
+  };
 }
