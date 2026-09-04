@@ -540,5 +540,24 @@ eq('★ 書くだけの媒体に read は絶対に出さない（ほかが正本
      [true, false].flatMap((e) => v.switchChoices(f, 'エステ魂', 'esutama', e).map((x) => x.mode)))
      .filter((m) => m === 'read'), []);
 
+// ── ★★★ 第148便: 画面に【読まずに書いた記録】を置かない ─────────────────
+//   2026-09-04 22:30。セラピスト一覧の「送った記録」の列が、
+//   **何も読まずに全員へ「まだ送っていません」と出していた。**
+//   ★ サラさんには写メ日記も即セラも送っていたので、画面が嘘をついていた。
+//   ★★ 見出しが「記録」だと、店舗様は【調べた結果】だと思う。★ そこが罪深い。
+//
+//   → 見張り: この画面のファイルに、決め打ちの「まだ送っていません」を書かせない。
+//     ★ 記録を出すなら、必ず読んでから出す。
+{
+  const fs = require('fs');
+  const path = require('path');
+  const f = path.join(__dirname, '..', 'src', 'app', 'mypage', 'media', 'TherapistBoard.tsx');
+  const src = fs.readFileSync(f, 'utf8');
+  // ★ 注記の中に出てくるのは許す（★ 何を外したかを書き残しているため）。
+  //   ブロックコメントと行コメントを落としてから見る
+  const jsx = src.replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '');
+  eq('★★★ 決め打ちの「まだ送っていません」が画面に無い', /まだ送っていません/.test(jsx), false);
+}
+
 console.log(fail === 0 ? '\n★ すべて通った' : '\n★ NG ' + fail + ' 件');
 process.exit(fail === 0 ? 0 : 1);

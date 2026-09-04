@@ -298,15 +298,12 @@ export function TherapistBoard({ salonId, onToast, children }: {
                     <br />
                     <span className="font-bold">向こうを読んだ結果</span>
                   </th>
-                  {sites
-                    .filter((s) => s.direction === 'write')
-                    .map((s) => (
-                      <th key={s.provider + '#' + s.slot} className="font-bold text-[12.5px] text-slate-400 px-3 py-2 whitespace-nowrap">
-                        {s.label}
-                        <br />
-                        <span className="font-bold">送った記録</span>
-                      </th>
-                    ))}
+                  {/* ★★★ 第148便（2026-09-04）で「送った記録」の列を【外した】。
+                      ★ 全員に「まだ送っていません」と出すだけで、**何も読んでいなかった**。
+                      ★★ サラさんには写メ日記（16:42・18:01）も即セラ（21:56）も送っている。
+                        つまり画面が嘘をついていた。★ 見出しが「記録」なので、なお悪い。
+                      ★ 人ごとの送信記録は、あとで salon_media_audit から作って戻す。
+                        → そのときは【送った人には送った日時を出す】。★ 空欄で誤魔化さない。 */}
                 </tr>
               </thead>
               <tbody>
@@ -333,13 +330,6 @@ export function TherapistBoard({ salonId, onToast, children }: {
                           {therapistSiteLabel(st)}
                         </span>
                       </td>
-                      {sites
-                        .filter((s) => s.direction === 'write')
-                        .map((s) => (
-                          <td key={s.provider + '#' + s.slot} className="px-3 py-2.5 text-slate-400 whitespace-nowrap">
-                            まだ送っていません
-                          </td>
-                        ))}
                     </tr>
                   );
                 })}
