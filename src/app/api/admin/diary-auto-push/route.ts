@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { createServiceClient } from '@/app/lib/supabase/service';
-import { startRelayFlow } from '@/app/lib/media/relayFlow';
+import { startRelayFlow, hasDiarySendCandidate } from '@/app/lib/media/relayFlow';
 
 // ── 写メ日記の自動反映の周（第137便・2026-09-05）───────────────────────────
 //   POST /api/admin/diary-auto-push  (Authorization: Bearer <CRON_SECRET>)
@@ -101,6 +101,25 @@ export async function POST(req: Request) {
     const src = sourceOf.get(Number(r.salon_id)) ?? '';
     if (src !== 'fukues') { skipped.push({ target, why: '日記の正本が fukues ではない（' + (src || '未設定') + '）' }); continue; }
 
+    // ★★★ 送るものが無ければ、ジョブを積まない（第140便・2026-09-04）。
+    //   ★ ここを入れる前は、5分ごとに必ずエステ魂へログインし、
+    //     「送れる 0名」を記録に2行積んでいた（1日576行）。
+    //     ★★ 店舗様の「連携の記録」が2時間で埋まり、
+    //       駅ちかの取り込みや出勤の記録が押し流されて見えなくなっていた。
+    //   ★ これは【絞り込み】。★ 送ってよいかの判断はフロー側のまま（2か所に置かない）。
+    //   ★★ 読めなかったときは count=-1 で通す（★ 「無い」と決めつけない）。
+    let candidate: Awaited<ReturnType<typeof hasDiarySendCandidate>>;
+    try {
+      candidate = await hasDiarySendCandidate({
+        salonId: Number(r.salon_id), provider: PROVIDER, slot: Number(r.slot),
+      });
+    } catch (e) {
+      // ★ 絞り込みで落ちたら、絞り込まない（★ 送れるものを取りこぼさない側へ倒す）
+      candidate = { ok: true, count: -1 };
+      console.warn('[diary-auto-push] 候補の下調べに失敗', target, e instanceof Error ? e.message : 'unknown');
+    }
+    if (!candidate.ok) { skipped.push({ target, why: candidate.why }); continue; }
+
     if (!apply) { started.push(target); continue; }   // ★ 数えるだけ
 
     try {
@@ -122,6 +141,8 @@ export async function POST(req: Request) {
     ok: true, apply,
     targets: rows.length,
     started, skipped,
+    // ★ 何件を「送るものが無い」で飛ばしたか。★ 黙って飛ばさない
+    skippedNoCandidate: skipped.filter((x) => x.why.includes('ありません') || x.why.includes('お送りしています')).length,
     // ★ 「積んだ」までしか言わない。★ 送れたかは連携の記録で見る
     見かた: apply
       ? '中継ジョブを積みました。1件あたり6段（およそ6分）かかります。結果は各店舗の「連携の記録」に出ます'

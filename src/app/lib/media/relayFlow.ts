@@ -62,6 +62,7 @@ import {
   type DiaryCandidate,
 } from '@/lib/esutamaDiaryPlan';
 import { toConsentState } from '@/lib/therapistMediaConsent';
+import { shouldDropAutoAudits } from '@/lib/mediaAudit';
 // ★ 失敗を覚えて、やめどきを決める（第137便）
 import { decideDiaryRetry, MAX_DIARY_ATTEMPTS } from '@/lib/esutamaDiaryRetry';
 import { buildEsutamaDiaryTokenStep } from '@/lib/esutamaDiaryFlow';
@@ -403,6 +404,11 @@ export async function advanceRelayFlow(params: {
     audits.push(...r.audits);
     note = note + ' → ' + r.note;
   }
+
+  // ★★★ 自動の周が「見ただけ」で終わったら、記録を残さない（第140便）。
+  //   ★ 普段は黙らせないのが原則。★ ここだけ例外にする理由は shouldDropAutoAudits に書いた。
+  //   ★★ 失敗が1つでも混ざっていれば【残る】。★ 静かに失敗させない。
+  if (shouldDropAutoAudits(context.intent, !!next, audits)) audits.length = 0;
 
   await writeAudits(params, audits, context);
 
@@ -2040,4 +2046,106 @@ async function settleDiaryMark(
     }],
     note: '印を「送れていない」にした（★ しばらく置いて再挑戦します）',
   };
+}
+
+/**
+ * ★★★ 周を回す【前】に、DB だけで「送るものがあるか」を確かめる（第140便・2026-09-04）。
+ *
+ * ★★ なぜ要るか（2026-09-04 に実際に起きた）
+ *   周が5分ごとに、送るものが無くてもエステ魂へログインし、一覧を読み、
+ *   「送れる 0名」を記録に2行積んでいた。
+ *     ・1日 576行。★ 画面の「直近50件」が2時間で埋まる
+ *       → 駅ちかの取り込みや出勤の記録が押し流されて見えなくなる
+ *     ・1日 288回、用も無いのに相手にログインする。★ 行儀が悪い
+ *     ・Vercel のイベント／関数呼び出しも増える
+ *
+ * ★★★ **これは「絞り込み」であって「判定」ではない。**
+ *   ★ 送ってよいかの判断は planEsutamaDiaries（純粋関数）のまま。★ 2か所に置かない。
+ *   ★★ ここは【確実に0件のときだけ false を返す】保守的な見張り。
+ *     ★ 相手の利用状況（魂セラピストを始めているか）は**見ない**（一覧が要るので）。
+ *     ★ だから true でも「送れる」とは限らない。★ そのときはフローが正しく断る。
+ *
+ * ★ 定数（DIARY_MAX_AGE_DAYS / DIARY_SCAN_LIMIT）は planEsutamaDiary と同じものを使う。
+ *   ★★ 別々に書くと必ず食い違う。★ 同じファイルに置いてあるのはそのため。
+ */
+export async function hasDiarySendCandidate(params: {
+  salonId: number; provider: string; slot: number;
+}): Promise<{ ok: true; count: number } | { ok: false; why: string }> {
+  const supabase = createServiceClient();
+
+  // ① 店舗の関門（★ 正本がフクエスでなければ、そもそも送らない）
+  const { data: salon, error: salonErr } = await supabase
+    .from('salons').select('diary_source').eq('id', params.salonId).maybeSingle();
+  // ★ 読めなければ「無い」と決めつけない。★ 周に回してもらい、フロー側で正しく止める
+  if (salonErr || !salon) return { ok: true, count: -1 };
+  if (!checkSalonDiarySource(salon.diary_source as string | null).ok) {
+    return { ok: false, why: '日記の正本がフクエスではありません' };
+  }
+
+  // ② 了承あり × 名簿の結びあり の人
+  const { data: therapists, error: thErr } = await supabase
+    .from('therapists').select('id, import_cast_id')
+    .eq('salon_id', params.salonId).eq('is_active', true);
+  if (thErr) return { ok: true, count: -1 };
+  const trows = (therapists ?? []) as Array<{ id: number; import_cast_id?: string | null }>;
+  if (trows.length === 0) return { ok: false, why: '在籍がいません' };
+
+  const ids = trows.map((t) => t.id);
+  const { data: cs, error: csErr } = await supabase
+    .from('therapist_media_consent').select('therapist_id, state')
+    .eq('provider', params.provider).eq('kind', 'diary').in('therapist_id', ids);
+  if (csErr) return { ok: true, count: -1 };
+  const agreed = new Set(
+    ((cs ?? []) as Array<{ therapist_id: number; state: string | null }>)
+      .filter((r) => toConsentState(r.state) === 'agreed')
+      .map((r) => Number(r.therapist_id)),
+  );
+  if (agreed.size === 0) return { ok: false, why: 'ご了承をいただいている方がいません' };
+
+  const { maps, error: castErr } = await loadCastIds(supabase, {
+    therapists: trows, provider: params.provider, slot: params.slot,
+  });
+  if (castErr) return { ok: true, count: -1 };
+  const linked = [...agreed].filter((id) => /^\d{1,12}$/.test(String(maps.castIdOf.get(id) ?? '').trim()));
+  if (linked.length === 0) return { ok: false, why: '名簿が結びついている方がいません' };
+
+  // ③ その人たちの、14日以内の日記
+  const cutoffISO = new Date(Date.now() - DIARY_MAX_AGE_DAYS * 24 * 60 * 60 * 1000).toISOString();
+  const { data: dp, error: dErr } = await supabase
+    .from('diary_posts').select('id')
+    .in('therapist_id', linked)
+    .gte('created_at', cutoffISO)
+    .order('created_at', { ascending: false })
+    .limit(DIARY_SCAN_LIMIT);
+  if (dErr) return { ok: true, count: -1 };
+  let diaryIds = ((dp ?? []) as Array<{ id: string }>).map((r) => ({ id: String(r.id) }));
+  if (diaryIds.length === 0) return { ok: false, why: '新しい写メ日記がありません' };
+
+  // ④ ★★★ 取り込んだ日記は送らない（第138便）
+  const { data: imp, error: impErr } = await supabase
+    .from('salon_diary_imports').select('diary_post_id')
+    .in('diary_post_id', diaryIds.map((d) => d.id));
+  if (impErr) return { ok: true, count: -1 };
+  diaryIds = excludeImportedDiaries(diaryIds, new Set(
+    ((imp ?? []) as Array<{ diary_post_id: string | null }>)
+      .map((r) => String(r.diary_post_id ?? '')).filter((x) => x.length > 0),
+  ));
+  if (diaryIds.length === 0) return { ok: false, why: 'フクエスで書かれた新しい写メ日記がありません' };
+
+  // ⑤ 送った印（★ failed で再挑戦できるものは候補に残す）
+  const { data: sent, error: sErr } = await supabase
+    .from('diary_post_sent').select('diary_id, state, attempts, updated_at')
+    .eq('provider', params.provider).eq('slot', params.slot)
+    .in('diary_id', diaryIds.map((d) => d.id));
+  if (sErr) return { ok: true, count: -1 };
+  const now = new Date();
+  const done = new Set<string>();
+  for (const r of (sent ?? []) as Array<{ diary_id: string; state: string; attempts: number; updated_at: string | null }>) {
+    const v = decideDiaryRetry({ state: r.state, attempts: r.attempts, updatedAt: r.updated_at }, now);
+    if (!v.send) done.add(String(r.diary_id));
+  }
+  const left = diaryIds.filter((d) => !done.has(d.id)).length;
+  if (left === 0) return { ok: false, why: '新しい写メ日記はすべてお送りしています' };
+
+  return { ok: true, count: left };
 }

@@ -94,5 +94,26 @@ console.log('\n── 件数が本文に出ているか ──');
   eq('名簿の読み取りは専用の文言', /名簿を読み取りました/.test(s) && /37名/.test(s), true);
 }
 
+console.log('\n── ★★★ 自動の周が「見ただけ」なら記録を残さない（第140便）──');
+// ★★ 普段は黙らせないのが原則。★ ここだけ例外。
+//   ★ 送るものが無い日は1日288回×2行＝576行。★ 直近50件が2時間で埋まり、
+//     駅ちかの取り込みや出勤の記録が【見えなくなる】。★ 黙らせないことが見えなくする。
+const look = [{ event: 'read_diary_targets', outcome: 'ok' }, { event: 'plan_diary', outcome: 'ok' }];
+eq('★★★ 自動の周で見ただけなら落とす', a.shouldDropAutoAudits('diary_auto', false, look), true);
+// ★★★ 人が押したものは必ず残す
+eq('★★★ 手で撃った下見は残す', a.shouldDropAutoAudits('diary_dryrun', false, look), false);
+eq('★★★ 手で撃った実弾も残す', a.shouldDropAutoAudits('diary_push', false, look), false);
+// ★★★ 次の段を積んでいる＝これから相手を書き換える。★ 残す
+eq('★★★ 送りに行くなら残す', a.shouldDropAutoAudits('diary_auto', true, look), false);
+// ★★★ 失敗が1つでも混ざれば残す。★ 静かに失敗させない
+eq('★★★ 失敗が混ざれば残す', a.shouldDropAutoAudits('diary_auto', false,
+   [{ event: 'plan_diary', outcome: 'failed' }]), false);
+eq('★★★ 中止が混ざれば残す', a.shouldDropAutoAudits('diary_auto', false,
+   [look[0], { event: 'plan_diary', outcome: 'stopped' }]), false);
+// ★★★ 書き換える出来事が混ざれば残す
+eq('★★★ 送った記録が混ざれば残す', a.shouldDropAutoAudits('diary_auto', false,
+   [look[0], { event: 'push_diary', outcome: 'ok' }]), false);
+eq('★ 空なら落とすものが無い', a.shouldDropAutoAudits('diary_auto', false, []), false);
+
 console.log(fail === 0 ? '\n★ すべて通った' : '\n★ NG ' + fail + ' 件');
 process.exit(fail === 0 ? 0 : 1);

@@ -50,6 +50,33 @@ export const MEDIA_AUDIT_EVENTS = [
 
 export type MediaAuditEvent = (typeof MEDIA_AUDIT_EVENTS)[number];
 
+/**
+ * ★★★ 自動の周が「見ただけ」で終わったとき、記録を残さない（第140便・2026-09-04）。
+ *
+ * ★★ なぜ黙らせるのか（★ この案件では普段【黙らせない】が原則）
+ *   周は5分ごとに回る。★ 送るものが無い日は、1日288回「何もしなかった」を積む。
+ *   ★ 2行ずつなら 576行/日。★ 画面の「直近50件」が2時間で埋まる。
+ *   ★★★ **大事な記録（駅ちかの取り込み・出勤の反映）が押し流されて見えなくなる。**
+ *     → 黙らせないことが、かえって【見えなくする】。★ ここだけ例外にする。
+ *
+ * ★★ 落とすのは、次の3つが【すべて】そろったときだけ:
+ *   ① 自動の周（diary_auto）である     … 人が押したものは必ず残す
+ *   ② 次の段を積んでいない             … 相手を1文字も書き換えていない
+ *   ③ 記録が「読んだ・数えた」の ok だけ … ★ 失敗・中止が1つでもあれば【残す】
+ */
+export function shouldDropAutoAudits(
+  intent: string,
+  hasNext: boolean,
+  audits: ReadonlyArray<{ event: string; outcome: string }>,
+): boolean {
+  if (intent !== 'diary_auto') return false;
+  if (hasNext) return false;
+  if (audits.length === 0) return false;
+  return audits.every(
+    (a) => (a.event === 'read_diary_targets' || a.event === 'plan_diary') && a.outcome === 'ok',
+  );
+}
+
 /** どうなったか。★ 'ok' 以外は理由が summary に出ていること。 */
 export type MediaAuditOutcome = 'ok' | 'failed' | 'stopped';
 
