@@ -72,8 +72,15 @@ eq('provider が重複していない',
    new Set(v.MEDIA_SITES.map((s) => s.provider)).size, v.MEDIA_SITES.length);
 
 console.log('\n── 2. 送れるもの（カッキーさんの要望・可視化）──');
-eq('駅ちかは4つ送れる',
-   v.siteCapabilityLabels(v.findMediaSite('ekichika')), ['出勤', 'セラピスト', '写メ日記', '即ヒメ']);
+// ★★★ 2026-09-04（第142便）: 'therapist' を外した。
+//   ★ 実際にできるのは【運営が手で写真を1枚送る】だけで、店舗様は画面から使えなかった。
+//   ★★ 「送れるもの」は、店舗様が【いま使えるもの】を並べる欄。
+//     ★ 将来できることを先に並べると、聞かれたときに言い訳になる。
+eq('★★★ 駅ちかは3つ送れる（★ セラピストは外した）',
+   v.siteCapabilityLabels(v.findMediaSite('ekichika')), ['出勤', '写メ日記', '即ヒメ']);
+// ★★★ どのサイトも「セラピスト」を送れると書かない（★ 使えるようになった便で足す）
+eq('★★★ いま「セラピスト」を送れるサイトは無い',
+   v.MEDIA_SITES.filter((s) => s.can.includes('therapist')).length, 0);
 eq('★ エステラブは出勤と写メ日記',
    v.siteCapabilityLabels(v.findMediaSite('esulove')), ['出勤', '写メ日記']);
 // ★★★ 第141便: 2026-09-04 18:01、自動でエステ魂へ写メ日記が載ったのを実測して足した
