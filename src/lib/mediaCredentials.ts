@@ -38,11 +38,21 @@ export function credentialAad(ref: CredentialRef): string {
   return String(ref.salonId) + '|' + ref.provider + '|' + String(ref.slot);
 }
 
+/**
+ * ★★★ 2026-09-04: メッセージを書き直した（第133-5便）。
+ *   ★ 以前は「生成: node -e …randomBytes(32)…」とだけ書いてあった。
+ *   ★★ これを運用中に読んで実行すると、**登録済みの全店舗のパスワードが二度と開かない。**
+ *     ★ 鍵が変われば、その鍵で暗号化したものは復号できない。★ 取り返しがつかない。
+ *   → **まず「本番と同じ値を写す」と書く。** ★ 生成は【初回だけ】と明記する。
+ */
 function getKey(): Buffer {
   const raw = process.env.MEDIA_CRED_KEY;
   if (!raw) {
     throw new Error(
-      'MEDIA_CRED_KEY が設定されていない。32バイトを base64 で環境変数に入れること' +
+      'MEDIA_CRED_KEY が設定されていない。' +
+        '★★★ すでに連携を運用しているなら【本番と同じ値】を .env.local に写すこと。' +
+        '★ 新しく生成すると、登録済みのパスワードが二度と復号できなくなる。' +
+        '★ 生成してよいのは、まだ1件も登録していない初回のときだけ' +
         '（生成: node -e "console.log(require(\'crypto\').randomBytes(32).toString(\'base64\'))"）',
     );
   }

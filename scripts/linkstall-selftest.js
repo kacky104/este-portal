@@ -89,16 +89,49 @@ eq('止まっていなければ文言は出ない',
 {
   const m = ls.stallMessage(judge({
     linkMode: 'write', switchedToWriteAt: hoursAgo(30), lastWriteOkAt: null,
-  }), '駅ちか（枠1）');
+  }), '駅ちか（枠1）', { name: '駅ちか', canRead: true });
   eq('never_sent の文言に枠が入る', m.indexOf('駅ちか（枠1）') === 0, true);
   eq('never_sent の文言に戻し方が入る', m.indexOf('戻してください') > 0, true);
   // ★ 店舗が読む1行に英語のエラー文字列を混ぜない（監査ログ migration の作法）
   eq('never_sent の文言に never_sent と出ない', m.indexOf('never_sent'), -1);
 }
 
-// ── 枠のラベル。★ 知らない provider を勝手に日本語にしない ──
+// ── ★★★ 送り先の名前を決め打ちしない（第133-6便・2026-09-04）──
+// ★ 実際にラビリンス様の画面へ「esutama（枠1）は『フクエスから【駅ちか】へ反映する』向き」と出た。
+//   ★ エステ魂の話なのに送り先が駅ちか。★ 媒体が1つだった頃の文言が直っていなかった。
+{
+  const stale = ls.judgeWriteStall({
+    linkMode: 'write', switchedToWriteAt: hoursAgo(100), lastWriteOkAt: hoursAgo(41), now: NOW,
+  });
+  const esutama = ls.stallMessage(stale, 'エステ魂（枠1）', { name: 'エステ魂', canRead: false });
+  eq('★★★ 送り先はエステ魂と書く', esutama.indexOf('フクエスからエステ魂へ反映する') > 0, true);
+  // ★★★ ここが今回の穴。★ 別の媒体の名前を混ぜない
+  eq('★★★ 駅ちかと書かない', esutama.indexOf('駅ちか'), -1);
+
+  const never = ls.judgeWriteStall({
+    linkMode: 'write', switchedToWriteAt: hoursAgo(30), lastWriteOkAt: null, now: NOW,
+  });
+  // ★★ エステ魂は送る専用。★ 「取り込むに戻してください」と言わない（戻す道が無い）
+  const n1 = ls.stallMessage(never, 'エステ魂（枠1）', { name: 'エステ魂', canRead: false });
+  eq('★★★ 読めない媒体に「戻してください」と言わない', n1.indexOf('戻してください'), -1);
+  eq('★ 代わりに進め方を出す', n1.indexOf('反映内容を確認') > 0, true);
+  // ★ 読める媒体には今までどおり戻し方を出す
+  const n2 = ls.stallMessage(never, '駅ちか（枠1）', { name: '駅ちか', canRead: true });
+  eq('★ 読める媒体には戻し方を出す', n2.indexOf('戻してください') > 0, true);
+
+  // ★ 名前を渡し忘れても、別の媒体の名前を当てない
+  const noName = ls.stallMessage(stale, 'エステ魂（枠1）');
+  eq('★★ 名前が無ければ「この媒体」', noName.indexOf('この媒体') > 0, true);
+  eq('★★★ 名前が無いときも駅ちかと言わない', noName.indexOf('駅ちか'), -1);
+}
+
+// ── 枠のラベル。★ 呼び名の正本は mediaSites。★ 知らない provider は英字のまま ──
 eq('ekichika のラベル', ls.mediaSlotLabel('ekichika', 2), '駅ちか（枠2）');
-eq('知らない provider はそのまま', ls.mediaSlotLabel('esulove', 1), 'esulove（枠1）');
+// ★★★ 2026-09-04: 'esutama（枠1）' と英字で店舗様の画面に出ていた
+eq('★★★ esutama も日本語で出す', ls.mediaSlotLabel('esutama', 1), 'エステ魂（枠1）');
+eq('★ esulove も日本語で出す', ls.mediaSlotLabel('esulove', 1), 'エステラブ（枠1）');
+// ★ 知らない provider は英字のまま（★ ごまかして別の名前を当てない）
+eq('★ 知らない provider はそのまま', ls.mediaSlotLabel('nanikore', 1), 'nanikore（枠1）');
 
 console.log(fail === 0 ? '\n★ すべて通った' : '\n★ NG ' + fail + ' 件');
 process.exit(fail === 0 ? 0 : 1);

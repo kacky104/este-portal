@@ -947,7 +947,12 @@ export async function getMediaLinkAlerts(input: { salonId: string | number }): P
         lastWriteOkAt: lastOkAt.get(k) ?? null,
         now,
       });
-      const message = stallMessage(verdict, mediaSlotLabel(provider, slot));
+      // ★ 送り先の呼び名と、読める媒体かを渡す（第133-6便）。★ 文言に媒体名を決め打ちしない
+      const site = findMediaSite(provider);
+      const message = stallMessage(verdict, mediaSlotLabel(provider, slot), {
+        ...(site?.name ? { name: site.name } : {}),
+        canRead: site?.readable === true,
+      });
       if (verdict.stalled && message) {
         alerts.push({
           provider, slot, watch: 'write',

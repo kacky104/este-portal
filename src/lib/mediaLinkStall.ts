@@ -21,6 +21,8 @@ import { isWriteDirection } from './mediaLinkMode';
 /** これだけ反映が無ければ、止まっているとみなす。 */
 export const WRITE_STALL_HOURS = 24;
 
+import { findMediaSite } from './mediaSites';
+
 export type StallReason =
   | 'never_sent'   // 切り替えてから一度も反映していない（★ いちばん危ない）
   | 'stale';       // 反映したことはあるが、久しく止まっている
@@ -100,22 +102,48 @@ export function elapsedLabel(hours: number): string {
  * 店舗が読んで分かる1行。★ 英語のエラー文字列を混ぜない（監査ログ migration の作法と同じ）。
  * 止まっていなければ null。
  */
-export function stallMessage(result: StallResult, slotLabel: string): string | null {
+export function stallMessage(
+  result: StallResult,
+  slotLabel: string,
+  /**
+   * ★★★ 2026-09-04（第133-6便）: ここまで【駅ちか】と書き込んであった。
+   *   ★ 実際にラビリンス様の画面へ「esutama（枠1）は『フクエスから【駅ちか】へ反映する』向き」
+   *     と出た。★ エステ魂の話なのに送り先が駅ちか。★ 店舗様が読んだら混乱する。
+   *   ★★ 媒体が1つだった頃の文言が、媒体が増えても直っていなかった。
+   *   → **送り先の名前を受け取る。** ★ 決め打ちをやめる。
+   */
+  site?: {
+    /** 送り先の呼び名（例: 'エステ魂'）。★ 無ければ「この媒体」 */
+    name?: string;
+    /**
+     * ★ その媒体から【読める】か。★ 読めない媒体に「取り込むに戻してください」と言わない。
+     *   ★ エステ魂は送る専用（readable=false）。戻す道がそもそも無い。
+     */
+    canRead?: boolean;
+  },
+): string | null {
   if (!result.stalled) return null;
   const t = elapsedLabel(result.elapsedHours);
+  const name = site?.name && site.name.trim() ? site.name.trim() : 'この媒体';
+  const canRead = site?.canRead === true;
+
   if (result.reason === 'never_sent') {
-    return (
-      slotLabel + 'は「フクエスから駅ちかへ反映する」向きのままですが、' +
-      t + '、まだ一度も反映していません。' +
-      'この向きでは駅ちかからの取り込みも止まっているため、' +
-      '出勤がどちらにも反映されていない状態です。' +
-      '「反映内容を確認」から進めるか、向きを「駅ちかから取り込む」に戻してください'
-    );
+    const head =
+      slotLabel + 'は「フクエスから' + name + 'へ反映する」向きのままですが、' +
+      t + '、まだ一度も反映していません。';
+    // ★ 読める媒体だけ「取り込みに戻す」を案内する（★ 戻せない媒体に戻せと言わない）
+    if (canRead) {
+      return head +
+        'この向きでは' + name + 'からの取り込みも止まっているため、' +
+        '出勤がどちらにも反映されていない状態です。' +
+        '「反映内容を確認」から進めるか、向きを「' + name + 'から取り込む」に戻してください';
+    }
+    return head + '「反映内容を確認」から進めてください';
   }
   return (
-    slotLabel + 'は「フクエスから駅ちかへ反映する」向きですが、' +
+    slotLabel + 'は「フクエスから' + name + 'へ反映する」向きですが、' +
     '最後の反映から' + t + '経っています。' +
-    'フクエスで出勤を変えた分が駅ちかに出ていない可能性があります'
+    'フクエスで出勤を変えた分が' + name + 'に出ていない可能性があります'
   );
 }
 
@@ -141,6 +169,9 @@ export type MediaLinkAlert = {
 
 /** 'ekichika' → 「駅ちか（枠1）」。★ 未知の provider はそのまま出す（勝手に日本語をでっち上げない）。 */
 export function mediaSlotLabel(provider: string, slot: number): string {
-  const name = provider === 'ekichika' ? '駅ちか' : provider;
+  // ★★★ 2026-09-04（第133-6便）: 駅ちか以外が英字のまま出ていた（'esutama（枠1）'）。
+  //   ★ 店舗様が読む場所に内部の名前を出さない。★ 呼び名の正本は mediaSites。
+  //   ★ 知らない provider は英字のまま（★ ごまかして別の名前を当てない）。
+  const name = findMediaSite(provider)?.name ?? provider;
   return name + '（枠' + slot + '）';
 }
