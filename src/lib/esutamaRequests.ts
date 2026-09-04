@@ -282,17 +282,17 @@ export function buildEsutamaSokuseraPageRequest(cookie: string): RelayRequest {
  * ★ 本文は message だけ（実測）。★ 呼びかけは**読んだ値をそのまま**渡すこと。
  *   ★★ 空で送ると本人の呼びかけが【消える】（2026-09-04 に事故で確認）。
  *   ★ 判断は esutamaSokuseraParse.decideSokuseraStart が持つ。★ ここは組み立てるだけ。
+ *
+ * ★★★ ヘッダは【必ず ajaxHeaders】。★ 第144便（2026-09-04 21:04）の実測:
+ *   ふつうのページ取得と同じヘッダで送ったら **403** で断られた。
+ *   ★ 相手の ajax_* の口は「ブラウザのJSから呼ばれた形」でないと通さない。
+ *   → ★★ url に 'ajax' が入る口は、ここでヘッダを組み間違えないこと（自己点検あり）。
  */
 export function buildEsutamaSokuseraStartRequest(cookie: string, body: string): RelayRequest {
   return {
     method: 'POST',
     url: ESUTAMA_SOKUSERA_START_URL,
-    headers: {
-      ...baseHeaders(),
-      'content-type': 'application/x-www-form-urlencoded',
-      referer: ESUTAMA_SOKUSERA_PAGE_URL,
-      ...(cookie ? { cookie } : {}),
-    },
+    headers: ajaxHeaders(cookie, ESUTAMA_SOKUSERA_PAGE_URL),
     body,
   };
 }

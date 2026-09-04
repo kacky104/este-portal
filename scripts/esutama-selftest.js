@@ -241,5 +241,46 @@ eq('知らない札は unknown', P.parseEsutamaJson('["NG"]').kind, 'unknown');
   eq('適用後の payload に 20:00=1', pay.find((f) => f[0] === 'column[2026-09-03][period][20:00]')[1], '1');
 }
 
+// ── ★★★ 第144便: ajax の口は「ブラウザのJSから呼ばれた形」で送る ──────────────
+//   2026-09-04 21:04 の実測。即セラの ON を、ふつうのページ取得と同じヘッダで送ったら
+//   **403** で断られた。★ 相手は ajax_* の口を、JSから呼ばれた形でしか受けない。
+//   ★★ 「宛先は合っていた」と「相手が受け取ってくれる」は別。★ ここを混ぜて1便使った。
+//   → ★ 宛先に 'ajax' が入る口を【全部】数えて、付け忘れが1つでもあれば落とす。
+{
+  const lower = (h) => {
+    const o = {};
+    for (const k of Object.keys(h || {})) o[k.toLowerCase()] = h[k];
+    return o;
+  };
+  // ★ 組み立てる口を【全部】並べる。★ 新しい口を足したらここに足す
+  const built = [
+    ['ログインページ', R.buildEsutamaLoginPageRequest()],
+    ['名簿', R.buildEsutamaRosterRequest('c=1')],
+    ['出勤を読む', R.buildEsutamaWorkReadRequest('c=1', '757481')],
+    ['出勤を書く', R.buildEsutamaWorkSaveRequest('c=1', '757481', [['cast_id', '757481'], ['brws_shop_id', '1'], ['ctk', 'x'.repeat(32)], ['column[2026-09-03][period][20:00]', '1']])],
+    ['セラピスト管理', R.buildEsutamaTherapistAdminRequest('c=1')],
+    ['入場券の発行', R.buildEsutamaCreateShopTokenRequest('c=1', '757481', 'x'.repeat(32))],
+    ['写メ日記のページ', R.buildEsutamaDiaryPageRequest('c=1')],
+    ['写メ日記を送る', R.buildEsutamaDiaryPostRequest('c=1', [['a', 'b']])],
+    ['即セラのページ', R.buildEsutamaSokuseraPageRequest('c=1')],
+    ['★ 即セラをONにする', R.buildEsutamaSokuseraStartRequest('c=1', 'message=%E3%81%82')],
+    ['代理ログイン終了', R.buildEsutamaEndProxyRequest('c=1')],
+  ];
+  const ajax = built.filter(([, r]) => String(r.url).includes('ajax'));
+  eq('★ ajax の口を1つ以上見ている（★ 数え漏らしの番人）', ajax.length >= 1, true);
+  for (const [name, r] of ajax) {
+    const h = lower(r.headers);
+    eq('★★★ ' + name + ': x-requested-with が付いている', h['x-requested-with'], 'XMLHttpRequest');
+    eq('★★ ' + name + ': origin が付いている', h['origin'], R.ESUTAMA_ORIGIN);
+    eq('★ ' + name + ': referer が付いている', typeof h['referer'] === 'string' && h['referer'].length > 0, true);
+  }
+  // ★ 即セラの ON は、必ず即セラのページを referer にする
+  const st = lower(R.buildEsutamaSokuseraStartRequest('c=1', 'message=').headers);
+  eq('★ 即セラON の referer は即セラのページ', st['referer'], R.ESUTAMA_SOKUSERA_PAGE_URL);
+  eq('★ 即セラON は cookie を持って行く', st['cookie'], 'c=1');
+  // ★★★ OFF の宛先は【置かない】（★ 打たないと決めた。★ 置けばいつか誰かが呼ぶ）
+  eq('★★★ OFF の宛先が生えていない', Object.keys(R).some((k) => /stop/i.test(k)), false);
+}
+
 console.log(fail === 0 ? '\nすべて通りました' : '\n' + fail + ' 件 NG');
 process.exit(fail === 0 ? 0 : 1);
