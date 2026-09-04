@@ -30,6 +30,39 @@ export const ESUTAMA_ADMIN_URL = 'https://estama.jp/admin/';
 /** ★★ 出勤の保存先。**このファイルで唯一、相手を書き換える宛先。** */
 export const ESUTAMA_WORK_SAVE_URL = 'https://estama.jp/admin/schedule/post_work_schedule/';
 
+// ── 写メ日記（第129便・2026-09-04）─────────────────────────────────
+//
+// ★★★ エステ魂の写メ日記は【セラピスト本人のアカウント】の持ち物。
+//   ★ 店舗の管理画面からは投稿できない（画面にそう書いてある）。
+//   → 「本人の代わりにログイン」（代理ログイン）を通る。★ セラピストのパスワードは預からない。
+//
+// ★★★ 2026-09-04 に実物で確かめた往復（ラビリンス様の許可のもと・投稿はしていない）:
+//   ① POST create_shop_token   body: cast_id=<数字> & ctk=<32文字>   ★ 店舗のセッションで
+//      → {"success":true,"login_token":"<64文字>","login_url":"...","expires_at":"YYYY-MM-DD HH:MM:SS"}
+//      ★★ 期限は約30分（発行 12:19 → 12:49 だった）
+//   ② GET  /tamathera/login/shop_token/<login_token>   → 代理ログインのセッションが張られる
+//   ③ GET  /tamathera/diary/post/                      → ctk（32文字）を拾う
+//   ④ POST /tamathera/diary/post/                      → 7項目（esutamaDiaryPost.ts）
+//   ⑤ GET  /tamathera/login/end_proxy/                 → 代理ログインを終える
+//
+// ★★★ login_token は【実質パスワード】。★ 保存しない・ログに出さない・監査にも書かない。
+//   ★ 使うのはその場の②だけ。★ 期限が短いのは相手の設計。★ こちらで延ばそうとしない。
+
+/** 魂セラピスト アカウント管理。★ 読むだけ。★ 利用中の人と cast_id が取れる */
+export const ESUTAMA_THERAPIST_ADMIN_URL = 'https://estama.jp/admin/tamathera/therapist/';
+/** ★★ 代理ログイン用のトークンを発行させる口。★ 相手に状態を作らせるので【読むだけ】ではない */
+export const ESUTAMA_CREATE_SHOP_TOKEN_URL = 'https://estama.jp/admin/tamathera/therapist/create_shop_token';
+/** 写メ日記の新規投稿（GET で ctk を拾い、POST で送る）。★ 唯一、日記を書き込む宛先 */
+export const ESUTAMA_DIARY_POST_URL = 'https://estama.jp/tamathera/diary/post/';
+/** ★★★ 代理ログインを終える。★ 送り終えたら【必ず】通る。★ 店舗のセッションへ戻す */
+export const ESUTAMA_END_PROXY_URL = 'https://estama.jp/tamathera/login/end_proxy/';
+
+/** 代理ログインのURL。★ token は相手が発行した値をそのまま使う。★ 形だけ確かめる */
+export function esutamaProxyLoginUrl(token: string): string {
+  if (!/^[A-Za-z0-9_-]{20,128}$/.test(token)) throw new Error('エステ魂の代理ログイン用トークンの形が違います');
+  return 'https://estama.jp/tamathera/login/shop_token/' + token;
+}
+
 /** 1人の出勤表のURL。★ cast_id は数字だけ（それ以外は組み立てない） */
 export function esutamaWorkPageUrl(castId: string): string {
   if (!/^\d{1,12}$/.test(castId)) throw new Error('エステ魂の cast_id の形が違います（' + castId + '）');
@@ -154,6 +187,68 @@ export function buildEsutamaWorkSaveRequest(cookie: string, castId: string, fiel
 }
 
 /** #csrf_footer の形（英数32文字）。★ 実測。違う形が来たら「取れていない」扱い */
+/** 魂セラピスト一覧を読む GET。★ 読むだけ。★ ここで ctk と「利用中の人」を拾う */
+export function buildEsutamaTherapistAdminRequest(cookie: string): RelayRequest {
+  return { method: 'GET', url: ESUTAMA_THERAPIST_ADMIN_URL, headers: { ...baseHeaders(), ...(cookie ? { cookie } : {}) } };
+}
+
+/**
+ * ★★ 代理ログイン用トークンを発行させる POST（JSON が返る）。
+ * ★ cast_id は数字だけ。★ 他人の番号を組み立てないよう、ここで形を確かめる。
+ */
+export function buildEsutamaCreateShopTokenRequest(cookie: string, castId: string, ctk: string): RelayRequest {
+  if (!/^\d{1,12}$/.test(castId)) throw new Error('エステ魂の cast_id の形が違います（' + castId + '）');
+  if (!isCsrfShape(ctk)) throw new Error('エステ魂の ctk の形が違います');
+  return {
+    method: 'POST',
+    url: ESUTAMA_CREATE_SHOP_TOKEN_URL,
+    headers: ajaxHeaders(cookie, ESUTAMA_THERAPIST_ADMIN_URL),
+    body: encodePayload([['cast_id', castId], ['ctk', ctk]]),
+  };
+}
+
+/**
+ * ★★★ 代理ログインへ入る GET。★ ここから先は【本人のセッション】。
+ * ★ token は保存しない。★ この1回に使うだけ。
+ */
+export function buildEsutamaProxyLoginRequest(cookie: string, token: string): RelayRequest {
+  return {
+    method: 'GET',
+    url: esutamaProxyLoginUrl(token),
+    headers: { ...baseHeaders(), ...(cookie ? { cookie } : {}), referer: ESUTAMA_THERAPIST_ADMIN_URL },
+  };
+}
+
+/** 写メ日記の投稿ページを読む GET。★ ctk を拾うためだけ。★ 何も書き換えない */
+export function buildEsutamaDiaryPageRequest(cookie: string): RelayRequest {
+  return { method: 'GET', url: ESUTAMA_DIARY_POST_URL, headers: { ...baseHeaders(), ...(cookie ? { cookie } : {}) } };
+}
+
+/**
+ * ★★★ 写メ日記を投稿する POST。★ このファイルで【日記を書き込む唯一の宛先】。
+ * ★ enctype は application/x-www-form-urlencoded（実測）。★ multipart ではない。
+ * ★★ 項目は呼び出し側（esutamaDiaryPost.buildEsutamaDiaryPost）が組み立てる。
+ */
+export function buildEsutamaDiaryPostRequest(cookie: string, fields: Array<[string, string]>): RelayRequest {
+  return {
+    method: 'POST',
+    url: ESUTAMA_DIARY_POST_URL,
+    headers: {
+      ...baseHeaders(),
+      'content-type': 'application/x-www-form-urlencoded',
+      referer: ESUTAMA_DIARY_POST_URL,
+      origin: ESUTAMA_ORIGIN,
+      ...(cookie ? { cookie } : {}),
+    },
+    body: encodePayload(fields),
+  };
+}
+
+/** ★★★ 代理ログインを終える GET。★ 送り終えたら必ず通る。★ 本人のセッションを残さない */
+export function buildEsutamaEndProxyRequest(cookie: string): RelayRequest {
+  return { method: 'GET', url: ESUTAMA_END_PROXY_URL, headers: { ...baseHeaders(), ...(cookie ? { cookie } : {}) } };
+}
+
 export function isCsrfShape(v: unknown): v is string {
   return typeof v === 'string' && /^[A-Za-z0-9]{16,64}$/.test(v);
 }
