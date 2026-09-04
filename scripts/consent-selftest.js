@@ -83,5 +83,15 @@ eq('★★ 全員未確認のときは「まだ確認していません」',
 eq('★ 全員了承なら送らない・未確認は出さない',
    v.consentSummary(v.tallyConsents([1], [{ therapistId: 1, state: 'agreed' }])), '了承あり 1名（在籍 1名）');
 
+console.log('\n── ★★★ できるようになったら、できないと書いた文を消す（第141便）──');
+// ★★ 2026-09-04 18:01、エステ魂へ自動で送れるようになった。
+//   ★ それなのに「仕組みができたら送ります」という文が画面に残っていた。
+//   ★★★ 古い断りは【嘘になる】。★ 「できないことを、できないと書く」と同じくらい大事。
+eq('★★★ 「仕組みができたら」と書かない', v.consentNextStep('agreed').includes('仕組みができたら'), false);
+eq('★★ 送ると書く', v.consentNextStep('agreed').includes('お送りします'), true);
+// ★ 断られた方・未確認の方の文言は変えていない（★ そこは今も正しい）
+eq('★ 断られた方は今までどおり', v.consentNextStep('declined').includes('送りません'), true);
+eq('★ 未確認の方は今までどおり', v.consentNextStep('unknown').includes('確認してから'), true);
+
 console.log(fail === 0 ? '\n★ すべて通りました' : '\n' + fail + ' 件 通りませんでした');
 process.exit(fail === 0 ? 0 : 1);
