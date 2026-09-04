@@ -33,6 +33,14 @@ export const MEDIA_AUDIT_EVENTS = [
   'relay_gave_up',       // 3回失敗したので諦めた
   'relay_expired',       // 中継役が掴んだまま戻らなかったので打ち切った
   'relay_rejected',      // 宛先の検査で弾いた
+  // ── エステ魂の写メ日記（第130便・2026-09-04）★ 本人のアカウントから出る ──
+  'read_diary_targets',  // ★ 魂セラピスト一覧を読んだ（誰に送れるか）。読むだけ
+  'diary_proxy_token',   // ★★ 代理ログイン用トークンを発行させた（★ 値は残さない）
+  'diary_proxy_login',   // ★★★ 本人のアカウントに入った。★ 名前を突き合わせた結果も残す
+  'diary_post_page',     // ★ 投稿ページを読んだ（ctk を拾う）。読むだけ
+  'diary_post_clamped',  // ★ 上限を超えたので切った（黙って切らない）
+  'push_diary',          // ★★★ 写メ日記を送った。★ 相手を書き換える
+  'diary_proxy_end',     // ★★★ 代理ログインを終えた。★ 本人のセッションを残さない
   'selftest',            // 認証情報を使わない疎通確認
 ] as const;
 

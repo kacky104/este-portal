@@ -55,6 +55,14 @@ export type RelayPurpose =
   | 'esutama_work_read'
   | 'esutama_work_save'
   | 'esutama_work_verify'
+  // ★ エステ魂の写メ日記（第130便）。★ 代理ログインを通るので段が多い
+  //   ★★ esutama_diary_end は【必ず通る】。★ 本人のセッションを残さないため
+  | 'esutama_therapist_list'
+  | 'esutama_diary_token'
+  | 'esutama_diary_proxy'
+  | 'esutama_diary_page'
+  | 'esutama_diary_post'
+  | 'esutama_diary_end'
   | 'selftest';
 
 export type LeasedJob = {

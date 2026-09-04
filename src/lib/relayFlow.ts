@@ -182,7 +182,20 @@ export type RelayFlowIntent =
    *   ★ POST のたびに編集ページを読み直す（★ fuel_csrf_token を毎回そのページから拾う。使い捨てでも壊れない）。
    *   ★ 触るのは【指定した1枠】だけ。★ 枠1（トップ画像）を指定するのは呼び出し側で止める。
    */
-  | 'photo_push';
+  | 'photo_push'
+  /**
+   * ★★★ エステ魂の写メ日記を送る（第130便・2026-09-04）。
+   *   login → therapist一覧 →（DBを見て相手と下書きを決める）→ token発行 → 代理ログイン
+   *   → 投稿ページGET(ctk) → 投稿POST → 読み返し → **end_proxy** → 終わり
+   *
+   * ★★★ **エステ魂を書き換える intent。** ★ しかも【本人のアカウント】から出る。
+   *   ★ 日記は上書きではなく【投稿】。★ 二度送ると記事が2本載り、店舗側から消せない。
+   *     → 送った印（diary_posts 側）が無いと重複する。★ 積むのは DB 側の責任。
+   * ★★ 送るのは【了承あり】かつ【利用中(active)】かつ【名簿が結びついている】人だけ。
+   * ★★★ diary_dryrun は【1文字も書かない】。★ 代理ログインもしない（一覧を読んで終わり）。
+   */
+  | 'diary_dryrun'
+  | 'diary_push';
 
 /**
  * 段と段のあいだで持ち回す状態。
@@ -251,6 +264,27 @@ export type RelayFlowContext = {
   /** 直近の応答の src（①の大画像 → ②の 3:4 → ③のサムネイル） */
   photoSrc?: string;
 
+  // ── ここから下は intent='diary_push' のときだけ入る（第130便・エステ魂）──
+  /** 送る相手（エステ魂の cast_id）。★ 数字だけ */
+  esutamaDiaryCastId?: string;
+  /** ★★★ 送る相手の名前。★ 代理ログイン後に画面と突き合わせる（別人に入っていないか） */
+  esutamaDiaryCastName?: string;
+  /** フクエス側の日記ID。★ 送った印を書く相手を取り違えないため、最後まで運ぶ */
+  esutamaDiaryPostId?: string;
+  /** 送る中身。★ 題名と本文とカテゴリ。★ 秘密ではない（店舗様が書いたもの） */
+  esutamaDiaryDraft?: { title: string; content: string; categoryId?: string };
+  /** 投稿ページで拾った ctk。★ POST を組むまでの間だけ持つ */
+  esutamaDiaryCtk?: string;
+  /**
+   * ★★★ 代理ログインに入ったか。★ true なら【何があっても end_proxy を通す】。
+   *   ★ 本人のセッションを残さない。★ 失敗しても、途中で止めても、必ず戻す。
+   */
+  esutamaProxyOpen?: boolean;
+  /** ★ 途中で止めた理由。★ end_proxy を通したあとで stop に落とすために運ぶ */
+  esutamaDiaryStopNote?: string;
+  /** ★ 投稿の POST が通ったか。★ 「載ったか」は読み返しで確かめる（ここでは決めつけない） */
+  esutamaDiaryPosted?: boolean;
+
   // ── ここから下は エステ魂（provider='esutama'）のときだけ入る（第109便）──
   /** ログイン画面で拾った csrf。★ ログイン POST を組むまでの間だけ持つ */
   esutamaCsrf?: string;
@@ -317,7 +351,10 @@ export type FlowNextRequest = {
     | 'read_photo_page' | 'upload_photo' | 'crop_photo'
     // ★ エステ魂の段（第109便）。★ 名前を分けることで、駅ちか・エステラブの段の判定に一切触れない
     | 'esutama_login_page' | 'esutama_login' | 'esutama_roster'
-    | 'esutama_work_read' | 'esutama_work_save' | 'esutama_work_verify';
+    | 'esutama_work_read' | 'esutama_work_save' | 'esutama_work_verify'
+    // ★ エステ魂の写メ日記（第130便）。★ 代理ログインを通るので段が多い
+    | 'esutama_therapist_list' | 'esutama_diary_token' | 'esutama_diary_proxy'
+    | 'esutama_diary_page' | 'esutama_diary_post' | 'esutama_diary_end';
   method: 'GET' | 'POST';
   url: string;
   headers: Record<string, string>;
@@ -398,7 +435,21 @@ export type FlowOutcome =
    *   DB 側が planEsutamaWork で people を作って文脈に入れ、1人目の出勤表 GET を積む。
    *   ★ connect_test / roster_read のときは次を積まない＝ここで終わり。何も書き換えていない。
    */
-  | { kind: 'esutama_roster'; rows: EsutamaRosterRow[]; warnings: string[]; context: RelayFlowContext; audits: FlowAudit[]; note: string };
+  | { kind: 'esutama_roster'; rows: EsutamaRosterRow[]; warnings: string[]; context: RelayFlowContext; audits: FlowAudit[]; note: string }
+  /**
+   * ★ 魂セラピスト一覧を読めた（第130便）。★ 誰に送るかは DB（了承・名簿の結び・送った印）を
+   *   読まないと決められないので、ここでは次を積まない＝**エステ魂へ何も飛ばない。**
+   *   ★ rows に入るのは【代理ログインできる人（active）】だけ。
+   */
+  | {
+      kind: 'esutama_therapists';
+      rows: Array<{ castId: string; name: string; state: string }>;
+      /** ★ 一覧ページで拾った ctk。★ token 発行 POST に要る */
+      ctk: string | null;
+      context: RelayFlowContext;
+      audits: FlowAudit[];
+      note: string;
+    };
 
 // ────────────────────────── フローの入口（login を組み立てる） ──────────────────────────
 
@@ -1106,6 +1157,11 @@ function finishRead(audits: FlowAudit[], ctx: RelayFlowContext, page: WorkPage):
       // ★ ここへは来ない（写真の送信は出勤ページを読みに行かない）。★ 網羅は外さない
       //   ★★ この見張りがまた働いた: photo_push を足した時点でコンパイルが止まった（第107便）
       return stop(audits, '写真の送信は出勤ページを使わない（ここへは来ないはず）');
+    case 'diary_dryrun':
+    case 'diary_push':
+      // ★ ここへは来ない（エステ魂の日記は出勤ページを読みに行かない）。★ 網羅は外さない
+      //   ★★★ 第130便でもこの見張りが働いた。★ intent を足した時点でコンパイルが止まった。
+      return stop(audits, 'エステ魂の写メ日記は出勤ページを使わない（ここへは来ないはず）');
     case 'work_auto':
       // ★★★ 自動反映（第48便）。組み立てから送信までを1回のフローで閉じる。
       //   ★ 指紋は突き合わせない（人が見た内容が無い・§53）。担保は厳しい方の blockers。

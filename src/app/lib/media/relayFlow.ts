@@ -378,6 +378,8 @@ export async function advanceRelayFlow(params: {
         || outcome.kind === 'esulove_roster'
         // ★ エステ魂（第109便）: 名簿が読めた＝ログインは成功している。計画で止まっても認証の話ではない
         || outcome.kind === 'esutama_roster'
+        // ★ エステ魂の魂セラピスト一覧が読めた（第130便）。★ 同じ理由で認証の話ではない
+        || outcome.kind === 'esutama_therapists'
         || outcome.kind === 'diary_list' || outcome.kind === 'diary_detail'
         || photoStoppedButLoggedIn
       ? 'done'
