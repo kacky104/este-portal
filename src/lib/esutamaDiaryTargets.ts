@@ -41,23 +41,43 @@ export type DiaryTargetInput = {
  *
  * ★ 順番に意味がある:
  *   ① already_sent を先に見る … 送ってあるなら、他の理由を並べても店舗様は何もしなくてよい
- *   ② 了承 → 利用状況（canSendDiary が持っている・第118便）
- *   ③ 名簿の結び … ★ 最後。★ 了承も利用も済んでいる人だけに「結んでください」と言う
- *     ★ 了承していない人に「結んでください」と出すと、要らない作業を増やす
+ *   ② 了承            … こちらの記録の話
+ *   ③ 名簿の結び      … ★★★ 第133便で ④ より前に移した（下の【なぜ入れ替えたか】）
+ *   ④ 利用状況        … 相手の状態
+ *
+ * ★★★ 【なぜ入れ替えたか】（2026-09-04・第133便で配線して分かった）
+ *   第132便は「了承も利用も済んでいる人だけに『結んでください』と言う」つもりで
+ *   名簿の結びを最後に置いた。★ ところが **これは順番として成り立たない。**
+ *     ・利用状況（started / not_started）は、魂セラピスト一覧に
+ *       その人の cast_id があるかどうかで決まる。
+ *     ・つまり **cast_id が無いと、利用状況はそもそも決められない。**
+ *   ★ 名前で突き合わせれば分かる——とはしない。★ 2026-09-04 に
+ *     「さら」を探して【さくら】が返った。★ 人違いは実際に起きる。
+ *   → cast_id が無い人に無理やり利用状況を当てると、
+ *     「まだ始めていません」という **嘘の理由** が画面に出る。
+ *   ★★ だから先に「結びがありません」と言う。★ 店舗様の次の行動もそちらが正しい。
  */
 export function decideDiaryTarget(input: DiaryTargetInput): DiaryTargetVerdict {
   // ★★ もう送ってあるのは【正常】。★ 赤く出さない・故障として数えない
   if (input.alreadySent) {
     return { ok: false, reason: 'already_sent', message: 'この日記はもうお送りしています' };
   }
-  const v = canSendDiary({ consent: input.consent, account: input.account });
-  if (!v.ok) return { ok: false, reason: v.reason, message: v.message };
+  // ★ 了承（こちらの記録）。★ 結びが無くても、了承が無いことは言える
+  if (input.consent !== 'agreed') {
+    const v = canSendDiary({ consent: input.consent, account: input.account });
+    // ★ ここは必ず ok:false（consent !== 'agreed' なので canSendDiary は not_agreed を返す）
+    if (!v.ok) return { ok: false, reason: v.reason, message: v.message };
+  }
 
-  // ★★★ 名簿が結びついていないと【誰として送るか】が決まらない。★ 番号が無いまま代理ログインしない
+  // ★★★ 名簿が結びついていないと【誰として送るか】も【利用状況】も決まらない
   const id = String(input.castId ?? '').trim();
   if (!/^\d{1,12}$/.test(id)) {
     return { ok: false, reason: 'no_cast_id', message: 'エステ魂の登録と結びついていないため送れません' };
   }
+
+  // ★ 相手の状態（started / not_started / unknown）
+  const v = canSendDiary({ consent: input.consent, account: input.account });
+  if (!v.ok) return { ok: false, reason: v.reason, message: v.message };
   return { ok: true };
 }
 

@@ -265,6 +265,12 @@ export type RelayFlowContext = {
   photoSrc?: string;
 
   // ── ここから下は intent='diary_push' のときだけ入る（第130便・エステ魂）──
+  /**
+   * ★★★ 送る相手（フクエス側の therapist_id・第133便）。
+   *   ★ 運営の口が【1人だけ】指定する。★ 一覧を読んだあと、DB 側がこの人だけを選ぶ。
+   *   ★★ 入っていなければ何も送らない（＝ここが実弾の安全装置）。
+   */
+  esutamaDiaryTherapistId?: number;
   /** 送る相手（エステ魂の cast_id）。★ 数字だけ */
   esutamaDiaryCastId?: string;
   /** ★★★ 送る相手の名前。★ 代理ログイン後に画面と突き合わせる（別人に入っていないか） */
@@ -284,6 +290,13 @@ export type RelayFlowContext = {
   esutamaDiaryStopNote?: string;
   /** ★ 投稿の POST が通ったか。★ 「載ったか」は読み返しで確かめる（ここでは決めつけない） */
   esutamaDiaryPosted?: boolean;
+  /**
+   * ★★★ 送った印（diary_post_sent）を【立てたか】（第133便）。
+   *   ★ 印は送る【前】に立てる（消せない相手に二度送らないため）。
+   *   ★★ だから **送れずに終わったら消す**。★ この旗が無いと、消してよいか判断できない。
+   *   ★ 「指定された diaryId が文脈にある」だけでは足りない（まだ立てていないかもしれない）。
+   */
+  esutamaDiaryMarked?: boolean;
 
   // ── ここから下は エステ魂（provider='esutama'）のときだけ入る（第109便）──
   /** ログイン画面で拾った csrf。★ ログイン POST を組むまでの間だけ持つ */

@@ -55,6 +55,13 @@ import { esutamaWindowDates, esutamaTodayISO, esutamaApprovedFromDiff } from '@/
 import type { EsutamaRosterRow } from '@/lib/esutamaParse';
 import type { EsutamaPlanSummary } from '@/lib/relayFlow';
 import { planEsuloveWork } from '@/lib/esulovePlan';
+// ★ エステ魂の写メ日記（第133便）。★ 判断は純粋関数側。ここは DB から材料を集めて渡すだけ
+import {
+  planEsutamaDiaries, tallyDiaryPlan, diaryPlanSummary, pickOneToSend,
+  type DiaryCandidate,
+} from '@/lib/esutamaDiaryPlan';
+import { toConsentState } from '@/lib/therapistMediaConsent';
+import { buildEsutamaDiaryTokenStep } from '@/lib/esutamaDiaryFlow';
 import type { EsuloveTherapistRow } from '@/lib/esuloveTherapistParse';
 
 /**
@@ -126,6 +133,18 @@ export async function startRelayFlow(params: {
     file: { bucket: string; path: string; filename: string; contentType: string; width: number; height: number };
     mainRect?: { x: number; y: number; w: number; h: number };
     thumbRect?: { x: number; y: number; w: number; h: number };
+  };
+  /**
+   * intent='diary_push' のときだけ（第133便）。★ **送る相手は1人だけ。**
+   * ★★ ここで受け取っていないと、呼び出し側が渡しても静かに落ちる（diarySince と同じ作法）。
+   * ★★★ therapistId が入っていなければ、一覧を読んだあと**何も送らずに終わる**。
+   *   ★ これが実弾の安全装置。★ 「全員に送る」という状態を作らない。
+   */
+  diary?: {
+    /** フクエス側の therapist_id */
+    therapistId: number;
+    /** 送る日記（diary_posts.id・uuid）。★ 省略すると【未送信のうち一番新しい1件】 */
+    diaryId?: string;
   };
   /** 'shop:<auth_user_id>' など。監査ログに残す */
   actor?: string;
@@ -201,7 +220,18 @@ export async function startRelayFlow(params: {
           photoStage: 'upload' as const,
         }
       : {}),
+    // ★ エステ魂の写メ日記（第133便）。★ 渡されたときだけ入れる
+    ...(params.diary
+      ? {
+          esutamaDiaryTherapistId: params.diary.therapistId,
+          ...(params.diary.diaryId ? { esutamaDiaryPostId: params.diary.diaryId } : {}),
+        }
+      : {}),
   };
+  // ★★★ 実弾なのに相手が指定されていないのは、呼び出し側の間違い。★ 黙って始めない
+  if (params.intent === 'diary_push' && !params.diary) {
+    throw new Error('diary_push には diary（therapistId）が要る');
+  }
   if (params.intent === 'photo_push' && !params.photo) {
     throw new Error('photo_push には photo（girlId / slot / file）が要る');
   }
@@ -344,10 +374,30 @@ export async function advanceRelayFlow(params: {
     }
   }
 
+  // ★★★ 魂セラピスト一覧を読めた（第133便）。★ ここで初めて【誰のどの日記を送るか】が決まる。
+  //   ★ 判断は純粋関数（esutamaDiaryPlan）。ここは DB から材料を集めて渡すだけ。
+  //   ★★ diary_dryrun はここで終わり＝**代理ログインもしない・1文字も書かない。**
+  if (outcome.kind === 'esutama_therapists') {
+    const r = await planEsutamaDiary(params, outcome.rows, outcome.ctk, outcome.context);
+    audits.push(...r.audits);
+    note = outcome.note + ' → ' + r.note;
+    next = r.next ?? null;
+  }
+
   // ★★★ エステ魂の流れが終わった（第110便）。店舗の画面「出勤を送る」に出す計画を残す。
   //   ★ 試し打ちなら「これから送る内容」、送ったあとなら「送らずに残った内容」。駅ちかの media_work_plans と同じ表。
   if (outcome.kind === 'done' && outcome.esutamaPlan) {
     const r = await saveEsutamaPlan(params, outcome.esutamaPlan, context);
+    note = note + ' → ' + r.note;
+  }
+
+  // ★★★ 送れずに終わったら、送った印を消す（第133便）。
+  //   ★ 印は送る【前】に立ててある（消せない相手に二度送らないため）。
+  //   ★★ 消さないと、その日記は【二度と送れない】ままになる。★ 静かな取りこぼしを作らない。
+  //   ★ 判定は「印を立てた」かつ「投稿の POST が通っていない」。★ 文脈に diaryId があるだけでは消さない。
+  if (!next && context.esutamaDiaryMarked === true && context.esutamaDiaryPosted !== true) {
+    const r = await clearDiaryMark(params, context);
+    audits.push(...r.audits);
     note = note + ' → ' + r.note;
   }
 
@@ -1530,5 +1580,326 @@ export function diaryBackfillContext(input: {
   return {
     diarySince: input.since,
     diaryPagesLeft: Number.isFinite(n) && n > 0 ? Math.min(Math.floor(n), DIARY_MAX_PAGES) : DIARY_MAX_PAGES,
+  };
+}
+
+// ────────────────────── エステ魂の写メ日記（第133便・2026-09-04） ──────────────────────
+
+/**
+ * ★ 何件ぶんの日記を見に行くか。★ 店ぶんまとめて新しい順に読む。
+ *   ★ ここを無制限にすると、日記の多い店で毎周ずっしり読むことになる。
+ */
+const DIARY_SCAN_LIMIT = 200;
+
+/**
+ * ★★★ 自動で選ぶときの上限（日）。★ 古い記事を今日の日付で出さない。
+ *   ★ 連携を始めた日に、何年も前の日記が本人のアカウントから出たら事故。
+ *   ★★ 運営の口が diaryId を名指ししたときは【この上限を通さない】（人が選んだものなので）。
+ */
+const DIARY_MAX_AGE_DAYS = 14;
+
+/**
+ * ★★★ 誰のどの日記をエステ魂へ送るかを決める（第133便）。
+ *
+ * ★ 判断そのものは src/lib/esutamaDiaryPlan.ts（純粋関数）が持つ。
+ *   ここは DB から材料を集めて渡し、決まったことを実行するだけ。
+ *
+ * ★★★ diary_dryrun … ここで終わり。**代理ログインもしない・1文字も書かない。**
+ * ★★★ diary_push   … **1人だけ。** ★ 送る前に印を立て、token 発行の段を積む。
+ */
+async function planEsutamaDiary(
+  params: { salonId: number; provider: string; slot: number },
+  mediaRows: Array<{ castId: string; name: string; state: string }>,
+  ctk: string | null,
+  ctx: RelayFlowContext,
+): Promise<{ audits: FlowAudit[]; note: string; next?: FlowNextRequest }> {
+  const flowId = ctx.flowId;
+  const supabase = createServiceClient();
+  const push = ctx.intent === 'diary_push';
+
+  // ★ 読めなかったことを「0件」と見せない（引き継ぎメモ 3-5）。★ 必ず理由を返す
+  const fail = (reason: string, note: string): { audits: FlowAudit[]; note: string } => ({
+    audits: [{
+      event: 'plan_diary', outcome: 'failed',
+      summary: 'お送りする写メ日記を確認できませんでした（' + note + '）',
+      detail: { reason, flowId },
+    }],
+    note,
+  });
+
+  // ① 在籍
+  const { data: therapists, error: thErr } = await supabase
+    .from('therapists')
+    .select('id, name, import_cast_id')
+    .eq('salon_id', params.salonId)
+    .eq('is_active', true)
+    .order('id', { ascending: true });
+  if (thErr) return fail('therapists_read_failed', 'セラピストを読めなかった: ' + thErr.message);
+  const trows = (therapists ?? []) as Array<{ id: number; name: string | null; import_cast_id?: string | null }>;
+  const ids = trows.map((t) => t.id);
+
+  // ② 名簿の結び（therapist_media_ids）。★ 名前では突き合わせない
+  const { maps, error: castErr } = await loadCastIds(supabase, {
+    therapists: trows, provider: params.provider, slot: params.slot,
+  });
+  if (castErr) return fail('cast_ids_read_failed', '名簿の結びを読めなかった: ' + castErr);
+
+  // ③ 了承（★ 読めなかったら「全員未確認」にしない。止める）
+  const consentOf = new Map<number, string>();
+  if (ids.length > 0) {
+    const { data: cs, error: csErr } = await supabase
+      .from('therapist_media_consent')
+      .select('therapist_id, state')
+      .eq('provider', params.provider)
+      .eq('kind', 'diary')
+      .in('therapist_id', ids);
+    if (csErr) return fail('consent_read_failed', '了承の記録を読めなかった: ' + csErr.message);
+    for (const r of (cs ?? []) as Array<{ therapist_id: number; state: string | null }>) {
+      consentOf.set(Number(r.therapist_id), String(r.state ?? 'unknown'));
+    }
+  }
+
+  // ④ 日記（新しい順）
+  type DiaryRow = { id: string; therapist_id: number; created_at: string | null };
+  let diaries: DiaryRow[] = [];
+  if (ids.length > 0) {
+    const { data: dp, error: dErr } = await supabase
+      .from('diary_posts')
+      .select('id, therapist_id, created_at')
+      .in('therapist_id', ids)
+      .order('created_at', { ascending: false })
+      .limit(DIARY_SCAN_LIMIT);
+    if (dErr) return fail('diary_read_failed', '写メ日記を読めなかった: ' + dErr.message);
+    diaries = ((dp ?? []) as Array<Record<string, unknown>>).map((r) => ({
+      id: String(r['id']), therapist_id: Number(r['therapist_id']),
+      created_at: (r['created_at'] as string | null) ?? null,
+    }));
+  }
+
+  // ⑤ 送った印
+  const sentSet = new Set<string>();
+  if (diaries.length > 0) {
+    const { data: sent, error: sErr } = await supabase
+      .from('diary_post_sent')
+      .select('diary_id')
+      .eq('provider', params.provider)
+      .eq('slot', params.slot)
+      .in('diary_id', diaries.map((d) => d.id));
+    // ★★★ 印を読めないまま送ると【二度送る】。★ 読めなければ必ず止まる
+    if (sErr) return fail('sent_read_failed', '送った印を読めなかった: ' + sErr.message);
+    for (const r of (sent ?? []) as Array<{ diary_id: string }>) sentSet.add(String(r.diary_id));
+  }
+
+  // ⑥ 材料をまとめる
+  const cutoff = Date.now() - DIARY_MAX_AGE_DAYS * 24 * 60 * 60 * 1000;
+  const named = String(ctx.esutamaDiaryPostId ?? '').trim();
+  const candidates: DiaryCandidate[] = trows.map((t) => {
+    const mine = diaries.filter((d) => d.therapist_id === t.id);
+    const unsent = mine
+      .filter((d) => !sentSet.has(d.id))
+      // ★ 名指しされた1件は上限を通さない（人が選んだもの）。★ それ以外は新しいものだけ
+      .filter((d) => d.id === named || (d.created_at ? Date.parse(d.created_at) >= cutoff : false))
+      .map((d) => d.id);
+    // ★★ 名指しがあれば必ず先頭へ（★ 「一番新しい」より人の指定を優先する）
+    const ordered = named && unsent.includes(named) ? [named, ...unsent.filter((x) => x !== named)] : unsent;
+    return {
+      therapistId: t.id,
+      name: String(t.name ?? ''),
+      consent: toConsentState(consentOf.get(t.id)),
+      castId: maps.castIdOf.get(t.id) ?? null,
+      unsentDiaryIds: ordered,
+      hasAnyDiary: mine.length > 0,
+    };
+  });
+
+  const rows = planEsutamaDiaries({
+    candidates,
+    activeCastIds: mediaRows.map((r) => r.castId),
+    listRead: true,
+  });
+  const tally = tallyDiaryPlan(rows);
+  const summary = diaryPlanSummary(tally);
+
+  const planAudit: FlowAudit = {
+    event: 'plan_diary',
+    outcome: 'ok',
+    summary,
+    detail: {
+      people: tally.母数, sendable: tally.送れる, sent: tally.送信済み, noDiary: tally.日記がまだ,
+      notAgreed: tally.了承なし, notStarted: tally.未開始, accountUnknown: tally.利用状況が不明,
+      noCastId: tally.名簿未結び, active: mediaRows.length, hasCtk: !!ctk, flowId,
+    },
+  };
+
+  // ★★★ 下見はここで終わり。★ エステ魂へ何も飛ばない
+  if (!push) return { audits: [planAudit], note: summary + '（★ 下見なので何も送っていません）' };
+
+  // ────── ここから実弾（1人だけ）──────
+
+  const wantId = Number(ctx.esutamaDiaryTherapistId ?? 0);
+  // ★★★ 相手が指定されていなければ何もしない。★ 「全員に送る」を作らない
+  if (!Number.isFinite(wantId) || wantId <= 0) {
+    return {
+      audits: [planAudit, {
+        event: 'push_diary', outcome: 'stopped',
+        summary: 'お送りする方が指定されていないため、1通も送りませんでした',
+        detail: { reason: 'no_target', flowId },
+      }],
+      note: summary + ' → ★ 相手が指定されていないので送らない',
+    };
+  }
+  const picked = pickOneToSend(rows, wantId);
+  if (!picked.ok) {
+    return {
+      audits: [planAudit, {
+        event: 'push_diary', outcome: 'stopped',
+        summary: picked.message, detail: { reason: 'not_sendable', therapistId: wantId, flowId },
+      }],
+      note: summary + ' → 送らない: ' + picked.message,
+    };
+  }
+  // ★★ ctk が無いと token 発行 POST を組めない。★ 空で投げない
+  if (!ctk) {
+    return {
+      audits: [planAudit, {
+        event: 'push_diary', outcome: 'stopped',
+        summary: '一覧ページの ctk が見つからなかったため送りませんでした',
+        detail: { reason: 'no_ctk', therapistId: wantId, flowId },
+      }],
+      note: summary + ' → ctk が無いので送らない',
+    };
+  }
+
+  const row = picked.row;
+  const diaryId = String(row.diaryId);
+  const castId = String(row.castId ?? '');
+
+  // ⑦ 送る中身を読む
+  const { data: dp, error: dpErr } = await supabase
+    .from('diary_posts')
+    .select('id, therapist_id, title, content, images')
+    .eq('id', diaryId)
+    .maybeSingle();
+  if (dpErr || !dp) {
+    return {
+      audits: [planAudit, {
+        event: 'push_diary', outcome: 'failed',
+        summary: '送る写メ日記を読めませんでした', detail: { reason: 'draft_read_failed', therapistId: wantId, flowId },
+      }],
+      note: summary + ' → 日記を読めなかった',
+    };
+  }
+  // ★★★ 取り違え防止。★ 指定された日記が【その人のもの】であることを必ず確かめる
+  if (Number(dp.therapist_id) !== row.therapistId) {
+    return {
+      audits: [planAudit, {
+        event: 'push_diary', outcome: 'stopped',
+        summary: '指定された写メ日記が、この方のものではないため送りませんでした',
+        detail: { reason: 'therapist_mismatch', therapistId: wantId, flowId },
+      }],
+      note: summary + ' → 日記の持ち主が違う',
+    };
+  }
+  const title = String((dp.title as string | null) ?? '').trim();
+  const content = String((dp.content as string | null) ?? '').trim();
+  const images = ((dp.images as string[] | null) ?? []).filter(Boolean).length;
+  // ★ 空の記事を本人のアカウントから出さない（★ 純粋関数側でも見ているが、ここで先に止める）
+  if (content.length === 0) {
+    return {
+      audits: [planAudit, {
+        event: 'push_diary', outcome: 'stopped',
+        summary: '本文が空のため送りませんでした', detail: { reason: 'empty_content', therapistId: wantId, flowId },
+      }],
+      note: summary + ' → 本文が空なので送らない',
+    };
+  }
+
+  // ⑧ ★★★ 送る【前】に印を立てる。★ 主キーが二度送りを弾く（第132便）
+  const { error: insErr } = await supabase.from('diary_post_sent').insert({
+    diary_id: diaryId,
+    provider: params.provider,
+    slot: params.slot,
+    therapist_id: row.therapistId,
+    external_cast_id: castId,
+  });
+  if (insErr) {
+    // ★ 23505 = 主キー衝突 ＝ すでに送ってある。★ 故障ではない
+    const dup = String((insErr as { code?: string }).code ?? '') === '23505';
+    return {
+      audits: [planAudit, {
+        event: dup ? 'push_diary' : 'diary_mark_set',
+        outcome: 'stopped',
+        summary: dup
+          ? 'この写メ日記はすでにお送りしているため、送りませんでした'
+          : '二度送りを防ぐ印を付けられなかったため、送りませんでした',
+        detail: { reason: dup ? 'already_sent' : 'mark_failed', therapistId: wantId, flowId },
+      }],
+      note: summary + (dup ? ' → もう送ってある' : ' → 印を立てられなかった: ' + insErr.message),
+    };
+  }
+
+  const markAudit: FlowAudit = {
+    event: 'diary_mark_set', outcome: 'ok',
+    summary: row.name + 'さんの写メ日記に、二度送りを防ぐ印を付けました',
+    detail: { therapistId: row.therapistId, castId, flowId },
+  };
+
+  // ⑨ token 発行の段を積む。★ ここから相手に状態を作らせる
+  const nextCtx: RelayFlowContext = {
+    ...ctx,
+    esutamaDiaryCastId: castId,
+    esutamaDiaryCastName: row.name,
+    esutamaDiaryPostId: diaryId,
+    esutamaDiaryDraft: { title, content },
+    esutamaDiaryMarked: true,
+  };
+  const step = buildEsutamaDiaryTokenStep(nextCtx, castId, ctk);
+
+  return {
+    audits: [planAudit, markAudit],
+    note: summary + ' → ' + row.name + 'さんへ1件だけ送ります'
+      // ★★ 写真は運ばない。★ 黙って落とさず、必ず書く（第129便で photo_data は空と決めた）
+      + (images > 0 ? '（★ 写真' + images + '枚はエステ魂へは送りません）' : ''),
+    next: { purpose: step.purpose, method: step.method, url: step.url, headers: step.headers, body: step.body, context: nextCtx },
+  };
+}
+
+/**
+ * ★★★ 送れずに終わったので、送った印を消す（第133便）。
+ *
+ * ★ 印は送る【前】に立ててある（消せない相手に二度送らないため・第132便）。
+ * ★★ 消さないと、その日記は **二度と送れない**。★ 静かな取りこぼしを作らない。
+ * ★★★ 消せなかったことも黙らせない。★ 記録に残して、人が気づけるようにする。
+ */
+async function clearDiaryMark(
+  params: { salonId: number; provider: string; slot: number },
+  ctx: RelayFlowContext,
+): Promise<{ audits: FlowAudit[]; note: string }> {
+  const diaryId = String(ctx.esutamaDiaryPostId ?? '').trim();
+  if (!diaryId) return { audits: [], note: '' };
+  const supabase = createServiceClient();
+  const { error } = await supabase
+    .from('diary_post_sent')
+    .delete()
+    .eq('diary_id', diaryId)
+    .eq('provider', params.provider)
+    .eq('slot', params.slot);
+  if (error) {
+    return {
+      audits: [{
+        event: 'diary_mark_cleared', outcome: 'failed',
+        summary: '送れなかったのに印を外せませんでした。この写メ日記は送信済みの扱いのままです',
+        detail: { reason: 'delete_failed', flowId: ctx.flowId },
+      }],
+      note: '★ 印を消せなかった: ' + error.message,
+    };
+  }
+  return {
+    audits: [{
+      event: 'diary_mark_cleared', outcome: 'ok',
+      summary: '送れなかったため印を外しました（あとでもう一度お送りできます）',
+      detail: { flowId: ctx.flowId },
+    }],
+    note: '印を消した（もう一度送れます）',
   };
 }

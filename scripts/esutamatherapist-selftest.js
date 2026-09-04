@@ -87,5 +87,17 @@ eq('★★★ 別の人なら false（さくら ≠ さら）',
 eq('★★ 印が無ければ false', T.isProxyLoggedInAs('<div>ログイン</div>', 'さら'), false);
 eq('★ 名前が空なら false', T.isProxyLoggedInAs('<div>【さら】さんにログイン中です</div>', ''), false);
 
+console.log('\n── 5. ★★ 投稿の応答から【合図】だけ取り出す（第133便）──');
+// ★★★ ここでは成否を決めない。★ 相手が成功時に何を返すかを、まだ実物で見ていない
+const postOkBody = '<html><body>投稿しました</body></html>';
+const postBackBody = '<form><input type="hidden" name="ctk" value="abc"><span>本文は必須です</span></form>';
+eq('★ 素直な応答はフォームが無い', T.esutamaDiaryPostSignals(postOkBody).formStillThere, false);
+eq('★★ 差し戻しはフォームが戻ってくる', T.esutamaDiaryPostSignals(postBackBody).formStillThere, true);
+eq('★★ 差し戻しらしい語を拾う', T.esutamaDiaryPostSignals(postBackBody).hasErrorWord, true);
+eq('★ 素直な応答には差し戻しの語が無い', T.esutamaDiaryPostSignals(postOkBody).hasErrorWord, false);
+eq('★ 長さも合図（空も残す）', T.esutamaDiaryPostSignals('').length, 0);
+// ★ null / undefined でも落ちない（★ 応答が無いことも合図）
+eq('★ 空でも落ちない', T.esutamaDiaryPostSignals(undefined).formStillThere, false);
+
 console.log(fail === 0 ? '\n★ すべて通りました' : '\n' + fail + ' 件 通りませんでした');
 process.exit(fail === 0 ? 0 : 1);

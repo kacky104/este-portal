@@ -41,6 +41,10 @@ export const MEDIA_AUDIT_EVENTS = [
   'diary_post_clamped',  // ★ 上限を超えたので切った（黙って切らない）
   'push_diary',          // ★★★ 写メ日記を送った。★ 相手を書き換える
   'diary_proxy_end',     // ★★★ 代理ログインを終えた。★ 本人のセッションを残さない
+  // ── 送った印（第133便・2026-09-04）★ 送る【前】に立て、送れなかったら倒す ──
+  'plan_diary',          // ★ 誰のどの日記を送るかを組み立てた（★ dryrun はここで終わり）
+  'diary_mark_set',      // ★★★ 送る前に印を立てた（★ 主キーで二度送りを弾く）
+  'diary_mark_cleared',  // ★★ 送れなかったので印を消した（★ 消し忘れると二度と送れない）
   'selftest',            // 認証情報を使わない疎通確認
 ] as const;
 
@@ -297,6 +301,61 @@ export function defaultAuditSummary(input: {
       break;
     case 'relay_rejected':
       s = `${t}への送信を、宛先の検査で止めました`;
+      break;
+    // ── エステ魂の写メ日記（第130便・文言は第133便）★ 店舗様が読む場所 ──
+    case 'read_diary_targets':
+      s = input.outcome === 'ok'
+        ? `${t}で、代理でお送りできる方を確認しました` + (people !== null ? `（${people}名）` : '')
+        : `${t}で、代理でお送りできる方を確認できませんでした`;
+      break;
+    case 'diary_proxy_token':
+      s = input.outcome === 'ok'
+        ? `${t}で、ご本人としてお送りするための一時的な入場券を発行しました`
+        : `${t}が、一時的な入場券の発行を断りました`;
+      break;
+    case 'diary_proxy_login': {
+      const nm = typeof d?.['name'] === 'string' ? String(d['name']) : '';
+      s = input.outcome === 'ok'
+        ? `${t}で、${nm ? nm + 'さん' : 'ご本人'}のページに入りました`
+        // ★ 人違いはここで止めている。★ 「入れなかった」で終わらせず、理由が読める言い方にする
+        : `${t}で、${nm ? nm + 'さん' : 'ご本人'}のページに入れなかったため、何も書かずに戻りました`;
+      break;
+    }
+    case 'diary_post_page':
+      s = input.outcome === 'ok'
+        ? `${t}の投稿ページを開きました`
+        : `${t}の投稿ページを開けませんでした`;
+      break;
+    case 'diary_post_clamped':
+      s = `${t}の字数制限を超えたため、末尾を切って送りました`;
+      break;
+    case 'push_diary': {
+      const nm = typeof d?.['name'] === 'string' ? String(d['name']) : '';
+      // ★★ 「送りました」と「載りました」を混ぜない。★ 載ったかはこちらでは決められない
+      s = input.outcome === 'ok'
+        ? `${t}へ${nm ? nm + 'さんの' : ''}写メ日記を送りました。掲載されたかは媒体側でご確認ください`
+        : `${t}へ${nm ? nm + 'さんの' : ''}写メ日記を送れませんでした`;
+      break;
+    }
+    case 'diary_proxy_end':
+      s = input.outcome === 'ok'
+        ? `${t}のご本人ページから出ました`
+        : `${t}のご本人ページから出られませんでした。媒体の管理画面で「代理ログイン終了」をお願いします`;
+      break;
+    case 'plan_diary':
+      // ★ 0名でも「なぜ0なのか」が summary に入っている（呼び出し側が入れる）
+      s = input.outcome === 'ok'
+        ? `${t}へお送りする写メ日記を確認しました`
+        : `${t}へお送りする写メ日記を確認できませんでした`;
+      break;
+    case 'diary_mark_set':
+      // ★ 店舗様には「二度送らないようにした」と読める言い方にする
+      s = `${t}へ送る前に、二度送りを防ぐ印を付けました`;
+      break;
+    case 'diary_mark_cleared':
+      s = input.outcome === 'ok'
+        ? `${t}へ送れなかったため、印を外しました（あとでもう一度お送りできます）`
+        : `${t}へ送れなかったのに印を外せませんでした。この日記は送信済みの扱いのままです`;
       break;
     case 'selftest':
       s = `${t}への接続確認を行いました（ログイン情報は使っていません）`;

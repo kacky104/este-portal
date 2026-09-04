@@ -49,6 +49,18 @@ eq('★★ 未確認と辞退で文面が違う',
 eq('★ 辞退の文面はご本人の意思を尊重する',
    r({ consent: 'declined' }).message, 'ご本人が希望されていないため送りません');
 
+// ★★★ 第133便で順番を入れ替えた（名簿の結び → 利用状況）。
+//   ★ 利用状況は「魂セラピスト一覧に cast_id があるか」で決まる。
+//   ★★ つまり **結びが無いと利用状況はそもそも決められない。**
+//   ★ ここを逆にすると「まだ始めていません」という【嘘の理由】が画面に出る。
+eq('★★★ 結びが無いときは利用状況より先に「結びがありません」',
+   r({ account: 'not_started', castId: null }).reason, 'no_cast_id');
+eq('★★★ 利用状況が不明でも、結びが無ければそちらを先に言う',
+   r({ account: 'unknown', castId: null }).reason, 'no_cast_id');
+// ★ ただし了承はさらに前。★ 了承していない人に「結んでください」と言わない
+eq('★★ 了承が無ければ、結びが無くても了承の話が先',
+   r({ consent: 'declined', account: 'unknown', castId: null }).reason, 'not_agreed');
+
 console.log('\n── 4. ★★ 数える ──');
 const rows = [
   { ...OK },                                   // 送れる

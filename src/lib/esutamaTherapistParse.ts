@@ -126,3 +126,32 @@ export function isProxyLoggedInAs(html: string, name: string): boolean {
   if (!n) return false;
   return src.includes('【' + n + '】さんにログイン中です');
 }
+
+/**
+ * ★★★ 投稿 POST の応答から【合図】だけ取り出す（第133便・2026-09-04）。
+ *
+ * ★★ ここでは **成否を決めない。** ★ 相手が成功時に何を返すかを、まだ実物で見ていない。
+ *   ★ 推測で「送れました」と書かない（第46便の作法）。
+ * ★ 何のためにあるか: **1通目を撃ったときに、何が起きたかを人が読めるようにする。**
+ *   ★ 監査ログにこの3つが残っていれば、次の便で判定を書ける。
+ *   ★★ 合図が無いまま status だけ残すと、「200なのに載っていない」の原因を追えない。
+ */
+export type EsutamaDiaryPostSignals = {
+  /** 投稿フォーム（name="ctk"）がまだ出ている＝弾かれて書き直しを求められた可能性 */
+  formStillThere: boolean;
+  /** 「エラー」「必須」「してください」等の差し戻しらしい語があるか */
+  hasErrorWord: boolean;
+  /** 応答の長さ（★ 空・極端に短いのも合図） */
+  length: number;
+};
+
+const ERROR_WORDS = ['エラー', '必須', '入力してください', '選択してください', '失敗'];
+
+export function esutamaDiaryPostSignals(body: string): EsutamaDiaryPostSignals {
+  const src = String(body ?? '');
+  return {
+    formStillThere: /name="ctk"/i.test(src),
+    hasErrorWord: ERROR_WORDS.some((w) => src.includes(w)),
+    length: src.length,
+  };
+}

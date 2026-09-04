@@ -24,6 +24,7 @@ import type { FlowAudit, FlowOutcome, RelayFlowContext } from './relayFlow';
 import { mergeCookies } from './relayJob';
 import {
   parseEsutamaProxyTherapists, parseEsutamaCtk, parseEsutamaShopToken, isProxyLoggedInAs,
+  esutamaDiaryPostSignals,
 } from './esutamaTherapistParse';
 import { buildEsutamaDiaryPost } from './esutamaDiaryPost';
 import {
@@ -198,6 +199,8 @@ export function afterEsutamaDiaryPage(input: Input, ctx: RelayFlowContext): Flow
 export function afterEsutamaDiaryPost(input: Input, ctx: RelayFlowContext): FlowOutcome {
   const cookie = mergeCookies(ctx.cookie, input.headers['set-cookie'] as string | string[] | undefined);
   const posted = input.status >= 200 && input.status < 400;
+  // ★★★ 合図を残す（第133便）。★ ここで成否は決めない。★ 1通目を人が読んで確かめるための材料
+  const sig = esutamaDiaryPostSignals(input.body);
   const audits: FlowAudit[] = [{
     event: 'push_diary',
     outcome: posted ? 'ok' : 'failed',
@@ -206,6 +209,10 @@ export function afterEsutamaDiaryPost(input: Input, ctx: RelayFlowContext): Flow
       castId: ctx.esutamaDiaryCastId ?? null,
       name: ctx.esutamaDiaryCastName ?? null,
       diaryPostId: ctx.esutamaDiaryPostId ?? null,
+      // ★ 「200なのに載っていない」を追えるようにする
+      formStillThere: sig.formStillThere,
+      hasErrorWord: sig.hasErrorWord,
+      bodyLength: sig.length,
     },
   }];
   const next = { ...ctx, cookie, esutamaDiaryPosted: posted };
@@ -216,7 +223,10 @@ export function afterEsutamaDiaryPost(input: Input, ctx: RelayFlowContext): Flow
       return { purpose: 'esutama_diary_end' as const, method: r.method, url: r.url, headers: r.headers, body: '', context: next }; })(),
     audits,
     note: posted
-      ? '送りました（★ 載ったかは読み返しで確かめます）。代理ログインを終えます'
+      ? '送りました（★ 載ったかは読み返しで確かめます'
+        + (sig.formStillThere ? '。★★ 投稿フォームが戻ってきています＝弾かれた可能性' : '')
+        + (sig.hasErrorWord ? '。★★ 応答に差し戻しらしい語があります' : '')
+        + '）。代理ログインを終えます'
       : '送れませんでした（' + input.status + '）。代理ログインを終えます',
   };
 }
