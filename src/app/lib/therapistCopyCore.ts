@@ -2,6 +2,7 @@ import type { createServiceClient } from '@/app/lib/supabase/service';
 import { sanitizeApiErrorMessage } from '@/lib/apiErrorMessage';
 import {
   SYSTEM_PROMPT,
+  buildSystemPrompt,
   buildUserPrompt,
   parseCopyResponse,
   isLongEnough,
@@ -193,7 +194,10 @@ export async function generateCopyForTherapist(
     }
     blocks.push({ type: 'text', text: buildUserPrompt(input, { hasImage, retryReason }) });
 
-    const r = await callClaude(apiKey, blocks);
+    // ★★★ お手本は【この人に決まった3本】だけ渡す（第126便）。
+    //   ★ seed に therapistId を使う＝同じ人には毎回同じお手本。★ 点検で固定できる。
+    //   ★★ 全員に同じ6本を見せると、AIが平均を取って人物像が揃う（2026-09-04 実測）。
+    const r = await callClaude(apiKey, blocks, buildSystemPrompt(therapistId));
     // 1回目で通信・認証エラーなら諦める。2回目以降なら手前の結果を活かす。
     if ('error' in r) {
       if (last) break;

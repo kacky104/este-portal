@@ -208,5 +208,72 @@ eq('★★ WATCHED_WORDS をそのまま渡せる',
    T.countWatchedWords(B3, C.WATCHED_WORDS).出た.map((x) => [x.phrase, x.count]),
    [['バランスの', 3]]);
 
+console.log('\n── 10. ★★★ 第126便: お手本を1人ごとに選ぶ ──');
+// ★★★ お手本を全部渡すと AI が平均を取り、人物像が揃う（2026-09-04・101人で実測）
+eq('★ 1回に渡すのは3本', C.SAMPLES_PER_CALL, 3);
+// ★ 本数は増える。★ 固定値で縛らない（第126便で 6 → 10 になった）
+eq('★ お手本は6本以上ある', C.SAMPLE_LIST.length >= 6, true);
+// ★★★ persona は【人物像の方向】。★ 全部違うこと（★ 増やすときも1本1本に付ける）
+eq('★★★ お手本の persona は全部ちがう',
+   C.SAMPLE_LIST.length, new Set(C.SAMPLE_LIST.map((x) => x.persona)).size);
+eq('★ persona が空のお手本は無い',
+   C.SAMPLE_LIST.filter((x) => !x.persona || !x.persona.trim()).length, 0);
+eq('★ text が空のお手本は無い',
+   C.SAMPLE_LIST.filter((x) => !x.text || x.text.length < 50).length, 0);
+
+console.log('\n── 10-2. ★★★ 選び方（毎回同じ・型が重ならない）──');
+// ★★★ 同じ人には毎回同じお手本。★ ここが崩れると「直したか」が測れなくなる
+eq('★★★ 同じ seed なら毎回同じ',
+   JSON.stringify(C.pickSamples(483)) === JSON.stringify(C.pickSamples(483)), true);
+eq('★ 3本返る', C.pickSamples(483).length, 3);
+// ★★★ persona が重ならない。★ ここが肝。★ 「癒し・癒し・穏やか」では直らない
+eq('★★★ 選ばれた3本の persona は重ならない',
+   [0,1,2,3,4,5,6,7,483,484,485,999].filter((n) => {
+     const p = C.pickSamples(n).map((x) => x.persona);
+     return new Set(p).size !== p.length;
+   }), []);
+// ★★ seed が違えば組み合わせも変わる（★ 全員同じでは意味が無い）
+eq('★★ seed が違うと組み合わせが変わる',
+   new Set([0,1,2,3,4,5].map((n) => JSON.stringify(C.pickSamples(n).map((x) => x.persona)))).size > 1, true);
+// ★★★ 死に札を作らない。★ どのお手本も使われること
+eq('★★★ 6本すべてがどこかで使われる',
+   C.SAMPLE_LIST.map((x) => x.persona).filter((per) =>
+     ![...Array(60).keys()].some((n) => C.pickSamples(n).some((y) => y.persona === per))), []);
+
+// ★★★ 「散らしたつもり」で偏ることがある。★ 種類を数えて確かめる（第126便で実際に踏んだ）
+//   ★ persona をずらすだけの実装では、101人に対して組み合わせが【6種類】しか出なかった
+eq('★★★ 101人分で組み合わせが10種類以上出る',
+   new Set([...Array(101).keys()].map((n) =>
+     C.pickSamples(n).map((x) => x.persona).sort().join(','))).size >= 10, true);
+// ★★ どの型も偏りすぎない。★ 目安は【本数から計算する】（★ 固定値で縛ると本数を増やした日に落ちる）
+//   ★ 期待割合 = 1回に渡す本数 ÷ お手本の本数。★ その 0.6倍〜1.6倍に収まること
+eq('★★ どの persona も出方が偏りすぎない', (() => {
+  const 期待 = (C.SAMPLES_PER_CALL / C.SAMPLE_LIST.length) * 101;
+  return C.SAMPLE_LIST.map((x) => x.persona).filter((per) => {
+    const c = [...Array(101).keys()].filter((n) => C.pickSamples(n).some((y) => y.persona === per)).length;
+    return c < 期待 * 0.6 || c > 期待 * 1.6;
+  });
+})(), []);
+
+console.log('\n── 10-3. ★ おかしな値でも落ちない ──');
+eq('★ 負の seed でも3本返る', C.pickSamples(-7).length, 3);
+eq('★ 読めない seed でも落ちない',
+   [C.pickSamples(NaN).length, C.pickSamples(Infinity).length], [3, 3]);
+eq('★ count が本数を超えても本数まで', C.pickSamples(1, 99).length, C.SAMPLE_LIST.length);
+eq('★ count 0 でも1本は返る', C.pickSamples(1, 0).length, 1);
+
+console.log('\n── 10-4. ★★ 戒めの文面はお手本の選び方で変わらない ──');
+// ★★★ 変わってよいのは【お手本の中身】だけ。★ 戒めが揺れたら守りが揺れる
+const cut = (t) => t.split('## お手本（フクエス掲載中の実例）')[0];
+eq('★★★ 戒めの部分は seed で変わらない',
+   new Set([0, 1, 483, 999].map((n) => cut(C.buildSystemPrompt(n)))).size, 1);
+eq('★★★ 全部入り版（SYSTEM_PROMPT）とも戒めは同じ',
+   cut(C.buildSystemPrompt(483)) === cut(C.SYSTEM_PROMPT), true);
+// ★★ 渡すお手本は3本だけ（★ 全部入りより短いこと）
+eq('★★ 1人に渡す system は全部入りより短い',
+   C.buildSystemPrompt(483).length < C.SYSTEM_PROMPT.length, true);
+// ★ 出力形式の指示は必ず入っている
+eq('★ 出力形式の指示は残っている', C.buildSystemPrompt(483).includes('catchphrase'), true);
+
 console.log(fail === 0 ? '\n★ すべて通りました' : '\n' + fail + ' 件 通りませんでした');
 process.exit(fail === 0 ? 0 : 1);

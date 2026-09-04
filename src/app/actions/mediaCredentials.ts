@@ -602,6 +602,40 @@ export async function setMediaLinkMode(input: {
 
   const svc = createServiceClient();
 
+  // ★★★ ほかの媒体が【正本】のあいだは write にできない（第127便・2026-09-04）。
+  //
+  // ★★★ 実際に起きていた（ラビリンス様）: 駅ちかが read（＝正本）なのにエステ魂が write。
+  //     店が駅ちかへ入力 → ベンリーが駅ちかからエステ魂へ書く
+  //                      → フクエスも駅ちかを読んでエステ魂へ書く   ★ 二重
+  //   ★ 方針（指示書_フクエス_プロジェクト指示.md §6）:
+  //     「店舗様は【ベンリー経由】か【フクエス経由】かの2択。★ 両方から同じ媒体へ書かない」
+  //   ★★ 画面には「出勤の反映は、駅ちかとフクエスのどちらか一方です」と書いてあったが、
+  //     **書いてあるだけで強制していなかった**。★ 注意書きで補っていたものを作りで直す。
+  //
+  // ★★ 画面（switchChoices）でも出さないが、**画面だけで守らない**（第38便 §17-16）。
+  // ★ 'none'（止める）は常に通す。★ 止める道を塞がない（第111便）。
+  if (input.mode === 'write' || input.mode === 'write_auto') {
+    const { data: others, error: othersErr } = await svc
+      .from('salon_import_sources')
+      .select('provider, slot, link_mode')
+      .eq('salon_id', salonId);
+    if (othersErr) return { ok: false, error: othersErr.message };
+    const reading = (others ?? []).filter(
+      (r) =>
+        r.link_mode === 'read' &&
+        !(String(r.provider) === input.provider && Number(r.slot ?? 1) === slot),
+    );
+    if (reading.length > 0) {
+      const names = [...new Set(reading.map((r) => findMediaSite(String(r.provider))?.name ?? String(r.provider)))];
+      return {
+        ok: false,
+        error:
+          `いま ${names.join('・')} からフクエスへ反映しています。` +
+          `同じサイトへ二重に書き込まないため、先に ${names.join('・')} の反映を止めてください`,
+      };
+    }
+  }
+
   // ★★★ 自動にできるのは「いまの向きになってから1回でも反映が成功している枠」だけ（§54）。
   //   ★ 画面にもスイッチを出さないが、**画面だけで守らない**。ここでも見る。
   //     第38便 §17-16 と同じ作法（受け口でも判定する）。

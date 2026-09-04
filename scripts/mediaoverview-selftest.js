@@ -500,5 +500,45 @@ eq('★★ 「取り込」と書かない', v.importedDiaryLabel('駅ちか').in
   eq('★ 媒体名を焼き付けない', v.importedDiaryEditNote('エステラブ').indexOf('エステラブ側は変わりません') > 0, true);
 }
 
+console.log('\n── ★★★ 第127便: ほかの媒体が正本のあいだは write を出さない ──');
+// ★★★ 実際に起きていた形（ラビリンス様・2026-09-04）:
+//   駅ちかが read（＝正本）なのに、エステ魂が write になっていた → エステ魂に二重書き込み
+const sites = [
+  { provider: 'ekichika', slot: 1, direction: 'read' },
+  { provider: 'esutama', slot: 1, direction: 'write' },
+];
+eq('★★★ 駅ちかが read なら、エステ魂から見て「ほかが正本」',
+   v.isReadingElsewhere(sites, { provider: 'esutama', slot: 1 }), true);
+// ★★★ 自分自身は数えない。★ 数えると正本を切り替える操作ができなくなる
+eq('★★★ 自分の read は数えない',
+   v.isReadingElsewhere(sites, { provider: 'ekichika', slot: 1 }), false);
+eq('★ 同じ媒体の別枠は「ほかの媒体」として数える',
+   v.isReadingElsewhere(sites, { provider: 'ekichika', slot: 2 }), true);
+eq('★ どこも read でなければ false',
+   v.isReadingElsewhere([{ provider: 'esutama', slot: 1, direction: 'write' }], { provider: 'esulove', slot: 1 }), false);
+eq('★ 空の一覧でも落ちない', v.isReadingElsewhere([], { provider: 'esutama' }), false);
+
+// ★★★ ほかが正本なら 'write' を出さない
+eq('★★★ ほかが正本なら未設定から write を出さない',
+   v.switchChoices('unset', 'エステ魂', 'esutama', true).map((x) => x.mode), []);
+eq('★★★ ほかが正本なら off から write を出さない',
+   v.switchChoices('off', 'エステ魂', 'esutama', true).map((x) => x.mode), []);
+// ★★★ ただし【止める道は必ず残す】（第111便）。★ すでに write の枠には 'none' を出す
+eq('★★★ すでに write なら「反映しない」だけは出す',
+   v.switchChoices('write', 'エステ魂', 'esutama', true).map((x) => x.mode), ['none']);
+// ★ 読める媒体でも同じ（駅ちかが2枠あって片方が read のとき）
+eq('★★ 読める媒体でも、ほかが正本なら write を出さない',
+   v.switchChoices('off', '駅ちか', 'ekichika', true).map((x) => x.mode), []);
+
+// ★ ほかが正本でなければ、これまでどおり
+eq('★ ほかが正本でなければ従来どおり（書くだけの媒体）',
+   v.switchChoices('off', 'エステ魂', 'esutama', false).map((x) => x.mode), ['write']);
+eq('★ ほかが正本でなければ従来どおり（読める媒体）',
+   v.switchChoices('read', '駅ちか', 'ekichika', false).map((x) => x.mode), ['write', 'none']);
+eq('★ 書くだけの媒体に read は絶対に出さない（ほかが正本でも）',
+   ['unset', 'off', 'write', 'read'].flatMap((f) =>
+     [true, false].flatMap((e) => v.switchChoices(f, 'エステ魂', 'esutama', e).map((x) => x.mode)))
+     .filter((m) => m === 'read'), []);
+
 console.log(fail === 0 ? '\n★ すべて通った' : '\n★ NG ' + fail + ' 件');
 process.exit(fail === 0 ? 0 : 1);

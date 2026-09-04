@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { getMediaOverview, setMediaLinkMode } from '@/app/actions/mediaCredentials';
 import {
-  switchChoices, switchDoneText, switchAskText, homeHeadline, homeChoiceNote,
+  switchChoices, switchDoneText, switchAskText, homeHeadline, homeChoiceNote, isReadingElsewhere,
   sendOnlyChoiceNote, canReadProvider,
   type SiteDirection, type SwitchChoice,
 } from '@/lib/mediaOverview';
@@ -278,8 +278,14 @@ export function MediaHome({ salonId, onToast }: {
               //   ★ 書くだけのサイトに出すと、選べるように見えて選べない画面になる。
               // ★ 自動で反映しているあいだは変えさせない。★ 先に自動をやめてもらう。
               // ★★ 第111便: provider を渡す。★ 書くだけのサイトには 'read' を出さない
+              // ★★★ ほかの媒体が正本のあいだは 'write' を出さない（第127便）。
+              //   ★ 駅ちかを読んでいる店がエステ魂へも書くと、代行システムと二重になる。
+              const elsewhere = isReadingElsewhere(
+                sites.map((x) => ({ provider: x.provider, slot: x.slot, direction: x.direction })),
+                { provider: s.provider, slot: s.slot },
+              );
               const choices = s.canSwitch && !s.autoOn
-                ? switchChoices(s.direction as SiteDirection, s.label, s.provider)
+                ? switchChoices(s.direction as SiteDirection, s.label, s.provider, elsewhere)
                 : [];
 
               // ── 選ぶだけの行。★ ボタン以外は出さない ──────────────

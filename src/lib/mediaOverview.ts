@@ -239,9 +239,40 @@ export function switchLabel(mode: 'read' | 'write' | 'none', siteLabel: string):
  *     出さなかったが、書くだけの媒体は **行き先が1つしかない**。★ 迷う余地が無い。
  *     ★ 押すと setMediaLinkMode が取り込み設定の行を作る（第111便）。
  */
-export function switchChoices(from: SiteDirection, siteLabel: string, provider: string): SwitchChoice[] {
+export function switchChoices(
+  from: SiteDirection,
+  siteLabel: string,
+  provider: string,
+  /**
+   * ★★★ ほかの媒体が【正本】になっているか（第127便・2026-09-04）。★ 必須。
+   * ★ 省略できるようにしない。★ 引数を増やして呼び出し側に選ばせない（第112便の作法）。
+   *   ★ 必須にすれば、渡し忘れを TypeScript が落とす。
+   */
+  readingElsewhere: boolean,
+): SwitchChoice[] {
   const c = (mode: 'read' | 'write' | 'none'): SwitchChoice =>
     ({ mode, label: switchLabel(mode, siteLabel) });
+
+  // ★★★ ほかの媒体から読み込んでいるあいだは 'write' を出さない（第127便）。
+  //
+  // ★★★ なぜ（2026-09-04・カッキーさんの指摘で発覚）
+  //   駅ちかを read にしている店（＝駅ちかが正本）で、エステ魂が write になっていた。
+  //     店が駅ちかへ入力 → ベンリーが駅ちかからエステ魂へ書く
+  //                      → フクエスも駅ちかを読んでエステ魂へ書く   ★ 二重
+  //   ★ 方針（指示書_フクエス_プロジェクト指示.md §6）:
+  //     「店舗様は【ベンリー経由】か【フクエス経由】かの2択。★ 両方から同じ媒体へ書かない」
+  //   ★★ 画面には「出勤の反映は、駅ちかとフクエスのどちらか一方です」と**書いてあった**。
+  //     ★ 書いてあるのに強制していなかった。★ 注意書きで補っていたものを、作りで直す。
+  //
+  // ★★★ 写メ日記は diary_source という【1列】で入口を1つに絞ってある（第99便）。
+  //   ★ 出勤には同じ線が引かれていなかった。★ ここが非対称だった。
+  //
+  // ★★ ただし【止める道は必ず残す】（第111便）。★ すでに write の媒体には 'none' を出す。
+  //   ★ 出さないと「戻せます」と書いてあるのに戻せない画面になる。
+  if (readingElsewhere) {
+    if (from === 'write') return [c('none')];
+    return [];
+  }
   // ★★★ 書くだけの媒体。★ 'read' は絶対に出さない
   if (!canReadProvider(provider)) {
     if (from === 'write') return [c('none')];
@@ -327,6 +358,22 @@ export function switchDoneText(to: 'read' | 'write' | 'none', siteLabel: string,
  */
 export function canSwitchDirection(f: SiteFacts): boolean {
   return f.hasCredential === true;
+}
+
+/**
+ * ★★★ その媒体から見て、【ほかの媒体が正本（read）になっているか】（第127便）。
+ *
+ * ★ 自分自身は数えない。★ 駅ちかの行で駅ちか自身の read を見てしまうと、
+ *   正本を切り替える操作（駅ちか read → フクエス write）ができなくなる。
+ * ★★ 枠（slot）まで見て同じものかを判定する。★ 同じ媒体の別枠は「ほかの媒体」として扱う。
+ */
+export function isReadingElsewhere(
+  sites: ReadonlyArray<{ provider: string; slot?: number | null; direction: string }>,
+  self: { provider: string; slot?: number | null },
+): boolean {
+  const same = (a: { provider: string; slot?: number | null }, b: { provider: string; slot?: number | null }) =>
+    a.provider === b.provider && (a.slot ?? 1) === (b.slot ?? 1);
+  return sites.some((s) => s.direction === 'read' && !same(s, self));
 }
 
 /**
