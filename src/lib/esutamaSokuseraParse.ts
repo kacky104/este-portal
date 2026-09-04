@@ -5,8 +5,22 @@
 //   POST /tamathera/sokuthera/ajax_start          … ONにする
 //   POST /tamathera/sokuthera/ajax_stop           … OFFにする（★ この便では使わない）
 //   POST /tamathera/sokuthera/ajax_update_message … 呼びかけだけ変える（★ 使わない）
-//   ★ Content-Type: application/x-www-form-urlencoded ／ 本文は message=…
-//   ★★ ctk は要らない（main.min.js に "ctk" が1文字も無い）
+//   ★ Content-Type: application/x-www-form-urlencoded
+//
+// ★★★ 本文は message だけでは【ない】（第145便・2026-09-04 21:37 に画面のJSを読んで判明）。
+//   実物のボタンはこう書いてある（main.min.js より）:
+//     let k = new URLSearchParams;
+//     k.append(pt, vt);                    ← ★★★ これ。名前も値も【変数】
+//     k.append("message", C?.value || "");
+//     fetch("/tamathera/sokuthera/ajax_start", { method:"POST", body:k })
+//   ★ pt が "ctk"、vt がその値。★ ページには name="ctk" の hidden が入っている。
+//   ★★ これを付けずに送ると **403**（実測 21:04 / 21:28 の2回）。
+//
+// ★★★ 私が間違えたこと（★ 二度とやらない）
+//   「main.min.js に "ctk" という文字が無い」から「ctk は要らない」と決めた。
+//   ★ **名前が変数に入っていれば、文字としては出てこない。**
+//   ★★ 「その言葉が書かれていない」は「それを使っていない」ではない。
+//   → 探すなら **送っている本文の組み立て**（append の並び）を読む。★ 語の有無で決めない。
 //
 // ★★★ **読み返して確かめられる**のがこの機能の強み。
 //   ★ 写メ日記は「載ったか」を読み返せなかった（★ 一覧のURLを知らない）。
@@ -19,6 +33,8 @@
 //   → **呼びかけを読めなかったら ON を打たない。**
 //     ★ 本人が書いた文を消すくらいなら、露出を諦める。
 
+import { parseEsutamaCtk } from './esutamaTherapistParse';
+
 /** 即セラの状態。★ 'unknown' は【読めなかった】（★ OFF と混ぜない）。 */
 export type SokuseraStatus = 'on' | 'off' | 'unknown';
 
@@ -29,6 +45,11 @@ export type SokuseraPage = {
    * ★★ null と '' を混ぜない。★ '' は「本人が空にしている」で、null は「読めなかった」。
    */
   message: string | null;
+  /**
+   * ★★★ CSRF（hidden の name="ctk"）。★ 読めなければ null。
+   * ★ これを付けずに ajax_start を叩くと 403（実測）。★ こちらでは作れない・毎回ページから拾う。
+   */
+  ctk: string | null;
 };
 
 /** 呼びかけの上限（★ 画面に「※20文字以内」と出ている・実測）。 */
@@ -62,7 +83,10 @@ export function parseSokuseraPage(html: string): SokuseraPage {
     if (v) message = decodeEntities(v[1]);
     break;
   }
-  return { status, message };
+  // ③ ★★★ ctk（CSRF）。★ 写メ日記と同じ拾い方を使い回す（★ 二重に書かない）
+  const ctk = parseEsutamaCtk(src);
+
+  return { status, message, ctk };
 }
 
 function decodeEntities(s: string): string {
@@ -72,8 +96,8 @@ function decodeEntities(s: string): string {
 }
 
 export type SokuseraDecision =
-  | { send: true; message: string }
-  | { send: false; reason: 'already_on' | 'unknown_status' | 'no_message'; note: string };
+  | { send: true; message: string; ctk: string }
+  | { send: false; reason: 'already_on' | 'unknown_status' | 'no_message' | 'no_ctk'; note: string };
 
 /**
  * ★★★ ONを打ってよいか。
@@ -97,10 +121,23 @@ export function decideSokuseraStart(page: SokuseraPage): SokuseraDecision {
       note: 'ひとこと呼びかけを読み取れなかったため、ONにしませんでした（★ 本人の文を消さないため）',
     };
   }
-  return { send: true, message: page.message };
+  // ★★★ ctk が無ければ打たない。★ 付けずに送れば 403 で断られるだけ（実測2回）
+  if (page.ctk === null) {
+    return {
+      send: false, reason: 'no_ctk',
+      note: '即セラのページから ctk（合言葉）を読み取れませんでした',
+    };
+  }
+  return { send: true, message: page.message, ctk: page.ctk };
 }
 
-/** ★ 送る本文。★ 読んだ呼びかけを【そのまま】返す。★ 20文字を超えていても切らない（本人のもの） */
-export function sokuseraStartBody(message: string): string {
-  return new URLSearchParams({ message: String(message ?? '') }).toString();
+/**
+ * ★ 送る本文。★ 読んだ呼びかけを【そのまま】返す。★ 20文字を超えていても切らない（本人のもの）。
+ * ★★ 並びは実物と同じ（ctk が先・message が後）。★ 相手の JS がそう組んでいる。
+ */
+export function sokuseraStartBody(message: string, ctk: string): string {
+  const p = new URLSearchParams();
+  p.append('ctk', String(ctk ?? ''));
+  p.append('message', String(message ?? ''));
+  return p.toString();
 }

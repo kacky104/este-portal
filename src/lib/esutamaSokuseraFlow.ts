@@ -130,12 +130,17 @@ export function afterEsutamaSokuseraPage(input: Input, ctx: RelayFlowContext): F
   const v = decideSokuseraStart(page);
   audits.push({
     event: 'read_sokusera', outcome: 'ok',
-    detail: { status: page.status, hasMessage: page.message !== null, willStart: v.send, use: 'sokusera' },
+    // ★ ctk は【あるか無いか】だけ。★ 値は記録しない
+    detail: {
+      status: page.status, hasMessage: page.message !== null,
+      hasCtk: page.ctk !== null, willStart: v.send, use: 'sokusera',
+    },
   });
-  // ★★ 打たない理由は【全部】ここで出る。★ すでにON・読めない・呼びかけが無い
+  // ★★ 打たない理由は【全部】ここで出る。★ すでにON・読めない・呼びかけが無い・ctk が無い
   if (!v.send) return stopViaEndProxy(next, audits, v.note);
 
-  const r = buildEsutamaSokuseraStartRequest(cookie, sokuseraStartBody(v.message));
+  // ★★★ ctk（合言葉）を必ず一緒に送る。★ 付けないと 403（第144便で実測2回）
+  const r = buildEsutamaSokuseraStartRequest(cookie, sokuseraStartBody(v.message, v.ctk));
   return {
     kind: 'next',
     next: {
