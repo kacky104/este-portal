@@ -135,5 +135,37 @@ eq('47時間はまだ時間', s.importElapsedLabel(47), '47時間');
 eq('未知の provider はそのまま出す', s.importSlotLabel('esulove', 2), 'esulove（枠2）');
 eq('駅ちかは日本語にする', s.importSlotLabel('ekichika', 1), '駅ちか（枠1）');
 
+console.log('\n── ★★★ 第147便: 「止めていた時間」を「止まった時間」にしない ──');
+{
+  // ★ 2026-09-04 22:17 の実物の形。★ 書く向きだった6時間、取り込みは設計どおり止まっていた
+  const 戻した直後 = base({ listLastRunAt: hoursAgo(6.5), switchedToReadAt: hoursAgo(0.05) });
+  eq('★★★ 読む向きに戻した直後は鳴らない', kinds(s.judgeImportStall(戻した直後)), []);
+
+  // ★★ 直さないとこう出ていた（★ 起点を渡さなければ、今までどおり鳴る）
+  eq('★ 起点が無ければ今までどおり鳴る',
+     kinds(s.judgeImportStall(base({ listLastRunAt: hoursAgo(6.5) }))), ['list:stale']);
+
+  // ★★★ 見張りを殺していないことの証拠。★ 戻してから本当に止まれば、ちゃんと鳴る
+  eq('★★★ 戻したあと5時間止まれば鳴る',
+     kinds(s.judgeImportStall(base({ listLastRunAt: hoursAgo(9), switchedToReadAt: hoursAgo(5) }))),
+     ['list:stale']);
+
+  // ★ 起点は【床】。★ last_run_at のほうが新しければ、そちらを使う（前に戻した記録は効かない）
+  eq('★ 昔に戻した記録は起点にしない',
+     kinds(s.judgeImportStall(base({ listLastRunAt: hoursAgo(9), switchedToReadAt: hoursAgo(24 * 10) }))),
+     ['list:stale']);
+
+  // ★ 週間の周にも同じ床がかかる（★ 2本の時計、どちらも同じ扱い）
+  eq('★ 週間の周も戻した直後は鳴らない',
+     kinds(s.judgeImportStall(base({ fullLastRunAt: hoursAgo(72), switchedToReadAt: hoursAgo(0.05) }))), []);
+
+  // ★★ 一度も走っていない枠でも、戻した直後は鳴らない（★ never も同じ）
+  eq('★★ 一度も走っていなくても、戻した直後は鳴らない',
+     kinds(s.judgeImportStall(base({
+       listLastRunAt: null, fullLastRunAt: null,
+       createdAt: hoursAgo(24 * 30), switchedToReadAt: hoursAgo(0.05),
+     }))), []);
+}
+
 console.log(fail === 0 ? '\n★ すべて通った' : '\n★ NG ' + fail + ' 件');
 process.exit(fail === 0 ? 0 : 1);

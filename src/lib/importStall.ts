@@ -62,6 +62,22 @@ export type ImportStallInput = {
   intervalMin: number | null;
   /** 取り込み設定を作った時刻。★ 一度も走っていないときの起点（mediaLinkStall と同じ作法） */
   createdAt: string | null;
+  /**
+   * ★★★ 最後に【読む向きに戻した】時刻（salon_media_audit の link_mode_changed・mode='read'）。
+   *
+   * ★★ なぜ要るか — 2026-09-04 22:17 に実際に起きたこと（第147便）
+   *   書く向き（フクエス反映）の6時間、取り込みは**設計どおり止めていた**。
+   *   その間 last_run_at は 15:50 のまま動かない。
+   *   ★ 読む向きに戻したとたん「6時間止まっています」と出た。
+   *   → **「止めていた時間」と「止まってしまった時間」を混ぜていた。**
+   *
+   * ★ ここから数える（起点の床）。★ 15分後の周で消える警告を、最初から出さない。
+   *
+   * ★★★ updated_at を使ってはいけない。★ last_run_at を書くたびに updated_at も動くので、
+   *   起点が毎回いまになり、**この見張りは永久に鳴らなくなる**（★ 見張りを殺す）。
+   *   ★ 向きを変えたときにしか増えない記録＝link_mode_changed を使うこと。
+   */
+  switchedToReadAt?: string | null;
 
   now: Date;
   /** 点検で短くするためだけに開けてある */
@@ -176,8 +192,11 @@ export function judgeImportStall(input: ImportStallInput): ImportStallFinding[] 
     limitHours: number,
   ): void => {
     const last = msOf(lastRunISO);
-    const base = last ?? createdAt;
-    if (base === null) return;                    // ★ 根拠が無いので黙る
+    const first = last ?? createdAt;
+    if (first === null) return;                   // ★ 根拠が無いので黙る
+    // ★★★ 読む向きに戻す前は数えない（★ 止めていた時間を、止まった時間にしない）
+    const switched = msOf(input.switchedToReadAt ?? null);
+    const base = switched !== null && switched > first ? switched : first;
     const elapsed = (now - base) / 3_600_000;
     if (elapsed < 0) return;                      // ★ 未来の時刻（時計のずれ）は鳴らさない
     if (elapsed < limitHours) return;

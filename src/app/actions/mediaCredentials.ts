@@ -899,6 +899,8 @@ export async function getMediaLinkAlerts(input: { salonId: string | number }): P
 
   const key = (p: string, s: number) => p + '#' + s;
   const switchedAt = new Map<string, string>();
+  // ★★★ 最後に【読む向きに戻した】時刻（第147便）。★ 取り込みの時計の起点の床にする
+  const switchedToReadAt = new Map<string, string>();
   const lastOkAt = new Map<string, string>();
   for (const r of audit ?? []) {
     const k = key(String(r.provider), Number(r.slot));
@@ -908,6 +910,8 @@ export async function getMediaLinkAlerts(input: { salonId: string | number }): P
     } else if (r.event === 'link_mode_changed') {
       const mode = (r.detail as { mode?: unknown } | null)?.mode;
       if (mode === 'write' && !switchedAt.has(k)) switchedAt.set(k, at);
+      // ★ 新しい順に読んでいるので、最初に見つけた1件が最新
+      if (mode === 'read' && !switchedToReadAt.has(k)) switchedToReadAt.set(k, at);
     }
   }
 
@@ -1004,6 +1008,8 @@ export async function getMediaLinkAlerts(input: { salonId: string | number }): P
       fullLastRunAt,
       intervalMin: (s.import_interval_min as number | null) ?? null,
       createdAt: (s.created_at as string | null) ?? null,
+      // ★★★ 書く向きだった間は数えない（第147便）。★ 戻した直後に6時間ぶんを出さない
+      switchedToReadAt: switchedToReadAt.get(k) ?? null,
       now,
     })) {
       alerts.push({
