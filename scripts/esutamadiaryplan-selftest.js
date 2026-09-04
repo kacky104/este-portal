@@ -94,5 +94,24 @@ eq('★★★ 送れない人なら断る', P.pickOneToSend(rows, 5).ok, false);
 eq('★★ 誰のどの理由かが分かる', P.pickOneToSend(rows, 5).message.includes('さら'), true);
 eq('★★ 送信済みの人も断る', P.pickOneToSend(rows, 3).ok, false);
 
+console.log('\n── 6. ★★★ 正本がフクエスの店舗にしか送らない（第133-3便）──');
+// ★★★ 2026-09-04・ラビリンス様で【実測して】分かった。★ 駅ちかを正本にしている店舗の
+//   diary_posts は【駅ちかから取り込んだもの】（salon_diary_imports に11件とも行があった）。
+//   ★★ 送ると「別の媒体に書いたものを本人の名前で転載する」ことになる。
+//   ★ 「ベンリー経由で二重になる」は私の推測で、間違いだった（同じ日の日記が両媒体で別内容）。
+eq('★★★ フクエスが正本なら送れる', P.checkSalonDiarySource('fukues'), { ok: true });
+eq('★★★ 駅ちかが正本なら送らない', P.checkSalonDiarySource('ekichika').ok, false);
+eq('★★ 理由が読める（転載になる。★ 「二重になる」とは書かない）',
+   P.checkSalonDiarySource('ekichika').message.includes('転載'), true);
+// ★★★ 反証された言い方を二度と書かないための見張り
+eq('★★★ 「ベンリー」を理由にしない（2026-09-04 に反証済み）',
+   P.checkSalonDiarySource('ekichika').message.includes('ベンリー'), false);
+eq('★★★ ベンリー受け取りなら送らない', P.checkSalonDiarySource('benry').ok, false);
+// ★★★ 知らない値・空は【送らない側】へ倒す。★ 「たぶんフクエス」で送らない
+eq('★★★ 知らない値なら送らない', P.checkSalonDiarySource('something').ok, false);
+eq('★★★ 空なら送らない', P.checkSalonDiarySource('').ok, false);
+eq('★★★ null でも落ちず、送らない', P.checkSalonDiarySource(null).ok, false);
+eq('★ 前後の空白は落として見る', P.checkSalonDiarySource(' fukues ').ok, true);
+
 console.log(fail === 0 ? '\n★ すべて通りました' : '\n' + fail + ' 件 通りませんでした');
 process.exit(fail === 0 ? 0 : 1);

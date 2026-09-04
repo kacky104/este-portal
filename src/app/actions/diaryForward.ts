@@ -6,6 +6,8 @@ import { ADMIN_UUID } from '@/app/lib/admin';
 import { isDiarySource } from '@/lib/diarySource';
 import { isConsentState } from '@/lib/therapistMediaConsent';
 import { findMediaSite } from '@/lib/mediaSites';
+// ★ 1人だけドメインが違うのを止める（第133-4便）。★ 判断は純粋関数側
+import { checkAddressDomain } from '@/lib/diaryAddressCheck';
 
 // 写メ日記の転送先の登録（第36便・第2弾）。
 //
@@ -105,6 +107,24 @@ export async function saveDiaryForward(input: { therapistId: string | number; pr
   //   ここで弾いて、原因が分かる形で返す。
   if (!looksLikeEmail(address)) return { ok: false, error: 'メールアドレスの形式が正しくありません' };
   if (address.length > 200) return { ok: false, error: 'アドレスが長すぎます' };
+
+  // ★★★ 形が整っていても、1人だけドメインが違うなら止める（第133-4便・2026-09-04）。
+  //   ★ 2026-08-31 に実際に起きた: サラさんのアドレスが '@shame.rankg-deli.jpin'
+  //     （正しくは '@shame.ranking-deli.jp'。★ 'in' が真ん中から末尾へ移った打ち間違い）。
+  //   ★★ looksLikeEmail は【形】しか見ないので素通りした。★ 送信は静かに失敗する（Resend 側にしか出ない）。
+  //   ★ ドメインは決め打ちしない。★ 同じ店・同じ媒体の【他の在籍】と見比べる。
+  const { data: siblings } = await svc
+    .from('therapist_diary_forward')
+    .select('address, therapist_id, therapists!inner(salon_id)')
+    .eq('provider', input.provider)
+    .eq('slot', slot)
+    .eq('therapists.salon_id', guard.data.salonId);
+  const others = ((siblings ?? []) as Array<{ address: string; therapist_id: number }>)
+    // ★ 本人は数えない（上書きのとき、自分の古い値と比べても意味がない）
+    .filter((r) => Number(r.therapist_id) !== therapistId)
+    .map((r) => String(r.address ?? ''));
+  const domain = checkAddressDomain({ address, others });
+  if (!domain.ok) return { ok: false, error: domain.message };
 
   const { error } = await svc.from('therapist_diary_forward').upsert({
     therapist_id: therapistId,

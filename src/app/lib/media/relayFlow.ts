@@ -57,7 +57,7 @@ import type { EsutamaPlanSummary } from '@/lib/relayFlow';
 import { planEsuloveWork } from '@/lib/esulovePlan';
 // ★ エステ魂の写メ日記（第133便）。★ 判断は純粋関数側。ここは DB から材料を集めて渡すだけ
 import {
-  planEsutamaDiaries, tallyDiaryPlan, diaryPlanSummary, pickOneToSend,
+  planEsutamaDiaries, tallyDiaryPlan, diaryPlanSummary, pickOneToSend, checkSalonDiarySource,
   type DiaryCandidate,
 } from '@/lib/esutamaDiaryPlan';
 import { toConsentState } from '@/lib/therapistMediaConsent';
@@ -1626,6 +1626,27 @@ async function planEsutamaDiary(
     }],
     note,
   });
+
+  // ⓪ ★★★ 店舗の関門。★ **正本がフクエスの店舗にしか送らない**（第133-3便）
+  //   ★ link_mode='none' だけに頼らない。★ 画面で 'write' に変えられたら素通りしてしまう。
+  //   ★★ 取り込んだ日記を送り返すと、ベンリー経由の記事と2本並ぶ。★ しかも消せない。
+  const { data: salon, error: salonErr } = await supabase
+    .from('salons')
+    .select('diary_source')
+    .eq('id', params.salonId)
+    .maybeSingle();
+  if (salonErr || !salon) return fail('salon_read_failed', '店舗を読めなかった: ' + (salonErr?.message ?? 'not found'));
+  const gate = checkSalonDiarySource(salon.diary_source as string | null);
+  if (!gate.ok) {
+    return {
+      audits: [{
+        event: 'plan_diary', outcome: 'stopped',
+        summary: gate.message,
+        detail: { reason: 'diary_source_not_fukues', source: String(salon.diary_source ?? ''), flowId },
+      }],
+      note: '★ ' + gate.message,
+    };
+  }
 
   // ① 在籍
   const { data: therapists, error: thErr } = await supabase
