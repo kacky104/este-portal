@@ -17,8 +17,7 @@ import { STORAGE_CACHE_CONTROL } from '@/app/lib/storage';
 import { cleanupTherapistPhotos } from '@/app/actions/therapistAdmin';
 import { generateTherapistCopy, getTherapistCopyQuota, type QuotaState } from '@/app/actions/therapistCopy';
 import { getOrCreateDiaryMailAddress } from '@/app/actions/diaryMail';
-import { getDiaryForwards, saveDiaryForward, getSalonDiarySource } from '@/app/actions/diaryForward';
-import { diarySourceTitle } from '@/lib/diarySource';
+import { getDiaryForwards, saveDiaryForward } from '@/app/actions/diaryForward';
 import { useToast } from '@/app/components/useToast';
 import { SiteNoticeBanner } from '@/app/components/SiteNoticeBanner';
 
@@ -98,7 +97,6 @@ export default function TherapistEditPage() {
   const [forwardError, setForwardError] = useState('');
   // 店舗の「写メ日記の正本」。'benry'=他媒体で書く（既定） / 'fukues'=フクエスで書く。
   // ★★★ これが二重投稿を防ぐ唯一の仕掛け（fukues にすると他媒体からの受信を止める）。
-  const [diarySource, setDiarySource] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   // AI下書き（第30便）。生成中フラグと「写真をAIに渡すか」の選択。保存はせずフォームに入れるだけ。
   const [aiLoading, setAiLoading] = useState(false);
@@ -126,11 +124,6 @@ export default function TherapistEditPage() {
       setForwardRows(loaded);
       setForwardLoaded(true);
     }).catch((e) => { if (!cancelled) setForwardError(String(e)); });
-    getSalonDiarySource({ therapistId }).then((r) => {
-      if (cancelled) return;
-      if (!r.ok) { setForwardError((prev) => prev || r.error); return; }
-      setDiarySource(r.data.source);
-    }).catch((e) => { if (!cancelled) setForwardError((prev) => prev || String(e)); });
     return () => { cancelled = true; };
   }, [therapistId]);
   const [uploadingSlot, setUploadingSlot] = useState<number | null>(null);
@@ -773,34 +766,17 @@ export default function TherapistEditPage() {
         <div className="bg-white rounded-3xl border border-slate-100 shadow-sm p-5 space-y-4">
           <h2 className="text-sm font-black text-slate-700">写メ日記の転送先</h2>
 
-          {/* ★★★ 店舗全体の設定は【ここでは変えられない】（第128便・2026-09-04）。
-              ★ salons.diary_source は店舗単位。★ ここに置くと、在籍の人数ぶん入口ができる
-                ＝どの子の画面で変えても店舗全体が変わる（上書き事故の入口）。
-              ★★ 変える口は【媒体連携 → 写メ日記の投稿先】へ移した。
-              ★★★ ただし【消さずに読めるようにする】。★ 下のアドレス欄が使われるかどうかが
-                この設定で変わるので、知らないと「登録したのに送られない」と誤解する。
-                ★ 第116便「空欄の理由を言い分ける」と同じ筋。 */}
-          <div className="rounded-2xl border border-slate-200 bg-slate-50 p-3 space-y-1.5">
-            <p className="text-[11px] font-bold text-slate-600">写メ日記をどこで書きますか（店舗全体の設定）</p>
-            {diarySource === null ? (
-              <p className="text-[11px] text-slate-400">読み込み中...</p>
-            ) : (
-              <>
-                <p className="text-xs font-bold text-slate-700">{diarySourceTitle(diarySource)}</p>
-                <p className="text-[10px] text-slate-400 leading-relaxed">
-                  {diarySource === 'fukues'
-                    ? 'フクエスで書いた日記を、下に登録した宛先へ即時で送ります。'
-                    : '下のアドレスは登録できますが、いまは送っていません。フクエスで書く設定にしたときに使われます。'}
-                </p>
-                <a
-                  href="/mypage/media/diary"
-                  className="inline-block text-[11px] font-bold text-pink-600 underline"
-                >
-                  店舗全体の設定を変える（媒体連携）
-                </a>
-              </>
-            )}
-          </div>
+          {/* ★★★ 第152便（2026-09-05）: この枠をまるごと外した。
+              ★ 元は「店舗全体の設定（写メ日記をどこで書くか）」を読めるようにする枠で、
+                中に /mypage/media/diary へのリンクがあった。
+              ★★★ 外した理由は【表示の good/bad ではない】:
+                いま店舗様のマイページには**外部の代行業者様も入れる**。
+                マイページ側の媒体連携の入口は `mediaVisible` で出し分けているが、
+                **この枠だけが誰にでも描かれていた。** ★ ここから機能の存在が読める。
+              ★★ 元に戻すときは、必ず `mediaVisible` と同じ出し分け（canSeeMedia）を通すこと。
+                ★ hidden にしない。★ 描かない（ページの中身から読めてしまうため・第54便）。
+              ★ 失う情報: 「いまは送っていません」の断り（第116便の筋）。
+                ★ 同じことは媒体連携の「写メ日記の投稿先」で読める。 */}
 
           {/* 媒体ごとの宛先 */}
           <p className="text-[11px] text-slate-400 leading-relaxed">
