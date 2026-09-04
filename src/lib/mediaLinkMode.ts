@@ -42,13 +42,21 @@ export function isAutoPush(mode: string | null | undefined): boolean {
   return mode === 'write_auto';
 }
 
-/** 画面に出す名前。★ 知らない値は「未設定」にする（勝手に読み替えない）。 */
-export function linkModeTitle(mode: string | null | undefined): string {
+/**
+ * 画面に出す名前。★ 知らない値は「未設定」にする（勝手に読み替えない）。
+ *
+ * ★★★ 2026-09-04（第141便）: 媒体名を決め打ちしていたので、受け取る形にした。
+ *   ★ 呼び出し元がまだ無い（画面はどこもこれを使っていない）が、
+ *     **使われた瞬間に「エステ魂なのに駅ちか」になる**ので、先に直しておく。
+ *   ★ 名前を渡さなければ「連携サイト」と書く。★ 別の媒体の名前は絶対に出さない。
+ */
+export function linkModeTitle(mode: string | null | undefined, siteName?: string): string {
+  const n = siteName && siteName.trim() ? siteName.trim() : '連携サイト';
   switch (mode) {
     case 'none': return '連携しない';
-    case 'read': return '駅ちかから取り込んでいます';
-    case 'write': return 'フクエスから駅ちかへ反映しています（毎回ご承認）';
-    case 'write_auto': return 'フクエスから駅ちかへ自動で反映しています';
+    case 'read': return `${n}から取り込んでいます`;
+    case 'write': return `フクエスから${n}へ反映しています（毎回ご承認）`;
+    case 'write_auto': return `フクエスから${n}へ自動で反映しています`;
     default: return '未設定';
   }
 }

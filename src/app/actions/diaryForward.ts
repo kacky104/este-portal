@@ -8,6 +8,11 @@ import { isConsentState } from '@/lib/therapistMediaConsent';
 import { findMediaSite } from '@/lib/mediaSites';
 // ★ 1人だけドメインが違うのを止める（第133-4便）。★ 判断は純粋関数側
 import { checkAddressDomain } from '@/lib/diaryAddressCheck';
+// ★ エステ魂の写メ日記の状況（第141便）。★ 数え方と文言は純粋関数側
+import {
+  buildDiaryStatus, diaryStatusLine, diarySentLine, diaryNextStep, type DiaryStatus,
+} from '@/lib/esutamaDiaryStatus';
+import { loadCastIds } from '@/lib/mediaCastIds';
 
 // 写メ日記の転送先の登録（第36便・第2弾）。
 //
@@ -325,4 +330,102 @@ export async function setDiaryConsent(input: {
   if (error) return { ok: false, error: '了承を保存できませんでした' };
 
   return { ok: true, data: { state: input.state } };
+}
+
+/**
+ * ★★★ エステ魂の写メ日記の状況（第141便・2026-09-04）。★ 読むだけ。
+ *
+ * ★ 出すのは【数だけ】（カッキーさんの判断・2026-09-04）。
+ *   ★★ 相手側の利用状況（魂セラピストを始めているか）は**見ない**。
+ *     ★ 知るには魂セラピスト一覧＝ログインが要る。★ 画面を開くたびに相手を叩かない。
+ *     ★ だから「お送りできる【見込み】」と書く（★ 言い切らない）。
+ */
+export async function getEsutamaDiaryStatus(input: { salonId: string | number }): Promise<
+  Result<{ status: DiaryStatus; line: string; sentLine: string; nextStep: string | null }>
+> {
+  const salonId = Number(input.salonId);
+  if (!Number.isFinite(salonId)) return { ok: false, error: '店舗の指定が不正です' };
+
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { ok: false, error: 'ログインが必要です' };
+
+  const svc = createServiceClient();
+  const { data: salon } = await svc.from('salons').select('owner_id').eq('id', salonId).maybeSingle();
+  if (!salon) return { ok: false, error: '店舗が見つかりません' };
+  if ((salon.owner_id as string | null) !== user.id && user.id !== ADMIN_UUID) {
+    return { ok: false, error: 'この店舗の操作権限がありません' };
+  }
+
+  const PROVIDER = 'esutama';
+  const SLOT = 1;
+
+  // ① 在籍
+  const { data: ths, error: thErr } = await svc
+    .from('therapists').select('id, import_cast_id').eq('salon_id', salonId).eq('is_active', true);
+  if (thErr) return { ok: false, error: 'セラピストを読み込めませんでした' };
+  const trows = (ths ?? []) as Array<{ id: number; import_cast_id?: string | null }>;
+  const ids = trows.map((t) => Number(t.id));
+
+  // ② 了承
+  let agreed: number[] = [];
+  if (ids.length > 0) {
+    const { data: cs, error: csErr } = await svc
+      .from('therapist_media_consent').select('therapist_id, state')
+      .eq('provider', PROVIDER).eq('kind', 'diary').in('therapist_id', ids);
+    // ★★ 読めなかったことを「0件（＝全員未確認）」と見せない
+    if (csErr) return { ok: false, error: 'ご了承の記録を読み込めませんでした' };
+    agreed = ((cs ?? []) as Array<{ therapist_id: number; state: string | null }>)
+      .filter((r) => String(r.state ?? '') === 'agreed')
+      .map((r) => Number(r.therapist_id));
+  }
+
+  // ③ 名簿の結び
+  let linked = 0;
+  if (agreed.length > 0) {
+    const { maps, error: castErr } = await loadCastIds(svc, {
+      therapists: trows, provider: PROVIDER, slot: SLOT,
+    });
+    if (castErr) return { ok: false, error: '名簿の結びを読み込めませんでした' };
+    linked = agreed.filter((id) => /^\d{1,12}$/.test(String(maps.castIdOf.get(id) ?? '').trim())).length;
+  }
+
+  // ④ 送信の結果（★ 状態ごとに数える）
+  let sent = 0, failed = 0, unknown = 0;
+  let lastSentAt: string | null = null;
+  if (ids.length > 0) {
+    const { data: marks, error: mErr } = await svc
+      .from('diary_post_sent').select('state, sent_at, updated_at, therapist_id')
+      .eq('provider', PROVIDER).eq('slot', SLOT).in('therapist_id', ids);
+    if (mErr) return { ok: false, error: '送信の記録を読み込めませんでした' };
+    for (const m of (marks ?? []) as Array<{ state: string; sent_at: string | null }>) {
+      const st = String(m.state ?? '');
+      if (st === 'sent') {
+        sent += 1;
+        const at = m.sent_at ?? null;
+        // ★ 「いちばん新しい」を素直に選ぶ。★ 読めない時刻は無視する
+        if (at && (!lastSentAt || Date.parse(at) > Date.parse(lastSentAt))) lastSentAt = at;
+      } else if (st === 'failed') failed += 1;
+      else if (st === 'unknown') unknown += 1;
+      // ★ 'pending' は数えない（★ いま送っている最中。★ 結果が出てから数える）
+    }
+  }
+
+  const status = buildDiaryStatus({
+    在籍: trows.length,
+    了承あり: agreed.length,
+    了承あり結びあり: linked,
+    送れた: sent, 送れていない: failed, 判定できず: unknown,
+    最後に送れた: lastSentAt,
+  });
+
+  return {
+    ok: true,
+    data: {
+      status,
+      line: diaryStatusLine(status),
+      sentLine: diarySentLine(status),
+      nextStep: diaryNextStep(status),
+    },
+  };
 }

@@ -73,8 +73,16 @@ eq('未来の記録なら次の周に回す',
 eq('周期は30分（取り込みの15分と同じにしない）', m.AUTO_PUSH_INTERVAL_MIN, 30);
 
 // ── 画面の名前。★ 知らない値を勝手に読み替えない ──
-eq('write_auto の名前', m.linkModeTitle('write_auto'), 'フクエスから駅ちかへ自動で反映しています');
-eq('知らない値は未設定', m.linkModeTitle('write_turbo'), '未設定');
+// ★★★ 第141便: 媒体名を決め打ちしない（★ 「エステ魂なのに駅ちか」を作らない）
+eq('write_auto の名前', m.linkModeTitle('write_auto', '駅ちか'), 'フクエスから駅ちかへ自動で反映しています');
+eq('★★★ エステ魂ならエステ魂と書く', m.linkModeTitle('write', 'エステ魂'), 'フクエスからエステ魂へ反映しています（毎回ご承認）');
+eq('★★★ 別の媒体の名前を混ぜない', m.linkModeTitle('write', 'エステ魂').includes('駅ちか'), false);
+// ★★ 名前を渡し忘れても、別の媒体の名前を当てない
+eq('★★ 名前が無ければ「連携サイト」', m.linkModeTitle('read'), '連携サイトから取り込んでいます');
+eq('★★★ 名前が無いときも駅ちかと言わない', m.linkModeTitle('write').includes('駅ちか'), false);
+eq('★ 空白だけの名前も「連携サイト」', m.linkModeTitle('read', '  '), '連携サイトから取り込んでいます');
+eq('★ 連携しないは媒体名を出さない', m.linkModeTitle('none', 'エステ魂'), '連携しない');
+eq('知らない値は未設定', m.linkModeTitle('write_turbo', '駅ちか'), '未設定');
 
 console.log(fail === 0 ? '\n★ すべて通った' : '\n★ NG ' + fail + ' 件');
 process.exit(fail === 0 ? 0 : 1);

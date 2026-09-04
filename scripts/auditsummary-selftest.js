@@ -94,6 +94,22 @@ console.log('\n── 件数が本文に出ているか ──');
   eq('名簿の読み取りは専用の文言', /名簿を読み取りました/.test(s) && /37名/.test(s), true);
 }
 
+console.log('\n── ★★★ 連携の向きを変えた記録に、別の媒体の名前を出さない（第141便）──');
+// ★★ 2026-09-04 実際に出た:
+//   「エステ魂（枠1）の連携を『フクエスから【駅ちか】へ反映する』に変更しました」
+//   ★ 第139便で「止まっています」は直したが、ここは直っていなかった。
+//   ★★★ 1か所直して終わりにしない。★ 同じ間違いは別の場所に残る。
+const lm = (provider, mode) => a.defaultAuditSummary({
+  event: 'link_mode_changed', outcome: 'ok', provider, slot: 1, detail: { mode },
+});
+eq('★★★ エステ魂ならエステ魂と書く', lm('esutama', 'write').includes('フクエスからエステ魂へ反映する'), true);
+eq('★★★ エステ魂の行に駅ちかと書かない', lm('esutama', 'write').includes('駅ちか'), false);
+eq('★ 駅ちかなら今までどおり', lm('ekichika', 'write').includes('フクエスから駅ちかへ反映する'), true);
+eq('★ 取り込みに戻す文もサイト名を使う', lm('esulove', 'read').includes('エステラブから取り込む'), true);
+eq('★ 連携しないは媒体名を出さない', lm('esutama', 'none').includes('連携しない'), true);
+// ★ 知らない provider は英字のまま（★ ごまかして別の名前を当てない）
+eq('★ 知らない provider は英字のまま', lm('nanikore', 'write').includes('nanikore'), true);
+
 console.log('\n── ★★★ 自動の周が「見ただけ」なら記録を残さない（第140便）──');
 // ★★ 普段は黙らせないのが原則。★ ここだけ例外。
 //   ★ 送るものが無い日は1日288回×2行＝576行。★ 直近50件が2時間で埋まり、

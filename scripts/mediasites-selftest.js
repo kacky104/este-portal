@@ -76,13 +76,14 @@ eq('駅ちかは4つ送れる',
    v.siteCapabilityLabels(v.findMediaSite('ekichika')), ['出勤', 'セラピスト', '写メ日記', '即ヒメ']);
 eq('★ エステラブは出勤と写メ日記',
    v.siteCapabilityLabels(v.findMediaSite('esulove')), ['出勤', '写メ日記']);
-eq('★★ エステ魂に写メ日記は無い',
-   v.siteCapabilityLabels(v.findMediaSite('esutama')), ['出勤']);
+// ★★★ 第141便: 2026-09-04 18:01、自動でエステ魂へ写メ日記が載ったのを実測して足した
+eq('★★★ エステ魂は出勤と写メ日記',
+   v.siteCapabilityLabels(v.findMediaSite('esutama')), ['出勤', '写メ日記']);
 eq('★★ 全国エステランキングにも写メ日記は無い',
    v.siteCapabilityLabels(v.findMediaSite('zenkoku')), ['出勤']);
-// ★★ 写メ日記が送れるのは2サイトだけ（2026-08-30 カッキーさん確認）
-eq('★★ 写メ日記が送れるのは2サイト',
-   v.MEDIA_SITES.filter((s) => s.can.includes('diary')).map((s) => s.provider), ['ekichika', 'esulove']);
+// ★★ 写メ日記が送れるサイト（2026-08-30 カッキーさん確認 → 第141便でエステ魂を追加）
+eq('★★ 写メ日記が送れるのは3サイト',
+   v.MEDIA_SITES.filter((s) => s.can.includes('diary')).map((s) => s.provider), ['ekichika', 'esulove', 'esutama']);
 eq('★ 知らない種別は空文字', v.capabilityLabel('nanika'), '');
 eq('★★ 知らない種別は一覧から落とす（「その他」と書かない）',
    v.siteCapabilityLabels({ can: ['work', 'nanika'] }), ['出勤']);
@@ -250,11 +251,31 @@ eq('★★ 使えないものを連携中に数えない',
 eq('★ エステラブは手で入れる', v.findMediaSite('esulove').diaryAddressSource, 'manual');
 eq('駅ちかは読み取れる（/admin/maillist/）', v.findMediaSite('ekichika').diaryAddressSource, 'read');
 // ★ 写メ日記を受け取れないサイトは 'none'
-eq('エステ魂は写メ日記を受け取れない', v.findMediaSite('esutama').diaryAddressSource, 'none');
+// ★★★ 「写メ日記を送れる」と「メールで受け取れる」は別（第141便）。
+//   ★ エステ魂はメール投稿の口が無い。★ 代理ログインでご本人のアカウントへ投稿する。
+//   ★★ だから can に 'diary' があっても diaryAddressSource は 'none' のまま。
+//     ★ ここを 'manual' にすると、要らないアドレスを店舗様に入力させてしまう。
+eq('★★★ エステ魂はメールでは受け取れない（アドレスは預からない）',
+   v.findMediaSite('esutama').diaryAddressSource, 'none');
 eq('全国も写メ日記を受け取れない', v.findMediaSite('zenkoku').diaryAddressSource, 'none');
-// ★★ can に diary があるサイトは、必ず read か manual（★ 送れると書いて手が無い状態を作らない）
-eq('★ 写メ日記が送れるサイトには、必ずアドレスの入手手段がある',
-  v.MEDIA_SITES.filter((s) => s.can.includes('diary') && s.diaryAddressSource === 'none').length, 0);
+// ★★★ can に diary があるサイトは、必ず【送る手段】がある。
+//   ★ 送れると書いて手が無い状態を作らない。
+//   ★★ 2026-09-04（第141便）: エステ魂を足したらこの見張りが落ちた。★ 正しく働いた。
+//     ★ エステ魂は【手が無い】のではなく【手が違う】（メールではなく代理ログイン）。
+//     → 見張りを緩めず、diaryPostMethod を型に足して表した。
+eq('★★★ 写メ日記が送れるサイトには、必ず送る手段がある',
+  v.MEDIA_SITES.filter((s) => s.can.includes('diary') && s.diaryPostMethod === 'none').length, 0);
+// ★ 逆も。★ 送る手段があるのに「送れる」と書いていないのはおかしい
+eq('★★★ 送る手段があるサイトは、写メ日記が送れると書いてある',
+  v.MEDIA_SITES.filter((s) => s.diaryPostMethod !== 'none' && !s.can.includes('diary')).length, 0);
+// ★★ メールで送るサイトには、必ずアドレスの入手手段がある（★ 元の見張りはこれだった）
+eq('★★★ メールで送るサイトには、必ずアドレスの入手手段がある',
+  v.MEDIA_SITES.filter((s) => s.diaryPostMethod === 'mail' && s.diaryAddressSource === 'none').length, 0);
+// ★★★ 代理ログインで送るサイトは、アドレスを預からない（★ 要らないものを聞かない）
+eq('★★★ 代理ログインで送るサイトはアドレスを預からない',
+  v.MEDIA_SITES.filter((s) => s.diaryPostMethod === 'proxy' && s.diaryAddressSource !== 'none').length, 0);
+eq('★ エステ魂は代理ログイン', v.findMediaSite('esutama').diaryPostMethod, 'proxy');
+eq('★ 駅ちかはメール', v.findMediaSite('ekichika').diaryPostMethod, 'mail');
 // ★★ 逆も。read/manual なのに can に diary が無いのはおかしい
 eq('★ 入手手段があるサイトは、写メ日記が送れると書いてある',
   v.MEDIA_SITES.filter((s) => s.diaryAddressSource !== 'none' && !s.can.includes('diary')).length, 0);
@@ -309,7 +330,8 @@ eq('★★★ エステラブは写メ日記だけ送れる（出勤は403で送
    v.sendableCapabilities(v.findMediaSite('esulove')), ['diary']);
 eq('★ 駅ちかは can のまま', v.sendableCapabilities(v.findMediaSite('ekichika')),
    [...v.findMediaSite('ekichika').can]);
-eq('★ エステ魂は出勤', v.sendableCapabilities(v.findMediaSite('esutama')), ['work']);
+// ★★★ 第141便: 2026-09-04 18:01 に、自動でエステ魂へ写メ日記が載ったのを実測して足した
+eq('★ エステ魂は出勤と写メ日記', v.sendableCapabilities(v.findMediaSite('esutama')), ['work', 'diary']);
 // ★★ 準備中はまだ何も送れない（★ 空を返す。★ can をそのまま出さない）
 eq('★★ 全国（準備中）は空', v.sendableCapabilities(v.findMediaSite('zenkoku')), []);
 // ★★ 写メ日記の口が無い媒体では、接続できなくても何も残らない

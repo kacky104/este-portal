@@ -108,6 +108,22 @@ export type MediaSite = {
    *   → サイトごとの手の入れ方を、ここ1か所に書く。★ 画面はここを読む。
    */
   diaryAddressSource: 'read' | 'manual' | 'none';
+  /**
+   * ★★★ 写メ日記を【どうやって送るか】（第141便・2026-09-04）。
+   *
+   * ★★ なぜ足したか: 点検にこういう見張りがあった——
+   *   「can に diary があるサイトは、必ずアドレスの入手手段がある
+   *     （★ 送れると書いて手が無い状態を作らない）」
+   *   ★ エステ魂に 'diary' を足したら、この見張りが落ちた。★ 正しく働いた。
+   *   ★★★ ただしエステ魂は【手が無い】のではなく【手が違う】。
+   *     ★ メールの口が無いので、**ご本人のアカウントへ代理ログインして投稿する**。
+   *   → 見張りを緩めるのではなく、**送り方を型に書く**。
+   *
+   *   'mail'  … 投稿用メールアドレスへ送る（駅ちか・エステラブ）
+   *   'proxy' … ★★ ご本人のアカウントへ代理ログインして投稿する（エステ魂）
+   *   'none'  … 送る手段が無い
+   */
+  diaryPostMethod: 'mail' | 'proxy' | 'none';
   needsShopId: boolean;
   /** ★ needsShopId が true のときだけ使う */
   idLabel: string;
@@ -129,6 +145,7 @@ export const MEDIA_SITES: readonly MediaSite[] = [
     loginIdLabel: '',
     // ★ /admin/maillist/ から読み取れる（第53便）
     diaryAddressSource: 'read',
+    diaryPostMethod: 'mail',
     // ★★★ 2026-09-03（第117便）で false にした（カッキーさん）。
     //   ★ 実物の登録はログインIDと同じ番号だった（37168 / 37168）。★ ベンリーにも店舗IDの欄は無い。
     //   ★★ そして駅ちかのログインでも【送っていない】（relayFlow.buildLoginRequest の頭）:
@@ -168,6 +185,7 @@ export const MEDIA_SITES: readonly MediaSite[] = [
     loginIdLabel: '',
     // ★★ /admin が 403 なので読み取れない。★ 手で入れてもらう（第84便）
     diaryAddressSource: 'manual',
+    diaryPostMethod: 'mail',
     // ★★ エステラブのログインは login_id と login_password の2つだけ。店舗IDは使わない
     needsShopId: false,
     idLabel: '',
@@ -176,7 +194,13 @@ export const MEDIA_SITES: readonly MediaSite[] = [
   {
     provider: 'esutama',
     name: 'エステ魂',
-    can: ['work'],
+    // ★★★ 2026-09-04（第141便）: 'diary' を足した。
+    //   ★ 同日 18:01、フクエスで書いた写メ日記が【自動で】エステ魂へ載ったのを実測した。
+    //   ★★ メールで投稿できない媒体なので、**ご本人のアカウントへ代理ログインして投稿する**。
+    //     ★ だから diaryAddressSource は 'none' のまま（★ アドレスは要らない・預からない）。
+    //     ★ 投稿先の画面（DiaryTargets）は DIARY_PROVIDERS で並べているので、
+    //       ここに 'diary' を足してもアドレス欄は出ない（★ 実装を読んで確かめた）。
+    can: ['work', 'diary'],
     slots: 2,
     readable: false,
     // ★★ 2026-09-02（第109便）: 仕組みができた（ログイン → 名簿 → 出勤表 → 保存 → 照合）。
@@ -193,6 +217,8 @@ export const MEDIA_SITES: readonly MediaSite[] = [
     loginIdLabel: 'メールアドレス',
     // ★ メールでの投稿ができない（画面にもそう書いてある）
     diaryAddressSource: 'none',
+    // ★★★ エステ魂だけ代理ログイン。★ 2026-09-04 18:01 に自動で載ったのを実測
+    diaryPostMethod: 'proxy',
     // ★★ 実測（2026-09-02・設計メモ_エステ魂の出勤書き込み §2）: ログインはメールアドレスとパスワードの2つだけ。店舗IDは無い
     //   ★ 画面の「ログインID」欄にメールアドレスを入れてもらう（欄の名前を変えるのは別便）
     needsShopId: false,
@@ -214,6 +240,7 @@ export const MEDIA_SITES: readonly MediaSite[] = [
     loginIdLabel: '',
     // ★ 写メ日記そのものが無い
     diaryAddressSource: 'none',
+    diaryPostMethod: 'none',
     // ★ 実物を見ていないので決めない。★ 受け付けていないので画面には出ない
     needsShopId: true,
     idLabel: '店舗ID',
