@@ -13,7 +13,7 @@
 //   ★ 行が入ったあとで変えると移行が要る。増える前のいまなら、変えるのは自由。
 
 /** 各サイトへ送れるもの。★ 増えるときはここに足す（画面には触らない） */
-export type MediaCapability = 'work' | 'therapist' | 'diary' | 'sokuhime';
+export type MediaCapability = 'work' | 'therapist' | 'diary' | 'sokuhime' | 'sokusera';
 
 export type MediaSite = {
   provider: string;
@@ -219,7 +219,13 @@ export const MEDIA_SITES: readonly MediaSite[] = [
     //     ★ だから diaryAddressSource は 'none' のまま（★ アドレスは要らない・預からない）。
     //     ★ 投稿先の画面（DiaryTargets）は DIARY_PROVIDERS で並べているので、
     //       ここに 'diary' を足してもアドレス欄は出ない（★ 実装を読んで確かめた）。
-    can: ['work', 'diary'],
+    //
+    // ★★★ 2026-09-04（第146便）: 'sokusera' を足した。
+    //   ★ 同日 21:56、フクエスの「今すぐ」からサラさんの即セラが ON になったのを実測し、
+    //     22:03 に5分ごとの自動化まで入れた。★ **動いてから足した**（第141便と同じ物差し）。
+    //   ★★ OFF は打たない（相手が60分で切る）。★ そこは店舗様に説明する所であって、
+    //     「送れるもの」に書くことではない。
+    can: ['work', 'diary', 'sokusera'],
     slots: 2,
     readable: false,
     // ★★ 2026-09-02（第109便）: 仕組みができた（ログイン → 名簿 → 出勤表 → 保存 → 照合）。
@@ -272,6 +278,7 @@ const CAPABILITY_LABEL: Record<string, string> = {
   therapist: 'セラピスト',
   diary: '写メ日記',
   sokuhime: '即ヒメ',
+  sokusera: '即セラ',
 };
 
 /** ★ 知らない種別は空文字。★ 「その他」と書かない（何が送れるか分からないものを送れると見せない） */

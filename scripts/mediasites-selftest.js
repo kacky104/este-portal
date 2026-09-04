@@ -84,8 +84,9 @@ eq('★★★ いま「セラピスト」を送れるサイトは無い',
 eq('★ エステラブは出勤と写メ日記',
    v.siteCapabilityLabels(v.findMediaSite('esulove')), ['出勤', '写メ日記']);
 // ★★★ 第141便: 2026-09-04 18:01、自動でエステ魂へ写メ日記が載ったのを実測して足した
-eq('★★★ エステ魂は出勤と写メ日記',
-   v.siteCapabilityLabels(v.findMediaSite('esutama')), ['出勤', '写メ日記']);
+// ★★★ 第146便: 2026-09-04 21:56、フクエスの「今すぐ」から即セラが ON になったのを実測して足した
+eq('★★★ エステ魂は出勤と写メ日記と即セラ',
+   v.siteCapabilityLabels(v.findMediaSite('esutama')), ['出勤', '写メ日記', '即セラ']);
 eq('★★ 全国エステランキングにも写メ日記は無い',
    v.siteCapabilityLabels(v.findMediaSite('zenkoku')), ['出勤']);
 // ★★ 写メ日記が送れるサイト（2026-08-30 カッキーさん確認 → 第141便でエステ魂を追加）
@@ -338,13 +339,28 @@ eq('★★★ エステラブは写メ日記だけ送れる（出勤は403で送
 eq('★ 駅ちかは can のまま', v.sendableCapabilities(v.findMediaSite('ekichika')),
    [...v.findMediaSite('ekichika').can]);
 // ★★★ 第141便: 2026-09-04 18:01 に、自動でエステ魂へ写メ日記が載ったのを実測して足した
-eq('★ エステ魂は出勤と写メ日記', v.sendableCapabilities(v.findMediaSite('esutama')), ['work', 'diary']);
+// ★★★ 第146便: 2026-09-04 21:56 に、即セラを ON にできたのを実測して足した
+eq('★ エステ魂は出勤と写メ日記と即セラ',
+   v.sendableCapabilities(v.findMediaSite('esutama')), ['work', 'diary', 'sokusera']);
 // ★★ 準備中はまだ何も送れない（★ 空を返す。★ can をそのまま出さない）
 eq('★★ 全国（準備中）は空', v.sendableCapabilities(v.findMediaSite('zenkoku')), []);
 // ★★ 写メ日記の口が無い媒体では、接続できなくても何も残らない
 eq('★★ メールの口が無ければ空',
    v.sendableCapabilities({ accepting: false, notYetKind: 'blocked', can: ['work', 'diary'], diaryAddressSource: 'none' }), []);
 eq('★ can が空でも落ちない', v.sendableCapabilities({ accepting: true, can: [] }), []);
+
+// ── ★★★ 第146便: エステ魂の「送れるもの」に 即セラ ──────────────────────────
+//   ★ 2026-09-04 21:56 に実物で ON にできて、22:03 に自動化まで入れてから足した。
+//   ★★ 「将来できること」を先に並べない（第141便で決めた物差し）。
+{
+  const es = v.findMediaSite('esutama');
+  eq('★ エステ魂に 即セラ がある', es.can.includes('sokusera'), true);
+  eq('★★ 画面の並び', v.siteCapabilityLabels(es), ['出勤', '写メ日記', '即セラ']);
+  eq('★ 即セラ の見出し', v.capabilityLabel('sokusera'), '即セラ');
+  // ★★★ 駅ちかの「即ヒメ」と混ぜない。★ 別の媒体の別の機能
+  eq('★★★ 駅ちかは 即ヒメ のまま', v.siteCapabilityLabels(v.findMediaSite("ekichika")), ['出勤', '写メ日記', '即ヒメ']);
+  eq('★ エステラブには 即セラ を足していない', v.findMediaSite("esulove").can.includes('sokusera'), false);
+}
 
 console.log(fail === 0 ? '\n★ すべて通った' : '\n★ NG ' + fail + ' 件');
 process.exit(fail === 0 ? 0 : 1);
