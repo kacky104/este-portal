@@ -18,7 +18,7 @@ import { decideDiaryTarget, type DiaryTargetReason } from './esutamaDiaryTargets
 import type { ConsentState, MediaAccountState } from './therapistMediaConsent';
 
 /** 送れない理由。★ 第132便の5つに【送るものがない】を足した6つ。 */
-export type DiaryPlanReason = DiaryTargetReason | 'no_diary';
+export type DiaryPlanReason = DiaryTargetReason | 'no_diary' | 'too_old';
 
 /** 1人ぶんの材料。★ 呼び出し側（DB 側）が集めて渡す。 */
 export type DiaryCandidate = {
@@ -29,10 +29,21 @@ export type DiaryCandidate = {
   /** 名簿の結び（therapist_media_ids の esutama）。★ 無ければ null */
   castId: string | null;
   /**
-   * まだ送っていない日記のID（★ 新しい順）。
-   * ★ 空でも「日記が1件も無い」とは限らない（全部送り済みかもしれない）。
+   * 送る候補（★ 新しい順・**14日の窓を通ったものだけ**）。
+   * ★ 空でも「日記が1件も無い」とは限らない（全部送り済み／古いだけ かもしれない）。
    */
   unsentDiaryIds: readonly string[];
+  /**
+   * ★★★ 未送信だが【窓より古い】日記があるか（第134便で追加）。
+   *
+   * ★★ なぜ要るか（2026-09-04・1通目の下見で実際に嘘が出た）
+   *   古い日記しか無い人が「送信済み 1名」と表示された。★ 1通も送っていないのに。
+   *   ★ 候補が空になった理由が【送ったから】なのか【古いから】なのか、区別していなかった。
+   *   → **分ける。** ★ 店舗様の次の行動が違う:
+   *       送信済み … 何もしなくてよい
+   *       古いだけ … 新しく1本書けば送れる（★ 日記を名指しすれば今のものも送れる）
+   */
+  hasOlderUnsent: boolean;
   /** ★ その人の日記が1件でもあるか。★ 「まだ書いていない」と「全部送った」を分けるため */
   hasAnyDiary: boolean;
 };
@@ -85,6 +96,13 @@ export function planOneDiary(
     return { ...base, diaryId: null, ok: false, reason: 'no_diary', message: '送る写メ日記がまだありません' };
   }
   const diaryId = c.unsentDiaryIds[0] ?? null;
+  // ★★★ 候補が空でも「送った」とは限らない（第134便）。★ 古いだけかもしれない
+  if (diaryId === null && c.hasOlderUnsent) {
+    return {
+      ...base, diaryId: null, ok: false, reason: 'too_old',
+      message: 'まだお送りしていない日記はありますが、14日より古いため自動では選びません',
+    };
+  }
   const alreadySent = diaryId === null;
 
   const v = decideDiaryTarget({
@@ -166,6 +184,7 @@ export type DiaryPlanTally = {
   送れる: number;
   送信済み: number;
   日記がまだ: number;
+  古い日記のみ: number;
   了承なし: number;
   未開始: number;
   利用状況が不明: number;
@@ -174,13 +193,14 @@ export type DiaryPlanTally = {
 
 export function tallyDiaryPlan(rows: readonly DiaryPlanRow[]): DiaryPlanTally {
   const t: DiaryPlanTally = {
-    母数: rows.length, 送れる: 0, 送信済み: 0, 日記がまだ: 0,
+    母数: rows.length, 送れる: 0, 送信済み: 0, 日記がまだ: 0, 古い日記のみ: 0,
     了承なし: 0, 未開始: 0, 利用状況が不明: 0, 名簿未結び: 0,
   };
   for (const r of rows) {
     if (r.ok) { t.送れる++; continue; }
     if (r.reason === 'already_sent') t.送信済み++;
     else if (r.reason === 'no_diary') t.日記がまだ++;
+    else if (r.reason === 'too_old') t.古い日記のみ++;
     else if (r.reason === 'not_agreed') t.了承なし++;
     else if (r.reason === 'not_started') t.未開始++;
     else if (r.reason === 'account_unknown') t.利用状況が不明++;
@@ -197,6 +217,7 @@ export function diaryPlanSummary(t: DiaryPlanTally): string {
   const parts = ['送れる ' + t.送れる + '名'];
   if (t.送信済み > 0) parts.push('送信済み ' + t.送信済み + '名');
   if (t.日記がまだ > 0) parts.push('日記がまだ ' + t.日記がまだ + '名');
+  if (t.古い日記のみ > 0) parts.push('古い日記のみ ' + t.古い日記のみ + '名');
   if (t.了承なし > 0) parts.push('ご了承がまだ ' + t.了承なし + '名');
   if (t.名簿未結び > 0) parts.push('名簿が未結び ' + t.名簿未結び + '名');
   if (t.未開始 > 0) parts.push('魂セラピスト未開始 ' + t.未開始 + '名');

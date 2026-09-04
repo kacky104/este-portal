@@ -155,3 +155,22 @@ export function esutamaDiaryPostSignals(body: string): EsutamaDiaryPostSignals {
     length: src.length,
   };
 }
+
+/**
+ * ★★★ いま【誰として】ログインしているかを、画面から読み取る（第134便・2026-09-04）。
+ *
+ * ★★ なぜ要るか（2026-09-04 の1通目で実際に詰まった）
+ *   代理ログインの突き合わせに失敗して止まった。★ 安全側に倒れたのは正しい。
+ *   ★ しかし記録には「入れませんでした」としか残らず、**なぜかが分からない**:
+ *     ・別の人に入った？
+ *     ・そもそもログインできていない？
+ *     ・名前の表記が違うだけ？（サラ／さら）
+ *   → **画面に出ていた名前をそのまま記録に残す。** ★ 次に見たときに理由が読める。
+ *
+ * ★ 見つからなければ null（★ 空文字にしない）。★ 「読めなかった」と「空だった」を混ぜない。
+ */
+export function parseProxyLoggedInName(html: string): string | null {
+  const m = /【([^】]{1,40})】さんにログイン中です/.exec(String(html ?? ''));
+  const name = m?.[1]?.trim() ?? '';
+  return name.length > 0 ? name : null;
+}

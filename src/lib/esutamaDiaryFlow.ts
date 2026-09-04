@@ -24,7 +24,7 @@ import type { FlowAudit, FlowOutcome, RelayFlowContext } from './relayFlow';
 import { mergeCookies } from './relayJob';
 import {
   parseEsutamaProxyTherapists, parseEsutamaCtk, parseEsutamaShopToken, isProxyLoggedInAs,
-  esutamaDiaryPostSignals,
+  esutamaDiaryPostSignals, parseProxyLoggedInName,
 } from './esutamaTherapistParse';
 import { buildEsutamaDiaryPost } from './esutamaDiaryPost';
 import {
@@ -134,10 +134,13 @@ export function afterEsutamaDiaryProxy(input: Input, ctx: RelayFlowContext): Flo
   const cookie = mergeCookies(ctx.cookie, input.headers['set-cookie'] as string | string[] | undefined);
   const name = String(ctx.esutamaDiaryCastName ?? '');
   const matched = isProxyLoggedInAs(input.body, name);
+  // ★★★ 画面に出ていた名前をそのまま残す（第134便）。★ 「入れなかった」だけでは理由が分からない
+  //   ★ null なら「ログイン中です」の表示自体が無かった＝入れていない（別人ではない）
+  const loggedInAs = parseProxyLoggedInName(input.body);
   const audits: FlowAudit[] = [{
     event: 'diary_proxy_login',
     outcome: input.status >= 200 && input.status < 400 && matched ? 'ok' : 'failed',
-    detail: { status: input.status, castId: ctx.esutamaDiaryCastId ?? null, name, matched },
+    detail: { status: input.status, castId: ctx.esutamaDiaryCastId ?? null, name, matched, loggedInAs },
   }];
   const next = { ...ctx, cookie, esutamaProxyOpen: true };
   if (input.status < 200 || input.status >= 400) {
@@ -145,7 +148,10 @@ export function afterEsutamaDiaryProxy(input: Input, ctx: RelayFlowContext): Flo
   }
   if (!matched) {
     // ★★★ ここが最後の砦。★ 別の人のアカウントに日記を出さない
-    return stopViaEndProxy(next, audits, '別の方のアカウントに入った可能性があります（' + name + 'さんの印が見つかりません）');
+    //   ★ 何が出ていたかまで書く。★ 「入れなかった」だけだと、名前の表記違いか人違いか区別できない
+    return stopViaEndProxy(next, audits, loggedInAs === null
+      ? 'ログイン中の表示が見つかりませんでした（' + name + 'さんとして入れていません）'
+      : '入ったのは【' + loggedInAs + '】さんでした（頼んだのは ' + name + 'さん）');
   }
   return {
     kind: 'next',

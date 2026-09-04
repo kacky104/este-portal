@@ -21,7 +21,7 @@ const eq = (name, got, want) => {
 const ACTIVE = ['757481', '900001'];
 const OK = {
   therapistId: 1, name: 'さら', consent: 'agreed', castId: '757481',
-  unsentDiaryIds: ['d1', 'd2'], hasAnyDiary: true,
+  unsentDiaryIds: ['d1', 'd2'], hasOlderUnsent: false, hasAnyDiary: true,
 };
 const one = (o) => P.planEsutamaDiaries({ candidates: [{ ...OK, ...o }], activeCastIds: ACTIVE, listRead: true })[0];
 
@@ -40,6 +40,14 @@ eq('★ 送れるときは一番新しい未送信1件', one({}).diaryId, 'd1');
 eq('★ 送れる', one({}).ok, true);
 // ★★★ 未送信が無い＝全部送ってある。★ 「日記がまだ」と混ぜない
 eq('★★★ 未送信が無ければ already_sent', one({ unsentDiaryIds: [] }).reason, 'already_sent');
+// ★★★ 2026-09-04・1通目の下見で実際に出た嘘。★ 1通も送っていないのに「送信済み」
+eq('★★★ 古い日記しか無いのを「送信済み」と言わない',
+   one({ unsentDiaryIds: [], hasOlderUnsent: true }).reason, 'too_old');
+eq('★★ 古いだけなら「まだお送りしていない」と書く',
+   one({ unsentDiaryIds: [], hasOlderUnsent: true }).message.includes('まだお送りしていない'), true);
+// ★ 日記が1件も無い人は、古いも新しいもない
+eq('★ 日記ゼロは no_diary のまま',
+   one({ unsentDiaryIds: [], hasOlderUnsent: true, hasAnyDiary: false }).reason, 'no_diary');
 // ★★ 1件も書いていないのは故障ではない。★ already_sent とも混ぜない
 eq('★★★ 日記が1件も無ければ no_diary',
    one({ unsentDiaryIds: [], hasAnyDiary: false }).reason, 'no_diary');
@@ -62,6 +70,7 @@ const rows = P.planEsutamaDiaries({
     { ...OK, therapistId: 1 },
     { ...OK, therapistId: 2 },
     { ...OK, therapistId: 3, unsentDiaryIds: [] },                    // 送信済み
+    { ...OK, therapistId: 8, unsentDiaryIds: [], hasOlderUnsent: true },// ★ 古い日記のみ
     { ...OK, therapistId: 4, unsentDiaryIds: [], hasAnyDiary: false },// 日記がまだ
     { ...OK, therapistId: 5, consent: 'unknown' },                    // 了承なし
     { ...OK, therapistId: 6, castId: '123456' },                      // 未開始
@@ -70,7 +79,7 @@ const rows = P.planEsutamaDiaries({
   activeCastIds: ACTIVE, listRead: true,
 });
 eq('★ 理由ごとに数える', P.tallyDiaryPlan(rows), {
-  母数: 7, 送れる: 2, 送信済み: 1, 日記がまだ: 1,
+  母数: 8, 送れる: 2, 送信済み: 1, 日記がまだ: 1, 古い日記のみ: 1,
   了承なし: 1, 未開始: 1, 利用状況が不明: 0, 名簿未結び: 1,
 });
 eq('★ 空でも落ちない', P.tallyDiaryPlan([]).母数, 0);
@@ -81,7 +90,9 @@ const zero = P.tallyDiaryPlan(P.planEsutamaDiaries({
 eq('★★★ 送れる0でも数を出す', P.diaryPlanSummary(zero).startsWith('送れる 0名'), true);
 eq('★★ 0件の理由が同じ行に出る', P.diaryPlanSummary(zero).includes('ご了承がまだ 1名'), true);
 eq('★ 0のものは並べない', P.diaryPlanSummary(zero).includes('未開始'), false);
-eq('★ 在籍の数は必ず出る', P.diaryPlanSummary(P.tallyDiaryPlan(rows)).includes('在籍 7名'), true);
+eq('★ 在籍の数は必ず出る', P.diaryPlanSummary(P.tallyDiaryPlan(rows)).includes('在籍 8名'), true);
+eq('★★ 古い日記のみも1行に出る',
+   P.diaryPlanSummary(P.tallyDiaryPlan(rows)).includes('古い日記のみ 1名'), true);
 
 console.log('\n── 5. ★★★ 実弾は指定された1人だけ ──');
 eq('★ 指定した人を取り出す', P.pickOneToSend(rows, 2).ok, true);

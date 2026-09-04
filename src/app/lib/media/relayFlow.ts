@@ -1716,11 +1716,11 @@ async function planEsutamaDiary(
   const named = String(ctx.esutamaDiaryPostId ?? '').trim();
   const candidates: DiaryCandidate[] = trows.map((t) => {
     const mine = diaries.filter((d) => d.therapist_id === t.id);
-    const unsent = mine
-      .filter((d) => !sentSet.has(d.id))
+    const unsentAll = mine.filter((d) => !sentSet.has(d.id));
+    const inWindow = (d: DiaryRow) =>
       // ★ 名指しされた1件は上限を通さない（人が選んだもの）。★ それ以外は新しいものだけ
-      .filter((d) => d.id === named || (d.created_at ? Date.parse(d.created_at) >= cutoff : false))
-      .map((d) => d.id);
+      d.id === named || (d.created_at ? Date.parse(d.created_at) >= cutoff : false);
+    const unsent = unsentAll.filter(inWindow).map((d) => d.id);
     // ★★ 名指しがあれば必ず先頭へ（★ 「一番新しい」より人の指定を優先する）
     const ordered = named && unsent.includes(named) ? [named, ...unsent.filter((x) => x !== named)] : unsent;
     return {
@@ -1729,6 +1729,8 @@ async function planEsutamaDiary(
       consent: toConsentState(consentOf.get(t.id)),
       castId: maps.castIdOf.get(t.id) ?? null,
       unsentDiaryIds: ordered,
+      // ★★★ 「送った」と「古いだけ」を分ける（第134便）。★ 1通も送っていないのに送信済みと言わない
+      hasOlderUnsent: unsentAll.some((d) => !inWindow(d)),
       hasAnyDiary: mine.length > 0,
     };
   });
@@ -1747,6 +1749,7 @@ async function planEsutamaDiary(
     summary,
     detail: {
       people: tally.母数, sendable: tally.送れる, sent: tally.送信済み, noDiary: tally.日記がまだ,
+      tooOld: tally.古い日記のみ,
       notAgreed: tally.了承なし, notStarted: tally.未開始, accountUnknown: tally.利用状況が不明,
       noCastId: tally.名簿未結び, active: mediaRows.length, hasCtk: !!ctk, flowId,
     },
@@ -1794,6 +1797,12 @@ async function planEsutamaDiary(
   const row = picked.row;
   const diaryId = String(row.diaryId);
   const castId = String(row.castId ?? '');
+  // ★★★ 突き合わせに使う名前は【エステ魂側の名前】（第134便・2026-09-04）。
+  //   ★ 2026-09-04 の1通目がここで止まった: フクエスは「サラ」、エステ魂は「さら」。
+  //   ★★ 見たいのは「頼んだ番号の人に入れたか」。★ 比べる相手は**媒体が名乗っている名前**。
+  //   ★ 一覧に無ければフクエス側の名前で代用する（★ そのときは一致しない可能性が高い）。
+  const mediaName = mediaRows.find((r) => r.castId === castId)?.name ?? '';
+  const matchName = mediaName || row.name;
 
   // ⑦ 送る中身を読む
   const { data: dp, error: dpErr } = await supabase
@@ -1862,14 +1871,19 @@ async function planEsutamaDiary(
   const markAudit: FlowAudit = {
     event: 'diary_mark_set', outcome: 'ok',
     summary: row.name + 'さんの写メ日記に、二度送りを防ぐ印を付けました',
-    detail: { therapistId: row.therapistId, castId, flowId },
+    // ★ 名前が食い違っていることを記録に残す（★ 突き合わせで落ちたときの手がかり）
+    detail: {
+      therapistId: row.therapistId, castId, flowId,
+      fukuesName: row.name, mediaName: mediaName || null,
+      sameName: mediaName === row.name,
+    },
   };
 
   // ⑨ token 発行の段を積む。★ ここから相手に状態を作らせる
   const nextCtx: RelayFlowContext = {
     ...ctx,
     esutamaDiaryCastId: castId,
-    esutamaDiaryCastName: row.name,
+    esutamaDiaryCastName: matchName,
     esutamaDiaryPostId: diaryId,
     esutamaDiaryDraft: { title, content },
     esutamaDiaryMarked: true,

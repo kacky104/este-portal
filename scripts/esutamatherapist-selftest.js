@@ -99,5 +99,18 @@ eq('★ 長さも合図（空も残す）', T.esutamaDiaryPostSignals('').length
 // ★ null / undefined でも落ちない（★ 応答が無いことも合図）
 eq('★ 空でも落ちない', T.esutamaDiaryPostSignals(undefined).formStillThere, false);
 
+console.log('\n── 6. ★★★ 誰として入っているかを読み取る（第134便）──');
+// ★★ 2026-09-04 の1通目がここで止まった。★ 「入れなかった」だけでは理由が分からなかった
+eq('★ 名前を取り出す',
+   T.parseProxyLoggedInName('<div>【さら】さんにログイン中です</div>'), 'さら');
+// ★★★ 表記が違う人に入っていたことも分かる（サラ／さら）
+eq('★★★ 頼んだ人と違えば、その名前がそのまま返る',
+   T.parseProxyLoggedInName('<div>【さくら】さんにログイン中です</div>'), 'さくら');
+// ★ 表示そのものが無い＝入れていない。★ 「別人」とは別の話
+eq('★★ 表示が無ければ null（空文字にしない）',
+   T.parseProxyLoggedInName('<div>ログイン</div>'), null);
+eq('★ 空でも落ちない', T.parseProxyLoggedInName(''), null);
+eq('★ null でも落ちない', T.parseProxyLoggedInName(undefined), null);
+
 console.log(fail === 0 ? '\n★ すべて通りました' : '\n' + fail + ' 件 通りませんでした');
 process.exit(fail === 0 ? 0 : 1);
