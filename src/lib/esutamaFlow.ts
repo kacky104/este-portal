@@ -16,6 +16,8 @@
 import type { FlowAudit, FlowOutcome, RelayFlowContext, EsutamaDiffRow, EsutamaPlanSummary } from './relayFlow';
 import { mergeCookies } from './relayJob';
 import { readEsutamaCsrf, parseEsutamaJson, parseEsutamaRoster } from './esutamaParse';
+// ★ 写メ日記の道（第133便）。★ ログインの直後に分かれる
+import { buildEsutamaTherapistAdminRequest } from './esutamaRequests';
 import {
   parseEsutamaWorkPage, checkEsutamaWorkPage, buildEsutamaPayload, esutamaDayLabel, addDays,
   type EsutamaWorkPage,
@@ -149,6 +151,19 @@ export function afterEsutamaLogin(input: Input, ctx: RelayFlowContext): FlowOutc
       'エステ魂のログインで Cookie が無い',
     );
   }
+  // ★★★ ここで道が分かれる（第133便）。
+  //   ★ 写メ日記の用事は【出勤名簿を読まない】。★ 用の無いページを相手に読みに行かない。
+  //   ★★ 「ログインできた」の確証は、日記の道では【魂セラピスト一覧が読めたこと】で取る。
+  if (ctx.intent === 'diary_dryrun' || ctx.intent === 'diary_push') {
+    const t = buildEsutamaTherapistAdminRequest(cookie);
+    return {
+      kind: 'next',
+      audits: [],
+      note: 'エステ魂にログインできた。魂セラピストの一覧を読みます',
+      next: { purpose: 'esutama_therapist_list', method: t.method, url: t.url, headers: t.headers, body: '', context: { ...ctx, cookie, esutamaCsrf: undefined } },
+    };
+  }
+
   const next = buildEsutamaRosterRequest(cookie);
   return {
     kind: 'next',

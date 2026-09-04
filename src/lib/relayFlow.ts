@@ -72,6 +72,12 @@ import {
   afterEsutamaLoginPage, afterEsutamaLogin, afterEsutamaRoster,
   afterEsutamaWorkRead, afterEsutamaWorkSave, afterEsutamaWorkVerify,
 } from './esutamaFlow';
+// ★★★ エステ魂の写メ日記（第130便で書いた段を、第133便で advanceFlow に繋いだ）。
+//   ★ 130便では書いただけで【一度も呼ばれていなかった】。★ 繋いで初めて動く
+import {
+  afterEsutamaTherapistList, afterEsutamaDiaryToken, afterEsutamaDiaryProxy,
+  afterEsutamaDiaryPage, afterEsutamaDiaryPost, afterEsutamaDiaryEnd,
+} from './esutamaDiaryFlow';
 import type { EsutamaPerson } from './esutamaPlan';
 import type { EsutamaRosterRow } from './esutamaParse';
 import type { AuditDetail, MediaAuditEvent, MediaAuditOutcome } from './mediaAudit';
@@ -672,6 +678,19 @@ export function advanceFlow(input: {
       return afterEsutamaWorkSave(input, ctx);
     case 'esutama_work_verify':
       return afterEsutamaWorkVerify(input, ctx);
+    // ── エステ魂の写メ日記（第130便の段・第133便で接続）★ 段名で分けている ──
+    case 'esutama_therapist_list':
+      return afterEsutamaTherapistList(input, ctx);
+    case 'esutama_diary_token':
+      return afterEsutamaDiaryToken(input, ctx);
+    case 'esutama_diary_proxy':
+      return afterEsutamaDiaryProxy(input, ctx);
+    case 'esutama_diary_page':
+      return afterEsutamaDiaryPage(input, ctx);
+    case 'esutama_diary_post':
+      return afterEsutamaDiaryPost(input, ctx);
+    case 'esutama_diary_end':
+      return afterEsutamaDiaryEnd(input, ctx);
     default:
       return stop([], '知らない段: ' + String(input.purpose));
   }

@@ -62,12 +62,21 @@ function stopViaEndProxy(ctx: RelayFlowContext, audits: FlowAudit[], note: strin
  */
 export function afterEsutamaTherapistList(input: Input, ctx: RelayFlowContext): FlowOutcome {
   const cookie = mergeCookies(ctx.cookie, input.headers['set-cookie'] as string | string[] | undefined);
-  const okStatus = input.status >= 200 && input.status < 400;
+  // ★★★ ログイン画面へ戻されたのを「0名」と読まない（第133便）。
+  //   ★ セッションが切れると、相手は 302 で /login へ返す。★ 中身は空。
+  //   ★★ ここを見ていないと「まだ誰も始めていません」という【嘘の理由】が出る。
+  const loc = String(input.headers['location'] ?? '');
+  const toLogin = input.status >= 300 && input.status < 400 && loc.includes('/login');
+  const okStatus = input.status >= 200 && input.status < 400 && !toLogin;
   const audits: FlowAudit[] = [{
     event: 'read_diary_targets',
     outcome: okStatus ? 'ok' : 'failed',
-    detail: { status: input.status },
+    // ★ location そのものは入れない（監査は 'url' を含むキーを弾く）。★ 戻されたかどうかだけ
+    detail: { status: input.status, toLogin },
   }];
+  if (toLogin) {
+    return stop(audits, 'ログイン画面へ戻されました（セッションが切れています）。★ 0名ではありません');
+  }
   if (!okStatus) {
     return stop(audits, '魂セラピストの一覧を読めませんでした（' + input.status + '）');
   }
