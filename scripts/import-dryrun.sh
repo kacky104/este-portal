@@ -30,7 +30,21 @@ if [ "$MODE" = "apply" ]; then APPLY=true; fi
 BASE="https://fukues.com"
 SECRET="${CRON_SECRET:?set CRON_SECRET（先に  set -a; . /root/import.env; set +a  を打つこと）}"
 UA="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0 Safari/537.36"
-TODAY="$(TZ=Asia/Tokyo date +%F)"
+# ★★★ 第153便（2026-09-05）: 暦日 → 【営業日】（午前6時始まり）にした。
+#   ★ src/lib/dutyStatus.ts の DAY_START_HOUR = 6 と対。★ 駅ちかもエステ魂も6時始まり（実測・第150便）。
+#
+#   ★★ なぜ要るか（★ 2026-09-05 深夜に実際に見つかった）
+#     深夜0〜6時に list を回すと、駅ちかの「本日出勤」（＝駅ちかの営業日＝暦日の前日）を、
+#     フクエスの暦日（＝当日）として保存していた。
+#     → ★ **フクエスの「明日」に、駅ちかの「今日」の出勤が入る。**
+#     ★ 06:05 の list が正しい日付で上書きするので、朝には直っていた。だから気づけなかった。
+#
+#   ★★★ 一覧ページ（girlslist）には日付ラベルが無い（「本日出勤」としか書いていない）。
+#     ★ **照合できないので、ここが唯一の守り。** ★ この行を暦日に戻さないこと。
+#     ★ 個人ページ（週間予定）のほうは第153便でラベルを照合するようにした。
+#
+#   ★ 05:59→前日 / 06:00→当日 / 月またぎも正しい（GNU date で実測）
+TODAY="$(TZ=Asia/Tokyo date -d '6 hours ago' +%F)"
 
 echo "=== $(TZ=Asia/Tokyo date '+%F %T')  sourceId=$SID  apply=$APPLY ==="
 

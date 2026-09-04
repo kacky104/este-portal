@@ -38,6 +38,11 @@ export type EkichikaCast = {
   hip: string | null;        // '85'
   bodyType: string | null;   // 'T164 B87(D) W54 H85'（fukues の body_type 表記）
   schedule: EkichikaDay[];   // 出勤（最大7日。未入力日も 'off' として含める＝第30便）
+  /**
+   * ★★★ 日付まわりで気になったこと（第153便）。★ 空なら何も無かった。
+   *   ★ 黙って直さない。★ ずれを直した【という事実】を呼び出し側が記録できるようにする。
+   */
+  scheduleWarnings: string[];
 };
 
 function pick(re: RegExp, html: string): string | null {
@@ -61,6 +66,59 @@ export function normalizeName(raw: string | null | undefined): string {
   s = s.replace(/[\s　]+/g, '');        // 空白（半角・全角）除去
   s = s.replace(/[★☆♪♬♡❤︎♥、。・,.!！?？~〜ー-]/g, ''); // 装飾記号・区切りを除去
   return s.trim();
+}
+
+/**
+ * ★★★ 出勤表の行から日付ラベルを読む（第153便・2026-09-05）。
+ *
+ * ★★ 実物:  <tr class="date_sun"><th>08/23(日)</th><td>…
+ *   ★ 年は書いていない。★ 曜日は使わない（年を決めれば曜日は決まるので、二重に持たない）。
+ */
+export function readDateLabel(rowHtml: string): string | null {
+  const m = String(rowHtml ?? '').match(/<th[^>]*>[\s\S]{0,20}?(\d{1,2})\s*\/\s*(\d{1,2})/);
+  if (!m) return null;
+  const mm = Number(m[1]);
+  const dd = Number(m[2]);
+  if (!(mm >= 1 && mm <= 12) || !(dd >= 1 && dd <= 31)) return null;
+  return String(mm).padStart(2, '0') + '/' + String(dd).padStart(2, '0');
+}
+
+/**
+ * ★★★ 'MM/DD' に年を当てて 'YYYY-MM-DD' にする（第153便）。
+ *
+ * ★★ 駅ちかは年を書かないので、こちらで決めるしかない。
+ *   ★ 基準日（baseISO）から**いちばん近い年**を選ぶ。★ 12/31 ⇄ 01/01 の年またぎがこれで通る。
+ *   ★ 2/30 のような実在しない日は null（★ 勝手に 3/1 へ丸めない）。
+ */
+export function labelToISO(label: string, baseISO: string): string | null {
+  const m = /^(\d{2})\/(\d{2})$/.exec(String(label ?? ''));
+  if (!m) return null;
+  const mm = Number(m[1]);
+  const dd = Number(m[2]);
+  const baseT = Date.parse(String(baseISO ?? '') + 'T00:00:00Z');
+  if (!Number.isFinite(baseT)) return null;
+  const baseY = Number(String(baseISO).slice(0, 4));
+  let best: string | null = null;
+  let bestDiff = Infinity;
+  for (const y of [baseY - 1, baseY, baseY + 1]) {
+    const t = Date.UTC(y, mm - 1, dd);
+    const dt = new Date(t);
+    // ★ 実在しない日を弾く（Date.UTC は 2/30 を 3/2 に繰り上げてしまう）
+    if (dt.getUTCMonth() !== mm - 1 || dt.getUTCDate() !== dd) continue;
+    const diff = Math.abs(t - baseT);
+    // ★★★ 基準日から半年より遠い日は選ばない（第153便）。
+    //   ★ 出勤表は7日ぶん。★ 1年先の日を当てるのは、どう考えても読み違えている。
+    //   ★★ 年の候補は1年ずつ離れているので、±180日に絞ると【年が1つに決まる】。
+    //     ★ 例: 平年の 3/1 を基準に '02/29' が来たら、近くに実在しないので null。
+    //       ★ 1年先の閏日に飛ばさない（★ 飛ばすと、その日に出勤を書いてしまう）。
+    if (diff > 180 * 86400000) continue;
+    if (diff < bestDiff) {
+      bestDiff = diff;
+      const pad = (n: number) => String(n).padStart(2, '0');
+      best = dt.getUTCFullYear() + '-' + pad(dt.getUTCMonth() + 1) + '-' + pad(dt.getUTCDate());
+    }
+  }
+  return best;
 }
 
 /** 'YYYY-MM-DD' に i 日足す（UTCベースでズレなく計算）。 */
@@ -109,15 +167,47 @@ export function parseEkichikaCast(html: string, todayISO: string): EkichikaCast 
 
   // 出勤表。「1週間の出勤予定」以降の最初の <table> を対象にする。
   const schedule: EkichikaDay[] = [];
+  const warnings: string[] = [];
   const schedStart = html.indexOf('1週間の出勤予定');
   if (schedStart >= 0) {
     const after = html.slice(schedStart, schedStart + 4000);
     const tableM = after.match(/<table>([\s\S]*?)<\/table>/);
+    // ★★★ 第153便: 「行が1つも無かった」と「行はあったが1つも取れなかった」を分ける。
+    //   ★ 下の「お問い合わせ」の受け皿が、後者にまで効いてしまうと【全員の7日ぶんを休みにする】。
+    let rowCount = 0;
     if (tableM) {
       const rows = [...tableM[1].matchAll(/<tr[^>]*>([\s\S]*?)<\/tr>/g)];
+      rowCount = rows.length;
       rows.forEach((row, i) => {
         const td = row[1];
-        const date = addDays(todayISO, i);
+        // ★★★ 第153便: 【渡された日付を信じない】。★ 駅ちかが書いている日付ラベルを正本にする。
+        //   ★ 2026-08-29 のこのファイルの注記にあった「読み取り側は塞いでいない」を塞ぐもの。
+        //   ★★ 2026-09-05 深夜に実害を確認: 深夜0〜6時の周が1日ずれて取り込んでいた。
+        const guess = addDays(todayISO, i);
+        const label = readDateLabel(td);
+        const fromLabel = label === null ? null : labelToISO(label, todayISO);
+        // ★★★ 行ごとの妥当性（第153便）。★ labelToISO の ±180日とは【役割が違う】:
+        //   ・labelToISO の ±180日 … 年を1つに決めるための境目（どの MM/DD も必ず1年に決まる）
+        //   ・ここの ±7日        … 読み違えを弾くための境目
+        //   ★ 表は7日ぶん。★ 見込み（guess）から7日より離れた日は、どう読んでも読み違え。
+        //     ★ 深夜のずれは1日。★ 7日あれば、正しいずれは全部通る。
+        const far = fromLabel !== null &&
+          Math.abs(Date.parse(fromLabel + 'T00:00:00Z') - Date.parse(guess + 'T00:00:00Z')) > 7 * 86400000;
+        if (far) {
+          warnings.push((i + 1) + '行目の日付が ' + fromLabel + ' で、見込みの ' + guess + ' から離れすぎているため、この日は触っていません');
+          return;
+        }
+        if (fromLabel === null) {
+          // ★★★ ラベルが読めない行は【触らない】。★ 決め打ちに戻さない（禁則207 と同じ筋）。
+          //   ★ 間違った日付に出勤を書くくらいなら、その日を更新しないほうがよい。
+          warnings.push((i + 1) + '行目の日付を読み取れなかったので、この日は触っていません');
+          return;
+        }
+        if (fromLabel !== guess) {
+          // ★ 直すが、直したことを黙らせない（★ 「静かに直る」がいちばん怖い）
+          warnings.push('駅ちかの' + (i + 1) + '行目は ' + fromLabel + ' でした（こちらの見込みは ' + guess + '）。駅ちかに合わせました');
+        }
+        const date = fromLabel;
         if (/class="start"/.test(td)) {
           const start = normTime(pick(/<li\s+class="start">([^<]+)<\/li>/, td));
           const end = normTime(pick(/<li\s+class="end">([^<]+)<\/li>/, td));
@@ -146,7 +236,14 @@ export function parseEkichikaCast(html: string, todayISO: string): EkichikaCast 
     //   なので、この文言が出ているときだけ7日ぶんを「出勤なし」に倒す。
     //   ★ 安全弁は殺していない。文言が無いまま行が1つも取れない場合（＝レイアウト変更）は
     //     従来どおり触らずスキップする。
-    if (schedule.length === 0) {
+    //   ★★★ 第153便で条件を狭めた: `schedule.length === 0` だけでは危ない。
+    //     ★ 「お店にお問い合わせください」は commuting_no_data の行の中にも書いてある文言。
+    //     ★★ 行はあるのに1つも取れなかったとき（＝レイアウト変更・日付を読めない）にも
+    //       この文言は見つかるので、**全員の7日ぶんを休みにしてしまう**。
+    //     → ★ 「出勤表そのものが無い」＝【行が1つも無い】ときだけに限る。
+    //     ★ これは第153便で日付ラベルを見るようにしたことで新しく開いた穴でもあり、
+    //       禁則207（レイアウト変更で一斉に消さない）の元からの抜けでもある。
+    if (schedule.length === 0 && rowCount === 0) {
       const afterText = after.replace(/<[^>]*>/g, '');
       if (afterText.includes('お問い合わせ')) {
         for (let i = 0; i < 7; i++) {
@@ -156,5 +253,5 @@ export function parseEkichikaCast(html: string, todayISO: string): EkichikaCast 
     }
   }
 
-  return { name, age, height, bust, cup, waist, hip, bodyType, schedule };
+  return { name, age, height, bust, cup, waist, hip, bodyType, schedule, scheduleWarnings: warnings };
 }

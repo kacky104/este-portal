@@ -159,6 +159,13 @@ export async function POST(req: Request) {
   const importedAt = new Date().toISOString();
 
   const unmatched: string[] = [];
+  /**
+   * ★★★ 日付まわりで気になったこと（第153便・2026-09-05）。
+   *   ★ unmatched（人が照合できなかった）とは**別の器**にする。混ぜると、どちらの話か読めなくなる。
+   *   ★★ 空でないなら、こちらの「今日」と駅ちかの表がずれていたということ。
+   *     ★ ずれても駅ちかに合わせて取り込んでいる（ekichikaParse）。★ 黙らせないためにここへ出す。
+   */
+  const dateNotes: string[] = [];
   const createdNames: string[] = [];
   let matched = 0;
   let schedulesUpserted = 0;
@@ -169,6 +176,11 @@ export async function POST(req: Request) {
   for (const c of casts) {
     if (!c.html) continue;
     const cast = parseEkichikaCast(c.html, todayISO);
+    // ★ 日付のずれは【名前が取れる前】でも起きるので、ここで拾う（★ continue の前）
+    for (const w of cast.scheduleWarnings) {
+      const who = cast.name ? cast.name : 'castId ' + (c.castId ?? '不明');
+      if (dateNotes.length < 50) dateNotes.push(who + ': ' + w);   // ★ 上限。全員ぶんで溢れさせない
+    }
     if (!cast.name) continue;
     const key = normalizeName(cast.name);
     if (!key) continue;
@@ -262,6 +274,12 @@ export async function POST(req: Request) {
     }
   }
 
+  // ★★★ 第153便: 日付がずれていたら、静かに済ませない。
+  //   ★ 正常なら1件も出ない。★ 出たら「こちらの今日」の決め方（import.sh の TODAY）を疑う。
+  if (dateNotes.length > 0) {
+    console.warn('[ingest] 駅ちかの表と日付がずれていました（駅ちかに合わせました）:', dateNotes.slice(0, 5).join(' / '));
+  }
+
   // 5. 公開ページを即時無効化（cron には cookie が無いので /api/revalidate は使わず直接呼ぶ）
   revalidatePath('/salon/[id]', 'layout');
   revalidatePath('/hp/[slug]', 'layout');
@@ -295,6 +313,7 @@ export async function POST(req: Request) {
     fetched: casts.length,
     matched,
     unmatched,
+    dateNotes,
     schedulesUpserted,
     profilesUpdated,
     castIdFilled,
