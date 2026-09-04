@@ -139,15 +139,37 @@ export async function getSalonDiarySource(input: { therapistId: string | number 
  *   'fukues'   … フクエスで書いて各媒体へ送る（どちらも受け取らない）
  * ★ 判定は src/lib/diarySource.ts。★ ここに値を直書きしない。
  */
-export async function setSalonDiarySource(input: { therapistId: string | number; source: string }):
+/**
+ * ★★★ 第128便（2026-09-04）で【店舗ID】で受けるようにした。
+ *
+ * ★★★ なぜ変えたか —— **店舗全体の設定が、セラピスト個人の画面にあった**
+ *   これは salons.diary_source（店舗単位）を変える口なのに、
+ *   入口が /mypage/therapist/[id] にしか無かった。
+ *   ★ 見出しは「〇〇 のプロフィール編集」。★ 中身は店舗全体の設定。
+ *   ★★ **在籍が101人なら、同じ設定を変える入口が101個**あることになる。
+ *     ★ どの子の画面で変えても店舗全体が変わる＝上書き事故の入口（第111便の決めごと②と同じ危険）。
+ *   ★ しかも媒体連携の画面はこの値を【読んで説明している】のに、変える手段はそこに無かった。
+ *
+ * ★★ 権限も変えた。★ 前は【本人でも変えられた】（assertCanEdit は isSelf を通す）。
+ *   ★ 店舗全体の設定をセラピスト本人が変えられるのはおかしい。★ オーナー（と運営）だけにする。
+ */
+export async function setSalonDiarySource(input: { salonId: string | number; source: string }):
   Promise<Result<{ source: string }>> {
-  const therapistId = Number(input.therapistId);
-  if (!Number.isFinite(therapistId)) return { ok: false, error: '対象セラピストが不正です' };
+  const salonId = Number(input.salonId);
+  if (!Number.isFinite(salonId)) return { ok: false, error: '店舗の指定が不正です' };
   if (!isDiarySource(input.source)) return { ok: false, error: '指定が不正です' };
-  const guard = await assertCanEdit(therapistId);
-  if (!guard.ok) return guard;
+
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { ok: false, error: 'ログインが必要です' };
 
   const svc = createServiceClient();
+  const { data: salonRow } = await svc.from('salons').select('owner_id').eq('id', salonId).maybeSingle();
+  if (!salonRow) return { ok: false, error: '店舗が見つかりません' };
+  if ((salonRow.owner_id as string | null) !== user.id && user.id !== ADMIN_UUID) {
+    return { ok: false, error: 'この店舗の操作権限がありません' };
+  }
+  const guard = { data: { salonId } };
 
   // ★★★ 'ekichika' は【鍵を預けていただいた店】でしか動かない（第99便）。
   //   ★ 鍵が無いまま切り替えると、メールも受け取らず取り込みも回らない＝

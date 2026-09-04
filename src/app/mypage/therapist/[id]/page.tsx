@@ -17,7 +17,8 @@ import { STORAGE_CACHE_CONTROL } from '@/app/lib/storage';
 import { cleanupTherapistPhotos } from '@/app/actions/therapistAdmin';
 import { generateTherapistCopy, getTherapistCopyQuota, type QuotaState } from '@/app/actions/therapistCopy';
 import { getOrCreateDiaryMailAddress } from '@/app/actions/diaryMail';
-import { getDiaryForwards, saveDiaryForward, getSalonDiarySource, setSalonDiarySource } from '@/app/actions/diaryForward';
+import { getDiaryForwards, saveDiaryForward, getSalonDiarySource } from '@/app/actions/diaryForward';
+import { diarySourceTitle } from '@/lib/diarySource';
 import { useToast } from '@/app/components/useToast';
 import { SiteNoticeBanner } from '@/app/components/SiteNoticeBanner';
 
@@ -98,7 +99,6 @@ export default function TherapistEditPage() {
   // 店舗の「写メ日記の正本」。'benry'=他媒体で書く（既定） / 'fukues'=フクエスで書く。
   // ★★★ これが二重投稿を防ぐ唯一の仕掛け（fukues にすると他媒体からの受信を止める）。
   const [diarySource, setDiarySource] = useState<string | null>(null);
-  const [sourceSaving, setSourceSaving] = useState(false);
   const [saving, setSaving] = useState(false);
   // AI下書き（第30便）。生成中フラグと「写真をAIに渡すか」の選択。保存はせずフォームに入れるだけ。
   const [aiLoading, setAiLoading] = useState(false);
@@ -399,7 +399,6 @@ export default function TherapistEditPage() {
 
   const inputClass = 'w-full px-3 py-2 rounded-xl border border-slate-200 text-sm bg-slate-50/50 focus:outline-none focus:ring-2 focus:ring-pink-200';
   const textareaClass = 'w-full px-3 py-2 rounded-xl border border-slate-200 text-sm bg-slate-50/50 focus:outline-none focus:ring-2 focus:ring-pink-200 resize-none';
-  const labelClass = 'text-[11px] font-bold text-slate-400 block mb-1';
   const saveBtn = 'px-5 py-2 rounded-xl bg-gradient-to-r from-pink-500 to-fuchsia-500 text-white font-bold text-xs shadow-sm disabled:opacity-50';
 
   if (loadError) {
@@ -774,45 +773,32 @@ export default function TherapistEditPage() {
         <div className="bg-white rounded-3xl border border-slate-100 shadow-sm p-5 space-y-4">
           <h2 className="text-sm font-black text-slate-700">写メ日記の転送先</h2>
 
-          {/* 店舗全体の設定 */}
-          <div className="rounded-2xl border border-slate-200 bg-slate-50 p-3 space-y-2">
+          {/* ★★★ 店舗全体の設定は【ここでは変えられない】（第128便・2026-09-04）。
+              ★ salons.diary_source は店舗単位。★ ここに置くと、在籍の人数ぶん入口ができる
+                ＝どの子の画面で変えても店舗全体が変わる（上書き事故の入口）。
+              ★★ 変える口は【媒体連携 → 写メ日記の投稿先】へ移した。
+              ★★★ ただし【消さずに読めるようにする】。★ 下のアドレス欄が使われるかどうかが
+                この設定で変わるので、知らないと「登録したのに送られない」と誤解する。
+                ★ 第116便「空欄の理由を言い分ける」と同じ筋。 */}
+          <div className="rounded-2xl border border-slate-200 bg-slate-50 p-3 space-y-1.5">
             <p className="text-[11px] font-bold text-slate-600">写メ日記をどこで書きますか（店舗全体の設定）</p>
             {diarySource === null ? (
               <p className="text-[11px] text-slate-400">読み込み中...</p>
             ) : (
-              <div className="space-y-1.5">
-                {/* ★★★ 入口は常に1つだけ（第99便）。★ 2つ選べる形にしないこと。
-                    2つ開くと、同じ日記が2件並ぶ（メールで1件・駅ちかの取り込みで1件）。
-                    ★ 判定は src/lib/diarySource.ts。★ 値を足すときは、そちらと点検も一緒に直す。 */}
-                {[
-                  { v: 'benry',  t: '他媒体で書く（代行システム経由）', d: '駅ちか等で書いた日記を、代行システムからのメールでフクエスが受け取ります（現在の運用）' },
-                  { v: 'ekichika', t: '他媒体で書く（駅ちかから取り込む）', d: '駅ちかに載った日記を、フクエスが15分ごとに取り込みます。★ 駅ちかのログイン情報をお預かりしている店舗のみ。★ このとき代行システムからのメールは受け取りません（二重に載らないようにするため）' },
-                  { v: 'fukues', t: 'フクエスで書く', d: 'フクエスで書いた日記を、下に登録した宛先へ即時で送ります' },
-                ].map((o) => (
-                  <label key={o.v} className={`flex gap-2 items-start p-2 rounded-xl cursor-pointer transition-colors ${diarySource === o.v ? 'bg-white border border-pink-200' : 'hover:bg-white/60'}`}>
-                    <input
-                      type="radio" name="diarySource" value={o.v} checked={diarySource === o.v} disabled={sourceSaving}
-                      onChange={async () => {
-                        setSourceSaving(true);
-                        const r = await setSalonDiarySource({ therapistId, source: o.v });
-                        setSourceSaving(false);
-                        if (r.ok) { setDiarySource(o.v); showToast('保存しました'); }
-                        else showToast(r.error);
-                      }}
-                      className="mt-0.5 flex-shrink-0"
-                    />
-                    <span className="min-w-0">
-                      <span className="block text-xs font-bold text-slate-700">{o.t}</span>
-                      <span className="block text-[10px] text-slate-400 leading-relaxed">{o.d}</span>
-                    </span>
-                  </label>
-                ))}
-              </div>
-            )}
-            {(diarySource === 'fukues' || diarySource === 'ekichika') && (
-              <p className="text-[10px] text-amber-600 bg-amber-50 border border-amber-100 rounded-xl px-3 py-2 leading-relaxed">
-                ※ 代行システム（ベンリー等）側の「日記転送先」の設定は外してください。外さなくても同じ日記が二重に載ることはありませんが、代行側の送信が無駄になります。
-              </p>
+              <>
+                <p className="text-xs font-bold text-slate-700">{diarySourceTitle(diarySource)}</p>
+                <p className="text-[10px] text-slate-400 leading-relaxed">
+                  {diarySource === 'fukues'
+                    ? 'フクエスで書いた日記を、下に登録した宛先へ即時で送ります。'
+                    : '下のアドレスは登録できますが、いまは送っていません。フクエスで書く設定にしたときに使われます。'}
+                </p>
+                <a
+                  href="/mypage/media/diary"
+                  className="inline-block text-[11px] font-bold text-pink-600 underline"
+                >
+                  店舗全体の設定を変える（媒体連携）
+                </a>
+              </>
             )}
           </div>
 

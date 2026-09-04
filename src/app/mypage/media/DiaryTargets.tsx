@@ -7,6 +7,8 @@ import {
   getMediaOverview,
   startMediaMailImport,
 } from '@/app/actions/mediaCredentials';
+// ★ 店舗全体の「どこで書くか」（第128便でセラピスト個人画面からここへ移した）
+import { setSalonDiarySource } from '@/app/actions/diaryForward';
 // ★ サイトごとの「投稿先アドレスをどう手に入れるか」は mediaSites.ts が正本（第84便）
 import { findMediaSite } from '@/lib/mediaSites';
 
@@ -174,6 +176,64 @@ export function DiaryTargets({ salonId, onToast }: { salonId: number | null; onT
             投稿先を登録しても、フクエスが正本になるまでは送りません。
             他社経由の転送と二重にならないようにするためです。
           </p>
+        </div>
+      )}
+
+      {/* ── どこで書くか（第128便・2026-09-04）─────────────────
+          ★★★ ここに移した理由: この設定は【店舗単位】（salons.diary_source）なのに、
+            変える口がセラピスト個人のプロフィール編集画面にしか無かった。
+            ★ 在籍が101人なら、同じ設定を変える入口が101個あることになる。
+            ★★ しかもこの画面は上の赤枠でこの値を【読んで説明している】のに、
+              「じゃあどう変えるのか」の答えがどこにも無かった。
+          ★ 説明と操作を同じ場所にそろえる。★ 枠は増えていない（説明の続きに置く）。
+          ★★★ 入口は常に1つだけ（第99便）。★ 2つ開くと同じ日記が2件並ぶ。 */}
+      {!loading && !error && data && (
+        <div className="bg-white border border-slate-200 shadow-[0_1px_2px_rgba(31,35,51,0.05)] p-5 space-y-3">
+          <p className="text-[19px] font-black text-slate-800">写メ日記をどこで書きますか</p>
+          <p className="text-[13px] text-slate-400 leading-relaxed">
+            店舗全体の設定です。★ 受け取る道は常に1つだけにします（同じ日記が二重に載らないようにするため）。
+          </p>
+          <div className="space-y-1.5">
+            {[
+              { v: 'benry', t: '他媒体で書く（代行システム経由）', d: '駅ちか等で書いた日記を、代行システムからのメールでフクエスが受け取ります' },
+              { v: 'ekichika', t: '他媒体で書く（駅ちかから取り込む）', d: '駅ちかに載った日記を、フクエスが15分ごとに取り込みます。駅ちかのログイン情報をお預かりしている店舗のみ。このとき代行システムからのメールは受け取りません' },
+              { v: 'fukues', t: 'フクエスで書く', d: 'フクエスで書いた日記を、登録した宛先へ即時で送ります' },
+            ].map((o) => (
+              <label
+                key={o.v}
+                className={`flex gap-2 items-start p-3 border cursor-pointer transition-colors ${
+                  data.diarySource === o.v ? 'bg-rose-50 border-rose-200' : 'bg-white border-slate-200 hover:bg-slate-50'
+                }`}
+              >
+                <input
+                  type="radio"
+                  name="diarySource"
+                  value={o.v}
+                  checked={data.diarySource === o.v}
+                  disabled={busy || salonId == null}
+                  onChange={async () => {
+                    if (salonId == null) return;
+                    setBusy(true);
+                    const r = await setSalonDiarySource({ salonId, source: o.v });
+                    setBusy(false);
+                    if (r.ok) { onToast('保存しました'); await load(); }
+                    else onToast(r.error);
+                  }}
+                  className="mt-1 flex-shrink-0"
+                />
+                <span className="min-w-0">
+                  <span className="block text-[15px] font-bold text-slate-700">{o.t}</span>
+                  <span className="block text-[13px] text-slate-400 leading-relaxed">{o.d}</span>
+                </span>
+              </label>
+            ))}
+          </div>
+          {(data.diarySource === 'fukues' || data.diarySource === 'ekichika') && (
+            <p className="text-[13px] text-amber-700 bg-amber-50 border border-amber-200 px-3 py-2 leading-relaxed">
+              代行システム（ベンリー等）側の「日記転送先」の設定は外してください。
+              外さなくても同じ日記が二重に載ることはありませんが、代行側の送信が無駄になります。
+            </p>
+          )}
         </div>
       )}
 
