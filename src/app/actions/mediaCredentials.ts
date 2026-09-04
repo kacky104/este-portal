@@ -929,6 +929,27 @@ export async function getMediaLinkAlerts(input: { salonId: string | number }): P
     }
   }
 
+  // ★★★ フクエス側の出勤が最後に変わった時刻（第139便）。
+  //   ★★ 「送っていない」ではなく「**変えたのに送っていない**」を見るために要る。
+  //   ★ 今日より前の日付を変えても意味が無いので、今日以降だけを見る。
+  //   ★ 読めなかったら null のまま＝**鳴らさない**（★ 嘘の警告より黙るほうがまし）。
+  let lastChangeAt: string | null = null;
+  {
+    const { data: ths } = await svc.from('therapists').select('id').eq('salon_id', salonId);
+    const ids = (ths ?? []).map((t) => Number(t.id));
+    if (ids.length > 0) {
+      const today = new Date().toISOString().slice(0, 10);
+      const { data: sch, error: schErr } = await svc
+        .from('therapist_schedules')
+        .select('updated_at')
+        .in('therapist_id', ids)
+        .gte('schedule_date', today)
+        .order('updated_at', { ascending: false })
+        .limit(1);
+      if (!schErr && sch && sch.length > 0) lastChangeAt = (sch[0].updated_at as string | null) ?? null;
+    }
+  }
+
   const now = new Date();
   const alerts: MediaLinkAlert[] = [];
   for (const s of sources) {
@@ -945,6 +966,7 @@ export async function getMediaLinkAlerts(input: { salonId: string | number }): P
         linkMode,
         switchedToWriteAt: switchedAt.get(k) ?? null,
         lastWriteOkAt: lastOkAt.get(k) ?? null,
+        lastChangeAt,
         now,
       });
       // ★ 送り先の呼び名と、読める媒体かを渡す（第133-6便）。★ 文言に媒体名を決め打ちしない

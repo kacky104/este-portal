@@ -34,6 +34,17 @@ export type StallInput = {
   switchedToWriteAt: string | null;
   /** 最後に駅ちかへ反映できた時刻（監査ログ write_work / outcome 'ok'）。ISO文字列 */
   lastWriteOkAt: string | null;
+  /**
+   * ★★★ フクエス側の出勤が最後に変わった時刻（第139便・2026-09-04）。
+   *
+   * ★★ なぜ要るか: いままで「送っていない時間」だけを見ていた。
+   *   ★ 出勤を1つも変えていない店舗にも、24時間後から毎日「止まっています」と出ていた。
+   *   ★★ **送るものが無いのに催促していた。** ★ 店舗様には何もできない。
+   * → 見るのは「送っていない」ではなく **「変えたのに送っていない」**。
+   *
+   * ★ null は【分からない】。★ そのときは鳴らさない（★ 嘘の警告より黙るほうがまし）。
+   */
+  lastChangeAt: string | null;
   now: Date;
   /** 既定 WRITE_STALL_HOURS。点検で短くするためだけに開けてある */
   hours?: number;
@@ -70,13 +81,28 @@ export function judgeWriteStall(input: StallInput): StallResult {
 
   const lastOk = msOf(input.lastWriteOkAt);
   const switched = msOf(input.switchedToWriteAt);
-  const base = lastOk ?? switched;
+  // ★★★ 起点は【新しいほう】（第139便で直した）。
+  //   ★ いままで lastOk を優先していた。★ すると **向きを付け直しても時計が戻らない**。
+  //   ★★ 2026-09-04 のラビリンス様: 今日 write にしたのに「43時間経っています」と出た。
+  //     ★ 43時間前は、こちらが試しに送った時刻だった。★ 店舗様には身に覚えのない数字。
+  const base = lastOk === null ? switched
+    : switched === null ? lastOk
+      : Math.max(lastOk, switched);
   if (base === null) return NOT_STALLED(null);   // ★ 根拠が無いので黙る
 
   const now = input.now.getTime();
   if (!Number.isFinite(now)) return NOT_STALLED(null);
 
-  const elapsedHours = (now - base) / 3_600_000;
+  // ★★★ 送るものが無ければ鳴らさない（第139便）。
+  const changed = msOf(input.lastChangeAt);
+  // ★ 分からないときは黙る。★ 嘘の警告を出すより、何も出さないほうがまし
+  if (changed === null) return NOT_STALLED(null);
+  // ★★ 変えたぶんは送ってある。★ これは「止まっている」ではない
+  if (changed <= base) return NOT_STALLED(0);
+
+  // ★★★ 数えるのは「変えてから」。★ 「送っていない時間」ではない。
+  //   ★ 店舗様が知りたいのは【自分が変えた分がいつから出ていないか】。
+  const elapsedHours = (now - changed) / 3_600_000;
   // ★ 未来の時刻（時計のずれ）は「経ってない」として扱う。負の数を人に見せない。
   if (elapsedHours < 0) return NOT_STALLED(0);
 
@@ -86,7 +112,7 @@ export function judgeWriteStall(input: StallInput): StallResult {
   return {
     stalled: true,
     reason: lastOk === null ? 'never_sent' : 'stale',
-    sinceISO: new Date(base).toISOString(),
+    sinceISO: new Date(changed).toISOString(),
     elapsedHours,
   };
 }
@@ -129,8 +155,8 @@ export function stallMessage(
 
   if (result.reason === 'never_sent') {
     const head =
-      slotLabel + 'は「フクエスから' + name + 'へ反映する」向きのままですが、' +
-      t + '、まだ一度も反映していません。';
+      slotLabel + 'は「フクエスから' + name + 'へ反映する」向きですが、' +
+      '出勤を変えてから' + t + '、まだ一度も反映していません。';
     // ★ 読める媒体だけ「取り込みに戻す」を案内する（★ 戻せない媒体に戻せと言わない）
     if (canRead) {
       return head +
@@ -140,10 +166,12 @@ export function stallMessage(
     }
     return head + '「反映内容を確認」から進めてください';
   }
+  // ★★ 「送っていない」ではなく「変えたのに送っていない」と書く（第139便）。
+  //   ★ 店舗様が読んで、次にすることが分かる文にする
   return (
     slotLabel + 'は「フクエスから' + name + 'へ反映する」向きですが、' +
-    '最後の反映から' + t + '経っています。' +
-    'フクエスで出勤を変えた分が' + name + 'に出ていない可能性があります'
+    'フクエスで出勤を変えてから' + t + '、まだ' + name + 'へ反映していません。' +
+    '「反映内容を確認」から送ってください'
   );
 }
 
