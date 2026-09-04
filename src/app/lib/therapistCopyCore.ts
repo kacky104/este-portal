@@ -1,4 +1,5 @@
 import type { createServiceClient } from '@/app/lib/supabase/service';
+import { sanitizeApiErrorMessage } from '@/lib/apiErrorMessage';
 import {
   SYSTEM_PROMPT,
   buildUserPrompt,
@@ -95,12 +96,18 @@ export async function callClaude(
   }
 
   if (!res.ok) {
-    // レスポンス本文にキーが混ざることは無いが、念のため生のまま画面に出さない。
     const status = res.status;
     if (status === 401) return { error: 'AIの認証に失敗しました（管理者にお問い合わせください）' };
     if (status === 429) return { error: 'AIが混み合っています。少し待ってから試してください' };
     if (status >= 500) return { error: 'AI側で一時的な障害が起きています。時間をおいて試してください' };
-    return { error: `AIの呼び出しに失敗しました（${status}）` };
+
+    // ★★★ 400 は「何が悪いか」が本文に書いてある（第125便・2026-09-04）。
+    //   ★ 以前はここで本文を捨てていたので、止まった理由が永久に分からなかった。
+    //   ★★ 心配していた「キーが混ざる」は sanitizeApiErrorMessage が伏せ字にする。
+    //     ★ 消すのではなく【隠して出す】。★ 見せないと原因を追えなくなる。
+    let detail: string | null = null;
+    try { detail = sanitizeApiErrorMessage(await res.text()); } catch { detail = null; }
+    return { error: `AIの呼び出しに失敗しました（${status}）${detail ? '：' + detail : ''}` };
   }
 
   try {

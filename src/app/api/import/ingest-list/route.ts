@@ -384,8 +384,14 @@ export async function POST(req: Request) {
       }
       if (imasuguClearIds.length > 0) {
         // ★ すでに false の子は触らない（毎周37行を無駄に書き換えない）
+        // ★★★ 期限は消さない（第125便・2026-09-04）。★ 落とすのはフラグだけ。
+        //   ★ 以前は available_until_import も null に戻していた。
+        //   ★★ そのため「一度も取り込まれていない」と「取り込まれたあと消えた」が
+        //     **同じ見た目（NULL）** になり、動いているものを「効いていない」と誤診した。
+        //   ★ 期限が過去の値として残っても判定は変わらない（isImasuguLiveRow はフラグが true でないと
+        //     ライブと見なさない）。★ 残せば「最後に即ヒメだったのはいつか」が読める。
         const { data: cleared, error } = await supabase.from('therapists')
-          .update({ is_available_now_import: false, available_until_import: null })
+          .update({ is_available_now_import: false })
           .in('id', imasuguClearIds).eq('is_available_now_import', true)
           .select('id');
         if (error) return NextResponse.json({ ok: false, error: error.message, stage: 'imasugu-clear' }, { status: 500 });

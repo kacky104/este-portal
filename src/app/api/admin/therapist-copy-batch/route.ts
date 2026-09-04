@@ -24,7 +24,7 @@ import { tallyPhrases, allSharedPhrases, countWatchedWords } from '@/lib/therapi
 //   受け取る値:
 //     salonId       対象店舗（必須）
 //     therapistId?  ★ 1人だけ試す。★ 指定すると limit は無視する
-//     limit?        1回で処理する人数（既定3・最大5）
+//     limit?        1回で処理する人数（既定3・最大3。★ やり直しが走ると1人2回叩くため）
 //     apply?        true で DB に保存。既定 false（試し打ち＝生成して返すだけ）
 //     minLen?       この字数未満の紹介文だけ対象にする（既定 MIN_PROFILE_LEN=150）
 //     useImage?     写真も見て書く（既定 true）
@@ -44,7 +44,11 @@ export const dynamic = 'force-dynamic';
 export const maxDuration = 60;
 
 const DEFAULT_LIMIT = 3;
-const MAX_LIMIT = 5;
+// ★★★ 第125便で 5 → 3 に下げた（2026-09-04・実際に FUNCTION_INVOCATION_TIMEOUT を踏んだ）。
+//   ★ 上限は【人数】ではなく【人数 × 1人あたりの呼び出し回数】で決まる。
+//   ★ tries が 1 のうちは 5人でも通ったが、2 になった途端に 10回となり 60秒を超えた。
+//   ★★ 「紹介文は長いから5」という決め方が甘かった。★ やり直しの回数を掛け算に入れる。
+const MAX_LIMIT = 3;
 
 type Row = {
   id: number;
