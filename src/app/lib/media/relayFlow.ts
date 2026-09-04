@@ -58,6 +58,7 @@ import { planEsuloveWork } from '@/lib/esulovePlan';
 // ★ エステ魂の写メ日記（第133便）。★ 判断は純粋関数側。ここは DB から材料を集めて渡すだけ
 import {
   planEsutamaDiaries, tallyDiaryPlan, diaryPlanSummary, pickOneToSend, checkSalonDiarySource,
+  excludeImportedDiaries,
   type DiaryCandidate,
 } from '@/lib/esutamaDiaryPlan';
 import { toConsentState } from '@/lib/therapistMediaConsent';
@@ -1701,6 +1702,26 @@ async function planEsutamaDiary(
     }));
   }
 
+  // ④-b ★★★ 他媒体から取り込んだ日記を外す（第138便・2026-09-04 に実際に転載してしまった）。
+  //   ★ 店舗の設定（diary_source）だけでは足りない。★ 切り替えても過去の取り込みは残る。
+  //   ★★ 出どころは【取り込みの記録】からしか分からない。★ 思い込みで通さない。
+  let importedCount = 0;
+  if (diaries.length > 0) {
+    const { data: imp, error: impErr } = await supabase
+      .from('salon_diary_imports')
+      .select('diary_post_id')
+      .in('diary_post_id', diaries.map((d) => d.id));
+    // ★★★ 読めなければ止まる。★ 「取り込みではない」と決めつけて転載しない
+    if (impErr) return fail('imports_read_failed', '取り込みの記録を読めなかった: ' + impErr.message);
+    const importedIds = new Set(
+      ((imp ?? []) as Array<{ diary_post_id: string | null }>)
+        .map((r) => String(r.diary_post_id ?? '')).filter((x) => x.length > 0),
+    );
+    const before = diaries.length;
+    diaries = excludeImportedDiaries(diaries, importedIds);
+    importedCount = before - diaries.length;
+  }
+
   // ⑤ 送った印（★ 第137便から【状態】と【試した回数】を持つ）
   //   ★ 「行がある＝もう送らない」ではない。★ failed は条件つきでもう一度試す
   const now = new Date();
@@ -1762,7 +1783,9 @@ async function planEsutamaDiary(
       people: tally.母数, sendable: tally.送れる, sent: tally.送信済み, noDiary: tally.日記がまだ,
       tooOld: tally.古い日記のみ,
       notAgreed: tally.了承なし, notStarted: tally.未開始, accountUnknown: tally.利用状況が不明,
-      noCastId: tally.名簿未結び, active: mediaRows.length, hasCtk: !!ctk, flowId,
+      noCastId: tally.名簿未結び, active: mediaRows.length, hasCtk: !!ctk,
+      // ★ 取り込んだ日記を何件外したか。★ 黙って外さない
+      importedExcluded: importedCount, flowId,
     },
   };
 

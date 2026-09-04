@@ -93,7 +93,11 @@ export function planOneDiary(
 
   // ★★ 「まだ書いていない」は故障ではない。★ 赤くしない
   if (!c.hasAnyDiary) {
-    return { ...base, diaryId: null, ok: false, reason: 'no_diary', message: '送る写メ日記がまだありません' };
+    // ★ 「まだ書いていない」は故障ではない。★ 取り込んだ日記は数に入れていないことも書く
+    return {
+      ...base, diaryId: null, ok: false, reason: 'no_diary',
+      message: 'フクエスで書いた写メ日記がまだありません（他媒体から取り込んだ日記は送りません）',
+    };
   }
   const diaryId = c.unsentDiaryIds[0] ?? null;
   // ★★★ 候補が空でも「送った」とは限らない（第134便）。★ 古いだけかもしれない
@@ -113,6 +117,30 @@ export function planOneDiary(
   });
   if (!v.ok) return { ...base, diaryId: null, ok: false, reason: v.reason, message: v.message };
   return { ...base, diaryId, ok: true, reason: null, message: '送れます' };
+}
+
+/**
+ * ★★★ 他媒体から取り込んだ日記を候補から外す（第138便・2026-09-04）。
+ *
+ * ★★★ 2026-09-04 17:23 に**実際に起きた**:
+ *   ラビリンス様の正本を fukues に切り替えたあと、自動の周が
+ *   **8/31 に駅ちかで書かれた日記**（取り込んだもの）をサラさんのエステ魂へ送った。
+ *   ★ 「今週のシフト♡」が、今日の日付で本人のアカウントに載った。★ しかも消せない。
+ *
+ * ★★★ なぜ通ってしまったか
+ *   関門を【店舗の単位】（diary_source）にしか置いていなかった。
+ *   ★ 店舗を切り替えても、**過去に取り込んだ日記はDBに残ったまま**。
+ *   ★★ 「この店はもうフクエスが正本だから、中の日記も全部フクエス製」——という
+ *     **思い込みが1行のコードになっていた**。
+ *
+ * → **日記1件ごとに出どころを見る。** ★ salon_diary_imports に行があるものは送らない。
+ *   ★ 出どころは店舗の設定からは分からない。★ 記録（取り込みの行）からしか分からない。
+ */
+export function excludeImportedDiaries<T extends { id: string }>(
+  diaries: readonly T[],
+  importedIds: ReadonlySet<string>,
+): T[] {
+  return diaries.filter((d) => !importedIds.has(String(d.id)));
 }
 
 /** 店ぶんまとめて。★ 並びは渡された順のまま（★ 点検で固定できる） */

@@ -124,5 +124,20 @@ eq('★★★ 空なら送らない', P.checkSalonDiarySource('').ok, false);
 eq('★★★ null でも落ちず、送らない', P.checkSalonDiarySource(null).ok, false);
 eq('★ 前後の空白は落として見る', P.checkSalonDiarySource(' fukues ').ok, true);
 
+console.log('\n── 7. ★★★ 取り込んだ日記は送らない（第138便・実際に転載してしまった）──');
+// ★★★ 2026-09-04 17:23、8/31 に駅ちかで書かれた日記が
+//   サラさんのエステ魂へ【今日の日付で】投稿された。★ しかも消せない。
+//   ★ 関門を【店舗の単位】（diary_source）にしか置いていなかったのが原因。
+//   ★★ 店舗を切り替えても、**過去に取り込んだ日記はDBに残ったまま**。
+const ds = [{ id: 'a' }, { id: 'b' }, { id: 'c' }];
+eq('★★★ 取り込んだものを外す',
+   P.excludeImportedDiaries(ds, new Set(['b'])).map((d) => d.id), ['a', 'c']);
+eq('★ 全部取り込みなら空', P.excludeImportedDiaries(ds, new Set(['a', 'b', 'c'])).length, 0);
+eq('★ 1件も取り込みでなければそのまま', P.excludeImportedDiaries(ds, new Set()).length, 3);
+eq('★ 並びは変えない', P.excludeImportedDiaries(ds, new Set(['b'])).map((d) => d.id).join(''), 'ac');
+// ★★ 「送るものが無い」の文面で、取り込みを数えていないことを伝える
+eq('★★ 日記ゼロの文面に「取り込んだ日記は送りません」が入る',
+   one({ unsentDiaryIds: [], hasAnyDiary: false }).message.includes('取り込んだ日記は送りません'), true);
+
 console.log(fail === 0 ? '\n★ すべて通りました' : '\n' + fail + ' 件 通りませんでした');
 process.exit(fail === 0 ? 0 : 1);
