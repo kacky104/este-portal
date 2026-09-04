@@ -148,5 +148,40 @@ eq('★★★ 読み返しで初めて「確認しました」', sk('verify_soku
 eq('★★★ 読み取れなければそう書く', sk('verify_sokusera', 'stopped').includes('読み取れませんでした'), true);
 eq('★★ ONになっていなければそう書く', sk('verify_sokusera', 'failed').includes('なっていませんでした'), true);
 
+console.log('\n── ★★★ 店舗様の画面に出す行か（第149便）──');
+// ★★ 「連携の記録」は店舗様のための画面。こちらの作業ログではない。
+//   ★ 「確かめる」を1回押しただけで人ごとの読み取りが46行並び、
+//     押したご本人が「何か動き続けている」と不安になった（2026-09-04 23:00）。
+const vis = (o) => a.isShopVisibleAudit(o);
+// ★★★ 既定は【出す】。★ 印が無い行を黙らせない
+eq('★★★ 印が無ければ出す', vis({ event: 'write_work', outcome: 'ok', detail: { people: 23 } }), true);
+eq('★★★ detail が無くても出す', vis({ event: 'write_work', outcome: 'ok' }), true);
+eq('★★★ detail が null でも出す', vis({ event: 'write_work', outcome: 'ok', detail: null }), true);
+// ★★ 隠すのは、明示的に false と書いたときだけ
+eq('★★★ 印が false のときだけ、たたむ',
+   vis({ event: 'read_work', outcome: 'ok', detail: Object.assign({}, a.AUDIT_SHOP_HIDDEN, { days: 7 }) }), false);
+eq('★★ 印のキー名は1か所で決める', a.AUDIT_SHOP_VISIBLE_KEY, 'shopVisible');
+eq('★★ AUDIT_SHOP_HIDDEN の中身', a.AUDIT_SHOP_HIDDEN, { shopVisible: false });
+// ★ true と書いてあれば当然出す。★ 知らない値も【出す】側へ倒す
+eq('★ true なら出す', vis({ event: 'read_work', outcome: 'ok', detail: { shopVisible: true } }), true);
+eq('★★ 知らない値は出す側へ倒す', vis({ event: 'read_work', outcome: 'ok', detail: { shopVisible: 'no' } }), true);
+eq('★★ 文字の false は隠さない（型を間違えたら出す）', vis({ event: 'read_work', outcome: 'ok', detail: { shopVisible: 'false' } }), true);
+// ★★★ うまくいかなかったものは、印より優先して【必ず出す】。★ 静かに失敗させない
+eq('★★★ failed は印が付いていても出す',
+   vis({ event: 'read_work', outcome: 'failed', detail: a.AUDIT_SHOP_HIDDEN }), true);
+// ★ 止めた（stopped）は印に従う。★ 人ごとの「変更なし」がこれ
+eq('★ stopped は印に従う（人ごとの下見）',
+   vis({ event: 'plan_work', outcome: 'stopped', detail: a.AUDIT_SHOP_HIDDEN }), false);
+eq('★★ 印の無い stopped は出す（送らなかった理由）',
+   vis({ event: 'write_work', outcome: 'stopped', detail: { reason: 'plan_changed' } }), true);
+// ★★★ scrubAuditDetail を通しても印が残ること（★ 落ちると全部出てしまう）
+{
+  const scrubbed = a.scrubAuditDetail(Object.assign({}, a.AUDIT_SHOP_HIDDEN, { castId: '123', flowId: 'f1' }));
+  eq('★★★ 秘密落としを通しても印が残る', scrubbed.detail.shopVisible, false);
+  eq('★★★ 印は落とされない', scrubbed.dropped, []);
+  eq('★★★ 通したあとも、たたむと判定できる',
+     vis({ event: 'read_work', outcome: 'ok', detail: scrubbed.detail }), false);
+}
+
 console.log(fail === 0 ? '\n★ すべて通った' : '\n★ NG ' + fail + ' 件');
 process.exit(fail === 0 ? 0 : 1);

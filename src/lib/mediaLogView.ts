@@ -19,6 +19,12 @@ export type MediaLogRow = {
   outcome: string;
   summary: string;
   createdAt: string;
+  /**
+   * ★★★ 店舗様の画面に出す行か（第149便）。★ 決めるのは src/lib/mediaAudit.ts の isShopVisibleAudit。
+   *   ★ ここでは【受け取った旗を読むだけ】。★ この画面で判定し直さない（物差しは1本）。
+   *   ★★ 省略・undefined は【出す】。★ 印が無い行を黙らせない。
+   */
+  visible?: boolean;
 };
 
 // ────────────────────────────────────────────────
@@ -64,6 +70,56 @@ export function sortLogRows(rows: readonly MediaLogRow[]): MediaLogRow[] {
     if (va !== vb) return vb - va;
     return b.id - a.id;
   });
+}
+
+// ────────────────────────────────────────────────
+// ★★★ くわしい記録（第149便）
+// ────────────────────────────────────────────────
+//
+// ★★ 「連携の記録」は【店舗様のための画面】であって、こちらの作業ログではない。
+//   ★ 「確かめる」を1回押すと、人ごとの読み取りが23人ぶん（46行）並んでいた。
+//     ★ 押したご本人が「何か動き続けている」と不安になった（2026-09-04 23:00）。
+//   ★★★ 消すのではなく【たたむ】。★ 記録は残っている。開けば読める。
+//     ★ 完全に消すと「フクエスが何をしたか」を店舗様がご自分で確かめられなくなる。
+
+/** ★ 旗が無ければ出す（既定は出す）。★ false と書いてあるときだけ、たたむ */
+export function isVisibleLogRow(r: MediaLogRow): boolean {
+  return r?.visible !== false;
+}
+
+/** 画面に並べる行。★ showDetail が true なら、たたんだ行も出す */
+export function visibleLogRows(rows: readonly MediaLogRow[], showDetail: boolean): MediaLogRow[] {
+  const list = Array.isArray(rows) ? rows : [];
+  return showDetail === true ? [...list] : list.filter(isVisibleLogRow);
+}
+
+/** たたんである行の数。★ 0 なら折りたたみのボタンごと出さない */
+export function hiddenLogCount(rows: readonly MediaLogRow[]): number {
+  const list = Array.isArray(rows) ? rows : [];
+  return list.filter((r) => !isVisibleLogRow(r)).length;
+}
+
+/**
+ * 折りたたみのボタンの文字。
+ * ★★ 「何が隠れているか」を書く。★ 「詳細」とだけ書くと、押す理由が分からない。
+ * ★ 件数を必ず出す（第35便の反省6「0のときも理由が読み取れる形に」の裏返し）。
+ */
+export function detailToggleLabel(hidden: number, showDetail: boolean): string {
+  const n = Number.isFinite(hidden) && hidden > 0 ? hidden : 0;
+  if (n === 0) return '';
+  return showDetail === true
+    ? `くわしい記録（${n}件）を閉じる`
+    : `くわしい記録も見る（${n}件）`;
+}
+
+/**
+ * 折りたたみの下に出す説明。★ 「隠していた」ことを隠さない。
+ * ★★ 「動き続けていたのでは」と思わせないために、【何をしていた行か】を書く。
+ */
+export function detailToggleNote(hidden: number): string {
+  const n = Number.isFinite(hidden) && hidden > 0 ? hidden : 0;
+  if (n === 0) return '';
+  return `1人ずつ読み取った記録など、途中の細かい記録${n}件はたたんであります。フクエスが行ったことはすべて残っています。`;
 }
 
 // ────────────────────────────────────────────────
@@ -178,8 +234,12 @@ export function logEmptyMessage(reason: string, siteName: string): string {
  */
 export type LogScope = 'unknown' | 'all' | 'window';
 
-export function logScope(input: { known: boolean; loaded: number; limit: number }): LogScope {
+export function logScope(input: { known: boolean; loaded: number; limit: number; more?: boolean }): LogScope {
   if (input.known !== true) return 'unknown';
+  // ★★★ 第149便: サーバーが「この先にまだある」と言っているなら、行数を数えるまでもなく窓。
+  //   ★ たたむ行が窓を食うと、出す行の数だけでは見分けられない。
+  //   ★ 断る側へ倒す（総数だと言い切らない）のは元の判定と同じ向き。
+  if (input.more === true) return 'window';
   const loaded = Number.isFinite(input.loaded) ? input.loaded : 0;
   const limit = Number.isFinite(input.limit) ? input.limit : 0;
   // ★ 読めた件数が上限ちょうど ＝ この先にまだあるかもしれない。

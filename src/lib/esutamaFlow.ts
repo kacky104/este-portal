@@ -23,6 +23,8 @@ import {
   type EsutamaWorkPage,
 } from './esutamaWorkParse';
 import { applyEsutamaPerson, type EsutamaPerson } from './esutamaPlan';
+// ★★ 店舗様の画面に出す・出さないの物差し（第149便）。★ キー名をここで書き写さない
+import { AUDIT_SHOP_HIDDEN } from './mediaAudit';
 import {
   buildEsutamaRosterRequest, buildEsutamaWorkReadRequest, buildEsutamaWorkSaveRequest,
 } from './esutamaRequests';
@@ -248,7 +250,7 @@ export function nextEsutamaPerson(ctx: RelayFlowContext, audits: FlowAudit[], no
         ...audits,
         pushing
           ? { event: 'write_work', outcome: saved > 0 ? 'ok' : 'stopped', summary: saved > 0 ? 'エステ魂の出勤を ' + saved + '人ぶん 反映しました（' + people.length + '人を確認）' : 'エステ魂の出勤に変更はありませんでした（' + people.length + '人を確認）', detail: { people: people.length, saved, changed, flowId: ctx.flowId } }
-          : { event: 'plan_work', outcome: 'stopped', summary: 'エステ魂への反映内容を組み立てました（まだ送っていません）。' + people.length + '人を確認、' + changed + '人に変更があります', detail: { people: people.length, changed, flowId: ctx.flowId } },
+          : { event: 'plan_work', outcome: 'stopped', summary: 'エステ魂へ送る内容を確かめました（' + people.length + '人を確認、' + changed + '人に変更があります）。まだ送っていません', detail: { people: people.length, changed, flowId: ctx.flowId } },
       ],
       note: note + ' → 全員ぶん終わり（' + people.length + '人 / 変更' + changed + ' / 保存' + saved + '）',
     };
@@ -311,7 +313,10 @@ export function afterEsutamaWorkRead(input: Input, ctx: RelayFlowContext, now?: 
   const readAudit: FlowAudit = {
     event: 'read_work', outcome: 'ok',
     summary: 'エステ魂の出勤表を読みました（' + ((ctx.esutamaIndex ?? 0) + 1) + '人目）',
-    detail: { days: r.page.days.length, changes: d.changes.length, skipped: d.skipped.length, workingBefore: d.workingBefore, workingAfter: d.workingAfter, flowId },
+    // ★★★ 人ごとの読み取りは【こちらの作業ログ】。記録には残すが、店舗様の画面には出さない（第149便）。
+    //   ★ 23人居れば23行並ぶ。★ 押したご本人が「何か動き続けている」と不安になった。
+    //   ★ 何人を確認したかは、最後のまとめの1行に入っている。
+    detail: { ...AUDIT_SHOP_HIDDEN, days: r.page.days.length, changes: d.changes.length, skipped: d.skipped.length, workingBefore: d.workingBefore, workingAfter: d.workingAfter, flowId },
   };
   // ★ 変わる日を1行ずつ（人の名前は出さない。castId と日付だけ）
   const lines = d.changes.map((c) => c.dateISO + ' ' + c.before + '→' + c.after);
@@ -328,7 +333,8 @@ export function afterEsutamaWorkRead(input: Input, ctx: RelayFlowContext, now?: 
     const planAudit: FlowAudit = {
       event: 'plan_work', outcome: 'stopped',
       summary: (d.changed ? '変更 ' + d.changes.length + '日: ' + lines.join(' / ') : '変更なし') + (skips.length ? ' ／ 触らない: ' + skips.join(' ') : ''),
-      detail: { castId: d.castId, changes: d.changes.length, skipped: d.skipped.length, flowId },
+      // ★★ 同じ理由で隠す（第149便）。★ 変更の中身は「出勤を送る」の画面に表で出ている
+      detail: { ...AUDIT_SHOP_HIDDEN, castId: d.castId, changes: d.changes.length, skipped: d.skipped.length, flowId },
     };
     return nextEsutamaPerson(base, [readAudit, planAudit], '試し打ち: ' + (d.changed ? '変更' + d.changes.length + '日' : '変更なし'));
   }

@@ -13,7 +13,7 @@ import { isWriteDirection, isLinkMode, hasApprovedOnce } from '@/lib/mediaLinkMo
 import { loadCastIds } from '@/lib/mediaCastIds';
 import { isLegacyCastIdScope } from '@/lib/mediaCastIds';
 import { buildLinkPairs, canLink, canUnlink, type LinkPairs } from '@/lib/mediaLinkPairs';
-import { providerLabel } from '@/lib/mediaAudit';
+import { providerLabel, isShopVisibleAudit } from '@/lib/mediaAudit';
 import { findMediaSite } from '@/lib/mediaSites';
 import {
   siteDirection,
@@ -790,23 +790,60 @@ export async function startMediaWorkPush(input: {
  * ★★ listMediaAudit は service_role で読む。salonId は必ずオーナー検証を通したものを渡す。
  */
 export async function getMediaAuditRows(input: { salonId: string | number; limit?: number }): Promise<
-  Result<Array<{ id: number; provider: string; slot: number; outcome: string; summary: string; createdAt: string }>>
+  Result<{
+    rows: Array<{ id: number; provider: string; slot: number; outcome: string; summary: string; createdAt: string; visible: boolean }>;
+    /**
+     * ★★★ この先にまだ記録があるか（第149便）。
+     *   ★ 行数からは判断できない。★ たたむ行が窓を食うと、
+     *     「出す行が limit に届かなかった」のが【記録が無いから】なのか
+     *     【窓を使い切ったから】なのか、画面には見分けがつかない。
+     *   ★★ 引き継ぎメモ 3-5「0件と分からないを混ぜない」と同じ形。ここで見分けて渡す。
+     */
+    more: boolean;
+  }>
 > {
   const salonId = Number(input.salonId);
   if (!Number.isFinite(salonId)) return { ok: false, error: '店舗の指定が不正です' };
   const guard = await assertSalonOwner(salonId);
   if (!guard.ok) return guard;
 
+  // ★★★ 第149便: 画面の limit は【店舗様に出す行】の数。
+  //   ★ たたむ行（人ごとの読み取りなど）も同じ表に入っているので、
+  //     limit ちょうどだけ読むと、たたむ行に窓を食われて数行しか出ない。
+  //   ★★ 広めに読んで、店舗様に出す行が limit 件そろうところまでを返す。
+  //     ★ たたんだ行も【その範囲ぶんは返す】。開いたときに読めないと、たたんだ意味が変わる。
+  const want = Math.min(Math.max(Number(input.limit ?? 30), 1), 500);
+  const scan = Math.min(want * 5, 1000);
+
   try {
-    const rows = await listMediaAudit({ salonId, limit: Number(input.limit ?? 30) });
+    const rows = await listMediaAudit({ salonId, limit: scan });
+
+    // ★★★ 出す・出さないの物差しはここで1回だけ通す（src/lib/mediaAudit.ts）。
+    //   ★ 画面側でも判定し直さない。★ 2か所で決めると、いつか食い違う（第141便）。
+    const flagged = rows.map((r) => ({
+      id: r.id, provider: r.provider, slot: r.slot,
+      outcome: r.outcome, summary: r.summary, createdAt: r.createdAt,
+      visible: isShopVisibleAudit({ event: r.event, outcome: r.outcome, detail: r.detail }),
+    }));
+
+    // ★ 新しいほうから、店舗様に出す行が want 件たまるまで。★ 途中のたたむ行も一緒に持っていく
+    const out: typeof flagged = [];
+    let shown = 0;
+    for (const r of flagged) {
+      if (r.visible) {
+        if (shown >= want) break;
+        shown++;
+      }
+      out.push(r);
+    }
+
+    // ★★★ この先にまだあるか。★ 2つの理由のどちらかで「ある」
+    //   ① 途中で打ち切った（出す行が want 件そろった）
+    //   ② 窓（scan）を使い切った ＝ もっと古い記録が残っている可能性がある
+    const more = out.length < flagged.length || rows.length >= scan;
+
     // ★ detail / actor / job_id は画面に出さない。店舗が読むのは「何が起きたか」だけでよい
-    return {
-      ok: true,
-      data: rows.map((r) => ({
-        id: r.id, provider: r.provider, slot: r.slot,
-        outcome: r.outcome, summary: r.summary, createdAt: r.createdAt,
-      })),
-    };
+    return { ok: true, data: { rows: out, more } };
   } catch (e) {
     return { ok: false, error: (e as Error).message };
   }

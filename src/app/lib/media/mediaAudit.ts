@@ -133,7 +133,9 @@ export async function listMediaAudit(params: {
   slot?: number;
 }): Promise<MediaAuditRow[]> {
   const supabase = createServiceClient();
-  const limit = Math.min(Math.max(params.limit ?? 50, 1), 200);
+  // ★★ 第149便: たたむ行（人ごとの読み取りなど）も窓に入るので、上限を広げた。
+  //   ★ 画面の「直近◯件」は【店舗様に出す行】の数。★ 窓はそれより広く取る必要がある。
+  const limit = Math.min(Math.max(params.limit ?? 50, 1), 1000);
 
   let q = supabase
     .from('salon_media_audit')

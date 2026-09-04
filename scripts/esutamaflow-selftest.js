@@ -101,6 +101,21 @@ const ctxW = Object.assign({}, ctxR, { esutamaPeople: people, esutamaIndex: 0 })
   eq('④試し打ち: 2人目は変更なし → done', [r2.kind, r2.audits.map((a) => a.event).join(',')], ['done', 'read_work,plan_work,plan_work']);
   eq('④試し打ち: done のまとめ（2人確認・1人に変更）', /2人を確認、1人に変更/.test(r2.audits[2].summary), true);
   eq('④試し打ち: まとめは stopped（送っていない）', r2.audits[2].outcome, 'stopped');
+  // ★★★ 第149便: 人ごとの行は【こちらの作業ログ】。記録には残すが、店舗様の画面には出さない。
+  //   ★ 2026-09-04 23:00: 「確かめる」を1回押しただけで23人ぶん（46行）並び、
+  //     押したご本人が「何か動き続けている」と不安になった。★ 異常ではない・送っていない。
+  eq('★★★ 人ごとの読み取りに、たたむ印が付く', r.audits[0].detail.shopVisible, false);
+  eq('★★★ 人ごとの下見にも、たたむ印が付く', r.audits[1].detail.shopVisible, false);
+  // ★★★ まとめの1行には印を付けない。★ ここだけは必ず店舗様に出る
+  eq('★★★ まとめの1行には印を付けない', r2.audits[2].detail.shopVisible, undefined);
+  eq('★★★ まとめ以外は全部たたむ（試し打ち）',
+     r2.audits.map((a) => a.detail.shopVisible === false), [true, true, false]);
+  // ★★ 文言は店舗様の言葉で。★ 「組み立てました」はこちらの言葉
+  eq('★★★ まとめは「確かめました」と書く', /エステ魂へ送る内容を確かめました/.test(r2.audits[2].summary), true);
+  eq('★★★ まとめは「まだ送っていません」と断る', /まだ送っていません/.test(r2.audits[2].summary), true);
+  eq('★★ まとめで「組み立て」と言わない', /組み立て/.test(r2.audits[2].summary), false);
+  // ★★ 人ごとの中身は消えていない（開けば読める）
+  eq('★★ たたんでも中身は残る', r.audits[0].detail.days > 0, true);
   // 止めるもの
   const wrong = F.afterEsutamaWorkRead({ status: 200, headers: {}, body: pageSara }, ctxW, NOW);
   eq('④: 別の人の表なら止める', [wrong.kind, wrong.audits[0].detail.reason], ['stop', 'cast_mismatch']);
@@ -123,6 +138,8 @@ const ctxP = Object.assign({}, ctxW, { intent: 'work_push' });
   eq('④送信: 本文の末尾は ctk', r.next.body.endsWith('&ctk=' + CSRF), true);
   eq('④送信: 照合の期待を文脈に', r.next.context.esutamaExpect, [{ dateISO: D[1], after: '20:00〜25:00' }]);
   eq('④送信: まだ write_work を記録しない', r.audits.map((a) => a.event), ['read_work']);
+  // ★★ 送信の道でも、人ごとの読み取りは同じくたたむ（第149便）。★ まとめの write_work は出す
+  eq('★★★ 送信でも人ごとの読み取りはたたむ', r.audits[0].detail.shopVisible, false);
   // ⑤
   const s = F.afterEsutamaWorkSave({ status: 200, headers: {}, body: '["OK"]' }, r.next.context);
   eq('⑤: OK なら照合 GET を積む', [s.kind, s.next.purpose, s.next.url], ['next', 'esutama_work_verify', 'https://estama.jp/admin/schedule/757480/']);

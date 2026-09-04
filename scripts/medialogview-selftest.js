@@ -174,5 +174,50 @@ eq('★★ ラベルの文字列が表の名前と一致している',
 eq('★ 知らない provider は英字のまま出る（ごまかさない）',
    audit.providerLabel('unknown-site'), 'unknown-site');
 
+console.log('\n── ★★ 「この先にまだある」は行数から推さない（第149便）──');
+// ★★★ たたむ行が窓を食うので、出す行の数だけでは見分けられない。
+//   ★ 「6行しか出ていない」のが【記録が6件だから】なのか【窓を使い切ったから】なのか。
+eq('★★★ サーバーが「まだある」と言えば窓', v.logScope({ known: true, loaded: 6, limit: 50, more: true }), 'window');
+eq('★★ 「まだ無い」なら、これまでどおり行数で見る', v.logScope({ known: true, loaded: 6, limit: 50, more: false }), 'all');
+eq('★ more を渡さなければ、これまでどおり', v.logScope({ known: true, loaded: 50, limit: 50 }), 'window');
+eq('★★★ 読めていなければ、まだあると言われても unknown', v.logScope({ known: false, loaded: 6, limit: 50, more: true }), 'unknown');
+// ★ 窓なら「直近◯件」と断る（数の見出しと断り書きが揃うこと）
+eq('★★ 窓のときは見出しで断る', v.logCountLabel({ scope: 'window', siteName: '', limit: 50 }), '記録（直近50件）');
+eq('★★ 窓のときは断り書きも出る', v.logScopeNote({ scope: 'window', limit: 50 }) !== '', true);
+
+console.log('\n── ★★★ くわしい記録をたたむ（第149便）──');
+// ★★ 消すのではなく、たたむ。★ 記録は残っていて、開けば読める
+const R = [
+  row({ id: 5, summary: 'まとめ' }),
+  row({ id: 4, summary: '人ごと', visible: false }),
+  row({ id: 3, summary: '人ごと', visible: false }),
+  row({ id: 2, summary: '失敗', outcome: 'failed' }),
+];
+eq('★★★ 既定は、たたむ', v.visibleLogRows(R, false).map((r) => r.id), [5, 2]);
+eq('★★★ 開けば全部出る', v.visibleLogRows(R, true).map((r) => r.id), [5, 4, 3, 2]);
+eq('★★★ たたんである件数', v.hiddenLogCount(R), 2);
+// ★★★ 旗が無ければ出す（既定は出す）。★ 印が無い行を黙らせない
+eq('★★★ 旗が無ければ出す', v.isVisibleLogRow(row({})), true);
+eq('★ undefined も出す', v.isVisibleLogRow(row({ visible: undefined })), true);
+eq('★★ true は出す', v.isVisibleLogRow(row({ visible: true })), true);
+eq('★★★ false のときだけ、たたむ', v.isVisibleLogRow(row({ visible: false })), false);
+// ★ 並び順を変えない（起きた順のまま抜く）
+eq('★★ たたんでも順番を入れ替えない', v.visibleLogRows(R, false).map((r) => r.summary), ['まとめ', '失敗']);
+// ★★ ボタンの文字。★ 何件たたんであるかを必ず出す（押す理由が分かる形）
+eq('★★ 閉じているときの文字', v.detailToggleLabel(2, false), 'くわしい記録も見る（2件）');
+eq('★★ 開いているときの文字', v.detailToggleLabel(2, true), 'くわしい記録（2件）を閉じる');
+// ★★★ 0件なら、押せないボタンを置かない（空文字＝出さない合図）
+eq('★★★ 0件ならボタンを出さない', v.detailToggleLabel(0, false), '');
+eq('★ 変な数でもボタンを出さない', v.detailToggleLabel(-1, false), '');
+eq('★★★ 0件なら説明も出さない', v.detailToggleNote(0), '');
+// ★★ 「隠していた」ことを隠さない。★ 何の行かを書く
+eq('★★ 説明に件数が入る', v.detailToggleNote(46).includes('46件'), true);
+eq('★★★ 説明に「1人ずつ」が入る', v.detailToggleNote(46).includes('1人ずつ'), true);
+eq('★★★ 説明で「消しました」と言わない', v.detailToggleNote(46).includes('消し'), false);
+// ★ 店舗様が読む文に「★」を混ぜない（第53便と同じ物差し）
+eq('★★★ ボタンと説明に「★」を混ぜない',
+   [v.detailToggleLabel(3, false), v.detailToggleLabel(3, true), v.detailToggleNote(3)]
+     .some((t) => t.indexOf('★') >= 0), false);
+
 console.log(fail === 0 ? '\n★ すべて通った' : '\n★ NG ' + fail + ' 件');
 process.exit(fail === 0 ? 0 : 1);

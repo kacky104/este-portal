@@ -82,6 +82,45 @@ export function shouldDropAutoAudits(
   return audits.every((a) => looked.includes(a.event) && a.outcome === 'ok');
 }
 
+/**
+ * ★★★ 店舗様の画面に出す行かどうか（第149便・2026-09-04）。
+ *
+ * ★★ なぜ要るか（★ 2026-09-04 23:00 に実際に困った）
+ *   「出勤を送る」の【確かめる】を1回押しただけで、連携の記録に
+ *     エステ魂の出勤表を読みました（23人目） ／ 変更なし
+ *   が23人ぶん（46行）並んだ。★ 押したご本人が「何か動き続けている」と不安になった。
+ *   ★ 異常ではない。組み立てただけで、1文字も送っていない。
+ *   ★★★ **「連携の記録」は店舗様のための画面であって、こちらの作業ログではない。**
+ *
+ * ★★ shouldDropAutoAudits（第140便）との違い
+ *   あちらは【自動の周】が見ただけのとき、記録そのものを残さない。
+ *   ★ こちらは【人が押した流れ】。★ 記録は残す（あとから追える）。**画面に出さないだけ。**
+ *   ★ 第140便で入れた物差しは自動の周だけが対象で、人が押した流れは素通しだった。そこが抜けていた。
+ *
+ * ★★★ 決め方（★ 推測しない）
+ *   ① 既定は【出す】。★ 印が付いていない行は必ず出る（黙らせないのが原則）
+ *   ② 隠すのは、出した側が detail に shopVisible: false と【書いたときだけ】
+ *      ★ 「castId が入っているから人ごとの行だろう」のような推し方をしない
+ *        （第145便の反省: 書いてない ≠ 使っていない）
+ *   ③ うまくいかなかったもの（failed）は、印が付いていても【必ず出す】
+ *      ★ 静かに失敗させない
+ */
+export const AUDIT_SHOP_VISIBLE_KEY = 'shopVisible';
+
+/** ★ 隠す行の detail に混ぜる印。★ 呼び出し側でキー名を書き写さない（書き間違いを1か所に閉じる） */
+export const AUDIT_SHOP_HIDDEN: AuditDetail = { [AUDIT_SHOP_VISIBLE_KEY]: false };
+
+export function isShopVisibleAudit(row: {
+  event: string;
+  outcome: string;
+  detail?: AuditDetail | null;
+}): boolean {
+  // ★★★ ③ うまくいかなかったものは、印より優先して出す
+  if (row.outcome === 'failed') return true;
+  // ★★ ①② 明示的に false と書いてあるときだけ隠す。★ 未指定・null・他の値はすべて【出す】
+  return row.detail?.[AUDIT_SHOP_VISIBLE_KEY] !== false;
+}
+
 /** どうなったか。★ 'ok' 以外は理由が summary に出ていること。 */
 export type MediaAuditOutcome = 'ok' | 'failed' | 'stopped';
 

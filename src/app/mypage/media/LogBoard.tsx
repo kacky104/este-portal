@@ -17,6 +17,10 @@ import {
   outcomeTone,
   outcomeLabel,
   nextLogLimit,
+  visibleLogRows,
+  hiddenLogCount,
+  detailToggleLabel,
+  detailToggleNote,
   LOG_LIMIT_STEPS,
   EMPTY_LOG_FILTER,
   type MediaLogRow,
@@ -94,19 +98,31 @@ export function LogBoard({ salonId }: { salonId: number | null }) {
   const [rows, setRows] = useState<MediaLogRow[]>([]);
   /** ★ 読めたか。★ false のあいだ「記録がありません」と書かない */
   const [known, setKnown] = useState(false);
+  /** ★★ この先にまだ記録があるか。★ 行数からは見分けられない（たたむ行が窓を食う） */
+  const [more, setMore] = useState(false);
   const [loadError, setLoadError] = useState('');
   const [limit, setLimit] = useState<number>(LOG_LIMIT_STEPS[0]);
   const [filter, setFilter] = useState<LogFilter>(EMPTY_LOG_FILTER);
+  /**
+   * ★★★ 途中の細かい記録を開くか（第149便）。★ 既定は【たたむ】。
+   *   ★ 「確かめる」を1回押しただけで人ごとの読み取りが46行並び、
+   *     押したご本人が「何か動き続けている」と不安になった（2026-09-04 23:00）。
+   *   ★★ 消したのではない。★ 出す・出さないの物差しは src/lib/mediaAudit.ts の1本だけ。
+   */
+  const [showDetail, setShowDetail] = useState(false);
 
   const load = useCallback(async () => {
     if (salonId == null) return;
     const res = await getMediaAuditRows({ salonId, limit });
     if (res.ok) {
-      setRows(res.data as MediaLogRow[]);
+      setRows(res.data.rows as MediaLogRow[]);
+      // ★ 「この先にまだあるか」はサーバーが見分けている（getMediaAuditRows）。★ 行数から推さない
+      setMore(res.data.more);
       setKnown(true);
       setLoadError('');
     } else {
       setKnown(false);
+      setMore(false);
       setLoadError(res.error);
     }
   }, [salonId, limit]);
@@ -114,19 +130,28 @@ export function LogBoard({ salonId }: { salonId: number | null }) {
   useEffect(() => { void load(); }, [load]);
 
   const sorted = useMemo(() => sortLogRows(rows), [rows]);
-  const shown = useMemo(() => filterLogRows(sorted, filter), [sorted, filter]);
+  // ★★★ たたむ行を外したもの（第149便）。★ 数も一覧も、この同じ並びから作る。
+  //   ★ 数と一覧で別の並びを使うと、「6件」と書いてあるのに5行しか出ない、が起きる。
+  const listed = useMemo(() => visibleLogRows(sorted, showDetail), [sorted, showDetail]);
+  const shown = useMemo(() => filterLogRows(listed, filter), [listed, filter]);
   // ★★ 上の数はサイトだけで絞る（§205）。結果の絞り込みは一覧にだけ効かせる。
   //   ★ そうしないと「うまくいかなかったもの」を選んだとき、2つの数が同じ値になる。
-  const forTally = useMemo(() => filterLogRows(sorted, siteOnlyFilter(filter)), [sorted, filter]);
+  const forTally = useMemo(() => filterLogRows(listed, siteOnlyFilter(filter)), [listed, filter]);
   const tally = logTally({ known, rows: forTally });
 
+  // ★ たたんである件数。★ 絞り込みの前の数（開けば何件出るかを正しく言う）
+  const hidden = useMemo(() => hiddenLogCount(sorted), [sorted]);
+  // ★ 「もっと見る」の判定は【店舗様に出す行】の数で見る。
+  //   ★ サーバーは出す行が limit 件そろうところまでを返している（getMediaAuditRows）
+  const shownCount = useMemo(() => visibleLogRows(sorted, false).length, [sorted]);
+
   // ★★ 数えた範囲。★ 読めた件数が上限ちょうどなら「直近◯件」と断る（第66便・§210）
-  const scope = logScope({ known, loaded: sorted.length, limit });
+  const scope = logScope({ known, loaded: shownCount, limit, more });
   const scopeNote = logScopeNote({ scope, limit });
 
-  const reason = logEmptyReason({ known, filter, totalBeforeFilter: sorted.length });
+  const reason = logEmptyReason({ known, filter, totalBeforeFilter: listed.length });
   const filteredSiteName = filter.provider === '' ? '' : providerLabel(filter.provider);
-  const more = nextLogLimit(limit);
+  const nextLimit = nextLogLimit(limit);
 
   return (
     <div className="space-y-3">
@@ -249,20 +274,38 @@ export function LogBoard({ salonId }: { salonId: number | null }) {
         )}
       </div>
 
+      {/* ── ★★★ くわしい記録（第149便）── */}
+      {/* ★ たたむ行が1件も無ければ、ボタンごと出さない（押せないボタンを置かない） */}
+      {known && hidden > 0 && (
+        <div className={`${CARD} p-3.5`}>
+          <button
+            type="button"
+            onClick={() => setShowDetail((v) => !v)}
+            aria-expanded={showDetail}
+            className="text-[14px] font-bold text-indigo-700 hover:underline"
+          >
+            {detailToggleLabel(hidden, showDetail)}
+          </button>
+          <p className="text-[13.5px] text-slate-400 leading-relaxed mt-1">
+            {detailToggleNote(hidden)}
+          </p>
+        </div>
+      )}
+
       {/* ── もっと見る ── */}
-      {known && sorted.length >= limit && (
+      {known && more && (
         <div className="text-center">
-          {more === null ? (
+          {nextLimit === null ? (
             <p className="text-[13.5px] text-slate-400">
               直近{limit}件まで表示しています。これより古い記録はこの画面には出しません。
             </p>
           ) : (
             <button
               type="button"
-              onClick={() => setLimit(more)}
+              onClick={() => setLimit(nextLimit)}
               className="px-4 py-2 border border-slate-300 bg-white text-[14px] font-bold text-slate-600 hover:bg-slate-50"
             >
-              もっと見る（{more}件まで）
+              もっと見る（{nextLimit}件まで）
             </button>
           )}
         </div>
