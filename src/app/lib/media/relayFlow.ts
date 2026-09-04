@@ -52,6 +52,8 @@ import { buildEsuloveLoginRequest } from '@/lib/esuloveRequests';
 import { buildEsutamaLoginPageRequest, buildEsutamaLoginRequest, buildEsutamaWorkReadRequest } from '@/lib/esutamaRequests';
 import { planEsutamaWork } from '@/lib/esutamaPlan';
 import { esutamaWindowDates, esutamaTodayISO, esutamaApprovedFromDiff } from '@/lib/esutamaFlow';
+// ★★★ 営業日（朝6時始まり）の正本（第151便）。★ 段の中で暦日を書かない
+import { businessDateJSTFrom } from '@/lib/dutyStatus';
 import type { EsutamaRosterRow } from '@/lib/esutamaParse';
 import type { EsutamaPlanSummary } from '@/lib/relayFlow';
 import { planEsuloveWork } from '@/lib/esulovePlan';
@@ -895,7 +897,11 @@ async function planEsulove(
 ): Promise<{ audits: FlowAudit[]; note: string }> {
   const flowId = ctx.flowId;
   const supabase = createServiceClient();
-  const todayISO = new Date(Date.now() + 9 * 60 * 60 * 1000).toISOString().slice(0, 10); // Asia/Tokyo
+  // ★★★ 第151便: 暦日ではなく【営業日】（朝6時始まり）。
+  //   ★ ここは therapist_schedules を読む窓にだけ使う。★ schedule_date は元から営業日。
+  //     ★ 暦日で取ると、深夜0〜6時は【いま出勤中の営業日】を窓から落としていた。
+  //   ★ これは相手の性質と関係なく間違いだった（エステラブ側の日付とは照合していない）。
+  const todayISO = businessDateJSTFrom(Date.now());
 
   const { data: therapists, error: thErr } = await supabase
     .from('therapists')
@@ -986,7 +992,13 @@ async function planWork(
   //   ★★ 無人かどうかで見張りの強さが変わる（設計メモ §56）。緩くはならない
   const unattended = ctx.intent === 'work_auto';
   const supabase = createServiceClient();
-  const todayISO = new Date(Date.now() + 9 * 60 * 60 * 1000).toISOString().slice(0, 10); // Asia/Tokyo
+  // ★★★ 第151便: 暦日ではなく【営業日】（朝6時始まり）。
+  //   ★★ ここの todayISO は【2つの用途を兼ねている】ので、両方が営業日で正しいこと:
+  //     ① therapist_schedules を読む窓（★ schedule_date は元から営業日）
+  //     ② buildWorkPlan の「駅ちかの表の1日目がこちらの今日か」の照合
+  //   ★★★ ② はオーナー様の確認: **駅ちかも1日の始まりは午前6時**（2026-09-05）。
+  //     ★ エステ魂は実測でも確定している（第150便）。★ 駅ちかは READY 後に記録で確かめる。
+  const todayISO = businessDateJSTFrom(Date.now());
 
   const { data: therapists, error: thErr } = await supabase
     .from('therapists')

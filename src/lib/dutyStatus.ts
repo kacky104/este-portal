@@ -7,24 +7,39 @@ export const DAY_START_HOUR = 6;
  * JST が午前6時より前の場合は前日扱いとする。
  * @param offsetDays 営業日からのオフセット日数（0=当日, 1=翌営業日 ...）
  */
-export function getBusinessDateJST(offsetDays = 0): string {
-  const now = new Date();
-  const jstHour = Number(
-    new Intl.DateTimeFormat('sv-SE', { timeZone: 'Asia/Tokyo', hour: '2-digit', hour12: false }).format(now)
-  );
-  // 現在のJST日付（YYYY-MM-DD）
-  const todayStr = new Intl.DateTimeFormat('sv-SE', { timeZone: 'Asia/Tokyo' }).format(now);
-  const [y, m, d] = todayStr.split('-').map(Number);
+/**
+ * ★★★ 営業日の正本（第150便・2026-09-05）。★ 時刻を【受け取る】ので、テストできる。
+ *
+ * ★★ なぜ分けたか
+ *   これまで「営業日」を知る道は getBusinessDateJST（`new Date()` を内側で読む）しか無く、
+ *   ★ 純粋関数からは呼べなかった。★ その結果、他媒体へ送る段が
+ *     `new Date(Date.now() + 9h).toISOString().slice(0,10)`（＝暦日・0時切替）を
+ *     **その場で書いて**いた。★ フクエス全体の決めごとから、そこだけ外れていた。
+ *   ★★★ 2026-09-05 に実測: エステ魂の出勤表の1日目は【営業日】。
+ *     深夜0:01〜5:01 の周が6回とも「1日目が今日と違う」で止まっていた（第112便の記録より）。
+ *
+ * @param epochMs 判定したい時刻（ミリ秒）
+ */
+export function businessDateJSTFrom(epochMs: number): string {
+  // JST に寄せてから UTC の読み出しで日付と時を取る（★ 実行環境の時間帯に左右されない）
+  const jst = new Date(epochMs + 9 * 60 * 60 * 1000);
+  const shift = jst.getUTCHours() < DAY_START_HOUR ? -1 : 0;
+  const base = new Date(Date.UTC(jst.getUTCFullYear(), jst.getUTCMonth(), jst.getUTCDate()));
+  base.setUTCDate(base.getUTCDate() + shift);
+  return base.toISOString().slice(0, 10);
+}
 
-  // 午前6時より前なら1日戻す。月またぎを正しく扱うため UTC 正午基準で加減算。
-  const shift = jstHour < DAY_START_HOUR ? -1 : 0;
+/** 'YYYY-MM-DD' の n 日後。★ 月またぎは UTC 正午基準で加減算する */
+export function addBusinessDays(dateISO: string, days: number): string {
+  const [y, m, d] = dateISO.split('-').map(Number);
   const base = new Date(Date.UTC(y, m - 1, d));
-  base.setUTCDate(base.getUTCDate() + shift + offsetDays);
+  base.setUTCDate(base.getUTCDate() + days);
+  return base.toISOString().slice(0, 10);
+}
 
-  const yy = base.getUTCFullYear();
-  const mm = String(base.getUTCMonth() + 1).padStart(2, '0');
-  const dd = String(base.getUTCDate()).padStart(2, '0');
-  return `${yy}-${mm}-${dd}`;
+export function getBusinessDateJST(offsetDays = 0): string {
+  // ★ 正本は businessDateJSTFrom。★ ここは「いま」を渡すだけにする（決め方を2か所に書かない）
+  return addBusinessDays(businessDateJSTFrom(Date.now()), offsetDays);
 }
 
 /** 営業日基準で連続する days 日分の日付配列を返す（[当日, 翌日, ...]）。 */

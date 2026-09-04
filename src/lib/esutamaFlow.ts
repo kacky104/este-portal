@@ -25,6 +25,8 @@ import {
 import { applyEsutamaPerson, type EsutamaPerson } from './esutamaPlan';
 // ★★ 店舗様の画面に出す・出さないの物差し（第149便）。★ キー名をここで書き写さない
 import { AUDIT_SHOP_HIDDEN } from './mediaAudit';
+// ★★★ 営業日（朝6時始まり）の正本。★ ここで暦日を書かない（第150便）
+import { businessDateJSTFrom } from './dutyStatus';
 import {
   buildEsutamaRosterRequest, buildEsutamaWorkReadRequest, buildEsutamaWorkSaveRequest,
 } from './esutamaRequests';
@@ -295,10 +297,25 @@ function readWorkPageOrStop(input: Input, ctx: RelayFlowContext, stage: string, 
   return { page };
 }
 
-/** 'YYYY-MM-DD'（Asia/Tokyo の今日）。★ 文脈の startedAt から決める（純粋にするため） */
+/**
+ * エステ魂の表の1日目にあたる日（'YYYY-MM-DD'）。★ 文脈の startedAt から決める（純粋にするため）。
+ *
+ * ★★★ 第150便（2026-09-05）: ここは【暦日】だった。★ それが間違いだった。
+ *   ★ 実測（salon_media_audit の date_shifted・第112便が残した mediaFirstDate より）:
+ *
+ *     09/04 00:01 / 01:01 / 02:01 / 03:01 / 04:01 / 05:01 と 09/05 00:20 の【7回とも】
+ *     相手の1日目 = こちらの今日 − 1日。★ 06:01 の周は1度も落ちていない。
+ *
+ *   ★★ つまり **エステ魂の1日は午前6時に始まる**。★ フクエスと同じ（DAY_START_HOUR）。
+ *   ★★★ しかもフクエスの `therapist_schedules.schedule_date` は元から営業日。
+ *     ★ 暦日で窓を取ると、深夜0〜6時は【いま出勤中の日】を窓から落としていた。
+ *     ★ 守り（1日目の照合）が止めてくれていたので、ずれた書き込みは起きていない。
+ *
+ *   ★ 決め方はここに書かない。正本は src/lib/dutyStatus.ts の businessDateJSTFrom。
+ */
 export function esutamaTodayISO(ctx: RelayFlowContext, now?: number): string {
   const t = Number.isFinite(now) ? (now as number) : Date.parse(ctx.startedAt);
-  return new Date(t + 9 * 60 * 60 * 1000).toISOString().slice(0, 10);
+  return businessDateJSTFrom(t);
 }
 
 export function afterEsutamaWorkRead(input: Input, ctx: RelayFlowContext, now?: number): FlowOutcome {
