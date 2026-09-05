@@ -30,6 +30,14 @@ export type ArticleSlotRow = {
 /** ★ 4つ。★ 増やすときはここに足す（画面の分岐を散らさない） */
 export type ArticleSlotState = 'usable' | 'hidden' | 'empty' | 'unknown';
 
+// ★★★ 第163便（2026-09-05）で 'empty' の意味が変わった。
+//   ★ 以前 … 「使えません。駅ちかの管理画面で1本作ってきてください」
+//   ★ いま … 「**使えます。新しく作ります**」
+//   ★★ 駅ちかの「新規」は編集ページと同じで id が空なだけ、と実測で分かったため。
+//   ★★★ カッキーさんのご指摘が発端:
+//     「私が理解しがたく操作が難しいのに、今から使ってもらう第三者が理解できるわけがない」
+//     ★ 他媒体の管理画面へ行かせている時点で、フクエスリンクの負けだった。
+
 export type ArticleSlotAdvice = {
   slot: EkichikaArticleSlot;
   label: string;
@@ -66,14 +74,14 @@ export function articleSlotAdvice(slot: unknown, row: ArticleSlotRow | null | un
 
   const currentTitle = typeof row.title === 'string' ? row.title : '';
 
-  // ★★★ 記事が無い枠は上書きできない。★ 新規に作る道はまだ無い（第156便で弾いている）
+  // ★★★ 記事が無い枠は【新しく作る】（第163便）。★ 使えないのではない
   if (!row.hasArticle) {
     return {
       ...base,
       state: 'empty',
-      headline: 'まだ記事がありません',
-      note: 'この枠には駅ちかにまだ記事がありません。フクエスは【いまある記事を書き換える】形で送るため、この枠はまだ使えません。駅ちかの管理画面で1本作っていただくと使えるようになります。',
-      canPost: false,
+      headline: '使えます（新しく作ります）',
+      note: 'この枠は駅ちかでまだ空いています。ここへ送ると、新しく記事を作ります。',
+      canPost: true,
       currentTitle,
     };
   }
@@ -132,8 +140,9 @@ export function articleSlotSummary(rows: readonly ArticleSlotRow[] | null | unde
   const usable = all.filter((a) => a.state === 'usable').length;
   const hidden = all.filter((a) => a.state === 'hidden').length;
   const empty = all.filter((a) => a.state === 'empty').length;
-  const parts: string[] = ['いますぐ使える枠は ' + usable + ' つです'];
+  // ★★ 第163便: 空の枠も【使える】。★ 数え方を変える
+  const parts: string[] = ['いますぐ使える枠は ' + (usable + empty) + ' つです'];
+  if (empty > 0) parts.push('うち ' + empty + ' つは空いているので、送ると新しく記事を作ります');
   if (hidden > 0) parts.push('非表示の枠が ' + hidden + ' つあります（送っても公開ページには出ません）');
-  if (empty > 0) parts.push('まだ記事が無い枠が ' + empty + ' つあります（駅ちかで1本作ると使えます）');
   return parts.join('。') + '。';
 }

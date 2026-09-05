@@ -28,7 +28,8 @@ import { titleWidth, ARTICLE_TITLE_MAX_WIDTH } from '@/lib/ekichikaArticle';
 const STATE_STYLE: Record<string, { chip: string; dot: string }> = {
   usable:  { chip: 'text-emerald-700 bg-emerald-50 border-emerald-200', dot: 'bg-emerald-500' },
   hidden:  { chip: 'text-amber-700  bg-amber-50  border-amber-200',    dot: 'bg-amber-500' },
-  empty:   { chip: 'text-slate-500  bg-slate-50  border-slate-200',    dot: 'bg-slate-300' },
+  // ★ 第163便: 空の枠も【使える】。★ 見た目も使える側に寄せる（★ 灰色は「使えない」に見える）
+  empty:   { chip: 'text-emerald-700 bg-emerald-50 border-emerald-200', dot: 'bg-emerald-500' },
   unknown: { chip: 'text-slate-500  bg-slate-50  border-slate-200',    dot: 'bg-slate-300' },
 };
 
@@ -597,7 +598,8 @@ function TemplateItem({
           <div className="flex items-center gap-2 flex-wrap">
             <span className={'text-[12.5px] font-bold px-1.5 py-0.5 border ' + st.chip}>{row.slotLabel}</span>
             {/* ★★ 出せない枠に登録されている文章は、その場で分かるようにする */}
-            {(slotState === 'empty' || slotState === 'hidden' || slotState === 'unknown') && (
+            {/* ★ 空の枠は使えるので、注意として出さない（第163便）。★ 非表示・不明だけ出す */}
+            {(slotState === 'hidden' || slotState === 'unknown') && (
               <span className="text-[12.5px] text-amber-700">{slotHeadline}</span>
             )}
             {row.isActive
@@ -652,17 +654,24 @@ function TemplateItem({
           <p className="text-[14px] text-slate-700 leading-relaxed">
             駅ちかの<b>{row.slotLabel}</b>を、この文章に書き換えます。
           </p>
-          {currentTitle
+          {/* ★★★ 第163便: 空の枠は【新しく作る】。★ 消えるものが無いのに「消えます」と書かない */}
+          {slotState === 'empty'
             ? (
               <p className="text-[13.5px] text-slate-600 leading-relaxed mt-1">
-                いま入っている「<b>{currentTitle}</b>」は<b>消えます</b>（元に戻せません）。
+                この枠はいま空いています。<b>新しく記事を作ります。</b>
               </p>
             )
-            : (
-              <p className="text-[13.5px] text-slate-600 leading-relaxed mt-1">
-                いま入っている記事は<b>消えます</b>（元に戻せません）。
-              </p>
-            )}
+            : currentTitle
+              ? (
+                <p className="text-[13.5px] text-slate-600 leading-relaxed mt-1">
+                  いま入っている「<b>{currentTitle}</b>」は<b>消えます</b>（元に戻せません）。
+                </p>
+              )
+              : (
+                <p className="text-[13.5px] text-slate-600 leading-relaxed mt-1">
+                  いま入っている記事は<b>消えます</b>（元に戻せません）。
+                </p>
+              )}
           <p className="text-[13.5px] text-slate-600 leading-relaxed mt-1">
             {row.therapistId !== null
               ? '写真は、フクエスに登録されている「' + (row.therapistName || 'この方') + '」の写真を駅ちかへ送って差し替えます。'

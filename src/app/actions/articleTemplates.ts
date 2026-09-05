@@ -302,11 +302,13 @@ export async function startArticlePost(input: {
   if (rows === null) {
     return { ok: false, error: 'まず「いまの状態を読む」を押して、枠の状態を確かめてください' };
   }
+  // ★★★ 第163便: 記事が無い枠でも【新しく作れる】。★ ここで弾かない。
+  //   ★ 一覧に見当たらない枠だけ止める（★ 相手が枠を減らした等）
   const hit = rows.find((r) => r.slot === articleSlot) ?? null;
-  if (hit === null || !hit.hasArticle) {
+  if (hit === null) {
     return {
       ok: false,
-      error: articleSlotLabel(articleSlot) + ' には駅ちかにまだ記事がありません。上書きする記事が無いため送れません',
+      error: articleSlotLabel(articleSlot) + ' が駅ちかの一覧に見当たりません。「いまの状態を読む」を押してお確かめください',
     };
   }
 

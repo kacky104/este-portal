@@ -34,13 +34,20 @@ console.log('── 0. ★★★ 読めていないときに「使える」と�
 }
 eq('★★ undefined も同じ（★ null と分けない）', A.articleSlotAdvice(2, undefined).state, 'unknown');
 
-console.log('\n── 1. ★★★ 記事が無い枠 ──');
+console.log('\n── 1. ★★★ 記事が無い枠（第163便で意味が変わった） ──');
+//
+// ★★★ 以前 … 「使えません。駅ちかの管理画面で1本作ってきてください」
+// ★★★ いま … 「使えます。新しく作ります」
+//   ★ 駅ちかの「新規」は編集ページと同じで id が空なだけ、と実測で分かったため（2026-09-05）。
+//   ★★ カッキーさんのご指摘:「私が理解しがたく操作が難しいのに、第三者が理解できるわけがない」
 {
   const a = A.articleSlotAdvice(2, row({ slot: 2, label: '新人速報', hasArticle: false, visible: null, title: '' }));
-  eq('★★★ 状態は「カラ」（★ 「分からない」ではない。読めている）', a.state, 'empty');
-  eq('★★★ ここへは送れない（上書きするものが無い）', a.canPost, false);
+  eq('★★ 状態は「カラ」（★ 読めている）', a.state, 'empty');
+  eq('★★★ ここへ送れる（新しく作る）', a.canPost, true);
   eq('★ 相手の言葉のカテゴリー名を使う', a.label, '新人速報');
-  eq('★★ 何をすれば使えるようになるかを書く', /駅ちかの管理画面/.test(a.note), true);
+  eq('★★★ 他媒体の管理画面へ行かせない', /駅ちかの管理画面/.test(a.note), false);
+  eq('★★ 新しく作ると書く', /新しく記事を作ります/.test(a.note), true);
+  eq('★★★ 「置き換わります」とは書かない（★ 消える記事が無い）', /置き換わります/.test(a.note), false);
   eq('★ いまのタイトルは空', a.currentTitle, '');
 }
 
@@ -100,8 +107,9 @@ eq('★★ 空配列も同じ（★ 「0枠使えます」と言わない）',
     row({ slot: 4, label: 'イベント速報', title: '昼割のお知らせ' }),
     row({ slot: 5, label: '緊急出勤速報', hasArticle: false, visible: null, title: '' }),
   ];
-  eq('★ 実際の姿（使える3・カラ2）',
-     A.articleSlotSummary(real), 'いますぐ使える枠は 3 つです。まだ記事が無い枠が 2 つあります（駅ちかで1本作ると使えます）。');
+  eq('★★★ 実際の姿（★ 第163便: 空の枠も使える＝5つ）',
+     A.articleSlotSummary(real), 'いますぐ使える枠は 5 つです。うち 2 つは空いているので、送ると新しく記事を作ります。');
+  eq('★★★ 「使えない枠がある」と読ませない', /使えません|作ってい?ただく/.test(A.articleSlotSummary(real)), false);
   eq('★★ 非表示が無ければ、非表示の話をしない', /非表示/.test(A.articleSlotSummary(real)), false);
 }
 {

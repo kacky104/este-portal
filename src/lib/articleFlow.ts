@@ -202,23 +202,18 @@ export function afterArticleList(input: Input, ctx: RelayFlowContext): FlowOutco
     };
   }
 
-  // ★★★ 記事が無い枠は上書きできない。★ 新規の道はまだ無い（★ 黙って進めない）
-  if (!row.hasArticle) {
-    return {
-      kind: 'article_slots', rows,
-      audits: [...audits, {
-        event: 'plan_article', outcome: 'stopped', summary: '',
-        detail: { slot, where: row.label, reason: 'no_article', flowId },
-      }],
-      note: row.label + ' にはまだ記事がありません（新しく作る道はまだありません）',
-    };
-  }
+  // ★★★ 第163便（2026-09-05）: 記事が無い枠でも【新しく作れる】ようになった。
+  //   ★ 駅ちかの「新規」の画面は編集ページとまったく同じで、id が空なだけ（実測）。
+  //   ★★ だから、ここで止めない。★ 編集ページを読みにいけば、id が空のページが返る。
+  //   ★ 以前はここで no_article として止めていた（★ 第156便）。★ その必要が無くなった。
 
   return {
     kind: 'article_slots',
     rows,
     audits,
-    note: row.label + ' を読みにいく' + (row.visible === false ? '（★ この枠はいま非表示）' : ''),
+    note: row.label + ' を読みにいく'
+      + (row.hasArticle ? '' : '（★ この枠は空なので新しく作る）')
+      + (row.visible === false ? '（★ この枠はいま非表示）' : ''),
     next: {
       ...(buildArticleReadStep({ ...ctx, cookie }) as FlowNextRequest),
       // ★ 相手の言葉と、公開状態を持ち回す。★ 分からなければ入れない

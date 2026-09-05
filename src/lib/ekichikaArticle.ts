@@ -124,8 +124,18 @@ export function checkArticleBody(body: unknown): ArticleCheck {
  */
 export type EkichikaArticlePage = {
   slot: EkichikaArticleSlot;
-  /** 記事ID（hidden の id）。★ 枠ごとに固定 */
+  /**
+   * 記事ID（hidden の id）。★ 枠ごとに固定。
+   * ★★★ **空のことがある**（第163便・2026-09-05 実測）。★ 空＝その枠にまだ記事が無い＝【新しく作る】。
+   *   ★ 「読めなかった」ではない。★ input そのものは存在する
+   */
   id: string;
+  /**
+   * ★★★ その枠にまだ記事が無いか（第163便）。
+   *   ★ true なら id を空のまま送る＝新しく作る。★ false なら上書き。
+   *   ★★ 送る項目の数も名前も**まったく同じ**（実測）。★ 違うのは id が空かどうかだけ
+   */
+  isNew: boolean;
   /** いまの画像の識別子。★ そのまま返す */
   gImage1: string;
   gImage1s: string;
@@ -167,8 +177,14 @@ export function parseEkichikaArticlePage(html: unknown, slot: unknown): Ekichika
   const id = pickAttr(form, 'id');
   const gImage1 = pickAttr(form, 'g_image1');
   const gImage1s = pickAttr(form, 'g_image1s');
-  // ★ id が無いページは「編集ページではない」。★ 空文字と読み間違えない
-  if (id === null || !/^\d{1,12}$/.test(id)) return null;
+  // ★★★ 第163便（2026-09-05 実測で訂正）
+  //   ★ id の input が【無い】ページは編集ページではない → 読めなかった（null）
+  //   ★★ id の input が【あって空】なのは、その枠にまだ記事が無いだけ → **新しく作れる**
+  //   ★ ここを一緒くたに null にしていたのが「空の枠が使えない」の正体だった。
+  //     ★★ 第155便の 11:21 の失敗（read_article: parse_failed）も、これ。
+  if (id === null) return null;
+  const isNew = id === '';
+  if (!isNew && !/^\d{1,12}$/.test(id)) return null;   // ★ 数字でも空でもない＝読み方が合っていない
 
   // ★ 選ばれているラジオ
   const imgFlg = /<input[^>]*name="img_flg"[^>]*value="([01])"[^>]*checked/i.exec(form)?.[1]
@@ -193,6 +209,7 @@ export function parseEkichikaArticlePage(html: unknown, slot: unknown): Ekichika
   return {
     slot,
     id,
+    isNew,
     gImage1: gImage1 ?? '',
     gImage1s: gImage1s ?? '',
     girlId: selected,
@@ -382,7 +399,9 @@ export function buildEkichikaArticleSaveRequest(
 ): RelayRequest {
   if (!cookie) throw new Error('Cookie が無いまま保存しない');
   if (!page || !isArticleSlot(page.slot)) throw new Error('読んだ編集ページが要ります（枠が分かりません）');
-  if (!/^\d{1,12}$/.test(page.id)) throw new Error('読んだ編集ページの記事IDが読めていません');
+  // ★★★ 新しく作るときは id が空（第163便）。★ そのまま空で送る。
+  //   ★ 空でないなら数字であること（★ 読めていない値を送らない）
+  if (!page.isNew && !/^\d{1,12}$/.test(page.id)) throw new Error('読んだ編集ページの記事IDが読めていません');
 
   const t = checkArticleTitle(write.title);
   if (!t.ok) throw new Error('タイトルを送れません: ' + t.message);

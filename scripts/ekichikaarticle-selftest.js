@@ -142,6 +142,56 @@ console.log('\n── 6. 読むだけの GET ──');
 
 
 // ────────────────────────────────────────────────────────────────────────────
+console.log('\n── 4-2. ★★★ 空の枠＝新しく作る（第163便） ──');
+//
+// ★★★ 2026-09-05 実測: 駅ちかの「新規」の画面は編集ページと【まったく同じ】。
+//   id / g_image1 / g_image1s の input は**ある**が、値が**空**。★ それだけが違い。
+//   ★★ これを「読めなかった」として null にしていたのが「空の枠が使えない」の正体だった。
+//     ★ 第155便の 11:21 の失敗（read_article: parse_failed）も、これ。
+const NEW_PAGE = '<html><body><form action="https://ranking-deli.jp/admin/articles/category5/" method="post" id="article_form">'
+  + '<input type="text" name="title" value="">'
+  + '<textarea name="body"></textarea>'
+  + '<select name="girl_id"><option value="5232208" selected>さら</option></select>'
+  + '<input type="radio" name="img_flg" value="1" checked=""><input type="radio" name="img_flg" value="0">'
+  + '<input type="radio" name="display_flg" value="1" checked=""><input type="radio" name="display_flg" value="0">'
+  + '<input type="hidden" name="id" value="">'
+  + '<input type="hidden" name="g_image1" value="">'
+  + '<input type="hidden" name="g_image1s" value="">'
+  + '</form></body></html>';
+{
+  const p = A.parseEkichikaArticlePage(NEW_PAGE, 5);
+  eq('★★★ 空の枠でも読めた扱い（★ null にしない）', p === null, false);
+  eq('★★★ 新しく作ると分かる', p.isNew, true);
+  eq('★★ 記事IDは空のまま', p.id, '');
+  eq('★ 画像の識別子も空', [p.gImage1, p.gImage1s], ['', '']);
+  eq('★ 選べる人は読める', p.girls.length, 1);
+}
+eq('★★ 記事がある枠は今までどおり', A.parseEkichikaArticlePage(PAGE, 1).isNew, false);
+eq('★★★ id の input が【無い】ページは今までどおり読めなかった扱い',
+   A.parseEkichikaArticlePage('<form id="article_form"><input name="title" value=""></form>', 1), null);
+eq('★★ id が数字でも空でもなければ読めなかった扱い',
+   A.parseEkichikaArticlePage('<form id="article_form"><input type="hidden" name="id" value="abc"></form>', 1), null);
+{
+  // ★★★ 新しく作るときも、送る項目は【まったく同じ】。★ 違うのは id が空なだけ
+  const p = A.parseEkichikaArticlePage(NEW_PAGE, 5);
+  const r = A.buildEkichikaArticleSaveRequest('sid=abc', p, { title: 'はじめての記事', body: '<p>ほんぶん</p>' }, UA);
+  const f = decode(r.body);
+  eq('★★★ id は空で送る（＝新しく作る）', f.id, '');
+  eq('★★★ 送る項目の数は今までどおり9つ', Object.keys(f).length, 9);
+  eq('★★ 宛先は同じ枠', r.url, 'https://ranking-deli.jp/admin/articles/category5/');
+  eq('★★ display_flg は必ず 1', f.display_flg, '1');
+  eq('★ タイトルと本文', [f.title, f.body], ['はじめての記事', '<p>ほんぶん</p>']);
+}
+{
+  // ★ 新しく作るときも、上げた画像を付けられる
+  const p = A.parseEkichikaArticlePage(NEW_PAGE, 5);
+  const r = A.buildEkichikaArticleSaveRequest('sid=abc', p,
+    { title: 'あ', body: '<p>x</p>', image: 'upload', uploaded: { imgB: '20260905172422', imgS: '20260905172523' } }, UA);
+  const f = decode(r.body);
+  eq('★★ 空の枠へ新規＋画像', [f.id, f.img_flg, f.g_image1, f.g_image1s],
+     ['', '0', '20260905172422', '20260905172523']);
+}
+
 console.log('\n── 6-2. ★★★ 選べる人（番号と名前）（第160便） ──');
 //
 // ★★★ なぜ名前を拾うのか

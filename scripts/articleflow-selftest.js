@@ -215,14 +215,15 @@ eq('★★ 一覧の段でも枠が無ければ止める',
   eq('★ 添え書きに非表示と出る', /非表示/.test(r.note), true);
 }
 {
-  // ★★★ 記事が無い枠は上書きできない。★ 新規の道はまだ無い
+  // ★★★ 第163便: 記事が無い枠でも【新しく作れる】ようになった。
+  //   ★ 駅ちかの「新規」は編集ページと同じで、id が空なだけ（2026-09-05 実測）。
+  //   ★★ 以前はここで no_article として止めていた（第156便）。★ その必要が無くなった。
   const r = F.afterArticleList(res200(LIST('表示')), ctxOf({ articleSlot: 2 }));
-  eq('★★★ 記事が無ければ次を積まない', [r.kind, r.next], ['article_slots', undefined]);
-  eq('★★★ 止まっても【読めた事実】は落とさない（★ 落とすと画面が「まだ読んでいない」ままになる）',
-     r.rows.length, 5);
-  eq('★★ 「送れなかった」ではなく「組み立てなかった」', r.audits[r.audits.length - 1].event + ':' + r.audits[r.audits.length - 1].outcome, 'plan_article:stopped');
-  eq('★★★ 理由を残す', r.audits[r.audits.length - 1].detail.reason, 'no_article');
-  eq('★ 相手の言葉で残す', r.audits[r.audits.length - 1].detail.where, '新人速報');
+  eq('★★★ 記事が無い枠でも編集ページを読みにいく', [r.kind, r.next.purpose], ['article_slots', 'article_read']);
+  eq('★★ 宛先はその枠', r.next.url, 'https://ranking-deli.jp/admin/articles/category2/');
+  eq('★★★ 「新しく作る」と添え書きに書く', /新しく作る/.test(r.note), true);
+  eq('★★ 読めた事実は落とさない', r.rows.length, 5);
+  eq('★★★ もう no_article では止めない', r.audits.some((a) => a.detail && a.detail.reason === 'no_article'), false);
   eq('★★ 一覧は読めているので login:ok は残す', r.audits[0].event + ':' + r.audits[0].outcome, 'login:ok');
 }
 {
