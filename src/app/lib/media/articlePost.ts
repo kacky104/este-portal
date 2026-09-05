@@ -3,6 +3,7 @@ import { startRelayFlow, countArticleTry } from '@/app/lib/media/relayFlow';
 import { readImageSize } from '@/lib/imageSize';
 import { checkArticleImage } from '@/lib/ekichikaArticleImage';
 import { isArticleSlot, articleSlotLabel, checkArticleTitle, checkArticleBody } from '@/lib/ekichikaArticle';
+import { pickArticlePhoto, normalizeArticlePhotoIds } from '@/lib/articlePhotoPick';
 
 // 新着情報を1本出す（第166便・2026-09-05）。
 //
@@ -39,7 +40,7 @@ export async function postOneArticle(input: {
   // ★★★ 内容は【DBから読み直す】。★ 呼び出し側から受け取った文字をそのまま駅ちかへ流さない
   const { data: t, error: tErr } = await svc
     .from('salon_article_templates')
-    .select('id, article_slot, title, body, ekichika_girl_id, therapist_id')
+    .select('id, article_slot, title, body, ekichika_girl_id, therapist_ids, last_photo_therapist_id')
     .eq('id', input.templateId).eq('salon_id', input.salonId).eq('provider', PROVIDER)
     .maybeSingle();
   if (tErr) return { ok: false, error: '文章を読み出せませんでした' };
@@ -74,7 +75,15 @@ export async function postOneArticle(input: {
   let file:
     | { bucket: string; path: string; filename: string; contentType: string; width: number; height: number; as?: 'jpeg' }
     | null = null;
-  const therapistId = Number(t.therapist_id ?? 0);
+  // ★★★ 第172便: 写真は【複数】。★ 出すたびに1枚選ぶ。
+  //   ★ 1枚だけ選ばれていれば固定（★ 推しの子を上げ続ける）
+  //   ★ 2枚以上なら、直前と同じ1枚は避けて1枚（★ 「変わっていない」を作らない）
+  //   ★★ さいころはここで振る。★ 選び方そのものは articlePhotoPick（点検できる形）
+  const photoIds = normalizeArticlePhotoIds(t.therapist_ids);
+  const lastPhoto = t.last_photo_therapist_id === null || t.last_photo_therapist_id === undefined
+    ? null : Number(t.last_photo_therapist_id);
+  const picked = pickArticlePhoto(photoIds, lastPhoto, Math.random());
+  const therapistId = picked.kind === 'keep' ? 0 : picked.id;
   if (Number.isFinite(therapistId) && therapistId > 0) {
     const { data: th } = await svc
       .from('therapists').select('id, salon_id, name, profile_image_url')
@@ -128,6 +137,17 @@ export async function postOneArticle(input: {
       actor: input.actor,
     });
     if (!r.ok) return { ok: false, error: r.note };
+
+    // ★★★ 第172便: 出した写真を覚える。★ 次に選ぶとき、これと同じ1枚は避ける。
+    //   ★ 覚えられなくても送信は止めない（★ 写真は飾り。飾りのために本体を止めない）。
+    //   ★★ 次が「直前と同じ」になるだけで、★ 記事は出る。
+    if (picked.kind === 'rotate' || picked.kind === 'fixed') {
+      const { error: memErr } = await svc
+        .from('salon_article_templates')
+        .update({ last_photo_therapist_id: picked.id })
+        .eq('id', input.templateId).eq('salon_id', input.salonId);
+      if (memErr) console.error('[article] 出した写真を覚えられなかった', memErr.message);
+    }
 
     // ★★★ 積めたので「出そうとした回数」を1つ進める（第166便）。
     //   ★ 送れたかどうかは別（★ それは push_article: ok で数える）。

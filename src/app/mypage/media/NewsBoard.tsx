@@ -12,6 +12,7 @@ import {
   type ArticleTemplateRow,
 } from '@/app/actions/articleTemplates';
 import { titleWidth, ARTICLE_TITLE_MAX_WIDTH } from '@/lib/ekichikaArticle';
+import { ARTICLE_PHOTO_MAX, articlePhotoNote } from '@/lib/articlePhotoPick';
 import { articleQuotaNote } from '@/lib/articleRotation';
 
 // 新着情報を送る（第158便で作り、★ 第167便で作り直した・2026-09-05）。
@@ -72,11 +73,14 @@ type Draft = {
   id: number | null; articleSlot: number | null; title: string; body: string; isActive: boolean;
   /** ★ 誰の紹介か（駅ちかの番号）。★ '' は【いまの写真のまま】 */
   girlId: string;
-  /** ★ フクエスの写真を送るときの持ち主。★ '' は送らない（第162便） */
-  therapistId: string;
+  /**
+   * ★★★ この文章に付ける写真の持ち主（第172便で【複数】になった）。
+   *   ★ 空なら送らない。★ 1件なら固定。★ 2件以上なら出すたびに1枚
+   */
+  therapistIds: number[];
 };
 
-const EMPTY: Draft = { id: null, articleSlot: null, title: '', body: '', isActive: false, girlId: '', therapistId: '' };
+const EMPTY: Draft = { id: null, articleSlot: null, title: '', body: '', isActive: false, girlId: '', therapistIds: [] };
 
 export function NewsBoard({ salonId, onToast }: { salonId: number | null; onToast: (m: string) => void }) {
   const [board, setBoard] = useState<ArticleBoard | null>(null);
@@ -165,7 +169,7 @@ export function NewsBoard({ salonId, onToast }: { salonId: number | null; onToas
       body: draft.body,
       isActive: draft.isActive,
       girlId: draft.girlId,
-      therapistId: draft.therapistId === '' ? null : Number(draft.therapistId),
+      therapistIds: draft.therapistIds,
     });
     setBusy('');
     if (!r.ok) { onToast(r.error); return; }
@@ -211,9 +215,29 @@ export function NewsBoard({ salonId, onToast }: { salonId: number | null; onToas
   const overTitle = width > ARTICLE_TITLE_MAX_WIDTH;
   const openDraft = (d: Draft) => { setDraft(d); setOpenGirls(d.girlId !== ''); };
 
-  /** ★ 一覧のサムネに出す写真。★ フクエスの写真を送る文章だけ。★ 駅ちか側の写真は持っていない */
+  /**
+   * ★ 一覧のサムネに出す写真。★ 複数選ばれていれば【1枚目】を出す（★ 枚数は脇に出す）。
+   *   ★★ 駅ちか側の写真はこちらに無いので出せない
+   */
   const photoOf = (t: ArticleTemplateRow): string =>
-    t.therapistId === null ? '' : (board.therapists.find((x) => x.id === t.therapistId)?.photoUrl ?? '');
+    t.therapistIds.length === 0 ? '' : (board.therapists.find((x) => x.id === t.therapistIds[0])?.photoUrl ?? '');
+
+  /** ★ 写真を1枚ずつ入れたり外したり（第172便）。★ 上限は10枚 */
+  const togglePhoto = (id: number) => {
+    if (!draft) return;
+    const on = draft.therapistIds.includes(id);
+    if (on) {
+      setDraft({ ...draft, therapistIds: draft.therapistIds.filter((x) => x !== id) });
+      return;
+    }
+    // ★★ 上限を超えたら、黙って落とさずに言う
+    if (draft.therapistIds.length >= ARTICLE_PHOTO_MAX) {
+      onToast('写真は' + ARTICLE_PHOTO_MAX + '枚までです');
+      return;
+    }
+    // ★ 駅ちか側の写真とは同時に選べない（★ 送るのは1枚なので）
+    setDraft({ ...draft, therapistIds: [...draft.therapistIds, id], girlId: '' });
+  };
 
   return (
     <div className="space-y-5">
@@ -322,7 +346,7 @@ export function NewsBoard({ salonId, onToast }: { salonId: number | null; onToas
                 onEdit={() => openDraft({
                   id: t.id, articleSlot: t.articleSlot, title: t.title, body: t.body, isActive: t.isActive,
                   girlId: t.girlId ?? '',
-                  therapistId: t.therapistId === null ? '' : String(t.therapistId),
+                  therapistIds: t.therapistIds,
                 })}
                 canPost={s?.canPost === true}
                 currentTitle={s?.currentTitle ?? ''}
@@ -430,29 +454,41 @@ export function NewsBoard({ salonId, onToast }: { salonId: number | null; onToas
               />
             </div>
 
-            {/* ───── 写真（第167便：写真で選ぶ） ───── */}
+            {/* ───── 写真（第167便：写真で選ぶ／第172便：何枚でも選べる） ─────
+                ★★★ 第172便の発端（カッキーさん）
+                  「同じ文章でいい。毎回違うセラピストの写真がランダムで載るシステムが欲しい」
+                  「逆に特定のセラピスト紹介の時は選んだ画像がずっと出続けるようにできる」
+                ★★ 文章と写真は【寿命が別】。★ 新規割引の告知は何日も同じ、写真は毎回変えたい。
+                ★★★ 「1枚固定」と「複数から回す」を**別の設定にしない**。
+                   ★ 1枚だけ選べば固定。★ 10枚選べば回る。★ 同じ操作で両方できる。 */}
             <div>
-              <label className="text-[13.5px] font-bold text-slate-600">写真</label>
+              <div className="flex items-baseline justify-between gap-2 flex-wrap">
+                <label className="text-[13.5px] font-bold text-slate-600">写真</label>
+                <span className="text-[12.5px] text-slate-400 tabular-nums">
+                  {draft.therapistIds.length} / {ARTICLE_PHOTO_MAX} 枚
+                </span>
+              </div>
               {/* ★★★ 何もしなければ前の記事の写真が残る。★ そのことを先に書く */}
               <p className="text-[13px] text-slate-400 leading-relaxed mt-0.5">
                 駅ちかへ送るのは<b>タイトルと本文だけ</b>です。写真を選ばなければ、いま駅ちかに入っている写真がそのまま残ります。
+                <b>何枚でも選べます。</b>
               </p>
 
               <div className="grid grid-cols-3 sm:grid-cols-5 gap-2 mt-2">
-                {/* ★ 「変えない」も1枚のタイルにする。★ 3つの道を1つの並びに（第162便の考えを見た目にした） */}
+                {/* ★ 「変えない」も1枚のタイルにする。★ 押すと全部外れる */}
                 <PhotoTile
-                  on={draft.girlId === '' && draft.therapistId === ''}
+                  on={draft.girlId === '' && draft.therapistIds.length === 0}
                   name="変えない"
                   caption="いまの写真のまま"
-                  onClick={() => setDraft({ ...draft, girlId: '', therapistId: '' })}
+                  onClick={() => setDraft({ ...draft, girlId: '', therapistIds: [] })}
                 />
                 {board.therapists.map((t) => (
                   <PhotoTile
                     key={t.id}
-                    on={draft.therapistId === String(t.id)}
+                    on={draft.therapistIds.includes(t.id)}
                     name={t.name}
                     photoUrl={t.photoUrl}
-                    onClick={() => setDraft({ ...draft, therapistId: String(t.id), girlId: '' })}
+                    onClick={() => togglePhoto(t.id)}
                   />
                 ))}
               </div>
@@ -460,6 +496,14 @@ export function NewsBoard({ salonId, onToast }: { salonId: number | null; onToas
               {board.therapists.length === 0 && (
                 <p className="text-[13.5px] text-slate-500 leading-relaxed mt-1.5">
                   フクエスに写真が登録されている方がまだいません。セラピストの登録で写真を入れると、ここから選べるようになります。
+                </p>
+              )}
+
+              {/* ★★★ いま何が起きるかを、選んだその場で言う。
+                  ★ 1枚 →「ずっとこれ」／複数 →「毎回この中から1枚」。★ 文言は articlePhotoPick が作る */}
+              {articlePhotoNote(draft.therapistIds.length) !== null && (
+                <p className="text-[13.5px] text-indigo-800 bg-indigo-50 border border-indigo-200 px-3 py-2 leading-relaxed mt-2">
+                  {articlePhotoNote(draft.therapistIds.length)}
                 </p>
               )}
 
@@ -493,7 +537,7 @@ export function NewsBoard({ salonId, onToast }: { salonId: number | null; onToas
                             <button
                               key={g.id}
                               type="button"
-                              onClick={() => setDraft({ ...draft, girlId: g.id, therapistId: '' })}
+                              onClick={() => setDraft({ ...draft, girlId: g.id, therapistIds: [] })}
                               className={
                                 'text-[13.5px] font-bold px-2.5 py-1.5 border ' +
                                 (on ? 'border-indigo-500 text-indigo-700 bg-indigo-50' : 'border-slate-200 text-slate-600 hover:bg-slate-50')
@@ -717,8 +761,10 @@ function TemplateItem({
 }) {
   const chip = STATE_CHIP[slotState] ?? STATE_CHIP.unknown;
   // ★ 写真をどうするか、ひと言で。★ 3つの道を3つの言い方に分ける（混ぜない）
+  //   ★★ 第172便: 複数選ばれているときは【枚数】を言う。★ 1枚目の名前だけ出すと嘘になる
   const photoWord =
-    row.therapistId !== null ? '写真：' + (row.therapistName || 'フクエスから送ります')
+    row.therapistIds.length >= 2 ? '写真：' + row.therapistIds.length + '枚から毎回1枚'
+    : row.therapistIds.length === 1 ? '写真：' + (row.therapistNames[0] || 'フクエスから送ります')
     : row.girlId === null ? '写真はいまのまま'
     : '写真：' + (row.girlName || row.girlId) + '（駅ちか）';
 
@@ -733,6 +779,12 @@ function TemplateItem({
           ) : (
             <span className="absolute inset-0 flex items-center justify-center text-[11px] text-slate-400 text-center leading-tight px-1">
               いまの<br />写真
+            </span>
+          )}
+          {/* ★★ 第172便: 複数選ばれているときは枚数を出す。★ 1枚目だけ見せて「これが出る」と誤解させない */}
+          {row.therapistIds.length >= 2 && (
+            <span className="absolute right-0 bottom-0 text-[11px] font-bold text-white bg-slate-800/80 px-1 tabular-nums">
+              {row.therapistIds.length}枚
             </span>
           )}
         </div>
@@ -812,11 +864,13 @@ function TemplateItem({
                 </p>
               )}
           <p className="text-[13.5px] text-slate-600 leading-relaxed mt-1">
-            {row.therapistId !== null
-              ? '写真は、フクエスに登録されている「' + (row.therapistName || 'この方') + '」の写真を駅ちかへ送って差し替えます。'
-              : row.girlId === null
-                ? '写真は駅ちかに入っているものがそのまま残ります（変わるのはタイトルと本文だけです）。'
-                : '写真は駅ちかに登録されている「' + (row.girlName || row.girlId) + '」に差し替わります。'}
+            {row.therapistIds.length >= 2
+              ? '写真は、選んでいる ' + row.therapistIds.length + ' 枚の中から1枚を送って差し替えます（直前と同じ写真は避けます）。'
+              : row.therapistIds.length === 1
+                ? '写真は、フクエスに登録されている「' + (row.therapistNames[0] || 'この方') + '」の写真を駅ちかへ送って差し替えます。'
+                : row.girlId === null
+                  ? '写真は駅ちかに入っているものがそのまま残ります（変わるのはタイトルと本文だけです）。'
+                  : '写真は駅ちかに登録されている「' + (row.girlName || row.girlId) + '」に差し替わります。'}
           </p>
           {slotState === 'hidden' && (
             <p className="text-[13.5px] text-amber-800 leading-relaxed mt-1">
