@@ -13,10 +13,6 @@ import {
 } from '@/app/actions/articleTemplates';
 import { titleWidth, ARTICLE_TITLE_MAX_WIDTH } from '@/lib/ekichikaArticle';
 import { articleQuotaNote } from '@/lib/articleRotation';
-import {
-  ARTICLE_VARS, ARTICLE_VAR_WORST_DAY, articleVarHelp, fillArticleVars, hasArticleVar,
-} from '@/lib/articleVars';
-import { dayKeyJST } from '@/lib/announceAuto';
 
 // 新着情報を送る（第158便で作り、★ 第167便で作り直した・2026-09-05）。
 //
@@ -211,24 +207,8 @@ export function NewsBoard({ salonId, onToast }: { salonId: number | null; onToas
     await load();
   };
 
-  // ★★★ 第169便: 文字数は【差し込みを埋めたあと】で数える。
-  //   ★ 「{月}月{日}日」を3文字と数えると、出すときに駅ちかで断られる。
-  //   ★★ しかも【いちばん長くなる日（12/31）】で数える。★ 保存の検査と同じ物差し
-  const draftName = draft === null ? '' : (
-    draft.therapistId !== '' ? (board.therapists.find((x) => String(x.id) === draft.therapistId)?.name ?? '')
-      : draft.girlId !== '' ? (board.girls?.find((g) => g.id === draft.girlId)?.name ?? '')
-        : ''
-  );
-  const worst = { dayKey: ARTICLE_VAR_WORST_DAY, therapistName: draftName.length > 0 ? draftName : null };
-  const filledTitle = draft === null ? null : fillArticleVars(draft.title, worst);
-  const width = filledTitle !== null && filledTitle.ok ? titleWidth(filledTitle.text) : (draft ? titleWidth(draft.title) : 0);
+  const width = draft ? titleWidth(draft.title) : 0;
   const overTitle = width > ARTICLE_TITLE_MAX_WIDTH;
-
-  // ★ 「いま出すと、こう出ます」。★ 日付は【営業日】（朝6時区切り）
-  const today = { dayKey: dayKeyJST(new Date()), therapistName: draftName.length > 0 ? draftName : null };
-  const nowTitle = draft === null ? null : fillArticleVars(draft.title, today);
-  const nowBody = draft === null ? null : fillArticleVars(draft.body, today);
-  const usesVars = draft !== null && (hasArticleVar(draft.title) || hasArticleVar(draft.body));
   const openDraft = (d: Draft) => { setDraft(d); setOpenGirls(d.girlId !== ''); };
 
   /** ★ 一覧のサムネに出す写真。★ フクエスの写真を送る文章だけ。★ 駅ちか側の写真は持っていない */
@@ -413,9 +393,7 @@ export function NewsBoard({ salonId, onToast }: { salonId: number | null; onToas
               <div className="flex items-baseline justify-between gap-2">
                 <label className="text-[13.5px] font-bold text-slate-600">タイトル</label>
                 <span className={'text-[12.5px] tabular-nums ' + (overTitle ? 'text-rose-600 font-bold' : 'text-slate-400')}>
-                  {/* ★★★ 第169便: 差し込みを【埋めたあと】の長さ。★ いちばん長くなる日で数えている */}
                   全角 {Math.ceil(width)} / {ARTICLE_TITLE_MAX_WIDTH}
-                  {hasArticleVar(draft.title) && <span className="ml-1 text-slate-400">（差し込み後）</span>}
                 </span>
               </div>
               <input
@@ -450,48 +428,6 @@ export function NewsBoard({ salonId, onToast }: { salonId: number | null; onToas
                 className="w-full mt-1.5 px-3 py-2.5 text-[15px] border border-slate-300 focus:border-indigo-400 outline-none leading-relaxed"
                 placeholder="本日も元気に営業しております。ご予約お待ちしております。"
               />
-            </div>
-
-            {/* ───── 差し込み（第169便） ─────
-                ★★★ なぜ要るか
-                  1日2回、同じ文章を出し続けると、駅ちかで「使い回し」に見える。
-                  ★ 日付と名前が入るだけで、同じ1本が毎回ちがう記事になる。
-                ★★ ここで文言を作らない。★ 説明も置き換えも articleVars の1か所（第167便の作法） */}
-            <div className="border border-slate-200 bg-slate-50/60 px-3 py-2.5">
-              <div className="flex items-baseline gap-2 flex-wrap">
-                <b className="text-[13.5px] font-bold text-slate-600">日付や名前を差し込む</b>
-                <span className="flex flex-wrap gap-1">
-                  {ARTICLE_VARS.map((v) => (
-                    <code key={v} className="text-[12.5px] px-1.5 py-0.5 bg-white border border-slate-200 text-slate-600">
-                      {v}
-                    </code>
-                  ))}
-                </span>
-              </div>
-              <p className="text-[13px] text-slate-400 leading-relaxed mt-1">{articleVarHelp()}</p>
-
-              {/* ★★★ 「いま出すと、こう出ます」を、書いているその場で見せる。
-                  ★ 送ってから気づかせない（★ この案件でずっと守っている形） */}
-              {usesVars && (
-                nowTitle !== null && nowBody !== null && nowTitle.ok && nowBody.ok ? (
-                  <div className="mt-2 bg-white border border-slate-200 px-3 py-2">
-                    <p className="text-[12.5px] text-slate-400">いま出すと、こう出ます</p>
-                    <p className="text-[14.5px] font-bold text-slate-800 mt-0.5 break-words">{nowTitle.text}</p>
-                    <p className="text-[13.5px] text-slate-600 leading-relaxed mt-0.5 whitespace-pre-wrap break-words">
-                      {nowBody.text}
-                    </p>
-                  </div>
-                ) : (
-                  // ★★ 埋められないときは、その理由をここで言う。★ 保存してから断らない
-                  <p className="text-[13.5px] text-amber-700 leading-relaxed mt-2">
-                    {nowTitle !== null && !nowTitle.ok
-                      ? nowTitle.message
-                      : nowBody !== null && !nowBody.ok
-                        ? nowBody.message
-                        : ''}
-                  </p>
-                )
-              )}
             </div>
 
             {/* ───── 写真（第167便：写真で選ぶ） ───── */}
