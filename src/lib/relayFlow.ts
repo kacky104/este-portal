@@ -66,6 +66,8 @@ import {
 import { relayFileUrl, type RelayMultipart } from './relayMultipart';
 // ★ エステラブ（第78便）。★ 駅ちかの段には一切触れず、別の段名で足す
 import { buildEsuloveTherapistListRequest, judgeEsuloveLogin, ESULOVE_THERAPIST_URL } from './esuloveRequests';
+// ★ 駅ちかの新着情報の段（第155便）。★ 段名で分けているので既存の判定に触らない
+import { afterArticleRead, afterArticleSave, afterArticleVerify, buildArticleReadStep } from './articleFlow';
 import { parseEsuloveTherapists, duplicateNames, type EsuloveTherapistRow } from './esuloveTherapistParse';
 // ★ エステ魂の段（第109便）。★ 段の中身は esutamaFlow.ts に置き、ここは振り分けだけ
 import {
@@ -222,7 +224,21 @@ export type RelayFlowIntent =
    *   ★ sokusera_push は運営が1人だけ試すため。★ sokusera_auto は周から。
    */
   | 'sokusera_push'
-  | 'sokusera_auto';
+  | 'sokusera_auto'
+  /**
+   * ★★★ 駅ちかの新着情報（ニュース）を1枠だけ書き換える（第155便・2026-09-05）。
+   *   login → article_read →（試し打ちならここで終わり）→ article_save → article_verify → 終わり
+   *
+   * ★★★ **駅ちかを書き換える intent。** ★ work_push / work_auto / photo_push に次ぐもの。
+   *   ★★ ニュースは【カテゴリー5枠を上書きする】形。★ 積まない。
+   *     ★ だから「二度送ると2本載る」は起きない。★ 代わりに **前の記事が消える**。
+   *   ★★★ 触るのは【指定した1枠】だけ。★ 店舗様が選んでいない枠には触らない（設計メモ §9②）。
+   *
+   * ★ article_dryrun は【1文字も書かない】。★ 編集ページを読んで、送る内容を組み立てて終わる。
+   * ★★ 記事ID・画像の識別子は**読んだページのものをそのまま使う**（決め打ちしない）。
+   */
+  | 'article_dryrun'
+  | 'article_push';
 
 /**
  * 段と段のあいだで持ち回す状態。
@@ -253,6 +269,25 @@ export type RelayFlowContext = {
   expectedDateLabels?: string[];
   /** 変更した件数（監査ログの文面に使う） */
   changeCount?: number;
+
+  // ── ここから下は intent='article_*' のときだけ入る（第155便）──
+  /**
+   * 書き換える枠（1〜5）。★ **1つだけ。** ★ 店舗様が選んでいない枠には触らない。
+   */
+  articleSlot?: number;
+  /** 送るタイトル。★ 検査は ekichikaArticle.checkArticleTitle が持つ */
+  articleTitle?: string;
+  /** 送る本文（HTML） */
+  articleBody?: string;
+  /** 誰の紹介か（駅ちかの girl_id）。★ 入れなければ読んだページの選択のまま */
+  articleGirlId?: string;
+  /** 画像をどうするか。'keep'（既定）＝読んだページのまま ／ 'girl'＝女の子の写真を使う */
+  articleImage?: 'keep' | 'girl';
+  /**
+   * ★★★ 送ったタイトル。★ **読み返しで突き合わせるために持ち回す。**
+   *   ★ 「送った」と「載った」を分けるのに要る（第136便）。
+   */
+  articleSentTitle?: string;
 
   // ── ここから下は intent='diary_read' のときだけ入る（第94便）──
   /** いま読みに行っている一覧のページ番号（1始まり）。★ ページ送りで遡るときに使う */
@@ -407,6 +442,8 @@ export type FlowAudit = {
 export type FlowNextRequest = {
   purpose:
     | 'read_work' | 'write_work' | 'verify_work' | 'read_girls' | 'read_maillist'
+    // ★ 駅ちかの新着情報（第155便）。★ 名前を分けることで、既存の段の判定に一切触らない
+    | 'article_read' | 'article_save' | 'article_verify'
     // ★ 写メ日記の段（第94便）。★ 読むだけ
     | 'read_diary_list' | 'read_diary_detail'
     // ★ エステラブの段（第78便）。★ 名前を分けることで、駅ちかの段の判定に一切触れない
@@ -691,6 +728,13 @@ export function advanceFlow(input: {
       return afterReadGirls(input, ctx);
     case 'read_maillist':
       return afterReadMailList(input, ctx);
+    // ── 駅ちかの新着情報（第155便）★ 段名で分けている。既存の case には触れていない ──
+    case 'article_read':
+      return afterArticleRead(input, ctx);
+    case 'article_save':
+      return afterArticleSave(input, ctx);
+    case 'article_verify':
+      return afterArticleVerify(input, ctx);
     // ── 写メ日記（第94便）★ 段名で分けている。既存の case には触れていない ──
     case 'read_diary_list':
       return afterReadDiaryList(input, ctx);
@@ -828,6 +872,18 @@ function afterLogin(
       next: buildReadPhotoPageRequest({ ...ctx, cookie, photoStage: ctx.photoStage ?? 'upload' }),
       audits: [],
       note: 'ログインの応答を受け取った。★ 成否は女の子の編集ページが読めるかどうかで判定する',
+    };
+  }
+
+  if (ctx.intent === 'article_dryrun' || ctx.intent === 'article_push') {
+    const next = buildArticleReadStep({ ...ctx, cookie });
+    // ★ 枠が入っていなければ進めない（★ どこを書き換えるか決まっていないまま先へ行かない）
+    if (next === null) return stop([], '書き換える枠（1〜5）が文脈に入っていないので進めない');
+    return {
+      kind: 'next',
+      next,
+      audits: [],
+      note: 'ログインの応答を受け取った。★ 成否はニュースの編集ページが読めるかどうかで判定する',
     };
   }
 
@@ -1257,6 +1313,11 @@ function finishRead(audits: FlowAudit[], ctx: RelayFlowContext, page: WorkPage):
       // ★ ここへは来ない（エステ魂の日記は出勤ページを読みに行かない）。★ 網羅は外さない
       //   ★★★ 第130便でもこの見張りが働いた。★ intent を足した時点でコンパイルが止まった。
       return stop(audits, 'エステ魂の写メ日記は出勤ページを使わない（ここへは来ないはず）');
+    case 'article_dryrun':
+    case 'article_push':
+      // ★★ ここへは来ない（新着情報は出勤ページを使わない）。
+      //   ★ それでも【黙って通さない】。★ 来たら止める
+      return stop(audits, '新着情報は出勤ページを使わない（ここへは来ないはず）');
     case 'work_auto':
       // ★★★ 自動反映（第48便）。組み立てから送信までを1回のフローで閉じる。
       //   ★ 指紋は突き合わせない（人が見た内容が無い・§53）。担保は厳しい方の blockers。

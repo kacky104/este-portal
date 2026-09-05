@@ -163,6 +163,22 @@ export async function startRelayFlow(params: {
    * ★ sokusera_auto では渡さない（★ 周の中で1人選ぶ）。
    */
   sokusera?: { therapistId: number };
+  /**
+   * intent='article_*' のときだけ（第155便）。★ 書き換えるのは【1枠だけ】。
+   * ★★ ここで受け取っていないと、呼び出し側が渡しても静かに落ちる（diarySince と同じ作法）。
+   * ★★★ slot が入っていなければ、ログインのあと**何も書かずに止まる**。★ それが安全装置。
+   */
+  article?: {
+    /** 1〜5（速報NEWS / 新人速報 / 激アツ割引情報 / イベント速報 / 緊急出勤速報） */
+    slot: number;
+    title: string;
+    /** 本文HTML */
+    body: string;
+    /** 誰の紹介か（駅ちかの girl_id）。★ 省略すると読んだページの選択のまま */
+    girlId?: string;
+    /** 'keep'（既定・いまの画像のまま） ／ 'girl'（女の子の写真を使う） */
+    image?: 'keep' | 'girl';
+  };
   /** 'shop:<auth_user_id>' など。監査ログに残す */
   actor?: string;
 }): Promise<StartFlowResult> {
@@ -235,6 +251,16 @@ export async function startRelayFlow(params: {
           ...(params.photo.mainRect ? { photoMainRect: params.photo.mainRect } : {}),
           ...(params.photo.thumbRect ? { photoThumbRect: params.photo.thumbRect } : {}),
           photoStage: 'upload' as const,
+        }
+      : {}),
+    // ★ 新着情報（第155便）。★ 渡されたときだけ入れる
+    ...(params.article
+      ? {
+          articleSlot: params.article.slot,
+          articleTitle: params.article.title,
+          articleBody: params.article.body,
+          ...(params.article.girlId ? { articleGirlId: params.article.girlId } : {}),
+          ...(params.article.image ? { articleImage: params.article.image } : {}),
         }
       : {}),
     // ★ 即セラ（第143便）。★ 渡されたときだけ入れる
@@ -447,6 +473,15 @@ export async function advanceRelayFlow(params: {
   //       （店舗の画面に「ログイン情報がおかしい」と読める文を出さない）。
   //   ★ 写真の段（第107便）で止まった（枠が使用中・駅ちかが断った等）も、ログインは成功している。
   //     ★ 監査に理由は残す。★ last_error（認証の話）には書かない
+  // ★★★ 新着情報の段で止まった（第155便）。★ ログインは成功している（編集ページが読めた）。
+  //   ★ ここを 'stop' にすると、店舗の画面に「ログイン情報がおかしい」と読める文が出る。
+  //   ★★ ログインの段そのもので落ちたときだけ 'stop'（★ login:failed が入っている）
+  const articleStoppedButLoggedIn =
+    outcome.kind === 'stop' &&
+    (context.intent === 'article_dryrun' || context.intent === 'article_push') &&
+    outcome.audits.length > 0 &&
+    outcome.audits.every((a) => !(a.event === 'login' && a.outcome === 'failed'));
+
   const photoStoppedButLoggedIn =
     outcome.kind === 'stop' &&
     context.intent === 'photo_push' &&
@@ -466,6 +501,7 @@ export async function advanceRelayFlow(params: {
         || outcome.kind === 'esutama_therapists'
         || outcome.kind === 'diary_list' || outcome.kind === 'diary_detail'
         || photoStoppedButLoggedIn
+        || articleStoppedButLoggedIn
       ? 'done'
       : outcome.kind === 'esutama_login_needed'
         ? 'stop'   // ★ 上の esutamaLoginFailed で拾っている。型を閉じるためだけ
