@@ -1,12 +1,13 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   getArticleBoard,
   readArticleSlots,
   saveArticleTemplate,
   deleteArticleTemplate,
   saveArticleSettings,
+  startArticlePost,
   type ArticleBoard,
   type ArticleTemplateRow,
 } from '@/app/actions/articleTemplates';
@@ -41,6 +42,14 @@ function fmt(iso: string | null): string {
   }).format(new Date(t));
 }
 
+/**
+ * ★ 送った結果が届くのを待つ間隔と回数（第159便）。
+ *   ★★ 中継役は1分ごとに引き取り、login → 一覧 → 編集 → 送信 → 読み返し と4〜5段ある。
+ *   ★ 5分で待つのをやめる。★ 永久に回さない（WorkSend と同じ作法）。
+ */
+const POLL_MS = 15000;
+const POLL_MAX = 20;
+
 type Draft = { id: number | null; articleSlot: number | null; title: string; body: string; isActive: boolean };
 
 const EMPTY: Draft = { id: null, articleSlot: null, title: '', body: '', isActive: false };
@@ -52,6 +61,16 @@ export function NewsBoard({ salonId, onToast }: { salonId: number | null; onToas
   const [busy, setBusy] = useState('');
   const [draft, setDraft] = useState<Draft | null>(null);
   const [confirmDelete, setConfirmDelete] = useState<number | null>(null);
+  /** ★ 「いま出す」の確認を出している文章 */
+  const [confirmPost, setConfirmPost] = useState<number | null>(null);
+  /**
+   * ★ 結果が届くのを待っている印。値は【押した時点でいちばん新しかった記録のid】。
+   *   ★★★ 「verify_article があるか」で止めてはいけない。★ 前回の送信の行が残っているから。
+   *     ★ それだと押した瞬間に「終わりました」と出る。★ 何も起きていないのに。
+   *   → ★ この id より **新しい行が来たとき**だけ止める。
+   */
+  const [waitFrom, setWaitFrom] = useState<number | null>(null);
+  const pollCount = useRef(0);
 
   const load = useCallback(async () => {
     if (salonId == null) return;
@@ -63,6 +82,34 @@ export function NewsBoard({ salonId, onToast }: { salonId: number | null; onToas
   }, [salonId]);
 
   useEffect(() => { void load(); }, [load]);
+
+  // ★★★ 押したあと、結果が届くまで自分で見にいく（第159便）。
+  //   ★ 店舗様に「開き直してください」と言わせない。★ ただし永久には回さない（5分でやめる）。
+  useEffect(() => {
+    if (waitFrom === null) return;
+    const id = setInterval(() => {
+      pollCount.current += 1;
+      // ★ 5分で待つのをやめる。★ 止まったのか遅いのかは分からないので、そう書く
+      if (pollCount.current > POLL_MAX) { setWaitFrom(null); return; }
+      void load();
+    }, POLL_MS);
+    return () => clearInterval(id);
+  }, [waitFrom, load]);
+
+  // ★★★ 押したあとに来た【新しい行】だけを合図にする。
+  //   ★ 終わりの合図は verify_article（載ったか確かめた）／flow_stalled（始められなかった）／
+  //     push_article の失敗／plan_article の失敗。★ 「送った」だけでは終わりにしない（第136便）。
+  useEffect(() => {
+    if (waitFrom === null || !board) return;
+    const done = board.runs.some((r) =>
+      r.id > waitFrom && (
+        r.event === 'verify_article' ||
+        r.event === 'flow_stalled' ||
+        (r.event === 'push_article' && r.outcome !== 'ok') ||
+        (r.event === 'plan_article' && r.outcome !== 'ok')
+      ));
+    if (done) setWaitFrom(null);
+  }, [waitFrom, board]);
 
   if (salonId == null || loading) {
     return <p className="text-[14px] text-slate-400">読み込んでいます…</p>;
@@ -109,6 +156,20 @@ export function NewsBoard({ salonId, onToast }: { salonId: number | null; onToas
     await load();
   };
 
+  const onPost = async (id: number) => {
+    setBusy('post');
+    // ★ 押した時点でいちばん新しい行を覚えておく。★ ここより新しい行が来たら終わり
+    const from = board.runs.length > 0 ? board.runs[0].id : 0;
+    const r = await startArticlePost({ salonId, templateId: id });
+    setBusy('');
+    setConfirmPost(null);
+    if (!r.ok) { onToast(r.error); return; }
+    pollCount.current = 0;
+    setWaitFrom(from);
+    onToast(r.data.note);
+    await load();
+  };
+
   const onSettings = async (patch: { postsPerDay?: number; autoEnabled?: boolean }) => {
     setBusy('set');
     const r = await saveArticleSettings({ salonId, ...patch });
@@ -122,6 +183,13 @@ export function NewsBoard({ salonId, onToast }: { salonId: number | null; onToas
 
   return (
     <div className="space-y-5">
+      {/* ★★ 押したあと、届くまでのあいだ。★ 「押したのに何も起きない」を作らない */}
+      {waitFrom !== null && (
+        <p className="text-[14px] text-indigo-800 bg-indigo-50 border border-indigo-200 px-3.5 py-2.5 leading-relaxed">
+          駅ちかへ送っています。結果が出るまで1〜2分かかります。この画面のままお待ちください。
+        </p>
+      )}
+
       {/* ───────── ① 枠の状態 ───────── */}
       <section className="bg-white border border-slate-200">
         <div className="px-3.5 py-3 border-b border-slate-200 flex items-start justify-between gap-3 flex-wrap">
@@ -174,6 +242,10 @@ export function NewsBoard({ salonId, onToast }: { salonId: number | null; onToas
             <p className="text-[13.5px] text-slate-500 leading-relaxed mt-0.5">
               登録した文章を、上から順に1本ずつ出していきます。
             </p>
+            {/* ★★★ 手で出したぶんも1日の本数に数える。★ そのことを数字といっしょに出す */}
+            <p className="text-[13px] text-slate-400 leading-relaxed mt-0.5">
+              今日はここまで {board.postedToday} 本出しました（手で出したぶんも数えます）。
+            </p>
           </div>
           {draft === null && (
             <button
@@ -202,6 +274,12 @@ export function NewsBoard({ salonId, onToast }: { salonId: number | null; onToas
               onEdit={() => setDraft({
                 id: t.id, articleSlot: t.articleSlot, title: t.title, body: t.body, isActive: t.isActive,
               })}
+              canPost={board.slots.find((s) => s.slot === t.articleSlot)?.canPost === true}
+              currentTitle={board.slots.find((s) => s.slot === t.articleSlot)?.currentTitle ?? ''}
+              confirmingPost={confirmPost === t.id}
+              onAskPost={() => setConfirmPost(t.id)}
+              onCancelPost={() => setConfirmPost(null)}
+              onPost={() => onPost(t.id)}
               confirming={confirmDelete === t.id}
               onAskDelete={() => setConfirmDelete(t.id)}
               onCancelDelete={() => setConfirmDelete(null)}
@@ -375,6 +453,33 @@ export function NewsBoard({ salonId, onToast }: { salonId: number | null; onToas
         </div>
       </section>
 
+      {/* ───────── ④ 送った記録 ───────── */}
+      {board.runs.length > 0 && (
+        <section className="bg-white border border-slate-200">
+          <div className="px-3.5 py-3 border-b border-slate-200">
+            <h2 className="text-[15px] font-black text-slate-800">新着情報のやりとり</h2>
+            {/* ★★★ 「送った」と「載った」は別。★ そのことを見出しの下に書いておく */}
+            <p className="text-[13.5px] text-slate-500 leading-relaxed mt-0.5">
+              送っただけでは、公開ページに出たとは限りません。読み返して確かめたところまで残しています。
+            </p>
+          </div>
+          <ul className="divide-y divide-slate-100">
+            {board.runs.map((r) => (
+              <li key={r.id} className="px-3.5 py-2.5 flex items-start gap-2.5">
+                <span className={
+                  'w-2 h-2 rounded-full flex-none mt-1.5 ' +
+                  (r.outcome === 'ok' ? 'bg-emerald-500' : r.outcome === 'failed' ? 'bg-rose-500' : 'bg-slate-300')
+                } />
+                <div className="min-w-0 flex-1">
+                  <span className="text-[13px] text-slate-400 tabular-nums">{fmt(r.createdAt)}</span>
+                  <p className="text-[14px] text-slate-600 leading-relaxed mt-0.5">{r.summary}</p>
+                </div>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
+
       {error && <p className="text-[14px] text-rose-600 leading-relaxed px-1">{error}</p>}
     </div>
   );
@@ -382,6 +487,7 @@ export function NewsBoard({ salonId, onToast }: { salonId: number | null; onToas
 
 function TemplateItem({
   row, slotState, slotHeadline, onEdit, confirming, onAskDelete, onCancelDelete, onDelete, busy,
+  canPost, currentTitle, confirmingPost, onAskPost, onCancelPost, onPost,
 }: {
   row: ArticleTemplateRow;
   slotState: string;
@@ -392,6 +498,12 @@ function TemplateItem({
   onCancelDelete: () => void;
   onDelete: () => void;
   busy: boolean;
+  canPost: boolean;
+  currentTitle: string;
+  confirmingPost: boolean;
+  onAskPost: () => void;
+  onCancelPost: () => void;
+  onPost: () => void;
 }) {
   const st = STATE_STYLE[slotState] ?? STATE_STYLE.unknown;
   return (
@@ -424,6 +536,13 @@ function TemplateItem({
             </>
           ) : (
             <>
+              {/* ★★★ 出せない枠のときはボタンを出さない。★ 押せるように見せて断らない（設計メモ §32） */}
+              {canPost && !confirmingPost && (
+                <button type="button" onClick={onAskPost} disabled={busy}
+                  className="text-[13.5px] font-bold px-2.5 py-1.5 border border-indigo-200 text-indigo-700 hover:bg-indigo-50 disabled:opacity-40">
+                  いま出す
+                </button>
+              )}
               <button type="button" onClick={onEdit}
                 className="text-[13.5px] font-bold px-2.5 py-1.5 border border-slate-200 text-slate-600 hover:bg-slate-50">
                 直す
@@ -436,6 +555,41 @@ function TemplateItem({
           )}
         </div>
       </div>
+
+      {/* ★★★ 押す前に【何が消えるか】を見せる。★ 新着は上書きなので、前の記事は戻らない */}
+      {confirmingPost && (
+        <div className="mt-2.5 p-3 bg-amber-50 border border-amber-200">
+          <p className="text-[14px] text-slate-700 leading-relaxed">
+            駅ちかの<b>{row.slotLabel}</b>を、この文章に書き換えます。
+          </p>
+          {currentTitle
+            ? (
+              <p className="text-[13.5px] text-slate-600 leading-relaxed mt-1">
+                いま入っている「<b>{currentTitle}</b>」は<b>消えます</b>（元に戻せません）。
+              </p>
+            )
+            : (
+              <p className="text-[13.5px] text-slate-600 leading-relaxed mt-1">
+                いま入っている記事は<b>消えます</b>（元に戻せません）。
+              </p>
+            )}
+          {slotState === 'hidden' && (
+            <p className="text-[13.5px] text-amber-800 leading-relaxed mt-1">
+              なお、この枠はいま非表示です。送っても公開ページには出ません。
+            </p>
+          )}
+          <div className="flex items-center gap-2 mt-2.5">
+            <button type="button" onClick={onPost} disabled={busy}
+              className="text-[14px] font-bold px-4 py-2 bg-indigo-600 text-white hover:bg-indigo-700 disabled:opacity-40">
+              書き換える
+            </button>
+            <button type="button" onClick={onCancelPost}
+              className="text-[14px] font-bold px-3 py-2 text-slate-500 hover:text-slate-700">
+              やめる
+            </button>
+          </div>
+        </div>
+      )}
     </li>
   );
 }

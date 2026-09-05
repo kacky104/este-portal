@@ -4,6 +4,7 @@ import { createClient } from '@/app/lib/supabase/server';
 import { createServiceClient } from '@/app/lib/supabase/service';
 import { ADMIN_UUID } from '@/app/lib/admin';
 import { startRelayFlow } from '@/app/lib/media/relayFlow';
+import { listMediaAudit } from '@/app/lib/media/mediaAudit';
 import {
   articleSlotAdviceAll,
   articleSlotSummary,
@@ -21,6 +22,7 @@ import {
   ARTICLE_POSTS_PER_DAY_MAX,
   articlePostTimeLabels,
 } from '@/lib/articleRotation';
+import { dayKeyJST } from '@/lib/announceAuto';
 
 // 駅ちかの新着情報：枠の状態とテンプレート（第158便・2026-09-05）。
 //
@@ -78,7 +80,22 @@ export type ArticleBoard = {
   postTimes: string[] | null;
   /** ★ 自動で回している本数。★ 0なら回らない */
   activeCount: number;
+  /**
+   * ★★★ 今日この枠へ出した本数（第159便）。★ 手で出したぶんも数える。
+   *   ★ 区切りは営業日（朝6時）。★ 暦の0時ではない
+   */
+  postedToday: number;
+  /**
+   * 直近の送信の記録（新しい順）。★ 押したあと「どうなったか」を同じ画面で見せるため。
+   * ★ 中継役が引き取るまで1〜2分かかるので、届くまではここが空のことがある。
+   */
+  runs: Array<{ id: number; event: string; outcome: string; summary: string; createdAt: string }>;
 };
+
+/** ★ 画面に出す新着情報の記録だけ。★ ほかの連携の記録（出勤・日記）は混ぜない */
+const ARTICLE_EVENTS = new Set([
+  'read_article_list', 'read_article', 'plan_article', 'push_article', 'verify_article', 'flow_stalled',
+]);
 
 /**
  * 画面ぜんぶを1回で返す。
@@ -113,7 +130,7 @@ export async function getArticleBoard(input: { salonId: string | number; slot?: 
 
   const { data: st, error: sErr } = await svc
     .from('salon_article_settings')
-    .select('posts_per_day, auto_enabled')
+    .select('posts_per_day, auto_enabled, last_day, last_count')
     .eq('salon_id', salonId).eq('provider', PROVIDER).eq('slot', mediaSlot)
     .maybeSingle();
   if (sErr) return { ok: false, error: '設定を読み出せませんでした。時間をおいてお試しください' };
@@ -132,6 +149,22 @@ export async function getArticleBoard(input: { salonId: string | number; slot?: 
   // ★ 行が無い＝まだ決めていない＝既定。★ 0（送らない）と混ぜない
   const postsPerDay = st ? Number(st.posts_per_day) : ARTICLE_POSTS_PER_DAY_DEFAULT;
 
+  // ★ 直近の記録。★ 読めなくても画面は出す（★ 記録が無いのと読めないのを画面で混ぜないよう空で返す）
+  let runs: ArticleBoard['runs'] = [];
+  try {
+    const all = await listMediaAudit({ salonId, limit: 120, provider: PROVIDER, slot: mediaSlot });
+    runs = all
+      .filter((r) => ARTICLE_EVENTS.has(r.event))
+      .slice(0, 12)
+      .map((r) => ({ id: r.id, event: r.event, outcome: r.outcome, summary: r.summary, createdAt: r.createdAt }));
+  } catch {
+    runs = [];
+  }
+
+  // ★★ 今日ぶんは「区切りの日」が今日と同じときだけ数える。★ 昨日の数を持ち越さない
+  const today = dayKeyJST(new Date());
+  const postedToday = st && today !== null && String(st.last_day ?? '') === today ? Number(st.last_count ?? 0) : 0;
+
   return {
     ok: true,
     data: {
@@ -143,8 +176,82 @@ export async function getArticleBoard(input: { salonId: string | number; slot?: 
       autoEnabled: st?.auto_enabled === true,
       postTimes: articlePostTimeLabels(salonId, postsPerDay),
       activeCount: templates.filter((t) => t.isActive).length,
+      postedToday,
+      runs,
     },
   };
+}
+
+/**
+ * ★★★ いま1本出す（第159便）。★ **駅ちかの記事を書き換える。前の記事は消える。**
+ *
+ * ★★ 守っていること
+ *   ① 送るのは【店舗様が選んだテンプレート1本】だけ。★ 内容はDBから読み直す（画面から受け取らない）
+ *   ② 記事が無い枠へは送らない。★ 写しで弾き、★ 一覧の段（第156便）でもう一度弾く（二重）
+ *   ③ 非表示の枠へは【送れる】。★ ただし記録に「公開ページには出ていません」と残る（第156便）
+ */
+export async function startArticlePost(input: {
+  salonId: string | number;
+  slot?: number;
+  templateId: number;
+}): Promise<Result<{ note: string }>> {
+  const salonId = Number(input.salonId);
+  if (!Number.isFinite(salonId)) return { ok: false, error: '店舗の指定が不正です' };
+  const guard = await assertSalonOwner(salonId);
+  if (!guard.ok) return guard;
+  const mediaSlot = Number.isFinite(Number(input.slot)) && Number(input.slot) > 0 ? Number(input.slot) : 1;
+
+  const svc = createServiceClient();
+
+  // ★★★ 内容は【DBから読み直す】。★ 画面から送られてきた文字をそのまま駅ちかへ流さない
+  const { data: t, error: tErr } = await svc
+    .from('salon_article_templates')
+    .select('id, article_slot, title, body')
+    .eq('id', Number(input.templateId)).eq('salon_id', salonId).eq('provider', PROVIDER)
+    .maybeSingle();
+  if (tErr) return { ok: false, error: '文章を読み出せませんでした。時間をおいてお試しください' };
+  if (!t) return { ok: false, error: 'その文章が見つかりません（画面を開き直してください）' };
+
+  const articleSlot = Number(t.article_slot);
+  if (!isArticleSlot(articleSlot)) return { ok: false, error: 'この文章には出す枠が入っていません' };
+
+  const title = String(t.title ?? '');
+  const body = String(t.body ?? '');
+  const tc = checkArticleTitle(title);
+  if (!tc.ok) return { ok: false, error: tc.message };
+  const bc = checkArticleBody(body);
+  if (!bc.ok) return { ok: false, error: bc.message };
+
+  // ★★ 写しで先に弾く。★ 「まだ読んでいない」と「記事が無い」を分ける
+  const { data: snap } = await svc
+    .from('media_article_slots').select('rows')
+    .eq('salon_id', salonId).eq('provider', PROVIDER).eq('slot', mediaSlot)
+    .maybeSingle();
+  const rows = Array.isArray(snap?.rows) ? (snap!.rows as ArticleSlotRow[]) : null;
+  if (rows === null) {
+    return { ok: false, error: 'まず「いまの状態を読む」を押して、枠の状態を確かめてください' };
+  }
+  const hit = rows.find((r) => r.slot === articleSlot) ?? null;
+  if (hit === null || !hit.hasArticle) {
+    return {
+      ok: false,
+      error: articleSlotLabel(articleSlot) + ' には駅ちかにまだ記事がありません。上書きする記事が無いため送れません',
+    };
+  }
+
+  try {
+    const r = await startRelayFlow({
+      salonId, provider: PROVIDER, slot: mediaSlot,
+      intent: 'article_push',
+      article: { slot: articleSlot, title, body },
+      actor: 'shop:' + guard.data.userId,
+    });
+    if (!r.ok) return { ok: false, error: r.note };
+    return { ok: true, data: { note: r.note } };
+  } catch (e) {
+    console.error('[article] 送信を始められなかった', (e as Error).message);
+    return { ok: false, error: '送信を開始できませんでした。時間をおいてお試しください' };
+  }
 }
 
 /**
