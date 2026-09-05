@@ -32,7 +32,6 @@ import { sanitizeInternalPath } from '@/app/lib/safeLink';
 import { useToast } from '@/app/components/useToast';
 import { SiteNoticeBanner } from '@/app/components/SiteNoticeBanner';
 import { SalonBumpButton } from '@/app/components/SalonBumpButton';
-import { EmbedCodePanel } from './EmbedCodePanel';
 import { getMediaLinkAlerts } from '@/app/actions/mediaCredentials';
 import { postAnnouncementManually, getAnnounceState } from '@/app/actions/announcePost';
 import type { MediaLinkAlert } from '@/lib/mediaLinkStall';
@@ -540,6 +539,12 @@ export default function MyPage() {
   // トーストは共通フックで一元管理（タイマー直書きは連続表示・unmount後setStateのバグ源）。
   const { toast, showToast } = useToast();
   const [saving, setSaving] = useState(false);
+  // ★ コースメニュー設定ブロックの開閉（既定は閉じる・2026-09-06）。
+  const [courseOpen, setCourseOpen] = useState(false);
+  // ★ 店舗画像の設定ブロックの開閉（既定は閉じる・2026-09-06）。
+  const [salonImageOpen, setSalonImageOpen] = useState(false);
+  // ★ 店舗情報の設定ブロックの開閉（既定は閉じる・2026-09-06）。
+  const [salonInfoOpen, setSalonInfoOpen] = useState(false);
   // 通知先メールのテスト送信（2026-08-16）。送信中の二度押し防止＋結果メッセージの保持。
   const [mailTesting, setMailTesting] = useState(false);
   const [mailTestResult, setMailTestResult] = useState<{ ok: boolean; msg: string } | null>(null);
@@ -2148,10 +2153,10 @@ export default function MyPage() {
     router.push('/login');
   };
 
-  const inputClass = 'w-full px-3 py-2 rounded-xl border border-slate-200 text-sm bg-slate-50/50 focus:outline-none focus:ring-2 focus:ring-pink-200';
-  const textareaClass = 'w-full px-3 py-2 rounded-xl border border-slate-200 text-sm bg-slate-50/50 focus:outline-none focus:ring-2 focus:ring-pink-200 resize-none';
+  const inputClass = 'w-full px-3 py-2 rounded-none border border-slate-200 text-sm bg-slate-50/50 focus:outline-none focus:ring-2 focus:ring-pink-200';
+  const textareaClass = 'w-full px-3 py-2 rounded-none border border-slate-200 text-sm bg-slate-50/50 focus:outline-none focus:ring-2 focus:ring-pink-200 resize-none';
   const labelClass = 'text-[11px] font-bold text-slate-400 block mb-1';
-  const saveBtn = 'px-5 py-2 rounded-xl bg-gradient-to-r from-pink-500 to-fuchsia-500 text-white font-bold text-xs shadow-sm disabled:opacity-50';
+  const saveBtn = 'px-5 py-2 rounded-none bg-gradient-to-r from-pink-500 to-fuchsia-500 text-white font-bold text-xs shadow-sm disabled:opacity-50';
 
   if (loadError) {
     return (
@@ -2172,7 +2177,7 @@ export default function MyPage() {
   return (
     <div className="min-h-screen bg-pink-50/30">
       {toast && (
-        <div className="fixed top-4 left-1/2 -translate-x-1/2 z-50 bg-white border border-pink-200 shadow-lg rounded-2xl px-6 py-3 text-sm font-bold text-pink-600">
+        <div className="fixed top-4 left-1/2 -translate-x-1/2 z-50 bg-white border border-pink-200 shadow-lg rounded-none px-6 py-3 text-sm font-bold text-pink-600">
           {toast}
         </div>
       )}
@@ -2211,7 +2216,7 @@ export default function MyPage() {
                 // ★ 同じ枠で2つ鳴ることがある（書く向きの見張りと取り込みの見張り・第51便）。
                 //   ★ provider#slot だけでは key が衝突する。reason まで入れて分ける
                 key={a.watch + ':' + a.reason + ':' + a.provider + '#' + a.slot}
-                className="mb-2 rounded-xl border-2 border-rose-300 bg-rose-50 px-3 py-2.5"
+                className="mb-2 rounded-none border-2 border-rose-300 bg-rose-50 px-3 py-2.5"
               >
                 {/* ★★ 見出しを見張りごとに変える（第51便）。
                     ★ 「媒体連携が止まっています」は【書く向き】の話。取り込みが止まったときに
@@ -2268,7 +2273,7 @@ export default function MyPage() {
                 key={key}
                 onClick={() => setActiveTab(key)}
                 aria-pressed={selected}
-                className={`inline-flex items-center gap-1 px-3 py-1.5 rounded-full border text-[11px] font-bold transition-colors ${
+                className={`inline-flex items-center gap-1 px-3 py-1.5 rounded-none border text-[11px] font-bold transition-colors ${
                   selected
                     ? 'bg-pink-50 text-pink-600 border-pink-300'
                     : 'bg-white text-slate-400 border-slate-200 hover:text-slate-600 hover:border-slate-300'
@@ -2281,13 +2286,13 @@ export default function MyPage() {
                     ★ 色は運営事務局の未読バッジと同じピンク＝「要対応」。
                       赤（rose）は /admin でメール不達＝取りこぼし専用にしてあるので使わない。 */}
                 {key === 'booking' && bookingNewCount > 0 && (
-                  <span className="inline-flex items-center justify-center min-w-[16px] h-[16px] px-1 rounded-full bg-pink-500 text-white text-[9px] font-black leading-none">
+                  <span className="inline-flex items-center justify-center min-w-[16px] h-[16px] px-1 rounded-none bg-pink-500 text-white text-[9px] font-black leading-none">
                     {bookingNewCount}
                   </span>
                 )}
                 {/* 「運営から」タブ: 未読お知らせ件数の赤バッジ（/admin 求人タブのバッジと同型） */}
                 {key === 'support' && supportUnread > 0 && (
-                  <span className="inline-flex items-center justify-center min-w-[16px] h-[16px] px-1 rounded-full bg-pink-500 text-white text-[9px] font-black leading-none">
+                  <span className="inline-flex items-center justify-center min-w-[16px] h-[16px] px-1 rounded-none bg-pink-500 text-white text-[9px] font-black leading-none">
                     {supportUnread}
                   </span>
                 )}
@@ -2306,7 +2311,7 @@ export default function MyPage() {
               href="/mypage/media"
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-flex items-center gap-1 px-3 py-1.5 rounded-full border text-[11px] font-bold transition-colors bg-white text-slate-400 border-slate-200 hover:text-slate-600 hover:border-slate-300"
+              className="inline-flex items-center gap-1 px-3 py-1.5 rounded-none border text-[11px] font-bold transition-colors bg-white text-slate-400 border-slate-200 hover:text-slate-600 hover:border-slate-300"
             >
               {tabIcon('media')}
               媒体連携
@@ -2322,14 +2327,13 @@ export default function MyPage() {
         {/* ── 店名（最上部・独立ブロック） ──
             常時表示ブロックのため、予約ボードで main が広がっても max-w-2xl のまま中央に固定する
             （通常タブでは main 自体が max-w-2xl なので見た目は従来と同じ）。 */}
-        <div className="max-w-2xl mx-auto w-full bg-white rounded-3xl border border-slate-100 shadow-sm p-5 text-center">
+        <div className="max-w-2xl mx-auto w-full bg-white rounded-none border border-slate-100 shadow-sm p-5 text-center">
           <h2
             className="font-black text-slate-800 whitespace-nowrap overflow-hidden"
             style={{ fontSize: 'clamp(16px, 4vw, 24px)', textOverflow: 'ellipsis' }}
           >
             {salonForm.name ?? ''}
           </h2>
-          <p className="mt-1 text-[11px] text-slate-400">※ 店舗名の変更は管理者のみ行えます。変更が必要な場合はお問い合わせください。</p>
         </div>
 
         {/* ── 上位表示（TOP・地域ページの店舗カードを先頭へ）。店舗タブの最上部。 ── */}
@@ -2339,27 +2343,38 @@ export default function MyPage() {
           </div>
         )}
 
-        {/* ── 公式サイト向けの埋め込みコード発行（写メ日記・口コミの iframe ウィジェット） ── */}
-        {salon && (
-          <div className={activeTab === 'salon' ? '' : 'hidden'}>
-            <EmbedCodePanel salonId={Number(salon.id)} salonName={salon.name ?? ''} onToast={showToast} />
-          </div>
-        )}
+        {/* ── コースメニュー（料金表）──
+            ★ 「店舗情報の編集」から切り出して、その上の独立ブロックにした（2026-09-06・カッキーさんの指示）。
+            ★ 中身はコース／その他メニュー／備考の3つ。保存は店舗情報と同じ handleSalonSave。 */}
+        <div className={`bg-white rounded-none border border-slate-100 shadow-sm p-5 space-y-4 ${activeTab === 'salon' ? '' : 'hidden'}`}>
+          <button
+            type="button"
+            onClick={() => setCourseOpen(v => !v)}
+            aria-expanded={courseOpen}
+            className="w-full flex items-center justify-between gap-3 text-left"
+          >
+            <h2 className="text-sm font-black text-slate-700">コースメニューの設定</h2>
+            {/* ★ 矢印は店舗装飾タブの AccordionCard と同じ形（開くと180度回る）。 */}
+            <svg
+              width="18" height="18" viewBox="0 0 24 24" fill="none"
+              stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"
+              className={`flex-shrink-0 text-slate-400 transition-transform duration-200 ${courseOpen ? 'rotate-180' : ''}`}
+              aria-hidden
+            >
+              <path d="M6 9l6 6 6-6" />
+            </svg>
+          </button>
 
-        {/* ── サロン情報編集 ── */}
-        <div className={`bg-white rounded-3xl border border-slate-100 shadow-sm p-5 space-y-4 ${activeTab === 'salon' ? '' : 'hidden'}`}>
-          <h2 className="text-sm font-black text-slate-700">店舗情報の編集</h2>
-
-
+          {courseOpen && (
           <div>
             <label className={labelClass}>コースメニュー</label>
             <div className="space-y-3">
               {courseGroups.map((group, gi) => (
-                <div key={gi} className="rounded-2xl border border-pink-100 bg-pink-50/20 p-3 space-y-2">
+                <div key={gi} className="rounded-none border border-pink-100 bg-pink-50/20 p-3 space-y-2">
                   {/* コース名 */}
                   <div className="flex items-center gap-2">
                     <input
-                      className="flex-1 px-3 py-2 rounded-xl border border-pink-200 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-pink-200 font-bold placeholder:font-normal"
+                      className="flex-1 px-3 py-2 rounded-none border border-pink-200 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-pink-200 font-bold placeholder:font-normal"
                       placeholder="コース名（例: アロマリラクゼーション）"
                       value={group.name}
                       onChange={(e) => setCourseGroups(prev => prev.map((g, i) => i === gi ? { ...g, name: e.target.value } : g))}
@@ -2367,7 +2382,7 @@ export default function MyPage() {
                     <button
                       type="button"
                       onClick={() => setCourseGroups(prev => prev.filter((_, i) => i !== gi))}
-                      className="px-2.5 py-1.5 rounded-lg border border-rose-200 text-rose-400 text-xs font-bold bg-rose-50 hover:bg-rose-100 transition-colors flex-shrink-0"
+                      className="px-2.5 py-1.5 rounded-none border border-rose-200 text-rose-400 text-xs font-bold bg-rose-50 hover:bg-rose-100 transition-colors flex-shrink-0"
                     >
                       このコースを削除
                     </button>
@@ -2382,7 +2397,7 @@ export default function MyPage() {
                           placeholder="60"
                           value={item.duration}
                           onChange={(e) => setCourseGroups(prev => prev.map((g, gi2) => gi2 === gi ? { ...g, items: g.items.map((it, ii2) => ii2 === ii ? { ...it, duration: e.target.value } : it) } : g))}
-                          className="w-16 flex-shrink-0 px-2 py-1.5 rounded-xl border border-slate-200 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-pink-200 text-center"
+                          className="w-16 flex-shrink-0 px-2 py-1.5 rounded-none border border-slate-200 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-pink-200 text-center"
                         />
                         <span className="text-xs text-slate-500 flex-shrink-0">分 / ¥</span>
                         <input
@@ -2391,14 +2406,14 @@ export default function MyPage() {
                           placeholder="8000"
                           value={item.price}
                           onChange={(e) => setCourseGroups(prev => prev.map((g, gi2) => gi2 === gi ? { ...g, items: g.items.map((it, ii2) => ii2 === ii ? { ...it, price: e.target.value } : it) } : g))}
-                          className="flex-1 min-w-0 px-2 py-1.5 rounded-xl border border-slate-200 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-pink-200"
+                          className="flex-1 min-w-0 px-2 py-1.5 rounded-none border border-slate-200 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-pink-200"
                         />
                         <span className="text-xs text-slate-500 flex-shrink-0">円</span>
                         {group.items.length > 1 && (
                           <button
                             type="button"
                             onClick={() => setCourseGroups(prev => prev.map((g, gi2) => gi2 === gi ? { ...g, items: g.items.filter((_, ii2) => ii2 !== ii) } : g))}
-                            className="w-7 h-7 flex items-center justify-center rounded-lg border border-slate-200 text-slate-400 hover:text-rose-400 hover:border-rose-200 text-sm font-bold transition-colors flex-shrink-0"
+                            className="w-7 h-7 flex items-center justify-center rounded-none border border-slate-200 text-slate-400 hover:text-rose-400 hover:border-rose-200 text-sm font-bold transition-colors flex-shrink-0"
                           >
                             ×
                           </button>
@@ -2424,7 +2439,7 @@ export default function MyPage() {
               + コースを追加
             </button>
             {/* その他メニュー追加 */}
-            <div className="mt-4 rounded-2xl border border-pink-100 bg-pink-50/20 p-3 space-y-2">
+            <div className="mt-4 rounded-none border border-pink-100 bg-pink-50/20 p-3 space-y-2">
               <p className="text-xs font-bold text-slate-600">その他メニュー追加</p>
               <div className="space-y-1.5">
                 {otherItems.map((item, i) => (
@@ -2434,7 +2449,7 @@ export default function MyPage() {
                       placeholder="メニュー名（例：延長30分）"
                       value={item.label}
                       onChange={(e) => setOtherItems(prev => prev.map((it, ii) => ii === i ? { ...it, label: e.target.value } : it))}
-                      className="flex-1 min-w-0 px-2 py-1.5 rounded-xl border border-slate-200 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-pink-200"
+                      className="flex-1 min-w-0 px-2 py-1.5 rounded-none border border-slate-200 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-pink-200"
                     />
                     <span className="text-xs text-slate-500 flex-shrink-0">/ ¥</span>
                     <input
@@ -2443,14 +2458,14 @@ export default function MyPage() {
                       placeholder="料金"
                       value={item.price}
                       onChange={(e) => setOtherItems(prev => prev.map((it, ii) => ii === i ? { ...it, price: e.target.value } : it))}
-                      className="w-20 flex-shrink-0 min-w-0 px-2 py-1.5 rounded-xl border border-slate-200 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-pink-200"
+                      className="w-20 flex-shrink-0 min-w-0 px-2 py-1.5 rounded-none border border-slate-200 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-pink-200"
                     />
                     <span className="text-xs text-slate-500 flex-shrink-0">円</span>
                     {otherItems.length > 1 && (
                       <button
                         type="button"
                         onClick={() => setOtherItems(prev => prev.filter((_, ii) => ii !== i))}
-                        className="w-7 h-7 flex items-center justify-center rounded-lg border border-slate-200 text-slate-400 hover:text-rose-400 hover:border-rose-200 text-sm font-bold transition-colors flex-shrink-0"
+                        className="w-7 h-7 flex items-center justify-center rounded-none border border-slate-200 text-slate-400 hover:text-rose-400 hover:border-rose-200 text-sm font-bold transition-colors flex-shrink-0"
                       >
                         ×
                       </button>
@@ -2467,20 +2482,52 @@ export default function MyPage() {
               </button>
             </div>
             {/* 備考（salons.course_note）。料金表の一番下・税込注記の上に出る。空欄なら表示されない。 */}
-            <div className="mt-4 rounded-2xl border border-pink-100 bg-pink-50/20 p-3 space-y-2">
+            <div className="mt-4 rounded-none border border-pink-100 bg-pink-50/20 p-3 space-y-2">
               <p className="text-xs font-bold text-slate-600">備考</p>
               <textarea
                 rows={3}
                 placeholder="例：初回指名料は無料。&#10;延長はできない場合もあります。"
                 value={salonForm.course_note ?? ''}
                 onChange={(e) => setSalonForm((p) => ({ ...p, course_note: e.target.value }))}
-                className="w-full px-2 py-1.5 rounded-xl border border-slate-200 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-pink-200 resize-none"
+                className="w-full px-2 py-1.5 rounded-none border border-slate-200 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-pink-200 resize-none"
               />
               <p className="text-[10px] text-slate-400 leading-relaxed">
                 料金表の一番下（税込みの注記の上）に表示されます。改行はそのまま反映されます。空欄のときは何も表示されません。
               </p>
             </div>
           </div>
+          )}
+
+          {courseOpen && (
+          <div className="pt-1 flex justify-end">
+            <button className={saveBtn} onClick={handleSalonSave} disabled={saving}>
+              {saving ? '保存中...' : '保存'}
+            </button>
+          </div>
+          )}
+        </div>
+
+        {/* ── サロン情報編集 ── */}
+        <div className={`bg-white rounded-none border border-slate-100 shadow-sm p-5 space-y-4 ${activeTab === 'salon' ? '' : 'hidden'}`}>
+          <button
+            type="button"
+            onClick={() => setSalonInfoOpen(v => !v)}
+            aria-expanded={salonInfoOpen}
+            className="w-full flex items-center justify-between gap-3 text-left"
+          >
+            <h2 className="text-sm font-black text-slate-700">店舗情報の設定</h2>
+            <svg
+              width="18" height="18" viewBox="0 0 24 24" fill="none"
+              stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"
+              className={`flex-shrink-0 text-slate-400 transition-transform duration-200 ${salonInfoOpen ? 'rotate-180' : ''}`}
+              aria-hidden
+            >
+              <path d="M6 9l6 6 6-6" />
+            </svg>
+          </button>
+
+          {salonInfoOpen && (
+          <div className="space-y-4">
           <div>
             <label className={labelClass}>営業時間</label>
             <div className="flex gap-2">
@@ -2540,7 +2587,7 @@ export default function MyPage() {
                 return (
                   <label
                     key={m.slug}
-                    className={`flex items-center gap-1.5 text-xs font-bold rounded-lg border px-2.5 py-1.5 cursor-pointer transition-colors ${
+                    className={`flex items-center gap-1.5 text-xs font-bold rounded-none border px-2.5 py-1.5 cursor-pointer transition-colors ${
                       checked
                         ? 'border-pink-300 bg-pink-50 text-pink-600'
                         : 'border-slate-200 text-slate-500 hover:bg-slate-50'
@@ -2575,7 +2622,7 @@ export default function MyPage() {
                   return (
                     <label
                       key={card.slug}
-                      className={`flex items-center gap-1.5 text-xs font-bold rounded-lg border px-2.5 py-1.5 cursor-pointer transition-colors ${
+                      className={`flex items-center gap-1.5 text-xs font-bold rounded-none border px-2.5 py-1.5 cursor-pointer transition-colors ${
                         checked
                           ? 'border-pink-300 bg-pink-50 text-pink-600'
                           : 'border-slate-200 text-slate-500 hover:bg-slate-50'
@@ -2613,8 +2660,39 @@ export default function MyPage() {
             <textarea rows={6} className={textareaClass} value={salonForm.description ?? ''} onChange={(e) => setSalonForm((p) => ({ ...p, description: e.target.value }))} />
           </div>
 
-          {/* ── サロン画像 ── */}
-          <div className="border-t border-slate-100 pt-4 space-y-3">
+
+          <div className="pt-1 flex justify-end">
+            <button className={saveBtn} onClick={handleSalonSave} disabled={saving}>
+              {saving ? '保存中...' : '保存'}
+            </button>
+          </div>
+          </div>
+          )}
+        </div>
+
+        {/* ── 店舗画像の設定 ──
+            ★ 「店舗情報の編集」から切り出して独立ブロックにした（2026-09-06・カッキーさんの指示）。
+            ★ 見出しで開閉（既定は閉じる）。画像の差し替え・削除・並べ替えはその場で反映される。 */}
+        <div className={`bg-white rounded-none border border-slate-100 shadow-sm p-5 space-y-4 ${activeTab === 'salon' ? '' : 'hidden'}`}>
+          <button
+            type="button"
+            onClick={() => setSalonImageOpen(v => !v)}
+            aria-expanded={salonImageOpen}
+            className="w-full flex items-center justify-between gap-3 text-left"
+          >
+            <h2 className="text-sm font-black text-slate-700">店舗画像の設定</h2>
+            <svg
+              width="18" height="18" viewBox="0 0 24 24" fill="none"
+              stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"
+              className={`flex-shrink-0 text-slate-400 transition-transform duration-200 ${salonImageOpen ? 'rotate-180' : ''}`}
+              aria-hidden
+            >
+              <path d="M6 9l6 6 6-6" />
+            </svg>
+          </button>
+
+          {salonImageOpen && (
+          <div className="space-y-3">
             <div className="flex items-center justify-between">
               <label className={labelClass}>店舗画像（最大3枚）</label>
               <span className="text-[10px] text-slate-400">{salonImages.length} / 3</span>
@@ -2628,19 +2706,19 @@ export default function MyPage() {
             {salonImages.length > 0 && (
               <div className="space-y-3">
                 {salonImages.map((img, i) => (
-                  <div key={img.id} className="rounded-xl border border-pink-100 bg-pink-50/20 p-3 space-y-2">
+                  <div key={img.id} className="rounded-none border border-pink-100 bg-pink-50/20 p-3 space-y-2">
                     {/* PC用・スマホ用を横並び */}
                     <div className="grid grid-cols-2 gap-3">
 
                       {/* PC用 */}
                       <div className="space-y-1.5">
                         <p className="text-[10px] font-bold text-slate-500">PC用（推奨 1600×530px）</p>
-                        <div className="relative rounded-lg overflow-hidden border border-slate-200 bg-slate-50" style={{ aspectRatio: '3/1' }}>
+                        <div className="relative rounded-none overflow-hidden border border-slate-200 bg-slate-50" style={{ aspectRatio: '3/1' }}>
                           {/* eslint-disable-next-line @next/next/no-img-element */}
                           <img src={img.image_url} alt="" className="absolute inset-0 w-full h-full object-cover" />
                         </div>
                         <div className="flex gap-1">
-                          <label className={`flex-1 flex items-center justify-center cursor-pointer py-1 px-2 rounded-lg border text-[10px] font-bold transition-colors ${
+                          <label className={`flex-1 flex items-center justify-center cursor-pointer py-1 px-2 rounded-none border text-[10px] font-bold transition-colors ${
                             uploadingPcId === img.id
                               ? 'border-pink-100 text-pink-300 cursor-not-allowed'
                               : 'border-pink-200 text-pink-500 hover:bg-pink-50'
@@ -2656,7 +2734,7 @@ export default function MyPage() {
                           <button
                             type="button"
                             onClick={() => handleImageDelete(img.id, img.image_url, img.mobile_image_url)}
-                            className="py-1 px-2 rounded-lg border border-rose-100 text-rose-400 text-[10px] font-bold hover:bg-rose-50 transition-colors"
+                            className="py-1 px-2 rounded-none border border-rose-100 text-rose-400 text-[10px] font-bold hover:bg-rose-50 transition-colors"
                           >削除</button>
                         </div>
                       </div>
@@ -2664,7 +2742,7 @@ export default function MyPage() {
                       {/* スマホ用 */}
                       <div className="space-y-1.5">
                         <p className="text-[10px] font-bold text-slate-500">スマホ用（推奨 750×470px）</p>
-                        <div className="relative rounded-lg overflow-hidden border border-slate-200 bg-slate-50" style={{ aspectRatio: '3/1' }}>
+                        <div className="relative rounded-none overflow-hidden border border-slate-200 bg-slate-50" style={{ aspectRatio: '3/1' }}>
                           {img.mobile_image_url ? (
                             // eslint-disable-next-line @next/next/no-img-element
                             <img src={img.mobile_image_url} alt="" className="absolute inset-0 w-full h-full object-cover" />
@@ -2675,7 +2753,7 @@ export default function MyPage() {
                           )}
                         </div>
                         <div className="flex gap-1">
-                          <label className={`flex-1 flex items-center justify-center cursor-pointer py-1 px-2 rounded-lg border text-[10px] font-bold transition-colors ${
+                          <label className={`flex-1 flex items-center justify-center cursor-pointer py-1 px-2 rounded-none border text-[10px] font-bold transition-colors ${
                             uploadingMobileId === img.id
                               ? 'border-pink-100 text-pink-300 cursor-not-allowed'
                               : 'border-pink-200 text-pink-500 hover:bg-pink-50'
@@ -2691,7 +2769,7 @@ export default function MyPage() {
                             <button
                               type="button"
                               onClick={() => handleMobileImageDelete(img.id, img.mobile_image_url!)}
-                              className="py-1 px-2 rounded-lg border border-rose-100 text-rose-400 text-[10px] font-bold hover:bg-rose-50 transition-colors"
+                              className="py-1 px-2 rounded-none border border-rose-100 text-rose-400 text-[10px] font-bold hover:bg-rose-50 transition-colors"
                             >削除</button>
                           )}
                         </div>
@@ -2703,9 +2781,9 @@ export default function MyPage() {
                       <span className="text-[10px] text-slate-400">スロット {i + 1}</span>
                       <div className="flex gap-1">
                         <button type="button" onClick={() => handleImageMove(i, 'up')} disabled={i === 0}
-                          className="w-7 h-7 rounded-lg border border-slate-200 text-slate-400 text-xs flex items-center justify-center hover:border-pink-300 hover:text-pink-500 disabled:opacity-30 transition-colors">↑</button>
+                          className="w-7 h-7 rounded-none border border-slate-200 text-slate-400 text-xs flex items-center justify-center hover:border-pink-300 hover:text-pink-500 disabled:opacity-30 transition-colors">↑</button>
                         <button type="button" onClick={() => handleImageMove(i, 'down')} disabled={i === salonImages.length - 1}
-                          className="w-7 h-7 rounded-lg border border-slate-200 text-slate-400 text-xs flex items-center justify-center hover:border-pink-300 hover:text-pink-500 disabled:opacity-30 transition-colors">↓</button>
+                          className="w-7 h-7 rounded-none border border-slate-200 text-slate-400 text-xs flex items-center justify-center hover:border-pink-300 hover:text-pink-500 disabled:opacity-30 transition-colors">↓</button>
                       </div>
                     </div>
                   </div>
@@ -2714,7 +2792,7 @@ export default function MyPage() {
             )}
 
             {salonImages.length < 3 && (
-              <label className={`flex items-center gap-2 cursor-pointer w-full py-2.5 px-4 rounded-xl border-2 border-dashed text-xs font-bold transition-colors ${
+              <label className={`flex items-center gap-2 cursor-pointer w-full py-2.5 px-4 rounded-none border-2 border-dashed text-xs font-bold transition-colors ${
                 uploadingNewSlot
                   ? 'border-pink-200 text-pink-300 cursor-not-allowed'
                   : 'border-pink-200 text-pink-500 hover:border-pink-400 hover:bg-pink-50/50'
@@ -2728,12 +2806,7 @@ export default function MyPage() {
               </label>
             )}
           </div>
-
-          <div className="pt-1 flex justify-end">
-            <button className={saveBtn} onClick={handleSalonSave} disabled={saving}>
-              {saving ? '保存中...' : '保存'}
-            </button>
-          </div>
+          )}
         </div>
 
         {/* ── タブ: 予約ボード（1日タイムライン・2026-08-14 新設） ── */}
@@ -2747,7 +2820,7 @@ export default function MyPage() {
         <div className={`space-y-4 ${activeTab === 'booking' ? '' : 'hidden'}`}>
 
         {/* 予約一覧（新しい順・お客様からのネット予約のみ） */}
-        <div className="bg-white rounded-3xl border border-slate-100 shadow-sm p-5 space-y-3">
+        <div className="bg-white rounded-none border border-slate-100 shadow-sm p-5 space-y-3">
           <div className="flex items-center justify-between">
             <h2 className="text-sm font-black text-slate-700">ネット予約一覧</h2>
             {/* 上限に達したときは「200件」と出すと実際の総数に見えてしまうので「直近200件」に変える（2026-08-16）。 */}
@@ -2768,7 +2841,7 @@ export default function MyPage() {
               ★ データは消えていないことを必ず明記すること（自動削除・保持期間の仕組みは存在しない）。
               ちょうど上限と同数のときも出るが、「◯件まで表示しています」は事実として正しい。 */}
           {!bookingsError && !bookingsLoading && bookings.length >= SALON_BOOKINGS_LIMIT && (
-            <p className="rounded-xl border border-slate-100 bg-slate-50 px-3 py-2 text-[11px] leading-relaxed text-slate-500">
+            <p className="rounded-none border border-slate-100 bg-slate-50 px-3 py-2 text-[11px] leading-relaxed text-slate-500">
               ネット予約を予約日時が新しい順に{SALON_BOOKINGS_LIMIT}件まで表示しています。
               これより古い予約も削除されておらず、データはすべて残っています。
             </p>
@@ -2786,12 +2859,12 @@ export default function MyPage() {
                 const busy = bookingBusyId === b.id;
                 const isCancelled = b.status === 'cancelled';
                 // 操作ボタンの共通スタイル。
-                const btnBase = 'text-[11px] font-bold px-2.5 py-1 rounded-lg border transition-colors disabled:opacity-50';
+                const btnBase = 'text-[11px] font-bold px-2.5 py-1 rounded-none border transition-colors disabled:opacity-50';
                 return (
-                  <div key={b.id} className={`rounded-xl border border-slate-200 p-3 space-y-1.5 ${isCancelled ? 'opacity-60' : ''}`}>
+                  <div key={b.id} className={`rounded-none border border-slate-200 p-3 space-y-1.5 ${isCancelled ? 'opacity-60' : ''}`}>
                     <div className="flex items-center justify-between gap-2">
                       <span className="text-sm font-bold text-slate-700">{formatBookingSlot(b.slotStart, b.slotEnd)}</span>
-                      <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full flex-shrink-0 ${st.cls}`}>{st.label}</span>
+                      <span className={`text-[10px] font-bold px-2 py-0.5 rounded-none flex-shrink-0 ${st.cls}`}>{st.label}</span>
                     </div>
                     <div className="flex flex-wrap gap-x-3 gap-y-0.5 text-xs text-slate-500">
                       <span><span className="text-slate-400">指名：</span>{b.therapistName}</span>
@@ -2829,10 +2902,10 @@ export default function MyPage() {
           )}
         </div>
 
-        <div className="bg-white rounded-3xl border border-slate-100 shadow-sm p-5 space-y-4">
+        <div className="bg-white rounded-none border border-slate-100 shadow-sm p-5 space-y-4">
           <h2 className="text-sm font-black text-slate-700">ネット予約の設定</h2>
 
-          <div className="border border-pink-100 rounded-xl p-3 bg-pink-50/20 space-y-2.5">
+          <div className="border border-pink-100 rounded-none p-3 bg-pink-50/20 space-y-2.5">
             <label className="flex items-center gap-2 text-sm font-bold text-slate-600 cursor-pointer select-none">
               <input
                 type="checkbox"
@@ -2883,7 +2956,7 @@ export default function MyPage() {
                         : { ok: false, msg: res.error },
                     );
                   }}
-                  className="rounded-full border border-slate-200 bg-white px-3 py-1.5 text-[11px] font-bold text-slate-600 transition-colors hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
+                  className="rounded-none border border-slate-200 bg-white px-3 py-1.5 text-[11px] font-bold text-slate-600 transition-colors hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
                 >
                   {mailTesting ? '送信中…' : '保存済みの宛先にテスト送信'}
                 </button>
@@ -2893,7 +2966,7 @@ export default function MyPage() {
               </div>
               {mailTestResult && (
                 <p
-                  className={`mt-2 rounded-xl border px-3 py-2 text-[11px] leading-relaxed ${
+                  className={`mt-2 rounded-none border px-3 py-2 text-[11px] leading-relaxed ${
                     mailTestResult.ok
                       ? 'border-emerald-100 bg-emerald-50 text-emerald-700'
                       : 'border-rose-100 bg-rose-50 text-rose-700'
@@ -2936,7 +3009,7 @@ export default function MyPage() {
           </div>
 
           {/* 予約で受け付けるコース（料金ページの courses とは独立） */}
-          <div className="border border-pink-100 rounded-xl p-3 bg-pink-50/20 space-y-2">
+          <div className="border border-pink-100 rounded-none p-3 bg-pink-50/20 space-y-2">
             <label className="block text-[11px] font-bold text-slate-500">予約で受け付けるコース</label>
             <p className="text-[10px] text-slate-400 leading-relaxed">
               ここに登録したコースがネット予約の選択肢になります。料金ページとは別に設定できます（ネット予約限定メニューも登録できます）。
@@ -2950,9 +3023,9 @@ export default function MyPage() {
                   // 行内 input は inputClass（w-full を含む）を使わない。
                   // w-full が w-20/flex-1 と衝突すると、Tailwind の解決順で幅が暴れ料金欄が潰れるため、
                   // ここは明示クラスで flex 幅（none / 1 / min-w-0）を確定させる。
-                  const rowInput = 'rounded-xl border border-slate-200 px-3 py-2 text-sm bg-slate-50/50 focus:outline-none focus:ring-2 focus:ring-pink-200';
+                  const rowInput = 'rounded-none border border-slate-200 px-3 py-2 text-sm bg-slate-50/50 focus:outline-none focus:ring-2 focus:ring-pink-200';
                   return (
-                    <div key={i} className="flex flex-col gap-2 rounded-xl border border-slate-200 bg-white/60 p-3">
+                    <div key={i} className="flex flex-col gap-2 rounded-none border border-slate-200 bg-white/60 p-3">
                       {/* 1段目：コース名（フル幅） */}
                       <input
                         type="text"
@@ -3016,7 +3089,7 @@ export default function MyPage() {
         {/* ── タブ2: 出勤設定 ── */}
         <div className={`space-y-3 ${activeTab === 'schedule' ? '' : 'hidden'}`}>
           {therapists.length === 0 && (
-            <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5">
+            <div className="bg-white rounded-none border border-slate-100 shadow-sm p-5">
               <p className="text-xs text-slate-400">登録されているセラピストがいません</p>
             </div>
           )}
@@ -3024,7 +3097,7 @@ export default function MyPage() {
           {therapists.map((t) => {
             const isOpen = expandedSections.has(`${t.id}-schedule`);
             return (
-              <div key={t.id} className="bg-white rounded-2xl border border-pink-100 shadow-sm overflow-hidden">
+              <div key={t.id} className="bg-white rounded-none border border-pink-100 shadow-sm overflow-hidden">
 
                 <button
                   type="button"
@@ -3052,7 +3125,7 @@ export default function MyPage() {
                       return (
                         <div
                           key={dateStr}
-                          className={`rounded-xl border px-3 py-2.5 space-y-2 transition-colors ${
+                          className={`rounded-none border px-3 py-2.5 space-y-2 transition-colors ${
                             day.is_active ? 'border-pink-200 bg-pink-50/30' : 'border-slate-100 bg-slate-50/50'
                           }`}
                         >
@@ -3063,11 +3136,11 @@ export default function MyPage() {
                             <button
                               type="button"
                               onClick={() => updateDay(t.id, dateStr, { is_active: !day.is_active })}
-                              className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                              className={`relative inline-flex h-6 w-11 items-center rounded-none transition-colors ${
                                 day.is_active ? 'bg-pink-500' : 'bg-slate-200'
                               }`}
                             >
-                              <span className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform ${
+                              <span className={`inline-block h-4 w-4 transform rounded-none bg-white shadow transition-transform ${
                                 day.is_active ? 'translate-x-6' : 'translate-x-1'
                               }`} />
                               <span className="sr-only">{day.is_active ? '出勤' : '休み'}</span>
@@ -3076,7 +3149,7 @@ export default function MyPage() {
                           {day.is_active && (
                             <div className="flex items-center gap-2">
                               <input
-                                className="flex-1 px-3 py-1.5 rounded-lg border border-slate-200 text-xs bg-white focus:outline-none focus:ring-2 focus:ring-pink-200"
+                                className="flex-1 px-3 py-1.5 rounded-none border border-slate-200 text-xs bg-white focus:outline-none focus:ring-2 focus:ring-pink-200"
                                 placeholder="例: 12:00〜21:00"
                                 value={pickerVal}
                                 onChange={e => {
@@ -3115,7 +3188,7 @@ export default function MyPage() {
 
         {/* ── タブ3: 今すぐ ── */}
         <div className={`${activeTab === 'available' ? '' : 'hidden'}`}>
-          <div className="bg-white rounded-3xl border border-slate-100 shadow-sm p-5 space-y-4">
+          <div className="bg-white rounded-none border border-slate-100 shadow-sm p-5 space-y-4">
             <div>
               <h2 className="text-sm font-black text-slate-700 mb-1">今すぐ対応可能なセラピスト</h2>
               <p className="text-[11px] text-slate-400">本日出勤中のセラピストに「今すぐ」フラグを設定できます。チェックを入れて保存するとサイト上にバッジが表示されます。30分後に自動で解除されますが、この画面上ではリロードするまでチェックは残ります。</p>
@@ -3127,7 +3200,7 @@ export default function MyPage() {
               const atLimit = checkedCount >= 3;
               if (onDutyTherapists.length === 0) {
                 return (
-                  <p className="text-xs text-slate-400 text-center py-6 border border-dashed border-slate-200 rounded-2xl">
+                  <p className="text-xs text-slate-400 text-center py-6 border border-dashed border-slate-200 rounded-none">
                     現在、出勤中のセラピストはいません
                   </p>
                 );
@@ -3135,12 +3208,12 @@ export default function MyPage() {
               return (
                 <div className="space-y-2">
                   {atLimit && (
-                    <p className="text-xs text-rose-500 font-bold text-center py-2 bg-rose-50 border border-rose-100 rounded-xl">
+                    <p className="text-xs text-rose-500 font-bold text-center py-2 bg-rose-50 border border-rose-100 rounded-none">
                       今すぐは最大3名までです
                     </p>
                   )}
                   {onDutyTherapists.some(t => isImportLiveRow(t, now)) && (
-                    <p className="text-[11px] text-sky-700 bg-sky-50 border border-sky-100 rounded-xl px-3 py-2 leading-relaxed">
+                    <p className="text-[11px] text-sky-700 bg-sky-50 border border-sky-100 rounded-none px-3 py-2 leading-relaxed">
                       「駅ちか連動中」のセラピストは、駅ちかで<strong>即ヒメ</strong>に設定されているため、
                       フクエスでも「今すぐ」として表示されています。<br />
                       この枠はこちらの3名の上限には含まれません。チェックはこれまでどおりお使いいただけます。
@@ -3161,7 +3234,7 @@ export default function MyPage() {
                       ? Math.floor((new Date(t.available_until).getTime() - now.getTime()) / 60000)
                       : 0;
                     return (
-                      <label key={sid} className={`flex items-center gap-3 p-3 rounded-2xl border bg-slate-50/50 transition-colors ${
+                      <label key={sid} className={`flex items-center gap-3 p-3 rounded-none border bg-slate-50/50 transition-colors ${
                         castLive || (!isChecked && atLimit) ? 'border-slate-100 opacity-50 cursor-not-allowed' : 'border-slate-100 cursor-pointer hover:border-pink-200'
                       }`}>
                         <input
@@ -3196,12 +3269,12 @@ export default function MyPage() {
                           </span>
                         )}
                         {castLive && (
-                          <span className="text-[11px] font-bold text-pink-600 bg-pink-50 border border-pink-200 rounded-full px-2 py-0.5 flex-shrink-0 whitespace-nowrap">
+                          <span className="text-[11px] font-bold text-pink-600 bg-pink-50 border border-pink-200 rounded-none px-2 py-0.5 flex-shrink-0 whitespace-nowrap">
                             本人が受付中
                           </span>
                         )}
                         {importLive && (
-                          <span className="text-[11px] font-bold text-sky-700 bg-sky-50 border border-sky-200 rounded-full px-2 py-0.5 flex-shrink-0 whitespace-nowrap">
+                          <span className="text-[11px] font-bold text-sky-700 bg-sky-50 border border-sky-200 rounded-none px-2 py-0.5 flex-shrink-0 whitespace-nowrap">
                             駅ちか連動中
                           </span>
                         )}
@@ -3227,7 +3300,7 @@ export default function MyPage() {
         <div className={`space-y-3 ${activeTab === 'profile' ? '' : 'hidden'}`}>
 
           {/* 新規セラピスト追加フォーム */}
-          <div className="bg-white rounded-2xl border border-pink-100 shadow-sm p-5 space-y-3">
+          <div className="bg-white rounded-none border border-pink-100 shadow-sm p-5 space-y-3">
             <h3 className="text-xs font-black text-pink-600">新規セラピスト追加</h3>
             <div>
               <label className={labelClass}>名前 <span className="text-rose-400">*</span></label>
@@ -3251,7 +3324,7 @@ export default function MyPage() {
               <span className="text-[10px] text-slate-400">（60日間表示）</span>
             </label>
             {addError && (
-              <p className="text-xs text-rose-500 bg-rose-50 border border-rose-100 rounded-xl px-3 py-2 leading-relaxed">
+              <p className="text-xs text-rose-500 bg-rose-50 border border-rose-100 rounded-none px-3 py-2 leading-relaxed">
                 {addError}
               </p>
             )}
@@ -3267,13 +3340,13 @@ export default function MyPage() {
           </div>
 
           {therapists.length === 0 && (
-            <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5">
+            <div className="bg-white rounded-none border border-slate-100 shadow-sm p-5">
               <p className="text-xs text-slate-400">登録されているセラピストがいません</p>
             </div>
           )}
 
           {therapists.map((t) => (
-            <div key={t.id} className="bg-white rounded-2xl border border-pink-100 shadow-sm overflow-hidden">
+            <div key={t.id} className="bg-white rounded-none border border-pink-100 shadow-sm overflow-hidden">
               <div className="flex items-center justify-between px-5 py-4">
                 <div className="flex items-center gap-3">
                   {t.profile_image_url ? (
@@ -3294,7 +3367,7 @@ export default function MyPage() {
                 <div className="flex items-center gap-2">
                   <Link
                     href={`/mypage/therapist/${t.id}`}
-                    className="px-4 py-1.5 rounded-xl border border-pink-300 text-pink-600 text-xs font-bold hover:bg-pink-50 transition-colors"
+                    className="px-4 py-1.5 rounded-none border border-pink-300 text-pink-600 text-xs font-bold hover:bg-pink-50 transition-colors"
                   >
                     プロフィールを編集
                   </Link>
@@ -3302,7 +3375,7 @@ export default function MyPage() {
                     type="button"
                     onClick={() => handleTherapistDelete(t.id, t.name)}
                     disabled={deletingTherapist === t.id}
-                    className="px-3 py-1.5 rounded-xl border border-rose-200 text-rose-500 text-xs font-bold bg-rose-50 hover:bg-rose-100 transition-colors disabled:opacity-50"
+                    className="px-3 py-1.5 rounded-none border border-rose-200 text-rose-500 text-xs font-bold bg-rose-50 hover:bg-rose-100 transition-colors disabled:opacity-50"
                   >
                     {deletingTherapist === t.id ? '削除中...' : '削除'}
                   </button>
@@ -3321,7 +3394,7 @@ export default function MyPage() {
                       type="button"
                       onClick={() => handleUnlinkCast(t.id)}
                       disabled={inviteBusyId === t.id}
-                      className="px-3 py-1 rounded-lg border border-slate-200 text-slate-500 text-[11px] font-bold hover:border-rose-300 hover:text-rose-500 transition-colors disabled:opacity-50"
+                      className="px-3 py-1 rounded-none border border-slate-200 text-slate-500 text-[11px] font-bold hover:border-rose-300 hover:text-rose-500 transition-colors disabled:opacity-50"
                     >
                       {inviteBusyId === t.id ? '処理中...' : '紐付け解除'}
                     </button>
@@ -3337,7 +3410,7 @@ export default function MyPage() {
                         type="button"
                         onClick={() => handleResendInvite(t.id)}
                         disabled={inviteBusyId === t.id}
-                        className="px-3 py-1 rounded-lg border border-pink-300 text-pink-600 text-[11px] font-bold hover:bg-pink-50 transition-colors disabled:opacity-50"
+                        className="px-3 py-1 rounded-none border border-pink-300 text-pink-600 text-[11px] font-bold hover:bg-pink-50 transition-colors disabled:opacity-50"
                       >
                         {inviteBusyId === t.id ? '送信中...' : '招待を再送'}
                       </button>
@@ -3345,7 +3418,7 @@ export default function MyPage() {
                         type="button"
                         onClick={() => handleCancelInvite(t.id, t.invited_email!)}
                         disabled={inviteBusyId === t.id}
-                        className="px-3 py-1 rounded-lg border border-rose-200 text-rose-500 text-[11px] font-bold hover:bg-rose-50 hover:border-rose-300 transition-colors disabled:opacity-50"
+                        className="px-3 py-1 rounded-none border border-rose-200 text-rose-500 text-[11px] font-bold hover:bg-rose-50 hover:border-rose-300 transition-colors disabled:opacity-50"
                       >
                         {inviteBusyId === t.id ? '処理中...' : '招待を取り消す'}
                       </button>
@@ -3357,13 +3430,13 @@ export default function MyPage() {
                         placeholder="別のメールで招待し直す"
                         value={inviteEmails[t.id] ?? ''}
                         onChange={(e) => setInviteEmails(prev => ({ ...prev, [t.id]: e.target.value }))}
-                        className="flex-1 min-w-0 px-3 py-1.5 rounded-xl border border-slate-200 text-xs bg-white focus:outline-none focus:ring-2 focus:ring-pink-200"
+                        className="flex-1 min-w-0 px-3 py-1.5 rounded-none border border-slate-200 text-xs bg-white focus:outline-none focus:ring-2 focus:ring-pink-200"
                       />
                       <button
                         type="button"
                         onClick={() => handleInviteCast(t.id)}
                         disabled={inviteBusyId === t.id}
-                        className="px-3 py-1.5 rounded-xl border border-pink-300 text-pink-600 text-[11px] font-bold bg-white hover:bg-pink-50 transition-colors disabled:opacity-50 flex-shrink-0"
+                        className="px-3 py-1.5 rounded-none border border-pink-300 text-pink-600 text-[11px] font-bold bg-white hover:bg-pink-50 transition-colors disabled:opacity-50 flex-shrink-0"
                       >
                         招待
                       </button>
@@ -3382,13 +3455,13 @@ export default function MyPage() {
                         placeholder="本人のメールアドレスを入力"
                         value={inviteEmails[t.id] ?? ''}
                         onChange={(e) => setInviteEmails(prev => ({ ...prev, [t.id]: e.target.value }))}
-                        className="flex-1 min-w-0 px-3 py-1.5 rounded-xl border border-slate-200 text-xs bg-white focus:outline-none focus:ring-2 focus:ring-pink-200"
+                        className="flex-1 min-w-0 px-3 py-1.5 rounded-none border border-slate-200 text-xs bg-white focus:outline-none focus:ring-2 focus:ring-pink-200"
                       />
                       <button
                         type="button"
                         onClick={() => handleInviteCast(t.id)}
                         disabled={inviteBusyId === t.id}
-                        className="px-4 py-1.5 rounded-xl text-white text-[11px] font-bold shadow-sm disabled:opacity-50 flex-shrink-0"
+                        className="px-4 py-1.5 rounded-none text-white text-[11px] font-bold shadow-sm disabled:opacity-50 flex-shrink-0"
                         style={{ background: 'linear-gradient(to right, #ec4899, #f97316)' }}
                       >
                         {inviteBusyId === t.id ? '送信中...' : '招待する'}
@@ -3403,7 +3476,7 @@ export default function MyPage() {
 
         {/* ── タブ5: 写メ日記 ── */}
         <div className={`${activeTab === 'diary' ? '' : 'hidden'}`}>
-          <div className="bg-white rounded-3xl border border-slate-100 shadow-sm p-5 space-y-4">
+          <div className="bg-white rounded-none border border-slate-100 shadow-sm p-5 space-y-4">
             <div>
               <h2 className="text-sm font-black text-slate-700 mb-1">写メ日記の投稿</h2>
               <p className="text-[11px] text-slate-400">投稿するセラピストを選んでから、画像・タイトル・本文を入力してください。</p>
@@ -3411,7 +3484,7 @@ export default function MyPage() {
 
             {/* セラピスト選択 */}
             {therapists.length === 0 ? (
-              <p className="text-xs text-slate-400 text-center py-6 border border-dashed border-slate-200 rounded-2xl">
+              <p className="text-xs text-slate-400 text-center py-6 border border-dashed border-slate-200 rounded-none">
                 登録されているセラピストがいません
               </p>
             ) : (
@@ -3423,7 +3496,7 @@ export default function MyPage() {
                       key={t.id}
                       type="button"
                       onClick={() => selectDiaryTherapist(String(t.id))}
-                      className={`rounded-2xl border-2 overflow-hidden text-center transition-colors ${
+                      className={`rounded-none border-2 overflow-hidden text-center transition-colors ${
                         selected ? 'border-pink-500 ring-2 ring-pink-200' : 'border-slate-200 hover:border-pink-300'
                       }`}
                     >
@@ -3458,20 +3531,20 @@ export default function MyPage() {
                   <label className={labelClass}>画像（1枚）</label>
                   <p className="text-[10px] text-slate-400 mb-1.5">推奨：800×450px（横長）／ JPEG・PNG・WebP・5MB以下</p>
                   {diaryImage ? (
-                    <div className="relative w-32 h-32 rounded-xl overflow-hidden border border-pink-100 bg-slate-50">
+                    <div className="relative w-32 h-32 rounded-none overflow-hidden border border-pink-100 bg-slate-50">
                       {/* eslint-disable-next-line @next/next/no-img-element */}
                       <img src={diaryImage} alt="投稿画像" className="w-full h-full object-cover" />
                       <button
                         type="button"
                         onClick={() => setDiaryImage(null)}
                         aria-label="削除"
-                        className="absolute top-1 right-1 w-6 h-6 rounded-full bg-black/55 text-white text-xs flex items-center justify-center hover:bg-black/75"
+                        className="absolute top-1 right-1 w-6 h-6 rounded-none bg-black/55 text-white text-xs flex items-center justify-center hover:bg-black/75"
                       >
                         ×
                       </button>
                     </div>
                   ) : (
-                    <label className="flex flex-col items-center justify-center w-32 h-32 rounded-xl border-2 border-dashed border-pink-200 bg-pink-50/40 text-pink-400 cursor-pointer hover:bg-pink-50 transition-colors">
+                    <label className="flex flex-col items-center justify-center w-32 h-32 rounded-none border-2 border-dashed border-pink-200 bg-pink-50/40 text-pink-400 cursor-pointer hover:bg-pink-50 transition-colors">
                       {diaryUploading ? (
                         <span className="text-[10px] font-bold">アップ中...</span>
                       ) : (
@@ -3522,7 +3595,7 @@ export default function MyPage() {
                     type="button"
                     onClick={handleDiaryPost}
                     disabled={diaryPosting || diaryUploading}
-                    className="px-6 py-2 rounded-xl text-white font-bold text-xs shadow-sm disabled:opacity-50"
+                    className="px-6 py-2 rounded-none text-white font-bold text-xs shadow-sm disabled:opacity-50"
                     style={{ background: 'linear-gradient(to right, #ec4899, #f97316)' }}
                   >
                     {diaryPosting ? '投稿中...' : '投稿する'}
@@ -3540,7 +3613,7 @@ export default function MyPage() {
         <div className={`space-y-4 ${activeTab === 'coupon' ? '' : 'hidden'}`}>
 
           {/* 新規追加フォーム */}
-          <div className="bg-white rounded-3xl border border-pink-100 shadow-sm p-5 space-y-3">
+          <div className="bg-white rounded-none border border-pink-100 shadow-sm p-5 space-y-3">
             <h3 className="text-xs font-black text-pink-600">クーポンを新規追加</h3>
             <p className="text-[10px] text-slate-400">有効期限が過ぎると自動で非表示になります。</p>
             <div>
@@ -3592,7 +3665,7 @@ export default function MyPage() {
                       onClick={() => setNewCoupon(p => ({ ...p, color: cc.key }))}
                       aria-label={cc.label}
                       title={cc.label}
-                      className={`relative w-10 h-10 rounded-xl border-2 transition-transform ${
+                      className={`relative w-10 h-10 rounded-none border-2 transition-transform ${
                         selected ? 'border-pink-500 ring-2 ring-pink-200 scale-105' : 'border-slate-200 hover:border-pink-300'
                       }`}
                       style={{ background: cc.background }}
@@ -3629,23 +3702,23 @@ export default function MyPage() {
 
           {/* クーポン一覧（公開・非公開含む） */}
           {coupons.length === 0 ? (
-            <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5">
+            <div className="bg-white rounded-none border border-slate-100 shadow-sm p-5">
               <p className="text-xs text-slate-400">登録されているクーポンがありません</p>
             </div>
           ) : (
             coupons.map((c) => {
               const form = couponForms[c.id] ?? {};
               return (
-                <div key={c.id} className="bg-white rounded-2xl border border-pink-100 shadow-sm p-5 space-y-3">
+                <div key={c.id} className="bg-white rounded-none border border-pink-100 shadow-sm p-5 space-y-3">
                   {/* ヘッダー：色プレビュー・公開状態・ワンタップ切替・削除 */}
                   <div className="flex items-center justify-between gap-2">
                     <div className="flex items-center gap-2">
                       <span
-                        className="w-6 h-6 rounded-lg border border-slate-200 flex-shrink-0"
+                        className="w-6 h-6 rounded-none border border-slate-200 flex-shrink-0"
                         style={{ background: getCouponColor(c.color).background }}
                         title={getCouponColor(c.color).label}
                       />
-                      <span className={`text-[11px] font-bold px-2.5 py-1 rounded-full ${
+                      <span className={`text-[11px] font-bold px-2.5 py-1 rounded-none ${
                         c.is_published ? 'bg-pink-50 text-pink-600' : 'bg-slate-100 text-slate-400'
                       }`}>
                         {c.is_published ? '公開中' : '非公開'}
@@ -3655,7 +3728,7 @@ export default function MyPage() {
                       <button
                         type="button"
                         onClick={() => handleCouponTogglePublish(c.id)}
-                        className="px-3 py-1.5 rounded-xl border border-pink-300 text-pink-600 text-xs font-bold hover:bg-pink-50 transition-colors"
+                        className="px-3 py-1.5 rounded-none border border-pink-300 text-pink-600 text-xs font-bold hover:bg-pink-50 transition-colors"
                       >
                         {c.is_published ? '非公開にする' : '公開にする'}
                       </button>
@@ -3663,7 +3736,7 @@ export default function MyPage() {
                         type="button"
                         onClick={() => handleCouponDelete(c.id)}
                         disabled={deletingCoupon === c.id}
-                        className="px-3 py-1.5 rounded-xl border border-rose-200 text-rose-500 text-xs font-bold bg-rose-50 hover:bg-rose-100 transition-colors disabled:opacity-50"
+                        className="px-3 py-1.5 rounded-none border border-rose-200 text-rose-500 text-xs font-bold bg-rose-50 hover:bg-rose-100 transition-colors disabled:opacity-50"
                       >
                         {deletingCoupon === c.id ? '削除中...' : '削除'}
                       </button>
@@ -3716,7 +3789,7 @@ export default function MyPage() {
                             onClick={() => setCouponForms(prev => ({ ...prev, [c.id]: { ...prev[c.id], color: cc.key } }))}
                             aria-label={cc.label}
                             title={cc.label}
-                            className={`relative w-10 h-10 rounded-xl border-2 transition-transform ${
+                            className={`relative w-10 h-10 rounded-none border-2 transition-transform ${
                               selected ? 'border-pink-500 ring-2 ring-pink-200 scale-105' : 'border-slate-200 hover:border-pink-300'
                             }`}
                             style={{ background: cc.background }}
@@ -3752,7 +3825,7 @@ export default function MyPage() {
               ★★ 周（/api/admin/announce-auto）と同じ判定から来た1行をそのまま出す。
                  画面が「今日は出ます」と言い、周は出さない、が起きうる形にしない。
               ★ 時刻は店舗IDから決まる（選べない）。設定項目を1つ増やさないため。 */}
-          <div className="bg-white rounded-3xl border border-pink-100 shadow-sm p-5 space-y-1.5">
+          <div className="bg-white rounded-none border border-pink-100 shadow-sm p-5 space-y-1.5">
             <h3 className="text-xs font-black text-pink-600">自動でお知らせを回す</h3>
             {announceState ? (
               <>
@@ -3778,7 +3851,7 @@ export default function MyPage() {
           </div>
 
           {/* 新規追加フォーム */}
-          <div className="bg-white rounded-3xl border border-pink-100 shadow-sm p-5 space-y-3">
+          <div className="bg-white rounded-none border border-pink-100 shadow-sm p-5 space-y-3">
             <h3 className="text-xs font-black text-pink-600">お知らせを新規追加</h3>
             <div>
               <label className={labelClass}>タイトル <span className="text-rose-400">*</span></label>
@@ -3803,20 +3876,20 @@ export default function MyPage() {
               <label className={labelClass}>画像（任意・1枚）</label>
               <p className="text-[10px] text-slate-400 mb-1.5">推奨：800×450px（横長）／ JPEG・PNG・WebP・5MB以下</p>
               {newAnnouncement.image_url ? (
-                <div className="relative w-32 h-32 rounded-xl overflow-hidden border border-pink-100 bg-slate-50">
+                <div className="relative w-32 h-32 rounded-none overflow-hidden border border-pink-100 bg-slate-50">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img src={newAnnouncement.image_url} alt="お知らせ画像" className="w-full h-full object-cover" />
                   <button
                     type="button"
                     onClick={() => setNewAnnouncement(p => ({ ...p, image_url: null }))}
                     aria-label="削除"
-                    className="absolute top-1 right-1 w-6 h-6 rounded-full bg-black/55 text-white text-xs flex items-center justify-center hover:bg-black/75"
+                    className="absolute top-1 right-1 w-6 h-6 rounded-none bg-black/55 text-white text-xs flex items-center justify-center hover:bg-black/75"
                   >
                     ×
                   </button>
                 </div>
               ) : (
-                <label className="flex flex-col items-center justify-center w-32 h-32 rounded-xl border-2 border-dashed border-pink-200 bg-pink-50/40 text-pink-400 cursor-pointer hover:bg-pink-50 transition-colors">
+                <label className="flex flex-col items-center justify-center w-32 h-32 rounded-none border-2 border-dashed border-pink-200 bg-pink-50/40 text-pink-400 cursor-pointer hover:bg-pink-50 transition-colors">
                   {uploadingNewAnnouncementImage ? (
                     <span className="text-[10px] font-bold">アップ中...</span>
                   ) : (
@@ -3866,7 +3939,7 @@ export default function MyPage() {
               onClick={() => { if (!repostingAnnouncement) setRepostModalId(null); }}
             >
               <div
-                className="bg-white rounded-2xl shadow-xl w-full max-w-sm p-5 space-y-4"
+                className="bg-white rounded-none shadow-xl w-full max-w-sm p-5 space-y-4"
                 onClick={(e) => e.stopPropagation()}
               >
                 <p className="text-sm font-bold text-slate-700 whitespace-pre-line leading-relaxed">
@@ -3874,7 +3947,7 @@ export default function MyPage() {
                 </p>
                 {/* ★★ 押す前に言う（第68便・§191 守り3）。押したあとに知らせると「壊れている」に見える。
                     ★ ボタンを灰色にして押させないのではなく、押せるまま・理由を先に出す（作法3-7）。 */}
-                <p className="text-[11px] text-slate-500 leading-relaxed bg-slate-50 rounded-xl p-3">
+                <p className="text-[11px] text-slate-500 leading-relaxed bg-slate-50 rounded-none p-3">
                   {`同じ内容の再投稿でトップの新着が上がるのは、30分に1回までです。\n内容を書き替えた場合は、すぐに上がります。`}
                 </p>
                 {renderCrosspostChecks(repostCrosspostX, setRepostCrosspostX, repostCrosspostNoReplies, setRepostCrosspostNoReplies)}
@@ -3883,7 +3956,7 @@ export default function MyPage() {
                     type="button"
                     onClick={() => setRepostModalId(null)}
                     disabled={!!repostingAnnouncement}
-                    className="px-4 py-2 rounded-xl border border-slate-200 text-slate-500 text-xs font-bold hover:bg-slate-50 transition-colors disabled:opacity-50"
+                    className="px-4 py-2 rounded-none border border-slate-200 text-slate-500 text-xs font-bold hover:bg-slate-50 transition-colors disabled:opacity-50"
                   >
                     キャンセル
                   </button>
@@ -3902,18 +3975,18 @@ export default function MyPage() {
 
           {/* お知らせ一覧（公開・非公開含む。published_at の新しい順） */}
           {announcements.length === 0 ? (
-            <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5">
+            <div className="bg-white rounded-none border border-slate-100 shadow-sm p-5">
               <p className="text-xs text-slate-400">登録されているお知らせがありません</p>
             </div>
           ) : (
             announcements.map((a) => {
               const form = announcementForms[a.id] ?? {};
               return (
-                <div key={a.id} className="bg-white rounded-2xl border border-pink-100 shadow-sm p-5 space-y-3">
+                <div key={a.id} className="bg-white rounded-none border border-pink-100 shadow-sm p-5 space-y-3">
                   {/* ヘッダー：公開状態・公開日時・ワンタップ切替・再投稿・削除 */}
                   <div className="flex flex-wrap items-center justify-between gap-2">
                     <div className="flex items-center gap-2 min-w-0">
-                      <span className={`text-[11px] font-bold px-2.5 py-1 rounded-full flex-shrink-0 ${
+                      <span className={`text-[11px] font-bold px-2.5 py-1 rounded-none flex-shrink-0 ${
                         a.is_published ? 'bg-pink-50 text-pink-600' : 'bg-slate-100 text-slate-400'
                       }`}>
                         {a.is_published ? '公開中' : '非公開'}
@@ -3924,7 +3997,7 @@ export default function MyPage() {
                       <button
                         type="button"
                         onClick={() => handleAnnouncementTogglePublish(a.id)}
-                        className="px-3 py-1.5 rounded-xl border border-pink-300 text-pink-600 text-xs font-bold hover:bg-pink-50 transition-colors"
+                        className="px-3 py-1.5 rounded-none border border-pink-300 text-pink-600 text-xs font-bold hover:bg-pink-50 transition-colors"
                       >
                         {a.is_published ? '非公開にする' : '公開にする'}
                       </button>
@@ -3933,7 +4006,7 @@ export default function MyPage() {
                         onClick={() => handleAnnouncementRepost(a.id)}
                         disabled={repostingAnnouncement === a.id}
                         title="投稿日時を現在時刻に更新して再投稿します"
-                        className="inline-flex items-center gap-1 px-3 py-1.5 rounded-xl border border-emerald-300 text-emerald-600 text-xs font-bold bg-emerald-50 hover:bg-emerald-100 transition-colors disabled:opacity-50"
+                        className="inline-flex items-center gap-1 px-3 py-1.5 rounded-none border border-emerald-300 text-emerald-600 text-xs font-bold bg-emerald-50 hover:bg-emerald-100 transition-colors disabled:opacity-50"
                       >
                         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="flex-shrink-0">
                           <path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8" />
@@ -3947,7 +4020,7 @@ export default function MyPage() {
                         type="button"
                         onClick={() => handleAnnouncementDelete(a.id)}
                         disabled={deletingAnnouncement === a.id}
-                        className="px-3 py-1.5 rounded-xl border border-rose-200 text-rose-500 text-xs font-bold bg-rose-50 hover:bg-rose-100 transition-colors disabled:opacity-50"
+                        className="px-3 py-1.5 rounded-none border border-rose-200 text-rose-500 text-xs font-bold bg-rose-50 hover:bg-rose-100 transition-colors disabled:opacity-50"
                       >
                         {deletingAnnouncement === a.id ? '削除中...' : '削除'}
                       </button>
@@ -3975,20 +4048,20 @@ export default function MyPage() {
                     <label className={labelClass}>画像（任意・1枚）</label>
                     <p className="text-[10px] text-slate-400 mb-1.5">推奨：800×450px（横長）／ JPEG・PNG・WebP・5MB以下</p>
                     {(form.image_url as string | null) ? (
-                      <div className="relative w-32 h-32 rounded-xl overflow-hidden border border-pink-100 bg-slate-50">
+                      <div className="relative w-32 h-32 rounded-none overflow-hidden border border-pink-100 bg-slate-50">
                         {/* eslint-disable-next-line @next/next/no-img-element */}
                         <img src={form.image_url as string} alt="お知らせ画像" className="w-full h-full object-cover" />
                         <button
                           type="button"
                           onClick={() => setAnnouncementForms(prev => ({ ...prev, [a.id]: { ...prev[a.id], image_url: null } }))}
                           aria-label="削除"
-                          className="absolute top-1 right-1 w-6 h-6 rounded-full bg-black/55 text-white text-xs flex items-center justify-center hover:bg-black/75"
+                          className="absolute top-1 right-1 w-6 h-6 rounded-none bg-black/55 text-white text-xs flex items-center justify-center hover:bg-black/75"
                         >
                           ×
                         </button>
                       </div>
                     ) : (
-                      <label className="flex flex-col items-center justify-center w-32 h-32 rounded-xl border-2 border-dashed border-pink-200 bg-pink-50/40 text-pink-400 cursor-pointer hover:bg-pink-50 transition-colors">
+                      <label className="flex flex-col items-center justify-center w-32 h-32 rounded-none border-2 border-dashed border-pink-200 bg-pink-50/40 text-pink-400 cursor-pointer hover:bg-pink-50 transition-colors">
                         {uploadingAnnouncementImageId === a.id ? (
                           <span className="text-[10px] font-bold">アップ中...</span>
                         ) : (
@@ -4045,7 +4118,7 @@ export default function MyPage() {
           {salon ? (
             <VipLetterForm salonId={Number(salon.id)} />
           ) : (
-            <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5">
+            <div className="bg-white rounded-none border border-slate-100 shadow-sm p-5">
               <p className="text-xs text-slate-400">店舗情報を読み込み中です…</p>
             </div>
           )}
@@ -4056,7 +4129,7 @@ export default function MyPage() {
           {salon ? (
             <JobsTab salonId={Number(salon.id)} />
           ) : (
-            <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5">
+            <div className="bg-white rounded-none border border-slate-100 shadow-sm p-5">
               <p className="text-xs text-slate-400">店舗情報を読み込み中です…</p>
             </div>
           )}
@@ -4078,7 +4151,7 @@ export default function MyPage() {
                     key={t.key}
                     type="button"
                     onClick={() => setSalonForm((p) => ({ ...p, theme: t.key as ThemeKey }))}
-                    className={`group rounded-2xl border-2 overflow-hidden text-left transition-colors ${
+                    className={`group rounded-none border-2 overflow-hidden text-left transition-colors ${
                       selected ? 'border-pink-500 ring-2 ring-pink-200' : 'border-slate-200 hover:border-pink-300'
                     }`}
                   >
@@ -4089,7 +4162,7 @@ export default function MyPage() {
                         <img src={wallpaper} alt="" className="absolute inset-0 w-full h-full object-cover" />
                       )}
                       {selected && (
-                        <span className="absolute top-1.5 right-1.5 w-5 h-5 rounded-full bg-pink-500 text-white text-[11px] font-bold flex items-center justify-center shadow">
+                        <span className="absolute top-1.5 right-1.5 w-5 h-5 rounded-none bg-pink-500 text-white text-[11px] font-bold flex items-center justify-center shadow">
                           ✓
                         </span>
                       )}
@@ -4097,7 +4170,7 @@ export default function MyPage() {
                     {/* ラベル */}
                     <div className={`flex items-center gap-1.5 px-2.5 py-1.5 ${selected ? 'bg-pink-50' : 'bg-white'}`}>
                       <span
-                        className="w-3.5 h-3.5 rounded-full flex-shrink-0"
+                        className="w-3.5 h-3.5 rounded-none flex-shrink-0"
                         style={{ backgroundColor: t.bg, border: `1px solid ${t.swatchBorder}` }}
                       />
                       <span className={`text-xs font-bold ${selected ? 'text-pink-600' : 'text-slate-600'}`}>{t.label}</span>
@@ -4111,7 +4184,7 @@ export default function MyPage() {
               type="button"
               onClick={handleThemeSave}
               disabled={savingTheme}
-              className="w-full py-2.5 rounded-full bg-pink-500 text-white text-sm font-bold hover:bg-pink-600 disabled:opacity-50"
+              className="w-full py-2.5 rounded-none bg-pink-500 text-white text-sm font-bold hover:bg-pink-600 disabled:opacity-50"
             >
               {savingTheme ? '保存中…' : 'テーマを保存する'}
             </button>
@@ -4125,7 +4198,7 @@ export default function MyPage() {
                 <span className="text-slate-500 font-bold">画面ごとに横幅の比率が違うため、1つのバナーに「PC・タブレット用」と「スマホ用」の2枚を登録できます。</span>スマホ用が未登録のときは、これまでどおりPC用画像がスマホでも表示されます（左右が少し切れます）。
               </p>
               {/* 推奨サイズはここ1か所にまとめて書く（スロット内の見出しにも同じ数字を出す） */}
-              <div className="mt-2 rounded-xl bg-slate-50 border border-slate-100 p-2.5 space-y-1">
+              <div className="mt-2 rounded-none bg-slate-50 border border-slate-100 p-2.5 space-y-1">
                 <p className="text-[11px] font-bold text-slate-500">推奨サイズ</p>
                 <p className="text-[11px] leading-relaxed text-slate-400">
                   <span className="text-slate-500 font-bold">🖥 {DETAIL_BANNER_SIZE.pc.label}</span>（640px以上で表示）：横長 {DETAIL_BANNER_SIZE.pc.ratio}／例 {DETAIL_BANNER_SIZE.pc.example}<br />
@@ -4138,14 +4211,14 @@ export default function MyPage() {
               </div>
             </div>
             {[0, 1, 2].map((slot) => (
-              <div key={slot} className="rounded-2xl border border-slate-100 p-3 space-y-2">
+              <div key={slot} className="rounded-none border border-slate-100 p-3 space-y-2">
                 <p className="text-[11px] font-bold text-slate-500">バナー {slot + 1}</p>
 
                 {/* PC・タブレット用（従来の1枚。640px以上で表示される） */}
                 <p className="text-[10px] font-bold text-slate-400">
                   🖥 {DETAIL_BANNER_SIZE.pc.label}（{DETAIL_BANNER_SIZE.pc.ratio}・例 {DETAIL_BANNER_SIZE.pc.example}）
                 </p>
-                <div className="rounded-xl border border-slate-200 overflow-hidden bg-slate-50 aspect-[31/9] flex items-center justify-center">
+                <div className="rounded-none border border-slate-200 overflow-hidden bg-slate-50 aspect-[31/9] flex items-center justify-center">
                   {detailBanners[slot] ? (
                     // eslint-disable-next-line @next/next/no-img-element
                     <img src={detailBanners[slot] as string} alt={`バナー${slot + 1}プレビュー`} className="w-full h-full object-cover" />
@@ -4155,7 +4228,7 @@ export default function MyPage() {
                 </div>
                 <div className="flex flex-wrap items-center gap-2">
                   <label className="inline-block">
-                    <span className={`inline-flex items-center gap-1 px-3 py-1.5 rounded-full text-[11px] font-bold ${uploadingDetailKey === `${slot}:pc` ? 'bg-slate-100 text-slate-400 cursor-default' : 'bg-pink-50 text-pink-600 border border-pink-300 hover:bg-pink-100 cursor-pointer'}`}>
+                    <span className={`inline-flex items-center gap-1 px-3 py-1.5 rounded-none text-[11px] font-bold ${uploadingDetailKey === `${slot}:pc` ? 'bg-slate-100 text-slate-400 cursor-default' : 'bg-pink-50 text-pink-600 border border-pink-300 hover:bg-pink-100 cursor-pointer'}`}>
                       {uploadingDetailKey === `${slot}:pc` ? 'アップロード中…' : (detailBanners[slot] ? '画像を差し替える' : '画像をアップロード')}
                     </span>
                     <input type="file" accept="image/jpeg,image/png,image/webp" className="hidden" onChange={(e) => handleDetailImageUpload(slot, 'pc', e)} disabled={uploadingDetailKey === `${slot}:pc`} />
@@ -4172,7 +4245,7 @@ export default function MyPage() {
                   📱 {DETAIL_BANNER_SIZE.sp.label}（{DETAIL_BANNER_SIZE.sp.ratio}・例 {DETAIL_BANNER_SIZE.sp.example}）
                   <span className="ml-1 font-normal">※任意</span>
                 </p>
-                <div className="rounded-xl border border-slate-200 overflow-hidden bg-slate-50 aspect-[3/1] flex items-center justify-center">
+                <div className="rounded-none border border-slate-200 overflow-hidden bg-slate-50 aspect-[3/1] flex items-center justify-center">
                   {detailBannersSp[slot] ? (
                     // eslint-disable-next-line @next/next/no-img-element
                     <img src={detailBannersSp[slot] as string} alt={`バナー${slot + 1}スマホ用プレビュー`} className="w-full h-full object-cover" />
@@ -4189,7 +4262,7 @@ export default function MyPage() {
                 </div>
                 <div className="flex flex-wrap items-center gap-2">
                   <label className="inline-block">
-                    <span className={`inline-flex items-center gap-1 px-3 py-1.5 rounded-full text-[11px] font-bold ${uploadingDetailKey === `${slot}:sp` ? 'bg-slate-100 text-slate-400 cursor-default' : 'bg-sky-50 text-sky-600 border border-sky-300 hover:bg-sky-100 cursor-pointer'}`}>
+                    <span className={`inline-flex items-center gap-1 px-3 py-1.5 rounded-none text-[11px] font-bold ${uploadingDetailKey === `${slot}:sp` ? 'bg-slate-100 text-slate-400 cursor-default' : 'bg-sky-50 text-sky-600 border border-sky-300 hover:bg-sky-100 cursor-pointer'}`}>
                       {uploadingDetailKey === `${slot}:sp` ? 'アップロード中…' : (detailBannersSp[slot] ? 'スマホ用を差し替える' : 'スマホ用をアップロード')}
                     </span>
                     <input type="file" accept="image/jpeg,image/png,image/webp" className="hidden" onChange={(e) => handleDetailImageUpload(slot, 'sp', e)} disabled={uploadingDetailKey === `${slot}:sp`} />
@@ -4205,7 +4278,7 @@ export default function MyPage() {
                 <select
                   value={detailLinks[slot]}
                   onChange={(e) => setDetailLinks(prev => prev.map((l, i) => (i === slot ? e.target.value : l)))}
-                  className="w-full rounded-lg border border-slate-200 px-3 py-2 text-xs bg-white focus:outline-none focus:border-pink-300"
+                  className="w-full rounded-none border border-slate-200 px-3 py-2 text-xs bg-white focus:outline-none focus:border-pink-300"
                 >
                   {(salon ? popupLinkOptions(salon.id, therapists, freePagesForLinks) : [{ label: 'リンクなし', value: '' }]).map((opt) => (
                     <option key={opt.value || 'none'} value={opt.value}>{opt.label}</option>
@@ -4220,7 +4293,7 @@ export default function MyPage() {
               </label>
               <p className="mt-1 text-[10px] text-slate-400">※ 画像を1枚以上設定してONにしたときだけ表示されます。</p>
             </div>
-            <button type="button" onClick={handleDetailSave} disabled={savingDetail} className="w-full py-2.5 rounded-full bg-pink-500 text-white text-sm font-bold hover:bg-pink-600 disabled:opacity-50">
+            <button type="button" onClick={handleDetailSave} disabled={savingDetail} className="w-full py-2.5 rounded-none bg-pink-500 text-white text-sm font-bold hover:bg-pink-600 disabled:opacity-50">
               {savingDetail ? '保存中…' : '保存する'}
             </button>
           </AccordionCard>
@@ -4235,10 +4308,10 @@ export default function MyPage() {
 
             {/* 画像スロット×3（各：プレビュー＋アップロード＋削除＋個別リンク） */}
             {[0, 1, 2].map((slot) => (
-              <div key={slot} className="rounded-2xl border border-slate-100 p-3 space-y-2">
+              <div key={slot} className="rounded-none border border-slate-100 p-3 space-y-2">
                 <p className="text-[11px] font-bold text-slate-500">画像 {slot + 1}</p>
                 <div className="flex items-start gap-3">
-                  <div className="w-20 h-28 rounded-xl border border-slate-200 overflow-hidden bg-slate-50 flex items-center justify-center flex-shrink-0">
+                  <div className="w-20 h-28 rounded-none border border-slate-200 overflow-hidden bg-slate-50 flex items-center justify-center flex-shrink-0">
                     {popupImages[slot] ? (
                       // eslint-disable-next-line @next/next/no-img-element
                       <img src={popupImages[slot] as string} alt={`ポップアップ画像${slot + 1}プレビュー`} className="w-full h-full object-contain" />
@@ -4248,7 +4321,7 @@ export default function MyPage() {
                   </div>
                   <div className="space-y-2 min-w-0 flex-1">
                     <label className="inline-block">
-                      <span className={`inline-flex items-center gap-1 px-3 py-1.5 rounded-full text-[11px] font-bold ${uploadingPopupSlot === slot ? 'bg-slate-100 text-slate-400 cursor-default' : 'bg-pink-50 text-pink-600 border border-pink-300 hover:bg-pink-100 cursor-pointer'}`}>
+                      <span className={`inline-flex items-center gap-1 px-3 py-1.5 rounded-none text-[11px] font-bold ${uploadingPopupSlot === slot ? 'bg-slate-100 text-slate-400 cursor-default' : 'bg-pink-50 text-pink-600 border border-pink-300 hover:bg-pink-100 cursor-pointer'}`}>
                         {uploadingPopupSlot === slot ? 'アップロード中…' : (popupImages[slot] ? '画像を差し替える' : '画像をアップロード')}
                       </span>
                       <input type="file" accept="image/jpeg,image/png,image/webp" className="hidden" onChange={(e) => handlePopupImageUpload(slot, e)} disabled={uploadingPopupSlot === slot} />
@@ -4262,7 +4335,7 @@ export default function MyPage() {
                     <select
                       value={popupLinks[slot]}
                       onChange={(e) => setPopupLinks(prev => prev.map((l, i) => (i === slot ? e.target.value : l)))}
-                      className="w-full rounded-lg border border-slate-200 px-3 py-2 text-xs bg-white focus:outline-none focus:border-pink-300"
+                      className="w-full rounded-none border border-slate-200 px-3 py-2 text-xs bg-white focus:outline-none focus:border-pink-300"
                     >
                       {(salon ? popupLinkOptions(salon.id, therapists, freePagesForLinks) : [{ label: 'リンクなし', value: '' }]).map((opt) => (
                         <option key={opt.value || 'none'} value={opt.value}>{opt.label}</option>
@@ -4287,7 +4360,7 @@ export default function MyPage() {
               type="button"
               onClick={handlePopupSave}
               disabled={savingPopup}
-              className="w-full py-2.5 rounded-full bg-pink-500 text-white text-sm font-bold hover:bg-pink-600 disabled:opacity-50"
+              className="w-full py-2.5 rounded-none bg-pink-500 text-white text-sm font-bold hover:bg-pink-600 disabled:opacity-50"
             >
               {savingPopup ? '保存中…' : '保存する'}
             </button>

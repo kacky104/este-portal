@@ -382,28 +382,28 @@ export function JobNewsManager({ salonId }: { salonId: number }) {
     </div>
   );
 
-  const inputClass = 'w-full px-3 py-2 rounded-xl border border-slate-200 text-sm bg-slate-50/50 focus:outline-none focus:ring-2 focus:ring-emerald-200';
+  const inputClass = 'w-full px-3 py-2 rounded-none border border-slate-200 text-sm bg-slate-50/50 focus:outline-none focus:ring-2 focus:ring-emerald-200';
   const textareaClass = `${inputClass} resize-none`;
   const labelClass = 'text-[11px] font-bold text-slate-400 block mb-1';
-  const saveBtn = 'px-5 py-2 rounded-xl text-white font-bold text-xs shadow-sm disabled:opacity-50 hover:opacity-90 transition-opacity';
+  const saveBtn = 'px-5 py-2 rounded-none text-white font-bold text-xs shadow-sm disabled:opacity-50 hover:opacity-90 transition-opacity';
   const saveBtnStyle = { background: 'linear-gradient(95deg,#10B981,#84CC16)' } as const;
 
   const imageBox = (url: string | null, onClear: () => void, uploading: boolean, onUpload: (e: React.ChangeEvent<HTMLInputElement>) => void) => (
     url ? (
-      <div className="relative w-32 h-32 rounded-xl overflow-hidden border border-emerald-100 bg-slate-50">
+      <div className="relative w-32 h-32 rounded-none overflow-hidden border border-emerald-100 bg-slate-50">
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img src={url} alt="新着情報画像" className="w-full h-full object-cover" />
         <button
           type="button"
           onClick={onClear}
           aria-label="削除"
-          className="absolute top-1 right-1 w-6 h-6 rounded-full bg-black/55 text-white text-xs flex items-center justify-center hover:bg-black/75"
+          className="absolute top-1 right-1 w-6 h-6 rounded-none bg-black/55 text-white text-xs flex items-center justify-center hover:bg-black/75"
         >
           ×
         </button>
       </div>
     ) : (
-      <label className="flex flex-col items-center justify-center w-32 h-32 rounded-xl border-2 border-dashed border-emerald-200 bg-emerald-50/40 text-emerald-500 cursor-pointer hover:bg-emerald-50 transition-colors">
+      <label className="flex flex-col items-center justify-center w-32 h-32 rounded-none border-2 border-dashed border-emerald-200 bg-emerald-50/40 text-emerald-500 cursor-pointer hover:bg-emerald-50 transition-colors">
         {uploading ? (
           <span className="text-[10px] font-bold">アップ中...</span>
         ) : (
@@ -418,9 +418,9 @@ export function JobNewsManager({ salonId }: { salonId: number }) {
   );
 
   return (
-    <div className="bg-white rounded-3xl border border-slate-100 shadow-sm p-5 space-y-4">
+    <div className="bg-white rounded-none border border-slate-100 shadow-sm p-5 space-y-4">
       <div className="flex items-center gap-2">
-        <span className="w-1 h-5 rounded-full flex-shrink-0" style={{ background: 'linear-gradient(to bottom,#10B981,#84CC16)' }} />
+        <span className="w-1 h-5 rounded-none flex-shrink-0" style={{ background: 'linear-gradient(to bottom,#10B981,#84CC16)' }} />
         <h2 className="text-sm font-black text-slate-700">新着情報（フクエスワーク）</h2>
       </div>
       <p className="text-[11px] text-slate-400 leading-relaxed">
@@ -428,7 +428,7 @@ export function JobNewsManager({ salonId }: { salonId: number }) {
       </p>
 
       {msg && (
-        <p className={`text-xs rounded-xl px-3 py-2 border ${
+        <p className={`text-xs rounded-none px-3 py-2 border ${
           msg.kind === 'ok' ? 'text-emerald-700 bg-emerald-50 border-emerald-100' : 'text-rose-600 bg-rose-50 border-rose-100'
         }`}>
           {msg.text}
@@ -436,10 +436,10 @@ export function JobNewsManager({ salonId }: { salonId: number }) {
       )}
 
       {/* 新規追加フォーム */}
-      <div className="rounded-2xl border border-emerald-100 bg-emerald-50/30 p-4 space-y-3">
+      <div className="rounded-none border border-emerald-100 bg-emerald-50/30 p-4 space-y-3">
         <h3 className="text-xs font-black" style={{ color: '#059669' }}>新着情報を新規追加</h3>
         {/* ローリング上限の常設注意書き（新規投稿フォームの近く）。 */}
-        <p className="text-[10px] text-slate-500 leading-relaxed rounded-lg bg-amber-50 border border-amber-100 px-2.5 py-2">
+        <p className="text-[10px] text-slate-500 leading-relaxed rounded-none bg-amber-50 border border-amber-100 px-2.5 py-2">
           新着情報は最新{WORK_NEWS_MAX}件まで保存されます。{WORK_NEWS_MAX + 1}件目を投稿すると、非公開分を含めて古いものから自動的に削除されます。
         </p>
         <div>
@@ -493,7 +493,7 @@ export function JobNewsManager({ salonId }: { salonId: number }) {
       {loading ? (
         <p className="text-xs text-slate-400">読み込み中です…</p>
       ) : items.length === 0 ? (
-        <div className="rounded-2xl border border-slate-100 bg-slate-50/50 p-5">
+        <div className="rounded-none border border-slate-100 bg-slate-50/50 p-5">
           <p className="text-xs text-slate-400">登録されている新着情報がありません</p>
         </div>
       ) : (
@@ -502,10 +502,10 @@ export function JobNewsManager({ salonId }: { salonId: number }) {
             const form = forms[n.id] ?? { title: '', content: '', is_published: true, image_url: null };
             const expanded = expandedId === n.id;
             return (
-              <div key={n.id} className="rounded-2xl border border-emerald-100 shadow-sm overflow-hidden">
+              <div key={n.id} className="rounded-none border border-emerald-100 shadow-sm overflow-hidden">
                 {/* コンパクト行：公開バッジ ＋ タイトル ＋ 投稿日時 ＋ 編集 ＋ 削除 */}
                 <div className="flex items-center gap-2 p-3">
-                  <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full flex-shrink-0 ${
+                  <span className={`text-[10px] font-bold px-2 py-0.5 rounded-none flex-shrink-0 ${
                     n.is_published ? 'bg-emerald-50 text-emerald-600' : 'bg-slate-100 text-slate-400'
                   }`}>
                     {n.is_published ? '公開中' : '非公開'}
@@ -517,7 +517,7 @@ export function JobNewsManager({ salonId }: { salonId: number }) {
                   <button
                     type="button"
                     onClick={() => handleEditToggle(n.id)}
-                    className="px-3 py-1.5 rounded-xl border text-xs font-bold transition-colors flex-shrink-0"
+                    className="px-3 py-1.5 rounded-none border text-xs font-bold transition-colors flex-shrink-0"
                     style={{ borderColor: '#6EE7B7', color: '#059669' }}
                   >
                     {expanded ? '閉じる' : '編集'}
@@ -526,7 +526,7 @@ export function JobNewsManager({ salonId }: { salonId: number }) {
                     type="button"
                     onClick={() => handleDelete(n.id)}
                     disabled={deletingId === n.id}
-                    className="px-3 py-1.5 rounded-xl border border-rose-200 text-rose-500 text-xs font-bold bg-rose-50 hover:bg-rose-100 transition-colors disabled:opacity-50 flex-shrink-0"
+                    className="px-3 py-1.5 rounded-none border border-rose-200 text-rose-500 text-xs font-bold bg-rose-50 hover:bg-rose-100 transition-colors disabled:opacity-50 flex-shrink-0"
                   >
                     {deletingId === n.id ? '削除中...' : '削除'}
                   </button>
@@ -589,7 +589,7 @@ export function JobNewsManager({ salonId }: { salonId: number }) {
               <button
                 type="button"
                 onClick={() => setShowAll((v) => !v)}
-                className="text-xs font-bold px-4 py-2 rounded-xl border transition-colors"
+                className="text-xs font-bold px-4 py-2 rounded-none border transition-colors"
                 style={{ borderColor: '#6EE7B7', color: '#059669' }}
               >
                 {showAll ? '折りたたむ' : `もっと見る（残り${items.length - INITIAL_VISIBLE}件）`}

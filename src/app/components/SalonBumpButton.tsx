@@ -26,6 +26,8 @@ export function SalonBumpButton({ salonId }: { salonId: number }) {
   const [sending, setSending] = useState(false);
   const [msg, setMsg] = useState('');
   const [error, setError] = useState('');
+  // ★ 説明文の続きと注意書きの開閉（既定は閉じる・2026-09-06）。
+  const [detailOpen, setDetailOpen] = useState(false);
 
   // 現在の使用状況を取得（オーナー本人は自店の salons をRLSで読める）。
   const load = useCallback(async () => {
@@ -75,24 +77,25 @@ export function SalonBumpButton({ salonId }: { salonId: number }) {
   };
 
   return (
-    <div className="bg-white rounded-3xl border border-slate-100 shadow-sm p-5 space-y-3">
-      <div className="flex items-center justify-between gap-2 flex-wrap">
+    <div className="bg-white rounded-none border border-slate-100 shadow-sm p-5 space-y-3">
+      {/* ★ 見出しの右隣に「※ 00:10 に実行」（2026-09-06・カッキーさんの指示）。
+          ★ もとはボタンの上に「✓ 上位表示 実行中（… に実行）」として出していた。 */}
+      <div className="flex items-baseline justify-center gap-2 flex-wrap">
         <h2 className="text-sm font-black text-slate-700">上位表示（TOP・地域ページ）</h2>
-        {loaded && (
-          <span className="text-xs font-bold text-slate-500 tabular-nums">
-            本日残り <span className="text-pink-600 text-base">{remaining}</span> / {quota}回
+        {activeNow && bumpedAt && (
+          <span className="text-xs font-bold text-emerald-600">
+            ※ {new Date(bumpedAt).toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Tokyo' })} に実行
           </span>
         )}
       </div>
 
-      <p className="text-xs text-slate-500 leading-relaxed">
-        ボタンを押すと、TOP・地域ページの店舗カード一覧であなたのお店が<span className="font-bold text-pink-600">先頭に表示</span>されます。
-        あとから他のお店が押すとその店が1位になり、あなたのお店は2位、3位…と順に下がります。
-      </p>
-
-      {activeNow && bumpedAt && (
-        <p className="text-xs font-bold text-emerald-600">
-          ✓ 上位表示 実行中（{new Date(bumpedAt).toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Tokyo' })} に実行）
+      {/* ★ 本日の残り回数。説明文の下・中央に大きく（2026-09-06・カッキーさんの指示）。
+          ★ 見出し右の小さな表示から移した。 */}
+      {loaded && (
+        <p className="flex items-baseline justify-center gap-1 text-lg font-bold text-slate-500 tabular-nums py-1">
+          <span>本日残り</span>
+          <span className="text-pink-600 text-6xl font-black leading-none">{remaining}</span>
+          <span>/ {quota}回</span>
         </p>
       )}
 
@@ -100,7 +103,7 @@ export function SalonBumpButton({ salonId }: { salonId: number }) {
         type="button"
         onClick={press}
         disabled={!loaded || sending || remaining <= 0}
-        className="w-full py-3 rounded-2xl text-sm font-black text-white shadow-md transition-all disabled:opacity-40 bg-gradient-to-r from-pink-500 to-rose-500 hover:from-pink-600 hover:to-rose-600 active:scale-[0.99]"
+        className="w-full py-3 rounded-none text-sm font-black text-white shadow-md transition-all disabled:opacity-40 bg-gradient-to-r from-pink-500 to-rose-500 hover:from-pink-600 hover:to-rose-600 active:scale-[0.99]"
       >
         {sending ? '実行中…' : remaining <= 0 ? '本日の回数を使い切りました' : '⬆ 今すぐ上位表示する'}
       </button>
@@ -108,11 +111,32 @@ export function SalonBumpButton({ salonId }: { salonId: number }) {
       {msg && <p className="text-xs font-bold text-emerald-600">{msg}</p>}
       {error && <p className="text-xs font-bold text-rose-500">{error}</p>}
 
-      <ul className="text-[11px] text-slate-400 leading-relaxed list-disc pl-4 space-y-0.5">
-        <li>回数は毎朝6時にリセットされます（1日20回・フクエスワーク掲載店は40回）。未使用分の翌日への持ち越しはありません。</li>
-        <li>上位表示の効果も翌朝6時に解除され、通常の表示順（6時間ごとの入れ替え）に戻ります。</li>
-        <li>反映まで数分かかる場合があります。</li>
-      </ul>
+      {/* ★ 説明文はボタンの下（2026-09-06・カッキーさんの指示）。
+          ★ 1文目だけ常に見せ、続きと注意書きは押して開く（既定は閉じる）。 */}
+      <p className="text-xs text-slate-500 leading-relaxed text-center">
+        ボタンを押すと、TOP・地域ページの店舗カード一覧であなたのお店が<span className="font-bold text-pink-600">先頭に表示</span>されます。
+        {' '}
+        <button
+          type="button"
+          onClick={() => setDetailOpen(v => !v)}
+          aria-expanded={detailOpen}
+          aria-label={detailOpen ? '説明を閉じる' : '説明をひらく'}
+          className="text-pink-500 hover:text-pink-600 transition-colors align-baseline"
+        >
+          {detailOpen ? '▲' : '▼'}
+        </button>
+      </p>
+
+      {detailOpen && (
+        <div className="space-y-2">
+          <ul className="text-[11px] text-slate-500 leading-relaxed list-disc pl-4 space-y-0.5">
+            <li>あとから他のお店が押すとその店が1位になり、あなたのお店は2位、3位…と順に下がります。</li>
+            <li>回数は毎朝6時にリセットされます（1日20回・フクエスワーク掲載店は40回）。</li>
+            <li>上位表示の効果も翌朝6時に解除され、通常の表示順（6時間ごとにシャッフル）に戻ります。</li>
+            <li>反映まで数分かかる場合があります。</li>
+          </ul>
+        </div>
+      )}
     </div>
   );
 }

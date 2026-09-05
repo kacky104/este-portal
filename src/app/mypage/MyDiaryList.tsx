@@ -231,7 +231,7 @@ export function MyDiaryList({
   };
 
   const btnClass =
-    'px-4 py-2 rounded-xl border border-pink-300 text-pink-600 text-sm font-bold hover:bg-pink-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors';
+    'px-4 py-2 rounded-none border border-pink-300 text-pink-600 text-sm font-bold hover:bg-pink-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors';
 
   return (
     <div className="border-t border-slate-100 pt-4 space-y-3">
@@ -241,14 +241,14 @@ export function MyDiaryList({
         <p className="text-xs text-slate-400 text-center py-6">まだ投稿がありません</p>
       ) : (
         posts.map((post) => (
-          <div key={post.id} className="border border-slate-100 rounded-2xl p-3">
+          <div key={post.id} className="border border-slate-100 rounded-none p-3">
             {editingId === post.id ? (
               /* ── 編集フォーム（インライン） ── */
               <div className="space-y-3">
                 <p className="text-[11px] font-bold text-pink-500">編集中：{post.therapistName}</p>
                 {/* ★ 編集は一方通行（§6-3）。★ 直したのに向こうが変わらない、と言われる前に言う */}
                 {importedOf[post.id] && (
-                  <p className="text-[11px] font-bold text-sky-700 bg-sky-50 border border-sky-200 rounded-lg px-2 py-1">
+                  <p className="text-[11px] font-bold text-sky-700 bg-sky-50 border border-sky-200 rounded-none px-2 py-1">
                     {importedDiaryEditNote(providerLabel(importedOf[post.id]))}
                   </p>
                 )}
@@ -256,18 +256,18 @@ export function MyDiaryList({
                 {/* 画像 */}
                 <div>
                   {editImage ? (
-                    <div className="relative w-28 h-28 rounded-xl overflow-hidden border border-pink-100 bg-slate-50">
+                    <div className="relative w-28 h-28 rounded-none overflow-hidden border border-pink-100 bg-slate-50">
                       {/* eslint-disable-next-line @next/next/no-img-element */}
                       <img src={editImage} alt="" className="w-full h-full object-cover" />
                       <button
                         type="button"
                         onClick={() => setEditImage(null)}
                         aria-label="画像を削除"
-                        className="absolute top-1 right-1 w-6 h-6 rounded-full bg-black/55 text-white text-xs flex items-center justify-center hover:bg-black/75"
+                        className="absolute top-1 right-1 w-6 h-6 rounded-none bg-black/55 text-white text-xs flex items-center justify-center hover:bg-black/75"
                       >×</button>
                     </div>
                   ) : (
-                    <label className="flex flex-col items-center justify-center w-28 h-28 rounded-xl border-2 border-dashed border-pink-200 bg-pink-50/40 text-pink-400 cursor-pointer hover:bg-pink-50 transition-colors">
+                    <label className="flex flex-col items-center justify-center w-28 h-28 rounded-none border-2 border-dashed border-pink-200 bg-pink-50/40 text-pink-400 cursor-pointer hover:bg-pink-50 transition-colors">
                       {editUploading ? (
                         <span className="text-[10px] font-bold">アップ中...</span>
                       ) : (
@@ -284,7 +284,7 @@ export function MyDiaryList({
                 {/* タイトル */}
                 <div>
                   <input
-                    className="w-full px-3 py-2 rounded-xl border border-slate-200 text-sm bg-slate-50/50 focus:outline-none focus:ring-2 focus:ring-pink-200"
+                    className="w-full px-3 py-2 rounded-none border border-slate-200 text-sm bg-slate-50/50 focus:outline-none focus:ring-2 focus:ring-pink-200"
                     placeholder="タイトルを入力"
                     maxLength={TITLE_MAX}
                     value={editTitle}
@@ -296,7 +296,7 @@ export function MyDiaryList({
                 {/* 本文 */}
                 <textarea
                   rows={4}
-                  className="w-full px-3 py-2 rounded-xl border border-slate-200 text-sm bg-slate-50/50 focus:outline-none focus:ring-2 focus:ring-pink-200 resize-none"
+                  className="w-full px-3 py-2 rounded-none border border-slate-200 text-sm bg-slate-50/50 focus:outline-none focus:ring-2 focus:ring-pink-200 resize-none"
                   placeholder="本文を入力"
                   value={editBody}
                   onChange={(e) => setEditBody(e.target.value)}
@@ -306,7 +306,7 @@ export function MyDiaryList({
                   <button
                     type="button"
                     onClick={cancelEdit}
-                    className="px-4 py-2 rounded-xl border border-slate-200 text-slate-500 text-xs font-bold hover:border-pink-300 hover:text-pink-500 transition-colors"
+                    className="px-4 py-2 rounded-none border border-slate-200 text-slate-500 text-xs font-bold hover:border-pink-300 hover:text-pink-500 transition-colors"
                   >
                     キャンセル
                   </button>
@@ -314,7 +314,7 @@ export function MyDiaryList({
                     type="button"
                     onClick={() => handleSave(post.id)}
                     disabled={savingId === post.id || editUploading}
-                    className="px-5 py-2 rounded-xl text-white font-bold text-xs shadow-sm disabled:opacity-50"
+                    className="px-5 py-2 rounded-none text-white font-bold text-xs shadow-sm disabled:opacity-50"
                     style={{ background: 'linear-gradient(to right, #ec4899, #f97316)' }}
                   >
                     {savingId === post.id ? '保存中...' : '保存'}
@@ -324,7 +324,7 @@ export function MyDiaryList({
             ) : (
               /* ── 表示カード ── */
               <div className="flex gap-3">
-                <div className="w-16 h-16 rounded-xl overflow-hidden bg-slate-100 flex-shrink-0">
+                <div className="w-16 h-16 rounded-none overflow-hidden bg-slate-100 flex-shrink-0">
                   {post.images[0] ? (
                     // eslint-disable-next-line @next/next/no-img-element
                     <img src={post.images[0]} alt="" className="w-full h-full object-cover" />
@@ -339,7 +339,7 @@ export function MyDiaryList({
                     <p className="text-[11px] font-bold text-pink-600 truncate">{post.therapistName}</p>
                     {/* ★ 取り込んだ日記の印（第98便）。★ 店舗様が「自分で書いたもの」と区別できるように */}
                     {importedOf[post.id] && (
-                      <span className="flex-shrink-0 px-1.5 py-0.5 rounded-md bg-sky-50 text-sky-700 border border-sky-200 text-[10px] font-bold">
+                      <span className="flex-shrink-0 px-1.5 py-0.5 rounded-none bg-sky-50 text-sky-700 border border-sky-200 text-[10px] font-bold">
                         {importedDiaryLabel(providerLabel(importedOf[post.id]))}
                       </span>
                     )}
@@ -351,7 +351,7 @@ export function MyDiaryList({
                   <button
                     type="button"
                     onClick={() => startEdit(post)}
-                    className="px-3 py-1 rounded-lg border border-pink-300 text-pink-600 text-[11px] font-bold hover:bg-pink-50 transition-colors"
+                    className="px-3 py-1 rounded-none border border-pink-300 text-pink-600 text-[11px] font-bold hover:bg-pink-50 transition-colors"
                   >
                     編集
                   </button>
@@ -359,7 +359,7 @@ export function MyDiaryList({
                     type="button"
                     onClick={() => handleDelete(post)}
                     disabled={deletingId === post.id}
-                    className="px-3 py-1 rounded-lg border border-rose-200 text-rose-500 text-[11px] font-bold bg-rose-50 hover:bg-rose-100 transition-colors disabled:opacity-50"
+                    className="px-3 py-1 rounded-none border border-rose-200 text-rose-500 text-[11px] font-bold bg-rose-50 hover:bg-rose-100 transition-colors disabled:opacity-50"
                   >
                     {deletingId === post.id ? '削除中...' : '削除'}
                   </button>

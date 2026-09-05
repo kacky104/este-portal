@@ -222,7 +222,7 @@ export function SupportTab({
     }
   };
 
-  const inputClass = 'w-full rounded-xl border border-slate-200 px-3 py-2 text-sm text-slate-700 focus:outline-none focus:border-pink-300 focus:ring-2 focus:ring-pink-100';
+  const inputClass = 'w-full rounded-none border border-slate-200 px-3 py-2 text-sm text-slate-700 focus:outline-none focus:border-pink-300 focus:ring-2 focus:ring-pink-100';
 
   const toggleFaq = (id: string) => {
     setOpenFaqIds(prev => {
@@ -249,7 +249,7 @@ export function SupportTab({
               key={key}
               onClick={() => setSubTab(key)}
               aria-pressed={selected}
-              className={`inline-flex items-center gap-1 px-4 py-1.5 rounded-full border text-[11px] font-bold transition-colors ${
+              className={`inline-flex items-center gap-1 px-4 py-1.5 rounded-none border text-[11px] font-bold transition-colors ${
                 selected
                   ? 'bg-pink-50 text-pink-600 border-pink-300'
                   : 'bg-white text-slate-400 border-slate-200 hover:text-slate-600 hover:border-slate-300'
@@ -258,7 +258,7 @@ export function SupportTab({
               {label}
               {/* お知らせサブタブ: 未読件数バッジ（親タブと同型） */}
               {key === 'notices' && unreadIds.length > 0 && (
-                <span className="inline-flex items-center justify-center min-w-[16px] h-[16px] px-1 rounded-full bg-pink-500 text-white text-[9px] font-black leading-none">
+                <span className="inline-flex items-center justify-center min-w-[16px] h-[16px] px-1 rounded-none bg-pink-500 text-white text-[9px] font-black leading-none">
                   {unreadIds.length}
                 </span>
               )}
@@ -268,7 +268,7 @@ export function SupportTab({
       </div>
 
       {/* ── 運営からのお知らせ ── */}
-      <div className={`bg-white rounded-3xl border border-slate-100 shadow-sm p-5 space-y-4 ${subTab === 'notices' ? '' : 'hidden'}`}>
+      <div className={`bg-white rounded-none border border-slate-100 shadow-sm p-5 space-y-4 ${subTab === 'notices' ? '' : 'hidden'}`}>
         <h2 className="text-sm font-black text-slate-700">運営からのお知らせ</h2>
         <p className="text-[11px] text-slate-400">※ お知らせは配信から6ヶ月間表示されます。それより古いものは自動的に非表示になります。</p>
         {noticesLoading ? (
@@ -278,16 +278,16 @@ export function SupportTab({
         ) : (
           <div className="space-y-3">
             {notices.map(n => (
-              <div key={n.id} className="rounded-2xl border border-slate-100 bg-slate-50/60 p-4">
+              <div key={n.id} className="rounded-none border border-slate-100 bg-slate-50/60 p-4">
                 <div className="flex items-center gap-2 mb-1.5 flex-wrap">
                   <span className="text-[11px] text-slate-400">{formatDateJST(n.created_at)}</span>
                   {n.salon_id != null && (
-                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-pink-50 text-pink-600 border border-pink-200">
+                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-none bg-pink-50 text-pink-600 border border-pink-200">
                       あなたの店舗宛
                     </span>
                   )}
                   {!readIds.has(n.id) && (
-                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-pink-500 text-white">
+                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-none bg-pink-500 text-white">
                       NEW
                     </span>
                   )}
@@ -301,7 +301,7 @@ export function SupportTab({
       </div>
 
       {/* ── 運営へのお問い合わせ ── */}
-      <div className={`bg-white rounded-3xl border border-slate-100 shadow-sm p-5 space-y-4 ${subTab === 'inquiry' ? '' : 'hidden'}`}>
+      <div className={`bg-white rounded-none border border-slate-100 shadow-sm p-5 space-y-4 ${subTab === 'inquiry' ? '' : 'hidden'}`}>
         <h2 className="text-sm font-black text-slate-700">運営へのお問い合わせ</h2>
         <p className="text-[11px] text-slate-400 leading-relaxed">
           掲載内容の変更依頼・不具合のご報告・その他のご相談はこちらから送信してください。
@@ -340,7 +340,7 @@ export function SupportTab({
           <button
             type="submit"
             disabled={sending || subject.trim() === '' || body.trim() === ''}
-            className="w-full sm:w-auto px-6 py-2.5 rounded-xl bg-pink-600 text-white text-sm font-bold hover:bg-pink-500 transition-colors disabled:opacity-40 disabled:cursor-not-allowed shadow-sm shadow-pink-500/20"
+            className="w-full sm:w-auto px-6 py-2.5 rounded-none bg-pink-600 text-white text-sm font-bold hover:bg-pink-500 transition-colors disabled:opacity-40 disabled:cursor-not-allowed shadow-sm shadow-pink-500/20"
           >
             {sending ? '送信中…' : '送信する'}
           </button>
@@ -353,13 +353,13 @@ export function SupportTab({
             <p className="text-[11px] text-slate-400 mb-2">※ 対応履歴は3ヶ月後に消去されます。</p>
             <div className="space-y-2">
               {inquiries.map(q => (
-                <div key={q.id} className="rounded-xl border border-slate-100 p-3">
+                <div key={q.id} className="rounded-none border border-slate-100 p-3">
                   <div className="flex items-center gap-2 flex-wrap mb-1">
                     <span className="text-[11px] text-slate-400">{formatDateJST(q.created_at)}</span>
                     {q.status === 'done' ? (
-                      <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-600 border border-emerald-200">対応済み</span>
+                      <span className="text-[10px] font-bold px-2 py-0.5 rounded-none bg-emerald-50 text-emerald-600 border border-emerald-200">対応済み</span>
                     ) : (
-                      <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-50 text-amber-600 border border-amber-200">受付済み</span>
+                      <span className="text-[10px] font-bold px-2 py-0.5 rounded-none bg-amber-50 text-amber-600 border border-amber-200">受付済み</span>
                     )}
                   </div>
                   <p className="text-xs font-bold text-slate-700">{q.subject}</p>
@@ -372,7 +372,7 @@ export function SupportTab({
       </div>
 
       {/* ── よくある質問（/admin「オーナー連絡」で作成・全店舗共通） ── */}
-      <div className={`bg-white rounded-3xl border border-slate-100 shadow-sm p-5 space-y-4 ${subTab === 'faq' ? '' : 'hidden'}`}>
+      <div className={`bg-white rounded-none border border-slate-100 shadow-sm p-5 space-y-4 ${subTab === 'faq' ? '' : 'hidden'}`}>
         <h2 className="text-sm font-black text-slate-700">よくある質問</h2>
         {noticesLoading ? (
           <p className="text-xs text-slate-400">読み込み中…</p>
@@ -383,7 +383,7 @@ export function SupportTab({
             {faqs.map(f => {
               const open = openFaqIds.has(f.id);
               return (
-                <div key={f.id} className="rounded-2xl border border-slate-100 overflow-hidden">
+                <div key={f.id} className="rounded-none border border-slate-100 overflow-hidden">
                   <button
                     type="button"
                     onClick={() => toggleFaq(f.id)}
@@ -421,7 +421,7 @@ export function SupportTab({
       </div>
 
       {/* ── オプション申込（option_banners・公開中を表示順で・各「申込」→ owner_inquiries へ送信） ── */}
-      <div className={`bg-white rounded-3xl border border-slate-100 shadow-sm p-5 space-y-4 ${subTab === 'option' ? '' : 'hidden'}`}>
+      <div className={`bg-white rounded-none border border-slate-100 shadow-sm p-5 space-y-4 ${subTab === 'option' ? '' : 'hidden'}`}>
         <h2 className="text-sm font-black text-slate-700">オプション申込</h2>
         <p className="text-[11px] text-slate-400 leading-relaxed">
           ご希望のオプションの「申込」ボタンを押すと、運営に申込内容が届きます。折り返しご連絡のうえ、詳細をご案内します。
@@ -436,18 +436,18 @@ export function SupportTab({
               const soldOut = p.stock === 0;
               const siteMeta = OPTION_SITE_META[p.site];
               return (
-              <div key={p.id} className={`rounded-2xl border p-4 ${siteMeta ? siteMeta.card : 'border-slate-100 bg-slate-50/60'}`}>
+              <div key={p.id} className={`rounded-none border p-4 ${siteMeta ? siteMeta.card : 'border-slate-100 bg-slate-50/60'}`}>
                 <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-2 flex-wrap">
                       {siteMeta && (
-                        <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${siteMeta.badge}`}>{siteMeta.label}</span>
+                        <span className={`text-[10px] font-bold px-2 py-0.5 rounded-none border ${siteMeta.badge}`}>{siteMeta.label}</span>
                       )}
                       <h3 className="text-sm font-bold text-slate-800 break-words">{p.title}</h3>
                       {soldOut ? (
-                        <span className="text-[10px] font-black px-2 py-0.5 rounded-full bg-slate-200 text-slate-500">売り切れ</span>
+                        <span className="text-[10px] font-black px-2 py-0.5 rounded-none bg-slate-200 text-slate-500">売り切れ</span>
                       ) : p.stock != null ? (
-                        <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-pink-50 text-pink-600 border border-pink-200">残り{p.stock}枠</span>
+                        <span className="text-[10px] font-bold px-2 py-0.5 rounded-none bg-pink-50 text-pink-600 border border-pink-200">残り{p.stock}枠</span>
                       ) : null}
                     </div>
                     {p.description && (
@@ -464,7 +464,7 @@ export function SupportTab({
                     type="button"
                     onClick={() => handleApply(p)}
                     disabled={applyingId === p.id || soldOut}
-                    className="w-full sm:w-auto flex-shrink-0 px-5 py-2.5 rounded-xl bg-pink-600 text-white text-sm font-bold hover:bg-pink-500 transition-colors disabled:opacity-40 disabled:cursor-not-allowed shadow-sm shadow-pink-500/20"
+                    className="w-full sm:w-auto flex-shrink-0 px-5 py-2.5 rounded-none bg-pink-600 text-white text-sm font-bold hover:bg-pink-500 transition-colors disabled:opacity-40 disabled:cursor-not-allowed shadow-sm shadow-pink-500/20"
                   >
                     {soldOut ? '売り切れ' : applyingId === p.id ? '送信中…' : '申込'}
                   </button>

@@ -77,7 +77,7 @@ function PerkStatusRow({
 }) {
   return (
     <div
-      className="flex items-start gap-3 rounded-2xl border p-3.5"
+      className="flex items-start gap-3 rounded-none border p-3.5"
       style={{
         borderColor: state === true ? '#bbf7d0' : state === false ? '#fbcfe8' : '#e2e8f0',
         background: state === true ? 'rgba(240,253,244,0.7)' : state === false ? 'rgba(253,242,248,0.7)' : 'rgba(248,250,252,0.7)',
@@ -85,7 +85,7 @@ function PerkStatusRow({
     >
       {/* チェックボックス風アイコン */}
       <span
-        className="flex-shrink-0 mt-0.5 inline-flex items-center justify-center w-5 h-5 rounded-md border-2"
+        className="flex-shrink-0 mt-0.5 inline-flex items-center justify-center w-5 h-5 rounded-none border-2"
         style={{
           borderColor: state === true ? '#22c55e' : state === false ? '#f472b6' : '#cbd5e1',
           background: state === true ? '#22c55e' : 'white',
@@ -103,11 +103,11 @@ function PerkStatusRow({
         <div className="flex items-center gap-2 flex-wrap">
           <span className="text-sm font-bold text-slate-800">{label}</span>
           {state === true ? (
-            <span className="text-[10px] font-black px-2 py-0.5 rounded-full bg-emerald-500 text-white">特典 実行中</span>
+            <span className="text-[10px] font-black px-2 py-0.5 rounded-none bg-emerald-500 text-white">特典 実行中</span>
           ) : state === false ? (
-            <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-pink-50 text-pink-600 border border-pink-200">未適用</span>
+            <span className="text-[10px] font-bold px-2 py-0.5 rounded-none bg-pink-50 text-pink-600 border border-pink-200">未適用</span>
           ) : (
-            <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-100 text-slate-400 border border-slate-200">対象外</span>
+            <span className="text-[10px] font-bold px-2 py-0.5 rounded-none bg-slate-100 text-slate-400 border border-slate-200">対象外</span>
           )}
         </div>
         {state === true ? (
@@ -199,12 +199,12 @@ export function BannerPerkPanel({ salonId }: { salonId: number | null }) {
   const scrollToForm = () => formRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
 
   const inputClass =
-    'w-full rounded-xl border border-slate-200 px-3 py-2 text-sm text-slate-700 focus:outline-none focus:border-pink-300 focus:ring-2 focus:ring-pink-100';
+    'w-full rounded-none border border-slate-200 px-3 py-2 text-sm text-slate-700 focus:outline-none focus:border-pink-300 focus:ring-2 focus:ring-pink-100';
 
   return (
     <div className="space-y-4">
       {/* ── 特典の適用状況 ── */}
-      <div className="bg-white rounded-3xl border border-slate-100 shadow-sm p-5 space-y-3">
+      <div className="bg-white rounded-none border border-slate-100 shadow-sm p-5 space-y-3">
         <div>
           <h2 className="text-sm font-black text-slate-700">リンクバナー設置特典</h2>
           <p className="text-[11px] text-slate-400 leading-relaxed mt-1">
@@ -217,7 +217,7 @@ export function BannerPerkPanel({ salonId }: { salonId: number | null }) {
         {loading ? (
           <p className="text-xs text-slate-400 py-4 text-center">読み込み中…</p>
         ) : errorMsg ? (
-          <p className="text-xs text-rose-500 bg-rose-50 border border-rose-100 rounded-xl px-3 py-2">{errorMsg}</p>
+          <p className="text-xs text-rose-500 bg-rose-50 border border-rose-100 rounded-none px-3 py-2">{errorMsg}</p>
         ) : (
           <div className="space-y-2.5">
             <PerkStatusRow
@@ -237,14 +237,14 @@ export function BannerPerkPanel({ salonId }: { salonId: number | null }) {
                 🎉 バナー設置特典が適用中です。ご協力ありがとうございます！
               </p>
             ) : anyInactive ? (
-              <div className="rounded-2xl border border-pink-200 bg-pink-50/60 p-3.5 text-center space-y-2">
+              <div className="rounded-none border border-pink-200 bg-pink-50/60 p-3.5 text-center space-y-2">
                 <p className="text-xs text-slate-600 leading-relaxed">
                   まだバナー未設置の特典があります。下のバナーを貴サイトに貼って、設置報告をすると特典を受けられます。
                 </p>
                 <button
                   type="button"
                   onClick={scrollToForm}
-                  className="inline-block px-5 py-2 rounded-full bg-pink-600 text-white text-xs font-bold hover:bg-pink-500 transition-colors shadow-sm shadow-pink-500/20"
+                  className="inline-block px-5 py-2 rounded-none bg-pink-600 text-white text-xs font-bold hover:bg-pink-500 transition-colors shadow-sm shadow-pink-500/20"
                 >
                   バナー設置を報告する →
                 </button>
@@ -255,7 +255,7 @@ export function BannerPerkPanel({ salonId }: { salonId: number | null }) {
       </div>
 
       {/* ── バナー素材・タグ・特典説明 ── */}
-      <div className="bg-white rounded-3xl border border-slate-100 shadow-sm p-5 space-y-5">
+      <div className="bg-white rounded-none border border-slate-100 shadow-sm p-5 space-y-5">
         <div>
           <h2 className="text-sm font-black text-slate-700">リンクバナー（300×60）</h2>
           <p className="text-[11px] text-slate-400 leading-relaxed mt-1">
@@ -269,7 +269,7 @@ export function BannerPerkPanel({ salonId }: { salonId: number | null }) {
             <h3 className="text-xs font-black text-slate-700">{b.label}</h3>
             <p className="text-[11px] text-slate-500 leading-relaxed">{b.desc}</p>
             {/* プレビュー：輪郭が出るよう枠線つきの面に載せる。 */}
-            <div className="inline-block p-3 rounded-xl bg-slate-50 border border-slate-200">
+            <div className="inline-block p-3 rounded-none bg-slate-50 border border-slate-200">
               <Image
                 src={`/${b.file}`}
                 alt={b.alt}
@@ -295,7 +295,7 @@ export function BannerPerkPanel({ salonId }: { salonId: number | null }) {
       </div>
 
       {/* ── 設置報告フォーム（この場で完結・簡易版） ── */}
-      <div ref={formRef} className="bg-white rounded-3xl border border-slate-100 shadow-sm p-5 space-y-3">
+      <div ref={formRef} className="bg-white rounded-none border border-slate-100 shadow-sm p-5 space-y-3">
         <div>
           <h2 className="text-sm font-black text-slate-700">バナー設置を報告する</h2>
           <p className="text-[11px] text-slate-400 leading-relaxed mt-1">
@@ -306,13 +306,13 @@ export function BannerPerkPanel({ salonId }: { salonId: number | null }) {
         </div>
 
         {done ? (
-          <div className="rounded-2xl border border-emerald-200 bg-emerald-50/70 p-4 text-center">
+          <div className="rounded-none border border-emerald-200 bg-emerald-50/70 p-4 text-center">
             <p className="text-sm font-bold text-emerald-700">報告を受け付けました ✓</p>
             <p className="text-[11px] text-emerald-600 mt-1">運営が確認のうえ、特典を有効化します。続けて別のページを報告する場合は下から入力してください。</p>
             <button
               type="button"
               onClick={() => setDone(false)}
-              className="mt-3 px-4 py-1.5 rounded-full text-xs font-bold bg-white border border-emerald-200 text-emerald-600 hover:bg-emerald-50 transition"
+              className="mt-3 px-4 py-1.5 rounded-none text-xs font-bold bg-white border border-emerald-200 text-emerald-600 hover:bg-emerald-50 transition"
             >
               続けて報告する
             </button>
@@ -360,14 +360,14 @@ export function BannerPerkPanel({ salonId }: { salonId: number | null }) {
                       type="button"
                       onClick={() => toggleSite(b.key)}
                       aria-pressed={on}
-                      className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-xs font-bold transition-colors ${
+                      className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-none border text-xs font-bold transition-colors ${
                         on
                           ? 'bg-pink-600 text-white border-pink-600'
                           : 'bg-white text-slate-500 border-slate-200 hover:border-pink-300'
                       }`}
                     >
                       <span
-                        className={`inline-flex items-center justify-center w-3.5 h-3.5 rounded-sm border ${
+                        className={`inline-flex items-center justify-center w-3.5 h-3.5 rounded-none border ${
                           on ? 'bg-white border-white' : 'border-slate-300'
                         }`}
                       >
@@ -402,7 +402,7 @@ export function BannerPerkPanel({ salonId }: { salonId: number | null }) {
               type="button"
               onClick={submit}
               disabled={!canSubmit}
-              className="w-full sm:w-auto px-6 py-2.5 rounded-xl bg-pink-600 text-white text-sm font-bold hover:bg-pink-500 transition-colors disabled:opacity-40 disabled:cursor-not-allowed shadow-sm shadow-pink-500/20"
+              className="w-full sm:w-auto px-6 py-2.5 rounded-none bg-pink-600 text-white text-sm font-bold hover:bg-pink-500 transition-colors disabled:opacity-40 disabled:cursor-not-allowed shadow-sm shadow-pink-500/20"
             >
               {sending ? '送信中…' : '設置を報告する'}
             </button>

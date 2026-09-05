@@ -506,8 +506,8 @@ export function BookingBoard({ salonId, active, io = defaultIO }: {
   };
 
   // ── 入力部品の共通クラス ──
-  const inputCls = 'w-full rounded-xl border border-slate-200 px-3 py-2 text-sm bg-slate-50/50 focus:outline-none focus:ring-2 focus:ring-pink-200';
-  const btnBase = 'text-[11px] font-bold px-2.5 py-1 rounded-lg border transition-colors disabled:opacity-50';
+  const inputCls = 'w-full rounded-none border border-slate-200 px-3 py-2 text-sm bg-slate-50/50 focus:outline-none focus:ring-2 focus:ring-pink-200';
+  const btnBase = 'text-[11px] font-bold px-2.5 py-1 rounded-none border transition-colors disabled:opacity-50';
 
   // ── 行の共通パーツ（フリー客レーンとセラピスト行で共用・2026-08-14） ──
 
@@ -536,7 +536,7 @@ export function BookingBoard({ salonId, active, io = defaultIO }: {
       </div>
     ) : null;
 
-  // 予約ブロック。px-0＝左右余白なしで文字を縁いっぱいまで（角丸は文字が欠けないよう rounded-md）。
+  // 予約ブロック。px-0＝左右余白なしで文字を縁いっぱいまで（角丸は文字が欠けないよう rounded-none）。
   const renderBlock = (b: BoardBooking) => {
     const s = Math.max(boardStart, minOf(b.slotStart));
     const e = Math.min(boardEnd, minOf(b.slotEnd));
@@ -550,7 +550,7 @@ export function BookingBoard({ salonId, active, io = defaultIO }: {
         type="button"
         onClick={(ev) => { ev.stopPropagation(); setDetail(b); }}
         data-testid={`board-booking-${b.id}`}
-        className={`absolute inset-y-0.5 rounded-md border px-0 py-0.5 text-left overflow-hidden ${blockCls(b.status)}`}
+        className={`absolute inset-y-0.5 rounded-none border px-0 py-0.5 text-left overflow-hidden ${blockCls(b.status)}`}
         style={{ left: (s - boardStart) * PX_PER_MIN, width: Math.max(w, 18) }}
       >
         {/* 幅が狭いブロックは開始時刻のみ表示 */}
@@ -608,13 +608,13 @@ export function BookingBoard({ salonId, active, io = defaultIO }: {
   return (
     <div className="space-y-4" data-testid="booking-board">
       {toast && (
-        <div className="fixed top-4 left-1/2 -translate-x-1/2 z-[60] bg-white border border-pink-200 shadow-lg rounded-2xl px-6 py-3 text-sm font-bold text-pink-600">
+        <div className="fixed top-4 left-1/2 -translate-x-1/2 z-[60] bg-white border border-pink-200 shadow-lg rounded-none px-6 py-3 text-sm font-bold text-pink-600">
           {toast}
         </div>
       )}
 
       {/* カードの左右余白は px-2（従来 p-4）＝タイムラインの可視幅を+16px稼ぐ（2026-08-14） */}
-      <div className="bg-white rounded-3xl border border-slate-100 shadow-sm px-2 py-4 space-y-3">
+      <div className="bg-white rounded-none border border-slate-100 shadow-sm px-2 py-4 space-y-3">
         {/* ── 日付ナビ：今日から7日間のチップを横並び（‹›送りは廃止・2026-08-14）。
             ネット予約の受付範囲（当日〜7日先）と同じ考え方で、ボードもこの7日間だけを扱う。 ── */}
         {/* チップは角を直角・隙間0（境界線は -ml-px で1本に重ねる）。選択中は z-10 でピンク枠を前面に */}
@@ -636,7 +636,7 @@ export function BookingBoard({ salonId, active, io = defaultIO }: {
                     隙間0にしたため右へはみ出させず right-0（チップ内）に置く＝隣のチップに隠れない */}
                 {count > 0 && (
                   <span data-testid={`board-day-badge-${d}`}
-                    className="absolute -top-1.5 right-0 inline-flex items-center justify-center min-w-[16px] h-[16px] px-1 rounded-full bg-pink-500 text-white text-[9px] font-black leading-none pointer-events-none">
+                    className="absolute -top-1.5 right-0 inline-flex items-center justify-center min-w-[16px] h-[16px] px-1 rounded-none bg-pink-500 text-white text-[9px] font-black leading-none pointer-events-none">
                     {count > 99 ? '99+' : count}
                   </span>
                 )}
@@ -648,10 +648,10 @@ export function BookingBoard({ salonId, active, io = defaultIO }: {
         {/* 凡例＋件数・再読み込み */}
         <div className="flex items-center justify-between gap-2 flex-wrap">
           <div className="flex items-center gap-3 text-[10px] text-slate-400 flex-wrap">
-            <span className="inline-flex items-center gap-1"><i className="w-2.5 h-2.5 rounded-sm bg-pink-100 border border-pink-300 inline-block" />新規</span>
-            <span className="inline-flex items-center gap-1"><i className="w-2.5 h-2.5 rounded-sm bg-emerald-100 border border-emerald-300 inline-block" />確定</span>
-            <span className="inline-flex items-center gap-1"><i className="w-2.5 h-2.5 rounded-sm bg-slate-100 border border-slate-200 inline-block" />キャンセル</span>
-            <span className="inline-flex items-center gap-1"><i className="w-2.5 h-2.5 rounded-sm bg-sky-100 border border-sky-200 inline-block" />出勤時間</span>
+            <span className="inline-flex items-center gap-1"><i className="w-2.5 h-2.5 rounded-none bg-pink-100 border border-pink-300 inline-block" />新規</span>
+            <span className="inline-flex items-center gap-1"><i className="w-2.5 h-2.5 rounded-none bg-emerald-100 border border-emerald-300 inline-block" />確定</span>
+            <span className="inline-flex items-center gap-1"><i className="w-2.5 h-2.5 rounded-none bg-slate-100 border border-slate-200 inline-block" />キャンセル</span>
+            <span className="inline-flex items-center gap-1"><i className="w-2.5 h-2.5 rounded-none bg-sky-100 border border-sky-200 inline-block" />出勤時間</span>
             <span>空き部分をタップすると電話予約を追加できます（出勤時間外もOK）</span>
           </div>
           <div className="flex items-center gap-2">
@@ -681,7 +681,7 @@ export function BookingBoard({ salonId, active, io = defaultIO }: {
 
         {/* 過去表示中のバナー（2026-08-14追加） */}
         {isPast && (
-          <div className="flex items-center justify-between gap-2 rounded-xl bg-amber-50 border border-amber-200 px-3 py-1.5" data-testid="board-past-banner">
+          <div className="flex items-center justify-between gap-2 rounded-none bg-amber-50 border border-amber-200 px-3 py-1.5" data-testid="board-past-banner">
             <span className="text-[11px] font-bold text-amber-700">過去の予約を表示中：{formatDateHeading(date)}（記録の修正・追加もできます）</span>
             <button type="button" onClick={() => { setPastMode(false); setDate(days[0]); }}
               className={`${btnBase} border-amber-300 text-amber-700 hover:bg-amber-100 flex-none`}>今日へ戻る</button>
@@ -742,7 +742,7 @@ export function BookingBoard({ salonId, active, io = defaultIO }: {
                 <div className="sticky left-0 z-20 bg-white flex-none px-0 flex flex-col items-center justify-center text-center border-r border-slate-100"
                   style={{ width: NAME_W, height: ROW_H }}
                   title="フリー客（担当未定）の予約レーン">
-                  <span className="w-7 h-7 rounded-full bg-pink-100 text-pink-500 text-[11px] font-bold flex items-center justify-center mb-0.5 flex-none">フ</span>
+                  <span className="w-7 h-7 rounded-none bg-pink-100 text-pink-500 text-[11px] font-bold flex items-center justify-center mb-0.5 flex-none">フ</span>
                   <p className="w-full text-[9px] font-bold text-slate-700 leading-tight whitespace-nowrap tracking-tight">フリー客</p>
                 </div>
                 <div
@@ -783,7 +783,7 @@ export function BookingBoard({ salonId, active, io = defaultIO }: {
                           className="w-7 h-7 rounded-full object-cover mb-0.5 flex-none" />
                       ) : (
                         <span data-testid={`board-avatar-${t.id}`}
-                          className="w-7 h-7 rounded-full bg-slate-100 text-slate-400 text-[11px] font-bold flex items-center justify-center mb-0.5 flex-none">
+                          className="w-7 h-7 rounded-none bg-slate-100 text-slate-400 text-[11px] font-bold flex items-center justify-center mb-0.5 flex-none">
                           {t.name.charAt(0)}
                         </span>
                       )}
@@ -850,10 +850,10 @@ export function BookingBoard({ salonId, active, io = defaultIO }: {
       {detail && (
         <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center">
           <div className="absolute inset-0 bg-black/40" onClick={() => { setDetail(null); setMoveForm(null); setEditForm(null); }} />
-          <div className="relative bg-white rounded-t-3xl sm:rounded-3xl w-full sm:max-w-md max-h-[85vh] overflow-y-auto p-5 space-y-3" data-testid="board-detail">
+          <div className="relative bg-white rounded-none sm:rounded-none w-full sm:max-w-md max-h-[85vh] overflow-y-auto p-5 space-y-3" data-testid="board-detail">
             <div className="flex items-center justify-between gap-2">
               <h3 className="text-sm font-black text-slate-700">予約の詳細</h3>
-              <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${statusChip(detail.status).cls}`}>
+              <span className={`text-[10px] font-bold px-2 py-0.5 rounded-none ${statusChip(detail.status).cls}`}>
                 {statusChip(detail.status).label}
               </span>
             </div>
@@ -909,7 +909,7 @@ export function BookingBoard({ salonId, active, io = defaultIO }: {
 
             {/* 内容の編集フォーム（2026-08-14 追加）。開始時刻・担当の変更は「時間・担当を変更」で行う */}
             {editForm && (
-              <div className="rounded-xl border border-violet-100 bg-violet-50/30 p-3 space-y-2" data-testid="board-edit-form">
+              <div className="rounded-none border border-violet-100 bg-violet-50/30 p-3 space-y-2" data-testid="board-edit-form">
                 <p className="text-[11px] font-bold text-slate-600">
                   内容の編集（開始時刻・担当を変えるときは「時間・担当を変更」を使ってください）
                 </p>
@@ -966,7 +966,7 @@ export function BookingBoard({ salonId, active, io = defaultIO }: {
 
             {/* 移動フォーム */}
             {moveForm && (
-              <div className="rounded-xl border border-sky-100 bg-sky-50/30 p-3 space-y-2" data-testid="board-move-form">
+              <div className="rounded-none border border-sky-100 bg-sky-50/30 p-3 space-y-2" data-testid="board-move-form">
                 <p className="text-[11px] font-bold text-slate-600">
                   時間・担当の変更（予約枠 {Math.round((new Date(detail.slotEnd).getTime() - new Date(detail.slotStart).getTime()) / 60000)}分＝コース＋インターバルのまま移動します）
                 </p>
@@ -1025,7 +1025,7 @@ export function BookingBoard({ salonId, active, io = defaultIO }: {
       {addForm && (
         <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center">
           <div className="absolute inset-0 bg-black/40" onClick={() => setAddForm(null)} />
-          <div className="relative bg-white rounded-t-3xl sm:rounded-3xl w-full sm:max-w-md max-h-[85vh] overflow-y-auto p-5 space-y-3" data-testid="board-add-form">
+          <div className="relative bg-white rounded-none sm:rounded-none w-full sm:max-w-md max-h-[85vh] overflow-y-auto p-5 space-y-3" data-testid="board-add-form">
             <h3 className="text-sm font-black text-slate-700">電話予約を追加</h3>
             <p className="text-[10px] text-slate-400 leading-relaxed">
               電話などで受けた予約をボードに登録します。登録した予約は「確定」として扱われ、ネット予約の空き枠からも除外されます。

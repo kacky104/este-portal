@@ -110,7 +110,7 @@ export function JobsTab({ salonId }: { salonId: number }) {
 
   if (loading) {
     return (
-      <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5">
+      <div className="bg-white rounded-none border border-slate-100 shadow-sm p-5">
         <p className="text-xs text-slate-400">読み込み中です…</p>
       </div>
     );
@@ -118,7 +118,7 @@ export function JobsTab({ salonId }: { salonId: number }) {
 
   if (loadError) {
     return (
-      <div className="bg-white rounded-2xl border border-rose-100 shadow-sm p-5">
+      <div className="bg-white rounded-none border border-rose-100 shadow-sm p-5">
         <p className="text-xs text-rose-600">求人情報の取得に失敗しました：{loadError}</p>
       </div>
     );
@@ -127,22 +127,22 @@ export function JobsTab({ salonId }: { salonId: number }) {
   return (
     <div className="space-y-4">
       {/* ヘッダー：ステータス＋公開操作 */}
-      <div className="bg-white rounded-3xl border border-slate-100 shadow-sm p-5 space-y-3">
+      <div className="bg-white rounded-none border border-slate-100 shadow-sm p-5 space-y-3">
         <div className="flex items-center justify-between gap-2 flex-wrap">
           <div className="flex items-center gap-2">
             <h2 className="text-sm font-black text-slate-700">求人（フクエスワーク）</h2>
             {job ? (
               job.is_active ? (
-                <span className="text-[10px] px-2 py-0.5 rounded-full font-bold" style={{ background: 'rgba(16,185,129,0.12)', color: '#059669' }}>
+                <span className="text-[10px] px-2 py-0.5 rounded-none font-bold" style={{ background: 'rgba(16,185,129,0.12)', color: '#059669' }}>
                   公開中
                 </span>
               ) : (
-                <span className="text-[10px] px-2 py-0.5 rounded-full font-bold bg-slate-100 text-slate-500 border border-slate-200">
+                <span className="text-[10px] px-2 py-0.5 rounded-none font-bold bg-slate-100 text-slate-500 border border-slate-200">
                   非公開
                 </span>
               )
             ) : (
-              <span className="text-[10px] px-2 py-0.5 rounded-full font-bold bg-slate-100 text-slate-400 border border-slate-200">
+              <span className="text-[10px] px-2 py-0.5 rounded-none font-bold bg-slate-100 text-slate-400 border border-slate-200">
                 未作成
               </span>
             )}
@@ -155,7 +155,7 @@ export function JobsTab({ salonId }: { salonId: number }) {
                   href={`/jobs/${job.id}`}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="text-[11px] font-bold px-3 py-1 rounded-lg border transition-colors"
+                  className="text-[11px] font-bold px-3 py-1 rounded-none border transition-colors"
                   style={{ borderColor: '#6EE7B7', color: '#059669' }}
                 >
                   掲載ページを見る →
@@ -164,14 +164,14 @@ export function JobsTab({ salonId }: { salonId: number }) {
               <button
                 onClick={handleToggle}
                 disabled={busy}
-                className="text-[11px] font-bold px-3 py-1 rounded-lg border border-slate-200 text-slate-500 hover:bg-slate-50 hover:border-slate-300 transition-colors disabled:opacity-50"
+                className="text-[11px] font-bold px-3 py-1 rounded-none border border-slate-200 text-slate-500 hover:bg-slate-50 hover:border-slate-300 transition-colors disabled:opacity-50"
               >
                 {job.is_active ? '非公開にする' : '公開する'}
               </button>
               <button
                 onClick={handleDelete}
                 disabled={busy}
-                className="text-[11px] font-bold px-3 py-1 rounded-lg border border-rose-200 text-rose-500 hover:bg-rose-50 hover:border-rose-300 transition-colors disabled:opacity-50"
+                className="text-[11px] font-bold px-3 py-1 rounded-none border border-rose-200 text-rose-500 hover:bg-rose-50 hover:border-rose-300 transition-colors disabled:opacity-50"
               >
                 削除
               </button>
@@ -187,7 +187,7 @@ export function JobsTab({ salonId }: { salonId: number }) {
 
         {msg && (
           <p
-            className={`text-xs rounded-xl px-3 py-2 border ${
+            className={`text-xs rounded-none px-3 py-2 border ${
               msg.kind === 'ok'
                 ? 'text-emerald-700 bg-emerald-50 border-emerald-100'
                 : 'text-rose-600 bg-rose-50 border-rose-100'
@@ -206,7 +206,7 @@ export function JobsTab({ salonId }: { salonId: number }) {
       {job && <JobNewsManager salonId={salonId} />}
 
       {/* フォーム本体 */}
-      <div className="bg-white rounded-3xl border border-slate-100 shadow-sm p-5 space-y-4">
+      <div className="bg-white rounded-none border border-slate-100 shadow-sm p-5 space-y-4">
         <JobFields value={form} onChange={patch} salonId={salonId} />
 
         {/* 注意書き */}
@@ -220,7 +220,7 @@ export function JobsTab({ salonId }: { salonId: number }) {
           <button
             onClick={handleSave}
             disabled={saving}
-            className="px-6 py-2.5 rounded-xl text-white font-bold text-xs shadow-sm disabled:opacity-50 hover:opacity-90 transition-opacity"
+            className="px-6 py-2.5 rounded-none text-white font-bold text-xs shadow-sm disabled:opacity-50 hover:opacity-90 transition-opacity"
             style={{ background: 'linear-gradient(95deg,#10B981,#84CC16)' }}
           >
             {saving ? '保存中...' : job ? '求人を更新する' : '求人を作成する'}

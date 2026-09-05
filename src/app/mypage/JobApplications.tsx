@@ -74,7 +74,7 @@ export function JobApplications({ salonId }: { salonId: number }) {
   };
 
   return (
-    <div className="bg-white rounded-3xl border border-slate-100 shadow-sm p-5 space-y-3">
+    <div className="bg-white rounded-none border border-slate-100 shadow-sm p-5 space-y-3">
       <div className="flex items-center justify-between">
         <h2 className="text-sm font-black text-slate-700">応募一覧</h2>
         <span className="text-[11px] text-slate-400">{apps.length}件</span>
@@ -92,12 +92,12 @@ export function JobApplications({ salonId }: { salonId: number }) {
             const st = statusBadge(a.status);
             const busy = busyId === a.id;
             return (
-              <li key={a.id} className="rounded-2xl border border-slate-100 bg-slate-50/40 p-3.5 space-y-2">
+              <li key={a.id} className="rounded-none border border-slate-100 bg-slate-50/40 p-3.5 space-y-2">
                 <div className="flex items-center justify-between gap-2 flex-wrap">
                   <div className="flex items-center gap-2 min-w-0">
                     <span className="font-bold text-slate-800 text-sm break-words">{a.name}</span>
                     {a.age != null && <span className="text-xs text-slate-400">{a.age}歳</span>}
-                    <span className={`text-[10px] px-2 py-0.5 rounded-full border font-bold ${st.cls}`}>{st.label}</span>
+                    <span className={`text-[10px] px-2 py-0.5 rounded-none border font-bold ${st.cls}`}>{st.label}</span>
                   </div>
                   <span className="text-[11px] text-slate-400 flex-shrink-0">{formatAppliedAt(a.createdAt)}</span>
                 </div>
@@ -110,27 +110,27 @@ export function JobApplications({ salonId }: { salonId: number }) {
                 </a>
 
                 {a.note && (
-                  <p className="text-xs text-slate-600 whitespace-pre-wrap break-words bg-white rounded-lg border border-slate-100 p-2.5">{a.note}</p>
+                  <p className="text-xs text-slate-600 whitespace-pre-wrap break-words bg-white rounded-none border border-slate-100 p-2.5">{a.note}</p>
                 )}
 
                 {/* 操作（予約カードの作法：現在ステータスに応じて選択肢を出し分け） */}
                 <div className="flex items-center gap-1.5 flex-wrap pt-0.5">
                   {a.status === 'new' && (
-                    <button onClick={() => handleStatus(a.id, 'contacted')} disabled={busy} className="text-[11px] font-bold px-3 py-1 rounded-lg border border-emerald-200 text-emerald-600 hover:bg-emerald-50 transition-colors disabled:opacity-50">
+                    <button onClick={() => handleStatus(a.id, 'contacted')} disabled={busy} className="text-[11px] font-bold px-3 py-1 rounded-none border border-emerald-200 text-emerald-600 hover:bg-emerald-50 transition-colors disabled:opacity-50">
                       連絡済みにする
                     </button>
                   )}
                   {(a.status === 'new' || a.status === 'contacted') && (
-                    <button onClick={() => handleStatus(a.id, 'closed')} disabled={busy} className="text-[11px] font-bold px-3 py-1 rounded-lg border border-slate-200 text-slate-500 hover:bg-slate-50 transition-colors disabled:opacity-50">
+                    <button onClick={() => handleStatus(a.id, 'closed')} disabled={busy} className="text-[11px] font-bold px-3 py-1 rounded-none border border-slate-200 text-slate-500 hover:bg-slate-50 transition-colors disabled:opacity-50">
                       クローズ
                     </button>
                   )}
                   {a.status === 'closed' && (
-                    <button onClick={() => handleStatus(a.id, 'new')} disabled={busy} className="text-[11px] font-bold px-3 py-1 rounded-lg border border-pink-200 text-pink-600 hover:bg-pink-50 transition-colors disabled:opacity-50">
+                    <button onClick={() => handleStatus(a.id, 'new')} disabled={busy} className="text-[11px] font-bold px-3 py-1 rounded-none border border-pink-200 text-pink-600 hover:bg-pink-50 transition-colors disabled:opacity-50">
                       新規に戻す
                     </button>
                   )}
-                  <button onClick={() => handleDelete(a.id)} disabled={busy} className="text-[11px] font-bold px-3 py-1 rounded-lg border border-rose-200 text-rose-500 hover:bg-rose-50 transition-colors disabled:opacity-50">
+                  <button onClick={() => handleDelete(a.id)} disabled={busy} className="text-[11px] font-bold px-3 py-1 rounded-none border border-rose-200 text-rose-500 hover:bg-rose-50 transition-colors disabled:opacity-50">
                     削除
                   </button>
                 </div>
