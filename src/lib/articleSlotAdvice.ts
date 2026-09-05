@@ -44,6 +44,12 @@ export type ArticleSlotAdvice = {
   state: ArticleSlotState;
   /** ★ 状態の見出し（短く） */
   headline: string;
+  /**
+   * ★★★ 一覧の脇に置く【いちばん短い言葉】（第167便）。
+   *   ★ headline は「枠を選ぶ場面」の言葉、short は「もう選んである文章の脇」の言葉。
+   *   ★★ 画面の中で言葉を作らないこと。★ 状態から言葉への変換は、このファイルだけの仕事。
+   */
+  short: string;
   /** ★ 店舗様が読む1行。★ 「なぜ」と「どうなるか」を書く */
   note: string;
   /** ★★★ ここを選んでよいか。★ 選べなくするのではなく、選んだ結果を先に見せる */
@@ -67,6 +73,7 @@ export function articleSlotAdvice(slot: unknown, row: ArticleSlotRow | null | un
       ...base,
       state: 'unknown',
       headline: 'まだ確かめていません',
+      short: 'まだ確かめていません',
       note: '駅ちかの新着情報をまだ読み取っていないため、この枠がいまどうなっているか分かりません。「いまの状態を読む」を押すと確かめられます。',
       canPost: false,
     };
@@ -80,6 +87,7 @@ export function articleSlotAdvice(slot: unknown, row: ArticleSlotRow | null | un
       ...base,
       state: 'empty',
       headline: '使えます（新しく作ります）',
+      short: '空いています（新しく作ります）',
       note: 'この枠は駅ちかでまだ空いています。ここへ送ると、新しく記事を作ります。',
       canPost: true,
       currentTitle,
@@ -92,6 +100,7 @@ export function articleSlotAdvice(slot: unknown, row: ArticleSlotRow | null | un
       ...base,
       state: 'hidden',
       headline: 'いま非表示です',
+      short: '出しても公開ページに出ません',
       note: 'この枠は駅ちかで「非表示」になっています。送ることはできますが、公開ページには出ません。出したい場合は駅ちかの管理画面で「表示」に切り替えてください（フクエスからは切り替えません）。',
       canPost: true,
       currentTitle,
@@ -104,6 +113,7 @@ export function articleSlotAdvice(slot: unknown, row: ArticleSlotRow | null | un
       ...base,
       state: 'unknown',
       headline: '公開されているか分かりません',
+      short: '公開されているか分かりません',
       note: 'この枠が公開ページに出ているかどうかを、駅ちかの画面から読み取れませんでした。送ることはできますが、公開ページに出るかどうかはこちらでは分かりません。',
       canPost: true,
       currentTitle,
@@ -114,6 +124,7 @@ export function articleSlotAdvice(slot: unknown, row: ArticleSlotRow | null | un
     ...base,
     state: 'usable',
     headline: '使えます',
+    short: '出せます',
     note: currentTitle
       ? 'いま「' + currentTitle + '」が入っています。ここへ送ると、この記事は置き換わります。'
       : 'この枠は公開ページに出ています。ここへ送ると、いまの記事は置き換わります。',

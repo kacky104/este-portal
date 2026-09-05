@@ -13,24 +13,40 @@ import {
 } from '@/app/actions/articleTemplates';
 import { titleWidth, ARTICLE_TITLE_MAX_WIDTH } from '@/lib/ekichikaArticle';
 
-// 新着情報を送る（第158便・2026-09-05）。フクエスリンクの7画面目。
+// 新着情報を送る（第158便で作り、★ 第167便で作り直した・2026-09-05）。
 //
-// ★★★ この画面の順番が、そのまま 2026-09-05 に踏んだ穴の裏返しになっている
-//   ① まず【枠の状態】を見せる … 非表示の枠・カラの枠を、書く前に知ってもらう
-//   ② そのうえで【文章】を書く … 枠を選ばないと保存できない
-//   ③ 最後に【回すかどうか】   … 既定は回さない
+// ★★★ 第167便の発端（★ この案件でいちばん大事な指摘・カッキーさん）
+//   「私が理解しがたく操作が難しいのに、今から使ってもらう第三者が理解できるわけがない」
+//   「第3者視点がないです。歌舞伎に　見、離見、離見の見　と言う言葉があります」
+//   「ベンリーはとても分かりやすくレイアウトしています。目的がベンリーからフクエスに
+//    チャンネルマネージャーを変更してもらう事なのに、無理そうです」
 //
-//   ★ 実弾のときは ③→②→① の順で分かった。★ 送って、載って、公開ページに出ていなかった。
-//   ★★ 店舗様には同じ順番を踏ませない。
+// ★★★ そこで変えた5つ（★ 第158便版から）
+//   ① 【枠の状態だけの節】を消した
+//        ★ 前 … 画面のいちばん上に5枠の一覧。★ 店舗様は「まず何をすればいいのか」が分からない
+//        ★ 後 … 状態は【文章の脇】と【枠を選ぶボタンの中】に溶かす。★ 見る場所と決める場所を同じにする
+//   ② 【写真を写真で選ぶ】
+//        ★ 前 … 名前だけの選択肢が2つ並ぶ（フクエス／駅ちか）。★ どちらを選べばよいか分からない
+//        ★ 後 … 顔写真のタイルを1つの並びに。★ 「誰の写真か」を目で決める（ベンリーと同じ形）
+//   ③ 【「いまの状態を読む」を普段は出さない】
+//        ★ 店舗様の仕事ではない。★ まだ一度も読んでいないときだけ、大きく1回出す
+//   ④ 【決まりごとを、その項目の脇に書く】
+//        ★ 前 … 下にまとめて注意書き。★ 後 … 文字数はタイトルの右、写真の決まりは写真の上
+//   ⑤ 【保存ボタンを大きく】
+//        ★ 「保存ボタンを押してなかったです」（2026-09-05・実際に起きた）
 //
-// ★★ この画面は駅ちかを書き換えない。★ 「いまの状態を読む」も読むだけ。
+// ★★ 変えていないこと（★ 崩さない）
+//   ・枠に既定値を作らない（★ 選ばないと保存できない）
+//   ・押す前に【何が消えるか】を見せる（★ 新着は上書き。前の記事は戻らない）
+//   ・「送った」と「載った」と「公開ページに出た」を分けて書く
+//   ・この画面のどの操作も、勝手に駅ちかを書き換えない
 
-const STATE_STYLE: Record<string, { chip: string; dot: string }> = {
-  usable:  { chip: 'text-emerald-700 bg-emerald-50 border-emerald-200', dot: 'bg-emerald-500' },
-  hidden:  { chip: 'text-amber-700  bg-amber-50  border-amber-200',    dot: 'bg-amber-500' },
-  // ★ 第163便: 空の枠も【使える】。★ 見た目も使える側に寄せる（★ 灰色は「使えない」に見える）
-  empty:   { chip: 'text-emerald-700 bg-emerald-50 border-emerald-200', dot: 'bg-emerald-500' },
-  unknown: { chip: 'text-slate-500  bg-slate-50  border-slate-200',    dot: 'bg-slate-300' },
+/** ★ 枠の状態の色。★ 空も【使える】側（第163便）。★ 灰色は「使えない」に見えるので使わない */
+const STATE_CHIP: Record<string, string> = {
+  usable:  'text-emerald-700 bg-emerald-50 border-emerald-200',
+  empty:   'text-emerald-700 bg-emerald-50 border-emerald-200',
+  hidden:  'text-amber-700  bg-amber-50  border-amber-200',
+  unknown: 'text-slate-500  bg-slate-50  border-slate-200',
 };
 
 /** 「9/5 14:52」。★ 読めない値は空文字（"Invalid Date" を店舗に見せない） */
@@ -70,6 +86,8 @@ export function NewsBoard({ salonId, onToast }: { salonId: number | null; onToas
   const [confirmDelete, setConfirmDelete] = useState<number | null>(null);
   /** ★ 「いま出す」の確認を出している文章 */
   const [confirmPost, setConfirmPost] = useState<number | null>(null);
+  /** ★ 駅ちかに登録されている方から選ぶ並びを開いているか（★ 普段は閉じておく） */
+  const [openGirls, setOpenGirls] = useState(false);
   /**
    * ★ 結果が届くのを待っている印。値は【押した時点でいちばん新しかった記録のid】。
    *   ★★★ 「verify_article があるか」で止めてはいけない。★ 前回の送信の行が残っているから。
@@ -151,6 +169,7 @@ export function NewsBoard({ salonId, onToast }: { salonId: number | null; onToas
     setBusy('');
     if (!r.ok) { onToast(r.error); return; }
     setDraft(null);
+    setOpenGirls(false);
     onToast('保存しました');
     await load();
   };
@@ -189,6 +208,11 @@ export function NewsBoard({ salonId, onToast }: { salonId: number | null; onToas
 
   const width = draft ? titleWidth(draft.title) : 0;
   const overTitle = width > ARTICLE_TITLE_MAX_WIDTH;
+  const openDraft = (d: Draft) => { setDraft(d); setOpenGirls(d.girlId !== ''); };
+
+  /** ★ 一覧のサムネに出す写真。★ フクエスの写真を送る文章だけ。★ 駅ちか側の写真は持っていない */
+  const photoOf = (t: ArticleTemplateRow): string =>
+    t.therapistId === null ? '' : (board.therapists.find((x) => x.id === t.therapistId)?.photoUrl ?? '');
 
   return (
     <div className="space-y-5">
@@ -199,54 +223,51 @@ export function NewsBoard({ salonId, onToast }: { salonId: number | null; onToas
         </p>
       )}
 
-      {/* ───────── ① 枠の状態 ───────── */}
-      <section className="bg-white border border-slate-200">
-        <div className="px-3.5 py-3 border-b border-slate-200 flex items-start justify-between gap-3 flex-wrap">
-          <div className="min-w-0">
-            <h2 className="text-[15px] font-black text-slate-800">駅ちかの5つの枠</h2>
-            <p className="text-[13.5px] text-slate-500 leading-relaxed mt-0.5">{board.summary}</p>
-          </div>
-          <div className="flex items-center gap-2 flex-none">
-            {board.readAt && (
-              <span className="text-[12.5px] text-slate-400 tabular-nums">{fmt(board.readAt)} に確認</span>
-            )}
+      {/* ───────── ★★★ まだ一度も読んでいないとき（第167便） ─────────
+          ★ 普段は「いまの状態を読む」を出さない。★ 店舗様の仕事ではないから。
+          ★★ ただし一度も読んでいないと、どの枠が使えるかも、誰の写真を選べるかも分からない。
+             → ★ そのときだけ、これを大きく1回出す。 */}
+      {board.readAt === null ? (
+        <section className="bg-white border border-indigo-200">
+          <div className="px-4 py-4">
+            <h2 className="text-[15.5px] font-black text-slate-800">はじめに、駅ちかを1回読み取ります</h2>
+            <p className="text-[14px] text-slate-600 leading-relaxed mt-1.5">
+              いまどの枠が使えるかを確かめます。<b>この操作で駅ちかの記事は書き換わりません。</b>
+              読み取りに1〜2分かかります。
+            </p>
             <button
               type="button"
               onClick={onRead}
               disabled={busy !== ''}
-              className="text-[13.5px] font-bold px-3 py-1.5 border border-indigo-200 text-indigo-700 hover:bg-indigo-50 disabled:opacity-40"
+              className="mt-3 text-[15px] font-bold px-5 py-2.5 bg-indigo-600 text-white hover:bg-indigo-700 disabled:opacity-40"
             >
-              いまの状態を読む
+              駅ちかを読み取る
             </button>
           </div>
+        </section>
+      ) : (
+        // ★ 読んだあとは、静かに「どの枠が使えるか」と「いつ確かめたか」だけ。
+        //   ★ 押し直したい人のために小さく置く（★ 普段は押さない）
+        <div className="px-0.5">
+          <p className="text-[13.5px] text-slate-500 leading-relaxed">{board.summary}</p>
+          <p className="text-[13px] text-slate-400 leading-relaxed flex items-center gap-2 flex-wrap mt-0.5">
+            <span className="tabular-nums">{fmt(board.readAt)} に駅ちかを確認しました</span>
+            <button
+              type="button"
+              onClick={onRead}
+              disabled={busy !== ''}
+              className="underline underline-offset-2 hover:text-slate-600 disabled:opacity-40"
+            >
+              読み直す
+            </button>
+          </p>
         </div>
+      )}
 
-        {/* ★ 押したあとすぐには変わらない。★ 「押したのに変わらない＝壊れている」と読ませない */}
-        <p className="px-3.5 py-2 text-[13px] text-slate-400 leading-relaxed border-b border-slate-100">
-          読みにいくのに1〜2分かかります。少し経ってから画面を開き直してください。この操作で駅ちかの記事は書き換わりません。
-        </p>
-
-        <ul className="divide-y divide-slate-100">
-          {board.slots.map((s) => {
-            const st = STATE_STYLE[s.state] ?? STATE_STYLE.unknown;
-            return (
-              <li key={s.slot} className="px-3.5 py-3">
-                <div className="flex items-center gap-2 flex-wrap">
-                  <span className={'w-2 h-2 rounded-full flex-none ' + st.dot} />
-                  <b className="text-[14.5px] font-black text-slate-800">{s.label}</b>
-                  <span className={'text-[12.5px] font-bold px-1.5 py-0.5 border ' + st.chip}>{s.headline}</span>
-                </div>
-                <p className="text-[13.5px] text-slate-500 leading-relaxed mt-1">{s.note}</p>
-              </li>
-            );
-          })}
-        </ul>
-      </section>
-
-      {/* ───────── ② 文章 ───────── */}
+      {/* ───────── ① 出す文章 ───────── */}
       <section className="bg-white border border-slate-200">
-        <div className="px-3.5 py-3 border-b border-slate-200 flex items-center justify-between gap-3 flex-wrap">
-          <div>
+        <div className="px-3.5 py-3 border-b border-slate-200 flex items-start justify-between gap-3 flex-wrap">
+          <div className="min-w-0">
             <h2 className="text-[15px] font-black text-slate-800">出す文章</h2>
             <p className="text-[13.5px] text-slate-500 leading-relaxed mt-0.5">
               登録した文章を、上から順に1本ずつ出していきます。
@@ -259,53 +280,68 @@ export function NewsBoard({ salonId, onToast }: { salonId: number | null; onToas
           {draft === null && (
             <button
               type="button"
-              onClick={() => setDraft(EMPTY)}
-              className="text-[13.5px] font-bold px-3 py-1.5 border border-indigo-200 text-indigo-700 hover:bg-indigo-50"
+              onClick={() => openDraft(EMPTY)}
+              className="text-[14px] font-bold px-3.5 py-2 bg-indigo-600 text-white hover:bg-indigo-700 flex-none"
             >
-              文章を追加
+              ＋ 文章を追加
             </button>
           )}
         </div>
 
         {board.templates.length === 0 && draft === null && (
-          <p className="px-3.5 py-4 text-[14px] text-slate-400 leading-relaxed">
-            まだ1本もありません。「文章を追加」から作ってください。
+          <p className="px-3.5 py-5 text-[14px] text-slate-400 leading-relaxed">
+            まだ1本もありません。「＋ 文章を追加」から作ってください。
           </p>
         )}
 
         <ul className="divide-y divide-slate-100">
-          {board.templates.map((t) => (
-            <TemplateItem
-              key={t.id}
-              row={t}
-              slotState={board.slots.find((s) => s.slot === t.articleSlot)?.state ?? 'unknown'}
-              slotHeadline={board.slots.find((s) => s.slot === t.articleSlot)?.headline ?? ''}
-              onEdit={() => setDraft({
-                id: t.id, articleSlot: t.articleSlot, title: t.title, body: t.body, isActive: t.isActive,
-                girlId: t.girlId ?? '',
-                therapistId: t.therapistId === null ? '' : String(t.therapistId),
-              })}
-              canPost={board.slots.find((s) => s.slot === t.articleSlot)?.canPost === true}
-              currentTitle={board.slots.find((s) => s.slot === t.articleSlot)?.currentTitle ?? ''}
-              confirmingPost={confirmPost === t.id}
-              onAskPost={() => setConfirmPost(t.id)}
-              onCancelPost={() => setConfirmPost(null)}
-              onPost={() => onPost(t.id)}
-              confirming={confirmDelete === t.id}
-              onAskDelete={() => setConfirmDelete(t.id)}
-              onCancelDelete={() => setConfirmDelete(null)}
-              onDelete={() => onDelete(t.id)}
-              busy={busy !== ''}
-            />
-          ))}
+          {board.templates.map((t) => {
+            const s = board.slots.find((x) => x.slot === t.articleSlot);
+            return (
+              <TemplateItem
+                key={t.id}
+                row={t}
+                photoUrl={photoOf(t)}
+                slotState={s?.state ?? 'unknown'}
+                slotShort={s?.short ?? 'まだ確かめていません'}
+                onEdit={() => openDraft({
+                  id: t.id, articleSlot: t.articleSlot, title: t.title, body: t.body, isActive: t.isActive,
+                  girlId: t.girlId ?? '',
+                  therapistId: t.therapistId === null ? '' : String(t.therapistId),
+                })}
+                canPost={s?.canPost === true}
+                currentTitle={s?.currentTitle ?? ''}
+                confirmingPost={confirmPost === t.id}
+                onAskPost={() => setConfirmPost(t.id)}
+                onCancelPost={() => setConfirmPost(null)}
+                onPost={() => onPost(t.id)}
+                confirming={confirmDelete === t.id}
+                onAskDelete={() => setConfirmDelete(t.id)}
+                onCancelDelete={() => setConfirmDelete(null)}
+                onDelete={() => onDelete(t.id)}
+                busy={busy !== ''}
+              />
+            );
+          })}
         </ul>
+      </section>
 
-        {draft !== null && (
-          <div className="px-3.5 py-3.5 border-t border-slate-200 bg-slate-50/60 space-y-3">
-            {/* ★★★ 枠に既定値を作らない。★ 選ばないと保存できない */}
+      {/* ───────── ② 文章を書く（開いたときだけ） ───────── */}
+      {draft !== null && (
+        <section className="bg-white border-2 border-indigo-300">
+          <div className="px-3.5 py-3 border-b border-slate-200">
+            <h2 className="text-[15px] font-black text-slate-800">
+              {draft.id === null ? '文章を追加する' : '文章を直す'}
+            </h2>
+          </div>
+          <div className="px-3.5 py-4 space-y-5">
+
+            {/* ───── 枠 ─────
+                ★★★ 枠に既定値を作らない。★ 選ばないと保存できない。
+                ★★ 第167便: 状態を【ボタンの中】に書く。★ 別の節を見に行かせない */}
             <div>
-              <label className="text-[13px] font-bold text-slate-500">どの枠へ出しますか</label>
-              <div className="flex flex-wrap gap-1.5 mt-1.5">
+              <label className="text-[13.5px] font-bold text-slate-600">どの枠に出しますか</label>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5 mt-1.5">
                 {board.slots.map((s) => {
                   const on = draft.articleSlot === s.slot;
                   return (
@@ -314,27 +350,33 @@ export function NewsBoard({ salonId, onToast }: { salonId: number | null; onToas
                       type="button"
                       onClick={() => setDraft({ ...draft, articleSlot: s.slot })}
                       className={
-                        'text-[13.5px] font-bold px-2.5 py-1.5 border ' +
-                        (on ? 'border-indigo-500 text-indigo-700 bg-indigo-50' : 'border-slate-200 text-slate-600 hover:bg-white')
+                        'text-left px-3 py-2 border ' +
+                        (on ? 'border-indigo-500 bg-indigo-50' : 'border-slate-200 hover:bg-slate-50')
                       }
                     >
-                      {s.label}
-                      <span className="text-[12px] font-normal text-slate-400 ml-1">{s.headline}</span>
+                      <b className={'text-[14.5px] font-black ' + (on ? 'text-indigo-800' : 'text-slate-700')}>
+                        {s.label}
+                      </b>
+                      <span className={'block text-[12.5px] mt-0.5 ' + (s.state === 'hidden' || s.state === 'unknown' ? 'text-amber-700' : 'text-slate-400')}>
+                        {s.short}
+                      </span>
                     </button>
                   );
                 })}
               </div>
               {/* ★★★ 選んだ枠の見立てを、その場で出す。★ 保存してから気づかせない */}
               {draft.articleSlot !== null && (
-                <p className="text-[13.5px] text-slate-500 leading-relaxed mt-1.5">
+                <p className="text-[13.5px] text-slate-600 leading-relaxed mt-2 bg-slate-50 border border-slate-200 px-3 py-2">
                   {board.slots.find((s) => s.slot === draft.articleSlot)?.note}
                 </p>
               )}
             </div>
 
+            {/* ───── タイトル ─────
+                ★ 決まりごと（文字数）は、その項目の右に出す。★ 下にまとめない */}
             <div>
-              <div className="flex items-baseline justify-between">
-                <label className="text-[13px] font-bold text-slate-500">タイトル</label>
+              <div className="flex items-baseline justify-between gap-2">
+                <label className="text-[13.5px] font-bold text-slate-600">タイトル</label>
                 <span className={'text-[12.5px] tabular-nums ' + (overTitle ? 'text-rose-600 font-bold' : 'text-slate-400')}>
                   全角 {Math.ceil(width)} / {ARTICLE_TITLE_MAX_WIDTH}
                 </span>
@@ -342,110 +384,126 @@ export function NewsBoard({ salonId, onToast }: { salonId: number | null; onToas
               <input
                 value={draft.title}
                 onChange={(e) => setDraft({ ...draft, title: e.target.value })}
-                className="w-full mt-1 px-2.5 py-2 text-[14.5px] border border-slate-200 focus:border-indigo-400 outline-none"
+                className={
+                  'w-full mt-1 px-3 py-2.5 text-[15px] border outline-none ' +
+                  (overTitle ? 'border-rose-400 focus:border-rose-500' : 'border-slate-300 focus:border-indigo-400')
+                }
                 placeholder="本日も元気に営業中です"
               />
+              {overTitle && (
+                <p className="text-[13px] text-rose-600 leading-relaxed mt-1">
+                  長すぎます。このままでは駅ちかに断られます。
+                </p>
+              )}
             </div>
 
+            {/* ───── 本文 ───── */}
             <div>
-              <label className="text-[13px] font-bold text-slate-500">本文</label>
+              <label className="text-[13.5px] font-bold text-slate-600">本文</label>
+              {/* ★ 相手ができないと言っていることを、書く【前】に伝える */}
+              <p className="text-[13px] text-slate-400 leading-relaxed mt-0.5">
+                画像と外部リンクは駅ちかの決まりで入れられません。改行は
+                <code className="mx-0.5 px-1 bg-slate-100">&lt;br&gt;</code>、
+                段落は<code className="mx-0.5 px-1 bg-slate-100">&lt;p&gt;〜&lt;/p&gt;</code>で書けます。
+              </p>
               <textarea
                 value={draft.body}
                 onChange={(e) => setDraft({ ...draft, body: e.target.value })}
                 rows={6}
-                className="w-full mt-1 px-2.5 py-2 text-[14.5px] border border-slate-200 focus:border-indigo-400 outline-none leading-relaxed"
-                placeholder="&lt;p&gt;本日も元気に営業しております。&lt;/p&gt;"
+                className="w-full mt-1.5 px-3 py-2.5 text-[15px] border border-slate-300 focus:border-indigo-400 outline-none leading-relaxed"
+                placeholder="本日も元気に営業しております。ご予約お待ちしております。"
               />
-              {/* ★ 相手ができないと言っていることを、書く前に伝える */}
-              <p className="text-[13px] text-slate-400 leading-relaxed mt-1">
-                駅ちかの新着情報には画像と外部リンクを入れられません。改行は
-                <code className="mx-0.5 px-1 bg-slate-100">&lt;br&gt;</code>、
-                段落は<code className="mx-0.5 px-1 bg-slate-100">&lt;p&gt;〜&lt;/p&gt;</code>で書けます。
-              </p>
             </div>
 
-            {/* ───── 写真（第160便） ───── */}
+            {/* ───── 写真（第167便：写真で選ぶ） ───── */}
             <div>
-              <label className="text-[13px] font-bold text-slate-500">写真</label>
-              {/* ★★★ 何もしなければ前の記事の写真が残る。★ そのことを先に書く（今までは書いていなかった） */}
+              <label className="text-[13.5px] font-bold text-slate-600">写真</label>
+              {/* ★★★ 何もしなければ前の記事の写真が残る。★ そのことを先に書く */}
               <p className="text-[13px] text-slate-400 leading-relaxed mt-0.5">
-                駅ちかへ送るのは<b>タイトルと本文だけ</b>です。何も選ばなければ、いま駅ちかに入っている写真がそのまま残ります。
+                駅ちかへ送るのは<b>タイトルと本文だけ</b>です。写真を選ばなければ、いま駅ちかに入っている写真がそのまま残ります。
               </p>
-              {/* ★★★ 3つの道を1つの並びで見せる（第162便）。★ 同時に選べない形にする */}
-              <div className="flex flex-wrap gap-1.5 mt-1.5">
-                <button
-                  type="button"
+
+              <div className="grid grid-cols-3 sm:grid-cols-5 gap-2 mt-2">
+                {/* ★ 「変えない」も1枚のタイルにする。★ 3つの道を1つの並びに（第162便の考えを見た目にした） */}
+                <PhotoTile
+                  on={draft.girlId === '' && draft.therapistId === ''}
+                  name="変えない"
+                  caption="いまの写真のまま"
                   onClick={() => setDraft({ ...draft, girlId: '', therapistId: '' })}
-                  className={
-                    'text-[13.5px] font-bold px-2.5 py-1.5 border ' +
-                    (draft.girlId === '' && draft.therapistId === ''
-                      ? 'border-indigo-500 text-indigo-700 bg-indigo-50'
-                      : 'border-slate-200 text-slate-600 hover:bg-white')
-                  }
-                >
-                  いまの写真のまま
-                </button>
+                />
+                {board.therapists.map((t) => (
+                  <PhotoTile
+                    key={t.id}
+                    on={draft.therapistId === String(t.id)}
+                    name={t.name}
+                    photoUrl={t.photoUrl}
+                    onClick={() => setDraft({ ...draft, therapistId: String(t.id), girlId: '' })}
+                  />
+                ))}
               </div>
 
-              {/* ── フクエスの写真を送る ── */}
-              {board.therapists.length > 0 && (
-                <div className="mt-2">
-                  <select
-                    value={draft.therapistId}
-                    onChange={(e) => setDraft({ ...draft, therapistId: e.target.value, girlId: '' })}
-                    className="w-full px-2.5 py-2 text-[14.5px] border border-slate-200 focus:border-indigo-400 outline-none bg-white"
-                  >
-                    <option value="">フクエスの写真を送る（選んでください）</option>
-                    {board.therapists.map((t) => (
-                      <option key={t.id} value={String(t.id)}>{t.name}</option>
-                    ))}
-                  </select>
-                  {draft.therapistId !== '' && (
-                    <p className="text-[13.5px] text-slate-500 leading-relaxed mt-1">
-                      フクエスに登録されているこの方の写真を、駅ちかへ送って記事に付けます。
-                    </p>
+              {board.therapists.length === 0 && (
+                <p className="text-[13.5px] text-slate-500 leading-relaxed mt-1.5">
+                  フクエスに写真が登録されている方がまだいません。セラピストの登録で写真を入れると、ここから選べるようになります。
+                </p>
+              )}
+
+              {/* ★ 決まりごとは、選ぶところの【すぐ下】に */}
+              <p className="text-[13px] text-slate-400 leading-relaxed mt-1.5">
+                選んだ方の写真を、送るときに駅ちかへ届けます。JPEG でも PNG でもかまいません（送るときにこちらで整えます）。
+              </p>
+
+              {/* ───── 駅ちかに登録されている方から選ぶ（★ 普段は閉じておく） ─────
+                  ★★ ここは【逃げ道】。★ フクエスに写真が無い方を記事に付けたいときだけ使う。
+                  ★ 普段から2つ並べると「どちらを選ぶのか」で手が止まる（第167便の発端） */}
+              {board.girls !== null && board.girls.length > 0 && (
+                <div className="mt-2.5 border-t border-slate-100 pt-2.5">
+                  {!openGirls ? (
+                    <button
+                      type="button"
+                      onClick={() => setOpenGirls(true)}
+                      className="text-[13.5px] text-slate-500 underline underline-offset-2 hover:text-slate-700"
+                    >
+                      駅ちかに登録されている方から選ぶ（{board.girls.length}名）
+                    </button>
+                  ) : (
+                    <>
+                      <p className="text-[13px] text-slate-400 leading-relaxed">
+                        駅ちかに登録されている方です。フクエスからは写真を送らず、駅ちか側の写真に差し替えます。
+                      </p>
+                      <div className="flex flex-wrap gap-1.5 mt-1.5">
+                        {board.girls.map((g) => {
+                          const on = draft.girlId === g.id;
+                          return (
+                            <button
+                              key={g.id}
+                              type="button"
+                              onClick={() => setDraft({ ...draft, girlId: g.id, therapistId: '' })}
+                              className={
+                                'text-[13.5px] font-bold px-2.5 py-1.5 border ' +
+                                (on ? 'border-indigo-500 text-indigo-700 bg-indigo-50' : 'border-slate-200 text-slate-600 hover:bg-slate-50')
+                              }
+                            >
+                              {g.name || g.id}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </>
                   )}
                 </div>
               )}
-
-              {/* ── 駅ちかに登録済みの人の写真を使う ── */}
-              {board.girls === null ? (
-                <p className="text-[13.5px] text-slate-500 leading-relaxed mt-1.5">
-                  選べる人をまだ読み取っていません。上の「いまの状態を読む」を押すと、駅ちかに登録されている方から選べるようになります。
-                </p>
-              ) : board.girls.length === 0 ? (
-                <p className="text-[13.5px] text-slate-500 leading-relaxed mt-1.5">
-                  駅ちかの記事に付けられる方が見つかりませんでした。写真はいまのまま残ります。
-                </p>
-              ) : (
-                <>
-                  <select
-                    value={draft.girlId}
-                    onChange={(e) => setDraft({ ...draft, girlId: e.target.value, therapistId: '' })}
-                    className="w-full mt-2 px-2.5 py-2 text-[14.5px] border border-slate-200 focus:border-indigo-400 outline-none bg-white"
-                  >
-                    <option value="">駅ちかに登録済みの写真を使う（選んでください）</option>
-                    {board.girls.map((g) => (
-                      <option key={g.id} value={g.id}>{g.name || g.id}</option>
-                    ))}
-                  </select>
-                  {draft.girlId !== '' && (
-                    <p className="text-[13.5px] text-slate-500 leading-relaxed mt-1">
-                      駅ちかに登録されているこの方の写真に差し替わります。
-                    </p>
-                  )}
-                </>
-              )}
             </div>
 
-            <label className="flex items-start gap-2 cursor-pointer">
+            {/* ───── 自動で回すか ───── */}
+            <label className="flex items-start gap-2 cursor-pointer border-t border-slate-100 pt-3.5">
               <input
                 type="checkbox"
                 checked={draft.isActive}
                 onChange={(e) => setDraft({ ...draft, isActive: e.target.checked })}
                 className="mt-1"
               />
-              <span className="text-[13.5px] text-slate-600 leading-relaxed">
+              <span className="text-[14px] text-slate-700 leading-relaxed">
                 この文章を自動で回す
                 <span className="block text-[13px] text-slate-400">
                   外しておくと保存だけされ、自動では出しません。
@@ -453,35 +511,40 @@ export function NewsBoard({ salonId, onToast }: { salonId: number | null; onToas
               </span>
             </label>
 
-            <div className="flex items-center gap-2 pt-1">
+            {/* ★★★ 保存ボタンを大きく。★ 「保存ボタンを押してなかったです」（2026-09-05・実際に起きた） */}
+            <div className="flex items-center gap-3 border-t border-slate-200 pt-3.5">
               <button
                 type="button"
                 onClick={onSave}
                 disabled={busy !== '' || draft.articleSlot === null}
-                className="text-[14px] font-bold px-4 py-2 bg-indigo-600 text-white hover:bg-indigo-700 disabled:opacity-40"
+                className="text-[16px] font-black px-7 py-3 bg-indigo-600 text-white hover:bg-indigo-700 disabled:opacity-40"
               >
                 {draft.id === null ? '保存する' : '書き換える'}
               </button>
               <button
                 type="button"
-                onClick={() => setDraft(null)}
+                onClick={() => { setDraft(null); setOpenGirls(false); }}
                 className="text-[14px] font-bold px-3 py-2 text-slate-500 hover:text-slate-700"
               >
                 やめる
               </button>
+              {/* ★ 押せない理由を、ボタンの脇に書く。★ 灰色のまま黙らない */}
+              {draft.articleSlot === null && (
+                <span className="text-[13.5px] text-slate-400">上で枠を選ぶと保存できます</span>
+              )}
             </div>
           </div>
-        )}
-      </section>
+        </section>
+      )}
 
-      {/* ───────── ③ 回すかどうか ───────── */}
+      {/* ───────── ③ 自動で出す ───────── */}
       <section className="bg-white border border-slate-200">
         <div className="px-3.5 py-3 border-b border-slate-200">
           <h2 className="text-[15px] font-black text-slate-800">自動で出す</h2>
         </div>
         <div className="px-3.5 py-3.5 space-y-3">
           <div>
-            <label className="text-[13px] font-bold text-slate-500">1日に出す本数</label>
+            <label className="text-[13.5px] font-bold text-slate-600">1日に出す本数</label>
             <div className="flex flex-wrap gap-1.5 mt-1.5">
               {[0, 2, 3, 4, 6, 8].map((n) => (
                 <button
@@ -490,7 +553,7 @@ export function NewsBoard({ salonId, onToast }: { salonId: number | null; onToas
                   onClick={() => onSettings({ postsPerDay: n })}
                   disabled={busy !== ''}
                   className={
-                    'text-[13.5px] font-bold px-3 py-1.5 border disabled:opacity-40 ' +
+                    'text-[14px] font-bold px-3.5 py-2 border disabled:opacity-40 ' +
                     (board.postsPerDay === n
                       ? 'border-indigo-500 text-indigo-700 bg-indigo-50'
                       : 'border-slate-200 text-slate-600 hover:bg-slate-50')
@@ -516,7 +579,7 @@ export function NewsBoard({ salonId, onToast }: { salonId: number | null; onToas
               disabled={busy !== ''}
               className="mt-1"
             />
-            <span className="text-[13.5px] text-slate-600 leading-relaxed">
+            <span className="text-[14px] text-slate-700 leading-relaxed">
               自動で出すことを許可する
               <span className="block text-[13px] text-slate-400">
                 ここを入れないかぎり、フクエスは駅ちかへ何も書きません。
@@ -542,7 +605,7 @@ export function NewsBoard({ salonId, onToast }: { salonId: number | null; onToas
       {board.runs.length > 0 && (
         <section className="bg-white border border-slate-200">
           <div className="px-3.5 py-3 border-b border-slate-200">
-            <h2 className="text-[15px] font-black text-slate-800">新着情報のやりとり</h2>
+            <h2 className="text-[15px] font-black text-slate-800">駅ちかとのやりとり</h2>
             {/* ★★★ 「送った」と「載った」は別。★ そのことを見出しの下に書いておく */}
             <p className="text-[13.5px] text-slate-500 leading-relaxed mt-0.5">
               送っただけでは、公開ページに出たとは限りません。読み返して確かめたところまで残しています。
@@ -570,13 +633,60 @@ export function NewsBoard({ salonId, onToast }: { salonId: number | null; onToas
   );
 }
 
+/**
+ * ★★★ 写真1枚ぶんのタイル（第167便）。
+ *   ★ 写真が無いとき（「変えない」・写真を読めなかった方）は、名前だけの四角にする。
+ *   ★★ 「読み込めなかった」を空白にしない。★ 何のタイルか分かる文字を必ず置く。
+ */
+function PhotoTile({
+  on, name, caption, photoUrl, onClick,
+}: {
+  on: boolean;
+  name: string;
+  caption?: string;
+  photoUrl?: string;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-pressed={on}
+      className={
+        'text-left border p-1 ' +
+        (on ? 'border-indigo-500 bg-indigo-50' : 'border-slate-200 hover:bg-slate-50')
+      }
+    >
+      <span className="block aspect-square bg-slate-100 overflow-hidden relative">
+        {photoUrl ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={photoUrl} alt="" className="w-full h-full object-cover" />
+        ) : (
+          <span className="absolute inset-0 flex items-center justify-center text-[12px] font-bold text-slate-400 text-center leading-tight px-1">
+            {caption ?? name}
+          </span>
+        )}
+      </span>
+      <span className={'block text-[12.5px] font-bold truncate mt-1 px-0.5 ' + (on ? 'text-indigo-800' : 'text-slate-600')}>
+        {name}
+      </span>
+    </button>
+  );
+}
+
+/**
+ * 登録した文章1本ぶん（★ 第167便で作り直した）。
+ *   ★ 前 … 文字の帯が3つ並ぶだけ。★ どの文章がどれなのか、目で見分けられなかった
+ *   ★ 後 … 左に写真、真ん中に枠と状態とタイトル、右に操作。★ ベンリーと同じ並び
+ */
 function TemplateItem({
-  row, slotState, slotHeadline, onEdit, confirming, onAskDelete, onCancelDelete, onDelete, busy,
+  row, photoUrl, slotState, slotShort, onEdit, confirming, onAskDelete, onCancelDelete, onDelete, busy,
   canPost, currentTitle, confirmingPost, onAskPost, onCancelPost, onPost,
 }: {
   row: ArticleTemplateRow;
+  photoUrl: string;
   slotState: string;
-  slotHeadline: string;
+  slotShort: string;
   onEdit: () => void;
   confirming: boolean;
   onAskDelete: () => void;
@@ -590,31 +700,45 @@ function TemplateItem({
   onCancelPost: () => void;
   onPost: () => void;
 }) {
-  const st = STATE_STYLE[slotState] ?? STATE_STYLE.unknown;
+  const chip = STATE_CHIP[slotState] ?? STATE_CHIP.unknown;
+  // ★ 写真をどうするか、ひと言で。★ 3つの道を3つの言い方に分ける（混ぜない）
+  const photoWord =
+    row.therapistId !== null ? '写真：' + (row.therapistName || 'フクエスから送ります')
+    : row.girlId === null ? '写真はいまのまま'
+    : '写真：' + (row.girlName || row.girlId) + '（駅ちか）';
+
   return (
     <li className="px-3.5 py-3">
-      <div className="flex items-start justify-between gap-3 flex-wrap">
+      <div className="flex items-start gap-3">
+        {/* ── 左：写真 ── */}
+        <div className="w-14 h-14 flex-none bg-slate-100 overflow-hidden relative">
+          {photoUrl ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={photoUrl} alt="" className="w-full h-full object-cover" />
+          ) : (
+            <span className="absolute inset-0 flex items-center justify-center text-[11px] text-slate-400 text-center leading-tight px-1">
+              いまの<br />写真
+            </span>
+          )}
+        </div>
+
+        {/* ── 中：枠・状態・タイトル ── */}
         <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-2 flex-wrap">
-            <span className={'text-[12.5px] font-bold px-1.5 py-0.5 border ' + st.chip}>{row.slotLabel}</span>
-            {/* ★★ 出せない枠に登録されている文章は、その場で分かるようにする */}
-            {/* ★ 空の枠は使えるので、注意として出さない（第163便）。★ 非表示・不明だけ出す */}
-            {(slotState === 'hidden' || slotState === 'unknown') && (
-              <span className="text-[12.5px] text-amber-700">{slotHeadline}</span>
-            )}
+          <div className="flex items-center gap-1.5 flex-wrap">
+            <span className="text-[12.5px] font-bold px-1.5 py-0.5 border border-slate-200 text-slate-600 bg-slate-50">
+              {row.slotLabel}
+            </span>
+            <span className={'text-[12.5px] font-bold px-1.5 py-0.5 border ' + chip}>{slotShort}</span>
             {row.isActive
               ? <span className="text-[12.5px] font-bold text-emerald-700">自動で回す</span>
               : <span className="text-[12.5px] text-slate-400">回さない</span>}
-            {/* ★ 写真をどうするかも一覧で分かるようにする */}
-            {row.therapistId !== null
-              ? <span className="text-[12.5px] text-slate-500">写真: {row.therapistName || 'フクエスから送る'}（フクエス）</span>
-              : row.girlId === null
-                ? <span className="text-[12.5px] text-slate-400">写真はいまのまま</span>
-                : <span className="text-[12.5px] text-slate-500">写真: {row.girlName || row.girlId}（駅ちか）</span>}
+            <span className="text-[12.5px] text-slate-400">{photoWord}</span>
           </div>
-          <p className="text-[14.5px] font-bold text-slate-800 mt-1 break-words">{row.title}</p>
+          <p className="text-[15px] font-bold text-slate-800 mt-1 break-words">{row.title}</p>
         </div>
-        <div className="flex items-center gap-2 flex-none">
+
+        {/* ── 右：操作 ── */}
+        <div className="flex items-center gap-1.5 flex-none">
           {confirming ? (
             <>
               <button type="button" onClick={onDelete} disabled={busy}
@@ -631,7 +755,7 @@ function TemplateItem({
               {/* ★★★ 出せない枠のときはボタンを出さない。★ 押せるように見せて断らない（設計メモ §32） */}
               {canPost && !confirmingPost && (
                 <button type="button" onClick={onAskPost} disabled={busy}
-                  className="text-[13.5px] font-bold px-2.5 py-1.5 border border-indigo-200 text-indigo-700 hover:bg-indigo-50 disabled:opacity-40">
+                  className="text-[13.5px] font-bold px-3 py-1.5 border border-indigo-300 text-indigo-700 hover:bg-indigo-50 disabled:opacity-40">
                   いま出す
                 </button>
               )}
@@ -686,7 +810,7 @@ function TemplateItem({
           )}
           <div className="flex items-center gap-2 mt-2.5">
             <button type="button" onClick={onPost} disabled={busy}
-              className="text-[14px] font-bold px-4 py-2 bg-indigo-600 text-white hover:bg-indigo-700 disabled:opacity-40">
+              className="text-[15px] font-black px-5 py-2.5 bg-indigo-600 text-white hover:bg-indigo-700 disabled:opacity-40">
               書き換える
             </button>
             <button type="button" onClick={onCancelPost}

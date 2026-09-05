@@ -126,7 +126,7 @@ export type ArticleBoard = {
    *   ★ プロフィール写真が therapist-photos に入っている方だけ。★ 無い方は出さない
    *     （★ 選べるように見せてから断らない・設計メモ §32）
    */
-  therapists: Array<{ id: number; name: string }>;
+  therapists: Array<{ id: number; name: string; photoUrl: string }>;
   /**
    * ★★★ 今日この枠へ出した本数（第159便）。★ 手で出したぶんも数える。
    *   ★ 区切りは営業日（朝6時）。★ 暦の0時ではない
@@ -232,7 +232,13 @@ export async function getArticleBoard(input: { salonId: string | number; slot?: 
       .order('name', { ascending: true });
     therapists = (ths ?? [])
       .filter((r) => String(r.profile_image_url ?? '').includes('/' + PHOTO_BUCKET + '/'))
-      .map((r) => ({ id: Number(r.id), name: String(r.name ?? '') }));
+      // ★★★ 第167便: 写真そのものを画面へ渡す。★ 名前だけの一覧では「誰の写真か」が分からない
+      //   ★ ここは【見せるためのURL】。★ 中継役が取りに行く道（relayFileUrl）とは別物
+      .map((r) => ({
+        id: Number(r.id),
+        name: String(r.name ?? ''),
+        photoUrl: String(r.profile_image_url ?? ''),
+      }));
   }
 
   // ★★ 今日ぶんは「区切りの日」が今日と同じときだけ数える。★ 昨日の数を持ち越さない

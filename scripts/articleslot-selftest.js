@@ -127,6 +127,33 @@ console.log('\n── 7. ★ 文言に内部の記号を混ぜない ──');
      all.filter((a) => /usable|hidden|empty|unknown|null|undefined/.test(a.note + a.headline)).length, 0);
   eq('★ 空の文言を返さない', all.filter((a) => !a.note.trim() || !a.headline.trim()).length, 0);
   eq('★★ 「枠1」のような内部の言い方をしない', all.filter((a) => /枠\d/.test(a.note + a.headline)).length, 0);
+  // ★★★ 第167便: short も同じ物差しにかける（★ 画面で言葉を作らせないための列）
+  eq('★★ short にも「★」を混ぜない', all.filter((a) => a.short.indexOf('★') >= 0).length, 0);
+  eq('★ short にも英語の状態名を出さない',
+     all.filter((a) => /usable|hidden|empty|unknown|null|undefined/.test(a.short)).length, 0);
+  eq('★ short を空にしない', all.filter((a) => !a.short.trim()).length, 0);
+}
+
+console.log('\n── 8. ★★★ 一覧の脇に置く短い言葉（short・第167便） ──');
+//
+// ★★★ なぜ列を分けたか
+//   headline …「これから枠を選ぶ」場面の言葉（例：使えます（新しく作ります））
+//   short    …「もう枠は選んである文章の脇」の言葉（例：空いています（新しく作ります））
+//   ★★ 画面（NewsBoard.tsx）の中で state から言葉を作らないこと。
+//      ★ 作ると、ここを直しても画面が古い言葉のまま残る。
+{
+  eq('★★★ 非表示は「出しても公開ページに出ません」まで言い切る',
+     A.articleSlotAdvice(1, row({ visible: false })).short, '出しても公開ページに出ません');
+  eq('★★ 空の枠は「使えない」と読ませない',
+     A.articleSlotAdvice(1, row({ hasArticle: false })).short, '空いています（新しく作ります）');
+  eq('★ 出せる枠は短く', A.articleSlotAdvice(1, row({})).short, '出せます');
+  eq('★★★ 読めていない枠を「出せます」と言わない',
+     A.articleSlotAdvice(1, null).short, 'まだ確かめていません');
+  eq('★★ 読めたが分からない枠も「出せます」と言わない',
+     A.articleSlotAdvice(1, row({ visible: null })).short, '公開されているか分かりません');
+  // ★ 5つの状態それぞれで、short が headline と同じとは限らない（★ 同じでもよいが、必ず在ること）
+  eq('★ 5枠ぶんすべてに short がある',
+     A.articleSlotAdviceAll([row({ slot: 1 })]).filter((a) => typeof a.short === 'string' && a.short.length > 0).length, 5);
 }
 
 console.log(fail === 0 ? '\n★ すべて通った' : '\n★ NG ' + fail + ' 件');
