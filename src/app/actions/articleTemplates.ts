@@ -26,6 +26,7 @@ import {
 } from '@/lib/articleRotation';
 import { dayKeyJST } from '@/lib/announceAuto';
 import { readImageSize } from '@/lib/imageSize';
+import { fillArticleVars, ARTICLE_VAR_WORST_DAY, hasArticleVar } from '@/lib/articleVars';
 import { checkArticleImage } from '@/lib/ekichikaArticleImage';
 
 // 駅ちかの新着情報：枠の状態とテンプレート（第158便・2026-09-05）。
@@ -332,13 +333,37 @@ export async function saveArticleTemplate(input: {
 
   const title = String(input.title ?? '');
   const body = String(input.body ?? '');
-  const t = checkArticleTitle(title);
-  if (!t.ok) return { ok: false, error: t.message };
-  const b = checkArticleBody(body);
-  if (!b.ok) return { ok: false, error: b.message };
 
+  // ★★★ 第169便: 差し込みを【埋めてから】数える。
+  //   ★ 「{月}月{日}日」は3文字だが、出るときは「12月31日」で6文字ぶん。
+  //   ★★ 数えてから埋めると、保存は通って**駅ちかで断られる**。
+  //   ★★★ しかも【いちばん長くなる日（12/31）】で数える。
+  //      ★ 9/5 で数えて通しても、大晦日に断られるのでは意味がない。
   const svc = createServiceClient();
   const id = Number(input.id);
+
+  // ★ {セラピスト} を使うなら、名前も数に入れる。★ 長い名前で断られるのを保存のときに言う
+  let sampleName = '';
+  if (hasArticleVar(title) || hasArticleVar(body)) {
+    const tid = therapistIdOrNull(input.therapistId);
+    if (tid !== null) {
+      const { data: th } = await svc
+        .from('therapists').select('name, salon_id').eq('id', tid).maybeSingle();
+      // ★★ 他店の子の名前を使わない。★ id だけで引かない
+      if (th && Number(th.salon_id) === salonId) sampleName = String(th.name ?? '');
+    }
+  }
+  const sample = { dayKey: ARTICLE_VAR_WORST_DAY, therapistName: sampleName.length > 0 ? sampleName : null };
+
+  const ft = fillArticleVars(title, sample);
+  if (!ft.ok) return { ok: false, error: ft.message };
+  const fb = fillArticleVars(body, sample);
+  if (!fb.ok) return { ok: false, error: fb.message };
+
+  const t = checkArticleTitle(ft.text);
+  if (!t.ok) return { ok: false, error: t.message };
+  const b = checkArticleBody(fb.text);
+  if (!b.ok) return { ok: false, error: b.message };
 
   if (Number.isFinite(id) && id > 0) {
     // ★★ 必ず salon_id で絞る。★ id だけで更新すると他店の行を書き換えられる

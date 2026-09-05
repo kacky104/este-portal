@@ -3,6 +3,8 @@ import { startRelayFlow, countArticleTry } from '@/app/lib/media/relayFlow';
 import { readImageSize } from '@/lib/imageSize';
 import { checkArticleImage } from '@/lib/ekichikaArticleImage';
 import { isArticleSlot, articleSlotLabel, checkArticleTitle, checkArticleBody } from '@/lib/ekichikaArticle';
+import { fillArticleVars } from '@/lib/articleVars';
+import { dayKeyJST } from '@/lib/announceAuto';
 
 // 新着情報を1本出す（第166便・2026-09-05）。
 //
@@ -48,17 +50,15 @@ export async function postOneArticle(input: {
   const articleSlot = Number(t.article_slot);
   if (!isArticleSlot(articleSlot)) return { ok: false, error: 'この文章には出す枠が入っていません' };
 
-  const title = String(t.title ?? '');
-  const body = String(t.body ?? '');
-  const tc = checkArticleTitle(title);
-  if (!tc.ok) return { ok: false, error: tc.message };
-  const bc = checkArticleBody(body);
-  if (!bc.ok) return { ok: false, error: bc.message };
+  // ★★★ 第169便: タイトル・本文の検査は【差し込みを埋めたあと】。★ 下の「差し込み」の段で行う。
+  //   ★ ここで数えると「{月}月{日}日」を3文字と数えてしまい、★ 出すときに駅ちかで断られる。
+  const rawTitle = String(t.title ?? '');
+  const rawBody = String(t.body ?? '');
   const girlId = /^\d{1,12}$/.test(String(t.ekichika_girl_id ?? '')) ? String(t.ekichika_girl_id) : null;
 
   // ★★ 写しで先に弾く。★ 「まだ読んでいない」と「一覧に無い」を分ける
   const { data: snap } = await svc
-    .from('media_article_slots').select('rows')
+    .from('media_article_slots').select('rows, girls')
     .eq('salon_id', input.salonId).eq('provider', PROVIDER).eq('slot', input.slot)
     .maybeSingle();
   const rows = Array.isArray(snap?.rows) ? (snap!.rows as Array<{ slot: number }>) : null;
@@ -74,6 +74,8 @@ export async function postOneArticle(input: {
   let file:
     | { bucket: string; path: string; filename: string; contentType: string; width: number; height: number; as?: 'jpeg' }
     | null = null;
+  // ★ {セラピスト} に入れる名前。★ 「誰の紹介か」で決まる。★ 選ばれていなければ null
+  let personName: string | null = null;
   const therapistId = Number(t.therapist_id ?? 0);
   if (Number.isFinite(therapistId) && therapistId > 0) {
     const { data: th } = await svc
@@ -83,6 +85,7 @@ export async function postOneArticle(input: {
     if (!th || Number(th.salon_id) !== input.salonId) {
       return { ok: false, error: 'この文章に設定された方が見つかりません' };
     }
+    personName = String(th.name ?? '');
     const url = String(th.profile_image_url ?? '');
     const i = url.indexOf('/' + PHOTO_BUCKET + '/');
     if (i < 0) return { ok: false, error: String(th.name ?? 'この方') + 'のプロフィール写真が登録されていません' };
@@ -112,6 +115,31 @@ export async function postOneArticle(input: {
       ...(needsJpeg ? { as: 'jpeg' as const } : {}),
     };
   }
+
+  // ★ 駅ちかに登録されている方を選んでいるときは、写しから名前を引く
+  if (personName === null && girlId !== null) {
+    const gs = Array.isArray(snap?.girls) ? (snap!.girls as Array<{ id: string; name: string }>) : [];
+    const g = gs.find((x) => String(x.id) === girlId);
+    // ★★ 引けなければ null のまま。★ 番号を名前の代わりに出さない
+    if (g && String(g.name ?? '').trim().length > 0) personName = String(g.name);
+  }
+
+  // ───────── ★★★ 差し込み（第169便） ─────────
+  //   ★ 日付は【営業日】（朝6時区切り・カッキーさんの判断）。★ 深夜03:42は前日の日付
+  //   ★★ 埋められなければ **送らない**。★ 「{セラピスト}」のまま公開ページに出さない
+  const dayKey = dayKeyJST(new Date());
+  const vt = fillArticleVars(rawTitle, { dayKey, therapistName: personName });
+  if (!vt.ok) return { ok: false, error: vt.message };
+  const vb = fillArticleVars(rawBody, { dayKey, therapistName: personName });
+  if (!vb.ok) return { ok: false, error: vb.message };
+  const title = vt.text;
+  const body = vb.text;
+
+  // ★★★ 数えるのは【埋めたあと】。★ ここが第169便のいちばん大事な順番
+  const tc = checkArticleTitle(title);
+  if (!tc.ok) return { ok: false, error: tc.message };
+  const bc = checkArticleBody(body);
+  if (!bc.ok) return { ok: false, error: bc.message };
 
   try {
     const r = await startRelayFlow({
