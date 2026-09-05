@@ -369,7 +369,7 @@ export async function advanceRelayFlow(params: {
   //     ★ 落とすと画面は「まだ読んでいない」ままになり、店舗様は同じところでもう一度つまずく。
   //   ★ next を持っていることがある（article_dryrun / article_push は編集ページへ進む）。
   if (outcome.kind === 'article_slots') {
-    const r = await saveArticleSlots(params, outcome.rows, context);
+    const r = await saveArticleSlots(params, { rows: outcome.rows, girls: outcome.girls }, context);
     audits.push(...r.audits);
     note = outcome.note + ' → ' + r.note;
     next = outcome.next ?? null;
@@ -652,9 +652,33 @@ async function countArticlePost(params: { salonId: number; provider: string; slo
  */
 async function saveArticleSlots(
   params: { salonId: number; provider: string; slot: number },
-  rows: ReadonlyArray<{ slot: number; label: string; hasArticle: boolean; visible: boolean | null; title: string; updatedAt: string }>,
+  got: {
+    rows?: ReadonlyArray<{ slot: number; label: string; hasArticle: boolean; visible: boolean | null; title: string; updatedAt: string }>;
+    /** ★ 編集ページの段でだけ入る（第160便）。★ undefined は【この段では読んでいない】 */
+    girls?: ReadonlyArray<{ id: string; name: string }>;
+  },
   ctx: RelayFlowContext,
 ): Promise<{ audits: FlowAudit[]; note: string }> {
+  const rows = got.rows;
+  const girls = got.girls;
+
+  // ★★★ 選べる人だけを読んだ段（第160便）。★ 枠の写しは【触らない】。
+  //   ★ ここで rows を空配列で上書きすると、直前に読んだ5枠が消える。
+  if (girls !== undefined && (rows === undefined || rows.length === 0)) {
+    const supabase = createServiceClient();
+    const { error } = await supabase
+      .from('media_article_slots')
+      .update({ girls, read_at: new Date().toISOString() })
+      .eq('salon_id', params.salonId).eq('provider', params.provider).eq('slot', params.slot);
+    if (error) {
+      return {
+        audits: [{ event: 'read_article', outcome: 'failed', summary: '', detail: { reason: 'snapshot_failed', flowId: ctx.flowId } }],
+        note: '★ 選べる人を写せなかった: ' + error.message.slice(0, 200),
+      };
+    }
+    return { audits: [], note: '選べる人を写した（' + girls.length + '人）' };
+  }
+
   // ★ 0件はここへ来ない（純粋関数側で parse_failed として止めている）。★ それでも黙って書かない
   if (!Array.isArray(rows) || rows.length === 0) {
     return { audits: [], note: '★ 読めた枠が0件だったので写しは残さない' };
@@ -673,6 +697,8 @@ async function saveArticleSlots(
       shown: rows.filter((r) => r.visible === true).length,
       empty: rows.filter((r) => !r.hasArticle).length,
       rows,
+      // ★★ 選べる人は【この段では読んでいない】ので触らない。★ 前に読んだものを消さない
+      ...(girls === undefined ? {} : { girls }),
     },
     { onConflict: 'salon_id,provider,slot' },
   );

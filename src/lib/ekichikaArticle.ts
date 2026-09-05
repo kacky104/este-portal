@@ -133,6 +133,18 @@ export type EkichikaArticlePage = {
   girlId: string;
   /** 選べる女の子（駅ちかの castId） */
   girlIds: string[];
+  /**
+   * ★★★ 選べる女の子（番号と【名前】）（第160便・2026-09-05）。
+   *
+   * ★★ なぜ名前が要るか
+   *   店舗様に「誰の紹介か」を選ばせるには、番号ではなく名前が要る。
+   *   ★ 私（Claude）は最初、フクエスの `import_cast_id` と突き合わせて名前を出すつもりでいた。
+   *   ★★★ しかし **相手の編集ページが、名前と番号を並べて出している**。
+   *     ★ 突き合わせを待たずに、そのまま選ばせられる。
+   *     ★ 自分のDBから引くことばかり考えて、相手が既に見せているものを見ていなかった。
+   * ★ 名前が読めない選択肢は name を空にする。★ 番号だけは残す（★ 落とさない）
+   */
+  girls: Array<{ id: string; name: string }>;
   /** いまの画像の出どころ。'1' = 女の子の画像を使う ／ '0' = 別の画像 */
   imgFlg: string;
   /** いまのタイトル（★ 「本当に載ったか」の読み返しに使う） */
@@ -164,12 +176,15 @@ export function parseEkichikaArticlePage(html: unknown, slot: unknown): Ekichika
     ?? '';
 
   // ★ 女の子の選択肢と、選ばれているもの
+  // ★★ 第160便: 名前（option の中身）も拾う。★ 店舗様に選ばせるのは番号ではなく名前
+  const girls: Array<{ id: string; name: string }> = [];
   const girlIds: string[] = [];
-  const optRe = /<option[^>]*value="(\d{1,12})"([^>]*)>/gi;
+  const optRe = /<option[^>]*value="(\d{1,12})"([^>]*)>([\s\S]*?)<\/option>/gi;
   let m: RegExpExecArray | null;
   let selected = '';
   while ((m = optRe.exec(form)) !== null) {
     girlIds.push(m[1]);
+    girls.push({ id: m[1], name: stripTags(m[3]) });
     if (/\bselected\b/i.test(m[2])) selected = m[1];
   }
 
@@ -182,6 +197,7 @@ export function parseEkichikaArticlePage(html: unknown, slot: unknown): Ekichika
     gImage1s: gImage1s ?? '',
     girlId: selected,
     girlIds,
+    girls,
     imgFlg,
     title,
   };

@@ -52,6 +52,16 @@ async function assertSalonOwner(salonId: number): Promise<Result<{ userId: strin
   return { ok: true, data: { userId: user.id } };
 }
 
+/**
+ * ★ 「いまの写真のまま」を null に寄せる。
+ *   ★★ '' と null を分けない——どちらも【触らない】という同じ意味なので、DBでは null に統一する。
+ *   ★ 数字以外は受け取らない（★ 駅ちかの girl_id は数字）
+ */
+function girlIdOrNull(v: unknown): string | null {
+  const t = typeof v === 'string' ? v.trim() : '';
+  return /^\d{1,12}$/.test(t) ? t : null;
+}
+
 export type ArticleTemplateRow = {
   id: number;
   articleSlot: number;
@@ -61,6 +71,13 @@ export type ArticleTemplateRow = {
   isActive: boolean;
   sortOrder: number;
   updatedAt: string;
+  /**
+   * ★ 誰の紹介か（駅ちかの番号）。★ null なら【いまの写真のまま】。
+   *   ★ 0や空文字と混ぜない（作法3-5）
+   */
+  girlId: string | null;
+  /** ★ その人の名前（写しから引く）。★ 写しに無ければ空 */
+  girlName: string;
 };
 
 export type ArticleBoard = {
@@ -80,6 +97,11 @@ export type ArticleBoard = {
   postTimes: string[] | null;
   /** ★ 自動で回している本数。★ 0なら回らない */
   activeCount: number;
+  /**
+   * ★★★ 駅ちかで選べる人（第160便）。★ 相手の編集ページが出している選択肢そのまま。
+   *   ★ null は【まだ読めていない】。★ [] は【読めたが0人】。★ 混ぜない
+   */
+  girls: Array<{ id: string; name: string }> | null;
   /**
    * ★★★ 今日この枠へ出した本数（第159便）。★ 手で出したぶんも数える。
    *   ★ 区切りは営業日（朝6時）。★ 暦の0時ではない
@@ -112,7 +134,7 @@ export async function getArticleBoard(input: { salonId: string | number; slot?: 
 
   const { data: snap, error: snapErr } = await svc
     .from('media_article_slots')
-    .select('read_at, rows')
+    .select('read_at, rows, girls')
     .eq('salon_id', salonId).eq('provider', PROVIDER).eq('slot', mediaSlot)
     .maybeSingle();
   // ★★ 読めなかったときは【分からない】として返す。★ 「まだ読んでいない」と混ぜない
@@ -122,7 +144,7 @@ export async function getArticleBoard(input: { salonId: string | number; slot?: 
 
   const { data: temps, error: tErr } = await svc
     .from('salon_article_templates')
-    .select('id, article_slot, title, body, is_active, sort_order, updated_at')
+    .select('id, article_slot, title, body, is_active, sort_order, updated_at, ekichika_girl_id')
     .eq('salon_id', salonId).eq('provider', PROVIDER).eq('slot', mediaSlot)
     .order('sort_order', { ascending: true })
     .order('id', { ascending: true });
@@ -135,16 +157,25 @@ export async function getArticleBoard(input: { salonId: string | number; slot?: 
     .maybeSingle();
   if (sErr) return { ok: false, error: '設定を読み出せませんでした。時間をおいてお試しください' };
 
-  const templates: ArticleTemplateRow[] = (temps ?? []).map((r) => ({
-    id: Number(r.id),
-    articleSlot: Number(r.article_slot),
-    slotLabel: articleSlotLabel(Number(r.article_slot)),
-    title: String(r.title ?? ''),
-    body: String(r.body ?? ''),
-    isActive: r.is_active === true,
-    sortOrder: Number(r.sort_order ?? 0),
-    updatedAt: String(r.updated_at ?? ''),
-  }));
+  // ★ 選べる人。★ 列がまだ無い／読めていないときは null（★ 空配列に潰さない）
+  const girls = Array.isArray(snap?.girls) ? (snap!.girls as Array<{ id: string; name: string }>) : null;
+
+  const templates: ArticleTemplateRow[] = (temps ?? []).map((r) => {
+    const gid = r.ekichika_girl_id === null || r.ekichika_girl_id === undefined ? null : String(r.ekichika_girl_id);
+    return {
+      id: Number(r.id),
+      articleSlot: Number(r.article_slot),
+      slotLabel: articleSlotLabel(Number(r.article_slot)),
+      title: String(r.title ?? ''),
+      body: String(r.body ?? ''),
+      isActive: r.is_active === true,
+      sortOrder: Number(r.sort_order ?? 0),
+      updatedAt: String(r.updated_at ?? ''),
+      girlId: gid,
+      // ★ 名前は写しから引く。★ 引けなければ空（★ 番号を名前の代わりに出さない）
+      girlName: gid === null ? '' : (girls?.find((g) => g.id === gid)?.name ?? ''),
+    };
+  });
 
   // ★ 行が無い＝まだ決めていない＝既定。★ 0（送らない）と混ぜない
   const postsPerDay = st ? Number(st.posts_per_day) : ARTICLE_POSTS_PER_DAY_DEFAULT;
@@ -176,6 +207,7 @@ export async function getArticleBoard(input: { salonId: string | number; slot?: 
       autoEnabled: st?.auto_enabled === true,
       postTimes: articlePostTimeLabels(salonId, postsPerDay),
       activeCount: templates.filter((t) => t.isActive).length,
+      girls,
       postedToday,
       runs,
     },
@@ -206,7 +238,7 @@ export async function startArticlePost(input: {
   // ★★★ 内容は【DBから読み直す】。★ 画面から送られてきた文字をそのまま駅ちかへ流さない
   const { data: t, error: tErr } = await svc
     .from('salon_article_templates')
-    .select('id, article_slot, title, body')
+    .select('id, article_slot, title, body, ekichika_girl_id')
     .eq('id', Number(input.templateId)).eq('salon_id', salonId).eq('provider', PROVIDER)
     .maybeSingle();
   if (tErr) return { ok: false, error: '文章を読み出せませんでした。時間をおいてお試しください' };
@@ -221,6 +253,7 @@ export async function startArticlePost(input: {
   if (!tc.ok) return { ok: false, error: tc.message };
   const bc = checkArticleBody(body);
   if (!bc.ok) return { ok: false, error: bc.message };
+  const girlId = girlIdOrNull(t.ekichika_girl_id);
 
   // ★★ 写しで先に弾く。★ 「まだ読んでいない」と「記事が無い」を分ける
   const { data: snap } = await svc
@@ -243,7 +276,12 @@ export async function startArticlePost(input: {
     const r = await startRelayFlow({
       salonId, provider: PROVIDER, slot: mediaSlot,
       intent: 'article_push',
-      article: { slot: articleSlot, title, body },
+      article: {
+        slot: articleSlot, title, body,
+        // ★★★ 誰の紹介かが入っていれば、その人の写真に切り替える（img_flg=1）。
+        //   ★ 入っていなければ何も渡さない＝【いまの写真のまま】。★ 駅ちかの画像に触らない
+        ...(girlId === null ? {} : { girlId, image: 'girl' as const }),
+      },
       actor: 'shop:' + guard.data.userId,
     });
     if (!r.ok) return { ok: false, error: r.note };
@@ -295,6 +333,11 @@ export async function saveArticleTemplate(input: {
   title: string;
   body: string;
   isActive?: boolean;
+  /**
+   * ★ 誰の紹介か（駅ちかの番号）。★ null / '' なら【いまの写真のまま】。
+   *   ★★ 送らなければ（undefined）いまの設定を変えない
+   */
+  girlId?: string | null;
 }): Promise<Result<{ id: number }>> {
   const salonId = Number(input.salonId);
   if (!Number.isFinite(salonId)) return { ok: false, error: '店舗の指定が不正です' };
@@ -324,6 +367,7 @@ export async function saveArticleTemplate(input: {
         title: title.trim(),
         body,
         ...(input.isActive === undefined ? {} : { is_active: input.isActive === true }),
+        ...(input.girlId === undefined ? {} : { ekichika_girl_id: girlIdOrNull(input.girlId) }),
         updated_at: new Date().toISOString(),
       })
       .eq('id', id).eq('salon_id', salonId).eq('provider', PROVIDER)
@@ -344,6 +388,8 @@ export async function saveArticleTemplate(input: {
       body,
       // ★★★ 既定は「回さない」。★ 作っただけでは何も起きない
       is_active: input.isActive === true,
+      // ★ 既定は null＝いまの写真のまま。★ 駅ちかの画像に触らない
+      ekichika_girl_id: girlIdOrNull(input.girlId),
     })
     .select('id').maybeSingle();
   if (error || !data) return { ok: false, error: '保存できませんでした。時間をおいてお試しください' };

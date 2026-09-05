@@ -511,7 +511,19 @@ export type FlowOutcome =
    *   article_dryrun / article_push … 読んだうえで編集ページへ進む → next がある
    *   ★ どちらも「読めた事実」は同じなので、写すのは同じ場所。
    */
-  | { kind: 'article_slots'; rows: EkichikaArticleRow[]; audits: FlowAudit[]; note: string; next?: FlowNextRequest }
+  | {
+      kind: 'article_slots';
+      /** 一覧から読めた5枠。★ 編集ページの段では入らない（★ 空配列で上書きしないこと） */
+      rows?: EkichikaArticleRow[];
+      /**
+       * ★★★ 選べる女の子（第160便）。★ 編集ページにしか無いので、そちらの段でだけ入る。
+       *   ★ undefined は【この段では読んでいない】。★ [] は【読めたが0人】。混ぜない。
+       */
+      girls?: Array<{ id: string; name: string }>;
+      audits: FlowAudit[];
+      note: string;
+      next?: FlowNextRequest;
+    }
   /**
    * ★ 投稿用メールアドレス一覧を読めた（第53便）。roster と同じ理由でここでは保存しない。
    *   ★★ page.rows には【秘密値（アドレス）】が入っている。

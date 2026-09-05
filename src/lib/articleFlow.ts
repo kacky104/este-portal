@@ -139,11 +139,26 @@ export function afterArticleList(input: Input, ctx: RelayFlowContext): FlowOutco
   //   ★ 止まる場合でも rows を落とさない。★ 落とすと画面は「まだ読んでいない」ままになり、
   //     店舗様は同じところでもう一度つまずく。
 
-  // ★★★ 「読むだけ」はここで終わり。★ 編集ページも読まない＝1文字も書かない
+  // ★★★ 「読むだけ」のとき（第158便→第160便で1段のばした）。
+  //   ★ 一覧には「選べる女の子」が入っていない。★ 編集ページにしか無い。
+  //   → ★ 記事のある枠を1つだけ **GET で** 開いて、選択肢を拾って終わる。
+  //   ★★ 読むだけなのは変わらない。★ 1文字も書かない（POST を積まない）。
   if (readOnly) {
+    // ★ 記事のある枠を1つ。★ 無ければ開かない（★ 開いても選択肢が読めるとは限らないし、用も無い）
+    const openable = rows.find((r) => r.hasArticle) ?? null;
+    if (openable === null) {
+      return {
+        kind: 'article_slots', rows, audits,
+        note: '新着情報の枠の状態を読み取った（' + rows.length + '枠）。★ 記事のある枠が無いので編集ページは開かない',
+      };
+    }
     return {
       kind: 'article_slots', rows, audits,
-      note: '新着情報の枠の状態を読み取った（' + rows.length + '枠）。★ 何も書いていない',
+      note: '新着情報の枠の状態を読み取った（' + rows.length + '枠）。★ ' + openable.label + ' を開いて選べる人を拾う',
+      next: {
+        ...(buildArticleReadStep({ ...ctx, cookie, articleSlot: openable.slot }) as FlowNextRequest),
+        context: { ...ctx, cookie, articleSlot: openable.slot, articleWhere: openable.label },
+      },
     };
   }
 
@@ -227,6 +242,18 @@ export function afterArticleRead(input: Input, ctx: RelayFlowContext): FlowOutco
   const audits: FlowAudit[] = [
     { event: 'read_article', outcome: 'ok', summary: '', detail: { slot, where, articleId: page.id, girls: page.girlIds.length, flowId } },
   ];
+
+  // ★★★ 「読むだけ」はここで終わり（第160便）。★ 選べる人を持って返す。
+  //   ★ 送る内容は組み立てない（★ そもそも文脈にタイトルも本文も入っていない）。
+  //   ★★ 1文字も書いていない。★ ここまで GET が3回だけ。
+  if (ctx.intent === 'article_slots') {
+    return {
+      kind: 'article_slots',
+      girls: page.girls,
+      audits,
+      note: where + ' の編集ページから、選べる人を ' + page.girls.length + '人 読み取った',
+    };
+  }
 
   const title = String(ctx.articleTitle ?? '');
   const body = String(ctx.articleBody ?? '');

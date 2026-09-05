@@ -50,9 +50,13 @@ function fmt(iso: string | null): string {
 const POLL_MS = 15000;
 const POLL_MAX = 20;
 
-type Draft = { id: number | null; articleSlot: number | null; title: string; body: string; isActive: boolean };
+type Draft = {
+  id: number | null; articleSlot: number | null; title: string; body: string; isActive: boolean;
+  /** ★ 誰の紹介か（駅ちかの番号）。★ '' は【いまの写真のまま】 */
+  girlId: string;
+};
 
-const EMPTY: Draft = { id: null, articleSlot: null, title: '', body: '', isActive: false };
+const EMPTY: Draft = { id: null, articleSlot: null, title: '', body: '', isActive: false, girlId: '' };
 
 export function NewsBoard({ salonId, onToast }: { salonId: number | null; onToast: (m: string) => void }) {
   const [board, setBoard] = useState<ArticleBoard | null>(null);
@@ -138,6 +142,7 @@ export function NewsBoard({ salonId, onToast }: { salonId: number | null; onToas
       title: draft.title,
       body: draft.body,
       isActive: draft.isActive,
+      girlId: draft.girlId,
     });
     setBusy('');
     if (!r.ok) { onToast(r.error); return; }
@@ -273,6 +278,7 @@ export function NewsBoard({ salonId, onToast }: { salonId: number | null; onToas
               slotHeadline={board.slots.find((s) => s.slot === t.articleSlot)?.headline ?? ''}
               onEdit={() => setDraft({
                 id: t.id, articleSlot: t.articleSlot, title: t.title, body: t.body, isActive: t.isActive,
+                girlId: t.girlId ?? '',
               })}
               canPost={board.slots.find((s) => s.slot === t.articleSlot)?.canPost === true}
               currentTitle={board.slots.find((s) => s.slot === t.articleSlot)?.currentTitle ?? ''}
@@ -351,6 +357,56 @@ export function NewsBoard({ salonId, onToast }: { salonId: number | null; onToas
                 <code className="mx-0.5 px-1 bg-slate-100">&lt;br&gt;</code>、
                 段落は<code className="mx-0.5 px-1 bg-slate-100">&lt;p&gt;〜&lt;/p&gt;</code>で書けます。
               </p>
+            </div>
+
+            {/* ───── 写真（第160便） ───── */}
+            <div>
+              <label className="text-[13px] font-bold text-slate-500">写真</label>
+              {/* ★★★ 何もしなければ前の記事の写真が残る。★ そのことを先に書く（今までは書いていなかった） */}
+              <p className="text-[13px] text-slate-400 leading-relaxed mt-0.5">
+                駅ちかへ送るのは<b>タイトルと本文だけ</b>です。何も選ばなければ、いま駅ちかに入っている写真がそのまま残ります。
+              </p>
+              {board.girls === null ? (
+                <p className="text-[13.5px] text-slate-500 leading-relaxed mt-1.5">
+                  選べる人をまだ読み取っていません。上の「いまの状態を読む」を押すと、駅ちかに登録されている方から選べるようになります。
+                </p>
+              ) : board.girls.length === 0 ? (
+                <p className="text-[13.5px] text-slate-500 leading-relaxed mt-1.5">
+                  駅ちかの記事に付けられる方が見つかりませんでした。写真はいまのまま残ります。
+                </p>
+              ) : (
+                <>
+                  <div className="flex flex-wrap gap-1.5 mt-1.5">
+                    <button
+                      type="button"
+                      onClick={() => setDraft({ ...draft, girlId: '' })}
+                      className={
+                        'text-[13.5px] font-bold px-2.5 py-1.5 border ' +
+                        (draft.girlId === ''
+                          ? 'border-indigo-500 text-indigo-700 bg-indigo-50'
+                          : 'border-slate-200 text-slate-600 hover:bg-white')
+                      }
+                    >
+                      いまの写真のまま
+                    </button>
+                  </div>
+                  <select
+                    value={draft.girlId}
+                    onChange={(e) => setDraft({ ...draft, girlId: e.target.value })}
+                    className="w-full mt-1.5 px-2.5 py-2 text-[14.5px] border border-slate-200 focus:border-indigo-400 outline-none bg-white"
+                  >
+                    <option value="">セラピストの写真にする（選んでください）</option>
+                    {board.girls.map((g) => (
+                      <option key={g.id} value={g.id}>{g.name || g.id}</option>
+                    ))}
+                  </select>
+                  {draft.girlId !== '' && (
+                    <p className="text-[13.5px] text-slate-500 leading-relaxed mt-1">
+                      駅ちかに登録されているこの方の写真に差し替わります。
+                    </p>
+                  )}
+                </>
+              )}
             </div>
 
             <label className="flex items-start gap-2 cursor-pointer">
@@ -519,6 +575,10 @@ function TemplateItem({
             {row.isActive
               ? <span className="text-[12.5px] font-bold text-emerald-700">自動で回す</span>
               : <span className="text-[12.5px] text-slate-400">回さない</span>}
+            {/* ★ 写真をどうするかも一覧で分かるようにする */}
+            {row.girlId === null
+              ? <span className="text-[12.5px] text-slate-400">写真はいまのまま</span>
+              : <span className="text-[12.5px] text-slate-500">写真: {row.girlName || row.girlId}</span>}
           </div>
           <p className="text-[14.5px] font-bold text-slate-800 mt-1 break-words">{row.title}</p>
         </div>
@@ -573,6 +633,11 @@ function TemplateItem({
                 いま入っている記事は<b>消えます</b>（元に戻せません）。
               </p>
             )}
+          <p className="text-[13.5px] text-slate-600 leading-relaxed mt-1">
+            {row.girlId === null
+              ? '写真は駅ちかに入っているものがそのまま残ります（変わるのはタイトルと本文だけです）。'
+              : '写真は「' + (row.girlName || row.girlId) + '」に差し替わります。'}
+          </p>
           {slotState === 'hidden' && (
             <p className="text-[13.5px] text-amber-800 leading-relaxed mt-1">
               なお、この枠はいま非表示です。送っても公開ページには出ません。

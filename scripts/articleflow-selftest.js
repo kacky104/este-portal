@@ -293,7 +293,10 @@ eq('★★★ 書き換える intent では、枠が無ければ積まない（�
    F.buildArticleListStep(ctxOf({ articleSlot: undefined })), null);
 {
   const r = F.afterArticleList(res200(LIST('非表示')), slotsCtx());
-  eq('★★★ 次を積まない＝編集ページも読まない＝1文字も書かない', r.next, undefined);
+  // ★★ 第160便: 一覧のあとに【編集ページを1枚だけ GET で】開く。★ 選べる人は一覧に無いから。
+  //   ★★★ 開くだけ。★ POST は積まない＝1文字も書かない。
+  eq('★★★ 次は編集ページの GET（★ 書き込みではない）', [r.next.purpose, r.next.method], ['article_read', 'GET']);
+  eq('★★★ 記事のある枠を開く（★ カラの枠を開いても選べる人は読めない）', r.next.context.articleSlot, 1);
   eq('★★ 読めた5枠を返す', r.rows.map((x) => x.slot), [1, 2, 3, 4, 5]);
   eq('★★★ 公開状態もそのまま返す（★ null を false に倒さない）',
      r.rows.map((x) => x.visible), [true, null, true, true, false]);
@@ -308,7 +311,24 @@ eq('★★★ 書き換える intent では、枠が無ければ積まない（�
   const r = F.afterArticleList(res200(onlyEmpty), slotsCtx());
   eq('★★★ カラばかりでも読むだけなら止まらない', r.kind, 'article_slots');
   eq('★ 2枠ぶん返る', r.rows.length, 2);
+  eq('★★★ 記事のある枠が無ければ編集ページを開かない', r.next, undefined);
 }
+
+console.log('\n── 11. ★★★ 選べる人を拾う（第160便） ──');
+//
+// ★★★ カッキーさんのご質問「投稿と一緒に画像も送れるのか」から。
+//   ★ 駅ちかは img_flg=1 + girl_id で【登録済みの人の写真】に切り替わる。
+//   ★★ その名前は **相手の編集ページの <select> が出している**。★ 突き合わせは要らない。
+{
+  const r = F.afterArticleRead(res200(PAGE('いまのタイトル')), slotsCtx({ articleSlot: 5 }));
+  eq('★★★ 読むだけなので次を積まない（★ ここまで GET が3回だけ）', r.next, undefined);
+  eq('★★ 選べる人を持って返す', r.girls, [{ id: '5232208', name: 'さら' }, { id: '5232190', name: 'るい' }]);
+  eq('★★★ 枠の写しは触らない（★ 空配列で上書きすると5枠が消える）', r.rows, undefined);
+  eq('★ 記録は読み取り1行だけ', r.audits.map((a) => a.event + ':' + a.outcome), ['read_article:ok']);
+  eq('★★ 送る内容は組み立てない（★ そもそも文脈に無い）', r.audits.some((a) => a.event === 'plan_article'), false);
+}
+eq('★★ 読むだけでも、編集ページが読めなければ止める',
+   F.afterArticleRead(res200('<html><body>なにもない</body></html>'), slotsCtx({ articleSlot: 5 })).kind, 'stop');
 eq('★★ 1枠も読めなければ、読むだけでも失敗として止める',
    F.afterArticleList(res200('<html></html>'), slotsCtx()).audits[0].event + ':'
    + F.afterArticleList(res200('<html></html>'), slotsCtx()).audits[0].outcome, 'read_article_list:failed');

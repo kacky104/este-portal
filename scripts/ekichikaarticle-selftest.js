@@ -142,6 +142,46 @@ console.log('\n── 6. 読むだけの GET ──');
 
 
 // ────────────────────────────────────────────────────────────────────────────
+console.log('\n── 6-2. ★★★ 選べる人（番号と名前）（第160便） ──');
+//
+// ★★★ なぜ名前を拾うのか
+//   駅ちかは img_flg=1 + girl_id で【登録済みの人の写真】に切り替わる。
+//   ★ 店舗様に選ばせるには名前が要る。★ 番号だけでは誰か分からない。
+//   ★★★ その名前は **相手の編集ページの <select> が出している**。
+//     ★ フクエスの import_cast_id との突き合わせを待たなくてよい。
+{
+  const p = A.parseEkichikaArticlePage(PAGE, 1);
+  eq('★★ 番号と名前を組にして拾う', p.girls,
+     [{ id: '5232208', name: 'さら' }, { id: '5232190', name: 'るい' }, { id: '5232201', name: 'りか' }]);
+  eq('★ 番号だけの配列も今までどおり', p.girlIds, ['5232208', '5232190', '5232201']);
+  eq('★★ 並びは画面のまま（★ 並べ替えない）', p.girls.map((g) => g.name), ['さら', 'るい', 'りか']);
+  eq('★★ 選ばれている人は今までどおり別に持つ', p.girlId, '5232208');
+}
+{
+  // ★ 名前にタグや空白が混ざっていても読める
+  const html = '<html><form id="article_form">'
+    + '<input type="hidden" name="id" value="1">'
+    + '<select name="girl_id">'
+    + '<option value="111"> <b>あかね</b> </option>'
+    + '<option value="222">みか&nbsp;（新人）</option>'
+    + '</select></form></html>';
+  const p = A.parseEkichikaArticlePage(html, 1);
+  eq('★ タグを外して前後の空白も落とす', p.girls[0], { id: '111', name: 'あかね' });
+  eq('★ &nbsp; も空白として扱う', p.girls[1], { id: '222', name: 'みか （新人）' });
+}
+{
+  // ★★★ 名前が読めなくても番号は落とさない
+  const html = '<html><form id="article_form"><input type="hidden" name="id" value="1">'
+    + '<select name="girl_id"><option value="333"></option></select></form></html>';
+  const p = A.parseEkichikaArticlePage(html, 1);
+  eq('★★★ 名前が空でも番号は残す', p.girls, [{ id: '333', name: '' }]);
+}
+{
+  // ★ 選択肢が1つも無ければ空配列（★ null ではない。読めてはいる）
+  const html = '<html><form id="article_form"><input type="hidden" name="id" value="1"></form></html>';
+  eq('★★ 選択肢が無ければ空配列', A.parseEkichikaArticlePage(html, 1).girls, []);
+}
+
 console.log('\n── 7. ★★★ 一覧から枠の状態を読む（第156便） ──');
 //
 // ★★★ 2026-09-05 の実弾で分かったこと:
