@@ -140,5 +140,120 @@ console.log('\n── 6. 読むだけの GET ──');
   eq('★ 本文は無い', r.body, undefined);
 }
 
+
+// ────────────────────────────────────────────────────────────────────────────
+console.log('\n── 7. ★★★ 一覧から枠の状態を読む（第156便） ──');
+//
+// ★★★ 2026-09-05 の実弾で分かったこと:
+//   「送れた」＝「公開ページに出た」ではない。★ 枠そのものが非表示だと出ない。
+//   その公開状態は【一覧の change_display ボタンの value】にしか無い。
+//   ★ 記事の脇にある <span>(表示)</span> は **公開状態ではない**（非表示の枠でも (表示) と出ていた）。
+//
+// ★ 下の HTML は 2026-09-05 に実物から写した形。
+
+const ROW_HAS = (cat, label, title, when, btn) =>
+  '<tr>'
+  + '<td>' + cat + '</td>'
+  + '<td>' + label + '</td>'
+  + '<td>' + title + '</td>'
+  + '<td>' + when + '<br><span>(表示)</span></td>'
+  + '<td><input type="submit" name="change_display" value="' + btn + '" class="btn"></td>'
+  + '<td><a href="https://ranking-deli.jp/admin/articles/category' + cat + '/">編集</a></td>'
+  + '</tr>';
+
+const ROW_EMPTY = (cat, label) =>
+  '<tr>'
+  + '<td>' + cat + '</td>'
+  + '<td>' + label + '</td>'
+  + '<td colspan="2">記事がありません。</td>'
+  + '<td><input type="button" name="dammybtn" value="非表示" class="btn"'
+  + ' onclick="alert(\'表示する記事が存在しません。\');"></td>'
+  + '<td><a href="https://ranking-deli.jp/admin/articles/category' + cat + '/">新規</a></td>'
+  + '</tr>';
+
+// ★ 並びは【更新の新しい順】。★ カテゴリー順ではない（ここが罠）
+const LIST = '<html><body><table>'
+  + '<tr><th>No</th><th>カテゴリー</th><th>タイトル</th><th>更新日時</th><th>表示</th><th></th></tr>'
+  + ROW_HAS(4, 'イベント速報', '昼割のお知らせ', '2026-09-05<br>13:40:43', '表示')
+  + ROW_HAS(1, '速報NEWS', '本日も営業中', '2026-09-05<br>09:00:00', '表示')
+  + ROW_HAS(5, '緊急出勤速報', 'さら緊急出勤', '2026-09-04<br>22:10:05', '非表示')
+  + ROW_EMPTY(2, '新人速報')
+  + ROW_EMPTY(3, '激アツ割引情報')
+  + '</table></body></html>';
+
+{
+  const rows = A.parseEkichikaArticleList(LIST);
+  eq('★★ 5枠すべて読める', rows.length, 5);
+  eq('★★★ 枠は【リンクの href】から決める（並び順から決めない）', rows.map((r) => r.slot), [1, 2, 3, 4, 5]);
+  eq('★★ 相手の言葉のカテゴリー名をそのまま持つ', rows.map((r) => r.label),
+     ['速報NEWS', '新人速報', '激アツ割引情報', 'イベント速報', '緊急出勤速報']);
+  eq('★★★ 記事がある枠／無い枠を分ける', rows.map((r) => r.hasArticle), [true, false, false, true, true]);
+  eq('★★★ 公開状態は change_display の value から読む', rows.map((r) => r.visible), [true, null, null, true, false]);
+  eq('★★★ 記事が無い枠は「出ない」ではなく【分からない】（null）', rows[1].visible, null);
+  eq('★★★ 飾りのボタン（dammybtn）を公開状態として読まない', rows[2].visible, null);
+  eq('★ いまのタイトル', rows[3].title, '昼割のお知らせ');
+  eq('★ 記事が無ければタイトルは空', rows[1].title, '');
+  eq('★ 更新日時（<br> をまたいでも1つにまとめる）', rows[3].updatedAt, '2026-09-05 13:40:43');
+  eq('★ 記事が無ければ更新日時も空', rows[1].updatedAt, '');
+}
+{
+  // ★★★ (表示) の文字に引っぱられないこと。
+  //   ★ 実物では「非表示の枠」の行にも <span>(表示)</span> が出ていた。
+  const rows = A.parseEkichikaArticleList(
+    '<html><table>' + ROW_HAS(5, '緊急出勤速報', 'あ', '2026-09-05<br>10:00:00', '非表示') + '</table></html>');
+  eq('★★★ (表示) は公開状態として読まない', rows[0].visible, false);
+}
+{
+  // ★ 知らない value が来たら null（★ 勝手に「出ている」側へ倒さない）
+  const rows = A.parseEkichikaArticleList(
+    '<html><table>' + ROW_HAS(1, '速報NEWS', 'あ', '2026-09-05<br>10:00:00', 'ON') + '</table></html>');
+  eq('★★ 知らない値は null（＝分からない）', rows[0].visible, null);
+}
+{
+  // ★ 属性の順番が入れ替わっても読める
+  const html = '<html><table><tr><td>1</td><td>速報NEWS</td><td>あ</td><td>2026-09-05<br>10:00:00</td>'
+    + '<td><input value="非表示" name="change_display" type="submit"></td>'
+    + '<td><a href="/admin/articles/category1/">編集</a></td></tr></table></html>';
+  eq('★ value が先に来ても読める', A.parseEkichikaArticleList(html)[0].visible, false);
+}
+eq('★★ 枠のリンクが無い行（見出しなど）は数えない',
+   A.parseEkichikaArticleList('<table><tr><th>カテゴリー</th></tr></table>').length, 0);
+eq('★★★ 読めなければ空配列（★ 呼ぶ側が「読めなかった」と止める）', A.parseEkichikaArticleList('<html></html>'), []);
+eq('★★ 文字列でなければ空配列', A.parseEkichikaArticleList(null), []);
+eq('★★ 1〜5 以外のカテゴリーは拾わない',
+   A.parseEkichikaArticleList('<table>' + ROW_HAS(9, 'なぞ', 'あ', '2026-09-05<br>10:00:00', '表示') + '</table>').length, 0);
+{
+  // ★ 同じ枠が2度出ても1つ（★ 先に出たほう＝更新が新しいほうを採る）
+  const html = '<table>'
+    + ROW_HAS(1, '速報NEWS', 'あたらしい', '2026-09-05<br>10:00:00', '表示')
+    + ROW_HAS(1, '速報NEWS', 'ふるい', '2026-09-01<br>10:00:00', '非表示')
+    + '</table>';
+  const rows = A.parseEkichikaArticleList(html);
+  eq('★★ 同じ枠は1つだけ', rows.length, 1);
+  eq('★ 先に出たほう（新しいほう）を採る', rows[0].title, 'あたらしい');
+}
+
+console.log('\n── 8. 枠を1つ取り出す ──');
+{
+  const rows = A.parseEkichikaArticleList(LIST);
+  eq('★ 枠5が取れる', A.findArticleRow(rows, 5).label, '緊急出勤速報');
+  eq('★★ 一覧に無い枠は null', A.findArticleRow([rows[0]], 5), null);
+  eq('★★★ 枠が 1〜5 でなければ null', A.findArticleRow(rows, 6), null);
+  eq('★★★ 枠が未指定なら null（★ 勝手にどれかを選ばない）', A.findArticleRow(rows, undefined), null);
+  eq('★ 配列でなければ null', A.findArticleRow(null, 1), null);
+}
+
+console.log('\n── 9. 一覧を読む GET ──');
+{
+  const r = A.buildEkichikaArticleListRequest('sid=abc', UA);
+  eq('GET', r.method, 'GET');
+  eq('★ 宛先は一覧', r.url, A.EKICHIKA_ARTICLE_LIST_URL);
+  eq('宛先の実体', r.url, 'https://ranking-deli.jp/admin/articles/');
+  eq('★ Cookie を付ける', r.headers.cookie, 'sid=abc');
+  eq('★★ 本文は無い（読むだけ）', r.body, undefined);
+  eq('★★ Cookie が無ければ付けない（空文字を送らない）',
+     Object.prototype.hasOwnProperty.call(A.buildEkichikaArticleListRequest('', UA).headers, 'cookie'), false);
+}
+
 console.log(fail === 0 ? '\n★ すべて通った' : '\n★ NG ' + fail + ' 件');
 process.exit(fail === 0 ? 0 : 1);

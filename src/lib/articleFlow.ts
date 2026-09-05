@@ -16,6 +16,9 @@ import type { FlowAudit, FlowOutcome, FlowNextRequest, RelayFlowContext } from '
 import { mergeCookies } from './relayJob';
 import { RELAY_USER_AGENT } from './relayUserAgent';
 import {
+  parseEkichikaArticleList,
+  findArticleRow,
+  buildEkichikaArticleListRequest,
   parseEkichikaArticlePage,
   buildEkichikaArticleSaveRequest,
   ekichikaArticleEditUrl,
@@ -50,6 +53,17 @@ function readHeaders(cookie: string, referer: string): FlowNextRequest['headers'
 }
 
 /**
+ * ★★★ 一覧を読む段を積む（第156便）。
+ *   ★ 編集ページより【先】に読む。★ その枠に記事があるか・公開ページに出るかは一覧にしか無い。
+ * ★ 枠が文脈に入っていなければ null。
+ */
+export function buildArticleListStep(ctx: RelayFlowContext): FlowNextRequest | null {
+  if (!isArticleSlot(ctx.articleSlot)) return null;
+  const r = buildEkichikaArticleListRequest(ctx.cookie, RELAY_USER_AGENT);
+  return { purpose: 'article_list', method: 'GET', url: r.url, headers: r.headers, body: '', context: ctx };
+}
+
+/**
  * 編集ページを読む段を積む。
  * ★ 枠が文脈に入っていなければ null（★ どこを書き換えるか決まっていないまま進めない）。
  */
@@ -63,6 +77,93 @@ export function buildArticleReadStep(ctx: RelayFlowContext): FlowNextRequest | n
     headers: readHeaders(ctx.cookie, 'https://ranking-deli.jp/admin/articles/'),
     body: '',
     context: ctx,
+  };
+}
+
+// ────────────────────────── ① 一覧を読んだ（第156便） ──────────────────────────
+
+/**
+ * ★★★ ここで確かめること（2026-09-05 に実弾を撃って分かった）
+ *   ・その枠に **記事があるか**（無ければ上書きできない。新規の道はまだ無い）
+ *   ・その枠が **公開ページに出るか**（★ 非表示なら、送っても出ない）
+ *   ・相手の言葉の **カテゴリー名**（★ 記録に「駅ちかの新人速報」と書くため）
+ */
+export function afterArticleList(input: Input, ctx: RelayFlowContext): FlowOutcome {
+  const flowId = ctx.flowId;
+  const slot = ctx.articleSlot;
+  if (!isArticleSlot(slot)) return stop([], '書き換える枠が文脈に入っていない');
+
+  if (redirectedToLogin(input)) {
+    return stop(
+      [{ event: 'login', outcome: 'failed', summary: '', detail: { httpStatus: input.status, reason: 'back_to_login', flowId } }],
+      'ニュースの一覧がログイン画面へ戻された＝ログインできていない',
+    );
+  }
+  if (input.status >= 300) {
+    return stop(
+      [{ event: 'read_article_list', outcome: 'failed', summary: '', detail: { httpStatus: input.status, reason: 'http_error', flowId } }],
+      '一覧の応答が ' + input.status + ' だった',
+    );
+  }
+
+  const rows = parseEkichikaArticleList(input.body);
+  if (rows.length === 0) {
+    // ★ 「読めなかった」と「無かった」を混ぜない。★ 5枠あるはずのものが0件＝読めなかった
+    return stop(
+      [{ event: 'read_article_list', outcome: 'failed', summary: '', detail: { reason: 'parse_failed', flowId } }],
+      '一覧から枠を1つも読み取れなかった（画面の作りが変わった可能性）',
+    );
+  }
+
+  const cookie = mergeCookies(ctx.cookie, input.headers['set-cookie'] as string | string[] | undefined);
+  const audits: FlowAudit[] = [
+    // ★ ここで初めて「ログインできた」と言える（★ 読めた＝入れた）
+    { event: 'login', outcome: 'ok', summary: '', detail: { flowId } },
+    {
+      event: 'read_article_list', outcome: 'ok', summary: '',
+      detail: {
+        slots: rows.length,
+        // ★ いくつの枠が公開ページに出ているか（★ 店舗様への案内に使う）
+        shown: rows.filter((r) => r.visible === true).length,
+        empty: rows.filter((r) => !r.hasArticle).length,
+        flowId,
+      },
+    },
+  ];
+
+  const row = findArticleRow(rows, slot);
+  if (row === null) {
+    return stop(
+      [...audits, { event: 'read_article_list', outcome: 'failed', summary: '', detail: { slot, reason: 'slot_not_listed', flowId } }],
+      '指定した枠が一覧に見当たらない',
+    );
+  }
+
+  // ★★★ 記事が無い枠は上書きできない。★ 新規の道はまだ無い（★ 黙って進めない）
+  if (!row.hasArticle) {
+    return stop(
+      [...audits, {
+        event: 'plan_article', outcome: 'stopped', summary: '',
+        detail: { slot, where: row.label, reason: 'no_article', flowId },
+      }],
+      row.label + ' にはまだ記事がありません（新しく作る道はまだありません）',
+    );
+  }
+
+  return {
+    kind: 'next',
+    audits,
+    note: row.label + ' を読みにいく' + (row.visible === false ? '（★ この枠はいま非表示）' : ''),
+    next: {
+      ...(buildArticleReadStep({ ...ctx, cookie }) as FlowNextRequest),
+      // ★ 相手の言葉と、公開状態を持ち回す。★ 分からなければ入れない
+      context: {
+        ...ctx,
+        cookie,
+        articleWhere: row.label,
+        ...(row.visible === true || row.visible === false ? { articleVisible: row.visible } : {}),
+      },
+    },
   };
 }
 
@@ -97,10 +198,10 @@ export function afterArticleRead(input: Input, ctx: RelayFlowContext): FlowOutco
 
   const cookie = mergeCookies(ctx.cookie, input.headers['set-cookie'] as string | string[] | undefined);
 
-  // ★ ここで初めて「ログインできた」と言える（★ 読めた＝入れた）
+  // ★★ ログインできたことは【一覧の段】で記録済み（第156便）。★ 二重に出さない
+  const where = String(ctx.articleWhere ?? articleSlotLabel(slot));
   const audits: FlowAudit[] = [
-    { event: 'login', outcome: 'ok', summary: '', detail: { flowId } },
-    { event: 'read_article', outcome: 'ok', summary: '', detail: { slot, articleId: page.id, girls: page.girlIds.length, flowId } },
+    { event: 'read_article', outcome: 'ok', summary: '', detail: { slot, where, articleId: page.id, girls: page.girlIds.length, flowId } },
   ];
 
   const title = String(ctx.articleTitle ?? '');
@@ -112,7 +213,7 @@ export function afterArticleRead(input: Input, ctx: RelayFlowContext): FlowOutco
     return stop(
       [...audits, {
         event: 'plan_article', outcome: 'failed', summary: '',
-        detail: { slot, reason: 'invalid_content', flowId },
+        detail: { slot, where, reason: 'invalid_content', flowId },
       }],
       '送る内容が駅ちかの決まりに合わない: ' + (t.ok ? b.message : t.message),
     );
@@ -122,12 +223,17 @@ export function afterArticleRead(input: Input, ctx: RelayFlowContext): FlowOutco
     event: 'plan_article',
     outcome: 'ok',
     summary: '',
-    detail: { slot, where: articleSlotLabel(slot), titleLength: title.length, flowId },
+    detail: { slot, where, titleLength: title.length, flowId },
   };
 
   // ★★★ 試し打ちはここで終わり。★ 1文字も書いていない
   if (ctx.intent === 'article_dryrun') {
-    return { kind: 'done', audits: [...audits, planAudit], note: '試し打ち: ' + articleSlotLabel(slot) + ' へ出す内容を組み立てた（送っていない）' };
+    return {
+      kind: 'done',
+      audits: [...audits, planAudit],
+      note: '試し打ち: ' + where + ' へ出す内容を組み立てた（送っていない）'
+        + (ctx.articleVisible === false ? '。★ この枠はいま非表示なので、送っても公開ページには出ない' : ''),
+    };
   }
 
   let next: { method: 'GET' | 'POST'; url: string; headers: Record<string, string>; body?: string };
@@ -145,7 +251,7 @@ export function afterArticleRead(input: Input, ctx: RelayFlowContext): FlowOutco
     );
   } catch (e) {
     return stop(
-      [...audits, { event: 'plan_article', outcome: 'failed', summary: '', detail: { slot, reason: 'build_failed', flowId } }],
+      [...audits, { event: 'plan_article', outcome: 'failed', summary: '', detail: { slot, where, reason: 'build_failed', flowId } }],
       '送るものを組み立てられなかった: ' + (e as Error).message,
     );
   }
@@ -173,16 +279,17 @@ export function afterArticleSave(input: Input, ctx: RelayFlowContext): FlowOutco
   const slot = ctx.articleSlot;
   if (!isArticleSlot(slot)) return stop([], '書き換える枠が文脈に入っていない');
 
+  const where = String(ctx.articleWhere ?? articleSlotLabel(slot));
   if (input.status >= 400) {
     return stop(
-      [{ event: 'push_article', outcome: 'failed', summary: '', detail: { httpStatus: input.status, reason: 'http_error', slot, flowId } }],
+      [{ event: 'push_article', outcome: 'failed', summary: '', detail: { httpStatus: input.status, reason: 'http_error', slot, where, flowId } }],
       '書き込みの応答が ' + input.status + ' だった',
     );
   }
   const location = String(input.headers['location'] ?? '');
   if (input.status >= 300 && input.status < 400 && /\/admin\/login/i.test(location)) {
     return stop(
-      [{ event: 'push_article', outcome: 'failed', summary: '', detail: { httpStatus: input.status, reason: 'back_to_login', slot, flowId } }],
+      [{ event: 'push_article', outcome: 'failed', summary: '', detail: { httpStatus: input.status, reason: 'back_to_login', slot, where, flowId } }],
       '書き込み中にログイン画面へ戻された',
     );
   }
@@ -192,7 +299,7 @@ export function afterArticleSave(input: Input, ctx: RelayFlowContext): FlowOutco
   // ★★★ ここで「載りました」と言わない。★ 次の段（読み直し）だけが知っている。
   return {
     kind: 'next',
-    audits: [{ event: 'push_article', outcome: 'ok', summary: '', detail: { httpStatus: input.status, slot, flowId } }],
+    audits: [{ event: 'push_article', outcome: 'ok', summary: '', detail: { httpStatus: input.status, slot, where, flowId } }],
     note: '書き込みの応答を受け取った。★ 載ったかは読み返して確かめる',
     next: {
       purpose: 'article_verify',
@@ -212,10 +319,16 @@ export function afterArticleVerify(input: Input, ctx: RelayFlowContext): FlowOut
   const slot = ctx.articleSlot;
   if (!isArticleSlot(slot)) return stop([], '書き換える枠が文脈に入っていない');
   const sent = String(ctx.articleSentTitle ?? '');
+  const where = String(ctx.articleWhere ?? articleSlotLabel(slot));
+  /**
+   * ★★★ 非表示の枠か（第156便）。★ 送れて・管理画面に入っていても、**公開ページには出ない。**
+   *   ★ 2026-09-05 に実弾で分かった。★ 「載った」と書いてしまわないための旗。
+   */
+  const hidden = ctx.articleVisible === false;
 
   if (redirectedToLogin(input) || input.status >= 300) {
     return stop(
-      [{ event: 'verify_article', outcome: 'failed', summary: '', detail: { httpStatus: input.status, reason: 'read_failed', slot, flowId } }],
+      [{ event: 'verify_article', outcome: 'failed', summary: '', detail: { httpStatus: input.status, reason: 'read_failed', slot, where, flowId } }],
       '読み返しの応答が ' + input.status + ' だった',
     );
   }
@@ -223,7 +336,7 @@ export function afterArticleVerify(input: Input, ctx: RelayFlowContext): FlowOut
   const page = parseEkichikaArticlePage(input.body, slot);
   if (page === null) {
     return stop(
-      [{ event: 'verify_article', outcome: 'failed', summary: '', detail: { reason: 'parse_failed', slot, flowId } }],
+      [{ event: 'verify_article', outcome: 'failed', summary: '', detail: { reason: 'parse_failed', slot, where, flowId } }],
       '読み返しの編集ページを読み取れなかった',
     );
   }
@@ -231,7 +344,7 @@ export function afterArticleVerify(input: Input, ctx: RelayFlowContext): FlowOut
   // ★★★ 送ったタイトルが入っているか。★ ここで初めて「載った」と言える
   if (sent.length === 0) {
     return stop(
-      [{ event: 'verify_article', outcome: 'failed', summary: '', detail: { reason: 'no_sent_title', slot, flowId } }],
+      [{ event: 'verify_article', outcome: 'failed', summary: '', detail: { reason: 'no_sent_title', slot, where, flowId } }],
       '送ったタイトルが文脈に無いので確かめられない',
     );
   }
@@ -241,7 +354,7 @@ export function afterArticleVerify(input: Input, ctx: RelayFlowContext): FlowOut
       kind: 'done',
       audits: [{
         event: 'verify_article', outcome: 'stopped', summary: '',
-        detail: { reason: 'title_mismatch', slot, flowId },
+        detail: { reason: 'title_mismatch', slot, where, flowId },
       }],
       note: '読み返したが、いま載っているタイトルが送ったものと違う（別の更新が入った可能性）',
     };
@@ -249,7 +362,10 @@ export function afterArticleVerify(input: Input, ctx: RelayFlowContext): FlowOut
 
   return {
     kind: 'done',
-    audits: [{ event: 'verify_article', outcome: 'ok', summary: '', detail: { slot, where: articleSlotLabel(slot), flowId } }],
-    note: articleSlotLabel(slot) + ' に載ったことを確かめた',
+    // ★★★ hidden を必ず載せる。★ 文言が「載りました」と「公開ページには出ていません」で割れる
+    audits: [{ event: 'verify_article', outcome: 'ok', summary: '', detail: { slot, where, hidden, flowId } }],
+    note: hidden
+      ? where + ' に反映したが、この枠はいま非表示なので公開ページには出ていない'
+      : where + ' に載ったことを確かめた',
   };
 }

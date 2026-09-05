@@ -38,6 +38,7 @@ export type RelayPurpose =
   | 'read_maillist' // ★ 投稿用メールアドレス一覧を読む（第53便）。読むだけ
   // ★ 駅ちかの新着情報の段（第155便）。★ 段名で分けているので既存の段に触らない
   //   ★★ article_save だけが相手を書き換える。★ 5枠のうち【1枠だけ】
+  | 'article_list'
   | 'article_read'
   | 'article_save'
   | 'article_verify'

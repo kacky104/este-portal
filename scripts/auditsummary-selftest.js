@@ -183,5 +183,44 @@ eq('★★ 印の無い stopped は出す（送らなかった理由）',
      vis({ event: 'read_work', outcome: 'ok', detail: scrubbed.detail }), false);
 }
 
+
+console.log('\n── 駅ちかの新着情報の文言（第156便） ──');
+//
+// ★★★ 2026-09-05 の実弾で分かったこと:
+//   管理画面には載った。★ でも公開ページには出なかった（枠そのものが非表示だった）。
+//   → 「載りました」で終わらせない。★ 出ていないなら、そう書く。
+// ★★ もうひとつ: 「駅ちか（枠1）」という書き方は店舗様に通じない。
+//   ★ 相手の画面の言葉（新人速報／緊急出勤速報）で書く。
+const sum = (event, outcome, detail) =>
+  a.defaultAuditSummary({ event, outcome, provider: 'ekichika', slot: 1, detail: detail ?? null });
+const WHERE = { where: '新人速報' };
+
+eq('★★ 一覧を読んだ', sum('read_article_list', 'ok'), '駅ちかの新着情報の一覧を読み取りました');
+eq('★ 一覧が読めなかった', sum('read_article_list', 'failed'), '駅ちかの新着情報の一覧を読み取れませんでした');
+eq('★★★ 枠の名前が分かれば相手の言葉で書く', sum('read_article', 'ok', WHERE), '駅ちかの新人速報を読み取りました');
+eq('★★★ 「送った」と読める文にしない（まだ送っていない）',
+   sum('plan_article', 'ok', WHERE), '駅ちかの新人速報へ出す内容を組み立てました（まだ送っていません）');
+eq('★★★ 送った段では「載りました」と言わない', sum('push_article', 'ok', WHERE), '駅ちかの新人速報へ送りました');
+eq('★★★ 読み返して初めて「載った」と言う', sum('verify_article', 'ok', WHERE), '駅ちかの新人速報に載ったことを確認しました');
+eq('★★★ 枠が非表示なら「公開ページには出ていない」と書く',
+   sum('verify_article', 'ok', { where: '新人速報', hidden: true }),
+   '駅ちかの新人速報に反映しましたが、この枠はいま非表示のため公開ページには出ていません');
+eq('★★ hidden が false なら普通の文言', sum('verify_article', 'ok', { where: '新人速報', hidden: false }),
+   '駅ちかの新人速報に載ったことを確認しました');
+eq('★★★ hidden が分からないときに「非表示」と言わない（0と不明を混ぜない）',
+   sum('verify_article', 'ok', WHERE), '駅ちかの新人速報に載ったことを確認しました');
+eq('★ 確かめられなかった', sum('verify_article', 'failed', WHERE), '駅ちかの新人速報に載ったことを確認できませんでした');
+// ★★ 枠の名前が分からないとき（一覧が読めなかった等）でも、内部の番号を出さない
+{
+  const t = sum('push_article', 'ok');
+  eq('★★ 枠の名前が無くても「枠1」のような内部の言い方をしない', /枠\d/.test(t), false);
+  eq('★ そのときは媒体の名前だけで書く', t.indexOf('駅ちか') >= 0, true);
+}
+{
+  // ★★★ 「送った」を「載った」と読める文にしていないか（この2つは別物・第136便）
+  const pushed = sum('push_article', 'ok', WHERE);
+  eq('★★★ 送った文に「載り」「確認」を混ぜない', /載り|確認|反映しました/.test(pushed), false);
+}
+
 console.log(fail === 0 ? '\n★ すべて通った' : '\n★ NG ' + fail + ' 件');
 process.exit(fail === 0 ? 0 : 1);

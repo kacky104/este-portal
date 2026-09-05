@@ -67,7 +67,7 @@ import { relayFileUrl, type RelayMultipart } from './relayMultipart';
 // ★ エステラブ（第78便）。★ 駅ちかの段には一切触れず、別の段名で足す
 import { buildEsuloveTherapistListRequest, judgeEsuloveLogin, ESULOVE_THERAPIST_URL } from './esuloveRequests';
 // ★ 駅ちかの新着情報の段（第155便）。★ 段名で分けているので既存の判定に触らない
-import { afterArticleRead, afterArticleSave, afterArticleVerify, buildArticleReadStep } from './articleFlow';
+import { afterArticleList, afterArticleRead, afterArticleSave, afterArticleVerify, buildArticleListStep } from './articleFlow';
 import { parseEsuloveTherapists, duplicateNames, type EsuloveTherapistRow } from './esuloveTherapistParse';
 // ★ エステ魂の段（第109便）。★ 段の中身は esutamaFlow.ts に置き、ここは振り分けだけ
 import {
@@ -288,6 +288,17 @@ export type RelayFlowContext = {
    *   ★ 「送った」と「載った」を分けるのに要る（第136便）。
    */
   articleSentTitle?: string;
+  /**
+   * ★ 相手の言葉のカテゴリー名（速報NEWS・新人速報…）。★ 一覧から拾う。
+   *   ★★ 記録に「駅ちかの新人速報」と書くために持ち回す（第156便）。
+   */
+  articleWhere?: string;
+  /**
+   * ★★★ その枠が公開ページに出るか（第156便・2026-09-05 に実弾で分かった）。
+   *   ★ true / false のときだけ入れる。★ 分からなければ**入れない**（undefined）。
+   *   ★★ 非表示の枠に送っても公開ページには出ない。★ そのことを読み返しの記録に必ず出す。
+   */
+  articleVisible?: boolean;
 
   // ── ここから下は intent='diary_read' のときだけ入る（第94便）──
   /** いま読みに行っている一覧のページ番号（1始まり）。★ ページ送りで遡るときに使う */
@@ -443,7 +454,7 @@ export type FlowNextRequest = {
   purpose:
     | 'read_work' | 'write_work' | 'verify_work' | 'read_girls' | 'read_maillist'
     // ★ 駅ちかの新着情報（第155便）。★ 名前を分けることで、既存の段の判定に一切触らない
-    | 'article_read' | 'article_save' | 'article_verify'
+    | 'article_list' | 'article_read' | 'article_save' | 'article_verify'
     // ★ 写メ日記の段（第94便）。★ 読むだけ
     | 'read_diary_list' | 'read_diary_detail'
     // ★ エステラブの段（第78便）。★ 名前を分けることで、駅ちかの段の判定に一切触れない
@@ -729,6 +740,8 @@ export function advanceFlow(input: {
     case 'read_maillist':
       return afterReadMailList(input, ctx);
     // ── 駅ちかの新着情報（第155便）★ 段名で分けている。既存の case には触れていない ──
+    case 'article_list':
+      return afterArticleList(input, ctx);
     case 'article_read':
       return afterArticleRead(input, ctx);
     case 'article_save':
@@ -876,14 +889,16 @@ function afterLogin(
   }
 
   if (ctx.intent === 'article_dryrun' || ctx.intent === 'article_push') {
-    const next = buildArticleReadStep({ ...ctx, cookie });
+    // ★★★ 第156便: 編集ページより先に【一覧】を読む。
+    //   ★ その枠に記事があるか・公開ページに出るかは、**一覧にしか書いていない**（2026-09-05 実測）。
+    const next = buildArticleListStep({ ...ctx, cookie });
     // ★ 枠が入っていなければ進めない（★ どこを書き換えるか決まっていないまま先へ行かない）
     if (next === null) return stop([], '書き換える枠（1〜5）が文脈に入っていないので進めない');
     return {
       kind: 'next',
       next,
       audits: [],
-      note: 'ログインの応答を受け取った。★ 成否はニュースの編集ページが読めるかどうかで判定する',
+      note: 'ログインの応答を受け取った。★ 成否はニュースの一覧が読めるかどうかで判定する',
     };
   }
 

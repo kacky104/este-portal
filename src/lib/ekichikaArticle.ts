@@ -187,6 +187,118 @@ export function parseEkichikaArticlePage(html: unknown, slot: unknown): Ekichika
   };
 }
 
+// ────────────────────────────── 一覧を読む（第156便） ──────────────────────────────
+
+/**
+ * ★★★ なぜ一覧が要るか（2026-09-05 に実弾を撃って分かった）
+ *
+ *   実弾は通り、編集ページを読み返してタイトルも一致した。★ なのに**公開ページに出ていなかった。**
+ *   ★★ 枠そのものの表示/非表示が【別のところ】にあった。
+ *
+ *   ★★★ 確認は3段階だった:
+ *     ① 送った            … 302 が返った
+ *     ② 管理画面に入った  … 編集ページのタイトルが一致
+ *     ③ 公開ページに出た  … ★ **枠が表示中かどうか**  ← ここを見ていなかった
+ *
+ * ★★ 一覧（/admin/articles/）の各行にトグルのフォームがある:
+ *     <input type="hidden" name="article_id">
+ *     <input type="hidden" name="news_display_flg">
+ *     <input type="submit" name="change_display" value="表示">   ← ★ value = **いまの状態**
+ *
+ *   ★ 実測: 新人速報が公開ページに出ていないとき value="非表示"、
+ *     カッキーさんが押して公開ページに出たあと value="表示"。★ だから value は【いまの状態】。
+ *   ★★★ hidden の news_display_flg は【押したら送る値】かもしれない（＝いまの逆）。★ **未確認なので使わない。**
+ *
+ * ★★ 記事が無い枠は `<input type="button" name="dammybtn" value="非表示">`（★ ただの飾り）。
+ *   ★ 押すと「表示する記事が存在しません。」と出るだけ。★ これを状態と読み違えないこと。
+ *
+ * ★★★ 日時の欄の `(表示)` は【公開状態ではない】。
+ *   ★ 実測: 新人速報は `(表示)` なのに公開ページに出ていなかった。★ 別のものを指している（未確認）。
+ */
+export type EkichikaArticleRow = {
+  slot: EkichikaArticleSlot;
+  /** 相手の言葉のカテゴリー名（★ 画面や記録にはこちらを出す） */
+  label: string;
+  /** その枠に記事があるか。★ 無ければ上書きできない（新規の道はまだ無い） */
+  hasArticle: boolean;
+  /**
+   * ★★★ 公開ページに出るか。
+   *   ★ 記事が無ければ null（★ 「出ない」ではなく【分からない】。飾りのボタンを読まない）
+   */
+  visible: boolean | null;
+  /** いまのタイトル（記事が無ければ空） */
+  title: string;
+  /** 'YYYY-MM-DD HH:MM:SS'（記事が無ければ空） */
+  updatedAt: string;
+};
+
+function stripTags(s: string): string {
+  return s.replace(/<br\s*\/?>/gi, ' ').replace(/<[^>]*>/g, '').replace(/&nbsp;/g, ' ').replace(/\s+/g, ' ').trim();
+}
+
+/**
+ * 一覧から枠ごとの状態を読む。
+ *
+ * ★★ 並び順は【更新の新しい順】でカテゴリー順ではない。
+ *   → ★ 枠は必ず **編集／新規リンクの href** から決める（★ 並びから決めない）。
+ * ★ 1つも読めなければ空配列。★ 呼ぶ側が「読めなかった」として止める。
+ */
+export function parseEkichikaArticleList(html: unknown): EkichikaArticleRow[] {
+  const s = typeof html === 'string' ? html : '';
+  const out: EkichikaArticleRow[] = [];
+  const seen = new Set<number>();
+  for (const m of s.matchAll(/<tr[^>]*>([\s\S]*?)<\/tr>/g)) {
+    const row = m[1];
+    const slotM = /\/admin\/articles\/category(\d)\//.exec(row);
+    if (!slotM) continue;
+    const slot = Number(slotM[1]);
+    if (!isArticleSlot(slot) || seen.has(slot)) continue;
+
+    const tds = [...row.matchAll(/<td[^>]*>([\s\S]*?)<\/td>/g)].map((t) => stripTags(t[1]));
+    const label = (tds[1] ?? '').trim();
+    const hasArticle = !/記事がありません/.test(row);
+
+    // ★★ 公開状態は change_display の value だけから読む（★ 飾りの dammybtn は読まない）
+    let visible: boolean | null = null;
+    if (hasArticle) {
+      const btn = /name="change_display"[^>]*value="([^"]*)"/.exec(row)
+        ?? /value="([^"]*)"[^>]*name="change_display"/.exec(row);
+      const v = btn?.[1]?.trim() ?? '';
+      // ★ 知らない文字は null（★ 勝手に「出ている」側へ倒さない）
+      visible = v === '表示' ? true : (v === '非表示' ? false : null);
+    }
+
+    const title = hasArticle ? (tds[2] ?? '').trim() : '';
+    const when = hasArticle ? (tds[3] ?? '') : '';
+    const wm = /(\d{4}-\d{2}-\d{2})\s*(\d{2}:\d{2}:\d{2})/.exec(when);
+    const updatedAt = wm ? wm[1] + ' ' + wm[2] : '';
+
+    seen.add(slot);
+    out.push({ slot, label: label || articleSlotLabel(slot), hasArticle, visible, title, updatedAt });
+  }
+  return out.sort((a, b) => a.slot - b.slot);
+}
+
+/** その枠の行を1つ取り出す。★ 無ければ null（★ 「無い」と「読めなかった」は呼ぶ側で分ける） */
+export function findArticleRow(rows: readonly EkichikaArticleRow[], slot: unknown): EkichikaArticleRow | null {
+  if (!isArticleSlot(slot)) return null;
+  return (Array.isArray(rows) ? rows : []).find((r) => r.slot === slot) ?? null;
+}
+
+/** 一覧のURLを読む GET を組み立てる */
+export function buildEkichikaArticleListRequest(cookie: string, userAgent: string): RelayRequest {
+  return {
+    method: 'GET',
+    url: EKICHIKA_ARTICLE_LIST_URL,
+    headers: {
+      'user-agent': userAgent,
+      accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+      'accept-language': 'ja,en-US;q=0.9,en;q=0.8',
+      ...(cookie ? { cookie } : {}),
+    },
+  };
+}
+
 // ────────────────────────────── 送るものを組み立てる ──────────────────────────────
 
 export type RelayRequest = {

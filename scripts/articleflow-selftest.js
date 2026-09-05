@@ -55,11 +55,15 @@ console.log('\n── 1. ★★★ 試し打ちは1文字も書かない ──'
   const r = F.afterArticleRead(res200(PAGE('いまのタイトル')), ctxOf({}));
   eq('★★★ 次の段を積まない（＝駅ちかへ何も飛ばない）', r.kind, 'done');
   eq('★★★ next が無い', r.next, undefined);
-  eq('★ ログインできたと読める・編集ページを読めた・組み立てた', r.audits.map((a) => a.event + ':' + a.outcome),
-     ['login:ok', 'read_article:ok', 'plan_article:ok']);
-  eq('★★ 記事IDを記録に残す', r.audits[1].detail.articleId, '266318');
-  eq('★ 枠も残す', r.audits[2].detail.slot, 5);
-  eq('★ 枠の名前も残す', r.audits[2].detail.where, '緊急出勤速報');
+  // ★★ 第156便: 「ログインできた」は【一覧の段】で記録する。★ ここで二重に出さない
+  eq('★★ 編集ページを読めた・組み立てた（login は一覧の段で記録済み）', r.audits.map((a) => a.event + ':' + a.outcome),
+     ['read_article:ok', 'plan_article:ok']);
+  eq('★★★ login:ok を二重に出さない', r.audits.filter((a) => a.event === 'login').length, 0);
+  eq('★★ 記事IDを記録に残す', r.audits[0].detail.articleId, '266318');
+  eq('★ 枠も残す', r.audits[1].detail.slot, 5);
+  eq('★ 枠の名前も残す', r.audits[1].detail.where, '緊急出勤速報');
+  eq('★★ 一覧から受け取った相手の言葉があればそちらを使う',
+     F.afterArticleRead(res200(PAGE('x')), ctxOf({ articleWhere: '新人速報' })).audits[0].detail.where, '新人速報');
 }
 
 console.log('\n── 2. ★★★ 実弾は保存の段を積む ──');
@@ -88,7 +92,7 @@ console.log('\n── 3. ★★★ 送る前に弾く ──');
   const long = F.afterArticleRead(res200(PAGE('x')), ctxOf({ intent: 'article_push', articleTitle: 'あ'.repeat(71) }));
   eq('★★★ タイトルが長ければ止める', long.kind, 'stop');
   eq('★ 組み立てられなかったと残す', long.audits[long.audits.length - 1].event + ':' + long.audits[long.audits.length - 1].outcome, 'plan_article:failed');
-  eq('★★ それでも「読めた」までは残す', long.audits.map((a) => a.event).slice(0, 2), ['login', 'read_article']);
+  eq('★★ それでも「読めた」までは残す', long.audits.map((a) => a.event), ['read_article', 'plan_article']);
   const img = F.afterArticleRead(res200(PAGE('x')), ctxOf({ intent: 'article_push', articleBody: '<p><img src=x></p>' }));
   eq('★★★ 本文に画像があれば止める', img.kind, 'stop');
   const link = F.afterArticleRead(res200(PAGE('x')), ctxOf({ intent: 'article_push', articleBody: '<a href="http://x">x</a>' }));
@@ -143,6 +147,128 @@ eq('★★ 読み返しが読めなければ失敗',
 console.log('\n── 7. ★★ 前後の空白は同じものとして扱う ──');
 eq('★ 前後の空白違いは同じとみなす',
    F.afterArticleVerify(res200(PAGE('テストのお知らせ')), ctxOf({ intent: 'article_push', articleSentTitle: ' テストのお知らせ ' })).audits[0].outcome, 'ok');
+
+
+// ────────────────────────────────────────────────────────────────────────────
+console.log('\n── 8. ★★★ 送る前に一覧を読む（第156便） ──');
+//
+// ★★★ なぜこの段を足したか（2026-09-05・実弾のあと）
+//   実弾は【管理画面には入った】。★ しかし公開ページには出なかった。
+//   ★ 枠そのものが「非表示」だったから。★ それは編集ページには**書いていない**。
+//   → 送る前に一覧を読み、
+//       ① 記事が無い枠は先に弾く（上書きするものが無い）
+//       ② 非表示の枠でも【勝手に表示へ切り替えない】。★ 記録に残して先へ進む
+//     という形にした。
+
+const ROW_HAS = (cat, label, title, btn) =>
+  '<tr><td>' + cat + '</td><td>' + label + '</td><td>' + title + '</td>'
+  + '<td>2026-09-05<br>13:40:43<br><span>(表示)</span></td>'
+  + '<td><input type="submit" name="change_display" value="' + btn + '"></td>'
+  + '<td><a href="https://ranking-deli.jp/admin/articles/category' + cat + '/">編集</a></td></tr>';
+const ROW_EMPTY = (cat, label) =>
+  '<tr><td>' + cat + '</td><td>' + label + '</td><td colspan="2">記事がありません。</td>'
+  + '<td><input type="button" name="dammybtn" value="非表示"></td>'
+  + '<td><a href="https://ranking-deli.jp/admin/articles/category' + cat + '/">新規</a></td></tr>';
+const LIST = (btn5) => '<html><table>'
+  + ROW_HAS(1, '速報NEWS', '本日も営業中', '表示')
+  + ROW_EMPTY(2, '新人速報')
+  + ROW_HAS(3, '激アツ割引情報', '割引中', '表示')
+  + ROW_HAS(4, 'イベント速報', '昼割のお知らせ', '表示')
+  + ROW_HAS(5, '緊急出勤速報', 'さら緊急出勤', btn5)
+  + '</table></html>';
+
+{
+  const step = F.buildArticleListStep(ctxOf({}));
+  eq('★★ まず一覧を読む', [step.purpose, step.method, step.url],
+     ['article_list', 'GET', 'https://ranking-deli.jp/admin/articles/']);
+  eq('★ Cookie を付ける', step.headers.cookie, 'sid=abc');
+  eq('★★ 本文は空（読むだけ）', step.body, '');
+}
+eq('★★★ 枠が無ければ一覧の段も積まない', F.buildArticleListStep(ctxOf({ articleSlot: undefined })), null);
+eq('★★★ 枠が6でも積まない', F.buildArticleListStep(ctxOf({ articleSlot: 6 })), null);
+eq('★★ 一覧の段でも枠が無ければ止める',
+   F.afterArticleList(res200(LIST('表示')), ctxOf({ articleSlot: null })).kind, 'stop');
+
+{
+  // ★ 表示中の枠 → 次は編集ページ
+  const r = F.afterArticleList(res200(LIST('表示')), ctxOf({}));
+  eq('★★ 次は編集ページを読む', [r.kind, r.next.purpose, r.next.url],
+     ['next', 'article_read', 'https://ranking-deli.jp/admin/articles/category5/']);
+  eq('★★★ ここで初めて「ログインできた」と言える', r.audits.map((a) => a.event + ':' + a.outcome),
+     ['login:ok', 'read_article_list:ok']);
+  eq('★ 何枠あったかを残す', r.audits[1].detail.slots, 5);
+  eq('★ 公開されている枠の数', r.audits[1].detail.shown, 4);
+  eq('★ 記事が無い枠の数', r.audits[1].detail.empty, 1);
+  eq('★★★ 相手の言葉のカテゴリー名を持ち回す', r.next.context.articleWhere, '緊急出勤速報');
+  eq('★★ 表示中なら articleVisible は true', r.next.context.articleVisible, true);
+  eq('★★★ この段では1文字も書かない（GET）', r.next.method, 'GET');
+}
+{
+  // ★★★ 非表示の枠 → 止めない。★ でも「非表示」を持ち回して、あとで記録に残す
+  const r = F.afterArticleList(res200(LIST('非表示')), ctxOf({}));
+  eq('★★ 非表示でも進む（送るのは店舗様が選んだ枠だから）', r.kind, 'next');
+  eq('★★★ 非表示を持ち回す', r.next.context.articleVisible, false);
+  eq('★★★ 勝手に「表示」へ切り替えるものを積まない', r.next.method, 'GET');
+  eq('★ 添え書きに非表示と出る', /非表示/.test(r.note), true);
+}
+{
+  // ★★★ 記事が無い枠は上書きできない。★ 新規の道はまだ無い
+  const r = F.afterArticleList(res200(LIST('表示')), ctxOf({ articleSlot: 2 }));
+  eq('★★★ 記事が無ければ止める', r.kind, 'stop');
+  eq('★★ 「送れなかった」ではなく「組み立てなかった」', r.audits[r.audits.length - 1].event + ':' + r.audits[r.audits.length - 1].outcome, 'plan_article:stopped');
+  eq('★★★ 理由を残す', r.audits[r.audits.length - 1].detail.reason, 'no_article');
+  eq('★ 相手の言葉で残す', r.audits[r.audits.length - 1].detail.where, '新人速報');
+  eq('★★ 一覧は読めているので login:ok は残す', r.audits[0].event + ':' + r.audits[0].outcome, 'login:ok');
+}
+{
+  // ★★ 一覧に無い枠（相手が枠を減らした等）
+  const one = '<html><table>' + ROW_HAS(1, '速報NEWS', 'あ', '表示') + '</table></html>';
+  const r = F.afterArticleList(res200(one), ctxOf({}));
+  eq('★★★ 指定した枠が一覧に無ければ止める', r.kind, 'stop');
+  eq('★ 理由を残す', r.audits[r.audits.length - 1].detail.reason, 'slot_not_listed');
+}
+{
+  // ★★★ 0件は「無かった」ではなく【読めなかった】
+  const r = F.afterArticleList(res200('<html><body>なにもない</body></html>'), ctxOf({}));
+  eq('★★★ 1枠も読めなければ止める', r.kind, 'stop');
+  eq('★★★ 「記事が無い」と言わない（読めなかった）', r.audits[0].event + ':' + r.audits[0].outcome, 'read_article_list:failed');
+  eq('★★★ 理由は parse_failed', r.audits[0].detail.reason, 'parse_failed');
+  eq('★★★ 読めていないので login:ok と言わない', r.audits.some((a) => a.event === 'login'), false);
+}
+eq('★★★ ログイン画面へ戻されたらログインの失敗',
+   F.afterArticleList(res200(LOGIN_PAGE), ctxOf({})).audits[0].event + ':'
+   + F.afterArticleList(res200(LOGIN_PAGE), ctxOf({})).audits[0].outcome, 'login:failed');
+eq('★★ 302 でログインへ飛ばされても同じ',
+   F.afterArticleList({ status: 302, headers: { location: 'https://ranking-deli.jp/admin/login/' }, body: '' }, ctxOf({})).audits[0].detail.reason,
+   'back_to_login');
+{
+  const bad = F.afterArticleList({ status: 500, headers: {}, body: '' }, ctxOf({}));
+  eq('★★ 5xx は一覧の読み取りの失敗', [bad.kind, bad.audits[0].event, bad.audits[0].detail.reason],
+     ['stop', 'read_article_list', 'http_error']);
+}
+
+console.log('\n── 9. ★★★ 非表示の枠に送ったら、そう書く ──');
+//
+// ★★★ ここが第155便の抜け。★ 管理画面に載っても、枠が非表示なら公開ページには出ない。
+//   ★ 「載りました」で終わらせない。★ 店舗様が公開ページを見て「出ていない」と気づく前に、こちらが言う。
+{
+  const hid = F.afterArticleVerify(res200(PAGE('テストのお知らせ')),
+    ctxOf({ intent: 'article_push', articleSentTitle: 'テストのお知らせ', articleVisible: false, articleWhere: '新人速報' }));
+  eq('★★ 反映そのものは確認できている', hid.audits[0].outcome, 'ok');
+  eq('★★★ 非表示だったことを記録に残す', hid.audits[0].detail.hidden, true);
+  eq('★ 相手の言葉で残す', hid.audits[0].detail.where, '新人速報');
+}
+{
+  const shown = F.afterArticleVerify(res200(PAGE('テストのお知らせ')),
+    ctxOf({ intent: 'article_push', articleSentTitle: 'テストのお知らせ', articleVisible: true }));
+  eq('★★ 表示中なら hidden を立てない', shown.audits[0].detail.hidden, false);
+}
+{
+  // ★★★ 公開状態が【分からない】ときに「非表示です」と言わない
+  const unk = F.afterArticleVerify(res200(PAGE('テストのお知らせ')),
+    ctxOf({ intent: 'article_push', articleSentTitle: 'テストのお知らせ' }));
+  eq('★★★ 分からないときは hidden を立てない（0と不明を混ぜない）', unk.audits[0].detail.hidden, false);
+}
 
 console.log(fail === 0 ? '\n★ すべて通った' : '\n★ NG ' + fail + ' 件');
 process.exit(fail === 0 ? 0 : 1);
