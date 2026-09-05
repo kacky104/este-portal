@@ -355,8 +355,16 @@ export type ArticleWrite = {
    * 画像をどうするか。
    *   'keep'  … 読んだページのまま（既定）★ いまの画像を落とさない
    *   'girl'  … 女の子の1枚目の写真を使う（img_flg=1）★ girlId が要る
+   *   'upload' … ★ こちらで上げた画像を使う（img_flg=0）★ uploaded が要る（第162便）
    */
-  image?: 'keep' | 'girl';
+  image?: 'keep' | 'girl' | 'upload';
+  /**
+   * ★★★ こちらで上げた画像の識別子（第162便）。
+   *   ★ ①article_image.json が返した img_b と、②article_crop.json が返した img_s。
+   *   ★★ これがあるときは【読んだページの識別子を使わない】。★ 上げたばかりの画像に差し替える。
+   *     ★ 読んだページはまだ古い識別子を持っている（★ 保存して初めて入れ替わる）。
+   */
+  uploaded?: { imgB: string; imgS: string };
 };
 
 /**
@@ -382,6 +390,16 @@ export function buildEkichikaArticleSaveRequest(
   if (!b.ok) throw new Error('本文を送れません: ' + b.message);
 
   const image = write.image ?? 'keep';
+  // ★★★ 上げた画像を使うなら、その識別子が要る（★ 無いまま img_flg=0 にすると画像が消える）
+  if (image === 'upload') {
+    const u = write.uploaded;
+    if (!u || !/^\d{8,20}$/.test(String(u.imgB))) {
+      throw new Error('上げた画像の識別子（img_b）がありません');
+    }
+    if (!/^\d{8,20}$/.test(String(u.imgS))) {
+      throw new Error('切り抜いた画像の識別子（img_s）がありません');
+    }
+  }
   // ★ 女の子の写真を使うなら、その子が選択肢に居ること（★ 居ない番号を送らない）
   const girlId = write.girlId ?? page.girlId;
   if (image === 'girl') {
@@ -395,13 +413,16 @@ export function buildEkichikaArticleSaveRequest(
     ['title', write.title.trim()],
     ['body', write.body],
     ['girl_id', girlId],
-    // ★ 'girl' なら 1（女の子の画像を使う）。★ 'keep' は読んだ値をそのまま返す
-    ['img_flg', image === 'girl' ? '1' : page.imgFlg],
+    // ★ 'girl' なら 1（女の子の画像を使う）／'upload' なら 0（独自の画像）。
+    // ★ 'keep' は読んだ値をそのまま返す
+    ['img_flg', image === 'girl' ? '1' : image === 'upload' ? '0' : page.imgFlg],
     ['display_flg', '1'],
     ['id', page.id],
     // ★★ 画像の識別子は【読んだものをそのまま返す】。★ 落とすと、いまの画像が消える
-    ['g_image1', page.gImage1],
-    ['g_image1s', page.gImage1s],
+    // ★★★ ただし 'upload' のときは、上げたばかりの識別子に差し替える（第162便）。
+    //   ★ 読んだページはまだ古い識別子を持っている。★ そのまま返すと、上げた画像が使われない
+    ['g_image1', image === 'upload' ? String(write.uploaded?.imgB ?? '') : page.gImage1],
+    ['g_image1s', image === 'upload' ? String(write.uploaded?.imgS ?? '') : page.gImage1s],
     ['post_edit_data', '入力内容を登録する'],
   ];
 

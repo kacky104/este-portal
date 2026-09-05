@@ -335,5 +335,116 @@ eq('★★ 1枠も読めなければ、読むだけでも失敗として止め�
 eq('★★ ログイン画面へ戻されたら、読むだけでもログインの失敗',
    F.afterArticleList(res200(LOGIN_PAGE), slotsCtx()).audits[0].outcome, 'failed');
 
+
+console.log('\n── 12. ★★★ 画像を先に上げる（第162便） ──');
+//
+// ★★★ 順番が要（2026-09-05 実測）
+//   編集ページ →（画像がある）→ ①上げる → ②切る → 編集ページを読み直す → 保存 → 読み返し
+//   ★ 保存に入れる g_image1 / g_image1s は【①②が返した識別子】。★ 読んだページの値は古い。
+//
+// ★★ 止まらなくなる罠: ②のあと編集ページを読み直すので、
+//   ★ 「もう上げた」印（articleImgS）が無いと**永久に上げ続ける**。
+
+const TOKEN = 'a'.repeat(128);
+// ★ 実測どおり csrf と shopid は普通の input
+const PAGE_WITH_IDS = (title) => PAGE(title).replace('</form>',
+  '<input type="hidden" name="fuel_csrf_token" value="' + TOKEN + '">'
+  + '<input type="hidden" name="shopid" value="37168"></form>');
+const FILE = { bucket: 'therapist-photos', path: 'a/b.jpg', filename: 'x.jpg', contentType: 'image/jpeg', width: 600, height: 800 };
+const upCtx = (o) => ctxOf(Object.assign({ intent: 'article_push', articleImage: 'upload', articleFile: FILE }, o || {}));
+
+{
+  const r = F.afterArticleRead(res200(PAGE_WITH_IDS('いまのタイトル')), upCtx());
+  eq('★★★ 保存より先に画像を上げにいく', [r.kind, r.next.purpose, r.next.method], ['next', 'article_image', 'POST']);
+  eq('★ 宛先は実測どおり', r.next.url, 'https://ranking-deli.jp/ajax/admin/article_image.json');
+  eq('★★★ 画像そのものは通さない。場所だけ載せる', r.next.multipart.files[0].field, 'upfile');
+  eq('★★★ fuel_csrf_token を必ず入れる', r.next.multipart.fields.fuel_csrf_token.length, 128);
+  eq('★ shopid も入れる', r.next.multipart.fields.shopid, '37168');
+  eq('★★ ajax として送る', r.next.headers['x-requested-with'], 'XMLHttpRequest');
+  eq('★★ 読んだ値を持ち回す', [r.next.context.articleCsrf.length, r.next.context.articleShopId], [128, '37168']);
+  eq('★★★ この段ではまだ記事を変えていないので push_article を出さない',
+     r.audits.some((a) => a.event === 'push_article'), false);
+}
+eq('★★★ 試し打ちでは画像も上げない（★ 1文字も書かない）',
+   F.afterArticleRead(res200(PAGE_WITH_IDS('x')), upCtx({ intent: 'article_dryrun' })).kind, 'done');
+eq('★★ 画像を使わない設定なら、いままでどおり保存へ',
+   F.afterArticleRead(res200(PAGE_WITH_IDS('x')), ctxOf({ intent: 'article_push' })).next.purpose, 'article_save');
+{
+  // ★★★ 画像を送る設定なのに在処が無い → **止める**。
+  //   ★ このまま保存へ進むと img_flg=0 で識別子が空になり、**いまの画像が消える**。
+  const r = F.afterArticleRead(res200(PAGE_WITH_IDS('x')), upCtx({ articleFile: undefined }));
+  eq('★★★ 画像の在処が無ければ止める（★ 黙って保存へ進まない）', r.kind, 'stop');
+  eq('★ 理由を残す', r.audits[r.audits.length - 1].detail.reason, 'no_file');
+  eq('★★★ 「いまの画像が消える」ことを添え書きに書く', /画像が消えます/.test(r.note), true);
+}
+{
+  // ★★★ 二度上げない印
+  const r = F.afterArticleRead(res200(PAGE_WITH_IDS('x')), upCtx({ articleImgB: '20260905172422', articleImgS: '20260905172523' }));
+  eq('★★★ もう上げ終わっていれば保存へ進む（★ 永久に上げ続けない）', r.next.purpose, 'article_save');
+  const f = Object.fromEntries(r.next.body.split('&').map((kv) => kv.split('=').map(decodeURIComponent)));
+  eq('★★★ 上げた識別子を保存に入れる（★ 読んだページの古い値ではない）',
+     [f.g_image1, f.g_image1s], ['20260905172422', '20260905172523']);
+  eq('★★★ 独自の画像なので img_flg は 0', f.img_flg, '0');
+}
+{
+  // ★★★ 読めていないページからは送らない（第145便の反省）
+  const r = F.afterArticleRead(res200(PAGE('x')), upCtx());   // ★ csrf も shopid も無いページ
+  eq('★★★ csrf/shopid が読めなければ止める', r.kind, 'stop');
+  eq('★ 理由を残す', r.audits[r.audits.length - 1].detail.reason, 'ids_unreadable');
+  eq('★ 画像の記録として残す', r.audits[r.audits.length - 1].event, 'push_article_image');
+}
+
+console.log('\n── 13. ★★★ ①上げた応答 ──');
+const okImage = JSON.stringify({ src: 'https://cf.example/files/37168/news/img1_20260905172422.jpg', img_b: '20260905172422', img_s: '', err: '' });
+const imgCtx = (o) => upCtx(Object.assign({ articleCsrf: TOKEN, articleShopId: '37168', articleWhere: '緊急出勤速報' }, o || {}));
+{
+  const r = F.afterArticleImage(res200(okImage), imgCtx());
+  eq('★★ 次は切り抜き', [r.kind, r.next.purpose, r.next.url],
+     ['next', 'article_crop', 'https://ranking-deli.jp/ajax/admin/article_crop.json']);
+  eq('★★ 上げられたことを記録に残す', r.audits.map((a) => a.event + ':' + a.outcome), ['push_article_image:ok']);
+  const f = Object.fromEntries(r.next.body.split('&').map((kv) => kv.split('=').map(decodeURIComponent)));
+  eq('★★★ 切り抜きは画像ぜんぶ（★ こちらで先に整えている）', [f.x, f.y, f.w, f.h], ['0', '0', '600', '800']);
+  eq('★★★ 物差しは実寸（★ 写真の②と同じ理屈・記事では未確認）', [f.sh_w, f.sh_h], ['600', '800']);
+  eq('★★ ①が返した識別子をそのまま', f.img_b, '20260905172422');
+  eq('★★★ edt_type は実測どおり 2', f.edt_type, '2');
+  eq('★ 持ち回す', r.next.context.articleImgB, '20260905172422');
+}
+{
+  // ★★★ 相手が断った ／ 読めなかった を分ける
+  const refused = F.afterArticleImage(res200(JSON.stringify({ src: '', img_b: '', img_s: '', err: 'ファイルサイズが大きすぎます' })), imgCtx());
+  eq('★★★ 相手が断ったら止める', [refused.kind, refused.audits[0].detail.reason], ['stop', 'refused']);
+  eq('★★ 断られた理由は note に残す', /大きすぎます/.test(refused.note), true);
+}
+eq('★★ 読めなかったときは reason が違う',
+   F.afterArticleImage(res200('<html>error</html>'), imgCtx()).audits[0].detail.reason, 'parse_failed');
+eq('★★ 5xx は失敗',
+   F.afterArticleImage({ status: 500, headers: {}, body: '' }, imgCtx()).audits[0].detail.reason, 'http_error');
+eq('★★★ 実寸が無ければ切り抜けない（★ 決め打ちしない）',
+   F.afterArticleImage(res200(okImage), imgCtx({ articleFile: Object.assign({}, FILE, { width: 0 }) })).audits[0].detail.reason, 'no_size');
+
+console.log('\n── 14. ★★★ ②切った応答 ──');
+const okCrop = JSON.stringify({ src: 'https://cf.example/img1s_20260905172523.jpg', src_b: 'https://cf.example/img1_20260905172422.jpg', img_b: '20260905172422', img_s: '20260905172523', err: '' });
+{
+  const r = F.afterArticleCrop(res200(okCrop), imgCtx({ articleImgB: '20260905172422' }));
+  eq('★★★ 編集ページを読み直す（★ そこから保存へ進む）', [r.kind, r.next.purpose, r.next.method],
+     ['next', 'article_read', 'GET']);
+  eq('★★★ 「もう上げた」印を立てる（★ これが無いと永久に上げ続ける）', r.next.context.articleImgS, '20260905172523');
+  eq('★★ ①の識別子も持ち回す', r.next.context.articleImgB, '20260905172422');
+  eq('★★★ ここでもまだ「記事に載った」と言わない', r.audits, []);
+}
+eq('★★★ img_s が返らなければ止める（★ 記事に付けられない）',
+   F.afterArticleCrop(res200(JSON.stringify({ src: 'x', img_b: '20260905172422', img_s: '', err: '' })), imgCtx()).audits[0].detail.reason,
+   'no_img_s');
+eq('★★ 相手が断ったら止める',
+   F.afterArticleCrop(res200(JSON.stringify({ src: '', img_b: '', img_s: '', err: 'だめ' })), imgCtx()).audits[0].detail.reason, 'crop_refused');
+eq('★★ 5xx は失敗',
+   F.afterArticleCrop({ status: 500, headers: {}, body: '' }, imgCtx()).audits[0].detail.reason, 'crop_http_error');
+{
+  // ★★ ①と②で img_b が食い違ったら①を信じる（★ 上げたのは①）
+  const r = F.afterArticleCrop(res200(JSON.stringify({ src: 'x', img_b: '99999999999999', img_s: '20260905172523', err: '' })),
+    imgCtx({ articleImgB: '20260905172422' }));
+  eq('★★ 食い違ったら①の識別子を採る', r.next.context.articleImgB, '20260905172422');
+}
+
 console.log(fail === 0 ? '\n★ すべて通った' : '\n★ NG ' + fail + ' 件');
 process.exit(fail === 0 ? 0 : 1);

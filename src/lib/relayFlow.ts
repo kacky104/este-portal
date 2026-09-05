@@ -67,7 +67,10 @@ import { relayFileUrl, type RelayMultipart } from './relayMultipart';
 // ★ エステラブ（第78便）。★ 駅ちかの段には一切触れず、別の段名で足す
 import { buildEsuloveTherapistListRequest, judgeEsuloveLogin, ESULOVE_THERAPIST_URL } from './esuloveRequests';
 // ★ 駅ちかの新着情報の段（第155便）。★ 段名で分けているので既存の判定に触らない
-import { afterArticleList, afterArticleRead, afterArticleSave, afterArticleVerify, buildArticleListStep } from './articleFlow';
+import {
+  afterArticleList, afterArticleRead, afterArticleSave, afterArticleVerify,
+  buildArticleListStep, afterArticleImage, afterArticleCrop,
+} from './articleFlow';
 import type { EkichikaArticleRow } from './ekichikaArticle';
 import { parseEsuloveTherapists, duplicateNames, type EsuloveTherapistRow } from './esuloveTherapistParse';
 // ★ エステ魂の段（第109便）。★ 段の中身は esutamaFlow.ts に置き、ここは振り分けだけ
@@ -290,7 +293,22 @@ export type RelayFlowContext = {
   /** 誰の紹介か（駅ちかの girl_id）。★ 入れなければ読んだページの選択のまま */
   articleGirlId?: string;
   /** 画像をどうするか。'keep'（既定）＝読んだページのまま ／ 'girl'＝女の子の写真を使う */
-  articleImage?: 'keep' | 'girl';
+  articleImage?: 'keep' | 'girl' | 'upload';
+  /**
+   * ★★★ フクエスから送る画像の在処（第162便）。★ 画像そのものは通さない（第106便・案B）。
+   *   ★ VPS が fukues.com の口へ取りに行く。★ width/height は実寸（★ 切り抜きの物差し）
+   */
+  articleFile?: { bucket: string; path: string; filename: string; contentType: string; width: number; height: number };
+  /** ★ 編集ページから拾った値（第161便）。★ ①②に要る */
+  articleCsrf?: string;
+  articleShopId?: string;
+  /** ★ ①article_image.json が返した識別子 */
+  articleImgB?: string;
+  /**
+   * ★ ②article_crop.json が返した識別子。
+   * ★★★ **これが入っていることが「もう上げ終わった」の印**（★ 編集ページを読み直しても二度上げない）
+   */
+  articleImgS?: string;
   /**
    * ★★★ 送ったタイトル。★ **読み返しで突き合わせるために持ち回す。**
    *   ★ 「送った」と「載った」を分けるのに要る（第136便）。
@@ -469,6 +487,8 @@ export type FlowNextRequest = {
     | 'esulove_therapists'
     // ★ 写真の段（第107便）。★ upload_photo だけがファイル付き
     | 'read_photo_page' | 'upload_photo' | 'crop_photo'
+    // ★ 新着情報の画像（第162便）★ ①上げる → ②切る
+    | 'article_image' | 'article_crop'
     // ★ エステ魂の段（第109便）。★ 名前を分けることで、駅ちか・エステラブの段の判定に一切触れない
     | 'esutama_login_page' | 'esutama_login' | 'esutama_roster'
     | 'esutama_work_read' | 'esutama_work_save' | 'esutama_work_verify'
@@ -794,6 +814,11 @@ export function advanceFlow(input: {
     // ── 写真（第107便）★ 段名で分けている。既存の case には触れていない ──
     case 'read_photo_page':
       return afterReadPhotoPage(input, ctx);
+    // ── 新着情報の画像（第162便）──
+    case 'article_image':
+      return afterArticleImage(input, ctx);
+    case 'article_crop':
+      return afterArticleCrop(input, ctx);
     case 'upload_photo':
       return afterUploadPhoto(input, ctx);
     case 'crop_photo':

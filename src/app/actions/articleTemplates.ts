@@ -23,6 +23,8 @@ import {
   articlePostTimeLabels,
 } from '@/lib/articleRotation';
 import { dayKeyJST } from '@/lib/announceAuto';
+import { readImageSize } from '@/lib/imageSize';
+import { checkArticleImage } from '@/lib/ekichikaArticleImage';
 
 // 駅ちかの新着情報：枠の状態とテンプレート（第158便・2026-09-05）。
 //
@@ -37,6 +39,9 @@ import { dayKeyJST } from '@/lib/announceAuto';
 type Result<T> = { ok: true; data: T } | { ok: false; error: string };
 
 const PROVIDER = 'ekichika';
+/** 店舗様がフクエスに上げた写真の置き場。★ 中継役が取りに来られるのはここだけ（第106便） */
+const PHOTO_BUCKET = 'therapist-photos';
+const SAFE_PATH = /^[A-Za-z0-9_\-][A-Za-z0-9_\-./]{0,200}$/;
 
 async function assertSalonOwner(salonId: number): Promise<Result<{ userId: string }>> {
   const supabase = await createClient();
@@ -62,6 +67,12 @@ function girlIdOrNull(v: unknown): string | null {
   return /^\d{1,12}$/.test(t) ? t : null;
 }
 
+/** ★ 数字でなければ null。★ 「送らない」に寄せる（★ 0 や NaN で送らない） */
+function therapistIdOrNull(v: unknown): number | null {
+  const n = Number(v);
+  return Number.isFinite(n) && n > 0 ? Math.trunc(n) : null;
+}
+
 export type ArticleTemplateRow = {
   id: number;
   articleSlot: number;
@@ -78,6 +89,12 @@ export type ArticleTemplateRow = {
   girlId: string | null;
   /** ★ その人の名前（写しから引く）。★ 写しに無ければ空 */
   girlName: string;
+  /**
+   * ★★★ フクエスの写真を送るとき、その写真の持ち主（第162便）。
+   *   ★ null なら送らない。★ girlId（駅ちか側の写真）とは別の道
+   */
+  therapistId: number | null;
+  therapistName: string;
 };
 
 export type ArticleBoard = {
@@ -102,6 +119,12 @@ export type ArticleBoard = {
    *   ★ null は【まだ読めていない】。★ [] は【読めたが0人】。★ 混ぜない
    */
   girls: Array<{ id: string; name: string }> | null;
+  /**
+   * ★★★ フクエスの写真を送れる方（第162便）。
+   *   ★ プロフィール写真が therapist-photos に入っている方だけ。★ 無い方は出さない
+   *     （★ 選べるように見せてから断らない・設計メモ §32）
+   */
+  therapists: Array<{ id: number; name: string }>;
   /**
    * ★★★ 今日この枠へ出した本数（第159便）。★ 手で出したぶんも数える。
    *   ★ 区切りは営業日（朝6時）。★ 暦の0時ではない
@@ -144,7 +167,7 @@ export async function getArticleBoard(input: { salonId: string | number; slot?: 
 
   const { data: temps, error: tErr } = await svc
     .from('salon_article_templates')
-    .select('id, article_slot, title, body, is_active, sort_order, updated_at, ekichika_girl_id')
+    .select('id, article_slot, title, body, is_active, sort_order, updated_at, ekichika_girl_id, therapist_id, therapists(id, name)')
     .eq('salon_id', salonId).eq('provider', PROVIDER).eq('slot', mediaSlot)
     .order('sort_order', { ascending: true })
     .order('id', { ascending: true });
@@ -174,6 +197,8 @@ export async function getArticleBoard(input: { salonId: string | number; slot?: 
       girlId: gid,
       // ★ 名前は写しから引く。★ 引けなければ空（★ 番号を名前の代わりに出さない）
       girlName: gid === null ? '' : (girls?.find((g) => g.id === gid)?.name ?? ''),
+      therapistId: r.therapist_id === null || r.therapist_id === undefined ? null : Number(r.therapist_id),
+      therapistName: String((r as { therapists?: { name?: string } | null }).therapists?.name ?? ''),
     };
   });
 
@@ -192,6 +217,18 @@ export async function getArticleBoard(input: { salonId: string | number; slot?: 
     runs = [];
   }
 
+  // ★★ フクエスの写真を送れる方。★ 写真が入っている方だけを出す
+  let therapists: ArticleBoard['therapists'] = [];
+  {
+    const { data: ths } = await svc
+      .from('therapists').select('id, name, profile_image_url')
+      .eq('salon_id', salonId)
+      .order('name', { ascending: true });
+    therapists = (ths ?? [])
+      .filter((r) => String(r.profile_image_url ?? '').includes('/' + PHOTO_BUCKET + '/'))
+      .map((r) => ({ id: Number(r.id), name: String(r.name ?? '') }));
+  }
+
   // ★★ 今日ぶんは「区切りの日」が今日と同じときだけ数える。★ 昨日の数を持ち越さない
   const today = dayKeyJST(new Date());
   const postedToday = st && today !== null && String(st.last_day ?? '') === today ? Number(st.last_count ?? 0) : 0;
@@ -208,6 +245,7 @@ export async function getArticleBoard(input: { salonId: string | number; slot?: 
       postTimes: articlePostTimeLabels(salonId, postsPerDay),
       activeCount: templates.filter((t) => t.isActive).length,
       girls,
+      therapists,
       postedToday,
       runs,
     },
@@ -238,7 +276,7 @@ export async function startArticlePost(input: {
   // ★★★ 内容は【DBから読み直す】。★ 画面から送られてきた文字をそのまま駅ちかへ流さない
   const { data: t, error: tErr } = await svc
     .from('salon_article_templates')
-    .select('id, article_slot, title, body, ekichika_girl_id')
+    .select('id, article_slot, title, body, ekichika_girl_id, therapist_id')
     .eq('id', Number(input.templateId)).eq('salon_id', salonId).eq('provider', PROVIDER)
     .maybeSingle();
   if (tErr) return { ok: false, error: '文章を読み出せませんでした。時間をおいてお試しください' };
@@ -272,15 +310,61 @@ export async function startArticlePost(input: {
     };
   }
 
+  // ────────── ★★★ フクエスの写真を送るとき（第162便）──────────
+  //   ★ 画像そのものはここを通さない。★ 在処と【実寸】だけを渡す（第106便・案B）。
+  //   ★★ 実寸が要るのは切り抜きの物差しになるから。★ 決め打ちしない
+  let file: { bucket: string; path: string; filename: string; contentType: string; width: number; height: number } | null = null;
+  const therapistId = Number(t.therapist_id ?? 0);
+  if (Number.isFinite(therapistId) && therapistId > 0) {
+    const { data: th } = await svc
+      .from('therapists').select('id, salon_id, name, profile_image_url')
+      .eq('id', therapistId).maybeSingle();
+    // ★★ 他店の子を指せないこと。★ id だけで引かない
+    if (!th || Number(th.salon_id) !== salonId) {
+      return { ok: false, error: 'この文章に設定された方が見つかりません（画面を開き直してください）' };
+    }
+    const url = String(th.profile_image_url ?? '');
+    const i = url.indexOf('/' + PHOTO_BUCKET + '/');
+    if (i < 0) return { ok: false, error: String(th.name ?? 'この方') + 'のプロフィール写真がフクエスに登録されていません' };
+    const path = url.slice(i + PHOTO_BUCKET.length + 2).split('?')[0];
+    if (!SAFE_PATH.test(path) || path.includes('..') || path.includes('//')) {
+      return { ok: false, error: '写真の在処が読めません' };
+    }
+
+    const { data: blob, error: dlErr } = await svc.storage.from(PHOTO_BUCKET).download(path);
+    if (dlErr || !blob) return { ok: false, error: '写真を読み出せませんでした。時間をおいてお試しください' };
+    const buf = new Uint8Array(await blob.arrayBuffer());
+    const size = readImageSize(buf);
+    // ★ 寸法が読めない＝jpg/png ではない。★ 送ってから断られない
+    if (!size) return { ok: false, error: '写真を JPEG か PNG として読めませんでした' };
+    const c = checkArticleImage({ bytes: buf.byteLength, contentType: size.type });
+    if (!c.ok) return { ok: false, error: c.message };
+
+    file = {
+      bucket: PHOTO_BUCKET,
+      path,
+      // ★ 相手に見せる名前。★ 英数字と _ - . だけ（relayMultipart の決まり）
+      filename: 'fukues_news_' + therapistId + '.' + (size.type === 'image/png' ? 'png' : 'jpg'),
+      contentType: size.type,
+      width: size.width,
+      height: size.height,
+    };
+  }
+
   try {
     const r = await startRelayFlow({
       salonId, provider: PROVIDER, slot: mediaSlot,
       intent: 'article_push',
       article: {
         slot: articleSlot, title, body,
-        // ★★★ 誰の紹介かが入っていれば、その人の写真に切り替える（img_flg=1）。
-        //   ★ 入っていなければ何も渡さない＝【いまの写真のまま】。★ 駅ちかの画像に触らない
-        ...(girlId === null ? {} : { girlId, image: 'girl' as const }),
+        // ★★★ フクエスの写真を送るなら、それが最優先（img_flg=0）
+        ...(file !== null
+          ? { image: 'upload' as const, file }
+          // ★★ 駅ちかに登録済みの人の写真を使う（img_flg=1）
+          : girlId !== null
+            ? { girlId, image: 'girl' as const }
+            // ★ どちらでもなければ何も渡さない＝【いまの写真のまま】。★ 駅ちかの画像に触らない
+            : {}),
       },
       actor: 'shop:' + guard.data.userId,
     });
@@ -338,6 +422,12 @@ export async function saveArticleTemplate(input: {
    *   ★★ 送らなければ（undefined）いまの設定を変えない
    */
   girlId?: string | null;
+  /**
+   * ★ フクエスの写真を送るときの持ち主（第162便）。★ null なら送らない。
+   *   ★★ girlId（駅ちか側の写真）とは【別の道】。★ 両方入れたら girlId を優先しない——
+   *     ★ 送るのは1枚なので、画面で1つしか選べない形にしてある
+   */
+  therapistId?: number | null;
 }): Promise<Result<{ id: number }>> {
   const salonId = Number(input.salonId);
   if (!Number.isFinite(salonId)) return { ok: false, error: '店舗の指定が不正です' };
@@ -368,6 +458,7 @@ export async function saveArticleTemplate(input: {
         body,
         ...(input.isActive === undefined ? {} : { is_active: input.isActive === true }),
         ...(input.girlId === undefined ? {} : { ekichika_girl_id: girlIdOrNull(input.girlId) }),
+        ...(input.therapistId === undefined ? {} : { therapist_id: therapistIdOrNull(input.therapistId) }),
         updated_at: new Date().toISOString(),
       })
       .eq('id', id).eq('salon_id', salonId).eq('provider', PROVIDER)
@@ -390,6 +481,7 @@ export async function saveArticleTemplate(input: {
       is_active: input.isActive === true,
       // ★ 既定は null＝いまの写真のまま。★ 駅ちかの画像に触らない
       ekichika_girl_id: girlIdOrNull(input.girlId),
+      therapist_id: therapistIdOrNull(input.therapistId),
     })
     .select('id').maybeSingle();
   if (error || !data) return { ok: false, error: '保存できませんでした。時間をおいてお試しください' };

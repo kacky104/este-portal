@@ -39,6 +39,9 @@ export type RelayPurpose =
   // ★ 駅ちかの新着情報の段（第155便）。★ 段名で分けているので既存の段に触らない
   //   ★★ article_save だけが相手を書き換える。★ 5枠のうち【1枠だけ】
   | 'article_list'
+  // ★ 新着情報の画像（第162便）
+  | 'article_image'
+  | 'article_crop'
   | 'article_read'
   | 'article_save'
   | 'article_verify'

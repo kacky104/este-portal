@@ -14,6 +14,16 @@
 
 import type { FlowAudit, FlowOutcome, FlowNextRequest, RelayFlowContext } from './relayFlow';
 import { mergeCookies } from './relayJob';
+import { relayFileUrl } from './relayMultipart';
+import {
+  parseArticleImageIds,
+  buildArticleImageUpload,
+  buildArticleImageCropFields,
+  parseArticleImageJson,
+  encodeFields,
+  EKICHIKA_ARTICLE_IMAGE_URL,
+  EKICHIKA_ARTICLE_CROP_URL,
+} from './ekichikaArticleImage';
 import { RELAY_USER_AGENT } from './relayUserAgent';
 import {
   parseEkichikaArticleList,
@@ -48,6 +58,22 @@ function readHeaders(cookie: string, referer: string): FlowNextRequest['headers'
     accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
     'accept-language': 'ja,en-US;q=0.9,en;q=0.8',
     referer,
+    cookie,
+  };
+}
+
+/**
+ * ①②（ajax）のヘッダ。★ 相手の JS が送っていたものに合わせる（2026-09-05 実測）。
+ *   ★ X-Requested-With が無いと ajax として扱われないことがある。★ 実測どおりに送る。
+ */
+function ajaxHeaders(cookie: string, slot: number): Record<string, string> {
+  return {
+    'user-agent': RELAY_USER_AGENT,
+    accept: 'application/json, text/javascript, */*; q=0.01',
+    'accept-language': 'ja,en-US;q=0.9,en;q=0.8',
+    'x-requested-with': 'XMLHttpRequest',
+    origin: 'https://ranking-deli.jp',
+    referer: ekichikaArticleEditUrl(slot),
     cookie,
   };
 }
@@ -277,6 +303,73 @@ export function afterArticleRead(input: Input, ctx: RelayFlowContext): FlowOutco
     detail: { slot, where, titleLength: title.length, flowId },
   };
 
+  // ────────────────────────── ★★★ 画像を先に上げる（第162便）──────────────────────────
+  //
+  // ★★ 記事の保存より【前】に、①上げる → ②切る を済ませる。
+  //   ★ 保存に入れる g_image1 / g_image1s は、①②が返した識別子だから。
+  // ★★★ **ctx.articleImgS が入っていたら、もう上げ終わっている。**
+  //   ★ ②のあとにこのページを読み直すので、印が無いと永久に上げ続ける。
+  const wantUpload = ctx.articleImage === 'upload' && !!ctx.articleFile && !ctx.articleImgS;
+
+  // ★★★ 画像を送る設定なのに、在処も識別子も無い。★ ここで止める。
+  //   ★ このまま保存へ進むと img_flg=0 で識別子が空になり、**いまの画像が消える**。
+  //   ★★ 組み立て側でも弾いているが、理由が店舗様に伝わる形で先に止める。
+  if (ctx.intent === 'article_push' && ctx.articleImage === 'upload' && !ctx.articleFile && !ctx.articleImgS) {
+    return stop(
+      [...audits, {
+        event: 'push_article_image', outcome: 'failed', summary: '',
+        detail: { slot, where, reason: 'no_file', flowId },
+      }],
+      '送る画像が文脈に入っていません（★ このまま進むと、いまの画像が消えます）',
+    );
+  }
+
+  if (ctx.intent === 'article_push' && wantUpload) {
+    const ids = parseArticleImageIds(input.body);
+    if (ids.problems.length > 0) {
+      // ★ 読めていないのに送らない（★ 第145便の反省）。★ 理由を残して止める
+      return stop(
+        [...audits, {
+          event: 'push_article_image', outcome: 'failed', summary: '',
+          detail: { slot, where, reason: 'ids_unreadable', flowId },
+        }],
+        '編集ページから画像を送るのに要る値を読めなかった: ' + ids.problems.join(' / '),
+      );
+    }
+    const file = ctx.articleFile as NonNullable<RelayFlowContext['articleFile']>;
+    let multipart;
+    try {
+      multipart = buildArticleImageUpload(ids, {
+        url: relayFileUrl(file.bucket, file.path),
+        filename: file.filename,
+        contentType: file.contentType,
+      });
+    } catch (e) {
+      return stop(
+        [...audits, {
+          event: 'push_article_image', outcome: 'failed', summary: '',
+          detail: { slot, where, reason: 'build_failed', flowId },
+        }],
+        '画像を送るものを組み立てられなかった: ' + (e as Error).message,
+      );
+    }
+    return {
+      kind: 'next',
+      audits,
+      note: where + ' へ出す画像を先に上げる',
+      next: {
+        purpose: 'article_image',
+        method: 'POST',
+        url: EKICHIKA_ARTICLE_IMAGE_URL,
+        headers: ajaxHeaders(cookie, slot),
+        body: '',
+        multipart,
+        // ★ ①②で使うので、読んだ値を持ち回す
+        context: { ...ctx, cookie, articleWhere: where, articleCsrf: ids.csrfToken, articleShopId: ids.shopId },
+      },
+    };
+  }
+
   // ★★★ 試し打ちはここで終わり。★ 1文字も書いていない
   if (ctx.intent === 'article_dryrun') {
     return {
@@ -297,6 +390,10 @@ export function afterArticleRead(input: Input, ctx: RelayFlowContext): FlowOutco
         body,
         ...(ctx.articleGirlId ? { girlId: ctx.articleGirlId } : {}),
         ...(ctx.articleImage ? { image: ctx.articleImage } : {}),
+        // ★★★ 上げたばかりの識別子を渡す（第162便）。★ 読んだページの古い値では上げた画像が使われない
+        ...(ctx.articleImgB && ctx.articleImgS
+          ? { uploaded: { imgB: ctx.articleImgB, imgS: ctx.articleImgS } }
+          : {}),
       },
       RELAY_USER_AGENT,
     );
@@ -418,5 +515,135 @@ export function afterArticleVerify(input: Input, ctx: RelayFlowContext): FlowOut
     note: hidden
       ? where + ' に反映したが、この枠はいま非表示なので公開ページには出ていない'
       : where + ' に載ったことを確かめた',
+  };
+}
+
+// ────────────────────────── ★★★ 画像①：上げた（第162便）──────────────────────────
+
+/**
+ * ①article_image.json の応答。
+ *
+ * ★★ 「読めなかった」と「相手が断った」を分ける（`problems` / `err`）。
+ * ★ ここでは【まだ記事は1文字も変わっていない】。★ 画像を相手の置き場に上げただけ。
+ */
+export function afterArticleImage(input: Input, ctx: RelayFlowContext): FlowOutcome {
+  const flowId = ctx.flowId;
+  const slot = ctx.articleSlot;
+  if (!isArticleSlot(slot)) return stop([], '書き換える枠が文脈に入っていない');
+  const where = String(ctx.articleWhere ?? articleSlotLabel(slot));
+
+  if (input.status >= 300) {
+    return stop(
+      [{ event: 'push_article_image', outcome: 'failed', summary: '', detail: { slot, where, httpStatus: input.status, reason: 'http_error', flowId } }],
+      '画像を上げる応答が ' + input.status + ' だった',
+    );
+  }
+
+  const r = parseArticleImageJson(input.body);
+  if (r.err) {
+    // ★ 相手が断った。★ こちらの読み取りの問題ではない
+    return stop(
+      [{ event: 'push_article_image', outcome: 'failed', summary: '', detail: { slot, where, reason: 'refused', flowId } }],
+      '駅ちかが画像を受け取らなかった: ' + r.err.slice(0, 200),
+    );
+  }
+  if (r.problems.length > 0) {
+    return stop(
+      [{ event: 'push_article_image', outcome: 'failed', summary: '', detail: { slot, where, reason: 'parse_failed', flowId } }],
+      '画像を上げた応答を読めなかった: ' + r.problems.join(' / '),
+    );
+  }
+
+  const cookie = mergeCookies(ctx.cookie, input.headers['set-cookie'] as string | string[] | undefined);
+  const file = ctx.articleFile;
+  // ★ 実寸が無ければ切り抜きの物差しが決まらない。★ 決め打ちしない
+  if (!file || !Number.isFinite(file.width) || !Number.isFinite(file.height) || file.width <= 0 || file.height <= 0) {
+    return stop(
+      [{ event: 'push_article_image', outcome: 'failed', summary: '', detail: { slot, where, reason: 'no_size', flowId } }],
+      '画像の実寸が文脈に入っていないので切り抜けない',
+    );
+  }
+
+  const ids = { csrfToken: String(ctx.articleCsrf ?? ''), shopId: String(ctx.articleShopId ?? ''), problems: [] as string[] };
+  let fields;
+  try {
+    // ★★★ 切り抜きは【画像ぜんぶ】。★ こちらで先に整えた画像を上げているので、切らない。
+    //   ★ 物差しは実寸（sh_w/sh_h に実寸を入れる＝写真の②と同じ理屈・第107便）。
+    //   ★★ 記事で確かめたわけではない。★ 実弾の1枚目で目で見て確かめる。
+    fields = buildArticleImageCropFields(
+      ids,
+      { imgB: r.imgB, srcUrl: r.src },
+      { x: 0, y: 0, w: file.width, h: file.height },
+      { w: file.width, h: file.height },
+    );
+  } catch (e) {
+    return stop(
+      [{ event: 'push_article_image', outcome: 'failed', summary: '', detail: { slot, where, reason: 'crop_build_failed', flowId } }],
+      '切り抜きを組み立てられなかった: ' + (e as Error).message,
+    );
+  }
+
+  return {
+    kind: 'next',
+    audits: [{ event: 'push_article_image', outcome: 'ok', summary: '', detail: { slot, where, flowId } }],
+    note: '画像を上げた。★ 次は切り抜き（記事はまだ変えていない）',
+    next: {
+      purpose: 'article_crop',
+      method: 'POST',
+      url: EKICHIKA_ARTICLE_CROP_URL,
+      headers: { ...ajaxHeaders(cookie, slot), 'content-type': 'application/x-www-form-urlencoded' },
+      body: encodeFields(fields),
+      context: { ...ctx, cookie, articleImgB: r.imgB },
+    },
+  };
+}
+
+// ────────────────────────── ★★★ 画像②：切った（第162便）──────────────────────────
+
+/**
+ * ②article_crop.json の応答。
+ * ★ ここまで来ても【記事はまだ変わっていない】。★ 次に編集ページを読み直して、保存へ進む。
+ */
+export function afterArticleCrop(input: Input, ctx: RelayFlowContext): FlowOutcome {
+  const flowId = ctx.flowId;
+  const slot = ctx.articleSlot;
+  if (!isArticleSlot(slot)) return stop([], '書き換える枠が文脈に入っていない');
+  const where = String(ctx.articleWhere ?? articleSlotLabel(slot));
+
+  if (input.status >= 300) {
+    return stop(
+      [{ event: 'push_article_image', outcome: 'failed', summary: '', detail: { slot, where, httpStatus: input.status, reason: 'crop_http_error', flowId } }],
+      '切り抜きの応答が ' + input.status + ' だった',
+    );
+  }
+
+  const r = parseArticleImageJson(input.body);
+  if (r.err) {
+    return stop(
+      [{ event: 'push_article_image', outcome: 'failed', summary: '', detail: { slot, where, reason: 'crop_refused', flowId } }],
+      '駅ちかが切り抜きを受け取らなかった: ' + r.err.slice(0, 200),
+    );
+  }
+  // ★★★ ②の要は img_s。★ これが無ければ記事に付けられない
+  if (!/^\d{8,20}$/.test(r.imgS)) {
+    return stop(
+      [{ event: 'push_article_image', outcome: 'failed', summary: '', detail: { slot, where, reason: 'no_img_s', flowId } }],
+      '切り抜いた画像の識別子（img_s）が返らなかった',
+    );
+  }
+
+  const cookie = mergeCookies(ctx.cookie, input.headers['set-cookie'] as string | string[] | undefined);
+  // ★ ①で返った img_b を正とする。★ ②の応答にも入っているが、食い違ったら①を信じる
+  const imgB = String(ctx.articleImgB ?? r.imgB);
+
+  return {
+    kind: 'next',
+    audits: [],
+    note: '切り抜いた。★ 編集ページを読み直して保存へ進む',
+    next: {
+      // ★★★ 編集ページを読み直す。★ そのとき articleImgS が入っているので、二度は上げない
+      ...(buildArticleReadStep({ ...ctx, cookie }) as FlowNextRequest),
+      context: { ...ctx, cookie, articleImgB: imgB, articleImgS: r.imgS },
+    },
   };
 }

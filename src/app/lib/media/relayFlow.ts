@@ -177,8 +177,16 @@ export async function startRelayFlow(params: {
     body: string;
     /** 誰の紹介か（駅ちかの girl_id）。★ 省略すると読んだページの選択のまま */
     girlId?: string;
-    /** 'keep'（既定・いまの画像のまま） ／ 'girl'（女の子の写真を使う） */
-    image?: 'keep' | 'girl';
+    /**
+     * 'keep'（既定・いまの画像のまま） ／ 'girl'（駅ちかの女の子の写真を使う）
+     * ／ 'upload'（★ フクエスの写真を送る・第162便。★ file が要る）
+     */
+    image?: 'keep' | 'girl' | 'upload';
+    /**
+     * ★★★ フクエスから送る画像の在処（第162便）。★ 画像そのものは通さない（第106便・案B）。
+     *   ★ width/height は【実寸】。★ 切り抜きの物差しになるので、決め打ちしない
+     */
+    file?: { bucket: string; path: string; filename: string; contentType: string; width: number; height: number };
   };
   /** 'shop:<auth_user_id>' など。監査ログに残す */
   actor?: string;
@@ -262,6 +270,8 @@ export async function startRelayFlow(params: {
           articleBody: params.article.body,
           ...(params.article.girlId ? { articleGirlId: params.article.girlId } : {}),
           ...(params.article.image ? { articleImage: params.article.image } : {}),
+          // ★ 渡されたときだけ入れる。★ 無いまま 'upload' にすると段の入口で止まる（第162便）
+          ...(params.article.file ? { articleFile: params.article.file } : {}),
         }
       : {}),
     // ★ 即セラ（第143便）。★ 渡されたときだけ入れる
