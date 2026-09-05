@@ -164,5 +164,38 @@ console.log('\n── ★★★ 送れなかった日に撃ち続けない（第
      R.shouldPostArticle(Object.assign({}, base, { postedToday: 0, timesPerDay: 0 })).reason, 'bad_times');
 }
 
+console.log('\n── ★★★ 「今日はここまで◯本」の下の1行（articleQuotaNote・第168便） ──');
+//
+// ★★★ 発端（2026-09-05 実測）
+//   画面に「今日はここまで 5 本出しました」と「1日に出す本数 2回」が並んでいるのに、
+//   ★ その関係をどこにも書いていなかった。★ 店舗様は「2回なのに5本？」で止まる。
+//   ★★ 中身は正しく動いていた（手で出したぶんも数えるので5本／自動の上限は2回）。
+//   ★★★ **正しいのに黙っている**——これは「送ったのに公開ページに出ていなかった」と同じ穴。
+{
+  const q = (o) => R.articleQuotaNote(Object.assign(
+    { autoEnabled: true, timesPerDay: 2, postedToday: 0, activeCount: 1 }, o || {}));
+
+  eq('★★★ 上限に達したら「今日はこれ以上出ません」と言い切る',
+     q({ postedToday: 5 }), '1日の本数（2回）に達したので、今日はこれ以上自動では出ません。');
+  eq('★★ ちょうど達したときも同じ（★ 「あと0本」と言わない）',
+     q({ postedToday: 2 }), '1日の本数（2回）に達したので、今日はこれ以上自動では出ません。');
+  eq('★ まだなら残りを言う', q({ postedToday: 1 }), '今日はあと 1 本まで自動で出ます。');
+  eq('★ 1本も出していない日', q({ postedToday: 0 }), '今日はあと 2 本まで自動で出ます。');
+
+  // ★★★ 下の「自動で出す」の節がすでに言っていることは、ここで二重に言わない
+  eq('★★ 自動を許可していなければ何も言わない', q({ autoEnabled: false }), null);
+  eq('★★ 1日の本数が「出さない」なら何も言わない', q({ timesPerDay: 0 }), null);
+  eq('★★ 回す文章が0本なら何も言わない', q({ activeCount: 0 }), null);
+
+  // ★★★ 数えられていないものを 0 として扱わない（作法3-5）
+  eq('★★★ 出した数が分からなければ何も言わない', q({ postedToday: null }), null);
+  eq('★★★ 回す本数が分からなければ何も言わない', q({ activeCount: null }), null);
+
+  eq('★ 言うことが無いときは null（★ 空文字と分ける）', q({ autoEnabled: false }) === null, true);
+  eq('★ 文言に「★」を混ぜない', /★/.test(String(q({ postedToday: 5 }))), false);
+  eq('★ 内部の言葉を出さない',
+     /done_today|not_yet|postsPerDay|null/.test(String(q({ postedToday: 5 })) + String(q({ postedToday: 0 }))), false);
+}
+
 console.log(fail === 0 ? '\n★ すべて通った' : '\n★ NG ' + fail + ' 件');
 process.exit(fail === 0 ? 0 : 1);

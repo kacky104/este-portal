@@ -159,3 +159,41 @@ export function rotationCycleMessage(targetCount: number | null, timesPerDay: nu
   const d = Math.ceil(days * 10) / 10;
   return targetCount + '本を1日' + timesPerDay + '回で出すので、ひととおり出るのに およそ' + d + '日 かかります。';
 }
+
+/**
+ * ★★★ 「今日はここまで◯本」の【すぐ下】に置く1行（第168便・2026-09-05）。
+ *
+ * ★★ なぜ要るか（2026-09-05 実測）
+ *   画面に「今日はここまで **5本** 出しました」と「1日に出す本数 **2回**」が
+ *   並んでいるのに、★ その関係を**どこにも書いていなかった**。
+ *   ★ 店舗様は「2回なのに5本？」で止まる。★ 中身は正しく動いているのに、黙っている形。
+ *   ★★★ これは「送ったのに公開ページに出ていなかった」と同じ穴（★ 正しいのに言わない）。
+ *
+ * ★★ ここで言わないこと（★ 下の「自動で出す」の節がすでに言っている。★ 二重に言わない）
+ *   ・自動を許可していない        → null
+ *   ・1日の本数が「出さない」      → null
+ *   ・回す文章が1本も無い          → null
+ *   ★ 数えられていないときも null（★ 0本と混ぜない・作法3-5）
+ *
+ * @returns 出す1行。★ 言うことが無ければ null（★ 空文字と分けない）
+ */
+export function articleQuotaNote(input: {
+  autoEnabled: boolean;
+  timesPerDay: number;
+  postedToday: number | null;
+  /** 「自動で回す」に印の付いた本数。★ null は数えられていない */
+  activeCount: number | null;
+}): string | null {
+  if (input.autoEnabled !== true) return null;
+  if (!isValidPostsPerDay(input.timesPerDay) || input.timesPerDay <= 0) return null;
+  if (input.activeCount === null || !Number.isFinite(input.activeCount) || input.activeCount <= 0) return null;
+  if (input.postedToday === null || !Number.isFinite(input.postedToday)) return null;
+
+  const posted = Math.max(0, Math.trunc(input.postedToday));
+  // ★★★ 達しているときは【今日はもう出ない】と言い切る。★ ここが今回いちばん言いたい1行
+  if (posted >= input.timesPerDay) {
+    return '1日の本数（' + input.timesPerDay + '回）に達したので、今日はこれ以上自動では出ません。';
+  }
+  // ★ 残りは「あと◯本まで」。★ 「あと◯本出ます」と約束しない（★ 時刻が来なければ出ない）
+  return '今日はあと ' + (input.timesPerDay - posted) + ' 本まで自動で出ます。';
+}

@@ -12,6 +12,7 @@ import {
   type ArticleTemplateRow,
 } from '@/app/actions/articleTemplates';
 import { titleWidth, ARTICLE_TITLE_MAX_WIDTH } from '@/lib/ekichikaArticle';
+import { articleQuotaNote } from '@/lib/articleRotation';
 
 // 新着情報を送る（第158便で作り、★ 第167便で作り直した・2026-09-05）。
 //
@@ -276,6 +277,20 @@ export function NewsBoard({ salonId, onToast }: { salonId: number | null; onToas
             <p className="text-[13px] text-slate-400 leading-relaxed mt-0.5">
               今日はここまで {board.postedToday} 本出しました（手で出したぶんも数えます）。
             </p>
+            {/* ★★★ 第168便: 「5本出した」と「1日2回」が並んでいるのに、関係を書いていなかった。
+                ★ 中身は正しいのに黙っている形（★ 送ったのに公開ページに出ていなかった、と同じ穴）。
+                ★★ 言葉は articleRotation の1か所で作る。★ ここで作らない（第167便で直した作法） */}
+            {(() => {
+              const q = articleQuotaNote({
+                autoEnabled: board.autoEnabled,
+                timesPerDay: board.postsPerDay,
+                postedToday: board.postedToday,
+                activeCount: board.activeCount,
+              });
+              return q === null ? null : (
+                <p className="text-[13px] text-slate-500 leading-relaxed mt-0.5">{q}</p>
+              );
+            })()}
           </div>
           {draft === null && (
             <button
