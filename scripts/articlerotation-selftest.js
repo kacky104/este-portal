@@ -135,5 +135,34 @@ eq('★★★ 説明に「★」を混ぜない',
    [R.rotationCycleMessage(0, 4), R.rotationCycleMessage(12, 4), R.rotationCycleMessage(2, 4)]
      .some((t) => t.indexOf('★') >= 0), false);
 
+
+console.log('\n── ★★★ 送れなかった日に撃ち続けない（第166便） ──');
+//
+// ★★★ ここが自動投稿でいちばん危ないところ。
+//   ★ 判定に渡す postedToday を「**送れた本数**」にすると、
+//     送れない日は永久に「まだ出していない」と判断され、5分ごとの周が**1日中撃ち続ける**。
+//   ★★ だから渡すのは「**出そうとした回数**」（last_try_count）。★ 失敗しても進む。
+//   ★★★ 数の意味を混ぜないこと。★ 画面に出すのは「送れた本数」（last_count）。
+{
+  const base = { now: new Date('2026-09-05T23:00:00+09:00'), salonId: 6, timesPerDay: 4, targetCount: 3, rotationIndex: 0 };
+  // ★ 4回設定で、4回とも試したあと → もう出さない（★ 1本も送れていなくても）
+  eq('★★★ 試した回数が上限に達したら出さない',
+     R.shouldPostArticle(Object.assign({}, base, { postedToday: 4 })).reason, 'done_today');
+  // ★ 何本目の予定時刻かは articlePostMinutes が決める。★ ここで時刻を決め打ちしない
+  //   ★★ 私（Claude）は「23時なら4本目も過ぎている」と3度間違えた。★ 4本目は翌 03:42（同じ営業日）
+  eq('★★ まだ来ていない回は出さない（★ 4本目は翌03:42）',
+     R.shouldPostArticle(Object.assign({}, base, { postedToday: 3 })).reason, 'not_yet');
+  eq('★★ 予定時刻を過ぎた回は出す', R.shouldPostArticle(Object.assign({}, base, { postedToday: 1 })).post, true);
+  eq('★ 何本目かも返す', R.shouldPostArticle(Object.assign({}, base, { postedToday: 1 })).nth, 2);
+  eq('★★★ 数えられていなければ出さない（★ 0と混ぜない）',
+     R.shouldPostArticle(Object.assign({}, base, { postedToday: null })).reason, 'unknown');
+  eq('★★ 回す文章が0本なら出さない',
+     R.shouldPostArticle(Object.assign({}, base, { postedToday: 0, targetCount: 0 })).reason, 'no_targets');
+  eq('★★ 数えられていない（本数）も出さない',
+     R.shouldPostArticle(Object.assign({}, base, { postedToday: 0, targetCount: null })).reason, 'unknown');
+  eq('★★★ 「出さない」設定なら出さない',
+     R.shouldPostArticle(Object.assign({}, base, { postedToday: 0, timesPerDay: 0 })).reason, 'bad_times');
+}
+
 console.log(fail === 0 ? '\n★ すべて通った' : '\n★ NG ' + fail + ' 件');
 process.exit(fail === 0 ? 0 : 1);

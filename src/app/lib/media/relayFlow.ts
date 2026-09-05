@@ -502,6 +502,21 @@ export async function advanceRelayFlow(params: {
   //   ★★ 失敗が1つでも混ざっていれば【残る】。★ 静かに失敗させない。
   if (shouldDropAutoAudits(context.intent, !!next, audits)) audits.length = 0;
 
+  // ★★★ 自動で回った周の【読み取りの行】をたたむ（第166便・第149便の物差しをここにも当てる）。
+  //   ★ 自動は1日◯回まわる。★ 1回につき5〜7行あるので、そのまま出すと
+  //     「連携の記録」が新着情報で埋まり、出勤や写メ日記の記録が押し流される。
+  //   ★★★ **消すのではなく、たたむ。** ★ 行は残る（運営はSQLで追える）。
+  //   ★★ 送った（push_article）・載った（verify_article）・画像（push_article_image）は**出す**。
+  //     ★ 失敗（outcome !== 'ok'）も、物差しの側で必ず出る。
+  if (context.intent === 'article_auto') {
+    const quiet = new Set(['login', 'read_article_list', 'read_article', 'plan_article']);
+    for (let i = 0; i < audits.length; i += 1) {
+      const a = audits[i];
+      if (a.outcome !== 'ok' || !quiet.has(a.event)) continue;
+      audits[i] = { ...a, detail: { ...(a.detail ?? {}), ...AUDIT_SHOP_HIDDEN } };
+    }
+  }
+
   await writeAudits(params, audits, context);
 
   // ★★★ 新着情報を1本【実際に送った】ら、今日ぶんを数える（第159便）。
@@ -609,6 +624,47 @@ export async function advanceRelayFlow(params: {
     return { note: '次の段（' + next.purpose + '）を積めなかった: ' + r.detail };
   }
   return { note: outcome.note + ' → 次に ' + next.purpose + ' を積んだ' };
+}
+
+/**
+ * ★★★ 今日「出そうとした」回数を1つ進める（第166便）。
+ *
+ * ★★★ `countArticlePost`（実際に送れた本数）とは【別物】。★ 混ぜないこと。
+ *   last_count     … 送れた本数   → ★ 画面の「今日はここまで◯本出しました」
+ *   last_try_count … 試した回数   → ★ 自動の「次は何本目か」の判定
+ *
+ * ★★ なぜ分けるか: 1つにすると、**送れなかった日に自動が延々と撃ち続ける**。
+ *   ★ 5分ごとの周が「まだ今日ぶんを出していない」と判断し続けるため。★ 相手に迷惑をかける。
+ *
+ * ★ 手で押したぶんもここで数える（★ カッキーさんの決定「手で出したぶんも数える」）。
+ */
+export async function countArticleTry(params: { salonId: number; provider: string; slot: number }): Promise<void> {
+  const day = dayKeyJST(new Date());
+  if (day === null) return;   // ★ 区切りが出せないときは数えない
+
+  const supabase = createServiceClient();
+  const { data: cur, error: readErr } = await supabase
+    .from('salon_article_settings')
+    .select('last_try_day, last_try_count')
+    .eq('salon_id', params.salonId).eq('provider', params.provider).eq('slot', params.slot)
+    .maybeSingle();
+  // ★★ 読めなかったときは数えない。★ 0として上書きすると、今日の試行が消える
+  if (readErr) {
+    console.error('[article] 今日の試行回数を読めなかった', readErr.message);
+    return;
+  }
+
+  const same = cur !== null && String(cur.last_try_day ?? '') === day;
+  const next = same ? Math.max(0, Number(cur?.last_try_count ?? 0)) + 1 : 1;
+
+  const { error } = await supabase.from('salon_article_settings').upsert(
+    {
+      salon_id: params.salonId, provider: params.provider, slot: params.slot,
+      last_try_day: day, last_try_count: next, updated_at: new Date().toISOString(),
+    },
+    { onConflict: 'salon_id,provider,slot' },
+  );
+  if (error) console.error('[article] 今日の試行回数を進められなかった', error.message);
 }
 
 /**

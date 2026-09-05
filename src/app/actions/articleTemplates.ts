@@ -4,6 +4,7 @@ import { createClient } from '@/app/lib/supabase/server';
 import { createServiceClient } from '@/app/lib/supabase/service';
 import { ADMIN_UUID } from '@/app/lib/admin';
 import { startRelayFlow } from '@/app/lib/media/relayFlow';
+import { postOneArticle } from '@/app/lib/media/articlePost';
 import { listMediaAudit } from '@/app/lib/media/mediaAudit';
 import { isShopVisibleAudit } from '@/lib/mediaAudit';
 import {
@@ -265,137 +266,6 @@ export async function getArticleBoard(input: { salonId: string | number; slot?: 
  *   ② 記事が無い枠へは送らない。★ 写しで弾き、★ 一覧の段（第156便）でもう一度弾く（二重）
  *   ③ 非表示の枠へは【送れる】。★ ただし記録に「公開ページには出ていません」と残る（第156便）
  */
-export async function startArticlePost(input: {
-  salonId: string | number;
-  slot?: number;
-  templateId: number;
-}): Promise<Result<{ note: string }>> {
-  const salonId = Number(input.salonId);
-  if (!Number.isFinite(salonId)) return { ok: false, error: '店舗の指定が不正です' };
-  const guard = await assertSalonOwner(salonId);
-  if (!guard.ok) return guard;
-  const mediaSlot = Number.isFinite(Number(input.slot)) && Number(input.slot) > 0 ? Number(input.slot) : 1;
-
-  const svc = createServiceClient();
-
-  // ★★★ 内容は【DBから読み直す】。★ 画面から送られてきた文字をそのまま駅ちかへ流さない
-  const { data: t, error: tErr } = await svc
-    .from('salon_article_templates')
-    .select('id, article_slot, title, body, ekichika_girl_id, therapist_id')
-    .eq('id', Number(input.templateId)).eq('salon_id', salonId).eq('provider', PROVIDER)
-    .maybeSingle();
-  if (tErr) return { ok: false, error: '文章を読み出せませんでした。時間をおいてお試しください' };
-  if (!t) return { ok: false, error: 'その文章が見つかりません（画面を開き直してください）' };
-
-  const articleSlot = Number(t.article_slot);
-  if (!isArticleSlot(articleSlot)) return { ok: false, error: 'この文章には出す枠が入っていません' };
-
-  const title = String(t.title ?? '');
-  const body = String(t.body ?? '');
-  const tc = checkArticleTitle(title);
-  if (!tc.ok) return { ok: false, error: tc.message };
-  const bc = checkArticleBody(body);
-  if (!bc.ok) return { ok: false, error: bc.message };
-  const girlId = girlIdOrNull(t.ekichika_girl_id);
-
-  // ★★ 写しで先に弾く。★ 「まだ読んでいない」と「記事が無い」を分ける
-  const { data: snap } = await svc
-    .from('media_article_slots').select('rows')
-    .eq('salon_id', salonId).eq('provider', PROVIDER).eq('slot', mediaSlot)
-    .maybeSingle();
-  const rows = Array.isArray(snap?.rows) ? (snap!.rows as ArticleSlotRow[]) : null;
-  if (rows === null) {
-    return { ok: false, error: 'まず「いまの状態を読む」を押して、枠の状態を確かめてください' };
-  }
-  // ★★★ 第163便: 記事が無い枠でも【新しく作れる】。★ ここで弾かない。
-  //   ★ 一覧に見当たらない枠だけ止める（★ 相手が枠を減らした等）
-  const hit = rows.find((r) => r.slot === articleSlot) ?? null;
-  if (hit === null) {
-    return {
-      ok: false,
-      error: articleSlotLabel(articleSlot) + ' が駅ちかの一覧に見当たりません。「いまの状態を読む」を押してお確かめください',
-    };
-  }
-
-  // ────────── ★★★ フクエスの写真を送るとき（第162便）──────────
-  //   ★ 画像そのものはここを通さない。★ 在処と【実寸】だけを渡す（第106便・案B）。
-  //   ★★ 実寸が要るのは切り抜きの物差しになるから。★ 決め打ちしない
-  let file: {
-    bucket: string; path: string; filename: string; contentType: string; width: number; height: number; as?: 'jpeg';
-  } | null = null;
-  const therapistId = Number(t.therapist_id ?? 0);
-  if (Number.isFinite(therapistId) && therapistId > 0) {
-    const { data: th } = await svc
-      .from('therapists').select('id, salon_id, name, profile_image_url')
-      .eq('id', therapistId).maybeSingle();
-    // ★★ 他店の子を指せないこと。★ id だけで引かない
-    if (!th || Number(th.salon_id) !== salonId) {
-      return { ok: false, error: 'この文章に設定された方が見つかりません（画面を開き直してください）' };
-    }
-    const url = String(th.profile_image_url ?? '');
-    const i = url.indexOf('/' + PHOTO_BUCKET + '/');
-    if (i < 0) return { ok: false, error: String(th.name ?? 'この方') + 'のプロフィール写真がフクエスに登録されていません' };
-    const path = url.slice(i + PHOTO_BUCKET.length + 2).split('?')[0];
-    if (!SAFE_PATH.test(path) || path.includes('..') || path.includes('//')) {
-      return { ok: false, error: '写真の在処が読めません' };
-    }
-
-    const { data: blob, error: dlErr } = await svc.storage.from(PHOTO_BUCKET).download(path);
-    if (dlErr || !blob) return { ok: false, error: '写真を読み出せませんでした。時間をおいてお試しください' };
-    const buf = new Uint8Array(await blob.arrayBuffer());
-    const size = readImageSize(buf);
-    // ★ 寸法が読めない＝jpg/png ではない。★ 送ってから断られない
-    if (!size) return { ok: false, error: '写真を JPEG か PNG として読めませんでした' };
-    const c = checkArticleImage({ bytes: buf.byteLength, contentType: size.type });
-    if (!c.ok) return { ok: false, error: c.message };
-
-    // ★★★ 駅ちかの記事の画像は【JPEG のみ】（2026-09-05 実測）。
-    //   ★ PNG は「画像ファイル形式が…」で断られる。
-    //   ★★ 店舗様に「JPEGにしてから登録し直してください」とは言わない。★ こちらで直して送る（第165便）。
-    //   ★ 直すのは送る1回ぶんだけ。★ フクエスに登録された写真そのものは触らない。
-    const needsJpeg = size.type !== 'image/jpeg';
-    file = {
-      bucket: PHOTO_BUCKET,
-      path,
-      // ★ 相手に見せる名前。★ 英数字と _ - . だけ（relayMultipart の決まり）
-      filename: 'fukues_news_' + therapistId + '.jpg',
-      // ★★ 記録にも「実際に送る種類」を残す。★ 直したあとは JPEG（★ 元の種類ではない）
-      contentType: 'image/jpeg',
-      width: size.width,
-      height: size.height,
-      ...(needsJpeg ? { as: 'jpeg' as const } : {}),
-    };
-  }
-
-  try {
-    const r = await startRelayFlow({
-      salonId, provider: PROVIDER, slot: mediaSlot,
-      intent: 'article_push',
-      article: {
-        slot: articleSlot, title, body,
-        // ★★★ フクエスの写真を送るなら、それが最優先（img_flg=0）
-        ...(file !== null
-          ? { image: 'upload' as const, file }
-          // ★★ 駅ちかに登録済みの人の写真を使う（img_flg=1）
-          : girlId !== null
-            ? { girlId, image: 'girl' as const }
-            // ★ どちらでもなければ何も渡さない＝【いまの写真のまま】。★ 駅ちかの画像に触らない
-            : {}),
-      },
-      actor: 'shop:' + guard.data.userId,
-    });
-    if (!r.ok) return { ok: false, error: r.note };
-    return { ok: true, data: { note: r.note } };
-  } catch (e) {
-    console.error('[article] 送信を始められなかった', (e as Error).message);
-    return { ok: false, error: '送信を開始できませんでした。時間をおいてお試しください' };
-  }
-}
-
-/**
- * ★★★ 枠の状態を読みにいく。★ 一覧を読むだけ。★ **1文字も書かない。**
- *   login → article_list → 写して終わり。★ 編集ページも読まない。
- */
 export async function readArticleSlots(input: { salonId: string | number; slot?: number }): Promise<Result<{ note: string }>> {
   const salonId = Number(input.salonId);
   if (!Number.isFinite(salonId)) return { ok: false, error: '店舗の指定が不正です' };
@@ -522,6 +392,28 @@ export async function deleteArticleTemplate(input: { salonId: string | number; i
   if (error) return { ok: false, error: '消せませんでした。時間をおいてお試しください' };
   if (!data) return { ok: false, error: 'その文章が見つかりません（画面を開き直してください）' };
   return { ok: true, data: { id: Number(data.id) } };
+}
+
+export async function startArticlePost(input: {
+  salonId: string | number;
+  slot?: number;
+  templateId: number;
+}): Promise<Result<{ note: string }>> {
+  const salonId = Number(input.salonId);
+  if (!Number.isFinite(salonId)) return { ok: false, error: '店舗の指定が不正です' };
+  const guard = await assertSalonOwner(salonId);
+  if (!guard.ok) return guard;
+  const mediaSlot = Number.isFinite(Number(input.slot)) && Number(input.slot) > 0 ? Number(input.slot) : 1;
+
+  // ★★★ 手で押したときも、自動の周も【同じ道】を通る（第166便）。
+  //   ★ 2か所に同じ手順を書かない。★ 書くと、いつか片方だけ直す（第141便の反省）。
+  const r = await postOneArticle({
+    salonId, slot: mediaSlot, templateId: Number(input.templateId),
+    intent: 'article_push',
+    actor: 'shop:' + guard.data.userId,
+  });
+  if (!r.ok) return { ok: false, error: r.error };
+  return { ok: true, data: { note: r.note } };
 }
 
 /** 1日の本数と、自動の元栓。★ どちらも既定は「回さない」側 */

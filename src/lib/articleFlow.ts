@@ -40,6 +40,11 @@ import {
 
 type Input = { status: number; headers: Record<string, string | string[]>; body: string };
 
+/** ★ 実際に送る intent（第166便）。★ 手で押したぶんと自動とで、やることは同じ */
+function isPush(intent: unknown): boolean {
+  return intent === 'article_push' || intent === 'article_auto';
+}
+
 function stop(audits: FlowAudit[], note: string): FlowOutcome {
   return { kind: 'stop', audits, note };
 }
@@ -309,7 +314,7 @@ export function afterArticleRead(input: Input, ctx: RelayFlowContext): FlowOutco
   // ★★★ 画像を送る設定なのに、在処も識別子も無い。★ ここで止める。
   //   ★ このまま保存へ進むと img_flg=0 で識別子が空になり、**いまの画像が消える**。
   //   ★★ 組み立て側でも弾いているが、理由が店舗様に伝わる形で先に止める。
-  if (ctx.intent === 'article_push' && ctx.articleImage === 'upload' && !ctx.articleFile && !ctx.articleImgS) {
+  if (isPush(ctx.intent) && ctx.articleImage === 'upload' && !ctx.articleFile && !ctx.articleImgS) {
     return stop(
       [...audits, {
         event: 'push_article_image', outcome: 'failed', summary: '',
@@ -319,7 +324,7 @@ export function afterArticleRead(input: Input, ctx: RelayFlowContext): FlowOutco
     );
   }
 
-  if (ctx.intent === 'article_push' && wantUpload) {
+  if (isPush(ctx.intent) && wantUpload) {
     const ids = parseArticleImageIds(input.body);
     if (ids.problems.length > 0) {
       // ★ 読めていないのに送らない（★ 第145便の反省）。★ 理由を残して止める

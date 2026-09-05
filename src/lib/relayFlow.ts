@@ -249,7 +249,14 @@ export type RelayFlowIntent =
    *   ★★ なぜ要るか: 店舗様が登録する【前】に「この枠は非表示です」「この枠はカラです」と言うため。
    *     ★ 2026-09-05 の実弾で、送ってから「公開ページに出ていない」と分かった。★ その順番を逆にする。
    */
-  | 'article_slots';
+  | 'article_slots'
+  /**
+   * ★★★ 自動で1本出す（第166便）。★ やることは article_push とまったく同じ。
+   *   ★ 分けているのは【記録の出し分け】のため。
+   *     ★ 自動は1日◯回まわるので、読み取りの行まで出すと「連携の記録」が埋まる（第149便）。
+   *     ★★ だから自動のときだけ、読み取りの行をたたむ。★ 送った・載ったは必ず出す。
+   */
+  | 'article_auto';
 
 /**
  * 段と段のあいだで持ち回す状態。
@@ -950,7 +957,8 @@ function afterLogin(
     };
   }
 
-  if (ctx.intent === 'article_dryrun' || ctx.intent === 'article_push' || ctx.intent === 'article_slots') {
+  if (ctx.intent === 'article_dryrun' || ctx.intent === 'article_push'
+    || ctx.intent === 'article_slots' || ctx.intent === 'article_auto') {
     // ★★★ 第156便: 編集ページより先に【一覧】を読む。
     //   ★ その枠に記事があるか・公開ページに出るかは、**一覧にしか書いていない**（2026-09-05 実測）。
     const next = buildArticleListStep({ ...ctx, cookie });
@@ -1393,6 +1401,7 @@ function finishRead(audits: FlowAudit[], ctx: RelayFlowContext, page: WorkPage):
     case 'article_dryrun':
     case 'article_push':
     case 'article_slots':
+    case 'article_auto':
       // ★★ ここへは来ない（新着情報は出勤ページを使わない）。
       //   ★ それでも【黙って通さない】。★ 来たら止める
       return stop(audits, '新着情報は出勤ページを使わない（ここへは来ないはず）');
