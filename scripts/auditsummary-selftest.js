@@ -222,5 +222,65 @@ eq('★ 確かめられなかった', sum('verify_article', 'failed', WHERE), '�
   eq('★★★ 送った文に「載り」「確認」を混ぜない', /載り|確認|反映しました/.test(pushed), false);
 }
 
+
+console.log('\n── 止まった記録の出し分け（第157便） ──');
+//
+// ★★★ 行は【必ず残す】。★ 消すのではなく、店舗様の画面からたたむ（第149便の物差しをそのまま使う）。
+//   ★ busy は周が重なれば普通に起きる。★ そのまま出すと店舗様の画面が内部の記録で埋まる。
+eq('★★★ busy はたたむ（行は残す）',
+   vis({ event: 'flow_stalled', outcome: 'stopped', detail: { reason: 'busy', ...a.AUDIT_SHOP_HIDDEN } }), false);
+eq('★★★ busy 以外（積めなかった）は failed なので、印があっても必ず出る',
+   vis({ event: 'flow_stalled', outcome: 'failed', detail: { reason: 'enqueue_failed', ...a.AUDIT_SHOP_HIDDEN } }), true);
+eq('★★ 印を付け忘れた stopped は出る（＝黙らせるのは明示したときだけ）',
+   vis({ event: 'flow_stalled', outcome: 'stopped', detail: { reason: 'busy' } }), true);
+{
+  // ★★★ 秘密落としを通しても印が残ること（★ 落ちると busy が全部出てしまう）
+  const scrubbed = a.scrubAuditDetail({ reason: 'busy', flowId: 'f1', ...a.AUDIT_SHOP_HIDDEN });
+  eq('★★★ 通したあとも、たたむと判定できる',
+     vis({ event: 'flow_stalled', outcome: 'stopped', detail: scrubbed.detail }), false);
+}
+
+console.log('\n── 流れが途中で止まったときの文言（第157便） ──');
+//
+// ★★★ 2026-09-05: 次の手順を積めなかったとき、記録が【1行も残らなかった】。
+//   ★ 原因は枠の取り合い（busy）とみて間違いなかったが、記録が無いので断定できなかった。
+//   → ★ 残す。★ ただし busy は**異常ではない**ので「失敗しました」と読ませない。
+eq('★★★ busy は異常ではない（「失敗」と書かない）',
+   sum('flow_stalled', 'stopped', { reason: 'busy' }),
+   '駅ちか（枠1）の別の手順がまだ走っていたため、今回は始めませんでした（あとでやり直します）');
+eq('★★ それでも「進まなかった」ことは必ず言う',
+   /始めませんでした|進められませんでした/.test(sum('flow_stalled', 'stopped', { reason: 'busy' })), true);
+eq('★★★ busy 以外は失敗として書く',
+   sum('flow_stalled', 'failed', { reason: 'enqueue_failed' }), '駅ちか（枠1）の次の手順を進められませんでした');
+eq('★ 理由が分からなくても文言は出る', sum('flow_stalled', 'failed'), '駅ちか（枠1）の次の手順を進められませんでした');
+{
+  // ★ 内部の段名（article_list など）を店舗様の文に出さない
+  const t = sum('flow_stalled', 'stopped', { reason: 'busy', purpose: 'article_list' });
+  eq('★★ 内部の段名を文に出さない', /article_list|purpose/.test(t), false);
+}
+
+console.log('\n── 「止めた」を「失敗」と読ませない（第157便） ──');
+//
+// ★★★ 記事が無い枠は【上書きするものが無い】。★ こちらの不具合ではない。
+//   ★ 「組み立てられませんでした」と書くと、店舗様は「フクエスが壊れた」と読む。
+eq('★★★ 記事が無いから止めた、と書く',
+   sum('plan_article', 'stopped', { where: '新人速報', reason: 'no_article' }),
+   '駅ちかの新人速報にはまだ記事が無いため、送りませんでした（上書きする記事がありません）');
+eq('★★ 「組み立てられませんでした」と書かない',
+   /組み立てられませんでした/.test(sum('plan_article', 'stopped', { where: '新人速報', reason: 'no_article' })), false);
+eq('★★ 理由が別の stopped は「止めました」',
+   sum('plan_article', 'stopped', { where: '新人速報', reason: 'other' }),
+   '駅ちかの新人速報へ出す内容を組み立てるところで止めました（送っていません）');
+eq('★★★ 本当の失敗は今までどおり',
+   sum('plan_article', 'failed', { where: '新人速報', reason: 'invalid_content' }),
+   '駅ちかの新人速報へ出す内容を組み立てられませんでした');
+eq('★ ok は変えていない',
+   sum('plan_article', 'ok', { where: '新人速報' }), '駅ちかの新人速報へ出す内容を組み立てました（まだ送っていません）');
+{
+  // ★★ どの stopped でも「送った」と読める文にしない（第136便）
+  const all = ['no_article', 'other', undefined].map((r) => sum('plan_article', 'stopped', { where: '新人速報', reason: r }));
+  eq('★★★ どれも「送りました」と読めない', all.filter((x) => /送りました|載り/.test(x)), []);
+}
+
 console.log(fail === 0 ? '\n★ すべて通った' : '\n★ NG ' + fail + ' 件');
 process.exit(fail === 0 ? 0 : 1);

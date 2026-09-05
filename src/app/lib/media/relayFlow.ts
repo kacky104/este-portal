@@ -64,7 +64,7 @@ import {
   type DiaryCandidate,
 } from '@/lib/esutamaDiaryPlan';
 import { toConsentState } from '@/lib/therapistMediaConsent';
-import { shouldDropAutoAudits } from '@/lib/mediaAudit';
+import { shouldDropAutoAudits, AUDIT_SHOP_HIDDEN } from '@/lib/mediaAudit';
 // ★ 失敗を覚えて、やめどきを決める（第137便）
 import { decideDiaryRetry, MAX_DIARY_ATTEMPTS } from '@/lib/esutamaDiaryRetry';
 // ★ 即セラ（第143便）。★ 判断は純粋関数側
@@ -296,7 +296,22 @@ export async function startRelayFlow(params: {
     context,
   });
 
-  if (!r.ok) return { ok: false, reason: 'busy', note: r.detail };
+  if (!r.ok) {
+    // ★★★ 第157便: 断られたことを記録に残す。
+    //   ★ 口（API）を叩いたときは ok:false が返るので運営には見える。
+    //   ★★ しかし**周（cron）から積んだときは誰も見ていない**。★ 残さなければ消える。
+    await recordMediaAudit({
+      salonId: params.salonId,
+      provider: params.provider,
+      slot: params.slot,
+      event: 'flow_stalled',
+      outcome: 'stopped',   // ★ 異常ではない。★ ただし【始まらなかった】ことは言う
+      // ★ 行は残す。★ 店舗様の画面からはたたむ（上と同じ理由）
+      detail: { reason: 'busy', intent: params.intent, flowId: context.flowId, ...AUDIT_SHOP_HIDDEN },
+      actor: params.actor ?? 'system',
+    });
+    return { ok: false, reason: 'busy', note: r.detail };
+  }
   return {
     ok: true,
     jobId: r.jobId,
@@ -523,9 +538,36 @@ export async function advanceRelayFlow(params: {
   });
 
   if (!r.ok) {
-    // ★ ここへ来るのは、いま閉じたジョブがまだ走っている扱いのとき＝起きないはず。
-    //   起きたら黙らない（枠が塞がったまま止まる形になる）
+    // ★★★ 第157便（2026-09-05）: ここは **console.error だけ** だった。
+    //   ★ そのとき settle は 'next' なので stampCredential も何も書かない。
+    //     → **監査ログ0行・last_error も無し**。★ 流れが【静かに消える】。
+    //   ★★ 2026-09-05 05:40:29 に積んだ試し打ちが、まさにこの形で消えた。
+    //     ★ 原因は枠の取り合い（busy）とみて間違いないが、
+    //       ★★★ **記録が無いので断定できなかった。それがこの穴の害そのもの。**
+    //   ★ 直すのは「起きたことが残らない」ほう。★ 枠の直列化そのものは正しい仕掛け。
     console.error('[relay] 次の段を積めなかった', params.jobId, next.purpose, r.detail);
+    await writeAudits(
+      params,
+      [
+        {
+          event: 'flow_stalled',
+          // ★ busy は異常ではない（順序を守る仕掛けが働いただけ）→ stopped
+          // ★ それ以外は、こちらの都合で止まっている → failed
+          outcome: r.reason === 'busy' ? 'stopped' : 'failed',
+          detail: {
+            purpose: next.purpose,
+            reason: r.reason ?? 'enqueue_failed',
+            flowId: context.flowId,
+            // ★★ busy は周が重なれば普通に起き、次の周でやり直せる。
+            //   ★ そのまま出すと第149便で直した「店舗様の画面が内部の記録で埋まる」を再発させる。
+            //   → ★★★ **行は残す。店舗様の画面からはたたむ。**（yardstick は mediaAudit に1本）
+            //   ★ busy 以外（積めなかった）は failed なので、この印があっても必ず出る。
+            ...(r.reason === 'busy' ? AUDIT_SHOP_HIDDEN : {}),
+          },
+        },
+      ],
+      context,
+    );
     return { note: '次の段（' + next.purpose + '）を積めなかった: ' + r.detail };
   }
   return { note: outcome.note + ' → 次に ' + next.purpose + ' を積んだ' };
