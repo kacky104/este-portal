@@ -192,8 +192,11 @@ eq('★★ 一覧の段でも枠が無ければ止める',
 {
   // ★ 表示中の枠 → 次は編集ページ
   const r = F.afterArticleList(res200(LIST('表示')), ctxOf({}));
+  // ★★ 第158便: 一覧の段は【読めた事実】を必ず持って返す（kind: 'article_slots'）。
+  //   ★ 呼ぶ側が写しを1件だけ上書きで残す。★ next は持っていることも無いこともある
   eq('★★ 次は編集ページを読む', [r.kind, r.next.purpose, r.next.url],
-     ['next', 'article_read', 'https://ranking-deli.jp/admin/articles/category5/']);
+     ['article_slots', 'article_read', 'https://ranking-deli.jp/admin/articles/category5/']);
+  eq('★★★ 読めた5枠をそのまま返す（★ 写しに使う）', r.rows.map((x) => x.slot), [1, 2, 3, 4, 5]);
   eq('★★★ ここで初めて「ログインできた」と言える', r.audits.map((a) => a.event + ':' + a.outcome),
      ['login:ok', 'read_article_list:ok']);
   eq('★ 何枠あったかを残す', r.audits[1].detail.slots, 5);
@@ -206,7 +209,7 @@ eq('★★ 一覧の段でも枠が無ければ止める',
 {
   // ★★★ 非表示の枠 → 止めない。★ でも「非表示」を持ち回して、あとで記録に残す
   const r = F.afterArticleList(res200(LIST('非表示')), ctxOf({}));
-  eq('★★ 非表示でも進む（送るのは店舗様が選んだ枠だから）', r.kind, 'next');
+  eq('★★ 非表示でも進む（送るのは店舗様が選んだ枠だから）', [r.kind, r.next.purpose], ['article_slots', 'article_read']);
   eq('★★★ 非表示を持ち回す', r.next.context.articleVisible, false);
   eq('★★★ 勝手に「表示」へ切り替えるものを積まない', r.next.method, 'GET');
   eq('★ 添え書きに非表示と出る', /非表示/.test(r.note), true);
@@ -214,7 +217,9 @@ eq('★★ 一覧の段でも枠が無ければ止める',
 {
   // ★★★ 記事が無い枠は上書きできない。★ 新規の道はまだ無い
   const r = F.afterArticleList(res200(LIST('表示')), ctxOf({ articleSlot: 2 }));
-  eq('★★★ 記事が無ければ止める', r.kind, 'stop');
+  eq('★★★ 記事が無ければ次を積まない', [r.kind, r.next], ['article_slots', undefined]);
+  eq('★★★ 止まっても【読めた事実】は落とさない（★ 落とすと画面が「まだ読んでいない」ままになる）',
+     r.rows.length, 5);
   eq('★★ 「送れなかった」ではなく「組み立てなかった」', r.audits[r.audits.length - 1].event + ':' + r.audits[r.audits.length - 1].outcome, 'plan_article:stopped');
   eq('★★★ 理由を残す', r.audits[r.audits.length - 1].detail.reason, 'no_article');
   eq('★ 相手の言葉で残す', r.audits[r.audits.length - 1].detail.where, '新人速報');
@@ -224,7 +229,8 @@ eq('★★ 一覧の段でも枠が無ければ止める',
   // ★★ 一覧に無い枠（相手が枠を減らした等）
   const one = '<html><table>' + ROW_HAS(1, '速報NEWS', 'あ', '表示') + '</table></html>';
   const r = F.afterArticleList(res200(one), ctxOf({}));
-  eq('★★★ 指定した枠が一覧に無ければ止める', r.kind, 'stop');
+  eq('★★★ 指定した枠が一覧に無ければ次を積まない', [r.kind, r.next], ['article_slots', undefined]);
+  eq('★★ それでも読めた枠は返す', r.rows.length, 1);
   eq('★ 理由を残す', r.audits[r.audits.length - 1].detail.reason, 'slot_not_listed');
 }
 {
@@ -269,6 +275,45 @@ console.log('\n── 9. ★★★ 非表示の枠に送ったら、そう書く
     ctxOf({ intent: 'article_push', articleSentTitle: 'テストのお知らせ' }));
   eq('★★★ 分からないときは hidden を立てない（0と不明を混ぜない）', unk.audits[0].detail.hidden, false);
 }
+
+
+console.log('\n── 10. ★★★ 枠の状態を読むだけ（第158便） ──');
+//
+// ★★★ なぜこの intent を足したか
+//   店舗様が文章を登録する【前】に「この枠は非表示です」「この枠はカラです」と言いたい。
+//   ★ 2026-09-05 の実弾では、送ってから公開ページに出ていないと分かった。★ 順番を逆にする。
+//   ★★ だから **枠を指定しない**（5枠ぜんぶ見る）し、**編集ページも読まない**。
+const slotsCtx = (o) => ctxOf(Object.assign({ intent: 'article_slots', articleSlot: undefined }, o || {}));
+{
+  const step = F.buildArticleListStep(slotsCtx());
+  eq('★★★ 枠が無くても一覧の段は積む（★ 5枠ぜんぶ見るため）',
+     [step.purpose, step.method, step.url], ['article_list', 'GET', 'https://ranking-deli.jp/admin/articles/']);
+}
+eq('★★★ 書き換える intent では、枠が無ければ積まない（★ ここは変えていない）',
+   F.buildArticleListStep(ctxOf({ articleSlot: undefined })), null);
+{
+  const r = F.afterArticleList(res200(LIST('非表示')), slotsCtx());
+  eq('★★★ 次を積まない＝編集ページも読まない＝1文字も書かない', r.next, undefined);
+  eq('★★ 読めた5枠を返す', r.rows.map((x) => x.slot), [1, 2, 3, 4, 5]);
+  eq('★★★ 公開状態もそのまま返す（★ null を false に倒さない）',
+     r.rows.map((x) => x.visible), [true, null, true, true, false]);
+  eq('★ 記事があるかも返す', r.rows.map((x) => x.hasArticle), [true, false, true, true, true]);
+  eq('★ 記録は2行だけ', r.audits.map((a) => a.event + ':' + a.outcome), ['login:ok', 'read_article_list:ok']);
+  eq('★★★ 枠を選んでいないので「記事がありません」とは言わない',
+     r.audits.some((a) => a.event === 'plan_article'), false);
+}
+{
+  // ★ カラの枠しかなくても、読むだけなら止まらない（★ 上書きしにいかないから）
+  const onlyEmpty = '<html><table>' + ROW_EMPTY(2, '新人速報') + ROW_EMPTY(3, '激アツ割引情報') + '</table></html>';
+  const r = F.afterArticleList(res200(onlyEmpty), slotsCtx());
+  eq('★★★ カラばかりでも読むだけなら止まらない', r.kind, 'article_slots');
+  eq('★ 2枠ぶん返る', r.rows.length, 2);
+}
+eq('★★ 1枠も読めなければ、読むだけでも失敗として止める',
+   F.afterArticleList(res200('<html></html>'), slotsCtx()).audits[0].event + ':'
+   + F.afterArticleList(res200('<html></html>'), slotsCtx()).audits[0].outcome, 'read_article_list:failed');
+eq('★★ ログイン画面へ戻されたら、読むだけでもログインの失敗',
+   F.afterArticleList(res200(LOGIN_PAGE), slotsCtx()).audits[0].outcome, 'failed');
 
 console.log(fail === 0 ? '\n★ すべて通った' : '\n★ NG ' + fail + ' 件');
 process.exit(fail === 0 ? 0 : 1);

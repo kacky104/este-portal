@@ -22,7 +22,7 @@ import type { MediaPageDecision } from '@/lib/mediaVisibility';
 //   ★ 6つの画面すべてが、この外枠を被って同じ形で並ぶ。
 
 // ★ 'all'（全部入り）は第65便で畳んだ。★ 型からも外して、行き先を作れなくする
-export type MediaNavKey = 'home' | 'work' | 'diary' | 'roster' | 'login' | 'log';
+export type MediaNavKey = 'home' | 'work' | 'diary' | 'news' | 'roster' | 'login' | 'log';
 
 const NAV: Array<{ key: MediaNavKey; label: string; href: string; group?: string }> = [
   { key: 'home',   label: 'ホーム',           href: '/mypage/media' },
@@ -34,6 +34,10 @@ const NAV: Array<{ key: MediaNavKey; label: string; href: string; group?: string
   { key: 'roster', label: 'セラピスト一覧',    href: '/mypage/media/therapists' },
   { key: 'work',   label: '出勤を送る',        href: '/mypage/media/work',       group: '送る・確かめる' },
   { key: 'diary',  label: '写メ日記の投稿先',   href: '/mypage/media/diary' },
+  // ★ 新着情報（第158便）。★ 「送る」仲間なのでここに置く。
+  //   ★★ 送る前に【枠の状態】を見せる画面でもある（2026-09-05 の実弾で、送ってから
+  //     「公開ページに出ていない」と分かった。★ その順番を逆にするための画面）。
+  { key: 'news',   label: '新着情報を送る',     href: '/mypage/media/news' },
   // ★ 設定（ログイン情報）が上へ移ったので、この見出しは「記録」だけになった
   { key: 'log',    label: '連携の記録',        href: '/mypage/media/log',        group: '記録' },
 ];
@@ -56,6 +60,8 @@ function NavIcon({ k }: { k: MediaNavKey }) {
       </svg>
     );
     case 'login':  return (<svg {...p}><rect x="3" y="11" width="18" height="10" rx="2" /><path d="M7 11V7a5 5 0 0 1 10 0v4" /></svg>);
+    // ★ 吹き出し（お知らせ）。★ 写メ日記の封筒とも、出勤の矢印とも見分けがつく形
+    case 'news':   return (<svg {...p}><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" /></svg>);
     default:       return (<svg {...p}><circle cx="12" cy="12" r="9" /><path d="M12 7v5l3 2" /></svg>);
   }
 }

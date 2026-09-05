@@ -363,6 +363,17 @@ export async function advanceRelayFlow(params: {
     note = outcome.note + ' → ' + r.note;
   }
 
+  // ★★★ ニュースの一覧を読めた（第158便）。★ 写しを1件だけ上書きで残す。
+  //   ★★ 止まる場合（記事が無い・枠が一覧に無い）でも【写しは残す】。
+  //     ★ 落とすと画面は「まだ読んでいない」ままになり、店舗様は同じところでもう一度つまずく。
+  //   ★ next を持っていることがある（article_dryrun / article_push は編集ページへ進む）。
+  if (outcome.kind === 'article_slots') {
+    const r = await saveArticleSlots(params, outcome.rows, context);
+    audits.push(...r.audits);
+    note = outcome.note + ' → ' + r.note;
+    next = outcome.next ?? null;
+  }
+
   // ★★★ 投稿用メールアドレスを読めた（第53便）。
   //   ★ 次を積まない ＝ 駅ちかとのやりとりはここで終わり。何も書き換えていない。
   //   ★ フクエス側を書くかどうかは intent で決まる（mail_dryrun は数えるだけ）。
@@ -493,7 +504,7 @@ export async function advanceRelayFlow(params: {
   //   ★★ ログインの段そのもので落ちたときだけ 'stop'（★ login:failed が入っている）
   const articleStoppedButLoggedIn =
     outcome.kind === 'stop' &&
-    (context.intent === 'article_dryrun' || context.intent === 'article_push') &&
+    (context.intent === 'article_dryrun' || context.intent === 'article_push' || context.intent === 'article_slots') &&
     outcome.audits.length > 0 &&
     outcome.audits.every((a) => !(a.event === 'login' && a.outcome === 'failed'));
 
@@ -515,6 +526,8 @@ export async function advanceRelayFlow(params: {
         // ★ エステ魂の魂セラピスト一覧が読めた（第130便）。★ 同じ理由で認証の話ではない
         || outcome.kind === 'esutama_therapists'
         || outcome.kind === 'diary_list' || outcome.kind === 'diary_detail'
+        // ★ ニュースの一覧が読めた（第158便）。★ 読めた＝ログインできている。認証の話ではない
+        || outcome.kind === 'article_slots'
         || photoStoppedButLoggedIn
         || articleStoppedButLoggedIn
       ? 'done'
@@ -571,6 +584,58 @@ export async function advanceRelayFlow(params: {
     return { note: '次の段（' + next.purpose + '）を積めなかった: ' + r.detail };
   }
   return { note: outcome.note + ' → 次に ' + next.purpose + ' を積んだ' };
+}
+
+/**
+ * ★★★ ニュースの枠の状態を写す（第158便・2026-09-05）。
+ *
+ * ★ この関数がすること: **読んだ事実を1件だけ上書きで置く**。★ 駅ちかへは何も書かない。
+ *
+ * ★★★ なぜ写すのか
+ *   2026-09-05 の実弾で、送れて・管理画面に載って・**公開ページには出なかった**。
+ *   ★ 枠そのものが非表示だったから。★ それは一覧にしか書いていない。
+ *   → ★ 店舗様が登録する【前】に「この枠は非表示です」と言うために、読んだ結果を手元に置く。
+ *
+ * ★★ 箱を混ぜないこと（media_roster_snapshots と同じ・第50便）:
+ *   media_article_slots     … 相手がいまどうなっているかの写し  ← ここ
+ *   salon_article_templates … これから出す文章
+ *   salon_media_audit       … 何が起きたかの記録
+ */
+async function saveArticleSlots(
+  params: { salonId: number; provider: string; slot: number },
+  rows: ReadonlyArray<{ slot: number; label: string; hasArticle: boolean; visible: boolean | null; title: string; updatedAt: string }>,
+  ctx: RelayFlowContext,
+): Promise<{ audits: FlowAudit[]; note: string }> {
+  // ★ 0件はここへ来ない（純粋関数側で parse_failed として止めている）。★ それでも黙って書かない
+  if (!Array.isArray(rows) || rows.length === 0) {
+    return { audits: [], note: '★ 読めた枠が0件だったので写しは残さない' };
+  }
+
+  const supabase = createServiceClient();
+  const { error } = await supabase.from('media_article_slots').upsert(
+    {
+      salon_id: params.salonId,
+      provider: params.provider,
+      slot: params.slot,
+      flow_id: ctx.flowId,
+      read_at: new Date().toISOString(),
+      total: rows.length,
+      // ★ true だけを数える。★ null（分からない）を「出ている」側に入れない
+      shown: rows.filter((r) => r.visible === true).length,
+      empty: rows.filter((r) => !r.hasArticle).length,
+      rows,
+    },
+    { onConflict: 'salon_id,provider,slot' },
+  );
+
+  // ★ 写せなくても本筋は止めない。★ ただし黙らない（★ 画面が古いままになる）
+  if (error) {
+    return {
+      audits: [{ event: 'read_article_list', outcome: 'failed', summary: '', detail: { reason: 'snapshot_failed', flowId: ctx.flowId } }],
+      note: '★ 枠の状態を写せなかった: ' + error.message.slice(0, 200),
+    };
+  }
+  return { audits: [], note: '枠の状態を写した（' + rows.length + '枠）' };
 }
 
 /**

@@ -68,6 +68,7 @@ import { relayFileUrl, type RelayMultipart } from './relayMultipart';
 import { buildEsuloveTherapistListRequest, judgeEsuloveLogin, ESULOVE_THERAPIST_URL } from './esuloveRequests';
 // ★ 駅ちかの新着情報の段（第155便）。★ 段名で分けているので既存の判定に触らない
 import { afterArticleList, afterArticleRead, afterArticleSave, afterArticleVerify, buildArticleListStep } from './articleFlow';
+import type { EkichikaArticleRow } from './ekichikaArticle';
 import { parseEsuloveTherapists, duplicateNames, type EsuloveTherapistRow } from './esuloveTherapistParse';
 // ★ エステ魂の段（第109便）。★ 段の中身は esutamaFlow.ts に置き、ここは振り分けだけ
 import {
@@ -238,7 +239,14 @@ export type RelayFlowIntent =
    * ★★ 記事ID・画像の識別子は**読んだページのものをそのまま使う**（決め打ちしない）。
    */
   | 'article_dryrun'
-  | 'article_push';
+  | 'article_push'
+  /**
+   * ★★★ 枠の状態を読むだけ（第158便）。★ login → article_list → 終わり。
+   *   ★ 編集ページも読まない。★ **1文字も書かない。**
+   *   ★★ なぜ要るか: 店舗様が登録する【前】に「この枠は非表示です」「この枠はカラです」と言うため。
+   *     ★ 2026-09-05 の実弾で、送ってから「公開ページに出ていない」と分かった。★ その順番を逆にする。
+   */
+  | 'article_slots';
 
 /**
  * 段と段のあいだで持ち回す状態。
@@ -495,6 +503,15 @@ export type FlowOutcome =
    *   ★ ここで「次のジョブ」を返さない＝**駅ちかへ何も飛ばない。**
    */
   | { kind: 'roster'; page: EkichikaGirlsPage; audits: FlowAudit[]; note: string }
+  /**
+   * ★★★ ニュースの一覧を読めた（第158便）。roster と同じ理由でここでは保存しない。
+   *   ★ 呼び出し側が写しを1件だけ上書きで残す。
+   * ★★ next を **持つことがある**のがここの特徴:
+   *   article_slots  … 読むだけ → next は無い（★ これで終わり）
+   *   article_dryrun / article_push … 読んだうえで編集ページへ進む → next がある
+   *   ★ どちらも「読めた事実」は同じなので、写すのは同じ場所。
+   */
+  | { kind: 'article_slots'; rows: EkichikaArticleRow[]; audits: FlowAudit[]; note: string; next?: FlowNextRequest }
   /**
    * ★ 投稿用メールアドレス一覧を読めた（第53便）。roster と同じ理由でここでは保存しない。
    *   ★★ page.rows には【秘密値（アドレス）】が入っている。
@@ -888,7 +905,7 @@ function afterLogin(
     };
   }
 
-  if (ctx.intent === 'article_dryrun' || ctx.intent === 'article_push') {
+  if (ctx.intent === 'article_dryrun' || ctx.intent === 'article_push' || ctx.intent === 'article_slots') {
     // ★★★ 第156便: 編集ページより先に【一覧】を読む。
     //   ★ その枠に記事があるか・公開ページに出るかは、**一覧にしか書いていない**（2026-09-05 実測）。
     const next = buildArticleListStep({ ...ctx, cookie });
@@ -1330,6 +1347,7 @@ function finishRead(audits: FlowAudit[], ctx: RelayFlowContext, page: WorkPage):
       return stop(audits, 'エステ魂の写メ日記は出勤ページを使わない（ここへは来ないはず）');
     case 'article_dryrun':
     case 'article_push':
+    case 'article_slots':
       // ★★ ここへは来ない（新着情報は出勤ページを使わない）。
       //   ★ それでも【黙って通さない】。★ 来たら止める
       return stop(audits, '新着情報は出勤ページを使わない（ここへは来ないはず）');

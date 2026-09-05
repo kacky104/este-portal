@@ -58,7 +58,9 @@ function readHeaders(cookie: string, referer: string): FlowNextRequest['headers'
  * ★ 枠が文脈に入っていなければ null。
  */
 export function buildArticleListStep(ctx: RelayFlowContext): FlowNextRequest | null {
-  if (!isArticleSlot(ctx.articleSlot)) return null;
+  // ★★ 枠を1つ書き換えにいくときは、どの枠かが決まっていなければ進めない。
+  //   ★ ただし「枠の状態を読むだけ」（第158便）は**枠を指定しない**。★ 5枠ぜんぶを見に行く
+  if (!isArticleSlot(ctx.articleSlot) && ctx.intent !== 'article_slots') return null;
   const r = buildEkichikaArticleListRequest(ctx.cookie, RELAY_USER_AGENT);
   return { purpose: 'article_list', method: 'GET', url: r.url, headers: r.headers, body: '', context: ctx };
 }
@@ -91,7 +93,9 @@ export function buildArticleReadStep(ctx: RelayFlowContext): FlowNextRequest | n
 export function afterArticleList(input: Input, ctx: RelayFlowContext): FlowOutcome {
   const flowId = ctx.flowId;
   const slot = ctx.articleSlot;
-  if (!isArticleSlot(slot)) return stop([], '書き換える枠が文脈に入っていない');
+  // ★★ 「読むだけ」は枠を指定しない。★ それ以外は、どの枠かが決まっていなければ進めない
+  const readOnly = ctx.intent === 'article_slots';
+  if (!readOnly && !isArticleSlot(slot)) return stop([], '書き換える枠が文脈に入っていない');
 
   if (redirectedToLogin(input)) {
     return stop(
@@ -131,27 +135,47 @@ export function afterArticleList(input: Input, ctx: RelayFlowContext): FlowOutco
     },
   ];
 
+  // ★★★ ここから先は【読めた事実】をかならず持って返す（第158便）。
+  //   ★ 止まる場合でも rows を落とさない。★ 落とすと画面は「まだ読んでいない」ままになり、
+  //     店舗様は同じところでもう一度つまずく。
+
+  // ★★★ 「読むだけ」はここで終わり。★ 編集ページも読まない＝1文字も書かない
+  if (readOnly) {
+    return {
+      kind: 'article_slots', rows, audits,
+      note: '新着情報の枠の状態を読み取った（' + rows.length + '枠）。★ 何も書いていない',
+    };
+  }
+
+  // ★ 型を閉じるためだけ。★ 上で弾いているのでここへは来ない（★ それでも黙って通さない）
+  if (!isArticleSlot(slot)) {
+    return { kind: 'article_slots', rows, audits, note: '書き換える枠が文脈に入っていない' };
+  }
+
   const row = findArticleRow(rows, slot);
   if (row === null) {
-    return stop(
-      [...audits, { event: 'read_article_list', outcome: 'failed', summary: '', detail: { slot, reason: 'slot_not_listed', flowId } }],
-      '指定した枠が一覧に見当たらない',
-    );
+    return {
+      kind: 'article_slots', rows,
+      audits: [...audits, { event: 'read_article_list', outcome: 'failed', summary: '', detail: { slot, reason: 'slot_not_listed', flowId } }],
+      note: '指定した枠が一覧に見当たらない',
+    };
   }
 
   // ★★★ 記事が無い枠は上書きできない。★ 新規の道はまだ無い（★ 黙って進めない）
   if (!row.hasArticle) {
-    return stop(
-      [...audits, {
+    return {
+      kind: 'article_slots', rows,
+      audits: [...audits, {
         event: 'plan_article', outcome: 'stopped', summary: '',
         detail: { slot, where: row.label, reason: 'no_article', flowId },
       }],
-      row.label + ' にはまだ記事がありません（新しく作る道はまだありません）',
-    );
+      note: row.label + ' にはまだ記事がありません（新しく作る道はまだありません）',
+    };
   }
 
   return {
-    kind: 'next',
+    kind: 'article_slots',
+    rows,
     audits,
     note: row.label + ' を読みにいく' + (row.visible === false ? '（★ この枠はいま非表示）' : ''),
     next: {
