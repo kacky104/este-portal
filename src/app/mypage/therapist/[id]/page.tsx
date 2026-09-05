@@ -20,6 +20,7 @@ import { getOrCreateDiaryMailAddress } from '@/app/actions/diaryMail';
 import { getDiaryForwards, saveDiaryForward } from '@/app/actions/diaryForward';
 import { useToast } from '@/app/components/useToast';
 import { SiteNoticeBanner } from '@/app/components/SiteNoticeBanner';
+import { therapistDirtyFields, therapistDirtyNote, therapistLeaveWarning } from '@/lib/therapistDirty';
 
 const supabase = createClient();
 
@@ -382,12 +383,68 @@ export default function TherapistEditPage() {
       }
       setSavedImages(images);
       sessionUploadsRef.current = [];
+      // ★★★ 第173便: 比べる元（＝いまDBに入っている値）も新しくする。
+      //   ★ ここを忘れると、保存できたのに「まだ保存していない」と言い続ける。
+      //   ★★ そうなると店舗様は警告を信じなくなり、★ 警告そのものが役に立たなくなる。
+      setTherapist((t) => t === null ? t : ({
+        ...t,
+        profile_image_url: images[0] ?? null,
+        profile_images: images,
+        age: form.age ?? null,
+        body_type: form.body_type ?? null,
+        profile_text: form.profile_text ?? null,
+        catchphrase: (form.catchphrase ?? '').trim().slice(0, 16) || null,
+        feature_badges: sanitizeBadges(badges),
+      }));
     }
     showToast(
       error ? '保存に失敗しました'
         : fwdErr ? `保存しました（転送先だけ失敗: ${fwdErr}）`
         : '保存しました',
     );
+  };
+
+  // ───────── ★★★ まだ保存していない（第173便） ─────────
+  //
+  // ★★★ 発端（★ 2026-09-05 に実際に起きた）
+  //   「保存ボタンを押してなかったです」（カッキーさん）→ ★ 30分ぶんの作業が消えた
+  //   ★ 第37便でも同じことが起きている。★★ 2度起きたことは3度起きる。
+  //
+  // ★★ 設定も概念も増やさない。★ 見つけて言うだけ。★ 勝手に保存はしない。
+  const dirtyFields = therapistDirtyFields(
+    therapist === null ? null : {
+      age: therapist.age, bodyType: therapist.body_type, profileText: therapist.profile_text,
+      catchphrase: therapist.catchphrase, badges: therapist.feature_badges, images: savedImages,
+    },
+    {
+      age: form.age ?? null, bodyType: form.body_type ?? null, profileText: form.profile_text ?? null,
+      catchphrase: form.catchphrase ?? null, badges, images,
+    },
+    forwardRows.filter((r) => r.address.trim() !== r.saved).length,
+  );
+  const dirty = dirtyFields.length > 0;
+
+  // ★★ タブを閉じる・再読み込み・ほかのサイトへ行く、を引き止める。
+  //   ★ 文言はブラウザに無視されることがあるが、★ 確認そのものは必ず出る。
+  useEffect(() => {
+    if (!dirty) return;
+    const onLeave = (e: BeforeUnloadEvent) => {
+      e.preventDefault();
+      e.returnValue = therapistLeaveWarning();
+      return e.returnValue;
+    };
+    window.addEventListener('beforeunload', onLeave);
+    return () => window.removeEventListener('beforeunload', onLeave);
+  }, [dirty]);
+
+  /**
+   * ★ 画面の中のリンクで離れるとき。
+   *   ★★ beforeunload はページ内の移動では出ない。★ そこは自分で聞く。
+   *   ★ 「はい」なら普通に進む（★ 止めない。★ 決めるのは店舗様）
+   */
+  const confirmLeave = (e: React.MouseEvent) => {
+    if (!dirty) return;
+    if (!window.confirm(therapistLeaveWarning() + '\n\n離れますか？')) e.preventDefault();
   };
 
   const inputClass = 'w-full px-3 py-2 rounded-xl border border-slate-200 text-sm bg-slate-50/50 focus:outline-none focus:ring-2 focus:ring-pink-200';
@@ -425,7 +482,8 @@ export default function TherapistEditPage() {
 
       <header className="bg-white border-b border-slate-100 sticky top-0 z-40">
         <div className="max-w-2xl mx-auto px-4 py-3 flex items-center gap-3">
-          <Link href="/mypage" className="text-slate-400 hover:text-pink-500 transition-colors">
+          {/* ★★ 第173便: 未保存のまま戻ろうとしたら聞く。★ 止めはしない（★ 決めるのは店舗様） */}
+          <Link href="/mypage" onClick={confirmLeave} className="text-slate-400 hover:text-pink-500 transition-colors">
             <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
             </svg>
@@ -434,6 +492,27 @@ export default function TherapistEditPage() {
             {therapist.name ?? 'セラピスト'} のプロフィール編集
           </h1>
         </div>
+        {/* ★★★ 第173便: まだ保存していないことを、いつでも見える形で出す。
+            ★ 「保存ボタンを押してなかったです」（2026-09-05）を二度起こさない。
+            ★★ ヘッダーの中に置くので、下までスクロールしても消えない。
+            ★ 押せば保存できる（★ 下まで戻らせない） */}
+        {dirty && (
+          <div className="border-t border-amber-200 bg-amber-50">
+            <div className="max-w-2xl mx-auto px-4 py-2 flex items-center justify-between gap-3">
+              <p className="text-[12px] text-amber-800 leading-relaxed min-w-0">
+                {therapistDirtyNote(dirtyFields)}
+              </p>
+              <button
+                type="button"
+                onClick={handleSave}
+                disabled={saving}
+                className="flex-none px-4 py-1.5 rounded-xl bg-gradient-to-r from-pink-500 to-fuchsia-500 text-white font-bold text-xs shadow-sm disabled:opacity-50"
+              >
+                {saving ? '保存中…' : '保存する'}
+              </button>
+            </div>
+          </div>
+        )}
       </header>
       <SiteNoticeBanner />
 
