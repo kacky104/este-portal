@@ -527,24 +527,43 @@ export function afterArticleImage(input: Input, ctx: RelayFlowContext): FlowOutc
   if (!isArticleSlot(slot)) return stop([], '書き換える枠が文脈に入っていない');
   const where = String(ctx.articleWhere ?? articleSlotLabel(slot));
 
+  // ★★★ 何を送ったかを記録に残す（第164便）。
+  //   ★ 断られたとき「そもそも何を送ったのか」が分からないと、直す場所が決まらない。
+  //   ★★ 種類は**中身から判定したもの**（拡張子ではない）。★ 寸法も実寸。
+  //   ★ 在処（URL）は入れない。★ 秘密落としに引っかかるうえ、追うのに要らない
+  const f = ctx.articleFile;
+  const sent: Record<string, string | number> = f
+    ? { imageType: String(f.contentType), imageW: Number(f.width), imageH: Number(f.height) }
+    : {};
+
   if (input.status >= 300) {
     return stop(
-      [{ event: 'push_article_image', outcome: 'failed', summary: '', detail: { slot, where, httpStatus: input.status, reason: 'http_error', flowId } }],
+      [{ event: 'push_article_image', outcome: 'failed', summary: '', detail: { slot, where, ...sent, httpStatus: input.status, reason: 'http_error', flowId } }],
       '画像を上げる応答が ' + input.status + ' だった',
     );
   }
 
   const r = parseArticleImageJson(input.body);
   if (r.err) {
-    // ★ 相手が断った。★ こちらの読み取りの問題ではない
+    // ★★★ 相手が断った。★ こちらの読み取りの問題ではない。
+    //   ★★ **相手が何と言ったかを記録に残す**（第164便）。
+    //     ★ 2026-09-05 の実弾で refused になったが、理由を残していなかったため何も分からなかった。
+    //     ★ 「静かに失敗させない」は、理由を残して初めて守れる。
     return stop(
-      [{ event: 'push_article_image', outcome: 'failed', summary: '', detail: { slot, where, reason: 'refused', flowId } }],
+      [{
+        event: 'push_article_image', outcome: 'failed', summary: '',
+        detail: { slot, where, ...sent, reason: 'refused', providerError: r.err.slice(0, 200), flowId },
+      }],
       '駅ちかが画像を受け取らなかった: ' + r.err.slice(0, 200),
     );
   }
   if (r.problems.length > 0) {
     return stop(
-      [{ event: 'push_article_image', outcome: 'failed', summary: '', detail: { slot, where, reason: 'parse_failed', flowId } }],
+      [{
+        event: 'push_article_image', outcome: 'failed', summary: '',
+        // ★ 何が読めなかったかも残す（★ 応答そのものは入れない。★ 何が入っているか分からないため）
+        detail: { slot, where, ...sent, reason: 'parse_failed', missing: r.problems.join(' / ').slice(0, 200), bodyLength: input.body.length, flowId },
+      }],
       '画像を上げた応答を読めなかった: ' + r.problems.join(' / '),
     );
   }
@@ -554,7 +573,7 @@ export function afterArticleImage(input: Input, ctx: RelayFlowContext): FlowOutc
   // ★ 実寸が無ければ切り抜きの物差しが決まらない。★ 決め打ちしない
   if (!file || !Number.isFinite(file.width) || !Number.isFinite(file.height) || file.width <= 0 || file.height <= 0) {
     return stop(
-      [{ event: 'push_article_image', outcome: 'failed', summary: '', detail: { slot, where, reason: 'no_size', flowId } }],
+      [{ event: 'push_article_image', outcome: 'failed', summary: '', detail: { slot, where, ...sent, reason: 'no_size', flowId } }],
       '画像の実寸が文脈に入っていないので切り抜けない',
     );
   }
@@ -573,14 +592,14 @@ export function afterArticleImage(input: Input, ctx: RelayFlowContext): FlowOutc
     );
   } catch (e) {
     return stop(
-      [{ event: 'push_article_image', outcome: 'failed', summary: '', detail: { slot, where, reason: 'crop_build_failed', flowId } }],
+      [{ event: 'push_article_image', outcome: 'failed', summary: '', detail: { slot, where, ...sent, reason: 'crop_build_failed', flowId } }],
       '切り抜きを組み立てられなかった: ' + (e as Error).message,
     );
   }
 
   return {
     kind: 'next',
-    audits: [{ event: 'push_article_image', outcome: 'ok', summary: '', detail: { slot, where, flowId } }],
+    audits: [{ event: 'push_article_image', outcome: 'ok', summary: '', detail: { slot, where, ...sent, flowId } }],
     note: '画像を上げた。★ 次は切り抜き（記事はまだ変えていない）',
     next: {
       purpose: 'article_crop',
@@ -614,8 +633,12 @@ export function afterArticleCrop(input: Input, ctx: RelayFlowContext): FlowOutco
 
   const r = parseArticleImageJson(input.body);
   if (r.err) {
+    // ★★★ 相手の言葉を残す（第164便）。★ 理由が無ければ直せない
     return stop(
-      [{ event: 'push_article_image', outcome: 'failed', summary: '', detail: { slot, where, reason: 'crop_refused', flowId } }],
+      [{
+        event: 'push_article_image', outcome: 'failed', summary: '',
+        detail: { slot, where, reason: 'crop_refused', providerError: r.err.slice(0, 200), flowId },
+      }],
       '駅ちかが切り抜きを受け取らなかった: ' + r.err.slice(0, 200),
     );
   }

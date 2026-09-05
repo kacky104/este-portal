@@ -403,6 +403,7 @@ const imgCtx = (o) => upCtx(Object.assign({ articleCsrf: TOKEN, articleShopId: '
   eq('★★ 次は切り抜き', [r.kind, r.next.purpose, r.next.url],
      ['next', 'article_crop', 'https://ranking-deli.jp/ajax/admin/article_crop.json']);
   eq('★★ 上げられたことを記録に残す', r.audits.map((a) => a.event + ':' + a.outcome), ['push_article_image:ok']);
+  eq('★★ うまくいったときも、何を送ったかを残す', r.audits[0].detail.imageType, 'image/jpeg');
   const f = Object.fromEntries(r.next.body.split('&').map((kv) => kv.split('=').map(decodeURIComponent)));
   eq('★★★ 切り抜きは画像ぜんぶ（★ こちらで先に整えている）', [f.x, f.y, f.w, f.h], ['0', '0', '600', '800']);
   eq('★★★ 物差しは実寸（★ 写真の②と同じ理屈・記事では未確認）', [f.sh_w, f.sh_h], ['600', '800']);
@@ -415,6 +416,30 @@ const imgCtx = (o) => upCtx(Object.assign({ articleCsrf: TOKEN, articleShopId: '
   const refused = F.afterArticleImage(res200(JSON.stringify({ src: '', img_b: '', img_s: '', err: 'ファイルサイズが大きすぎます' })), imgCtx());
   eq('★★★ 相手が断ったら止める', [refused.kind, refused.audits[0].detail.reason], ['stop', 'refused']);
   eq('★★ 断られた理由は note に残す', /大きすぎます/.test(refused.note), true);
+  // ★★★ 第164便: **相手が何と言ったかを記録に残す**。
+  //   ★ 2026-09-05 の実弾で refused になったが、理由を残していなかったため何も分からなかった。
+  //   ★★ 「静かに失敗させない」は、理由を残して初めて守れる。
+  eq('★★★ 相手の言葉を【記録】に残す（★ note だけでは追えない）',
+     refused.audits[0].detail.providerError, 'ファイルサイズが大きすぎます');
+  // ★★★ 第164便: 「そもそも何を送ったのか」も残す。
+  //   ★ カッキーさん「そもそもJPGなのかもわからなくなってきました」——★ 記録が無ければ確かに分からない。
+  //   ★★ 種類は【中身から判定したもの】（拡張子ではない）。★ 寸法も実寸
+  eq('★★★ 何を送ったかを残す（種類）', refused.audits[0].detail.imageType, 'image/jpeg');
+  eq('★★ 何を送ったかを残す（実寸）', [refused.audits[0].detail.imageW, refused.audits[0].detail.imageH], [600, 800]);
+  eq('★★ 在処（URL）は入れない（★ 追うのに要らない・秘密落としにも引っかかる）',
+     refused.audits[0].detail.url, undefined);
+  eq('★★ 長すぎる文は切る', F.afterArticleImage(res200(JSON.stringify({ err: 'あ'.repeat(500) })), imgCtx()).audits[0].detail.providerError.length, 200);
+}
+{
+  // ★★ 読めなかったときも、何が足りなかったかを残す
+  const bad = F.afterArticleImage(res200('<html>error</html>'), imgCtx());
+  eq('★★ 何が読めなかったかを残す', /JSON/.test(bad.audits[0].detail.missing), true);
+  eq('★★ 応答そのものは入れない（★ 何が入っているか分からない）', bad.audits[0].detail.body, undefined);
+  eq('★ 長さだけ残す', bad.audits[0].detail.bodyLength, '<html>error</html>'.length);
+}
+{
+  const cropRefused = F.afterArticleCrop(res200(JSON.stringify({ src: '', img_b: '', img_s: '', err: '切り抜けません' })), imgCtx());
+  eq('★★★ 切り抜きで断られたときも相手の言葉を残す', cropRefused.audits[0].detail.providerError, '切り抜けません');
 }
 eq('★★ 読めなかったときは reason が違う',
    F.afterArticleImage(res200('<html>error</html>'), imgCtx()).audits[0].detail.reason, 'parse_failed');

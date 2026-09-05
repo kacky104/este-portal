@@ -5,6 +5,7 @@ import { createServiceClient } from '@/app/lib/supabase/service';
 import { ADMIN_UUID } from '@/app/lib/admin';
 import { startRelayFlow } from '@/app/lib/media/relayFlow';
 import { listMediaAudit } from '@/app/lib/media/mediaAudit';
+import { isShopVisibleAudit } from '@/lib/mediaAudit';
 import {
   articleSlotAdviceAll,
   articleSlotSummary,
@@ -211,6 +212,10 @@ export async function getArticleBoard(input: { salonId: string | number; slot?: 
     const all = await listMediaAudit({ salonId, limit: 120, provider: PROVIDER, slot: mediaSlot });
     runs = all
       .filter((r) => ARTICLE_EVENTS.has(r.event))
+      // ★★★ 第164便: ここに第149便の物差しを通していなかった。
+      //   ★ たたむはずの busy が店舗様の画面に出ていた（2026-09-05 実測）。
+      //   ★★ 出す・出さないの判断は mediaAudit の1か所だけ。★ ここで判定し直さない
+      .filter((r) => isShopVisibleAudit({ event: r.event, outcome: r.outcome, detail: r.detail }))
       .slice(0, 12)
       .map((r) => ({ id: r.id, event: r.event, outcome: r.outcome, summary: r.summary, createdAt: r.createdAt }));
   } catch {
