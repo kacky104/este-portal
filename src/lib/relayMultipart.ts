@@ -114,10 +114,17 @@ export function assertRelayFileUrl(url: string): URL {
 }
 
 /** ★ フクエスの口の URL を組む（★ 取り先はここで組んだものしか通らない）。 */
-export function relayFileUrl(bucket: string, path: string): string {
+export function relayFileUrl(bucket: string, path: string, as?: 'jpeg'): string {
   if (!/^[a-z][a-z0-9\-]{1,40}$/.test(bucket)) throw new Error('bucket の形が不正');
   if (!/^[A-Za-z0-9_\-][A-Za-z0-9_\-./]{0,200}$/.test(path) || path.includes('..') || path.includes('//')) {
     throw new Error('path の形が不正');
   }
-  return 'https://' + RELAY_FILE_HOSTS[0] + RELAY_FILE_PATH_PREFIX + '?bucket=' + encodeURIComponent(bucket) + '&path=' + encodeURIComponent(path);
+  // ★★★ as=jpeg（第165便）: 取りに来た口で JPEG に直してから返す。
+  //   ★ 駅ちかの記事の画像は **JPEG のみ**（2026-09-05 実測。PNG は「画像ファイル形式が…」で断られた）。
+  //   ★★ 店舗様に「JPEGにしてから登録し直してください」と言わせないための仕掛け。
+  //   ★ 中継役（relay.sh）は pathname だけを見ているので、クエリが増えても規則は変わらない。
+  if (as !== undefined && as !== 'jpeg') throw new Error('as は jpeg だけ');
+  return 'https://' + RELAY_FILE_HOSTS[0] + RELAY_FILE_PATH_PREFIX
+    + '?bucket=' + encodeURIComponent(bucket) + '&path=' + encodeURIComponent(path)
+    + (as ? '&as=jpeg' : '');
 }

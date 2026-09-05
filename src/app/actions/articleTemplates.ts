@@ -320,7 +320,9 @@ export async function startArticlePost(input: {
   // ────────── ★★★ フクエスの写真を送るとき（第162便）──────────
   //   ★ 画像そのものはここを通さない。★ 在処と【実寸】だけを渡す（第106便・案B）。
   //   ★★ 実寸が要るのは切り抜きの物差しになるから。★ 決め打ちしない
-  let file: { bucket: string; path: string; filename: string; contentType: string; width: number; height: number } | null = null;
+  let file: {
+    bucket: string; path: string; filename: string; contentType: string; width: number; height: number; as?: 'jpeg';
+  } | null = null;
   const therapistId = Number(t.therapist_id ?? 0);
   if (Number.isFinite(therapistId) && therapistId > 0) {
     const { data: th } = await svc
@@ -347,14 +349,21 @@ export async function startArticlePost(input: {
     const c = checkArticleImage({ bytes: buf.byteLength, contentType: size.type });
     if (!c.ok) return { ok: false, error: c.message };
 
+    // ★★★ 駅ちかの記事の画像は【JPEG のみ】（2026-09-05 実測）。
+    //   ★ PNG は「画像ファイル形式が…」で断られる。
+    //   ★★ 店舗様に「JPEGにしてから登録し直してください」とは言わない。★ こちらで直して送る（第165便）。
+    //   ★ 直すのは送る1回ぶんだけ。★ フクエスに登録された写真そのものは触らない。
+    const needsJpeg = size.type !== 'image/jpeg';
     file = {
       bucket: PHOTO_BUCKET,
       path,
       // ★ 相手に見せる名前。★ 英数字と _ - . だけ（relayMultipart の決まり）
-      filename: 'fukues_news_' + therapistId + '.' + (size.type === 'image/png' ? 'png' : 'jpg'),
-      contentType: size.type,
+      filename: 'fukues_news_' + therapistId + '.jpg',
+      // ★★ 記録にも「実際に送る種類」を残す。★ 直したあとは JPEG（★ 元の種類ではない）
+      contentType: 'image/jpeg',
       width: size.width,
       height: size.height,
+      ...(needsJpeg ? { as: 'jpeg' as const } : {}),
     };
   }
 

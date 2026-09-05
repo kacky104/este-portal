@@ -50,6 +50,44 @@ export async function GET(req: Request) {
     return Response.json({ ok: false, error: '画像が空' }, { status: 404 });
   }
   const contentType = data.type && data.type !== '' ? data.type : 'application/octet-stream';
+
+  // ★★★ as=jpeg（第165便・2026-09-05）: JPEG に直してから返す。
+  //
+  // ★★★ なぜ要るか（実測）
+  //   駅ちかの記事の画像は **JPEG のみ**。★ PNG を送ると「画像ファイル形式が…」で断られる。
+  //   ★★ 店舗様に「JPEGにしてから登録し直してください」と言わせないため、こちらで直す。
+  //     ★ 「駅ちかの管理画面で作ってきてください」と同じ筋の失敗を繰り返さない（第163便の反省）。
+  //
+  // ★★ ここで直す理由（★ ほかの場所ではない）
+  //   ・保存時に直すと、**すでに登録済みの写真**が直らない
+  //   ・中継役（relay.sh）で直すと「中身を理解しない」という約束が崩れる
+  //   → ★ 取りに来た口で、その1回ぶんだけ直す。★ 元の写真は触らない
+  //
+  // ★★★ 直せなかったら【送らない】。★ PNG のまま返して駅ちかに断られる形にしない
+  if (url.searchParams.get('as') === 'jpeg' && contentType !== 'image/jpeg') {
+    try {
+      const sharp = (await import('sharp')).default;
+      // ★ 透過は白で埋める（★ 黒くなると顔が沈む）。★ 大きさは変えない
+      const jpeg = await sharp(buf).flatten({ background: '#ffffff' }).jpeg({ quality: 88 }).toBuffer();
+      if (jpeg.byteLength === 0) throw new Error('変換の結果が空');
+      return new Response(new Uint8Array(jpeg), {
+        status: 200,
+        headers: {
+          'Content-Type': 'image/jpeg',
+          'Content-Length': String(jpeg.byteLength),
+          'Cache-Control': 'no-store',
+        },
+      });
+    } catch (e) {
+      // ★ 黙らない。★ そして元のまま返さない（★ 返すと駅ちかに断られて、原因が分かりにくくなる）
+      console.error('[relay/file] JPEG へ直せなかった', (e as Error).message);
+      return Response.json(
+        { ok: false, error: '画像を JPEG へ直せませんでした: ' + (e as Error).message.slice(0, 200) },
+        { status: 415 },
+      );
+    }
+  }
+
   return new Response(buf, {
     status: 200,
     headers: {

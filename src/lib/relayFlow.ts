@@ -298,7 +298,15 @@ export type RelayFlowContext = {
    * ★★★ フクエスから送る画像の在処（第162便）。★ 画像そのものは通さない（第106便・案B）。
    *   ★ VPS が fukues.com の口へ取りに行く。★ width/height は実寸（★ 切り抜きの物差し）
    */
-  articleFile?: { bucket: string; path: string; filename: string; contentType: string; width: number; height: number };
+  articleFile?: {
+    bucket: string; path: string; filename: string; contentType: string; width: number; height: number;
+    /**
+     * ★★★ 取りに来た口で JPEG へ直してもらう（第165便）。
+     *   ★ 駅ちかの記事の画像は JPEG のみ（実測）。★ 元が PNG のときだけ立てる。
+     *   ★ 元の写真は触らない。★ 直すのはこの1回ぶんだけ
+     */
+    as?: 'jpeg';
+  };
   /** ★ 編集ページから拾った値（第161便）。★ ①②に要る */
   articleCsrf?: string;
   articleShopId?: string;

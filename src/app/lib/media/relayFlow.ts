@@ -186,7 +186,11 @@ export async function startRelayFlow(params: {
      * ★★★ フクエスから送る画像の在処（第162便）。★ 画像そのものは通さない（第106便・案B）。
      *   ★ width/height は【実寸】。★ 切り抜きの物差しになるので、決め打ちしない
      */
-    file?: { bucket: string; path: string; filename: string; contentType: string; width: number; height: number };
+    file?: {
+      bucket: string; path: string; filename: string; contentType: string; width: number; height: number;
+      /** ★ 取りに来た口で JPEG へ直してもらう（第165便）。★ 元が PNG のときだけ */
+      as?: 'jpeg';
+    };
   };
   /** 'shop:<auth_user_id>' など。監査ログに残す */
   actor?: string;

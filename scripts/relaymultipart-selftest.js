@@ -75,5 +75,30 @@ eq('★ files が2つなら断る（1枠1枚）', /多すぎる/.test(throws(() 
 eq('★ オブジェクトでなければ断る', /オブジェクトではない/.test(throws(() => s.assertRelayMultipart('x'))), true);
 eq('★ 上限の数はそのまま（1枚・30項目）', [s.RELAY_FILE_MAX_COUNT, s.RELAY_FIELD_MAX_COUNT], [1, 30]);
 
+
+console.log('\n── ★★★ JPEG へ直してもらう口（第165便） ──');
+//
+// ★★★ 駅ちかの記事の画像は【JPEG のみ】（2026-09-05 実測。PNG は「画像ファイル形式が…」で断られた）。
+//   ★★ 店舗様に「JPEGにしてから登録し直してください」と言わせない。★ 取りに来た口で直す。
+//   ★ 中継役（relay.sh）は pathname だけを見ているので、クエリが増えても規則は変わらない。
+{
+  const plain = s.relayFileUrl('therapist-photos', 'a/b.png');
+  const asJpg = s.relayFileUrl('therapist-photos', 'a/b.png', 'jpeg');
+  eq('★ いままでどおりの形は変わらない', plain,
+     'https://fukues.com/api/relay/file?bucket=therapist-photos&path=a%2Fb.png');
+  eq('★★ 直してもらうときだけ as=jpeg が付く', asJpg, plain + '&as=jpeg');
+  eq('★★★ 取りに行く口（pathname）は変わらない', new URL(asJpg).pathname, s.RELAY_FILE_PATH_PREFIX);
+  eq('★★★ 取り先も変わらない', new URL(asJpg).hostname, s.RELAY_FILE_HOSTS[0]);
+  eq('★ https のまま', new URL(asJpg).protocol, 'https:');
+}
+eq('★★★ as=jpeg 付きでも検査を通る（★ ここが通らないと中継に載らない）',
+   withUrl(s.relayFileUrl('therapist-photos', 'a/b.png', 'jpeg')), null);
+eq('★★★ 知らない値は受け付けない（★ 任意の変換を頼める口にしない）',
+   /jpeg/.test(throws(() => s.relayFileUrl('therapist-photos', 'a/b.png', 'webp'))), true);
+eq('★★ path の検査はそのまま',
+   /path/.test(throws(() => s.relayFileUrl('therapist-photos', '../x.png', 'jpeg'))), true);
+eq('★★ bucket の検査もそのまま',
+   /bucket/.test(throws(() => s.relayFileUrl('BAD', 'a/b.png', 'jpeg'))), true);
+
 console.log(fail === 0 ? '\n★ すべて通った' : '\n★ NG ' + fail + ' 件');
 process.exit(fail === 0 ? 0 : 1);

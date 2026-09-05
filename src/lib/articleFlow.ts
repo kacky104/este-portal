@@ -335,7 +335,8 @@ export function afterArticleRead(input: Input, ctx: RelayFlowContext): FlowOutco
     let multipart;
     try {
       multipart = buildArticleImageUpload(ids, {
-        url: relayFileUrl(file.bucket, file.path),
+        // ★★★ 元が JPEG でなければ、取りに来た口で直してもらう（第165便）
+        url: relayFileUrl(file.bucket, file.path, file.as),
         filename: file.filename,
         contentType: file.contentType,
       });
