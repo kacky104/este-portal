@@ -13,6 +13,8 @@ export function VipLetterIcon() {
   const [mounted, setMounted] = useState(false);
   const [loggedIn, setLoggedIn] = useState(false);
   const [unread, setUnread] = useState(0);
+  // ★ 未読数を読み取れなかった。★ 0件と混ぜず「?」を出す（第179便）
+  const [unknown, setUnknown] = useState(false);
 
   useEffect(() => {
     setMounted(true);
@@ -24,10 +26,13 @@ export function VipLetterIcon() {
         if (!active) return;
         if (!user) { setLoggedIn(false); return; }
         setLoggedIn(true);
-        const count = await getVipUnreadCount(supabase);
-        if (active) setUnread(count);
+        const res = await getVipUnreadCount(supabase);
+        if (!active) return;
+        if ('count' in res) { setUnread(res.count); setUnknown(false); }
+        else setUnknown(true);
       } catch {
-        // 失敗時はバッジを出さないだけ（操作を妨げない）。
+        // ★ 黙って「0件」にしない。★ 「?」を出して、開けば確かめられることを示す
+        if (active) setUnknown(true);
       }
     })();
     return () => { active = false; };
@@ -42,7 +47,8 @@ export function VipLetterIcon() {
   return (
     <Link
       href="/member/vip-letters"
-      aria-label={hasUnread ? `VIPレター ${unread}件の未読` : 'VIPレター'}
+      aria-label={unknown ? 'VIPレター（未読数を読み取れませんでした）' : hasUnread ? `VIPレター ${unread}件の未読` : 'VIPレター'}
+      title={unknown ? '未読数を読み取れませんでした。開いて確かめてください' : undefined}
       className={`relative flex-shrink-0 inline-flex items-center justify-center w-8 h-8 rounded-full border bg-white transition-colors ${
         hasUnread ? 'border-fuchsia-300 ring-2 ring-fuchsia-200/60 animate-pulse' : 'border-slate-200 hover:border-fuchsia-300'
       }`}
@@ -76,11 +82,16 @@ export function VipLetterIcon() {
           VIP
         </text>
       </svg>
-      {hasUnread && (
+      {/* ★ 読めなかったときは「?」（0件のふりをしない・第179便） */}
+      {unknown ? (
+        <span className="absolute -top-1 -right-1 min-w-[16px] h-[16px] px-1 rounded-full bg-slate-400 text-white text-[10px] font-bold leading-none flex items-center justify-center shadow-sm">
+          ?
+        </span>
+      ) : hasUnread ? (
         <span className="absolute -top-1 -right-1 min-w-[16px] h-[16px] px-1 rounded-full bg-pink-600 text-white text-[10px] font-bold leading-none flex items-center justify-center shadow-sm">
           {badge}
         </span>
-      )}
+      ) : null}
     </Link>
   );
 }

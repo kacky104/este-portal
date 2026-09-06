@@ -58,7 +58,14 @@ function CouponCard({ coupon, title }: { coupon: VipLetterCoupon; title: string 
   );
 }
 
-export function VipLetterList({ letters }: { letters: MemberVipLetter[] }) {
+export function VipLetterList({
+  letters,
+  error,
+}: {
+  letters: MemberVipLetter[];
+  /** ★ 受信箱を読めなかった理由。★ null なら読めた（第179便） */
+  error?: string | null;
+}) {
   // 既読状態をローカルでも保持（開いた瞬間に NEW を消すため）。
   const [readSet, setReadSet] = useState<Set<string>>(
     () => new Set(letters.filter(l => l.read).map(l => l.recipientId)),
@@ -84,6 +91,21 @@ export function VipLetterList({ letters }: { letters: MemberVipLetter[] }) {
     setOpenId(next);
     if (next) markRead(l.recipientId); // 開いたら既読
   };
+
+  // ★★ 読めなかったときに「まだありません」と書かない（作法3-3・第179便）。
+  //   ★ レターが消えたのではないことも書いておく。
+  if (error) {
+    return (
+      <div className="py-10 px-5 text-center border border-rose-200 bg-rose-50/60 rounded-2xl">
+        <p className="text-sm font-bold text-rose-600">VIPレターを読み取れませんでした</p>
+        <p className="text-xs text-slate-500 mt-2 leading-relaxed">
+          時間をおいてページを開き直してください。<br />
+          届いたレターが消えたわけではありません。
+        </p>
+        <p className="text-[10px] text-slate-400 mt-3 break-words">理由：{error}</p>
+      </div>
+    );
+  }
 
   if (letters.length === 0) {
     return (

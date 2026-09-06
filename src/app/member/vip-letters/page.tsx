@@ -33,7 +33,8 @@ export default async function VipLettersPage() {
   }
 
   // 自分宛のVIPレター（RLS：本人が recipient のもののみ）。
-  const letters = await getMemberVipLetters(supabase);
+  // ★ 読めなかったときは理由を持ち帰る（★ 「0件」と混ぜない・第179便）
+  const { letters, error: lettersError } = await getMemberVipLetters(supabase);
 
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900">
@@ -69,7 +70,7 @@ export default async function VipLettersPage() {
         </h1>
         <p className="text-xs text-slate-400 mb-8">保存しているお店から届いた特別なメッセージ</p>
 
-        <VipLetterList letters={letters} />
+        <VipLetterList letters={letters} error={lettersError} />
       </main>
 
       {/* ─── Footer ─── */}
