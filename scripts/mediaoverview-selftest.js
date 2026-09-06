@@ -559,5 +559,144 @@ eq('★ 書くだけの媒体に read は絶対に出さない（ほかが正本
   eq('★★★ 決め打ちの「まだ送っていません」が画面に無い', /まだ送っていません/.test(jsx), false);
 }
 
+console.log('\n── ★★★ 第189便: 「反映しない」の行に添える1行（カッキーさんの文言）──');
+// ★★ 旧「どこにも送らず、取り込みもしていません」は、行の範囲（その媒体1つ）と合っていなかった。
+//   ★ 「取り込みもしていません」は書くだけの媒体では選べないこと（していません＝すればできる、に読める）。
+{
+  const S = [
+    { provider: 'ekichika', slot: 1, direction: 'read', label: '駅ちか' },
+    { provider: 'esutama', slot: 1, direction: 'off', label: 'エステ魂' },
+    { provider: 'esulove', slot: 1, direction: 'off', label: 'エステラブ' },
+  ];
+  // ★★★ ラビリンス様の実物（2026-09-06）: 駅ちかが正本・エステ魂が off
+  eq('★★★ ほかが正本なら理由を言う',
+     v.offRowNote('エステ魂', v.readingElsewhereLabel(S, { provider: 'esutama', slot: 1 })),
+     '駅ちかから反映中のため、エステ魂には反映しません');
+  // ★★★ 駅ちかが正本でないとき、「駅ちかから反映中のため」と書くと嘘になる
+  const S2 = [
+    { provider: 'ekichika', slot: 1, direction: 'off', label: '駅ちか' },
+    { provider: 'esutama', slot: 1, direction: 'off', label: 'エステ魂' },
+  ];
+  eq('★★★ どこも正本でなければ理由を書かない',
+     v.offRowNote('エステ魂', v.readingElsewhereLabel(S2, { provider: 'esutama', slot: 1 })),
+     'エステ魂には反映しません');
+  eq('★★ 駅ちか自身が off のとき、自分の read は数えない（理由なし）',
+     v.offRowNote('駅ちか', v.readingElsewhereLabel(S2, { provider: 'ekichika', slot: 1 })),
+     '駅ちかには反映しません');
+  // ★ 媒体名は決め打ちにしない（READABLE_PROVIDERS の決めごと）
+  eq('★ 正本の名前は一覧の label から取る',
+     v.readingElsewhereLabel([{ provider: 'x', slot: 1, direction: 'read', label: 'テスト媒体' }], { provider: 'esutama', slot: 1 }),
+     'テスト媒体');
+  eq('★ 正本の名前が空なら null（嘘の名前を出さない）',
+     v.readingElsewhereLabel([{ provider: 'x', slot: 1, direction: 'read', label: '' }], { provider: 'esutama', slot: 1 }), null);
+  eq('★ 空の一覧でも落ちない', v.readingElsewhereLabel([], { provider: 'esutama' }), null);
+  // ★★ isReadingElsewhere と同じ数え方（決め方を2つ持たない）
+  const cases = [
+    [S, { provider: 'esutama', slot: 1 }], [S, { provider: 'ekichika', slot: 1 }], [S, { provider: 'ekichika', slot: 2 }],
+    [S2, { provider: 'esutama', slot: 1 }], [[], { provider: 'esutama' }],
+  ];
+  eq('★★ readingElsewhereLabel の有無は isReadingElsewhere と一致する',
+     cases.every(([ss, me]) => (v.readingElsewhereLabel(ss, me) !== null) === v.isReadingElsewhere(ss, me)), true);
+  // ★★★ 旧文言の言葉を使わない
+  const all = [
+    v.offRowNote('エステ魂', '駅ちか'), v.offRowNote('エステ魂', null), v.offRowNote('駅ちか', null),
+  ];
+  eq('★★★ 「どこにも」と書かない', all.some((t) => t.includes('どこにも')), false);
+  eq('★★★ 「取り込」と書かない（書くだけの媒体で嘘になる）', all.some((t) => t.includes('取り込')), false);
+  eq('★ 「反映中」は理由があるときだけ', v.offRowNote('エステ魂', null).includes('反映中'), false);
+  // ★★★ 画面が旧文言を焼き付けていない
+  const fs3 = require('fs');
+  const src3 = fs3.readFileSync(require('path').join(__dirname, '..', 'src/app/mypage/media/MediaHome.tsx'), 'utf8');
+  const jsx3 = src3.replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '');
+  eq('★★★ 画面に「どこにも送らず」が残っていない', /どこにも送らず/.test(jsx3), false);
+  eq('★★ 画面は offRowNote を呼んでいる', /offRowNote\(/.test(jsx3), true);
+}
+
+console.log('\n── ★★★ 第190便: ほかの媒体へフクエスから反映しているあいだは read を出さない（第127便の逆側）──');
+// ★★★ 実際に起きた形（ラビリンス様・2026-09-06 23:39・カッキーさんが確かめ中に発見）:
+//   「フクエスから反映 → 反映しない → 駅ちかから反映」と押したら、
+//   駅ちかから反映中なのにエステ魂へもフクエスから反映中、になった。
+//   ★ 第127便は「write にするとき」しか見ていなかった。★ 逆の順で押せば通ってしまった。
+{
+  const W = [
+    { provider: 'ekichika', slot: 1, direction: 'off', label: '駅ちか' },
+    { provider: 'esutama', slot: 1, direction: 'write', label: 'エステ魂' },
+  ];
+  eq('★★★ エステ魂が write なら、駅ちかから見て「ほかへ反映中」',
+     v.isWritingElsewhere(W, { provider: 'ekichika', slot: 1 }), true);
+  eq('★★★ 自分の write は数えない',
+     v.isWritingElsewhere(W, { provider: 'esutama', slot: 1 }), false);
+  eq('★ 同じ媒体の別枠は「ほか」として数える',
+     v.isWritingElsewhere([{ provider: 'ekichika', slot: 2, direction: 'write' }], { provider: 'ekichika', slot: 1 }), true);
+  eq('★ どこも write でなければ false',
+     v.isWritingElsewhere([{ provider: 'esutama', slot: 1, direction: 'off' }], { provider: 'ekichika', slot: 1 }), false);
+  eq('★ 空でも落ちない', v.isWritingElsewhere([], { provider: 'ekichika' }), false);
+  eq('★ 名前は一覧の label から（重複なし）',
+     v.writingElsewhereLabels([
+       { provider: 'esutama', slot: 1, direction: 'write', label: 'エステ魂' },
+       { provider: 'esulove', slot: 1, direction: 'write', label: 'エステラブ' },
+       { provider: 'esutama', slot: 2, direction: 'write', label: 'エステ魂' },
+     ], { provider: 'ekichika', slot: 1 }), ['エステ魂', 'エステラブ']);
+  eq('★ 名前の無い行は名前を出さない（嘘の名前を出さない）',
+     v.writingElsewhereLabels([{ provider: 'x', slot: 1, direction: 'write', label: '' }], { provider: 'ekichika', slot: 1 }), []);
+  eq('★★ 有無は isWritingElsewhere と一致する（決め方を2つ持たない）',
+     [[W, { provider: 'ekichika', slot: 1 }], [W, { provider: 'esutama', slot: 1 }], [[], { provider: 'ekichika' }]]
+       .every(([ss, me]) => (v.writingElsewhereLabels(ss, me).length > 0) === v.isWritingElsewhere(ss, me)), true);
+
+  // ★★★ 選ぶボタン: ほかへ反映中なら 'read' を出さない
+  const EK = 'ekichika';
+  eq('★★★ ほかへ反映中: off から read を出さない（write だけ）',
+     v.switchChoices('off', '駅ちか', EK, false, true).map((x) => x.mode), ['write']);
+  eq('★★★ ほかへ反映中: write から read を出さない（none だけ）',
+     v.switchChoices('write', '駅ちか', EK, false, true).map((x) => x.mode), ['none']);
+  eq('★★ ほかへ反映中: unset からは何も出さない',
+     v.switchChoices('unset', '駅ちか', EK, false, true).map((x) => x.mode), []);
+  // ★★★ 既に禁止の形（read なのにほかが write）なら、抜ける道を全部残す
+  eq('★★★ 既にこの形なら read から write と none を出す（抜ける道を塞がない）',
+     v.switchChoices('read', '駅ちか', EK, false, true).map((x) => x.mode), ['write', 'none']);
+  // ★★ 何もなければ従来どおり
+  eq('★ ほかが何もしていなければ従来どおり（off → read, write）',
+     v.switchChoices('off', '駅ちか', EK, false, false).map((x) => x.mode), ['read', 'write']);
+  eq('★ ほかが何もしていなければ従来どおり（write → read, none）',
+     v.switchChoices('write', '駅ちか', EK, false, false).map((x) => x.mode), ['read', 'none']);
+  // ★★★ 両方の道を塞がない: どの状態・どの条件でも 'none' か 'write' へ抜けられる（read 以外の行き先がある）
+  eq('★★★ ほかへ反映中でも、read/write/off のどこからでも押せる道が最低1つ残る（道を塞がない）',
+     ['read', 'write', 'off'].every((from) =>
+       v.switchChoices(from, '駅ちか', EK, false, true).length > 0), true);
+  eq('★★★ ほかへ反映中に出る道に read は1つも無い',
+     ['read', 'write', 'off', 'unset'].some((from) =>
+       v.switchChoices(from, '駅ちか', EK, false, true).some((x) => x.mode === 'read')), false);
+  // ★★ 書くだけの媒体には writingElsewhere は効かない（read はもともと出さない）
+  eq('★ 書くだけの媒体: ほかへ反映中でも write は出せる（設定2＝全部フクエスから）',
+     v.switchChoices('off', 'エステラブ', 'esulove', false, true).map((x) => x.mode), ['write']);
+
+  // ★★ ボタンの下の1行（黙って消さない）
+  eq('★★ read が出ていない理由の1行',
+     v.readBlockedNote('駅ちか', ['エステ魂']),
+     'エステ魂へフクエスから反映しているあいだは、「駅ちかから反映」に切り替えられません。先にエステ魂の「反映しない」を押してください。');
+  eq('★ 名前が2つなら「・」でつなぐ', v.readBlockedNote('駅ちか', ['エステ魂', 'エステラブ']).startsWith('エステ魂・エステラブへ'), true);
+  eq('★ 名前が無ければ名前のない言い方', v.readBlockedNote('駅ちか', []).startsWith('ほかのサイトへ'), true);
+
+  // ★★★ 既にできてしまった形を画面で言う（ガードでは直らない）
+  eq('★★★ 禁止の形が既にあるとき、write の行に出す1行',
+     v.doubleWriteNote('エステ魂', '駅ちか'),
+     '駅ちかから反映中のあいだ、エステ魂へはフクエスから反映しない決まりです。エステ魂の「反映しない」を押してください。');
+  eq('★ ほかが正本でなければ null（何も言わない）', v.doubleWriteNote('エステ魂', null), null);
+  eq('★ 失敗の言葉を使わない',
+     /失敗|エラー|できませんでした/.test(v.doubleWriteNote('エステ魂', '駅ちか')), false);
+
+  // ★★★ 画面が新しい関数を呼んでいる
+  const fs4 = require('fs');
+  const src4 = fs4.readFileSync(require('path').join(__dirname, '..', 'src/app/mypage/media/MediaHome.tsx'), 'utf8');
+  const jsx4 = src4.replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '');
+  eq('★★ 画面は switchChoices に5つ目（writingElsewhere）を渡している', /switchChoices\([^)]*,\s*writingElsewhere\)/.test(jsx4), true);
+  eq('★★ 画面は readBlockedNote を呼んでいる', /readBlockedNote\(/.test(jsx4), true);
+  eq('★★ 画面は doubleWriteNote を呼んでいる', /doubleWriteNote\(/.test(jsx4), true);
+  // ★★★ 受け口（サーバー）にも逆側のガードがある（画面だけで守らない）
+  const act = fs4.readFileSync(require('path').join(__dirname, '..', 'src/app/actions/mediaCredentials.ts'), 'utf8');
+  eq('★★★ setMediaLinkMode は read にするときも、ほかの write / write_auto を見ている',
+     /input\.mode === 'read'\)\s*\{[\s\S]*?link_mode === 'write' \|\| r\.link_mode === 'write_auto'/.test(act), true);
+}
+
 console.log(fail === 0 ? '\n★ すべて通った' : '\n★ NG ' + fail + ' 件');
 process.exit(fail === 0 ? 0 : 1);

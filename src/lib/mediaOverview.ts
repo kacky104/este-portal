@@ -249,6 +249,11 @@ export function switchChoices(
    *   ★ 必須にすれば、渡し忘れを TypeScript が落とす。
    */
   readingElsewhere: boolean,
+  /**
+   * ★★★ ほかの媒体へ【フクエスから反映】しているか（第190便・2026-09-06）。★ 必須。
+   * ★ 第127便の逆側。★ 省略できるようにしない（渡し忘れを TypeScript が落とす）。
+   */
+  writingElsewhere: boolean,
 ): SwitchChoice[] {
   const c = (mode: 'read' | 'write' | 'none'): SwitchChoice =>
     ({ mode, label: switchLabel(mode, siteLabel) });
@@ -281,10 +286,87 @@ export function switchChoices(
     if (from === 'unset') return [c('write')];
     return [];
   }
+  // ★★★ ほかの媒体へフクエスから反映しているあいだは 'read' を出さない（第190便・2026-09-06）。
+  //
+  // ★★★ なぜ（2026-09-06・カッキーさんの指摘で発覚）
+  //   第127便は「ほかが read なら write を出さない」だけだった。★ 逆の順（エステ魂を write に
+  //   してから駅ちかを read に）で押すと、**駅ちかから反映中なのにエステ魂へもフクエスから反映中**
+  //   という禁止の組み合わせが作れた。★ 実際にラビリンス様の画面がその形になっていた。
+  //   ★★ 「入口で守った」と「その状態が保たれている」を混ぜていた（第149〜151便メモ §3②）。
+  //   ★ 方針:「駅ちかから取り込む場合は、フクエスからの内容を他媒体に反映させない。写メ日記も」
+  //
+  // ★★ 案A（断る）を採った（カッキーさんの判断）。★ 勝手にほかの枠を 'none' へ倒さない
+  //   （★ 駅ちかの非表示枠を勝手に切り替えない、と同じ筋）。★ 先に相手の反映を止めてもらう。
+  // ★★ 止める道（'none'）と、送る側へ寄せる道（'write'）は塞がない。
+  //   ★ どちらも「両方から同じ媒体へ書く」形にはならない。
+  if (writingElsewhere) {
+    if (from === 'read') return [c('write'), c('none')];   // ★ 既にこの形なら、抜ける道を全部残す
+    if (from === 'write') return [c('none')];
+    if (from === 'off') return [c('write')];
+    return [];
+  }
   if (from === 'read') return [c('write'), c('none')];
   if (from === 'write') return [c('read'), c('none')];
   if (from === 'off') return [c('read'), c('write')];
   return [];
+}
+
+/**
+ * ★★★ その媒体から見て、【ほかの媒体へフクエスから反映しているか】（第190便・2026-09-06）。
+ * ★ isReadingElsewhere の逆側。★ 数え方は同じ（自分は数えない・枠まで見る）。
+ * ★ 'write' も 'write_auto' も direction は 'write'（siteDirection）なので、ここでは 'write' だけ見ればよい。
+ */
+export function isWritingElsewhere(
+  sites: ReadonlyArray<{ provider: string; slot?: number | null; direction: string }>,
+  self: { provider: string; slot?: number | null },
+): boolean {
+  const same = (a: { provider: string; slot?: number | null }, b: { provider: string; slot?: number | null }) =>
+    a.provider === b.provider && (a.slot ?? 1) === (b.slot ?? 1);
+  return sites.some((s) => s.direction === 'write' && !same(s, self));
+}
+
+/**
+ * ★★ フクエスから反映している【ほかの媒体】の名前（重複なし・一覧の順）。★ 無ければ空配列。
+ * ★ 名前は sites の label から取る。★ 名前が無い行は数に入れるが名前は出さない（嘘の名前を出さない）。
+ */
+export function writingElsewhereLabels(
+  sites: ReadonlyArray<{ provider: string; slot?: number | null; direction: string; label?: string | null }>,
+  self: { provider: string; slot?: number | null },
+): string[] {
+  const same = (a: { provider: string; slot?: number | null }, b: { provider: string; slot?: number | null }) =>
+    a.provider === b.provider && (a.slot ?? 1) === (b.slot ?? 1);
+  const out: string[] = [];
+  for (const s of sites) {
+    if (s.direction !== 'write' || same(s, self)) continue;
+    const label = typeof s.label === 'string' ? s.label.trim() : '';
+    if (label.length > 0 && !out.includes(label)) out.push(label);
+  }
+  return out;
+}
+
+/**
+ * ★★★ 「◯◯から反映」が出ていない理由を、選ぶボタンの下に1行で言う（第190便）。
+ * ★ ボタンを黙って消さない（★ 消すだけだと「戻せます」と書いてあるのに道が無い画面になる・第111便）。
+ * ★ 名前が1つも読めなければ、名前のない言い方に倒す。
+ */
+export function readBlockedNote(siteLabel: string, writingLabels: readonly string[]): string {
+  const site = siteLabel.trim().length > 0 ? siteLabel.trim() : 'サイト側';
+  const who = writingLabels.length > 0 ? writingLabels.join('・') : 'ほかのサイト';
+  return `${who}へフクエスから反映しているあいだは、「${switchLabel('read', site)}」に切り替えられません。`
+    + `先に${who}の「${switchLabel('none', who)}」を押してください。`;
+}
+
+/**
+ * ★★★ 禁止の組み合わせが【すでにできている】ときに、write の行へ添える1行（第190便）。
+ * ★ 第127便・第190便のガードは入口を守るだけ。★ 既にできてしまった形（今回のラビリンス様）は
+ *   ガードでは直らないので、画面で言って、止める道（「反映しない」）へ誘導する。
+ * ★ 失敗の言葉は使わない。★ どちらも店舗様が選んだ結果ではあるので、事実と直し方だけを書く。
+ */
+export function doubleWriteNote(siteLabel: string, readingLabel: string | null): string | null {
+  if (typeof readingLabel !== 'string' || readingLabel.trim().length === 0) return null;
+  const site = siteLabel.trim();
+  return `${readingLabel.trim()}から反映中のあいだ、${site}へはフクエスから反映しない決まりです。`
+    + `${site}の「${switchLabel('none', site)}」を押してください。`;
 }
 
 /**
@@ -374,6 +456,49 @@ export function isReadingElsewhere(
   const same = (a: { provider: string; slot?: number | null }, b: { provider: string; slot?: number | null }) =>
     a.provider === b.provider && (a.slot ?? 1) === (b.slot ?? 1);
   return sites.some((s) => s.direction === 'read' && !same(s, self));
+}
+
+/**
+ * ★★ 正本になっている【ほかの媒体】の名前（第189便・2026-09-06）。★ 無ければ null。
+ *
+ * ★ isReadingElsewhere と同じ数え方（自分自身は数えない・枠まで見る）。★ 決め方を2つ持たない。
+ * ★ 名前は sites の label から取る。★ 「駅ちか」と決め打ちにしない（READABLE_PROVIDERS の決めごと）。
+ * ★ null は【正本になっている媒体が無い】。★ 名前が分からないときも null（嘘の名前を出さない）。
+ */
+export function readingElsewhereLabel(
+  sites: ReadonlyArray<{ provider: string; slot?: number | null; direction: string; label?: string | null }>,
+  self: { provider: string; slot?: number | null },
+): string | null {
+  const same = (a: { provider: string; slot?: number | null }, b: { provider: string; slot?: number | null }) =>
+    a.provider === b.provider && (a.slot ?? 1) === (b.slot ?? 1);
+  const hit = sites.find((s) => s.direction === 'read' && !same(s, self));
+  if (!hit) return null;
+  const label = typeof hit.label === 'string' ? hit.label.trim() : '';
+  return label.length > 0 ? label : null;
+}
+
+/**
+ * ★★★ 「反映しない」を選んでいる行に添える1行（第189便・2026-09-06・カッキーさんの文言）。
+ *
+ * ★★ 旧: 「どこにも送らず、取り込みもしていません」
+ *   ★ 「どこにも」は行の範囲（その媒体1つ）と合っていなかった。★ 上に「駅ちかから反映中」が出ているのに。
+ *   ★ 「取り込みもしていません」は、書くだけの媒体（エステ魂など）では選べないこと。
+ *     ★ 「していません」と書くと、すればできるように読める。
+ *
+ * ★★ 新: 主語（媒体名）を入れ、【なぜ反映しないか】が分かるときはそれを言う。
+ *   ほかの媒体が正本のとき … 「駅ちかから反映中のため、エステ魂には反映しません」
+ *   それ以外の off       … 「エステ魂には反映しません」
+ *   ★ 「◯◯から反映中」は、いちばん上の1行（homeHeadline）と印（directionLabel）と同じ言葉。
+ *   ★ 理由を決め打ちで書かない。★ 駅ちかが正本でないときに「駅ちかから反映中のため」と書くと嘘になる。
+ *
+ * ★ off は【選んだ結果】なので、失敗のように書かない（§223）。
+ */
+export function offRowNote(siteLabel: string, readingLabel: string | null): string {
+  const site = siteLabel.trim();
+  if (typeof readingLabel === 'string' && readingLabel.trim().length > 0) {
+    return `${readingLabel.trim()}から反映中のため、${site}には反映しません`;
+  }
+  return `${site}には反映しません`;
 }
 
 /**

@@ -636,6 +636,40 @@ export async function setMediaLinkMode(input: {
     }
   }
 
+  // ★★★ ほかの媒体へ【フクエスから反映】しているあいだは read にできない（第190便・2026-09-06）。
+  //
+  // ★★★ 第127便の逆側。★ 2026-09-06、カッキーさんが画面で
+  //   「フクエスから反映 → 反映しない → 駅ちかから反映」と押して確かめていたら、
+  //   **駅ちかから反映中なのにエステ魂へもフクエスから反映中**という禁止の組み合わせができた。
+  //   ★ 上のガードは「write にするとき」しか見ていなかった。★ 逆の順で押せば通ってしまう。
+  //   ★★ 「入口で守った」と「その状態が保たれている」を混ぜていた（第149〜151便メモ §3②）。
+  //   ★ 方針:「駅ちかから取り込む場合は、フクエスからの内容を他媒体に反映させない。写メ日記も」
+  //
+  // ★★ 案A（断る）。★ 勝手にほかの枠を 'none' へ倒さない（★ 店舗が決めたことをこちらの都合で書き換えない）。
+  // ★★ 画面（switchChoices）でも出さないが、**画面だけで守らない**（第38便 §17-16）。
+  // ★ 'none' と 'write' は常に通す。★ どちらも「両方から同じ媒体へ書く」形にはならない。
+  if (input.mode === 'read') {
+    const { data: others, error: othersErr } = await svc
+      .from('salon_import_sources')
+      .select('provider, slot, link_mode')
+      .eq('salon_id', salonId);
+    if (othersErr) return { ok: false, error: othersErr.message };
+    const writing = (others ?? []).filter(
+      (r) =>
+        (r.link_mode === 'write' || r.link_mode === 'write_auto') &&
+        !(String(r.provider) === input.provider && Number(r.slot ?? 1) === slot),
+    );
+    if (writing.length > 0) {
+      const names = [...new Set(writing.map((r) => findMediaSite(String(r.provider))?.name ?? String(r.provider)))];
+      return {
+        ok: false,
+        error:
+          `いま ${names.join('・')} へフクエスから反映しています。` +
+          `同じサイトへ二重に書き込まないため、先に ${names.join('・')} の反映を止めてください`,
+      };
+    }
+  }
+
   // ★★★ 自動にできるのは「いまの向きになってから1回でも反映が成功している枠」だけ（§54）。
   //   ★ 画面にもスイッチを出さないが、**画面だけで守らない**。ここでも見る。
   //     第38便 §17-16 と同じ作法（受け口でも判定する）。

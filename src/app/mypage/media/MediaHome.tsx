@@ -4,7 +4,8 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { getMediaOverview, setMediaLinkMode } from '@/app/actions/mediaCredentials';
 import {
-  switchChoices, switchDoneText, switchAskText, homeHeadline, homeChoiceNote, isReadingElsewhere,
+  switchChoices, switchDoneText, switchAskText, homeHeadline, homeChoiceNote, isReadingElsewhere, readingElsewhereLabel, offRowNote,
+  isWritingElsewhere, writingElsewhereLabels, readBlockedNote, doubleWriteNote,
   sendOnlyChoiceNote, canReadProvider,
   type SiteDirection, type SwitchChoice,
 } from '@/lib/mediaOverview';
@@ -280,13 +281,16 @@ export function MediaHome({ salonId, onToast }: {
               // ★★ 第111便: provider を渡す。★ 書くだけのサイトには 'read' を出さない
               // ★★★ ほかの媒体が正本のあいだは 'write' を出さない（第127便）。
               //   ★ 駅ちかを読んでいる店がエステ魂へも書くと、代行システムと二重になる。
-              const elsewhere = isReadingElsewhere(
-                sites.map((x) => ({ provider: x.provider, slot: x.slot, direction: x.direction })),
-                { provider: s.provider, slot: s.slot },
-              );
+              const others = sites.map((x) => ({ provider: x.provider, slot: x.slot, direction: x.direction, label: x.label }));
+              const me = { provider: s.provider, slot: s.slot };
+              const elsewhere = isReadingElsewhere(others, me);
+              // ★★★ 逆側（第190便）: ほかの媒体へフクエスから反映しているあいだは 'read' を出さない
+              const writingElsewhere = isWritingElsewhere(others, me);
               const choices = s.canSwitch && !s.autoOn
-                ? switchChoices(s.direction as SiteDirection, s.label, s.provider, elsewhere)
+                ? switchChoices(s.direction as SiteDirection, s.label, s.provider, elsewhere, writingElsewhere)
                 : [];
+              // ★★★ 禁止の組み合わせが【既にできている】か（第190便）。★ write の行で、ほかが正本のとき
+              const dbl = s.direction === 'write' ? doubleWriteNote(s.label, readingElsewhereLabel(others, me)) : null;
 
               // ── 選ぶだけの行。★ ボタン以外は出さない ──────────────
               // ★★★ 大きく中央に出すのは【読める媒体】だけ（第111便）。
@@ -320,6 +324,12 @@ export function MediaHome({ salonId, onToast }: {
                         </button>
                       ))}
                     </div>
+                    {/* ★★★ 「◯◯から反映」が出ていない理由（第190便）。★ ボタンを黙って消さない */}
+                    {writingElsewhere && s.direction !== 'read' && (
+                      <p className="mt-3 text-[13px] text-amber-800 text-center leading-relaxed">
+                        {readBlockedNote(s.label, writingElsewhereLabels(others, me))}
+                      </p>
+                    )}
                   </div>
                 );
               }
@@ -330,17 +340,19 @@ export function MediaHome({ salonId, onToast }: {
                   <div className="flex items-center gap-3">
                     <span className="min-w-0 flex-1">
                       <b className="block text-[15px] font-bold text-slate-700">{s.label}</b>
-                      <span className="block text-[13px] text-slate-400 tabular-nums">
+                      <span className={`block text-[13px] tabular-nums ${dbl ? 'text-amber-800 font-bold' : 'text-slate-400'}`}>
                         {/* ★★ 止まっているときは、時刻より先に【止まっていること】を書く（第89便） */}
                         {s.needsConsent
                           ? '同意の取り直しが必要です。いまは何も送っていません'
                           : s.direction === 'read'
                           ? (fmt(s.listLastRunAt) ? `最後の読み取り ${fmt(s.listLastRunAt)}` : 'まだ読み取っていません')
                           : s.direction === 'write'
-                            ? (fmt(s.lastWriteOkAt) ? `最後の反映 ${fmt(s.lastWriteOkAt)}` : 'まだ反映していません')
+                            // ★★★ 禁止の組み合わせが既にできているとき（第190便）は、時刻より先にそれを言う
+                            ? (dbl ?? (fmt(s.lastWriteOkAt) ? `最後の反映 ${fmt(s.lastWriteOkAt)}` : 'まだ反映していません'))
                             // ★★ 選んで止めているのだから、失敗のように書かない（§223）
                             : s.direction === 'off'
-                              ? 'どこにも送らず、取り込みもしていません'
+                              // ★ 文言は mediaOverview.offRowNote（第189便）。★ ほかが正本なら理由も言う
+                            ? offRowNote(s.label, readingElsewhereLabel(others, me))
                               : (s.hasCredential ? '入力する場所が決まっていません' : 'ログイン情報がまだありません')}
                       </span>
                     </span>
