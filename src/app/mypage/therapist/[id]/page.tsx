@@ -586,6 +586,21 @@ export default function TherapistEditPage() {
           <p className="text-[10px] text-slate-400">
             推奨：縦長（3:4）1080×1440px／JPEG・PNG・WebP、5MBまで。1枚目がメイン画像として一覧などに表示されます。
           </p>
+
+          {/* ★★ 画像を入れ替えたら、ここで保存できる（2026-09-06・カッキーさんの指示）。
+              ★ アップロードしただけではDBに入りません（★ 保存を押すまで反映されない）。
+                そのため、いちばん下まで戻らないと保存できないのが不便だった。
+              ★★★ 呼んでいるのは【ページ下の保存と同じ handleSave】です。
+                ★ 第37便の事故（保存ボタンが2種類あり、片方が転送先を保存していなかったため
+                  「保存しましたと出たのに入っていない」が起きた）を繰り返さないため、
+                  ★ 新しい保存の道は作らず、必ずこの1つを呼ぶこと。 */}
+          {/* ★ 右下・大きさと文字は同じページの他の保存ボタンと同じ（saveBtn／「保存」）
+              （2026-09-06・カッキーさんの指示）。★ 見た目を1つにそろえる。 */}
+          <div className="pt-1 flex justify-end">
+            <button className={saveBtn} onClick={handleSave} disabled={saving}>
+              {saving ? '保存中...' : '保存'}
+            </button>
+          </div>
         </div>
 
         {/* ★ 年齢とスタイルを1つの箱にした（2026-09-06・カッキーさんの指示）。
@@ -727,8 +742,10 @@ export default function TherapistEditPage() {
         {/* 詳細プロフィール */}
         <div className="bg-white rounded-3xl border border-slate-100 shadow-sm p-5 space-y-3">
           <h2 className="text-sm font-black text-slate-700">詳細プロフィール</h2>
+          {/* ★ 目に見える枠の高さは 5行 → 15行 →【20行】（2026-09-06・カッキーさんの指示）。
+              ★ 中の文をスクロールせずに見渡せるようにするため。★ 保存する中身は変わらない。 */}
           <textarea
-            rows={5}
+            rows={20}
             className={textareaClass}
             placeholder="セラピストの自己紹介文を入力してください"
             value={form.profile_text ?? ''}

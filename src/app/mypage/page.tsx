@@ -2653,7 +2653,8 @@ export default function MyPage() {
           className={
             pc
               ? 'inline-flex w-full items-center justify-start gap-2.5 border-0 border-l-4 border-l-transparent px-4 py-3 text-[16px] font-bold text-slate-300 cursor-default select-none'
-              : 'inline-flex items-center gap-1 px-3 py-1.5 rounded-none border border-slate-200 bg-white text-[11px] font-bold text-slate-300 cursor-default select-none'
+              // ★ スマホは「その他」の中の項目と同じ形（★ 押せないので文字は薄いまま）。
+          : 'inline-flex w-full items-center justify-start gap-2 border-0 border-l-4 border-l-transparent px-4 py-2.5 text-[13px] font-bold text-slate-300 cursor-default select-none'
           }
         >
           {tabIcon('hp')}
@@ -2669,7 +2670,9 @@ export default function MyPage() {
         className={
           pc
             ? 'inline-flex w-full items-center justify-start gap-2.5 border-0 border-l-4 border-l-transparent px-4 py-3 text-[16px] font-bold text-slate-400 transition-colors hover:bg-pink-50/40 hover:text-slate-600'
-            : 'inline-flex items-center gap-1 px-3 py-1.5 rounded-none border border-slate-200 bg-white text-[11px] font-bold text-slate-400 transition-colors hover:text-slate-600 hover:border-slate-300'
+            // ★ スマホは「その他」の中の項目と同じ形にそろえる（2026-09-06・カッキーさんの指示）。
+          //   ★ フクエスワーク（求人）と同じ 13px・px-4・py-2.5・text-slate-500。
+          : 'inline-flex w-full items-center justify-start gap-2 border-0 border-l-4 border-l-transparent px-4 py-2.5 text-[13px] font-bold text-slate-500 transition-colors'
         }
       >
         {tabIcon('hp')}
@@ -2695,7 +2698,9 @@ export default function MyPage() {
       className={
         pc
           ? 'inline-flex w-full items-center justify-start gap-2.5 border-0 border-l-4 border-l-transparent px-4 py-3 text-[16px] font-bold text-slate-400 transition-colors hover:bg-pink-50/40 hover:text-slate-600'
-          : 'inline-flex items-center gap-1 px-3 py-1.5 rounded-none border border-slate-200 bg-white text-[11px] font-bold text-slate-400 transition-colors hover:text-slate-600 hover:border-slate-300'
+          // ★ スマホは「その他」の中の項目と同じ形にそろえる（2026-09-06・カッキーさんの指示）。
+          //   ★ フクエスワーク（求人）と同じ 13px・px-4・py-2.5・text-slate-500。
+          : 'inline-flex w-full items-center justify-start gap-2 border-0 border-l-4 border-l-transparent px-4 py-2.5 text-[13px] font-bold text-slate-500 transition-colors'
       }
     >
       {tabIcon('fukux')}
@@ -2712,7 +2717,8 @@ export default function MyPage() {
       className={
         pc
           ? 'inline-flex w-full items-center justify-start gap-2.5 border-0 border-l-4 border-l-transparent px-4 py-3 text-[16px] font-bold text-slate-300 cursor-default select-none'
-          : 'inline-flex items-center gap-1 px-3 py-1.5 rounded-none border border-slate-200 bg-white text-[11px] font-bold text-slate-300 cursor-default select-none'
+          // ★ スマホは「その他」の中の項目と同じ形（★ 押せないので文字は薄いまま）。
+          : 'inline-flex w-full items-center justify-start gap-2 border-0 border-l-4 border-l-transparent px-4 py-2.5 text-[13px] font-bold text-slate-300 cursor-default select-none'
       }
     >
       {tabIcon('crm')}
@@ -2756,7 +2762,9 @@ export default function MyPage() {
       className={
         pc
           ? 'inline-flex w-full items-center justify-start gap-2.5 border-0 border-l-4 border-l-transparent px-4 py-3 text-[16px] font-bold text-slate-400 transition-colors hover:bg-pink-50/40 hover:text-slate-600'
-          : 'inline-flex items-center gap-1 px-3 py-1.5 rounded-none border border-slate-200 bg-white text-[11px] font-bold text-slate-400 transition-colors hover:text-slate-600 hover:border-slate-300'
+          // ★ スマホは「その他」の中の項目と同じ形にそろえる（2026-09-06・カッキーさんの指示）。
+          //   ★ フクエスワーク（求人）と同じ 13px・px-4・py-2.5・text-slate-500。
+          : 'inline-flex w-full items-center justify-start gap-2 border-0 border-l-4 border-l-transparent px-4 py-2.5 text-[13px] font-bold text-slate-500 transition-colors'
       }
     >
       {tabIcon('media')}
@@ -2972,10 +2980,10 @@ export default function MyPage() {
                         );
                       })}
                       {/* ★ 外部リンクは「別のサイト」の中。★ 並びはPCと同じ（★ 変えるときは両方）。 */}
-                      {open && withMedia && renderMediaLink(true)}
-                      {open && isSites && renderFukuxLink(true)}
-                      {open && isSites && renderCrmSoon(true)}
-                      {open && isSites && renderHpLink(true)}
+                      {open && withMedia && renderMediaLink(false)}
+                      {open && isSites && renderFukuxLink(false)}
+                      {open && isSites && renderCrmSoon(false)}
+                      {open && isSites && renderHpLink(false)}
                     </div>
                   );
                 })}
@@ -3712,8 +3720,8 @@ export default function MyPage() {
               ネット予約を受け付ける
             </label>
             <p className="text-[10px] text-slate-400 leading-relaxed">
-              ネット予約を受け付けると、店舗詳細ページの「ネット予約」ボタンから予約の受付が開始されます。
-              （「予約で受け付けるコース」を1つ以上登録する必要があります）
+              {/* ★ 文面は2026-09-06・カッキーさんの指示で短くしたもの（★ 前半の説明は削除）。 */}
+              「予約で受け付けるコース」を1つ以上登録する必要があります。
             </p>
             <div>
               <label className="block text-[11px] font-bold text-slate-500 mb-1">予約通知先メール</label>
@@ -4223,8 +4231,13 @@ export default function MyPage() {
 
           {profileTherapists.map((t) => (
             <div key={t.id} className="bg-white rounded-none border border-pink-100 shadow-sm overflow-hidden">
-              <div className="flex items-center justify-between px-5 py-4">
-                <div className="flex items-center gap-3">
+              {/* ★★ ここの隙間は【スマホだけ】半分（2026-09-06 第186便・カッキーさんの指示）。
+                  ★ PC（sm:以上）は今までどおり。★ 上下（py）は変えていない。
+                  ★ 目的：スマホで NEW マークや長い名前が2行に折れないよう、名前に使える幅を広げる。
+                    枠の左右 20→10px ／ 名前まわりの隙間 12→6px ／ ボタンどうし 8→4px
+                    ／「プロフィールを編集」の内側 16→8px。★ 合わせて約40px 稼いでいる。 */}
+              <div className="flex items-center justify-between px-2.5 sm:px-5 py-4">
+                <div className="flex items-center gap-1.5 sm:gap-3">
                   {t.profile_image_url ? (
                     // eslint-disable-next-line @next/next/no-img-element
                     <img
@@ -4247,10 +4260,10 @@ export default function MyPage() {
                   )}
                 </div>
 
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-1 sm:gap-2">
                   <Link
                     href={`/mypage/therapist/${t.id}`}
-                    className="px-4 py-1.5 rounded-none border border-pink-300 text-pink-600 text-xs font-bold hover:bg-pink-50 transition-colors"
+                    className="px-2 sm:px-4 py-1.5 rounded-none border border-pink-300 text-pink-600 text-xs font-bold whitespace-nowrap hover:bg-pink-50 transition-colors"
                   >
                     プロフィールを編集
                   </Link>
@@ -4258,7 +4271,7 @@ export default function MyPage() {
                     type="button"
                     onClick={() => handleTherapistDelete(t.id, t.name)}
                     disabled={deletingTherapist === t.id}
-                    className="px-3 py-1.5 rounded-none border border-rose-200 text-rose-500 text-xs font-bold bg-rose-50 hover:bg-rose-100 transition-colors disabled:opacity-50"
+                    className="px-1.5 sm:px-3 py-1.5 rounded-none border border-rose-200 text-rose-500 text-xs font-bold whitespace-nowrap bg-rose-50 hover:bg-rose-100 transition-colors disabled:opacity-50"
                   >
                     {deletingTherapist === t.id ? '削除中...' : '削除'}
                   </button>
@@ -4266,7 +4279,7 @@ export default function MyPage() {
               </div>
 
               {/* ── キャスト招待（本人ログイン用） ── */}
-              <div className="border-t border-pink-50 px-5 py-3 bg-pink-50/20 space-y-2">
+              <div className="border-t border-pink-50 px-2.5 sm:px-5 py-3 bg-pink-50/20 space-y-2">
                 {t.user_id ? (
                   // 本人化済み
                   <div className="flex items-center justify-between gap-2 flex-wrap">
