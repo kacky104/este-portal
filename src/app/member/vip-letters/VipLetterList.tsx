@@ -2,8 +2,10 @@
 
 import { useState } from 'react';
 import { createClient } from '@/app/lib/supabase/client';
-import { getCouponColor } from '@/app/lib/couponColors';
-import type { MemberVipLetter, VipLetterCoupon } from '@/app/lib/vipLetters';
+// ★ 券の見た目は1か所だけ（公開クーポンページ・/mypage のプレビューと同じ部品）。
+//   ★★ ここに写しを持たない（写すと、いつかずれる）。
+import { CouponCard } from '@/app/components/CouponCard';
+import type { MemberVipLetter } from '@/app/lib/vipLetters';
 
 // 受信日時表示（JST・"6月20日 19:12"）。
 function formatAt(iso: string): string {
@@ -12,50 +14,6 @@ function formatAt(iso: string): string {
   return new Intl.DateTimeFormat('ja-JP', {
     timeZone: 'Asia/Tokyo', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit',
   }).format(d);
-}
-function formatExpiry(d: string): string {
-  const m = d.match(/^(\d{4})-(\d{2})-(\d{2})/);
-  if (!m) return d;
-  return `${Number(m[1])}年${Number(m[2])}月${Number(m[3])}日`;
-}
-
-// 同梱クーポン券（公開クーポンページ /salon/[id]/coupon と同じ見た目）。
-function CouponCard({ coupon, title }: { coupon: VipLetterCoupon; title: string }) {
-  const cc = getCouponColor(coupon.color);
-  return (
-    <div className="rounded-[20px] bg-white shadow-md overflow-hidden flex flex-col border border-slate-100">
-      <div
-        className="relative flex items-center px-5 min-h-[64px] py-3"
-        style={{ background: `linear-gradient(135deg, rgba(0,0,0,0.05) 0%, rgba(0,0,0,0.36) 100%), ${cc.background}` }}
-      >
-        <h3 className="font-bold text-white text-base break-words pr-20" style={{ textShadow: '0 1px 3px rgba(0,0,0,0.5)' }}>
-          {title}
-        </h3>
-        <div
-          className="absolute right-4 top-1/2 -translate-y-1/2 w-12 h-12 rounded-full border-2 border-dashed flex flex-col items-center justify-center text-white text-center leading-none"
-          style={{ borderColor: 'rgba(255,255,255,0.85)', textShadow: '0 1px 2px rgba(0,0,0,0.45)' }}
-        >
-          <span className="text-[9px] font-bold">フクエス</span>
-          <span className="text-[9px] font-bold mt-0.5">を見た！</span>
-        </div>
-      </div>
-      <div className="p-5 flex flex-col gap-2">
-        <p className="text-2xl font-extrabold leading-tight break-words" style={{ color: cc.accent }}>{coupon.discount}</p>
-        {coupon.terms && (
-          <p className="text-sm text-slate-500 leading-relaxed break-words whitespace-pre-wrap">{coupon.terms}</p>
-        )}
-        {coupon.expiresAt && (
-          <p className="text-xs text-slate-400">有効期限：{formatExpiry(coupon.expiresAt)}まで</p>
-        )}
-        <div className="mt-1 border-t border-dashed border-slate-200" />
-        <p className="text-xs text-slate-500 leading-relaxed">
-          ご利用の際は
-          <span className="font-bold" style={{ color: cc.accent }}>『フクエスを見た！』</span>
-          とお伝えください
-        </p>
-      </div>
-    </div>
-  );
 }
 
 export function VipLetterList({
@@ -156,7 +114,15 @@ export function VipLetterList({
               {isOpen && (
                 <div className="px-4 pb-4 -mt-1 space-y-4">
                   <p className="text-sm text-slate-600 leading-relaxed whitespace-pre-wrap break-words">{l.body}</p>
-                  {l.coupon && <CouponCard coupon={l.coupon} title={l.title} />}
+                  {l.coupon && (
+                    <CouponCard
+                      title={l.title}
+                      discount={l.coupon.discount}
+                      conditions={l.coupon.terms}
+                      validUntil={l.coupon.expiresAt}
+                      color={l.coupon.color}
+                    />
+                  )}
                 </div>
               )}
             </div>

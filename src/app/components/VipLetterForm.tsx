@@ -3,6 +3,8 @@
 import { useEffect, useState } from 'react';
 import { COUPON_COLORS, getCouponColor, DEFAULT_COUPON_COLOR_KEY, type CouponColorKey } from '@/app/lib/couponColors';
 import { sendVipLetter, getSavedSalonMemberCount } from '@/app/actions/vipLetters';
+// ★ 券の見た目は公開ページ・会員の受信箱と【同じ部品】。★ プレビューが本物とずれないため
+import { CouponCard } from '@/app/components/CouponCard';
 
 // /mypage のVIPレタータブ。クーポン新規追加フォームのデザインに揃える。
 // 送信は Server Action（service_role）で実行。クライアントから直接 insert はしない。
@@ -199,6 +201,20 @@ export function VipLetterForm({
               })}
             </div>
             <p className="text-[10px] text-slate-400 mt-1">選択中：{getCouponColor(couponColor).label}</p>
+          </div>
+
+          {/* ★ お客様に見えるかたち（2026-09-06・カッキーさんの指示）。
+              ★ 部品は会員の受信箱・公開クーポンページと【同じ】CouponCard。★ 本物とずれない。
+              ★ 券の見出しは【VIPレターのタイトル】がそのまま入る（受信箱と同じ）。 */}
+          <div>
+            <p className={labelClass}>お客様に見えるかたち</p>
+            <CouponCard
+              title={title || '（タイトル）'}
+              discount={couponDiscount || '（割引内容）'}
+              conditions={couponTerms}
+              validUntil={couponExpiresAt}
+              color={couponColor}
+            />
           </div>
         </div>
       )}
