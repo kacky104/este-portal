@@ -374,14 +374,46 @@ const NAV_SECTIONS: Array<{ group: string; keys: TabKey[] }> = (() => {
 //   ★ 「日々の更新」「店舗情報」「別のサイト」は同じ見た目にする。★ ここに足せば増える。
 const NAV_BAND_GROUPS = new Set(['日々の更新', '店舗情報', '別のサイト']);
 
-// ★★★ スマホのメニュー（2026-09-06・カッキーさんの指示）。
-//   ★ 上に4つだけ出し、押すとその中の画面が下に開く。★ 縦幅を食わないため。
-//   ★ 「店舗情報」は【店舗の基本＋店舗装飾】をまとめたもの（★ PCの見出し2つぶん）。
-const MOBILE_GROUPS: Array<{ label: string; keys: TabKey[] }> = [
-  { label: '店舗情報',   keys: ['salon', 'course', 'photos', 'theme', 'banner', 'popup', 'freepage'] },
-  { label: '日々の更新', keys: ['schedule', 'available', 'profile', 'diary', 'booking', 'board', 'coupon', 'news', 'vipletter'] },
-  { label: 'その他',     keys: ['support', 'jobs'] },
+// ══════════════════════════════════════════════════════════════════
+// ★★★ スマホのタブ（2026-09-06 第185便・カッキーさんの指示）
+//
+//   ★ 毎日さわる8つは【開かずに】1タップで出す。★ 2行×4列。
+//   ★ 残りは全部、下の「その他」の中（★ 店舗情報・別のサイトはアコーディオン）。
+//
+//   ★★★ ここは「置き換え」ではなく【上書き】です。
+//     ★ MOBILE_MAIN にも MOBILE_HIDDEN にも書かれていない画面は
+//       【自動で「その他」に入ります】（MOBILE_OTHER_SECTIONS が差集合で作る）。
+//     ★ だから新しい画面を足して書き忘れても、スマホから消えることはありません。
+//     ★ 第184便より前は手書きの別リストだったため、PCで作った「別のサイト」が
+//       スマホに反映されず、「その他」のまま取り残されていました（★ 二重管理の事故）。
+//
+//   ★ 点検は TypeScript が担います（TabKey にない名前は書けない）。
+//     ★ さらに MOBILE_MAIN_KEYS で「MYPAGE_NAV に無い名前」を落としているので、
+//       打ち間違えても画面は消えず「その他」に出ます。
+// ══════════════════════════════════════════════════════════════════
+
+// ★ スマホで直に出す8つ。★ 並びはこの順（★ PCとは違ってよい。スマホは外出先で使うため）。
+const MOBILE_MAIN: TabKey[] = [
+  'available', 'schedule', 'diary', 'booking',
+  'profile', 'coupon', 'news', 'vipletter',
 ];
+
+// ★ スマホでは出さない画面。★ 予約ボードはヘッダーのピンク文字から開く（2026-09-06・カッキーさんの指示）。
+//   ★★ 落とし穴：スマホで ?tab=board を開くと、上のタブはどれも選ばれていない見た目になります。
+//     ★ ヘッダーの「予約ボード」はいつも出ているので、迷子にはなりません。
+const MOBILE_HIDDEN: TabKey[] = ['board'];
+
+// ★ 実際に上に並べるもの（★ MYPAGE_NAV に無い名前は落とす＝下の「その他」へ回る）。
+const MOBILE_MAIN_KEYS: TabKey[] = MOBILE_MAIN.filter((k) => MYPAGE_NAV.some((n) => n.key === k));
+
+// ★ 「その他」の中身。★ 見出しと並びは PC（NAV_SECTIONS）をそのまま使う（★ 二重管理をしない）。
+//   ★ 「別のサイト」は中の画面が0個でも残す（★ 契約に関係なく出す外部リンクが入っているため）。
+const MOBILE_OTHER_SECTIONS: Array<{ group: string; keys: TabKey[] }> = NAV_SECTIONS
+  .map((sec) => ({
+    group: sec.group,
+    keys: sec.keys.filter((k) => !MOBILE_MAIN_KEYS.includes(k) && !MOBILE_HIDDEN.includes(k)),
+  }))
+  .filter((sec) => sec.keys.length > 0 || sec.group === '別のサイト');
 
 // ★ URL の ?tab= に出す値。★ 知らない値が来たら 'salon' に倒す（存在しない画面を作らない）。
 // ★ 'board' は MYPAGE_NAV にも入っているが、外れても ?tab=board が死なないよう明示で足しておく。
@@ -2541,12 +2573,15 @@ export default function MyPage() {
   // ★ その見出しの中身を出すか。★ たたむ見出しでなければ、いつも出す。
   const navGroupIsOpen = (group: string) => !NAV_ACCORDION_GROUPS.has(group) || Boolean(navOpenGroups[group]);
   // ★ たたむ見出しのピンクの帯（★ 見た目と開閉を1か所に）。
-  const navBandButton = (group: string) => (
+  //   ★ compact＝スマホの「その他」の中で使う小さい帯（2026-09-06 第185便）。
+  const navBandButton = (group: string, compact = false) => (
     <button
       type="button"
       onClick={() => setNavOpenGroups((p) => ({ ...p, [group]: !p[group] }))}
       aria-expanded={navGroupIsOpen(group)}
-      className="w-full flex items-center justify-between px-4 py-2 mb-1 font-bold tracking-wider text-[16px] text-white bg-pink-500"
+      className={`w-full flex items-center justify-between px-4 mb-1 font-bold tracking-wider text-white bg-pink-500 ${
+        compact ? 'py-1.5 text-[13px]' : 'py-2 text-[16px]'
+      }`}
     >
       {group}
       <svg
@@ -2569,6 +2604,13 @@ export default function MyPage() {
     if (key === 'support' && supportUnread > 0) return supportUnread;
     return null;
   };
+
+  // ★ スマホの「その他」の見た目（2026-09-06 第185便）。
+  //   ★ 中の画面を開いているときは、閉じていてもピンクにする（★ いまどこに居るか分かるため）。
+  //   ★ バッジは中の合計（★ 運営事務局の未読は、閉じていても気づけるように）。
+  const mobileOtherKeys = MOBILE_OTHER_SECTIONS.flatMap((sec) => sec.keys);
+  const mobileOtherHere = mobileOtherKeys.includes(activeTab);
+  const mobileOtherBadge = mobileOtherKeys.reduce((sum, k) => sum + (navBadge(k) ?? 0), 0);
 
   // ★★★ フクエスサイト（公式HP）への入口（2026-09-06 第184便・カッキーさんの指示）。★ 全店舗に出す。
   //   ★★ 表示は salon_sites（公式HPの、1店舗1行の表）だけを見て【自動で】決まる。
@@ -2675,6 +2717,34 @@ export default function MyPage() {
     >
       {tabIcon('crm')}
       フクエスCRM（準備中）
+    </div>
+  );
+
+  // ★★ 「今すぐ」のリロード・保存（2026-09-06 第185便・カッキーさんの指示）。
+  //   ★ 置き場所はセラピスト一覧のすぐ上・右詰め。★ 出勤者0名のときも出す（リロードが要るため）。
+  //   ★ 部品（コンポーネント）ではなく関数にしている
+  //     （★ 中で作った部品は毎回別物になり、押した瞬間に作り直される）。
+  const renderAvailableActions = () => (
+    <div className="flex items-center justify-end gap-2">
+      <button
+        type="button"
+        onClick={handleAvailableNowReload}
+        disabled={reloadingAvailable || savingAvailable}
+        className="inline-flex items-center gap-1 px-3 py-2 rounded-none border border-slate-200 bg-white text-xs font-bold text-slate-600 transition-colors hover:bg-slate-50 disabled:opacity-50"
+      >
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+          <path d="M20 11a8 8 0 1 0-2.3 5.7" />
+          <path d="M20 4v7h-7" />
+        </svg>
+        {reloadingAvailable ? '読込中...' : 'リロード'}
+      </button>
+      <button
+        onClick={handleAvailableNowSave}
+        disabled={savingAvailable}
+        className={saveBtn}
+      >
+        {savingAvailable ? '保存中...' : '保存する'}
+      </button>
     </div>
   );
 
@@ -2785,84 +2855,130 @@ export default function MyPage() {
             </div>
           </div>
 
-          {/* ══ スマホ（4つのグループ）══
-              ★★ 上は4つだけ。★ 押すとその中の画面が下に開き、選ぶと閉じる。
-              ★ いま開いている画面が入っているグループは、押していなくてもピンクで分かる。 */}
+          {/* ══ スマホ（2026-09-06 第185便・カッキーさんの指示）══
+              ★ 毎日さわる8つを 2行×4列 で【直に】出す。★ 開かずに1タップ。
+              ★ 残りは全部いちばん下の「その他」の中（★ 店舗情報・別のサイトはアコーディオン）。
+              ★ 並びの元は MOBILE_MAIN。★ 書かれていない画面は自動で「その他」に入る。 */}
           <div className="md:hidden">
-            <div className="flex flex-wrap justify-center gap-1.5 px-3 py-2">
-              {MOBILE_GROUPS.map((g) => {
-                const here = g.keys.includes(activeTab);
-                const open = openGroup === g.label;
-                // ★ そのグループの中にある「要対応」の合計（★ 閉じていても気づけるように）
-                const badge = g.keys.reduce((sum, k) => sum + (navBadge(k) ?? 0), 0);
+            {/* ★ 4列×2行。★ すきま(gap-px)に薄い線が見えるよう、下地を slate-100 にしている。 */}
+            <div className="grid grid-cols-4 gap-px bg-slate-100">
+              {MOBILE_MAIN_KEYS.filter(navVisible).map((k) => {
+                const n = MYPAGE_NAV.find((x) => x.key === k);
+                if (!n) return null;
+                const selected = activeTab === k;
+                const badge = navBadge(k);
                 return (
                   <button
-                    key={g.label}
-                    type="button"
-                    onClick={() => setOpenGroup(open ? null : g.label)}
-                    aria-expanded={open}
-                    className={`inline-flex items-center gap-1 px-3 py-1.5 rounded-none border text-[11px] font-bold transition-colors ${
-                      here || open
-                        ? 'bg-pink-50 text-pink-600 border-pink-300'
-                        : 'bg-white text-slate-400 border-slate-200'
+                    key={k}
+                    onClick={() => { goTab(k); setOpenGroup(null); }}
+                    aria-pressed={selected}
+                    className={`relative flex flex-col items-center justify-center gap-1 px-1 py-2.5 bg-white border-b-2 text-[11px] font-bold leading-none transition-colors ${
+                      selected ? 'border-b-pink-500 text-pink-600' : 'border-b-transparent text-slate-400'
                     }`}
                   >
-                    {g.label}
-                    {badge > 0 && (
-                      <span className="inline-flex items-center justify-center min-w-[16px] h-[16px] px-1 rounded-none bg-pink-500 text-white text-[9px] font-black leading-none">
+                    {tabIcon(k)}
+                    {/* ★ 選んでいるタブは【文字だけ】をピンクのグラデーションに（★ PCと同じ作法）。
+                        ★ アイコンは currentColor なので、この span に入れると透明になって消える。 */}
+                    {selected ? (
+                      <span className="bg-gradient-to-r from-pink-600 to-pink-400 bg-clip-text text-transparent whitespace-nowrap">
+                        {n.label}
+                      </span>
+                    ) : (
+                      <span className="whitespace-nowrap">{n.label}</span>
+                    )}
+                    {badge !== null && (
+                      <span className="absolute top-1 right-1 inline-flex items-center justify-center min-w-[16px] h-[16px] px-1 rounded-none bg-pink-500 text-white text-[9px] font-black leading-none">
                         {badge}
                       </span>
                     )}
-                    <svg
-                      width="14" height="14" viewBox="0 0 24 24" fill="none"
-                      stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"
-                      className={`flex-shrink-0 transition-transform duration-200 ${open ? 'rotate-180' : ''}`}
-                      aria-hidden
-                    >
-                      <path d="M6 9l6 6 6-6" />
-                    </svg>
                   </button>
                 );
               })}
             </div>
 
-            {openGroup && (
-              <nav aria-label={openGroup} className="border-t border-pink-100 bg-pink-50/40 pb-2">
-                {(MOBILE_GROUPS.find((g) => g.label === openGroup)?.keys ?? [])
-                  .filter((k) => navVisible(k))
-                  .map((k) => {
-                    const n = MYPAGE_NAV.find((x) => x.key === k);
-                    if (!n) return null;
-                    const selected = activeTab === k;
-                    const badge = navBadge(k);
-                    return (
-                      <button
-                        key={k}
-                        onClick={() => { goTab(k); setOpenGroup(null); }}
-                        aria-pressed={selected}
-                        className={`inline-flex w-full items-center justify-start gap-2 border-0 border-l-4 px-4 py-2.5 text-[13px] font-bold transition-colors ${
-                          selected
-                            ? 'bg-pink-50 text-pink-600 border-l-pink-500'
-                            : 'text-slate-500 border-l-transparent'
-                        }`}
-                      >
-                        {tabIcon(k)}
-                        {n.label}
-                        {badge !== null && (
-                          <span className="ml-auto inline-flex items-center justify-center min-w-[16px] h-[16px] px-1 rounded-none bg-pink-500 text-white text-[9px] font-black leading-none">
-                            {badge}
-                          </span>
-                        )}
-                      </button>
-                    );
-                  })}
+            {/* ★ 「その他」は8つの【下に全幅】（2026-09-06・カッキーさんの指示）。 */}
+            <button
+              type="button"
+              onClick={() => setOpenGroup(openGroup === 'その他' ? null : 'その他')}
+              aria-expanded={openGroup === 'その他'}
+              className={`w-full inline-flex items-center justify-center gap-1.5 px-4 py-2.5 border-t border-slate-100 text-[12px] font-bold transition-colors ${
+                mobileOtherHere || openGroup === 'その他'
+                  ? 'bg-pink-50 text-pink-600'
+                  : 'bg-white text-slate-400'
+              }`}
+            >
+              その他
+              {mobileOtherBadge > 0 && (
+                <span className="inline-flex items-center justify-center min-w-[16px] h-[16px] px-1 rounded-none bg-pink-500 text-white text-[9px] font-black leading-none">
+                  {mobileOtherBadge}
+                </span>
+              )}
+              <svg
+                width="14" height="14" viewBox="0 0 24 24" fill="none"
+                stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"
+                className={`flex-shrink-0 transition-transform duration-200 ${openGroup === 'その他' ? 'rotate-180' : ''}`}
+                aria-hidden
+              >
+                <path d="M6 9l6 6 6-6" />
+              </svg>
+            </button>
 
-                {/* ★ 媒体連携は「その他」の中に置く。★ 別のサイト（/mypage/media）を新しいタブで開く */}
-                {openGroup === 'その他' && mediaVisible && renderMediaLink(true)}
-                {openGroup === 'その他' && renderFukuxLink(true)}
-                {openGroup === 'その他' && renderCrmSoon(true)}
-                {/* ★ PCと同じ並び（★ いちばん下）。★ 並びを変えるときは両方を直すこと。 */}
-                {openGroup === 'その他' && renderHpLink(true)}
+            {openGroup === 'その他' && (
+              <nav aria-label="その他" className="border-t border-pink-100 bg-pink-50/40 pb-2">
+                {MOBILE_OTHER_SECTIONS.map((sec) => {
+                  const keys = sec.keys.filter(navVisible);
+                  const isSites = sec.group === '別のサイト';
+                  const withMedia = isSites && mediaVisible;
+                  // ★ 「別のサイト」は中の画面が0個でも残す（★ 全店舗に出す外部リンクが入っているため）。
+                  if (keys.length === 0 && !isSites) return null;
+                  const open = navGroupIsOpen(sec.group);
+                  return (
+                    <div key={sec.group || '(見出しなし)'} className="contents">
+                      {/* ★ 店舗情報・別のサイトはたためる帯（PCと同じ navBandButton の小さい版）。
+                          ★ 見出しの無いまとまり（運営事務局）は、そのまま1行だけ出す。 */}
+                      {sec.group && (
+                        NAV_ACCORDION_GROUPS.has(sec.group)
+                          ? navBandButton(sec.group, true)
+                          : (
+                            <div className="px-4 pt-3 pb-1 font-bold tracking-wider text-[12px] text-slate-400">
+                              {sec.group}
+                            </div>
+                          )
+                      )}
+                      {open && keys.map((key) => {
+                        const n = MYPAGE_NAV.find((x) => x.key === key);
+                        if (!n) return null;
+                        const selected = activeTab === key;
+                        const badge = navBadge(key);
+                        return (
+                          <button
+                            key={key}
+                            onClick={() => { goTab(key); setOpenGroup(null); }}
+                            aria-pressed={selected}
+                            className={`inline-flex w-full items-center justify-start gap-2 border-0 border-l-4 px-4 py-2.5 text-[13px] font-bold transition-colors ${
+                              selected
+                                ? 'bg-pink-50 text-pink-600 border-l-pink-500'
+                                : 'text-slate-500 border-l-transparent'
+                            }`}
+                          >
+                            {tabIcon(key)}
+                            {n.label}
+                            {badge !== null && (
+                              <span className="ml-auto inline-flex items-center justify-center min-w-[16px] h-[16px] px-1 rounded-none bg-pink-500 text-white text-[9px] font-black leading-none">
+                                {badge}
+                              </span>
+                            )}
+                          </button>
+                        );
+                      })}
+                      {/* ★ 外部リンクは「別のサイト」の中。★ 並びはPCと同じ（★ 変えるときは両方）。 */}
+                      {open && withMedia && renderMediaLink(true)}
+                      {open && isSites && renderFukuxLink(true)}
+                      {open && isSites && renderCrmSoon(true)}
+                      {open && isSites && renderHpLink(true)}
+                    </div>
+                  );
+                })}
               </nav>
             )}
           </div>
@@ -3918,33 +4034,13 @@ export default function MyPage() {
         {/* ── タブ3: 今すぐ ── */}
         <div className={`${activeTab === 'available' ? '' : 'hidden'}`}>
           <div className="bg-white rounded-none border border-slate-100 shadow-sm p-5 space-y-4">
-            {/* ★ ボタンは見出しの右上（2026-09-06・カッキーさんの指示）。★ 一覧の下まで戻らせない。 */}
-            <div className="flex items-start justify-between gap-3">
-              <div className="min-w-0">
-                <h2 className="text-sm font-black text-slate-700 mb-1">今すぐ対応可能なセラピスト</h2>
-                <p className="text-[11px] text-slate-400">出勤中のセラピストに「今すぐ」設定できます。30分後に自動で解除されますが、この画面上ではリロードするまでチェックは残ります。</p>
-              </div>
-              <div className="flex items-center gap-2 flex-shrink-0">
-                <button
-                  type="button"
-                  onClick={handleAvailableNowReload}
-                  disabled={reloadingAvailable || savingAvailable}
-                  className="inline-flex items-center gap-1 px-3 py-2 rounded-none border border-slate-200 bg-white text-xs font-bold text-slate-600 transition-colors hover:bg-slate-50 disabled:opacity-50"
-                >
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-                    <path d="M20 11a8 8 0 1 0-2.3 5.7" />
-                    <path d="M20 4v7h-7" />
-                  </svg>
-                  {reloadingAvailable ? '読込中...' : 'リロード'}
-                </button>
-                <button
-                  onClick={handleAvailableNowSave}
-                  disabled={savingAvailable}
-                  className={saveBtn}
-                >
-                  {savingAvailable ? '保存中...' : '保存する'}
-                </button>
-              </div>
+            {/* ★★ 見出しと説明文は【幅いっぱい】（2026-09-06 第185便・カッキーさんの指示）。
+                ★ 前は右にボタン2つ（約185px）を並べていたため、スマホ（430px）で見出しに使える幅が
+                  約170pxしかなく、「今すぐ対応可能なセラピ／スト」と単語の途中で折り返していた。
+                ★ ボタンはセラピスト一覧のすぐ上・右詰めへ移した（renderAvailableActions）。 */}
+            <div>
+              <h2 className="text-sm font-black text-slate-700 mb-1">今すぐ対応可能なセラピスト</h2>
+              <p className="text-[11px] text-slate-400">出勤中のセラピストに「今すぐ」設定。30分後に自動解除されますが、この画面上ではリロードするまでチェックは残ります。</p>
             </div>
             {(() => {
               // 「今すぐ」判定は営業日基準（深夜0〜6時は前日のスケジュールを参照）
@@ -3953,9 +4049,13 @@ export default function MyPage() {
               const atLimit = checkedCount >= 3;
               if (onDutyTherapists.length === 0) {
                 return (
-                  <p className="text-xs text-slate-400 text-center py-6 border border-dashed border-slate-200 rounded-none">
-                    現在、出勤中のセラピストはいません
-                  </p>
+                  <div className="space-y-2">
+                    {/* ★ 出勤者が居なくてもリロードは要る（★ 出勤を入れた直後に押す）。 */}
+                    {renderAvailableActions()}
+                    <p className="text-xs text-slate-400 text-center py-6 border border-dashed border-slate-200 rounded-none">
+                      現在、出勤中のセラピストはいません
+                    </p>
+                  </div>
                 );
               }
               return (
@@ -3967,12 +4067,15 @@ export default function MyPage() {
                   )}
                   {onDutyTherapists.some(t => isImportLiveRow(t, now)) && (
                     <p className="text-[11px] text-sky-700 bg-sky-50 border border-sky-100 rounded-none px-3 py-2 leading-relaxed">
-                      「駅ちか連動中」のセラピストは、駅ちかで<strong>即ヒメ</strong>に設定されているため、
-                      フクエスでも「今すぐ」として表示されています。<br />
-                      この枠はこちらの3名の上限には含まれません。チェックはこれまでどおりお使いいただけます。
-                      表示をやめるときは駅ちか側で即ヒメを解除してください（最大15分ほどで消えます）。
+                      {/* ★ 文面は2026-09-06 第185便でカッキーさんが短くしたもの。
+                          ★ 改行（br）と太字（strong）はやめ、1つの続き文にした。 */}
+                      「駅ちか連動中（即ヒメ）」のセラピストは、フクエスでも「今すぐ」として表示。この枠はこちらの上限には含まれません。チェックはこれまでどおり使用可能。表示をやめるときは駅ちか側で即ヒメを解除（最大15分ほどで消去）。
                     </p>
                   )}
+                  {/* ★★ リロード・保存はセラピスト一覧の【すぐ上・右詰め】
+                      （2026-09-06 第185便・カッキーさんの指示）。
+                      ★ 一覧の下まで戻らせない、という第183便の狙いはそのまま守られる。 */}
+                  {renderAvailableActions()}
                   {onDutyTherapists.map(t => {
                     const sid = String(t.id);
                     const isChecked = availableNow[sid] ?? false;
