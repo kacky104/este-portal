@@ -322,8 +322,10 @@ export function BookingBoard({ salonId, active, io = defaultIO }: {
   const nowMin = (Date.now() - anchorMs) / 60000;
   const showNowLine = isToday && nowMin > boardStart && nowMin < boardEnd;
 
-  // 初期スクロール：当日は現在時刻が画面の左1/3あたりに、
+  // 初期スクロール：当日は現在時刻の赤い線がまん中に来るように、
   // 未来日は最初の出勤開始の30分前（出勤なしは9:00）に合わせる（0:00始まりだと深夜が見えるだけのため）。
+  // ★ まん中に置くのは【開いたとき・日付を変えたとき・再読み込みしたとき】だけ。
+  //   ★ そのあと店舗様が横にスクロールした位置は動かさない（勝手に戻ると他の時間を見られないため）。
   const scrollRef = useRef<HTMLDivElement | null>(null);
   // 時間軸の別枠（本体の横スクロールに同期させる）。
   const axisWrapRef = useRef<HTMLDivElement | null>(null);
@@ -343,7 +345,8 @@ export function BookingBoard({ salonId, active, io = defaultIO }: {
     if (!data || !scrollRef.current) return;
     const el = scrollRef.current;
     if (showNowLine) {
-      el.scrollLeft = Math.max(0, (nowMin - boardStart) * PX_PER_MIN - (el.clientWidth - NAME_W) / 3);
+      // ★ (見えている表の幅 - 名前の列) の半分ぶん左へずらす＝赤い線がまん中に来る。
+      el.scrollLeft = Math.max(0, (nowMin - boardStart) * PX_PER_MIN - (el.clientWidth - NAME_W) / 2);
       return;
     }
     let first = Number.POSITIVE_INFINITY;
@@ -1074,8 +1077,16 @@ export function BookingBoard({ salonId, active, io = defaultIO }: {
                 </div>
               </div>
               <p className="text-[10px] text-slate-400 leading-relaxed -mt-1">
-                予約枠＝所要時間＋インターバル（施術後の準備時間）。インターバル分も枠として塞がります。
+                予約枠＝所要時間＋インターバル（施術後の準備時間）
               </p>
+
+              {/* ★ すぐ下のピンクのボタンが何なのかを、ボタンより先に書く（2026-09-06・カッキーさんの指示）。
+                  ★ 出どころは /mypage の「ネット予約」→「予約で受け付けるコース」。 */}
+              {(data?.courses.length ?? 0) > 0 && (
+                <p className="text-[10px] text-slate-400 leading-relaxed -mt-1">
+                  ネット予約ページで登録したコースがここに表示されます。
+                </p>
+              )}
 
               {(data?.courses.length ?? 0) > 0 && (
                 <div className="flex flex-wrap gap-1.5">

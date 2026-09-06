@@ -49,6 +49,17 @@ body.paw-bg {
   }
 }
 
+/* ── スクロールできるが、バーは出さない ──────────────
+   マイページの左サイドバー（/mypage）用。2026-09-06・カッキーさんの指示。
+   ★ 見た目のためだけ。スクロール自体（ホイール・指・キーボード）は今までどおり効く。 */
+.scrollbar-none {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.scrollbar-none::-webkit-scrollbar {
+  display: none;
+}
+
 /* ── Therapist scroller: custom pink scrollbar ────────── */
 
 /* Mobile: hide scrollbar */

@@ -113,7 +113,8 @@ async function fetchAnnouncementList(salonId: number): Promise<Announcement[]> {
 // ★★★ 画面の種類（2026-09-06・サイドバー化）。
 //   ★ 以前は「店舗」タブに7つの箱を縦に積んでいた。★ 縦長で、店舗様がどこに何があるか分からない。
 //   ★ フクエスリンク（/mypage/media）と同じく【1画面1つ】に割って、左のサイドバーで選ぶ形にした。
-//   ★ 'board'（予約ボード）はサイドバーに出さない（ヘッダーのピンク文字から開く）。
+//   ★ 'board'（予約ボード）はサイドバー（ネット予約の下）とヘッダーのピンク文字の両方から開ける
+//     （2026-09-06・カッキーさんの指示。ヘッダーのリンクはそのまま残す）。
 export type TabKey =
   | 'salon' | 'course' | 'photos'
   | 'theme' | 'banner' | 'popup' | 'freepage'
@@ -121,7 +122,7 @@ export type TabKey =
   | 'board' | 'booking' | 'jobs' | 'support';
 
 // タブのアイコン（既存サイトと同系統の tabler/lucide 風アウトラインアイコン）。
-function tabIcon(key: TabKey | 'media') {
+function tabIcon(key: TabKey | 'media' | 'fukux' | 'crm') {
   const common = {
     width: 14, height: 14, viewBox: '0 0 24 24', fill: 'none',
     stroke: 'currentColor', strokeWidth: 2,
@@ -181,6 +182,22 @@ function tabIcon(key: TabKey | 'media') {
           <path d="M5 21v-9" />
           <path d="M19 21v-9" />
           <path d="M9 21v-4a2 2 0 0 1 2 -2h2a2 2 0 0 1 2 2v4" />
+        </svg>
+      );
+    case 'crm': // フクエスCRM（address-book：お客様の名簿）
+      return (
+        <svg {...common}>
+          <rect x="5" y="3" width="14" height="18" rx="2" />
+          <path d="M9 3v18" />
+          <circle cx="14.5" cy="9" r="1.5" />
+          <path d="M12.5 15a2.5 2.5 0 0 1 4 0" />
+        </svg>
+      );
+    case 'fukux': // フクエックス（message-circle：SNS＝つぶやき）
+      return (
+        <svg {...common}>
+          <path d="M3 20l1.3 -3.9A8 7 0 1 1 7.5 18.9L3 20" />
+          <path d="M8 11h.01" /><path d="M12 11h.01" /><path d="M16 11h.01" />
         </svg>
       );
     case 'media': // 媒体連携（link：他媒体とつながっている）
@@ -291,32 +308,73 @@ const MYPAGE_NAV: Array<{ key: TabKey; label: string; group?: string; parent?: T
   { key: 'schedule',  label: '出勤' },
   { key: 'profile',   label: 'セラピスト' },
   { key: 'diary',     label: '写メ日記' },
+  // ★ ネット予約は「日々の更新」の中・写メ日記の下（2026-09-06・カッキーさんの指示）。
+  { key: 'booking',   label: 'ネット予約' },
+  { key: 'board',     label: '予約ボード' },
   { key: 'coupon',    label: 'クーポン' },
   { key: 'news',      label: 'お知らせ' },
   { key: 'vipletter', label: 'VIPレター' },
-  { key: 'salon',     label: '店舗情報',        group: '店舗の基本' },
+  { key: 'salon',     label: '店舗基本設定',     group: '店舗情報' },
   { key: 'course',    label: 'コースメニュー',    parent: 'salon' },
   { key: 'photos',    label: '店舗画像',         parent: 'salon' },
-  { key: 'theme',     label: 'テーマ（背景壁紙）', group: '店舗装飾', parent: 'salon' },
+  // ★ 見出し「店舗装飾」は廃止（2026-09-06・カッキーさんの指示）。★「店舗情報」の帯に続けて並べる。
+  { key: 'theme',     label: 'テーマ（背景壁紙）', parent: 'salon' },
   { key: 'banner',    label: '詳細ページバナー',  parent: 'salon' },
   { key: 'popup',     label: 'ポップアップ画像',  parent: 'salon' },
   { key: 'freepage',  label: 'フリーページ',      parent: 'salon' },
-  { key: 'booking',   label: 'ネット予約',      group: '予約・求人' },
-  { key: 'jobs',      label: '求人' },
-  { key: 'support',   label: '運営事務局',      group: 'その他' },
+  // ★ フクエスワーク（求人）は「別のサイト」の見出しの下（2026-09-06・カッキーさんの指示）。
+  //   ★ すぐ下に媒体連携（フクエスリンク）が続く。
+  { key: 'jobs',      label: 'フクエスワーク（求人）', group: '別のサイト' },
+  // ★ 運営事務局はいちばん下。★ group: '' ＝ 見出しを付けずに、ここで区切る
+  //   （2026-09-06・カッキーさんの指示で「その他」の見出しは廃止）。
+  { key: 'support',   label: '運営事務局（お問い合わせ等）', group: '' },
 ];
+
+// ★ 各画面が「どの見出しの下にあるか」を MYPAGE_NAV から作る（2026-09-06）。
+//   ★ group はその見出しの先頭の行にだけ書いてあるので、次の group が来るまで引き継ぐ。
+//   ★ 並びを直すときは MYPAGE_NAV だけ直せばよい（★ 二重管理をしない）。
+const NAV_GROUP_OF: Record<string, string> = (() => {
+  const out: Record<string, string> = {};
+  let current = '';
+  for (const n of MYPAGE_NAV) {
+    // ★ '' も区切りとして扱う（★ 見出しは出さないが、前の見出しの中身にはしない）。
+    if (n.group !== undefined) current = n.group;
+    out[n.key] = current;
+  }
+  return out;
+})();
+
+// ★★ たたんで開ける見出し（アコーディオン・2026-09-06・カッキーさんの指示）。
+//   ★ 縦に長い見出しはふだん閉じておく。★ ここに足せば増える。
+//   ★ ここに無い見出し（日々の更新・その他）は、いつも開いたまま。
+const NAV_ACCORDION_GROUPS = new Set(['店舗情報', '別のサイト']);
+
+// ★ 見出しごとのまとまり（★ PCサイドバーはこれを上から描く）。
+//   ★ group: '' は「見出しを出さない区切り」。
+const NAV_SECTIONS: Array<{ group: string; keys: TabKey[] }> = (() => {
+  const out: Array<{ group: string; keys: TabKey[] }> = [];
+  for (const n of MYPAGE_NAV) {
+    if (n.group !== undefined || out.length === 0) out.push({ group: n.group ?? '', keys: [] });
+    out[out.length - 1].keys.push(n.key);
+  }
+  return out;
+})();
+
+// ★★ 大きくピンクの帯にする見出し（2026-09-06・カッキーさんの指示）。
+//   ★ 「日々の更新」「店舗情報」「別のサイト」は同じ見た目にする。★ ここに足せば増える。
+const NAV_BAND_GROUPS = new Set(['日々の更新', '店舗情報', '別のサイト']);
 
 // ★★★ スマホのメニュー（2026-09-06・カッキーさんの指示）。
 //   ★ 上に4つだけ出し、押すとその中の画面が下に開く。★ 縦幅を食わないため。
 //   ★ 「店舗情報」は【店舗の基本＋店舗装飾】をまとめたもの（★ PCの見出し2つぶん）。
 const MOBILE_GROUPS: Array<{ label: string; keys: TabKey[] }> = [
   { label: '店舗情報',   keys: ['salon', 'course', 'photos', 'theme', 'banner', 'popup', 'freepage'] },
-  { label: '日々の更新', keys: ['schedule', 'available', 'profile', 'diary', 'coupon', 'news', 'vipletter'] },
-  { label: '予約・求人', keys: ['booking', 'jobs'] },
-  { label: 'その他',     keys: ['support'] },
+  { label: '日々の更新', keys: ['schedule', 'available', 'profile', 'diary', 'booking', 'board', 'coupon', 'news', 'vipletter'] },
+  { label: 'その他',     keys: ['support', 'jobs'] },
 ];
 
 // ★ URL の ?tab= に出す値。★ 知らない値が来たら 'salon' に倒す（存在しない画面を作らない）。
+// ★ 'board' は MYPAGE_NAV にも入っているが、外れても ?tab=board が死なないよう明示で足しておく。
 const TAB_KEYS = new Set<string>([...MYPAGE_NAV.map((n) => n.key), 'board']);
 function parseTabKey(raw: string | null): TabKey {
   // ★ 既定は「今すぐ」（2026-09-06）。★ 知らない値が来てもここへ倒す。
@@ -654,6 +712,21 @@ export default function MyPage() {
   const [tabReady, setTabReady] = useState(false);
   // ★ スマホで開いているグループ名（null＝どれも開いていない・2026-09-06）。★ PCでは使わない。
   const [openGroup, setOpenGroup] = useState<string | null>(null);
+  // ★★ 本文（右側）を1.2倍にするのはPCだけ（2026-09-06・カッキーさんの指示）。
+  //   ★ スマホは画面が狭く、拡大すると横にはみ出すため。
+  //   ★ CSSの @media ではなく、ここで幅を見て style に直接書く（★ 効かない事故を避ける）。
+  //   ★ 最初の1回は false（サーバー側では画面幅が分からないため）。
+  const [isDesktop, setIsDesktop] = useState(false);
+  useEffect(() => {
+    const mq = window.matchMedia('(min-width: 768px)');
+    const read = () => setIsDesktop(mq.matches);
+    read();
+    mq.addEventListener('change', read);
+    return () => mq.removeEventListener('change', read);
+  }, []);
+  // ★ PCサイドバーで開いている見出し（2026-09-06・カッキーさんの指示）。
+  //   ★ 既定はどれも閉じる。★ その中の画面を開いているときは自動で開く（下の useEffect）。
+  const [navOpenGroups, setNavOpenGroups] = useState<Record<string, boolean>>({});
   // ★ 出勤ページの名前しぼり込み（2026-09-06）。★ 画面だけの話で、保存には触れない。
   const [scheduleQuery, setScheduleQuery] = useState('');
   // ★ VIPレターを送ったら、下の一覧を読み直させる鍵（2026-09-06）。
@@ -674,6 +747,27 @@ export default function MyPage() {
   useEffect(() => {
     if (activeTab === 'jobs' && salon && !salon.jobs_enabled) setActiveTab('available');
   }, [activeTab, salon]);
+  // ★ 「店舗情報」の中の画面を開いているときは、その見出しを開いたままにする（2026-09-06）。
+  //   ★ ?tab=course で直接開かれたときや、エラーで店舗基本設定へ飛ばしたときに、
+  //     いま見ている画面がサイドバーから消えていると迷うため。
+  useEffect(() => {
+    const g = NAV_GROUP_OF[activeTab];
+    if (g && NAV_ACCORDION_GROUPS.has(g)) setNavOpenGroups((p) => (p[g] ? p : { ...p, [g]: true }));
+  }, [activeTab]);
+  // ★★ サイドバーを画面の左に貼り付けるため、共通ヘッダー（マイページ＋告知バナー）の高さを測る。
+  //   ★ 告知バナーの有無や文字の折返しで高さが変わるので、決め打ちにしない（2026-09-06）。
+  //   ★ 測った値は CSS の --nav-top に渡し、PC（md以上）だけで使う。
+  const pageHeaderRef = useRef<HTMLDivElement | null>(null);
+  const [pageHeaderH, setPageHeaderH] = useState(0);
+  useEffect(() => {
+    const el = pageHeaderRef.current;
+    if (!el) return;
+    const update = () => setPageHeaderH(el.getBoundingClientRect().height);
+    update();
+    const ro = new ResizeObserver(update);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
   useEffect(() => {
     if (!tabReady) return;
     const url = new URL(window.location.href);
@@ -808,6 +902,9 @@ export default function MyPage() {
   // お知らせ→fukuX 同時投稿。サロンオーナーの連携fukuX店舗プロフィール（kind='shop'・approved）id。
   // 未連携なら null（＝チェックは disabled 表示＋注記）。日記側 xProfileId と同じ役割。
   const [xShopProfileId, setXShopProfileId] = useState<string | null>(null);
+  // ★ サイドバー「フクエックス（SNS）」の飛び先に使う、その店舗のアカウント名（handle）。
+  //   ★ 未連携なら null（★ そのときは店舗基本設定の fukuX URL → それも空ならトップへ）。
+  const [xShopHandle, setXShopHandle] = useState<string | null>(null);
   // 新規フォーム用の同時投稿チェック（default ON・投稿後もONへリセット・外すのは都度）。
   const [newAnnCrosspostX, setNewAnnCrosspostX] = useState(true);
   const [newAnnCrosspostNoReplies, setNewAnnCrosspostNoReplies] = useState(false);
@@ -926,8 +1023,8 @@ export default function MyPage() {
       // お知らせ→fukuX 同時投稿用：オーナーの連携fukuX店舗プロフィール（kind='shop'・approved）を解決。
       // best-effort（未連携/失敗は null＝チェックは無効表示）。日記の xProfileId 解決と同型。
       getLinkedXProfileForSalon(user.id)
-        .then((p) => setXShopProfileId(p?.profileId ?? null))
-        .catch(() => setXShopProfileId(null));
+        .then((p) => { setXShopProfileId(p?.profileId ?? null); setXShopHandle(p?.handle ?? null); })
+        .catch(() => { setXShopProfileId(null); setXShopHandle(null); });
       setCourseGroups(parseCourseGroups(salonData.courses));
       setOtherItems(parseOtherItems(salonData.courses));
       setBookingCourses(parseBookingCourses(salonData.booking_courses));
@@ -2403,6 +2500,36 @@ export default function MyPage() {
 
   // ── サイドバーの小道具（2026-09-06）────────────────────────────
   // ★ 部品ではなく関数にしている（★ 中で作った部品は毎回別物になり、押した瞬間に作り直される）。
+  // ★ 画面を切り替えたら、必ずページの一番上を出す（2026-09-06・カッキーさんの指示）。
+  //   ★ 下の方を見ている状態で別の画面に移ると、その画面の途中から始まって迷うため。
+  //   ★ ここを通さずに setActiveTab を直接呼ぶと、上に戻らない画面ができる。
+  const goTab = (key: TabKey) => {
+    setActiveTab(key);
+    if (typeof window !== 'undefined') window.scrollTo({ top: 0, behavior: 'auto' });
+  };
+  // ★ その見出しの中身を出すか。★ たたむ見出しでなければ、いつも出す。
+  const navGroupIsOpen = (group: string) => !NAV_ACCORDION_GROUPS.has(group) || Boolean(navOpenGroups[group]);
+  // ★ たたむ見出しのピンクの帯（★ 見た目と開閉を1か所に）。
+  const navBandButton = (group: string) => (
+    <button
+      type="button"
+      onClick={() => setNavOpenGroups((p) => ({ ...p, [group]: !p[group] }))}
+      aria-expanded={navGroupIsOpen(group)}
+      className="w-full flex items-center justify-between px-4 py-2 mb-1 font-bold tracking-wider text-[16px] text-white bg-pink-500"
+    >
+      {group}
+      <svg
+        width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+        strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"
+        className={`flex-shrink-0 transition-transform duration-200 ${navGroupIsOpen(group) ? 'rotate-180' : ''}`}
+        aria-hidden
+      >
+        <path d="M6 9l6 6 6-6" />
+      </svg>
+    </button>
+  );
+  // ★ 本文の拡大率。★ 1 のときは何もしない（★ 判断はこの1か所）。
+  const mainZoom = isDesktop && activeTab !== 'board' ? 1.2 : 1;
   const navVisible = (key: TabKey) => key !== 'jobs' || Boolean(salon?.jobs_enabled);
   // ★ バッジ（ネット予約の未処理／運営事務局の未読）。★ 0 のときは null＝出さない。
   //   ★ 色は要対応のピンク。赤（rose）は /admin のメール不達＝取りこぼし専用なので使わない。
@@ -2411,6 +2538,48 @@ export default function MyPage() {
     if (key === 'support' && supportUnread > 0) return supportUnread;
     return null;
   };
+
+  // ★★ フクエックス（SNS）への入口（2026-09-06・カッキーさんの指示）。★ 全店舗に出す。
+  //   ★ 飛び先は上から順に決める（★ 判断はこの1か所）:
+  //     1. 連携しているフクエックスの店舗アカウント（/x/u/ハンドル）
+  //        ＝ 同じログインで作った kind='shop' の承認済みアカウント。★ 店舗様の設定は要らない。
+  //     2. 店舗基本設定の「fukuX URL」（1が未連携で、手で入れてある場合）
+  //     3. フクエックスのトップ（/x）＝ まだ何も無いとき。★ 白い画面を出さない。
+  const fukuxHref = xShopHandle
+    ? `/x/u/${encodeURIComponent(xShopHandle)}`
+    : ((salon?.fukux_url ?? '').trim() || '/x');
+  const renderFukuxLink = (pc: boolean) => (
+    <Link
+      href={fukuxHref}
+      target="_blank"
+      rel="noopener noreferrer"
+      className={
+        pc
+          ? 'inline-flex w-full items-center justify-start gap-2.5 border-0 border-l-4 border-l-transparent px-4 py-3 text-[16px] font-bold text-slate-400 transition-colors hover:bg-pink-50/40 hover:text-slate-600'
+          : 'inline-flex items-center gap-1 px-3 py-1.5 rounded-none border border-slate-200 bg-white text-[11px] font-bold text-slate-400 transition-colors hover:text-slate-600 hover:border-slate-300'
+      }
+    >
+      {tabIcon('fukux')}
+      フクエックス（SNS）
+    </Link>
+  );
+
+  // ★★ フクエスCRM（準備中）（2026-09-06・カッキーさんの指示）。
+  //   ★ まだ行き先が無いので、リンクにしない（★ 押せると誤解させるものは置かない）。
+  //   ★ 灰色のまま・触っても何も起きない。★ 出来たらここを renderFukuxLink と同じ形にする。
+  const renderCrmSoon = (pc: boolean) => (
+    <div
+      aria-disabled
+      className={
+        pc
+          ? 'inline-flex w-full items-center justify-start gap-2.5 border-0 border-l-4 border-l-transparent px-4 py-3 text-[16px] font-bold text-slate-300 cursor-default select-none'
+          : 'inline-flex items-center gap-1 px-3 py-1.5 rounded-none border border-slate-200 bg-white text-[11px] font-bold text-slate-300 cursor-default select-none'
+      }
+    >
+      {tabIcon('crm')}
+      フクエスCRM（準備中）
+    </div>
+  );
 
   const renderMediaLink = (pc: boolean) => (
     <Link
@@ -2424,7 +2593,7 @@ export default function MyPage() {
       }
     >
       {tabIcon('media')}
-      媒体連携
+      フクエスリンク（媒体連携）
     </Link>
   );
 
@@ -2436,7 +2605,7 @@ export default function MyPage() {
         </div>
       )}
 
-      <div className="sticky top-0 z-40 bg-white shadow-sm">
+      <div ref={pageHeaderRef} className="sticky top-0 z-40 bg-white shadow-sm">
         <header className="border-b border-slate-100">
           <div className="px-4 md:px-6 py-3 flex items-center justify-between">
             <h1 className="text-base font-black text-slate-800 tracking-wide">マイページ</h1>
@@ -2444,7 +2613,7 @@ export default function MyPage() {
               {/* 予約ボードへの近道（2026-08-14 追加）。営業中いちばん使うタブなのでヘッダーに常設し、
                   他のリンク（slate-400）と違いピンク太字で目立たせる。 */}
               <button
-                onClick={() => setActiveTab('board')}
+                onClick={() => goTab('board')}
                 className="text-xs text-pink-500 hover:text-pink-600 font-black transition-colors"
               >
                 予約ボード
@@ -2470,7 +2639,18 @@ export default function MyPage() {
               ★ スマホで17個を全部並べると4行になり、押し間違えるため。
           ★ 中身（各画面）は今までと同じものを hidden で出し分けている。作りは変えていない。 */}
       <div className="md:flex md:items-start">
-        <aside className="bg-white border-b border-slate-100 md:border-b-0 md:border-r md:w-[288px] md:flex-none md:self-start">
+        {/* ★ PCではサイドバーを画面の左に貼り付ける（2026-09-06・カッキーさんの指示）。
+            ★ 本文を下にスクロールしても、サイドバーは動かない。
+            ★★ サイドバーと本文は【完全に別々】に動く（2026-09-06）:
+              ・md:h-… ＝ 画面の高さぴったりに固定する（★ max-h だと中身が短いとき、
+                サイドバーの上で回したホイールが本文に流れてしまう）
+              ・md:overscroll-contain ＝ サイドバーを下まで／上まで送っても、
+                そこから本文へスクロールが伝わらない（★ これが「一緒についてくる」の正体）
+            ★ 位置と高さは共通ヘッダーの高さ（--nav-top）を引いて決める。★ スマホでは使わない。 */}
+        <aside
+          style={{ '--nav-top': `${pageHeaderH}px` } as React.CSSProperties}
+          className="bg-white border-b border-slate-100 md:border-b-0 md:border-r md:w-[288px] md:flex-none md:self-start md:sticky md:top-[var(--nav-top)] md:h-[calc(100vh_-_var(--nav-top))] md:overflow-y-auto md:overscroll-contain scrollbar-none"
+        >
 
           {/* ★ サイドバーの頭（PCだけ）。★ フクエスリンクと同じ形: 印＋名前＋店舗名。2026-09-06 */}
           <div className="hidden md:block">
@@ -2561,7 +2741,7 @@ export default function MyPage() {
                     return (
                       <button
                         key={k}
-                        onClick={() => { setActiveTab(k); setOpenGroup(null); }}
+                        onClick={() => { goTab(k); setOpenGroup(null); }}
                         aria-pressed={selected}
                         className={`inline-flex w-full items-center justify-start gap-2 border-0 border-l-4 px-4 py-2.5 text-[13px] font-bold transition-colors ${
                           selected
@@ -2582,63 +2762,89 @@ export default function MyPage() {
 
                 {/* ★ 媒体連携は「その他」の中に置く。★ 別のサイト（/mypage/media）を新しいタブで開く */}
                 {openGroup === 'その他' && mediaVisible && renderMediaLink(true)}
+                {openGroup === 'その他' && renderFukuxLink(true)}
+                {openGroup === 'その他' && renderCrmSoon(true)}
               </nav>
             )}
           </div>
 
-          {/* ══ PC（全部を縦に並べる。今までどおり）══ */}
-          <nav aria-label="マイページのメニュー" className="hidden md:flex md:flex-col md:py-2">
-            {MYPAGE_NAV
+          {/* ══ PC（見出しのまとまりごとに、上から並べる）══
+              ★ 並びの正は MYPAGE_NAV ただ1つ（★ ここでは順番を作らない）。
+              ★ たたんである見出しの中身は【描かない】（隠すのではなく描かない）。 */}
+          <nav aria-label="マイページのメニュー" className="hidden md:flex md:flex-col md:pt-2 md:pb-40">
+            {NAV_SECTIONS.map((sec) => {
               // 求人はフクエスワーク掲載（jobs_enabled）契約店のみ表示。
-              .filter((n) => n.key !== 'jobs' || Boolean(salon?.jobs_enabled))
-              .map((n) => {
-                const selected = activeTab === n.key;
-                return (
-                  <div key={n.key} className="contents">
-                    {/* ★ 「日々の更新」だけ大きくピンク（2026-09-06・カッキーさんの指示）。
-                        ★ 毎日さわる場所なので、他の見出しより目に入るようにする。 */}
-                    {n.group && (
+              const keys = sec.keys.filter(navVisible);
+              // ★ 「別のサイト」にはフクエスリンク（媒体連携）も入る。★ 出す相手にしか描かない（第54便）。
+              const withMedia = sec.group === '別のサイト' && mediaVisible;
+              if (keys.length === 0 && !withMedia) return null;
+              const open = navGroupIsOpen(sec.group);
+              return (
+                <div key={sec.group || '(見出しなし)'} className="contents">
+                  {/* ★ NAV_BAND_GROUPS の見出しは大きくピンクの帯（2026-09-06・カッキーさんの指示）。
+                      ★ よくさわる場所なので、他の見出しより目に入るようにする。 */}
+                  {/* ★ 見出しの無いまとまり（運営事務局）は、上に区切りの横線を引く。
+                      ★ そうしないと、すぐ上の「別のサイト」の中身に見えてしまう（2026-09-06）。 */}
+                  {!sec.group && <div className="mt-4 mb-5 border-t border-slate-200" />}
+                  {sec.group && (
+                    NAV_ACCORDION_GROUPS.has(sec.group) ? (
+                      navBandButton(sec.group)
+                    ) : (
                       <div
                         className={
-                          n.group === '日々の更新'
+                          NAV_BAND_GROUPS.has(sec.group)
                             ? 'px-4 py-2 mb-1 font-bold tracking-wider text-[16px] text-white bg-pink-500'
                             : 'px-4 pt-3.5 pb-1 font-bold tracking-wider text-[13px] text-slate-400'
                         }
                       >
-                        {n.group}
+                        {sec.group}
                       </div>
-                    )}
-                    <button
-                      onClick={() => setActiveTab(n.key)}
-                      aria-pressed={selected}
-                      className={`relative inline-flex w-full items-center justify-start gap-2.5 border-0 border-l-4 border-l-transparent px-4 py-3 text-[16px] font-bold transition-colors ${
-                        selected
-                          ? 'bg-gradient-to-r from-pink-600 to-pink-400 text-white'
-                          : 'bg-white text-slate-400 hover:bg-pink-50/40 hover:text-slate-600'
-                      } ${n.parent ? 'pl-7' : ''}`}
-                    >
-                      {tabIcon(n.key)}
-                      {n.label}
-                      {navBadge(n.key) !== null && (
-                        <span className="ml-auto inline-flex items-center justify-center min-w-[16px] h-[16px] px-1 rounded-none bg-pink-500 text-white text-[9px] font-black leading-none">
-                          {navBadge(n.key)}
-                        </span>
-                      )}
-                    </button>
-                  </div>
-                );
-              })}
-
-            {/* ★★★ 媒体連携（第55便・㉜）。★ タブではなく専用ページ /mypage/media への入口。
-                ★ 出す相手にしか描かない（第54便の方針は変えていない）。
-                  ★ 隠すのではなく描かない: hidden だとページの中身から読める。
-                ★ 新しいタブで開く（2026-08-30・カッキーさんの決定）。 */}
-            {mediaVisible && (
-              <>
-                <div className="px-4 pt-3.5 pb-1 text-[13px] font-bold text-slate-400 tracking-wider">別のサイト</div>
-                {renderMediaLink(true)}
-              </>
-            )}
+                    )
+                  )}
+                  {open && keys.map((key) => {
+                    const n = MYPAGE_NAV.find((x) => x.key === key);
+                    if (!n) return null;
+                    const selected = activeTab === key;
+                    return (
+                      <button
+                        key={key}
+                        onClick={() => goTab(key)}
+                        aria-pressed={selected}
+                        className={`relative inline-flex w-full items-center justify-start gap-2.5 border-0 border-l-4 border-l-transparent px-4 py-3 text-[16px] font-bold transition-colors ${
+                          selected
+                            ? 'bg-white text-pink-600'
+                            : 'bg-white text-slate-400 hover:bg-pink-50/40 hover:text-slate-600'
+                        }`}
+                      >
+                        {tabIcon(key)}
+                        {/* ★ 選んでいる項目は【文字だけ】をピンクのグラデーションにする
+                            （2026-09-06・カッキーさんの指示。★ 帯で塗りつぶさない）。
+                            ★ アイコンは currentColor なので、ボタン側の text-pink-600 で色が付く
+                              （★ 文字と同じ span に入れると、透明になって消える）。 */}
+                        {selected ? (
+                          <span className="bg-gradient-to-r from-pink-600 to-pink-400 bg-clip-text text-transparent">
+                            {n.label}
+                          </span>
+                        ) : (
+                          n.label
+                        )}
+                        {navBadge(key) !== null && (
+                          <span className="ml-auto inline-flex items-center justify-center min-w-[16px] h-[16px] px-1 rounded-none bg-pink-500 text-white text-[9px] font-black leading-none">
+                            {navBadge(key)}
+                          </span>
+                        )}
+                      </button>
+                    );
+                  })}
+                  {/* ★★★ フクエスリンク（媒体連携）（第55便・㉜）。★ タブではなく専用ページ /mypage/media への入口。
+                      ★ 新しいタブで開く（2026-08-30・カッキーさんの決定）。 */}
+                  {open && withMedia && renderMediaLink(true)}
+                  {/* ★ フクエックス（SNS）。★ 媒体連携と違い、契約に関係なく全店舗に出す。 */}
+                  {open && sec.group === '別のサイト' && renderFukuxLink(true)}
+                  {open && sec.group === '別のサイト' && renderCrmSoon(true)}
+                </div>
+              );
+            })}
           </nav>
         </aside>
 
@@ -2683,9 +2889,16 @@ export default function MyPage() {
         )}
 
 
-      {/* 予約ボードタブのときだけ幅を広げ（max-w-6xl=1152px）、左右余白も px-2 に詰める
-          （スマホの可視タイムラインを+16px稼ぐ・2026-08-14）。他のタブは hidden なので影響しない。 */}
-      <main className={`${activeTab === 'board' ? 'max-w-6xl px-2' : 'max-w-2xl px-4'} mx-auto py-6 space-y-6`}>
+      {/* ★ 予約ボードタブのときだけ横幅いっぱい（左右の余白5px）にする。
+          ★ 表が横に長いため、背景が見えるぶんだけ表が狭くなる。
+            2026-08-14 は max-w-6xl（1152px）＋px-2 だった → 2026-09-06 にカッキーさんの指示で
+            上限なし＋5px に広げた。他のタブは hidden なので影響しない。 */}
+      {/* ★ 本文だけ1.2倍（2026-09-06）。★ 予約ボードは横長の表なので拡大しない。
+          ★ 倍率は mainZoom の数字1つ。★ 1.5倍は大きすぎたので1.2倍にした。 */}
+      <main
+        style={mainZoom === 1 ? undefined : { zoom: mainZoom }}
+        className={`${activeTab === 'board' ? 'max-w-none px-[5px]' : 'max-w-2xl px-4'} mx-auto py-6 space-y-6`}
+      >
 
         {/* ── 店名（最上部・独立ブロック）──
             ★★ PCでは消した（★ サイドバーの頭に店舗名が出るため・2026-09-06）。
@@ -3193,7 +3406,7 @@ export default function MyPage() {
               ここに出ない。★ 常時表示にしてある。条件付きにすると「入れたはずの予約が無い」と
               思ったときに限って読めない。データが消えたわけではないことも必ず書くこと。 */}
           <p className="text-[11px] leading-relaxed text-slate-400">
-            お客様からのネット予約のみを表示しています。予約ボードに手入力した予約（電話予約など）はここには出ません（予約ボードには残っています）。
+            ネット予約のみを表示しています（電話予約は予約ボードへ）。
           </p>
           {/* ── 表示上限の案内（2026-08-16 追加）──
               getSalonBookings() が .limit(SALON_BOOKINGS_LIMIT) で読んでいるため、
@@ -3356,10 +3569,7 @@ export default function MyPage() {
                 ))}
               </select>
               <p className="text-[10px] text-slate-400 mt-1 leading-relaxed">
-                施術後の片付け・準備にかかる時間です。ネット予約が入ったとき、この時間ぶんも自動で枠を塞ぎ、
-                次のお客様が続けて入らないようにします（例：90分コース＋インターバル30分 → 13:00の予約で15:00まで確保）。
-                予約ボードの電話予約フォームでも、この時間が最初から選ばれます（その場で変更できます）。
-                なお、各セラピストの最終受付時刻は変わりません（片付けは上がり時刻を過ぎても構わない扱いです）。
+                コース時間＋インターバル時間で枠を埋めます。
               </p>
             </div>
             <p className="text-[10px] text-slate-400 leading-relaxed">
@@ -4379,10 +4589,12 @@ export default function MyPage() {
               その下に fukuX 同時投稿チェック（未連携なら disabled＋注記）。 */}
           {repostModalId && (
             <div
+              style={mainZoom === 1 ? undefined : { zoom: 1 / mainZoom }}
               className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
               onClick={() => { if (!repostingAnnouncement) setRepostModalId(null); }}
             >
               <div
+                style={mainZoom === 1 ? undefined : { zoom: mainZoom }}
                 className="bg-white rounded-none shadow-xl w-full max-w-sm p-5 space-y-4"
                 onClick={(e) => e.stopPropagation()}
               >

@@ -238,8 +238,11 @@ export function SupportTab({
 
   return (
     <div className="space-y-4">
-      {/* ── サブタブ（運営から / 運営に問い合わせ / よくある質問） ── */}
-      <div className="flex flex-wrap justify-center gap-1.5">
+      {/* ── サブタブ（運営から / 運営に問い合わせ / よくある質問 / 公式サイトに貼る / オプション申込） ──
+          ★ PC（sm以上）では5つを均等に並べて、下のカードと同じ幅いっぱいに広げる
+            （2026-09-06・カッキーさんの指示）。
+          ★ スマホは今までどおり折り返し（5つ横並びだと1つが狭すぎて読めないため）。 */}
+      <div className="flex flex-wrap justify-center gap-1.5 sm:grid sm:grid-cols-5">
         {([
           ['notices', '運営から'],
           ['inquiry', '運営に問い合わせ'],
@@ -253,7 +256,11 @@ export function SupportTab({
               key={key}
               onClick={() => setSubTab(key)}
               aria-pressed={selected}
-              className={`inline-flex items-center gap-1 px-4 py-1.5 rounded-none border text-[11px] font-bold transition-colors ${
+              // ★ PCは5等分。★ 一番長い「運営に問い合わせ」「公式サイトに貼る」（全角8文字）が
+              //   1行に収まる大きさに、5つとも揃える（2026-09-06・カッキーさんの指示）。
+              //   1列の幅 ≒ (672 - 32 - 24) / 5 ≒ 123px。左右の余白を4pxずつにすると文字に113px使えるので
+              //   13px × 8文字 = 104px で収まる。★ 幅を変えたらこの数字も見直すこと。
+              className={`inline-flex items-center justify-center gap-1 whitespace-nowrap px-4 py-1.5 sm:px-1 sm:py-3 rounded-none border text-[11px] sm:text-[13px] font-bold transition-colors ${
                 selected
                   ? 'bg-pink-50 text-pink-600 border-pink-300'
                   : 'bg-white text-slate-400 border-slate-200 hover:text-slate-600 hover:border-slate-300'

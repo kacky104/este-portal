@@ -105,7 +105,7 @@ export function SalonBumpButton({ salonId }: { salonId: number }) {
         disabled={!loaded || sending || remaining <= 0}
         className="w-full py-3 rounded-none text-sm font-black text-white shadow-md transition-all disabled:opacity-40 bg-gradient-to-r from-pink-500 to-rose-500 hover:from-pink-600 hover:to-rose-600 active:scale-[0.99]"
       >
-        {sending ? '実行中…' : remaining <= 0 ? '本日の回数を使い切りました' : '⬆ 今すぐ上位表示する'}
+        {sending ? '実行中…' : remaining <= 0 ? '本日の回数を使い切りました' : '⬆ 上位表示する'}
       </button>
 
       {msg && <p className="text-xs font-bold text-emerald-600">{msg}</p>}
