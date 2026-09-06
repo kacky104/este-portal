@@ -1,6 +1,9 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { isNewFaceActive } from '@/lib/newFace';
+import { matchesSearch } from '@/lib/searchNormalize';
+import { toKana, isRomaji } from 'wanakana';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { createClient } from '@/app/lib/supabase/client';
@@ -51,7 +54,7 @@ const WEEKDAYS = ['日', '月', '火', '水', '木', '金', '土'];
 async function fetchTherapistList(salonId: string): Promise<Therapist[]> {
   const { data, error } = await supabase
     .from('therapists')
-    .select(`id, name, work_hours, area, comment, profile_image_url, age, body_type, profile_text, ${IMASUGU_COLUMNS}, user_id, invited_email`)
+    .select(`id, name, work_hours, area, comment, profile_image_url, age, body_type, profile_text, ${IMASUGU_COLUMNS}, user_id, invited_email, is_new_face, new_face_since`)
     .eq('salon_id', salonId);
   if (!error) return (data ?? []) as Therapist[];
   console.warn('[mypage] クエリ失敗（カラム未作成の可能性）:', error.message);
@@ -59,7 +62,7 @@ async function fetchTherapistList(salonId: string): Promise<Therapist[]> {
     .from('therapists')
     .select('id, name, work_hours, area, comment, profile_image_url, age, body_type, profile_text')
     .eq('salon_id', salonId);
-  return (fb ?? []).map(t => ({ ...(t as Omit<Therapist, 'is_available_now' | 'available_until' | 'is_available_now_cast' | 'available_until_cast' | 'is_available_now_import' | 'available_until_import' | 'user_id' | 'invited_email'>), is_available_now: false, available_until: null, is_available_now_cast: false, available_until_cast: null, is_available_now_import: false, available_until_import: null, user_id: null, invited_email: null }));
+  return (fb ?? []).map(t => ({ ...(t as Omit<Therapist, 'is_available_now' | 'available_until' | 'is_available_now_cast' | 'available_until_cast' | 'is_available_now_import' | 'available_until_import' | 'user_id' | 'invited_email' | 'is_new_face' | 'new_face_since'>), is_available_now: false, available_until: null, is_available_now_cast: false, available_until_cast: null, is_available_now_import: false, available_until_import: null, user_id: null, invited_email: null, is_new_face: false, new_face_since: null }));
 }
 
 type Coupon = {
@@ -276,30 +279,45 @@ function tabIcon(key: TabKey | 'media') {
 
 // ★★★ サイドバーの並び（2026-09-06）。★ group はその項目の【上】に出す見出し。
 //   ★ 順番は「店舗の基本 → 見た目 → 日々の更新 → 予約・求人 → その他」。
-const MYPAGE_NAV: Array<{ key: TabKey; label: string; group?: string }> = [
-  { key: 'salon',     label: '店舗情報',        group: '店舗の基本' },
-  { key: 'course',    label: 'コースメニュー' },
-  { key: 'photos',    label: '店舗画像' },
-  { key: 'theme',     label: 'テーマ（背景壁紙）', group: '店舗装飾' },
-  { key: 'banner',    label: '詳細ページバナー' },
-  { key: 'popup',     label: 'ポップアップ画像' },
-  { key: 'freepage',  label: 'フリーページ' },
-  { key: 'schedule',  label: '出勤',            group: '日々の更新' },
-  { key: 'available', label: '今すぐ' },
+//   ★ parent: 'salon' はスマホの2階層で【店舗情報の中】に入る画面（2026-09-06）。
+//     ★ PCでは今までどおり全部を縦に並べる（親子は字下げで見せるだけ）。
+//   ★★ 並びは「日々の更新 → 店舗の基本 → 店舗装飾 → 予約・求人 → その他」
+//     （2026-09-06・カッキーさんの指示で、毎日さわる方を上にした）。
+const MYPAGE_NAV: Array<{ key: TabKey; label: string; group?: string; parent?: TabKey }> = [
+  { key: 'available', label: '今すぐ',          group: '日々の更新' },
+  { key: 'schedule',  label: '出勤' },
   { key: 'profile',   label: 'セラピスト' },
   { key: 'diary',     label: '日記' },
   { key: 'coupon',    label: 'クーポン' },
   { key: 'news',      label: 'お知らせ' },
   { key: 'vipletter', label: 'VIPレター' },
+  { key: 'salon',     label: '店舗情報',        group: '店舗の基本' },
+  { key: 'course',    label: 'コースメニュー',    parent: 'salon' },
+  { key: 'photos',    label: '店舗画像',         parent: 'salon' },
+  { key: 'theme',     label: 'テーマ（背景壁紙）', group: '店舗装飾', parent: 'salon' },
+  { key: 'banner',    label: '詳細ページバナー',  parent: 'salon' },
+  { key: 'popup',     label: 'ポップアップ画像',  parent: 'salon' },
+  { key: 'freepage',  label: 'フリーページ',      parent: 'salon' },
   { key: 'booking',   label: 'ネット予約',      group: '予約・求人' },
   { key: 'jobs',      label: '求人' },
   { key: 'support',   label: '運営事務局',      group: 'その他' },
 ];
 
+// ★★★ スマホのメニュー（2026-09-06・カッキーさんの指示）。
+//   ★ 上に4つだけ出し、押すとその中の画面が下に開く。★ 縦幅を食わないため。
+//   ★ 「店舗情報」は【店舗の基本＋店舗装飾】をまとめたもの（★ PCの見出し2つぶん）。
+const MOBILE_GROUPS: Array<{ label: string; keys: TabKey[] }> = [
+  { label: '店舗情報',   keys: ['salon', 'course', 'photos', 'theme', 'banner', 'popup', 'freepage'] },
+  { label: '日々の更新', keys: ['schedule', 'available', 'profile', 'diary', 'coupon', 'news', 'vipletter'] },
+  { label: '予約・求人', keys: ['booking', 'jobs'] },
+  { label: 'その他',     keys: ['support'] },
+];
+
 // ★ URL の ?tab= に出す値。★ 知らない値が来たら 'salon' に倒す（存在しない画面を作らない）。
 const TAB_KEYS = new Set<string>([...MYPAGE_NAV.map((n) => n.key), 'board']);
 function parseTabKey(raw: string | null): TabKey {
-  return raw && TAB_KEYS.has(raw) ? (raw as TabKey) : 'salon';
+  // ★ 既定は「今すぐ」（2026-09-06）。★ 知らない値が来てもここへ倒す。
+  return raw && TAB_KEYS.has(raw) ? (raw as TabKey) : 'available';
 }
 
 // 公開日時の表示整形（JST・"2026年6月20日 19:12"）。
@@ -540,6 +558,9 @@ type Therapist = {
   available_until_import: string | null;
   user_id: string | null;
   invited_email: string | null;
+  // ★ 新人マーク（NEWバッジ）。★ 判定は src/lib/newFace.ts の isNewFaceActive ただ1つを通す。
+  is_new_face: boolean | null;
+  new_face_since: string | null;
 };
 
 type DaySchedule = {
@@ -623,11 +644,17 @@ export default function MyPage() {
   const [mailTesting, setMailTesting] = useState(false);
   const [mailTestResult, setMailTestResult] = useState<{ ok: boolean; msg: string } | null>(null);
   const [savingSchedule, setSavingSchedule] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<TabKey>('salon');
+  const [activeTab, setActiveTab] = useState<TabKey>('available');
   // ★★ 開いている画面を URL に残す（?tab=course）。2026-09-06
   //   ★ 再読み込みしても同じ画面に戻る。★ 「←戻る」で1つ前の画面へ戻る。
   //   ★ tabReady が立つまでURLへ書かない（読み取り前の 'salon' で上書きしないため）。
   const [tabReady, setTabReady] = useState(false);
+  // ★ スマホで開いているグループ名（null＝どれも開いていない・2026-09-06）。★ PCでは使わない。
+  const [openGroup, setOpenGroup] = useState<string | null>(null);
+  // ★ 出勤ページの名前しぼり込み（2026-09-06）。★ 画面だけの話で、保存には触れない。
+  const [scheduleQuery, setScheduleQuery] = useState('');
+  // ★ セラピストページの名前しぼり込み（2026-09-06）。★ 出勤ページと同じ規則で絞る。
+  const [profileQuery, setProfileQuery] = useState('');
   useEffect(() => {
     const read = () => setActiveTab(parseTabKey(new URLSearchParams(window.location.search).get('tab')));
     read();
@@ -638,17 +665,33 @@ export default function MyPage() {
   // ★ 求人はフクエスワーク掲載店だけの画面。★ ?tab=jobs を直接開かれても、契約がなければ店舗情報へ倒す
   //   （★ サイドバーに項目がなく本文も出ない＝真っ白、を作らない）。
   useEffect(() => {
-    if (activeTab === 'jobs' && salon && !salon.jobs_enabled) setActiveTab('salon');
+    if (activeTab === 'jobs' && salon && !salon.jobs_enabled) setActiveTab('available');
   }, [activeTab, salon]);
   useEffect(() => {
     if (!tabReady) return;
     const url = new URL(window.location.href);
     // ★ 生の値と比べる（★ ?tab=bogus のような値をURLに残さないため）。
-    if (url.searchParams.get('tab') === (activeTab === 'salon' ? null : activeTab)) return;
-    if (activeTab === 'salon') url.searchParams.delete('tab');
+    if (url.searchParams.get('tab') === (activeTab === 'available' ? null : activeTab)) return;
+    if (activeTab === 'available') url.searchParams.delete('tab');
     else url.searchParams.set('tab', activeTab);
     window.history.pushState(null, '', url.toString());
   }, [activeTab, tabReady]);
+
+  // ★ サイドバーの店舗名は 15.5px が既定。★ 1行に入らないときだけ、入るまで小さくする。
+  //   ★ 文字数では決めない（★ 全角と半角で幅が違うため、実際に置いて測る）。
+  //   ★ スマホでは隠れていて幅が 0 になるので、そのときは何もしない。
+  const salonNameRef = useRef<HTMLDivElement | null>(null);
+  useEffect(() => {
+    const el = salonNameRef.current;
+    if (!el) return;
+    let size = 15.5;
+    el.style.fontSize = `${size}px`;
+    if (el.clientWidth === 0) return;      // ★ 隠れている（スマホ）＝測れない
+    while (size > 9 && el.scrollWidth > el.clientWidth) {
+      size -= 0.5;
+      el.style.fontSize = `${size}px`;
+    }
+  }, [salonForm.name]);
   /** ★ 媒体連携が「書き込みの向きのまま止まっている」警告（第47便）。トップに出す */
   const [mediaAlerts, setMediaAlerts] = useState<MediaLinkAlert[]>([]);
   /**
@@ -765,6 +808,36 @@ export default function MyPage() {
   // 営業日基準（午前6時始まり）の7日間。
   // 0:00〜5:59 は前日を1日目、6:00以降は当日を1日目として表示する。
   const sevenDays = useMemo(() => getBusinessDateRangeJST(7), []);
+
+  // ★★ 出勤ページの並び順（2026-09-06・カッキーさんの指示）。
+  //   ★ 上から: 今日の出勤あり → 出勤なし。★ その中で、写真なしを下に落とす。
+  //   ★ DBは order を付けていない（＝保存順のまま）ので、並びは画面側で決める。
+  //   ★ 同じ点数どうしは元の順のまま（JSの sort は安定）。
+  //   ★★ この並びは出勤ページだけ。★ セラピスト・今すぐの一覧は今までどおり。
+  const scheduleTherapists = useMemo(() => {
+    const today = sevenDays[0];
+    const rank = (t: Therapist) => {
+      const working = Boolean(schedules[t.id]?.[today]?.is_active);
+      const hasPhoto = Boolean(t.profile_image_url);
+      return (working ? 0 : 2) + (hasPhoto ? 0 : 1);
+    };
+    // ★ 名前で絞る。★ TOPの検索バーと同じ規則（src/lib/searchNormalize.ts）で潰してから比べる:
+    //   ★ ひらがな⇄カタカナ／半角カナ／濁点・長音・中黒・空白の有無 を無視する。
+    //   ★ ローマ字で打たれたらカナに直す（"sakura" → さくら）。TOPと同じ wanakana を使う。
+    //   ★★ 漢字の読み（「桜」→さくら）は当たらない。★ TOPの検索バーも同じ。
+    const raw = scheduleQuery.trim();
+    const q = raw && isRomaji(raw) ? toKana(raw) : raw;
+    const list = q ? therapists.filter((t) => matchesSearch(t.name, q)) : therapists;
+    return [...list].sort((a, b) => rank(a) - rank(b));
+  }, [therapists, schedules, sevenDays, scheduleQuery]);
+
+  // ★ セラピストページの一覧（名前で絞るだけ。★ 並びは今までどおり）。
+  const profileTherapists = useMemo(() => {
+    const raw = profileQuery.trim();
+    if (!raw) return therapists;
+    const q = isRomaji(raw) ? toKana(raw) : raw;
+    return therapists.filter((t) => matchesSearch(t.name, q));
+  }, [therapists, profileQuery]);
 
   // 本日出勤中のセラピスト（営業日基準・深夜跨ぎ対応）。
   // 「今すぐ」は出勤中のセラピストにしか付けられないため、表示・保存の両方で参照する。
@@ -1778,6 +1851,22 @@ export default function MyPage() {
     showToast('「今すぐ」設定を保存しました');
   };
 
+  // ★ 「今すぐ」を DB から読み直す（2026-09-06・カッキーさんの指示）。
+  //   ★ 30分で自動解除された分は、画面のチェックだけが残る。★ それを消すための口。
+  //   ★ ページ全体は読み直さない（他のタブで書きかけの内容を消さないため）。
+  const [reloadingAvailable, setReloadingAvailable] = useState(false);
+  const handleAvailableNowReload = async () => {
+    if (!salon) return;
+    setReloadingAvailable(true);
+    const refreshed = await fetchTherapistList(String(salon.id));
+    setTherapists(refreshed);
+    const sync: Record<string, boolean> = {};
+    refreshed.forEach((t) => { sync[String(t.id)] = isOwnerLiveRow(t); });
+    setAvailableNow(sync);
+    setReloadingAvailable(false);
+    showToast('最新の状態を読み込みました');
+  };
+
   // 写メ日記：投稿セラピストを選択（フォームをリセット）
   const selectDiaryTherapist = (id: string) => {
     setDiaryTherapistId(id);
@@ -2266,7 +2355,7 @@ export default function MyPage() {
 
   if (loadError) {
     return (
-      <div className="min-h-screen bg-pink-50/30 flex items-center justify-center">
+      <div className="min-h-screen flex items-center justify-center">
         <p className="text-slate-500 text-sm whitespace-pre-line text-center leading-relaxed px-6">{loadError}</p>
       </div>
     );
@@ -2274,14 +2363,41 @@ export default function MyPage() {
 
   if (!salon) {
     return (
-      <div className="min-h-screen bg-pink-50/30 flex items-center justify-center">
+      <div className="min-h-screen flex items-center justify-center">
         <p className="text-slate-400 text-sm">読み込み中...</p>
       </div>
     );
   }
 
+  // ── サイドバーの小道具（2026-09-06）────────────────────────────
+  // ★ 部品ではなく関数にしている（★ 中で作った部品は毎回別物になり、押した瞬間に作り直される）。
+  const navVisible = (key: TabKey) => key !== 'jobs' || Boolean(salon?.jobs_enabled);
+  // ★ バッジ（ネット予約の未処理／運営事務局の未読）。★ 0 のときは null＝出さない。
+  //   ★ 色は要対応のピンク。赤（rose）は /admin のメール不達＝取りこぼし専用なので使わない。
+  const navBadge = (key: TabKey): number | null => {
+    if (key === 'booking' && bookingNewCount > 0) return bookingNewCount;
+    if (key === 'support' && supportUnread > 0) return supportUnread;
+    return null;
+  };
+
+  const renderMediaLink = (pc: boolean) => (
+    <Link
+      href="/mypage/media"
+      target="_blank"
+      rel="noopener noreferrer"
+      className={
+        pc
+          ? 'inline-flex w-full items-center justify-start gap-2.5 border-0 border-l-4 border-l-transparent px-4 py-3 text-[16px] font-bold text-slate-400 transition-colors hover:bg-pink-50/40 hover:text-slate-600'
+          : 'inline-flex items-center gap-1 px-3 py-1.5 rounded-none border border-slate-200 bg-white text-[11px] font-bold text-slate-400 transition-colors hover:text-slate-600 hover:border-slate-300'
+      }
+    >
+      {tabIcon('media')}
+      媒体連携
+    </Link>
+  );
+
   return (
-    <div className="min-h-screen bg-pink-50/30">
+    <div className="min-h-screen">
       {toast && (
         <div className="fixed top-4 left-1/2 -translate-x-1/2 z-50 bg-white border border-pink-200 shadow-lg rounded-none px-6 py-3 text-sm font-bold text-pink-600">
           {toast}
@@ -2315,15 +2431,131 @@ export default function MyPage() {
       </div>
 
       {/* ── 左サイドバー ＋ 右側の本文（2026-09-06・サイドバー化）──
-          ★★ PCは左に縦並び。★ スマホは上に折り返して並ぶチップ（見た目は今までとほぼ同じ）。
-          ★★ ただし【スマホではチップ列がスクロールで流れる】（以前はヘッダーに貼りついていた）。
+          ★★ PCは左に全項目を縦並び（グループ見出し付き）。
+          ★★ スマホは2階層（2026-09-06・カッキーさんの指示）:
+              上の行は「店舗情報」＋日々の更新など。★ 「店舗情報」を選ぶと、その下に
+              コースメニュー／店舗画像／テーマ／バナー／ポップアップ／フリーページが出る。
+              ★ スマホで17個を全部並べると4行になり、押し間違えるため。
           ★ 中身（各画面）は今までと同じものを hidden で出し分けている。作りは変えていない。 */}
       <div className="md:flex md:items-start">
-        <aside className="bg-white border-b border-slate-100 md:border-b-0 md:border-r md:w-[210px] md:flex-none md:self-start">
-          <nav
-            aria-label="マイページのメニュー"
-            className="flex flex-wrap justify-center gap-1.5 px-3 py-2 md:flex-col md:flex-nowrap md:justify-start md:gap-0 md:px-0 md:py-2"
-          >
+        <aside className="bg-white border-b border-slate-100 md:border-b-0 md:border-r md:w-[288px] md:flex-none md:self-start">
+
+          {/* ★ サイドバーの頭（PCだけ）。★ フクエスリンクと同じ形: 印＋名前＋店舗名。2026-09-06 */}
+          <div className="hidden md:block">
+            <div className="flex items-center gap-2 px-4 py-4 border-b border-slate-100">
+              {/* ★ ヘッダー共通ロゴ（Logo.tsx）と同じ肉球＋オレンジ→ピンクのグラデ文字。
+                  ★ サイドバーは幅が狭いので、サブテキスト（～福岡メンズエステポータル～）は出さない。 */}
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src="/logo.png" alt="" className="w-7 h-7 flex-shrink-0" />
+              <span
+                className="font-bold text-[22px] tracking-wide leading-none inline-block"
+                style={{
+                  background: 'linear-gradient(95deg,#FB923C,#DB2777)',
+                  WebkitBackgroundClip: 'text',
+                  backgroundClip: 'text',
+                  WebkitTextFillColor: 'transparent',
+                  color: 'transparent',
+                }}
+              >
+                フクエス
+              </span>
+            </div>
+            <div className="px-4 py-3 border-b border-slate-100">
+              <div className="text-[12.5px] font-bold text-slate-400 tracking-wider">店舗</div>
+              {/* ★ 長い店舗名でも1行に収める（2026-09-06・カッキーさんの指示）。
+                  ★ サイドバーの幅は固定（288px）なので、文字数から大きさを決めれば足りる。
+                  ★ それでも入りきらないときだけ「…」で切る（★ 2行にはしない）。 */}
+              <div
+                ref={salonNameRef}
+                className="font-bold text-slate-600 mt-0.5 leading-snug whitespace-nowrap overflow-hidden"
+                style={{ fontSize: '15.5px', textOverflow: 'ellipsis' }}
+                title={salonForm.name ?? ''}
+              >
+                {salonForm.name ?? ''}
+              </div>
+            </div>
+          </div>
+
+          {/* ══ スマホ（4つのグループ）══
+              ★★ 上は4つだけ。★ 押すとその中の画面が下に開き、選ぶと閉じる。
+              ★ いま開いている画面が入っているグループは、押していなくてもピンクで分かる。 */}
+          <div className="md:hidden">
+            <div className="flex flex-wrap justify-center gap-1.5 px-3 py-2">
+              {MOBILE_GROUPS.map((g) => {
+                const here = g.keys.includes(activeTab);
+                const open = openGroup === g.label;
+                // ★ そのグループの中にある「要対応」の合計（★ 閉じていても気づけるように）
+                const badge = g.keys.reduce((sum, k) => sum + (navBadge(k) ?? 0), 0);
+                return (
+                  <button
+                    key={g.label}
+                    type="button"
+                    onClick={() => setOpenGroup(open ? null : g.label)}
+                    aria-expanded={open}
+                    className={`inline-flex items-center gap-1 px-3 py-1.5 rounded-none border text-[11px] font-bold transition-colors ${
+                      here || open
+                        ? 'bg-pink-50 text-pink-600 border-pink-300'
+                        : 'bg-white text-slate-400 border-slate-200'
+                    }`}
+                  >
+                    {g.label}
+                    {badge > 0 && (
+                      <span className="inline-flex items-center justify-center min-w-[16px] h-[16px] px-1 rounded-none bg-pink-500 text-white text-[9px] font-black leading-none">
+                        {badge}
+                      </span>
+                    )}
+                    <svg
+                      width="14" height="14" viewBox="0 0 24 24" fill="none"
+                      stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"
+                      className={`flex-shrink-0 transition-transform duration-200 ${open ? 'rotate-180' : ''}`}
+                      aria-hidden
+                    >
+                      <path d="M6 9l6 6 6-6" />
+                    </svg>
+                  </button>
+                );
+              })}
+            </div>
+
+            {openGroup && (
+              <nav aria-label={openGroup} className="border-t border-pink-100 bg-pink-50/40 pb-2">
+                {(MOBILE_GROUPS.find((g) => g.label === openGroup)?.keys ?? [])
+                  .filter((k) => navVisible(k))
+                  .map((k) => {
+                    const n = MYPAGE_NAV.find((x) => x.key === k);
+                    if (!n) return null;
+                    const selected = activeTab === k;
+                    const badge = navBadge(k);
+                    return (
+                      <button
+                        key={k}
+                        onClick={() => { setActiveTab(k); setOpenGroup(null); }}
+                        aria-pressed={selected}
+                        className={`inline-flex w-full items-center justify-start gap-2 border-0 border-l-4 px-4 py-2.5 text-[13px] font-bold transition-colors ${
+                          selected
+                            ? 'bg-pink-50 text-pink-600 border-l-pink-500'
+                            : 'text-slate-500 border-l-transparent'
+                        }`}
+                      >
+                        {tabIcon(k)}
+                        {n.label}
+                        {badge !== null && (
+                          <span className="ml-auto inline-flex items-center justify-center min-w-[16px] h-[16px] px-1 rounded-none bg-pink-500 text-white text-[9px] font-black leading-none">
+                            {badge}
+                          </span>
+                        )}
+                      </button>
+                    );
+                  })}
+
+                {/* ★ 媒体連携は「その他」の中に置く。★ 別のサイト（/mypage/media）を新しいタブで開く */}
+                {openGroup === 'その他' && mediaVisible && renderMediaLink(true)}
+              </nav>
+            )}
+          </div>
+
+          {/* ══ PC（全部を縦に並べる。今までどおり）══ */}
+          <nav aria-label="マイページのメニュー" className="hidden md:flex md:flex-col md:py-2">
             {MYPAGE_NAV
               // 求人はフクエスワーク掲載（jobs_enabled）契約店のみ表示。
               .filter((n) => n.key !== 'jobs' || Boolean(salon?.jobs_enabled))
@@ -2331,35 +2563,33 @@ export default function MyPage() {
                 const selected = activeTab === n.key;
                 return (
                   <div key={n.key} className="contents">
-                    {/* ★ グループの見出しはPCだけ（スマホは折り返しチップなので見出しが邪魔になる） */}
+                    {/* ★ 「日々の更新」だけ大きくピンク（2026-09-06・カッキーさんの指示）。
+                        ★ 毎日さわる場所なので、他の見出しより目に入るようにする。 */}
                     {n.group && (
-                      <div className="hidden md:block px-4 pt-3.5 pb-1 text-[10px] font-bold text-slate-400 tracking-wider">
+                      <div
+                        className={
+                          n.group === '日々の更新'
+                            ? 'px-4 py-2 mb-1 font-bold tracking-wider text-[16px] text-white bg-pink-500'
+                            : 'px-4 pt-3.5 pb-1 font-bold tracking-wider text-[13px] text-slate-400'
+                        }
+                      >
                         {n.group}
                       </div>
                     )}
                     <button
                       onClick={() => setActiveTab(n.key)}
                       aria-pressed={selected}
-                      className={`inline-flex items-center gap-1 px-3 py-1.5 rounded-none border text-[11px] font-bold transition-colors md:w-full md:justify-start md:gap-2 md:border-0 md:border-l-4 md:px-4 md:py-2.5 md:text-[13px] ${
+                      className={`relative inline-flex w-full items-center justify-start gap-2.5 border-0 border-l-4 border-l-transparent px-4 py-3 text-[16px] font-bold transition-colors ${
                         selected
-                          ? 'bg-pink-50 text-pink-600 border-pink-300 md:border-l-pink-500'
-                          : 'bg-white text-slate-400 border-slate-200 hover:text-slate-600 hover:border-slate-300 md:border-l-transparent md:hover:bg-pink-50/40'
-                      }`}
+                          ? 'bg-gradient-to-r from-pink-600 to-pink-400 text-white'
+                          : 'bg-white text-slate-400 hover:bg-pink-50/40 hover:text-slate-600'
+                      } ${n.parent ? 'pl-7' : ''}`}
                     >
                       {tabIcon(n.key)}
                       {n.label}
-                      {/* 「ネット予約」: 未処理（新規リクエスト）件数のバッジ（2026-08-17 / 第20便）。
-                          ★ 色は運営事務局の未読バッジと同じピンク＝「要対応」。
-                            赤（rose）は /admin でメール不達＝取りこぼし専用にしてあるので使わない。 */}
-                      {n.key === 'booking' && bookingNewCount > 0 && (
-                        <span className="inline-flex items-center justify-center min-w-[16px] h-[16px] px-1 rounded-none bg-pink-500 text-white text-[9px] font-black leading-none md:ml-auto">
-                          {bookingNewCount}
-                        </span>
-                      )}
-                      {/* 「運営事務局」: 未読お知らせ件数のバッジ */}
-                      {n.key === 'support' && supportUnread > 0 && (
-                        <span className="inline-flex items-center justify-center min-w-[16px] h-[16px] px-1 rounded-none bg-pink-500 text-white text-[9px] font-black leading-none md:ml-auto">
-                          {supportUnread}
+                      {navBadge(n.key) !== null && (
+                        <span className="ml-auto inline-flex items-center justify-center min-w-[16px] h-[16px] px-1 rounded-none bg-pink-500 text-white text-[9px] font-black leading-none">
+                          {navBadge(n.key)}
                         </span>
                       )}
                     </button>
@@ -2372,18 +2602,10 @@ export default function MyPage() {
                   ★ 隠すのではなく描かない: hidden だとページの中身から読める。
                 ★ 新しいタブで開く（2026-08-30・カッキーさんの決定）。 */}
             {mediaVisible && (
-              <div className="contents">
-                <div className="hidden md:block px-4 pt-3.5 pb-1 text-[10px] font-bold text-slate-400 tracking-wider">別のサイト</div>
-                <Link
-                  href="/mypage/media"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-flex items-center gap-1 px-3 py-1.5 rounded-none border text-[11px] font-bold transition-colors bg-white text-slate-400 border-slate-200 hover:text-slate-600 hover:border-slate-300 md:w-full md:justify-start md:gap-2 md:border-0 md:border-l-4 md:border-l-transparent md:px-4 md:py-2.5 md:text-[13px] md:hover:bg-pink-50/40"
-                >
-                  {tabIcon('media')}
-                  媒体連携
-                </Link>
-              </div>
+              <>
+                <div className="px-4 pt-3.5 pb-1 text-[13px] font-bold text-slate-400 tracking-wider">別のサイト</div>
+                {renderMediaLink(true)}
+              </>
             )}
           </nav>
         </aside>
@@ -2433,10 +2655,10 @@ export default function MyPage() {
           （スマホの可視タイムラインを+16px稼ぐ・2026-08-14）。他のタブは hidden なので影響しない。 */}
       <main className={`${activeTab === 'board' ? 'max-w-6xl px-2' : 'max-w-2xl px-4'} mx-auto py-6 space-y-6`}>
 
-        {/* ── 店名（最上部・独立ブロック） ──
-            常時表示ブロックのため、予約ボードで main が広がっても max-w-2xl のまま中央に固定する
-            （通常タブでは main 自体が max-w-2xl なので見た目は従来と同じ）。 */}
-        <div className="max-w-2xl mx-auto w-full bg-white rounded-none border border-slate-100 shadow-sm p-5 text-center">
+        {/* ── 店名（最上部・独立ブロック）──
+            ★★ PCでは消した（★ サイドバーの頭に店舗名が出るため・2026-09-06）。
+            ★ スマホはサイドバーの頭が無いので、ここに残す。 */}
+        <div className="md:hidden max-w-2xl mx-auto w-full bg-white rounded-none border border-slate-100 shadow-sm p-5 text-center">
           <h2
             className="font-black text-slate-800 whitespace-nowrap overflow-hidden"
             style={{ fontSize: 'clamp(16px, 4vw, 24px)', textOverflow: 'ellipsis' }}
@@ -2445,9 +2667,11 @@ export default function MyPage() {
           </h2>
         </div>
 
-        {/* ── 上位表示（TOP・地域ページの店舗カードを先頭へ）。店舗タブの最上部。 ── */}
+        {/* ── 上位表示（TOP・地域ページの店舗カードを先頭へ）──
+            ★★ 「今すぐ」の画面のいちばん上に置いた（2026-09-06・カッキーさんの指示）。
+            ★ /mypage を開いて最初に出る画面＝いちばん押される場所。 */}
         {salon && (
-          <div className={activeTab === 'salon' ? '' : 'hidden'}>
+          <div className={activeTab === 'available' ? '' : 'hidden'}>
             <SalonBumpButton salonId={Number(salon.id)} />
           </div>
         )}
@@ -3192,13 +3416,42 @@ export default function MyPage() {
 
         {/* ── タブ2: 出勤設定 ── */}
         <div className={`space-y-3 ${activeTab === 'schedule' ? '' : 'hidden'}`}>
+          {/* ★ 名前でしぼり込む（2026-09-06・カッキーさんの指示）。★ 人数が増えても探せるように。 */}
+          {therapists.length > 0 && (
+            <div className="bg-white rounded-none border border-slate-100 shadow-sm p-3">
+              <div className="flex items-center gap-2">
+                <input
+                  type="search"
+                  value={scheduleQuery}
+                  onChange={(e) => setScheduleQuery(e.target.value)}
+                  placeholder="セラピスト名で探す"
+                  className="flex-1 px-3 py-2 rounded-none border border-slate-200 text-sm bg-slate-50/50 placeholder:text-slate-300 focus:outline-none focus:ring-2 focus:ring-pink-200"
+                />
+                {scheduleQuery && (
+                  <button
+                    type="button"
+                    onClick={() => setScheduleQuery('')}
+                    className="px-3 py-2 rounded-none border border-slate-200 text-[11px] font-bold text-slate-500 hover:bg-slate-50"
+                  >
+                    クリア
+                  </button>
+                )}
+              </div>
+              {scheduleQuery && (
+                <p className="mt-1.5 text-[11px] text-slate-400">
+                  {scheduleTherapists.length}名が見つかりました
+                </p>
+              )}
+            </div>
+          )}
+
           {therapists.length === 0 && (
             <div className="bg-white rounded-none border border-slate-100 shadow-sm p-5">
               <p className="text-xs text-slate-400">登録されているセラピストがいません</p>
             </div>
           )}
 
-          {therapists.map((t) => {
+          {scheduleTherapists.map((t) => {
             const isOpen = expandedSections.has(`${t.id}-schedule`);
             return (
               <div key={t.id} className="bg-white rounded-none border border-pink-100 shadow-sm overflow-hidden">
@@ -3208,7 +3461,30 @@ export default function MyPage() {
                   onClick={() => toggleSection(`${t.id}-schedule`)}
                   className="w-full flex items-center justify-between px-5 py-4 hover:bg-pink-50/40 transition-colors"
                 >
-                  <span className="text-sm font-bold text-slate-700">{t.name ?? '(名前未設定)'}</span>
+                  {/* ★ 名前の左に丸い顔写真（2026-09-06・カッキーさんの指示）。
+                      ★ 写真が無い人は頭文字の丸を出す（★ 欠けて見えないように）。 */}
+                  <span className="flex items-center gap-2.5 min-w-0">
+                    {t.profile_image_url ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        src={t.profile_image_url}
+                        alt=""
+                        className="w-8 h-8 rounded-full object-cover border border-pink-100 flex-shrink-0"
+                      />
+                    ) : (
+                      <span className="w-8 h-8 rounded-full bg-pink-100 text-pink-400 text-xs font-bold flex items-center justify-center flex-shrink-0">
+                        {(t.name ?? '?').charAt(0)}
+                      </span>
+                    )}
+                    <span className="text-sm font-bold text-slate-700 truncate">{t.name ?? '(名前未設定)'}</span>
+                    {/* ★ 新人マーク（2026-09-06・カッキーさんの指示）。
+                        ★ 判定は src/lib/newFace.ts ただ1つ（is_new_face かつ 60日以内）。 */}
+                    {isNewFaceActive(t.is_new_face, t.new_face_since) && (
+                      <span className="flex-shrink-0 px-1.5 py-0.5 bg-emerald-500 text-white text-[9px] font-black leading-none tracking-wider">
+                        NEW
+                      </span>
+                    )}
+                  </span>
                   <svg
                     className={`w-4 h-4 text-pink-400 transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`}
                     fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}
@@ -3293,9 +3569,33 @@ export default function MyPage() {
         {/* ── タブ3: 今すぐ ── */}
         <div className={`${activeTab === 'available' ? '' : 'hidden'}`}>
           <div className="bg-white rounded-none border border-slate-100 shadow-sm p-5 space-y-4">
-            <div>
-              <h2 className="text-sm font-black text-slate-700 mb-1">今すぐ対応可能なセラピスト</h2>
-              <p className="text-[11px] text-slate-400">本日出勤中のセラピストに「今すぐ」フラグを設定できます。チェックを入れて保存するとサイト上にバッジが表示されます。30分後に自動で解除されますが、この画面上ではリロードするまでチェックは残ります。</p>
+            {/* ★ ボタンは見出しの右上（2026-09-06・カッキーさんの指示）。★ 一覧の下まで戻らせない。 */}
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                <h2 className="text-sm font-black text-slate-700 mb-1">今すぐ対応可能なセラピスト</h2>
+                <p className="text-[11px] text-slate-400">出勤中のセラピストに「今すぐ」設定できます。30分後に自動で解除されますが、この画面上ではリロードするまでチェックは残ります。</p>
+              </div>
+              <div className="flex items-center gap-2 flex-shrink-0">
+                <button
+                  type="button"
+                  onClick={handleAvailableNowReload}
+                  disabled={reloadingAvailable || savingAvailable}
+                  className="inline-flex items-center gap-1 px-3 py-2 rounded-none border border-slate-200 bg-white text-xs font-bold text-slate-600 transition-colors hover:bg-slate-50 disabled:opacity-50"
+                >
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+                    <path d="M20 11a8 8 0 1 0-2.3 5.7" />
+                    <path d="M20 4v7h-7" />
+                  </svg>
+                  {reloadingAvailable ? '読込中...' : 'リロード'}
+                </button>
+                <button
+                  onClick={handleAvailableNowSave}
+                  disabled={savingAvailable}
+                  className={saveBtn}
+                >
+                  {savingAvailable ? '保存中...' : '保存する'}
+                </button>
+              </div>
             </div>
             {(() => {
               // 「今すぐ」判定は営業日基準（深夜0〜6時は前日のスケジュールを参照）
@@ -3388,20 +3688,40 @@ export default function MyPage() {
                 </div>
               );
             })()}
-            <div className="flex justify-end pt-2">
-              <button
-                onClick={handleAvailableNowSave}
-                disabled={savingAvailable}
-                className={saveBtn}
-              >
-                {savingAvailable ? '保存中...' : '保存する'}
-              </button>
-            </div>
           </div>
         </div>
 
         {/* ── タブ4: セラピスト情報 ── */}
         <div className={`space-y-3 ${activeTab === 'profile' ? '' : 'hidden'}`}>
+
+          {/* ★ 名前でしぼり込む（2026-09-06・カッキーさんの指示）。★ 出勤ページと同じ規則。 */}
+          {therapists.length > 0 && (
+            <div className="bg-white rounded-none border border-slate-100 shadow-sm p-3">
+              <div className="flex items-center gap-2">
+                <input
+                  type="search"
+                  value={profileQuery}
+                  onChange={(e) => setProfileQuery(e.target.value)}
+                  placeholder="セラピスト名で探す"
+                  className="flex-1 px-3 py-2 rounded-none border border-slate-200 text-sm bg-slate-50/50 placeholder:text-slate-300 focus:outline-none focus:ring-2 focus:ring-pink-200"
+                />
+                {profileQuery && (
+                  <button
+                    type="button"
+                    onClick={() => setProfileQuery('')}
+                    className="px-3 py-2 rounded-none border border-slate-200 text-[11px] font-bold text-slate-500 hover:bg-slate-50"
+                  >
+                    クリア
+                  </button>
+                )}
+              </div>
+              {profileQuery && (
+                <p className="mt-1.5 text-[11px] text-slate-400">
+                  {profileTherapists.length}名が見つかりました
+                </p>
+              )}
+            </div>
+          )}
 
           {/* 新規セラピスト追加フォーム */}
           <div className="bg-white rounded-none border border-pink-100 shadow-sm p-5 space-y-3">
@@ -3449,7 +3769,7 @@ export default function MyPage() {
             </div>
           )}
 
-          {therapists.map((t) => (
+          {profileTherapists.map((t) => (
             <div key={t.id} className="bg-white rounded-none border border-pink-100 shadow-sm overflow-hidden">
               <div className="flex items-center justify-between px-5 py-4">
                 <div className="flex items-center gap-3">
