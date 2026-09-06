@@ -78,6 +78,10 @@ async function assertOwner(
  * カレンダー月の初日（JST）を UTC の ISO 文字列で返す。
  * ★ Vercel のサーバーは UTC で動くので、素直に new Date() の月で切ると
  *   毎月1日の 00:00〜09:00(JST) が前月扱いになる。JST に寄せてから月初を作る。
+ *
+ * ★★ ここは【暦日】の月（1日の 0:00 JST 切替）のまま。★ 営業日（朝6時・dutyStatus）にしない（★ 第187便・2026-09-06 に決めた）。
+ *   ★ 「9月分の枠」は暦の9月で数えるほうが店舗様に説明しやすい。
+ *   ★ 営業日にして変わるのは、毎月1日の 0:00〜6:00 に生成したぶんが前月に入るかどうかだけ。★ 変える理由がない。
  */
 function monthStartIsoJst(now = new Date()): string {
   const jst = new Date(now.getTime() + 9 * 60 * 60 * 1000);

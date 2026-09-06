@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { revalidatePath } from 'next/cache';
 import { createServiceClient } from '@/app/lib/supabase/service';
+import { businessDateJSTFrom } from '@/lib/dutyStatus';
 
 // ── 外部媒体取り込み: 取得対象の一覧を返す＋前周ぶんの掃除（第28便／掃除は第34便）──────
 // 中継役VPS（住宅系IPで駅ちかに到達できる）が毎時これを叩き、
@@ -115,7 +116,12 @@ export async function GET(req: Request) {
   // 止めたくなったら Vercel の環境変数から IMPORT_SWEEP を消して Redeploy するだけでよい。
   const sweep: SweepLog[] = [];
   if (process.env.IMPORT_SWEEP === 'on') {
-    const todayISO = new Date(Date.now() + 9 * 60 * 60 * 1000).toISOString().slice(0, 10); // Asia/Tokyo
+    // ★★★ 「今日」は【営業日】（朝6時区切り・第187便・2026-09-06）。★ 正本は dutyStatus.businessDateJSTFrom。
+    //   ★ 以前はここだけ暦日（0時切替）で書いていた。深夜0〜6時は「今日」が営業日より1日先に行くので、
+    //     まだ営業中の当日ぶん（schedule_date = 営業日）が掃除の対象から外れていた（★ 倒しすぎる向きではない）。
+    //   ★ 第149〜151便で「深夜だけ1日ずれる」を踏み、送る側・読む側を営業日にそろえた。★ ここが最後の1か所。
+    //   ★ ingest / ingest-list が書く schedule_date も営業日（import.sh の TODAY）なので、同じ物差しで読む。
+    const todayISO = businessDateJSTFrom(Date.now());
     const hourAgo = new Date(Date.now() - 60 * 60 * 1000).toISOString();
     let touched = 0;
 

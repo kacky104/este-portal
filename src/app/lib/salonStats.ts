@@ -24,7 +24,17 @@ const supabase = createClient();
 // ── 日付ユーティリティ（すべて JST の暦日を 'YYYY-MM-DD' 文字列で扱う） ──
 // Date のローカルタイムゾーンに依存しないよう、計算は UTC メソッドだけで行う。
 
-/** 今日（JST）を 'YYYY-MM-DD' で返す。 */
+/**
+ * 今日（JST）を 'YYYY-MM-DD' で返す。
+ *
+ * ★★ ここは【暦日】（0時切替）のまま。★ 営業日（朝6時・dutyStatus）にしない（★ 第187便・2026-09-06 に決めた）。
+ *   ★ 理由: 突き合わせる3つのデータの【書く側】が暦日で保存しているため。
+ *     ・salon_impression_daily / salon_action_daily … DB関数が `(now() at time zone 'Asia/Tokyo')::date`（暦日）
+ *     ・page_view_weekly … 月曜JST起点（暦日の週）
+ *   ★★★ 読む側だけ営業日にすると、書いた日と読む日がずれて数字が合わなくなる。
+ *   ★ 変えるなら書く側（マイグレーション）ごと。★ それは「深夜0〜6時のアクセスを前日の営業として見せたいか」
+ *     という判断が先で、一般のアクセス解析（暦日）とも揃っているため、いまは変えない。
+ */
 export function jstTodayYmd(): string {
   return new Date(Date.now() + 9 * 60 * 60 * 1000).toISOString().slice(0, 10);
 }
