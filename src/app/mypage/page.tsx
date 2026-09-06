@@ -1,8 +1,10 @@
 'use client';
 
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { isNewFaceActive } from '@/lib/newFace';
 import { matchesSearch } from '@/lib/searchNormalize';
+import { sortTherapistsForList } from '@/lib/therapistOrder';
+import { CouponCard } from '@/app/components/CouponCard';
 import { toKana, isRomaji } from 'wanakana';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
@@ -13,6 +15,7 @@ import { TimeRangePicker } from '@/components/TimeRangePicker';
 import { SALON_THEMES, type ThemeKey } from '@/app/lib/themes';
 import { COUPON_COLORS, getCouponColor, DEFAULT_COUPON_COLOR_KEY, type CouponColorKey } from '@/app/lib/couponColors';
 import { VipLetterForm } from '@/app/components/VipLetterForm';
+import { VipLetterSentList } from '@/app/components/VipLetterSentList';
 import { JobsTab } from '@/app/mypage/JobsTab';
 import { BookingBoard } from '@/app/mypage/BookingBoard';
 import { SupportTab } from '@/app/mypage/SupportTab';
@@ -287,7 +290,7 @@ const MYPAGE_NAV: Array<{ key: TabKey; label: string; group?: string; parent?: T
   { key: 'available', label: '今すぐ',          group: '日々の更新' },
   { key: 'schedule',  label: '出勤' },
   { key: 'profile',   label: 'セラピスト' },
-  { key: 'diary',     label: '日記' },
+  { key: 'diary',     label: '写メ日記' },
   { key: 'coupon',    label: 'クーポン' },
   { key: 'news',      label: 'お知らせ' },
   { key: 'vipletter', label: 'VIPレター' },
@@ -653,8 +656,12 @@ export default function MyPage() {
   const [openGroup, setOpenGroup] = useState<string | null>(null);
   // ★ 出勤ページの名前しぼり込み（2026-09-06）。★ 画面だけの話で、保存には触れない。
   const [scheduleQuery, setScheduleQuery] = useState('');
+  // ★ VIPレターを送ったら、下の一覧を読み直させる鍵（2026-09-06）。
+  const [vipSentReload, setVipSentReload] = useState(0);
   // ★ セラピストページの名前しぼり込み（2026-09-06）。★ 出勤ページと同じ規則で絞る。
   const [profileQuery, setProfileQuery] = useState('');
+  // ★ 写メ日記のセラピストしぼり込み（2026-09-06）。★ 出勤・セラピストと同じ規則。
+  const [diaryQuery, setDiaryQuery] = useState('');
   useEffect(() => {
     const read = () => setActiveTab(parseTabKey(new URLSearchParams(window.location.search).get('tab')));
     read();
@@ -754,6 +761,18 @@ export default function MyPage() {
   const [themeWallpapers, setThemeWallpapers] = useState<Record<string, string>>({});
   // 写メ日記タブ
   const [diaryTherapistId, setDiaryTherapistId] = useState<string | null>(null);
+
+  // ★ 写メ日記: セラピストを選んだら投稿フォームまで画面を運ぶ（2026-09-06・カッキーさんの指示）。
+  //   ★ 選んでから下までスクロールを探させない。★ ヘッダーの下に隠れないよう scroll-mt を付けている。
+  const diaryFormRef = useRef<HTMLDivElement | null>(null);
+  useEffect(() => {
+    if (!diaryTherapistId) return;
+    // ★ フォームは選んだ【あと】に描かれるので、描かれるのを1回待ってから運ぶ。
+    const id = window.requestAnimationFrame(() => {
+      diaryFormRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
+    return () => window.cancelAnimationFrame(id);
+  }, [diaryTherapistId]);
   const [diaryImage, setDiaryImage] = useState<string | null>(null);
   const [diaryTitle, setDiaryTitle] = useState('');
   const [diaryBody, setDiaryBody] = useState('');
@@ -809,18 +828,20 @@ export default function MyPage() {
   // 0:00〜5:59 は前日を1日目、6:00以降は当日を1日目として表示する。
   const sevenDays = useMemo(() => getBusinessDateRangeJST(7), []);
 
+  // ★ 並び順に使う2つの見分け方。★ 出勤ページとセラピストページで同じものを使う。
+  //   ★ 順番の決め方そのものは src/lib/therapistOrder.ts（★ 通信もDBも触らない）。
+  const isWorkingToday = useCallback(
+    (t: Therapist) => Boolean(schedules[t.id]?.[sevenDays[0]]?.is_active),
+    [schedules, sevenDays],
+  );
+  const hasProfilePhoto = useCallback((t: Therapist) => Boolean(t.profile_image_url), []);
+
   // ★★ 出勤ページの並び順（2026-09-06・カッキーさんの指示）。
   //   ★ 上から: 今日の出勤あり → 出勤なし。★ その中で、写真なしを下に落とす。
   //   ★ DBは order を付けていない（＝保存順のまま）ので、並びは画面側で決める。
   //   ★ 同じ点数どうしは元の順のまま（JSの sort は安定）。
   //   ★★ この並びは出勤ページだけ。★ セラピスト・今すぐの一覧は今までどおり。
   const scheduleTherapists = useMemo(() => {
-    const today = sevenDays[0];
-    const rank = (t: Therapist) => {
-      const working = Boolean(schedules[t.id]?.[today]?.is_active);
-      const hasPhoto = Boolean(t.profile_image_url);
-      return (working ? 0 : 2) + (hasPhoto ? 0 : 1);
-    };
     // ★ 名前で絞る。★ TOPの検索バーと同じ規則（src/lib/searchNormalize.ts）で潰してから比べる:
     //   ★ ひらがな⇄カタカナ／半角カナ／濁点・長音・中黒・空白の有無 を無視する。
     //   ★ ローマ字で打たれたらカナに直す（"sakura" → さくら）。TOPと同じ wanakana を使う。
@@ -828,16 +849,27 @@ export default function MyPage() {
     const raw = scheduleQuery.trim();
     const q = raw && isRomaji(raw) ? toKana(raw) : raw;
     const list = q ? therapists.filter((t) => matchesSearch(t.name, q)) : therapists;
-    return [...list].sort((a, b) => rank(a) - rank(b));
-  }, [therapists, schedules, sevenDays, scheduleQuery]);
+    return sortTherapistsForList(list, isWorkingToday, hasProfilePhoto);
+  }, [therapists, scheduleQuery, isWorkingToday, hasProfilePhoto]);
 
-  // ★ セラピストページの一覧（名前で絞るだけ。★ 並びは今までどおり）。
+  // ★ 写メ日記の投稿でセラピストを選ぶ並び（2026-09-06・カッキーさんの指示）。
+  //   ★ 出勤ページ・セラピストページと同じ規則（src/lib/therapistOrder.ts）。★ 左上から順に並ぶ。
+  const diaryTherapists = useMemo(() => {
+    const raw = diaryQuery.trim();
+    const q = raw && isRomaji(raw) ? toKana(raw) : raw;
+    const list = q ? therapists.filter((t) => matchesSearch(t.name, q)) : therapists;
+    return sortTherapistsForList(list, isWorkingToday, hasProfilePhoto);
+  }, [therapists, diaryQuery, isWorkingToday, hasProfilePhoto]);
+
+  // ★ セラピストページの一覧。★ 並びは出勤ページとまったく同じ規則（2026-09-06・カッキーさんの指示）:
+  //   ★ 上から: 今日の出勤あり → 出勤なし。★ その中で、写真なしを下に落とす。
+  //   ★ 点数の付け方は scheduleTherapists と同じ。★ 直すときは2か所いっしょに直すこと。
   const profileTherapists = useMemo(() => {
     const raw = profileQuery.trim();
-    if (!raw) return therapists;
-    const q = isRomaji(raw) ? toKana(raw) : raw;
-    return therapists.filter((t) => matchesSearch(t.name, q));
-  }, [therapists, profileQuery]);
+    const q = raw && isRomaji(raw) ? toKana(raw) : raw;
+    const list = q ? therapists.filter((t) => matchesSearch(t.name, q)) : therapists;
+    return sortTherapistsForList(list, isWorkingToday, hasProfilePhoto);
+  }, [therapists, profileQuery, isWorkingToday, hasProfilePhoto]);
 
   // 本日出勤中のセラピスト（営業日基準・深夜跨ぎ対応）。
   // 「今すぐ」は出勤中のセラピストにしか付けられないため、表示・保存の両方で参照する。
@@ -3786,6 +3818,13 @@ export default function MyPage() {
                     </div>
                   )}
                   <span className="text-sm font-bold text-slate-700">{t.name ?? '(名前未設定)'}</span>
+                  {/* ★ 新人マーク（2026-09-06・カッキーさんの指示）。★ 出勤ページと同じ緑のNEW。
+                      ★ 判定は src/lib/newFace.ts ただ1つ（is_new_face かつ60日以内）。 */}
+                  {isNewFaceActive(t.is_new_face, t.new_face_since) && (
+                    <span className="flex-shrink-0 px-1.5 py-0.5 bg-emerald-500 text-white text-[9px] font-black leading-none tracking-wider">
+                      NEW
+                    </span>
+                  )}
                 </div>
 
                 <div className="flex items-center gap-2">
@@ -3906,6 +3945,31 @@ export default function MyPage() {
               <p className="text-[11px] text-slate-400">投稿するセラピストを選んでから、画像・タイトル・本文を入力してください。</p>
             </div>
 
+            {/* ★ 名前でしぼり込む（2026-09-06・カッキーさんの指示）。★ 出勤・セラピストと同じ規則。 */}
+            {therapists.length > 0 && (
+              <div className="flex items-center gap-2">
+                <input
+                  type="search"
+                  value={diaryQuery}
+                  onChange={(e) => setDiaryQuery(e.target.value)}
+                  placeholder="セラピスト名で探す"
+                  className="flex-1 px-3 py-2 rounded-none border border-slate-200 text-sm bg-slate-50/50 placeholder:text-slate-300 focus:outline-none focus:ring-2 focus:ring-pink-200"
+                />
+                {diaryQuery && (
+                  <button
+                    type="button"
+                    onClick={() => setDiaryQuery('')}
+                    className="px-3 py-2 rounded-none border border-slate-200 text-[11px] font-bold text-slate-500 hover:bg-slate-50"
+                  >
+                    クリア
+                  </button>
+                )}
+              </div>
+            )}
+            {diaryQuery && (
+              <p className="-mt-2 text-[11px] text-slate-400">{diaryTherapists.length}名が見つかりました</p>
+            )}
+
             {/* セラピスト選択 */}
             {therapists.length === 0 ? (
               <p className="text-xs text-slate-400 text-center py-6 border border-dashed border-slate-200 rounded-none">
@@ -3913,7 +3977,7 @@ export default function MyPage() {
               </p>
             ) : (
               <div className="grid grid-cols-3 sm:grid-cols-4 gap-3">
-                {therapists.map((t) => {
+                {diaryTherapists.map((t) => {
                   const selected = diaryTherapistId === String(t.id);
                   return (
                     <button
@@ -3945,7 +4009,7 @@ export default function MyPage() {
 
             {/* 投稿フォーム（セラピスト選択時のみ表示） */}
             {diaryTherapistId && (
-              <div className="border-t border-slate-100 pt-4 space-y-3">
+              <div ref={diaryFormRef} className="border-t border-slate-100 pt-4 space-y-3 scroll-mt-28">
                 <p className="text-[11px] font-bold text-slate-400">
                   投稿フォーム（{therapists.find(t => String(t.id) === diaryTherapistId)?.name ?? ''}）
                 </p>
@@ -4036,6 +4100,156 @@ export default function MyPage() {
         {/* ── タブ6: クーポン ── */}
         <div className={`space-y-4 ${activeTab === 'coupon' ? '' : 'hidden'}`}>
 
+
+          {/* クーポン一覧（公開・非公開含む） */}
+          {coupons.length === 0 ? (
+            <div className="bg-white rounded-none border border-slate-100 shadow-sm p-5">
+              <p className="text-xs text-slate-400">登録されているクーポンがありません</p>
+            </div>
+          ) : (
+            coupons.map((c) => {
+              const form = couponForms[c.id] ?? {};
+              // ★ 作成済みクーポンは畳んでおく（2026-09-06・カッキーさんの指示）。
+              //   ★ 閉じているときは【色・公開状態・タイトル】だけ。★ 開くと今までの編集画面がそのまま出る。
+              const isOpen = expandedSections.has(`coupon-${c.id}`);
+              return (
+                <div key={c.id} className="bg-white rounded-none border border-pink-100 shadow-sm overflow-hidden">
+                  {/* ── 閉じているときのバー ── */}
+                  <button
+                    type="button"
+                    onClick={() => toggleSection(`coupon-${c.id}`)}
+                    aria-expanded={isOpen}
+                    className="w-full flex items-center gap-2 px-5 py-4 text-left hover:bg-pink-50/40 transition-colors"
+                  >
+                    <span
+                      className="w-6 h-6 rounded-none border border-slate-200 flex-shrink-0"
+                      style={{ background: getCouponColor(c.color).background }}
+                      title={getCouponColor(c.color).label}
+                    />
+                    <span className={`text-[11px] font-bold px-2.5 py-1 rounded-none flex-shrink-0 ${
+                      c.is_published ? 'bg-pink-50 text-pink-600' : 'bg-slate-100 text-slate-400'
+                    }`}>
+                      {c.is_published ? '公開中' : '非公開'}
+                    </span>
+                    <span className="text-sm font-bold text-slate-700 truncate min-w-0">
+                      {c.title || '(タイトル未設定)'}
+                    </span>
+                    <svg
+                      className={`ml-auto w-4 h-4 flex-shrink-0 text-pink-400 transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`}
+                      fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}
+                      aria-hidden
+                    >
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+                    </svg>
+                  </button>
+
+                  {/* ── 開いたときの中身（★ 今までと同じもの） ── */}
+                  <div className={isOpen ? 'px-5 pb-5 pt-4 space-y-3 border-t border-pink-100' : 'hidden'}>
+                  <div className="flex items-center justify-end gap-2">
+                    <button
+                      type="button"
+                      onClick={() => handleCouponTogglePublish(c.id)}
+                      className="px-3 py-1.5 rounded-none border border-pink-300 text-pink-600 text-xs font-bold hover:bg-pink-50 transition-colors"
+                    >
+                      {c.is_published ? '非公開にする' : '公開にする'}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleCouponDelete(c.id)}
+                      disabled={deletingCoupon === c.id}
+                      className="px-3 py-1.5 rounded-none border border-rose-200 text-rose-500 text-xs font-bold bg-rose-50 hover:bg-rose-100 transition-colors disabled:opacity-50"
+                    >
+                      {deletingCoupon === c.id ? '削除中...' : '削除'}
+                    </button>
+                  </div>
+
+                  <div>
+                    <label className={labelClass}>タイトル <span className="text-rose-400">*</span></label>
+                    <input
+                      className={inputClass}
+                      value={form.title ?? ''}
+                      onChange={(e) => setCouponForms(prev => ({ ...prev, [c.id]: { ...prev[c.id], title: e.target.value } }))}
+                    />
+                  </div>
+                  <div>
+                    <label className={labelClass}>割引内容 <span className="text-rose-400">*</span></label>
+                    <input
+                      className={inputClass}
+                      value={form.discount ?? ''}
+                      onChange={(e) => setCouponForms(prev => ({ ...prev, [c.id]: { ...prev[c.id], discount: e.target.value } }))}
+                    />
+                  </div>
+                  <div>
+                    <label className={labelClass}>利用条件</label>
+                    <textarea
+                      rows={6}
+                      className={textareaClass}
+                      value={(form.conditions as string | null) ?? ''}
+                      onChange={(e) => setCouponForms(prev => ({ ...prev, [c.id]: { ...prev[c.id], conditions: e.target.value } }))}
+                    />
+                  </div>
+                  <div>
+                    <label className={labelClass}>有効期限</label>
+                    <input
+                      type="date"
+                      className={inputClass}
+                      value={(form.valid_until as string | null) ?? ''}
+                      onChange={(e) => setCouponForms(prev => ({ ...prev, [c.id]: { ...prev[c.id], valid_until: e.target.value } }))}
+                    />
+                  </div>
+                  <div>
+                    <label className={labelClass}>背景色</label>
+                    <div className="flex flex-wrap gap-2">
+                      {COUPON_COLORS.map((cc) => {
+                        const selected = ((form.color as string) ?? DEFAULT_COUPON_COLOR_KEY) === cc.key;
+                        return (
+                          <button
+                            key={cc.key}
+                            type="button"
+                            onClick={() => setCouponForms(prev => ({ ...prev, [c.id]: { ...prev[c.id], color: cc.key } }))}
+                            aria-label={cc.label}
+                            title={cc.label}
+                            className={`relative w-10 h-10 rounded-none border-2 transition-transform ${
+                              selected ? 'border-pink-500 ring-2 ring-pink-200 scale-105' : 'border-slate-200 hover:border-pink-300'
+                            }`}
+                            style={{ background: cc.background }}
+                          >
+                            {selected && (
+                              <span className="absolute inset-0 flex items-center justify-center text-sm font-bold" style={{ color: cc.text }}>✓</span>
+                            )}
+                          </button>
+                        );
+                      })}
+                    </div>
+                    <p className="text-[10px] text-slate-400 mt-1">選択中：{getCouponColor((form.color as string) ?? DEFAULT_COUPON_COLOR_KEY).label}</p>
+                  </div>
+
+                  {/* ★ お客様に見えるかたち（★ 公開ページと同じ CouponCard）。 */}
+                  <div>
+                    <p className={labelClass}>お客様に見えるかたち</p>
+                    <CouponCard
+                      title={(form.title as string) || '（タイトル）'}
+                      discount={(form.discount as string) || '（割引内容）'}
+                      conditions={(form.conditions as string) ?? null}
+                      validUntil={(form.valid_until as string) ?? null}
+                      color={(form.color as string) ?? DEFAULT_COUPON_COLOR_KEY}
+                    />
+                  </div>
+                  <div className="flex justify-end">
+                    <button
+                      className={saveBtn}
+                      onClick={() => handleCouponSave(c.id)}
+                      disabled={savingCoupon === c.id}
+                    >
+                      {savingCoupon === c.id ? '保存中...' : '保存'}
+                    </button>
+                  </div>
+                  </div>
+                </div>
+              );
+            })
+          )}
+
           {/* 新規追加フォーム */}
           <div className="bg-white rounded-none border border-pink-100 shadow-sm p-5 space-y-3">
             <h3 className="text-xs font-black text-pink-600">クーポンを新規追加</h3>
@@ -4061,7 +4275,7 @@ export default function MyPage() {
             <div>
               <label className={labelClass}>利用条件</label>
               <textarea
-                rows={2}
+                rows={6}
                 className={textareaClass}
                 placeholder="例: 60分以上のコースをご利用の方限定。他クーポンとの併用不可。"
                 value={newCoupon.conditions}
@@ -4103,6 +4317,19 @@ export default function MyPage() {
               </div>
               <p className="text-[10px] text-slate-400 mt-1">選択中：{getCouponColor(newCoupon.color).label}</p>
             </div>
+
+            {/* ★ お客様に見えるかたち（2026-09-06・カッキーさんの指示）。
+                ★ 部品は公開ページ（/salon/{id}/coupon）と【同じ】CouponCard。★ 本物とずれない。 */}
+            <div>
+              <p className={labelClass}>お客様に見えるかたち</p>
+              <CouponCard
+                title={newCoupon.title || '（タイトル）'}
+                discount={newCoupon.discount || '（割引内容）'}
+                conditions={newCoupon.conditions}
+                validUntil={newCoupon.valid_until}
+                color={newCoupon.color}
+              />
+            </div>
             <label className="flex items-center gap-2 cursor-pointer select-none">
               <input
                 type="checkbox"
@@ -4120,126 +4347,9 @@ export default function MyPage() {
               >
                 {addingCoupon ? '追加中...' : '+ クーポンを追加'}
               </button>
-              <p className="text-[11px] text-slate-400">※新規発行時のみ、保存している会員に通知されます（編集では通知されません）</p>
+              <p className="text-[11px] text-slate-400">公開して新規発行すると、保存している会員に通知されます。内容が間違ってないか確認して追加してください。</p>
             </div>
           </div>
-
-          {/* クーポン一覧（公開・非公開含む） */}
-          {coupons.length === 0 ? (
-            <div className="bg-white rounded-none border border-slate-100 shadow-sm p-5">
-              <p className="text-xs text-slate-400">登録されているクーポンがありません</p>
-            </div>
-          ) : (
-            coupons.map((c) => {
-              const form = couponForms[c.id] ?? {};
-              return (
-                <div key={c.id} className="bg-white rounded-none border border-pink-100 shadow-sm p-5 space-y-3">
-                  {/* ヘッダー：色プレビュー・公開状態・ワンタップ切替・削除 */}
-                  <div className="flex items-center justify-between gap-2">
-                    <div className="flex items-center gap-2">
-                      <span
-                        className="w-6 h-6 rounded-none border border-slate-200 flex-shrink-0"
-                        style={{ background: getCouponColor(c.color).background }}
-                        title={getCouponColor(c.color).label}
-                      />
-                      <span className={`text-[11px] font-bold px-2.5 py-1 rounded-none ${
-                        c.is_published ? 'bg-pink-50 text-pink-600' : 'bg-slate-100 text-slate-400'
-                      }`}>
-                        {c.is_published ? '公開中' : '非公開'}
-                      </span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <button
-                        type="button"
-                        onClick={() => handleCouponTogglePublish(c.id)}
-                        className="px-3 py-1.5 rounded-none border border-pink-300 text-pink-600 text-xs font-bold hover:bg-pink-50 transition-colors"
-                      >
-                        {c.is_published ? '非公開にする' : '公開にする'}
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => handleCouponDelete(c.id)}
-                        disabled={deletingCoupon === c.id}
-                        className="px-3 py-1.5 rounded-none border border-rose-200 text-rose-500 text-xs font-bold bg-rose-50 hover:bg-rose-100 transition-colors disabled:opacity-50"
-                      >
-                        {deletingCoupon === c.id ? '削除中...' : '削除'}
-                      </button>
-                    </div>
-                  </div>
-
-                  <div>
-                    <label className={labelClass}>タイトル <span className="text-rose-400">*</span></label>
-                    <input
-                      className={inputClass}
-                      value={form.title ?? ''}
-                      onChange={(e) => setCouponForms(prev => ({ ...prev, [c.id]: { ...prev[c.id], title: e.target.value } }))}
-                    />
-                  </div>
-                  <div>
-                    <label className={labelClass}>割引内容 <span className="text-rose-400">*</span></label>
-                    <input
-                      className={inputClass}
-                      value={form.discount ?? ''}
-                      onChange={(e) => setCouponForms(prev => ({ ...prev, [c.id]: { ...prev[c.id], discount: e.target.value } }))}
-                    />
-                  </div>
-                  <div>
-                    <label className={labelClass}>利用条件</label>
-                    <textarea
-                      rows={2}
-                      className={textareaClass}
-                      value={(form.conditions as string | null) ?? ''}
-                      onChange={(e) => setCouponForms(prev => ({ ...prev, [c.id]: { ...prev[c.id], conditions: e.target.value } }))}
-                    />
-                  </div>
-                  <div>
-                    <label className={labelClass}>有効期限</label>
-                    <input
-                      type="date"
-                      className={inputClass}
-                      value={(form.valid_until as string | null) ?? ''}
-                      onChange={(e) => setCouponForms(prev => ({ ...prev, [c.id]: { ...prev[c.id], valid_until: e.target.value } }))}
-                    />
-                  </div>
-                  <div>
-                    <label className={labelClass}>背景色</label>
-                    <div className="flex flex-wrap gap-2">
-                      {COUPON_COLORS.map((cc) => {
-                        const selected = ((form.color as string) ?? DEFAULT_COUPON_COLOR_KEY) === cc.key;
-                        return (
-                          <button
-                            key={cc.key}
-                            type="button"
-                            onClick={() => setCouponForms(prev => ({ ...prev, [c.id]: { ...prev[c.id], color: cc.key } }))}
-                            aria-label={cc.label}
-                            title={cc.label}
-                            className={`relative w-10 h-10 rounded-none border-2 transition-transform ${
-                              selected ? 'border-pink-500 ring-2 ring-pink-200 scale-105' : 'border-slate-200 hover:border-pink-300'
-                            }`}
-                            style={{ background: cc.background }}
-                          >
-                            {selected && (
-                              <span className="absolute inset-0 flex items-center justify-center text-sm font-bold" style={{ color: cc.text }}>✓</span>
-                            )}
-                          </button>
-                        );
-                      })}
-                    </div>
-                    <p className="text-[10px] text-slate-400 mt-1">選択中：{getCouponColor((form.color as string) ?? DEFAULT_COUPON_COLOR_KEY).label}</p>
-                  </div>
-                  <div className="flex justify-end">
-                    <button
-                      className={saveBtn}
-                      onClick={() => handleCouponSave(c.id)}
-                      disabled={savingCoupon === c.id}
-                    >
-                      {savingCoupon === c.id ? '保存中...' : '保存'}
-                    </button>
-                  </div>
-                </div>
-              );
-            })
-          )}
         </div>
 
         {/* ── タブ7: お知らせ ── */}
@@ -4250,23 +4360,13 @@ export default function MyPage() {
                  画面が「今日は出ます」と言い、周は出さない、が起きうる形にしない。
               ★ 時刻は店舗IDから決まる（選べない）。設定項目を1つ増やさないため。 */}
           <div className="bg-white rounded-none border border-pink-100 shadow-sm p-5 space-y-1.5">
-            <h3 className="text-xs font-black text-pink-600">自動でお知らせを回す</h3>
+            <h3 className="text-xs font-black text-pink-600">自動でお知らせを回す（1日1投稿）</h3>
             {announceState ? (
               <>
                 <p className="text-[11px] text-slate-600 leading-relaxed">{announceState.message}</p>
-                <p className="text-[10px] text-slate-400 leading-relaxed">
-                  {`いま「自動で回す」に印が付いているお知らせ：${announceState.targetCount}件`}
-                  {announceState.autoTimeLabel ? `　／　この店舗の自動配信の時刻：${announceState.autoTimeLabel}ごろ（変更できません）` : ''}
-                </p>
-                {/* ★ 本数の上限は決めていない。代わりに周期を数字で出す（第70便）。
-                    「たくさん付けたのに出ない」は壊れているのではなく、そういう仕組み。 */}
-                {announceState.cycleMessage && (
-                  <p className="text-[11px] text-slate-600 leading-relaxed">{announceState.cycleMessage}</p>
-                )}
-                <p className="text-[10px] text-slate-400 leading-relaxed pt-1">
-                  1日1回、印を付けたお知らせを順番に1本ずつ出します。手動で出した日は、その日の自動はお休みします。
-                  印を付ける本数に上限はありません（増やすほど、1本が回ってくる間隔が長くなります）。
-                </p>
+                {/* ★★ 周期の1行と、仕組みの説明は消した（2026-09-06・カッキーさんの指示）。
+                    ★ 見出しの「（1日1投稿）」と、上の1行（自動配信設定◯件）で足りる、という判断。
+                    ★ cycleMessage は作る側（announceAuto.ts）に残してある。★ 戻すならここに1行。 */}
               </>
             ) : (
               // ★ 読めていないことを「お休みです」と書き替えない（作法3-5）
@@ -4274,86 +4374,6 @@ export default function MyPage() {
             )}
           </div>
 
-          {/* 新規追加フォーム */}
-          <div className="bg-white rounded-none border border-pink-100 shadow-sm p-5 space-y-3">
-            <h3 className="text-xs font-black text-pink-600">お知らせを新規追加</h3>
-            <div>
-              <label className={labelClass}>タイトル <span className="text-rose-400">*</span></label>
-              <input
-                className={inputClass}
-                placeholder="例: 5月の営業日のお知らせ"
-                value={newAnnouncement.title}
-                onChange={(e) => setNewAnnouncement(p => ({ ...p, title: e.target.value }))}
-              />
-            </div>
-            <div>
-              <label className={labelClass}>本文 <span className="text-rose-400">*</span></label>
-              <textarea
-                rows={5}
-                className={textareaClass}
-                placeholder="お知らせの本文を入力してください。"
-                value={newAnnouncement.content}
-                onChange={(e) => setNewAnnouncement(p => ({ ...p, content: e.target.value }))}
-              />
-            </div>
-            <div>
-              <label className={labelClass}>画像（任意・1枚）</label>
-              <p className="text-[10px] text-slate-400 mb-1.5">推奨：800×450px（横長）／ JPEG・PNG・WebP・5MB以下</p>
-              {newAnnouncement.image_url ? (
-                <div className="relative w-32 h-32 rounded-none overflow-hidden border border-pink-100 bg-slate-50">
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={newAnnouncement.image_url} alt="お知らせ画像" className="w-full h-full object-cover" />
-                  <button
-                    type="button"
-                    onClick={() => setNewAnnouncement(p => ({ ...p, image_url: null }))}
-                    aria-label="削除"
-                    className="absolute top-1 right-1 w-6 h-6 rounded-none bg-black/55 text-white text-xs flex items-center justify-center hover:bg-black/75"
-                  >
-                    ×
-                  </button>
-                </div>
-              ) : (
-                <label className="flex flex-col items-center justify-center w-32 h-32 rounded-none border-2 border-dashed border-pink-200 bg-pink-50/40 text-pink-400 cursor-pointer hover:bg-pink-50 transition-colors">
-                  {uploadingNewAnnouncementImage ? (
-                    <span className="text-[10px] font-bold">アップ中...</span>
-                  ) : (
-                    <>
-                      <span className="text-2xl leading-none">＋</span>
-                      <span className="text-[10px] font-bold mt-0.5">画像を追加</span>
-                    </>
-                  )}
-                  <input
-                    type="file"
-                    accept="image/jpeg,image/png,image/webp"
-                    onChange={handleNewAnnouncementImageUpload}
-                    disabled={uploadingNewAnnouncementImage}
-                    className="hidden"
-                  />
-                </label>
-              )}
-            </div>
-            <label className="flex items-center gap-2 cursor-pointer select-none">
-              <input
-                type="checkbox"
-                className="w-4 h-4 accent-pink-500 flex-shrink-0"
-                checked={newAnnouncement.is_published}
-                onChange={(e) => setNewAnnouncement(p => ({ ...p, is_published: e.target.checked }))}
-              />
-              <span className="text-xs font-bold text-slate-600">公開する（オフにすると非公開で保存）</span>
-            </label>
-            {/* fukuX 同時投稿（新規投稿時のみ有効。編集保存では出さない＝重複ポスト防止）。 */}
-            {renderCrosspostChecks(newAnnCrosspostX, setNewAnnCrosspostX, newAnnCrosspostNoReplies, setNewAnnCrosspostNoReplies)}
-            <div className="flex flex-col items-end gap-1.5">
-              <button
-                className={saveBtn}
-                onClick={handleAnnouncementAdd}
-                disabled={addingAnnouncement || !newAnnouncement.title.trim() || !newAnnouncement.content.trim()}
-              >
-                {addingAnnouncement ? '追加中...' : '+ お知らせを追加'}
-              </button>
-              <p className="text-[11px] text-slate-400">※新規投稿時のみ、保存している会員に通知されます（編集では通知されません）</p>
-            </div>
-          </div>
 
           {/* 再投稿の確認モーダル（標準confirmの置き換え）。文言は既存confirmと同一。
               その下に fukuX 同時投稿チェック（未連携なら disabled＋注記）。 */}
@@ -4367,7 +4387,7 @@ export default function MyPage() {
                 onClick={(e) => e.stopPropagation()}
               >
                 <p className="text-sm font-bold text-slate-700 whitespace-pre-line leading-relaxed">
-                  {`このお知らせを再投稿しますか？\n投稿日時が現在時刻に更新され、一覧の先頭に表示されます。\n（元の投稿日時は失われ、再び新着「NEW!!」扱いになります）`}
+                  {`このお知らせを再投稿しますか？\n投稿日時が現在時刻に更新され、一覧の先頭に表示されます。\n（元の投稿日時は失われ、再び新着「NEW!!」扱いになります）\n★ 再投稿しても、保存している会員には通知されません。`}
                 </p>
                 {/* ★★ 押す前に言う（第68便・§191 守り3）。押したあとに知らせると「壊れている」に見える。
                     ★ ボタンを灰色にして押させないのではなく、押せるまま・理由を先に出す（作法3-7）。 */}
@@ -4405,18 +4425,54 @@ export default function MyPage() {
           ) : (
             announcements.map((a) => {
               const form = announcementForms[a.id] ?? {};
+              // ★ 作成済みのお知らせは畳んでおく。★ 開くと今までの編集画面がそのまま出る。
+              const isAnnOpen = expandedSections.has(`announcement-${a.id}`);
               return (
-                <div key={a.id} className="bg-white rounded-none border border-pink-100 shadow-sm p-5 space-y-3">
-                  {/* ヘッダー：公開状態・公開日時・ワンタップ切替・再投稿・削除 */}
-                  <div className="flex flex-wrap items-center justify-between gap-2">
-                    <div className="flex items-center gap-2 min-w-0">
-                      <span className={`text-[11px] font-bold px-2.5 py-1 rounded-none flex-shrink-0 ${
-                        a.is_published ? 'bg-pink-50 text-pink-600' : 'bg-slate-100 text-slate-400'
-                      }`}>
-                        {a.is_published ? '公開中' : '非公開'}
+                <div key={a.id} className="bg-white rounded-none border border-pink-100 shadow-sm overflow-hidden">
+                  {/* ── 閉じているときのバー（★ 公開状態・タイトル・公開日時）──
+                      ★ クーポンと同じ形（2026-09-06・カッキーさんの指示）。★ お知らせに色は無い。 */}
+                  <button
+                    type="button"
+                    onClick={() => toggleSection(`announcement-${a.id}`)}
+                    aria-expanded={isAnnOpen}
+                    className="w-full flex items-center gap-2 px-5 py-4 text-left hover:bg-pink-50/40 transition-colors"
+                  >
+                    <span className={`text-[11px] font-bold px-2.5 py-1 rounded-none flex-shrink-0 ${
+                      a.is_published ? 'bg-pink-50 text-pink-600' : 'bg-slate-100 text-slate-400'
+                    }`}>
+                      {a.is_published ? '公開中' : '非公開'}
+                    </span>
+                    {/* ★ 自動配信のローテに乗っているか（2026-09-06・カッキーさんの指示）。
+                        ★ 印（auto_rotate）が付いているだけ＝回る対象。★ 実際に今日出たかは別（記録は周が持つ）。 */}
+                    {a.auto_rotate && (
+                      <span
+                        className={`text-[11px] font-bold px-2.5 py-1 rounded-none flex-shrink-0 border ${
+                          a.is_published
+                            ? 'bg-emerald-50 text-emerald-600 border-emerald-100'
+                            : 'bg-white text-emerald-300 border-emerald-100'
+                        }`}
+                        title={a.is_published ? '自動配信のローテに乗っています' : '印は付いていますが、非公開なので回りません'}
+                      >
+                        自動配信中
                       </span>
-                      <span className="text-[10px] text-slate-400 truncate">{formatPublishedAt(a.published_at)}</span>
-                    </div>
+                    )}
+                    <span className="text-sm font-bold text-slate-700 truncate min-w-0">
+                      {a.title || '(タイトル未設定)'}
+                    </span>
+                    <span className="ml-auto flex items-center gap-2 flex-shrink-0">
+                      <span className="hidden sm:inline text-[10px] text-slate-400">{formatPublishedAt(a.published_at)}</span>
+                      <svg
+                        className={`w-4 h-4 text-pink-400 transition-transform duration-200 ${isAnnOpen ? 'rotate-180' : ''}`}
+                        fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}
+                        aria-hidden
+                      >
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+                      </svg>
+                    </span>
+                  </button>
+
+                  {/* ── 開いたときの中身（★ 今までと同じもの） ── */}
+                  <div className={isAnnOpen ? 'px-5 pb-5 pt-4 space-y-3 border-t border-pink-100' : 'hidden'}>
                     <div className="flex flex-wrap items-center gap-2 justify-end">
                       <button
                         type="button"
@@ -4429,7 +4485,7 @@ export default function MyPage() {
                         type="button"
                         onClick={() => handleAnnouncementRepost(a.id)}
                         disabled={repostingAnnouncement === a.id}
-                        title="投稿日時を現在時刻に更新して再投稿します"
+                        title="投稿日時を現在時刻に更新して再投稿します（保存している会員には通知されません）"
                         className="inline-flex items-center gap-1 px-3 py-1.5 rounded-none border border-emerald-300 text-emerald-600 text-xs font-bold bg-emerald-50 hover:bg-emerald-100 transition-colors disabled:opacity-50"
                       >
                         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="flex-shrink-0">
@@ -4449,7 +4505,6 @@ export default function MyPage() {
                         {deletingAnnouncement === a.id ? '削除中...' : '削除'}
                       </button>
                     </div>
-                  </div>
 
                   <div>
                     <label className={labelClass}>タイトル <span className="text-rose-400">*</span></label>
@@ -4531,16 +4586,102 @@ export default function MyPage() {
                       {savingAnnouncement === a.id ? '保存中...' : '保存'}
                     </button>
                   </div>
+                  </div>
                 </div>
               );
             })
           )}
+
+          {/* 新規追加フォーム */}
+          <div className="bg-white rounded-none border border-pink-100 shadow-sm p-5 space-y-3">
+            <h3 className="text-xs font-black text-pink-600">お知らせを新規追加</h3>
+            <div>
+              <label className={labelClass}>タイトル <span className="text-rose-400">*</span></label>
+              <input
+                className={inputClass}
+                placeholder="例: 5月の営業日のお知らせ"
+                value={newAnnouncement.title}
+                onChange={(e) => setNewAnnouncement(p => ({ ...p, title: e.target.value }))}
+              />
+            </div>
+            <div>
+              <label className={labelClass}>本文 <span className="text-rose-400">*</span></label>
+              <textarea
+                rows={5}
+                className={textareaClass}
+                placeholder="お知らせの本文を入力してください。"
+                value={newAnnouncement.content}
+                onChange={(e) => setNewAnnouncement(p => ({ ...p, content: e.target.value }))}
+              />
+            </div>
+            <div>
+              <label className={labelClass}>画像（任意・1枚）</label>
+              <p className="text-[10px] text-slate-400 mb-1.5">推奨：800×450px（横長）／ JPEG・PNG・WebP・5MB以下</p>
+              {newAnnouncement.image_url ? (
+                <div className="relative w-32 h-32 rounded-none overflow-hidden border border-pink-100 bg-slate-50">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={newAnnouncement.image_url} alt="お知らせ画像" className="w-full h-full object-cover" />
+                  <button
+                    type="button"
+                    onClick={() => setNewAnnouncement(p => ({ ...p, image_url: null }))}
+                    aria-label="削除"
+                    className="absolute top-1 right-1 w-6 h-6 rounded-none bg-black/55 text-white text-xs flex items-center justify-center hover:bg-black/75"
+                  >
+                    ×
+                  </button>
+                </div>
+              ) : (
+                <label className="flex flex-col items-center justify-center w-32 h-32 rounded-none border-2 border-dashed border-pink-200 bg-pink-50/40 text-pink-400 cursor-pointer hover:bg-pink-50 transition-colors">
+                  {uploadingNewAnnouncementImage ? (
+                    <span className="text-[10px] font-bold">アップ中...</span>
+                  ) : (
+                    <>
+                      <span className="text-2xl leading-none">＋</span>
+                      <span className="text-[10px] font-bold mt-0.5">画像を追加</span>
+                    </>
+                  )}
+                  <input
+                    type="file"
+                    accept="image/jpeg,image/png,image/webp"
+                    onChange={handleNewAnnouncementImageUpload}
+                    disabled={uploadingNewAnnouncementImage}
+                    className="hidden"
+                  />
+                </label>
+              )}
+            </div>
+            <label className="flex items-center gap-2 cursor-pointer select-none">
+              <input
+                type="checkbox"
+                className="w-4 h-4 accent-pink-500 flex-shrink-0"
+                checked={newAnnouncement.is_published}
+                onChange={(e) => setNewAnnouncement(p => ({ ...p, is_published: e.target.checked }))}
+              />
+              <span className="text-xs font-bold text-slate-600">公開する（オフにすると非公開で保存）</span>
+            </label>
+            {/* fukuX 同時投稿（新規投稿時のみ有効。編集保存では出さない＝重複ポスト防止）。 */}
+            {renderCrosspostChecks(newAnnCrosspostX, setNewAnnCrosspostX, newAnnCrosspostNoReplies, setNewAnnCrosspostNoReplies)}
+            <div className="flex flex-col items-end gap-1.5">
+              <button
+                className={saveBtn}
+                onClick={handleAnnouncementAdd}
+                disabled={addingAnnouncement || !newAnnouncement.title.trim() || !newAnnouncement.content.trim()}
+              >
+                {addingAnnouncement ? '追加中...' : '+ お知らせを追加'}
+              </button>
+              <p className="text-[11px] text-slate-400">公開して新規投稿すると、保存している会員に通知されます。内容が間違ってないか確認して追加してください。</p>
+            </div>
+          </div>
         </div>
 
         {/* ── VIPレタータブ ── */}
         <div className={`space-y-4 ${activeTab === 'vipletter' ? '' : 'hidden'}`}>
           {salon ? (
-            <VipLetterForm salonId={Number(salon.id)} />
+            <>
+              <VipLetterForm salonId={Number(salon.id)} onSent={() => setVipSentReload(v => v + 1)} />
+              {/* ★ 送信済みの一覧（2026-09-06・カッキーさんの指示）。★ 何を・いつ・何人に・何人が開いたか */}
+              <VipLetterSentList salonId={Number(salon.id)} reloadKey={vipSentReload} />
+            </>
           ) : (
             <div className="bg-white rounded-none border border-slate-100 shadow-sm p-5">
               <p className="text-xs text-slate-400">店舗情報を読み込み中です…</p>

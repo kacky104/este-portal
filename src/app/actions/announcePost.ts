@@ -206,7 +206,8 @@ export async function getAnnounceState(input: { salonId: string | number }): Pro
     data: {
       autoTimeLabel: timeLabel,
       targetCount: targetCount ?? 0,
-      message: autoStateMessage(judged, timeLabel),
+      // ★ 本数も渡す（★ 画面の2行目を畳んだので、この1行が本数を持つ・2026-09-06）
+      message: autoStateMessage(judged, timeLabel, targetCount),
       // ★ 本数の上限は決めていない。代わりに周期を数字で出す（第70便）
       cycleMessage: targetCount === null ? null : rotationCycleMessage(targetCount),
     },

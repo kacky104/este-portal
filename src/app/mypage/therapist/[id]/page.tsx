@@ -588,27 +588,25 @@ export default function TherapistEditPage() {
           </p>
         </div>
 
-        {/* 年齢 */}
+        {/* ★ 年齢とスタイルを1つの箱にした（2026-09-06・カッキーさんの指示）。
+            ★ 年齢の箱を無くし、スタイルの並びの先頭に年齢を入れただけ。
+            ★ 保存の中身は今までと同じ（年齢＝age、T/B/CUP/W/H＝body_type）。 */}
         <div className="bg-white rounded-3xl border border-slate-100 shadow-sm p-5 space-y-3">
-          <h2 className="text-sm font-black text-slate-700">年齢</h2>
-          <div className="flex items-center gap-2">
-            <input
-              type="number"
-              min="18"
-              max="99"
-              className={`${inputClass} max-w-[120px]`}
-              placeholder="22"
-              value={(form.age ?? '').replace(/[^0-9]/g, '') || ''}
-              onChange={(e) => setForm((p) => ({ ...p, age: e.target.value }))}
-            />
-            <span className="text-sm text-slate-500 font-medium">歳</span>
-          </div>
-        </div>
-
-        {/* スタイル */}
-        <div className="bg-white rounded-3xl border border-slate-100 shadow-sm p-5 space-y-3">
-          <h2 className="text-sm font-black text-slate-700">スタイル</h2>
-          <div className="grid grid-cols-5 gap-2">
+          <h2 className="text-sm font-black text-slate-700">年齢・スタイル</h2>
+          <div className="grid grid-cols-6 gap-2">
+            {/* 年齢（★ 保存先だけ他と違うので、並びの中でここだけ別に書く） */}
+            <div className="flex flex-col items-center gap-0.5">
+              <span className="text-[10px] font-bold text-slate-400">年齢</span>
+              <input
+                type="number"
+                min="18"
+                max="99"
+                placeholder="22"
+                value={(form.age ?? '').replace(/[^0-9]/g, '') || ''}
+                onChange={(e) => setForm((p) => ({ ...p, age: e.target.value }))}
+                className="w-full px-1.5 py-2 rounded-xl border border-slate-200 text-xs bg-slate-50/50 focus:outline-none focus:ring-2 focus:ring-pink-200 text-center"
+              />
+            </div>
             {(
               [
                 { key: 'height', label: 'T',   placeholder: '160', type: 'number' },
@@ -803,6 +801,14 @@ export default function TherapistEditPage() {
               </div>
             );
           })}
+
+          {/* ★ 保存ボタン（2026-09-06・カッキーさんの指示）。★ バッジを選んだ流れのまま押せる。
+              ★ 押すのは下と同じ handleSave＝【画面全体】が保存される。★ バッジだけではない。 */}
+          <div className="pt-1 flex justify-end">
+            <button className={saveBtn} onClick={handleSave} disabled={saving}>
+              {saving ? '保存中...' : '保存'}
+            </button>
+          </div>
         </div>
 
         {/* 写メ日記 メール投稿アドレス（2026-08-21 第27便）。

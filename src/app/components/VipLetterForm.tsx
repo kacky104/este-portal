@@ -6,12 +6,19 @@ import { sendVipLetter, getSavedSalonMemberCount } from '@/app/actions/vipLetter
 
 // /mypage のVIPレタータブ。クーポン新規追加フォームのデザインに揃える。
 // 送信は Server Action（service_role）で実行。クライアントから直接 insert はしない。
-const inputClass = 'w-full px-3 py-2 rounded-xl border border-slate-200 text-sm bg-slate-50/50 focus:outline-none focus:ring-2 focus:ring-pink-200';
-const textareaClass = 'w-full px-3 py-2 rounded-xl border border-slate-200 text-sm bg-slate-50/50 focus:outline-none focus:ring-2 focus:ring-pink-200 resize-none';
+const inputClass = 'w-full px-3 py-2 rounded-none border border-slate-200 text-sm bg-slate-50/50 focus:outline-none focus:ring-2 focus:ring-pink-200';
+const textareaClass = 'w-full px-3 py-2 rounded-none border border-slate-200 text-sm bg-slate-50/50 focus:outline-none focus:ring-2 focus:ring-pink-200 resize-none';
 const labelClass = 'text-[11px] font-bold text-slate-400 block mb-1';
-const saveBtn = 'px-5 py-2 rounded-xl bg-gradient-to-r from-pink-500 to-fuchsia-500 text-white font-bold text-xs shadow-sm disabled:opacity-50';
+const saveBtn = 'px-5 py-2 rounded-none bg-gradient-to-r from-pink-500 to-fuchsia-500 text-white font-bold text-xs shadow-sm disabled:opacity-50';
 
-export function VipLetterForm({ salonId }: { salonId: number }) {
+export function VipLetterForm({
+  salonId,
+  onSent,
+}: {
+  salonId: number;
+  /** ★ 送信できたら呼ぶ。★ 送信済みの一覧を読み直させるため（2026-09-06） */
+  onSent?: () => void;
+}) {
   const [title, setTitle] = useState('');
   const [body, setBody] = useState('');
   const [couponEnabled, setCouponEnabled] = useState(false);
@@ -63,6 +70,7 @@ export function VipLetterForm({ salonId }: { salonId: number }) {
     }
     if (res.ok) {
       setSentMsg(`VIPレターを送信しました（${res.recipientCount}人に配信）`);
+      onSent?.();   // ★ 下の「送信済み」一覧に、いま送ったものを出す
       setTitle('');
       setBody('');
       setCouponEnabled(false);
@@ -78,14 +86,14 @@ export function VipLetterForm({ salonId }: { salonId: number }) {
   const canSend = title.trim() !== '' && body.trim() !== '' && count !== 0 && !sending;
 
   return (
-    <div className="bg-white rounded-3xl border border-pink-100 shadow-sm p-5 space-y-3">
+    <div className="bg-white rounded-none border border-pink-100 shadow-sm p-5 space-y-3">
       <h3 className="text-xs font-black text-pink-600">VIPレターを新規送信</h3>
       <p className="text-[10px] text-slate-400 leading-relaxed">
         このお店を保存している会員にだけ届く特別なメッセージです。任意で特別クーポンを同梱できます。
       </p>
 
       {/* 対象人数 */}
-      <div className="rounded-xl bg-pink-50/60 border border-pink-100 px-3 py-2 text-[11px] text-slate-600">
+      <div className="rounded-none bg-pink-50/60 border border-pink-100 px-3 py-2 text-[11px] text-slate-600">
         {count === null
           ? '対象人数を確認中…'
           : count === 0
@@ -126,7 +134,7 @@ export function VipLetterForm({ salonId }: { salonId: number }) {
       </label>
 
       {couponEnabled && (
-        <div className="space-y-3 rounded-2xl border border-pink-100 bg-pink-50/30 p-4">
+        <div className="space-y-3 rounded-none border border-pink-100 bg-pink-50/30 p-4">
           <div>
             <label className={labelClass}>割引内容 <span className="text-rose-400">*</span></label>
             <input
@@ -167,7 +175,7 @@ export function VipLetterForm({ salonId }: { salonId: number }) {
                     onClick={() => setCouponColor(cc.key)}
                     aria-label={cc.label}
                     title={cc.label}
-                    className={`relative w-10 h-10 rounded-xl border-2 transition-transform ${
+                    className={`relative w-10 h-10 rounded-none border-2 transition-transform ${
                       selected ? 'border-pink-500 ring-2 ring-pink-200 scale-105' : 'border-slate-200 hover:border-pink-300'
                     }`}
                     style={{ background: cc.background }}
@@ -185,10 +193,10 @@ export function VipLetterForm({ salonId }: { salonId: number }) {
       )}
 
       {error && (
-        <p className="text-xs text-rose-500 bg-rose-50 border border-rose-100 rounded-xl px-3 py-2">{error}</p>
+        <p className="text-xs text-rose-500 bg-rose-50 border border-rose-100 rounded-none px-3 py-2">{error}</p>
       )}
       {sentMsg && (
-        <p className="text-xs text-emerald-600 bg-emerald-50 border border-emerald-100 rounded-xl px-3 py-2">{sentMsg}</p>
+        <p className="text-xs text-emerald-600 bg-emerald-50 border border-emerald-100 rounded-none px-3 py-2">{sentMsg}</p>
       )}
 
       <div className="flex flex-col items-end gap-1.5">

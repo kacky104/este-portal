@@ -1,4 +1,5 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
+import { isVipLetterVisible } from '@/lib/vipLetterWindow';
 
 // VIPレター：会員受信側の型・取得ロジック・未読数。
 // 配信（作成）は service_role 専用（src/app/actions/vipLetters.ts）。ここは受信側の読み取りのみ。
@@ -52,6 +53,10 @@ export async function getMemberVipLetters(supabase: SupabaseClient): Promise<Mem
   for (const r of rows as Record<string, unknown>[]) {
     const letter = r.letter as Record<string, unknown> | null;
     if (!letter) continue; // レターが消えている等
+    // ★ 30日を過ぎたレターは出さない（★ 日数の正は src/lib/vipLetterWindow.ts）。
+    //   ★★ 消しているのは【表示】だけ。★ 行は残っている。
+    //   ★ 日時が読めないものは出す（★「読めなかった」を「期限切れ」に倒さない）。
+    if (!isVipLetterVisible((letter.created_at as string | null) ?? null)) continue;
     const discount = (letter.coupon_discount as string | null) ?? null;
     const sid = Number(letter.salon_id);
     out.push({
@@ -77,13 +82,26 @@ export async function getMemberVipLetters(supabase: SupabaseClient): Promise<Mem
   return out;
 }
 
-/** 自分の未読VIPレター数（read_at が null）。NotificationBell の未読数に合算する。RLS（本人のみ）に依存。 */
+/** 自分の未読VIPレター数（read_at が null）。NotificationBell の未読数に合算する。RLS（本人のみ）に依存。
+ *
+ * ★★★ 30日を過ぎたレターは数えない（2026-09-06）。
+ *   ★ 受信箱に出さないものを未読として数えると、**開きに行けない未読**がベルに残る。
+ *   ★ ベルと一覧をずらさない（notificationFeed.ts と同じ考え方）。
+ */
 export async function getVipUnreadCount(supabase: SupabaseClient): Promise<number> {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return 0;
-  const { count } = await supabase
+  // ★ 期間で絞るため、件数だけ（head)ではなく行を取って数える。★ 未読は多くならない
+  const { data, error } = await supabase
     .from('vip_letter_recipients')
-    .select('id', { count: 'exact', head: true })
+    .select('id, letter:vip_letters(created_at)')
     .is('read_at', null);
-  return count ?? 0;
+  if (error || !data) return 0;
+  let n = 0;
+  for (const r of data as Record<string, unknown>[]) {
+    const letter = r.letter as Record<string, unknown> | null;
+    if (!letter) continue;
+    if (isVipLetterVisible((letter.created_at as string | null) ?? null)) n++;
+  }
+  return n;
 }

@@ -198,22 +198,37 @@ export function nextRotationIndex(current: number | null, count: number): number
  *   ★ どちらも shouldAutoPost の結果だけを見る（設計メモ §196 と同じ「1か所に書く」）。
  *
  * @param timeLabel autoPostTimeLabel の結果（'11:37' など）
+ * @param targetCount 「自動で回す」に印が付いている本数。★ 1本以上のときだけ末尾に出す
+ *   （2026-09-06・カッキーさん）。★ 画面の2行目を畳んだので、本数はこの1行が持つ。
+ *   ★ 0本・読めていないときは付けない（★ 言うことが無い／数えられていない）。
  */
-export function autoStateMessage(result: AutoPostResult, timeLabel: string | null): string {
+export function autoStateMessage(
+  result: AutoPostResult,
+  timeLabel: string | null,
+  targetCount?: number | null,
+): string {
   const t = timeLabel ?? '未定';
+  // ★ 本数の但し書き。★ 数えられていない（null）ときは黙る＝0本と混ぜない
+  const n = typeof targetCount === 'number' && Number.isFinite(targetCount) ? Math.trunc(targetCount) : null;
+  const suffix = n !== null && n > 0 ? '（自動配信設定' + n + '件）' : '';
   // ★ 時刻は過ぎているのに、まだ周が回っていない
-  if (result.post) return 'まもなく、この日のぶんが1本、自動で出ます（' + t + 'ごろ）';
+  if (result.post) return 'まもなく、この日のぶんが1本、自動で出ます（' + t + 'ごろ）' + suffix;
   switch (result.reason) {
     case 'unknown':
       return 'いまは自動配信の状態を読み取れていません';
     case 'no_targets':
       return '「自動で回す」に印を付けたお知らせがないため、自動配信はお休みです';
-    case 'not_yet':
-      return '今日は ' + t + 'ごろに、1本を自動で出します';
+    case 'not_yet': {
+      // ★ 時刻は店舗IDから決まる＝選べない。★ その場で「変更不可」と言う（設定画面を探させない）
+      // ★ カッコは1つにまとめる（★ 「（変更不可）（自動配信設定1件）」と2つ並べない・2026-09-06）
+      // ★ 印が付いた分を順番に出す仕組みの名前として「ローテーション」を添える（★ 1件でも出す）
+      const notes = n !== null && n > 0 ? '変更不可・自動配信設定' + n + '件・ローテーション' : '変更不可';
+      return '今日は ' + t + 'ごろに投稿します（' + notes + '）';
+    }
     case 'done_today':
-      return '今日のぶんは出しました（次は明日 ' + t + 'ごろ）';
+      return '今日のぶんは出しました（次は明日 ' + t + 'ごろ）' + suffix;
     case 'manual_today':
-      return '今日は手動で出したので、自動配信はお休みです（順番も進めません）';
+      return '今日は手動で出したので、自動配信はお休みです（順番も進めません）' + suffix;
   }
 }
 

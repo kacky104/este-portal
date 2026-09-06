@@ -14,7 +14,12 @@ import {
 //   ★ now もあちらへ渡す（★ 点検で「15日前」を作れるように）。
 //
 // - 新着の定義：保存サロンを「保存した日時（saved_items.created_at）より後」に出た公開済みの
-//   announcement（published_at で判定）と coupon（created_at で判定）。
+//   announcement・coupon とも【created_at】で判定する。
+//   ★★★ お知らせは published_at ではない（2026-09-06・カッキーさんの決定）。
+//     published_at は「フクエスTOPの並び」を動かすための日時で、再投稿と自動配信で毎日進む。
+//     ★ これで判定すると、同じお知らせが【何度も新着として通知される】。
+//     ★ created_at は書いた日時で、再投稿でも自動配信でも動かない。
+//     → 通知が鳴るのは【新しく書いたとき1回だけ】。★ 並び順は今までどおり published_at。
 //   ★★ かつ【直近14日】（第103便・カッキーさんの決定「見てないだけで1ヶ月放置は新着ではない」）。
 // - 未読の定義：上記のうち notification_reads.last_checked_at より後に出たもの。
 //   ★★ 数えるのは【絞ったあとの行】だけ。★ ベルと一覧をずらさない。
@@ -26,7 +31,7 @@ export type NotificationItem = {
   salonId: number;
   salonName: string;
   title: string;
-  at: string;                           // ISO日時（announcement=published_at / coupon=created_at）
+  at: string;                           // ISO日時（announcement・coupon とも created_at＝書いた日時）
   href: string;                         // 遷移先（お知らせ→/news、クーポン→/coupon）
   isUnread: boolean;
   /** ★ この店には出していない新着がまだある。★ 件数は持たない（第103便の判断） */
@@ -69,10 +74,11 @@ export async function getNotificationFeed(supabase: SupabaseClient): Promise<Not
   const [annRes, coupRes, salonRes, readRes] = await Promise.all([
     supabase
       .from('announcements')
-      .select('id, salon_id, title, published_at')
+      // ★ created_at で見る（★ published_at は再投稿・自動配信で進むため。上のコメント）
+      .select('id, salon_id, title, created_at')
       .in('salon_id', salonIds)
       .eq('is_published', true)
-      .gte('published_at', windowStartISO),
+      .gte('created_at', windowStartISO),
     supabase
       .from('coupons')
       .select('id, salon_id, title, created_at')
@@ -101,7 +107,7 @@ export async function getNotificationFeed(supabase: SupabaseClient): Promise<Not
       salonId: sid,
       salonName: salonNameById.get(sid) ?? '',
       title: (a.title as string) ?? '',
-      at: (a.published_at as string) ?? '',
+      at: (a.created_at as string) ?? '',
       href: `/salon/${sid}/news`,
       savedAt: savedAtBySalon.get(sid) ?? null,
     });

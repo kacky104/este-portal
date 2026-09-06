@@ -8,7 +8,7 @@ import { VipLetterIcon } from '@/app/components/VipLetterIcon';
 import { notFound } from "next/navigation";
 import { createPublicClient } from "@/app/lib/supabase/public";
 import { getTheme, breadcrumbCurrentColor } from "@/app/lib/themes";
-import { getCouponColor } from "@/app/lib/couponColors";
+import { CouponCard } from "@/app/components/CouponCard";
 import type { Metadata } from "next";
 import { buildSalonSubpageMetadata } from "../subpageMetadata";
 import { SiteNoticeBanner } from '@/app/components/SiteNoticeBanner';
@@ -22,15 +22,6 @@ export async function generateMetadata({
 }): Promise<Metadata> {
   const { id } = await params;
   return buildSalonSubpageMetadata(id, "coupon", "クーポン");
-}
-
-// 有効期限の表示整形（"2026-07-31" → "2026年7月31日"）。
-function formatValidUntil(d: string): string {
-  const dt = new Date(`${d}T00:00:00+09:00`);
-  if (Number.isNaN(dt.getTime())) return '';
-  return new Intl.DateTimeFormat('ja-JP', {
-    timeZone: 'Asia/Tokyo', year: 'numeric', month: 'long', day: 'numeric',
-  }).format(dt);
 }
 
 // ISR：10分ごとに再生成（保存時は /api/revalidate で即時無効化）。
@@ -162,60 +153,18 @@ export default async function SalonCouponPage({
           </div>
         ) : (
           <div className="flex flex-col gap-5 max-w-xl mx-auto">
-            {coupons.map(c => {
-              // 券の色プリセット（未設定/不明値は pink デフォルトにフォールバック。色は couponColors が唯一のソース）
-              const cc = getCouponColor(c.color);
-              return (
-                <div key={c.id} className="rounded-[20px] bg-white shadow-md overflow-hidden flex flex-col">
-                  {/* 上部カラー帯（~60px、プリセット色 → やや暗めの同系グラデ） */}
-                  <div
-                    className="relative flex items-center px-5 min-h-[64px] py-3"
-                    style={{ background: `linear-gradient(135deg, rgba(0,0,0,0.05) 0%, rgba(0,0,0,0.36) 100%), ${cc.background}` }}
-                  >
-                    <h3
-                      className="font-bold text-white text-base break-words pr-20"
-                      style={{ textShadow: '0 1px 3px rgba(0,0,0,0.5)' }}
-                    >
-                      {c.title}
-                    </h3>
-                    {/* 点線の丸スタンプ風（右）：フクエス／を見た！ */}
-                    <div
-                      className="absolute right-4 top-1/2 -translate-y-1/2 w-12 h-12 rounded-full border-2 border-dashed flex flex-col items-center justify-center text-white text-center leading-none"
-                      style={{ borderColor: 'rgba(255,255,255,0.85)', textShadow: '0 1px 2px rgba(0,0,0,0.45)' }}
-                    >
-                      <span className="text-[9px] font-bold">フクエス</span>
-                      <span className="text-[9px] font-bold mt-0.5">を見た！</span>
-                    </div>
-                  </div>
-
-                  {/* 本文 */}
-                  <div className="p-5 flex flex-col gap-2">
-                    {/* 割引額（大きく・濃いトーン） */}
-                    <p className="text-2xl font-extrabold leading-tight break-words" style={{ color: cc.accent }}>
-                      {c.discount}
-                    </p>
-
-                    {/* 説明（条件） */}
-                    {c.conditions && (
-                      <p className="text-sm text-slate-500 leading-relaxed break-words whitespace-pre-wrap">{c.conditions}</p>
-                    )}
-
-                    {/* 有効期限 */}
-                    {c.validUntil && (
-                      <p className="text-xs text-slate-400">有効期限：{formatValidUntil(c.validUntil)}まで</p>
-                    )}
-
-                    {/* 点線区切り＋必須文言（全クーポン共通・固定表示） */}
-                    <div className="mt-1 border-t border-dashed border-slate-200" />
-                    <p className="text-xs text-slate-500 leading-relaxed">
-                      ご利用の際は
-                      <span className="font-bold" style={{ color: cc.accent }}>『フクエスを見た！』</span>
-                      とお伝えください
-                    </p>
-                  </div>
-                </div>
-              );
-            })}
+            {/* ★ 券の見た目は src/app/components/CouponCard.tsx が唯一の正（2026-09-06）。
+                ★ /mypage の入力画面のプレビューも同じ部品を使う＝本物とずれない。 */}
+            {coupons.map(c => (
+              <CouponCard
+                key={c.id}
+                title={c.title}
+                discount={c.discount}
+                conditions={c.conditions}
+                validUntil={c.validUntil}
+                color={c.color}
+              />
+            ))}
           </div>
         )}
       </main>

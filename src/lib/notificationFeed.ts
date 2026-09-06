@@ -8,6 +8,10 @@
 //     ・全体の上限     … 保存100店なら無制限に伸びる
 //   ★★ さらに、お知らせの自動配信（第102便）で published_at が毎日進むので、
 //     同じお知らせが【何度も新着に戻ってくる】。★ 溜まり方が加速する。
+//   ★★★ 2026-09-06（カッキーさんの決定）: この最後の1つは【材料の側】で断った。
+//     お知らせも created_at（書いた日時）で見るようにした（src/app/lib/notifications.ts）。
+//     ★ 再投稿しても自動配信で回っても、通知が鳴るのは書いたとき1回だけ。
+//     ★ 並び順（フクエスTOP・店舗ページ）は今までどおり published_at。
 //
 // ★★★ 「新着」の意味を決めた（2026-09-02・カッキーさん）
 //   > 「見てないだけで1ヶ月放置されているものは新着とは呼ばない」
@@ -44,7 +48,7 @@ export type FeedCandidate = {
   salonId: number;
   salonName: string;
   title: string;
-  /** 出た時刻（announcement=published_at / coupon=created_at）のISO */
+  /** 出た時刻（announcement・coupon とも created_at＝書いた日時）のISO */
   at: string;
   /** 押したときの行き先 */
   href: string;

@@ -3,6 +3,7 @@
 import { createClient } from '@/app/lib/supabase/server';
 import { createServiceClient } from '@/app/lib/supabase/service';
 import { ADMIN_UUID } from '@/app/lib/admin';
+import { vipLetterWindowStartISO, VIP_LETTER_WINDOW_DAYS } from '@/lib/vipLetterWindow';
 
 // VIPレターの配信（サーバー専用）。
 // - 送信者がその salon の owner 本人（または管理者）であることをサーバー側で検証。
@@ -112,6 +113,101 @@ export async function sendVipLetter(
   if (recErr) return { ok: false, error: recErr.message };
 
   return { ok: true, recipientCount: userIds.length };
+}
+
+/** 一覧に出す日数（★ 画面の注記に出す）。★ 正は src/lib/vipLetterWindow.ts。 */
+export const SENT_LETTERS_WINDOW_DAYS = VIP_LETTER_WINDOW_DAYS;
+
+/** 店舗が過去に送ったVIPレター1通ぶん（★ 店舗側の一覧用）。 */
+export type SentVipLetter = {
+  id: string;
+  title: string;
+  body: string;
+  sentAt: string;                 // ISO（vip_letters.created_at）
+  recipientCount: number;         // 送った人数
+  readCount: number;              // そのうち開いた人数
+  coupon: {
+    discount: string;
+    terms: string | null;
+    expiresAt: string | null;     // 'YYYY-MM-DD'
+    color: string;
+  } | null;
+};
+
+/** 一覧に出す最大件数。★ 上限を決めておく（古いものは画面で追わない）。 */
+const SENT_LETTERS_LIMIT = 50;
+
+/**
+ * 送信済みVIPレターの一覧（owner検証必須・service_role で読む）。
+ *
+ * ★★★ なぜ要るか（2026-09-06・カッキーさんの指示）
+ *   送信フォームしか無く、店舗様は【自分が何を送ったか】を画面で確認できなかった。
+ *   ★ 送信は取り消せない。★ せめて「何を・いつ・何人に」は後から見えるべき。
+ *
+ * ★ 開封数は vip_letter_recipients.read_at から数える。
+ *   ★★ 数えられなかったときは 0 と書かない——読めない場合はその通に 0 を入れず、
+ *     recipientCount と readCount を分けて返し、画面側で「—」を出せるようにする…のではなく、
+ *     ここでは【読めなければエラーを返す】。★ 0人と「分からない」を混ぜない（作法3-3）。
+ */
+export async function getSentVipLetters(
+  salonId: number,
+): Promise<{ letters: SentVipLetter[] } | { error: string }> {
+  const auth = await assertOwner(salonId);
+  if ('error' in auth) return { error: auth.error };
+
+  const svc = createServiceClient();
+  // ★ 出すのは直近 VIP_LETTER_WINDOW_DAYS 日ぶんだけ（★ 会員の受信箱と同じ日数・src/lib/vipLetterWindow.ts）。
+  //   ★★ 消しているのは【表示】だけ。★ 行は残っている（消した行は戻せないため）。
+  const { data: rows, error } = await svc
+    .from('vip_letters')
+    .select('id, title, body, coupon_discount, coupon_terms, coupon_expires_at, coupon_color, created_at')
+    .eq('salon_id', salonId)
+    .gte('created_at', vipLetterWindowStartISO())
+    .order('created_at', { ascending: false })
+    .limit(SENT_LETTERS_LIMIT);
+  if (error) return { error: error.message };
+
+  const letters = (rows ?? []) as Record<string, unknown>[];
+  if (letters.length === 0) return { letters: [] };
+
+  // ★ 宛先は letter_id でまとめて引き、こちらで数える（★ 1通ずつ問い合わせない）。
+  const ids = letters.map((l) => l.id as string);
+  const { data: recRows, error: recErr } = await svc
+    .from('vip_letter_recipients')
+    .select('letter_id, read_at')
+    .in('letter_id', ids);
+  if (recErr) return { error: recErr.message };
+
+  const sent = new Map<string, number>();
+  const read = new Map<string, number>();
+  for (const r of (recRows ?? []) as Record<string, unknown>[]) {
+    const lid = r.letter_id as string;
+    sent.set(lid, (sent.get(lid) ?? 0) + 1);
+    if (r.read_at != null) read.set(lid, (read.get(lid) ?? 0) + 1);
+  }
+
+  return {
+    letters: letters.map((l) => {
+      const discount = (l.coupon_discount as string | null) ?? null;
+      const id = l.id as string;
+      return {
+        id,
+        title: (l.title as string) ?? '',
+        body: (l.body as string) ?? '',
+        sentAt: (l.created_at as string) ?? '',
+        recipientCount: sent.get(id) ?? 0,
+        readCount: read.get(id) ?? 0,
+        coupon: discount
+          ? {
+              discount,
+              terms: (l.coupon_terms as string | null) ?? null,
+              expiresAt: (l.coupon_expires_at as string | null) ?? null,
+              color: (l.coupon_color as string | null) ?? 'pink',
+            }
+          : null,
+      };
+    }),
+  };
 }
 
 // ─────────────────────────────────────────────────────────────
