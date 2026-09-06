@@ -4443,9 +4443,28 @@ export default function MyPage() {
             {/* 投稿フォーム（セラピスト選択時のみ表示） */}
             {diaryTherapistId && (
               <div ref={diaryFormRef} className="border-t border-slate-100 pt-4 space-y-3 scroll-mt-28">
-                <p className="text-[11px] font-bold text-slate-400">
-                  投稿フォーム（{therapists.find(t => String(t.id) === diaryTherapistId)?.name ?? ''}）
-                </p>
+                {/* ★ 見出しの右に、そのセラピストの丸アイコン（第191便・2026-09-07・カッキーさんの指示）。
+                    ★ 上の一覧と同じ profile_image_url。★ 写真が無ければ名前の1文字（一覧と同じ出し方）。
+                    ★ 誰の日記を書いているかを、文字と絵の両方で見せる（★ 選び間違いに気づきやすくする）。 */}
+                {(() => {
+                  const dt = therapists.find(t => String(t.id) === diaryTherapistId);
+                  const dtName = dt?.name ?? '';
+                  return (
+                    <div className="flex items-center gap-2">
+                      <p className="text-[11px] font-bold text-slate-400">投稿フォーム（{dtName}）</p>
+                      <span className="inline-flex w-7 h-7 rounded-full overflow-hidden border border-pink-200 bg-slate-100 flex-none" aria-hidden="true">
+                        {dt?.profile_image_url ? (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img src={dt.profile_image_url} alt="" className="w-full h-full object-cover" />
+                        ) : (
+                          <span className="w-full h-full flex items-center justify-center text-slate-300 text-[11px] font-bold">
+                            {(dtName || '?').charAt(0)}
+                          </span>
+                        )}
+                      </span>
+                    </div>
+                  );
+                })()}
 
                 {/* 画像（1枚） */}
                 <div>
