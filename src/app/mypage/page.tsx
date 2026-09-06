@@ -104,8 +104,18 @@ async function fetchAnnouncementList(salonId: number): Promise<Announcement[]> {
   return (data ?? []) as Announcement[];
 }
 
+// ★★★ 画面の種類（2026-09-06・サイドバー化）。
+//   ★ 以前は「店舗」タブに7つの箱を縦に積んでいた。★ 縦長で、店舗様がどこに何があるか分からない。
+//   ★ フクエスリンク（/mypage/media）と同じく【1画面1つ】に割って、左のサイドバーで選ぶ形にした。
+//   ★ 'board'（予約ボード）はサイドバーに出さない（ヘッダーのピンク文字から開く）。
+export type TabKey =
+  | 'salon' | 'course' | 'photos'
+  | 'theme' | 'banner' | 'popup' | 'freepage'
+  | 'schedule' | 'available' | 'profile' | 'diary' | 'coupon' | 'news' | 'vipletter'
+  | 'board' | 'booking' | 'jobs' | 'support';
+
 // タブのアイコン（既存サイトと同系統の tabler/lucide 風アウトラインアイコン）。
-function tabIcon(key: 'salon' | 'schedule' | 'available' | 'profile' | 'diary' | 'coupon' | 'news' | 'vipletter' | 'board' | 'booking' | 'jobs' | 'popup' | 'support' | 'media') {
+function tabIcon(key: TabKey | 'media') {
   const common = {
     width: 14, height: 14, viewBox: '0 0 24 24', fill: 'none',
     stroke: 'currentColor', strokeWidth: 2,
@@ -113,6 +123,49 @@ function tabIcon(key: 'salon' | 'schedule' | 'available' | 'profile' | 'diary' |
     className: 'flex-shrink-0',
   };
   switch (key) {
+    case 'course': // コースメニュー（receipt）
+      return (
+        <svg {...common}>
+          <path d="M5 21V5a2 2 0 0 1 2 -2h10a2 2 0 0 1 2 2v16l-3 -2l-2 2l-2 -2l-2 2l-2 -2z" />
+          <path d="M9 7h6" /><path d="M9 11h6" />
+        </svg>
+      );
+    case 'photos': // 店舗画像（photo）
+      return (
+        <svg {...common}>
+          <rect x="3" y="5" width="18" height="14" rx="2" />
+          <circle cx="8.5" cy="10" r="1.5" /><path d="M21 15l-5 -5l-11 9" />
+        </svg>
+      );
+    case 'theme': // テーマ（paint）
+      return (
+        <svg {...common}>
+          <rect x="3" y="4" width="18" height="6" rx="2" />
+          <path d="M12 10v4" /><rect x="9" y="14" width="6" height="6" rx="1" />
+        </svg>
+      );
+    case 'banner': // 詳細ページバナー（横長の帯）
+      return (
+        <svg {...common}>
+          <rect x="3" y="6" width="18" height="5" rx="1" />
+          <rect x="3" y="14" width="18" height="4" rx="1" />
+        </svg>
+      );
+    case 'popup': // ポップアップ（megaphone）
+      return (
+        <svg {...common}>
+          <path d="M3 11l14 -5v12l-14 -5v-2z" />
+          <path d="M11.6 16.8a3 3 0 1 1 -5.8 -1.6" />
+        </svg>
+      );
+    case 'freepage': // フリーページ（file-text）
+      return (
+        <svg {...common}>
+          <path d="M14 3v4a1 1 0 0 0 1 1h4" />
+          <path d="M17 21h-10a2 2 0 0 1 -2 -2v-14a2 2 0 0 1 2 -2h7l5 5v11a2 2 0 0 1 -2 2z" />
+          <path d="M9 13h6" /><path d="M9 17h4" />
+        </svg>
+      );
     case 'salon': // 店舗（building-store）
       return (
         <svg {...common}>
@@ -169,13 +222,6 @@ function tabIcon(key: 'salon' | 'schedule' | 'available' | 'profile' | 'diary' |
           <path d="M3 7l9 6 9-6" />
         </svg>
       );
-    case 'popup': // ポップアップ（megaphone）
-      return (
-        <svg {...common}>
-          <path d="M3 11l14 -5v12l-14 -5v-2z" />
-          <path d="M11.6 16.8a3 3 0 1 1 -5.8 -1.6" />
-        </svg>
-      );
     case 'available': // 今すぐ（clock）
       return (
         <svg {...common}>
@@ -226,6 +272,34 @@ function tabIcon(key: 'salon' | 'schedule' | 'available' | 'profile' | 'diary' |
     default:
       return null;
   }
+}
+
+// ★★★ サイドバーの並び（2026-09-06）。★ group はその項目の【上】に出す見出し。
+//   ★ 順番は「店舗の基本 → 見た目 → 日々の更新 → 予約・求人 → その他」。
+const MYPAGE_NAV: Array<{ key: TabKey; label: string; group?: string }> = [
+  { key: 'salon',     label: '店舗情報',        group: '店舗の基本' },
+  { key: 'course',    label: 'コースメニュー' },
+  { key: 'photos',    label: '店舗画像' },
+  { key: 'theme',     label: 'テーマ（背景壁紙）', group: '店舗装飾' },
+  { key: 'banner',    label: '詳細ページバナー' },
+  { key: 'popup',     label: 'ポップアップ画像' },
+  { key: 'freepage',  label: 'フリーページ' },
+  { key: 'schedule',  label: '出勤',            group: '日々の更新' },
+  { key: 'available', label: '今すぐ' },
+  { key: 'profile',   label: 'セラピスト' },
+  { key: 'diary',     label: '日記' },
+  { key: 'coupon',    label: 'クーポン' },
+  { key: 'news',      label: 'お知らせ' },
+  { key: 'vipletter', label: 'VIPレター' },
+  { key: 'booking',   label: 'ネット予約',      group: '予約・求人' },
+  { key: 'jobs',      label: '求人' },
+  { key: 'support',   label: '運営事務局',      group: 'その他' },
+];
+
+// ★ URL の ?tab= に出す値。★ 知らない値が来たら 'salon' に倒す（存在しない画面を作らない）。
+const TAB_KEYS = new Set<string>([...MYPAGE_NAV.map((n) => n.key), 'board']);
+function parseTabKey(raw: string | null): TabKey {
+  return raw && TAB_KEYS.has(raw) ? (raw as TabKey) : 'salon';
 }
 
 // 公開日時の表示整形（JST・"2026年6月20日 19:12"）。
@@ -539,17 +613,42 @@ export default function MyPage() {
   // トーストは共通フックで一元管理（タイマー直書きは連続表示・unmount後setStateのバグ源）。
   const { toast, showToast } = useToast();
   const [saving, setSaving] = useState(false);
-  // ★ コースメニュー設定ブロックの開閉（既定は閉じる・2026-09-06）。
-  const [courseOpen, setCourseOpen] = useState(false);
-  // ★ 店舗画像の設定ブロックの開閉（既定は閉じる・2026-09-06）。
-  const [salonImageOpen, setSalonImageOpen] = useState(false);
-  // ★ 店舗情報の設定ブロックの開閉（既定は閉じる・2026-09-06）。
-  const [salonInfoOpen, setSalonInfoOpen] = useState(false);
+  // ★ コースメニュー設定ブロックの開閉（★ 独立画面になったので既定は開く・2026-09-06）。
+  const [courseOpen, setCourseOpen] = useState(true);
+  // ★ 店舗画像の設定ブロックの開閉（★ 独立画面になったので既定は開く・2026-09-06）。
+  const [salonImageOpen, setSalonImageOpen] = useState(true);
+  // ★ 店舗情報の設定ブロックの開閉（★ 独立画面になったので既定は開く・2026-09-06）。
+  const [salonInfoOpen, setSalonInfoOpen] = useState(true);
   // 通知先メールのテスト送信（2026-08-16）。送信中の二度押し防止＋結果メッセージの保持。
   const [mailTesting, setMailTesting] = useState(false);
   const [mailTestResult, setMailTestResult] = useState<{ ok: boolean; msg: string } | null>(null);
   const [savingSchedule, setSavingSchedule] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<'salon' | 'schedule' | 'profile' | 'available' | 'diary' | 'coupon' | 'news' | 'vipletter' | 'board' | 'booking' | 'jobs' | 'popup' | 'support'>('salon');
+  const [activeTab, setActiveTab] = useState<TabKey>('salon');
+  // ★★ 開いている画面を URL に残す（?tab=course）。2026-09-06
+  //   ★ 再読み込みしても同じ画面に戻る。★ 「←戻る」で1つ前の画面へ戻る。
+  //   ★ tabReady が立つまでURLへ書かない（読み取り前の 'salon' で上書きしないため）。
+  const [tabReady, setTabReady] = useState(false);
+  useEffect(() => {
+    const read = () => setActiveTab(parseTabKey(new URLSearchParams(window.location.search).get('tab')));
+    read();
+    setTabReady(true);
+    window.addEventListener('popstate', read);
+    return () => window.removeEventListener('popstate', read);
+  }, []);
+  // ★ 求人はフクエスワーク掲載店だけの画面。★ ?tab=jobs を直接開かれても、契約がなければ店舗情報へ倒す
+  //   （★ サイドバーに項目がなく本文も出ない＝真っ白、を作らない）。
+  useEffect(() => {
+    if (activeTab === 'jobs' && salon && !salon.jobs_enabled) setActiveTab('salon');
+  }, [activeTab, salon]);
+  useEffect(() => {
+    if (!tabReady) return;
+    const url = new URL(window.location.href);
+    // ★ 生の値と比べる（★ ?tab=bogus のような値をURLに残さないため）。
+    if (url.searchParams.get('tab') === (activeTab === 'salon' ? null : activeTab)) return;
+    if (activeTab === 'salon') url.searchParams.delete('tab');
+    else url.searchParams.set('tab', activeTab);
+    window.history.pushState(null, '', url.toString());
+  }, [activeTab, tabReady]);
   /** ★ 媒体連携が「書き込みの向きのまま止まっている」警告（第47便）。トップに出す */
   const [mediaAlerts, setMediaAlerts] = useState<MediaLinkAlert[]>([]);
   /**
@@ -1292,6 +1391,9 @@ export default function MyPage() {
         officialUrl = raw;
       } catch {
         setSaving(false);
+        // ★ この欄は「店舗情報」の画面にある。★ 別の画面から保存したときは、そこへ連れて行く
+        //   （★ 2026-09-06 の画面分割で、欄が見えないまま怒られる形になったため）。
+        setActiveTab('salon');
         showToast('正しいURL（https://〜）を入力してください');
         return;
       }
@@ -1307,6 +1409,9 @@ export default function MyPage() {
         fukuxUrl = fukuxRaw;
       } catch {
         setSaving(false);
+        // ★ この欄は「店舗情報」の画面にある。★ 別の画面から保存したときは、そこへ連れて行く
+        //   （★ 2026-09-06 の画面分割で、欄が見えないまま怒られる形になったため）。
+        setActiveTab('salon');
         showToast('正しいURL（https://〜）を入力してください');
         return;
       }
@@ -1318,6 +1423,7 @@ export default function MyPage() {
     if (payRaw) {
       if (!/^https?:\/\//i.test(payRaw)) {
         setSaving(false);
+        setActiveTab('salon');   // ★ 決済URLの欄も「店舗情報」の画面にある
         showToast('決済URLは http:// または https:// から始めてください');
         return;
       }
@@ -2184,7 +2290,7 @@ export default function MyPage() {
 
       <div className="sticky top-0 z-40 bg-white shadow-sm">
         <header className="border-b border-slate-100">
-          <div className="max-w-2xl mx-auto px-4 py-3 flex items-center justify-between">
+          <div className="px-4 md:px-6 py-3 flex items-center justify-between">
             <h1 className="text-base font-black text-slate-800 tracking-wide">マイページ</h1>
             <div className="flex items-center gap-4">
               {/* 予約ボードへの近道（2026-08-14 追加）。営業中いちばん使うタブなのでヘッダーに常設し、
@@ -2205,6 +2311,84 @@ export default function MyPage() {
           </div>
         </header>
         <SiteNoticeBanner />
+
+      </div>
+
+      {/* ── 左サイドバー ＋ 右側の本文（2026-09-06・サイドバー化）──
+          ★★ PCは左に縦並び。★ スマホは上に折り返して並ぶチップ（見た目は今までとほぼ同じ）。
+          ★★ ただし【スマホではチップ列がスクロールで流れる】（以前はヘッダーに貼りついていた）。
+          ★ 中身（各画面）は今までと同じものを hidden で出し分けている。作りは変えていない。 */}
+      <div className="md:flex md:items-start">
+        <aside className="bg-white border-b border-slate-100 md:border-b-0 md:border-r md:w-[210px] md:flex-none md:self-start">
+          <nav
+            aria-label="マイページのメニュー"
+            className="flex flex-wrap justify-center gap-1.5 px-3 py-2 md:flex-col md:flex-nowrap md:justify-start md:gap-0 md:px-0 md:py-2"
+          >
+            {MYPAGE_NAV
+              // 求人はフクエスワーク掲載（jobs_enabled）契約店のみ表示。
+              .filter((n) => n.key !== 'jobs' || Boolean(salon?.jobs_enabled))
+              .map((n) => {
+                const selected = activeTab === n.key;
+                return (
+                  <div key={n.key} className="contents">
+                    {/* ★ グループの見出しはPCだけ（スマホは折り返しチップなので見出しが邪魔になる） */}
+                    {n.group && (
+                      <div className="hidden md:block px-4 pt-3.5 pb-1 text-[10px] font-bold text-slate-400 tracking-wider">
+                        {n.group}
+                      </div>
+                    )}
+                    <button
+                      onClick={() => setActiveTab(n.key)}
+                      aria-pressed={selected}
+                      className={`inline-flex items-center gap-1 px-3 py-1.5 rounded-none border text-[11px] font-bold transition-colors md:w-full md:justify-start md:gap-2 md:border-0 md:border-l-4 md:px-4 md:py-2.5 md:text-[13px] ${
+                        selected
+                          ? 'bg-pink-50 text-pink-600 border-pink-300 md:border-l-pink-500'
+                          : 'bg-white text-slate-400 border-slate-200 hover:text-slate-600 hover:border-slate-300 md:border-l-transparent md:hover:bg-pink-50/40'
+                      }`}
+                    >
+                      {tabIcon(n.key)}
+                      {n.label}
+                      {/* 「ネット予約」: 未処理（新規リクエスト）件数のバッジ（2026-08-17 / 第20便）。
+                          ★ 色は運営事務局の未読バッジと同じピンク＝「要対応」。
+                            赤（rose）は /admin でメール不達＝取りこぼし専用にしてあるので使わない。 */}
+                      {n.key === 'booking' && bookingNewCount > 0 && (
+                        <span className="inline-flex items-center justify-center min-w-[16px] h-[16px] px-1 rounded-none bg-pink-500 text-white text-[9px] font-black leading-none md:ml-auto">
+                          {bookingNewCount}
+                        </span>
+                      )}
+                      {/* 「運営事務局」: 未読お知らせ件数のバッジ */}
+                      {n.key === 'support' && supportUnread > 0 && (
+                        <span className="inline-flex items-center justify-center min-w-[16px] h-[16px] px-1 rounded-none bg-pink-500 text-white text-[9px] font-black leading-none md:ml-auto">
+                          {supportUnread}
+                        </span>
+                      )}
+                    </button>
+                  </div>
+                );
+              })}
+
+            {/* ★★★ 媒体連携（第55便・㉜）。★ タブではなく専用ページ /mypage/media への入口。
+                ★ 出す相手にしか描かない（第54便の方針は変えていない）。
+                  ★ 隠すのではなく描かない: hidden だとページの中身から読める。
+                ★ 新しいタブで開く（2026-08-30・カッキーさんの決定）。 */}
+            {mediaVisible && (
+              <div className="contents">
+                <div className="hidden md:block px-4 pt-3.5 pb-1 text-[10px] font-bold text-slate-400 tracking-wider">別のサイト</div>
+                <Link
+                  href="/mypage/media"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1 px-3 py-1.5 rounded-none border text-[11px] font-bold transition-colors bg-white text-slate-400 border-slate-200 hover:text-slate-600 hover:border-slate-300 md:w-full md:justify-start md:gap-2 md:border-0 md:border-l-4 md:border-l-transparent md:px-4 md:py-2.5 md:text-[13px] md:hover:bg-pink-50/40"
+                >
+                  {tabIcon('media')}
+                  媒体連携
+                </Link>
+              </div>
+            )}
+          </nav>
+        </aside>
+
+        <div className="flex-1 min-w-0">
 
         {/* ★★★ 媒体連携が「書き込みの向きのまま止まっている」ときの警告（第47便）。
             ★ タブの中ではなくトップに出す。媒体連携タブを開かない限り気づけない、では見張りにならない
@@ -2244,81 +2428,6 @@ export default function MyPage() {
           </div>
         )}
 
-        {/* タブナビゲーション（アイコン＋短縮ラベルのチップ。横に並びきらなければ折り返す） */}
-        <div className="max-w-2xl mx-auto px-3 py-2 flex flex-wrap justify-center gap-1.5">
-          {([
-            ['salon',     '店舗'],
-            ['popup',     '店舗装飾'],
-            ['schedule',  '出勤'],
-            ['available', '今すぐ'],
-            ['profile',   'セラピスト'],
-            ['diary',     '日記'],
-            ['coupon',    'クーポン'],
-            ['news',      'お知らせ'],
-            ['vipletter', 'VIPレター'],
-            // 予約ボードはタブ列には出さない（ヘッダー常設のピンク「予約ボード」から開く・2026-08-14）。
-            // activeTab='board' とタブ本体はそのまま生きている。
-            ['booking',   'ネット予約'],
-            ['jobs',      '求人'],
-            // ★ 第55便: 媒体連携はタブではなく専用ページ（/mypage/media）にした。
-            //   ★ タブ列から毎回 filter で外すのではなく、そもそもタブにしない（設計メモ §142）
-            ['support',   '運営事務局'],
-          ] as const)
-            // 求人タブはフクエスワーク掲載（jobs_enabled）契約店のみ表示。
-            .filter(([key]) => key !== 'jobs' || Boolean(salon?.jobs_enabled))
-            .map(([key, label]) => {
-            const selected = activeTab === key;
-            return (
-              <button
-                key={key}
-                onClick={() => setActiveTab(key)}
-                aria-pressed={selected}
-                className={`inline-flex items-center gap-1 px-3 py-1.5 rounded-none border text-[11px] font-bold transition-colors ${
-                  selected
-                    ? 'bg-pink-50 text-pink-600 border-pink-300'
-                    : 'bg-white text-slate-400 border-slate-200 hover:text-slate-600 hover:border-slate-300'
-                }`}
-              >
-                {tabIcon(key)}
-                {label}
-                {/* 「ネット予約」タブ: 未処理（新規リクエスト）件数のバッジ（2026-08-17 / 第20便）。
-                    ★ 一覧は他のタブを見ていても読み込み済みなので、どのタブからでも出る。
-                    ★ 色は運営事務局の未読バッジと同じピンク＝「要対応」。
-                      赤（rose）は /admin でメール不達＝取りこぼし専用にしてあるので使わない。 */}
-                {key === 'booking' && bookingNewCount > 0 && (
-                  <span className="inline-flex items-center justify-center min-w-[16px] h-[16px] px-1 rounded-none bg-pink-500 text-white text-[9px] font-black leading-none">
-                    {bookingNewCount}
-                  </span>
-                )}
-                {/* 「運営から」タブ: 未読お知らせ件数の赤バッジ（/admin 求人タブのバッジと同型） */}
-                {key === 'support' && supportUnread > 0 && (
-                  <span className="inline-flex items-center justify-center min-w-[16px] h-[16px] px-1 rounded-none bg-pink-500 text-white text-[9px] font-black leading-none">
-                    {supportUnread}
-                  </span>
-                )}
-              </button>
-            );
-          })}
-          {/* ★★★ 媒体連携（第55便・㉜）。★ タブではなく専用ページ /mypage/media への入口。
-              ★ 出す相手にしか描かない（第54便の方針は変えていない）。
-                ★ 隠すのではなく描かない: hidden だとページの中身から読める。
-              ★★ 中身の出し分けはページ側の decideMediaPage が持つ。ここは入口の見た目だけ。 */}
-          {/* ★ 新しいタブで開く（2026-08-30・カッキーさんの決定）。
-              ★ マイページを開いたまま媒体連携を見られるようにする。
-              ★ ヘッダーの「サイトを見る」と同じ扱い（別物を並べて見るリンク）。 */}
-          {mediaVisible && (
-            <Link
-              href="/mypage/media"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex items-center gap-1 px-3 py-1.5 rounded-none border text-[11px] font-bold transition-colors bg-white text-slate-400 border-slate-200 hover:text-slate-600 hover:border-slate-300"
-            >
-              {tabIcon('media')}
-              媒体連携
-            </Link>
-          )}
-        </div>
-      </div>
 
       {/* 予約ボードタブのときだけ幅を広げ（max-w-6xl=1152px）、左右余白も px-2 に詰める
           （スマホの可視タイムラインを+16px稼ぐ・2026-08-14）。他のタブは hidden なので影響しない。 */}
@@ -2346,7 +2455,7 @@ export default function MyPage() {
         {/* ── コースメニュー（料金表）──
             ★ 「店舗情報の編集」から切り出して、その上の独立ブロックにした（2026-09-06・カッキーさんの指示）。
             ★ 中身はコース／その他メニュー／備考の3つ。保存は店舗情報と同じ handleSalonSave。 */}
-        <div className={`bg-white rounded-none border border-slate-100 shadow-sm p-5 space-y-4 ${activeTab === 'salon' ? '' : 'hidden'}`}>
+        <div className={`bg-white rounded-none border border-slate-100 shadow-sm p-5 space-y-4 ${activeTab === 'course' ? '' : 'hidden'}`}>
           <button
             type="button"
             onClick={() => setCourseOpen(v => !v)}
@@ -2672,8 +2781,8 @@ export default function MyPage() {
 
         {/* ── 店舗画像の設定 ──
             ★ 「店舗情報の編集」から切り出して独立ブロックにした（2026-09-06・カッキーさんの指示）。
-            ★ 見出しで開閉（既定は閉じる）。画像の差し替え・削除・並べ替えはその場で反映される。 */}
-        <div className={`bg-white rounded-none border border-slate-100 shadow-sm p-5 space-y-4 ${activeTab === 'salon' ? '' : 'hidden'}`}>
+            ★ 見出しで開閉できる（既定は開く）。画像の差し替え・削除・並べ替えはその場で反映される。 */}
+        <div className={`bg-white rounded-none border border-slate-100 shadow-sm p-5 space-y-4 ${activeTab === 'photos' ? '' : 'hidden'}`}>
           <button
             type="button"
             onClick={() => setSalonImageOpen(v => !v)}
@@ -4130,10 +4239,12 @@ export default function MyPage() {
           )}
         </div>
 
-        {/* ── ポップアップ画像タブ（サロン詳細で左下から出る画像） ── */}
-        <div className={`space-y-4 ${activeTab === 'popup' ? '' : 'hidden'}`}>
-          {/* ── テーマ（背景壁紙）：店舗装飾。旧・店舗タブから移設。保存で salons.theme を更新 ── */}
-          <AccordionCard title="テーマ（背景壁紙）">
+        {/* ── 旧・店舗装飾タブの4つ ──
+            ★★ タブを廃止し、サイドバーの4つの画面に割った（2026-09-06・カッキーさんの指示）。
+            ★ 中身と保存先は変えていない。★ 1画面に1つだけ出す。 */}
+        <div className={`space-y-4 ${activeTab === 'theme' ? '' : 'hidden'}`}>
+          {/* ── テーマ（背景壁紙）。保存で salons.theme を更新 ── */}
+          <AccordionCard title="テーマ（背景壁紙）" defaultOpen>
           {/* ── テーマ（壁紙） ── */}
           <div>
             <p className="mt-1 mb-2 text-[11px] leading-relaxed text-slate-400">店舗詳細ページの背景に敷かれる壁紙を選べます。</p>
@@ -4184,9 +4295,11 @@ export default function MyPage() {
               {savingTheme ? '保存中…' : 'テーマを保存する'}
             </button>
           </AccordionCard>
+        </div>
 
-          {/* ── 詳細ページ バナー（最大3・出勤セラピストの下に縦表示） ── */}
-          <AccordionCard title="詳細ページ バナー（最大3）">
+        {/* ── 詳細ページ バナー（最大3・出勤セラピストの下に縦表示） ── */}
+        <div className={`space-y-4 ${activeTab === 'banner' ? '' : 'hidden'}`}>
+          <AccordionCard title="詳細ページ バナー（最大3）" defaultOpen>
             {/* ★ 「表示する」は枠の一番上（2026-09-06・カッキーさんの指示）。 */}
             <div>
               <label className="flex items-center gap-2 cursor-pointer">
@@ -4280,8 +4393,10 @@ export default function MyPage() {
               {savingDetail ? '保存中…' : '保存する'}
             </button>
           </AccordionCard>
+        </div>
 
-          <AccordionCard title="ポップアップ画像">
+        <div className={`space-y-4 ${activeTab === 'popup' ? '' : 'hidden'}`}>
+          <AccordionCard title="ポップアップ画像" defaultOpen>
             {/* ★ 表示ON/OFF は枠の一番上（2026-09-06・カッキーさんの指示）。 */}
             <div>
               <label className="flex items-start gap-2 cursor-pointer">
@@ -4348,9 +4463,11 @@ export default function MyPage() {
               {savingPopup ? '保存中…' : '保存する'}
             </button>
           </AccordionCard>
+        </div>
 
+        <div className={`space-y-4 ${activeTab === 'freepage' ? '' : 'hidden'}`}>
           {salon && (
-            <AccordionCard title="フリーページ（最大3）">
+            <AccordionCard title="フリーページ（最大3）" defaultOpen>
               <SalonFreePagesManager
                 salonId={Number(salon.id)}
                 onToast={showToast}
@@ -4379,6 +4496,8 @@ export default function MyPage() {
         </div>
 
       </main>
+        </div>
+      </div>
     </div>
   );
 }
