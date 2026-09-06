@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from 'react';
 import { createClient } from '@/app/lib/supabase/client';
 import { submitOwnerInquiry } from '@/app/actions/ownerInquiry';
 import { BannerPerkPanel } from '@/app/mypage/BannerPerkPanel';
+import { EmbedCodePanel } from '@/app/mypage/EmbedCodePanel';
 
 const supabase = createClient();
 
@@ -65,11 +66,14 @@ function formatDateJST(iso: string): string {
 
 export function SupportTab({
   salonId,
+  salonName,
   active,
   onUnreadChange,
   onToast,
 }: {
   salonId: number | null;
+  // 埋め込みコードのSEO用テキストリンク（アンカーテキスト＝店舗名）に使う。
+  salonName: string;
   active: boolean;
   onUnreadChange: (count: number) => void;
   onToast: (msg: string) => void;
@@ -240,7 +244,7 @@ export function SupportTab({
           ['notices', '運営から'],
           ['inquiry', '運営に問い合わせ'],
           ['faq',     'よくある質問'],
-          ['banner',  'リンクバナー特典'],
+          ['banner',  '公式サイトに貼る'],
           ['option',  'オプション申込'],
         ] as const).map(([key, label]) => {
           const selected = subTab === key;
@@ -415,9 +419,17 @@ export function SupportTab({
         )}
       </div>
 
-      {/* ── リンクバナー特典（バナー素材・タグ・特典適用状況） ── */}
+      {/* ── 公式サイトに貼る（リンクバナー特典＋埋め込みコード） ──
+          どちらも「店舗様の公式サイトに HTML を貼る」話なので同じ画面に並べる。
+          ※ EmbedCodePanel は第174便のサイドバー化で page.tsx から外れて孤立していた。
+            店舗タブ（店舗情報）ではなくここへ戻した（2026-09-06）。 */}
       <div className={subTab === 'banner' ? '' : 'hidden'}>
-        <BannerPerkPanel salonId={salonId} />
+        <div className="space-y-4">
+          <BannerPerkPanel salonId={salonId} />
+          {salonId != null && (
+            <EmbedCodePanel salonId={salonId} salonName={salonName} onToast={onToast} />
+          )}
+        </div>
       </div>
 
       {/* ── オプション申込（option_banners・公開中を表示順で・各「申込」→ owner_inquiries へ送信） ── */}

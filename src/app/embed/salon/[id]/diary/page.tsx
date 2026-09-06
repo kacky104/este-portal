@@ -13,7 +13,7 @@ import type { Metadata } from 'next';
 // - 画像なし日記（テキストのみ）はサムネイルにできないため除外（多めに取得して間引く）。
 // - 退店セラピスト（is_active=false）の日記は出さない（店舗の公式サイトに載る前提のため。
 //   本体の /salon/[id]/diary は退店分も出す仕様なので、あえて非対称にしている）。
-// - 埋め込みタグの発行は mypage の店舗タブ（EmbedCodePanel）。
+// - 埋め込みタグの発行は mypage の「運営事務局 → 公式サイトに貼る」（EmbedCodePanel）。
 // - iframe 許可（frame-ancestors）は next.config.ts の headers() で /embed/ 配下のみ全ドメイン許可。
 
 export const revalidate = 600;

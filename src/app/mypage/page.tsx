@@ -4950,6 +4950,7 @@ export default function MyPage() {
         <div className={`${activeTab === 'support' ? '' : 'hidden'}`}>
           <SupportTab
             salonId={salon ? Number(salon.id) : null}
+            salonName={salon?.name ?? ''}
             active={activeTab === 'support'}
             onUnreadChange={setSupportUnread}
             onToast={showToast}

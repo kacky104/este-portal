@@ -2,7 +2,11 @@
 
 import { useState } from 'react';
 
-// mypage 店舗タブ「公式サイトに貼る埋め込みコード」（2026-08-06 新設）。
+// mypage「運営事務局 → 公式サイトに貼る」の埋め込みコードパネル（2026-08-06 新設）。
+//
+// ※ 置き場所の履歴: 元は店舗タブ内。2026-09-06 のサイドバー化（第174便）で page.tsx から
+//   import ごと外れて孤立していたため、SupportTab の「公式サイトに貼る」サブタブへ戻した
+//   （リンクバナー特典と同じ「自分の公式サイトにHTMLを貼る」話なので隣に並べる）。
 //
 // 契約店舗の公式ホームページに iframe で貼ってもらう2種類のウィジェット
 // （/embed/salon/[id]/diary＝写メ日記3列×4段 / /embed/salon/[id]/reviews＝口コミ3件）の
@@ -76,12 +80,12 @@ function CodeBlock({
           rows={3}
           onFocus={(e) => e.currentTarget.select()}
           aria-label={`${label}の埋め込みコード`}
-          className="flex-1 rounded-xl border border-slate-200 bg-slate-50/50 px-3 py-2 text-[11px] font-mono text-slate-600 resize-none focus:outline-none focus:ring-2 focus:ring-pink-200"
+          className="flex-1 rounded-none border border-slate-200 bg-slate-50/50 px-3 py-2 text-[11px] font-mono text-slate-600 resize-none focus:outline-none focus:ring-2 focus:ring-pink-200"
         />
         <button
           type="button"
           onClick={copy}
-          className="flex-shrink-0 px-3 py-2 rounded-xl border border-pink-200 text-xs font-bold text-pink-500 hover:bg-pink-50 transition-colors"
+          className="flex-shrink-0 px-3 py-2 rounded-none border border-pink-200 text-xs font-bold text-pink-500 hover:bg-pink-50 transition-colors"
         >
           コピー
         </button>
@@ -102,7 +106,7 @@ export function EmbedCodePanel({
   const [open, setOpen] = useState(false);
 
   return (
-    <div className="bg-white rounded-3xl border border-slate-100 shadow-sm p-5">
+    <div className="bg-white rounded-none border border-slate-100 shadow-sm p-5">
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
@@ -120,7 +124,7 @@ export function EmbedCodePanel({
 
       {open && (
         <div className="mt-4 space-y-4">
-          <p className="text-[11px] text-slate-500 leading-relaxed bg-slate-50 rounded-xl px-3 py-2">
+          <p className="text-[11px] text-slate-500 leading-relaxed bg-slate-50 rounded-none px-3 py-2">
             下のコードを公式サイトのHTMLに貼り付けるだけで表示されます（制作会社さんにそのまま渡してもOKです）。
             内容はフクエスの掲載情報から自動で更新され、クリックするとフクエスの該当ページが新しいタブで開きます。
           </p>
