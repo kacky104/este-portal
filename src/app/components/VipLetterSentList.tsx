@@ -2,7 +2,9 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import { getCouponColor } from '@/app/lib/couponColors';
-import { getSentVipLetters, SENT_LETTERS_WINDOW_DAYS, type SentVipLetter } from '@/app/actions/vipLetters';
+import { getSentVipLetters, type SentVipLetter } from '@/app/actions/vipLetters';
+// ★ 日数は素のファイルから読む。★ 'use server' のファイルから定数を import しない（第178便の事故）
+import { VIP_LETTER_WINDOW_DAYS } from '@/lib/vipLetterWindow';
 
 // 店舗側「送信済みVIPレター」の一覧（2026-09-06・カッキーさんの指示）。
 //
@@ -74,14 +76,14 @@ export function VipLetterSentList({ salonId, reloadKey }: { salonId: number; rel
 
       {!error && letters !== null && letters.length === 0 && (
         <p className="text-xs text-slate-400">
-          直近{SENT_LETTERS_WINDOW_DAYS}日に送信したVIPレターはありません。
+          直近{VIP_LETTER_WINDOW_DAYS}日に送信したVIPレターはありません。
         </p>
       )}
 
       {/* ★ 出していないだけで、消えたのではない。★ そう書いておく（黙って消さない） */}
       {!error && letters !== null && letters.length > 0 && (
         <p className="text-[10px] text-slate-400">
-          ※ 直近{SENT_LETTERS_WINDOW_DAYS}日ぶんを表示しています（会員様の受信箱でも{SENT_LETTERS_WINDOW_DAYS}日を過ぎると表示されなくなります）。
+          ※ 直近{VIP_LETTER_WINDOW_DAYS}日ぶんを表示しています（会員様の受信箱でも{VIP_LETTER_WINDOW_DAYS}日を過ぎると表示されなくなります）。
         </p>
       )}
 

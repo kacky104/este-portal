@@ -28,6 +28,8 @@ export function VipLetterForm({
   const [couponColor, setCouponColor] = useState<CouponColorKey>(DEFAULT_COUPON_COLOR_KEY);
 
   const [count, setCount] = useState<number | null>(null);
+  // ★ 人数が読めなかったときの理由。★ 「確認中…」のまま止めない（第178便の事故）
+  const [countError, setCountError] = useState('');
   const [sending, setSending] = useState(false);
   const [error, setError] = useState('');
   const [sentMsg, setSentMsg] = useState('');
@@ -36,9 +38,15 @@ export function VipLetterForm({
   useEffect(() => {
     let active = true;
     (async () => {
-      const res = await getSavedSalonMemberCount(salonId);
-      if (!active) return;
-      if ('count' in res) setCount(res.count);
+      // ★ サーバーアクションは通信断などで失敗しうる。★ 黙って「確認中…」のまま置かない
+      try {
+        const res = await getSavedSalonMemberCount(salonId);
+        if (!active) return;
+        if ('count' in res) { setCount(res.count); setCountError(''); }
+        else setCountError(res.error);
+      } catch {
+        if (active) setCountError('対象人数を読み取れませんでした。時間をおいて開き直してください');
+      }
     })();
     return () => { active = false; };
   }, [salonId]);
@@ -83,7 +91,8 @@ export function VipLetterForm({
     }
   };
 
-  const canSend = title.trim() !== '' && body.trim() !== '' && count !== 0 && !sending;
+  // ★ 人数が読めていないうちは送らせない。★ 「0人」と「分からない」を混ぜない
+  const canSend = title.trim() !== '' && body.trim() !== '' && count !== null && count !== 0 && !sending;
 
   return (
     <div className="bg-white rounded-none border border-pink-100 shadow-sm p-5 space-y-3">
@@ -94,7 +103,9 @@ export function VipLetterForm({
 
       {/* 対象人数 */}
       <div className="rounded-none bg-pink-50/60 border border-pink-100 px-3 py-2 text-[11px] text-slate-600">
-        {count === null
+        {countError
+          ? <span className="text-rose-500">{countError}</span>
+          : count === null
           ? '対象人数を確認中…'
           : count === 0
             ? 'このお店を保存している会員はまだいません（送信できません）'

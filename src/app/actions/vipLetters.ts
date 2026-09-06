@@ -3,7 +3,7 @@
 import { createClient } from '@/app/lib/supabase/server';
 import { createServiceClient } from '@/app/lib/supabase/service';
 import { ADMIN_UUID } from '@/app/lib/admin';
-import { vipLetterWindowStartISO, VIP_LETTER_WINDOW_DAYS } from '@/lib/vipLetterWindow';
+import { vipLetterWindowStartISO } from '@/lib/vipLetterWindow';
 
 // VIPレターの配信（サーバー専用）。
 // - 送信者がその salon の owner 本人（または管理者）であることをサーバー側で検証。
@@ -115,8 +115,11 @@ export async function sendVipLetter(
   return { ok: true, recipientCount: userIds.length };
 }
 
-/** 一覧に出す日数（★ 画面の注記に出す）。★ 正は src/lib/vipLetterWindow.ts。 */
-export const SENT_LETTERS_WINDOW_DAYS = VIP_LETTER_WINDOW_DAYS;
+// ★★★ ここに「日数の定数」を置いてはいけない（2026-09-06・第178便の事故）。
+//   'use server' のファイルから **async関数以外** を export すると、
+//   このファイルのサーバーアクションが丸ごと呼び出せなくなる（画面側は「通信に失敗」になる）。
+//   ★ 日数を画面に出したいときは、画面側が src/lib/vipLetterWindow.ts から直接読む。
+//   ★ 見張りは scripts/useserver-exports-selftest.js（npm run check:useserver）。
 
 /** 店舗が過去に送ったVIPレター1通ぶん（★ 店舗側の一覧用）。 */
 export type SentVipLetter = {
