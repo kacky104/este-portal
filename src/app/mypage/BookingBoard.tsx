@@ -506,7 +506,7 @@ export function BookingBoard({ salonId, active, io = defaultIO }: {
   };
 
   // ── 入力部品の共通クラス ──
-  const inputCls = 'w-full rounded-none border border-slate-200 px-3 py-2 text-sm bg-slate-50/50 focus:outline-none focus:ring-2 focus:ring-pink-200';
+  const inputCls = 'w-full rounded-none border border-slate-200 px-3 py-2 text-sm bg-slate-50/50 placeholder:text-slate-300 focus:outline-none focus:ring-2 focus:ring-pink-200';
   const btnBase = 'text-[11px] font-bold px-2.5 py-1 rounded-none border transition-colors disabled:opacity-50';
 
   // ── 行の共通パーツ（フリー客レーンとセラピスト行で共用・2026-08-14） ──

@@ -2153,8 +2153,8 @@ export default function MyPage() {
     router.push('/login');
   };
 
-  const inputClass = 'w-full px-3 py-2 rounded-none border border-slate-200 text-sm bg-slate-50/50 focus:outline-none focus:ring-2 focus:ring-pink-200';
-  const textareaClass = 'w-full px-3 py-2 rounded-none border border-slate-200 text-sm bg-slate-50/50 focus:outline-none focus:ring-2 focus:ring-pink-200 resize-none';
+  const inputClass = 'w-full px-3 py-2 rounded-none border border-slate-200 text-sm bg-slate-50/50 placeholder:text-slate-300 focus:outline-none focus:ring-2 focus:ring-pink-200';
+  const textareaClass = 'w-full px-3 py-2 rounded-none border border-slate-200 text-sm bg-slate-50/50 placeholder:text-slate-300 focus:outline-none focus:ring-2 focus:ring-pink-200 resize-none';
   const labelClass = 'text-[11px] font-bold text-slate-400 block mb-1';
   const saveBtn = 'px-5 py-2 rounded-none bg-gradient-to-r from-pink-500 to-fuchsia-500 text-white font-bold text-xs shadow-sm disabled:opacity-50';
 
@@ -2374,7 +2374,7 @@ export default function MyPage() {
                   {/* コース名 */}
                   <div className="flex items-center gap-2">
                     <input
-                      className="flex-1 px-3 py-2 rounded-none border border-pink-200 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-pink-200 font-bold placeholder:font-normal"
+                      className="flex-1 px-3 py-2 rounded-none border border-pink-200 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-pink-200 font-bold placeholder:font-normal placeholder:text-slate-300"
                       placeholder="コース名（例: アロマリラクゼーション）"
                       value={group.name}
                       onChange={(e) => setCourseGroups(prev => prev.map((g, i) => i === gi ? { ...g, name: e.target.value } : g))}
@@ -2397,7 +2397,7 @@ export default function MyPage() {
                           placeholder="60"
                           value={item.duration}
                           onChange={(e) => setCourseGroups(prev => prev.map((g, gi2) => gi2 === gi ? { ...g, items: g.items.map((it, ii2) => ii2 === ii ? { ...it, duration: e.target.value } : it) } : g))}
-                          className="w-16 flex-shrink-0 px-2 py-1.5 rounded-none border border-slate-200 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-pink-200 text-center"
+                          className="w-16 flex-shrink-0 px-2 py-1.5 rounded-none border border-slate-200 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-pink-200 text-center placeholder:text-slate-300"
                         />
                         <span className="text-xs text-slate-500 flex-shrink-0">分 / ¥</span>
                         <input
@@ -2406,7 +2406,7 @@ export default function MyPage() {
                           placeholder="8000"
                           value={item.price}
                           onChange={(e) => setCourseGroups(prev => prev.map((g, gi2) => gi2 === gi ? { ...g, items: g.items.map((it, ii2) => ii2 === ii ? { ...it, price: e.target.value } : it) } : g))}
-                          className="flex-1 min-w-0 px-2 py-1.5 rounded-none border border-slate-200 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-pink-200"
+                          className="flex-1 min-w-0 px-2 py-1.5 rounded-none border border-slate-200 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-pink-200 placeholder:text-slate-300"
                         />
                         <span className="text-xs text-slate-500 flex-shrink-0">円</span>
                         {group.items.length > 1 && (
@@ -2449,7 +2449,7 @@ export default function MyPage() {
                       placeholder="メニュー名（例：延長30分）"
                       value={item.label}
                       onChange={(e) => setOtherItems(prev => prev.map((it, ii) => ii === i ? { ...it, label: e.target.value } : it))}
-                      className="flex-1 min-w-0 px-2 py-1.5 rounded-none border border-slate-200 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-pink-200"
+                      className="flex-1 min-w-0 px-2 py-1.5 rounded-none border border-slate-200 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-pink-200 placeholder:text-slate-300"
                     />
                     <span className="text-xs text-slate-500 flex-shrink-0">/ ¥</span>
                     <input
@@ -2458,7 +2458,7 @@ export default function MyPage() {
                       placeholder="料金"
                       value={item.price}
                       onChange={(e) => setOtherItems(prev => prev.map((it, ii) => ii === i ? { ...it, price: e.target.value } : it))}
-                      className="w-20 flex-shrink-0 min-w-0 px-2 py-1.5 rounded-none border border-slate-200 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-pink-200"
+                      className="w-20 flex-shrink-0 min-w-0 px-2 py-1.5 rounded-none border border-slate-200 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-pink-200 placeholder:text-slate-300"
                     />
                     <span className="text-xs text-slate-500 flex-shrink-0">円</span>
                     {otherItems.length > 1 && (
@@ -2489,10 +2489,10 @@ export default function MyPage() {
                 placeholder="例：初回指名料は無料。&#10;延長はできない場合もあります。"
                 value={salonForm.course_note ?? ''}
                 onChange={(e) => setSalonForm((p) => ({ ...p, course_note: e.target.value }))}
-                className="w-full px-2 py-1.5 rounded-none border border-slate-200 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-pink-200 resize-none"
+                className="w-full px-2 py-1.5 rounded-none border border-slate-200 text-sm bg-white placeholder:text-slate-300 focus:outline-none focus:ring-2 focus:ring-pink-200 resize-none"
               />
-              <p className="text-[10px] text-slate-400 leading-relaxed">
-                料金表の一番下（税込みの注記の上）に表示されます。改行はそのまま反映されます。空欄のときは何も表示されません。
+              <p className="text-[11px] text-slate-400 leading-relaxed">
+                料金表の一番下（税込みの注記の上）に表示されます。
               </p>
             </div>
           </div>
@@ -2546,7 +2546,7 @@ export default function MyPage() {
           <div>
             <label className={labelClass}>LINE予約URL（任意）</label>
             <input className={inputClass} value={salonForm.line_url ?? ''} onChange={(e) => setSalonForm((p) => ({ ...p, line_url: e.target.value }))} placeholder="https://lin.ee/xxxx または https://line.me/..." />
-            <p className="text-[11px] text-slate-400 mt-1 leading-relaxed">LINE公式アカウントの友だち追加URL等。空欄ならサロン詳細のLINE予約ボタンは非表示。「#」だけ入力するとボタンは表示されますがクリックはできません（準備中の表示）。</p>
+            <p className="text-[11px] text-slate-400 mt-1 leading-relaxed">LINE公式アカウントの友だち追加URL等。</p>
           </div>
           <div>
             <label className={labelClass}>住所</label>
@@ -2565,7 +2565,7 @@ export default function MyPage() {
               value={salonForm.official_url ?? ''}
               onChange={(e) => setSalonForm((p) => ({ ...p, official_url: e.target.value }))}
             />
-            <p className="text-[10px] text-slate-400 mt-1">https:// から始まる正しいURLを入力してください。空欄なら表示されません。</p>
+            <p className="text-[10px] text-slate-400 mt-1">https:// から始まる正しいURLを入力してください。</p>
           </div>
           <div>
             <label className={labelClass}>fukuX URL（任意）</label>
@@ -2576,7 +2576,7 @@ export default function MyPage() {
               value={salonForm.fukux_url ?? ''}
               onChange={(e) => setSalonForm((p) => ({ ...p, fukux_url: e.target.value }))}
             />
-            <p className="text-[10px] text-slate-400 mt-1">https:// から始まる正しいURLを入力してください。空欄なら表示されません。</p>
+            <p className="text-[10px] text-slate-400 mt-1">https:// から始まる正しいURLを入力してください。</p>
           </div>
           {/* ── 支払い方法（店舗基本情報に表示） ── */}
           <div>
@@ -2599,7 +2599,7 @@ export default function MyPage() {
                 );
               })}
             </div>
-            <p className="text-[10px] text-slate-400 mt-1">店舗ページの「店舗基本情報」に表示されます。未選択なら表示されません。</p>
+            <p className="text-[10px] text-slate-400 mt-1">店舗ページの「店舗基本情報」に表示されます。</p>
           </div>
           {/* ── クレジットカード決済（外部リンク・対応カード選択） ── */}
           <div>
@@ -2612,7 +2612,7 @@ export default function MyPage() {
               onChange={(e) => setSalonForm((p) => ({ ...p, payment_url: e.target.value }))}
             />
             <p className="text-[10px] text-slate-400 mt-1">
-              他社の決済ページURLを設定すると、料金ページに「クレジットカード決済」欄が表示されます。空欄なら表示されません。フクエスは決済処理には関与しません。
+              他社の決済ページURLを設定で、料金ページに「クレジットカード決済」欄が表示されます。フクエスは決済処理には関与しません。
             </p>
             <div className="mt-3">
               <p className="text-[11px] font-bold text-slate-500 mb-1.5">対応カードブランド</p>
@@ -2657,7 +2657,7 @@ export default function MyPage() {
 
           <div>
             <label className={labelClass}>店舗紹介</label>
-            <textarea rows={6} className={textareaClass} value={salonForm.description ?? ''} onChange={(e) => setSalonForm((p) => ({ ...p, description: e.target.value }))} />
+            <textarea rows={12} className={textareaClass} value={salonForm.description ?? ''} onChange={(e) => setSalonForm((p) => ({ ...p, description: e.target.value }))} />
           </div>
 
 
@@ -2694,14 +2694,9 @@ export default function MyPage() {
           {salonImageOpen && (
           <div className="space-y-3">
             <div className="flex items-center justify-between">
-              <label className={labelClass}>店舗画像（最大3枚）</label>
+              <label className={labelClass}>店舗画像（最大3枚・JPEG・PNG・WebP／各5MBまで）</label>
               <span className="text-[10px] text-slate-400">{salonImages.length} / 3</span>
             </div>
-
-            {/* 推奨サイズは画像が0枚でも分かるよう常時表示（PC・スマホ両方）。 */}
-            <p className="text-[10px] text-slate-400 -mt-1">
-              PC用 推奨 <span className="font-bold text-slate-500">1600×530px</span>／スマホ用 推奨 <span className="font-bold text-slate-500">750×470px</span>（JPEG・PNG・WebP／各5MBまで）
-            </p>
 
             {salonImages.length > 0 && (
               <div className="space-y-3">
@@ -2778,12 +2773,12 @@ export default function MyPage() {
 
                     {/* 並び替え（削除は各画像の「削除」ボタンで行う） */}
                     <div className="flex items-center justify-between pt-1.5 border-t border-pink-100">
-                      <span className="text-[10px] text-slate-400">スロット {i + 1}</span>
+                      <span className="text-[10px] text-slate-600">スロット {i + 1}</span>
                       <div className="flex gap-1">
                         <button type="button" onClick={() => handleImageMove(i, 'up')} disabled={i === 0}
-                          className="w-7 h-7 rounded-none border border-slate-200 text-slate-400 text-xs flex items-center justify-center hover:border-pink-300 hover:text-pink-500 disabled:opacity-30 transition-colors">↑</button>
+                          className="w-7 h-7 rounded-none border border-slate-200 text-slate-600 text-xs flex items-center justify-center hover:border-pink-300 hover:text-pink-500 disabled:opacity-30 transition-colors">↑</button>
                         <button type="button" onClick={() => handleImageMove(i, 'down')} disabled={i === salonImages.length - 1}
-                          className="w-7 h-7 rounded-none border border-slate-200 text-slate-400 text-xs flex items-center justify-center hover:border-pink-300 hover:text-pink-500 disabled:opacity-30 transition-colors">↓</button>
+                          className="w-7 h-7 rounded-none border border-slate-200 text-slate-600 text-xs flex items-center justify-center hover:border-pink-300 hover:text-pink-500 disabled:opacity-30 transition-colors">↓</button>
                       </div>
                     </div>
                   </div>
@@ -3023,7 +3018,7 @@ export default function MyPage() {
                   // 行内 input は inputClass（w-full を含む）を使わない。
                   // w-full が w-20/flex-1 と衝突すると、Tailwind の解決順で幅が暴れ料金欄が潰れるため、
                   // ここは明示クラスで flex 幅（none / 1 / min-w-0）を確定させる。
-                  const rowInput = 'rounded-none border border-slate-200 px-3 py-2 text-sm bg-slate-50/50 focus:outline-none focus:ring-2 focus:ring-pink-200';
+                  const rowInput = 'rounded-none border border-slate-200 px-3 py-2 text-sm bg-slate-50/50 placeholder:text-slate-300 focus:outline-none focus:ring-2 focus:ring-pink-200';
                   return (
                     <div key={i} className="flex flex-col gap-2 rounded-none border border-slate-200 bg-white/60 p-3">
                       {/* 1段目：コース名（フル幅） */}
@@ -3149,7 +3144,7 @@ export default function MyPage() {
                           {day.is_active && (
                             <div className="flex items-center gap-2">
                               <input
-                                className="flex-1 px-3 py-1.5 rounded-none border border-slate-200 text-xs bg-white focus:outline-none focus:ring-2 focus:ring-pink-200"
+                                className="flex-1 px-3 py-1.5 rounded-none border border-slate-200 text-xs bg-white focus:outline-none focus:ring-2 focus:ring-pink-200 placeholder:text-slate-300"
                                 placeholder="例: 12:00〜21:00"
                                 value={pickerVal}
                                 onChange={e => {
@@ -3430,7 +3425,7 @@ export default function MyPage() {
                         placeholder="別のメールで招待し直す"
                         value={inviteEmails[t.id] ?? ''}
                         onChange={(e) => setInviteEmails(prev => ({ ...prev, [t.id]: e.target.value }))}
-                        className="flex-1 min-w-0 px-3 py-1.5 rounded-none border border-slate-200 text-xs bg-white focus:outline-none focus:ring-2 focus:ring-pink-200"
+                        className="flex-1 min-w-0 px-3 py-1.5 rounded-none border border-slate-200 text-xs bg-white focus:outline-none focus:ring-2 focus:ring-pink-200 placeholder:text-slate-300"
                       />
                       <button
                         type="button"
@@ -3455,7 +3450,7 @@ export default function MyPage() {
                         placeholder="本人のメールアドレスを入力"
                         value={inviteEmails[t.id] ?? ''}
                         onChange={(e) => setInviteEmails(prev => ({ ...prev, [t.id]: e.target.value }))}
-                        className="flex-1 min-w-0 px-3 py-1.5 rounded-none border border-slate-200 text-xs bg-white focus:outline-none focus:ring-2 focus:ring-pink-200"
+                        className="flex-1 min-w-0 px-3 py-1.5 rounded-none border border-slate-200 text-xs bg-white focus:outline-none focus:ring-2 focus:ring-pink-200 placeholder:text-slate-300"
                       />
                       <button
                         type="button"
@@ -4141,7 +4136,7 @@ export default function MyPage() {
           <AccordionCard title="テーマ（背景壁紙）">
           {/* ── テーマ（壁紙） ── */}
           <div>
-            <p className="mt-1 mb-2 text-[11px] leading-relaxed text-slate-400">店舗詳細ページの背景に敷かれる壁紙を選べます。壁紙未設定のテーマは背景色のみになります。</p>
+            <p className="mt-1 mb-2 text-[11px] leading-relaxed text-slate-400">店舗詳細ページの背景に敷かれる壁紙を選べます。</p>
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
               {SALON_THEMES.map((t) => {
                 const selected = (salonForm.theme ?? 'white') === t.key;
@@ -4192,23 +4187,19 @@ export default function MyPage() {
 
           {/* ── 詳細ページ バナー（最大3・出勤セラピストの下に縦表示） ── */}
           <AccordionCard title="詳細ページ バナー（最大3）">
+            {/* ★ 「表示する」は枠の一番上（2026-09-06・カッキーさんの指示）。 */}
+            <div>
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input type="checkbox" checked={detailEnabled} onChange={(e) => setDetailEnabled(e.target.checked)} className="w-4 h-4 accent-pink-500" />
+                <span className="text-sm font-bold text-slate-700">店舗詳細ページに表示する</span>
+              </label>
+            </div>
+            {/* ★ 灰色の注意書きの枠は消して、説明文にまとめた（2026-09-06・カッキーさんの指示）。 */}
             <div>
               <p className="mt-1 text-[11px] leading-relaxed text-slate-400">
-                店舗詳細ページの「本日の出勤セラピスト」の下に、登録した順で縦に表示されます（最大3枚）。各バナーにリンク先（自店ページ・フリーページ）を設定でき、「表示する」をONにすると公開されます。<br />
-                <span className="text-slate-500 font-bold">画面ごとに横幅の比率が違うため、1つのバナーに「PC・タブレット用」と「スマホ用」の2枚を登録できます。</span>スマホ用が未登録のときは、これまでどおりPC用画像がスマホでも表示されます（左右が少し切れます）。
+                「本日の出勤セラピスト」の下に表示されます。（形式：JPEG・PNG・WebP／各5MBまで）<br />
+                端末の横幅によって上下または左右が数％切れるため、<span className="text-pink-500 font-bold">文字やロゴは端から10%ほど内側</span>に置いてください。
               </p>
-              {/* 推奨サイズはここ1か所にまとめて書く（スロット内の見出しにも同じ数字を出す） */}
-              <div className="mt-2 rounded-none bg-slate-50 border border-slate-100 p-2.5 space-y-1">
-                <p className="text-[11px] font-bold text-slate-500">推奨サイズ</p>
-                <p className="text-[11px] leading-relaxed text-slate-400">
-                  <span className="text-slate-500 font-bold">🖥 {DETAIL_BANNER_SIZE.pc.label}</span>（640px以上で表示）：横長 {DETAIL_BANNER_SIZE.pc.ratio}／例 {DETAIL_BANNER_SIZE.pc.example}<br />
-                  <span className="text-slate-500 font-bold">📱 {DETAIL_BANNER_SIZE.sp.label}</span>（640px未満で表示）：横長 {DETAIL_BANNER_SIZE.sp.ratio}／例 {DETAIL_BANNER_SIZE.sp.example}
-                </p>
-                <p className="text-[10px] leading-relaxed text-slate-400">
-                  ※ 画像は枠に合わせて中央から切り取られます。端末の横幅によって上下または左右が数％切れるため、<span className="text-pink-500 font-bold">文字やロゴは端から10%ほど内側</span>に置いてください。<br />
-                  ※ 形式：JPEG・PNG・WebP／各5MBまで。
-                </p>
-              </div>
             </div>
             {[0, 1, 2].map((slot) => (
               <div key={slot} className="rounded-none border border-slate-100 p-3 space-y-2">
@@ -4216,7 +4207,7 @@ export default function MyPage() {
 
                 {/* PC・タブレット用（従来の1枚。640px以上で表示される） */}
                 <p className="text-[10px] font-bold text-slate-400">
-                  🖥 {DETAIL_BANNER_SIZE.pc.label}（{DETAIL_BANNER_SIZE.pc.ratio}・例 {DETAIL_BANNER_SIZE.pc.example}）
+                  🖥 {DETAIL_BANNER_SIZE.pc.label}（{DETAIL_BANNER_SIZE.pc.ratio}・推奨 {DETAIL_BANNER_SIZE.pc.example}）
                 </p>
                 <div className="rounded-none border border-slate-200 overflow-hidden bg-slate-50 aspect-[31/9] flex items-center justify-center">
                   {detailBanners[slot] ? (
@@ -4242,8 +4233,7 @@ export default function MyPage() {
 
                 {/* スマホ用（任意。未登録ならPC用画像がそのまま使われる） */}
                 <p className="pt-1 text-[10px] font-bold text-slate-400">
-                  📱 {DETAIL_BANNER_SIZE.sp.label}（{DETAIL_BANNER_SIZE.sp.ratio}・例 {DETAIL_BANNER_SIZE.sp.example}）
-                  <span className="ml-1 font-normal">※任意</span>
+                  📱 {DETAIL_BANNER_SIZE.sp.label}（{DETAIL_BANNER_SIZE.sp.ratio}・推奨 {DETAIL_BANNER_SIZE.sp.example}）
                 </p>
                 <div className="rounded-none border border-slate-200 overflow-hidden bg-slate-50 aspect-[3/1] flex items-center justify-center">
                   {detailBannersSp[slot] ? (
@@ -4274,7 +4264,7 @@ export default function MyPage() {
                   )}
                 </div>
 
-                <label className="block pt-1 text-[10px] text-slate-500">クリック時のリンク先（PC・スマホ共通）</label>
+                <label className="block pt-1 text-[10px] text-slate-500">クリック時のリンク先</label>
                 <select
                   value={detailLinks[slot]}
                   onChange={(e) => setDetailLinks(prev => prev.map((l, i) => (i === slot ? e.target.value : l)))}
@@ -4286,30 +4276,33 @@ export default function MyPage() {
                 </select>
               </div>
             ))}
-            <div>
-              <label className="flex items-center gap-2 cursor-pointer">
-                <input type="checkbox" checked={detailEnabled} onChange={(e) => setDetailEnabled(e.target.checked)} className="w-4 h-4 accent-pink-500" />
-                <span className="text-sm font-bold text-slate-700">店舗詳細ページに表示する</span>
-              </label>
-              <p className="mt-1 text-[10px] text-slate-400">※ 画像を1枚以上設定してONにしたときだけ表示されます。</p>
-            </div>
             <button type="button" onClick={handleDetailSave} disabled={savingDetail} className="w-full py-2.5 rounded-none bg-pink-500 text-white text-sm font-bold hover:bg-pink-600 disabled:opacity-50">
               {savingDetail ? '保存中…' : '保存する'}
             </button>
           </AccordionCard>
 
           <AccordionCard title="ポップアップ画像">
+            {/* ★ 表示ON/OFF は枠の一番上（2026-09-06・カッキーさんの指示）。 */}
+            <div>
+              <label className="flex items-start gap-2 cursor-pointer">
+                <input type="checkbox" checked={popupEnabled} onChange={(e) => setPopupEnabled(e.target.checked)} className="w-4 h-4 accent-pink-500 mt-0.5 flex-shrink-0" />
+                {/* ★ スマホでは補足を次の行へ（sm 以上は横に並べる・2026-09-06）。 */}
+                <span>
+                  <span className="text-sm font-bold text-slate-700">店舗詳細ページに表示する</span>
+                  <span className="block sm:inline sm:ml-2 text-[11px] text-slate-400">（最大3枚・1MB以下／JPEG・PNG・WebP）</span>
+                </span>
+              </label>
+            </div>
             <div>
               <p className="mt-1 text-[11px] leading-relaxed text-slate-400">
-                スマホで店舗詳細ページを少し下にスクロールすると、左下から画像が「ポンっ」と跳ねて出ます（スマホ表示のみ。PCでは出ません）。最大3枚まで登録でき、<span className="text-slate-500 font-bold">ページを開くたびに1枚がランダムで表示</span>されます。画像ごとに、自分の店舗内のページ（セラピスト個別ページも含む）へのリンク先を選べます。「表示する」をONにすると公開されます（お客様は✕で閉じられます）。<br />
-                <span className="text-slate-500 font-bold">推奨サイズ：</span>縦長・約2:3（例 800×1200px）／1MB以下／JPEG・PNG・WebP。画像は枠なしで全体が表示されます（切れません）。<span className="text-pink-500 font-bold">背景を透過したPNG（切り抜き画像）</span>にすると、背景に自然に溶け込みます。
+                店舗詳細ページを下にスクロールすると、左下から画像が「ポンっ」と跳ねて出ます（スマホ表示のみ）。<span className="text-slate-500 font-bold">1枚がランダムで表示</span>されます。<span className="text-pink-500 font-bold">背景を透過したPNG（切り抜き画像）</span>にすると、背景に自然に溶け込みます。
               </p>
             </div>
 
             {/* 画像スロット×3（各：プレビュー＋アップロード＋削除＋個別リンク） */}
             {[0, 1, 2].map((slot) => (
               <div key={slot} className="rounded-none border border-slate-100 p-3 space-y-2">
-                <p className="text-[11px] font-bold text-slate-500">画像 {slot + 1}</p>
+                <p className="text-[11px] font-bold text-slate-500">画像 {slot + 1}<span className="ml-2 font-normal text-slate-400">縦長・約2:3（推奨 800×1200px）</span></p>
                 <div className="flex items-start gap-3">
                   <div className="w-20 h-28 rounded-none border border-slate-200 overflow-hidden bg-slate-50 flex items-center justify-center flex-shrink-0">
                     {popupImages[slot] ? (
@@ -4345,16 +4338,6 @@ export default function MyPage() {
                 </div>
               </div>
             ))}
-            <p className="text-[10px] text-slate-400">JPEG・PNG・WebP／各5MBまで。リンク先は自分の店舗内のページから選べます（「リンクなし」ならクリックしても移動しません）。</p>
-
-            {/* 表示ON/OFF */}
-            <div>
-              <label className="flex items-center gap-2 cursor-pointer">
-                <input type="checkbox" checked={popupEnabled} onChange={(e) => setPopupEnabled(e.target.checked)} className="w-4 h-4 accent-pink-500" />
-                <span className="text-sm font-bold text-slate-700">店舗詳細ページに表示する</span>
-              </label>
-              <p className="mt-1 text-[10px] text-slate-400">※ 画像を1枚以上設定してONにしたときだけ表示されます。</p>
-            </div>
 
             <button
               type="button"

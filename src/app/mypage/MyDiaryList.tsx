@@ -284,7 +284,7 @@ export function MyDiaryList({
                 {/* タイトル */}
                 <div>
                   <input
-                    className="w-full px-3 py-2 rounded-none border border-slate-200 text-sm bg-slate-50/50 focus:outline-none focus:ring-2 focus:ring-pink-200"
+                    className="w-full px-3 py-2 rounded-none border border-slate-200 text-sm bg-slate-50/50 focus:outline-none focus:ring-2 focus:ring-pink-200 placeholder:text-slate-300"
                     placeholder="タイトルを入力"
                     maxLength={TITLE_MAX}
                     value={editTitle}
@@ -296,7 +296,7 @@ export function MyDiaryList({
                 {/* 本文 */}
                 <textarea
                   rows={4}
-                  className="w-full px-3 py-2 rounded-none border border-slate-200 text-sm bg-slate-50/50 focus:outline-none focus:ring-2 focus:ring-pink-200 resize-none"
+                  className="w-full px-3 py-2 rounded-none border border-slate-200 text-sm bg-slate-50/50 focus:outline-none focus:ring-2 focus:ring-pink-200 resize-none placeholder:text-slate-300"
                   placeholder="本文を入力"
                   value={editBody}
                   onChange={(e) => setEditBody(e.target.value)}

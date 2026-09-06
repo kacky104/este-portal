@@ -382,7 +382,7 @@ export function JobNewsManager({ salonId }: { salonId: number }) {
     </div>
   );
 
-  const inputClass = 'w-full px-3 py-2 rounded-none border border-slate-200 text-sm bg-slate-50/50 focus:outline-none focus:ring-2 focus:ring-emerald-200';
+  const inputClass = 'w-full px-3 py-2 rounded-none border border-slate-200 text-sm bg-slate-50/50 placeholder:text-slate-300 focus:outline-none focus:ring-2 focus:ring-emerald-200';
   const textareaClass = `${inputClass} resize-none`;
   const labelClass = 'text-[11px] font-bold text-slate-400 block mb-1';
   const saveBtn = 'px-5 py-2 rounded-none text-white font-bold text-xs shadow-sm disabled:opacity-50 hover:opacity-90 transition-opacity';

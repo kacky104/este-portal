@@ -134,13 +134,15 @@ export default async function SalonFreePage({
           <span aria-current="page" className="inline-block max-w-[45%] truncate align-middle" style={{ color: breadcrumbCurrentColor(theme.key), fontWeight: 600 }}>{title || 'ページ'}</span>
         </nav>
 
-        <article className="rounded-2xl border shadow-sm p-6" style={{ backgroundColor: theme.card, borderColor: theme.cardBorder }}>
-          {images.length > 0 && (
-            <div className="mb-4">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={images[0]} alt="" className="block w-full h-auto rounded-xl" />
-            </div>
-          )}
+        {/* ★ 画像はカードの外・上に独立ブロックで置く（枠なし・角は直角）。2026-09-06 */}
+        {images.length > 0 && (
+          <div className="mb-4">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={images[0]} alt="" className="block w-full h-auto rounded-none" />
+          </div>
+        )}
+
+        <article className="rounded-none border shadow-sm p-6" style={{ backgroundColor: theme.card, borderColor: theme.cardBorder }}>
           {title && (
             <h1 className="text-xl sm:text-2xl font-bold mb-4 break-words" style={{ color: theme.heading }}>{title}</h1>
           )}

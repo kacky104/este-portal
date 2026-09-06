@@ -199,7 +199,7 @@ export function BannerPerkPanel({ salonId }: { salonId: number | null }) {
   const scrollToForm = () => formRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
 
   const inputClass =
-    'w-full rounded-none border border-slate-200 px-3 py-2 text-sm text-slate-700 focus:outline-none focus:border-pink-300 focus:ring-2 focus:ring-pink-100';
+    'w-full rounded-none border border-slate-200 px-3 py-2 text-sm text-slate-700 placeholder:text-slate-300 focus:outline-none focus:border-pink-300 focus:ring-2 focus:ring-pink-100';
 
   return (
     <div className="space-y-4">
