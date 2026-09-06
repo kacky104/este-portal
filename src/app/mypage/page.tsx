@@ -11,6 +11,8 @@ import Link from 'next/link';
 import { createClient } from '@/app/lib/supabase/client';
 import { revalidateSalon, revalidateTherapist } from '@/app/lib/revalidateTop';
 import { getLinkedXProfileForSalon } from '@/app/lib/xLink';
+// ★ 独自ドメインの表記ゆれ（www. 付き）を落とすのに使う。★ 公開HP側と同じ関数を使い、判断を1か所にする（第184便）。
+import { normalizeHpSiteKey } from '@/app/lib/hpSite';
 import { TimeRangePicker } from '@/components/TimeRangePicker';
 import { SALON_THEMES, type ThemeKey } from '@/app/lib/themes';
 import { COUPON_COLORS, getCouponColor, DEFAULT_COUPON_COLOR_KEY, type CouponColorKey } from '@/app/lib/couponColors';
@@ -122,7 +124,7 @@ export type TabKey =
   | 'board' | 'booking' | 'jobs' | 'support';
 
 // タブのアイコン（既存サイトと同系統の tabler/lucide 風アウトラインアイコン）。
-function tabIcon(key: TabKey | 'media' | 'fukux' | 'crm') {
+function tabIcon(key: TabKey | 'media' | 'fukux' | 'crm' | 'hp') {
   const common = {
     width: 14, height: 14, viewBox: '0 0 24 24', fill: 'none',
     stroke: 'currentColor', strokeWidth: 2,
@@ -182,6 +184,14 @@ function tabIcon(key: TabKey | 'media' | 'fukux' | 'crm') {
           <path d="M5 21v-9" />
           <path d="M19 21v-9" />
           <path d="M9 21v-4a2 2 0 0 1 2 -2h2a2 2 0 0 1 2 2v4" />
+        </svg>
+      );
+    case 'hp': // フクエスサイト（world：公式ホームページ）
+      return (
+        <svg {...common}>
+          <circle cx="12" cy="12" r="9" />
+          <path d="M3.6 9h16.8" /><path d="M3.6 15h16.8" />
+          <path d="M11.5 3a17 17 0 0 0 0 18" /><path d="M12.5 3a17 17 0 0 1 0 18" />
         </svg>
       );
     case 'crm': // フクエスCRM（address-book：お客様の名簿）
@@ -905,6 +915,12 @@ export default function MyPage() {
   // ★ サイドバー「フクエックス（SNS）」の飛び先に使う、その店舗のアカウント名（handle）。
   //   ★ 未連携なら null（★ そのときは店舗基本設定の fukuX URL → それも空ならトップへ）。
   const [xShopHandle, setXShopHandle] = useState<string | null>(null);
+  // ★★★ フクエスサイト（公式HP）の1行（2026-09-06 第184便）。
+  //   ★ undefined ＝ まだ読んでいない（★ 画面には何も描かない）
+  //   ★ null      ＝ 行が無い（＝まだ申し込んでいない店舗）
+  //   ★ 3つの状態を1つの変数で持つ。★ 「読めていない」と「無い」を混ぜないため（家のルール3）。
+  const [hpSite, setHpSite] =
+    useState<{ slug: string; domain: string | null; status: string } | null | undefined>(undefined);
   // 新規フォーム用の同時投稿チェック（default ON・投稿後もONへリセット・外すのは都度）。
   const [newAnnCrosspostX, setNewAnnCrosspostX] = useState(true);
   const [newAnnCrosspostNoReplies, setNewAnnCrosspostNoReplies] = useState(false);
@@ -1025,6 +1041,21 @@ export default function MyPage() {
       getLinkedXProfileForSalon(user.id)
         .then((p) => { setXShopProfileId(p?.profileId ?? null); setXShopHandle(p?.handle ?? null); })
         .catch(() => { setXShopProfileId(null); setXShopHandle(null); });
+      // ★★ 公式HP（salon_sites）の1行。★ サイドバー「フクエスサイト」の出し分けに使う（第184便）。
+      //   ★ slug / domain / status は anon・authenticated に読み取り許可がある列
+      //     （20260809_salon_sites_admin_lock.sql）。★ マイグレーションは要らない。
+      //   ★ 行が無いのが正常（＝まだ申し込んでいない店舗）なので maybeSingle。★ エラーにしない。
+      //   ★★ 読めなかったときは undefined のまま＝【何も描かない】。★ 「読めなかった」を
+      //     「行が無い（申し込み受付中）」と混ぜない（家のルール3）。★ 画面は止めない。
+      void supabase
+        .from('salon_sites')
+        .select('slug, domain, status')
+        .eq('salon_id', salonData.id)
+        .maybeSingle()
+        .then(
+          ({ data, error }) => { if (!error) setHpSite(data ?? null); },
+          () => { /* ★ 読めなかった。★ undefined のままにして何も描かない */ },
+        );
       setCourseGroups(parseCourseGroups(salonData.courses));
       setOtherItems(parseOtherItems(salonData.courses));
       setBookingCourses(parseBookingCourses(salonData.booking_courses));
@@ -2539,6 +2570,72 @@ export default function MyPage() {
     return null;
   };
 
+  // ★★★ フクエスサイト（公式HP）への入口（2026-09-06 第184便・カッキーさんの指示）。★ 全店舗に出す。
+  //   ★★ 表示は salon_sites（公式HPの、1店舗1行の表）だけを見て【自動で】決まる。
+  //      ★ 店舗様の設定は一切要らない。★ 運営が行を作る／status を live にする、といういまの運用そのまま。
+  //      ★ 判断はこの1か所（家のルール4：画面で言葉や順番を作らない）。
+  //
+  //        行が無い          → フクエスサイト（申し込み受付中）→ /hp/templates（デザイン一覧＝営業ページ）
+  //        行あり・draft     → フクエスサイト（制作中）        → ★ リンクにしない（灰色・押せない）
+  //        行あり・suspended → 同上（★ 停止の理由は画面に出さない。連絡は運営事務局から）
+  //        行あり・live      → フクエスサイト（公式HP）        → 独自ドメイン、無ければ /hp/{slug}
+  //
+  //   ★ draft を押せなくしているのは、開いても「ただいま準備中です」の白い1枚しか出ないため
+  //     （/hp/[slug]/page.tsx の status ゲート）。★ 押せると誤解させるものは置かない。
+  //   ★★ salons.official_url（店舗基本設定の「公式サイトURL」）とは混ぜない。
+  //     あちらは他社で作ったサイトも入る欄で、フクエスが作ったサイトとは別物。
+  const hpNav: { label: string; href: string | null } | null =
+    hpSite === undefined
+      // ★ まだ読んでいない。★ 一瞬「申し込み受付中」と出てから変わるのを防ぐため、何も描かない。
+      ? null
+      : hpSite === null
+        ? { label: 'フクエスサイト（申し込み受付中）', href: '/hp/templates' }
+        : hpSite.status !== 'live'
+          ? { label: 'フクエスサイト（制作中）', href: null }
+          : {
+              label: 'フクエスサイト（公式HP）',
+              // ★ 独自ドメインは外のサイトなので絶対URL。★ www. は落とす（公開HP側と同じ normalizeHpSiteKey）。
+              href: (hpSite.domain ?? '').trim() !== ''
+                ? `https://${normalizeHpSiteKey(hpSite.domain as string)}/`
+                : `/hp/${hpSite.slug}`,
+            };
+
+  const renderHpLink = (pc: boolean) => {
+    // ★ まだ読んでいないあいだは描かない（上の hpNav のコメント参照）。
+    if (!hpNav) return null;
+    if (hpNav.href === null) {
+      // ★ 制作中・停止中。★ フクエスCRM（準備中）と同じ見た目にそろえる。
+      return (
+        <div
+          aria-disabled
+          className={
+            pc
+              ? 'inline-flex w-full items-center justify-start gap-2.5 border-0 border-l-4 border-l-transparent px-4 py-3 text-[16px] font-bold text-slate-300 cursor-default select-none'
+              : 'inline-flex items-center gap-1 px-3 py-1.5 rounded-none border border-slate-200 bg-white text-[11px] font-bold text-slate-300 cursor-default select-none'
+          }
+        >
+          {tabIcon('hp')}
+          {hpNav.label}
+        </div>
+      );
+    }
+    return (
+      <Link
+        href={hpNav.href}
+        target="_blank"
+        rel="noopener noreferrer"
+        className={
+          pc
+            ? 'inline-flex w-full items-center justify-start gap-2.5 border-0 border-l-4 border-l-transparent px-4 py-3 text-[16px] font-bold text-slate-400 transition-colors hover:bg-pink-50/40 hover:text-slate-600'
+            : 'inline-flex items-center gap-1 px-3 py-1.5 rounded-none border border-slate-200 bg-white text-[11px] font-bold text-slate-400 transition-colors hover:text-slate-600 hover:border-slate-300'
+        }
+      >
+        {tabIcon('hp')}
+        {hpNav.label}
+      </Link>
+    );
+  };
+
   // ★★ フクエックス（SNS）への入口（2026-09-06・カッキーさんの指示）。★ 全店舗に出す。
   //   ★ 飛び先は上から順に決める（★ 判断はこの1か所）:
   //     1. 連携しているフクエックスの店舗アカウント（/x/u/ハンドル）
@@ -2764,6 +2861,8 @@ export default function MyPage() {
                 {openGroup === 'その他' && mediaVisible && renderMediaLink(true)}
                 {openGroup === 'その他' && renderFukuxLink(true)}
                 {openGroup === 'その他' && renderCrmSoon(true)}
+                {/* ★ PCと同じ並び（★ いちばん下）。★ 並びを変えるときは両方を直すこと。 */}
+                {openGroup === 'その他' && renderHpLink(true)}
               </nav>
             )}
           </div>
@@ -2777,7 +2876,11 @@ export default function MyPage() {
               const keys = sec.keys.filter(navVisible);
               // ★ 「別のサイト」にはフクエスリンク（媒体連携）も入る。★ 出す相手にしか描かない（第54便）。
               const withMedia = sec.group === '別のサイト' && mediaVisible;
-              if (keys.length === 0 && !withMedia) return null;
+              // ★★ 「別のサイト」には、契約に関係なく全店舗に出すものが入っている
+              //   （フクエスサイト・フクエックス・フクエスCRM）。★ 見出しごと消してはいけない。
+              //   ★ 第184便より前は、求人も媒体連携も無い店舗で「別のサイト」が丸ごと消えていた。
+              const alwaysShown = sec.group === '別のサイト';
+              if (keys.length === 0 && !withMedia && !alwaysShown) return null;
               const open = navGroupIsOpen(sec.group);
               return (
                 <div key={sec.group || '(見出しなし)'} className="contents">
@@ -2842,6 +2945,10 @@ export default function MyPage() {
                   {/* ★ フクエックス（SNS）。★ 媒体連携と違い、契約に関係なく全店舗に出す。 */}
                   {open && sec.group === '別のサイト' && renderFukuxLink(true)}
                   {open && sec.group === '別のサイト' && renderCrmSoon(true)}
+                  {/* ★★ フクエスサイト（公式HP）。★ 契約に関係なく全店舗に出す（第184便）。
+                      ★ 中身（申し込み受付中／制作中／公式HP）は hpNav が決める。
+                      ★ 位置は【いちばん下】（2026-09-06・カッキーさんの指示でCRMの下へ）。 */}
+                  {open && sec.group === '別のサイト' && renderHpLink(true)}
                 </div>
               );
             })}
