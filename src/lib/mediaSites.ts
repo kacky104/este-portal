@@ -13,7 +13,9 @@
 //   ★ 行が入ったあとで変えると移行が要る。増える前のいまなら、変えるのは自由。
 
 /** 各サイトへ送れるもの。★ 増えるときはここに足す（画面には触らない） */
-export type MediaCapability = 'work' | 'therapist' | 'diary' | 'sokuhime' | 'sokusera';
+//   ★ 'news' … 新着情報（駅ちかの「ニュース編集」5枠・第188便・2026-09-06）。
+//     ★★ 呼び方は【新着情報】。★ フクエス自身の「お知らせ」タブ（駅ちかへは送らない）と混ぜないため。
+export type MediaCapability = 'work' | 'therapist' | 'diary' | 'sokuhime' | 'sokusera' | 'news';
 
 export type MediaSite = {
   provider: string;
@@ -152,8 +154,15 @@ export const MEDIA_SITES: readonly MediaSite[] = [
      *     **動いてから 'diary' を足した**（★ 先に足さなかった）。★ 駅ちかにも同じ物差しを当てる。
      *
      * ★ 店舗の画面から写真を送れるようになった便で、そのとき足すこと。
+     *
+     * ★★★ 2026-09-06（第188便）: 'news'（新着情報）を足した（カッキーさんの判断）。
+     *   ★ 同じ物差し（動いてから足す）で、実物で確かめてから:
+     *     ・手で出す … 9/5 16:27・20:20 に公開ページまで到達（第159便・第165便）
+     *     ・自動で出す … 9/6 15:46 に周が自分の時刻で出し、公開ページまで到達（第166便の立証）
+     *     ・空の枠に新しく作る／写真を毎回1枚選ぶ、も自動で効いた（第163便・第172便）
+     *   ★ 店舗様の画面は /mypage/media/news（「新着情報を送る」）。★ 左メニューと同じ言葉で出す。
      */
-    can: ['work', 'diary', 'sokuhime'],
+    can: ['work', 'diary', 'sokuhime', 'news'],
     slots: 3,
     readable: true,
     accepting: true,
@@ -279,6 +288,7 @@ const CAPABILITY_LABEL: Record<string, string> = {
   diary: '写メ日記',
   sokuhime: '即ヒメ',
   sokusera: '即セラ',
+  news: '新着情報',   // ★ 第188便。★ 「お知らせ」と書かない（フクエスのお知らせタブと混ざる）
 };
 
 /** ★ 知らない種別は空文字。★ 「その他」と書かない（何が送れるか分からないものを送れると見せない） */

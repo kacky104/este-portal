@@ -76,8 +76,9 @@ console.log('\n── 2. 送れるもの（カッキーさんの要望・可視�
 //   ★ 実際にできるのは【運営が手で写真を1枚送る】だけで、店舗様は画面から使えなかった。
 //   ★★ 「送れるもの」は、店舗様が【いま使えるもの】を並べる欄。
 //     ★ 将来できることを先に並べると、聞かれたときに言い訳になる。
-eq('★★★ 駅ちかは3つ送れる（★ セラピストは外した）',
-   v.siteCapabilityLabels(v.findMediaSite('ekichika')), ['出勤', '写メ日記', '即ヒメ']);
+// ★★★ 2026-09-06（第188便）: 新着情報を足した（★ 手でも自動でも公開ページまで届いたのを実測してから）
+eq('★★★ 駅ちかは4つ送れる（★ セラピストは外した・新着情報を足した）',
+   v.siteCapabilityLabels(v.findMediaSite('ekichika')), ['出勤', '写メ日記', '即ヒメ', '新着情報']);
 // ★★★ どのサイトも「セラピスト」を送れると書かない（★ 使えるようになった便で足す）
 eq('★★★ いま「セラピスト」を送れるサイトは無い',
    v.MEDIA_SITES.filter((s) => s.can.includes('therapist')).length, 0);
@@ -358,8 +359,27 @@ eq('★ can が空でも落ちない', v.sendableCapabilities({ accepting: true,
   eq('★★ 画面の並び', v.siteCapabilityLabels(es), ['出勤', '写メ日記', '即セラ']);
   eq('★ 即セラ の見出し', v.capabilityLabel('sokusera'), '即セラ');
   // ★★★ 駅ちかの「即ヒメ」と混ぜない。★ 別の媒体の別の機能
-  eq('★★★ 駅ちかは 即ヒメ のまま', v.siteCapabilityLabels(v.findMediaSite("ekichika")), ['出勤', '写メ日記', '即ヒメ']);
+  eq('★★★ 駅ちかは 即ヒメ のまま', v.siteCapabilityLabels(v.findMediaSite("ekichika")).includes('即ヒメ'), true);
+  eq('★★★ 駅ちかに 即セラ を足していない', v.findMediaSite("ekichika").can.includes('sokusera'), false);
   eq('★ エステラブには 即セラ を足していない', v.findMediaSite("esulove").can.includes('sokusera'), false);
+}
+
+// ── ★★★ 第188便: 駅ちかの「送れるもの」に 新着情報 ────────────────────────────
+//   ★ 2026-09-06 15:46 に周が自分の時刻で出して公開ページまで届いたのを実測してから足した。
+//   ★★ 「将来できること」を先に並べない（第141便で決めた物差し）。
+{
+  const ek = v.findMediaSite('ekichika');
+  eq('★ 駅ちかに 新着情報 がある', ek.can.includes('news'), true);
+  eq('★★ 画面の並び（★ 左メニューと同じ言葉）', v.siteCapabilityLabels(ek), ['出勤', '写メ日記', '即ヒメ', '新着情報']);
+  eq('★ 新着情報 の見出し', v.capabilityLabel('news'), '新着情報');
+  // ★★★ 「お知らせ」と書かない。★ フクエス自身のお知らせタブ（駅ちかへは送らない）と混ざる
+  eq('★★★ どの種別にも「お知らせ」という見出しは無い',
+     ['work', 'therapist', 'diary', 'sokuhime', 'sokusera', 'news'].map(v.capabilityLabel).includes('お知らせ'), false);
+  // ★★★ 駅ちかにしか作っていない（★ エステ魂は AI広報部が既に1日10回出している・設計メモ §1）
+  eq('★★★ 新着情報 を送れるのは駅ちかだけ',
+     v.MEDIA_SITES.filter((s) => s.can.includes('news')).map((s) => s.provider), ['ekichika']);
+  // ★ 受け付けている駅ちかでは「いま送れるもの」にも出る
+  eq('★ いま送れるものにも 新着情報 が出る', v.sendableCapabilities(ek).includes('news'), true);
 }
 
 console.log(fail === 0 ? '\n★ すべて通った' : '\n★ NG ' + fail + ' 件');
