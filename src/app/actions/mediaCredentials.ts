@@ -14,7 +14,7 @@ import { loadCastIds } from '@/lib/mediaCastIds';
 import { isLegacyCastIdScope } from '@/lib/mediaCastIds';
 import { buildLinkPairs, canLink, canUnlink, type LinkPairs } from '@/lib/mediaLinkPairs';
 import { providerLabel, isShopVisibleAudit } from '@/lib/mediaAudit';
-import { findMediaSite } from '@/lib/mediaSites';
+import { findMediaSite, sendableCapabilities, capabilityLabel } from '@/lib/mediaSites';
 import {
   siteDirection,
   directionLabel,
@@ -1470,6 +1470,12 @@ export async function getMediaOverview(input: { salonId: string | number }): Pro
       lastWriteOkAt: string | null;
       /** ★ 次の取り込み。分からない・止まっているときは null */
       nextImportAt: string | null;
+      /**
+       * ★★ そのサイトへ【いま】送れるものの名前（第193便・2026-09-07）。★ 「出勤」「写メ日記」…
+       *   ★ 元はログイン情報の画面と同じ sendableCapabilities（媒体の性質・設定値ではない）。
+       *   ★ ホーム用に別の表を持たない。★ 知らない媒体は空。
+       */
+      capabilities: string[];
     }>;
   }>
 > {
@@ -1542,6 +1548,7 @@ export async function getMediaOverview(input: { salonId: string | number }): Pro
     lastVerifiedAt: string | null;
     listLastRunAt: string | null; fullLastRunAt: string | null; lastWriteOkAt: string | null;
     nextImportAt: string | null;
+    capabilities: string[];
   }> = [];
 
   for (const k of keys) {
@@ -1601,6 +1608,11 @@ export async function getMediaOverview(input: { salonId: string | number }): Pro
       fullLastRunAt,
       lastWriteOkAt: writeOkOf.get(k) ?? null,
       nextImportAt: next ? next.toISOString() : null,
+      // ★ ログイン情報の画面と同じ元（第193便）。★ 知らない種別は capabilityLabel が空にするので落とす
+      capabilities: (() => {
+        const site = findMediaSite(provider);
+        return site ? sendableCapabilities(site).map(capabilityLabel).filter((x) => x.length > 0) : [];
+      })(),
     });
   }
 

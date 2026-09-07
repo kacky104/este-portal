@@ -825,5 +825,17 @@ console.log('\n── ★★★ 第192便: ホームを「3つの設定」にす
      /input\.to !== 'write' && input\.to !== 'none'/.test(act5), true);
 }
 
+console.log('\n── ★ 第193便: ホームのサイト名の右に「送れるもの」のチップ（文字なし）──');
+{
+  const fs6 = require('fs');
+  const path6 = require('path');
+  const jsx6 = fs6.readFileSync(path6.join(__dirname, '..', 'src/app/mypage/media/MediaHome.tsx'), 'utf8').replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '');
+  eq('★★ 画面は capabilities を並べている', /s\.capabilities \?\? \[\]\)\.map\(/.test(jsx6), true);
+  eq('★★ 「送れるもの：」の文字は出さない（右の「反映中」と重なる）', jsx6.includes('送れるもの'), false);
+  const act6 = fs6.readFileSync(path6.join(__dirname, '..', 'src/app/actions/mediaCredentials.ts'), 'utf8');
+  eq('★★ 受け口はログイン情報と同じ元（sendableCapabilities → capabilityLabel）を使う（別の表を持たない）',
+     /sendableCapabilities\(site\)\.map\(capabilityLabel\)/.test(act6), true);
+}
+
 console.log(fail === 0 ? '\n★ すべて通った' : '\n★ NG ' + fail + ' 件');
 process.exit(fail === 0 ? 0 : 1);

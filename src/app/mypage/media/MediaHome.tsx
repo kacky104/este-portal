@@ -44,6 +44,8 @@ type Site = {
   fullLastRunAt: string | null;
   lastWriteOkAt: string | null;
   nextImportAt: string | null;
+  /** ★ そのサイトへ【いま】送れるものの名前（第193便）。★ ログイン情報の画面と同じ元 */
+  capabilities: string[];
 };
 
 type Overview = { therapistCount: number; sites: Site[] };
@@ -397,7 +399,18 @@ export function MediaHome({ salonId, onToast }: {
                 <div key={s.provider + '#' + s.slot} className="py-3">
                   <div className="flex items-center gap-3">
                     <span className="min-w-0 flex-1">
-                      <b className="block text-[15px] font-bold text-slate-700">{s.label}</b>
+                      {/* ★★ 送れるもののチップをサイト名の【すぐ右】に（第193便・カッキーさん）。
+                          ★ 「送れるもの：」の文字は付けない（右に「◯◯から反映中」とあるので、言葉が重なる）。
+                          ★★ 置くのは名前の側。★ 右端の状態の印のそばに置くと「この4つをいま反映している」と読める。
+                            ★ 左は【できること】、右は【いまの状態】。★ 見た目はログイン情報の画面と同じ灰色のチップ。 */}
+                      <span className="flex flex-wrap items-center gap-x-1.5 gap-y-1">
+                        <b className="text-[15px] font-bold text-slate-700">{s.label}</b>
+                        {(s.capabilities ?? []).map((c) => (
+                          <span key={c} className="inline-block text-[12px] leading-5 border border-slate-200 text-slate-500 px-1.5">
+                            {c}
+                          </span>
+                        ))}
+                      </span>
                       <span className={`block text-[13px] tabular-nums ${dbl ? 'text-amber-800 font-bold' : 'text-slate-400'}`}>
                         {/* ★★ 止まっているときは、時刻より先に【止まっていること】を書く（第89便） */}
                         {s.needsConsent
