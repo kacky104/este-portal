@@ -255,11 +255,8 @@ export function logCountLabel(input: { scope: string; siteName: string; limit: n
   return base;
 }
 
-/** 数の下に出す断り書き。★ 窓でなければ何も書かない（空文字） */
-export function logScopeNote(input: { scope: string; limit: number }): string {
-  if (input.scope !== 'window') return '';
-  return `いまは直近${input.limit}件だけを数えています。「もっと見る」を押すと増えることがあります。`;
-}
+// ★ 第211便（2026-09-07・カッキーさん）: 数の下の断り書き（logScopeNote）は外した。
+//   ★ 見出しの「記録（直近50件）」（logCountLabel）が同じことを言っていた。★ 二度言わない。
 
 // ────────────────────────────────────────────────
 // もっと見る

@@ -150,11 +150,8 @@ eq('サイトを選べば見出しに入る',
 eq('サイト＋窓', v.logCountLabel({ scope: 'window', siteName: '駅ちか', limit: 50 }), '駅ちかの記録（直近50件）');
 eq('★ 読めていないときは断らない（数が — なので）',
    v.logCountLabel({ scope: 'unknown', siteName: '', limit: 50 }), '記録');
-eq('★★ 窓のときだけ断り書きを出す',
-   v.logScopeNote({ scope: 'window', limit: 50 }).includes('直近50件'), true);
-eq('★★ 全部読めていれば断り書きは空',
-   v.logScopeNote({ scope: 'all', limit: 50 }), '');
-eq('★ 読めていないときも空', v.logScopeNote({ scope: 'unknown', limit: 50 }), '');
+// ★ 第211便: 断り書き（logScopeNote）は外した。★ 窓であることは見出し（logCountLabel）が言う
+eq('★ 第211便: 断り書きの関数はもう無い（見出しで言う）', typeof v.logScopeNote, 'undefined');
 
 console.log('\n── 6. もっと見る ──');
 eq('50 の次は 200', v.nextLogLimit(50), 200);
@@ -183,7 +180,6 @@ eq('★ more を渡さなければ、これまでどおり', v.logScope({ known:
 eq('★★★ 読めていなければ、まだあると言われても unknown', v.logScope({ known: false, loaded: 6, limit: 50, more: true }), 'unknown');
 // ★ 窓なら「直近◯件」と断る（数の見出しと断り書きが揃うこと）
 eq('★★ 窓のときは見出しで断る', v.logCountLabel({ scope: 'window', siteName: '', limit: 50 }), '記録（直近50件）');
-eq('★★ 窓のときは断り書きも出る', v.logScopeNote({ scope: 'window', limit: 50 }) !== '', true);
 
 console.log('\n── ★★★ くわしい記録をたたむ（第149便）──');
 // ★★ 消すのではなく、たたむ。★ 記録は残っていて、開けば読める

@@ -12,6 +12,8 @@ import {
 } from '@/lib/mediaOverview';
 // ★ 同意の取り直しは、ログイン情報の中だけでは気づけない（第89便）。★ 入口にも出す
 import { CONSENT_RECHECK_BADGE, consentRecheckNotice } from '@/lib/mediaConsent';
+// ★ 反映の早見表（第212便）。★ データは mediaMatrix.ts（番人あり）。画面は並べるだけ
+import { MEDIA_MATRIX, MATRIX_SITES, MATRIX_ROWS, MATRIX_FOOTNOTES, NO as MATRIX_NO, NA as MATRIX_NA } from '@/lib/mediaMatrix';
 
 // 媒体連携の入口（第56便・㉞）。
 //
@@ -478,6 +480,55 @@ export function MediaHome({ salonId, onToast }: {
           </div>
         )}
       </div>
+
+      {/* ── ★★★ 反映の早見表（第212便・2026-09-07・カッキーさん）────────
+          ★ 「設定を変えると、何が・どこへ・どれくらいで反映されるか」を1枚で。★ Excel の表のように。
+          ★ 既定は折りたたみ（ホームを長くしない）。★ 値は mediaMatrix.ts（cron の間隔・受け口の条件から）。 */}
+      <details className="bg-white border border-slate-200 shadow-[0_1px_2px_rgba(31,35,51,0.05)]">
+        <summary className="cursor-pointer select-none px-5 py-3.5 text-[15px] font-bold text-slate-700 hover:bg-slate-50">
+          反映の早見表 <span className="text-[13px] font-medium text-slate-400 ml-1">— 設定ごとに、何がどこへ・どれくらいで</span>
+        </summary>
+        <div className="px-5 pb-5 space-y-5">
+          {MEDIA_MATRIX.map((sec) => (
+            <div key={sec.key}>
+              <p className="text-[14.5px] font-black text-slate-800">{sec.title}</p>
+              <p className="text-[12.5px] text-slate-400 mb-2">{sec.note}</p>
+              <div className="overflow-x-auto">
+                <table className="w-full min-w-[460px] text-[13.5px] border border-slate-200">
+                  <thead>
+                    <tr className="bg-slate-50">
+                      <th className="text-left font-bold text-[12px] text-slate-400 px-3 py-2 border-b border-slate-200 w-[120px]"></th>
+                      {MATRIX_SITES.map((site) => (
+                        <th key={site} className="text-center font-bold text-[12.5px] text-slate-600 px-2 py-2 border-b border-l border-slate-200 whitespace-nowrap">{site}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {MATRIX_ROWS.map((row) => (
+                      <tr key={row} className="border-t border-slate-100">
+                        <th className="text-left font-bold text-slate-700 px-3 py-2 whitespace-nowrap bg-slate-50/60">{row}</th>
+                        {sec.cells[row].map((cell, i) => (
+                          <td
+                            key={i}
+                            className={`text-center px-2 py-2 border-l border-slate-100 whitespace-nowrap tabular-nums ${
+                              cell === MATRIX_NO || cell === MATRIX_NA ? 'text-slate-300' : cell === '準備中' ? 'text-slate-400' : 'font-bold text-emerald-700'
+                            }`}
+                          >
+                            {cell}
+                          </td>
+                        ))}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          ))}
+          <ul className="text-[12.5px] text-slate-400 leading-relaxed space-y-0.5">
+            {MATRIX_FOOTNOTES.map((f) => <li key={f}>・{f}</li>)}
+          </ul>
+        </div>
+      </details>
 
       {/* ── ★★★ 一括ボタンの押す前の問い（第192便）──────────
           ★ 名前を列挙する（何が変わり、何が変わらないか）。★ 「どのサイトにも反映しない」は取り込みも止まると必ず言う。

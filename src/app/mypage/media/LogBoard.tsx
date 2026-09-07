@@ -13,7 +13,6 @@ import {
   siteOnlyFilter,
   logScope,
   logCountLabel,
-  logScopeNote,
   outcomeTone,
   outcomeLabel,
   nextLogLimit,
@@ -147,7 +146,6 @@ export function LogBoard({ salonId }: { salonId: number | null }) {
 
   // ★★ 数えた範囲。★ 読めた件数が上限ちょうどなら「直近◯件」と断る（第66便・§210）
   const scope = logScope({ known, loaded: shownCount, limit, more });
-  const scopeNote = logScopeNote({ scope, limit });
 
   const reason = logEmptyReason({ known, filter, totalBeforeFilter: listed.length });
   const filteredSiteName = filter.provider === '' ? '' : providerLabel(filter.provider);
@@ -157,12 +155,9 @@ export function LogBoard({ salonId }: { salonId: number | null }) {
     <div className="space-y-3">
       {/* ── この画面は何か ── */}
       <div className={`${CARD} p-4`}>
+        {/* ★ 第211便（2026-09-07・カッキーさん）: 76字 → 1文。★ 「新しい順・失敗も残す」は一覧を見れば分かるので言わない */}
         <p className="text-[14.5px] text-slate-500 leading-relaxed">
-          フクエスが各サイトに対して行ったことの記録です。
-          <b className="text-slate-700">あとから書き換えられません。</b>
-          <br />
-          {/* ★ 並べ替えないことを、店舗に対しても書く。理由といっしょに */}
-          起きた順（新しいものが上）に並んでいます。うまくいかなかったものも、順番のまま残します。
+          フクエスが各サイトへ行ったことの記録です（<b className="text-slate-700">書き換えできません</b>）。
         </p>
       </div>
 
@@ -192,9 +187,8 @@ export function LogBoard({ salonId }: { salonId: number | null }) {
       </div>
 
       {/* ★★ 窓のときだけ、数えた範囲を書く。★ 全部読めているときは何も書かない */}
-      {scopeNote !== '' && (
-        <p className="text-[13.5px] text-amber-700 leading-relaxed px-1">{scopeNote}</p>
-      )}
+      {/* ★ 第211便（カッキーさん）: 断り書き「いまは直近50件だけを数えています…」は外した。
+          ★ 見出し「記録（直近50件）」（logCountLabel）が同じことを言っている。二度言わない */}
 
       {/* ── 絞り込み ── */}
       <div className={`${CARD} p-3.5 space-y-2.5`}>

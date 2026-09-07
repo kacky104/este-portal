@@ -124,8 +124,8 @@ export function WorkSend({ salonId, onToast }: { salonId: number | null; onToast
     if (!res.ok) { onToast(res.error); return; }
     await load();
     onToast(toAuto
-      ? 'これから自動で反映します。送れない理由があるときは送らずに止めます'
-      : '毎回ご承認いただく形に戻しました');
+      ? '自動にしました。30分ごとに、変わったところだけを送ります'
+      : '自動をやめました。これからは毎回この画面で送ります');
   };
 
   /**
@@ -343,10 +343,14 @@ export function WorkSend({ salonId, onToast }: { salonId: number | null; onToast
               {plan && <span className="text-[13px] text-slate-400">{fmt(plan.createdAt)} に確認</span>}
             </div>
 
-            {/* ★★ この画面でいちばん誤解が起きやすい場所。**まだ送っていない**を繰り返し書く */}
-            <p className="text-[13px] font-bold text-indigo-600">
-              これは「送ったらこうなる」という内容です。まだ送っていません。
-            </p>
+            {/* ★★ この画面でいちばん誤解が起きやすい場所。**まだ送っていない**を繰り返し書く。
+                ★ 第210便: 出すのは【確かめた内容がある】ときだけ。★ 確かめる前・待っている最中は、
+                  下の文が同じことを言うので二度言わない（カッキーさんの添削・2026-09-07） */}
+            {plan && !isWaiting && !gaveUp.has(k) && (
+              <p className="text-[13px] font-bold text-indigo-600">
+                これは「送ったらこうなる」という内容です。まだ送っていません。
+              </p>
+            )}
 
             {isWaiting ? (
               /* ★★★ 第207便（2026-09-07・カッキーさん）: 待っている最中を【動いて見える】形に。
@@ -381,8 +385,9 @@ export function WorkSend({ salonId, onToast }: { salonId: number | null; onToast
               </div>
             ) : !plan ? (
               <>
+                {/* ★ 第210便: 1文に。★ 「まだ送りません」はここで言う（上の藍色の1行は確かめたあとにだけ出る） */}
                 <p className="text-[14px] text-slate-500">
-                  まだ内容を確かめていません。「内容を確かめる」を押すと、送ったらどうなるかをお見せします。
+                  「内容を確かめる」を押すと、送ったらどうなるかをここに出します（まだ送りません）。
                 </p>
                 <div className="flex justify-end">
                   <button
@@ -423,10 +428,9 @@ export function WorkSend({ salonId, onToast }: { salonId: number | null; onToast
                         </dd>
                       </div>
                     </dl>
-                    {/* ★★ 選ばせない理由を、その場に書く。★ 「選べないのか」で終わらせない */}
+                    {/* ★★ 選ばせない理由を、その場に書く。★ 「選べないのか」で終わらせない。★ 第210便で短く */}
                     <p className="text-[13px] text-slate-400 leading-relaxed">
-                      選ぶところはありません。フクエスに入っている出勤が、そのまま{s.label}の内容になります。
-                      送りたくない方がいるときは、フクエスの出勤を直してから送ってください。
+                      フクエスの出勤がそのまま{s.label}に載ります。送りたくない方は、先にフクエスの出勤を直してください。
                     </p>
                   </>
                 )}
@@ -543,9 +547,9 @@ export function WorkSend({ salonId, onToast }: { salonId: number | null; onToast
                   })()}
                 </div>
 
+                {/* ★ 第210便で短く（指紋の突き合わせ・第46便の説明） */}
                 <p className="text-[13px] text-slate-400 text-right leading-relaxed">
-                  いま見えている内容と送る内容が同じであることを確かめてから送ります。
-                  途中で内容が新しくなっていたときは、送らずに止まります。
+                  送る直前にもう一度確かめ、内容が変わっていたら送らずに止まります。
                 </p>
               </>
             )}
@@ -557,32 +561,34 @@ export function WorkSend({ salonId, onToast }: { salonId: number | null; onToast
                   ★ 押せないボタンを灰色で置くのは「立てられない状態を作ってから禁じる」形。 */}
             {s.autoOn ? (
               <div className="border-t border-slate-100 pt-3 space-y-1.5">
+                {/* ★ 第210便: 「30分ごと・変わったところだけ」を言う（周期は media-auto-push の crontab・§57） */}
                 <p className="text-[14px] font-bold text-indigo-700">
-                  いまは自動で反映しています
+                  いまは自動で送っています
                 </p>
                 <p className="text-[13px] text-slate-400 leading-relaxed">
-                  ご承認なしで{s.label}へ反映します。送れない理由があるときは送らずに止め、この画面に出します。
+                  30分ごとに、変わったところだけを承認なしで{s.label}へ送ります。送れないときは止めて、ここに出します。
                 </p>
                 <button
                   onClick={() => onSwitchAuto(s, false)}
                   disabled={switching === k}
                   className="px-3 py-1.5 border border-slate-300 bg-white text-[13.5px] font-bold text-slate-600 hover:bg-slate-50 disabled:opacity-40"
                 >
-                  {switching === k ? '切り替えています…' : '自動をやめて毎回ご承認に戻す'}
+                  {/* ★ ホームの行のリンクと同じ言葉（「自動をやめる」） */}
+                  {switching === k ? '切り替えています…' : '自動をやめる'}
                 </button>
               </div>
             ) : autoEligible.has(k) ? (
               <div className="border-t border-slate-100 pt-3 space-y-1.5">
+                {/* ★ 第210便で短く。★ WORK_FIRST_APPROVAL_NOTE（1回送ったあとは自動にできる）の続き */}
                 <p className="text-[13px] text-slate-400 leading-relaxed">
-                  一度ご承認いただいたので、これ以降を自動にできます。
-                  自動にすると、この画面で送るボタンを押さなくても反映します。
+                  1回送ったので、これからは自動にできます。自動にすると30分ごとに、変わったところだけを承認なしで送ります。
                 </p>
                 <button
                   onClick={() => onSwitchAuto(s, true)}
                   disabled={switching === k}
                   className="px-3 py-1.5 border border-slate-300 bg-white text-[13.5px] font-bold text-slate-600 hover:bg-slate-50 disabled:opacity-40"
                 >
-                  {switching === k ? '切り替えています…' : '毎回の承認をやめて自動にする'}
+                  {switching === k ? '切り替えています…' : '自動にする'}
                 </button>
               </div>
             ) : null}
