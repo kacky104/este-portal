@@ -50,9 +50,11 @@ function fmt(iso: string | null): string {
   }).format(new Date(t));
 }
 
-/** 確かめた結果が届くのを待つ間隔と回数。★ 5分で待つのをやめる（永久に回さない） */
+/** 確かめた結果が届くのを待つ間隔と回数。★ 10分で待つのをやめる（永久に回さない）。★ 第207便で5分→10分 */
 const POLL_MS = 15000;
-const POLL_MAX = 20;
+const POLL_MAX = 40;
+/** ★ 待っている最中の点滅（ホームの「反映中」と同じ速さ・第90便）。★ 速い点滅は異常に見える */
+const WAIT_BLINK_STYLE = { animationDuration: '2.5s' } as const;
 
 export function WorkSend({ salonId, onToast }: { salonId: number | null; onToast: (m: string) => void }) {
   const [sites, setSites] = useState<Site[]>([]);
@@ -72,6 +74,10 @@ export function WorkSend({ salonId, onToast }: { salonId: number | null; onToast
   /** ★ 確かめた結果を待っている枠。値は押した時点の作成時刻（変わったら届いた合図） */
   const [waiting, setWaiting] = useState<Record<string, string>>({});
   const pollCount = useRef(0);
+  /** ★ 第207便: 待ち始めてからの経過を画面に出すための刻み（15秒ごとに増える） */
+  const [tick, setTick] = useState(0);
+  /** ★ 第207便: 10分待っても届かなかった枠。★ 黙って「まだ確かめていません」に戻さず、「いま見る」を出す */
+  const [gaveUp, setGaveUp] = useState<Set<string>>(new Set());
 
   const load = useCallback(async () => {
     if (salonId == null) return;
@@ -149,6 +155,7 @@ export function WorkSend({ salonId, onToast }: { salonId: number | null; onToast
     pollCount.current = 0;
     const timer = setInterval(() => {
       pollCount.current += 1;
+      setTick(pollCount.current);
       (async () => {
         for (const k of Object.keys(waiting)) {
           const [provider, slotStr] = k.split('#');
@@ -161,8 +168,10 @@ export function WorkSend({ salonId, onToast }: { salonId: number | null; onToast
         }
       })();
       if (pollCount.current >= POLL_MAX) {
+        // ★ 第207便: 諦めた枠を覚えて「いま見る」を出す（★ リロードさせない）
+        setGaveUp((g) => new Set([...g, ...Object.keys(waiting)]));
         setWaiting({});
-        onToast('確認の結果がまだ届きません。しばらくしてからこの画面を開き直してください');
+        onToast('確認の結果がまだ届きません。時間がかかっています。「いま見る」で読み直せます');
       }
     }, POLL_MS);
     return () => clearInterval(timer);
@@ -177,6 +186,8 @@ export function WorkSend({ salonId, onToast }: { salonId: number | null; onToast
       if (!res.ok) { onToast(res.error); return; }
       // ★ 押した時点の作成時刻を覚える。★ 計画そのものが無いときは空文字（できたら必ず変わる）
       setWaiting((w) => ({ ...w, [k]: plans[k]?.createdAt ?? '' }));
+      setGaveUp((g) => { const n = new Set(g); n.delete(k); return n; });
+      setTick(0);   // ★ 経過時間は押した瞬間から（effect の中で触らない・lint の作法）
       onToast('内容を確かめています。できあがるとこの画面に出ます（まだ送っていません）');
     } finally {
       setBusy(null);
@@ -330,9 +341,36 @@ export function WorkSend({ salonId, onToast }: { salonId: number | null; onToast
             </p>
 
             {isWaiting ? (
-              <p className="text-[14px] text-slate-500">
-                内容を確かめています。できあがるとここに出ます（数分かかります）。
-              </p>
+              /* ★★★ 第207便（2026-09-07・カッキーさん）: 待っている最中を【動いて見える】形に。
+                  ★ 文字だけだと、自動で見に行っていること（15秒ごと）が伝わらず、リロードされていた。
+                  ★ ホームの「反映中」と同じゆっくりした点滅＋経過時間。★ 「この画面のまま」と言い切る */
+              <div className="border border-indigo-200 bg-indigo-50 px-4 py-3">
+                <p
+                  className="text-[15px] font-bold text-indigo-700 animate-pulse"
+                  style={WAIT_BLINK_STYLE}
+                >
+                  内容を確かめています。しばらくお待ちください…
+                </p>
+                <p className="mt-1 text-[13px] text-indigo-900/70 leading-relaxed">
+                  できあがると、この画面のまま自動でここに出ます（ふつう1〜3分）。
+                  {tick > 0 && `　待ち時間 ${Math.floor((tick * POLL_MS) / 60000)}分${Math.floor(((tick * POLL_MS) % 60000) / 1000)}秒`}
+                </p>
+              </div>
+            ) : gaveUp.has(k) ? (
+              /* ★ 第207便: 10分待っても届かなかった。★ 黙って戻さず、その場で読み直せる道を出す */
+              <div className="border border-amber-200 bg-amber-50 px-4 py-3">
+                <p className="text-[14px] font-bold text-amber-900">確認に時間がかかっています。</p>
+                <p className="mt-1 text-[13px] text-amber-900/80 leading-relaxed">
+                  中継が混み合っているのかもしれません。「いま見る」を押すと、届いていれば出ます。
+                </p>
+                <button
+                  type="button"
+                  onClick={() => { setGaveUp((g) => { const n = new Set(g); n.delete(k); return n; }); void load(); }}
+                  className="mt-2 text-[13.5px] font-bold px-3 py-1.5 border border-amber-400 bg-white text-amber-900 hover:bg-amber-100"
+                >
+                  いま見る
+                </button>
+              </div>
             ) : !plan ? (
               <>
                 <p className="text-[14px] text-slate-500">
