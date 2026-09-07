@@ -82,7 +82,8 @@ export function TherapistBoard({ salonId, onToast, children }: {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [filter, setFilter] = useState<Filter>('all');
-  const [reading, setReading] = useState(false);
+  // ★ 第197便: どの枠を読みに行っているか（provider#slot）。★ 空なら読んでいない
+  const [reading, setReading] = useState('');
   const [showAll, setShowAll] = useState(false);
   const [tab, setTab] = useState<'list' | 'link'>('list');
 
@@ -105,41 +106,58 @@ export function TherapistBoard({ salonId, onToast, children }: {
 
   const onRead = async (s: Site) => {
     if (salonId == null) return;
-    setReading(true);
+    setReading(s.provider + '#' + s.slot);
     try {
       const res = await startMediaRosterRead({ salonId, provider: s.provider, slot: s.slot });
       if (!res.ok) { onToast(res.error); return; }
-      onToast('名簿を読みに行きました。数分後にこの画面を開き直すと反映されます');
+      onToast(`${s.label}の名簿を読みに行きました。数分後にこの画面を開き直すと反映されます`);
     } finally {
-      setReading(false);
+      setReading('');
     }
   };
 
   if (salonId == null) return null;
 
-  // ★ いまは駅ちかだけが「向こうを読める」媒体。★ 他は出先として名前だけ並べる
+  // ★ 「フクエスにいないのに残っている方」と上の数字は、駅ちか（正本）を主にする（第197便でもここは変えない）
   const readSite = sites.find((s) => s.direction === 'read') ?? null;
   const rosterOf = readSite
     ? roster.find((x) => x.provider === readSite.provider && x.slot === readSite.slot) ?? null
     : null;
 
-  const unlinkedIds = new Set((rosterOf?.unlinked ?? []).map((p) => String(p.id)));
-  const missingIds = new Set((rosterOf?.missingOnMedia ?? []).map((p) => String(p.id)));
-  const known = rosterOf?.missingOnMediaKnown === true;
+  /**
+   * ★★★ 第197便（2026-09-07・カッキーさん）: 表の列を【ログイン情報のあるサイトごと】にする。
+   *   ★ これまでは「駅ちかから反映中」の1サイトだけを描いていた。★ エステ魂の名簿は
+   *     「媒体側の登録と結びつける」がすでに読んで写しを残している（esutama_roster）のに、一覧に出ていなかった。
+   *   ★ 読める（read）サイトは鍵が無くても列に入れる（公開ページを読むだけ・siteDirection の決めごと）。
+   *   ★ 並びはホームと同じ（getMediaOverview の順）。
+   */
+  const key = (x: { provider: string; slot: number }) => x.provider + '#' + x.slot;
+  const cols: Site[] = [];
+  for (const x of sites) {
+    if (!(x.hasCredential || x.direction === 'read')) continue;
+    if (cols.some((c) => key(c) === key(x))) continue;
+    cols.push(x);
+  }
+  const rosterFor = (c: Site) => roster.find((x) => x.provider === c.provider && x.slot === c.slot) ?? null;
 
-  const stateOf = (t: Therapist): TherapistSiteState =>
-    therapistSiteState({
-      isUnlinked: unlinkedIds.has(t.id),
-      isMissing: missingIds.has(t.id),
-      known,
+  // ★ サイトごとの判定。★ 「いません」と言ってよい場面は mediaOverview.therapistSiteState が狭めている
+  const stateOfAt = (t: Therapist, c: Site): TherapistSiteState => {
+    const r = rosterFor(c);
+    return therapistSiteState({
+      isUnlinked: (r?.unlinked ?? []).some((p) => String(p.id) === t.id),
+      isMissing: (r?.missingOnMedia ?? []).some((p) => String(p.id) === t.id),
+      known: r?.missingOnMediaKnown === true,
     });
+  };
+  // ★ どれか1つのサイトで「います」でない人。★ 列が無ければ誰も該当しない（0件と分からないを混ぜないため、下の箱は別に出す）
+  const isTodo = (t: Therapist) => cols.some((c) => stateOfAt(t, c) !== 'present');
 
   // ★ 同じ名前で公開中の方（★ 0件なら空文字が返り、何も出さない）
   const dupNotice = duplicateNotice(findDuplicateNames(therapists));
-  const todoCount = therapists.filter((t) => stateOf(t) !== 'present').length;
+  const todoCount = therapists.filter(isTodo).length;
   const filtered = therapists.filter((t) => {
     if (filter === 'new') return t.isNewFace;
-    if (filter === 'todo') return stateOf(t) !== 'present';
+    if (filter === 'todo') return isTodo(t);
     return true;
   });
   const shown = showAll ? filtered : filtered.slice(0, 10);
@@ -169,9 +187,11 @@ export function TherapistBoard({ salonId, onToast, children }: {
                 {/* ★★ 第119便（カッキーさん・2026-09-03）: 「ここが元になります」だけでは、
                     ★ 新人さんが各サイトに出ないときに【何をすればよいか】が分からなかった。
                     ★ 出るのはフクエスに登録した方だけ＝**登録が入口**、と言い切る。 */}
+                {/* ★ 第196便（2026-09-07・カッキーさん）: 56字 → 43字。★ 「転送」「必要です」を消し、
+                    ★ 「出るのは登録した方だけ」と事実で言う。★ 意味は変えていない */}
                 <p className="mt-0.5 text-[14px] text-slate-500 leading-relaxed">
-                  各サイトへの転送はフクエスでの登録が必要です。
-                  新しく入った方がまだの場合は、先に<b className="font-bold text-slate-700">フクエスでセラピスト登録</b>をしてください。{' '}
+                  各サイトに出るのは、フクエスに登録した方だけです。
+                  新しく入った方は、先に<b className="font-bold text-slate-700">フクエスで登録</b>してください。{' '}
                   {/* ★ 「登録してください」で終わらせない。★ 探しに戻らせず、その場から行ける道を置く */}
                   <Link href="/mypage" className="font-bold text-indigo-600 underline">
                     ⇨ マイページのセラピストを開く
@@ -203,7 +223,8 @@ export function TherapistBoard({ salonId, onToast, children }: {
               </div>
               <div className="px-3 py-2.5 border-r border-slate-200">
                 <dt className="text-[12.5px] font-bold text-slate-400">
-                  {readSite ? `${readSite.label}で確かめられていない` : '確かめられていない'}
+                  {/* ★ 第197便: 列が2つ以上なら「どこかのサイトで」。★ 数え方（isTodo）と同じ範囲を言う */}
+                  {cols.length > 1 ? 'どこかのサイトで確かめられていない' : cols.length === 1 ? `${cols[0].label}で確かめられていない` : '確かめられていない'}
                 </dt>
                 <dd className="text-[21px] font-black text-slate-800 tabular-nums">
                   {todoCount}<span className="text-[13.5px] font-bold text-slate-400 ml-0.5">名</span>
@@ -261,18 +282,29 @@ export function TherapistBoard({ salonId, onToast, children }: {
               <span className="text-[13px] font-bold text-slate-400 tabular-nums">
                 {filtered.length} / {therapists.length}名中
               </span>
-              {readSite && (
+              {/* ★ 第197便: 読み直すボタンはサイトごとに1つ。
+                  ★ 第198便: 「反映しない」のサイトは押せない（受け口が鍵を使わない・第45便）。★ 理由は下の1行で言う */}
+              {cols.map((c) => (
                 <button
-                  onClick={() => onRead(readSite)}
-                  disabled={reading}
+                  key={key(c)}
+                  onClick={() => onRead(c)}
+                  disabled={reading !== '' || c.direction === 'off'}
+                  title={c.direction === 'off' ? `${c.label}は「反映しない」にしているため、名簿を読みに行きません` : undefined}
                   className="text-[13px] font-bold px-3 py-1.5 border border-slate-200 text-slate-600 disabled:opacity-50"
                 >
-                  {readSite.label}の名簿を読み直す
+                  {reading === key(c) ? '読みに行っています…' : `${c.label}の名簿を読み直す`}
                 </button>
-              )}
+              ))}
             </div>
           </div>
 
+          {/* ★ 第198便: 押せないボタンには理由を添える（§185・できないことは理由といっしょに）。★ 写しはそのまま使える */}
+          {cols.some((c) => c.direction === 'off') && (
+            <p className="mb-3 text-[13px] text-slate-400 leading-relaxed">
+              {cols.filter((c) => c.direction === 'off').map((c) => c.label).join('・')}は「反映しない」にしているため、名簿を読みに行きません（前に読んだ写しはそのまま出ています）。
+              読むには、ホームで「フクエスから反映」にしてください。
+            </p>
+          )}
           <div className="flex flex-wrap gap-2 mb-3">
             {([['all', 'すべて'], ['todo', '確かめられていない方'], ['new', '新人']] as const).map(([k, label]) => (
               <button
@@ -293,11 +325,14 @@ export function TherapistBoard({ salonId, onToast, children }: {
               <thead>
                 <tr className="bg-slate-50 text-left">
                   <th className="font-bold text-[12.5px] text-slate-400 px-3 py-2">セラピスト</th>
-                  <th className="font-bold text-[12.5px] text-slate-400 px-3 py-2 whitespace-nowrap">
-                    {readSite ? readSite.label : '媒体'}
-                    <br />
-                    <span className="font-bold">向こうを読んだ結果</span>
-                  </th>
+                  {/* ★ 第197便: サイトごとに1列。★ 見出しはサイト名だけ（カッキーさん・2026-09-07）。
+                      ★ 「向こうを読んだ結果」は外した。★ この列の意味（送った記録ではなく名簿にいるか）は
+                        表の下の4行が言っている。★ 見出しで二度言わない */}
+                  {cols.map((c) => (
+                    <th key={key(c)} className="font-bold text-[12.5px] text-slate-400 px-3 py-2 whitespace-nowrap">
+                      {c.label}
+                    </th>
+                  ))}
                   {/* ★★★ 第148便（2026-09-04）で「送った記録」の列を【外した】。
                       ★ 全員に「まだ送っていません」と出すだけで、**何も読んでいなかった**。
                       ★★ サラさんには写メ日記（16:42・18:01）も即セラ（21:56）も送っている。
@@ -308,7 +343,6 @@ export function TherapistBoard({ salonId, onToast, children }: {
               </thead>
               <tbody>
                 {shown.map((t) => {
-                  const st = stateOf(t);
                   return (
                     <tr key={t.id} className="border-t border-slate-100 align-top">
                       <td className="px-3 py-2.5">
@@ -325,11 +359,16 @@ export function TherapistBoard({ salonId, onToast, children }: {
                           </span>
                         </span>
                       </td>
-                      <td className="px-3 py-2.5 whitespace-nowrap">
-                        <span className={`text-[13px] font-bold px-2.5 py-0.5 border ${STATE_CLASS[st]}`}>
-                          {therapistSiteLabel(st)}
-                        </span>
-                      </td>
+                      {cols.map((c) => {
+                        const st = stateOfAt(t, c);
+                        return (
+                          <td key={key(c)} className="px-3 py-2.5 whitespace-nowrap">
+                            <span className={`text-[13px] font-bold px-2.5 py-0.5 border ${STATE_CLASS[st]}`}>
+                              {therapistSiteLabel(st)}
+                            </span>
+                          </td>
+                        );
+                      })}
                     </tr>
                   );
                 })}
@@ -347,17 +386,17 @@ export function TherapistBoard({ salonId, onToast, children }: {
           {/* ★★★ 第119便: 「状態の説明」から【次にすること】へ書き換えた（カッキーさん）。
               ★ こちらの言葉（番号・結びつき）を店舗様に読ませない。
               ★ 4つは減らさない。★ 出ない理由が違えば、やることも違う。 */}
+          {/* ★ 第199便（2026-09-07・カッキーさん）: 短く端的に。★ 4つは減らさない（理由が違えばやることも違う・第119便） */}
           <div className="mt-3 space-y-1 text-[13px] text-slate-400 leading-relaxed">
-            <p><b className="font-bold text-emerald-700">います</b>　{readSite ? readSite.label : '媒体'}の名簿で確かめました</p>
+            <p><b className="font-bold text-emerald-700">います</b>　名簿にいました</p>
             <p>
               <b className="font-bold text-rose-700">いません</b>　
-              {readSite ? readSite.label : '媒体'}の名簿に見つかりませんでした（退店・お名前の変更かもしれません）
+              名簿にいませんでした（退店やお名前の変更かもしれません）
             </p>
             <p>
               <b className="font-bold text-slate-500">確かめられません</b>　
-              どの登録の方か分からないため確かめられません
-              {/* ★ タブをまたぐ案内なので、その場で切り替えられるようにする（第119便）。
-                  ★ 「〜で結ぶと分かります」と書くだけだと、上に戻ってタブを探すことになる */}
+              どの登録の方か分かりません
+              {/* ★ タブをまたぐ案内なので、その場で切り替えられるようにする（第119便） */}
               　→{' '}
               <button
                 type="button"
@@ -370,22 +409,18 @@ export function TherapistBoard({ salonId, onToast, children }: {
             </p>
             <p>
               <b className="font-bold text-slate-500">まだ読んでいません</b>　
-              {readSite ? readSite.label : '媒体'}の名簿をまだ読んでいません
-              <span className="text-slate-400">　→ 上の「{readSite ? readSite.label : '媒体'}の名簿を読み直す」を押してください</span>
+              名簿をまだ読んでいません
+              <span className="text-slate-400">　→ 上の「名簿を読み直す」を押してください</span>
             </p>
           </div>
 
           <p className="mt-3 text-[13.5px] text-slate-400 leading-relaxed">
-            写真はフクエスに登録されているものです。まだ入っていない方は「写真なし」と出ます。
+            写真はフクエスに登録したものです。無い方は「写真なし」と出ます。
           </p>
 
-          <div className="mt-3 border border-sky-200 bg-sky-50 px-3 py-2.5">
-            <p className="text-[14px] leading-relaxed text-slate-600">
-              <b className="font-bold text-sky-700">この画面は見るだけです。</b>{' '}
-              各サイトへ出す・消すは、まだ付けていません。出すのは取り返しが付きにくい操作なので、
-              先に各サイトの振る舞いを確かめてから作ります。
-            </p>
-          </div>
+          {/* ★ 第199便（2026-09-07・カッキーさん）: 「この画面は見るだけです。各サイトへ出す・消すは、まだ付けていません…」の
+              青い箱を【外した】。★ 運営の開発メモであって、店舗様がすることは何も無い。★ 作ったときに知らせればよい。
+              ★ 「出す・消す」を付けない経緯（§81 の順番・㉟ エステラブの二重登録が未確認）は、このファイルの先頭コメントに残っている。 */}
         </div>
       )}
 
@@ -425,11 +460,11 @@ export function TherapistBoard({ salonId, onToast, children }: {
         </div>
       )}
 
-      {tab === 'list' && !loading && !error && !readSite && (
+      {tab === 'list' && !loading && !error && cols.length === 0 && (
         <div className="border border-sky-200 bg-sky-50 px-4 py-3">
           <p className="text-[14px] leading-relaxed text-slate-600">
             <b className="font-bold text-sky-700">向こうの名簿を読めるサイトがありません。</b>{' '}
-            駅ちかから反映するようにすると、だれがどのサイトに出ているかを確かめられます。
+            ログイン情報を登録するか、駅ちかから反映するようにすると、だれがどのサイトに出ているかを確かめられます。
           </p>
           <Link href="/mypage/media" className="mt-2 inline-block text-[14px] font-bold text-sky-700 underline">
             ホームで確かめる

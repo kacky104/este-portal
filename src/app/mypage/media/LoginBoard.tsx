@@ -499,9 +499,22 @@ export function LoginBoard({
                         <p className="text-[13.5px] text-sky-900/80 leading-relaxed mt-0.5">{site.stageNote}</p>
                       </div>
                     )}
+                    {/* ★★ 第195便（2026-09-07・カッキーさん）: ここは【大切な枠】。
+                        ★ 預かるのは店舗のアカウントそのもの（第39便）。★ ほかの欄と同じ見た目だと、
+                          ただの入力欄に見えて、何を預けているのかが伝わらない。
+                        ★ 太い藍色の枠＋薄い下地＋鍵の印で「ここは大切」と見た目で言う。★ 文字は足さない。 */}
+                    <div className="border-2 border-indigo-300 bg-indigo-50/50 p-4 space-y-3">
                     {/* ★ 見出しは「ログイン・パスワード設定」（カッキーさん・2026-09-03）。
                         ★ 枠が1つしかないサイトでは枠番号を言わない（言っても選べない） */}
-                    <div className="text-[15px] font-bold text-slate-700">
+                    <div className="flex items-center gap-2 text-[15px] font-bold text-indigo-900">
+                      <svg
+                        width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                        strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"
+                        className="flex-none text-indigo-600"
+                      >
+                        <rect x="4" y="11" width="16" height="10" rx="1.5" />
+                        <path d="M8 11V7a4 4 0 0 1 8 0v4" />
+                      </svg>
                       ログイン・パスワード設定{mediaSiteSlots(site).length > 1 ? `（枠${slot}）` : ''}
                     </div>
 
@@ -516,7 +529,7 @@ export function LoginBoard({
                           onChange={(e) => setShopId(e.target.value)}
                           inputMode="numeric"
                           placeholder="例: 37168"
-                          className="w-full mt-1 border border-slate-200 px-3 py-2 text-[16px] focus:outline-none focus:ring-2 focus:ring-indigo-200"
+                          className="w-full mt-1 border border-slate-200 bg-white px-3 py-2 text-[16px] focus:outline-none focus:ring-2 focus:ring-indigo-200"
                         />
                         <p className="text-[13px] text-slate-400 mt-1 leading-relaxed">{site.idHint}</p>
                       </div>
@@ -530,7 +543,7 @@ export function LoginBoard({
                           value={loginId}
                           onChange={(e) => setLoginId(e.target.value)}
                           autoComplete="off"
-                          className="w-full mt-1 border border-slate-200 px-3 py-2 text-[16px] focus:outline-none focus:ring-2 focus:ring-indigo-200"
+                          className="w-full mt-1 border border-slate-200 bg-white px-3 py-2 text-[16px] focus:outline-none focus:ring-2 focus:ring-indigo-200"
                         />
                       </div>
                       <div>
@@ -541,14 +554,16 @@ export function LoginBoard({
                           onChange={(e) => setPassword(e.target.value)}
                           autoComplete="new-password"
                           placeholder={row?.hasPassword ? `${row.passwordMask}（変更するときだけ入力）` : ''}
-                          className="w-full mt-1 border border-slate-200 px-3 py-2 text-[16px] focus:outline-none focus:ring-2 focus:ring-indigo-200"
+                          className="w-full mt-1 border border-slate-200 bg-white px-3 py-2 text-[16px] focus:outline-none focus:ring-2 focus:ring-indigo-200"
                         />
                         {row?.hasPassword && (
-                          <p className="text-[13px] text-slate-400 mt-1 leading-relaxed">
-                            登録済みです。空のまま保存すると、パスワードは変更されません。
+                          // ★ 第195便: 30字 → 18字（カッキーさん）。★ 欄の下なので「パスワード」は言わなくて分かる
+                          <p className="text-[13px] text-slate-500 mt-1 leading-relaxed">
+                            登録済みです。空のままなら変更しません。
                           </p>
                         )}
                       </div>
+                    </div>
                     </div>
 
                     {/* ★★ 同意文は【チェックのすぐ上】。既定で開いた状態にする。

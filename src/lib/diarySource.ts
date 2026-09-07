@@ -73,8 +73,9 @@ export function openDiaryEntrances(source: unknown): number {
 export function diarySourceTitle(source: unknown): string {
   switch (readDiarySource(source)) {
     case 'benry': return '他媒体で書く（代行システム経由で受け取る）';
-    case 'ekichika': return '他媒体で書く（駅ちかから取り込む）';
-    case 'fukues': return 'フクエスで書く（各媒体へ送る）';
+    // ★ 第203便（2026-09-07）: 画面のラジオ（DiaryTargets）と同じ言葉に揃えた
+    case 'ekichika': return '駅ちかで書く（フクエスへ取り込む）';
+    case 'fukues': return 'フクエスで書く（各サイトへ送る）';
     default: return '未設定';
   }
 }

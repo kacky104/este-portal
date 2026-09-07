@@ -24,8 +24,16 @@ import { findMediaSite } from '@/lib/mediaSites';
 //
 // ★ 取り込みは2段のまま（確認 → 登録）。★ 常に上書きすることを押す前に書く。
 
-/** 写メ日記を受け取れる媒体。★ ここに無い媒体には投稿先そのものが無い */
+/** 写メ日記を【メールで】受け取れる媒体。★ ここに無い媒体には投稿先（アドレス）そのものが無い */
 const DIARY_PROVIDERS = ['ekichika', 'esulove'];
+/**
+ * ★★★ 上のブロックに並べるサイト（第201便・2026-09-07・カッキーさん）。
+ *   ★ エステ魂は投稿先（アドレス）が無い（ご本人のアカウントで代理投稿・第141便）が、
+ *     並んでいないと「エステ魂には写メ日記が行かない」と読める（第三者視点）。
+ *   ★ 押すと、投稿先の一覧の代わりに【エステ魂の送信状況と了承】（esutamaPanel）を出す。
+ */
+const SITE_TABS = ['ekichika', 'esulove', 'esutama'];
+const SITE_FALLBACK_LABEL: Record<string, string> = { ekichika: '駅ちか', esulove: 'エステラブ', esutama: 'エステ魂' };
 
 type Site = { provider: string; slot: number; label: string; hasCredential: boolean };
 type Forward = { therapistId: string; provider: string; slot: number; addressMask: string; isEnabled: boolean };
@@ -45,7 +53,12 @@ function fmt(iso: string | null): string {
   }).format(new Date(t));
 }
 
-export function DiaryTargets({ salonId, onToast }: { salonId: number | null; onToast: (m: string) => void }) {
+export function DiaryTargets({ salonId, onToast, esutamaPanel }: {
+  salonId: number | null;
+  onToast: (m: string) => void;
+  /** ★ 「エステ魂」を選んだときに、投稿先の一覧の代わりに出すもの（送信状況・了承）。★ 第201便 */
+  esutamaPanel?: React.ReactNode;
+}) {
   const [data, setData] = useState<Data | null>(null);
   const [sites, setSites] = useState<Site[]>([]);
   const [picked, setPicked] = useState<string>('ekichika');
@@ -66,12 +79,12 @@ export function DiaryTargets({ salonId, onToast }: { salonId: number | null; onT
     // ★ 写メ日記を受け取れる媒体だけ並べる。★ 連携していない媒体も「未設定」で出す
     const known = ov.ok ? ov.data.sites : [];
     setSites(
-      DIARY_PROVIDERS.map((p) => {
+      SITE_TABS.map((p) => {
         const hit = known.find((s) => s.provider === p);
         return {
           provider: p,
           slot: hit?.slot ?? 1,
-          label: hit?.label ?? (p === 'ekichika' ? '駅ちか' : 'エステラブ'),
+          label: hit?.label ?? SITE_FALLBACK_LABEL[p] ?? p,
           hasCredential: hit?.hasCredential === true,
         };
       })
@@ -103,6 +116,8 @@ export function DiaryTargets({ salonId, onToast }: { salonId: number | null; onT
   if (salonId == null) return null;
 
   const site = sites.find((s) => s.provider === picked) ?? null;
+  // ★ 投稿先（アドレス）があるサイトか。★ エステ魂は無い（一覧の代わりに esutamaPanel を出す）
+  const hasAddressBook = DIARY_PROVIDERS.includes(picked);
   const rows = (data?.forwards ?? []).filter((f) => f.provider === picked);
   const nameOf = new Map((data?.therapists ?? []).map((t) => [t.id, t.name]));
   const withAddress = rows.filter((r) => r.addressMask.length > 0);
@@ -120,7 +135,7 @@ export function DiaryTargets({ salonId, onToast }: { salonId: number | null; onT
 
       {/* ── どのサイトを見るか ─────────────────────────── */}
       <div className="bg-white border border-slate-200 shadow-[0_1px_2px_rgba(31,35,51,0.05)] p-5">
-        <h3 className="text-[16px] font-bold text-slate-700 mb-3">どのサイトの投稿先を見ますか？</h3>
+        <h3 className="text-[16px] font-bold text-slate-700 mb-3">どのサイトを見ますか？</h3>
 
         {loading ? (
           <p className="text-[14px] text-slate-400">読み込み中…</p>
@@ -148,9 +163,12 @@ export function DiaryTargets({ salonId, onToast }: { salonId: number | null; onT
                         ・エステラブはログイン情報を預からないので【永久に「未設定」】だった
                       ★ 「設定していない＝使えない」と読まれ、しかも直しようが無かった。
                       → ★ このページの関心事は【何人ぶん入っているか】。それを出す。 */}
-                  <span className="ml-1 font-medium text-slate-400 tabular-nums">
-                    （{countOf(s.provider)}/{total}名）
-                  </span>
+                  {/* ★ 人数は投稿先（アドレス）があるサイトだけ。★ エステ魂には無いので出さない（第201便） */}
+                  {DIARY_PROVIDERS.includes(s.provider) && (
+                    <span className="ml-1 font-medium text-slate-400 tabular-nums">
+                      （{countOf(s.provider)}/{total}名）
+                    </span>
+                  )}
                 </button>
               );
             })}
@@ -161,8 +179,9 @@ export function DiaryTargets({ salonId, onToast }: { salonId: number | null; onT
             ★ もとは「エステ魂はメールでの投稿ができず、全国エステランキングには
               写メ日記そのものがありません」と、出ていない2サイトの理由まで書いていた。
             ★ その理由は mediaSites.ts の diaryAddressSource: 'none' に残してある。 */}
+        {/* ★ 第201便: エステ魂が並んだので、違い（投稿先が要るか）を1行で言う */}
         <p className="mt-3 text-[13px] text-slate-400 leading-relaxed">
-          駅ちかとエステラブは写メ日記の自動転送ができます。
+          駅ちか・エステラブは、セラピストごとの投稿先（メールアドレス）を登録します。エステ魂は投稿先が要らず、ご本人の了承を記録します。
         </p>
       </div>
 
@@ -171,10 +190,11 @@ export function DiaryTargets({ salonId, onToast }: { salonId: number | null; onT
           いちばん誤解される点。★ 目に留まる色にする。 */}
       {!loading && !error && data?.diarySource !== 'fukues' && (
         <div className="border border-rose-200 bg-rose-50 px-4 py-3">
+          {/* ★ 第200便（2026-09-07・カッキーさん）: 「正本」「他社経由の転送」はこちらの言葉。
+              ★ 店舗様が押すもの（下の「フクエスで書く」）で言い、理由は括弧で1つだけ。 */}
           <p className="text-[14px] leading-relaxed text-slate-600">
-            <b className="font-bold text-rose-700">いまは、フクエスから写メ日記を転送していません。</b>{' '}
-            投稿先を登録しても、フクエスが正本になるまでは送りません。
-            他社経由の転送と二重にならないようにするためです。
+            <b className="font-bold text-rose-700">いまは、フクエスから写メ日記を送っていません。</b>{' '}
+            投稿先を登録しても、下で「フクエスで書く」を選ぶまでは送りません（同じ日記が二重に載らないようにするためです）。
           </p>
         </div>
       )}
@@ -191,13 +211,26 @@ export function DiaryTargets({ salonId, onToast }: { salonId: number | null; onT
         <div className="bg-white border border-slate-200 shadow-[0_1px_2px_rgba(31,35,51,0.05)] p-5 space-y-3">
           <p className="text-[19px] font-black text-slate-800">写メ日記をどこで書きますか</p>
           <p className="text-[13px] text-slate-400 leading-relaxed">
-            店舗全体の設定です。★ 受け取る道は常に1つだけにします（同じ日記が二重に載らないようにするため）。
+            店舗全体の設定です。日記の入口は1つだけです（同じ日記が二重に載らないようにするため）。
           </p>
+          {/* ★★★ 第202便（2026-09-07・カッキーさん）: 「他媒体で書く（代行システム経由）」を選択肢から外した。
+              ★ ゴールは「フクエスで書く」。代行経由で使いやすい設定は勧めない。★ 代行から投稿メールを出す店は、
+                代行側でフクエス宛てを止めてもらう（下の黄色い注意）。
+              ★★ ただし DB の既定値は 'benry'（20260826_diary_forward.sql）なので、まだ選んでいない店舗は全部この状態。
+                ★ 黙って消すと「どれも選ばれていない」画面になる。★ いまが benry の店舗にだけ、その事実を1行で言う。
+                ★ 一度切り替えたら画面からは戻せない（戻すなら運営が SQL）。★ 既定値は変えない（既存店舗の受け取り方が一斉に変わる）。 */}
+          {data.diarySource === 'benry' && (
+            <p className="text-[13px] text-slate-500 bg-slate-50 border border-slate-200 px-3 py-2 leading-relaxed">
+              いまは、代行システムからのメールで日記を受け取っています。下のどちらかを選ぶと切り替わります。
+            </p>
+          )}
           <div className="space-y-1.5">
             {[
-              { v: 'benry', t: '他媒体で書く（代行システム経由）', d: '駅ちか等で書いた日記を、代行システムからのメールでフクエスが受け取ります' },
-              { v: 'ekichika', t: '他媒体で書く（駅ちかから取り込む）', d: '駅ちかに載った日記を、フクエスが15分ごとに取り込みます。駅ちかのログイン情報をお預かりしている店舗のみ。このとき代行システムからのメールは受け取りません' },
-              { v: 'fukues', t: 'フクエスで書く', d: 'フクエスで書いた日記を、登録した宛先へ即時で送ります' },
+              // ★ 第203便（2026-09-07・カッキーさん）: 説明を短く。★ 「代行システムからのメールは受け取りません」は
+              //   代行を勧めない立場（第202便）なので、ここで触れない
+              // ★ 「フクエスで書く」が上（ゴール・カッキーさん 11:45）
+              { v: 'fukues', t: 'フクエスで書く（各サイトへ送る）', d: 'フクエスで書いた日記を、すぐに各サイトへ送ります' },
+              { v: 'ekichika', t: '駅ちかで書く（フクエスへ取り込む）', d: '駅ちかに載った日記を、15分ごとにフクエスへ取り込みます' },
             ].map((o) => (
               <label
                 key={o.v}
@@ -228,12 +261,9 @@ export function DiaryTargets({ salonId, onToast }: { salonId: number | null; onT
               </label>
             ))}
           </div>
-          {(data.diarySource === 'fukues' || data.diarySource === 'ekichika') && (
-            <p className="text-[13px] text-amber-700 bg-amber-50 border border-amber-200 px-3 py-2 leading-relaxed">
-              代行システム（ベンリー等）側の「日記転送先」の設定は外してください。
-              外さなくても同じ日記が二重に載ることはありませんが、代行側の送信が無駄になります。
-            </p>
-          )}
+          {/* ★ 第203便: 黄色い注意書き（代行側の「日記転送先」を外してください）は【外した】。
+              ★ 代行経由は黙認するが、ほかのサイト同様に勧めない立場（カッキーさん）。★ 案内文を置くと「対応している」と読める。
+              ★ 二重には載らない（受け取る道は1つ・第99便）ので、無くても事故は起きない。 */}
         </div>
       )}
 
@@ -242,7 +272,10 @@ export function DiaryTargets({ salonId, onToast }: { salonId: number | null; onT
             エステラブは /admin へ到達できず（403）**読み取れない**。
             しかもログイン情報の登録も閉じた。★ **二重に嘘**になっていた。
           ★ 入力の口は【セラピストさんのページ】に既にある。★ 新しく作らず、そこへ案内する。 */}
-      {!loading && !error && site && manualAddress ? (
+      {/* ── ★ エステ魂（第201便）: 投稿先の一覧の代わりに、送信状況と了承を出す ── */}
+      {!loading && !error && !hasAddressBook && esutamaPanel}
+
+      {!loading && !error && site && hasAddressBook && manualAddress ? (
         <div className="bg-white border border-slate-200 shadow-[0_1px_2px_rgba(31,35,51,0.05)] p-5 space-y-3">
           <div>
             <p className="text-[19px] font-black text-slate-800">
@@ -299,7 +332,7 @@ export function DiaryTargets({ salonId, onToast }: { salonId: number | null; onT
             </div>
           )}
         </div>
-      ) : !loading && !error && site && !site.hasCredential ? (
+      ) : !loading && !error && site && hasAddressBook && !site.hasCredential ? (
         <div className="bg-white border border-slate-200 shadow-[0_1px_2px_rgba(31,35,51,0.05)] p-5">
           <p className="text-[19px] font-black text-slate-800">{site.label}とはまだ連携していません</p>
           <p className="mt-1 text-[14px] text-slate-500 leading-relaxed">
@@ -312,7 +345,7 @@ export function DiaryTargets({ salonId, onToast }: { salonId: number | null; onT
             ログイン情報を登録する
           </Link>
         </div>
-      ) : !loading && !error && site ? (
+      ) : !loading && !error && site && hasAddressBook ? (
         <>
           {/* ── いまの状態 ────────────────────────────── */}
           <div className="bg-white border border-slate-200 shadow-[0_1px_2px_rgba(31,35,51,0.05)] p-5">

@@ -25,11 +25,21 @@ export default function MediaDiaryPage() {
       toast={toast}
     >
       <div className="space-y-3">
-        <DiaryTargets salonId={salon ? Number(salon.id) : null} onToast={showToast} />
-        {/* ★ エステ魂は代理ログインで送る（メールの口が無い）。★ 数だけ出す（第141便） */}
-        <EsutamaDiaryStatus salonId={salon ? Number(salon.id) : null} />
-        {/* ★ エステ魂は本人のアカウントから投稿する仕組み（第118便）。★ 了承を1人ずつ記録する */}
-        <DiaryConsent salonId={salon ? Number(salon.id) : null} onToast={showToast} />
+        {/* ★ 第201便（2026-09-07・カッキーさん）: エステ魂の2つ（送信状況・了承）は、上のブロックで
+            「エステ魂」を選んだときだけ出す。★ 常に下に並べていると、上の「どのサイト」にエステ魂が無いのと
+            合わせて、どこがエステ魂の設定なのかが読めなかった（第三者視点）。 */}
+        <DiaryTargets
+          salonId={salon ? Number(salon.id) : null}
+          onToast={showToast}
+          esutamaPanel={
+            <>
+              {/* ★ エステ魂は代理ログインで送る（メールの口が無い）。★ 数だけ出す（第141便） */}
+              <EsutamaDiaryStatus salonId={salon ? Number(salon.id) : null} />
+              {/* ★ エステ魂は本人のアカウントから投稿する仕組み（第118便）。★ 了承を1人ずつ記録する */}
+              <DiaryConsent salonId={salon ? Number(salon.id) : null} onToast={showToast} />
+            </>
+          }
+        />
       </div>
     </MediaShell>
   );

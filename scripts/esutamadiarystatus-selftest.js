@@ -42,16 +42,16 @@ eq('★ 在籍0なら合計も0',
 
 console.log('\n── 3. ★★★ 0件でも言葉にする ──');
 // ★★★ 「送れる見込み」は0でも必ず出す（第35便の反省6）
-eq('★★★ 見込み0でも数を出す', S.diaryStatusLine(b({ 了承あり結びあり: 0 })).startsWith('お送りできる見込み 0名'), true);
+eq('★★★ 見込み0でも数を出す', S.diaryStatusLine(b({ 了承あり結びあり: 0 })).startsWith('送れる見込み 0名'), true);
 eq('★ 在籍の数は必ず出る', S.diaryStatusLine(r).includes('在籍 23名'), true);
 // ★ 0のものは並べない（読む量を増やさない）
 eq('★ 0のものは並べない',
-   S.diaryStatusLine(b({ 了承あり: 23, 了承あり結びあり: 23 })).includes('ご了承がまだ'), false);
+   S.diaryStatusLine(b({ 了承あり: 23, 了承あり結びあり: 23 })).includes('了承がまだ'), false);
 // ★★ 送信が1件も無いときは、空欄にせず言葉にする
 eq('★★★ 1件も無ければ「まだお送りしていません」',
-   S.diarySentLine(b({ 送れた: 0 })), 'まだお送りしていません');
+   S.diarySentLine(b({ 送れた: 0 })), 'まだ送っていません');
 // ★★ 「送れていない」は0でも出す（★ 見落とさせない）
-eq('★★ 送れていない0でも出す', S.diarySentLine(r).includes('お送りできませんでした 0件'), true);
+eq('★★ 送れていない0でも出す', S.diarySentLine(r).includes('送れなかった 0件'), true);
 // ★★★ 「送った」と「載った」を混ぜない
 eq('★★★ 「載りました」とは書かない', S.diarySentLine(r).includes('載り'), false);
 
@@ -68,13 +68,13 @@ eq('★ 誰も了承していなければ、了承の案内',
 // ★★★ 順番: 「了承はもらったのに結びが無い」を先に出す（★ あと1手で送れる）
 eq('★★★ 了承済みが居て結びが無ければ、結びの案内が先',
    S.diaryNextStep(b({ 了承あり: 6, 了承あり結びあり: 0 })).includes('結びつけて'), true);
-eq('★★ そのときは「ご了承をいただいた方がいます」と書く',
-   S.diaryNextStep(b({ 了承あり: 6, 了承あり結びあり: 0 })).includes('ご了承をいただいた方がいます'), true);
+eq('★★ そのときは「了承ありの方がいます」と書く',
+   S.diaryNextStep(b({ 了承あり: 6, 了承あり結びあり: 0 })).includes('了承ありの方がいます'), true);
 
 console.log('\n── 5. ★★★ 分からないものを数に混ぜない ──');
 // ★★ 相手の利用状況は見ていない。★ だから「送れます」と言い切らない
 eq('★★★ 「見込み」と書く', S.diaryStatusLine(r).includes('見込み'), true);
-eq('★★★ 「送れます」と言い切らない', S.diaryStatusLine(r).includes('お送りできます'), false);
+eq('★★★ 「送れます」と言い切らない', S.diaryStatusLine(r).includes('送れます'), false);
 
 console.log(fail === 0 ? '\n★ すべて通りました' : '\n' + fail + ' 件 通りませんでした');
 process.exit(fail === 0 ? 0 : 1);

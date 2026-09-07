@@ -13,6 +13,7 @@
 
 import { createServiceClient } from '@/app/lib/supabase/service';
 import { recordMediaAudit } from '@/app/lib/media/mediaAudit';
+import { findMediaSite } from '@/lib/mediaSites';
 import { defaultAuditSummary } from '@/lib/mediaAudit';
 import { enqueueRelayJob } from '@/app/lib/media/relayQueue';
 import { stampDiaryListed } from '@/app/lib/media/diaryWatch';
@@ -222,7 +223,14 @@ export async function startRelayFlow(params: {
     .eq('slot', params.slot)
     .maybeSingle();
   if (src && String((src as { link_mode?: string }).link_mode) === 'none') {
-    return { ok: false, reason: 'disabled', note: 'この枠は「連携しない」に設定されています' };
+    // ★ 第198便（2026-09-07）: 文言を今の画面の言葉（「反映しない」・第90便）に揃え、直し方まで書く。
+    //   ★ 旧「この枠は「連携しない」に設定されています」は、画面のどこにも無い呼び名だった（カッキーさんが実機で踏んだ）。
+    //   ★ 決めごと（none の枠では鍵を使わない・第45便）はそのまま。名簿を読むだけでも入らない。
+    const name = findMediaSite(params.provider)?.name ?? 'このサイト';
+    return {
+      ok: false, reason: 'disabled',
+      note: `${name}は「反映しない」にしているため、名簿の読み取りや送信はしません。ホームで${name}を「フクエスから反映」にしてからお試しください`,
+    };
   }
   if (cred.is_enabled !== true) {
     // ★ 停止中の連携を、こちらの都合で勝手に動かさない

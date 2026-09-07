@@ -50,9 +50,10 @@ export function EsutamaDiaryStatus({ salonId }: { salonId: number | null }) {
 
   return (
     <section className="rounded-xl border border-slate-200 bg-white p-4">
-      <h2 className="text-base font-bold text-slate-900">エステ魂へお送りした写メ日記</h2>
+      {/* ★ 第204便（2026-09-07・カッキーさん）: 丁寧すぎて読みにくかった。
+          ★ 「ご本人のアカウントに代わって」の説明は下の「エステ魂へ日記を送ってよい方」にあるので、ここでは言わない */}
+      <h2 className="text-base font-bold text-slate-900">エステ魂へ送った写メ日記</h2>
       <p className="mt-1 text-sm text-slate-600">
-        エステ魂はメールで投稿できないため、<b>ご本人のアカウントに代わってお送りします</b>。
         フクエスで写メ日記を書くと、数分後に反映されます。
       </p>
 
@@ -66,7 +67,7 @@ export function EsutamaDiaryStatus({ salonId }: { salonId: number | null }) {
             <div className="text-sm font-bold text-slate-900">{data.sentLine}</div>
             {data.status.最後に送れた && (
               <div className="mt-1 text-xs text-slate-500">
-                最後にお送りした {fmt(data.status.最後に送れた)}
+                最後に送った {fmt(data.status.最後に送れた)}
               </div>
             )}
           </div>
@@ -75,7 +76,7 @@ export function EsutamaDiaryStatus({ salonId }: { salonId: number | null }) {
             <div className="text-sm text-slate-800">{data.line}</div>
             {/* ★★ 分からないことを分からないと書く。★ 「送れます」と言い切らない理由 */}
             <div className="mt-1 text-xs text-slate-500">
-              ★ ご本人がエステ魂を利用中かどうかは、お送りするときに確かめます。
+              ★ ご本人がエステ魂を利用中かどうかは、送るときに確かめます。
             </div>
           </div>
 
@@ -88,7 +89,7 @@ export function EsutamaDiaryStatus({ salonId }: { salonId: number | null }) {
 
           {/* ★★★ 店舗様に必ず伝えること。★ ここを外すと本当に二重投稿になる */}
           <p className="text-xs text-slate-600">
-            ★ セラピストさんには「エステ魂へ直接書かず、フクエスに書く」とお伝えください。
+            ★ セラピストさんには「エステ魂へ直接書かず、フクエスに書く」と伝えてください。
             両方から書くと、同じ日記が2本並びます（エステ魂は店舗側から消せません）。
           </p>
         </div>
