@@ -602,6 +602,7 @@ export function WorkSend({ salonId, onToast }: { salonId: number | null; onToast
         <SokuhimeSlots
           salonId={salonId}
           hasCredential={sites.some((s) => s.provider === 'ekichika' && s.hasCredential)}
+          isWrite={sites.some((s) => s.provider === 'ekichika' && s.direction === 'write')}
           onToast={onToast}
         />
       )}

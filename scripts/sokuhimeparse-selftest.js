@@ -49,6 +49,8 @@ eq('枠1: castId・sokuikuId・切れる時刻・迄', p.boxes[0], { index: 0, g
 eq('枠2〜5は未設定', p.boxes.slice(1).every((b) => b.girlId === null && b.sokuikuId === null && b.expiresAtUnix === null), true);
 eq('出勤中は1名・即ヒメ中', p.working, [{ castId: '5257770', name: 'かな', isSokuhime: true, raw: 'fast' }]);
 eq('回数制ではない（#all_sokuiku_num が無い）', [p.countedPlan, p.remainingCount], [false, null]);
+eq('shopId（hide_shop_id）が読める', p.shopId, '37168');
+eq('preceding_flg は無い → null', p.precedingFlg, null);
 eq('使っている枠', v.sokuhimeUsed(p), 1);
 eq('空いている枠の番号', v.sokuhimeFreeSlots(p), [1, 2, 3, 4]);
 eq('1行', v.sokuhimeSummaryLabel(p), '即ヒメ枠 1/5（空き4）');

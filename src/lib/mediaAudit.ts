@@ -20,6 +20,9 @@ export const MEDIA_AUDIT_EVENTS = [
   'read_work',           // 出勤を読んだ
   'read_girls',          // ★ 媒体側の名簿（女の子一覧）を読んだ（第50便）。読むだけ
   'read_sokuhime',       // ★ 駅ちかの即ヒメ設定画面を読んだ（第213便）。読むだけ
+  'plan_sokuhime',       // ★ 今すぐ→即ヒメ の計画（誰を押す・誰を消す・送れない理由）（第214便）。★ 試し打ちはここまで
+  'write_sokuhime',      // ★★ 駅ちかの即ヒメを ON にした（第214便）。★ 書き換える
+  'delete_sokuhime',     // ★★ 駅ちかの即ヒメを消した（第214便）。★ 書き換える
   'read_maillist',       // ★ 投稿用メールアドレス一覧を読んだ（第53便）。読むだけ
   'read_diary_list',     // ★ 写メ日記の一覧を読んだ（第94便）。読むだけ
   'read_diary_detail',   // ★ 写メ日記を1件開いた（第94便）。読むだけ
@@ -312,6 +315,30 @@ export function defaultAuditSummary(input: {
       s = input.outcome === 'ok'
         ? `${t}の即ヒメ設定を読み取りました` + (typeof slots === 'number' ? `（即ヒメ枠 ${typeof used === 'number' ? used : '?'}/${slots}）` : '')
         : `${t}の即ヒメ設定を読み取れませんでした`;
+      break;
+    }
+    case 'plan_sokuhime': {
+      // ★ 今すぐ→即ヒメ の計画（第214便）。★ summary は呼び出し側が入れる（sokuhimePlanSummary）。無ければ既定
+      s = input.outcome === 'ok' ? `${t}の即ヒメの送り先を確かめました` : `${t}の即ヒメの送り先を確かめられませんでした`;
+      break;
+    }
+    case 'write_sokuhime': {
+      const who = typeof d?.['name'] === 'string' && d['name'] ? `${d['name']}さんを` : '';
+      const until = typeof d?.['until'] === 'string' && d['until'] ? `（～${d['until']} 迄）` : '';
+      s = input.outcome === 'ok'
+        ? `${who}${t}の即ヒメにしました${until}`
+        : input.outcome === 'stopped'
+          ? `${who}${t}の即ヒメにするのを止めました`
+          : `${who}${t}の即ヒメにできませんでした`;
+      break;
+    }
+    case 'delete_sokuhime': {
+      const who = typeof d?.['name'] === 'string' && d['name'] ? `${d['name']}さんの` : '';
+      s = input.outcome === 'ok'
+        ? `${who}${t}の即ヒメを解除しました（フクエスの「今すぐ」が終わったため）`
+        : input.outcome === 'stopped'
+          ? `${who}${t}の即ヒメの解除を止めました`
+          : `${who}${t}の即ヒメを解除できませんでした`;
       break;
     }
     case 'read_maillist': {

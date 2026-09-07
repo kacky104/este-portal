@@ -17,6 +17,7 @@ import { buildLinkPairs, canLink, canUnlink, type LinkPairs } from '@/lib/mediaL
 import { providerLabel, isShopVisibleAudit } from '@/lib/mediaAudit';
 import { findMediaSite, sendableCapabilities, capabilityLabel } from '@/lib/mediaSites';
 import type { SokuhimeSnapshotView } from '@/lib/ekichikaSokuhimeParse';
+import { isOwnerLiveRow, isCastLiveRow, type ImasuguRow } from '@/lib/imasugu';
 import {
   siteDirection,
   directionLabel,
@@ -1515,6 +1516,98 @@ export async function getMediaSokuhime(input: { salonId: string | number; slot?:
       working,
     },
   };
+}
+
+/**
+ * ★★★ フクエスの「今すぐ」を駅ちかの即ヒメへ、1人だけ送る（第214便・2026-09-08）。
+ * ★ apply=false（既定）は試し打ち＝読んで計画を「連携の記録」に残すだけ。★ 駅ちかを触らない。
+ * ★ apply=true で実弾（1人）。★ 駅ちかの枠が write / write_auto のときだけ（方針: 駅ちかから取り込む店はフクエスから書かない）。
+ */
+export async function startMediaSokuhimePush(input: {
+  salonId: string | number; therapistId: number; apply?: boolean; slot?: number;
+}): Promise<Result<{ jobId: string; note: string }>> {
+  const salonId = Number(input.salonId);
+  if (!Number.isFinite(salonId)) return { ok: false, error: '店舗の指定が不正です' };
+  const therapistId = Number(input.therapistId);
+  if (!Number.isFinite(therapistId) || therapistId <= 0) return { ok: false, error: 'セラピストの指定が不正です' };
+  const slot = Math.trunc(Number(input.slot ?? 1));
+  const provider = 'ekichika';
+  const guard = await assertSalonOwner(salonId);
+  if (!guard.ok) return guard;
+  const svc = createServiceClient();
+  const { data: row } = await svc
+    .from('salon_media_credentials').select('consent_version')
+    .eq('salon_id', salonId).eq('provider', provider).eq('slot', slot).maybeSingle();
+  if (!row) return { ok: false, error: '駅ちかのログイン情報が登録されていません' };
+  if (needsConsent(row.consent_version as string | null)) return { ok: false, error: '連携の説明に同意してから実行してください' };
+  // ★★★ 実弾は write の枠だけ。★ 画面だけで守らない（第38便 §17-16）
+  if (input.apply === true) {
+    const { data: src } = await svc.from('salon_import_sources').select('link_mode, is_enabled')
+      .eq('salon_id', salonId).eq('provider', provider).eq('slot', slot).maybeSingle();
+    if (!src || src.is_enabled !== true || !isWriteDirection(src.link_mode as string | null)) {
+      return { ok: false, error: '駅ちかが「フクエスから反映」になっていないため送れません。ホームで「フクエスから反映」にしてください' };
+    }
+  }
+  try {
+    const r = await startRelayFlow({
+      salonId, provider, slot, intent: 'sokuhime_push',
+      sokuhime: { therapistId, apply: input.apply === true },
+      actor: 'shop:' + guard.data.userId,
+    });
+    if (!r.ok) return { ok: false, error: r.note };
+    return { ok: true, data: { jobId: r.jobId, note: r.note } };
+  } catch (e) {
+    console.error('[media] 即ヒメの送信を始められなかった', (e as Error).message);
+    return { ok: false, error: '即ヒメの送信を開始できませんでした。時間をおいてお試しください' };
+  }
+}
+
+/**
+ * ★ フクエスで「今すぐ」（店舗か本人が押したもの）になっている方の一覧（第214便）。★ 即ヒメ枠の箱に出す。
+ * ★ 取り込み枠（駅ちか由来）だけの方は出さない（書き戻さない）。
+ */
+export async function getSokuhimeCandidates(input: { salonId: string | number; slot?: number }): Promise<Result<Array<{
+  therapistId: number; name: string; castId: string | null; untilISO: string | null; pushedAtISO: string | null;
+}>>> {
+  const salonId = Number(input.salonId);
+  if (!Number.isFinite(salonId)) return { ok: false, error: '店舗の指定が不正です' };
+  const slot = Math.trunc(Number(input.slot ?? 1));
+  const guard = await assertSalonOwner(salonId);
+  if (!guard.ok) return guard;
+  const svc = createServiceClient();
+  const now = new Date();
+  const { data: ths, error } = await svc
+    .from('therapists')
+    .select('id, name, import_cast_id, is_available_now, available_until, is_available_now_cast, available_until_cast, is_available_now_import, available_until_import')
+    .eq('salon_id', salonId).eq('is_active', true).order('id', { ascending: true });
+  if (error) return { ok: false, error: 'セラピストを読めませんでした' };
+  const trows = (ths ?? []) as Array<Record<string, unknown>>;
+  const { maps } = await loadCastIds(svc, {
+    therapists: trows.map((t) => ({ id: Number(t['id']), import_cast_id: (t['import_cast_id'] as string | null) ?? null })),
+    provider: 'ekichika', slot,
+  });
+  const { data: pushes } = await svc.from('media_sokuhime_pushes').select('therapist_id, pushed_at')
+    .eq('salon_id', salonId).eq('provider', 'ekichika').eq('slot', slot).is('removed_at', null)
+    .gte('pushed_at', new Date(now.getTime() - 24 * 3600 * 1000).toISOString());
+  const pushedAt = new Map<number, string>();
+  for (const p of (pushes ?? []) as Array<{ therapist_id: number; pushed_at: string }>) {
+    if (!pushedAt.has(Number(p.therapist_id))) pushedAt.set(Number(p.therapist_id), String(p.pushed_at));
+  }
+  const out: Array<{ therapistId: number; name: string; castId: string | null; untilISO: string | null; pushedAtISO: string | null }> = [];
+  for (const t of trows) {
+    const row = t as unknown as ImasuguRow;
+    const owner = isOwnerLiveRow(row, now);
+    const cast = isCastLiveRow(row, now);
+    if (!owner && !cast) continue;
+    const untils = [owner ? row.available_until : null, cast ? row.available_until_cast : null].filter((u): u is string => typeof u === 'string' && u.length > 0);
+    const id = Number(t['id']);
+    out.push({
+      therapistId: id, name: String(t['name'] ?? ''), castId: maps.castIdOf.get(id) ?? null,
+      untilISO: untils.length > 0 ? untils.sort().slice(-1)[0] : null,
+      pushedAtISO: pushedAt.get(id) ?? null,
+    });
+  }
+  return { ok: true, data: out };
 }
 
 /**

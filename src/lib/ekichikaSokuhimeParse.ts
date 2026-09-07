@@ -62,6 +62,10 @@ export type EkichikaSokuhimePage = {
   countedPlan: boolean;
   /** 回数制のとき、残り回数。★ 回数制でなければ null */
   remainingCount: number | null;
+  /** ★ #hide_shop_id（ajax の shopId に要る・第214便）。無ければ null */
+  shopId: string | null;
+  /** ★ #preceding_flg（回数制の印・ajax に渡す）。無ければ null */
+  precedingFlg: string | null;
   /** ★★★ 読めたが信用できない理由。空でなければ使わせない */
   problems: string[];
 };
@@ -83,7 +87,7 @@ export function parseEkichikaSokuhime(html: string): EkichikaSokuhimePage {
   // ★ ログイン画面や別ページを「枠0・出勤0」と読まない。★ 見出しで即ヒメの画面であることを確かめる
   if (!/即ヒメ設定/.test(src)) {
     problems.push('「即ヒメ設定」の見出しが無い。ログイン画面か別のページを疑うこと');
-    return { boxes, working, countedPlan: false, remainingCount: null, problems };
+    return { boxes, working, countedPlan: false, remainingCount: null, shopId: null, precedingFlg: null, problems };
   }
 
   // 1. 枠。★ 隣どうしで切る（</div> の対応を数えない・girls の parser と同じ作法）
@@ -156,7 +160,13 @@ export function parseEkichikaSokuhime(html: string): EkichikaSokuhimePage {
     if (g && !g.isSokuhime) problems.push('castId ' + b.girlId + ' は枠に居るのに一覧では即ヒメ中になっていない');
   }
 
-  return { boxes, working, countedPlan, remainingCount, problems };
+  const hidden = (id: string): string | null =>
+    new RegExp('id="' + id + '"[^>]*\\bvalue="([^"]*)"', 'i').exec(src)?.[1]
+      ?? new RegExp('\\bvalue="([^"]*)"[^>]*id="' + id + '"', 'i').exec(src)?.[1] ?? null;
+  const shopId = hidden('hide_shop_id');
+  const precedingFlg = hidden('preceding_flg');
+
+  return { boxes, working, countedPlan, remainingCount, shopId, precedingFlg, problems };
 }
 
 /** 読み取り結果を使ってよいか。★ problems が空で、枠が1つ以上読めていること */

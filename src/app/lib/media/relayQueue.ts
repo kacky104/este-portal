@@ -36,6 +36,7 @@ export type RelayPurpose =
   | 'read_work'
   | 'read_girls'   // ★ 媒体側の名簿を読む（第50便）。読むだけ
   | 'read_sokuhime' // ★ 駅ちかの即ヒメ設定画面を読む（第213便）。読むだけ
+  | 'sokuhime_check' | 'sokuhime_set' | 'sokuhime_del'   // ★ 即ヒメを押す／消す（第214便）
   | 'read_maillist' // ★ 投稿用メールアドレス一覧を読む（第53便）。読むだけ
   // ★ 駅ちかの新着情報の段（第155便）。★ 段名で分けているので既存の段に触らない
   //   ★★ article_save だけが相手を書き換える。★ 5枠のうち【1枠だけ】

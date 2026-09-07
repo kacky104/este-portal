@@ -497,5 +497,44 @@ console.log('\n── ★ 第213便: 即ヒメ設定画面を読むだけ（soku
      RF.advanceFlow({ purpose: 'read_work', status: 200, headers: {}, body: '<html></html>', context: ctx }).kind, 'stop');
 }
 
+
+console.log('\n── ★★★ 第214便: 今すぐ→即ヒメ（check → set → 照合／del → 照合）──');
+{
+  const base = Object.assign(RF.newFlowContext({ flowId: 'f10', intent: 'sokuhime_push', startedAt: '2026-09-08T00:00:00+09:00' }),
+    { cookie: 'sid=abc', sokuhimeApply: true, sokuhimeStage: 'plan', sokuhimeShopId: '37168', sokuhimePrecedingFlg: '', sokuhimeRemaining: null,
+      sokuhimeTarget: { therapistId: 7, name: 'かな', castId: '5257770', slotIndex: 1, oldGirlId: null, oldSokuikuId: null, untilUnix: null } });
+  const dec = (b) => decodeURIComponent(b).split('&').sort();
+  // ① check
+  const chk = RF.buildSokuhimeCheckStep(base);
+  eq('check は POST ajaxgirlinfo', [chk.purpose, chk.method, chk.url], ['sokuhime_check', 'POST', RF.EKICHIKA_SOKUHIME_CHECK_URL]);
+  eq('check の body（id・枠・shopId）', dec(chk.body), ['id=5257770', 'shopId=37168', 'sokuikuSetIndex=1']);
+  eq('ajax の印（X-Requested-With・referer は即ヒメ画面）', [chk.headers['x-requested-with'], chk.headers['referer']], ['XMLHttpRequest', RF.EKICHIKA_SOKUHIME_URL]);
+  eq('★ CSRF トークンは送らない（無い）', /csrf|token/i.test(chk.body), false);
+  const r1 = RF.advanceFlow({ purpose: 'sokuhime_check', status: 200, headers: {}, body: '{}', context: base });
+  eq('★★★ 空 → 在籍していない → stop（送らない）', [r1.kind, r1.audits[0].event, r1.audits[0].outcome, r1.audits[0].detail.reason], ['stop', 'write_sokuhime', 'stopped', 'not_registered']);
+  const r2 = RF.advanceFlow({ purpose: 'sokuhime_check', status: 200, headers: {}, body: '{"0":{"name":"かな"},"is_working":false}', context: base });
+  eq('★★★ is_working=false → 出勤中でない → stop', [r2.kind, r2.audits[0].detail.reason], ['stop', 'not_working']);
+  const r3 = RF.advanceFlow({ purpose: 'sokuhime_check', status: 200, headers: {}, body: '{"0":{"name":"かな"},"is_working":true}', context: base });
+  eq('出勤中 → 次は set', r3.kind === 'next' && r3.next.purpose, 'sokuhime_set');
+  eq('set の body（girls.js と同じ8項目）', dec(r3.next.body), ['id=5257770', 'idname=setbox4', 'is_sokuiku=true', 'oldid=', 'preceding_flg=', 'sokuikuSetIndex=1', 'sokuikuid=', 'sokuikunum=']);
+  const r3b = RF.advanceFlow({ purpose: 'sokuhime_check', status: 200, headers: {}, body: '[{"name":"かな"}]', context: base });
+  eq('配列で来ても受ける（is_working が無ければ出勤中と見なさない）', r3b.kind, 'stop');
+  const bad = RF.advanceFlow({ purpose: 'sokuhime_check', status: 200, headers: {}, body: '<html>login</html>', context: base });
+  eq('JSON でない → stop（理由つき）', [bad.kind, bad.audits[0].detail.reason], ['stop', 'check_bad_response']);
+  // ② set → 照合
+  const r4 = RF.advanceFlow({ purpose: 'sokuhime_set', status: 200, headers: {}, body: '[{"topprioritytime":"00:57"}]', context: r3.next.context });
+  eq('set のあとは画面を読み直して照合（stage=verify_set）', [r4.kind === 'next' && r4.next.purpose, r4.next.context.sokuhimeStage, r4.next.context.sokuhimeToppriorityTime], ['read_sokuhime', 'verify_set', '00:57']);
+  // ③ del → 照合
+  const delCtx = Object.assign({}, base, { sokuhimeDel: { castId: '5257770', slotIndex: 0, sokuikuId: '851371885', expiresAtUnix: 1788793939 } });
+  const d = RF.buildSokuhimeDelStep(delCtx);
+  eq('del の body（girls.js と同じ7項目）', dec(d.body), ['boxname=setbox4', 'expired_at=1788793939', 'id=5257770', 'preceding_flg=', 'shopId=37168', 'sokuikuSetIndex=0', 'sokuikuid=851371885']);
+  const r5 = RF.advanceFlow({ purpose: 'sokuhime_del', status: 200, headers: {}, body: '{"result":"ok"}', context: delCtx });
+  eq('del のあとは照合（stage=verify_del）', [r5.kind === 'next' && r5.next.purpose, r5.next.context.sokuhimeStage], ['read_sokuhime', 'verify_del']);
+  // 入口
+  const l = RF.advanceFlow({ purpose: 'login', status: 302, headers: { 'set-cookie': 'fuelcid=x; Path=/' }, body: '', context: base });
+  eq('push もログインのあと即ヒメ画面を読む', l.kind === 'next' && l.next.purpose, 'read_sokuhime');
+  eq('★ 出勤ページへ来たら止まる（網羅）', RF.advanceFlow({ purpose: 'read_work', status: 200, headers: {}, body: '<html></html>', context: base }).kind, 'stop');
+}
+
 console.log(fail === 0 ? '\n★ すべて通った' : '\n★ NG ' + fail + ' 件');
 process.exit(fail === 0 ? 0 : 1);

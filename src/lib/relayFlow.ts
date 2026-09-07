@@ -102,6 +102,10 @@ export const EKICHIKA_WORK_URL = 'https://ranking-deli.jp/admin/girlswork/';
 export const EKICHIKA_GIRLS_URL = 'https://ranking-deli.jp/admin/girls/';
 /** ★ 即ヒメ設定画面（第213便）。★ 読むだけ */
 export const EKICHIKA_SOKUHIME_URL = 'https://ranking-deli.jp/admin/sokuiku/';
+/** ★ 即ヒメの ajax 3本（第214便・girls.js から実測）。★ CSRF トークンは無い（セッション Cookie だけ） */
+export const EKICHIKA_SOKUHIME_CHECK_URL = 'https://ranking-deli.jp/admin/ajaxgirlinfo/create.json';
+export const EKICHIKA_SOKUHIME_SET_URL = 'https://ranking-deli.jp/admin/ajaxgirlinforegist/create.json';
+export const EKICHIKA_SOKUHIME_DEL_URL = 'https://ranking-deli.jp/admin/ajaxgirlinfodel/create.json';
 /** 投稿用メールアドレス一覧（管理画面）。★ 読むだけ。写メ日記の転送先がここに載る（第53便） */
 export const EKICHIKA_MAILLIST_URL = 'https://ranking-deli.jp/admin/maillist/';
 
@@ -181,6 +185,15 @@ export type RelayFlowIntent =
    *   ★ 枠の数（＝上限）・設定中の子・切れる時刻・出勤中の子 を写しに残す。★ 押す側は次の便。
    */
   | 'sokuhime_read'
+  /**
+   * ★★★ フクエスの「今すぐ」を駅ちかの「即ヒメ」へ（第214便・設計メモ_今すぐを駅ちかの即ヒメへ §2）。
+   *   login → read_sokuhime →（DB を読んで計画）→ sokuhime_check → sokuhime_set → read_sokuhime（照合）
+   *   ★ 消すとき: → sokuhime_del → read_sokuhime（照合）
+   *   ★ 1回のフローで ON にするのは1人だけ（相手のアカウントを触る操作・即セラと同じ）。
+   *   ★ sokuhime_push は運営／店舗が1人だけ試す（試し打ちが既定・sokuhimeApply=true で実弾）。sokuhime_auto は周から。
+   */
+  | 'sokuhime_push'
+  | 'sokuhime_auto'
   /**
    * ★★ 投稿用メールアドレスの取り込み（第53便・設計メモ 追記26 §123）。
    *   login → read_maillist → 終わり。★ **駅ちかへは何も書かない。**
@@ -428,6 +441,24 @@ export type RelayFlowContext = {
    */
   esutamaDiaryMarked?: boolean;
 
+  // ── ここから下は intent='sokuhime_*' のときだけ入る（第214便）──
+  /** 試し打ちか実弾か。★ 既定 false（読んで計画を記録するだけ・駅ちかを触らない） */
+  sokuhimeApply?: boolean;
+  /** 運営／店舗が1人だけ試すときの相手（フクエス側の therapist_id）。★ auto では入れない */
+  sokuhimeTherapistId?: number;
+  /** いま何をしているか。★ read_sokuhime の応答をどう扱うかを決める */
+  sokuhimeStage?: 'plan' | 'verify_set' | 'verify_del';
+  /** 押す相手（計画で決まる） */
+  sokuhimeTarget?: { therapistId: number; name: string; castId: string; slotIndex: number; oldGirlId: string | null; oldSokuikuId: string | null; untilUnix: number | null };
+  /** 消す相手（計画で決まる） */
+  sokuhimeDel?: { castId: string; slotIndex: number; sokuikuId: string | null; expiresAtUnix: number | null };
+  /** #hide_shop_id・#preceding_flg・回数（ページから） */
+  sokuhimeShopId?: string;
+  sokuhimePrecedingFlg?: string;
+  sokuhimeRemaining?: number | null;
+  /** 相手が返した終了時刻の文字（"HH:MM"）。★ 照合の段で記録に残す */
+  sokuhimeToppriorityTime?: string;
+
   // ── ここから下は intent='sokusera_*' のときだけ入る（第143便）──
   /** 即セラをONにする相手（フクエス側の therapist_id）。★ 周が1人だけ選ぶ */
   esutamaSokuseraTherapistId?: number;
@@ -505,6 +536,8 @@ export type FlowNextRequest = {
     | 'read_work' | 'write_work' | 'verify_work' | 'read_girls' | 'read_maillist'
     // ★ 即ヒメ設定画面（第213便）。★ 読むだけ
     | 'read_sokuhime'
+    // ★ 即ヒメを押す／消す（第214便）。★ ajax 3本
+    | 'sokuhime_check' | 'sokuhime_set' | 'sokuhime_del'
     // ★ 駅ちかの新着情報（第155便）。★ 名前を分けることで、既存の段の判定に一切触らない
     | 'article_list' | 'article_read' | 'article_save' | 'article_verify'
     // ★ 写メ日記の段（第94便）。★ 読むだけ
@@ -819,6 +852,12 @@ export function advanceFlow(input: {
       return afterReadGirls(input, ctx);
     case 'read_sokuhime':
       return afterReadSokuhime(input, ctx);
+    case 'sokuhime_check':
+      return afterSokuhimeCheck(input, ctx);
+    case 'sokuhime_set':
+      return afterSokuhimeSet(input, ctx);
+    case 'sokuhime_del':
+      return afterSokuhimeDel(input, ctx);
     case 'read_maillist':
       return afterReadMailList(input, ctx);
     // ── 駅ちかの新着情報（第155便）★ 段名で分けている。既存の case には触れていない ──
@@ -990,7 +1029,7 @@ function afterLogin(
     };
   }
 
-  if (ctx.intent === 'sokuhime_read') {
+  if (ctx.intent === 'sokuhime_read' || ctx.intent === 'sokuhime_push' || ctx.intent === 'sokuhime_auto') {
     return {
       kind: 'next',
       next: {
@@ -1035,6 +1074,167 @@ function afterLogin(
     },
     audits: [],
     note: 'ログインの応答を受け取った。★ 成否は出勤ページが読めるかどうかで判定する',
+  };
+}
+
+// ───────────── ★★★ 即ヒメを押す／消す（第214便） ─────────────
+//   girls.js（駅ちか）の droppable→setbox4 の枝と #imgdel_toppriority の click をそのまま写した。
+//   ① POST ajaxgirlinfo/create.json        { id, sokuikuSetIndex, shopId }            → 在籍・出勤中の確認・名前
+//   ② POST ajaxgirlinforegist/create.json  { id, idname:"setbox4", oldid, sokuikunum, preceding_flg, sokuikuSetIndex, sokuikuid, is_sokuiku:true }
+//   ③ POST ajaxgirlinfodel/create.json     { id, boxname:"setbox4", preceding_flg, sokuikuSetIndex, expired_at, shopId, sokuikuid }
+//   ★ jQuery の $.ajax と同じ形（x-www-form-urlencoded・X-Requested-With）。★ undefined は空文字で送る（jQuery.param と同じ）。
+
+function sokuhimeHeadersPost(ctx: RelayFlowContext): Record<string, string> {
+  return {
+    'user-agent': RELAY_USER_AGENT,
+    accept: 'application/json, text/javascript, */*; q=0.01',
+    'accept-language': 'ja,en-US;q=0.9,en;q=0.8',
+    'content-type': 'application/x-www-form-urlencoded',
+    origin: EKICHIKA_ORIGIN,
+    referer: EKICHIKA_SOKUHIME_URL,
+    'x-requested-with': 'XMLHttpRequest',
+    cookie: ctx.cookie,
+  };
+}
+
+/** ① 在籍・出勤中の確認。★ 押す前に相手側でも見る（二重） */
+export function buildSokuhimeCheckStep(ctx: RelayFlowContext): FlowNextRequest {
+  const t = ctx.sokuhimeTarget;
+  if (!t) throw new Error('sokuhimeTarget が無い');
+  const fields: Array<[string, string]> = [
+    ['id', t.castId],
+    ['sokuikuSetIndex', String(t.slotIndex)],
+    ['shopId', ctx.sokuhimeShopId ?? ''],
+  ];
+  return { purpose: 'sokuhime_check', method: 'POST', url: EKICHIKA_SOKUHIME_CHECK_URL, headers: sokuhimeHeadersPost(ctx), body: encodePayload(fields), context: ctx };
+}
+
+/** ② 即ヒメに設定 */
+export function buildSokuhimeSetStep(ctx: RelayFlowContext): FlowNextRequest {
+  const t = ctx.sokuhimeTarget;
+  if (!t) throw new Error('sokuhimeTarget が無い');
+  const fields: Array<[string, string]> = [
+    ['id', t.castId],
+    ['idname', 'setbox4'],
+    ['oldid', t.oldGirlId ?? ''],
+    ['sokuikunum', ctx.sokuhimeRemaining == null ? '' : String(ctx.sokuhimeRemaining)],
+    ['preceding_flg', ctx.sokuhimePrecedingFlg ?? ''],
+    ['sokuikuSetIndex', String(t.slotIndex)],
+    ['sokuikuid', t.oldSokuikuId ?? ''],
+    ['is_sokuiku', 'true'],
+  ];
+  return { purpose: 'sokuhime_set', method: 'POST', url: EKICHIKA_SOKUHIME_SET_URL, headers: sokuhimeHeadersPost(ctx), body: encodePayload(fields), context: ctx };
+}
+
+/** ③ 即ヒメを消す */
+export function buildSokuhimeDelStep(ctx: RelayFlowContext): FlowNextRequest {
+  const d = ctx.sokuhimeDel;
+  if (!d) throw new Error('sokuhimeDel が無い');
+  const fields: Array<[string, string]> = [
+    ['id', d.castId],
+    ['boxname', 'setbox4'],
+    ['preceding_flg', ctx.sokuhimePrecedingFlg ?? ''],
+    ['sokuikuSetIndex', String(d.slotIndex)],
+    ['expired_at', d.expiresAtUnix == null ? '' : String(d.expiresAtUnix)],
+    ['shopId', ctx.sokuhimeShopId ?? ''],
+    ['sokuikuid', d.sokuikuId ?? ''],
+  ];
+  return { purpose: 'sokuhime_del', method: 'POST', url: EKICHIKA_SOKUHIME_DEL_URL, headers: sokuhimeHeadersPost(ctx), body: encodePayload(fields), context: ctx };
+}
+
+/** 照合のために即ヒメ設定画面を読み直す */
+export function buildSokuhimeVerifyStep(ctx: RelayFlowContext, stage: 'verify_set' | 'verify_del'): FlowNextRequest {
+  return {
+    purpose: 'read_sokuhime', method: 'GET', url: EKICHIKA_SOKUHIME_URL,
+    headers: buildReadWorkRequest(ctx.cookie), body: '',
+    context: { ...ctx, sokuhimeStage: stage },
+  };
+}
+
+/** ★ 駅ちかの ajax の JSON を読む。★ 配列でも {"0":{…}} でも受ける（決めつけない） */
+export function parseSokuhimeJson(body: string): { empty: boolean; first: Record<string, unknown> | null; obj: Record<string, unknown> | null; problems: string[] } {
+  let v: unknown;
+  try { v = JSON.parse(String(body ?? '')); } catch { return { empty: true, first: null, obj: null, problems: ['JSON として読めない（ログイン画面などが返った可能性）'] }; }
+  if (v === null || typeof v !== 'object') return { empty: true, first: null, obj: null, problems: ['JSON がオブジェクトではない'] };
+  const obj = v as Record<string, unknown>;
+  const keys = Array.isArray(v) ? v.map((_, i) => String(i)) : Object.keys(obj);
+  if (keys.length === 0) return { empty: true, first: null, obj, problems: [] };
+  const first0 = Array.isArray(v) ? v[0] : obj['0'];
+  const first = first0 && typeof first0 === 'object' ? (first0 as Record<string, unknown>) : null;
+  return { empty: false, first, obj, problems: [] };
+}
+
+function sokuhimeStop(ctx: RelayFlowContext, event: 'write_sokuhime' | 'delete_sokuhime', reason: string, summary: string, note: string, extra?: Record<string, string | number | boolean | null>): FlowOutcome {
+  return stop(
+    [{ event, outcome: 'stopped', summary, detail: { reason, castId: ctx.sokuhimeTarget?.castId ?? ctx.sokuhimeDel?.castId ?? null, flowId: ctx.flowId, ...(extra ?? {}) } }],
+    note,
+  );
+}
+
+/** ①の応答。★ 空＝在籍していない／is_working=false＝出勤中でない → 止める。★ 通れば ② */
+function afterSokuhimeCheck(
+  input: { status: number; headers: Record<string, string | string[]>; body: string },
+  ctx: RelayFlowContext,
+): FlowOutcome {
+  const lost = diaryLoginLost(input, ctx, '即ヒメの確認の応答');
+  if (lost) return lost;
+  const j = parseSokuhimeJson(input.body);
+  const name = ctx.sokuhimeTarget?.name ?? '';
+  if (input.status !== 200 || j.problems.length > 0) {
+    return sokuhimeStop(ctx, 'write_sokuhime', 'check_bad_response', name + 'さんの即ヒメの確認で想定外の応答がありました', 'check の応答が読めない: ' + (j.problems[0] ?? input.status), responseClue(input));
+  }
+  if (j.empty) {
+    return sokuhimeStop(ctx, 'write_sokuhime', 'not_registered', name + 'さんは駅ちかに在籍していないため、即ヒメにできませんでした', '駅ちかが空を返した（在籍していない）');
+  }
+  const working = j.obj?.['is_working'];
+  if (!(working === true || working === 1 || working === '1')) {
+    return sokuhimeStop(ctx, 'write_sokuhime', 'not_working', name + 'さんは駅ちかで出勤中になっていないため、即ヒメにできませんでした', '駅ちかが is_working=false を返した');
+  }
+  return {
+    kind: 'next',
+    next: buildSokuhimeSetStep(ctx),
+    audits: [],
+    note: '駅ちかで在籍・出勤中を確かめた（' + String(j.first?.['name'] ?? name) + '）。★ 次は即ヒメに設定する',
+  };
+}
+
+/** ②の応答。★ 読めたら照合へ（画面を読み直して枠に居るかを見る） */
+function afterSokuhimeSet(
+  input: { status: number; headers: Record<string, string | string[]>; body: string },
+  ctx: RelayFlowContext,
+): FlowOutcome {
+  const lost = diaryLoginLost(input, ctx, '即ヒメの設定の応答');
+  if (lost) return lost;
+  const j = parseSokuhimeJson(input.body);
+  const name = ctx.sokuhimeTarget?.name ?? '';
+  if (input.status !== 200 || j.problems.length > 0) {
+    return sokuhimeStop(ctx, 'write_sokuhime', 'set_bad_response', name + 'さんの即ヒメの設定で想定外の応答がありました', 'set の応答が読めない: ' + (j.problems[0] ?? input.status), responseClue(input));
+  }
+  const tt = j.first?.['topprioritytime'];
+  return {
+    kind: 'next',
+    next: buildSokuhimeVerifyStep({ ...ctx, sokuhimeToppriorityTime: typeof tt === 'string' ? tt : undefined }, 'verify_set'),
+    audits: [],
+    note: '即ヒメの設定を送った（相手の返事: ' + (typeof tt === 'string' ? '～' + tt + ' 迄' : '時刻なし') + '）。★ 次は画面を読み直して照合',
+  };
+}
+
+/** ③の応答。★ 読めたら照合へ */
+function afterSokuhimeDel(
+  input: { status: number; headers: Record<string, string | string[]>; body: string },
+  ctx: RelayFlowContext,
+): FlowOutcome {
+  const lost = diaryLoginLost(input, ctx, '即ヒメの解除の応答');
+  if (lost) return lost;
+  const j = parseSokuhimeJson(input.body);
+  if (input.status !== 200 || j.problems.length > 0) {
+    return sokuhimeStop(ctx, 'delete_sokuhime', 'del_bad_response', '即ヒメの解除で想定外の応答がありました', 'del の応答が読めない: ' + (j.problems[0] ?? input.status), responseClue(input));
+  }
+  return {
+    kind: 'next',
+    next: buildSokuhimeVerifyStep(ctx, 'verify_del'),
+    audits: [],
+    note: '即ヒメの解除を送った。★ 次は画面を読み直して照合',
   };
 }
 
@@ -1483,8 +1683,10 @@ function finishRead(audits: FlowAudit[], ctx: RelayFlowContext, page: WorkPage):
       //   ★ だが switch は網羅させる。網羅を外すと「足したのに繋いでいない」が静かに通る。
       return stop(audits, '名簿の読み取りは出勤ページを使わない（ここへは来ないはず）');
     case 'sokuhime_read':
-      // ★ ここへは来ない（即ヒメの読み取りは出勤ページを読みに行かない）。★ 網羅は外さない（第213便）
-      return stop(audits, '即ヒメの読み取りは出勤ページを使わない（ここへは来ないはず）');
+    case 'sokuhime_push':
+    case 'sokuhime_auto':
+      // ★ ここへは来ない（即ヒメは出勤ページを読みに行かない）。★ 網羅は外さない（第213・214便）
+      return stop(audits, '即ヒメは出勤ページを使わない（ここへは来ないはず）');
     case 'diary_read':
       // ★ ここへは来ない（写メ日記は出勤ページを読みに行かない）。★ 網羅は外さない
       //   ★★ この見張りが、いま実際に働いた: diary_read を足した時点でコンパイルが止まった（第94便）

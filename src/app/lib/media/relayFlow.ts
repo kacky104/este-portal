@@ -75,7 +75,9 @@ import {
   decideSokuseraTarget, tallySokusera, sokuseraSummary, SOKUSERA_COOLDOWN_MIN,
 } from '@/lib/esutamaSokuseraTargets';
 import { buildEsutamaSokuseraTokenStep } from '@/lib/esutamaSokuseraFlow';
-import { isImasuguLiveRow, type ImasuguRow } from '@/lib/imasugu';
+import { isImasuguLiveRow, isOwnerLiveRow, isCastLiveRow, type ImasuguRow } from '@/lib/imasugu';
+import { planSokuhime, sokuhimePlanSummary } from '@/lib/ekichikaSokuhimePlan';
+import { buildSokuhimeCheckStep, buildSokuhimeDelStep } from '@/lib/relayFlow';
 import { buildEsutamaDiaryTokenStep } from '@/lib/esutamaDiaryFlow';
 import type { EsuloveTherapistRow } from '@/lib/esuloveTherapistParse';
 
@@ -166,6 +168,12 @@ export async function startRelayFlow(params: {
    * ★ sokusera_auto では渡さない（★ 周の中で1人選ぶ）。
    */
   sokusera?: { therapistId: number };
+  /**
+   * intent='sokuhime_push' / 'sokuhime_auto' のときだけ（第214便）。
+   * ★ apply=false（既定）は試し打ち＝読んで計画を記録するだけ。★ 駅ちかを触らない。
+   * ★ therapistId は push（1人だけ試す）のときだけ。auto では周が1人選ぶ。
+   */
+  sokuhime?: { therapistId?: number; apply?: boolean };
   /**
    * intent='article_*' のときだけ（第155便）。★ 書き換えるのは【1枠だけ】。
    * ★★ ここで受け取っていないと、呼び出し側が渡しても静かに落ちる（diarySince と同じ作法）。
@@ -289,6 +297,14 @@ export async function startRelayFlow(params: {
       : {}),
     // ★ 即セラ（第143便）。★ 渡されたときだけ入れる
     ...(params.sokusera ? { esutamaSokuseraTherapistId: params.sokusera.therapistId } : {}),
+    // ★ 今すぐ→即ヒメ（第214便）。★ apply は明示 true のときだけ実弾
+    ...(params.sokuhime
+      ? {
+          sokuhimeApply: params.sokuhime.apply === true,
+          ...(params.sokuhime.therapistId ? { sokuhimeTherapistId: params.sokuhime.therapistId } : {}),
+          sokuhimeStage: 'plan' as const,
+        }
+      : {}),
     // ★ エステ魂の写メ日記（第133便）。★ 渡されたときだけ入れる
     ...(params.diary
       ? {
@@ -303,6 +319,9 @@ export async function startRelayFlow(params: {
   }
   if (params.intent === 'sokusera_push' && !params.sokusera) {
     throw new Error('sokusera_push には sokusera（therapistId）が要る');
+  }
+  if (params.intent === 'sokuhime_push' && !params.sokuhime?.therapistId) {
+    throw new Error('sokuhime_push には sokuhime（therapistId）が要る');
   }
   if (params.intent === 'photo_push' && !params.photo) {
     throw new Error('photo_push には photo（girlId / slot / file）が要る');
@@ -387,10 +406,21 @@ export async function advanceRelayFlow(params: {
     note = outcome.note + ' → ' + r.note;
   }
 
-  // ★ 即ヒメ設定画面を読めた（第213便）。★ 写しを1件だけ上書きで残す。★ 次を積まない＝何も書き換えていない
+  // ★ 即ヒメ設定画面を読めた（第213便）。★ 写しを1件だけ上書きで残す。
+  //   ★ sokuhime_read はここで終わり（何も書き換えていない）。
+  //   ★ sokuhime_push / sokuhime_auto（第214便）: 段（sokuhimeStage）で分ける
+  //     plan       … DB を読んで計画 → 試し打ちなら記録して終わり／実弾なら check か del を積む
+  //     verify_set … 押したあとの読み直し → 枠に居るか照合 → write_sokuhime
+  //     verify_del … 消したあとの読み直し → 枠から消えたか照合 → delete_sokuhime
   if (outcome.kind === 'sokuhime') {
     const r = await saveSokuhime(params, outcome.page, context);
     note = outcome.note + ' → ' + r.note;
+    if (context.intent === 'sokuhime_push' || context.intent === 'sokuhime_auto') {
+      const s = await advanceSokuhime(params, outcome.page, context);
+      audits.push(...s.audits);
+      note = note + ' → ' + s.note;
+      next = s.next ?? null;
+    }
   }
 
   // ★★★ ニュースの一覧を読めた（第158便）。★ 写しを1件だけ上書きで残す。
@@ -1175,6 +1205,159 @@ async function saveRoster(
   }
 
   return { audits: [], note: page.rows.length + '名の写しを残した' };
+}
+
+/**
+ * ★★★ 今すぐ→即ヒメ の段を進める（第214便）。★ 判断は planSokuhime（純粋関数）。ここは DB を読んで渡すだけ。
+ */
+async function advanceSokuhime(
+  params: { salonId: number; provider: string; slot: number },
+  page: EkichikaSokuhimePage,
+  ctx: RelayFlowContext,
+): Promise<{ audits: FlowAudit[]; note: string; next?: FlowNextRequest }> {
+  const supabase = createServiceClient();
+  const flowId = ctx.flowId;
+  const nowUnix = Math.floor(Date.now() / 1000);
+  const stage = ctx.sokuhimeStage ?? 'plan';
+
+  // ── 照合の段 ──
+  if (stage === 'verify_set') {
+    const t = ctx.sokuhimeTarget;
+    if (!t) return { audits: [{ event: 'write_sokuhime', outcome: 'failed', detail: { reason: 'no_target', flowId } }], note: '照合の段に相手が無い' };
+    const box = page.boxes.find((b) => b.girlId === t.castId && (b.expiresAtUnix === null || b.expiresAtUnix > nowUnix));
+    if (!box) {
+      return {
+        audits: [{ event: 'write_sokuhime', outcome: 'failed', detail: { reason: 'not_in_box_after_set', name: t.name, castId: t.castId, flowId } }],
+        note: '設定を送ったのに、読み直した画面の枠に居ない（' + t.name + '）',
+      };
+    }
+    const { error } = await supabase.from('media_sokuhime_pushes').insert({
+      salon_id: params.salonId, provider: params.provider, slot: params.slot,
+      therapist_id: t.therapistId, cast_id: t.castId, slot_index: box.index, sokuiku_id: box.sokuikuId,
+      pushed_at: new Date().toISOString(),
+      expires_at: box.expiresAtUnix ? new Date(box.expiresAtUnix * 1000).toISOString() : null,
+      flow_id: flowId,
+    });
+    if (error) console.error('[relay] 即ヒメの記録を残せなかった', params.salonId, error.message);
+    return {
+      audits: [{
+        event: 'write_sokuhime', outcome: 'ok',
+        detail: { name: t.name, castId: t.castId, slotIndex: box.index, until: box.untilLabel ?? ctx.sokuhimeToppriorityTime ?? '', expiresAt: box.expiresAtUnix, flowId },
+      }],
+      note: '照合OK: ' + t.name + 'さんが枠' + (box.index + 1) + 'に居る（～' + (box.untilLabel ?? '?') + ' 迄）',
+    };
+  }
+  if (stage === 'verify_del') {
+    const d = ctx.sokuhimeDel;
+    if (!d) return { audits: [{ event: 'delete_sokuhime', outcome: 'failed', detail: { reason: 'no_target', flowId } }], note: '照合の段に相手が無い' };
+    const still = page.boxes.some((b) => b.girlId === d.castId && (b.expiresAtUnix === null || b.expiresAtUnix > nowUnix));
+    const { data: pr } = await supabase.from('media_sokuhime_pushes').select('therapist_id').eq('salon_id', params.salonId).eq('cast_id', d.castId).is('removed_at', null).order('pushed_at', { ascending: false }).limit(1).maybeSingle();
+    const { data: th } = pr ? await supabase.from('therapists').select('name').eq('id', Number(pr.therapist_id)).maybeSingle() : { data: null };
+    const name = th ? String(th.name ?? '') : '';
+    if (still) {
+      return {
+        audits: [{ event: 'delete_sokuhime', outcome: 'failed', detail: { reason: 'still_in_box_after_del', name, castId: d.castId, flowId } }],
+        note: '解除を送ったのに、読み直した画面の枠にまだ居る',
+      };
+    }
+    await supabase.from('media_sokuhime_pushes').update({ removed_at: new Date().toISOString() })
+      .eq('salon_id', params.salonId).eq('cast_id', d.castId).is('removed_at', null);
+    return {
+      audits: [{ event: 'delete_sokuhime', outcome: 'ok', detail: { name, castId: d.castId, slotIndex: d.slotIndex, flowId } }],
+      note: '照合OK: 枠' + (d.slotIndex + 1) + 'から消えた',
+    };
+  }
+
+  // ── 計画の段 ──
+  const fail = (reason: string, note: string) => ({
+    audits: [{ event: 'plan_sokuhime' as const, outcome: 'failed' as const, summary: '即ヒメの送り先を確かめられませんでした（' + note + '）', detail: { reason, flowId } }],
+    note,
+  });
+  const now = new Date();
+  const { data: ths, error: thErr } = await supabase
+    .from('therapists')
+    .select('id, name, import_cast_id, is_available_now, available_until, is_available_now_cast, available_until_cast, is_available_now_import, available_until_import')
+    .eq('salon_id', params.salonId).eq('is_active', true).order('id', { ascending: true });
+  if (thErr) return fail('therapists_read_failed', 'セラピストを読めなかった: ' + thErr.message);
+  const trows = (ths ?? []) as Array<Record<string, unknown>>;
+  const { maps, error: castErr } = await loadCastIds(supabase, {
+    therapists: trows.map((t) => ({ id: Number(t['id']), import_cast_id: (t['import_cast_id'] as string | null) ?? null })),
+    provider: params.provider, slot: params.slot,
+  });
+  if (castErr) return fail('cast_ids_read_failed', '名簿の結びを読めなかった: ' + castErr);
+  const { data: pushedRows, error: pErr } = await supabase
+    .from('media_sokuhime_pushes').select('cast_id')
+    .eq('salon_id', params.salonId).eq('provider', params.provider).eq('slot', params.slot)
+    .is('removed_at', null)
+    .gte('pushed_at', new Date(now.getTime() - 24 * 3600 * 1000).toISOString());
+  if (pErr) return fail('pushes_read_failed', 'こちらが押した記録を読めなかった: ' + pErr.message);
+
+  // ★ 1人だけ試すときは、その人だけを people にする（★ ほかの人を勝手に押さない）
+  const wantId = ctx.intent === 'sokuhime_push' ? Number(ctx.sokuhimeTherapistId ?? 0) : 0;
+  const people = trows
+    .filter((t) => wantId === 0 || Number(t['id']) === wantId)
+    .map((t) => {
+      const row = t as unknown as ImasuguRow;
+      // ★★★ 書く元はオーナー枠＋キャスト枠だけ。★ 取り込み枠は書き戻さない（エコーバック）
+      const byFukues = isOwnerLiveRow(row, now) || isCastLiveRow(row, now);
+      const untils = [row.available_until, row.available_until_cast]
+        .filter((u): u is string => typeof u === 'string' && u.length > 0)
+        .map((u) => Math.floor(new Date(u).getTime() / 1000))
+        .filter((n) => Number.isFinite(n) && n > nowUnix);
+      return {
+        therapistId: Number(t['id']), name: String(t['name'] ?? ''),
+        castId: maps.castIdOf.get(Number(t['id'])) ?? null,
+        imasuguByFukues: byFukues,
+        imasuguUntilUnix: byFukues && untils.length > 0 ? Math.max(...untils) : null,
+      };
+    });
+  // ★ 1人だけ試すとき、その人が今すぐでなければ理由を出す（planSokuhime は用の無い人を黙って外すため）
+  const wanted = wantId !== 0 ? people[0] : undefined;
+
+  const plan = planSokuhime({
+    people,
+    boxes: page.boxes,
+    workingCastIds: page.working.map((w) => w.castId),
+    pushedByFukues: ((pushedRows ?? []) as Array<{ cast_id: string }>).map((r) => String(r.cast_id)),
+    remainingCount: page.countedPlan ? page.remainingCount : null,
+    nowUnix,
+  });
+  if (wanted && !wanted.imasuguByFukues) {
+    plan.blocked.unshift({ therapistId: wanted.therapistId, name: wanted.name, reason: 'not_imasugu', message: wanted.name + 'さんはフクエスの「今すぐ」（店舗か本人が押したもの）が入っていません' });
+  }
+  const apply = ctx.sokuhimeApply === true;
+  const summary = (apply ? '' : '【試し打ち】') + sokuhimePlanSummary(plan)
+    + (plan.blocked.length > 0 ? '。' + plan.blocked.map((b) => b.message).join('／') : '');
+  const planAudit: FlowAudit = {
+    event: 'plan_sokuhime', outcome: 'ok', summary,
+    detail: {
+      apply, set: plan.set ? plan.set.name : '', del: plan.del ? plan.del.castId : '',
+      waiting: plan.waiting.length, blocked: plan.blocked.length,
+      slots: page.boxes.length, used: page.boxes.filter((b) => b.girlId).length, flowId,
+    },
+  };
+  if (!apply) return { audits: [planAudit], note: '試し打ち: ' + summary };
+
+  const base = {
+    ...ctx,
+    sokuhimeShopId: page.shopId ?? '',
+    sokuhimePrecedingFlg: page.precedingFlg ?? '',
+    sokuhimeRemaining: page.countedPlan ? page.remainingCount : null,
+  };
+  if (plan.set) {
+    const t = plan.set;
+    const person = people.find((p) => p.therapistId === t.therapistId);
+    const next = buildSokuhimeCheckStep({
+      ...base,
+      sokuhimeTarget: { therapistId: t.therapistId, name: t.name, castId: t.castId, slotIndex: t.slotIndex, oldGirlId: t.oldGirlId, oldSokuikuId: t.oldSokuikuId, untilUnix: person?.imasuguUntilUnix ?? null },
+    });
+    return { audits: [planAudit], note: summary + ' → 在籍・出勤中の確認へ', next };
+  }
+  if (plan.del) {
+    const next = buildSokuhimeDelStep({ ...base, sokuhimeDel: plan.del });
+    return { audits: [planAudit], note: summary + ' → 解除へ', next };
+  }
+  return { audits: [planAudit], note: summary };
 }
 
 /**
