@@ -23,6 +23,9 @@ import {
   switchLabel,
   nextImportAt,
   maskAddress,
+  bulkPlan,
+  type BulkTarget,
+  type BulkResult,
 } from '@/lib/mediaOverview';
 import {
   buildRoster,
@@ -585,6 +588,27 @@ export async function setMediaLinkMode(input: {
   const salonId = Number(input.salonId);
   if (!Number.isFinite(salonId)) return { ok: false, error: '店舗の指定が不正です' };
   const slot = Math.trunc(Number(input.slot ?? 1));
+  const guard = await assertSalonOwner(salonId);
+  if (!guard.ok) return guard;
+  return applyLinkMode({
+    svc: createServiceClient(), salonId, provider: input.provider, slot, mode: input.mode,
+    actor: 'shop:' + guard.data.userId, by: null,
+  });
+}
+
+/**
+ * ★★★ 1枠の向きを変える本体（第192便で setMediaLinkMode から切り出した）。
+ *
+ * ★★★ ガードは全部ここにある。★ setMediaLinkMode（1枠）も setAllLinkModes（一括）も、
+ *   この1つの関数を通る。★ 一括の側にガードを書き写さない（二重に書くと片方だけ古くなる）。
+ * ★ 権限の確認（assertSalonOwner）は呼ぶ側の仕事。★ ここは svc を受けて DB を変えるだけ。
+ * ★ by は監査の detail に残す印（'bulk' なら一括ボタン）。★ 1枠のときは null（従来どおり付けない）。
+ */
+async function applyLinkMode(input: {
+  svc: ReturnType<typeof createServiceClient>;
+  salonId: number; provider: string; slot: number; mode: string; actor: string; by: string | null;
+}): Promise<Result<{ mode: string }>> {
+  const { svc, salonId, slot } = input;
   const ng = validTarget(input.provider, slot);
   if (ng) return { ok: false, error: ng };
   if (!isLinkMode(input.mode)) return { ok: false, error: '入力する場所の指定が不正です' };
@@ -596,11 +620,6 @@ export async function setMediaLinkMode(input: {
   if (input.mode === 'read' && !canReadProvider(input.provider)) {
     return { ok: false, error: 'このサイトからフクエスへ反映することはできません' };
   }
-
-  const guard = await assertSalonOwner(salonId);
-  if (!guard.ok) return guard;
-
-  const svc = createServiceClient();
 
   // ★★★ ほかの媒体が【正本】のあいだは write にできない（第127便・2026-09-04）。
   //
@@ -737,11 +756,65 @@ export async function setMediaLinkMode(input: {
     salonId, provider: input.provider, slot,
     event: 'link_mode_changed', outcome: 'ok',
     // ★ from も残す（第48便）。「どこから来たか」が無いと、あとで区間を数えるのに苦労する
-    detail: { mode: input.mode, from: String(before?.link_mode ?? '') },
-    actor: 'shop:' + guard.data.userId,
+    // ★ 一括ボタンから来たときは by: 'bulk' を足す（第192便）。★ 1枠のときは従来どおり付けない
+    detail: input.by
+      ? { mode: input.mode, from: String(before?.link_mode ?? ''), by: input.by }
+      : { mode: input.mode, from: String(before?.link_mode ?? '') },
+    actor: input.actor,
   });
 
   return { ok: true, data: { mode: input.mode } };
+}
+
+/**
+ * ★★★ 一括で「フクエスから反映」「どのサイトにも反映しない」に倒す（第192便・2026-09-07）。
+ *
+ * ★★★ やることは【bulkPlan の順に applyLinkMode を1枠ずつ呼ぶだけ】。
+ *   ★ ガードを二重に書かない。★ 第127便・第190便・§54・「枠が止まっている」の判定は
+ *     applyLinkMode の中にあり、1枠ずつ押したときと同じ道を通る。
+ * ★★★ 1枠でも断られたら**そこで止めて**、どこまで変わったかを返す（★ 黙って続けない・§223）。
+ *   ★ 順番は読める媒体（駅ちか）が先（bulkPlan）。★ 駅ちかで断られれば、ほかは何も変わらない。
+ * ★★ 'read' への一括は無い（BulkTarget が write | none）。★ 設定1（駅ちかから反映）は
+ *   小さなリンクから setMediaLinkMode（1枠）で入る。★ 一括でほかを倒さない（第190便・案A）。
+ * ★ 記録は1枠ずつ link_mode_changed に by: 'bulk'。
+ */
+export async function setAllLinkModes(input: {
+  salonId: string | number; to: string;
+}): Promise<Result<BulkResult>> {
+  const salonId = Number(input.salonId);
+  if (!Number.isFinite(salonId)) return { ok: false, error: '店舗の指定が不正です' };
+  if (input.to !== 'write' && input.to !== 'none') return { ok: false, error: '行き先の指定が不正です' };
+  const to: BulkTarget = input.to;
+
+  // ★ 権限の確認と、いまの状態の読み取りは getMediaOverview と同じ道を通る（決め方を2つ持たない）
+  const overview = await getMediaOverview({ salonId });
+  if (!overview.ok) return overview;
+  const guard = await assertSalonOwner(salonId);
+  if (!guard.ok) return guard;
+
+  const plan = bulkPlan(
+    overview.data.sites.map((s) => ({
+      provider: s.provider, slot: s.slot, label: s.label,
+      direction: s.direction, hasCredential: s.hasCredential, autoOn: s.autoOn,
+    })),
+    to,
+  );
+
+  const svc = createServiceClient();
+  const result: BulkResult = { to, changed: [], skipped: plan.skipped, stoppedAt: null };
+  for (const step of plan.steps) {
+    const r = await applyLinkMode({
+      svc, salonId, provider: step.provider, slot: step.slot, mode: to,
+      actor: 'shop:' + guard.data.userId, by: 'bulk',
+    });
+    if (!r.ok) {
+      // ★★★ ここで止める。★ 残りの枠には触らない。★ どこで・なぜ止まったかを返す
+      result.stoppedAt = { provider: step.provider, slot: step.slot, label: step.label, error: r.error };
+      break;
+    }
+    result.changed.push({ provider: step.provider, slot: step.slot, label: step.label });
+  }
+  return { ok: true, data: result };
 }
 
 /**

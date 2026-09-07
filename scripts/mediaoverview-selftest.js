@@ -140,9 +140,12 @@ eq('★★ write へ → 止まるのは取り込み',
    v.switchDoneText('write', '駅ちか', EKI).includes('取り込みは止まります'), true);
 eq('★★ read へ → 送らないことを言う',
    v.switchDoneText('read', '駅ちか', EKI).includes('フクエスからは送りません'), true);
-eq('★★★ none へ → 送らないことと取り込まないことの両方を言う',
-   v.switchDoneText('none', '駅ちか', EKI).includes('どのサイトへも送らず')
-   && v.switchDoneText('none', '駅ちか', EKI).includes('取り込みもしません'), true);
+// ★★★ 第192便: 「どのサイトへも」と書かない。★ この枠しか変わらないのに全体のように書いていた（嘘）
+eq('★★★ none へ → その媒体へ送らないことと取り込まないことの両方を言う',
+   v.switchDoneText('none', '駅ちか', EKI).includes('駅ちかへは送らず')
+   && v.switchDoneText('none', '駅ちか', EKI).includes('駅ちかからの取り込みもしません'), true);
+eq('★★★ none へ → 「どのサイトへも」と書かない（第192便）',
+   v.switchDoneText('none', '駅ちか', EKI).includes('どのサイト'), false);
 eq('★ どの行き先でも文が空にならない',
    ['read', 'write', 'none'].every((m) => v.switchDoneText(m, '駅ちか', EKI).length > 0), true);
 
@@ -167,7 +170,10 @@ eq('★ どの状態でも1行が空にならない',
 // ★★ 問いは「変更しますか？」で終わらせない。行き先の名前を書く
 eq('write の問い', v.switchAskText('write', '駅ちか', EKI).title, 'フクエスから反映しますか？');
 eq('read の問い', v.switchAskText('read', '駅ちか', EKI).title, '駅ちかから反映しますか？');
-eq('none の問い', v.switchAskText('none', '駅ちか', EKI).title, 'どのサイトにも反映しないようにしますか？');
+// ★★★ 第192便: 見出しを「どのサイトにも」にしない。★ 一括ボタン（bulkAskText）と同じ言葉にすると押した範囲が混ざる
+eq('none の問い', v.switchAskText('none', '駅ちか', EKI).title, '駅ちかへ反映しないようにしますか？');
+eq('★★★ 1枠の none の問いは、一括の問いと見出しが違う（第192便）',
+   v.switchAskText('none', '駅ちか', EKI).title !== v.bulkAskText(v.bulkPlan([{ provider: EKI, slot: 1, label: '駅ちか', direction: 'read', hasCredential: true }], 'none')).title, true);
 eq('★ 媒体の名前は決め打ちにしない', v.switchAskText('read', 'エステ魂', EKI).title, 'エステ魂から反映しますか？');
 // ★★★ 問いの見出しは、ボタンの文字と同じ言葉で始める（第90便）。
 //   ★ 押したボタンと違う言葉が出ると、何を押したのか分からなくなる
@@ -181,9 +187,14 @@ eq('★★★ write の本文は取り込みが止まると書く',
    v.switchAskText('write', '駅ちか', EKI).body.includes('取り込みは止まります'), true);
 eq('★★★ read の本文は送らなくなると書く',
    v.switchAskText('read', '駅ちか', EKI).body.includes('送らなくなります'), true);
-eq('★★★ none の本文は両方とも止まると書く',
-   v.switchAskText('none', '駅ちか', EKI).body.includes('どのサイトへも送らず')
-   && v.switchAskText('none', '駅ちか', EKI).body.includes('取り込みもしません'), true);
+eq('★★★ none の本文は両方とも止まると書く（★ その媒体の範囲で）',
+   v.switchAskText('none', '駅ちか', EKI).body.includes('駅ちかへは送らず')
+   && v.switchAskText('none', '駅ちか', EKI).body.includes('駅ちかからの取り込みもしません'), true);
+eq('★★★ 1枠の none の本文に「どのサイト」と書かない（第192便）',
+   v.switchAskText('none', '駅ちか', EKI).body.includes('どのサイト'), false);
+// ★★ 第192便: read の本文は写メ日記も送らないと書く（カッキーさんの方針）
+eq('★★ read の本文は「写メ日記も」送らなくなると書く（第192便）',
+   v.switchAskText('read', '駅ちか', EKI).body.includes('出勤も写メ日記も送らなくなります'), true);
 eq('★ どの行き先でも本文が空にならない',
    ['read', 'write', 'none'].every((m) => v.switchAskText(m, '駅ちか', EKI).body.length > 0), true);
 
@@ -201,6 +212,10 @@ eq('★★ 名前が無ければ名前のない言い方に倒す',
 eq('★★ 名前が無いのに「駅ちか」と書かない', v.homeChoiceNote('').indexOf('駅ちか') >= 0, false);
 // ★ 短くする（読まれない長さにしない）。★ 2文まで
 eq('★ 「。」は2つまで', v.homeChoiceNote('駅ちか').split('。').length - 1 <= 2, true);
+// ★★★ 第192便: 2文目の嘘を消した。★ 「反映しない」は駅ちかの枠しか変えない
+eq('★★★ 「どのサイトへも」と書かない（第192便）', v.homeChoiceNote('駅ちか').includes('どのサイト'), false);
+eq('★★ 2文目は「◯◯へは送らず、◯◯からも取り込みません」（第192便）',
+   v.homeChoiceNote('駅ちか').includes('駅ちかへは送らず、駅ちかからも取り込みません'), true);
 
 console.log('\n── 5. ★ 切り替えを出すのは鍵がある枠だけ（第111便で媒体を問わなくした）──');
 const sw = (o) => v.canSwitchDirection(facts(o));
@@ -696,6 +711,118 @@ console.log('\n── ★★★ 第190便: ほかの媒体へフクエスから�
   const act = fs4.readFileSync(require('path').join(__dirname, '..', 'src/app/actions/mediaCredentials.ts'), 'utf8');
   eq('★★★ setMediaLinkMode は read にするときも、ほかの write / write_auto を見ている',
      /input\.mode === 'read'\)\s*\{[\s\S]*?link_mode === 'write' \|\| r\.link_mode === 'write_auto'/.test(act), true);
+}
+
+console.log('\n── ★★★ 第192便: ホームを「3つの設定」にする（一括ボタン・純粋関数）──');
+{
+  const S = (o) => Object.assign({ provider: 'esutama', slot: 1, label: 'エステ魂', direction: 'off', hasCredential: true, autoOn: false }, o);
+  const EK = (o) => S(Object.assign({ provider: 'ekichika', label: '駅ちか' }, o));
+  const modes = (plan) => plan.steps.map((x) => x.provider + ':' + x.from);
+  const skips = (plan) => plan.skipped.map((x) => x.provider + ':' + x.why);
+
+  // ★★★ 順番: 駅ちか（read → write）が最初。★ 逆にすると第127便のガードで断られる
+  eq('★★★ write へ: 駅ちかが read でも、駅ちかが先・そのあと他',
+     modes(v.bulkPlan([S({ direction: 'off' }), EK({ direction: 'read' })], 'write')), ['ekichika:read', 'esutama:off']);
+  eq('★★★ write へ: 並びが逆でも駅ちかが先（入力の順に依らない）',
+     modes(v.bulkPlan([EK({ direction: 'read' }), S({ direction: 'off' })], 'write')), ['ekichika:read', 'esutama:off']);
+  eq('★ 同じ媒体の中では枠の順',
+     modes(v.bulkPlan([EK({ slot: 2, direction: 'off' }), EK({ slot: 1, direction: 'off' })], 'write')).length === 2
+     && v.bulkPlan([EK({ slot: 2, direction: 'off' }), EK({ slot: 1, direction: 'off' })], 'write').steps[0].slot === 1, true);
+
+  // ★★ write へ: 鍵が無い枠は飛ばして名前を出す（カッキーさんの決定）
+  eq('★★ write へ: 鍵が無い枠は飛ばす（no_credential）',
+     skips(v.bulkPlan([S({ hasCredential: false }), EK({ direction: 'off' })], 'write')), ['esutama:no_credential']);
+  eq('★★ write へ: すでに write の枠は触らない（already）',
+     skips(v.bulkPlan([S({ direction: 'write' })], 'write')), ['esutama:already']);
+  eq('★★★ write へ: 自動（write_auto）を手動に落とさない（direction は write なので already）',
+     v.bulkPlan([S({ direction: 'write', autoOn: true })], 'write').steps.length, 0);
+  eq('★ write へ: unset でも鍵があれば変える（受け口が枠を作る・第111便）',
+     modes(v.bulkPlan([S({ direction: 'unset' })], 'write')), ['esutama:unset']);
+  eq('★ write 同士は通る（設定2＝全部フクエスから）',
+     modes(v.bulkPlan([EK({ direction: 'write' }), S({ direction: 'off' })], 'write')), ['esutama:off']);
+
+  // ★★ none へ: 常に通る形。取り込みも止まる
+  eq('★★ none へ: read も write も全部 none（駅ちかが先）',
+     modes(v.bulkPlan([S({ direction: 'write' }), EK({ direction: 'read' })], 'none')), ['ekichika:read', 'esutama:write']);
+  eq('★ none へ: すでに off は触らない', skips(v.bulkPlan([S({ direction: 'off' })], 'none')), ['esutama:already']);
+  eq('★ none へ: 鍵の無い unset は飛ばす', skips(v.bulkPlan([S({ direction: 'unset', hasCredential: false })], 'none')), ['esutama:no_credential']);
+  eq('★ none へ: 鍵のある unset は none にする', modes(v.bulkPlan([S({ direction: 'unset' })], 'none')), ['esutama:unset']);
+  eq('★★ none へ: 自動の枠も止める（自動は止める側には効く）',
+     modes(v.bulkPlan([S({ direction: 'write', autoOn: true })], 'none')), ['esutama:write']);
+  eq('★ 空なら空', v.bulkPlan([], 'write').steps.length + v.bulkPlan([], 'none').skipped.length, 0);
+  eq('★ 計画は入力を壊さない', (() => { const a = [EK({ direction: 'read' }), S()]; const b = JSON.stringify(a); v.bulkPlan(a, 'write'); return JSON.stringify(a) === b; })(), true);
+
+  // ★★ ボタンの文字（行き先の名前・カッキーさんの決定）
+  eq('★ 主ボタン', v.bulkLabel('write'), { label: 'フクエスから反映', sub: '登録済みの全サイトへ' });
+  eq('★ 副ボタン', v.bulkLabel('none'), { label: 'どのサイトにも反映しない', sub: 'フクエスのみで使う' });
+  eq('★ 主ボタンの文字は switchLabel(write) と同じ（同じ状態に2つの名前を作らない）',
+     v.bulkLabel('write').label, v.switchLabel('write', '駅ちか'));
+  eq('★ 小リンクは「駅ちかから反映にする」', v.readLinkLabel('駅ちか'), '駅ちかから反映にする');
+  eq('★ 小リンク: 名前が無ければ名前のない言い方', v.readLinkLabel(''), 'サイト側から反映にする');
+
+  // ★★★ 押す前の問い: 名前を列挙・取り込みが止まることを言う・飛ばす枠の名前を出す
+  const pW = v.bulkPlan([EK({ direction: 'read' }), S({ direction: 'off' }), S({ provider: 'esulove', label: 'エステラブ', hasCredential: false })], 'write');
+  eq('★★★ write の問いの見出しはボタンの文字で始まる', v.bulkAskText(pW).title.startsWith(v.bulkLabel('write').label), true);
+  eq('★★ write の本文に変える枠の名前が全部入る', v.bulkAskText(pW).body.includes('駅ちか・エステ魂へ反映する'), true);
+  eq('★★★ write の本文: 駅ちかからの取り込みが止まると書く', v.bulkAskText(pW).body.includes('駅ちかからの取り込みは止まります'), true);
+  eq('★★★ write の本文: 鍵が無い枠は名前を出して「変わりません」', v.bulkAskText(pW).body.includes('エステラブはログイン情報が無いので変わりません'), true);
+  eq('★ write の本文: 毎回確認すると書く（自動にはしない）', v.bulkAskText(pW).body.includes('毎回内容をご確認'), true);
+  const pW2 = v.bulkPlan([EK({ direction: 'off' }), S({ direction: 'off' })], 'write');
+  eq('★ 駅ちかが read でなければ「取り込みは止まります」と書かない（止まらないものを止めると書かない）',
+     v.bulkAskText(pW2).body.includes('取り込み'), false);
+
+  const pN = v.bulkPlan([EK({ direction: 'read' }), S({ direction: 'write' })], 'none');
+  eq('★★★ none の問いの見出しはボタンの文字で始まる', v.bulkAskText(pN).title.startsWith(v.bulkLabel('none').label), true);
+  eq('★★★ none の本文: 送らなくなる枠の名前', v.bulkAskText(pN).body.includes('駅ちか・エステ魂へは送らなくなります'), true);
+  eq('★★★ none の本文: 駅ちかからの取り込みも止まると必ず書く', v.bulkAskText(pN).body.includes('駅ちかからの取り込みも止まります'), true);
+  const pN2 = v.bulkPlan([S({ direction: 'write' })], 'none');
+  eq('★★ none の本文: 取り込んでいない店でも「どのサイトからも取り込みません」と言い切る', v.bulkAskText(pN2).body.includes('どのサイトからも取り込みません'), true);
+  eq('★ 問いは「？」で終わる', ['write', 'none'].every((t) => v.bulkAskText(v.bulkPlan([S({ direction: t === 'write' ? 'off' : 'write' })], t)).title.endsWith('？')), true);
+  // ★ 変えるところが無いとき
+  eq('★ 変えるところが無いとき: 見出しでそう言う（？で終わらない）', v.bulkAskText(v.bulkPlan([S({ direction: 'write' })], 'write')).title, '変えるところがありません');
+  eq('★ 変えるところが無いとき（none）', v.bulkAskText(v.bulkPlan([S({ direction: 'off' })], 'none')).title, '変えるところがありません');
+  eq('★ 変えるところが無くても、飛ばした枠の名前は出す',
+     v.bulkAskText(v.bulkPlan([S({ direction: 'write' }), S({ provider: 'esulove', label: 'エステラブ', hasCredential: false })], 'write')).body.includes('エステラブはログイン情報が無い'), true);
+
+  // ★★★ 押したあとの文: どこまで変わったかを言う
+  const ch = (labels) => labels.map((l, i) => ({ provider: 'p' + i, slot: 1, label: l }));
+  eq('★ write: 全部通った', v.bulkDoneText({ to: 'write', changed: ch(['駅ちか', 'エステ魂']), skipped: [], stoppedAt: null }),
+     'フクエスから駅ちか・エステ魂へ反映するようにしました。送る前に、毎回内容をご確認いただきます');
+  eq('★ none: 全部通った', v.bulkDoneText({ to: 'none', changed: ch(['駅ちか', 'エステ魂']), skipped: [], stoppedAt: null }),
+     'どのサイトにも反映しないようにしました（駅ちか・エステ魂）。フクエスに入れた出勤は、そのまま残ります');
+  eq('★★★ 途中で止まった: どこまで変わったか＋どこで＋理由',
+     v.bulkDoneText({ to: 'write', changed: ch(['駅ちか']), skipped: [], stoppedAt: { provider: 'esutama', slot: 1, label: 'エステ魂', error: 'この枠はいま止まっています' } }),
+     '駅ちかは変えましたが、エステ魂で止まりました：この枠はいま止まっています');
+  eq('★★★ 最初で止まった: 「変えました」と言わない',
+     v.bulkDoneText({ to: 'write', changed: [], skipped: [], stoppedAt: { provider: 'ekichika', slot: 1, label: '駅ちか', error: 'x' } }).startsWith('駅ちかで止まりました'), true);
+  eq('★ 何も変わらなかった', v.bulkDoneText({ to: 'none', changed: [], skipped: [], stoppedAt: null }), '変えるところはありませんでした');
+  eq('★ 止まった文は「変えました」だけで終わらない（黙って続けない・黙って止めない）',
+     v.bulkDoneText({ to: 'none', changed: ch(['駅ちか']), skipped: [], stoppedAt: { provider: 'esutama', slot: 1, label: 'エステ魂', error: 'x' } }).includes('止まりました'), true);
+
+  // ★★★ 文言に「どのサイトへも」を残さない（1枠のボタンの文）。★ 一括の文にだけ「どのサイトにも」がある
+  eq('★★★ 1枠の文言（問い・結果・説明）に「どのサイトへも」が無い',
+     [v.switchAskText('none', '駅ちか', EKI).body, v.switchDoneText('none', '駅ちか', EKI), v.homeChoiceNote('駅ちか')]
+       .some((t) => t.includes('どのサイトへも')), false);
+
+  // ★★★ 画面と受け口の配線
+  const fs5 = require('fs');
+  const path5 = require('path');
+  const jsx5 = fs5.readFileSync(path5.join(__dirname, '..', 'src/app/mypage/media/MediaHome.tsx'), 'utf8').replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '');
+  eq('★★ 画面は setAllLinkModes を呼んでいる', /setAllLinkModes\(\{/.test(jsx5), true);
+  eq('★★ 画面は bulkAskText / bulkDoneText / bulkLabel / readLinkLabel を呼んでいる',
+     ['bulkAskText(', 'bulkDoneText(', 'bulkLabel(', 'readLinkLabel('].every((f) => jsx5.includes(f)), true);
+  eq('★★★ 画面に「どのサイトへも送りません」の直書きが無い', jsx5.includes('どのサイトへも'), false);
+  eq('★★ 駅ちかの行には none だけ（read/write は上の3つの設定へ）', /canReadProvider\(s\.provider\) \? all\.filter\(\(c\) => c\.mode === 'none'\)/.test(jsx5), true);
+  const act5 = fs5.readFileSync(path5.join(__dirname, '..', 'src/app/actions/mediaCredentials.ts'), 'utf8');
+  eq('★★★ 受け口: setAllLinkModes は applyLinkMode を1枠ずつ呼ぶ（ガードを二重に書かない）',
+     /export async function setAllLinkModes[\s\S]*?for \(const step of plan\.steps\)[\s\S]*?await applyLinkMode\(/.test(act5), true);
+  eq('★★★ 受け口: 断られたら break（黙って続けない）',
+     /export async function setAllLinkModes[\s\S]*?if \(!r\.ok\) \{[\s\S]*?stoppedAt[\s\S]*?break;/.test(act5), true);
+  eq('★★★ 受け口: setMediaLinkMode も applyLinkMode を通る（同じ道）',
+     /export async function setMediaLinkMode[\s\S]*?return applyLinkMode\(/.test(act5), true);
+  eq('★★ 受け口: 一括は by: \'bulk\' で記録', /by: 'bulk'/.test(act5), true);
+  eq('★★★ 受け口: 一括の行き先は write | none だけ（read への一括は無い）',
+     /input\.to !== 'write' && input\.to !== 'none'/.test(act5), true);
 }
 
 console.log(fail === 0 ? '\n★ すべて通った' : '\n★ NG ' + fail + ' 件');

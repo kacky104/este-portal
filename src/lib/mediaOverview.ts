@@ -178,9 +178,12 @@ export function switchAskText(to: 'read' | 'write' | 'none', siteLabel: string, 
     };
   }
   if (to === 'read') {
+    // ★★ 第192便: 「写メ日記も」を足した（カッキーさんの方針:
+    //   「駅ちかから取り込む場合はフクエスからの内容を他媒体に反映させない。写メ日記もです」）。
+    //   ★ 出勤だけ書くと、写メ日記は送り続けると読める。
     return {
       title: `${siteLabel}から反映しますか？`,
-      body: `${siteLabel}に入れた出勤を、フクエスが読み取るようになります。フクエスから各サイトへは送らなくなります。`,
+      body: `${siteLabel}に入れた出勤を、フクエスが読み取るようになります。フクエスから各サイトへは、出勤も写メ日記も送らなくなります。`,
     };
   }
   if (to === 'write') {
@@ -189,9 +192,13 @@ export function switchAskText(to: 'read' | 'write' | 'none', siteLabel: string, 
       body: `フクエスに入れた出勤を、各サイトへ反映するようになります。${siteLabel}からの取り込みは止まります。`,
     };
   }
+  // ★★★ 第192便: 「どのサイトにも」と書かない。★ このボタンが変えるのは【この媒体の枠だけ】。
+  //   ★ 旧「どのサイトにも反映しないようにしますか？／どのサイトへも送らず」は、駅ちかの枠しか
+  //     変わらないのに全体のように書いていた（嘘）。★ 全体を止めるのは bulkAskText('none') の仕事。
+  //   ★ 見出しを一括ボタン（「どのサイトにも反映しない」）と同じ言葉にしない。★ 押した範囲が違う。
   return {
-    title: 'どのサイトにも反映しないようにしますか？',
-    body: `出勤はフクエスにだけ入ります。どのサイトへも送らず、${siteLabel}からの取り込みもしません。`,
+    title: `${siteLabel}へ反映しないようにしますか？`,
+    body: `${siteLabel}へは送らず、${siteLabel}からの取り込みもしません。フクエスに入れた出勤は、そのまま残ります。`,
   };
 }
 
@@ -383,8 +390,11 @@ export function doubleWriteNote(siteLabel: string, readingLabel: string | null):
  */
 export function homeChoiceNote(siteLabel: string): string {
   const where = typeof siteLabel === 'string' && siteLabel.length > 0 ? siteLabel : 'サイト側';
+  // ★★★ 第192便: 2文目を直した。★ 旧「どのサイトへも送りません」は、この行の「反映しない」が
+  //   駅ちかの枠しか変えないのに全体のように書いていた（嘘・エステ魂が write なら送り続ける）。
+  //   ★ 全体を止めるのは一括ボタン（bulkAskText('none')）。★ ここは【その媒体の枠】のことだけ書く。
   return `出勤の反映は、${where}とフクエスのどちらか一方です。`
-    + `「${switchLabel('none', where)}」を選ぶと、どのサイトへも送りません。`;
+    + `「${switchLabel('none', where)}」を選ぶと、${where}へは送らず、${where}からも取り込みません。`;
 }
 
 /**
@@ -423,7 +433,8 @@ export function switchDoneText(to: 'read' | 'write' | 'none', siteLabel: string,
   }
   if (to === 'read') return `${siteLabel}から反映するようにしました。フクエスからは送りません`;
   if (to === 'write') return `フクエスから反映するようにしました。${siteLabel}からの取り込みは止まります`;
-  return `反映しないようにしました。どのサイトへも送らず、${siteLabel}からの取り込みもしません`;
+  // ★★★ 第192便: 「どのサイトへも」を消した（switchAskText('none') と対）。★ 変わったのはこの枠だけ
+  return `${siteLabel}へは反映しないようにしました。${siteLabel}へは送らず、${siteLabel}からの取り込みもしません`;
 }
 
 /**
@@ -499,6 +510,179 @@ export function offRowNote(siteLabel: string, readingLabel: string | null): stri
     return `${readingLabel.trim()}から反映中のため、${site}には反映しません`;
   }
   return `${site}には反映しません`;
+}
+
+// ───────────── ★★★ 一括で3つの設定に倒す（第192便・2026-09-07） ─────────────
+//
+// ★★★ なぜ要るか（設計メモ_フクエスリンクの3つの設定ボタン_2026-09-07.md）
+//   フクエスリンクの大きな設定は3つ（カッキーさん）:
+//     1. 駅ちかから取り込んだ内容をフクエスに反映する      … 駅ちかだけ read・ほかは none
+//     2. フクエスで書いた内容を他媒体に反映する ★ ゴール   … 鍵のある全サイトを write
+//     3. 反映しない。フクエスのみ。どこからも取り込まない    … 全サイトを none
+//   ★ これまでは 2 と 3 にするのに、サイトごとに押して回る必要があった（1つのボタンが無い）。
+//   ★★ 「フクエスからの反映は設定しやすく、駅ちかからの反映は設定しにくく」（カッキーさん）。
+//     → 2 と 3 は一括ボタン。1 は小さなリンク＋従来のガード（第190便）のまま。★ 一括では倒さない。
+//
+// ★★ ここは【どの枠をどの順に変えるか】を決めるだけ。★ 変えるのは受け口（setAllLinkModes）。
+//   ★ ガードはここに書かない。★ 受け口が setMediaLinkMode と同じ関数を1枠ずつ通す（二重に書かない）。
+
+export type BulkTarget = 'write' | 'none';
+
+export type BulkSite = {
+  provider: string;
+  slot?: number | null;
+  label?: string | null;
+  /** siteDirection の結果（'read' | 'write' | 'off' | 'unset'） */
+  direction: string;
+  hasCredential: boolean;
+  /** いま write_auto か。★ 'write' への一括では触らない（自動を手動に落とさない） */
+  autoOn?: boolean;
+};
+
+export type BulkSkipWhy = 'no_credential' | 'already';
+
+export type BulkStep = { provider: string; slot: number; label: string; from: string };
+export type BulkSkip = { provider: string; slot: number; label: string; why: BulkSkipWhy };
+
+export type BulkPlan = {
+  to: BulkTarget;
+  /** ★ この順に変える。★ 読める媒体（駅ちか）が必ず先 */
+  steps: BulkStep[];
+  /** ★ 触らない枠と理由。★ 黙って飛ばさず、確認の文に名前を出す */
+  skipped: BulkSkip[];
+};
+
+const siteLabelOf = (s: { label?: string | null; provider: string }): string => {
+  const l = typeof s.label === 'string' ? s.label.trim() : '';
+  return l.length > 0 ? l : s.provider;
+};
+
+/**
+ * ★★★ 一括で変える計画（純粋関数）。
+ *
+ * ★★★ 順番: **読める媒体（駅ちか）を最初に**。
+ *   ★ 'write' への一括で、駅ちかが read のまま先にエステ魂を write にすると、
+ *     受け口の第127便ガード「ほかが read なら write 不可」で断られる。
+ *   ★ 駅ちかを先に read → write にすれば、そのあとの枠は通る。
+ *   ★ 'none' への一括は順番でガードに当たらないが、決めごとを2つ持たない（同じ順）。
+ *
+ * ★★ 'write' へ:
+ *   ・鍵が無い枠は飛ばす（no_credential）。★ 書くには鍵が要る（siteDirection の決めごと）。
+ *     ★ 飛ばしたことを黙らない。名前を出す（カッキーさんの決定: 「飛ばして、名前を出す」）。
+ *   ・すでに write（write_auto を含む）の枠は触らない（already）。
+ *     ★★ 自動（write_auto）を手動（write）へ落とさない。★ 一括ボタンで自動は入れも切りもしない。
+ * ★★ 'none' へ:
+ *   ・read / write の枠は全部 none に。★ 駅ちかからの取り込みも止まる。
+ *   ・すでに off の枠は触らない（already）。
+ *   ・unset は、鍵があれば none にする（枠を作る口が受け口にある・第111便）。鍵が無ければ飛ばす。
+ *     ★ 「未設定」は送っても取り込んでもいないが、鍵があるなら「反映しない」と決めた形を残す。
+ */
+export function bulkPlan(sites: ReadonlyArray<BulkSite>, to: BulkTarget): BulkPlan {
+  const steps: BulkStep[] = [];
+  const skipped: BulkSkip[] = [];
+  // ★★★ 読める媒体が先。★ 同じ媒体の中では枠の順
+  const ordered = [...sites].sort((a, b) => {
+    const ra = canReadProvider(a.provider) ? 0 : 1;
+    const rb = canReadProvider(b.provider) ? 0 : 1;
+    if (ra !== rb) return ra - rb;
+    return (a.slot ?? 1) - (b.slot ?? 1);
+  });
+  for (const s of ordered) {
+    const slot = s.slot ?? 1;
+    const label = siteLabelOf(s);
+    const base = { provider: s.provider, slot, label };
+    if (to === 'write') {
+      if (s.direction === 'write') { skipped.push({ ...base, why: 'already' }); continue; }
+      if (s.hasCredential !== true) { skipped.push({ ...base, why: 'no_credential' }); continue; }
+      steps.push({ ...base, from: s.direction });
+      continue;
+    }
+    // to === 'none'
+    if (s.direction === 'off') { skipped.push({ ...base, why: 'already' }); continue; }
+    if (s.direction === 'unset' && s.hasCredential !== true) { skipped.push({ ...base, why: 'no_credential' }); continue; }
+    steps.push({ ...base, from: s.direction });
+  }
+  return { to, steps, skipped };
+}
+
+/** ★ 一括ボタンに書く文字（★ 行き先の状態を名前にする・第90便の作法）。 */
+export function bulkLabel(to: BulkTarget): { label: string; sub: string } {
+  if (to === 'write') return { label: 'フクエスから反映', sub: '登録済みの全サイトへ' };
+  // ★ 名前はカッキーさんの決定（2026-09-07）。★ 下に小さく「フクエスのみで使う」
+  return { label: 'どのサイトにも反映しない', sub: 'フクエスのみで使う' };
+}
+
+const joinNames = (xs: readonly string[]): string => [...new Set(xs)].join('・');
+
+/**
+ * ★★★ 一括ボタンを押す前の問い。★ 名前を列挙する（何が変わり、何が変わらないか）。
+ *
+ * ★★ 'none' は【取り込みも止まる】。★ 必ず書く（★ 駅ちかから反映中の店が押すと、出勤が入ってこなくなる）。
+ * ★★ 鍵が無くて飛ばす枠は名前を出す（「◯◯はログイン情報が無いので変わりません」）。
+ * ★ 変えるところが無いときは、そのことを言う（押しても何も起きないボタンを黙って出さない）。
+ */
+export function bulkAskText(plan: BulkPlan): { title: string; body: string } {
+  const names = joinNames(plan.steps.map((x) => x.label));
+  const fromRead = joinNames(plan.steps.filter((x) => x.from === 'read').map((x) => x.label));
+  const noCred = joinNames(plan.skipped.filter((x) => x.why === 'no_credential').map((x) => x.label));
+  const skipNote = noCred.length > 0 ? `${noCred}はログイン情報が無いので変わりません。` : '';
+  if (plan.steps.length === 0) {
+    return {
+      title: '変えるところがありません',
+      body: plan.to === 'write'
+        ? `すでに登録済みの全サイトへフクエスから反映しています。${skipNote}`
+        : `すでにどのサイトにも反映していません。${skipNote}`,
+    };
+  }
+  if (plan.to === 'write') {
+    return {
+      title: 'フクエスから反映しますか？',
+      body: `フクエスに入れた出勤を、${names}へ反映するようになります。送る前に、毎回内容をご確認いただきます。`
+        + (fromRead.length > 0 ? `${fromRead}からの取り込みは止まります。` : '')
+        + skipNote,
+    };
+  }
+  return {
+    title: 'どのサイトにも反映しないようにしますか？',
+    body: `出勤はフクエスにだけ入ります。${names}へは送らなくなります。`
+      + (fromRead.length > 0 ? `${fromRead}からの取り込みも止まります。` : 'どのサイトからも取り込みません。')
+      + skipNote,
+  };
+}
+
+/** ★ 受け口が返す結果。★ 「変えました」と言う前に、実際に変わった枠の一覧を持つ（§223）。 */
+export type BulkResult = {
+  to: BulkTarget;
+  /** 実際に変わった枠（順） */
+  changed: Array<{ provider: string; slot: number; label: string }>;
+  /** 飛ばした枠（計画どおり） */
+  skipped: BulkSkip[];
+  /** ★ 途中で断られた枠。null なら最後まで通った */
+  stoppedAt: { provider: string; slot: number; label: string; error: string } | null;
+};
+
+/**
+ * ★★★ 押したあとの文。★ 問い（bulkAskText）と対にする。★ 途中で止まったら【どこまで変わったか】を言う。
+ * ★ 黙って続けない・黙って止めない。★ 止まった理由は受け口の言葉をそのまま出す。
+ */
+export function bulkDoneText(r: BulkResult): string {
+  const changed = joinNames(r.changed.map((x) => x.label));
+  if (r.stoppedAt) {
+    const head = changed.length > 0 ? `${changed}は変えましたが、` : '';
+    return `${head}${r.stoppedAt.label}で止まりました：${r.stoppedAt.error}`;
+  }
+  if (r.changed.length === 0) return '変えるところはありませんでした';
+  if (r.to === 'write') return `フクエスから${changed}へ反映するようにしました。送る前に、毎回内容をご確認いただきます`;
+  return `どのサイトにも反映しないようにしました（${changed}）。フクエスに入れた出勤は、そのまま残ります`;
+}
+
+/**
+ * ★ 小さなリンク「◯◯から反映にする ›」の文字（★ 設定1・わざと目立たせない）。
+ * ★ ボタンと同じ「◯◯から反映」で始める（押した先が同じ言葉になる）。
+ */
+export function readLinkLabel(siteLabel: string): string {
+  const site = siteLabel.trim().length > 0 ? siteLabel.trim() : 'サイト側';
+  return `${switchLabel('read', site)}にする`;
 }
 
 /**

@@ -2,12 +2,13 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { getMediaOverview, setMediaLinkMode } from '@/app/actions/mediaCredentials';
+import { getMediaOverview, setMediaLinkMode, setAllLinkModes } from '@/app/actions/mediaCredentials';
 import {
   switchChoices, switchDoneText, switchAskText, homeHeadline, homeChoiceNote, isReadingElsewhere, readingElsewhereLabel, offRowNote,
   isWritingElsewhere, writingElsewhereLabels, readBlockedNote, doubleWriteNote,
   sendOnlyChoiceNote, canReadProvider,
-  type SiteDirection, type SwitchChoice,
+  bulkPlan, bulkAskText, bulkDoneText, bulkLabel, readLinkLabel,
+  type SiteDirection, type SwitchChoice, type BulkTarget,
 } from '@/lib/mediaOverview';
 // ★ 同意の取り直しは、ログイン情報の中だけでは気づけない（第89便）。★ 入口にも出す
 import { CONSENT_RECHECK_BADGE, consentRecheckNotice } from '@/lib/mediaConsent';
@@ -106,6 +107,9 @@ export function MediaHome({ salonId, onToast }: {
   const [switching, setSwitching] = useState('');
   // ★ 押す前の問い（第88便）。★ null のあいだは何も出さない
   const [ask, setAsk] = useState<{ site: Site; choice: SwitchChoice } | null>(null);
+  // ★★★ 一括ボタンの押す前の問い（第192便）。★ 1枠の問いとは別に持つ（押した範囲が違う）
+  const [bulkAsk, setBulkAsk] = useState<BulkTarget | null>(null);
+  const [bulking, setBulking] = useState(false);
 
   useEffect(() => {
     if (salonId == null) return;
@@ -140,6 +144,20 @@ export function MediaHome({ salonId, onToast }: {
     if (back.ok) setData(back.data);
     setSwitching('');
     onToast(switchDoneText(mode, s.label, s.provider));
+  };
+
+  /**
+   * ★★★ 一括で倒す（第192便）。★ 受け口（setAllLinkModes）が bulkPlan の順に1枠ずつ変える。
+   * ★ 途中で止まったら、どこまで変わったかを文で返す（bulkDoneText）。★ 黙って続けない。
+   */
+  const onBulk = async (to: BulkTarget) => {
+    if (salonId == null) return;
+    setBulking(true);
+    const res = await setAllLinkModes({ salonId, to });
+    const back = await getMediaOverview({ salonId });
+    if (back.ok) setData(back.data);
+    setBulking(false);
+    onToast(res.ok ? bulkDoneText(res.data) : res.error);
   };
 
   const sites = data?.sites ?? [];
@@ -263,11 +281,93 @@ export function MediaHome({ salonId, onToast }: {
 
       {/* ── 連携しているサイト ──────────────────────────── */}
       <div className="bg-white border border-slate-200 shadow-[0_1px_2px_rgba(31,35,51,0.05)] p-5">
+        {/* ★★★ 3つの設定（第192便・設計メモ_フクエスリンクの3つの設定ボタン_2026-09-07.md）
+            ★ 主ボタン「フクエスから反映」（設定2・ゴール）＝色付き・大。
+            ★ 副ボタン「どのサイトにも反映しない」（設定3）＝白。
+            ★ 「駅ちかから反映にする ›」（設定1）＝小さな文字リンク・下。★ わざと押しにくくする
+              （「フクエスからの反映は設定しやすく、駅ちかからの反映は設定しにくく」・カッキーさん）。
+            ★★ 一括で変えるのは主・副だけ。★ 小リンクは駅ちか1枠を変えるだけで、
+              ほかが write なら従来のガード（第190便）で断られる（一括で倒さない・案A）。 */}
+        {(() => {
+          if (loading || error || sites.length === 0) return null;
+          const switchable = sites.filter((s) => s.canSwitch);
+          if (switchable.length === 0) return null;
+          const busy = switching !== '' || bulking;
+          const write = bulkLabel('write');
+          const none = bulkLabel('none');
+          // ★ 設定1のリンク。★ 読める媒体で、鍵があり、自動でなく、まだ read でない枠にだけ出す
+          const readable = sites.find((s) => canReadProvider(s.provider) && s.canSwitch && !s.autoOn && s.direction !== 'read') ?? null;
+          const onReadLink = () => {
+            if (!readable) return;
+            const others = sites.map((x) => ({ provider: x.provider, slot: x.slot, direction: x.direction, label: x.label }));
+            const me = { provider: readable.provider, slot: readable.slot };
+            const choices = switchChoices(
+              readable.direction as SiteDirection, readable.label, readable.provider,
+              isReadingElsewhere(others, me), isWritingElsewhere(others, me),
+            );
+            const read = choices.find((c) => c.mode === 'read');
+            // ★★ 出せない理由を黙らない（第190便）。★ 先にほかの「反映しない」を押してもらう
+            if (!read) { onToast(readBlockedNote(readable.label, writingElsewhereLabels(others, me))); return; }
+            setAsk({ site: readable, choice: read });
+          };
+          return (
+            <div className="pb-4 mb-2 border-b border-slate-100">
+              <div className="flex flex-wrap justify-center gap-3">
+                <button
+                  type="button"
+                  onClick={() => setBulkAsk('write')}
+                  disabled={busy}
+                  className="min-w-[230px] px-7 py-3.5 border border-indigo-600 bg-indigo-600 text-white hover:bg-indigo-700 transition-colors disabled:opacity-40"
+                >
+                  <span className="block text-[16px] font-black">{bulking ? '変えています…' : write.label}</span>
+                  <span className="block text-[12px] font-bold text-indigo-100">（{write.sub}）</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setBulkAsk('none')}
+                  disabled={busy}
+                  className="min-w-[230px] px-7 py-3.5 border border-slate-300 bg-white text-slate-700 hover:bg-slate-50 hover:border-slate-400 transition-colors disabled:opacity-40"
+                >
+                  <span className="block text-[16px] font-bold">{none.label}</span>
+                  <span className="block text-[12px] font-bold text-slate-400">（{none.sub}）</span>
+                </button>
+              </div>
+              {/* ★★ 説明文は大きなボタンの【直下】に置く（第192便）。★ エステ魂の行の真下に置くと、
+                  エステ魂の説明に読める（カッキーさんが実際にそう読んだ） */}
+              {(() => {
+                const readableSite = sites.find((s) => s.canSwitch && !s.autoOn && canReadProvider(s.provider));
+                const sendOnlySite = sites.find((s) => s.canSwitch && !s.autoOn && !canReadProvider(s.provider));
+                const note = readableSite
+                  ? homeChoiceNote(readableSite.label)
+                  : sendOnlySite
+                    ? sendOnlyChoiceNote(sendOnlySite.label)
+                    : '';
+                if (!note) return null;
+                return (
+                  <p className="mt-3 text-[13px] text-slate-400 leading-relaxed text-center">{note}</p>
+                );
+              })()}
+              {readable && (
+                <p className="mt-3 text-center">
+                  <button
+                    type="button"
+                    onClick={onReadLink}
+                    disabled={busy}
+                    className="text-[13px] font-bold text-slate-400 underline underline-offset-4 hover:text-slate-600 disabled:opacity-40"
+                  >
+                    {readLinkLabel(readable.label)} ›
+                  </button>
+                </p>
+              )}
+            </div>
+          );
+        })()}
+
         {/* ★★★ 見出し・ログイン情報のリンク・サイト名・最後の読み取り・いまの状態の印を外した
             （第90便・カッキーさん）。★ すぐ上のブロックに同じことが書いてあり、二度読ませていた。
             ★ ログイン情報へは左の並びから行ける。
-          ★★★ ただし【選ぶボタンが出ない行】では外さない。★ 外すと行が空になる。
-            ★ 書くだけのサイト・未設定・自動で反映中の枠がそれにあたる。 */}
+          ★★★ 第192便: 行はサイトごとの【名前・状態・個別の「反映しない」】だけにした。
+            ★ 読める媒体の大きなボタン（read / write）は上の3つの設定へ移した。★ 止める道は行に必ず残す（第111便）。 */}
         {loading ? (
           <p className="text-[14px] text-slate-400">読み込み中…</p>
         ) : sites.length === 0 ? (
@@ -275,66 +375,24 @@ export function MediaHome({ salonId, onToast }: {
         ) : (
           <div className="divide-y divide-slate-100">
             {sites.map((s) => {
-              // ★ 切り替えを出すのは読める媒体だけ（mediaOverview.canSwitchDirection）。
-              //   ★ 書くだけのサイトに出すと、選べるように見えて選べない画面になる。
               // ★ 自動で反映しているあいだは変えさせない。★ 先に自動をやめてもらう。
               // ★★ 第111便: provider を渡す。★ 書くだけのサイトには 'read' を出さない
               // ★★★ ほかの媒体が正本のあいだは 'write' を出さない（第127便）。
-              //   ★ 駅ちかを読んでいる店がエステ魂へも書くと、代行システムと二重になる。
+              // ★★★ 逆側（第190便）: ほかの媒体へフクエスから反映しているあいだは 'read' を出さない
               const others = sites.map((x) => ({ provider: x.provider, slot: x.slot, direction: x.direction, label: x.label }));
               const me = { provider: s.provider, slot: s.slot };
               const elsewhere = isReadingElsewhere(others, me);
-              // ★★★ 逆側（第190便）: ほかの媒体へフクエスから反映しているあいだは 'read' を出さない
               const writingElsewhere = isWritingElsewhere(others, me);
-              const choices = s.canSwitch && !s.autoOn
+              const all = s.canSwitch && !s.autoOn
                 ? switchChoices(s.direction as SiteDirection, s.label, s.provider, elsewhere, writingElsewhere)
                 : [];
+              // ★★★ 第192便: 読める媒体（駅ちか）の行には【個別の「反映しない」】だけを出す。
+              //   ★ read / write へは上の3つの設定（一括ボタン・小リンク）から入る。★ 同じボタンを2か所に出さない。
+              //   ★ 書くだけの媒体は従来どおり（write / none）。★ 行き先が1つしかないので迷わない（第111便）。
+              const choices = canReadProvider(s.provider) ? all.filter((c) => c.mode === 'none') : all;
               // ★★★ 禁止の組み合わせが【既にできている】か（第190便）。★ write の行で、ほかが正本のとき
               const dbl = s.direction === 'write' ? doubleWriteNote(s.label, readingElsewhereLabel(others, me)) : null;
 
-              // ── 選ぶだけの行。★ ボタン以外は出さない ──────────────
-              // ★★★ 大きく中央に出すのは【読める媒体】だけ（第111便）。
-              //   ★ 書くだけのサイトにも選ぶボタンが出るようになったが、
-              //     同じ形にすると **名前の無いボタンだけの行が2つ**並ぶ。
-              //   ★ どちらのサイトのボタンなのかが読めなくなる。
-              //   → 書くだけのサイトは、名前と状態の行に小さく添える（下の枝）。
-              if (choices.length > 0 && canReadProvider(s.provider)) {
-                return (
-                  <div key={s.provider + '#' + s.slot} className="py-4">
-                    {/* ★★★ 同意の取り直しだけは消さない。
-                        ★ 消すと、止まっていることが行から消える（第89便で足したばかり） */}
-                    {s.needsConsent && (
-                      <p className="mb-3 text-center">
-                        <span className="text-[13px] font-bold px-3 py-1 border bg-amber-50 text-amber-800 border-amber-300">
-                          {CONSENT_RECHECK_BADGE}
-                        </span>
-                      </p>
-                    )}
-                    {/* ★ 中央に大きく（第90便）。★ ここが、この画面でいちばん押すところ */}
-                    <div className="flex flex-wrap justify-center gap-3">
-                      {choices.map((c) => (
-                        <button
-                          key={c.mode}
-                          type="button"
-                          onClick={() => setAsk({ site: s, choice: c })}
-                          disabled={switching !== ''}
-                          className="min-w-[210px] text-[16px] font-bold px-7 py-3.5 border border-slate-300 bg-white text-slate-700 hover:bg-slate-50 hover:border-slate-400 transition-colors disabled:opacity-40"
-                        >
-                          {switching === s.provider + '#' + s.slot ? '変えています…' : c.label}
-                        </button>
-                      ))}
-                    </div>
-                    {/* ★★★ 「◯◯から反映」が出ていない理由（第190便）。★ ボタンを黙って消さない */}
-                    {writingElsewhere && s.direction !== 'read' && (
-                      <p className="mt-3 text-[13px] text-amber-800 text-center leading-relaxed">
-                        {readBlockedNote(s.label, writingElsewhereLabels(others, me))}
-                      </p>
-                    )}
-                  </div>
-                );
-              }
-
-              // ── 選ぶボタンが出ない行。★ 名前と状態を出す（出さないと空の行になる）──
               return (
                 <div key={s.provider + '#' + s.slot} className="py-3">
                   <div className="flex items-center gap-3">
@@ -372,17 +430,17 @@ export function MediaHome({ salonId, onToast }: {
                         自動をやめる
                       </Link>
                     )}
-                    {/* ★★★ 書くだけのサイトの選ぶボタン（第111便）。
+                    {/* ★★★ サイトごとの選ぶボタン（第111便）。
                         ★ 名前と状態の右に小さく置く。★ これが無いと、write にした店に
                           【止める道が画面から消える】（第111便で見つかった穴）。 */}
-                    {choices.length > 0 && !canReadProvider(s.provider) && (
+                    {choices.length > 0 && (
                       <span className="flex-none flex flex-wrap gap-2">
                         {choices.map((c) => (
                           <button
                             key={c.mode}
                             type="button"
                             onClick={() => setAsk({ site: s, choice: c })}
-                            disabled={switching !== ''}
+                            disabled={switching !== '' || bulking}
                             className="text-[13px] font-bold px-3 py-1.5 border border-slate-300 bg-white text-slate-600 hover:bg-slate-50 hover:border-slate-400 transition-colors disabled:opacity-40"
                           >
                             {switching === s.provider + '#' + s.slot ? '変えています…' : c.label}
@@ -406,26 +464,54 @@ export function MediaHome({ salonId, onToast }: {
             })}
           </div>
         )}
-
-        {/* ★ 3文 → 2文にした（第90便）。★ 残りは押す前の問いに書いてある
-            ★★★ 第111便: 読める媒体が無い店では homeChoiceNote が嘘になる。
-              ★ 「◯◯とフクエスのどちらか一方です」は【選べる媒体がある店の事実】。
-              ★ エステ魂だけの店には「どちらか一方」が無い。★ 別の1行に分ける。
-            ★★ 選ぶボタンが1つも無いときは、選び方の説明そのものを出さない。 */}
-        {(() => {
-          const readableSite = sites.find((s) => s.canSwitch && !s.autoOn && canReadProvider(s.provider));
-          const sendOnlySite = sites.find((s) => s.canSwitch && !s.autoOn && !canReadProvider(s.provider));
-          const note = readableSite
-            ? homeChoiceNote(readableSite.label)
-            : sendOnlySite
-              ? sendOnlyChoiceNote(sendOnlySite.label)
-              : '';
-          if (!note) return null;
-          return (
-            <p className="mt-3 text-[13px] text-slate-400 leading-relaxed text-center">{note}</p>
-          );
-        })()}
       </div>
+
+      {/* ── ★★★ 一括ボタンの押す前の問い（第192便）──────────
+          ★ 名前を列挙する（何が変わり、何が変わらないか）。★ 「どのサイトにも反映しない」は取り込みも止まると必ず言う。
+          ★ 変えるところが無ければ、押す側のボタンを出さない（問いだけ出して何も起きない、を避ける）。 */}
+      {bulkAsk && (() => {
+        const plan = bulkPlan(
+          sites.map((s) => ({ provider: s.provider, slot: s.slot, label: s.label, direction: s.direction, hasCredential: s.hasCredential, autoOn: s.autoOn })),
+          bulkAsk,
+        );
+        const text = bulkAskText(plan);
+        const go = plan.steps.length > 0;
+        return (
+          <div
+            className="fixed inset-0 z-50 bg-slate-900/40 grid place-items-center p-4"
+            role="dialog"
+            aria-modal="true"
+            onClick={() => setBulkAsk(null)}
+          >
+            <div
+              className="w-full max-w-[380px] bg-white border border-slate-200 shadow-lg p-5"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <p className="text-[17px] font-black text-slate-800">{text.title}</p>
+              <p className="mt-2 text-[14px] text-slate-500 leading-relaxed">{text.body}</p>
+              <div className="mt-4 flex justify-end gap-2">
+                <button
+                  type="button"
+                  onClick={() => setBulkAsk(null)}
+                  className="px-4 py-1.5 border border-slate-200 text-[14px] font-bold text-slate-500 hover:bg-slate-50"
+                >
+                  {go ? 'やめる' : '閉じる'}
+                </button>
+                {go && (
+                  <button
+                    type="button"
+                    onClick={() => { const t = bulkAsk; setBulkAsk(null); void onBulk(t); }}
+                    disabled={bulking || switching !== ''}
+                    className="px-4 py-1.5 border border-indigo-600 bg-indigo-600 text-[14px] font-bold text-white hover:bg-indigo-700 disabled:opacity-40"
+                  >
+                    {bulkLabel(bulkAsk).label}
+                  </button>
+                )}
+              </div>
+            </div>
+          </div>
+        );
+      })()}
 
       {/* ── ★★★ 押す前の問い（第88便）─────────────────────
           ★ ここで初めて【何が止まるか】を出す。★ 押したあとの文（switchDoneText）と対。
