@@ -120,6 +120,17 @@ eq('★ 「連携しない」の古い言い方を残さない', lm('esutama', '
 // ★ 知らない provider は英字のまま（★ ごまかして別の名前を当てない）
 eq('★ 知らない provider は英字のまま', lm('nanikore', 'write').includes('nanikore'), true);
 
+console.log('\n── ★★ 即ヒメの自動の文言（第215便）──');
+{
+  const sa = (detail) => a.defaultAuditSummary({ event: 'sokuhime_auto_changed', outcome: 'ok', provider: 'ekichika', slot: 1, detail });
+  eq('★★ 入れたら周期を言う', sa({ on: true }).includes('5分ごと'), true);
+  eq('★★ 自分でやめたときは理由を足さない', sa({ on: false }), 'フクエスの「今すぐ」を駅ちかの即ヒメへ自動で送るのをやめました');
+  // ★★★ 押していないのに止まった、と読ませない
+  eq('★★★ 向きのせいで降りたときは理由を書く', sa({ on: false, by: 'link_mode' }).includes('フクエスから反映'), true);
+  eq('★★★ そのとき「やめました」だけにしない', sa({ on: false, by: 'link_mode' }) !== sa({ on: false }), true);
+  eq('★ 媒体名は日本語', sa({ on: true }).includes('駅ちか'), true);
+}
+
 console.log('\n── ★★★ 自動の周が「見ただけ」なら記録を残さない（第140便）──');
 // ★★ 普段は黙らせないのが原則。★ ここだけ例外。
 //   ★ 送るものが無い日は1日288回×2行＝576行。★ 直近50件が2時間で埋まり、

@@ -767,7 +767,7 @@ async function applyLinkMode(input: {
 
   const { data: before } = await svc
     .from('salon_import_sources')
-    .select('link_mode, is_enabled')
+    .select('link_mode, is_enabled, sokuhime_auto')
     .eq('salon_id', salonId).eq('provider', input.provider).eq('slot', slot)
     .maybeSingle();
 
@@ -778,9 +778,20 @@ async function applyLinkMode(input: {
     return { ok: false, error: 'この枠はいま止まっています。運営にお問い合わせください' };
   }
 
+  // ★★★ 書く向きから外れたら、即ヒメの自動も一緒に降ろす（第215便・2026-09-08）。
+  //   ★★ 降ろさないと、read に戻したあとも sokuhime_auto は true のまま残る。
+  //     ★ 周は write を見るので当面は止まる。★ だが**後日また write にした瞬間に黙って走り出す**。
+  //     ★ 店舗様は「即ヒメを自動にした」ことをとうに忘れている。★ これは §54 と同じ穴
+  //       （「向きを read に戻してまた write にしたら、1回目からやり直し」）。
+  //   ★ 入れ直すのは「自動にする」を押すだけ。★ 消すほうを既定にする（安全側へ倒す）。
+  const dropSokuhimeAuto = !isWriteDirection(input.mode) && before?.sokuhime_auto === true;
   const { data: updated, error } = await svc
     .from('salon_import_sources')
-    .update({ link_mode: input.mode, updated_at: new Date().toISOString() })
+    .update({
+      link_mode: input.mode,
+      ...(isWriteDirection(input.mode) ? {} : { sokuhime_auto: false }),
+      updated_at: new Date().toISOString(),
+    })
     .eq('salon_id', salonId).eq('provider', input.provider).eq('slot', slot)
     .select('id');
   if (error) return { ok: false, error: '入力する場所を変えられませんでした' };
@@ -825,6 +836,16 @@ async function applyLinkMode(input: {
       : { mode: input.mode, from: String(before?.link_mode ?? '') },
     actor: input.actor,
   });
+
+  // ★★ 一緒に降ろしたことは【黙らない】。★ 店舗様の画面に1行出す（第215便）
+  if (dropSokuhimeAuto) {
+    await recordMediaAudit({
+      salonId, provider: input.provider, slot,
+      event: 'sokuhime_auto_changed', outcome: 'ok',
+      detail: { on: false, by: 'link_mode' },
+      actor: input.actor,
+    });
+  }
 
   // ★★★ 写メ日記の入口を、この向きから導いて書く（第205便）。★ 1枠も一括もここを通る
   await syncDiarySource(svc, salonId, input.actor);
