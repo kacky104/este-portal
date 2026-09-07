@@ -36,6 +36,7 @@ import {
   type WorkPage,
 } from './ekichikaWorkParse';
 import { parseEkichikaGirls, girlsPageUsable, type EkichikaGirlsPage } from './ekichikaGirlsParse';
+import { parseEkichikaSokuhime, sokuhimePageUsable, sokuhimeUsed, type EkichikaSokuhimePage } from './ekichikaSokuhimeParse';
 import { parseEkichikaMailList, mailListUsable, type EkichikaMailListPage } from './ekichikaMailListParse';
 // ★ 写メ日記（第94便）。★ 駅ちかの既存の段には一切触れず、段名を分けて足す
 import {
@@ -99,6 +100,8 @@ export const EKICHIKA_LOGIN_URL = 'https://ranking-deli.jp/admin/login';
 export const EKICHIKA_WORK_URL = 'https://ranking-deli.jp/admin/girlswork/';
 /** 女の子一覧（管理画面）。★ 読むだけ。ここから castId と名前が取れる（第50便） */
 export const EKICHIKA_GIRLS_URL = 'https://ranking-deli.jp/admin/girls/';
+/** ★ 即ヒメ設定画面（第213便）。★ 読むだけ */
+export const EKICHIKA_SOKUHIME_URL = 'https://ranking-deli.jp/admin/sokuiku/';
 /** 投稿用メールアドレス一覧（管理画面）。★ 読むだけ。写メ日記の転送先がここに載る（第53便） */
 export const EKICHIKA_MAILLIST_URL = 'https://ranking-deli.jp/admin/maillist/';
 
@@ -172,6 +175,12 @@ export type RelayFlowIntent =
    *   ★ 向きが write の枠でも使える。取り込みの周とは別に、明示的に1回読むものだから。
    */
   | 'roster_read'
+  /**
+   * ★★★ 駅ちかの即ヒメ設定画面を読むだけ（第213便・2026-09-08・設計メモ_今すぐを駅ちかの即ヒメへ §4 の1）。
+   *   login → read_sokuhime → 終わり。★ **駅ちかへ何も書かない。**
+   *   ★ 枠の数（＝上限）・設定中の子・切れる時刻・出勤中の子 を写しに残す。★ 押す側は次の便。
+   */
+  | 'sokuhime_read'
   /**
    * ★★ 投稿用メールアドレスの取り込み（第53便・設計メモ 追記26 §123）。
    *   login → read_maillist → 終わり。★ **駅ちかへは何も書かない。**
@@ -494,6 +503,8 @@ export type FlowAudit = {
 export type FlowNextRequest = {
   purpose:
     | 'read_work' | 'write_work' | 'verify_work' | 'read_girls' | 'read_maillist'
+    // ★ 即ヒメ設定画面（第213便）。★ 読むだけ
+    | 'read_sokuhime'
     // ★ 駅ちかの新着情報（第155便）。★ 名前を分けることで、既存の段の判定に一切触らない
     | 'article_list' | 'article_read' | 'article_save' | 'article_verify'
     // ★ 写メ日記の段（第94便）。★ 読むだけ
@@ -538,6 +549,11 @@ export type FlowOutcome =
    *   ★ ここで「次のジョブ」を返さない＝**駅ちかへ何も飛ばない。**
    */
   | { kind: 'roster'; page: EkichikaGirlsPage; audits: FlowAudit[]; note: string }
+  /**
+   * ★ 即ヒメ設定画面を読めた（第213便）。roster と同じ理由でここでは保存しない。
+   *   ★ ここで「次のジョブ」を返さない＝**駅ちかへ何も飛ばない。**
+   */
+  | { kind: 'sokuhime'; page: EkichikaSokuhimePage; audits: FlowAudit[]; note: string }
   /**
    * ★★★ ニュースの一覧を読めた（第158便）。roster と同じ理由でここでは保存しない。
    *   ★ 呼び出し側が写しを1件だけ上書きで残す。
@@ -801,6 +817,8 @@ export function advanceFlow(input: {
       return afterReadWork(input, ctx);
     case 'read_girls':
       return afterReadGirls(input, ctx);
+    case 'read_sokuhime':
+      return afterReadSokuhime(input, ctx);
     case 'read_maillist':
       return afterReadMailList(input, ctx);
     // ── 駅ちかの新着情報（第155便）★ 段名で分けている。既存の case には触れていない ──
@@ -972,6 +990,22 @@ function afterLogin(
     };
   }
 
+  if (ctx.intent === 'sokuhime_read') {
+    return {
+      kind: 'next',
+      next: {
+        purpose: 'read_sokuhime',
+        method: 'GET',
+        url: EKICHIKA_SOKUHIME_URL,
+        headers: buildReadWorkRequest(cookie),
+        body: '',
+        context: { ...ctx, cookie },
+      },
+      audits: [],
+      note: 'ログインの応答を受け取った。★ 成否は即ヒメ設定画面が読めるかどうかで判定する',
+    };
+  }
+
   if (ctx.intent === 'roster_read') {
     return {
       kind: 'next',
@@ -1002,6 +1036,72 @@ function afterLogin(
     audits: [],
     note: 'ログインの応答を受け取った。★ 成否は出勤ページが読めるかどうかで判定する',
   };
+}
+
+/**
+ * 即ヒメ設定画面の応答（第213便）。★ afterReadGirls と同じ順序の作法（まず「読めるか」を試す）。
+ */
+function afterReadSokuhime(
+  input: { status: number; headers: Record<string, string | string[]>; body: string },
+  ctx: RelayFlowContext,
+): FlowOutcome {
+  const flowId = ctx.flowId;
+  if (input.status >= 300 && input.status < 400) {
+    const location = String(input.headers['location'] ?? '');
+    if (location.includes('/admin/login')) {
+      return stop(
+        [{
+          event: 'login', outcome: 'failed',
+          summary: '駅ちかにログインできませんでした（ログイン画面へ戻されました）。店舗ID・ログインID・パスワードをご確認ください',
+          detail: { httpStatus: input.status, reason: 'back_to_login', flowId },
+        }],
+        'ログイン後の即ヒメ設定画面がログイン画面へ戻された＝ログインできていない',
+      );
+    }
+    return stop(
+      [{ event: 'read_sokuhime', outcome: 'failed', summary: '駅ちかの即ヒメ設定画面を開けませんでした（別の場所へ転送されました）', detail: { httpStatus: input.status, reason: 'redirected', flowId } }],
+      '即ヒメ設定画面が想定外の場所へ転送された',
+    );
+  }
+  if (input.status !== 200) {
+    return stop(
+      [{ event: 'read_sokuhime', outcome: 'failed', detail: { httpStatus: input.status, reason: 'http_error', flowId } }],
+      '即ヒメ設定画面の応答が ' + input.status + ' だった',
+    );
+  }
+  const page = parseEkichikaSokuhime(input.body);
+  if (sokuhimePageUsable(page)) {
+    return {
+      kind: 'sokuhime',
+      page,
+      audits: [
+        { event: 'login', outcome: 'ok', detail: { flowId } },
+        {
+          event: 'read_sokuhime', outcome: 'ok',
+          detail: { slots: page.boxes.length, used: sokuhimeUsed(page), working: page.working.length, flowId },
+        },
+      ],
+      note: '即ヒメ設定画面を読めた（枠 ' + sokuhimeUsed(page) + '/' + page.boxes.length + '・出勤中 ' + page.working.length + '名）',
+    };
+  }
+  if (looksLikeEkichikaLoginPage(input.body)) {
+    return stop(
+      [{
+        event: 'login', outcome: 'failed',
+        summary: '駅ちかにログインできませんでした（ログイン画面が返りました）。店舗ID・ログインID・パスワードをご確認ください',
+        detail: { httpStatus: input.status, reason: 'login_page', flowId },
+      }],
+      '即ヒメ設定画面の代わりにログイン画面が返った',
+    );
+  }
+  return stop(
+    [{
+      event: 'read_sokuhime', outcome: 'failed',
+      summary: '駅ちかの即ヒメ設定画面を読み取れませんでした（画面の形が変わった可能性があります）',
+      detail: { httpStatus: input.status, reason: 'unparseable', problems: page.problems.slice(0, 5).join(' / '), flowId },
+    }],
+    '即ヒメ設定画面として読めなかった: ' + page.problems.join(' / '),
+  );
 }
 
 /**
@@ -1382,6 +1482,9 @@ function finishRead(audits: FlowAudit[], ctx: RelayFlowContext, page: WorkPage):
       // ★★ ここへは来ない（roster_read は出勤ページを読みに行かない）。
       //   ★ だが switch は網羅させる。網羅を外すと「足したのに繋いでいない」が静かに通る。
       return stop(audits, '名簿の読み取りは出勤ページを使わない（ここへは来ないはず）');
+    case 'sokuhime_read':
+      // ★ ここへは来ない（即ヒメの読み取りは出勤ページを読みに行かない）。★ 網羅は外さない（第213便）
+      return stop(audits, '即ヒメの読み取りは出勤ページを使わない（ここへは来ないはず）');
     case 'diary_read':
       // ★ ここへは来ない（写メ日記は出勤ページを読みに行かない）。★ 網羅は外さない
       //   ★★ この見張りが、いま実際に働いた: diary_read を足した時点でコンパイルが止まった（第94便）

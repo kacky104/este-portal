@@ -46,6 +46,7 @@ import { loadCastIds } from '@/lib/mediaCastIds';
 import { addDaysISO, buildWorkPlan, planFingerprint, summarizePlan, type FukuesShift } from '@/lib/workPlan';
 import { WORK_DAYS, encodeGirlWork, type WorkPage } from '@/lib/ekichikaWorkParse';
 import type { EkichikaGirlsPage } from '@/lib/ekichikaGirlsParse';
+import type { EkichikaSokuhimePage } from '@/lib/ekichikaSokuhimeParse';
 import type { EkichikaMailListPage } from '@/lib/ekichikaMailListParse';
 // ★ エステラブ（第80便）。★ 送るのは次便。ここでは「ログイン → 名簿 → 計画」まで
 import { buildEsuloveLoginRequest } from '@/lib/esuloveRequests';
@@ -386,6 +387,12 @@ export async function advanceRelayFlow(params: {
     note = outcome.note + ' → ' + r.note;
   }
 
+  // ★ 即ヒメ設定画面を読めた（第213便）。★ 写しを1件だけ上書きで残す。★ 次を積まない＝何も書き換えていない
+  if (outcome.kind === 'sokuhime') {
+    const r = await saveSokuhime(params, outcome.page, context);
+    note = outcome.note + ' → ' + r.note;
+  }
+
   // ★★★ ニュースの一覧を読めた（第158便）。★ 写しを1件だけ上書きで残す。
   //   ★★ 止まる場合（記事が無い・枠が一覧に無い）でも【写しは残す】。
   //     ★ 落とすと画面は「まだ読んでいない」ままになり、店舗様は同じところでもう一度つまずく。
@@ -568,6 +575,8 @@ export async function advanceRelayFlow(params: {
     : esutamaLoginFailed
       ? 'stop'
     : outcome.kind === 'plan_work' || outcome.kind === 'roster' || outcome.kind === 'maillist'
+        // ★ 即ヒメ設定画面が読めた（第213便）＝ログインできている。認証の話ではない
+        || outcome.kind === 'sokuhime'
         || outcome.kind === 'esulove_roster'
         // ★ エステ魂（第109便）: 名簿が読めた＝ログインは成功している。計画で止まっても認証の話ではない
         || outcome.kind === 'esutama_roster'
@@ -1166,6 +1175,38 @@ async function saveRoster(
   }
 
   return { audits: [], note: page.rows.length + '名の写しを残した' };
+}
+
+/**
+ * ★ 即ヒメ設定画面の写しを残す（第213便）。★ saveRoster と同じ形・同じ作法。
+ * ★ 一覧が0人でも枠が読めていれば残す（★ 深夜は0人が普通。0人を失敗にしない）。
+ */
+async function saveSokuhime(
+  params: { salonId: number; provider: string; slot: number },
+  page: EkichikaSokuhimePage,
+  ctx: RelayFlowContext,
+): Promise<{ note: string }> {
+  const supabase = createServiceClient();
+  const { error } = await supabase.from('media_sokuhime_snapshots').upsert(
+    {
+      salon_id: params.salonId,
+      provider: params.provider,
+      slot: params.slot,
+      flow_id: ctx.flowId,
+      read_at: new Date().toISOString(),
+      slot_count: page.boxes.length,
+      boxes: page.boxes,
+      working: page.working,
+      counted_plan: page.countedPlan,
+      remaining_count: page.remainingCount,
+    },
+    { onConflict: 'salon_id,provider,slot' },
+  );
+  if (error) {
+    console.error('[relay] 即ヒメ設定の写しを保存できなかった', params.salonId, error.message);
+    return { note: '★ 読めたが写しを保存できなかった: ' + error.message.slice(0, 120) };
+  }
+  return { note: '即ヒメ枠 ' + page.boxes.filter((b) => b.girlId !== null).length + '/' + page.boxes.length + ' の写しを残した' };
 }
 
 /**

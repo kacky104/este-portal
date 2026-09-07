@@ -19,6 +19,7 @@ export const MEDIA_AUDIT_EVENTS = [
   'login',               // 媒体にログインした
   'read_work',           // 出勤を読んだ
   'read_girls',          // ★ 媒体側の名簿（女の子一覧）を読んだ（第50便）。読むだけ
+  'read_sokuhime',       // ★ 駅ちかの即ヒメ設定画面を読んだ（第213便）。読むだけ
   'read_maillist',       // ★ 投稿用メールアドレス一覧を読んだ（第53便）。読むだけ
   'read_diary_list',     // ★ 写メ日記の一覧を読んだ（第94便）。読むだけ
   'read_diary_detail',   // ★ 写メ日記を1件開いた（第94便）。読むだけ
@@ -304,6 +305,15 @@ export function defaultAuditSummary(input: {
         ? `${t}の名簿を読み取りました` + (people !== null ? `（${people}名）` : '')
         : `${t}の名簿を読み取れませんでした`;
       break;
+    case 'read_sokuhime': {
+      // ★ 即ヒメ設定画面の読み取り（第213便）。★ 枠の使用状況を1行で
+      const slots = d?.['slots'];
+      const used = d?.['used'];
+      s = input.outcome === 'ok'
+        ? `${t}の即ヒメ設定を読み取りました` + (typeof slots === 'number' ? `（即ヒメ枠 ${typeof used === 'number' ? used : '?'}/${slots}）` : '')
+        : `${t}の即ヒメ設定を読み取れませんでした`;
+      break;
+    }
     case 'read_maillist': {
       // ★★ 投稿用アドレスの取り込み（第53便）。★ 件数を画面に出すのがこの記録の目的。
       //   ★ 読み取りの段（applied が無い）と、登録の段（applied あり）を書き分ける。

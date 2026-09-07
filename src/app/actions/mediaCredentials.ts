@@ -16,6 +16,7 @@ import { isLegacyCastIdScope } from '@/lib/mediaCastIds';
 import { buildLinkPairs, canLink, canUnlink, type LinkPairs } from '@/lib/mediaLinkPairs';
 import { providerLabel, isShopVisibleAudit } from '@/lib/mediaAudit';
 import { findMediaSite, sendableCapabilities, capabilityLabel } from '@/lib/mediaSites';
+import type { SokuhimeSnapshotView } from '@/lib/ekichikaSokuhimeParse';
 import {
   siteDirection,
   directionLabel,
@@ -1431,6 +1432,89 @@ export async function startMediaRosterRead(input: {
     console.error('[media] 名簿の読み取りを始められなかった', (e as Error).message);
     return { ok: false, error: '名簿の読み取りを開始できませんでした。時間をおいてお試しください' };
   }
+}
+
+/**
+ * ★★★ 駅ちかの即ヒメ設定画面を読みに行く（第213便・2026-09-08）。★ 読むだけ。駅ちかへは1文字も書かない。
+ * ★ 駅ちかだけ（READABLE_PROVIDERS ではなく、即ヒメの画面を持つのが駅ちかだけ）。
+ * ★ 向きは問わない（read でも write でも読める。★ 押す側は write のときだけ・次の便）。
+ * ★ 同意が済んでいない枠では走らせない（認証情報を使う操作は同意の後ろ）。
+ */
+export async function startMediaSokuhimeRead(input: {
+  salonId: string | number; slot?: number;
+}): Promise<Result<{ jobId: string; note: string }>> {
+  const salonId = Number(input.salonId);
+  if (!Number.isFinite(salonId)) return { ok: false, error: '店舗の指定が不正です' };
+  const slot = Math.trunc(Number(input.slot ?? 1));
+  const provider = 'ekichika';
+  const ng = validTarget(provider, slot);
+  if (ng) return { ok: false, error: ng };
+  const guard = await assertSalonOwner(salonId);
+  if (!guard.ok) return guard;
+
+  const svc = createServiceClient();
+  const { data: row } = await svc
+    .from('salon_media_credentials')
+    .select('consent_version')
+    .eq('salon_id', salonId).eq('provider', provider).eq('slot', slot)
+    .maybeSingle();
+  if (!row) return { ok: false, error: '駅ちかのログイン情報が登録されていません' };
+  if (needsConsent(row.consent_version as string | null)) {
+    return { ok: false, error: '連携の説明に同意してから実行してください' };
+  }
+  try {
+    const r = await startRelayFlow({ salonId, provider, slot, intent: 'sokuhime_read', actor: 'shop:' + guard.data.userId });
+    if (!r.ok) return { ok: false, error: r.note };
+    return { ok: true, data: { jobId: r.jobId, note: r.note } };
+  } catch (e) {
+    console.error('[media] 即ヒメ設定の読み取りを始められなかった', (e as Error).message);
+    return { ok: false, error: '即ヒメ設定の読み取りを開始できませんでした。時間をおいてお試しください' };
+  }
+}
+
+/**
+ * ★ 即ヒメ設定の写し（第213便）。★ 無ければ null（「0/0」と出さない・0件と分からないを混ぜない）。
+ * ★ 枠の子の名前は写しの一覧（出勤中）から引く。★ 一覧に居なければ名簿の写し（media_roster_snapshots）から。無ければ null
+ */
+export async function getMediaSokuhime(input: { salonId: string | number; slot?: number }): Promise<Result<SokuhimeSnapshotView | null>> {
+  const salonId = Number(input.salonId);
+  if (!Number.isFinite(salonId)) return { ok: false, error: '店舗の指定が不正です' };
+  const slot = Math.trunc(Number(input.slot ?? 1));
+  const guard = await assertSalonOwner(salonId);
+  if (!guard.ok) return guard;
+  const svc = createServiceClient();
+  const { data, error } = await svc
+    .from('media_sokuhime_snapshots')
+    .select('read_at, slot_count, boxes, working, counted_plan, remaining_count')
+    .eq('salon_id', salonId).eq('provider', 'ekichika').eq('slot', slot)
+    .maybeSingle();
+  if (error) return { ok: false, error: '即ヒメ設定の写しを読めませんでした' };
+  if (!data) return { ok: true, data: null };
+  type Box = { index: number; girlId: string | null; sokuikuId: string | null; expiresAtUnix: number | null; untilLabel: string | null };
+  type Girl = { castId: string; name: string; isSokuhime: boolean };
+  const boxes = ((data.boxes as Box[] | null) ?? []);
+  const working = ((data.working as Girl[] | null) ?? []).map((w) => ({ castId: String(w.castId), name: String(w.name), isSokuhime: w.isSokuhime === true }));
+  const { data: snap } = await svc
+    .from('media_roster_snapshots').select('entries').eq('salon_id', salonId).eq('provider', 'ekichika').eq('slot', slot).maybeSingle();
+  const rosterName = new Map<string, string>();
+  for (const e of ((snap?.entries as Array<{ castId?: unknown; name?: unknown }> | null) ?? [])) {
+    if (e?.castId) rosterName.set(String(e.castId), String(e.name ?? ''));
+  }
+  return {
+    ok: true,
+    data: {
+      readAtISO: String(data.read_at),
+      slotCount: Number(data.slot_count ?? boxes.length),
+      used: boxes.filter((b) => b.girlId !== null).length,
+      countedPlan: data.counted_plan === true,
+      remainingCount: (data.remaining_count as number | null) ?? null,
+      boxes: boxes.map((b) => ({
+        ...b,
+        name: b.girlId ? (working.find((w) => w.castId === b.girlId)?.name ?? rosterName.get(b.girlId) ?? null) : null,
+      })),
+      working,
+    },
+  };
 }
 
 /**

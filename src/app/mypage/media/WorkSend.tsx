@@ -12,6 +12,7 @@ import {
   type WorkPlanView,
 } from '@/app/actions/mediaCredentials';
 import { pushAvailability, pushButtonLabel, switchDoneText, WORK_FIRST_APPROVAL_NOTE } from '@/lib/mediaOverview';
+import { SokuhimeSlots } from './SokuhimeSlots';
 
 // 出勤を送る（第57便・㉞ その2）。
 //
@@ -595,6 +596,15 @@ export function WorkSend({ salonId, onToast }: { salonId: number | null; onToast
           </div>
         );
       })}
+
+      {/* ★ 駅ちかの即ヒメ枠（第213便）。★ 読むだけ。★ 駅ちかのログイン情報がある店にだけ出す */}
+      {!loading && !error && (
+        <SokuhimeSlots
+          salonId={salonId}
+          hasCredential={sites.some((s) => s.provider === 'ekichika' && s.hasCredential)}
+          onToast={onToast}
+        />
+      )}
     </div>
   );
 }

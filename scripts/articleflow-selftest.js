@@ -472,5 +472,30 @@ eq('★★ 5xx は失敗',
   eq('★★ 食い違ったら①の識別子を採る', r.next.context.articleImgB, '20260905172422');
 }
 
+
+console.log('\n── ★ 第213便: 即ヒメ設定画面を読むだけ（sokuhime_read）──');
+{
+  const c0 = RF.newFlowContext({ flowId: 'f9', intent: 'sokuhime_read', startedAt: '2026-09-08T00:00:00+09:00' });
+  const afterLogin = RF.advanceFlow({ purpose: 'login', status: 302, headers: { 'set-cookie': 'fuelcid=abc; Path=/' }, body: '', context: c0 });
+  eq('ログインのあと即ヒメ設定画面を読みに行く', afterLogin.kind === 'next' && afterLogin.next.purpose, 'read_sokuhime');
+  eq('URL は /admin/sokuiku/', afterLogin.kind === 'next' && afterLogin.next.url, RF.EKICHIKA_SOKUHIME_URL);
+  eq('GET・書かない', afterLogin.kind === 'next' && afterLogin.next.method, 'GET');
+  const ctx = afterLogin.next.context;
+  const page = '<html><h1>即ヒメ設定画面</h1><ul id="girls-list-box"><li id="5257770" class="girls-cell state-fast"><p class="girl-name">かな</p></li></ul>'
+    + '<div id="setbox4" class="sokuiku_set_box" data-girlid="5257770" data-sokuikuid="851371885"><p class="setboxTitle1">即ヒメ-設定中</p><p class="time_info">[～ 00:12 迄]</p><p class="timer on" data-expired-at="1788793939">残り</p><input class="girl_id" name="toppriority_girl_id" value="5257770"></div>'
+    + '<div id="setbox4" class="sokuiku_set_box" data-sokuikuid=""><p class="setboxTitle1">即ヒメ-未設定</p></div></html>';
+  const r = RF.advanceFlow({ purpose: 'read_sokuhime', status: 200, headers: {}, body: page, context: ctx });
+  eq('読めたら kind=sokuhime（次を積まない＝何も書かない）', r.kind, 'sokuhime');
+  eq('枠2・設定中1', r.kind === 'sokuhime' && [r.page.boxes.length, r.page.boxes.filter((b) => b.girlId).length], [2, 1]);
+  eq('記録は login:ok と read_sokuhime:ok', r.audits.map((a) => a.event + ':' + a.outcome), ['login:ok', 'read_sokuhime:ok']);
+  eq('記録の detail に枠の数', r.audits[1].detail.slots, 2);
+  const back = RF.advanceFlow({ purpose: 'read_sokuhime', status: 302, headers: { location: 'https://ranking-deli.jp/admin/login/' }, body: '', context: ctx });
+  eq('ログイン画面へ戻されたら stop・login:failed', back.kind === 'stop' && back.audits[0].event + ':' + back.audits[0].outcome, 'login:failed');
+  const junk = RF.advanceFlow({ purpose: 'read_sokuhime', status: 200, headers: {}, body: '<html><h1>別の画面</h1></html>', context: ctx });
+  eq('読めない画面は stop（数を返して黙らない）', junk.kind, 'stop');
+  eq('★ sokuhime_read は出勤ページへ来たら止まる（網羅の見張り）',
+     RF.advanceFlow({ purpose: 'read_work', status: 200, headers: {}, body: '<html></html>', context: ctx }).kind, 'stop');
+}
+
 console.log(fail === 0 ? '\n★ すべて通った' : '\n★ NG ' + fail + ' 件');
 process.exit(fail === 0 ? 0 : 1);
