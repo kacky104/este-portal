@@ -148,6 +148,33 @@ eq('★★★ ONにしに行くなら残す', a.shouldDropAutoAudits('sokusera_a
 eq('★★★ ONにした記録が混ざれば残す', a.shouldDropAutoAudits('sokusera_auto', false,
    [look2[0], { event: 'push_sokusera', outcome: 'ok' }]), false);
 
+// ★★ 第215便: 即ヒメの周も同じ扱い。★ ただし計画に中身があれば【残す】
+const empty = { set: '', del: '', waiting: 0, blocked: 0, slots: 5, used: 0 };
+// ★ 駅ちかは1手ごとに login の ok を1行出す（エステ魂は出さない）。★ 実際に積まれる形で試す
+const look3 = [{ event: 'login', outcome: 'ok' }, { event: 'read_sokuhime', outcome: 'ok' }, { event: 'plan_sokuhime', outcome: 'ok', detail: empty }];
+eq('★★★ 即ヒメの周で、誰にも何もしないなら落とす', a.shouldDropAutoAudits('sokuhime_auto', false, look3), true);
+eq('★★★ 手で撃った即ヒメは残す', a.shouldDropAutoAudits('sokuhime_push', false, look3), false);
+eq('★★★ 押しに行くなら残す', a.shouldDropAutoAudits('sokuhime_auto', true, look3), false);
+// ★★★ ここが第215便の肝。★ 送れない理由が出ていれば黙らせない（店舗様が直せるところ）
+eq('★★★ 送れない方が居れば残す', a.shouldDropAutoAudits('sokuhime_auto', false,
+   [look3[0], { event: 'plan_sokuhime', outcome: 'ok', detail: { ...empty, blocked: 2 } }]), false);
+eq('★★★ 押す相手が居れば残す', a.shouldDropAutoAudits('sokuhime_auto', false,
+   [look3[0], { event: 'plan_sokuhime', outcome: 'ok', detail: { ...empty, set: 'サラ' } }]), false);
+eq('★★★ 外す枠があれば残す', a.shouldDropAutoAudits('sokuhime_auto', false,
+   [look3[0], { event: 'plan_sokuhime', outcome: 'ok', detail: { ...empty, del: '5257770' } }]), false);
+eq('★★★ 次の周に回す方が居れば残す', a.shouldDropAutoAudits('sokuhime_auto', false,
+   [look3[0], { event: 'plan_sokuhime', outcome: 'ok', detail: { ...empty, waiting: 1 } }]), false);
+// ★★ detail が無い計画は「空」と決めつけない（★ 分からないものを黙らせない）
+eq('★★ 計画の中身が分からなければ残す', a.shouldDropAutoAudits('sokuhime_auto', false,
+   [look3[0], { event: 'plan_sokuhime', outcome: 'ok' }]), false);
+eq('★★★ 押した記録が混ざれば残す', a.shouldDropAutoAudits('sokuhime_auto', false,
+   [look3[0], { event: 'write_sokuhime', outcome: 'ok' }]), false);
+// ★★ エステ魂の周の判定は第215便で変えていない（login を「見ただけ」に数えない）
+eq('★★ 日記の周は login を「見ただけ」に数えない', a.shouldDropAutoAudits('diary_auto', false,
+   [{ event: 'login', outcome: 'ok' }, { event: 'read_diary_targets', outcome: 'ok' }]), false);
+eq('★★ 即ヒメの計画は即ヒメの周でだけ黙る', a.shouldDropAutoAudits('diary_auto', false,
+   [{ event: 'plan_sokuhime', outcome: 'ok', detail: empty }]), false);
+
 console.log('\n── ★★ 即セラの文言（第143便）──');
 const sk = (event, outcome, detail) => a.defaultAuditSummary({ event, outcome, provider: 'esutama', slot: 1, detail: detail || null });
 // ★★★ 「送った」と「ONになった」を混ぜない

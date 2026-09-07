@@ -1519,6 +1519,91 @@ export async function getMediaSokuhime(input: { salonId: string | number; slot?:
 }
 
 /**
+ * ★★★ 即ヒメの自動（第215便・2026-09-08）のいまの状態。★ 「出勤を送る」の即ヒメの箱に出す。
+ *
+ * ★ 3つを分けて返す（★ 1つの真偽値にまとめない）:
+ *     auto     … いま自動になっているか（salon_import_sources.sokuhime_auto）
+ *     canAuto  … 自動にできる状態か（駅ちかが「フクエスから反映」で、枠が生きていて、同意済み）
+ *     why      … できないときの理由（★ 押せないボタンを黙って灰色にしない・第213便の作法）
+ */
+export async function getSokuhimeAuto(input: { salonId: string | number; slot?: number }): Promise<Result<{
+  auto: boolean; canAuto: boolean; why: string | null;
+}>> {
+  const salonId = Number(input.salonId);
+  if (!Number.isFinite(salonId)) return { ok: false, error: '店舗の指定が不正です' };
+  const slot = Math.trunc(Number(input.slot ?? 1));
+  const guard = await assertSalonOwner(salonId);
+  if (!guard.ok) return guard;
+  const svc = createServiceClient();
+  const { data: src } = await svc
+    .from('salon_import_sources').select('link_mode, is_enabled, sokuhime_auto')
+    .eq('salon_id', salonId).eq('provider', 'ekichika').eq('slot', slot).maybeSingle();
+  const { data: cred } = await svc
+    .from('salon_media_credentials').select('consent_version')
+    .eq('salon_id', salonId).eq('provider', 'ekichika').eq('slot', slot).maybeSingle();
+
+  const auto = src?.sokuhime_auto === true;
+  let why: string | null = null;
+  if (!cred) why = '駅ちかのログイン情報が登録されていません';
+  else if (needsConsent(cred.consent_version as string | null)) why = '連携の説明にご同意いただくと使えます';
+  else if (!src || src.is_enabled !== true) why = 'この枠はいま止まっています（運営にお問い合わせください）';
+  else if (!isWriteDirection(src.link_mode as string | null)) why = 'ホームで駅ちかを「フクエスから反映」にすると使えます';
+  return { ok: true, data: { auto, canAuto: why === null, why } };
+}
+
+/**
+ * ★★★ 即ヒメの自動を入切する（第215便・2026-09-08）。
+ *
+ * ★★★ 出勤の自動（link_mode='write_auto'）とは【別のスイッチ】。
+ *   ★ 周期（5分ごと ↔ 30分ごと）も、触る画面も、失敗の見え方も違う。
+ *   ★ 「出勤は自動、即ヒメはまだ手で」を作れるようにする（migration 20260908_sokuhime_auto.sql）。
+ *
+ * ★★★ ただし ON にできるのは【駅ちかが「フクエスから反映」の枠】だけ。
+ *   ★ 画面でも出さないが、**画面だけで守らない**（第38便 §17-16）。
+ * ★ OFF は常に通す。★ 止める道を塞がない（第111便）。
+ */
+export async function setSokuhimeAuto(input: {
+  salonId: string | number; on: boolean; slot?: number;
+}): Promise<Result<{ auto: boolean }>> {
+  const salonId = Number(input.salonId);
+  if (!Number.isFinite(salonId)) return { ok: false, error: '店舗の指定が不正です' };
+  const slot = Math.trunc(Number(input.slot ?? 1));
+  const provider = 'ekichika';
+  const ng = validTarget(provider, slot);
+  if (ng) return { ok: false, error: ng };
+  const guard = await assertSalonOwner(salonId);
+  if (!guard.ok) return guard;
+  const svc = createServiceClient();
+  const on = input.on === true;
+
+  if (on) {
+    const g = await getSokuhimeAuto({ salonId, slot });
+    if (!g.ok) return g;
+    if (!g.data.canAuto) return { ok: false, error: g.data.why ?? '自動にできません' };
+  }
+
+  const { data: updated, error } = await svc
+    .from('salon_import_sources')
+    .update({ sokuhime_auto: on, updated_at: new Date().toISOString() })
+    .eq('salon_id', salonId).eq('provider', provider).eq('slot', slot)
+    .select('id');
+  if (error) return { ok: false, error: '即ヒメの自動を切り替えられませんでした' };
+  // ★★ 行が無い枠では作らない。★ 駅ちかは external_id / shop_url が要る行で、
+  //   空のまま作ると取り込みが壊れる（applyLinkMode と同じ判断）。
+  if (!updated || updated.length === 0) {
+    return { ok: false, error: 'この枠の連携設定が見つかりません（運営にお問い合わせください）' };
+  }
+
+  await recordMediaAudit({
+    salonId, provider, slot,
+    event: 'sokuhime_auto_changed', outcome: 'ok',
+    detail: { on },
+    actor: 'shop:' + guard.data.userId,
+  });
+  return { ok: true, data: { auto: on } };
+}
+
+/**
  * ★★★ フクエスの「今すぐ」を駅ちかの即ヒメへ、1人だけ送る（第214便・2026-09-08）。
  * ★ apply=false（既定）は試し打ち＝読んで計画を「連携の記録」に残すだけ。★ 駅ちかを触らない。
  * ★ apply=true で実弾（1人）。★ 駅ちかの枠が write / write_auto のときだけ（方針: 駅ちかから取り込む店はフクエスから書かない）。

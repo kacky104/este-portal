@@ -30,6 +30,7 @@ export const MEDIA_AUDIT_EVENTS = [
   'push_photo',          // ★★ 駅ちかへ写真を送った（第107便）。★ 書き換える
   'plan_work',           // ★ 試し打ち。送るとどうなるかを組み立てただけ（第43便）
   'link_mode_changed',   // ★ 連携の向きを変えた（読む↔書く・第46便）
+  'sokuhime_auto_changed', // ★ 今すぐ→即ヒメ の自動を入切した（第215便）。★ 向き（link_mode）とは別のスイッチ
   'diary_source_synced', // ★ 写メ日記の入口を、向きから導いて書き換えた（第205便）。★ 店舗は直接いじらない
   'cast_id_linked',      // ★ 名簿の結びを画面から作った（第115便）。★ 送り先が決まる
   'cast_id_unlinked',    // ★ 名簿の結びを画面から外した（第115便）
@@ -82,19 +83,47 @@ export type MediaAuditEvent = (typeof MEDIA_AUDIT_EVENTS)[number];
  *   ① 自動の周（diary_auto）である     … 人が押したものは必ず残す
  *   ② 次の段を積んでいない             … 相手を1文字も書き換えていない
  *   ③ 記録が「読んだ・数えた」の ok だけ … ★ 失敗・中止が1つでもあれば【残す】
+ *
+ * ★★★ 第215便（2026-09-08）: 即ヒメの周（sokuhime_auto・5分ごと）も同じ扱いにした。
+ *   ★★ ただし即ヒメの計画（plan_sokuhime）は【何もしなかったときだけ】黙らせる。
+ *     ★ 送れない理由（結びが無い・出勤中でない・枠が空いていない）が1つでも出ていれば【残す】。
+ *       ★ そこは店舗様が直せるところで、黙らせると「何も起きない」だけが残る。
+ *     ★ 試し打ちで1日流すあいだも、計画に中身があれば必ず記録に出る（それが試し打ちの目的）。
  */
 export function shouldDropAutoAudits(
   intent: string,
   hasNext: boolean,
-  audits: ReadonlyArray<{ event: string; outcome: string }>,
+  audits: ReadonlyArray<{ event: string; outcome: string; detail?: AuditDetail | null }>,
 ): boolean {
-  // ★ 自動の周だけ。★ 第143便で即セラの周も同じ扱いにした
-  //   ★★ 即セラは「今すぐ」の人が居ない時間のほうが長い。★ 放っておくと日記より積む
-  if (intent !== 'diary_auto' && intent !== 'sokusera_auto') return false;
+  // ★ 自動の周だけ。★ 第143便で即セラの周も、第215便で即ヒメの周も同じ扱いにした
+  //   ★★ 即セラ・即ヒメは「今すぐ」の人が居ない時間のほうが長い。★ 放っておくと日記より積む
+  if (intent !== 'diary_auto' && intent !== 'sokusera_auto' && intent !== 'sokuhime_auto') return false;
   if (hasNext) return false;
   if (audits.length === 0) return false;
-  const looked = ['read_diary_targets', 'plan_diary', 'read_sokusera'];
-  return audits.every((a) => looked.includes(a.event) && a.outcome === 'ok');
+  // ★★★ 「見ただけ」の出来事。★ 即ヒメの周だけ 'login' も入る（第215便）。
+  //   ★ 駅ちかは1手ごとに login の ok を1行出す（エステ魂は出さない）。
+  //     ★ ここに入れないと即ヒメの周は【1件も落ちず】、5分ごとに3行ずつ積む。
+  //   ★★ エステ魂の周（diary_auto / sokusera_auto）の判定は **変えない**。
+  //     ★ すでに本番で回っているものの挙動を、この便のついでに変えない。
+  const looked = intent === 'sokuhime_auto'
+    ? ['login', 'read_sokuhime']
+    : ['read_diary_targets', 'plan_diary', 'read_sokusera'];
+  return audits.every((a) => {
+    if (a.outcome !== 'ok') return false;
+    // ★★ 即ヒメの計画は、中身が空のときだけ「見ただけ」とみなす
+    if (a.event === 'plan_sokuhime') return intent === 'sokuhime_auto' && isEmptySokuhimePlan(a.detail);
+    return looked.includes(a.event);
+  });
+}
+
+/** ★ 即ヒメの計画が「誰にも何もしない」か（第215便）。★ 1つでも中身があれば false＝記録を残す。 */
+function isEmptySokuhimePlan(detail: AuditDetail | null | undefined): boolean {
+  if (!detail) return false;
+  const empty = (k: string) => {
+    const v = detail[k];
+    return v === undefined || v === null || v === '' || v === 0 || v === false;
+  };
+  return empty('set') && empty('del') && empty('waiting') && empty('blocked');
 }
 
 /**
@@ -458,6 +487,18 @@ export function defaultAuditSummary(input: {
             ? `${t}の連携を「${n}から取り込む」に戻しました`
             // ★ 第205便: 画面の言葉「反映しない」に揃えた（「連携しない」は第90便より前の呼び名）
             : `${t}の連携を「反映しない」に変更しました`;
+      break;
+    }
+    case 'sokuhime_auto_changed': {
+      // ★★ 第215便: 「向き」とは別のスイッチなので、link_mode_changed と混ぜない。
+      //   ★ 店舗様が読む場所なので、周期（5分ごと）と、切れたら押し直すことまで1行で言う。
+      const on = d?.['on'] === true;
+      const n = providerLabel(input.provider);
+      s = input.outcome === 'ok'
+        ? (on
+            ? `フクエスの「今すぐ」を${n}の即ヒメへ自動で送るようにしました（5分ごと）`
+            : `フクエスの「今すぐ」を${n}の即ヒメへ自動で送るのをやめました`)
+        : `${n}の即ヒメの自動を切り替えられませんでした`;
       break;
     }
     case 'diary_source_synced': {

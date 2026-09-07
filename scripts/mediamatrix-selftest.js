@@ -25,11 +25,13 @@ eq('★ エスランの写メ日記・即ヒメ・新着情報は ―（機能�
 eq('★ エスランの出勤は ―ではない（準備中 か ✕）', m.MEDIA_MATRIX.every((s) => s.cells['出勤'][3] !== m.NA), true);
 eq('★★ 出勤（自動）は30分ごと（media-auto-push の crontab と同じ）', m.MEDIA_MATRIX[0].cells['出勤'].slice(0, 2), ['30分ごと', '30分ごと']);
 eq('★★ エステラブへ出勤は送れない（403・第82便）', m.MEDIA_MATRIX[0].cells['出勤'][2], m.NO);
-eq('★★ 即ヒメを駅ちかへ送る口は無い', m.MEDIA_MATRIX[0].cells['即ヒメ／即セラ'][0], m.NO);
+eq('★★ 駅ちかの即ヒメは5分ごと（sokuhime-push・第215便）', m.MEDIA_MATRIX[0].cells['即ヒメ／即セラ'][0], '5分ごと');
 eq('★★ エステ魂の即セラは5分ごと（sokusera-push）', m.MEDIA_MATRIX[0].cells['即ヒメ／即セラ'][1], '5分ごと');
 eq('★ 「フクエスから反映」の但し書きは「自動にした場合」と言う', m.MEDIA_MATRIX[0].note.includes('自動にした場合'), true);
 eq('★ マスの言葉は短い（8字以内）', m.MEDIA_MATRIX.every((s) => m.MATRIX_ROWS.every((r) => s.cells[r].every((c) => c.length <= 8))), true);
-eq('★ 補足は5つまで', m.MATRIX_FOOTNOTES.length <= 5, true);
+eq('★ 補足は6つまで', m.MATRIX_FOOTNOTES.length <= 6, true);
 eq('★ 補足にエステ魂の新着情報の断りがある', m.MATRIX_FOOTNOTES.some((f) => f.includes('エステ魂') && f.includes('新着情報')), true);
+// ★★ 第215便: 実測でわかったこと（ベンリーの即姫タイマーが先に枠を埋める）を早見表の下で断る
+eq('★★ 補足に「ほかのツールが優先」の断りがある', m.MATRIX_FOOTNOTES.some((f) => f.includes('即ヒメ') && f.includes('優先')), true);
 console.log(fail === 0 ? '\n★ すべて通った' : '\n★ NG ' + fail + ' 件');
 process.exit(fail === 0 ? 0 : 1);
