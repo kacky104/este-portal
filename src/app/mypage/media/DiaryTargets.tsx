@@ -8,9 +8,9 @@ import {
   startMediaMailImport,
 } from '@/app/actions/mediaCredentials';
 // ★ 店舗全体の「どこで書くか」（第128便でセラピスト個人画面からここへ移した）
-import { setSalonDiarySource } from '@/app/actions/diaryForward';
 // ★ サイトごとの「投稿先アドレスをどう手に入れるか」は mediaSites.ts が正本（第84便）
 import { findMediaSite } from '@/lib/mediaSites';
+import { diarySourceNote } from '@/lib/diarySource';
 
 // 写メ日記の投稿先（第58便・㉞ その3）。
 //
@@ -61,6 +61,8 @@ export function DiaryTargets({ salonId, onToast, esutamaPanel }: {
 }) {
   const [data, setData] = useState<Data | null>(null);
   const [sites, setSites] = useState<Site[]>([]);
+  // ★ 第205便: 入口の1行を出すための、全サイトの事実（向き・鍵・同意）。★ getMediaOverview そのまま
+  const [siteFacts, setSiteFacts] = useState<Array<{ provider: string; direction: string; hasCredential: boolean; needsConsent: boolean }>>([]);
   const [picked, setPicked] = useState<string>('ekichika');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(true);
@@ -78,6 +80,7 @@ export function DiaryTargets({ salonId, onToast, esutamaPanel }: {
     setData(d.data);
     // ★ 写メ日記を受け取れる媒体だけ並べる。★ 連携していない媒体も「未設定」で出す
     const known = ov.ok ? ov.data.sites : [];
+    setSiteFacts(known.map((x) => ({ provider: x.provider, direction: x.direction, hasCredential: x.hasCredential, needsConsent: x.needsConsent })));
     setSites(
       SITE_TABS.map((p) => {
         const hit = known.find((s) => s.provider === p);
@@ -194,78 +197,35 @@ export function DiaryTargets({ salonId, onToast, esutamaPanel }: {
               ★ 店舗様が押すもの（下の「フクエスで書く」）で言い、理由は括弧で1つだけ。 */}
           <p className="text-[14px] leading-relaxed text-slate-600">
             <b className="font-bold text-rose-700">いまは、フクエスから写メ日記を送っていません。</b>{' '}
-            投稿先を登録しても、下で「フクエスで書く」を選ぶまでは送りません（同じ日記が二重に載らないようにするためです）。
+            投稿先を登録しても、ホームで「フクエスから反映」にするまでは送りません（同じ日記が二重に載らないようにするためです）。
           </p>
         </div>
       )}
 
-      {/* ── どこで書くか（第128便・2026-09-04）─────────────────
-          ★★★ ここに移した理由: この設定は【店舗単位】（salons.diary_source）なのに、
-            変える口がセラピスト個人のプロフィール編集画面にしか無かった。
-            ★ 在籍が101人なら、同じ設定を変える入口が101個あることになる。
-            ★★ しかもこの画面は上の赤枠でこの値を【読んで説明している】のに、
-              「じゃあどう変えるのか」の答えがどこにも無かった。
-          ★ 説明と操作を同じ場所にそろえる。★ 枠は増えていない（説明の続きに置く）。
-          ★★★ 入口は常に1つだけ（第99便）。★ 2つ開くと同じ日記が2件並ぶ。 */}
-      {!loading && !error && data && (
-        <div className="bg-white border border-slate-200 shadow-[0_1px_2px_rgba(31,35,51,0.05)] p-5 space-y-3">
-          <p className="text-[19px] font-black text-slate-800">写メ日記をどこで書きますか</p>
-          <p className="text-[13px] text-slate-400 leading-relaxed">
-            店舗全体の設定です。日記の入口は1つだけです（同じ日記が二重に載らないようにするため）。
-          </p>
-          {/* ★★★ 第202便（2026-09-07・カッキーさん）: 「他媒体で書く（代行システム経由）」を選択肢から外した。
-              ★ ゴールは「フクエスで書く」。代行経由で使いやすい設定は勧めない。★ 代行から投稿メールを出す店は、
-                代行側でフクエス宛てを止めてもらう（下の黄色い注意）。
-              ★★ ただし DB の既定値は 'benry'（20260826_diary_forward.sql）なので、まだ選んでいない店舗は全部この状態。
-                ★ 黙って消すと「どれも選ばれていない」画面になる。★ いまが benry の店舗にだけ、その事実を1行で言う。
-                ★ 一度切り替えたら画面からは戻せない（戻すなら運営が SQL）。★ 既定値は変えない（既存店舗の受け取り方が一斉に変わる）。 */}
-          {data.diarySource === 'benry' && (
-            <p className="text-[13px] text-slate-500 bg-slate-50 border border-slate-200 px-3 py-2 leading-relaxed">
-              いまは、代行システムからのメールで日記を受け取っています。下のどちらかを選ぶと切り替わります。
+      {/* ── ★★★ どこで書くか（第205便・2026-09-07）: ホームの「3つの設定」に連動。★ ここでは変えない ──
+          ★ 第128便で置いたラジオ（店舗単位の diary_source を手で選ぶ）は外した。
+          ★★ なぜ: 「駅ちかから反映」の店でも「フクエスで書く」が選べ、写メ日記だけ駅ちかへ送れていた
+            （方針「駅ちかから取り込む場合はフクエスからの内容を他媒体に反映させない。写メ日記も」に反する）。
+          ★ 値は受け口（syncDiarySource）が向きから導いて書く。★ 文言は diarySource.diarySourceNote（番人あり）。
+          ★ 変えるならホーム。★ read＋鍵なしだけは、ログイン情報へ案内する。 */}
+      {!loading && !error && data && (() => {
+        const facts = siteFacts.map((x) => ({ provider: x.provider, direction: x.direction, hasCredential: x.hasCredential, needsConsent: x.needsConsent }));
+        const note = diarySourceNote(data.diarySource, facts);
+        return (
+          <div className="bg-white border border-slate-200 shadow-[0_1px_2px_rgba(31,35,51,0.05)] p-5 space-y-2">
+            <p className="text-[19px] font-black text-slate-800">写メ日記をどこで書くか</p>
+            <p className="text-[16px] font-bold text-slate-700">{note.title}</p>
+            <p className="text-[14px] text-slate-500 leading-relaxed">{note.body}</p>
+            <p className="text-[13px]">
+              {note.needsKey ? (
+                <Link href="/mypage/media/login" className="font-bold text-indigo-600 underline">ログイン情報を登録する</Link>
+              ) : (
+                <Link href="/mypage/media" className="font-bold text-indigo-600 underline">ホームで設定を変える</Link>
+              )}
             </p>
-          )}
-          <div className="space-y-1.5">
-            {[
-              // ★ 第203便（2026-09-07・カッキーさん）: 説明を短く。★ 「代行システムからのメールは受け取りません」は
-              //   代行を勧めない立場（第202便）なので、ここで触れない
-              // ★ 「フクエスで書く」が上（ゴール・カッキーさん 11:45）
-              { v: 'fukues', t: 'フクエスで書く（各サイトへ送る）', d: 'フクエスで書いた日記を、すぐに各サイトへ送ります' },
-              { v: 'ekichika', t: '駅ちかで書く（フクエスへ取り込む）', d: '駅ちかに載った日記を、15分ごとにフクエスへ取り込みます' },
-            ].map((o) => (
-              <label
-                key={o.v}
-                className={`flex gap-2 items-start p-3 border cursor-pointer transition-colors ${
-                  data.diarySource === o.v ? 'bg-rose-50 border-rose-200' : 'bg-white border-slate-200 hover:bg-slate-50'
-                }`}
-              >
-                <input
-                  type="radio"
-                  name="diarySource"
-                  value={o.v}
-                  checked={data.diarySource === o.v}
-                  disabled={busy || salonId == null}
-                  onChange={async () => {
-                    if (salonId == null) return;
-                    setBusy(true);
-                    const r = await setSalonDiarySource({ salonId, source: o.v });
-                    setBusy(false);
-                    if (r.ok) { onToast('保存しました'); await load(); }
-                    else onToast(r.error);
-                  }}
-                  className="mt-1 flex-shrink-0"
-                />
-                <span className="min-w-0">
-                  <span className="block text-[15px] font-bold text-slate-700">{o.t}</span>
-                  <span className="block text-[13px] text-slate-400 leading-relaxed">{o.d}</span>
-                </span>
-              </label>
-            ))}
           </div>
-          {/* ★ 第203便: 黄色い注意書き（代行側の「日記転送先」を外してください）は【外した】。
-              ★ 代行経由は黙認するが、ほかのサイト同様に勧めない立場（カッキーさん）。★ 案内文を置くと「対応している」と読める。
-              ★ 二重には載らない（受け取る道は1つ・第99便）ので、無くても事故は起きない。 */}
-        </div>
-      )}
+        );
+      })()}
 
       {/* ★★★ 手で入れてもらうサイト（第84便）。
           ★ これまでは「ログイン情報を登録すると読み取れます」と出していたが、

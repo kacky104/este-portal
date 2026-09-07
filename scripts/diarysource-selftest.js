@@ -96,5 +96,43 @@ eq('名前が重なっていない',
 eq('名前に「中」が入っていない',
   m.DIARY_SOURCES.filter((v) => /中/.test(m.diarySourceTitle(v))), []);
 
+
+// ── ★★★ 第205便: ホームの設定から入口を導く ──
+{
+  const S = (o) => Object.assign({ provider: 'esutama', direction: 'off', hasCredential: true }, o);
+  const EK = (o) => S(Object.assign({ provider: 'ekichika' }, o));
+  eq('★★★ どれかが write なら fukues', m.deriveDiarySource([EK({ direction: 'off' }), S({ direction: 'write' })]), 'fukues');
+  eq('★★★ 駅ちかが write でも fukues', m.deriveDiarySource([EK({ direction: 'write' })]), 'fukues');
+  eq('★★★ 駅ちか read ＋ 鍵あり → ekichika', m.deriveDiarySource([EK({ direction: 'read' }), S({ direction: 'off' })]), 'ekichika');
+  eq('★★★ 駅ちか read ＋ 鍵なし → benry（取り込まない・決定）', m.deriveDiarySource([EK({ direction: 'read', hasCredential: false })]), 'benry');
+  eq('★★ 駅ちか read ＋ 同意の取り直し中 → benry', m.deriveDiarySource([EK({ direction: 'read', needsConsent: true })]), 'benry');
+  eq('★★★ 全部 none → benry（代行メールは受け取る・決定）', m.deriveDiarySource([EK({ direction: 'off' }), S({ direction: 'off' })]), 'benry');
+  eq('★ 何も無い → benry', m.deriveDiarySource([]), 'benry');
+  eq('★ 未設定だけ → benry', m.deriveDiarySource([EK({ direction: 'unset' })]), 'benry');
+  eq('★ 知らない direction は数えない（benry 側に倒れる）', m.deriveDiarySource([EK({ direction: 'よみ' })]), 'benry');
+  eq('★★ エステ魂が read と書いてあっても取り込み側には倒れない（読める媒体ではない）', m.deriveDiarySource([S({ direction: 'read' })]), 'benry');
+  // ★★★ 導いた値は必ず入口が1つ以下（従来の決めごとをそのまま満たす）
+  eq('★★★ 導いた値はどれも入口が1つ以下',
+    [[EK({ direction: 'write' })], [EK({ direction: 'read' })], [EK({ direction: 'read', hasCredential: false })], []]
+      .every((sites) => m.openDiaryEntrances(m.deriveDiarySource(sites)) <= 1), true);
+  eq('★ read＋鍵なし の見分け', m.ekichikaReadWithoutKey([EK({ direction: 'read', hasCredential: false })]), true);
+  eq('★ read＋鍵あり は「鍵なし」ではない', m.ekichikaReadWithoutKey([EK({ direction: 'read' })]), false);
+  eq('★ read でなければ「鍵なし」ではない', m.ekichikaReadWithoutKey([EK({ direction: 'off', hasCredential: false })]), false);
+
+  // ── 画面の1行 ──
+  const n = (src, sites) => m.diarySourceNote(src, sites);
+  eq('★ fukues の見出し', n('fukues', []).title, 'フクエスで書きます');
+  eq('★ fukues は「フクエスから反映」にしているサイトへ送ると言う', n('fukues', []).body.includes('「フクエスから反映」にしているサイトへ送ります'), true);
+  eq('★ ekichika の見出し', n('ekichika', []).title, '駅ちかで書きます');
+  eq('★ ekichika は「どこへも送りません」と言う', n('ekichika', []).body.includes('フクエスからはどこへも送りません'), true);
+  eq('★★★ read＋鍵なし は鍵の登録を案内する（needsKey）', n('benry', [EK({ direction: 'read', hasCredential: false })]).needsKey, true);
+  eq('★★★ read＋鍵なし の本文', n('benry', [EK({ direction: 'read', hasCredential: false })]).body.includes('駅ちかのログイン情報を登録してください'), true);
+  eq('★ 全部 none の見出し', n('benry', [EK({ direction: 'off' })]).title, 'どのサイトにも反映していません');
+  eq('★ 全部 none は needsKey ではない', n('benry', [EK({ direction: 'off' })]).needsKey, false);
+  eq('★★ fukues / ekichika は「ホームの設定に連動」と言う', ['fukues', 'ekichika'].every((v) => n(v, []).body.includes('ホームの設定に連動')), true);
+  eq('★ どの値でも空にならない', ['fukues', 'ekichika', 'benry', 'xxx'].every((v) => n(v, []).title.length > 0 && n(v, []).body.length > 0), true);
+  eq('★ 「正本」「代行」と書かない（こちらの言葉）', ['fukues', 'ekichika', 'benry'].some((v) => /正本|代行/.test(n(v, []).title + n(v, []).body)), false);
+}
+
 console.log(fail === 0 ? '\n★ すべて通った' : '\n★ NG ' + fail + ' 件');
 process.exit(fail === 0 ? 0 : 1);

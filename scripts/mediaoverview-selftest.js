@@ -771,6 +771,7 @@ console.log('\n── ★★★ 第192便: ホームを「3つの設定」にす
   eq('★★★ write の本文: 駅ちかからの取り込みが止まると書く', v.bulkAskText(pW).body.includes('駅ちかからの取り込みは止まります'), true);
   eq('★★★ write の本文: 鍵が無い枠は名前を出して「変わりません」', v.bulkAskText(pW).body.includes('エステラブはログイン情報が無いので変わりません'), true);
   eq('★ write の本文: 毎回確認すると書く（自動にはしない）', v.bulkAskText(pW).body.includes('毎回内容をご確認'), true);
+  eq('★★ 第205便: write の本文は写メ日記もフクエスで書いたものを送ると言う', v.bulkAskText(pW).body.includes('写メ日記もフクエスで書いたものを送ります'), true);
   const pW2 = v.bulkPlan([EK({ direction: 'off' }), S({ direction: 'off' })], 'write');
   eq('★ 駅ちかが read でなければ「取り込みは止まります」と書かない（止まらないものを止めると書かない）',
      v.bulkAskText(pW2).body.includes('取り込み'), false);
@@ -781,6 +782,7 @@ console.log('\n── ★★★ 第192便: ホームを「3つの設定」にす
   eq('★★★ none の本文: 駅ちかからの取り込みも止まると必ず書く', v.bulkAskText(pN).body.includes('駅ちかからの取り込みも止まります'), true);
   const pN2 = v.bulkPlan([S({ direction: 'write' })], 'none');
   eq('★★ none の本文: 取り込んでいない店でも「どのサイトからも取り込みません」と言い切る', v.bulkAskText(pN2).body.includes('どのサイトからも取り込みません'), true);
+  eq('★★ 第205便: none の本文は写メ日記もフクエスの中だけと言う', v.bulkAskText(pN).body.includes('写メ日記もフクエスの中だけになります'), true);
   eq('★ 問いは「？」で終わる', ['write', 'none'].every((t) => v.bulkAskText(v.bulkPlan([S({ direction: t === 'write' ? 'off' : 'write' })], t)).title.endsWith('？')), true);
   // ★ 変えるところが無いとき
   eq('★ 変えるところが無いとき: 見出しでそう言う（？で終わらない）', v.bulkAskText(v.bulkPlan([S({ direction: 'write' })], 'write')).title, '変えるところがありません');

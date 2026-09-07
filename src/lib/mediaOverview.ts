@@ -636,11 +636,13 @@ export function bulkAskText(plan: BulkPlan): { title: string; body: string } {
         : `すでにどのサイトにも反映していません。${skipNote}`,
     };
   }
+  // ★ 第205便: 写メ日記の入口も、この設定から決まる（deriveDiarySource）。★ 必ず言う
   if (plan.to === 'write') {
     return {
       title: 'フクエスから反映しますか？',
       body: `フクエスに入れた出勤を、${names}へ反映するようになります。送る前に、毎回内容をご確認いただきます。`
         + (fromRead.length > 0 ? `${fromRead}からの取り込みは止まります。` : '')
+        + '写メ日記もフクエスで書いたものを送ります。'
         + skipNote,
     };
   }
@@ -648,6 +650,7 @@ export function bulkAskText(plan: BulkPlan): { title: string; body: string } {
     title: 'どのサイトにも反映しないようにしますか？',
     body: `出勤はフクエスにだけ入ります。${names}へは送らなくなります。`
       + (fromRead.length > 0 ? `${fromRead}からの取り込みも止まります。` : 'どのサイトからも取り込みません。')
+      + '写メ日記もフクエスの中だけになります。'
       + skipNote,
   };
 }

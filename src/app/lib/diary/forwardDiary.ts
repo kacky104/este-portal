@@ -1,6 +1,7 @@
 import { Resend } from 'resend';
 import { createServiceClient } from '@/app/lib/supabase/service';
 import { forwardsDiaryFromFukues, readDiarySource } from '@/lib/diarySource';
+import { isWriteDirection } from '@/lib/mediaLinkMode';
 
 // ── 写メ日記の他媒体転送（第36便・第2弾）────────────────────────────────
 //
@@ -194,6 +195,16 @@ export async function forwardDiary(diaryId: string, apply = false): Promise<Forw
   // ★ 試し打ちでは1通も送らないため、キーが無くても宛先の確認だけは進める。
   const resend = new Resend(apiKey ?? 'dry-run');
 
+  // ★★★ 5-2. 宛先の媒体が「フクエスから反映」（write / write_auto）でなければ送らない（第205便・2026-09-07）。
+  //   ★ diary_source が fukues でも、駅ちかが none（またはエステ魂だけ write）の店で、
+  //     駅ちかの投稿用アドレスへメールを出さないため。★ 「フクエスから反映しているサイトへだけ送る」。
+  //   ★ 行が無い媒体（エステラブ・接続できないので取り込み設定の行を持たない）は従来どおり通す。
+  //   ★★ 画面だけで守らない（第38便 §17-16）。★ 決め方は link_mode の1列（mediaLinkMode.isWriteDirection）。
+  const { data: linkRows } = await svc
+    .from('salon_import_sources').select('provider, slot, link_mode').eq('salon_id', salonId);
+  const linkModeOf = new Map<string, string | null>();
+  for (const r of linkRows ?? []) linkModeOf.set(String(r.provider) + '#' + Number(r.slot ?? 1), (r.link_mode as string | null) ?? null);
+
   // 6. 送る
   for (const row of rows) {
     const provider = row.provider as string;
@@ -202,6 +213,13 @@ export async function forwardDiary(diaryId: string, apply = false): Promise<Forw
     if (row.is_enabled === false) {
       result.宛先.push({ provider, 枠: slot, 宛先: mask(address), status: 'skipped:disabled' });
       if (apply) await log(provider, 'skipped:disabled', undefined, slot);
+      continue;
+    }
+    const lm = linkModeOf.get(provider + '#' + slot);
+    if (lm !== undefined && !isWriteDirection(lm)) {
+      // ★ その媒体へは「フクエスから反映」していない。★ 理由を残す（黙って飛ばさない）
+      result.宛先.push({ provider, 枠: slot, 宛先: mask(address), status: 'skipped:link_mode_is_' + String(lm ?? 'null') });
+      if (apply) await log(provider, 'skipped:link_mode_is_' + String(lm ?? 'null'), undefined, slot);
       continue;
     }
     if (!apply) {

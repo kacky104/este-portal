@@ -10,6 +10,7 @@ import { startRelayFlow } from '@/app/lib/media/relayFlow';
 import { judgeWriteStall, stallMessage, mediaSlotLabel, type MediaLinkAlert } from '@/lib/mediaLinkStall';
 import { judgeImportStall } from '@/lib/importStall';
 import { isWriteDirection, isLinkMode, hasApprovedOnce } from '@/lib/mediaLinkMode';
+import { deriveDiarySource, readDiarySource } from '@/lib/diarySource';
 import { loadCastIds } from '@/lib/mediaCastIds';
 import { isLegacyCastIdScope } from '@/lib/mediaCastIds';
 import { buildLinkPairs, canLink, canUnlink, type LinkPairs } from '@/lib/mediaLinkPairs';
@@ -77,6 +78,59 @@ function validTarget(provider: string, slot: number): string | null {
   if (!PROVIDERS.includes(provider)) return '媒体の指定が不正です';
   if (!Number.isFinite(slot) || slot < 1 || slot > 20) return '枠の指定が不正です';
   return null;
+}
+
+/**
+ * ★★★ 写メ日記の入口（salons.diary_source）を、ホームの設定から導いて書く（第205便・2026-09-07）。
+ *
+ * ★ 判断は src/lib/diarySource.ts の deriveDiarySource（純粋関数・番人あり）。★ ここは読んで書くだけ。
+ * ★ 読み方は getMediaOverview と同じ（siteDirection / hasCredential / needsConsent）。★ 決め方を2つ持たない。
+ * ★ 呼ぶ場所: applyLinkMode の最後（1枠も一括もここを通る）／鍵を保存・削除・停止・再開した最後。
+ * ★★ 変わったときだけ書く＋監査に残す（★ 5分周のように積まない）。
+ * ★ 失敗しても呼び元の結果は変えない（★ 向きは変わっている。黙らず console.error）。
+ */
+async function syncDiarySource(svc: ReturnType<typeof createServiceClient>, salonId: number, actor: string): Promise<void> {
+  const { data: sources, error: srcErr } = await svc
+    .from('salon_import_sources').select('provider, slot, link_mode, is_enabled').eq('salon_id', salonId);
+  const { data: creds, error: crErr } = await svc
+    .from('salon_media_credentials').select('provider, slot, is_enabled, password_enc, consent_version').eq('salon_id', salonId);
+  if (srcErr || crErr) { console.error('[media] diary_source を導けなかった（読めない）', salonId, srcErr?.message ?? crErr?.message); return; }
+
+  const key = (p: string, sl: number) => p + '#' + sl;
+  const credOf = new Map<string, { hasCredential: boolean; needsConsent: boolean }>();
+  for (const c of creds ?? []) {
+    credOf.set(key(String(c.provider), Number(c.slot ?? 1)), {
+      hasCredential: c.is_enabled !== false && Boolean(c.password_enc),
+      needsConsent: needsConsent((c.consent_version as string | null) ?? null),
+    });
+  }
+  const keys = new Set<string>([...(sources ?? []).map((x) => key(String(x.provider), Number(x.slot ?? 1))), ...credOf.keys()]);
+  const sites = [...keys].map((k) => {
+    const [provider, slotStr] = k.split('#');
+    const src = (sources ?? []).find((x) => key(String(x.provider), Number(x.slot ?? 1)) === k);
+    const cred = credOf.get(k);
+    const direction = siteDirection({
+      provider, slot: Number(slotStr),
+      linkMode: (src?.link_mode as string | null) ?? null,
+      sourceEnabled: src ? src.is_enabled === true : true,
+      hasCredential: cred?.hasCredential === true,
+    });
+    return { provider, direction, hasCredential: cred?.hasCredential === true, needsConsent: cred?.needsConsent === true };
+  });
+
+  const next = deriveDiarySource(sites);
+  const { data: salon } = await svc.from('salons').select('diary_source').eq('id', salonId).maybeSingle();
+  const cur = readDiarySource((salon?.diary_source as string | null) ?? null);
+  if (cur === next) return;
+
+  const { error } = await svc.from('salons').update({ diary_source: next }).eq('id', salonId);
+  if (error) { console.error('[media] diary_source を書けなかった', salonId, error.message); return; }
+  await recordMediaAudit({
+    salonId, provider: 'ekichika', slot: 1,
+    event: 'diary_source_synced', outcome: 'ok',
+    detail: { from: String(cur), to: next, by: 'sync' },
+    actor,
+  });
 }
 
 /**
@@ -341,6 +395,8 @@ export async function saveMediaCredential(input: {
   //   ★ これが無いと、鍵を預けても「出勤を送る」に何も出ない（第110便で見つかった穴）。
   //   ★ 中で駅ちかを弾いている。★ ここで媒体を数えない（数える場所を2つ作らない）。
   await ensureSendOnlySource({ svc, salonId, provider: input.provider, slot, actor });
+  // ★ 駅ちか read の店は、鍵が入った瞬間に写メ日記を取り込めるようになる（第205便）
+  await syncDiarySource(svc, salonId, actor);
 
   return { ok: true, data: { saved: true } };
 }
@@ -375,6 +431,8 @@ export async function setMediaCredentialEnabled(input: {
     outcome: 'ok',
     actor: 'shop:' + guard.data.userId,
   });
+  // ★ 鍵を止める／再開すると、駅ちか read の店は取り込めるかどうかが変わる（第205便）
+  await syncDiarySource(svc, salonId, 'shop:' + guard.data.userId);
 
   return { ok: true, data: { enabled: input.enabled === true } };
 }
@@ -404,6 +462,9 @@ export async function deleteMediaCredential(input: {
     event: 'credential_deleted', outcome: 'ok',
     actor: 'shop:' + guard.data.userId,
   });
+
+  // ★ 鍵を消すと、駅ちか read の店は取り込めなくなる（第205便）
+  await syncDiarySource(svc, salonId, 'shop:' + guard.data.userId);
 
   return { ok: true, data: { deleted: true } };
 }
@@ -762,6 +823,9 @@ async function applyLinkMode(input: {
       : { mode: input.mode, from: String(before?.link_mode ?? '') },
     actor: input.actor,
   });
+
+  // ★★★ 写メ日記の入口を、この向きから導いて書く（第205便）。★ 1枠も一括もここを通る
+  await syncDiarySource(svc, salonId, input.actor);
 
   return { ok: true, data: { mode: input.mode } };
 }

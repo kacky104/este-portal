@@ -84,3 +84,70 @@ export function diarySourceTitle(source: unknown): string {
 export function diaryMailRejectReason(source: unknown): string {
   return 'rejected:source_is_' + readDiarySource(source);
 }
+
+// ───────── ★★★ 第205便（2026-09-07）: 入口をホームの「3つの設定」から自動で決める ─────────
+//
+// ★★★ なぜ（カッキーさん・2026-09-07）
+//   「駅ちかから反映」の店でも「写メ日記はフクエスで書く」が選べ、写メ日記だけ駅ちかへ送れていた。
+//   ★ 方針「駅ちかから取り込む場合はフクエスからの内容を他媒体に反映させない。写メ日記も」に反する。
+//   → 手で選ぶのをやめ、link_mode（出勤の向き）から導く。★ 149〜151便メモ §3① の決着。
+//   ★ 設計メモ_写メ日記の入口をホームの設定に連動_2026-09-07.md §2-1。
+//
+// ★★ salons.diary_source の列は残す（読む側は従来どおり acceptsDiaryMail / importsDiaryFromEkichika /
+//   forwardsDiaryFromFukues を見るだけ）。★ 書く側が【受け口】に移った（syncDiarySource）。
+
+/** 導くのに要る、サイトごとの事実。★ getMediaOverview の sites と同じ形の一部 */
+export type DiarySourceSite = {
+  provider: string;
+  /** siteDirection の結果（'read' | 'write' | 'off' | 'unset'） */
+  direction: string;
+  hasCredential: boolean;
+  /** ★ 同意の取り直しが要る枠は、鍵があっても使えない（送信・接続テストが止まる・第89便） */
+  needsConsent?: boolean;
+};
+
+/** ★ 駅ちかが read で、鍵が使える（＝写メ日記を取り込める）か */
+export function ekichikaReadReady(sites: ReadonlyArray<DiarySourceSite>): boolean {
+  return sites.some((s) => s.provider === 'ekichika' && s.direction === 'read' && s.hasCredential === true && s.needsConsent !== true);
+}
+
+/** ★ 駅ちかが read だが、鍵が無い（または同意の取り直し中）＝ 取り込めない */
+export function ekichikaReadWithoutKey(sites: ReadonlyArray<DiarySourceSite>): boolean {
+  return sites.some((s) => s.provider === 'ekichika' && s.direction === 'read') && !ekichikaReadReady(sites);
+}
+
+/**
+ * ★★★ ホームの設定から、写メ日記の入口を導く（純粋関数）。
+ *
+ *   どれかのサイトが write         → 'fukues'   フクエスで書く。write のサイトへだけ送る（送る側の守りは forwardDiary）
+ *   駅ちかが read ＋ 鍵が使える     → 'ekichika' 駅ちかで書く。15分ごとに取り込む
+ *   駅ちかが read ＋ 鍵が無い       → 'benry'    ★ 取り込まない・送らない。画面で「鍵を登録してください」と案内（決定・16:3x）
+ *   全部 none / 未設定              → 'benry'    取り込まない・送らない。代行メールは受け取る（黙認・決定）
+ *
+ * ★ 順番: write が1つでもあれば fukues（★ 第127/190便のガードで read と write は同居しないので、実際は排他）。
+ * ★ 知らない direction は数えない（write でも read でもない＝ benry 側に倒れる＝何も送らない側）。
+ */
+export function deriveDiarySource(sites: ReadonlyArray<DiarySourceSite>): DiarySource {
+  if (sites.some((s) => s.direction === 'write')) return 'fukues';
+  if (ekichikaReadReady(sites)) return 'ekichika';
+  return 'benry';
+}
+
+/**
+ * ★★★ 「写メ日記をどこで書きますか」の代わりに出す1行（第205便・ラジオは外した）。
+ * ★ ホームの設定に連動していることを必ず言う（★ ここでは変えられない。変えるならホーム）。
+ * ★ read＋鍵なしだけは、次にすること（鍵の登録）を言う。
+ */
+export function diarySourceNote(source: unknown, sites: ReadonlyArray<DiarySourceSite>): { title: string; body: string; needsKey: boolean } {
+  const s = readDiarySource(source);
+  if (s === 'fukues') {
+    return { title: 'フクエスで書きます', body: 'ホームの設定に連動しています。フクエスで書いた写メ日記を、「フクエスから反映」にしているサイトへ送ります。', needsKey: false };
+  }
+  if (s === 'ekichika') {
+    return { title: '駅ちかで書きます', body: 'ホームの設定に連動しています。駅ちかに載った写メ日記を、15分ごとにフクエスへ取り込みます。フクエスからはどこへも送りません。', needsKey: false };
+  }
+  if (ekichikaReadWithoutKey(sites)) {
+    return { title: '駅ちかで書きます', body: '写メ日記を取り込むには、駅ちかのログイン情報を登録してください。登録するまでは取り込みません。', needsKey: true };
+  }
+  return { title: 'どのサイトにも反映していません', body: '写メ日記はフクエスの中だけです。どこへも送らず、どこからも取り込みません。', needsKey: false };
+}

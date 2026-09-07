@@ -106,7 +106,17 @@ eq('★★★ エステ魂ならエステ魂と書く', lm('esutama', 'write').i
 eq('★★★ エステ魂の行に駅ちかと書かない', lm('esutama', 'write').includes('駅ちか'), false);
 eq('★ 駅ちかなら今までどおり', lm('ekichika', 'write').includes('フクエスから駅ちかへ反映する'), true);
 eq('★ 取り込みに戻す文もサイト名を使う', lm('esulove', 'read').includes('エステラブから取り込む'), true);
-eq('★ 連携しないは媒体名を出さない', lm('esutama', 'none').includes('連携しない'), true);
+// ★ 第205便: 画面の言葉「反映しない」に揃えた（「連携しない」は第90便より前の呼び名）
+eq('★ 反映しないは「反映しない」と書く（媒体名は主語にだけ）', lm('esutama', 'none').includes('「反映しない」'), true);
+eq('★ 「連携しない」の古い言い方を残さない', lm('esutama', 'none').includes('連携しない'), false);
+// ★ 第205便: 写メ日記の入口の書き換え
+{
+  const ds = (to) => a.defaultAuditSummary({ event: 'diary_source_synced', outcome: 'ok', provider: 'ekichika', slot: 1, detail: { from: 'benry', to } });
+  eq('★ fukues', ds('fukues').includes('「フクエスで書く」'), true);
+  eq('★ ekichika', ds('ekichika').includes('「駅ちかで書く（フクエスへ取り込む）」'), true);
+  eq('★ benry は「どのサイトにも反映しない」（代行と書かない）', ds('benry').includes('「どのサイトにも反映しない」') && !ds('benry').includes('代行'), true);
+  eq('★ ホームの設定に合わせて、と言う', ds('fukues').includes('ホームの設定に合わせて'), true);
+}
 // ★ 知らない provider は英字のまま（★ ごまかして別の名前を当てない）
 eq('★ 知らない provider は英字のまま', lm('nanikore', 'write').includes('nanikore'), true);
 
