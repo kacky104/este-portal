@@ -607,6 +607,15 @@ export function bulkPlan(sites: ReadonlyArray<BulkSite>, to: BulkTarget): BulkPl
   return { to, steps, skipped };
 }
 
+/**
+ * ★★★ 「フクエスから反映」にしただけでは自動にならない、を言う1文（第208便・2026-09-07）。
+ * ★ カッキーさんの問い「フクエスから反映の場合、出勤は自動で反映されますよね？」→ ならない。
+ *   ★ write は毎回承認。自動（write_auto）は【1回承認が通った枠だけ】、出勤を送る画面で入れる（§54）。
+ *   ★ この段取りがホームにも出勤を送るにも書かれていなかった。★ 2か所で同じ文を使う（ずらさない）。
+ */
+export const WORK_FIRST_APPROVAL_NOTE =
+  '最初の1回は「出勤を送る」で内容を確かめてから送ってください。1回送ったあとは、同じ画面で自動にできます。';
+
 /** ★ 一括ボタンに書く文字（★ 行き先の状態を名前にする・第90便の作法）。 */
 export function bulkLabel(to: BulkTarget): { label: string; sub: string } {
   if (to === 'write') return { label: 'フクエスから反映', sub: '登録済みの全サイトへ' };
@@ -640,7 +649,8 @@ export function bulkAskText(plan: BulkPlan): { title: string; body: string } {
   if (plan.to === 'write') {
     return {
       title: 'フクエスから反映しますか？',
-      body: `フクエスに入れた出勤を、${names}へ反映するようになります。送る前に、毎回内容をご確認いただきます。`
+      // ★ 第208便: 「押しただけでは自動にならない」を先に言う（カッキーさんの問い・2026-09-07 17:1x）
+      body: `フクエスに入れた出勤を、${names}へ反映するようになります。${WORK_FIRST_APPROVAL_NOTE}`
         + (fromRead.length > 0 ? `${fromRead}からの取り込みは止まります。` : '')
         + '写メ日記もフクエスで書いたものを送ります。'
         + skipNote,

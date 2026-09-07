@@ -11,7 +11,7 @@ import {
   startMediaWorkPush,
   type WorkPlanView,
 } from '@/app/actions/mediaCredentials';
-import { pushAvailability, pushButtonLabel, switchDoneText } from '@/lib/mediaOverview';
+import { pushAvailability, pushButtonLabel, switchDoneText, WORK_FIRST_APPROVAL_NOTE } from '@/lib/mediaOverview';
 
 // 出勤を送る（第57便・㉞ その2）。
 //
@@ -286,6 +286,14 @@ export function WorkSend({ salonId, onToast }: { salonId: number | null; onToast
               </span>
             ))}
           </div>
+        )}
+
+        {/* ★★★ 第208便: 「フクエスから反映」にしただけでは自動にならない、をこの画面の入口で言う。
+            ★ 文は mediaOverview.WORK_FIRST_APPROVAL_NOTE（ホームの一括の確認文と同じ）。★ 2か所でずらさない */}
+        {!loading && !error && sendable.length > 0 && (
+          <p className="mt-3 text-[13.5px] text-slate-500 leading-relaxed border border-slate-200 bg-slate-50 px-3 py-2">
+            {WORK_FIRST_APPROVAL_NOTE}
+          </p>
         )}
 
         {!loading && !error && sendable.length === 0 && (

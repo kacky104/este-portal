@@ -770,8 +770,11 @@ console.log('\n── ★★★ 第192便: ホームを「3つの設定」にす
   eq('★★ write の本文に変える枠の名前が全部入る', v.bulkAskText(pW).body.includes('駅ちか・エステ魂へ反映する'), true);
   eq('★★★ write の本文: 駅ちかからの取り込みが止まると書く', v.bulkAskText(pW).body.includes('駅ちかからの取り込みは止まります'), true);
   eq('★★★ write の本文: 鍵が無い枠は名前を出して「変わりません」', v.bulkAskText(pW).body.includes('エステラブはログイン情報が無いので変わりません'), true);
-  eq('★ write の本文: 毎回確認すると書く（自動にはしない）', v.bulkAskText(pW).body.includes('毎回内容をご確認'), true);
+  // ★ 第208便: 「毎回内容をご確認」は WORK_FIRST_APPROVAL_NOTE（最初の1回は確かめてから／そのあと自動にできる）に置き換えた
+  eq('★ write の本文: 一括では自動にしない（「自動にします」と書かない）', v.bulkAskText(pW).body.includes('自動にします'), false);
   eq('★★ 第205便: write の本文は写メ日記もフクエスで書いたものを送ると言う', v.bulkAskText(pW).body.includes('写メ日記もフクエスで書いたものを送ります'), true);
+  eq('★★ 第208便: write の本文は「最初の1回は確かめてから送る／そのあと自動にできる」と言う', v.bulkAskText(pW).body.includes(v.WORK_FIRST_APPROVAL_NOTE), true);
+  eq('★ 第208便: その文は「出勤を送る」（画面の名前）と「自動」を含む', /出勤を送る/.test(v.WORK_FIRST_APPROVAL_NOTE) && /自動/.test(v.WORK_FIRST_APPROVAL_NOTE), true);
   const pW2 = v.bulkPlan([EK({ direction: 'off' }), S({ direction: 'off' })], 'write');
   eq('★ 駅ちかが read でなければ「取り込みは止まります」と書かない（止まらないものを止めると書かない）',
      v.bulkAskText(pW2).body.includes('取り込み'), false);

@@ -15,6 +15,7 @@ import {
   type JobFormState,
 } from '@/app/components/JobFields';
 import { isValidEmailFormat, firstVoiceError } from '@/app/lib/jobs';
+import AdminWorkNewsPanel from '@/app/components/AdminWorkNewsPanel';
 
 // /admin の求人管理セクション。全 salon_jobs を運営権限で一覧
 // （非表示サロン分も見える＝service_role 読み取り）。公開トグル・編集・未掲載サロンへの代理作成。
@@ -265,6 +266,12 @@ export default function AdminJobsManager({
             )}
 
             <JobFields value={editor.form} onChange={patch} salonId={editor.salonId} />
+
+            {/* ★ 第209便: 新着情報（フクエスワーク）を運営が代理で書く。★ 既存の求人（edit）だけ。
+                ★ 求人本体の「保存する」とは独立（この中の「投稿する」で即時に work_news へ書く） */}
+            {editor.mode === 'edit' && (
+              <AdminWorkNewsPanel salonId={editor.salonId} onToast={onToast} />
+            )}
 
             {formError && (
               <p className="text-xs text-rose-600 bg-rose-50 border border-rose-100 rounded-xl px-3 py-2">{formError}</p>

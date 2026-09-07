@@ -623,6 +623,116 @@ export async function enforceWorkNewsLimit(
   return { ok: true, deleted: deletedIds.size };
 }
 
+
+// ── 運営が店舗の新着情報（work_news）を代理で書く（第209便・2026-09-07）────────────────
+// ★ /admin・/moderation の「求人を編集」モーダルから。★ mypage の「新着情報（フクエスワーク）」と同じ表なので、
+//   ここで書いたものは店舗様の mypage の一覧にもそのまま出る（同じ work_news・published_at desc）。
+// ★ 権限: 求人を編集できる人（isJobStaff＝運営本人＋審査スタッフ）。★ RLS の work_news_admin_all は運営本人だけなので、
+//   ここは service_role で書く（★ 必ず isJobStaff を先に見る。★ 店舗の owner はここを通さない＝mypage の口を使う）。
+// ★ 画像と fukuX 同時投稿はこの口では扱わない（店舗様のアカウントで X に投稿する形は運営から出さない）。
+// ★ 追加のあとは店舗と同じローリング上限（enforceWorkNewsLimit と同じ規則・20件）をここでも守る。
+
+export type AdminWorkNewsRow = {
+  id: string; title: string; content: string | null; is_published: boolean; published_at: string; image_url: string | null;
+};
+
+async function requireJobStaff(): Promise<{ ok: true; userId: string } | Err> {
+  const auth = await requireUser();
+  if (!auth.ok) return auth;
+  if (!isJobStaff(auth.user.id)) return { ok: false, error: '運営専用です' };
+  return { ok: true, userId: auth.user.id };
+}
+
+export async function adminListWorkNews(salonId: number): Promise<{ ok: true; rows: AdminWorkNewsRow[] } | Err> {
+  if (!Number.isFinite(salonId)) return { ok: false, error: '対象店舗が不正です' };
+  const g = await requireJobStaff();
+  if (!g.ok) return g;
+  const svc = createServiceClient();
+  const { data, error } = await svc
+    .from('work_news')
+    .select('id, title, content, is_published, published_at, image_url')
+    .eq('salon_id', salonId)
+    .order('published_at', { ascending: false });
+  if (error) return { ok: false, error: error.message };
+  return { ok: true, rows: (data ?? []) as AdminWorkNewsRow[] };
+}
+
+export async function adminSaveWorkNews(input: {
+  salonId: number; id?: string | null; title: string; content: string; is_published: boolean;
+}): Promise<{ ok: true; id: string; pruned: number } | Err> {
+  const salonId = Number(input.salonId);
+  if (!Number.isFinite(salonId)) return { ok: false, error: '対象店舗が不正です' };
+  const title = (input.title ?? '').trim();
+  if (title.length === 0) return { ok: false, error: 'タイトルは必須です' };
+  if (title.length > 200) return { ok: false, error: 'タイトルは200文字以内にしてください' };
+  const content = (input.content ?? '').trim() || null;
+  const g = await requireJobStaff();
+  if (!g.ok) return g;
+  const svc = createServiceClient();
+
+  if (input.id) {
+    // ★ 更新は salon_id も条件に入れる（別の店の行を id だけで触らない）
+    const { data, error } = await svc
+      .from('work_news')
+      .update({ title, content, is_published: input.is_published === true })
+      .eq('id', input.id).eq('salon_id', salonId)
+      .select('id')
+      .maybeSingle();
+    if (error) return { ok: false, error: error.message };
+    if (!data) return { ok: false, error: '新着情報が見つかりません' };
+    revalidateJobsPublic();
+    return { ok: true, id: String(data.id), pruned: 0 };
+  }
+
+  const { data, error } = await svc
+    .from('work_news')
+    .insert({ salon_id: salonId, title, content, is_published: input.is_published === true, image_url: null })
+    .select('id')
+    .single();
+  if (error) return { ok: false, error: error.message };
+
+  // ★ ローリング上限（店舗の口と同じ規則・created_at の古い順・20件）。★ 画像も掃除する
+  let pruned = 0;
+  const { data: rows } = await svc
+    .from('work_news').select('id, image_url, created_at').eq('salon_id', salonId).order('created_at', { ascending: true });
+  const all = rows ?? [];
+  if (all.length > WORK_NEWS_MAX) {
+    const overflow = all.slice(0, all.length - WORK_NEWS_MAX);
+    const { data: deleted } = await svc
+      .from('work_news').delete().eq('salon_id', salonId).in('id', overflow.map((r) => String(r.id))).select('id');
+    const deletedIds = new Set((deleted ?? []).map((d) => String(d.id)));
+    pruned = deletedIds.size;
+    const paths = overflow
+      .filter((r) => deletedIds.has(String(r.id)))
+      .map((r) => workNewsStoragePath((r.image_url as string | null) ?? null))
+      .filter((x): x is string => x !== null);
+    if (paths.length > 0) {
+      const { error: rmErr } = await svc.storage.from(WORK_NEWS_BUCKET).remove(paths);
+      if (rmErr) console.error('[WorkNews/admin] ローリング削除に伴う画像削除に失敗:', paths, rmErr);
+    }
+  }
+  revalidateJobsPublic();
+  return { ok: true, id: String(data.id), pruned };
+}
+
+export async function adminDeleteWorkNews(input: { salonId: number; id: string }): Promise<{ ok: true } | Err> {
+  const salonId = Number(input.salonId);
+  if (!Number.isFinite(salonId) || !input.id) return { ok: false, error: '指定が不正です' };
+  const g = await requireJobStaff();
+  if (!g.ok) return g;
+  const svc = createServiceClient();
+  const { data: row } = await svc.from('work_news').select('image_url').eq('id', input.id).eq('salon_id', salonId).maybeSingle();
+  const { error } = await svc.from('work_news').delete().eq('id', input.id).eq('salon_id', salonId);
+  if (error) return { ok: false, error: error.message };
+  const path = workNewsStoragePath((row?.image_url as string | null) ?? null);
+  if (path) {
+    const { error: rmErr } = await svc.storage.from(WORK_NEWS_BUCKET).remove([path]);
+    if (rmErr) console.error('[WorkNews/admin] 画像削除に失敗:', path, rmErr);
+  }
+  revalidateJobsPublic();
+  return { ok: true };
+}
+
 // ── 削除（confirmはUI側） ──
 // job-hero-images の public URL から Storage パスを取り出す。該当しなければ null。
 const JOB_IMAGES_BUCKET = 'job-hero-images';
