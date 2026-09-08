@@ -39,6 +39,8 @@ import { getLinkedXProfileForTherapist } from '@/app/lib/xLink';
 import { SiteNoticeBanner } from '@/app/components/SiteNoticeBanner';
 import { SiteFooter } from '@/app/components/SiteFooter';
 import { IMASUGU_COLUMNS } from '@/lib/therapistColumns';
+import { SalonMobileNav } from '@/app/salon/[id]/SalonMobileNav';
+import { fetchSalonNavItems } from '@/app/salon/[id]/salonNavItems';
 
 // ── helpers ───────────────────────────────────────────────────
 
@@ -347,6 +349,9 @@ export default async function TherapistPublicPage({
       .limit(9),
   ]);
 
+  // ★ スマホ右ドロワーの中身（第219便）。★ 店舗ページと同じ11個・同じ数字。
+  const salonNavItems = await fetchSalonNavItems(tRow.salon_id as number);
+
   const sameSalonTherapists = ((sameSalonRes.data ?? []) as Array<{
     id: number | string;
     name: string | null;
@@ -415,6 +420,14 @@ export default async function TherapistPublicPage({
       <SiteNoticeBanner />
 
       <main className="max-w-4xl mx-auto px-4 py-8">
+
+        {/* ★ スマホ: 少しスクロールしたら「店名＋三本線」のバー → 右ドロワー（第219便）。★ 画面の流れの中には何も描かない。 */}
+        <SalonMobileNav
+          mode="therapist"
+          salonName={(salonRow.name as string) ?? ''}
+          items={salonNavItems}
+          colors={{ heading: theme.heading, body: theme.body, card: theme.card, cardBorder: theme.cardBorder, accent: '#ec4899' }}
+        />
 
         {/* 週間アクセスランキング用の閲覧計測（表示のみ担う不可視部品） */}
         <PageViewLogger itemType="therapist" itemId={Number(tRow.id)} />

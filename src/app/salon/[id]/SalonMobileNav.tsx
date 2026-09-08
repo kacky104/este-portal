@@ -26,13 +26,22 @@ export type SalonNavItem = {
 
 type Props = {
   salonName: string;
-  metaLine1: string;
-  metaLine2: string;
   items: SalonNavItem[];
   colors: { heading: string; body: string; card: string; cardBorder: string; accent: string };
+  /**
+   * 'top'      … 店舗トップ。店名＋情報2行＋三本線（★ スマホだけ描く。PCは page.tsx が別に描く）
+   * 'subpage'  … サブページ。h1（店名＋ページ名）を【PCも含めて】ここで描き、右に三本線（スマホだけ）
+   * 'therapist'… セラピスト本人ページ。画面の流れの中には何も描かず、少しスクロールしたらバーだけ出す
+   */
+  mode?: 'top' | 'subpage' | 'therapist';
+  /** mode='top' のとき */
+  metaLine1?: string;
+  metaLine2?: string;
+  /** mode='subpage' のときのページ名（h1 の2行目） */
+  pageLabel?: string;
 };
 
-export function SalonMobileNav({ salonName, metaLine1, metaLine2, items, colors }: Props) {
+export function SalonMobileNav({ salonName, items, colors, mode = 'top', metaLine1 = '', metaLine2 = '', pageLabel = '' }: Props) {
   const anchorRef = useRef<HTMLDivElement | null>(null);
   const [stuck, setStuck] = useState(false);
   const [topPx, setTopPx] = useState(0);
@@ -66,6 +75,13 @@ export function SalonMobileNav({ salonName, metaLine1, metaLine2, items, colors 
   //   ★ rootMargin の上を -topPx にして「固定ヘッダーの下端」を境目にする。
   //   ★ 見えなくなったときだけ「上に抜けたか（bottom < 境目）／下にあるか」を見て、上のときだけ貼り付く。
   useEffect(() => {
+    if (mode === 'therapist') {
+      // ★ 本人ページには店名ブロックが無いので、少し（120px）スクロールしたらバーを出す。
+      const onScroll = () => setStuck(window.scrollY > 120);
+      onScroll();
+      window.addEventListener('scroll', onScroll, { passive: true });
+      return () => window.removeEventListener('scroll', onScroll);
+    }
     const el = anchorRef.current;
     if (!el || typeof IntersectionObserver === 'undefined') return;
     const io = new IntersectionObserver(
@@ -78,7 +94,7 @@ export function SalonMobileNav({ salonName, metaLine1, metaLine2, items, colors 
     );
     io.observe(el);
     return () => io.disconnect();
-  }, [topPx]);
+  }, [topPx, mode]);
 
   // ★ ドロワーを開いている間は本文をスクロールさせない。Esc で閉じる。
   useEffect(() => {
@@ -96,7 +112,7 @@ export function SalonMobileNav({ salonName, metaLine1, metaLine2, items, colors 
       onClick={() => setOpen(true)}
       aria-label="この店舗のメニューを開く"
       aria-expanded={open}
-      className="flex-none p-2 -mr-2 rounded-lg active:opacity-70"
+      className="md:hidden flex-none p-2 -mr-2 rounded-lg active:opacity-70"
       style={{ color: colors.accent }}
     >
       <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" aria-hidden>
@@ -106,20 +122,36 @@ export function SalonMobileNav({ salonName, metaLine1, metaLine2, items, colors 
   );
 
   return (
-    <div className="md:hidden">
-      {/* ① 画面の流れの中: 店名＋2行、右に三本線 */}
-      <div ref={anchorRef} className="mb-4">
-        <h1 className="px-2">
-          <AutoFitText text={salonName} max={26} min={15} className="text-center font-bold leading-tight" style={{ color: colors.heading }} />
-        </h1>
-        <div className="mt-1.5 px-2 flex items-center gap-2">
-          <div className="flex-1 min-w-0 text-center leading-relaxed" style={{ color: colors.body }}>
-            <p className="text-[12px]">{metaLine1}</p>
-            {metaLine2 && <p className="text-[12px]">{metaLine2}</p>}
+    <div className={mode === 'subpage' ? '' : 'md:hidden'}>
+      {/* ① 画面の流れの中 */}
+      {mode === 'top' && (
+        <div ref={anchorRef} className="mb-4">
+          <h1 className="px-2">
+            <AutoFitText text={salonName} max={26} min={15} className="text-center font-bold leading-tight" style={{ color: colors.heading }} />
+          </h1>
+          <div className="mt-1.5 px-2 flex items-center gap-2">
+            <div className="flex-1 min-w-0 text-center leading-relaxed" style={{ color: colors.body }}>
+              <p className="text-[12px]">{metaLine1}</p>
+              {metaLine2 && <p className="text-[12px]">{metaLine2}</p>}
+            </div>
+            {burger}
           </div>
+        </div>
+      )}
+      {mode === 'subpage' && (
+        // ★ サブページの h1（店名＋ページ名）。★ 見た目は各ページに元からあったものと同じ。★ 右の三本線はスマホだけ。
+        //   ★ h1 は「店名＋このページの内容」で1ページ1本（従来どおり）。
+        <div ref={anchorRef} className="mb-6 flex items-center gap-2">
+          <h1 className="flex-1 min-w-0 text-center">
+            <span className="block font-bold whitespace-nowrap overflow-hidden" style={{ fontSize: 'clamp(16px, 4vw, 24px)', textOverflow: 'ellipsis', color: colors.heading }}>
+              {salonName}
+            </span>
+            <span className="block text-sm mt-1 font-normal" style={{ color: colors.body }}>{pageLabel}</span>
+          </h1>
           {burger}
         </div>
-      </div>
+      )}
+      {mode === 'therapist' && <div ref={anchorRef} aria-hidden className="h-0" />}
 
       {/* ② スクロールしたら貼り付く小さなバー（店名1行＋三本線） */}
       {/* ★★ 隠すときは visibility:hidden（invisible）で消す（2026-09-08・実機で判明）。
@@ -128,7 +160,7 @@ export function SalonMobileNav({ salonName, metaLine1, metaLine2, items, colors 
             ★ それが「先頭からバーが出て帯を隠す」「スクロールで震える」の正体。 */}
       <div
         aria-hidden={!stuck}
-        className={`fixed inset-x-0 z-40 border-b shadow-sm backdrop-blur-md transition-[opacity,transform] duration-200 ${stuck ? 'visible opacity-100 translate-y-0' : 'invisible opacity-0 -translate-y-2 pointer-events-none'}`}
+        className={`md:hidden fixed inset-x-0 z-40 border-b shadow-sm backdrop-blur-md transition-[opacity,transform] duration-200 ${stuck ? 'visible opacity-100 translate-y-0' : 'invisible opacity-0 -translate-y-2 pointer-events-none'}`}
         style={{ top: topPx, backgroundColor: `${colors.card}F2`, borderColor: colors.cardBorder }}
       >
         <div className="px-4 h-12 flex items-center gap-2">
@@ -139,7 +171,7 @@ export function SalonMobileNav({ salonName, metaLine1, metaLine2, items, colors 
 
       {/* ③ 右ドロワー */}
       {open && (
-        <div className="fixed inset-x-0 top-0 h-dvh z-[60]" role="dialog" aria-modal="true" aria-label="店舗メニュー">
+        <div className="md:hidden fixed inset-x-0 top-0 h-dvh z-[60]" role="dialog" aria-modal="true" aria-label="店舗メニュー">
           <button type="button" aria-label="メニューを閉じる" onClick={() => setOpen(false)} className="absolute inset-0 bg-black/40" />
           <nav
             aria-label="店舗メニュー"

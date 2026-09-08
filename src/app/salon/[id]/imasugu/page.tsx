@@ -14,6 +14,8 @@ import type { Metadata } from "next";
 import { buildSalonSubpageMetadata } from "../subpageMetadata";
 import { SiteNoticeBanner } from '@/app/components/SiteNoticeBanner';
 import { buildBreadcrumbJsonLd, toJsonLdString } from '@/app/lib/jsonLd';
+import { SalonMobileNav } from '../SalonMobileNav';
+import { fetchSalonNavItems } from '../salonNavItems';
 
 // 自己参照 canonical＋固有 title（root の canonical '/' 継承による重複扱いを防ぐ）。詳細は ../subpageMetadata.ts。
 export async function generateMetadata({
@@ -78,6 +80,9 @@ export default async function SalonImasuguPage({
 
   const salonName = (salonRow.name as string) ?? "";
 
+  // ★ スマホ右ドロワーの中身（第219便）。★ 数字は店舗トップと同じ数え方（salonNavItems.ts）。
+  const salonNavItems = await fetchSalonNavItems(Number(id));
+
   return (
     <div className="relative min-h-screen overflow-x-clip" style={{ color: theme.text }}>
 
@@ -115,16 +120,15 @@ export default async function SalonImasuguPage({
         </nav>
 
         {/* タイトル */}
-        <div className="mb-6 text-center">
-          {/* h1 は「店名＋このページの内容」で1ページ1本にする（従来は全サブページが店名だけで同一だった）。
-              見た目は変えないため、店名と副題を h1 内の block span 2つに分けている。 */}
-          <h1>
-            <span className="block font-bold whitespace-nowrap overflow-hidden" style={{ fontSize: "clamp(16px, 4vw, 24px)", textOverflow: "ellipsis", color: theme.heading }}>
-              {salonName}
-            </span>
-            <span className="block text-sm mt-1 font-normal" style={{ color: theme.body }}>今すぐ対応可能なセラピスト</span>
-          </h1>
-        </div>
+        {/* タイトル（店名＋ページ名）。★ 第219便: スマホは右に三本線・スクロールで店名バー・右ドロワー（SalonMobileNav）。
+            ★ h1 の見た目は今までと同じ（部品の中で描いている）。 */}
+        <SalonMobileNav
+          mode="subpage"
+          salonName={salonName}
+          pageLabel="今すぐ対応可能なセラピスト"
+          items={salonNavItems}
+          colors={{ heading: theme.heading, body: theme.body, card: theme.card, cardBorder: theme.cardBorder, accent: '#ec4899' }}
+        />
 
         {/* 今すぐ一覧（時刻ベース判定のためクライアントでマウント時に算出。0名は「お店にお問い合わせください」） */}
         <ImasuguList salonId={Number(id)} cardBg={theme.card} cardBorder={theme.cardBorder} bodyColor={theme.body} />

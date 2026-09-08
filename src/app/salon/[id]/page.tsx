@@ -50,7 +50,8 @@ import { fetchSalonTherapists } from "@/app/lib/salonTherapists";
 import { SalonDiaryCircles } from "@/components/DiarySection";
 import SalonHeaderSlider from "@/components/SalonHeaderSlider";
 import { AutoFitText } from "@/app/components/AutoFitText";
-import { SalonMobileNav, type SalonNavItem } from "./SalonMobileNav";
+import { SalonMobileNav } from "./SalonMobileNav";
+import { buildSalonNavItems } from "./salonNavItems";
 import { SalonActionButtons } from "./SalonActionButtons";
 import { CollapsibleCourses } from "./CollapsibleCourses";
 import { CollapsibleSection } from "./CollapsibleSection";
@@ -478,22 +479,16 @@ export default async function SalonPage({
   // 2行目：営業時間：〇〇／定休日：〇〇（空欄は「問い合わせ」と表示）。
   const salonMetaLine2 = `営業時間：${salon.hours || '問い合わせ'}／定休日：${salon.closedDays || '問い合わせ'}`;
 
-  // ★ スマホの右ドロワーの中身（第219便）。★ クイックナビと同じ11個・同じ順・同じ数字。
-  //   ★ 「今すぐ」の人数は時刻で変わるので数字を出さない（クイックナビは ImasuguCountBadge がクライアントで出す）。
-  //   ★ fukuX・女性求人は未設定なら項目ごと出さない（クイックナビでは押せない灰色で残しているが、一覧では要らない）。
-  const mobileNavItems: SalonNavItem[] = [
-    { key: 'schedule', label: '本日出勤', href: `/salon/${id}/schedule`, count: onDutyCount },
-    { key: 'imasugu', label: '今すぐ', href: `/salon/${id}/imasugu` },
-    { key: 'diary', label: '写メ日記', href: `/salon/${id}/diary`, count: diaryRecentCount },
-    { key: 'price', label: '料金', href: `/salon/${id}/price` },
-    { key: 'reviews', label: '口コミ', href: `/salon/${id}/reviews`, count: salonReviewStats.count },
-    { key: 'coupon', label: 'クーポン', href: `/salon/${id}/coupon`, count: couponCount },
-    { key: 'therapists', label: 'セラピスト一覧', href: `/salon/${id}/therapists` },
-    { key: 'news', label: 'お知らせ', href: `/salon/${id}/news`, count: announcementRecentCount },
-    { key: 'info', label: '店舗情報', href: `/salon/${id}/info` },
-    ...(salon.fukuxUrl ? [{ key: 'fukux', label: 'fukuX', href: salon.fukuxUrl, external: true }] : []),
-    ...(activeJobHref ? [{ key: 'jobs', label: '女性求人', href: activeJobHref }] : []),
-  ];
+  // ★ スマホの右ドロワーの中身（第219便）。★ 組み立てはサブページと同じ buildSalonNavItems（数字は既に持っているものを渡す）。
+  const mobileNavItems = buildSalonNavItems(Number(id), {
+    onDutyCount,
+    diaryRecentCount,
+    reviewCount: salonReviewStats.count,
+    couponCount,
+    announcementRecentCount,
+    fukuxUrl: salon.fukuxUrl,
+    activeJobHref,
+  });
 
   return (
     <div className="relative min-h-screen overflow-x-clip" style={{ color: theme.text }}>

@@ -14,6 +14,8 @@ import type { BookingCourse } from "@/app/actions/booking";
 import type { Metadata } from "next";
 import { buildSalonSubpageMetadata } from "../subpageMetadata";
 import { SiteNoticeBanner } from '@/app/components/SiteNoticeBanner';
+import { SalonMobileNav } from '../SalonMobileNav';
+import { fetchSalonNavItems } from '../salonNavItems';
 
 // 予約フォームはインデックス対象外（noindex）。root の canonical '/' 継承による重複扱いも防ぐ。
 export async function generateMetadata({
@@ -90,6 +92,9 @@ export default async function SalonBookPage({
 
   const canBook = bookingEnabled && courses.length > 0 && therapists.length > 0;
 
+  // ★ スマホ右ドロワーの中身（第219便）。★ 数字は店舗トップと同じ数え方（salonNavItems.ts）。
+  const salonNavItems = await fetchSalonNavItems(Number(id));
+
   return (
     <div className="relative min-h-screen overflow-x-clip" style={{ color: theme.text }}>
       <div aria-hidden className="fixed inset-0 -z-10" style={bgLayerStyle} />
@@ -119,16 +124,15 @@ export default async function SalonBookPage({
         </nav>
 
         {/* タイトル */}
-        <div className="mb-6 text-center">
-          {/* h1 は「店名＋このページの内容」で1ページ1本にする（従来は全サブページが店名だけで同一だった）。
-              見た目は変えないため、店名と副題を h1 内の block span 2つに分けている。 */}
-          <h1>
-            <span className="block font-bold whitespace-nowrap overflow-hidden" style={{ fontSize: 'clamp(16px, 4vw, 24px)', textOverflow: 'ellipsis', color: theme.heading }}>
-              {salonName}
-            </span>
-            <span className="block text-sm mt-1 font-normal" style={{ color: theme.body }}>ネット予約（指名）</span>
-          </h1>
-        </div>
+        {/* タイトル（店名＋ページ名）。★ 第219便: スマホは右に三本線・スクロールで店名バー・右ドロワー（SalonMobileNav）。
+            ★ h1 の見た目は今までと同じ（部品の中で描いている）。 */}
+        <SalonMobileNav
+          mode="subpage"
+          salonName={salonName}
+          pageLabel="ネット予約（指名）"
+          items={salonNavItems}
+          colors={{ heading: theme.heading, body: theme.body, card: theme.card, cardBorder: theme.cardBorder, accent: '#ec4899' }}
+        />
 
         {canBook ? (
           <BookingFlow
