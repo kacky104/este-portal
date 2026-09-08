@@ -2825,9 +2825,10 @@ export default function MyPage() {
                 onClick={() => setDrawerOpen(true)}
                 aria-label="メニューを開く"
                 aria-expanded={drawerOpen}
-                className={`md:hidden relative -ml-1 p-1 transition-colors ${mobileOtherHere ? 'text-pink-500' : 'text-slate-500'}`}
+                // ★ 目立たせる（2026-09-08・カッキーさんの指示）: いつもピンク。★ 中の画面を開いているときは濃いピンク。
+                className={`md:hidden relative -ml-1 p-1 transition-colors ${mobileOtherHere ? 'text-pink-700' : 'text-pink-500'}`}
               >
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" aria-hidden>
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" aria-hidden>
                   <path d="M4 6h16M4 12h16M4 18h16" />
                 </svg>
                 {mobileOtherBadge > 0 && (
@@ -3775,7 +3776,7 @@ export default function MyPage() {
             </label>
             <p className="text-[10px] text-slate-400 leading-relaxed">
               {/* ★ 文面は2026-09-06・カッキーさんの指示で短くしたもの（★ 前半の説明は削除）。 */}
-              「予約で受け付けるコース」を1つ以上登録する必要があります。
+              「予約で受け付けるコース」を1つ以上登録してください。
             </p>
             <div>
               <label className="block text-[11px] font-bold text-slate-500 mb-1">予約通知先メール</label>
@@ -4444,7 +4445,6 @@ export default function MyPage() {
           <div className="bg-white rounded-none border border-slate-100 shadow-sm p-5 space-y-4">
             <div>
               <h2 className="text-sm font-black text-slate-700 mb-1">写メ日記の投稿</h2>
-              <p className="text-[11px] text-slate-400">投稿するセラピストを選んでから、画像・タイトル・本文を入力してください。</p>
             </div>
 
             {/* ★ 名前でしぼり込む（2026-09-06・カッキーさんの指示）。★ 出勤・セラピストと同じ規則。 */}
