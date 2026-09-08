@@ -171,6 +171,7 @@ export default async function AreaPage({ params }: { params: Promise<{ slug: str
         {/* サロン一覧のみ左右余白を main(px-4=16px)→4px に詰める（-mx-3=12px相殺）。TOPのpx-1と同幅感。lgは従来。 */}
         <div className="-mx-3 lg:mx-0">
         <ShuffledSalons
+          moreImageUrl={moreCardImage}
           salons={withBumpedFirst(weightedShuffleEvery6h(salons, `area:${slug}`, (s) => (s.cardBoost ? CARD_BOOST_WEIGHT : 1)))}
           areas={[...AREA_ORDER]}
           currentArea={area}

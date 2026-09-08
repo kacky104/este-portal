@@ -278,6 +278,7 @@ export default async function Home() {
                   ここで <LatestReviewsBlock/> を常に渡してはいけない。中で null を返しても
                   【要素そのものは truthy】なので、?? のフォールバックが効かず枠が消える。 */}
             <ShuffledSalons
+              moreImageUrl={moreCardImage}
               salons={withBumpedFirst(weightedShuffleEvery6h(salons, 'home', (s) => (s.cardBoost ? CARD_BOOST_WEIGHT : 1)))}
               areas={[...AREA_ORDER]}
               currentArea={ALL_AREA}

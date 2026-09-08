@@ -22,6 +22,7 @@ import { fetchActiveRecommendedSalonBanners, type RecommendedSalonBanner } from 
 import { createPublicClient } from '@/app/lib/supabase/public';
 import { SiteNoticeBanner } from '@/app/components/SiteNoticeBanner';
 import { SiteFooter } from '@/app/components/SiteFooter';
+import { fetchSiteImage, LIST_MORE_CARD_KEY } from '@/app/lib/siteImages';
 
 export default function SavedPage() {
   // 表示中タブ（既定: 保存した店舗）
@@ -53,6 +54,13 @@ export default function SavedPage() {
   // 候補が少ない環境でもバナーが必ず出るようにする。保存済みの店のバナーが並ぶことは許容）。
   // 表示はおすすめサロンバナーと同一カード（RecommendedSalonBannerSlider を単発で流用）。
   const [pickupBanner, setPickupBanner] = useState<RecommendedSalonBanner | null>(null);
+  // ★ 店舗カード末尾「一覧を見る」タイルの画像（第218便・TOPと共通）。
+  const [moreCardImage, setMoreCardImage] = useState<string | null>(null);
+  useEffect(() => {
+    let active = true;
+    fetchSiteImage(createClient(), LIST_MORE_CARD_KEY).then((u) => { if (active) setMoreCardImage(u); });
+    return () => { active = false; };
+  }, []);
   useEffect(() => {
     let alive = true;
     // 公開データのみ読むため匿名クライアントを使う。保存リストは localStorage 同期読み＝マウント時に即取得できる。
@@ -290,6 +298,7 @@ export default function SavedPage() {
                       <SalonCard
                         key={salon.id}
                         salon={salon}
+                        moreImageUrl={moreCardImage}
                         therapists={salonTherapists[salon.id] ?? []}
                         showAge
                         areaNextToDuty
@@ -311,6 +320,7 @@ export default function SavedPage() {
                         <SalonCard
                           key={salon.id}
                           salon={salon}
+                          moreImageUrl={moreCardImage}
                           therapists={salonTherapists[salon.id] ?? []}
                           showAge
                           areaNextToDuty

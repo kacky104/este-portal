@@ -134,7 +134,8 @@ function TherapistMiniCard({ therapist, index, showAge = false, compact = false,
 
 // ── Therapist mini cards row (hover auto-scroll / touch swipe) ──
 
-function TherapistMiniCardsRow({ therapists, salonId, showAge = false, compact = false, large = false }: { therapists: TherapistThumb[]; salonId: number; showAge?: boolean; compact?: boolean; large?: boolean }) {
+// ★ moreImageUrl（第218便）: 末尾「一覧を見る」タイルの画像。★ /admin「セラピスト共通画像設定」で運営が置く（出勤中・新人の横スクロールと同じ1枚）。
+function TherapistMiniCardsRow({ therapists, salonId, showAge = false, compact = false, large = false, moreImageUrl = null }: { therapists: TherapistThumb[]; salonId: number; showAge?: boolean; compact?: boolean; large?: boolean; moreImageUrl?: string | null }) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const rafRef    = useRef<number | null>(null);
 
@@ -174,20 +175,28 @@ function TherapistMiniCardsRow({ therapists, salonId, showAge = false, compact =
       {/* View-all button */}
       <Link
         href={`/salon/${salonId}`}
-        className={`relative flex-shrink-0 ${large ? 'w-[116px] h-[169px] lg:w-[92px] lg:h-[134px]' : compact ? 'w-[92px] h-[134px]' : 'w-[105px] h-[153px]'} rounded-2xl overflow-hidden border border-pink-200 bg-gradient-to-b from-pink-50 to-fuchsia-100 flex flex-col items-center justify-center gap-2 hover:from-pink-100 hover:to-fuchsia-200 transition-colors shadow-sm`}
+        className={`relative flex-shrink-0 ${large ? 'w-[116px] h-[169px] lg:w-[92px] lg:h-[134px]' : compact ? 'w-[92px] h-[134px]' : 'w-[105px] h-[153px]'} rounded-none overflow-hidden ${moreImageUrl ? 'bg-slate-100' : 'border border-pink-200 bg-gradient-to-b from-pink-50 to-fuchsia-100 hover:from-pink-100 hover:to-fuchsia-200'} flex flex-col items-center justify-center gap-2 transition-colors shadow-sm`}
         onClick={e => e.stopPropagation()}
       >
-        <div className="w-10 h-10 rounded-full bg-white/70 flex items-center justify-center shadow-sm">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="text-pink-500">
-            <rect x="3" y="3" width="7" height="7" rx="1" />
-            <rect x="14" y="3" width="7" height="7" rx="1" />
-            <rect x="3" y="14" width="7" height="7" rx="1" />
-            <rect x="14" y="14" width="7" height="7" rx="1" />
-          </svg>
-        </div>
-        <p className="text-[11px] font-bold text-pink-600 text-center leading-snug">
-          一覧を<br />見る
-        </p>
+        {moreImageUrl ? (
+          // ★ 画像は文字入りで作る前提。★ こちらからは何も重ねない（第218便）。
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={moreImageUrl} alt="一覧を見る" className="absolute inset-0 w-full h-full object-cover" />
+        ) : (
+          <>
+            <div className="w-10 h-10 rounded-full bg-white/70 flex items-center justify-center shadow-sm">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="text-pink-500">
+                <rect x="3" y="3" width="7" height="7" rx="1" />
+                <rect x="14" y="3" width="7" height="7" rx="1" />
+                <rect x="3" y="14" width="7" height="7" rx="1" />
+                <rect x="14" y="14" width="7" height="7" rx="1" />
+              </svg>
+            </div>
+            <p className="text-[11px] font-bold text-pink-600 text-center leading-snug">
+              一覧を<br />見る
+            </p>
+          </>
+        )}
       </Link>
     </div>
   );
@@ -308,7 +317,7 @@ function AutoFitAreaBadges({ labels, dispatchOnly }: { labels: string[]; dispatc
 
 // ── Salon card ────────────────────────────────────────────────
 
-export function SalonCard({ salon, therapists, showAge = false, areaNextToDuty = false, ratingAtBottom = false, compactTherapists = false, showSaveButton = false, wideDesktop = false, nameBanner = false, bleedTherapists = false, largeThumbs = false }: { salon: Salon; therapists: TherapistThumb[]; showAge?: boolean; areaNextToDuty?: boolean; ratingAtBottom?: boolean; compactTherapists?: boolean; showSaveButton?: boolean; wideDesktop?: boolean; nameBanner?: boolean; bleedTherapists?: boolean; largeThumbs?: boolean }) {
+export function SalonCard({ salon, therapists, showAge = false, areaNextToDuty = false, ratingAtBottom = false, compactTherapists = false, showSaveButton = false, wideDesktop = false, nameBanner = false, bleedTherapists = false, largeThumbs = false, moreImageUrl = null }: { salon: Salon; therapists: TherapistThumb[]; showAge?: boolean; areaNextToDuty?: boolean; ratingAtBottom?: boolean; compactTherapists?: boolean; showSaveButton?: boolean; wideDesktop?: boolean; nameBanner?: boolean; bleedTherapists?: boolean; largeThumbs?: boolean; moreImageUrl?: string | null }) {
   const router = useRouter();
   const onDutyCount = therapists.filter(t => t.onDuty).length;
 
@@ -390,7 +399,7 @@ export function SalonCard({ salon, therapists, showAge = false, areaNextToDuty =
   // PC(wideLayout)は lg:mx-0 で従来の余白を維持。
   const therapistThumbs = therapists.length > 0 ? (
     <div className={`${compactTherapists ? 'mb-2' : 'mb-4'}${bleedTherapists ? ' -mx-3 lg:mx-0' : ''}`}>
-      <TherapistMiniCardsRow therapists={therapists} salonId={salon.id} showAge={showAge} compact={compactTherapists} large={largeThumbs} />
+      <TherapistMiniCardsRow therapists={therapists} salonId={salon.id} showAge={showAge} compact={compactTherapists} large={largeThumbs} moreImageUrl={moreImageUrl} />
     </div>
   ) : null;
 
@@ -571,7 +580,7 @@ function SalonCardSkeleton() {
 
 // ── ShuffledSalons ────────────────────────────────────────────
 
-export function ShuffledSalons({ salons, areas, showAge = false, areaNextToDuty = false, ratingAtBottom = false, compactTherapists = false, showSaveButton = false, wideDesktop = false, mobileSingleColumn = false, bleedTherapists = false, largeThumbs = false, nameBanner = false, tabsAsLinks = false, currentArea, includeDispatch = false, heading, showAreaTitle = false, insertBlocks, sideNode }: { salons: Salon[]; areas: string[]; showAge?: boolean; areaNextToDuty?: boolean; ratingAtBottom?: boolean; compactTherapists?: boolean; showSaveButton?: boolean; wideDesktop?: boolean; mobileSingleColumn?: boolean; bleedTherapists?: boolean; largeThumbs?: boolean; nameBanner?: boolean; tabsAsLinks?: boolean; currentArea?: string; includeDispatch?: boolean; heading?: React.ReactNode; showAreaTitle?: boolean; insertBlocks?: { afterIndex: number; node: React.ReactNode; zoom?: boolean }[]; sideNode?: React.ReactNode }) {
+export function ShuffledSalons({ salons, areas, showAge = false, areaNextToDuty = false, ratingAtBottom = false, compactTherapists = false, showSaveButton = false, wideDesktop = false, mobileSingleColumn = false, bleedTherapists = false, largeThumbs = false, nameBanner = false, tabsAsLinks = false, currentArea, includeDispatch = false, heading, showAreaTitle = false, insertBlocks, sideNode, moreImageUrl = null }: { salons: Salon[]; areas: string[]; showAge?: boolean; areaNextToDuty?: boolean; ratingAtBottom?: boolean; compactTherapists?: boolean; showSaveButton?: boolean; wideDesktop?: boolean; mobileSingleColumn?: boolean; bleedTherapists?: boolean; largeThumbs?: boolean; nameBanner?: boolean; tabsAsLinks?: boolean; currentArea?: string; includeDispatch?: boolean; heading?: React.ReactNode; showAreaTitle?: boolean; insertBlocks?: { afterIndex: number; node: React.ReactNode; zoom?: boolean }[]; sideNode?: React.ReactNode; moreImageUrl?: string | null }) {
   // 並び順は呼び出し元（RSC）で確定済みのものをそのまま使う（2026-07-26変更）。
   // 従来は「初期 list=[] ＋ mount時の useEffect シャッフル」だったが、初期HTMLがスケルトンになり
   // SEO（Googlebot のJSレンダリング第2波待ち）に不利だった。シャッフルは決定的（6時間シード）なので
@@ -701,6 +710,7 @@ export function ShuffledSalons({ salons, areas, showAge = false, areaNextToDuty 
       nameBanner={nameBanner}
       bleedTherapists={bleedTherapists}
       largeThumbs={largeThumbs}
+      moreImageUrl={moreImageUrl}
     />
   ));
 

@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/app/lib/supabase/client';
 import { fillTherapistImages } from '@/app/lib/therapistPlaceholder';
+import { fetchSiteImage, LIST_MORE_CARD_KEY } from '@/app/lib/siteImages';
 import { getBusinessDateJST, getScheduleWindowStatus } from '@/lib/dutyStatus';
 import { isNewFaceActive } from '@/lib/newFace';
 import { formatBodySizes } from '@/lib/bodyType';
@@ -564,18 +565,26 @@ function MiniCard({ therapist, index, fill = false }: { therapist: Therapist; in
 // ★ 第35便: スマホのカルーセルからは外した（ヘッダー右上に「全部見る」があり重複のため）。
 //   使うのは PC の横スクロールのみなので fill（カード全面に広げる）対応も畳んだ。
 
-function ViewAllCard({ href }: { href: string }) {
+// ★ imageUrl（第218便）: /admin「セラピスト共通画像設定」の「一覧を見る」カードの画像。★ あれば画像だけ（文字は重ねない）。角は直角。
+function ViewAllCard({ href, imageUrl = null }: { href: string; imageUrl?: string | null }) {
   return (
     <Link
       href={href}
-      className="relative rounded-2xl overflow-hidden border border-pink-200 bg-gradient-to-b from-pink-50 to-fuchsia-100 flex flex-col items-center justify-center gap-2 hover:from-pink-100 hover:to-fuchsia-200 transition-colors shadow-sm flex-shrink-0 w-[105px] h-[153px] md:w-[150px] md:h-56"
+      className={`relative rounded-none overflow-hidden ${imageUrl ? 'bg-slate-100' : 'border border-pink-200 bg-gradient-to-b from-pink-50 to-fuchsia-100 hover:from-pink-100 hover:to-fuchsia-200'} flex flex-col items-center justify-center gap-2 transition-colors shadow-sm flex-shrink-0 w-[105px] h-[153px] md:w-[150px] md:h-56`}
     >
-      <div className="rounded-full bg-white/70 flex items-center justify-center shadow-sm w-10 h-10">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="text-pink-500">
-          <path d="M5 12h14M12 5l7 7-7 7" />
-        </svg>
-      </div>
-      <p className="font-bold text-pink-600 text-center leading-snug text-[12px]">全部見る</p>
+      {imageUrl ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img src={imageUrl} alt="全部見る" className="absolute inset-0 w-full h-full object-cover" />
+      ) : (
+        <>
+          <div className="rounded-full bg-white/70 flex items-center justify-center shadow-sm w-10 h-10">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="text-pink-500">
+              <path d="M5 12h14M12 5l7 7-7 7" />
+            </svg>
+          </div>
+          <p className="font-bold text-pink-600 text-center leading-snug text-[12px]">全部見る</p>
+        </>
+      )}
     </Link>
   );
 }
@@ -667,6 +676,13 @@ function TodayCardCarousel({ list }: { list: Therapist[] }) {
 
 export function SalonTherapists({ salonId }: { salonId: number }) {
   const [list, setList] = useState<Therapist[]>([]);
+  // ★ 末尾「全部見る」カードの画像（第218便・TOPの「一覧を見る」と同じ1枚）。
+  const [moreImageUrl, setMoreImageUrl] = useState<string | null>(null);
+  useEffect(() => {
+    let active = true;
+    fetchSiteImage(createClient(), LIST_MORE_CARD_KEY).then((u) => { if (active) setMoreImageUrl(u); });
+    return () => { active = false; };
+  }, []);
 
   useEffect(() => {
     (async () => {
@@ -731,7 +747,9 @@ export function SalonTherapists({ salonId }: { salonId: number }) {
       // 受付終了になっても非表示にせずカードを出し続ける。お休み(off)のみ除外。
       const visible = sorted.filter(t => availableNowActive(t) || getScheduleStatus(t.today).status !== 'off');
       // 横スクロール表示。最大7人まで（8枚目は「全部見る」カードで週間出勤予定へ）
-      setList(visible.slice(0, 7));
+      // ★ 既定画像（第217便）は【並べ替えの後】に当てる（★ 並びは本人の写真の有無で決める）。
+      const FILL = { salonId: () => salonId, image: (t: Therapist) => t.profileImageUrl, set: (t: Therapist, url: string | null) => ({ ...t, profileImageUrl: url }) };
+      setList(await fillTherapistImages(supabase, visible.slice(0, 7), FILL));
     })();
   }, [salonId]);
 
@@ -749,7 +767,7 @@ export function SalonTherapists({ salonId }: { salonId: number }) {
         {list.map((t, i) => (
           <MiniCard key={t.id} therapist={t} index={i} />
         ))}
-        <ViewAllCard href={`/salon/${salonId}/schedule`} />
+        <ViewAllCard href={`/salon/${salonId}/schedule`} imageUrl={moreImageUrl} />
       </div>
     </>
   );
@@ -839,7 +857,9 @@ export function SalonOnDutyExcludingNow({ salonId, theme }: { salonId: number; t
       const visible = sorted.filter(t =>
         getScheduleStatus(t.today).status !== 'off' && !availableNowActive(t)
       );
-      setList(visible);
+      // ★ 既定画像（第217便）は【並べ替えの後】に当てる（★ 並びは本人の写真の有無で決める）。
+      const FILL = { salonId: () => salonId, image: (t: Therapist) => t.profileImageUrl, set: (t: Therapist, url: string | null) => ({ ...t, profileImageUrl: url }) };
+      setList(await fillTherapistImages(supabase, visible, FILL));
     })();
   }, [salonId]);
 
@@ -918,7 +938,9 @@ export function SalonAllTherapists({ salonId, limit, from, showSaveButton = fals
 
       // 写真あり優先 → 出勤状況の順（sortSalonTherapists）。
       // サーバー取得（lib/salonTherapists.ts）と同じ並びに揃える。
-      setList(sortSalonTherapists(mapped));
+      // ★ 既定画像（第217便）は【並べ替えの後】に当てる（★ 並びは本人の写真の有無で決める）。
+      const FILL = { salonId: () => salonId, image: (t: Therapist) => t.profileImageUrl, set: (t: Therapist, url: string | null) => ({ ...t, profileImageUrl: url }) };
+      setList(await fillTherapistImages(supabase, sortSalonTherapists(mapped), FILL));
     })();
   }, [salonId, hasInitial]);
 
@@ -1011,7 +1033,8 @@ export function SalonNewFaceTherapists({
           const tb = b.newFaceSince ? new Date(b.newFaceSince).getTime() : 0;
           return tb - ta;
         });
-      setList(newFaces);
+      // ★ 既定画像（第217便）。
+      setList(await fillTherapistImages(supabase, newFaces, { salonId: () => salonId, image: (t) => t.profileImageUrl, set: (t, url) => ({ ...t, profileImageUrl: url }) }));
     })();
   }, [salonId]);
 
