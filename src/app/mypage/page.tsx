@@ -18,7 +18,6 @@ import { SALON_THEMES, type ThemeKey } from '@/app/lib/themes';
 import { COUPON_COLORS, getCouponColor, DEFAULT_COUPON_COLOR_KEY, type CouponColorKey } from '@/app/lib/couponColors';
 import { VipLetterForm } from '@/app/components/VipLetterForm';
 import { VipLetterSentList } from '@/app/components/VipLetterSentList';
-import { JobsTab } from '@/app/mypage/JobsTab';
 import { BookingBoard } from '@/app/mypage/BookingBoard';
 import { SupportTab } from '@/app/mypage/SupportTab';
 import { getBusinessDateJST, getBusinessDateRangeJST } from '@/lib/dutyStatus';
@@ -332,9 +331,10 @@ const MYPAGE_NAV: Array<{ key: TabKey; label: string; group?: string; parent?: T
   { key: 'banner',    label: '詳細ページバナー',  parent: 'salon' },
   { key: 'popup',     label: 'ポップアップ画像',  parent: 'salon' },
   { key: 'freepage',  label: 'フリーページ',      parent: 'salon' },
-  // ★ フクエスワーク（求人）は「関連サイト」の見出しの下（2026-09-06・カッキーさんの指示）。
-  //   ★ すぐ下に媒体連携（フクエスリンク）が続く。
-  { key: 'jobs',      label: 'フクエスワーク（求人）', group: '関連サイト' },
+  // ★★ フクエスワーク（求人）は第220便（2026-09-08・カッキーさんの指示）で
+  //   タブをやめ、専用サイト /mypage/jobs（緑・別ページ）に移した。
+  //   ★ サイドバーの「関連サイト」には renderJobsLink がリンクとして出す（フクエスリンクと同じ形）。
+  //   ★ ここに 'jobs' を戻さないこと（★ 戻すと本文の無いタブが1つできる）。
   // ★ 運営事務局はいちばん下。★ group: '' ＝ 見出しを付けずに、ここで区切る
   //   （2026-09-06・カッキーさんの指示で「その他」の見出しは廃止）。
   { key: 'support',   label: '運営事務局（お問い合わせ等）', group: '' },
@@ -366,6 +366,18 @@ const NAV_SECTIONS: Array<{ group: string; keys: TabKey[] }> = (() => {
   for (const n of MYPAGE_NAV) {
     if (n.group !== undefined || out.length === 0) out.push({ group: n.group ?? '', keys: [] });
     out[out.length - 1].keys.push(n.key);
+  }
+  // ★★★ 「関連サイト」は【中の画面が0個でも】必ず作る（第220便・2026-09-08）。
+  //   ★ この見出しの中身は、いまは全部リンク（フクエスワーク・フクエスリンク・フクエックス・
+  //     フクエスCRM・フクエスサイト）で、MYPAGE_NAV には1つも入っていない。
+  //   ★★ 第220便で求人をタブから外したとき、この見出しごと消えてしまった（カッキーさんが気づいた）。
+  //     ★ 見出しは MYPAGE_NAV から作る、という前提が崩れた場所。★ ここで明示的に足しておく。
+  //   ★ 置き場所は「運営事務局」（見出しなしの区切り）の【すぐ上】＝いちばん下から2番目。
+  if (!out.some((sec) => sec.group === '関連サイト')) {
+    const at = out.findIndex((sec) => sec.group === '');
+    const section = { group: '関連サイト', keys: [] as TabKey[] };
+    if (at >= 0) out.splice(at, 0, section);
+    else out.push(section);
   }
   return out;
 })();
@@ -801,11 +813,14 @@ export default function MyPage() {
     window.addEventListener('popstate', read);
     return () => window.removeEventListener('popstate', read);
   }, []);
-  // ★ 求人はフクエスワーク掲載店だけの画面。★ ?tab=jobs を直接開かれても、契約がなければ店舗情報へ倒す
-  //   （★ サイドバーに項目がなく本文も出ない＝真っ白、を作らない）。
+  // ★★ 求人は第220便で専用サイト /mypage/jobs へ移した。
+  //   ★ 昔のリンク（?tab=jobs）で来た人は、そのまま新しい場所へ送る。
+  //   ★ 契約が無い店は店舗情報へ倒す（★ サイドバーに項目がなく本文も出ない＝真っ白、を作らない）。
   useEffect(() => {
-    if (activeTab === 'jobs' && salon && !salon.jobs_enabled) setActiveTab('available');
-  }, [activeTab, salon]);
+    if (activeTab !== 'jobs') return;
+    if (salon && !salon.jobs_enabled) { setActiveTab('available'); return; }
+    if (salon?.jobs_enabled) router.replace('/mypage/jobs');
+  }, [activeTab, salon, router]);
   // ★ 「店舗情報」の中の画面を開いているときは、その見出しを開いたままにする（2026-09-06）。
   //   ★ ?tab=course で直接開かれたときや、エラーで店舗基本設定へ飛ばしたときに、
   //     いま見ている画面がサイドバーから消えていると迷うため。
@@ -2841,6 +2856,25 @@ export default function MyPage() {
     </div>
   );
 
+  // ★★★ フクエスワーク（求人）（第220便・2026-09-08・カッキーさんの指示）。
+  //   ★ タブではなく専用サイト /mypage/jobs への入口（★ フクエスリンクとまったく同じ形）。
+  //   ★ 新しいタブで開く。★ 出すのはフクエスワーク掲載（jobs_enabled）契約店だけ。
+  const renderJobsLink = (pc: boolean) => (
+    <Link
+      href="/mypage/jobs"
+      target="_blank"
+      rel="noopener noreferrer"
+      className={
+        pc
+          ? 'inline-flex w-full items-center justify-start gap-2.5 border-0 border-l-4 border-l-transparent px-4 py-3 text-[16px] font-bold text-slate-400 transition-colors hover:bg-pink-50/40 hover:text-slate-600'
+          : 'inline-flex w-full items-center justify-start gap-2 border-0 border-l-4 border-l-transparent px-4 py-2.5 text-[13px] font-bold text-slate-500 transition-colors'
+      }
+    >
+      {tabIcon('jobs')}
+      フクエスワーク（求人）
+    </Link>
+  );
+
   const renderMediaLink = (pc: boolean) => (
     <Link
       href="/mypage/media"
@@ -3092,6 +3126,7 @@ export default function MyPage() {
                         );
                       })}
                       {/* ★ 外部リンクは「関連サイト」の中。★ 並びはPCと同じ（★ 変えるときは両方）。 */}
+                      {isSites && salon?.jobs_enabled && renderJobsLink(false)}
                       {withMedia && renderMediaLink(false)}
                       {isSites && renderFukuxLink(false)}
                       {isSites && renderCrmSoon(false)}
@@ -3177,6 +3212,8 @@ export default function MyPage() {
                   })}
                   {/* ★★★ フクエスリンク（媒体連携）（第55便・㉜）。★ タブではなく専用ページ /mypage/media への入口。
                       ★ 新しいタブで開く（2026-08-30・カッキーさんの決定）。 */}
+                  {/* ★ フクエスワーク（求人）→ フクエスリンク の順（★ 第184便までの並びのまま）。 */}
+                  {open && sec.group === '関連サイト' && salon?.jobs_enabled && renderJobsLink(true)}
                   {open && withMedia && renderMediaLink(true)}
                   {/* ★ フクエックス（SNS）。★ 媒体連携と違い、契約に関係なく全店舗に出す。 */}
                   {open && sec.group === '関連サイト' && renderFukuxLink(true)}
@@ -5308,16 +5345,8 @@ export default function MyPage() {
           )}
         </div>
 
-        {/* ── 求人タブ（フクエスワーク・最後尾）。掲載契約店（jobs_enabled）のみ表示。 ── */}
-        <div className={`space-y-4 ${activeTab === 'jobs' && salon?.jobs_enabled ? '' : 'hidden'}`}>
-          {salon ? (
-            <JobsTab salonId={Number(salon.id)} />
-          ) : (
-            <div className="bg-white rounded-none border border-slate-100 shadow-sm p-5">
-              <p className="text-xs text-slate-400">店舗情報を読み込み中です…</p>
-            </div>
-          )}
-        </div>
+        {/* ★★ 旧・求人タブ（フクエスワーク）は第220便で専用サイト /mypage/jobs に移した。
+            ★ ここには本文を置かない。★ ?tab=jobs で来た人は上の useEffect が新しい場所へ送る。 */}
 
         {/* ── 旧・店舗装飾タブの4つ ──
             ★★ タブを廃止し、サイドバーの4つの画面に割った（2026-09-06・カッキーさんの指示）。
