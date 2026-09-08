@@ -3034,7 +3034,7 @@ export default function MyPage() {
               />
               <nav
                 aria-label="その他のメニュー"
-                className="absolute inset-y-0 left-0 w-[280px] max-w-[85vw] bg-white shadow-2xl overflow-y-auto overscroll-contain pb-24 [padding-bottom:calc(6rem+env(safe-area-inset-bottom))]"
+                className="absolute inset-y-0 left-0 w-[280px] max-w-[85vw] bg-white shadow-2xl overflow-y-auto overscroll-contain scrollbar-none pb-24 [padding-bottom:calc(6rem+env(safe-area-inset-bottom))]"
               >
                 <div className="flex items-center justify-between px-4 py-3 border-b border-slate-100">
                   <span className="text-sm font-black text-slate-700">メニュー</span>

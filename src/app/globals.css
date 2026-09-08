@@ -423,3 +423,93 @@ body.paw-bg {
     animation: none;
   }
 }
+
+/* ── クーポン券の装飾（煌びやか・神秘的・豪華）2026-09-08 ──────────────
+   ★ 見た目の唯一の正は src/app/components/CouponCard.tsx（公開ページ・/mypage プレビュー・
+     VIPレターで共用）。ここはその券が使う CSS だけを置く。
+   ★ 3つの部品:
+       .coupon-lux        … 券の外周を金色の弧がゆっくり一周する（枠線リングだけに描画）
+       .coupon-lux-band   … 見出し帯を斜めの光が横切る（4.5秒に1回）
+       .coupon-sparkle    … 小さな輝き（点滅）。遅延は style で個別に指定する。
+   ★ 動きを減らす設定の人には全部止める（既存の各所と同じ作法）。 */
+@property --coupon-shine-angle {
+  syntax: "<angle>";
+  inherits: false;
+  initial-value: 0deg;
+}
+.coupon-lux::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  border-radius: inherit;
+  padding: 2px; /* 光らせる枠の太さ＝外周の金枠と同じ */
+  pointer-events: none;
+  /* 白金〜金の弧が約80°。残りは透明。 */
+  background-image: conic-gradient(
+    from var(--coupon-shine-angle),
+    rgba(255, 255, 255, 0) 0deg,
+    rgba(255, 246, 214, 0.95) 22deg,
+    rgba(255, 255, 255, 1) 40deg,
+    rgba(255, 226, 150, 0.95) 58deg,
+    rgba(255, 255, 255, 0) 80deg,
+    transparent 80deg 360deg
+  );
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+          mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+          mask-composite: exclude;
+  filter: drop-shadow(0 0 7px rgba(255, 228, 160, 0.9));
+  animation: coupon-lux-ring 7s linear infinite;
+}
+@keyframes coupon-lux-ring {
+  to { --coupon-shine-angle: 360deg; }
+}
+
+/* 見出し帯を横切る斜めの光。帯の中だけ（overflow-hidden の中）に描く。 */
+.coupon-lux-band::after {
+  content: "";
+  position: absolute;
+  top: -60%;
+  bottom: -60%;
+  width: 45%;
+  left: -60%;
+  pointer-events: none;
+  transform: skewX(-18deg);
+  background: linear-gradient(
+    90deg,
+    rgba(255, 255, 255, 0) 0%,
+    rgba(255, 255, 255, 0.16) 35%,
+    rgba(255, 255, 255, 0.5) 50%,
+    rgba(255, 255, 255, 0.16) 65%,
+    rgba(255, 255, 255, 0) 100%
+  );
+  animation: coupon-band-sheen 4.5s ease-in-out infinite;
+}
+/* 0〜45%で帯を左から右へ抜ける→残りは画面外で待機（＝4.5秒に1回走る）。 */
+@keyframes coupon-band-sheen {
+  0%   { left: -60%; }
+  45%  { left: 130%; }
+  100% { left: 130%; }
+}
+
+/* 小さな輝き（帯の中の ✦）。 */
+.coupon-sparkle {
+  animation: coupon-twinkle 2.8s ease-in-out infinite;
+}
+@keyframes coupon-twinkle {
+  0%, 100% { opacity: 0.15; transform: scale(0.75) rotate(0deg); }
+  50%      { opacity: 1;    transform: scale(1.15) rotate(90deg); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .coupon-lux::after,
+  .coupon-lux-band::after {
+    display: none;
+    animation: none;
+  }
+  .coupon-sparkle {
+    animation: none;
+    opacity: 0.7;
+  }
+}

@@ -837,8 +837,10 @@ export default async function SalonPage({
             {/* All therapists（折り畳み式） */}
             <CollapsibleSection theme={theme} className="!mt-1.5 md:!mt-3 rounded-2xl p-6 border shadow-sm" title="在籍セラピスト一覧">
               {/* ★ スマホはカードの左右の余白を 24px → 8px（1/3）に（2026-09-08・カッキーさんの指示）。
-                  ★ 枠の p-6 はそのまま（見出しの位置を変えない）で、中身だけ -mx-4 で外へ広げる。PC は今までどおり。 */}
-              <div className="-mx-4 md:mx-0">
+                  ★ さらに【左だけ】8px → 2px、そのあと 2px → 1px に（2026-09-08 夜・カッキーさんの指示）。
+                     画像が左へ寄り、その差ぶん右の白地（名前・特徴バッジ）が横に伸びる。右の余白 8px は据え置き。
+                  ★ 枠の p-6（24px）はそのまま（見出しの位置を変えない）で、中身だけ負マージンで外へ広げる。PC は今までどおり。 */}
+              <div className="-ml-[23px] -mr-4 md:mx-0">
                 <SalonAllTherapists salonId={Number(id)} limit={4} showSaveButton singleColumn hideSaveOnMobile initialList={allTherapists} />
               </div>
 

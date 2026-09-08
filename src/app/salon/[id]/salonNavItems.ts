@@ -22,7 +22,7 @@ export type SalonNavCounts = {
 export function buildSalonNavItems(salonId: number, c: SalonNavCounts): SalonNavItem[] {
   const id = salonId;
   return [
-    { key: 'schedule', label: '本日出勤', href: `/salon/${id}/schedule`, count: c.onDutyCount },
+    { key: 'schedule', label: '週間スケジュール', href: `/salon/${id}/schedule`, count: c.onDutyCount },
     { key: 'imasugu', label: '今すぐ', href: `/salon/${id}/imasugu` },
     { key: 'diary', label: '写メ日記', href: `/salon/${id}/diary`, count: c.diaryRecentCount },
     { key: 'price', label: '料金', href: `/salon/${id}/price` },
