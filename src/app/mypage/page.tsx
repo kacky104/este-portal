@@ -332,9 +332,9 @@ const MYPAGE_NAV: Array<{ key: TabKey; label: string; group?: string; parent?: T
   { key: 'banner',    label: '詳細ページバナー',  parent: 'salon' },
   { key: 'popup',     label: 'ポップアップ画像',  parent: 'salon' },
   { key: 'freepage',  label: 'フリーページ',      parent: 'salon' },
-  // ★ フクエスワーク（求人）は「別のサイト」の見出しの下（2026-09-06・カッキーさんの指示）。
+  // ★ フクエスワーク（求人）は「関連サイト」の見出しの下（2026-09-06・カッキーさんの指示）。
   //   ★ すぐ下に媒体連携（フクエスリンク）が続く。
-  { key: 'jobs',      label: 'フクエスワーク（求人）', group: '別のサイト' },
+  { key: 'jobs',      label: 'フクエスワーク（求人）', group: '関連サイト' },
   // ★ 運営事務局はいちばん下。★ group: '' ＝ 見出しを付けずに、ここで区切る
   //   （2026-09-06・カッキーさんの指示で「その他」の見出しは廃止）。
   { key: 'support',   label: '運営事務局（お問い合わせ等）', group: '' },
@@ -357,7 +357,7 @@ const NAV_GROUP_OF: Record<string, string> = (() => {
 // ★★ たたんで開ける見出し（アコーディオン・2026-09-06・カッキーさんの指示）。
 //   ★ 縦に長い見出しはふだん閉じておく。★ ここに足せば増える。
 //   ★ ここに無い見出し（日々の更新・その他）は、いつも開いたまま。
-const NAV_ACCORDION_GROUPS = new Set(['店舗情報', '別のサイト']);
+const NAV_ACCORDION_GROUPS = new Set(['店舗情報', '関連サイト']);
 
 // ★ 見出しごとのまとまり（★ PCサイドバーはこれを上から描く）。
 //   ★ group: '' は「見出しを出さない区切り」。
@@ -371,20 +371,20 @@ const NAV_SECTIONS: Array<{ group: string; keys: TabKey[] }> = (() => {
 })();
 
 // ★★ 大きくピンクの帯にする見出し（2026-09-06・カッキーさんの指示）。
-//   ★ 「日々の更新」「店舗情報」「別のサイト」は同じ見た目にする。★ ここに足せば増える。
-const NAV_BAND_GROUPS = new Set(['日々の更新', '店舗情報', '別のサイト']);
+//   ★ 「日々の更新」「店舗情報」「関連サイト」は同じ見た目にする。★ ここに足せば増える。
+const NAV_BAND_GROUPS = new Set(['日々の更新', '店舗情報', '関連サイト']);
 
 // ══════════════════════════════════════════════════════════════════
 // ★★★ スマホのタブ（2026-09-06 第185便・カッキーさんの指示）
 //
 //   ★ 毎日さわる8つは【開かずに】1タップで出す。★ 2行×4列。
-//   ★ 残りは全部、下の「その他」の中（★ 店舗情報・別のサイトはアコーディオン）。
+//   ★ 残りは全部、下の「その他」の中（★ 店舗情報・関連サイトはアコーディオン）。
 //
 //   ★★★ ここは「置き換え」ではなく【上書き】です。
 //     ★ MOBILE_MAIN にも MOBILE_HIDDEN にも書かれていない画面は
 //       【自動で「その他」に入ります】（MOBILE_OTHER_SECTIONS が差集合で作る）。
 //     ★ だから新しい画面を足して書き忘れても、スマホから消えることはありません。
-//     ★ 第184便より前は手書きの別リストだったため、PCで作った「別のサイト」が
+//     ★ 第184便より前は手書きの別リストだったため、PCで作った「関連サイト」が
 //       スマホに反映されず、「その他」のまま取り残されていました（★ 二重管理の事故）。
 //
 //   ★ 点検は TypeScript が担います（TabKey にない名前は書けない）。
@@ -407,13 +407,13 @@ const MOBILE_HIDDEN: TabKey[] = ['board'];
 const MOBILE_MAIN_KEYS: TabKey[] = MOBILE_MAIN.filter((k) => MYPAGE_NAV.some((n) => n.key === k));
 
 // ★ 「その他」の中身。★ 見出しと並びは PC（NAV_SECTIONS）をそのまま使う（★ 二重管理をしない）。
-//   ★ 「別のサイト」は中の画面が0個でも残す（★ 契約に関係なく出す外部リンクが入っているため）。
+//   ★ 「関連サイト」は中の画面が0個でも残す（★ 契約に関係なく出す外部リンクが入っているため）。
 const MOBILE_OTHER_SECTIONS: Array<{ group: string; keys: TabKey[] }> = NAV_SECTIONS
   .map((sec) => ({
     group: sec.group,
     keys: sec.keys.filter((k) => !MOBILE_MAIN_KEYS.includes(k) && !MOBILE_HIDDEN.includes(k)),
   }))
-  .filter((sec) => sec.keys.length > 0 || sec.group === '別のサイト');
+  .filter((sec) => sec.keys.length > 0 || sec.group === '関連サイト');
 
 // ★ URL の ?tab= に出す値。★ 知らない値が来たら 'salon' に倒す（存在しない画面を作らない）。
 // ★ 'board' は MYPAGE_NAV にも入っているが、外れても ?tab=board が死なないよう明示で足しておく。
@@ -756,7 +756,21 @@ export default function MyPage() {
   //   ★ tabReady が立つまでURLへ書かない（読み取り前の 'salon' で上書きしないため）。
   const [tabReady, setTabReady] = useState(false);
   // ★ スマホで開いているグループ名（null＝どれも開いていない・2026-09-06）。★ PCでは使わない。
-  const [openGroup, setOpenGroup] = useState<string | null>(null);
+  // ★ ここにあった openGroup（スマホ「その他」の開閉）は第216便でドロワーに置き換えて廃止。
+  // ★★★ スマホの左ドロワー（第216便・2026-09-08・カッキーさんの指示）。
+  //   ★ 元の「その他」（店舗情報・関連サイトの折りたたみ＋運営事務局）を、ヘッダー左の三本線から
+  //     左からスライドして出るドロワーへ移した。★ 上の 4×2 のアイコンはそのまま。
+  //   ★ 中身の並びは MOBILE_OTHER_SECTIONS（＝PCの NAV_SECTIONS）をそのまま使う（★ 二重管理をしない）。
+  //   ★ PC（md 以上）では描かない。★ 開いている間は本文のスクロールを止める。
+  const [drawerOpen, setDrawerOpen] = useState(false);
+  useEffect(() => {
+    if (!drawerOpen) return;
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setDrawerOpen(false); };
+    window.addEventListener('keydown', onKey);
+    return () => { document.body.style.overflow = prev; window.removeEventListener('keydown', onKey); };
+  }, [drawerOpen]);
   // ★★ 本文（右側）を1.2倍にするのはPCだけ（2026-09-06・カッキーさんの指示）。
   //   ★ スマホは画面が狭く、拡大すると横にはみ出すため。
   //   ★ CSSの @media ではなく、ここで幅を見て style に直接書く（★ 効かない事故を避ける）。
@@ -2802,7 +2816,28 @@ export default function MyPage() {
       <div ref={pageHeaderRef} className="sticky top-0 z-40 bg-white shadow-sm">
         <header className="border-b border-slate-100">
           <div className="px-4 md:px-6 py-3 flex items-center justify-between">
-            <h1 className="text-base font-black text-slate-800 tracking-wide">マイページ</h1>
+            <div className="flex items-center gap-2.5">
+              {/* ★ スマホだけ: 左ドロワーを開く三本線（第216便）。★ PCは左サイドバーがあるので出さない。
+                  ★ 中の画面を開いているときはピンク（★ いまどこに居るか分かるため）。
+                  ★ バッジは中の合計（★ 運営事務局の未読に、閉じていても気づけるように）。 */}
+              <button
+                type="button"
+                onClick={() => setDrawerOpen(true)}
+                aria-label="メニューを開く"
+                aria-expanded={drawerOpen}
+                className={`md:hidden relative -ml-1 p-1 transition-colors ${mobileOtherHere ? 'text-pink-500' : 'text-slate-500'}`}
+              >
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" aria-hidden>
+                  <path d="M4 6h16M4 12h16M4 18h16" />
+                </svg>
+                {mobileOtherBadge > 0 && (
+                  <span className="absolute -top-0.5 -right-0.5 inline-flex items-center justify-center min-w-[16px] h-[16px] px-1 rounded-none bg-pink-500 text-white text-[9px] font-black leading-none">
+                    {mobileOtherBadge}
+                  </span>
+                )}
+              </button>
+              <h1 className="text-base font-black text-slate-800 tracking-wide">マイページ</h1>
+            </div>
             <div className="flex items-center gap-4">
               {/* 予約ボードへの近道（2026-08-14 追加）。営業中いちばん使うタブなのでヘッダーに常設し、
                   他のリンク（slate-400）と違いピンク太字で目立たせる。 */}
@@ -2884,7 +2919,7 @@ export default function MyPage() {
 
           {/* ══ スマホ（2026-09-06 第185便・カッキーさんの指示）══
               ★ 毎日さわる8つを 2行×4列 で【直に】出す。★ 開かずに1タップ。
-              ★ 残りは全部いちばん下の「その他」の中（★ 店舗情報・別のサイトはアコーディオン）。
+              ★ 残りは全部いちばん下の「その他」の中（★ 店舗情報・関連サイトはアコーディオン）。
               ★ 並びの元は MOBILE_MAIN。★ 書かれていない画面は自動で「その他」に入る。 */}
           <div className="md:hidden">
             {/* ★ 4列×2行。★ すきま(gap-px)に薄い線が見えるよう、下地を slate-100 にしている。 */}
@@ -2897,7 +2932,7 @@ export default function MyPage() {
                 return (
                   <button
                     key={k}
-                    onClick={() => { goTab(k); setOpenGroup(null); }}
+                    onClick={() => goTab(k)}
                     aria-pressed={selected}
                     className={`relative flex flex-col items-center justify-center gap-1 px-1 py-2.5 bg-white border-b-2 text-[11px] font-bold leading-none transition-colors ${
                       selected ? 'border-b-pink-500 text-pink-600' : 'border-b-transparent text-slate-400'
@@ -2923,56 +2958,56 @@ export default function MyPage() {
               })}
             </div>
 
-            {/* ★ 「その他」は8つの【下に全幅】（2026-09-06・カッキーさんの指示）。 */}
-            <button
-              type="button"
-              onClick={() => setOpenGroup(openGroup === 'その他' ? null : 'その他')}
-              aria-expanded={openGroup === 'その他'}
-              className={`w-full inline-flex items-center justify-center gap-1.5 px-4 py-2.5 border-t border-slate-100 text-[12px] font-bold transition-colors ${
-                mobileOtherHere || openGroup === 'その他'
-                  ? 'bg-pink-50 text-pink-600'
-                  : 'bg-white text-slate-400'
-              }`}
-            >
-              その他
-              {mobileOtherBadge > 0 && (
-                <span className="inline-flex items-center justify-center min-w-[16px] h-[16px] px-1 rounded-none bg-pink-500 text-white text-[9px] font-black leading-none">
-                  {mobileOtherBadge}
-                </span>
-              )}
-              <svg
-                width="14" height="14" viewBox="0 0 24 24" fill="none"
-                stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"
-                className={`flex-shrink-0 transition-transform duration-200 ${openGroup === 'その他' ? 'rotate-180' : ''}`}
-                aria-hidden
-              >
-                <path d="M6 9l6 6 6-6" />
-              </svg>
-            </button>
+            {/* ★ ここにあった「その他」（折りたたみ）は 2026-09-08 に左ドロワーへ移した（第216便）。 */}
+          </div>
 
-            {openGroup === 'その他' && (
-              <nav aria-label="その他" className="border-t border-pink-100 bg-pink-50/40 pb-2">
+          {/* ══ スマホの左ドロワー（第216便・2026-09-08）══
+              ★ ヘッダー左の三本線で開く。★ 背面（黒の半透明）をタップ／×／Esc／項目を押す、で閉じる。
+              ★ 中身は「その他」に入っていたものと同じ（店舗情報・関連サイト・運営事務局）。
+              ★ 見出しはPCと同じピンクの帯だが、ドロワーの中では【たたまない】（★ 開いてすぐ全部見える）。
+              ★ 閉じているときは描かない（★ hidden ではなく描かない）。 */}
+          {drawerOpen && (
+            <div className="md:hidden fixed inset-0 z-50" role="dialog" aria-modal="true" aria-label="メニュー">
+              <button
+                type="button"
+                aria-label="メニューを閉じる"
+                onClick={() => setDrawerOpen(false)}
+                className="absolute inset-0 bg-black/40"
+              />
+              <nav
+                aria-label="その他のメニュー"
+                className="absolute inset-y-0 left-0 w-[280px] max-w-[85vw] bg-white shadow-2xl overflow-y-auto overscroll-contain pb-8"
+              >
+                <div className="flex items-center justify-between px-4 py-3 border-b border-slate-100">
+                  <span className="text-sm font-black text-slate-700">メニュー</span>
+                  <button
+                    type="button"
+                    onClick={() => setDrawerOpen(false)}
+                    aria-label="閉じる"
+                    className="p-1 text-slate-400 hover:text-slate-600"
+                  >
+                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" aria-hidden>
+                      <path d="M6 6l12 12M18 6L6 18" />
+                    </svg>
+                  </button>
+                </div>
                 {MOBILE_OTHER_SECTIONS.map((sec) => {
                   const keys = sec.keys.filter(navVisible);
-                  const isSites = sec.group === '別のサイト';
+                  const isSites = sec.group === '関連サイト';
                   const withMedia = isSites && mediaVisible;
-                  // ★ 「別のサイト」は中の画面が0個でも残す（★ 全店舗に出す外部リンクが入っているため）。
+                  // ★ 「関連サイト」は中の画面が0個でも残す（★ 全店舗に出す外部リンクが入っているため）。
                   if (keys.length === 0 && !isSites) return null;
-                  const open = navGroupIsOpen(sec.group);
                   return (
                     <div key={sec.group || '(見出しなし)'} className="contents">
-                      {/* ★ 店舗情報・別のサイトはたためる帯（PCと同じ navBandButton の小さい版）。
-                          ★ 見出しの無いまとまり（運営事務局）は、そのまま1行だけ出す。 */}
-                      {sec.group && (
-                        NAV_ACCORDION_GROUPS.has(sec.group)
-                          ? navBandButton(sec.group, true)
-                          : (
-                            <div className="px-4 pt-3 pb-1 font-bold tracking-wider text-[12px] text-slate-400">
-                              {sec.group}
-                            </div>
-                          )
+                      {sec.group ? (
+                        <div className="mt-2 mb-1 px-4 py-1.5 font-bold tracking-wider text-[13px] text-white bg-pink-500">
+                          {sec.group}
+                        </div>
+                      ) : (
+                        // ★ 見出しの無いまとまり（運営事務局）は、区切り線の下に少し間を空ける（2026-09-08・カッキーさんの指示）。
+                        <div className="mt-6 mb-2 border-t border-slate-100" />
                       )}
-                      {open && keys.map((key) => {
+                      {keys.map((key) => {
                         const n = MYPAGE_NAV.find((x) => x.key === key);
                         if (!n) return null;
                         const selected = activeTab === key;
@@ -2980,7 +3015,7 @@ export default function MyPage() {
                         return (
                           <button
                             key={key}
-                            onClick={() => { goTab(key); setOpenGroup(null); }}
+                            onClick={() => { goTab(key); setDrawerOpen(false); }}
                             aria-pressed={selected}
                             className={`inline-flex w-full items-center justify-start gap-2 border-0 border-l-4 px-4 py-2.5 text-[13px] font-bold transition-colors ${
                               selected
@@ -2998,17 +3033,17 @@ export default function MyPage() {
                           </button>
                         );
                       })}
-                      {/* ★ 外部リンクは「別のサイト」の中。★ 並びはPCと同じ（★ 変えるときは両方）。 */}
-                      {open && withMedia && renderMediaLink(false)}
-                      {open && isSites && renderFukuxLink(false)}
-                      {open && isSites && renderCrmSoon(false)}
-                      {open && isSites && renderHpLink(false)}
+                      {/* ★ 外部リンクは「関連サイト」の中。★ 並びはPCと同じ（★ 変えるときは両方）。 */}
+                      {withMedia && renderMediaLink(false)}
+                      {isSites && renderFukuxLink(false)}
+                      {isSites && renderCrmSoon(false)}
+                      {isSites && renderHpLink(false)}
                     </div>
                   );
                 })}
               </nav>
-            )}
-          </div>
+            </div>
+          )}
 
           {/* ══ PC（見出しのまとまりごとに、上から並べる）══
               ★ 並びの正は MYPAGE_NAV ただ1つ（★ ここでは順番を作らない）。
@@ -3017,12 +3052,12 @@ export default function MyPage() {
             {NAV_SECTIONS.map((sec) => {
               // 求人はフクエスワーク掲載（jobs_enabled）契約店のみ表示。
               const keys = sec.keys.filter(navVisible);
-              // ★ 「別のサイト」にはフクエスリンク（媒体連携）も入る。★ 出す相手にしか描かない（第54便）。
-              const withMedia = sec.group === '別のサイト' && mediaVisible;
-              // ★★ 「別のサイト」には、契約に関係なく全店舗に出すものが入っている
+              // ★ 「関連サイト」にはフクエスリンク（媒体連携）も入る。★ 出す相手にしか描かない（第54便）。
+              const withMedia = sec.group === '関連サイト' && mediaVisible;
+              // ★★ 「関連サイト」には、契約に関係なく全店舗に出すものが入っている
               //   （フクエスサイト・フクエックス・フクエスCRM）。★ 見出しごと消してはいけない。
-              //   ★ 第184便より前は、求人も媒体連携も無い店舗で「別のサイト」が丸ごと消えていた。
-              const alwaysShown = sec.group === '別のサイト';
+              //   ★ 第184便より前は、求人も媒体連携も無い店舗で「関連サイト」が丸ごと消えていた。
+              const alwaysShown = sec.group === '関連サイト';
               if (keys.length === 0 && !withMedia && !alwaysShown) return null;
               const open = navGroupIsOpen(sec.group);
               return (
@@ -3030,7 +3065,7 @@ export default function MyPage() {
                   {/* ★ NAV_BAND_GROUPS の見出しは大きくピンクの帯（2026-09-06・カッキーさんの指示）。
                       ★ よくさわる場所なので、他の見出しより目に入るようにする。 */}
                   {/* ★ 見出しの無いまとまり（運営事務局）は、上に区切りの横線を引く。
-                      ★ そうしないと、すぐ上の「別のサイト」の中身に見えてしまう（2026-09-06）。 */}
+                      ★ そうしないと、すぐ上の「関連サイト」の中身に見えてしまう（2026-09-06）。 */}
                   {!sec.group && <div className="mt-4 mb-5 border-t border-slate-200" />}
                   {sec.group && (
                     NAV_ACCORDION_GROUPS.has(sec.group) ? (
@@ -3086,12 +3121,12 @@ export default function MyPage() {
                       ★ 新しいタブで開く（2026-08-30・カッキーさんの決定）。 */}
                   {open && withMedia && renderMediaLink(true)}
                   {/* ★ フクエックス（SNS）。★ 媒体連携と違い、契約に関係なく全店舗に出す。 */}
-                  {open && sec.group === '別のサイト' && renderFukuxLink(true)}
-                  {open && sec.group === '別のサイト' && renderCrmSoon(true)}
+                  {open && sec.group === '関連サイト' && renderFukuxLink(true)}
+                  {open && sec.group === '関連サイト' && renderCrmSoon(true)}
                   {/* ★★ フクエスサイト（公式HP）。★ 契約に関係なく全店舗に出す（第184便）。
                       ★ 中身（申し込み受付中／制作中／公式HP）は hpNav が決める。
                       ★ 位置は【いちばん下】（2026-09-06・カッキーさんの指示でCRMの下へ）。 */}
-                  {open && sec.group === '別のサイト' && renderHpLink(true)}
+                  {open && sec.group === '関連サイト' && renderHpLink(true)}
                 </div>
               );
             })}
@@ -4075,7 +4110,7 @@ export default function MyPage() {
                 ★ ボタンはセラピスト一覧のすぐ上・右詰めへ移した（renderAvailableActions）。 */}
             <div>
               <h2 className="text-sm font-black text-slate-700 mb-1">今すぐ対応可能なセラピスト</h2>
-              <p className="text-[11px] text-slate-400">出勤中のセラピストに「今すぐ」設定。30分後に自動解除されますが、この画面上ではリロードするまでチェックは残ります。</p>
+              <p className="text-[11px] text-slate-400">「今すぐ」設定は、30分後に自動解除。この画面上ではリロードするまでチェックは残ります。</p>
             </div>
             {(() => {
               // 「今すぐ」判定は営業日基準（深夜0〜6時は前日のスケジュールを参照）
@@ -4104,7 +4139,7 @@ export default function MyPage() {
                     <p className="text-[11px] text-sky-700 bg-sky-50 border border-sky-100 rounded-none px-3 py-2 leading-relaxed">
                       {/* ★ 文面は2026-09-06 第185便でカッキーさんが短くしたもの。
                           ★ 改行（br）と太字（strong）はやめ、1つの続き文にした。 */}
-                      「駅ちか連動中（即ヒメ）」のセラピストは、フクエスでも「今すぐ」として表示。この枠はこちらの上限には含まれません。チェックはこれまでどおり使用可能。表示をやめるときは駅ちか側で即ヒメを解除（最大15分ほどで消去）。
+                      「駅ちか連動中（即ヒメ）」は、フクエスでも「今すぐ」として表示。チェックはこれまでどおり使用可能。表示をやめるときは駅ちか側で即ヒメを解除（最大15分ほどで消去）。
                     </p>
                   )}
                   {/* ★★ リロード・保存はセラピスト一覧の【すぐ上・右詰め】

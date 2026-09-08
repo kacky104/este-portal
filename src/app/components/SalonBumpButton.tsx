@@ -114,7 +114,7 @@ export function SalonBumpButton({ salonId }: { salonId: number }) {
       {/* ★ 説明文はボタンの下（2026-09-06・カッキーさんの指示）。
           ★ 1文目だけ常に見せ、続きと注意書きは押して開く（既定は閉じる）。 */}
       <p className="text-xs text-slate-500 leading-relaxed text-center">
-        ボタンを押すと、TOP・地域ページの店舗カード一覧であなたのお店が<span className="font-bold text-pink-600">先頭に表示</span>されます。
+        TOP・地域ページの店舗カード一覧でお店が<span className="font-bold text-pink-600">先頭に表示</span>されます。
         {' '}
         <button
           type="button"
