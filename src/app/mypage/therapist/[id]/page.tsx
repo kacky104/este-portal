@@ -1063,23 +1063,24 @@ export default function TherapistEditPage() {
           ★ 「マイページに戻る」も未保存なら聞く（confirmLeave・第173便）。
           ★ main の下端に pb-24 を足してあるので、いちばん下のカードがバーに隠れない。 */}
       <div className="fixed bottom-0 inset-x-0 z-40 bg-white/95 backdrop-blur border-t border-slate-100 shadow-[0_-4px_12px_rgba(0,0,0,0.04)]">
-        {/* ★ 保存を【中央・大きく】（2026-09-08 昼・カッキーさんの指示）。
-            ★ 「マイページに戻る」は左端に小さく残す（★ 保存より目立たせない）。 */}
-        <div className="max-w-2xl mx-auto px-4 py-3 relative flex justify-center items-center">
+        {/* ★ 「← 戻る」と「保存する」を横に並べる（2026-09-08 昼・カッキーさんの指示）。
+            ★ 前の形（戻るを absolute で左端）はスマホで保存ボタンと重なった。
+            ★ flex で並べて、保存が残りの幅を取る（flex-1）。★ 「マイページに戻る」は長いので「戻る」。 */}
+        <div className="max-w-2xl mx-auto px-4 py-3 flex items-center gap-3">
           <Link
             href="/mypage"
             onClick={confirmLeave}
-            className="absolute left-4 text-xs font-bold text-slate-400 hover:text-pink-500 transition-colors"
+            className="flex-none px-4 py-3 rounded-2xl border border-slate-200 text-slate-500 text-sm font-bold hover:border-pink-300 hover:text-pink-500 transition-colors whitespace-nowrap"
           >
-            ← マイページに戻る
+            ← 戻る
           </Link>
           <button
             type="button"
             onClick={handleSave}
             disabled={saving}
-            className="w-full max-w-xs px-8 py-3 rounded-2xl bg-gradient-to-r from-pink-500 to-fuchsia-500 text-white font-black text-base shadow-md disabled:opacity-50"
+            className="flex-1 px-8 py-3 rounded-2xl bg-gradient-to-r from-pink-500 to-fuchsia-500 text-white font-black text-base shadow-md disabled:opacity-50"
           >
-            {saving ? '保存中...' : '保存'}
+            {saving ? '保存中...' : '保存する'}
           </button>
         </div>
       </div>
