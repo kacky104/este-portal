@@ -392,7 +392,7 @@ export function JobFields({
       <div>
         <Label required>仕事内容</Label>
         <textarea
-          className={`${inputClass} min-h-[120px] resize-y`}
+          className={`${inputClass} min-h-[360px] resize-y`}
           placeholder="お仕事の内容・1日の流れ・お店の雰囲気など"
           value={value.description}
           onChange={(e) => onChange({ description: e.target.value })}

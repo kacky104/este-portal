@@ -133,11 +133,13 @@ export function sanitizeGallery(raw: unknown): JobGalleryItem[] {
 }
 
 // ── 在籍セラピストの声（salon_jobs.therapist_voices jsonb DEFAULT '[]'） ──
-// 各要素 { rating(1-5整数), ageGroup(固定選択肢), comment(200字まで) }。最大3件。
+// 各要素 { rating(1-5整数), ageGroup(固定選択肢), comment(MAX_VOICE_COMMENT_LEN 字まで) }。最大3件。
 // 店側がインタビュー形式で入力する自薦コメント。求職者の参考情報として求人詳細に表示する。
 // ※Googleの self-serving review 規約に抵触するため JSON-LD には一切載せない（表示のみ）。
 export const MAX_THERAPIST_VOICES = 3;
-export const MAX_VOICE_COMMENT_LEN = 200;
+/** 在籍セラピストの声のコメント上限（2026-09-09・カッキーさんの指示で 200 → 300）。
+ *  ★ 画面の説明・カウンター・切り詰めは全部この定数を見ている。★ ここ1か所で変わる。 */
+export const MAX_VOICE_COMMENT_LEN = 300;
 // 年代の固定選択肢（select の唯一のソース。表記ゆれ・不正値の混入を防ぐホワイトリスト）。
 export const AGE_GROUPS = ['10代', '20代前半', '20代後半', '30代前半', '30代後半', '40代以上'] as const;
 export type AgeGroup = (typeof AGE_GROUPS)[number];
@@ -150,7 +152,7 @@ export function isValidAgeGroup(v: unknown): v is AgeGroup {
 }
 
 // DBから読んだ therapist_voices を表示用に正規化（配列化・rating 1-5整数クランプ・ageGroup ホワイトリスト・
-// comment 200字クランプ・最大3件）。sanitizeGallery と同じ防御的方針。
+// comment は MAX_VOICE_COMMENT_LEN 字クランプ・最大3件）。sanitizeGallery と同じ防御的方針。
 // ageGroup 不正 or comment 空 のエントリは除外（表示価値がないため）。サーバー validate と同一規則。
 export function sanitizeVoices(raw: unknown): TherapistVoice[] {
   if (!Array.isArray(raw)) return [];

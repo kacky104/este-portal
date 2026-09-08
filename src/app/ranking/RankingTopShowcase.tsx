@@ -42,6 +42,7 @@ export default function RankingTopShowcase({
   data,
   theme,
   variant = 'overall',
+  medalWallpaperUrl = null,
 }: {
   rank: number;
   salonId: number;
@@ -53,6 +54,9 @@ export default function RankingTopShowcase({
   data: ShowcaseSalonData;
   theme: SalonTheme;
   variant?: 'overall' | 'salon';
+  /** ★ 1〜10位の地に敷くテーマ壁紙（1位=gold / 2位=silver / 3位=yellow / 4〜6位=purple / 7〜10位=green）。
+   *  ★ どれを渡すかは呼ぶ側（RankingTabs）が決める。★ 未設定（null）なら白のまま。 */
+  medalWallpaperUrl?: string | null;
 }) {
   const count = variant === 'salon'
     ? (rank <= 3 ? 8 : rank <= 10 ? 4 : 0)
@@ -90,6 +94,20 @@ export default function RankingTopShowcase({
     : 'linear-gradient(135deg,#E5E7EB,#CBD5E1)';
   const darkTheme = theme.key === 'black';
   const innerBg = darkTheme ? theme.card : '#ffffff';
+  // ★★ 1〜10位の地は【順位ごとのテーマ壁紙】（2026-09-09・カッキーさんの指示。セラピストランキングと同じ）。
+  //   1位=ゴールド／2位=シルバー／3位=イエロー／4〜6位=パープル／7〜10位=グリーン。
+  //   ★ そのまま敷くと店名・キャッチが読めないので、白を88%重ねて薄い地にする
+  //     （★ 店舗詳細やランキング背景と同じ「壁紙＋不透明オーバーレイ」の作法）。
+  //   ★ 11位以降・ブラックテーマ・壁紙が未設定のときは、今までどおり白。
+  const innerBgStyle: React.CSSProperties =
+    rank <= 10 && !darkTheme && medalWallpaperUrl
+      ? {
+          backgroundColor: '#ffffff',
+          backgroundImage: `linear-gradient(rgba(255,255,255,0.88), rgba(255,255,255,0.88)), url(${medalWallpaperUrl})`,
+          backgroundSize: 'cover',
+          backgroundPosition: 'center',
+        }
+      : { background: innerBg };
   const nameColor = darkTheme ? theme.heading : '#334155';
   const metaColor = darkTheme ? theme.body : '#64748b';
   const catchColor = darkTheme
@@ -107,7 +125,7 @@ export default function RankingTopShowcase({
 
   return (
     <div className="mb-5 p-[2.5px] shadow-md" style={{ background: frameBg }}>
-      <div className="p-1" style={{ background: innerBg }}>
+      <div className="p-1" style={innerBgStyle}>
         {/* ヘッダー：左に順位バッジ、右に店名（1行オートフィット） */}
         <div className="flex items-center gap-2 mb-2">
           <span className="flex-shrink-0 w-14 h-14" aria-label={`第${rank}位`}>

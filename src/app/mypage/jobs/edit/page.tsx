@@ -113,13 +113,32 @@ export default function WorkEditPage() {
             <li>保存すると数秒でフクエスワーク（/jobs）に反映されます。</li>
           </ul>
 
-          <div className="flex justify-end">
+          {/* ★ 保存ボタンは【下に貼り付くバー】へ移した（2026-09-09・カッキーさんの指示）。
+              ★ ここには置かない（★ 二重に置くと、どちらを押したか分からなくなる）。 */}
+        </div>
+      )}
+
+      {/* ── 下に貼り付く保存バー（スクロールしても付いてくる）─────────────
+          ★ main の最後に置いた sticky。★ fixed にしない（main は zoom 1.2 なので、
+            fixed だと位置の基準がずれる）。★ sticky なら中身と同じ座標系のままで貼り付く。
+          ★ 端末の下端（ホームバー）に隠れないよう safe-area ぶんの余白を足す。 */}
+      {!loading && !jobError && (
+        <div className="sticky bottom-0 z-20 -mx-4 md:-mx-6 mt-3">
+          <div
+            className="border-t border-emerald-100 bg-white/95 backdrop-blur px-4 md:px-6 py-3 [padding-bottom:calc(0.75rem+env(safe-area-inset-bottom))] shadow-[0_-6px_16px_-10px_rgba(0,0,0,0.35)]"
+          >
             <button
               onClick={handleSave}
               disabled={saving || salonId == null}
-              className="px-6 py-2.5 text-white font-bold text-[13.5px] shadow-sm disabled:opacity-50 hover:opacity-90 transition-opacity"
+              className="w-full flex items-center justify-center gap-2 px-6 py-3 text-white font-bold text-[15px] shadow-sm disabled:opacity-50 hover:opacity-90 transition-opacity"
               style={{ background: 'linear-gradient(95deg,#10B981,#84CC16)' }}
             >
+              {/* 保存の印（フロッピー）。★ 押す場所だと分かるように文字の左へ。 */}
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+                <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z" />
+                <path d="M17 21v-8H7v8" />
+                <path d="M7 3v5h8" />
+              </svg>
               {saving ? '保存中...' : job ? '求人を更新する' : '求人を作成する'}
             </button>
           </div>

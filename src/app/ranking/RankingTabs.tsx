@@ -242,6 +242,7 @@ export default function RankingTabs({
                     data={showcaseData[s.id] ?? { therapists: [], catchphrase: '', price: '', hours: '', closedDays: '', image: '' }}
                     theme={theme}
                     variant="overall"
+                    medalWallpaperUrl={wallpapers[s.rank === 1 ? 'gold' : s.rank === 2 ? 'silver' : s.rank === 3 ? 'yellow' : s.rank <= 6 ? 'purple' : 'green'] ?? null}
                   />
                 ))
               )}
@@ -324,10 +325,17 @@ export default function RankingTabs({
                       [3, 10, 'lg:grid lg:grid-cols-2 lg:gap-x-3.5 lg:items-start'],
                       [10, 20, 'lg:grid lg:grid-cols-3 lg:gap-x-3.5 lg:items-start'],
                       [20, 30, 'lg:grid lg:grid-cols-3 lg:gap-x-3.5 lg:items-start'],
-                      [30, 40, 'lg:grid lg:grid-cols-2 lg:gap-x-3.5 lg:items-start'],
+                      // ★★ 31〜40位は3列（2026-09-09・カッキーさんの指示）。
+                      //   ★ 2列だと1枚あたりの幅が広く、21〜30位（3列）より【下の順位の方が大きい】
+                      //     という逆転が起きていた。★ 右側に空白も残っていた。
+                      //   ★ 3列にすると 1枚 ≒ 373px・高さ ≒ 70px で、21〜30位（≒93px）より確実に小さくなる。
+                      [30, 40, 'lg:grid lg:grid-cols-3 lg:gap-x-3.5 lg:items-start'],
                     ] as const).map(([from, to, gridCls]) => {
                       const group = therapistRanking.slice(0, 40).slice(from, to);
                       if (group.length === 0) return null;
+                      // ★ 1〜10位の地に敷く壁紙（2026-09-09・カッキーさん）。
+                      //   1位=ゴールド / 2位=シルバー / 3位=イエロー / 4〜6位=パープル / 7〜10位=グリーン。
+                      //   ★ 11位以降はこの色を渡しても中で使われない（白のまま）。★ 未登録の色は null＝白のまま。
                       const cards = group.map((t) => (
                         <RankingTherapistShowcase
                           key={t.id}
@@ -355,6 +363,7 @@ export default function RankingTabs({
                           todayEnd={t.todayEnd}
                           prevRank={prevRanks.therapist[String(t.id)]}
                           theme={theme}
+                          medalWallpaperUrl={wallpapers[t.rank === 1 ? 'gold' : t.rank === 2 ? 'silver' : t.rank === 3 ? 'yellow' : t.rank <= 6 ? 'purple' : 'green'] ?? null}
                         />
                       ));
                       // 1〜3位はラッパーなし（従来どおり縦積み・lgでは写真だけ細くなる）

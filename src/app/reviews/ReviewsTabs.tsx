@@ -16,6 +16,7 @@ import { AdBanner } from '@/app/components/AdBanner';
 import type { AdBanner as AdBannerData } from '@/app/lib/adBanners';
 import { SiteNoticeBanner } from '@/app/components/SiteNoticeBanner';
 import { getTheme, breadcrumbCurrentColor, type SalonTheme } from '@/app/lib/themes';
+import { HALL_OF_FAME_MIN } from '@/app/lib/reviews';
 import type { ApprovedReview, TherapistReviewRankItem } from '@/app/lib/reviews';
 import { ReviewList } from '@/app/components/ReviewList';
 import { PaginatedReviewList } from '@/app/components/PaginatedReviewList';
@@ -24,8 +25,10 @@ import { SiteFooter } from '@/app/components/SiteFooter';
 // /reviews のタブ（新着 / セラピスト / 殿堂入り）。/ranking の RankingTabs と同方式で、
 // タブごとにテーマ（壁紙・配色）を切り替えるため、ページ全体（ヘッダー〜フッター）をここに集約。
 // - 新着：イエローテーマ。全店舗の承認済み口コミを新着順（20件/ページ）。
-// - セラピスト：シルバーテーマ。口コミ50件以下を件数の多い順（TOP50人・同数は総合平均が高い順）。
-// - 殿堂入り：ブラックテーマ（黒基調＋金アクセント）。口コミ51件以上のセラピスト（件数の多い順）。
+// - セラピスト：シルバーテーマ。殿堂入りに届かない件数を多い順（TOP50人・同数は総合平均が高い順）。
+// - 殿堂入り：ブラックテーマ（黒基調＋金アクセント）。口コミ HALL_OF_FAME_MIN 件以上（件数の多い順）。
+//   ★★ 本数は src/app/lib/reviews.ts の HALL_OF_FAME_MIN ただ1つが正（2026-09-09・51→21）。
+//     ★ 画面の文言もそこから作る。★ ここに数字を直に書かない。
 // タブ状態は URL ハッシュに保存し、リロード時に復元（ISR を壊さないようクライアント側のみ）。
 const TAB_THEME = { new: 'yellow', therapist: 'silver', hall: 'black' } as const;
 type TabKey = keyof typeof TAB_THEME;
@@ -303,17 +306,17 @@ export default function ReviewsTabs({
             </div>
           )}
           <div className={`mx-auto mt-4 h-px w-24 bg-gradient-to-r from-transparent to-transparent ${head.dividerClass}`} />
-          {/* 説明文：タブ連動で切り替え（新着=サイト紹介／セラピスト=50件までのランキング／殿堂入り=51件以上）。
+          {/* 説明文：タブ連動で切り替え（新着=サイト紹介／セラピスト=殿堂入り未満／殿堂入り=HALL_OF_FAME_MIN 以上）。
               いずれもスマホ・PCとも2行に収まる位置で改行。 */}
           <p className="mx-auto mt-4 max-w-md text-xs sm:text-sm leading-relaxed" style={{ color: theme.body }}>
             {tab === 'new' && (
               <>福岡のメンズエステ口コミサイト『フクエス』に<br />寄せられた口コミを新着順・ランキングでチェック</>
             )}
             {tab === 'therapist' && (
-              <>口コミ50件までのセラピストを件数の多い順で紹介する<br className="sm:hidden" />口コミセラピストランキングです（51件以上は殿堂入りへ）</>
+              <>口コミ{HALL_OF_FAME_MIN - 1}件までのセラピストを件数の多い順で紹介する<br className="sm:hidden" />口コミセラピストランキングです（{HALL_OF_FAME_MIN}件以上は殿堂入りへ）</>
             )}
             {tab === 'hall' && (
-              <>口コミが51件以上寄せられたセラピストだけが<br className="sm:hidden" />名を連ねる殿堂入りリストです</>
+              <>口コミが{HALL_OF_FAME_MIN}件以上寄せられたセラピストだけが<br className="sm:hidden" />名を連ねる殿堂入りリストです</>
             )}
           </p>
         </div>
@@ -337,7 +340,7 @@ export default function ReviewsTabs({
           )}
         </div>
 
-        {/* ── セラピスト：口コミ数ランキング（50件以下・TOP50人）。シルバーテーマ ── */}
+        {/* ── セラピスト：口コミ数ランキング（殿堂入り未満・TOP50人）。シルバーテーマ ── */}
         <div className={tab === 'therapist' ? '' : 'hidden'}>
           <>
             {ranking.length === 0 ? (
@@ -359,14 +362,14 @@ export default function ReviewsTabs({
           </>
         </div>
 
-        {/* ── 殿堂入り：口コミ51件以上のレジェンド（黒×金の特別カード）。ブラックテーマ ── */}
+        {/* ── 殿堂入り：口コミ HALL_OF_FAME_MIN 件以上のレジェンド（黒×金の特別カード）。ブラックテーマ ── */}
         <div className={tab === 'hall' ? '' : 'hidden'}>
           <>
             {hallOfFame.length === 0 ? (
               <EmptyCard theme={theme}>
                 殿堂入りセラピストはまだいません
                 <br />
-                <span className="text-xs">口コミが51件以上になると殿堂入りします</span>
+                <span className="text-xs">口コミが{HALL_OF_FAME_MIN}件以上になると殿堂入りします</span>
               </EmptyCard>
             ) : (
               <div

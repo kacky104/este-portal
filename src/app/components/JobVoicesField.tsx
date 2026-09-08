@@ -10,7 +10,7 @@ import {
 // 「在籍セラピストの声」入力欄（インタビュー形式・最大3件）。mypage求人フォーム／admin代理編集で共用。
 // JobGalleryField の構成（最大N件・追加・個別削除・↑↓並び替え）を踏襲。画像は扱わずテキストのみ。
 // 各エントリ: ★評価(1-5・クリック選択) / 年代(select・AGE_GROUPS・未選択は保存時にブロック) /
-// コメント(textarea・200字カウンター・二重切り詰め)。
+// コメント(textarea・MAX_VOICE_COMMENT_LEN 字カウンター・二重切り詰め)。
 export function JobVoicesField({
   value,
   onChange,
@@ -130,13 +130,13 @@ export function JobVoicesField({
                 </select>
               </div>
 
-              {/* コメント（200字・カウンター・二重切り詰め） */}
+              {/* コメント（MAX_VOICE_COMMENT_LEN 字・カウンター・二重切り詰め） */}
               <textarea
                 value={v.comment}
                 maxLength={MAX_VOICE_COMMENT_LEN}
                 onChange={(e) => patch(i, { comment: e.target.value.slice(0, MAX_VOICE_COMMENT_LEN) })}
                 placeholder="例）未経験から始めましたが、研修が丁寧で安心して働けています。"
-                className="w-full px-2 py-1.5 rounded-lg border border-slate-200 text-xs bg-white min-h-[64px] resize-y focus:outline-none focus:ring-2 focus:ring-emerald-200"
+                className="w-full px-2 py-1.5 rounded-lg border border-slate-200 text-xs bg-white min-h-[192px] resize-y focus:outline-none focus:ring-2 focus:ring-emerald-200"
               />
               <span className="block text-[10px] text-slate-300 text-right mt-0.5">
                 {v.comment.length}/{MAX_VOICE_COMMENT_LEN}

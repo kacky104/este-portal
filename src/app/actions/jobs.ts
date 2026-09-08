@@ -338,7 +338,7 @@ function validate(input: JobFormInput): { ok: true; clean: CleanJob } | Err {
   // 在籍セラピストの声：各要素 {rating, ageGroup, comment}。防御的に整える（不正エントリは除外）。
   //  - ageGroup が AGE_GROUPS 外（未選択の '' 含む）→ そのエントリを除外
   //  - rating は整数1-5にクランプ（範囲外・非数はクランプ／既定5）
-  //  - comment は200字にクランプ（超過分を切り詰め）。空コメントは除外
+  //  - comment は MAX_VOICE_COMMENT_LEN 字にクランプ（超過分を切り詰め）。空コメントは除外
   //  - 先頭から最大3件で切り詰め（超過分はサイレント破棄）
   const rawVoices = Array.isArray(input.therapist_voices) ? input.therapist_voices : [];
   const voices: TherapistVoice[] = [];

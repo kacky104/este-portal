@@ -397,8 +397,15 @@ export async function getLatestReviewsForSalons(
 }
 
 // ── 口コミ数によるセラピストランキング（/reviews のタブ用） ──
-// 「セラピスト」タブ＝口コミ50件以下を件数の多い順（TOP50人まで）／「殿堂入り」タブ＝51件以上。
+// 「セラピスト」タブ＝殿堂入りに届かない件数を多い順（TOP50人まで）／「殿堂入り」タブ＝下の本数以上。
+//
+// ★★★ 殿堂入りの本数は【この定数ただ1つ】が正（2026-09-09・カッキーさんの指示で 51件 → 21件）。
+//   ★ 画面の説明文（/reviews のタブ）もこの定数から作る。★ 数字を直に書かない
+//     （★ 前は本文に「51件」と3か所書いてあり、変えるたびに書き忘れが出る形だった）。
 // 同数のときは総合平均が高い順 → さらに同点なら最新口コミが新しい順。
+/** 殿堂入りに必要な口コミ件数（これ以上で殿堂入り）。 */
+export const HALL_OF_FAME_MIN = 21;
+
 export type TherapistReviewRankItem = {
   id: number;
   rank: number; // 各リスト内の順位（1始まり）
@@ -411,8 +418,8 @@ export type TherapistReviewRankItem = {
 };
 
 export type TherapistReviewRanking = {
-  ranking: TherapistReviewRankItem[]; // 50件以下・TOP50人
-  hallOfFame: TherapistReviewRankItem[]; // 51件以上（殿堂入り）
+  ranking: TherapistReviewRankItem[]; // HALL_OF_FAME_MIN 未満・TOP50人
+  hallOfFame: TherapistReviewRankItem[]; // HALL_OF_FAME_MIN 以上（殿堂入り）
 };
 
 export async function getTherapistReviewRanking(): Promise<TherapistReviewRanking> {
@@ -492,13 +499,14 @@ export async function getTherapistReviewRanking(): Promise<TherapistReviewRankin
       (y.latest > x.latest ? 1 : y.latest < x.latest ? -1 : 0),
   );
 
-  // 5. 50件以下＝通常ランキング（TOP50人まで）／51件以上＝殿堂入り。各リスト内で1位から採番。
+  // 5. 殿堂入り未満＝通常ランキング（TOP50人まで）／HALL_OF_FAME_MIN 以上＝殿堂入り。各リスト内で1位から採番。
+  //    ★ 人数の上限（TOP50人）は口コミの本数とは別の話。★ ここは変えていない。
   const ranking = items
-    .filter((t) => t.reviewCount <= 50)
+    .filter((t) => t.reviewCount < HALL_OF_FAME_MIN)
     .slice(0, 50)
     .map(({ latest: _latest, ...t }, i) => ({ ...t, rank: i + 1 }));
   const hallOfFame = items
-    .filter((t) => t.reviewCount >= 51)
+    .filter((t) => t.reviewCount >= HALL_OF_FAME_MIN)
     .map(({ latest: _latest, ...t }, i) => ({ ...t, rank: i + 1 }));
   return { ranking, hallOfFame };
 }
