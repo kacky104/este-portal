@@ -76,10 +76,12 @@ export default async function TherapistReviewsPage({
   // セラピスト本体（無ければ 404）。
   const { data: tRow, error: tError } = await supabase
     .from('therapists')
-    .select('id, name, salon_id')
+    .select('id, name, salon_id, is_active')
     .eq('id', id)
     .single();
   if (tError || !tRow) notFound();
+  // ★ 非公開（is_active=false）は本人ページと同じく404（2026-09-08・第216便の方針）。
+  if (tRow.is_active === false) notFound();
 
   const salonId = tRow.salon_id as number;
   const therapistName = (tRow.name as string) ?? '';

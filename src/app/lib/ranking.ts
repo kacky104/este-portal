@@ -410,7 +410,8 @@ export async function fetchOverallShowcaseData(salonIds: number[]): Promise<Reco
   if (salonIds.length === 0) return byId;
   const supabase = createPublicClient();
   const [tRes, sRes, imgRes] = await Promise.all([
-    supabase.from('therapists').select('id, salon_id, name, age, profile_image_url, is_new_face').in('salon_id', salonIds),
+    // ★ 非公開（is_active=false）は出さない（2026-09-08・カッキーさんの指摘。第216便の方針）。★ 本人ページは404なのでリンク切れにもなる。
+    supabase.from('therapists').select('id, salon_id, name, age, profile_image_url, is_new_face').in('salon_id', salonIds).eq('is_active', true),
     supabase.from('salons').select('id, catchphrase, price, hours, closed_days').in('id', salonIds),
     supabase.from('salon_images').select('salon_id, image_url, display_order').in('salon_id', salonIds).order('display_order', { ascending: true }),
   ]);

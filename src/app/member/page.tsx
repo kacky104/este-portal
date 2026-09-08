@@ -69,7 +69,7 @@ export default async function MemberPage() {
           .order('display_order', { ascending: true })
       : Promise.resolve({ data: [] as Record<string, unknown>[] }),
     recentTherapistIds.length
-      ? supabase.from('therapists').select('id, name, profile_image_url, salon_id').in('id', recentTherapistIds)
+      ? supabase.from('therapists').select('id, name, profile_image_url, salon_id').eq('is_active', true).in('id', recentTherapistIds)
       : Promise.resolve({ data: [] as Record<string, unknown>[] }),
   ]);
 

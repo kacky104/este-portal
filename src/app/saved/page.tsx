@@ -101,7 +101,7 @@ export default function SavedPage() {
         const picked = featCandidates[idx - recCandidates.length];
         const [{ data: salonData }, { data: therapistData }] = await Promise.all([
           supabase.from('salons').select('id, name, area').eq('id', picked.salonId).maybeSingle(),
-          supabase.from('therapists').select('profile_image_url').eq('salon_id', picked.salonId).not('profile_image_url', 'is', null).limit(4),
+          supabase.from('therapists').select('profile_image_url').eq('salon_id', picked.salonId).eq('is_active', true).not('profile_image_url', 'is', null).limit(4), // ★ 非公開（is_active=false）は出さない（2026-09-08・第216便の方針）。
         ]);
         if (!alive) return;
         setPickupBanner({

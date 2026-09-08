@@ -20,7 +20,8 @@ export function ImasuguCountBadge({ salonId, fill, num }: { salonId: number; fil
         const { data } = await supabase
           .from('therapists')
           .select(IMASUGU_COLUMNS)
-          .eq('salon_id', salonId);
+          .eq('salon_id', salonId)
+          .eq('is_active', true); // ★ 非公開（is_active=false）は出さない（2026-09-08・第216便の方針）。
         if (!active) return;
         const now = new Date();
         // オーナー枠 OR キャスト枠の和集合。1人=1行なので二重カウントは起きない。

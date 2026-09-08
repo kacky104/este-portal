@@ -59,7 +59,7 @@ export default async function HistoryPage() {
           .order('display_order', { ascending: true })
       : Promise.resolve({ data: [] as Record<string, unknown>[] }),
     therapistIds.length
-      ? supabase.from('therapists').select('id, name, profile_image_url, salon_id').in('id', therapistIds)
+      ? supabase.from('therapists').select('id, name, profile_image_url, salon_id').eq('is_active', true).in('id', therapistIds)
       : Promise.resolve({ data: [] as Record<string, unknown>[] }),
   ]);
 

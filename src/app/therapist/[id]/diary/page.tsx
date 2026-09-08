@@ -81,7 +81,7 @@ export default async function TherapistDiaryPage({
     { data: tRow, error },
     { data: diaryRows, count },
   ] = await Promise.all([
-    supabase.from('therapists').select('id, name, salon_id, profile_image_url').eq('id', id).single(),
+    supabase.from('therapists').select('id, name, salon_id, profile_image_url, is_active').eq('id', id).single(),
     supabase
       .from('diary_posts')
       .select('id, images, title, created_at', { count: 'exact' })
@@ -90,6 +90,8 @@ export default async function TherapistDiaryPage({
       .range(offset, offset + PAGE_SIZE - 1),
   ]);
   if (error || !tRow) notFound();
+  // ★ 非公開（is_active=false）は本人ページと同じく404（2026-09-08・第216便の方針）。
+  if (tRow.is_active === false) notFound();
 
   const totalPages = Math.max(1, Math.ceil((count ?? 0) / PAGE_SIZE));
 
