@@ -193,10 +193,17 @@ export async function fetchHpPageData(
   // セラピストだけ先に引く。出勤は therapist_id で自店に絞りたいため
   // （therapist_schedules に salon_id が無い。絞らないと全店舗ぶんを取ってしまい、
   //   週間表示で日数が増えたときに PostgREST の既定上限1000行を超えて取りこぼす）。
+  // ★★ 非公開（is_active=false）は公式HPに出さない（第216便・2026-09-08・カッキーさんの指示）。
+  //   ★ salonTherapists.ts のコメントに「公式HPは元から is_active=true で絞っている」とあったが、
+  //     実際にはこの名簿の読み取りだけ絞っていなかった（★ ラビリンス様の /therapist に非公開の
+  //     「ありす」さんが出ていた・12:35）。★ 個別ページ（subpageData）は元から404にしている。
+  //   ★ ここで絞ると、出勤・写メ日記の件数・口コミの件数も非公開の方の分は数えなくなる
+  //     （★ therapistIds を下で使い回しているため）。★ それでよい。
   const therapistRes = await supabase
     .from('therapists')
     .select('id, name, age, profile_image_url, catchphrase, body_type, feature_badges')
-    .eq('salon_id', salonId);
+    .eq('salon_id', salonId)
+    .eq('is_active', true);
   const therapistIds = (therapistRes.data ?? []).map((t) => String(t.id));
 
   const [schedRes, couponRes, newsRes, freeRes, jobRes, diaryCountRes, reviewCountRes] = await Promise.all([

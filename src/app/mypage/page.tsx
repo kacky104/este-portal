@@ -802,16 +802,23 @@ export default function MyPage() {
   // ★★ サイドバーを画面の左に貼り付けるため、共通ヘッダー（マイページ＋告知バナー）の高さを測る。
   //   ★ 告知バナーの有無や文字の折返しで高さが変わるので、決め打ちにしない（2026-09-06）。
   //   ★ 測った値は CSS の --nav-top に渡し、PC（md以上）だけで使う。
-  const pageHeaderRef = useRef<HTMLDivElement | null>(null);
+  //   ★★★ 第216便（2026-09-08）: ref を【コールバック式】にした。
+  //     ★ 元は useEffect(…, []) で1回だけ測っていたが、その時点ではまだ「読み込み中...」の画面で
+  //       ヘッダーが描かれておらず（ref が null）、そのまま二度と測り直さなかった。
+  //       → --nav-top が 0px のまま ＝ サイドバーが top:0 で貼り付き、スクロールすると
+  //         ヘッダーの高さ（約88px）ぶん上へずれて「フクエス」の頭がヘッダーの下に潜っていた。
+  //     ★ コールバック ref なら、ヘッダーの要素が【付いた瞬間】に呼ばれる。★ 外れたら監視も止める。
+  const pageHeaderRoRef = useRef<ResizeObserver | null>(null);
   const [pageHeaderH, setPageHeaderH] = useState(0);
-  useEffect(() => {
-    const el = pageHeaderRef.current;
+  const pageHeaderRef = useCallback((el: HTMLDivElement | null) => {
+    pageHeaderRoRef.current?.disconnect();
+    pageHeaderRoRef.current = null;
     if (!el) return;
     const update = () => setPageHeaderH(el.getBoundingClientRect().height);
     update();
     const ro = new ResizeObserver(update);
     ro.observe(el);
-    return () => ro.disconnect();
+    pageHeaderRoRef.current = ro;
   }, []);
   useEffect(() => {
     if (!tabReady) return;

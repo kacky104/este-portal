@@ -526,7 +526,9 @@ export default function TherapistEditPage() {
   }
 
   return (
-    <div className="min-h-screen bg-pink-50/30">
+    // ★ PC（md 以上）は全体を 1.2 倍で描く（2026-09-08 昼・カッキーさんの指示）。
+    //   ★ zoom はレイアウトごと拡大するので、fixed の保存バーも同じ倍率で付いてくる。★ スマホは等倍のまま。
+    <div className="min-h-screen bg-pink-50/30 md:[zoom:1.2]">
       {toast && (
         <div className="fixed top-4 left-1/2 -translate-x-1/2 z-50 bg-white border border-pink-200 shadow-lg rounded-2xl px-6 py-3 text-sm font-bold text-pink-600">
           {toast}
@@ -644,8 +646,10 @@ export default function TherapistEditPage() {
             )}
           </div>
 
+          {/* ★ 推奨サイズだけ残す（2026-09-08 昼・カッキーさんの指示）。
+              ★ 「1枚目がメイン画像として…」の後半は外した。 */}
           <p className="text-[10px] text-slate-400">
-            推奨：縦長（3:4）1080×1440px／JPEG・PNG・WebP、5MBまで。1枚目がメイン画像として一覧などに表示されます。
+            推奨：縦長（3:4）1080×1440px／JPEG・PNG・WebP、5MBまで。
           </p>
 
           {/* ★ ここにあった保存ボタン（2026-09-06）は 2026-09-08 昼に外した（カッキーさんの指示）。
@@ -656,7 +660,15 @@ export default function TherapistEditPage() {
             ★ 年齢の箱を無くし、スタイルの並びの先頭に年齢を入れただけ。
             ★ 保存の中身は今までと同じ（年齢＝age、T/B/CUP/W/H＝body_type）。 */}
         <div className="bg-white rounded-3xl border border-slate-100 shadow-sm p-5 space-y-3">
-          <h2 className="text-sm font-black text-slate-700">年齢・スタイル</h2>
+          {/* ★ 保存値は見出しの右横に（2026-09-08 昼・カッキーさんの指示）。★ 下に置いていた1行を移しただけ。 */}
+          <div className="flex items-center justify-between gap-2">
+            <h2 className="text-sm font-black text-slate-700">年齢・スタイル</h2>
+            {form.body_type && (
+              <p className="text-[10px] text-slate-400 min-w-0 truncate">
+                保存値: <span className="font-mono text-slate-600">{form.body_type}</span>
+              </p>
+            )}
+          </div>
           <div className="grid grid-cols-6 gap-2">
             {/* 年齢（★ 保存先だけ他と違うので、並びの中でここだけ別に書く） */}
             <div className="flex flex-col items-center gap-0.5">
@@ -692,11 +704,6 @@ export default function TherapistEditPage() {
               </div>
             ))}
           </div>
-          {form.body_type && (
-            <p className="text-[10px] text-slate-400">
-              保存値: <span className="font-mono text-slate-600">{form.body_type}</span>
-            </p>
-          )}
         </div>
 
         {/* AI下書き（第30便）。キャッチ＋詳細プロフィールをまとめて生成してフォームに入れる。 */}
@@ -711,10 +718,9 @@ export default function TherapistEditPage() {
               </span>
             )}
           </div>
+          {/* ★ 文面は 2026-09-08 昼にカッキーさんが短くしたもの。 */}
           <p className="text-[11px] text-violet-900/70 leading-relaxed">
-            登録済みの年齢・サイズ・特徴バッジ（と写真）から、キャッチフレーズと詳細プロフィールの下書きを作ります。
-            <strong className="font-bold">押しただけでは保存されません</strong>ので、
-            内容を確認して手直ししてから保存してください。回数は毎月1日にリセットされます。
+            年齢・サイズ・特徴バッジ（と写真）から、キャッチフレーズと詳細プロフィールを作成。内容を確認後、保存してください。回数は毎月1日にリセットされます。
           </p>
 
           <label className="flex items-center gap-2 text-[11px] font-bold text-violet-900/80 cursor-pointer">
@@ -725,7 +731,7 @@ export default function TherapistEditPage() {
               onChange={(e) => setAiUseImage(e.target.checked)}
               disabled={aiLoading}
             />
-            プロフィール写真も見て書く（外すと文字情報だけで作成します）
+            プロフィール写真も見て書く（写真情報も加えて作成）
           </label>
 
           {/* 素材ゼロ＝止める。無駄に1回消費させないため、押す前に理由を出す。 */}
@@ -814,7 +820,7 @@ export default function TherapistEditPage() {
 
           {/* 設定を促す訴求文：検索・特徴別ページへの露出メリットを明記して設定率を上げる。 */}
           <p className="text-[11px] text-pink-700 bg-pink-50 border border-pink-100 rounded-xl px-3 py-2 leading-relaxed">
-            設定すると「特徴からセラピストを探す」検索や特徴別ページに掲載され、お客様に見つけてもらいやすくなります。
+            設定すると特徴検索・特徴別ページに載り、お客様に見つけてもらいやすくなります。
           </p>
 
           {BADGE_CATEGORY_ORDER.map((cat) => {
@@ -877,8 +883,7 @@ export default function TherapistEditPage() {
         <div className="bg-white rounded-3xl border border-slate-100 shadow-sm p-5 space-y-3">
           <h2 className="text-sm font-black text-slate-700">写メ日記 メール投稿アドレス</h2>
           <p className="text-[11px] text-slate-400 leading-relaxed">
-            更新代行システム（ベンリー等）の「日記転送先」にこのアドレスを登録すると、写メ日記が自動で投稿されます。
-            件名がタイトル、本文が日記、添付画像が写真になります。
+            メールからも写メ日記が投稿できます。件名がタイトル、本文が日記、添付画像が写真です。
           </p>
           {diaryMailAddress ? (
             <div className="flex items-center gap-2">
@@ -900,7 +905,7 @@ export default function TherapistEditPage() {
             <p className="text-[11px] text-slate-400">{diaryMailError || '読み込み中...'}</p>
           )}
           <p className="text-[10px] text-amber-600 bg-amber-50 border border-amber-100 rounded-xl px-3 py-2 leading-relaxed">
-            ※ このアドレスを知っている人は誰でもこのセラピストとして日記を投稿できます。代行業者以外には教えないでください。
+            ※ このアドレスを知っている人は誰でもこのセラピストとして日記を投稿できます。取り扱いにご注意ください。
           </p>
         </div>
 
@@ -925,7 +930,7 @@ export default function TherapistEditPage() {
 
           {/* 媒体ごとの宛先 */}
           <p className="text-[11px] text-slate-400 leading-relaxed">
-            各媒体の管理画面で発行された「日記の投稿用メールアドレス」を貼ってください。空にすると、その媒体へは送りません。
+            各媒体で発行された「日記の投稿用メールアドレス」を貼ってください。空なら送りません。
           </p>
           {forwardError ? (
             <p className="text-[11px] text-rose-600 bg-rose-50 border border-rose-100 rounded-xl px-3 py-2 leading-relaxed">
