@@ -38,35 +38,46 @@ export function SalonMobileNav({ salonName, metaLine1, metaLine2, items, colors 
   const [topPx, setTopPx] = useState(0);
   const [open, setOpen] = useState(false);
 
-  // ★ 共通ヘッダー（sticky）＋告知の帯の下端を測って、小さなバーの top にする。
+  // ★ 共通ヘッダー（sticky）＋告知の帯の【高さ】を足して、小さなバーの top にする。
+  //   ★★ getBoundingClientRect（画面上の位置）ではなく offsetHeight（高さ）で測る（2026-09-08・実機で震えた）。
+  //     実機のブラウザはスクロール中にアドレスバーが伸び縮みし、位置は毎フレーム変わるが高さは変わらない。
+  //     ★ 位置で測っていたときは scroll のたびに top が変わり、バーがガタガタ震えた。
+  //   ★ 帯（SiteNoticeBanner）は後から描かれることがあるので、ResizeObserver で追いかける。
   useEffect(() => {
+    const header = document.querySelector('header');
+    if (!header) return;
+    const banner = header.nextElementSibling as HTMLElement | null;
+    const bannerIsSticky = !!banner && getComputedStyle(banner).position === 'sticky';
     const measure = () => {
-      const header = document.querySelector('header');
-      if (!header) { setTopPx(0); return; }
-      let bottom = header.getBoundingClientRect().bottom;
-      // 帯（SiteNoticeBanner）は header の次の兄弟に居る（sticky）。あれば下端を足す。
-      const next = header.nextElementSibling as HTMLElement | null;
-      if (next && getComputedStyle(next).position === 'sticky') bottom = Math.max(bottom, next.getBoundingClientRect().bottom);
-      setTopPx(Math.max(0, Math.round(bottom)));
+      const h = header.offsetHeight + (bannerIsSticky && banner ? banner.offsetHeight : 0);
+      setTopPx((prev) => (Math.abs(prev - h) < 1 ? prev : Math.round(h)));
     };
     measure();
-    window.addEventListener('resize', measure);
-    window.addEventListener('scroll', measure, { passive: true });
-    return () => { window.removeEventListener('resize', measure); window.removeEventListener('scroll', measure); };
+    const ro = new ResizeObserver(measure);
+    ro.observe(header);
+    if (bannerIsSticky && banner) ro.observe(banner);
+    return () => ro.disconnect();
   }, []);
 
-  // ★ 画面の流れの中の①が、固定ヘッダーの下に隠れたら「貼り付く」。
+  // ★ 画面の流れの中の①（店名＋2行＋三本線）が固定ヘッダーの下に【完全に】隠れたら貼り付く。
+  //   ★★ IntersectionObserver を使う（2026-09-08・実機でページの先頭なのにバーが出ていた）。
+  //     scroll イベントだけだと、画像が読み込まれて①が下へ押し下げられても再判定されず、
+  //     読み込み前の「①が上にある」判定のまま残った。IntersectionObserver は位置が変われば呼ばれる。
+  //   ★ rootMargin の上を -topPx にして「固定ヘッダーの下端」を境目にする。
+  //   ★ 見えなくなったときだけ「上に抜けたか（bottom < 境目）／下にあるか」を見て、上のときだけ貼り付く。
   useEffect(() => {
     const el = anchorRef.current;
-    if (!el) return;
-    const onScroll = () => {
-      const r = el.getBoundingClientRect();
-      setStuck(r.bottom <= topPx + 4);
-    };
-    onScroll();
-    window.addEventListener('scroll', onScroll, { passive: true });
-    window.addEventListener('resize', onScroll);
-    return () => { window.removeEventListener('scroll', onScroll); window.removeEventListener('resize', onScroll); };
+    if (!el || typeof IntersectionObserver === 'undefined') return;
+    const io = new IntersectionObserver(
+      ([entry]) => {
+        if (!entry) return;
+        if (entry.isIntersecting) { setStuck(false); return; }
+        setStuck(entry.boundingClientRect.bottom <= topPx + 1);
+      },
+      { root: null, rootMargin: `-${Math.max(0, topPx)}px 0px 0px 0px`, threshold: 0 },
+    );
+    io.observe(el);
+    return () => io.disconnect();
   }, [topPx]);
 
   // ★ ドロワーを開いている間は本文をスクロールさせない。Esc で閉じる。
