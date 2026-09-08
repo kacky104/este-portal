@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 import { Logo } from '@/app/components/Logo';
 import { createPublicClient } from '@/app/lib/supabase/public';
+import { fillTherapistImages } from '@/app/lib/therapistPlaceholder';
 import { SavedSalonsMenu } from '@/app/components/SavedSalonsMenu';
 import { AccountMenu } from '@/app/components/AccountMenu';
 import { HamburgerMenu } from '@/app/components/HamburgerMenu';
@@ -71,7 +72,7 @@ export const revalidate = 60;
 
 type TherapistRef = { name: string | null; profile_image_url: string | null };
 type DiaryRow = {
-  id: number; images: string[] | null; title: string | null; created_at: string;
+  id: number; images: string[] | null; title: string | null; created_at: string; salon_id: number | null;
   therapists: TherapistRef | TherapistRef[] | null;
   salons: { name: string | null } | { name: string | null }[] | null;
 };
@@ -111,14 +112,14 @@ export default async function DiaryListPage({
   const { data, count } = await supabase
     .from('diary_posts')
     // salons!inner＋is_hidden=false で、非表示サロンの投稿を公開一覧から除外する（多重防御）。
-    .select('id, images, title, created_at, therapists(name, profile_image_url), salons!inner(name)', { count: 'exact' })
+    .select('id, images, title, created_at, salon_id, therapists(name, profile_image_url), salons!inner(name)', { count: 'exact' })
     .eq('salons.is_hidden', false)
     .order('created_at', { ascending: false })
     .range(offset, offset + PAGE_SIZE - 1);
 
   const totalPages = Math.max(1, Math.ceil((count ?? 0) / PAGE_SIZE));
 
-  const diaries = ((data ?? []) as unknown as DiaryRow[]).map((r) => {
+  const diariesRaw = ((data ?? []) as unknown as DiaryRow[]).map((r) => {
     const t = Array.isArray(r.therapists) ? r.therapists[0] : r.therapists;
     const s = Array.isArray(r.salons) ? r.salons[0] : r.salons;
     return {
@@ -126,10 +127,17 @@ export default async function DiaryListPage({
       image: (r.images ?? [])[0] ?? null,
       title: r.title ?? '',
       createdAt: r.created_at,
+      salonId: r.salon_id,
       therapistName: t?.name ?? '',
       therapistImage: t?.profile_image_url ?? null,
       salonName: s?.name ?? '',
     };
+  });
+  // ★ 既定画像（第217便）: 日記の横に出るセラピストの顔。★ 本人 → 店舗 → 運営。
+  const diaries = await fillTherapistImages(supabase, diariesRaw, {
+    salonId: (d) => d.salonId,
+    image: (d) => d.therapistImage,
+    set: (d, url) => ({ ...d, therapistImage: url }),
   });
 
   // ピックアップ枠の挿入位置：スマホ2列×10段＝20枚目の直下（PCでは5段目相当）。件数が20未満なら最後のカード直下。

@@ -6,6 +6,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { createClient } from '@/app/lib/supabase/client';
+import { fillTherapistImages } from '@/app/lib/therapistPlaceholder';
 import { getBusinessDateJST } from '@/lib/dutyStatus';
 // トップページの「出勤中」ブロックと同じカード・同じ判定ロジックを流用（改変しない）
 import { Card, getScheduleStatus, type TherapistItem } from '@/app/components/TherapistScroller';
@@ -102,7 +103,12 @@ export function WorkingTherapists({
         featureBadges:   sanitizeBadges(t.feature_badges),
       }));
 
-      setList(mapped);
+      // ★ 既定画像（第217便）。★ 本人 → 店舗 → 運営。
+      setList(await fillTherapistImages(supabase, mapped, {
+        salonId: (t) => t.salonId,
+        image: (t) => t.profileImageUrl,
+        set: (t, url) => ({ ...t, profileImageUrl: url }),
+      }));
       setLoaded(true);
     })();
   }, [filterSalonIds?.join(','), hasInitial]); // eslint-disable-line react-hooks/exhaustive-deps

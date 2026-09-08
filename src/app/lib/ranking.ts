@@ -6,6 +6,7 @@ import { createPublicClient } from '@/app/lib/supabase/public';
 import { sanitizeBadges } from '@/lib/therapistBadges';
 import { getBusinessDateJST } from '@/lib/dutyStatus';
 import { IMASUGU_COLUMNS } from '@/lib/therapistColumns';
+import { fillTherapistImages } from '@/app/lib/therapistPlaceholder';
 
 export type SalonRankItem = {
   rank: number;
@@ -255,7 +256,13 @@ export async function fetchTherapistWeeklyRanking(limit = 30, week: string = cur
     });
   });
 
-  return scored.map((x, i) => {
+  // ★ 既定画像（第217便）: ランキングのカード。★ 順位が決まった後に当てる（★ 順位には関係しない）。
+  const filled = await fillTherapistImages(supabase, scored, {
+    salonId: (x) => x.salonId,
+    image: (x) => x.profileImageUrl,
+    set: (x, url) => ({ ...x, profileImageUrl: url }),
+  });
+  return filled.map((x, i) => {
     const sch = schedMap.get(x.id);
     return {
       rank: i + 1,
@@ -407,7 +414,13 @@ export async function fetchOverallShowcaseData(salonIds: number[]): Promise<Reco
     supabase.from('salons').select('id, catchphrase, price, hours, closed_days').in('id', salonIds),
     supabase.from('salon_images').select('salon_id, image_url, display_order').in('salon_id', salonIds).order('display_order', { ascending: true }),
   ]);
-  ((tRes.data ?? []) as Array<{ id: number; salon_id: number | null; name: string | null; age: string | null; profile_image_url: string | null; is_new_face: boolean | null }>).forEach((t) => {
+  // ★ 既定画像（第217便）: 総合ランキングの店舗ショーケースの顔。
+  const tRowsFilled = await fillTherapistImages(
+    supabase,
+    (tRes.data ?? []) as Array<{ id: number; salon_id: number | null; name: string | null; age: string | null; profile_image_url: string | null; is_new_face: boolean | null }>,
+    { salonId: (t) => t.salon_id, image: (t) => t.profile_image_url, set: (t, url) => ({ ...t, profile_image_url: url }) },
+  );
+  tRowsFilled.forEach((t) => {
     const sid = t.salon_id != null ? Number(t.salon_id) : null;
     if (sid == null || !byId[sid]) return;
     byId[sid].therapists.push({ id: String(t.id), name: t.name ?? '', age: t.age ?? null, img: t.profile_image_url ?? null, isNew: Boolean(t.is_new_face) });

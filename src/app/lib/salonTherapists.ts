@@ -6,6 +6,7 @@ import type { Therapist } from '@/components/SalonTherapists';
 //   import すると、このサーバー専用モジュール経由でクライアント一式がビルドに巻き込まれ
 //   `supabaseUrl is required` でビルドが落ちる（2026-08-22 実測）。
 import { sortSalonTherapists } from '@/lib/therapistSort';
+import { fillTherapistImages } from '@/app/lib/therapistPlaceholder';
 import { SALON_THERAPIST_COLUMNS } from '@/lib/therapistColumns';
 
 type PublicClient = ReturnType<typeof createPublicClient>;
@@ -123,5 +124,12 @@ export async function fetchSalonTherapists(
     };
   });
 
-  return sortSalonTherapists(mapped);
+  // ★ 既定画像（第217便）は【並べ替えの後】に当てる。
+  //   ★ 並び順は「本人の写真の有無」で決める（★ 既定画像を先に当てると全員「写真あり」になり、
+  //     写真なしを後ろに揃える意図（2026-08-22）が消える）。
+  return fillTherapistImages(supabase, sortSalonTherapists(mapped), {
+    salonId: () => salonId,
+    image: (t) => t.profileImageUrl,
+    set: (t, url) => ({ ...t, profileImageUrl: url }),
+  });
 }

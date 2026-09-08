@@ -10,6 +10,7 @@ import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { createClient } from '@/app/lib/supabase/client';
+import { fillTherapistImages } from '@/app/lib/therapistPlaceholder';
 import { toKana, isRomaji } from 'wanakana';
 
 const sb = createClient();
@@ -58,7 +59,7 @@ async function searchTherapists(kw: string): Promise<TherapistHit[]> {
     console.error(error);
     return [];
   }
-  return (
+  const hits = (
     (data ?? []) as { id: string; name: string | null; profile_image_url: string | null; salon_name: string | null }[]
   ).map((r) => ({
     id: r.id,
@@ -66,6 +67,12 @@ async function searchTherapists(kw: string): Promise<TherapistHit[]> {
     salonName: r.salon_name ?? '',
     imageUrl: r.profile_image_url ?? null,
   }));
+  // ★ 既定画像（第217便）。★ RPC の結果に salon_id が無いので、店舗の既定は飛ばして運営の既定だけ。
+  return fillTherapistImages(sb, hits, {
+    salonId: () => null,
+    image: (h) => h.imageUrl,
+    set: (h, url) => ({ ...h, imageUrl: url }),
+  });
 }
 
 export function HomeSearchBar() {

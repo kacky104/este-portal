@@ -4,6 +4,7 @@ import { isNewFaceActive } from '@/lib/newFace';
 import { sanitizeBadges } from '@/lib/therapistBadges';
 import type { TherapistItem } from '@/app/components/TherapistScroller';
 import { THERAPIST_CARD_COLUMNS } from '@/lib/therapistColumns';
+import { fillTherapistImages } from '@/app/lib/therapistPlaceholder';
 
 type PublicClient = ReturnType<typeof createPublicClient>;
 
@@ -63,7 +64,8 @@ export async function fetchNewFaceTherapists(
     };
   });
 
-  return limited.map((t) => ({
+  // ★ 既定画像（第217便）。★ 本人 → 店舗 → 運営。
+  return fillTherapistImages(supabase, limited.map((t) => ({
     id: String(t.id),
     name: (t.name as string) ?? '',
     salonId: t.salon_id as number,
@@ -83,5 +85,9 @@ export async function fetchNewFaceTherapists(
     isNewFace: Boolean(t.is_new_face),
     newFaceSince: (t.new_face_since as string | null) ?? null,
     featureBadges: sanitizeBadges(t.feature_badges),
-  }));
+  })), {
+    salonId: (x) => x.salonId,
+    image: (x) => x.profileImageUrl,
+    set: (x, url) => ({ ...x, profileImageUrl: url }),
+  });
 }

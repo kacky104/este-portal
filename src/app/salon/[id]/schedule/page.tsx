@@ -7,6 +7,8 @@ import { NotificationBell } from '@/app/components/NotificationBell';
 import { VipLetterIcon } from '@/app/components/VipLetterIcon';
 import { notFound } from "next/navigation";
 import { createPublicClient } from "@/app/lib/supabase/public";
+import { loadTherapistPlaceholders } from '@/app/lib/therapistPlaceholder';
+import { pickWithTable } from '@/lib/therapistPlaceholder';
 import { getTheme, breadcrumbCurrentColor } from "@/app/lib/themes";
 import { getBusinessDateRangeJST, getScheduleWindowStatus } from "@/lib/dutyStatus";
 import { WeeklySchedule, type DaySchedule } from "./WeeklySchedule";
@@ -71,6 +73,8 @@ export default async function SalonSchedulePage({
 
   const therapists = therapistRows ?? [];
   const tMap = new Map(therapists.map(t => [String(t.id), t]));
+  // ★ 既定画像（第217便）: 出勤表の顔。★ 本人 → 店舗 → 運営。
+  const phTable = await loadTherapistPlaceholders(supabase, [Number(id)]);
   const therapistIds = therapists.map(t => t.id);
   const userIds = therapists.map(t => t.user_id).filter((u): u is string => typeof u === 'string' && u !== '');
 
@@ -157,7 +161,7 @@ export default async function SalonSchedulePage({
       id:             String(t.id),
       name:           (t.name as string) ?? '',
       age:            (t.age as string | null) ?? null,
-      imageUrl:       (t.profile_image_url as string | null) ?? null,
+      imageUrl:       pickWithTable((t.profile_image_url as string | null) ?? null, Number(id), phTable),
       startTime:      start,
       endTime:        end,
       isAvailableNow: Boolean(t.is_available_now),

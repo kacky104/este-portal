@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { createClient } from '@/app/lib/supabase/client';
+import { fillTherapistImages } from '@/app/lib/therapistPlaceholder';
 import { getBusinessDateJST } from '@/lib/dutyStatus';
 import { formatBodySizes } from '@/lib/bodyType';
 import { isImasuguLiveRow, imasuguUntilRow } from '@/lib/imasugu';
@@ -92,7 +93,13 @@ export function ImasuguList({
             end: s?.end ?? null,
           };
         });
-        if (active) setList(built);
+        // ★ 既定画像（第217便）。★ 本人 → 店舗 → 運営。
+        const filled = await fillTherapistImages(supabase, built, {
+          salonId: () => salonId,
+          image: (t) => t.imageUrl,
+          set: (t, url) => ({ ...t, imageUrl: url }),
+        });
+        if (active) setList(filled);
       } catch {
         if (active) setList([]);
       }

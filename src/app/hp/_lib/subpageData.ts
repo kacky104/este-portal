@@ -12,6 +12,7 @@
 
 import { createPublicClient } from '@/app/lib/supabase/public';
 import { createServiceClient } from '@/app/lib/supabase/service';
+import { resolveTherapistImage } from '@/app/lib/therapistPlaceholder';
 import { getAllApprovedReviews, getSalonApprovedReviews, type ApprovedReview } from '@/app/lib/reviews';
 
 export const HP_DIARY_PAGE_LIMIT = 36; // 3列×12段ぶん。続きはフクエス本体へ
@@ -148,7 +149,9 @@ export async function fetchHpTherapistDetail(
     ? (data.profile_images as unknown[]).map((u) => String(u ?? '')).filter((u) => u !== '')
     : [];
   const main = (data.profile_image_url as string | null) ?? null;
-  const images = extra.length > 0 ? extra : main ? [main] : [];
+  // ★ 1枚も無ければ既定画像を1枚（第217便）。★ 本人 → 店舗 → 運営。
+  const fallback = extra.length === 0 && !main ? await resolveTherapistImage(supabase, null, salonId) : null;
+  const images = extra.length > 0 ? extra : main ? [main] : fallback ? [fallback] : [];
   return {
     profileText: ((data.profile_text as string | null) ?? '').trim(),
     images,

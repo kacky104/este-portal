@@ -1,4 +1,5 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
+import { fillTherapistImages } from '@/app/lib/therapistPlaceholder';
 
 // 写メ日記フィードの取得・整形を server/client で共有する（表示内容を完全に一致させるため唯一のソース）。
 
@@ -59,5 +60,10 @@ export async function fetchDiaryFeed(
   const { data } = opts.fromSalon
     ? await query.eq('salon_id', opts.salonId)
     : await query.eq('therapist_id', opts.therapistId);
-  return mapDiaryRows(data);
+  // ★ 既定画像（第217便）: 日記の横に出るセラピストの顔。★ 本人 → 店舗 → 運営。
+  return fillTherapistImages(supabase, mapDiaryRows(data), {
+    salonId: (e) => e.salonId,
+    image: (e) => e.therapistImage,
+    set: (e, url) => ({ ...e, therapistImage: url }),
+  });
 }

@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { createClient } from '@/app/lib/supabase/client';
+import { fillTherapistImages } from '@/app/lib/therapistPlaceholder';
 import { getBusinessDateJST, getScheduleWindowStatus } from '@/lib/dutyStatus';
 import { isNewFaceActive } from '@/lib/newFace';
 import { NewBadge } from '@/components/NewBadge';
@@ -243,7 +244,12 @@ export function TherapistScroller({ showAge = false, filterSalonIds, workingHref
         onDuty.filter(t => !isAvailableNowActive(t)),
         thirtyMinSeed(),
       ).sort((a, b) => (photo(a) - photo(b)) || (startMinutes(a) - startMinutes(b)));
-      setList([...imasugu, ...rest]);
+      // ★ 既定画像（第217便）は【並べ替えの後】に当てる（★ 並びは本人の写真の有無で決める）。
+      setList(await fillTherapistImages(supabase, [...imasugu, ...rest], {
+        salonId: (t) => t.salonId,
+        image: (t) => t.profileImageUrl,
+        set: (t, url) => ({ ...t, profileImageUrl: url }),
+      }));
     })();
   }, [filterSalonIds?.join(',')]); // eslint-disable-line react-hooks/exhaustive-deps
 

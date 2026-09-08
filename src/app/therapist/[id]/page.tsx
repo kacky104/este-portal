@@ -7,6 +7,8 @@ import { truncatePlain } from '@/app/lib/truncatePlain';
 import { toJsonLdString, buildBreadcrumbJsonLd } from '@/app/lib/jsonLd';
 import { notFound } from 'next/navigation';
 import { createPublicClient } from '@/app/lib/supabase/public';
+import { loadTherapistPlaceholders } from '@/app/lib/therapistPlaceholder';
+import { pickWithTable } from '@/lib/therapistPlaceholder';
 import PageViewLogger from '@/app/components/PageViewLogger';
 import { FromCrumb } from './FromCrumb';
 import { getBusinessDateRangeJST } from '@/lib/dutyStatus';
@@ -238,13 +240,20 @@ export default async function TherapistPublicPage({
       }
     : null;
 
+  // ★ 既定画像（第217便）: 本人ページの写真と、同じ店の子の顔。★ 本人 → 店舗 → 運営。
+  const phTable = await loadTherapistPlaceholders(supabase, [tRow.salon_id as number]);
+  const placeholderImage = pickWithTable(null, tRow.salon_id as number, phTable);
+
   // 表示用画像：profile_images を優先、無ければ既存の単一画像を1枚目として扱う（互換性）
+  //   ★ 1枚も無ければ既定画像を1枚（第217便）。★ OGP（generateMetadata）は既定画像を使わず /ogp.png のまま。
   const images =
     therapist.profileImages && therapist.profileImages.length > 0
       ? therapist.profileImages.filter(Boolean)
       : therapist.profileImageUrl
         ? [therapist.profileImageUrl]
-        : [];
+        : placeholderImage
+          ? [placeholderImage]
+          : [];
 
   // 中央画像へ重ねるバッジ
   // 出勤ステータス：onDuty=出勤中(緑)、before=出勤予定(オレンジ)。after / お休み は非表示。
@@ -345,7 +354,7 @@ export default async function TherapistPublicPage({
   }>).map((t) => ({
     id: String(t.id),
     name: t.name ?? '',
-    image: t.profile_image_url ?? null,
+    image: pickWithTable(t.profile_image_url ?? null, tRow.salon_id as number, phTable),
   }));
 
   // 構造化データ（BreadcrumbList「トップ › サロン名 › セラピスト名」＝可視パンくずと一致）。

@@ -4,6 +4,7 @@ import { useState, useEffect, useLayoutEffect, useRef } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/app/lib/supabase/client';
+import { fillTherapistImages } from '@/app/lib/therapistPlaceholder';
 import { getBusinessDateJST, getScheduleWindowStatus } from '@/lib/dutyStatus';
 import { isNewFaceActive } from '@/lib/newFace';
 import { formatBodySizes } from '@/lib/bodyType';
@@ -235,7 +236,12 @@ export async function fetchTherapistsByIds(ids: number[]): Promise<Therapist[]> 
     fetchReviewCountMap(rawIds),
     fetchFukuXHandles(userIds),
   ]);
-  return (rows ?? []).map(t => buildTherapist(t as Record<string, unknown>, schedMap, diarySet, reviewMap, fukuxHandles));
+  // ★ 既定画像（第217便）。★ 本人 → 店舗 → 運営。
+  return fillTherapistImages(
+    supabase,
+    (rows ?? []).map(t => buildTherapist(t as Record<string, unknown>, schedMap, diarySet, reviewMap, fukuxHandles)),
+    { salonId: (t) => t.salonId ?? null, image: (t) => t.profileImageUrl, set: (t, url) => ({ ...t, profileImageUrl: url }) },
+  );
 }
 
 // ── GridCard ──────────────────────────────────────────────────

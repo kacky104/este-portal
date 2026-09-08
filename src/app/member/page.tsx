@@ -4,6 +4,7 @@ import { Logo } from '@/app/components/Logo';
 import Image from 'next/image';
 import { areaLabel } from '@/app/lib/areaLabel';
 import { createClient } from '@/app/lib/supabase/server';
+import { fillTherapistImages } from '@/app/lib/therapistPlaceholder';
 import { SavedSalonsMenu } from '@/app/components/SavedSalonsMenu';
 import { AccountMenu } from '@/app/components/AccountMenu';
 import { HamburgerMenu } from '@/app/components/HamburgerMenu';
@@ -68,7 +69,7 @@ export default async function MemberPage() {
           .order('display_order', { ascending: true })
       : Promise.resolve({ data: [] as Record<string, unknown>[] }),
     recentTherapistIds.length
-      ? supabase.from('therapists').select('id, name, profile_image_url').in('id', recentTherapistIds)
+      ? supabase.from('therapists').select('id, name, profile_image_url, salon_id').in('id', recentTherapistIds)
       : Promise.resolve({ data: [] as Record<string, unknown>[] }),
   ]);
 
@@ -83,7 +84,13 @@ export default async function MemberPage() {
     if (!salonImageById.has(sid) && img.image_url) salonImageById.set(sid, img.image_url as string);
   }
   const therapistById = new Map<number, { name: string; imageUrl: string | null }>();
-  for (const t of (therapistRes.data ?? []) as Record<string, unknown>[]) {
+  // ★ 既定画像（第217便）。★ 本人 → 店舗 → 運営。
+  const therapistRowsFilled = await fillTherapistImages(
+    supabase,
+    (therapistRes.data ?? []) as Record<string, unknown>[],
+    { salonId: (t) => t.salon_id as number | null, image: (t) => t.profile_image_url as string | null, set: (t, url) => ({ ...t, profile_image_url: url }) },
+  );
+  for (const t of therapistRowsFilled) {
     therapistById.set(Number(t.id), {
       name: (t.name as string) ?? '',
       imageUrl: (t.profile_image_url as string | null) ?? null,

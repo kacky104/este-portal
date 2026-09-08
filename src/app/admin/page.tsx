@@ -15,6 +15,7 @@ import TherapistPickupBannerManager from '@/app/components/TherapistPickupBanner
 import AdBannerManager from '@/app/components/AdBannerManager';
 import SalonEditModal, { type SalonForEdit } from '@/app/components/SalonEditModal';
 import ThemeWallpaperManager from '@/app/components/ThemeWallpaperManager';
+import TherapistPlaceholderManager from '@/app/components/TherapistPlaceholderManager';
 import SalonIntakeManager from '@/app/components/SalonIntakeManager';
 import { HpDemoManager } from '@/app/components/HpDemoManager';
 import { HpSitesManager } from '@/app/components/HpSitesManager';
@@ -514,6 +515,11 @@ export default function AdminDashboard() {
 
           <AccordionSection id="theme-wallpaper" title="テーマ壁紙設定" expanded={expandedSections} onToggle={toggleSection}>
             <ThemeWallpaperManager onToast={showToast} />
+          </AccordionSection>
+
+          {/* ★ セラピストの既定画像（運営）（第217便・2026-09-08） */}
+          <AccordionSection id="therapist-placeholder" title="セラピスト既定画像設定（写真なしの子に出す共通画像）" expanded={expandedSections} onToggle={toggleSection}>
+            <TherapistPlaceholderManager onToast={showToast} />
           </AccordionSection>
 
           <AccordionSection id="top-banners" title="トップバナースライダー設定（使用中止）" expanded={expandedSections} onToggle={toggleSection}>

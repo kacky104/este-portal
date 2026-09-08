@@ -898,6 +898,11 @@ export default function MyPage() {
   const [salonImages,    setSalonImages]    = useState<SalonImage[]>([]);
   // ポップアップ画像タブ（サロン詳細で左下から出る画像。最大3枚・各画像に個別リンク・リロード毎に1枚ランダム表示）
   const [popupImages,  setPopupImages]  = useState<(string | null)[]>([null, null, null]);
+  // ★ セラピストの既定画像（第217便・2026-09-08）。★ 写真が1枚も無い子のカードに出す、この店舗の画像。
+  //   ★ 保存先は salons.therapist_placeholder_url。★ 無ければ運営の既定（/admin）→ それも無ければ今までどおり。
+  //   ★ 読み込みは店舗情報の大きな select とは【別】に引く（★ 列がまだ無い環境でもマイページが落ちないように）。
+  const [therapistPlaceholder, setTherapistPlaceholder] = useState<string | null>(null);
+  const [uploadingPlaceholder, setUploadingPlaceholder] = useState(false);
   const [popupLinks,   setPopupLinks]   = useState<string[]>(['', '', '']);
   const [popupEnabled, setPopupEnabled] = useState(false);
   const [uploadingPopupSlot, setUploadingPopupSlot] = useState<number | null>(null);
@@ -1125,6 +1130,13 @@ export default function MyPage() {
       setOtherItems(parseOtherItems(salonData.courses));
       setBookingCourses(parseBookingCourses(salonData.booking_courses));
       // ポップアップ画像の設定を初期化（最大3枚・各リンク）
+      // ★ 既定画像（第217便）。★ 失敗しても黙って null（★ 列が無い環境でも落とさない）。
+      supabase
+        .from('salons')
+        .select('therapist_placeholder_url')
+        .eq('id', salonData.id)
+        .maybeSingle()
+        .then(({ data }) => setTherapistPlaceholder(((data as { therapist_placeholder_url?: string | null } | null)?.therapist_placeholder_url) ?? null));
       setPopupImages([
         salonData.popup_image_url  ?? null,
         salonData.popup_image_url2 ?? null,
@@ -1385,6 +1397,48 @@ export default function MyPage() {
     setPopupImages(prev => prev.map((u, i) => (i === slot ? null : u)));
     revalidateSalon(salon.id);
     showToast('画像を削除しました');
+  };
+
+  // ★★ セラピストの既定画像（第217便・2026-09-08）。★ salon-images バケットを流用（path は therapist_placeholder_ で区別）。
+  //   ★ 保存先は salons.therapist_placeholder_url。★ 削除は列を null に戻す。
+  //   ★ 反映先は店舗ページ・出勤表・写メ日記・本人ページ・公式HPなど写真が出る場所全部（src/lib/therapistPlaceholder.ts）。
+  //     ★ revalidateSalon で店舗配下は作り直す。本人ページ（/therapist/[id]）は ISR で最大10分。
+  const handleTherapistPlaceholderUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !salon) return;
+    const err = validateImageFile(file);
+    if (err) { showToast(err); return; }
+    setUploadingPlaceholder(true);
+    const ext  = file.name.split('.').pop() ?? 'jpg';
+    const path = `${Number(salon.id)}/therapist_placeholder_${Date.now()}.${ext}`;
+    const { error: uploadError } = await supabase.storage.from('salon-images').upload(path, file, { upsert: false, cacheControl: STORAGE_CACHE_CONTROL });
+    if (uploadError) {
+      showToast(`アップロードに失敗しました: ${uploadError.message}`);
+      setUploadingPlaceholder(false); e.target.value = ''; return;
+    }
+    const { data: { publicUrl } } = supabase.storage.from('salon-images').getPublicUrl(path);
+    const { error: dbErr } = await supabase.from('salons').update({ therapist_placeholder_url: publicUrl }).eq('id', salon.id);
+    setUploadingPlaceholder(false); e.target.value = '';
+    if (dbErr) {
+      showToast(`保存に失敗しました: ${dbErr.message}`);
+      await supabase.storage.from('salon-images').remove([path]); return;
+    }
+    const oldUrl = therapistPlaceholder;
+    setTherapistPlaceholder(publicUrl);
+    if (oldUrl) storageRemove(oldUrl);
+    revalidateSalon(salon.id);
+    showToast('セラピストの既定画像を設定しました');
+  };
+
+  const handleTherapistPlaceholderDelete = async () => {
+    if (!salon || !therapistPlaceholder) return;
+    if (!window.confirm('セラピストの既定画像を削除しますか？\n（写真が無い方は、運営の既定画像か「画像なし」の表示に戻ります）')) return;
+    const { error } = await supabase.from('salons').update({ therapist_placeholder_url: null }).eq('id', salon.id);
+    if (error) { showToast(`削除に失敗しました: ${error.message}`); return; }
+    storageRemove(therapistPlaceholder);
+    setTherapistPlaceholder(null);
+    revalidateSalon(salon.id);
+    showToast('セラピストの既定画像を削除しました');
   };
 
   // テーマ（背景壁紙）だけを保存（店舗装飾タブ）。salons.theme を更新して即時反映。
@@ -3669,6 +3723,45 @@ export default function MyPage() {
             )}
           </div>
           )}
+        </div>
+
+        {/* ── 店舗画像タブ: セラピストの既定画像（第217便・2026-09-08） ── */}
+        <div className={`bg-white rounded-none border border-slate-100 shadow-sm p-5 space-y-3 ${activeTab === 'photos' ? '' : 'hidden'}`}>
+          <h2 className="text-sm font-black text-slate-700">セラピストの既定画像</h2>
+          <p className="text-[11px] text-slate-400 leading-relaxed">
+            写真が1枚も無いセラピストのカードに、この画像を出します。設定が無ければフクエス共通の画像になります。推奨：縦長（3:4）1080×1440px／JPEG・PNG・WebP、5MBまで。
+          </p>
+          <div className="flex items-start gap-4">
+            <div className="w-24 aspect-[3/4] rounded-none border border-pink-100 overflow-hidden bg-slate-50 flex-shrink-0 flex items-center justify-center">
+              {therapistPlaceholder ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={therapistPlaceholder} alt="セラピストの既定画像" className="w-full h-full object-cover" />
+              ) : (
+                <span className="text-[10px] text-slate-400">未設定</span>
+              )}
+            </div>
+            <div className="flex flex-col gap-2">
+              <label className="inline-flex items-center justify-center px-4 py-2 rounded-none border border-pink-300 text-pink-600 text-xs font-bold cursor-pointer hover:bg-pink-50 transition-colors">
+                {uploadingPlaceholder ? 'アップ中...' : therapistPlaceholder ? '画像を変更' : '画像を追加'}
+                <input
+                  type="file"
+                  accept="image/jpeg,image/png,image/webp"
+                  onChange={handleTherapistPlaceholderUpload}
+                  disabled={uploadingPlaceholder}
+                  className="hidden"
+                />
+              </label>
+              {therapistPlaceholder && (
+                <button
+                  type="button"
+                  onClick={handleTherapistPlaceholderDelete}
+                  className="inline-flex items-center justify-center px-4 py-2 rounded-none border border-rose-200 text-rose-500 text-xs font-bold bg-rose-50 hover:bg-rose-100 transition-colors"
+                >
+                  削除
+                </button>
+              )}
+            </div>
+          </div>
         </div>
 
         {/* ── タブ: 予約ボード（1日タイムライン・2026-08-14 新設） ── */}

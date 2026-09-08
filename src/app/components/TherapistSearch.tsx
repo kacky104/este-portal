@@ -18,6 +18,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/app/lib/supabase/client';
+import { fillTherapistImages } from '@/app/lib/therapistPlaceholder';
 import { getBusinessDateJST } from '@/lib/dutyStatus';
 import { Card, getScheduleStatus, type TherapistItem } from '@/app/components/TherapistScroller';
 import {
@@ -147,7 +148,12 @@ export function TherapistSearch({
       }));
 
       setSalonAreaMap(areaMap);
-      setList(mapped);
+      // ★ 既定画像（第217便）。★ 本人 → 店舗 → 運営。
+      setList(await fillTherapistImages(supabase, mapped, {
+        salonId: (t) => t.salonId,
+        image: (t) => t.profileImageUrl,
+        set: (t, url) => ({ ...t, profileImageUrl: url }),
+      }));
       setLoaded(true);
     })();
   }, [hasInitial]);

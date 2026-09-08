@@ -11,6 +11,8 @@
 //    3軸平均・総合平均・総件数を計算で出す（salons に評価列は作らない）。
 
 import { createPublicClient } from '@/app/lib/supabase/public';
+import { loadTherapistPlaceholders } from '@/app/lib/therapistPlaceholder';
+import { pickWithTable } from '@/lib/therapistPlaceholder';
 import { createServiceClient } from '@/app/lib/supabase/service';
 
 export type ApprovedReview = {
@@ -210,11 +212,13 @@ export async function getSalonApprovedReviews(salonId: number): Promise<Approved
     .eq('is_active', true);
   const therapistRows = therapists ?? [];
   if (therapistRows.length === 0) return [];
+  // ★ 既定画像（第217便）: 口コミの横の顔。★ 本人 → 店舗 → 運営。
+  const phTable = await loadTherapistPlaceholders(supabase, [salonId]);
   const byId = new Map<number, { name: string; image: string | null }>();
   therapistRows.forEach((t) =>
     byId.set(t.id as number, {
       name: (t.name as string) ?? '',
-      image: (t.profile_image_url as string | null) ?? null,
+      image: pickWithTable((t.profile_image_url as string | null) ?? null, salonId, phTable),
     }),
   );
   const ids = [...byId.keys()];
@@ -279,12 +283,14 @@ export async function getAllApprovedReviews(limit = 200): Promise<ApprovedReview
     .in('id', therapistIds)
     .eq('is_active', true)
     .eq('salons.is_hidden', false);
+  // ★ 既定画像（第217便）: 口コミの横の顔。★ 本人 → 店舗 → 運営。
+  const phTable = await loadTherapistPlaceholders(supabase, (therapists ?? []).map((t) => t.salon_id as number));
   const byId = new Map<number, { name: string; image: string | null; salonId: number; salonName: string }>();
   for (const t of therapists ?? []) {
     const s = Array.isArray(t.salons) ? t.salons[0] : t.salons;
     byId.set(t.id as number, {
       name: (t.name as string) ?? '',
-      image: (t.profile_image_url as string | null) ?? null,
+      image: pickWithTable((t.profile_image_url as string | null) ?? null, t.salon_id as number, phTable),
       salonId: t.salon_id as number,
       salonName: ((s as { name?: string } | null)?.name as string) ?? '',
     });
@@ -361,6 +367,8 @@ export async function getLatestReviewsForSalons(
   const rows = data as unknown as Embedded[];
 
   const nameMap = await fetchNicknameMap(supabase, rows.map((r) => r.user_id));
+  // ★ 既定画像（第217便）: 口コミの横の顔。★ 本人 → 店舗 → 運営。
+  const phTable = await loadTherapistPlaceholders(supabase, salonIds);
 
   return rows.map((r) => {
     // 埋め込みは1件でも配列で返ることがある（PostgREST の関係の解釈による）。両方に耐える。
@@ -381,7 +389,7 @@ export async function getLatestReviewsForSalons(
       createdAt: String(r.created_at),
       nickname: nicknameOf(nameMap, r.user_id),
       therapistName: t?.name ?? '',
-      therapistImage: t?.profile_image_url ?? null,
+      therapistImage: pickWithTable(t?.profile_image_url ?? null, t?.salon_id ?? null, phTable),
       salonName: sal?.name ?? '',
       salonId: t?.salon_id,
     };
@@ -458,6 +466,8 @@ export async function getTherapistReviewRanking(): Promise<TherapistReviewRankin
     .eq('salons.is_hidden', false);
 
   // 4. 表示アイテムを組み立て → 件数降順 → 総合平均降順 → 最新口コミ降順でソート。
+  // ★ 既定画像（第217便）: 口コミランキングの顔。★ 本人 → 店舗 → 運営。
+  const phTable = await loadTherapistPlaceholders(supabase, (therapists ?? []).map((t) => t.salon_id as number));
   const items: (TherapistReviewRankItem & { latest: string })[] = [];
   for (const t of therapists ?? []) {
     const a = agg.get(t.id as number);
@@ -467,7 +477,7 @@ export async function getTherapistReviewRanking(): Promise<TherapistReviewRankin
       id: t.id as number,
       rank: 0, // 後で採番
       name: (t.name as string) ?? '',
-      image: (t.profile_image_url as string | null) ?? null,
+      image: pickWithTable((t.profile_image_url as string | null) ?? null, t.salon_id as number, phTable),
       salonId: t.salon_id as number,
       salonName: ((s as { name?: string } | null)?.name as string) ?? '',
       reviewCount: a.count,

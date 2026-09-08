@@ -2,6 +2,7 @@ import Link from 'next/link';
 import { Logo } from '@/app/components/Logo';
 import { notFound } from 'next/navigation';
 import { createPublicClient } from '@/app/lib/supabase/public';
+import { resolveTherapistImage } from '@/app/lib/therapistPlaceholder';
 import { getTheme, breadcrumbCurrentColor } from '@/app/lib/themes';
 import { formatDiaryDate } from '@/lib/diaryDate';
 import { DiaryTherapistAvatar } from '@/components/DiaryTherapistAvatar';
@@ -129,7 +130,8 @@ export default async function TherapistDiaryPage({
   }));
 
   const therapistName = (tRow.name as string) ?? '';
-  const therapistImage = (tRow.profile_image_url as string | null) ?? null;
+  // ★ 既定画像（第217便）。★ 本人 → 店舗 → 運営。
+  const therapistImage = await resolveTherapistImage(supabase, tRow.profile_image_url as string | null, tRow.salon_id as number | null);
   const salonName = (salonRow?.name as string) ?? '';
 
   return (

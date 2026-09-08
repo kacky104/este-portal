@@ -7,6 +7,8 @@ import { NotificationBell } from '@/app/components/NotificationBell';
 import { VipLetterIcon } from '@/app/components/VipLetterIcon';
 import { notFound } from 'next/navigation';
 import { createPublicClient } from '@/app/lib/supabase/public';
+import { loadTherapistPlaceholders } from '@/app/lib/therapistPlaceholder';
+import { pickWithTable } from '@/lib/therapistPlaceholder';
 import { getTheme, breadcrumbCurrentColor } from '@/app/lib/themes';
 import { formatDiaryDate } from '@/lib/diaryDate';
 import { DiaryTherapistAvatar } from '@/components/DiaryTherapistAvatar';
@@ -98,6 +100,8 @@ export default async function SalonDiaryPage({
   };
 
   // そのサロンの全セラピストの写メ日記（新しい順）。第1段で取得済み。
+  // ★ 既定画像（第217便）: 日記の横の顔。★ 本人 → 店舗 → 運営。
+  const phTable = await loadTherapistPlaceholders(supabase, [Number(id)]);
   const diaries = ((diaryRows ?? []) as unknown as DiaryRow[]).map((r) => {
     const t = Array.isArray(r.therapists) ? r.therapists[0] : r.therapists;
     return {
@@ -106,7 +110,7 @@ export default async function SalonDiaryPage({
       title: r.title ?? '',
       createdAt: r.created_at,
       therapistName: t?.name ?? '',
-      therapistImage: t?.profile_image_url ?? null,
+      therapistImage: pickWithTable(t?.profile_image_url ?? null, Number(id), phTable),
     };
   });
 

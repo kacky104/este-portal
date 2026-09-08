@@ -2,6 +2,8 @@
 
 import { useEffect, useState } from 'react';
 import { createClient } from '@/app/lib/supabase/client';
+import { loadTherapistPlaceholders } from '@/app/lib/therapistPlaceholder';
+import { pickWithTable } from '@/lib/therapistPlaceholder';
 import { getBusinessDateJST } from '@/lib/dutyStatus';
 import { isImasuguLiveCamel, imasuguUntilCamel } from '@/lib/imasugu';
 import type { Salon } from '@/app/lib/salons';
@@ -127,6 +129,16 @@ export function useSalonTherapists(
           if (a.onDuty !== b.onDuty) return Number(b.onDuty) - Number(a.onDuty);
           return photo(a) - photo(b);
         });
+      }
+
+      // ★ 既定画像（第217便）は【並べ替えの後】に当てる（★ 並びは本人の写真の有無で決める）。
+      //   ★ 写真が無い子が1人でも居るときだけ表を引く。
+      const needs = Object.values(result).some((items) => items.some((t) => !t.imageUrl));
+      if (needs) {
+        const table = await loadTherapistPlaceholders(supabase, Object.keys(result));
+        for (const [sid, items] of Object.entries(result)) {
+          result[Number(sid)] = items.map((t) => (t.imageUrl ? t : { ...t, imageUrl: pickWithTable(t.imageUrl, Number(sid), table) }));
+        }
       }
 
       setSalonTherapists(result);

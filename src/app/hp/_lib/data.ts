@@ -14,6 +14,8 @@ import { createPublicClient } from '@/app/lib/supabase/public';
 import { createServiceClient } from '@/app/lib/supabase/service';
 import { getBusinessDateJST } from '@/lib/dutyStatus';
 import { sanitizeBadges } from '@/lib/therapistBadges';
+import { loadTherapistPlaceholders } from '@/app/lib/therapistPlaceholder';
+import { pickWithTable } from '@/lib/therapistPlaceholder';
 import {
   type HpSite,
   type HpTemplateKey,
@@ -281,6 +283,8 @@ export async function fetchHpPageData(
   const therapistImageByColor =
     site.blocks.therapistImagesByColor[hpImageSlotKey(site.template_key, site.theme_key)] ?? {};
 
+  // ★ 既定画像（第217便）: 公式HPの在籍一覧・本日出勤の顔。★ 本人（配色別の差し替え含む）→ 店舗 → 運営。
+  const phTable = await loadTherapistPlaceholders(supabase, [salonId]);
   const therapists: HpTherapist[] = (therapistRes.data ?? []).map((t) => {
     const week = weekDays.map((d) => dutyMap.get(`${d.date}|${String(t.id)}`) ?? null);
     const duty = week[0] ?? null; // 先頭＝本日
@@ -288,7 +292,7 @@ export async function fetchHpPageData(
       id:          String(t.id),
       name:        (t.name as string) ?? '',
       age:         (t.age as number | null) ?? null,
-      imageUrl:    therapistImageByColor[String(t.id)] ?? (t.profile_image_url as string | null) ?? null,
+      imageUrl:    pickWithTable(therapistImageByColor[String(t.id)] ?? (t.profile_image_url as string | null) ?? null, salonId, phTable),
       onDuty:      duty !== null,
       todayTime:   duty,
       catchphrase: (t.catchphrase as string | null) ?? '',

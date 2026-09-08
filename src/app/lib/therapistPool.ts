@@ -13,6 +13,7 @@ import { getBusinessDateJST } from '@/lib/dutyStatus';
 import { sanitizeBadges } from '@/lib/therapistBadges';
 import type { TherapistItem } from '@/app/components/TherapistScroller';
 import { THERAPIST_CARD_COLUMNS } from '@/lib/therapistColumns';
+import { fillTherapistImages } from '@/app/lib/therapistPlaceholder';
 
 export type SalonAreaInfo = { area: string; area2: string; dispatchType: string };
 
@@ -72,7 +73,7 @@ export async function fetchTherapistPool(
     };
   });
 
-  const list: TherapistItem[] = (therapistData ?? []).map((t) => ({
+  const listRaw: TherapistItem[] = (therapistData ?? []).map((t) => ({
     id: String(t.id),
     name: (t.name as string) ?? '',
     salonId: t.salon_id as number,
@@ -93,6 +94,12 @@ export async function fetchTherapistPool(
     newFaceSince: (t.new_face_since as string | null) ?? null,
     featureBadges: sanitizeBadges(t.feature_badges),
   }));
+  // ★ 既定画像（第217便）。★ 本人 → 店舗 → 運営。★ 並び替えは呼び出し側（写真の有無は使っていない）。
+  const list = await fillTherapistImages(supabase, listRaw, {
+    salonId: (x) => x.salonId,
+    image: (x) => x.profileImageUrl,
+    set: (x, url) => ({ ...x, profileImageUrl: url }),
+  });
 
   return { list, salonAreaMap };
 }
