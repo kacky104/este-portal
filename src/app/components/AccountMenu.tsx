@@ -3,23 +3,56 @@
 import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { getSession, onAuthChange, signOut } from '@/lib/auth';
+import { createClient } from '@/app/lib/supabase/client';
 
 // 共通ヘッダーの会員ログイン状態UI。
 // 未ログイン: 「ログイン」リンク（→ /login）。
 // ログイン中: メール先頭文字アバター＋「アカウント ▾」。クリックでメニュー（保存した一覧 / ログアウト）。
-// オーナー用 /owner/login はここには出さない（専用URL運用）。
+// ★ 2026-09-08（カッキーさんの相談）: ログイン中の人が【店舗オーナー】なら「店舗マイページ」、
+//   【セラピスト本人】なら「セラピストページ」をメニューに出す。
+//   ★ 会員と同じID/PWなので、ヘッダーの「ログイン」から入ってしまい、会員のマイページが出て
+//     戸惑う、が実際に起きたため。★ 該当しない人には何も出ない（会員だけの人の画面は変わらない）。
+//   ★ 判定は salons.owner_id / therapists.user_id を1回ずつ引くだけ（★ 新しい列・表は作らない）。
 export function AccountMenu() {
   // ハイドレーション対策：初期は未ログイン表示。マウント後に反映。
   const [mounted, setMounted] = useState(false);
   const [email, setEmail] = useState<string | null>(null);
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
+  // ★ その人の立場（店舗オーナー／セラピスト）。★ 読めなければ false のまま＝出さないだけ。
+  const [isOwner, setIsOwner] = useState(false);
+  const [isCast, setIsCast] = useState(false);
 
   useEffect(() => {
     setMounted(true);
     let active = true;
-    getSession().then(s => { if (active) setEmail(s?.user.email ?? null); });
-    const off = onAuthChange(s => { if (active) setEmail(s?.user.email ?? null); });
+    // ★ ログインしている人の id から、店舗オーナーか／セラピスト本人かを引く。
+    //   ★ 失敗しても黙って false（★ メニューが壊れるより、入口が1つ出ないほうがまし）。
+    const loadRoles = async (userId: string | null) => {
+      if (!userId) { if (active) { setIsOwner(false); setIsCast(false); } return; }
+      try {
+        const supabase = createClient();
+        const [o, c] = await Promise.all([
+          supabase.from('salons').select('id').eq('owner_id', userId).limit(1),
+          supabase.from('therapists').select('id').eq('user_id', userId).limit(1),
+        ]);
+        if (!active) return;
+        setIsOwner(!o.error && (o.data?.length ?? 0) > 0);
+        setIsCast(!c.error && (c.data?.length ?? 0) > 0);
+      } catch {
+        if (active) { setIsOwner(false); setIsCast(false); }
+      }
+    };
+    getSession().then(s => {
+      if (!active) return;
+      setEmail(s?.user.email ?? null);
+      void loadRoles(s?.user.id ?? null);
+    });
+    const off = onAuthChange(s => {
+      if (!active) return;
+      setEmail(s?.user.email ?? null);
+      void loadRoles(s?.user.id ?? null);
+    });
     return () => { active = false; off(); };
   }, []);
 
@@ -104,6 +137,38 @@ export function AccountMenu() {
             </span>
             マイページ
           </Link>
+          {/* ★ 店舗オーナー／セラピスト本人だけに出る入口（2026-09-08）。★ 会員のマイページの下。 */}
+          {isOwner && (
+            <Link
+              href="/mypage"
+              onClick={() => setOpen(false)}
+              className="flex items-center gap-2.5 px-3 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50 transition-colors border-t border-slate-100"
+            >
+              <span className="flex-shrink-0 w-7 h-7 rounded-full bg-slate-100 flex items-center justify-center">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#475569" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M3 21h18" />
+                  <path d="M5 21V7l7-4 7 4v14" />
+                  <path d="M9 21v-6h6v6" />
+                </svg>
+              </span>
+              店舗マイページ
+            </Link>
+          )}
+          {isCast && (
+            <Link
+              href="/cast"
+              onClick={() => setOpen(false)}
+              className="flex items-center gap-2.5 px-3 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50 transition-colors border-t border-slate-100"
+            >
+              <span className="flex-shrink-0 w-7 h-7 rounded-full bg-slate-100 flex items-center justify-center">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#475569" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M12 21s-7-4.5-7-10a7 7 0 0 1 14 0c0 5.5-7 10-7 10z" />
+                  <circle cx="12" cy="11" r="2.5" />
+                </svg>
+              </span>
+              セラピストページ
+            </Link>
+          )}
           <button
             type="button"
             onClick={handleLogout}

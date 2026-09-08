@@ -68,6 +68,10 @@ const INFO_LINKS: FooterLinkDef[] = [
   { href: '/hp/templates', label: 'ホームページ制作' }, // 公式HP事業の入口（2026-08-14 追加）
   { href: '/contact', label: 'お問い合わせ' },
   { href: '/banner', label: 'リンクバナー' },
+  // ★ 店舗オーナーログイン（2026-09-08・カッキーさんの相談）。★ 他のポータルもフッターに「店舗様ログイン」を置いていて、
+  //   店舗様が探すときにまず見る場所。★ 並びはいちばん下（カッキーさんの指示）。
+  //   ★ セラピストログインはここには出さない（/login と AccountMenu にある）。
+  { href: '/owner/login', label: '店舗オーナーログイン', mobile: 'オーナーログイン' },
 ];
 
 type Props = {

@@ -2967,8 +2967,11 @@ export default function MyPage() {
               ★ 中身は「その他」に入っていたものと同じ（店舗情報・関連サイト・運営事務局）。
               ★ 見出しはPCと同じピンクの帯だが、ドロワーの中では【たたまない】（★ 開いてすぐ全部見える）。
               ★ 閉じているときは描かない（★ hidden ではなく描かない）。 */}
+          {/* ★ 高さは dvh（実機のブラウザのアドレスバー・下のバーを除いた【見えている高さ】）。
+              ★ inset-0（100vh）だと、実機で下のバーに隠れた分がスクロールできず、
+                いちばん下の「運営事務局」が見えなかった（2026-09-08・カッキーさんの実機確認）。 */}
           {drawerOpen && (
-            <div className="md:hidden fixed inset-0 z-50" role="dialog" aria-modal="true" aria-label="メニュー">
+            <div className="md:hidden fixed inset-x-0 top-0 h-dvh z-50" role="dialog" aria-modal="true" aria-label="メニュー">
               <button
                 type="button"
                 aria-label="メニューを閉じる"
@@ -2977,7 +2980,7 @@ export default function MyPage() {
               />
               <nav
                 aria-label="その他のメニュー"
-                className="absolute inset-y-0 left-0 w-[280px] max-w-[85vw] bg-white shadow-2xl overflow-y-auto overscroll-contain pb-8"
+                className="absolute inset-y-0 left-0 w-[280px] max-w-[85vw] bg-white shadow-2xl overflow-y-auto overscroll-contain pb-24 [padding-bottom:calc(6rem+env(safe-area-inset-bottom))]"
               >
                 <div className="flex items-center justify-between px-4 py-3 border-b border-slate-100">
                   <span className="text-sm font-black text-slate-700">メニュー</span>
