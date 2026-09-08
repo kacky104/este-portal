@@ -1,24 +1,60 @@
 'use client';
 
-// ★★★ セラピストの既定画像（運営）（第217便・2026-09-08・カッキーさんの指示）
+// ★★★ セラピスト共通画像（運営）（第217便・第218便・2026-09-08・カッキーさんの指示）
 //
-//   写真が1枚も無いセラピストのカードに出す、フクエス共通の画像。
-//   ★ 店舗様が /mypage（店舗画像）で入れた画像があればそちらが勝つ（★ 本人 → 店舗 → 運営）。
-//   ★ 決め方は src/lib/therapistPlaceholder.ts（番人あり）。ここは運営の1枚を置く・消すだけ。
+//   ① 写真なしの子に出す既定画像（第217便）
+//      写真が1枚も無いセラピストのカードに出す、フクエス共通の画像。
+//      ★ 店舗様が /mypage（店舗画像）で入れた画像があればそちらが勝つ（★ 本人 → 店舗 → 運営）。
+//      ★ 決め方は src/lib/therapistPlaceholder.ts（番人あり）。
+//      保存先: page_heroes 'therapist_placeholder' ／ RPC admin_set_therapist_placeholder
+//   ② 「一覧を見る」カードの画像（第218便）
+//      出勤中・新人の横スクロールの末尾カード（TOP・地域ページ）。無ければピンク→オレンジのグラデーション。
+//      保存先: page_heroes 'list_more_card' ／ RPC admin_set_list_more_card_image
 //
-//   保存先: page_heroes の page_key='therapist_placeholder'（image_url）。
-//   ★ 書くのは専用の RPC admin_set_therapist_placeholder（運営UIDだけ）。
-//     ★ ヒーロー画像の RPC（admin_set_page_hero_image）の許可リストには入れていない
-//       （★ あちらは PC/SP の2枚・ページの無効化と結びついていて用途が違う）。
-//   画像の置き場: header-slider バケット（PageHeroManager と同じ）。
+//   ★ どちらも【1枚だけ】。★ ヒーロー画像の RPC（admin_set_page_hero_image）の許可リストには入れていない
+//     （あちらは PC/SP の2枚・ページの無効化と結びついていて用途が違う）。
+//   ★ 画像の置き場: header-slider バケット（PageHeroManager と同じ）。
+//   ★ 枠を増やすときは下の SLOTS に1行足し、同じ形の RPC を1本足す。★ 画面の作りは触らない。
 import { useEffect, useState, useRef } from 'react';
 import { createClient } from '@/app/lib/supabase/client';
 import { revalidateTopAndAreas } from '@/app/lib/revalidateTop';
 import { THERAPIST_PLACEHOLDER_KEY } from '@/lib/therapistPlaceholder';
+import { LIST_MORE_CARD_KEY } from '@/app/lib/siteImages';
 
 const BUCKET = 'header-slider';
 
-export default function TherapistPlaceholderManager({ onToast }: { onToast: (msg: string) => void }) {
+type Slot = {
+  key: string;        // page_heroes.page_key
+  rpc: string;        // 書くときの RPC 名（p_url 1つ）
+  folder: string;     // バケット内のフォルダ
+  title: string;
+  help: string;
+  ratio: string;      // プレビュー枠の比
+  successNote: string;
+};
+
+const SLOTS: ReadonlyArray<Slot> = [
+  {
+    key: THERAPIST_PLACEHOLDER_KEY,
+    rpc: 'admin_set_therapist_placeholder',
+    folder: 'therapist-placeholder',
+    title: '写真なしの子に出す共通画像',
+    help: '写真が1枚も無いセラピストのカード（トップ・地域・店舗ページ・ランキング・出勤表・写メ日記・本人ページ・公式HP）に出します。店舗が自分の既定画像を入れている場合はそちらが優先されます。推奨：縦長（3:4）1080×1440px。',
+    ratio: 'aspect-[3/4]',
+    successNote: '（反映まで最大10分）',
+  },
+  {
+    key: LIST_MORE_CARD_KEY,
+    rpc: 'admin_set_list_more_card_image',
+    folder: 'list-more-card',
+    title: '「一覧を見る」カードの画像',
+    help: 'トップ・地域ページの「現在出勤中のセラピスト」「新人セラピスト」の横スクロール末尾にある「一覧を見る」カードの背景です。未設定ならピンク→オレンジのグラデーション。文字は白で下に重なるので、下側が暗めの画像だと読みやすくなります。推奨：縦長（3:4）1080×1440px。',
+    ratio: 'aspect-[11/16]',
+    successNote: '',
+  },
+];
+
+function ImageSlot({ slot, onToast }: { slot: Slot; onToast: (msg: string) => void }) {
   const supabase = createClient();
   const [url, setUrl] = useState<string | null>(null);
   const [loaded, setLoaded] = useState(false);
@@ -30,7 +66,7 @@ export default function TherapistPlaceholderManager({ onToast }: { onToast: (msg
     supabase
       .from('page_heroes')
       .select('image_url')
-      .eq('page_key', THERAPIST_PLACEHOLDER_KEY)
+      .eq('page_key', slot.key)
       .maybeSingle()
       .then(({ data }) => {
         if (!active) return;
@@ -39,52 +75,50 @@ export default function TherapistPlaceholderManager({ onToast }: { onToast: (msg
       });
     return () => { active = false; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [slot.key]);
 
   const onFile = async (file: File) => {
     if (!/^image\/(jpeg|png|webp)$/.test(file.type)) { onToast('JPEG / PNG / WebP のみアップロードできます'); return; }
     if (file.size > 5 * 1024 * 1024) { onToast('画像は5MBまでです'); return; }
     setBusy(true);
     const ext = file.type === 'image/png' ? 'png' : file.type === 'image/webp' ? 'webp' : 'jpg';
-    const path = `therapist-placeholder/default_${Date.now()}.${ext}`;
+    const path = `${slot.folder}/default_${Date.now()}.${ext}`;
     const { error: upErr } = await supabase.storage.from(BUCKET).upload(path, file, { upsert: true, contentType: file.type });
     if (upErr) { setBusy(false); onToast(`アップロードに失敗しました: ${upErr.message}`); return; }
     const { data: pub } = supabase.storage.from(BUCKET).getPublicUrl(path);
-    const { error: rpcErr } = await supabase.rpc('admin_set_therapist_placeholder', { p_url: pub.publicUrl });
+    const { error: rpcErr } = await supabase.rpc(slot.rpc, { p_url: pub.publicUrl });
     setBusy(false);
     if (rpcErr) { onToast(`保存に失敗しました: ${rpcErr.message}`); return; }
     setUrl(pub.publicUrl);
     if (inputRef.current) inputRef.current.value = '';
-    // ★ 写真が出る場所は多い（トップ・地域・店舗・ランキング…）。★ トップと地域だけ即時に作り直し、残りは ISR（最大10分）。
+    // ★ トップと地域は即時に作り直す。残り（店舗・本人ページなど）は ISR（最大10分）。
     revalidateTopAndAreas();
-    onToast('セラピストの既定画像を設定しました（反映まで最大10分）');
+    onToast(`「${slot.title}」を設定しました${slot.successNote}`);
   };
 
   const remove = async () => {
     if (!url) return;
-    if (!window.confirm('運営の既定画像を削除しますか？\n（店舗の既定画像が無い方は「画像なし」の表示に戻ります）')) return;
+    if (!window.confirm(`「${slot.title}」を削除しますか？`)) return;
     setBusy(true);
-    const { error: rpcErr } = await supabase.rpc('admin_set_therapist_placeholder', { p_url: '' });
+    const { error: rpcErr } = await supabase.rpc(slot.rpc, { p_url: '' });
     setBusy(false);
     if (rpcErr) { onToast(`削除に失敗しました: ${rpcErr.message}`); return; }
     setUrl(null);
     revalidateTopAndAreas();
-    onToast('運営の既定画像を削除しました');
+    onToast(`「${slot.title}」を削除しました`);
   };
 
   return (
-    <div className="space-y-3">
-      <p className="text-xs text-slate-500 leading-relaxed">
-        写真が1枚も無いセラピストのカード（トップ・地域・店舗ページ・ランキング・出勤表・写メ日記・本人ページ・公式HP）に出す、フクエス共通の画像です。
-        店舗が自分の既定画像を入れている場合はそちらが優先されます。推奨：縦長（3:4）1080×1440px／JPEG・PNG・WebP、5MBまで。
-      </p>
+    <div className="space-y-2">
+      <h3 className="text-sm font-bold text-slate-700">{slot.title}</h3>
+      <p className="text-xs text-slate-500 leading-relaxed">{slot.help} JPEG・PNG・WebP、5MBまで。</p>
       <div className="flex items-start gap-4">
-        <div className="w-28 aspect-[3/4] rounded-lg border border-slate-200 overflow-hidden bg-slate-50 flex-shrink-0 flex items-center justify-center">
+        <div className={`w-28 ${slot.ratio} rounded-lg border border-slate-200 overflow-hidden bg-slate-50 flex-shrink-0 flex items-center justify-center`}>
           {!loaded ? (
             <span className="text-[10px] text-slate-400">読み込み中...</span>
           ) : url ? (
             // eslint-disable-next-line @next/next/no-img-element
-            <img src={url} alt="セラピストの既定画像（運営）" className="w-full h-full object-cover" />
+            <img src={url} alt={slot.title} className="w-full h-full object-cover" />
           ) : (
             <span className="text-[10px] text-slate-400">未設定</span>
           )}
@@ -113,6 +147,18 @@ export default function TherapistPlaceholderManager({ onToast }: { onToast: (msg
           )}
         </div>
       </div>
+    </div>
+  );
+}
+
+export default function TherapistPlaceholderManager({ onToast }: { onToast: (msg: string) => void }) {
+  return (
+    <div className="space-y-6 divide-y divide-slate-100">
+      {SLOTS.map((slot, i) => (
+        <div key={slot.key} className={i > 0 ? 'pt-6' : ''}>
+          <ImageSlot slot={slot} onToast={onToast} />
+        </div>
+      ))}
     </div>
   );
 }

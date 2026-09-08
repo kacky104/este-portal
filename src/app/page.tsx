@@ -18,6 +18,7 @@ import { getFeaturedSalons } from "./lib/featured";
 import { fetchActiveRecommendedSalonBanners } from "./lib/recommendedSalonBanners";
 import { RecommendedSalonBannerSlider } from "./components/RecommendedSalonBannerSlider";
 import { fetchNewFaceTherapists } from "./lib/newFaceTherapists";
+import { fetchSiteImage, LIST_MORE_CARD_KEY } from "./lib/siteImages";
 import { NewFaceScroller } from "./components/NewFaceScroller";
 import { fetchActiveTherapistPickupBanners } from "./lib/therapistPickupBanners";
 import { TherapistPickupBanner } from "./components/TherapistPickupBanner";
@@ -67,7 +68,7 @@ export default async function Home() {
 
   // ── 互いに依存しない3処理を並列実行（往復の積み上がりを解消） ──
   // ピックアップは area=null の共通セット（＝トップ用）。地域ページは各エリアの設定を使う。
-  const [salons, featuredSalons, todaySchedRes, recommendedBanners, newFaceTherapists, pickupBanners, salonNews, latestColumns, allReviews] = await Promise.all([
+  const [salons, featuredSalons, todaySchedRes, recommendedBanners, newFaceTherapists, pickupBanners, salonNews, latestColumns, allReviews, moreCardImage] = await Promise.all([
     fetchSalons(supabase, { showOnTopOnly: true }), // トップは show_on_top=true のみ表示
     getFeaturedSalons(supabase, null),
     supabase
@@ -94,6 +95,8 @@ export default async function Home() {
     // ★ 40件取るのは、この関数が「新着40件を取ってから公開フィルタ」する形だから。
     //   3件だけ取ると、非公開の口コミが混ざっていたときに3件に満たなくなる。
     getAllApprovedReviews(40),
+    // 「一覧を見る」カードの画像（第218便・/admin で運営が置く。無ければ null＝グラデーション）。
+    fetchSiteImage(supabase, LIST_MORE_CARD_KEY),
   ]);
 
   // TOPに出すのは先頭3件だけ。続きは /reviews。
@@ -260,7 +263,7 @@ export default async function Home() {
                 一覧を見る →
               </Link>
             </div>
-            <TherapistScroller showAge bleedMobile largeMobile />
+            <TherapistScroller showAge bleedMobile largeMobile moreImageUrl={moreCardImage} />
           </div>
         </section>
 
@@ -303,7 +306,7 @@ export default async function Home() {
                   : []),
                 // 30枚目直下：新人セラピスト一覧（等倍＝zoom:false でカード肥大化を回避）。
                 ...(newFaceTherapists.length > 0
-                  ? [{ afterIndex: 30, node: <NewFaceScroller therapists={newFaceTherapists} />, zoom: false }]
+                  ? [{ afterIndex: 30, node: <NewFaceScroller therapists={newFaceTherapists} moreImageUrl={moreCardImage} />, zoom: false }]
                   : []),
               ]}
               heading={

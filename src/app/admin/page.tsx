@@ -517,8 +517,8 @@ export default function AdminDashboard() {
             <ThemeWallpaperManager onToast={showToast} />
           </AccordionSection>
 
-          {/* ★ セラピストの既定画像（運営）（第217便・2026-09-08） */}
-          <AccordionSection id="therapist-placeholder" title="セラピスト既定画像設定（写真なしの子に出す共通画像）" expanded={expandedSections} onToggle={toggleSection}>
+          {/* ★ セラピスト共通画像（運営）: 写真なしの既定画像（第217便）＋「一覧を見る」カードの画像（第218便） */}
+          <AccordionSection id="therapist-placeholder" title="セラピスト共通画像設定（写真なしの既定画像・「一覧を見る」カード）" expanded={expandedSections} onToggle={toggleSection}>
             <TherapistPlaceholderManager onToast={showToast} />
           </AccordionSection>
 

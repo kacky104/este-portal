@@ -6,6 +6,7 @@ import { fetchSalons, CARD_BOOST_WEIGHT, withBumpedFirst } from '@/app/lib/salon
 import { weightedShuffleEvery6h } from '@/lib/shuffle';
 import { ShuffledSalons } from '@/app/components/ShuffledSalons';
 import { TherapistScroller } from '@/app/components/TherapistScroller';
+import { fetchSiteImage, LIST_MORE_CARD_KEY } from '@/app/lib/siteImages';
 import { FeaturedSalonSlider } from '@/app/components/FeaturedSalonSlider';
 import { getFeaturedSalons } from '@/app/lib/featured';
 import { SavedSalonsMenu } from '@/app/components/SavedSalonsMenu';
@@ -69,10 +70,11 @@ export default async function AreaPage({ params }: { params: Promise<{ slug: str
 
   // cookie を読まない匿名クライアント（ISR を効かせるため。公開データ専用）。
   const supabase = createPublicClient();
-  const [salons, featuredSalons, pickupBanners] = await Promise.all([
+  const [salons, featuredSalons, pickupBanners, moreCardImage] = await Promise.all([
     fetchSalons(supabase),
     getFeaturedSalons(supabase, area), // このエリア専用のピックアップ（未設定なら空＝枠ごと非表示）
     fetchActiveTherapistPickupBanners(), // セラピストピックアップ枠（TOPと共通・20枚目直下・0件なら非表示）
+    fetchSiteImage(supabase, LIST_MORE_CARD_KEY), // 「一覧を見る」カードの画像（第218便・TOPと共通）
   ]);
   const label = areaLabel(area);
   const pickupTitle = `${area === DISPATCH_AREA ? '出張対応' : label}のピックアップ店舗`;
@@ -162,7 +164,7 @@ export default async function AreaPage({ params }: { params: Promise<{ slug: str
             <div className="w-1 h-6 rounded-full bg-gradient-to-b from-pink-400 to-rose-500" />
             <h2 className="text-xl font-bold text-slate-900"><span className="text-pink-600">{area === DISPATCH_AREA ? '出張対応' : label}</span>で現在出勤中</h2>
           </div>
-          <TherapistScroller showAge filterSalonIds={areaSalonIds} workingHref={`/working?area=${slug}`} bleedMobile largeMobile />
+          <TherapistScroller showAge filterSalonIds={areaSalonIds} workingHref={`/working?area=${slug}`} bleedMobile largeMobile moreImageUrl={moreCardImage} />
         </section>
 
         {/* 地域バッジ列を最上部に出し、その下に見出し＋説明文→カード（heading で順序制御） */}

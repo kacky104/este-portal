@@ -146,7 +146,37 @@ export function Card({ therapist, index, showAge = false, large = false }: { the
 
 // ── TherapistScroller ─────────────────────────────────────────
 
-export function TherapistScroller({ showAge = false, filterSalonIds, workingHref = '/working', bleedMobile = false, largeMobile = false }: { showAge?: boolean; filterSalonIds?: number[]; workingHref?: string; bleedMobile?: boolean; largeMobile?: boolean } = {}) {
+/**
+ * 横スクロールの末尾「一覧を見る」カード（第218便・2026-09-08）。★ 出勤中と新人で同じもの。
+ * ★ imageUrl があれば画像を敷き、下に黒のグラデーションを重ねて「一覧を見る」を読めるようにする。
+ * ★ 無ければ今までどおりピンク→オレンジのグラデーション。
+ */
+export function MoreCard({ href, imageUrl, className = 'w-[105px] h-[153px]' }: { href: string; imageUrl: string | null; className?: string }) {
+  return (
+    <Link
+      href={href}
+      className={`relative flex-shrink-0 ${className} sm:w-44 sm:h-64 rounded-2xl overflow-hidden shadow-md hover:-translate-y-1 hover:shadow-xl transition-all duration-300 flex flex-col items-center justify-center gap-2`}
+      style={imageUrl ? undefined : { background: 'linear-gradient(to bottom right, #ec4899, #f97316)' }}
+    >
+      {imageUrl && (
+        <>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={imageUrl} alt="" className="absolute inset-0 w-full h-full object-cover" />
+          <span aria-hidden className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/10 to-transparent" />
+        </>
+      )}
+      <span className="relative flex items-center justify-center w-9 h-9 sm:w-12 sm:h-12 rounded-full bg-white/20">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="sm:w-7 sm:h-7">
+          <path d="M5 12h14M12 5l7 7-7 7" />
+        </svg>
+      </span>
+      <span className="relative text-white font-bold text-xs sm:text-sm drop-shadow">一覧を見る</span>
+    </Link>
+  );
+}
+
+// ★ moreImageUrl（第218便）: 末尾「一覧を見る」カードの画像。★ /admin で運営が置く。無ければ今までどおりのグラデーション。
+export function TherapistScroller({ showAge = false, filterSalonIds, workingHref = '/working', bleedMobile = false, largeMobile = false, moreImageUrl = null }: { showAge?: boolean; filterSalonIds?: number[]; workingHref?: string; bleedMobile?: boolean; largeMobile?: boolean; moreImageUrl?: string | null } = {}) {
   const [list, setList] = useState<TherapistItem[]>([]);
 
   useEffect(() => {
@@ -268,18 +298,7 @@ export function TherapistScroller({ showAge = false, filterSalonIds, workingHref
       {/* 出勤中セラピストは最大35枚まで表示 */}
       {list.slice(0, 35).map((t, i) => <Card key={t.id} therapist={t} index={i} showAge={showAge} large={largeMobile} />)}
       {/* 末尾：現在出勤中のセラピスト一覧ページ（/working）への「一覧を見る」カード（地域ページは ?area= 付きに） */}
-      <Link
-        href={workingHref}
-        className={`flex-shrink-0 ${largeMobile ? 'w-[123px] h-[179px]' : 'w-[105px] h-[153px]'} sm:w-44 sm:h-64 rounded-2xl overflow-hidden shadow-md hover:-translate-y-1 hover:shadow-xl transition-all duration-300 flex flex-col items-center justify-center gap-2`}
-        style={{ background: 'linear-gradient(to bottom right, #ec4899, #f97316)' }}
-      >
-        <span className="flex items-center justify-center w-9 h-9 sm:w-12 sm:h-12 rounded-full bg-white/20">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="sm:w-7 sm:h-7">
-            <path d="M5 12h14M12 5l7 7-7 7" />
-          </svg>
-        </span>
-        <span className="text-white font-bold text-xs sm:text-sm">一覧を見る</span>
-      </Link>
+      <MoreCard href={workingHref} imageUrl={moreImageUrl} className={largeMobile ? 'w-[123px] h-[179px]' : 'w-[105px] h-[153px]'} />
     </div>
   );
 }
