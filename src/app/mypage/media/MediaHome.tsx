@@ -13,7 +13,7 @@ import {
 // ★ 同意の取り直しは、ログイン情報の中だけでは気づけない（第89便）。★ 入口にも出す
 import { CONSENT_RECHECK_BADGE, consentRecheckNotice } from '@/lib/mediaConsent';
 // ★ 反映の早見表（第212便）。★ データは mediaMatrix.ts（番人あり）。画面は並べるだけ
-import { MEDIA_MATRIX, MATRIX_SITES, MATRIX_ROWS, MATRIX_FOOTNOTES, NO as MATRIX_NO, NA as MATRIX_NA } from '@/lib/mediaMatrix';
+import { MEDIA_MATRIX, MATRIX_SITES, MATRIX_ROWS, MATRIX_FOOTNOTES, NO as MATRIX_NO, NA as MATRIX_NA, SEE as MATRIX_SEE } from '@/lib/mediaMatrix';
 
 // 媒体連携の入口（第56便・㉞）。
 //
@@ -486,19 +486,21 @@ export function MediaHome({ salonId, onToast }: {
           ★ 既定は折りたたみ（ホームを長くしない）。★ 値は mediaMatrix.ts（cron の間隔・受け口の条件から）。 */}
       <details className="bg-white border border-slate-200 shadow-[0_1px_2px_rgba(31,35,51,0.05)]">
         <summary className="cursor-pointer select-none px-5 py-3.5 text-[15px] font-bold text-slate-700 hover:bg-slate-50">
-          反映の早見表 <span className="text-[13px] font-medium text-slate-400 ml-1">— 設定ごとに、何がどこへ・どれくらいで</span>
+          {/* ★ 第215便（2026-09-08・カッキーさん）: 添え書きを「各項目設定をした場合」に */}
+          反映の早見表 <span className="text-[13px] font-medium text-slate-400 ml-1">— 各項目設定をした場合</span>
         </summary>
         <div className="px-5 pb-5 space-y-5">
           {MEDIA_MATRIX.map((sec) => (
             <div key={sec.key}>
-              <p className="text-[14.5px] font-black text-slate-800">{sec.title}</p>
-              <p className="text-[12.5px] text-slate-400 mb-2">{sec.note}</p>
+              {/* ★ 第215便（2026-09-08・カッキーさん）: 見出しの下の但し書きは消した。★ 表と補足だけで足りる */}
+              <p className="text-[14.5px] font-black text-slate-800 mb-2">{sec.title}</p>
               <div className="overflow-x-auto">
                 <table className="w-full min-w-[460px] text-[13.5px] border border-slate-200">
                   <thead>
                     <tr className="bg-slate-50">
                       <th className="text-left font-bold text-[12px] text-slate-400 px-3 py-2 border-b border-slate-200 w-[120px]"></th>
-                      {MATRIX_SITES.map((site) => (
+                      {/* ★ 見出しは区画ごとに差し替えられる（「駅ちかから反映」の1列目は行き先の「フクエス」・第215便） */}
+                      {(sec.headers ?? MATRIX_SITES).map((site) => (
                         <th key={site} className="text-center font-bold text-[12.5px] text-slate-600 px-2 py-2 border-b border-l border-slate-200 whitespace-nowrap">{site}</th>
                       ))}
                     </tr>
@@ -511,7 +513,7 @@ export function MediaHome({ salonId, onToast }: {
                           <td
                             key={i}
                             className={`text-center px-2 py-2 border-l border-slate-100 whitespace-nowrap tabular-nums ${
-                              cell === MATRIX_NO || cell === MATRIX_NA ? 'text-slate-300' : cell === '準備中' ? 'text-slate-400' : 'font-bold text-emerald-700'
+                              cell === MATRIX_NO || cell === MATRIX_NA ? 'text-slate-300' : cell === MATRIX_SEE || cell === '準備中' ? 'text-slate-400' : 'font-bold text-emerald-700'
                             }`}
                           >
                             {cell}
@@ -522,6 +524,8 @@ export function MediaHome({ salonId, onToast }: {
                   </tbody>
                 </table>
               </div>
+              {/* ★ 表のすぐ下の注（※ のマスの説明・第215便）。★ 無ければ出さない */}
+              {sec.remark && <p className="mt-1.5 text-[12.5px] text-slate-400 leading-relaxed">{sec.remark}</p>}
             </div>
           ))}
           <ul className="text-[12.5px] text-slate-400 leading-relaxed space-y-0.5">
