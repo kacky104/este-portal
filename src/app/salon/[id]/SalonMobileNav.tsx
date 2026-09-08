@@ -122,9 +122,13 @@ export function SalonMobileNav({ salonName, metaLine1, metaLine2, items, colors 
       </div>
 
       {/* ② スクロールしたら貼り付く小さなバー（店名1行＋三本線） */}
+      {/* ★★ 隠すときは visibility:hidden（invisible）で消す（2026-09-08・実機で判明）。
+          ★ 前は -translate-y-full（自分の高さぶん上へずらす）で隠していたが、バーの top は「ヘッダー＋帯」の下端なので、
+            上へ48pxずらしても【帯の上に被さったまま】見えていた（ヘッダーの裏には入らない）。
+            ★ それが「先頭からバーが出て帯を隠す」「スクロールで震える」の正体。 */}
       <div
         aria-hidden={!stuck}
-        className={`fixed inset-x-0 z-40 border-b shadow-sm backdrop-blur-md transition-transform duration-200 ${stuck ? 'translate-y-0' : '-translate-y-full pointer-events-none'}`}
+        className={`fixed inset-x-0 z-40 border-b shadow-sm backdrop-blur-md transition-[opacity,transform] duration-200 ${stuck ? 'visible opacity-100 translate-y-0' : 'invisible opacity-0 -translate-y-2 pointer-events-none'}`}
         style={{ top: topPx, backgroundColor: `${colors.card}F2`, borderColor: colors.cardBorder }}
       >
         <div className="px-4 h-12 flex items-center gap-2">
