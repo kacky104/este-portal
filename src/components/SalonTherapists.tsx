@@ -702,7 +702,9 @@ export function SalonTherapists({ salonId }: { salonId: number }) {
       const { data: rows } = await supabase
         .from('therapists')
         .select(SALON_THERAPIST_COLUMNS)
-        .eq('salon_id', salonId);
+        .eq('salon_id', salonId)
+        // ★ 非公開（is_active=false）は出さない（第216便の方針・2026-09-08）。★ 本人ページは404なので、出すとリンク切れになる。
+        .eq('is_active', true);
 
       const rawIds = (rows ?? []).map(t => t.id);
       const userIds = (rows ?? []).map(t => t.user_id);
@@ -800,7 +802,9 @@ export function SalonOnDutyExcludingNow({ salonId, theme }: { salonId: number; t
       const { data: rows } = await supabase
         .from('therapists')
         .select(SALON_THERAPIST_COLUMNS)
-        .eq('salon_id', salonId);
+        .eq('salon_id', salonId)
+        // ★ 非公開（is_active=false）は出さない（第216便の方針・2026-09-08）。★ 本人ページは404なので、出すとリンク切れになる。
+        .eq('is_active', true);
 
       const rawIds = (rows ?? []).map(t => t.id);
       const userIds = (rows ?? []).map(t => t.user_id);
@@ -912,7 +916,9 @@ export function SalonAllTherapists({ salonId, limit, from, showSaveButton = fals
       const { data: rows } = await supabase
         .from('therapists')
         .select(SALON_THERAPIST_COLUMNS)
-        .eq('salon_id', salonId);
+        .eq('salon_id', salonId)
+        // ★ 非公開（is_active=false）は出さない（第216便の方針・2026-09-08）。★ 本人ページは404なので、出すとリンク切れになる。
+        .eq('is_active', true);
 
       const rawIds = (rows ?? []).map(t => t.id);
       const userIds = (rows ?? []).map(t => t.user_id);
@@ -1002,7 +1008,9 @@ export function SalonNewFaceTherapists({
       const { data: rows } = await supabase
         .from('therapists')
         .select(SALON_THERAPIST_COLUMNS)
-        .eq('salon_id', salonId);
+        .eq('salon_id', salonId)
+        // ★ 非公開（is_active=false）は出さない（第216便の方針・2026-09-08）。★ 本人ページは404なので、出すとリンク切れになる。
+        .eq('is_active', true);
 
       const rawIds = (rows ?? []).map(t => t.id);
       const userIds = (rows ?? []).map(t => t.user_id);

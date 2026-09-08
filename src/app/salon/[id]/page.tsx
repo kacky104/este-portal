@@ -50,6 +50,7 @@ import { fetchSalonTherapists } from "@/app/lib/salonTherapists";
 import { SalonDiaryCircles } from "@/components/DiarySection";
 import SalonHeaderSlider from "@/components/SalonHeaderSlider";
 import { AutoFitText } from "@/app/components/AutoFitText";
+import { SalonMobileNav, type SalonNavItem } from "./SalonMobileNav";
 import { SalonActionButtons } from "./SalonActionButtons";
 import { CollapsibleCourses } from "./CollapsibleCourses";
 import { CollapsibleSection } from "./CollapsibleSection";
@@ -477,6 +478,23 @@ export default async function SalonPage({
   // 2行目：営業時間：〇〇／定休日：〇〇（空欄は「問い合わせ」と表示）。
   const salonMetaLine2 = `営業時間：${salon.hours || '問い合わせ'}／定休日：${salon.closedDays || '問い合わせ'}`;
 
+  // ★ スマホの右ドロワーの中身（第219便）。★ クイックナビと同じ11個・同じ順・同じ数字。
+  //   ★ 「今すぐ」の人数は時刻で変わるので数字を出さない（クイックナビは ImasuguCountBadge がクライアントで出す）。
+  //   ★ fukuX・女性求人は未設定なら項目ごと出さない（クイックナビでは押せない灰色で残しているが、一覧では要らない）。
+  const mobileNavItems: SalonNavItem[] = [
+    { key: 'schedule', label: '本日出勤', href: `/salon/${id}/schedule`, count: onDutyCount },
+    { key: 'imasugu', label: '今すぐ', href: `/salon/${id}/imasugu` },
+    { key: 'diary', label: '写メ日記', href: `/salon/${id}/diary`, count: diaryRecentCount },
+    { key: 'price', label: '料金', href: `/salon/${id}/price` },
+    { key: 'reviews', label: '口コミ', href: `/salon/${id}/reviews`, count: salonReviewStats.count },
+    { key: 'coupon', label: 'クーポン', href: `/salon/${id}/coupon`, count: couponCount },
+    { key: 'therapists', label: 'セラピスト一覧', href: `/salon/${id}/therapists` },
+    { key: 'news', label: 'お知らせ', href: `/salon/${id}/news`, count: announcementRecentCount },
+    { key: 'info', label: '店舗情報', href: `/salon/${id}/info` },
+    ...(salon.fukuxUrl ? [{ key: 'fukux', label: 'fukuX', href: salon.fukuxUrl, external: true }] : []),
+    ...(activeJobHref ? [{ key: 'jobs', label: '女性求人', href: activeJobHref }] : []),
+  ];
+
   return (
     <div className="relative min-h-screen overflow-x-clip" style={{ color: theme.text }}>
 
@@ -522,13 +540,24 @@ export default async function SalonPage({
         </div>
 
         {/* ─── 店名＋情報行（TOP画像の下・枠なし・背景の上・中央寄せ） ─── */}
+        {/* ★ スマホ（md未満）は SalonMobileNav（店名＋2行＋三本線／スクロールで貼り付く小バー／右ドロワー・第219便）。
+            ★ PC（md以上）は今までどおり。★ 同じ内容を2回描いているので、店名や行を直すときは両方。 */}
+        <SalonMobileNav
+          salonName={salon.name}
+          metaLine1={salonMetaLine1}
+          metaLine2={salonMetaLine2}
+          items={mobileNavItems}
+          colors={{ heading: theme.heading, body: theme.body, card: theme.card, cardBorder: theme.cardBorder, accent: '#ec4899' }}
+        />
         {/* 店名は長いと2行になるため、AutoFitText で1行に収まるようフォントを自動縮小（26→最小15px）。 */}
-        <h1 className="px-2">
-          <AutoFitText text={salon.name} max={26} min={15} className="text-center font-bold leading-tight" style={{ color: theme.heading }} />
-        </h1>
-        <div className="text-center mt-1.5 mb-4 leading-relaxed px-2" style={{ color: theme.body }}>
-          <p className="text-[12px]">{salonMetaLine1}</p>
-          {salonMetaLine2 && <p className="text-[12px]">{salonMetaLine2}</p>}
+        <div className="hidden md:block">
+          <h1 className="px-2">
+            <AutoFitText text={salon.name} max={26} min={15} className="text-center font-bold leading-tight" style={{ color: theme.heading }} />
+          </h1>
+          <div className="text-center mt-1.5 mb-4 leading-relaxed px-2" style={{ color: theme.body }}>
+            <p className="text-[12px]">{salonMetaLine1}</p>
+            {salonMetaLine2 && <p className="text-[12px]">{salonMetaLine2}</p>}
+          </div>
         </div>
 
         {/* ─── 主要アクション（ネット予約 / 電話をする）＋ 右端にサロン保存ボタン ───
