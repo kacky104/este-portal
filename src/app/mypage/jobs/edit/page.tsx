@@ -86,7 +86,7 @@ export default function WorkEditPage() {
           <p className="text-[14px] text-rose-600">求人情報の取得に失敗しました：{jobError}</p>
         </div>
       ) : (
-        <div className="bg-white border border-slate-200 shadow-sm p-5 space-y-4">
+        <div className="bg-white border border-slate-200 shadow-sm px-[5px] md:px-5 py-5 space-y-4">
           {!job && (
             <p className="text-[14px] text-slate-500 leading-relaxed">
               フクエスワークに求人を掲載できます（1店舗1件）。下を入力して保存すると掲載されます。

@@ -117,50 +117,59 @@ export function JobHeroImageField({
       {value.length > 0 && (
         <div className="space-y-2 mb-2">
           {value.map((url, i) => (
-            <div key={url} className="flex items-center gap-2 rounded-xl border border-slate-200 bg-slate-50/50 p-2">
-              {/* プレビュー（16:9）。フォーム内は軽量に素の img を使用。 */}
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src={url}
-                alt={`求人バナー${i + 1}枚目`}
-                className="w-28 flex-shrink-0 aspect-video object-cover rounded-lg border border-slate-200"
-              />
-              <div className="flex-1 min-w-0">
-                {i === 0 ? (
-                  <span className="inline-block text-[10px] font-bold text-white px-2 py-0.5 rounded-full" style={{ background: 'linear-gradient(95deg,#10B981,#84CC16)' }}>
-                    メイン（1枚目）
+            <div key={url}>
+              <div className="flex items-center gap-2 rounded-xl border border-slate-200 bg-slate-50/50 p-2">
+                {/* プレビュー（16:9）。フォーム内は軽量に素の img を使用。 */}
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={url}
+                  alt={`求人バナー${i + 1}枚目`}
+                  className="w-28 flex-shrink-0 aspect-video object-cover rounded-lg border border-slate-200"
+                />
+                {/* 中の余白（ボタン類を右端に寄せる） */}
+                <div className="flex-1 min-w-0" />
+                {/* ★ 「n枚目」は削除ボタンの上（右端）に置く。★ 1枚目だけ、そのすぐ左に「メイン」バッジ。 */}
+                <div className="flex flex-col items-end gap-1 flex-shrink-0">
+                  <span className="flex items-center gap-1">
+                    {i === 0 && (
+                      <span
+                        className="text-[10px] font-bold text-white px-2 py-0.5 rounded-full"
+                        style={{ background: 'linear-gradient(95deg,#10B981,#84CC16)' }}
+                      >
+                        メイン
+                      </span>
+                    )}
+                    <span className="text-[10px] text-slate-400">{i + 1}枚目</span>
                   </span>
-                ) : (
-                  <span className="text-[10px] text-slate-400">{i + 1}枚目</span>
-                )}
-              </div>
-              <div className="flex items-center gap-1 flex-shrink-0">
-                <button
-                  type="button"
-                  onClick={() => move(i, -1)}
-                  disabled={busy || i === 0}
-                  aria-label="上へ"
-                  className="w-7 h-7 rounded-lg border border-slate-200 text-slate-400 text-xs flex items-center justify-center hover:border-emerald-300 hover:text-emerald-500 disabled:opacity-30 transition-colors"
-                >
-                  ↑
-                </button>
-                <button
-                  type="button"
-                  onClick={() => move(i, 1)}
-                  disabled={busy || i === value.length - 1}
-                  aria-label="下へ"
-                  className="w-7 h-7 rounded-lg border border-slate-200 text-slate-400 text-xs flex items-center justify-center hover:border-emerald-300 hover:text-emerald-500 disabled:opacity-30 transition-colors"
-                >
-                  ↓
-                </button>
-                <button
-                  type="button"
-                  onClick={() => handleDelete(i)}
-                  disabled={busy}
-                  className="text-[11px] font-bold px-2.5 py-1 rounded-lg border border-rose-200 text-rose-500 hover:bg-rose-50 disabled:opacity-40 transition-colors"
-                >
-                  削除
-                </button>
+                  <div className="flex items-center gap-1">
+                    <button
+                      type="button"
+                      onClick={() => move(i, -1)}
+                      disabled={busy || i === 0}
+                      aria-label="上へ"
+                      className="w-7 h-7 rounded-lg border border-slate-200 text-slate-400 text-xs flex items-center justify-center hover:border-emerald-300 hover:text-emerald-500 disabled:opacity-30 transition-colors"
+                    >
+                      ↑
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => move(i, 1)}
+                      disabled={busy || i === value.length - 1}
+                      aria-label="下へ"
+                      className="w-7 h-7 rounded-lg border border-slate-200 text-slate-400 text-xs flex items-center justify-center hover:border-emerald-300 hover:text-emerald-500 disabled:opacity-30 transition-colors"
+                    >
+                      ↓
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleDelete(i)}
+                      disabled={busy}
+                      className="text-[11px] font-bold px-2.5 py-1 rounded-lg border border-rose-200 text-rose-500 hover:bg-rose-50 disabled:opacity-40 transition-colors"
+                    >
+                      削除
+                    </button>
+                  </div>
+                </div>
               </div>
             </div>
           ))}

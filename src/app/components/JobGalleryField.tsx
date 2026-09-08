@@ -106,8 +106,7 @@ export function JobGalleryField({
         お店の雰囲気（最大{MAX_JOB_GALLERY_IMAGES}枚）
       </label>
       <p className="text-[10px] text-slate-400 mb-2 leading-relaxed">
-        推奨サイズ：正方形（800×800px推奨）。求人詳細の「お店の雰囲気」スライダーに掲載されます。
-        <span className="block">各画像に一言キャプション（例：「講習は女性講師」）を付けられます（任意・{MAX_GALLERY_CAPTION_LEN}字まで・↑↓で並び替え）。</span>
+        推奨サイズ：正方形（800×800px推奨）。
         {salonId == null && <span className="block text-amber-600">※ 先に対象店舗を選択してください。</span>}
       </p>
 
@@ -124,15 +123,48 @@ export function JobGalleryField({
         <div className="space-y-2 mb-2">
           {value.map((item, i) => (
             <div key={item.url} className="flex items-start gap-2 rounded-xl border border-slate-200 bg-slate-50/50 p-2">
-              {/* プレビュー（正方形）。フォーム内は軽量に素の img を使用。 */}
+              {/* プレビュー（正方形）。フォーム内は軽量に素の img を使用。★ スマホは小さめ（行の高さを詰めるため）。 */}
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
                 src={item.url}
                 alt={`お店の雰囲気${i + 1}枚目`}
-                className="w-20 flex-shrink-0 aspect-square object-cover rounded-lg border border-slate-200"
+                className="w-14 md:w-20 flex-shrink-0 aspect-square object-cover rounded-lg border border-slate-200"
               />
-              <div className="flex-1 min-w-0">
-                <span className="text-[10px] text-slate-400">{i + 1}枚目</span>
+              <div className="flex-1 min-w-0 md:order-2">
+                {/* 見出しの行。★ スマホはここに「n枚目・カウンター・↑↓・削除」を全部入れて、
+                    下の入力欄を1行まるごと使えるようにする（縦を詰めつつ入力欄を最大幅に）。 */}
+                <div className="flex items-center gap-1.5">
+                  <span className="text-[10px] text-slate-400 flex-shrink-0">{i + 1}枚目</span>
+                  <span className="md:hidden text-[10px] text-slate-300 flex-shrink-0">{item.caption.length}/{MAX_GALLERY_CAPTION_LEN}</span>
+                  <div className="md:hidden ml-auto flex items-center gap-1 flex-shrink-0">
+                    <button
+                      type="button"
+                      onClick={() => move(i, -1)}
+                      disabled={busy || i === 0}
+                      aria-label="上へ"
+                      className="w-6 h-6 rounded-md border border-slate-200 bg-white text-slate-400 text-[11px] flex items-center justify-center disabled:opacity-30 transition-colors"
+                    >
+                      ↑
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => move(i, 1)}
+                      disabled={busy || i === value.length - 1}
+                      aria-label="下へ"
+                      className="w-6 h-6 rounded-md border border-slate-200 bg-white text-slate-400 text-[11px] flex items-center justify-center disabled:opacity-30 transition-colors"
+                    >
+                      ↓
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleDelete(i)}
+                      disabled={busy}
+                      className="h-6 px-2 rounded-md border border-rose-200 bg-white text-rose-500 text-[10px] font-bold flex items-center justify-center disabled:opacity-40 transition-colors"
+                    >
+                      削除
+                    </button>
+                  </div>
+                </div>
                 <input
                   type="text"
                   value={item.caption}
@@ -141,9 +173,11 @@ export function JobGalleryField({
                   placeholder="一言キャプション（任意）"
                   className="mt-1 w-full px-2 py-1.5 rounded-lg border border-slate-200 text-xs bg-white focus:outline-none focus:ring-2 focus:ring-emerald-200"
                 />
-                <span className="block text-[10px] text-slate-300 text-right mt-0.5">{item.caption.length}/{MAX_GALLERY_CAPTION_LEN}</span>
+                {/* カウンターはPCのみ下に。スマホは上の行へ出した（縦を詰めるため）。 */}
+                <span className="hidden md:block text-[10px] text-slate-300 text-right mt-0.5">{item.caption.length}/{MAX_GALLERY_CAPTION_LEN}</span>
               </div>
-              <div className="flex flex-col items-center gap-1 flex-shrink-0">
+              {/* PC（md以上）のみ：従来どおり右列に ↑↓ と削除。スマホは見出しの行にまとめている。 */}
+              <div className="hidden md:flex flex-col items-center gap-1 flex-shrink-0 md:order-3">
                 <div className="flex items-center gap-1">
                   <button
                     type="button"

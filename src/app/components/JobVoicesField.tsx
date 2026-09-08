@@ -49,8 +49,7 @@ export function JobVoicesField({
         在籍セラピストの声（最大{MAX_THERAPIST_VOICES}件）
       </label>
       <p className="text-[10px] text-slate-400 mb-2 leading-relaxed">
-        在籍セラピストへのインタビュー形式のコメントを掲載できます（任意・↑↓で並び替え）。
-        <span className="block">評価（★1〜5）・年代・コメント（{MAX_VOICE_COMMENT_LEN}字まで）を入力してください。年代は必須です。</span>
+        コメント（{MAX_VOICE_COMMENT_LEN}字まで）を入力してください。
       </p>
 
       {value.length > 0 && (
