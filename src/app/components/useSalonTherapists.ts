@@ -112,6 +112,19 @@ export function useSalonTherapists(
 
       const isAvailableNowActive = (t: TherapistThumb) => isImasuguLiveCamel(t);
 
+      // ★ 既定画像（第217便）は【並べ替えの前】に当てる（2026-09-08・カッキーさんの判断）:
+      //   既定画像がある子は「写真あり」扱い＝今すぐ・出勤中の順だけで並ぶ。
+      //   ★ 写真が無い子が1人でも居るときだけ表を引く。
+      {
+        const needs = Object.values(bySalon).some((items) => items.some((t) => !t.imageUrl));
+        if (needs) {
+          const table = await loadTherapistPlaceholders(supabase, Object.keys(bySalon));
+          for (const [sid, items] of Object.entries(bySalon)) {
+            bySalon[Number(sid)] = items.map((t) => (t.imageUrl ? t : { ...t, imageUrl: pickWithTable(t.imageUrl, Number(sid), table) }));
+          }
+        }
+      }
+
       const result: Record<number, TherapistThumb[]> = {};
       for (const [sid, items] of Object.entries(bySalon)) {
         // 「今すぐ」フラグを最優先 → 今すぐ同士は残り時間少ない順（有効期限昇順）→ 次に出勤中を優先
@@ -129,16 +142,6 @@ export function useSalonTherapists(
           if (a.onDuty !== b.onDuty) return Number(b.onDuty) - Number(a.onDuty);
           return photo(a) - photo(b);
         });
-      }
-
-      // ★ 既定画像（第217便）は【並べ替えの後】に当てる（★ 並びは本人の写真の有無で決める）。
-      //   ★ 写真が無い子が1人でも居るときだけ表を引く。
-      const needs = Object.values(result).some((items) => items.some((t) => !t.imageUrl));
-      if (needs) {
-        const table = await loadTherapistPlaceholders(supabase, Object.keys(result));
-        for (const [sid, items] of Object.entries(result)) {
-          result[Number(sid)] = items.map((t) => (t.imageUrl ? t : { ...t, imageUrl: pickWithTable(t.imageUrl, Number(sid), table) }));
-        }
       }
 
       setSalonTherapists(result);

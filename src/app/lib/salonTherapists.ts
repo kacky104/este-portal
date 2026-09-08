@@ -124,12 +124,12 @@ export async function fetchSalonTherapists(
     };
   });
 
-  // ★ 既定画像（第217便）は【並べ替えの後】に当てる。
-  //   ★ 並び順は「本人の写真の有無」で決める（★ 既定画像を先に当てると全員「写真あり」になり、
-  //     写真なしを後ろに揃える意図（2026-08-22）が消える）。
-  return fillTherapistImages(supabase, sortSalonTherapists(mapped), {
+  // ★ 既定画像（第217便）は【並べ替えの前】に当てる（2026-09-08・カッキーさんの判断）。
+  //   ★ 既定画像がある子は「写真あり」扱い＝出勤順だけで並ぶ。
+  //   ★ 既定画像が無い環境（運営も店舗も未設定）では、写真なしが後ろに揃う 2026-08-22 の並びのまま。
+  return sortSalonTherapists(await fillTherapistImages(supabase, mapped, {
     salonId: () => salonId,
     image: (t) => t.profileImageUrl,
     set: (t, url) => ({ ...t, profileImageUrl: url }),
-  });
+  }));
 }

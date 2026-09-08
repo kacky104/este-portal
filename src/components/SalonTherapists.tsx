@@ -595,10 +595,14 @@ function ViewAllCard({ href, imageUrl = null }: { href: string; imageUrl?: strin
 // サムネイルは付けない（オーナー指定）。スワイプ・見切れカードのタップ・矢印で切替。
 // 高さは幅から自動で決まる: 中央カード=幅90%、カードの縦横比 105:153 → 全体 1000:1311。
 // PC（md以上）は従来どおりの横スクロールを使うので、ここは md:hidden。
-function TodayCardCarousel({ list }: { list: Therapist[] }) {
+// ★ moreHref / moreImageUrl（第218便・2026-09-08・カッキーさんの指示）:
+//   末尾に「一覧を見る」の画像カードを1枚足す（★ 押すと週間出勤 /salon/[id]/schedule へ）。
+//   ★ 第35便で外した「全部見る」の復活だが、★ 画像が /admin に置かれているときだけ出す（無ければ第35便のまま）。
+function TodayCardCarousel({ list, moreHref, moreImageUrl = null }: { list: Therapist[]; moreHref: string; moreImageUrl?: string | null }) {
   const [idx, setIdx] = useState(0);
   const dragStartX = useRef<number | null>(null);
-  const slides = list.length; // ★ 第35便: 末尾の「全部見る」カードは廃止（右上のリンクと重複）
+  const hasMore = Boolean(moreImageUrl);
+  const slides = list.length + (hasMore ? 1 : 0);
 
   const go = (delta: number) => setIdx((prev) => (prev + delta + slides) % slides);
 
@@ -642,7 +646,15 @@ function TodayCardCarousel({ list }: { list: Therapist[] }) {
               pointerEvents: visible ? 'auto' : 'none',
             }}
           >
-            <MiniCard therapist={list[i]} index={i} fill />
+            {i < list.length ? (
+              <MiniCard therapist={list[i]} index={i} fill />
+            ) : (
+              // ★ 末尾「一覧を見る」（画像だけ・角は直角・週間出勤へ）
+              <Link href={moreHref} className="block w-full h-full rounded-none overflow-hidden shadow-md bg-slate-100">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={moreImageUrl ?? ''} alt="一覧を見る" className="w-full h-full object-cover" />
+              </Link>
+            )}
           </div>
         );
       })}
@@ -736,7 +748,10 @@ export function SalonTherapists({ salonId }: { salonId: number }) {
       // ★ 出勤状況（dutyRank）を最優先。同じ状況の中では写真ありを先に出す
       //   （写真なしのイニシャル代替カードが先頭に並ぶと見栄えが悪いため・2026-08-22）。
       const availableNowActive = (t: Therapist) => isImasuguLiveCamel(t);
-      const sorted = [...mapped].sort((a, b) => {
+      // ★ 既定画像（第217便）は【並べ替えの前】に当てる（2026-09-08・カッキーさんの判断）: 既定画像がある子は「写真あり」扱い。
+      const FILL = { salonId: () => salonId, image: (t: Therapist) => t.profileImageUrl, set: (t: Therapist, url: string | null) => ({ ...t, profileImageUrl: url }) };
+      const filled = await fillTherapistImages(supabase, mapped, FILL);
+      const sorted = [...filled].sort((a, b) => {
         const ra = dutyRank(a), rb = dutyRank(b);
         if (ra !== rb) return ra - rb;
         const pa = photoRank(a), pb = photoRank(b);
@@ -746,10 +761,8 @@ export function SalonTherapists({ salonId }: { salonId: number }) {
       // 「本日出勤」ブロックは 今すぐ / 出勤中・出勤予定 / 受付終了 を表示。
       // 受付終了になっても非表示にせずカードを出し続ける。お休み(off)のみ除外。
       const visible = sorted.filter(t => availableNowActive(t) || getScheduleStatus(t.today).status !== 'off');
-      // 横スクロール表示。最大7人まで（8枚目は「全部見る」カードで週間出勤予定へ）
-      // ★ 既定画像（第217便）は【並べ替えの後】に当てる（★ 並びは本人の写真の有無で決める）。
-      const FILL = { salonId: () => salonId, image: (t: Therapist) => t.profileImageUrl, set: (t: Therapist, url: string | null) => ({ ...t, profileImageUrl: url }) };
-      setList(await fillTherapistImages(supabase, visible.slice(0, 7), FILL));
+      // 横スクロール表示。最大7人まで（8枚目は「一覧を見る」カードで週間出勤予定へ）
+      setList(visible.slice(0, 7));
     })();
   }, [salonId]);
 
@@ -761,7 +774,7 @@ export function SalonTherapists({ salonId }: { salonId: number }) {
   return (
     <>
       {/* スマホ: センターモードのカルーセル（第34便） */}
-      <TodayCardCarousel list={list} />
+      <TodayCardCarousel list={list} moreHref={`/salon/${salonId}/schedule`} moreImageUrl={moreImageUrl} />
       {/* PC: 従来どおりの横スクロール（見た目は変更なし） */}
       <div className="hidden md:flex gap-[3px] overflow-x-auto pb-2 scrollbar-pink">
         {list.map((t, i) => (
@@ -838,7 +851,10 @@ export function SalonOnDutyExcludingNow({ salonId, theme }: { salonId: number; t
         if (s === 'after') return 2;
         return 3; // off（お休み）
       };
-      const sorted = [...mapped].sort((a, b) => {
+      // ★ 既定画像（第217便）は【並べ替えの前】に当てる（2026-09-08・カッキーさんの判断）: 既定画像がある子は「写真あり」扱い。
+      const FILL = { salonId: () => salonId, image: (t: Therapist) => t.profileImageUrl, set: (t: Therapist, url: string | null) => ({ ...t, profileImageUrl: url }) };
+      const filled = await fillTherapistImages(supabase, mapped, FILL);
+      const sorted = [...filled].sort((a, b) => {
         const ra = rank(a), rb = rank(b);
         if (ra !== rb) return ra - rb;
         // 同じ出勤状況なら写真ありを先に（2026-08-22）。
@@ -857,9 +873,7 @@ export function SalonOnDutyExcludingNow({ salonId, theme }: { salonId: number; t
       const visible = sorted.filter(t =>
         getScheduleStatus(t.today).status !== 'off' && !availableNowActive(t)
       );
-      // ★ 既定画像（第217便）は【並べ替えの後】に当てる（★ 並びは本人の写真の有無で決める）。
-      const FILL = { salonId: () => salonId, image: (t: Therapist) => t.profileImageUrl, set: (t: Therapist, url: string | null) => ({ ...t, profileImageUrl: url }) };
-      setList(await fillTherapistImages(supabase, visible, FILL));
+      setList(visible);
     })();
   }, [salonId]);
 
@@ -938,9 +952,10 @@ export function SalonAllTherapists({ salonId, limit, from, showSaveButton = fals
 
       // 写真あり優先 → 出勤状況の順（sortSalonTherapists）。
       // サーバー取得（lib/salonTherapists.ts）と同じ並びに揃える。
-      // ★ 既定画像（第217便）は【並べ替えの後】に当てる（★ 並びは本人の写真の有無で決める）。
+      // ★ 既定画像（第217便）は【並べ替えの前】に当てる（2026-09-08・カッキーさんの判断）:
+      //   既定画像がある子は「写真あり」扱い＝出勤順だけで並ぶ。★ 既定画像が無い環境では今までどおり後ろ。
       const FILL = { salonId: () => salonId, image: (t: Therapist) => t.profileImageUrl, set: (t: Therapist, url: string | null) => ({ ...t, profileImageUrl: url }) };
-      setList(await fillTherapistImages(supabase, sortSalonTherapists(mapped), FILL));
+      setList(sortSalonTherapists(await fillTherapistImages(supabase, mapped, FILL)));
     })();
   }, [salonId, hasInitial]);
 

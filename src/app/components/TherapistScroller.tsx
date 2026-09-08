@@ -262,7 +262,13 @@ export function TherapistScroller({ showAge = false, filterSalonIds, workingHref
         return h * 60 + (m || 0);
       };
 
-      const onDuty = mapped.filter(t => getScheduleStatus(t.today).status === 'onDuty');
+      // ★ 既定画像（第217便）は【並べ替えの前】に当てる（2026-09-08・カッキーさんの判断）: 既定画像がある子は「写真あり」扱い。
+      const filledAll = await fillTherapistImages(supabase, mapped, {
+        salonId: (t) => t.salonId,
+        image: (t) => t.profileImageUrl,
+        set: (t, url) => ({ ...t, profileImageUrl: url }),
+      });
+      const onDuty = filledAll.filter(t => getScheduleStatus(t.today).status === 'onDuty');
       // 1. 今すぐ：残り時間少ない順（有効期限昇順。既存ロジック維持）。
       // ★ 各グループ内で「写真あり」を先に出す（写真なしのイニシャル代替カードが
       //   帯の先頭に並ぶと見栄えが悪いため・2026-08-22 オーナー指摘）。
@@ -276,12 +282,7 @@ export function TherapistScroller({ showAge = false, filterSalonIds, workingHref
         onDuty.filter(t => !isAvailableNowActive(t)),
         thirtyMinSeed(),
       ).sort((a, b) => (photo(a) - photo(b)) || (startMinutes(a) - startMinutes(b)));
-      // ★ 既定画像（第217便）は【並べ替えの後】に当てる（★ 並びは本人の写真の有無で決める）。
-      setList(await fillTherapistImages(supabase, [...imasugu, ...rest], {
-        salonId: (t) => t.salonId,
-        image: (t) => t.profileImageUrl,
-        set: (t, url) => ({ ...t, profileImageUrl: url }),
-      }));
+      setList([...imasugu, ...rest]);
     })();
   }, [filterSalonIds?.join(',')]); // eslint-disable-line react-hooks/exhaustive-deps
 
