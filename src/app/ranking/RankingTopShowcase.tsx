@@ -28,8 +28,8 @@ function pickCards(list: ShowcaseCard[], count: number, randomize: boolean): Sho
 }
 
 // 総合ランキングのショーケース（★ 2026-09-08・カッキーさんの指示で段数を変えた）:
-//   1〜3位=12枚(4×3)＋金/銀/銅 ／ 4〜10位=8枚(4×2) ／ 11〜20位=4枚(1行) ／ 21位以降=店舗ランキング4位以降と同じ画像レイアウト。
-// 店舗ランキングは今までどおり: 1〜3位=4枚(1行)、4位以降=画像レイアウト。
+//   1〜3位=12枚(4×3)＋金/銀/銅 ／ 4〜10位=8枚(4×2) ／ 11〜20位=4枚(1行) ／ 21位以降=画像レイアウト（左=店舗画像／右=キャッチとボタン）。
+// 店舗ランキング（★ 同日）: 1〜3位=8枚(4×2) ／ 4〜10位=4枚(1行) ／ 11位以降=画像レイアウト。
 // データはサーバーで一括取得したものを props で受け取る（個別 fetch なし＝高速）。
 export default function RankingTopShowcase({
   rank,
@@ -55,7 +55,7 @@ export default function RankingTopShowcase({
   variant?: 'overall' | 'salon';
 }) {
   const count = variant === 'salon'
-    ? (rank <= 3 ? 4 : 0)
+    ? (rank <= 3 ? 8 : rank <= 10 ? 4 : 0)
     : (rank <= 3 ? 12 : rank <= 10 ? 8 : rank <= 20 ? 4 : 0);
   // SSRは決定的な並び、マウント後にシャッフル（開くたびランダム・ハイドレーション不整合なし）。
   const [cards, setCards] = useState<ShowcaseCard[]>(() => pickCards(data.therapists, count, false));
@@ -69,7 +69,7 @@ export default function RankingTopShowcase({
     `営業時間：${data.hours || '問い合わせ'}`,
     `定休日：${data.closedDays || '問い合わせ'}`,
   ].filter(Boolean).join(' / ');
-  // 店舗4位以降（画像レイアウト）は 料金＋営業時間（定休日は出さない）。
+  // 画像レイアウト（店舗11位以降・総合21位以降）は 料金＋営業時間（定休日は出さない）。
   const detailLineSalon = [
     data.price || null,
     `営業時間：${data.hours || '問い合わせ'}`,
@@ -96,8 +96,8 @@ export default function RankingTopShowcase({
     ? (rank === 1 ? '#F5D57A' : rank === 2 ? '#C4CBD4' : rank === 3 ? '#E0A66A' : '#CBD5E1')
     : (rank === 1 ? '#B8860B' : rank === 2 ? '#5F6C7A' : rank === 3 ? '#A96B36' : '#64748B');
   const cardPlaceholder = darkTheme ? 'bg-slate-700' : 'bg-slate-100';
-  // ★ 画像レイアウト（左=店舗画像／右=キャッチとボタン）: 店舗は4位以降、総合は21位以降。
-  const imageLayout = variant === 'salon' ? rank > 3 : rank > 20;
+  // ★ 画像レイアウト（左=店舗画像／右=キャッチとボタン）: 店舗は11位以降、総合は21位以降。
+  const imageLayout = variant === 'salon' ? rank > 10 : rank > 20;
   // 「この店舗を見る」ボタンも順位色に合わせる（白文字が読める濃さの左→右グラデ）。
   const buttonBg =
     rank === 1 ? 'linear-gradient(to right,#E8A317,#F7C948)'
@@ -139,7 +139,7 @@ export default function RankingTopShowcase({
           </div>
         </div>
 
-        {/* 所属セラピスト（総合: 1〜3位=12枚/4×3、4〜10位=8枚/4×2、11〜20位=4枚/1行・ランダム。店舗: 1〜3位=4枚/1行） */}
+        {/* 所属セラピスト（総合: 1〜3位=12枚/4×3、4〜10位=8枚/4×2、11〜20位=4枚/1行・ランダム。店舗: 1〜3位=8枚/4×2、4〜10位=4枚/1行） */}
         {!imageLayout && cards.length > 0 && (
           <div className="grid grid-cols-4">
             {cards.map((c) => (
@@ -178,7 +178,7 @@ export default function RankingTopShowcase({
         )}
 
         {imageLayout ? (
-          /* 店舗4位以降：左=店舗画像／右=キャッチ・営業時間等・ボタン（左寄せ・右カラム幅に合わせる） */
+          /* 画像レイアウト（店舗11位以降・総合21位以降）：左=店舗画像／右=キャッチ・営業時間等・ボタン（左寄せ・右カラム幅に合わせる） */
           <div className="mt-2 flex gap-3 items-center">
             <div className={`flex-shrink-0 w-24 h-24 sm:w-48 sm:h-28 rounded-lg overflow-hidden ${cardPlaceholder}`}>
               {data.image ? (
