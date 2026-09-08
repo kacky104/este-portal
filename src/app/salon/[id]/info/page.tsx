@@ -14,6 +14,7 @@ import { buildSalonSubpageMetadata } from "../subpageMetadata";
 import { SiteNoticeBanner } from '@/app/components/SiteNoticeBanner';
 import { buildBreadcrumbJsonLd, toJsonLdString } from '@/app/lib/jsonLd';
 import { SalonMobileNav } from '../SalonMobileNav';
+import { InfoTelLink } from '@/app/components/InfoTelLink';
 import { fetchSalonNavItems } from '../salonNavItems';
 
 // 自己参照 canonical＋固有 title（root の canonical '/' 継承による重複扱いを防ぐ）。詳細は ../subpageMetadata.ts。
@@ -79,9 +80,11 @@ function WalletIcon() {
 }
 
 function InfoRow({
-  icon, label, value, labelColor, valueColor,
+  icon, label, value, labelColor, valueColor, valueNode,
 }: {
   icon: React.ReactNode; label: string; value: string; labelColor?: string; valueColor?: string;
+  /** 値を文字ではなく部品で出したいとき（電話番号のポップアップなど）。★ value は空判定のために残す */
+  valueNode?: React.ReactNode;
 }) {
   if (!value) return null;
   return (
@@ -90,7 +93,7 @@ function InfoRow({
         <span className="mt-px">{icon}</span>
         {label}
       </dt>
-      <dd className="text-sm leading-relaxed min-w-0 break-words" style={{ color: valueColor ?? '#334155' }}>{value}</dd>
+      <dd className="text-sm leading-relaxed min-w-0 break-words" style={{ color: valueColor ?? '#334155' }}>{valueNode ?? value}</dd>
     </div>
   );
 }
@@ -208,7 +211,9 @@ export default async function SalonInfoPage({
             <h2 className="font-bold" style={{ color: theme.heading }}>店舗基本情報</h2>
           </div>
           <dl className="space-y-3.5 text-sm">
-            <InfoRow icon={<PhoneIcon />}    label="電話番号" value={phone}      labelColor={theme.body} valueColor={theme.heading} />
+            {/* ★ 電話番号はタップで「フクエスを見た」のポップアップ → 発信（2026-09-08・カッキーさんの指示） */}
+            <InfoRow icon={<PhoneIcon />}    label="電話番号" value={phone}      labelColor={theme.body} valueColor={theme.heading}
+              valueNode={phone ? <InfoTelLink salonId={Number(id)} phone={phone} color={theme.heading} /> : undefined} />
             <InfoRow icon={<ClockIcon />}    label="営業時間" value={hours}      labelColor={theme.body} valueColor={theme.heading} />
             <InfoRow icon={<CalendarIcon />} label="定休日"   value={closedDays} labelColor={theme.body} valueColor={theme.heading} />
             <InfoRow icon={<MapIcon />}      label="住所"     value={address}    labelColor={theme.body} valueColor={theme.heading} />

@@ -51,6 +51,7 @@ import { SalonDiaryCircles } from "@/components/DiarySection";
 import SalonHeaderSlider from "@/components/SalonHeaderSlider";
 import { AutoFitText } from "@/app/components/AutoFitText";
 import { SalonMobileNav } from "./SalonMobileNav";
+import { InfoTelLink } from "@/app/components/InfoTelLink";
 import { buildSalonNavItems } from "./salonNavItems";
 import { SalonActionButtons } from "./SalonActionButtons";
 import { CollapsibleCourses } from "./CollapsibleCourses";
@@ -414,7 +415,9 @@ export default async function SalonPage({
   // 店舗基本情報の中身（スマホ=サロンについての下／デスクトップ=右サイドバー の2箇所で共用）
   const shopInfoRows = (
     <dl className="space-y-3.5 text-sm">
-      <InfoRow icon={<PhoneIcon />}    label="電話番号" value={salon.phone}      labelColor={theme.body} valueColor={theme.heading} />
+      {/* ★ 電話番号はタップで「フクエスを見た」のポップアップ → 発信（2026-09-08・カッキーさんの指示） */}
+      <InfoRow icon={<PhoneIcon />}    label="電話番号" value={salon.phone}      labelColor={theme.body} valueColor={theme.heading}
+        valueNode={salon.phone ? <InfoTelLink salonId={Number(id)} phone={salon.phone} color={theme.heading} /> : undefined} />
       <InfoRow icon={<ClockIcon />}    label="営業時間" value={salon.hours}      labelColor={theme.body} valueColor={theme.heading} />
       <InfoRow icon={<CalendarIcon />} label="定休日"   value={salon.closedDays} labelColor={theme.body} valueColor={theme.heading} />
       <InfoRow icon={<MapIcon />}      label="住所"     value={salon.address}    labelColor={theme.body} valueColor={theme.heading} />
@@ -833,7 +836,11 @@ export default async function SalonPage({
 
             {/* All therapists（折り畳み式） */}
             <CollapsibleSection theme={theme} className="!mt-1.5 md:!mt-3 rounded-2xl p-6 border shadow-sm" title="在籍セラピスト一覧">
-              <SalonAllTherapists salonId={Number(id)} limit={4} showSaveButton singleColumn hideSaveOnMobile initialList={allTherapists} />
+              {/* ★ スマホはカードの左右の余白を 24px → 8px（1/3）に（2026-09-08・カッキーさんの指示）。
+                  ★ 枠の p-6 はそのまま（見出しの位置を変えない）で、中身だけ -mx-4 で外へ広げる。PC は今までどおり。 */}
+              <div className="-mx-4 md:mx-0">
+                <SalonAllTherapists salonId={Number(id)} limit={4} showSaveButton singleColumn hideSaveOnMobile initialList={allTherapists} />
+              </div>
 
               <div className="mt-4 text-center">
                 {/* 「すべて見る」はテーマ連動の配色にする（2026-08-06）。
@@ -964,12 +971,15 @@ function InfoRow({
   value,
   labelColor,
   valueColor,
+  valueNode,
 }: {
   icon: React.ReactNode;
   label: string;
   value: string;
   labelColor?: string;
   valueColor?: string;
+  /** 値を文字ではなく部品で出したいとき（電話番号のポップアップなど）。★ value は空判定のために残す */
+  valueNode?: React.ReactNode;
 }) {
   return (
     <div className="flex gap-3">
@@ -977,7 +987,7 @@ function InfoRow({
         <span className="mt-px">{icon}</span>
         {label}
       </dt>
-      <dd className="text-[13px] leading-relaxed min-w-0 break-words" style={{ color: valueColor ?? '#334155' }}>{value}</dd>
+      <dd className="text-[13px] leading-relaxed min-w-0 break-words" style={{ color: valueColor ?? '#334155' }}>{valueNode ?? value}</dd>
     </div>
   );
 }
