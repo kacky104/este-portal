@@ -43,19 +43,19 @@ export function SalonMobileNav({ salonName, metaLine1, metaLine2, items, colors 
   //     実機のブラウザはスクロール中にアドレスバーが伸び縮みし、位置は毎フレーム変わるが高さは変わらない。
   //     ★ 位置で測っていたときは scroll のたびに top が変わり、バーがガタガタ震えた。
   //   ★ 帯（SiteNoticeBanner）は後から描かれることがあるので、ResizeObserver で追いかける。
+  //   ★ 帯は data-site-notice（SiteNoticeBanner）で探す。★ header の隣、で探すと Next が挟む要素で外れることがある。
   useEffect(() => {
     const header = document.querySelector('header');
     if (!header) return;
-    const banner = header.nextElementSibling as HTMLElement | null;
-    const bannerIsSticky = !!banner && getComputedStyle(banner).position === 'sticky';
+    const banner = document.querySelector<HTMLElement>('[data-site-notice]');
     const measure = () => {
-      const h = header.offsetHeight + (bannerIsSticky && banner ? banner.offsetHeight : 0);
+      const h = header.offsetHeight + (banner ? banner.offsetHeight : 0);
       setTopPx((prev) => (Math.abs(prev - h) < 1 ? prev : Math.round(h)));
     };
     measure();
     const ro = new ResizeObserver(measure);
     ro.observe(header);
-    if (bannerIsSticky && banner) ro.observe(banner);
+    if (banner) ro.observe(banner);
     return () => ro.disconnect();
   }, []);
 

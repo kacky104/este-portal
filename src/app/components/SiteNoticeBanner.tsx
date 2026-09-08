@@ -30,7 +30,8 @@ const VARIANTS: Record<Variant, { box: string; text: string; inner: string }> = 
 export function SiteNoticeBanner({ variant = 'default' }: { variant?: Variant }) {
   const v = VARIANTS[variant];
   return (
-    <div className={`sticky top-14 z-40 border-b ${v.box}`}>
+    // ★ data-site-notice: 店舗詳細スマホの店名バー（SalonMobileNav）が「この帯の高さ」を測るための目印（第219便）。★ 消さないこと。
+    <div data-site-notice className={`sticky top-14 z-40 border-b ${v.box}`}>
       <p className={`${v.inner} mx-auto px-4 py-2 text-center text-xs sm:text-sm font-bold leading-relaxed ${v.text}`}>
         現在テスト運用中です。9月初旬サイトオープン予定。
       </p>
