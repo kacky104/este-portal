@@ -27,7 +27,9 @@ function pickCards(list: ShowcaseCard[], count: number, randomize: boolean): Sho
   return a.slice(0, count);
 }
 
-// 総合ランキングのショーケース。1〜3位=8枚(4×2)＋金/銀/銅、4位以降=4枚(1行)＋ダーク。
+// 総合ランキングのショーケース（★ 2026-09-08・カッキーさんの指示で段数を変えた）:
+//   1〜3位=12枚(4×3)＋金/銀/銅 ／ 4〜10位=8枚(4×2) ／ 11〜20位=4枚(1行) ／ 21位以降=店舗ランキング4位以降と同じ画像レイアウト。
+// 店舗ランキングは今までどおり: 1〜3位=4枚(1行)、4位以降=画像レイアウト。
 // データはサーバーで一括取得したものを props で受け取る（個別 fetch なし＝高速）。
 export default function RankingTopShowcase({
   rank,
@@ -52,7 +54,9 @@ export default function RankingTopShowcase({
   theme: SalonTheme;
   variant?: 'overall' | 'salon';
 }) {
-  const count = variant === 'salon' ? (rank <= 3 ? 4 : 0) : (rank <= 3 ? 8 : 4);
+  const count = variant === 'salon'
+    ? (rank <= 3 ? 4 : 0)
+    : (rank <= 3 ? 12 : rank <= 10 ? 8 : rank <= 20 ? 4 : 0);
   // SSRは決定的な並び、マウント後にシャッフル（開くたびランダム・ハイドレーション不整合なし）。
   const [cards, setCards] = useState<ShowcaseCard[]>(() => pickCards(data.therapists, count, false));
   useEffect(() => {
@@ -92,7 +96,8 @@ export default function RankingTopShowcase({
     ? (rank === 1 ? '#F5D57A' : rank === 2 ? '#C4CBD4' : rank === 3 ? '#E0A66A' : '#CBD5E1')
     : (rank === 1 ? '#B8860B' : rank === 2 ? '#5F6C7A' : rank === 3 ? '#A96B36' : '#64748B');
   const cardPlaceholder = darkTheme ? 'bg-slate-700' : 'bg-slate-100';
-  const imageLayout = variant === 'salon' && rank > 3;
+  // ★ 画像レイアウト（左=店舗画像／右=キャッチとボタン）: 店舗は4位以降、総合は21位以降。
+  const imageLayout = variant === 'salon' ? rank > 3 : rank > 20;
   // 「この店舗を見る」ボタンも順位色に合わせる（白文字が読める濃さの左→右グラデ）。
   const buttonBg =
     rank === 1 ? 'linear-gradient(to right,#E8A317,#F7C948)'
@@ -134,7 +139,7 @@ export default function RankingTopShowcase({
           </div>
         </div>
 
-        {/* 所属セラピスト（1〜3位=8枚/4×2、4位以降=4枚/1行・ランダム） */}
+        {/* 所属セラピスト（総合: 1〜3位=12枚/4×3、4〜10位=8枚/4×2、11〜20位=4枚/1行・ランダム。店舗: 1〜3位=4枚/1行） */}
         {!imageLayout && cards.length > 0 && (
           <div className="grid grid-cols-4">
             {cards.map((c) => (
