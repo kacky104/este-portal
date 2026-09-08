@@ -59,7 +59,7 @@ const WEEKDAYS = ['日', '月', '火', '水', '木', '金', '土'];
 async function fetchTherapistList(salonId: string): Promise<Therapist[]> {
   const { data, error } = await supabase
     .from('therapists')
-    .select(`id, name, work_hours, area, comment, profile_image_url, age, body_type, profile_text, ${IMASUGU_COLUMNS}, user_id, invited_email, is_new_face, new_face_since`)
+    .select(`id, name, work_hours, area, comment, profile_image_url, age, body_type, profile_text, ${IMASUGU_COLUMNS}, user_id, invited_email, is_new_face, new_face_since, is_active`)
     .eq('salon_id', salonId);
   if (!error) return (data ?? []) as Therapist[];
   console.warn('[mypage] クエリ失敗（カラム未作成の可能性）:', error.message);
@@ -67,7 +67,7 @@ async function fetchTherapistList(salonId: string): Promise<Therapist[]> {
     .from('therapists')
     .select('id, name, work_hours, area, comment, profile_image_url, age, body_type, profile_text')
     .eq('salon_id', salonId);
-  return (fb ?? []).map(t => ({ ...(t as Omit<Therapist, 'is_available_now' | 'available_until' | 'is_available_now_cast' | 'available_until_cast' | 'is_available_now_import' | 'available_until_import' | 'user_id' | 'invited_email' | 'is_new_face' | 'new_face_since'>), is_available_now: false, available_until: null, is_available_now_cast: false, available_until_cast: null, is_available_now_import: false, available_until_import: null, user_id: null, invited_email: null, is_new_face: false, new_face_since: null }));
+  return (fb ?? []).map(t => ({ ...(t as Omit<Therapist, 'is_available_now' | 'available_until' | 'is_available_now_cast' | 'available_until_cast' | 'is_available_now_import' | 'available_until_import' | 'user_id' | 'invited_email' | 'is_new_face' | 'new_face_since' | 'is_active'>), is_available_now: false, available_until: null, is_available_now_cast: false, available_until_cast: null, is_available_now_import: false, available_until_import: null, user_id: null, invited_email: null, is_new_face: false, new_face_since: null, is_active: true }));
 }
 
 type Coupon = {
@@ -664,6 +664,9 @@ type Therapist = {
   // ★ 新人マーク（NEWバッジ）。★ 判定は src/lib/newFace.ts の isNewFaceActive ただ1つを通す。
   is_new_face: boolean | null;
   new_face_since: string | null;
+  // ★ 公開／非公開（第216便・2026-09-08）。★ 切替は /mypage/therapist/[id]。
+  //   ★ null は【公開】として扱う（★ 列を足す前からの古い行が全部消えないように）。
+  is_active: boolean | null;
 };
 
 type DaySchedule = {
@@ -1018,12 +1021,21 @@ export default function MyPage() {
 
   // 本日出勤中のセラピスト（営業日基準・深夜跨ぎ対応）。
   // 「今すぐ」は出勤中のセラピストにしか付けられないため、表示・保存の両方で参照する。
+  //
+  // ★★★ 第216便（2026-09-08）: 【非公開の方は出さない】。
+  //   ★ 「今すぐ」はフクエスのサイトに出す仕掛けなので、サイトに出ていない方に付ける意味が無い。
+  //   ★★ この useMemo は【表示と一括保存の両方】が見ている（★ 上のコメントのとおり）ので、
+  //     ここで落とせば保存側にも入らない。★ 2か所で別々に絞らないこと。
+  //   ★ is_active が null（列を足す前の古い行）は公開として扱う＝落とさない。
+  //   ★ 出勤・写メ日記・セラピストの一覧は今までどおり全員出す（★ カッキーさんの判断）。
+  //     ★ 非公開の方も名簿からは見つけられる＝公開に戻す入口が消えない。
   const onDutyTherapists = useMemo(() => {
     const todayStr = getBusinessDateJST();
     const jstH = Number(new Intl.DateTimeFormat('sv-SE', { timeZone: 'Asia/Tokyo', hour: '2-digit', hour12: false }).format(now));
     const jstM = Number(new Intl.DateTimeFormat('sv-SE', { timeZone: 'Asia/Tokyo', minute: '2-digit' }).format(now));
     const nowMin = jstH * 60 + jstM;
     return therapists.filter(t => {
+      if (t.is_active === false) return false; // ★ 非公開の方（第216便）
       const sched = schedules[String(t.id)]?.[todayStr];
       if (!sched?.is_active || !sched.start_time || !sched.end_time) return false;
       const [sh, sm] = sched.start_time.split(':').map(Number);
@@ -3957,6 +3969,14 @@ export default function MyPage() {
                         NEW
                       </span>
                     )}
+                    {/* ★ 非公開の印（第216便・2026-09-08）。★ 一覧からは外さず、印を付けて残す
+                        （★ カッキーさんの判断: 外すと公開に戻す入口が見つからなくなる）。
+                        ★ 切替は「セラピスト情報」→ プロフィールを編集 の中。 */}
+                    {t.is_active === false && (
+                      <span className="flex-shrink-0 px-1.5 py-0.5 bg-slate-600 text-white text-[9px] font-black leading-none">
+                        非公開
+                      </span>
+                    )}
                   </span>
                   <svg
                     className={`w-4 h-4 text-pink-400 transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`}
@@ -4256,6 +4276,13 @@ export default function MyPage() {
                   {isNewFaceActive(t.is_new_face, t.new_face_since) && (
                     <span className="flex-shrink-0 px-1.5 py-0.5 bg-emerald-500 text-white text-[9px] font-black leading-none tracking-wider">
                       NEW
+                    </span>
+                  )}
+                  {/* ★ 非公開の印（第216便・2026-09-08）。★ ここが切替への入口
+                      （「プロフィールを編集」→ いちばん下の「サイトへの掲載」）。 */}
+                  {t.is_active === false && (
+                    <span className="flex-shrink-0 px-1.5 py-0.5 bg-slate-600 text-white text-[9px] font-black leading-none">
+                      非公開
                     </span>
                   )}
                 </div>

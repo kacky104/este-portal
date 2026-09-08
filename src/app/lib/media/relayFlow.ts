@@ -1520,6 +1520,14 @@ async function planWork(
   //     ★ エステ魂は実測でも確定している（第150便）。★ 駅ちかは READY 後に記録で確かめる。
   const todayISO = businessDateJSTFrom(Date.now());
 
+  // ★★★ ここは【is_active で絞らない】。★ 第216便（2026-09-08）で確認したうえで、そのままにした。
+  //   ★ 絞ると、非公開にした方の【駅ちかに入ったままの出勤】にフクエスから二度と触れなくなる
+  //     （★ こちらの一覧から消える＝送る対象から外れる＝向こうは現在値のまま残る）。
+  //     ★ 店舗様が駅ちか側で手で消すことになり、それは「フクエスから反映」の約束に反する。
+  //   ★★ 代わりに、非公開にした時点で【フクエス側の出勤を休みにしている】
+  //     （setTherapistActive・src/app/actions/therapistAdmin.ts）。
+  //     ★ そうすれば次の周が「全休」として送り、駅ちかからも自然に降りる。
+  //   ★ この2つは対（つい）。★ 片方だけ直さないこと。
   const { data: therapists, error: thErr } = await supabase
     .from('therapists')
     .select('id, import_cast_id')

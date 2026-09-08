@@ -3,6 +3,7 @@
 import { createClient } from '@/app/lib/supabase/server';
 import { createServiceClient } from '@/app/lib/supabase/service';
 import { ADMIN_UUID } from '@/app/lib/admin';
+import { businessDateJSTFrom } from '@/lib/dutyStatus';
 
 // セラピスト削除・プロフィール画像掃除のサーバー専用処理（2026-07-12 新設）。
 //
@@ -183,4 +184,107 @@ export async function cleanupTherapistPhotos(input: {
   const { error: rmErr } = await svc.storage.from(THERAPIST_BUCKET).remove(paths);
   if (rmErr) return { ok: false, error: rmErr.message };
   return { ok: true };
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// ★★★ 公開／非公開の切替（第216便・2026-09-08）
+//
+// ★ 保存先は therapists.is_active（★ 新しい列は作らない）。第34便で入れた「退店」の列を、
+//   店舗様の手で動かせるようにしただけ。★ 公開側は元から is_active=false を全部落としている:
+//     /therapist/[id] は404／店舗詳細の在籍一覧・ランキング・検索・sitemap・埋め込み日記から除外。
+//   ★ つまりこの action は【公開面の見え方を新しく決めるものではない】。
+//     すでにある仕組みのスイッチを、Supabase の SQL から画面へ移すだけ。
+//
+// ★★ 非公開にするとき、ついでに2つ降ろす（★ カッキーさんの判断・2026-09-08）。
+//   ★ 理由は第215便 §1-3 と同じ穴（「read に戻しても true が残ると、後日 write にした瞬間に
+//     黙って走り出す」）。★ 非公開なのに裏で走り続けるものを残さない。
+//   ① 「今すぐ」のオーナー枠・キャスト枠を消す
+//      ★ 取り込み枠（_import・駅ちかの即ヒメ由来）は触らない。★ あれは向こうの写しなので、
+//        こちらで消しても次の取り込みで戻る。★ 消すべきは駅ちか側（第39便）。
+//   ② 今日以降（営業日基準）の出勤を休みにする
+//      ★★★ これをやらないと、駅ちかの出勤表に入ったままになる。
+//        planWork は「フクエスの出勤」を7日ぶん送る作りなので、こちらを休みにすれば
+//        次の周が「全休」として送り、駅ちかからも自然に降りる。
+//        ★ planWork を is_active で絞る道は採らなかった: 絞ると駅ちかに残った出勤に
+//          フクエスから二度と触れなくなり、店舗様が駅ちか側で手で消すことになる。
+//      ★ 昨日までの出勤は残す（★ 実績なので消さない）。
+//
+// ★★ 公開に戻すときは is_active=true にするだけ。★ 出勤は戻さない（★ 勝手に戻すと
+//   「休みにしたはずの日」が復活する）。★ 画面でその旨を伝えること。
+// ─────────────────────────────────────────────────────────────────────────────
+
+/** 非公開にしたときに何を降ろしたか。★ 画面がそのまま文にできる形で返す。 */
+export type SetActiveResult =
+  | { ok: true; isActive: boolean; clearedImasugu: boolean; clearedShiftDays: number }
+  | { ok: false; error: string };
+
+export async function setTherapistActive(input: {
+  therapistId: string | number;
+  salonId: number;
+  isActive: boolean;
+}): Promise<SetActiveResult> {
+  const therapistId = String(input.therapistId ?? '').trim();
+  const salonId = Number(input.salonId);
+  const next = input.isActive === true;
+  if (!therapistId) return { ok: false, error: '対象セラピストが不正です' };
+
+  const auth = await assertOwner(salonId);
+  if ('error' in auth) return { ok: false, error: auth.error };
+
+  const svc = createServiceClient();
+
+  // ★ 対象が当該サロン所属か（★ 権限は上で見ているが、他店の id を渡された場合をここで落とす）
+  const { data: t, error: tErr } = await svc
+    .from('therapists')
+    .select('id, salon_id, is_active')
+    .eq('id', therapistId)
+    .maybeSingle();
+  if (tErr) return { ok: false, error: `セラピストの取得に失敗しました: ${tErr.message}` };
+  if (!t || Number(t.salon_id) !== salonId) return { ok: false, error: 'セラピストが見つかりません' };
+
+  // ★ 非公開にするときだけ、今すぐの2枠も一緒に落とす（1回の update にまとめる）。
+  const patch: Record<string, unknown> = { is_active: next };
+  if (!next) {
+    patch.is_available_now = false;
+    patch.available_until = null;
+    patch.is_available_now_cast = false;
+    patch.available_until_cast = null;
+  }
+
+  const { error: upErr } = await svc
+    .from('therapists')
+    .update(patch)
+    .eq('id', therapistId)
+    .eq('salon_id', salonId);
+  if (upErr) return { ok: false, error: `切り替えに失敗しました: ${upErr.message}` };
+
+  // ★ 今日以降の出勤を休みにする（非公開のときだけ）。
+  //   ★ 「今日」は営業日基準（午前6時始まり）。★ planWork・マイページと同じ数え方。
+  let clearedShiftDays = 0;
+  if (!next) {
+    const todayISO = businessDateJSTFrom(Date.now());
+    const { data: cleared, error: schErr } = await svc
+      .from('therapist_schedules')
+      .update({ is_active: false, start_time: null, end_time: null })
+      .eq('therapist_id', therapistId)
+      .gte('schedule_date', todayISO)
+      .eq('is_active', true)
+      .select('schedule_date');
+    // ★ ここが失敗しても非公開そのものは成立している（公開面からは消えている）。
+    //   ★ ただし黙らない: 駅ちかに出勤が残る話なので、画面に理由を返す。
+    if (schErr) {
+      return { ok: false, error: `非公開にしましたが、今日以降の出勤を休みにできませんでした（${schErr.message}）。媒体連携をお使いの場合は出勤設定をご確認ください` };
+    }
+    clearedShiftDays = (cleared ?? []).length;
+  }
+
+  // ★★★ ISR の無効化は【呼び出した画面（クライアント）側】でやる。
+  //   ★ ここで src/app/lib/revalidateTop.ts を呼ばないこと。
+  //     ★ あれは fetch('/api/revalidate') という【相対URL】なので、
+  //       サーバー（この action の中）から呼ぶと必ず失敗する。
+  //       ★★ しかも中で握り潰しているので【何も起きないまま ok が返る】。
+  //       ★ 「非公開にしたのに10分サイトに残る」が静かに成立する形なので、呼ばない。
+  //   ★ 呼び先は /mypage/therapist/[id] の handleToggleActive（revalidateSalon＋revalidateTherapist）。
+
+  return { ok: true, isActive: next, clearedImasugu: !next, clearedShiftDays };
 }

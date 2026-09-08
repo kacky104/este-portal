@@ -14,7 +14,7 @@ import {
   sanitizeBadges,
 } from '@/lib/therapistBadges';
 import { STORAGE_CACHE_CONTROL } from '@/app/lib/storage';
-import { cleanupTherapistPhotos } from '@/app/actions/therapistAdmin';
+import { cleanupTherapistPhotos, setTherapistActive } from '@/app/actions/therapistAdmin';
 import { generateTherapistCopy, getTherapistCopyQuota, type QuotaState } from '@/app/actions/therapistCopy';
 import { getOrCreateDiaryMailAddress } from '@/app/actions/diaryMail';
 import { getDiaryForwards, saveDiaryForward } from '@/app/actions/diaryForward';
@@ -62,6 +62,8 @@ type Therapist = {
   profile_text: string | null;
   catchphrase: string | null;
   feature_badges: string[] | null;
+  // ★ 公開／非公開（第216便）。★ 保存先は第34便から在る is_active。★ 新しい列は作っていない。
+  is_active: boolean | null;
 };
 
 const MAX_IMAGES = 5;
@@ -106,6 +108,8 @@ export default function TherapistEditPage() {
   const [aiUndo, setAiUndo] = useState<{ catchphrase: string | null; profile_text: string | null } | null>(null);
   // 今月の残り回数（第30便）。読めなければ null のまま＝表示を出さない。
   const [aiQuota, setAiQuota] = useState<QuotaState | null>(null);
+  // ★★ 公開／非公開の切替中（第216便）。★ 保存ボタンとは別の道（押した瞬間に効く）。
+  const [activeSaving, setActiveSaving] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -141,7 +145,7 @@ export default function TherapistEditPage() {
 
       const { data: tData, error: tError } = await supabase
         .from('therapists')
-        .select('id, salon_id, name, profile_image_url, profile_images, age, body_type, profile_text, catchphrase, feature_badges')
+        .select('id, salon_id, name, profile_image_url, profile_images, age, body_type, profile_text, catchphrase, feature_badges, is_active')
         .eq('id', therapistId)
         .single();
 
@@ -300,6 +304,56 @@ export default function TherapistEditPage() {
     showToast('AI下書きを取り消して元の内容に戻しました');
   };
 
+  // ───────── ★★★ 公開／非公開の切替（第216便・2026-09-08） ─────────
+  //
+  // ★★ 下の「保存」とは別の道。★ 押した瞬間に効く（★ 未保存の警告には混ぜない）。
+  //   ★ 理由: 公開面の見え方が変わる操作なので、ほかの編集と一緒くたに保存させない。
+  //     ★ 「文章を直しただけのつもりが非公開になっていた」を起こさない。
+  // ★★★ 非公開にするときだけ聞く（★ 公開に戻すのは聞かない。★ 元に戻すだけなので）。
+  const handleToggleActive = async () => {
+    if (!therapist || activeSaving) return;
+    const nowActive = therapist.is_active !== false;
+    const name = therapist.name ?? 'このセラピスト';
+
+    if (nowActive) {
+      const ok = window.confirm(
+        name + 'さんを非公開にします。\n\n' +
+        '・フクエスのサイトから見えなくなります（プロフィール・店舗の在籍一覧・検索・ランキング）\n' +
+        '・「今すぐ」が入っていれば外れます\n' +
+        '・今日以降の出勤も休みにします（媒体連携をお使いの場合、次の反映で駅ちかからも降ります）\n' +
+        '　※ 昨日までの出勤は残ります\n\n' +
+        '公開に戻すのはいつでもできますが、出勤は戻りません（入れ直しになります）。\n\n' +
+        '非公開にしますか？',
+      );
+      if (!ok) return;
+    }
+
+    setActiveSaving(true);
+    const r = await setTherapistActive({
+      therapistId, salonId: Number(therapist.salon_id), isActive: !nowActive,
+    });
+    setActiveSaving(false);
+
+    if (!r.ok) { showToast(r.error); return; }
+
+    // ★★ 画面の持っている値も新しくする。★ ここを忘れるとボタンの文字が古いまま残る
+    //   （第173便の「比べる元も新しくする」と同じ話）。
+    setTherapist((t) => (t === null ? t : { ...t, is_active: r.isActive }));
+
+    // ★★★ 公開面のキャッシュを作り直す。★ ここ（クライアント）でやる。
+    //   ★ 無効化の口は fetch('/api/revalidate') という相対URLなので、
+    //     server action の中からは呼べない（★ 黙って失敗する）。★ 第216便で確認。
+    //   ★ 在籍一覧・出勤・今すぐは店舗ページとトップにも出るので salon ごと無効化する。
+    revalidateSalon(therapist.salon_id);
+    revalidateTherapist(therapist.id);
+    showToast(
+      r.isActive
+        ? name + 'さんを公開しました（出勤は入れ直してください）'
+        : name + 'さんを非公開にしました'
+          + (r.clearedShiftDays > 0 ? '（今日以降の出勤 ' + r.clearedShiftDays + '日ぶんを休みにしました）' : ''),
+    );
+  };
+
   /**
    * 転送先のうち【未保存の行】をまとめて保存する。下部の「保存」からも呼ぶ。
    * ★★ 第37便で判明した問題への対処。
@@ -449,7 +503,6 @@ export default function TherapistEditPage() {
 
   const inputClass = 'w-full px-3 py-2 rounded-xl border border-slate-200 text-sm bg-slate-50/50 focus:outline-none focus:ring-2 focus:ring-pink-200';
   const textareaClass = 'w-full px-3 py-2 rounded-xl border border-slate-200 text-sm bg-slate-50/50 focus:outline-none focus:ring-2 focus:ring-pink-200 resize-none';
-  const saveBtn = 'px-5 py-2 rounded-xl bg-gradient-to-r from-pink-500 to-fuchsia-500 text-white font-bold text-xs shadow-sm disabled:opacity-50';
 
   if (loadError) {
     return (
@@ -488,9 +541,17 @@ export default function TherapistEditPage() {
               <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
             </svg>
           </Link>
-          <h1 className="text-base font-black text-slate-800 tracking-wide">
+          <h1 className="text-base font-black text-slate-800 tracking-wide min-w-0 truncate">
             {therapist.name ?? 'セラピスト'} のプロフィール編集
           </h1>
+          {/* ★★ 非公開のときだけ、いちばん上に出す（第216便）。
+              ★ 下の切替カードまでスクロールしないと分からない、を無くす。
+              ★ 公開中は何も出さない（★ 既定の状態にラベルを付けない）。 */}
+          {therapist.is_active === false && (
+            <span className="flex-none rounded-full bg-slate-700 text-white text-[10px] font-bold px-2.5 py-1">
+              非公開
+            </span>
+          )}
         </div>
         {/* ★★★ 第173便: まだ保存していないことを、いつでも見える形で出す。
             ★ 「保存ボタンを押してなかったです」（2026-09-05）を二度起こさない。
@@ -516,7 +577,7 @@ export default function TherapistEditPage() {
       </header>
       <SiteNoticeBanner />
 
-      <main className="max-w-2xl mx-auto px-4 py-6 space-y-5">
+      <main className="max-w-2xl mx-auto px-4 pt-6 pb-24 space-y-5">
 
         {/* プロフィール画像（最大5枚） */}
         <div className="bg-white rounded-3xl border border-slate-100 shadow-sm p-5 space-y-3">
@@ -587,20 +648,8 @@ export default function TherapistEditPage() {
             推奨：縦長（3:4）1080×1440px／JPEG・PNG・WebP、5MBまで。1枚目がメイン画像として一覧などに表示されます。
           </p>
 
-          {/* ★★ 画像を入れ替えたら、ここで保存できる（2026-09-06・カッキーさんの指示）。
-              ★ アップロードしただけではDBに入りません（★ 保存を押すまで反映されない）。
-                そのため、いちばん下まで戻らないと保存できないのが不便だった。
-              ★★★ 呼んでいるのは【ページ下の保存と同じ handleSave】です。
-                ★ 第37便の事故（保存ボタンが2種類あり、片方が転送先を保存していなかったため
-                  「保存しましたと出たのに入っていない」が起きた）を繰り返さないため、
-                  ★ 新しい保存の道は作らず、必ずこの1つを呼ぶこと。 */}
-          {/* ★ 右下・大きさと文字は同じページの他の保存ボタンと同じ（saveBtn／「保存」）
-              （2026-09-06・カッキーさんの指示）。★ 見た目を1つにそろえる。 */}
-          <div className="pt-1 flex justify-end">
-            <button className={saveBtn} onClick={handleSave} disabled={saving}>
-              {saving ? '保存中...' : '保存'}
-            </button>
-          </div>
+          {/* ★ ここにあった保存ボタン（2026-09-06）は 2026-09-08 昼に外した（カッキーさんの指示）。
+              ★ 画面下に固定した保存バーができたので、下まで戻る不便は無くなった。 */}
         </div>
 
         {/* ★ 年齢とスタイルを1つの箱にした（2026-09-06・カッキーさんの指示）。
@@ -819,13 +868,7 @@ export default function TherapistEditPage() {
             );
           })}
 
-          {/* ★ 保存ボタン（2026-09-06・カッキーさんの指示）。★ バッジを選んだ流れのまま押せる。
-              ★ 押すのは下と同じ handleSave＝【画面全体】が保存される。★ バッジだけではない。 */}
-          <div className="pt-1 flex justify-end">
-            <button className={saveBtn} onClick={handleSave} disabled={saving}>
-              {saving ? '保存中...' : '保存'}
-            </button>
-          </div>
+          {/* ★ ここにあった保存ボタン（2026-09-06）は 2026-09-08 昼に外した（画面下の保存バーへ）。 */}
         </div>
 
         {/* 写メ日記 メール投稿アドレス（2026-08-21 第27便）。
@@ -971,18 +1014,75 @@ export default function TherapistEditPage() {
           </p>
         </div>
 
-       <div className="flex justify-between items-center pb-4">
+        {/* ★★★ 公開／非公開（第216便・2026-09-08）
+            ★ 保存先は is_active（第34便で入れた列）。★ 公開側は元からこの列で全部絞っている。
+            ★★ いちばん下に置く。★ めったに押さないもの・押すと公開面が変わるものなので、
+              日々の編集（写真・文章・バッジ）の流れの中に置かない。
+            ★ このカードには保存ボタンを付けない。★ ボタンを押した瞬間に効く。 */}
+        {/* ★ 2026-09-08 昼・カッキーさんの指示で【1行】に詰めた（縦幅を短く）。
+            ★ 見出し・札・ボタンを横に並べ、注意書きは枠なしの1行。★ 動きは変えていない。 */}
+        <div className="bg-white rounded-3xl border border-slate-200 shadow-sm px-5 py-3 space-y-1.5">
+          <div className="flex items-center gap-2">
+            <h2 className="text-sm font-black text-slate-700">サイトへの掲載</h2>
+            <span
+              className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-[11px] font-bold ${
+                therapist.is_active === false
+                  ? 'bg-slate-100 text-slate-600 border border-slate-200'
+                  : 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+              }`}
+            >
+              {therapist.is_active === false ? '非公開' : '公開中'}
+            </span>
+            <button
+              type="button"
+              onClick={handleToggleActive}
+              disabled={activeSaving}
+              className={`ml-auto px-4 py-1.5 rounded-xl font-bold text-xs shadow-sm disabled:opacity-50 transition-colors ${
+                therapist.is_active === false
+                  ? 'bg-gradient-to-r from-emerald-500 to-teal-500 text-white'
+                  : 'bg-white border border-slate-300 text-slate-600 hover:border-slate-400'
+              }`}
+            >
+              {activeSaving
+                ? '切り替え中...'
+                : therapist.is_active === false
+                  ? '公開する'
+                  : '非公開にする'}
+            </button>
+          </div>
+          {/* ★ 「非公開」と「削除」は別物（★ マイページの削除は写真・日記ごと消える・戻せない）。 */}
+          <p className="text-[10px] text-slate-400 leading-relaxed">
+            ※ 退店の際も削除より「非公開」がおすすめです。削除はプロフィール・写真・写メ日記が消え、戻せません。
+          </p>
+        </div>
+
+      </main>
+
+      {/* ★★ 画面下に固定した保存バー（2026-09-08 昼・カッキーさんの指示）。
+          ★ スクロールしても消えない。★ 上の各カードの「保存」と同じ handleSave を呼ぶ（★ 新しい道は作らない・第37便）。
+          ★ 「マイページに戻る」も未保存なら聞く（confirmLeave・第173便）。
+          ★ main の下端に pb-24 を足してあるので、いちばん下のカードがバーに隠れない。 */}
+      <div className="fixed bottom-0 inset-x-0 z-40 bg-white/95 backdrop-blur border-t border-slate-100 shadow-[0_-4px_12px_rgba(0,0,0,0.04)]">
+        {/* ★ 保存を【中央・大きく】（2026-09-08 昼・カッキーさんの指示）。
+            ★ 「マイページに戻る」は左端に小さく残す（★ 保存より目立たせない）。 */}
+        <div className="max-w-2xl mx-auto px-4 py-3 relative flex justify-center items-center">
           <Link
             href="/mypage"
-            className="px-5 py-2 rounded-xl border border-slate-200 text-slate-500 text-xs font-bold hover:border-pink-300 hover:text-pink-500 transition-colors"
+            onClick={confirmLeave}
+            className="absolute left-4 text-xs font-bold text-slate-400 hover:text-pink-500 transition-colors"
           >
             ← マイページに戻る
           </Link>
-          <button className={saveBtn} onClick={handleSave} disabled={saving}>
+          <button
+            type="button"
+            onClick={handleSave}
+            disabled={saving}
+            className="w-full max-w-xs px-8 py-3 rounded-2xl bg-gradient-to-r from-pink-500 to-fuchsia-500 text-white font-black text-base shadow-md disabled:opacity-50"
+          >
             {saving ? '保存中...' : '保存'}
           </button>
         </div>
-      </main>
+      </div>
     </div>
   );
 }
