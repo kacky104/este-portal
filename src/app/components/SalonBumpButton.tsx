@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { createClient } from '@/app/lib/supabase/client';
 import { revalidateTopAndAreas } from '@/app/lib/revalidateTop';
 import { bumpBoundaryMs } from '@/app/lib/salons';
+import { getBusinessDateJST } from '@/lib/dutyStatus';
 
 const sb = createClient();
 
@@ -13,10 +14,9 @@ const sb = createClient();
 // 実処理はDBの salon_bump RPC（オーナー検証・回数管理）。bump系列の直接UPDATEはトリガで禁止。
 // 押下成功後は revalidateTopAndAreas() で TOP・全地域ページの ISR を即時更新する。
 
-// JST 朝6時区切りの「日」キー（YYYY-MM-DD）。SQL側 v_today と同じ式。
-function bumpDayKey(nowMs: number = Date.now()): string {
-  return new Date(nowMs + 9 * 3600_000 - 6 * 3600_000).toISOString().slice(0, 10);
-}
+// JST 朝6時区切りの「日」キー（YYYY-MM-DD）。SQL側 v_today と同じ区切り。
+// ★ 2026-09-09（第224便）: 式の直書き（+9h -6h）をやめ、営業日の正本 dutyStatus に寄せた。
+//   ★ 6時区切りの決めごとを2か所に書かない（第150便の1本化）。★ SQL側 v_today を変えるときは両方。
 
 export function SalonBumpButton({ salonId }: { salonId: number }) {
   const [loaded, setLoaded] = useState(false);
@@ -37,7 +37,7 @@ export function SalonBumpButton({ salonId }: { salonId: number }) {
       .eq('id', salonId)
       .single();
     if (!data) return;
-    const today = bumpDayKey();
+    const today = getBusinessDateJST();
     // 日付が違えば未使用扱い（RPC側と同じリセット規則を表示にも適用）。
     setUsed((data.bump_day as string | null) === today ? ((data.bump_used as number) ?? 0) : 0);
     setQuota(20 + ((data.jobs_enabled as boolean) ? 20 : 0));

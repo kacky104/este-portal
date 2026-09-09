@@ -54,9 +54,13 @@ function storagePathFromUrl(url: string): string | null {
   return i === -1 ? null : url.slice(i + marker.length);
 }
 
+// ★ 2026-09-09（第224便）: 端末の時間帯で読んでいたのをやめ、JST 固定で表示する。
 function fmtDate(iso: string): string {
   const d = new Date(iso);
-  return `${d.getMonth() + 1}/${d.getDate()} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+  if (Number.isNaN(d.getTime())) return '';
+  return new Intl.DateTimeFormat('ja-JP', {
+    timeZone: 'Asia/Tokyo', month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit',
+  }).format(d);
 }
 
 // 入力済み内容の1行（ラベル＋値）。値が空の項目は出さない。

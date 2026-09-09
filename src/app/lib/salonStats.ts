@@ -18,6 +18,7 @@
 
 import { createClient } from '@/app/lib/supabase/client';
 import { fetchAllRows } from '@/app/lib/fetchAllRows';
+import { getCalendarDateJST } from '@/lib/dutyStatus';
 
 const supabase = createClient();
 
@@ -36,7 +37,8 @@ const supabase = createClient();
  *     という判断が先で、一般のアクセス解析（暦日）とも揃っているため、いまは変えない。
  */
 export function jstTodayYmd(): string {
-  return new Date(Date.now() + 9 * 60 * 60 * 1000).toISOString().slice(0, 10);
+  // ★ 2026-09-09（第224便）: 式の直書きをやめ、暦日の正本（dutyStatus）に委譲。
+  return getCalendarDateJST();
 }
 
 /** 'YYYY-MM-DD' に n 日足す（負数可）。 */

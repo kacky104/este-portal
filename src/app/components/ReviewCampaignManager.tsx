@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { COUPON_COLORS, getCouponColor, type CouponColorKey } from '@/app/lib/couponColors';
+import { getCalendarDateJST, addBusinessDays } from '@/lib/dutyStatus';
 import {
   getReviewCampaignTargets,
   sendCampaignVipLetter,
@@ -51,12 +52,9 @@ const DEFAULT_TERMS = `フクエスオープン記念・口コミ投稿者抽選
 おひとり様1回限り有効です。`;
 
 // 有効期限の初期値：本日から2週間後（YYYY-MM-DD）。
+// ★ 2026-09-09（第224便）: 端末の時間帯で日付を作っていたのをやめ、JST の暦日を正本から取る。
 function defaultExpiry(): string {
-  const d = new Date();
-  d.setDate(d.getDate() + 14);
-  const m = String(d.getMonth() + 1).padStart(2, '0');
-  const day = String(d.getDate()).padStart(2, '0');
-  return `${d.getFullYear()}-${m}-${day}`;
+  return addBusinessDays(getCalendarDateJST(), 14);
 }
 
 function formatJa(iso: string): string {

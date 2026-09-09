@@ -29,6 +29,24 @@ export function businessDateJSTFrom(epochMs: number): string {
   return base.toISOString().slice(0, 10);
 }
 
+/**
+ * ★ 暦日（JST・0時切替）の正本（第224便・2026-09-09）。★ 営業日（朝6時）とは別物。
+ *
+ * ★★ 使い分け: 出勤・掲載など「お店の1日」は営業日（businessDateJSTFrom）。
+ *   アクセス解析や枠の月数えなど、DB側が `(now() at time zone 'Asia/Tokyo')::date` で
+ *   書いているものに合わせて読むときは、こちらの暦日（第187便の決定）。
+ * ★ `new Date().toISOString().slice(0,10)` は【UTCの今日】で、JST 0:00〜9:00 の間だけ前日になる。
+ *   ★ その形を各所に書かないための1本化。
+ */
+export function calendarDateJSTFrom(epochMs: number): string {
+  return new Date(epochMs + 9 * 60 * 60 * 1000).toISOString().slice(0, 10);
+}
+
+/** JST の暦日の今日（'YYYY-MM-DD'）。 */
+export function getCalendarDateJST(): string {
+  return calendarDateJSTFrom(Date.now());
+}
+
 /** 'YYYY-MM-DD' の n 日後。★ 月またぎは UTC 正午基準で加減算する */
 export function addBusinessDays(dateISO: string, days: number): string {
   const [y, m, d] = dateISO.split('-').map(Number);

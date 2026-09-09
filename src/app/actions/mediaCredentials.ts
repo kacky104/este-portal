@@ -12,6 +12,7 @@ import { judgeImportStall } from '@/lib/importStall';
 import { isWriteDirection, isLinkMode, hasApprovedOnce } from '@/lib/mediaLinkMode';
 import { deriveDiarySource, readDiarySource } from '@/lib/diarySource';
 import { loadCastIds } from '@/lib/mediaCastIds';
+import { getCalendarDateJST } from '@/lib/dutyStatus';
 import { isLegacyCastIdScope } from '@/lib/mediaCastIds';
 import { buildLinkPairs, canLink, canUnlink, type LinkPairs } from '@/lib/mediaLinkPairs';
 import { providerLabel, isShopVisibleAudit } from '@/lib/mediaAudit';
@@ -1173,7 +1174,9 @@ export async function getMediaLinkAlerts(input: { salonId: string | number }): P
     const { data: ths } = await svc.from('therapists').select('id').eq('salon_id', salonId);
     const ids = (ths ?? []).map((t) => Number(t.id));
     if (ids.length > 0) {
-      const today = new Date().toISOString().slice(0, 10);
+      // ★ 2026-09-09（第224便）: `new Date().toISOString()` は【UTCの今日】で、
+      //   JST の 0:00〜9:00 の間だけ前日になり、出勤表を1日ぶん広く拾っていた。JST の暦日に揃える。
+      const today = getCalendarDateJST();
       const { data: sch, error: schErr } = await svc
         .from('therapist_schedules')
         .select('updated_at')
