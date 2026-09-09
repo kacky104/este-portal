@@ -222,11 +222,21 @@ export function buildEkichikaGirlCreateRequest(
   const used = new Set<string>();
   for (const f of fields) {
     // ★ ジャンルは【こちらが選んだものだけ】にする。読んだ側のチェックは持ち越さない
-    if (/^genre\[\d+\]$/.test(f.name)) continue;
+    if (/^genre2?\[\d+\]$/.test(f.name)) continue;
     if (Object.prototype.hasOwnProperty.call(ov, f.name)) { out.push([f.name, ov[f.name]]); used.add(f.name); continue; }
     out.push([f.name, f.value]);
   }
   for (const k of Object.keys(ov)) if (!used.has(k)) out.push([k, ov[k]]);
+  // ★★★★★ **ジャンルは2組 送る**（第237便・2026-09-10・ブラウザの成功ペイロードで確定）。
+  //   ★ 駅ちかの登録フォームは、送信時に **JavaScript が `genre2[<id>]=1` を足している**。
+  //     ★ 静的な HTML には現れないので、フォームを読むだけでは絶対に分からなかった。
+  //   ★★★ これを送らないと **「女の子情報の登録に失敗しました」** で保存だけが失敗する
+  //     （★ 名前もジャンルも在るので**入力の検証は通る**。★ だから赤字の欄名が出なかった）。
+  //   ★★ 実測（2026-09-10 1:51・castId 5810254 を手押しで作ったときの POST）:
+  //     …&options=&genre2%5B65%5D=1&genre2%5B49%5D=1&genre%5B65%5D=1&genre%5B49%5D=1&fuel_csrf_token=…
+  //   ★★★★ 教訓: **ブラウザは JS を動かす。中継は動かさない。**
+  //     ★ 「読んだフォームと同じ組を送った」だけでは足りない。★ **送信の瞬間の中身**を測ること。
+  for (const id of ids) out.push(['genre2[' + id + ']', '1']);
   for (const id of ids) out.push(['genre[' + id + ']', '1']);
   // ★★★★ **押したボタンを送る**（2026-09-09 の実弾で欠けていたもの）。
   //   ★ 駅ちかは **ボタンの名前で処理を決める**（削除は `girls_btn_batch_del`／登録は `update-btn`）。

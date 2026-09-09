@@ -225,5 +225,36 @@ const V = { name: 'さくら', genreIds: [1, 49], age: '24', tall: '158', bust: 
   eq('★ 角かっこは %5B %5D（ブラウザと同じ）', /genre%5B1%5D=1/.test(r.body), true);
 }
 
+// ── ⑧ ★★★★★ ジャンルは2組送る（第237便・2026-09-10）─────────
+//
+// ★★★ 2026-09-10 1:51、ブラウザで手押し登録した POST の実物:
+//   …&options=&genre2%5B65%5D=1&genre2%5B49%5D=1&genre%5B65%5D=1&genre%5B49%5D=1&fuel_csrf_token=…
+//   ★ `genre2[<id>]` は **静的な HTML に現れない**。★ 送信時に JavaScript が足している。
+//   ★★ これを送らないと「女の子情報の登録に失敗しました」で保存だけ失敗する（実弾6回ぶんの原因）。
+//   ★★★ ここは **また落とさないための番人**。
+{
+  const f = G.parseEkichikaGirlForm(girlPage());
+  const one = G.buildEkichikaGirlCreateRequest('c=1', f, { name: 'てすと', genreIds: [49] });
+  const r = G.buildEkichikaGirlCreateRequest('c=1', f, { name: 'てすと', genreIds: [11, 49] });
+  const pairs = r.body.split('&').map((x) => x.split('=')[0]);
+
+  eq('★★★★★ genre2 を選んだぶんだけ送る',
+     pairs.filter((k) => /^genre2%5B\d+%5D$/.test(k)).sort(),
+     ['genre2%5B11%5D', 'genre2%5B49%5D']);
+  eq('★★★ genre も今までどおり送る',
+     pairs.filter((k) => /^genre%5B\d+%5D$/.test(k)).sort(),
+     ['genre%5B11%5D', 'genre%5B49%5D']);
+  eq('★★ 値はどちらも 1', /(^|&)genre2%5B49%5D=1(&|$)/.test(r.body) && /(^|&)genre%5B49%5D=1(&|$)/.test(r.body), true);
+  eq('★★★ ジャンル1つ増えるごとに2組増える', r.meta.pairs - one.meta.pairs, 2);
+
+  // ★★★ 読んだ画面に genre2 がチェック済みで在っても、持ち越さない（genre と同じ扱い）
+  const withOld = girlPage().replace('<input type="hidden" name="p_genre_max_num" value="3">',
+    '<input type="checkbox" name="genre2[5]" value="1" checked><input type="hidden" name="p_genre_max_num" value="3">');
+  const r2 = G.buildEkichikaGirlCreateRequest('c=1', G.parseEkichikaGirlForm(withOld), { name: 'てすと', genreIds: [49] });
+  eq('★★★ 読んだ画面の genre2 のチェックは持ち越さない',
+     /genre2%5B5%5D/.test(r2.body), false);
+  eq('★ こちらが選んだ genre2 は入る', /(^|&)genre2%5B49%5D=1(&|$)/.test(r2.body), true);
+}
+
 console.log(fail === 0 ? '\nすべて通りました' : '\n' + fail + ' 件 NG');
 process.exit(fail === 0 ? 0 : 1);
