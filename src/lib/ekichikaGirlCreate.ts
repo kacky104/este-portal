@@ -253,3 +253,25 @@ export function readEkichikaMessage(html: string): string | null {
   const joined = found.join(' ／ ');
   return joined.length > 300 ? joined.slice(0, 300) + '…' : joined;
 }
+
+/**
+ * ★★★★ 書き込みの応答が **何だったのか**を、1行で記録に残す（第234便の修正3・2026-09-09）。
+ *
+ * ★★★ なぜ要るか
+ *   2026-09-09 の実弾で、POST は届いたのに登録されず、`readEkichikaMessage` も何も拾えなかった。
+ *   ★ そこから先は**推測になる**。→ **応答そのものの正体**を残して、次の1回で決めきる。
+ *
+ * ★ 返すもの: HTTPの番号 ／ ページの題 ／ 登録フォームが**また出ているか**（＝差し戻し）
+ *   ★★ 「また出ている」なら、駅ちかが受け付けずにフォームを描き直した、ということ。
+ *   ★ **判定には使わない。** ★ 判定は今までどおり一覧を読み直しての照合。
+ */
+export function describeEkichikaResponse(status: number, html: string): string {
+  const src = typeof html === 'string' ? html : '';
+  const title = /<title[^>]*>([\s\S]*?)<\/title>/i.exec(src)?.[1]?.replace(/\s+/g, ' ').trim() ?? '(題なし)';
+  const backToForm = /name\s*=\s*"catchcopy"/i.test(src);
+  const looksLogin = /name\s*=\s*"(?:login_id|password)"/i.test(src) || /ログイン/.test(title);
+  return 'HTTP ' + status + ' ／ 題「' + title.slice(0, 40) + '」'
+    + ' ／ 登録フォームが再表示' + (backToForm ? 'された（差し戻し）' : 'されていない')
+    + (looksLogin ? ' ／ ★ ログイン画面らしい' : '')
+    + ' ／ 本文 ' + src.length + '字';
+}

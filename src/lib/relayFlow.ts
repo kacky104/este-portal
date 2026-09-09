@@ -55,7 +55,7 @@ import type { EsutamaCastCreateValues } from './esutamaRequests';
 // ★ 駅ちかの登録（第234便）。★ 読み手と組み立ては ekichikaGirlCreate が持つ
 import {
   parseEkichikaGirlForm, buildEkichikaGirlFormRequest, buildEkichikaGirlCreateRequest,
-  readEkichikaMessage,
+  readEkichikaMessage, describeEkichikaResponse,
   type EkichikaGirlCreateValues,
 } from './ekichikaGirlCreate';
 import { RELAY_USER_AGENT } from './relayUserAgent';
@@ -450,6 +450,12 @@ export type RelayFlowContext = {
    *   ★★ **記録のためだけに持ち回す。** ★ 成否の判定には使わない（判定は読み直しての照合）。
    */
   createMessage?: string;
+  /**
+   * ★★★★ 書き込みの応答の正体（HTTPの番号・題・差し戻しかどうか）。★ 記録のためだけ。
+   *   ★ 2026-09-09 の実弾で「届いたが登録されない・メッセージも無い」に当たり、
+   *     そこから先が推測になったので足した。
+   */
+  createDiag?: string;
   articleShopId?: string;
   /** ★ ①article_image.json が返した識別子 */
   articleImgB?: string;
@@ -1652,7 +1658,11 @@ function afterGirlDelete(
 //   ★★ 新しい人は **名前ではなく「前に無かった castId」** で特定する。★ 同名の取り違えを避ける。
 
 /** ★ 1回目: もう居ないかを見て、登録フォームを読みに行く */
-function girlCreateAfterGirls(page: EkichikaGirlsPage, body: string, ctx: RelayFlowContext): FlowOutcome {
+function girlCreateAfterGirls(
+  page: EkichikaGirlsPage,
+  input: { status: number; headers: Record<string, string | string[]>; body: string },
+  ctx: RelayFlowContext,
+): FlowOutcome {
   const flowId = ctx.flowId;
   const want = String(ctx.createGirlValues?.name ?? '').trim();
 
@@ -1667,7 +1677,13 @@ function girlCreateAfterGirls(page: EkichikaGirlsPage, body: string, ctx: RelayF
           // ★★★★ 駅ちかが出した文言をそのまま見せる（§2-6「画面のメッセージを読む」）
           summary: want + 'さんを駅ちかに登録できませんでした（一覧に増えていません）'
             + (ctx.createMessage ? '。駅ちかの画面には「' + ctx.createMessage + '」と出ていました' : ''),
-          detail: { name: want, people: page.rows.length, reason: 'not_created', note: ctx.createMessage ?? null, flowId },
+          detail: {
+            name: want, people: page.rows.length, reason: 'not_created',
+            note: ctx.createMessage ?? null,
+            // ★★★★ 応答の正体。★ 「届いたのに登録されない」ときの次の一手はここから決める
+            response: ctx.createDiag ?? null,
+            flowId,
+          },
         }],
         '登録を送ったが、読み直しても人数が増えていない'
           + (ctx.createMessage ? '（画面のことば: ' + ctx.createMessage + '）' : ''),
@@ -1713,8 +1729,10 @@ function girlCreateAfterGirls(page: EkichikaGirlsPage, body: string, ctx: RelayF
       note: 'すでに同じ名前が居るので登録しない',
     };
   }
-  void body;   // ★ 一覧の使い捨てトークンは登録では使わない（登録フォーム側の token を使う）
-  const req = buildEkichikaGirlFormRequest(ctx.cookie);
+  // ★★★ Cookie を畳み直す（第234便の修正3）。★ エステ魂の流れでは各段でやっていたのに、
+  //   こちらで書き漏らしていた。★ セッションが更新されると、古いセッションのまま次の段へ行ってしまう。
+  const cookie = mergeCookies(ctx.cookie, input.headers['set-cookie'] as string | string[] | undefined);
+  const req = buildEkichikaGirlFormRequest(cookie);
   return {
     kind: 'next',
     audits: [
@@ -1726,7 +1744,7 @@ function girlCreateAfterGirls(page: EkichikaGirlsPage, body: string, ctx: RelayF
       purpose: 'girl_create_form',
       method: req.method, url: req.url, headers: req.headers, body: '',
       // ★★★ いまの顔ぶれを控える。★ これが「増えた1人」を見つける物差しになる
-      context: { ...ctx, createBeforeIds: page.rows.map((r) => r.castId) },
+      context: { ...ctx, cookie, createBeforeIds: page.rows.map((r) => r.castId) },
     },
   };
 }
@@ -1768,9 +1786,11 @@ function afterGirlCreateForm(
       '送る内容が文脈に入っていない',
     );
   }
+  // ★★★ ここでも Cookie を畳み直す（第234便の修正3）
+  const cookie = mergeCookies(ctx.cookie, input.headers['set-cookie'] as string | string[] | undefined);
   let req;
   try {
-    req = buildEkichikaGirlCreateRequest(ctx.cookie, form, values);
+    req = buildEkichikaGirlCreateRequest(cookie, form, values);
   } catch (e) {
     const why = e instanceof Error ? e.message : String(e);
     return stop(
@@ -1785,7 +1805,7 @@ function afterGirlCreateForm(
     next: {
       purpose: 'girl_create',
       method: req.method, url: req.url, headers: req.headers, body: req.body ?? '',
-      context: { ...ctx, createStage: 'verify' },
+      context: { ...ctx, cookie, createStage: 'verify' },
     },
   };
 }
@@ -1816,18 +1836,21 @@ function afterGirlCreate(
   }
   // ★★★★ 画面のメッセージを読む（§2-6 の教訓）。★ 判定には使わない。★ 記録に残すためだけ
   const message = readEkichikaMessage(input.body);
+  // ★★★★ 応答の正体も残す（第234便の修正3）。★ 「届いたのに登録されない」を推測で追わないため
+  const diag = describeEkichikaResponse(input.status, input.body);
+  const cookie = mergeCookies(ctx.cookie, input.headers['set-cookie'] as string | string[] | undefined);
   return {
     kind: 'next',
     audits: [],
     note: '登録を送った。★ 成否は一覧を読み直して確かめる（応答では判定しない）'
-      + (message ? ' ／ 画面のことば: ' + message : ''),
+      + (message ? ' ／ 画面のことば: ' + message : '') + ' ／ ' + diag,
     next: {
       purpose: 'read_girls',
       method: 'GET',
       url: EKICHIKA_GIRLS_URL,
-      headers: buildReadWorkRequest(ctx.cookie),
+      headers: buildReadWorkRequest(cookie),
       body: '',
-      context: { ...ctx, createStage: 'verify', ...(message ? { createMessage: message } : {}) },
+      context: { ...ctx, cookie, createStage: 'verify', createDiag: diag, ...(message ? { createMessage: message } : {}) },
     },
   };
 }
@@ -1888,7 +1911,7 @@ function afterReadGirls(
     //   ★ 既存の roster_read の枝には一切触っていない（下の return がそのまま残る）。
     if (ctx.intent === 'girl_delete') return girlDeleteAfterGirls(page, ctx);
     // ★★★ 登録の流れ（第234便）も、ここで終わらずに次の段へ進む
-    if (ctx.intent === 'girl_create') return girlCreateAfterGirls(page, input.body, ctx);
+    if (ctx.intent === 'girl_create') return girlCreateAfterGirls(page, input, ctx);
 
     // ★★ ここまで来て初めて「ログインできた」と言える
     return {

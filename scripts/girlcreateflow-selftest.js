@@ -176,6 +176,22 @@ const ctxV = Object.assign({}, ctxF, { createStage: 'verify' });
   eq('★★ detail にも残る', v.audits[0].detail.note, 'ジャンルは最低１つ選択してください。');
   eq('★ 判定そのものは変わらない（増えていない＝失敗）', v.audits[0].detail.reason, 'not_created');
 
+  // ★★★★ 応答の正体も残す（第234便の修正3）。★ 「届いたのに登録されない」を推測で追わないため
+  const back = go('girl_create', 200, {}, formPage(), ctxV);
+  eq('★★★★ 差し戻し（登録フォームの再表示）だと分かる', /差し戻し/.test(back.next.context.createDiag), true);
+  const v2 = go('read_girls', 200, {}, girlsPage(...OTHERS), back.next.context);
+  eq('★★★★ 失敗の記録に応答の正体が載る', /HTTP 200/.test(v2.audits[0].detail.response), true);
+  const ok2 = go('girl_create', 302, { location: 'https://ranking-deli.jp/admin/girls/edit/1' }, '', ctxV);
+  eq('★★ 差し戻しでなければそう分かる', /されていない/.test(ok2.next.context.createDiag), true);
+
+  // ★★★ Cookie を畳み直す（第234便の書き漏らし）
+  const c1 = go('read_girls', 200, { 'set-cookie': ['sid=new1; Path=/'] }, girlsPage(...OTHERS), ctx);
+  eq('★★★ 一覧の応答の Cookie を畳む', /sid=new1/.test(c1.next.context.cookie), true);
+  const c2 = go('girl_create_form', 200, { 'set-cookie': ['sid=new2; Path=/'] }, formPage(), ctxF);
+  eq('★★★ フォームの応答の Cookie を畳む', /sid=new2/.test(c2.next.context.cookie), true);
+  const c3 = go('girl_create', 200, { 'set-cookie': ['sid=new3; Path=/'] }, '<html>ok</html>', ctxV);
+  eq('★★★ 登録の応答の Cookie を畳む', /sid=new3/.test(c3.next.context.cookie), true);
+
   // ★ メッセージが無い画面でも普通に進む
   const q = go('girl_create', 200, {}, '<html><body>ok</body></html>', ctxV);
   eq('★ メッセージが無ければ持ち回さない', q.next.context.createMessage === undefined, true);
