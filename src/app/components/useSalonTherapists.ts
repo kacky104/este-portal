@@ -46,6 +46,8 @@ export function useSalonTherapists(
       const { data: therapistRowsWithAvail, error: tErr } = await supabase
         .from('therapists')
         .select(`id, name, age, salon_id, profile_image_url, work_hours, ${IMASUGU_COLUMNS}, is_new_face, new_face_since`)
+        // ★ 非公開（is_active=false）は出さない（第216便の方針）。★ 本人ページは404なので、出すとリンク切れになる。
+        .eq('is_active', true)
         .in('salon_id', salonIds);
 
       let therapistRows = therapistRowsWithAvail;
@@ -53,6 +55,7 @@ export function useSalonTherapists(
         const { data: fb } = await supabase
           .from('therapists')
           .select('id, name, age, salon_id, profile_image_url, work_hours')
+          .eq('is_active', true)
           .in('salon_id', salonIds);
         // ★ 列が無い環境へのフォールバック。3枠すべてを明示的に埋めること（枠を増やしたらここも増やす）。
         therapistRows = (fb ?? []).map(t => ({ ...t, is_available_now: false, available_until: null, is_available_now_cast: false, available_until_cast: null, is_available_now_import: false, available_until_import: null, is_new_face: false, new_face_since: null }));

@@ -190,7 +190,9 @@ export function TherapistScroller({ showAge = false, filterSalonIds, workingHref
       let query = supabase
         .from('therapists')
         .select(THERAPIST_CARD_COLUMNS)
-        .eq('salons.is_hidden', false);
+        .eq('salons.is_hidden', false)
+        // ★ 非公開（is_active=false）は出さない（第216便の方針）。★ 本人ページは404なので、出すとリンク切れになる。
+        .eq('is_active', true);
       if (filterSalonIds) query = query.in('salon_id', filterSalonIds);
       const { data: therapistData } = await query;
 

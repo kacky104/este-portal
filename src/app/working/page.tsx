@@ -68,9 +68,10 @@ export default async function WorkingPage({
   }
 
   // 出勤中セラピストをサーバーで取得し、初期HTMLにカード（リンク）を焼き込む（2026-08-05）。
-  // 取得条件は従来のクライアント実装と完全に同一（is_active では絞らない）。並び替えはコンポーネント側。
+  // ★ 非公開（is_active=false）は出さない（第216便の方針）。★ 本人ページは404なので、出すとリンク切れになる。
+  //   ★ /therapists・バッジ一覧と同じ activeOnly:true に揃えた。並び替えはコンポーネント側。
   const [pool, adBanners] = await Promise.all([
-    fetchTherapistPool({ filterSalonIds }),
+    fetchTherapistPool({ activeOnly: true, filterSalonIds }),
     // ルックバナー（ad_banners・公開中からランダム1枚）。一覧ブロックの上下に1枠ずつ表示。
     fetchActiveAdBanners(),
   ]);
