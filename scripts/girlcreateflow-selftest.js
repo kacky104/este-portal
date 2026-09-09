@@ -123,7 +123,9 @@ const ctxV = Object.assign({}, ctxF, { createStage: 'verify' });
 {
   // ★★★ 保存に成功すると編集ページへ飛ぶ。★ **その番号を使わない**
   const r = go('girl_create', 302, { location: 'https://ranking-deli.jp/admin/girls/edit/5809639' }, '', ctxV);
-  eq('★★★ 登録③: 応答では成否を決めず、一覧を読み直す', [r.kind, r.next.purpose, r.next.method], ['next', 'read_girls', 'GET']);
+  // ★★★★ 302 のときは、まず**突き返された先**を読む（赤字はそこに出る・2026-09-09 実測）
+  eq('★★★★ 登録③: 302 なら飛んだ先を読みに行く', [r.kind, r.next.purpose, r.next.method], ['next', 'girl_create_msg', 'GET']);
+  eq('★★★ 登録③: 読みに行く先は駅ちかが指した場所', r.next.url, 'https://ranking-deli.jp/admin/girls/edit/5809639');
   // ★★★ リダイレクト先の castId は【記録にだけ】残す。★ 判定には使わない（§2-4・第46便 §35）
   //   ★ 2026-09-09 の実弾で 302 に当たり、行き先が分からず足踏みしたので、記録には残すことにした。
   {
@@ -206,6 +208,25 @@ const ctxV = Object.assign({}, ctxF, { createStage: 'verify' });
   // ★ メッセージが無い画面でも普通に進む
   const q = go('girl_create', 200, {}, '<html><body>ok</body></html>', ctxV);
   eq('★ メッセージが無ければ持ち回さない', q.next.context.createMessage === undefined, true);
+}
+
+
+// ── ⑦ ★★★★ 突き返された先を読む（第234便の修正5）──
+//
+// ★★★ 駅ちかは弾いたとき 302 で飛ばし、**赤字は飛んだ先に出す**（2026-09-09 実測）。
+//   ★ 2種類ある: /index/「ページ遷移が正しくありません」（トークン）／ /create/「名前は必須入力です」（検証）
+{
+  const tokenErr = '<html><body>ページ遷移が正しくありません</body></html>';
+  const validErr = '<html><body>名前は必須入力です。ジャンルは最低１つ選択してください。</body></html>';
+  const r1 = go('girl_create_msg', 200, {}, tokenErr, ctxV);
+  eq('★★★★ トークンの取り違えを文字で残す', /ページ遷移が正しくありません/.test(r1.next.context.createMessage), true);
+  eq('★★ そのあと一覧を読み直す（判定は変えない）', r1.next.purpose, 'read_girls');
+  const r2 = go('girl_create_msg', 200, {}, validErr, ctxV);
+  eq('★★★★ 入力の検証で弾かれたことを文字で残す', /名前は必須入力です/.test(r2.next.context.createMessage), true);
+  const v = go('read_girls', 200, {}, girlsPage(...OTHERS), r2.next.context);
+  eq('★★★★ 失敗の記録に文言が載る', /名前は必須入力です/.test(v.audits[0].summary), true);
+  const r3 = go('girl_create_msg', 200, {}, '<html>なにも書いていない</html>', ctxV);
+  eq('★ 文言が無くても止まらない', r3.next.purpose, 'read_girls');
 }
 
 console.log(fail === 0 ? '\nすべて通りました' : '\n' + fail + ' 件 NG');

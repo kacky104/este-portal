@@ -43,6 +43,8 @@ export type RelayPurpose =
   // ★★ 駅ちかにセラピストを1人 登録する（第234便）。★ girl_create だけが相手に人を増やす
   | 'girl_create_form'
   | 'girl_create'
+  // ★★ 突き返された先を読む（第234便の修正5）。★ 読むだけ
+  | 'girl_create_msg'
   // ★ 駅ちかの新着情報の段（第155便）。★ 段名で分けているので既存の段に触らない
   //   ★★ article_save だけが相手を書き換える。★ 5枠のうち【1枠だけ】
   | 'article_list'

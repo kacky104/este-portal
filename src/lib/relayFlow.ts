@@ -658,6 +658,8 @@ export type FlowNextRequest = {
     | 'girl_delete'
     // ★★ 駅ちかにセラピストを1人 登録する（第234便）。★ girl_create だけが相手に人を増やす
     | 'girl_create_form' | 'girl_create'
+    // ★★★★ 突き返された先を読んで、赤字をそのまま記録に残す段（第234便の修正5）
+    | 'girl_create_msg'
     // ★ 即ヒメを押す／消す（第214便）。★ ajax 3本
     | 'sokuhime_check' | 'sokuhime_set' | 'sokuhime_del'
     // ★ 駅ちかの新着情報（第155便）。★ 名前を分けることで、既存の段の判定に一切触らない
@@ -996,6 +998,8 @@ export function advanceFlow(input: {
       return afterGirlCreateForm(input, ctx);
     case 'girl_create':
       return afterGirlCreate(input, ctx);
+    case 'girl_create_msg':
+      return afterGirlCreateMsg(input, ctx);
     case 'sokuhime_check':
       return afterSokuhimeCheck(input, ctx);
     case 'sokuhime_set':
@@ -1839,6 +1843,23 @@ function afterGirlCreate(
   // ★★★★ 応答の正体も残す（第234便の修正3）。★ 「届いたのに登録されない」を推測で追わないため
   const diag = describeEkichikaResponse(input.status, input.body, String(input.headers['location'] ?? ''));
   const cookie = mergeCookies(ctx.cookie, input.headers['set-cookie'] as string | string[] | undefined);
+  // ★★★★ 弾かれたとき、赤字は **飛んだ先**に出る（2026-09-09 実測）。★ だから飛んだ先を読む
+  const loc = String(input.headers['location'] ?? '');
+  if (input.status >= 300 && input.status < 400 && /^https?:\/\/(?:www\.)?ranking-deli\.jp\//.test(loc)) {
+    return {
+      kind: 'next',
+      audits: [],
+      note: '登録を送った。★ ' + diag + ' ／ 突き返された先を読みます',
+      next: {
+        purpose: 'girl_create_msg',
+        method: 'GET',
+        url: loc,
+        headers: buildReadWorkRequest(cookie),
+        body: '',
+        context: { ...ctx, cookie, createStage: 'verify', createDiag: diag },
+      },
+    };
+  }
   return {
     kind: 'next',
     audits: [],
@@ -1851,6 +1872,45 @@ function afterGirlCreate(
       headers: buildReadWorkRequest(cookie),
       body: '',
       context: { ...ctx, cookie, createStage: 'verify', createDiag: diag, ...(message ? { createMessage: message } : {}) },
+    },
+  };
+}
+
+/**
+ * ★★★★ 突き返された先の画面を読む（第234便の修正5・2026-09-09）。
+ *
+ * ★★★ 駅ちかは弾いたとき **302 で飛ばし、赤字は飛んだ先に出す**（実測）。
+ *   ★ だから POST の応答そのものには何も書いていない。★ 飛んだ先を読まないと理由が分からない。
+ *   ★★ 2026-09-09 の実弾で、ここを読まずに3回とも理由不明のまま終わった。
+ *
+ * ★ 実物で見えている2種類（2026-09-09 実測）:
+ *   /admin/girls/index/  「ページ遷移が正しくありません」… 使い捨てトークンが合わない
+ *   /admin/girls/create/ 「名前は必須入力です。」「ジャンルは最低１つ選択してください。」… 入力の検証
+ *
+ * ★★★ **判定には使わない。** ★ 判定は今までどおり一覧を読み直しての照合。
+ */
+function afterGirlCreateMsg(
+  input: { status: number; headers: Record<string, string | string[]>; body: string },
+  ctx: RelayFlowContext,
+): FlowOutcome {
+  const message = readEkichikaMessage(input.body);
+  // ★ class で拾えないことがあるので、実物で見えている文言も直に探す（★ 記録のためだけ）
+  const known = ['ページ遷移が正しくありません', '名前は必須入力です', 'ジャンルは最低１つ選択してください',
+    '必ず１枚目の画像を正方形にカットして下さい', 'データを登録しました']
+    .filter((w) => input.body.includes(w));
+  const said = [message, known.join(' ／ ')].filter((x) => x).join(' ／ ') || null;
+  const cookie = mergeCookies(ctx.cookie, input.headers['set-cookie'] as string | string[] | undefined);
+  return {
+    kind: 'next',
+    audits: [],
+    note: '突き返された先を読んだ' + (said ? '（画面のことば: ' + said + '）' : '（文言は見つからなかった）'),
+    next: {
+      purpose: 'read_girls',
+      method: 'GET',
+      url: EKICHIKA_GIRLS_URL,
+      headers: buildReadWorkRequest(cookie),
+      body: '',
+      context: { ...ctx, cookie, createStage: 'verify', ...(said ? { createMessage: said } : {}) },
     },
   };
 }
