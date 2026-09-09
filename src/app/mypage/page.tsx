@@ -3996,8 +3996,7 @@ export default function MyPage() {
               </p>
             </div>
             <p className="text-[10px] text-slate-400 leading-relaxed">
-              ※ ネット予約は「指名予約」のみ受け付けます。フリー（指名なし）をご希望のお客様には、
-              料金ページ等でお電話でのご予約をご案内ください。
+              ※ ネット予約は「指名予約」のみ受け付けます。
             </p>
           </div>
 
@@ -4012,14 +4011,14 @@ export default function MyPage() {
             </label>
             {bookingCourses.length === 0 && (
               <p className="text-[12px] font-bold text-rose-600 bg-rose-50 border border-rose-200 px-3 py-2 leading-relaxed">
-                ⚠ コースが1つも登録されていません。このままではネット予約を受け付けられません（お客様に選ぶものが出ません）。下の「＋コースを追加」から1つ以上ご登録ください。
+                ⚠ コースが未登録です。1つ以上登録してください。
               </p>
             )}
             <p className="text-[10px] text-slate-400 leading-relaxed">
-              ここに登録したコースがネット予約の選択肢になります。料金ページとは別に設定できます（ネット予約限定メニューも登録できます）。
+              ここに登録したコースがネット予約の選択肢になります。
             </p>
             <p className="text-[10px] text-slate-400 leading-relaxed">
-              ※ 指名料やオプション料金などの追加料金は、ここでは設定しません。ご予約が入った際に、お電話またはSMSでお客様に総額をお伝えする運用です。
+              ※ 指名料やオプション料金などの追加料金は、ご予約が入った際にお電話またはSMSでお客様に総額をお伝えする運用です。
             </p>
             {bookingCourses.length > 0 && (
               <div className="space-y-2">
