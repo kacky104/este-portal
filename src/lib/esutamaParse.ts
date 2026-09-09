@@ -18,6 +18,8 @@
 // ★★★ 「読めなかった」と「無かった」を混ぜない（作法3-5）。
 //   読めなかったものは null / warnings に残す。★ 推測で埋めない。
 
+import { parseHtmlForm, type HtmlFormField } from './htmlForm';
+
 // ────────────────────────────── 共通 ──────────────────────────────
 
 const ENTITIES: Record<string, string> = {
@@ -270,7 +272,14 @@ export function parseEsutamaCastList(html: string): EsutamaCastListParse {
 // ★★ `input[type=file]`（写真6枚）は **name 属性が無い**（id は cast_icon_1..6）。
 //   ★ どう送るのかは**未調査**。★ だから写真はこの便では扱わない。★ 分からないものを送らない。
 
-export type EsutamaFormField = { name: string; value: string };
+/**
+ * ★★★★ **絶対に送らない欄**（エステ魂）。
+ *   `set_up_limit` … 実物の見出しは「**保存と同時に上位表示する (残り7回)**」。
+ *   ★ **回数に限りのある店舗様の資源。** ★ こちらの都合で1回でも減らしてはいけない。
+ */
+export const ESUTAMA_NEVER_SEND = ['set_up_limit'] as const;
+
+export type EsutamaFormField = HtmlFormField;
 
 export type EsutamaCastFormParse = {
   /** ★ そのまま送り返せる形。★ file と set_up_limit は**入っていない** */
@@ -286,89 +295,25 @@ export type EsutamaCastFormParse = {
   warnings: string[];
 };
 
-/** textarea の中身と value 属性の実体参照を戻す */
-function unescapeValue(src: string): string {
-  return String(src ?? '').replace(/&(amp|lt|gt|quot|#39|nbsp);/g, (x) => ENTITIES[x] ?? x);
-}
-
 /**
  * セラピスト追加／編集フォームを読み、**送り返せる name/value の並び**にする。
  *
- * ★★★ なぜ「読んでから送る」のか（カッキーさん決定・2026-09-09）
- *   65部品の形をこちらで決め打ちすると、エステ魂が項目を増やしたときに**黙って壊れる**。
- *   ★ 毎回読んで、こちらは**名前・特徴・年齢・サイズだけを差し替える**。それ以外は読んだまま返す。
- *
- * ★ 取り方:
- *   input    … name が無いもの・type=file・submit/button/image/reset は捨てる。
- *              checkbox/radio は **checked のものだけ**（★ 未チェックは送らない＝ブラウザと同じ）
- *   select   … selected の option。★ 無ければ**先頭**（★ ブラウザと同じふるまい）
- *   textarea … 中身
+ * ★★★ 読む仕事そのものは `htmlForm.parseHtmlForm` が持つ（第233便で1か所にまとめた）。
+ *   ★ ここは **エステ魂の事情**だけを足す薄い包み:
+ *     ・`set_up_limit` を絶対に送らない
+ *     ・`ctk` / `cast_id` / 実在する `type[]` の番号 を取り出す
+ *   ★★ 共通の読み手は **実物と31組・差分0** で確かめてある（2026-09-09）。
  */
 export function parseEsutamaCastForm(html: string): EsutamaCastFormParse {
-  const fields: EsutamaFormField[] = [];
-  const typeIds: string[] = [];
-  const skipped: string[] = [];
-  const warnings: string[] = [];
-  const src = typeof html === 'string' ? html : '';
-  if (!src) return { fields, ctk: null, castIdHidden: null, typeIds, skipped, warnings: ['本文が空'] };
-
-  const open = /<form\b[^>]*>/i.exec(src);
-  if (!open) {
-    warnings.push('フォームが見つからない。取得失敗かレイアウト変更を疑うこと');
-    return { fields, ctk: null, castIdHidden: null, typeIds, skipped, warnings };
+  const f = parseHtmlForm(html, { skipNames: ESUTAMA_NEVER_SEND });
+  const ctk = f.fields.find((x) => x.name === 'ctk')?.value ?? null;
+  const castIdHidden = f.fields.find((x) => x.name === 'cast_id')?.value ?? null;
+  const typeIds = f.choiceValues['type[]'] ?? [];
+  const warnings = [...f.warnings];
+  if (f.fields.length > 0) {
+    if (!ctk) warnings.push('ctk が見つからない');
+    if (!f.fields.some((x) => x.name === 'name')) warnings.push('name の欄が見つからない');
+    if (typeIds.length === 0) warnings.push('特徴タグ（type[]）が1つも見つからない');
   }
-  const start = open.index + open[0].length;
-  const closeAt = src.toLowerCase().indexOf('</form>', start);
-  const inner = src.slice(start, closeAt >= 0 ? closeAt : src.length);
-  if (closeAt < 0) warnings.push('</form> が見つからないので、ページの終わりまでを form として読んだ');
-
-  const re = /<textarea\b([^>]*)>([\s\S]*?)<\/textarea>|<select\b([^>]*)>([\s\S]*?)<\/select>|<input\b([^>]*)>/gi;
-  let m: RegExpExecArray | null;
-  while ((m = re.exec(inner)) !== null) {
-    if (m[1] !== undefined) {
-      // ── textarea ──
-      const a = attrsOf('<textarea' + m[1] + '>');
-      if (!a.name) continue;
-      fields.push({ name: a.name, value: unescapeValue(m[2]).replace(/^\r?\n/, '') });
-      continue;
-    }
-    if (m[3] !== undefined) {
-      // ── select ──
-      const a = attrsOf('<select' + m[3] + '>');
-      if (!a.name) continue;
-      const opts: Array<{ value: string; selected: boolean }> = [];
-      const ore = /<option\b([^>]*)>([\s\S]*?)(?=<option\b|<\/select>|$)/gi;
-      let om: RegExpExecArray | null;
-      while ((om = ore.exec(m[4])) !== null) {
-        const oa = attrsOf('<option' + om[1] + '>');
-        opts.push({ value: oa.value !== undefined ? oa.value : textOf(om[2]), selected: 'selected' in oa });
-      }
-      if (opts.length === 0) { warnings.push(a.name + ' の選択肢が1つも無い'); continue; }
-      // ★ selected が無ければ先頭。★ ブラウザと同じ（ここを空にすると値が消える）
-      fields.push({ name: a.name, value: (opts.find((o) => o.selected) ?? opts[0]).value });
-      continue;
-    }
-    // ── input ──
-    const a = attrsOf('<input' + m[5] + '>');
-    const type = String(a.type ?? 'text').toLowerCase();
-    if (type === 'file') { skipped.push(a.name ? a.name : '(name の無い file)'); continue; }
-    if (!a.name) continue;
-    // ★★★ 上位表示（残り回数あり）は【何があっても送らない】
-    if (a.name === 'set_up_limit') { skipped.push('set_up_limit（保存と同時に上位表示する・残り回数あり）'); continue; }
-    if (type === 'submit' || type === 'button' || type === 'image' || type === 'reset') continue;
-    if (a.name === 'type[]' && a.value !== undefined) typeIds.push(a.value);
-    if (type === 'checkbox' || type === 'radio') {
-      if (!('checked' in a)) continue;                 // ★ 未チェックは送らない
-      fields.push({ name: a.name, value: a.value !== undefined ? a.value : 'on' });
-      continue;
-    }
-    fields.push({ name: a.name, value: a.value !== undefined ? a.value : '' });
-  }
-
-  const ctk = fields.find((f) => f.name === 'ctk')?.value ?? null;
-  const castIdHidden = fields.find((f) => f.name === 'cast_id')?.value ?? null;
-  if (!ctk) warnings.push('ctk が見つからない');
-  if (!fields.some((f) => f.name === 'name')) warnings.push('name の欄が見つからない');
-  if (typeIds.length === 0) warnings.push('特徴タグ（type[]）が1つも見つからない');
-  return { fields, ctk, castIdHidden, typeIds, skipped, warnings };
+  return { fields: f.fields, ctk, castIdHidden, typeIds, skipped: f.skipped, warnings };
 }
