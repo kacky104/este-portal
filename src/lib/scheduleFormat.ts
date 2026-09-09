@@ -1,11 +1,21 @@
 // 出勤スケジュール表示の整形ヘルパー（ピュア関数・サーバー/クライアント共用）。
 // 本体 /therapist/[id] と fukuX /x/u/[handle] の7日間スケジュールで共有し、二重メンテを避ける。
 
-/** "YYYY-MM-DD" を "M/D(曜)" に整形（JST固定）。 */
+/**
+ * "YYYY-MM-DD" を "M/D(曜)" に整形。
+ *
+ * ★★★ 2026-09-09: 実行環境の時間帯に左右されない形に直した（第224便）。
+ *   ★ 旧: `new Date(dateStr + 'T00:00:00+09:00')` を作ってから getMonth()/getDate()/getDay()
+ *     ＝【ローカル時刻】で読み出していた。ブラウザ（JST）は正しいが、
+ *     ★ サーバー（Vercel＝UTC）では JST 0:00 が前日15:00 として読まれ、**日付が1日前**になっていた。
+ *   ★ 症状: /therapist/[id] の「出勤スケジュール（7日間）」が、中身は今日ぶんなのに
+ *     見出しの日付だけ1日ずれて出る（例: 9/9 の並びが 9/8 始まりに見える）。
+ *   ★ 直し方: 文字列をそのまま数字にして使い、曜日だけ UTC で求める（Date のローカル読み出しをしない）。
+ */
 export function formatDate(dateStr: string): string {
-  const d = new Date(dateStr + 'T00:00:00+09:00');
-  const weekday = ['日', '月', '火', '水', '木', '金', '土'][d.getDay()];
-  return `${d.getMonth() + 1}/${d.getDate()}(${weekday})`;
+  const [y, m, d] = dateStr.split('-').map(Number);
+  const weekday = ['日', '月', '火', '水', '木', '金', '土'][new Date(Date.UTC(y, m - 1, d)).getUTCDay()];
+  return `${m}/${d}(${weekday})`;
 }
 
 /** "HH:MM"（や "H:MM"）を "H:MM" 表示に整形。空は ""。 */
