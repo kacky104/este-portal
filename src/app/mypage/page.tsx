@@ -406,8 +406,10 @@ const NAV_BAND_GROUPS = new Set(['日々の更新', '店舗情報', '関連サ�
 
 // ★ スマホで直に出す8つ。★ 並びはこの順（★ PCとは違ってよい。スマホは外出先で使うため）。
 const MOBILE_MAIN: TabKey[] = [
-  'available', 'schedule', 'diary', 'booking',
-  'profile', 'coupon', 'news', 'vipletter',
+  // ★ 2026-09-09（第225便・カッキーさんの指示）: クーポン と ネット予約 の位置を入れ替えた。
+  //   ★ 入れ替えたのはスマホのアイコンの並びだけ。★ PC（MYPAGE_NAV）の並びは変えていない。
+  'available', 'schedule', 'diary', 'coupon',
+  'profile', 'booking', 'news', 'vipletter',
 ];
 
 // ★ スマホでは出さない画面。★ 予約ボードはヘッダーのピンク文字から開く（2026-09-06・カッキーさんの指示）。

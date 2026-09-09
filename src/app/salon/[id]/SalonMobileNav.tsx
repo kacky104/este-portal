@@ -10,10 +10,14 @@
 //
 //   ★ 共通ヘッダーの高さは決め打ちしない（帯の有無・折返しで変わる）。<header> と帯の要素を測る。
 //   ★ 数字（本日出勤・写メ日記・口コミ・クーポン・お知らせ）はサーバー（page.tsx）から受け取る。
-//     ★ 「今すぐ」の人数は時刻で変わるので、クイックナビと同じ ImasuguCountBadge の考え方＝ここでは数字を出さない。
+//     ★ 「今すぐ」の人数だけは時刻で変わるので、サーバーからは受け取らない。
+//       ★ ドロワーを開いたときに【その場の時刻で】数えて出す（第225便・2026-09-09）。ImasuguCountBadge と同じ判定。
 import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { AutoFitText } from '@/app/components/AutoFitText';
+import { createClient } from '@/app/lib/supabase/client';
+import { isImasuguLiveRow } from '@/lib/imasugu';
+import { IMASUGU_COLUMNS } from '@/lib/therapistColumns';
 
 export type SalonNavItem = {
   key: string;
@@ -22,6 +26,12 @@ export type SalonNavItem = {
   external?: boolean;
   /** 右端に出す数字（0 や undefined は出さない） */
   count?: number;
+  /**
+   * ★ 「今すぐ」だけ: ここに店舗IDが入っていると、ドロワーを開いたときに
+   *   【その場の時刻で】人数を数えて数字を出す（★ サーバーでは数えない）。
+   *   ★ 今すぐは30分で自動的に消えるため、ISRに焼くと古い人数が残るから（ImasuguCountBadge と同じ考え方）。
+   */
+  liveImasuguSalonId?: number;
 };
 
 type Props = {
@@ -95,6 +105,33 @@ export function SalonMobileNav({ salonName, items, colors, mode = 'top', metaLin
     io.observe(el);
     return () => io.disconnect();
   }, [topPx, mode]);
+
+  // ★★ 「今すぐ」の人数（第225便・2026-09-09・カッキーさんの指摘で追加）。
+  //   ★ サーバーで数えない（ISRに焼くと、もう終わった人が残る）。★ 開いた"そのとき"に数える。
+  //   ★ 判定は ImasuguCountBadge と同じ isImasuguLiveRow。★ 非公開（is_active=false）は数えない。
+  //   ★ 失敗したら数字を出さないだけ（メニューは開ける）。
+  const imasuguSalonId = items.find((it) => it.liveImasuguSalonId != null)?.liveImasuguSalonId ?? null;
+  const [imasuguCount, setImasuguCount] = useState(0);
+  useEffect(() => {
+    if (!open || imasuguSalonId == null) return;
+    let active = true;
+    (async () => {
+      try {
+        const supabase = createClient();
+        const { data } = await supabase
+          .from('therapists')
+          .select(IMASUGU_COLUMNS)
+          .eq('salon_id', imasuguSalonId)
+          .eq('is_active', true);
+        if (!active) return;
+        const now = new Date();
+        setImasuguCount((data ?? []).filter((t) => isImasuguLiveRow(t, now)).length);
+      } catch {
+        // ★ 黙って数字なし。
+      }
+    })();
+    return () => { active = false; };
+  }, [open, imasuguSalonId]);
 
   // ★ ドロワーを開いている間は本文をスクロールさせない。Esc で閉じる。
   useEffect(() => {
@@ -188,12 +225,14 @@ export function SalonMobileNav({ salonName, items, colors, mode = 'top', metaLin
             </div>
             <ul>
               {items.map((it) => {
+                // ★ 今すぐだけ、その場で数えた人数を使う（他はサーバーから来た数字）。
+                const count = it.liveImasuguSalonId != null ? imasuguCount : it.count;
                 const inner = (
                   <>
                     <span className="flex-1 min-w-0 truncate">{it.label}</span>
-                    {it.count != null && it.count > 0 && (
+                    {count != null && count > 0 && (
                       <span className="flex-none inline-flex items-center justify-center min-w-[22px] h-[22px] px-1.5 rounded-full text-[11px] font-black text-white" style={{ backgroundColor: colors.accent }}>
-                        {it.count}
+                        {count}
                       </span>
                     )}
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" className="flex-none opacity-50" aria-hidden>
