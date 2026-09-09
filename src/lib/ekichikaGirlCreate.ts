@@ -265,12 +265,17 @@ export function readEkichikaMessage(html: string): string | null {
  *   ★★ 「また出ている」なら、駅ちかが受け付けずにフォームを描き直した、ということ。
  *   ★ **判定には使わない。** ★ 判定は今までどおり一覧を読み直しての照合。
  */
-export function describeEkichikaResponse(status: number, html: string): string {
+export function describeEkichikaResponse(status: number, html: string, location?: string | null): string {
   const src = typeof html === 'string' ? html : '';
   const title = /<title[^>]*>([\s\S]*?)<\/title>/i.exec(src)?.[1]?.replace(/\s+/g, ' ').trim() ?? '(題なし)';
   const backToForm = /name\s*=\s*"catchcopy"/i.test(src);
   const looksLogin = /name\s*=\s*"(?:login_id|password)"/i.test(src) || /ログイン/.test(title);
-  return 'HTTP ' + status + ' ／ 題「' + title.slice(0, 40) + '」'
+  // ★★★★ **行き先（Location）が最重要**（2026-09-09 の実弾で 302 に当たった）。
+  //   ★ /admin/girls/edit/<castId> … 保存は通っている ／ /admin/login … セッションが切れている
+  //   ★ /admin/girls/create/ … 受け付けを拒まれた（CSRF など）
+  const loc = String(location ?? '').trim();
+  return 'HTTP ' + status + (loc ? ' → ' + loc.slice(0, 120) : ' → (行き先なし)')
+    + ' ／ 題「' + title.slice(0, 40) + '」'
     + ' ／ 登録フォームが再表示' + (backToForm ? 'された（差し戻し）' : 'されていない')
     + (looksLogin ? ' ／ ★ ログイン画面らしい' : '')
     + ' ／ 本文 ' + src.length + '字';

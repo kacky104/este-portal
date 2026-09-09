@@ -124,7 +124,14 @@ const ctxV = Object.assign({}, ctxF, { createStage: 'verify' });
   // ★★★ 保存に成功すると編集ページへ飛ぶ。★ **その番号を使わない**
   const r = go('girl_create', 302, { location: 'https://ranking-deli.jp/admin/girls/edit/5809639' }, '', ctxV);
   eq('★★★ 登録③: 応答では成否を決めず、一覧を読み直す', [r.kind, r.next.purpose, r.next.method], ['next', 'read_girls', 'GET']);
-  eq('★★★ 登録③: リダイレクト先の castId を使わない', /5809639/.test(JSON.stringify(r.next.context)), false);
+  // ★★★ リダイレクト先の castId は【記録にだけ】残す。★ 判定には使わない（§2-4・第46便 §35）
+  //   ★ 2026-09-09 の実弾で 302 に当たり、行き先が分からず足踏みしたので、記録には残すことにした。
+  {
+    const c = Object.assign({}, r.next.context);
+    delete c.createDiag;   // ★ 記録用の1行だけは castId を含んでよい
+    eq('★★★ 登録③: リダイレクト先の castId を判定に持ち込まない', /5809639/.test(JSON.stringify(c)), false);
+    eq('★★★★ 登録③: 行き先は記録には残す', /5809639/.test(r.next.context.createDiag), true);
+  }
   eq('★★ 登録③: まだ「できました」と記録しない', r.audits, []);
 }
 {
@@ -183,6 +190,10 @@ const ctxV = Object.assign({}, ctxF, { createStage: 'verify' });
   eq('★★★★ 失敗の記録に応答の正体が載る', /HTTP 200/.test(v2.audits[0].detail.response), true);
   const ok2 = go('girl_create', 302, { location: 'https://ranking-deli.jp/admin/girls/edit/1' }, '', ctxV);
   eq('★★ 差し戻しでなければそう分かる', /されていない/.test(ok2.next.context.createDiag), true);
+  // ★★★★ 行き先が最重要（2026-09-09 の実弾で 302 に当たり、行き先が分からず足踏みした）
+  eq('★★★★ 行き先（Location）を残す', /→ https:\/\/ranking-deli\.jp\/admin\/girls\/edit\/1/.test(ok2.next.context.createDiag), true);
+  const noloc = go('girl_create', 302, {}, '', ctxV);
+  eq('★ 行き先が無ければ「行き先なし」と書く', /行き先なし/.test(noloc.next.context.createDiag), true);
 
   // ★★★ Cookie を畳み直す（第234便の書き漏らし）
   const c1 = go('read_girls', 200, { 'set-cookie': ['sid=new1; Path=/'] }, girlsPage(...OTHERS), ctx);

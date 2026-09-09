@@ -1837,7 +1837,7 @@ function afterGirlCreate(
   // ★★★★ 画面のメッセージを読む（§2-6 の教訓）。★ 判定には使わない。★ 記録に残すためだけ
   const message = readEkichikaMessage(input.body);
   // ★★★★ 応答の正体も残す（第234便の修正3）。★ 「届いたのに登録されない」を推測で追わないため
-  const diag = describeEkichikaResponse(input.status, input.body);
+  const diag = describeEkichikaResponse(input.status, input.body, String(input.headers['location'] ?? ''));
   const cookie = mergeCookies(ctx.cookie, input.headers['set-cookie'] as string | string[] | undefined);
   return {
     kind: 'next',
