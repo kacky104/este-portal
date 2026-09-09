@@ -166,3 +166,84 @@ export function parseEsutamaRoster(html: string): EsutamaRosterParse {
   if (rows.length === 0 && warnings.length === 0) warnings.push('出勤設定の行（/admin/schedule/<番号>/）が1つも無い');
   return { rows, warnings };
 }
+
+// ───────────── ★★★ セラピスト設定の一覧（/admin/cast/・第229便・2026-09-09） ─────────────
+//
+// ★★★ 出勤の名簿（/admin/schedule/list/）とは【別のページ】。
+//   ★ 表示／非表示の状態は、こちらにしか無い（2026-09-09 実測）。
+//
+// ★★ 実物の形（1人ぶん）:
+//   <div class="item tg_block ">                       ← 表示中
+//   <div class="item tg_block disabled">               ← ★ 非表示（クラスに disabled が付く）
+//     <span class="tag-disabled">非表示</span>          ← ★ 非表示のときだけ在る
+//     <a class="btn btn-warning card-btn1" href="/shop/<店舗>/cast/<castId>/">なまえ</a>
+//     <a class="btn btn-success" href="/admin/cast_edit/<castId>/">編集</a>
+//     <a class="send-easy_confirm_post ..." data-post="cast_disabled" data-row="<castId>">非表示</a>
+//        ★ 非表示のときは data-post="cast_enable"（★ **口が別**。トグルではない）
+//     <a class="btn btn-danger send-post_delete" data-delete="cast,<castId>,">削除</a>
+//
+// ★★★ 押す口が状態ごとに分かれているので、**間違えて逆にする事故が起きない**。
+//   ★ それでも状態を読むのは、①記録に「すでに非表示です」と書くため ②消したあとの照合のため。
+
+export type EsutamaCastRow = {
+  /** エステ魂の cast_id */
+  castId: string;
+  /** 表示名。★ 照合用の正規化はしない（呼び出し側の仕事） */
+  name: string;
+  /** ★ true＝いま非表示。★ 判定は tg_block のクラスに disabled が在るかどうかの1点 */
+  disabled: boolean;
+};
+
+export type EsutamaCastListParse = { rows: EsutamaCastRow[]; warnings: string[] };
+
+/**
+ * /admin/cast/ から castId・名前・表示状態を読む。
+ * ★ 1人ぶんの塊は「data-post="cast_disabled" か "cast_enable" を持つ <a>」を目印に切り出す。
+ *   ★ そこに data-row=<castId> が必ず在る（★ 表示中・非表示のどちらでも）。
+ * ★ 読めない行は捨てて warnings に残す。★ 数だけ返して黙らない。
+ */
+export function parseEsutamaCastList(html: string): EsutamaCastListParse {
+  const rows: EsutamaCastRow[] = [];
+  const warnings: string[] = [];
+  if (typeof html !== 'string' || html.length === 0) return { rows, warnings: ['本文が空'] };
+
+  // 1. tg_block の開始位置を全部拾い、隣どうしで切る（駅ちかの girls-cell と同じやり方）
+  const heads: Array<{ end: number; index: number; classAttr: string }> = [];
+  const re = /<div\b[^>]*class\s*=\s*"([^"]*\btg_block\b[^"]*)"[^>]*>/gi;
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(html)) !== null) heads.push({ index: m.index, end: m.index + m[0].length, classAttr: m[1] });
+
+  if (heads.length === 0) {
+    warnings.push('セラピスト設定の行（tg_block）が1件も見つからない。取得失敗かレイアウト変更を疑うこと');
+    return { rows, warnings };
+  }
+
+  const seen = new Set<string>();
+  for (let i = 0; i < heads.length; i++) {
+    const chunk = html.slice(heads[i].end, i + 1 < heads.length ? heads[i + 1].index : html.length);
+
+    // ★ castId は data-row から。★ 表示中でも非表示でも同じ場所に在る
+    const castId = /data-row\s*=\s*"(\d+)"/.exec(chunk)?.[1] ?? null;
+    if (!castId) { warnings.push(heads.length + '件中' + (i + 1) + '件目に data-row が無い'); continue; }
+
+    // ★★ 番号の突き合わせ。編集リンクの番号と食い違えば、その行は使わない（駅ちかと同じ作法）
+    const editId = /\/admin\/cast_edit\/(\d+)/.exec(chunk)?.[1] ?? null;
+    if (editId !== null && editId !== castId) {
+      warnings.push('cast_id ' + castId + ' と編集リンクの番号 ' + editId + ' が食い違う（使わない）');
+      continue;
+    }
+
+    // 名前は公開ページへのリンクの中身
+    const nameHtml = /<a\b[^>]*href\s*=\s*"[^"]*\/cast\/\d+\/?"[^>]*>([\s\S]*?)<\/a>/i.exec(chunk)?.[1] ?? '';
+    const name = textOf(nameHtml);
+    if (!name) { warnings.push('cast_id ' + castId + ' の名前を切り出せない'); continue; }
+
+    if (seen.has(castId)) { warnings.push('cast_id ' + castId + ' が2回出てくる'); continue; }
+    seen.add(castId);
+
+    // ★★★ 状態は tg_block のクラスの disabled ただ1点で決める。
+    //   ★ バッジ（tag-disabled）やボタンの文言では決めない。★ 文言は変わりうる
+    rows.push({ castId, name, disabled: /\bdisabled\b/.test(heads[i].classAttr) });
+  }
+  return { rows, warnings };
+}

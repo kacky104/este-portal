@@ -244,5 +244,115 @@ eq('★★ うるう日の翌深夜', at('2028-03-01T01:00:00+09:00'), '2028-02-
 // ★★★ 窓も営業日から始まる（★ 深夜に「いま出勤中の日」を落とさない）
 eq('★★★ 深夜の窓は前の営業日から', F.esutamaWindowDates(at('2026-09-05T00:20:00+09:00'))[0], '2026-09-04');
 
+
+// ───────── ★★★ 非表示の段（第229便・2026-09-09）─────────
+//
+//   login → esutama_cast_list（状態＋ctk）→ esutama_cast_hide → esutama_cast_list（照合）
+// ★★★ 見張りたいのは3つ:
+//   ① 押す前に「居る・まだ表示中」を確かめること（居なければ・すでに非表示なら**押さない**）
+//   ② 応答では成否を決めないこと（★ 必ず読み直して照合する）
+//   ③ 照合で disabled が付いていなければ **失敗として残す**（黙って成功にしない）
+{
+  const castRow = (id, name, opts) => {
+    const o = Object.assign({ disabled: false }, opts || {});
+    return '<div class="item tg_block ' + (o.disabled ? 'disabled' : '') + '">'
+      + (o.disabled ? '<span class="tag-disabled">非表示</span>' : '')
+      + '<a href="/shop/labyrinth/cast/' + id + '/">' + name + '</a>'
+      + '<a href="/admin/cast_edit/' + id + '/">編集</a>'
+      + '<a class="send-easy_confirm_post" data-post="' + (o.disabled ? 'cast_enable' : 'cast_disabled')
+      + '" data-row="' + id + '">' + (o.disabled ? '表示する' : '非表示') + '</a></div>';
+  };
+  const listPage = (rows, opts) => {
+    const o = Object.assign({ ctk: true }, opts || {});
+    return '<html><body>' + rows.join('')
+      + (o.ctk ? '<input type="hidden" name="ctk" id="csrf_footer" value="' + CSRF + '">' : '')
+      + '</body></html>';
+  };
+  const SHOWN = listPage([castRow('955433', 'てすと'), castRow('757480', 'さくら')]);
+  const HIDDEN = listPage([castRow('955433', 'てすと', { disabled: true }), castRow('757480', 'さくら')]);
+  const GONE = listPage([castRow('757480', 'さくら')]);
+  const ctxH = Object.assign({}, ctx0, { intent: 'cast_hide', cookie: 'sid=abc', hideCastId: '955433' });
+  const V = (extra) => Object.assign({}, ctxH, { hideStage: 'verify', hideName: 'てすと' }, extra || {});
+
+  // ── ログインの直後は【セラピスト設定】へ（★ 出勤名簿は読まない）──
+  {
+    const r = F.afterEsutamaLogin({ status: 200, headers: { 'set-cookie': ['sid=login1; Path=/'] }, body: '["REDIRECT_OK","/admin/"]' },
+      Object.assign({}, ctxH, { esutamaCsrf: CSRF }));
+    eq('★★ 非表示: ログイン後はセラピスト設定を読む', [r.kind, r.next.purpose, r.next.method], ['next', 'esutama_cast_list', 'GET']);
+    eq('★★★ 非表示: ログイン後に出勤名簿を読みに行かない', /schedule/.test(r.next.url), false);
+  }
+
+  // ── 1回目: 居て、まだ表示中 → 押しに行く ──
+  {
+    const r = F.afterEsutamaCastList({ status: 200, headers: {}, body: SHOWN }, ctxH);
+    eq('★ 非表示①: 押しに行く', [r.kind, r.next.purpose, r.next.method], ['next', 'esutama_cast_hide', 'POST']);
+    eq('★★★ 非表示①: 送るのは post_data と ctk だけ', r.next.body, 'post_data=955433&ctk=' + CSRF);
+    eq('★★ 非表示①: 次は照合の段', r.next.context.hideStage, 'verify');
+    eq('★★ 非表示①: 誰を押すのか名前を持ち回す', r.next.context.hideName, 'てすと');
+  }
+
+  // ── 1回目: すでに非表示 → **押さない** ──
+  {
+    const r = F.afterEsutamaCastList({ status: 200, headers: {}, body: HIDDEN }, ctxH);
+    eq('★★★ 非表示①: すでに非表示なら押さない', [r.kind, r.audits[0].outcome, r.audits[0].detail.reason], ['done', 'stopped', 'already_hidden']);
+    eq('★★★ そのとき次の手順は無い', r.next === undefined, true);
+  }
+
+  // ── 1回目: 一覧に居ない → **押さない**（★ 他人を押さないための安全装置）──
+  {
+    const r = F.afterEsutamaCastList({ status: 200, headers: {}, body: GONE }, ctxH);
+    eq('★★★ 非表示①: 居なければ押さない', [r.kind, r.audits[0].outcome, r.audits[0].detail.reason], ['done', 'stopped', 'not_listed']);
+  }
+
+  // ── 1回目: 相手が指定されていない → 何もしない ──
+  {
+    const r = F.afterEsutamaCastList({ status: 200, headers: {}, body: SHOWN }, Object.assign({}, ctxH, { hideCastId: undefined }));
+    eq('★★★ 非表示①: 相手が無ければ何もしない', [r.kind, r.audits[0].detail.reason], ['stop', 'no_cast_id']);
+  }
+
+  // ── 1回目: ctk が拾えない → 押さない ──
+  {
+    const r = F.afterEsutamaCastList({ status: 200, headers: {}, body: listPage([castRow('955433', 'てすと')], { ctk: false }) }, ctxH);
+    eq('★★★ 非表示①: ctk が無ければ押さない', [r.kind, r.audits[0].detail.reason], ['stop', 'no_ctk']);
+  }
+
+  // ── 1回目: 読めない画面（作りが変わった）→ 空の名簿として通さない ──
+  {
+    const r = F.afterEsutamaCastList({ status: 200, headers: {}, body: '<html>メンテナンス中</html>' }, ctxH);
+    eq('★★★ 非表示①: 読めない画面を「0人」で通さない', [r.kind, r.audits[0].detail.reason], ['stop', 'parse_empty']);
+  }
+  {
+    const r = F.afterEsutamaCastList({ status: 302, headers: { location: 'https://estama.jp/admin/login/' }, body: '' }, ctxH);
+    eq('★★ 非表示①: ログイン画面へ戻されたら止める', [r.kind, r.audits[0].event], ['stop', 'login']);
+  }
+
+  // ── POST の応答: **成否を判定しない**。★ 読み直しへ ──
+  {
+    const r = F.afterEsutamaCastHide({ status: 200, headers: {}, body: '{"success":true}' }, V());
+    eq('★★★ 非表示②: 応答では成否を決めず、読み直す', [r.kind, r.next.purpose, r.next.method], ['next', 'esutama_cast_list', 'GET']);
+    eq('★★ 非表示②: 照合の段のまま', r.next.context.hideStage, 'verify');
+    eq('★★ 非表示②: まだ「できました」と記録しない', r.audits, []);
+  }
+  {
+    const r = F.afterEsutamaCastHide({ status: 500, headers: {}, body: '' }, V());
+    eq('★★ 非表示②: 5xx は失敗として残す', [r.kind, r.audits[0].event, r.audits[0].outcome], ['stop', 'hide_cast', 'failed']);
+  }
+
+  // ── 3回目（照合）──────────────────────────────────
+  {
+    const r = F.afterEsutamaCastList({ status: 200, headers: {}, body: HIDDEN }, V());
+    eq('★★★ 非表示③: disabled が付いていて初めて「できました」', [r.kind, r.audits[0].event, r.audits[0].outcome], ['done', 'hide_cast', 'ok']);
+    eq('★ 非表示③: 誰を非表示にしたかが記録に残る', r.audits[0].detail.name, 'てすと');
+  }
+  {
+    const r = F.afterEsutamaCastList({ status: 200, headers: {}, body: SHOWN }, V());
+    eq('★★★ 非表示③: まだ表示中なら失敗として残す', [r.kind, r.audits[0].outcome, r.audits[0].detail.reason], ['stop', 'failed', 'still_shown']);
+  }
+  {
+    const r = F.afterEsutamaCastList({ status: 200, headers: {}, body: GONE }, V());
+    eq('★★★ 非表示③: 一覧から消えていたら失敗として残す（消した可能性）', [r.kind, r.audits[0].outcome, r.audits[0].detail.reason], ['stop', 'failed', 'gone']);
+  }
+}
+
 console.log(fail === 0 ? '\nすべて通りました' : '\n' + fail + ' 件 NG');
 process.exit(fail === 0 ? 0 : 1);

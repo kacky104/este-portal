@@ -65,6 +65,10 @@ export type RelayPurpose =
   | 'esutama_login_page'
   | 'esutama_login'
   | 'esutama_roster'
+  // ★★ エステ魂のセラピスト設定（第229便）。★ 出勤名簿とは別の画面
+  //   ★ esutama_cast_hide だけが相手を書き換える。★ 1人だけ・非表示にする側だけ
+  | 'esutama_cast_list'
+  | 'esutama_cast_hide'
   | 'esutama_work_read'
   | 'esutama_work_save'
   | 'esutama_work_verify'

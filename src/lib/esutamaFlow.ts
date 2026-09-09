@@ -15,7 +15,7 @@
 
 import type { FlowAudit, FlowOutcome, RelayFlowContext, EsutamaDiffRow, EsutamaPlanSummary } from './relayFlow';
 import { mergeCookies } from './relayJob';
-import { readEsutamaCsrf, parseEsutamaJson, parseEsutamaRoster } from './esutamaParse';
+import { readEsutamaCsrf, parseEsutamaJson, parseEsutamaRoster, parseEsutamaCastList } from './esutamaParse';
 // ★ 写メ日記の道（第133便）。★ ログインの直後に分かれる
 import { buildEsutamaTherapistAdminRequest } from './esutamaRequests';
 import {
@@ -29,6 +29,7 @@ import { AUDIT_SHOP_HIDDEN } from './mediaAudit';
 import { businessDateJSTFrom } from './dutyStatus';
 import {
   buildEsutamaRosterRequest, buildEsutamaWorkReadRequest, buildEsutamaWorkSaveRequest,
+  buildEsutamaCastListRequest, buildEsutamaCastDisableRequest,
 } from './esutamaRequests';
 
 type Input = { status: number; headers: Record<string, string | string[]>; body: string };
@@ -169,6 +170,17 @@ export function afterEsutamaLogin(input: Input, ctx: RelayFlowContext): FlowOutc
     };
   }
 
+  // ★★★ 非表示の用事（第229便）は【出勤名簿を読まない】。★ 表示状態はセラピスト設定にしか無い。
+  if (ctx.intent === 'cast_hide') {
+    const c = buildEsutamaCastListRequest(cookie);
+    return {
+      kind: 'next',
+      audits: [],
+      note: 'エステ魂にログインできた。セラピスト設定を読みます（★ まだ1文字も変えていない）',
+      next: { purpose: 'esutama_cast_list', method: c.method, url: c.url, headers: c.headers, body: '', context: { ...ctx, cookie, esutamaCsrf: undefined } },
+    };
+  }
+
   const next = buildEsutamaRosterRequest(cookie);
   return {
     kind: 'next',
@@ -212,6 +224,143 @@ export function afterEsutamaRoster(input: Input, ctx: RelayFlowContext): FlowOut
       { event: 'read_girls', outcome: 'ok', summary: 'エステ魂のセラピストを ' + parsed.rows.length + '人 読み取りました', detail: { count: parsed.rows.length, warnings: parsed.warnings.length, flowId } },
     ],
     note: 'エステ魂の名簿 ' + parsed.rows.length + '人',
+  };
+}
+
+// ───────────── ★★★ 非表示にする（第229便・2026-09-09） ─────────────
+//
+// ★★★ 段: login → esutama_cast_list（状態と ctk）→ esutama_cast_hide → esutama_cast_list（照合）
+//
+// ★★ 「非表示」と「表示に戻す」は **口が別**（cast_disabled / cast_enable・2026-09-09 実測）。
+//   ★ だからトグルの取り違え事故は起きない。★ それでも状態を読むのは
+//     ①「すでに非表示です」と記録に書くため ②押したあとの照合のため。
+// ★★★ 成否は【応答では判定しない】。★ もう一度読み直して disabled が付いたことを確かめる。
+
+export function afterEsutamaCastList(input: Input, ctx: RelayFlowContext): FlowOutcome {
+  const flowId = ctx.flowId;
+  if (redirectedToLogin(input)) {
+    return stop(
+      [{ event: 'login', outcome: 'failed', summary: 'エステ魂にログインできませんでした（ログイン画面へ戻されました）', detail: { httpStatus: input.status, reason: 'back_to_login', flowId } }],
+      'セラピスト設定がログイン画面へ戻された＝ログインできていない',
+    );
+  }
+  if (input.status >= 300) {
+    return stop(
+      [{ event: 'read_girls', outcome: 'failed', summary: 'エステ魂のセラピスト設定を開けませんでした', detail: { httpStatus: input.status, reason: 'http_error', flowId } }],
+      'セラピスト設定の応答が ' + input.status + ' だった',
+    );
+  }
+
+  const parsed = parseEsutamaCastList(input.body);
+  if (parsed.rows.length === 0) {
+    return stop(
+      [{ event: 'read_girls', outcome: 'failed', summary: 'エステ魂のセラピスト設定を読み取れませんでした（画面の作りが変わった可能性があります）', detail: { httpStatus: input.status, reason: 'parse_empty', flowId } }],
+      'セラピスト設定を1人も読み取れなかった: ' + (parsed.warnings[0] ?? '理由不明'),
+    );
+  }
+
+  const cookie = mergeCookies(ctx.cookie, input.headers['set-cookie'] as string | string[] | undefined);
+  const castId = String(ctx.hideCastId ?? '');
+  const found = parsed.rows.find((r) => r.castId === castId) ?? null;
+
+  // ── 2回目: 照合 ────────────────────────────────────────────
+  if (ctx.hideStage === 'verify') {
+    const who = ctx.hideName ? ctx.hideName + 'さん' : 'cast_id ' + castId;
+    if (found === null) {
+      // ★ 居なくなっている。★ 非表示にしたつもりが消えた、という最悪の形を見逃さない
+      return stop(
+        [{ event: 'hide_cast', outcome: 'failed', summary: who + 'がエステ魂の一覧から居なくなりました（非表示ではなく消えた可能性があります）', detail: { castId, name: ctx.hideName ?? null, reason: 'gone', flowId } }],
+        '非表示のあと、その cast_id が一覧から消えていた',
+      );
+    }
+    if (!found.disabled) {
+      return stop(
+        [{ event: 'hide_cast', outcome: 'failed', summary: who + 'をエステ魂で非表示にできませんでした（まだ表示中です）', detail: { castId, name: found.name, reason: 'still_shown', flowId } }],
+        '非表示を送ったが、読み直すとまだ表示中だった',
+      );
+    }
+    return {
+      kind: 'done',
+      audits: [{
+        event: 'hide_cast', outcome: 'ok',
+        summary: who + 'をエステ魂で非表示にしました',
+        detail: { castId, name: found.name, people: parsed.rows.length, flowId },
+      }],
+      note: '非表示を確認した（' + parsed.rows.length + '名を読み直した）',
+    };
+  }
+
+  // ── 1回目: これから非表示にする ──────────────────────────────
+  if (!/^\d{1,12}$/.test(castId)) {
+    return stop(
+      [{ event: 'hide_cast', outcome: 'stopped', summary: '非表示にする相手が指定されていないため、何もしませんでした', detail: { reason: 'no_cast_id', flowId } }],
+      '非表示にする相手（cast_id）が文脈に入っていない',
+    );
+  }
+  if (found === null) {
+    return {
+      kind: 'done',
+      audits: [{ event: 'hide_cast', outcome: 'stopped', summary: 'cast_id ' + castId + ' はエステ魂の一覧に居ないため、何もしませんでした', detail: { castId, people: parsed.rows.length, reason: 'not_listed', flowId } }],
+      note: '一覧に居ないので非表示にしない（' + parsed.rows.length + '名を読んだ）',
+    };
+  }
+  if (found.disabled) {
+    // ★ すでに非表示。★ 押さない（押しても口が違うので逆にはならないが、無駄な書き込みをしない）
+    return {
+      kind: 'done',
+      audits: [{ event: 'hide_cast', outcome: 'stopped', summary: found.name + 'さんは、すでにエステ魂で非表示です', detail: { castId, name: found.name, reason: 'already_hidden', flowId } }],
+      note: 'すでに非表示なので何もしない',
+    };
+  }
+  const ctk = readEsutamaCsrf(input.body);
+  if (!ctk) {
+    return stop(
+      [{ event: 'hide_cast', outcome: 'failed', summary: 'エステ魂の画面から必要な値を読み取れなかったため、非表示にしませんでした', detail: { castId, name: found.name, reason: 'no_ctk', flowId } }],
+      'セラピスト設定から ctk（#csrf_footer）を拾えなかった',
+    );
+  }
+
+  const req = buildEsutamaCastDisableRequest(cookie, castId, ctk);
+  return {
+    kind: 'next',
+    audits: [
+      { event: 'login', outcome: 'ok', summary: 'エステ魂にログインしました', detail: { flowId } },
+      { event: 'read_girls', outcome: 'ok', summary: 'エステ魂のセラピストを ' + parsed.rows.length + '人 読み取りました', detail: { count: parsed.rows.length, flowId } },
+    ],
+    note: found.name + 'さん（cast_id ' + castId + '）を非表示にします',
+    next: {
+      purpose: 'esutama_cast_hide',
+      method: req.method, url: req.url, headers: req.headers, body: req.body ?? '',
+      context: { ...ctx, cookie, hideStage: 'verify', hideName: found.name },
+    },
+  };
+}
+
+/**
+ * 非表示の POST の応答。
+ * ★★ ここでは成否を判定しない。★ もう一度読み直して照合する（駅ちかの削除と同じ作法）。
+ */
+export function afterEsutamaCastHide(input: Input, ctx: RelayFlowContext): FlowOutcome {
+  const flowId = ctx.flowId;
+  if (redirectedToLogin(input)) {
+    return stop(
+      [{ event: 'login', outcome: 'failed', summary: 'エステ魂のセッションが切れました（非表示は行われていません）', detail: { httpStatus: input.status, reason: 'back_to_login', flowId } }],
+      '非表示の応答がログイン画面へ戻された',
+    );
+  }
+  if (input.status >= 400) {
+    return stop(
+      [{ event: 'hide_cast', outcome: 'failed', summary: 'エステ魂の非表示で想定外の応答がありました', detail: { castId: ctx.hideCastId ?? null, httpStatus: input.status, reason: 'http_error', flowId } }],
+      '非表示の応答が ' + input.status + ' だった',
+    );
+  }
+  const cookie = mergeCookies(ctx.cookie, input.headers['set-cookie'] as string | string[] | undefined);
+  const c = buildEsutamaCastListRequest(cookie);
+  return {
+    kind: 'next',
+    audits: [],
+    note: '非表示を送った。★ 成否は読み直して確かめる（応答では判定しない）',
+    next: { purpose: 'esutama_cast_list', method: c.method, url: c.url, headers: c.headers, body: '', context: { ...ctx, cookie, hideStage: 'verify' } },
   };
 }
 

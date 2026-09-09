@@ -208,6 +208,12 @@ export async function startRelayFlow(params: {
    * ★★★ castId が入っていなければ、一覧を読んだあと**何も消さずに終わる**。★ それが安全装置。
    */
   girlDelete?: { castId: string };
+  /**
+   * intent='cast_hide' のときだけ（第229便）。★ **非表示にする相手は1人だけ。**
+   * ★★ ここで受け取っていないと、呼び出し側が渡しても静かに落ちる（girlDelete と同じ作法）。
+   * ★★★ castId が入っていなければ、セラピスト設定を読んだあと**何も押さずに終わる**。
+   */
+  castHide?: { castId: string };
   /** 'shop:<auth_user_id>' など。監査ログに残す */
   actor?: string;
 }): Promise<StartFlowResult> {
@@ -291,6 +297,7 @@ export async function startRelayFlow(params: {
       : {}),
     // ★★★ 削除（第228便）。★ 渡されたときだけ入れる。★ 入っていなければ何も消さない
     ...(params.girlDelete ? { deleteCastId: String(params.girlDelete.castId) } : {}),
+    ...(params.castHide ? { hideCastId: String(params.castHide.castId) } : {}),
     // ★ 新着情報（第155便）。★ 渡されたときだけ入れる
     ...(params.article
       ? {

@@ -67,6 +67,8 @@ export const MEDIA_AUDIT_EVENTS = [
   'flow_stalled',        // ★★★ 次の手順を積めなかった。★ ここが無いと【何も残らずに消える】
   // ── 駅ちかから1人削除（第228便・2026-09-09）★ 取り返しがつかない ──
   'delete_girl',         // ★★★ 駅ちかの名簿から1人消した。★ 戻せない。★ 運営だけの口から
+  // ── エステ魂で1人非表示（第229便・2026-09-09）★ 戻せる（「表示する」で戻る）が、公開ページからは即消える ──
+  'hide_cast',           // ★★ エステ魂のセラピストを1人 非表示にした。★ 運営だけの口から
   'selftest',            // 認証情報を使わない疎通確認
 ] as const;
 
@@ -380,6 +382,16 @@ export function defaultAuditSummary(input: {
         : input.outcome === 'stopped'
           ? `${t}の削除は行いませんでした`
           : `${who}${t}の名簿から削除できませんでした`;
+      break;
+    }
+    case 'hide_cast': {
+      // ★★ エステ魂で1人非表示にした（第229便）。★ summary は relayFlow が入れる。無ければここに倒す
+      const who = typeof d?.['name'] === 'string' && d['name'] ? `${d['name']}さんを` : '';
+      s = input.outcome === 'ok'
+        ? `${who}${t}で非表示にしました`
+        : input.outcome === 'stopped'
+          ? `${t}の非表示は行いませんでした`
+          : `${who}${t}で非表示にできませんでした`;
       break;
     }
     case 'read_maillist': {

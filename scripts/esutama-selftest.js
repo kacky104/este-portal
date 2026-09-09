@@ -282,5 +282,88 @@ eq('知らない札は unknown', P.parseEsutamaJson('["NG"]').kind, 'unknown');
   eq('★★★ OFF の宛先が生えていない', Object.keys(R).some((k) => /stop/i.test(k)), false);
 }
 
+
+// ───────────── ★★★ セラピスト設定（表示／非表示）第229便・2026-09-09 ─────────────
+//
+// ★ 2026-09-09 に実物で確かめた形（ラビリンス様の許可のもと・cast_id 955433 で往復）:
+//     表示中 … <div class="item tg_block ">          中の <a data-post="cast_disabled" data-row="955433">
+//     非表示 … <div class="item tg_block disabled">   中の <a data-post="cast_enable"   data-row="955433">
+//                ＋ <span class="tag-disabled">非表示</span>
+// ★★ data-row は【div ではなく中の <a>】に在る（esutamaParse.ts 冒頭の実物どおり）。
+// ★★★ 状態は **class の disabled ただ1点**で決める。★ バッジや文言では決めない（文言は変わる）。
+{
+  const castRow = (id, name, opts) => {
+    const o = Object.assign({ disabled: false, editId: null, junk: '' }, opts || {});
+    const eid = o.editId === null ? id : o.editId;
+    return '<div class="item tg_block ' + (o.disabled ? 'disabled' : '') + '">'
+      + (o.disabled ? '<span class="tag-disabled">非表示</span>' : '')
+      + '<a class="btn btn-warning card-btn1" href="/shop/labyrinth/cast/' + id + '/">' + name + '</a>'
+      + '<a class="btn btn-success" href="/admin/cast_edit/' + eid + '/">編集</a>'
+      + '<a class="send-easy_confirm_post" data-post="' + (o.disabled ? 'cast_enable' : 'cast_disabled')
+      + '" data-row="' + id + '" data-confirm="' + name + 'を'
+      + (o.disabled ? '表示' : '非表示') + 'にしますか？">' + (o.disabled ? '表示する' : '非表示') + '</a>'
+      + '<a class="btn btn-danger send-post_delete" data-delete="cast,' + id + ',">削除</a>'
+      + o.junk + '</div>';
+  };
+  const castPage = (rows) => '<html><body><div class="list">' + rows.join('') + '</div>'
+    + '<input type="hidden" name="ctk" id="csrf_footer" value="' + CSRF + '">'
+    + '</body></html>';
+
+  const a = P.parseEsutamaCastList(castPage([
+    castRow('955433', 'てすと'),
+    castRow('757480', 'さくら', { disabled: true }),
+  ]));
+  eq('★ セラピスト設定: 2人読める', a.rows.length, 2);
+  eq('★ 表示中は disabled:false', a.rows[0], { castId: '955433', name: 'てすと', disabled: false });
+  eq('★★ 非表示は disabled:true', a.rows[1], { castId: '757480', name: 'さくら', disabled: true });
+  eq('★ 素直な形では警告が出ない', a.warnings, []);
+
+  // ★★★ 文言・バッジでは決めない。★ 行の中に "disabled" の字が在っても、class に無ければ表示中
+  const b = P.parseEsutamaCastList(castPage([
+    castRow('955433', 'てすと', { junk: '<span class="tag-disabled">非表示</span>' }),
+  ]));
+  eq('★★★ 行の中の tag-disabled に釣られない（class で決める）', b.rows[0].disabled, false);
+
+  // ★★ 番号が食い違う行は【使わない】（駅ちかの名簿と同じ作法）
+  const c = P.parseEsutamaCastList(castPage([castRow('955433', 'てすと', { editId: '111111' })]));
+  eq('★★ 編集リンクの番号と食い違う行は捨てる', c.rows.length, 0);
+  eq('★ 捨てたことが警告に残る', c.warnings.length >= 1, true);
+
+  // ★ 同じ番号が2回出てきたら1人ぶんだけ。★ 黙って2人にしない
+  const d = P.parseEsutamaCastList(castPage([castRow('955433', 'てすと'), castRow('955433', 'てすと')]));
+  eq('★ 同じ cast_id は1人ぶん', d.rows.length, 1);
+  eq('★ 重なりが警告に残る', d.warnings.length >= 1, true);
+
+  // ★★★ 読めなかったときに【空の名簿として通さない】。★ 空で通すと「誰も居ない」と誤って照合してしまう
+  eq('★★★ 空の本文は警告つきで0人', P.parseEsutamaCastList('').warnings.length >= 1, true);
+  const e = P.parseEsutamaCastList('<html><body>メンテナンス中</body></html>');
+  eq('★★★ tg_block が1つも無ければ警告', e.warnings.length >= 1, true);
+  eq('★★★ そのとき行は0件', e.rows.length, 0);
+
+  // ★ 使い捨てトークンは既存の読み手（#csrf_footer）でそのまま取れる
+  eq('★ セラピスト設定から ctk が取れる', P.readEsutamaCsrf(castPage([castRow('955433', 'てすと')])), CSRF);
+
+  // ── 送る形 ──────────────────────────────────────────
+  const list = R.buildEsutamaCastListRequest('c=1');
+  eq('★ セラピスト設定は GET（読むだけ）', list.method, 'GET');
+  eq('★ セラピスト設定の宛先', list.url, 'https://estama.jp/admin/cast/');
+
+  const low = (h) => { const o = {}; for (const k of Object.keys(h || {})) o[String(k).toLowerCase()] = h[k]; return o; };
+  const hide = R.buildEsutamaCastDisableRequest('c=1', '955433', CSRF);
+  eq('★★★ 非表示は POST', hide.method, 'POST');
+  eq('★★★ 非表示の宛先は cast_disabled（★ enable ではない）', hide.url, 'https://estama.jp/admin_post/cast_disabled');
+  eq('★★★ 中身は post_data と ctk の2つだけ', hide.body, 'post_data=955433&ctk=' + CSRF);
+  eq('★★ ajax の印が付いている', low(hide.headers)['x-requested-with'], 'XMLHttpRequest');
+  eq('★ referer はセラピスト設定', low(hide.headers)['referer'], R.ESUTAMA_CAST_LIST_URL);
+  throws('★★ cookie が無ければ押さない', () => R.buildEsutamaCastDisableRequest('', '955433', CSRF), /Cookie/);
+  throws('★★ 番号の形が違えば押さない', () => R.buildEsutamaCastDisableRequest('c=1', 'abc', CSRF), /cast_id/);
+  throws('★★ ctk が無ければ押さない', () => R.buildEsutamaCastDisableRequest('c=1', '955433', ''), /ctk/);
+
+  // ★★★ 「表示に戻す」宛先は【置かない】（第229便の決め）。★ 置けばいつか誰かが呼ぶ
+  eq('★★★ cast_enable の宛先が生えていない',
+     Object.keys(R).some((k) => /enable/i.test(k))
+     || Object.values(R).some((v) => typeof v === 'string' && /cast_enable/.test(v)), false);
+}
+
 console.log(fail === 0 ? '\nすべて通りました' : '\n' + fail + ' 件 NG');
 process.exit(fail === 0 ? 0 : 1);

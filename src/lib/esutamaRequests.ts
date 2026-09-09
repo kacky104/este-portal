@@ -27,6 +27,19 @@ export const ESUTAMA_LOGIN_POST_URL = 'https://estama.jp/post/login_shop/';
 export const ESUTAMA_ROSTER_URL = 'https://estama.jp/admin/schedule/list/';
 /** 管理画面トップ。★ ログイン確認に使う（未ログインなら /login/ へ 302） */
 export const ESUTAMA_ADMIN_URL = 'https://estama.jp/admin/';
+
+/**
+ * ★★★ セラピスト設定の一覧（第229便）。★ 出勤名簿（ESUTAMA_ROSTER_URL）とは別のページ。
+ *   ★ 表示／非表示の状態は**ここにしか無い**（2026-09-09 実測）。
+ */
+export const ESUTAMA_CAST_LIST_URL = 'https://estama.jp/admin/cast/';
+
+/**
+ * ★★★ 非表示にする口（第229便）。★ **表示に戻す口は別（cast_enable）。トグルではない。**
+ *   ★ 押し間違えても逆にならない、というのがこの作りの良いところ（2026-09-09 実測）。
+ *   ★ こちらは【非表示にする】ためだけに使う。★ 表示に戻す口は作らない（要るときに足す）。
+ */
+export const ESUTAMA_CAST_DISABLE_URL = 'https://estama.jp/admin_post/cast_disabled';
 /** ★★ 出勤の保存先。**このファイルで唯一、相手を書き換える宛先。** */
 export const ESUTAMA_WORK_SAVE_URL = 'https://estama.jp/admin/schedule/post_work_schedule/';
 
@@ -187,6 +200,34 @@ export function buildEsutamaWorkSaveRequest(cookie: string, castId: string, fiel
 }
 
 /** #csrf_footer の形（英数32文字）。★ 実測。違う形が来たら「取れていない」扱い */
+/**
+ * セラピスト設定の一覧を読む GET（第229便）。★ 読むだけ。
+ * ★ ここで ctk（#csrf_footer）と、各人の表示／非表示を拾う。
+ */
+export function buildEsutamaCastListRequest(cookie: string): RelayRequest {
+  if (!cookie) throw new Error('Cookie が無いままセラピスト設定を読みに行かない');
+  return { method: 'GET', url: ESUTAMA_CAST_LIST_URL, headers: { ...baseHeaders(), referer: ESUTAMA_ADMIN_URL, cookie } };
+}
+
+/**
+ * ★★★ 非表示にする POST（第229便）。★ **相手を書き換える。**
+ *   ★ 実物（my_post.js の .send-easy_confirm_post）と同じ形:
+ *       POST /admin_post/cast_disabled   { post_data: <cast_id>, ctk: <#csrf_footer> }
+ *   ★ jQuery の $.ajax と同じ x-www-form-urlencoded ＋ X-Requested-With。
+ * ★★ 相手は【1人だけ】。★ 番号の形をここで確かめる（他人の番号を組み立てない）。
+ */
+export function buildEsutamaCastDisableRequest(cookie: string, castId: string, ctk: string): RelayRequest {
+  if (!cookie) throw new Error('Cookie が無いまま非表示にしない');
+  if (!/^\d{1,12}$/.test(castId)) throw new Error('エステ魂の cast_id の形が違います（' + castId + '）');
+  if (!ctk) throw new Error('ctk が無いまま非表示にしない');
+  return {
+    method: 'POST',
+    url: ESUTAMA_CAST_DISABLE_URL,
+    headers: ajaxHeaders(cookie, ESUTAMA_CAST_LIST_URL),
+    body: encodePayload([['post_data', castId], ['ctk', ctk]]),
+  };
+}
+
 /** 魂セラピスト一覧を読む GET。★ 読むだけ。★ ここで ctk と「利用中の人」を拾う */
 export function buildEsutamaTherapistAdminRequest(cookie: string): RelayRequest {
   return { method: 'GET', url: ESUTAMA_THERAPIST_ADMIN_URL, headers: { ...baseHeaders(), ...(cookie ? { cookie } : {}) } };

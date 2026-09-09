@@ -78,6 +78,8 @@ import { parseEsuloveTherapists, duplicateNames, type EsuloveTherapistRow } from
 import {
   afterEsutamaLoginPage, afterEsutamaLogin, afterEsutamaRoster,
   afterEsutamaWorkRead, afterEsutamaWorkSave, afterEsutamaWorkVerify,
+  // ★ セラピスト設定の段（第229便）。★ 非表示にする道だけが通る
+  afterEsutamaCastList, afterEsutamaCastHide,
 } from './esutamaFlow';
 // ★★★ エステ魂の写メ日記（第130便で書いた段を、第133便で advanceFlow に繋いだ）。
 //   ★ 130便では書いただけで【一度も呼ばれていなかった】。★ 繋いで初めて動く
@@ -293,7 +295,21 @@ export type RelayFlowIntent =
    *     ★ 代わりに一括削除のフォーム（POST /admin/girls/）を、**1人だけチェックした形**で送る。
    *   ★ 入口は運営だけの口（/api/admin/media-girl-delete）。★ 店舗様の画面にボタンは置かない。
    */
-  | 'girl_delete';
+  | 'girl_delete'
+  /**
+   * ★★★ エステ魂で1人だけ非表示にする（第229便・2026-09-09）。
+   *   login → esutama_cast_list（状態＋ctk）→ esutama_cast_hide → esutama_cast_list（照合）→ 終わり
+   *
+   * ★★ 駅ちかの削除と違い、**取り返しはつく**（「表示する」で戻る）。
+   *   ★ それでも作法は同じにそろえる:
+   *     ① 相手は **cast_id で1人だけ**。★ 「まとめて非表示」は作らない
+   *     ② 押す前にセラピスト設定を読み、**その cast_id が居ること・まだ表示中であること**を確かめる
+   *     ③ 押したあと **もう一度読み直し、本当に disabled が付いたか**を照合する
+   *   ★★ 「非表示」と「表示に戻す」は口が別（cast_disabled / cast_enable・2026-09-09 実測）。
+   *     ★ この intent は **非表示にする側だけ**。★ 戻す側は作っていない（戻すのは店舗様の画面から）。
+   *   ★ 入口は運営だけの口（/api/admin/media-cast-hide）。★ 店舗様の画面にボタンは置かない。
+   */
+  | 'cast_hide';
 
 /**
  * 段と段のあいだで持ち回す状態。
@@ -363,6 +379,14 @@ export type RelayFlowContext = {
   deleteName?: string;
   /** 消す前の在籍人数（★ 照合で「1人だけ減ったか」を見る） */
   deleteBefore?: number;
+
+  // ── ここから下は intent='cast_hide' のときだけ入る（第229便）──
+  /** ★★★ 非表示にする相手（エステ魂の cast_id）。★ **1人だけ。** ★ 空なら何もせず終わる */
+  hideCastId?: string;
+  /** 段。undefined＝これから非表示にする ／ 'verify'＝押したあとの照合 */
+  hideStage?: 'verify';
+  /** 押す前に一覧で確かめた表示名（★ 記録に残して「誰を非表示にしたか」が後から読めるように） */
+  hideName?: string;
   articleShopId?: string;
   /** ★ ①article_image.json が返した識別子 */
   articleImgB?: string;
@@ -577,6 +601,8 @@ export type FlowNextRequest = {
     | 'article_image' | 'article_crop'
     // ★ エステ魂の段（第109便）。★ 名前を分けることで、駅ちか・エステラブの段の判定に一切触れない
     | 'esutama_login_page' | 'esutama_login' | 'esutama_roster'
+    // ★★ エステ魂のセラピスト設定（第229便）。★ 名簿（出勤）とは別の画面。★ 名前を分けて既存の段に触れない
+    | 'esutama_cast_list' | 'esutama_cast_hide'
     | 'esutama_work_read' | 'esutama_work_save' | 'esutama_work_verify'
     // ★ エステ魂の写メ日記（第130便）。★ 代理ログインを通るので段が多い
     | 'esutama_sokusera_token' | 'esutama_sokusera_proxy' | 'esutama_sokusera_page'
@@ -932,6 +958,11 @@ export function advanceFlow(input: {
       return afterEsutamaLogin(input, ctx);
     case 'esutama_roster':
       return afterEsutamaRoster(input, ctx);
+    // ── エステ魂のセラピスト設定（第229便）★ 段名で分けている。既存の case には触れていない ──
+    case 'esutama_cast_list':
+      return afterEsutamaCastList(input, ctx);
+    case 'esutama_cast_hide':
+      return afterEsutamaCastHide(input, ctx);
     case 'esutama_work_read':
       return afterEsutamaWorkRead(input, ctx);
     case 'esutama_work_save':
@@ -1926,6 +1957,11 @@ function finishRead(audits: FlowAudit[], ctx: RelayFlowContext, page: WorkPage):
       // ★★ ここへは来ない（新着情報は出勤ページを使わない）。
       //   ★ それでも【黙って通さない】。★ 来たら止める
       return stop(audits, '新着情報は出勤ページを使わない（ここへは来ないはず）');
+    case 'cast_hide':
+      // ★ ここへは来ない（エステ魂の非表示は駅ちかの出勤ページを使わない）。★ 網羅は外さない（第229便）
+      //   ★★★ ここへ来たということは、非表示の流れが駅ちかへ迷い込んだということ。
+      //     ★ 相手の媒体が違う。★ 押す前に必ず止める
+      return stop(audits, 'エステ魂の非表示は駅ちかの出勤ページを使わない（ここへは来ないはず）');
     case 'girl_delete':
       // ★ ここへは来ない（削除は女の子一覧しか使わない）。★ 網羅は外さない（第228便）
       //   ★★★ ここへ来たということは、削除の流れが出勤ページへ迷い込んだということ。
