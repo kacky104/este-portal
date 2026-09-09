@@ -3900,7 +3900,9 @@ export default function MyPage() {
           <h2 className="text-sm font-black text-slate-700">ネット予約の設定</h2>
 
           <div className="border border-pink-100 rounded-none p-3 bg-pink-50/20 space-y-2.5">
-            <label className="flex items-center gap-2 text-sm font-bold text-slate-600 cursor-pointer select-none">
+            {/* ★ 2026-09-09（第225便・カッキーさんの指示）: この見出しは見落とされやすいので、
+                グレー(text-slate-600)→サイトのピンクに変えて目立たせた。★ 大きさも 14→15px。 */}
+            <label className="flex items-center gap-2 text-[15px] font-black text-pink-600 cursor-pointer select-none">
               <input
                 type="checkbox"
                 checked={Boolean(salonForm.booking_enabled)}
@@ -4001,7 +4003,18 @@ export default function MyPage() {
 
           {/* 予約で受け付けるコース（料金ページの courses とは独立） */}
           <div className="border border-pink-100 rounded-none p-3 bg-pink-50/20 space-y-2">
-            <label className="block text-[11px] font-bold text-slate-500">予約で受け付けるコース</label>
+            {/* ★ 2026-09-09（第225便・カッキーさんの指示）: 「ネット予約を受け付ける」と対にピンクで目立たせ、
+                さらに【ここを設定しないと予約を受け付けられない】ことが見て分かるようにした。
+                ★ 判定は1か所（bookingCourses.length === 0）。★ 保存時の検証（既存）は変えていない。 */}
+            <label className="flex items-center gap-2 text-[15px] font-black text-pink-600">
+              予約で受け付けるコース
+              <span className="flex-none text-[10px] font-black text-white bg-rose-500 px-1.5 py-0.5 rounded-full">必須</span>
+            </label>
+            {bookingCourses.length === 0 && (
+              <p className="text-[12px] font-bold text-rose-600 bg-rose-50 border border-rose-200 px-3 py-2 leading-relaxed">
+                ⚠ コースが1つも登録されていません。このままではネット予約を受け付けられません（お客様に選ぶものが出ません）。下の「＋コースを追加」から1つ以上ご登録ください。
+              </p>
+            )}
             <p className="text-[10px] text-slate-400 leading-relaxed">
               ここに登録したコースがネット予約の選択肢になります。料金ページとは別に設定できます（ネット予約限定メニューも登録できます）。
             </p>
