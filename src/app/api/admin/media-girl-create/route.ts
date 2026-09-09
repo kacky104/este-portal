@@ -7,7 +7,8 @@ import { parseBodyType } from '@/lib/bodyType';
 
 // ── 駅ちかにセラピストを1人 登録する（第234便・運営だけの口）─────────────────────
 //   POST /api/admin/media-girl-create  (Authorization: Bearer <CRON_SECRET>)
-//   body: { salonId, therapistId, slot?: 1, apply?: boolean }
+//   body: { salonId, therapistId, slot?: 1, apply?: boolean,
+//           postTo?: 'action'|'fixed', rookie?: boolean }   ← ★ 後ろ2つは切り分け用（第235便）
 //
 // ★★★ 段: login → read_girls（もう居ないか＋顔ぶれ）→ girl_create_form（110部品を読む）
 //            → girl_create → read_girls（照合＋castId 回収）
@@ -54,6 +55,11 @@ export async function POST(req: Request) {
   const therapistId = Number(body.therapistId);
   const slot = Number.isFinite(Number(body.slot)) && Number(body.slot) > 0 ? Number(body.slot) : 1;
   const apply = body.apply === true;
+  // ★★★★ 切り分け用の2つ（第235便・設計メモ §17-9）。★ **コードを直さずに試せるようにする。**
+  //   postTo=fixed … これまでどおり決め打ちの URL へ送る（既定は action ＝ 読んだフォームの action）
+  //   rookie=false … `rookie_flg=1` を混ぜない（★ §2-7b は1回だけの確認なので疑える口を開けた）
+  const postTo: 'action' | 'fixed' = String(body.postTo ?? '') === 'fixed' ? 'fixed' : 'action';
+  const rookie = !(body.rookie === false || String(body.rookie ?? '') === 'false');
 
   if (!Number.isFinite(salonId) || salonId <= 0)
     return NextResponse.json({ ok: false, error: 'salonId が要る' }, { status: 400 });
@@ -133,7 +139,13 @@ export async function POST(req: Request) {
     provider: 'ekichika', slot, therapistId,
     values,
     badges,
-    rookie: '★ rookie_flg=1（新人・30日で自動的に消える）を必ず付けます。★ 体験入店（2）は使いません',
+    rookie: rookie
+      ? '★ rookie_flg=1（新人・30日で自動的に消える）を付けます。★ 体験入店（2）は使いません'
+      : '★ ★ rookie_flg は **付けません**（rookie=false が指定されました・切り分け用）',
+    // ★★★★ 送り先の決め方（第235便）。★ 実弾のたびに何を試したのかが記録から読めるように
+    postTo: postTo === 'action'
+      ? '★ 読んだフォームの action へ送ります（★ 動いている出勤と同じ作法・§17-8）'
+      : '★ ★ 決め打ちの URL へ送ります（postTo=fixed が指定されました・切り分け用）',
     steps: ['login', 'read_girls（在籍確認＋顔ぶれ）', 'girl_create_form（110部品を読む）', 'girl_create', 'read_girls（照合＋castId回収）'],
     notSent: ['写真（登録フォームに欄が無い。登録後に photo-push で送る）', '優先タグ p_genre（上位表示は店舗様の運用）', 'キャッチ・紹介文'],
     warnings,
@@ -151,7 +163,7 @@ export async function POST(req: Request) {
     salonId, provider: 'ekichika', slot,
     intent: 'girl_create',
     actor: 'admin:girl-create',
-    girlCreate: { therapistId, values },
+    girlCreate: { therapistId, values, postTo, rookie },
   });
   if (!r.ok) return NextResponse.json({ ok: false, applied: false, plan, reason: r.reason, note: r.note }, { status: 409 });
   return NextResponse.json({

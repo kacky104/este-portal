@@ -23,7 +23,7 @@
 //
 // ★ このファイルは通信も DB も触らない。
 
-import { parseHtmlForm, optionValueByLabel, type HtmlFormParse } from './htmlForm';
+import { parseHtmlForm, optionValueByLabel, hostOf, type HtmlFormParse } from './htmlForm';
 import { RELAY_USER_AGENT } from './relayUserAgent';
 import { EKICHIKA_MAX_GENRES } from './mediaBadgeMap';
 
@@ -50,6 +50,25 @@ export type RelayRequest = {
   url: string;
   headers: Record<string, string>;
   body?: string;
+  /**
+   * ★★★★ **何をどこへ送ったのか**を記録に残すための覚え書き（第235便・2026-09-10）。
+   *   ★ 設計メモ §17-5「ブラウザが送った全文と、こちらの全文を1組ずつ突き合わせる」を
+   *     **コードを直さずに**できるようにするために足した。
+   *   ★ 2026-09-09 は、送った本文がどこにも残っていなかったので、失敗のたびに推測になった。
+   *   ★ 通信も DB も触らない。★ 呼び出し側が監査記録に載せる。
+   */
+  meta?: {
+    /** 送り先を何で決めたか … 'action'＝読んだフォームの action ／ 'fixed'＝決め打ちの URL */
+    sentTo: 'action' | 'fixed';
+    /** 読んだフォームの action（★ 決め打ちに落としたときも、読めた値はそのまま残す） */
+    formAction: string | null;
+    /** rookie_flg を混ぜたか */
+    rookie: boolean;
+    /** 送った組の数 */
+    pairs: number;
+    /** 送った本文の全文（★ 突き合わせ用）。★ 使い捨てトークンは使ったあとなので残してよい */
+    body: string;
+  };
 };
 
 function baseHeaders(): Record<string, string> {
@@ -67,9 +86,12 @@ export type EkichikaGirlFormParse = HtmlFormParse & {
   genreIds: string[];
 };
 
-/** 登録フォームを読む。★ `catchcopy` と `fuel_csrf_token` を持つ form を選ぶ */
-export function parseEkichikaGirlForm(html: string): EkichikaGirlFormParse {
-  const f = parseHtmlForm(html, { containsNames: EKICHIKA_GIRL_FORM_MARKERS });
+/**
+ * 登録フォームを読む。★ `catchcopy` と `fuel_csrf_token` を持つ form を選ぶ
+ * @param pageUrl この HTML を取ってきた URL（★ action を絶対に直す土台）
+ */
+export function parseEkichikaGirlForm(html: string, pageUrl: string = EKICHIKA_GIRL_CREATE_URL): EkichikaGirlFormParse {
+  const f = parseHtmlForm(html, { containsNames: EKICHIKA_GIRL_FORM_MARKERS, baseUrl: pageUrl });
   const csrfToken = f.fields.find((x) => x.name === 'fuel_csrf_token')?.value ?? null;
   const genreIds: string[] = [];
   for (const n of f.names) {
@@ -123,10 +145,40 @@ function num(label: string, val: string | null | undefined, max: number): string
  *   ・`fuel_csrf_token` が無い
  *   ・★★ **優先タグ（`p_genre[...]`）が混じっている**（§6-1 の4「上位表示は店の運用。機械が決めない」）
  */
+export type EkichikaGirlCreateOptions = {
+  /**
+   * ★★★★ 送り先の決め方（第235便・設計メモ §17-8）。
+   *   'action'（既定） … **読んだフォームの action へ送る**。★ 出勤の書き込みと同じ作法
+   *   'fixed'          … これまでどおり決め打ちの URL へ送る（★ 切り分け用に残してある）
+   *   ★ どちらでも、ホストが ranking-deli.jp でなければ**送らない**（★ Cookie を他所へ飛ばさない）。
+   */
+  postTo?: 'action' | 'fixed';
+  /**
+   * ★★★ 新人マークを混ぜるか（既定 true）。
+   *   ★ §2-7b は「混ぜれば通る」を**1回だけ**確かめたもの。★ 疑うときに外せるように口を開けた。
+   *   ★ 外しても**登録そのものは成り立つ**（相手の画面に無い欄なので）。
+   */
+  rookie?: boolean;
+};
+
+/**
+ * ★★★ ブラウザと同じ urlencoded の作り方（第235便）。
+ *   ★ `encodeURIComponent` とは2か所ちがう:
+ *     ・空白は `%20` ではなく **`+`**
+ *     ・`!'()*~` も**エスケープする**
+ *   ★ どちらでもサーバは同じに読むが、**突き合わせるときに差として見えてしまう**ので揃えた。
+ */
+function formEncode(sIn: string): string {
+  return encodeURIComponent(String(sIn ?? ''))
+    .replace(/[!'()*~]/g, (c) => '%' + c.charCodeAt(0).toString(16).toUpperCase())
+    .replace(/%20/g, '+');
+}
+
 export function buildEkichikaGirlCreateRequest(
   cookie: string,
   form: EkichikaGirlFormParse,
   v: EkichikaGirlCreateValues,
+  opts: EkichikaGirlCreateOptions = {},
 ): RelayRequest {
   if (!cookie) throw new Error('Cookie が無いまま登録しない');
 
@@ -185,16 +237,35 @@ export function buildEkichikaGirlCreateRequest(
       + '）。★ どれを押すか決められないので送りません');
   }
   if (form.submits.length === 1) out.push([form.submits[0].name, form.submits[0].value]);
-  // ★★★★ 画面に無い欄をあえて足す（§2-7b）。★ 実弾で通ることを確かめてある
-  out.push(['rookie_flg', EKICHIKA_ROOKIE_FLG]);
+  // ★★★★ 画面に無い欄をあえて足す（§2-7b）。★ 実弾で1回だけ通ることを確かめてある。
+  //   ★ 疑うときは opts.rookie=false で外せる（★ コードを直さずに切り分けられるように・第235便）
+  const rookie = opts.rookie !== false;
+  if (rookie) out.push(['rookie_flg', EKICHIKA_ROOKIE_FLG]);
 
-  const body = out
-    .map(([k, val]) => encodeURIComponent(k) + '=' + encodeURIComponent(val))
-    .join('&');
+  // ★★★★ 送り先を決める（第235便・設計メモ §17-8）。
+  //   ★ 駅ちかへの書き込みで**動いているのは出勤だけ**で、出勤だけが「読んだフォームの action」へ
+  //     送っていた。★ 登録と削除は URL を決め打ちしていた。→ 既定を action に変える。
+  //   ★★★ ただし **ホストが ranking-deli.jp でなければ送らない。**
+  //     ★ この画面には別サイト（cocoa-job.jp）のフォームが混ざっている（§16-3）。
+  //     ★ 万一そちらの action を掴んでいたら、店舗様の Cookie を他所へ飛ばすことになる。
+  const wantFixed = opts.postTo === 'fixed';
+  const formAction = form.action ?? null;
+  let url = EKICHIKA_GIRL_CREATE_URL;
+  let sentTo: 'action' | 'fixed' = 'fixed';
+  if (!wantFixed && formAction) {
+    const host = hostOf(formAction);
+    if (host !== 'ranking-deli.jp' && host !== 'www.ranking-deli.jp') {
+      throw new Error('登録フォームの送り先が駅ちかではありません（' + String(host) + '）。★ 送りません');
+    }
+    url = formAction;
+    sentTo = 'action';
+  }
+
+  const body = out.map(([k, val]) => formEncode(k) + '=' + formEncode(val)).join('&');
 
   return {
     method: 'POST',
-    url: EKICHIKA_GIRL_CREATE_URL,
+    url,
     headers: {
       ...baseHeaders(),
       'content-type': 'application/x-www-form-urlencoded',
@@ -203,6 +274,7 @@ export function buildEkichikaGirlCreateRequest(
       cookie,
     },
     body,
+    meta: { sentTo, formAction, rookie, pairs: out.length, body },
   };
 }
 

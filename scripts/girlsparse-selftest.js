@@ -167,5 +167,38 @@ eq('nbsp も空白にする', g.textOf('こう&nbsp;おつ'), 'こう おつ');
   eq('入れ子の名前も読める', g.parseEkichikaGirls(html).rows[0].name, 'こう');
 }
 
+console.log('── ★★★★ 一括操作フォームの action（第235便・設計メモ §17-8）──');
+{
+  // ★ 実物の一覧ページは、一括操作の form の中に行が並んでいる
+  const wrap = (act, cells) =>
+    '<html><body><form method="POST"' + (act === null ? '' : ' action="' + act + '"') + '>'
+    + '<input type="hidden" name="fuel_csrf_token" value="tok">'
+    + '<ul id="girlsList">' + cells + '</ul>'
+    + '<input type="hidden" name="girls_list_action" value="">'
+    + '<input type="submit" name="girls_btn_batch_del" value="">'
+    + '</form></body></html>';
+
+  eq('★★★★ 相対の action を絶対に直す',
+     g.parseEkichikaGirls(wrap('/admin/girls/index/', cell('100', 'こう'))).formAction,
+     'https://ranking-deli.jp/admin/girls/index/');
+  eq('★★ action が空ならページ自身',
+     g.parseEkichikaGirls(wrap('', cell('100', 'こう'))).formAction,
+     'https://ranking-deli.jp/admin/girls/');
+  eq('★★ action が無くてもページ自身',
+     g.parseEkichikaGirls(wrap(null, cell('100', 'こう'))).formAction,
+     'https://ranking-deli.jp/admin/girls/');
+  eq('★ 絶対 URL はそのまま',
+     g.parseEkichikaGirls(wrap('https://ranking-deli.jp/admin/girls/index/', cell('100', 'こう'))).formAction,
+     'https://ranking-deli.jp/admin/girls/index/');
+  // ★★★ 一括操作の form でないものを掴まない（★ 別サイトのログインフォームが混ざる画面が在る・§16-3）
+  eq('★★★ 別サイトのフォームは掴まない',
+     g.parseEkichikaGirls(
+       '<html><body><form action="https://cocoa-job.jp/login"><input name="password"></form>'
+       + '<form action="/admin/girls/index/"><input name="girls_list_action" value="">'
+       + '<ul id="girlsList">' + cell('100', 'こう') + '</ul></form></body></html>').formAction,
+     'https://ranking-deli.jp/admin/girls/index/');
+  eq('★ フォームが無ければ null', g.parseEkichikaGirls(page(cell('100', 'こう'))).formAction, null);
+}
+
 console.log(fail === 0 ? '\n★ すべて通った' : '\n★ NG ' + fail + ' 件');
 process.exit(fail === 0 ? 0 : 1);

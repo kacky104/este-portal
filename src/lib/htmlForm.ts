@@ -52,6 +52,20 @@ export type HtmlFormField = { name: string; value: string };
 export type HtmlFormOption = { value: string; label: string };
 
 export type HtmlFormParse = {
+  /**
+   * ★★★★ 選んだ form の **action 属性**（第235便・2026-09-10）。
+   *   ★ 相対なら `baseUrl` で絶対に直してある。★ action が空/未指定なら **baseUrl そのもの**
+   *     （★ ブラウザは「そのページ自身」へ送る）。★ baseUrl も無ければ null。
+   *
+   * ★★★ なぜ要るか — 2026-09-09 深夜の切り分け（設計メモ §17-8）:
+   *   駅ちかへの書き込みで **動いているのは出勤だけ**で、出勤だけが
+   *   「読んだフォームの action」へ送っていた。★ 登録と削除は URL を決め打ちしていた。
+   *   → 決め打ちをやめられるように、読み手が action を持ち帰る。
+   *   ★ 送り先を決めるのは呼び出し側（★ 他所のドメインへ Cookie を飛ばさない見張りも呼び出し側）。
+   */
+  action: string | null;
+  /** ★ form の method（大文字）。★ 無ければ null（★ ブラウザの既定は GET） */
+  formMethod: string | null;
   /** ★ そのまま送り返せる並び（ブラウザが送るのと同じ） */
   fields: HtmlFormField[];
   /** ★ 画面に在る入力の name ぜんぶ（★ 未チェックのチェックボックスも含む・重複なし）。
@@ -82,6 +96,11 @@ export type HtmlFormParse = {
 
 export type ParseHtmlFormOptions = {
   /**
+   * ★★★ action を絶対 URL に直すときの土台（＝そのページを取ってきた URL）。
+   *   ★ 渡さないと action は読んだまま（相対のまま）になる。★ 送る側が困るので、必ず渡すこと。
+   */
+  baseUrl?: string;
+  /**
    * ★★★ **絶対に送らない欄の名前。**
    *   ★ 例: エステ魂の `set_up_limit`（「保存と同時に上位表示する・残り回数あり」＝店舗様の資源）。
    *   ★ ここに入れたものは fields に**入らない**。★ 外したことは skipped に残す。
@@ -101,6 +120,44 @@ export type ParseHtmlFormOptions = {
 const NON_VALUE_INPUT = new Set(['submit', 'button', 'image', 'reset']);
 
 /**
+ * ★★★ 相対 URL を絶対に直す（第235便）。
+ *   ★ `URL` クラスは使わない（★ 自己点検の tsc は ES2020 の lib しか持っていない）。
+ *   ★ 分からない形は **そのまま返す**。★ 「たぶんこれ」で組み立て直さない。
+ */
+export function resolveUrl(base: string | null | undefined, href: string): string {
+  const h = String(href ?? '').trim();
+  const b = String(base ?? '').trim();
+  if (!h) return b;                                            // ★ action="" ＝ そのページ自身
+  if (/^[a-zA-Z][a-zA-Z0-9+.-]*:/.test(h)) return h;           // ★ すでに絶対
+  if (h.startsWith('//')) {
+    const scheme = /^([a-zA-Z][a-zA-Z0-9+.-]*:)/.exec(b)?.[1] ?? 'https:';
+    return scheme + h;
+  }
+  if (!b) return h;
+  const m = /^([a-zA-Z][a-zA-Z0-9+.-]*:\/\/[^/?#]+)([^?#]*)/.exec(b);
+  if (!m) return h;
+  const origin = m[1];
+  const basePath = m[2] || '/';
+  if (h.startsWith('?') || h.startsWith('#')) return origin + basePath + h;
+  const path = h.startsWith('/') ? h : basePath.replace(/[^/]*$/, '') + h;
+  // ★ ./ と ../ を畳む
+  const out: string[] = [];
+  for (const seg of path.split('/')) {
+    if (seg === '.') continue;
+    if (seg === '..') { if (out.length > 1) out.pop(); continue; }
+    out.push(seg);
+  }
+  return origin + (out.join('/') || '/');
+}
+
+/** ★ URL のホスト名だけ取る。★ 取れなければ null（★ 推測しない） */
+export function hostOf(url: string | null | undefined): string | null {
+  const m = /^[a-zA-Z][a-zA-Z0-9+.-]*:\/\/([^/?#]+)/.exec(String(url ?? '').trim());
+  if (!m) return null;
+  return m[1].replace(/^[^@]*@/, '').replace(/:\d+$/, '').toLowerCase();
+}
+
+/**
  * HTML の <form> を1つ読み、**ブラウザが送るのと同じ name/value の並び**にする。
  * ★ 読めないときは空で返さず、必ず warnings に理由を残す（「0件」で通さない）。
  */
@@ -115,15 +172,18 @@ export function parseHtmlForm(html: string, opts: ParseHtmlFormOptions = {}): Ht
   const warnings: string[] = [];
   const skip = new Set(opts.skipNames ?? []);
   const src = typeof html === 'string' ? html : '';
-  const empty = (): HtmlFormParse => ({ fields, names: [...nameSet], selectOptions, choiceValues, submits, maxLengths, skipped, warnings });
+  // ★★★★ 選んだ form の action / method。★ form を選べるまでは null（★ 空で返すときも null のまま）
+  let action: string | null = null;
+  let formMethod: string | null = null;
+  const empty = (): HtmlFormParse => ({ action, formMethod, fields, names: [...nameSet], selectOptions, choiceValues, submits, maxLengths, skipped, warnings });
 
   if (!src) { warnings.push('本文が空'); return empty(); }
 
   // ── form の中身を切り出す ───────────────────────────────
   const opens = /<form\b[^>]*>/gi;
-  const heads: Array<{ end: number }> = [];
+  const heads: Array<{ end: number; tag: string }> = [];
   let om: RegExpExecArray | null;
-  while ((om = opens.exec(src)) !== null) heads.push({ end: om.index + om[0].length });
+  while ((om = opens.exec(src)) !== null) heads.push({ end: om.index + om[0].length, tag: om[0] });
   if (heads.length === 0) {
     warnings.push('フォームが見つからない。取得失敗かレイアウト変更を疑うこと');
     return empty();
@@ -155,6 +215,16 @@ export function parseHtmlForm(html: string, opts: ParseHtmlFormOptions = {}): Ht
     pick = want;
   }
   const inner = bodyOf(pick);
+  // ★★★★ 送り先は【読んだフォームの action】。★ ここで拾って持ち帰る（第235便・設計メモ §17-8）
+  {
+    const openAttrs = attrsOf(heads[pick].tag);
+    const raw = typeof openAttrs.action === 'string' ? openAttrs.action.trim() : '';
+    const base = String(opts.baseUrl ?? '').trim();
+    action = resolveUrl(base, raw) || null;
+    if (!raw && !base) warnings.push('form に action が無く、土台の URL も渡されていないので送り先が決められない');
+    const mth = String(openAttrs.method ?? '').trim().toUpperCase();
+    formMethod = mth || null;
+  }
   if (src.toLowerCase().indexOf('</form>', heads[pick].end) < 0) {
     warnings.push('</form> が見つからないので、ページの終わりまでを form として読んだ');
   }

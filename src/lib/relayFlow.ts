@@ -55,7 +55,7 @@ import type { EsutamaCastCreateValues } from './esutamaRequests';
 // ★ 駅ちかの登録（第234便）。★ 読み手と組み立ては ekichikaGirlCreate が持つ
 import {
   parseEkichikaGirlForm, buildEkichikaGirlFormRequest, buildEkichikaGirlCreateRequest,
-  readEkichikaMessage, describeEkichikaResponse,
+  readEkichikaMessage, describeEkichikaResponse, EKICHIKA_GIRL_CREATE_URL,
   type EkichikaGirlCreateValues,
 } from './ekichikaGirlCreate';
 import { RELAY_USER_AGENT } from './relayUserAgent';
@@ -444,6 +444,26 @@ export type RelayFlowContext = {
   // ── ここから下は intent='girl_create' のときだけ入る（第234便）──
   /** ★★★ 駅ちかへ送る内容。★ DB を読むのは呼び出し側の仕事 */
   createGirlValues?: EkichikaGirlCreateValues;
+  /**
+   * ★★★★ 送り先の決め方（第235便・設計メモ §17-8）。
+   *   'action'（既定）… **読んだフォームの action** へ送る（★ 動いている出勤と同じ作法）
+   *   'fixed'        … これまでどおり決め打ちの URL（★ 切り分け用に残してある）
+   */
+  createPostTo?: 'action' | 'fixed';
+  /**
+   * ★★★ `rookie_flg=1` を混ぜるか（既定 true）。
+   *   ★ §2-7b は1回だけの確認。★ 疑うときに**コードを直さずに**外せるようにした。
+   */
+  createRookie?: boolean;
+  /**
+   * ★★★★ **実際に送った中身**（第235便）。★ 記録に残すためだけに持ち回す。
+   *   ★ 設計メモ §17-5「ブラウザの全文とこちらの全文を1組ずつ突き合わせる」を、
+   *     実弾のたびにコードを直さなくてもできるようにするため。
+   *   ★ 2026-09-09 は送った本文がどこにも残っておらず、失敗のたびに推測になった。
+   */
+  createSent?: { url: string; sentTo: string; formAction: string | null; rookie: boolean; pairs: number; body: string };
+  /** ★★★ 削除で実際に送った中身（第235便）。★ 記録のためだけ */
+  deleteSent?: { url: string; sentTo: string; formAction: string | null; body: string };
   /**
    * ★★★★ 書き込みの応答に出ていた画面のメッセージ（第234便の修正）。
    *   ★ 設計メモ §2-6「**書き込みのあとは必ず画面のメッセージを読むこと**」。
@@ -1500,8 +1520,16 @@ function afterReadSokuhime(
 // ★★ 消したかどうかは【応答では判定しない】（第46便 §35 の作法）。
 //   もう一度一覧を読み、その castId が消えていることを確かめる。
 
-/** 一括削除の POST を組み立てる。★ 1人ぶんしか入れない。 */
-export function buildGirlDeleteStep(ctx: RelayFlowContext, csrfToken: string): FlowNextRequest {
+/**
+ * 一括削除の POST を組み立てる。★ 1人ぶんしか入れない。
+ *
+ * ★★★★ 送り先は【読んだ一覧ページの form action】（第235便・設計メモ §17-8）。
+ *   ★ 2026-09-09 の切り分けで、駅ちかへの書き込みのうち**動いているのは出勤だけ**で、
+ *     出勤だけが「読んだフォームの action」へ送っていた。★ 削除と登録は URL を決め打ちしていた。
+ *   ★★ 読めなければ、これまでどおりの決め打ちへ落とす（★ 黙って落とさず、記録に残す）。
+ *   ★★★ ホストが ranking-deli.jp でなければ**使わない**（★ Cookie を他所へ飛ばさない）。
+ */
+export function buildGirlDeleteStep(ctx: RelayFlowContext, csrfToken: string, formAction?: string | null): FlowNextRequest {
   const castId = String(ctx.deleteCastId ?? '');
   const body = [
     'chck_girls_id%5B' + encodeURIComponent(castId) + '%5D=' + encodeURIComponent(castId),
@@ -1509,10 +1537,14 @@ export function buildGirlDeleteStep(ctx: RelayFlowContext, csrfToken: string): F
     'girls_btn_batch_del=' + encodeURIComponent(''),
     'fuel_csrf_token=' + encodeURIComponent(csrfToken),
   ].join('&');
+  const act = String(formAction ?? '').trim();
+  const actHost = /^[a-zA-Z][a-zA-Z0-9+.-]*:\/\/([^/?#]+)/.exec(act)?.[1]?.toLowerCase() ?? null;
+  const useAction = act !== '' && (actHost === 'ranking-deli.jp' || actHost === 'www.ranking-deli.jp');
+  const url = useAction ? act : EKICHIKA_GIRLS_URL;
   return {
     purpose: 'girl_delete',
     method: 'POST',
-    url: EKICHIKA_GIRLS_URL,
+    url,
     headers: {
       'user-agent': RELAY_USER_AGENT,
       accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
@@ -1523,7 +1555,12 @@ export function buildGirlDeleteStep(ctx: RelayFlowContext, csrfToken: string): F
       origin: 'https://ranking-deli.jp',
     },
     body,
-    context: { ...ctx, deleteStage: 'verify' },
+    context: {
+      ...ctx,
+      deleteStage: 'verify',
+      // ★★★★ 送った中身を記録のために持ち回す（第235便）
+      deleteSent: { url, sentTo: useAction ? 'action' : 'fixed', formAction: act || null, body },
+    },
   };
 }
 
@@ -1546,7 +1583,15 @@ function girlDeleteAfterGirls(page: EkichikaGirlsPage, ctx: RelayFlowContext): F
         [{
           event: 'delete_girl', outcome: 'failed',
           summary: who + 'を駅ちかから削除できませんでした（一覧にまだ残っています）',
-          detail: { castId, name: ctx.deleteName ?? null, people: page.rows.length, reason: 'still_listed', flowId },
+          detail: {
+            castId, name: ctx.deleteName ?? null, people: page.rows.length, reason: 'still_listed',
+            // ★★★★ **送った全文**（第235便）。★ 登録と同じく、推測で追わないため
+            sentUrl: ctx.deleteSent?.url ?? null,
+            sentTo: ctx.deleteSent?.sentTo ?? null,
+            formAction: ctx.deleteSent?.formAction ?? null,
+            sentBody: ctx.deleteSent?.body ?? null,
+            flowId,
+          },
         }],
         '削除を送ったが、一覧にまだ castId ' + castId + ' が残っている',
       );
@@ -1604,6 +1649,7 @@ function girlDeleteAfterGirls(page: EkichikaGirlsPage, ctx: RelayFlowContext): F
     next: buildGirlDeleteStep(
       { ...ctx, deleteName: found.name, deleteBefore: page.rows.length },
       token,
+      page.formAction,
     ),
     audits: [
       { event: 'login', outcome: 'ok', detail: { flowId } },
@@ -1686,6 +1732,14 @@ function girlCreateAfterGirls(
             note: ctx.createMessage ?? null,
             // ★★★★ 応答の正体。★ 「届いたのに登録されない」ときの次の一手はここから決める
             response: ctx.createDiag ?? null,
+            // ★★★★ **送った全文**（第235便・設計メモ §17-5）。
+            //   ★ これが無かったせいで、2026-09-09 は4回とも推測で終わった。
+            sentUrl: ctx.createSent?.url ?? null,
+            sentTo: ctx.createSent?.sentTo ?? null,
+            formAction: ctx.createSent?.formAction ?? null,
+            rookie: ctx.createSent?.rookie ?? null,
+            pairs: ctx.createSent?.pairs ?? null,
+            sentBody: ctx.createSent?.body ?? null,
             flowId,
           },
         }],
@@ -1705,8 +1759,17 @@ function girlCreateAfterGirls(
       kind: 'done',
       audits: [{
         event: 'create_girl', outcome: 'ok',
-        summary: hit.name + 'さんを駅ちかに登録しました（新人マークつき）',
-        detail: { name: hit.name, castId: hit.castId, people: page.rows.length, flowId },
+        summary: hit.name + 'さんを駅ちかに登録しました'
+          + (ctx.createSent && ctx.createSent.rookie === false ? '（★ 新人マークなし）' : '（新人マークつき）'),
+        detail: {
+          name: hit.name, castId: hit.castId, people: page.rows.length,
+          // ★ 通ったときの送り方も残す（★ 次に何を守ればよいかが分かるように・第235便）
+          sentUrl: ctx.createSent?.url ?? null,
+          sentTo: ctx.createSent?.sentTo ?? null,
+          rookie: ctx.createSent?.rookie ?? null,
+          pairs: ctx.createSent?.pairs ?? null,
+          flowId,
+        },
       }],
       note: '駅ちかに登録できた（castId ' + hit.castId + '・' + page.rows.length + '名を読み直した）',
       mediaCreated: { therapistId: Number(ctx.createTherapistId ?? 0), castId: hit.castId, name: hit.name },
@@ -1776,7 +1839,8 @@ function afterGirlCreateForm(
       '登録フォームの応答が ' + input.status + ' だった',
     );
   }
-  const form = parseEkichikaGirlForm(input.body);
+  // ★★★★ 土台の URL を渡して action を絶対に直す（第235便）。★ 送り先はここから決まる
+  const form = parseEkichikaGirlForm(input.body, EKICHIKA_GIRL_CREATE_URL);
   if (form.fields.length === 0 || form.warnings.length > 0) {
     return stop(
       [{ event: 'create_girl', outcome: 'failed', summary: '駅ちかの登録フォームを読み取れませんでした（画面の作りが変わった可能性があります）', detail: { name: want, reason: 'parse_failed', note: form.warnings[0] ?? null, flowId } }],
@@ -1794,7 +1858,10 @@ function afterGirlCreateForm(
   const cookie = mergeCookies(ctx.cookie, input.headers['set-cookie'] as string | string[] | undefined);
   let req;
   try {
-    req = buildEkichikaGirlCreateRequest(cookie, form, values);
+    req = buildEkichikaGirlCreateRequest(cookie, form, values, {
+      postTo: ctx.createPostTo ?? 'action',
+      rookie: ctx.createRookie !== false,
+    });
   } catch (e) {
     const why = e instanceof Error ? e.message : String(e);
     return stop(
@@ -1802,14 +1869,24 @@ function afterGirlCreateForm(
       '組み立てが止めた: ' + why,
     );
   }
+  const m = req.meta;
   return {
     kind: 'next',
     audits: [],
-    note: want + 'さんを駅ちかに登録します（ジャンル ' + (values.genreIds ?? []).join(',') + '・新人マークつき）',
+    note: want + 'さんを駅ちかに登録します（ジャンル ' + (values.genreIds ?? []).join(',') + '）'
+      // ★★★★ 何をどこへ送るのかを、送る前に1行で残す（★ 失敗しても後から読めるように・第235便）
+      + ' ／ 送り先 ' + req.url + '（' + (m ? m.sentTo : '?') + '）'
+      + ' ／ ' + (m ? m.pairs : 0) + '組'
+      + ' ／ 新人マーク' + (m && m.rookie ? 'あり' : 'なし')
+      + (form.action && form.action !== EKICHIKA_GIRL_CREATE_URL ? ' ／ ★ 決め打ちと action が違っていた（action=' + form.action + '）' : ''),
     next: {
       purpose: 'girl_create',
       method: req.method, url: req.url, headers: req.headers, body: req.body ?? '',
-      context: { ...ctx, cookie, createStage: 'verify' },
+      context: {
+        ...ctx, cookie, createStage: 'verify',
+        // ★★★★ 送った中身を持ち回す（★ §17-5 の突き合わせを、コードを直さずにできるように）
+        ...(m ? { createSent: { url: req.url, sentTo: m.sentTo, formAction: m.formAction, rookie: m.rookie, pairs: m.pairs, body: m.body } } : {}),
+      },
     },
   };
 }

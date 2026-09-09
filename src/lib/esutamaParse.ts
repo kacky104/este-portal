@@ -306,8 +306,12 @@ export type EsutamaCastFormParse = {
  *     ・`ctk` / `cast_id` / 実在する `type[]` の番号 を取り出す
  *   ★★ 共通の読み手は **実物と31組・差分0** で確かめてある（2026-09-09）。
  */
-export function parseEsutamaCastForm(html: string): EsutamaCastFormParse {
-  const f = parseHtmlForm(html, { skipNames: ESUTAMA_NEVER_SEND });
+export function parseEsutamaCastForm(
+  html: string,
+  // ★ action を絶対に直す土台（第235便）。★ エステ魂の追加フォームは action が自分自身（§9-1）
+  pageUrl: string = 'https://estama.jp/admin/cast_edit/',
+): EsutamaCastFormParse {
+  const f = parseHtmlForm(html, { skipNames: ESUTAMA_NEVER_SEND, baseUrl: pageUrl });
   const ctk = f.fields.find((x) => x.name === 'ctk')?.value ?? null;
   const castIdHidden = f.fields.find((x) => x.name === 'cast_id')?.value ?? null;
   const typeIds = f.choiceValues['type[]'] ?? [];

@@ -226,7 +226,17 @@ export async function startRelayFlow(params: {
    * intent='girl_create' のときだけ（第234便）。★ **相手に人を増やす。**
    * ★★ 送る内容は【呼び出し側が DB から作って渡す】。★★★ name が空なら何も作らずに終わる。
    */
-  girlCreate?: { therapistId: number; values: EkichikaGirlCreateValues };
+  girlCreate?: {
+    therapistId: number;
+    values: EkichikaGirlCreateValues;
+    /**
+     * ★★★★ 送り先の決め方（第235便・設計メモ §17-8）。既定は 'action'。
+     *   ★ 'fixed' はこれまでの決め打ち。★ 切り分けのために残してある。
+     */
+    postTo?: 'action' | 'fixed';
+    /** ★★★ `rookie_flg=1` を混ぜるか（既定 true）。★ 疑うときに外せるように口を開けた */
+    rookie?: boolean;
+  };
   /** 'shop:<auth_user_id>' など。監査ログに残す */
   actor?: string;
 }): Promise<StartFlowResult> {
@@ -315,7 +325,13 @@ export async function startRelayFlow(params: {
       ? { createTherapistId: Number(params.castCreate.therapistId), createValues: params.castCreate.values }
       : {}),
     ...(params.girlCreate
-      ? { createTherapistId: Number(params.girlCreate.therapistId), createGirlValues: params.girlCreate.values }
+      ? {
+          createTherapistId: Number(params.girlCreate.therapistId),
+          createGirlValues: params.girlCreate.values,
+          // ★★★★ 送り方（第235便）。★ 渡されたときだけ入れる。★ 既定は流れの側が持つ
+          ...(params.girlCreate.postTo ? { createPostTo: params.girlCreate.postTo } : {}),
+          ...(params.girlCreate.rookie === false ? { createRookie: false } : {}),
+        }
       : {}),
     // ★ 新着情報（第155便）。★ 渡されたときだけ入れる
     ...(params.article

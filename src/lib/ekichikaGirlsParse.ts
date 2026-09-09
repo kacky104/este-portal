@@ -59,6 +59,14 @@ export type EkichikaGirlsPage = {
    */
   csrfToken: string | null;
   /**
+   * ★★★★ 一括操作フォームの **action 属性**（第235便・2026-09-10・設計メモ §17-8）。
+   *   ★ 削除は `EKICHIKA_GIRLS_URL` を決め打ちしていた。★ 動いている出勤だけが
+   *     「読んだフォームの action」へ送っていた。→ 削除も読んだ action へ送れるようにする。
+   *   ★ 相対なら `https://ranking-deli.jp/admin/girls/` を土台に絶対へ直す。
+   *   ★ 見つからなければ null（★ そのときは呼び出し側が決め打ちに落とす）。
+   */
+  formAction: string | null;
+  /**
    * ★★★ 読めたが信用できない理由。空でなければ **使わせない**。
    *   数を返して黙るのが一番危ない（第35便の反省6・第43便-b §26）。
    */
@@ -119,6 +127,35 @@ export function readGirlsCsrfToken(html: string): string | null {
   return b ? b : null;
 }
 
+/** 一括操作フォームの送り先（action）。★ `girls_list_action` を持つ form を選ぶ。★ 無ければ null */
+export function readGirlsFormAction(html: string, baseUrl = 'https://ranking-deli.jp/admin/girls/'): string | null {
+  const src = String(html ?? '');
+  const opens = /<form\b[^>]*>/gi;
+  for (let m = opens.exec(src); m !== null; m = opens.exec(src)) {
+    const st = m.index + m[0].length;
+    const ce = src.toLowerCase().indexOf('</form>', st);
+    const inner = src.slice(st, ce >= 0 ? ce : src.length);
+    // ★ 一括操作のフォームだけが持っている欄（削除・一括公開などの指示を入れる欄）
+    if (!/name="girls_list_action"/i.test(inner) && !/name="chck_girls_id\[/i.test(inner)) continue;
+    const raw = /\baction\s*=\s*"([^"]*)"/i.exec(m[0])?.[1]?.trim()
+      ?? /\baction\s*=\s*'([^']*)'/i.exec(m[0])?.[1]?.trim() ?? '';
+    return resolveGirlsUrl(baseUrl, raw);
+  }
+  return null;
+}
+
+/** ★ 相対 action を絶対へ。★ 分からない形はそのまま返す（★ 組み立て直さない） */
+function resolveGirlsUrl(base: string, href: string): string {
+  const h = String(href ?? '').trim();
+  if (!h) return base;                                          // ★ action="" ＝ そのページ自身
+  if (/^[a-zA-Z][a-zA-Z0-9+.-]*:/.test(h)) return h;
+  const m = /^([a-zA-Z][a-zA-Z0-9+.-]*:\/\/[^/?#]+)([^?#]*)/.exec(base);
+  if (!m) return h;
+  if (h.startsWith('//')) return (/^([a-zA-Z][a-zA-Z0-9+.-]*:)/.exec(base)?.[1] ?? 'https:') + h;
+  if (h.startsWith('/')) return m[1] + h;
+  return m[1] + (m[2] || '/').replace(/[^/]*$/, '') + h;
+}
+
 export function parseEkichikaGirls(html: string): EkichikaGirlsPage {
   const src = String(html ?? '');
   const problems: string[] = [];
@@ -134,7 +171,7 @@ export function parseEkichikaGirls(html: string): EkichikaGirlsPage {
   if (heads.length === 0) {
     // ★ ログイン画面が返っている／作りが変わった、のどちらか。数を返して黙らない
     problems.push('女の子一覧の行（girls-cell）が1件も見つからない。取得失敗かレイアウト変更を疑うこと');
-    return { rows, problems, csrfToken: readGirlsCsrfToken(src) };
+    return { rows, problems, csrfToken: readGirlsCsrfToken(src), formAction: readGirlsFormAction(src) };
   }
 
   const seen = new Set<string>();
@@ -192,7 +229,7 @@ export function parseEkichikaGirls(html: string): EkichikaGirlsPage {
     );
   }
 
-  return { rows, problems, csrfToken: readGirlsCsrfToken(src) };
+  return { rows, problems, csrfToken: readGirlsCsrfToken(src), formAction: readGirlsFormAction(src) };
 }
 
 /**

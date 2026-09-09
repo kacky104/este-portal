@@ -229,5 +229,63 @@ const ctxV = Object.assign({}, ctxF, { createStage: 'verify' });
   eq('★ 文言が無くても止まらない', r3.next.purpose, 'read_girls');
 }
 
+// ── ⑧ ★★★★ 送り先は【読んだフォームの action】／送った全文を記録に残す（第235便・§17-8/§17-5）──
+//
+// ★★★ 2026-09-09 の切り分け: 駅ちかへの書き込みで**動いているのは出勤だけ**で、
+//   出勤だけが「読んだフォームの action」へ送っていた。★ 登録と削除は URL を決め打ちしていた。
+//   ★★ ここは **決め打ちに戻らないための番人**。
+{
+  const r = go('girl_create_form', 200, {}, formPage(), ctxF);
+  eq('★★★★ 送り先は読んだ action', r.next.url, 'https://ranking-deli.jp/admin/girls/create/');
+  eq('★★★ 何をどこへ送るかを送る前に残す', /送り先 https:\/\/ranking-deli\.jp\/admin\/girls\/create\/（action）/.test(r.note), true);
+  eq('★★★★ 送った全文を持ち回す（★ §17-5 の突き合わせ用）', r.next.context.createSent.body, r.next.body);
+  eq('★ 新人マークの有無も持ち回す', r.next.context.createSent.rookie, true);
+
+  // ★ 相手が action を変えたら、こちらは黙って追随する
+  const r2 = go('girl_create_form', 200, {}, formPage().replace('action="/admin/girls/create/"', 'action="/admin/girls/create_exe/"'), ctxF);
+  eq('★★★★ action が変わったらそちらへ送る', r2.next.url, 'https://ranking-deli.jp/admin/girls/create_exe/');
+  eq('★★ 決め打ちと違ったことを note に残す', /決め打ちと action が違っていた/.test(r2.note), true);
+
+  // ★★★ 切り分け用の逃げ道（★ コードを直さずに元へ戻せる）
+  const rf = go('girl_create_form', 200, {}, formPage(), Object.assign({}, ctxF, { createPostTo: 'fixed' }));
+  eq('★★ createPostTo:fixed なら決め打ち', rf.next.url, 'https://ranking-deli.jp/admin/girls/create/');
+  const rr = go('girl_create_form', 200, {}, formPage(), Object.assign({}, ctxF, { createRookie: false }));
+  eq('★★★★ createRookie:false なら rookie_flg を混ぜない', /rookie_flg/.test(rr.next.body), false);
+  eq('★ 混ぜなかったことを残す', rr.next.context.createSent.rookie, false);
+
+  // ★★★★ 失敗の記録に「送った全文」が載る（★ これが無くて 2026-09-09 は4回とも推測で終わった）
+  const sent = r.next.context;
+  const v = go('read_girls', 200, {}, girlsPage(...OTHERS), Object.assign({}, sent, { createStage: 'verify' }));
+  eq('★★★★ 失敗の記録に送った全文が載る', v.audits[0].detail.sentBody, r.next.body);
+  eq('★★★ 送り先と決め方も載る', [v.audits[0].detail.sentUrl, v.audits[0].detail.sentTo],
+     ['https://ranking-deli.jp/admin/girls/create/', 'action']);
+  eq('★★ 新人マークの有無も載る', v.audits[0].detail.rookie, true);
+}
+
+// ── ⑨ ★★★★ 削除も【読んだフォームの action】へ送る（第235便・§17-8）──
+{
+  const dbase = RF.newFlowContext({ flowId: 'f2', intent: 'girl_delete', startedAt: '2026-09-09T21:00:00+09:00' });
+  const dctx = Object.assign({}, dbase, { cookie: 'sid=abc', deleteCastId: '5810099' });
+  const d1 = RF.buildGirlDeleteStep(dctx, 'tok', 'https://ranking-deli.jp/admin/girls/index/');
+  eq('★★★★ 読んだ action へ送る', d1.url, 'https://ranking-deli.jp/admin/girls/index/');
+  eq('★ 決め方を記録に残す', d1.context.deleteSent.sentTo, 'action');
+  eq('★★★ 送った全文も残す', d1.context.deleteSent.body, d1.body);
+  eq('★ 消す相手は1人だけ', /chck_girls_id%5B5810099%5D=5810099/.test(d1.body), true);
+
+  const d2 = RF.buildGirlDeleteStep(dctx, 'tok', null);
+  eq('★★ action が読めなければ決め打ちに落ちる（黙って止まらない）',
+     [d2.url, d2.context.deleteSent.sentTo], ['https://ranking-deli.jp/admin/girls/', 'fixed']);
+
+  // ★★★★ 他所のドメインへは送らない（★ 店舗様の Cookie を飛ばさない）
+  const d3 = RF.buildGirlDeleteStep(dctx, 'tok', 'https://cocoa-job.jp/login');
+  eq('★★★★ 別サイトの action は使わない',
+     [d3.url, d3.context.deleteSent.sentTo], ['https://ranking-deli.jp/admin/girls/', 'fixed']);
+
+  // ★ 消えていなかったときの記録に、送った全文が載る
+  const still = go('read_girls', 200, {}, girlsPage(...OTHERS, cell('5810099', 'てすと')),
+                   Object.assign({}, d1.context, { deleteName: 'てすと', deleteBefore: 3 }));
+  eq('★★★★ 削除の失敗の記録にも送った全文が載る', still.audits[0].detail.sentBody, d1.body);
+}
+
 console.log(fail === 0 ? '\nすべて通りました' : '\n' + fail + ' 件 NG');
 process.exit(fail === 0 ? 0 : 1);

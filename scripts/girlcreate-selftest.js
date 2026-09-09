@@ -28,11 +28,12 @@ const CUPS = [['0', '-'], ['1', 'Aカップ'], ['2', 'Bカップ'], ['3', 'Cカ�
 const GENRES = ['1', '5', '11', '49', '78'];
 
 function girlPage(opt) {
-  const o = Object.assign({ csrf: CSRF, checkedGenre: '5', nameMax: '20', marker: true, pGenreChecked: false }, opt || {});
+  const o = Object.assign({ csrf: CSRF, checkedGenre: '5', nameMax: '20', marker: true, pGenreChecked: false,
+    action: '/admin/girls/create/' }, opt || {});
   // ★★ 画面に別の form が在る想定（検索窓）。★ こちらを読んでしまわないことを見張る
   let h = '<html><body>'
     + '<form method="GET"><input type="text" name="keyword" value="さくら"><input type="submit" value="検索"></form>';
-  h += '<form method="POST" action="/admin/girls/create/">';
+  h += '<form method="POST"' + (o.action === null ? '' : ' action="' + o.action + '"') + '>';
   h += '<input type="hidden" name="fuel_csrf_token" value="' + o.csrf + '">';
   h += '<input type="text" name="name" value=""' + (o.nameMax ? ' maxlength="' + o.nameMax + '"' : '') + '>';
   if (o.marker) h += '<input type="text" name="catchcopy" value="" maxlength="15">';
@@ -155,6 +156,73 @@ const V = { name: 'さくら', genreIds: [1, 49], age: '24', tall: '158', bust: 
   const g = G.buildEkichikaGirlFormRequest('c=1');
   eq('★ 登録フォームは GET（読むだけ）', [g.method, g.url], ['GET', 'https://ranking-deli.jp/admin/girls/create/']);
   throws('★ cookie が無ければ読みに行かない', () => G.buildEkichikaGirlFormRequest(''), /Cookie/);
+}
+
+// ── ④ ★★★★ 送り先は【読んだフォームの action】（第235便・設計メモ §17-8）─────────
+//   ★ 2026-09-09、駅ちかへの書き込みで**動いているのは出勤だけ**で、
+//     出勤だけが「読んだフォームの action」へ送っていた。★ 登録と削除は URL を決め打ちしていた。
+//   ★★ ここは **決め打ちに戻らないための番人**。
+{
+  const V2 = { name: 'てすと', genreIds: [1, 11], age: '24', tall: '160', bust: '85', waist: '58', hip: '86', cup: 'D' };
+  const base = 'https://ranking-deli.jp/admin/girls/create/';
+
+  const f1 = G.parseEkichikaGirlForm(girlPage());
+  eq('★★★★ 相対の action を絶対に直して持ち帰る', f1.action, base);
+  eq('★ method も読む', f1.formMethod, 'POST');
+
+  const r1 = G.buildEkichikaGirlCreateRequest('c=1', f1, V2);
+  eq('★★★★ 既定は action へ送る', [r1.url, r1.meta.sentTo], [base, 'action']);
+
+  // ★ action が決め打ちと違う画面（★ 相手が変えたら、こちらは黙って追随する）
+  const f2 = G.parseEkichikaGirlForm(girlPage({ action: '/admin/girls/create_exe/' }));
+  eq('★★★ 決め打ちと違う action も読む', f2.action, 'https://ranking-deli.jp/admin/girls/create_exe/');
+  eq('★★★★ そちらへ送る（★ 決め打ちに戻らない）',
+     G.buildEkichikaGirlCreateRequest('c=1', f2, V2).url, 'https://ranking-deli.jp/admin/girls/create_exe/');
+
+  // ★ action が空／無い＝そのページ自身（ブラウザと同じ）
+  eq('★★ action が空ならページ自身', G.parseEkichikaGirlForm(girlPage({ action: '' })).action, base);
+  eq('★★ action が無くてもページ自身', G.parseEkichikaGirlForm(girlPage({ action: null })).action, base);
+
+  // ★★★★ 他所のドメインへは【送らない】。★ 店舗様の Cookie を飛ばさない
+  throws('★★★★ 別サイトの action へは送らない（Cookie を他所へ飛ばさない）',
+         () => G.buildEkichikaGirlCreateRequest('c=1', G.parseEkichikaGirlForm(girlPage({ action: 'https://cocoa-job.jp/login' })), V2),
+         /駅ちかではありません/);
+
+  // ★ 切り分け用の逃げ道（★ コードを直さずに元のやり方へ戻せる）
+  const rf = G.buildEkichikaGirlCreateRequest('c=1', f2, V2, { postTo: 'fixed' });
+  eq('★★ postTo:fixed なら決め打ちの URL', [rf.url, rf.meta.sentTo], [base, 'fixed']);
+  eq('★ そのときも読めた action は記録に残す', rf.meta.formAction, 'https://ranking-deli.jp/admin/girls/create_exe/');
+}
+
+// ── ⑤ ★★★ rookie_flg を外せる（第235便・§17-4 の切り分け用）─────────
+{
+  const V2 = { name: 'てすと', genreIds: [1] };
+  const f = G.parseEkichikaGirlForm(girlPage());
+  const on = G.buildEkichikaGirlCreateRequest('c=1', f, V2);
+  const off = G.buildEkichikaGirlCreateRequest('c=1', f, V2, { rookie: false });
+  eq('★★★ 既定では新人マークを付ける', /(^|&)rookie_flg=1(&|$)/.test(on.body), true);
+  eq('★★★★ rookie:false なら【1つも】混ぜない', /rookie_flg/.test(off.body), false);
+  eq('★ どちらだったかを記録に残す', [on.meta.rookie, off.meta.rookie], [true, false]);
+  eq('★ 外しても登録そのものは成り立つ（名前とジャンルは残る）',
+     /(^|&)name=/.test(off.body) && /(^|&)genre%5B1%5D=1(&|$)/.test(off.body), true);
+}
+
+// ── ⑥ ★★★★ 送った全文を持ち帰る（第235便・設計メモ §17-5）─────────
+//   ★ 2026-09-09 は送った本文がどこにも残っておらず、4回とも推測で終わった。
+{
+  const f = G.parseEkichikaGirlForm(girlPage());
+  const r = G.buildEkichikaGirlCreateRequest('c=1', f, { name: 'てすと', genreIds: [1] });
+  eq('★★★★ 本文をそのまま持ち帰る（突き合わせ用）', r.meta.body, r.body);
+  eq('★ 組の数も数える', r.meta.pairs, r.body.split('&').length);
+}
+
+// ── ⑦ ★★★ urlencoded はブラウザと同じ作り方（第235便）─────────
+//   ★ サーバは同じに読むが、**突き合わせるときに差として見えてしまう**ので揃えた。
+{
+  const f = G.parseEkichikaGirlForm(girlPage());
+  const r = G.buildEkichikaGirlCreateRequest('c=1', f, { name: 'さくら もも', genreIds: [1] });
+  eq('★★★ 空白は %20 ではなく + （ブラウザと同じ）', /name=%E3%81%95%E3%81%8F%E3%82%89\+%E3%82%82%E3%82%82/.test(r.body), true);
+  eq('★ 角かっこは %5B %5D（ブラウザと同じ）', /genre%5B1%5D=1/.test(r.body), true);
 }
 
 console.log(fail === 0 ? '\nすべて通りました' : '\n' + fail + ' 件 NG');
