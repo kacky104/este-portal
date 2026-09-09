@@ -235,9 +235,15 @@ export async function POST(req: Request) {
       if (!source.create_missing) { unmatched.push(c.name); continue; }
       if (!isCreatableName(c.name)) { unmatched.push(`${c.name}（伏字・記号のみ・作成せず）`); continue; }
       if (!apply) { createdNames.push(c.name.trim()); continue; }   // 試し打ちでは作らない
+      // ★★★ 第227便（2026-09-09・カッキーさんの決定）: **公開（is_active=true）＋新人（NEW）で作る**。
+      //   ★ 以前は非公開で作っていたが、誰も公開にしないまま溜まり、駅ちかの新人がフクエスに
+      //     出ないという実害のほうが大きかった。★ 写真は第217便の既定画像で出る。
+      //   ★ ingest（日次）側も同じ。★ 片方だけ変えないこと。
       const { data: made, error: mkErr } = await supabase.from('therapists').insert({
         salon_id: source.salon_id, name: c.name.trim(), area: salonArea,
-        is_active: false,
+        is_active: true,
+        is_new_face: true,
+        new_face_since: importedAt,   // ★ NEW の起点。★ 期間の判定は isNewFaceActive（60日）
         age: source.import_profile ? c.age : null,
         body_type: source.import_profile ? c.bodyType : null,
       }).select('id').single();

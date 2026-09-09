@@ -22,8 +22,12 @@ import { loadCastIds, rememberCastId } from '@/lib/mediaCastIds';
 //
 // ★★ create_missing（第35便・禁則242の解消）
 //   駅ちかにいてフクエスにいない子を作る。作るのは salon_id・name・area・年齢・サイズ・castId だけで、
-//   写真もキャッチも入らない。そのまま公開すると写真なしのカードが一斉に並ぶので
-//   is_active=false（非公開）で作り、オーナーが中身を入れてから公開する運用にした。
+//   写真もキャッチも入らない。
+//   ★★★ 第227便（2026-09-09・カッキーさんの決定）: **公開（is_active=true）＋新人（NEW）で作る**。
+//     ★ 以前は is_active=false（非公開）で作り、オーナーが中身を入れてから公開する運用だったが、
+//       誰も公開にしないまま溜まり続け、駅ちかの新人がフクエスに出ないという実害のほうが大きかった。
+//     ★ 写真が無い子は第217便の既定画像（本人→店舗→運営）で出る。
+//     ★ NEW は is_new_face=true ＋ new_face_since=いま。★ 期間の正本は src/lib/newFace.ts（60日）。
 //   作られたことはサイトからは分からないので、salon_import_runs.created / created_names に残す。
 //
 // ★★ 照合に castId を使う理由（第35便）
@@ -193,7 +197,8 @@ export async function POST(req: Request) {
       therapistId = byName.get(key);
     }
 
-    // 4-0b. どちらでも当たらなかった子。create_missing が ON なら非公開で作る（第35便）。
+    // 4-0b. どちらでも当たらなかった子。create_missing が ON なら作る（第35便）。
+    //   ★ 第227便から【公開＋NEW】で作る。★ 決めごとは1か所（このファイル冒頭のコメント）。
     let isNew = false;
     if (therapistId === undefined) {
       if (!source.create_missing) { unmatched.push(cast.name); continue; }
@@ -207,7 +212,9 @@ export async function POST(req: Request) {
           salon_id: source.salon_id,
           name: cast.name.trim(),
           area: salonArea,
-          is_active: false,                 // ★ 非公開で作る。公開はオーナーが中身を入れてから。
+          is_active: true,                  // ★ 公開で作る（第227便）。★ 写真は既定画像で出る（第217便）。
+          is_new_face: true,                // ★ NEW を付ける（第227便）
+          new_face_since: importedAt,       // ★ NEW の起点。★ 期間の判定は isNewFaceActive（60日）
           age: source.import_profile ? cast.age : null,
           body_type: source.import_profile ? cast.bodyType : null,
         })
