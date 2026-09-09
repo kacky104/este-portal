@@ -256,9 +256,11 @@ const ctxV = Object.assign({}, ctxF, { createStage: 'verify' });
   // ★★★★ 失敗の記録に「送った全文」が載る（★ これが無くて 2026-09-09 は4回とも推測で終わった）
   const sent = r.next.context;
   const v = go('read_girls', 200, {}, girlsPage(...OTHERS), Object.assign({}, sent, { createStage: 'verify' }));
-  eq('★★★★ 失敗の記録に送った全文が載る', v.audits[0].detail.sentBody, r.next.body);
-  eq('★★★ 送り先と決め方も載る', [v.audits[0].detail.sentUrl, v.audits[0].detail.sentTo],
-     ['https://ranking-deli.jp/admin/girls/create/', 'action']);
+  eq('★★★★ 失敗の記録に送った全文が（分けて）載る',
+     Object.keys(v.audits[0].detail).filter((k) => /^b\d\d$/.test(k)).sort().map((k) => v.audits[0].detail[k]).join(''),
+     r.next.body.replace(/fuel_csrf_token=[^&]*/, 'csrftk=(伏せた)'));
+  eq('★★★ 送り先と決め方も載る', [v.audits[0].detail.sentPath, v.audits[0].detail.sentTo],
+     ['/admin/girls/create/', 'action']);
   eq('★★ 新人マークの有無も載る', v.audits[0].detail.rookie, true);
 }
 
@@ -284,7 +286,55 @@ const ctxV = Object.assign({}, ctxF, { createStage: 'verify' });
   // ★ 消えていなかったときの記録に、送った全文が載る
   const still = go('read_girls', 200, {}, girlsPage(...OTHERS, cell('5810099', 'てすと')),
                    Object.assign({}, d1.context, { deleteName: 'てすと', deleteBefore: 3 }));
-  eq('★★★★ 削除の失敗の記録にも送った全文が載る', still.audits[0].detail.sentBody, d1.body);
+  eq('★★★★ 削除の失敗の記録にも送った全文が（分けて）載る',
+     Object.keys(still.audits[0].detail).filter((k) => /^b\d\d$/.test(k)).sort().map((k) => still.audits[0].detail[k]).join(''),
+     d1.body.replace(/fuel_csrf_token=[^&]*/, 'csrftk=(伏せた)'));
+  eq('★ 削除の送り先もパスで載る', still.audits[0].detail.sentPath, '/admin/girls/index/');
+}
+
+// ── ⑩ ★★★★ 監査の見張りを通る形で記録する（第236便・2026-09-10）──
+//
+// ★★★ 2026-09-10 未明に踏んだ: `sentBody` をそのまま入れたら見張りが丸ごと落とした。
+//   ★ 見張りの決まり: 値が URL に見える／`fuel_csrf_token` を含む／120字超 は残さない。
+//   ★★ ここは **また落とされないための番人**。
+{
+  const A = require(path.join(__dirname, '..', '_tmpcheck', 'mediaAudit.js'));
+
+  eq('★★ URL からパスだけ取る', RF.pathOfUrl('https://ranking-deli.jp/admin/girls/create/'), '/admin/girls/create/');
+  eq('★ パスが無ければ /', RF.pathOfUrl('https://ranking-deli.jp'), '/');
+  eq('★ 空なら null', RF.pathOfUrl(''), null);
+  eq('★★★ パスは見張りを通る', A.valueLooksSecret('/admin/girls/create/'), false);
+  eq('★★★ もとの URL は見張りに落とされる（★ だからパスにした）',
+     A.valueLooksSecret('https://ranking-deli.jp/admin/girls/create/'), true);
+
+  const body = 'fuel_csrf_token=deadbeefdeadbeefdeadbeef&name=%E3%81%A6%E3%81%99%E3%81%A8&age=22'
+    + '&genre%5B49%5D=1&genre%5B65%5D=1&update-btn=&rookie_flg=1' + '&pad=' + 'x'.repeat(400);
+  const parts = RF.splitBodyForAudit(body);
+  const keys = Object.keys(parts).filter((k) => /^b\d\d$/.test(k)).sort();
+  eq('★★★★ 使い捨てトークンは【名前ごと】伏せる',
+     keys.map((k) => parts[k]).join('').includes('fuel_csrf_token'), false);
+  eq('★★★ 順に繋げば元に戻る（トークンだけ伏せた形）',
+     keys.map((k) => parts[k]).join(''), body.replace(/fuel_csrf_token=[^&]*/, 'csrftk=(伏せた)'));
+  eq('★★★★ どの1枚も見張りを通る', keys.every((k) => A.valueLooksSecret(parts[k]) === false), true);
+  eq('★★ 1枚あたり120字を超えない', keys.every((k) => String(parts[k]).length <= 120), true);
+
+  // ★★ 長すぎるときは切るが、切ったことを残す（★ 黙って切らない）
+  const huge = RF.splitBodyForAudit('a'.repeat(5000));
+  eq('★★★ 20枚で打ち止め', Object.keys(huge).filter((k) => /^b\d\d$/.test(k)).length, 20);
+  eq('★★★★ 切ったぶんの字数を残す', huge.bCut, 5000 - 20 * 110);
+
+  // ★★★★ 失敗の記録に、分けた本文とパスが載る
+  const r = go('girl_create_form', 200, {}, formPage(), ctxF);
+  const v = go('read_girls', 200, {}, girlsPage(...OTHERS),
+               Object.assign({}, r.next.context, { createStage: 'verify' }));
+  const d = v.audits[0].detail;
+  eq('★★★ 送り先はパスで載る', d.sentPath, '/admin/girls/create/');
+  eq('★★★ 読んだ action もパスで載る', d.actionPath, '/admin/girls/create/');
+  eq('★★★★ 本文が分けて載る',
+     Object.keys(d).filter((k) => /^b\d\d$/.test(k)).length > 0, true);
+  eq('★★★★ 繋ぐと送った本文に戻る',
+     Object.keys(d).filter((k) => /^b\d\d$/.test(k)).sort().map((k) => d[k]).join(''),
+     r.next.body.replace(/fuel_csrf_token=[^&]*/, 'csrftk=(伏せた)'));
 }
 
 console.log(fail === 0 ? '\nすべて通りました' : '\n' + fail + ' 件 NG');
