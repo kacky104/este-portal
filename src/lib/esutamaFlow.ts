@@ -15,7 +15,7 @@
 
 import type { FlowAudit, FlowOutcome, RelayFlowContext, EsutamaDiffRow, EsutamaPlanSummary } from './relayFlow';
 import { mergeCookies } from './relayJob';
-import { readEsutamaCsrf, parseEsutamaJson, parseEsutamaRoster, parseEsutamaCastList } from './esutamaParse';
+import { readEsutamaCsrf, parseEsutamaJson, parseEsutamaRoster, parseEsutamaCastList, parseEsutamaCastForm } from './esutamaParse';
 // ★ 写メ日記の道（第133便）。★ ログインの直後に分かれる
 import { buildEsutamaTherapistAdminRequest } from './esutamaRequests';
 import {
@@ -30,7 +30,11 @@ import { businessDateJSTFrom } from './dutyStatus';
 import {
   buildEsutamaRosterRequest, buildEsutamaWorkReadRequest, buildEsutamaWorkSaveRequest,
   buildEsutamaCastListRequest, buildEsutamaCastDisableRequest,
+  // ★ セラピストの新規登録（第232便）。★ 読む → 組み立てる
+  buildEsutamaCastFormRequest, buildEsutamaCastCreateRequest,
 } from './esutamaRequests';
+// ★★ 名前の突き合わせは【1か所】。★ ここで自前の正規化を書かない（読みが同じでも別文字は別人）
+import { normalizeName } from './mediaMatch';
 
 type Input = { status: number; headers: Record<string, string | string[]>; body: string };
 
@@ -170,8 +174,9 @@ export function afterEsutamaLogin(input: Input, ctx: RelayFlowContext): FlowOutc
     };
   }
 
-  // ★★★ 非表示の用事（第229便）は【出勤名簿を読まない】。★ 表示状態はセラピスト設定にしか無い。
-  if (ctx.intent === 'cast_hide') {
+  // ★★★ 非表示（第229便）と 新規登録（第232便）は【出勤名簿を読まない】。
+  //   ★ 表示状態も「もう居るか」も、セラピスト設定（/admin/cast/）にしか無い。
+  if (ctx.intent === 'cast_hide' || ctx.intent === 'cast_create') {
     const c = buildEsutamaCastListRequest(cookie);
     return {
       kind: 'next',
@@ -260,6 +265,10 @@ export function afterEsutamaCastList(input: Input, ctx: RelayFlowContext): FlowO
   }
 
   const cookie = mergeCookies(ctx.cookie, input.headers['set-cookie'] as string | string[] | undefined);
+
+  // ★★★ 新規登録の道はここで分かれる（第232便）。★ 非表示の判定には一切触れない
+  if (ctx.intent === 'cast_create') return castCreateAfterList(parsed.rows, input.body, cookie, ctx);
+
   const castId = String(ctx.hideCastId ?? '');
   const found = parsed.rows.find((r) => r.castId === castId) ?? null;
 
@@ -361,6 +370,191 @@ export function afterEsutamaCastHide(input: Input, ctx: RelayFlowContext): FlowO
     audits: [],
     note: '非表示を送った。★ 成否は読み直して確かめる（応答では判定しない）',
     next: { purpose: 'esutama_cast_list', method: c.method, url: c.url, headers: c.headers, body: '', context: { ...ctx, cookie, hideStage: 'verify' } },
+  };
+}
+
+// ───────── ★★★ セラピストを1人 登録する（第232便・2026-09-09）─────────
+//
+// ★★★ 段: login → esutama_cast_list（もう居ないか＋いまの顔ぶれ）
+//            → esutama_cast_form（65部品を読む）→ esutama_cast_create → esutama_cast_list（照合＋cast_id回収）
+//
+// ★★★ **相手に人を増やす。** ★ だから作法を重ねてある:
+//   ① 送る前にセラピスト設定を読み、**同じ名前の人がもう居ないか**を確かめる（居たら作らない）
+//   ② そのとき **いまの cast_id を全部 控える**。★ 照合で「増えた1人」を特定するため
+//   ③ フォームを毎回読み、**名前・特徴・年齢・サイズだけ差し替えて**返す（決め打ちしない）
+//   ④ 押したあと **もう一度読み直し、本当に増えたか**を照合する。★ 応答では判定しない
+//   ★★ 名前ではなく **「前に無かった cast_id」** で新しい人を特定する。★ 同名の取り違えを避ける
+
+/** ★ 1回目: もう居ないかを見て、フォームを読みに行く */
+function castCreateAfterList(
+  rows: ReadonlyArray<{ castId: string; name: string; disabled: boolean }>,
+  body: string,
+  cookie: string,
+  ctx: RelayFlowContext,
+): FlowOutcome {
+  const flowId = ctx.flowId;
+  const want = String(ctx.createValues?.name ?? '').trim();
+
+  // ── 2回目: 照合して cast_id を回収 ──────────────────────────
+  if (ctx.createStage === 'verify') {
+    const before = new Set(ctx.createBeforeIds ?? []);
+    const fresh = rows.filter((r) => !before.has(r.castId));
+    if (fresh.length === 0) {
+      return stop(
+        [{ event: 'create_cast', outcome: 'failed', summary: want + 'さんをエステ魂に登録できませんでした（一覧に増えていません）', detail: { name: want, people: rows.length, reason: 'not_created', flowId } }],
+        '登録を送ったが、読み直しても人数が増えていない',
+      );
+    }
+    // ★ 増えたのが2人以上＝こちらの知らない登録が同時に起きた。★ 名前で1人に絞れなければ止める
+    const byName = fresh.filter((r) => normalizeName(r.name) === normalizeName(want));
+    const hit = fresh.length === 1 ? fresh[0] : (byName.length === 1 ? byName[0] : null);
+    if (hit === null) {
+      return stop(
+        [{ event: 'create_cast', outcome: 'failed', summary: 'エステ魂で増えた方が' + fresh.length + '名あり、どれを登録したのか決められませんでした', detail: { name: want, added: fresh.length, reason: 'ambiguous', flowId } }],
+        '増えた人が複数あり、名前でも1人に絞れなかった（★ 番号は記録に残す）',
+      );
+    }
+    return {
+      kind: 'done',
+      audits: [{
+        event: 'create_cast', outcome: 'ok',
+        summary: hit.name + 'さんをエステ魂に登録しました',
+        detail: { name: hit.name, castId: hit.castId, people: rows.length, flowId },
+      }],
+      note: 'エステ魂に登録できた（cast_id ' + hit.castId + '・' + rows.length + '名を読み直した）',
+      // ★★★ ここで初めて「この人の番号はこれ」と言える。★ 表に書くのは呼び出し側（DBを触るのはあちら）
+      esutamaCreated: { therapistId: Number(ctx.createTherapistId ?? 0), castId: hit.castId, name: hit.name },
+    };
+  }
+
+  // ── 1回目 ──────────────────────────────────────────────
+  if (!want) {
+    return stop(
+      [{ event: 'create_cast', outcome: 'stopped', summary: '登録する方が指定されていないため、何もしませんでした', detail: { reason: 'no_name', flowId } }],
+      '登録する名前が文脈に入っていない',
+    );
+  }
+  // ★★★ 同じ名前がもう居たら作らない。★ 二重掲載を自分で作らないための止め
+  const same = rows.find((r) => normalizeName(r.name) === normalizeName(want)) ?? null;
+  if (same) {
+    return {
+      kind: 'done',
+      audits: [{
+        event: 'create_cast', outcome: 'stopped',
+        summary: want + 'さんは、すでにエステ魂に居ます（cast_id ' + same.castId + '）。登録しませんでした',
+        detail: { name: want, castId: same.castId, disabled: same.disabled, reason: 'already_listed', flowId },
+      }],
+      note: 'すでに同じ名前が居るので登録しない（' + (same.disabled ? '★ その方はいま非表示' : '表示中') + '）',
+    };
+  }
+  if (!readEsutamaCsrf(body)) {
+    // ★ ここで拾えないのは「読めていない」しるし。★ フォームへ進む前に止める
+    return stop(
+      [{ event: 'create_cast', outcome: 'failed', summary: 'エステ魂の画面を読み取れなかったため、登録しませんでした', detail: { name: want, reason: 'no_ctk', flowId } }],
+      'セラピスト設定から ctk を拾えなかった',
+    );
+  }
+  const req = buildEsutamaCastFormRequest(cookie);
+  return {
+    kind: 'next',
+    audits: [
+      { event: 'login', outcome: 'ok', summary: 'エステ魂にログインしました', detail: { flowId } },
+      { event: 'read_girls', outcome: 'ok', summary: 'エステ魂のセラピストを ' + rows.length + '人 読み取りました', detail: { count: rows.length, flowId } },
+    ],
+    note: want + 'さんはまだ居ない。追加フォームを読みます（★ まだ1文字も送っていない）',
+    next: {
+      purpose: 'esutama_cast_form',
+      method: req.method, url: req.url, headers: req.headers, body: '',
+      // ★★★ いまの顔ぶれを控える。★ これが「増えた1人」を見つける物差しになる
+      context: { ...ctx, cookie, createBeforeIds: rows.map((r) => r.castId) },
+    },
+  };
+}
+
+/**
+ * 追加フォームを読んだあと。★ ここで**初めて送る形を組み立てる**。
+ * ★★ 組み立てが例外を投げたら【送らない】。★ 例外の文言をそのまま記録に残す（人が読んで直せるように）。
+ */
+export function afterEsutamaCastForm(input: Input, ctx: RelayFlowContext): FlowOutcome {
+  const flowId = ctx.flowId;
+  const want = String(ctx.createValues?.name ?? '').trim();
+  if (redirectedToLogin(input)) {
+    return stop(
+      [{ event: 'login', outcome: 'failed', summary: 'エステ魂のセッションが切れました（登録は行っていません）', detail: { httpStatus: input.status, reason: 'back_to_login', flowId } }],
+      '追加フォームがログイン画面へ戻された',
+    );
+  }
+  if (input.status >= 300) {
+    return stop(
+      [{ event: 'create_cast', outcome: 'failed', summary: 'エステ魂の追加フォームを開けませんでした', detail: { name: want, httpStatus: input.status, reason: 'http_error', flowId } }],
+      '追加フォームの応答が ' + input.status + ' だった',
+    );
+  }
+  const form = parseEsutamaCastForm(input.body);
+  if (form.fields.length === 0 || form.warnings.length > 0) {
+    return stop(
+      [{ event: 'create_cast', outcome: 'failed', summary: 'エステ魂の追加フォームを読み取れませんでした（画面の作りが変わった可能性があります）', detail: { name: want, reason: 'parse_failed', note: form.warnings[0] ?? null, flowId } }],
+      '追加フォームを読めなかった: ' + (form.warnings[0] ?? '欄が1つも無い'),
+    );
+  }
+  const values = ctx.createValues;
+  if (!values) {
+    return stop(
+      [{ event: 'create_cast', outcome: 'stopped', summary: '送る内容が無いため、登録しませんでした', detail: { reason: 'no_values', flowId } }],
+      '送る内容が文脈に入っていない',
+    );
+  }
+
+  const cookie = mergeCookies(ctx.cookie, input.headers['set-cookie'] as string | string[] | undefined);
+  let req;
+  try {
+    req = buildEsutamaCastCreateRequest(cookie, form, values);
+  } catch (e) {
+    // ★★★ 組み立てが止めた＝送ってはいけない形だった。★ 理由をそのまま人に見せる
+    const why = e instanceof Error ? e.message : String(e);
+    return stop(
+      [{ event: 'create_cast', outcome: 'stopped', summary: want + 'さんの登録を止めました（' + why + '）', detail: { name: want, reason: 'blocked', note: why, flowId } }],
+      '組み立てが止めた: ' + why,
+    );
+  }
+  return {
+    kind: 'next',
+    audits: [],
+    note: want + 'さんをエステ魂に登録します（特徴タグ ' + (values.typeIds ?? []).join(',') + '）',
+    next: {
+      purpose: 'esutama_cast_create',
+      method: req.method, url: req.url, headers: req.headers, body: req.body ?? '',
+      context: { ...ctx, cookie, createStage: 'verify' },
+    },
+  };
+}
+
+/**
+ * 登録の POST の応答。
+ * ★★ ここでは成否を判定しない。★ もう一度一覧を読んで、本当に増えたかを照合する（非表示と同じ作法）。
+ */
+export function afterEsutamaCastCreate(input: Input, ctx: RelayFlowContext): FlowOutcome {
+  const flowId = ctx.flowId;
+  const want = String(ctx.createValues?.name ?? '').trim();
+  if (redirectedToLogin(input)) {
+    return stop(
+      [{ event: 'login', outcome: 'failed', summary: 'エステ魂のセッションが切れました（登録できたか分かりません）', detail: { name: want, httpStatus: input.status, reason: 'back_to_login', flowId } }],
+      '登録の応答がログイン画面へ戻された',
+    );
+  }
+  if (input.status >= 400) {
+    return stop(
+      [{ event: 'create_cast', outcome: 'failed', summary: 'エステ魂の登録で想定外の応答がありました', detail: { name: want, httpStatus: input.status, reason: 'http_error', flowId } }],
+      '登録の応答が ' + input.status + ' だった',
+    );
+  }
+  const cookie = mergeCookies(ctx.cookie, input.headers['set-cookie'] as string | string[] | undefined);
+  const c = buildEsutamaCastListRequest(cookie);
+  return {
+    kind: 'next',
+    audits: [],
+    note: '登録を送った。★ 成否は読み直して確かめる（応答では判定しない）',
+    next: { purpose: 'esutama_cast_list', method: c.method, url: c.url, headers: c.headers, body: '', context: { ...ctx, cookie, createStage: 'verify' } },
   };
 }
 

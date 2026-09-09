@@ -48,6 +48,8 @@ import {
   type EkichikaDiaryDetail,
 } from './ekichikaDiaryParse';
 import { mergeCookies } from './relayJob';
+// ★ 送る内容の形。★ 型だけ借りる（実体は esutamaRequests。★ 実行時の依存は増やさない）
+import type { EsutamaCastCreateValues } from './esutamaRequests';
 import { RELAY_USER_AGENT } from './relayUserAgent';
 // ★ 写真の送信（第107便）。★ 既存の段には触れず、段名を分けて足す
 import {
@@ -80,6 +82,8 @@ import {
   afterEsutamaWorkRead, afterEsutamaWorkSave, afterEsutamaWorkVerify,
   // ★ セラピスト設定の段（第229便）。★ 非表示にする道だけが通る
   afterEsutamaCastList, afterEsutamaCastHide,
+  // ★ セラピストの新規登録の段（第232便）
+  afterEsutamaCastForm, afterEsutamaCastCreate,
 } from './esutamaFlow';
 // ★★★ エステ魂の写メ日記（第130便で書いた段を、第133便で advanceFlow に繋いだ）。
 //   ★ 130便では書いただけで【一度も呼ばれていなかった】。★ 繋いで初めて動く
@@ -309,7 +313,22 @@ export type RelayFlowIntent =
    *     ★ この intent は **非表示にする側だけ**。★ 戻す側は作っていない（戻すのは店舗様の画面から）。
    *   ★ 入口は運営だけの口（/api/admin/media-cast-hide）。★ 店舗様の画面にボタンは置かない。
    */
-  | 'cast_hide';
+  | 'cast_hide'
+  /**
+   * ★★★ エステ魂にセラピストを1人 登録する（第232便・2026-09-09）。
+   *   login → esutama_cast_list（もう居ないか＋いまの顔ぶれ）→ esutama_cast_form（65部品を読む）
+   *        → esutama_cast_create → esutama_cast_list（照合＋cast_id 回収）→ 終わり
+   *
+   * ★★★ **相手に人を増やす唯一の intent。** ★ 作法:
+   *   ① 送る前に一覧を読み、**同じ名前がもう居ないか**を確かめる（居たら作らない＝二重掲載を作らない）
+   *   ② そのとき **いまの cast_id を全部控える**。★ 照合で「増えた1人」を特定する物差しになる
+   *   ③ 追加フォームを**毎回読み**、名前・特徴・年齢・サイズだけ差し替えて返す（★ 決め打ちしない）
+   *   ④ 押したあと **もう一度読み直し、本当に増えたか**を照合する
+   *   ★★ `set_up_limit`（保存と同時に上位表示・残り回数あり）は**絶対に送らない**（読み手と組み立ての二重の見張り）。
+   *   ★ 写真は送らない（相手の file 欄に name が無く、送り方が未調査・第231便）。
+   *   ★ 入口は運営だけの口（/api/admin/media-cast-create）。★ 店舗様の画面にボタンは置かない。
+   */
+  | 'cast_create';
 
 /**
  * 段と段のあいだで持ち回す状態。
@@ -387,6 +406,16 @@ export type RelayFlowContext = {
   hideStage?: 'verify';
   /** 押す前に一覧で確かめた表示名（★ 記録に残して「誰を非表示にしたか」が後から読めるように） */
   hideName?: string;
+
+  // ── ここから下は intent='cast_create' のときだけ入る（第232便）──
+  /** ★ フクエス側のセラピストID。★ 登録できたあと、番号を結びつける相手 */
+  createTherapistId?: number;
+  /** ★★★ 送る内容。★ DB を読むのは呼び出し側の仕事（このファイルは DB を知らない） */
+  createValues?: EsutamaCastCreateValues;
+  /** 段。undefined＝これから登録する ／ 'verify'＝送ったあとの照合 */
+  createStage?: 'verify';
+  /** ★★★ 送る前に居た cast_id ぜんぶ。★ 「増えた1人」を名前ではなく**番号の差**で特定する */
+  createBeforeIds?: string[];
   articleShopId?: string;
   /** ★ ①article_image.json が返した識別子 */
   articleImgB?: string;
@@ -603,6 +632,8 @@ export type FlowNextRequest = {
     | 'esutama_login_page' | 'esutama_login' | 'esutama_roster'
     // ★★ エステ魂のセラピスト設定（第229便）。★ 名簿（出勤）とは別の画面。★ 名前を分けて既存の段に触れない
     | 'esutama_cast_list' | 'esutama_cast_hide'
+    // ★★ セラピストの新規登録（第232便）。★ esutama_cast_create だけが相手に人を増やす
+    | 'esutama_cast_form' | 'esutama_cast_create'
     | 'esutama_work_read' | 'esutama_work_save' | 'esutama_work_verify'
     // ★ エステ魂の写メ日記（第130便）。★ 代理ログインを通るので段が多い
     | 'esutama_sokusera_token' | 'esutama_sokusera_proxy' | 'esutama_sokusera_page'
@@ -620,7 +651,17 @@ export type FlowNextRequest = {
 
 export type FlowOutcome =
   | { kind: 'next'; next: FlowNextRequest; audits: FlowAudit[]; note: string }
-  | { kind: 'done'; audits: FlowAudit[]; note: string; /** ★ エステ魂の流れの終わりだけ（第110便） */ esutamaPlan?: EsutamaPlanSummary }
+  | {
+      kind: 'done'; audits: FlowAudit[]; note: string;
+      /** ★ エステ魂の流れの終わりだけ（第110便） */
+      esutamaPlan?: EsutamaPlanSummary;
+      /**
+       * ★★★ エステ魂に1人 登録できた（第232便）。★ **番号を表に書くのは呼び出し側**。
+       *   ★ このファイルは DB を知らない。★ 「誰の番号がいくつか」を返すところまでが仕事。
+       *   ★★ ここを書き落とすと **次の周でまた同じ人を作る**（二重掲載を自分で作る・禁則269）。
+       */
+      esutamaCreated?: { therapistId: number; castId: string; name: string };
+    }
   | { kind: 'stop'; audits: FlowAudit[]; note: string }
   /**
    * ★★★ 読めた。ここから先は【DBを読まないと決められない】（第43便）。
@@ -963,6 +1004,11 @@ export function advanceFlow(input: {
       return afterEsutamaCastList(input, ctx);
     case 'esutama_cast_hide':
       return afterEsutamaCastHide(input, ctx);
+    // ── セラピストの新規登録（第232便）★ 段名で分けている。既存の case には触れていない ──
+    case 'esutama_cast_form':
+      return afterEsutamaCastForm(input, ctx);
+    case 'esutama_cast_create':
+      return afterEsutamaCastCreate(input, ctx);
     case 'esutama_work_read':
       return afterEsutamaWorkRead(input, ctx);
     case 'esutama_work_save':
@@ -1957,6 +2003,10 @@ function finishRead(audits: FlowAudit[], ctx: RelayFlowContext, page: WorkPage):
       // ★★ ここへは来ない（新着情報は出勤ページを使わない）。
       //   ★ それでも【黙って通さない】。★ 来たら止める
       return stop(audits, '新着情報は出勤ページを使わない（ここへは来ないはず）');
+    case 'cast_create':
+      // ★ ここへは来ない（エステ魂の登録は駅ちかの出勤ページを使わない）。★ 網羅は外さない（第232便）
+      //   ★★★ 相手の媒体が違う。★ 人を増やす前に必ず止める
+      return stop(audits, 'エステ魂の登録は駅ちかの出勤ページを使わない（ここへは来ないはず）');
     case 'cast_hide':
       // ★ ここへは来ない（エステ魂の非表示は駅ちかの出勤ページを使わない）。★ 網羅は外さない（第229便）
       //   ★★★ ここへ来たということは、非表示の流れが駅ちかへ迷い込んだということ。

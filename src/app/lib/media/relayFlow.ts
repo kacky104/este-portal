@@ -42,7 +42,7 @@ import {
   type EkichikaDiaryDetail,
   type KnownDiary,
 } from '@/lib/ekichikaDiaryParse';
-import { loadCastIds } from '@/lib/mediaCastIds';
+import { loadCastIds, rememberCastId } from '@/lib/mediaCastIds';
 import { addDaysISO, buildWorkPlan, planFingerprint, summarizePlan, type FukuesShift } from '@/lib/workPlan';
 import { WORK_DAYS, encodeGirlWork, type WorkPage } from '@/lib/ekichikaWorkParse';
 import type { EkichikaGirlsPage } from '@/lib/ekichikaGirlsParse';
@@ -52,6 +52,7 @@ import type { EkichikaMailListPage } from '@/lib/ekichikaMailListParse';
 import { buildEsuloveLoginRequest } from '@/lib/esuloveRequests';
 // ★ エステ魂（第109便）
 import { buildEsutamaLoginPageRequest, buildEsutamaLoginRequest, buildEsutamaWorkReadRequest } from '@/lib/esutamaRequests';
+import type { EsutamaCastCreateValues } from '@/lib/esutamaRequests';
 import { planEsutamaWork } from '@/lib/esutamaPlan';
 import { esutamaWindowDates, esutamaTodayISO, esutamaApprovedFromDiff } from '@/lib/esutamaFlow';
 // ★★★ 営業日（朝6時始まり）の正本（第151便）。★ 段の中で暦日を書かない
@@ -214,6 +215,12 @@ export async function startRelayFlow(params: {
    * ★★★ castId が入っていなければ、セラピスト設定を読んだあと**何も押さずに終わる**。
    */
   castHide?: { castId: string };
+  /**
+   * intent='cast_create' のときだけ（第232便）。★ **相手に人を増やす。**
+   * ★★ 送る内容は【呼び出し側が DB から作って渡す】。★ relayFlow は DB を知らない。
+   * ★★★ name が空なら、一覧を読んだあと**何も作らずに終わる**。★ それが安全装置。
+   */
+  castCreate?: { therapistId: number; values: EsutamaCastCreateValues };
   /** 'shop:<auth_user_id>' など。監査ログに残す */
   actor?: string;
 }): Promise<StartFlowResult> {
@@ -298,6 +305,9 @@ export async function startRelayFlow(params: {
     // ★★★ 削除（第228便）。★ 渡されたときだけ入れる。★ 入っていなければ何も消さない
     ...(params.girlDelete ? { deleteCastId: String(params.girlDelete.castId) } : {}),
     ...(params.castHide ? { hideCastId: String(params.castHide.castId) } : {}),
+    ...(params.castCreate
+      ? { createTherapistId: Number(params.castCreate.therapistId), createValues: params.castCreate.values }
+      : {}),
     // ★ 新着情報（第155便）。★ 渡されたときだけ入れる
     ...(params.article
       ? {
@@ -538,6 +548,29 @@ export async function advanceRelayFlow(params: {
     audits.push(...r.audits);
     note = outcome.note + ' → ' + r.note;
     next = r.next ?? null;
+  }
+
+  // ★★★ エステ魂に1人 登録できた（第232便）。★ **ここで番号を表に書く。**
+  //   ★★★ これを書き落とすと、次に同じ人を送ろうとしたとき「向こうに居ない」と判断して
+  //     **もう1人作ってしまう**（二重掲載を自分で作る・禁則269）。★ だから流れの最後で必ず書く。
+  //   ★ 書けなかったら **記録に残して人に見せる**（黙って落とさない）。
+  if (outcome.kind === 'done' && outcome.esutamaCreated) {
+    const c = outcome.esutamaCreated;
+    if (c.therapistId > 0) {
+      const r = await rememberCastId(createServiceClient(), {
+        therapistId: c.therapistId, provider: params.provider, slot: params.slot, castId: c.castId,
+      });
+      if (r.ok) {
+        note = note + ' → フクエスの ' + c.name + 'さん（id ' + c.therapistId + '）と cast_id ' + c.castId + ' を結びつけた';
+      } else {
+        audits.push({
+          event: 'create_cast', outcome: 'failed',
+          summary: c.name + 'さんは登録できましたが、番号の結びつけに失敗しました（cast_id ' + c.castId + '）。★ このままだと二重に登録される恐れがあります',
+          detail: { name: c.name, castId: c.castId, therapistId: c.therapistId, reason: 'link_failed', note: r.error ?? null, flowId: context.flowId },
+        });
+        note = note + ' → ★ 番号の結びつけに失敗: ' + (r.error ?? '理由不明');
+      }
+    }
   }
 
   // ★★★ エステ魂の流れが終わった（第110便）。店舗の画面「出勤を送る」に出す計画を残す。

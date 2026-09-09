@@ -354,5 +354,161 @@ eq('★★★ 深夜の窓は前の営業日から', F.esutamaWindowDates(at('20
   }
 }
 
+
+// ───────── ★★★ 登録の段（第232便・2026-09-09）─────────
+//
+//   login → esutama_cast_list（もう居ないか＋顔ぶれ）→ esutama_cast_form → esutama_cast_create
+//         → esutama_cast_list（照合＋cast_id 回収）
+// ★★★ 見張りたいのは5つ:
+//   ① 同じ名前がもう居たら**作らない**（二重掲載を自分で作らない）
+//   ② 送る前に **いまの cast_id を全部控える**（増えた1人を番号の差で特定する）
+//   ③ フォームは毎回読む。★ 組み立てが止めたら**送らない**
+//   ④ 応答では成否を決めない。★ 読み直して照合する
+//   ⑤ 増えていない／どれか決められない ときは **失敗として残す**（黙って成功にしない）
+{
+  const row = (id, name, opts) => {
+    const o = Object.assign({ disabled: false }, opts || {});
+    return '<div class="item tg_block ' + (o.disabled ? 'disabled' : '') + '">'
+      + '<a href="/shop/labyrinth/cast/' + id + '/">' + name + '</a>'
+      + '<a href="/admin/cast_edit/' + id + '/">編集</a>'
+      + '<a class="send-easy_confirm_post" data-post="cast_disabled" data-row="' + id + '">非表示</a></div>';
+  };
+  const listPage = (rows, opt) => '<html><body>' + rows.join('')
+    + ((opt && opt.ctk === false) ? '' : '<input type="hidden" name="ctk" id="csrf_footer" value="' + CSRF + '">')
+    + '</body></html>';
+
+  const TYPES = ['1', '2', '3', '9', '22', '26'];
+  const formPage = (opt) => {
+    const o = Object.assign({ castId: '0' }, opt || {});
+    let h = '<html><body><form method="POST">';
+    h += '<input type="text" name="name" maxlength="10" value="">';
+    h += '<textarea name="description"></textarea>';
+    for (const t of TYPES) h += '<input type="checkbox" name="type[]" value="' + t + '">';
+    h += '<input type="text" name="age" value=""><input type="text" name="tall" value="">';
+    h += '<input type="text" name="size_b" value=""><input type="text" name="size_w" value=""><input type="text" name="size_h" value="">';
+    h += '<select name="size_cup"><option value="秘密" selected>秘密</option><option value="D">D</option></select>';
+    h += '<input type="file" id="cast_icon_1"><input type="hidden" name="order_cast_images[]" value="photo1">';
+    h += '<input type="hidden" name="cast_id" value="' + o.castId + '">';
+    h += '<input type="hidden" name="ctk" value="' + CSRF + '">';
+    h += '<input type="checkbox" name="set_up_limit" value="cast">';
+    return h + '</form></body></html>';
+  };
+
+  const VALUES = { name: 'さくら', typeIds: [1, 9], age: '24', tall: '158', sizeB: '85', sizeW: '58', sizeH: '86', sizeCup: 'D', bodyStyle: null };
+  const ctxC = Object.assign({}, ctx0, { intent: 'cast_create', cookie: 'sid=abc', createTherapistId: 601, createValues: VALUES });
+  const OTHERS = [row('955433', 'てすと'), row('757480', 'みか')];
+
+  // ── ログインの直後はセラピスト設定へ ──
+  {
+    const r = F.afterEsutamaLogin({ status: 200, headers: { 'set-cookie': ['sid=login1; Path=/'] }, body: '["REDIRECT_OK","/admin/"]' },
+      Object.assign({}, ctxC, { esutamaCsrf: CSRF }));
+    eq('★★ 登録: ログイン後はセラピスト設定を読む', [r.kind, r.next.purpose, r.next.method], ['next', 'esutama_cast_list', 'GET']);
+  }
+
+  // ── ①居ない → フォームを読みに行く。★ 顔ぶれを控える ──
+  {
+    const r = F.afterEsutamaCastList({ status: 200, headers: {}, body: listPage(OTHERS) }, ctxC);
+    eq('★ 登録①: 追加フォームを読みに行く', [r.kind, r.next.purpose, r.next.method], ['next', 'esutama_cast_form', 'GET']);
+    eq('★★★ 登録①: いまの cast_id を全部控える（増えた1人を見つける物差し）',
+       r.next.context.createBeforeIds, ['955433', '757480']);
+    eq('★★ 登録①: この段ではまだ1文字も送っていない', r.next.body, '');
+  }
+
+  // ── ①すでに同じ名前が居る → **作らない** ──
+  {
+    const r = F.afterEsutamaCastList({ status: 200, headers: {}, body: listPage([...OTHERS, row('900001', 'さくら')]) }, ctxC);
+    eq('★★★ 登録①: 同じ名前が居たら作らない', [r.kind, r.audits[0].outcome, r.audits[0].detail.reason], ['done', 'stopped', 'already_listed']);
+    eq('★★ そのとき次の手順は無い', r.next === undefined, true);
+    eq('★ その人の cast_id を記録に残す', r.audits[0].detail.castId, '900001');
+  }
+  {
+    // ★★ 非表示の人も「居る」。★ 見えないからといって、もう1人作らない
+    const r = F.afterEsutamaCastList({ status: 200, headers: {}, body: listPage([...OTHERS, row('900001', 'さくら', { disabled: true })]) }, ctxC);
+    eq('★★★ 登録①: 非表示の人が居ても作らない（/admin/cast/ には非表示も載る）',
+       [r.kind, r.audits[0].detail.reason, r.audits[0].detail.disabled], ['done', 'already_listed', true]);
+  }
+  {
+    // ★ 読みが同じでも別の文字は別人（mediaMatch の決めごと）
+    const r = F.afterEsutamaCastList({ status: 200, headers: {}, body: listPage([...OTHERS, row('900001', 'サクラ')]) }, ctxC);
+    eq('★★ 登録①: 「サクラ」と「さくら」は別人として扱う（作りに行く）', r.next.purpose, 'esutama_cast_form');
+  }
+  {
+    const r = F.afterEsutamaCastList({ status: 200, headers: {}, body: listPage(OTHERS) }, Object.assign({}, ctxC, { createValues: undefined }));
+    eq('★★★ 登録①: 送る相手が無ければ何もしない', [r.kind, r.audits[0].detail.reason], ['stop', 'no_name']);
+  }
+  {
+    const r = F.afterEsutamaCastList({ status: 200, headers: {}, body: listPage(OTHERS, { ctk: false }) }, ctxC);
+    eq('★★ 登録①: ctk が拾えなければ進まない', [r.kind, r.audits[0].detail.reason], ['stop', 'no_ctk']);
+  }
+
+  // ── ②フォームを読んだ → 組み立てて送る ──
+  const ctxF = Object.assign({}, ctxC, { createBeforeIds: ['955433', '757480'] });
+  {
+    const r = F.afterEsutamaCastForm({ status: 200, headers: {}, body: formPage() }, ctxF);
+    eq('★★★ 登録②: 登録は POST', [r.kind, r.next.purpose, r.next.method], ['next', 'esutama_cast_create', 'POST']);
+    const got = (n) => r.next.body.split('&').map((kv) => kv.split('=').map(decodeURIComponent)).filter(([k]) => k === n).map(([, v]) => v);
+    eq('★ 登録②: 名前が入る', got('name'), ['さくら']);
+    eq('★★ 登録②: 特徴タグが入る', got('type[]'), ['1', '9']);
+    eq('★ 登録②: サイズが入る', [got('size_b'), got('size_cup'), got('age')], [['85'], ['D'], ['24']]);
+    eq('★★★ 登録②: set_up_limit は送らない（保存と同時に上位表示・残り回数あり）', got('set_up_limit'), []);
+    eq('★★ 登録②: 新規の印（cast_id=0）を持って行く', got('cast_id'), ['0']);
+    eq('★★ 登録②: 照合の段へ進む', r.next.context.createStage, 'verify');
+    eq('★★ 登録②: 控えた顔ぶれは持ち回す', r.next.context.createBeforeIds, ['955433', '757480']);
+  }
+  {
+    // ★★★ 組み立てが止めたら送らない（★ 相手の画面に無い番号）
+    const r = F.afterEsutamaCastForm({ status: 200, headers: {}, body: formPage() },
+      Object.assign({}, ctxF, { createValues: Object.assign({}, VALUES, { typeIds: [1, 99] }) }));
+    eq('★★★ 登録②: 画面に無い番号なら送らない', [r.kind, r.audits[0].outcome, r.audits[0].detail.reason], ['stop', 'stopped', 'blocked']);
+    eq('★★ 止めた理由をそのまま記録に残す（人が読んで直せるように）', /画面に無い/.test(r.audits[0].detail.note), true);
+  }
+  {
+    const r = F.afterEsutamaCastForm({ status: 200, headers: {}, body: formPage({ castId: '955433' }) }, ctxF);
+    eq('★★★ 登録②: 既存の人の編集フォームには送らない', [r.kind, r.audits[0].detail.reason], ['stop', 'blocked']);
+  }
+  {
+    const r = F.afterEsutamaCastForm({ status: 200, headers: {}, body: '<html>メンテナンス中</html>' }, ctxF);
+    eq('★★★ 登録②: フォームを読めなければ送らない', [r.kind, r.audits[0].detail.reason], ['stop', 'parse_failed']);
+  }
+  {
+    const r = F.afterEsutamaCastForm({ status: 302, headers: { location: 'https://estama.jp/admin/login/' }, body: '' }, ctxF);
+    eq('★★ 登録②: ログイン画面へ戻されたら止める', [r.kind, r.audits[0].event], ['stop', 'login']);
+  }
+
+  // ── ③POST の応答: 成否を決めず読み直す ──
+  const ctxV = Object.assign({}, ctxF, { createStage: 'verify' });
+  {
+    const r = F.afterEsutamaCastCreate({ status: 200, headers: {}, body: 'ok' }, ctxV);
+    eq('★★★ 登録③: 応答では成否を決めず、読み直す', [r.kind, r.next.purpose, r.next.method], ['next', 'esutama_cast_list', 'GET']);
+    eq('★★ 登録③: まだ「できました」と記録しない', r.audits, []);
+  }
+  {
+    const r = F.afterEsutamaCastCreate({ status: 500, headers: {}, body: '' }, ctxV);
+    eq('★★ 登録③: 5xx は失敗として残す', [r.kind, r.audits[0].event, r.audits[0].outcome], ['stop', 'create_cast', 'failed']);
+  }
+
+  // ── ④照合 ──────────────────────────────────────────
+  {
+    const r = F.afterEsutamaCastList({ status: 200, headers: {}, body: listPage([...OTHERS, row('900002', 'さくら')]) }, ctxV);
+    eq('★★★ 登録④: 増えた1人を見つけて「できました」', [r.kind, r.audits[0].event, r.audits[0].outcome], ['done', 'create_cast', 'ok']);
+    eq('★★★ 登録④: 回収した cast_id を返す（★ 表に書くのは呼び出し側）',
+       r.esutamaCreated, { therapistId: 601, castId: '900002', name: 'さくら' });
+  }
+  {
+    const r = F.afterEsutamaCastList({ status: 200, headers: {}, body: listPage(OTHERS) }, ctxV);
+    eq('★★★ 登録④: 増えていなければ失敗として残す', [r.kind, r.audits[0].outcome, r.audits[0].detail.reason], ['stop', 'failed', 'not_created']);
+  }
+  {
+    // ★★ 増えたのが2人。★ 名前で1人に絞れるなら、その人
+    const r = F.afterEsutamaCastList({ status: 200, headers: {}, body: listPage([...OTHERS, row('900002', 'さくら'), row('900003', 'ゆい')]) }, ctxV);
+    eq('★★ 登録④: 2人増えても名前で絞れれば通す', [r.kind, r.esutamaCreated.castId], ['done', '900002']);
+  }
+  {
+    // ★★★ 増えたのが2人で、どちらも名前が違う → **決められない**。黙って選ばない
+    const r = F.afterEsutamaCastList({ status: 200, headers: {}, body: listPage([...OTHERS, row('900002', 'あや'), row('900003', 'ゆい')]) }, ctxV);
+    eq('★★★ 登録④: どれを登録したのか決められなければ止める', [r.kind, r.audits[0].detail.reason], ['stop', 'ambiguous']);
+  }
+}
+
 console.log(fail === 0 ? '\nすべて通りました' : '\n' + fail + ' 件 NG');
 process.exit(fail === 0 ? 0 : 1);
