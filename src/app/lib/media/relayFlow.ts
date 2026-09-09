@@ -53,6 +53,7 @@ import { buildEsuloveLoginRequest } from '@/lib/esuloveRequests';
 // ★ エステ魂（第109便）
 import { buildEsutamaLoginPageRequest, buildEsutamaLoginRequest, buildEsutamaWorkReadRequest } from '@/lib/esutamaRequests';
 import type { EsutamaCastCreateValues } from '@/lib/esutamaRequests';
+import type { EkichikaGirlCreateValues } from '@/lib/ekichikaGirlCreate';
 import { planEsutamaWork } from '@/lib/esutamaPlan';
 import { esutamaWindowDates, esutamaTodayISO, esutamaApprovedFromDiff } from '@/lib/esutamaFlow';
 // ★★★ 営業日（朝6時始まり）の正本（第151便）。★ 段の中で暦日を書かない
@@ -221,6 +222,11 @@ export async function startRelayFlow(params: {
    * ★★★ name が空なら、一覧を読んだあと**何も作らずに終わる**。★ それが安全装置。
    */
   castCreate?: { therapistId: number; values: EsutamaCastCreateValues };
+  /**
+   * intent='girl_create' のときだけ（第234便）。★ **相手に人を増やす。**
+   * ★★ 送る内容は【呼び出し側が DB から作って渡す】。★★★ name が空なら何も作らずに終わる。
+   */
+  girlCreate?: { therapistId: number; values: EkichikaGirlCreateValues };
   /** 'shop:<auth_user_id>' など。監査ログに残す */
   actor?: string;
 }): Promise<StartFlowResult> {
@@ -307,6 +313,9 @@ export async function startRelayFlow(params: {
     ...(params.castHide ? { hideCastId: String(params.castHide.castId) } : {}),
     ...(params.castCreate
       ? { createTherapistId: Number(params.castCreate.therapistId), createValues: params.castCreate.values }
+      : {}),
+    ...(params.girlCreate
+      ? { createTherapistId: Number(params.girlCreate.therapistId), createGirlValues: params.girlCreate.values }
       : {}),
     // ★ 新着情報（第155便）。★ 渡されたときだけ入れる
     ...(params.article
@@ -550,12 +559,12 @@ export async function advanceRelayFlow(params: {
     next = r.next ?? null;
   }
 
-  // ★★★ エステ魂に1人 登録できた（第232便）。★ **ここで番号を表に書く。**
+  // ★★★ 媒体に1人 登録できた（第232便＝エステ魂／第234便＝駅ちか）。★ **ここで番号を表に書く。**
   //   ★★★ これを書き落とすと、次に同じ人を送ろうとしたとき「向こうに居ない」と判断して
   //     **もう1人作ってしまう**（二重掲載を自分で作る・禁則269）。★ だから流れの最後で必ず書く。
   //   ★ 書けなかったら **記録に残して人に見せる**（黙って落とさない）。
-  if (outcome.kind === 'done' && outcome.esutamaCreated) {
-    const c = outcome.esutamaCreated;
+  if (outcome.kind === 'done' && outcome.mediaCreated) {
+    const c = outcome.mediaCreated;
     if (c.therapistId > 0) {
       const r = await rememberCastId(createServiceClient(), {
         therapistId: c.therapistId, provider: params.provider, slot: params.slot, castId: c.castId,
@@ -564,7 +573,7 @@ export async function advanceRelayFlow(params: {
         note = note + ' → フクエスの ' + c.name + 'さん（id ' + c.therapistId + '）と cast_id ' + c.castId + ' を結びつけた';
       } else {
         audits.push({
-          event: 'create_cast', outcome: 'failed',
+          event: params.provider === 'ekichika' ? 'create_girl' : 'create_cast', outcome: 'failed',
           summary: c.name + 'さんは登録できましたが、番号の結びつけに失敗しました（cast_id ' + c.castId + '）。★ このままだと二重に登録される恐れがあります',
           detail: { name: c.name, castId: c.castId, therapistId: c.therapistId, reason: 'link_failed', note: r.error ?? null, flowId: context.flowId },
         });

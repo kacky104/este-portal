@@ -40,6 +40,9 @@ export type RelayPurpose =
   | 'read_maillist' // ★ 投稿用メールアドレス一覧を読む（第53便）。読むだけ
   // ★★★ 駅ちかから1人削除する（第228便）。★ 取り返しがつかない唯一の段
   | 'girl_delete'
+  // ★★ 駅ちかにセラピストを1人 登録する（第234便）。★ girl_create だけが相手に人を増やす
+  | 'girl_create_form'
+  | 'girl_create'
   // ★ 駅ちかの新着情報の段（第155便）。★ 段名で分けているので既存の段に触らない
   //   ★★ article_save だけが相手を書き換える。★ 5枠のうち【1枠だけ】
   | 'article_list'

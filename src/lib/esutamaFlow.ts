@@ -423,7 +423,7 @@ function castCreateAfterList(
       }],
       note: 'エステ魂に登録できた（cast_id ' + hit.castId + '・' + rows.length + '名を読み直した）',
       // ★★★ ここで初めて「この人の番号はこれ」と言える。★ 表に書くのは呼び出し側（DBを触るのはあちら）
-      esutamaCreated: { therapistId: Number(ctx.createTherapistId ?? 0), castId: hit.castId, name: hit.name },
+      mediaCreated: { therapistId: Number(ctx.createTherapistId ?? 0), castId: hit.castId, name: hit.name },
     };
   }
 

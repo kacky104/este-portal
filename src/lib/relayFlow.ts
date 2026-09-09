@@ -36,6 +36,8 @@ import {
   type WorkPage,
 } from './ekichikaWorkParse';
 import { parseEkichikaGirls, girlsPageUsable, type EkichikaGirlsPage } from './ekichikaGirlsParse';
+// ★★ 名前の突き合わせは【1か所】。★ ここで自前の正規化を書かない（読みが同じでも別文字は別人）
+import { normalizeName } from './mediaMatch';
 import { parseEkichikaSokuhime, sokuhimePageUsable, sokuhimeUsed, type EkichikaSokuhimePage } from './ekichikaSokuhimeParse';
 import { parseEkichikaMailList, mailListUsable, type EkichikaMailListPage } from './ekichikaMailListParse';
 // ★ 写メ日記（第94便）。★ 駅ちかの既存の段には一切触れず、段名を分けて足す
@@ -50,6 +52,11 @@ import {
 import { mergeCookies } from './relayJob';
 // ★ 送る内容の形。★ 型だけ借りる（実体は esutamaRequests。★ 実行時の依存は増やさない）
 import type { EsutamaCastCreateValues } from './esutamaRequests';
+// ★ 駅ちかの登録（第234便）。★ 読み手と組み立ては ekichikaGirlCreate が持つ
+import {
+  parseEkichikaGirlForm, buildEkichikaGirlFormRequest, buildEkichikaGirlCreateRequest,
+  type EkichikaGirlCreateValues,
+} from './ekichikaGirlCreate';
 import { RELAY_USER_AGENT } from './relayUserAgent';
 // ★ 写真の送信（第107便）。★ 既存の段には触れず、段名を分けて足す
 import {
@@ -328,7 +335,23 @@ export type RelayFlowIntent =
    *   ★ 写真は送らない（相手の file 欄に name が無く、送り方が未調査・第231便）。
    *   ★ 入口は運営だけの口（/api/admin/media-cast-create）。★ 店舗様の画面にボタンは置かない。
    */
-  | 'cast_create';
+  | 'cast_create'
+  /**
+   * ★★★ 駅ちかにセラピストを1人 登録する（第234便・2026-09-09）。
+   *   login → read_girls（もう居ないか＋いまの顔ぶれ）→ girl_create_form（110部品を読む）
+   *        → girl_create → read_girls（照合＋castId 回収）→ 終わり
+   *
+   * ★★★ **相手に人を増やす。** ★ 作法は cast_create（エステ魂）とそろえてある:
+   *   ① 送る前に一覧を読み、**同じ名前がもう居ないか**を確かめる（居たら作らない）
+   *   ② そのとき **いまの castId を全部控える**。★ 照合で「増えた1人」を番号の差で特定する
+   *   ③ 登録フォームを**毎回読み**、名前・ジャンル・年齢・サイズだけ差し替えて返す
+   *   ④ 押したあと **もう一度読み直し、本当に増えたか**を照合する
+   *     ★★ 保存すると `/admin/girls/edit/<castId>` へ飛ぶが、**そこから castId を取らない**（§2-4）。
+   *   ★ `rookie_flg=1` を混ぜる（★ 画面に欄が無いが通る・§2-7b 実弾で確認）。
+   *   ★ 優先タグ（p_genre）は送らない。★ 写真は登録フォームに欄が無いので別の口（第107便）。
+   *   ★ 入口は運営だけの口（/api/admin/media-girl-create）。★ 店舗様の画面にボタンは置かない。
+   */
+  | 'girl_create';
 
 /**
  * 段と段のあいだで持ち回す状態。
@@ -416,6 +439,10 @@ export type RelayFlowContext = {
   createStage?: 'verify';
   /** ★★★ 送る前に居た cast_id ぜんぶ。★ 「増えた1人」を名前ではなく**番号の差**で特定する */
   createBeforeIds?: string[];
+
+  // ── ここから下は intent='girl_create' のときだけ入る（第234便）──
+  /** ★★★ 駅ちかへ送る内容。★ DB を読むのは呼び出し側の仕事 */
+  createGirlValues?: EkichikaGirlCreateValues;
   articleShopId?: string;
   /** ★ ①article_image.json が返した識別子 */
   articleImgB?: string;
@@ -616,6 +643,8 @@ export type FlowNextRequest = {
     | 'read_sokuhime'
     // ★★★ 駅ちかから1人削除する（第228便）。★ 取り返しがつかない
     | 'girl_delete'
+    // ★★ 駅ちかにセラピストを1人 登録する（第234便）。★ girl_create だけが相手に人を増やす
+    | 'girl_create_form' | 'girl_create'
     // ★ 即ヒメを押す／消す（第214便）。★ ajax 3本
     | 'sokuhime_check' | 'sokuhime_set' | 'sokuhime_del'
     // ★ 駅ちかの新着情報（第155便）。★ 名前を分けることで、既存の段の判定に一切触らない
@@ -656,11 +685,11 @@ export type FlowOutcome =
       /** ★ エステ魂の流れの終わりだけ（第110便） */
       esutamaPlan?: EsutamaPlanSummary;
       /**
-       * ★★★ エステ魂に1人 登録できた（第232便）。★ **番号を表に書くのは呼び出し側**。
+       * ★★★ 媒体に1人 登録できた（第232便＝エステ魂／第234便＝駅ちか）。★ **番号を表に書くのは呼び出し側**。
        *   ★ このファイルは DB を知らない。★ 「誰の番号がいくつか」を返すところまでが仕事。
        *   ★★ ここを書き落とすと **次の周でまた同じ人を作る**（二重掲載を自分で作る・禁則269）。
        */
-      esutamaCreated?: { therapistId: number; castId: string; name: string };
+      mediaCreated?: { therapistId: number; castId: string; name: string };
     }
   | { kind: 'stop'; audits: FlowAudit[]; note: string }
   /**
@@ -949,6 +978,11 @@ export function advanceFlow(input: {
     // ── 駅ちかから1人削除（第228便）★ 段名で分けている。既存の case には触れていない ──
     case 'girl_delete':
       return afterGirlDelete(input, ctx);
+    // ── 駅ちかにセラピストを1人 登録（第234便）★ 段名で分けている ──
+    case 'girl_create_form':
+      return afterGirlCreateForm(input, ctx);
+    case 'girl_create':
+      return afterGirlCreate(input, ctx);
     case 'sokuhime_check':
       return afterSokuhimeCheck(input, ctx);
     case 'sokuhime_set':
@@ -1152,8 +1186,8 @@ function afterLogin(
     };
   }
 
-  if (ctx.intent === 'girl_delete') {
-    // ★ 消す前に必ず一覧を読む。★ 相手が居るかの確認と、使い捨てトークンの取得を兼ねる
+  if (ctx.intent === 'girl_delete' || ctx.intent === 'girl_create') {
+    // ★ 消す前・作る前に必ず一覧を読む。★ 相手が居るか（居ないか）の確認と、使い捨てトークンの取得を兼ねる
     return {
       kind: 'next',
       next: {
@@ -1600,6 +1634,187 @@ function afterGirlDelete(
   };
 }
 
+// ───────────── ★★★ 駅ちかにセラピストを1人 登録する（第234便・2026-09-09） ─────────────
+//
+// ★★★ 段: login → read_girls（もう居ないか＋いまの顔ぶれ）→ girl_create_form（110部品）
+//            → girl_create → read_girls（照合＋castId 回収）
+//
+// ★★★ **相手に人を増やす。** ★ 作法はエステ魂の登録（第232便）とそろえてある。
+//   ★★ 保存に成功すると `/admin/girls/edit/<castId>` へ飛ぶが、**そこから castId を取らない**。
+//     ★ 第46便 §35「書き込みの成否を書き込みの応答で判定しない」。★ 一覧を読み直して裏取りする。
+//   ★★ 新しい人は **名前ではなく「前に無かった castId」** で特定する。★ 同名の取り違えを避ける。
+
+/** ★ 1回目: もう居ないかを見て、登録フォームを読みに行く */
+function girlCreateAfterGirls(page: EkichikaGirlsPage, body: string, ctx: RelayFlowContext): FlowOutcome {
+  const flowId = ctx.flowId;
+  const want = String(ctx.createGirlValues?.name ?? '').trim();
+
+  // ── 2回目: 照合して castId を回収 ──────────────────────────
+  if (ctx.createStage === 'verify') {
+    const before = new Set(ctx.createBeforeIds ?? []);
+    const fresh = page.rows.filter((r) => !before.has(r.castId));
+    if (fresh.length === 0) {
+      return stop(
+        [{ event: 'create_girl', outcome: 'failed', summary: want + 'さんを駅ちかに登録できませんでした（一覧に増えていません）', detail: { name: want, people: page.rows.length, reason: 'not_created', flowId } }],
+        '登録を送ったが、読み直しても人数が増えていない',
+      );
+    }
+    const byName = fresh.filter((r) => normalizeName(r.name) === normalizeName(want));
+    const hit = fresh.length === 1 ? fresh[0] : (byName.length === 1 ? byName[0] : null);
+    if (hit === null) {
+      return stop(
+        [{ event: 'create_girl', outcome: 'failed', summary: '駅ちかで増えた方が' + fresh.length + '名あり、どれを登録したのか決められませんでした', detail: { name: want, added: fresh.length, reason: 'ambiguous', flowId } }],
+        '増えた人が複数あり、名前でも1人に絞れなかった',
+      );
+    }
+    return {
+      kind: 'done',
+      audits: [{
+        event: 'create_girl', outcome: 'ok',
+        summary: hit.name + 'さんを駅ちかに登録しました（新人マークつき）',
+        detail: { name: hit.name, castId: hit.castId, people: page.rows.length, flowId },
+      }],
+      note: '駅ちかに登録できた（castId ' + hit.castId + '・' + page.rows.length + '名を読み直した）',
+      mediaCreated: { therapistId: Number(ctx.createTherapistId ?? 0), castId: hit.castId, name: hit.name },
+    };
+  }
+
+  // ── 1回目 ──────────────────────────────────────────────
+  if (!want) {
+    return stop(
+      [{ event: 'create_girl', outcome: 'stopped', summary: '登録する方が指定されていないため、何もしませんでした', detail: { reason: 'no_name', flowId } }],
+      '登録する名前が文脈に入っていない',
+    );
+  }
+  // ★★★ 同じ名前がもう居たら作らない。★ 二重掲載を自分で作らないための止め
+  const same = page.rows.find((r) => normalizeName(r.name) === normalizeName(want)) ?? null;
+  if (same) {
+    return {
+      kind: 'done',
+      audits: [{
+        event: 'create_girl', outcome: 'stopped',
+        summary: want + 'さんは、すでに駅ちかに居ます（castId ' + same.castId + '）。登録しませんでした',
+        detail: { name: want, castId: same.castId, reason: 'already_listed', flowId },
+      }],
+      note: 'すでに同じ名前が居るので登録しない',
+    };
+  }
+  void body;   // ★ 一覧の使い捨てトークンは登録では使わない（登録フォーム側の token を使う）
+  const req = buildEkichikaGirlFormRequest(ctx.cookie);
+  return {
+    kind: 'next',
+    audits: [
+      { event: 'login', outcome: 'ok', detail: { flowId } },
+      { event: 'read_girls', outcome: 'ok', detail: { people: page.rows.length, flowId } },
+    ],
+    note: want + 'さんはまだ居ない。登録フォームを読みます（★ まだ1文字も送っていない）',
+    next: {
+      purpose: 'girl_create_form',
+      method: req.method, url: req.url, headers: req.headers, body: '',
+      // ★★★ いまの顔ぶれを控える。★ これが「増えた1人」を見つける物差しになる
+      context: { ...ctx, createBeforeIds: page.rows.map((r) => r.castId) },
+    },
+  };
+}
+
+/**
+ * 登録フォームを読んだあと。★ ここで**初めて送る形を組み立てる**。
+ * ★★ 組み立てが例外を投げたら【送らない】。★ 文言をそのまま記録に残す（人が読んで直せるように）。
+ */
+function afterGirlCreateForm(
+  input: { status: number; headers: Record<string, string | string[]>; body: string },
+  ctx: RelayFlowContext,
+): FlowOutcome {
+  const flowId = ctx.flowId;
+  const want = String(ctx.createGirlValues?.name ?? '').trim();
+  const location = String(input.headers['location'] ?? '');
+  if (location.includes('/admin/login')) {
+    return stop(
+      [{ event: 'login', outcome: 'failed', summary: '駅ちかのセッションが切れました（登録は行っていません）', detail: { httpStatus: input.status, reason: 'back_to_login', flowId } }],
+      '登録フォームがログイン画面へ戻された',
+    );
+  }
+  if (input.status !== 200) {
+    return stop(
+      [{ event: 'create_girl', outcome: 'failed', summary: '駅ちかの登録フォームを開けませんでした', detail: { name: want, httpStatus: input.status, reason: 'http_error', flowId } }],
+      '登録フォームの応答が ' + input.status + ' だった',
+    );
+  }
+  const form = parseEkichikaGirlForm(input.body);
+  if (form.fields.length === 0 || form.warnings.length > 0) {
+    return stop(
+      [{ event: 'create_girl', outcome: 'failed', summary: '駅ちかの登録フォームを読み取れませんでした（画面の作りが変わった可能性があります）', detail: { name: want, reason: 'parse_failed', note: form.warnings[0] ?? null, flowId } }],
+      '登録フォームを読めなかった: ' + (form.warnings[0] ?? '欄が1つも無い'),
+    );
+  }
+  const values = ctx.createGirlValues;
+  if (!values) {
+    return stop(
+      [{ event: 'create_girl', outcome: 'stopped', summary: '送る内容が無いため、登録しませんでした', detail: { reason: 'no_values', flowId } }],
+      '送る内容が文脈に入っていない',
+    );
+  }
+  let req;
+  try {
+    req = buildEkichikaGirlCreateRequest(ctx.cookie, form, values);
+  } catch (e) {
+    const why = e instanceof Error ? e.message : String(e);
+    return stop(
+      [{ event: 'create_girl', outcome: 'stopped', summary: want + 'さんの登録を止めました（' + why + '）', detail: { name: want, reason: 'blocked', note: why, flowId } }],
+      '組み立てが止めた: ' + why,
+    );
+  }
+  return {
+    kind: 'next',
+    audits: [],
+    note: want + 'さんを駅ちかに登録します（ジャンル ' + (values.genreIds ?? []).join(',') + '・新人マークつき）',
+    next: {
+      purpose: 'girl_create',
+      method: req.method, url: req.url, headers: req.headers, body: req.body ?? '',
+      context: { ...ctx, createStage: 'verify' },
+    },
+  };
+}
+
+/**
+ * 登録の POST の応答。
+ * ★★★ ここでは成否を判定しない。★ 保存に成功すると編集ページへ飛ぶが、**その番号を使わない**（§2-4）。
+ *   ★ もう一度一覧を読み、本当に増えたかを照合する。
+ */
+function afterGirlCreate(
+  input: { status: number; headers: Record<string, string | string[]>; body: string },
+  ctx: RelayFlowContext,
+): FlowOutcome {
+  const flowId = ctx.flowId;
+  const want = String(ctx.createGirlValues?.name ?? '').trim();
+  const location = String(input.headers['location'] ?? '');
+  if (location.includes('/admin/login')) {
+    return stop(
+      [{ event: 'login', outcome: 'failed', summary: '駅ちかのセッションが切れました（登録できたか分かりません）', detail: { name: want, httpStatus: input.status, reason: 'back_to_login', flowId } }],
+      '登録の応答がログイン画面へ戻された',
+    );
+  }
+  if (input.status >= 400) {
+    return stop(
+      [{ event: 'create_girl', outcome: 'failed', summary: '駅ちかの登録で想定外の応答がありました', detail: { name: want, httpStatus: input.status, reason: 'http_error', flowId } }],
+      '登録の応答が ' + input.status + ' だった',
+    );
+  }
+  return {
+    kind: 'next',
+    audits: [],
+    note: '登録を送った。★ 成否は一覧を読み直して確かめる（応答では判定しない）',
+    next: {
+      purpose: 'read_girls',
+      method: 'GET',
+      url: EKICHIKA_GIRLS_URL,
+      headers: buildReadWorkRequest(ctx.cookie),
+      body: '',
+      context: { ...ctx, createStage: 'verify' },
+    },
+  };
+}
+
 function afterReadGirls(
   input: { status: number; headers: Record<string, string | string[]>; body: string },
   ctx: RelayFlowContext,
@@ -1655,6 +1870,8 @@ function afterReadGirls(
     // ★★★ 削除の流れ（第228便）は、ここで終わらずに次の段へ進む。
     //   ★ 既存の roster_read の枝には一切触っていない（下の return がそのまま残る）。
     if (ctx.intent === 'girl_delete') return girlDeleteAfterGirls(page, ctx);
+    // ★★★ 登録の流れ（第234便）も、ここで終わらずに次の段へ進む
+    if (ctx.intent === 'girl_create') return girlCreateAfterGirls(page, input.body, ctx);
 
     // ★★ ここまで来て初めて「ログインできた」と言える
     return {
@@ -2003,6 +2220,11 @@ function finishRead(audits: FlowAudit[], ctx: RelayFlowContext, page: WorkPage):
       // ★★ ここへは来ない（新着情報は出勤ページを使わない）。
       //   ★ それでも【黙って通さない】。★ 来たら止める
       return stop(audits, '新着情報は出勤ページを使わない（ここへは来ないはず）');
+    case 'girl_create':
+      // ★ ここへは来ない（駅ちかの登録は女の子一覧しか使わない）。★ 網羅は外さない（第234便）
+      //   ★★★ ここへ来たということは、登録の流れが出勤ページへ迷い込んだということ。
+      //     ★ 人を増やす前に必ず止める
+      return stop(audits, '駅ちかの登録は出勤ページを使わない（ここへは来ないはず）');
     case 'cast_create':
       // ★ ここへは来ない（エステ魂の登録は駅ちかの出勤ページを使わない）。★ 網羅は外さない（第232便）
       //   ★★★ 相手の媒体が違う。★ 人を増やす前に必ず止める

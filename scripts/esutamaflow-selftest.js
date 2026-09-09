@@ -492,7 +492,7 @@ eq('★★★ 深夜の窓は前の営業日から', F.esutamaWindowDates(at('20
     const r = F.afterEsutamaCastList({ status: 200, headers: {}, body: listPage([...OTHERS, row('900002', 'さくら')]) }, ctxV);
     eq('★★★ 登録④: 増えた1人を見つけて「できました」', [r.kind, r.audits[0].event, r.audits[0].outcome], ['done', 'create_cast', 'ok']);
     eq('★★★ 登録④: 回収した cast_id を返す（★ 表に書くのは呼び出し側）',
-       r.esutamaCreated, { therapistId: 601, castId: '900002', name: 'さくら' });
+       r.mediaCreated, { therapistId: 601, castId: '900002', name: 'さくら' });
   }
   {
     const r = F.afterEsutamaCastList({ status: 200, headers: {}, body: listPage(OTHERS) }, ctxV);
@@ -501,7 +501,7 @@ eq('★★★ 深夜の窓は前の営業日から', F.esutamaWindowDates(at('20
   {
     // ★★ 増えたのが2人。★ 名前で1人に絞れるなら、その人
     const r = F.afterEsutamaCastList({ status: 200, headers: {}, body: listPage([...OTHERS, row('900002', 'さくら'), row('900003', 'ゆい')]) }, ctxV);
-    eq('★★ 登録④: 2人増えても名前で絞れれば通す', [r.kind, r.esutamaCreated.castId], ['done', '900002']);
+    eq('★★ 登録④: 2人増えても名前で絞れれば通す', [r.kind, r.mediaCreated.castId], ['done', '900002']);
   }
   {
     // ★★★ 増えたのが2人で、どちらも名前が違う → **決められない**。黙って選ばない
