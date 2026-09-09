@@ -200,5 +200,30 @@ console.log('── ★★★★ 一括操作フォームの action（第235便�
   eq('★ フォームが無ければ null', g.parseEkichikaGirls(page(cell('100', 'こう'))).formAction, null);
 }
 
+console.log('── ★★★★★ 削除リンクの href をまるごと拾う（第238便）──');
+{
+  // ★ 実物（2026-09-10 02:13 実測）: /admin/girls/delete/<castId>&gl=XXXX ★ gl は毎回変わる
+  const withGl = cell('5810254', 'てすと7').replace(
+    'https://ranking-deli.jp/admin/girls/delete/5810254',
+    'https://ranking-deli.jp/admin/girls/delete/5810254&gl=Hdly');
+  const p1 = g.parseEkichikaGirls(page(withGl));
+  eq('★★★★★ gl 込みでそのまま持ち帰る', p1.rows[0].deleteHref,
+     'https://ranking-deli.jp/admin/girls/delete/5810254&gl=Hdly');
+
+  // ★ 相対リンクなら絶対へ
+  const rel = cell('100', 'こう').replace(/https:\/\/ranking-deli\.jp(\/admin\/girls\/delete\/100)/, '$1');
+  eq('★★ 相対でも絶対に直す', g.parseEkichikaGirls(page(rel)).rows[0].deleteHref,
+     'https://ranking-deli.jp/admin/girls/delete/100');
+
+  // ★ &amp; で書かれていても戻す
+  const amp = cell('200', 'おつ').replace('/admin/girls/delete/200', '/admin/girls/delete/200&amp;gl=ABcd');
+  eq('★★ &amp; を戻す', g.parseEkichikaGirls(page(amp)).rows[0].deleteHref,
+     'https://ranking-deli.jp/admin/girls/delete/200&gl=ABcd');
+
+  // ★★★ リンクが無ければ null（★ 番号から組み立てない）
+  const noLink = cell('300', 'さん').replace(/<a href="https:\/\/ranking-deli\.jp\/admin\/girls\/delete\/300"><img alt="削除"><\/a>/, '');
+  eq('★★★ 削除リンクが無ければ null', g.parseEkichikaGirls(page(noLink)).rows[0].deleteHref, null);
+}
+
 console.log(fail === 0 ? '\n★ すべて通った' : '\n★ NG ' + fail + ' 件');
 process.exit(fail === 0 ? 0 : 1);

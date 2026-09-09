@@ -47,6 +47,15 @@ export type EkichikaGirlRow = {
   workState: 'today' | 'unknown' | null;
   /** state-XXX の XXX をそのまま。★ 知らない状態が来たとき、あとから読めるように残す */
   raw: string | null;
+  /**
+   * ★★★★★ **削除リンクの行き先そのまま**（第238便・2026-09-10）。
+   *   実測（ブラウザで手押し削除・2026-09-10 02:13）:
+   *     `GET https://ranking-deli.jp/admin/girls/delete/5810254&gl=Hdly` → 302 → /admin/girls
+   *   ★★★ **駅ちかの削除は POST ではなく GET。** ★ 一括削除フォームの POST では消えない（実弾で確認）。
+   *   ★★ 末尾の `&gl=XXXX` は**毎回変わる**（§2-5）。★ だから**組み立てず、読んだ href をそのまま使う。**
+   *   ★ 読めなければ null。★ そのときは**削除しない**（★ 番号だけで URL を作らない）。
+   */
+  deleteHref: string | null;
 };
 
 export type EkichikaGirlsPage = {
@@ -144,6 +153,11 @@ export function readGirlsFormAction(html: string, baseUrl = 'https://ranking-del
   return null;
 }
 
+/** ★ href の実体参照（`&amp;` など）を戻す。★ `&gl=` が `&amp;gl=` で書かれていることがある */
+function unescapeHref(href: string): string {
+  return String(href ?? '').replace(/&amp;/g, '&').trim();
+}
+
 /** ★ 相対 action を絶対へ。★ 分からない形はそのまま返す（★ 組み立て直さない） */
 function resolveGirlsUrl(base: string, href: string): string {
   const h = String(href ?? '').trim();
@@ -187,6 +201,9 @@ export function parseEkichikaGirls(html: string): EkichikaGirlsPage {
 
     // ★★★ 番号の突き合わせ。1つでも食い違えば、その行は使わない
     const editId = /\/admin\/girls\/edit\/(\d+)/.exec(chunk)?.[1] ?? null;
+    // ★★★★ 削除リンクは **href をまるごと**拾う（第238便）。★ `&gl=` が付いていて毎回変わる
+    const delHrefRaw = /href="([^"]*\/admin\/girls\/delete\/\d+[^"]*)"/i.exec(chunk)?.[1]
+      ?? /href='([^']*\/admin\/girls\/delete\/\d+[^']*)'/i.exec(chunk)?.[1] ?? null;
     const delId = /\/admin\/girls\/delete\/(\d+)/.exec(chunk)?.[1] ?? null;
     const orderId = /name="girls_id\[(\d+)\]"/.exec(chunk)?.[1] ?? null;
     const mismatch = [
@@ -217,7 +234,11 @@ export function parseEkichikaGirls(html: string): EkichikaGirlsPage {
     }
 
     const { workState, raw } = stateOf(heads[i].classAttr);
-    rows.push({ castId, name, workState, raw });
+    // ★ 相対なら絶対へ。★ 読めなければ null のまま（★ 番号から組み立てない）
+    const deleteHref = delHrefRaw
+      ? resolveGirlsUrl('https://ranking-deli.jp/admin/girls/', unescapeHref(delHrefRaw))
+      : null;
+    rows.push({ castId, name, workState, raw, deleteHref });
   }
 
   // 2. 取りこぼしの見張り。★ 半分以上落ちたら、部分的な成功として使わせない

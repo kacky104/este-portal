@@ -264,32 +264,42 @@ const ctxV = Object.assign({}, ctxF, { createStage: 'verify' });
   eq('★★ 新人マークの有無も載る', v.audits[0].detail.rookie, true);
 }
 
-// ── ⑨ ★★★★ 削除も【読んだフォームの action】へ送る（第235便・§17-8）──
+// ── ⑨ ★★★★★ 削除は【一覧の削除リンクを GET】（第238便・2026-09-10 実測）──
+//
+// ★★★ ブラウザで手押し削除した実物（2026-09-10 02:13）:
+//   GET https://ranking-deli.jp/admin/girls/delete/5810254&gl=Hdly → 302 → /admin/girls
+//   ★ 一括削除フォームの POST では消えなかった（実弾で確認）。
+//   ★★ `&gl=` は毎回変わる。★ だから **読んだ href をそのまま使う**（組み立てない）。
 {
   const dbase = RF.newFlowContext({ flowId: 'f2', intent: 'girl_delete', startedAt: '2026-09-09T21:00:00+09:00' });
   const dctx = Object.assign({}, dbase, { cookie: 'sid=abc', deleteCastId: '5810099' });
-  const d1 = RF.buildGirlDeleteStep(dctx, 'tok', 'https://ranking-deli.jp/admin/girls/index/');
-  eq('★★★★ 読んだ action へ送る', d1.url, 'https://ranking-deli.jp/admin/girls/index/');
-  eq('★ 決め方を記録に残す', d1.context.deleteSent.sentTo, 'action');
-  eq('★★★ 送った全文も残す', d1.context.deleteSent.body, d1.body);
-  eq('★ 消す相手は1人だけ', /chck_girls_id%5B5810099%5D=5810099/.test(d1.body), true);
+  const href = 'https://ranking-deli.jp/admin/girls/delete/5810099&gl=Hdly';
 
-  const d2 = RF.buildGirlDeleteStep(dctx, 'tok', null);
-  eq('★★ action が読めなければ決め打ちに落ちる（黙って止まらない）',
-     [d2.url, d2.context.deleteSent.sentTo], ['https://ranking-deli.jp/admin/girls/', 'fixed']);
+  const d1 = RF.buildGirlDeleteStep(dctx, href);
+  eq('★★★★★ 削除は GET', d1.method, 'GET');
+  eq('★★★★ 読んだ削除リンクをそのまま叩く（gl も込み）', d1.url, href);
+  eq('★★ 本文は空（フォームではない）', d1.body, '');
+  eq('★ 何を叩いたかを記録に残す', [d1.context.deleteSent.url, d1.context.deleteSent.sentTo], [href, 'link']);
 
-  // ★★★★ 他所のドメインへは送らない（★ 店舗様の Cookie を飛ばさない）
-  const d3 = RF.buildGirlDeleteStep(dctx, 'tok', 'https://cocoa-job.jp/login');
-  eq('★★★★ 別サイトの action は使わない',
-     [d3.url, d3.context.deleteSent.sentTo], ['https://ranking-deli.jp/admin/girls/', 'fixed']);
+  // ★★★★★ 見張り: 別人のリンクは絶対に叩かない（★ 取り返しがつかない）
+  const throwsD = (name, fn, re) => {
+    try { fn(); console.log('NG ' + name + '（例外にならなかった）'); fail++; }
+    catch (e) { if (re && !re.test(e.message)) { console.log('NG ' + name + '（違う例外: ' + e.message + '）'); fail++; } else console.log('ok ' + name); }
+  };
+  throwsD('★★★★★ 別人の castId のリンクは叩かない',
+    () => RF.buildGirlDeleteStep(dctx, 'https://ranking-deli.jp/admin/girls/delete/9999999&gl=Hdly'),
+    /castId 5810099 のものではありません/);
+  throwsD('★★★★ 番号の先頭一致で騙されない（58100991 は別人）',
+    () => RF.buildGirlDeleteStep(dctx, 'https://ranking-deli.jp/admin/girls/delete/58100991&gl=Hdly'),
+    /castId 5810099 のものではありません/);
+  throwsD('★★★★★ 別サイトのリンクは叩かない（Cookie を他所へ飛ばさない）',
+    () => RF.buildGirlDeleteStep(dctx, 'https://cocoa-job.jp/admin/girls/delete/5810099'),
+    /駅ちかではありません/);
 
-  // ★ 消えていなかったときの記録に、送った全文が載る
-  const still = go('read_girls', 200, {}, girlsPage(...OTHERS, cell('5810099', 'てすと')),
-                   Object.assign({}, d1.context, { deleteName: 'てすと', deleteBefore: 3 }));
-  eq('★★★★ 削除の失敗の記録にも送った全文が（分けて）載る',
-     Object.keys(still.audits[0].detail).filter((k) => /^b\d\d$/.test(k)).sort().map((k) => still.audits[0].detail[k]).join(''),
-     d1.body.replace(/fuel_csrf_token=[^&]*/, 'csrftk=(伏せた)'));
-  eq('★ 削除の送り先もパスで載る', still.audits[0].detail.sentPath, '/admin/girls/index/');
+  // ★ 一覧に削除リンクが無ければ【消さない】
+  const noLink = girlsPage(...OTHERS).replace(/<a href="https:\/\/ranking-deli\.jp\/admin\/girls\/delete\/\d+"><img alt="削除"><\/a>/g, '');
+  const out = go('read_girls', 200, {}, noLink, Object.assign({}, dbase, { cookie: 'sid=abc', deleteCastId: '5232208' }));
+  eq('★★★★ 削除リンクが読めなければ消さない', out.audits[0].detail.reason, 'no_delete_link');
 }
 
 // ── ⑩ ★★★★ 監査の見張りを通る形で記録する（第236便・2026-09-10）──

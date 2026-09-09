@@ -1529,37 +1529,36 @@ function afterReadSokuhime(
  *   ★★ 読めなければ、これまでどおりの決め打ちへ落とす（★ 黙って落とさず、記録に残す）。
  *   ★★★ ホストが ranking-deli.jp でなければ**使わない**（★ Cookie を他所へ飛ばさない）。
  */
-export function buildGirlDeleteStep(ctx: RelayFlowContext, csrfToken: string, formAction?: string | null): FlowNextRequest {
+export function buildGirlDeleteStep(ctx: RelayFlowContext, deleteHref: string): FlowNextRequest {
   const castId = String(ctx.deleteCastId ?? '');
-  const body = [
-    'chck_girls_id%5B' + encodeURIComponent(castId) + '%5D=' + encodeURIComponent(castId),
-    'girls_list_action=delete_girl',
-    'girls_btn_batch_del=' + encodeURIComponent(''),
-    'fuel_csrf_token=' + encodeURIComponent(csrfToken),
-  ].join('&');
-  const act = String(formAction ?? '').trim();
-  const actHost = /^[a-zA-Z][a-zA-Z0-9+.-]*:\/\/([^/?#]+)/.exec(act)?.[1]?.toLowerCase() ?? null;
-  const useAction = act !== '' && (actHost === 'ranking-deli.jp' || actHost === 'www.ranking-deli.jp');
-  const url = useAction ? act : EKICHIKA_GIRLS_URL;
+  const href = String(deleteHref ?? '').trim();
+  // ★★★★★ 見張り（★ ここを緩めない）:
+  //   ① ホストが駅ちかであること ② パスが **消すつもりの castId** の削除リンクであること
+  //   ★ 一覧の別の行の href を掴んでいたら、**別人を消す**。★ 取り返しがつかない。
+  const host = /^https?:\/\/([^/?#]+)/.exec(href)?.[1]?.toLowerCase() ?? null;
+  if (host !== 'ranking-deli.jp' && host !== 'www.ranking-deli.jp') {
+    throw new Error('削除リンクの行き先が駅ちかではありません（' + String(host) + '）。★ 消しません');
+  }
+  if (!new RegExp('/admin/girls/delete/' + castId + '(?![0-9])').test(href)) {
+    throw new Error('削除リンクが castId ' + castId + ' のものではありません。★ 消しません');
+  }
   return {
     purpose: 'girl_delete',
-    method: 'POST',
-    url,
+    method: 'GET',
+    url: href,
     headers: {
       'user-agent': RELAY_USER_AGENT,
       accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
       'accept-language': 'ja,en-US;q=0.9,en;q=0.8',
-      'content-type': 'application/x-www-form-urlencoded',
       cookie: ctx.cookie,
       referer: EKICHIKA_GIRLS_URL,
-      origin: 'https://ranking-deli.jp',
     },
-    body,
+    body: '',
     context: {
       ...ctx,
       deleteStage: 'verify',
-      // ★★★★ 送った中身を記録のために持ち回す（第235便）
-      deleteSent: { url, sentTo: useAction ? 'action' : 'fixed', formAction: act || null, body },
+      // ★★★★ 何をどこへ送ったかを記録のために持ち回す（第235便・第238便）
+      deleteSent: { url: href, sentTo: 'link', formAction: null, body: '' },
     },
   };
 }
@@ -1636,21 +1635,30 @@ function girlDeleteAfterGirls(page: EkichikaGirlsPage, ctx: RelayFlowContext): F
       note: '一覧に居ないので削除しない（' + page.rows.length + '名を読んだ）',
     };
   }
-  const token = page.csrfToken;
-  if (!token) {
+  // ★★★★★ 削除は【一覧の削除リンクを GET する】（第238便・2026-09-10 実測）。
+  //   ★ 一括削除フォームの POST では消えなかった（実弾で確認）。
+  //   ★★ リンクには毎回変わる `&gl=` が付く（§2-5）。★ だから**読んだ href をそのまま使う。**
+  const href = found.deleteHref;
+  if (!href) {
     return stop(
-      [{ event: 'delete_girl', outcome: 'failed', summary: '駅ちかの一覧から必要な値を読み取れなかったため、削除しませんでした', detail: { castId, reason: 'no_csrf', flowId } }],
-      '一覧ページから fuel_csrf_token を拾えなかった（画面の作りが変わった疑い）',
+      [{ event: 'delete_girl', outcome: 'failed', summary: '駅ちかの一覧から削除リンクを読み取れなかったため、削除しませんでした', detail: { castId, reason: 'no_delete_link', flowId } }],
+      '一覧ページから削除リンク（/admin/girls/delete/…）を拾えなかった（画面の作りが変わった疑い）',
+    );
+  }
+  let step: FlowNextRequest;
+  try {
+    step = buildGirlDeleteStep({ ...ctx, deleteName: found.name, deleteBefore: page.rows.length }, href);
+  } catch (e) {
+    const why = e instanceof Error ? e.message : String(e);
+    return stop(
+      [{ event: 'delete_girl', outcome: 'stopped', summary: '削除を止めました（' + why + '）', detail: { castId, reason: 'blocked', note: why, flowId } }],
+      '組み立てが止めた: ' + why,
     );
   }
 
   return {
     kind: 'next',
-    next: buildGirlDeleteStep(
-      { ...ctx, deleteName: found.name, deleteBefore: page.rows.length },
-      token,
-      page.formAction,
-    ),
+    next: step,
     audits: [
       { event: 'login', outcome: 'ok', detail: { flowId } },
       { event: 'read_girls', outcome: 'ok', detail: { people: page.rows.length, flowId } },
