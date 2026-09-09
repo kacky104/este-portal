@@ -156,5 +156,28 @@ const ctxV = Object.assign({}, ctxF, { createStage: 'verify' });
   eq('★★★ 登録が出勤ページへ迷い込んだら止める', r.kind, 'stop');
 }
 
+
+// ── ⑥ ★★★★ 書き込みのあと、画面のメッセージを読む（第234便の修正）──
+//
+// ★★★ 設計メモ §2-6 の教訓:
+//   > 原因はエラーメッセージにそのまま書いてあった。保存直後の画面を読まずに次へ進んだのが遠回りの理由。
+//   ★ 2026-09-09 の実弾で**同じ遠回りをした**（登録が通らない理由が記録に残らなかった）。
+// ★★ 判定には使わない。★ 記録に残すためだけ。★ 判定は今までどおり「読み直して増えたか」。
+{
+  const err = '<html><body><div class="message" style="color:rgb(255,0,0)">ジャンルは最低１つ選択してください。</div></body></html>';
+  const r = go('girl_create', 200, {}, err, ctxV);
+  eq('★★★★ 画面のことばを持ち回す', r.next.context.createMessage, 'ジャンルは最低１つ選択してください。');
+  eq('★★ それでも次は読み直し（応答では判定しない）', r.next.purpose, 'read_girls');
+
+  const v = go('read_girls', 200, {}, girlsPage(...OTHERS), r.next.context);
+  eq('★★★★ 失敗の記録に駅ちかの文言が載る', /ジャンルは最低１つ選択してください。/.test(v.audits[0].summary), true);
+  eq('★★ detail にも残る', v.audits[0].detail.note, 'ジャンルは最低１つ選択してください。');
+  eq('★ 判定そのものは変わらない（増えていない＝失敗）', v.audits[0].detail.reason, 'not_created');
+
+  // ★ メッセージが無い画面でも普通に進む
+  const q = go('girl_create', 200, {}, '<html><body>ok</body></html>', ctxV);
+  eq('★ メッセージが無ければ持ち回さない', q.next.context.createMessage === undefined, true);
+}
+
 console.log(fail === 0 ? '\nすべて通りました' : '\n' + fail + ' 件 NG');
 process.exit(fail === 0 ? 0 : 1);

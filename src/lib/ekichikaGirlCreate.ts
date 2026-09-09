@@ -206,3 +206,41 @@ export function buildEkichikaGirlFormRequest(cookie: string): RelayRequest {
     headers: { ...baseHeaders(), referer: EKICHIKA_GIRLS_LIST_URL, cookie },
   };
 }
+
+/**
+ * ★★★★ 書き込みのあと、**画面に出たメッセージを読む**（第234便の修正・2026-09-09）。
+ *
+ * ★★★ 設計メモ §2-6 に自分で書き残していたこと:
+ *   > **原因はエラーメッセージにそのまま書いてあった。**
+ *   > 保存直後の画面を読まずに次へ進んだのが遠回りの理由。**書き込みのあとは必ず画面のメッセージを読むこと。**
+ *   ★ 2026-09-09 の実弾で、**それをやらずにまた同じ遠回りをした**（登録が通らない理由が記録に残らなかった）。
+ *
+ * ★★ 実物で見えているメッセージの例:
+ *   「ジャンルは最低１つ選択してください。」（§2-2）
+ *   「※必ず１枚目の画像を正方形にカットして下さい。」（§2-6）
+ *   「データを登録しました。」「データを更新しました。」（成功時）
+ *
+ * ★★★ **これは記録のためだけに読む。** ★ 成否の判定には使わない。
+ *   ★ 判定は今までどおり「一覧を読み直して増えたか」。★ 文言は変わりうるが、人数は変わらない。
+ */
+export function readEkichikaMessage(html: string): string | null {
+  const src = typeof html === 'string' ? html : '';
+  if (!src) return null;
+  // ★ class に message / error / alert を含む要素の中身を拾う（★ タグ名は問わない）
+  const re = /<[a-zA-Z][a-zA-Z0-9]*\b[^>]*class\s*=\s*"[^"]*\b(?:message|error|alert)\b[^"]*"[^>]*>([\s\S]*?)<\/[a-zA-Z][a-zA-Z0-9]*>/gi;
+  let m: RegExpExecArray | null;
+  const found: string[] = [];
+  while ((m = re.exec(src)) !== null) {
+    const t = m[1]
+      .replace(/<[^>]*>/g, ' ')
+      .replace(/&(amp|lt|gt|quot|#39|nbsp);/g, (x) => ({ '&amp;': '&', '&lt;': '<', '&gt;': '>', '&quot;': '"', '&#39;': "'", '&nbsp;': ' ' } as Record<string, string>)[x] ?? x)
+      .replace(/\s+/g, ' ')
+      .trim();
+    if (t && !found.includes(t)) found.push(t);
+    if (found.length >= 3) break;
+  }
+  if (found.length === 0) return null;
+  // ★ 長すぎるものは切る（記録が読めなくなるので）。★ 切ったことが分かるように … を付ける
+  const joined = found.join(' ／ ');
+  return joined.length > 300 ? joined.slice(0, 300) + '…' : joined;
+}

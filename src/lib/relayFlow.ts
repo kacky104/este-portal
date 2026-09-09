@@ -55,6 +55,7 @@ import type { EsutamaCastCreateValues } from './esutamaRequests';
 // ★ 駅ちかの登録（第234便）。★ 読み手と組み立ては ekichikaGirlCreate が持つ
 import {
   parseEkichikaGirlForm, buildEkichikaGirlFormRequest, buildEkichikaGirlCreateRequest,
+  readEkichikaMessage,
   type EkichikaGirlCreateValues,
 } from './ekichikaGirlCreate';
 import { RELAY_USER_AGENT } from './relayUserAgent';
@@ -443,6 +444,12 @@ export type RelayFlowContext = {
   // ── ここから下は intent='girl_create' のときだけ入る（第234便）──
   /** ★★★ 駅ちかへ送る内容。★ DB を読むのは呼び出し側の仕事 */
   createGirlValues?: EkichikaGirlCreateValues;
+  /**
+   * ★★★★ 書き込みの応答に出ていた画面のメッセージ（第234便の修正）。
+   *   ★ 設計メモ §2-6「**書き込みのあとは必ず画面のメッセージを読むこと**」。
+   *   ★★ **記録のためだけに持ち回す。** ★ 成否の判定には使わない（判定は読み直しての照合）。
+   */
+  createMessage?: string;
   articleShopId?: string;
   /** ★ ①article_image.json が返した識別子 */
   articleImgB?: string;
@@ -1655,8 +1662,15 @@ function girlCreateAfterGirls(page: EkichikaGirlsPage, body: string, ctx: RelayF
     const fresh = page.rows.filter((r) => !before.has(r.castId));
     if (fresh.length === 0) {
       return stop(
-        [{ event: 'create_girl', outcome: 'failed', summary: want + 'さんを駅ちかに登録できませんでした（一覧に増えていません）', detail: { name: want, people: page.rows.length, reason: 'not_created', flowId } }],
-        '登録を送ったが、読み直しても人数が増えていない',
+        [{
+          event: 'create_girl', outcome: 'failed',
+          // ★★★★ 駅ちかが出した文言をそのまま見せる（§2-6「画面のメッセージを読む」）
+          summary: want + 'さんを駅ちかに登録できませんでした（一覧に増えていません）'
+            + (ctx.createMessage ? '。駅ちかの画面には「' + ctx.createMessage + '」と出ていました' : ''),
+          detail: { name: want, people: page.rows.length, reason: 'not_created', note: ctx.createMessage ?? null, flowId },
+        }],
+        '登録を送ったが、読み直しても人数が増えていない'
+          + (ctx.createMessage ? '（画面のことば: ' + ctx.createMessage + '）' : ''),
       );
     }
     const byName = fresh.filter((r) => normalizeName(r.name) === normalizeName(want));
@@ -1800,17 +1814,20 @@ function afterGirlCreate(
       '登録の応答が ' + input.status + ' だった',
     );
   }
+  // ★★★★ 画面のメッセージを読む（§2-6 の教訓）。★ 判定には使わない。★ 記録に残すためだけ
+  const message = readEkichikaMessage(input.body);
   return {
     kind: 'next',
     audits: [],
-    note: '登録を送った。★ 成否は一覧を読み直して確かめる（応答では判定しない）',
+    note: '登録を送った。★ 成否は一覧を読み直して確かめる（応答では判定しない）'
+      + (message ? ' ／ 画面のことば: ' + message : ''),
     next: {
       purpose: 'read_girls',
       method: 'GET',
       url: EKICHIKA_GIRLS_URL,
       headers: buildReadWorkRequest(ctx.cookie),
       body: '',
-      context: { ...ctx, createStage: 'verify' },
+      context: { ...ctx, createStage: 'verify', ...(message ? { createMessage: message } : {}) },
     },
   };
 }
