@@ -22,6 +22,9 @@ export async function fetchNewFaceTherapists(
     .from('therapists')
     .select(THERAPIST_CARD_COLUMNS)
     .eq('salons.is_hidden', false)
+    // ★ 非公開（is_active=false）は出さない（第216便の方針）。★ 本人ページは404なので、出すとリンク切れになる。
+    //   ★ 退店にした方に is_new_face が残っていると、ここだけ出続ける。
+    .eq('is_active', true)
     .eq('is_new_face', true);
 
   // 60日ウィンドウで絞り（既存の isNewFaceActive と同一判定）、new_face_since 昇順に並べる
