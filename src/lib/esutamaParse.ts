@@ -172,9 +172,12 @@ export function parseEsutamaRoster(html: string): EsutamaRosterParse {
 // ★★★ 出勤の名簿（/admin/schedule/list/）とは【別のページ】。
 //   ★ 表示／非表示の状態は、こちらにしか無い（2026-09-09 実測）。
 //
-// ★★ 実物の形（1人ぶん）:
-//   <div class="item tg_block ">                       ← 表示中
-//   <div class="item tg_block disabled">               ← ★ 非表示（クラスに disabled が付く）
+// ★★ 実物の形（1人ぶん）★ 2026-09-09（第232便）に実物で数え直して訂正した:
+//   <li class="item tg_block ">                        ← 表示中
+//   <li class="item tg_block disabled">                ← ★ 非表示（クラスに disabled が付く）
+//   ★★★ **`<li>` である。** ★ 第229便では `<div>` と書いていた。★ これが原因で
+//     実弾のとき1件も読めず、登録の流れが1段目で止まった（2026-09-09 12:41）。
+//     ★ 教訓: **タグ名は当てにしない。** ★ 目印はクラスだけにする。
 //     <span class="tag-disabled">非表示</span>          ← ★ 非表示のときだけ在る
 //     <a class="btn btn-warning card-btn1" href="/shop/<店舗>/cast/<castId>/">なまえ</a>
 //     <a class="btn btn-success" href="/admin/cast_edit/<castId>/">編集</a>
@@ -208,8 +211,10 @@ export function parseEsutamaCastList(html: string): EsutamaCastListParse {
   if (typeof html !== 'string' || html.length === 0) return { rows, warnings: ['本文が空'] };
 
   // 1. tg_block の開始位置を全部拾い、隣どうしで切る（駅ちかの girls-cell と同じやり方）
+  //   ★ 目印は **クラスだけ**。★ タグ名（li/div）は見ない
   const heads: Array<{ end: number; index: number; classAttr: string }> = [];
-  const re = /<div\b[^>]*class\s*=\s*"([^"]*\btg_block\b[^"]*)"[^>]*>/gi;
+  // ★★★ タグ名で決め打ちしない（第232便で踏んだ）。★ 実物は <li>。★ <div> だと決めつけて0件になった。
+  const re = /<[a-zA-Z][a-zA-Z0-9]*\b[^>]*class\s*=\s*"([^"]*\btg_block\b[^"]*)"[^>]*>/gi;
   let m: RegExpExecArray | null;
   while ((m = re.exec(html)) !== null) heads.push({ index: m.index, end: m.index + m[0].length, classAttr: m[1] });
 

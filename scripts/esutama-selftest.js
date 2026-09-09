@@ -292,10 +292,12 @@ eq('知らない札は unknown', P.parseEsutamaJson('["NG"]').kind, 'unknown');
 // ★★ data-row は【div ではなく中の <a>】に在る（esutamaParse.ts 冒頭の実物どおり）。
 // ★★★ 状態は **class の disabled ただ1点**で決める。★ バッジや文言では決めない（文言は変わる）。
 {
+  // ★★★ 実物は <li>（2026-09-09・第232便で数え直した）。★ 第229便は <div> と書いていて、
+  //   その決め打ちのせいで実弾のとき1件も読めなかった。★ だから **両方の形で点検する**。
   const castRow = (id, name, opts) => {
-    const o = Object.assign({ disabled: false, editId: null, junk: '' }, opts || {});
+    const o = Object.assign({ disabled: false, editId: null, junk: '', tag: 'li' }, opts || {});
     const eid = o.editId === null ? id : o.editId;
-    return '<div class="item tg_block ' + (o.disabled ? 'disabled' : '') + '">'
+    return '<' + o.tag + ' class="item tg_block ' + (o.disabled ? 'disabled' : '') + '">'
       + (o.disabled ? '<span class="tag-disabled">非表示</span>' : '')
       + '<a class="btn btn-warning card-btn1" href="/shop/labyrinth/cast/' + id + '/">' + name + '</a>'
       + '<a class="btn btn-success" href="/admin/cast_edit/' + eid + '/">編集</a>'
@@ -303,7 +305,7 @@ eq('知らない札は unknown', P.parseEsutamaJson('["NG"]').kind, 'unknown');
       + '" data-row="' + id + '" data-confirm="' + name + 'を'
       + (o.disabled ? '表示' : '非表示') + 'にしますか？">' + (o.disabled ? '表示する' : '非表示') + '</a>'
       + '<a class="btn btn-danger send-post_delete" data-delete="cast,' + id + ',">削除</a>'
-      + o.junk + '</div>';
+      + o.junk + '</' + o.tag + '>';
   };
   const castPage = (rows) => '<html><body><div class="list">' + rows.join('') + '</div>'
     + '<input type="hidden" name="ctk" id="csrf_footer" value="' + CSRF + '">'
@@ -339,6 +341,20 @@ eq('知らない札は unknown', P.parseEsutamaJson('["NG"]').kind, 'unknown');
   const e = P.parseEsutamaCastList('<html><body>メンテナンス中</body></html>');
   eq('★★★ tg_block が1つも無ければ警告', e.warnings.length >= 1, true);
   eq('★★★ そのとき行は0件', e.rows.length, 0);
+
+  // ★★★ タグ名で決め打ちしない（第232便の失敗）。★ li でも div でも同じに読めること
+  {
+    const li = P.parseEsutamaCastList(castPage([castRow('955433', 'てすと', { tag: 'li' })]));
+    const dv = P.parseEsutamaCastList(castPage([castRow('955433', 'てすと', { tag: 'div' })]));
+    eq('★★★ <li> で読める（★ 実物はこれ）', li.rows, [{ castId: '955433', name: 'てすと', disabled: false }]);
+    eq('★★★ <div> でも同じに読める（★ タグ名を当てにしない）', dv.rows, li.rows);
+    const mix = P.parseEsutamaCastList(castPage([
+      castRow('955433', 'てすと', { tag: 'li' }),
+      castRow('757480', 'さくら', { tag: 'div', disabled: true }),
+    ]));
+    eq('★★ 混ざっていても両方読める', mix.rows.length, 2);
+    eq('★★ 混ざっていても非表示の判定は効く', mix.rows[1].disabled, true);
+  }
 
   // ★ 使い捨てトークンは既存の読み手（#csrf_footer）でそのまま取れる
   eq('★ セラピスト設定から ctk が取れる', P.readEsutamaCsrf(castPage([castRow('955433', 'てすと')])), CSRF);
