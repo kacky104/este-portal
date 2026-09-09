@@ -404,6 +404,9 @@ const NAV_BAND_GROUPS = new Set(['日々の更新', '店舗情報', '関連サ�
 //       打ち間違えても画面は消えず「その他」に出ます。
 // ══════════════════════════════════════════════════════════════════
 
+// ★ 未保存のまま離れようとしたときの文言（第226便・2026-09-09）。★ 1か所に置く（画面とブラウザ警告で同じ言葉）。
+const SALON_LEAVE_WARNING = 'まだ保存していない変更があります。このページを離れると消えます。';
+
 // ★ スマホで直に出す8つ。★ 並びはこの順（★ PCとは違ってよい。スマホは外出先で使うため）。
 const MOBILE_MAIN: TabKey[] = [
   // ★ 2026-09-09（第225便・カッキーさんの指示）: クーポン と ネット予約 の位置を入れ替えた。
@@ -907,6 +910,10 @@ export default function MyPage() {
   const [courseGroups, setCourseGroups] = useState<CourseGroup[]>([{ name: '', items: [{ duration: '', price: '' }] }]);
   const [otherItems,   setOtherItems]   = useState<OtherItem[]>([{ label: '', price: '' }]);
   const [bookingCourses, setBookingCourses] = useState<BookingCourseForm[]>([]);
+  // ★★ 未保存かどうかの判定用（第226便・2026-09-09）。
+  //   ★ 読み込んだ直後と、保存に成功した直後の中身を文字にして控えておき、いまの中身と見比べるだけ。
+  //   ★ 見比べるのは handleSalonSave が保存する範囲（店舗の設定＋予約コース）。★ 新しい保存の道は作らない。
+  const [savedSalonSnapshot, setSavedSalonSnapshot] = useState<string | null>(null);
   // ネット予約の受付一覧（service_role でサーバー取得・表示のみ）。
   const [bookings, setBookings] = useState<OwnerBooking[]>([]);
   const [bookingsLoading, setBookingsLoading] = useState(false);
@@ -1146,6 +1153,8 @@ export default function MyPage() {
       setCourseGroups(parseCourseGroups(salonData.courses));
       setOtherItems(parseOtherItems(salonData.courses));
       setBookingCourses(parseBookingCourses(salonData.booking_courses));
+      // ★ 読み込んだ直後＝未保存の変更なし。★ この時点の中身を控える。
+      setSavedSalonSnapshot(JSON.stringify({ f: salonData, c: parseBookingCourses(salonData.booking_courses) }));
       // ポップアップ画像の設定を初期化（最大3枚・各リンク）
       // ★ 既定画像（第217便）。★ 失敗しても黙って null（★ 列が無い環境でも落とさない）。
       supabase
@@ -1891,7 +1900,38 @@ export default function MyPage() {
       .eq('id', salon.id);
     setSaving(false);
     if (!error && salon) revalidateSalon(salon.id); // 成功時：トップのISRを即時更新
+    // ★ 保存できた＝ここが新しい「保存済みの中身」。★ 以後、触るまで未保存の確認は出さない。
+    if (!error) setSavedSalonSnapshot(JSON.stringify({ f: salonForm, c: bookingCourses }));
     showToast(error ? '保存に失敗しました' : '保存しました');
+  };
+
+  // ★★ 未保存の変更があるか（第226便・2026-09-09）。★ 控え（savedSalonSnapshot）といまの中身を見比べるだけ。
+  //   ★ 控えがまだ無い（読み込み前）ときは false ＝ 何も聞かない（★ 嘘の警告を出さない）。
+  const salonDirty =
+    savedSalonSnapshot != null &&
+    savedSalonSnapshot !== JSON.stringify({ f: salonForm, c: bookingCourses });
+
+  // ★ 未保存のまま【この2つの画面から】離れようとしたら聞く。
+  //   ★ タブを閉じる・再読み込み・ほかのサイトへ行く、はブラウザに任せる（beforeunload）。
+  //   ★ 文言はブラウザに無視されることがあるが、確認そのものは出る。★ 他のタブでは付けない。
+  useEffect(() => {
+    if (!salonDirty) return;
+    if (activeTab !== 'salon' && activeTab !== 'booking') return;
+    const onLeave = (e: BeforeUnloadEvent) => {
+      e.preventDefault();
+      e.returnValue = SALON_LEAVE_WARNING;
+      return e.returnValue;
+    };
+    window.addEventListener('beforeunload', onLeave);
+    return () => window.removeEventListener('beforeunload', onLeave);
+  }, [salonDirty, activeTab]);
+
+  // ★ 画面の中の「← 戻る」で離れるとき。★ beforeunload はページ内の移動では出ないので、ここは自分で聞く。
+  //   ★ 「はい」なら普通に戻る（★ 止めない。★ 決めるのは店舗様）。
+  const handleSalonBack = () => {
+    if (salonDirty && !window.confirm(SALON_LEAVE_WARNING + '\n\n離れますか？')) return;
+    if (window.history.length > 1) window.history.back();
+    else setActiveTab('available');
   };
 
   const handleScheduleSave = async (therapistId: string) => {
@@ -3279,7 +3319,7 @@ export default function MyPage() {
           ★ 倍率は mainZoom の数字1つ。★ 1.5倍は大きすぎたので1.2倍にした。 */}
       <main
         style={mainZoom === 1 ? undefined : { zoom: mainZoom }}
-        className={`${activeTab === 'board' ? 'max-w-none px-[5px]' : 'max-w-2xl px-4'} mx-auto py-6 space-y-6`}
+        className={`${activeTab === 'board' ? 'max-w-none px-[5px]' : 'max-w-2xl px-4'} mx-auto py-6 space-y-6 ${activeTab === 'salon' || activeTab === 'booking' ? 'pb-28' : ''}`}
       >
 
         {/* ── 店名（最上部・独立ブロック）──
@@ -3621,11 +3661,8 @@ export default function MyPage() {
           </div>
 
 
-          <div className="pt-1 flex justify-end">
-            <button className={saveBtn} onClick={handleSalonSave} disabled={saving}>
-              {saving ? '保存中...' : '保存'}
-            </button>
-          </div>
+          {/* ★ 2026-09-09（第226便・カッキーさんの指示）: ここにあった「保存」は削除。
+              ★ 画面下に貼り付く保存バー（このファイルの末尾）に一本化した。★ 二重に置かない。 */}
           </div>
           )}
         </div>
@@ -4081,11 +4118,7 @@ export default function MyPage() {
             </button>
           </div>
 
-          <div className="pt-1 flex justify-end">
-            <button className={saveBtn} onClick={handleSalonSave} disabled={saving}>
-              {saving ? '保存中...' : '保存'}
-            </button>
-          </div>
+          {/* ★ 2026-09-09（第226便・カッキーさんの指示）: ここにあった「保存」は削除。★ 下の保存バーへ一本化。 */}
         </div>
         </div>
 
@@ -5620,6 +5653,42 @@ export default function MyPage() {
         </div>
 
       </main>
+
+      {/* ★★ 画面下に貼り付く保存バー（第226便・2026-09-09・カッキーさんの指示）。
+          ★ 出るのは【店舗情報】と【ネット予約】のときだけ。★ 押すのは各タブにあったのと同じ handleSalonSave
+            （★ 新しい保存の道は作らない・第37便）。★ セラピスト編集ページ（/mypage/therapist/[id]）と同じ形。
+          ★ PC ではサイドバー（288px）の右だけに出す（md:left-[288px]）。★ スマホは全幅。
+          ★ 端末の下端（ホームバー）に隠れないよう safe-area ぶんの余白を足す。
+          ★ 本文の下端に余白（pb-28）を足してあるので、いちばん下のカードがバーに隠れない。 */}
+      {(activeTab === 'salon' || activeTab === 'booking') && (
+        <div className="fixed bottom-0 left-0 right-0 md:left-[288px] z-40 bg-white/95 backdrop-blur border-t border-slate-100 shadow-[0_-4px_12px_rgba(0,0,0,0.06)]">
+          {/* ★ 未保存の目印（第226便）。★ 「押し忘れ」を防ぐ。★ 触っていなければ何も出さない。 */}
+          {salonDirty && (
+            <p className="max-w-2xl mx-auto px-4 pt-2 text-[11px] font-bold text-rose-500">
+              未保存の変更があります
+            </p>
+          )}
+          {/* ★ 「← 戻る」と「保存する」を横に並べる（セラピスト編集ページと同じ形）。
+              ★ 戻るは【前の画面】へ（履歴が無ければ /mypage のトップへ）。★ 保存が残りの幅を取る（flex-1）。 */}
+          <div className="max-w-2xl mx-auto px-4 py-3 [padding-bottom:calc(0.75rem+env(safe-area-inset-bottom))] flex items-center gap-3">
+            <button
+              type="button"
+              onClick={handleSalonBack}
+              className="flex-none px-4 py-3 rounded-2xl border border-slate-200 text-slate-500 text-sm font-bold hover:border-pink-300 hover:text-pink-500 transition-colors whitespace-nowrap"
+            >
+              ← 戻る
+            </button>
+            <button
+              type="button"
+              onClick={handleSalonSave}
+              disabled={saving}
+              className="flex-1 px-8 py-3 rounded-2xl bg-gradient-to-r from-pink-500 to-fuchsia-500 text-white font-black text-base shadow-md disabled:opacity-50"
+            >
+              {saving ? '保存中...' : '保存する'}
+            </button>
+          </div>
+        </div>
+      )}
         </div>
       </div>
     </div>
