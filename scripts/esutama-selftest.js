@@ -365,5 +365,117 @@ eq('知らない札は unknown', P.parseEsutamaJson('["NG"]').kind, 'unknown');
      || Object.values(R).some((v) => typeof v === 'string' && /cast_enable/.test(v)), false);
 }
 
+
+// ───────── ★★★ セラピストの追加フォーム（第231便・2026-09-09）─────────
+//
+// ★ 2026-09-09 に実物（https://estama.jp/admin/cast_edit/）を読んで確かめた形をなぞる。
+//   ★ 実物は65部品。★ ここは形の種類（text / textarea / select / checkbox / file / hidden）を
+//     ぜんぶ1つずつ含む縮小版。★ 大事なのは「何を落とし、何を残すか」。
+{
+  const TYPES = ['1', '2', '3', '28', '25', '9', '19', '20', '22', '26', '29', '31'];
+  const castForm = (opt) => {
+    const o = Object.assign({ castId: '0', ctk: CSRF, cupSelected: '秘密', name: '', setUpLimit: true, form: true }, opt || {});
+    let h = '<html><body>';
+    if (o.form) h += '<form method="POST">';
+    h += '<input type="text" name="name" maxlength="10" value="' + o.name + '">';
+    h += '<textarea name="description"></textarea>';
+    h += '<textarea name="cast_pr">\nもとの文</textarea>';
+    for (const t of TYPES) h += '<label><input type="checkbox" name="type[]" value="' + t + '"> ラベル</label>';
+    h += '<input type="text" name="age" maxlength="2" value="">';
+    h += '<input type="text" name="tall" maxlength="3" value="">';
+    h += '<select name="body_style"><option value="0">未選択</option><option value="2">スレンダー</option><option value="3">普通</option></select>';
+    h += '<input type="text" name="size_b" maxlength="3" value="">';
+    h += '<input type="text" name="size_w" maxlength="3" value="">';
+    h += '<input type="text" name="size_h" maxlength="3" value="">';
+    h += '<select name="size_cup">' + ['秘密', 'A', 'B', 'C'].map((c) =>
+      '<option value="' + c + '"' + (c === o.cupSelected ? ' selected' : '') + '>' + c + '</option>').join('') + '</select>';
+    h += '<select name="blood"><option value="秘密" selected>秘密</option><option value="A">A</option></select>';
+    h += '<input type="text" name="twitter" maxlength="255" value="">';
+    for (let i = 1; i <= 6; i++) {
+      h += '<input type="file" id="cast_icon_' + i + '">';
+      h += '<input type="hidden" name="order_cast_images[]" value="photo' + i + '">';
+    }
+    h += '<input type="hidden" name="cast_id" value="' + o.castId + '">';
+    h += '<input type="hidden" name="ctk" value="' + o.ctk + '">';
+    if (o.setUpLimit) h += '<input type="checkbox" name="set_up_limit" id="set_up_limit" value="cast">';
+    if (o.form) h += '</form>';
+    return h + '<input type="hidden" name="ctk" id="csrf_footer" value="' + o.ctk + '"></body></html>';
+  };
+
+  const f = P.parseEsutamaCastForm(castForm());
+  const names = f.fields.map((x) => x.name);
+  const val = (n) => f.fields.filter((x) => x.name === n).map((x) => x.value);
+
+  eq('★ 追加フォーム: ctk が取れる', f.ctk, CSRF);
+  eq('★★★ 追加フォーム: cast_id は 0（★ 0 が「新規」の印）', f.castIdHidden, '0');
+  eq('★★ 追加フォーム: 実在する特徴タグを全部拾う', f.typeIds, TYPES);
+
+  // ★★★ ここがこの読み手の一番大事なところ
+  eq('★★★ set_up_limit は【送る形に入れない】（保存と同時に上位表示・残り回数を使う）',
+     names.includes('set_up_limit'), false);
+  eq('★★★ 外したことを言う（黙って落とさない）',
+     f.skipped.some((x) => x.startsWith('set_up_limit')), true);
+  eq('★★ 写真の欄（name の無い file）も外す', f.skipped.filter((x) => x.includes('file')).length, 6);
+
+  eq('★★ 未チェックの特徴タグは送らない（ブラウザと同じ）', val('type[]'), []);
+  eq('★ 写真の並び順の hidden は残す', val('order_cast_images[]'), ['photo1', 'photo2', 'photo3', 'photo4', 'photo5', 'photo6']);
+  eq('★★ selected の無い select は【先頭】（ブラウザと同じ・空にしない）', val('body_style'), ['0']);
+  eq('★ selected のある select はその値', val('size_cup'), ['秘密']);
+  eq('★ 空の text も欄として残す（黙って落とさない）', val('age'), ['']);
+  eq('★ textarea の中身を読む（先頭の改行は落とす）', val('cast_pr'), ['もとの文']);
+  eq('★ 素直な形では警告が出ない', f.warnings, []);
+
+  // ★★★ 読めなかったときに「空のフォーム」として通さない
+  eq('★★★ form が無ければ警告つきで空', [P.parseEsutamaCastForm('<html>メンテナンス中</html>').fields.length,
+      P.parseEsutamaCastForm('<html>メンテナンス中</html>').warnings.length >= 1], [0, true]);
+  eq('★★★ 空の本文も警告つき', P.parseEsutamaCastForm('').warnings.length >= 1, true);
+
+  // ── 送る形 ────────────────────────────────────────────
+  const V = { name: 'さくら', typeIds: [1, 9, 22], age: '24', tall: '158', sizeB: '85', sizeW: '58', sizeH: '86', sizeCup: 'D', bodyStyle: '2' };
+  const r = R.buildEsutamaCastCreateRequest('c=1', f, V);
+  const pairs = r.body.split('&').map((kv) => kv.split('=').map(decodeURIComponent));
+  const got = (n) => pairs.filter(([k]) => k === n).map(([, v]) => v);
+
+  eq('★★★ 登録は POST', r.method, 'POST');
+  eq('★★★ 宛先はフォームと同じ場所', r.url, 'https://estama.jp/admin/cast_edit/');
+  eq('★ 名前が入る', got('name'), ['さくら']);
+  eq('★★ 特徴タグは選んだぶんだけ', got('type[]'), ['1', '9', '22']);
+  eq('★ 年齢・身長・3サイズ・カップ・体型が入る',
+     [got('age'), got('tall'), got('size_b'), got('size_w'), got('size_h'), got('size_cup'), got('body_style')],
+     [['24'], ['158'], ['85'], ['58'], ['86'], ['D'], ['2']]);
+  eq('★★ 触っていない欄は読んだまま', [got('blood'), got('cast_pr'), got('twitter')], [['秘密'], ['もとの文'], ['']]);
+  eq('★★ 新規の印（cast_id=0）と ctk を持って行く', [got('cast_id'), got('ctk')], [['0'], [CSRF]]);
+  eq('★ 写真の並び順もそのまま', got('order_cast_images[]').length, 6);
+  eq('★★★ set_up_limit は送らない', got('set_up_limit'), []);
+
+  // ── 止める条件（★ 迷ったら送らない）────────────────────
+  const bad = (o) => Object.assign({}, V, o);
+  throws('★★ cookie が無ければ登録しない', () => R.buildEsutamaCastCreateRequest('', f, V), /Cookie/);
+  throws('★★★ 名前が空なら登録しない', () => R.buildEsutamaCastCreateRequest('c=1', f, bad({ name: '  ' })), /名前が空/);
+  throws('★★★ 名前が11文字なら登録しない（相手は10文字以内）',
+         () => R.buildEsutamaCastCreateRequest('c=1', f, bad({ name: 'あいうえおかきくけこさ' })), /10文字以内/);
+  eq('★ 名前ちょうど10文字は通る',
+     R.buildEsutamaCastCreateRequest('c=1', f, bad({ name: 'あいうえおかきくけこ' })).method, 'POST');
+  throws('★★★ 特徴タグ0個なら登録しない（相手の必須）', () => R.buildEsutamaCastCreateRequest('c=1', f, bad({ typeIds: [] })), /1つも無い/);
+  throws('★★★ 特徴タグ5個なら登録しない（相手は4つまで）',
+         () => R.buildEsutamaCastCreateRequest('c=1', f, bad({ typeIds: [1, 2, 3, 9, 19] })), /4つまで/);
+  throws('★★★ 画面に無い番号は送らない（★ 番号は通し番号ではない）',
+         () => R.buildEsutamaCastCreateRequest('c=1', f, bad({ typeIds: [1, 99] })), /画面に無い/);
+  throws('★★ 年齢が数字でなければ登録しない', () => R.buildEsutamaCastCreateRequest('c=1', f, bad({ age: '二十四' })), /年齢/);
+  throws('★★ バストが4けたなら登録しない', () => R.buildEsutamaCastCreateRequest('c=1', f, bad({ sizeB: '1234' })), /バスト/);
+  throws('★★★ ctk が無ければ登録しない',
+         () => R.buildEsutamaCastCreateRequest('c=1', { fields: f.fields.filter((x) => x.name !== 'ctk'), typeIds: f.typeIds, castIdHidden: '0' }, V), /ctk/);
+  throws('★★★ 既存の人の編集フォームには送らない（cast_id が 0 でない）',
+         () => R.buildEsutamaCastCreateRequest('c=1', { fields: f.fields, typeIds: f.typeIds, castIdHidden: '955433' }, V), /新規の追加フォームではありません/);
+  throws('★★★ set_up_limit が混じっていたら送らない（二重の見張り）',
+         () => R.buildEsutamaCastCreateRequest('c=1',
+           { fields: [...f.fields, { name: 'set_up_limit', value: 'cast' }], typeIds: f.typeIds, castIdHidden: '0' }, V), /set_up_limit/);
+
+  // ── 追加フォームを読む GET ──
+  const g = R.buildEsutamaCastFormRequest('c=1');
+  eq('★ 追加フォームは GET（読むだけ）', [g.method, g.url], ['GET', 'https://estama.jp/admin/cast_edit/']);
+  throws('★ cookie が無ければ読みに行かない', () => R.buildEsutamaCastFormRequest(''), /Cookie/);
+}
+
 console.log(fail === 0 ? '\nすべて通りました' : '\n' + fail + ' 件 NG');
 process.exit(fail === 0 ? 0 : 1);

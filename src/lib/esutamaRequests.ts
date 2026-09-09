@@ -40,6 +40,13 @@ export const ESUTAMA_CAST_LIST_URL = 'https://estama.jp/admin/cast/';
  *   ★ こちらは【非表示にする】ためだけに使う。★ 表示に戻す口は作らない（要るときに足す）。
  */
 export const ESUTAMA_CAST_DISABLE_URL = 'https://estama.jp/admin_post/cast_disabled';
+
+/**
+ * ★★★ セラピストの追加／編集フォーム（第231便）。★ **GET も POST も同じ場所**（自分自身へ送る）。
+ *   ★ 新規は `/admin/cast_edit/`（hidden `cast_id=0`）／ 編集は `/admin/cast_edit/<cast_id>/`。
+ *   ★ この便で使うのは **新規だけ**。★ 編集フォームは叩かない。
+ */
+export const ESUTAMA_CAST_EDIT_URL = 'https://estama.jp/admin/cast_edit/';
 /** ★★ 出勤の保存先。**このファイルで唯一、相手を書き換える宛先。** */
 export const ESUTAMA_WORK_SAVE_URL = 'https://estama.jp/admin/schedule/post_work_schedule/';
 
@@ -225,6 +232,125 @@ export function buildEsutamaCastDisableRequest(cookie: string, castId: string, c
     url: ESUTAMA_CAST_DISABLE_URL,
     headers: ajaxHeaders(cookie, ESUTAMA_CAST_LIST_URL),
     body: encodePayload([['post_data', castId], ['ctk', ctk]]),
+  };
+}
+
+// ───────── ★★★ セラピストの新規登録（第231便・2026-09-09）─────────
+//
+// ★★★ 段は2つ:  ① 追加フォームを **読む**（GET）  → ② 読んだ形に値を差し込んで **送る**（POST）
+//   ★ 65部品の形をこちらで決め打ちしない（カッキーさん決定・2026-09-09）。
+//   ★ 出勤・新着情報でもう使っている作法と同じ。★ 相手が項目を増やしても壊れない。
+
+/** 追加フォームを読む GET。★ 読むだけ。★ ここで ctk と「実在する特徴タグ」を拾う */
+export function buildEsutamaCastFormRequest(cookie: string): RelayRequest {
+  if (!cookie) throw new Error('Cookie が無いまま追加フォームを読みに行かない');
+  return { method: 'GET', url: ESUTAMA_CAST_EDIT_URL, headers: { ...baseHeaders(), referer: ESUTAMA_CAST_LIST_URL, cookie } };
+}
+
+/** 送る値。★ 名前だけが必須。★ 空のものは【読んだフォームのまま】にする（＝触らない） */
+export type EsutamaCastCreateValues = {
+  /** ★ 全角10文字以内（相手の maxlength=10） */
+  name: string;
+  /** ★ 特徴タグ。★ 1つ以上4つ以内。★ 相手の画面に実在する番号だけ */
+  typeIds: number[];
+  age?: string | null;
+  tall?: string | null;
+  /** ★★ B が空だと **公開ページに出ない**（相手の画面の注記・2026-09-09 実測） */
+  sizeB?: string | null;
+  sizeW?: string | null;
+  sizeH?: string | null;
+  /** '秘密' または A〜L */
+  sizeCup?: string | null;
+  /** '0'未選択 / '2'スレンダー / '3'普通 / '4'グラマー / '5'少しぽっちゃり / '6'ぽっちゃり */
+  bodyStyle?: string | null;
+};
+
+/**
+ * ★ 差し替える欄（★ ここに無い欄は【読んだフォームのまま】返す）:
+ *   name / age / tall / size_b / size_w / size_h / size_cup / body_style / type[]
+ */
+
+/**
+ * ★★★ セラピストを1人 追加する POST。★ **相手に人を増やす。**
+ *
+ * @param form parseEsutamaCastForm が読んだもの（★ set_up_limit と file は既に外れている）
+ *
+ * ★★★ 止める条件（★ 迷ったら送らない）:
+ *   ・名前が空 ／ 10文字を超える
+ *   ・特徴タグが0個 ／ 4個を超える ／ **相手の画面に無い番号が混じっている**
+ *   ・年齢・身長・3サイズが数字でない
+ *   ・読んだフォームに ctk が無い
+ *   ・★★★ **`set_up_limit` が混じっている**（「保存と同時に上位表示する」＝店舗様の残り回数を使う）
+ *   ・cast_id が '0'（新規）でない ★ 既存の人を上書きしに行かないための止め
+ */
+export function buildEsutamaCastCreateRequest(
+  cookie: string,
+  form: { fields: Array<{ name: string; value: string }>; typeIds: string[]; castIdHidden: string | null },
+  v: EsutamaCastCreateValues,
+): RelayRequest {
+  if (!cookie) throw new Error('Cookie が無いまま登録しない');
+
+  const name = String(v.name ?? '').trim();
+  if (!name) throw new Error('名前が空のまま登録しない');
+  if ([...name].length > 10) throw new Error('エステ魂の名前は10文字以内です（' + [...name].length + '文字）');
+
+  const ids = Array.isArray(v.typeIds) ? v.typeIds.map((x) => String(x)) : [];
+  if (ids.length === 0) throw new Error('特徴タグが1つも無いまま登録しない（相手の必須項目）');
+  if (ids.length > 4) throw new Error('エステ魂の特徴タグは4つまでです（' + ids.length + '個）');
+  // ★★★ 相手の画面に無い番号は送らない。★ 番号は通し番号ではない（第230便で踏んだ）
+  const unknown = ids.filter((id) => !form.typeIds.includes(id));
+  if (unknown.length > 0) throw new Error('エステ魂の画面に無い特徴タグの番号です（' + unknown.join(',') + '）');
+
+  const num = (label: string, val: string | null | undefined, max: number): string | null => {
+    if (val === null || val === undefined || val === '') return null;
+    const t = String(val).trim();
+    if (!new RegExp('^\\d{1,' + max + '}$').test(t)) throw new Error(label + 'は数字' + max + 'けたまでです（' + t + '）');
+    return t;
+  };
+  const ov: Record<string, string> = { name };
+  const age = num('年齢', v.age, 2); if (age !== null) ov.age = age;
+  const tall = num('身長', v.tall, 3); if (tall !== null) ov.tall = tall;
+  const b = num('バスト', v.sizeB, 3); if (b !== null) ov.size_b = b;
+  const w = num('ウエスト', v.sizeW, 3); if (w !== null) ov.size_w = w;
+  const h = num('ヒップ', v.sizeH, 3); if (h !== null) ov.size_h = h;
+  if (v.sizeCup) ov.size_cup = String(v.sizeCup);
+  if (v.bodyStyle) ov.body_style = String(v.bodyStyle);
+  const fields = form.fields ?? [];
+  if (fields.some((f) => f.name === 'set_up_limit')) {
+    throw new Error('set_up_limit（保存と同時に上位表示する）が混じっています。★ 店舗様の残り回数を使うので送りません');
+  }
+  if (!fields.some((f) => f.name === 'ctk' && f.value)) throw new Error('ctk が無いまま登録しない');
+  const castId = form.castIdHidden;
+  if (castId !== null && castId !== '0') {
+    throw new Error('新規の追加フォームではありません（cast_id=' + castId + '）。★ 既存の人を上書きしない');
+  }
+
+  const out: Array<[string, string]> = [];
+  let typeDone = false;
+  const used = new Set<string>();
+  for (const f of fields) {
+    if (f.name === 'type[]') {
+      if (!typeDone) { typeDone = true; for (const id of ids) out.push(['type[]', id]); }
+      continue;
+    }
+    if (Object.prototype.hasOwnProperty.call(ov, f.name)) { out.push([f.name, ov[f.name]]); used.add(f.name); continue; }
+    out.push([f.name, f.value]);
+  }
+  // ★ 読んだフォームに無かった欄は、あとから足す（★ 黙って落とさない）
+  for (const k of Object.keys(ov)) if (!used.has(k)) out.push([k, ov[k]]);
+  if (!typeDone) for (const id of ids) out.push(['type[]', id]);
+
+  return {
+    method: 'POST',
+    url: ESUTAMA_CAST_EDIT_URL,
+    headers: {
+      ...baseHeaders(),
+      'content-type': 'application/x-www-form-urlencoded; charset=UTF-8',
+      referer: ESUTAMA_CAST_EDIT_URL,
+      origin: ESUTAMA_ORIGIN,
+      cookie,
+    },
+    body: encodePayload(out),
   };
 }
 

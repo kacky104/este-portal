@@ -247,3 +247,123 @@ export function parseEsutamaCastList(html: string): EsutamaCastListParse {
   }
   return { rows, warnings };
 }
+
+// ───────── ★★★ セラピスト追加フォーム（/admin/cast_edit/・第231便・2026-09-09）─────────
+//
+// ★★★ 2026-09-09 に実物を読んで確かめた（ラビリンス様の許可のもと・**読むだけ・保存は押していない**）:
+//   ・題は「エステ魂 管理画面｜セラピストの追加」。★ `<form method="POST">` が1つだけ・**65部品**
+//   ・action は自分自身（`https://estama.jp/admin/cast_edit/`）／ enctype は既定（urlencoded）
+//   ・**必須は2つだけ**（ページ全体で「必須」の字は2か所）: `name`(10文字以内) と `type[]`
+//   ・hidden: `cast_id="0"`（★ **0 が「新規」の印**）／ `ctk`（★ `#csrf_footer` と同じ値）
+//   ・`type[]` は **27種**（チェックボックス）
+//   ・「※3サイズのB(バスト)が未入力の場合、表示されません」→ ★ size_b を送らないと公開ページに出ない
+//
+// ★★★ **`set_up_limit` は絶対に送らない。**
+//   ★ 実物の見出しは「**保存と同時に上位表示する (残り7回)**」。★ **回数に限りのある店舗様の資源。**
+//   ★ こちらの都合で1回でも減らしてはいけない。→ この読み手が【最初から外して返す】。
+//
+// ★★ `input[type=file]`（写真6枚）は **name 属性が無い**（id は cast_icon_1..6）。
+//   ★ どう送るのかは**未調査**。★ だから写真はこの便では扱わない。★ 分からないものを送らない。
+
+export type EsutamaFormField = { name: string; value: string };
+
+export type EsutamaCastFormParse = {
+  /** ★ そのまま送り返せる形。★ file と set_up_limit は**入っていない** */
+  fields: EsutamaFormField[];
+  /** hidden の ctk（★ 無ければ null） */
+  ctk: string | null;
+  /** hidden の cast_id（★ 新規フォームは '0'） */
+  castIdHidden: string | null;
+  /** ★ 画面に実在する特徴タグの番号。★ 「相手に無い番号を送らない」ための照合に使う */
+  typeIds: string[];
+  /** ★ わざと外したもの（見えるようにして残す） */
+  skipped: string[];
+  warnings: string[];
+};
+
+/** textarea の中身と value 属性の実体参照を戻す */
+function unescapeValue(src: string): string {
+  return String(src ?? '').replace(/&(amp|lt|gt|quot|#39|nbsp);/g, (x) => ENTITIES[x] ?? x);
+}
+
+/**
+ * セラピスト追加／編集フォームを読み、**送り返せる name/value の並び**にする。
+ *
+ * ★★★ なぜ「読んでから送る」のか（カッキーさん決定・2026-09-09）
+ *   65部品の形をこちらで決め打ちすると、エステ魂が項目を増やしたときに**黙って壊れる**。
+ *   ★ 毎回読んで、こちらは**名前・特徴・年齢・サイズだけを差し替える**。それ以外は読んだまま返す。
+ *
+ * ★ 取り方:
+ *   input    … name が無いもの・type=file・submit/button/image/reset は捨てる。
+ *              checkbox/radio は **checked のものだけ**（★ 未チェックは送らない＝ブラウザと同じ）
+ *   select   … selected の option。★ 無ければ**先頭**（★ ブラウザと同じふるまい）
+ *   textarea … 中身
+ */
+export function parseEsutamaCastForm(html: string): EsutamaCastFormParse {
+  const fields: EsutamaFormField[] = [];
+  const typeIds: string[] = [];
+  const skipped: string[] = [];
+  const warnings: string[] = [];
+  const src = typeof html === 'string' ? html : '';
+  if (!src) return { fields, ctk: null, castIdHidden: null, typeIds, skipped, warnings: ['本文が空'] };
+
+  const open = /<form\b[^>]*>/i.exec(src);
+  if (!open) {
+    warnings.push('フォームが見つからない。取得失敗かレイアウト変更を疑うこと');
+    return { fields, ctk: null, castIdHidden: null, typeIds, skipped, warnings };
+  }
+  const start = open.index + open[0].length;
+  const closeAt = src.toLowerCase().indexOf('</form>', start);
+  const inner = src.slice(start, closeAt >= 0 ? closeAt : src.length);
+  if (closeAt < 0) warnings.push('</form> が見つからないので、ページの終わりまでを form として読んだ');
+
+  const re = /<textarea\b([^>]*)>([\s\S]*?)<\/textarea>|<select\b([^>]*)>([\s\S]*?)<\/select>|<input\b([^>]*)>/gi;
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(inner)) !== null) {
+    if (m[1] !== undefined) {
+      // ── textarea ──
+      const a = attrsOf('<textarea' + m[1] + '>');
+      if (!a.name) continue;
+      fields.push({ name: a.name, value: unescapeValue(m[2]).replace(/^\r?\n/, '') });
+      continue;
+    }
+    if (m[3] !== undefined) {
+      // ── select ──
+      const a = attrsOf('<select' + m[3] + '>');
+      if (!a.name) continue;
+      const opts: Array<{ value: string; selected: boolean }> = [];
+      const ore = /<option\b([^>]*)>([\s\S]*?)(?=<option\b|<\/select>|$)/gi;
+      let om: RegExpExecArray | null;
+      while ((om = ore.exec(m[4])) !== null) {
+        const oa = attrsOf('<option' + om[1] + '>');
+        opts.push({ value: oa.value !== undefined ? oa.value : textOf(om[2]), selected: 'selected' in oa });
+      }
+      if (opts.length === 0) { warnings.push(a.name + ' の選択肢が1つも無い'); continue; }
+      // ★ selected が無ければ先頭。★ ブラウザと同じ（ここを空にすると値が消える）
+      fields.push({ name: a.name, value: (opts.find((o) => o.selected) ?? opts[0]).value });
+      continue;
+    }
+    // ── input ──
+    const a = attrsOf('<input' + m[5] + '>');
+    const type = String(a.type ?? 'text').toLowerCase();
+    if (type === 'file') { skipped.push(a.name ? a.name : '(name の無い file)'); continue; }
+    if (!a.name) continue;
+    // ★★★ 上位表示（残り回数あり）は【何があっても送らない】
+    if (a.name === 'set_up_limit') { skipped.push('set_up_limit（保存と同時に上位表示する・残り回数あり）'); continue; }
+    if (type === 'submit' || type === 'button' || type === 'image' || type === 'reset') continue;
+    if (a.name === 'type[]' && a.value !== undefined) typeIds.push(a.value);
+    if (type === 'checkbox' || type === 'radio') {
+      if (!('checked' in a)) continue;                 // ★ 未チェックは送らない
+      fields.push({ name: a.name, value: a.value !== undefined ? a.value : 'on' });
+      continue;
+    }
+    fields.push({ name: a.name, value: a.value !== undefined ? a.value : '' });
+  }
+
+  const ctk = fields.find((f) => f.name === 'ctk')?.value ?? null;
+  const castIdHidden = fields.find((f) => f.name === 'cast_id')?.value ?? null;
+  if (!ctk) warnings.push('ctk が見つからない');
+  if (!fields.some((f) => f.name === 'name')) warnings.push('name の欄が見つからない');
+  if (typeIds.length === 0) warnings.push('特徴タグ（type[]）が1つも見つからない');
+  return { fields, ctk, castIdHidden, typeIds, skipped, warnings };
+}
