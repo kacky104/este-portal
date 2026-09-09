@@ -176,6 +176,15 @@ export function buildEkichikaGirlCreateRequest(
   }
   for (const k of Object.keys(ov)) if (!used.has(k)) out.push([k, ov[k]]);
   for (const id of ids) out.push(['genre[' + id + ']', '1']);
+  // ★★★★ **押したボタンを送る**（2026-09-09 の実弾で欠けていたもの）。
+  //   ★ 駅ちかは **ボタンの名前で処理を決める**（削除は `girls_btn_batch_del`／登録は `update-btn`）。
+  //   ★ ブラウザは「押した1つだけ」を送るので、読み手は fields に入れない。★ ここで足す。
+  //   ★★★ **2つ以上あったら送らない。** ★ どれを押したことにするかを、こちらで勝手に決めない。
+  if (form.submits.length > 1) {
+    throw new Error('送信ボタンが' + form.submits.length + '個あります（' + form.submits.map((b) => b.name).join(' / ')
+      + '）。★ どれを押すか決められないので送りません');
+  }
+  if (form.submits.length === 1) out.push([form.submits[0].name, form.submits[0].value]);
   // ★★★★ 画面に無い欄をあえて足す（§2-7b）。★ 実弾で通ることを確かめてある
   out.push(['rookie_flg', EKICHIKA_ROOKIE_FLG]);
 

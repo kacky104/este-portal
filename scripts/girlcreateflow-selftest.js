@@ -46,6 +46,7 @@ function formPage(opt) {
   h += '<select name="cup"><option value="0">-</option><option value="1">Aカップ</option><option value="4">Dカップ</option></select>';
   for (const g of GENRES) h += '<input type="checkbox" name="genre[' + g + ']" value="1">';
   h += '<input type="hidden" name="girls_genre_max_num" value="19">';
+  h += '<input type="submit" name="update-btn" value="">';   // ★ 実物の送信ボタン
   return h + '</form></body></html>';
 }
 
@@ -89,6 +90,7 @@ const ctxF = Object.assign({}, ctx, { createBeforeIds: ['5232208', '5232190'] })
   eq('★★★★ 登録②: 新人マークを混ぜる（画面に欄は無いが通る）', got('rookie_flg'), ['1']);
   eq('★★★ 登録②: カップはラベルで引いた番号（D→4）', got('cup'), ['4']);
   eq('★★ 登録②: 使い捨てトークンを持って行く', got('fuel_csrf_token'), [CSRF]);
+  eq('★★★★ 登録②: 押したボタンを送る（2026-09-09 の実弾で欠けていたもの）', got('update-btn'), ['']);
   eq('★★ 登録②: 照合の段へ進む', r.next.context.createStage, 'verify');
   eq('★★ 登録②: 控えた顔ぶれは持ち回す', r.next.context.createBeforeIds, ['5232208', '5232190']);
 }

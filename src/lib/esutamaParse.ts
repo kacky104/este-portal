@@ -290,6 +290,8 @@ export type EsutamaCastFormParse = {
   castIdHidden: string | null;
   /** ★ 画面に実在する特徴タグの番号。★ 「相手に無い番号を送らない」ための照合に使う */
   typeIds: string[];
+  /** ★ name つきの送信ボタン（★ 2026-09-09 時点のエステ魂には無い） */
+  submits: EsutamaFormField[];
   /** ★ わざと外したもの（見えるようにして残す） */
   skipped: string[];
   warnings: string[];
@@ -315,5 +317,5 @@ export function parseEsutamaCastForm(html: string): EsutamaCastFormParse {
     if (!f.fields.some((x) => x.name === 'name')) warnings.push('name の欄が見つからない');
     if (typeIds.length === 0) warnings.push('特徴タグ（type[]）が1つも見つからない');
   }
-  return { fields: f.fields, ctk, castIdHidden, typeIds, skipped: f.skipped, warnings };
+  return { fields: f.fields, ctk, castIdHidden, typeIds, submits: f.submits, skipped: f.skipped, warnings };
 }

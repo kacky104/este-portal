@@ -47,7 +47,9 @@ function girlPage(opt) {
   h += '<input type="checkbox" name="p_genre[1]" value="1"' + (o.pGenreChecked ? ' checked' : '') + '>';
   h += '<input type="hidden" name="p_genre_max_num" value="3">';
   h += '<input type="hidden" name="girls_genre_max_num" value="19">';
-  h += '<input type="submit" name="btn_regist" value="登録する">';
+  // ★★★★ 実物の送信ボタン（2026-09-09 実測）。★ 駅ちかはボタンの名前で処理を決める
+  h += '<input type="submit" name="update-btn" value="">';
+  if (o.extraSubmit) h += '<input type="submit" name="delete-btn" value="削除">';
   return h + '</form></body></html>';
 }
 
@@ -64,7 +66,8 @@ function girlPage(opt) {
   eq('★ selected のある select はその値', f.fields.find((x) => x.name === 'bloodtype').value, '1');
   eq('★★ チェックの有無によらず、選択肢の値を全部返す', f.choiceValues['genre[49]'], ['1']);
   eq('★ チェック済みのものだけ送る形に入る', f.fields.filter((x) => /^genre\[/.test(x.name)).map((x) => x.name), ['genre[5]']);
-  eq('★★ 送信ボタンは送らない', names.includes('btn_regist'), false);
+  eq('★★ 送信ボタンは fields に入れない（ブラウザは押した1つだけを送る）', names.includes('update-btn'), false);
+  eq('★★★★ 送信ボタンは分けて返す（★ 送る側が「どれを押すか」を決める）', f.submits, [{ name: 'update-btn', value: '' }]);
   eq('★ 素直な形では警告が出ない', f.warnings, []);
 
   // ★★★ 目印が無ければ【別の form を「たぶんこれ」で読まない】
@@ -116,6 +119,8 @@ const V = { name: 'さくら', genreIds: [1, 49], age: '24', tall: '158', bust: 
   eq('★★ 触っていない欄は読んだまま', [got('bloodtype'), got('girl_comments'), got('catchcopy')], [['1'], [''], ['']]);
   eq('★★ 相手の hidden もそのまま返す', [got('p_genre_max_num'), got('girls_genre_max_num')], [['3'], ['19']]);
   eq('★★★ 優先タグは送らない', got('p_genre[1]'), []);
+  // ★★★★ 2026-09-09 の実弾で欠けていたもの。★ これが無いと駅ちかは「押されていない」と見る
+  eq('★★★★ 押したボタン（update-btn）を送る', got('update-btn'), ['']);
 
   // ★ カップのラベルが無いときは【送らない】（読んだフォームのまま）
   const noCup = G.buildEkichikaGirlCreateRequest('c=1', form, Object.assign({}, V, { cup: 'Z' }));
@@ -142,6 +147,10 @@ const V = { name: 'さくら', genreIds: [1, 49], age: '24', tall: '158', bust: 
          () => G.buildEkichikaGirlCreateRequest('c=1', Object.assign({}, form, { csrfToken: null }), V), /fuel_csrf_token/);
   throws('★★★ 優先タグが混じっていたら送らない（二重の見張り）',
          () => G.buildEkichikaGirlCreateRequest('c=1', G.parseEkichikaGirlForm(girlPage({ pGenreChecked: true })), V), /p_genre/);
+
+  // ★★★ 送信ボタンが2つ以上あったら、どれを押すかを勝手に決めない
+  throws('★★★ 送信ボタンが2つ以上なら送らない',
+         () => G.buildEkichikaGirlCreateRequest('c=1', G.parseEkichikaGirlForm(girlPage({ extraSubmit: true })), V), /送信ボタンが2個/);
 
   const g = G.buildEkichikaGirlFormRequest('c=1');
   eq('★ 登録フォームは GET（読むだけ）', [g.method, g.url], ['GET', 'https://ranking-deli.jp/admin/girls/create/']);

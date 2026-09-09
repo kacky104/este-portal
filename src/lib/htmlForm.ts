@@ -62,6 +62,14 @@ export type HtmlFormParse = {
   /** ★ checkbox / radio の group ごとの value 一覧（★ チェックの有無によらず全部） */
   choiceValues: Record<string, string[]>;
   /**
+   * ★★★★ 送信ボタン（`input[type=submit]` / `[type=image]`）のうち **name を持つもの**。
+   *   ★★★ ブラウザは「**押した1つだけ**」を送る。★ だから読んだだけでは fields に入れられない。
+   *     → ここに分けて返し、**呼び出し側が「どれを押すか」を決める**。
+   *   ★★★★ 駅ちかは **ボタンの名前で処理を決める**（削除 `girls_btn_batch_del` ／ 登録 `update-btn`）。
+   *     ★ 2026-09-09 の実弾で、これを送らずに登録が通らなかった。★ 相手に「押されていない」と見えていた。
+   */
+  submits: HtmlFormField[];
+  /**
    * ★★ 欄ごとの maxlength（画面に書いてあるもの）。
    *   ★★★ **文字数の上限を、こちらのコードに書き写さない**ための道具。
    *     ★ 相手が上限を変えても、読んだ値で判断できる。
@@ -102,11 +110,12 @@ export function parseHtmlForm(html: string, opts: ParseHtmlFormOptions = {}): Ht
   const selectOptions: Record<string, HtmlFormOption[]> = {};
   const choiceValues: Record<string, string[]> = {};
   const maxLengths: Record<string, number> = {};
+  const submits: HtmlFormField[] = [];
   const skipped: string[] = [];
   const warnings: string[] = [];
   const skip = new Set(opts.skipNames ?? []);
   const src = typeof html === 'string' ? html : '';
-  const empty = (): HtmlFormParse => ({ fields, names: [...nameSet], selectOptions, choiceValues, maxLengths, skipped, warnings });
+  const empty = (): HtmlFormParse => ({ fields, names: [...nameSet], selectOptions, choiceValues, submits, maxLengths, skipped, warnings });
 
   if (!src) { warnings.push('本文が空'); return empty(); }
 
@@ -196,7 +205,11 @@ export function parseHtmlForm(html: string, opts: ParseHtmlFormOptions = {}): Ht
       if (!list.includes(v)) list.push(v);
     }
     if (skip.has(a.name)) { skipped.push(a.name); continue; }
-    if (NON_VALUE_INPUT.has(type)) continue;
+    if (NON_VALUE_INPUT.has(type)) {
+      // ★★★★ 送信ボタンは fields に入れない（ブラウザは押した1つだけを送る）。★ 分けて返す
+      if (type === 'submit' || type === 'image') submits.push({ name: a.name, value: a.value ?? '' });
+      continue;
+    }
     if (type === 'checkbox' || type === 'radio') {
       if (!('checked' in a)) continue;                 // ★ 未チェックは送らない
       fields.push({ name: a.name, value: a.value !== undefined ? a.value : 'on' });
@@ -204,6 +217,11 @@ export function parseHtmlForm(html: string, opts: ParseHtmlFormOptions = {}): Ht
     }
     fields.push({ name: a.name, value: a.value !== undefined ? a.value : '' });
   }
+
+  // ★★ <button name="..."> は読んでいない（この読み手は input/select/textarea だけ）。
+  //   ★ 在るのに黙って落とすと、また「押されていない POST」を送ることになる。★ 気づけるように残す。
+  const btn = /<button\b[^>]*\bname\s*=\s*"([^"]+)"/i.exec(inner);
+  if (btn) warnings.push('name つきの <button>（' + btn[1] + '）が在る。★ この読み手は読み取れないので、送る側で確かめること');
 
   return empty();
 }

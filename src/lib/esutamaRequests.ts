@@ -285,7 +285,13 @@ export type EsutamaCastCreateValues = {
  */
 export function buildEsutamaCastCreateRequest(
   cookie: string,
-  form: { fields: Array<{ name: string; value: string }>; typeIds: string[]; castIdHidden: string | null },
+  form: {
+    fields: Array<{ name: string; value: string }>;
+    typeIds: string[];
+    castIdHidden: string | null;
+    /** ★ name つきの送信ボタン。★ 無ければ空（いまのエステ魂はこれ） */
+    submits?: Array<{ name: string; value: string }>;
+  },
   v: EsutamaCastCreateValues,
 ): RelayRequest {
   if (!cookie) throw new Error('Cookie が無いまま登録しない');
@@ -339,6 +345,16 @@ export function buildEsutamaCastCreateRequest(
   // ★ 読んだフォームに無かった欄は、あとから足す（★ 黙って落とさない）
   for (const k of Object.keys(ov)) if (!used.has(k)) out.push([k, ov[k]]);
   if (!typeDone) for (const id of ids) out.push(['type[]', id]);
+  // ★★★★ 押したボタンを送る（第234便でそろえた作法）。
+  //   ★ 2026-09-09 時点のエステ魂の追加フォームには **name つきの送信ボタンは無い**（実測）。
+  //     → いまは何も足さない。★ 相手が足したときに黙って壊れないように、規則だけ先に置いておく。
+  //   ★★ 2つ以上あったら送らない（どれを押すかをこちらで決めない）。
+  const submits = form.submits ?? [];
+  if (submits.length > 1) {
+    throw new Error('送信ボタンが' + submits.length + '個あります（' + submits.map((b) => b.name).join(' / ')
+      + '）。★ どれを押すか決められないので送りません');
+  }
+  if (submits.length === 1) out.push([submits[0].name, submits[0].value]);
 
   return {
     method: 'POST',
