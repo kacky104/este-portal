@@ -22,6 +22,12 @@ import { useToast } from '@/app/components/useToast';
 import { SiteNoticeBanner } from '@/app/components/SiteNoticeBanner';
 import { therapistDirtyFields, therapistDirtyNote, therapistLeaveWarning } from '@/lib/therapistDirty';
 
+
+// ★★ この画面から「戻る」先（第228便・2026-09-09・カッキーさんの指示）。
+//   ★ /mypage は ?tab= が無いと既定で「今すぐ」に倒れる（parseTabKey）。★ ここへ来たのはセラピスト一覧からなので、そこへ返す。
+//   ★ 文字列は【この1か所】。★ 戻る導線は3つ（読み込み失敗・ヘッダーの矢印・下部の保存バー）あるので、散らさない。
+const MYPAGE_BACK = '/mypage?tab=profile';
+
 const supabase = createClient();
 
 type BodyParts = { height: string; bust: string; cup: string; waist: string; hip: string };
@@ -509,7 +515,7 @@ export default function TherapistEditPage() {
       <div className="min-h-screen bg-pink-50/30 flex items-center justify-center p-4">
         <div className="bg-white rounded-3xl border border-rose-100 shadow-xl p-8 max-w-sm w-full text-center space-y-4">
           <p className="text-sm text-slate-500">{loadError}</p>
-          <Link href="/mypage" className="text-xs text-pink-500 font-bold hover:underline">
+          <Link href={MYPAGE_BACK} className="text-xs text-pink-500 font-bold hover:underline">
             マイページに戻る
           </Link>
         </div>
@@ -538,7 +544,7 @@ export default function TherapistEditPage() {
       <header className="bg-white border-b border-slate-100 sticky top-0 z-40">
         <div className="max-w-2xl mx-auto px-4 py-3 flex items-center gap-3">
           {/* ★★ 第173便: 未保存のまま戻ろうとしたら聞く。★ 止めはしない（★ 決めるのは店舗様） */}
-          <Link href="/mypage" onClick={confirmLeave} className="text-slate-400 hover:text-pink-500 transition-colors">
+          <Link href={MYPAGE_BACK} onClick={confirmLeave} className="text-slate-400 hover:text-pink-500 transition-colors">
             <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
             </svg>
@@ -1073,7 +1079,7 @@ export default function TherapistEditPage() {
             ★ flex で並べて、保存が残りの幅を取る（flex-1）。★ 「マイページに戻る」は長いので「戻る」。 */}
         <div className="max-w-2xl mx-auto px-4 py-3 flex items-center gap-3">
           <Link
-            href="/mypage"
+            href={MYPAGE_BACK}
             onClick={confirmLeave}
             className="flex-none px-4 py-3 rounded-2xl border border-slate-200 text-slate-500 text-sm font-bold hover:border-pink-300 hover:text-pink-500 transition-colors whitespace-nowrap"
           >
