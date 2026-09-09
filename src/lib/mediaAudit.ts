@@ -65,6 +65,8 @@ export const MEDIA_AUDIT_EVENTS = [
   'verify_article',      // ★★★ 読み返して、本当に載ったかを確かめた
   // ── 流れが途中で止まった（第157便・2026-09-05）★ 静かに消えないための1行 ──
   'flow_stalled',        // ★★★ 次の手順を積めなかった。★ ここが無いと【何も残らずに消える】
+  // ── 駅ちかから1人削除（第228便・2026-09-09）★ 取り返しがつかない ──
+  'delete_girl',         // ★★★ 駅ちかの名簿から1人消した。★ 戻せない。★ 運営だけの口から
   'selftest',            // 認証情報を使わない疎通確認
 ] as const;
 
@@ -368,6 +370,16 @@ export function defaultAuditSummary(input: {
         : input.outcome === 'stopped'
           ? `${who}${t}の即ヒメの解除を止めました`
           : `${who}${t}の即ヒメを解除できませんでした`;
+      break;
+    }
+    case 'delete_girl': {
+      // ★★★ 駅ちかから1人消した（第228便）。★ summary は relayFlow が入れる。無ければここに倒す
+      const who = typeof d?.['name'] === 'string' && d['name'] ? `${d['name']}さんを` : '';
+      s = input.outcome === 'ok'
+        ? `${who}${t}の名簿から削除しました`
+        : input.outcome === 'stopped'
+          ? `${t}の削除は行いませんでした`
+          : `${who}${t}の名簿から削除できませんでした`;
       break;
     }
     case 'read_maillist': {

@@ -134,6 +134,25 @@ console.log('\n── 3. ★★ 空を成功にしない（禁則207・第35便�
 }
 
 console.log('\n── 4. 名前の取り出し ──');
+// ★★ 一括操作の使い捨てトークン（第228便）。★ 削除に要る。★ 無くても警告は増やさない
+{
+  const html = page(cell('1', 'こう')) +
+    '<input type="hidden" name="fuel_csrf_token" value="abc123def">';
+  const p = g.parseEkichikaGirls(html);
+  eq('トークンを読める', p.csrfToken, 'abc123def');
+  eq('トークンがあっても警告は増えない', p.problems, []);
+}
+{
+  const p = g.parseEkichikaGirls(page(cell('1', 'こう')));
+  eq('トークンが無ければ null', p.csrfToken, null);
+  eq('★ トークンが無くても警告にしない（読むだけの用には要らない）', p.problems, []);
+}
+{
+  const html = page(cell('1', 'こう')) +
+    '<input value="zzz999" type="hidden" name="fuel_csrf_token">';
+  eq('name と value の順が逆でも読める', g.parseEkichikaGirls(html).csrfToken, 'zzz999');
+}
+
 eq('タグを落とす', g.textOf('<span>こう</span>'), 'こう');
 eq('実体参照を戻す', g.textOf('A&amp;B'), 'A&B');
 eq('数値参照を戻す', g.textOf('&#12354;'), 'あ');

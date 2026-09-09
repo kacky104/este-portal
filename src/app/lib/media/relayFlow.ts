@@ -202,6 +202,12 @@ export async function startRelayFlow(params: {
       as?: 'jpeg';
     };
   };
+  /**
+   * intent='girl_delete' のときだけ（第228便）。★ **消す相手は1人だけ。**
+   * ★★ ここで受け取っていないと、呼び出し側が渡しても静かに落ちる（diarySince と同じ作法）。
+   * ★★★ castId が入っていなければ、一覧を読んだあと**何も消さずに終わる**。★ それが安全装置。
+   */
+  girlDelete?: { castId: string };
   /** 'shop:<auth_user_id>' など。監査ログに残す */
   actor?: string;
 }): Promise<StartFlowResult> {
@@ -283,6 +289,8 @@ export async function startRelayFlow(params: {
           photoStage: 'upload' as const,
         }
       : {}),
+    // ★★★ 削除（第228便）。★ 渡されたときだけ入れる。★ 入っていなければ何も消さない
+    ...(params.girlDelete ? { deleteCastId: String(params.girlDelete.castId) } : {}),
     // ★ 新着情報（第155便）。★ 渡されたときだけ入れる
     ...(params.article
       ? {

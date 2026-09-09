@@ -278,7 +278,22 @@ export type RelayFlowIntent =
    *     ★ 自動は1日◯回まわるので、読み取りの行まで出すと「連携の記録」が埋まる（第149便）。
    *     ★★ だから自動のときだけ、読み取りの行をたたむ。★ 送った・載ったは必ず出す。
    */
-  | 'article_auto';
+  | 'article_auto'
+  /**
+   * ★★★ 駅ちかから1人だけ削除する（第228便・2026-09-09）。
+   *   login → read_girls（一覧＋使い捨てトークン）→ girl_delete → read_girls（照合）→ 終わり
+   *
+   * ★★★ **取り返しがつかない唯一の intent。** ★ 消したものは戻らない。
+   *   ★ だから作法を3つ重ねてある:
+   *     ① 消す相手は **castId で1人だけ**。★ 「まとめて消す」は作らない
+   *     ② 押す前に一覧を読み、**その castId が本当に居ることを確かめる**。居なければ何もせず終わる
+   *     ③ 押したあと **もう一度一覧を読み、本当に消えたかを照合する**（verify_work と同じ）
+   *   ★★ 個別の削除リンク（GET /admin/girls/delete/<castId>）は**使わない**。
+   *     ★ 確認ダイアログが無く、開いた瞬間に消える（2026-09-09 実測）。
+   *     ★ 代わりに一括削除のフォーム（POST /admin/girls/）を、**1人だけチェックした形**で送る。
+   *   ★ 入口は運営だけの口（/api/admin/media-girl-delete）。★ 店舗様の画面にボタンは置かない。
+   */
+  | 'girl_delete';
 
 /**
  * 段と段のあいだで持ち回す状態。
@@ -338,6 +353,16 @@ export type RelayFlowContext = {
   };
   /** ★ 編集ページから拾った値（第161便）。★ ①②に要る */
   articleCsrf?: string;
+
+  // ── ここから下は intent='girl_delete' のときだけ入る（第228便）──
+  /** ★★★ 消す相手（駅ちかの castId）。★ **1人だけ。** ★ 空なら何もせず終わる */
+  deleteCastId?: string;
+  /** 段。undefined＝これから消す ／ 'verify'＝消したあとの照合 */
+  deleteStage?: 'verify';
+  /** 消す前に一覧で確かめた表示名（★ 記録に残して「誰を消したか」が後から読めるように） */
+  deleteName?: string;
+  /** 消す前の在籍人数（★ 照合で「1人だけ減ったか」を見る） */
+  deleteBefore?: number;
   articleShopId?: string;
   /** ★ ①article_image.json が返した識別子 */
   articleImgB?: string;
@@ -536,6 +561,8 @@ export type FlowNextRequest = {
     | 'read_work' | 'write_work' | 'verify_work' | 'read_girls' | 'read_maillist'
     // ★ 即ヒメ設定画面（第213便）。★ 読むだけ
     | 'read_sokuhime'
+    // ★★★ 駅ちかから1人削除する（第228便）。★ 取り返しがつかない
+    | 'girl_delete'
     // ★ 即ヒメを押す／消す（第214便）。★ ajax 3本
     | 'sokuhime_check' | 'sokuhime_set' | 'sokuhime_del'
     // ★ 駅ちかの新着情報（第155便）。★ 名前を分けることで、既存の段の判定に一切触らない
@@ -852,6 +879,9 @@ export function advanceFlow(input: {
       return afterReadGirls(input, ctx);
     case 'read_sokuhime':
       return afterReadSokuhime(input, ctx);
+    // ── 駅ちかから1人削除（第228便）★ 段名で分けている。既存の case には触れていない ──
+    case 'girl_delete':
+      return afterGirlDelete(input, ctx);
     case 'sokuhime_check':
       return afterSokuhimeCheck(input, ctx);
     case 'sokuhime_set':
@@ -1042,6 +1072,23 @@ function afterLogin(
       },
       audits: [],
       note: 'ログインの応答を受け取った。★ 成否は即ヒメ設定画面が読めるかどうかで判定する',
+    };
+  }
+
+  if (ctx.intent === 'girl_delete') {
+    // ★ 消す前に必ず一覧を読む。★ 相手が居るかの確認と、使い捨てトークンの取得を兼ねる
+    return {
+      kind: 'next',
+      next: {
+        purpose: 'read_girls',
+        method: 'GET',
+        url: EKICHIKA_GIRLS_URL,
+        headers: buildReadWorkRequest(cookie),
+        body: '',
+        context: { ...ctx, cookie },
+      },
+      audits: [],
+      note: 'ログインの応答を受け取った。★ まだ1文字も消していない（先に一覧を読む）',
     };
   }
 
@@ -1311,6 +1358,171 @@ function afterReadSokuhime(
  *   読めた ＝ ログインできている。ログイン画面らしさの判定（誤検知しうるもの）を先に置かない。
  *   ★ 2026-08-28 に踏んだ形（302で成功しているのに失敗と記録した）を繰り返さない。
  */
+// ───────────── ★★★ 駅ちかから1人削除する（第228便・2026-09-09） ─────────────
+//
+// ★★★ 使う口は【一括削除のフォーム】。★ 個別の削除リンクは使わない。
+//   POST https://ranking-deli.jp/admin/girls/
+//     chck_girls_id[<castId>]=<castId>   ← ★ 1人だけ
+//     girls_list_action=delete_girl
+//     girls_btn_batch_del=（押したボタン）
+//     fuel_csrf_token=<一覧ページから拾った使い捨て>
+//   ★ 個別リンク（GET /admin/girls/delete/<castId>）は確認ダイアログが無く、
+//     開いた瞬間に消える（2026-09-09 実測）。★ 中継で GET を積むのは危なすぎる。
+//
+// ★★ 消したかどうかは【応答では判定しない】（第46便 §35 の作法）。
+//   もう一度一覧を読み、その castId が消えていることを確かめる。
+
+/** 一括削除の POST を組み立てる。★ 1人ぶんしか入れない。 */
+export function buildGirlDeleteStep(ctx: RelayFlowContext, csrfToken: string): FlowNextRequest {
+  const castId = String(ctx.deleteCastId ?? '');
+  const body = [
+    'chck_girls_id%5B' + encodeURIComponent(castId) + '%5D=' + encodeURIComponent(castId),
+    'girls_list_action=delete_girl',
+    'girls_btn_batch_del=' + encodeURIComponent(''),
+    'fuel_csrf_token=' + encodeURIComponent(csrfToken),
+  ].join('&');
+  return {
+    purpose: 'girl_delete',
+    method: 'POST',
+    url: EKICHIKA_GIRLS_URL,
+    headers: {
+      'user-agent': RELAY_USER_AGENT,
+      accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+      'accept-language': 'ja,en-US;q=0.9,en;q=0.8',
+      'content-type': 'application/x-www-form-urlencoded',
+      cookie: ctx.cookie,
+      referer: EKICHIKA_GIRLS_URL,
+      origin: 'https://ranking-deli.jp',
+    },
+    body,
+    context: { ...ctx, deleteStage: 'verify' },
+  };
+}
+
+/**
+ * 一覧を読み終えたときの、削除の流れの分岐。
+ * ★ 1回目（deleteStage が無い）… 相手が居るか・トークンが取れたかを確かめて POST を積む
+ * ★ 2回目（deleteStage='verify'）… 本当に消えたかを照合して終わる
+ */
+function girlDeleteAfterGirls(page: EkichikaGirlsPage, ctx: RelayFlowContext): FlowOutcome {
+  const flowId = ctx.flowId;
+  const castId = String(ctx.deleteCastId ?? '');
+  const found = page.rows.find((r) => r.castId === castId) ?? null;
+
+  // ── 2回目: 照合 ──────────────────────────────────────────────
+  if (ctx.deleteStage === 'verify') {
+    const who = ctx.deleteName ? ctx.deleteName + 'さん' : 'castId ' + castId;
+    if (found !== null) {
+      // ★ まだ居る＝消えていない。★ 「消しました」と言わない
+      return stop(
+        [{
+          event: 'delete_girl', outcome: 'failed',
+          summary: who + 'を駅ちかから削除できませんでした（一覧にまだ残っています）',
+          detail: { castId, name: ctx.deleteName ?? null, people: page.rows.length, reason: 'still_listed', flowId },
+        }],
+        '削除を送ったが、一覧にまだ castId ' + castId + ' が残っている',
+      );
+    }
+    const before = typeof ctx.deleteBefore === 'number' ? ctx.deleteBefore : null;
+    const after = page.rows.length;
+    // ★★ 1人だけ減ったか。★ 2人以上減っていたら「消しました」と言い切らない
+    const diff = before === null ? null : before - after;
+    const suspicious = diff !== null && diff !== 1;
+    return {
+      kind: 'done',
+      audits: [{
+        event: 'delete_girl',
+        outcome: suspicious ? 'failed' : 'ok',
+        summary: suspicious
+          ? who + 'を削除しましたが、在籍が' + String(diff) + '名ぶん変わっています（お確かめください）'
+          : who + 'を駅ちかから削除しました',
+        detail: { castId, name: ctx.deleteName ?? null, before, after, diff, flowId },
+      }],
+      note: suspicious
+        ? '削除は通ったが在籍の増減が1名ではない（before=' + String(before) + ' after=' + after + '）'
+        : '削除を確認した（' + String(before) + '名 → ' + after + '名）',
+    };
+  }
+
+  // ── 1回目: これから消す ───────────────────────────────────────
+  if (!/^\d{1,12}$/.test(castId)) {
+    return stop(
+      [{ event: 'delete_girl', outcome: 'stopped', summary: '削除する相手が指定されていないため、何もしませんでした', detail: { reason: 'no_cast_id', flowId } }],
+      '消す相手（castId）が文脈に入っていない',
+    );
+  }
+  if (found === null) {
+    // ★ 既に居ない。★ これは失敗ではない（同じ相手をもう一度消すだけ・§81）
+    return {
+      kind: 'done',
+      audits: [{
+        event: 'delete_girl', outcome: 'stopped',
+        summary: 'castId ' + castId + ' は駅ちかの一覧に居ないため、何もしませんでした',
+        detail: { castId, people: page.rows.length, reason: 'not_listed', flowId },
+      }],
+      note: '一覧に居ないので削除しない（' + page.rows.length + '名を読んだ）',
+    };
+  }
+  const token = page.csrfToken;
+  if (!token) {
+    return stop(
+      [{ event: 'delete_girl', outcome: 'failed', summary: '駅ちかの一覧から必要な値を読み取れなかったため、削除しませんでした', detail: { castId, reason: 'no_csrf', flowId } }],
+      '一覧ページから fuel_csrf_token を拾えなかった（画面の作りが変わった疑い）',
+    );
+  }
+
+  return {
+    kind: 'next',
+    next: buildGirlDeleteStep(
+      { ...ctx, deleteName: found.name, deleteBefore: page.rows.length },
+      token,
+    ),
+    audits: [
+      { event: 'login', outcome: 'ok', detail: { flowId } },
+      { event: 'read_girls', outcome: 'ok', detail: { people: page.rows.length, flowId } },
+    ],
+    note: found.name + 'さん（castId ' + castId + '）を削除します。★ 在籍 ' + page.rows.length + '名を読んだうえで1人だけ送ります',
+  };
+}
+
+/**
+ * 削除の POST の応答。
+ * ★★ ここでは成否を判定しない。★ もう一度一覧を読んで照合する（第46便 §35）。
+ */
+function afterGirlDelete(
+  input: { status: number; headers: Record<string, string | string[]>; body: string },
+  ctx: RelayFlowContext,
+): FlowOutcome {
+  const flowId = ctx.flowId;
+  const location = String(input.headers['location'] ?? '');
+  if (location.includes('/admin/login')) {
+    return stop(
+      [{ event: 'login', outcome: 'failed', summary: '駅ちかのセッションが切れました（削除は行われていません）', detail: { httpStatus: input.status, reason: 'back_to_login', flowId } }],
+      '削除の応答がログイン画面へ戻された',
+    );
+  }
+  if (input.status >= 400) {
+    return stop(
+      [{ event: 'delete_girl', outcome: 'failed', summary: '駅ちかの削除で想定外の応答がありました', detail: { castId: ctx.deleteCastId ?? null, httpStatus: input.status, reason: 'http_error', flowId } }],
+      '削除の応答が ' + input.status + ' だった',
+    );
+  }
+  // ★ 200 でも 302 でも、判定は次の読み直しで行う
+  return {
+    kind: 'next',
+    next: {
+      purpose: 'read_girls',
+      method: 'GET',
+      url: EKICHIKA_GIRLS_URL,
+      headers: buildReadWorkRequest(ctx.cookie),
+      body: '',
+      context: { ...ctx, deleteStage: 'verify' },
+    },
+    audits: [],
+    note: '削除を送った。★ 成否は一覧を読み直して確かめる（応答では判定しない）',
+  };
+}
+
 function afterReadGirls(
   input: { status: number; headers: Record<string, string | string[]>; body: string },
   ctx: RelayFlowContext,
@@ -1363,6 +1575,10 @@ function afterReadGirls(
   const page = parseEkichikaGirls(input.body);
 
   if (girlsPageUsable(page)) {
+    // ★★★ 削除の流れ（第228便）は、ここで終わらずに次の段へ進む。
+    //   ★ 既存の roster_read の枝には一切触っていない（下の return がそのまま残る）。
+    if (ctx.intent === 'girl_delete') return girlDeleteAfterGirls(page, ctx);
+
     // ★★ ここまで来て初めて「ログインできた」と言える
     return {
       kind: 'roster',
@@ -1710,6 +1926,11 @@ function finishRead(audits: FlowAudit[], ctx: RelayFlowContext, page: WorkPage):
       // ★★ ここへは来ない（新着情報は出勤ページを使わない）。
       //   ★ それでも【黙って通さない】。★ 来たら止める
       return stop(audits, '新着情報は出勤ページを使わない（ここへは来ないはず）');
+    case 'girl_delete':
+      // ★ ここへは来ない（削除は女の子一覧しか使わない）。★ 網羅は外さない（第228便）
+      //   ★★★ ここへ来たということは、削除の流れが出勤ページへ迷い込んだということ。
+      //     ★ 消す前に必ず止める。★ 「たぶん大丈夫」で先へ進めない
+      return stop(audits, '削除は出勤ページを使わない（ここへは来ないはず）');
     case 'work_auto':
       // ★★★ 自動反映（第48便）。組み立てから送信までを1回のフローで閉じる。
       //   ★ 指紋は突き合わせない（人が見た内容が無い・§53）。担保は厳しい方の blockers。

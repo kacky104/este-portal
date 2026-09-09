@@ -52,6 +52,13 @@ export type EkichikaGirlRow = {
 export type EkichikaGirlsPage = {
   rows: EkichikaGirlRow[];
   /**
+   * ★★★ 一覧ページの中にある一括操作フォームの使い捨てトークン（第228便・2026-09-09）。
+   *   ★ 削除（POST /admin/girls/ ＋ girls_list_action=delete_girl）に要る。
+   *   ★ 読み取りだけの用（roster_read）には要らないので、**無くても problems には足さない**。
+   *     ★ 足すと「名簿を読む」が使えなくなる。★ 要るかどうかは呼び出し側が決める。
+   */
+  csrfToken: string | null;
+  /**
    * ★★★ 読めたが信用できない理由。空でなければ **使わせない**。
    *   数を返して黙るのが一番危ない（第35便の反省6・第43便-b §26）。
    */
@@ -100,6 +107,18 @@ const CELL_HEAD = /<li\b[^>]*\bclass="([^"]*\bgirls-cell\b[^"]*)"[^>]*>/gi;
  *   chck_girls_id の添字は【削除で送る番号】。編集URLの番号と食い違ったまま通すと、
  *   将来ここを削除に使ったときに **別人を消す**。★ 読み取りの段で弾いておく。
  */
+/**
+ * 一括操作フォームの使い捨てトークンを拾う（★ name / value の順が入れ替わっても読めるように2通り見る）。
+ * ★ 見つからなければ null。★ ここでは警告を出さない（上の型のコメント参照）。
+ */
+export function readGirlsCsrfToken(html: string): string | null {
+  const src = String(html ?? '');
+  const a = /name="fuel_csrf_token"[^>]*?value="([^"]*)"/i.exec(src)?.[1];
+  if (a) return a;
+  const b = /value="([^"]*)"[^>]*?name="fuel_csrf_token"/i.exec(src)?.[1];
+  return b ? b : null;
+}
+
 export function parseEkichikaGirls(html: string): EkichikaGirlsPage {
   const src = String(html ?? '');
   const problems: string[] = [];
@@ -115,7 +134,7 @@ export function parseEkichikaGirls(html: string): EkichikaGirlsPage {
   if (heads.length === 0) {
     // ★ ログイン画面が返っている／作りが変わった、のどちらか。数を返して黙らない
     problems.push('女の子一覧の行（girls-cell）が1件も見つからない。取得失敗かレイアウト変更を疑うこと');
-    return { rows, problems };
+    return { rows, problems, csrfToken: readGirlsCsrfToken(src) };
   }
 
   const seen = new Set<string>();
@@ -173,7 +192,7 @@ export function parseEkichikaGirls(html: string): EkichikaGirlsPage {
     );
   }
 
-  return { rows, problems };
+  return { rows, problems, csrfToken: readGirlsCsrfToken(src) };
 }
 
 /**
