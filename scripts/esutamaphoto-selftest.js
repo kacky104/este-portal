@@ -287,5 +287,83 @@ console.log('\n── ⑨ ★★★★★ 空き枠にだけ送る（★ 店舗�
   eq('★★★★ 送る前の状態を記録に残す（★ 何を上書きしたかが後から読める）', rep.meta.wasState, 'saved');
 }
 
+console.log('\n── ⑩ ★★★★★ 保存して本紐づけする（第242便） ──');
+//
+// ★★★ ①（仮置き）だけでは写真は付かない。★ 編集フォームを保存して初めて付く（§25-1・実測）。
+// ★★★★★ ここは **既存のセラピストの設定を保存する**段。★ 別人を上書きしないことが最優先。
+{
+  // ★ 読んだ編集フォーム（★ 追加フォームではなく、castId 付きのほう）
+  const editForm = (castId, extra) => ({
+    fields: [
+      { name: 'cast_id', value: String(castId) },
+      { name: 'ctk', value: 'a1b2c3' },
+      { name: 'name', value: 'テスト' },
+      { name: 'age', value: '22' },
+      { name: 'type[]', value: '1' },
+      { name: 'order_cast_images[]', value: 'photo1' },
+      ...(extra || []),
+    ],
+    castIdHidden: String(castId),
+    submits: [],
+  });
+  const TMP3 = { field: 'cast_icon_3-imgupload', value: '/temp/file_abc12_20260910113245.jpg', slot: 3 };
+  const TMP4 = { field: 'cast_icon_4-imgupload', value: '/temp/file_def34_20260910113246.jpg', slot: 4 };
+
+  eq('★★ 編集ページの URL', P.esutamaCastEditUrl('955513'), 'https://estama.jp/admin/cast_edit/955513/');
+  throws('★★ castId の形が違えば作らない', () => P.esutamaCastEditUrl('../x'), /castId/);
+
+  const g = P.buildEsutamaCastEditFormRequest('sid=abc', '955513');
+  eq('★ 編集フォームは GET（読むだけ）', [g.method, g.url], ['GET', 'https://estama.jp/admin/cast_edit/955513/']);
+  throws('★ cookie が無ければ読みに行かない', () => P.buildEsutamaCastEditFormRequest('', '955513'), /Cookie/);
+
+  const r = P.buildEsutamaCastPhotoSaveRequest('sid=abc', editForm(955513), '955513', [TMP3]);
+  eq('★★★ 保存は POST', r.method, 'POST');
+  eq('★★★ 宛先はその人の編集ページ', r.url, 'https://estama.jp/admin/cast_edit/955513/');
+  eq('★★★★ 読んだ欄はそのまま返す（★ 触らない）',
+     /(^|&)name=%E3%83%86%E3%82%B9%E3%83%88(&|$)/.test(r.body) && /(^|&)age=22(&|$)/.test(r.body), true);
+  eq('★★★★★ 足すのは写真の組だけ',
+     /(^|&)cast_icon_3-imgupload=%2Ftemp%2Ffile_abc12_20260910113245\.jpg(&|$)/.test(r.body), true);
+  eq('★★ 何を保存したかを残す', r.meta, { castId: '955513', slots: [3], pairs: 7 });
+
+  const r2 = P.buildEsutamaCastPhotoSaveRequest('sid=abc', editForm(955513), '955513', [TMP3, TMP4]);
+  eq('★★ 2枚まとめても送れる', r2.meta.slots, [3, 4]);
+
+  // ★★★★★ 別人を上書きしに行かないための止め
+  throws('★★★★★ 読んだフォームの cast_id が違えば保存しない（★ 別人を上書きしない）',
+         () => P.buildEsutamaCastPhotoSaveRequest('sid=abc', editForm(999999), '955513', [TMP3]),
+         /cast_id.*違います/);
+  throws('★★★★★ 追加フォーム（cast_id=0）を掴んでいたら保存しない',
+         () => P.buildEsutamaCastPhotoSaveRequest('sid=abc', editForm(0), '955513', [TMP3]),
+         /追加フォーム/);
+
+  // ★★★ 店舗様の資源を使わない（二重の見張り）
+  throws('★★★ set_up_limit が混じっていたら保存しない',
+         () => P.buildEsutamaCastPhotoSaveRequest('sid=abc',
+           editForm(955513, [{ name: 'set_up_limit', value: '1' }]), '955513', [TMP3]), /set_up_limit/);
+
+  // ★ そのほかの止め
+  throws('★★ cookie が無ければ保存しない', () => P.buildEsutamaCastPhotoSaveRequest('', editForm(955513), '955513', [TMP3]), /Cookie/);
+  throws('★★★ ctk が無ければ保存しない',
+         () => P.buildEsutamaCastPhotoSaveRequest('sid=abc',
+           { fields: [{ name: 'cast_id', value: '955513' }], castIdHidden: '955513' }, '955513', [TMP3]), /ctk/);
+  throws('★★ 足す写真が0枚なら保存しない',
+         () => P.buildEsutamaCastPhotoSaveRequest('sid=abc', editForm(955513), '955513', []), /1枚も/);
+  throws('★★ 同じ枠が2回なら保存しない',
+         () => P.buildEsutamaCastPhotoSaveRequest('sid=abc', editForm(955513), '955513', [TMP3, TMP3]), /2回/);
+  throws('★★★ 欄名が枠の番号と合っていなければ保存しない',
+         () => P.buildEsutamaCastPhotoSaveRequest('sid=abc', editForm(955513), '955513',
+           [{ field: 'cast_icon_5-imgupload', value: TMP3.value, slot: 3 }]), /欄名/);
+  throws('★★★ 値が仮置きの形でなければ保存しない',
+         () => P.buildEsutamaCastPhotoSaveRequest('sid=abc', editForm(955513), '955513',
+           [{ field: 'cast_icon_3-imgupload', value: '/etc/passwd.jpg', slot: 3 }]), /仮置きの形/);
+  throws('★★★★ 読んだフォームに同じ欄が在れば二重に送らない',
+         () => P.buildEsutamaCastPhotoSaveRequest('sid=abc',
+           editForm(955513, [{ name: 'cast_icon_3-imgupload', value: '/temp/old.jpg' }]), '955513', [TMP3]), /二重/);
+  throws('★★★ 送信ボタンが2つ以上なら保存しない',
+         () => P.buildEsutamaCastPhotoSaveRequest('sid=abc',
+           Object.assign({}, editForm(955513), { submits: [{ name: 'a', value: '' }, { name: 'b', value: '' }] }),
+           '955513', [TMP3]), /送信ボタンが2個/);
+}
+
 console.log(fail === 0 ? '\nすべて通りました' : '\n' + fail + ' 件 NG');
 process.exit(fail === 0 ? 0 : 1);

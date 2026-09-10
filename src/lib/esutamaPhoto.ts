@@ -341,3 +341,141 @@ export function firstEmptyEsutamaPhotoSlot(page: EsutamaPhotoPage): number | nul
   const hit = page.slots.find((s) => s.state === 'empty');
   return hit ? hit.slot : null;
 }
+
+// ───────── ★★★ ②の段: 保存して本紐づけする（第242便・2026-09-10）─────────
+//
+// ★★★★★ ①（仮置き）だけでは写真は付かない。★ **編集フォームを保存して初めて付く**（§25-1）。
+//   ★ 実測: 保存フォームに `cast_icon_<枠>-imgupload=/temp/<ファイル名>` を足すと紐づく。
+//
+// ★★★ ここは **既存のセラピストの編集フォームを保存する**ところ。★ いちばん気をつける段。
+//   ★ 読んだ65部品を**そのまま返し**、写真の1組だけを足す。★ ほかの値には触らない。
+//   ★★ 作法は追加（第231便）と同じ。★ 相手が項目を増やしても黙って壊れない。
+
+/** 既存セラピストの編集ページ。★ 追加フォーム（`/admin/cast_edit/`）とは別物 */
+export function esutamaCastEditUrl(castId: string): string {
+  const id = String(castId ?? '').trim();
+  if (!/^\d{1,12}$/.test(id)) throw new Error('castId の形が不正です（' + id.slice(0, 20) + '）');
+  return ESUTAMA_CAST_EDIT_URL + id + '/';
+}
+
+/** 既存セラピストの編集フォームを読む GET。★ 読むだけ */
+export function buildEsutamaCastEditFormRequest(cookie: string, castId: string): { method: 'GET'; url: string; headers: Record<string, string> } {
+  if (!cookie) throw new Error('Cookie が無いまま編集フォームを読みに行かない');
+  const url = esutamaCastEditUrl(castId);
+  return {
+    method: 'GET',
+    url,
+    headers: {
+      'user-agent': RELAY_USER_AGENT,
+      accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+      'accept-language': 'ja,en-US;q=0.9,en;q=0.8',
+      referer: 'https://estama.jp/admin/cast/',
+      cookie,
+    },
+  };
+}
+
+/** ★ 仮置きの結果（`readEsutamaTmpPhoto` が返したもの）を、そのまま渡す */
+export type EsutamaPhotoAttach = { field: string; value: string; slot: number };
+
+/**
+ * ★★★★★ 編集フォームを保存して、仮置きの写真を本紐づけする。
+ *
+ * @param form `parseEsutamaCastForm` が読んだもの（★ `set_up_limit` と file は既に外れている）
+ * @param castId 保存する相手。★ **読んだフォームの cast_id と一致していること**を確かめる
+ * @param attach 足す写真の組（★ 1枚以上）
+ *
+ * ★★★ 止める条件（★ 迷ったら送らない）:
+ *   ・Cookie が無い ／ 読んだフォームに `ctk` が無い
+ *   ・★★★★★ **読んだフォームの `cast_id` が、保存するつもりの castId と違う**
+ *     → ★ **別人の設定を上書きしに行かない。** ★ ここがこの段でいちばん怖いところ
+ *   ・`cast_id` が `0`（＝追加フォームを掴んでいる）
+ *   ・★★★ **`set_up_limit` が混じっている**（「保存と同時に上位表示」＝店舗様の残り回数を使う・§9-2）
+ *   ・足す組が0個 ／ 形が違う ／ 同じ枠が2回 ／ 読んだフォームに既に同じ欄が在る
+ *   ・送信ボタンが2つ以上（★ どれを押すかをこちらで決めない）
+ */
+export function buildEsutamaCastPhotoSaveRequest(
+  cookie: string,
+  form: {
+    fields: Array<{ name: string; value: string }>;
+    castIdHidden: string | null;
+    submits?: Array<{ name: string; value: string }>;
+  },
+  castId: string,
+  attach: readonly EsutamaPhotoAttach[],
+): { method: 'POST'; url: string; headers: Record<string, string>; body: string; meta: { castId: string; slots: number[]; pairs: number } } {
+  if (!cookie) throw new Error('Cookie が無いまま保存しない');
+  const id = String(castId ?? '').trim();
+  const url = esutamaCastEditUrl(id);
+
+  const fields = form.fields ?? [];
+  if (fields.length === 0) throw new Error('編集フォームを読めていないので保存しない');
+  if (!fields.some((f) => f.name === 'ctk')) throw new Error('ctk が無いまま保存しない');
+
+  // ★★★★★ 別人を上書きしに行かないための止め（★ この段でいちばん怖いところ）
+  const hidden = String(form.castIdHidden ?? '').trim();
+  if (hidden === '0') throw new Error('追加フォーム（cast_id=0）を掴んでいます。★ 保存しません');
+  if (hidden !== id) {
+    throw new Error('読んだフォームの cast_id（' + (hidden || '無し') + '）が保存する相手（' + id + '）と違います。★ 保存しません');
+  }
+
+  // ★★★ 上位表示の残り回数を使わない（二重の見張り・§9-2）
+  if (fields.some((f) => f.name === 'set_up_limit')) {
+    throw new Error('set_up_limit が混じっています。★ 上位表示の残り回数は店舗様の資源なので送りません');
+  }
+
+  const list = Array.isArray(attach) ? attach : [];
+  if (list.length === 0) throw new Error('足す写真が1枚もありません。★ 保存しません');
+  const seen = new Set<number>();
+  for (const a of list) {
+    const slot = Number(a?.slot);
+    if (!Number.isInteger(slot) || slot < 1 || slot > ESUTAMA_PHOTO_SLOT_MAX) {
+      throw new Error('枠の番号が不正です（' + String(a?.slot) + '）');
+    }
+    if (seen.has(slot)) throw new Error('枠 ' + slot + ' が2回あります');
+    seen.add(slot);
+    if (a?.field !== 'cast_icon_' + slot + '-imgupload') {
+      throw new Error('枠 ' + slot + ' の欄名が違います（' + String(a?.field) + '）');
+    }
+    if (!/^\/temp\/[A-Za-z0-9_\-]{1,80}\.(jpg|jpeg|png)$/i.test(String(a?.value ?? ''))) {
+      throw new Error('枠 ' + slot + ' の値が仮置きの形ではありません（' + String(a?.value).slice(0, 40) + '）');
+    }
+    // ★ 読んだフォームに既に同じ欄が在るなら、こちらが足すと2つ飛ぶ。★ 黙って重ねない
+    if (fields.some((f) => f.name === a.field)) {
+      throw new Error('枠 ' + slot + ' の欄が既にフォームに在ります。★ 二重に送りません');
+    }
+  }
+
+  const out: Array<[string, string]> = [];
+  for (const f of fields) out.push([f.name, f.value]);          // ★ 読んだまま返す（★ 触らない）
+  for (const a of list) out.push([a.field, a.value]);            // ★ 足すのは写真の組だけ
+
+  // ★★★★ 押したボタンを送る（第234便でそろえた作法）。★ 2つ以上あったら送らない
+  const submits = form.submits ?? [];
+  if (submits.length > 1) {
+    throw new Error('送信ボタンが' + submits.length + '個あります（' + submits.map((b) => b.name).join(' / ')
+      + '）。★ どれを押すか決められないので送りません');
+  }
+  if (submits.length === 1) out.push([submits[0].name, submits[0].value]);
+
+  const body = out
+    .map(([k, v]) => encodeURIComponent(k).replace(/[!'()*~]/g, (c) => '%' + c.charCodeAt(0).toString(16).toUpperCase()).replace(/%20/g, '+')
+      + '=' + encodeURIComponent(v).replace(/[!'()*~]/g, (c) => '%' + c.charCodeAt(0).toString(16).toUpperCase()).replace(/%20/g, '+'))
+    .join('&');
+
+  return {
+    method: 'POST',
+    url,
+    headers: {
+      'user-agent': RELAY_USER_AGENT,
+      accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+      'accept-language': 'ja,en-US;q=0.9,en;q=0.8',
+      'content-type': 'application/x-www-form-urlencoded; charset=UTF-8',
+      referer: url,
+      origin: ESUTAMA_ORIGIN,
+      cookie,
+    },
+    body,
+    meta: { castId: id, slots: [...seen].sort((a, b) => a - b), pairs: out.length },
+  };
+}
