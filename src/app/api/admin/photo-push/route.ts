@@ -16,6 +16,10 @@ import { centeredMainCrop, isPhotoSlot, isValidThumbRect, THUMB_DEFAULT_RECT, PH
 //   ★ 初回の実弾は【空き枠】に1枚 → 駅ちかの画面で目で見る → 人が削除（設計メモ §7・§10）。
 //
 // ★★★ 枠1（トップ画像）は送らない。★ 間違えると店舗様の顔になる画像が変わる。
+// ★★★★★★ 【第246便】さらに、**枠1が空きの方にも送らない**（VPS 側の read_photo_page で止まる）。
+//   ★ 「駅ちかは指名した枠を守る」は第107便の記録からの**推定**（★ そのときの枠の一覧が残っていない）。
+//   ★★ 万一いちばん小さい空き枠へ詰める相手なら、枠1が空きの方は**枠1に入る**＝トップ画像が変わる。
+// ★★★★★★ 【第246便】最後に**読み直して照合**する。★ それまでの ok は送った枠番号の書き写しでしかなかった。
 // ★★ 送るのは【フクエスに店舗様が上げた写真】だけ（therapist-photos）。★ 他所の画像は指せない。
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -139,7 +143,14 @@ export async function POST(req: Request) {
     girlId, imageSetId,
     file: { bucket: BUCKET, path, filename, contentType: size.type, width: size.width, height: size.height, bytes: buf.byteLength },
     mainRect, thumbRect,
-    steps: ['login', 'read_photo_page', 'upload_photo', 'read_photo_page', 'crop_photo(3:4)', 'read_photo_page', 'crop_photo(1:1)'],
+    steps: ['login', 'read_photo_page', 'upload_photo', 'read_photo_page', 'crop_photo(3:4)', 'read_photo_page', 'crop_photo(1:1)', 'read_photo_page', 'verify'],
+    // ★★★★ 第246便: 最後に読み直して照合する。★ ここまでの応答では成否を名乗らない
+    verify: '★★ 送ったあと編集ページを読み直し、指名した枠に入ったか・他の枠が変わっていないかを確かめます',
+    guards: [
+      '★ 枠が空きでなければ送りません（slot_occupied）',
+      '★★ 枠1（トップ画像）が空きの方には送りません（slot1_empty・第246便）',
+      '★★★ 指名した枠と違う枠に入っていたら failed で申告します（slot_mismatch・第246便）',
+    ],
   };
 
   if (!apply) {

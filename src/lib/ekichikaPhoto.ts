@@ -48,12 +48,20 @@ export function isPhotoSlot(n: unknown): n is number {
 
 // ────────────────────────── ⓪ 編集ページの読み取り ──────────────────────────
 
+/** 枠1つぶんの状態。★ `image` は編集ページに書いてあった【生の値】（★ 空き枠は仮画像 noimage2.jpg） */
+export type PhotoSlotState = { slot: number; hasImage: boolean; image: string };
+
 export type PhotoPage = {
   csrfToken: string;
   shopId: string;
   girlId: string;
-  /** 枠ごとに「大画像が入っているか」。★ edt_type=2 の form の image が空でなければ入っている */
-  slots: Array<{ slot: number; hasImage: boolean }>;
+  /**
+   * 枠ごとの状態。★ edt_type=2 の form の image が、その枠の大画像の在処。
+   *   ★★★ 【第246便】`image`（★ 生の値）も返す。★ `hasImage` だけでは足りない。
+   *     ★ 「空き→あり」しか見えないと、**前から入っていた写真が差し替わった**のを見つけられない。
+   *     ★ 照合（verifyPhotoSlots）は、この生の値の変化を見る。
+   */
+  slots: PhotoSlotState[];
   /** ★★★ 読めたが信用できない理由。空でなければ使わせない */
   problems: string[];
 };
@@ -86,7 +94,7 @@ export function parsePhotoPage(html: string, expectGirlId: string): PhotoPage {
   let csrfToken = '';
   let shopId = '';
   let girlId = '';
-  const slotMap = new Map<number, boolean>();
+  const slotMap = new Map<number, string>();     // ★ 第246便: 真偽ではなく【生の image】を覚える
 
   for (const f of forms) {
     const inputs = f.match(/<input\b[^>]*>/gi) ?? [];
@@ -102,13 +110,15 @@ export function parsePhotoPage(html: string, expectGirlId: string): PhotoPage {
     if (!girlId && kv.get('id')) girlId = kv.get('id') ?? '';
     // ★ 既存画像の切り抜き直し form（edt_type=2）の image が、その枠の大画像の在処
     if (kv.get('edt_type') === '2') {
-      slotMap.set(setId, slotHasPhoto(kv.get('image') ?? ''));
+      slotMap.set(setId, kv.get('image') ?? '');
     } else if (!slotMap.has(setId)) {
-      slotMap.set(setId, false);
+      slotMap.set(setId, '');
     }
   }
 
-  const slots = [...slotMap.entries()].sort((a, b) => a[0] - b[0]).map(([slot, hasImage]) => ({ slot, hasImage }));
+  const slots: PhotoSlotState[] = [...slotMap.entries()]
+    .sort((a, b) => a[0] - b[0])
+    .map(([slot, image]) => ({ slot, hasImage: slotHasPhoto(image), image }));
 
   if (!csrfToken) problems.push('fuel_csrf_token が取れていない');
   if (!shopId) problems.push('shopid が取れていない');
@@ -118,6 +128,69 @@ export function parsePhotoPage(html: string, expectGirlId: string): PhotoPage {
   else if (slots.length !== PHOTO_SLOT_MAX) problems.push('枠の数が ' + PHOTO_SLOT_MAX + ' ではない: ' + slots.length);
 
   return { csrfToken, shopId, girlId, slots, problems };
+}
+
+// ────────────────────────── 照合（第246便） ──────────────────────────
+
+/**
+ * ★★★★★★ 【第246便】送ったあとに読み直して、**言ったとおりの枠に入ったか**を照合する。
+ *
+ * ★ なぜ要るか … 第107便のままだと、最後の申告は **送った枠番号を書き写しているだけ**だった。
+ *   ★ 200 が返れば ok と言ってしまう。★ 相手が別の枠へ入れていても気づけない。
+ *   ★★ エステ魂は第244便の実弾で「★ 枠番号を見ず、いちばん小さい空き枠へ詰める」と分かった。
+ *     ★ そのとき嘘の成功を出さずに済んだのは、**読み直しての照合**があったから（第46便 §35）。
+ *   ★★★ 駅ちかは第107便の記録では指名を守っている【はず】。★ だがそれは**推定**（枠の一覧が残っていない）。
+ *     → ★★ 「はず」を、実弾ではなく**記録で確かめ続ける**ための照合。★ 次のふつうの1発が答えを残す。
+ *
+ * ★ 見る順は【重い順】。★ 店舗様の写真を壊したかどうかが、いちばん重い。
+ */
+export type PhotoVerdict =
+  | { ok: true; slot: number; gotSlot: null; changed: number[] }
+  | { ok: false; reason: PhotoVerifyReason; slot: number; gotSlot: number | null; changed: number[] };
+
+export type PhotoVerifyReason = 'slot_missing' | 'slot_overwritten' | 'slot_mismatch' | 'slot_extra' | 'not_saved';
+
+export function verifyPhotoSlots(before: PhotoSlotState[], after: PhotoSlotState[], slot: number): PhotoVerdict {
+  const at = (list: PhotoSlotState[], n: number) => list.find((s) => s.slot === n) ?? null;
+  const b = at(before, slot);
+  const a = at(after, slot);
+  if (!b || !a) return { ok: false, reason: 'slot_missing', slot, gotSlot: null, changed: [] };
+
+  // ★★★★★★ ① 前から写真の【あった】枠が動いていないか。★ 店舗様の写真を壊していないか
+  //   ★ 差し替わった／消えた、どちらも同じ重さで扱う。★ どちらも「触ってはいけないものを触った」
+  const overwritten = before
+    .filter((s) => s.hasImage)
+    .filter((s) => { const now = at(after, s.slot); return !now || now.image !== s.image; })
+    .map((s) => s.slot);
+  if (overwritten.length > 0) {
+    return { ok: false, reason: 'slot_overwritten', slot, gotSlot: null, changed: overwritten };
+  }
+
+  // ★ 送る前に空きだった枠のうち、いま埋まっているもの
+  const filled = before
+    .filter((s) => !s.hasImage)
+    .filter((s) => { const now = at(after, s.slot); return !!now && now.hasImage; })
+    .map((s) => s.slot);
+  const others = filled.filter((n) => n !== slot);
+
+  // ★★★★★ ② 指名した枠が空きのまま・別の空き枠が埋まった ＝ **相手が詰めた**
+  if (!a.hasImage) {
+    if (others.length > 0) return { ok: false, reason: 'slot_mismatch', slot, gotSlot: others[0], changed: filled };
+    return { ok: false, reason: 'not_saved', slot, gotSlot: null, changed: [] };
+  }
+
+  // ★★★ ③ 指名した枠は入ったが、別の空き枠も埋まった ＝ 人が同じ画面を同時に触った疑い
+  if (others.length > 0) return { ok: false, reason: 'slot_extra', slot, gotSlot: others[0], changed: filled };
+
+  return { ok: true, slot, gotSlot: null, changed: [] };
+}
+
+/**
+ * ★ 枠の形を1本の文字にする（例 `11110001`）。★ 記録に残すためだけ。
+ *   ★★ 生の URL を監査に流さない（★ mediaAudit の scrub に頼らず、こちらで短くする）。
+ */
+export function describePhotoSlots(slots: PhotoSlotState[]): string {
+  return slots.map((s) => (s.hasImage ? '1' : '0')).join('');
 }
 
 // ────────────────────────── ①②③ の応答（JSON） ──────────────────────────

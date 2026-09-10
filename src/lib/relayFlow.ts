@@ -72,7 +72,10 @@ import {
   THUMB_DEFAULT_RECT,
   EKICHIKA_PHOTO_UPLOAD_URL,
   EKICHIKA_PHOTO_CROP_URL,
+  verifyPhotoSlots,          // ★ 第246便: 読み直しての照合
+  describePhotoSlots,        // ★ 第246便: 枠の形を1本の文字にして記録に残す
   type Rect,
+  type PhotoSlotState,
 } from './ekichikaPhoto';
 import { relayFileUrl, type RelayMultipart } from './relayMultipart';
 // ★ エステラブ（第78便）。★ 駅ちかの段には一切触れず、別の段名で足す
@@ -233,7 +236,10 @@ export type RelayFlowIntent =
   | 'diary_read'
   /**
    * ★★★ 写真の送信（第107便・設計メモ_駅ちかの画像アップロード 追記 A〜E）。
-   *   login → read_photo_page → upload_photo → read_photo_page → crop_photo(3:4) → read_photo_page → crop_photo(正方形) → 終わり
+   *   login → read_photo_page → upload_photo → read_photo_page → crop_photo(3:4) → read_photo_page → crop_photo(正方形)
+   *        → ★★★ read_photo_page(照合) → 終わり  【第246便】
+   *   ★★★★ 【第246便】最後の読み直しが要る。★ それまでの ok は「送った枠番号の書き写し」でしかない。
+   *     ★ 第46便 §35「書き込みの応答では判定しない」を、駅ちかの写真にも当てはめた（★ エステ魂は第243便で済み）。
    *   ★★ **駅ちかを書き換える intent（work_push / work_auto に次ぐ3つ目）。**
    *   ★ 写真そのものはジョブに載せない。VPS が fukues.com の口から取って multipart で投げる（第106便・案B）。
    *   ★ POST のたびに編集ページを読み直す（★ fuel_csrf_token を毎回そのページから拾う。使い捨てでも壊れない）。
@@ -624,10 +630,18 @@ export type RelayFlowContext = {
   photoMainRect?: Rect;
   /** ③サムネイルの正方形（300×400 の空間）。無ければ駅ちかの既定（中央 180×180） */
   photoThumbRect?: Rect;
-  /** いまどの段のために編集ページを読みに行っているか */
-  photoStage?: 'upload' | 'crop_main' | 'crop_thumb';
+  /** いまどの段のために編集ページを読みに行っているか。★ 'verify' は第246便で足した */
+  photoStage?: 'upload' | 'crop_main' | 'crop_thumb' | 'verify';
   /** 直近の応答の src（①の大画像 → ②の 3:4 → ③のサムネイル） */
   photoSrc?: string;
+  /**
+   * ★★★★★★ 【第246便】**送る前の枠の状態**。★ 照合の相手はこれ。
+   *   ★ 第107便のままだと、最後の申告は `ctx.photoSlot`（送った枠）を書き写しているだけだった。
+   *     ★★ つまり相手が別の枠へ入れても気づけない。★ エステ魂で嘘の申告を止めたのは照合だった（第244便）。
+   *   ★★★ 「送った枠が入ったか」だけでなく **他の枠が変わっていないか**も見る。
+   *     ★ そのために、真偽ではなく `image` の生の値ごと覚えておく（★ 差し替えを見つけるため）。
+   */
+  photoSlotsBefore?: PhotoSlotState[];
 
   // ── ここから下は intent='diary_push' のときだけ入る（第130便・エステ魂）──
   /**
@@ -3272,6 +3286,26 @@ function responseClue(input: { status: number; headers: Record<string, string | 
 }
 
 /**
+ * ★★★★ 【第246便】照合が外れたときの、店舗様にも読める1行。
+ *   ★ 「入っていない」と言い切らない。★ **別の枠に入っているかもしれない**（第244便でエステ魂が実際にそうだった）。
+ */
+function photoVerifySummary(reason: string, slot: number, gotSlot: number | null): string {
+  if (reason === 'slot_overwritten') {
+    return '駅ちかへ写真を送ったところ、もとから入っていた写真が変わってしまいました（★ 至急ご確認ください）';
+  }
+  if (reason === 'slot_mismatch') {
+    return '駅ちかへ写真を送りましたが、指定した枠' + slot + 'ではなく枠' + String(gotSlot ?? '?') + 'に入りました（★ 画面をご確認ください）';
+  }
+  if (reason === 'slot_extra') {
+    return '駅ちかの枠' + slot + 'には入りましたが、枠' + String(gotSlot ?? '?') + 'も同時に変わっていました（★ 画面をご確認ください）';
+  }
+  if (reason === 'slot_missing') {
+    return '写真を送った枠が読み直しで見つかりませんでした';
+  }
+  return '駅ちかへ写真を送りましたが、枠' + slot + 'に入っていませんでした（★ 別の枠に入っていないか画面をご確認ください）';
+}
+
+/**
  * 編集ページの応答。★ 読めた＝ログインできている。★ ここから photoStage に応じて次の POST を組む。
  */
 function afterReadPhotoPage(
@@ -3300,9 +3334,55 @@ function afterReadPhotoPage(
   const ids = { girlId, shopId: page.shopId, slot, csrfToken: page.csrfToken };
   const stage = ctx.photoStage ?? 'upload';
 
+  // ────────── ④ 照合（★ 第246便。★ ここで初めて成否が決まる） ──────────
+  if (stage === 'verify') {
+    const before = ctx.photoSlotsBefore;
+    if (!before || before.length === 0) {
+      return photoStop(ctx, 'context_missing', '照合に要る「送る前の枠の形」が文脈にありませんでした', 'photoSlotsBefore が無い');
+    }
+    const v = verifyPhotoSlots(before, page.slots, slot);
+    const shape = { before: describePhotoSlots(before), after: describePhotoSlots(page.slots) };
+    if (!v.ok) {
+      return stop(
+        [{
+          event: 'push_photo', outcome: 'failed',
+          summary: photoVerifySummary(v.reason, slot, v.gotSlot),
+          detail: {
+            girlId, slot, reason: v.reason, gotSlot: v.gotSlot,
+            changed: v.changed.join(',') || null, ...shape, flowId: ctx.flowId,
+          },
+        }],
+        '照合で外れた（' + v.reason + '・枠 ' + slot + '／前 ' + shape.before + ' → 後 ' + shape.after + '）',
+      );
+    }
+    return {
+      kind: 'done',
+      audits: [{
+        event: 'push_photo', outcome: 'ok',
+        summary: '駅ちかの画像の枠 ' + slot + ' に写真を1枚登録しました（★ 読み直して確かめました）',
+        detail: { girlId, slot, ...shape, flowId: ctx.flowId },
+      }],
+      note: '読み直して枠 ' + slot + ' に入っていることを確かめた（前 ' + shape.before + ' → 後 ' + shape.after + '）',
+    };
+  }
+
   if (stage === 'upload') {
     // ★★ 枠に既に大画像があるかを見る。★ 上書きは呼び出し側が明示したときだけ…ではなく、
     //   第107便では【空き枠だけ】に送る（★ 初回の実弾は空き枠→目で見る→削除、の作法）。
+    // ★★★★★★ 【第246便・案A】枠1が空きの子には送らない。
+    //   ★ 枠1は**トップ画像**。★ 間違えると店舗様の顔になる画像が変わる（★ 元に戻せない）。
+    //   ★★ 「駅ちかは指名を守る」は第107便の記録からの**推定**（★ そのときの枠の一覧が残っていない）。
+    //     → ★ 万一いちばん小さい空き枠へ詰める相手なら、枠1が空きの子は**枠1に入る**。
+    //   ★★★ 費用はほぼゼロ … 掲載中の子は枠1が埋まっている。★ 新規の子のトップ画像はこの口では入れられない（枠1は 400）。
+    //   ★ この止めは、照合（§verify）が「詰めない」を実測で示したら外してよい。
+    const slot1 = page.slots.find((x) => x.slot === 1);
+    if (slot1 && !slot1.hasImage) {
+      return photoStop(
+        ctx, 'slot1_empty',
+        'この方は枠1（トップ画像）が空きのため送りませんでした（★ 万一詰められるとトップ画像が変わるため）',
+        '枠1が空き（トップ画像が変わる恐れ）',
+      );
+    }
     const target = page.slots.find((x) => x.slot === slot);
     if (target && target.hasImage) {
       return photoStop(ctx, 'slot_occupied', '指定した画像の枠（' + slot + '）には既に写真が入っているため送りませんでした', '枠 ' + slot + ' は使用中');
@@ -3325,9 +3405,10 @@ function afterReadPhotoPage(
         headers: photoHeadersPost(ctx, false),
         body: '',
         multipart,
-        context: { ...ctx, photoStage: 'upload' },
+        // ★★★ 第246便: **送る前の枠の形**をここで覚える。★ 最後の照合の相手になる
+        context: { ...ctx, photoStage: 'upload', photoSlotsBefore: page.slots },
       },
-      audits: [{ event: 'read_photo_page', outcome: 'ok', detail: { slot, flowId: ctx.flowId } }],
+      audits: [{ event: 'read_photo_page', outcome: 'ok', detail: { slot, before: describePhotoSlots(page.slots), flowId: ctx.flowId } }],
       note: '編集ページを読めた（枠 ' + slot + ' は空き）。★ 次は大画像のアップロード',
     };
   }
@@ -3433,10 +3514,16 @@ function afterCropPhoto(
     };
   }
   if (stage === 'crop_thumb') {
+    // ★★★★★★ 【第246便】ここで done にしない。★ もう一度読み直して照合する。
+    //   ★ 第107便のままだと、この段の「枠 N に登録しました」は **送った枠番号の書き写し**だった。
+    //     ★★ 応答が 200 だから ok、という判定（★ 第46便 §35 が禁じている形）。
+    //   → ★ 成否を名乗るのは、読み直して確かめたあと（§verify）だけ。
+    const next = buildReadPhotoPageRequest({ ...ctx, cookie, photoSrc: j.src, photoStage: 'verify' });
     return {
-      kind: 'done',
-      audits: [{ event: 'push_photo', outcome: 'ok', summary: '駅ちかの画像の枠 ' + (ctx.photoSlot ?? '?') + ' に写真を1枚登録しました', detail: { stage: 'crop_thumb', slot: ctx.photoSlot ?? null, flowId: ctx.flowId } }],
-      note: 'サムネイルまで切れた。★ 枠 ' + (ctx.photoSlot ?? '?') + ' に写真が入った',
+      kind: 'next',
+      next,
+      audits: [{ event: 'read_photo_page', outcome: 'ok', detail: { stage: 'crop_thumb', slot: ctx.photoSlot ?? null, flowId: ctx.flowId } }],
+      note: 'サムネイルまで切れた。★ 次は【読み直して照合】（★ ここまでは成否を名乗らない）',
     };
   }
   return photoStop(ctx, 'stage_unknown', '写真の送信の段が分からなくなったため止めました', 'photoStage が想定外: ' + String(stage));
