@@ -100,5 +100,50 @@ eq('★★ path の検査はそのまま',
 eq('★★ bucket の検査もそのまま',
    /bucket/.test(throws(() => s.relayFileUrl('BAD', 'a/b.png', 'jpeg'))), true);
 
+
+console.log('\n── ★★★★ 寸法を合わせて返してもらう（第241便・2026-09-10）──');
+//
+// ★★★ エステ魂の写真は 357×556 を覆うように縮めて【左上基準】で切る（設計メモ §25-7・実測）。
+//   ★ 相手のブラウザ（canvas_fileupload.js）がやっていることと同じ形にそろえるための指定。
+// ★★★★★ ここは **基準（pos）を黙って決めさせないための番人**。★ 間違えると顔が切れる。
+{
+  const u = s.relayFileUrl('therapist-photos', 'a/b.jpg', { fit: 'cover', w: 357, h: 556, pos: 'lefttop', as: 'jpeg' });
+  eq('★★★★ 指定がそのままクエリに出る', u,
+     'https://fukues.com/api/relay/file?bucket=therapist-photos&path=a%2Fb.jpg&fit=cover&w=357&h=556&pos=lefttop&as=jpeg');
+  eq('★★★ 取りに行く口（pathname）は変わらない', new URL(u).pathname, s.RELAY_FILE_PATH_PREFIX);
+  eq('★★★ 取り先も変わらない', new URL(u).hostname, s.RELAY_FILE_HOSTS[0]);
+  eq('★★★ 検査を通る（★ ここが通らないと中継に載らない）', withUrl(u), null);
+  eq('★ 中央基準も頼める',
+     /pos=center/.test(s.relayFileUrl('therapist-photos', 'a/b.jpg', { fit: 'cover', w: 100, h: 100, pos: 'center' })), true);
+
+  // ★★★★★ 決めた形しか頼めない（★ 任意の変換を頼める口にしない）
+  eq('★★★★ 知らない fit は受け付けない',
+     /fit/.test(throws(() => s.relayFileUrl('therapist-photos', 'a/b.jpg', { fit: 'contain', w: 1, h: 1, pos: 'center' }))), true);
+  eq('★★★★★ 基準（pos）を省くと断る（★ 黙って決めない）',
+     /pos/.test(throws(() => s.relayFileUrl('therapist-photos', 'a/b.jpg', { fit: 'cover', w: 357, h: 556 }))), true);
+  eq('★★★ 知らない基準も断る',
+     /pos/.test(throws(() => s.relayFileUrl('therapist-photos', 'a/b.jpg', { fit: 'cover', w: 1, h: 1, pos: 'topright' }))), true);
+  eq('★★★ w が数字でなければ断る',
+     /w /.test(throws(() => s.relayFileUrl('therapist-photos', 'a/b.jpg', { fit: 'cover', w: 'あ', h: 556, pos: 'center' }))), true);
+  eq('★★★ h が大きすぎれば断る',
+     /h /.test(throws(() => s.relayFileUrl('therapist-photos', 'a/b.jpg', { fit: 'cover', w: 357, h: 99999, pos: 'center' }))), true);
+  eq('★★ 0 は受け付けない',
+     /w /.test(throws(() => s.relayFileUrl('therapist-photos', 'a/b.jpg', { fit: 'cover', w: 0, h: 556, pos: 'center' }))), true);
+  eq('★★ 小数は受け付けない',
+     /w /.test(throws(() => s.relayFileUrl('therapist-photos', 'a/b.jpg', { fit: 'cover', w: 357.5, h: 556, pos: 'center' }))), true);
+
+  // ★★★★ 効かない指定を黙って受け取らない（★「指定したのに効いていない」がいちばん分かりにくい）
+  eq('★★★★ fit なしで w/h/pos を渡したら断る',
+     /fit/.test(throws(() => s.relayFileUrl('therapist-photos', 'a/b.jpg', { w: 357, h: 556, pos: 'center' }))), true);
+
+  // ★ これまでの書き方は変わらない
+  eq('★★ 第3引数に \'jpeg\' を渡す書き方はそのまま',
+     s.relayFileUrl('therapist-photos', 'a/b.png', 'jpeg'),
+     'https://fukues.com/api/relay/file?bucket=therapist-photos&path=a%2Fb.png&as=jpeg');
+  eq('★ 何も渡さない書き方もそのまま',
+     s.relayFileUrl('therapist-photos', 'a/b.png'),
+     'https://fukues.com/api/relay/file?bucket=therapist-photos&path=a%2Fb.png');
+}
+
 console.log(fail === 0 ? '\n★ すべて通った' : '\n★ NG ' + fail + ' 件');
 process.exit(fail === 0 ? 0 : 1);

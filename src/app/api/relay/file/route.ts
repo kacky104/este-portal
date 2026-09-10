@@ -2,6 +2,8 @@ import { createServiceClient } from '@/app/lib/supabase/service';
 
 // ── 中継役が画像を取りに来る口（第106便・案B）────────────────────────────
 //   GET /api/relay/file?bucket=<bucket>&path=<path>  (Authorization: Bearer <CRON_SECRET>)
+//     ＋ as=jpeg                              … JPEG に直して返す（第165便）
+//     ＋ fit=cover&w=<幅>&h=<高さ>&pos=<基準>  … 寸法を合わせて返す（第241便）★ 返すのは常に JPEG
 //   → 画像そのもの（Content-Type 付き）
 //
 // ★★★ なぜ要るか
@@ -50,6 +52,65 @@ export async function GET(req: Request) {
     return Response.json({ ok: false, error: '画像が空' }, { status: 404 });
   }
   const contentType = data.type && data.type !== '' ? data.type : 'application/octet-stream';
+
+  // ★★★★ fit=cover（第241便・2026-09-10）: 寸法を合わせてから返す。
+  //
+  // ★★★ なぜ要るか（設計メモ §25-7・実測）
+  //   エステ魂の写真は、相手のブラウザが `canvasDraw(file, 0, 0, 357, 556)` で
+  //   **357×556 を覆うように縮めて、左上を基準に切り取って**から送っている。
+  //   ★ 保存先のパスにも `…/cast/main/357x556/…` と寸法が入っている（実測）。
+  //   ★★ こちらが原寸のまま送ると、歪むか、相手の都合で切られる。→ **同じ形にそろえる。**
+  //
+  // ★★ ここで直す理由は as=jpeg と同じ（上の注記）。★ 元の写真は触らず、その1回ぶんだけ直す。
+  //
+  // ★★★★★ 切り取りの基準（pos）は **必ず指定させる**。★ 既定値を作らない。
+  //   ★ 基準を間違えると **顔が切れる**。★ 黙って決めてよいことではない。
+  const fit = url.searchParams.get('fit');
+  if (fit !== null) {
+    if (fit !== 'cover') {
+      return Response.json({ ok: false, error: 'fit は cover だけ' }, { status: 400 });
+    }
+    const w = Number(url.searchParams.get('w'));
+    const h = Number(url.searchParams.get('h'));
+    const pos = url.searchParams.get('pos');
+    if (!Number.isInteger(w) || w < 1 || w > 4000 || !Number.isInteger(h) || h < 1 || h > 4000) {
+      return Response.json({ ok: false, error: 'w / h の形が不正（1〜4000の整数）' }, { status: 400 });
+    }
+    if (pos !== 'lefttop' && pos !== 'center') {
+      return Response.json({ ok: false, error: 'pos は lefttop / center のどちらかを指定する' }, { status: 400 });
+    }
+    try {
+      const sharp = (await import('sharp')).default;
+      const position = pos === 'lefttop' ? 'left top' : 'centre';
+      // ★★ `.rotate()` は EXIF の向きを反映させるため（★ 相手のブラウザも canvas 側で補正している）。
+      //   ★ これが無いと、スマホで撮った写真が横倒しのまま送られる。
+      // ★ 透過は白で埋める（★ 黒くなると顔が沈む）。
+      const base = sharp(buf).rotate().resize(w, h, { fit: 'cover', position }).flatten({ background: '#ffffff' });
+      let out = await base.jpeg({ quality: 92 }).toBuffer();
+      // ★★★ 相手のブラウザは 2MB を超えたら品質を落として送り直している（§25-7）。★ そこも合わせる
+      if (out.byteLength >= 2000000) {
+        const q = Math.max(40, Math.floor((2000000 / out.byteLength) * 92));
+        out = await sharp(buf).rotate().resize(w, h, { fit: 'cover', position })
+          .flatten({ background: '#ffffff' }).jpeg({ quality: q }).toBuffer();
+      }
+      if (out.byteLength === 0) throw new Error('変換の結果が空');
+      return new Response(new Uint8Array(out), {
+        status: 200,
+        headers: {
+          'Content-Type': 'image/jpeg',
+          'Content-Length': String(out.byteLength),
+          'Cache-Control': 'no-store',
+        },
+      });
+    } catch (e) {
+      // ★ 黙らない。★ そして元のまま返さない（★ 返すと相手に断られて、原因が分かりにくくなる）
+      console.error('[relay/file] 寸法を合わせられなかった', (e as Error).message);
+      return Response.json(
+        { ok: false, error: '画像の寸法を合わせられませんでした: ' + (e as Error).message.slice(0, 200) },
+        { status: 415 },
+      );
+    }
+  }
 
   // ★★★ as=jpeg（第165便・2026-09-05）: JPEG に直してから返す。
   //

@@ -113,18 +113,74 @@ export function assertRelayFileUrl(url: string): URL {
   return u;
 }
 
-/** ★ フクエスの口の URL を組む（★ 取り先はここで組んだものしか通らない）。 */
-export function relayFileUrl(bucket: string, path: string, as?: 'jpeg'): string {
+/**
+ * ★★★ 取りに来た口に頼めること（第241便・2026-09-10 に寸法を足した）。
+ *   ★★★★★ **ここに並べたものしか頼めない。** ★ 「任意の変換を頼める口」にしない。
+ */
+export type RelayFileOptions = {
+  /** JPEG に直して返す（第165便） */
+  as?: 'jpeg';
+  /**
+   * ★★★★ 寸法を合わせて返す（第241便）。★ いまは `cover` だけ。
+   *   cover … 指定の大きさを**覆うように**縮小（拡大）して、はみ出したぶんを切り落とす。
+   *   ★ 「引き伸ばして歪める」ではない。★ 縦横の比は保たれる。
+   */
+  fit?: 'cover';
+  /** 仕上がりの幅（1〜4000） */
+  w?: number;
+  /** 仕上がりの高さ（1〜4000） */
+  h?: number;
+  /**
+   * ★★★★★ どこを基準に切り取るか。★ **fit を頼むときは必ず指定する。**
+   *   'lefttop' … 左上基準（★ エステ魂の写真がこれ。`canvasDraw` が原点から描いている）
+   *   'center'  … 中央基準
+   *   ★★ 既定値を作らない。★ 基準を間違えると**顔が切れる**。★ 黙って決めない。
+   */
+  pos?: 'lefttop' | 'center';
+};
+
+/**
+ * ★ フクエスの口の URL を組む（★ 取り先はここで組んだものしか通らない）。
+ *
+ * ★ 第3引数は `'jpeg'`（第165便からの書き方）でも、指定の入れ物でも受ける。
+ */
+export function relayFileUrl(bucket: string, path: string, opt?: 'jpeg' | RelayFileOptions): string {
   if (!/^[a-z][a-z0-9\-]{1,40}$/.test(bucket)) throw new Error('bucket の形が不正');
   if (!/^[A-Za-z0-9_\-][A-Za-z0-9_\-./]{0,200}$/.test(path) || path.includes('..') || path.includes('//')) {
     throw new Error('path の形が不正');
   }
-  // ★★★ as=jpeg（第165便）: 取りに来た口で JPEG に直してから返す。
+  const o: RelayFileOptions = opt === undefined ? {} : (typeof opt === 'string' ? { as: opt as 'jpeg' } : opt);
+
+  // ★★★ as=jpeg（第165便）: 取りに来た口で JPEG へ直してから返す。
   //   ★ 駅ちかの記事の画像は **JPEG のみ**（2026-09-05 実測。PNG は「画像ファイル形式が…」で断られた）。
   //   ★★ 店舗様に「JPEGにしてから登録し直してください」と言わせないための仕掛け。
   //   ★ 中継役（relay.sh）は pathname だけを見ているので、クエリが増えても規則は変わらない。
-  if (as !== undefined && as !== 'jpeg') throw new Error('as は jpeg だけ');
-  return 'https://' + RELAY_FILE_HOSTS[0] + RELAY_FILE_PATH_PREFIX
-    + '?bucket=' + encodeURIComponent(bucket) + '&path=' + encodeURIComponent(path)
-    + (as ? '&as=jpeg' : '');
+  if (o.as !== undefined && o.as !== 'jpeg') throw new Error('as は jpeg だけ');
+
+  const q: string[] = [
+    'bucket=' + encodeURIComponent(bucket),
+    'path=' + encodeURIComponent(path),
+  ];
+
+  // ★★★★ fit=cover（第241便）: エステ魂の写真は 357×556 に**覆うように**縮めて左上で切る（設計メモ §25-7）。
+  //   ★ 相手のブラウザ（canvas_fileupload.js）がやっていることと同じ形にそろえる。
+  //   ★★ ここで直す理由は as=jpeg と同じ: 元の写真は触らず、その1回ぶんだけ直す。
+  if (o.fit !== undefined) {
+    if (o.fit !== 'cover') throw new Error('fit は cover だけ');
+    const w = Number(o.w);
+    const h = Number(o.h);
+    if (!Number.isInteger(w) || w < 1 || w > 4000) throw new Error('w の形が不正（1〜4000の整数）');
+    if (!Number.isInteger(h) || h < 1 || h > 4000) throw new Error('h の形が不正（1〜4000の整数）');
+    // ★★★★★ 基準を黙って決めない。★ 間違えると顔が切れる
+    if (o.pos !== 'lefttop' && o.pos !== 'center') {
+      throw new Error('fit を頼むときは pos（lefttop / center）も指定する');
+    }
+    q.push('fit=cover', 'w=' + String(w), 'h=' + String(h), 'pos=' + o.pos);
+  } else if (o.w !== undefined || o.h !== undefined || o.pos !== undefined) {
+    // ★ 効かない指定を黙って受け取らない（★ 「指定したのに効いていない」がいちばん分かりにくい）
+    throw new Error('fit を指定せずに w / h / pos は指定しない');
+  }
+
+  if (o.as) q.push('as=jpeg');
+  return 'https://' + RELAY_FILE_HOSTS[0] + RELAY_FILE_PATH_PREFIX + '?' + q.join('&');
 }
