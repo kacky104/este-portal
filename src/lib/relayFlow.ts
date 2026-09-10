@@ -535,6 +535,14 @@ export type RelayFlowContext = {
   castPhotoSaveStatus?: number;
   castPhotoSaveTo?: string;
   /**
+   * ★★ 編集ページを **どう開いたか**（第243便d）。★ 記録のためだけ。
+   *   'normal' ふつうに開けた ／ 'disabled' ★ `?disabled=true` で開き直した（＝ 非表示の方）
+   *   ／ 'followed' 同じ方の別の住所へ飛ばされたので追いかけた
+   *   ★ 2026-09-10 13:05 の実弾は記録が `read_photo_page / ok` だけで、
+   *     **「開き直したから通った」ことが残らなかった**。★ その穴を塞ぐためのもの。
+   */
+  castPhotoOpenedAs?: 'normal' | 'disabled' | 'followed';
+  /**
    * ★★★★ 書き込みの応答に出ていた画面のメッセージ（第234便の修正）。
    *   ★ 設計メモ §2-6「**書き込みのあとは必ず画面のメッセージを読むこと**」。
    *   ★★ **記録のためだけに持ち回す。** ★ 成否の判定には使わない（判定は読み直しての照合）。

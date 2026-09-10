@@ -123,6 +123,17 @@ function safeCastEditUrl(url: string | null | undefined, castId: string): string
   return new RegExp('/admin/cast_edit/' + castId + '(?![0-9])').test(u) ? u : null;
 }
 
+/**
+ * ★★ 編集ページを **どう開いたか**（第243便d・記録のためだけ）。
+ *   'normal'   … ふつうの住所でそのまま開けた
+ *   'disabled' … ★ 入口へ突き返されたので `?disabled=true` で開き直した（＝ 非表示の方）
+ *   'followed' … ★ 同じ方の別の住所へ飛ばされたので追いかけた
+ * ★ これが記録に無いと、次に同じことが起きたとき「なぜ通ったのか」が分からなくなる。
+ */
+function openedAs(ctx: RelayFlowContext): 'normal' | 'disabled' | 'followed' {
+  return ctx.castPhotoOpenedAs ?? 'normal';
+}
+
 /** ★ 送る相手（エステ魂の cast_id）。★ 空なら何もしない */
 function castIdOf(ctx: RelayFlowContext): string {
   return String(ctx.castPhotoCastId ?? '').trim();
@@ -210,7 +221,11 @@ export function afterEsutamaPhotoForm(input: Input, ctx: RelayFlowContext): Flow
         next: {
           purpose: 'esutama_photo_form',
           method: 'GET', url, headers: req.headers, body: '',
-          context: { ...ctx, cookie: cookieNow, castPhotoHops: hops + 1, castPhotoPageUrl: url },
+          // ★★ どう開いたかを覚える。★ 記録に残すため（★ 「開き直した」が見えないと後で分からない）
+          context: {
+            ...ctx, cookie: cookieNow, castPhotoHops: hops + 1,
+            castPhotoPageUrl: url, castPhotoOpenedAs: 'disabled',
+          },
         },
       };
     }
@@ -224,7 +239,12 @@ export function afterEsutamaPhotoForm(input: Input, ctx: RelayFlowContext): Flow
           purpose: 'esutama_photo_form',
           method: 'GET', url: abs, headers: req.headers, body: '',
           // ★★ 飛び先を覚える。★ 保存もここへ送る（★ ブラウザと同じ場所へ返す）
-          context: { ...ctx, cookie: cookieNow, castPhotoHops: hops + 1, castPhotoPageUrl: abs },
+          context: {
+            ...ctx, cookie: cookieNow, castPhotoHops: hops + 1,
+            castPhotoPageUrl: abs,
+            // ★ 既に「非表示の見え方」で開いていたなら、その事実を消さない
+            castPhotoOpenedAs: hasDisabledMark(abs) ? 'disabled' : (ctx.castPhotoOpenedAs ?? 'followed'),
+          },
         },
       };
     }
@@ -277,7 +297,8 @@ export function afterEsutamaPhotoForm(input: Input, ctx: RelayFlowContext): Flow
           // ★★ 保存の応答の番号と行き先も残す（★ 次に外したとき、もう一発使わずに分かるように）
           detail: {
             castId, slot, reason: 'not_saved', state: hit.state, note: ctx.castPhotoNote ?? null,
-            saveStatus: ctx.castPhotoSaveStatus ?? null, saveTo: ctx.castPhotoSaveTo ?? null, flowId,
+            saveStatus: ctx.castPhotoSaveStatus ?? null, saveTo: ctx.castPhotoSaveTo ?? null,
+            openedAs: openedAs(ctx), flowId,
           },
         }],
         '照合で枠 ' + slot + ' が saved になっていない（' + hit.state + '）',
@@ -288,7 +309,7 @@ export function afterEsutamaPhotoForm(input: Input, ctx: RelayFlowContext): Flow
       audits: [{
         event: 'push_photo', outcome: 'ok',
         summary: 'エステ魂の枠' + slot + 'に写真を登録しました',
-        detail: { castId, slot, flowId },
+        detail: { castId, slot, openedAs: openedAs(ctx), flowId },
       }],
       note: '写真を確認した（castId ' + castId + '・枠 ' + slot + '）',
     };
@@ -400,7 +421,11 @@ export function afterEsutamaPhotoForm(input: Input, ctx: RelayFlowContext): Flow
 
   return {
     kind: 'next',
-    audits: [{ event: 'read_photo_page', outcome: 'ok', detail: { castId, slot, flowId } }],
+    // ★★ どう開いたかを必ず残す（第243便d）。★ 「開き直した」が記録から消えると、次に分からなくなる
+    audits: [{
+      event: 'read_photo_page', outcome: 'ok',
+      detail: { castId, slot, openedAs: openedAs(ctx), hops: Number(ctx.castPhotoHops ?? 0), flowId },
+    }],
     note: '枠' + slot + '（' + (photo.slots.find((s) => s.slot === slot)?.state ?? '?') + '）へ写真を送ります。★ まだ本紐づけはしていません',
     next: {
       purpose: 'esutama_photo_tmp',

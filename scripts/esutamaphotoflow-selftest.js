@@ -300,6 +300,27 @@ console.log('\n── ⑥ 編集ページが飛ばされたとき（第243便b�
   eq('★★★★ 外れたとき、保存の番号と行き先が記録に残る',
      [miss.audits[0].detail.saveStatus, miss.audits[0].detail.saveTo], [302, '/admin/cast/']);
 
+  // ★★★★★ 「どう開いたか」が記録に残る（第243便d）
+  //   ★ 13:05 の実弾は read_photo_page / ok しか残らず、開き直したことが見えなかった
+  eq('★★★ ふつうに開けたら normal',
+     go('esutama_photo_form', 200, {}, editPage(), ctx).audits[0].detail.openedAs, 'normal');
+  const opened = Object.assign({}, bounced.next.context, { cookie: 'sid=abc' });
+  const r6 = go('esutama_photo_form', 200, {}, editPage(), opened);
+  eq('★★★★★ 開き直したことが記録に残る',
+     [r6.audits[0].event, r6.audits[0].detail.openedAs, r6.audits[0].detail.hops],
+     ['read_photo_page', 'disabled', 1]);
+  eq('★★★★ 最後の「登録しました」にも残る',
+     go('esutama_photo_form', 200, {}, editPage(['empty', 'empty', 'saved', 'empty', 'empty', 'empty']),
+        Object.assign({}, opened, { castPhotoStage: 'verify', castPhotoSlot: 3 }))
+       .audits[0].detail.openedAs, 'disabled');
+  eq('★★★ 追いかけたときは followed',
+     go('esutama_photo_form', 307, to('/admin/cast_edit/955513/x/'), '', ctx)
+       .next.context.castPhotoOpenedAs, 'followed');
+  eq('★★★★ 一度 disabled で開いたら、その事実を消さない',
+     go('esutama_photo_form', 307, to(DISABLED), '',
+        Object.assign({}, ctx, { castPhotoOpenedAs: 'disabled' })).next.context.castPhotoOpenedAs,
+     'disabled');
+
   // ★★★★ 読み直すたびに、追った回数は 0 に戻す（★ この流れでは3回読む）
   const after = go('esutama_photo_save', 200, {}, '<html>ok</html>',
                    Object.assign({}, ctx, { castPhotoSlot: 3, castPhotoHops: 2 }));
