@@ -101,7 +101,11 @@ export async function POST(req: Request) {
 
   const { data: th, error: tErr } = await svc
     .from('therapists')
-    .select('id, salon_id, name, age, body_type, feature_badges, is_active, profile_image_url')
+    // ★★★★★★ 【第255便】`profile_images` を忘れない。★ 読まなければ **無いのと同じ**になる。
+    //   ★ 2026-09-10 の実弾前に踏んだ: DBには3枚あるのに `alsoSlots` が出ず、
+    //     「2枚目以降のお写真がありません」と言い続けた。★ 原因は **select に書いていなかった**だけ。
+    //   ★★ `photo-push` には第253便で足したのに、こちらは足し忘れていた。★ 口が2つあると片方だけ漏れる。
+    .select('id, salon_id, name, age, body_type, feature_badges, is_active, profile_image_url, profile_images')
     .eq('id', therapistId).maybeSingle();
   if (tErr) return NextResponse.json({ ok: false, error: tErr.message }, { status: 500 });
   if (!th) return NextResponse.json({ ok: false, error: 'セラピストが見つからない' }, { status: 404 });
