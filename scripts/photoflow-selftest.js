@@ -448,5 +448,102 @@ eq('★★★★★★ まっさらなのに枠1以外へ入っていたら、�
   })(),
   ['stop', 'slot_mismatch', 3]);
 
+
+console.log('\n── 6-5. ★★★★★★ 第253便: 2枚目以降をまとめて送る（枠2〜5・番号固定）──');
+// ★★★ この段の芯は3つ。★ 数で固定する。
+//   ① 対応づけは【番号固定】… 埋まっている枠は【その1枚だけ飛ばす】。★ 他の枚の行き先はずらさない
+//   ② **単発では今までどおり止める**（slot_occupied）。★ 複数枚（photoMulti）のときだけ飛ばす
+//   ③ 照合が外れたら【残りは送らない】
+
+const FILE_N = (n) => ({ bucket: 'therapist-photos', path: '41-p' + n + '.jpg', filename: 'fukues_41_' + n + '.jpg', contentType: 'image/jpeg', width: 600, height: 800 });
+const Q = (slots) => slots.map((n) => ({ slot: n, file: FILE_N(n), thumbRect: { x: 60, y: 0, w: 180, h: 180 } }));
+// ★ 複数枚の文脈: 1枚目は枠2、残りは列に積む。★ 枠1は埋まっている方（＝掲載中の方）が相手
+const mctx = (o) => ctx(Object.assign({ photoSlot: 2, photoFile: FILE_N(2), photoMulti: true, photoQueue: Q([3, 4]) }, o || {}));
+
+{
+  const r = f.advanceFlow({ purpose: 'read_photo_page', status: 200, headers: {}, body: editPage({ occupied: [1] }), context: mctx() });
+  eq('★★ 枠2が空きなら枠2へ送る（★ 1枚目）', [r.kind, r.kind === 'next' && r.next.purpose, r.kind === 'next' && r.next.multipart.fields.image_set_id], ['next', 'upload_photo', '2']);
+  eq('★ 列は2枚残っている', r.next.context.photoQueue.map((q) => q.slot), [3, 4]);
+  eq('★ 送る前の枠の形を覚える', r.next.context.photoSlotsBefore.length, 8);
+}
+{
+  // ★★★★★★ ①番号固定: 枠2が埋まっていたら【枠2の1枚だけ】飛ばして、次は枠3へ
+  const r = f.advanceFlow({ purpose: 'read_photo_page', status: 200, headers: {}, body: editPage({ occupied: [1, 2] }), context: mctx() });
+  eq('★★★★★★ 埋まっている枠は飛ばして次の1枚へ', [r.kind, r.kind === 'next' && r.next.multipart.fields.image_set_id], ['next', '3']);
+  eq('★★★ 飛ばした枠が文脈に残る', r.next.context.photoSkippedSlots, [2]);
+  eq('★★ 飛ばした枠は記録にも残る（★ 黙って落とさない）', r.audits[0].detail.skipped, '2');
+  eq('★★★ 送るファイルも枠3のものに入れ替わる', r.next.multipart.files[0].filename, 'fukues_41_3.jpg');
+  eq('★ 列は枠4だけになる', r.next.context.photoQueue.map((q) => q.slot), [4]);
+}
+{
+  // ★★ 続けて2つ埋まっていても、飛ばすのはその2枚だけ（★ 枠4へ）
+  const r = f.advanceFlow({ purpose: 'read_photo_page', status: 200, headers: {}, body: editPage({ occupied: [1, 2, 3] }), context: mctx() });
+  eq('★★★ 2つ埋まっていたら2つ飛ばす', [r.next.multipart.fields.image_set_id, r.next.context.photoSkippedSlots], ['4', [2, 3]]);
+}
+{
+  // ★★★★★ 送れる枠が1つも無い ＝ **失敗ではない**（★ 店舗様の写真が既に入っている）
+  const r = f.advanceFlow({ purpose: 'read_photo_page', status: 200, headers: {}, body: editPage({ occupied: [1, 2, 3, 4] }), context: mctx() });
+  eq('★★★★ 送れる空き枠が無ければ done（★ failed にしない）', [r.kind, r.audits[0].event, r.audits[0].outcome], ['done', 'push_photo', 'ok']);
+  eq('★★★ まとめに「飛ばした枠」が並ぶ', [r.audits[0].detail.count, r.audits[0].detail.skipped, r.audits[0].detail.put], [0, '2,3,4', null]);
+}
+{
+  // ★★★★★★ ②単発では今までどおり止める。★ 意味を変えない
+  const r = f.advanceFlow({ purpose: 'read_photo_page', status: 200, headers: {}, body: editPage({ occupied: [1, 2] }), context: ctx({ photoSlot: 2, photoFile: FILE_N(2) }) });
+  eq('★★★★★★ 単発（photoMulti 無し）は slot_occupied で止まる', [r.kind, r.audits[0].detail.reason], ['stop', 'slot_occupied']);
+}
+{
+  // ★★★ 列があっても photoMulti が無ければ飛ばさない（★ 印が無いのに勝手に振る舞いを変えない）
+  const r = f.advanceFlow({ purpose: 'read_photo_page', status: 200, headers: {}, body: editPage({ occupied: [1, 2] }), context: ctx({ photoSlot: 2, photoFile: FILE_N(2), photoQueue: Q([3]) }) });
+  eq('★★★★★ photoMulti が無ければ列があっても飛ばさない', [r.kind, r.audits[0].detail.reason], ['stop', 'slot_occupied']);
+}
+
+// ── ★★★★★★ 通し（枠2 → 枠3 → 枠4）。★ 1枚ごとに読み直して照合する ──
+const oneShot = (context, occupiedBefore, occupiedAfter) => {
+  let r = f.advanceFlow({ purpose: 'read_photo_page', status: 200, headers: {}, body: editPage({ occupied: occupiedBefore }), context });
+  if (r.kind !== 'next') return r;
+  r = f.advanceFlow({ purpose: 'upload_photo', status: 200, headers: {}, body: '{"src":"https://s3/big.jpg","to_thumb":1}', context: r.next.context });
+  r = f.advanceFlow({ purpose: 'read_photo_page', status: 200, headers: {}, body: editPage({ occupied: occupiedBefore }), context: r.next.context });
+  r = f.advanceFlow({ purpose: 'crop_photo', status: 200, headers: {}, body: '{"src":"https://s3/thumb.jpg"}', context: r.next.context });
+  return f.advanceFlow({ purpose: 'read_photo_page', status: 200, headers: {}, body: editPage({ occupied: occupiedAfter }), context: r.next.context });
+};
+{
+  const r1 = oneShot(mctx(), [1], [1, 2]);
+  // ★★ r1.next を直に触らない … 壊れたとき例外で落ちると【何が違ったか】が読めない（第250便 §4）
+  const nx = (r) => (r.kind === 'next' ? r.next : null);
+  eq('★★★★★ 1枚目（枠2）が入ったら、次は枠3へもう一周', [r1.kind, nx(r1) && nx(r1).purpose, nx(r1) && nx(r1).context.photoSlot], ['next', 'read_photo_page', 3]);
+  eq('★★ 1枚ごとの記録は今までどおり残る', [r1.audits[0].event, r1.audits[0].outcome, r1.audits[0].detail.before, r1.audits[0].detail.after], ['push_photo', 'ok', '10000000', '11000000']);
+  eq('★★★ 入れ終わった枠を数えている', nx(r1) && nx(r1).context.photoPut, [2]);
+  eq('★★★★★★ 前の1枚の残りかすを持ち越さない（src と照合の相手）', [nx(r1) && ('photoSrc' in nx(r1).context && nx(r1).context.photoSrc !== undefined), nx(r1) && nx(r1).context.photoSlotsBefore !== undefined], [false, false]);
+  eq('★★★ 次の1枚のファイルに入れ替わっている', nx(r1) && nx(r1).context.photoFile.filename, 'fukues_41_3.jpg');
+  eq('★ 段は upload に戻る', nx(r1) && nx(r1).context.photoStage, 'upload');
+
+  const r2 = oneShot(nx(r1) ? nx(r1).context : mctx(), [1, 2], [1, 2, 3]);
+  eq('★★ 2枚目（枠3）も入って、次は枠4へ', [r2.kind, nx(r2) && nx(r2).context.photoSlot, nx(r2) && nx(r2).context.photoPut], ['next', 4, [2, 3]]);
+
+  const r3 = oneShot(nx(r2) ? nx(r2).context : mctx(), [1, 2, 3], [1, 2, 3, 4]);
+  eq('★★★★★★ 3枚目（枠4）で列が尽きたら done', [r3.kind, r3.audits.length], ['done', 2]);
+  eq('★★ 1本目は最後の1枚の記録', [r3.audits[0].detail.slot, r3.audits[0].detail.after], [4, '11110000']);
+  eq('★★★★★★ 2本目は【まとめ】。★ 何枚どこへ入ったかが1行で分かる', [r3.audits[1].detail.count, r3.audits[1].detail.put, r3.audits[1].detail.skipped], [3, '2,3,4', null]);
+  eq('★ まとめの文にも枠が並ぶ', r3.audits[1].summary, '駅ちかへ写真を3枚送りました（枠 2・3・4）');
+}
+{
+  // ★★★★★★ ③照合が外れたら、残りは送らない
+  const r = oneShot(mctx(), [1], [1, 5]);   // ★ 枠2へ送ったのに枠5が埋まった ＝ 詰められた
+  eq('★★★★★★ 照合が外れたら止まる（★ 残りの枠3・4は送らない）', [r.kind, r.audits[0].detail.reason, r.audits[0].detail.gotSlot], ['stop', 'slot_mismatch', 5]);
+  eq('★★★ 送らなかった枠を記録に残す', r.audits[0].detail.notSent, '3,4');
+}
+{
+  // ★★ 飛ばしたあとに照合が外れたときも、飛ばした枠は残る
+  const c = mctx();
+  const r = oneShot(Object.assign({}, c, { photoSkippedSlots: [2] , photoSlot: 3, photoFile: FILE_N(3), photoQueue: Q([4]) }), [1, 2], [1, 2, 6]);
+  eq('★★ 飛ばした枠は失敗の記録にも残る', [r.kind, r.audits[0].detail.skipped, r.audits[0].detail.notSent], ['stop', '2', '4']);
+}
+{
+  // ★★★★★ 枠1が空きの方には、複数枚でも送らない（slot1_empty は効いたまま）
+  const r = f.advanceFlow({ purpose: 'read_photo_page', status: 200, headers: {}, body: editPage({ occupied: [] }), context: mctx() });
+  eq('★★★★★★ 複数枚でも slot1_empty は効く（★ 枠1が空きなら1枚も送らない）', [r.kind, r.audits[0].detail.reason], ['stop', 'slot1_empty']);
+}
+
+
 console.log(fail === 0 ? '\n★ すべて通った' : '\n★ NG ' + fail + ' 件');
 process.exit(fail === 0 ? 0 : 1);

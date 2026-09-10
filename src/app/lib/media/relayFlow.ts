@@ -169,6 +169,23 @@ export async function startRelayFlow(params: {
      *   ★★ 明示しても、通るのは **8枠すべてが空き**のときだけ（★ 中継が読み直して確かめる）。
      */
     top?: boolean;
+    /**
+     * ★★★★★★ 【第253便】**2枚目以降**（枠2〜5）。★ `slot` / `file` の1枚を送り終えたら、
+     *   ここの先頭から順にもう一周する。★ 対応づけは【番号固定】（`profile_images` のN枚目 → 枠N）。
+     *   ★★ 渡さなければ今までどおり1枚で終わる（★ 振る舞いは1つも変わらない）。
+     */
+    queue?: Array<{
+      slot: number;
+      file: { bucket: string; path: string; filename: string; contentType: string; width: number; height: number };
+      mainRect?: { x: number; y: number; w: number; h: number };
+      thumbRect?: { x: number; y: number; w: number; h: number };
+    }>;
+    /**
+     * ★★★★★ 【第253便】**複数枚のつもり**という明示（`all=true`）。
+     *   ★ これが立っているときだけ「埋まっている枠は飛ばして次へ」になる。
+     *   ★★ 単発では今までどおり `slot_occupied` で止める（★ 意味を変えない）。
+     */
+    multi?: boolean;
   };
   /**
    * intent='diary_push' のときだけ（第133便）。★ **送る相手は1人だけ。**
@@ -368,6 +385,10 @@ export async function startRelayFlow(params: {
           photoStage: (params.photo.probe === true ? 'probe' : 'upload') as 'probe' | 'upload',
           // ★★★★★★ 第248便: 枠1へ入れてよいという明示。★ 渡されたときだけ入れる
           ...(params.photo.top === true ? { photoTop: true } : {}),
+          // ★★★★★★ 第253便: 2枚目以降の列と「複数枚のつもり」の印。★ 渡されたときだけ入れる
+          //   ★ 入っていなければ1枚で終わる ＝ 第252便までと同じ振る舞い
+          ...(params.photo.queue && params.photo.queue.length > 0 ? { photoQueue: params.photo.queue } : {}),
+          ...(params.photo.multi === true ? { photoMulti: true } : {}),
         }
       : {}),
     // ★★★ 削除（第228便）。★ 渡されたときだけ入れる。★ 入っていなければ何も消さない

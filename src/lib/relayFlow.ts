@@ -662,6 +662,31 @@ export type RelayFlowContext = {
    *     ★ そのために、真偽ではなく `image` の生の値ごと覚えておく（★ 差し替えを見つけるため）。
    */
   photoSlotsBefore?: PhotoSlotState[];
+  /**
+   * ★★★★★★ 【第253便】**まだ送っていない写真の列**（★ 2枚目以降）。
+   *   ★ 先頭から1枚ずつ。★ 1枚ぶんの流れ（read → upload → crop → read → verify）が
+   *     ok で終わるたびに、ここから次を取り出して**もう一周**する。
+   *   ★★★ 対応づけは【番号固定】… `profile_images` の N枚目 → 駅ちかの枠N（設計メモ §0 ①）。
+   *     ★ 詰めない。★ ずらさない。★ その枠が埋まっていたら**その1枚だけ飛ばす**。
+   *   ★★★★★ **この列が無いときは、今までと1文字も振る舞いが変わらない。** ★ それがこの便の安全装置。
+   */
+  photoQueue?: Array<{
+    slot: number;
+    file: { bucket: string; path: string; filename: string; contentType: string; width: number; height: number };
+    mainRect?: Rect;
+    thumbRect?: Rect;
+  }>;
+  /**
+   * ★★★★★★ 【第253便】**複数枚のつもりで走っている**という明示（`all=true`）。
+   *   ★ これが立っているときだけ「埋まっている枠は飛ばして次へ」になる。
+   *   ★★★ 単発（1枠を指名して送る）では、今までどおり `slot_occupied` で**止める**。
+   *     ★ 「この枠へ入れて」と言った人に、黙って別の枠の話を続けない（設計メモ §4 ④）。
+   */
+  photoMulti?: boolean;
+  /** ★ この流れで入れ終わった枠（★ まとめの記録のため） */
+  photoPut?: number[];
+  /** ★★ 既に写真が入っていて**送らなかった**枠。★ 黙って落とさないために必ず残す（第250便 §2 と同じ考え） */
+  photoSkippedSlots?: number[];
 
   // ── ここから下は intent='diary_push' のときだけ入る（第130便・エステ魂）──
   /**
@@ -3366,6 +3391,45 @@ function photoVerifySummary(reason: string, slot: number, gotSlot: number | null
 }
 
 /**
+ * ★★★★ 【第253便】複数枚で走ったときの「入れた枠・飛ばした枠」。
+ *   ★ 空のときは欄そのものを出さない（★ 空文字で埋めない・第250便 §2 と同じ作法）。
+ */
+function photoTally(ctx: RelayFlowContext): Record<string, string> {
+  const put = (ctx.photoPut ?? []).join(',');
+  const skipped = (ctx.photoSkippedSlots ?? []).join(',');
+  return {
+    ...(put ? { put } : {}),
+    ...(skipped ? { skipped } : {}),
+  };
+}
+
+/**
+ * ★★★★★★ 【第253便】複数枚の**最後に1本だけ**残すまとめ。
+ *   ★ 1枚ごとの `push_photo` は今までどおり残る。★ これはその上に乗る「結局どうなったか」の1行。
+ *   ★★★ **飛ばした枠を必ず書く。** ★「5枚あるのに3枚しか入っていない」を、あとから追えるように。
+ */
+function photoSummaryAudit(ctx: RelayFlowContext, put: number[], after: string): FlowAudit {
+  const skipped = ctx.photoSkippedSlots ?? [];
+  const summary =
+    '駅ちかへ写真を' + put.length + '枚送りました'
+    + (put.length > 0 ? '（枠 ' + put.join('・') + '）' : '')
+    + (skipped.length > 0 ? '。★ 枠 ' + skipped.join('・') + ' は既に写真が入っていたため送っていません' : '');
+  return {
+    event: 'push_photo',
+    outcome: 'ok',
+    summary,
+    detail: {
+      girlId: ctx.photoGirlId ?? null,
+      count: put.length,
+      put: put.join(',') || null,
+      skipped: skipped.join(',') || null,
+      after,
+      flowId: ctx.flowId,
+    },
+  };
+}
+
+/**
  * 編集ページの応答。★ 読めた＝ログインできている。★ ここから photoStage に応じて次の POST を組む。
  */
 function afterReadPhotoPage(
@@ -3427,6 +3491,8 @@ function afterReadPhotoPage(
     const v = verifyPhotoSlots(before, page.slots, slot);
     const shape = { before: describePhotoSlots(before), after: describePhotoSlots(page.slots) };
     if (!v.ok) {
+      // ★★★★★★ 【第253便】照合が外れたら **残りは送らない**（設計メモ §4 ⑤）。
+      //   ★ 相手の入れ方が想定と違うのに、次の1枚を重ねない。★ 傷を広げない。
       return stop(
         [{
           event: 'push_photo', outcome: 'failed',
@@ -3434,18 +3500,51 @@ function afterReadPhotoPage(
           detail: {
             girlId, slot, reason: v.reason, gotSlot: v.gotSlot,
             changed: v.changed.join(',') || null, ...shape, flowId: ctx.flowId,
+            ...photoTally(ctx),
+            ...(ctx.photoQueue && ctx.photoQueue.length > 0
+              ? { notSent: ctx.photoQueue.map((q) => q.slot).join(',') }
+              : {}),
           },
         }],
         '照合で外れた（' + v.reason + '・枠 ' + slot + '／前 ' + shape.before + ' → 後 ' + shape.after + '）',
       );
     }
+
+    const putAudit: FlowAudit = {
+      event: 'push_photo', outcome: 'ok',
+      summary: '駅ちかの画像の枠 ' + slot + ' に写真を1枚登録しました（★ 読み直して確かめました）',
+      detail: { girlId, slot, ...shape, flowId: ctx.flowId },
+    };
+    const put = [...(ctx.photoPut ?? []), slot];
+
+    // ★★★★★★ 【第253便】次の1枚があれば、もう一周する（★ 1枚ごとに読み直して照合するのは変えない）。
+    //   ★ 列が空なら今までどおりここで終わり（★ `photoQueue` が無ければ1文字も変わらない）。
+    if (ctx.photoQueue && ctx.photoQueue.length > 0) {
+      const [head, ...rest] = ctx.photoQueue;
+      const nextCtx: RelayFlowContext = {
+        ...ctx,
+        photoSlot: head.slot,
+        photoFile: head.file,
+        photoStage: 'upload',
+        photoQueue: rest,
+        photoPut: put,
+        ...(head.mainRect ? { photoMainRect: head.mainRect } : { photoMainRect: undefined }),
+        ...(head.thumbRect ? { photoThumbRect: head.thumbRect } : { photoThumbRect: undefined }),
+        // ★★★ 前の1枚の残りかすを持ち越さない（★ 照合の相手と src は1枚ごとに作り直す）
+        photoSrc: undefined,
+        photoSlotsBefore: undefined,
+      };
+      return {
+        kind: 'next',
+        next: buildReadPhotoPageRequest(nextCtx),
+        audits: [putAudit],
+        note: '枠 ' + slot + ' に入れた（' + shape.before + ' → ' + shape.after + '）。★ 次は枠 ' + head.slot,
+      };
+    }
+
     return {
       kind: 'done',
-      audits: [{
-        event: 'push_photo', outcome: 'ok',
-        summary: '駅ちかの画像の枠 ' + slot + ' に写真を1枚登録しました（★ 読み直して確かめました）',
-        detail: { girlId, slot, ...shape, flowId: ctx.flowId },
-      }],
+      audits: ctx.photoMulti === true ? [putAudit, photoSummaryAudit(ctx, put, shape.after)] : [putAudit],
       note: '読み直して枠 ' + slot + ' に入っていることを確かめた（前 ' + shape.before + ' → 後 ' + shape.after + '）',
     };
   }
@@ -3490,17 +3589,62 @@ function afterReadPhotoPage(
         );
       }
     }
-    const target = page.slots.find((x) => x.slot === slot);
-    if (target && target.hasImage) {
-      return photoStop(ctx, 'slot_occupied', '指定した画像の枠（' + slot + '）には既に写真が入っているため送りませんでした', '枠 ' + slot + ' は使用中');
+    // ── 送り先を決める ────────────────────────────────────────────────────
+    // ★★★★★★ 【第253便】複数枚（`photoMulti`）のときは、**埋まっている枠を飛ばして次の1枚へ**。
+    //   ★ 対応づけは【番号固定】なので、飛ばしても他の枚の行き先は**ずれない**（設計メモ §0 ①・§6）。
+    //   ★★ 飛ばした枠は `photoSkippedSlots` に必ず残す。★ 黙って落とさない。
+    // ★★★★★ **単発（`photoMulti` が無い）のときは今までどおり `slot_occupied` で止める。**
+    //   ★ 「この枠へ入れて」と言った人に、黙って別の枠の話を続けない（設計メモ §4 ④）。
+    const occupied = (n: number): boolean => {
+      const t = page.slots.find((x) => x.slot === n);
+      return !!t && t.hasImage;
+    };
+    let curSlot = slot;
+    let curFile = file;
+    let curMain = ctx.photoMainRect;
+    let curThumb = ctx.photoThumbRect;
+    const queue = [...(ctx.photoQueue ?? [])];
+    const skipped = [...(ctx.photoSkippedSlots ?? [])];
+
+    if (ctx.photoMulti === true) {
+      while (occupied(curSlot)) {
+        skipped.push(curSlot);
+        const head = queue.shift();
+        if (!head) {
+          // ★★ 送れる枠が1つも残らなかった。★ これは**失敗ではない**（＝店舗様の写真が既に入っている）。
+          return {
+            kind: 'done',
+            audits: [photoSummaryAudit({ ...ctx, photoSkippedSlots: skipped }, ctx.photoPut ?? [], describePhotoSlots(page.slots))],
+            note: '送れる空き枠がありませんでした（★ 飛ばした枠 ' + skipped.join('・') + '）',
+          };
+        }
+        curSlot = head.slot;
+        curFile = head.file;
+        curMain = head.mainRect;
+        curThumb = head.thumbRect;
+      }
+    } else if (occupied(curSlot)) {
+      return photoStop(ctx, 'slot_occupied', '指定した画像の枠（' + curSlot + '）には既に写真が入っているため送りませんでした', '枠 ' + curSlot + ' は使用中');
     }
+
+    // ★ 飛ばした結果いま送る枠が変わっていることがある。★ 送る項目はここで作り直す
+    const idsUp = { girlId, shopId: page.shopId, slot: curSlot, csrfToken: page.csrfToken };
+    const upCtx: RelayFlowContext = {
+      ...ctx,
+      photoSlot: curSlot,
+      photoFile: curFile,
+      photoQueue: queue,
+      photoSkippedSlots: skipped,
+      ...(curMain ? { photoMainRect: curMain } : { photoMainRect: undefined }),
+      ...(curThumb ? { photoThumbRect: curThumb } : { photoThumbRect: undefined }),
+    };
     const multipart: RelayMultipart = {
-      fields: buildUploadFields(ids),
+      fields: buildUploadFields(idsUp),
       files: [{
         field: 'upfile',
-        url: relayFileUrl(file.bucket, file.path),
-        filename: file.filename,
-        contentType: file.contentType,
+        url: relayFileUrl(curFile.bucket, curFile.path),
+        filename: curFile.filename,
+        contentType: curFile.contentType,
       }],
     };
     return {
@@ -3509,14 +3653,21 @@ function afterReadPhotoPage(
         purpose: 'upload_photo',
         method: 'POST',
         url: EKICHIKA_PHOTO_UPLOAD_URL,
-        headers: photoHeadersPost(ctx, false),
+        headers: photoHeadersPost(upCtx, false),
         body: '',
         multipart,
         // ★★★ 第246便: **送る前の枠の形**をここで覚える。★ 最後の照合の相手になる
-        context: { ...ctx, photoStage: 'upload', photoSlotsBefore: page.slots },
+        context: { ...upCtx, photoStage: 'upload', photoSlotsBefore: page.slots },
       },
-      audits: [{ event: 'read_photo_page', outcome: 'ok', detail: { slot, before: describePhotoSlots(page.slots), flowId: ctx.flowId } }],
-      note: '編集ページを読めた（枠 ' + slot + ' は空き）。★ 次は大画像のアップロード',
+      audits: [{
+        event: 'read_photo_page', outcome: 'ok',
+        detail: {
+          slot: curSlot, before: describePhotoSlots(page.slots), flowId: ctx.flowId,
+          ...(skipped.length > 0 ? { skipped: skipped.join(',') } : {}),
+        },
+      }],
+      note: '編集ページを読めた（枠 ' + curSlot + ' は空き）。★ 次は大画像のアップロード'
+        + (skipped.length > 0 ? '（★ 枠 ' + skipped.join('・') + ' は埋まっていたので飛ばした）' : ''),
     };
   }
 
