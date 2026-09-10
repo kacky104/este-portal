@@ -360,5 +360,93 @@ eq('★ 文脈に file が無ければ止める', (() => { const r = run('read_p
   eq('★★★ 詰められた先が記録に残る', r.audits[0].detail.gotSlot, 5);
 }
 
+console.log('\n── 6-3. ★★★★★ 第248便: 読むだけ（probe）──');
+// ★★★ この段は【1文字も書かない】。★ 設計メモ §8 ④（登録直後の子にも画像枠があるか）を実弾ゼロで測る道具。
+const pctx = (o) => ctx(Object.assign({ photoStage: 'probe' }, o || {}));
+{
+  const r = f.advanceFlow({ purpose: 'read_photo_page', status: 200, headers: {}, body: editPage(), context: pctx() });
+  eq('★★★★★ probe は読んで終わり（done・次を積まない）', [r.kind, r.next], ['done', undefined]);
+  eq('★ 監査は read_photo_page ok', [r.audits[0].event, r.audits[0].outcome], ['read_photo_page', 'ok']);
+  eq('★★ 枠の形を記録に残す', r.audits[0].detail.shape, '11110000');
+  eq('★★ まっさらかどうかも残す（blank）', r.audits[0].detail.blank, false);
+  eq('★★★ 申告に「1枚も送っていません」と書く', /1枚も送っていません/.test(r.audits[0].summary), true);
+}
+{
+  const r = f.advanceFlow({ purpose: 'read_photo_page', status: 200, headers: {}, body: editPage({ occupied: [] }), context: pctx() });
+  eq('★★★★ 8枠すべて空きなら blank（★ 登録直後の方の形）', [r.audits[0].detail.shape, r.audits[0].detail.blank], ['00000000', true]);
+}
+{
+  // ★★★ probe は【送る写真も枠の指定も要らない】。★ 要求すると、写真の無い方を測れなくなる
+  const r = f.advanceFlow({ purpose: 'read_photo_page', status: 200, headers: {}, body: editPage(), context: pctx({ photoSlot: undefined, photoFile: undefined }) });
+  eq('★★★ probe は枠も写真も無しで通る', [r.kind, r.audits[0].detail.shape], ['done', '11110000']);
+}
+eq('★★ probe でも別の子のページが返ったら止める',
+  (() => { const r = f.advanceFlow({ purpose: 'read_photo_page', status: 200, headers: {}, body: editPage({ girl: '7777777' }), context: pctx() }); return [r.kind, r.audits[0].event]; })(),
+  ['stop', 'read_photo_page']);
+eq('★★ probe でログイン画面が返ったら【ログインの失敗】として止める',
+  (() => { const r = f.advanceFlow({ purpose: 'read_photo_page', status: 200, headers: {}, body: LOGIN_PAGE, context: pctx() }); return [r.kind, r.audits[0].event]; })(),
+  ['stop', 'login']);
+{
+  // ★★★★★★ 通しで走らせる（probe）。★ 駅ちかへの POST が【1本も無い】ことを数で固定する
+  const posts = [];
+  const step = (purpose, status, headers, body, c) => {
+    const r = f.advanceFlow({ purpose, status, headers, body, context: c });
+    if (r.kind === 'next' && r.next.method === 'POST') posts.push(r.next.purpose);
+    return r;
+  };
+  let r = step('login', 302, { 'set-cookie': ['a=b'] }, '', pctx({ cookie: 'S=1' }));
+  eq('★ login のあとも段は probe のまま', r.next.context.photoStage, 'probe');
+  r = step('read_photo_page', 200, {}, editPage({ occupied: [] }), r.next.context);
+  eq('★★★★★★ probe の通しで駅ちかへの POST は【0本】', posts, []);
+  eq('★★★ 通しの最後は done', r.kind, 'done');
+}
+
+console.log('\n── 6-4. ★★★★★★ 第248便: 枠1（トップ画像）へ入れる（top）──');
+// ★★★ 通すのは【8枠すべて空き】のときだけ。★ 壊せる写真が1枚も無い方（＝登録直後の方）に限る。
+// ★★ 「枠1だけ空き」では通さない … その方は写真を持っている既存の方かもしれない（設計メモ 追記 K-5）。
+const tctx = (o) => ctx(Object.assign({ photoSlot: 1, photoTop: true }, o || {}));
+{
+  const r = f.advanceFlow({ purpose: 'read_photo_page', status: 200, headers: {}, body: editPage({ occupied: [] }), context: tctx() });
+  eq('★★★★★★ 8枠すべて空き＋top なら枠1へ送る', [r.kind, r.next.purpose], ['next', 'upload_photo']);
+  eq('★★★ 送り先の枠は1', r.next.multipart.fields.image_set_id, '1');
+  eq('★★ 送る前の枠の形は 00000000', r.audits[0].detail.before, '00000000');
+}
+{
+  const r = f.advanceFlow({ purpose: 'read_photo_page', status: 200, headers: {}, body: editPage({ occupied: [2, 3, 4] }), context: tctx() });
+  eq('★★★★★★ 枠1だけ空きでは通さない（slot1_not_blank）', [r.kind, r.audits[0].detail.reason], ['stop', 'slot1_not_blank']);
+  eq('★ 監査は push_photo:stopped', r.audits[0].event + ':' + r.audits[0].outcome, 'push_photo:stopped');
+}
+eq('★★★ 1枠でも埋まっていたら通さない（★ 枠8だけ埋まりでも）',
+  (() => { const r = f.advanceFlow({ purpose: 'read_photo_page', status: 200, headers: {}, body: editPage({ occupied: [8] }), context: tctx() }); return [r.kind, r.audits[0].detail.reason]; })(),
+  ['stop', 'slot1_not_blank']);
+eq('★★★★★ top なのに枠1以外を指名していたら送らない（top_not_slot1）',
+  (() => { const r = f.advanceFlow({ purpose: 'read_photo_page', status: 200, headers: {}, body: editPage({ occupied: [] }), context: tctx({ photoSlot: 8 }) }); return [r.kind, r.audits[0].detail.reason]; })(),
+  ['stop', 'top_not_slot1']);
+eq('★★★★★★ top を書かなければ振る舞いは1つも変わらない（★ まっさらでも slot1_empty で止まる）',
+  (() => { const r = f.advanceFlow({ purpose: 'read_photo_page', status: 200, headers: {}, body: editPage({ occupied: [] }), context: ctx({ photoSlot: 8 }) }); return [r.kind, r.audits[0].detail.reason]; })(),
+  ['stop', 'slot1_empty']);
+{
+  // ★★★★★★ 通しで走らせる（枠1）。★ 照合まで通ることを固定する
+  let r = f.advanceFlow({ purpose: 'login', status: 302, headers: { 'set-cookie': ['a=b'] }, body: '', context: tctx({ cookie: 'S=1' }) });
+  r = f.advanceFlow({ purpose: 'read_photo_page', status: 200, headers: {}, body: editPage({ occupied: [] }), context: r.next.context });
+  r = f.advanceFlow({ purpose: 'upload_photo', status: 200, headers: {}, body: '{"src":"https://s3/big.jpg","to_thumb":1}', context: r.next.context });
+  r = f.advanceFlow({ purpose: 'read_photo_page', status: 200, headers: {}, body: editPage({ occupied: [] }), context: r.next.context });
+  r = f.advanceFlow({ purpose: 'crop_photo', status: 200, headers: {}, body: '{"src":"https://s3/thumb.jpg"}', context: r.next.context });
+  r = f.advanceFlow({ purpose: 'read_photo_page', status: 200, headers: {}, body: editPage({ occupied: [1] }), context: r.next.context });
+  eq('★★★★★ 枠1の通しは照合まで行って done', [r.kind, r.audits[0].event, r.audits[0].outcome], ['done', 'push_photo', 'ok']);
+  eq('★★★ 前と後の枠の形が記録に残る', [r.audits[0].detail.before, r.audits[0].detail.after], ['00000000', '10000000']);
+}
+eq('★★★★★★ まっさらなのに枠1以外へ入っていたら、照合で止まる',
+  (() => {
+    let r = f.advanceFlow({ purpose: 'login', status: 302, headers: { 'set-cookie': ['a=b'] }, body: '', context: tctx({ cookie: 'S=1' }) });
+    r = f.advanceFlow({ purpose: 'read_photo_page', status: 200, headers: {}, body: editPage({ occupied: [] }), context: r.next.context });
+    r = f.advanceFlow({ purpose: 'upload_photo', status: 200, headers: {}, body: '{"src":"https://s3/big.jpg","to_thumb":1}', context: r.next.context });
+    r = f.advanceFlow({ purpose: 'read_photo_page', status: 200, headers: {}, body: editPage({ occupied: [] }), context: r.next.context });
+    r = f.advanceFlow({ purpose: 'crop_photo', status: 200, headers: {}, body: '{"src":"https://s3/thumb.jpg"}', context: r.next.context });
+    r = f.advanceFlow({ purpose: 'read_photo_page', status: 200, headers: {}, body: editPage({ occupied: [3] }), context: r.next.context });
+    return [r.kind, r.audits[0].detail.reason, r.audits[0].detail.gotSlot];
+  })(),
+  ['stop', 'slot_mismatch', 3]);
+
 console.log(fail === 0 ? '\n★ すべて通った' : '\n★ NG ' + fail + ' 件');
 process.exit(fail === 0 ? 0 : 1);

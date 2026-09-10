@@ -7,7 +7,15 @@ import { centeredMainCrop, isPhotoSlot, isValidThumbRect, THUMB_DEFAULT_RECT, PH
 // ── 駅ちかへ写真を1枚送る（第107便・運営だけの口）─────────────────────────
 //   POST /api/admin/photo-push  (Authorization: Bearer <CRON_SECRET>)
 //   body: { salonId, therapistId, imageSetId, slot?: 1, path?: string, apply?: boolean,
-//           thumbRect?: {x,y,w,h}, mainRect?: {x,y,w,h} }
+//           thumbRect?: {x,y,w,h}, mainRect?: {x,y,w,h},
+//           probe?: boolean, top?: boolean }   ★ 第248便
+//
+// ★★★★★ 【第248便】足した2つ
+//   probe=true … **読むだけ**。★ login → 編集ページ → 枠の形を記録して終わり。★ 1文字も書かない。
+//                ★ imageSetId も写真も要らない。★ apply とは一緒に使えない。
+//   top=true   … **枠1（トップ画像）へ入れてよい**という明示（★ imageSetId=1 のときだけ）。
+//                ★★ 明示しても通るのは **8枠すべて空き**のときだけ（＝登録直後の方・壊せる写真が無い方）。
+//                ★ その確認は中継が編集ページを読み直してから（slot1_not_blank）。★ DB では分からない。
 //
 // ★★★ この口がすること: 中継ジョブ（login）を1件積むだけ。★ 実際に送るのは VPS の周。
 //   login → read_photo_page → upload_photo → read_photo_page → crop_photo → read_photo_page → crop_photo
@@ -15,7 +23,7 @@ import { centeredMainCrop, isPhotoSlot, isValidThumbRect, THUMB_DEFAULT_RECT, PH
 // ★★ apply 既定 false（試し打ち）。★ 何を・どの枠へ・どの範囲で送るつもりかを返すだけ。
 //   ★ 初回の実弾は【空き枠】に1枚 → 駅ちかの画面で目で見る → 人が削除（設計メモ §7・§10）。
 //
-// ★★★ 枠1（トップ画像）は送らない。★ 間違えると店舗様の顔になる画像が変わる。
+// ★★★ 枠1（トップ画像）は送らない（★ 第248便で `top=true` のときだけ例外・上の説明）。
 // ★★★★★★ 【第246便】さらに、**枠1が空きの方にも送らない**（VPS 側の read_photo_page で止まる）。
 //   ★ 「駅ちかは指名した枠を守る」は第107便の記録からの**推定**（★ そのときの枠の一覧が残っていない）。
 //   ★★ 万一いちばん小さい空き枠へ詰める相手なら、枠1が空きの方は**枠1に入る**＝トップ画像が変わる。
@@ -44,7 +52,8 @@ async function readBody(req: Request): Promise<Record<string, unknown>> {
   }
   const o: Record<string, unknown> = {};
   new URLSearchParams(text).forEach((v, k) => { o[k] = v; });
-  if (o.apply === 'true') o.apply = true;         // ★ 文字の true を真偽に（form では文字で来る）
+  // ★ 文字の true を真偽に（form では文字で来る）。★ 第248便で probe / top を足した
+  for (const k of ['apply', 'probe', 'top']) if (o[k] === 'true') o[k] = true;
   for (const k of ['thumbRect', 'mainRect']) {
     // ★ JSON なら開く。★ "60,0,180,180" の形は readRect が読むのでそのまま残す
     if (typeof o[k] === 'string' && /^\s*[{[]/.test(o[k] as string)) {
@@ -79,13 +88,31 @@ export async function POST(req: Request) {
   const imageSetId = Number(body.imageSetId);
   const slot = Number.isFinite(Number(body.slot)) && Number(body.slot) > 0 ? Number(body.slot) : 1;
   const apply = body.apply === true;
+  // ★★★★★ 第248便: 読むだけ（★ 編集ページを開いて枠の形を見るだけ。★ 1文字も書かない）
+  const probe = body.probe === true;
+  // ★★★★★★ 第248便: 枠1（トップ画像）へ入れてよいという明示
+  const top = body.top === true;
 
   if (!Number.isFinite(salonId) || salonId <= 0) return NextResponse.json({ ok: false, error: 'salonId が要る' }, { status: 400 });
   if (!Number.isFinite(therapistId) || therapistId <= 0) return NextResponse.json({ ok: false, error: 'therapistId が要る' }, { status: 400 });
-  if (!isPhotoSlot(imageSetId)) return NextResponse.json({ ok: false, error: 'imageSetId は 1〜' + PHOTO_SLOT_MAX }, { status: 400 });
-  if (imageSetId === 1) {
-    // ★★★ 枠1はトップ画像。★ 送らない（設計メモ §7「枠1はトップ画像なので触らない」）
-    return NextResponse.json({ ok: false, error: '枠1（トップ画像）へは送らない。2〜8 を指定する' }, { status: 400 });
+  if (probe && apply) {
+    // ★★ 一緒に書かせない。★ 「読むだけのつもりが送っていた」を作らない
+    return NextResponse.json({ ok: false, error: 'probe は読むだけ。apply と一緒には使わない' }, { status: 400 });
+  }
+  if (!probe) {
+    if (!isPhotoSlot(imageSetId)) return NextResponse.json({ ok: false, error: 'imageSetId は 1〜' + PHOTO_SLOT_MAX }, { status: 400 });
+    // ★★★ 枠1はトップ画像。★ 既定では送らない（設計メモ §7「枠1はトップ画像なので触らない」・第142便）
+    // ★★★★★★ 【第248便】ただし `top=true` を明示したときだけ通す（設計メモ 追記 K）。
+    //   ★ 通してよいのは【登録直後の方】＝ **8枠すべてが空き**で、壊せる写真が1枚も無い方だけ。
+    //   ★★ その確認は **DB では分からない**。★ 中継が編集ページを読み直してから決める（slot1_not_blank）。
+    //   ★ §3-1 ④「新規登録の子は別扱いにする」はカッキーさん承認済み（2026-09-09）。
+    if (imageSetId === 1 && !top) {
+      return NextResponse.json({ ok: false, error: '枠1（トップ画像）へは送らない。2〜8 を指定する（★ 登録直後の方に限り top=true）' }, { status: 400 });
+    }
+    if (top && imageSetId !== 1) {
+      // ★ top は枠1のためだけの合図。★ 他の枠に効かせない（設計メモ 追記 K-5 の3）
+      return NextResponse.json({ ok: false, error: 'top=true は imageSetId=1 のときだけ使う' }, { status: 400 });
+    }
   }
 
   const svc = createServiceClient();
@@ -106,6 +133,29 @@ export async function POST(req: Request) {
   const girlId = String((mid as { external_cast_id?: string } | null)?.external_cast_id ?? '');
   if (!/^\d{1,12}$/.test(girlId)) {
     return NextResponse.json({ ok: false, error: 'この子の駅ちかの castId（girl_id）が登録されていない' }, { status: 400 });
+  }
+
+  // ── ★★★★★ 読むだけ（第248便）──────────────────────────────────────────
+  //   ★ 中継ジョブは積むが、送るものは何も無い（login → 編集ページを読む → 枠の形を記録 → 終わり）。
+  //   ★★ 設計メモ §8 ④「登録直後の子にも同じ画像枠が使えるか」を、実弾ゼロで測るための口。
+  if (probe) {
+    const r = await startRelayFlow({
+      salonId, provider: 'ekichika', slot,
+      intent: 'photo_push',
+      actor: 'admin:photo-push:probe',
+      photo: { girlId, probe: true },
+    });
+    const probePlan = {
+      salonId, slot, therapistId, therapistName: String((th as { name?: string }).name ?? ''),
+      girlId,
+      steps: ['login', 'read_photo_page'],
+      note: '★ 読むだけ。★ 写真は1枚も送りません（★ 枠の指定も要りません）',
+    };
+    if (!r.ok) return NextResponse.json({ ok: false, applied: false, plan: probePlan, reason: r.reason, note: r.note }, { status: 409 });
+    return NextResponse.json({
+      ok: true, applied: false, probe: true, plan: probePlan, jobId: r.jobId, flowId: r.flowId,
+      note: r.note + ' ★ 結果は salon_media_audit（event=read_photo_page・detail の shape / blank）で見えます',
+    });
   }
 
   // ── 写真の在処（★ フクエスの therapist-photos だけ） ──
@@ -146,11 +196,19 @@ export async function POST(req: Request) {
     steps: ['login', 'read_photo_page', 'upload_photo', 'read_photo_page', 'crop_photo(3:4)', 'read_photo_page', 'crop_photo(1:1)', 'read_photo_page', 'verify'],
     // ★★★★ 第246便: 最後に読み直して照合する。★ ここまでの応答では成否を名乗らない
     verify: '★★ 送ったあと編集ページを読み直し、指名した枠に入ったか・他の枠が変わっていないかを確かめます',
-    guards: [
-      '★ 枠が空きでなければ送りません（slot_occupied）',
-      '★★ 枠1（トップ画像）が空きの方には送りません（slot1_empty・第246便）',
-      '★★★ 指名した枠と違う枠に入っていたら failed で申告します（slot_mismatch・第246便）',
-    ],
+    ...(top ? { top: true } : {}),
+    guards: top
+      ? [
+          // ★★★★★★ 第248便: 枠1へ入れる指定のときの止め（★ 上の3つとは別物）
+          '★★★ 8枠すべてが空きでなければ送りません（slot1_not_blank・第248便）',
+          '★ 枠1以外を指名していたら送りません（top_not_slot1・第248便）',
+          '★★★ 指名した枠と違う枠に入っていたら failed で申告します（slot_mismatch・第246便）',
+        ]
+      : [
+          '★ 枠が空きでなければ送りません（slot_occupied）',
+          '★★ 枠1（トップ画像）が空きの方には送りません（slot1_empty・第246便）',
+          '★★★ 指名した枠と違う枠に入っていたら failed で申告します（slot_mismatch・第246便）',
+        ],
   };
 
   if (!apply) {
@@ -165,6 +223,8 @@ export async function POST(req: Request) {
       girlId, slot: imageSetId,
       file: { bucket: BUCKET, path, filename, contentType: size.type, width: size.width, height: size.height },
       mainRect, thumbRect,
+      // ★★★★★★ 第248便: 枠1へ入れてよいという合図。★ 最後の判断は中継が編集ページを読んでから
+      ...(top ? { top: true } : {}),
     },
   });
   if (!r.ok) return NextResponse.json({ ok: false, applied: false, plan, reason: r.reason, note: r.note }, { status: 409 });

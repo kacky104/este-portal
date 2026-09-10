@@ -634,8 +634,17 @@ export type RelayFlowContext = {
   photoMainRect?: Rect;
   /** ③サムネイルの正方形（300×400 の空間）。無ければ駅ちかの既定（中央 180×180） */
   photoThumbRect?: Rect;
-  /** いまどの段のために編集ページを読みに行っているか。★ 'verify' は第246便で足した */
-  photoStage?: 'upload' | 'crop_main' | 'crop_thumb' | 'verify';
+  /** いまどの段のために編集ページを読みに行っているか。★ 'verify' は第246便・'probe' は第248便で足した */
+  photoStage?: 'probe' | 'upload' | 'crop_main' | 'crop_thumb' | 'verify';
+  /**
+   * ★★★★★★ 【第248便】**枠1（トップ画像）へ入れてよい**という明示。
+   *   ★ 既定は無し ＝ 今までどおり枠1へは入れない（★ 何も書かなければ振る舞いは1つも変わらない）。
+   *   ★★ 入っていても、通すのは **8枠すべてが空き**のときだけ（＝登録直後の方）。★ そこは読み直して確かめる。
+   *     ★ 「枠1だけ空き」では通さない。★ その方は**写真を持っている既存の方**かもしれず、
+   *       トップ画像をこちらの判断で決めてしまわないため（設計メモ 追記 K-5）。
+   *   ★★★ 枠1以外を指名しているときは効かせない（K-5 の3）。★ 入口でも中継でも両方で弾く。
+   */
+  photoTop?: boolean;
   /** 直近の応答の src（①の大画像 → ②の 3:4 → ③のサムネイル） */
   photoSrc?: string;
   /**
@@ -3324,19 +3333,43 @@ function afterReadPhotoPage(
   const girlId = ctx.photoGirlId ?? '';
   const slot = ctx.photoSlot;
   const file = ctx.photoFile;
-  if (!girlId || !isPhotoSlot(slot) || !file) {
+  const stage = ctx.photoStage ?? 'upload';
+  // ★ girl_id だけは、どの段でも要る（★ 読むだけの段〈probe〉も、誰の編集ページかを突き合わせるため）
+  if (!girlId) {
     return photoStop(ctx, 'context_missing', '写真の送信に要る情報が揃っていません', '文脈に girlId / slot / file が無い');
   }
 
   const page = parsePhotoPage(input.body, girlId);
   if (page.problems.length > 0) {
     return stop(
-      [{ event: 'read_photo_page', outcome: 'failed', summary: '駅ちかの編集ページの形が想定と違ったため止めました', detail: { reason: page.problems[0].slice(0, 100), slot, flowId: ctx.flowId } }],
+      [{ event: 'read_photo_page', outcome: 'failed', summary: '駅ちかの編集ページの形が想定と違ったため止めました', detail: { reason: page.problems[0].slice(0, 100), slot: slot ?? null, flowId: ctx.flowId } }],
       '編集ページが読めない: ' + page.problems.join(' / '),
     );
   }
+
+  // ────────── ⓪ 読むだけ（★ 第248便。★ POST を1本も組まない） ──────────
+  //   ★★★ なぜ要るか … 設計メモ §8 ④「**新規登録した直後の子にも、同じ画像枠が使えるか**」が未測のまま。
+  //     ★ `apply=false` は中継ジョブを積まないので、**ページを読みにも行かない**。★ 測る道具が無かった。
+  //   ★★ ここは枠の形を記録して終わる。★ 送る写真も枠の指定も要らない（★ だから file の確認より前に置く）。
+  //   ★ 第246便の「送る前と後の枠の形」を、1人ぶん**先に**見る道具にもなる。
+  if (stage === 'probe') {
+    const shape = describePhotoSlots(page.slots);
+    const blank = page.slots.every((s) => !s.hasImage);
+    return {
+      kind: 'done',
+      audits: [{
+        event: 'read_photo_page', outcome: 'ok',
+        summary: '駅ちかの画像の枠の状態を読み取りました（★ 1枚も送っていません）',
+        detail: { girlId, stage: 'probe', shape, blank, flowId: ctx.flowId },
+      }],
+      note: '読むだけ。★ 枠の形 ' + shape + (blank ? '（★ 8枠すべて空き）' : '') + '。★ 1文字も書いていない',
+    };
+  }
+
+  if (!isPhotoSlot(slot) || !file) {
+    return photoStop(ctx, 'context_missing', '写真の送信に要る情報が揃っていません', '文脈に girlId / slot / file が無い');
+  }
   const ids = { girlId, shopId: page.shopId, slot, csrfToken: page.csrfToken };
-  const stage = ctx.photoStage ?? 'upload';
 
   // ────────── ④ 照合（★ 第246便。★ ここで初めて成否が決まる） ──────────
   if (stage === 'verify') {
@@ -3379,13 +3412,32 @@ function afterReadPhotoPage(
     //     → ★ 万一いちばん小さい空き枠へ詰める相手なら、枠1が空きの子は**枠1に入る**。
     //   ★★★ 費用はほぼゼロ … 掲載中の子は枠1が埋まっている。★ 新規の子のトップ画像はこの口では入れられない（枠1は 400）。
     //   ★ この止めは、照合（§verify）が「詰めない」を実測で示したら外してよい。
-    const slot1 = page.slots.find((x) => x.slot === 1);
-    if (slot1 && !slot1.hasImage) {
-      return photoStop(
-        ctx, 'slot1_empty',
-        'この方は枠1（トップ画像）が空きのため送りませんでした（★ 万一詰められるとトップ画像が変わるため）',
-        '枠1が空き（トップ画像が変わる恐れ）',
-      );
+    // ★★★★★★ 【第248便】枠1へ入れてよいと**明示された**とき（`photoTop`）だけ、上の止めを置き換える。
+    //   ★ 通すのは **8枠すべてが空き**のときだけ ＝ **壊せる写真が1枚も無い**方（登録直後の方）。
+    //     ★ そのとき万一相手が詰めても、空きの最小は枠1 ＝ **指名どおり**。★ 詰める相手でも結果は変わらない。
+    //   ★★ 「枠1だけ空き」では通さない … その方は**写真を持っている既存の方**かもしれない（設計メモ 追記 K-5）。
+    //   ★★★ 照合（verify）はそのまま効く。★ 期待は `00000000` → `10000000`。
+    if (ctx.photoTop === true) {
+      if (slot !== 1) {
+        // ★ 入口でも弾いているが、ここでも弾く（★ 文脈だけ書き換えられても枠1の扱いが漏れないように）
+        return photoStop(ctx, 'top_not_slot1', '枠1へ入れる指定ですが、指定された枠が1ではないため送りませんでした', 'photoTop なのに枠が ' + String(slot));
+      }
+      if (!page.slots.every((x) => !x.hasImage)) {
+        return photoStop(
+          ctx, 'slot1_not_blank',
+          'この方は既に写真が入っている枠があるため、枠1（トップ画像）へは送りませんでした',
+          '枠1へ入れてよいのは8枠すべて空きのときだけ（いま ' + describePhotoSlots(page.slots) + '）',
+        );
+      }
+    } else {
+      const slot1 = page.slots.find((x) => x.slot === 1);
+      if (slot1 && !slot1.hasImage) {
+        return photoStop(
+          ctx, 'slot1_empty',
+          'この方は枠1（トップ画像）が空きのため送りませんでした（★ 万一詰められるとトップ画像が変わるため）',
+          '枠1が空き（トップ画像が変わる恐れ）',
+        );
+      }
     }
     const target = page.slots.find((x) => x.slot === slot);
     if (target && target.hasImage) {

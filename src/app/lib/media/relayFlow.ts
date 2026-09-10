@@ -148,10 +148,22 @@ export async function startRelayFlow(params: {
    */
   photo?: {
     girlId: string;
-    slot: number;
-    file: { bucket: string; path: string; filename: string; contentType: string; width: number; height: number };
+    /** ★ 画像の枠（1〜8）。★ probe（読むだけ）のときは要らない */
+    slot?: number;
+    /** ★ 送る写真。★ probe（読むだけ）のときは要らない */
+    file?: { bucket: string; path: string; filename: string; contentType: string; width: number; height: number };
     mainRect?: { x: number; y: number; w: number; h: number };
     thumbRect?: { x: number; y: number; w: number; h: number };
+    /**
+     * ★★★★★ 【第248便】読むだけ。★ 編集ページを開いて枠の形を記録して終わる。★ 1文字も書かない。
+     *   ★ 設計メモ §8 ④（登録直後の子にも同じ画像枠があるか）を、実弾ゼロで測るための道具。
+     */
+    probe?: boolean;
+    /**
+     * ★★★★★★ 【第248便】枠1（トップ画像）へ入れてよいという明示。★ 既定は無し（＝今までどおり入れない）。
+     *   ★★ 明示しても、通るのは **8枠すべてが空き**のときだけ（★ 中継が読み直して確かめる）。
+     */
+    top?: boolean;
   };
   /**
    * intent='diary_push' のときだけ（第133便）。★ **送る相手は1人だけ。**
@@ -338,11 +350,14 @@ export async function startRelayFlow(params: {
     ...(params.photo
       ? {
           photoGirlId: params.photo.girlId,
-          photoSlot: params.photo.slot,
-          photoFile: params.photo.file,
+          ...(Number.isFinite(params.photo.slot) ? { photoSlot: Number(params.photo.slot) } : {}),
+          ...(params.photo.file ? { photoFile: params.photo.file } : {}),
           ...(params.photo.mainRect ? { photoMainRect: params.photo.mainRect } : {}),
           ...(params.photo.thumbRect ? { photoThumbRect: params.photo.thumbRect } : {}),
-          photoStage: 'upload' as const,
+          // ★★★★★ 第248便: 読むだけの段。★ 渡されたときだけ 'probe'（★ 既定は今までどおり 'upload'）
+          photoStage: (params.photo.probe === true ? 'probe' : 'upload') as 'probe' | 'upload',
+          // ★★★★★★ 第248便: 枠1へ入れてよいという明示。★ 渡されたときだけ入れる
+          ...(params.photo.top === true ? { photoTop: true } : {}),
         }
       : {}),
     // ★★★ 削除（第228便）。★ 渡されたときだけ入れる。★ 入っていなければ何も消さない
@@ -410,8 +425,12 @@ export async function startRelayFlow(params: {
   if (params.intent === 'sokuhime_push' && !params.sokuhime?.therapistId) {
     throw new Error('sokuhime_push には sokuhime（therapistId）が要る');
   }
-  if (params.intent === 'photo_push' && !params.photo) {
-    throw new Error('photo_push には photo（girlId / slot / file）が要る');
+  if (params.intent === 'photo_push') {
+    // ★ 読むだけ（probe）のときは girl_id だけでよい。★ 送るときは今までどおり枠と写真が要る
+    if (!params.photo?.girlId) throw new Error('photo_push には photo（girlId / slot / file）が要る');
+    if (params.photo.probe !== true && (!Number.isFinite(params.photo.slot) || !params.photo.file)) {
+      throw new Error('photo_push には photo（girlId / slot / file）が要る');
+    }
   }
 
   const r = await enqueueRelayJob({
