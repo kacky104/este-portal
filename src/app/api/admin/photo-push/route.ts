@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { createServiceClient } from '@/app/lib/supabase/service';
 import { startRelayFlow } from '@/app/lib/media/relayFlow';
 import { centeredMainCrop, isPhotoSlot, isValidThumbRect, THUMB_DEFAULT_RECT, PHOTO_SLOT_MAX } from '@/lib/ekichikaPhoto';
-import { resolveTherapistPhotoFile } from '@/app/lib/media/therapistPhotoFile';
+import { resolveTherapistPhotoFile, type TherapistPhotoFile } from '@/app/lib/media/therapistPhotoFile';
 
 // ── 駅ちかへ写真を1枚送る（第107便・運営だけの口）─────────────────────────
 //   POST /api/admin/photo-push  (Authorization: Bearer <CRON_SECRET>)
@@ -53,7 +53,7 @@ async function readBody(req: Request): Promise<Record<string, unknown>> {
   const o: Record<string, unknown> = {};
   new URLSearchParams(text).forEach((v, k) => { o[k] = v; });
   // ★ 文字の true を真偽に（form では文字で来る）。★ 第248便で probe / top を足した
-  for (const k of ['apply', 'probe', 'top']) if (o[k] === 'true') o[k] = true;
+  for (const k of ['apply', 'probe', 'top', 'all']) if (o[k] === 'true') o[k] = true;
   for (const k of ['thumbRect', 'mainRect']) {
     // ★ JSON なら開く。★ "60,0,180,180" の形は readRect が読むのでそのまま残す
     if (typeof o[k] === 'string' && /^\s*[{[]/.test(o[k] as string)) {
@@ -92,6 +92,8 @@ export async function POST(req: Request) {
   const probe = body.probe === true;
   // ★★★★★★ 第248便: 枠1（トップ画像）へ入れてよいという明示
   const top = body.top === true;
+  // ★★★★★★ 第253便: profile_images の2枚目以降を **枠2〜5** へまとめて送る
+  const all = body.all === true;
 
   if (!Number.isFinite(salonId) || salonId <= 0) return NextResponse.json({ ok: false, error: 'salonId が要る' }, { status: 400 });
   if (!Number.isFinite(therapistId) || therapistId <= 0) return NextResponse.json({ ok: false, error: 'therapistId が要る' }, { status: 400 });
@@ -99,7 +101,16 @@ export async function POST(req: Request) {
     // ★★ 一緒に書かせない。★ 「読むだけのつもりが送っていた」を作らない
     return NextResponse.json({ ok: false, error: 'probe は読むだけ。apply と一緒には使わない' }, { status: 400 });
   }
-  if (!probe) {
+  // ★★★★★★ 第253便: `all` は【まとめて送る】ための合図。★ 混ぜられない相手を先に断る
+  if (all && probe) {
+    return NextResponse.json({ ok: false, error: 'probe は読むだけ。all と一緒には使わない' }, { status: 400 });
+  }
+  if (all && top) {
+    // ★★★ 枠1（top）が通るのは **8枠すべて空き**のときだけ（第248便）。★ 1枚目を入れた時点でその条件は壊れる。
+    //   → ★★ 新規の方は「登録（既定で枠1・第250便）」＋「all で枠2〜5」の**2発**で足りる。★ 混ぜない。
+    return NextResponse.json({ ok: false, error: 'all=true と top=true は一緒に使わない（★ 枠1は登録の流れで入る）' }, { status: 400 });
+  }
+  if (!probe && !all) {
     if (!isPhotoSlot(imageSetId)) return NextResponse.json({ ok: false, error: 'imageSetId は 1〜' + PHOTO_SLOT_MAX }, { status: 400 });
     // ★★★ 枠1はトップ画像。★ 既定では送らない（設計メモ §7「枠1はトップ画像なので触らない」・第142便）
     // ★★★★★★ 【第248便】ただし `top=true` を明示したときだけ通す（設計メモ 追記 K）。
@@ -119,7 +130,8 @@ export async function POST(req: Request) {
 
   // ── セラピスト（★ その店の子であること） ──
   const { data: th, error: thErr } = await svc
-    .from('therapists').select('id, salon_id, name, profile_image_url').eq('id', therapistId).maybeSingle();
+    // ★ 第253便: `profile_images`（★ 配列・text[]）も読む。★ 2枚目以降の材料
+    .from('therapists').select('id, salon_id, name, profile_image_url, profile_images').eq('id', therapistId).maybeSingle();
   if (thErr) return NextResponse.json({ ok: false, error: thErr.message }, { status: 500 });
   if (!th) return NextResponse.json({ ok: false, error: 'セラピストが見つからない' }, { status: 404 });
   if (Number((th as { salon_id: number }).salon_id) !== salonId) {
@@ -155,6 +167,94 @@ export async function POST(req: Request) {
     return NextResponse.json({
       ok: true, applied: false, probe: true, plan: probePlan, jobId: r.jobId, flowId: r.flowId,
       note: r.note + ' ★ 結果は salon_media_audit（event=read_photo_page・detail の shape / blank）で見えます',
+    });
+  }
+
+  // ── ★★★★★★ 第253便: 2枚目以降をまとめて送る（`all=true`）──────────────────
+  //   ★★★ 対応づけは【番号固定】… `profile_images` の N枚目 → 駅ちかの枠N（設計メモ §0 ①）。
+  //     ★ 詰めない。★ ずらさない。★ その枠が既に埋まっていたら **その1枚だけ飛ばす**（中継が読んでから決める）。
+  //   ★★ **枠1には触らない。** ★ 1枚目は登録の流れ（第250便の既定）で入る。★ ここは枠2から。
+  //   ★★★★★ 何度打っても同じ結果になる … 入っている枠は飛ばされ、**止まった枠から続きが入る**（設計メモ §6）。
+  if (all) {
+    const rawImages = (th as { profile_images?: string[] | null }).profile_images;
+    const images = (Array.isArray(rawImages) ? rawImages : []).filter((u) => typeof u === 'string' && u !== '');
+    if (images.length < 2) {
+      return NextResponse.json(
+        { ok: false, error: 'この方のお写真が1枚しかありません（★ 2枚目以降が無いので送るものがありません）' },
+        { status: 400 },
+      );
+    }
+
+    // ★ 2枚目（index 1）から。★ 枠は index+1 ＝ 番号固定。★ 駅ちかの枠の上限を超えない
+    const queue: Array<{ slot: number; file: TherapistPhotoFile; mainRect: Rect; thumbRect: Rect }> = [];
+    const notReady: Array<{ slot: number; reason: string }> = [];
+    for (let i = 1; i < images.length && i + 1 <= PHOTO_SLOT_MAX; i++) {
+      const wantSlot = i + 1;
+      const one = await resolveTherapistPhotoFile(svc, { therapistId, imageSetId: wantSlot, profileImageUrl: images[i] });
+      if (!one.ok) {
+        // ★ 用意できない1枚は**飛ばして先へ**。★ ただし理由は必ず返す（★ 黙って落とさない・第250便 §2）
+        notReady.push({ slot: wantSlot, reason: one.error });
+        continue;
+      }
+      queue.push({
+        slot: wantSlot,
+        file: one.file,
+        mainRect: centeredMainCrop(one.file.width, one.file.height),
+        thumbRect: { ...THUMB_DEFAULT_RECT },
+      });
+    }
+    if (queue.length === 0) {
+      return NextResponse.json(
+        { ok: false, error: '送れる写真が1枚もありませんでした', notReady },
+        { status: 400 },
+      );
+    }
+
+    const [first, ...rest] = queue;
+    const allPlan = {
+      salonId, slot, therapistId, therapistName: String((th as { name?: string }).name ?? ''),
+      girlId,
+      all: true,
+      slots: queue.map((q) => q.slot),
+      files: queue.map((q) => ({ slot: q.slot, path: q.file.path, filename: q.file.filename, width: q.file.width, height: q.file.height, bytes: q.file.bytes })),
+      ...(notReady.length > 0 ? { notReady } : {}),
+      steps: ['login', '（枠ごとに）read_photo_page → upload_photo → crop_photo → read_photo_page → verify'],
+      verify: '★★ 1枚ごとに読み直して照合します（★ まとめて送って最後に1回、ではありません）',
+      guards: [
+        '★★ 枠1（トップ画像）には送りません（★ 1枚目は登録の流れで入ります）',
+        '★★ 枠1が空きの方には送りません（slot1_empty・第246便）',
+        '★★★ 既に写真が入っている枠は【その1枚だけ飛ばします】（★ 番号はずらしません・第253便）',
+        '★★★ 照合が外れたらそこで止めます。★ 残りは送りません（第253便）',
+      ],
+    };
+
+    if (!apply) {
+      return NextResponse.json({ ok: true, applied: false, plan: allPlan, note: '試し打ち。★ apply:true で中継ジョブを積みます（★ 埋まっている枠は VPS 側で飛ばされます）' });
+    }
+
+    const r = await startRelayFlow({
+      salonId, provider: 'ekichika', slot,
+      intent: 'photo_push',
+      actor: 'admin:photo-push:all',
+      photo: {
+        girlId,
+        slot: first.slot,
+        file: { bucket: first.file.bucket, path: first.file.path, filename: first.file.filename, contentType: first.file.contentType, width: first.file.width, height: first.file.height },
+        mainRect: first.mainRect,
+        thumbRect: first.thumbRect,
+        multi: true,
+        queue: rest.map((q) => ({
+          slot: q.slot,
+          file: { bucket: q.file.bucket, path: q.file.path, filename: q.file.filename, contentType: q.file.contentType, width: q.file.width, height: q.file.height },
+          mainRect: q.mainRect,
+          thumbRect: q.thumbRect,
+        })),
+      },
+    });
+    if (!r.ok) return NextResponse.json({ ok: false, applied: false, plan: allPlan, reason: r.reason, note: r.note }, { status: 409 });
+    return NextResponse.json({
+      ok: true, applied: true, plan: allPlan, jobId: r.jobId, flowId: r.flowId,
+      note: r.note + ' ★ 進み具合は salon_media_audit（event=read_photo_page / push_photo）で見えます',
     });
   }
 
