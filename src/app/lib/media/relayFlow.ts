@@ -42,7 +42,7 @@ import {
   type EkichikaDiaryDetail,
   type KnownDiary,
 } from '@/lib/ekichikaDiaryParse';
-import { loadCastIds, rememberCastId } from '@/lib/mediaCastIds';
+import { loadCastIds, rememberCastId, forgetCastId } from '@/lib/mediaCastIds';
 import { addDaysISO, buildWorkPlan, planFingerprint, summarizePlan, type FukuesShift } from '@/lib/workPlan';
 import { WORK_DAYS, encodeGirlWork, type WorkPage } from '@/lib/ekichikaWorkParse';
 import type { EkichikaGirlsPage } from '@/lib/ekichikaGirlsParse';
@@ -595,6 +595,33 @@ export async function advanceRelayFlow(params: {
         });
         note = note + ' → ★ 番号の結びつけに失敗: ' + (r.error ?? '理由不明');
       }
+    }
+  }
+
+  // ★★★★★ 媒体からその人が居なくなった（第239便・2026-09-10）。★ **結びつきも外す。**
+  //   ★ `rememberCastId` の裏返し。★ 書くほうだけ在って、消すほうが無かった。
+  //   ★★ 残したままだと:
+  //     ・同じ方をもう一度送ろうとして **409 で止まり続ける**（2026-09-10 に実際に詰まった）
+  //     ・castId が別人に再利用されたら **別人に書き込む**（★ こちらのほうが怖い）
+  //   ★★★ 外せなくても流れは止めない（★ 相手からはもう消えている）。★ ただし**黙らない**。
+  if (outcome.kind === 'done' && outcome.mediaRemoved) {
+    const g = outcome.mediaRemoved;
+    const who = g.name ? g.name + 'さん' : 'castId ' + g.castId;
+    const r = await forgetCastId(createServiceClient(), {
+      provider: params.provider, slot: params.slot, castId: g.castId,
+    });
+    if (!r.ok) {
+      audits.push({
+        event: 'delete_girl', outcome: 'failed',
+        summary: who + 'は媒体から居なくなりましたが、フクエス側の結びつきを外せませんでした（cast_id ' + g.castId + '）。★ このままだと同じ方を登録し直せません',
+        detail: { castId: g.castId, name: g.name, reason: 'unlink_failed', note: r.error ?? null, flowId: context.flowId },
+      });
+      note = note + ' → ★ 結びつきを外せなかった: ' + (r.error ?? '理由不明');
+    } else if (r.removed > 0) {
+      note = note + ' → フクエスの結びつき（id ' + String(r.therapistId) + ' ⇔ cast_id ' + g.castId + '）を外した';
+    } else {
+      // ★ もともと結びついていなかった。★ 失敗ではないので記録は増やさない
+      note = note + ' → 結びつきは元から無かった';
     }
   }
 

@@ -347,5 +347,40 @@ const ctxV = Object.assign({}, ctxF, { createStage: 'verify' });
      r.next.body.replace(/fuel_csrf_token=[^&]*/, 'csrftk=(伏せた)'));
 }
 
+// ── ⑪ ★★★★★ 媒体から居なくなったら【結びつきも外す】と伝える（第239便・2026-09-10）──
+//
+// ★★★ 2026-09-10 未明に詰まったこと:
+//   駅ちかから人を消しても `therapist_media_ids` の行が残り、同じ方を送ろうとして 409 で止まった。
+//   ★★ 逆に castId が別人に再利用されたら **別人に書き込む**。★ こちらのほうが怖い。
+//   → 流れは `mediaRemoved` を返し、**外すのは呼び出し側**（このファイルは DB を知らない約束）。
+// ★★★★ ここは **また外し忘れないための番人**。
+{
+  const dbase2 = RF.newFlowContext({ flowId: 'f3', intent: 'girl_delete', startedAt: '2026-09-09T21:00:00+09:00' });
+  const dctx2 = Object.assign({}, dbase2, { cookie: 'sid=abc', deleteCastId: '5810099' });
+
+  // ① 消したことを一覧で確かめた → 外す
+  const okOut = go('read_girls', 200, {}, girlsPage(...OTHERS),
+    Object.assign({}, dctx2, { deleteStage: 'verify', deleteName: 'てすと', deleteBefore: 3 }));
+  eq('★ 削除は成功', okOut.audits[0].outcome, 'ok');
+  eq('★★★★★ 結びつきを外すよう伝える', okOut.mediaRemoved,
+     { castId: '5810099', name: 'てすと', reason: 'deleted' });
+
+  // ② 行ったらもう居なかった → これも外す（★ 手で消された方の行が残るのを防ぐ）
+  const goneOut = go('read_girls', 200, {}, girlsPage(...OTHERS), dctx2);
+  eq('★ 何もしないで終わる', goneOut.audits[0].outcome, 'stopped');
+  eq('★★★★ もう居なくても結びつきは外す', goneOut.mediaRemoved,
+     { castId: '5810099', name: null, reason: 'not_listed' });
+
+  // ③ ★★★ まだ残っている（削除できていない）→ **外さない**
+  const stillOut = go('read_girls', 200, {}, girlsPage(...OTHERS, cell('5810099', 'てすと')),
+    Object.assign({}, dctx2, { deleteStage: 'verify', deleteName: 'てすと', deleteBefore: 3 }));
+  eq('★ 削除は失敗', stillOut.audits[0].outcome, 'failed');
+  eq('★★★★★ 消せていないのに結びつきを外さない', stillOut.mediaRemoved === undefined, true);
+
+  // ④ ★★ 登録の流れは mediaRemoved を返さない（取り違えの番人）
+  const created = go('read_girls', 200, {}, girlsPage(...OTHERS, cell('999', 'さくら')), ctxV);
+  eq('★★ 登録の done は mediaRemoved を返さない', created.mediaRemoved === undefined, true);
+}
+
 console.log(fail === 0 ? '\nすべて通りました' : '\n' + fail + ' 件 NG');
 process.exit(fail === 0 ? 0 : 1);

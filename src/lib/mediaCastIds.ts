@@ -123,3 +123,61 @@ export async function rememberCastId(
   }
   return { ok: true };
 }
+
+/**
+ * ★★★★★ castId の結びつきを【消す】（第239便・2026-09-10）。★ `rememberCastId` の裏返し。
+ *
+ * ★★★ なぜ要るか（★ 2026-09-10 未明に実際に詰まった）
+ *   駅ちかから人を消しても `therapist_media_ids` の行が残っていた。
+ *   ★ そのせいで同じ方をもう一度送ろうとすると **409 で止まり続ける**（口の二重掲載の止め）。
+ *   ★★ 逆に、駅ちかが **その castId を別人に再利用した**ら、
+ *     フクエスは「この番号はこの人」と思い込んだまま **別人に書き込む**。★ こちらのほうが怖い。
+ *   → **相手から居なくなったら、結びつきも外す。**
+ *
+ * ★★ 呼ぶ条件（★ ここを緩めない）
+ *   **一覧を読み直して「その castId がもう居ない」と確かめたときだけ**呼ぶこと。
+ *   ★ 書き込みの応答で判定しない（第46便 §35）。★ 消し損ねより、消しすぎのほうが害が大きい。
+ *
+ * ★ エステ魂の「非表示」では**呼ばない**。★ 非表示は消滅ではなく、番号は生きている。
+ *
+ * @returns removed … 実際に外れた行数（0＝もともと結びついていなかった。★ これは失敗ではない）
+ */
+export async function forgetCastId(
+  supabase: SupabaseClient,
+  input: { provider: string; slot: number; castId: string },
+): Promise<{ ok: boolean; removed: number; therapistId: number | null; error?: string }> {
+  const castId = String(input.castId ?? '').trim();
+  if (!castId) return { ok: false, removed: 0, therapistId: null, error: 'castId が空のまま結びつきを外さない' };
+
+  // ★ 誰の行だったかを先に控える。★ 記録に「誰の結びつきを外したか」を残すため
+  const { data: found, error: readErr } = await supabase
+    .from('therapist_media_ids')
+    .select('therapist_id')
+    .eq('provider', input.provider)
+    .eq('slot', input.slot)
+    .eq('external_cast_id', castId)
+    .maybeSingle();
+  if (readErr) return { ok: false, removed: 0, therapistId: null, error: readErr.message };
+  const therapistId = found ? Number((found as { therapist_id?: number }).therapist_id) : null;
+
+  const { error } = await supabase
+    .from('therapist_media_ids')
+    .delete()
+    .eq('provider', input.provider)
+    .eq('slot', input.slot)
+    .eq('external_cast_id', castId);
+  if (error) return { ok: false, removed: 0, therapistId, error: error.message };
+
+  // ★★ 旧列も対称に消す（`rememberCastId` が書いているので、こちらも消す）。
+  //   ★★★ **値が一致するときだけ**（`.eq('import_cast_id', castId)`）。
+  //     ★ 別の番号が入っていたら触らない。★ 消しすぎない。
+  if (isLegacyCastIdScope(input.provider, input.slot) && therapistId) {
+    await supabase
+      .from('therapists')
+      .update({ import_cast_id: null })
+      .eq('id', therapistId)
+      .eq('import_cast_id', castId);
+  }
+
+  return { ok: true, removed: therapistId === null ? 0 : 1, therapistId };
+}

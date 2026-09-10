@@ -725,6 +725,18 @@ export type FlowOutcome =
        *   ★★ ここを書き落とすと **次の周でまた同じ人を作る**（二重掲載を自分で作る・禁則269）。
        */
       mediaCreated?: { therapistId: number; castId: string; name: string };
+      /**
+       * ★★★★★ 媒体からその人が**居なくなった**（第239便＝駅ちかの削除）。
+       *   ★ `mediaCreated` の裏返し。★ **結びつき（therapist_media_ids）を外すのは呼び出し側**。
+       *   ★ このファイルは DB を知らない。★ 「どの番号が居なくなったか」を返すところまでが仕事。
+       *
+       * ★★★ 返す条件（★ ここを緩めない）: **一覧を読み直して、その castId がもう居ない**とき。
+       *   ★ 書き込みの応答では判定しない（第46便 §35）。
+       *
+       * ★★ reason … 'deleted'＝こちらが消した ／ 'not_listed'＝行ったらもう居なかった
+       *   ★ 後者も外す。★ 2026-09-10 に、手で消された方の結びつきが残って 409 で詰まった。
+       */
+      mediaRemoved?: { castId: string; name: string | null; reason: 'deleted' | 'not_listed' };
     }
   | { kind: 'stop'; audits: FlowAudit[]; note: string }
   /**
@@ -1514,8 +1526,15 @@ function afterReadSokuhime(
 //     girls_list_action=delete_girl
 //     girls_btn_batch_del=（押したボタン）
 //     fuel_csrf_token=<一覧ページから拾った使い捨て>
-//   ★ 個別リンク（GET /admin/girls/delete/<castId>）は確認ダイアログが無く、
-//     開いた瞬間に消える（2026-09-09 実測）。★ 中継で GET を積むのは危なすぎる。
+//
+// ★★★★★ 【訂正・第238便 2026-09-10】**この POST では消えなかった。**
+//   ブラウザで手押し削除したときの実物（実測）:
+//     GET https://ranking-deli.jp/admin/girls/delete/<castId>&gl=XXXX → 302 → /admin/girls
+//   ★ 駅ちかの削除は **GET**。★ 一括削除フォームの POST は（少なくともこの画面では）効かない。
+//   ★★ だからいまは **一覧の削除リンク（href）をそのまま GET する**。★ `&gl=` は毎回変わる（§2-5）
+//     ので、**番号から URL を組み立てない**。★ 読んだ href 以外を叩かない。
+//   ★★★ 押した瞬間に消える（確認ダイアログが無い）。★ だから見張りを2つ置いてある:
+//     ① ホストが駅ちかであること ② パスが**消すつもりの castId** の削除リンクであること
 //
 // ★★ 消したかどうかは【応答では判定しない】（第46便 §35 の作法）。
 //   もう一度一覧を読み、その castId が消えていることを確かめる。
@@ -1613,6 +1632,8 @@ function girlDeleteAfterGirls(page: EkichikaGirlsPage, ctx: RelayFlowContext): F
       note: suspicious
         ? '削除は通ったが在籍の増減が1名ではない（before=' + String(before) + ' after=' + after + '）'
         : '削除を確認した（' + String(before) + '名 → ' + after + '名）',
+      // ★★★★★ 相手から居なくなった。★ 結びつきを外すのは呼び出し側（第239便）
+      mediaRemoved: { castId, name: ctx.deleteName ?? null, reason: 'deleted' },
     };
   }
 
@@ -1633,6 +1654,11 @@ function girlDeleteAfterGirls(page: EkichikaGirlsPage, ctx: RelayFlowContext): F
         detail: { castId, people: page.rows.length, reason: 'not_listed', flowId },
       }],
       note: '一覧に居ないので削除しない（' + page.rows.length + '名を読んだ）',
+      // ★★★★★ 行ったらもう居なかった。★ **結びつきは外す**（第239便）。
+      //   ★ 2026-09-10、手で消された方の行が残っていて、同じ方を送ろうとして 409 で詰まった。
+      //   ★★ 一覧は読めている（problems が空でなければここまで来ない）ので、
+      //     「読めなかったから居ない」ではない。★ 確かに居ない。
+      mediaRemoved: { castId, name: ctx.deleteName ?? null, reason: 'not_listed' },
     };
   }
   // ★★★★★ 削除は【一覧の削除リンクを GET する】（第238便・2026-09-10 実測）。
