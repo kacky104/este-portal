@@ -58,11 +58,11 @@ if [ -f "$BACKOFF_FILE" ]; then
   if [ "$NOW_TS" -lt "$UNTIL_TS" ]; then
     UNTIL_JST="$(TZ=Asia/Tokyo date -d "@$UNTIL_TS" '+%F %T' 2>/dev/null || echo "$UNTIL_TS")"
     LEFT_MIN="$(( (UNTIL_TS - NOW_TS + 59) / 60 ))"
-    echo "=== $(TZ=Asia/Tokyo date '+%F %T') relay: backoff 中（${UNTIL_JST} まで・あと約${LEFT_MIN}分）-> skip ★ 止めた理由は /root/import.log（禁則273・import.sh と共有）★ 今すぐ解除するなら rm ${BACKOFF_FILE} ==="
+    echo "=== $(TZ=Asia/Tokyo date '+%F %T') relay: [BACKOFF] 中（${UNTIL_JST} まで・あと約${LEFT_MIN}分）-> skip ★ 止めた理由は grep -h BACKOFF /root/import.log /root/relay.log ★ 今すぐ解除するなら rm ${BACKOFF_FILE} ==="
     exit 0
   fi
   rm -f "$BACKOFF_FILE"
-  echo "=== $(TZ=Asia/Tokyo date '+%F %T') relay: backoff 解除 ==="
+  echo "=== $(TZ=Asia/Tokyo date '+%F %T') relay: [BACKOFF] 解除 ==="
 fi
 
 exec 9>/root/relay.lock
@@ -264,7 +264,9 @@ while time.time() < deadline:
     if status == 429 or 500 <= status <= 599:
         with open(BACKOFF_FILE, "w") as f:
             f.write(str(int(time.time()) + BACKOFF_SEC))
-        log("★★★ 駅ちかが %d を返した。%d分停止する（解除: rm %s）" % (status, BACKOFF_SEC // 60, BACKOFF_FILE))
+        # ★★★★★ 【第256便】目印 [BACKOFF] を入れる。★ import.sh と揃えた（同じことを別の言葉で書かない）。
+        #   ★ url は出さない方針のまま（★ ログに宛先の詳細を残さない）。★ 揃えたのは【目印と語順】だけ。
+        log("★★★ [BACKOFF] 開始: relay が 駅ちか の %d を受けた。%d分停止する（解除: rm %s）" % (status, BACKOFF_SEC // 60, BACKOFF_FILE))
         break
 
 # ★ 生存の記録は「育たない1ファイル」に。ログには何も書かない。

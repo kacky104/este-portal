@@ -101,11 +101,11 @@ if [ -f "$BACKOFF_FILE" ]; then
   case "$UNTIL_TS" in ""|*[!0-9]*) UNTIL_TS=0 ;; esac
   NOW_TS="$(date +%s)"
   if [ "$NOW_TS" -lt "$UNTIL_TS" ]; then
-    echo "=== $(TZ=Asia/Tokyo date '+%F %T') backoff 中（$(TZ=Asia/Tokyo date -d "@$UNTIL_TS" '+%F %T') まで）-> skip ==="
+    echo "=== $(TZ=Asia/Tokyo date '+%F %T') import: [BACKOFF] 中（$(TZ=Asia/Tokyo date -d "@$UNTIL_TS" '+%F %T') まで）-> skip ★ 止めた理由は上の [BACKOFF] 開始 の行 ==="
     exit 0
   fi
   rm -f "$BACKOFF_FILE"
-  echo "=== $(TZ=Asia/Tokyo date '+%F %T') backoff 解除 ==="
+  echo "=== $(TZ=Asia/Tokyo date '+%F %T') import: [BACKOFF] 解除 ==="
 fi
 
 exec 9>/root/import.lock
@@ -152,7 +152,11 @@ def fetch(u):
     body,code=(out[:i],out[i+1:].strip()) if i>=0 else ("","000")
     if code=="429" or code.startswith("5"):
         with open(BACKOFF_FILE,"w") as f: f.write(str(int(time.time())+BACKOFF_SEC))
-        print("★★★ %s が %s を返した。%d分停止する（解除: rm %s）" % (u,code,BACKOFF_SEC//60,BACKOFF_FILE),flush=True)
+        # ★★★★★ 【第256便】目印 [BACKOFF] を入れる。★ relay.sh と揃えた。
+        #   ★ 2026-09-10 夜: relay が止まった理由を探すのに「駅ちかが」で grep して2回空振りした。
+        #     ★ import は「<URL> が」、relay は「駅ちかが」と**同じことを別の言葉で**書いていたため。
+        #   → ★★ grep -h BACKOFF /root/import.log /root/relay.log で、開始・skip・解除が一度に並ぶ。
+        print("★★★ [BACKOFF] 開始: import が %s の %s を受けた。%d分停止する（解除: rm %s）" % (u,code,BACKOFF_SEC//60,BACKOFF_FILE),flush=True)
         raise SystemExit(2)
     if code!="200":
         print("★ %s が %s を返した（スキップ）" % (u,code),flush=True)
