@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server';
 import { createServiceClient } from '@/app/lib/supabase/service';
 import { startRelayFlow } from '@/app/lib/media/relayFlow';
+import { resolveTherapistPhotoFile, type TherapistPhotoFile } from '@/app/lib/media/therapistPhotoFile';
+import { centeredMainCrop, THUMB_DEFAULT_RECT } from '@/lib/ekichikaPhoto';
 import { sanitizeBadges } from '@/lib/therapistBadges';
 import { toEkichikaGenreIds, explainBadgeMapping, EKICHIKA_DEFAULT_GENRE_ID } from '@/lib/mediaBadgeMap';
 import { parseBodyType } from '@/lib/bodyType';
@@ -40,7 +42,8 @@ async function readBody(req: Request): Promise<Record<string, unknown>> {
   }
   const o: Record<string, unknown> = {};
   new URLSearchParams(text).forEach((v, k) => { o[k] = v; });
-  if (o.apply === 'true') o.apply = true;
+  // ★ 文字の true を真偽に。★ 第249便で withPhoto を足した
+  for (const k of ['apply', 'withPhoto']) if (o[k] === 'true') o[k] = true;
   return o;
 }
 
@@ -55,6 +58,10 @@ export async function POST(req: Request) {
   const therapistId = Number(body.therapistId);
   const slot = Number.isFinite(Number(body.slot)) && Number(body.slot) > 0 ? Number(body.slot) : 1;
   const apply = body.apply === true;
+  // ★★★★★★ 【第249便】登録が通ったら、そのまま**枠1へ写真を1枚**送る。
+  //   ★ 既定は無し ＝ 今までどおり登録だけ（★ 書かなければ振る舞いは1つも変わらない）。
+  //   ★★ 枠1へ入れてよいかの最後の判断は、中継が編集ページを読み直してから（第248便・slot1_not_blank）。
+  const withPhoto = body.withPhoto === true;
   // ★★★★ 切り分け用の2つ（第235便・設計メモ §17-9）。★ **コードを直さずに試せるようにする。**
   //   postTo=fixed … これまでどおり決め打ちの URL へ送る（既定は action ＝ 読んだフォームの action）
   //   rookie=false … `rookie_flg=1` を混ぜない（★ §2-7b は1回だけの確認なので疑える口を開けた）
@@ -75,7 +82,7 @@ export async function POST(req: Request) {
 
   const { data: th, error: tErr } = await svc
     .from('therapists')
-    .select('id, salon_id, name, age, body_type, feature_badges, is_active')
+    .select('id, salon_id, name, age, body_type, feature_badges, is_active, profile_image_url')
     .eq('id', therapistId).maybeSingle();
   if (tErr) return NextResponse.json({ ok: false, error: tErr.message }, { status: 500 });
   if (!th) return NextResponse.json({ ok: false, error: 'セラピストが見つからない' }, { status: 404 });
@@ -125,6 +132,29 @@ export async function POST(req: Request) {
     cup: /^[A-Z]$/.test(cupRaw) ? cupRaw : null,
   };
 
+  // ── ★★★★★★ 【第249便】登録のあとに送る写真を、**送る前に**用意しておく ──────────
+  //   ★ ここで用意できなければ **1人も作らない**。★ 「登録はしたが写真が無い」を作らない。
+  //   ★★ 用意するだけで、送るかどうかは中継が編集ページを読んでから決める（第248便）。
+  //   ★ 検査は photo-push と同じ1か所（therapistPhotoFile.ts）を通す。
+  type Rect = { x: number; y: number; w: number; h: number };
+  let photo: { file: TherapistPhotoFile; mainRect: Rect; thumbRect: Rect } | null = null;
+  if (withPhoto) {
+    const got = await resolveTherapistPhotoFile(svc, {
+      therapistId, imageSetId: 1,
+      profileImageUrl: (th as { profile_image_url?: string | null }).profile_image_url ?? null,
+    });
+    if (!got.ok) {
+      return NextResponse.json({ ok: false, error: '写真を用意できないため登録しません: ' + got.error }, { status: got.status });
+    }
+    photo = {
+      file: got.file,
+      // ★ 3:4 の範囲は実寸の中央（★ 既に 3:4 の写真なら丸ごと。★ その場合 to_thumb=1 で段が飛ぶ）
+      mainRect: centeredMainCrop(got.file.width, got.file.height),
+      // ★★ 正方形は【上寄せ】（2026-09-02 の決定・ekichikaPhoto.ts）。★ 全身写真で顔が外れないように
+      thumbRect: { ...THUMB_DEFAULT_RECT },
+    };
+  }
+
   const warnings: string[] = [];
   if (mapping.ekichika.usedDefault)
     warnings.push('★ 駅ちかへ送れる特徴が1つも無いので、既定の「店長オススメ」（' + EKICHIKA_DEFAULT_GENRE_ID + '）だけで登録します');
@@ -147,7 +177,25 @@ export async function POST(req: Request) {
       ? '★ 読んだフォームの action へ送ります（★ 動いている出勤と同じ作法・§17-8）'
       : '★ ★ 決め打ちの URL へ送ります（postTo=fixed が指定されました・切り分け用）',
     steps: ['login', 'read_girls（在籍確認＋顔ぶれ）', 'girl_create_form（110部品を読む）', 'girl_create', 'read_girls（照合＋castId回収）'],
-    notSent: ['写真（登録フォームに欄が無い。登録後に photo-push で送る）', '優先タグ p_genre（上位表示は店舗様の運用）', 'キャッチ・紹介文'],
+    notSent: withPhoto
+      ? ['優先タグ p_genre（上位表示は店舗様の運用）', 'キャッチ・紹介文']
+      : ['写真（登録フォームに欄が無い。登録後に photo-push で送る）', '優先タグ p_genre（上位表示は店舗様の運用）', 'キャッチ・紹介文'],
+    ...(photo
+      ? {
+          // ★★★★★★ 第249便: 登録のあと、そのまま枠1へ1枚
+          photo: {
+            imageSetId: 1,
+            file: photo.file,
+            mainRect: photo.mainRect,
+            thumbRect: photo.thumbRect,
+            guards: [
+              '★★★ 8枠すべてが空きでなければ送りません（slot1_not_blank・第248便）',
+              '★★★ 指名した枠と違う枠に入っていたら failed で申告します（slot_mismatch・第246便）',
+              '★★ 写真の段で止まっても、castId の結びつけは残ります（★ 二重登録を作らない）',
+            ],
+          },
+        }
+      : {}),
     warnings,
   };
 
@@ -164,6 +212,21 @@ export async function POST(req: Request) {
     intent: 'girl_create',
     actor: 'admin:girl-create',
     girlCreate: { therapistId, values, postTo, rookie },
+    // ★★★★★★ 第249便: 登録が通ったら、そのまま枠1へ1枚。★ girl_id は【登録後に読み直した castId】を中継が入れる
+    ...(photo
+      ? {
+          photo: {
+            slot: 1,
+            file: {
+              bucket: photo.file.bucket, path: photo.file.path, filename: photo.file.filename,
+              contentType: photo.file.contentType, width: photo.file.width, height: photo.file.height,
+            },
+            mainRect: photo.mainRect,
+            thumbRect: photo.thumbRect,
+            top: true,
+          },
+        }
+      : {}),
   });
   if (!r.ok) return NextResponse.json({ ok: false, applied: false, plan, reason: r.reason, note: r.note }, { status: 409 });
   return NextResponse.json({

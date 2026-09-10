@@ -382,5 +382,54 @@ const ctxV = Object.assign({}, ctxF, { createStage: 'verify' });
   eq('★★ 登録の done は mediaRemoved を返さない', created.mediaRemoved === undefined, true);
 }
 
+// ── ★★★★★★ 第249便: 登録のあと、そのまま枠1へ写真を1枚 ───────────────────
+//   ★ ここは【相手に人が増えたあと、さらに書き込む】ところ。★ 止めを数で固定する。
+console.log('\n── 第249便: 登録 → 枠1へ写真（withPhoto）──');
+{
+  const FILE = { bucket: 'therapist-photos', path: '602-1.jpg', filename: 'fukues_602_1.jpg', contentType: 'image/jpeg', width: 600, height: 800 };
+  const pctxV = Object.assign({}, ctxV, { photoFile: FILE, photoTop: true, photoThumbRect: { x: 60, y: 0, w: 180, h: 180 } });
+  const r = go('read_girls', 200, {}, girlsPage(...OTHERS, cell('5809639', 'さくら')), pctxV);
+
+  eq('★★★★★ 登録が通ったら、終わらずに編集ページを読みに行く', [r.kind, r.next.purpose, r.next.method], ['next', 'read_photo_page', 'GET']);
+  eq('★★★★★★ 行き先は【読み直して確かめた castId】の編集ページ',
+     r.next.url, 'https://ranking-deli.jp/admin/girls/edit/5809639');
+  eq('★★★ 送る枠は1・段は upload', [r.next.context.photoSlot, r.next.context.photoStage], [1, 'upload']);
+  eq('★★ 枠1へ入れてよいという合図は持ち回る', r.next.context.photoTop, true);
+  eq('★ 登録できたことは記録に残る', [r.audits[0].event, r.audits[0].outcome], ['create_girl', 'ok']);
+  eq('★★★★★★ **まだ続くのに** castId の結びつけを返す（★ 二重登録を作らない）',
+     r.mediaCreated, { therapistId: 602, castId: '5809639', name: 'さくら' });
+}
+{
+  // ★★★ 写真の材料が無ければ、今までどおり done（★ withPhoto を書かなければ何も変わらない）
+  const r = go('read_girls', 200, {}, girlsPage(...OTHERS, cell('5809639', 'さくら')), ctxV);
+  eq('★★★★ 写真の材料が無ければ、今までどおり done', [r.kind, r.next === undefined], ['done', true]);
+}
+{
+  // ★★ 写真はあるが top の合図が無い → 送らない（★ 枠1は合図があるときだけ）
+  const noTop = Object.assign({}, ctxV, { photoFile: { bucket: 'b', path: 'p', filename: 'f.jpg', contentType: 'image/jpeg', width: 600, height: 800 } });
+  const r = go('read_girls', 200, {}, girlsPage(...OTHERS, cell('5809639', 'さくら')), noTop);
+  eq('★★★★★ top の合図が無ければ写真へ進まない', r.kind, 'done');
+}
+{
+  // ★★★★★★ 登録に失敗したら、写真へは進まない（★ 誰の枠か分からないまま送らない）
+  const pctxV = Object.assign({}, ctxV, { photoFile: { bucket: 'b', path: 'p', filename: 'f.jpg', contentType: 'image/jpeg', width: 600, height: 800 }, photoTop: true });
+  const r = go('read_girls', 200, {}, girlsPage(...OTHERS), pctxV);
+  eq('★★★★★★ 登録が失敗したら写真へは進まない', [r.kind, r.audits[0].outcome], ['stop', 'failed']);
+}
+{
+  // ★★★ 増えた人が絞れないときも進まない（★ 別人の枠に入れない）
+  const pctxV = Object.assign({}, ctxV, { photoFile: { bucket: 'b', path: 'p', filename: 'f.jpg', contentType: 'image/jpeg', width: 600, height: 800 }, photoTop: true });
+  const r = go('read_girls', 200, {}, girlsPage(...OTHERS, cell('5809639', 'あや'), cell('5809640', 'ゆい')), pctxV);
+  eq('★★★★★ 誰を登録したのか決められないときは写真へ進まない',
+     [r.kind, r.audits[0].detail.reason], ['stop', 'ambiguous']);
+}
+{
+  // ★★★ すでに同じ名前が居て登録しなかったときも、写真へ進まない
+  const pctx1 = Object.assign({}, ctx, { photoFile: { bucket: 'b', path: 'p', filename: 'f.jpg', contentType: 'image/jpeg', width: 600, height: 800 }, photoTop: true });
+  const r = go('read_girls', 200, {}, girlsPage(...OTHERS, cell('9999999', 'さくら')), pctx1);
+  eq('★★★★ すでに居るので登録しない → 写真へも進まない',
+     [r.kind, r.audits[0].detail.reason], ['done', 'already_listed']);
+}
+
 console.log(fail === 0 ? '\nすべて通りました' : '\n' + fail + ' 件 NG');
 process.exit(fail === 0 ? 0 : 1);

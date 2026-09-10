@@ -147,7 +147,12 @@ export async function startRelayFlow(params: {
    * ★★ ここで受け取っていないと、呼び出し側が渡しても静かに落ちる（diarySince と同じ作法）。
    */
   photo?: {
-    girlId: string;
+    /**
+     * ★ 駅ちかの girl_id。★ `photo_push` では必須。
+     * ★★★ 【第249便】`girl_create` から続けて送るときは**まだ番号が無い**ので省く。
+     *   ★ 中継が【登録後に一覧を読み直して確かめた castId】を入れる（★ 応答から拾った番号ではない）。
+     */
+    girlId?: string;
     /** ★ 画像の枠（1〜8）。★ probe（読むだけ）のときは要らない */
     slot?: number;
     /** ★ 送る写真。★ probe（読むだけ）のときは要らない */
@@ -349,7 +354,7 @@ export async function startRelayFlow(params: {
     // ★ 写真の送信（第107便）。★ 渡されたときだけ入れる
     ...(params.photo
       ? {
-          photoGirlId: params.photo.girlId,
+          ...(params.photo.girlId ? { photoGirlId: params.photo.girlId } : {}),
           ...(Number.isFinite(params.photo.slot) ? { photoSlot: Number(params.photo.slot) } : {}),
           ...(params.photo.file ? { photoFile: params.photo.file } : {}),
           ...(params.photo.mainRect ? { photoMainRect: params.photo.mainRect } : {}),
@@ -635,7 +640,9 @@ export async function advanceRelayFlow(params: {
   //   ★★★ これを書き落とすと、次に同じ人を送ろうとしたとき「向こうに居ない」と判断して
   //     **もう1人作ってしまう**（二重掲載を自分で作る・禁則269）。★ だから流れの最後で必ず書く。
   //   ★ 書けなかったら **記録に残して人に見せる**（黙って落とさない）。
-  if (outcome.kind === 'done' && outcome.mediaCreated) {
+  // ★★★★★★ 【第249便】'next'（★ まだ続く）でも書く。★ 登録のあと写真まで送る流れで、
+  //   写真の段で止まっても **番号だけは表に残す**ため。★ 残らないと次の周でもう1人作る。
+  if ((outcome.kind === 'done' || outcome.kind === 'next') && outcome.mediaCreated) {
     const c = outcome.mediaCreated;
     if (c.therapistId > 0) {
       const r = await rememberCastId(createServiceClient(), {
@@ -749,9 +756,15 @@ export async function advanceRelayFlow(params: {
     outcome.audits.length > 0 &&
     outcome.audits.every((a) => !(a.event === 'login' && a.outcome === 'failed'));
 
+  // ★★★★★★ 【第249便】登録のあと写真まで送る流れ（`girl_create` ＋ `withPhoto`）でも同じ扱いにする。
+  //   ★ 写真の段まで来ている ＝ **登録が通っている** ＝ ログインは成功している。
+  //   ★★ ここを足さないと、`slot1_not_blank` 等で止まったときに
+  //     店舗の画面へ「ログイン情報がおかしい」と読める文が出る（★ 認証の話ではない）。
+  const inPhotoStage = context.intent === 'photo_push'
+    || (context.intent === 'girl_create' && typeof context.photoGirlId === 'string' && context.photoGirlId !== '');
   const photoStoppedButLoggedIn =
     outcome.kind === 'stop' &&
-    context.intent === 'photo_push' &&
+    inPhotoStage &&
     outcome.audits.length > 0 &&
     outcome.audits.every((a) => a.event !== 'login');
   // ★ エステ魂のログイン POST を組めなかった（認証情報が読めない等）は stop（認証の話なので店舗に見せる）

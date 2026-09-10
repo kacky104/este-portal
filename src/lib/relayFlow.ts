@@ -834,7 +834,17 @@ export type FlowNextRequest = {
 };
 
 export type FlowOutcome =
-  | { kind: 'next'; next: FlowNextRequest; audits: FlowAudit[]; note: string }
+  | {
+      kind: 'next'; next: FlowNextRequest; audits: FlowAudit[]; note: string;
+      /**
+       * ★★★★★★ 【第249便】**まだ流れが続くのに、番号だけ先に書いてほしい**とき。
+       *   ★ 登録のあと写真まで送る流れ（`withPhoto`）で要る。★ 相手にはもう人が居るのに、
+       *     写真の段で止まると **結びつきが書かれないまま終わる** ＝ 次の周でもう1人作る（禁則269）。
+       *   ★★★ だから **castId が分かった時点で書く**。★ 流れの終わりを待たない。
+       *   ★ 呼び出し側は 'done' と同じ扱いで書く（★ 書き方は1か所のまま）。
+       */
+      mediaCreated?: { therapistId: number; castId: string; name: string };
+    }
   | {
       kind: 'done'; audits: FlowAudit[]; note: string;
       /** ★ エステ魂の流れの終わりだけ（第110便） */
@@ -1959,24 +1969,52 @@ function girlCreateAfterGirls(
         '増えた人が複数あり、名前でも1人に絞れなかった',
       );
     }
+    const createdAudit: FlowAudit = {
+      event: 'create_girl', outcome: 'ok',
+      summary: hit.name + 'さんを駅ちかに登録しました'
+        + (ctx.createSent && ctx.createSent.rookie === false ? '（★ 新人マークなし）' : '（新人マークつき）'),
+      detail: {
+        name: hit.name, castId: hit.castId, people: page.rows.length,
+        // ★ 通ったときの送り方も残す（★ 次に何を守ればよいかが分かるように・第235便）
+        sentTo: ctx.createSent?.sentTo ?? null,
+        sentPath: pathOfUrl(ctx.createSent?.url) ?? null,
+        rookie: ctx.createSent?.rookie ?? null,
+        pairs: ctx.createSent?.pairs ?? null,
+        flowId,
+      },
+    };
+    const created = { therapistId: Number(ctx.createTherapistId ?? 0), castId: hit.castId, name: hit.name };
+
+    // ★★★★★★ 【第249便】写真の材料が文脈に入っていれば、**そのまま枠1へ1枚送る**。
+    //   ★ 入っていなければ今までどおりここで終わり（★ `withPhoto` を書かなければ振る舞いは変わらない）。
+    //   ★★ 送り先の girl_id は **いま読み直して確かめた castId**（★ 応答から拾った番号ではない・第46便 §35）。
+    //   ★★★ 枠1へ入れてよいのは、中継が編集ページを読み直して **8枠すべて空き**だったときだけ（第248便）。
+    //     ★ 登録直後は 00000000 のはず。★ だが「はず」で送らない。★ 読んでから決める。
+    //   ★★★★★★ `mediaCreated` を**ここで**返すのが要。★ 写真の段で止まっても番号は表に書かれる。
+    //     ★ 書かれないまま終わると、次の周で**もう1人作る**（二重掲載・禁則269）。
+    if (ctx.photoFile && ctx.photoTop === true) {
+      const cookie2 = mergeCookies(ctx.cookie, input.headers['set-cookie'] as string | string[] | undefined) || ctx.cookie;
+      const next = buildReadPhotoPageRequest({
+        ...ctx,
+        cookie: cookie2,
+        photoGirlId: hit.castId,
+        photoSlot: 1,
+        photoStage: 'upload',
+      });
+      return {
+        kind: 'next',
+        next,
+        audits: [createdAudit],
+        note: '駅ちかに登録できた（castId ' + hit.castId + '）。★ 続けて枠1へ写真を1枚送ります',
+        mediaCreated: created,
+      };
+    }
+
     return {
       kind: 'done',
-      audits: [{
-        event: 'create_girl', outcome: 'ok',
-        summary: hit.name + 'さんを駅ちかに登録しました'
-          + (ctx.createSent && ctx.createSent.rookie === false ? '（★ 新人マークなし）' : '（新人マークつき）'),
-        detail: {
-          name: hit.name, castId: hit.castId, people: page.rows.length,
-          // ★ 通ったときの送り方も残す（★ 次に何を守ればよいかが分かるように・第235便）
-          sentTo: ctx.createSent?.sentTo ?? null,
-          sentPath: pathOfUrl(ctx.createSent?.url) ?? null,
-          rookie: ctx.createSent?.rookie ?? null,
-          pairs: ctx.createSent?.pairs ?? null,
-          flowId,
-        },
-      }],
+      audits: [createdAudit],
       note: '駅ちかに登録できた（castId ' + hit.castId + '・' + page.rows.length + '名を読み直した）',
-      mediaCreated: { therapistId: Number(ctx.createTherapistId ?? 0), castId: hit.castId, name: hit.name },
+      mediaCreated: created,
     };
   }
 

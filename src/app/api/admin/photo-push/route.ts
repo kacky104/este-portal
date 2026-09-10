@@ -1,8 +1,8 @@
 import { NextResponse } from 'next/server';
 import { createServiceClient } from '@/app/lib/supabase/service';
 import { startRelayFlow } from '@/app/lib/media/relayFlow';
-import { readImageSize } from '@/lib/imageSize';
 import { centeredMainCrop, isPhotoSlot, isValidThumbRect, THUMB_DEFAULT_RECT, PHOTO_SLOT_MAX } from '@/lib/ekichikaPhoto';
+import { resolveTherapistPhotoFile } from '@/app/lib/media/therapistPhotoFile';
 
 // ── 駅ちかへ写真を1枚送る（第107便・運営だけの口）─────────────────────────
 //   POST /api/admin/photo-push  (Authorization: Bearer <CRON_SECRET>)
@@ -32,9 +32,6 @@ import { centeredMainCrop, isPhotoSlot, isValidThumbRect, THUMB_DEFAULT_RECT, PH
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 export const maxDuration = 60;
-
-const BUCKET = 'therapist-photos';
-const MAX_BYTES = 10 * 1024 * 1024;
 
 type Rect = { x: number; y: number; w: number; h: number };
 
@@ -158,31 +155,17 @@ export async function POST(req: Request) {
     });
   }
 
-  // ── 写真の在処（★ フクエスの therapist-photos だけ） ──
-  let path = typeof body.path === 'string' ? body.path : '';
-  if (!path) {
-    const url = String((th as { profile_image_url?: string | null }).profile_image_url ?? '');
-    const i = url.indexOf('/' + BUCKET + '/');
-    if (i < 0) return NextResponse.json({ ok: false, error: 'この子のプロフィール写真が therapist-photos に無い（path を指定する）' }, { status: 400 });
-    path = url.slice(i + BUCKET.length + 2).split('?')[0];
-  }
-  if (!/^[A-Za-z0-9_\-][A-Za-z0-9_\-./]{0,200}$/.test(path) || path.includes('..') || path.includes('//')) {
-    return NextResponse.json({ ok: false, error: 'path の形が不正' }, { status: 400 });
-  }
-
-  // ── 寸法と種類（★ ヘッダだけ読む） ──
-  const { data: blob, error: dlErr } = await svc.storage.from(BUCKET).download(path);
-  if (dlErr || !blob) return NextResponse.json({ ok: false, error: '写真を Storage から読めない: ' + (dlErr?.message ?? '') }, { status: 404 });
-  const buf = new Uint8Array(await blob.arrayBuffer());
-  if (buf.byteLength === 0) return NextResponse.json({ ok: false, error: '写真が空' }, { status: 400 });
-  if (buf.byteLength > MAX_BYTES) return NextResponse.json({ ok: false, error: '写真が 10MB を超えている（駅ちかの上限）' }, { status: 400 });
-  const size = readImageSize(buf);
-  if (!size) return NextResponse.json({ ok: false, error: 'jpg / png として寸法を読めない' }, { status: 400 });
-  if (size.width < 300 || size.height < 400) {
-    return NextResponse.json({ ok: false, error: '駅ちかの最低推奨（横300×縦400）より小さい: ' + size.width + '×' + size.height }, { status: 400 });
-  }
-  const ext = size.type === 'image/png' ? 'png' : 'jpg';
-  const filename = 'fukues_' + therapistId + '_' + imageSetId + '.' + ext;
+  // ── 写真の在処と寸法（★ フクエスの therapist-photos だけ） ──
+  // ★★★ 【第249便】ここの検査は `therapistPhotoFile.ts` に寄せた。
+  //   ★ 登録の口（media-girl-create）でも同じ検査を通すため。★ 2か所に書くと片方だけ緩くなる。
+  const got = await resolveTherapistPhotoFile(svc, {
+    therapistId, imageSetId,
+    profileImageUrl: (th as { profile_image_url?: string | null }).profile_image_url ?? null,
+    path: typeof body.path === 'string' ? body.path : undefined,
+  });
+  if (!got.ok) return NextResponse.json({ ok: false, error: got.error }, { status: got.status });
+  const { path, filename } = got.file;
+  const size = { width: got.file.width, height: got.file.height, type: got.file.contentType };
 
   const mainRect = readRect(body.mainRect) ?? centeredMainCrop(size.width, size.height);
   const thumbRect = readRect(body.thumbRect) ?? { ...THUMB_DEFAULT_RECT };
@@ -191,7 +174,7 @@ export async function POST(req: Request) {
   const plan = {
     salonId, slot, therapistId, therapistName: String((th as { name?: string }).name ?? ''),
     girlId, imageSetId,
-    file: { bucket: BUCKET, path, filename, contentType: size.type, width: size.width, height: size.height, bytes: buf.byteLength },
+    file: { ...got.file },
     mainRect, thumbRect,
     steps: ['login', 'read_photo_page', 'upload_photo', 'read_photo_page', 'crop_photo(3:4)', 'read_photo_page', 'crop_photo(1:1)', 'read_photo_page', 'verify'],
     // ★★★★ 第246便: 最後に読み直して照合する。★ ここまでの応答では成否を名乗らない
@@ -221,7 +204,7 @@ export async function POST(req: Request) {
     actor: 'admin:photo-push',
     photo: {
       girlId, slot: imageSetId,
-      file: { bucket: BUCKET, path, filename, contentType: size.type, width: size.width, height: size.height },
+      file: { bucket: got.file.bucket, path: got.file.path, filename: got.file.filename, contentType: got.file.contentType, width: got.file.width, height: got.file.height },
       mainRect, thumbRect,
       // ★★★★★★ 第248便: 枠1へ入れてよいという合図。★ 最後の判断は中継が編集ページを読んでから
       ...(top ? { top: true } : {}),
