@@ -94,6 +94,28 @@ const MAX_PHOTO_REDIRECTS = 2;
  *   ★ ホストがエステ魂で、パスに `/admin/cast_edit/<その castId>` が入っていること。
  *   ★★ ここを緩めると、飛ばされた先へ **別人の設定を保存しに行く** ── 絶対に緩めない。
  */
+/**
+ * ★★★★★ 非表示の方の編集ページを開くための印（2026-09-10 12:45 実測）。
+ *   ★ これが無いと `/admin/cast_edit/` の入口へ突き返される（＝ 番号が落ちた 307）。
+ *   ★ ブラウザが実際に開けていたのは `.../cast_edit/<castId>/?disabled=true`。
+ */
+const DISABLED_MARK = '?disabled=true';
+
+/** ★ その住所は既に「非表示の見え方」か */
+function hasDisabledMark(url: string): boolean {
+  return /[?&]disabled=true(?:&|$)/.test(String(url ?? ''));
+}
+
+/**
+ * ★★★★ 「cast_edit の入口へ突き返された」か（★ 番号が落ちている飛び先）。
+ *   ★ これが出たら、その人が **非表示**だという合図。★ 別の場所へ飛ばされたのとは分けて扱う。
+ */
+function bouncedToEntrance(url: string): boolean {
+  if (!isEsutamaHost(url)) return false;
+  const p = (pathOf(url) ?? '').split('?')[0];
+  return p === '/admin/cast_edit/' || p === '/admin/cast_edit';
+}
+
 function safeCastEditUrl(url: string | null | undefined, castId: string): string | null {
   const u = String(url ?? '').trim();
   if (!u || !castId) return null;
@@ -171,6 +193,27 @@ export function afterEsutamaPhotoForm(input: Input, ctx: RelayFlowContext): Flow
     const hops = Number(ctx.castPhotoHops ?? 0);
     const sameCast = abs !== '' && isEsutamaHost(abs)
       && new RegExp('/admin/cast_edit/' + castId + '(?![0-9])').test(abs);
+    // ★★★★★ 入口へ突き返されたとき ＝ **非表示の方**（2026-09-10 12:45 実測）。
+    //   ★ 送った先 `/admin/cast_edit/955513/` → 飛び先 `/admin/cast_edit/`（★ 番号が落ちている）。
+    //   ★ ブラウザが開けていたのは `/admin/cast_edit/955513/?disabled=true`。
+    //   → エステ魂は **非表示の人を「ふつうの住所」では開かせない**。
+    //
+    //   ★★★ ここで組み立てる住所は **こちらが持っている castId から作る**。
+    //     ★ 飛び先の文字は使わない（★ 別人へ連れて行かれないため）。★ 足すのは印だけ。
+    if (bouncedToEntrance(abs) && !hasDisabledMark(pageUrl) && hops < MAX_PHOTO_REDIRECTS) {
+      const url = esutamaCastEditUrl(castId) + DISABLED_MARK;
+      const req = buildEsutamaCastEditFormRequest(cookieNow, castId);
+      return {
+        kind: 'next',
+        audits: [],
+        note: '編集ページの入口へ突き返された。★ 非表示の方とみて、同じ方の「非表示の見え方」で開き直します',
+        next: {
+          purpose: 'esutama_photo_form',
+          method: 'GET', url, headers: req.headers, body: '',
+          context: { ...ctx, cookie: cookieNow, castPhotoHops: hops + 1, castPhotoPageUrl: url },
+        },
+      };
+    }
     if (sameCast && hops < MAX_PHOTO_REDIRECTS) {
       const req = buildEsutamaCastEditFormRequest(cookieNow, castId);
       return {
@@ -190,7 +233,9 @@ export function afterEsutamaPhotoForm(input: Input, ctx: RelayFlowContext): Flow
         event: 'read_photo_page', outcome: 'failed',
         summary: 'エステ魂の編集ページが別の場所へ飛ばされました',
         detail: {
-          castId, httpStatus: input.status, reason: 'redirected',
+          castId, httpStatus: input.status,
+          // ★ 「非表示の見え方」でも突き返されたのか、それとも別の場所へ飛ばされたのかを分けて残す
+          reason: bouncedToEntrance(abs) ? 'bounced_even_disabled' : 'redirected',
           toPath: pathOf(abs) ?? null, hops, stage: stage ?? 'pick', flowId,
         },
       }],
@@ -229,7 +274,11 @@ export function afterEsutamaPhotoForm(input: Input, ctx: RelayFlowContext): Flow
         [{
           event: 'push_photo', outcome: 'failed',
           summary: 'エステ魂に写真を送りましたが、枠' + slot + 'に入っていませんでした',
-          detail: { castId, slot, reason: 'not_saved', state: hit.state, note: ctx.castPhotoNote ?? null, flowId },
+          // ★★ 保存の応答の番号と行き先も残す（★ 次に外したとき、もう一発使わずに分かるように）
+          detail: {
+            castId, slot, reason: 'not_saved', state: hit.state, note: ctx.castPhotoNote ?? null,
+            saveStatus: ctx.castPhotoSaveStatus ?? null, saveTo: ctx.castPhotoSaveTo ?? null, flowId,
+          },
         }],
         '照合で枠 ' + slot + ' が saved になっていない（' + hit.state + '）',
       );
@@ -432,10 +481,17 @@ export function afterEsutamaPhotoSave(input: Input, ctx: RelayFlowContext): Flow
     );
   }
   const cookie = mergeCookies(ctx.cookie, input.headers['set-cookie'] as string | string[] | undefined);
+  // ★★ 保存の応答の番号と行き先を控える。★ **判定には使わない**（判定は読み直しての照合）。
+  //   ★ 照合で外れたときの手がかりとして記録に残すためだけ（第236便の作法）
+  const to = pathOf(absOf(esutamaCastEditUrl(castId), String(input.headers['location'] ?? '')));
   return {
     kind: 'next',
     audits: [],
-    note: '保存を送った。★ 成否は読み直して確かめる（応答では判定しない）',
-    next: buildEsutamaPhotoReadStep(cookie, ctx, 'verify'),
+    note: '保存を送った（応答 ' + input.status + '）。★ 成否は読み直して確かめる（応答では判定しない）',
+    next: buildEsutamaPhotoReadStep(
+      cookie,
+      { ...ctx, castPhotoSaveStatus: input.status, ...(to ? { castPhotoSaveTo: to } : {}) },
+      'verify',
+    ),
   };
 }

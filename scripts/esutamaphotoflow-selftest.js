@@ -264,6 +264,42 @@ console.log('\n── ⑥ 編集ページが飛ばされたとき（第243便b�
                   Object.assign({}, landed, { castPhotoPageUrl: 'https://example.com/admin/cast_edit/955513/' }));
   eq('★★★★★ よそのホストの URL は使わず決め打ちに戻す', bad2.next.url, 'https://estama.jp/admin/cast_edit/955513/');
 
+  // ★★★★★ 入口へ突き返されたら ＝ 非表示の方（2026-09-10 12:45 実測）
+  //   送った先 /admin/cast_edit/955513/ → 飛び先 /admin/cast_edit/（★ 番号が落ちている）
+  const bounced = go('esutama_photo_form', 307, to('/admin/cast_edit/'), '', ctx);
+  eq('★★★★★ 入口へ突き返されたら「非表示の見え方」で開き直す',
+     [bounced.kind, bounced.next.purpose, bounced.next.url],
+     ['next', 'esutama_photo_form', DISABLED]);
+  eq('★★★★★ 住所はこちらの castId から組む（★ 飛び先の文字は使わない）',
+     bounced.next.url.indexOf('/admin/cast_edit/955513/') > 0, true);
+  eq('★★★ 覚える住所も同じ', bounced.next.context.castPhotoPageUrl, DISABLED);
+  eq('★★★ 数える', bounced.next.context.castPhotoHops, 1);
+
+  // ★★★★★ 「非表示の見え方」でも突き返されたら、そこで止める（★ 堂々巡りにしない）
+  const again = go('esutama_photo_form', 307, to('/admin/cast_edit/'), '',
+                   Object.assign({}, ctx, { castPhotoPageUrl: DISABLED }));
+  eq('★★★★★ 非表示の見え方でも突き返されたら止まる',
+     [again.kind, again.audits[0].detail.reason], ['stop', 'bounced_even_disabled']);
+
+  // ★★★ 入口っぽくても、よそのホストなら開き直さない
+  eq('★★★ よそのホストの入口には乗らない',
+     go('esutama_photo_form', 307, to('https://example.com/admin/cast_edit/'), '', ctx)
+       .audits[0].detail.reason, 'redirected');
+
+  // ★★★ 保存の応答の番号と行き先を控える（★ 判定には使わない）
+  const kept = go('esutama_photo_save', 302, to('/admin/cast/'), '',
+                  Object.assign({}, ctx, { castPhotoSlot: 3 }));
+  eq('★★★ 保存の応答の番号を控える', kept.next.context.castPhotoSaveStatus, 302);
+  eq('★★★ 保存の行き先も控える（★ パスだけ）', kept.next.context.castPhotoSaveTo, '/admin/cast/');
+  eq('★★★★ それでも判定は読み直し（★ 応答では決めない）', kept.next.context.castPhotoStage, 'verify');
+  const miss = go('esutama_photo_form', 200, {}, editPage(),
+                  Object.assign({}, ctx, {
+                    castPhotoStage: 'verify', castPhotoSlot: 3,
+                    castPhotoSaveStatus: 302, castPhotoSaveTo: '/admin/cast/',
+                  }));
+  eq('★★★★ 外れたとき、保存の番号と行き先が記録に残る',
+     [miss.audits[0].detail.saveStatus, miss.audits[0].detail.saveTo], [302, '/admin/cast/']);
+
   // ★★★★ 読み直すたびに、追った回数は 0 に戻す（★ この流れでは3回読む）
   const after = go('esutama_photo_save', 200, {}, '<html>ok</html>',
                    Object.assign({}, ctx, { castPhotoSlot: 3, castPhotoHops: 2 }));
