@@ -53,6 +53,54 @@ function backToLogin(input: Input): boolean {
   return /name\s*=\s*["']?(?:login_id|shop_id)/i.test(b) && /name\s*=\s*["']?password/i.test(b);
 }
 
+/**
+ * ★★ URL からパスとクエリだけ取る（★ 監査の見張りは値が `http(s)://` で始まると落とす・第236便）。
+ *   ★ ここは relayFlow から借りない（★ 借りると読み込みが循環する）。
+ */
+function pathOf(url: string): string | null {
+  const u = String(url ?? '').trim();
+  if (!u) return null;
+  const m = /^[a-zA-Z][a-zA-Z0-9+.-]*:\/\/[^/?#]+(\/[^\s]*)?$/.exec(u);
+  return ((m ? (m[1] ?? '/') : u)).slice(0, 110);
+}
+
+/** ★ 相対の行き先を絶対へ（★ 分からない形はそのまま返す） */
+function absOf(base: string, loc: string): string {
+  const l = String(loc ?? '').trim();
+  if (!l) return '';
+  if (/^[a-zA-Z][a-zA-Z0-9+.-]*:/.test(l)) return l;
+  const m = /^([a-zA-Z][a-zA-Z0-9+.-]*:\/\/[^/?#]+)/.exec(base);
+  if (!m) return l;
+  return l.startsWith('/') ? m[1] + l : m[1] + '/' + l;
+}
+
+/** ★ 行き先がエステ魂か */
+function isEsutamaHost(url: string): boolean {
+  const h = /^https?:\/\/([^/?#]+)/.exec(String(url ?? ''))?.[1]?.toLowerCase() ?? null;
+  return h === 'estama.jp' || h === 'www.estama.jp';
+}
+
+/**
+ * ★★★★ 飛ばされたときに追ってよい回数。
+ *   ★ 実測（2026-09-10 12:26）: **非表示のセラピストの編集ページは 307 で飛ばされる**
+ *     （★ ブラウザでは `?disabled=true` が付いた URL になっていた）。
+ *   ★★ 飛び先を決め打ちせず**追う**。★ ただし **同じ人の編集ページのときだけ**・2回まで。
+ */
+const MAX_PHOTO_REDIRECTS = 2;
+
+/**
+ * ★★★★★ 「この URL は **その人の編集ページ** だと言い切れるか」。
+ *   ★ 言い切れないものは **null**（★ 呼ぶ側は決め打ちの URL に戻す）。
+ *   ★ ホストがエステ魂で、パスに `/admin/cast_edit/<その castId>` が入っていること。
+ *   ★★ ここを緩めると、飛ばされた先へ **別人の設定を保存しに行く** ── 絶対に緩めない。
+ */
+function safeCastEditUrl(url: string | null | undefined, castId: string): string | null {
+  const u = String(url ?? '').trim();
+  if (!u || !castId) return null;
+  if (!isEsutamaHost(u)) return null;
+  return new RegExp('/admin/cast_edit/' + castId + '(?![0-9])').test(u) ? u : null;
+}
+
 /** ★ 送る相手（エステ魂の cast_id）。★ 空なら何もしない */
 function castIdOf(ctx: RelayFlowContext): string {
   return String(ctx.castPhotoCastId ?? '').trim();
@@ -67,14 +115,20 @@ export function buildEsutamaPhotoReadStep(
   ctx: RelayFlowContext,
   stage?: 'save' | 'verify',
 ): FlowNextRequest {
-  const req = buildEsutamaCastEditFormRequest(cookie, castIdOf(ctx));
+  const id = castIdOf(ctx);
+  const req = buildEsutamaCastEditFormRequest(cookie, id);
+  // ★★ 一度飛ばされた先を覚えていれば、そこを直接読む（★ 毎回1往復むだにしない）。
+  //   ★ ただし **その人の編集ページだと言い切れるときだけ**。★ 違えば決め打ちに戻す
+  const landed = safeCastEditUrl(ctx.castPhotoPageUrl, id);
   return {
     purpose: 'esutama_photo_form',
     method: 'GET',
-    url: req.url,
+    url: landed ?? req.url,
     headers: req.headers,
     body: '',
-    context: { ...ctx, cookie, ...(stage ? { castPhotoStage: stage } : {}) },
+    // ★★ 追いかけた回数は **読むたびに 0 に戻す**（第243便b）。
+    //   ★ この流れでは編集ページを3回読む。★ 数えっぱなしだと3回目が追えなくなる。
+    context: { ...ctx, cookie, castPhotoHops: 0, ...(stage ? { castPhotoStage: stage } : {}) },
   };
 }
 
@@ -95,12 +149,6 @@ export function afterEsutamaPhotoForm(input: Input, ctx: RelayFlowContext): Flow
       '編集ページがログイン画面へ戻された（段: ' + (stage ?? 'pick') + '）',
     );
   }
-  if (input.status !== 200) {
-    return stop(
-      [{ event: 'read_photo_page', outcome: 'failed', summary: 'エステ魂の編集ページを開けませんでした', detail: { castId, httpStatus: input.status, reason: 'http_error', stage: stage ?? 'pick', flowId } }],
-      '編集ページの応答が ' + input.status + ' だった',
-    );
-  }
   if (!castId) {
     return stop(
       [{ event: 'push_photo', outcome: 'stopped', summary: '写真を送る相手が指定されていないため、何もしませんでした', detail: { reason: 'no_cast_id', flowId } }],
@@ -108,7 +156,54 @@ export function afterEsutamaPhotoForm(input: Input, ctx: RelayFlowContext): Flow
     );
   }
 
-  const pageUrl = esutamaCastEditUrl(castId);
+  // ★ この HTML を取ってきた URL。★ 飛ばされた先を覚えていればそれ（★ 言い切れるときだけ）
+  const pageUrl = safeCastEditUrl(ctx.castPhotoPageUrl, castId) ?? esutamaCastEditUrl(castId);
+
+  // ★★★★★ 飛ばされたら【追う】（第243便の追い足し・2026-09-10 12:26 実測）。
+  //   ★ 非表示のセラピストの編集ページは **307** で飛ばされる
+  //     （★ ブラウザでは `?disabled=true` が付いた URL になっていた）。
+  //   ★★ 飛び先を決め打ちしない。★ ただし追うのは **同じ人の編集ページのときだけ**。
+  //     ★ ホストがエステ魂で、パスにその castId が入っていること。★ 2回まで。
+  //   ★★★ それ以外へ飛ばされたら **追わずに止める**（★ どこへでも付いていかない）。
+  const cookieNow = mergeCookies(ctx.cookie, input.headers['set-cookie'] as string | string[] | undefined);
+  if (input.status >= 300 && input.status < 400) {
+    const abs = absOf(pageUrl, String(input.headers['location'] ?? ''));
+    const hops = Number(ctx.castPhotoHops ?? 0);
+    const sameCast = abs !== '' && isEsutamaHost(abs)
+      && new RegExp('/admin/cast_edit/' + castId + '(?![0-9])').test(abs);
+    if (sameCast && hops < MAX_PHOTO_REDIRECTS) {
+      const req = buildEsutamaCastEditFormRequest(cookieNow, castId);
+      return {
+        kind: 'next',
+        audits: [],
+        note: '編集ページが飛ばされた（' + (pathOf(abs) ?? '?') + '）。★ 同じ方の編集ページなので追います',
+        next: {
+          purpose: 'esutama_photo_form',
+          method: 'GET', url: abs, headers: req.headers, body: '',
+          // ★★ 飛び先を覚える。★ 保存もここへ送る（★ ブラウザと同じ場所へ返す）
+          context: { ...ctx, cookie: cookieNow, castPhotoHops: hops + 1, castPhotoPageUrl: abs },
+        },
+      };
+    }
+    return stop(
+      [{
+        event: 'read_photo_page', outcome: 'failed',
+        summary: 'エステ魂の編集ページが別の場所へ飛ばされました',
+        detail: {
+          castId, httpStatus: input.status, reason: 'redirected',
+          toPath: pathOf(abs) ?? null, hops, stage: stage ?? 'pick', flowId,
+        },
+      }],
+      '編集ページが ' + input.status + ' で飛ばされた（' + (pathOf(abs) ?? '行き先なし') + '）',
+    );
+  }
+  if (input.status !== 200) {
+    return stop(
+      [{ event: 'read_photo_page', outcome: 'failed', summary: 'エステ魂の編集ページを開けませんでした', detail: { castId, httpStatus: input.status, reason: 'http_error', stage: stage ?? 'pick', flowId } }],
+      '編集ページの応答が ' + input.status + ' だった',
+    );
+  }
+
   const photo = parseEsutamaPhotoSlots(input.body, pageUrl);
   if (photo.warnings.length > 0) {
     return stop(
@@ -117,7 +212,7 @@ export function afterEsutamaPhotoForm(input: Input, ctx: RelayFlowContext): Flow
     );
   }
 
-  const cookie = mergeCookies(ctx.cookie, input.headers['set-cookie'] as string | string[] | undefined);
+  const cookie = cookieNow;
 
   // ────────── ③ 照合（★ ここで初めて成否が決まる） ──────────
   if (stage === 'verify') {
@@ -178,13 +273,19 @@ export function afterEsutamaPhotoForm(input: Input, ctx: RelayFlowContext): Flow
         '組み立てが止めた: ' + why,
       );
     }
+    // ★★★ 保存は【読んだページと同じ場所】へ返す（第243便b）。
+    //   ★ 非表示の方の編集ページは `?disabled=true` へ飛ばされる（307）。
+    //     ★ 決め打ちの URL へ POST すると、また飛ばされて **保存されない**。
+    //   ★★ 飛び先だと言い切れないものは使わない（safeCastEditUrl が null を返す）。
+    const saveUrl = safeCastEditUrl(ctx.castPhotoPageUrl, castId) ?? req.url;
     return {
       kind: 'next',
       audits: [],
-      note: '枠' + tmp.slot + 'の写真を保存します（★ 読んだ' + form.fields.length + '部品はそのまま返す）',
+      note: '枠' + tmp.slot + 'の写真を保存します（★ 読んだ' + form.fields.length + '部品はそのまま返す）'
+        + (saveUrl === req.url ? '' : '。★ 読んだページと同じ場所へ返します'),
       next: {
         purpose: 'esutama_photo_save',
-        method: req.method, url: req.url, headers: req.headers, body: req.body,
+        method: req.method, url: saveUrl, headers: req.headers, body: req.body,
         context: { ...ctx, cookie },
       },
     };

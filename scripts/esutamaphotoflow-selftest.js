@@ -202,5 +202,76 @@ console.log('\n── ⑤ 止まるところ ──');
        .audits[0].event, 'login');
 }
 
+console.log('\n── ⑥ 編集ページが飛ばされたとき（第243便b・2026-09-10 12:26 実測の 307）──');
+{
+  // ★ 実測: 非表示のセラピストの編集ページは 307 で `?disabled=true` へ飛ばされる
+  const DISABLED = 'https://estama.jp/admin/cast_edit/955513/?disabled=true';
+  const to = (loc) => ({ location: loc });
+
+  const r = go('esutama_photo_form', 307, to('/admin/cast_edit/955513/?disabled=true'), '', ctx);
+  eq('★★★★ 同じ方の編集ページへの飛びは追う', [r.kind, r.next.purpose, r.next.method],
+     ['next', 'esutama_photo_form', 'GET']);
+  eq('★★★ 飛び先を絶対に直して読みに行く', r.next.url, DISABLED);
+  eq('★★★ 追った回数を数える', r.next.context.castPhotoHops, 1);
+  eq('★★★★ 飛び先を覚える（★ 保存もここへ返す）', r.next.context.castPhotoPageUrl, DISABLED);
+
+  // ★★ 絶対 URL で来ても同じ
+  eq('★★ 絶対 URL の飛び先も追う',
+     go('esutama_photo_form', 302, to(DISABLED), '', ctx).next.url, DISABLED);
+
+  // ★★★★★ 追うのは2回まで
+  const stop3 = go('esutama_photo_form', 307, to(DISABLED), '',
+                   Object.assign({}, ctx, { castPhotoHops: 2 }));
+  eq('★★★★★ 2回追ったら、それ以上は追わずに止まる',
+     [stop3.kind, stop3.audits[0].event, stop3.audits[0].outcome, stop3.audits[0].detail.reason],
+     ['stop', 'read_photo_page', 'failed', 'redirected']);
+
+  // ★★★★★ 別人の編集ページへ飛ばされたら【追わない】（★ ここがいちばん怖いところ）
+  const other = go('esutama_photo_form', 307, to('/admin/cast_edit/955514/'), '', ctx);
+  eq('★★★★★ 別人の編集ページへは付いていかない',
+     [other.kind, other.audits[0].detail.reason], ['stop', 'redirected']);
+  eq('★★★ どこへ飛ばされたかを残す', other.audits[0].detail.toPath, '/admin/cast_edit/955514/');
+
+  // ★★★★★ よそのホストへ飛ばされたら【追わない】
+  eq('★★★★★ よそのホストへは付いていかない',
+     go('esutama_photo_form', 307, to('https://estama.jp.example.com/admin/cast_edit/955513/'), '', ctx)
+       .audits[0].detail.reason, 'redirected');
+  // ★★★ 行き先が無くても落ちない
+  eq('★★ 行き先が無くても止まるだけ',
+     go('esutama_photo_form', 302, {}, '', ctx).audits[0].detail.toPath, null);
+
+  // ★★★ 記録に残す値は【パスだけ】（★ `http://` で始まる値は見張りが落とす・第236便）
+  eq('★★★ 記録は http で始めない', /^https?:\/\//.test(String(other.audits[0].detail.toPath)), false);
+
+  // ★★★★ ログイン画面へ飛ばされたときは、こちらが先（★ 追わない）
+  eq('★★★★ ログインへ飛ばされたら login として止まる',
+     go('esutama_photo_form', 302, to('/admin/login'), '', ctx).audits[0].event, 'login');
+
+  // ★★★★★ 飛び先を覚えたあとは、保存も【同じ場所】へ返す
+  const tmp6 = { field: 'cast_icon_3-imgupload', value: '/temp/file_zz9_20260910120000.jpg', slot: 3 };
+  const landed = Object.assign({}, ctx, {
+    castPhotoStage: 'save', castPhotoSlot: 3, castPhotoTmp: tmp6, castPhotoPageUrl: DISABLED,
+  });
+  const sv = go('esutama_photo_form', 200, {}, editPage(), landed);
+  eq('★★★★★ 保存は読んだページと同じ場所へ返す', [sv.next.purpose, sv.next.url],
+     ['esutama_photo_save', DISABLED]);
+
+  // ★★★★★ 覚えている先が【別人／よそ】なら使わない（★ 決め打ちに戻す）
+  const bad = go('esutama_photo_form', 200, {}, editPage(),
+                 Object.assign({}, landed, { castPhotoPageUrl: 'https://estama.jp/admin/cast_edit/955514/' }));
+  eq('★★★★★ 別人の URL は使わず決め打ちに戻す', bad.next.url, 'https://estama.jp/admin/cast_edit/955513/');
+  const bad2 = go('esutama_photo_form', 200, {}, editPage(),
+                  Object.assign({}, landed, { castPhotoPageUrl: 'https://example.com/admin/cast_edit/955513/' }));
+  eq('★★★★★ よそのホストの URL は使わず決め打ちに戻す', bad2.next.url, 'https://estama.jp/admin/cast_edit/955513/');
+
+  // ★★★★ 読み直すたびに、追った回数は 0 に戻す（★ この流れでは3回読む）
+  const after = go('esutama_photo_save', 200, {}, '<html>ok</html>',
+                   Object.assign({}, ctx, { castPhotoSlot: 3, castPhotoHops: 2 }));
+  eq('★★★★ 読み直すときは追った回数を戻す', after.next.context.castPhotoHops, 0);
+  eq('★★★ 覚えている飛び先があればそこを直接読む',
+     go('esutama_photo_save', 200, {}, '<html>ok</html>',
+        Object.assign({}, ctx, { castPhotoSlot: 3, castPhotoPageUrl: DISABLED })).next.url, DISABLED);
+}
+
 console.log(fail === 0 ? '\nすべて通りました' : '\n' + fail + ' 件 NG');
 process.exit(fail === 0 ? 0 : 1);
