@@ -4167,20 +4167,22 @@ export default function MyPage() {
                 <button
                   type="button"
                   onClick={() => toggleSection(`${t.id}-schedule`)}
-                  className="w-full flex items-center justify-between px-5 py-4 hover:bg-pink-50/40 transition-colors"
+                  className="w-full flex items-center justify-between pr-5 hover:bg-pink-50/40 transition-colors"
                 >
-                  {/* ★ 名前の左に丸い顔写真（2026-09-06・カッキーさんの指示）。
-                      ★ 写真が無い人は頭文字の丸を出す（★ 欠けて見えないように）。 */}
-                  <span className="flex items-center gap-2.5 min-w-0">
+                  {/* ★ 名前の左に四角い顔写真（2026-09-11・カッキーさんの指示）。
+                      ★ 角は直角・バーの高さいっぱい（64px）・左端にぴったり付ける。
+                      ★ バーの高さは今までと同じ64px（★ 旧: py-4 の 32px ＋ 写真 32px）。
+                      ★ 写真が無い人は頭文字の四角を出す（★ 欠けて見えないように）。 */}
+                  <span className="flex items-center gap-3 min-w-0">
                     {t.profile_image_url ? (
                       // eslint-disable-next-line @next/next/no-img-element
                       <img
                         src={t.profile_image_url}
                         alt=""
-                        className="w-8 h-8 rounded-full object-cover border border-pink-100 flex-shrink-0"
+                        className="w-16 h-16 rounded-none object-cover flex-shrink-0"
                       />
                     ) : (
-                      <span className="w-8 h-8 rounded-full bg-pink-100 text-pink-400 text-xs font-bold flex items-center justify-center flex-shrink-0">
+                      <span className="w-16 h-16 rounded-none bg-pink-100 text-pink-400 text-base font-bold flex items-center justify-center flex-shrink-0">
                         {(t.name ?? '?').charAt(0)}
                       </span>
                     )}
@@ -4473,34 +4475,43 @@ export default function MyPage() {
           )}
 
           {profileTherapists.map((t) => (
-            <div key={t.id} className="bg-white rounded-none border border-pink-100 shadow-sm overflow-hidden">
+            <div key={t.id} className="relative bg-white rounded-none border border-pink-100 shadow-sm overflow-hidden flex items-stretch">
+              {/* ★ 新人マークは【カードの左上】にぴったり（2026-09-11・カッキーさんの指示）。
+                  ★ 写真の左上に重ねる。★ 判定は src/lib/newFace.ts ただ1つ（is_new_face かつ60日以内）。 */}
+              {isNewFaceActive(t.is_new_face, t.new_face_since) && (
+                <span className="absolute top-0 left-0 z-10 px-1.5 py-0.5 bg-emerald-500 text-white text-[9px] font-black leading-none tracking-wider">
+                  NEW
+                </span>
+              )}
+              {/* ★ 顔写真は角を直角・【カード全体】の高さいっぱい・左端にぴったり
+                  （2026-09-11・カッキーさんの指示）。
+                  ★ 下の薄いピンク（招待）の段まで含めて、左を縦に貫く。
+                  ★ 幅は110px。★ 大きさを変えるならこの1か所だけ。 */}
+              <div className="relative w-[110px] flex-shrink-0 self-stretch bg-slate-50 border-r border-pink-50">
+                {t.profile_image_url ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={t.profile_image_url}
+                    alt=""
+                    className="absolute inset-0 w-full h-full object-cover"
+                  />
+                ) : (
+                  <span className="absolute inset-0 flex items-center justify-center text-slate-300 text-[10px]">
+                    なし
+                  </span>
+                )}
+              </div>
+
+              {/* ★ 右側 … 名前・ボタンの段 ＋ 招待の段。★ 写真の高さはこの中身で決まる。 */}
+              <div className="flex-1 min-w-0">
               {/* ★★ ここの隙間は【スマホだけ】半分（2026-09-06 第186便・カッキーさんの指示）。
                   ★ PC（sm:以上）は今までどおり。★ 上下（py）は変えていない。
                   ★ 目的：スマホで NEW マークや長い名前が2行に折れないよう、名前に使える幅を広げる。
                     枠の左右 20→10px ／ 名前まわりの隙間 12→6px ／ ボタンどうし 8→4px
                     ／「プロフィールを編集」の内側 16→8px。★ 合わせて約40px 稼いでいる。 */}
               <div className="flex items-center justify-between px-2.5 sm:px-5 py-4">
-                <div className="flex items-center gap-1.5 sm:gap-3">
-                  {t.profile_image_url ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img
-                      src={t.profile_image_url}
-                      alt=""
-                      className="w-10 h-10 object-cover rounded-xl border border-pink-100"
-                    />
-                  ) : (
-                    <div className="w-10 h-10 rounded-xl border border-slate-200 bg-slate-50 flex items-center justify-center text-slate-300 text-[10px]">
-                      なし
-                    </div>
-                  )}
+                <div className="flex items-center gap-1.5 sm:gap-3 min-w-0">
                   <span className="text-sm font-bold text-slate-700">{t.name ?? '(名前未設定)'}</span>
-                  {/* ★ 新人マーク（2026-09-06・カッキーさんの指示）。★ 出勤ページと同じ緑のNEW。
-                      ★ 判定は src/lib/newFace.ts ただ1つ（is_new_face かつ60日以内）。 */}
-                  {isNewFaceActive(t.is_new_face, t.new_face_since) && (
-                    <span className="flex-shrink-0 px-1.5 py-0.5 bg-emerald-500 text-white text-[9px] font-black leading-none tracking-wider">
-                      NEW
-                    </span>
-                  )}
                   {/* ★ 非公開の印（第216便・2026-09-08）。★ ここが切替への入口
                       （「プロフィールを編集」→ いちばん下の「サイトへの掲載」）。 */}
                   {t.is_active === false && (
@@ -4590,19 +4601,13 @@ export default function MyPage() {
                   </div>
                 ) : (
                   // 未招待
-                  <div className="space-y-1.5">
-                    <p className="text-[11px] font-bold text-slate-400">
-                      未招待<span className="font-normal text-slate-400/90">：セラピスト本人用のアカウントに招待します</span>
-                    </p>
-                    <div className="flex flex-wrap items-center gap-2">
-                      <input
-                        type="email"
-                        inputMode="email"
-                        placeholder="本人のメールアドレスを入力"
-                        value={inviteEmails[t.id] ?? ''}
-                        onChange={(e) => setInviteEmails(prev => ({ ...prev, [t.id]: e.target.value }))}
-                        className="flex-1 min-w-0 px-3 py-1.5 rounded-none border border-slate-200 text-xs bg-white focus:outline-none focus:ring-2 focus:ring-pink-200 placeholder:text-slate-300"
-                      />
+                  // ★ 招待するボタンは薄いピンクの背景の【右上】（2026-09-11・カッキーさんの指示）。
+                  //   ★ 説明文はボタンの【左真横】。★ メール入力バーは下の行・幅3分の2・右端。
+                  <div className="space-y-2">
+                    <div className="flex flex-wrap items-center justify-end gap-2">
+                      <p className="text-[11px] font-normal text-slate-400/90 min-w-0">
+                        セラピストアカウントに招待
+                      </p>
                       <button
                         type="button"
                         onClick={() => handleInviteCast(t.id)}
@@ -4613,9 +4618,19 @@ export default function MyPage() {
                         {inviteBusyId === t.id ? '送信中...' : '招待する'}
                       </button>
                     </div>
+                    {/* ★ 入力バーはカードの端まで幅いっぱい（2026-09-11・カッキーさんの指示）。 */}
+                    <input
+                      type="email"
+                      inputMode="email"
+                      placeholder="本人のメールアドレスを入力"
+                      value={inviteEmails[t.id] ?? ''}
+                      onChange={(e) => setInviteEmails(prev => ({ ...prev, [t.id]: e.target.value }))}
+                      className="w-full min-w-0 px-3 py-1.5 rounded-none border border-slate-200 text-xs bg-white focus:outline-none focus:ring-2 focus:ring-pink-200 placeholder:text-slate-300"
+                    />
                   </div>
                 )}
               </div>
+              </div>{/* ★ 右側ここまで */}
             </div>
           ))}
         </div>
