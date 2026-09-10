@@ -10,7 +10,8 @@ import { parseBodyType } from '@/lib/bodyType';
 // ── 駅ちかにセラピストを1人 登録する（第234便・運営だけの口）─────────────────────
 //   POST /api/admin/media-girl-create  (Authorization: Bearer <CRON_SECRET>)
 //   body: { salonId, therapistId, slot?: 1, apply?: boolean,
-//           postTo?: 'action'|'fixed', rookie?: boolean }   ← ★ 後ろ2つは切り分け用（第235便）
+//           postTo?: 'action'|'fixed', rookie?: boolean,   ← ★ この2つは切り分け用（第235便）
+//           withPhoto?: boolean }                          ← ★★ 第249便で追加・第250便で【既定 true】
 //
 // ★★★ 段: login → read_girls（もう居ないか＋顔ぶれ）→ girl_create_form（110部品を読む）
 //            → girl_create → read_girls（照合＋castId 回収）
@@ -25,8 +26,13 @@ import { parseBodyType } from '@/lib/bodyType';
 // ★★★★ `rookie_flg=1`（新人・30日で自動的に消える）は **登録した全員に付く**（§6-1 の1）。
 //   ★ フクエスの「新人」バッジの有無とは関係ない。★ 店舗様の運用に合わせた決め。
 //
-// ★★ 送らないもの: 優先タグ（p_genre・上位表示は店舗様の運用）／写真（登録フォームに欄が無い）
-//   ★ 写真は登録のあと `/api/admin/photo-push` で送る。★ ただし枠1は別扱いが要る（設計メモ §14-8）
+// ★★★★★★ 【第250便】**写真は既定で送る**（登録 → 枠1へ1枚。設計メモ 追記 K・L・M）。
+//   ★ 登録フォームに写真の欄は無いので、登録が通ったあと編集ページへ回る（第249便）。
+//   ★ `-d withPhoto=false` で切れる。
+//   ★★★ 写真を用意できないとき:
+//     `withPhoto=true` と**書いた**とき … 400 で止める（★ 送るつもりだったのに送れない）
+//     何も書かないとき（既定）        … ★ **飛ばして登録だけする**。★ 理由は監査の `photoSkip` に残る
+// ★★ 送らないもの: 優先タグ（p_genre・上位表示は店舗様の運用）／キャッチ・紹介文
 //
 // ★★ 店舗様の画面にボタンは置かない（設計メモ §5-3）。
 export const runtime = 'nodejs';
@@ -61,7 +67,13 @@ export async function POST(req: Request) {
   // ★★★★★★ 【第249便】登録が通ったら、そのまま**枠1へ写真を1枚**送る。
   //   ★ 既定は無し ＝ 今までどおり登録だけ（★ 書かなければ振る舞いは1つも変わらない）。
   //   ★★ 枠1へ入れてよいかの最後の判断は、中継が編集ページを読み直してから（第248便・slot1_not_blank）。
-  const withPhoto = body.withPhoto === true;
+  //   ★★★★★★ 【第250便】**既定で送る**ようになった（第249便までは書いたときだけ）。
+  //   ★ `-d withPhoto=false` で切れる。
+  //   ★★★ 写真を用意できないときの振る舞いが、明示と既定で違う（★ ここが第250便の芯）:
+  //     明示（withPhoto=true と書いた）… **400 で止める**（★ 送るつもりで打ったのに送れないなら知らせる）
+  //     既定（何も書かない）          … ★ **飛ばして登録だけする**（設計メモ §3-1 ④）。★ 理由は記録に残す
+  const withPhoto = !(body.withPhoto === false || String(body.withPhoto ?? '') === 'false');
+  const withPhotoAsked = body.withPhoto === true || String(body.withPhoto ?? '') === 'true';
   // ★★★★ 切り分け用の2つ（第235便・設計メモ §17-9）。★ **コードを直さずに試せるようにする。**
   //   postTo=fixed … これまでどおり決め打ちの URL へ送る（既定は action ＝ 読んだフォームの action）
   //   rookie=false … `rookie_flg=1` を混ぜない（★ §2-7b は1回だけの確認なので疑える口を開けた）
@@ -138,14 +150,20 @@ export async function POST(req: Request) {
   //   ★ 検査は photo-push と同じ1か所（therapistPhotoFile.ts）を通す。
   type Rect = { x: number; y: number; w: number; h: number };
   let photo: { file: TherapistPhotoFile; mainRect: Rect; thumbRect: Rect } | null = null;
+  // ★★★★★ 第250便: 写真を送らなかった理由（★ 既定のときだけ入る）
+  let photoSkip = '';
   if (withPhoto) {
     const got = await resolveTherapistPhotoFile(svc, {
       therapistId, imageSetId: 1,
       profileImageUrl: (th as { profile_image_url?: string | null }).profile_image_url ?? null,
     });
     if (!got.ok) {
-      return NextResponse.json({ ok: false, error: '写真を用意できないため登録しません: ' + got.error }, { status: got.status });
-    }
+      // ★★★★★★ 第250便: 明示されたときだけ止める。★ 既定なら飛ばして登録だけする
+      if (withPhotoAsked) {
+        return NextResponse.json({ ok: false, error: '写真を用意できないため登録しません: ' + got.error }, { status: got.status });
+      }
+      photoSkip = got.error;
+    } else {
     photo = {
       file: got.file,
       // ★ 3:4 の範囲は実寸の中央（★ 既に 3:4 の写真なら丸ごと。★ その場合 to_thumb=1 で段が飛ぶ）
@@ -153,9 +171,11 @@ export async function POST(req: Request) {
       // ★★ 正方形は【上寄せ】（2026-09-02 の決定・ekichikaPhoto.ts）。★ 全身写真で顔が外れないように
       thumbRect: { ...THUMB_DEFAULT_RECT },
     };
+    }
   }
 
   const warnings: string[] = [];
+  if (photoSkip) warnings.push('★★ 写真は送りません（' + photoSkip + '）。★ 登録だけします');
   if (mapping.ekichika.usedDefault)
     warnings.push('★ 駅ちかへ送れる特徴が1つも無いので、既定の「店長オススメ」（' + EKICHIKA_DEFAULT_GENRE_ID + '）だけで登録します');
   if (mapping.ekichika.droppedBadges.length > 0 && !mapping.ekichika.usedDefault)
@@ -177,9 +197,10 @@ export async function POST(req: Request) {
       ? '★ 読んだフォームの action へ送ります（★ 動いている出勤と同じ作法・§17-8）'
       : '★ ★ 決め打ちの URL へ送ります（postTo=fixed が指定されました・切り分け用）',
     steps: ['login', 'read_girls（在籍確認＋顔ぶれ）', 'girl_create_form（110部品を読む）', 'girl_create', 'read_girls（照合＋castId回収）'],
-    notSent: withPhoto
+    notSent: photo
       ? ['優先タグ p_genre（上位表示は店舗様の運用）', 'キャッチ・紹介文']
       : ['写真（登録フォームに欄が無い。登録後に photo-push で送る）', '優先タグ p_genre（上位表示は店舗様の運用）', 'キャッチ・紹介文'],
+    ...(photoSkip ? { photoSkipped: photoSkip } : {}),
     ...(photo
       ? {
           // ★★★★★★ 第249便: 登録のあと、そのまま枠1へ1枚
@@ -211,7 +232,7 @@ export async function POST(req: Request) {
     salonId, provider: 'ekichika', slot,
     intent: 'girl_create',
     actor: 'admin:girl-create',
-    girlCreate: { therapistId, values, postTo, rookie },
+    girlCreate: { therapistId, values, postTo, rookie, ...(photoSkip ? { photoSkip } : {}) },
     // ★★★★★★ 第249便: 登録が通ったら、そのまま枠1へ1枚。★ girl_id は【登録後に読み直した castId】を中継が入れる
     ...(photo
       ? {

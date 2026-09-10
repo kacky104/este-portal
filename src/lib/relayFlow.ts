@@ -485,6 +485,13 @@ export type RelayFlowContext = {
    */
   createRookie?: boolean;
   /**
+   * ★★★★★ 【第250便】写真を**送らなかった理由**。★ 既定で写真まで送るようになったので、
+   *   「入っていない」ときに **なぜ入っていないのか**が記録に残らないと、あとで追えない。
+   *   ★ 例: 「この子のプロフィール写真が therapist-photos に無い」「300×400 より小さい」
+   *   ★★ 入っていても流れは止めない（★ 登録は成功している）。★ 記録にだけ残す。
+   */
+  createPhotoSkip?: string;
+  /**
    * ★★★★ **実際に送った中身**（第235便）。★ 記録に残すためだけに持ち回す。
    *   ★ 設計メモ §17-5「ブラウザの全文とこちらの全文を1組ずつ突き合わせる」を、
    *     実弾のたびにコードを直さなくてもできるようにするため。
@@ -1980,6 +1987,8 @@ function girlCreateAfterGirls(
         sentPath: pathOfUrl(ctx.createSent?.url) ?? null,
         rookie: ctx.createSent?.rookie ?? null,
         pairs: ctx.createSent?.pairs ?? null,
+        // ★★★★★ 第250便: 写真を送らなかったなら、その理由も残す（★ 黙って落とさない）
+        ...(ctx.createPhotoSkip ? { photoSkip: String(ctx.createPhotoSkip).slice(0, 120) } : {}),
         flowId,
       },
     };

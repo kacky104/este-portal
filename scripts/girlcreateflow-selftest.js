@@ -431,5 +431,35 @@ console.log('\n── 第249便: 登録 → 枠1へ写真（withPhoto）──')
      [r.kind, r.audits[0].detail.reason], ['done', 'already_listed']);
 }
 
+// ── ★★★★★ 第250便: 写真を送らなかった理由を記録に残す ───────────────────
+//   ★ 既定で写真まで送るようになったので、「入っていない」ときに **なぜか**が残らないと追えない。
+console.log('\n── 第250便: 写真を飛ばした理由（photoSkip）──');
+{
+  const sctxV = Object.assign({}, ctxV, { createPhotoSkip: 'この子のプロフィール写真が therapist-photos に無い（path を指定する）' });
+  const r = go('read_girls', 200, {}, girlsPage(...OTHERS, cell('5809639', 'さくら')), sctxV);
+  eq('★★★ 写真を飛ばしても登録は成功のまま', [r.kind, r.audits[0].outcome], ['done', 'ok']);
+  eq('★★★★★ 飛ばした理由が記録に残る', r.audits[0].detail.photoSkip,
+     'この子のプロフィール写真が therapist-photos に無い（path を指定する）');
+  eq('★★ 結びつけは今までどおり返す', r.mediaCreated.castId, '5809639');
+}
+{
+  // ★★ 理由が無ければ、記録に余計な欄を足さない（★ 空文字で埋めない）
+  const r = go('read_girls', 200, {}, girlsPage(...OTHERS, cell('5809639', 'さくら')), ctxV);
+  eq('★★★ 飛ばしていなければ photoSkip は出さない', 'photoSkip' in r.audits[0].detail, false);
+}
+{
+  // ★★★ 長い理由は切り詰める（★ 監査の見張りに落とされないため・120字）
+  const longCtx = Object.assign({}, ctxV, { createPhotoSkip: 'あ'.repeat(300) });
+  const r = go('read_girls', 200, {}, girlsPage(...OTHERS, cell('5809639', 'さくら')), longCtx);
+  eq('★★ 長い理由は 120 字で切る', r.audits[0].detail.photoSkip.length, 120);
+}
+{
+  // ★★★★★★ 写真を送る流れでは photoSkip は入らない（★ 両方は起きない）
+  const FILE = { bucket: 'therapist-photos', path: '602-1.jpg', filename: 'fukues_602_1.jpg', contentType: 'image/jpeg', width: 600, height: 800 };
+  const pctxV = Object.assign({}, ctxV, { photoFile: FILE, photoTop: true });
+  const r = go('read_girls', 200, {}, girlsPage(...OTHERS, cell('5809639', 'さくら')), pctxV);
+  eq('★★★ 写真へ進む流れでは photoSkip を出さない', ['photoSkip' in r.audits[0].detail, r.kind], [false, 'next']);
+}
+
 console.log(fail === 0 ? '\nすべて通りました' : '\n' + fail + ' 件 NG');
 process.exit(fail === 0 ? 0 : 1);

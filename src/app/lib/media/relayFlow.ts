@@ -253,6 +253,11 @@ export async function startRelayFlow(params: {
     postTo?: 'action' | 'fixed';
     /** ★★★ `rookie_flg=1` を混ぜるか（既定 true）。★ 疑うときに外せるように口を開けた */
     rookie?: boolean;
+    /**
+     * ★★★★★ 【第250便】写真を送らないときの理由。★ 記録に残すためだけ。
+     *   ★ 既定で写真まで送るようになったので、「入っていない」理由が残らないと追えない。
+     */
+    photoSkip?: string;
   };
   /**
    * intent='cast_photo' のときだけ（第243便）。★ **エステ魂のセラピストに写真を1枚送る。**
@@ -388,6 +393,7 @@ export async function startRelayFlow(params: {
           // ★★★★ 送り方（第235便）。★ 渡されたときだけ入れる。★ 既定は流れの側が持つ
           ...(params.girlCreate.postTo ? { createPostTo: params.girlCreate.postTo } : {}),
           ...(params.girlCreate.rookie === false ? { createRookie: false } : {}),
+          ...(params.girlCreate.photoSkip ? { createPhotoSkip: params.girlCreate.photoSkip } : {}),
         }
       : {}),
     // ★ 新着情報（第155便）。★ 渡されたときだけ入れる
