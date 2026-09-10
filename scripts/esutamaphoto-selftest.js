@@ -28,13 +28,46 @@ const throws = (name, fn, re) => {
 const EDIT = 'https://estama.jp/admin/cast_edit/955513/';
 const FILE_URL = 'https://fukues.com/api/relay/file?bucket=therapist-photos&path=6/602/main.jpg';
 
-// ★ 実測の形（2026-09-10 10:44・編集ページのコンソールで採取）をなぞった作り物
+// ★★★★ 実測の形（2026-09-10 11:38・編集ページのコンソールで採取）をなぞった作り物。
+//   1枠ぶんの実物:
+//     <div class="upload_area l-edit_upload_area">
+//       <div class="upload_area__results upload_area--complete">     ← ★ 埋まっている印
+//         <div class="tmp_photo_block"><div class="img_wrap--upload"><img class="tmp_img" src="…" width="357"></div>
+//           <a class="tmp_photo__cancel" data-tg="cast_icon_1" data-delete_col="photo1">削除する</a></div>
+//         （仮置きのときだけ）<input type="hidden" name="cast_icon_N-imgupload" value="/temp/…">
+//       <label class="label_photo … l-edit_add_img_box" for="cast_icon_N">+画像を追加する</label>
+//       <input type="file" id="cast_icon_N" data-input="cast_icon_N" data-post_url="…">
+//       <input type="hidden" name="order_cast_images[]" value="photoN">
+const SAVED_IMG = 'https://img.estama.jp/shop_data/00000047417/cast/main/357x556/7ny79_20260910101958.jpg';
+const TEMP_IMG = '/temp/file_en11k_20260910113245.jpg';
+
 const slotInput = (n, opt) => {
-  const o = Object.assign({ post: '/file_upload/therapist_tmp/cast_icon_' + n + '/', input: 'cast_icon_' + n }, opt || {});
-  return '<input type="file" id="cast_icon_' + n + '"'
+  const o = Object.assign({
+    post: '/file_upload/therapist_tmp/cast_icon_' + n + '/',
+    input: 'cast_icon_' + n,
+    state: 'empty',
+  }, opt || {});
+  const img = o.state === 'saved' ? SAVED_IMG : (o.state === 'pending' ? TEMP_IMG : null);
+  const complete = o.state === 'empty' ? '' : ' upload_area--complete';
+  return '<div class="upload_area l-edit_upload_area">'
+    + '<div class="upload_area__results' + complete + ' ">'
+    + (img
+      ? '<div class="tmp_photo_block"><div class="img_wrap--upload">'
+        + '<img class="tmp_img" src="' + img + '" width="357"></div>'
+        + '<a href="javascript:void(0)" class="tmp_photo__cancel" data-tg="cast_icon_' + n + '" data-delete_col="photo' + n + '">削除する</a>'
+        + '</div>'
+      : '')
+    + (o.state === 'pending'
+      ? '<input type="hidden" name="cast_icon_' + n + '-imgupload" value="' + TEMP_IMG + '">'
+      : '')
+    + '</div>'
+    + '<label class="label_photo label_upload_photo def l-edit_add_img_box" for="cast_icon_' + n + '"><span>+画像を追加する</span></label>'
+    + '<input class="upload_photo_input_admin_therapist_photo" type="file" id="cast_icon_' + n + '"'
     + (o.input === null ? '' : ' data-input="' + o.input + '"')
     + (o.post === null ? '' : ' data-post_url="' + o.post + '"')
-    + ' class="upload_photo_input_admin_therapist_photo">';
+    + '>'
+    + '<input type="hidden" name="order_cast_images[]" value="photo' + n + '">'
+    + '</div>';
 };
 const editPage = (...inputs) =>
   '<html><body><form method="POST">'
@@ -52,6 +85,7 @@ console.log('── ① 写真の枠を読む ──');
   eq('★★ 枠1の中身', p.slots[0], {
     slot: 1, id: 'cast_icon_1', dir: 'cast_icon_1',
     postUrl: 'https://estama.jp/file_upload/therapist_tmp/cast_icon_1/',
+    state: 'empty', imgSrc: null,
   });
   eq('★★★★ 相対の data-post_url を絶対に直す',
      p.slots[5].postUrl, 'https://estama.jp/file_upload/therapist_tmp/cast_icon_6/');
@@ -123,7 +157,7 @@ console.log('\n── ③ 仮置きへ送る形を組み立てる ──');
   eq('★★ jQuery の ajax と同じ見た目', r.headers.accept, 'text/plain, */*; q=0.01');
   eq('★★ XHR だと名乗る', r.headers['x-requested-with'], 'XMLHttpRequest');
   eq('★ Cookie を持って行く', r.headers.cookie, 'sid=abc');
-  eq('★ 何をどこへ送ったかを残す', r.meta, { slot: 1, id: 'cast_icon_1', dir: 'cast_icon_1', filename: 'photo_602_1.jpg', contentType: 'image/jpeg' });
+  eq('★ 何をどこへ送ったかを残す', r.meta, { slot: 1, id: 'cast_icon_1', dir: 'cast_icon_1', filename: 'photo_602_1.jpg', contentType: 'image/jpeg', wasState: 'empty' });
 
   // ★ 枠6も同じ形で組める
   eq('★ 枠6の送り先', P.buildEsutamaPhotoUploadRequest('sid=abc', page, Object.assign({}, V, { slot: 6 })).url,
@@ -201,6 +235,56 @@ console.log('\n── ⑦ 相手が求める画像の形（★ 数を書き写�
   eq('★★ 枠は6つ', P.ESUTAMA_PHOTO_SLOT_MAX, 6);
   eq('★★ page_type は admin', P.ESUTAMA_PHOTO_PAGE_TYPE, 'admin');
   eq('★★ 画像の項目名は file', P.ESUTAMA_PHOTO_FIELD_FILE, 'file');
+}
+
+console.log('\n── ⑧ ★★★★★ 枠の状態を見分ける（2026-09-10 11:38 実測） ──');
+//
+// ★★★ 実測（テスト用 955513 の編集ページ）:
+//   枠1 … upload_area--complete ／ img が https://img.estama.jp/…/357x556/… ／ hidden は order_cast_images[] だけ → **保存済み**
+//   枠2 … upload_area--complete ／ img が /temp/… ／ hidden に cast_icon_2-imgupload → **仮置き（未保存）**
+//   枠3〜6 … complete 無し ／ img 無し → **空き**
+{
+  const page = P.parseEsutamaPhotoSlots(
+    editPage(slotInput(1, { state: 'saved' }), slotInput(2, { state: 'pending' }),
+             slotInput(3), slotInput(4), slotInput(5), slotInput(6)), EDIT);
+  eq('★ 6枠読める', page.slots.length, 6);
+  eq('★ 警告なし', page.warnings, []);
+  eq('★★★★★ 状態を見分ける', page.slots.map((s) => s.state),
+     ['saved', 'pending', 'empty', 'empty', 'empty', 'empty']);
+  eq('★★★ 保存済みの画像の場所', page.slots[0].imgSrc, SAVED_IMG);
+  eq('★★★ 仮置きの画像の場所', page.slots[1].imgSrc, TEMP_IMG);
+  eq('★ 空き枠は画像なし', page.slots[2].imgSrc, null);
+
+  // ★★★ 空き枠を数字で決め打ちしないための道具
+  eq('★★★ いちばん小さい空き枠', P.firstEmptyEsutamaPhotoSlot(page), 3);
+  eq('★ 全部空きなら1', P.firstEmptyEsutamaPhotoSlot(P.parseEsutamaPhotoSlots(sixSlots(), EDIT)), 1);
+  eq('★★ 空きが無ければ null',
+     P.firstEmptyEsutamaPhotoSlot(P.parseEsutamaPhotoSlots(
+       editPage(...[1, 2, 3, 4, 5, 6].map((n) => slotInput(n, { state: 'saved' }))), EDIT)), null);
+  eq('★★★ 読み切れていない画面では決めない',
+     P.firstEmptyEsutamaPhotoSlot(P.parseEsutamaPhotoSlots(editPage(slotInput(1, { post: null })), EDIT)), null);
+}
+
+console.log('\n── ⑨ ★★★★★ 空き枠にだけ送る（★ 店舗様の写真を上書きしない） ──');
+{
+  const page = P.parseEsutamaPhotoSlots(
+    editPage(slotInput(1, { state: 'saved' }), slotInput(2, { state: 'pending' }), slotInput(3)), EDIT);
+  const V = { ctk: 'a1b2c3', fileUrl: FILE_URL, filename: 'photo_602_1.jpg', contentType: 'image/jpeg' };
+
+  throws('★★★★★ 保存済みの枠へは送らない（第107便と同じ決め）',
+         () => P.buildEsutamaPhotoUploadRequest('sid=abc', page, Object.assign({ slot: 1 }, V)),
+         /既に写真が入っています（保存済み）/);
+  throws('★★★★ 仮置きの枠へも送らない',
+         () => P.buildEsutamaPhotoUploadRequest('sid=abc', page, Object.assign({ slot: 2 }, V)),
+         /既に写真が入っています（仮置き）/);
+  eq('★★ 空き枠へは送れる',
+     P.buildEsutamaPhotoUploadRequest('sid=abc', page, Object.assign({ slot: 3 }, V)).url,
+     'https://estama.jp/file_upload/therapist_tmp/cast_icon_3/');
+
+  // ★★★ 差し替えは【人がはっきりそう言ったときだけ】
+  const rep = P.buildEsutamaPhotoUploadRequest('sid=abc', page, Object.assign({ slot: 1, replace: true }, V));
+  eq('★★★ replace:true なら保存済みの枠にも送れる', rep.url, 'https://estama.jp/file_upload/therapist_tmp/cast_icon_1/');
+  eq('★★★★ 送る前の状態を記録に残す（★ 何を上書きしたかが後から読める）', rep.meta.wasState, 'saved');
 }
 
 console.log(fail === 0 ? '\nすべて通りました' : '\n' + fail + ' 件 NG');

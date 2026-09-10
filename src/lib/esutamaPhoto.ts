@@ -70,6 +70,18 @@ export type EsutamaPhotoSlot = {
   dir: string;
   /** data-post_url を絶対に直したもの（実測 `https://estama.jp/file_upload/therapist_tmp/cast_icon_<枠>/`） */
   postUrl: string;
+  /**
+   * ★★★★★ その枠の状態（2026-09-10 11:38・実測で見分け方が決まった）。
+   *   'empty'   … 空き。★ `upload_area--complete` が付いていない・画像も無い
+   *   'saved'   … **保存済み**。★ `upload_area--complete` ＋ `https://img.estama.jp/…/357x556/…`
+   *   'pending' … **仮置き（未保存）**。★ さらに `cast_icon_<枠>-imgupload` の hidden が在る
+   *
+   * ★★★ これが要る理由: **店舗様の本物の写真を、こちらの都合で上書きしない**（駅ちか第107便と同じ決め）。
+   *   ★ 送ってよいのは 'empty' だけ。★ 'saved' へ送るのは、人がはっきりそう言ったときだけ。
+   */
+  state: 'empty' | 'saved' | 'pending';
+  /** いま表示されている画像の場所。★ 空きなら null */
+  imgSrc: string | null;
 };
 
 export type EsutamaPhotoPage = {
@@ -108,27 +120,35 @@ export function parseEsutamaPhotoSlots(html: string, pageUrl: string = ESUTAMA_C
   const warnings: string[] = [];
   if (!src) return { slots, warnings: ['本文が空'] };
 
+  // ★★★ 枠ごとの区画に切る。★ `<div class="… upload_area …">` から次の同じ印までを1枠とみなす。
+  //   ★ 実測（2026-09-10 11:38）: 1枠は
+  //     <div class="upload_area l-edit_upload_area">
+  //       <div class="upload_area__results upload_area--complete">   ← ★ 埋まっている印
+  //         … <img class="tmp_img" src="…"> …
+  //         （仮置きのときだけ）<input type="hidden" name="cast_icon_<枠>-imgupload" value="/temp/…">
+  //       <label … for="cast_icon_<枠>">
+  //       <input type="file" id="cast_icon_<枠>" data-input="…" data-post_url="…">
+  //   ★★ 区画に `id="cast_icon_N"` が無ければ**この枠ではない**（★ 表紙画像など別の upload_area を拾わない）
+  const heads: number[] = [];
+  const areaRe = /<div\b[^>]*\bclass\s*=\s*"[^"]*\bupload_area\b[^"]*"[^>]*>/gi;
+  for (let m = areaRe.exec(src); m !== null; m = areaRe.exec(src)) heads.push(m.index);
+
   const seen = new Set<number>();
-  const re = /<input\b[^>]*>/gi;
-  for (let m = re.exec(src); m !== null; m = re.exec(src)) {
-    const a = attrsOf(m[0]);
+  for (let h = 0; h < heads.length; h++) {
+    const chunk = src.slice(heads[h], h + 1 < heads.length ? heads[h + 1] : src.length);
+    const fileTag = /<input\b[^>]*\bid\s*=\s*"cast_icon_(\d+)"[^>]*>/i.exec(chunk);
+    if (!fileTag) continue;                       // ★ 写真の枠ではない区画
+    const a = attrsOf(fileTag[0]);
     const id = String(a.id ?? '');
-    const hit = /^cast_icon_(\d+)$/.exec(id);
-    if (!hit) continue;
-    const rawPost = String(a['data-post_url'] ?? '').trim();
-    if (!rawPost) {
-      warnings.push(id + ' に data-post_url が無い');
-      continue;
-    }
-    const slot = Number(hit[1]);
+    const slot = Number(fileTag[1]);
     if (!Number.isInteger(slot) || slot < 1 || slot > ESUTAMA_PHOTO_SLOT_MAX) {
       warnings.push('見たことのない枠番号: ' + id);
       continue;
     }
-    if (seen.has(slot)) {
-      warnings.push('枠 ' + slot + ' が2回出てくる');
-      continue;
-    }
+    if (seen.has(slot)) { warnings.push('枠 ' + slot + ' が2回出てくる'); continue; }
+
+    const rawPost = String(a['data-post_url'] ?? '').trim();
+    if (!rawPost) { warnings.push(id + ' に data-post_url が無い'); continue; }
     const postUrl = resolveUrl(pageUrl, rawPost);
     const host = hostOf(postUrl);
     // ★★★★ 送り先がエステ魂でなければ**使わない**。★ 店舗様の Cookie を他所へ飛ばさない
@@ -141,8 +161,19 @@ export function parseEsutamaPhotoSlots(html: string, pageUrl: string = ESUTAMA_C
       warnings.push('枠 ' + slot + ' の送り先が枠の番号と食い違う: ' + postUrl.slice(0, 80));
       continue;
     }
+
+    // ── 状態を見分ける（★ 実測どおり・推測しない）──
+    const complete = /class\s*=\s*"[^"]*\bupload_area--complete\b[^"]*"/i.test(chunk);
+    const imgTag = /<img\b[^>]*\bclass\s*=\s*"[^"]*\btmp_img\b[^"]*"[^>]*>/i.exec(chunk);
+    const imgSrc = imgTag ? (attrsOf(imgTag[0]).src ?? '').trim() || null : null;
+    const pendingRe = new RegExp('name\\s*=\\s*"cast_icon_' + slot + '-imgupload"', 'i');
+    const pending = pendingRe.test(chunk);
+    const state: 'empty' | 'saved' | 'pending' = pending ? 'pending' : (complete && imgSrc ? 'saved' : 'empty');
+    // ★ 印はあるのに画像が読めない、のような食い違いは黙って通さない
+    if (complete && !imgSrc) warnings.push('枠 ' + slot + ' は埋まっている印があるのに画像が読めない');
+
     seen.add(slot);
-    slots.push({ slot, id, dir: String(a['data-input'] ?? id), postUrl });
+    slots.push({ slot, id, dir: String(a['data-input'] ?? id), postUrl, state, imgSrc });
   }
 
   if (slots.length === 0 && warnings.length === 0) {
@@ -158,7 +189,7 @@ export type EsutamaPhotoUpload = {
   headers: Record<string, string>;
   multipart: RelayMultipart;
   /** ★ 記録のため。★ 何をどこへ送ったかが後から読めるように（第236便の作法） */
-  meta: { slot: number; id: string; dir: string; filename: string; contentType: string };
+  meta: { slot: number; id: string; dir: string; filename: string; contentType: string; wasState: string };
 };
 
 /**
@@ -175,7 +206,16 @@ export type EsutamaPhotoUpload = {
 export function buildEsutamaPhotoUploadRequest(
   cookie: string,
   page: EsutamaPhotoPage,
-  v: { slot: number; ctk: string; fileUrl: string; filename: string; contentType: string },
+  v: {
+    slot: number; ctk: string; fileUrl: string; filename: string; contentType: string;
+    /**
+     * ★★★★★ 既に写真がある枠へ送るか（既定 false ＝ **送らない**）。
+     *   ★ 駅ちかの写真（第107便）と同じ決め: **空き枠にだけ送る**。
+     *   ★★ 店舗様がご自分で入れた写真を、こちらの都合で消さない。
+     *   ★ 差し替えたいときは、**人がはっきりそう言ったときだけ** true にする。
+     */
+    replace?: boolean;
+  },
 ): EsutamaPhotoUpload {
   if (!cookie) throw new Error('Cookie が無いまま写真を送らない');
   if (page.warnings.length > 0) {
@@ -187,6 +227,12 @@ export function buildEsutamaPhotoUploadRequest(
   const target = page.slots.find((s) => s.slot === v.slot);
   if (!target) {
     throw new Error('枠 ' + String(v.slot) + ' が画面にありません。★ 枠の番号から送り先を組み立てません');
+  }
+
+  // ★★★★★ 空き枠にだけ送る（第107便と同じ決め）。★ 店舗様の写真を上書きしない
+  if (target.state !== 'empty' && v.replace !== true) {
+    throw new Error('枠 ' + String(v.slot) + ' には既に写真が入っています（'
+      + (target.state === 'pending' ? '仮置き' : '保存済み') + '）。★ 空き枠にだけ送ります');
   }
 
   // ★★★ 取り先はフクエスの口だけ（★ VPS を「何でも取りに行く道具」にしない）
@@ -228,7 +274,7 @@ export function buildEsutamaPhotoUploadRequest(
       // ★★ content-type は付けない。★ multipart の境界は中継役（curl）が決める
     },
     multipart,
-    meta: { slot: target.slot, id: target.id, dir: target.dir, filename, contentType },
+    meta: { slot: target.slot, id: target.id, dir: target.dir, filename, contentType, wasState: target.state },
   };
 }
 
@@ -282,4 +328,16 @@ export function describeEsutamaPhotoResponse(status: number, html: string): stri
     + ' ／ 仮置きの hidden ' + (got ? 'あり（' + got.field + '）' : '**なし**')
     + (looksLogin ? ' ／ ★ ログイン画面らしい' : '')
     + ' ／ 本文 ' + src.length + '字';
+}
+
+/**
+ * ★★★ 空いている枠のうち、いちばん小さい番号を返す（★ 無ければ null）。
+ *   ★ 「どこへ送るか」を呼び出し側が数字で決め打ちしないための道具。
+ *   ★★ 枠1（トップ画像）から順に埋める。★ 駅ちかは枠1を別扱いにしていたが（第142便）、
+ *     エステ魂は**枠1がトップ画像そのもの**なので、1から埋めてよい。
+ */
+export function firstEmptyEsutamaPhotoSlot(page: EsutamaPhotoPage): number | null {
+  if (page.warnings.length > 0) return null;   // ★ 読み切れていない画面では決めない
+  const hit = page.slots.find((s) => s.state === 'empty');
+  return hit ? hit.slot : null;
 }
