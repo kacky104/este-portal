@@ -38,14 +38,31 @@ SECRET="${CRON_SECRET:?set CRON_SECRET}"
 
 # ★ サーキットブレーカー（禁則273）。import.sh と同じファイルを共有する。
 #   駅ちかが「重い」と言ってきたら、取り込みも中継もまとめて引く。
+#
+# ★★★★★★ 【第254便】止めた【理由】は、止めを書いた側のログにしかない。
+#   ★ 2026-09-10 夜に踏んだ: ジョブが queued・attempts 0 のまま動かず、crontab は「1分ごと」。
+#     ★ relay.log には「backoff 中 -> skip」だけ。★ いつまでか も なぜか も書いていない。
+#     ★ 実際に止めたのは **import.sh**（駅ちかの公開ページが 502）。★ 理由は /root/import.log にあった。
+#     ★★ しかも両者は同じことを別の言葉で書く（relay.sh は「駅ちかが」、import.sh は「<URL> が」）。
+#        → ★ 片方の言葉で grep すると空振りして「理由がどこにも無い」という誤った結論になる。
+#   → ★★★ ここに【解除時刻】【残り分数】【理由の在処】を書く。★ 次の人に探させない。
+#
+# ★★ 期限が切れていたら import.sh と同じく消して「解除」を書く。
+#   ★ これまで relay.sh は消さなかったので、**relay.log に「解除」が一度も出なかった**。
+#   ★ 期限そのものは変えていない（★ 期限前に消すことはしない）。★ 止めの強さは同じ。
 BACKOFF_FILE=/root/import.backoff
 if [ -f "$BACKOFF_FILE" ]; then
   UNTIL_TS="$(cat "$BACKOFF_FILE" 2>/dev/null || echo 0)"
   case "$UNTIL_TS" in ""|*[!0-9]*) UNTIL_TS=0 ;; esac
-  if [ "$(date +%s)" -lt "$UNTIL_TS" ]; then
-    echo "=== $(TZ=Asia/Tokyo date '+%F %T') relay: backoff 中 -> skip ==="
+  NOW_TS="$(date +%s)"
+  if [ "$NOW_TS" -lt "$UNTIL_TS" ]; then
+    UNTIL_JST="$(TZ=Asia/Tokyo date -d "@$UNTIL_TS" '+%F %T' 2>/dev/null || echo "$UNTIL_TS")"
+    LEFT_MIN="$(( (UNTIL_TS - NOW_TS + 59) / 60 ))"
+    echo "=== $(TZ=Asia/Tokyo date '+%F %T') relay: backoff 中（${UNTIL_JST} まで・あと約${LEFT_MIN}分）-> skip ★ 止めた理由は /root/import.log（禁則273・import.sh と共有）★ 今すぐ解除するなら rm ${BACKOFF_FILE} ==="
     exit 0
   fi
+  rm -f "$BACKOFF_FILE"
+  echo "=== $(TZ=Asia/Tokyo date '+%F %T') relay: backoff 解除 ==="
 fi
 
 exec 9>/root/relay.lock
