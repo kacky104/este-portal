@@ -545,5 +545,48 @@ const oneShot = (context, occupiedBefore, occupiedAfter) => {
 }
 
 
+
+console.log('\n── 6-6. ★★★★★★ 第255便: 登録の流れ（枠1 top）から2枚目以降へ繋ぐ ──');
+// ★★★★★★ この段の芯はただ1つ … **photoTop は【枠1の1枚目】だけの合図**。
+//   ★ 次の1枚へ持ち越すと、枠2の upload で top_not_slot1 に当たって【2枚目以降が1枚も入らない】。
+//   ★★ 第253便までは all と top を混ぜなかったので出なかった。★ 繋いだ瞬間に出る種類の壊れ方。
+//   → ★ 第249便 §2「繋ぐ前に、繋ぎ先が何を前提にしているかを読む」と同じ形。
+
+const tqctx = (o) => ctx(Object.assign({ photoSlot: 1, photoTop: true, photoFile: FILE_N(1), photoMulti: true, photoQueue: Q([2, 3]) }, o || {}));
+const nx2 = (r) => (r.kind === 'next' ? r.next : null);
+
+{
+  const r = f.advanceFlow({ purpose: 'read_photo_page', status: 200, headers: {}, body: editPage({ occupied: [] }), context: tqctx() });
+  eq('★★ まっさら（8枠すべて空き）なら枠1へ送る', [r.kind, r.kind === 'next' && r.next.multipart.fields.image_set_id], ['next', '1']);
+  eq('★ 列は2枚残っている', r.kind === 'next' && r.next.context.photoQueue.map((q) => q.slot), [2, 3]);
+}
+{
+  // ★★★ 1枠でも埋まっていたら枠1へは送らない（★ top の止めは列があっても効く）
+  const r = f.advanceFlow({ purpose: 'read_photo_page', status: 200, headers: {}, body: editPage({ occupied: [5] }), context: tqctx() });
+  eq('★★★★★ 列があっても slot1_not_blank は効く', [r.kind, r.audits[0].detail.reason], ['stop', 'slot1_not_blank']);
+}
+{
+  const r1 = oneShot(tqctx(), [], [1]);
+  eq('★★★★★ 枠1（トップ画像）が入ったら、次は枠2へ', [r1.kind, nx2(r1) && nx2(r1).context.photoSlot], ['next', 2]);
+  eq('★★★★★★ photoTop を次の1枚へ持ち越さない', nx2(r1) && nx2(r1).context.photoTop !== true, true);
+  eq('★★ 1枚目の記録は今までどおり', [r1.audits[0].detail.slot, r1.audits[0].detail.before, r1.audits[0].detail.after], [1, '00000000', '10000000']);
+
+  // ★★★ 文脈だけでなく【通しで枠2へ入れる】ところまで見る（★ 止まらないことの確認）
+  const r2 = oneShot(nx2(r1) ? nx2(r1).context : tqctx(), [1], [1, 2]);
+  eq('★★★★★★ 枠2は top_not_slot1 で止まらず、入って次は枠3へ', [r2.kind, nx2(r2) && nx2(r2).context.photoSlot], ['next', 3]);
+  eq('★★ 2枚目の記録', [r2.audits[0].detail.slot, r2.audits[0].detail.before, r2.audits[0].detail.after], [2, '10000000', '11000000']);
+
+  const r3 = oneShot(nx2(r2) ? nx2(r2).context : tqctx(), [1, 2], [1, 2, 3]);
+  eq('★★★★★ 枠3で列が尽きて done', [r3.kind, r3.audits.length], ['done', 2]);
+  eq('★★★★★★ まとめは【枠1から3枚】', [r3.audits[1].detail.count, r3.audits[1].detail.put], [3, '1,2,3']);
+  eq('★ まとめの文', r3.audits[1].summary, '駅ちかへ写真を3枚送りました（枠 1・2・3）');
+}
+{
+  // ★★★★★ 列を渡さなければ、登録の流れは第254便までと1文字も変わらない
+  const r = oneShot(ctx({ photoSlot: 1, photoTop: true, photoFile: FILE_N(1) }), [], [1]);
+  eq('★★★★★★ 列が無ければ枠1の1枚で done（★ まとめも出さない）', [r.kind, r.audits.length, r.audits[0].detail.after], ['done', 1, '10000000']);
+}
+
+
 console.log(fail === 0 ? '\n★ すべて通った' : '\n★ NG ' + fail + ' 件');
 process.exit(fail === 0 ? 0 : 1);

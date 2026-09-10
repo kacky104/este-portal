@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { createServiceClient } from '@/app/lib/supabase/service';
 import { startRelayFlow } from '@/app/lib/media/relayFlow';
 import { resolveTherapistPhotoFile, type TherapistPhotoFile } from '@/app/lib/media/therapistPhotoFile';
-import { centeredMainCrop, THUMB_DEFAULT_RECT } from '@/lib/ekichikaPhoto';
+import { centeredMainCrop, THUMB_DEFAULT_RECT, PHOTO_SLOT_MAX } from '@/lib/ekichikaPhoto';
 import { sanitizeBadges } from '@/lib/therapistBadges';
 import { toEkichikaGenreIds, explainBadgeMapping, EKICHIKA_DEFAULT_GENRE_ID } from '@/lib/mediaBadgeMap';
 import { parseBodyType } from '@/lib/bodyType';
@@ -49,7 +49,8 @@ async function readBody(req: Request): Promise<Record<string, unknown>> {
   const o: Record<string, unknown> = {};
   new URLSearchParams(text).forEach((v, k) => { o[k] = v; });
   // ★ 文字の true を真偽に。★ 第249便で withPhoto を足した
-  for (const k of ['apply', 'withPhoto']) if (o[k] === 'true') o[k] = true;
+  // ★ 第255便で allPhotos を足した
+  for (const k of ['apply', 'withPhoto', 'allPhotos']) if (o[k] === 'true') o[k] = true;
   return o;
 }
 
@@ -74,6 +75,12 @@ export async function POST(req: Request) {
   //     既定（何も書かない）          … ★ **飛ばして登録だけする**（設計メモ §3-1 ④）。★ 理由は記録に残す
   const withPhoto = !(body.withPhoto === false || String(body.withPhoto ?? '') === 'false');
   const withPhotoAsked = body.withPhoto === true || String(body.withPhoto ?? '') === 'true';
+  // ★★★★★★ 【第255便】2枚目以降（枠2〜5）も続けて送る。★ **明示したときだけ**。
+  //   ★ 何も書かなければ今までどおり **枠1へ1枚**（第250便の既定）。★ 振る舞いは1つも変わらない。
+  //   ★★★ 既定にしなかった理由（2026-09-10・カッキーさんの決め）… 相手へ送る枚数が **5倍**になる変更だから。
+  //     ★ 第249便（明示）→ 第250便（既定）と同じ段取りで、まず明示で通してから既定を検討する。
+  //   ★★ 対応づけは第253便と同じ【番号固定】（`profile_images` のN枚目 → 枠N）。★ 詰めない・ずらさない。
+  const allPhotos = body.allPhotos === true;
   // ★★★★ 切り分け用の2つ（第235便・設計メモ §17-9）。★ **コードを直さずに試せるようにする。**
   //   postTo=fixed … これまでどおり決め打ちの URL へ送る（既定は action ＝ 読んだフォームの action）
   //   rookie=false … `rookie_flg=1` を混ぜない（★ §2-7b は1回だけの確認なので疑える口を開けた）
@@ -174,7 +181,34 @@ export async function POST(req: Request) {
     }
   }
 
+  // ── ★★★★★★ 【第255便】2枚目以降（枠2〜5）を続けて送る材料 ────────────────
+  //   ★★★ **枠1が用意できていないときは作らない。** ★ 枠1が空きのまま枠2へ入れることはしない
+  //     （★ 中継側も `slot1_empty` で止める。★ ここで作らないのは、そもそも積まないため）。
+  //   ★ 用意できない1枚は飛ばして先へ。★ ただし理由は必ず返す（★ 黙って落とさない・第250便 §2）。
+  const photoQueue: Array<{ slot: number; file: TherapistPhotoFile; mainRect: Rect; thumbRect: Rect }> = [];
+  const photoQueueNotReady: Array<{ slot: number; reason: string }> = [];
+  if (allPhotos && photo) {
+    const rawImages = (th as { profile_images?: string[] | null }).profile_images;
+    const images = (Array.isArray(rawImages) ? rawImages : []).filter((u) => typeof u === 'string' && u !== '');
+    for (let i = 1; i < images.length && i + 1 <= PHOTO_SLOT_MAX; i++) {
+      const wantSlot = i + 1;
+      const one = await resolveTherapistPhotoFile(svc, { therapistId, imageSetId: wantSlot, profileImageUrl: images[i] });
+      if (!one.ok) {
+        photoQueueNotReady.push({ slot: wantSlot, reason: one.error });
+        continue;
+      }
+      photoQueue.push({
+        slot: wantSlot,
+        file: one.file,
+        mainRect: centeredMainCrop(one.file.width, one.file.height),
+        thumbRect: { ...THUMB_DEFAULT_RECT },
+      });
+    }
+  }
+
   const warnings: string[] = [];
+  if (allPhotos && !photo) warnings.push('★★ 1枚目が用意できないので、2枚目以降も送りません（★ 枠1が空きのまま枠2へは入れません）');
+  if (allPhotos && photo && photoQueue.length === 0) warnings.push('★ 2枚目以降のお写真がないので、枠1の1枚だけ送ります');
   if (photoSkip) warnings.push('★★ 写真は送りません（' + photoSkip + '）。★ 登録だけします');
   if (mapping.ekichika.usedDefault)
     warnings.push('★ 駅ちかへ送れる特徴が1つも無いので、既定の「店長オススメ」（' + EKICHIKA_DEFAULT_GENRE_ID + '）だけで登録します');
@@ -209,10 +243,24 @@ export async function POST(req: Request) {
             file: photo.file,
             mainRect: photo.mainRect,
             thumbRect: photo.thumbRect,
+            // ★★★★★★ 第255便: 2枚目以降（★ 明示したときだけ）
+            ...(photoQueue.length > 0
+              ? {
+                  alsoSlots: photoQueue.map((q) => q.slot),
+                  alsoFiles: photoQueue.map((q) => ({ slot: q.slot, path: q.file.path, filename: q.file.filename, width: q.file.width, height: q.file.height, bytes: q.file.bytes })),
+                }
+              : {}),
+            ...(photoQueueNotReady.length > 0 ? { alsoNotReady: photoQueueNotReady } : {}),
             guards: [
               '★★★ 8枠すべてが空きでなければ送りません（slot1_not_blank・第248便）',
               '★★★ 指名した枠と違う枠に入っていたら failed で申告します（slot_mismatch・第246便）',
               '★★ 写真の段で止まっても、castId の結びつけは残ります（★ 二重登録を作らない）',
+              ...(photoQueue.length > 0
+                ? [
+                    '★★★ 2枚目以降は【番号固定】（N枚目 → 枠N）。★ 既に写真が入っている枠は1枚だけ飛ばします（第253便）',
+                    '★★★ 1枚ごとに読み直して照合します。★ 途中で外れたらそこで止め、残りは送りません（第253便）',
+                  ]
+                : []),
             ],
           },
         }
@@ -245,6 +293,21 @@ export async function POST(req: Request) {
             mainRect: photo.mainRect,
             thumbRect: photo.thumbRect,
             top: true,
+            // ★★★★★★ 第255便: 2枚目以降。★ 列が空なら渡さない ＝ 第254便までと同じ振る舞い
+            ...(photoQueue.length > 0
+              ? {
+                  multi: true,
+                  queue: photoQueue.map((q) => ({
+                    slot: q.slot,
+                    file: {
+                      bucket: q.file.bucket, path: q.file.path, filename: q.file.filename,
+                      contentType: q.file.contentType, width: q.file.width, height: q.file.height,
+                    },
+                    mainRect: q.mainRect,
+                    thumbRect: q.thumbRect,
+                  })),
+                }
+              : {}),
           },
         }
       : {}),

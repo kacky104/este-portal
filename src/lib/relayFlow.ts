@@ -3533,6 +3533,12 @@ function afterReadPhotoPage(
         // ★★★ 前の1枚の残りかすを持ち越さない（★ 照合の相手と src は1枚ごとに作り直す）
         photoSrc: undefined,
         photoSlotsBefore: undefined,
+        // ★★★★★★ 【第255便】`photoTop` も落とす。★ これは【枠1の1枚目】だけの合図。
+        //   ★ 登録の流れ（第249便）は枠1を `top:true` で入れる。★ そのまま持ち越すと、
+        //     次の枠2で `top_not_slot1` に当たって**2枚目以降が1枚も入らない**。
+        //   ★★ 第253便までは `all` と `top` を混ぜなかったので出なかった。★ 繋いだ瞬間に出る。
+        //   → ★★★ 第249便 §2 と同じ形（★ 繋ぐ前に、繋ぎ先が何を前提にしているかを読む）。
+        photoTop: undefined,
       };
       return {
         kind: 'next',

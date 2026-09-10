@@ -461,5 +461,23 @@ console.log('\n── 第250便: 写真を飛ばした理由（photoSkip）─�
   eq('★★★ 写真へ進む流れでは photoSkip を出さない', ['photoSkip' in r.audits[0].detail, r.kind], [false, 'next']);
 }
 
+
+{
+  // ★★★★★★ 【第255便】2枚目以降の列は、登録の流れから写真の段へ【そのまま運ばれる】。
+  //   ★ ここで落ちると、登録は通るのに枠1の1枚しか入らない（★ 静かに減る）。
+  const FILE1 = { bucket: 'therapist-photos', path: '602-1.jpg', filename: 'fukues_602_1.jpg', contentType: 'image/jpeg', width: 600, height: 800 };
+  const FILE2 = { bucket: 'therapist-photos', path: '602-2.jpg', filename: 'fukues_602_2.jpg', contentType: 'image/jpeg', width: 600, height: 800 };
+  const qctx = Object.assign({}, ctxV, {
+    photoFile: FILE1, photoTop: true, photoMulti: true,
+    photoQueue: [{ slot: 2, file: FILE2, thumbRect: { x: 60, y: 0, w: 180, h: 180 } }],
+  });
+  const r = go('read_girls', 200, {}, girlsPage(...OTHERS, cell('5809639', 'さくら')), qctx);
+  eq('★★★★★ 登録のあと写真の段へ進む', [r.kind, r.kind === 'next' && r.next.purpose], ['next', 'read_photo_page']);
+  eq('★★★★★★ 2枚目以降の列が運ばれる', r.kind === 'next' && r.next.context.photoQueue.map((q) => q.slot), [2]);
+  eq('★★★ 複数枚の印も運ばれる（★ 埋まった枠を飛ばせるように）', r.kind === 'next' && r.next.context.photoMulti, true);
+  eq('★★ 始まりは枠1（トップ画像）', r.kind === 'next' && r.next.context.photoSlot, 1);
+  eq('★★ 結びつけは今までどおり返す（★ 写真の段で止まっても二重登録を作らない）', r.mediaCreated.castId, '5809639');
+}
+
 console.log(fail === 0 ? '\nすべて通りました' : '\n' + fail + ' 件 NG');
 process.exit(fail === 0 ? 0 : 1);
