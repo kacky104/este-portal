@@ -93,6 +93,10 @@ import {
   // ★ セラピストの新規登録の段（第232便）
   afterEsutamaCastForm, afterEsutamaCastCreate,
 } from './esutamaFlow';
+// ★ エステ魂へ写真を送る段（第243便）。★ 既存の段には触れていない
+import {
+  afterEsutamaPhotoForm, afterEsutamaPhotoTmp, afterEsutamaPhotoSave,
+} from './esutamaPhotoFlow';
 // ★★★ エステ魂の写メ日記（第130便で書いた段を、第133便で advanceFlow に繋いだ）。
 //   ★ 130便では書いただけで【一度も呼ばれていなかった】。★ 繋いで初めて動く
 import {
@@ -352,7 +356,26 @@ export type RelayFlowIntent =
    *   ★ 優先タグ（p_genre）は送らない。★ 写真は登録フォームに欄が無いので別の口（第107便）。
    *   ★ 入口は運営だけの口（/api/admin/media-girl-create）。★ 店舗様の画面にボタンは置かない。
    */
-  | 'girl_create';
+  | 'girl_create'
+  /**
+   * ★★★ エステ魂のセラピストに写真を1枚 送る（第243便・2026-09-10）。
+   *   login → esutama_photo_form（枠の状態と ctk を読む）→ esutama_photo_tmp（仮置きへ multipart）
+   *        → esutama_photo_form（新しい ctk と65部品を取り直す）→ esutama_photo_save
+   *        → esutama_photo_form（照合）→ 終わり
+   *
+   * ★★★★★ **2段構え。** ★ 仮置きへ上げただけでは写真は付かない（設計メモ §25-1・実測）。
+   *   ★ 仮置きの hidden は JS が画面に差し込むだけで、サーバは覚えていない
+   *     （★ 実測: 仮置きのあと F5 で消えた）。★ だから**こちらが持ち回して保存に足す。**
+   *
+   * ★★★ 作法:
+   *   ① 送る前に編集ページを読み、**空き枠**を画面から決める（★ 枠の番号を決め打ちしない）
+   *   ② 寸法は取りに来た口で 357×556 に合わせてもらう（第241便・★ 相手のブラウザと同じ形）
+   *   ③ 保存は**読んだ65部品をそのまま返し**、写真の1組だけ足す（★ ほかの値に触らない）
+   *   ④ 押したあと **もう一度読み直し、その枠が saved になったか**を照合する
+   *   ★★ **空き枠にだけ送る**（駅ちか第107便と同じ）。★ 店舗様の写真を上書きしない
+   *   ★ 入口は運営だけの口（/api/admin/esutama-photo-push）。★ 店舗様の画面にボタンは置かない。
+   */
+  | 'cast_photo';
 
 /**
  * 段と段のあいだで持ち回す状態。
@@ -464,6 +487,32 @@ export type RelayFlowContext = {
   createSent?: { url: string; sentTo: string; formAction: string | null; rookie: boolean; pairs: number; body: string };
   /** ★★★ 削除で実際に送った中身（第235便）。★ 記録のためだけ */
   deleteSent?: { url: string; sentTo: string; formAction: string | null; body: string };
+
+  // ── ここから下は intent='cast_photo' のときだけ入る（第243便）──
+  /** ★★★ 写真を送る相手（エステ魂の cast_id）。★ **1人だけ。** ★ 空なら何もせず終わる */
+  castPhotoCastId?: string;
+  /** ★ フクエス側のセラピストID。★ 記録に残すためだけ（★ 判断には使わない） */
+  castPhotoTherapistId?: number;
+  /**
+   * ★★★ 送る写真の在処。★ 画像そのものはジョブに載せない（第106便・案B）。
+   *   ★ VPS が fukues.com の取り出し口から取りに行く。★ 寸法もその口で合わせる（第241便）
+   */
+  castPhotoFile?: { bucket: string; path: string };
+  /** ★ 枠を指名したいとき（1〜6）。★ 入っていなければ**空き枠を画面から選ぶ** */
+  castPhotoSlotWanted?: number;
+  /**
+   * ★★★★★ 既に写真がある枠へ送るか。★ 既定は **送らない**。
+   *   ★ 店舗様の写真を上書きしないための止め（駅ちか第107便と同じ決め）
+   */
+  castPhotoReplace?: boolean;
+  /** 段。undefined＝枠を選ぶ ／ 'save'＝保存する ／ 'verify'＝照合する */
+  castPhotoStage?: 'save' | 'verify';
+  /** ★ 実際に送った枠（★ 照合で見るのはこの番号） */
+  castPhotoSlot?: number;
+  /** ★★★ 仮置きの結果。★ **保存に足すのはこの1組**（★ 読み直しても付いてこない） */
+  castPhotoTmp?: { field: string; value: string; slot: number };
+  /** ★ 仮置きの応答の正体。★ 記録のためだけ（第236便の作法） */
+  castPhotoNote?: string;
   /**
    * ★★★★ 書き込みの応答に出ていた画面のメッセージ（第234便の修正）。
    *   ★ 設計メモ §2-6「**書き込みのあとは必ず画面のメッセージを読むこと**」。
@@ -698,6 +747,8 @@ export type FlowNextRequest = {
     | 'esutama_cast_list' | 'esutama_cast_hide'
     // ★★ セラピストの新規登録（第232便）。★ esutama_cast_create だけが相手に人を増やす
     | 'esutama_cast_form' | 'esutama_cast_create'
+    // ★★ エステ魂へ写真を送る（第243便）。★ esutama_photo_save だけが相手の設定を書き換える
+    | 'esutama_photo_form' | 'esutama_photo_tmp' | 'esutama_photo_save'
     | 'esutama_work_read' | 'esutama_work_save' | 'esutama_work_verify'
     // ★ エステ魂の写メ日記（第130便）。★ 代理ログインを通るので段が多い
     | 'esutama_sokusera_token' | 'esutama_sokusera_proxy' | 'esutama_sokusera_page'
@@ -1092,6 +1143,13 @@ export function advanceFlow(input: {
       return afterEsutamaCastForm(input, ctx);
     case 'esutama_cast_create':
       return afterEsutamaCastCreate(input, ctx);
+    // ── エステ魂へ写真を送る（第243便）★ 段名で分けている。既存の case には触れていない ──
+    case 'esutama_photo_form':
+      return afterEsutamaPhotoForm(input, ctx);
+    case 'esutama_photo_tmp':
+      return afterEsutamaPhotoTmp(input, ctx);
+    case 'esutama_photo_save':
+      return afterEsutamaPhotoSave(input, ctx);
     case 'esutama_work_read':
       return afterEsutamaWorkRead(input, ctx);
     case 'esutama_work_save':
@@ -2483,6 +2541,10 @@ function finishRead(audits: FlowAudit[], ctx: RelayFlowContext, page: WorkPage):
       // ★ ここへは来ない（エステ魂の登録は駅ちかの出勤ページを使わない）。★ 網羅は外さない（第232便）
       //   ★★★ 相手の媒体が違う。★ 人を増やす前に必ず止める
       return stop(audits, 'エステ魂の登録は駅ちかの出勤ページを使わない（ここへは来ないはず）');
+    case 'cast_photo':
+      // ★ ここへは来ない（エステ魂の写真は駅ちかの出勤ページを使わない）。★ 網羅は外さない（第243便）
+      //   ★★★ 相手の媒体が違う。★ 1枚も送る前に必ず止める
+      return stop(audits, 'エステ魂の写真は駅ちかの出勤ページを使わない（ここへは来ないはず）');
     case 'cast_hide':
       // ★ ここへは来ない（エステ魂の非表示は駅ちかの出勤ページを使わない）。★ 網羅は外さない（第229便）
       //   ★★★ ここへ来たということは、非表示の流れが駅ちかへ迷い込んだということ。

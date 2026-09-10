@@ -15,6 +15,8 @@
 
 import type { FlowAudit, FlowOutcome, RelayFlowContext, EsutamaDiffRow, EsutamaPlanSummary } from './relayFlow';
 import { mergeCookies } from './relayJob';
+// ★ 写真の段（第243便）。★ ログイン後の道分けで1回だけ使う
+import { buildEsutamaPhotoReadStep } from './esutamaPhotoFlow';
 import { readEsutamaCsrf, parseEsutamaJson, parseEsutamaRoster, parseEsutamaCastList, parseEsutamaCastForm } from './esutamaParse';
 // ★ 写メ日記の道（第133便）。★ ログインの直後に分かれる
 import { buildEsutamaTherapistAdminRequest } from './esutamaRequests';
@@ -171,6 +173,17 @@ export function afterEsutamaLogin(input: Input, ctx: RelayFlowContext): FlowOutc
       audits: [],
       note: 'エステ魂にログインできた。魂セラピストの一覧を読みます',
       next: { purpose: 'esutama_therapist_list', method: t.method, url: t.url, headers: t.headers, body: '', context: { ...ctx, cookie, esutamaCsrf: undefined } },
+    };
+  }
+
+  // ★★★ 写真（第243便）は【出勤名簿もセラピスト設定も読まない】。
+  //   ★ 要るのは **その人の編集ページ**だけ（枠の状態と ctk）。★ 用の無いページを相手に読みに行かない。
+  if (ctx.intent === 'cast_photo') {
+    return {
+      kind: 'next',
+      audits: [],
+      note: 'エステ魂にログインできた。写真の枠を読みます（★ まだ1枚も送っていない）',
+      next: buildEsutamaPhotoReadStep(cookie, { ...ctx, esutamaCsrf: undefined }),
     };
   }
 

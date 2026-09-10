@@ -237,6 +237,23 @@ export async function startRelayFlow(params: {
     /** ★★★ `rookie_flg=1` を混ぜるか（既定 true）。★ 疑うときに外せるように口を開けた */
     rookie?: boolean;
   };
+  /**
+   * intent='cast_photo' のときだけ（第243便）。★ **エステ魂のセラピストに写真を1枚送る。**
+   * ★★ 写真そのものはここを通さない（第106便・案B）。★ 在処だけ渡す。
+   * ★★★ castId が入っていなければ、何もせず終わる。★ それが安全装置。
+   */
+  castPhoto?: {
+    /** フクエス側のセラピストID（★ 記録のためだけ） */
+    therapistId: number;
+    /** エステ魂の cast_id（★ 送る相手） */
+    castId: string;
+    /** フクエスの Storage の在処 */
+    file: { bucket: string; path: string };
+    /** 枠を指名したいとき（1〜6）。★ 省くと**空き枠を画面から選ぶ** */
+    photoSlot?: number;
+    /** ★★★ 既に写真がある枠へ送るか（既定 false ＝ 送らない）。★ 店舗様の写真を上書きしない */
+    replace?: boolean;
+  };
   /** 'shop:<auth_user_id>' など。監査ログに残す */
   actor?: string;
 }): Promise<StartFlowResult> {
@@ -323,6 +340,16 @@ export async function startRelayFlow(params: {
     ...(params.castHide ? { hideCastId: String(params.castHide.castId) } : {}),
     ...(params.castCreate
       ? { createTherapistId: Number(params.castCreate.therapistId), createValues: params.castCreate.values }
+      : {}),
+    // ★★★ エステ魂の写真（第243便）。★ 渡されたときだけ入れる。★ 入っていなければ1枚も送らない
+    ...(params.castPhoto
+      ? {
+          castPhotoCastId: String(params.castPhoto.castId),
+          castPhotoTherapistId: Number(params.castPhoto.therapistId),
+          castPhotoFile: params.castPhoto.file,
+          ...(params.castPhoto.photoSlot ? { castPhotoSlotWanted: Number(params.castPhoto.photoSlot) } : {}),
+          ...(params.castPhoto.replace === true ? { castPhotoReplace: true } : {}),
+        }
       : {}),
     ...(params.girlCreate
       ? {

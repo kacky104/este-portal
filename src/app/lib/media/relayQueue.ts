@@ -77,6 +77,10 @@ export type RelayPurpose =
   // ★★ セラピストの新規登録（第232便）。★ esutama_cast_create だけが相手に人を増やす
   | 'esutama_cast_form'
   | 'esutama_cast_create'
+  // ★★ エステ魂へ写真を送る（第243便）。★ esutama_photo_save だけが相手の設定を書き換える
+  | 'esutama_photo_form'
+  | 'esutama_photo_tmp'
+  | 'esutama_photo_save'
   | 'esutama_work_read'
   | 'esutama_work_save'
   | 'esutama_work_verify'
