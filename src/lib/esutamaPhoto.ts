@@ -209,10 +209,12 @@ export function buildEsutamaPhotoUploadRequest(
   v: {
     slot: number; ctk: string; fileUrl: string; filename: string; contentType: string;
     /**
-     * ★★★★★ 既に写真がある枠へ送るか（既定 false ＝ **送らない**）。
-     *   ★ 駅ちかの写真（第107便）と同じ決め: **空き枠にだけ送る**。
-     *   ★★ 店舗様がご自分で入れた写真を、こちらの都合で消さない。
-     *   ★ 差し替えたいときは、**人がはっきりそう言ったときだけ** true にする。
+     * ★★★★★★ 【第245便・2026-09-10 実弾3発で確定】エステ魂では **差し替えにならない**。
+     *   ★ 相手は `cast_icon_<枠>-imgupload` の枠番号を見ておらず、**いちばん小さい空き枠へ詰める**。
+     *     ★ 枠6を指名した2発が、実際には枠4・枠5に入った。
+     *   → ★★★ 埋まった枠を指名しても、その枠は差し替わらない。★ 空き枠が1つ埋まるだけ。
+     *   ★★ だから **true は受け付けない**（★ 下で止める）。★ 差し替えは店舗様の画面から。
+     *   ★ 欄を残しているのは **止めるために要る**から。★ 消すと黙って通ってしまう。
      */
     replace?: boolean;
   },
@@ -229,8 +231,12 @@ export function buildEsutamaPhotoUploadRequest(
     throw new Error('枠 ' + String(v.slot) + ' が画面にありません。★ 枠の番号から送り先を組み立てません');
   }
 
+  // ★★★★★★ 第245便: 差し替えは受け付けない。★ エステ魂は詰めるので「差し替え」にならない
+  if (v.replace === true) {
+    throw new Error('エステ魂は空き枠へ詰めるため、写真の差し替えはできません。★ 差し替えは店舗様の画面から');
+  }
   // ★★★★★ 空き枠にだけ送る（第107便と同じ決め）。★ 店舗様の写真を上書きしない
-  if (target.state !== 'empty' && v.replace !== true) {
+  if (target.state !== 'empty') {
     throw new Error('枠 ' + String(v.slot) + ' には既に写真が入っています（'
       + (target.state === 'pending' ? '仮置き' : '保存済み') + '）。★ 空き枠にだけ送ります');
   }
@@ -331,10 +337,16 @@ export function describeEsutamaPhotoResponse(status: number, html: string): stri
 }
 
 /**
- * ★★★ 空いている枠のうち、いちばん小さい番号を返す（★ 無ければ null）。
- *   ★ 「どこへ送るか」を呼び出し側が数字で決め打ちしないための道具。
+ * ★★★★★★ 空いている枠のうち、いちばん小さい番号を返す（★ 無ければ null）。
+ *
+ * ★★★ 第245便（2026-09-10 実弾3発）で、これが **唯一の送り先**になった。
+ *   ★ エステ魂は `cast_icon_<枠>-imgupload` の枠番号を見ておらず、**いちばん小さい空き枠へ詰める**。
+ *     ★ 枠6を指名した2発が、実際には枠4・枠5に入った（★ 照合は枠6を見て `not_saved` と申告）。
+ *   → ★★ ここが返す番号は「送り先」であると同時に **「相手が入れる先」**でもある。
+ *     ★ だから照合がこの番号で合う。★ 別の番号を指名すると、必ず食い違う。
+ *
  *   ★★ 枠1（トップ画像）から順に埋める。★ 駅ちかは枠1を別扱いにしていたが（第142便）、
- *     エステ魂は**枠1がトップ画像そのもの**なので、1から埋めてよい。
+ *     エステ魂は**枠1がトップ画像そのもの**（`cast/main/`。★ 枠2以降は `cast/sub/`）なので、1から埋めてよい。
  */
 export function firstEmptyEsutamaPhotoSlot(page: EsutamaPhotoPage): number | null {
   if (page.warnings.length > 0) return null;   // ★ 読み切れていない画面では決めない

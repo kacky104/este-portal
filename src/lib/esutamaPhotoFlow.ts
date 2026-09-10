@@ -21,6 +21,16 @@
 // ★★★★ 空き枠にだけ送る（駅ちかの写真・第107便と同じ決め）。
 //   ★ 店舗様がご自分で入れた写真を、こちらの都合で上書きしない。
 //
+// ★★★★★★ 【第245便・2026-09-10 実弾3発で確定】エステ魂は **枠を詰める**。
+//   ★ `cast_icon_<枠>-imgupload` の枠番号を相手は見ていない。★ **いちばん小さい空き枠へ入れる。**
+//     ┌ 指名なし → 枠3（当時のいちばん小さい空き）
+//     ├ 枠6を指名 → **枠4** に入った
+//     └ 枠6を指名 → **枠5** に入った（★ 予測を書いてから打って、当たった）
+//   → ★★★ 枠の指名（`castPhotoSlotWanted`）と差し替え（`castPhotoReplace`）は **受け付けない**。
+//     ★ 黙って無視すると「枠6に入れました」という**嘘の申告**が生まれる。★ だから止める。
+//   ★★ 仮置きの応答は**指名どおりの番号**を返すので、`slot_mismatch` の見張りでは捕まらない。
+//     ★ 実際の配置が決まるのは **保存の段**。★ 見張りは読み直しての照合だけが効く。
+//
 // ★ このファイルは通信も DB も触らない。★ 画像そのものも運ばない（第106便・案B）。
 
 import type { RelayFlowContext, FlowOutcome, FlowAudit, FlowNextRequest } from './relayFlow';
@@ -290,10 +300,14 @@ export function afterEsutamaPhotoForm(input: Input, ctx: RelayFlowContext): Flow
       );
     }
     if (hit.state !== 'saved') {
+      // ★★★★ 第245便: ここで外れたときに、まず疑うこと。
+      //   ★ エステ魂は **いちばん小さい空き枠へ詰める**。★ 送り先はその番号に固定してある。
+      //   → ★★ それでも食い違うなら、**人が同じ画面を同時に触った**（＝ 詰める先がずれた）疑い。
+      //   ★ 写真は「入っていない」のではなく **別の枠に入っている**かもしれない。★ 画面を見てから次を打つ。
       return stop(
         [{
           event: 'push_photo', outcome: 'failed',
-          summary: 'エステ魂に写真を送りましたが、枠' + slot + 'に入っていませんでした',
+          summary: 'エステ魂に写真を送りましたが、枠' + slot + 'に入っていませんでした（★ 別の枠に入っていないか画面をご確認ください）',
           // ★★ 保存の応答の番号と行き先も残す（★ 次に外したとき、もう一発使わずに分かるように）
           detail: {
             castId, slot, reason: 'not_saved', state: hit.state, note: ctx.castPhotoNote ?? null,
@@ -370,9 +384,37 @@ export function afterEsutamaPhotoForm(input: Input, ctx: RelayFlowContext): Flow
     );
   }
 
-  // ★★★★ 枠は【画面から決める】。★ 数字を決め打ちしない
+  // ★★★★★★ 第245便（2026-09-10 実弾3発）: 枠は **指名できない**。
+  //   ★ エステ魂は `cast_icon_<枠>-imgupload` の枠番号を見ておらず、**いちばん小さい空き枠へ詰める**。
+  //     ★ 枠6を指名した2発が、実際には枠4・枠5に入った。★ 照合は枠6を見に行って `not_saved` と申告した。
+  //   ★★★ 指名を受け取ったら **黙って無視しない。止める。**
+  //     ★ 無視して通すと「枠6に入れました」という**嘘の申告**が生まれる。★ そこがいちばん怖い。
   const wanted = Number(ctx.castPhotoSlotWanted ?? 0);
-  const slot = Number.isInteger(wanted) && wanted > 0 ? wanted : firstEmptyEsutamaPhotoSlot(photo);
+  if (Number.isFinite(wanted) && wanted > 0) {
+    return stop(
+      [{
+        event: 'push_photo', outcome: 'stopped',
+        summary: 'エステ魂では写真の枠を指名できないため、送りませんでした',
+        detail: { castId, reason: 'slot_not_supported', wanted, flowId },
+      }],
+      'エステ魂は空き枠へ詰めるため、枠の指名は効かない（指名 ' + wanted + '）',
+    );
+  }
+  // ★★★★★ 差し替えも同じ理由でできない。★ 埋まった枠は差し替わらず、空き枠が1つ埋まるだけ
+  if (ctx.castPhotoReplace === true) {
+    return stop(
+      [{
+        event: 'push_photo', outcome: 'stopped',
+        summary: 'エステ魂では写真の差し替えができないため、送りませんでした',
+        detail: { castId, reason: 'replace_not_supported', flowId },
+      }],
+      'エステ魂は空き枠へ詰めるため、差し替えにならない',
+    );
+  }
+
+  // ★★★★ 送り先は【画面から決める】。★ 数字を決め打ちしない
+  //   ★★ いちばん小さい空き枠 ＝ **相手が詰める先**。★ だから「送った枠」と「入る枠」が一致する
+  const slot = firstEmptyEsutamaPhotoSlot(photo);
   if (!slot) {
     return {
       kind: 'done',
@@ -409,7 +451,7 @@ export function afterEsutamaPhotoForm(input: Input, ctx: RelayFlowContext): Flow
       fileUrl,
       filename,
       contentType: 'image/jpeg',
-      ...(ctx.castPhotoReplace === true ? { replace: true } : {}),
+      // ★★★ replace は渡さない（第245便）。★ エステ魂では差し替えにならないため、上で止めてある
     });
   } catch (e) {
     const why = e instanceof Error ? e.message : String(e);

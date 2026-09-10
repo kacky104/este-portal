@@ -1,12 +1,15 @@
 import { NextResponse } from 'next/server';
 import { createServiceClient } from '@/app/lib/supabase/service';
 import { startRelayFlow } from '@/app/lib/media/relayFlow';
-import { ESUTAMA_PHOTO_FIT, ESUTAMA_PHOTO_SLOT_MAX } from '@/lib/esutamaPhoto';
+import { ESUTAMA_PHOTO_FIT } from '@/lib/esutamaPhoto';
 
 // ── エステ魂のセラピストに写真を1枚 送る（第243便・運営だけの口）────────────────
 //   POST /api/admin/esutama-photo-push  (Authorization: Bearer <CRON_SECRET>)
-//   body: { salonId, therapistId, slot?: 1, photoSlot?: 1〜6, path?: string,
-//           apply?: boolean, replace?: boolean }
+//   body: { salonId, therapistId, slot?: 1, path?: string, apply?: boolean }
+//
+// ★★★★★★ 第245便（2026-09-10 実弾3発）: **写真の枠は指名できない。**
+//   ★ エステ魂は `cast_icon_<枠>-imgupload` の枠番号を見ておらず、**いちばん小さい空き枠へ詰める**。
+//   ★ `photoSlot` と `replace` は 400 で断る（★ 受け付けたまま残すと、次に触る人が必ず踏む）。
 //
 // ★★★★★ 2段構え（設計メモ §25-1・実測）。★ 仮置きへ上げただけでは写真は付かない。
 //   login → 編集ページを読む → 仮置きへ multipart → 読み直す → 保存 → 読み直して照合
@@ -15,8 +18,8 @@ import { ESUTAMA_PHOTO_FIT, ESUTAMA_PHOTO_SLOT_MAX } from '@/lib/esutamaPhoto';
 //   ① 相手は therapistId で1人だけ。★ 「まとめて送る」は作らない
 //   ② apply の既定は false（試し打ち）。★ **送る中身を返すだけで、1枚も送らない**
 //   ③ ★★ **空き枠にだけ送る。** ★ 店舗様がご自分で入れた写真を上書きしない
-//     ★ 差し替えたいときだけ replace:true（★ そのとき何を上書きしたかが記録に残る）
-//   ④ 枠は**画面から選ぶ**。★ photoSlot を省けば、いちばん小さい空き枠へ
+//     ★★ 差し替え（replace）は **できない**（第245便）。★ 相手が詰めるので差し替えにならない
+//   ④ 枠は**相手が決める**（いちばん小さい空き枠）。★ こちらは指名しない・できない（第245便）
 //   ⑤ 寸法は取りに来た口で 357×556 に合わせる（第241便）。★ 相手のブラウザと同じ形
 //
 // ★★ 送るのは【フクエスに店舗様が上げた写真】だけ（therapist-photos）。★ 他所の画像は指せない。
@@ -61,14 +64,24 @@ export async function POST(req: Request) {
   if (!Number.isFinite(therapistId) || therapistId <= 0)
     return NextResponse.json({ ok: false, error: 'therapistId が要る（フクエスのセラピストID）' }, { status: 400 });
 
-  // ★ 枠を指名したいときだけ。★ 省けば空き枠を画面から選ぶ
-  let photoSlot: number | undefined;
+  // ★★★★★★ 第245便（2026-09-10 実弾3発）: **枠は指名できない。**
+  //   ★ エステ魂は `cast_icon_<枠>-imgupload` の枠番号を見ておらず、**いちばん小さい空き枠へ詰める**。
+  //     ★ 枠6を指名した2発が、実際には枠4・枠5に入った（★ 照合は枠6を見て not_saved と申告した）。
+  //   → ★★ 受け付けたまま残すと、次に触る人が必ず踏む。★ **ここで断る。**
   if (body.photoSlot !== undefined && body.photoSlot !== '') {
-    const n = Number(body.photoSlot);
-    if (!Number.isInteger(n) || n < 1 || n > ESUTAMA_PHOTO_SLOT_MAX) {
-      return NextResponse.json({ ok: false, error: 'photoSlot は 1〜' + ESUTAMA_PHOTO_SLOT_MAX + ' の整数' }, { status: 400 });
-    }
-    photoSlot = n;
+    return NextResponse.json({
+      ok: false,
+      error: 'エステ魂は空き枠へ詰めるため、写真の枠は指名できません（photoSlot は使えません）。'
+        + '★ 枠は画面から選ばれます（いちばん小さい空き枠）',
+    }, { status: 400 });
+  }
+  // ★★★ 差し替えも同じ理由でできない。★ 埋まった枠は差し替わらず、空き枠が1つ埋まるだけ
+  if (replace) {
+    return NextResponse.json({
+      ok: false,
+      error: 'エステ魂は空き枠へ詰めるため、写真の差し替えはできません（replace は使えません）。'
+        + '★ 差し替えは店舗様の画面から',
+    }, { status: 400 });
   }
 
   const svc = createServiceClient();
@@ -123,8 +136,6 @@ export async function POST(req: Request) {
   const warnings: string[] = [];
   if ((th as { is_active?: boolean }).is_active === false)
     warnings.push('★ この方はフクエスでは非公開です（★ エステ魂側の表示はエステ魂の設定に従います）');
-  if (replace) warnings.push('★ ★ replace:true が指定されています。★ 既に入っている写真を上書きします');
-  if (photoSlot) warnings.push('★ 枠' + photoSlot + 'を指名しています（★ 空きでなければ止まります）');
 
   const plan = {
     salonId, salonName: String((salon as { name?: string }).name ?? ''),
@@ -132,7 +143,8 @@ export async function POST(req: Request) {
     therapistName: String((th as { name?: string }).name ?? ''),
     castId,
     file: { bucket: BUCKET, path, bytes },
-    photoSlot: photoSlot ?? '（指名なし：いちばん小さい空き枠へ）',
+    // ★★★ 第245便: 枠は指名できない。★ 相手が「いちばん小さい空き枠」へ詰める
+    photoSlot: '（指名できません：エステ魂がいちばん小さい空き枠へ詰めます）',
     size: '★ 取りに来た口で ' + ESUTAMA_PHOTO_FIT.width + '×' + ESUTAMA_PHOTO_FIT.height
       + ' を覆うように縮小し、左上を基準に切り取って JPEG にします（★ 相手のブラウザと同じ形）',
     steps: [
@@ -145,6 +157,7 @@ export async function POST(req: Request) {
     ],
     rules: [
       '★ 空き枠にだけ送ります（店舗様の写真を上書きしません）',
+      '★★ エステ魂は枠番号を見ずに、いちばん小さい空き枠へ詰めます（第245便・実弾で確定）',
       '★ 仮置きだけでは付きません。保存まで通って初めて写真になります',
       '★ 成否は読み直して照合します（応答では判定しません）',
     ],
@@ -162,11 +175,8 @@ export async function POST(req: Request) {
     salonId, provider: 'esutama', slot,
     intent: 'cast_photo',
     actor: 'admin:esutama-photo-push',
-    castPhoto: {
-      therapistId, castId, file: { bucket: BUCKET, path },
-      ...(photoSlot ? { photoSlot } : {}),
-      ...(replace ? { replace: true } : {}),
-    },
+    // ★★★ 第245便: 枠も差し替えも渡さない（★ 上で断ってある）。★ 送り先は流れが画面から選ぶ
+    castPhoto: { therapistId, castId, file: { bucket: BUCKET, path } },
   });
   if (!r.ok) return NextResponse.json({ ok: false, applied: false, plan, reason: r.reason, note: r.note }, { status: 409 });
   return NextResponse.json({

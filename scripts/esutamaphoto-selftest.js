@@ -281,10 +281,18 @@ console.log('\n── ⑨ ★★★★★ 空き枠にだけ送る（★ 店舗�
      P.buildEsutamaPhotoUploadRequest('sid=abc', page, Object.assign({ slot: 3 }, V)).url,
      'https://estama.jp/file_upload/therapist_tmp/cast_icon_3/');
 
-  // ★★★ 差し替えは【人がはっきりそう言ったときだけ】
-  const rep = P.buildEsutamaPhotoUploadRequest('sid=abc', page, Object.assign({ slot: 1, replace: true }, V));
-  eq('★★★ replace:true なら保存済みの枠にも送れる', rep.url, 'https://estama.jp/file_upload/therapist_tmp/cast_icon_1/');
-  eq('★★★★ 送る前の状態を記録に残す（★ 何を上書きしたかが後から読める）', rep.meta.wasState, 'saved');
+  // ★★★★★★ 第245便（2026-09-10 実弾3発）: 差し替えは **できない**。
+  //   ★ エステ魂は枠番号を見ず、いちばん小さい空き枠へ詰める。
+  //     ★ 枠6を指名した2発が、実際には枠4・枠5に入った。
+  //   → ★★ 埋まった枠を指名しても差し替わらない。★ 空き枠が1つ埋まるだけ。★ だから受け付けない。
+  throws('★★★★★★ replace:true は受け付けない（★ エステ魂では差し替えにならない）',
+         () => P.buildEsutamaPhotoUploadRequest('sid=abc', page, Object.assign({ slot: 1, replace: true }, V)),
+         /差し替えはできません/);
+  throws('★★★★★ 空き枠を指名した replace:true も止める（★ 経路そのものを塞ぐ）',
+         () => P.buildEsutamaPhotoUploadRequest('sid=abc', page, Object.assign({ slot: 3, replace: true }, V)),
+         /差し替えはできません/);
+  eq('★★★★ 送る前の状態を記録に残す（★ 空き枠しか通らないので empty）',
+     P.buildEsutamaPhotoUploadRequest('sid=abc', page, Object.assign({ slot: 3 }, V)).meta.wasState, 'empty');
 }
 
 console.log('\n── ⑩ ★★★★★ 保存して本紐づけする（第242便） ──');

@@ -88,15 +88,35 @@ console.log('── ① 枠を選んで仮置きへ送る ──');
   const r2 = go('esutama_photo_form', 200, {}, editPage(['saved', 'saved', 'empty', 'empty', 'empty', 'empty']), ctx);
   eq('★★★★ 埋まっている枠は飛ばす', r2.next.context.castPhotoSlot, 3);
 
-  // ★★★ 枠を指名することもできる
+  // ★★★★★★ 第245便（2026-09-10 実弾3発で確定）: 枠は **指名できない**。
+  //   ★ エステ魂は `cast_icon_<枠>-imgupload` の枠番号を見ておらず、いちばん小さい空き枠へ詰める。
+  //     ┌ 指名なし → 枠3（当時のいちばん小さい空き）
+  //     ├ 枠6を指名 → **枠4** に入った
+  //     └ 枠6を指名 → **枠5** に入った（★ 予測を書いてから打って、当たった）
+  //   ★★★ 黙って無視すると「枠6に入れました」という**嘘の申告**が生まれる。★ だから止める。
   const r3 = go('esutama_photo_form', 200, {}, editPage(), Object.assign({}, ctx, { castPhotoSlotWanted: 5 }));
-  eq('★★★ 指名した枠へ送る', r3.next.url, 'https://estama.jp/file_upload/therapist_tmp/cast_icon_5/');
+  eq('★★★★★★ 枠を指名したら【送らない】（★ 相手が詰めるので指名は効かない）',
+     [r3.kind, r3.audits[0].outcome, r3.audits[0].detail.reason],
+     ['stop', 'stopped', 'slot_not_supported']);
+  eq('★★★ 何を指名したかを記録に残す', r3.audits[0].detail.wanted, 5);
 
-  // ★★★★★ 指名した枠が埋まっていたら【送らない】（★ 店舗様の写真を上書きしない）
-  const r4 = go('esutama_photo_form', 200, {}, editPage(['saved', 'empty', 'empty', 'empty', 'empty', 'empty']),
-                Object.assign({}, ctx, { castPhotoSlotWanted: 1 }));
-  eq('★★★★★ 埋まっている枠を指名したら送らない', r4.audits[0].outcome, 'stopped');
-  eq('★★ 理由が残る', r4.audits[0].detail.reason, 'blocked');
+  // ★★★★ たまたま「いちばん小さい空き枠」を指名しても止める（★ 経路そのものを塞ぐ）
+  const r3b = go('esutama_photo_form', 200, {},
+                 editPage(['saved', 'saved', 'empty', 'empty', 'empty', 'empty']),
+                 Object.assign({}, ctx, { castPhotoSlotWanted: 3 }));
+  eq('★★★★ 合っている指名も止める', r3b.audits[0].detail.reason, 'slot_not_supported');
+
+  // ★★★★★ 差し替えも同じ理由でできない
+  const r3c = go('esutama_photo_form', 200, {}, editPage(), Object.assign({}, ctx, { castPhotoReplace: true }));
+  eq('★★★★★ 差し替えは【送らない】（★ 埋まった枠は差し替わらず、空き枠が1つ埋まるだけ）',
+     [r3c.kind, r3c.audits[0].outcome, r3c.audits[0].detail.reason],
+     ['stop', 'stopped', 'replace_not_supported']);
+
+  // ★★★★★ 空きが1つも無ければ【送らない】（★ 店舗様の写真を上書きしない）
+  const r4 = go('esutama_photo_form', 200, {},
+                editPage(['saved', 'saved', 'saved', 'saved', 'saved', 'pending']), ctx);
+  eq('★★★★★ 空きが無ければ送らない', r4.audits[0].outcome, 'stopped');
+  eq('★★ 理由が残る', r4.audits[0].detail.reason, 'no_empty_slot');
 
   // ★★★ 全部埋まっていたら、何もせず終わる
   const full = go('esutama_photo_form', 200, {},
@@ -328,6 +348,37 @@ console.log('\n── ⑥ 編集ページが飛ばされたとき（第243便b�
   eq('★★★ 覚えている飛び先があればそこを直接読む',
      go('esutama_photo_save', 200, {}, '<html>ok</html>',
         Object.assign({}, ctx, { castPhotoSlot: 3, castPhotoPageUrl: DISABLED })).next.url, DISABLED);
+}
+
+console.log('\n── ⑥ ★★★★★ 上限の枠（枠6）まで一巡する（第245便で追加）──');
+//
+// ★★★ 第244便の実弾では、枠6を **指名して**打ったので枠4・枠5に入ってしまった。
+//   ★ 枠6に入るのは「枠1〜5が埋まっているとき」だけ。★ そこを机上で固めておく。
+{
+  const FIVE = ['saved', 'saved', 'saved', 'saved', 'saved', 'empty'];
+  const r = go('esutama_photo_form', 200, {}, editPage(FIVE), ctx);
+  eq('★★★ 枠1〜5が埋まっていれば枠6へ', r.next.context.castPhotoSlot, 6);
+  eq('★★★★★ 送り先は画面の data-post_url（枠6）',
+     r.next.url, 'https://estama.jp/file_upload/therapist_tmp/cast_icon_6/');
+  eq('★★ ファイル名はこちらで決める', r.next.multipart.files[0].filename, 'cast_955513_6.jpg');
+
+  const tmp = go('esutama_photo_tmp', 200, {}, tmpResponse(6), r.next.context);
+  eq('★★★ 仮置きの1組（枠6）', tmp.next.context.castPhotoTmp.field, 'cast_icon_6-imgupload');
+
+  const sv = go('esutama_photo_form', 200, {}, editPage(FIVE), tmp.next.context);
+  eq('★★★ 次は保存', sv.next.purpose, 'esutama_photo_save');
+  eq('★★★★★ 足すのは写真の1組だけ', /(^|&)cast_icon_6-imgupload=%2Ftemp%2F/.test(sv.next.body), true);
+  eq('★★★ 上位表示の残り回数は送らない', /set_up_limit/.test(sv.next.body), false);
+
+  const back = go('esutama_photo_save', 302, {}, '', sv.next.context);
+  eq('★★★ 応答では判定しない（読み直す）', back.next.context.castPhotoStage, 'verify');
+  eq('★★★★★ 枠6が saved になって初めて ok',
+     go('esutama_photo_form', 200, {},
+        editPage(['saved', 'saved', 'saved', 'saved', 'saved', 'saved']), back.next.context).audits[0].outcome,
+     'ok');
+  eq('★★★★★ 入っていなければ failed（★ 応答が302でも通さない）',
+     go('esutama_photo_form', 200, {}, editPage(FIVE), back.next.context).audits[0].detail.reason,
+     'not_saved');
 }
 
 console.log(fail === 0 ? '\nすべて通りました' : '\n' + fail + ' 件 NG');
