@@ -490,7 +490,8 @@ eq('★★★ 深夜の窓は前の営業日から', F.esutamaWindowDates(at('20
   // ── ④照合 ──────────────────────────────────────────
   {
     const r = F.afterEsutamaCastList({ status: 200, headers: {}, body: listPage([...OTHERS, row('900002', 'さくら')]) }, ctxV);
-    eq('★★★ 登録④: 増えた1人を見つけて「できました」', [r.kind, r.audits[0].event, r.audits[0].outcome], ['done', 'create_cast', 'ok']);
+    // ★ 第270便: 登録のあとは名簿を読み直す段へ続く（done ではなく next）。★ 「できました」はこの時点で記録
+    eq('★★★ 登録④: 増えた1人を見つけて「できました」', [r.kind, r.audits[0].event, r.audits[0].outcome], ['next', 'create_cast', 'ok']);
     eq('★★★ 登録④: 回収した cast_id を返す（★ 表に書くのは呼び出し側）',
        r.mediaCreated, { therapistId: 601, castId: '900002', name: 'さくら' });
   }
@@ -501,7 +502,7 @@ eq('★★★ 深夜の窓は前の営業日から', F.esutamaWindowDates(at('20
   {
     // ★★ 増えたのが2人。★ 名前で1人に絞れるなら、その人
     const r = F.afterEsutamaCastList({ status: 200, headers: {}, body: listPage([...OTHERS, row('900002', 'さくら'), row('900003', 'ゆい')]) }, ctxV);
-    eq('★★ 登録④: 2人増えても名前で絞れれば通す', [r.kind, r.mediaCreated.castId], ['done', '900002']);
+    eq('★★ 登録④: 2人増えても名前で絞れれば通す', [r.kind, r.mediaCreated.castId], ['next', '900002']);
   }
   {
     // ★★★ 増えたのが2人で、どちらも名前が違う → **決められない**。黙って選ばない
@@ -519,7 +520,8 @@ eq('★★★ 深夜の窓は前の営業日から', F.esutamaWindowDates(at('20
   const ctxP = Object.assign({}, ctxV, { castPhotoFile: PHOTO });
   {
     const r = F.afterEsutamaCastList({ status: 200, headers: {}, body: listPage([...OTHERS, row('900002', 'さくら')]) }, ctxV);
-    eq('★★★ 登録⑤a: 材料が無ければ写真へ進まない（第263便までと同じ）', [r.kind, r.next], ['done', undefined]);
+    // ★ 第270便: 写真へは進まないが、名簿の読み直しへは進む
+    eq('★★★ 登録⑤a: 材料が無ければ写真へ進まない（★ 名簿の読み直しへ）', [r.kind, r.next.purpose, r.next.context.castPhotoCastId], ['next', 'esutama_roster', undefined]);
   }
   {
     const r0 = F.afterEsutamaCastList({ status: 200, headers: {}, body: listPage([...OTHERS, row('900002', 'さくら')]) }, ctxP);
@@ -549,7 +551,7 @@ eq('★★★ 深夜の窓は前の営業日から', F.esutamaWindowDates(at('20
     // ★ 既定で写真を飛ばしたとき（第250便の形）: 理由が記録に残る
     const r = F.afterEsutamaCastList({ status: 200, headers: {}, body: listPage([...OTHERS, row('900002', 'さくら')]) },
       Object.assign({}, ctxV, { createPhotoSkip: 'プロフィール写真が therapist-photos にありません' }));
-    eq('★★ 登録⑤: 写真を送らなかった理由を記録に残す', [r.kind, r.audits[0].detail.photoSkip], ['done', 'プロフィール写真が therapist-photos にありません']);
+    eq('★★ 登録⑤: 写真を送らなかった理由を記録に残す', [r.kind, r.audits[0].detail.photoSkip], ['next', 'プロフィール写真が therapist-photos にありません']);
   }
   {
     // ★★★ 一巡: 登録の照合 → 写真の1段目（枠を選んで仮置きへ）まで、同じ文脈で繋がるか
@@ -564,6 +566,37 @@ eq('★★★ 深夜の窓は前の営業日から', F.esutamaWindowDates(at('20
     const r2 = r1.next ? RF.advanceFlow({ purpose: r1.next.purpose, status: 200, headers: {}, body: editPage, context: r1.next.context }) : { kind: r1.kind, next: { context: {} } };
     eq('★★★★ 登録⑤ 一巡: 登録の照合の次は、写真の枠を選んで仮置きへ', [r2.kind, r2.next.purpose, r2.next.context.castPhotoSlot], ['next', 'esutama_photo_tmp', 1]);
     eq('★★★ 登録⑤ 一巡: 仮置きの送り先は画面の data-post_url（枠1）', r2.next.url, 'https://estama.jp/file_upload/therapist_tmp/cast_icon_1/');
+  }
+
+  // ── ⑥ 登録のあと、名簿を読み直す（第270便）──────────────────────
+  //   ★★★ 見張りたいのは3つ:
+  //     a. 写真なし: 登録の照合 → **名簿の GET**（esutama_roster）へ。★ 印 createRosterRefresh が付く。★ mediaCreated はその場で
+  //     b. 名簿の段: 印が付いていれば記録は1行「登録のあと、名簿を読み直しました」。★ 「ログインしました」を2回書かない。★ kind は esutama_roster（写しは呼び出し側が保存）
+  //     c. 印が無ければ（ふつうの roster_read）今までどおり2行（login / read_girls）
+  // ★ 名簿の作り物は上の名簿①と同じ物（LIST）を使う（★ 形は「名前 本日の出勤 …」の実測どおり）
+  const rosterPage = LIST;
+  {
+    const r = F.afterEsutamaCastList({ status: 200, headers: {}, body: listPage([...OTHERS, row('900002', 'さくら')]) }, ctxV);
+    eq('★★★ 登録⑥a: 写真なしでも名簿の読み直しへ続く', [r.kind, r.next.purpose, r.next.method, r.next.url], ['next', 'esutama_roster', 'GET', 'https://estama.jp/admin/schedule/list/']);
+    eq('★★★ 登録⑥a: 読み直しの印が付く・トークンは持ち回らない', [r.next.context.createRosterRefresh, r.next.context.esutamaCsrf], [true, undefined]);
+    eq('★★★★★ 登録⑥a: まだ続くのに cast_id の結びつけを返す', r.mediaCreated, { therapistId: 601, castId: '900002', name: 'さくら' });
+    eq('★★ 登録⑥a: intent は cast_create のまま', r.next.context.intent, 'cast_create');
+  }
+  {
+    const r = F.afterEsutamaRoster({ status: 200, headers: {}, body: rosterPage }, Object.assign({}, ctxV, { createRosterRefresh: true }));
+    eq('★★★ 登録⑥b: 名簿の段は kind esutama_roster（★ 写しは呼び出し側が保存）', r.kind, 'esutama_roster');
+    eq('★★★ 登録⑥b: 記録は1行・「ログインしました」を書かない', [r.audits.length, r.audits[0].event, r.audits[0].detail.afterCreate], [1, 'read_girls', true]);
+    eq('★★ 登録⑥b: 文言は「登録のあと、読み直した」', r.audits[0].summary.includes('登録のあと'), true);
+    eq('★★ 登録⑥b: 読めた人数を返す', r.rows.length > 0, true);
+  }
+  {
+    const r = F.afterEsutamaRoster({ status: 200, headers: {}, body: rosterPage }, Object.assign({}, ctx0, { intent: 'roster_read', cookie: 'sid=abc' }));
+    eq('★★ 登録⑥c: 印が無ければ今までどおり2行（login / read_girls）', [r.kind, r.audits.map((a) => a.event)], ['esutama_roster', ['login', 'read_girls']]);
+  }
+  {
+    // ★ 名簿が読めなくても、登録・写真はもう終わっている。★ stop で残る（★ 番号はもう表に書かれている・⑥a）
+    const r = F.afterEsutamaRoster({ status: 500, headers: {}, body: '' }, Object.assign({}, ctxV, { createRosterRefresh: true }));
+    eq('★ 登録⑥: 読み直しが失敗しても記録に残る（登録は終わっている）', [r.kind, r.audits[0].event, r.audits[0].outcome], ['stop', 'read_girls', 'failed']);
   }
 }
 

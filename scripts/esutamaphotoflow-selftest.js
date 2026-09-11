@@ -71,6 +71,8 @@ console.log('── ① 枠を選んで仮置きへ送る ──');
 {
   const r = go('esutama_photo_form', 200, {}, editPage(), ctx);
   eq('★★★ 次は仮置きへの送信', r.next.purpose, 'esutama_photo_tmp');
+  // ★ 第270便: 店舗様の記録が「エステ魂（枠1）で処理を行いました」（既定文）に落ちないよう、言葉を付けた
+  eq('★ 枠を読んだ記録に言葉がある', [r.audits[0].event, typeof r.audits[0].summary === 'string' && r.audits[0].summary.includes('写真の枠')], ['read_photo_page', true]);
   eq('★★★ POST', r.next.method, 'POST');
   eq('★★★★★ 送り先は画面の data-post_url', r.next.url, 'https://estama.jp/file_upload/therapist_tmp/cast_icon_1/');
   eq('★★★★ 枠は画面から決める（全部空きなら1）', r.next.context.castPhotoSlot, 1);
@@ -201,6 +203,21 @@ console.log('\n── ④ 照合（★ ここで初めて成否が決まる） �
 
   const empty = go('esutama_photo_form', 200, {}, editPage(), v);
   eq('★★★★ 空きのままなら失敗', empty.audits[0].detail.reason, 'not_saved');
+
+  // ★★★ 第270便: 登録の流れ（cast_create）から来た写真は、照合が通ったら**名簿の読み直し**へ続く
+  //   ★ 運営の口（cast_photo）は今までどおり done（★ 登録していないので名簿は変わっていない）
+  const vc = Object.assign({}, v, { intent: 'cast_create' });
+  const chained0 = go('esutama_photo_form', 200, {}, editPage(['empty', 'empty', 'saved', 'empty', 'empty', 'empty']), vc);
+  // ★ next が無くても落ちずに NG と出るように（変異試験で使う）
+  const chained = Object.assign({}, chained0, chained0.next ? {} : { next: { context: {} } });
+  eq('★★★ 登録の流れなら、照合のあと名簿の読み直しへ', [chained.kind, chained.next.purpose, chained.next.url],
+     ['next', 'esutama_roster', 'https://estama.jp/admin/schedule/list/']);
+  eq('★★★ 「できました」はこの時点で記録', [chained.audits[0].event, chained.audits[0].outcome], ['push_photo', 'ok']);
+  eq('★★ 読み直しの印が付く', chained.next.context.createRosterRefresh, true);
+  eq('★★ 運営の口（cast_photo）は今までどおり done', ok.kind, 'done');
+  // ★ 照合で外れたときは、登録の流れでも止まる（★ 名簿の読み直しへは行かない・★ 番号は登録の段で書かれている）
+  const chainedNg = go('esutama_photo_form', 200, {}, editPage(), vc);
+  eq('★★ 登録の流れでも、照合で外れたら止まる', [chainedNg.kind, chainedNg.audits[0].detail.reason], ['stop', 'not_saved']);
 }
 
 console.log('\n── ⑤ 止まるところ ──');

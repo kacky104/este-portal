@@ -48,6 +48,8 @@ import {
   esutamaCastEditUrl,
   ESUTAMA_PHOTO_FIT,
 } from './esutamaPhoto';
+// ★ 第270便: 登録の流れ（cast_create）で写真まで通ったら、名簿を読み直す段へ
+import { buildEsutamaRosterRefreshStep } from './esutamaRosterRefresh';
 
 type Input = { status: number; headers: Record<string, string | string[]>; body: string };
 
@@ -318,13 +320,25 @@ export function afterEsutamaPhotoForm(input: Input, ctx: RelayFlowContext): Flow
         '照合で枠 ' + slot + ' が saved になっていない（' + hit.state + '）',
       );
     }
+    const okAudit: FlowAudit = {
+      event: 'push_photo', outcome: 'ok',
+      summary: 'エステ魂の枠' + slot + 'に写真を登録しました',
+      detail: { castId, slot, openedAs: openedAs(ctx), flowId },
+    };
+    // ★★★★★ 【第270便】登録の流れ（cast_create・第267便）から来ていれば、ここで終わらずに**名簿を読み直す**。
+    //   ★ 画面が見ている写しは「作る前」のまま（2026-09-11 16:15 に「いません」に見えた）。
+    //   ★ 運営の口（cast_photo・第243便）は今までどおりここで終わり（★ 登録していないので名簿は変わっていない）。
+    if (ctx.intent === 'cast_create') {
+      return {
+        kind: 'next',
+        audits: [okAudit],
+        note: '写真を確認した（castId ' + castId + '・枠 ' + slot + '）。★ 続けて名簿を読み直します',
+        next: buildEsutamaRosterRefreshStep(cookie, ctx),
+      };
+    }
     return {
       kind: 'done',
-      audits: [{
-        event: 'push_photo', outcome: 'ok',
-        summary: 'エステ魂の枠' + slot + 'に写真を登録しました',
-        detail: { castId, slot, openedAs: openedAs(ctx), flowId },
-      }],
+      audits: [okAudit],
       note: '写真を確認した（castId ' + castId + '・枠 ' + slot + '）',
     };
   }
@@ -466,6 +480,8 @@ export function afterEsutamaPhotoForm(input: Input, ctx: RelayFlowContext): Flow
     // ★★ どう開いたかを必ず残す（第243便d）。★ 「開き直した」が記録から消えると、次に分からなくなる
     audits: [{
       event: 'read_photo_page', outcome: 'ok',
+      // ★ 第270便: 店舗様の記録で「エステ魂（枠1）で処理を行いました」（既定文）に落ちていたので、言葉を付けた
+      summary: 'エステ魂の写真の枠を読みました（枠' + slot + 'へ送ります）',
       detail: { castId, slot, openedAs: openedAs(ctx), hops: Number(ctx.castPhotoHops ?? 0), flowId },
     }],
     note: '枠' + slot + '（' + (photo.slots.find((s) => s.slot === slot)?.state ?? '?') + '）へ写真を送ります。★ まだ本紐づけはしていません',

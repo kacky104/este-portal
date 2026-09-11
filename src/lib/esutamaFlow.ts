@@ -17,6 +17,7 @@ import type { FlowAudit, FlowOutcome, RelayFlowContext, EsutamaDiffRow, EsutamaP
 import { mergeCookies } from './relayJob';
 // ★ 写真の段（第243便）。★ ログイン後の道分けで1回だけ使う
 import { buildEsutamaPhotoReadStep } from './esutamaPhotoFlow';
+import { buildEsutamaRosterRefreshStep } from './esutamaRosterRefresh';
 import { readEsutamaCsrf, parseEsutamaJson, parseEsutamaRoster, parseEsutamaCastList, parseEsutamaCastForm } from './esutamaParse';
 // ★ 写メ日記の道（第133便）。★ ログインの直後に分かれる
 import { buildEsutamaTherapistAdminRequest } from './esutamaRequests';
@@ -232,6 +233,20 @@ export function afterEsutamaRoster(input: Input, ctx: RelayFlowContext): FlowOut
     );
   }
   const cookie = mergeCookies(ctx.cookie, input.headers['set-cookie'] as string | string[] | undefined);
+  // ★★★★ 【第270便】登録のあとの読み直し（createRosterRefresh）は、ログインはもう済んでいる。★ 記録は1行だけ。
+  //   ★ 「ログインしました」を2回書かない。★ 写しの保存は呼び出し側（kind は同じ 'esutama_roster'）。
+  if (ctx.createRosterRefresh === true) {
+    return {
+      kind: 'esutama_roster',
+      rows: parsed.rows,
+      warnings: parsed.warnings,
+      context: { ...ctx, cookie },
+      audits: [
+        { event: 'read_girls', outcome: 'ok', summary: '登録のあと、エステ魂の名簿を読み直しました（' + parsed.rows.length + '人）', detail: { count: parsed.rows.length, afterCreate: true, warnings: parsed.warnings.length, flowId } },
+      ],
+      note: '登録のあと名簿を読み直した（' + parsed.rows.length + '人）',
+    };
+  }
   return {
     kind: 'esutama_roster',
     rows: parsed.rows,
@@ -462,10 +477,14 @@ function castCreateAfterList(
       };
     }
 
+    // ★★★★★ 【第270便】写真が無いときも、ここで終わらずに**名簿を読み直す**（★ 写真ありは写真の照合のあとで同じことをする）。
+    //   ★ 画面が見ている写しは「作る前」のまま。★ 読み直さないと、登録できた方が「いません」に見える（2026-09-11 16:15）。
+    //   ★ `mediaCreated` はここで返す（★ 名簿の段で止まっても番号は表に書かれる）。
     return {
-      kind: 'done',
+      kind: 'next',
       audits: [createdAudit],
-      note: 'エステ魂に登録できた（cast_id ' + hit.castId + '・' + rows.length + '名を読み直した）',
+      note: 'エステ魂に登録できた（cast_id ' + hit.castId + '・' + rows.length + '名を読み直した）。★ 続けて名簿を読み直します',
+      next: buildEsutamaRosterRefreshStep(cookie, ctx),
       mediaCreated: created,
     };
   }
