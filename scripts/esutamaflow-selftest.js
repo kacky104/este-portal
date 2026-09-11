@@ -508,6 +508,63 @@ eq('★★★ 深夜の窓は前の営業日から', F.esutamaWindowDates(at('20
     const r = F.afterEsutamaCastList({ status: 200, headers: {}, body: listPage([...OTHERS, row('900002', 'あや'), row('900003', 'ゆい')]) }, ctxV);
     eq('★★★ 登録④: どれを登録したのか決められなければ止める', [r.kind, r.audits[0].detail.reason], ['stop', 'ambiguous']);
   }
+
+  // ── ⑤ 登録のあと、そのまま写真へ（第267便）──────────────────────
+  //   ★★★ 見張りたいのは4つ:
+  //     a. 写真の材料（castPhotoFile）が無ければ、第263便までと**同じ**（done・写真へ進まない）
+  //     b. 材料があれば、照合が通った**その場で** next（esutama_photo_form）へ。★ cast_id は読み直した番号
+  //     c. ★★★ まだ続くのに `mediaCreated` を返す（★ 番号は先に表に書く・二重登録を作らない）
+  //     d. 登録が通らなかった（増えていない／決められない）ときは、材料があっても写真へ**進まない**
+  const PHOTO = { bucket: 'therapist-photos', path: '6/601/main.jpg' };
+  const ctxP = Object.assign({}, ctxV, { castPhotoFile: PHOTO });
+  {
+    const r = F.afterEsutamaCastList({ status: 200, headers: {}, body: listPage([...OTHERS, row('900002', 'さくら')]) }, ctxV);
+    eq('★★★ 登録⑤a: 材料が無ければ写真へ進まない（第263便までと同じ）', [r.kind, r.next], ['done', undefined]);
+  }
+  {
+    const r0 = F.afterEsutamaCastList({ status: 200, headers: {}, body: listPage([...OTHERS, row('900002', 'さくら')]) }, ctxP);
+    // ★ next が無くても落ちずに NG と出るように（変異試験で使う）
+    const r = Object.assign({ next: { context: {} } }, r0, r0.next ? {} : { next: { context: {} } });
+    eq('★★★ 登録⑤b: 材料があれば、そのまま写真の段へ', [r.kind, r.next.purpose, r.next.method], ['next', 'esutama_photo_form', 'GET']);
+    eq('★★★★★ 登録⑤b: 送る相手は【読み直した cast_id】', r.next.context.castPhotoCastId, '900002');
+    eq('★★★★ 登録⑤b: 編集ページの住所はその cast_id', r.next.url, 'https://estama.jp/admin/cast_edit/900002/');
+    eq('★★ 登録⑤b: 写真の在処を持ち回す', r.next.context.castPhotoFile, PHOTO);
+    eq('★★ 登録⑤b: フクエス側の番号も持ち回す（記録用）', r.next.context.castPhotoTherapistId, 601);
+    eq('★★★ 登録⑤b: 枠の指名・差し替えは**入れない**（★ 入ると写真の段が止まる・第245便）',
+       [r.next.context.castPhotoSlotWanted, r.next.context.castPhotoReplace, r.next.context.castPhotoStage], [undefined, undefined, undefined]);
+    eq('★★ 登録⑤b: intent は cast_create のまま（★ 段名で分かれるので変えない）', r.next.context.intent, 'cast_create');
+    eq('★★★ 登録⑤b: 「できました」はこの時点で記録する', [r.audits[0].event, r.audits[0].outcome], ['create_cast', 'ok']);
+    eq('★★★★★★ 登録⑤c: まだ続くのに cast_id の結びつけを返す（★ 写真で止まっても番号は表に残る）',
+       r.mediaCreated, { therapistId: 601, castId: '900002', name: 'さくら' });
+  }
+  {
+    const r = F.afterEsutamaCastList({ status: 200, headers: {}, body: listPage(OTHERS) }, ctxP);
+    eq('★★★ 登録⑤d: 増えていなければ写真へ進まない', [r.kind, r.next, r.mediaCreated], ['stop', undefined, undefined]);
+  }
+  {
+    const r = F.afterEsutamaCastList({ status: 200, headers: {}, body: listPage([...OTHERS, row('900002', 'あや'), row('900003', 'ゆい')]) }, ctxP);
+    eq('★★★ 登録⑤d: 決められなければ写真へ進まない（★ 別人の枠に入れない）', [r.kind, r.next], ['stop', undefined]);
+  }
+  {
+    // ★ 既定で写真を飛ばしたとき（第250便の形）: 理由が記録に残る
+    const r = F.afterEsutamaCastList({ status: 200, headers: {}, body: listPage([...OTHERS, row('900002', 'さくら')]) },
+      Object.assign({}, ctxV, { createPhotoSkip: 'プロフィール写真が therapist-photos にありません' }));
+    eq('★★ 登録⑤: 写真を送らなかった理由を記録に残す', [r.kind, r.audits[0].detail.photoSkip], ['done', 'プロフィール写真が therapist-photos にありません']);
+  }
+  {
+    // ★★★ 一巡: 登録の照合 → 写真の1段目（枠を選んで仮置きへ）まで、同じ文脈で繋がるか
+    const r1 = F.afterEsutamaCastList({ status: 200, headers: {}, body: listPage([...OTHERS, row('900002', 'さくら')]) }, ctxP);
+    const editPage = '<html><body><form method="POST" action="/admin/cast_edit/900002/">'
+      + '<input type="hidden" name="cast_id" value="900002"><input type="text" name="name" value="さくら" maxlength="10">'
+      + '<input type="text" name="age" value="24"><input type="checkbox" name="type[]" value="1" checked><input type="checkbox" name="type[]" value="9">'
+      + [1, 2, 3, 4, 5, 6].map((n) => '<div class="upload_area l-edit_upload_area"><div class="upload_area__results "></div>'
+        + '<input class="upload_photo_input_admin_therapist_photo" type="file" id="cast_icon_' + n + '" data-input="cast_icon_' + n + '" data-post_url="/file_upload/therapist_tmp/cast_icon_' + n + '/">'
+        + '<input type="hidden" name="order_cast_images[]" value="photo' + n + '"></div>').join('')
+      + '<input type="hidden" name="ctk" id="csrf_footer" value="a1b2c3"></form></body></html>';
+    const r2 = r1.next ? RF.advanceFlow({ purpose: r1.next.purpose, status: 200, headers: {}, body: editPage, context: r1.next.context }) : { kind: r1.kind, next: { context: {} } };
+    eq('★★★★ 登録⑤ 一巡: 登録の照合の次は、写真の枠を選んで仮置きへ', [r2.kind, r2.next.purpose, r2.next.context.castPhotoSlot], ['next', 'esutama_photo_tmp', 1]);
+    eq('★★★ 登録⑤ 一巡: 仮置きの送り先は画面の data-post_url（枠1）', r2.next.url, 'https://estama.jp/file_upload/therapist_tmp/cast_icon_1/');
+  }
 }
 
 console.log(fail === 0 ? '\nすべて通りました' : '\n' + fail + ' 件 NG');
