@@ -1139,6 +1139,33 @@ export async function getJobApplications(
   return { ok: true, applications: (data ?? []).map(mapApplication) };
 }
 
+// ── 未対応（status='new'）の応募の【件数だけ】（第272便・2026-09-11・カッキーさんの指示） ──
+//
+// ★★ なぜ専用の口を作るか
+//   ★ サイドバーの赤丸に要るのは「数」だけ。★ getJobApplications は応募者の名前・電話・メモまで
+//     毎回運んでしまう（★ 画面に出さない個人情報を運ばない、が家のルール）。
+//   ★ head:true + count:'exact' なので【行は1件も返らない】。★ 数だけ数えて返す。
+//   ★ job_applications は salon_id を持っているので、salon_jobs を引き直さずに1本で済む。
+//   ★ 権限の見方は getJobApplications と同じ（本人 or 運営）。★ ここだけ緩めない。
+export async function getNewApplicationCount(
+  salonId: number,
+): Promise<{ ok: true; count: number } | Err> {
+  if (!Number.isFinite(salonId)) return { ok: false, error: '対象店舗が不正です' };
+  const auth = await requireUser();
+  if (!auth.ok) return auth;
+  const own = await assertSalonOwner(auth.supabase, auth.user.id, salonId);
+  if (!own.ok) return own;
+
+  const svc = createServiceClient();
+  const { count, error } = await svc
+    .from('job_applications')
+    .select('id', { count: 'exact', head: true })
+    .eq('salon_id', salonId)
+    .eq('status', 'new');
+  if (error) return { ok: false, error: error.message };
+  return { ok: true, count: count ?? 0 };
+}
+
 // ── 応募ステータス変更（new/contacted/closed・オーナー本人 or 運営） ──
 export async function updateApplicationStatus(
   applicationId: string,

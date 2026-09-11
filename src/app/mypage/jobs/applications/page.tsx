@@ -21,6 +21,9 @@ export default function WorkApplicationsPage() {
       decision={decision}
       loadError={loadError}
       salonName={salon?.name ?? null}
+      salonId={salonId}
+      jobId={job ? job.id : null}
+      jobPublic={job ? job.is_active : false}
       title="応募"
       current="applications"
       toast={toast}

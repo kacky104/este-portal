@@ -154,8 +154,8 @@ export function CouponCard({
             <span className="text-[9px] leading-none" style={{ color: cc.accent }}>◆</span>
             <span className="flex-1 h-px" style={{ background: `linear-gradient(90deg, ${a40}, transparent)` }} />
           </div>
+          {/* ★ 「ご利用の際は」は外した（2026-09-11・カッキーさんの指示）。★ 短く『…』から始める。 */}
           <p className="text-xs text-slate-500 leading-relaxed">
-            ご利用の際は
             <span className="font-bold" style={{ color: cc.accent }}>『フクエスを見た！』</span>
             とお伝えください
           </p>

@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { isNewFaceActive } from '@/lib/newFace';
 import { matchesSearch } from '@/lib/searchNormalize';
 import { sortTherapistsForList, sortTherapistsByKana } from '@/lib/therapistOrder';
+import { useNewApplicationCount, NewCountBadge } from '@/app/mypage/jobs/useNewApplications';
 import { CouponCard } from '@/app/components/CouponCard';
 import { toKana, isRomaji } from 'wanakana';
 import { useRouter } from 'next/navigation';
@@ -904,6 +905,11 @@ export default function MyPage() {
   const [addingTherapist, setAddingTherapist] = useState(false);
   const [addError, setAddError] = useState('');
   const [deletingTherapist, setDeletingTherapist] = useState<string | null>(null);
+  // ★ フクエスワーク（求人）の【未対応の応募】の数。★ サイドバーの右に赤丸で出す（2026-09-11）。
+  //   ★ 数え方はサーバー側の1か所（getNewApplicationCount）。★ 件数だけ取るので軽い。
+  const newApplications = useNewApplicationCount(salon ? Number(salon.id) : null);
+  // ★ 削除の2段階め。★ 「削除」を押した行だけ「本当に削除」に変わる（★ 1クリックでは消えない）。
+  const [confirmDeleteTherapist, setConfirmDeleteTherapist] = useState<string | null>(null);
   // キャスト招待：行ごとの入力メール・処理中ID
   const [inviteEmails, setInviteEmails] = useState<Record<string, string>>({});
   const [inviteBusyId, setInviteBusyId] = useState<string | null>(null);
@@ -2049,10 +2055,21 @@ export default function MyPage() {
     showToast('セラピストを追加しました');
   };
 
+  // ★★★ セラピストの削除は【非公開にした方だけ】（2026-09-11・カッキーさんの指示）。
+  //   ★ 手間を2段階にして、誤って消す事故を防ぐ:
+  //       ① 「編集」→ いちばん下の「サイトへの掲載」で【非公開】にする
+  //       ② 一覧に出る「削除」→「本当に削除」を押す（★ 1クリックでは消えない）
+  //   ★★ 公開中の行は、ここで弾く（★ 画面にもボタンを出していないが、念のため二重に止める）。
+  //   ★ 消えるもの: プロフィール・写真・写メ日記。★ 戻せない。
   const handleTherapistDelete = async (id: string, name: string | null) => {
-    const displayName = name ?? 'このセラピスト';
-    if (!window.confirm(`「${displayName}」を削除しますか？\nこの操作は取り消せません。`)) return;
     if (!salon) return;
+    const target = therapists.find(t => String(t.id) === String(id));
+    if (!target || target.is_active !== false) {
+      showToast('先に「編集」から非公開にしてください');
+      setConfirmDeleteTherapist(null);
+      return;
+    }
+    const displayName = name ?? 'このセラピスト';
 
     // 2026-07-12: クライアント直 delete → server action 化。
     // 直 delete では therapist-photos / diary-images の画像が残置され URL 直打ちで
@@ -2065,6 +2082,7 @@ export default function MyPage() {
       res = { ok: false, error: '通信に失敗しました。時間をおいて再度お試しください' };
     } finally {
       setDeletingTherapist(null);
+      setConfirmDeleteTherapist(null);
     }
 
     if (!res.ok) {
@@ -2074,11 +2092,8 @@ export default function MyPage() {
     }
 
     // 削除後にDBから再フェッチして確実にUI反映
-    if (salon) {
-      const refreshed = await fetchTherapistList(String(salon.id));
-      console.log('[delete] refreshed list length=', refreshed.length);
-      setTherapists(refreshed);
-    }
+    const refreshed = await fetchTherapistList(String(salon.id));
+    setTherapists(refreshed);
 
     const sid = String(id);
     setTherapistForms(prev => { const n = { ...prev }; delete n[sid]; return n; });
@@ -2088,8 +2103,8 @@ export default function MyPage() {
       n.delete(`${sid}-schedule`);
       return n;
     });
-    if (salon) revalidateSalon(salon.id);
-    showToast('セラピストを削除しました');
+    revalidateSalon(salon.id);
+    showToast(`「${displayName}」を削除しました`);
   };
 
   // ── キャスト招待（本人化） ──
@@ -2916,6 +2931,8 @@ export default function MyPage() {
     >
       {tabIcon('jobs')}
       フクエスワーク（求人）
+      {/* ★ 未対応（新規のまま）の応募の数を右に出す（2026-09-11・カッキーさんの指示）。 */}
+      <NewCountBadge count={newApplications} />
     </Link>
   );
 
@@ -4396,11 +4413,14 @@ export default function MyPage() {
                               今すぐ
                             </span>
                           )}
+                          {/* ★ 駅ちかの青バッジは【右下】（2026-09-11・カッキーさんの指示）。
+                              ★ スマホだと右上では「今すぐ」（左上）と重なるため、下げた。★ PCも同じ場所。 */}
                           {importLive && (
-                            <span className="absolute top-1 right-1 rounded-full px-2 py-0.5 text-[10px] font-bold text-white bg-sky-500 shadow-sm whitespace-nowrap">
+                            <span className="absolute bottom-1 right-1 rounded-full px-2 py-0.5 text-[10px] font-bold text-white bg-sky-500 shadow-sm whitespace-nowrap">
                               駅ちか連動中
                             </span>
                           )}
+                          {/* ★ 本人が受付中は左下。★ 青バッジと同時に出るときは左右で分かれる。 */}
                           {castLive && (
                             <span className="absolute bottom-1 left-1 rounded-full px-2 py-0.5 text-[10px] font-bold text-white bg-pink-600/90 shadow-sm whitespace-nowrap">
                               本人が受付中
@@ -4560,6 +4580,8 @@ export default function MyPage() {
               ★ メールの入力バーは w-full / flex-1 なので、列が狭くなれば自然に短くなる（★ 別の指定は足さない）。
               ★★ items-stretch: 横に並んだカードは【同じ高さ】に揃える（2026-09-11・カッキーさんの指示）。
                 ★ 招待の段は人によって中身が違うが、低いほうが伸びて隣に揃う。 */}
+          {/* ★ 店舗様への案内文は置かない（2026-09-11・カッキーさんの指示）。
+              ★ 「非公開の行にだけ削除が出る／2回押し」で見れば分かる、という判断。 */}
           <div className="grid grid-cols-1 xl:grid-cols-2 gap-3 items-stretch">
           {profileTherapists.map((t) => (
             <div key={t.id} className="relative bg-white rounded-none border border-pink-100 shadow-sm overflow-hidden flex items-stretch">
@@ -4570,14 +4592,8 @@ export default function MyPage() {
                   NEW
                 </span>
               )}
-              {/* ★ 非公開の印は【カードの右上】にぴったり（2026-09-11・カッキーさんの指示）。
-                  ★ NEW（左上）と左右対称。★ 切替は「編集」→ いちばん下の「サイトへの掲載」。
-                  ★ ボタンの段は上に16pxの余白があるので、印は重ならない。 */}
-              {t.is_active === false && (
-                <span className="absolute top-0 right-0 z-10 px-1.5 py-0.5 bg-slate-600 text-white text-[9px] font-black leading-none tracking-wider">
-                  非公開
-                </span>
-              )}
+              {/* ★ 非公開の印は【写真の右上・削除ボタンの真上】へ移した（2026-09-11・カッキーさんの指示）。
+                  ★ 印とボタンを1か所にまとめる。★ 下の写真の中に、印→削除→やめる の順で縦に並べている。 */}
               {/* ★ 顔写真は角を直角・【カード全体】の高さいっぱい・左端にぴったり
                   （2026-09-11・カッキーさんの指示）。
                   ★ 下の薄いピンク（招待）の段まで含めて、左を縦に貫く。
@@ -4595,6 +4611,45 @@ export default function MyPage() {
                     なし
                   </span>
                 )}
+                {/* ★★ 削除は【写真の右上】（2026-09-11・カッキーさんの指示）。
+                    ★ 出るのは【非公開の方だけ】。★ 公開中はボタンごと無い＝誤って押せない。
+                    ★ 押すと「本当に削除」に変わり、その【下】に「やめる」が出る（縦に並べる）。 */}
+                {t.is_active === false && (
+                  <div className="absolute top-1 right-1 z-10 flex flex-col items-end gap-1">
+                    {/* ★ いちばん上が「非公開」の印。★ その下に削除（→ 本当に削除・やめる）。 */}
+                    <span className="px-1.5 py-0.5 bg-slate-600 text-white text-[9px] font-black leading-none tracking-wider shadow-sm">
+                      非公開
+                    </span>
+                    {confirmDeleteTherapist === String(t.id) ? (
+                      <>
+                        <button
+                          type="button"
+                          onClick={() => handleTherapistDelete(t.id, t.name)}
+                          disabled={deletingTherapist === t.id}
+                          className="px-1.5 py-0.5 rounded-none bg-rose-600 text-white text-[10px] font-bold whitespace-nowrap shadow-sm hover:bg-rose-700 transition-colors disabled:opacity-50"
+                        >
+                          {deletingTherapist === t.id ? '削除中...' : '本当に削除'}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setConfirmDeleteTherapist(null)}
+                          disabled={deletingTherapist === t.id}
+                          className="px-1.5 py-0.5 rounded-none bg-white/90 border border-slate-300 text-slate-600 text-[10px] font-bold whitespace-nowrap shadow-sm hover:bg-white transition-colors disabled:opacity-50"
+                        >
+                          やめる
+                        </button>
+                      </>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => setConfirmDeleteTherapist(String(t.id))}
+                        className="px-1.5 py-0.5 rounded-none bg-white/90 border border-rose-300 text-rose-500 text-[10px] font-bold whitespace-nowrap shadow-sm hover:bg-rose-50 transition-colors"
+                      >
+                        削除
+                      </button>
+                    )}
+                  </div>
+                )}
               </div>
 
               {/* ★ 右側 … 名前・ボタンの段 ＋ 招待の段。★ 写真の高さはこの中身で決まる。 */}
@@ -4602,45 +4657,34 @@ export default function MyPage() {
               {/* ★ 第186便（2026-09-06）の「スマホだけ隙間を半分」は、下の3分の1に置き換えた。 */}
               {/* ★★ 左右の内側の隙間は【3分の1】（2026-09-11・カッキーさんの指示）。
                   ★ 10px → 4px（スマホ）／ 20px → 6px（PC）。★ 下の招待の段も同じ値に揃えている。
-                  ★★ 名前とボタンは【2行】。★ 1行目＝名前、2行目＝編集・削除。
-                    ★ 2列にしたぶん横が狭いので、1行に押し込まない。 */}
-              <div className="px-1 sm:px-1.5 py-1.5 space-y-1">
+                  ★★ 名前と「編集」は【同じ行】。★ 名前は真ん中、編集は右端（2026-09-11・カッキーさんの指示）。
+                    ★ 名前を中央に見せるため、編集ボタンは absolute で右端に浮かせている
+                      （★ 並べて置くと、ボタンのぶん名前が左にずれる）。 */}
+              <div className="px-1 sm:px-1.5 py-1.5">
                 {/* ★ 名前は【1行】に収める（2026-09-11・カッキーさんの指示）。
                     ★ 長い名前は文字を小さくする。★ 折り返さない（whitespace-nowrap）。
                     ★ 目安: 10文字まで 14px ／ 14文字まで 12px ／ 20文字まで 10px ／ それ以上 9px。
-                    ★ それでも入らないほど長い場合だけ、最後に … で切る。 */}
+                    ★ それでも入らないほど長い場合だけ、最後に … で切る。
+                    ★ 右のボタンに重ならないよう、名前の幅は「全体 − 60px」まで。 */}
                 {(() => {
                   const nm = t.name ?? '(名前未設定)';
                   const len = [...nm].length;
                   const nameSize =
                     len <= 10 ? 'text-sm' : len <= 14 ? 'text-xs' : len <= 20 ? 'text-[10px]' : 'text-[9px]';
                   return (
-                    <div className="flex items-center justify-center min-w-0">
-                      <span className={`${nameSize} font-bold text-slate-700 whitespace-nowrap overflow-hidden text-ellipsis`}>
+                    <div className="relative flex items-center justify-center min-w-0 min-h-[24px]">
+                      <span className={`${nameSize} font-bold text-slate-700 whitespace-nowrap overflow-hidden text-ellipsis max-w-[calc(100%-60px)]`}>
                         {nm}
                       </span>
+                      <Link
+                        href={`/mypage/therapist/${t.id}`}
+                        className="absolute right-0 top-1/2 -translate-y-1/2 px-2 sm:px-3 py-0.5 rounded-none border border-pink-300 text-pink-600 text-xs font-bold whitespace-nowrap hover:bg-pink-50 transition-colors"
+                      >
+                        編集
+                      </Link>
                     </div>
                   );
                 })()}
-
-                {/* ★ ボタンは上下の隙間を3分の1（6→2px）、左右は少し長く（16→20px）。
-                    ★ 編集・削除は同じ px にして、2つの幅を揃えている（2026-09-11・カッキーさんの指示）。 */}
-                <div className="flex items-center justify-center gap-1 sm:gap-2">
-                  <Link
-                    href={`/mypage/therapist/${t.id}`}
-                    className="px-3 sm:px-5 py-0.5 rounded-none border border-pink-300 text-pink-600 text-xs font-bold whitespace-nowrap hover:bg-pink-50 transition-colors"
-                  >
-                    編集
-                  </Link>
-                  <button
-                    type="button"
-                    onClick={() => handleTherapistDelete(t.id, t.name)}
-                    disabled={deletingTherapist === t.id}
-                    className="px-3 sm:px-5 py-0.5 rounded-none border border-rose-200 text-rose-500 text-xs font-bold whitespace-nowrap bg-rose-50 hover:bg-rose-100 transition-colors disabled:opacity-50"
-                  >
-                    {deletingTherapist === t.id ? '削除中...' : '削除'}
-                  </button>
-                </div>
               </div>
 
               {/* ── キャスト招待（本人ログイン用） ── */}

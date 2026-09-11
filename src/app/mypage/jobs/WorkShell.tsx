@@ -4,6 +4,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { useEffect, useState } from 'react';
 import type { JobsPageDecision } from './useJobsGate';
+import { useNewApplicationCount, NewCountBadge } from './useNewApplications';
 
 // フクエスワーク（求人）の外枠 ——【別サイトの見た目】（第220便・2026-09-08・カッキーさんの指示）。
 //
@@ -74,17 +75,25 @@ function BrandMark({ size = 'md', onGreen = false }: { size?: 'sm' | 'md'; onGre
 }
 
 export function WorkShell({
-  decision, loadError, salonName, title, current, toast, children,
+  decision, loadError, salonName, salonId, jobId, jobPublic, title, current, toast, children,
 }: {
   decision: JobsPageDecision;
   loadError: string;
   salonName?: string | null;
+  // ★ 未対応の応募の数を出すために要る（2026-09-11）。★ 渡さなければ数は出ないだけ。
+  salonId?: number | null;
+  // ★ 「サイトを見る」の飛び先（/jobs/<id>）。★ 求人があれば渡す（公開・非公開は問わない）。
+  jobId?: number | null;
+  // ★ その求人がいま公開中か。★ 非公開のときはグレーにして押せなくする（2026-09-11・カッキーさんの指示）。
+  jobPublic?: boolean;
   title: string;
   current: WorkNavKey;
   toast?: string;
   children: React.ReactNode;
 }) {
   const [drawerOpen, setDrawerOpen] = useState(false);
+  // ★ 「応募」の右に出す赤丸の数（★ 新規のままの応募だけ・件数だけ取る）。
+  const newApplications = useNewApplicationCount(salonId ?? null);
 
   // ★ 開いている間は後ろを動かさない＋Esc で閉じる（/mypage のドロワーと同じ）。
   useEffect(() => {
@@ -140,6 +149,9 @@ export function WorkShell({
           >
             <span className={on ? 'text-white' : 'text-emerald-500'}><NavIcon k={n.key} /></span>
             {n.label}
+            {/* ★ 「応募」だけ、未対応の件数を赤丸で出す（2026-09-11・カッキーさんの指示）。
+                ★ 連絡済み・クローズ・削除にすると消える。 */}
+            {n.key === 'applications' && <NewCountBadge count={newApplications} />}
             {/* ★ 選択中の右端に三角（フクエスリンクと同じ合図）。★ スマホでは出さない */}
             {on && (
               <span className="hidden md:block absolute -right-px top-1/2 -translate-y-1/2 w-0 h-0 border-y-[8px] border-y-transparent border-r-[8px] border-r-slate-100" />
@@ -161,10 +173,16 @@ export function WorkShell({
 
       {/* ── 左サイドバー（★ PCだけ。スマホは三本線→ドロワー）───────────── */}
       <aside className="hidden md:block bg-white md:border-r border-slate-200 md:w-[288px] md:flex-none md:min-h-screen md:sticky md:top-0 md:self-start">
-        <div className="flex items-center gap-2.5 px-4 py-4 border-b border-slate-100">
+        {/* ★ 印＋名前を押すと【フクエスワークのホーム】へ（2026-09-11・カッキーさんの指示）。
+            ★ よそのサイトと同じで、左上のロゴがトップへの入口。 */}
+        <Link
+          href="/mypage/jobs"
+          aria-label="フクエスワークのホームへ"
+          className="flex items-center gap-2.5 px-4 py-4 border-b border-slate-100 hover:bg-slate-50 transition-colors"
+        >
           <BrandMark />
           <b className="text-[18px] font-black text-slate-800 tracking-tight">フクエスワーク</b>
-        </div>
+        </Link>
 
         {salonName && (
           <div className="px-4 py-3 border-b border-slate-100">
@@ -186,14 +204,17 @@ export function WorkShell({
           {/* ★★ スマホの頭の帯（2026-09-08・カッキーさんの指示）。★ 印＋「フクエスワーク」。
               ★ 緑を基調（サイドバーの印・選択中の項目と同じ #059669→#84CC16）。
               ★ PC は左サイドバーの頭に同じものが出ているので、ここには出さない。 */}
-          <div
+          {/* ★ スマホの緑の帯も、押すと【ホーム】へ戻る（2026-09-11・カッキーさんの指示）。 */}
+          <Link
+            href="/mypage/jobs"
+            aria-label="フクエスワークのホームへ"
             className="md:hidden flex items-center gap-2.5 px-4 py-2.5"
             style={{ background: 'linear-gradient(90deg,#059669,#84CC16)' }}
           >
             <BrandMark size="sm" onGreen />
             <b className="text-[16px] font-black text-white tracking-tight">フクエスワーク</b>
             <span className="ml-auto text-[11.5px] font-bold text-white/85">セラピスト求人</span>
-          </div>
+          </Link>
 
           <div className="px-4 md:px-6 py-3 flex items-center justify-between gap-3">
             <div className="flex items-center gap-2 min-w-0">
@@ -211,9 +232,36 @@ export function WorkShell({
               </button>
               <h1 className="text-[17px] font-black text-slate-800 truncate">{title}</h1>
             </div>
-            <Link href="/mypage" className="flex-none text-[13.5px] font-bold text-slate-400 hover:text-emerald-600 transition-colors">
-              マイページへ戻る
-            </Link>
+            {/* ★ 右上は「サイトを見る」→「マイページへ戻る」の順（2026-09-11・カッキーさんの指示）。
+                ★ 「サイトを見る」はこの店舗のフクエスワーク求人ページ（/jobs/<id>）。
+                ★ 公開中で求人があるときだけ出す（★ 非公開のときは見せる先が無い）。 */}
+            <div className="flex-none flex items-center gap-3">
+              {jobId != null && (
+                jobPublic ? (
+                  <a
+                    href={`/jobs/${jobId}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-[13.5px] font-bold text-slate-400 hover:text-emerald-600 transition-colors whitespace-nowrap"
+                  >
+                    サイトを見る
+                  </a>
+                ) : (
+                  // ★ 非公開のときは【グレーのまま出す】（2026-09-11・カッキーさんの指示）。
+                  //   ★ 場所が変わらないので迷わない。★ 押せない（リンクにしない）。
+                  <span
+                    title="いまは非公開です。「公開する」を押すとサイトに出ます"
+                    aria-disabled="true"
+                    className="text-[13.5px] font-bold text-slate-300 cursor-not-allowed whitespace-nowrap"
+                  >
+                    サイトを見る
+                  </span>
+                )
+              )}
+              <Link href="/mypage" className="text-[13.5px] font-bold text-slate-400 hover:text-emerald-600 transition-colors whitespace-nowrap">
+                マイページへ戻る
+              </Link>
+            </div>
           </div>
         </header>
 
