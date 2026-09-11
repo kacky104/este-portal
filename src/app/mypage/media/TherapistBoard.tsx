@@ -28,7 +28,8 @@ import { findDuplicateNames, duplicateNotice } from '@/lib/therapistDuplicates';
 //     ★ 店舗様は駅ちかの管理画面に直接ログインすれば、いつでも消せる（★ ログイン情報はご自身のもの）。
 //   ★★ 押す前に【試し打ちの結果】を1枚見せ、人が「登録する」を押してから送る（設計メモ §4 B）。
 //     ★ 指紋は無い。★ 送るのは1人だけ・名指しなので、押した時点の最新を送るのが正しい。
-//   ★★★ mediaSites.can に 'therapist' はまだ足していない（★ 動いてから足す・§5 ⑤）。
+//   ★★★ 【第262便】mediaSites.can の駅ちかに 'therapist' を足した（★ §5 ③④の実弾が通ってから・第142便の物差し）。
+//   ★★ 【第262便】「いません」の方には【登録】を出さず、「結びつきを外すと登録できます」の案内（設計メモ 追記A・案 b）。
 //
 // ★★★ 「いません」と書いてよい場面を狭くしている（mediaOverview.therapistSiteState）。
 //   番号が結びついていない人 … 「まだ結びついていません」（★ いない、ではない）
@@ -46,6 +47,14 @@ type Filter = 'all' | 'todo' | 'new';
  * ★ `plan` は運営の curl の試し打ちと同じ物（girlCreatePlan.ts）。★ 画面に出すのは下の summarizeCreatePlan で選ぶ。
  */
 type CreateView = { tid: string; colKey: string; plan: Record<string, unknown>; warnings: string[] };
+
+/**
+ * ★ サーバーの文言から、運営向けの印（★）と強調（**）を剥がす（第260便・第262便）。
+ *   ★ 注意（warnings）も止めの文（error）も、同じ文を運営の curl でも読むので**サーバー側は触らない**。★ 画面で剥がす。
+ */
+function plainText(s: string): string {
+  return s.replace(/★+\s*/g, '').replace(/\*\*/g, '');
+}
 
 /**
  * ★★ 試し打ちの `plan` から、店舗様に見せる行だけを取り出す（第260便）。
@@ -167,7 +176,7 @@ export function TherapistBoard({ salonId, onToast, children }: {
     setCreateView(null);
     try {
       const res = await startMediaTherapistCreate({ salonId, provider: c.provider, slot: c.slot, therapistId: t.id });
-      if (!res.ok) { onToast(res.error); return; }
+      if (!res.ok) { onToast(plainText(res.error)); return; }
       setCreateView({ tid: t.id, colKey: c.provider + '#' + c.slot, plan: res.data.plan, warnings: res.data.warnings });
     } finally {
       setCreateBusy('');
@@ -184,7 +193,7 @@ export function TherapistBoard({ salonId, onToast, children }: {
     setCreateBusy(k);
     try {
       const res = await startMediaTherapistCreatePush({ salonId, provider: c.provider, slot: c.slot, therapistId: t.id });
-      if (!res.ok) { onToast(res.error); return; }
+      if (!res.ok) { onToast(plainText(res.error)); return; }
       onToast(`${c.label}へ登録を送りました。結果は「連携の記録」に出ます。数分後に「${c.label}の名簿を読み直す」を押すと、この一覧にも反映されます`);
       setCreateView(null);
     } finally {
@@ -444,16 +453,33 @@ export function TherapistBoard({ salonId, onToast, children }: {
                         // ★★★ 第260便: 「登録」を出す条件（設計メモ §3・§4 D）
                         //   ★ 駅ちかの列だけ（★ エステ魂は材料の切り出しが先・第259便 §3-1）
                         //   ★ ログイン情報がある枠だけ（★ 無ければ向こうに入れない）
-                        //   ★ 状態が「いません」（番号は知っているのに向こうに無い）か「確かめられません」（番号が無い＝新しい方）
+                        //   ★ 状態が「確かめられません」（番号が無い＝新しい方）だけ
                         //     ★ 「います」（もう居る）と「まだ読んでいません」（読んでいないのに送らない）には出さない
                         //   ★ 向きが「フクエスから反映」でないときは、サーバーが切り替え先のボタン名を返す（★ 文言を2か所に持たない）
-                        const canCreate = c.provider === 'ekichika' && c.hasCredential && (st === 'missing' || st === 'unlinked');
+                        // ★★★ 【第262便】「いません」には**出さない**（設計メモ 追記A・カッキーさんの決め b）。
+                        //   ★ 「いません」＝番号（castId）は結びついているのに向こうの名簿に無い。
+                        //   ★ 材料づくりは「結びついていれば積まない」（二重登録を自分で作らない・第234便）ので、押しても**必ず止まる**。
+                        //   ★ 2026-09-11 10:42 に実際に踏んだ（ラビリンス様ひより・castId 5692371）。
+                        //   → ★ 代わりに「結びつきを外すと登録できます」の案内を出す。★ 自動では外さない（第49便の作法）。
+                        const colOk = c.provider === 'ekichika' && c.hasCredential;
+                        const canCreate = colOk && st === 'unlinked';
+                        const needUnlink = colOk && st === 'missing';
                         const busyKey = t.id + '#' + c.provider + '#' + c.slot;
                         return (
                           <td key={key(c)} className="px-3 py-2.5 whitespace-nowrap">
                             <span className={`text-[13px] font-bold px-2.5 py-0.5 border ${STATE_CLASS[st]}`}>
                               {therapistSiteLabel(st)}
                             </span>
+                            {needUnlink && (
+                              <span className="block mt-1.5 text-[12.5px] leading-snug text-slate-500">
+                                結びつきを外すと登録できます
+                                <br />
+                                →{' '}
+                                <button type="button" onClick={() => setTab('link')} className="font-bold text-indigo-600 underline">
+                                  媒体側の登録と結びつける
+                                </button>
+                              </span>
+                            )}
                             {canCreate && (
                               <button
                                 type="button"
@@ -491,7 +517,7 @@ export function TherapistBoard({ salonId, onToast, children }: {
                               <ul className="mt-2 border border-amber-200 bg-amber-50 px-3 py-2 space-y-1">
                                 {/* ★ 運営向けの印（★）と強調（**）は店舗様に見せない */}
                                 {view.warnings.map((w, i) => (
-                                  <li key={i} className="text-[13.5px] leading-relaxed text-slate-700">{w.replace(/★+\s*/g, '').replace(/\*\*/g, '')}</li>
+                                  <li key={i} className="text-[13.5px] leading-relaxed text-slate-700">{plainText(w)}</li>
                                 ))}
                               </ul>
                             )}

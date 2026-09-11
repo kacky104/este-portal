@@ -1003,7 +1003,7 @@ export async function startMediaWorkPush(input: {
 // ★★ 媒体は provider で受ける（設計メモ §4 D）。★★★ ただし**いま通るのは駅ちかだけ**:
 //   ★ エステ魂の材料づくりは /api/admin/media-cast-create/route.ts に**まだ埋まっている**。
 //   ★ 第257便と同じ切り出し（buildCastCreatePlan）をしてから開ける（§5 ⑥）。★ ここに写して2か所にしない。
-// ★★★ mediaSites.can に 'therapist' はまだ足していない（★ 動いてから足す・第142便の物差し・§5 ⑤）。
+// ★★★ mediaSites.can の駅ちかに 'therapist' を足したのは第262便（★ §5 ③④の実弾が通ってから・第142便の物差し）。
 
 /** ★ いま店舗様の画面から登録できる媒体。★ エステ魂は材料づくりを切り出してから足す（§5 ⑥） */
 const THERAPIST_CREATE_PROVIDERS = ['ekichika'];
