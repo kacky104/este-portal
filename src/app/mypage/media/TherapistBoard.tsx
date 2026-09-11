@@ -569,7 +569,8 @@ export function TherapistBoard({ salonId, onToast, children }: {
             {/* ★ 第260便: ボタンの意味も同じ並びで1行。★ 駅ちかの列があるときだけ */}
             {cols.some((c) => c.provider === 'ekichika' && c.hasCredential) && (
               <p>
-                <b className="font-bold text-indigo-700">駅ちかへ登録</b>
+                {/* ★ 第261便: 他の4行と同じく、太字のあとに全角スペース（★ 改行だけだと JSX は詰める） */}
+                <b className="font-bold text-indigo-700">駅ちかへ登録</b>　
                 フクエスの内容で駅ちかに新しく登録します
                 <span className="text-slate-400">　→ 押すと、先に送る内容を確かめられます（すぐには送りません）</span>
               </p>

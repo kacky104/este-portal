@@ -209,8 +209,19 @@ export async function buildGirlCreatePlan(svc: SupabaseClient, input: GirlCreate
   if (photoSkip) warnings.push('★★ 写真は送りません（' + photoSkip + '）。★ 登録だけします');
   if (mapping.ekichika.usedDefault)
     warnings.push('★ 駅ちかへ送れる特徴が1つも無いので、既定の「店長オススメ」（' + EKICHIKA_DEFAULT_GENRE_ID + '）だけで登録します');
-  if (mapping.ekichika.droppedBadges.length > 0 && !mapping.ekichika.usedDefault)
-    warnings.push('★ ' + mapping.ekichika.droppedBadges.join('・') + ' は駅ちかに当たる言葉が無いので送りません');
+  // ★★★ 【第261便】「新人」だけは別の言い方にする（★ 2026-09-11 実弾で店舗様の画面に出て気づいた）。
+  //   ★ 特徴タグの「新人」は駅ちかのジャンルに当たらないので落ちる（droppedBadges に入る）。
+  //   ★ だが登録には rookie_flg=1（駅ちかの新人マーク・30日で消える）を**付けて送る**。
+  //   → ★ 「新人 は送りません」と「新人マークつき」が並ぶと矛盾して読める。★ 意味は同じでも言い方を分ける。
+  //   ★ カッキーさんの決め（案 c）: 文言だけ変える。★ droppedBadges そのものは触らない（★ 記録の形を変えない）。
+  const droppedOther = mapping.ekichika.droppedBadges.filter((b) => b !== '新人');
+  const droppedRookie = mapping.ekichika.droppedBadges.includes('新人');
+  if (droppedOther.length > 0 && !mapping.ekichika.usedDefault)
+    warnings.push('★ ' + droppedOther.join('・') + ' は駅ちかに当たる言葉が無いので送りません');
+  if (droppedRookie)
+    warnings.push(rookie
+      ? '★ 新人 は特徴としては送りません（★ 駅ちかの新人マークは付きます・30日で自動的に消えます）'
+      : '★ 新人 は駅ちかに当たる言葉が無いので送りません（★ rookie=false なので新人マークも付きません）');
   if (!values.cup) warnings.push('★ カップが未設定（または A〜 の1文字でない）ため送りません');
   if ((th as { is_active?: boolean }).is_active === false)
     warnings.push('★ この方はフクエスでは非公開です。★ 駅ちかには**即公開**で載ります');
