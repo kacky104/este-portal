@@ -15,6 +15,9 @@ import { deriveHeroBanners } from '@/app/lib/heroBanners';
 import { fetchPublishedArticles } from '@/app/lib/workArticles';
 import { ArticleCard } from './column/ArticleCard';
 import { buildBreadcrumbJsonLd, toJsonLdString } from '@/app/lib/jsonLd';
+import { createPublicClient } from '@/app/lib/supabase/public';
+import { fetchLatestWorkNews, WORK_NEWS_FEED_TOP } from '@/app/lib/workNewsFeed';
+import { WorkNewsFeedList } from './WorkNewsFeedList';
 
 // ISR：10分ごとに再生成（SEO目的。求人は頻繁に変わらないためキャッシュで十分）。
 export const revalidate = 600;
@@ -36,10 +39,13 @@ export const metadata: Metadata = {
 const MATCHING_POINTS = ['相談無料', '未経験OK', 'エリア・条件から'] as const;
 
 export default async function JobsPage() {
-  const [jobs, pickupJobs, columnArticles] = await Promise.all([
+  const [jobs, pickupJobs, columnArticles, workNews] = await Promise.all([
     fetchActiveJobs(),
     getFeaturedJobs(),
     fetchPublishedArticles(3),
+    // ★ 店舗新着情報（第275便・2026-09-11・カッキーさんの指示）。
+    //   ★ トップは【1店舗1件】に間引く（第3引数 true）。★ 間引かないと自動配信で1店に埋まる。
+    fetchLatestWorkNews(createPublicClient(), WORK_NEWS_FEED_TOP, true),
   ]);
 
   // バナーカード：jobs（このページの条件＝全公開求人）からバナー画像ありを抽出し30分バケットでシャッフル（別クエリ無し）。
@@ -130,6 +136,27 @@ export default async function JobsPage() {
           </div>
         </div>
       </Link>
+
+      {/* ★★ 店舗新着情報（第275便・2026-09-11・カッキーさんの指示）。
+          ★ 置き場所は【マッチングのブロックの下】。★ フクエス本体のTOPと同じ形。
+          ★ 1行タップで、その店の【求人詳細】へ（/jobs/<求人ID>）。
+          ★ ここは1店舗1件に間引いている（トップが1店で埋まらないように）。
+            ★ 全部見たいときは「もっと見る」→ /jobs/news（最新50件・間引かない）。
+          ★ 0件のときはセクションごと出さない。 */}
+      {workNews.length > 0 && (
+        <section className="mb-6">
+          <div className="flex items-center justify-between gap-3 mb-3">
+            <div className="flex items-center gap-2.5 min-w-0">
+              <span className="w-1 h-5 rounded-full flex-shrink-0" style={{ background: 'linear-gradient(to bottom,#10B981,#84CC16)' }} />
+              <h2 className="font-bold text-slate-900">店舗新着情報</h2>
+            </div>
+            <Link href="/jobs/news" className="flex-shrink-0 text-xs font-bold hover:opacity-80 transition-opacity" style={{ color: '#059669' }}>
+              もっと見る →
+            </Link>
+          </div>
+          <WorkNewsFeedList items={workNews} />
+        </section>
+      )}
 
       {/* おすすめ求人（運営が featured_jobs に登録した求人のスライダー）。0件時はセクションごと非表示。 */}
       <PickupSlider jobs={pickupJobs} title="おすすめ求人ピックアップ店舗" />
