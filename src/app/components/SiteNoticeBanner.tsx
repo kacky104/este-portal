@@ -1,40 +1,15 @@
-// テスト運用中の共通お知らせバナー。各サイトのヘッダー直下に sticky で表示する。
-// 文言は全サイト共通。開設時期などの変更はこの1ファイルを直せば全ページに反映される。
-// ★ 2026-08-31：開店が延びたため「9月1日」→「9月初旬」（全60ページ以上に効く）。
-//   ★ 日付は他のどこにも書かれていない（grep 済み）。★ 増やさないこと——次に延びたときに書き漏らす。
-// 配色だけサイトごとに出し分ける（本体=amber / フクエスワーク=green / フクエックス=fukuXテーマ）。
+// テスト運用中の共通お知らせバナー。各サイトのヘッダー直下に sticky で表示していた。
+// ★ 2026-09-11：サイトオープンに伴い、**全ページで出さない**ことにした（帯そのものを描かない）。
+//   ★ 呼び出し側（jobs / column / x / 本体の各ページ）はそのまま残してある。
+//     → 次に全サイト共通の告知を出すときは、この1ファイルに中身を戻せば全ページに効く。
+//     → 呼び出しを消して回らない（60ページ以上・戻すときに書き漏らす）。
+//   ★ 以前の中身（amber / emerald / fukuX の3配色・sticky top-14・data-site-notice）は git 履歴に残っている。
+//   ★ data-site-notice を測っていた店舗詳細スマホの店名バー（SalonMobileNav・第219便）は
+//     「帯が無いとき」を見ている（banner ? banner.offsetHeight : 0）ので、top は header の高さだけになる。
 
 type Variant = 'default' | 'work' | 'x';
 
-const VARIANTS: Record<Variant, { box: string; text: string; inner: string }> = {
-  // フクエス本体（amber）＝従来のTOPバナーと同一配色。
-  default: {
-    box: 'bg-amber-50 border-amber-100',
-    text: 'text-amber-700',
-    inner: 'max-w-5xl',
-  },
-  // フクエスワーク（green）＝ワークの緑系テーマに合わせる。
-  work: {
-    box: 'bg-emerald-50 border-emerald-100',
-    text: 'text-emerald-700',
-    inner: 'max-w-3xl',
-  },
-  // フクエックス（fukuX）＝x-theme.css の CSS 変数でダーク/グラデ背景に馴染ませる。
-  x: {
-    box: 'bg-[color:var(--x-surface-translucent)] backdrop-blur-md border-[color:var(--x-border-strong)]',
-    text: 'text-[color:var(--x-text-primary)]',
-    inner: 'max-w-2xl',
-  },
-};
-
-export function SiteNoticeBanner({ variant = 'default' }: { variant?: Variant }) {
-  const v = VARIANTS[variant];
-  return (
-    // ★ data-site-notice: 店舗詳細スマホの店名バー（SalonMobileNav）が「この帯の高さ」を測るための目印（第219便）。★ 消さないこと。
-    <div data-site-notice className={`sticky top-14 z-40 border-b ${v.box}`}>
-      <p className={`${v.inner} mx-auto px-4 py-2 text-center text-xs sm:text-sm font-bold leading-relaxed ${v.text}`}>
-        現在テスト運用中です。9月初旬サイトオープン予定。
-      </p>
-    </div>
-  );
+export function SiteNoticeBanner(props: { variant?: Variant }) {
+  void props; // ★ variant は呼び出し側に残っている（上の注記）。使わないが受け取る。
+  return null;
 }
