@@ -12,8 +12,8 @@ import Link from 'next/link';
 import { createClient } from '@/app/lib/supabase/client';
 import { revalidateSalon, revalidateTherapist } from '@/app/lib/revalidateTop';
 import { getLinkedXProfileForSalon } from '@/app/lib/xLink';
-// ★ 独自ドメインの表記ゆれ（www. 付き）を落とすのに使う。★ 公開HP側と同じ関数を使い、判断を1か所にする（第184便）。
-import { normalizeHpSiteKey } from '@/app/lib/hpSite';
+// ★ normalizeHpSiteKey（独自ドメインの www. を落とす）は、フクエスサイトの飛び先を
+//   独自ドメインから /hp/{slug}/admin に変えた時点で使わなくなった（2026-09-11 夜）。★ 取り込みごと外す。
 import { TimeRangePicker } from '@/components/TimeRangePicker';
 import { SALON_THEMES, type ThemeKey } from '@/app/lib/themes';
 import { COUPON_COLORS, getCouponColor, DEFAULT_COUPON_COLOR_KEY, type CouponColorKey } from '@/app/lib/couponColors';
@@ -2777,7 +2777,14 @@ export default function MyPage() {
   //   ★ バッジは中の合計（★ 運営事務局の未読は、閉じていても気づけるように）。
   const mobileOtherKeys = MOBILE_OTHER_SECTIONS.flatMap((sec) => sec.keys);
   const mobileOtherHere = mobileOtherKeys.includes(activeTab);
-  const mobileOtherBadge = mobileOtherKeys.reduce((sum, k) => sum + (navBadge(k) ?? 0), 0);
+  // ★★★ 三本線の赤丸には【未対応の応募】も足す（2026-09-11 夜・カッキーさんの指示）。
+  //   ★ 応募は「関連サイト → フクエスワーク（求人）」の中にあり、ドロワーを閉じていると見えない。
+  //     ★ /mypage を開いた直後は必ず閉じているので、赤丸に気づけないまま一日過ぎてしまう。
+  //   ★ 求人はタブではなくリンク（renderJobsLink）なので navBadge には乗らない。★ ここで別に足す。
+  //   ★ 出すのはフクエスワーク掲載（jobs_enabled）の店だけ（★ 契約の無い店に数字は出さない）。
+  const mobileOtherBadge =
+    mobileOtherKeys.reduce((sum, k) => sum + (navBadge(k) ?? 0), 0) +
+    (salon?.jobs_enabled ? newApplications : 0);
 
   // ★★★ フクエスサイト（公式HP）への入口（2026-09-06 第184便・カッキーさんの指示）。★ 全店舗に出す。
   //   ★★ 表示は salon_sites（公式HPの、1店舗1行の表）だけを見て【自動で】決まる。
@@ -2787,12 +2794,23 @@ export default function MyPage() {
   //        行が無い          → フクエスサイト（申し込み受付中）→ /hp/templates（デザイン一覧＝営業ページ）
   //        行あり・draft     → フクエスサイト（制作中）        → ★ リンクにしない（灰色・押せない）
   //        行あり・suspended → 同上（★ 停止の理由は画面に出さない。連絡は運営事務局から）
-  //        行あり・live      → フクエスサイト（公式HP）        → 独自ドメイン、無ければ /hp/{slug}
+  //        行あり・live      → フクエスサイト（公式HP）        → ★ /hp/{slug}/admin（★ 管理画面）
   //
   //   ★ draft を押せなくしているのは、開いても「ただいま準備中です」の白い1枚しか出ないため
   //     （/hp/[slug]/page.tsx の status ゲート）。★ 押せると誤解させるものは置かない。
   //   ★★ salons.official_url（店舗基本設定の「公式サイトURL」）とは混ぜない。
   //     あちらは他社で作ったサイトも入る欄で、フクエスが作ったサイトとは別物。
+  //
+  // ★★★ 2026-09-11 夜（カッキーさんの指示）: 飛び先を【公開ページ】から【管理画面】に変えた。
+  //   ★ 店舗様がここから開く用事は「見る」ではなく「直す」。★ 見るだけなら管理画面の
+  //     「ページを見る」ボタンが1つ下にある（★ 入口を2つ作らない）。
+  //   ★★★ 独自ドメイン（https://お店のドメイン/admin）には【もう飛ばさない】。
+  //     ★ あちらは別のドメイン＝ログインのクッキーが無いので、開くたびにIDとPWを聞かれる。
+  //       ★ 「最初に入るときだけID/PW」という仕様をやめる、がカッキーさんの指示。
+  //     ★ フクエス側の /hp/{slug}/admin なら、いまマイページで通っているログインがそのまま効く
+  //       （★ actions/hpAdmin.ts の resolveAccess が salons.owner_id を owner として通す。
+  //         ★ /mypage は owner_id = user.id で店舗を引いているので、必ず本人＝owner）。
+  //     ★ 画面は独自ドメイン/admin とまったく同じもの（★ proxy.ts の rewrite 先がここ）。
   const hpNav: { label: string; href: string | null } | null =
     hpSite === undefined
       // ★ まだ読んでいない。★ 一瞬「申し込み受付中」と出てから変わるのを防ぐため、何も描かない。
@@ -2803,10 +2821,8 @@ export default function MyPage() {
           ? { label: 'フクエスサイト（制作中）', href: null }
           : {
               label: 'フクエスサイト（公式HP）',
-              // ★ 独自ドメインは外のサイトなので絶対URL。★ www. は落とす（公開HP側と同じ normalizeHpSiteKey）。
-              href: (hpSite.domain ?? '').trim() !== ''
-                ? `https://${normalizeHpSiteKey(hpSite.domain as string)}/`
-                : `/hp/${hpSite.slug}`,
+              // ★ 独自ドメインが付いていても、ここは【フクエス側の道】を使う（上の理由）。
+              href: `/hp/${hpSite.slug}/admin`,
             };
 
   const renderHpLink = (pc: boolean) => {
@@ -2987,8 +3003,17 @@ export default function MyPage() {
                   <path d="M4 6h16M4 12h16M4 18h16" />
                 </svg>
                 {mobileOtherBadge > 0 && (
-                  <span className="absolute -top-0.5 -right-0.5 inline-flex items-center justify-center min-w-[16px] h-[16px] px-1 rounded-none bg-pink-500 text-white text-[9px] font-black leading-none">
-                    {mobileOtherBadge}
+                  // ★ 未対応の応募が入っているときは【赤い丸】にする（2026-09-11 夜・カッキーさんの指示）。
+                  //   ★ ドロワーの中の赤丸（NewCountBadge）と同じ色にして、開く前と後をつなげる。
+                  //   ★ 白い縁を付けるのは、白いヘッダーの上でも三本線と重ならず輪郭が出るため。
+                  <span
+                    className={`absolute -top-1 -right-1 inline-flex items-center justify-center min-w-[16px] h-[16px] px-1 text-white text-[9px] font-black leading-none ring-2 ring-white ${
+                      salon?.jobs_enabled && newApplications > 0
+                        ? 'rounded-full bg-rose-500'
+                        : 'rounded-none bg-pink-500'
+                    }`}
+                  >
+                    {mobileOtherBadge > 99 ? '99+' : mobileOtherBadge}
                   </span>
                 )}
               </button>
@@ -3056,6 +3081,26 @@ export default function MyPage() {
               >
                 フクエス
               </span>
+              {/* ★★★ 未対応の応募の数を、サイドバーのいちばん上に出す（2026-09-11 夜・カッキーさんの指示）。
+                  ★ 「関連サイト → フクエスワーク（求人）」はサイドバーの下の方にあり、
+                    見出しを閉じていたり画面が短いと、赤丸がスクロールの外に出てしまう。
+                  ★ ここは店舗名の上＝いつも見える場所。★ 数字だけだと何の数か分からないので
+                    「応募」の字を付ける。★ 押すとフクエスワークが新しいタブで開く。
+                  ★ 出すのはフクエスワーク掲載（jobs_enabled）の店だけ・0件のときは何も出さない。 */}
+              {salon?.jobs_enabled && newApplications > 0 && (
+                <Link
+                  href="/mypage/jobs"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  title={`未対応の応募が${newApplications}件`}
+                  className="ml-auto inline-flex items-center gap-1 flex-none px-2 py-1 bg-rose-500 text-white text-[11px] font-black leading-none transition-colors hover:bg-rose-600"
+                >
+                  応募
+                  <span className="inline-flex items-center justify-center min-w-[16px] h-[16px] px-1 rounded-full bg-white text-rose-500 text-[10px] font-black leading-none">
+                    {newApplications > 99 ? '99+' : newApplications}
+                  </span>
+                </Link>
+              )}
             </div>
             <div className="px-4 py-3 border-b border-slate-100">
               <div className="text-[12.5px] font-bold text-slate-400 tracking-wider">店舗</div>
@@ -3978,7 +4023,14 @@ export default function MyPage() {
               「予約で受け付けるコース」を1つ以上登録してください。
             </p>
             <div>
-              <label className="block text-[11px] font-bold text-slate-500 mb-1">予約通知先メール</label>
+              {/* ★ 「必須」の赤い印を右に付ける（2026-09-11 夜・カッキーさんの指示）。
+                  ★ 下の「予約で受け付けるコース」とまったく同じ印（10px・白字・bg-rose-500・丸）。
+                    ★ 2つ作らない（★ 見た目が少しでも違うと、別の意味に見える）。
+                  ★ block → flex に変えただけ。★ 文字の大きさ・色・下の余白（mb-1）はそのまま。 */}
+              <label className="flex items-center gap-1.5 text-[11px] font-bold text-slate-500 mb-1">
+                予約通知先メール
+                <span className="flex-none text-[10px] font-black text-white bg-rose-500 px-1.5 py-0.5 rounded-full">必須</span>
+              </label>
               <input
                 type="email"
                 placeholder="reservation@example.com"
