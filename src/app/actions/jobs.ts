@@ -556,7 +556,7 @@ export async function revalidateJobsForOwner(): Promise<void> {
   revalidateJobsPublic();
 }
 
-// ── 新着情報（work_news）のローリング上限（サロンごと最新 WORK_NEWS_MAX=20 件） ──
+// ── 新着情報（work_news）のローリング上限（サロンごと最新 WORK_NEWS_MAX 件・2026-09-11 に 20→10） ──
 // 新規投稿が成功したあとにクライアントから呼ぶ（案A：サーバーアクション方式）。
 //  - 同一サロンの work_news を created_at 昇順（古い順）で全件見て、20件を超えていたら超過分を「全て」削除する
 //    （21件超＝過去データ/競合残りでも20件まで削れるよう slice で超過分をまとめて対象化。LIMIT 1 固定にしない）。

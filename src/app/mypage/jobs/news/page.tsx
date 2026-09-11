@@ -22,8 +22,6 @@ export default function WorkNewsPage() {
       loadError={loadError}
       salonName={salon?.name ?? null}
       salonId={salonId}
-      jobId={job ? job.id : null}
-      jobPublic={job ? job.is_active : false}
       title="新着情報"
       current="news"
       toast={toast}

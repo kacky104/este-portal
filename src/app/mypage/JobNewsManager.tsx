@@ -5,6 +5,8 @@ import { createClient } from '@/app/lib/supabase/client';
 import { getLinkedXProfileForSalon } from '@/app/lib/xLink';
 import { revalidateJobsForOwner, enforceWorkNewsLimit } from '@/app/actions/jobs';
 import { WORK_NEWS_MAX } from '@/app/lib/jobs';
+// ★ 「◯本付けると◯日に1回」の文言。★ フクエス側のお知らせと同じ関数を使う（2026-09-11 第274便）。
+import { rotationCycleMessage } from '@/lib/announceAuto';
 import { STORAGE_CACHE_CONTROL } from '@/app/lib/storage';
 
 // mypage「求人」タブの新着情報（work_news）管理カード。本体お知らせ（announcements）管理を
@@ -28,10 +30,12 @@ type WorkNews = {
   is_published: boolean;
   published_at: string;
   image_url: string | null;
+  // ★ 「自動で回す」の印（第274便・2026-09-11）。★ 既定 false＝黙って回さない。
+  auto_rotate: boolean;
 };
 
 type NewForm = { title: string; content: string; is_published: boolean; image_url: string | null };
-type EditForm = { title: string; content: string; is_published: boolean; image_url: string | null };
+type EditForm = { title: string; content: string; is_published: boolean; image_url: string | null; auto_rotate: boolean };
 
 function validateImageFile(file: File): string | null {
   if (file.size > 5 * 1024 * 1024) return '5MB以下の画像を選択してください';
@@ -90,6 +94,7 @@ export function JobNewsManager({ salonId }: { salonId: number }) {
       f.title !== it.title ||
       f.content !== (it.content ?? '') ||
       f.is_published !== it.is_published ||
+      f.auto_rotate !== it.auto_rotate ||
       f.image_url !== it.image_url
     );
   };
@@ -100,7 +105,7 @@ export function JobNewsManager({ salonId }: { salonId: number }) {
     if (!it) return;
     setForms((prev) => ({
       ...prev,
-      [id]: { title: it.title, content: it.content ?? '', is_published: it.is_published, image_url: it.image_url },
+      [id]: { title: it.title, content: it.content ?? '', is_published: it.is_published, image_url: it.image_url, auto_rotate: it.auto_rotate },
     }));
   };
 
@@ -121,7 +126,7 @@ export function JobNewsManager({ salonId }: { salonId: number }) {
   const rebuildForms = (list: WorkNews[]) => {
     const map: Record<string, EditForm> = {};
     list.forEach((n) => {
-      map[n.id] = { title: n.title, content: n.content ?? '', is_published: n.is_published, image_url: n.image_url };
+      map[n.id] = { title: n.title, content: n.content ?? '', is_published: n.is_published, image_url: n.image_url, auto_rotate: n.auto_rotate };
     });
     setForms(map);
   };
@@ -129,7 +134,7 @@ export function JobNewsManager({ salonId }: { salonId: number }) {
   const fetchList = useCallback(async () => {
     const { data, error } = await supabase
       .from('work_news')
-      .select('id, title, content, is_published, published_at, image_url')
+      .select('id, title, content, is_published, published_at, image_url, auto_rotate')
       .eq('salon_id', salonId)
       .order('published_at', { ascending: false });
     if (error) {
@@ -251,12 +256,13 @@ export function JobNewsManager({ salonId }: { salonId: number }) {
     const title = form.title.trim();
     const content = form.content.trim() || null;
     const is_published = form.is_published;
+    const auto_rotate = form.auto_rotate;
     const newImageUrl = form.image_url ?? null;
     // 差し替え／削除判定用に、保存前の永続化済み画像URLを控える。
     const oldImageUrl = items.find((n) => n.id === id)?.image_url ?? null;
 
     const { error } = await supabase.from('work_news')
-      .update({ title, content, is_published, image_url: newImageUrl })
+      .update({ title, content, is_published, auto_rotate, image_url: newImageUrl })
       .eq('id', id);
     if (error) { setSavingId(null); setMsg({ kind: 'err', text: `保存に失敗しました: ${error.message}` }); return; }
 
@@ -269,7 +275,7 @@ export function JobNewsManager({ salonId }: { salonId: number }) {
       }
     }
 
-    setItems((prev) => prev.map((n) => n.id === id ? { ...n, title, content, is_published, image_url: newImageUrl } : n));
+    setItems((prev) => prev.map((n) => n.id === id ? { ...n, title, content, is_published, auto_rotate, image_url: newImageUrl } : n));
     setSavingId(null);
     setExpandedId(null); // 保存完了でコンパクト表示へ戻す
     await revalidateJobsForOwner();
@@ -442,6 +448,14 @@ export function JobNewsManager({ salonId }: { salonId: number }) {
         <p className="text-[10px] text-slate-500 leading-relaxed rounded-none bg-amber-50 border border-amber-100 px-2.5 py-2">
           新着情報は最新{WORK_NEWS_MAX}件まで保存されます。{WORK_NEWS_MAX + 1}件目を投稿すると、非公開分を含めて古いものから自動的に削除されます。
         </p>
+        {/* ★ 「自動で回す」を付けた本数から、1周にかかる日数を出す（第274便・2026-09-11）。
+            ★ 上限で押させない代わりに、数字で言う。★ 「10本付けると10日に1回」と分かれば、
+              店舗が自分で減らす判断ができる。★ 0本のときは何も出さない（rotationCycleMessage が null）。 */}
+        {rotationCycleMessage(items.filter((n) => n.auto_rotate && n.is_published).length) && (
+          <p className="text-[10px] font-bold leading-relaxed rounded-none px-2.5 py-2 border" style={{ background: 'rgba(16,185,129,0.06)', borderColor: '#A7F3D0', color: '#059669' }}>
+            {rotationCycleMessage(items.filter((n) => n.auto_rotate && n.is_published).length)}
+          </p>
+        )}
         <div>
           <label className={labelClass}>タイトル <span className="text-rose-400">*</span></label>
           <input
@@ -499,7 +513,7 @@ export function JobNewsManager({ salonId }: { salonId: number }) {
       ) : (
         <>
           {(showAll ? items : items.slice(0, INITIAL_VISIBLE)).map((n) => {
-            const form = forms[n.id] ?? { title: '', content: '', is_published: true, image_url: null };
+            const form = forms[n.id] ?? { title: '', content: '', is_published: true, image_url: null, auto_rotate: false };
             const expanded = expandedId === n.id;
             return (
               <div key={n.id} className="rounded-none border border-emerald-100 shadow-sm overflow-hidden">
@@ -510,6 +524,20 @@ export function JobNewsManager({ salonId }: { salonId: number }) {
                   }`}>
                     {n.is_published ? '公開中' : '非公開'}
                   </span>
+                  {/* ★ 自動配信のローテに乗っているか（第274便・2026-09-11）。
+                      ★ 印が付いているだけ＝回る対象。★ 実際に今日出たかは別（記録は周が持つ）。 */}
+                  {n.auto_rotate && (
+                    <span
+                      className={`text-[10px] font-bold px-2 py-0.5 rounded-none flex-shrink-0 border ${
+                        n.is_published
+                          ? 'bg-emerald-50 text-emerald-600 border-emerald-100'
+                          : 'bg-white text-emerald-300 border-emerald-100'
+                      }`}
+                      title={n.is_published ? '自動配信のローテに乗っています' : '印は付いていますが、非公開なので回りません'}
+                    >
+                      自動配信中
+                    </span>
+                  )}
                   <div className="min-w-0 flex-1">
                     <p className="text-sm font-bold text-slate-700 truncate">{n.title || '（無題）'}</p>
                     <p className="text-[10px] text-slate-400 truncate">{formatPublishedAt(n.published_at)}</p>
@@ -571,6 +599,22 @@ export function JobNewsManager({ salonId }: { salonId: number }) {
                         onChange={(e) => setForms((prev) => ({ ...prev, [n.id]: { ...prev[n.id], is_published: e.target.checked } }))}
                       />
                       <span className="text-xs font-bold text-slate-600">公開する（オフにすると非公開で保存）</span>
+                    </label>
+                    {/* ★ 自動配信のローテに乗せるか（第274便・2026-09-11・カッキーさんの指示）。
+                        ★ 既定はオフ——黙って回さない。★ 季節外れの告知が数か月後に出るのを防ぐ。 */}
+                    <label className="flex items-start gap-2 cursor-pointer select-none">
+                      <input
+                        type="checkbox"
+                        className="w-4 h-4 accent-emerald-500 flex-shrink-0 mt-0.5"
+                        checked={form.auto_rotate}
+                        onChange={(e) => setForms((prev) => ({ ...prev, [n.id]: { ...prev[n.id], auto_rotate: e.target.checked } }))}
+                      />
+                      <span className="min-w-0">
+                        <span className="text-xs font-bold text-slate-600">自動で回す</span>
+                        <span className="block text-[10px] text-slate-400 leading-relaxed">
+                          印を付けた新着情報を、1日1回・順番に1本ずつ自動で出します（「保存」で確定します）
+                        </span>
+                      </span>
                     </label>
                     <div className="flex justify-end">
                       <button className={saveBtn} style={saveBtnStyle} onClick={() => handleSave(n.id)} disabled={savingId === n.id}>

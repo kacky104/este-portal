@@ -53,16 +53,21 @@ export function JobNewsList({ rows }: { rows: WorkNewsItem[] }) {
               <h3 className="font-bold text-slate-900 leading-snug break-words min-w-0">{n.title}</h3>
             </div>
 
-            {/* 画像（あれば・16:9） */}
+            {/* ★★ 画像は【比率を固定して切り取る】（2026-09-11・カッキーさんの指示）。
+                ★ 前は w-full h-auto（原寸の比率のまま）だったので、縦長の写真だと画面2〜3個ぶんの
+                  高さになり、次の記事まで遠かった。
+                ★ スマホは 4:3、PC（sm:以上）は 16:9 の箱に収めて object-cover。
+                  ★ 一覧の高さが揃う＝スクロールの量が読める。
+                ★ 上下は切れる。★ 切られたくない写真は、店舗側で横長にして入れてもらう。
+                ★ fill を使うので、親に relative と比率（aspect-*）を置くこと。 */}
             {n.imageUrl && (
-              <div className="mb-3 rounded-xl overflow-hidden border border-emerald-100">
+              <div className="relative mb-3 w-full aspect-[4/3] sm:aspect-video rounded-xl overflow-hidden border border-emerald-100 bg-slate-50">
                 <Image
                   src={n.imageUrl}
                   alt={n.title}
-                  width={1280}
-                  height={720}
+                  fill
                   sizes="(max-width: 768px) 100vw, 768px"
-                  className="w-full h-auto object-cover"
+                  className="object-cover"
                 />
               </div>
             )}

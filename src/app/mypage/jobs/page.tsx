@@ -51,8 +51,6 @@ export default function WorkHomePage() {
       loadError={loadError}
       salonName={salon?.name ?? null}
       salonId={salonId}
-      jobId={job ? job.id : null}
-      jobPublic={job ? job.is_active : false}
       title="ホーム"
       current="home"
       toast={toast}
@@ -96,7 +94,7 @@ export default function WorkHomePage() {
                       className="w-full sm:w-auto sm:min-w-[150px] inline-flex items-center justify-center text-center text-[12px] font-bold px-3 py-1.5 border transition-colors"
                       style={{ borderColor: '#6EE7B7', color: '#059669' }}
                     >
-                      掲載ページを見る →
+                      掲載ページを見る
                     </a>
                   )}
                   <button
@@ -116,7 +114,7 @@ export default function WorkHomePage() {
               {job
                 ? job.is_active
                   ? 'フクエスワークに掲載中です。'
-                  : 'いまは非公開です。「公開する」を押すとフクエスワークに出ます。'
+                  : 'いまは非公開です。'
                 : 'まだ求人がありません。「求人内容」から作成すると、フクエスワークに掲載されます（1店舗1件）。'}
             </p>
           </>

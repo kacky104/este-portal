@@ -571,8 +571,11 @@ export const WORK_NEWS_PAGE_SIZE = 20;
 // 新着（NEW）バッジ判定：published_at がこの時間以内なら新着（本体お知らせの48時間基準を踏襲）。
 export const WORK_NEWS_NEW_HOURS = 48;
 // 新着情報のローリング保存上限（サロンごと）。新規投稿成功後、created_at の古い順に超過分を自動削除する
-// （enforceWorkNewsLimit）。公開・非公開を問わず作成日基準。公開側ページの20件境界と偶然一致するが別概念。
-export const WORK_NEWS_MAX = 20;
+// （enforceWorkNewsLimit）。公開・非公開を問わず作成日基準。
+// ★ 2026-09-11（カッキーさんの指示）: 20 → 10 に変更。★ 11件目を投稿すると古いものから消える。
+//   ★ 画面の文言（JobNewsManager）はこの数を読んでいるので、直すのはここ1か所だけでよい。
+//   ★ 公開側の1ページ表示件数（WORK_NEWS_PAGE_SIZE=20）とは別物。★ 一緒に変えないこと。
+export const WORK_NEWS_MAX = 10;
 
 export type WorkNewsItem = {
   id: string;

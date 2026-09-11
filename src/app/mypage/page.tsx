@@ -2744,7 +2744,13 @@ export default function MyPage() {
         compact ? 'py-1.5 text-[13px]' : 'py-2 text-[16px]'
       }`}
     >
-      {group}
+      {/* ★ たたんでいる間は、中に入っている「未対応の応募」の数をここに出す
+          （2026-09-11・カッキーさんの指示）。★ 既定が閉じなので、気づかずに見落とすのを防ぐ。
+          ★ 開くと「フクエスワーク（求人）」の行に同じ赤丸が出るので、ここでは出さない。 */}
+      <span className="flex items-center gap-2 min-w-0">
+        {group}
+        {group === '関連サイト' && !navGroupIsOpen(group) && <NewCountBadge count={newApplications} />}
+      </span>
       <svg
         width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
         strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"

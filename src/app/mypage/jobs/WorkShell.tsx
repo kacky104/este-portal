@@ -29,7 +29,8 @@ const NAV: Array<{ key: WorkNavKey; label: string; href: string; group?: string 
   { key: 'home',         label: 'ホーム',     href: '/mypage/jobs' },
   // ★ 求人内容が【基本の情報】。★ ここが埋まらないと応募も新着情報も出せないので、いちばん近くに置く。
   { key: 'edit',         label: '求人内容',   href: '/mypage/jobs/edit' },
-  { key: 'applications', label: '応募',       href: '/mypage/jobs/applications', group: '応募・お知らせ' },
+  // ★ 見出し（group）は付けない（2026-09-11・カッキーさんの指示で「応募・お知らせ」を削除）。
+  { key: 'applications', label: '応募',       href: '/mypage/jobs/applications' },
   { key: 'news',         label: '新着情報',   href: '/mypage/jobs/news' },
 ];
 
@@ -75,17 +76,13 @@ function BrandMark({ size = 'md', onGreen = false }: { size?: 'sm' | 'md'; onGre
 }
 
 export function WorkShell({
-  decision, loadError, salonName, salonId, jobId, jobPublic, title, current, toast, children,
+  decision, loadError, salonName, salonId, title, current, toast, children,
 }: {
   decision: JobsPageDecision;
   loadError: string;
   salonName?: string | null;
   // ★ 未対応の応募の数を出すために要る（2026-09-11）。★ 渡さなければ数は出ないだけ。
   salonId?: number | null;
-  // ★ 「サイトを見る」の飛び先（/jobs/<id>）。★ 求人があれば渡す（公開・非公開は問わない）。
-  jobId?: number | null;
-  // ★ その求人がいま公開中か。★ 非公開のときはグレーにして押せなくする（2026-09-11・カッキーさんの指示）。
-  jobPublic?: boolean;
   title: string;
   current: WorkNavKey;
   toast?: string;
@@ -232,36 +229,11 @@ export function WorkShell({
               </button>
               <h1 className="text-[17px] font-black text-slate-800 truncate">{title}</h1>
             </div>
-            {/* ★ 右上は「サイトを見る」→「マイページへ戻る」の順（2026-09-11・カッキーさんの指示）。
-                ★ 「サイトを見る」はこの店舗のフクエスワーク求人ページ（/jobs/<id>）。
-                ★ 公開中で求人があるときだけ出す（★ 非公開のときは見せる先が無い）。 */}
-            <div className="flex-none flex items-center gap-3">
-              {jobId != null && (
-                jobPublic ? (
-                  <a
-                    href={`/jobs/${jobId}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-[13.5px] font-bold text-slate-400 hover:text-emerald-600 transition-colors whitespace-nowrap"
-                  >
-                    サイトを見る
-                  </a>
-                ) : (
-                  // ★ 非公開のときは【グレーのまま出す】（2026-09-11・カッキーさんの指示）。
-                  //   ★ 場所が変わらないので迷わない。★ 押せない（リンクにしない）。
-                  <span
-                    title="いまは非公開です。「公開する」を押すとサイトに出ます"
-                    aria-disabled="true"
-                    className="text-[13.5px] font-bold text-slate-300 cursor-not-allowed whitespace-nowrap"
-                  >
-                    サイトを見る
-                  </span>
-                )
-              )}
-              <Link href="/mypage" className="text-[13.5px] font-bold text-slate-400 hover:text-emerald-600 transition-colors whitespace-nowrap">
-                マイページへ戻る
-              </Link>
-            </div>
+            {/* ★ 右上は「マイページへ戻る」だけ（2026-09-11）。
+                ★ 「サイトを見る」は付けない。★ ホームに「掲載ページを見る」が元からあるため。 */}
+            <Link href="/mypage" className="flex-none text-[13.5px] font-bold text-slate-400 hover:text-emerald-600 transition-colors whitespace-nowrap">
+              マイページへ戻る
+            </Link>
           </div>
         </header>
 
