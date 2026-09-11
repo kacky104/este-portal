@@ -26,7 +26,9 @@ import { resolveEsutamaPhotoFile, type EsutamaPhotoFile } from '@/app/lib/media/
 //
 // ★★★★ 【第263便】切り出しただけ。★ 振る舞い・`plan` の形・文言は route.ts にあったときと**一字一句同じ**。
 // ★★★★★★ 【第267便】登録のあと、そのまま写真を1枚送る材料を足した（★ 駅ちかの第249便と同じ形）。
-//   ★ `withPhoto` を渡したときだけ。★ 渡さなければ第263便までと**同じ JSON**が返る（★ 既定にするのは通ってから・第250便の段取り）。
+//   ★ `withPhoto` を渡したときだけ。★ 渡さなければ第263便までと**同じ JSON**が返る。
+// ★★★★★★ 【第268便】呼び出し側（media-cast-create）の既定が true になった（★ 2026-09-11 15:00 の実弾で貫通したので）。
+//   ★ ここ（材料づくり）は変えていない。★ `withPhoto` を渡さない呼び出し（店舗様の画面・第269便まで）は今までどおり登録だけ。
 //   ★★ 用意できないとき … 明示（withPhotoAsked）なら 400 で止める／既定なら飛ばして登録だけ（理由は photoSkip に残す）。
 //   ★★★ 枠は選ばない・選べない（★ エステ魂がいちばん小さい空き枠へ詰める・第245便）。★ 登録直後は全枠空きなので枠1＝トップ画像。
 
@@ -181,8 +183,11 @@ export async function buildCastCreatePlan(svc: SupabaseClient, input: CastCreate
     ],
     notSent: photo
       ? ['set_up_limit（保存と同時に上位表示・残り回数あり）', 'キャッチ・紹介文']
-      // ★ withPhoto 無しのときは第263便までと**同じ文言**（★ 試し打ちの突き合わせで前後が一致するように）
-      : ['写真（送り方が未調査）', 'set_up_limit（保存と同時に上位表示・残り回数あり）', 'キャッチ・紹介文'],
+      // ★★ 第268便: 送らない理由を書く（★ 「未調査」はもう嘘になる・第243便で送り方は分かっている）
+      : [
+          photoSkip ? '写真（' + photoSkip + '）' : (withPhoto ? '写真' : '写真（withPhoto=false・登録だけ）'),
+          'set_up_limit（保存と同時に上位表示・残り回数あり）', 'キャッチ・紹介文',
+        ],
     ...(photoSkip ? { photoSkipped: photoSkip } : {}),
     ...(photo
       ? {
