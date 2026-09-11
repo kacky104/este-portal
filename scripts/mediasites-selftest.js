@@ -374,7 +374,8 @@ eq('★ can が空でも落ちない', v.sendableCapabilities({ accepting: true,
 {
   const ek = v.findMediaSite('ekichika');
   eq('★ 駅ちかに 新着情報 がある', ek.can.includes('news'), true);
-  eq('★★ 画面の並び（★ 左メニューと同じ言葉）', v.siteCapabilityLabels(ek), ['出勤', '写メ日記', '即ヒメ', '新着情報']);
+  // ★ 第262便: セラピストが戻ったので5つ（★ 出勤の次・第142便で外す前の並び）
+  eq('★★ 画面の並び（★ 左メニューと同じ言葉）', v.siteCapabilityLabels(ek), ['出勤', 'セラピスト', '写メ日記', '即ヒメ', '新着情報']);
   eq('★ 新着情報 の見出し', v.capabilityLabel('news'), '新着情報');
   // ★★★ 「お知らせ」と書かない。★ フクエス自身のお知らせタブ（駅ちかへは送らない）と混ざる
   eq('★★★ どの種別にも「お知らせ」という見出しは無い',
