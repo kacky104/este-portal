@@ -1,14 +1,10 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
-import { signInWithEmail, signOut } from '@/lib/auth';
+import { signInWithEmail } from '@/lib/auth';
 import {
   getHpAdminContext,
   confirmHpDesign,
-  setHpSiteLive,
-  inviteHpAdmin,
-  resendHpAdminInvite,
-  unlinkHpAdmin,
   type HpAdminContext,
 } from '@/app/actions/hpAdmin';
 import { normalizeHpSiteKey, type HpSite, type HpTemplateKey } from '@/app/lib/hpSite';
@@ -114,24 +110,13 @@ export function HpAdminApp({
     showToast('デザインを確定しました。続けて写真と文章を入力してください');
   };
 
-  const handleToggleLive = async () => {
-    setBusy(true);
-    const res = await setHpSiteLive(siteKey, site.status !== 'live');
-    setBusy(false);
-    if (!res.ok) { showToast(res.error); return; }
-    patchSite({ ...site, status: res.status });
-    showToast(res.status === 'live' ? '公開にしました' : '非公開にしました');
-  };
-
   // ★★★ サイドバーに出す画面（第278便・2026-09-12・カッキーさんの指示）。
   //   ★ 判断はこの1か所。★ 出さない画面は、押す道そのものを作らない。
   //     ★ デザインが未確定のあいだ ＝ 写真も文章もまだ入れられないので「ホーム・デザイン」だけ。
-  //     ★ 担当者アカウントは、オーナー様と運営だけ（★ 担当者自身は自分を増やせない）。
-  const canManageAccount = ctx.role === 'owner' || ctx.role === 'operator';
+  //     ★ 「担当者アカウント」は第279便（2026-09-12・カッキーさんの指示）で画面ごと撤去した。
   const sections: HpAdminSection[] = [
     'home',
     ...(site.design_locked ? HP_EDITOR_SECTIONS : (['design'] as HpAdminSection[])),
-    ...(canManageAccount ? (['account'] as HpAdminSection[]) : []),
   ];
   // ★ 出せない画面が選ばれていたらホームに倒す（★ 白い画面を出さない）。
   const current: HpAdminSection = sections.includes(section) ? section : 'home';
@@ -173,26 +158,17 @@ export function HpAdminApp({
               >
                 ページを見る
               </a>
-              {site.status !== 'suspended' && site.design_locked && (
-                <button
-                  onClick={handleToggleLive}
-                  disabled={busy}
-                  className={`px-4 py-2 rounded-none text-xs font-bold border transition-colors disabled:opacity-50 ${
-                    site.status === 'live'
-                      ? 'bg-white text-slate-500 border-slate-200 hover:border-slate-300'
-                      : 'bg-pink-500 text-white border-pink-500 hover:bg-pink-600'
-                  }`}
-                >
-                  {site.status === 'live' ? '非公開にする' : '公開する'}
-                </button>
-              )}
-              <button
-                onClick={async () => { await signOut(); load(); }}
-                className="ml-auto px-4 py-2 rounded-none text-xs font-bold text-slate-400 hover:text-slate-600"
-              >
-                ログアウト
-              </button>
             </div>
+            {/* ★★★ 2026-09-12（第279便・カッキーさんの指示）: ここから2つのボタンを外した。
+                ★ 「公開する／非公開にする」… 公開・非公開は【運営だけ】が変える。
+                  ★ 変える場所は運営の管理者ダッシュボード（/admin → 公式HP → その店の「編集」→ 公開状態）。
+                  ★ 画面から消すだけでなく、サーバー側（actions/hpAdmin.ts の setHpSiteLive）でも
+                    運営以外を弾いている（★ 二重に止める。★ 第273便のセラピスト削除と同じ作法）。
+                ★ 「ログアウト」… 入口はマイページからの1本になったので、ここで出る用事が無い。
+                  ★ ログアウトはマイページの右上にある。 */}
+            <p className="text-[11px] text-slate-400 leading-relaxed">
+              ※ 公開・非公開の切り替えは運営事務局で行います。ご希望の際はお知らせください。
+            </p>
           </div>
         )}
 
@@ -211,11 +187,6 @@ export function HpAdminApp({
             <DesignPendingCard />
           )
         ) : null}
-
-        {/* ── HP管理者アカウント（オーナー・運営にだけ表示） ── */}
-        {current === 'account' && canManageAccount && (
-          <AdminAccountCard siteKey={siteKey} ctx={ctx} onToast={showToast} onChanged={load} />
-        )}
       </div>
     </HpShell>
   );
@@ -333,108 +304,6 @@ function LoginCard({ notice, onDone }: { notice: string; onDone: () => void }) {
           </a>
         </p>
       </div>
-    </div>
-  );
-}
-
-// ── HP管理者アカウント ────────────────────────────────
-function AdminAccountCard({
-  siteKey,
-  ctx,
-  onToast,
-  onChanged,
-}: {
-  siteKey: string;
-  ctx: HpAdminContext;
-  onToast: (msg: string) => void;
-  onChanged: () => void;
-}) {
-  const [email, setEmail] = useState('');
-  const [busy, setBusy] = useState(false);
-
-  const run = async (fn: () => Promise<{ ok: true; warning?: string } | { ok: false; error: string }>, okMsg: string) => {
-    setBusy(true);
-    const res = await fn();
-    setBusy(false);
-    if (!res.ok) { onToast(res.error); return; }
-    onToast(res.warning ?? okMsg);
-    onChanged();
-  };
-
-  const state = ctx.adminLinked ? 'linked' : ctx.adminEmail ? 'invited' : 'none';
-
-  return (
-    <div className="bg-white rounded-none border border-slate-100 shadow-sm p-5 space-y-3">
-      <h3 className="text-sm font-black text-slate-800">ホームページ担当者のアカウント</h3>
-      <p className="text-[11px] text-slate-400 leading-relaxed">
-        オーナー様はご自身のフクエスのアカウントでこの画面に入れます。
-        スタッフの方にホームページの更新をお願いする場合は、その方専用のアカウントを1つ発行できます
-        （フクエスのマイページには入れません。このホームページの編集だけができます）。
-      </p>
-
-      {state === 'linked' && (
-        <div className="space-y-2">
-          <p className="text-xs text-slate-600">
-            現在の担当者：<span className="font-bold text-slate-800">{ctx.adminEmail}</span>
-            <span className="ml-2 inline-flex items-center px-2 py-0.5 rounded-none bg-emerald-50 border border-emerald-200 text-[10px] font-bold text-emerald-600">
-              ログイン済み
-            </span>
-          </p>
-          <button
-            onClick={() => run(() => unlinkHpAdmin({ siteKey }), '担当者アカウントを解除しました')}
-            disabled={busy}
-            className="px-4 py-2 rounded-none border border-slate-200 text-xs font-bold text-slate-500 hover:border-rose-200 hover:text-rose-500 disabled:opacity-50"
-          >
-            解除する
-          </button>
-        </div>
-      )}
-
-      {state === 'invited' && (
-        <div className="space-y-2">
-          <p className="text-xs text-slate-600">
-            招待中：<span className="font-bold text-slate-800">{ctx.adminEmail}</span>
-            <span className="ml-2 inline-flex items-center px-2 py-0.5 rounded-none bg-amber-50 border border-amber-200 text-[10px] font-bold text-amber-600">
-              メール確認待ち
-            </span>
-          </p>
-          <div className="flex flex-wrap gap-2">
-            <button
-              onClick={() => run(() => resendHpAdminInvite({ siteKey }), '招待メールを再送しました')}
-              disabled={busy}
-              className="px-4 py-2 rounded-none border border-slate-200 text-xs font-bold text-slate-500 hover:border-slate-300 disabled:opacity-50"
-            >
-              招待を再送する
-            </button>
-            <button
-              onClick={() => run(() => unlinkHpAdmin({ siteKey }), '招待を取り消しました')}
-              disabled={busy}
-              className="px-4 py-2 rounded-none border border-slate-200 text-xs font-bold text-slate-500 hover:border-rose-200 hover:text-rose-500 disabled:opacity-50"
-            >
-              招待を取り消す
-            </button>
-          </div>
-        </div>
-      )}
-
-      {state === 'none' && (
-        <div className="flex flex-col sm:flex-row gap-2">
-          <input
-            type="email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            placeholder="staff@example.com"
-            className="flex-1 rounded-none border border-slate-200 px-3 py-2 text-sm text-slate-700 focus:outline-none focus:border-pink-300"
-          />
-          <button
-            onClick={() => run(() => inviteHpAdmin({ siteKey, email }), '招待メールを送信しました')}
-            disabled={busy || email.trim() === ''}
-            className="px-5 py-2 rounded-none bg-pink-500 text-white text-xs font-black hover:bg-pink-600 disabled:opacity-50"
-          >
-            招待する
-          </button>
-        </div>
-      )}
     </div>
   );
 }

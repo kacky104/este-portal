@@ -1,7 +1,6 @@
 'use server';
 
 import { revalidatePath } from 'next/cache';
-import { headers } from 'next/headers';
 import { createClient } from '@/app/lib/supabase/server';
 import { createServiceClient } from '@/app/lib/supabase/service';
 import { ADMIN_UUID } from '@/app/lib/admin';
@@ -36,25 +35,27 @@ import {
 //
 // 権限は3種類:
 //   operator  … 運営（ADMIN_UUID）。何でもできる
-//   owner     … salons.owner_id 本人。編集＋HP管理者の招待ができる
-//   siteAdmin … salon_sites.admin_user_id（HP管理者アカウント）。編集のみ
+//   owner     … salons.owner_id 本人。写真・文章の編集ができる
+//
+// ★★★ 2026-09-12（第280便・カッキーさんの指示）: 「HP管理者アカウント（siteAdmin）」を
+//   【完全に閉じた】。★ 誰も発行していないうちに畳む、というカッキーさんの判断。
+//   ★ 外したもの: 役割 siteAdmin ／ 招待・再送・解除 ／ 本人化（claimHpAdmin）。
+//   ★ これで、この画面に入れるのは【運営とオーナー様だけ】。
+//   ★ salon_sites.admin_email / admin_user_id の【列は残してある】（SQLは触っていない）。
+//     ★ 読みにも書きにも行かなくなっただけ。★ 戻すときは列がそのまま使える。
 //
 // 列単位の制限は RLS では表現できないため、ここが最後の砦になる:
-//   - slug / domain / status(suspended) / design_locked / admin_* は payload に載せない
+//   - slug / domain / status(suspended) / design_locked は payload に載せない
 //   - ひな形・カラーは confirmHpDesign（design_locked=false のとき1回だけ）でしか書かない
 
 type Err = { ok: false; error: string };
 
-export type HpAdminRole = 'operator' | 'owner' | 'siteAdmin';
+export type HpAdminRole = 'operator' | 'owner';
 
 export type HpAdminContext = {
   site:       HpSite;
   salonName:  string;
   role:       HpAdminRole;
-  /** HP管理者アカウントの招待先メール（未招待なら null）。owner/operator にだけ返す */
-  adminEmail: string | null;
-  /** HP管理者が本人ログイン済みか */
-  adminLinked: boolean;
 };
 
 // ── 認証・権限 ─────────────────────────────────────────
@@ -68,8 +69,6 @@ type Resolved = {
   site:     HpSite;
   salonName: string;
   role:     HpAdminRole;
-  adminEmail:  string | null;
-  adminLinked: boolean;
 };
 
 /**
@@ -86,20 +85,18 @@ async function resolveAccess(siteKey: string): Promise<Resolved | Err> {
   const key = normalizeHpSiteKey(siteKey);
   if (!key) return { ok: false, error: 'サイトの指定が正しくありません' };
 
-  // admin_email / admin_user_id は anon/authenticated から SELECT 権限を剥がしてあるので
-  // （20260809 マイグレーション）、service_role でのみ読める。
+  // ★ service_role で読む（★ 非表示のデモ店も引けるようにするため。公開ページの data.ts と同じ理由）。
+  //   ★ admin_email / admin_user_id は【もう読まない】（第280便で担当者アカウントを閉じたため）。
   const svc = createServiceClient();
   const { data: row, error } = await svc
     .from('salon_sites')
-    .select(`${HP_SITE_COLUMNS}, admin_email, admin_user_id`)
+    .select(HP_SITE_COLUMNS)
     .eq(hpSiteKeyColumn(key), key)
     .maybeSingle();
   if (error) return { ok: false, error: `サイト情報の取得に失敗しました: ${error.message}` };
   if (!row) return { ok: false, error: 'このサイトの契約情報が見つかりません' };
 
   const site = mapHpSiteRow(row as Record<string, unknown>);
-  const adminUserId = ((row as Record<string, unknown>).admin_user_id as string | null) ?? null;
-  const adminEmail = ((row as Record<string, unknown>).admin_email as string | null) ?? null;
 
   const { data: salon } = await svc
     .from('salons')
@@ -112,7 +109,6 @@ async function resolveAccess(siteKey: string): Promise<Resolved | Err> {
   let role: HpAdminRole | null = null;
   if (user.id === ADMIN_UUID) role = 'operator';
   else if (ownerId && ownerId === user.id) role = 'owner';
-  else if (adminUserId && adminUserId === user.id) role = 'siteAdmin';
   if (!role) return { ok: false, error: 'このサイトを操作する権限がありません' };
 
   return {
@@ -121,14 +117,7 @@ async function resolveAccess(siteKey: string): Promise<Resolved | Err> {
     site,
     salonName,
     role,
-    adminEmail,
-    adminLinked: adminUserId !== null,
   };
-}
-
-/** 招待・失効はオーナー（と運営）だけ。HP管理者が自分で別アカウントを増やせないようにする。 */
-function canManageAdmins(role: HpAdminRole): boolean {
-  return role === 'operator' || role === 'owner';
 }
 
 /**
@@ -158,11 +147,9 @@ export async function getHpAdminContext(
   return {
     ok: true,
     ctx: {
-      site:        r.site,
-      salonName:   r.salonName,
-      role:        r.role,
-      adminEmail:  canManageAdmins(r.role) ? r.adminEmail : null,
-      adminLinked: r.adminLinked,
+      site:      r.site,
+      salonName: r.salonName,
+      role:      r.role,
     },
   };
 }
@@ -332,13 +319,23 @@ export async function saveHpSiteContent(
 }
 
 // ── 公開／非公開の切替 ─────────────────────────────────
-/** draft ⇔ live の切替のみ。suspended（運営による停止）は店舗側から変更できない。 */
+/** draft ⇔ live の切替のみ。suspended（運営による停止）は店舗側から変更できない。
+ *  ★★★ 第279便（2026-09-12・カッキーさんの指示）から【運営だけ】が使える口。 */
 export async function setHpSiteLive(
   siteKey: string,
   live: boolean,
 ): Promise<{ ok: true; status: HpSiteStatus } | Err> {
   const r = await resolveAccess(siteKey);
   if ('ok' in r) return r;
+  // ★★★ 公開・非公開の切替は【運営だけ】（第279便）。
+  //   ★ 店舗様の画面（/hp/{slug}/admin のホーム）からはボタンごと外したが、
+  //     画面に出さないだけでは止まらないので、ここでも弾く
+  //     （★ 二重に止める。★ 第273便のセラピスト削除と同じ作法）。
+  //   ★ 運営がふだん切り替える場所は管理者ダッシュボード（/admin → 公式HP → その店の「編集」→ 公開状態）。
+  //     ★ あちらは別の口なので、この制限では止まらない。
+  if (r.role !== 'operator') {
+    return { ok: false, error: '公開・非公開の切り替えは運営事務局で行います' };
+  }
   if (r.site.status === 'suspended') {
     return { ok: false, error: '現在このHPは運営により停止中です。運営事務局までお問い合わせください' };
   }
@@ -356,181 +353,4 @@ export async function setHpSiteLive(
 
   revalidateSite();
   return { ok: true, status: next };
-}
-
-// ── HP管理者アカウント（招待・本人化） ────────────────────
-// キャスト招待（actions/castInvite.ts）と同型。オーナー本人は自分のアカウントで入れるので、
-// ここで発行するのは「オーナー以外の担当者に渡す1アカウント」。
-
-type InviteResult = { ok: true; email?: string; warning?: string } | Err;
-
-const HP_INVITE_NEXT = '/hp/welcome';
-
-function isValidEmail(email: string): boolean {
-  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
-}
-
-// 招待メールの戻り先オリジン。招待は必ずフクエス本体（fukues.com）へ着地させる。
-// 店舗の独自ドメインを Supabase の Redirect URLs 許可リストに1件ずつ足す運用を避けるため
-// （ドメインが増えるたびに設定作業が発生してしまう）。
-async function getInviteOrigin(): Promise<string> {
-  const h = await headers();
-  const host = h.get('x-forwarded-host') ?? h.get('host') ?? '';
-  const bare = host.toLowerCase().split(':')[0];
-  const isLocal = bare === 'localhost' || bare === '127.0.0.1';
-  if (isLocal) return `http://${host}`;
-  return 'https://fukues.com';
-}
-
-async function sendHpInvite(svc: Svc, email: string): Promise<InviteResult> {
-  const origin = await getInviteOrigin();
-  const redirectTo = `${origin}/auth/callback?next=${encodeURIComponent(HP_INVITE_NEXT)}`;
-  const { error } = await svc.auth.admin.inviteUserByEmail(email, { redirectTo });
-  if (error) {
-    const m = (error.message ?? '').toLowerCase();
-    const code = (error as { code?: string }).code;
-    if (code === 'email_exists' || m.includes('already been registered') || m.includes('already registered')) {
-      return {
-        ok: true,
-        email,
-        warning:
-          'このメールアドレスは既にアカウント登録済みのため、招待メールは送信されませんでした。そのアカウントのパスワードで管理画面にログインしてもらってください。',
-      };
-    }
-    return { ok: false, error: `招待メールの送信に失敗しました: ${error.message}` };
-  }
-  return { ok: true, email };
-}
-
-/** HP管理者を招待する（1サイト1アカウント。既存の招待は上書き）。 */
-export async function inviteHpAdmin(input: { siteKey: string; email: string }): Promise<InviteResult> {
-  const r = await resolveAccess(input.siteKey);
-  if ('ok' in r) return r;
-  if (!canManageAdmins(r.role)) return { ok: false, error: '招待できるのはオーナーのみです' };
-  if (r.adminLinked) {
-    return { ok: false, error: '既にHP管理者がログイン済みです。入れ替える場合は先に「解除」してください' };
-  }
-
-  const email = input.email.trim().toLowerCase();
-  if (!isValidEmail(email)) return { ok: false, error: 'メールアドレスの形式が正しくありません' };
-
-  const svc = createServiceClient();
-
-  // 他店のHP管理者として既に使われているメールは弾く（admin_user_id の UNIQUE と整合）。
-  const { data: dup, error: dupErr } = await svc
-    .from('salon_sites')
-    .select('salon_id')
-    .eq('admin_email', email)
-    .neq('salon_id', r.site.salon_id)
-    .limit(1);
-  if (dupErr) return { ok: false, error: `重複確認に失敗しました: ${dupErr.message}` };
-  if (dup && dup.length > 0) {
-    return { ok: false, error: 'このメールアドレスは既に別店舗のHP管理者に使われています' };
-  }
-
-  const { error: upErr } = await svc
-    .from('salon_sites')
-    .update({ admin_email: email })
-    .eq('salon_id', r.site.salon_id);
-  if (upErr) return { ok: false, error: `招待先の保存に失敗しました: ${upErr.message}` };
-
-  return sendHpInvite(svc, email);
-}
-
-/** 招待を再送する。 */
-export async function resendHpAdminInvite(input: { siteKey: string }): Promise<InviteResult> {
-  const r = await resolveAccess(input.siteKey);
-  if ('ok' in r) return r;
-  if (!canManageAdmins(r.role)) return { ok: false, error: '操作できるのはオーナーのみです' };
-  if (r.adminLinked) return { ok: false, error: '既に本人ログイン済みです' };
-  const email = (r.adminEmail ?? '').trim();
-  if (!email) return { ok: false, error: '招待先メールアドレスがありません。先に招待してください' };
-
-  return sendHpInvite(createServiceClient(), email);
-}
-
-/**
- * HP管理者を解除する（招待中／ログイン済みのどちらでも使える）。
- *
- * admin_email も必ず消す：claimHpAdmin は「admin_email 一致 かつ admin_user_id=null」の行に
- * 自動で紐付けるため、メールを残すと解除したアカウントが再ログインした瞬間に復活してしまう。
- * Auth ユーザー自体は削除しない（会員・fukuX 等で同じアカウントを使っている可能性があるため）。
- */
-export async function unlinkHpAdmin(input: { siteKey: string }): Promise<InviteResult> {
-  const r = await resolveAccess(input.siteKey);
-  if ('ok' in r) return r;
-  if (!canManageAdmins(r.role)) return { ok: false, error: '操作できるのはオーナーのみです' };
-
-  const svc = createServiceClient();
-  const { error } = await svc
-    .from('salon_sites')
-    .update({ admin_user_id: null, admin_email: null })
-    .eq('salon_id', r.site.salon_id);
-  if (error) return { ok: false, error: `解除に失敗しました: ${error.message}` };
-  return { ok: true };
-}
-
-type ClaimResult =
-  | { ok: true; salonName: string; adminUrl: string }
-  | { ok: false; error: string; code?: 'no_session' | 'not_found' };
-
-/**
- * 本人化：ログイン中ユーザーのメールと admin_email が一致し かつ admin_user_id=null の
- * サイト行に、本人の user_id を紐付ける。冪等（既に本人化済みなら ok）。
- */
-export async function claimHpAdmin(): Promise<ClaimResult> {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) return { ok: false, error: 'ログインが必要です', code: 'no_session' };
-
-  const email = (user.email ?? '').trim().toLowerCase();
-  if (!email) return { ok: false, error: 'メールアドレスが取得できません' };
-
-  const svc = createServiceClient();
-
-  const describe = async (row: { salon_id: number; slug: string; domain: string | null }) => {
-    const { data: salon } = await svc.from('salons').select('name').eq('id', row.salon_id).maybeSingle();
-    const adminUrl = row.domain
-      ? `https://${normalizeHpSiteKey(row.domain)}/admin`
-      : `https://fukues.com/hp/${row.slug}/admin`;
-    return { salonName: (salon?.name as string | null) ?? '', adminUrl };
-  };
-
-  // 既に紐付いていれば冪等にOK。
-  const { data: existing } = await svc
-    .from('salon_sites')
-    .select('salon_id, slug, domain')
-    .eq('admin_user_id', user.id)
-    .maybeSingle();
-  if (existing) {
-    const d = await describe(existing as { salon_id: number; slug: string; domain: string | null });
-    return { ok: true, ...d };
-  }
-
-  const { data: match } = await svc
-    .from('salon_sites')
-    .select('salon_id, slug, domain')
-    .eq('admin_email', email)
-    .is('admin_user_id', null)
-    .maybeSingle();
-  if (!match) {
-    return {
-      ok: false,
-      code: 'not_found',
-      error:
-        'この招待に対応するホームページが見つかりません。オーナーに招待先メールアドレスをご確認ください。',
-    };
-  }
-
-  const { error: upErr } = await svc
-    .from('salon_sites')
-    .update({ admin_user_id: user.id })
-    .eq('salon_id', (match as { salon_id: number }).salon_id)
-    .is('admin_user_id', null);
-  if (upErr) return { ok: false, error: `登録に失敗しました: ${upErr.message}` };
-
-  const d = await describe(match as { salon_id: number; slug: string; domain: string | null });
-  return { ok: true, ...d };
 }

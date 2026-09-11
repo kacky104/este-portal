@@ -13,10 +13,11 @@ export type HpAdminSection =
   | 'blocks'    // 表示するブロックと並び順
   | 'banner'    // バナー
   | 'links'     // リンク（相互リンク）
-  | 'brand'     // ヘッダーのロゴ・ファビコン
-  | 'account';  // ホームページ担当者のアカウント
+  | 'brand';    // ヘッダーのロゴ・ファビコン
+// ★ 'account'（ホームページ担当者のアカウント）は第279便（2026-09-12・カッキーさんの指示）で
+//   画面ごと撤去した。★ 戻すときは、この型・NAV・TITLE・HpAdminApp の4か所を揃えて足すこと。
 
-// ★ HpEditor（写真と文章の編集）が受け持つ画面。★ ここに無いもの（home・account）は
+// ★ HpEditor（写真と文章の編集）が受け持つ画面。★ ここに無いもの（home）は
 //   HpEditor は何も描かない（★ ただし外さない＝入力中の内容を持ったまま控えている）。
 export const HP_EDITOR_SECTIONS: HpAdminSection[] = [
   'design', 'hero', 'concept', 'blocks', 'banner', 'links', 'brand',
@@ -36,7 +37,6 @@ export const HP_ADMIN_NAV: Array<{ key: HpAdminSection; label: string }> = [
   { key: 'banner',  label: 'バナー' },
   { key: 'links',   label: 'リンク' },
   { key: 'brand',   label: 'ロゴ・アイコン' },
-  { key: 'account', label: '担当者アカウント' },
 ];
 
 // ★ 画面の頭に出す名前（★ サイドバーの字より少し詳しくてよい）。
@@ -49,5 +49,4 @@ export const HP_ADMIN_TITLE: Record<HpAdminSection, string> = {
   banner:  'バナー',
   links:   'リンク',
   brand:   'ロゴ・ファビコン',
-  account: 'ホームページ担当者のアカウント',
 };

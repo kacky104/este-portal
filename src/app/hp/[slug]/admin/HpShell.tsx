@@ -128,7 +128,7 @@ export function HpShell({
         >
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src="/logo.png" alt="" className="w-7 h-7 flex-none" />
-          <b className="text-[18px] font-black text-slate-800 tracking-tight">ホームページ</b>
+          <b className="text-[18px] font-black text-slate-800 tracking-tight">フクエスサイト</b>
         </button>
 
         <div className="px-4 py-3 border-b border-slate-100">
@@ -142,7 +142,7 @@ export function HpShell({
         <nav aria-label="画面" className="flex flex-col py-2">{navList()}</nav>
 
         <p className="px-4 py-3.5 mt-2 border-t border-slate-100 text-[13.5px] text-slate-400 leading-relaxed">
-          お店の公式ホームページの写真・文章をここで変更します。
+          お店の公式ホームページ（フクエスサイト）の写真・文章をここで変更します。
         </p>
       </aside>
 
@@ -161,7 +161,7 @@ export function HpShell({
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img src="/logo.png" alt="" className="w-full h-full object-contain" />
             </span>
-            <b className="text-[16px] font-black text-white tracking-tight">ホームページ</b>
+            <b className="text-[16px] font-black text-white tracking-tight">フクエスサイト</b>
             <span className="ml-auto text-[11.5px] font-bold text-white/85 truncate max-w-[45%]">{salonName}</span>
           </button>
 
@@ -190,7 +190,12 @@ export function HpShell({
           </div>
         </header>
 
-        <main className="px-4 md:px-6 py-4 md:py-5 max-w-3xl w-full">{children}</main>
+        {/* ★★ 中身（メイン）だけ 1.2倍（★ フクエスワークの WorkShell と同じ・2026-09-12）。
+            ★ zoom を使う。★ transform: scale だと場所だけ元の大きさのままで、
+              右や下に余白・はみ出しが出る（レイアウトが付いてこない）。
+            ★ かかるのは中身だけ。★ 左サイドバー・上の帯・見出しの行は元の大きさのまま。
+            ★ 幅は max-w-3xl のまま＝見た目では 768×1.2 ≒ 920px 相当になる。 */}
+        <main className="px-4 md:px-6 py-4 md:py-5 max-w-3xl w-full" style={{ zoom: 1.2 }}>{children}</main>
       </div>
 
       {/* ── スマホの左ドロワー ───────────────────────────── */}
@@ -210,7 +215,7 @@ export function HpShell({
               <div className="flex items-center gap-2.5 min-w-0">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img src="/logo.png" alt="" className="w-7 h-7 flex-none" />
-                <b className="text-[16px] font-black text-slate-800 tracking-tight truncate">ホームページ</b>
+                <b className="text-[16px] font-black text-slate-800 tracking-tight truncate">フクエスサイト</b>
               </div>
               <button
                 type="button"
