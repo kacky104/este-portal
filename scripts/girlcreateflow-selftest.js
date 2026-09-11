@@ -144,7 +144,8 @@ const ctxV = Object.assign({}, ctxF, { createStage: 'verify' });
 // ── ④ 照合 ────────────────────────────────────────────────
 {
   const r = go('read_girls', 200, {}, girlsPage(...OTHERS, cell('5809639', 'さくら')), ctxV);
-  eq('★★★ 登録④: 増えた1人を見つけて「できました」', [r.kind, r.audits[0].event, r.audits[0].outcome], ['done', 'create_girl', 'ok']);
+  // ★ 第271便: 登録のあとは名簿を読み直す段へ続く（done ではなく next）。★ 「できました」はこの時点で記録
+  eq('★★★ 登録④: 増えた1人を見つけて「できました」', [r.kind, r.audits[0].event, r.audits[0].outcome], ['next', 'create_girl', 'ok']);
   eq('★★★ 登録④: 回収した castId を返す（★ 表に書くのは呼び出し側）',
      r.mediaCreated, { therapistId: 602, castId: '5809639', name: 'さくら' });
 }
@@ -154,7 +155,7 @@ const ctxV = Object.assign({}, ctxF, { createStage: 'verify' });
 }
 {
   const r = go('read_girls', 200, {}, girlsPage(...OTHERS, cell('5809639', 'さくら'), cell('5809640', 'ゆい')), ctxV);
-  eq('★★ 登録④: 2人増えても名前で絞れれば通す', [r.kind, r.mediaCreated.castId], ['done', '5809639']);
+  eq('★★ 登録④: 2人増えても名前で絞れれば通す', [r.kind, r.mediaCreated.castId], ['next', '5809639']);
 }
 {
   const r = go('read_girls', 200, {}, girlsPage(...OTHERS, cell('5809639', 'あや'), cell('5809640', 'ゆい')), ctxV);
@@ -402,13 +403,14 @@ console.log('\n── 第249便: 登録 → 枠1へ写真（withPhoto）──')
 {
   // ★★★ 写真の材料が無ければ、今までどおり done（★ withPhoto を書かなければ何も変わらない）
   const r = go('read_girls', 200, {}, girlsPage(...OTHERS, cell('5809639', 'さくら')), ctxV);
-  eq('★★★★ 写真の材料が無ければ、今までどおり done', [r.kind, r.next === undefined], ['done', true]);
+  // ★ 第271便: 写真へは進まないが、名簿の読み直し（read_girls）へは進む
+  eq('★★★★ 写真の材料が無ければ写真へ進まない（★ 名簿の読み直しへ）', [r.kind, r.next.purpose, r.next.context.photoGirlId], ['next', 'read_girls', undefined]);
 }
 {
   // ★★ 写真はあるが top の合図が無い → 送らない（★ 枠1は合図があるときだけ）
   const noTop = Object.assign({}, ctxV, { photoFile: { bucket: 'b', path: 'p', filename: 'f.jpg', contentType: 'image/jpeg', width: 600, height: 800 } });
   const r = go('read_girls', 200, {}, girlsPage(...OTHERS, cell('5809639', 'さくら')), noTop);
-  eq('★★★★★ top の合図が無ければ写真へ進まない', r.kind, 'done');
+  eq('★★★★★ top の合図が無ければ写真へ進まない（★ 名簿の読み直しへ）', [r.kind, r.next.purpose], ['next', 'read_girls']);
 }
 {
   // ★★★★★★ 登録に失敗したら、写真へは進まない（★ 誰の枠か分からないまま送らない）
@@ -437,7 +439,7 @@ console.log('\n── 第250便: 写真を飛ばした理由（photoSkip）─�
 {
   const sctxV = Object.assign({}, ctxV, { createPhotoSkip: 'この子のプロフィール写真が therapist-photos に無い（path を指定する）' });
   const r = go('read_girls', 200, {}, girlsPage(...OTHERS, cell('5809639', 'さくら')), sctxV);
-  eq('★★★ 写真を飛ばしても登録は成功のまま', [r.kind, r.audits[0].outcome], ['done', 'ok']);
+  eq('★★★ 写真を飛ばしても登録は成功のまま', [r.kind, r.audits[0].outcome], ['next', 'ok']);
   eq('★★★★★ 飛ばした理由が記録に残る', r.audits[0].detail.photoSkip,
      'この子のプロフィール写真が therapist-photos に無い（path を指定する）');
   eq('★★ 結びつけは今までどおり返す', r.mediaCreated.castId, '5809639');
@@ -477,6 +479,50 @@ console.log('\n── 第250便: 写真を飛ばした理由（photoSkip）─�
   eq('★★★ 複数枚の印も運ばれる（★ 埋まった枠を飛ばせるように）', r.kind === 'next' && r.next.context.photoMulti, true);
   eq('★★ 始まりは枠1（トップ画像）', r.kind === 'next' && r.next.context.photoSlot, 1);
   eq('★★ 結びつけは今までどおり返す（★ 写真の段で止まっても二重登録を作らない）', r.mediaCreated.castId, '5809639');
+}
+
+// ── ★★★★★ 第271便: 登録のあと、名簿を読み直す ─────────────────────────
+//   ★★★ 見張りたいのは5つ:
+//     a. 写真なし: 登録の照合 → read_girls へ。★ 印 createRosterRefresh が付く。★ mediaCreated はその場で
+//     b. 名簿の段: 印が付いていれば kind 'roster'（写しは呼び出し側が保存）・記録は1行・「ログイン」を書かない
+//     c. 印が無ければ（ふつうの roster_read）今までどおり2行（login / read_girls）
+//     d. 「同じ名前がもう居た」の done（1回目）は読み直しへ**行かない**（★ 登録していない）
+//     e. 止まった（stop）ものには読み直しを重ねない
+console.log('\n── 第271便: 登録のあと、名簿を読み直す ──');
+{
+  const r = go('read_girls', 200, {}, girlsPage(...OTHERS, cell('5809639', 'さくら')), ctxV);
+  eq('★★★ 読み直しa: 登録の照合の次は名簿の GET', [r.kind, r.next.purpose, r.next.method, r.next.url], ['next', 'read_girls', 'GET', 'https://ranking-deli.jp/admin/girls/']);
+  eq('★★★ 読み直しa: 印が付く', r.next.context.createRosterRefresh, true);
+  eq('★★★★★ 読み直しa: まだ続くのに castId の結びつけを返す', r.mediaCreated, { therapistId: 602, castId: '5809639', name: 'さくら' });
+  eq('★★ 読み直しa: intent は girl_create のまま', r.next.context.intent, 'girl_create');
+  // b
+  const r2 = go('read_girls', 200, {}, girlsPage(...OTHERS, cell('5809639', 'さくら')), r.next.context);
+  eq('★★★ 読み直しb: 名簿の段は kind roster（★ 写しは呼び出し側が保存）', [r2.kind, r2.page ? r2.page.rows.length > 0 : null], ['roster', true]);
+  eq('★★★ 読み直しb: 記録は1行・「ログイン」を書かない', [r2.audits.length, r2.audits[0].event, r2.audits[0].detail.afterCreate], [1, 'read_girls', true]);
+  eq('★★ 読み直しb: 文言は「登録のあと、読み直した」', r2.audits[0].summary.includes('登録のあと'), true);
+  eq('★★★ 読み直しb: 読み直しのあとは終わり（★ もう一度読み直さない）', r2.next, undefined);
+}
+{
+  // c
+  const r = go('read_girls', 200, {}, girlsPage(...OTHERS), Object.assign({}, ctx, { intent: 'roster_read', cookie: 'sid=abc' }));
+  eq('★★ 読み直しc: 印が無ければ今までどおり2行（login / read_girls）', [r.kind, r.audits.map((a) => a.event)], ['roster', ['login', 'read_girls']]);
+}
+{
+  // d
+  const r = go('read_girls', 200, {}, girlsPage(...OTHERS, cell('9999999', 'さくら')), ctx);
+  eq('★★★ 読み直しd: 「同じ名前がもう居た」は読み直しへ行かない', [r.kind, r.audits[0].detail.reason, r.next], ['done', 'already_listed', undefined]);
+}
+{
+  // e
+  const r = go('read_girls', 200, {}, girlsPage(...OTHERS), ctxV);
+  eq('★★ 読み直しe: 止まったものに読み直しを重ねない', [r.kind, r.next], ['stop', undefined]);
+}
+{
+  // ★ 写真あり: 写真の照合が通った done も、出口で読み直しへ（★ 出口で1回だけ挟む・終わり方が4つあるため）
+  //   ★ photoflow の照合の作り物を借りずに、出口の条件だけを見る: createStage=verify・girl_create・done なら next
+  const pctx = Object.assign({}, ctxV, { createRosterRefresh: true });
+  const r = go('read_girls', 200, {}, girlsPage(...OTHERS, cell('5809639', 'さくら')), pctx);
+  eq('★★ 読み直し: 印が付いていれば二重に読み直さない', [r.kind, r.next], ['roster', undefined]);
 }
 
 console.log(fail === 0 ? '\nすべて通りました' : '\n' + fail + ' 件 NG');

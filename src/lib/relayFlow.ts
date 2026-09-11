@@ -1177,7 +1177,49 @@ export function advanceFlow(input: {
   context: RelayFlowContext;
 }): FlowOutcome {
   const ctx = input.context;
+  const out = advanceFlowStep(input, ctx);
 
+  // ★★★★★ 【第271便】駅ちかの登録の流れ（girl_create）が **通って終わる**ときは、そのまま名簿を読み直す。
+  //   ★ なぜ … 登録の流れは「名簿を読む → 作る → 写真」の順。★ 画面（セラピスト一覧）が見ている写しは**作る前**のまま。
+  //     ★ 店舗様が開き直すと「いません」に見える（2026-09-11 16:15・エステ魂で実際に見えた。★ 駅ちかも同じ形）。
+  //   ★ ここ（出口）で1回だけ挟む理由 … 写真なし／写真1枚／複数枚／埋まった枠を飛ばして終わり、と**終わり方が4つ**ある。
+  //     ★ それぞれの return に足すと1つ漏れる。★ 出口で「通って終わった girl_create」だけを拾えば漏れない。
+  //   ★★ 条件:
+  //     ・kind が 'done'（★ stop は止まったまま。★ 止まったものに GET を重ねない）
+  //     ・createStage が 'verify'（★ 登録の照合を通ったあと。★ 「同じ名前がもう居た」の done は 1回目なので拾わない）
+  //     ・まだ読み直していない（createRosterRefresh が無い）
+  //   ★ `mediaCreated` はそのまま持ち上げる（★ 番号は先に表に書く・第249便 §2）。
+  //   ★ エステ魂（cast_create）は第270便で各 return に書いてある（★ 終わり方が2つだけ）。★ ここでは触らない。
+  if (
+    out.kind === 'done'
+    && ctx.intent === 'girl_create'
+    && ctx.createStage === 'verify'
+    && ctx.createRosterRefresh !== true
+  ) {
+    const cookie = ctx.cookie ?? '';
+    return {
+      kind: 'next',
+      audits: out.audits,
+      note: out.note + '。★ 続けて名簿を読み直します',
+      next: {
+        purpose: 'read_girls',
+        method: 'GET',
+        url: EKICHIKA_GIRLS_URL,
+        headers: buildReadWorkRequest(cookie),
+        body: '',
+        context: { ...ctx, cookie, createRosterRefresh: true },
+      },
+      ...(out.mediaCreated ? { mediaCreated: out.mediaCreated } : {}),
+    };
+  }
+  return out;
+}
+
+/** ★ 段ごとの本体（★ 第271便で advanceFlow から切り出した。★ 中身は同じ・switch のまま） */
+function advanceFlowStep(
+  input: { purpose: string; status: number; headers: Record<string, string | string[]>; body: string; context: RelayFlowContext },
+  ctx: RelayFlowContext,
+): FlowOutcome {
   if (ctx.v !== RELAY_FLOW_VERSION) {
     // ★ 版が違う＝こちらが知らない形。黙って進めない
     return stop([], 'フロー文脈の版が違うので進めない（' + ctx.v + ' / いまは ' + RELAY_FLOW_VERSION + '）');
@@ -2328,6 +2370,20 @@ function afterReadGirls(
   const page = parseEkichikaGirls(input.body);
 
   if (girlsPageUsable(page)) {
+    // ★★★★ 【第271便】登録のあとの読み直し（createRosterRefresh）。★ 記録は1行だけ（★ ログインはもう済んでいる）。
+    //   ★ kind は今までどおり 'roster' … 写しの保存は呼び出し側（saveRoster・第50便）がそのまま行う。
+    if (ctx.createRosterRefresh === true) {
+      return {
+        kind: 'roster',
+        page,
+        audits: [{
+          event: 'read_girls', outcome: 'ok',
+          summary: '登録のあと、駅ちかの名簿を読み直しました（' + page.rows.length + '人）',
+          detail: { people: page.rows.length, afterCreate: true, flowId },
+        }],
+        note: '登録のあと名簿を読み直した（' + page.rows.length + '名）。★ 駅ちかへは何も書いていない',
+      };
+    }
     // ★★★ 削除の流れ（第228便）は、ここで終わらずに次の段へ進む。
     //   ★ 既存の roster_read の枝には一切触っていない（下の return がそのまま残る）。
     if (ctx.intent === 'girl_delete') return girlDeleteAfterGirls(page, ctx);

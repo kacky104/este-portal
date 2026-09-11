@@ -292,6 +292,17 @@ const vctx = (o) => ctx(Object.assign({ photoStage: 'verify', photoSrc: 'https:/
   eq('★ done では次を積まない', r.next, undefined);
 }
 {
+  // ★★★ 第271便: 登録の流れ（girl_create・照合済み）から来た写真は、照合が通ったら**名簿の読み直し**へ続く
+  //   ★ 運営の口（photo_push）は上のとおり done のまま
+  const r = f.advanceFlow({ purpose: 'read_photo_page', status: 200, headers: {}, body: editPage({ occupied: [1,2,3,4,8] }),
+    context: vctx({ intent: 'girl_create', createStage: 'verify' }) });
+  eq('★★★ 登録の流れなら、写真の照合のあと名簿の読み直しへ', [r.kind, r.next && r.next.purpose, r.next && r.next.context.createRosterRefresh], ['next', 'read_girls', true]);
+  eq('★★★ 「できました」はこの時点で記録', [r.audits[0].event, r.audits[0].outcome], ['push_photo', 'ok']);
+  const ng = f.advanceFlow({ purpose: 'read_photo_page', status: 200, headers: {}, body: editPage({ occupied: [1,2,3,4,5] }),
+    context: vctx({ intent: 'girl_create', createStage: 'verify' }) });
+  eq('★★ 登録の流れでも、照合で外れたら止まる（読み直しを重ねない）', [ng.kind, ng.next], ['stop', undefined]);
+}
+{
   const r = f.advanceFlow({ purpose: 'read_photo_page', status: 200, headers: {}, body: editPage({ occupied: [1,2,3,4,5] }), context: vctx() });
   eq('★★★★★★ 枠8を指名したのに枠5に入っていたら止める', [r.kind, r.audits[0].outcome, r.audits[0].detail.reason], ['stop', 'failed', 'slot_mismatch']);
   eq('★★ どの枠に入ったかを記録に残す（gotSlot）', r.audits[0].detail.gotSlot, 5);
