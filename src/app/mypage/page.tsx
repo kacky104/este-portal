@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { isNewFaceActive } from '@/lib/newFace';
 import { matchesSearch } from '@/lib/searchNormalize';
-import { sortTherapistsForList } from '@/lib/therapistOrder';
+import { sortTherapistsForList, sortTherapistsByKana } from '@/lib/therapistOrder';
 import { CouponCard } from '@/app/components/CouponCard';
 import { toKana, isRomaji } from 'wanakana';
 import { useRouter } from 'next/navigation';
@@ -1034,11 +1034,12 @@ export default function MyPage() {
   );
   const hasProfilePhoto = useCallback((t: Therapist) => Boolean(t.profile_image_url), []);
 
-  // ★★ 出勤ページの並び順（2026-09-06・カッキーさんの指示）。
-  //   ★ 上から: 今日の出勤あり → 出勤なし。★ その中で、写真なしを下に落とす。
+  // ★★ 出勤ページの並び順（2026-09-11・カッキーさんの指示で【作り直し】）。
+  //   ★ 上から: 公開の方を【あいうえお順】 → そのあとに非公開の方（★ 中もあいうえお順）。
+  //   ★ 前（第185便まで）の「出勤あり→なし・写真なしを下」はやめた。
+  //     ★ 出勤を入れるたびに順番が上へ飛んで、入力しづらかったため。
   //   ★ DBは order を付けていない（＝保存順のまま）ので、並びは画面側で決める。
-  //   ★ 同じ点数どうしは元の順のまま（JSの sort は安定）。
-  //   ★★ この並びは出勤ページだけ。★ セラピスト・今すぐの一覧は今までどおり。
+  //   ★★ この並びは出勤ページとセラピストページ（profileTherapists）。★ 写メ日記は今までどおり。
   const scheduleTherapists = useMemo(() => {
     // ★ 名前で絞る。★ TOPの検索バーと同じ規則（src/lib/searchNormalize.ts）で潰してから比べる:
     //   ★ ひらがな⇄カタカナ／半角カナ／濁点・長音・中黒・空白の有無 を無視する。
@@ -1047,8 +1048,9 @@ export default function MyPage() {
     const raw = scheduleQuery.trim();
     const q = raw && isRomaji(raw) ? toKana(raw) : raw;
     const list = q ? therapists.filter((t) => matchesSearch(t.name, q)) : therapists;
-    return sortTherapistsForList(list, isWorkingToday, hasProfilePhoto);
-  }, [therapists, scheduleQuery, isWorkingToday, hasProfilePhoto]);
+    // ★ 非公開は is_active === false だけ（★ null は列を足す前の古い行＝公開あつかい・第216便と同じ）。
+    return sortTherapistsByKana(list, (t) => t.name, (t) => t.is_active === false);
+  }, [therapists, scheduleQuery]);
 
   // ★ 写メ日記の投稿でセラピストを選ぶ並び（2026-09-06・カッキーさんの指示）。
   //   ★ 出勤ページ・セラピストページと同じ規則（src/lib/therapistOrder.ts）。★ 左上から順に並ぶ。
@@ -1059,15 +1061,15 @@ export default function MyPage() {
     return sortTherapistsForList(list, isWorkingToday, hasProfilePhoto);
   }, [therapists, diaryQuery, isWorkingToday, hasProfilePhoto]);
 
-  // ★ セラピストページの一覧。★ 並びは出勤ページとまったく同じ規則（2026-09-06・カッキーさんの指示）:
-  //   ★ 上から: 今日の出勤あり → 出勤なし。★ その中で、写真なしを下に落とす。
-  //   ★ 点数の付け方は scheduleTherapists と同じ。★ 直すときは2か所いっしょに直すこと。
+  // ★ セラピストページの一覧。★ 並びは出勤ページと【まったく同じ】（2026-09-11・カッキーさんの指示）:
+  //   ★ 公開の方を【あいうえお順】 → そのあとに非公開の方（★ 中もあいうえお順）。
+  //   ★ 決め方は scheduleTherapists と同じ1つの関数（sortTherapistsByKana）。★ 直すときは2か所いっしょに。
   const profileTherapists = useMemo(() => {
     const raw = profileQuery.trim();
     const q = raw && isRomaji(raw) ? toKana(raw) : raw;
     const list = q ? therapists.filter((t) => matchesSearch(t.name, q)) : therapists;
-    return sortTherapistsForList(list, isWorkingToday, hasProfilePhoto);
-  }, [therapists, profileQuery, isWorkingToday, hasProfilePhoto]);
+    return sortTherapistsByKana(list, (t) => t.name, (t) => t.is_active === false);
+  }, [therapists, profileQuery]);
 
   // 本日出勤中のセラピスト（営業日基準・深夜跨ぎ対応）。
   // 「今すぐ」は出勤中のセラピストにしか付けられないため、表示・保存の両方で参照する。
@@ -4128,13 +4130,30 @@ export default function MyPage() {
           {therapists.length > 0 && (
             <div className="bg-white rounded-none border border-slate-100 shadow-sm p-3">
               <div className="flex items-center gap-2">
-                <input
-                  type="search"
-                  value={scheduleQuery}
-                  onChange={(e) => setScheduleQuery(e.target.value)}
-                  placeholder="セラピスト名で探す"
-                  className="flex-1 px-3 py-2 rounded-none border border-slate-200 text-sm bg-slate-50/50 placeholder:text-slate-300 focus:outline-none focus:ring-2 focus:ring-pink-200"
-                />
+                {/* ★ 虫めがねは入力バーの【左の中】に重ねる（2026-09-11・カッキーさんの指示）。
+                    ★ スマホ・PCとも同じ出し方（★ 隠す指定を入れない）。
+                    ★ pointer-events-none: 絵の上を押しても、ちゃんと入力にカーソルが入る。
+                    ★ 入力の左余白（pl-9）は絵のぶん。★ 3つの検索バー（出勤・セラピスト・写メ日記）で同じ形。 */}
+                <div className="relative flex-1 min-w-0">
+                  <svg
+                    aria-hidden="true"
+                    viewBox="0 0 20 20"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-300"
+                  >
+                    <circle cx="9" cy="9" r="5.5" />
+                    <path d="M13.5 13.5 L18 18" strokeLinecap="round" />
+                  </svg>
+                  <input
+                    type="search"
+                    value={scheduleQuery}
+                    onChange={(e) => setScheduleQuery(e.target.value)}
+                    placeholder="セラピスト名で探す"
+                    className="w-full pl-9 pr-3 py-2 rounded-none border border-slate-200 text-sm bg-slate-50/50 placeholder:text-slate-300 focus:outline-none focus:ring-2 focus:ring-pink-200"
+                  />
+                </div>
                 {scheduleQuery && (
                   <button
                     type="button"
@@ -4329,6 +4348,12 @@ export default function MyPage() {
                       （2026-09-06 第185便・カッキーさんの指示）。
                       ★ 一覧の下まで戻らせない、という第183便の狙いはそのまま守られる。 */}
                   {renderAvailableActions()}
+                  {/* ★★ カードの形は【写メ日記の投稿と同じ】（2026-09-11・カッキーさんの指示）。
+                      ★ 正方形の写真＋下は2行だけ（1行目＝チェック＋名前／2行目＝出勤時間＋残り時間）。
+                      ★ 今すぐ中は「枠が赤」＋写真の【左上】に今すぐバッジ。
+                      ★ 駅ちかの即ヒメ連動中は写真の【右上】に青バッジ。
+                      ★ 本人が受付中は写真の【左下】（押せない枠なので、色より位置で分ける）。 */}
+                  <div className="grid grid-cols-3 sm:grid-cols-4 gap-3">
                   {onDutyTherapists.map(t => {
                     const sid = String(t.id);
                     const isChecked = availableNow[sid] ?? false;
@@ -4342,54 +4367,77 @@ export default function MyPage() {
                     const remainingMin = t.available_until
                       ? Math.floor((new Date(t.available_until).getTime() - now.getTime()) / 60000)
                       : 0;
+                    // ★ 押せない枠（本人が受付中／3名に達していて未チェック）。★ 判定は今までと同じ。
+                    const cardDisabled = castLive || (!isChecked && atLimit);
+                    const todaySch = schedules[sid]?.[todayStr];
                     return (
-                      <label key={sid} className={`flex items-center gap-3 p-3 rounded-none border bg-slate-50/50 transition-colors ${
-                        castLive || (!isChecked && atLimit) ? 'border-slate-100 opacity-50 cursor-not-allowed' : 'border-slate-100 cursor-pointer hover:border-pink-200'
+                      <label key={sid} className={`block rounded-none border-2 overflow-hidden bg-white transition-colors ${
+                        cardDisabled
+                          ? 'border-slate-200 opacity-50 cursor-not-allowed'
+                          : isChecked
+                            ? 'border-rose-500 ring-2 ring-rose-200 cursor-pointer'
+                            : 'border-slate-200 hover:border-pink-300 cursor-pointer'
                       }`}>
-                        <input
-                          type="checkbox"
-                          className="w-4 h-4 accent-pink-500 flex-shrink-0"
-                          checked={isChecked}
-                          disabled={castLive || (!isChecked && atLimit)}
-                          onChange={e => setAvailableNow(prev => ({ ...prev, [sid]: e.target.checked }))}
-                        />
-                        {t.profile_image_url ? (
-                          // eslint-disable-next-line @next/next/no-img-element
-                          <img src={t.profile_image_url} alt="" className="w-9 h-9 rounded-xl object-cover border border-pink-100 flex-shrink-0" />
-                        ) : (
-                          <div className="w-9 h-9 rounded-xl bg-pink-100 flex items-center justify-center text-pink-400 text-xs font-bold flex-shrink-0">
-                            {(t.name ?? '?').charAt(0)}
-                          </div>
-                        )}
-                        <div className="flex-1 min-w-0">
-                          <p className="text-sm font-bold text-slate-700 truncate">{t.name ?? '(名前未設定)'}</p>
-                          {schedules[sid]?.[todayStr]?.start_time && (
-                            <p className="text-[11px] text-slate-400">
-                              {schedules[sid][todayStr].start_time?.slice(0, 5)}〜{schedules[sid][todayStr].end_time?.slice(0, 5)}
-                            </p>
+                        {/* ── 写真（正方形・写メ日記と同じ） ── */}
+                        <div className="relative aspect-square bg-slate-100">
+                          {t.profile_image_url ? (
+                            // eslint-disable-next-line @next/next/no-img-element
+                            <img src={t.profile_image_url} alt={t.name ?? ''} className="w-full h-full object-cover" />
+                          ) : (
+                            <div className="w-full h-full flex items-center justify-center text-slate-300 text-xl font-bold">
+                              {(t.name ?? '?').charAt(0)}
+                            </div>
                           )}
-                          {isChecked && remainingMin > 0 && (
-                            <p className="text-[11px] text-pink-500 font-bold">残り{remainingMin}分</p>
+                          {isChecked && (
+                            <span
+                              className="absolute top-1 left-1 rounded-full px-2 py-0.5 text-[10px] font-bold text-white shadow-sm"
+                              style={{ background: 'linear-gradient(to right, #ec4899, #f97316)' }}
+                            >
+                              今すぐ
+                            </span>
+                          )}
+                          {importLive && (
+                            <span className="absolute top-1 right-1 rounded-full px-2 py-0.5 text-[10px] font-bold text-white bg-sky-500 shadow-sm whitespace-nowrap">
+                              駅ちか連動中
+                            </span>
+                          )}
+                          {castLive && (
+                            <span className="absolute bottom-1 left-1 rounded-full px-2 py-0.5 text-[10px] font-bold text-white bg-pink-600/90 shadow-sm whitespace-nowrap">
+                              本人が受付中
+                            </span>
                           )}
                         </div>
-                        {isChecked && (
-                          <span style={{ background: 'linear-gradient(to right, #ec4899, #f97316)', color: 'white', fontSize: '11px', fontWeight: 700, padding: '2px 8px', borderRadius: '20px', flexShrink: 0 }}>
-                            今すぐ
-                          </span>
-                        )}
-                        {castLive && (
-                          <span className="text-[11px] font-bold text-pink-600 bg-pink-50 border border-pink-200 rounded-none px-2 py-0.5 flex-shrink-0 whitespace-nowrap">
-                            本人が受付中
-                          </span>
-                        )}
-                        {importLive && (
-                          <span className="text-[11px] font-bold text-sky-700 bg-sky-50 border border-sky-200 rounded-none px-2 py-0.5 flex-shrink-0 whitespace-nowrap">
-                            駅ちか連動中
-                          </span>
-                        )}
+                        {/* ── 下は2行だけ ── */}
+                        <div className="px-1.5 py-1.5">
+                          {/* 1行目: チェック＋名前 */}
+                          <div className="flex items-center gap-1.5 min-w-0">
+                            <input
+                              type="checkbox"
+                              className="w-4 h-4 accent-pink-500 flex-shrink-0"
+                              checked={isChecked}
+                              disabled={cardDisabled}
+                              onChange={e => setAvailableNow(prev => ({ ...prev, [sid]: e.target.checked }))}
+                            />
+                            <span className={`text-[11px] font-bold truncate ${isChecked ? 'text-rose-600' : 'text-slate-700'}`}>
+                              {t.name ?? '(名前未設定)'}
+                            </span>
+                          </div>
+                          {/* 2行目: 出勤時間＋残り時間（★ 無い側は空けておく・行数は動かさない） */}
+                          <div className="flex items-center justify-between gap-1 mt-0.5 h-[14px]">
+                            <span className="text-[10px] text-slate-400 truncate leading-none">
+                              {todaySch?.start_time
+                                ? `${todaySch.start_time.slice(0, 5)}〜${todaySch.end_time?.slice(0, 5) ?? ''}`
+                                : ''}
+                            </span>
+                            {isChecked && remainingMin > 0 && (
+                              <span className="text-[10px] font-bold text-pink-500 flex-shrink-0 leading-none">残り{remainingMin}分</span>
+                            )}
+                          </div>
+                        </div>
                       </label>
                     );
                   })}
+                  </div>
                 </div>
               );
             })()}
@@ -4403,13 +4451,27 @@ export default function MyPage() {
           {therapists.length > 0 && (
             <div className="bg-white rounded-none border border-slate-100 shadow-sm p-3">
               <div className="flex items-center gap-2">
-                <input
-                  type="search"
-                  value={profileQuery}
-                  onChange={(e) => setProfileQuery(e.target.value)}
-                  placeholder="セラピスト名で探す"
-                  className="flex-1 px-3 py-2 rounded-none border border-slate-200 text-sm bg-slate-50/50 placeholder:text-slate-300 focus:outline-none focus:ring-2 focus:ring-pink-200"
-                />
+                {/* ★ 虫めがね（出勤ページと同じ形・スマホも同じ）。 */}
+                <div className="relative flex-1 min-w-0">
+                  <svg
+                    aria-hidden="true"
+                    viewBox="0 0 20 20"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-300"
+                  >
+                    <circle cx="9" cy="9" r="5.5" />
+                    <path d="M13.5 13.5 L18 18" strokeLinecap="round" />
+                  </svg>
+                  <input
+                    type="search"
+                    value={profileQuery}
+                    onChange={(e) => setProfileQuery(e.target.value)}
+                    placeholder="セラピスト名で探す"
+                    className="w-full pl-9 pr-3 py-2 rounded-none border border-slate-200 text-sm bg-slate-50/50 placeholder:text-slate-300 focus:outline-none focus:ring-2 focus:ring-pink-200"
+                  />
+                </div>
                 {profileQuery && (
                   <button
                     type="button"
@@ -4430,9 +4492,15 @@ export default function MyPage() {
 
           {/* 新規セラピスト追加フォーム */}
           <div className="bg-white rounded-none border border-pink-100 shadow-sm p-5 space-y-3">
-            <h3 className="text-xs font-black text-pink-600">新規セラピスト追加</h3>
+            {/* ★ 「名前」は見出しの【右隣】に置く（2026-09-11・カッキーさんの指示）。
+                ★ 入力バーはその下のまま。★ 1行ぶん詰まる。 */}
+            <div className="flex items-baseline gap-2 min-w-0">
+              <h3 className="text-xs font-black text-pink-600 whitespace-nowrap">新規セラピスト追加</h3>
+              <span className="text-[11px] font-bold text-slate-400 whitespace-nowrap">
+                名前 <span className="text-rose-400">*</span>
+              </span>
+            </div>
             <div>
-              <label className={labelClass}>名前 <span className="text-rose-400">*</span></label>
               <input
                 className={inputClass}
                 placeholder="例: 桜木 あいな"
@@ -4440,32 +4508,44 @@ export default function MyPage() {
                 onChange={(e) => { setNewTherapistName(e.target.value); setAddError(''); }}
               />
             </div>
-            <label className="flex items-center gap-2 cursor-pointer select-none">
-              <input
-                type="checkbox"
-                className="w-4 h-4 accent-green-500 flex-shrink-0"
-                checked={newTherapistIsNew}
-                onChange={(e) => setNewTherapistIsNew(e.target.checked)}
-              />
-              <span className="text-xs font-bold text-slate-600">新人マークを付ける</span>
-              <span style={{ background: '#22c55e', color: 'white', fontSize: '11px', fontWeight: 700, padding: '2px 8px', borderRadius: '20px' }}>NEW</span>
-              {/* ★ 日数は lib/newFace.ts の NEW_FACE_WINDOW_DAYS（60日）と対の文言。片方だけ直さないこと。 */}
-              <span className="text-[10px] text-slate-400">（60日間表示）</span>
-            </label>
-            {addError && (
-              <p className="text-xs text-rose-500 bg-rose-50 border border-rose-100 rounded-none px-3 py-2 leading-relaxed">
-                {addError}
-              </p>
-            )}
-            <div className="flex justify-end">
+            {/* ★★ 「+ セラピストを追加」は【新人マークの行の右端】（2026-09-11・カッキーさんの指示）。
+                ★★ ボタンは label の【外】に置くこと。★ 中に入れると、押したときに新人マークの
+                  チェックまで一緒に切り替わってしまう。 */}
+            <div className="flex items-center justify-between gap-2">
+              {/* ★★ 2行にするのは【スマホだけ】（2026-09-11・カッキーさんの指示）:
+                    1行目＝チェック＋「新人マークを付ける」／2行目＝NEWバッジ＋（60日間表示）。
+                  ★ PC（sm:以上）は今までどおり【1行】に戻す。
+                  ★ 2行目はチェックのぶん（pl-6）ずらして、文字の頭を1行目に揃えている（★ PCでは無し）。 */}
+              <label className="flex flex-col gap-1 sm:flex-row sm:items-center sm:gap-2 cursor-pointer select-none min-w-0">
+                <span className="flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    className="w-4 h-4 accent-green-500 flex-shrink-0"
+                    checked={newTherapistIsNew}
+                    onChange={(e) => setNewTherapistIsNew(e.target.checked)}
+                  />
+                  <span className="text-xs font-bold text-slate-600 whitespace-nowrap">新人マークを付ける</span>
+                </span>
+                <span className="flex items-center gap-2 pl-6 sm:pl-0">
+                  <span style={{ background: '#22c55e', color: 'white', fontSize: '11px', fontWeight: 700, padding: '2px 8px', borderRadius: '20px' }}>NEW</span>
+                  {/* ★ 日数は lib/newFace.ts の NEW_FACE_WINDOW_DAYS（60日）と対の文言。片方だけ直さないこと。 */}
+                  <span className="text-[10px] text-slate-400 whitespace-nowrap">（60日間表示）</span>
+                </span>
+              </label>
               <button
-                className={saveBtn}
+                className={`${saveBtn} flex-shrink-0 whitespace-nowrap`}
                 onClick={handleTherapistAdd}
                 disabled={addingTherapist || !newTherapistName.trim()}
               >
                 {addingTherapist ? '追加中...' : '+ セラピストを追加'}
               </button>
             </div>
+            {addError && (
+              <p className="text-xs text-rose-500 bg-rose-50 border border-rose-100 rounded-none px-3 py-2 leading-relaxed">
+                {addError}
+              </p>
+            )}
+            {/* ★ 追加ボタンは新人マークの行の右端へ移した（2026-09-11）。★ ここには置かない。 */}
           </div>
 
           {therapists.length === 0 && (
@@ -4474,6 +4554,13 @@ export default function MyPage() {
             </div>
           )}
 
+          {/* ★★ PCだけ【2列】（2026-09-11・カッキーさんの指示）。
+              ★ xl（1280px）以上で2列。★ それ未満（ノートの小さい画面・タブレット・スマホ）は今までどおり1列。
+                ★ サイドバーが約360px あるので、1280px を切ると1枚が狭くなりすぎる。
+              ★ メールの入力バーは w-full / flex-1 なので、列が狭くなれば自然に短くなる（★ 別の指定は足さない）。
+              ★★ items-stretch: 横に並んだカードは【同じ高さ】に揃える（2026-09-11・カッキーさんの指示）。
+                ★ 招待の段は人によって中身が違うが、低いほうが伸びて隣に揃う。 */}
+          <div className="grid grid-cols-1 xl:grid-cols-2 gap-3 items-stretch">
           {profileTherapists.map((t) => (
             <div key={t.id} className="relative bg-white rounded-none border border-pink-100 shadow-sm overflow-hidden flex items-stretch">
               {/* ★ 新人マークは【カードの左上】にぴったり（2026-09-11・カッキーさんの指示）。
@@ -4481,6 +4568,14 @@ export default function MyPage() {
               {isNewFaceActive(t.is_new_face, t.new_face_since) && (
                 <span className="absolute top-0 left-0 z-10 px-1.5 py-0.5 bg-emerald-500 text-white text-[9px] font-black leading-none tracking-wider">
                   NEW
+                </span>
+              )}
+              {/* ★ 非公開の印は【カードの右上】にぴったり（2026-09-11・カッキーさんの指示）。
+                  ★ NEW（左上）と左右対称。★ 切替は「編集」→ いちばん下の「サイトへの掲載」。
+                  ★ ボタンの段は上に16pxの余白があるので、印は重ならない。 */}
+              {t.is_active === false && (
+                <span className="absolute top-0 right-0 z-10 px-1.5 py-0.5 bg-slate-600 text-white text-[9px] font-black leading-none tracking-wider">
+                  非公開
                 </span>
               )}
               {/* ★ 顔写真は角を直角・【カード全体】の高さいっぱい・左端にぴったり
@@ -4504,35 +4599,44 @@ export default function MyPage() {
 
               {/* ★ 右側 … 名前・ボタンの段 ＋ 招待の段。★ 写真の高さはこの中身で決まる。 */}
               <div className="flex-1 min-w-0">
-              {/* ★★ ここの隙間は【スマホだけ】半分（2026-09-06 第186便・カッキーさんの指示）。
-                  ★ PC（sm:以上）は今までどおり。★ 上下（py）は変えていない。
-                  ★ 目的：スマホで NEW マークや長い名前が2行に折れないよう、名前に使える幅を広げる。
-                    枠の左右 20→10px ／ 名前まわりの隙間 12→6px ／ ボタンどうし 8→4px
-                    ／「プロフィールを編集」の内側 16→8px。★ 合わせて約40px 稼いでいる。 */}
-              <div className="flex items-center justify-between px-2.5 sm:px-5 py-4">
-                <div className="flex items-center gap-1.5 sm:gap-3 min-w-0">
-                  <span className="text-sm font-bold text-slate-700">{t.name ?? '(名前未設定)'}</span>
-                  {/* ★ 非公開の印（第216便・2026-09-08）。★ ここが切替への入口
-                      （「プロフィールを編集」→ いちばん下の「サイトへの掲載」）。 */}
-                  {t.is_active === false && (
-                    <span className="flex-shrink-0 px-1.5 py-0.5 bg-slate-600 text-white text-[9px] font-black leading-none">
-                      非公開
-                    </span>
-                  )}
-                </div>
+              {/* ★ 第186便（2026-09-06）の「スマホだけ隙間を半分」は、下の3分の1に置き換えた。 */}
+              {/* ★★ 左右の内側の隙間は【3分の1】（2026-09-11・カッキーさんの指示）。
+                  ★ 10px → 4px（スマホ）／ 20px → 6px（PC）。★ 下の招待の段も同じ値に揃えている。
+                  ★★ 名前とボタンは【2行】。★ 1行目＝名前、2行目＝編集・削除。
+                    ★ 2列にしたぶん横が狭いので、1行に押し込まない。 */}
+              <div className="px-1 sm:px-1.5 py-1.5 space-y-1">
+                {/* ★ 名前は【1行】に収める（2026-09-11・カッキーさんの指示）。
+                    ★ 長い名前は文字を小さくする。★ 折り返さない（whitespace-nowrap）。
+                    ★ 目安: 10文字まで 14px ／ 14文字まで 12px ／ 20文字まで 10px ／ それ以上 9px。
+                    ★ それでも入らないほど長い場合だけ、最後に … で切る。 */}
+                {(() => {
+                  const nm = t.name ?? '(名前未設定)';
+                  const len = [...nm].length;
+                  const nameSize =
+                    len <= 10 ? 'text-sm' : len <= 14 ? 'text-xs' : len <= 20 ? 'text-[10px]' : 'text-[9px]';
+                  return (
+                    <div className="flex items-center justify-center min-w-0">
+                      <span className={`${nameSize} font-bold text-slate-700 whitespace-nowrap overflow-hidden text-ellipsis`}>
+                        {nm}
+                      </span>
+                    </div>
+                  );
+                })()}
 
-                <div className="flex items-center gap-1 sm:gap-2">
+                {/* ★ ボタンは上下の隙間を3分の1（6→2px）、左右は少し長く（16→20px）。
+                    ★ 編集・削除は同じ px にして、2つの幅を揃えている（2026-09-11・カッキーさんの指示）。 */}
+                <div className="flex items-center justify-center gap-1 sm:gap-2">
                   <Link
                     href={`/mypage/therapist/${t.id}`}
-                    className="px-2 sm:px-4 py-1.5 rounded-none border border-pink-300 text-pink-600 text-xs font-bold whitespace-nowrap hover:bg-pink-50 transition-colors"
+                    className="px-3 sm:px-5 py-0.5 rounded-none border border-pink-300 text-pink-600 text-xs font-bold whitespace-nowrap hover:bg-pink-50 transition-colors"
                   >
-                    プロフィールを編集
+                    編集
                   </Link>
                   <button
                     type="button"
                     onClick={() => handleTherapistDelete(t.id, t.name)}
                     disabled={deletingTherapist === t.id}
-                    className="px-1.5 sm:px-3 py-1.5 rounded-none border border-rose-200 text-rose-500 text-xs font-bold whitespace-nowrap bg-rose-50 hover:bg-rose-100 transition-colors disabled:opacity-50"
+                    className="px-3 sm:px-5 py-0.5 rounded-none border border-rose-200 text-rose-500 text-xs font-bold whitespace-nowrap bg-rose-50 hover:bg-rose-100 transition-colors disabled:opacity-50"
                   >
                     {deletingTherapist === t.id ? '削除中...' : '削除'}
                   </button>
@@ -4540,21 +4644,38 @@ export default function MyPage() {
               </div>
 
               {/* ── キャスト招待（本人ログイン用） ── */}
-              <div className="border-t border-pink-50 px-2.5 sm:px-5 py-3 bg-pink-50/20 space-y-2">
+              <div className="border-t border-pink-50 px-1 sm:px-1.5 py-3 bg-pink-50/20 space-y-2">
                 {t.user_id ? (
                   // 本人化済み
-                  <div className="flex items-center justify-between gap-2 flex-wrap">
-                    <span className="text-[11px] font-bold text-emerald-600">
-                      ✓ 本人ログイン済み{t.invited_email ? `（${t.invited_email}）` : ''}
-                    </span>
-                    <button
-                      type="button"
-                      onClick={() => handleUnlinkCast(t.id)}
-                      disabled={inviteBusyId === t.id}
-                      className="px-3 py-1 rounded-none border border-slate-200 text-slate-500 text-[11px] font-bold hover:border-rose-300 hover:text-rose-500 transition-colors disabled:opacity-50"
-                    >
-                      {inviteBusyId === t.id ? '処理中...' : '紐付け解除'}
-                    </button>
+                  // ★ 「紐付け解除」は【本人ログイン済みの右隣】に固定（2026-09-11・カッキーさんの指示）。
+                  //   ★ 折り返し（flex-wrap）をやめたので、ボタンが下の行へ落ちない。
+                  //   ★ 長いメールは左の文のほうが2行に折れる（break-all）。★ ボタンは縮めない。
+                  //   ★★ ここは三項演算子の中なので {/* */} は置けない（★ 2026-09-11 これで一度ビルドを壊した）。
+                  //   ★★ 2行に分ける: 1行目＝「✓ 本人ログイン済み」＋紐付け解除ボタン／2行目＝メールアドレス。
+                  //     ★ メールは折り返さない（whitespace-nowrap）。入りきらないときだけ … で切る。
+                  //     ★ 全文は title で出す（★ マウスを乗せれば読める）。
+                  <div className="space-y-1">
+                    <div className="flex items-center justify-between gap-1.5">
+                      <span className="text-[11px] font-bold text-emerald-600 whitespace-nowrap">
+                        ✓ 本人ログイン済み
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => handleUnlinkCast(t.id)}
+                        disabled={inviteBusyId === t.id}
+                        className="flex-shrink-0 whitespace-nowrap px-2 py-1 rounded-none border border-slate-200 text-slate-500 text-[10px] font-bold hover:border-rose-300 hover:text-rose-500 transition-colors disabled:opacity-50"
+                      >
+                        {inviteBusyId === t.id ? '処理中...' : '紐付け解除'}
+                      </button>
+                    </div>
+                    {t.invited_email && (
+                      <p
+                        title={t.invited_email}
+                        className="text-[10px] font-bold text-emerald-600 whitespace-nowrap overflow-hidden text-ellipsis"
+                      >
+                        {t.invited_email}
+                      </p>
+                    )}
                   </div>
                 ) : t.invited_email ? (
                   // 招待済み・本人未ログイン
@@ -4604,15 +4725,19 @@ export default function MyPage() {
                   // ★ 招待するボタンは薄いピンクの背景の【右上】（2026-09-11・カッキーさんの指示）。
                   //   ★ 説明文はボタンの【左真横】。★ メール入力バーは下の行・幅3分の2・右端。
                   <div className="space-y-2">
-                    <div className="flex flex-wrap items-center justify-end gap-2">
-                      <p className="text-[11px] font-normal text-slate-400/90 min-w-0">
+                    {/* ★ 説明文は【招待するボタンの左真横】に必ず並べる（2026-09-11・カッキーさんの指示）。
+                        ★ 2列にして幅が狭くなったぶん、折り返し（flex-wrap）をやめて文字を10pxに落とした。
+                        ★ 入りきらないときは文が … で切れる。★ ボタンは縮めない（flex-shrink-0）。 */}
+                    <div className="flex items-center justify-end gap-1.5">
+                      <p className="text-[10px] font-normal text-slate-400/90 min-w-0 whitespace-nowrap overflow-hidden text-ellipsis">
                         セラピストアカウントに招待
                       </p>
+                      {/* ★ 内側の隙間は【4分の1】（2026-09-11・カッキーさんの指示）: 左右 16→4px ／ 上下 6→1.5px。 */}
                       <button
                         type="button"
                         onClick={() => handleInviteCast(t.id)}
                         disabled={inviteBusyId === t.id}
-                        className="px-4 py-1.5 rounded-none text-white text-[11px] font-bold shadow-sm disabled:opacity-50 flex-shrink-0"
+                        className="px-1 py-[1.5px] rounded-none text-white text-[11px] font-bold shadow-sm disabled:opacity-50 flex-shrink-0"
                         style={{ background: 'linear-gradient(to right, #ec4899, #f97316)' }}
                       >
                         {inviteBusyId === t.id ? '送信中...' : '招待する'}
@@ -4633,6 +4758,7 @@ export default function MyPage() {
               </div>{/* ★ 右側ここまで */}
             </div>
           ))}
+          </div>
         </div>
 
         {/* ── タブ5: 写メ日記 ── */}
@@ -4645,13 +4771,27 @@ export default function MyPage() {
             {/* ★ 名前でしぼり込む（2026-09-06・カッキーさんの指示）。★ 出勤・セラピストと同じ規則。 */}
             {therapists.length > 0 && (
               <div className="flex items-center gap-2">
-                <input
-                  type="search"
-                  value={diaryQuery}
-                  onChange={(e) => setDiaryQuery(e.target.value)}
-                  placeholder="セラピスト名で探す"
-                  className="flex-1 px-3 py-2 rounded-none border border-slate-200 text-sm bg-slate-50/50 placeholder:text-slate-300 focus:outline-none focus:ring-2 focus:ring-pink-200"
-                />
+                {/* ★ 虫めがね（出勤ページと同じ形・スマホも同じ）。 */}
+                <div className="relative flex-1 min-w-0">
+                  <svg
+                    aria-hidden="true"
+                    viewBox="0 0 20 20"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-300"
+                  >
+                    <circle cx="9" cy="9" r="5.5" />
+                    <path d="M13.5 13.5 L18 18" strokeLinecap="round" />
+                  </svg>
+                  <input
+                    type="search"
+                    value={diaryQuery}
+                    onChange={(e) => setDiaryQuery(e.target.value)}
+                    placeholder="セラピスト名で探す"
+                    className="w-full pl-9 pr-3 py-2 rounded-none border border-slate-200 text-sm bg-slate-50/50 placeholder:text-slate-300 focus:outline-none focus:ring-2 focus:ring-pink-200"
+                  />
+                </div>
                 {diaryQuery && (
                   <button
                     type="button"
