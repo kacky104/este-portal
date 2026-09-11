@@ -12,7 +12,13 @@ export type BodyType = {
 export function parseBodyType(raw: string | null): BodyType | null {
   if (!raw) return null;
   const hMatch   = raw.match(/T(\d+)/);
-  const bMatch   = raw.match(/B(\d+)\(([A-Za-z]+)\)/);
+  // ★★★ 【第265便・2026-09-11】カップは**任意**にした。
+  //   ★ それまでは「B85(D)」の形しか読まず、「B85」だけ（CUP 未入力）だと **B が無いことになっていた**。
+  //   ★ エステ魂へのセラピスト登録の実弾（テスト11・therapistId 605）で、保存値は T160 B85 W58 H85 なのに
+  //     試し打ちに B が出ず「バスト(B)が空です」の注意が付いて気づいた（引き継ぎメモ第263〜264便）。
+  //   ★★ 公開ページの formatBodySizes も同じ関数なので、CUP を入れていない方は**フクエス上でも B が消えていた**。
+  //   ★ 「(D)」があれば今までどおり cup にも入る。★ 無ければ bust だけ入って cup は null。
+  const bMatch   = raw.match(/B(\d+)(?:\(([A-Za-z]+)\))?/);
   const wMatch   = raw.match(/W(\d+)/);
   const hipMatch = raw.match(/H(\d+)/);
   return {

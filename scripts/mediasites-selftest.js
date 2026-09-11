@@ -84,14 +84,16 @@ console.log('\n── 2. 送れるもの（カッキーさんの要望・可視�
 eq('★★★ 駅ちかは5つ送れる（★ セラピストを戻した・第262便）',
    v.siteCapabilityLabels(v.findMediaSite('ekichika')), ['出勤', 'セラピスト', '写メ日記', '即ヒメ', '新着情報']);
 // ★★★ 「セラピスト」を送れるのは駅ちかだけ（★ エステ魂は材料の切り出しが先・第259便 §3-1。★ 通ってから足す）
-eq('★★★ 「セラピスト」を送れるのは駅ちかだけ',
-   v.MEDIA_SITES.filter((s) => s.can.includes('therapist')).map((s) => s.provider), ['ekichika']);
+// ★★★ 2026-09-11（第265便）: エステ魂も足した（★ テスト11 で画面から登録 → 「います」まで実弾で通ってから）
+eq('★★★ 「セラピスト」を送れるのは駅ちかとエステ魂',
+   v.MEDIA_SITES.filter((s) => s.can.includes('therapist')).map((s) => s.provider), ['ekichika', 'esutama']);
 eq('★ エステラブは出勤と写メ日記',
    v.siteCapabilityLabels(v.findMediaSite('esulove')), ['出勤', '写メ日記']);
 // ★★★ 第141便: 2026-09-04 18:01、自動でエステ魂へ写メ日記が載ったのを実測して足した
 // ★★★ 第146便: 2026-09-04 21:56、フクエスの「今すぐ」から即セラが ON になったのを実測して足した
-eq('★★★ エステ魂は出勤と写メ日記と即セラ',
-   v.siteCapabilityLabels(v.findMediaSite('esutama')), ['出勤', '写メ日記', '即セラ']);
+// ★★★ 第265便: セラピストを足した（★ 出勤の次・駅ちかと同じ並び）
+eq('★★★ エステ魂は出勤とセラピストと写メ日記と即セラ',
+   v.siteCapabilityLabels(v.findMediaSite('esutama')), ['出勤', 'セラピスト', '写メ日記', '即セラ']);
 eq('★★ 全国エステランキングにも写メ日記は無い',
    v.siteCapabilityLabels(v.findMediaSite('zenkoku')), ['出勤']);
 // ★★ 写メ日記が送れるサイト（2026-08-30 カッキーさん確認 → 第141便でエステ魂を追加）
@@ -345,8 +347,9 @@ eq('★ 駅ちかは can のまま', v.sendableCapabilities(v.findMediaSite('eki
    [...v.findMediaSite('ekichika').can]);
 // ★★★ 第141便: 2026-09-04 18:01 に、自動でエステ魂へ写メ日記が載ったのを実測して足した
 // ★★★ 第146便: 2026-09-04 21:56 に、即セラを ON にできたのを実測して足した
-eq('★ エステ魂は出勤と写メ日記と即セラ',
-   v.sendableCapabilities(v.findMediaSite('esutama')), ['work', 'diary', 'sokusera']);
+// ★★★ 第265便: セラピストを足した（★ 実弾のあと）
+eq('★ エステ魂は出勤とセラピストと写メ日記と即セラ',
+   v.sendableCapabilities(v.findMediaSite('esutama')), ['work', 'therapist', 'diary', 'sokusera']);
 // ★★ 準備中はまだ何も送れない（★ 空を返す。★ can をそのまま出さない）
 eq('★★ 全国（準備中）は空', v.sendableCapabilities(v.findMediaSite('zenkoku')), []);
 // ★★ 写メ日記の口が無い媒体では、接続できなくても何も残らない
@@ -360,7 +363,8 @@ eq('★ can が空でも落ちない', v.sendableCapabilities({ accepting: true,
 {
   const es = v.findMediaSite('esutama');
   eq('★ エステ魂に 即セラ がある', es.can.includes('sokusera'), true);
-  eq('★★ 画面の並び', v.siteCapabilityLabels(es), ['出勤', '写メ日記', '即セラ']);
+  // ★ 第265便: セラピストが入って4つ
+  eq('★★ 画面の並び', v.siteCapabilityLabels(es), ['出勤', 'セラピスト', '写メ日記', '即セラ']);
   eq('★ 即セラ の見出し', v.capabilityLabel('sokusera'), '即セラ');
   // ★★★ 駅ちかの「即ヒメ」と混ぜない。★ 別の媒体の別の機能
   eq('★★★ 駅ちかは 即ヒメ のまま', v.siteCapabilityLabels(v.findMediaSite("ekichika")).includes('即ヒメ'), true);
