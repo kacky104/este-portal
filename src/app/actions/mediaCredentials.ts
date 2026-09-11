@@ -1004,8 +1004,11 @@ export async function startMediaWorkPush(input: {
 // ★★ 写真は既定のまま【枠1に1枚】（設計メモ §4 C）。★ allPhotos は運営の口だけ。★ 相手へ送る枚数を5倍にしない。
 // ★★ 媒体は provider で受ける（設計メモ §4 D）。★ 材料づくりは媒体ごとに1か所:
 //   駅ちか   … buildGirlCreatePlan（girlCreatePlan.ts・第257便）   ★ 写真は枠1に1枚（既定）
-//   エステ魂 … buildCastCreatePlan（castCreatePlan.ts・第263便）   ★ 写真は送らない（第232便・別の口）
+//   エステ魂 … buildCastCreatePlan（castCreatePlan.ts・第263便）   ★ 写真は枠1に1枚（★ 第269便で駅ちかと揃えた）
 //   ★★ 【第264便】エステ魂を開けた。★ 分岐は buildTherapistCreate の1か所だけ。★ どちらも運営の curl と同じ物を呼ぶ。
+//   ★★★ 【第269便】エステ魂も登録のあと**そのまま写真を1枚**（第267便で貫通・第268便で運営の口の既定に）。
+//     ★ 枠は指名できない（エステ魂が空き枠へ詰める・第245便）。★ 登録直後は全枠空きなので枠1＝トップ画像。
+//     ★ 用意できなければ飛ばして登録だけ（★ 駅ちかと同じ・withPhotoAsked は渡さない）。★ 理由は plan.photoSkipped と warnings に出る。
 // ★★★ mediaSites.can の駅ちかに 'therapist' を足したのは第262便（★ §5 ③④の実弾が通ってから・第142便の物差し）。
 //   ★ エステ魂の 'therapist' は**まだ**（★ 実弾が通ってから・同じ物差し）。
 
@@ -1040,7 +1043,11 @@ async function buildTherapistCreate(input: {
     };
   }
   if (provider === 'esutama') {
-    const built = await buildCastCreatePlan(svc, { salonId, therapistId, slot });
+    const built = await buildCastCreatePlan(svc, {
+      salonId, therapistId, slot,
+      // ★★★ 第269便: 駅ちかと同じ既定（枠1に1枚・用意できなければ飛ばして登録だけ）。★ 運営の口の既定（第268便）と同じ
+      withPhoto: true, withPhotoAsked: false,
+    });
     if (!built.ok) return { ok: false, error: built.error };
     return {
       ok: true, plan: built.data.plan, warnings: built.data.warnings,

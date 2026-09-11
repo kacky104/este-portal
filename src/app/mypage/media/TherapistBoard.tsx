@@ -86,11 +86,11 @@ function summarizeCreatePlan(plan: Record<string, unknown>): Array<{ k: string; 
   rows.push({ k: '特徴', v: badges.length > 0 ? badges.join('・') : 'なし' });
   // ★ 写真は「送るか」だけ。★ 在処（bucket/path）は店舗様に意味が無い
   const hasPhoto = !!(plan.photo && typeof plan.photo === 'object');
-  // ★ 第264便: エステ魂は登録の流れで写真を送らない（第232便）。★ 理由を書く（★ 「送りません」だけだと写真が無いのかと読める）
-  const photoNote = s(plan.provider) === 'esutama'
-    ? '送りません（エステ魂は登録のあとに、別に送ります）'
-    : '送りません' + (s(plan.photoSkipped) ? `（${s(plan.photoSkipped)}）` : '');
-  rows.push({ k: '写真', v: hasPhoto ? '1枚送ります（フクエスの1枚目）' : photoNote });
+  // ★ 第264便で「エステ魂は登録のあとに別に送ります」と書いていたが、★★★ 第269便でエステ魂も登録のあと写真まで送るようになった（第267便で貫通）。
+  //   ★ 媒体で分けない。★ 送らないときは理由を書く（★ 「送りません」だけだと写真が無いのかと読める）。★ 理由はサーバー（photoSkipped）が作る
+  const photoNote = '送りません' + (s(plan.photoSkipped) ? `（${s(plan.photoSkipped)}）` : '');
+  // ★ 駅ちかは枠1を指名して入れる（第248便）。★ エステ魂は指名できず空き枠へ詰める（第245便）が、登録直後は全枠空きなので同じく枠1＝トップ画像
+  rows.push({ k: '写真', v: hasPhoto ? '1枚送ります（フクエスの1枚目・トップ画像になります）' : photoNote });
   return rows;
 }
 
