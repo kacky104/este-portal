@@ -4,6 +4,8 @@ import { toEsutamaTypeIds, explainBadgeMapping } from '@/lib/mediaBadgeMap';
 import { parseBodyType } from '@/lib/bodyType';
 // ★★★ 値の型は**中継側の正本**をそのまま使う（★ girlCreatePlan.ts・第257便と同じ判断。★ ここで別の形に緩めない）
 import type { EsutamaCastCreateValues } from '@/lib/esutamaRequests';
+// ★★★★★★ 【第267便】登録のあとに送る写真。★ 検査は esutama-photo-push と同じ1か所（therapistPhotoFile.ts）
+import { resolveEsutamaPhotoFile, type EsutamaPhotoFile } from '@/app/lib/media/therapistPhotoFile';
 
 // ── エステ魂へ「1人を登録する」ための材料を作る（第263便で1か所に寄せた）───────────
 //
@@ -20,16 +22,23 @@ import type { EsutamaCastCreateValues } from '@/lib/esutamaRequests';
 // ★★★ ここがしないこと
 //   ・**送らない**（★ `startRelayFlow` は呼ばない）。★ 誰の権限で送るかは呼び出し側が決める
 //   ・認証（★ curl の口は CRON_SECRET・店舗様の画面は assertSalonOwner）
-//   ・写真（★ エステ魂は登録の流れで写真を送らない・第232便。★ 写真は cast_photo の別の口・第243便）
+//   ・写真を**送る**こと（★ 用意はする。★ 送るのは中継。★ 相手の cast_id は登録後に中継が読み直して入れる）
 //
 // ★★★★ 【第263便】切り出しただけ。★ 振る舞い・`plan` の形・文言は route.ts にあったときと**一字一句同じ**。
-//   ★ 変えたければ、切り出しが通った（試し打ちの JSON が一致した）**あと**に別の便で。
+// ★★★★★★ 【第267便】登録のあと、そのまま写真を1枚送る材料を足した（★ 駅ちかの第249便と同じ形）。
+//   ★ `withPhoto` を渡したときだけ。★ 渡さなければ第263便までと**同じ JSON**が返る（★ 既定にするのは通ってから・第250便の段取り）。
+//   ★★ 用意できないとき … 明示（withPhotoAsked）なら 400 で止める／既定なら飛ばして登録だけ（理由は photoSkip に残す）。
+//   ★★★ 枠は選ばない・選べない（★ エステ魂がいちばん小さい空き枠へ詰める・第245便）。★ 登録直後は全枠空きなので枠1＝トップ画像。
 
 export type CastCreateInput = {
   salonId: number;
   therapistId: number;
   /** 掲載枠 */
   slot: number;
+  /** ★★★★★★ 【第267便】登録のあと写真を1枚送るか。★ 省略＝送らない（第263便までと同じ） */
+  withPhoto?: boolean;
+  /** ★ `withPhoto=true` と**明示された**か（★ 明示なら用意できないとき止める・駅ちかの第250便と同じ） */
+  withPhotoAsked?: boolean;
 };
 
 export type CastCreatePlan = {
@@ -39,7 +48,13 @@ export type CastCreatePlan = {
   warnings: string[];
   /** ★ `startRelayFlow` にそのまま渡す材料 */
   relay: {
-    castCreate: { therapistId: number; values: EsutamaCastCreateValues };
+    castCreate: {
+      therapistId: number;
+      values: EsutamaCastCreateValues;
+      /** ★★★ 第267便: 在処だけ（★ 画像そのものは載せない・第106便 案B）。★ 無ければ登録だけ */
+      photo?: { bucket: string; path: string };
+      photoSkip?: string;
+    };
   };
 };
 
@@ -54,6 +69,8 @@ export type CastCreatePlanResult =
  */
 export async function buildCastCreatePlan(svc: SupabaseClient, input: CastCreateInput): Promise<CastCreatePlanResult> {
   const { salonId, therapistId, slot } = input;
+  const withPhoto = input.withPhoto === true;
+  const withPhotoAsked = input.withPhotoAsked === true;
 
   const { data: salon, error: sErr } = await svc
     .from('salons').select('id, name').eq('id', salonId).maybeSingle();
@@ -62,7 +79,8 @@ export async function buildCastCreatePlan(svc: SupabaseClient, input: CastCreate
 
   const { data: th, error: tErr } = await svc
     .from('therapists')
-    .select('id, salon_id, name, age, body_type, feature_badges, is_active')
+    // ★★★★★★ 第267便: `profile_image_url` を足した（★ 読んでいないものは、無いのと同じ・第255便(2)）
+    .select('id, salon_id, name, age, body_type, feature_badges, is_active, profile_image_url')
     .eq('id', therapistId).maybeSingle();
   if (tErr) return { ok: false, status: 500, error: tErr.message };
   if (!th) return { ok: false, status: 404, error: 'セラピストが見つからない' };
@@ -119,7 +137,28 @@ export async function buildCastCreatePlan(svc: SupabaseClient, input: CastCreate
     bodyStyle: null,
   };
 
+  // ── ★★★★★★ 【第267便】登録のあとに送る写真を、**送る前に**用意しておく ──────────
+  //   ★ 明示（withPhotoAsked）で用意できなければ **1人も作らない**。★ 「登録はしたが写真が無い」を作らない。
+  //   ★ 既定（withPhoto だけ）で用意できなければ、飛ばして登録だけ。★ 理由は photoSkip に残す（★ 黙って落とさない）。
+  //   ★★ 用意するだけで、どの枠に入るかは相手が決める（第245便）。★ 送ってよいかの最後の判断は中継が編集ページを読んでから。
+  let photo: EsutamaPhotoFile | null = null;
+  let photoSkip = '';
+  if (withPhoto) {
+    const got = await resolveEsutamaPhotoFile(svc, {
+      profileImageUrl: (th as { profile_image_url?: string | null }).profile_image_url ?? null,
+    });
+    if (!got.ok) {
+      if (withPhotoAsked) {
+        return { ok: false, status: got.status, error: '写真を用意できないため登録しません: ' + got.error };
+      }
+      photoSkip = got.error;
+    } else {
+      photo = got.file;
+    }
+  }
+
   const warnings: string[] = [];
+  if (photoSkip) warnings.push('★★ 写真は送りません（' + photoSkip + '）。★ 登録だけします');
   // ★★★ 相手の画面の注記:「※3サイズのB(バスト)が未入力の場合、表示されません」（2026-09-09 実測）
   if (!values.sizeB) warnings.push('★ バスト(B)が空です。★ このまま登録すると **エステ魂の公開ページに出ません**');
   if (mapping.esutama.usedDefault) warnings.push('★ 送れる特徴が1つも無いので、既定の「新人」を入れます。★ エステ魂の新人は自動では消えません');
@@ -133,8 +172,33 @@ export async function buildCastCreatePlan(svc: SupabaseClient, input: CastCreate
     provider: 'esutama', slot, therapistId,
     values,
     badges,
-    steps: ['login', 'esutama_cast_list（在籍確認）', 'esutama_cast_form（65部品を読む）', 'esutama_cast_create', 'esutama_cast_list（照合＋cast_id回収）'],
-    notSent: ['写真（送り方が未調査）', 'set_up_limit（保存と同時に上位表示・残り回数あり）', 'キャッチ・紹介文'],
+    steps: [
+      'login', 'esutama_cast_list（在籍確認）', 'esutama_cast_form（65部品を読む）', 'esutama_cast_create', 'esutama_cast_list（照合＋cast_id回収）',
+      // ★★★★★★ 第267便: 写真まで行くときは、そのまま cast_photo の5段が続く（第243便）
+      ...(photo
+        ? ['esutama_photo_form（枠の状態と ctk）', 'esutama_photo_tmp（仮置き）', 'esutama_photo_form（取り直し）', 'esutama_photo_save', 'esutama_photo_form（照合）']
+        : []),
+    ],
+    notSent: photo
+      ? ['set_up_limit（保存と同時に上位表示・残り回数あり）', 'キャッチ・紹介文']
+      // ★ withPhoto 無しのときは第263便までと**同じ文言**（★ 試し打ちの突き合わせで前後が一致するように）
+      : ['写真（送り方が未調査）', 'set_up_limit（保存と同時に上位表示・残り回数あり）', 'キャッチ・紹介文'],
+    ...(photoSkip ? { photoSkipped: photoSkip } : {}),
+    ...(photo
+      ? {
+          // ★★★★★★ 第267便: 登録のあと、そのまま写真を1枚
+          photo: {
+            file: photo,
+            photoSlot: '（指名できません：エステ魂がいちばん小さい空き枠へ詰めます。★ 登録直後は全枠空きなので枠1＝トップ画像）',
+            guards: [
+              '★★ 空き枠にだけ送ります（★ 登録直後は全枠空き）',
+              '★★ 読んだ編集ページの cast_id が違えば保存しません（★ 別人を上書きしない・第243便）',
+              '★★ 仮置きだけでは付きません。保存まで通って、読み直して照合します',
+              '★★ 写真の段で止まっても、cast_id の結びつけは残ります（★ 二重登録を作らない）',
+            ],
+          },
+        }
+      : {}),
     warnings,
   };
 
@@ -143,7 +207,13 @@ export async function buildCastCreatePlan(svc: SupabaseClient, input: CastCreate
     data: {
       plan,
       warnings,
-      relay: { castCreate: { therapistId, values } },
+      relay: {
+        castCreate: {
+          therapistId, values,
+          ...(photo ? { photo: { bucket: photo.bucket, path: photo.path } } : {}),
+          ...(photoSkip ? { photoSkip } : {}),
+        },
+      },
     },
   };
 }

@@ -23,6 +23,12 @@ export const PHOTO_MAX_BYTES = 10 * 1024 * 1024;
 export const PHOTO_MIN_WIDTH = 300;
 export const PHOTO_MIN_HEIGHT = 400;
 
+/**
+ * ★★ エステ魂の画面の注記は 10MB。★ こちらの取り出し口（`/api/relay/file` の fit=cover・第241便）で
+ *   357×556 に縮めてから渡すので、**元は大きくてよい**。★ 第243便の `esutama-photo-push` と同じ値。
+ */
+export const ESUTAMA_PHOTO_MAX_BYTES = 20 * 1024 * 1024;
+
 export type TherapistPhotoFile = {
   bucket: string;
   path: string;
@@ -96,4 +102,58 @@ export async function resolveTherapistPhotoFile(
       bytes: buf.byteLength,
     },
   };
+}
+
+// ── エステ魂へ送る「1枚の写真」を用意する（第267便で1か所に寄せた）─────────────
+//
+// ★★★ なぜ別の関数か … 駅ちかとエステ魂で**検査が違う**。
+//   駅ちか   … 寸法を読む（最低 300×400・10MB）。★ 3:4 の切り取り枠をこちらで決めるから
+//   エステ魂 … 寸法は取り出し口が 357×556 に合わせる（第241便）。★ ここでは **在処と実在と大きさ**だけ
+// ★★ 第243便の `esutama-photo-push` にあった検査を、そのまま移した（★ 振る舞いは同じ）。
+//   ★ 登録の流れ（castCreatePlan.ts）からも同じ検査を通す。★ 2か所に書くと片方だけ緩む（第255便(2)）。
+
+export type EsutamaPhotoFile = {
+  bucket: string;
+  path: string;
+  bytes: number;
+};
+
+export type EsutamaPhotoResult =
+  | { ok: true; file: EsutamaPhotoFile }
+  | { ok: false; status: number; error: string };
+
+/**
+ * エステ魂へ送る1枚を用意する。★ 判断はしない・材料を作るだけ。
+ *
+ * @param svc              service client（★ Storage を読む）
+ * @param profileImageUrl  その方の profile_image_url（★ path を省いたときの出どころ）
+ * @param path             Storage の中の場所（★ 指定があればこちらが優先）
+ */
+export async function resolveEsutamaPhotoFile(
+  svc: SupabaseClient,
+  input: { profileImageUrl?: string | null; path?: string },
+): Promise<EsutamaPhotoResult> {
+  // ── ① 在処（★ フクエスの therapist-photos だけ） ──
+  let path = typeof input.path === 'string' ? input.path : '';
+  if (!path) {
+    const url = String(input.profileImageUrl ?? '');
+    const i = url.indexOf('/' + THERAPIST_PHOTO_BUCKET + '/');
+    if (i < 0) {
+      return { ok: false, status: 400, error: 'この方のプロフィール写真が ' + THERAPIST_PHOTO_BUCKET + ' にありません（path を指定してください）' };
+    }
+    path = url.slice(i + THERAPIST_PHOTO_BUCKET.length + 2).split('?')[0];
+  }
+  // ★★ ② フクエスの中だけを指していること。★ `..` や `//` で外へ出さない
+  if (!/^[A-Za-z0-9_\-][A-Za-z0-9_\-./]{0,200}$/.test(path) || path.includes('..') || path.includes('//')) {
+    return { ok: false, status: 400, error: 'path の形が不正' };
+  }
+
+  // ── ③ 実在と大きさだけ確かめる（★ 中身は見ない） ──
+  const { data: blob, error: dlErr } = await svc.storage.from(THERAPIST_PHOTO_BUCKET).download(path);
+  if (dlErr || !blob) return { ok: false, status: 404, error: '写真を Storage から読めません: ' + (dlErr?.message ?? '') };
+  const bytes = (await blob.arrayBuffer()).byteLength;
+  if (bytes === 0) return { ok: false, status: 400, error: '写真が空' };
+  if (bytes > ESUTAMA_PHOTO_MAX_BYTES) return { ok: false, status: 400, error: '写真が大きすぎます（20MB まで）' };
+
+  return { ok: true, file: { bucket: THERAPIST_PHOTO_BUCKET, path, bytes } };
 }

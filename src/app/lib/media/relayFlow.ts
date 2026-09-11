@@ -255,7 +255,19 @@ export async function startRelayFlow(params: {
    * ★★ 送る内容は【呼び出し側が DB から作って渡す】。★ relayFlow は DB を知らない。
    * ★★★ name が空なら、一覧を読んだあと**何も作らずに終わる**。★ それが安全装置。
    */
-  castCreate?: { therapistId: number; values: EsutamaCastCreateValues };
+  castCreate?: {
+    therapistId: number;
+    values: EsutamaCastCreateValues;
+    /**
+     * ★★★★★★ 【第267便】登録が通ったら、そのまま写真を1枚送る（★ 駅ちかの第249便と同じ形）。
+     *   ★ 在処だけ渡す（第106便・案B）。★ 送る相手の cast_id は**登録後に読み直した番号**を中継が入れる。
+     *   ★ 入っていなければ今までどおり登録だけで終わる。
+     *   ★★ 枠は渡さない・渡せない（★ エステ魂が空き枠へ詰める・第245便）。
+     */
+    photo?: { bucket: string; path: string };
+    /** ★ 写真を送らないときの理由（★ 記録のためだけ・駅ちかの第250便と同じ） */
+    photoSkip?: string;
+  };
   /**
    * intent='girl_create' のときだけ（第234便）。★ **相手に人を増やす。**
    * ★★ 送る内容は【呼び出し側が DB から作って渡す】。★★★ name が空なら何も作らずに終わる。
@@ -395,7 +407,13 @@ export async function startRelayFlow(params: {
     ...(params.girlDelete ? { deleteCastId: String(params.girlDelete.castId) } : {}),
     ...(params.castHide ? { hideCastId: String(params.castHide.castId) } : {}),
     ...(params.castCreate
-      ? { createTherapistId: Number(params.castCreate.therapistId), createValues: params.castCreate.values }
+      ? {
+          createTherapistId: Number(params.castCreate.therapistId),
+          createValues: params.castCreate.values,
+          // ★★★★★★ 第267便: 登録のあと写真を1枚。★ 渡されたときだけ入れる（★ cast_id は中継が登録後に入れる）
+          ...(params.castCreate.photo ? { castPhotoFile: params.castCreate.photo } : {}),
+          ...(params.castCreate.photoSkip ? { createPhotoSkip: params.castCreate.photoSkip } : {}),
+        }
       : {}),
     // ★★★ エステ魂の写真（第243便）。★ 渡されたときだけ入れる。★ 入っていなければ1枚も送らない
     ...(params.castPhoto
@@ -787,8 +805,11 @@ export async function advanceRelayFlow(params: {
   //   ★ 写真の段まで来ている ＝ **登録が通っている** ＝ ログインは成功している。
   //   ★★ ここを足さないと、`slot1_not_blank` 等で止まったときに
   //     店舗の画面へ「ログイン情報がおかしい」と読める文が出る（★ 認証の話ではない）。
+  // ★★★★★★ 【第267便】エステ魂も同じ（`cast_create` ＋ 写真）。★ `castPhotoCastId` が入っている ＝ 登録が通って写真の段に居る。
+  //   ★ 運営の口 `cast_photo`（第243便）は**触っていない**（★ この便は登録の流れだけ。★ 揃えるなら別の便で）。
   const inPhotoStage = context.intent === 'photo_push'
-    || (context.intent === 'girl_create' && typeof context.photoGirlId === 'string' && context.photoGirlId !== '');
+    || (context.intent === 'girl_create' && typeof context.photoGirlId === 'string' && context.photoGirlId !== '')
+    || (context.intent === 'cast_create' && typeof context.castPhotoCastId === 'string' && context.castPhotoCastId !== '');
   const photoStoppedButLoggedIn =
     outcome.kind === 'stop' &&
     inPhotoStage &&

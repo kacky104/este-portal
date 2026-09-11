@@ -2,6 +2,9 @@ import { NextResponse } from 'next/server';
 import { createServiceClient } from '@/app/lib/supabase/service';
 import { startRelayFlow } from '@/app/lib/media/relayFlow';
 import { ESUTAMA_PHOTO_FIT } from '@/lib/esutamaPhoto';
+// ★★★★★★ 【第267便】写真の検査は therapistPhotoFile.ts に寄せた（★ 登録の流れ castCreatePlan.ts と同じ1か所）。
+//   ★ 振る舞いは同じ（在処・形・実在・空・20MB）。★ 2か所に書くと片方だけ緩む（第255便(2)）。
+import { resolveEsutamaPhotoFile, THERAPIST_PHOTO_BUCKET } from '@/app/lib/media/therapistPhotoFile';
 
 // ── エステ魂のセラピストに写真を1枚 送る（第243便・運営だけの口）────────────────
 //   POST /api/admin/esutama-photo-push  (Authorization: Bearer <CRON_SECRET>)
@@ -28,9 +31,7 @@ export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 export const maxDuration = 60;
 
-const BUCKET = 'therapist-photos';
-/** ★ 相手の画面の注記は 10MB。★ こちらの取り出し口で縮めるので、元は大きくてよい */
-const MAX_BYTES = 20 * 1024 * 1024;
+const BUCKET = THERAPIST_PHOTO_BUCKET;
 
 async function readBody(req: Request): Promise<Record<string, unknown>> {
   const ct = req.headers.get('content-type') ?? '';
@@ -112,26 +113,14 @@ export async function POST(req: Request) {
     }, { status: 400 });
   }
 
-  // ── 写真の在処（★ フクエスの therapist-photos だけ） ──
-  let path = typeof body.path === 'string' ? body.path : '';
-  if (!path) {
-    const url = String((th as { profile_image_url?: string | null }).profile_image_url ?? '');
-    const i = url.indexOf('/' + BUCKET + '/');
-    if (i < 0) {
-      return NextResponse.json({ ok: false, error: 'この方のプロフィール写真が therapist-photos にありません（path を指定してください）' }, { status: 400 });
-    }
-    path = url.slice(i + BUCKET.length + 2).split('?')[0];
-  }
-  if (!/^[A-Za-z0-9_\-][A-Za-z0-9_\-./]{0,200}$/.test(path) || path.includes('..') || path.includes('//')) {
-    return NextResponse.json({ ok: false, error: 'path の形が不正' }, { status: 400 });
-  }
-
-  // ── 実在と大きさだけ確かめる（★ 中身は見ない） ──
-  const { data: blob, error: dlErr } = await svc.storage.from(BUCKET).download(path);
-  if (dlErr || !blob) return NextResponse.json({ ok: false, error: '写真を Storage から読めません: ' + (dlErr?.message ?? '') }, { status: 404 });
-  const bytes = (await blob.arrayBuffer()).byteLength;
-  if (bytes === 0) return NextResponse.json({ ok: false, error: '写真が空' }, { status: 400 });
-  if (bytes > MAX_BYTES) return NextResponse.json({ ok: false, error: '写真が大きすぎます（20MB まで）' }, { status: 400 });
+  // ── 写真の在処と実在（★ フクエスの therapist-photos だけ・中身は見ない） ──
+  //   ★★ 第267便: 検査は therapistPhotoFile.ts の1か所（★ 登録の流れと同じ物）
+  const got = await resolveEsutamaPhotoFile(svc, {
+    profileImageUrl: (th as { profile_image_url?: string | null }).profile_image_url ?? null,
+    ...(typeof body.path === 'string' && body.path ? { path: body.path } : {}),
+  });
+  if (!got.ok) return NextResponse.json({ ok: false, error: got.error }, { status: got.status });
+  const { path, bytes } = got.file;
 
   const warnings: string[] = [];
   if ((th as { is_active?: boolean }).is_active === false)

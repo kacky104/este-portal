@@ -427,16 +427,46 @@ function castCreateAfterList(
         '増えた人が複数あり、名前でも1人に絞れなかった（★ 番号は記録に残す）',
       );
     }
+    const createdAudit: FlowAudit = {
+      event: 'create_cast', outcome: 'ok',
+      summary: hit.name + 'さんをエステ魂に登録しました',
+      detail: {
+        name: hit.name, castId: hit.castId, people: rows.length,
+        // ★★★★★ 第267便: 写真を送らなかったなら、その理由も残す（★ 黙って落とさない・駅ちかの第250便と同じ）
+        ...(ctx.createPhotoSkip ? { photoSkip: String(ctx.createPhotoSkip).slice(0, 120) } : {}),
+        flowId,
+      },
+    };
+    // ★★★ ここで初めて「この人の番号はこれ」と言える。★ 表に書くのは呼び出し側（DBを触るのはあちら）
+    const created = { therapistId: Number(ctx.createTherapistId ?? 0), castId: hit.castId, name: hit.name };
+
+    // ★★★★★★ 【第267便】写真の材料（castPhotoFile）が文脈に入っていれば、**そのまま写真の流れへ続ける**。
+    //   ★ 駅ちかの第249便（girlCreateAfterGirls）と同じ形。★ 入っていなければ今までどおりここで終わり。
+    //   ★★ 送る相手の cast_id は **いま読み直して確かめた hit.castId**（★ 応答から拾った番号ではない・第46便 §35）。
+    //   ★★ 枠は選ばない。★ エステ魂がいちばん小さい空き枠へ詰める（第245便）。★ 登録直後は全枠空きなので枠1＝トップ画像になる。
+    //   ★★★★★★ `mediaCreated` を**ここで**返すのが要。★ 写真の段で止まっても番号は表に書かれる。
+    //     ★ 書かれないまま終わると、次に同じ人を送ろうとして**もう1人作る**（二重掲載・禁則269）。
+    if (ctx.castPhotoFile) {
+      return {
+        kind: 'next',
+        audits: [createdAudit],
+        note: 'エステ魂に登録できた（cast_id ' + hit.castId + '）。★ 続けて写真を1枚送ります（枠は空き枠へ詰められます）',
+        // ★ ここから先は cast_photo の流れそのもの（第243便）。★ 段名（esutama_photo_form …）で分かれるので intent は変えない
+        next: buildEsutamaPhotoReadStep(cookie, {
+          ...ctx,
+          castPhotoCastId: hit.castId,
+          castPhotoTherapistId: created.therapistId,
+          esutamaCsrf: undefined,
+        }),
+        mediaCreated: created,
+      };
+    }
+
     return {
       kind: 'done',
-      audits: [{
-        event: 'create_cast', outcome: 'ok',
-        summary: hit.name + 'さんをエステ魂に登録しました',
-        detail: { name: hit.name, castId: hit.castId, people: rows.length, flowId },
-      }],
+      audits: [createdAudit],
       note: 'エステ魂に登録できた（cast_id ' + hit.castId + '・' + rows.length + '名を読み直した）',
-      // ★★★ ここで初めて「この人の番号はこれ」と言える。★ 表に書くのは呼び出し側（DBを触るのはあちら）
-      mediaCreated: { therapistId: Number(ctx.createTherapistId ?? 0), castId: hit.castId, name: hit.name },
+      mediaCreated: created,
     };
   }
 
