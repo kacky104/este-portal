@@ -82,13 +82,6 @@ export function HpAdminApp({
   const { ctx } = view;
   const { site } = ctx;
 
-  const statusLabel =
-    site.status === 'live' ? '公開中' : site.status === 'suspended' ? '停止中（運営）' : '非公開（制作中）';
-  const statusColor =
-    site.status === 'live' ? 'bg-emerald-50 text-emerald-600 border-emerald-200'
-    : site.status === 'suspended' ? 'bg-rose-50 text-rose-500 border-rose-200'
-    : 'bg-slate-50 text-slate-500 border-slate-200';
-
   // ★★★ 「ページを見る」の飛び先（2026-09-11 夜・カッキーさんの指示）。
   //   ★ 独自ドメインが付いていて【公開中】なら、そのドメインの表紙へ飛ばす。
   //     ★ お客様が実際に見ているのはそのドメイン。★ 店舗様に見てほしいのも同じ物。
@@ -135,20 +128,22 @@ export function HpAdminApp({
         {/* ── ホーム ＝ 公開の状態・ドメイン・ページを見る ── */}
         {current === 'home' && (
           <div className="bg-white rounded-none border border-slate-100 shadow-sm p-5 space-y-3">
-            <div className="flex items-center justify-between gap-2">
+            {/* ★ 公開中／非公開の印は外した（第281便・2026-09-12・カッキーさんの指示）。
+                ★ 店舗様が切り替えられないものの状態を、ここで大きく見せる意味がないため。
+                ★ 状態は運営の管理者ダッシュボード（/admin → 公式HP）で見る。 */}
+            {/* ★ ドメインは見出しの【右】に置く（第281便・2026-09-12・カッキーさんの指示）。
+                ★ 印を外して空いた場所。★ 狭いときは下に回り込む（flex-wrap）。 */}
+            <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1">
               <div>
                 <h3 className="text-sm font-black text-slate-800">ホームページ管理</h3>
                 <p className="text-[11px] text-slate-400 mt-0.5">{ctx.salonName}</p>
               </div>
-              <span className={`inline-flex items-center px-2.5 py-1 rounded-none border text-[11px] font-bold ${statusColor}`}>
-                {statusLabel}
-              </span>
+              <p className="text-xs text-slate-500 break-all">
+                ドメイン：{site.domain
+                  ? <span className="font-bold text-slate-700">{site.domain}</span>
+                  : '準備中（運営で取得手続き中です）'}
+              </p>
             </div>
-            <p className="text-xs text-slate-500">
-              ドメイン：{site.domain
-                ? <span className="font-bold text-slate-700">{site.domain}</span>
-                : '準備中（運営で取得手続き中です）'}
-            </p>
             <div className="flex flex-wrap gap-2">
               <a
                 href={viewHref}
@@ -165,10 +160,11 @@ export function HpAdminApp({
                   ★ 画面から消すだけでなく、サーバー側（actions/hpAdmin.ts の setHpSiteLive）でも
                     運営以外を弾いている（★ 二重に止める。★ 第273便のセラピスト削除と同じ作法）。
                 ★ 「ログアウト」… 入口はマイページからの1本になったので、ここで出る用事が無い。
-                  ★ ログアウトはマイページの右上にある。 */}
-            <p className="text-[11px] text-slate-400 leading-relaxed">
-              ※ 公開・非公開の切り替えは運営事務局で行います。ご希望の際はお知らせください。
-            </p>
+                  ★ ログアウトはマイページの右上にある。
+                ★★ 第281便（2026-09-12）で、その下に置いていた
+                  「※ 公開・非公開の切り替えは運営事務局で行います」の一文も外した。
+                  ★ 店舗様に用事のない話を、毎回いちばん上で読ませないため。
+                  ★ 押しても断られるボタンはもう無いので、言い訳の文も要らない。 */}
           </div>
         )}
 
