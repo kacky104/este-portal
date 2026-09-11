@@ -9,6 +9,8 @@ import { recordMediaAudit, listMediaAudit } from '@/app/lib/media/mediaAudit';
 import { startRelayFlow } from '@/app/lib/media/relayFlow';
 // ★★★ 【第259便】セラピスト登録の材料づくり。★ 運営の curl の口（media-girl-create）と同じ1か所を呼ぶ（第257便）。
 import { buildGirlCreatePlan } from '@/app/lib/media/girlCreatePlan';
+// ★★★ 【第264便】エステ魂の材料づくり（★ 第263便で media-cast-create から切り出した物）。
+import { buildCastCreatePlan } from '@/app/lib/media/castCreatePlan';
 import { judgeWriteStall, stallMessage, mediaSlotLabel, type MediaLinkAlert } from '@/lib/mediaLinkStall';
 import { judgeImportStall } from '@/lib/importStall';
 import { isWriteDirection, isLinkMode, hasApprovedOnce } from '@/lib/mediaLinkMode';
@@ -1000,13 +1002,53 @@ export async function startMediaWorkPush(input: {
 //   ★★ 口が2つあると片方だけ漏れる（第255便(2)）。★ だからここに組み立てを書かない。
 //
 // ★★ 写真は既定のまま【枠1に1枚】（設計メモ §4 C）。★ allPhotos は運営の口だけ。★ 相手へ送る枚数を5倍にしない。
-// ★★ 媒体は provider で受ける（設計メモ §4 D）。★★★ ただし**いま通るのは駅ちかだけ**:
-//   ★ エステ魂の材料づくりは /api/admin/media-cast-create/route.ts に**まだ埋まっている**。
-//   ★ 第257便と同じ切り出し（buildCastCreatePlan）をしてから開ける（§5 ⑥）。★ ここに写して2か所にしない。
+// ★★ 媒体は provider で受ける（設計メモ §4 D）。★ 材料づくりは媒体ごとに1か所:
+//   駅ちか   … buildGirlCreatePlan（girlCreatePlan.ts・第257便）   ★ 写真は枠1に1枚（既定）
+//   エステ魂 … buildCastCreatePlan（castCreatePlan.ts・第263便）   ★ 写真は送らない（第232便・別の口）
+//   ★★ 【第264便】エステ魂を開けた。★ 分岐は buildTherapistCreate の1か所だけ。★ どちらも運営の curl と同じ物を呼ぶ。
 // ★★★ mediaSites.can の駅ちかに 'therapist' を足したのは第262便（★ §5 ③④の実弾が通ってから・第142便の物差し）。
+//   ★ エステ魂の 'therapist' は**まだ**（★ 実弾が通ってから・同じ物差し）。
 
-/** ★ いま店舗様の画面から登録できる媒体。★ エステ魂は材料づくりを切り出してから足す（§5 ⑥） */
-const THERAPIST_CREATE_PROVIDERS = ['ekichika'];
+/** ★ いま店舗様の画面から登録できる媒体（★ 第264便でエステ魂を足した）。★ TherapistBoard の CREATE_PROVIDERS と同じ組にすること */
+const THERAPIST_CREATE_PROVIDERS = ['ekichika', 'esutama'];
+
+/**
+ * ★★ 媒体ごとの材料づくりと、中継へ渡す形（★ 第264便・ここでだけ分岐する）。
+ *   ★ 試し打ちと実行の両方がこれを呼ぶ。★ 実行は押した時点で作り直す（★ 保存して後で送らない）。
+ *   ★ intent と relay の形が媒体で違う（girl_create／cast_create）。★ それ以外は同じ。
+ */
+async function buildTherapistCreate(input: {
+  svc: ReturnType<typeof createServiceClient>; provider: string; salonId: number; therapistId: number; slot: number; userId: string;
+}): Promise<
+  | { ok: true; plan: Record<string, unknown>; warnings: string[]; flow: Parameters<typeof startRelayFlow>[0] }
+  | { ok: false; error: string }
+> {
+  const { svc, provider, salonId, therapistId, slot, userId } = input;
+  // ⑥ ★ 運営の口と違うのは actor だけ（'admin:girl-create' / 'admin:cast-create' → 'shop:<userId>'）
+  const actor = 'shop:' + userId;
+  if (provider === 'ekichika') {
+    const built = await buildGirlCreatePlan(svc, {
+      salonId, therapistId, slot,
+      // ★ 既定と同じ（設計メモ §4 C）: 枠1に1枚・用意できなければ飛ばして登録だけ（第250便）・2枚目以降は送らない
+      withPhoto: true, withPhotoAsked: false, allPhotos: false,
+      postTo: 'action', rookie: true,
+    });
+    if (!built.ok) return { ok: false, error: built.error };
+    return {
+      ok: true, plan: built.data.plan, warnings: built.data.warnings,
+      flow: { salonId, provider, slot, intent: 'girl_create', actor, ...built.data.relay },
+    };
+  }
+  if (provider === 'esutama') {
+    const built = await buildCastCreatePlan(svc, { salonId, therapistId, slot });
+    if (!built.ok) return { ok: false, error: built.error };
+    return {
+      ok: true, plan: built.data.plan, warnings: built.data.warnings,
+      flow: { salonId, provider, slot, intent: 'cast_create', actor, ...built.data.relay },
+    };
+  }
+  return { ok: false, error: `${providerLabel(provider)}への登録は、この画面からはまだできません` };
+}
 
 /**
  * ①〜④の共通部分。★ 試し打ちと実行で**同じ止め**を通す（★ 試し打ちで通ったのに実行で止まる、を作らない）。
@@ -1071,14 +1113,9 @@ export async function startMediaTherapistCreate(input: {
   const g = await guardTherapistCreate(input);
   if (!g.ok) return g;
 
-  const built = await buildGirlCreatePlan(g.data.svc, {
-    salonId: g.data.salonId, therapistId, slot: g.data.slot,
-    // ★ 既定と同じ（設計メモ §4 C）: 枠1に1枚・用意できなければ飛ばして登録だけ（第250便）・2枚目以降は送らない
-    withPhoto: true, withPhotoAsked: false, allPhotos: false,
-    postTo: 'action', rookie: true,
-  });
-  if (!built.ok) return { ok: false, error: built.error };
-  return { ok: true, data: { plan: built.data.plan, warnings: built.data.warnings } };
+  const m = await buildTherapistCreate({ svc: g.data.svc, provider: input.provider, salonId: g.data.salonId, therapistId, slot: g.data.slot, userId: g.data.userId });
+  if (!m.ok) return { ok: false, error: m.error };
+  return { ok: true, data: { plan: m.plan, warnings: m.warnings } };
 }
 
 /**
@@ -1087,9 +1124,9 @@ export async function startMediaTherapistCreate(input: {
  * ★ 材料は押した時点で**作り直す**（★ 試し打ちの結果を保存して後で送る形にしない・startMediaWorkPush と同じ考え）。
  *   ★ 指紋は無い（§4 B）。★ 送る相手は therapistId で名指しの1人なので、最新の材料を送るのが正しい。
  * ★ 二重登録の止めは2段:
- *   1) buildGirlCreatePlan … すでに castId が結びついていれば 409（★ 積まない）
+ *   1) buildGirlCreatePlan / buildCastCreatePlan … すでに castId が結びついていれば 409（★ 積まない）
  *   2) 中継 … 一覧を読んで**同じ名前が居たら作らない**（第232便 §10-2）
- * ★ 結果はその場では返らない（★ 中継が引き取る）。★ 履歴（salon_media_audit・event=create_girl）で見る。
+ * ★ 結果はその場では返らない（★ 中継が引き取る）。★ 履歴（salon_media_audit・event=create_girl / create_cast）で見る。
  * ★ 消す口は運営だけ（設計メモ §4 A）。★ 画面には「消すときは駅ちかの管理画面から」と書く。
  */
 export async function startMediaTherapistCreatePush(input: {
@@ -1101,23 +1138,13 @@ export async function startMediaTherapistCreatePush(input: {
   const g = await guardTherapistCreate(input);
   if (!g.ok) return g;
 
-  const built = await buildGirlCreatePlan(g.data.svc, {
-    salonId: g.data.salonId, therapistId, slot: g.data.slot,
-    withPhoto: true, withPhotoAsked: false, allPhotos: false,
-    postTo: 'action', rookie: true,
-  });
-  if (!built.ok) return { ok: false, error: built.error };
+  const m = await buildTherapistCreate({ svc: g.data.svc, provider: input.provider, salonId: g.data.salonId, therapistId, slot: g.data.slot, userId: g.data.userId });
+  if (!m.ok) return { ok: false, error: m.error };
 
   try {
-    // ⑥ ★ 運営の口と違うのは actor だけ（'admin:girl-create' → 'shop:<userId>'）
-    const r = await startRelayFlow({
-      salonId: g.data.salonId, provider: input.provider, slot: g.data.slot,
-      intent: 'girl_create',
-      actor: 'shop:' + g.data.userId,
-      ...built.data.relay,
-    });
+    const r = await startRelayFlow(m.flow);
     if (!r.ok) return { ok: false, error: r.note };
-    return { ok: true, data: { jobId: r.jobId, note: r.note, warnings: built.data.warnings } };
+    return { ok: true, data: { jobId: r.jobId, note: r.note, warnings: m.warnings } };
   } catch (e) {
     // ★ 例外文に秘密が混ざらないよう、こちら側で作った文言だけ返す
     console.error('[media] セラピスト登録を始められなかった', (e as Error).message);

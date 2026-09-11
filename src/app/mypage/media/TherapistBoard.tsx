@@ -29,6 +29,7 @@ import { findDuplicateNames, duplicateNotice } from '@/lib/therapistDuplicates';
 //   ★★ 押す前に【試し打ちの結果】を1枚見せ、人が「登録する」を押してから送る（設計メモ §4 B）。
 //     ★ 指紋は無い。★ 送るのは1人だけ・名指しなので、押した時点の最新を送るのが正しい。
 //   ★★★ 【第262便】mediaSites.can の駅ちかに 'therapist' を足した（★ §5 ③④の実弾が通ってから・第142便の物差し）。
+//   ★★ 【第264便】エステ魂の列にも出す（CREATE_PROVIDERS）。★ エステ魂の 'therapist' は実弾が通ってから。
 //   ★★ 【第262便】「いません」の方には【登録】を出さず、「結びつきを外すと登録できます」の案内（設計メモ 追記A・案 b）。
 //
 // ★★★ 「いません」と書いてよい場面を狭くしている（mediaOverview.therapistSiteState）。
@@ -41,6 +42,15 @@ type Therapist = {
 };
 type Site = { provider: string; slot: number; label: string; direction: string; hasCredential: boolean };
 type Filter = 'all' | 'todo' | 'new';
+
+/**
+ * ★★ 【登録】を出す媒体（第264便でエステ魂を足した）。
+ *   ★★ サーバー側 mediaCredentials.ts の THERAPIST_CREATE_PROVIDERS と**同じ組**にすること
+ *     （★ 'use server' のファイルから定数は import できない・第178便の見張り）。
+ *   ★ 片方だけ足すと「ボタンは出るのに押すと止まる」か「押せるのにボタンが無い」になる。
+ *   ★ mediaSites.can の 'therapist' は【実弾が通ってから】足す（第142便の物差し）ので、ここの元にはしない。
+ */
+const CREATE_PROVIDERS = ['ekichika', 'esutama'];
 
 /**
  * ★ 試し打ちの結果（1人ぶん）。★ どの行・どの列の下に開いているかを持つ。
@@ -67,14 +77,20 @@ function summarizeCreatePlan(plan: Record<string, unknown>): Array<{ k: string; 
   const rows: Array<{ k: string; v: string }> = [];
   rows.push({ k: '名前', v: s(v.name) || '（空）' });
   rows.push({ k: '年齢', v: s(v.age) ? `${s(v.age)}歳` : '送りません（未設定）' });
-  const size = [s(v.tall) ? `T${s(v.tall)}` : '', s(v.bust) ? `B${s(v.bust)}` : '', s(v.waist) ? `W${s(v.waist)}` : '', s(v.hip) ? `H${s(v.hip)}` : '']
+  // ★ 第264便: 欄の名前が媒体で違う（駅ちか bust/waist/hip/cup ／ エステ魂 sizeB/sizeW/sizeH/sizeCup）。★ どちらでも読む
+  const bust = s(v.bust) || s(v.sizeB), waist = s(v.waist) || s(v.sizeW), hip = s(v.hip) || s(v.sizeH), cup = s(v.cup) || s(v.sizeCup);
+  const size = [s(v.tall) ? `T${s(v.tall)}` : '', bust ? `B${bust}` : '', waist ? `W${waist}` : '', hip ? `H${hip}` : '']
     .filter(Boolean).join(' ');
-  rows.push({ k: 'サイズ', v: (size || '送りません（未設定）') + (s(v.cup) ? `（${s(v.cup)}カップ）` : '') });
+  rows.push({ k: 'サイズ', v: (size || '送りません（未設定）') + (cup ? `（${cup}カップ）` : '') });
   const badges = Array.isArray(plan.badges) ? (plan.badges as unknown[]).map(s).filter(Boolean) : [];
   rows.push({ k: '特徴', v: badges.length > 0 ? badges.join('・') : 'なし' });
   // ★ 写真は「送るか」だけ。★ 在処（bucket/path）は店舗様に意味が無い
   const hasPhoto = !!(plan.photo && typeof plan.photo === 'object');
-  rows.push({ k: '写真', v: hasPhoto ? '1枚送ります（フクエスの1枚目）' : '送りません' + (s(plan.photoSkipped) ? `（${s(plan.photoSkipped)}）` : '') });
+  // ★ 第264便: エステ魂は登録の流れで写真を送らない（第232便）。★ 理由を書く（★ 「送りません」だけだと写真が無いのかと読める）
+  const photoNote = s(plan.provider) === 'esutama'
+    ? '送りません（エステ魂は登録のあとに、別に送ります）'
+    : '送りません' + (s(plan.photoSkipped) ? `（${s(plan.photoSkipped)}）` : '');
+  rows.push({ k: '写真', v: hasPhoto ? '1枚送ります（フクエスの1枚目）' : photoNote });
   return rows;
 }
 
@@ -461,7 +477,8 @@ export function TherapistBoard({ salonId, onToast, children }: {
                         //   ★ 材料づくりは「結びついていれば積まない」（二重登録を自分で作らない・第234便）ので、押しても**必ず止まる**。
                         //   ★ 2026-09-11 10:42 に実際に踏んだ（ラビリンス様ひより・castId 5692371）。
                         //   → ★ 代わりに「結びつきを外すと登録できます」の案内を出す。★ 自動では外さない（第49便の作法）。
-                        const colOk = c.provider === 'ekichika' && c.hasCredential;
+                        // ★ 第264便: 駅ちか決め打ちをやめ、CREATE_PROVIDERS（★ サーバーと同じ組）で見る
+                        const colOk = CREATE_PROVIDERS.includes(c.provider) && c.hasCredential;
                         const canCreate = colOk && st === 'unlinked';
                         const needUnlink = colOk && st === 'missing';
                         const busyKey = t.id + '#' + c.provider + '#' + c.slot;
@@ -592,15 +609,15 @@ export function TherapistBoard({ salonId, onToast, children }: {
               名簿をまだ読んでいません
               <span className="text-slate-400">　→ 上の「名簿を読み直す」を押してください</span>
             </p>
-            {/* ★ 第260便: ボタンの意味も同じ並びで1行。★ 駅ちかの列があるときだけ */}
-            {cols.some((c) => c.provider === 'ekichika' && c.hasCredential) && (
-              <p>
+            {/* ★ 第260便: ボタンの意味も同じ並びで1行。★ 第264便: 登録できる列ごとに1行（★ 駅ちか・エステ魂） */}
+            {cols.filter((c) => CREATE_PROVIDERS.includes(c.provider) && c.hasCredential).map((c) => (
+              <p key={key(c)}>
                 {/* ★ 第261便: 他の4行と同じく、太字のあとに全角スペース（★ 改行だけだと JSX は詰める） */}
-                <b className="font-bold text-indigo-700">駅ちかへ登録</b>　
-                フクエスの内容で駅ちかに新しく登録します
+                <b className="font-bold text-indigo-700">{c.label}へ登録</b>　
+                フクエスの内容で{c.label}に新しく登録します
                 <span className="text-slate-400">　→ 押すと、先に送る内容を確かめられます（すぐには送りません）</span>
               </p>
-            )}
+            ))}
           </div>
 
           <p className="mt-3 text-[13.5px] text-slate-400 leading-relaxed">
