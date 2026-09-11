@@ -24,5 +24,14 @@ export default async function HpAdminPage({ params }: { params: Promise<{ slug: 
   const host = normalizeHpSiteKey((h.get('x-forwarded-host') ?? h.get('host') ?? '').split(':')[0]);
   const viaOwnDomain = host !== '' && host === normalizeHpSiteKey(slug);
 
-  return <HpAdminApp siteKey={slug} previewHref={viaOwnDomain ? '/' : `/hp/${slug}`} />;
+  // ★ 「マイページへ戻る」の行き先（第278便・2026-09-12）。
+  //   ★ 店舗ドメインで開いているときは fukues.com の絶対URL。
+  //     ★ 店舗ドメインの /mypage は proxy が /hp/{ドメイン}/mypage に書き換えるので 404 になる。
+  return (
+    <HpAdminApp
+      siteKey={slug}
+      previewHref={viaOwnDomain ? '/' : `/hp/${slug}`}
+      mypageHref={viaOwnDomain ? 'https://fukues.com/mypage' : '/mypage'}
+    />
+  );
 }

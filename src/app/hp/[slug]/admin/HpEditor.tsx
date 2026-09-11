@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { createClient } from '@/app/lib/supabase/client';
+import { isHpEditorSection, type HpAdminSection } from './adminNav';
 import { STORAGE_CACHE_CONTROL } from '@/app/lib/storage';
 import { listHpTherapists, saveHpSiteContent } from '@/app/actions/hpAdmin';
 import {
@@ -91,11 +92,17 @@ function validateImageFile(file: File): string | null {
 export function HpEditor({
   siteKey,
   site,
+  section,
   onSaved,
   onToast,
 }: {
   siteKey: string;
   site: HpSite;
+  // ★★★ いま出す画面（第278便・2026-09-12・カッキーさんの指示）。
+  //   ★ サイドバーで選ばれたものだけを描く。★ 'home' や 'account' のときは【何も描かない】。
+  //   ★★ ただしこの部品は外されない（呼ぶ側がいつも置いている）＝入力中の文字を持ったまま控える。
+  //     ★ 外すと、ホームを1回見ただけで保存前の変更が消える。
+  section: HpAdminSection;
   onSaved: (site: HpSite) => void;
   onToast: (msg: string) => void;
 }) {
@@ -305,16 +312,22 @@ export function HpEditor({
   };
 
   const inputCls =
-    'w-full rounded-xl border border-slate-200 px-3 py-2 text-sm text-slate-700 focus:outline-none focus:border-pink-300';
+    'w-full rounded-none border border-slate-200 px-3 py-2 text-sm text-slate-700 focus:outline-none focus:border-pink-300';
 
   const templateLabel = HP_TEMPLATES.find((t) => t.key === site.template_key)?.label ?? '';
   const colorVariant = HP_COLOR_VARIANTS[site.template_key].find((v) => v.key === site.theme_key)
     ?? HP_COLOR_VARIANTS[site.template_key][0];
 
+  // ★ いま出す画面かどうか（第278便）。★ 判断はこの2つだけ（★ 画面ごとに条件を書かない）。
+  const show = (k: HpAdminSection) => section === k;
+  // ★ 保存の枠を出すのは、この部品が受け持つ画面のときだけ（★ ホーム・担当者では出さない）。
+  const isEditorPage = isHpEditorSection(section);
+
   return (
     <div className="space-y-4">
       {/* ── デザイン（確定済み・表示のみ） ── */}
-      <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5 space-y-2">
+      {show('design') && (
+      <div className="bg-white rounded-none border border-slate-100 shadow-sm p-5 space-y-2">
         <h3 className="text-sm font-black text-slate-800">デザイン</h3>
         <div className="flex items-center gap-2">
           <span
@@ -324,7 +337,7 @@ export function HpEditor({
           <p className="text-xs font-bold text-slate-700">
             {templateLabel}／{colorVariant.label}
           </p>
-          <span className="ml-auto inline-flex items-center px-2.5 py-1 rounded-full border border-slate-200 bg-slate-50 text-[11px] font-bold text-slate-500">
+          <span className="ml-auto inline-flex items-center px-2.5 py-1 rounded-none border border-slate-200 bg-slate-50 text-[11px] font-bold text-slate-500">
             確定済み
           </span>
         </div>
@@ -332,9 +345,11 @@ export function HpEditor({
           ※ ひな形とカラーの変更は運営事務局での作業（有償）となります。写真・文章はこのページからいつでも変更できます。
         </p>
       </div>
+      )}
 
       {/* ── トップ（ヒーロー） ── */}
-      <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5 space-y-4">
+      {show('hero') && (
+      <div className="bg-white rounded-none border border-slate-100 shadow-sm p-5 space-y-4">
         <h3 className="text-sm font-black text-slate-800">トップ画像・キャッチコピー</h3>
         {/* スライド1枚 ＝ パソコン用（横長・必須）＋スマートフォン用（縦長・省略可）。
             2枚以上入れると自動で切り替わるスライダーになる（最大3枚）。
@@ -344,7 +359,7 @@ export function HpEditor({
             const slide = form.hero_slides[si] ?? null;
             const isNew = slide === null;
             return (
-              <div key={si} className="rounded-xl border border-slate-100 bg-slate-50/70 p-3 space-y-2">
+              <div key={si} className="rounded-none border border-slate-100 bg-slate-50/70 p-3 space-y-2">
                 <div className="flex items-center justify-between gap-2">
                   <p className="text-xs font-bold text-slate-600">
                     {si + 1}枚目
@@ -356,7 +371,7 @@ export function HpEditor({
                         type="button"
                         onClick={() => moveHeroSlide(si, -1)}
                         disabled={si === 0}
-                        className="px-2 py-0.5 rounded-lg border border-slate-200 bg-white text-[11px] text-slate-600 disabled:opacity-30"
+                        className="px-2 py-0.5 rounded-none border border-slate-200 bg-white text-[11px] text-slate-600 disabled:opacity-30"
                       >
                         ↑ 前へ
                       </button>
@@ -364,7 +379,7 @@ export function HpEditor({
                         type="button"
                         onClick={() => moveHeroSlide(si, 1)}
                         disabled={si === form.hero_slides.length - 1}
-                        className="px-2 py-0.5 rounded-lg border border-slate-200 bg-white text-[11px] text-slate-600 disabled:opacity-30"
+                        className="px-2 py-0.5 rounded-none border border-slate-200 bg-white text-[11px] text-slate-600 disabled:opacity-30"
                       >
                         ↓ 次へ
                       </button>
@@ -388,7 +403,7 @@ export function HpEditor({
                             <img
                               src={url}
                               alt={slot.label}
-                              className={`w-full object-cover rounded-xl border border-slate-200 ${slot.previewCls}`}
+                              className={`w-full object-cover rounded-none border border-slate-200 ${slot.previewCls}`}
                             />
                             <button
                               onClick={() => {
@@ -412,7 +427,7 @@ export function HpEditor({
                           </div>
                         ) : (
                           <label
-                            className={`flex items-center justify-center w-full rounded-xl border-2 border-dashed border-slate-200 text-[11px] text-slate-400 cursor-pointer hover:border-pink-300 ${slot.previewCls}`}
+                            className={`flex items-center justify-center w-full rounded-none border-2 border-dashed border-slate-200 text-[11px] text-slate-400 cursor-pointer hover:border-pink-300 ${slot.previewCls}`}
                           >
                             {uploadingSlot === slotKey ? 'アップ中…' : '画像を選ぶ'}
                             <input
@@ -466,14 +481,15 @@ export function HpEditor({
           />
         </div>
       </div>
+      )}
 
       {/* ── 配色ごとのトップ画像（デモ店だけ・2026-08-11）──
            デモは1行で全デザインを見せるので、上の「トップ画像」だけだと
            どの配色のプレビューにも同じ写真が出てしまう。ここに入れた写真は
            その配色で見たときだけ差し替わる（/hp/demo/preview/{ひな形}/{カラー}）。
            セラピスト写真も同じ考え方で、掲載データの写真の代わりに使う。 */}
-      {previewSlots.length > 0 && (
-        <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5 space-y-3">
+      {show('design') && previewSlots.length > 0 && (
+        <div className="bg-white rounded-none border border-slate-100 shadow-sm p-5 space-y-3">
           <h3 className="text-sm font-black text-slate-800">デザインごとの画像（デモ専用）</h3>
           <p className="text-[11px] text-slate-400 leading-relaxed">
             デザイン一覧のプレビューで、その見た目のときだけ差し替える写真です（トップ画像とセラピスト写真）。
@@ -494,7 +510,7 @@ export function HpEditor({
               Object.keys(form.blocks.therapistImagesByColor[variant.key] ?? {}).length;
             return (
               // 数が増えるので既定は畳んでおく（開いた中身は従来どおり）
-              <details key={variant.key} className="rounded-xl border border-slate-100 bg-slate-50/60 px-3 py-2">
+              <details key={variant.key} className="rounded-none border border-slate-100 bg-slate-50/60 px-3 py-2">
                 <summary className="flex items-center gap-2 text-xs font-bold text-slate-600 cursor-pointer list-none">
                   <span
                     className="w-4 h-4 rounded-full border border-black/10 flex-shrink-0"
@@ -522,7 +538,7 @@ export function HpEditor({
                             <img
                               src={url}
                               alt={`${variant.label} ${slot.label}`}
-                              className={`w-full object-cover rounded-xl border border-slate-200 ${slot.previewCls}`}
+                              className={`w-full object-cover rounded-none border border-slate-200 ${slot.previewCls}`}
                             />
                             <button
                               onClick={() => {
@@ -538,7 +554,7 @@ export function HpEditor({
                           </div>
                         ) : (
                           <label
-                            className={`flex items-center justify-center w-full rounded-xl border-2 border-dashed border-slate-200 text-[11px] text-slate-400 cursor-pointer hover:border-pink-300 ${slot.previewCls}`}
+                            className={`flex items-center justify-center w-full rounded-none border-2 border-dashed border-slate-200 text-[11px] text-slate-400 cursor-pointer hover:border-pink-300 ${slot.previewCls}`}
                           >
                             {uploadingSlot === slotKey ? 'アップ中…' : '画像を選ぶ'}
                             <input
@@ -599,7 +615,7 @@ export function HpEditor({
                                 <img
                                   src={url}
                                   alt={t.name}
-                                  className="w-full aspect-[4/5] object-cover rounded-lg border border-slate-200"
+                                  className="w-full aspect-[4/5] object-cover rounded-none border border-slate-200"
                                 />
                                 <button
                                   onClick={() => { setOne(null); removeIfUnsaved(url); }}
@@ -610,7 +626,7 @@ export function HpEditor({
                                 </button>
                               </div>
                             ) : (
-                              <label className="relative block w-full aspect-[4/5] rounded-lg border-2 border-dashed border-slate-200 cursor-pointer hover:border-pink-300 overflow-hidden">
+                              <label className="relative block w-full aspect-[4/5] rounded-none border-2 border-dashed border-slate-200 cursor-pointer hover:border-pink-300 overflow-hidden">
                                 {/* 未設定のときは掲載データの写真を薄く敷いて「いま出ている写真」を分かるように */}
                                 {t.imageUrl && (
                                   // eslint-disable-next-line @next/next/no-img-element
@@ -649,7 +665,8 @@ export function HpEditor({
       )}
 
       {/* ── コンセプト ── */}
-      <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5 space-y-4">
+      {show('concept') && (
+      <div className="bg-white rounded-none border border-slate-100 shadow-sm p-5 space-y-4">
         <h3 className="text-sm font-black text-slate-800">コンセプト</h3>
         <p className="text-[11px] text-slate-400">
           ※ フクエス掲載ページの紹介文とは別の、ホームページ専用の文章です（同じ文章のコピーは検索評価の面で不利になります）。
@@ -679,7 +696,7 @@ export function HpEditor({
           {form.concept_image_url ? (
             <div className="relative w-40">
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={form.concept_image_url} alt="コンセプト画像" className="w-40 aspect-video object-cover rounded-xl border border-slate-200" />
+              <img src={form.concept_image_url} alt="コンセプト画像" className="w-40 aspect-video object-cover rounded-none border border-slate-200" />
               <button
                 onClick={() => {
                   const url = form.concept_image_url;
@@ -693,7 +710,7 @@ export function HpEditor({
               </button>
             </div>
           ) : (
-            <label className="inline-flex items-center justify-center px-4 py-2 rounded-full border border-slate-200 text-xs font-bold text-slate-500 cursor-pointer hover:border-pink-300">
+            <label className="inline-flex items-center justify-center px-4 py-2 rounded-none border border-slate-200 text-xs font-bold text-slate-500 cursor-pointer hover:border-pink-300">
               {uploadingSlot === 'concept' ? 'アップ中…' : '画像を選ぶ'}
               <input
                 type="file"
@@ -712,9 +729,11 @@ export function HpEditor({
           )}
         </div>
       </div>
+      )}
 
       {/* ── ブロック表示設定＋並び順 ── */}
-      <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5 space-y-3">
+      {show('blocks') && (
+      <div className="bg-white rounded-none border border-slate-100 shadow-sm p-5 space-y-3">
         <div className="flex items-center justify-between gap-2">
           <h3 className="text-sm font-black text-slate-800">表示するブロックと並び順</h3>
           {form.blocks.order !== null && (
@@ -745,7 +764,7 @@ export function HpEditor({
                     onClick={() => moveSection(i, -1)}
                     disabled={i === 0}
                     aria-label={`${sectionLabel(k)}を上へ`}
-                    className="w-7 h-5 rounded-t-md border border-slate-200 text-[10px] leading-none text-slate-500 disabled:opacity-25 hover:border-pink-300 hover:text-pink-500"
+                    className="w-7 h-5 rounded-none-md border border-slate-200 text-[10px] leading-none text-slate-500 disabled:opacity-25 hover:border-pink-300 hover:text-pink-500"
                   >
                     ▲
                   </button>
@@ -754,7 +773,7 @@ export function HpEditor({
                     onClick={() => moveSection(i, 1)}
                     disabled={i === sectionOrder.length - 1}
                     aria-label={`${sectionLabel(k)}を下へ`}
-                    className="w-7 h-5 rounded-b-md border border-t-0 border-slate-200 text-[10px] leading-none text-slate-500 disabled:opacity-25 hover:border-pink-300 hover:text-pink-500"
+                    className="w-7 h-5 rounded-none-md border border-t-0 border-slate-200 text-[10px] leading-none text-slate-500 disabled:opacity-25 hover:border-pink-300 hover:text-pink-500"
                   >
                     ▼
                   </button>
@@ -779,7 +798,7 @@ export function HpEditor({
                     value={form.blocks.diary.count}
                     onChange={(e) => patchBlocks({ diary: { ...form.blocks.diary, count: Number(e.target.value) } })}
                     disabled={!form.blocks.diary.on}
-                    className="rounded-lg border border-slate-200 px-2 py-1 text-xs text-slate-600 disabled:opacity-40"
+                    className="rounded-none border border-slate-200 px-2 py-1 text-xs text-slate-600 disabled:opacity-40"
                   >
                     {Array.from({ length: HP_DIARY_COUNT_MAX - HP_DIARY_COUNT_MIN + 1 }, (_, n) => HP_DIARY_COUNT_MIN + n).map((n) => (
                       <option key={n} value={n}>{n}件</option>
@@ -791,7 +810,7 @@ export function HpEditor({
                     value={form.blocks.reviews.count}
                     onChange={(e) => patchBlocks({ reviews: { ...form.blocks.reviews, count: Number(e.target.value) } })}
                     disabled={!form.blocks.reviews.on}
-                    className="rounded-lg border border-slate-200 px-2 py-1 text-xs text-slate-600 disabled:opacity-40"
+                    className="rounded-none border border-slate-200 px-2 py-1 text-xs text-slate-600 disabled:opacity-40"
                   >
                     {Array.from({ length: HP_REVIEWS_COUNT_MAX - HP_REVIEWS_COUNT_MIN + 1 }, (_, n) => HP_REVIEWS_COUNT_MIN + n).map((n) => (
                       <option key={n} value={n}>{n}件</option>
@@ -825,9 +844,11 @@ export function HpEditor({
             onChange={(e) => patchBlocks({ jobs: { on: e.target.checked } })} className="w-4 h-4 accent-pink-500" />
         </label>
       </div>
+      )}
 
       {/* ── バナー ── */}
-      <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5 space-y-4">
+      {show('banner') && (
+      <div className="bg-white rounded-none border border-slate-100 shadow-sm p-5 space-y-4">
         <h3 className="text-sm font-black text-slate-800">バナー（最大{MAX_HP_BANNERS}枠）</h3>
         <p className="text-[11px] text-slate-400">※ ページ下部に表示するバナーです。リンクは任意（空欄=リンクなし）。</p>
         {Array.from({ length: MAX_HP_BANNERS }, (_, i) => {
@@ -840,7 +861,7 @@ export function HpEditor({
               {banner ? (
                 <div className="relative w-40 flex-shrink-0">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={banner.image_url} alt={`バナー${i + 1}`} className="w-40 object-contain rounded-lg border border-slate-200" />
+                  <img src={banner.image_url} alt={`バナー${i + 1}`} className="w-40 object-contain rounded-none border border-slate-200" />
                   <button
                     onClick={() => { const url = banner.image_url; setBanner(null); removeIfUnsaved(url); }}
                     className="absolute top-1 right-1 w-6 h-6 rounded-full bg-black/50 text-white text-xs font-bold"
@@ -850,7 +871,7 @@ export function HpEditor({
                   </button>
                 </div>
               ) : (
-                <label className="flex items-center justify-center w-40 h-16 flex-shrink-0 rounded-lg border-2 border-dashed border-slate-200 text-[11px] text-slate-400 cursor-pointer hover:border-pink-300">
+                <label className="flex items-center justify-center w-40 h-16 flex-shrink-0 rounded-none border-2 border-dashed border-slate-200 text-[11px] text-slate-400 cursor-pointer hover:border-pink-300">
                   {uploadingSlot === slotKey ? 'アップ中…' : `バナー${i + 1}`}
                   <input
                     type="file"
@@ -900,15 +921,17 @@ export function HpEditor({
             type="button"
             onClick={importBannerCode}
             disabled={bannerCode.trim() === ''}
-            className="px-4 py-2 rounded-full bg-slate-800 text-white text-xs font-bold disabled:opacity-30"
+            className="px-4 py-2 rounded-none bg-slate-800 text-white text-xs font-bold disabled:opacity-30"
           >
             取り込む
           </button>
         </div>
       </div>
+      )}
 
       {/* ── リンク（相互リンク） ── */}
-      <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5 space-y-3">
+      {show('links') && (
+      <div className="bg-white rounded-none border border-slate-100 shadow-sm p-5 space-y-3">
         <h3 className="text-sm font-black text-slate-800">リンク（最大{MAX_HP_LINK_BANNERS}件）</h3>
         <p className="text-[11px] text-slate-400">
           ※ 掲載サイト・求人サイトから配られる相互リンク用のコードを貼って「追加する」を押すと、
@@ -928,7 +951,7 @@ export function HpEditor({
           type="button"
           onClick={addLinkBanners}
           disabled={linkCode.trim() === ''}
-          className="px-4 py-2 rounded-full bg-slate-800 text-white text-xs font-bold disabled:opacity-30"
+          className="px-4 py-2 rounded-none bg-slate-800 text-white text-xs font-bold disabled:opacity-30"
         >
           追加する
         </button>
@@ -939,9 +962,9 @@ export function HpEditor({
               <li key={i} className="flex items-center gap-2 py-2">
                 <div className="flex flex-col shrink-0">
                   <button type="button" onClick={() => moveLinkBanner(i, -1)} disabled={i === 0} aria-label="上へ"
-                    className="w-7 h-5 rounded-t-md border border-slate-200 text-[10px] leading-none text-slate-500 disabled:opacity-25 hover:border-pink-300">▲</button>
+                    className="w-7 h-5 rounded-none-md border border-slate-200 text-[10px] leading-none text-slate-500 disabled:opacity-25 hover:border-pink-300">▲</button>
                   <button type="button" onClick={() => moveLinkBanner(i, 1)} disabled={i === form.link_banners.length - 1} aria-label="下へ"
-                    className="w-7 h-5 rounded-b-md border border-t-0 border-slate-200 text-[10px] leading-none text-slate-500 disabled:opacity-25 hover:border-pink-300">▼</button>
+                    className="w-7 h-5 rounded-none-md border border-t-0 border-slate-200 text-[10px] leading-none text-slate-500 disabled:opacity-25 hover:border-pink-300">▼</button>
                 </div>
                 <div className="flex-1 min-w-0">
                   {l.image_url ? (
@@ -959,9 +982,11 @@ export function HpEditor({
           </ul>
         )}
       </div>
+      )}
 
       {/* ── ヘッダーのロゴ ── */}
-      <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5 space-y-3">
+      {show('brand') && (
+      <div className="bg-white rounded-none border border-slate-100 shadow-sm p-5 space-y-3">
         <h3 className="text-sm font-black text-slate-800">ヘッダーのロゴ</h3>
         <p className="text-[11px] text-slate-400 leading-relaxed">
           ※ ページ上部の固定ヘッダーに表示されます。未設定のときは店名の文字が出ます。
@@ -976,7 +1001,7 @@ export function HpEditor({
               <img
                 src={form.logo_url}
                 alt="ロゴ"
-                className="h-12 max-w-[240px] object-contain rounded-lg border border-slate-200 bg-[repeating-conic-gradient(#f1f5f9_0_25%,#fff_0_50%)] bg-[length:16px_16px] px-2"
+                className="h-12 max-w-[240px] object-contain rounded-none border border-slate-200 bg-[repeating-conic-gradient(#f1f5f9_0_25%,#fff_0_50%)] bg-[length:16px_16px] px-2"
               />
               <button
                 onClick={() => {
@@ -991,7 +1016,7 @@ export function HpEditor({
               </button>
             </div>
           ) : (
-            <label className="flex items-center justify-center w-40 h-12 rounded-lg border-2 border-dashed border-slate-200 text-[11px] text-slate-400 cursor-pointer hover:border-pink-300">
+            <label className="flex items-center justify-center w-40 h-12 rounded-none border-2 border-dashed border-slate-200 text-[11px] text-slate-400 cursor-pointer hover:border-pink-300">
               {uploadingSlot === 'logo' ? 'アップ中…' : 'ロゴ画像を選ぶ'}
               <input
                 type="file"
@@ -1011,9 +1036,11 @@ export function HpEditor({
           <p className="text-[11px] text-slate-400">保存すると反映されます。</p>
         </div>
       </div>
+      )}
 
       {/* ── ファビコン ── */}
-      <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5 space-y-3">
+      {show('brand') && (
+      <div className="bg-white rounded-none border border-slate-100 shadow-sm p-5 space-y-3">
         <h3 className="text-sm font-black text-slate-800">ファビコン（ブラウザタブのアイコン）</h3>
         <p className="text-[11px] text-slate-400 leading-relaxed">
           ※ 独自ドメインで開いたとき、ブラウザのタブに表示される小さなアイコンです。
@@ -1023,7 +1050,7 @@ export function HpEditor({
           {form.favicon_url ? (
             <div className="relative">
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={form.favicon_url} alt="ファビコン" className="w-16 h-16 object-cover rounded-xl border border-slate-200" />
+              <img src={form.favicon_url} alt="ファビコン" className="w-16 h-16 object-cover rounded-none border border-slate-200" />
               <button
                 onClick={() => {
                   const url = form.favicon_url;
@@ -1037,7 +1064,7 @@ export function HpEditor({
               </button>
             </div>
           ) : (
-            <label className="flex items-center justify-center w-16 h-16 rounded-xl border-2 border-dashed border-slate-200 text-[10px] text-slate-400 cursor-pointer hover:border-pink-300">
+            <label className="flex items-center justify-center w-16 h-16 rounded-none border-2 border-dashed border-slate-200 text-[10px] text-slate-400 cursor-pointer hover:border-pink-300">
               {uploadingSlot === 'favicon' ? 'アップ中…' : '選ぶ'}
               <input
                 type="file"
@@ -1057,20 +1084,22 @@ export function HpEditor({
           <p className="text-[11px] text-slate-400">保存すると反映されます。</p>
         </div>
       </div>
+      )}
 
       {/* ── 保存 ── */}
-      <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5 space-y-2">
+      {isEditorPage && (
+      <div className="bg-white rounded-none border border-slate-100 shadow-sm p-5 space-y-2">
         <button
           onClick={handleSave}
           disabled={saving || uploadingSlot !== null}
-          className="w-full py-3 rounded-full bg-pink-500 text-white text-sm font-black hover:bg-pink-600 transition-colors disabled:opacity-50"
+          className="w-full py-3 rounded-none bg-pink-500 text-white text-sm font-black hover:bg-pink-600 transition-colors disabled:opacity-50"
         >
           {saving ? '保存中…' : '保存する'}
         </button>
         <button
           onClick={() => setForm(siteToForm(site))}
           disabled={saving}
-          className="w-full py-2 rounded-full text-xs font-bold text-slate-400 hover:text-slate-600 transition-colors disabled:opacity-50"
+          className="w-full py-2 rounded-none text-xs font-bold text-slate-400 hover:text-slate-600 transition-colors disabled:opacity-50"
         >
           変更を破棄して元に戻す
         </button>
@@ -1078,6 +1107,7 @@ export function HpEditor({
           ※ 保存すると公開ページに反映されます（反映まで少し時間がかかることがあります）。
         </p>
       </div>
+      )}
     </div>
   );
 }

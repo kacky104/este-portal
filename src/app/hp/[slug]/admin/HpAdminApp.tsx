@@ -14,6 +14,8 @@ import {
 import { normalizeHpSiteKey, type HpSite, type HpTemplateKey } from '@/app/lib/hpSite';
 import { HpGallery } from './HpGallery';
 import { HpEditor } from './HpEditor';
+import { HpShell } from './HpShell';
+import { HP_EDITOR_SECTIONS, type HpAdminSection } from './adminNav';
 
 // 店舗ドメイン/admin の本体（2026-08-09 段階3）。
 //
@@ -34,10 +36,23 @@ type View =
   | { kind: 'login'; notice: string }
   | { kind: 'ready'; ctx: HpAdminContext };
 
-export function HpAdminApp({ siteKey, previewHref }: { siteKey: string; previewHref: string }) {
+export function HpAdminApp({
+  siteKey,
+  previewHref,
+  mypageHref,
+}: {
+  siteKey: string;
+  previewHref: string;
+  // ★ 「マイページへ戻る」の行き先（第278便）。★ 店舗ドメインで開いているときは
+  //   fukues.com の絶対URLが渡る（★ 店舗ドメインに /mypage は無いため）。
+  mypageHref: string;
+}) {
   const [view, setView] = useState<View>({ kind: 'loading' });
   const [toast, setToast] = useState('');
   const [busy, setBusy] = useState(false);
+  // ★★ いま出している画面（第278便）。★ URLは /admin のまま変えない。
+  //   ★ ページを移らないので、保存前の入力が消えない（HpEditor が外れない）。
+  const [section, setSection] = useState<HpAdminSection>('home');
 
   const showToast = useCallback((msg: string) => {
     setToast(msg);
@@ -108,85 +123,108 @@ export function HpAdminApp({ siteKey, previewHref }: { siteKey: string; previewH
     showToast(res.status === 'live' ? '公開にしました' : '非公開にしました');
   };
 
+  // ★★★ サイドバーに出す画面（第278便・2026-09-12・カッキーさんの指示）。
+  //   ★ 判断はこの1か所。★ 出さない画面は、押す道そのものを作らない。
+  //     ★ デザインが未確定のあいだ ＝ 写真も文章もまだ入れられないので「ホーム・デザイン」だけ。
+  //     ★ 担当者アカウントは、オーナー様と運営だけ（★ 担当者自身は自分を増やせない）。
+  const canManageAccount = ctx.role === 'owner' || ctx.role === 'operator';
+  const sections: HpAdminSection[] = [
+    'home',
+    ...(site.design_locked ? HP_EDITOR_SECTIONS : (['design'] as HpAdminSection[])),
+    ...(canManageAccount ? (['account'] as HpAdminSection[]) : []),
+  ];
+  // ★ 出せない画面が選ばれていたらホームに倒す（★ 白い画面を出さない）。
+  const current: HpAdminSection = sections.includes(section) ? section : 'home';
+
   return (
-    <div className="max-w-2xl mx-auto px-4 py-6 space-y-4">
-      {/* ── ヘッダー ── */}
-      <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5 space-y-3">
-        <div className="flex items-center justify-between gap-2">
-          <div>
-            <h1 className="text-sm font-black text-slate-800">ホームページ管理</h1>
-            <p className="text-[11px] text-slate-400 mt-0.5">{ctx.salonName}</p>
+    <HpShell
+      salonName={ctx.salonName}
+      salonDomain={site.domain}
+      current={current}
+      sections={sections}
+      onSelect={setSection}
+      mypageHref={mypageHref}
+      toast={toast}
+    >
+      <div className="space-y-4">
+        {/* ── ホーム ＝ 公開の状態・ドメイン・ページを見る ── */}
+        {current === 'home' && (
+          <div className="bg-white rounded-none border border-slate-100 shadow-sm p-5 space-y-3">
+            <div className="flex items-center justify-between gap-2">
+              <div>
+                <h3 className="text-sm font-black text-slate-800">ホームページ管理</h3>
+                <p className="text-[11px] text-slate-400 mt-0.5">{ctx.salonName}</p>
+              </div>
+              <span className={`inline-flex items-center px-2.5 py-1 rounded-none border text-[11px] font-bold ${statusColor}`}>
+                {statusLabel}
+              </span>
+            </div>
+            <p className="text-xs text-slate-500">
+              ドメイン：{site.domain
+                ? <span className="font-bold text-slate-700">{site.domain}</span>
+                : '準備中（運営で取得手続き中です）'}
+            </p>
+            <div className="flex flex-wrap gap-2">
+              <a
+                href={viewHref}
+                target="_blank"
+                rel="noreferrer"
+                className="px-4 py-2 rounded-none border border-slate-200 text-xs font-bold text-slate-500 hover:border-slate-300"
+              >
+                ページを見る
+              </a>
+              {site.status !== 'suspended' && site.design_locked && (
+                <button
+                  onClick={handleToggleLive}
+                  disabled={busy}
+                  className={`px-4 py-2 rounded-none text-xs font-bold border transition-colors disabled:opacity-50 ${
+                    site.status === 'live'
+                      ? 'bg-white text-slate-500 border-slate-200 hover:border-slate-300'
+                      : 'bg-pink-500 text-white border-pink-500 hover:bg-pink-600'
+                  }`}
+                >
+                  {site.status === 'live' ? '非公開にする' : '公開する'}
+                </button>
+              )}
+              <button
+                onClick={async () => { await signOut(); load(); }}
+                className="ml-auto px-4 py-2 rounded-none text-xs font-bold text-slate-400 hover:text-slate-600"
+              >
+                ログアウト
+              </button>
+            </div>
           </div>
-          <span className={`inline-flex items-center px-2.5 py-1 rounded-full border text-[11px] font-bold ${statusColor}`}>
-            {statusLabel}
-          </span>
-        </div>
-        <p className="text-xs text-slate-500">
-          ドメイン：{site.domain
-            ? <span className="font-bold text-slate-700">{site.domain}</span>
-            : '準備中（運営で取得手続き中です）'}
-        </p>
-        <div className="flex flex-wrap gap-2">
-          <a
-            href={viewHref}
-            target="_blank"
-            rel="noreferrer"
-            className="px-4 py-2 rounded-full border border-slate-200 text-xs font-bold text-slate-500 hover:border-slate-300"
-          >
-            ページを見る
-          </a>
-          {site.status !== 'suspended' && site.design_locked && (
-            <button
-              onClick={handleToggleLive}
-              disabled={busy}
-              className={`px-4 py-2 rounded-full text-xs font-bold border transition-colors disabled:opacity-50 ${
-                site.status === 'live'
-                  ? 'bg-white text-slate-500 border-slate-200 hover:border-slate-300'
-                  : 'bg-pink-500 text-white border-pink-500 hover:bg-pink-600'
-              }`}
-            >
-              {site.status === 'live' ? '非公開にする' : '公開する'}
-            </button>
-          )}
-          <button
-            onClick={async () => { await signOut(); load(); }}
-            className="ml-auto px-4 py-2 rounded-full text-xs font-bold text-slate-400 hover:text-slate-600"
-          >
-            ログアウト
-          </button>
-        </div>
+        )}
+
+        {/* ── 写真と文章の編集 ──
+            ★★ HpEditor は【いつも置いておく】（★ 出す中身は section が決める）。
+              ★ 画面を移るたびに外していると、保存前に書いた文字が消える。
+            確定済み: 編集パネル（全ロール）
+            未確定:   運営にはギャラリー（打ち合わせ結果を設定・確定する）、
+                      店舗には「デザイン打ち合わせ中」の案内 ── */}
+        {site.design_locked ? (
+          <HpEditor siteKey={siteKey} site={site} section={current} onSaved={patchSite} onToast={showToast} />
+        ) : current === 'design' ? (
+          ctx.role === 'operator' ? (
+            <HpGallery onConfirm={handleConfirmDesign} busy={busy} previewHref={previewHref} />
+          ) : (
+            <DesignPendingCard />
+          )
+        ) : null}
+
+        {/* ── HP管理者アカウント（オーナー・運営にだけ表示） ── */}
+        {current === 'account' && canManageAccount && (
+          <AdminAccountCard siteKey={siteKey} ctx={ctx} onToast={showToast} onChanged={load} />
+        )}
       </div>
-
-      {/* ── 本体 ──
-          確定済み: 編集パネル（全ロール）
-          未確定:   運営にはギャラリー（打ち合わせ結果を設定・確定する）、
-                    店舗には「デザイン打ち合わせ中」の案内 ── */}
-      {site.design_locked ? (
-        <HpEditor siteKey={siteKey} site={site} onSaved={patchSite} onToast={showToast} />
-      ) : ctx.role === 'operator' ? (
-        <HpGallery onConfirm={handleConfirmDesign} busy={busy} previewHref={previewHref} />
-      ) : (
-        <DesignPendingCard />
-      )}
-
-      {/* ── HP管理者アカウント（オーナー・運営にだけ表示） ── */}
-      {(ctx.role === 'owner' || ctx.role === 'operator') && (
-        <AdminAccountCard siteKey={siteKey} ctx={ctx} onToast={showToast} onChanged={load} />
-      )}
-
-      {toast && (
-        <div className="fixed bottom-5 left-1/2 -translate-x-1/2 z-50 px-4 py-2.5 rounded-full bg-slate-900/90 text-white text-xs font-bold shadow-lg max-w-[90vw] text-center">
-          {toast}
-        </div>
-      )}
-    </div>
+    </HpShell>
   );
 }
 
 // ── デザイン打ち合わせ中（店舗向け・design_locked=false のとき） ──────
 function DesignPendingCard() {
   return (
-    <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5 space-y-3">
+    <div className="bg-white rounded-none border border-slate-100 shadow-sm p-5 space-y-3">
       <h3 className="text-sm font-black text-slate-800">ホームページのデザインを準備中です</h3>
       <p className="text-xs text-slate-500 leading-relaxed">
         ホームページのデザイン（ひな形とカラー）は、担当者との打ち合わせで決定します。
@@ -196,7 +234,7 @@ function DesignPendingCard() {
         href="https://fukues.com/hp/templates"
         target="_blank"
         rel="noreferrer"
-        className="inline-block px-5 py-2.5 rounded-full bg-pink-500 text-white text-xs font-black hover:bg-pink-600 transition-colors"
+        className="inline-block px-5 py-2.5 rounded-none bg-pink-500 text-white text-xs font-black hover:bg-pink-600 transition-colors"
       >
         デザイン一覧を見る
       </a>
@@ -242,12 +280,12 @@ function LoginCard({ notice, onDone }: { notice: string; onDone: () => void }) {
         </div>
 
         {showNotice && (
-          <p className="mb-4 text-xs text-amber-600 bg-amber-50 border border-amber-100 rounded-xl px-3 py-2 leading-relaxed">
+          <p className="mb-4 text-xs text-amber-600 bg-amber-50 border border-amber-100 rounded-none px-3 py-2 leading-relaxed">
             {notice}
           </p>
         )}
 
-        <form onSubmit={submit} className="bg-white rounded-2xl border border-slate-200 shadow-sm p-7 space-y-5">
+        <form onSubmit={submit} className="bg-white rounded-none border border-slate-200 shadow-sm p-7 space-y-5">
           <div>
             <label htmlFor="hp-admin-email" className="block text-xs font-bold text-slate-600 mb-1.5">メールアドレス</label>
             <input
@@ -258,7 +296,7 @@ function LoginCard({ notice, onDone }: { notice: string; onDone: () => void }) {
               onChange={(e) => setEmail(e.target.value)}
               required
               disabled={loading}
-              className="w-full px-3.5 py-2.5 rounded-lg border border-slate-200 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-pink-400 focus:border-transparent"
+              className="w-full px-3.5 py-2.5 rounded-none border border-slate-200 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-pink-400 focus:border-transparent"
             />
           </div>
           <div>
@@ -272,16 +310,16 @@ function LoginCard({ notice, onDone }: { notice: string; onDone: () => void }) {
               required
               disabled={loading}
               placeholder="••••••••"
-              className="w-full px-3.5 py-2.5 rounded-lg border border-slate-200 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-pink-400 focus:border-transparent"
+              className="w-full px-3.5 py-2.5 rounded-none border border-slate-200 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-pink-400 focus:border-transparent"
             />
           </div>
           {error && (
-            <p className="text-sm text-red-500 bg-red-50 border border-red-100 rounded-lg px-3 py-2">{error}</p>
+            <p className="text-sm text-red-500 bg-red-50 border border-red-100 rounded-none px-3 py-2">{error}</p>
           )}
           <button
             type="submit"
             disabled={loading}
-            className="w-full py-2.5 rounded-lg bg-pink-600 text-white text-sm font-semibold hover:bg-pink-700 disabled:opacity-60 transition"
+            className="w-full py-2.5 rounded-none bg-pink-600 text-white text-sm font-semibold hover:bg-pink-700 disabled:opacity-60 transition"
           >
             {loading ? 'ログイン中...' : 'ログイン'}
           </button>
@@ -326,7 +364,7 @@ function AdminAccountCard({
   const state = ctx.adminLinked ? 'linked' : ctx.adminEmail ? 'invited' : 'none';
 
   return (
-    <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5 space-y-3">
+    <div className="bg-white rounded-none border border-slate-100 shadow-sm p-5 space-y-3">
       <h3 className="text-sm font-black text-slate-800">ホームページ担当者のアカウント</h3>
       <p className="text-[11px] text-slate-400 leading-relaxed">
         オーナー様はご自身のフクエスのアカウントでこの画面に入れます。
@@ -338,14 +376,14 @@ function AdminAccountCard({
         <div className="space-y-2">
           <p className="text-xs text-slate-600">
             現在の担当者：<span className="font-bold text-slate-800">{ctx.adminEmail}</span>
-            <span className="ml-2 inline-flex items-center px-2 py-0.5 rounded-full bg-emerald-50 border border-emerald-200 text-[10px] font-bold text-emerald-600">
+            <span className="ml-2 inline-flex items-center px-2 py-0.5 rounded-none bg-emerald-50 border border-emerald-200 text-[10px] font-bold text-emerald-600">
               ログイン済み
             </span>
           </p>
           <button
             onClick={() => run(() => unlinkHpAdmin({ siteKey }), '担当者アカウントを解除しました')}
             disabled={busy}
-            className="px-4 py-2 rounded-full border border-slate-200 text-xs font-bold text-slate-500 hover:border-rose-200 hover:text-rose-500 disabled:opacity-50"
+            className="px-4 py-2 rounded-none border border-slate-200 text-xs font-bold text-slate-500 hover:border-rose-200 hover:text-rose-500 disabled:opacity-50"
           >
             解除する
           </button>
@@ -356,7 +394,7 @@ function AdminAccountCard({
         <div className="space-y-2">
           <p className="text-xs text-slate-600">
             招待中：<span className="font-bold text-slate-800">{ctx.adminEmail}</span>
-            <span className="ml-2 inline-flex items-center px-2 py-0.5 rounded-full bg-amber-50 border border-amber-200 text-[10px] font-bold text-amber-600">
+            <span className="ml-2 inline-flex items-center px-2 py-0.5 rounded-none bg-amber-50 border border-amber-200 text-[10px] font-bold text-amber-600">
               メール確認待ち
             </span>
           </p>
@@ -364,14 +402,14 @@ function AdminAccountCard({
             <button
               onClick={() => run(() => resendHpAdminInvite({ siteKey }), '招待メールを再送しました')}
               disabled={busy}
-              className="px-4 py-2 rounded-full border border-slate-200 text-xs font-bold text-slate-500 hover:border-slate-300 disabled:opacity-50"
+              className="px-4 py-2 rounded-none border border-slate-200 text-xs font-bold text-slate-500 hover:border-slate-300 disabled:opacity-50"
             >
               招待を再送する
             </button>
             <button
               onClick={() => run(() => unlinkHpAdmin({ siteKey }), '招待を取り消しました')}
               disabled={busy}
-              className="px-4 py-2 rounded-full border border-slate-200 text-xs font-bold text-slate-500 hover:border-rose-200 hover:text-rose-500 disabled:opacity-50"
+              className="px-4 py-2 rounded-none border border-slate-200 text-xs font-bold text-slate-500 hover:border-rose-200 hover:text-rose-500 disabled:opacity-50"
             >
               招待を取り消す
             </button>
@@ -386,12 +424,12 @@ function AdminAccountCard({
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             placeholder="staff@example.com"
-            className="flex-1 rounded-xl border border-slate-200 px-3 py-2 text-sm text-slate-700 focus:outline-none focus:border-pink-300"
+            className="flex-1 rounded-none border border-slate-200 px-3 py-2 text-sm text-slate-700 focus:outline-none focus:border-pink-300"
           />
           <button
             onClick={() => run(() => inviteHpAdmin({ siteKey, email }), '招待メールを送信しました')}
             disabled={busy || email.trim() === ''}
-            className="px-5 py-2 rounded-full bg-pink-500 text-white text-xs font-black hover:bg-pink-600 disabled:opacity-50"
+            className="px-5 py-2 rounded-none bg-pink-500 text-white text-xs font-black hover:bg-pink-600 disabled:opacity-50"
           >
             招待する
           </button>
