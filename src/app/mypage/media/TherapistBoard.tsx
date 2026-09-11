@@ -1,26 +1,34 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { Fragment, useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
 import {
   getSalonTherapists,
   getMediaRoster,
   getMediaOverview,
   startMediaRosterRead,
+  startMediaTherapistCreate,
+  startMediaTherapistCreatePush,
 } from '@/app/actions/mediaCredentials';
 import type { RosterResult } from '@/lib/mediaRoster';
 import { therapistSiteState, therapistSiteLabel, type TherapistSiteState } from '@/lib/mediaOverview';
 import { findDuplicateNames, duplicateNotice } from '@/lib/therapistDuplicates';
 
-// セラピスト一覧（第62便・㉞ その4・★ いまは【見るだけ】）。
+// セラピスト一覧（第62便・㉞ その4）。
 //
 // ★★★ 主役はフクエスに登録されているセラピスト。各サイトはその【出先】（設計メモ §180）。
 //   ★ 「フクエスに登録されている方だけを出しています」と画面に書く。
 //     フクエスを直せば各サイトに揃う、という運営の形を、画面から伝えるため。
 //
-// ★★ 「出す・消す」は付けない。
-//   §81 の順番（削除が先・登録は最後）と、㉟（エステラブの二重登録の挙動）が未確認のため。
-//   ★ 第49便の作法どおり:【直す前に、まず見えることを作る】。
+// ★★★ 【第260便】「出す」を付けた（★ 駅ちかだけ・1人ずつ・設計メモ_セラピスト登録を店舗様の画面から §5 ②）。
+//   ★ 第62便〜第259便まで「出す・消す」を付けなかった理由は2つあった:
+//     ① §81 の順番（削除が先・登録は最後）    … ★ 解消。削除（第228便）→ 登録（第235便）の順で実弾が通った
+//     ② ㉟ エステラブの二重登録の挙動が未確認 … ★ 駅ちかにだけ出すので残らない（媒体ごとに口を開ける）
+//   ★★ 「消す」は付けない（設計メモ §4 A）。★ フクエスの口から消せるのは運営だけ。
+//     ★ 店舗様は駅ちかの管理画面に直接ログインすれば、いつでも消せる（★ ログイン情報はご自身のもの）。
+//   ★★ 押す前に【試し打ちの結果】を1枚見せ、人が「登録する」を押してから送る（設計メモ §4 B）。
+//     ★ 指紋は無い。★ 送るのは1人だけ・名指しなので、押した時点の最新を送るのが正しい。
+//   ★★★ mediaSites.can に 'therapist' はまだ足していない（★ 動いてから足す・§5 ⑤）。
 //
 // ★★★ 「いません」と書いてよい場面を狭くしている（mediaOverview.therapistSiteState）。
 //   番号が結びついていない人 … 「まだ結びついていません」（★ いない、ではない）
@@ -32,6 +40,34 @@ type Therapist = {
 };
 type Site = { provider: string; slot: number; label: string; direction: string; hasCredential: boolean };
 type Filter = 'all' | 'todo' | 'new';
+
+/**
+ * ★ 試し打ちの結果（1人ぶん）。★ どの行・どの列の下に開いているかを持つ。
+ * ★ `plan` は運営の curl の試し打ちと同じ物（girlCreatePlan.ts）。★ 画面に出すのは下の summarizeCreatePlan で選ぶ。
+ */
+type CreateView = { tid: string; colKey: string; plan: Record<string, unknown>; warnings: string[] };
+
+/**
+ * ★★ 試し打ちの `plan` から、店舗様に見せる行だけを取り出す（第260便）。
+ *   ★ 出すのは 名前・年齢・サイズ・特徴・写真（設計メモ §4 B）。★ `plan` 全部は並べない（steps や guards は仕組みの言葉）。
+ *   ★ 形が違っても落ちないように、1つずつ確かめて読む（★ `plan` は Record<string, unknown>）。
+ */
+function summarizeCreatePlan(plan: Record<string, unknown>): Array<{ k: string; v: string }> {
+  const v = (plan.values && typeof plan.values === 'object' ? plan.values : {}) as Record<string, unknown>;
+  const s = (x: unknown) => (x === null || x === undefined || x === '' ? '' : String(x));
+  const rows: Array<{ k: string; v: string }> = [];
+  rows.push({ k: '名前', v: s(v.name) || '（空）' });
+  rows.push({ k: '年齢', v: s(v.age) ? `${s(v.age)}歳` : '送りません（未設定）' });
+  const size = [s(v.tall) ? `T${s(v.tall)}` : '', s(v.bust) ? `B${s(v.bust)}` : '', s(v.waist) ? `W${s(v.waist)}` : '', s(v.hip) ? `H${s(v.hip)}` : '']
+    .filter(Boolean).join(' ');
+  rows.push({ k: 'サイズ', v: (size || '送りません（未設定）') + (s(v.cup) ? `（${s(v.cup)}カップ）` : '') });
+  const badges = Array.isArray(plan.badges) ? (plan.badges as unknown[]).map(s).filter(Boolean) : [];
+  rows.push({ k: '特徴', v: badges.length > 0 ? badges.join('・') : 'なし' });
+  // ★ 写真は「送るか」だけ。★ 在処（bucket/path）は店舗様に意味が無い
+  const hasPhoto = !!(plan.photo && typeof plan.photo === 'object');
+  rows.push({ k: '写真', v: hasPhoto ? '1枚送ります（フクエスの1枚目）' : '送りません' + (s(plan.photoSkipped) ? `（${s(plan.photoSkipped)}）` : '') });
+  return rows;
+}
 
 function fmtDate(iso: string | null): string {
   if (!iso) return '';
@@ -86,6 +122,10 @@ export function TherapistBoard({ salonId, onToast, children }: {
   const [reading, setReading] = useState('');
   const [showAll, setShowAll] = useState(false);
   const [tab, setTab] = useState<'list' | 'link'>('list');
+  // ★ 第260便: 開いている「この内容で登録します」（★ 1度に1人だけ。★ まとめて登録は作らない）
+  const [createView, setCreateView] = useState<CreateView | null>(null);
+  // ★ 第260便: 試し打ち中／送信中の行と列（therapistId#provider#slot）。★ 空なら何もしていない
+  const [createBusy, setCreateBusy] = useState('');
 
   const load = useCallback(async () => {
     if (salonId == null) return;
@@ -113,6 +153,42 @@ export function TherapistBoard({ salonId, onToast, children }: {
       onToast(`${s.label}の名簿を読みに行きました。数分後にこの画面を開き直すと反映されます`);
     } finally {
       setReading('');
+    }
+  };
+
+  /**
+   * ★★ 第260便: 試し打ち。★ 媒体へは1文字も送らない・読みもしない（★ サーバー側で材料を組むだけ）。
+   *   ★ 結果を「この内容で登録します」として、その行の下に開く。
+   */
+  const onCreateDryRun = async (t: Therapist, c: Site) => {
+    if (salonId == null) return;
+    const k = t.id + '#' + c.provider + '#' + c.slot;
+    setCreateBusy(k);
+    setCreateView(null);
+    try {
+      const res = await startMediaTherapistCreate({ salonId, provider: c.provider, slot: c.slot, therapistId: t.id });
+      if (!res.ok) { onToast(res.error); return; }
+      setCreateView({ tid: t.id, colKey: c.provider + '#' + c.slot, plan: res.data.plan, warnings: res.data.warnings });
+    } finally {
+      setCreateBusy('');
+    }
+  };
+
+  /**
+   * ★★★ 第260便: 実行。**相手に人が1人増える。** ★ 押せるのは「この内容で登録します」を見たあとだけ。
+   *   ★ 結果はその場では返らない（中継が引き取る）。★ 「連携の記録」と、名簿を読み直したときに分かる。
+   */
+  const onCreatePush = async (t: Therapist, c: Site) => {
+    if (salonId == null) return;
+    const k = t.id + '#' + c.provider + '#' + c.slot;
+    setCreateBusy(k);
+    try {
+      const res = await startMediaTherapistCreatePush({ salonId, provider: c.provider, slot: c.slot, therapistId: t.id });
+      if (!res.ok) { onToast(res.error); return; }
+      onToast(`${c.label}へ登録を送りました。結果は「連携の記録」に出ます。数分後に「${c.label}の名簿を読み直す」を押すと、この一覧にも反映されます`);
+      setCreateView(null);
+    } finally {
+      setCreateBusy('');
     }
   };
 
@@ -343,8 +419,12 @@ export function TherapistBoard({ salonId, onToast, children }: {
               </thead>
               <tbody>
                 {shown.map((t) => {
+                  // ★ 第260便: この行の下に「この内容で登録します」が開いているか
+                  const view = createView && createView.tid === t.id ? createView : null;
+                  const viewCol = view ? cols.find((c) => key(c) === view.colKey) ?? null : null;
                   return (
-                    <tr key={t.id} className="border-t border-slate-100 align-top">
+                    <Fragment key={t.id}>
+                    <tr className="border-t border-slate-100 align-top">
                       <td className="px-3 py-2.5">
                         <span className="flex gap-2.5 items-start">
                           <Photo url={t.imageUrl} name={t.name} />
@@ -361,15 +441,89 @@ export function TherapistBoard({ salonId, onToast, children }: {
                       </td>
                       {cols.map((c) => {
                         const st = stateOfAt(t, c);
+                        // ★★★ 第260便: 「登録」を出す条件（設計メモ §3・§4 D）
+                        //   ★ 駅ちかの列だけ（★ エステ魂は材料の切り出しが先・第259便 §3-1）
+                        //   ★ ログイン情報がある枠だけ（★ 無ければ向こうに入れない）
+                        //   ★ 状態が「いません」（番号は知っているのに向こうに無い）か「確かめられません」（番号が無い＝新しい方）
+                        //     ★ 「います」（もう居る）と「まだ読んでいません」（読んでいないのに送らない）には出さない
+                        //   ★ 向きが「フクエスから反映」でないときは、サーバーが切り替え先のボタン名を返す（★ 文言を2か所に持たない）
+                        const canCreate = c.provider === 'ekichika' && c.hasCredential && (st === 'missing' || st === 'unlinked');
+                        const busyKey = t.id + '#' + c.provider + '#' + c.slot;
                         return (
                           <td key={key(c)} className="px-3 py-2.5 whitespace-nowrap">
                             <span className={`text-[13px] font-bold px-2.5 py-0.5 border ${STATE_CLASS[st]}`}>
                               {therapistSiteLabel(st)}
                             </span>
+                            {canCreate && (
+                              <button
+                                type="button"
+                                onClick={() => onCreateDryRun(t, c)}
+                                disabled={createBusy !== ''}
+                                className="block mt-1.5 text-[13px] font-bold px-2.5 py-1 border border-indigo-200 bg-indigo-50 text-indigo-700 disabled:opacity-50"
+                              >
+                                {createBusy === busyKey && !view ? '確かめています…' : `${c.label}へ登録`}
+                              </button>
+                            )}
                           </td>
                         );
                       })}
                     </tr>
+                    {/* ── ★★★ 第260便: この内容で登録します（★ 押す前に1枚見せる・設計メモ §4 B）──
+                        ★ 行の真下にインラインで開く（★ 重ねる窓にしない。★ 誰の話かが上の行で見えたまま）。
+                        ★ 1度に1人だけ。★ 別の行の「登録」を押すと、こちらは閉じる。 */}
+                    {view && viewCol && (
+                      <tr className="border-t border-indigo-100 bg-indigo-50/40">
+                        <td colSpan={1 + cols.length} className="px-3 py-3">
+                          <div className="max-w-[640px] whitespace-normal">
+                            <p className="text-[15px] font-black text-slate-800">
+                              {t.name || '（名前なし）'} を {viewCol.label} へ、この内容で登録します
+                            </p>
+                            <dl className="mt-2 border border-slate-200 bg-white divide-y divide-slate-100">
+                              {summarizeCreatePlan(view.plan).map((r) => (
+                                <div key={r.k} className="flex gap-3 px-3 py-1.5 text-[14px]">
+                                  <dt className="w-[52px] flex-none font-bold text-slate-400">{r.k}</dt>
+                                  <dd className="min-w-0 text-slate-700 break-words">{r.v}</dd>
+                                </div>
+                              ))}
+                            </dl>
+                            {/* ★ 注意はサーバーが作った文言をそのまま（★ 写真が無い／特徴が当たらない／フクエスでは非公開 など） */}
+                            {view.warnings.length > 0 && (
+                              <ul className="mt-2 border border-amber-200 bg-amber-50 px-3 py-2 space-y-1">
+                                {/* ★ 運営向けの印（★）と強調（**）は店舗様に見せない */}
+                                {view.warnings.map((w, i) => (
+                                  <li key={i} className="text-[13.5px] leading-relaxed text-slate-700">{w.replace(/★+\s*/g, '').replace(/\*\*/g, '')}</li>
+                                ))}
+                              </ul>
+                            )}
+                            {/* ★★ 消し方はここに書く（設計メモ §4 A）。★ フクエスの口から消せるのは運営だけ */}
+                            <p className="mt-2 text-[13px] text-slate-500 leading-relaxed">
+                              登録は{viewCol.label}に<b className="font-bold text-slate-700">すぐ公開</b>されます。
+                              消すときは、{viewCol.label}の管理画面から直接消してください（この画面からは消せません）。
+                              同じ名前の方が{viewCol.label}にすでにいる場合は、登録されずに終わります。
+                            </p>
+                            <div className="mt-3 flex flex-wrap gap-2">
+                              <button
+                                type="button"
+                                onClick={() => setCreateView(null)}
+                                disabled={createBusy !== ''}
+                                className="px-4 py-2 border border-slate-200 text-[14px] font-bold text-slate-500 disabled:opacity-50"
+                              >
+                                やめる
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => onCreatePush(t, viewCol)}
+                                disabled={createBusy !== ''}
+                                className="px-4 py-2 bg-gradient-to-r from-indigo-500 to-indigo-700 text-white text-[14px] font-bold shadow-sm disabled:opacity-50"
+                              >
+                                {createBusy !== '' ? '送っています…' : '登録する'}
+                              </button>
+                            </div>
+                          </div>
+                        </td>
+                      </tr>
+                    )}
+                    </Fragment>
                   );
                 })}
               </tbody>
@@ -412,6 +566,14 @@ export function TherapistBoard({ salonId, onToast, children }: {
               名簿をまだ読んでいません
               <span className="text-slate-400">　→ 上の「名簿を読み直す」を押してください</span>
             </p>
+            {/* ★ 第260便: ボタンの意味も同じ並びで1行。★ 駅ちかの列があるときだけ */}
+            {cols.some((c) => c.provider === 'ekichika' && c.hasCredential) && (
+              <p>
+                <b className="font-bold text-indigo-700">駅ちかへ登録</b>
+                フクエスの内容で駅ちかに新しく登録します
+                <span className="text-slate-400">　→ 押すと、先に送る内容を確かめられます（すぐには送りません）</span>
+              </p>
+            )}
           </div>
 
           <p className="mt-3 text-[13.5px] text-slate-400 leading-relaxed">
