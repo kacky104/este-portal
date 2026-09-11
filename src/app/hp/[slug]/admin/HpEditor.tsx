@@ -1100,16 +1100,11 @@ export function HpEditor({
         >
           {saving ? '保存中…' : '保存する'}
         </button>
-        <button
-          onClick={() => setForm(siteToForm(site))}
-          disabled={saving}
-          className="w-full py-2 rounded-none text-xs font-bold text-slate-400 hover:text-slate-600 transition-colors disabled:opacity-50"
-        >
-          変更を破棄して元に戻す
-        </button>
-        <p className="text-[11px] text-slate-400 text-center">
-          ※ 保存すると公開ページに反映されます（反映まで少し時間がかかることがあります）。
-        </p>
+        {/* ★ 第283便（2026-09-12・カッキーさんの指示）で、この下にあった2つを外した。
+            ★ 「変更を破棄して元に戻す」… 押すと書いたものが一瞬で消える。★ 確認も無い。
+              ★ 直したいときはブラウザを戻す／読み込み直せば同じことができる。
+            ★ 「※ 保存すると公開ページに反映されます…」… 保存ボタンの下で毎回読ませる話ではない。
+            ★ 残るのは【保存する】1つだけ。 */}
       </div>
       )}
     </div>

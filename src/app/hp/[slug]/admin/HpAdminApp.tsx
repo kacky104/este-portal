@@ -132,29 +132,30 @@ export function HpAdminApp({
             {/* ★ 公開中／非公開の印は外した（第281便・2026-09-12・カッキーさんの指示）。
                 ★ 店舗様が切り替えられないものの状態を、ここで大きく見せる意味がないため。
                 ★ 状態は運営の管理者ダッシュボード（/admin → 公式HP）で見る。 */}
-            {/* ★ ドメインは見出しの【右】に置く（第281便・2026-09-12・カッキーさんの指示）。
-                ★ 印を外して空いた場所。★ 狭いときは下に回り込む（flex-wrap）。 */}
-            <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1">
+            {/* ★★ 第283便（2026-09-12・カッキーさんの指示）: ドメインとボタンの場所を入れ替えた。
+                ★ 見出しの【右】＝いちばん目につく場所には【押すもの】を置く。
+                ★ ドメインは読むだけのものなので、下の行へ下ろす。
+                ★ 文字も「ページを見る」→「公式サイトを見る」に（★ 何のページか分かるように）。
+                ★ 狭いときは下に回り込む（flex-wrap）。 */}
+            <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
               <div>
                 <h3 className="text-sm font-black text-slate-800">ホームページ管理</h3>
                 <p className="text-[11px] text-slate-400 mt-0.5">{ctx.salonName}</p>
               </div>
-              <p className="text-xs text-slate-500 break-all">
-                ドメイン：{site.domain
-                  ? <span className="font-bold text-slate-700">{site.domain}</span>
-                  : '準備中（運営で取得手続き中です）'}
-              </p>
-            </div>
-            <div className="flex flex-wrap gap-2">
               <a
                 href={viewHref}
                 target="_blank"
                 rel="noreferrer"
-                className="px-4 py-2 rounded-none border border-slate-200 text-xs font-bold text-slate-500 hover:border-slate-300"
+                className="flex-none px-4 py-2 rounded-none border border-slate-200 text-xs font-bold text-slate-500 hover:border-slate-300"
               >
-                ページを見る
+                公式サイトを見る
               </a>
             </div>
+            <p className="text-xs text-slate-500 break-all">
+              ドメイン：{site.domain
+                ? <span className="font-bold text-slate-700">{site.domain}</span>
+                : '準備中（運営で取得手続き中です）'}
+            </p>
             {/* ★★★ 2026-09-12（第279便・カッキーさんの指示）: ここから2つのボタンを外した。
                 ★ 「公開する／非公開にする」… 公開・非公開は【運営だけ】が変える。
                   ★ 変える場所は運営の管理者ダッシュボード（/admin → 公式HP → その店の「編集」→ 公開状態）。
