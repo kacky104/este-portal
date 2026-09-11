@@ -11,7 +11,7 @@ import {
   unlinkHpAdmin,
   type HpAdminContext,
 } from '@/app/actions/hpAdmin';
-import type { HpSite, HpTemplateKey } from '@/app/lib/hpSite';
+import { normalizeHpSiteKey, type HpSite, type HpTemplateKey } from '@/app/lib/hpSite';
 import { HpGallery } from './HpGallery';
 import { HpEditor } from './HpEditor';
 
@@ -78,6 +78,18 @@ export function HpAdminApp({ siteKey, previewHref }: { siteKey: string; previewH
     : site.status === 'suspended' ? 'bg-rose-50 text-rose-500 border-rose-200'
     : 'bg-slate-50 text-slate-500 border-slate-200';
 
+  // ★★★ 「ページを見る」の飛び先（2026-09-11 夜・カッキーさんの指示）。
+  //   ★ 独自ドメインが付いていて【公開中】なら、そのドメインの表紙へ飛ばす。
+  //     ★ お客様が実際に見ているのはそのドメイン。★ 店舗様に見てほしいのも同じ物。
+  //   ★ それ以外（ドメインまだ・制作中・停止中）は、これまでどおり previewHref。
+  //     ★ 公開前にドメインへ飛ばすと、DNS の向き先が未接続で【ブラウザのエラー画面】が出ることがある。
+  //       ★ フクエス側の道（/hp/{slug}）はいつでも生きているので、そちらなら白い1枚で済む。
+  //   ★ www. は落とす（★ 公開HP側・マイページ側と同じ normalizeHpSiteKey。判断を1か所にする）。
+  const viewHref =
+    site.status === 'live' && (site.domain ?? '').trim() !== ''
+      ? `https://${normalizeHpSiteKey(site.domain as string)}/`
+      : previewHref;
+
   const handleConfirmDesign = async (template: HpTemplateKey, color: string) => {
     setBusy(true);
     const res = await confirmHpDesign(siteKey, template, color);
@@ -116,7 +128,7 @@ export function HpAdminApp({ siteKey, previewHref }: { siteKey: string; previewH
         </p>
         <div className="flex flex-wrap gap-2">
           <a
-            href={previewHref}
+            href={viewHref}
             target="_blank"
             rel="noreferrer"
             className="px-4 py-2 rounded-full border border-slate-200 text-xs font-bold text-slate-500 hover:border-slate-300"
