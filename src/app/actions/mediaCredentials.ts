@@ -7,6 +7,8 @@ import { encryptSecret, maskSecret } from '@/lib/mediaCredentials';
 import { MEDIA_CONSENT_VERSION, needsConsent } from '@/lib/mediaConsent';
 import { recordMediaAudit, listMediaAudit } from '@/app/lib/media/mediaAudit';
 import { startRelayFlow } from '@/app/lib/media/relayFlow';
+// ★★★ 【第259便】セラピスト登録の材料づくり。★ 運営の curl の口（media-girl-create）と同じ1か所を呼ぶ（第257便）。
+import { buildGirlCreatePlan } from '@/app/lib/media/girlCreatePlan';
 import { judgeWriteStall, stallMessage, mediaSlotLabel, type MediaLinkAlert } from '@/lib/mediaLinkStall';
 import { judgeImportStall } from '@/lib/importStall';
 import { isWriteDirection, isLinkMode, hasApprovedOnce } from '@/lib/mediaLinkMode';
@@ -977,6 +979,149 @@ export async function startMediaWorkPush(input: {
   } catch (e) {
     console.error('[media] 反映を始められなかった', (e as Error).message);
     return { ok: false, error: '反映を開始できませんでした。時間をおいてお試しください' };
+  }
+}
+
+// ── セラピストを1人、媒体へ新規登録する（第259便）────────────────────────────────
+//
+// ★ 設計メモ_セラピスト登録を店舗様の画面から_2026-09-10.md §5 ①。★★ **画面はまだ作らない。**
+//
+// ★★★ 前例は startMediaWorkPush（出勤の反映・すぐ上）。★ 5段をそのまま写した:
+//   ① assertSalonOwner          ② ログイン情報が登録されているか
+//   ③ needsConsent              ④ link_mode が write 系か
+//   ⑥ startRelayFlow(actor: 'shop:' + userId)
+// ★★★ ⑤の指紋照合は**作らない**（設計メモ §4 B）。
+//   ★ 出勤は「全員×7日の差分」を人が見て承認するので、見た物と送る物が同じである保証（指紋）が要った。
+//   ★ セラピスト登録は【1人だけ・名指し】。★ 中身が変わっても「最新を送る」で正しい。
+//   → ★ media_work_plans のような表は増やさない。★ 試し打ちの結果を見せてから押させる、で承認の形は足りる。
+//
+// ★★ 材料づくりは buildGirlCreatePlan（第257便で1か所に寄せた）。
+//   ★ 運営の curl の口（/api/admin/media-girl-create）と**同じ物**を呼ぶ。★ ここで違うのは認証と actor だけ。
+//   ★★ 口が2つあると片方だけ漏れる（第255便(2)）。★ だからここに組み立てを書かない。
+//
+// ★★ 写真は既定のまま【枠1に1枚】（設計メモ §4 C）。★ allPhotos は運営の口だけ。★ 相手へ送る枚数を5倍にしない。
+// ★★ 媒体は provider で受ける（設計メモ §4 D）。★★★ ただし**いま通るのは駅ちかだけ**:
+//   ★ エステ魂の材料づくりは /api/admin/media-cast-create/route.ts に**まだ埋まっている**。
+//   ★ 第257便と同じ切り出し（buildCastCreatePlan）をしてから開ける（§5 ⑥）。★ ここに写して2か所にしない。
+// ★★★ mediaSites.can に 'therapist' はまだ足していない（★ 動いてから足す・第142便の物差し・§5 ⑤）。
+
+/** ★ いま店舗様の画面から登録できる媒体。★ エステ魂は材料づくりを切り出してから足す（§5 ⑥） */
+const THERAPIST_CREATE_PROVIDERS = ['ekichika'];
+
+/**
+ * ①〜④の共通部分。★ 試し打ちと実行で**同じ止め**を通す（★ 試し打ちで通ったのに実行で止まる、を作らない）。
+ * ★ 戻りは service client と押した人。★ 材料づくりは呼び元で。
+ */
+async function guardTherapistCreate(input: {
+  salonId: string | number; provider: string; slot?: number;
+}): Promise<Result<{ svc: ReturnType<typeof createServiceClient>; userId: string; salonId: number; slot: number }>> {
+  const salonId = Number(input.salonId);
+  if (!Number.isFinite(salonId)) return { ok: false, error: '店舗の指定が不正です' };
+  const slot = Math.trunc(Number(input.slot ?? 1));
+  const ng = validTarget(input.provider, slot);
+  if (ng) return { ok: false, error: ng };
+  if (!THERAPIST_CREATE_PROVIDERS.includes(input.provider)) {
+    return { ok: false, error: `${providerLabel(input.provider)}への登録は、この画面からはまだできません` };
+  }
+
+  // ① 押した人がこの店舗のオーナー（または運営）か
+  const guard = await assertSalonOwner(salonId);
+  if (!guard.ok) return guard;
+
+  // ② ログイン情報が登録されているか ／ ③ 連携の説明に同意しているか
+  const svc = createServiceClient();
+  const { data: cred } = await svc
+    .from('salon_media_credentials')
+    .select('consent_version')
+    .eq('salon_id', salonId).eq('provider', input.provider).eq('slot', slot)
+    .maybeSingle();
+  if (!cred) return { ok: false, error: 'ログイン情報が登録されていません' };
+  if (needsConsent(cred.consent_version as string | null)) {
+    return { ok: false, error: '連携の説明に同意してから実行してください' };
+  }
+
+  // ④ 向きが write 系でなければ送らない（★ 出勤の反映と同じ。★ 相手に人を増やすので、読むだけの枠では受けない）
+  const { data: src } = await svc
+    .from('salon_import_sources')
+    .select('link_mode')
+    .eq('salon_id', salonId).eq('provider', input.provider).eq('slot', slot)
+    .maybeSingle();
+  if (!src || !isWriteDirection(String((src as { link_mode?: string }).link_mode))) {
+    // ★ ボタンの文字は switchLabel から出す（2か所で違う言い方をしない・第90便・第111便）
+    return { ok: false, error: `「${switchLabel('write', providerLabel(input.provider))}」に切り替えてから実行してください` };
+  }
+
+  return { ok: true, data: { svc, userId: guard.data.userId, salonId, slot } };
+}
+
+/**
+ * ★★★ 試し打ち（第259便）。「この方をいま登録したら、何をどう送るか」を組み立てて返すだけ。
+ *   ★★ **媒体へは1文字も送らない。** ★ 相手のページも読まない（★ 中継も動かない）。
+ *
+ * ★ 画面はこの戻りを「この内容で登録します」として見せ、人が押したら startMediaTherapistCreatePush へ（設計メモ §4 B）。
+ * ★ `plan` は運営の curl の試し打ちと**一字一句同じ物**（第257便で突き合わせ済み）。★ 秘密は入っていない。
+ * ★ `warnings` は店舗様に見せる注意（★ 写真が無い／特徴が当たらない／フクエスでは非公開 など）。
+ */
+export async function startMediaTherapistCreate(input: {
+  salonId: string | number; provider: string; slot?: number; therapistId: string | number;
+}): Promise<Result<{ plan: Record<string, unknown>; warnings: string[] }>> {
+  const therapistId = Number(input.therapistId);
+  if (!Number.isFinite(therapistId) || therapistId <= 0) return { ok: false, error: 'セラピストの指定が不正です' };
+
+  const g = await guardTherapistCreate(input);
+  if (!g.ok) return g;
+
+  const built = await buildGirlCreatePlan(g.data.svc, {
+    salonId: g.data.salonId, therapistId, slot: g.data.slot,
+    // ★ 既定と同じ（設計メモ §4 C）: 枠1に1枚・用意できなければ飛ばして登録だけ（第250便）・2枚目以降は送らない
+    withPhoto: true, withPhotoAsked: false, allPhotos: false,
+    postTo: 'action', rookie: true,
+  });
+  if (!built.ok) return { ok: false, error: built.error };
+  return { ok: true, data: { plan: built.data.plan, warnings: built.data.warnings } };
+}
+
+/**
+ * ★★★ 実行（第259便）。**相手に人が1人増える。** ★ 押せるのは店舗オーナー（と運営）だけ（設計メモ §3-3）。
+ *
+ * ★ 材料は押した時点で**作り直す**（★ 試し打ちの結果を保存して後で送る形にしない・startMediaWorkPush と同じ考え）。
+ *   ★ 指紋は無い（§4 B）。★ 送る相手は therapistId で名指しの1人なので、最新の材料を送るのが正しい。
+ * ★ 二重登録の止めは2段:
+ *   1) buildGirlCreatePlan … すでに castId が結びついていれば 409（★ 積まない）
+ *   2) 中継 … 一覧を読んで**同じ名前が居たら作らない**（第232便 §10-2）
+ * ★ 結果はその場では返らない（★ 中継が引き取る）。★ 履歴（salon_media_audit・event=create_girl）で見る。
+ * ★ 消す口は運営だけ（設計メモ §4 A）。★ 画面には「消すときは駅ちかの管理画面から」と書く。
+ */
+export async function startMediaTherapistCreatePush(input: {
+  salonId: string | number; provider: string; slot?: number; therapistId: string | number;
+}): Promise<Result<{ jobId: string; note: string; warnings: string[] }>> {
+  const therapistId = Number(input.therapistId);
+  if (!Number.isFinite(therapistId) || therapistId <= 0) return { ok: false, error: 'セラピストの指定が不正です' };
+
+  const g = await guardTherapistCreate(input);
+  if (!g.ok) return g;
+
+  const built = await buildGirlCreatePlan(g.data.svc, {
+    salonId: g.data.salonId, therapistId, slot: g.data.slot,
+    withPhoto: true, withPhotoAsked: false, allPhotos: false,
+    postTo: 'action', rookie: true,
+  });
+  if (!built.ok) return { ok: false, error: built.error };
+
+  try {
+    // ⑥ ★ 運営の口と違うのは actor だけ（'admin:girl-create' → 'shop:<userId>'）
+    const r = await startRelayFlow({
+      salonId: g.data.salonId, provider: input.provider, slot: g.data.slot,
+      intent: 'girl_create',
+      actor: 'shop:' + g.data.userId,
+      ...built.data.relay,
+    });
+    if (!r.ok) return { ok: false, error: r.note };
+    return { ok: true, data: { jobId: r.jobId, note: r.note, warnings: built.data.warnings } };
+  } catch (e) {
+    // ★ 例外文に秘密が混ざらないよう、こちら側で作った文言だけ返す
+    console.error('[media] セラピスト登録を始められなかった', (e as Error).message);
+    return { ok: false, error: '登録を開始できませんでした。時間をおいてお試しください' };
   }
 }
 
