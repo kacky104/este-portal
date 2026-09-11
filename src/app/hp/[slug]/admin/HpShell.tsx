@@ -29,10 +29,9 @@ function NavIcon({ k }: { k: HpAdminSection }) {
     case 'home': return (<svg {...p}><path d="M3 11l9-8 9 8" /><path d="M5 10v10h14V10" /></svg>);
     // 絵筆（デザイン）
     case 'design': return (<svg {...p}><path d="M12 19l7-7 3 3-7 7-3-3z" /><path d="M18 13l-1.5-7.5L2 2l3.5 14.5L13 18z" /><path d="M2 2l7.586 7.586" /></svg>);
+    // ★ 'concept'（文章）のアイコンは第282便（2026-09-12）で削除。★ ホームに入ったため。
     // 写真（トップ画像）
     case 'hero': return (<svg {...p}><rect x="3" y="3" width="18" height="18" rx="0" /><circle cx="8.5" cy="8.5" r="1.5" /><path d="M21 15l-5-5L5 21" /></svg>);
-    // 文章（コンセプト）
-    case 'concept': return (<svg {...p}><path d="M4 5h16" /><path d="M4 10h16" /><path d="M4 15h10" /><path d="M4 20h7" /></svg>);
     // 積み木（表示ブロック）
     case 'blocks': return (<svg {...p}><rect x="3" y="3" width="18" height="6" /><rect x="3" y="12" width="18" height="9" /></svg>);
     // 旗（バナー）

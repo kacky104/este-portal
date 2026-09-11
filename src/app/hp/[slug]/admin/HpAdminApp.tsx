@@ -11,7 +11,7 @@ import { normalizeHpSiteKey, type HpSite, type HpTemplateKey } from '@/app/lib/h
 import { HpGallery } from './HpGallery';
 import { HpEditor } from './HpEditor';
 import { HpShell } from './HpShell';
-import { HP_EDITOR_SECTIONS, type HpAdminSection } from './adminNav';
+import { HP_ADMIN_NAV, type HpAdminSection } from './adminNav';
 
 // 店舗ドメイン/admin の本体（2026-08-09 段階3）。
 //
@@ -107,10 +107,11 @@ export function HpAdminApp({
   //   ★ 判断はこの1か所。★ 出さない画面は、押す道そのものを作らない。
   //     ★ デザインが未確定のあいだ ＝ 写真も文章もまだ入れられないので「ホーム・デザイン」だけ。
   //     ★ 「担当者アカウント」は第279便（2026-09-12・カッキーさんの指示）で画面ごと撤去した。
-  const sections: HpAdminSection[] = [
-    'home',
-    ...(site.design_locked ? HP_EDITOR_SECTIONS : (['design'] as HpAdminSection[])),
-  ];
+  //   ★★ 第282便（2026-09-12）から 'home' も HpEditor が受け持つ（コンセプトがホームに入ったため）。
+  //     ★ なので「全部」は HP_ADMIN_NAV の並びをそのまま使う（★ 並びの正は1か所）。
+  const sections: HpAdminSection[] = site.design_locked
+    ? HP_ADMIN_NAV.map((n) => n.key)
+    : (['home', 'design'] as HpAdminSection[]);
   // ★ 出せない画面が選ばれていたらホームに倒す（★ 白い画面を出さない）。
   const current: HpAdminSection = sections.includes(section) ? section : 'home';
 

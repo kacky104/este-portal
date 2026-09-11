@@ -664,8 +664,12 @@ export function HpEditor({
         </div>
       )}
 
-      {/* ── コンセプト ── */}
-      {show('concept') && (
+      {/* ── コンセプト ──
+           ★★ 第282便（2026-09-12・カッキーさんの指示）で【ホームの中】に移した。
+             ★ 文章は1つしかないので、1画面を立てるほどではなかった。
+             ★ 置き場所は「ホームページ管理」のカードのすぐ下（★ ホームの2枚目）。
+             ★ 動かしたのは出す条件だけ。★ 中身・保存の仕方は何も変えていない。 */}
+      {show('home') && (
       <div className="bg-white rounded-none border border-slate-100 shadow-sm p-5 space-y-4">
         <h3 className="text-sm font-black text-slate-800">コンセプト</h3>
         <p className="text-[11px] text-slate-400">
