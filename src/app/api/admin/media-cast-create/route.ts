@@ -1,9 +1,10 @@
 import { NextResponse } from 'next/server';
 import { createServiceClient } from '@/app/lib/supabase/service';
 import { startRelayFlow } from '@/app/lib/media/relayFlow';
-import { sanitizeBadges } from '@/lib/therapistBadges';
-import { toEsutamaTypeIds, explainBadgeMapping } from '@/lib/mediaBadgeMap';
-import { parseBodyType } from '@/lib/bodyType';
+// ★★★★ 【第263便】送る材料の組み立ては `castCreatePlan.ts` に寄せた（★ 駅ちかの第257便と同じ）。
+//   ★ これから **店舗様の画面から**も同じことをする（設計メモ_セラピスト登録を店舗様の画面から §5 ⑥）。
+//   ★★ 2か所に書くと片方だけ漏れる（第255便(2)・`profile_images` の select）。
+import { buildCastCreatePlan } from '@/app/lib/media/castCreatePlan';
 
 // ── エステ魂にセラピストを1人 登録する（第232便・運営だけの口）─────────────────────
 //   POST /api/admin/media-cast-create  (Authorization: Bearer <CRON_SECRET>)
@@ -23,7 +24,7 @@ import { parseBodyType } from '@/lib/bodyType';
 // ★★ 写真は送らない（相手の file 欄に name が無く、送り方が未調査・第231便 §9-3）。
 // ★★ `set_up_limit`（保存と同時に上位表示・残り回数あり）は送らない（読み手と組み立ての二重の見張り）。
 //
-// ★★ 店舗様の画面にボタンは置かない（設計メモ §5-3・2026-09-09 カッキーさんの決定）。
+// ★★ 店舗様の画面のボタンは、駅ちかが先（第260便）。★ エステ魂は §5 ⑥（★ この切り出しのあと）。
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 export const maxDuration = 60;
@@ -60,87 +61,12 @@ export async function POST(req: Request) {
 
   const svc = createServiceClient();
 
-  const { data: salon, error: sErr } = await svc
-    .from('salons').select('id, name').eq('id', salonId).maybeSingle();
-  if (sErr) return NextResponse.json({ ok: false, error: sErr.message }, { status: 500 });
-  if (!salon) return NextResponse.json({ ok: false, error: '店舗が見つからない' }, { status: 404 });
-
-  const { data: th, error: tErr } = await svc
-    .from('therapists')
-    .select('id, salon_id, name, age, body_type, feature_badges, is_active')
-    .eq('id', therapistId).maybeSingle();
-  if (tErr) return NextResponse.json({ ok: false, error: tErr.message }, { status: 500 });
-  if (!th) return NextResponse.json({ ok: false, error: 'セラピストが見つからない' }, { status: 404 });
-
-  // ★★★ 他店の人を送らない。★ ここを外すと、店舗を取り違えて登録する事故になる
-  if (Number((th as { salon_id?: number }).salon_id) !== salonId)
-    return NextResponse.json({ ok: false, error: 'そのセラピストはこの店舗の在籍ではありません' }, { status: 400 });
-
-  // ★★★ すでに番号が結びついていたら積まない（★ 二重掲載を自分で作らない）
-  const { data: link } = await svc
-    .from('therapist_media_ids')
-    .select('external_cast_id')
-    .eq('provider', 'esutama').eq('slot', slot).eq('therapist_id', therapistId)
-    .maybeSingle();
-  const linkedCastId = link ? String((link as { external_cast_id?: string }).external_cast_id ?? '') : '';
-  if (linkedCastId) {
-    return NextResponse.json({
-      ok: false,
-      error: 'この方はすでにエステ魂の cast_id ' + linkedCastId + ' と結びついています。★ 登録しません',
-    }, { status: 409 });
-  }
-
-  // ── 送る内容を組み立てる ─────────────────────────────────
-  const name = String((th as { name?: string }).name ?? '').trim();
-  if (!name) return NextResponse.json({ ok: false, error: '名前が空のセラピストは送れません' }, { status: 400 });
-  // ★★ 相手は10文字以内。★ **黙って切り詰めない**（切り詰めた名前で登録されると誰か分からなくなる）
-  if ([...name].length > 10)
-    return NextResponse.json({
-      ok: false,
-      error: 'エステ魂の名前は10文字以内です（「' + name + '」は ' + [...name].length + '文字）。★ フクエス側の表示名を短くしてから送ってください',
-    }, { status: 400 });
-
-  const badges = sanitizeBadges((th as { feature_badges?: unknown }).feature_badges);
-  const typeIds = toEsutamaTypeIds(badges);
-  const mapping = explainBadgeMapping(badges);
-
-  const size = parseBodyType(String((th as { body_type?: string | null }).body_type ?? '') || null);
-  const ageRaw = (th as { age?: number | null }).age;
-  const age = ageRaw !== null && ageRaw !== undefined && /^\d{1,2}$/.test(String(ageRaw)) ? String(ageRaw) : null;
-  const cupRaw = String(size?.cup ?? '').toUpperCase();
-  const sizeCup = /^[A-L]$/.test(cupRaw) ? cupRaw : null;
-
-  const values = {
-    name,
-    typeIds,
-    age,
-    tall: size?.height ?? null,
-    sizeB: size?.bust ?? null,
-    sizeW: size?.waist ?? null,
-    sizeH: size?.hip ?? null,
-    sizeCup,
-    // ★ フクエスに「スタイル」に当たる欄が無いので送らない（相手のフォームの既定＝未選択のまま）
-    bodyStyle: null,
-  };
-
-  const warnings: string[] = [];
-  // ★★★ 相手の画面の注記:「※3サイズのB(バスト)が未入力の場合、表示されません」（2026-09-09 実測）
-  if (!values.sizeB) warnings.push('★ バスト(B)が空です。★ このまま登録すると **エステ魂の公開ページに出ません**');
-  if (mapping.esutama.usedDefault) warnings.push('★ 送れる特徴が1つも無いので、既定の「新人」を入れます。★ エステ魂の新人は自動では消えません');
-  if (mapping.esutama.overflowBadges.length > 0)
-    warnings.push('★ 特徴は4つまでなので、' + mapping.esutama.overflowBadges.join('・') + ' は送りません');
-  if ((th as { is_active?: boolean }).is_active === false)
-    warnings.push('★ この方はフクエスでは非公開です。★ エステ魂には**即公開**で載ります');
-
-  const plan = {
-    salonId, salonName: String((salon as { name?: string }).name ?? ''),
-    provider: 'esutama', slot, therapistId,
-    values,
-    badges,
-    steps: ['login', 'esutama_cast_list（在籍確認）', 'esutama_cast_form（65部品を読む）', 'esutama_cast_create', 'esutama_cast_list（照合＋cast_id回収）'],
-    notSent: ['写真（送り方が未調査）', 'set_up_limit（保存と同時に上位表示・残り回数あり）', 'キャッチ・紹介文'],
-    warnings,
-  };
+  // ★★★★ 【第263便】ここから下の「送る材料づくり」は `castCreatePlan.ts` に移した。
+  //   ★ この口がすることは【認証（CRON_SECRET）】と【受け取った値の解釈】だけになった。
+  //   ★★ 同じ材料を、店舗様の画面（サーバーアクション）からも作る。★ 認証だけが違う。
+  const built = await buildCastCreatePlan(svc, { salonId, therapistId, slot });
+  if (!built.ok) return NextResponse.json({ ok: false, error: built.error }, { status: built.status });
+  const { plan, relay } = built.data;
 
   if (!apply) {
     return NextResponse.json({
@@ -154,7 +80,7 @@ export async function POST(req: Request) {
     salonId, provider: 'esutama', slot,
     intent: 'cast_create',
     actor: 'admin:cast-create',
-    castCreate: { therapistId, values },
+    ...relay,
   });
   if (!r.ok) return NextResponse.json({ ok: false, applied: false, plan, reason: r.reason, note: r.note }, { status: 409 });
   return NextResponse.json({
