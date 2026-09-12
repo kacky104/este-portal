@@ -513,3 +513,46 @@ body.paw-bg {
     opacity: 0.7;
   }
 }
+
+/* ── フクエスリンクの「いま動いている」見出しのキラリ（第296便・2026-09-12・カッキーさんの指示）──
+   ★ 文字の上を光の帯が1回通り、しばらく休んでからまた通る。
+   ★ 作りは店名バナーの文字（.salon-name-text / sn-sweep）と同じ＝背景を文字で切り抜く。
+   ★★ 点滅（animate-pulse）から置き換えた。★ 2つ重ねない——animation は一括指定なので、
+     重ねるとどちらかが黙って消える。
+   ★ 色は紺→水色（フクエスリンクの色）。★ 素の文字色は --lk-base で渡す（既定 slate-800）。 */
+.link-live-kirari {
+  --lk-base: #1e293b;
+  color: transparent;
+  -webkit-text-fill-color: transparent;
+  background-image: linear-gradient(
+    120deg,
+    var(--lk-base) 0 42%,
+    #4f46e5 47%,
+    #38bdf8 55%,
+    #4f46e5 62%,
+    var(--lk-base) 66% 100%
+  );
+  background-size: 300% 100%;
+  background-repeat: no-repeat;
+  background-position: 100% 0;
+  -webkit-background-clip: text;
+          background-clip: text;
+  animation: lk-sweep var(--lk-duration, 3s) ease-in-out infinite;
+}
+/* ★ 前半で通し、後半は端で休ませる。★ 帯は開始も終了も文字の外なので、継ぎ目は見えない。
+   ★ 休みを短くした（第296便・2026-09-12・カッキーさんの指示）: 3.6秒×55% → 3秒×45%。
+     ★ 通る速さは変えていない（約1.65秒）。★ 短くしたのは【休んでいる時間】だけ。 */
+@keyframes lk-sweep {
+  0%   { background-position: 100% 0; }
+  55%  { background-position: 0% 0; }
+  100% { background-position: 0% 0; }
+}
+/* 動きを抑える設定では、ただの文字に戻す（★ 透明のままにしない＝読めなくならない） */
+@media (prefers-reduced-motion: reduce) {
+  .link-live-kirari {
+    animation: none;
+    background-image: none;
+    color: var(--lk-base);
+    -webkit-text-fill-color: var(--lk-base);
+  }
+}

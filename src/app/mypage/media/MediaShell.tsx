@@ -82,6 +82,7 @@ export function MediaShell({
   children: React.ReactNode;
 }) {
   const [alerts, setAlerts] = useState<MediaLinkAlert[]>([]);
+  const [drawerOpen, setDrawerOpen] = useState(false);
 
   // ★ 出す相手にしか取りに行かない（取りに行くこと自体が媒体連携の存在を明かすため）。
   //   ★ 失敗しても画面は止めない。警告が出せないことを「異常なし」と見せないだけ。
@@ -95,12 +96,24 @@ export function MediaShell({
     return () => { alive = false; };
   }, [decision, salonId]);
 
+  // ★★ スマホの左ドロワー（第296便・2026-09-12・カッキーさんの指示）。
+  //   ★ フクエスワーク（WorkShell）・公式HP管理（HpShell）と同じ作り。
+  //   ★ 開いている間は後ろを動かさない／Esc で閉じる。
+  useEffect(() => {
+    if (!drawerOpen) return;
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setDrawerOpen(false); };
+    document.addEventListener('keydown', onKey);
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => { document.removeEventListener('keydown', onKey); document.body.style.overflow = prev; };
+  }, [drawerOpen]);
+
   // ★★ 'show' 以外では【そもそも描かない】。hidden で隠すとページの中身から読めてしまう。
   if (decision === 'leave') return null;
 
   if (loadError) {
     return (
-      <div className="min-h-screen bg-slate-100 flex items-center justify-center">
+      <div className="min-h-screen flex items-center justify-center">
         <p className="text-slate-500 text-[16px] whitespace-pre-line text-center leading-relaxed px-6">{loadError}</p>
       </div>
     );
@@ -108,71 +121,75 @@ export function MediaShell({
 
   if (decision !== 'show') {
     return (
-      <div className="min-h-screen bg-slate-100 flex items-center justify-center">
+      <div className="min-h-screen flex items-center justify-center">
         <p className="text-slate-400 text-[16px]">読み込み中...</p>
       </div>
     );
   }
 
+  // ★ サイドバーとドロワーで同じ並びを使う（第296便）。★ 片方だけ直す事故を起こさない。
+  const navList = (onPick?: () => void) =>
+    NAV.map((n) => {
+      const on = n.key === current;
+      return (
+        <div key={n.key} className="contents">
+          {n.group && (
+            <div className="px-4 pt-3.5 pb-1 text-[13px] font-bold text-slate-400 tracking-wider">
+              {n.group}
+            </div>
+          )}
+          <Link
+            href={n.href}
+            onClick={onPick}
+            aria-current={on ? 'true' : undefined}
+            className={`relative flex items-center gap-2.5 whitespace-nowrap px-4 py-3 text-[15px] md:text-[16px] font-bold transition-colors ${
+              on
+                ? 'bg-gradient-to-r from-indigo-700 to-indigo-500 text-white'
+                : 'text-slate-600 hover:bg-indigo-50'
+            }`}
+          >
+            <span className={on ? 'text-white' : 'text-indigo-500'}><NavIcon k={n.key} /></span>
+            {n.label}
+            {/* ★ 選択中の右端に三角（ベンリーと同じ合図）。★ スマホでは出さない */}
+            {on && (
+              <span className="hidden md:block absolute -right-px top-1/2 -translate-y-1/2 w-0 h-0 border-y-[8px] border-y-transparent border-r-[8px] border-r-slate-100" />
+            )}
+          </Link>
+        </div>
+      );
+    });
+
+  // ★ 地の色（ブルーのテーマ壁紙）は layout.tsx が敷く。★ ここでは塗らない（★ 塗ると壁紙が隠れる）。
   return (
-    <div className="min-h-screen bg-slate-100 md:flex">
+    <div className="min-h-screen md:flex">
       {toast && (
         <div className="fixed top-4 left-1/2 -translate-x-1/2 z-50 bg-white border border-indigo-200 shadow-lg px-6 py-3 text-[16px] font-bold text-indigo-700">
           {toast}
         </div>
       )}
 
-      {/* ── 左サイドバー（スマホでは上の横並び）───────────────────── */}
-      <aside className="bg-white border-b md:border-b-0 md:border-r border-slate-200 md:w-[288px] md:flex-none md:min-h-screen md:sticky md:top-0 md:self-start">
-        <div className="flex items-center gap-2.5 px-3.5 md:px-4 py-3 md:py-4 border-b border-slate-100">
-          <span className="w-7 h-7 md:w-9 md:h-9 flex-none grid place-items-center text-white bg-gradient-to-br from-indigo-700 to-indigo-500">
+      {/* ── 左サイドバー（★ PCだけ。スマホは三本線→ドロワー・第296便）───────── */}
+      <aside className="hidden md:block bg-white md:border-r border-slate-200 md:w-[288px] md:flex-none md:min-h-screen md:sticky md:top-0 md:self-start">
+        <div className="flex items-center gap-2.5 px-4 py-4 border-b border-slate-100">
+          <span className="w-9 h-9 flex-none grid place-items-center text-white bg-gradient-to-br from-indigo-700 to-indigo-500">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
               <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
               <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" />
             </svg>
           </span>
-          <b className="text-[16px] md:text-[18px] font-black text-slate-800 tracking-tight">フクエスリンク</b>
+          <b className="text-[18px] font-black text-slate-800 tracking-tight">フクエスリンク</b>
         </div>
 
         {salonName && (
-          <div className="hidden md:block px-4 py-3 border-b border-slate-100">
+          <div className="px-4 py-3 border-b border-slate-100">
             <div className="text-[12.5px] font-bold text-slate-400 tracking-wider">店舗</div>
             <div className="text-[15.5px] font-bold text-slate-600 mt-0.5 leading-snug break-words">{salonName}</div>
           </div>
         )}
 
-        <nav aria-label="画面" className="flex md:flex-col overflow-x-auto md:overflow-visible gap-1 md:gap-0 p-1.5 md:p-0 md:py-2">
-          {NAV.map((n) => {
-            const on = n.key === current;
-            return (
-              <div key={n.key} className="contents">
-                {n.group && (
-                  <div className="hidden md:block px-4 pt-3.5 pb-1 text-[13px] font-bold text-slate-400 tracking-wider">
-                    {n.group}
-                  </div>
-                )}
-                <Link
-                  href={n.href}
-                  aria-current={on ? 'true' : undefined}
-                  className={`relative flex items-center gap-2 md:gap-2.5 whitespace-nowrap px-3 md:px-4 py-1.5 md:py-3 text-[14.5px] md:text-[16px] font-bold transition-colors ${
-                    on
-                      ? 'bg-gradient-to-r from-indigo-700 to-indigo-500 text-white'
-                      : 'text-slate-600 hover:bg-indigo-50'
-                  }`}
-                >
-                  <span className={on ? 'text-white' : 'text-indigo-500'}><NavIcon k={n.key} /></span>
-                  {n.label}
-                  {/* ★ 選択中の右端に三角（ベンリーと同じ合図）。★ スマホでは出さない */}
-                  {on && (
-                    <span className="hidden md:block absolute -right-px top-1/2 -translate-y-1/2 w-0 h-0 border-y-[8px] border-y-transparent border-r-[8px] border-r-slate-100" />
-                  )}
-                </Link>
-              </div>
-            );
-          })}
-        </nav>
+        <nav aria-label="画面" className="flex flex-col py-2">{navList()}</nav>
 
-        <p className="hidden md:block px-4 py-3.5 mt-2 border-t border-slate-100 text-[13.5px] text-slate-400 leading-relaxed">
+        <p className="px-4 py-3.5 mt-2 border-t border-slate-100 text-[13.5px] text-slate-400 leading-relaxed">
           駅ちか・エステラブ・エステ魂・全国エステランキングとの連携をまとめて扱います。
         </p>
       </aside>
@@ -180,9 +197,41 @@ export function MediaShell({
       {/* ── 右側 ───────────────────────────────────────── */}
       <div className="flex-1 min-w-0 flex flex-col">
         <header className="bg-white border-b border-slate-200 sticky top-0 z-30">
+          {/* ★ スマホの頭の帯（第296便）。★ 押すとホームへ戻る（フクエスワーク・公式HP管理と同じ作法）。 */}
+          <Link
+            href="/mypage/media"
+            aria-label="ホームへ"
+            className="md:hidden flex w-full items-center gap-2.5 px-4 py-2.5 text-left bg-gradient-to-r from-indigo-700 to-indigo-500"
+          >
+            <span className="w-7 h-7 flex-none grid place-items-center bg-white text-indigo-600">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
+                <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" />
+              </svg>
+            </span>
+            <b className="text-[16px] font-black text-white tracking-tight">フクエスリンク</b>
+            {salonName && (
+              <span className="ml-auto text-[11.5px] font-bold text-white/85 truncate max-w-[45%]">{salonName}</span>
+            )}
+          </Link>
+
           <div className="px-4 md:px-6 py-3 flex items-center justify-between gap-3">
-            <h1 className="text-[17px] font-black text-slate-800">{title}</h1>
-            <Link href="/mypage" className="text-[13.5px] font-bold text-slate-400 hover:text-indigo-600 transition-colors">
+            <div className="flex items-center gap-2 min-w-0">
+              {/* ★ スマホだけ: 画面名の【左】に三本線。 */}
+              <button
+                type="button"
+                onClick={() => setDrawerOpen(true)}
+                aria-label="メニューを開く"
+                aria-expanded={drawerOpen}
+                className="md:hidden -ml-1 p-1 text-indigo-600"
+              >
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" aria-hidden>
+                  <path d="M4 7h16M4 12h16M4 17h16" />
+                </svg>
+              </button>
+              <h1 className="text-[17px] font-black text-slate-800 truncate">{title}</h1>
+            </div>
+            <Link href="/mypage" className="flex-none text-[13.5px] font-bold text-slate-400 hover:text-indigo-600 transition-colors whitespace-nowrap">
               マイページへ戻る
             </Link>
           </div>
@@ -204,8 +253,78 @@ export function MediaShell({
           )}
         </header>
 
-        <main className="px-4 md:px-6 py-4 md:py-5 max-w-3xl w-full">{children}</main>
+        {/* ★★ 中身（メイン）だけ 1.2倍（第296便・2026-09-12・カッキーさんの指示）。
+            ★ フクエスワーク（WorkShell）・公式HP管理（HpShell）と同じ大きさに揃えた。
+            ★ zoom を使う。★ transform: scale だと場所だけ元の大きさのままで、
+              右や下に余白・はみ出しが出る（レイアウトが付いてこない）。
+            ★ かかるのは中身だけ。★ 左サイドバー・上の帯・見出しの行は元の大きさのまま。
+            ★ 幅は max-w-3xl のまま＝見た目では 768×1.2 ≒ 920px 相当になる。 */}
+        <main className="px-4 md:px-6 py-4 md:py-5 max-w-3xl w-full" style={{ zoom: 1.2 }}>{children}</main>
       </div>
+
+      {/* ── スマホの左ドロワー（第296便）───────────────────────────
+          ★ 背面を押す・× を押す・Esc で閉じる。★ 行き先を選んでも閉じる。 */}
+      {drawerOpen && (
+        <div className="md:hidden fixed inset-0 z-50">
+          <div
+            className="absolute inset-0 bg-black/40"
+            onClick={() => setDrawerOpen(false)}
+            aria-hidden
+          />
+          <nav
+            aria-label="フクエスリンクのメニュー"
+            className="absolute inset-y-0 left-0 w-[280px] max-w-[85vw] bg-white shadow-2xl overflow-y-auto overscroll-contain pb-24 [padding-bottom:calc(6rem+env(safe-area-inset-bottom))]"
+          >
+            <div className="flex items-center justify-between gap-2 px-4 py-3 border-b border-slate-100">
+              <Link
+                href="/mypage/media"
+                onClick={() => setDrawerOpen(false)}
+                aria-label="ホームへ"
+                className="flex items-center gap-2.5 min-w-0"
+              >
+                <span className="w-7 h-7 flex-none grid place-items-center text-white bg-gradient-to-br from-indigo-700 to-indigo-500">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
+                    <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" />
+                  </svg>
+                </span>
+                <b className="text-[16px] font-black text-slate-800 tracking-tight truncate">フクエスリンク</b>
+              </Link>
+              <button
+                type="button"
+                onClick={() => setDrawerOpen(false)}
+                aria-label="閉じる"
+                className="flex-none p-1 text-slate-400 hover:text-slate-600"
+              >
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" aria-hidden>
+                  <path d="M6 6l12 12M18 6L6 18" />
+                </svg>
+              </button>
+            </div>
+
+            {salonName && (
+              <div className="px-4 py-2.5 border-b border-slate-100">
+                <div className="text-[12px] font-bold text-slate-400 tracking-wider">店舗</div>
+                <div className="text-[14.5px] font-bold text-slate-600 mt-0.5 leading-snug break-words">{salonName}</div>
+              </div>
+            )}
+
+            <div className="flex flex-col py-1.5">{navList(() => setDrawerOpen(false))}</div>
+
+            <Link
+              href="/mypage"
+              onClick={() => setDrawerOpen(false)}
+              className="mt-2 flex items-center gap-2.5 px-4 py-3 border-t border-slate-100 text-[14.5px] font-bold text-slate-500"
+            >
+              マイページへ戻る
+            </Link>
+
+            <p className="px-4 py-4 border-t border-slate-100 text-[12px] text-slate-400 leading-relaxed">
+              駅ちか・エステラブ・エステ魂・全国エステランキングとの連携をまとめて扱います。
+            </p>
+          </nav>
+        </div>
+      )}
     </div>
   );
 }

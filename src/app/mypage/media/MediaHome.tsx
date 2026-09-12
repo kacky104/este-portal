@@ -80,13 +80,27 @@ function fmtTime(iso: string | null): string {
  *   ★★ 止まっている状態（off・未設定）に付けない。★ 付けると、止まっているのに動いて見える。
  * ★ 速い点滅は「異常」に見える。★ ここは正常に動いている合図なので、ゆっくりにする。
  */
-const LIVE_BLINK = 'animate-pulse';
 /**
- * ★ 速さは style で渡す。★ Tailwind の animate-pulse は animation の一括指定なので、
- *   クラスで長さだけ足すと、並び順しだいで効いたり効かなかったりする。
- *   ★★ 見え方が並び順で変わる書き方をしない。★ style ならいつでも勝つ。
+ * ★★ 「いま動いている」見出しの演出（第296便・2026-09-12・カッキーさんの指示）。
+ *   ★ 点滅（animate-pulse）から【キラリ】へ置き換えた。文字の上を光の帯が通る。
+ *   ★ 中身は globals.css の .link-live-kirari（★ 色とkeyframeの正はあちら1か所）。
+ *   ★★ 点滅と重ねない。★ animation は一括指定なので、2つ書くとどちらかが黙って消える。
  */
-const LIVE_BLINK_STYLE = { animationDuration: '2.5s' } as const;
+const LIVE_BLINK = 'link-live-kirari';
+/**
+ * ★ 速さは style で渡す（★ クラスに書くと並び順しだいで効かないことがある・style ならいつでも勝つ）。
+ *   ★ 3秒に1回。★ 前半で通り（約1.65秒）、後半は休む（約1.35秒）。★ 忙しない光り方にしない。
+ */
+const LIVE_BLINK_STYLE = { '--lk-duration': '3s' } as React.CSSProperties;
+
+/**
+ * ★★ 行の右端に並ぶ小さな札・ボタンの【寸法】（第296便・2026-09-12・カッキーさんの指示）。
+ *   ★ 「駅ちかから反映中」（状態の札）と「反映しない」（ボタン）と「反映なし」（状態の札）が
+ *     ばらばらの高さ・幅だった。★ 寸法だけここに置いて、全部に同じものを付ける。
+ *   ★ 高さは 34px で揃える。★ 幅は 112px を下限にする（★ 「反映なし」と「反映しない」が同じ幅になる）。
+ *   ★ 中身は縦横とも中央。★ 色は各所のまま（★ ここは寸法だけを持つ）。
+ */
+const ROW_CHIP = 'flex-none inline-flex items-center justify-center text-center text-[13px] font-bold px-3 min-h-[34px] min-w-[112px] border';
 
 const PILL: Record<string, string> = {
   read: 'bg-emerald-50 text-emerald-700 border-emerald-200',
@@ -251,7 +265,7 @@ export function MediaHome({ salonId, onToast }: {
               // ★★ 上のカードは「最後の反映」「次の反映」に揃えた（第88便）。
               //   ★ ここだけ「取り込みます」が残っていた（第90便で揃えた・引き継ぎメモ §5④）
               <p className="mt-2.5 text-[13px] text-slate-400 text-center">
-                週間の予定は1日1回の反映（最後は {fmt(reading.fullLastRunAt)}）。
+                週間の予定は1日1回の朝6時台に反映（最後は {fmt(reading.fullLastRunAt)}）。
               </p>
             )}
           </>
@@ -316,12 +330,16 @@ export function MediaHome({ salonId, onToast }: {
           };
           return (
             <div className="pb-4 mb-2 border-b border-slate-100">
-              <div className="flex flex-wrap justify-center gap-3">
+              {/* ★ 2つのボタンは【同じ幅】にする（第296便・2026-09-12・カッキーさんの指示）。
+                  ★ 文字数が違うので、横に並べるだけだと幅が揃わない。
+                  ★ 2等分の枠（grid-cols-2）に入れて、中身の長さで幅が動かないようにした。
+                  ★ 狭いときは縦に積む（そのときも幅は同じ）。 */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 max-w-[560px] mx-auto">
                 <button
                   type="button"
                   onClick={() => setBulkAsk('write')}
                   disabled={busy}
-                  className="min-w-[230px] px-7 py-3.5 border border-indigo-600 bg-indigo-600 text-white hover:bg-indigo-700 transition-colors disabled:opacity-40"
+                  className="w-full px-4 py-3.5 border border-indigo-600 bg-indigo-600 text-white hover:bg-indigo-700 transition-colors disabled:opacity-40"
                 >
                   <span className="block text-[16px] font-black">{bulking ? '変えています…' : write.label}</span>
                   <span className="block text-[12px] font-bold text-indigo-100">（{write.sub}）</span>
@@ -330,7 +348,7 @@ export function MediaHome({ salonId, onToast }: {
                   type="button"
                   onClick={() => setBulkAsk('none')}
                   disabled={busy}
-                  className="min-w-[230px] px-7 py-3.5 border border-slate-300 bg-white text-slate-700 hover:bg-slate-50 hover:border-slate-400 transition-colors disabled:opacity-40"
+                  className="w-full px-4 py-3.5 border border-slate-300 bg-white text-slate-700 hover:bg-slate-50 hover:border-slate-400 transition-colors disabled:opacity-40"
                 >
                   <span className="block text-[16px] font-bold">{none.label}</span>
                   <span className="block text-[12px] font-bold text-slate-400">（{none.sub}）</span>
@@ -430,17 +448,17 @@ export function MediaHome({ salonId, onToast }: {
                       </span>
                     </span>
                     {s.needsConsent && (
-                      <span className="flex-none text-[13px] font-bold px-3 py-0.5 border bg-amber-50 text-amber-800 border-amber-300">
+                      <span className={`${ROW_CHIP} bg-amber-50 text-amber-800 border-amber-300`}>
                         {CONSENT_RECHECK_BADGE}
                       </span>
                     )}
-                    <span className={`flex-none text-[13px] font-bold px-3 py-0.5 border ${PILL[s.direction] ?? PILL.unset}`}>
+                    <span className={`${ROW_CHIP} ${PILL[s.direction] ?? PILL.unset}`}>
                       {s.statusLabel}
                     </span>
                     {s.canSwitch && s.autoOn && (
                       <Link
                         href="/mypage/media/work"
-                        className="flex-none text-[13px] font-bold px-3 py-1.5 border border-slate-200 text-slate-500 hover:border-slate-300"
+                        className={`${ROW_CHIP} border-slate-200 text-slate-500 hover:border-slate-300`}
                       >
                         自動をやめる
                       </Link>
@@ -456,7 +474,7 @@ export function MediaHome({ salonId, onToast }: {
                             type="button"
                             onClick={() => setAsk({ site: s, choice: c })}
                             disabled={switching !== '' || bulking}
-                            className="text-[13px] font-bold px-3 py-1.5 border border-slate-300 bg-white text-slate-600 hover:bg-slate-50 hover:border-slate-400 transition-colors disabled:opacity-40"
+                            className={`${ROW_CHIP} border-slate-300 bg-white text-slate-600 hover:bg-slate-50 hover:border-slate-400 transition-colors disabled:opacity-40`}
                           >
                             {switching === s.provider + '#' + s.slot ? '変えています…' : c.label}
                           </button>
@@ -468,7 +486,7 @@ export function MediaHome({ salonId, onToast }: {
                     {canReadProvider(s.provider) && s.canSwitch && !s.autoOn && s.direction === 'unset' && (
                       <Link
                         href="/mypage/media/login"
-                        className="flex-none text-[13px] font-bold px-3 py-1.5 border border-slate-200 text-slate-500 hover:border-slate-300"
+                        className={`${ROW_CHIP} border-slate-200 text-slate-500 hover:border-slate-300`}
                       >
                         設定する
                       </Link>
