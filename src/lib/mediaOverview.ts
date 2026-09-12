@@ -945,7 +945,10 @@ export function therapistSiteState(input: {
 /** 画面に出す言い方。★ 知らない値は「まだ確かめていません」に落とす（断定しない側）。 */
 export function therapistSiteLabel(s: TherapistSiteState | string): string {
   switch (s) {
-    case 'present': return 'います';
+    // ★★★ 第303便（2026-09-12・カッキーさん）: 「います」→「連携済み」。
+    //   ★ 「います」は【向こうの名簿にいた】という事実の言い方で、第三者には何が済んだのか伝わらない。
+    //   ★ 店舗様が知りたいのは「この子はもう向こうと繋がっているか」。★ そこを直接言う。
+    case 'present': return '連携済み';
     case 'missing': return 'いません';
     // ★★★ 第119便（カッキーさん・2026-09-03）: 店舗様の言葉に直した。
     //   ★ 「まだ結びついていません／向こうの番号が分かっていません」は**こちらの言葉**（castId のこと）。

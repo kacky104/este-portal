@@ -3,7 +3,6 @@
 import { useMediaGate } from '../useMediaGate';
 import { MediaShell } from '../MediaShell';
 import { TherapistBoard } from '../TherapistBoard';
-import { RosterLinkBoard } from '../RosterLinkBoard';
 import { useToast } from '@/app/components/useToast';
 
 // セラピスト設定（第62便・㉞ その4）。★ 第298便で「セラピスト一覧」→「セラピスト設定」に（カッキーさん）。
@@ -23,11 +22,10 @@ export default function MediaTherapistsPage() {
       current="roster"
       toast={toast}
     >
-      {/* ★ 第119便: 2つの塊をタブにした（縦に長すぎたため）。
-          ★ 「媒体側の登録と結びつける」はタブが選ばれたときだけ描かれる */}
-      <TherapistBoard salonId={salon ? Number(salon.id) : null} onToast={showToast}>
-        <RosterLinkBoard salonId={salon ? Number(salon.id) : null} onToast={showToast} />
-      </TherapistBoard>
+      {/* ★★★ 第302便: 2つのタブ（一覧／媒体側の登録と結びつける）をやめ、サイトごとのタブに作り替えた。
+          ★ 結びつけは TherapistBoard の1人1行に溶かしたので、RosterLinkBoard はもう呼ばない。
+          ★ ファイル自体はまだ残してある（★ この形が落ち着いてから消す）。 */}
+      <TherapistBoard salonId={salon ? Number(salon.id) : null} onToast={showToast} />
     </MediaShell>
   );
 }

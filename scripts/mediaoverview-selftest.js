@@ -399,7 +399,8 @@ eq("★ known が 'true' という文字列なら unknown", st({ known: 'true' }
 eq('★ isUnlinked が 1 では unlinked にしない', st({ isUnlinked: 1, isMissing: true }), 'missing');
 
 console.log('\n── 9-2. 言い方 ──');
-eq('present の言い方', v.therapistSiteLabel('present'), 'います');
+// ★ 第303便: 「います」→「連携済み」（カッキーさん）。★ 画面の札とここは同じ文でなければならない
+eq('present の言い方', v.therapistSiteLabel('present'), '連携済み');
 eq('missing の言い方', v.therapistSiteLabel('missing'), 'いません');
 // ★★ 第119便: 店舗様の言葉に直した。★ 「読んでいない」と「読んだが分からない」を書き分ける
 eq('unlinked の言い方', v.therapistSiteLabel('unlinked'), '確かめられません');
