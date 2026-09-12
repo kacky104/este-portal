@@ -8,8 +8,11 @@ import {
   HP_DEMO_SLUG,
   HP_RESERVED_SLUGS,
   isHpSiteStatus,
+  isHpTemplateKey,
+  isValidHpColor,
   normalizeHpSiteKey,
   sanitizeHpBlocks,
+  type HpTemplateKey,
 } from '@/app/lib/hpSite';
 
 // 公式ホームページの【運営管理】（2026-08-09 段階4）。/admin「公式HP管理」タブから使う。
@@ -17,8 +20,13 @@ import {
 // できること:
 //  - 契約サイトの一覧（契約状況・ドメイン・期限・HP管理者の状態まで一望）
 //  - 新規発行（＝契約成立。salon を選んで slug を発行。従来はSQL手作業だった）
-//  - 運営専用項目の編集: slug / domain / status(suspended含む) / design_locked /
+//  - 運営専用項目の編集: slug / domain / status(suspended含む) / ひな形・カラー / design_locked /
 //    multipage（ページ構成） / domain_registrar / domain_expires_at / contract_note
+//
+// ★★★ 2026-09-12（第284便・カッキーさんの指示）: ひな形とカラーを【ここで直に選べる】ようにした。
+//   ★ それまでは「ロックを外して保存 → その店の管理画面でギャラリーから選び直す」の3手順だった。
+//     ★ デザインは店舗様から口頭で聞いて運営が入れる運用なので、聞いたその場で入れられる形にする。
+//   ★ 店舗側の画面（/hp/{key}/admin）にはデザインの選択UIは無い（★ 見るだけ）。
 //  - 解約（行の削除）
 //
 // すべて ADMIN_UUID 限定・書き込みは service_role。
@@ -50,6 +58,10 @@ export type OperatorSitePatch = {
   slug: string;
   domain: string;          // 空文字=未設定
   status: string;
+  /** ひな形（s/a/b/c）。★ 第284便から運営がここで直に選ぶ */
+  templateKey: string;
+  /** カラー（ひな形ごとの key）。★ ひな形を変えたら、その中の色に入れ替える */
+  themeKey: string;
   designLocked: boolean;
   multipage: boolean;
   domainRegistrar: string;
@@ -171,6 +183,13 @@ export async function updateHpSiteOperator(
   }
   if (!isHpSiteStatus(patch.status)) return { ok: false, error: '公開状態の指定が正しくありません' };
 
+  // ★ ひな形とカラーの組み合わせは【必ずここで確かめる】（第284便）。
+  //   ★ ひな形ごとに持っている色が違うので、組み合わせが合っていないと公開ページが崩れる。
+  if (!isHpTemplateKey(patch.templateKey)) return { ok: false, error: 'ひな形の指定が正しくありません' };
+  if (!isValidHpColor(patch.templateKey as HpTemplateKey, patch.themeKey)) {
+    return { ok: false, error: 'カラーの指定が正しくありません（そのひな形にない色です）' };
+  }
+
   const expires = patch.domainExpiresAt.trim();
   if (expires !== '' && !/^\d{4}-\d{2}-\d{2}$/.test(expires)) {
     return { ok: false, error: 'ドメイン期限は YYYY-MM-DD 形式で入力してください' };
@@ -205,6 +224,8 @@ export async function updateHpSiteOperator(
       slug,
       domain:            domain === '' ? null : domain,
       status:            patch.status,
+      template_key:      patch.templateKey,
+      theme_key:         patch.themeKey,
       design_locked:     patch.designLocked,
       blocks,
       domain_registrar:  patch.domainRegistrar.trim() || null,

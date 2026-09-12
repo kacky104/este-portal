@@ -11,14 +11,18 @@ import {
   type OperatorSite,
   type OperatorSitePatch,
 } from '@/app/actions/hpOperator';
-import { HP_TEMPLATES } from '@/app/lib/hpSite';
+import { HP_TEMPLATES, HP_COLOR_VARIANTS, type HpTemplateKey } from '@/app/lib/hpSite';
 
 // /admin「公式HP管理」セクション（2026-08-09 段階4・運営専用）。
 //
 // - 契約サイト一覧（状態・ドメイン・期限・HP管理者・デザインまで一望）
 // - 新規発行（salon 選択＋slug 入力。予約語・形式はサーバー側で検証）
-// - 行の編集: slug / ドメイン / 公開状態(suspended含む) / デザインロック解除 /
+// - 行の編集: slug / ドメイン / 公開状態(suspended含む) / ★ひな形・カラー / デザインロック /
 //   レジストラ / ドメイン期限 / 契約メモ
+//
+// ★★★ 2026-09-12（第284便・カッキーさんの指示）: ひな形とカラーを【ここで直に選べる】ようにした。
+//   ★ デザインは店舗様から口頭で聞いて、運営がこの欄に入れる運用。
+//   ★ 以前の「ロックを外す → 店の管理画面でギャラリーから選び直す」の3手順は要らない。
 // - 解約（行の削除・二重確認）
 //
 // ドメインを設定したら Vercel 側のドメイン追加（Settings → Domains）も忘れないこと。
@@ -45,6 +49,8 @@ function siteToPatch(s: OperatorSite): OperatorSitePatch {
     slug:            s.slug,
     domain:          s.domain ?? '',
     status:          s.status,
+    templateKey:     s.templateKey,
+    themeKey:        s.themeKey,
     designLocked:    s.designLocked,
     multipage:       s.multipage,
     domainRegistrar: s.domainRegistrar,
@@ -241,6 +247,41 @@ export function HpSitesManager({ onToast }: { onToast: (msg: string) => void }) 
                         <option value="suspended">停止中（運営）</option>
                       </select>
                     </label>
+                    {/* ★★★ ひな形とカラー（第284便・2026-09-12・カッキーさんの指示）。
+                        ★ 店舗様から口頭で聞いた内容を、ここで入れて保存する。
+                        ★ カラーの選択肢は【ひな形ごとに違う】（タイプSは4色・A/B/Cは各6色）。
+                          ★ ひな形を変えたら、その中の先頭の色に入れ替える（★ 合わない組み合わせを作らない）。
+                          ★ 組み合わせはサーバー側（updateHpSiteOperator）でも必ず確かめている。
+                        ★ 保存すると公開ページのキャッシュも落ちる（revalidatePath）。 */}
+                    <label className="block">
+                      <span className="text-[10px] font-bold text-slate-400 block mb-1">ひな形（デザインのタイプ）</span>
+                      <select
+                        value={patch.templateKey}
+                        onChange={(e) => {
+                          const t = e.target.value as HpTemplateKey;
+                          const colors = HP_COLOR_VARIANTS[t] ?? [];
+                          const keep = colors.some((c) => c.key === patch.themeKey);
+                          setPatch({ ...patch, templateKey: t, themeKey: keep ? patch.themeKey : (colors[0]?.key ?? '') });
+                        }}
+                        className={inputCls}
+                      >
+                        {HP_TEMPLATES.map((t) => (
+                          <option key={t.key} value={t.key}>{t.label}</option>
+                        ))}
+                      </select>
+                    </label>
+                    <label className="block">
+                      <span className="text-[10px] font-bold text-slate-400 block mb-1">カラー</span>
+                      <select
+                        value={patch.themeKey}
+                        onChange={(e) => setPatch({ ...patch, themeKey: e.target.value })}
+                        className={inputCls}
+                      >
+                        {(HP_COLOR_VARIANTS[patch.templateKey as HpTemplateKey] ?? []).map((c) => (
+                          <option key={c.key} value={c.key}>{c.label}</option>
+                        ))}
+                      </select>
+                    </label>
                     <label className="flex items-end gap-2 pb-1">
                       <input
                         type="checkbox"
@@ -255,16 +296,15 @@ export function HpSitesManager({ onToast }: { onToast: (msg: string) => void }) 
                       <span className="text-[11px] font-bold text-slate-600">
                         デザイン確定ロック
                         <span className="block text-[10px] font-normal text-slate-400 leading-relaxed">
-                          ひな形・カラーの変更依頼（有償作業）はこの手順で行う。
-                          <br />① このチェックを外して保存
-                          <br />② その店の「管理画面」を開く → デザイン選択が出るので選び直して確定
-                          <br />③ 確定すると自動でロックが戻る（ここを手で戻す必要はない）
+                          {/* ★ 2026-09-12（第284便）に書き換えた。★ ひな形・カラーは左の欄で直に選べるように
+                              なったので、以前の「ロックを外して店の管理画面で選び直す」3手順は不要。 */}
+                          ひな形・カラーの変更は左の欄で選んで保存するだけ（この手順は要らない）。
+                          <br />
+                          <strong className="text-slate-500">このチェックは「店舗様に編集画面を出すか」の切り替え。</strong>
+                          入れる＝写真・文章の編集画面が出る。外す＝「デザインを準備中です」の案内になる。
                           <br />
                           <strong className="text-slate-500">公開中のHPは止まらない。</strong>
-                          公開判定は上の「公開状態」だけを見ているので、②で確定するまで旧デザインのまま表示され続ける。
-                          写真・文章・並び順も引き継がれる（実店舗はデザインごとの画像を持たないため）。
-                          <br />
-                          店舗がこの間に管理画面を開くと「デザインを準備中です」の案内になる。
+                          公開判定は上の「公開状態」だけを見ている。
                         </span>
                       </span>
                     </label>

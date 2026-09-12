@@ -337,13 +337,11 @@ export function HpEditor({
           <p className="text-xs font-bold text-slate-700">
             {templateLabel}／{colorVariant.label}
           </p>
-          <span className="ml-auto inline-flex items-center px-2.5 py-1 rounded-none border border-slate-200 bg-slate-50 text-[11px] font-bold text-slate-500">
-            確定済み
-          </span>
         </div>
-        <p className="text-[11px] text-slate-400 leading-relaxed">
-          ※ ひな形とカラーの変更は運営事務局での作業（有償）となります。写真・文章はこのページからいつでも変更できます。
-        </p>
+        {/* ★ 第284便（2026-09-12・カッキーさんの指示）で、この枠から2つを外した。
+            ★ 「確定済み」の印 … 店舗様が変えられないものに状態の印を付ける意味がない。
+            ★ 「※ ひな形とカラーの変更は運営事務局での作業（有償）…」の一文。
+            ★ デザインは店舗様から口頭で聞き、運営が /admin の店舗の編集で入れる運用にする。 */}
       </div>
       )}
 
