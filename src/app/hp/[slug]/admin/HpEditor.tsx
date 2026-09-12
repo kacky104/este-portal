@@ -11,8 +11,6 @@ import {
   type HpBanner,
   type HpLinkBanner,
   type HpHeroSlide,
-  HP_TEMPLATES,
-  HP_COLOR_VARIANTS,
   MAX_HP_HERO_IMAGES,
   MAX_HP_HERO_SLIDES,
   MAX_HP_BANNERS,
@@ -314,9 +312,8 @@ export function HpEditor({
   const inputCls =
     'w-full rounded-none border border-slate-200 px-3 py-2 text-sm text-slate-700 focus:outline-none focus:border-pink-300';
 
-  const templateLabel = HP_TEMPLATES.find((t) => t.key === site.template_key)?.label ?? '';
-  const colorVariant = HP_COLOR_VARIANTS[site.template_key].find((v) => v.key === site.theme_key)
-    ?? HP_COLOR_VARIANTS[site.template_key][0];
+  // ★ ひな形・カラーの表示は第285便（2026-09-12・カッキーさんの指示）で
+  //   ホームの「ホームページ管理」の枠へ移した（HpAdminApp）。★ ここでは持たない。
 
   // ★ いま出す画面かどうか（第278便）。★ 判断はこの2つだけ（★ 画面ごとに条件を書かない）。
   const show = (k: HpAdminSection) => section === k;
@@ -325,25 +322,6 @@ export function HpEditor({
 
   return (
     <div className="space-y-4">
-      {/* ── デザイン（確定済み・表示のみ） ── */}
-      {show('design') && (
-      <div className="bg-white rounded-none border border-slate-100 shadow-sm p-5 space-y-2">
-        <h3 className="text-sm font-black text-slate-800">デザイン</h3>
-        <div className="flex items-center gap-2">
-          <span
-            className="w-7 h-7 rounded-full border border-black/10 flex-shrink-0"
-            style={{ backgroundColor: colorVariant.css['--hp-accent'] }}
-          />
-          <p className="text-xs font-bold text-slate-700">
-            {templateLabel}／{colorVariant.label}
-          </p>
-        </div>
-        {/* ★ 第284便（2026-09-12・カッキーさんの指示）で、この枠から2つを外した。
-            ★ 「確定済み」の印 … 店舗様が変えられないものに状態の印を付ける意味がない。
-            ★ 「※ ひな形とカラーの変更は運営事務局での作業（有償）…」の一文。
-            ★ デザインは店舗様から口頭で聞き、運営が /admin の店舗の編集で入れる運用にする。 */}
-      </div>
-      )}
 
       {/* ── トップ（ヒーロー） ── */}
       {show('hero') && (
@@ -486,7 +464,7 @@ export function HpEditor({
            どの配色のプレビューにも同じ写真が出てしまう。ここに入れた写真は
            その配色で見たときだけ差し替わる（/hp/demo/preview/{ひな形}/{カラー}）。
            セラピスト写真も同じ考え方で、掲載データの写真の代わりに使う。 */}
-      {show('design') && previewSlots.length > 0 && (
+      {show('hero') && previewSlots.length > 0 && (
         <div className="bg-white rounded-none border border-slate-100 shadow-sm p-5 space-y-3">
           <h3 className="text-sm font-black text-slate-800">デザインごとの画像（デモ専用）</h3>
           <p className="text-[11px] text-slate-400 leading-relaxed">

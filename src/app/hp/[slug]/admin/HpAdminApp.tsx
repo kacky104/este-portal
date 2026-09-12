@@ -4,11 +4,14 @@ import { useCallback, useEffect, useState } from 'react';
 import { signInWithEmail } from '@/lib/auth';
 import {
   getHpAdminContext,
-  confirmHpDesign,
   type HpAdminContext,
 } from '@/app/actions/hpAdmin';
-import { normalizeHpSiteKey, type HpSite, type HpTemplateKey } from '@/app/lib/hpSite';
-import { HpGallery } from './HpGallery';
+import {
+  normalizeHpSiteKey,
+  HP_TEMPLATES,
+  HP_COLOR_VARIANTS,
+  type HpSite,
+} from '@/app/lib/hpSite';
 import { HpEditor } from './HpEditor';
 import { HpShell } from './HpShell';
 import { HP_ADMIN_NAV, type HpAdminSection } from './adminNav';
@@ -19,10 +22,12 @@ import { HP_ADMIN_NAV, type HpAdminSection } from './adminNav';
 // ログイン専用ルートを分けていないのは、店舗に案内するURLを
 // 「https://お店のドメイン/admin」の1本だけにしたいため（マニュアルを薄く保つ）。
 //
-// デザインの決め方（2026-08-09 夕の方針変更）:
-//   店舗にはギャラリーで自己判断させない。デザイン一覧（/hp/templates・公開）を見せて
-//   会話で決め、【運営】がこの画面のギャラリーから設定・確定する。
-//   → design_locked=false のとき、operator にはギャラリー・店舗には「打ち合わせ中」の案内を出す。
+// デザインの決め方（★ 2026-09-12 第285便・カッキーさんの指示で変えた）:
+//   ★ 店舗様から口頭で聞き、【運営が /admin →「公式HP管理」→ その店の「編集」】で
+//     ひな形とカラーを選んで保存する。★ 入口はそこ1つだけ。
+//   ★ この画面（店舗様の側）にデザインの選択UIは無い。★ ホームの枠に1行出るだけ。
+//   ★ design_locked=false のあいだは「デザインを準備中です」の案内になる（誰が見ても同じ）。
+//     ★ 以前ここにあったギャラリー（HpGallery）はもう呼んでいない。
 //
 // 権限判定はサーバー（actions/hpAdmin.ts）が唯一の正。ここでの出し分けは見た目だけで、
 // 権限が無い状態で操作しても各アクションがエラーを返す。
@@ -45,7 +50,6 @@ export function HpAdminApp({
 }) {
   const [view, setView] = useState<View>({ kind: 'loading' });
   const [toast, setToast] = useState('');
-  const [busy, setBusy] = useState(false);
   // ★★ いま出している画面（第278便）。★ URLは /admin のまま変えない。
   //   ★ ページを移らないので、保存前の入力が消えない（HpEditor が外れない）。
   const [section, setSection] = useState<HpAdminSection>('home');
@@ -82,6 +86,12 @@ export function HpAdminApp({
   const { ctx } = view;
   const { site } = ctx;
 
+  // ★ ひな形とカラーの名前・色（第285便でホームの枠に出すため、ここで引く）。
+  //   ★ 不正なキーでも落ちないよう、そのひな形の先頭色に倒す（★ 公開ページ側と同じ考え）。
+  const templateLabel = HP_TEMPLATES.find((t) => t.key === site.template_key)?.label ?? '';
+  const colorVariant = HP_COLOR_VARIANTS[site.template_key].find((v) => v.key === site.theme_key)
+    ?? HP_COLOR_VARIANTS[site.template_key][0];
+
   // ★★★ 「ページを見る」の飛び先（2026-09-11 夜・カッキーさんの指示）。
   //   ★ 独自ドメインが付いていて【公開中】なら、そのドメインの表紙へ飛ばす。
   //     ★ お客様が実際に見ているのはそのドメイン。★ 店舗様に見てほしいのも同じ物。
@@ -94,24 +104,15 @@ export function HpAdminApp({
       ? `https://${normalizeHpSiteKey(site.domain as string)}/`
       : previewHref;
 
-  const handleConfirmDesign = async (template: HpTemplateKey, color: string) => {
-    setBusy(true);
-    const res = await confirmHpDesign(siteKey, template, color);
-    setBusy(false);
-    if (!res.ok) { showToast(res.error); return; }
-    patchSite(res.site);
-    showToast('デザインを確定しました。続けて写真と文章を入力してください');
-  };
-
   // ★★★ サイドバーに出す画面（第278便・2026-09-12・カッキーさんの指示）。
   //   ★ 判断はこの1か所。★ 出さない画面は、押す道そのものを作らない。
-  //     ★ デザインが未確定のあいだ ＝ 写真も文章もまだ入れられないので「ホーム・デザイン」だけ。
+  //     ★ デザインが未確定のあいだ ＝ 写真も文章もまだ入れられないので【ホームだけ】（第285便）。
   //     ★ 「担当者アカウント」は第279便（2026-09-12・カッキーさんの指示）で画面ごと撤去した。
   //   ★★ 第282便（2026-09-12）から 'home' も HpEditor が受け持つ（コンセプトがホームに入ったため）。
   //     ★ なので「全部」は HP_ADMIN_NAV の並びをそのまま使う（★ 並びの正は1か所）。
   const sections: HpAdminSection[] = site.design_locked
     ? HP_ADMIN_NAV.map((n) => n.key)
-    : (['home', 'design'] as HpAdminSection[]);
+    : (['home'] as HpAdminSection[]);
   // ★ 出せない画面が選ばれていたらホームに倒す（★ 白い画面を出さない）。
   const current: HpAdminSection = sections.includes(section) ? section : 'home';
 
@@ -156,6 +157,19 @@ export function HpAdminApp({
                 ? <span className="font-bold text-slate-700">{site.domain}</span>
                 : '準備中（運営で取得手続き中です）'}
             </p>
+            {/* ★★ デザイン（ひな形とカラー）… 第285便（2026-09-12・カッキーさんの指示）で
+                「デザイン」の画面をやめ、ここに1行で出す形にした。
+                ★ 店舗様は選べない（選ぶのは運営が /admin で）。★ 読めれば足りる。
+                ★ 丸はそのカラーのアクセント色。★ 色の正は lib/hpSite.ts の HP_COLOR_VARIANTS。 */}
+            <div className="flex items-center gap-2">
+              <span
+                className="w-5 h-5 rounded-full border border-black/10 flex-none"
+                style={{ backgroundColor: colorVariant.css['--hp-accent'] }}
+              />
+              <p className="text-xs text-slate-500">
+                デザイン：<span className="font-bold text-slate-700">{templateLabel}／{colorVariant.label}</span>
+              </p>
+            </div>
             {/* ★★★ 2026-09-12（第279便・カッキーさんの指示）: ここから2つのボタンを外した。
                 ★ 「公開する／非公開にする」… 公開・非公開は【運営だけ】が変える。
                   ★ 変える場所は運営の管理者ダッシュボード（/admin → 公式HP → その店の「編集」→ 公開状態）。
@@ -173,18 +187,13 @@ export function HpAdminApp({
         {/* ── 写真と文章の編集 ──
             ★★ HpEditor は【いつも置いておく】（★ 出す中身は section が決める）。
               ★ 画面を移るたびに外していると、保存前に書いた文字が消える。
-            確定済み: 編集パネル（全ロール）
-            未確定:   運営にはギャラリー（打ち合わせ結果を設定・確定する）、
-                      店舗には「デザイン打ち合わせ中」の案内 ── */}
+            確定済み（design_locked=true）: 編集パネル
+            未確定:                          「デザインを準備中です」の案内（★ 誰が見ても同じ・第285便） ── */}
         {site.design_locked ? (
           <HpEditor siteKey={siteKey} site={site} section={current} onSaved={patchSite} onToast={showToast} />
-        ) : current === 'design' ? (
-          ctx.role === 'operator' ? (
-            <HpGallery onConfirm={handleConfirmDesign} busy={busy} previewHref={previewHref} />
-          ) : (
-            <DesignPendingCard />
-          )
-        ) : null}
+        ) : (
+          <DesignPendingCard />
+        )}
       </div>
     </HpShell>
   );
