@@ -14,6 +14,8 @@ import {
 import { CONSENT_RECHECK_BADGE, consentRecheckNotice } from '@/lib/mediaConsent';
 // ★ 反映の早見表（第212便）。★ データは mediaMatrix.ts（番人あり）。画面は並べるだけ
 import { MEDIA_MATRIX, MATRIX_SITES, MATRIX_ROWS, MATRIX_FOOTNOTES, NO as MATRIX_NO, NA as MATRIX_NA, SEE as MATRIX_SEE } from '@/lib/mediaMatrix';
+// ★ セラピストの登録と名簿（第297便）。★ 上の3表とは別の表にする（あちらは自動・こちらは押したとき）
+import { THERAPIST_MATRIX, THERAPIST_MATRIX_ROWS, THERAPIST_FOOTNOTES } from '@/lib/mediaMatrix';
 
 // 媒体連携の入口（第56便・㉞）。
 //
@@ -549,6 +551,47 @@ export function MediaHome({ salonId, onToast }: {
           <ul className="text-[12.5px] text-slate-400 leading-relaxed space-y-0.5">
             {MATRIX_FOOTNOTES.map((f) => <li key={f}>・{f}</li>)}
           </ul>
+
+          {/* ── ★★★ セラピストの登録と名簿（第297便・2026-09-12・カッキーさんの指示）──
+              ★ 上の3表とは【別の表】にする。★ あちらは設定で自動に流れるもの、こちらは【押したときだけ】動くもの。
+              ★ 混ぜると「◯分以内」の仲間に見えて、放っておいても送られると読めてしまう。
+              ★ 見た目は上の表と同じ（列も同じ4サイト）。★ 値は mediaMatrix.ts（番人あり）。 */}
+          <div className="pt-4 border-t border-slate-200">
+            <p className="text-[14.5px] font-black text-slate-800 mb-2">{THERAPIST_MATRIX.title}</p>
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-[460px] text-[13.5px] border border-slate-200">
+                <thead>
+                  <tr className="bg-slate-50">
+                    <th className="text-left font-bold text-[12px] text-slate-400 px-3 py-2 border-b border-slate-200 w-[120px]"></th>
+                    {MATRIX_SITES.map((site) => (
+                      <th key={site} className="text-center font-bold text-[12.5px] text-slate-600 px-2 py-2 border-b border-l border-slate-200 whitespace-nowrap">{site}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {THERAPIST_MATRIX_ROWS.map((row) => (
+                    <tr key={row} className="border-t border-slate-100">
+                      <th className="text-left font-bold text-slate-700 px-3 py-2 whitespace-nowrap bg-slate-50/60">{row}</th>
+                      {THERAPIST_MATRIX.cells[row].map((cell, i) => (
+                        <td
+                          key={i}
+                          className={`text-center px-2 py-2 border-l border-slate-100 whitespace-nowrap ${
+                            cell === MATRIX_NO || cell === MATRIX_NA ? 'text-slate-300' : 'font-bold text-emerald-700'
+                          }`}
+                        >
+                          {cell}
+                        </td>
+                      ))}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            <p className="mt-1.5 text-[12.5px] text-slate-400 leading-relaxed">{THERAPIST_MATRIX.remark}</p>
+            <ul className="mt-2 text-[12.5px] text-slate-400 leading-relaxed space-y-0.5">
+              {THERAPIST_FOOTNOTES.map((f) => <li key={f}>・{f}</li>)}
+            </ul>
+          </div>
         </div>
       </details>
 

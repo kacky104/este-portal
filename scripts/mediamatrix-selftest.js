@@ -47,5 +47,50 @@ eq('★ 補足は6つまで', m.MATRIX_FOOTNOTES.length <= 6, true);
 eq('★ 補足にはエステ魂の新着情報の断りを置かない', m.MATRIX_FOOTNOTES.some((f) => f.includes('エステ魂') && f.includes('新着情報')), false);
 // ★★ 第215便: 実測でわかったこと（ベンリーの即姫タイマーが先に枠を埋める）を早見表の下で断る
 eq('★★ 補足に「ほかのツールが優先」の断りがある', m.MATRIX_FOOTNOTES.some((f) => f.includes('即ヒメ') && f.includes('優先')), true);
+
+// ── ★★★ セラピストの登録と名簿（第297便・2026-09-12）─────────────────
+// ★ 上の3表とは別の表。★ あちらは【自動で流れるもの】、こちらは【押したときだけ動くもの】。
+console.log('\n── ★ セラピストの登録と名簿（第297便）──');
+eq('★ 4行', m.THERAPIST_MATRIX_ROWS.length, 4);
+eq('★ 見出しは「セラピストの登録と名簿」', m.THERAPIST_MATRIX.title, 'セラピストの登録と名簿');
+eq('★★ 4行 × 4列がある',
+   m.THERAPIST_MATRIX_ROWS.every((r) => Array.isArray(m.THERAPIST_MATRIX.cells[r]) && m.THERAPIST_MATRIX.cells[r].length === 4), true);
+eq('★★ 空のマスが無い',
+   m.THERAPIST_MATRIX_ROWS.every((r) => m.THERAPIST_MATRIX.cells[r].every((c) => typeof c === 'string' && c.length > 0)), true);
+eq('★ マスの言葉は短い（8字以内）',
+   m.THERAPIST_MATRIX_ROWS.every((r) => m.THERAPIST_MATRIX.cells[r].every((c) => c.length <= 8)), true);
+// ★★★ ここがこの表の理由。★ 「◯分以内」「◯分ごと」と書かない＝自動で回ると読ませない
+eq('★★★ 時間の言葉を書かない（押したときだけ動く）',
+   m.THERAPIST_MATRIX_ROWS.every((r) => m.THERAPIST_MATRIX.cells[r].every((c) => !c.includes('分') && !c.includes('ごと'))), true);
+eq('★★ 登録できるのは駅ちかとエステ魂だけ（THERAPIST_CREATE_PROVIDERS と同じ組）',
+   m.THERAPIST_MATRIX.cells['新しい方を登録'], ['登録を押す', '登録を押す', m.NO, m.NA]);
+// ★★★ 第297便（カッキーさんの問い）: 「押したとき」では何を押すのか分からなかった。
+//   ★ マスは動作の名前、注はボタンの名前（画面に出ている文字のまま）。
+eq('★★★ マスに「押したとき」と書かない（どのボタンか分からない）',
+   m.THERAPIST_MATRIX_ROWS.every((r) => m.THERAPIST_MATRIX.cells[r].every((c) => c !== '押したとき')), true);
+eq('★★★ 注はボタンの名前を画面の文字のまま書く',
+   ['セラピスト一覧', '駅ちかへ登録', '登録する', '名簿を読み直す'].every((w) => m.THERAPIST_MATRIX.remark.includes(w)), true);
+eq('★★ 写真は登録と一緒（第267〜269便で駅ちかとエステ魂が揃った）',
+   m.THERAPIST_MATRIX.cells['登録と一緒に写真'].slice(0, 2), ['1枚', '1枚']);
+eq('★★ 登録のあとは自動で名簿を読み直す（第270・271便）',
+   m.THERAPIST_MATRIX.cells['登録のあとの名簿'].slice(0, 2), ['自動で読む', '自動で読む']);
+// ★ エステラブは接続できません（accepting:false/blocked）。★ エスランはセラピストを扱わない（can は work だけ）
+eq('★★ エステラブは ✕（送れない・読めない）',
+   m.THERAPIST_MATRIX_ROWS.filter((r) => r !== '登録のあとの名簿').every((r) => m.THERAPIST_MATRIX.cells[r][2] === m.NO), true);
+eq('★★ エスランは全部 ―（セラピストを扱わない）',
+   m.THERAPIST_MATRIX_ROWS.every((r) => m.THERAPIST_MATRIX.cells[r][3] === m.NA), true);
+eq('★ 表の下の注は「フクエスから反映」の条件を言う',
+   m.THERAPIST_MATRIX.remark.startsWith('※') && m.THERAPIST_MATRIX.remark.includes('フクエスから反映'), true);
+eq('★ 補足は4つまで', m.THERAPIST_FOOTNOTES.length <= 4, true);
+// ★★★ 第297便（カッキーさんの確認）: 取り込みは駅ちかだけ、という方針をこの表でも言う。
+//   ★ エステ魂の「押したとき」が取り込みに読めるのを、1行目で先に断つ。
+eq('★★★ 1行目で「名簿の読み取り ≠ 取り込み」を言う',
+   m.THERAPIST_FOOTNOTES[0].includes('取り込み') && m.THERAPIST_FOOTNOTES[0].includes('駅ちかだけ'), true);
+eq('★★ 補足に「押したときだけ」がある（自動と読み違えさせない）',
+   m.THERAPIST_FOOTNOTES.some((f) => f.includes('押したときだけ')), true);
+// ★★ 上の早見表は触っていない（★ 行を足していない）
+eq('★★★ 上の早見表は5行のまま', m.MATRIX_ROWS.length, 5);
+eq('★★★ 上の早見表にセラピストの行を足していない', m.MATRIX_ROWS.includes('新しい方を登録'), false);
+
 console.log(fail === 0 ? '\n★ すべて通った' : '\n★ NG ' + fail + ' 件');
 process.exit(fail === 0 ? 0 : 1);
