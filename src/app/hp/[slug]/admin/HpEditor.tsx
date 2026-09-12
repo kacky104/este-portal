@@ -664,12 +664,15 @@ export function HpEditor({
         </div>
         <div>
           <p className="text-xs font-bold text-slate-600 mb-1">本文（最大{MAX_HP_CONCEPT_LEN}文字）</p>
+          {/* ★ スマホでの高さを3倍に（第294便・2026-09-12・カッキーさんの指示）。
+              ★ rows={8}（＝PCの高さ）はそのまま。★ スマホのときだけ min-h で3倍に伸ばす。
+              ★ md 以上は min-h を外す（★ PCの見た目は今までどおり）。 */}
           <textarea
             value={form.concept_text}
             maxLength={MAX_HP_CONCEPT_LEN}
             onChange={(e) => patch({ concept_text: e.target.value })}
             rows={8}
-            className={inputCls}
+            className={`${inputCls} min-h-[576px] md:min-h-0`}
           />
         </div>
         <div>
@@ -715,13 +718,16 @@ export function HpEditor({
       {/* ── ブロック表示設定＋並び順 ── */}
       {show('blocks') && (
       <div className="bg-white rounded-none border border-slate-100 shadow-sm p-5 space-y-3">
-        <div className="flex items-center justify-between gap-2">
-          <h3 className="text-sm font-black text-slate-800">表示するブロックと並び順</h3>
+        {/* ★ スマホでも1行に収める（第294便・2026-09-12・カッキーさんの指示）。
+            ★ 折り返さない（whitespace-nowrap）ぶん、狭いときは文字を少し小さくする。
+            ★ md 以上は今までの大きさ。 */}
+        <div className="flex flex-nowrap items-center justify-between gap-2">
+          <h3 className="text-[12.5px] md:text-sm font-black text-slate-800 whitespace-nowrap">表示するブロックと並び順</h3>
           {form.blocks.order !== null && (
             <button
               type="button"
               onClick={() => patchBlocks({ order: null })}
-              className="text-[11px] font-bold text-slate-400 underline underline-offset-2 hover:text-pink-500"
+              className="flex-none text-[10px] md:text-[11px] font-bold text-slate-400 underline underline-offset-2 hover:text-pink-500 whitespace-nowrap"
             >
               並び順を既定に戻す
             </button>
@@ -729,10 +735,13 @@ export function HpEditor({
         </div>
         {/* ★ 文言を短く（第293便・2026-09-12・カッキーさんの指示）。
             ★ 「上から順に表示される／▲▼で入れ替えられる」は見れば分かるので落とした。 */}
+        {/* ★ 2つの話なので段落を分ける（第294便）。★ 間に1行あける。 */}
         <p className="text-[11px] text-slate-400">
-          トップ画像・電話／LINEの予約ボタン・フッターの位置は固定。各ブロックの中身（セラピスト・出勤・
-          写メ日記・口コミ・クーポン・お知らせ等）は、フクエスのマイページで編集した内容が
-          そのまま表示。
+          トップ画像・電話／LINEの予約ボタン・フッターの位置は固定。
+        </p>
+        <p className="text-[11px] text-slate-400">
+          各ブロックの中身（セラピスト・出勤・写メ日記・口コミ・クーポン・お知らせ等）は、
+          フクエスのマイページで編集した内容がそのまま表示。
         </p>
 
         <ul className="divide-y divide-slate-100 border-y border-slate-100">

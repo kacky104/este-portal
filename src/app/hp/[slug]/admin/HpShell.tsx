@@ -231,11 +231,19 @@ export function HpShell({
             className="absolute inset-y-0 left-0 w-[280px] max-w-[85vw] bg-white shadow-2xl overflow-y-auto overscroll-contain scrollbar-none pb-24 [padding-bottom:calc(6rem+env(safe-area-inset-bottom))]"
           >
             <div className="flex items-center justify-between gap-2 px-4 py-3 border-b border-slate-100">
-              <div className="flex items-center gap-2.5 min-w-0">
+              {/* ★ ドロワーのロゴも押せるように（第294便・2026-09-12・カッキーさんの指示）。
+                  ★ 押すとホームへ移り、ドロワーも閉じる。★ PCのサイドバー・スマホの帯と同じ振る舞い。
+                  ★ ここだけ「押しても何も起きないロゴ」だった。 */}
+              <button
+                type="button"
+                onClick={() => { onSelect('home'); setDrawerOpen(false); }}
+                aria-label="ホームへ"
+                className="flex items-center gap-2.5 min-w-0 text-left"
+              >
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img src="/logo.png" alt="" className="w-7 h-7 flex-none" />
                 <b className="text-[16px] font-black text-slate-800 tracking-tight truncate">フクエスサイト</b>
-              </div>
+              </button>
               <button
                 type="button"
                 onClick={() => setDrawerOpen(false)}
