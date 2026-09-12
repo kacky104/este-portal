@@ -247,7 +247,8 @@ export function MediaHome({ salonId, onToast }: {
               </div>
               <div className="bg-white px-3 py-2.5 text-center">
                 <dt className="text-[12px] font-bold text-slate-400">最後の反映</dt>
-                <dd className="text-[17px] font-black text-slate-800 tabular-nums">
+                {/* ★ 第312便: スマホでは時刻を1段小さく（★ 3つ並びで折り返さない大きさ） */}
+                <dd className="text-[15px] sm:text-[17px] font-black text-slate-800 tabular-nums">
                   {fmt(reading.listLastRunAt) || '—'}
                 </dd>
               </div>
@@ -255,7 +256,7 @@ export function MediaHome({ salonId, onToast }: {
                 <dt className="text-[12px] font-bold text-slate-400">次の反映</dt>
                 {/* ★★ 分からない・止まっているときは時刻を出さない。
                     ★ 過ぎている時刻を「次」と書かない（mediaOverview.nextImportAt） */}
-                <dd className="text-[17px] font-black text-slate-800 tabular-nums">
+                <dd className="text-[15px] sm:text-[17px] font-black text-slate-800 tabular-nums">
                   {reading.nextImportAt ? `${fmtTime(reading.nextImportAt)}ごろ` : '—'}
                 </dd>
               </div>
@@ -423,7 +424,12 @@ export function MediaHome({ salonId, onToast }: {
 
               return (
                 <div key={s.provider + '#' + s.slot} className="py-3">
-                  <div className="flex items-center gap-3">
+                  {/* ★★★ 第312便（2026-09-12・カッキーさんの指示）: スマホは【縦に積む】。
+                      ★ 横1列のままだと、サイト名＋チップ＋状態の札＋ボタンが 360px に入らず、
+                        名前が1文字ずつ折り返すか、ボタンが潰れていた。
+                      ★ PC（md以上）の見た目は1つも変えない。★ 右側のまとまりは md:contents で
+                        包みを透明にし、これまでどおり行の直接の子として並ぶ。 */}
+                  <div className="flex flex-col gap-2 md:flex-row md:items-center md:gap-3">
                     <span className="min-w-0 flex-1">
                       {/* ★★ 送れるもののチップをサイト名の【すぐ右】に（第193便・カッキーさん）。
                           ★ 「送れるもの：」の文字は付けない（右に「◯◯から反映中」とあるので、言葉が重なる）。
@@ -455,6 +461,7 @@ export function MediaHome({ salonId, onToast }: {
                               : (s.hasCredential ? '入力する場所が決まっていません' : 'ログイン情報がまだありません')}
                       </span>
                     </span>
+                    <span className="flex flex-wrap items-center gap-2 md:contents">
                     {s.needsConsent && (
                       <span className={`${ROW_CHIP} bg-amber-50 text-amber-800 border-amber-300`}>
                         {CONSENT_RECHECK_BADGE}
@@ -499,6 +506,7 @@ export function MediaHome({ salonId, onToast }: {
                         設定する
                       </Link>
                     )}
+                    </span>
                   </div>
                 </div>
               );

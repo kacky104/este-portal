@@ -267,8 +267,11 @@ export function MediaShell({
             ★ zoom を使う。★ transform: scale だと場所だけ元の大きさのままで、
               右や下に余白・はみ出しが出る（レイアウトが付いてこない）。
             ★ かかるのは中身だけ。★ 左サイドバー・上の帯・見出しの行は元の大きさのまま。
-            ★ 幅は max-w-3xl のまま＝見た目では 768×1.2 ≒ 920px 相当になる。 */}
-        <main className="px-4 md:px-6 py-4 md:py-5 max-w-3xl w-full" style={{ zoom: 1.2 }}>{children}</main>
+            ★ 幅は max-w-3xl のまま＝見た目では 768×1.2 ≒ 920px 相当になる。
+          ★★★ 第312便（2026-09-12・カッキーさんの指示）: スマホは等倍に戻した。
+            ★ 1.2倍のままだと、360〜420px しかない画面の【横幅を2割削る】ことになっていた。
+            ★ 倍率は globals.css の .link-zoom が持つ（★ 正は1か所）。★ 768px以上だけ 1.2倍。 */}
+        <main className="link-zoom px-4 md:px-6 py-4 md:py-5 max-w-3xl w-full">{children}</main>
       </div>
 
       {/* ── スマホの左ドロワー（第296便）───────────────────────────

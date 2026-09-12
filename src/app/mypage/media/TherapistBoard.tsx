@@ -596,11 +596,13 @@ export function TherapistBoard({ salonId, onToast }: {
             )
           ) : (
           <div className="overflow-x-auto border border-slate-200">
-            <table className="w-full text-[14.5px] min-w-[520px]">
+            {/* ★★ 第312便: スマホでは下限幅を外す（★ 520px だと 360px の画面で必ず横スクロールになる）。
+                ★ 中身（選ぶ箱・ボタン）は折り返せるので、狭いなりに縦へ伸びる。★ PCは今までどおり。 */}
+            <table className="w-full text-[14.5px] sm:min-w-[520px]">
               <thead>
                 <tr className="bg-slate-50 text-left">
                   {/* ★ 第301便: 幅を決めて、印を名前のすぐ右に寄せた（★ 決めないと余りが配られて間延びする） */}
-                  <th className="font-bold text-[12.5px] text-slate-400 px-3 py-2 w-[190px]">セラピスト</th>
+                  <th className="font-bold text-[12.5px] text-slate-400 px-3 py-2 w-[130px] sm:w-[190px]">セラピスト</th>
                   <th className="font-bold text-[12.5px] text-slate-400 px-3 py-2">{site.label}</th>
                 </tr>
               </thead>
