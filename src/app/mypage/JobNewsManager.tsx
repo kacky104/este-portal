@@ -3,10 +3,8 @@
 import { useCallback, useEffect, useState } from 'react';
 import { createClient } from '@/app/lib/supabase/client';
 import { getLinkedXProfileForSalon } from '@/app/lib/xLink';
-import { revalidateJobsForOwner, enforceWorkNewsLimit } from '@/app/actions/jobs';
+import { revalidateJobsForOwner, enforceWorkNewsLimit, repostMyWorkNews } from '@/app/actions/jobs';
 import { WORK_NEWS_MAX } from '@/app/lib/jobs';
-// ★ 「◯本付けると◯日に1回」の文言。★ フクエス側のお知らせと同じ関数を使う（2026-09-11 第274便）。
-import { rotationCycleMessage } from '@/lib/announceAuto';
 import { STORAGE_CACHE_CONTROL } from '@/app/lib/storage';
 
 // mypage「求人」タブの新着情報（work_news）管理カード。本体お知らせ（announcements）管理を
@@ -18,7 +16,7 @@ import { STORAGE_CACHE_CONTROL } from '@/app/lib/storage';
 //  - 配色をフクエスワークのグリーン系（#10B981→#84CC16）に統一。
 //  - 画像差し替えを「新upload→DB更新→成功時のみ旧削除」の安全順序にし、remove() の戻り値を検査して
 //    console.error する（85ef00e の featured managers パターンを踏襲。旧お知らせは孤児放置だった）。
-//  - 再投稿機能は本タスクでは実装しない（初版はシンプルに新規時のみ）。
+//  - 再投稿は第289便で実装（サーバー側 repostMyWorkNews 経由。★ 手動の記録 last_manual_at が要るため）。
 
 const BUCKET = 'work-news-images';
 const X_BODY_MAX = 500;
@@ -73,12 +71,18 @@ export function JobNewsManager({ salonId }: { salonId: number }) {
   const [newForm, setNewForm] = useState<NewForm>({ title: '', content: '', is_published: true, image_url: null });
   const [newCrosspostX, setNewCrosspostX] = useState(true); // fukuX同時投稿デフォルトON（外すのは都度）
   const [newCrosspostNoReplies, setNewCrosspostNoReplies] = useState(false);
+  // ★ 新規追加の枠を開いているか（第287便・2026-09-12）。★ 既定は閉じる。
+  //   ★ 閉じている間も newForm はここに残るので、開き直せば書きかけがそのまま出る。
+  const [newOpen, setNewOpen] = useState(false);
 
   const [adding, setAdding] = useState(false);
   const [uploadingNew, setUploadingNew] = useState(false);
   const [savingId, setSavingId] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [uploadingEditId, setUploadingEditId] = useState<string | null>(null);
+  // ★ その場で効く操作の最中（第289便）。★ 自動更新・公開切替＝togglingId／再投稿＝repostingId。
+  const [togglingId, setTogglingId] = useState<string | null>(null);
+  const [repostingId, setRepostingId] = useState<string | null>(null);
 
   // アコーディオン：展開中の1件のみ（null=全て折りたたみ）。初期表示は最新10件、11件以上は「もっと見る」で全件。
   const [expandedId, setExpandedId] = useState<string | null>(null);
@@ -240,6 +244,9 @@ export function JobNewsManager({ salonId }: { salonId: number }) {
     setNewForm({ title: '', content: '', is_published: true, image_url: null });
     setNewCrosspostX(true); // 投稿後もデフォルトONへ戻す
     setNewCrosspostNoReplies(false);
+    // ★ 追加できたときだけ畳む（第287便）。★ 空のフォームを開いたままにしない＝下の一覧が見える。
+    //   ★ 途中で抜けた経路（失敗）はここまで来ないので、開いたまま残る。
+    setNewOpen(false);
     setAdding(false);
     await revalidateJobsForOwner();
     const base = xOk ? '新着情報を追加しました' : '新着情報を追加しました（fukuX投稿は失敗しました）';
@@ -280,6 +287,61 @@ export function JobNewsManager({ salonId }: { salonId: number }) {
     setExpandedId(null); // 保存完了でコンパクト表示へ戻す
     await revalidateJobsForOwner();
     setMsg({ kind: 'ok', text: '新着情報を保存しました' });
+  };
+
+  // ── 行の上に並ぶ3つの操作（第289便・2026-09-12・カッキーさんの指示）──────────────
+  //   ★★ フクエス側のお知らせと同じ形にそろえた（自動更新／公開・非公開／再投稿）。
+  //   ★ どれも【その場で効く】。★ 「保存」を押さないと効かないのは、下のタイトル・本文・画像だけ。
+
+  // 自動更新の印を、その場で入り切りする。★ 保存を経由しない（押した＝そうなる）。
+  const handleToggleAutoRotate = async (id: string) => {
+    const target = items.find((n) => n.id === id);
+    if (!target) return;
+    const next = !target.auto_rotate;
+    setTogglingId(id);
+    setMsg(null);
+    const { error } = await supabase.from('work_news').update({ auto_rotate: next }).eq('id', id);
+    setTogglingId(null);
+    if (error) { setMsg({ kind: 'err', text: `変更に失敗しました: ${error.message}` }); return; }
+    setItems((prev) => prev.map((n) => n.id === id ? { ...n, auto_rotate: next } : n));
+    // ★ 開いているフォームの控えも合わせる（保存で古い値に戻さないため）。
+    setForms((prev) => (prev[id] ? { ...prev, [id]: { ...prev[id], auto_rotate: next } } : prev));
+    setMsg({ kind: 'ok', text: next ? '自動更新にしました' : '自動更新をやめました' });
+  };
+
+  // 公開・非公開を、その場で切り替える。
+  const handleTogglePublish = async (id: string) => {
+    const target = items.find((n) => n.id === id);
+    if (!target) return;
+    const next = !target.is_published;
+    setTogglingId(id);
+    setMsg(null);
+    const { error } = await supabase.from('work_news').update({ is_published: next }).eq('id', id);
+    setTogglingId(null);
+    if (error) { setMsg({ kind: 'err', text: `変更に失敗しました: ${error.message}` }); return; }
+    setItems((prev) => prev.map((n) => n.id === id ? { ...n, is_published: next } : n));
+    setForms((prev) => (prev[id] ? { ...prev, [id]: { ...prev[id], is_published: next } } : prev));
+    await revalidateJobsForOwner();
+    setMsg({ kind: 'ok', text: next ? '公開にしました' : '非公開にしました' });
+  };
+
+  // 再投稿（確認あり）。★ 投稿日時を今にして、求人ページの新着で先頭へ出す。
+  //   ★★ サーバー側の口を通す（repostMyWorkNews）。★ 画面から published_at を直に書かない。
+  //     理由は「手で出した日」の記録（last_manual_at）が要るため——その表は画面からは書けない。
+  const handleRepost = async (id: string) => {
+    if (!window.confirm(
+      'この新着情報を再投稿しますか？\n投稿日時が現在時刻に更新され、求人ページの新着で先頭に出ます。\n（元の投稿日時は失われます）'
+    )) return;
+    setRepostingId(id);
+    setMsg(null);
+    const res = await repostMyWorkNews({ salonId, id });
+    setRepostingId(null);
+    if (!res.ok) { setMsg({ kind: 'err', text: `再投稿に失敗しました: ${res.error}` }); return; }
+    setItems((prev) => prev
+      .map((n) => n.id === id ? { ...n, published_at: res.publishedAt } : n)
+      .sort((x, y) => new Date(y.published_at).getTime() - new Date(x.published_at).getTime()));
+    await revalidateJobsForOwner();
+    setMsg({ kind: 'ok', text: '再投稿しました' });
   };
 
   // 削除（確認あり）。行削除成功後に添付画像も削除（remove() 戻り値検査）。
@@ -437,27 +499,35 @@ export function JobNewsManager({ salonId }: { salonId: number }) {
         </p>
       )}
 
-      {/* ───────── ブロック1：新しく書く ───────── */}
-      <div className="bg-white rounded-none border border-slate-100 shadow-sm p-5 space-y-4">
-        <div className="flex items-center gap-2">
+      {/* ───────── ブロック1：新しく書く（折りたたみ・第287便） ───────── */}
+      {/* ★★ 既定は【閉じている】。★ 開けるまで場所を取らない＝下の一覧がすぐ見える。
+          ★ 閉じても入力は消えない（newForm は親の状態のまま・描画をやめるだけ）。
+          ★ 追加に成功したときだけ自動で閉じる（handleAdd の出口）。★ 失敗時は開いたまま——
+            書いたものを見せたまま直させる。 */}
+      <div className="bg-white rounded-none border border-slate-100 shadow-sm">
+        <button
+          type="button"
+          onClick={() => setNewOpen((v) => !v)}
+          aria-expanded={newOpen}
+          className="w-full flex items-center gap-2 p-5 text-left hover:bg-slate-50/60 transition-colors"
+        >
           <span className="w-1 h-5 rounded-none flex-shrink-0" style={{ background: 'linear-gradient(to bottom,#10B981,#84CC16)' }} />
           <h2 className="text-sm font-black text-slate-700">新着情報を新規追加</h2>
-        </div>
+          <span className="ml-auto px-3 py-1.5 rounded-none border text-xs font-bold flex-shrink-0" style={{ borderColor: '#6EE7B7', color: '#059669' }}>
+            {newOpen ? '閉じる' : '＋ 新しく書く'}
+          </span>
+        </button>
+        {newOpen && (
+        <div className="px-5 pb-5 pt-4 space-y-4 border-t border-slate-100">
+        {/* ★ 上限の注意書きは【説明文の位置】に置く（第287便・2026-09-12・カッキーさんの指示）。
+            ★ 黄色い枠はやめて、ただの小さい字にした。★ 件数は定数から出す。
+            ★ 「求人ページに出るお知らせです」は撤去——見出しで分かるものを二度言わない。 */}
         <p className="text-[11px] text-slate-400 leading-relaxed">
-          求人ページに出るお知らせです。
+          最新{WORK_NEWS_MAX}件まで保存。それ以降は古い順に自動削除。
         </p>
-        {/* ローリング上限の常設注意書き（新規投稿フォームの近く）。 */}
-        <p className="text-[10px] text-slate-500 leading-relaxed rounded-none bg-amber-50 border border-amber-100 px-2.5 py-2">
-          新着情報は最新{WORK_NEWS_MAX}件まで保存されます。{WORK_NEWS_MAX + 1}件目を投稿すると、非公開分を含めて古いものから自動的に削除されます。
-        </p>
-        {/* ★ 「自動で回す」を付けた本数から、1周にかかる日数を出す（第274便・2026-09-11）。
-            ★ 上限で押させない代わりに、数字で言う。★ 「10本付けると10日に1回」と分かれば、
-              店舗が自分で減らす判断ができる。★ 0本のときは何も出さない（rotationCycleMessage が null）。 */}
-        {rotationCycleMessage(items.filter((n) => n.auto_rotate && n.is_published).length) && (
-          <p className="text-[10px] font-bold leading-relaxed rounded-none px-2.5 py-2 border" style={{ background: 'rgba(16,185,129,0.06)', borderColor: '#A7F3D0', color: '#059669' }}>
-            {rotationCycleMessage(items.filter((n) => n.auto_rotate && n.is_published).length)}
-          </p>
-        )}
+        {/* ★★ 周期の案内（rotationCycleMessage）はここから撤去（第287便・カッキーさんの指示）。
+            ★ 「◯本付けると◯日に1回」は第274便で入れたが、書く場所に出す用事が無い。
+            ★ 関数（src/lib/announceAuto.ts）はフクエス側のお知らせで使っているので残っている。 */}
         <div>
           <label className={labelClass}>タイトル <span className="text-rose-400">*</span></label>
           <input
@@ -469,8 +539,10 @@ export function JobNewsManager({ salonId }: { salonId: number }) {
         </div>
         <div>
           <label className={labelClass}>本文（任意）</label>
+          {/* ★ 見える高さを2倍に（第287便・2026-09-12・カッキーさんの指示）。★ 5行 → 10行。
+              ★ 編集側（下の一覧の中）も同じ10行に揃えてある。 */}
           <textarea
-            rows={5}
+            rows={10}
             className={textareaClass}
             placeholder="新着情報の本文を入力してください。"
             value={newForm.content}
@@ -503,10 +575,18 @@ export function JobNewsManager({ salonId }: { salonId: number }) {
             {adding ? '追加中...' : '＋ 新着情報を追加'}
           </button>
         </div>
+        </div>
+        )}
       </div>
 
-      {/* ───────── ブロック2：書いたもの ───────── */}
-      <div className="bg-white rounded-none border border-slate-100 shadow-sm p-5 space-y-4">
+      {/* ───────── ブロック2：書いたもの ─────────
+          ★★ 1件＝1ブロックにする（第287便・2026-09-12・カッキーさんの指示）。
+            ★ フクエス側のお知らせ（mypage?tab=news）と同じ形にそろえた。
+            ★ 行ぜんぶがボタン＝押すと開く／右端の山形が向きを変える。
+            ★★ 「編集」ボタンは無くした（行そのものが編集の入口）。★ 「削除」は開いた中の右上へ。
+              ★ 閉じたまま押せる削除を無くす＝取り違えが起きない（第273便と同じ考え方）。
+          ★★ 見出しは細いカード1枚で残す。★ フクエス側の「自動でお知らせを回す」と同じ位置づけ。 */}
+      <div className="bg-white rounded-none border border-slate-100 shadow-sm p-5 space-y-1.5">
         <div className="flex items-center gap-2">
           <span className="w-1 h-5 rounded-none flex-shrink-0" style={{ background: 'linear-gradient(to bottom,#10B981,#84CC16)' }} />
           <h2 className="text-sm font-black text-slate-700">投稿した新着情報{items.length > 0 ? `（${items.length}件）` : ''}</h2>
@@ -514,22 +594,31 @@ export function JobNewsManager({ salonId }: { salonId: number }) {
         <p className="text-[11px] text-slate-400 leading-relaxed">
           新しい順に並びます（非公開のものも出ます）。
         </p>
-        {loading ? (
+      </div>
+
+      {loading ? (
+        <div className="bg-white rounded-none border border-slate-100 shadow-sm p-5">
           <p className="text-xs text-slate-400">読み込み中です…</p>
-        ) : items.length === 0 ? (
-          <div className="rounded-none border border-slate-100 bg-slate-50/50 p-5">
-            <p className="text-xs text-slate-400">登録されている新着情報がありません</p>
-          </div>
-        ) : (
-          <>
+        </div>
+      ) : items.length === 0 ? (
+        <div className="bg-white rounded-none border border-slate-100 shadow-sm p-5">
+          <p className="text-xs text-slate-400">登録されている新着情報がありません</p>
+        </div>
+      ) : (
+        <>
             {(showAll ? items : items.slice(0, INITIAL_VISIBLE)).map((n) => {
               const form = forms[n.id] ?? { title: '', content: '', is_published: true, image_url: null, auto_rotate: false };
               const expanded = expandedId === n.id;
               return (
-                <div key={n.id} className="rounded-none border border-emerald-100 shadow-sm overflow-hidden">
-                  {/* コンパクト行：公開バッジ ＋ タイトル ＋ 投稿日時 ＋ 編集 ＋ 削除 */}
-                  <div className="flex items-center gap-2 p-3">
-                    <span className={`text-[10px] font-bold px-2 py-0.5 rounded-none flex-shrink-0 ${
+                <div key={n.id} className="bg-white rounded-none border border-emerald-100 shadow-sm overflow-hidden">
+                  {/* 閉じているときのバー：公開バッジ ＋ 自動配信の印 ＋ タイトル ＋ 投稿日時 ＋ 山形 */}
+                  <button
+                    type="button"
+                    onClick={() => handleEditToggle(n.id)}
+                    aria-expanded={expanded}
+                    className="w-full flex items-center gap-2 px-5 py-4 text-left hover:bg-emerald-50/40 transition-colors"
+                  >
+                    <span className={`text-[11px] font-bold px-2.5 py-1 rounded-none flex-shrink-0 ${
                       n.is_published ? 'bg-emerald-50 text-emerald-600' : 'bg-slate-100 text-slate-400'
                     }`}>
                       {n.is_published ? '公開中' : '非公開'}
@@ -538,41 +627,91 @@ export function JobNewsManager({ salonId }: { salonId: number }) {
                         ★ 印が付いているだけ＝回る対象。★ 実際に今日出たかは別（記録は周が持つ）。 */}
                     {n.auto_rotate && (
                       <span
-                        className={`text-[10px] font-bold px-2 py-0.5 rounded-none flex-shrink-0 border ${
+                        className={`text-[11px] font-bold px-2.5 py-1 rounded-none flex-shrink-0 border ${
                           n.is_published
                             ? 'bg-emerald-50 text-emerald-600 border-emerald-100'
                             : 'bg-white text-emerald-300 border-emerald-100'
                         }`}
                         title={n.is_published ? '自動配信のローテに乗っています' : '印は付いていますが、非公開なので回りません'}
                       >
-                        自動配信中
+                        自動更新中
                       </span>
                     )}
-                    <div className="min-w-0 flex-1">
-                      <p className="text-sm font-bold text-slate-700 truncate">{n.title || '（無題）'}</p>
-                      <p className="text-[10px] text-slate-400 truncate">{formatPublishedAt(n.published_at)}</p>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => handleEditToggle(n.id)}
-                      className="px-3 py-1.5 rounded-none border text-xs font-bold transition-colors flex-shrink-0"
-                      style={{ borderColor: '#6EE7B7', color: '#059669' }}
-                    >
-                      {expanded ? '閉じる' : '編集'}
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => handleDelete(n.id)}
-                      disabled={deletingId === n.id}
-                      className="px-3 py-1.5 rounded-none border border-rose-200 text-rose-500 text-xs font-bold bg-rose-50 hover:bg-rose-100 transition-colors disabled:opacity-50 flex-shrink-0"
-                    >
-                      {deletingId === n.id ? '削除中...' : '削除'}
-                    </button>
-                  </div>
+                    <span className="text-sm font-bold text-slate-700 truncate min-w-0">{n.title || '（無題）'}</span>
+                    <span className="ml-auto flex items-center gap-2 flex-shrink-0">
+                      <span className="hidden sm:inline text-[10px] text-slate-400">{formatPublishedAt(n.published_at)}</span>
+                      <svg
+                        className={`w-4 h-4 transition-transform duration-200 ${expanded ? 'rotate-180' : ''}`}
+                        style={{ color: '#34D399' }}
+                        fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}
+                        aria-hidden
+                      >
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+                      </svg>
+                    </span>
+                  </button>
 
-                  {/* 編集フォーム（展開時のみ・同時展開は常に1件） */}
+                  {/* 開いたときの中身（★ 同時展開は常に1件・未保存があれば切り替えに confirm） */}
                   {expanded && (
-                    <div className="border-t border-emerald-100 bg-emerald-50/20 p-4 space-y-3">
+                    <div className="px-5 pb-5 pt-4 space-y-3 border-t border-emerald-100">
+                      {/* ── 4つの操作（第289便・2026-09-12・カッキーさんの指示）──
+                          ★★ フクエス側のお知らせと同じ並び・同じ振る舞い。★ どれも【その場で効く】。
+                          ★ 自動更新は非公開の左。★ 印が付いているときは「自動更新中」。 */}
+                      <div className="flex flex-wrap items-center gap-2 justify-end">
+                        <button
+                          type="button"
+                          onClick={() => handleToggleAutoRotate(n.id)}
+                          disabled={togglingId === n.id}
+                          title={n.auto_rotate
+                            ? '1日1回・順番に1本ずつ自動で出しています。押すとやめます'
+                            : '押すと、1日1回・順番に1本ずつ自動で出すようになります'}
+                          className={`inline-flex items-center gap-1 px-3 py-1.5 rounded-none border text-xs font-bold transition-colors disabled:opacity-50 ${
+                            n.auto_rotate
+                              ? 'border-emerald-300 text-emerald-600 bg-emerald-50 hover:bg-emerald-100'
+                              : 'border-slate-200 text-slate-500 bg-white hover:bg-slate-50'
+                          }`}
+                        >
+                          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="flex-shrink-0">
+                            <path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8" />
+                            <path d="M21 3v5h-5" />
+                            <path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16" />
+                            <path d="M3 21v-5h5" />
+                          </svg>
+                          {n.auto_rotate ? '自動更新中' : '自動更新にする'}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleTogglePublish(n.id)}
+                          disabled={togglingId === n.id}
+                          className="px-3 py-1.5 rounded-none border text-xs font-bold transition-colors disabled:opacity-50 hover:bg-emerald-50"
+                          style={{ borderColor: '#6EE7B7', color: '#059669' }}
+                        >
+                          {n.is_published ? '非公開にする' : '公開にする'}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleRepost(n.id)}
+                          disabled={repostingId === n.id}
+                          title="投稿日時を現在時刻に更新して、求人ページの新着で先頭に出します"
+                          className="inline-flex items-center gap-1 px-3 py-1.5 rounded-none border border-emerald-300 text-emerald-600 text-xs font-bold bg-emerald-50 hover:bg-emerald-100 transition-colors disabled:opacity-50"
+                        >
+                          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="flex-shrink-0">
+                            <path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8" />
+                            <path d="M21 3v5h-5" />
+                            <path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16" />
+                            <path d="M3 21v-5h5" />
+                          </svg>
+                          {repostingId === n.id ? '処理中...' : '再投稿'}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleDelete(n.id)}
+                          disabled={deletingId === n.id}
+                          className="px-3 py-1.5 rounded-none border border-rose-200 text-rose-500 text-xs font-bold bg-rose-50 hover:bg-rose-100 transition-colors disabled:opacity-50"
+                        >
+                          {deletingId === n.id ? '削除中...' : '削除'}
+                        </button>
+                      </div>
                       <div>
                         <label className={labelClass}>タイトル <span className="text-rose-400">*</span></label>
                         <input
@@ -583,8 +722,9 @@ export function JobNewsManager({ salonId }: { salonId: number }) {
                       </div>
                       <div>
                         <label className={labelClass}>本文（任意）</label>
+                        {/* ★ 書くときと同じ10行に揃える（第287便・2026-09-12・カッキーさんの指示）。 */}
                         <textarea
-                          rows={5}
+                          rows={10}
                           className={textareaClass}
                           value={form.content}
                           onChange={(e) => setForms((prev) => ({ ...prev, [n.id]: { ...prev[n.id], content: e.target.value } }))}
@@ -601,31 +741,9 @@ export function JobNewsManager({ salonId }: { salonId: number }) {
                         )}
                         <p className="text-[10px] text-slate-400 mt-1">※ 画像の差し替え・削除は「保存」で確定します。</p>
                       </div>
-                      <label className="flex items-center gap-2 cursor-pointer select-none">
-                        <input
-                          type="checkbox"
-                          className="w-4 h-4 accent-emerald-500 flex-shrink-0"
-                          checked={form.is_published}
-                          onChange={(e) => setForms((prev) => ({ ...prev, [n.id]: { ...prev[n.id], is_published: e.target.checked } }))}
-                        />
-                        <span className="text-xs font-bold text-slate-600">公開する（オフにすると非公開で保存）</span>
-                      </label>
-                      {/* ★ 自動配信のローテに乗せるか（第274便・2026-09-11・カッキーさんの指示）。
-                          ★ 既定はオフ——黙って回さない。★ 季節外れの告知が数か月後に出るのを防ぐ。 */}
-                      <label className="flex items-start gap-2 cursor-pointer select-none">
-                        <input
-                          type="checkbox"
-                          className="w-4 h-4 accent-emerald-500 flex-shrink-0 mt-0.5"
-                          checked={form.auto_rotate}
-                          onChange={(e) => setForms((prev) => ({ ...prev, [n.id]: { ...prev[n.id], auto_rotate: e.target.checked } }))}
-                        />
-                        <span className="min-w-0">
-                          <span className="text-xs font-bold text-slate-600">自動で回す</span>
-                          <span className="block text-[10px] text-slate-400 leading-relaxed">
-                            印を付けた新着情報を、1日1回・順番に1本ずつ自動で出します（「保存」で確定します）
-                          </span>
-                        </span>
-                      </label>
+                      {/* ★★ 「公開する」と「自動で回す」のチェックはここから外した（第289便）。
+                          ★ 同じ用事のボタンが上にある——入口を2つ持たない。
+                          ★ 上のボタンは押した時点で効く。★ ここに残る「保存」はタイトル・本文・画像だけ。 */}
                       <div className="flex justify-end">
                         <button className={saveBtn} style={saveBtnStyle} onClick={() => handleSave(n.id)} disabled={savingId === n.id}>
                           {savingId === n.id ? '保存中...' : '保存'}
@@ -643,16 +761,15 @@ export function JobNewsManager({ salonId }: { salonId: number }) {
                 <button
                   type="button"
                   onClick={() => setShowAll((v) => !v)}
-                  className="text-xs font-bold px-4 py-2 rounded-none border transition-colors"
+                  className="text-xs font-bold px-4 py-2 rounded-none border bg-white transition-colors"
                   style={{ borderColor: '#6EE7B7', color: '#059669' }}
                 >
                   {showAll ? '折りたたむ' : `もっと見る（残り${items.length - INITIAL_VISIBLE}件）`}
                 </button>
               </div>
             )}
-          </>
-        )}
-      </div>
+        </>
+      )}
     </div>
   );
 }

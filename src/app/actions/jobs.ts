@@ -624,6 +624,48 @@ export async function enforceWorkNewsLimit(
 }
 
 
+// ── 店舗様が新着情報を再投稿する（第289便・2026-09-12・カッキーさんの指示）────────────────
+// ★ 再投稿＝published_at を今にして、求人ページの新着で先頭へ出すこと。★ 中身は変えない。
+// ★★★ ここを【サーバー側】に置く理由は1つだけ: salon_work_news_state.last_manual_at を記録するため。
+//   ★ あの表はオーナー様には読めても書けない（1日1回の守りを画面からすり抜けさせないため）。
+//   ★ 記録しないと「手で出した日に自動でも出る」＝1日に2本出てしまう。
+// ★ フクエス側（postAnnouncementManually）が持っている30分の間引きは、ここでは持たない。
+//   ★ 求人の新着はフクエスTOPの並びを動かさない（出し先は求人ページの中）ので、間引く相手がいない。
+export async function repostMyWorkNews(
+  input: { salonId: number; id: string },
+): Promise<{ ok: true; publishedAt: string } | Err> {
+  const salonId = Number(input?.salonId);
+  const id = String(input?.id ?? '').trim();
+  if (!Number.isFinite(salonId) || !id) return { ok: false, error: '対象が不正です' };
+  const auth = await requireUser();
+  if (!auth.ok) return auth;
+  const own = await assertSalonOwner(auth.supabase, auth.user.id, salonId);
+  if (!own.ok) return own;
+
+  const nowIso = new Date().toISOString();
+  // ★ 自分の店の行だけを動かす（id と salon_id の両方で絞る）。
+  const { data: updated, error } = await auth.supabase
+    .from('work_news')
+    .update({ published_at: nowIso })
+    .eq('id', id)
+    .eq('salon_id', salonId)
+    .select('id');
+  if (error) return { ok: false, error: error.message };
+  if (!updated || updated.length === 0) return { ok: false, error: '対象の新着情報が見つかりません' };
+
+  // ★★ 手で出した記録。★ 上で持ち主を確かめてあるので、ここは service_role で書く。
+  //   ★ ここが転んでも再投稿そのものは成立している。★ 黙らずログに残す（返り値は ok のまま）。
+  const svc = createServiceClient();
+  const { error: stErr } = await svc
+    .from('salon_work_news_state')
+    .upsert({ salon_id: salonId, last_manual_at: nowIso, updated_at: nowIso }, { onConflict: 'salon_id' });
+  if (stErr) console.error('[WorkNews] 手動投稿の記録に失敗:', salonId, stErr);
+
+  revalidateJobsPublic();
+  return { ok: true, publishedAt: nowIso };
+}
+
+
 // ── 運営が店舗の新着情報（work_news）を代理で書く（第209便・2026-09-07）────────────────
 // ★ /admin・/moderation の「求人を編集」モーダルから。★ mypage の「新着情報（フクエスワーク）」と同じ表なので、
 //   ここで書いたものは店舗様の mypage の一覧にもそのまま出る（同じ work_news・published_at desc）。

@@ -998,6 +998,8 @@ export default function MyPage() {
   const [savingAnnouncement, setSavingAnnouncement] = useState<string | null>(null);
   const [deletingAnnouncement, setDeletingAnnouncement] = useState<string | null>(null);
   const [repostingAnnouncement, setRepostingAnnouncement] = useState<string | null>(null);
+  // ★ 自動更新の入り切りの最中（第289便・2026-09-12）。★ 二度押しを止めるためだけ。
+  const [togglingAutoRotate, setTogglingAutoRotate] = useState<string | null>(null);
   const [uploadingNewAnnouncementImage, setUploadingNewAnnouncementImage] = useState(false);
   const [uploadingAnnouncementImageId, setUploadingAnnouncementImageId] = useState<string | null>(null);
   // お知らせ→fukuX 同時投稿。サロンオーナーの連携fukuX店舗プロフィール（kind='shop'・approved）id。
@@ -2537,6 +2539,14 @@ export default function MyPage() {
     setNewAnnouncement({ title: '', content: '', is_published: true, image_url: null });
     setNewAnnCrosspostX(true); // 投稿後もデフォルトONへ戻す
     setNewAnnCrosspostNoReplies(false);
+    // ★ 追加できたときだけ畳む（第288便・2026-09-12）。★ 空のフォームを開いたままにしない。
+    //   ★ 途中で抜けた経路（失敗）はここまで来ないので、開いたまま残る。
+    setExpandedSections(prev => {
+      if (!prev.has('announcement-new')) return prev;
+      const next = new Set(prev);
+      next.delete('announcement-new');
+      return next;
+    });
     setAddingAnnouncement(false);
     if (salon) revalidateSalon(salon.id);
     void refreshAnnounceState();
@@ -2591,6 +2601,24 @@ export default function MyPage() {
     // ★ 非公開にすると自動配信の対象から外れる。状態の1行も取り直す
     void refreshAnnounceState();
     showToast(next ? '公開にしました' : '非公開にしました');
+  };
+
+  // お知らせ：自動更新の印を、その場で入り切りする（第289便・2026-09-12・カッキーさんの指示）。
+  // ★ 「保存」を経由しない＝押した時点でそうなる。★ 非公開の切り替えと同じ扱い。
+  const handleAnnouncementToggleAutoRotate = async (id: string) => {
+    const target = announcements.find(a => a.id === id);
+    if (!target) return;
+    const next = !target.auto_rotate;
+    setTogglingAutoRotate(id);
+    const { error } = await supabase.from('announcements').update({ auto_rotate: next }).eq('id', id);
+    setTogglingAutoRotate(null);
+    if (error) { showToast(`変更に失敗しました: ${error.message}`); return; }
+    setAnnouncements(prev => prev.map(a => a.id === id ? { ...a, auto_rotate: next } : a));
+    // ★ 開いているフォームの控えも合わせる（保存で古い値に戻さないため）。
+    setAnnouncementForms(prev => (prev[id] ? { ...prev, [id]: { ...prev[id], auto_rotate: next } } : prev));
+    // ★ 回す本数が変わる＝自動配信の1行も取り直す
+    void refreshAnnounceState();
+    showToast(next ? '自動更新にしました' : '自動更新をやめました');
   };
 
   // お知らせ：再投稿ボタン → カスタム確認モーダルを開く（チェックは毎回ONから）。
@@ -5313,6 +5341,112 @@ export default function MyPage() {
         {/* ── タブ7: お知らせ ── */}
         <div className={`space-y-4 ${activeTab === 'news' ? '' : 'hidden'}`}>
 
+          {/* ── お知らせを新規追加（★ 折りたたみ・一番上へ移動：第288便・2026-09-12・カッキーさんの指示）──
+              ★★ 既定は【閉じている】。★ 開けるまで場所を取らない＝下のお知らせがすぐ見える。
+              ★ 閉じても書きかけは消えない（newAnnouncement は上の状態のまま・描画をやめるだけ）。
+              ★ 追加できたときだけ自動で閉じる（handleAnnouncementAdd の出口）。★ 失敗時は開いたまま。
+              ★★ 開閉の記録は expandedSections のキー 'announcement-new'——お知らせの各行と同じ仕組み。 */}
+          <div className="bg-white rounded-none border border-pink-100 shadow-sm overflow-hidden">
+            <button
+              type="button"
+              onClick={() => toggleSection('announcement-new')}
+              aria-expanded={expandedSections.has('announcement-new')}
+              className="w-full flex items-center gap-2 px-5 py-4 text-left hover:bg-pink-50/40 transition-colors"
+            >
+              <h3 className="text-xs font-black text-pink-600">お知らせを新規追加</h3>
+              <span className="ml-auto flex items-center gap-2 flex-shrink-0">
+                <span className="text-[11px] font-bold px-2.5 py-1 rounded-none border border-pink-300 text-pink-600">
+                  {expandedSections.has('announcement-new') ? '閉じる' : '＋ 新しく書く'}
+                </span>
+                <svg
+                  className={`w-4 h-4 text-pink-400 transition-transform duration-200 ${expandedSections.has('announcement-new') ? 'rotate-180' : ''}`}
+                  fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}
+                  aria-hidden
+                >
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+                </svg>
+              </span>
+            </button>
+            <div className={expandedSections.has('announcement-new') ? 'px-5 pb-5 pt-4 space-y-3 border-t border-pink-100' : 'hidden'}>
+              <div>
+                <label className={labelClass}>タイトル <span className="text-rose-400">*</span></label>
+                <input
+                  className={inputClass}
+                  placeholder="例: 5月の営業日のお知らせ"
+                  value={newAnnouncement.title}
+                  onChange={(e) => setNewAnnouncement(p => ({ ...p, title: e.target.value }))}
+                />
+              </div>
+              <div>
+                <label className={labelClass}>本文 <span className="text-rose-400">*</span></label>
+                <textarea
+                  rows={10}
+                  className={textareaClass}
+                  placeholder="お知らせの本文を入力してください。"
+                  value={newAnnouncement.content}
+                  onChange={(e) => setNewAnnouncement(p => ({ ...p, content: e.target.value }))}
+                />
+              </div>
+              <div>
+                <label className={labelClass}>画像（任意・1枚）</label>
+                <p className="text-[10px] text-slate-400 mb-1.5">推奨：800×450px（横長）／ JPEG・PNG・WebP・5MB以下</p>
+                {newAnnouncement.image_url ? (
+                  <div className="relative w-32 h-32 rounded-none overflow-hidden border border-pink-100 bg-slate-50">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={newAnnouncement.image_url} alt="お知らせ画像" className="w-full h-full object-cover" />
+                    <button
+                      type="button"
+                      onClick={() => setNewAnnouncement(p => ({ ...p, image_url: null }))}
+                      aria-label="削除"
+                      className="absolute top-1 right-1 w-6 h-6 rounded-none bg-black/55 text-white text-xs flex items-center justify-center hover:bg-black/75"
+                    >
+                      ×
+                    </button>
+                  </div>
+                ) : (
+                  <label className="flex flex-col items-center justify-center w-32 h-32 rounded-none border-2 border-dashed border-pink-200 bg-pink-50/40 text-pink-400 cursor-pointer hover:bg-pink-50 transition-colors">
+                    {uploadingNewAnnouncementImage ? (
+                      <span className="text-[10px] font-bold">アップ中...</span>
+                    ) : (
+                      <>
+                        <span className="text-2xl leading-none">＋</span>
+                        <span className="text-[10px] font-bold mt-0.5">画像を追加</span>
+                      </>
+                    )}
+                    <input
+                      type="file"
+                      accept="image/jpeg,image/png,image/webp"
+                      onChange={handleNewAnnouncementImageUpload}
+                      disabled={uploadingNewAnnouncementImage}
+                      className="hidden"
+                    />
+                  </label>
+                )}
+              </div>
+              <label className="flex items-center gap-2 cursor-pointer select-none">
+                <input
+                  type="checkbox"
+                  className="w-4 h-4 accent-pink-500 flex-shrink-0"
+                  checked={newAnnouncement.is_published}
+                  onChange={(e) => setNewAnnouncement(p => ({ ...p, is_published: e.target.checked }))}
+                />
+                <span className="text-xs font-bold text-slate-600">公開する（オフにすると非公開で保存）</span>
+              </label>
+              {/* fukuX 同時投稿（新規投稿時のみ有効。編集保存では出さない＝重複ポスト防止）。 */}
+              {renderCrosspostChecks(newAnnCrosspostX, setNewAnnCrosspostX, newAnnCrosspostNoReplies, setNewAnnCrosspostNoReplies)}
+              <div className="flex flex-col items-end gap-1.5">
+                <button
+                  className={saveBtn}
+                  onClick={handleAnnouncementAdd}
+                  disabled={addingAnnouncement || !newAnnouncement.title.trim() || !newAnnouncement.content.trim()}
+                >
+                  {addingAnnouncement ? '追加中...' : '+ お知らせを追加'}
+                </button>
+                <p className="text-[11px] text-slate-400">公開して新規投稿すると、保存している会員に通知されます。内容が間違ってないか確認して追加してください。</p>
+              </div>
+            </div>
+          </div>
+
           {/* ── 自動配信の状態（第69便・設計メモ 追記37 §192）──
               ★★ 周（/api/admin/announce-auto）と同じ判定から来た1行をそのまま出す。
                  画面が「今日は出ます」と言い、周は出さない、が起きうる形にしない。
@@ -5413,7 +5547,7 @@ export default function MyPage() {
                         }`}
                         title={a.is_published ? '自動配信のローテに乗っています' : '印は付いていますが、非公開なので回りません'}
                       >
-                        自動配信中
+                        自動更新中
                       </span>
                     )}
                     <span className="text-sm font-bold text-slate-700 truncate min-w-0">
@@ -5434,6 +5568,29 @@ export default function MyPage() {
                   {/* ── 開いたときの中身（★ 今までと同じもの） ── */}
                   <div className={isAnnOpen ? 'px-5 pb-5 pt-4 space-y-3 border-t border-pink-100' : 'hidden'}>
                     <div className="flex flex-wrap items-center gap-2 justify-end">
+                      {/* ★★ 自動更新は非公開の左（第289便・2026-09-12・カッキーさんの指示）。
+                          ★ 印が付いているときは「自動更新中」。★ 押した時点で効く（保存を経由しない）。 */}
+                      <button
+                        type="button"
+                        onClick={() => handleAnnouncementToggleAutoRotate(a.id)}
+                        disabled={togglingAutoRotate === a.id}
+                        title={a.auto_rotate
+                          ? '1日1回・順番に1本ずつ自動で出しています。押すとやめます'
+                          : '押すと、1日1回・順番に1本ずつ自動で出すようになります'}
+                        className={`inline-flex items-center gap-1 px-3 py-1.5 rounded-none border text-xs font-bold transition-colors disabled:opacity-50 ${
+                          a.auto_rotate
+                            ? 'border-emerald-300 text-emerald-600 bg-emerald-50 hover:bg-emerald-100'
+                            : 'border-slate-200 text-slate-500 bg-white hover:bg-slate-50'
+                        }`}
+                      >
+                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="flex-shrink-0">
+                          <path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8" />
+                          <path d="M21 3v5h-5" />
+                          <path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16" />
+                          <path d="M3 21v-5h5" />
+                        </svg>
+                        {a.auto_rotate ? '自動更新中' : '自動更新にする'}
+                      </button>
                       <button
                         type="button"
                         onClick={() => handleAnnouncementTogglePublish(a.id)}
@@ -5476,8 +5633,9 @@ export default function MyPage() {
                   </div>
                   <div>
                     <label className={labelClass}>本文 <span className="text-rose-400">*</span></label>
+                    {/* ★ 書くときと同じ10行に揃える（第288便・2026-09-12・カッキーさんの指示）。 */}
                     <textarea
-                      rows={5}
+                      rows={10}
                       className={textareaClass}
                       value={(form.content as string | null) ?? ''}
                       onChange={(e) => setAnnouncementForms(prev => ({ ...prev, [a.id]: { ...prev[a.id], content: e.target.value } }))}
@@ -5520,22 +5678,9 @@ export default function MyPage() {
                     )}
                     <p className="text-[10px] text-slate-400 mt-1">※ 画像の差し替え・削除は「保存」で確定します。</p>
                   </div>
-                  {/* ★ 自動配信のローテに乗せるか（第69便）。★ 既定はオフ——黙って回さない。
-                      ★ 季節外れ（年末年始の告知が3月に出る）を防ぐ。有効期限は作らない。 */}
-                  <label className="flex items-start gap-2 cursor-pointer select-none pt-1">
-                    <input
-                      type="checkbox"
-                      checked={(form.auto_rotate as boolean | undefined) ?? false}
-                      onChange={(e) => setAnnouncementForms(prev => ({ ...prev, [a.id]: { ...prev[a.id], auto_rotate: e.target.checked } }))}
-                      className="w-4 h-4 accent-pink-500 flex-shrink-0 mt-0.5"
-                    />
-                    <span className="min-w-0">
-                      <span className="text-xs font-bold text-slate-600">自動で回す</span>
-                      <span className="block text-[10px] text-slate-400 leading-relaxed">
-                        印を付けたお知らせを、1日1回・順番に1本ずつ自動で出します（「保存」で確定します）
-                      </span>
-                    </span>
-                  </label>
+                  {/* ★★ 「自動で回す」のチェックはここから外した（第289便・2026-09-12）。
+                      ★ 同じ用事のボタン（自動更新にする／自動更新中）が上にある——入口を2つ持たない。
+                      ★ 上のボタンは押した時点で効く。★ ここの「保存」はタイトル・本文・画像だけ。 */}
 
                   <div className="flex justify-end">
                     <button
@@ -5552,86 +5697,6 @@ export default function MyPage() {
             })
           )}
 
-          {/* 新規追加フォーム */}
-          <div className="bg-white rounded-none border border-pink-100 shadow-sm p-5 space-y-3">
-            <h3 className="text-xs font-black text-pink-600">お知らせを新規追加</h3>
-            <div>
-              <label className={labelClass}>タイトル <span className="text-rose-400">*</span></label>
-              <input
-                className={inputClass}
-                placeholder="例: 5月の営業日のお知らせ"
-                value={newAnnouncement.title}
-                onChange={(e) => setNewAnnouncement(p => ({ ...p, title: e.target.value }))}
-              />
-            </div>
-            <div>
-              <label className={labelClass}>本文 <span className="text-rose-400">*</span></label>
-              <textarea
-                rows={5}
-                className={textareaClass}
-                placeholder="お知らせの本文を入力してください。"
-                value={newAnnouncement.content}
-                onChange={(e) => setNewAnnouncement(p => ({ ...p, content: e.target.value }))}
-              />
-            </div>
-            <div>
-              <label className={labelClass}>画像（任意・1枚）</label>
-              <p className="text-[10px] text-slate-400 mb-1.5">推奨：800×450px（横長）／ JPEG・PNG・WebP・5MB以下</p>
-              {newAnnouncement.image_url ? (
-                <div className="relative w-32 h-32 rounded-none overflow-hidden border border-pink-100 bg-slate-50">
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={newAnnouncement.image_url} alt="お知らせ画像" className="w-full h-full object-cover" />
-                  <button
-                    type="button"
-                    onClick={() => setNewAnnouncement(p => ({ ...p, image_url: null }))}
-                    aria-label="削除"
-                    className="absolute top-1 right-1 w-6 h-6 rounded-none bg-black/55 text-white text-xs flex items-center justify-center hover:bg-black/75"
-                  >
-                    ×
-                  </button>
-                </div>
-              ) : (
-                <label className="flex flex-col items-center justify-center w-32 h-32 rounded-none border-2 border-dashed border-pink-200 bg-pink-50/40 text-pink-400 cursor-pointer hover:bg-pink-50 transition-colors">
-                  {uploadingNewAnnouncementImage ? (
-                    <span className="text-[10px] font-bold">アップ中...</span>
-                  ) : (
-                    <>
-                      <span className="text-2xl leading-none">＋</span>
-                      <span className="text-[10px] font-bold mt-0.5">画像を追加</span>
-                    </>
-                  )}
-                  <input
-                    type="file"
-                    accept="image/jpeg,image/png,image/webp"
-                    onChange={handleNewAnnouncementImageUpload}
-                    disabled={uploadingNewAnnouncementImage}
-                    className="hidden"
-                  />
-                </label>
-              )}
-            </div>
-            <label className="flex items-center gap-2 cursor-pointer select-none">
-              <input
-                type="checkbox"
-                className="w-4 h-4 accent-pink-500 flex-shrink-0"
-                checked={newAnnouncement.is_published}
-                onChange={(e) => setNewAnnouncement(p => ({ ...p, is_published: e.target.checked }))}
-              />
-              <span className="text-xs font-bold text-slate-600">公開する（オフにすると非公開で保存）</span>
-            </label>
-            {/* fukuX 同時投稿（新規投稿時のみ有効。編集保存では出さない＝重複ポスト防止）。 */}
-            {renderCrosspostChecks(newAnnCrosspostX, setNewAnnCrosspostX, newAnnCrosspostNoReplies, setNewAnnCrosspostNoReplies)}
-            <div className="flex flex-col items-end gap-1.5">
-              <button
-                className={saveBtn}
-                onClick={handleAnnouncementAdd}
-                disabled={addingAnnouncement || !newAnnouncement.title.trim() || !newAnnouncement.content.trim()}
-              >
-                {addingAnnouncement ? '追加中...' : '+ お知らせを追加'}
-              </button>
-              <p className="text-[11px] text-slate-400">公開して新規投稿すると、保存している会員に通知されます。内容が間違ってないか確認して追加してください。</p>
-            </div>
-          </div>
         </div>
 
         {/* ── VIPレタータブ ── */}
