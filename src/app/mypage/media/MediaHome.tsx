@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { getMediaOverview, setMediaLinkMode, setAllLinkModes } from '@/app/actions/mediaCredentials';
 import {
-  switchChoices, switchDoneText, switchAskText, homeHeadline, homeChoiceNote, isReadingElsewhere, readingElsewhereLabel, offRowNote,
+  switchChoices, switchDoneText, switchAskText, homeHeadline, isReadingElsewhere, readingElsewhereLabel, offRowNote,
   isWritingElsewhere, writingElsewhereLabels, readBlockedNote, doubleWriteNote,
   sendOnlyChoiceNote, canReadProvider,
   bulkPlan, bulkAskText, bulkDoneText, bulkLabel, readLinkLabel,
@@ -261,13 +261,13 @@ export function MediaHome({ salonId, onToast }: {
               </div>
             </dl>
 
-            {reading.fullLastRunAt && (
-              // ★★ 上のカードは「最後の反映」「次の反映」に揃えた（第88便）。
-              //   ★ ここだけ「取り込みます」が残っていた（第90便で揃えた・引き継ぎメモ §5④）
-              <p className="mt-2.5 text-[13px] text-slate-400 text-center">
-                週間の予定は1日1回の朝6時台に反映（最後は {fmt(reading.fullLastRunAt)}）。
-              </p>
-            )}
+            {/* ★★ 第310便（2026-09-12・カッキーさん）: 「（最後は 9/12 06:13）」を落とした。
+                ★ 知りたいのは【いつ回るか】で、前回の時刻まではいらない。
+                ★ 時刻を出さなくなったので、前回が有るかどうかで出し分けるのもやめた
+                  （★ 「朝6時台に反映」は、まだ1度も回っていなくても正しい）。 */}
+            <p className="mt-2.5 text-[13px] text-slate-400 text-center">
+              週間の予定は1日1回の朝6時台に反映。
+            </p>
           </>
         ) : writing.length > 0 ? (
           /* ★★ フクエスで入力しているときも【動いている】。★ read と同じ形にする（第90便）。
@@ -357,10 +357,16 @@ export function MediaHome({ salonId, onToast }: {
               {/* ★★ 説明文は大きなボタンの【直下】に置く（第192便）。★ エステ魂の行の真下に置くと、
                   エステ魂の説明に読める（カッキーさんが実際にそう読んだ） */}
               {(() => {
+                // ★★ 第310便（カッキーさん）: 読める媒体があるときの1行
+                //   （homeChoiceNote＝「出勤の反映は、フクエスと駅ちかのどちらか一方です。」）は出さない。
+                //   ★ ボタンが2つ並んでいて片方が濃い色、という形そのものが「どちらか一方」を言っている。
+                //   ★★ 送るだけの媒体しか無い店舗様の1行（sendOnlyChoiceNote）は残す。
+                //     ★ あちらは【送るだけ】という別の事実で、見ただけでは分からない。
+                //   ★ 出し分けの順番は変えていない（★ 読める媒体があれば、送るだけの文は出さない）。
                 const readableSite = sites.find((s) => s.canSwitch && !s.autoOn && canReadProvider(s.provider));
                 const sendOnlySite = sites.find((s) => s.canSwitch && !s.autoOn && !canReadProvider(s.provider));
                 const note = readableSite
-                  ? homeChoiceNote(readableSite.label)
+                  ? ''
                   : sendOnlySite
                     ? sendOnlyChoiceNote(sendOnlySite.label)
                     : '';
@@ -436,7 +442,9 @@ export function MediaHome({ salonId, onToast }: {
                         {s.needsConsent
                           ? '同意の取り直しが必要です。いまは何も送っていません'
                           : s.direction === 'read'
-                          ? (fmt(s.listLastRunAt) ? `最後の読み取り ${fmt(s.listLastRunAt)}` : 'まだ読み取っていません')
+                          // ★ 第310便その2（カッキーさん）: 「読み取り」→「更新」。★ セラピスト設定の言い方に揃えた
+                          //   （★ 「読む」はこちら側の動き。★ 店舗様から見て起きるのは、この画面の中身が新しくなること）
+                          ? (fmt(s.listLastRunAt) ? `最後の更新 ${fmt(s.listLastRunAt)}` : 'まだ更新していません')
                           : s.direction === 'write'
                             // ★★★ 禁止の組み合わせが既にできているとき（第190便）は、時刻より先にそれを言う
                             ? (dbl ?? (fmt(s.lastWriteOkAt) ? `最後の反映 ${fmt(s.lastWriteOkAt)}` : 'まだ反映していません'))

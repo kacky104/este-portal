@@ -172,23 +172,23 @@ export type LinkVerdict = { ok: true } | { ok: false; error: string };
  */
 export function canLink(pairs: LinkPairs, therapistId: number, castId: string): LinkVerdict {
   if (!pairs.known) {
-    return { ok: false, error: '媒体側の名簿をまだ読めていないので、結べません。先に名簿を読み直してください' };
+    return { ok: false, error: '名簿をまだ読めていないので、連携できません。先に名簿を更新してください' };
   }
   const id = String(castId ?? '').trim();
-  if (!id) return { ok: false, error: '媒体側の登録が選ばれていません' };
+  if (!id) return { ok: false, error: '連携する登録が選ばれていません' };
 
   const already = pairs.linked.find((p) => p.therapistId === therapistId);
   if (already) {
-    return { ok: false, error: 'この方はすでに結ばれています。付け替えるときは、いったん外してください' };
+    return { ok: false, error: 'この方はすでに連携しています。付け替えるときは、いったん外してください' };
   }
   const person = pairs.unlinked.find((p) => p.therapistId === therapistId);
   if (!person) return { ok: false, error: 'この店舗のセラピストではありません' };
 
   const taken = pairs.takenCastIds.includes(id);
-  if (taken) return { ok: false, error: 'その登録は、すでに別の方に結ばれています' };
+  if (taken) return { ok: false, error: 'その登録は、すでに別の方と連携しています' };
 
   const inRoster = pairs.free.some((e) => e.castId === id);
-  if (!inRoster) return { ok: false, error: '媒体側の名簿にない登録です。名簿を読み直してから選んでください' };
+  if (!inRoster) return { ok: false, error: '名簿にない登録です。名簿を更新してから選んでください' };
 
   return { ok: true };
 }
@@ -196,7 +196,7 @@ export function canLink(pairs: LinkPairs, therapistId: number, castId: string): 
 /** 外してよいか。★ 結ばれていない人を外したと言わない（0件と成功を混ぜない） */
 export function canUnlink(pairs: LinkPairs, therapistId: number): LinkVerdict {
   const already = pairs.linked.find((p) => p.therapistId === therapistId);
-  if (!already) return { ok: false, error: 'この方は結ばれていません' };
+  if (!already) return { ok: false, error: 'この方は連携していません' };
   return { ok: true };
 }
 

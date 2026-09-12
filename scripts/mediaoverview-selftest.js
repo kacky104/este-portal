@@ -593,7 +593,7 @@ console.log('\n── ★★★ 第189便: 「反映しない」の行に添え�
   // ★★★ ラビリンス様の実物（2026-09-06）: 駅ちかが正本・エステ魂が off
   eq('★★★ ほかが正本なら理由を言う',
      v.offRowNote('エステ魂', v.readingElsewhereLabel(S, { provider: 'esutama', slot: 1 })),
-     '駅ちかから反映中のため、エステ魂には反映しません');
+     '駅ちかから反映中のため、反映不可');
   // ★★★ 駅ちかが正本でないとき、「駅ちかから反映中のため」と書くと嘘になる
   const S2 = [
     { provider: 'ekichika', slot: 1, direction: 'off', label: '駅ちか' },

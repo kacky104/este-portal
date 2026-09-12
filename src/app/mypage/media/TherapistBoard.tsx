@@ -36,6 +36,10 @@ import { canLink, strengthLabel, type LinkPairs } from '@/lib/mediaLinkPairs';
 //     ★ 状態と、その状態でできることが、同じ行に載る（★ 画面を移動して覚えておく必要が無くなる）。
 //   ★ RosterLinkBoard.tsx（旧・2つ目のタブ）はもう呼んでいない。★ 消すのは、この形が落ち着いてから。
 //
+// ★★ 【第309便】画面の「結ぶ／結びつき」を【連携】に言い換えた（2026-09-12・カッキーさん）。
+//   ★ 「結ぶ」はこの画面だけの言い方で、他の画面（連携の記録・連携中）と語が揃っていなかった。
+//   ★ 中の名前（therapist_media_ids・linkTherapistMediaId・canLink）は変えていない。★ 画面の言葉だけ。
+//
 // ★★★ 「いません」と書いてよい場面を狭くしている（mediaOverview.therapistSiteState）。
 //   番号が結びついていない人 … 「確かめられません」（★ いない、ではない）
 //   向こうを読めていないとき  … 「まだ読んでいません」（★ います、でもない）
@@ -239,7 +243,7 @@ export function TherapistBoard({ salonId, onToast }: {
     try {
       const res = await startMediaRosterRead({ salonId, provider: s.provider, slot: s.slot });
       if (!res.ok) { onToast(res.error); return; }
-      onToast(`${s.label}の名簿を読みに行きました。数分後にこの画面を開き直すと反映されます`);
+      onToast(`${s.label}の名簿を更新しています。数分後にこの画面を開き直すと反映されます`);
     } finally {
       setReading('');
     }
@@ -259,7 +263,7 @@ export function TherapistBoard({ salonId, onToast }: {
         salonId, provider: site.provider, slot: site.slot, therapistId: Number(t.id), castId,
       });
       if (!res.ok) { onToast(res.error); return; }
-      onToast('結びつけました。次に送るときから、この登録へ反映します');
+      onToast('連携しました。次に送るときから、この登録へ反映します');
       reloadPairs();
       void load();
     } finally { setLinkBusy(false); }
@@ -274,7 +278,7 @@ export function TherapistBoard({ salonId, onToast }: {
         salonId, provider: site.provider, slot: site.slot, therapistId: Number(t.id),
       });
       if (!res.ok) { onToast(res.error); return; }
-      onToast((t.name || 'この方') + 'の結びつきを外しました');
+      onToast((t.name || 'この方') + 'の連携を外しました');
       reloadPairs();
       void load();
     } finally { setLinkBusy(false); }
@@ -307,7 +311,7 @@ export function TherapistBoard({ salonId, onToast }: {
     try {
       const res = await startMediaTherapistCreatePush({ salonId, provider: c.provider, slot: c.slot, therapistId: t.id });
       if (!res.ok) { onToast(plainText(res.error)); return; }
-      onToast(`${c.label}へ登録を送りました。結果は「連携の記録」に出ます。数分後に「${c.label}の名簿を読み直す」を押すと、この一覧にも反映されます`);
+      onToast(`${c.label}へ登録を送りました。結果は「連携の記録」に出ます。数分後に「${c.label}の名簿を更新する」を押すと、この一覧にも反映されます`);
       setCreateView(null);
     } finally {
       setCreateBusy('');
@@ -393,7 +397,10 @@ export function TherapistBoard({ salonId, onToast }: {
             {/* ★ 第300便（カッキーさん）: 2文を1文に。★ 「登録してください」で終わらせず、その場から行ける道を置く。
                 ★ 別ウインドウで開く（★ 設定の途中でこの画面を閉じさせない） */}
             <p className="mt-0.5 text-[14px] text-slate-500 leading-relaxed">
-              フクエスで登録した子だけが設定できます。{' '}
+              {/* ★★ 第307便（2026-09-12・カッキーさん）: 「登録した子だけ」→「登録している子のみ」。
+                  ★ 駅ちかの取り込みから始めた店舗様は、フクエスで【登録した】覚えが無い。
+                  ★ 取り込みで入った子も、いまフクエスに居れば設定できる。★ そこを誤解させない言い方にした。 */}
+              フクエスで登録している子のみ設定できます。{' '}
               <Link
                 href="/mypage?tab=profile"
                 target="_blank"
@@ -462,7 +469,10 @@ export function TherapistBoard({ salonId, onToast }: {
               disabled={reading !== '' || site.direction === 'off'}
               className="text-[13.5px] font-bold px-3 py-1.5 border border-slate-200 text-slate-600 disabled:opacity-50"
             >
-              {reading === key(site) ? '読みに行っています…' : `${site.label}の名簿を読み直す`}
+              {/* ★★ 第308便（2026-09-12・カッキーさん）: 「読み直す」→「更新する」。
+                  ★ 「読む」はこちら側の動き（向こうの画面を読みに行く）で、第三者には何が起きるか伝わらない。
+                  ★ 店舗様から見れば、この画面の中身が新しくなること＝更新。★ 画面中の言い方を全部そろえた。 */}
+              {reading === key(site) ? '更新しています…' : `${site.label}の名簿を更新する`}
             </button>
             {/* ★ 第303便その3: 読めているときだけ出す。★ 未読のことは下の1行が言う（同じことを2回言わない） */}
             {kp && (
@@ -471,7 +481,7 @@ export function TherapistBoard({ salonId, onToast }: {
                     ★ 前は free + takenCastIds だった。★ taken には「名簿から消えた登録に結んだままの分」も入るので、
                       ★ 実際の名簿より多い数（ラビリンス様は 38件の名簿が 39件）になっていた。
                     ★ 空いている数 ＋ 名簿で確かめられた結び＝いま名簿に載っている数。 */}
-                {site.label}の登録 {kp.free.length + kp.linked.filter((l) => l.onMedia).length}件{readAt ? `／読んだのは ${fmtAt(readAt)}` : ''}
+                {site.label}の登録 {kp.free.length + kp.linked.filter((l) => l.onMedia).length}件{readAt ? `／最終確認 ${fmtAt(readAt)}` : ''}
               </span>
             )}
           </div>
@@ -479,8 +489,8 @@ export function TherapistBoard({ salonId, onToast }: {
           {/* ★ 第198便: 押せないボタンには理由を添える（§185・できないことは理由といっしょに）。★ 写しはそのまま使える */}
           {site.direction === 'off' && (
             <p className="mb-3 text-[13px] text-slate-400 leading-relaxed">
-              {site.label}は「反映しない」にしているため、名簿を読みに行きません（前に読んだ写しはそのまま出ています）。
-              読むには、ホームで「フクエスから反映」にしてください。
+              現在「反映しない」設定のため、名簿の更新不可。
+              更新するには、ホームで「フクエスから反映」にしてください。
             </p>
           )}
 
@@ -520,7 +530,7 @@ export function TherapistBoard({ salonId, onToast }: {
             <div className="mb-3 border border-sky-200 bg-sky-50 px-3 py-2.5">
               <p className="text-[14px] leading-relaxed text-slate-600">
                 <b className="font-bold text-sky-700">{site.label}の名簿をまだ読んでいません。</b>{' '}
-                まず上の「{site.label}の名簿を読み直す」を押してください（数分かかります）。
+                まず上の「{site.label}の名簿を更新する」を押してください（数分かかります）。
                 読むまでは、どなたが{site.label}に出ているか分かりません。
               </p>
             </div>
@@ -657,7 +667,7 @@ export function TherapistBoard({ salonId, onToast }: {
                                   disabled={busy}
                                   className="text-[13px] font-bold px-2.5 py-1 border border-emerald-200 bg-emerald-50 text-emerald-700 disabled:opacity-50"
                                 >
-                                  「{c.mediaName}」と結ぶ
+                                  「{c.mediaName}」と連携する
                                   <span className="ml-1 font-bold text-[11.5px] text-emerald-600">
                                     {strengthLabel(c.strength)}
                                   </span>
@@ -680,7 +690,7 @@ export function TherapistBoard({ salonId, onToast }: {
                                 disabled={busy || !pick[t.id]}
                                 className="text-[13px] font-bold px-2.5 py-1 border border-slate-200 text-slate-600 disabled:opacity-40"
                               >
-                                結ぶ
+                                連携する
                               </button>
                               </>
                               )}
@@ -700,7 +710,7 @@ export function TherapistBoard({ salonId, onToast }: {
                           {st === 'missing' && lp && (
                             <span className="mt-1.5 flex flex-wrap items-center gap-2">
                               <span className="text-[12.5px] leading-snug text-slate-500">
-                                {lp.mediaName ? `「${lp.mediaName}」と結んでいます` : '結んだ登録が名簿に見つかりません'}
+                                {lp.mediaName ? `「${lp.mediaName}」と連携しています` : '連携した名簿がみつかりません'}
                               </span>
                               <button
                                 type="button"
@@ -708,7 +718,7 @@ export function TherapistBoard({ salonId, onToast }: {
                                 disabled={busy}
                                 className="text-[13px] font-bold px-2.5 py-1 border border-slate-200 text-slate-600 disabled:opacity-50"
                               >
-                                結びつきを外す
+                                連携を外す
                               </button>
                             </span>
                           )}
@@ -788,8 +798,8 @@ export function TherapistBoard({ salonId, onToast }: {
             <div className="mt-3 border border-sky-200 bg-sky-50 px-3 py-2.5">
               <p className="text-[14px] leading-relaxed text-slate-600">
                 <b className="font-bold text-sky-700">「読みが同じ」は候補にすぎません。</b>{' '}
-                別の方が同じ読みのこともあるので、{site.label}の管理画面で確かめてから結んでください。
-                間違えて結ぶと、その方の出勤が別の方の欄に入ります。
+                別の方が同じ読みのこともあるので、{site.label}の管理画面で確かめてから連携してください。
+                間違えて連携すると、その方の出勤が別の方の欄に入ります。
               </p>
             </div>
           )}
@@ -805,9 +815,9 @@ export function TherapistBoard({ salonId, onToast }: {
           {(() => {
             const seen = new Set(filtered.map((t) => stateOf(t)));
             const rows = ([
-              ['missing', 'text-rose-700', '「結びつきを外す」と、登録し直せます'],
-              ['unlinked', 'text-slate-500', '「結ぶ」か「新しく登録」を押してください'],
-              ['unknown', 'text-slate-500', '上の「名簿を読み直す」を押してください'],
+              ['missing', 'text-rose-700', '「連携を外す」と、登録し直せます'],
+              ['unlinked', 'text-slate-500', '「連携する」か「新しく登録」を押してください'],
+              ['unknown', 'text-slate-500', '上の「名簿を更新する」を押してください'],
             ] as const).filter(([k]) => seen.has(k));
             if (rows.length === 0) return null;
             return (
@@ -824,8 +834,12 @@ export function TherapistBoard({ salonId, onToast }: {
         </div>
       )}
 
-      {/* ── フクエスにいないのに、そのサイトに残っている方 ───────────── */}
-      {!loading && !error && site && (
+      {/* ── フクエスにいないのに、そのサイトに残っている方 ─────────────
+          ★★ 第307便（カッキーさん）: 0名のときは【箱ごと出さない】。
+            ★ 見出しと「0名」だけの空の箱は、画面を1つぶん重くするだけだった。
+            ★★ 消してよいのは【読めていて0名】のときだけ。
+              ★ 名簿を読めていないときは箱を出す（★ 分からないことを「無い」と見せない・第119便の決めごと）。 */}
+      {!loading && !error && site && !(onlyKnown && onlyOnMedia.length === 0) && (
         <div className="bg-white border border-slate-200 shadow-[0_1px_2px_rgba(31,35,51,0.05)] p-4">
           <div className="flex items-center justify-between gap-2 mb-3">
             <h3 className="text-[15.5px] font-bold text-slate-700">
@@ -840,10 +854,8 @@ export function TherapistBoard({ salonId, onToast }: {
             /* ★ 読めていないことを「0名」と書かない */
             <p className="text-[14px] text-slate-500 leading-relaxed">
               {site.label}の名簿をまだ読めていないので、分かりません。
-              上の「{site.label}の名簿を読み直す」を押すと確かめられます。
+              上の「{site.label}の名簿を更新する」を押すと確かめられます。
             </p>
-          ) : onlyOnMedia.length === 0 ? (
-            <p className="text-[14px] text-slate-500">ありません。</p>
           ) : (
             <>
               <ul className="border border-slate-200 divide-y divide-slate-100">

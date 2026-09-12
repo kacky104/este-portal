@@ -501,7 +501,7 @@ export function readingElsewhereLabel(
  *     ★ 「していません」と書くと、すればできるように読める。
  *
  * ★★ 新: 主語（媒体名）を入れ、【なぜ反映しないか】が分かるときはそれを言う。
- *   ほかの媒体が正本のとき … 「駅ちかから反映中のため、エステ魂には反映しません」
+ *   ほかの媒体が正本のとき … 「駅ちかから反映中のため、反映不可」（第311便）
  *   それ以外の off       … 「エステ魂には反映しません」
  *   ★ 「◯◯から反映中」は、いちばん上の1行（homeHeadline）と印（directionLabel）と同じ言葉。
  *   ★ 理由を決め打ちで書かない。★ 駅ちかが正本でないときに「駅ちかから反映中のため」と書くと嘘になる。
@@ -511,7 +511,10 @@ export function readingElsewhereLabel(
 export function offRowNote(siteLabel: string, readingLabel: string | null): string {
   const site = siteLabel.trim();
   if (typeof readingLabel === 'string' && readingLabel.trim().length > 0) {
-    return `${readingLabel.trim()}から反映中のため、${site}には反映しません`;
+    // ★★ 第311便（2026-09-12・カッキーさん）: 「〜のため、エステ魂には反映しません」→「〜のため、反映不可」。
+    //   ★ 主語（媒体名）は、この行のすぐ左に大きく出ている。★ 同じ名前を1行で2回言わない。
+    //   ★ 理由（どこから反映中か）は残す。★ ここを落とすと「なぜ反映しないのか」が読めなくなる。
+    return `${readingLabel.trim()}から反映中のため、反映不可`;
   }
   return `${site}には反映しません`;
 }
