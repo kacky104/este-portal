@@ -162,7 +162,9 @@ export async function buildCastCreatePlan(svc: SupabaseClient, input: CastCreate
   const warnings: string[] = [];
   if (photoSkip) warnings.push('★★ 写真は送りません（' + photoSkip + '）。★ 登録だけします');
   // ★★★ 相手の画面の注記:「※3サイズのB(バスト)が未入力の場合、表示されません」（2026-09-09 実測）
-  if (!values.sizeB) warnings.push('★ バスト(B)が空です。★ このまま登録すると **エステ魂の公開ページに出ません**');
+  // ★★ 第298便（2026-09-12・カッキーさんの確認）: バストは【いまは必須ではない】（空でも公開された）。
+  //   ★ ただしエステ魂の画面には必須と書いてあり、いつ戻るか分からない。★ 断定せずに注意だけ残す。
+  if (!values.sizeB) warnings.push('★ バスト(B)が空です。★ このまま登録すると **公開されない可能性あります**');
   if (mapping.esutama.usedDefault) warnings.push('★ 送れる特徴が1つも無いので、既定の「新人」を入れます。★ エステ魂の新人は自動では消えません');
   if (mapping.esutama.overflowBadges.length > 0)
     warnings.push('★ 特徴は4つまでなので、' + mapping.esutama.overflowBadges.join('・') + ' は送りません');

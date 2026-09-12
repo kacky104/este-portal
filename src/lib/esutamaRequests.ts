@@ -255,7 +255,7 @@ export type EsutamaCastCreateValues = {
   typeIds: number[];
   age?: string | null;
   tall?: string | null;
-  /** ★★ B が空だと **公開ページに出ない**（相手の画面の注記・2026-09-09 実測） */
+  /** ★★ B は相手の画面に必須と書いてあるが、空でも公開された（第298便・2026-09-12 カッキーさんの確認）。★ いつ戻るか分からないので、呼び出し側で注意は出す */
   sizeB?: string | null;
   sizeW?: string | null;
   sizeH?: string | null;

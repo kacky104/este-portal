@@ -30,8 +30,9 @@ const NAV: Array<{ key: MediaNavKey; label: string; href: string; group?: string
   //   ★ ここが埋まらないと他の画面が何もできない＝【最初にやること】なので、いちばん近くに置く。
   //   ★ 以前は下の「設定・記録」に入れていたが、始めるときにいちばん探されるのがここだった。
   { key: 'login',  label: 'ログイン情報',      href: '/mypage/media/login' },
-  // ★ セラピスト一覧は【基本の情報】なので、送る作業より上に置く（カッキーさん・2026-08-30）
-  { key: 'roster', label: 'セラピスト一覧',    href: '/mypage/media/therapists' },
+  // ★ セラピスト設定は【基本の情報】なので、送る作業より上に置く（カッキーさん・2026-08-30）
+  // ★ 第298便: 名前を「セラピスト一覧」→「セラピスト設定」に（カッキーさんの添削）
+  { key: 'roster', label: 'セラピスト設定',    href: '/mypage/media/therapists' },
   { key: 'work',   label: '出勤を送る',        href: '/mypage/media/work',       group: '送る・確かめる' },
   { key: 'diary',  label: '写メ日記の投稿先',   href: '/mypage/media/diary' },
   // ★ 新着情報（第158便）。★ 「送る」仲間なのでここに置く。

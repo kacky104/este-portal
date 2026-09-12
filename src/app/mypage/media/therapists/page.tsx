@@ -6,7 +6,7 @@ import { TherapistBoard } from '../TherapistBoard';
 import { RosterLinkBoard } from '../RosterLinkBoard';
 import { useToast } from '@/app/components/useToast';
 
-// セラピスト一覧（第62便・㉞ その4・★ いまは見るだけ）。
+// セラピスト設定（第62便・㉞ その4）。★ 第298便で「セラピスト一覧」→「セラピスト設定」に（カッキーさん）。
 // ★ 主役はフクエスに登録されているセラピスト。各サイトはその出先（設計メモ §180）。
 
 export default function MediaTherapistsPage() {
@@ -19,7 +19,7 @@ export default function MediaTherapistsPage() {
       loadError={loadError}
       salonId={salon ? Number(salon.id) : null}
       salonName={salon?.name ?? null}
-      title="セラピスト一覧"
+      title="セラピスト設定"
       current="roster"
       toast={toast}
     >
