@@ -107,6 +107,10 @@ export function HpShell({
       );
     });
 
+  // ★ 問い合わせの行き先（第293便）。★ マイページの「運営に問い合わせ」タブ。
+  //   ★ ここだけ mypageHref とは別に持つ（★ マイページへ戻るは戻る口・こちらは相談の口）。
+  const supportHref = '/mypage?tab=support';
+
   // ★ 地の色（レッドのテーマ壁紙）は layout.tsx が敷く。★ ここでは塗らない（★ 塗ると壁紙が隠れる）。
   return (
     <div className="min-h-screen md:flex">
@@ -142,6 +146,23 @@ export function HpShell({
         <p className="px-4 py-3.5 mt-2 border-t border-slate-100 text-[13.5px] text-slate-400 leading-relaxed">
           お店の公式ホームページ（フクエスサイト）の写真・文章をここで変更します。
         </p>
+
+        {/* ★ 困ったときの行き先（第293便・2026-09-12・カッキーさんの指示）。
+            ★ サイドバーの下の空いている所へ。★ ここで直せないこと（デザイン・公開・ドメイン）は
+              すべて運営が受けるので、迷ったらここ、と1か所だけ示す。
+            ★ リンクはマイページのお問い合わせタブ（/mypage?tab=support）。★ 同じタブで開く。 */}
+        <div className="px-4 py-6 mt-6 border-t border-slate-100 text-center">
+          <p className="text-[12.5px] text-slate-400 leading-relaxed">
+            ホームページのことでご不明な点は、<br />運営事務局までお問い合わせください。
+          </p>
+          <a
+            href={supportHref}
+            className="mt-2.5 inline-block px-4 py-2 rounded-none border text-[12.5px] font-bold transition-colors hover:bg-rose-50"
+            style={{ borderColor: '#FB7185', color: '#BE123C' }}
+          >
+            お問い合わせ先
+          </a>
+        </div>
       </aside>
 
       {/* ── 右側 ───────────────────────────────────────── */}
@@ -240,6 +261,20 @@ export function HpShell({
             >
               マイページへ戻る
             </a>
+
+            {/* ★ スマホのドロワーにも同じ行き先を置く（第293便）。★ PCだけにあるものを作らない。 */}
+            <div className="px-4 py-5 border-t border-slate-100 text-center">
+              <p className="text-[12px] text-slate-400 leading-relaxed">
+                ホームページのことでご不明な点は、<br />運営事務局までお問い合わせください。
+              </p>
+              <a
+                href={supportHref}
+                className="mt-2.5 inline-block px-4 py-2 rounded-none border text-[12px] font-bold"
+                style={{ borderColor: '#FB7185', color: '#BE123C' }}
+              >
+                お問い合わせ先
+              </a>
+            </div>
           </nav>
         </div>
       )}

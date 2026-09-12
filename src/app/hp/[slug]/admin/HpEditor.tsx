@@ -327,6 +327,19 @@ export function HpEditor({
       {show('hero') && (
       <div className="bg-white rounded-none border border-slate-100 shadow-sm p-5 space-y-4">
         <h3 className="text-sm font-black text-slate-800">トップ画像・キャッチコピー</h3>
+        {/* ★ キャッチコピーは【画像より上】へ（第293便・2026-09-12・カッキーさんの指示）。
+            ★ 先に文字を決めてから写真を入れ替える並びにした。★ 中身・保存の仕方は変えていない。 */}
+        <div>
+          <p className="text-xs font-bold text-slate-600 mb-1">キャッチコピー（最大{MAX_HP_CATCH_LEN}文字）</p>
+          <input
+            type="text"
+            value={form.hero_catch}
+            maxLength={MAX_HP_CATCH_LEN}
+            onChange={(e) => patch({ hero_catch: e.target.value })}
+            placeholder="例）非日常のくつろぎを、駅から3分で。"
+            className={inputCls}
+          />
+        </div>
         {/* スライド1枚 ＝ パソコン用（横長・必須）＋スマートフォン用（縦長・省略可）。
             2枚以上入れると自動で切り替わるスライダーになる（最大3枚）。
             ★ 位置に意味があるので、枠を消したら後ろを詰める（末尾に穴を残さない）。 */}
@@ -438,24 +451,9 @@ export function HpEditor({
         <p className="text-[11px] text-slate-400 leading-relaxed">
           ※ スマートフォン用を設定すると、スマホで見たときだけそちらに自動で切り替わります（未設定ならパソコン用を共用）。
           <br />
-          ※ 推奨サイズ：パソコン用 2400×960px ／ スマートフォン用 1080×760px。
-          <br />
-          ※ 2枚以上を設定すると、4秒ごとに自動で切り替わるスライドショーになります（最大{MAX_HP_HERO_SLIDES}枚）。
-          <br />
           ※ <b className="text-slate-500">3枚とも同じサイズ（2400×960px）でご用意ください。</b>
-          サイズが違うと、1枚目の高さに合わせて2枚目以降の上下または左右が切れて表示されます。
+          サイズが違うと、1枚目の高さに合わせて2枚目以降の画像が切れます。
         </p>
-        <div>
-          <p className="text-xs font-bold text-slate-600 mb-1">キャッチコピー（最大{MAX_HP_CATCH_LEN}文字）</p>
-          <input
-            type="text"
-            value={form.hero_catch}
-            maxLength={MAX_HP_CATCH_LEN}
-            onChange={(e) => patch({ hero_catch: e.target.value })}
-            placeholder="例）非日常のくつろぎを、駅から3分で。"
-            className={inputCls}
-          />
-        </div>
       </div>
       )}
 
@@ -647,6 +645,9 @@ export function HpEditor({
              ★ 動かしたのは出す条件だけ。★ 中身・保存の仕方は何も変えていない。 */}
       {show('home') && (
       <div className="bg-white rounded-none border border-slate-100 shadow-sm p-5 space-y-4">
+        {/* ★ どこに出る文章かを、枠の上に中央で置く（第293便・2026-09-12・カッキーさんの指示）。
+            ★ 「公式ホームページ管理」と同じ形（太字・中央）。★ その下が中身の見出し。 */}
+        <h3 className="text-sm font-black text-slate-800 text-center">TOPページ表示</h3>
         <h3 className="text-sm font-black text-slate-800">コンセプト</h3>
         <p className="text-[11px] text-slate-400">
           ※ フクエス掲載ページの紹介文とは別の、ホームページ専用の文章です（同じ文章のコピーは検索評価の面で不利になります）。
@@ -726,11 +727,12 @@ export function HpEditor({
             </button>
           )}
         </div>
+        {/* ★ 文言を短く（第293便・2026-09-12・カッキーさんの指示）。
+            ★ 「上から順に表示される／▲▼で入れ替えられる」は見れば分かるので落とした。 */}
         <p className="text-[11px] text-slate-400">
-          ※ 上から順に、ホームページに表示される順番です。▲▼で入れ替えられます。トップ画像・
-          電話／LINEの予約ボタン・フッターの位置は固定です。各ブロックの中身（セラピスト・出勤・
+          トップ画像・電話／LINEの予約ボタン・フッターの位置は固定。各ブロックの中身（セラピスト・出勤・
           写メ日記・口コミ・クーポン・お知らせ等）は、フクエスのマイページで編集した内容が
-          そのまま表示されます。
+          そのまま表示。
         </p>
 
         <ul className="divide-y divide-slate-100 border-y border-slate-100">

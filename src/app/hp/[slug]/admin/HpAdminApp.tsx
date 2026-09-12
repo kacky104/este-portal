@@ -133,42 +133,36 @@ export function HpAdminApp({
             {/* ★ 公開中／非公開の印は外した（第281便・2026-09-12・カッキーさんの指示）。
                 ★ 店舗様が切り替えられないものの状態を、ここで大きく見せる意味がないため。
                 ★ 状態は運営の管理者ダッシュボード（/admin → 公式HP）で見る。 */}
-            {/* ★★ 第283便（2026-09-12・カッキーさんの指示）: ドメインとボタンの場所を入れ替えた。
-                ★ 見出しの【右】＝いちばん目につく場所には【押すもの】を置く。
-                ★ ドメインは読むだけのものなので、下の行へ下ろす。
-                ★ 文字も「ページを見る」→「公式サイトを見る」に（★ 何のページか分かるように）。
-                ★ 狭いときは下に回り込む（flex-wrap）。 */}
-            <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
-              <div>
-                <h3 className="text-sm font-black text-slate-800">ホームページ管理</h3>
-                <p className="text-[11px] text-slate-400 mt-0.5">{ctx.salonName}</p>
-              </div>
+            {/* ★★ 第293便（2026-09-12・カッキーさんの指示）: 2行にまとめた。
+                ★ 1行目＝見出し「公式ホームページ管理」だけ・中央。
+                ★ 2行目＝［公式サイトを見る］→ ドメイン → デザイン の順で1行・中央。
+                ★ 店舗名の行は外した——左のサイドバーに出ているので二度言わない。
+                ★ 狭いときは2行目が折り返す（flex-wrap）。★ デザインの丸はそのカラーのアクセント色。 */}
+            <h3 className="text-sm font-black text-slate-800 text-center">公式ホームページ管理</h3>
+            <div className="flex flex-wrap items-center justify-center gap-x-4 gap-y-1.5">
               <a
                 href={viewHref}
                 target="_blank"
                 rel="noreferrer"
-                className="flex-none px-4 py-2 rounded-none border border-slate-200 text-xs font-bold text-slate-500 hover:border-slate-300"
+                className="flex-none px-4 py-2 rounded-none border text-xs font-bold transition-colors hover:bg-rose-50"
+                style={{ borderColor: '#FB7185', color: '#BE123C' }}
               >
                 公式サイトを見る
               </a>
-            </div>
-            <p className="text-xs text-slate-500 break-all">
-              ドメイン：{site.domain
-                ? <span className="font-bold text-slate-700">{site.domain}</span>
-                : '準備中（運営で取得手続き中です）'}
-            </p>
-            {/* ★★ デザイン（ひな形とカラー）… 第285便（2026-09-12・カッキーさんの指示）で
-                「デザイン」の画面をやめ、ここに1行で出す形にした。
-                ★ 店舗様は選べない（選ぶのは運営が /admin で）。★ 読めれば足りる。
-                ★ 丸はそのカラーのアクセント色。★ 色の正は lib/hpSite.ts の HP_COLOR_VARIANTS。 */}
-            <div className="flex items-center gap-2">
-              <span
-                className="w-5 h-5 rounded-full border border-black/10 flex-none"
-                style={{ backgroundColor: colorVariant.css['--hp-accent'] }}
-              />
-              <p className="text-xs text-slate-500">
-                デザイン：<span className="font-bold text-slate-700">{templateLabel}／{colorVariant.label}</span>
+              <p className="text-xs text-slate-500 break-all">
+                ドメイン：{site.domain
+                  ? <span className="font-bold text-slate-700">{site.domain}</span>
+                  : '準備中（運営で取得手続き中です）'}
               </p>
+              <div className="flex items-center gap-2">
+                <span
+                  className="w-5 h-5 rounded-full border border-black/10 flex-none"
+                  style={{ backgroundColor: colorVariant.css['--hp-accent'] }}
+                />
+                <p className="text-xs text-slate-500">
+                  デザイン：<span className="font-bold text-slate-700">{templateLabel}／{colorVariant.label}</span>
+                </p>
+              </div>
             </div>
             {/* ★★★ 2026-09-12（第279便・カッキーさんの指示）: ここから2つのボタンを外した。
                 ★ 「公開する／非公開にする」… 公開・非公開は【運営だけ】が変える。

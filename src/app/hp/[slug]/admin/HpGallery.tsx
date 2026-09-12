@@ -53,7 +53,7 @@ export function HpGallery({
 
   return (
     <div className="space-y-4">
-      <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5 space-y-2">
+      <div className="bg-white rounded-none border border-slate-100 shadow-sm p-5 space-y-2">
         <h2 className="text-sm font-black text-slate-800">デザインを選ぶ</h2>
         <p className="text-xs text-slate-500 leading-relaxed">
           ひな形4種類 × カラー（タイプSは4色・ほかは各6色）から1つお選びください。
@@ -65,7 +65,7 @@ export function HpGallery({
       </div>
 
       {/* ── ひな形 ── */}
-      <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5 space-y-3">
+      <div className="bg-white rounded-none border border-slate-100 shadow-sm p-5 space-y-3">
         <p className="text-xs font-bold text-slate-600">1. ひな形</p>
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
           {HP_TEMPLATES.map((t) => {
@@ -76,7 +76,7 @@ export function HpGallery({
                 key={t.key}
                 onClick={() => pickTemplate(t.key)}
                 aria-pressed={on}
-                className={`text-left rounded-xl overflow-hidden border-2 transition-colors ${
+                className={`text-left rounded-none overflow-hidden border-2 transition-colors ${
                   on ? 'border-pink-400' : 'border-slate-200 hover:border-slate-300'
                 }`}
               >
@@ -92,7 +92,7 @@ export function HpGallery({
       </div>
 
       {/* ── カラー ── */}
-      <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5 space-y-3">
+      <div className="bg-white rounded-none border border-slate-100 shadow-sm p-5 space-y-3">
         <p className="text-xs font-bold text-slate-600">2. カラー</p>
         <div className="flex flex-wrap gap-2">
           {HP_COLOR_VARIANTS[template].map((v) => {
@@ -103,7 +103,7 @@ export function HpGallery({
                 onClick={() => setColor(v.key)}
                 aria-pressed={on}
                 title={v.label}
-                className={`flex items-center gap-2 pl-1.5 pr-3 py-1.5 rounded-full border transition-colors ${
+                className={`flex items-center gap-2 pl-1.5 pr-3 py-1.5 rounded-none border transition-colors ${
                   on ? 'border-pink-400 bg-pink-50 text-pink-600' : 'border-slate-200 bg-white text-slate-500 hover:border-slate-300'
                 }`}
               >
@@ -119,7 +119,7 @@ export function HpGallery({
       </div>
 
       {/* ── 実物プレビューと確定 ── */}
-      <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5 space-y-4">
+      <div className="bg-white rounded-none border border-slate-100 shadow-sm p-5 space-y-4">
         <p className="text-xs font-bold text-slate-600">3. 実物を確認して確定</p>
         <p className="text-center text-xs font-bold text-slate-700">
           いま選んでいるもの：{templateLabel}／{colorLabel}
@@ -128,7 +128,7 @@ export function HpGallery({
           href={livePreviewUrl}
           target="_blank"
           rel="noreferrer"
-          className="block w-full py-3 rounded-full border-2 border-pink-400 text-pink-600 text-sm font-black text-center hover:bg-pink-50 transition-colors"
+          className="block w-full py-3 rounded-none border-2 border-pink-400 text-pink-600 text-sm font-black text-center hover:bg-pink-50 transition-colors"
         >
           この組み合わせを実物のページで見る
         </a>
@@ -139,7 +139,7 @@ export function HpGallery({
         <button
           onClick={() => setAsking(true)}
           disabled={busy}
-          className="w-full py-3 rounded-full bg-pink-500 text-white text-sm font-black hover:bg-pink-600 transition-colors disabled:opacity-50"
+          className="w-full py-3 rounded-none bg-pink-500 text-white text-sm font-black hover:bg-pink-600 transition-colors disabled:opacity-50"
         >
           このデザインで確定する
         </button>
@@ -151,9 +151,9 @@ export function HpGallery({
       {/* ── 確定モーダル ── */}
       {asking && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
-          <div className="w-full max-w-sm rounded-2xl bg-white p-6 space-y-4 shadow-xl">
+          <div className="w-full max-w-sm rounded-none bg-white p-6 space-y-4 shadow-xl">
             <h3 className="text-sm font-black text-slate-800">このデザインで確定しますか？</h3>
-            <div className="rounded-xl overflow-hidden border border-slate-200">
+            <div className="rounded-none overflow-hidden border border-slate-200">
               <DesignThumb template={template} accent={accent} deep={deep} colorKey={color} />
             </div>
             <p className="text-center text-xs font-bold text-slate-700">
@@ -175,14 +175,14 @@ export function HpGallery({
               <button
                 onClick={() => setAsking(false)}
                 disabled={busy}
-                className="flex-1 py-2.5 rounded-full border border-slate-200 text-slate-500 text-xs font-bold hover:bg-slate-50 disabled:opacity-50"
+                className="flex-1 py-2.5 rounded-none border border-slate-200 text-slate-500 text-xs font-bold hover:bg-slate-50 disabled:opacity-50"
               >
                 もう少し選ぶ
               </button>
               <button
                 onClick={() => onConfirm(template, color)}
                 disabled={busy}
-                className="flex-1 py-2.5 rounded-full bg-pink-500 text-white text-xs font-black hover:bg-pink-600 disabled:opacity-50"
+                className="flex-1 py-2.5 rounded-none bg-pink-500 text-white text-xs font-black hover:bg-pink-600 disabled:opacity-50"
               >
                 {busy ? '確定中…' : '確定する'}
               </button>

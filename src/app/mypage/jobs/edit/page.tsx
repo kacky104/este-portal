@@ -108,11 +108,8 @@ export default function WorkEditPage() {
 
           <JobFields value={form} onChange={patch} salonId={salonId ?? 0} />
 
-          <ul className="text-[12px] text-slate-400 leading-relaxed space-y-1 list-disc pl-4">
-            <li>掲載は1店舗につき1件です。</li>
-            <li>店舗が非表示の間は、求人も自動的に非公開になります。</li>
-            <li>保存すると数秒でフクエスワーク（/jobs）に反映されます。</li>
-          </ul>
+          {/* ★ 注意書き3つは撤去（第292便・2026-09-12・カッキーさんの指示）。
+              ★ 1件しか作れない・非表示なら非公開・保存すれば反映される——どれも操作すれば分かる。 */}
 
           {/* ★ 保存ボタンは【下に貼り付くバー】へ移した（2026-09-09・カッキーさんの指示）。
               ★ ここには置かない（★ 二重に置くと、どちらを押したか分からなくなる）。 */}

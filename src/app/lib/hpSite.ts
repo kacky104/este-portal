@@ -120,8 +120,28 @@ export const HP_SECTIONS = [
 
 export type HpSectionKey = (typeof HP_SECTIONS)[number]['key'];
 
-/** 素の既定順（＝HpTemplate の DOM の並び）。ひな形ごとの既定は下の表を使うこと。 */
-export const DEFAULT_HP_SECTION_ORDER: HpSectionKey[] = HP_SECTIONS.map((s) => s.key);
+/**
+ * 素の既定順。★ ひな形ごとの既定は下の表を使うこと。
+ * ★★ 第293便（2026-09-12・カッキーさんの指示）で、実際に使われている並びを既定にした。
+ *   ★ 前は HP_SECTIONS の並びをそのまま使っていた（コンセプト → コース料金 → セラピスト一覧 → 本日の出勤 …）。
+ *   ★ 「並び順を既定に戻す」を押したときに、いまの見た目に戻るのが素直、という判断。
+ *   ★ HP_SECTIONS（名前の表）の並びは変えていない。★ 順番の正はこの配列だけ。
+ *   ★ ここに書き忘れたキーがあっても落とさない（normalizeHpSectionOrder が HP_SECTIONS から拾って末尾に足す）。
+ */
+export const DEFAULT_HP_SECTION_ORDER: HpSectionKey[] = [
+  'concept',    // コンセプト
+  'schedule',   // 本日の出勤
+  'courses',    // コース料金
+  'therapists', // セラピスト一覧
+  'diary',      // 写メ日記
+  'reviews',    // 口コミ
+  'coupon',     // クーポン
+  'news',       // お知らせ
+  'freePages',  // フリーページ
+  'banners',    // バナー
+  'info',       // 店舗情報
+  'links',      // リンク
+];
 
 /**
  * ひな形ごとの既定の並び（2026-08-10）。
@@ -147,7 +167,9 @@ export function hpSectionOrder(templateKey: HpTemplateKey, saved: HpSectionKey[]
  * （＝あとからセクションを増やしても、既存店の並びを壊さず新セクションが末尾に出る）。
  */
 export function normalizeHpSectionOrder(raw: unknown): HpSectionKey[] {
-  const known = new Set<string>(DEFAULT_HP_SECTION_ORDER);
+  // ★★ 「知っているキー」は【名前の表（HP_SECTIONS）】から取る（第293便・2026-09-12）。
+  //   ★ 既定順の配列から取ると、そこに書き忘れたキーが黙って消える。★ 表が唯一の正。
+  const known = new Set<string>(HP_SECTIONS.map((s) => s.key));
   const out: HpSectionKey[] = [];
   const seen = new Set<string>();
   if (Array.isArray(raw)) {
@@ -157,7 +179,9 @@ export function normalizeHpSectionOrder(raw: unknown): HpSectionKey[] {
       out.push(v as HpSectionKey);
     }
   }
-  for (const k of DEFAULT_HP_SECTION_ORDER) if (!seen.has(k)) out.push(k);
+  // ★ 足りないキーは、まず既定順で足し、それでも残ったもの（既定順に書き忘れたキー）を表の順で足す。
+  for (const k of DEFAULT_HP_SECTION_ORDER) if (!seen.has(k)) { seen.add(k); out.push(k); }
+  for (const s of HP_SECTIONS) if (!seen.has(s.key)) { seen.add(s.key); out.push(s.key); }
   return out;
 }
 
