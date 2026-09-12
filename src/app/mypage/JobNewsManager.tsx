@@ -80,7 +80,7 @@ export function JobNewsManager({ salonId }: { salonId: number }) {
   const [savingId, setSavingId] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [uploadingEditId, setUploadingEditId] = useState<string | null>(null);
-  // ★ その場で効く操作の最中（第289便）。★ 自動更新・公開切替＝togglingId／再投稿＝repostingId。
+  // ★ その場で効く操作の最中（第289便）。★ 自動投稿・公開切替＝togglingId／再投稿＝repostingId。
   const [togglingId, setTogglingId] = useState<string | null>(null);
   const [repostingId, setRepostingId] = useState<string | null>(null);
 
@@ -290,10 +290,10 @@ export function JobNewsManager({ salonId }: { salonId: number }) {
   };
 
   // ── 行の上に並ぶ3つの操作（第289便・2026-09-12・カッキーさんの指示）──────────────
-  //   ★★ フクエス側のお知らせと同じ形にそろえた（自動更新／公開・非公開／再投稿）。
+  //   ★★ フクエス側のお知らせと同じ形にそろえた（自動投稿／公開・非公開／再投稿）。
   //   ★ どれも【その場で効く】。★ 「保存」を押さないと効かないのは、下のタイトル・本文・画像だけ。
 
-  // 自動更新の印を、その場で入り切りする。★ 保存を経由しない（押した＝そうなる）。
+  // 自動投稿の印を、その場で入り切りする。★ 保存を経由しない（押した＝そうなる）。
   const handleToggleAutoRotate = async (id: string) => {
     const target = items.find((n) => n.id === id);
     if (!target) return;
@@ -306,7 +306,7 @@ export function JobNewsManager({ salonId }: { salonId: number }) {
     setItems((prev) => prev.map((n) => n.id === id ? { ...n, auto_rotate: next } : n));
     // ★ 開いているフォームの控えも合わせる（保存で古い値に戻さないため）。
     setForms((prev) => (prev[id] ? { ...prev, [id]: { ...prev[id], auto_rotate: next } } : prev));
-    setMsg({ kind: 'ok', text: next ? '自動更新にしました' : '自動更新をやめました' });
+    setMsg({ kind: 'ok', text: next ? '自動投稿にしました' : '自動投稿をやめました' });
   };
 
   // 公開・非公開を、その場で切り替える。
@@ -592,7 +592,7 @@ export function JobNewsManager({ salonId }: { salonId: number }) {
           <h2 className="text-sm font-black text-slate-700">投稿した新着情報{items.length > 0 ? `（${items.length}件）` : ''}</h2>
         </div>
         <p className="text-[11px] text-slate-400 leading-relaxed">
-          新しい順に並びます（非公開のものも出ます）。
+          自動投稿は1日に1回。順番で投稿します。
         </p>
       </div>
 
@@ -634,7 +634,7 @@ export function JobNewsManager({ salonId }: { salonId: number }) {
                         }`}
                         title={n.is_published ? '自動配信のローテに乗っています' : '印は付いていますが、非公開なので回りません'}
                       >
-                        自動更新中
+                        自動投稿中
                       </span>
                     )}
                     <span className="text-sm font-bold text-slate-700 truncate min-w-0">{n.title || '（無題）'}</span>
@@ -656,7 +656,7 @@ export function JobNewsManager({ salonId }: { salonId: number }) {
                     <div className="px-5 pb-5 pt-4 space-y-3 border-t border-emerald-100">
                       {/* ── 4つの操作（第289便・2026-09-12・カッキーさんの指示）──
                           ★★ フクエス側のお知らせと同じ並び・同じ振る舞い。★ どれも【その場で効く】。
-                          ★ 自動更新は非公開の左。★ 印が付いているときは「自動更新中」。 */}
+                          ★ 自動投稿は非公開の左。★ 印が付いているときは「自動投稿中」。 */}
                       <div className="flex flex-wrap items-center gap-2 justify-end">
                         <button
                           type="button"
@@ -677,7 +677,7 @@ export function JobNewsManager({ salonId }: { salonId: number }) {
                             <path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16" />
                             <path d="M3 21v-5h5" />
                           </svg>
-                          {n.auto_rotate ? '自動更新中' : '自動更新にする'}
+                          {n.auto_rotate ? '自動投稿中' : '自動投稿にする'}
                         </button>
                         <button
                           type="button"

@@ -1,4 +1,4 @@
-// お知らせの自動配信と、押し直しの判定（第67便・設計メモ 追記37 §191〜§193）。
+// お知らせの自動投稿と、押し直しの判定（第67便・設計メモ 追記37 §191〜§193）。
 //
 // ★★★ このファイルは通信もDBも触らない。**時刻すら引数で受ける**（now）。
 //   mediaLinkStall.ts / workPlan.ts と同じ理由:【判断は、固定して見返せる形に置く】。
@@ -52,14 +52,14 @@ export function dayStartMs(dayKey: string): number | null {
 }
 
 // ─────────────────────────────────────────────────────────
-// 自動配信の時刻（店舗IDから割り当てる）
+// 自動投稿の時刻（店舗IDから割り当てる）
 // ─────────────────────────────────────────────────────────
 
 /**
- * 店舗ごとの自動配信の時刻を、区切り（朝6:00）からの分で返す（0〜1439）。
+ * 店舗ごとの自動投稿の時刻を、区切り（朝6:00）からの分で返す（0〜1439）。
  *
  * ★★★ なぜ保存しないのか（§193 からの意図的なずらし）
- *   §193 は「店舗側：自動配信の時刻」を項目として挙げていたが、
+ *   §193 は「店舗側：自動投稿の時刻」を項目として挙げていたが、
  *   §192 で決めたのは **「店舗IDから割り当て・オーナー様には選ばせない」**。
  *   選ばせないものを列に持つと、
  *     ・列の値と計算の値がずれた店が作れてしまう（どちらが本当か分からなくなる）
@@ -107,7 +107,7 @@ export function announceFingerprint(title: string | null, content: string | null
 }
 
 // ─────────────────────────────────────────────────────────
-// 守り2 —— 自動配信を出すか
+// 守り2 —— 自動投稿を出すか
 // ─────────────────────────────────────────────────────────
 
 export type AutoSkipReason =
@@ -125,7 +125,7 @@ export type AutoPostInput = {
    * ★ null は【数えられていない】。0（1本も無い）と区別する。
    */
   autoTargetCount: number | null;
-  /** 最終自動配信日（区切りの日・YYYY-MM-DD）。まだ無ければ null */
+  /** 最終自動投稿日（区切りの日・YYYY-MM-DD）。まだ無ければ null */
   lastAutoDay: string | null;
   /** 最終手動配信日時（ISO）。まだ無ければ null */
   lastManualAt: string | null;
@@ -138,7 +138,7 @@ export type AutoPostResult =
   | { post: true;  reason: null;           dayKey: string;        index: number; dueAtISO: string };
 
 /**
- * この瞬間に自動配信を出すべきかを判定する。
+ * この瞬間に自動投稿を出すべきかを判定する。
  *
  * ★★ 判定の順は「材料が無い → 出す物が無い → もう出した → まだ時刻でない → 手動があった」。
  *   ★ 材料が読めていないときに「0件だから出さない」と言わない。
@@ -191,7 +191,7 @@ export function nextRotationIndex(current: number | null, count: number): number
 }
 
 /**
- * 画面に出す「今日の自動配信」の1行。★ 判定そのものと同じ結果から作る。
+ * 画面に出す「今日の自動投稿」の1行。★ 判定そのものと同じ結果から作る。
  *
  * ★★★ 画面と実行で別々に判断しない。
  *   画面が「今日は出ます」と言い、周は出さない——が起きうる形にしない。
@@ -210,25 +210,25 @@ export function autoStateMessage(
   const t = timeLabel ?? '未定';
   // ★ 本数の但し書き。★ 数えられていない（null）ときは黙る＝0本と混ぜない
   const n = typeof targetCount === 'number' && Number.isFinite(targetCount) ? Math.trunc(targetCount) : null;
-  const suffix = n !== null && n > 0 ? '（自動配信設定' + n + '件）' : '';
+  const suffix = n !== null && n > 0 ? '（自動投稿設定' + n + '件）' : '';
   // ★ 時刻は過ぎているのに、まだ周が回っていない
   if (result.post) return 'まもなく、この日のぶんが1本、自動で出ます（' + t + 'ごろ）' + suffix;
   switch (result.reason) {
     case 'unknown':
-      return 'いまは自動配信の状態を読み取れていません';
+      return 'いまは自動投稿の状態を読み取れていません';
     case 'no_targets':
-      return '「自動で回す」に印を付けたお知らせがないため、自動配信はお休みです';
+      return '「自動投稿」にしたお知らせがないため、自動投稿はお休みです';
     case 'not_yet': {
       // ★ 時刻は店舗IDから決まる＝選べない。★ その場で「変更不可」と言う（設定画面を探させない）
-      // ★ カッコは1つにまとめる（★ 「（変更不可）（自動配信設定1件）」と2つ並べない・2026-09-06）
+      // ★ カッコは1つにまとめる（★ 「（変更不可）（自動投稿設定1件）」と2つ並べない・2026-09-06）
       // ★ 印が付いた分を順番に出す仕組みの名前として「ローテーション」を添える（★ 1件でも出す）
-      const notes = n !== null && n > 0 ? '変更不可・自動配信設定' + n + '件・ローテーション' : '変更不可';
+      const notes = n !== null && n > 0 ? '変更不可・自動投稿設定' + n + '件・ローテーション' : '変更不可';
       return '今日は ' + t + 'ごろに投稿します（' + notes + '）';
     }
     case 'done_today':
       return '今日のぶんは出しました（次は明日 ' + t + 'ごろ）' + suffix;
     case 'manual_today':
-      return '今日は手動で出したので、自動配信はお休みです（順番も進めません）' + suffix;
+      return '今日は手動で出したので、自動投稿はお休みです（順番も進めません）' + suffix;
   }
 }
 
@@ -253,15 +253,15 @@ export function autoSkipMessage(result: AutoPostResult): string | null {
   if (result.post) return null;
   switch (result.reason) {
     case 'unknown':
-      return 'お知らせの本数を数えられていないため、自動配信の判定をしていません';
+      return 'お知らせの本数を数えられていないため、自動投稿の判定をしていません';
     case 'no_targets':
-      return '「自動で回す」に印を付けたお知らせが1本もありません';
+      return '「自動投稿」にしたお知らせが1本もありません';
     case 'not_yet':
-      return '今日の自動配信は、まだ時刻になっていません';
+      return '今日の自動投稿は、まだ時刻になっていません';
     case 'done_today':
-      return '今日の自動配信はもう出しました（次は翌朝6時以降）';
+      return '今日の自動投稿はもう出しました（次は翌朝6時以降）';
     case 'manual_today':
-      return '今日は手動で出したので、自動配信はお休みします（順番も進めません）';
+      return '今日は手動で出したので、自動投稿はお休みします（順番も進めません）';
   }
 }
 

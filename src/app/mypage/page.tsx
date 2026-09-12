@@ -998,7 +998,7 @@ export default function MyPage() {
   const [savingAnnouncement, setSavingAnnouncement] = useState<string | null>(null);
   const [deletingAnnouncement, setDeletingAnnouncement] = useState<string | null>(null);
   const [repostingAnnouncement, setRepostingAnnouncement] = useState<string | null>(null);
-  // ★ 自動更新の入り切りの最中（第289便・2026-09-12）。★ 二度押しを止めるためだけ。
+  // ★ 自動投稿の入り切りの最中（第289便・2026-09-12）。★ 二度押しを止めるためだけ。
   const [togglingAutoRotate, setTogglingAutoRotate] = useState<string | null>(null);
   const [uploadingNewAnnouncementImage, setUploadingNewAnnouncementImage] = useState(false);
   const [uploadingAnnouncementImageId, setUploadingAnnouncementImageId] = useState<string | null>(null);
@@ -2603,7 +2603,7 @@ export default function MyPage() {
     showToast(next ? '公開にしました' : '非公開にしました');
   };
 
-  // お知らせ：自動更新の印を、その場で入り切りする（第289便・2026-09-12・カッキーさんの指示）。
+  // お知らせ：自動投稿の印を、その場で入り切りする（第289便・2026-09-12・カッキーさんの指示）。
   // ★ 「保存」を経由しない＝押した時点でそうなる。★ 非公開の切り替えと同じ扱い。
   const handleAnnouncementToggleAutoRotate = async (id: string) => {
     const target = announcements.find(a => a.id === id);
@@ -2618,7 +2618,7 @@ export default function MyPage() {
     setAnnouncementForms(prev => (prev[id] ? { ...prev, [id]: { ...prev[id], auto_rotate: next } } : prev));
     // ★ 回す本数が変わる＝自動配信の1行も取り直す
     void refreshAnnounceState();
-    showToast(next ? '自動更新にしました' : '自動更新をやめました');
+    showToast(next ? '自動投稿にしました' : '自動投稿をやめました');
   };
 
   // お知らせ：再投稿ボタン → カスタム確認モーダルを開く（チェックは毎回ONから）。
@@ -5452,7 +5452,9 @@ export default function MyPage() {
                  画面が「今日は出ます」と言い、周は出さない、が起きうる形にしない。
               ★ 時刻は店舗IDから決まる（選べない）。設定項目を1つ増やさないため。 */}
           <div className="bg-white rounded-none border border-pink-100 shadow-sm p-5 space-y-1.5">
-            <h3 className="text-xs font-black text-pink-600">自動でお知らせを回す（1日1投稿）</h3>
+            {/* ★ 見出しを「自動投稿」に言い換え（第290便・2026-09-12・カッキーさんの指示）。
+                ★ ボタン（自動投稿にする／自動投稿中）とフクエスワーク側に名前をそろえる。 */}
+            <h3 className="text-xs font-black text-pink-600">自動投稿（1日1回・順番で投稿）</h3>
             {announceState ? (
               <>
                 <p className="text-[11px] text-slate-600 leading-relaxed">{announceState.message}</p>
@@ -5547,7 +5549,7 @@ export default function MyPage() {
                         }`}
                         title={a.is_published ? '自動配信のローテに乗っています' : '印は付いていますが、非公開なので回りません'}
                       >
-                        自動更新中
+                        自動投稿中
                       </span>
                     )}
                     <span className="text-sm font-bold text-slate-700 truncate min-w-0">
@@ -5568,8 +5570,8 @@ export default function MyPage() {
                   {/* ── 開いたときの中身（★ 今までと同じもの） ── */}
                   <div className={isAnnOpen ? 'px-5 pb-5 pt-4 space-y-3 border-t border-pink-100' : 'hidden'}>
                     <div className="flex flex-wrap items-center gap-2 justify-end">
-                      {/* ★★ 自動更新は非公開の左（第289便・2026-09-12・カッキーさんの指示）。
-                          ★ 印が付いているときは「自動更新中」。★ 押した時点で効く（保存を経由しない）。 */}
+                      {/* ★★ 自動投稿は非公開の左（第289便・2026-09-12・カッキーさんの指示）。
+                          ★ 印が付いているときは「自動投稿中」。★ 押した時点で効く（保存を経由しない）。 */}
                       <button
                         type="button"
                         onClick={() => handleAnnouncementToggleAutoRotate(a.id)}
@@ -5589,7 +5591,7 @@ export default function MyPage() {
                           <path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16" />
                           <path d="M3 21v-5h5" />
                         </svg>
-                        {a.auto_rotate ? '自動更新中' : '自動更新にする'}
+                        {a.auto_rotate ? '自動投稿中' : '自動投稿にする'}
                       </button>
                       <button
                         type="button"
@@ -5679,7 +5681,7 @@ export default function MyPage() {
                     <p className="text-[10px] text-slate-400 mt-1">※ 画像の差し替え・削除は「保存」で確定します。</p>
                   </div>
                   {/* ★★ 「自動で回す」のチェックはここから外した（第289便・2026-09-12）。
-                      ★ 同じ用事のボタン（自動更新にする／自動更新中）が上にある——入口を2つ持たない。
+                      ★ 同じ用事のボタン（自動投稿にする／自動投稿中）が上にある——入口を2つ持たない。
                       ★ 上のボタンは押した時点で効く。★ ここの「保存」はタイトル・本文・画像だけ。 */}
 
                   <div className="flex justify-end">
