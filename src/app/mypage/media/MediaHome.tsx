@@ -448,9 +448,9 @@ export function MediaHome({ salonId, onToast }: {
                         {s.needsConsent
                           ? '同意の取り直しが必要です。いまは何も送っていません'
                           : s.direction === 'read'
-                          // ★ 第310便その2（カッキーさん）: 「読み取り」→「更新」。★ セラピスト設定の言い方に揃えた
+                          // ★ 第313便（カッキーさん）: 時刻の見出しは【最終確認】にそろえた（★ 第310便の「最後の更新」から）
                           //   （★ 「読む」はこちら側の動き。★ 店舗様から見て起きるのは、この画面の中身が新しくなること）
-                          ? (fmt(s.listLastRunAt) ? `最後の更新 ${fmt(s.listLastRunAt)}` : 'まだ更新していません')
+                          ? (fmt(s.listLastRunAt) ? `最終確認 ${fmt(s.listLastRunAt)}` : 'まだ確認していません')
                           : s.direction === 'write'
                             // ★★★ 禁止の組み合わせが既にできているとき（第190便）は、時刻より先にそれを言う
                             ? (dbl ?? (fmt(s.lastWriteOkAt) ? `最後の反映 ${fmt(s.lastWriteOkAt)}` : 'まだ反映していません'))

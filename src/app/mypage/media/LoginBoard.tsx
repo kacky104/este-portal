@@ -342,7 +342,7 @@ export function LoginBoard({
             : siteRows.some((r) => r.needsConsent)
               ? `${siteRows.map((r) => `枠${r.slot}`).join('・')} を登録済み ／ ★ 同意の取り直しが必要です。いまは何も送っていません`
               : siteRows.length > 0
-                ? `${siteRows.map((r) => `枠${r.slot}`).join('・')} を登録済み ／ 最後に確認できた ${fmt(anyRow?.lastVerifiedAt ?? null)}`
+                ? `${siteRows.map((r) => `枠${r.slot}`).join('・')} を登録済み ／ 最終確認 ${fmt(anyRow?.lastVerifiedAt ?? null)}`
                 : 'まだ登録されていません';
 
         const canRegister = canRegisterSite(site);
@@ -453,7 +453,7 @@ export function LoginBoard({
                     })}
                   </div>
                   <p className="text-[13px] text-slate-400 leading-relaxed mt-1.5">
-                    掲載枠が複数ある場合は、枠ごとにログイン情報が異なります。枠ごとにご登録ください。
+                    掲載枠が複数ある場合は、枠ごとにご登録ください。
                   </p>
                 </div>
                 )}
@@ -592,7 +592,7 @@ export function LoginBoard({
                       // ★ 同意済みでも読み返せる口は残す（何に同意したのか確かめられなくなるため）
                       <details className="border border-slate-200 bg-slate-50/60">
                         <summary className="cursor-pointer px-3 py-2.5 text-[14.5px] font-bold text-slate-600 list-none">
-                          お預かりする情報の取り扱い（同意済み・読み返す）
+                          お預かり情報の取り扱い（同意済・再読）
                         </summary>
                         <div className="px-3 pb-3"><ConsentText /></div>
                       </details>
@@ -627,7 +627,10 @@ export function LoginBoard({
                       <b className="text-slate-700">{row.passwordMask || '未登録'}</b>
                     </p>
                     <p className="text-[13.5px] text-slate-500 tabular-nums">
-                      最後に接続を確認できた日時：<b className="text-slate-700">{fmt(row.lastVerifiedAt)}</b>
+                      {/* ★ 第313便（カッキーさん）: 「最後に接続を確認できた日時」→「最終確認」。
+                          ★ 時刻の見出しは、どの画面でも【最終確認】の1語にそろえた。
+                          ★ 動きのほう（押すと起きること）は「更新する」。★ 名詞と動詞で言葉を分ける。 */}
+                      最終確認：<b className="text-slate-700">{fmt(row.lastVerifiedAt)}</b>
                       {row.consentAgreedAt && !row.needsConsent && `　／　${fmt(row.consentAgreedAt)} に同意済み`}
                     </p>
                     {row.lastError && (
