@@ -5,6 +5,8 @@ import { createServiceClient } from '@/app/lib/supabase/service';
 import { ADMIN_UUID } from '@/app/lib/admin';
 import { HP_DEMO_SLUG } from '@/app/lib/hpSite';
 import { getBusinessDateJST } from '@/lib/dutyStatus';
+// ★ 出勤の組み立ては純粋関数へ切り出した（第295便・2026-09-12）。★ 自動の周と同じものを使う。
+import { buildDemoScheduleRows, DEMO_SCHEDULE_DAYS } from '@/lib/hpDemoSchedule';
 
 // 公式HPの【サンプル店舗（デモ）】管理（2026-08-09・運営専用）。
 //
@@ -64,12 +66,8 @@ async function findDemoSalonId(svc: Svc): Promise<number | null> {
   return data ? Number(data.salon_id) : null;
 }
 
-/** 'YYYY-MM-DD' の n 日後（JST・営業日基準の起点は getBusinessDateJST）。 */
-function addDays(ymd: string, n: number): string {
-  const [y, m, d] = ymd.split('-').map(Number);
-  const dt = new Date(Date.UTC(y, m - 1, d + n));
-  return dt.toISOString().slice(0, 10);
-}
+// ★ addDays はここから消した（第295便）。★ 使っていたのは出勤の組み立てだけで、
+//   それが src/lib/hpDemoSchedule.ts へ移ったため（向こうの addDaysYmd が正）。
 
 // ── 取得 ─────────────────────────────────────────────
 export async function getHpDemoState(): Promise<{ ok: true; state: DemoState } | Err> {
@@ -156,35 +154,12 @@ function demoTherapistRow(t: (typeof DEMO_THERAPISTS)[number], salonId: number) 
   };
 }
 
-// 出勤パターン（日替わりで3〜4名・時間帯もばらす）
-const SHIFT_PATTERNS = [
-  { start: '12:00', end: '22:00' },
-  { start: '15:00', end: '23:00' },
-  { start: '18:00', end: '24:00' },
-  { start: '13:00', end: '21:00' },
-];
-
+// ★★ 出勤パターンと組み立ては src/lib/hpDemoSchedule.ts に移した（第295便・2026-09-12）。
+//   ★ 理由: 自動で回す周（/api/admin/hp-demo-schedule）からも同じものを使うため。
+//   ★ ここは【組み立てた行を書くだけ】。規則を直すときは向こうの1か所を直す。
 async function seedSchedules(svc: Svc, therapistIds: string[]): Promise<string | null> {
-  const today = getBusinessDateJST();
-  // 在籍数の6割（最少3・最多6）を「その日の出勤枠」とし、日替わりで回す。
-  // 端数の枠は偶数日だけ出勤にして人数に揺らぎを作る（毎日同じ人数だと不自然なため）。
-  const slots = Math.max(3, Math.min(6, Math.round(therapistIds.length * 0.6)));
-  const rows: Record<string, unknown>[] = [];
-  for (let day = 0; day < 14; day++) {
-    const date = addDays(today, day);
-    therapistIds.forEach((id, i) => {
-      const slot = (i + day) % therapistIds.length;
-      const on = slot < slots - 1 || (slot === slots - 1 && day % 2 === 0);
-      const p = SHIFT_PATTERNS[(i + day) % SHIFT_PATTERNS.length];
-      rows.push({
-        therapist_id: id,
-        schedule_date: date,
-        is_active: on,
-        start_time: on ? p.start : null,
-        end_time: on ? p.end : null,
-      });
-    });
-  }
+  const rows = buildDemoScheduleRows(therapistIds, getBusinessDateJST(), DEMO_SCHEDULE_DAYS);
+  if (rows.length === 0) return '出勤の行を組み立てられませんでした';
   const { error } = await svc
     .from('therapist_schedules')
     .upsert(rows, { onConflict: 'therapist_id,schedule_date' });
