@@ -424,15 +424,11 @@ export function JobNewsManager({ salonId }: { salonId: number }) {
   );
 
   return (
-    <div className="bg-white rounded-none border border-slate-100 shadow-sm p-5 space-y-4">
-      <div className="flex items-center gap-2">
-        <span className="w-1 h-5 rounded-none flex-shrink-0" style={{ background: 'linear-gradient(to bottom,#10B981,#84CC16)' }} />
-        <h2 className="text-sm font-black text-slate-700">新着情報（フクエスワーク）</h2>
-      </div>
-      <p className="text-[11px] text-slate-400 leading-relaxed">
-        求人の新着情報を投稿できます（一覧は新しい順・非公開分も表示）。
-      </p>
-
+    // ★★ 2枚のカードに分ける（第286便・2026-09-12・カッキーさんの指示）。
+    //   ★ 上＝これから書く場所／下＝書いたものを直す場所。★ 用事が違うので枠も分ける。
+    //   ★ 結果の知らせ（msg）は2枚の【外の上】に置く。★ 追加も保存も削除もここに出るため、
+    //     どちらかの中に入れると、片方の操作のときに画面の外で鳴ることになる。
+    <div className="space-y-4">
       {msg && (
         <p className={`text-xs rounded-none px-3 py-2 border ${
           msg.kind === 'ok' ? 'text-emerald-700 bg-emerald-50 border-emerald-100' : 'text-rose-600 bg-rose-50 border-rose-100'
@@ -441,9 +437,15 @@ export function JobNewsManager({ salonId }: { salonId: number }) {
         </p>
       )}
 
-      {/* 新規追加フォーム */}
-      <div className="rounded-none border border-emerald-100 bg-emerald-50/30 p-4 space-y-3">
-        <h3 className="text-xs font-black" style={{ color: '#059669' }}>新着情報を新規追加</h3>
+      {/* ───────── ブロック1：新しく書く ───────── */}
+      <div className="bg-white rounded-none border border-slate-100 shadow-sm p-5 space-y-4">
+        <div className="flex items-center gap-2">
+          <span className="w-1 h-5 rounded-none flex-shrink-0" style={{ background: 'linear-gradient(to bottom,#10B981,#84CC16)' }} />
+          <h2 className="text-sm font-black text-slate-700">新着情報を新規追加</h2>
+        </div>
+        <p className="text-[11px] text-slate-400 leading-relaxed">
+          求人ページに出るお知らせです。
+        </p>
         {/* ローリング上限の常設注意書き（新規投稿フォームの近く）。 */}
         <p className="text-[10px] text-slate-500 leading-relaxed rounded-none bg-amber-50 border border-amber-100 px-2.5 py-2">
           新着情報は最新{WORK_NEWS_MAX}件まで保存されます。{WORK_NEWS_MAX + 1}件目を投稿すると、非公開分を含めて古いものから自動的に削除されます。
@@ -503,145 +505,154 @@ export function JobNewsManager({ salonId }: { salonId: number }) {
         </div>
       </div>
 
-      {/* 一覧（公開・非公開含む・published_at の新しい順） */}
-      {loading ? (
-        <p className="text-xs text-slate-400">読み込み中です…</p>
-      ) : items.length === 0 ? (
-        <div className="rounded-none border border-slate-100 bg-slate-50/50 p-5">
-          <p className="text-xs text-slate-400">登録されている新着情報がありません</p>
+      {/* ───────── ブロック2：書いたもの ───────── */}
+      <div className="bg-white rounded-none border border-slate-100 shadow-sm p-5 space-y-4">
+        <div className="flex items-center gap-2">
+          <span className="w-1 h-5 rounded-none flex-shrink-0" style={{ background: 'linear-gradient(to bottom,#10B981,#84CC16)' }} />
+          <h2 className="text-sm font-black text-slate-700">投稿した新着情報{items.length > 0 ? `（${items.length}件）` : ''}</h2>
         </div>
-      ) : (
-        <>
-          {(showAll ? items : items.slice(0, INITIAL_VISIBLE)).map((n) => {
-            const form = forms[n.id] ?? { title: '', content: '', is_published: true, image_url: null, auto_rotate: false };
-            const expanded = expandedId === n.id;
-            return (
-              <div key={n.id} className="rounded-none border border-emerald-100 shadow-sm overflow-hidden">
-                {/* コンパクト行：公開バッジ ＋ タイトル ＋ 投稿日時 ＋ 編集 ＋ 削除 */}
-                <div className="flex items-center gap-2 p-3">
-                  <span className={`text-[10px] font-bold px-2 py-0.5 rounded-none flex-shrink-0 ${
-                    n.is_published ? 'bg-emerald-50 text-emerald-600' : 'bg-slate-100 text-slate-400'
-                  }`}>
-                    {n.is_published ? '公開中' : '非公開'}
-                  </span>
-                  {/* ★ 自動配信のローテに乗っているか（第274便・2026-09-11）。
-                      ★ 印が付いているだけ＝回る対象。★ 実際に今日出たかは別（記録は周が持つ）。 */}
-                  {n.auto_rotate && (
-                    <span
-                      className={`text-[10px] font-bold px-2 py-0.5 rounded-none flex-shrink-0 border ${
-                        n.is_published
-                          ? 'bg-emerald-50 text-emerald-600 border-emerald-100'
-                          : 'bg-white text-emerald-300 border-emerald-100'
-                      }`}
-                      title={n.is_published ? '自動配信のローテに乗っています' : '印は付いていますが、非公開なので回りません'}
-                    >
-                      自動配信中
+        <p className="text-[11px] text-slate-400 leading-relaxed">
+          新しい順に並びます（非公開のものも出ます）。
+        </p>
+        {loading ? (
+          <p className="text-xs text-slate-400">読み込み中です…</p>
+        ) : items.length === 0 ? (
+          <div className="rounded-none border border-slate-100 bg-slate-50/50 p-5">
+            <p className="text-xs text-slate-400">登録されている新着情報がありません</p>
+          </div>
+        ) : (
+          <>
+            {(showAll ? items : items.slice(0, INITIAL_VISIBLE)).map((n) => {
+              const form = forms[n.id] ?? { title: '', content: '', is_published: true, image_url: null, auto_rotate: false };
+              const expanded = expandedId === n.id;
+              return (
+                <div key={n.id} className="rounded-none border border-emerald-100 shadow-sm overflow-hidden">
+                  {/* コンパクト行：公開バッジ ＋ タイトル ＋ 投稿日時 ＋ 編集 ＋ 削除 */}
+                  <div className="flex items-center gap-2 p-3">
+                    <span className={`text-[10px] font-bold px-2 py-0.5 rounded-none flex-shrink-0 ${
+                      n.is_published ? 'bg-emerald-50 text-emerald-600' : 'bg-slate-100 text-slate-400'
+                    }`}>
+                      {n.is_published ? '公開中' : '非公開'}
                     </span>
-                  )}
-                  <div className="min-w-0 flex-1">
-                    <p className="text-sm font-bold text-slate-700 truncate">{n.title || '（無題）'}</p>
-                    <p className="text-[10px] text-slate-400 truncate">{formatPublishedAt(n.published_at)}</p>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => handleEditToggle(n.id)}
-                    className="px-3 py-1.5 rounded-none border text-xs font-bold transition-colors flex-shrink-0"
-                    style={{ borderColor: '#6EE7B7', color: '#059669' }}
-                  >
-                    {expanded ? '閉じる' : '編集'}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => handleDelete(n.id)}
-                    disabled={deletingId === n.id}
-                    className="px-3 py-1.5 rounded-none border border-rose-200 text-rose-500 text-xs font-bold bg-rose-50 hover:bg-rose-100 transition-colors disabled:opacity-50 flex-shrink-0"
-                  >
-                    {deletingId === n.id ? '削除中...' : '削除'}
-                  </button>
-                </div>
-
-                {/* 編集フォーム（展開時のみ・同時展開は常に1件） */}
-                {expanded && (
-                  <div className="border-t border-emerald-100 bg-emerald-50/20 p-4 space-y-3">
-                    <div>
-                      <label className={labelClass}>タイトル <span className="text-rose-400">*</span></label>
-                      <input
-                        className={inputClass}
-                        value={form.title}
-                        onChange={(e) => setForms((prev) => ({ ...prev, [n.id]: { ...prev[n.id], title: e.target.value } }))}
-                      />
-                    </div>
-                    <div>
-                      <label className={labelClass}>本文（任意）</label>
-                      <textarea
-                        rows={5}
-                        className={textareaClass}
-                        value={form.content}
-                        onChange={(e) => setForms((prev) => ({ ...prev, [n.id]: { ...prev[n.id], content: e.target.value } }))}
-                      />
-                    </div>
-                    <div>
-                      <label className={labelClass}>画像（任意・1枚）</label>
-                      <p className="text-[10px] text-slate-400 mb-1.5">推奨：800×450px（横長）／ JPEG・PNG・WebP・5MB以下</p>
-                      {imageBox(
-                        form.image_url,
-                        () => setForms((prev) => ({ ...prev, [n.id]: { ...prev[n.id], image_url: null } })),
-                        uploadingEditId === n.id,
-                        (e) => handleEditImageUpload(n.id, e),
-                      )}
-                      <p className="text-[10px] text-slate-400 mt-1">※ 画像の差し替え・削除は「保存」で確定します。</p>
-                    </div>
-                    <label className="flex items-center gap-2 cursor-pointer select-none">
-                      <input
-                        type="checkbox"
-                        className="w-4 h-4 accent-emerald-500 flex-shrink-0"
-                        checked={form.is_published}
-                        onChange={(e) => setForms((prev) => ({ ...prev, [n.id]: { ...prev[n.id], is_published: e.target.checked } }))}
-                      />
-                      <span className="text-xs font-bold text-slate-600">公開する（オフにすると非公開で保存）</span>
-                    </label>
-                    {/* ★ 自動配信のローテに乗せるか（第274便・2026-09-11・カッキーさんの指示）。
-                        ★ 既定はオフ——黙って回さない。★ 季節外れの告知が数か月後に出るのを防ぐ。 */}
-                    <label className="flex items-start gap-2 cursor-pointer select-none">
-                      <input
-                        type="checkbox"
-                        className="w-4 h-4 accent-emerald-500 flex-shrink-0 mt-0.5"
-                        checked={form.auto_rotate}
-                        onChange={(e) => setForms((prev) => ({ ...prev, [n.id]: { ...prev[n.id], auto_rotate: e.target.checked } }))}
-                      />
-                      <span className="min-w-0">
-                        <span className="text-xs font-bold text-slate-600">自動で回す</span>
-                        <span className="block text-[10px] text-slate-400 leading-relaxed">
-                          印を付けた新着情報を、1日1回・順番に1本ずつ自動で出します（「保存」で確定します）
-                        </span>
+                    {/* ★ 自動配信のローテに乗っているか（第274便・2026-09-11）。
+                        ★ 印が付いているだけ＝回る対象。★ 実際に今日出たかは別（記録は周が持つ）。 */}
+                    {n.auto_rotate && (
+                      <span
+                        className={`text-[10px] font-bold px-2 py-0.5 rounded-none flex-shrink-0 border ${
+                          n.is_published
+                            ? 'bg-emerald-50 text-emerald-600 border-emerald-100'
+                            : 'bg-white text-emerald-300 border-emerald-100'
+                        }`}
+                        title={n.is_published ? '自動配信のローテに乗っています' : '印は付いていますが、非公開なので回りません'}
+                      >
+                        自動配信中
                       </span>
-                    </label>
-                    <div className="flex justify-end">
-                      <button className={saveBtn} style={saveBtnStyle} onClick={() => handleSave(n.id)} disabled={savingId === n.id}>
-                        {savingId === n.id ? '保存中...' : '保存'}
-                      </button>
+                    )}
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm font-bold text-slate-700 truncate">{n.title || '（無題）'}</p>
+                      <p className="text-[10px] text-slate-400 truncate">{formatPublishedAt(n.published_at)}</p>
                     </div>
+                    <button
+                      type="button"
+                      onClick={() => handleEditToggle(n.id)}
+                      className="px-3 py-1.5 rounded-none border text-xs font-bold transition-colors flex-shrink-0"
+                      style={{ borderColor: '#6EE7B7', color: '#059669' }}
+                    >
+                      {expanded ? '閉じる' : '編集'}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleDelete(n.id)}
+                      disabled={deletingId === n.id}
+                      className="px-3 py-1.5 rounded-none border border-rose-200 text-rose-500 text-xs font-bold bg-rose-50 hover:bg-rose-100 transition-colors disabled:opacity-50 flex-shrink-0"
+                    >
+                      {deletingId === n.id ? '削除中...' : '削除'}
+                    </button>
                   </div>
-                )}
-              </div>
-            );
-          })}
 
-          {/* もっと見る／折りたたむ（11件以上のときのみ・クライアント側の表示切替＝追加フェッチ不要） */}
-          {items.length > INITIAL_VISIBLE && (
-            <div className="flex justify-center pt-1">
-              <button
-                type="button"
-                onClick={() => setShowAll((v) => !v)}
-                className="text-xs font-bold px-4 py-2 rounded-none border transition-colors"
-                style={{ borderColor: '#6EE7B7', color: '#059669' }}
-              >
-                {showAll ? '折りたたむ' : `もっと見る（残り${items.length - INITIAL_VISIBLE}件）`}
-              </button>
-            </div>
-          )}
-        </>
-      )}
+                  {/* 編集フォーム（展開時のみ・同時展開は常に1件） */}
+                  {expanded && (
+                    <div className="border-t border-emerald-100 bg-emerald-50/20 p-4 space-y-3">
+                      <div>
+                        <label className={labelClass}>タイトル <span className="text-rose-400">*</span></label>
+                        <input
+                          className={inputClass}
+                          value={form.title}
+                          onChange={(e) => setForms((prev) => ({ ...prev, [n.id]: { ...prev[n.id], title: e.target.value } }))}
+                        />
+                      </div>
+                      <div>
+                        <label className={labelClass}>本文（任意）</label>
+                        <textarea
+                          rows={5}
+                          className={textareaClass}
+                          value={form.content}
+                          onChange={(e) => setForms((prev) => ({ ...prev, [n.id]: { ...prev[n.id], content: e.target.value } }))}
+                        />
+                      </div>
+                      <div>
+                        <label className={labelClass}>画像（任意・1枚）</label>
+                        <p className="text-[10px] text-slate-400 mb-1.5">推奨：800×450px（横長）／ JPEG・PNG・WebP・5MB以下</p>
+                        {imageBox(
+                          form.image_url,
+                          () => setForms((prev) => ({ ...prev, [n.id]: { ...prev[n.id], image_url: null } })),
+                          uploadingEditId === n.id,
+                          (e) => handleEditImageUpload(n.id, e),
+                        )}
+                        <p className="text-[10px] text-slate-400 mt-1">※ 画像の差し替え・削除は「保存」で確定します。</p>
+                      </div>
+                      <label className="flex items-center gap-2 cursor-pointer select-none">
+                        <input
+                          type="checkbox"
+                          className="w-4 h-4 accent-emerald-500 flex-shrink-0"
+                          checked={form.is_published}
+                          onChange={(e) => setForms((prev) => ({ ...prev, [n.id]: { ...prev[n.id], is_published: e.target.checked } }))}
+                        />
+                        <span className="text-xs font-bold text-slate-600">公開する（オフにすると非公開で保存）</span>
+                      </label>
+                      {/* ★ 自動配信のローテに乗せるか（第274便・2026-09-11・カッキーさんの指示）。
+                          ★ 既定はオフ——黙って回さない。★ 季節外れの告知が数か月後に出るのを防ぐ。 */}
+                      <label className="flex items-start gap-2 cursor-pointer select-none">
+                        <input
+                          type="checkbox"
+                          className="w-4 h-4 accent-emerald-500 flex-shrink-0 mt-0.5"
+                          checked={form.auto_rotate}
+                          onChange={(e) => setForms((prev) => ({ ...prev, [n.id]: { ...prev[n.id], auto_rotate: e.target.checked } }))}
+                        />
+                        <span className="min-w-0">
+                          <span className="text-xs font-bold text-slate-600">自動で回す</span>
+                          <span className="block text-[10px] text-slate-400 leading-relaxed">
+                            印を付けた新着情報を、1日1回・順番に1本ずつ自動で出します（「保存」で確定します）
+                          </span>
+                        </span>
+                      </label>
+                      <div className="flex justify-end">
+                        <button className={saveBtn} style={saveBtnStyle} onClick={() => handleSave(n.id)} disabled={savingId === n.id}>
+                          {savingId === n.id ? '保存中...' : '保存'}
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+
+            {/* もっと見る／折りたたむ（11件以上のときのみ・クライアント側の表示切替＝追加フェッチ不要） */}
+            {items.length > INITIAL_VISIBLE && (
+              <div className="flex justify-center pt-1">
+                <button
+                  type="button"
+                  onClick={() => setShowAll((v) => !v)}
+                  className="text-xs font-bold px-4 py-2 rounded-none border transition-colors"
+                  style={{ borderColor: '#6EE7B7', color: '#059669' }}
+                >
+                  {showAll ? '折りたたむ' : `もっと見る（残り${items.length - INITIAL_VISIBLE}件）`}
+                </button>
+              </div>
+            )}
+          </>
+        )}
+      </div>
     </div>
   );
 }
