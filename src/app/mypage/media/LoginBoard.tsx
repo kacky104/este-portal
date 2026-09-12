@@ -253,14 +253,9 @@ export function LoginBoard({
 
   return (
     <div className="space-y-3">
-      {/* ── この画面は何か ── */}
-      <div className={`${CARD} p-4`}>
-        <p className="text-[14.5px] text-slate-500 leading-relaxed">
-          {/* ★ 「登録があるサイトへ送ります／無いサイトへは送りません」の2文は第117便で外した
-              （カッキーさん・2026-09-03）。★ 下の行に1サイトずつ状態が出ているので言わなくても分かる */}
-          各サイトの管理画面へ<b className="text-slate-700">フクエスがログインするための情報</b>をお預かりします。
-        </p>
-      </div>
+      {/* ★ 「この画面は何か」の1枚（各サイトの管理画面へ…をお預かりします）は第299便で外した
+          （カッキーさん）。★ 見出しが「ログイン情報（ID・PW）」になり、同じことを2回言っていた。
+          ★ 取り扱いの説明は各サイトの中の「お預かりする情報の取り扱い」に残っている。 */}
 
       {/* ── ★★★ 同意の取り直し（第89便）─────────────────────
           ★★ 版を上げると、何も知らせないまま送信と接続テストが止まる。
@@ -400,9 +395,10 @@ export function LoginBoard({
                         受け付けていないサイトでは丸ごと隠した。★ だが**全部だめではない**:
                         エステラブは出勤が送れないだけで、写メ日記（メール）は送れる。
                       ★ 全部隠すと、使える機能まで店舗が諦める（§185 の逆）。 */}
+                {/* ★ 第299便: 「送れるもの：」の文字は外した（カッキーさん）。★ チップだけ残す。
+                    ★ ホーム（MediaHome）のサイトの行も、第193便から文字なしのチップだけで並べている。 */}
                 {sendableCapabilities(site).length > 0 && (
                   <span className="block text-[13.5px] text-slate-400">
-                    送れるもの：
                     {sendableCapabilities(site).map((c) => (
                       <span key={c} className="inline-block border border-slate-200 text-slate-500 px-1.5 mr-1">
                         {capabilityLabel(c)}

@@ -7,6 +7,7 @@ import { useToast } from '@/app/components/useToast';
 
 // ログイン情報（第63便・㉞ その5）。
 // ★ 4サイトぶんのログイン情報を1画面に集めた。同意文もここに移した。
+// ★ 第299便: 見出しを「ログイン情報（ID・PW）」に（カッキーさん）。★ サイドバーと同じ言葉。
 
 export default function MediaLoginPage() {
   const { decision, salon, loadError } = useMediaGate();
@@ -18,7 +19,7 @@ export default function MediaLoginPage() {
       loadError={loadError}
       salonId={salon ? Number(salon.id) : null}
       salonName={salon?.name ?? null}
-      title="ログイン情報"
+      title="ログイン情報（ID・PW）"
       current="login"
       toast={toast}
     >

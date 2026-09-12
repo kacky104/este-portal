@@ -22,14 +22,17 @@ import type { MediaPageDecision } from '@/lib/mediaVisibility';
 //   ★ 6つの画面すべてが、この外枠を被って同じ形で並ぶ。
 
 // ★ 'all'（全部入り）は第65便で畳んだ。★ 型からも外して、行き先を作れなくする
-export type MediaNavKey = 'home' | 'work' | 'diary' | 'news' | 'roster' | 'login' | 'log';
+// ★ 'matrix'（反映の早見表）は第299便で追加（ホームの折りたたみから独立）
+export type MediaNavKey = 'home' | 'work' | 'diary' | 'news' | 'roster' | 'login' | 'log' | 'matrix';
 
 const NAV: Array<{ key: MediaNavKey; label: string; href: string; group?: string }> = [
   { key: 'home',   label: 'ホーム',           href: '/mypage/media' },
   // ★★ ログイン情報はホームの次（カッキーさん・2026-09-03）。
   //   ★ ここが埋まらないと他の画面が何もできない＝【最初にやること】なので、いちばん近くに置く。
   //   ★ 以前は下の「設定・記録」に入れていたが、始めるときにいちばん探されるのがここだった。
-  { key: 'login',  label: 'ログイン情報',      href: '/mypage/media/login' },
+  // ★ 第299便: 「ログイン情報」→「ログイン情報（ID・PW）」（カッキーさん）。
+  //   ★ 何を入れる場所なのかを、開く前に見せる。★ ページの見出しも同じ言葉にそろえた。
+  { key: 'login',  label: 'ログイン情報（ID・PW）', href: '/mypage/media/login' },
   // ★ セラピスト設定は【基本の情報】なので、送る作業より上に置く（カッキーさん・2026-08-30）
   // ★ 第298便: 名前を「セラピスト一覧」→「セラピスト設定」に（カッキーさんの添削）
   { key: 'roster', label: 'セラピスト設定',    href: '/mypage/media/therapists' },
@@ -44,6 +47,9 @@ const NAV: Array<{ key: MediaNavKey; label: string; href: string; group?: string
   { key: 'news',   label: '駅ちかの新着情報',     href: '/mypage/media/news' },
   // ★ 設定（ログイン情報）が上へ移ったので、この見出しは「記録」だけになった
   { key: 'log',    label: '連携の記録',        href: '/mypage/media/log',        group: '記録' },
+  // ★ 反映の早見表（第299便・2026-09-12・カッキーさん）。★ ホームの下の折りたたみをやめて別ページに。
+  //   ★ 置き場は「連携の記録」の下（カッキーさんの指示）。★ 記録と同じく【読むだけ】の画面なので同じ見出しの中。
+  { key: 'matrix', label: '反映の早見表',      href: '/mypage/media/matrix' },
 ];
 
 function NavIcon({ k }: { k: MediaNavKey }) {
@@ -66,6 +72,8 @@ function NavIcon({ k }: { k: MediaNavKey }) {
     case 'login':  return (<svg {...p}><rect x="3" y="11" width="18" height="10" rx="2" /><path d="M7 11V7a5 5 0 0 1 10 0v4" /></svg>);
     // ★ 吹き出し（お知らせ）。★ 写メ日記の封筒とも、出勤の矢印とも見分けがつく形
     case 'news':   return (<svg {...p}><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" /></svg>);
+    // ★ 表（升目）。★ 早見表＝表なので、そのままの形にした（第299便）
+    case 'matrix': return (<svg {...p}><rect x="3" y="4" width="18" height="16" rx="2" /><path d="M3 10h18M3 15h18M9 4v16" /></svg>);
     default:       return (<svg {...p}><circle cx="12" cy="12" r="9" /><path d="M12 7v5l3 2" /></svg>);
   }
 }
