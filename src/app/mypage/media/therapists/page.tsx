@@ -23,8 +23,7 @@ export default function MediaTherapistsPage() {
       toast={toast}
     >
       {/* ★★★ 第302便: 2つのタブ（一覧／媒体側の登録と結びつける）をやめ、サイトごとのタブに作り替えた。
-          ★ 結びつけは TherapistBoard の1人1行に溶かしたので、RosterLinkBoard はもう呼ばない。
-          ★ ファイル自体はまだ残してある（★ この形が落ち着いてから消す）。 */}
+          ★ 結びつけは TherapistBoard の1人1行に溶かした。★ RosterLinkBoard.tsx は第314便で消した。 */}
       <TherapistBoard salonId={salon ? Number(salon.id) : null} onToast={showToast} />
     </MediaShell>
   );
