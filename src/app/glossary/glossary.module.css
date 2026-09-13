@@ -498,3 +498,256 @@
 .crumbLink:hover { text-decoration: underline; }
 .crumbSep { color: var(--glossary-muted); }
 .crumbCurrent { color: var(--glossary-ink); font-weight: 700; }
+
+/* ══════════════════════════════════════════════════════════════════════════
+   個別の用語ページ（/glossary/[slug]）だけが使うもの（第354便・2026-09-13）
+   ★ 色・角（直角）・カード・注意文・CTA は上のトークンと共用。ここは配置と本文の体裁だけ。
+   ★ 本文（ArticleBody）は /column と共用の部品なので触らず、
+     .termArticle の中だけ :global() で字を大きくする（コラム側は今までどおり）。
+   ══════════════════════════════════════════════════════════════════════════ */
+
+/* ── 定義カード（ページ上部） ── */
+.termHero {
+  position: relative;
+  overflow: hidden;
+  border: 1px solid #ffdce8;
+  background: linear-gradient(135deg, #ffffff 0%, #fff1f7 62%, #fff8ef 100%);
+  box-shadow: 0 18px 50px rgba(140, 102, 24, 0.16);
+  padding: 24px 20px;
+}
+@media (min-width: 768px) { .termHero { padding: 40px 44px; } }
+@media (min-width: 1024px) { .termHero { padding: 48px 56px; } }
+
+/* 右上の線画装飾（本・虫眼鏡）。本文の邪魔にならない濃さに留める。 */
+.termHeroMark {
+  position: absolute;
+  top: -12px;
+  right: -12px;
+  width: 132px;
+  height: 132px;
+  color: var(--glossary-accent);
+  opacity: 0.10;
+  pointer-events: none;
+}
+.termHeroMark svg { width: 100%; height: 100%; }
+@media (max-width: 480px) { .termHeroMark { width: 96px; height: 96px; } }
+
+.termHeroInner { position: relative; z-index: 1; }
+
+.termBadge {
+  display: inline-flex;
+  align-items: center;
+  min-height: 26px;
+  margin-top: 10px;
+  padding: 0 10px;
+  border: 1.5px solid var(--glossary-line);
+  background: var(--glossary-white);
+  color: var(--glossary-accent-dark);
+  font-size: 12px;
+  font-weight: 700;
+  text-decoration: none;
+}
+.termBadge:hover { background: var(--glossary-accent-soft); border-color: var(--glossary-accent); }
+.termBadge:focus-visible { outline: 3px solid var(--glossary-accent); outline-offset: 2px; }
+
+.termTitle {
+  margin: 12px 0 0;
+  font-size: clamp(28px, 7vw, 46px);
+  line-height: 1.25;
+  font-weight: 900;
+  color: var(--glossary-ink);
+  overflow-wrap: anywhere;
+}
+.termReading {
+  margin: 8px 0 0;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--glossary-muted);
+  overflow-wrap: anywhere;
+}
+/* 定義文（frontmatter の summary）。本文のリード文より前に、意味を1文で出す。 */
+.termLead {
+  margin: 16px 0 0;
+  padding-top: 16px;
+  border-top: 1px solid var(--glossary-line);
+  max-width: 760px;
+  font-size: 15px;
+  line-height: 1.8;
+  color: var(--glossary-text);
+}
+@media (min-width: 768px) { .termLead { font-size: 18px; } }
+
+.termMetaRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px 16px;
+  margin-top: 18px;
+}
+.termDate { font-size: 12px; color: var(--glossary-muted); }
+/* 「か行の用語一覧へ戻る」 */
+.termRowLink {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 44px;
+  padding: 0 14px;
+  border: 1.5px solid var(--glossary-line);
+  background: var(--glossary-white);
+  color: var(--glossary-accent-dark);
+  font-size: 13px;
+  font-weight: 700;
+  text-decoration: none;
+  transition: background-color 150ms ease, border-color 150ms ease;
+}
+.termRowLink:hover { background: var(--glossary-accent-soft); border-color: var(--glossary-accent); }
+.termRowLink:focus-visible { outline: 3px solid var(--glossary-accent); outline-offset: 2px; }
+.termRowLink svg { width: 14px; height: 14px; flex-shrink: 0; }
+
+/* ── 読み物の列（本文・FAQ・関連語は 800px 幅で中央に） ── */
+.termColumn {
+  max-width: 800px;
+  margin-inline: auto;
+}
+
+/* ── 本文カード ── */
+.termArticle {
+  border: 1px solid #f2e1e8;
+  background: var(--glossary-white);
+  box-shadow: 0 4px 14px rgba(140, 102, 24, 0.10);
+  padding: 22px 18px;
+  overflow-wrap: anywhere;
+}
+@media (min-width: 768px) { .termArticle { padding: 40px 44px; } }
+
+/* ArticleBody（共用部品）の字だけ、この中で大きくする。★ /column には影響しない。 */
+.termArticle :global(p) { font-size: 15px; line-height: 1.9; margin: 1.35em 0 0; }
+.termArticle :global(p:first-child) { margin-top: 0; }
+.termArticle :global(li) { font-size: 15px; line-height: 1.85; }
+@media (min-width: 768px) {
+  .termArticle :global(p) { font-size: 16px; }
+  .termArticle :global(li) { font-size: 16px; }
+}
+/* 本文中の画像は角を直角に（ArticleBody 側の rounded-2xl を上書き） */
+.termArticle :global(img) { border-radius: 0; }
+
+/* ── よくある質問 ── */
+.faqList { display: flex; flex-direction: column; gap: 12px; margin: 0; }
+.faqItem {
+  border: 1px solid var(--glossary-line);
+  background: var(--glossary-white);
+  box-shadow: 0 4px 14px rgba(140, 102, 24, 0.10);
+  padding: 18px;
+}
+@media (min-width: 768px) { .faqItem { padding: 22px 24px; } }
+.faqQ {
+  display: flex;
+  gap: 10px;
+  margin: 0;
+  font-size: 15px;
+  font-weight: 800;
+  line-height: 1.7;
+  color: var(--glossary-ink);
+}
+.faqQ::before {
+  content: "Q";
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  background: var(--glossary-accent);
+  color: var(--glossary-white);
+  font-size: 13px;
+  font-weight: 800;
+}
+.faqA {
+  display: flex;
+  gap: 10px;
+  margin: 12px 0 0;
+  font-size: 15px;
+  line-height: 1.9;
+  color: var(--glossary-text);
+}
+.faqA::before {
+  content: "A";
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border: 1.5px solid var(--glossary-line);
+  color: var(--glossary-accent-dark);
+  font-size: 13px;
+  font-weight: 800;
+}
+
+/* ── 用語集へ戻る導線 ── */
+.backLinks {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 18px;
+  border: 1px solid var(--glossary-line);
+  background: var(--glossary-white);
+  box-shadow: 0 4px 14px rgba(140, 102, 24, 0.10);
+}
+@media (min-width: 640px) { .backLinks { flex-direction: row; align-items: center; padding: 20px 24px; } }
+.backPrimary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  flex: 1 1 auto;
+  min-height: 52px;
+  padding: 0 18px;
+  border: 1.5px solid var(--glossary-accent);
+  background: var(--glossary-accent-soft);
+  color: var(--glossary-accent-dark);
+  font-size: 15px;
+  font-weight: 800;
+  text-decoration: none;
+  transition: background-color 150ms ease, color 150ms ease;
+}
+.backPrimary:hover { background: var(--glossary-accent); color: var(--glossary-white); }
+.backPrimary:focus-visible { outline: 3px solid var(--glossary-accent); outline-offset: 3px; }
+.backPrimary svg { width: 16px; height: 16px; flex-shrink: 0; }
+.backSecondary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 52px;
+  padding: 0 18px;
+  border: 1.5px solid var(--glossary-line);
+  background: var(--glossary-white);
+  color: var(--glossary-text);
+  font-size: 14px;
+  font-weight: 700;
+  text-decoration: none;
+  transition: background-color 150ms ease, border-color 150ms ease;
+}
+.backSecondary:hover { background: var(--glossary-accent-soft); border-color: var(--glossary-accent); }
+.backSecondary:focus-visible { outline: 3px solid var(--glossary-accent); outline-offset: 3px; }
+
+/* ── 著者 ── */
+.author {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 18px;
+  border: 1px solid var(--glossary-line);
+  background: linear-gradient(135deg, #fff6fa 0%, #ffffff 100%);
+}
+.authorIcon {
+  flex-shrink: 0;
+  width: 40px;
+  height: 40px;
+  overflow: hidden;
+  border: 1.5px solid var(--glossary-line);
+  background: var(--glossary-white);
+}
+.authorIcon img { width: 100%; height: 100%; object-fit: cover; }
+.authorName { margin: 0; font-size: 14px; font-weight: 800; color: var(--glossary-ink); }
+.authorText { margin: 4px 0 0; font-size: 12px; line-height: 1.8; color: var(--glossary-muted); }

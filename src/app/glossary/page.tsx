@@ -1,9 +1,7 @@
 import Link from 'next/link';
 import type { Metadata } from 'next';
-import { AREA_ORDER, ALL_AREA, DISPATCH_AREA, areaHref } from '@/app/lib/areas';
-import { areaLabel } from '@/app/lib/areaLabel';
 import { buildBreadcrumbJsonLd, buildItemListJsonLd, toJsonLdString } from '@/app/lib/jsonLd';
-import { getAllGlossaryMeta, GLOSSARY_POLICY_NOTE } from '@/app/lib/glossary';
+import { getAllGlossaryMeta } from '@/app/lib/glossary';
 import {
   KANA_ROWS,
   KANA_ROW_OTHER,
@@ -14,6 +12,8 @@ import {
 import { GlossaryExplorer } from './GlossaryExplorer';
 import { GlossaryCardGrid, toCardData } from './GlossaryCard';
 import { KanaNav } from './KanaNav';
+import { GlossaryNotice } from './GlossaryNotice';
+import { GlossaryCta } from './GlossaryCta';
 import styles from './glossary.module.css';
 
 // ★★★ メンズエステ用語集のハブ（/glossary・第349便で新設・第352便でリデザイン）
@@ -60,8 +60,6 @@ export default function GlossaryHubPage() {
     .map((row) => ({ row, id: KANA_ROW_IDS[row], items: sorted.filter((m) => kanaRow(m.reading) === row) }))
     .filter((r) => r.items.length > 0);
   const rowsWithItems = rows.map((r) => r.row);
-
-  const areaLinks = AREA_ORDER.filter((a) => a !== ALL_AREA);
 
   const setJsonLd = {
     '@context': 'https://schema.org/',
@@ -132,16 +130,8 @@ export default function GlossaryHubPage() {
       {/* ヒーロー＋検索＋（検索結果 or 一覧） */}
       <GlossaryExplorer entries={cards} eyebrow="GLOSSARY" title={PAGE_TITLE} description={PAGE_DESC} browse={browse} />
 
-      {/* 注意文（情報カード・文言は GLOSSARY_POLICY_NOTE のまま） */}
-      <aside className={`${styles.notice} ${styles.section}`} aria-label="掲載店舗についてのご案内">
-        <span className={styles.noticeIcon} aria-hidden="true">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <circle cx="12" cy="12" r="9" />
-            <path d="M12 11v5M12 8h.01" />
-          </svg>
-        </span>
-        <p className={styles.noticeText}>{GLOSSARY_POLICY_NOTE}</p>
-      </aside>
+      {/* 注意文（情報カード・文言は GLOSSARY_POLICY_NOTE のまま。個別ページと共通の部品） */}
+      <GlossaryNotice className={styles.section} />
 
       {/* 用語解説のコラムへ（関連記事カード） */}
       <div className="mt-6">
@@ -161,28 +151,9 @@ export default function GlossaryHubPage() {
         </Link>
       </div>
 
-      {/* 店舗検索 CTA（ページの締め） */}
-      <section className={`${styles.cta} ${styles.section}`} aria-labelledby="glossary-cta-heading">
-        <h2 id="glossary-cta-heading" className={styles.h2}>
-          <span className={styles.h2Bar} aria-hidden="true" />
-          福岡のメンズエステを探す
-        </h2>
-        <Link href="/" className={styles.ctaButton}>
-          店舗一覧を見る
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-            <path d="M5 12h14M12 5l7 7-7 7" />
-          </svg>
-        </Link>
-        <ul className={styles.chipList}>
-          {areaLinks.map((area) => (
-            <li key={area}>
-              <Link href={areaHref(area)} className={styles.chip}>
-                {area === DISPATCH_AREA ? '出張対応' : areaLabel(area)}の店舗
-              </Link>
-            </li>
-          ))}
-        </ul>
-      </section>
+      {/* 店舗検索 CTA（ページの締め・個別ページと共通の部品） */}
+      <GlossaryCta className={styles.section} />
+
     </main>
   );
 }
