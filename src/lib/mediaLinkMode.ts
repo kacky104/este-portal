@@ -68,6 +68,20 @@ export type ApprovalHistory = {
   switchedToWriteAt: string | null;
   /** 最後に駅ちかへ反映できた時刻（監査ログ write_work / outcome 'ok'）。ISO文字列 */
   lastWriteOkAt: string | null;
+  /**
+   * ★★★★ 【第331便】（2026-09-13・カッキーさん）: 「確かめたら、いまの媒体の内容と一致していた」時刻。
+   *   ★ media_work_plans の created_at（★ change_count が 0 で、止めた理由も無い行）。
+   *
+   * ★★★ なぜ承認として数えるのか
+   *   ・送るものが1つも無い ＝ 上書きの危険が【ゼロ】。
+   *   ・それでも「人が画面を開いて、媒体の中身と突き合わせた」ことは変わらない（§54 が守りたいのはここ）。
+   *
+   * ★★★★ これが無いと【詰む】（第331便で見つけた穴）
+   *   一致している枠は送るボタンが押せない（pushAvailability が no_change を返す）。
+   *   → write_work の成功が永久に生まれない → 自動を選べない。
+   *   ★ うっかり read に触ってすぐ戻した店舗は、まさに一致しているので、この穴に落ちる。
+   */
+  matchedAt?: string | null;
 };
 
 function msOf(iso: string | null): number | null {
@@ -87,11 +101,68 @@ function msOf(iso: string | null): number | null {
  *     あちらは「警告を出さない」が安全側、こちらは「自動にさせない」が安全側。
  */
 export function hasApprovedOnce(h: ApprovalHistory): boolean {
-  const ok = msOf(h.lastWriteOkAt);
-  if (ok === null) return false;
   const switched = msOf(h.switchedToWriteAt);
   if (switched === null) return false;   // ★ 切り替えの記録が無ければ自動にさせない
-  return ok >= switched;
+  const ok = msOf(h.lastWriteOkAt);
+  const matched = msOf(h.matchedAt ?? null);
+  // ★ 第331便: 「送れた」と「一致していた」の【新しいほう】を1回目とみなす
+  const done = ok === null ? matched : (matched === null ? ok : Math.max(ok, matched));
+  if (done === null) return false;
+  return done >= switched;
+}
+
+// ───────────────────── 書く向きが「いつ始まったか」（第331便） ─────────────────────
+
+/**
+ * ★★★★ 【第331便】うっかり向きを変えて【すぐ戻した】ときは、1回目の承認をやり直させない。
+ *
+ * ★ なぜ要るか — 店舗様の画面は担当の方が触る。取り違えて「駅ちかから反映」にし、
+ *   すぐ戻す、ということが起きる。★ そのたびに出勤の自動反映が止まり、
+ *   24時間の見張り（WRITE_STALL_HOURS）が鳴るまで誰も気づかない。
+ * ★★ ただし「本当に read で回してから戻した」場合は、媒体側の中身が変わっているので、
+ *   これまでどおり人が1回見る。★ その線引きが【24時間】。
+ */
+export const WRITE_GAP_FORGIVE_HOURS = 24;
+
+/** 向きを変えた記録の1行（監査ログ link_mode_changed から作る）。 */
+export type LinkModeChange = {
+  /** 変えた時刻（ISO文字列） */
+  at: string;
+  /** 変えた先の向き */
+  mode: string;
+};
+
+/**
+ * 「いまの書く向きが、いつ始まったか」を決める。★ rows は【新しい順】。
+ *
+ *   ・書く向きへの切り替え → そこを始まりの候補にして、さらに遡る
+ *   ・書く向きから外れた記録 → そこで打ち切る（★ 危ないのは read/none から来たときだけ・§11-3）
+ *     ★★ ただし外れていた時間が hours 以内なら【うっかり】とみなし、遡り続ける
+ *
+ * ★ 読めない時刻の行は飛ばす（勝手に「今」として扱わない）。
+ * ★ いま書く向きでない枠には使わないこと（呼び出し側が向きで絞る）。
+ */
+export function writeSpanStart(
+  rows: ReadonlyArray<LinkModeChange>,
+  hours: number = WRITE_GAP_FORGIVE_HOURS,
+): string | null {
+  const limitMs = Math.max(0, hours) * 3600_000;
+  let start: string | null = null;
+  let backAtMs: number | null = null;   // ★ いま見ているうち、いちばん古い「書く向きへ戻った」時刻
+  for (const r of rows) {
+    const at = msOf(r.at);
+    if (at === null) continue;
+    if (isWriteDirection(r.mode)) {
+      start = r.at;
+      backAtMs = at;
+      continue;
+    }
+    // ★ 書く向きから外れた記録
+    if (backAtMs === null) break;             // ★ 書く向きより先に外れが来た＝いまは書く向きでない
+    if (backAtMs - at <= limitMs) continue;   // ★ うっかり（hours 以内に戻した）→ さらに遡る
+    break;                                    // ★ 本当に離れていた
+  }
+  return start;
 }
 
 // ───────────────────────── 自動を切る判断 ─────────────────────────

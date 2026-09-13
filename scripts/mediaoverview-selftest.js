@@ -347,7 +347,7 @@ eq('★ 計画が無いのが最優先（他が揃っていても）',
 
 console.log('\n── 7-2. ボタンの文字 ──');
 eq('ready の文字', v.pushButtonLabel('ready'), 'この内容で送る');
-eq('no_change の文字', v.pushButtonLabel('no_change'), '送るものがありません');
+eq('no_change の文字（第331便で「一致しています」に）', v.pushButtonLabel('no_change'), '一致しています');
 eq('not_confirmed の文字', v.pushButtonLabel('not_confirmed'), 'まだ確かめていません');
 eq('blocked の文字', v.pushButtonLabel('blocked'), 'いまは送れません');
 // ★ 知らない値は送る側に倒さない

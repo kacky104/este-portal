@@ -13,7 +13,7 @@ import { buildGirlCreatePlan } from '@/app/lib/media/girlCreatePlan';
 import { buildCastCreatePlan } from '@/app/lib/media/castCreatePlan';
 import { judgeWriteStall, stallMessage, mediaSlotLabel, type MediaLinkAlert } from '@/lib/mediaLinkStall';
 import { judgeImportStall } from '@/lib/importStall';
-import { isWriteDirection, isLinkMode, hasApprovedOnce } from '@/lib/mediaLinkMode';
+import { isWriteDirection, isLinkMode, hasApprovedOnce, writeSpanStart, type LinkModeChange } from '@/lib/mediaLinkMode';
 import { deriveDiarySource, readDiarySource } from '@/lib/diarySource';
 import { loadCastIds } from '@/lib/mediaCastIds';
 // ★ 第316便: 新人の判定は公開ページと同じ関数を通す（★ 期間の正は newFace.ts の1か所）
@@ -164,6 +164,7 @@ async function syncDiarySource(svc: ReturnType<typeof createServiceClient>, salo
  * ★★ 行を作っても、それだけでは何も送らない。
  *   ★ 送るには毎回の承認（指紋の突き合わせ）が要る（startMediaWorkPush）。
  *   ★ 自動反映（write_auto）は、1回目の承認が通るまで選べない（hasApprovedOnce）。
+ *     ★ 第331便: 「送れた」だけでなく「確かめたら一致していた（変更0件）」も1回目として数える。
  *   → 「ログイン情報を入れた瞬間に勝手に送られる」ことは起きない。
  *
  * ★ 作れなくても保存そのものは成功として返す（鍵は保存できている）。
@@ -767,7 +768,7 @@ async function applyLinkMode(input: {
     if (!hasApprovedOnce(h)) {
       return {
         ok: false,
-        error: 'まず1回、画面で内容をご確認のうえ承認してください。自動にできるのはそのあとです',
+        error: 'まず「出勤を送る」で内容をご確認ください。送るか、いまの内容と一致していることを確かめたあとで自動にできます',
       };
     }
   }
@@ -1236,7 +1237,7 @@ async function readWriteHistory(
   salonId: number,
   provider: string,
   slot: number,
-): Promise<{ switchedToWriteAt: string | null; lastWriteOkAt: string | null }> {
+): Promise<{ switchedToWriteAt: string | null; lastWriteOkAt: string | null; matchedAt: string | null }> {
   const { data } = await svc
     .from('salon_media_audit')
     .select('event, outcome, detail, created_at')
@@ -1249,25 +1250,41 @@ async function readWriteHistory(
   //   ★ write → write_auto の切り替えで【1回目の承認をやり直させない】ため、
   //     直前の書く向きへの切り替えではなく、**書く向きが連続している区間の先頭**を取る。
   //     危ないのは read/none から来たときだけ（§11-3）。向きの中での模様替えは危なくない。
-  //   → 新しい順に見て、書く向き以外の切り替えに当たったら、そこで打ち切る。
-  let switchedToWriteAt: string | null = null;
+  //   ★★★★ 【第331便】判断そのものは writeSpanStart（純粋関数・番人つき）へ移した。
+  //     ★ ここは DB を読んで渡すだけ。★ 24時間以内に戻した「うっかり」は遡る（WRITE_GAP_FORGIVE_HOURS）。
+  const changes: LinkModeChange[] = [];
   let lastWriteOkAt: string | null = null;
-  let leftWrite = false;
   for (const r of data ?? []) {
     const at = String(r.created_at);
     if (r.event === 'write_work' && r.outcome === 'ok') {
       if (lastWriteOkAt === null) lastWriteOkAt = at;   // 新しい順なので最初の1件が最新
       continue;
     }
-    if (r.event !== 'link_mode_changed' || leftWrite) continue;
+    if (r.event !== 'link_mode_changed') continue;
     const mode = (r.detail as { mode?: unknown } | null)?.mode;
-    if (mode === 'write' || mode === 'write_auto') {
-      switchedToWriteAt = at;      // ★ さらに古い書く向きの切り替えがあれば、そちらで上書きされる
-    } else {
-      leftWrite = true;            // ★ ここで書く向きが途切れている。これ以上さかのぼらない
+    changes.push({ at, mode: typeof mode === 'string' ? mode : '' });
+  }
+  const switchedToWriteAt = writeSpanStart(changes);
+
+  // ★★★★ 【第331便】「確かめたら、いまの媒体の内容と一致していた」も1回目として数える。
+  //   ★ 一致している枠は送るボタンが押せない（pushAvailability が no_change）。
+  //     → write_work の成功が永久に生まれず、自動を選べないまま詰む。
+  //   ★★ 数えるのは【変更0件かつ止めた理由も無い】行だけ。★ 止まっている計画は承認にしない。
+  //   ★ media_work_plans は 店舗×媒体×枠 で1件（上書き）。★ 読めなければ null＝これまでどおり。
+  let matchedAt: string | null = null;
+  {
+    const { data: plan } = await svc
+      .from('media_work_plans')
+      .select('created_at, change_count, sendable')
+      .eq('salon_id', salonId).eq('provider', provider).eq('slot', slot)
+      .maybeSingle();
+    const row = plan as { created_at?: unknown; change_count?: unknown; sendable?: unknown } | null;
+    if (row && Number(row.change_count) === 0 && row.sendable === true) {
+      matchedAt = typeof row.created_at === 'string' ? row.created_at : null;
     }
   }
-  return { switchedToWriteAt, lastWriteOkAt };
+
+  return { switchedToWriteAt, lastWriteOkAt, matchedAt };
 }
 
 /**

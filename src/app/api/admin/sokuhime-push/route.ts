@@ -48,10 +48,16 @@ import { isOwnerLiveRow, isCastLiveRow, type ImasuguRow } from '@/lib/imasugu';
 //     ★ 落ち着いたら消す。★ 見ない列を残していることを、ここに書いておく（★ 次に読む人が探せるように）。
 //   ★ 実行前にカッキーさんが確認: 駅ちかを write にしている店舗はラビリンス様だけ（2026-09-13）。
 //
-// crontab（VPS・★ 第327便で10分ごとへ。★ 即セラ 1-59/5・日記 と分を分ける）:
-//   3-59/10 * * * * . /root/import.env; /usr/bin/curl -sS -X POST https://fukues.com/api/admin/sokuhime-push --oauth2-bearer $CRON_SECRET -d apply=true >> /root/import.log 2>&1
-//   ★ 試し打ち（駅ちかを1文字も触らない・記録だけ溜める）に戻すときは apply=true を dryrun=true に差し替える:
-//   3-59/10 * * * * . /root/import.env; /usr/bin/curl -sS -X POST https://fukues.com/api/admin/sokuhime-push --oauth2-bearer $CRON_SECRET -d dryrun=true >> /root/import.log 2>&1
+// crontab（VPS・★ 第327便で10分ごとへ）:
+//   ★★ 2026-09-13 に VPS を見たら、**この行はそもそも入っていなかった**（第215便で入れ忘れ）。
+//     ★ つまり即ヒメの周は、この日まで一度も回っていない。★ 同じ取りこぼしを防ぐため、ここに実物を写しておく。
+//   ★ 分は 8-59/10（8・18・28・38・48・58分）。★ 他の周とぶつからない分を選んだ:
+//       3-59/10 … work-news-auto ／ */10 … announce-auto
+//       */5・1-59/5 … diary-auto-push・sokusera-push・article-auto（★ 8 は5で割り切れないので当たらない）
+//   ★ まず試し打ち（駅ちかを1文字も触らない・記録だけ溜める）:
+//   8-59/10 * * * * . /root/import.env; /usr/bin/curl -sS -X POST https://fukues.com/api/admin/sokuhime-push --oauth2-bearer $CRON_SECRET -d dryrun=true >> /root/import.log 2>&1
+//   ★ 記録が狙いどおりなら dryrun=true を apply=true に差し替える（実弾）:
+//   8-59/10 * * * * . /root/import.env; /usr/bin/curl -sS -X POST https://fukues.com/api/admin/sokuhime-push --oauth2-bearer $CRON_SECRET -d apply=true >> /root/import.log 2>&1
 //   ★ 記録が狙いどおりなら、-d dryrun=true を -d apply=true に差し替える（実弾）。
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';

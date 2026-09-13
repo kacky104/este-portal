@@ -881,7 +881,8 @@ export function pushAvailability(input: {
 export function pushButtonLabel(a: PushAvailability | string): string {
   switch (a) {
     case 'ready': return 'この内容で送る';
-    case 'no_change': return '送るものがありません';
+    // ★ 第331便: 「一致している」ことを言う。★ ここに来た枠は、そのまま自動にできる（hasApprovedOnce）
+    case 'no_change': return '一致しています';
     case 'not_confirmed': return 'まだ確かめていません';
     default: return 'いまは送れません';
   }

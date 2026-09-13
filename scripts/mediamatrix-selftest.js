@@ -31,8 +31,9 @@ eq('★ エスランの出勤は ―ではない（準備中 か ✕）', m.MEDI
 eq('★★ 出勤（自動）は30分以内（media-auto-push の crontab 5,35）', m.MEDIA_MATRIX[0].cells['出勤'].slice(0, 2), ['30分以内', '30分以内']);
 eq('★★ 「フクエスから反映」に「ごと」は無い', m.MATRIX_ROWS.every((r) => m.MEDIA_MATRIX[0].cells[r].every((c) => !c.includes('ごと'))), true);
 eq('★★ エステラブへ出勤は送れない（403・第82便）', m.MEDIA_MATRIX[0].cells['出勤'][2], m.NO);
-eq('★★ 駅ちかの即ヒメは10分以内（sokuhime-push・第327便で5分ごと1人→10分ごと6人）', m.MEDIA_MATRIX[0].cells['即ヒメ／即セラ'][0], '10分以内');
-eq('★★ エステ魂の即セラは5分以内（sokusera-push）', m.MEDIA_MATRIX[0].cells['即ヒメ／即セラ'][1], '5分以内');
+// ★★★ 第330便: 分数を書かない。★ 枠が空いていなければ1周飛ばすので、書いた分数を必ず超える回がある
+eq('★★ 駅ちかの即ヒメは「数分以内」（分数を書かない・第330便）', m.MEDIA_MATRIX[0].cells['即ヒメ／即セラ'][0], '数分以内');
+eq('★★ エステ魂の即セラも「数分以内」（駅ちかと揃える・第330便）', m.MEDIA_MATRIX[0].cells['即ヒメ／即セラ'][1], '数分以内');
 // ★ 第215便: エステ魂の新着情報は ※（サイト自身に自動更新がある）。★ 表のすぐ下の注で言う
 eq('★★ エステ魂の新着情報は ※', m.MEDIA_MATRIX[0].cells['新着情報'][1], m.SEE);
 eq('★★ ※ があるなら表の下に注がある', m.MEDIA_MATRIX.every((s) => !m.MATRIX_ROWS.some((r) => s.cells[r].includes(m.SEE)) || (typeof s.remark === 'string' && s.remark.startsWith('※'))), true);

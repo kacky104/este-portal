@@ -655,17 +655,13 @@ export function WorkSend({ salonId, onToast }: { salonId: number | null; onToast
           ★ SokuhimeSlots.tsx は第324便で消した。 */}
       {!loading && !error && site && site.provider === 'ekichika' && site.direction === 'write' && (
         <AutoNote title="駅ちかの即ヒメ">
+          {/* ★★★ 第329便（2026-09-13・カッキーさんの添削）: 4行を1行にした。
+              ★ 「長いので店舗様は読まない」。★ 読まれない正確さより、読まれる1行を選ぶ。
+              ★★ 「10分ごと」と書かない。★ 「今すぐを押しても10分待たされる」と読まれる
+                （実際は周が10分ごとに回るだけで、押した直後の周で上がる）。★ だから「数分以内」。 */}
           <p className="text-[13.5px] text-slate-500 leading-relaxed">
-            フクエスで「今すぐ」を押した方を、5分ごとに1人ずつ駅ちかの即ヒメにします。
-            <b className="font-bold text-slate-700">この画面での設定は要りません</b>（フクエスから反映にしていれば動きます）。
-          </p>
-          <p className="text-[13px] text-slate-400 leading-relaxed">
-            空いている枠が無いときは送りません（枠の方を勝手に入れ替えません）。
-            45分で消えたら、「今すぐ」が続いているあいだは押し直します。
-            「今すぐ」が終わった方は、フクエスが入れた枠だけ外します。すでに即ヒメの方には触りません。
-          </p>
-          <p className="text-[13px] text-slate-400 leading-relaxed">
-            ベンリーなどで即ヒメを自動にしている場合は、そちらが優先されます。
+            <b className="font-bold text-slate-700">即ヒメ自動設定中。</b>
+            「今すぐ」のセラピストを数分以内に即ヒメにします。
           </p>
         </AutoNote>
       )}
@@ -675,15 +671,14 @@ export function WorkSend({ salonId, onToast }: { salonId: number | null; onToast
             「エステ魂がフクエスから反映で、連携が有効」だけ（src/app/api/admin/sokusera-push）。
           ★★ 駅ちかの即ヒメは「自動にする」を押さないと上がらない。★ 同じ画面に2つの決まりが並ぶので、
             **違うほうを書いておく**（★ カッキーさんが実際に取り違えた）。
-          ★ ONだけ打ってOFFは打たない（★ 60分で向こうが切る）。★ 1周で1人だけ。 */}
+          ★ ONだけ打ってOFFは打たない（★ 60分で向こうが切る）。★ 1周で1人だけ。
+          ★ 駅ちかの即ヒメは第327便で【10分ごと・1周6人まとめて】になったが、即セラは5分ごと1人のまま。 */}
       {!loading && !error && site && site.provider === 'esutama' && site.direction === 'write' && (
         <AutoNote title="エステ魂の即セラ">
+          {/* ★ 第330便: 駅ちかの即ヒメと同じ1行に揃えた（カッキーさん）。★ 周の分数は書かない */}
           <p className="text-[13.5px] text-slate-500 leading-relaxed">
-            フクエスで「今すぐ」を押した方を、5分ごとに1人ずつエステ魂の即セラにします。
-            <b className="font-bold text-slate-700">この画面での設定は要りません</b>（フクエスから反映にしていれば動きます）。
-          </p>
-          <p className="text-[13px] text-slate-400 leading-relaxed">
-            OFFは打ちません（60分でエステ魂側が切ります）。すでに即セラの方には触りません。
+            <b className="font-bold text-slate-700">即セラ自動設定中。</b>
+            「今すぐ」のセラピストを数分以内に即セラにします。
           </p>
         </AutoNote>
       )}
