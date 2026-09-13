@@ -100,7 +100,12 @@ const LIVE_BLINK_STYLE = { '--lk-duration': '3s' } as React.CSSProperties;
  *   ★ 高さは 34px で揃える。★ 幅は 112px を下限にする（★ 「反映なし」と「反映しない」が同じ幅になる）。
  *   ★ 中身は縦横とも中央。★ 色は各所のまま（★ ここは寸法だけを持つ）。
  */
-const ROW_CHIP = 'flex-none inline-flex items-center justify-center text-center text-[13px] font-bold px-3 min-h-[34px] min-w-[112px] border';
+// ★★★★ 第345便（2026-09-13・カッキーさん）: 幅を 112px → 144px に広げた。
+//   ★ 状態の札とボタンは同じ幅で揃える約束だが、「フクエスから反映中」（9文字）が 112px に収まらず、
+//     その行だけ右へずれて、駅ちかとエステ魂で列が揃っていなかった。
+//   ★ 9文字（13px）＋左右の余白（px-3）で約 141px。★ 144px なら、よく出る札とボタンが全部入る。
+//   ★★ min- なので、これより長い名前（全国エステランキングから反映 等）は今までどおり伸びる。
+const ROW_CHIP = 'flex-none inline-flex items-center justify-center text-center text-[13px] font-bold px-3 min-h-[34px] min-w-[144px] border';
 
 const PILL: Record<string, string> = {
   read: 'bg-emerald-50 text-emerald-700 border-emerald-200',
@@ -424,12 +429,48 @@ export function MediaHome({ salonId, onToast }: {
               const all = s.canSwitch
                 ? switchChoices(s.direction as SiteDirection, s.label, s.provider, elsewhere, writingElsewhere)
                 : [];
-              // ★★★ 第192便: 読める媒体（駅ちか）の行には【個別の「反映しない」】だけを出す。
+              // ★★★ 第192便: 読める媒体（駅ちか）の行には【個別の「反映しない」】だけを出していた。
               //   ★ read / write へは上の3つの設定（一括ボタン・小リンク）から入る。★ 同じボタンを2か所に出さない。
-              //   ★ 書くだけの媒体は従来どおり（write / none）。★ 行き先が1つしかないので迷わない（第111便）。
-              const choices = canReadProvider(s.provider) ? all.filter((c) => c.mode === 'none') : all;
+              // ★★★★ 【第347便】（2026-09-13・カッキーさん）: **どの媒体も「反映しない」だけ**に揃えた。
+              //   ★ それまで書くだけの媒体（エステ魂）だけ行に「フクエスから反映」が出ていて、駅ちかの行と読み方が違った。
+              //     ★ 第346便で列を意味の順に揃えたら、その差が悪目立ちした（★ 駅ちかだけ左の列が空）。
+              //   ★★ これで画面の作りが1つに揃う:
+              //     上の大きいボタン2つ … 全サイトまとめての向き
+              //     上の小リンク       … 駅ちかから反映（★ 駅ちかにしかない道）
+              //     行                 … その枠だけ止める
+              //   ★★★ 第111便の「止める道は必ず残す」は守っている（★ 'none' は出し続ける）。
+              //   ★ 失うのは「1つの媒体だけを1手で write にする」道。★ 大きいボタン → その枠を「反映しない」の2手になる。
+              //     ★ 大きいボタンで write にしても【自動ではない】（毎回承認）ので、途中で勝手に反映されることはない。
+              const choices = all.filter((c) => c.mode === 'none');
               // ★★★ 禁止の組み合わせが【既にできている】か（第190便）。★ write の行で、ほかが正本のとき
               const dbl = s.direction === 'write' ? doubleWriteNote(s.label, readingElsewhereLabel(others, me)) : null;
+
+              // ★★★★ 【第346便】（2026-09-13・カッキーさん）: 右側の並びを【意味の順】に固定した。
+              //   ★ それまでは「いまの状態の札 → 選ぶボタン」の順だったので、行によって同じ列に
+              //     違う意味のものが来ていた:
+              //       駅ちか   … [フクエスから反映中]（状態） [反映しない]（ボタン）
+              //       エステ魂 … [反映なし]（状態）           [フクエスから反映]（ボタン）
+              //     ★ 左の列が「フクエスから反映」だったり「反映なし」だったりして、目が迷う。
+              //   ★★ 直し方: 列を read → write → none の順に固定し、その列が
+              //     【いまの状態なら札】【選べるならボタン】【どちらでもなければ空】にする。
+              //       駅ちか   … [フクエスから反映中]（状態） [反映しない]（ボタン）
+              //       エステ魂 … [フクエスから反映]（ボタン） [反映なし]（状態）
+              //     ★ どの行でも「フクエスから反映」は同じ列、「反映しない」は同じ列に来る。
+              //   ★ 未設定など、どの列にも状態が入らないときは、これまでどおり先頭に札を出す。
+              const dirMode: 'read' | 'write' | 'none' | null =
+                s.direction === 'read' ? 'read'
+                : s.direction === 'write' ? 'write'
+                : s.direction === 'off' ? 'none'
+                : null;
+              const cells = (['read', 'write', 'none'] as const)
+                .map((m) => {
+                  if (dirMode === m) return { kind: 'state' as const, mode: m };
+                  const c = choices.find((x) => x.mode === m);
+                  return c ? { kind: 'choice' as const, mode: m, choice: c } : null;
+                })
+                .filter((x): x is { kind: 'state'; mode: 'read' | 'write' | 'none' } | { kind: 'choice'; mode: 'read' | 'write' | 'none'; choice: SwitchChoice } => x !== null);
+              // ★ 状態の札がどの列にも入らなかったか（未設定など）。★ そのときだけ先頭に出す
+              const stateShown = cells.some((c) => c.kind === 'state');
 
               return (
                 <div key={s.provider + '#' + s.slot} className="py-3">
@@ -476,33 +517,40 @@ export function MediaHome({ salonId, onToast }: {
                         {CONSENT_RECHECK_BADGE}
                       </span>
                     )}
-                    <span className={`${ROW_CHIP} ${PILL[s.direction] ?? PILL.unset}`}>
-                      {s.statusLabel}
-                    </span>
-                    {s.canSwitch && s.autoOn && (
-                      <Link
-                        href="/mypage/media/work"
-                        className={`${ROW_CHIP} border-slate-200 text-slate-500 hover:border-slate-300`}
-                      >
-                        自動をやめる
-                      </Link>
+                    {/* ★ 第346便: 状態がどの列にも入らないとき（未設定など）だけ、ここに札を出す */}
+                    {!stateShown && (
+                      <span className={`${ROW_CHIP} ${PILL[s.direction] ?? PILL.unset}`}>
+                        {s.statusLabel}
+                      </span>
                     )}
-                    {/* ★★★ サイトごとの選ぶボタン（第111便）。
+                    {/* ★★★★ 第344便（2026-09-13・カッキーさん）: ホームの行から「自動をやめる」を外した。
+                        ★ 第343便で「反映しない」と「駅ちかから反映にする ›」が自動中でも出るようになり、
+                          この行にボタンが3つ並んで、どれを押せばよいのか分からなくなっていた。
+                        ★★ 自動の入り切りの置き場は【出勤を更新】の画面（第65便・設計メモ §206）。
+                          ★ そこに「出勤 自動更新中」＋「自動をやめる」がある（第342便）。★ 2か所に置かない。 */}
+                    {/* ★★★ サイトごとの列（第111便／第346便で意味の順に固定）。
                         ★ 名前と状態の右に小さく置く。★ これが無いと、write にした店に
                           【止める道が画面から消える】（第111便で見つかった穴）。 */}
-                    {choices.length > 0 && (
+                    {cells.length > 0 && (
                       <span className="flex-none flex flex-wrap gap-2">
-                        {choices.map((c) => (
+                        {cells.map((cell) => (cell.kind === 'state' ? (
+                          <span
+                            key={'state-' + cell.mode}
+                            className={`${ROW_CHIP} ${PILL[s.direction] ?? PILL.unset}`}
+                          >
+                            {s.statusLabel}
+                          </span>
+                        ) : (
                           <button
-                            key={c.mode}
+                            key={cell.choice.mode}
                             type="button"
-                            onClick={() => setAsk({ site: s, choice: c })}
+                            onClick={() => setAsk({ site: s, choice: cell.choice })}
                             disabled={switching !== '' || bulking}
                             className={`${ROW_CHIP} border-slate-300 bg-white text-slate-600 hover:bg-slate-50 hover:border-slate-400 transition-colors disabled:opacity-40`}
                           >
-                            {switching === s.provider + '#' + s.slot ? '変えています…' : c.label}
+                            {switching === s.provider + '#' + s.slot ? '変えています…' : cell.choice.label}
                           </button>
-                        ))}
+                        )))}
                       </span>
                     )}
                     {/* ★★ 未設定のときは「変える」を出さない。★ 変える先が決まっていない
