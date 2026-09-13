@@ -34,10 +34,6 @@ export const metadata: Metadata = {
   alternates: { canonical: '/jobs' },
 };
 
-// マッチング導線ブロックの訴求チップ。文言は「無料・未経験可・条件で探せる」の3点に絞る
-// （増やすと1行に収まらず折り返してブロックが縦に伸びるため）。
-const MATCHING_POINTS = ['相談無料', '未経験OK', 'エリア・条件から'] as const;
-
 export default async function JobsPage() {
   const [jobs, pickupJobs, columnArticles, workNews] = await Promise.all([
     fetchActiveJobs(),
@@ -82,59 +78,36 @@ export default async function JobsPage() {
       </div>
 
       {/* お仕事マッチングへの導線（/jobs/matching）。希望を入力→運営が合うお店を無料で紹介・斡旋する入口。
-          求人一覧を自分で探す前に「運営に探してもらう」選択肢を最上部で提示する。
-          直上のヒーローに埋もれないよう華やかな見た目にしている：
-            ・多色グラデ（emerald→lime→yellow）＋白のぼかし円で奥行き
-            ・.hero-shine-loop（ヒーローと共用の白帯スイープ）。直上のヒーローと同時に光ると機械的に見えるため
-              --hero-shine-duration で周期を6sにずらす（ヒーローは既定4s）。reduced-motion では globals.css 側で停止。
-            ・装飾は aria-hidden／pointer-events-none。読み上げとタップ判定はリンク本体のまま。 */}
+          ★ 第351便（2026-09-13・カッキーさんの指示）: コードで組んだグラデのカードをやめ、
+            画像バナー（PC／SP 出し分け）に差し替えた。文言（公式マッチング・相談無料・未経験OK・
+            条件から探せる・無料で相談）は画像の中にあるので、alt に同じ言葉を入れて読み上げと検索に残す。
+          ★ 画像は角丸を透明にした WebP（public/matching-banner-pc.webp・-sp.webp）。
+            角の外側が透けるので、背景色が変わっても白い角が浮かない。
+          ★ .hero-shine-loop（白帯スイープ）は残す。直上のヒーローと同時に光らないよう周期は 6s のまま。
+          ★ 出し分けの境目は md（ヒーローと同じ）。 */}
       <Link
         href="/jobs/matching"
-        className="hero-shine-loop group relative block mb-6 overflow-hidden rounded-3xl px-4 py-5 sm:px-6 sm:py-6 ring-1 ring-white/50 transition-transform duration-300 hover:-translate-y-1"
-        style={{
-          background:
-            'linear-gradient(115deg,#059669 0%,#10B981 30%,#4ADE80 55%,#A3E635 80%,#FDE047 100%)',
-          boxShadow: '0 10px 25px -5px rgba(16,185,129,0.45)',
-          '--hero-shine-duration': '6s',
-        } as CSSProperties}
+        className="hero-shine-loop group relative block mb-6 overflow-hidden rounded-3xl transition-transform duration-300 hover:-translate-y-1"
+        style={{ '--hero-shine-duration': '6s' } as CSSProperties}
       >
-        {/* 背景装飾（白のぼかし円）。テキストより背面・クリックは透過。 */}
-        <span aria-hidden className="pointer-events-none absolute -top-10 -right-8 h-32 w-32 rounded-full bg-white/25 blur-2xl" />
-        <span aria-hidden className="pointer-events-none absolute -bottom-14 left-6 h-36 w-36 rounded-full bg-white/20 blur-2xl" />
-
-        {/* z-10＝白帯スイープ（::after は z-5）より前面。光がテキストの裏を通る。 */}
-        <div className="relative z-10">
-          <span className="inline-flex items-center gap-1 rounded-full bg-white/25 px-2.5 py-1 text-[10px] sm:text-xs font-bold text-white ring-1 ring-white/40 backdrop-blur-sm">
-            🐾 フクエスワーク公式マッチング
-          </span>
-
-          {/* SPは縦積み（見出しが2行に折れず、CTAを横幅いっぱいの押しやすいボタンにできる）。
-              sm以上は横並びでCTAを右端に置く。 */}
-          <div className="mt-2.5 flex flex-col items-stretch gap-3 sm:flex-row sm:items-center sm:gap-5">
-            <div className="min-w-0 flex-1">
-              <p className="text-white font-black text-lg sm:text-2xl leading-tight tracking-tight drop-shadow-[0_2px_4px_rgba(4,90,70,0.35)]">
-                あなたとお店をマッチング！<span aria-hidden>✨</span>
-              </p>
-              <p className="mt-1.5 text-white/95 text-xs sm:text-sm font-medium leading-relaxed">
-                掲載店舗から得た情報とあなたのご希望の条件で、ピッタリなお店選びをお手伝いします！
-              </p>
-              <ul className="mt-2.5 flex flex-wrap gap-1.5">
-                {MATCHING_POINTS.map((t) => (
-                  <li
-                    key={t}
-                    className="rounded-full bg-white/90 px-2.5 py-0.5 text-[10px] sm:text-[11px] font-bold text-emerald-700"
-                  >
-                    {t}
-                  </li>
-                ))}
-              </ul>
-            </div>
-            {/* CTA。SPは幅いっぱい（親指で押しやすい）、sm以上は右端で内容幅。 */}
-            <span className="block w-full flex-shrink-0 rounded-full bg-white px-4 py-3 text-center text-sm font-black text-emerald-700 shadow-md transition-all group-hover:bg-emerald-50 group-hover:shadow-lg whitespace-nowrap sm:w-auto sm:self-center sm:px-5 sm:py-3">
-              無料で相談 →
-            </span>
-          </div>
-        </div>
+        {/* PC */}
+        <Image
+          src="/matching-banner-pc.webp"
+          alt="フクエスワーク公式マッチング｜あなたとお店をマッチング！希望のエリアや条件から、あなたにぴったりのお店探しをお手伝いします。相談無料・未経験OK・条件から探せる。無料で相談"
+          width={2172}
+          height={724}
+          sizes="(max-width: 768px) 100vw, 768px"
+          className="hidden md:block w-full h-auto"
+        />
+        {/* SP */}
+        <Image
+          src="/matching-banner-sp.webp"
+          alt="フクエスワーク公式マッチング｜あなたとお店をマッチング！希望のエリアや条件から、あなたにぴったりのお店探しをお手伝いします。相談無料・未経験OK・条件から探せる。無料で相談"
+          width={1495}
+          height={1052}
+          sizes="100vw"
+          className="md:hidden w-full h-auto"
+        />
       </Link>
 
       {/* ★★ 店舗新着情報（第275便・2026-09-11・カッキーさんの指示）。
