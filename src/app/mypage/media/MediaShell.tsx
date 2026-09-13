@@ -36,7 +36,9 @@ const NAV: Array<{ key: MediaNavKey; label: string; href: string; group?: string
   // ★ セラピスト設定は【基本の情報】なので、送る作業より上に置く（カッキーさん・2026-08-30）
   // ★ 第298便: 名前を「セラピスト一覧」→「セラピスト設定」に（カッキーさんの添削）
   { key: 'roster', label: 'セラピスト設定',    href: '/mypage/media/therapists' },
-  { key: 'work',   label: '出勤を送る',        href: '/mypage/media/work',       group: '送る・確かめる' },
+  // ★★★ 第333便（2026-09-13・カッキーさん）: 「送る」→「更新」。
+  //   ★ 「送る」はこちら側の言い方。★ 店舗様から見れば、していることは【サイトの更新】。
+  { key: 'work',   label: '出勤を更新',        href: '/mypage/media/work',       group: '更新・確かめる' },
   { key: 'diary',  label: '写メ日記の投稿先',   href: '/mypage/media/diary' },
   // ★ 新着情報（第158便）。★ 「送る」仲間なのでここに置く。
   //   ★★ 送る前に【枠の状態】を見せる画面でもある（2026-09-05 の実弾で、送ってから

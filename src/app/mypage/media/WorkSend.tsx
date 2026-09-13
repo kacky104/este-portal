@@ -14,6 +14,7 @@ import {
 } from '@/app/actions/mediaCredentials';
 import { pushAvailability, pushButtonLabel, bulkDoneText, WORK_FIRST_APPROVAL_NOTE } from '@/lib/mediaOverview';
 import { siteMark } from '@/lib/mediaSites';
+import { AUTO_PUSH_INTERVAL_MIN } from '@/lib/mediaLinkMode';
 
 // 出勤を送る（第57便・㉞ その2）。
 //
@@ -160,8 +161,8 @@ export function WorkSend({ salonId, onToast }: { salonId: number | null; onToast
     if (!res.ok) { onToast(res.error); return; }
     await load();
     onToast(toAuto
-      ? '自動にしました。30分ごとに、変わったところだけを送ります'
-      : '自動をやめました。これからは毎回この画面で送ります');
+      ? '自動にしました。30分ごとに、変わったところだけを更新します'
+      : '自動をやめました。これからは毎回この画面で更新します');
   };
 
   /**
@@ -206,7 +207,7 @@ export function WorkSend({ salonId, onToast }: { salonId: number | null; onToast
           if (res.data.createdAt === waiting[k]) continue;   // ★ まだ前の計画のまま
           setPlans((p) => ({ ...p, [k]: res.data }));
           setWaiting((w) => { const n = { ...w }; delete n[k]; return n; });
-          onToast('内容ができました。送る前にご確認ください（まだ送っていません）');
+          onToast('内容ができました。更新の前にご確認ください（まだ更新していません）');
         }
       })();
       if (pollCount.current >= POLL_MAX) {
@@ -230,7 +231,7 @@ export function WorkSend({ salonId, onToast }: { salonId: number | null; onToast
       setWaiting((w) => ({ ...w, [k]: plans[k]?.createdAt ?? '' }));
       setGaveUp((g) => { const n = new Set(g); n.delete(k); return n; });
       setTick(0);   // ★ 経過時間は押した瞬間から（effect の中で触らない・lint の作法）
-      onToast('内容を確かめています。できあがるとこの画面に出ます（まだ送っていません）');
+      onToast('内容を確かめています。できあがるとこの画面に出ます（まだ更新していません）');
     } finally {
       setBusy(null);
     }
@@ -247,7 +248,7 @@ export function WorkSend({ salonId, onToast }: { salonId: number | null; onToast
         salonId, provider: s.provider, slot: s.slot, fingerprint: plan.fingerprint,
       });
       if (!res.ok) { onToast(res.error); return; }
-      onToast('送りました。結果は「連携の記録」に出ます');
+      onToast('更新しました。結果は「連携の記録」に出ます');
       setConfirmPush(null);
       await load();
     } finally {
@@ -281,7 +282,7 @@ export function WorkSend({ salonId, onToast }: { salonId: number | null; onToast
         /* ★ 枠が1つも無い＝ログイン情報がまだ無い。★ ホームと同じ言い方（第119便） */
         <div className="border border-sky-200 bg-sky-50 px-4 py-3">
           <p className="text-[14px] leading-relaxed text-slate-600">
-            <b className="font-bold text-sky-700">送れるサイトがありません。</b>{' '}
+            <b className="font-bold text-sky-700">更新できるサイトがありません。</b>{' '}
             ログイン情報を登録すると始められます。
           </p>
           <Link href="/mypage/media/login" className="mt-2 inline-block text-[14px] font-bold text-sky-700 underline">
@@ -330,15 +331,15 @@ export function WorkSend({ salonId, onToast }: { salonId: number | null; onToast
       {!loading && !error && site && site.direction !== 'write' && (
         <div className="border border-sky-200 bg-sky-50 px-4 py-3">
           <p className="text-[14px] leading-relaxed text-slate-600">
-            <b className="font-bold text-sky-700">{site.label}へは、いま送れません。</b>{' '}
+            <b className="font-bold text-sky-700">{site.label}は、いま更新できません。</b>{' '}
             {site.direction === 'read'
               // ★ 第319便: 「変えると◯◯からの反映は止まります。」は書かない（押したときの問いが言う）
-              ? `いまは${site.label}から反映しています。送るには「フクエスから反映」に変えてください。`
+              ? `いまは${site.label}から反映しています。更新するには「フクエスから反映」に変えてください。`
               : site.direction === 'off'
-                ? '「反映しない」を選んでいます。送るには「フクエスから反映」に変えてください。'
+                ? '「反映しない」を選んでいます。更新するには「フクエスから反映」に変えてください。'
                 // ★ 鍵はあるが向きが決まっていない枠と、鍵がまだ無い枠を書き分ける（第87便・§223 の作法）
                 : site.hasCredential
-                  ? 'まだ反映の向きが決まっていません。「フクエスから反映」にすると送れます。'
+                  ? 'まだ反映の向きが決まっていません。「フクエスから反映」にすると更新できます。'
                   : 'ログイン情報を登録すると始められます。'}
           </p>
           {site.hasCredential ? (
@@ -369,8 +370,12 @@ export function WorkSend({ salonId, onToast }: { salonId: number | null; onToast
 
       {/* ★★★ 第208便: 「フクエスから反映」にしただけでは自動にならない、をこの画面の入口で言う。
           ★ 文は mediaOverview.WORK_FIRST_APPROVAL_NOTE（ホームの一括の確認文と同じ）。★ 2か所でずらさない。
-          ★★ 第322便: すでに自動になっている枠には出さない（★ もう済んだ話を毎回読ませない）。 */}
-      {!loading && !error && site && site.direction === 'write' && !site.autoOn && (
+          ★★ 第322便: すでに自動になっている枠には出さない（★ もう済んだ話を毎回読ませない）。
+          ★★★★ 第332便（2026-09-13・カッキーさん）: **まだ自動にできない枠にだけ**出す。
+            ★ もう自動にできる枠にも出し続けていて、読む必要のない文が画面のいちばん上を占めていた。
+            ★ 帯が出ている＝「まだやることがある」の合図にする。★ そのほうが読まれる。 */}
+      {!loading && !error && site && site.direction === 'write' && !site.autoOn
+        && !autoEligible.has(keyOf(site.provider, site.slot)) && (
         <p className="text-[13.5px] text-slate-500 leading-relaxed border border-slate-200 bg-slate-50 px-3 py-2">
           {WORK_FIRST_APPROVAL_NOTE}
         </p>
@@ -388,7 +393,7 @@ export function WorkSend({ salonId, onToast }: { salonId: number | null; onToast
         return (
           <div key={k} className="bg-white border border-slate-200 shadow-[0_1px_2px_rgba(31,35,51,0.05)] p-5 space-y-3">
             <div className="flex items-baseline justify-between gap-2 flex-wrap">
-              <h3 className="text-[16px] font-bold text-slate-700">{s.label}へ送る内容</h3>
+              <h3 className="text-[16px] font-bold text-slate-700">{s.label}を更新する内容</h3>
               {plan && <span className="text-[13px] text-slate-400">{fmt(plan.createdAt)} に確認</span>}
             </div>
 
@@ -397,7 +402,7 @@ export function WorkSend({ salonId, onToast }: { salonId: number | null; onToast
                   下の文が同じことを言うので二度言わない（カッキーさんの添削・2026-09-07） */}
             {plan && !isWaiting && !gaveUp.has(k) && (
               <p className="text-[13px] font-bold text-indigo-600">
-                これは「送ったらこうなる」という内容です。まだ送っていません。
+                これは「更新するとこうなる」という内容です。まだ更新していません。
               </p>
             )}
 
@@ -436,7 +441,7 @@ export function WorkSend({ salonId, onToast }: { salonId: number | null; onToast
               <>
                 {/* ★ 第210便: 1文に。★ 「まだ送りません」はここで言う（上の藍色の1行は確かめたあとにだけ出る） */}
                 <p className="text-[14px] text-slate-500">
-                  「内容を確かめる」を押すと、送ったらどうなるかをここに出します（まだ送りません）。
+                  「内容を確かめる」を押すと、更新するとどうなるかをここに出します（まだ更新しません）。
                 </p>
                 <div className="flex justify-end">
                   <button
@@ -459,13 +464,13 @@ export function WorkSend({ salonId, onToast }: { salonId: number | null; onToast
                   <>
                     <dl className="grid grid-cols-3 gap-px bg-slate-100 border border-slate-100 overflow-hidden">
                       <div className="bg-white px-3 py-2.5">
-                        <dt className="text-[12px] font-bold text-slate-400">送る相手</dt>
+                        <dt className="text-[12px] font-bold text-slate-400">更新する人</dt>
                         <dd className="text-[20px] font-black text-slate-800 tabular-nums">
                           {plan.targets}<span className="text-[13px] font-bold text-slate-400 ml-0.5">名</span>
                         </dd>
                       </div>
                       <div className="bg-white px-3 py-2.5">
-                        <dt className="text-[12px] font-bold text-slate-400">送る範囲</dt>
+                        <dt className="text-[12px] font-bold text-slate-400">更新する範囲</dt>
                         <dd className="text-[20px] font-black text-slate-800 tabular-nums">
                           {plan.dateLabels.length || 7}<span className="text-[13px] font-bold text-slate-400 ml-0.5">日ぶん</span>
                         </dd>
@@ -479,7 +484,7 @@ export function WorkSend({ salonId, onToast }: { salonId: number | null; onToast
                     </dl>
                     {/* ★★ 選ばせない理由を、その場に書く。★ 「選べないのか」で終わらせない。★ 第210便で短く */}
                     <p className="text-[13px] text-slate-400 leading-relaxed">
-                      フクエスの出勤がそのまま{s.label}に載ります。送りたくない方は、先にフクエスの出勤を直してください。
+                      フクエスの出勤がそのまま{s.label}に載ります。更新したくない方は、先にフクエスの出勤を直してください。
                     </p>
                   </>
                 )}
@@ -521,7 +526,7 @@ export function WorkSend({ salonId, onToast }: { salonId: number | null; onToast
                             <th className="font-medium py-1 pr-3 whitespace-nowrap">セラピスト</th>
                             <th className="font-medium py-1 pr-3 whitespace-nowrap">日付</th>
                             <th className="font-medium py-1 pr-3 whitespace-nowrap">いまの{s.label}</th>
-                            <th className="font-medium py-1 whitespace-nowrap">送ったあと</th>
+                            <th className="font-medium py-1 whitespace-nowrap">更新後</th>
                           </tr>
                         </thead>
                         <tbody>
@@ -567,7 +572,7 @@ export function WorkSend({ salonId, onToast }: { salonId: number | null; onToast
                         disabled={isBusy}
                         className="px-4 py-2 bg-gradient-to-r from-indigo-500 to-indigo-700 text-white text-[14px] font-bold shadow-sm disabled:opacity-50"
                       >
-                        {isBusy ? '送っています…' : 'この内容で送る（確定）'}
+                        {isBusy ? '更新しています…' : 'この内容で更新（確定）'}
                       </button>
                     </>
                   ) : (() => {
@@ -598,7 +603,7 @@ export function WorkSend({ salonId, onToast }: { salonId: number | null; onToast
 
                 {/* ★ 第210便で短く（指紋の突き合わせ・第46便の説明） */}
                 <p className="text-[13px] text-slate-400 text-right leading-relaxed">
-                  送る直前にもう一度確かめ、内容が変わっていたら送らずに止まります。
+                  更新の直前にもう一度確かめ、内容が変わっていたら更新せずに止まります。
                 </p>
               </>
             )}
@@ -612,10 +617,10 @@ export function WorkSend({ salonId, onToast }: { salonId: number | null; onToast
               <div className="border-t border-slate-100 pt-3 space-y-1.5">
                 {/* ★ 第210便: 「30分ごと・変わったところだけ」を言う（周期は media-auto-push の crontab・§57） */}
                 <p className="text-[14px] font-bold text-indigo-700">
-                  いまは自動で送っています
+                  いまは自動で更新しています
                 </p>
                 <p className="text-[13px] text-slate-400 leading-relaxed">
-                  30分ごとに、変わったところだけを承認なしで{s.label}へ送ります。送れないときは止めて、ここに出します。
+                  30分ごとに、変わったところだけを承認なしで{s.label}を更新します。更新できないときは止めて、ここに出します。
                 </p>
                 <button
                   onClick={() => onSwitchAuto(s, false)}
@@ -628,9 +633,11 @@ export function WorkSend({ salonId, onToast }: { salonId: number | null; onToast
               </div>
             ) : autoEligible.has(k) ? (
               <div className="border-t border-slate-100 pt-3 space-y-1.5">
-                {/* ★ 第210便で短く。★ WORK_FIRST_APPROVAL_NOTE（1回送ったあとは自動にできる）の続き */}
+                {/* ★ 第210便で短く。★ WORK_FIRST_APPROVAL_NOTE の続き。
+                    ★★ 第332便: 「1回送ったので」を落とした。★ 第331便で【一致を確かめただけ】でもここに来る。
+                    ★ 分数は AUTO_PUSH_INTERVAL_MIN から出す（★ 周を変えたときに文言だけ古くならない）。 */}
                 <p className="text-[13px] text-slate-400 leading-relaxed">
-                  1回送ったので、これからは自動にできます。自動にすると30分ごとに、変わったところだけを承認なしで送ります。
+                  これで自動にできます。変わったところを{AUTO_PUSH_INTERVAL_MIN}分以内に反映します。
                 </p>
                 <button
                   onClick={() => onSwitchAuto(s, true)}

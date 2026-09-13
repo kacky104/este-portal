@@ -618,8 +618,16 @@ export function bulkPlan(sites: ReadonlyArray<BulkSite>, to: BulkTarget): BulkPl
  *   ★ write は毎回承認。自動（write_auto）は【1回承認が通った枠だけ】、出勤を送る画面で入れる（§54）。
  *   ★ この段取りがホームにも出勤を送るにも書かれていなかった。★ 2か所で同じ文を使う（ずらさない）。
  */
+/**
+ * ★★★★ 【第332便】（2026-09-13・カッキーさん）: 「最初の1回」をやめた。
+ *   ★ 実際は【フクエスから反映に切り替えるたび】で、一生に1回ではない（mediaLinkMode.writeSpanStart）。
+ *   ★★ 第331便で【一致していれば送らなくても自動にできる】ようになったので、
+ *     「1回送ったあとは」だけだと、一致していて送れない店舗は詰んでいると読めてしまう。
+ *   ★ 出しどころは2つ（出勤を更新 の帯／「フクエスから反映」に切り替える確認）。★ 2か所でずらさない。
+ *   ★★★★ 第333便: 「送る」→「更新」（カッキーさん）。★ 店舗様から見れば、していることはサイトの更新。
+ */
 export const WORK_FIRST_APPROVAL_NOTE =
-  '最初の1回は「出勤を送る」で内容を確かめてから送ってください。1回送ったあとは、同じ画面で自動にできます。';
+  'まず「出勤を更新」で内容をご確認ください。更新するか、いまの内容と一致していれば、そのあと自動にできます。';
 
 /** ★ 一括ボタンに書く文字（★ 行き先の状態を名前にする・第90便の作法）。 */
 export function bulkLabel(to: BulkTarget): { label: string; sub: string } {
@@ -876,15 +884,15 @@ export function pushAvailability(input: {
 
 /**
  * ボタンに出す文字。★ 押せないときは、押せない理由が文字になっている。
- * ★ 知らない値は「いまは送れません」に落とす（送る側に倒さない）。
+ * ★ 知らない値は「いまは更新できません」に落とす（更新する側に倒さない）。
  */
 export function pushButtonLabel(a: PushAvailability | string): string {
   switch (a) {
-    case 'ready': return 'この内容で送る';
+    case 'ready': return 'この内容で更新';
     // ★ 第331便: 「一致している」ことを言う。★ ここに来た枠は、そのまま自動にできる（hasApprovedOnce）
     case 'no_change': return '一致しています';
     case 'not_confirmed': return 'まだ確かめていません';
-    default: return 'いまは送れません';
+    default: return 'いまは更新できません';
   }
 }
 

@@ -346,15 +346,15 @@ eq('★ 計画が無いのが最優先（他が揃っていても）',
    av({ hasPlan: false, sendable: false, changeCount: 0 }), 'not_confirmed');
 
 console.log('\n── 7-2. ボタンの文字 ──');
-eq('ready の文字', v.pushButtonLabel('ready'), 'この内容で送る');
+eq('ready の文字（第333便で「送る」→「更新」）', v.pushButtonLabel('ready'), 'この内容で更新');
 eq('no_change の文字（第331便で「一致しています」に）', v.pushButtonLabel('no_change'), '一致しています');
 eq('not_confirmed の文字', v.pushButtonLabel('not_confirmed'), 'まだ確かめていません');
-eq('blocked の文字', v.pushButtonLabel('blocked'), 'いまは送れません');
+eq('blocked の文字', v.pushButtonLabel('blocked'), 'いまは更新できません');
 // ★ 知らない値は送る側に倒さない
-eq('★ 知らない値は「いまは送れません」', v.pushButtonLabel('なにか'), 'いまは送れません');
+eq('★ 知らない値は「いまは更新できません」', v.pushButtonLabel('なにか'), 'いまは更新できません');
 // ★★ 押せる文字は ready のときだけ
 eq('★★ ready 以外に「送る」と書かない',
-   ['no_change', 'not_confirmed', 'blocked'].some((a) => v.pushButtonLabel(a) === 'この内容で送る'), false);
+   ['no_change', 'not_confirmed', 'blocked'].some((a) => v.pushButtonLabel(a) === 'この内容で更新'), false);
 // ★ 店舗が読む文言。内部名が混ざっていないこと
 eq('★ 文字に内部名が混ざらない',
    ['ready', 'no_change', 'not_confirmed', 'blocked'].some((a) => /[a-z_]/.test(v.pushButtonLabel(a))), false);
@@ -777,7 +777,7 @@ console.log('\n── ★★★ 第192便: ホームを「3つの設定」にす
   eq('★ write の本文: 一括では自動にしない（「自動にします」と書かない）', v.bulkAskText(pW).body.includes('自動にします'), false);
   eq('★★ 第205便: write の本文は写メ日記もフクエスで書いたものを送ると言う', v.bulkAskText(pW).body.includes('写メ日記もフクエスで書いたものを送ります'), true);
   eq('★★ 第208便: write の本文は「最初の1回は確かめてから送る／そのあと自動にできる」と言う', v.bulkAskText(pW).body.includes(v.WORK_FIRST_APPROVAL_NOTE), true);
-  eq('★ 第208便: その文は「出勤を送る」（画面の名前）と「自動」を含む', /出勤を送る/.test(v.WORK_FIRST_APPROVAL_NOTE) && /自動/.test(v.WORK_FIRST_APPROVAL_NOTE), true);
+  eq('★ 第333便: その文は「出勤を更新」（画面の名前）と「自動」を含む', /出勤を更新/.test(v.WORK_FIRST_APPROVAL_NOTE) && /自動/.test(v.WORK_FIRST_APPROVAL_NOTE), true);
   const pW2 = v.bulkPlan([EK({ direction: 'off' }), S({ direction: 'off' })], 'write');
   eq('★ 駅ちかが read でなければ「取り込みは止まります」と書かない（止まらないものを止めると書かない）',
      v.bulkAskText(pW2).body.includes('取り込み'), false);
