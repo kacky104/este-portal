@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
-import { getMediaSokuhime, startMediaSokuhimeRead, getSokuhimeCandidates, startMediaSokuhimePush, getSokuhimeAuto, setSokuhimeAuto } from '@/app/actions/mediaCredentials';
+import { getMediaSokuhime, startMediaSokuhimeRead, getSokuhimeCandidates, startMediaSokuhimePush } from '@/app/actions/mediaCredentials';
 import type { SokuhimeSnapshotView } from '@/lib/ekichikaSokuhimeParse';
 import { sokuhimeSummaryLabel } from '@/lib/ekichikaSokuhimeParse';
 
@@ -43,17 +43,14 @@ export function SokuhimeSlots({ salonId, hasCredential, isWrite, onToast }: {
   const [reading, setReading] = useState(false);
   const [busyId, setBusyId] = useState<number | null>(null);
   const [confirm, setConfirm] = useState<Candidate | null>(null);
-  // ★ 第215便: 即ヒメの自動（5分ごとの周）。★ 出勤の自動とは別のスイッチ
-  const [auto, setAuto] = useState<{ auto: boolean; canAuto: boolean; why: string | null } | null>(null);
-  const [switching, setSwitching] = useState(false);
 
   const load = useCallback(async () => {
     // ★ 第318便: 出さない場面では読みにも行かない（★ 描かない箱のために問い合わせを増やさない）
     if (salonId == null || !hasCredential || !isWrite) return;
-    const [r, c, a] = await Promise.all([getMediaSokuhime({ salonId }), getSokuhimeCandidates({ salonId }), getSokuhimeAuto({ salonId })]);
+    // ★ 第323便: 自動の入切が無くなったので、その状態も読まない（★ 見ないものを問い合わせない）
+    const [r, c] = await Promise.all([getMediaSokuhime({ salonId }), getSokuhimeCandidates({ salonId })]);
     if (r.ok) setSnap(r.data);
     if (c.ok) setCands(c.data);
-    if (a.ok) setAuto(a.data);
     setLoading(false);
   }, [salonId, hasCredential, isWrite]);
 
@@ -73,20 +70,6 @@ export function SokuhimeSlots({ salonId, hasCredential, isWrite, onToast }: {
   };
 
   const nowUnix = Math.floor(Date.now() / 1000);
-
-  // ★ 第215便: 自動の入切。★ 出勤の「自動にする／自動をやめる」と同じ言葉・同じ形
-  const onSwitchAuto = async (on: boolean) => {
-    if (salonId == null) return;
-    setSwitching(true);
-    try {
-      const r = await setSokuhimeAuto({ salonId, on });
-      if (!r.ok) { onToast(r.error); return; }
-      onToast(on
-        ? '即ヒメを自動にしました。5分ごとに、いま「今すぐ」の方を1人ずつ駅ちかの即ヒメにします'
-        : '即ヒメの自動をやめました。ここから1人ずつ送ることはできます');
-      await load();
-    } finally { setSwitching(false); }
-  };
 
   // ★ 第214便: 1人だけ送る。★ apply=false は試し打ち（駅ちかを触らない・計画が記録に出る）
   const onPush = async (c: Candidate, apply: boolean) => {
@@ -108,10 +91,10 @@ export function SokuhimeSlots({ salonId, hasCredential, isWrite, onToast }: {
         <h3 className="text-[16px] font-bold text-slate-700">駅ちかの即ヒメ枠</h3>
         {snap && <span className="text-[13px] text-slate-400">{fmt(snap.readAtISO)} に確認</span>}
       </div>
-      {/* ★ いまは読むだけ。★ 「今すぐ」→即ヒメ の送信は次の便。★ 嘘を書かない */}
+      {/* ★ 第323便: 自動が既定になったので、1人ずつは【急ぐときの道】として書く（★ 下の説明と食い違わせない） */}
       <p className="text-[13px] text-slate-400 leading-relaxed">
         駅ちかの管理画面「即ヒメ設定」の枠を読んで写します（読むだけ・書き換えません）。
-        フクエスの「今すぐ」を駅ちかの即ヒメへ送るのは、下の一覧から1人ずつ（まずは「試す」から）。
+        フクエスの「今すぐ」は5分ごとに自動で即ヒメにします。急ぐときは、下の一覧から1人ずつ押せます。
       </p>
 
       {loading ? (
@@ -211,50 +194,22 @@ export function SokuhimeSlots({ salonId, hasCredential, isWrite, onToast }: {
         </div>
       )}
 
-      {/* ── ★★★ 自動にする（第215便）。★ 出勤の「自動にする／自動をやめる」と同じ形・同じ言葉 ──
-          ★ 出勤の自動（30分ごと）とは別のスイッチ。★ 片方だけ入れられる。
-          ★ 使えないときはボタンを消して【理由を書く】。★ 押せないボタンを黙って灰色で置かない。 */}
-      {!loading && auto && (
+      {/* ── ★★★★ 第323便（2026-09-13・カッキーさんの指示）: 自動の入切をやめた ──────────
+          ★ エステ魂の即セラと同じく【フクエスから反映なら自動】に揃えた（★ 周の条件から sokuhime_auto を外した）。
+          ★ 同じ画面に2つの決まりが並んでいて、店舗様が取り違えた。★ 決まりは1つにする。
+          ★ 上の「駅ちかの即ヒメにする」（1人ずつ）は残す。★ 待てないときに、その場で押せる道。 */}
+      {!loading && (
         <div className="border-t border-slate-100 pt-3 space-y-1.5">
-          {auto.auto ? (
-            <>
-              <p className="text-[14px] font-bold text-indigo-700">いまは自動で送っています</p>
-              <p className="text-[13px] text-slate-400 leading-relaxed">
-                5分ごとに、フクエスで「今すぐ」の方を1人ずつ駅ちかの即ヒメにします。
-                45分で消えたら、「今すぐ」が続いているあいだは押し直します。
-                「今すぐ」が終わった方は、フクエスが入れた枠だけ外します。
-                すでに即ヒメになっている方には触りません。
-              </p>
-              <button
-                type="button"
-                onClick={() => onSwitchAuto(false)}
-                disabled={switching}
-                className="px-3 py-1.5 border border-slate-300 bg-white text-[13.5px] font-bold text-slate-600 hover:bg-slate-50 disabled:opacity-40"
-              >
-                {switching ? '切り替えています…' : '自動をやめる'}
-              </button>
-            </>
-          ) : auto.canAuto ? (
-            <>
-              <p className="text-[13px] text-slate-400 leading-relaxed">
-                自動にすると、5分ごとに「今すぐ」の方を1人ずつ駅ちかの即ヒメにします。
-                空いている枠が無いときは送りません（枠の方を勝手に入れ替えません）。
-                ベンリーなどで即ヒメを自動にしている場合は、そちらが優先されます。
-              </p>
-              <button
-                type="button"
-                onClick={() => onSwitchAuto(true)}
-                disabled={switching}
-                className="px-3 py-1.5 border border-slate-300 bg-white text-[13.5px] font-bold text-slate-600 hover:bg-slate-50 disabled:opacity-40"
-              >
-                {switching ? '切り替えています…' : '自動にする'}
-              </button>
-            </>
-          ) : (
-            <p className="text-[13px] text-slate-400 leading-relaxed">
-              即ヒメを自動にするには — {auto.why}
-            </p>
-          )}
+          <p className="text-[14px] font-bold text-indigo-700">自動で上げています</p>
+          <p className="text-[13px] text-slate-400 leading-relaxed">
+            5分ごとに、フクエスで「今すぐ」の方を1人ずつ駅ちかの即ヒメにします。
+            空いている枠が無いときは送りません（枠の方を勝手に入れ替えません）。
+            45分で消えたら、「今すぐ」が続いているあいだは押し直します。
+            「今すぐ」が終わった方は、フクエスが入れた枠だけ外します。すでに即ヒメの方には触りません。
+          </p>
+          <p className="text-[13px] text-slate-400 leading-relaxed">
+            ベンリーなどで即ヒメを自動にしている場合は、そちらが優先されます。
+          </p>
         </div>
       )}
 

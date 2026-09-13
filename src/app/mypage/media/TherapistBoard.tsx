@@ -17,6 +17,8 @@ import type { RosterResult } from '@/lib/mediaRoster';
 import { therapistSiteState, therapistSiteLabel, type TherapistSiteState } from '@/lib/mediaOverview';
 import { findDuplicateNames, duplicateNotice } from '@/lib/therapistDuplicates';
 import { canLink, strengthLabel, type LinkPairs } from '@/lib/mediaLinkPairs';
+// ★ 第322便: サイトの印（駅・魂）は mediaSites に移した（★ 出勤を送るのタブと同じ印を使う）
+import { siteMark } from '@/lib/mediaSites';
 
 // セラピスト設定（第62便・㉞ その4）。
 //
@@ -63,21 +65,6 @@ type Filter = 'done' | 'todo' | 'new';
  *   ★ 片方だけ足すと「ボタンは出るのに押すと止まる」か「押せるのにボタンが無い」になる。
  */
 const CREATE_PROVIDERS = ['ekichika', 'esutama'];
-
-/**
- * ★★ サイトの印（第302便）。★ タブを絵で見分けられるようにする（★ 文字だけだと並びが読み飛ばされる）。
- *   ★ 相手のロゴは使わない。★ こちらで作った1文字の印にする（★ 向こうの商標を持ち込まない）。
- *   ★ 知らない媒体はサイト名の1文字目に落ちる（★ 印が無くて崩れる、を起こさない）。
- */
-const SITE_MARK: Record<string, string> = {
-  ekichika: '駅',
-  esutama: '魂',
-  esulove: 'ラ',
-  esran: '全',
-};
-function siteMark(s: Site): string {
-  return SITE_MARK[s.provider] ?? (s.label.slice(0, 1) || '？');
-}
 
 /** ★ 出せる枠（ログイン情報がある／読むだけで見られる）。★ 同じ枠を二度並べない */
 function pickCols(sites: Site[]): Site[] {
@@ -449,7 +436,7 @@ export function TherapistBoard({ salonId, onToast }: {
                     on ? 'bg-indigo-600 text-white' : 'bg-slate-100 text-slate-400'
                   }`}
                 >
-                  {siteMark(c)}
+                  {siteMark(c.provider, c.label)}
                 </span>
                 {c.label}
               </button>

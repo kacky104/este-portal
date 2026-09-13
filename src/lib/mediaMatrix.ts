@@ -12,7 +12,8 @@
 //   写メ日記 エステラブ … メール・即時（投稿先は手で登録・第84便）
 //   即セラ エステ魂   … sokusera-push    5分ごと（「今すぐ」ON→即セラON）
 //   即ヒメ 駅ちか     … sokuhime-push 5分ごと（第215便・「今すぐ」ON→即ヒメON／OFFで枠を外す）
-//                       ★ 自動にした店だけ（sokuhime_auto）。★ 取り込みは別（ingest-list・第39便）
+//                       ★ 第323便: 「自動にした店だけ」をやめ、即セラと同じく【フクエスから反映なら自動】に。
+//                       ★ 取り込みは別（ingest-list・第39便）
 //   新着情報 駅ちか   … article-auto    店舗の設定の時刻（read でも write でも出る・none では止まる）
 //   駅ちか→フクエス 出勤 … import_interval_min（店舗ごと・既定60分・cron は15分ごと）
 //   駅ちか→フクエス 週間出勤 … import/targets mode=full（1日1回・03:20）

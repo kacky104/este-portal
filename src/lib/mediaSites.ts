@@ -315,6 +315,22 @@ export function siteCapabilityLabels(site: { can: readonly string[] }): string[]
   return site.can.map(capabilityLabel).filter((s) => s.length > 0);
 }
 
+/**
+ * ★★ サイトの印（第302便でセラピスト設定に足し、第322便でここへ移した）。
+ *   ★ タブを絵で見分けられるようにするための【1文字】。★ 相手のロゴは使わない（向こうの商標を持ち込まない）。
+ *   ★★ 正はここ1か所。★ 画面ごとに持つと、片方だけ足して印が食い違う。
+ *   ★ 知らない媒体はサイト名の1文字目に落ちる（★ 印が無くて崩れる、を起こさない）。
+ */
+const SITE_MARK: Record<string, string> = {
+  ekichika: '駅',
+  esutama: '魂',
+  esulove: 'ラ',
+  esran: '全',
+};
+export function siteMark(provider: string, label: string): string {
+  return SITE_MARK[provider] ?? (typeof label === 'string' ? label.slice(0, 1) : '') ?? '';
+}
+
 /** ★ 知らない provider は null。★ 既定のサイトに読み替えない */
 export function findMediaSite(provider: string): MediaSite | null {
   if (typeof provider !== 'string' || provider.length === 0) return null;

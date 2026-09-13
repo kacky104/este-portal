@@ -13,6 +13,7 @@ import {
   type WorkPlanView,
 } from '@/app/actions/mediaCredentials';
 import { pushAvailability, pushButtonLabel, bulkDoneText, WORK_FIRST_APPROVAL_NOTE } from '@/lib/mediaOverview';
+import { siteMark } from '@/lib/mediaSites';
 import { SokuhimeSlots } from './SokuhimeSlots';
 
 // 出勤を送る（第57便・㉞ その2）。
@@ -66,7 +67,14 @@ const WAIT_BLINK_STYLE = { animationDuration: '2.5s' } as const;
 export function WorkSend({ salonId, onToast }: { salonId: number | null; onToast: (m: string) => void }) {
   const [sites, setSites] = useState<Site[]>([]);
   const [plans, setPlans] = useState<Record<string, WorkPlanView | null>>({});
-  const [off, setOff] = useState<Set<string>>(new Set());   // ★ 外したサイトだけ覚える（既定は全部オン）
+  /**
+   * ★★★★ 第322便（2026-09-13・カッキーさんの指示）: 【サイトのタブ】にした（セラピスト設定と同じ形）。
+   *   ★ それまでは「どのサイトへ送りますか？」のチェックで、外したサイトを off に覚えていた。
+   *     ★ チェックを外しても送り先の設定は変わらない（画面から隠すだけ）ので、
+   *       「外したのに送られる／送られない」が読み取れなかった。
+   *   ★ タブなら【いま見ているのは1サイト】がはっきりする。★ 送れないサイトも、その中で理由を言える。
+   */
+  const [site, setSite] = useState<Site | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState<string | null>(null);
@@ -91,6 +99,14 @@ export function WorkSend({ salonId, onToast }: { salonId: number | null; onToast
     const ov = await getMediaOverview({ salonId });
     if (!ov.ok) { setError(ov.error); setLoading(false); return; }
     setSites(ov.data.sites);
+    // ★ 第322便: 開くタブを決める。★ すでに開いていれば【同じサイトの新しい中身】に差し替える
+    //   （★ 向きを変えた直後に、そのタブの中身が古いままにならない）。
+    //   ★ 初回は「送れるサイト」を優先。★ 無ければ1つ目（そこに理由が書いてある）。
+    setSite((prev) => {
+      const list = ov.data.sites as Site[];
+      if (prev) return list.find((x) => keyOf(x.provider, x.slot) === keyOf(prev.provider, prev.slot)) ?? list[0] ?? null;
+      return list.find((x) => x.direction === 'write') ?? list[0] ?? null;
+    });
 
     // ★ 反映の向きになっている枠だけ、計画を読む。★ 読む向きの枠には計画が無くて当たり前
     const targets = ov.data.sites.filter((s) => s.direction === 'write');
@@ -228,125 +244,129 @@ export function WorkSend({ salonId, onToast }: { salonId: number | null; onToast
 
   if (salonId == null) return null;
 
-  const sendable = sites.filter((s) => s.direction === 'write');
-  const chosen = sendable.filter((s) => !off.has(keyOf(s.provider, s.slot)));
-  const others = sites.filter((s) => s.direction !== 'write');
   // ★ いま読み取りに使っているサイト。★ 居なければ「変える」ボタンを出さない
   const readSite = sites.find((s) => s.direction === 'read') ?? null;
-  // ★ 自分で「送らない」を選んでいる枠。★ 未設定と混ぜて書かない（第87便・§223）
-  const offSite = sites.find((s) => s.direction === 'off') ?? null;
 
   return (
     <div className="space-y-3">
 
-      {/* ── どのサイトへ送るか ───────────────────────────
-          ★ 問いかけはこれ1つだけ。★ はじめから全部にチェックが入っている */}
-      <div className="bg-white border border-slate-200 shadow-[0_1px_2px_rgba(31,35,51,0.05)] p-5">
-        {/* ★ 「1 / 1サイト」は第119便で外した（カッキーさん・2026-09-03）。
-            ★ 下のチェックを見れば分かる数だった。★ 意味を読むのに一拍かかる表示は置かない */}
-        <h3 className="text-[16px] font-bold text-slate-700 mb-3">どのサイトへ送りますか？</h3>
-
-        {loading ? (
+      {/* ── ★★★ サイトのタブ（第322便・カッキーさんの指示）───────────────
+          ★ セラピスト設定と同じ形。★ 1つのタブには、そのサイトの話だけを出す。
+          ★ 送れないサイトもタブに出す。★ 押せば【なぜ送れないか】と直し方がその中にある。
+          ★ 印（駅・魂）は mediaSites.siteMark（★ セラピスト設定と同じ1文字）。 */}
+      {loading ? (
+        <div className="bg-white border border-slate-200 shadow-[0_1px_2px_rgba(31,35,51,0.05)] p-5">
           <p className="text-[14px] text-slate-400">読み込み中…</p>
-        ) : error ? (
+        </div>
+      ) : error ? (
+        <div className="bg-white border border-slate-200 shadow-[0_1px_2px_rgba(31,35,51,0.05)] p-5">
           <p className="text-[14px] text-rose-600 leading-relaxed">
             連携の状態を読み込めませんでした（{error}）。しばらくしてから開き直してください。
           </p>
-        ) : (
-          <div className="flex flex-wrap gap-2">
-            {sendable.map((s) => {
-              const k = keyOf(s.provider, s.slot);
-              const on = !off.has(k);
-              return (
-                <button
-                  key={k}
-                  onClick={() => setOff((prev) => {
-                    const n = new Set(prev);
-                    if (n.has(k)) n.delete(k); else n.add(k);
-                    return n;
-                  })}
-                  aria-pressed={on}
-                  className={`inline-flex items-center gap-2 px-3 py-2 border text-[14px] font-bold transition-colors ${
-                    on ? 'bg-indigo-50 text-indigo-700 border-indigo-200' : 'bg-white text-slate-400 border-slate-200'
+        </div>
+      ) : sites.length === 0 ? (
+        /* ★ 枠が1つも無い＝ログイン情報がまだ無い。★ ホームと同じ言い方（第119便） */
+        <div className="border border-sky-200 bg-sky-50 px-4 py-3">
+          <p className="text-[14px] leading-relaxed text-slate-600">
+            <b className="font-bold text-sky-700">送れるサイトがありません。</b>{' '}
+            ログイン情報を登録すると始められます。
+          </p>
+          <Link href="/mypage/media/login" className="mt-2 inline-block text-[14px] font-bold text-sky-700 underline">
+            ログイン情報へ
+          </Link>
+        </div>
+      ) : (
+        <div className="flex flex-wrap gap-2">
+          {sites.map((x) => {
+            const k = keyOf(x.provider, x.slot);
+            const on = site != null && keyOf(site.provider, site.slot) === k;
+            return (
+              <button
+                key={k}
+                type="button"
+                onClick={() => setSite(x)}
+                aria-pressed={on}
+                className={`flex items-center gap-2 px-3.5 py-2 border text-[14.5px] font-bold transition-colors ${
+                  on
+                    ? 'bg-indigo-50 text-indigo-700 border-indigo-200'
+                    : 'bg-white text-slate-400 border-slate-200 hover:bg-slate-50'
+                }`}
+              >
+                <span
+                  aria-hidden
+                  className={`w-6 h-6 flex-none grid place-items-center text-[13px] font-black ${
+                    on ? 'bg-indigo-600 text-white' : 'bg-slate-100 text-slate-400'
                   }`}
                 >
-                  <span className={`w-[15px] h-[15px] -[5px] border grid place-items-center ${
- on ? 'bg-indigo-600 border-indigo-600' : 'bg-white border-slate-300'
-                  }`}>
-                    {on && (
-                      <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="4"
-                           strokeLinecap="round" strokeLinejoin="round"><path d="M20 6L9 17l-5-5" /></svg>
-                    )}
-                  </span>
-                  {s.label}
-                </button>
-              );
-            })}
-
-            {/* ★ 送れないサイトは【理由をその場に書く】。★ 灰色にして終わりにしない */}
-            {others.map((s) => (
-              <span
-                key={keyOf(s.provider, s.slot)}
-                className="inline-flex items-center gap-2 px-3 py-2 border border-slate-200 bg-white text-[14px] font-bold text-slate-300"
-              >
-                {s.label}
-                <span className="font-medium text-slate-400">
-                  {/* ★ 印の言い方は mediaOverview.directionLabel に揃える（第91便） */}
-                  （{s.direction === 'read'
-                      ? `いまは${s.label}から反映中`
-                      : s.direction === 'off' ? '反映なし' : '未設定'}）
+                  {siteMark(x.provider, x.label)}
                 </span>
-              </span>
-            ))}
-          </div>
-        )}
-
-        {/* ★★★ 第208便: 「フクエスから反映」にしただけでは自動にならない、をこの画面の入口で言う。
-            ★ 文は mediaOverview.WORK_FIRST_APPROVAL_NOTE（ホームの一括の確認文と同じ）。★ 2か所でずらさない */}
-        {!loading && !error && sendable.length > 0 && (
-          <p className="mt-3 text-[13.5px] text-slate-500 leading-relaxed border border-slate-200 bg-slate-50 px-3 py-2">
-            {WORK_FIRST_APPROVAL_NOTE}
-          </p>
-        )}
-
-        {!loading && !error && sendable.length === 0 && (
-          <div className="mt-3 border border-sky-200 bg-sky-50 px-3 py-2.5">
-            <p className="text-[14px] leading-relaxed text-slate-600">
-              <b className="font-bold text-sky-700">いま送れるサイトがありません。</b>{' '}
-              {readSite
-                // ★ 第319便（2026-09-13・カッキーさん）: 「変えると◯◯からの反映は止まります。」を落とした。
-                //   ★ 止まることは、下の「フクエスに変える」を押したときの問い（switchAskText）が言う。
-                //   ★ ボタンの手前で先回りして書かない（★ 第296便の homeChoiceNote と同じ整理）。
-                ? `いまは${readSite.label}から反映しています。送るには「フクエスから反映」に変えてください。`
-                : offSite
-                  ? '「反映しない」を選んでいます。送るには、ホームで「フクエスから反映」を押してください。'
-                  // ★ ホームと同じ言い方に揃える（第119便）。★ 2か所で違う言い方をしない（第90便）
-                  //   ★ 「設定してください」だと、何を設定するのかが読めなかった。★ 入口は【登録】
-                  : 'ログイン情報を登録すると始められます。'}
-            </p>
-            {readSite ? (
-              <button
-                type="button"
-                onClick={() => void onSwitchToWrite()}
-                disabled={switching !== null}
-                className="mt-2 px-3 py-1.5 border border-sky-300 bg-white text-[14px] font-bold text-sky-700 hover:bg-sky-100 disabled:opacity-40"
-              >
-                {switching === BULK_KEY ? '変えています…' : 'フクエスに変える'}
+                {x.label}
+                {/* ★ 送れない枠は、タブの時点でそう分かるようにする（★ 開いてから知る、にしない） */}
+                {x.direction !== 'write' && (
+                  <span className="font-medium text-[12.5px] text-slate-400">
+                    （{x.direction === 'read' ? '取り込み中' : x.direction === 'off' ? '反映なし' : '未設定'}）
+                  </span>
+                )}
               </button>
-            ) : (
-              <Link
-                href={offSite ? '/mypage/media' : '/mypage/media/login'}
-                className="mt-2 inline-block text-[14px] font-bold text-sky-700 underline"
-              >
-                {offSite ? 'ホームへ' : 'ログイン情報へ'}
-              </Link>
-            )}
-          </div>
-        )}
-      </div>
+            );
+          })}
+        </div>
+      )}
 
-      {/* ── サイトごとの内容 ──────────────────────────── */}
-      {chosen.map((s) => {
+      {/* ── ★ 送れないサイトのタブ（第322便）。★ 理由と、そこからできることを1枚で ── */}
+      {!loading && !error && site && site.direction !== 'write' && (
+        <div className="border border-sky-200 bg-sky-50 px-4 py-3">
+          <p className="text-[14px] leading-relaxed text-slate-600">
+            <b className="font-bold text-sky-700">{site.label}へは、いま送れません。</b>{' '}
+            {site.direction === 'read'
+              // ★ 第319便: 「変えると◯◯からの反映は止まります。」は書かない（押したときの問いが言う）
+              ? `いまは${site.label}から反映しています。送るには「フクエスから反映」に変えてください。`
+              : site.direction === 'off'
+                ? '「反映しない」を選んでいます。送るには「フクエスから反映」に変えてください。'
+                // ★ 鍵はあるが向きが決まっていない枠と、鍵がまだ無い枠を書き分ける（第87便・§223 の作法）
+                : site.hasCredential
+                  ? 'まだ反映の向きが決まっていません。「フクエスから反映」にすると送れます。'
+                  : 'ログイン情報を登録すると始められます。'}
+          </p>
+          {site.hasCredential ? (
+            <button
+              type="button"
+              onClick={() => void onSwitchToWrite()}
+              disabled={switching !== null}
+              className="mt-2 px-3 py-1.5 border border-sky-300 bg-white text-[14px] font-bold text-sky-700 hover:bg-sky-100 disabled:opacity-40"
+            >
+              {switching === BULK_KEY ? '変えています…' : 'フクエスに変える'}
+            </button>
+          ) : (
+            <Link
+              href="/mypage/media/login"
+              className="mt-2 inline-block text-[14px] font-bold text-sky-700 underline"
+            >
+              ログイン情報へ
+            </Link>
+          )}
+          {/* ★ 押すと全サイトが変わる（第320便）。★ 押す前に、それが分かるようにしておく */}
+          {site.hasCredential && readSite && (
+            <p className="mt-2 text-[12.5px] text-slate-400 leading-relaxed">
+              登録済みのサイトがまとめて「フクエスから反映」になります。
+            </p>
+          )}
+        </div>
+      )}
+
+      {/* ★★★ 第208便: 「フクエスから反映」にしただけでは自動にならない、をこの画面の入口で言う。
+          ★ 文は mediaOverview.WORK_FIRST_APPROVAL_NOTE（ホームの一括の確認文と同じ）。★ 2か所でずらさない。
+          ★★ 第322便: すでに自動になっている枠には出さない（★ もう済んだ話を毎回読ませない）。 */}
+      {!loading && !error && site && site.direction === 'write' && !site.autoOn && (
+        <p className="text-[13.5px] text-slate-500 leading-relaxed border border-slate-200 bg-slate-50 px-3 py-2">
+          {WORK_FIRST_APPROVAL_NOTE}
+        </p>
+      )}
+
+      {/* ── 開いているサイトの内容（第322便）──────────────────────────
+          ★ 中身は今までのまま。★ 1つの枠だけを描くために、1件の並びとして回す
+            （★ 中の書き方を変えずにタブへ移すため）。 */}
+      {(!loading && !error && site && site.direction === 'write' ? [site] : []).map((s) => {
         const k = keyOf(s.provider, s.slot);
         const plan = plans[k];
         const isWaiting = k in waiting;
@@ -612,16 +632,35 @@ export function WorkSend({ salonId, onToast }: { salonId: number | null; onToast
         );
       })}
 
-      {/* ★ 駅ちかの即ヒメ枠（第213便）。★ 読むだけ。★ 駅ちかのログイン情報がある店にだけ出す。
-          ★★ 第318便: 出す・出さないの決めごとは SokuhimeSlots が持つ（★ フクエスから反映のときだけ出す）。
-            ★ ここでは今までどおり材料（鍵があるか・向きは write か）を渡すだけ。 */}
-      {!loading && !error && (
+      {/* ★ 駅ちかの即ヒメ枠（第213便）。★ 読むだけ。
+          ★★ 第322便: 駅ちかのタブの中だけに出す（★ エステ魂を見ているときに駅ちかの枠が出ない）。
+            ★ 出す・出さないの決めごとは SokuhimeSlots が持つ（第318便・フクエスから反映のときだけ）。 */}
+      {!loading && !error && site && site.provider === 'ekichika' && (
         <SokuhimeSlots
           salonId={salonId}
-          hasCredential={sites.some((s) => s.provider === 'ekichika' && s.hasCredential)}
-          isWrite={sites.some((s) => s.provider === 'ekichika' && s.direction === 'write')}
+          hasCredential={site.hasCredential}
+          isWrite={site.direction === 'write'}
           onToast={onToast}
         />
+      )}
+
+      {/* ── ★★★ エステ魂の即セラ（第322便・カッキーさんの質問から）──────────
+          ★ 即セラには【スイッチが無い】。★ 周（sokusera-push・5分ごと）が拾う条件は
+            「エステ魂がフクエスから反映で、連携が有効」だけ（src/app/api/admin/sokusera-push）。
+          ★★ 駅ちかの即ヒメは「自動にする」を押さないと上がらない。★ 同じ画面に2つの決まりが並ぶので、
+            **違うほうを書いておく**（★ カッキーさんが実際に取り違えた）。
+          ★ ONだけ打ってOFFは打たない（★ 60分で向こうが切る）。★ 1周で1人だけ。 */}
+      {!loading && !error && site && site.provider === 'esutama' && site.direction === 'write' && (
+        <div className="bg-white border border-slate-200 shadow-[0_1px_2px_rgba(31,35,51,0.05)] p-5 space-y-1.5">
+          <h3 className="text-[16px] font-bold text-slate-700">エステ魂の即セラ</h3>
+          <p className="text-[13.5px] text-slate-500 leading-relaxed">
+            フクエスで「今すぐ」を押した方を、5分ごとに1人ずつエステ魂の即セラにします。
+            <b className="font-bold text-slate-700">この画面での設定は要りません</b>（フクエスから反映にしていれば動きます）。
+          </p>
+          <p className="text-[13px] text-slate-400 leading-relaxed">
+            OFFは打ちません（60分でエステ魂側が切ります）。すでに即セラの方には触りません。
+          </p>
+        </div>
       )}
     </div>
   );

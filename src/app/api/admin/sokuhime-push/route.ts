@@ -27,11 +27,17 @@ import { needsConsent } from '@/lib/mediaConsent';
 //   相手のほうが先に枠を埋めることがある。★ そのときフクエスは **必ず譲る**
 //   （planSokuhime が already_on で送らない）。★ 二重登録しない。
 //
-// ★ 対象（★ 3つとも要る）:
+// ★ 対象（★ 2つとも要る）:
 //     ① 駅ちかが「フクエスから反映」（link_mode が write / write_auto）
-//     ② 即ヒメの自動が入っている（sokuhime_auto = true・第215便で足した1列）
-//     ③ 連携の説明に同意済み（認証情報を使う操作は同意の後ろ）
+//     ② 連携の説明に同意済み（認証情報を使う操作は同意の後ろ）
 //   ★★ ① を外さない。★ 駅ちかから取り込んでいる店へフクエスから書かない（第214便の方針）。
+//
+// ★★★★ 【第323便】（2026-09-13・カッキーさんの指示）: 「即ヒメの自動が入っている店だけ」（sokuhime_auto）を
+//   **条件から外した**。★ エステ魂の即セラ（sokusera-push）と同じく、【フクエスから反映なら自動】に揃えた。
+//   ★ 同じ画面に2つの決まりが並んでいて、店舗様が取り違えた（★ 即セラはスイッチ無しで動く）。
+//   ★★ sokuhime_auto の列と受け口（setSokuhimeAuto）は残してあるが、**この周はもう見ない**。
+//     ★ 落ち着いたら消す。★ 見ない列を残していることを、ここに書いておく（★ 次に読む人が探せるように）。
+//   ★ 実行前にカッキーさんが確認: 駅ちかを write にしている店舗はラビリンス様だけ（2026-09-13）。
 //
 // crontab（VPS・5分ごと。★ 即セラ 1-59/5・日記 と分を分ける）:
 //   ★ まずは1日、試し打ちで流す（駅ちかを触らない・記録だけ溜める）:
@@ -86,11 +92,11 @@ export async function POST(req: Request) {
   }
 
   const svc = createServiceClient();
-  // ★ 駅ちかへ「書く」向き ＋ 即ヒメの自動が入っている枠だけ
+  // ★ 駅ちかへ「書く」向きの枠だけ（★ 第323便: sokuhime_auto は見ない。即セラの周と同じ条件）
   const { data: sources, error: srcErr } = await svc
     .from('salon_import_sources')
     .select('salon_id, slot')
-    .eq('provider', PROVIDER).eq('is_enabled', true).eq('sokuhime_auto', true)
+    .eq('provider', PROVIDER).eq('is_enabled', true)
     .in('link_mode', ['write', 'write_auto']);
   if (srcErr) return NextResponse.json({ ok: false, error: srcErr.message }, { status: 500 });
 
