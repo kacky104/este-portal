@@ -136,8 +136,10 @@ export default async function GlossaryTermPage({ params }: { params: Promise<{ s
               {GLOSSARY_CATEGORIES[meta.category]}
             </Link>
           </div>
+          {/* h1 に「メンズエステの」を前置き（第350便）。title には「メンズエステ」が入っているが h1 に
+              無かった。一般的な検索（メンズエステ ○○ とは）への一致を h1 側でも揃える。 */}
           <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 leading-snug break-words">
-            「{meta.term}」とは？
+            メンズエステの「{meta.term}」とは？
           </h1>
           <div className="mt-3 flex flex-wrap items-center gap-3 text-xs text-slate-400">
             <span>読み: {meta.reading}</span>
