@@ -1,0 +1,500 @@
+/* ★★★ /glossary（用語集ハブ）専用のスタイル（第352便・2026-09-13・リデザイン）
+   ★ このファイルは /glossary のハブだけが読む。globals.css は触らない。
+   ★ 色はこのページ専用のトークン（--glossary-*）で持つ。サイト共通の色（pink-600 など）とは
+     別に、「難しい言葉を、やさしく探せる」の白＋ピンク基調にそろえる。オレンジは CTA だけ。
+   ★ レイアウト（flex/grid/余白）は Tailwind、色・カード・ナビの見た目はここ。
+   ★ 第353便b（カッキーさんの指示）: **角はすべて直角**（border-radius: 0）。
+     箱・ボタン・入力欄・チップ・アイコンの下地まで角丸をやめた。
+     丸のまま残すのは「行見出しの前の点（.rowLabel）」だけ（点は箱ではなく記号のため）。
+     ★ 新しい要素を足すときも角丸を付けないこと。
+   ★ 第353便d（カッキーさんの指示）: 背景は**フクエスのテーマ壁紙（ゴールド）**。
+     CSS で金色を作るのをやめ、src/app/glossary/layout.tsx が theme_wallpapers の gold を敷く
+     （/column のホワイト・/salons のシルバーと同じ作法）。★ このファイルは背景を持たない。
+   ★ 幅はヘッダー／フッターの内側（max-w-5xl＝1024px）に合わせている。 */
+
+.page {
+  --glossary-accent: #ff1768;
+  --glossary-accent-dark: #d90b52;
+  --glossary-accent-soft: #fff0f6;
+  --glossary-orange: #ff7426;
+  --glossary-ink: #111b35;
+  --glossary-text: #34405a;
+  --glossary-muted: #748097;
+  --glossary-line: #ffd5e5;
+  --glossary-bg: #fff9fc;
+  --glossary-white: #ffffff;
+
+  color: var(--glossary-text);
+  max-width: 1024px; /* ヘッダー・フッターの内側（max-w-5xl）と同じ幅にそろえる */
+  margin-inline: auto;
+  padding: 16px 16px 48px;
+}
+@media (min-width: 768px) {
+  .page { padding: 24px 28px 64px; }
+}
+@media (min-width: 1024px) {
+  .page { padding: 28px 32px 80px; }
+}
+
+/* ── アンカー移動（#row-ka など）を滑らかに。reduced-motion では無効 ──
+   scroll-behavior はスクロールする要素（html）に付けないと効かない。
+   このページが表示されているときだけ html に効かせる（:has）。 */
+:global(html):has(.page) { scroll-behavior: smooth; }
+@media (prefers-reduced-motion: reduce) {
+  :global(html):has(.page) { scroll-behavior: auto; }
+}
+
+/* ── 見出しの共通 ── */
+.h2 {
+  scroll-margin-top: 88px; /* 追従ヘッダー 56px ＋ 五十音ナビ（PC で sticky）の分 */
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  color: var(--glossary-ink);
+  font-weight: 800;
+  font-size: 20px;
+  line-height: 1.3;
+  margin: 0 0 16px;
+}
+@media (min-width: 768px) { .h2 { font-size: 24px; } }
+.h2Bar {
+  flex-shrink: 0;
+  width: 6px;
+  height: 26px;
+  background: linear-gradient(180deg, var(--glossary-accent) 0%, var(--glossary-accent-dark) 100%);
+}
+.h2Icon {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  background: var(--glossary-accent-soft);
+  color: var(--glossary-accent);
+}
+.h2Icon svg { width: 18px; height: 18px; }
+
+.h3 {
+  scroll-margin-top: 88px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--glossary-ink);
+  font-weight: 700;
+  font-size: 16px;
+  margin: 0 0 12px;
+}
+.rowLabel {
+  flex-shrink: 0;
+  width: 12px;
+  height: 12px;
+  border-radius: 999px;
+  background: var(--glossary-accent);
+  box-shadow: 0 0 0 4px var(--glossary-accent-soft);
+}
+
+/* ── ヒーロー（白→淡ピンク→淡オレンジのカード） ── */
+.hero {
+  position: relative;
+  overflow: hidden;
+  border: 1px solid #ffe0eb;
+  background: linear-gradient(135deg, #fff 0%, #fff3f8 60%, #fff8ef 100%);
+  box-shadow: 0 18px 50px rgba(140, 102, 24, 0.16);
+  padding: 28px 20px;
+}
+@media (min-width: 768px) {
+  .hero { padding: 48px 56px; }
+}
+@media (min-width: 1024px) {
+  .hero { padding: 52px 64px; }
+}
+/* 背景の円形装飾（本文の可読性を優先して、ごく薄く） */
+.hero::before,
+.hero::after {
+  content: "";
+  position: absolute;
+  border-radius: 999px;
+  pointer-events: none;
+}
+.hero::before {
+  top: -80px; right: -60px; width: 240px; height: 240px;
+  background: radial-gradient(circle, rgba(255, 23, 104, 0.10) 0%, rgba(255, 23, 104, 0) 70%);
+}
+.hero::after {
+  bottom: -90px; left: -40px; width: 220px; height: 220px;
+  background: radial-gradient(circle, rgba(255, 116, 38, 0.10) 0%, rgba(255, 116, 38, 0) 70%);
+}
+.heroInner { position: relative; z-index: 1; }
+.eyebrow {
+  margin: 0;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.35em;
+  color: var(--glossary-accent-dark);
+}
+.h1 {
+  margin: 8px 0 0;
+  font-size: clamp(26px, 8vw, 40px);
+  line-height: 1.2;
+  font-weight: 900;
+  letter-spacing: 0.02em;
+  color: var(--glossary-ink);
+}
+@media (min-width: 768px) { .h1 { font-size: 40px; } }
+.lead {
+  margin: 14px 0 0;
+  max-width: 620px;
+  font-size: 14px;
+  line-height: 1.8;
+  color: var(--glossary-text);
+}
+@media (min-width: 768px) { .lead { font-size: 15px; } }
+
+/* ── 検索欄 ── */
+.search {
+  position: relative;
+  margin-top: 20px;
+  width: 100%;
+  max-width: 620px;
+}
+.searchIcon {
+  position: absolute;
+  left: 16px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 20px;
+  height: 20px;
+  color: var(--glossary-accent);
+  pointer-events: none;
+}
+.searchInput {
+  width: 100%;
+  height: 56px;
+  padding: 0 44px 0 46px;
+  border: 1.5px solid var(--glossary-line);
+  background: var(--glossary-white);
+  color: var(--glossary-ink);
+  font-size: 16px; /* iOS の自動ズームを避けるため 16px 以上 */
+  box-shadow: 0 6px 18px rgba(140, 102, 24, 0.10);
+  outline: none;
+  transition: border-color 150ms ease, box-shadow 150ms ease;
+}
+.searchInput::placeholder { color: var(--glossary-muted); }
+.searchInput:focus-visible {
+  border-color: var(--glossary-accent);
+  box-shadow: 0 0 0 4px rgba(255, 23, 104, 0.15);
+}
+.searchClear {
+  position: absolute;
+  right: 8px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 36px;
+  height: 36px;
+  border: 0;
+  background: transparent;
+  color: var(--glossary-muted);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.searchClear:hover { background: var(--glossary-accent-soft); color: var(--glossary-accent-dark); }
+.searchClear:focus-visible { outline: 3px solid var(--glossary-accent); outline-offset: 2px; }
+.searchHint {
+  margin: 8px 0 0;
+  font-size: 12px;
+  color: var(--glossary-muted);
+}
+
+/* ── 五十音ナビ（白い横長カード） ── */
+.kanaCard {
+  margin-top: 16px;
+  border: 1px solid var(--glossary-line);
+  background: var(--glossary-white);
+  box-shadow: 0 8px 24px rgba(140, 102, 24, 0.12);
+  padding: 12px;
+}
+@media (min-width: 1024px) {
+  .kanaCardSticky {
+    position: sticky;
+    top: 64px; /* 追従ヘッダー（56px）の下に少し余白 */
+    z-index: 20;
+  }
+}
+.kanaList {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+@media (min-width: 768px) {
+  .kanaList {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 8px;
+  }
+}
+.kanaBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  min-width: 44px;
+  min-height: 44px;
+  border: 1.5px solid var(--glossary-line);
+  background: var(--glossary-white);
+  color: var(--glossary-ink);
+  font-weight: 800;
+  font-size: 16px;
+  text-decoration: none;
+  transition: background-color 150ms ease, color 150ms ease, transform 150ms ease, box-shadow 150ms ease;
+}
+@media (min-width: 768px) { .kanaBtn { width: 52px; } }
+.kanaBtn:hover { background: var(--glossary-accent-soft); border-color: var(--glossary-accent); }
+.kanaBtn:focus-visible { outline: 3px solid var(--glossary-accent); outline-offset: 2px; }
+.kanaBtnActive {
+  background: var(--glossary-accent);
+  border-color: var(--glossary-accent);
+  color: var(--glossary-white);
+  box-shadow: 0 6px 16px rgba(255, 23, 104, 0.3);
+}
+.kanaBtnActive:hover { background: var(--glossary-accent-dark); border-color: var(--glossary-accent-dark); }
+.kanaBtnDisabled {
+  background: #fafafa;
+  border-color: #ececf1;
+  color: #b3bac9;
+  cursor: not-allowed;
+  border-style: dashed;
+}
+.kanaBtnDisabled:hover { background: #fafafa; border-color: #ececf1; }
+
+/* ── セクション ── */
+.section { margin-top: 40px; }
+@media (min-width: 1024px) { .section { margin-top: 64px; } }
+.rowGroup { margin-top: 24px; }
+.rowGroup:first-of-type { margin-top: 0; }
+
+/* ── 用語カード（業態・五十音・検索結果で共用） ── */
+.cardGrid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 14px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+@media (min-width: 768px) { .cardGrid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; } }
+.cardGrid > li { display: flex; min-width: 0; }
+@media (min-width: 1280px) { .cardGridDense { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+
+.card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-width: 0;
+  padding: 18px;
+  border: 1px solid #ffd8e6;
+  background: linear-gradient(135deg, #ffffff 0%, #fff6fa 100%);
+  color: inherit;
+  text-decoration: none;
+  box-shadow: 0 4px 14px rgba(140, 102, 24, 0.10);
+  transition: transform 180ms ease, box-shadow 180ms ease, border-color 180ms ease;
+}
+@media (min-width: 768px) { .card { padding: 24px; } }
+.card:hover {
+  transform: translateY(-3px);
+  border-color: var(--glossary-accent);
+  box-shadow: 0 14px 30px rgba(221, 27, 98, 0.14);
+}
+.card:focus-visible {
+  outline: 3px solid var(--glossary-accent);
+  outline-offset: 3px;
+}
+@media (prefers-reduced-motion: reduce) {
+  .card, .kanaBtn, .cta, .ctaButton, .linkCard { transition: none; }
+  .card:hover, .ctaButton:hover, .linkCard:hover { transform: none; }
+}
+.cardHead {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 10px;
+}
+.cardTerm {
+  font-size: 18px;
+  font-weight: 800;
+  color: var(--glossary-ink);
+  line-height: 1.3;
+}
+@media (min-width: 768px) { .cardTerm { font-size: 19px; } }
+.cardReading {
+  font-size: 12px;
+  color: var(--glossary-muted);
+}
+.cardSummary {
+  margin: 10px 0 0;
+  font-size: 14px;
+  line-height: 1.8;
+  color: var(--glossary-text);
+}
+.cardMore {
+  margin-top: auto;
+  padding-top: 12px;
+  align-self: flex-end;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--glossary-accent-dark);
+}
+.card:hover .cardMore { color: var(--glossary-accent); }
+
+/* ── 検索結果 ── */
+.empty {
+  padding: 28px 20px;
+  border: 1px dashed var(--glossary-line);
+  background: var(--glossary-white);
+  text-align: center;
+  color: var(--glossary-muted);
+  font-size: 14px;
+  line-height: 1.8;
+}
+
+/* ── 注意文（情報カード） ── */
+.notice {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 18px;
+  border: 1px solid var(--glossary-line);
+  background: linear-gradient(135deg, #fff2f7 0%, #ffffff 100%);
+}
+@media (min-width: 768px) {
+  .notice { flex-direction: row; align-items: flex-start; gap: 16px; padding: 22px 24px; }
+}
+.noticeIcon {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  background: var(--glossary-white);
+  border: 1.5px solid var(--glossary-line);
+  color: var(--glossary-accent);
+}
+.noticeIcon svg { width: 20px; height: 20px; }
+.noticeText {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.8;
+  color: var(--glossary-text);
+}
+@media (min-width: 768px) { .noticeText { font-size: 16px; } }
+
+/* ── 関連コラムのカード ── */
+.linkCard {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  min-height: 64px;
+  padding: 14px 18px;
+  border: 1px solid var(--glossary-line);
+  background: var(--glossary-white);
+  color: var(--glossary-ink);
+  font-weight: 700;
+  text-decoration: none;
+  box-shadow: 0 4px 14px rgba(140, 102, 24, 0.10);
+  transition: transform 160ms ease, box-shadow 160ms ease, border-color 160ms ease;
+}
+.linkCard:hover {
+  transform: translateY(-2px);
+  border-color: var(--glossary-accent);
+  box-shadow: 0 10px 24px rgba(221, 27, 98, 0.12);
+}
+.linkCard:focus-visible { outline: 3px solid var(--glossary-accent); outline-offset: 3px; }
+.linkCardIcon {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  background: var(--glossary-accent-soft);
+  color: var(--glossary-accent);
+}
+.linkCardIcon svg { width: 20px; height: 20px; }
+.linkCardArrow { margin-left: auto; color: var(--glossary-accent); flex-shrink: 0; }
+.linkCardArrow svg { width: 18px; height: 18px; }
+
+/* ── 店舗検索 CTA ── */
+.cta {
+  padding: 22px 18px;
+  border: 1px solid var(--glossary-line);
+  background: var(--glossary-white);
+  box-shadow: 0 14px 40px rgba(140, 102, 24, 0.16);
+}
+@media (min-width: 768px) { .cta { padding: 28px 32px; } }
+.ctaButton {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  height: 64px;
+  background: linear-gradient(to right, #ec4899, #f97316); /* 既存 CTA と同じピンク→オレンジ */
+  color: var(--glossary-white);
+  font-size: 17px;
+  font-weight: 800;
+  text-decoration: none;
+  box-shadow: 0 10px 24px rgba(236, 72, 153, 0.28);
+  transition: transform 160ms ease, box-shadow 160ms ease;
+}
+@media (min-width: 768px) { .ctaButton { height: 68px; font-size: 18px; } }
+.ctaButton:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 16px 32px rgba(236, 72, 153, 0.38);
+}
+.ctaButton:focus-visible { outline: 3px solid var(--glossary-accent); outline-offset: 3px; }
+.ctaButton svg { width: 18px; height: 18px; }
+.chipList {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 16px 0 0;
+  padding: 0;
+  list-style: none;
+}
+.chip {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  padding: 0 16px;
+  border: 1.5px solid var(--glossary-line);
+  background: var(--glossary-white);
+  color: var(--glossary-accent-dark);
+  font-size: 13px;
+  font-weight: 700;
+  text-decoration: none;
+  transition: background-color 150ms ease, border-color 150ms ease;
+}
+.chip:hover { background: var(--glossary-accent-soft); border-color: var(--glossary-accent); }
+.chip:focus-visible { outline: 3px solid var(--glossary-accent); outline-offset: 2px; }
+
+/* ── パンくず ── */
+.crumbs {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0 0 12px;
+  font-size: 12px;
+}
+@media (min-width: 768px) { .crumbs { font-size: 14px; margin-bottom: 16px; } }
+.crumbLink { color: var(--glossary-accent-dark); text-decoration: none; white-space: nowrap; }
+.crumbLink:hover { text-decoration: underline; }
+.crumbSep { color: var(--glossary-muted); }
+.crumbCurrent { color: var(--glossary-ink); font-weight: 700; }

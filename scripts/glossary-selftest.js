@@ -157,6 +157,7 @@ eq('19h ん→わ', m.kanaRow('ん'), 'わ');
 // ── 定数 ──
 eq('カテゴリは6つ・順番固定', m.GLOSSARY_CATEGORY_ORDER, ['gyotai', 'sejutsu', 'ryokin', 'therapist', 'manner', 'fukues']);
 eq('カテゴリのラベルが全部ある', Object.keys(m.GLOSSARY_CATEGORIES).length, 6);
+eq('五十音の行 id は不変（#row-ka など）', [m.KANA_ROW_IDS['か'], m.KANA_ROW_IDS['あ'], m.KANA_ROW_IDS['わ'], m.KANA_ROW_IDS['その他']], ['ka', 'a', 'wa', 'other']);
 
 if (fail) { console.log('\n★ ' + fail + ' 件 NG'); process.exit(1); }
 console.log('\n★ すべて通った（' + count + ' 本）');

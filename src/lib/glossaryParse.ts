@@ -247,6 +247,11 @@ export function resolveRelated(self: string, related: string[], existingSlugs: R
 export const KANA_ROWS = ['あ', 'か', 'さ', 'た', 'な', 'は', 'ま', 'や', 'ら', 'わ'] as const;
 export const KANA_ROW_OTHER = 'その他';
 
+/** 五十音の行 → アンカー id の英字（#row-ka など）。★ 公開 URL の一部なので変えない。 */
+export const KANA_ROW_IDS: Record<string, string> = {
+  あ: 'a', か: 'ka', さ: 'sa', た: 'ta', な: 'na', は: 'ha', ま: 'ma', や: 'ya', ら: 'ra', わ: 'wa', [KANA_ROW_OTHER]: 'other',
+};
+
 const KANA_ROW_OF: Record<string, string> = {};
 (() => {
   const groups: [string, string][] = [

@@ -127,10 +127,12 @@ export default async function GlossaryTermPage({ params }: { params: Promise<{ s
         </nav>
 
         <article>
-          {/* カテゴリバッジ → h1 → 読み・日付 */}
+          {/* カテゴリバッジ → h1 → 読み・日付。
+              ★ 第353便でハブの「業態・お店の種類」の節を外したので、#cat-... のアンカーはもう無い。
+                リンク先は用語集のトップ（/glossary）にする。バッジの文字（カテゴリ名）はそのまま。 */}
           <div className="mb-3">
             <Link
-              href={`/glossary#cat-${meta.category}`}
+              href="/glossary"
               className="inline-block text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-pink-50 text-pink-600 border border-pink-200"
             >
               {GLOSSARY_CATEGORIES[meta.category]}
