@@ -30,6 +30,12 @@ export const GLOSSARY_CATEGORIES: Record<GlossaryCategory, string> = {
 /** meta description の上限（目安は 80〜120 字。超えたら throw）。 */
 export const GLOSSARY_DESCRIPTION_MAX = 160;
 
+/**
+ * heroAlt の上限（第360便）。
+ * ★ alt は「絵に何が写っているか」を一息で言うもの。長い説明文は読み上げの邪魔になるので上限を置く。
+ */
+export const GLOSSARY_HERO_ALT_MAX = 120;
+
 export type GlossaryFaq = { q: string; a: string };
 
 export type GlossaryMeta = {
@@ -42,6 +48,7 @@ export type GlossaryMeta = {
   description: string;       // meta description
   publishedAt: string;       // 'YYYY-MM-DD'
   heroImage: string | null;  // '/glossary/kenzen-ten/hero.webp' or null
+  heroAlt: string | null;    // ヒーロー画像の alt。省略時 null（画面側で「{term}のイメージ」に落とす）
   related: string[];         // 用語 slug の配列
   areas: string[];           // エリア slug の配列（末尾チップの並び順）
   faq: GlossaryFaq[];
@@ -169,6 +176,7 @@ export function parseGlossaryFile(raw: string, fileSlug: string): ParsedGlossary
   const description = str(meta, 'description', fileSlug, true);
   const publishedAt = str(meta, 'publishedAt', fileSlug, true);
   const heroImage = str(meta, 'heroImage', fileSlug, false);
+  const heroAlt = str(meta, 'heroAlt', fileSlug, false);
 
   if (slug !== fileSlug) fail(fileSlug, `slug（${slug}）がファイル名（${fileSlug}）と違う`);
   if (!(GLOSSARY_CATEGORY_ORDER as readonly string[]).includes(category)) fail(fileSlug, `category が未知: ${category}`);
@@ -176,6 +184,9 @@ export function parseGlossaryFile(raw: string, fileSlug: string): ParsedGlossary
   if (!HIRAGANA_RE.test(reading)) fail(fileSlug, `reading はひらがなだけで書く: ${reading}`);
   if (description.length > GLOSSARY_DESCRIPTION_MAX) fail(fileSlug, `description が ${GLOSSARY_DESCRIPTION_MAX} 字を超えている（${description.length} 字）`);
   if (heroImage && !heroImage.startsWith('/')) fail(fileSlug, 'heroImage は / から始まるパスで書く');
+  // ★ heroAlt だけ書いて heroImage が無いのは書き間違い（どこにも出ない alt になる）。
+  if (heroAlt && !heroImage) fail(fileSlug, 'heroAlt を書くなら heroImage も書く');
+  if (heroAlt.length > GLOSSARY_HERO_ALT_MAX) fail(fileSlug, `heroAlt が ${GLOSSARY_HERO_ALT_MAX} 字を超えている（${heroAlt.length} 字）`);
 
   const faqRaw = meta.faq;
   const faq: GlossaryFaq[] = faqRaw === undefined ? [] : (faqRaw as GlossaryFaq[]);
@@ -191,6 +202,7 @@ export function parseGlossaryFile(raw: string, fileSlug: string): ParsedGlossary
       description,
       publishedAt,
       heroImage: heroImage || null,
+      heroAlt: heroAlt || null,
       related: arr(meta, 'related', fileSlug),
       areas: arr(meta, 'areas', fileSlug),
       faq,

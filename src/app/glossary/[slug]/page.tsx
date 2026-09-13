@@ -60,6 +60,8 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
   const { meta } = entry;
   const title = pageTitle(meta.term);
   const shareImage = meta.heroImage ? `${SITE_URL}${meta.heroImage}` : `${SITE_URL}/ogp.png`;
+  // ★ og:image:alt は heroImage を出すときだけ（既定の /ogp.png はフクエスのロゴ画像なので語の説明にならない）
+  const shareImageAlt = meta.heroImage ? (meta.heroAlt ?? `${meta.term}のイメージ`) : undefined;
   return {
     title,
     description: meta.description,
@@ -70,7 +72,7 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
       url: `${SITE_URL}/glossary/${meta.slug}`,
       siteName: 'フクエス',
       type: 'article',
-      images: [{ url: shareImage }],
+      images: [{ url: shareImage, ...(shareImageAlt ? { alt: shareImageAlt } : {}) }],
     },
     twitter: {
       card: 'summary_large_image',
@@ -177,7 +179,7 @@ export default async function GlossaryTermPage({ params }: { params: Promise<{ s
             <div className={`${styles.section}`}>
               <Image
                 src={meta.heroImage}
-                alt={`${meta.term}のイメージ`}
+                alt={meta.heroAlt ?? `${meta.term}のイメージ`}
                 width={1200}
                 height={630}
                 priority

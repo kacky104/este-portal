@@ -55,6 +55,26 @@ const FM = (extra) => [
     [r.meta.term, r.meta.reading, r.meta.slug, r.meta.category, r.meta.summary, r.meta.publishedAt],
     ['健全店', 'けんぜんてん', 'kenzen-ten', 'gyotai', '法令とお店のルールを守るメンズエステのこと。', '2026-09-14']);
   eq('1b heroImage 省略 → null', r.meta.heroImage, null);
+  eq('1c heroAlt 省略 → null', r.meta.heroAlt, null);
+}
+
+// ── 1d〜1h heroAlt（第360便） ──
+{
+  const HERO = 'heroImage: /glossary/kenzen-ten/hero.webp';
+  eq('1d heroAlt を書く → そのまま取れる',
+    m.parseGlossaryFile(FM([HERO, 'heroAlt: カウンセリングで体の図を見せているセラピスト']), 'kenzen-ten').meta.heroAlt,
+    'カウンセリングで体の図を見せているセラピスト');
+  eq('1e heroImage だけ → heroAlt は null（画面側で「{term}のイメージ」に落とす）',
+    m.parseGlossaryFile(FM([HERO]), 'kenzen-ten').meta.heroAlt, null);
+  eq('1f heroAlt が空 → null', m.parseGlossaryFile(FM([HERO, 'heroAlt: ']), 'kenzen-ten').meta.heroAlt, null);
+  throws('1g heroAlt だけで heroImage が無い → throw',
+    () => m.parseGlossaryFile(FM(['heroAlt: どこにも出ない alt']), 'kenzen-ten'), 'heroImage も書く');
+  throws('1h heroAlt 121字 → throw',
+    () => m.parseGlossaryFile(FM([HERO, 'heroAlt: ' + 'あ'.repeat(121)]), 'kenzen-ten'), 'heroAlt');
+  eq('1i heroAlt 120字 → ok',
+    m.parseGlossaryFile(FM([HERO, 'heroAlt: ' + 'あ'.repeat(120)]), 'kenzen-ten').meta.heroAlt.length, 120);
+  eq('1j heroAlt に「: 」→ 1つ目で切れて残りは値',
+    m.parseGlossaryFile(FM([HERO, 'heroAlt: 図: 施術範囲の説明']), 'kenzen-ten').meta.heroAlt, '図: 施術範囲の説明');
 }
 
 // ── 2 major ──
@@ -147,7 +167,7 @@ eq('19h ん→わ', m.kanaRow('ん'), 'わ');
 
 // ── 20 sortForHub ──
 {
-  const e = (slug, category, reading) => ({ term: slug, reading, slug, category, major: false, summary: '', description: '', publishedAt: '2026-09-14', heroImage: null, related: [], areas: [], faq: [] });
+  const e = (slug, category, reading) => ({ term: slug, reading, slug, category, major: false, summary: '', description: '', publishedAt: '2026-09-14', heroImage: null, heroAlt: null, related: [], areas: [], faq: [] });
   const list = [e('c', 'ryokin', 'しめい'), e('a', 'gyotai', 'めんずえすて'), e('b', 'gyotai', 'けんぜんてん'), e('d', 'sejutsu', 'あろま')];
   eq('20 カテゴリ順 → 読みの順', m.sortForHub(list).map((x) => x.slug), ['b', 'a', 'd', 'c']);
   eq('20b 元の配列は変わらない', list.map((x) => x.slug), ['c', 'a', 'b', 'd']);
@@ -157,6 +177,8 @@ eq('19h ん→わ', m.kanaRow('ん'), 'わ');
 // ── 定数 ──
 eq('カテゴリは6つ・順番固定', m.GLOSSARY_CATEGORY_ORDER, ['gyotai', 'sejutsu', 'ryokin', 'therapist', 'manner', 'fukues']);
 eq('カテゴリのラベルが全部ある', Object.keys(m.GLOSSARY_CATEGORIES).length, 6);
+eq('description の上限は 160 字', m.GLOSSARY_DESCRIPTION_MAX, 160);
+eq('heroAlt の上限は 120 字', m.GLOSSARY_HERO_ALT_MAX, 120);
 eq('五十音の行 id は不変（#row-ka など）', [m.KANA_ROW_IDS['か'], m.KANA_ROW_IDS['あ'], m.KANA_ROW_IDS['わ'], m.KANA_ROW_IDS['その他']], ['ka', 'a', 'wa', 'other']);
 
 if (fail) { console.log('\n★ ' + fail + ' 件 NG'); process.exit(1); }

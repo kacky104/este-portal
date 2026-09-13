@@ -52,9 +52,9 @@ function publicExists(publicPath: string): boolean {
   return fs.existsSync(path.join(PUBLIC_DIR, publicPath.replace(/^\//, '')));
 }
 
-/** heroImage が public に無ければ null に落とした meta を返す。 */
+/** heroImage が public に無ければ null に落とした meta を返す。★ 画像が無いなら alt も一緒に落とす。 */
 function withHeroChecked(meta: GlossaryMeta): GlossaryMeta {
-  if (meta.heroImage && !publicExists(meta.heroImage)) return { ...meta, heroImage: null };
+  if (meta.heroImage && !publicExists(meta.heroImage)) return { ...meta, heroImage: null, heroAlt: null };
   return meta;
 }
 

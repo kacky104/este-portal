@@ -8,6 +8,7 @@ summary: 法令とお店のルールを守り、リラクゼーション目的�
 description: 健全店とは、法令と自店のルールを守り、リラクゼーション目的の施術だけを提供するメンズエステのこと。特徴・福岡での実情・見分け方・よくある質問を、初めての方にも分かるように解説します。
 publishedAt: 2026-09-14
 heroImage: /glossary/kenzen-ten/hero.webp
+heroAlt: 明るい施術室で、制服姿のセラピストが着衣のお客様の肩に手を当てているところ
 related: [mens-esthe, sejutsu-hani, kinshi-jiko, therapist-eno-sesshoku, kuchikomi]
 areas: [nakasu-tenjin, hakata-eki]
 faq:

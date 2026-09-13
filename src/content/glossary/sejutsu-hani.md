@@ -7,6 +7,7 @@ summary: そのお店・コースで施術の対象になる体の範囲のこ�
 description: 施術範囲とは、そのお店やコースで施術の対象になる体の範囲のこと。どこに書かれているか、福岡での実情、予約前に確認しておくことを、初めての方にも分かるように解説します。
 publishedAt: 2026-09-15
 heroImage: /glossary/sejutsu-hani/hero.webp
+heroAlt: カウンセリングで、セラピストがタブレットの人体図を見せながらお客様に施術範囲を説明しているところ
 related: [kenzen-ten, kinshi-jiko, counseling, towel-work, mens-esthe]
 areas: [nakasu-tenjin, hakata-eki]
 faq:
