@@ -314,8 +314,14 @@ export function MediaHome({ salonId, onToast }: {
           const busy = switching !== '' || bulking;
           const write = bulkLabel('write');
           const none = bulkLabel('none');
-          // ★ 設定1のリンク。★ 読める媒体で、鍵があり、自動でなく、まだ read でない枠にだけ出す
-          const readable = sites.find((s) => canReadProvider(s.provider) && s.canSwitch && !s.autoOn && s.direction !== 'read') ?? null;
+          // ★ 設定1のリンク。★ 読める媒体で、鍵があり、まだ read でない枠に出す
+          // ★★★★ 第343便（2026-09-13・カッキーさんが実機で発見）: 【!s.autoOn を外した】。
+          //   ★ 自動にした枠では、このリンクも行のボタンも消えて、
+          //     **ホームから「駅ちかから反映」へ戻る道が1つも無くなっていた**（行き止まり）。
+          //   ★ 第331便で自動を選べるようになって、初めてこの穴に入った。
+          //   ★★ link_mode は1つの列なので、read にすれば自動は定義上そこで終わる。
+          //     ★ 矛盾した状態（read なのに write_auto）は作れない。★ だから塞ぐ理由が無い。
+          const readable = sites.find((s) => canReadProvider(s.provider) && s.canSwitch && s.direction !== 'read') ?? null;
           const onReadLink = () => {
             if (!readable) return;
             const others = sites.map((x) => ({ provider: x.provider, slot: x.slot, direction: x.direction, label: x.label }));
@@ -364,8 +370,9 @@ export function MediaHome({ salonId, onToast }: {
                 //   ★★ 送るだけの媒体しか無い店舗様の1行（sendOnlyChoiceNote）は残す。
                 //     ★ あちらは【送るだけ】という別の事実で、見ただけでは分からない。
                 //   ★ 出し分けの順番は変えていない（★ 読める媒体があれば、送るだけの文は出さない）。
-                const readableSite = sites.find((s) => s.canSwitch && !s.autoOn && canReadProvider(s.provider));
-                const sendOnlySite = sites.find((s) => s.canSwitch && !s.autoOn && !canReadProvider(s.provider));
+                // ★ 第343便: !s.autoOn を外した（上のリンクと同じ理由）
+                const readableSite = sites.find((s) => s.canSwitch && canReadProvider(s.provider));
+                const sendOnlySite = sites.find((s) => s.canSwitch && !canReadProvider(s.provider));
                 const note = readableSite
                   ? ''
                   : sendOnlySite
@@ -412,7 +419,9 @@ export function MediaHome({ salonId, onToast }: {
               const me = { provider: s.provider, slot: s.slot };
               const elsewhere = isReadingElsewhere(others, me);
               const writingElsewhere = isWritingElsewhere(others, me);
-              const all = s.canSwitch && !s.autoOn
+              // ★★★★ 第343便: 自動中でも【止める道】を残す。★ !s.autoOn を外した。
+              //   ★ 自動にしたとたん「反映しない」も消えていた。★ 第111便で塞いだ穴と同じ形になっていた。
+              const all = s.canSwitch
                 ? switchChoices(s.direction as SiteDirection, s.label, s.provider, elsewhere, writingElsewhere)
                 : [];
               // ★★★ 第192便: 読める媒体（駅ちか）の行には【個別の「反映しない」】だけを出す。
