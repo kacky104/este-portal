@@ -400,10 +400,13 @@ export function WorkSend({ salonId, onToast }: { salonId: number | null; onToast
               {plan && <span className="text-[13px] text-slate-400">{fmt(plan.createdAt)} に確認</span>}
             </div>
 
-            {/* ★★ この画面でいちばん誤解が起きやすい場所。**まだ送っていない**を繰り返し書く。
+            {/* ★★ この画面でいちばん誤解が起きやすい場所。**まだ更新していない**を繰り返し書く。
                 ★ 第210便: 出すのは【確かめた内容がある】ときだけ。★ 確かめる前・待っている最中は、
-                  下の文が同じことを言うので二度言わない（カッキーさんの添削・2026-09-07） */}
-            {plan && !isWaiting && !gaveUp.has(k) && (
+                  下の文が同じことを言うので二度言わない（カッキーさんの添削・2026-09-07）
+                ★★★★ 第341便（2026-09-13・カッキーさん）: 【変わるところがあるときだけ】出す。
+                  ★ 0件のときは更新するものが1つも無いので、「更新するとこうなる」を青字で強調する意味がない。
+                  ★ 0件のときに要るのは「一致しています」だけ。 */}
+            {plan && !isWaiting && !gaveUp.has(k) && plan.changeCount > 0 && (
               <p className="text-[13px] font-bold text-indigo-600">
                 これは「更新するとこうなる」という内容です。まだ更新していません。
               </p>
@@ -467,7 +470,8 @@ export function WorkSend({ salonId, onToast }: { salonId: number | null; onToast
                   <>
                     <dl className="grid grid-cols-3 gap-px bg-slate-100 border border-slate-100 overflow-hidden">
                       <div className="bg-white px-3 py-2.5">
-                        <dt className="text-[12px] font-bold text-slate-400">更新する人</dt>
+                        {/* ★ 第341便: 「更新する人」→「更新できる人」。★ 下の「◯名は更新できません」と噛み合わせる */}
+                        <dt className="text-[12px] font-bold text-slate-400">更新できる人</dt>
                         <dd className="text-[20px] font-black text-slate-800 tabular-nums">
                           {plan.targets}<span className="text-[13px] font-bold text-slate-400 ml-0.5">名</span>
                         </dd>
@@ -485,10 +489,8 @@ export function WorkSend({ salonId, onToast }: { salonId: number | null; onToast
                         </dd>
                       </div>
                     </dl>
-                    {/* ★★ 選ばせない理由を、その場に書く。★ 「選べないのか」で終わらせない。★ 第210便で短く */}
-                    <p className="text-[13px] text-slate-400 leading-relaxed">
-                      フクエスの出勤がそのまま{s.label}に載ります。更新したくない方は、先にフクエスの出勤を直してください。
-                    </p>
+                    {/* ★★★★ 第339便（2026-09-13・カッキーさん）: 「フクエスの出勤がそのまま載ります…」を消した。
+                        ★ 当たり前のことなので、書いてあるほうが「何か例外があるのか」と読ませてしまう。 */}
                   </>
                 )}
 
@@ -513,13 +515,11 @@ export function WorkSend({ salonId, onToast }: { salonId: number | null; onToast
                   </ul>
                 )}
 
-                {plan.changeCount === 0 ? (
-                  plan.targets > 0 && (
-                    <p className="text-[14px] text-slate-500">
-                      いまの{s.label}の内容と一致しています。変えるところはありません。
-                    </p>
-                  )
-                ) : (
+                {/* ★★★★ 第341便（2026-09-13・カッキーさん）: 0件のときの
+                    「いまの◯◯の内容と一致しています。変えるところはありません。」を消した。
+                    ★ すぐ下のボタンの隣に「一致しています」と出るので、二度言っていた。
+                    ★ 状態は【行動のすぐ隣】にあるほうが読まれる（第340便で文字にしたのがそれ）。 */}
+                {plan.changeCount === 0 ? null : (
                   <div className="space-y-2">
                     <p className="text-[14px] font-bold text-slate-700">変わるところ（{plan.changeCount}件）</p>
                     <div className="overflow-x-auto">
@@ -579,24 +579,28 @@ export function WorkSend({ salonId, onToast }: { salonId: number | null; onToast
                       </button>
                     </>
                   ) : (() => {
-                    // ★★ 押せないときは、ボタン自体に理由を書く（第58便・設計メモ §173）。
-                    //   ★ 灰色にして終わりにしない。すぐ上に理由が書いてあっても、
-                    //     ボタンが「押せない」としか言わないと、なぜ押せないかは伝わらない。
+                    // ★★ 押せないときは、その理由を書く（第58便・設計メモ §173）。
+                    //   ★ 灰色にして終わりにしない。★ 「押せない」としか言わないと、なぜ押せないかは伝わらない。
+                    // ★★★★ 第340便（2026-09-13・カッキーさん）: 押せないときは【ボタンの形をやめて文字にする】。
+                    //   ★ 押せないボタンが2つ並ぶと、どちらを押せばよいのか分からない。
+                    //   ★ 理由（文言）は今までどおり pushButtonLabel から出す。★ 消したのは【ボタンの見た目】だけ。
                     const av = pushAvailability({
                       hasPlan: true,
                       sendable: plan.sendable,
                       changeCount: plan.changeCount,
                       fingerprint: plan.fingerprint,
                     });
+                    if (av !== 'ready') {
+                      return (
+                        <span className="px-2 py-2 text-[14px] font-bold text-slate-400 self-center">
+                          {pushButtonLabel(av)}
+                        </span>
+                      );
+                    }
                     return (
                       <button
                         onClick={() => setConfirmPush(k)}
-                        disabled={av !== 'ready'}
-                        className={`px-4 py-2 text-[14px] font-bold shadow-sm ${
-                          av === 'ready'
-                            ? 'bg-gradient-to-r from-indigo-500 to-indigo-700 text-white'
-                            : 'bg-slate-100 text-slate-400 shadow-none cursor-not-allowed'
-                        }`}
+                        className="px-4 py-2 text-[14px] font-bold shadow-sm bg-gradient-to-r from-indigo-500 to-indigo-700 text-white"
                       >
                         {pushButtonLabel(av)}
                       </button>
@@ -604,10 +608,9 @@ export function WorkSend({ salonId, onToast }: { salonId: number | null; onToast
                   })()}
                 </div>
 
-                {/* ★ 第210便で短く（指紋の突き合わせ・第46便の説明） */}
-                <p className="text-[13px] text-slate-400 text-right leading-relaxed">
-                  更新の直前にもう一度確かめ、内容が変わっていたら更新せずに止まります。
-                </p>
+                {/* ★★★★ 第339便（2026-09-13・カッキーさん）: 「更新の直前にもう一度確かめ…」を消した。
+                    ★ すぐ隣に「内容を確かめ直す」ボタンがあるので、二重の説明になって混乱の元だった。
+                    ★★ 仕組み（指紋の突き合わせ・第46便）は【消していない】。★ 消したのは説明文だけ。 */}
               </>
             )}
 
