@@ -16,6 +16,8 @@ import { judgeImportStall } from '@/lib/importStall';
 import { isWriteDirection, isLinkMode, hasApprovedOnce } from '@/lib/mediaLinkMode';
 import { deriveDiarySource, readDiarySource } from '@/lib/diarySource';
 import { loadCastIds } from '@/lib/mediaCastIds';
+// ★ 第316便: 新人の判定は公開ページと同じ関数を通す（★ 期間の正は newFace.ts の1か所）
+import { isNewFaceActive } from '@/lib/newFace';
 import { getCalendarDateJST } from '@/lib/dutyStatus';
 import { isLegacyCastIdScope } from '@/lib/mediaCastIds';
 import { buildLinkPairs, canLink, canUnlink, type LinkPairs } from '@/lib/mediaLinkPairs';
@@ -2292,7 +2294,12 @@ export async function getSalonTherapists(input: { salonId: string | number }): P
       name: (t.name as string | null) ?? '',
       age: t.age == null ? null : String(t.age),
       imageUrl: (t.profile_image_url as string | null) ?? null,
-      isNewFace: t.is_new_face === true,
+      // ★★★★ 第316便（2026-09-13・カッキーさん）: 新人の判定を【公開ページと同じ関数】に通す。
+      //   ★ ここは is_new_face の生の値をそのまま返していたので、印を消し忘れた子が
+      //     フクエスリンクだけ**いつまでも新人**のままだった（★ ヒナさんで踏んだ）。
+      //   ★ 新人期間の正は newFace.ts の NEW_FACE_WINDOW_DAYS（いま60日）ただ1つ。
+      //     ★ 期間を変えるときも、この画面は自動で追従する。★ ここに日数を書かない。
+      isNewFace: isNewFaceActive(t.is_new_face as boolean | null, t.new_face_since as string | null),
       newFaceSince: (t.new_face_since as string | null) ?? null,
       isActive: t.is_active === true,
     })),

@@ -71,11 +71,17 @@ type CredRow = {
   linkMode: string | null;
 };
 
-const fmt = (iso: string | null) => {
+/**
+ * ★ 日にちだけ（第315便・2026-09-13・カッキーさん）。
+ *   ★ 枠の中の「最終確認」と「同意済」は、時刻まで要らない（★ 何分に確かめたかで、することは変わらない）。
+ *   ★ 読めない値は「—」（★ "Invalid Date" を店舗に見せない）。
+ *   ★ 第315便で時刻つきの fmt は使い手が無くなったので落とした（★ 未使用のまま残さない）。
+ */
+const fmtDay = (iso: string | null) => {
   if (!iso) return '—';
   const d = new Date(iso);
   if (Number.isNaN(d.getTime())) return '—';
-  return d.toLocaleString('ja-JP', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' });
+  return d.toLocaleString('ja-JP', { month: '2-digit', day: '2-digit' });
 };
 
 const CARD = 'bg-white border border-slate-200 shadow-[0_1px_2px_rgba(31,35,51,0.05)]';
@@ -342,7 +348,7 @@ export function LoginBoard({
             : siteRows.some((r) => r.needsConsent)
               ? `${siteRows.map((r) => `枠${r.slot}`).join('・')} を登録済み ／ ★ 同意の取り直しが必要です。いまは何も送っていません`
               : siteRows.length > 0
-                ? `${siteRows.map((r) => `枠${r.slot}`).join('・')} を登録済み ／ 最終確認 ${fmt(anyRow?.lastVerifiedAt ?? null)}`
+                ? `${siteRows.map((r) => `枠${r.slot}`).join('・')} を登録済み ／ 最終確認 ${fmtDay(anyRow?.lastVerifiedAt ?? null)}`
                 : 'まだ登録されていません';
 
         const canRegister = canRegisterSite(site);
@@ -630,8 +636,8 @@ export function LoginBoard({
                       {/* ★ 第313便（カッキーさん）: 「最後に接続を確認できた日時」→「最終確認」。
                           ★ 時刻の見出しは、どの画面でも【最終確認】の1語にそろえた。
                           ★ 動きのほう（押すと起きること）は「更新する」。★ 名詞と動詞で言葉を分ける。 */}
-                      最終確認：<b className="text-slate-700">{fmt(row.lastVerifiedAt)}</b>
-                      {row.consentAgreedAt && !row.needsConsent && `　／　${fmt(row.consentAgreedAt)} に同意済み`}
+                      最終確認：<b className="text-slate-700">{fmtDay(row.lastVerifiedAt)}</b>
+                      {row.consentAgreedAt && !row.needsConsent && `　／　${fmtDay(row.consentAgreedAt)} に同意済`}
                     </p>
                     {row.lastError && (
                       <p className="text-[13.5px] text-rose-600">直近のエラー：{row.lastError}</p>

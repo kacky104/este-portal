@@ -27,6 +27,9 @@
 //   呼ぶと、点検で「取り込みが2日前で止まっている状態」を作れなくなる。
 
 import { isWriteDirection } from './mediaLinkMode';
+// ★ 第316便: 名前でも突き合わせる（★ 番号を知らないだけの人を「フクエスにいない」と言わないため）
+import { normalizeName } from './mediaMatch';
+import { kanaKey } from './mediaLinkPairs';
 
 /** 直近の取り込みがこれより古ければ「古い」と言う。★ 1日1回の周（03:05）を1回飛ばしても許す幅。 */
 export const ROSTER_STALE_HOURS = 36;
@@ -300,9 +303,34 @@ export function buildRoster(input: RosterInput): RosterResult {
     const onMedia = new Set<string>(snapshot.entries.map((e) => e.castId));
     mediaTotal = snapshot.entries.length;
     source = 'snapshot';
-    // ★ 媒体側にいて、こちらが番号を知らない子。★ 並びは写しの順のまま（相手の並び順）
+    /**
+     * ★★★★ 第316便（2026-09-13・カッキーさん）: 【名前でも突き合わせる】。
+     *   ★ それまでは番号（castId）だけで見ていたので、**フクエスに居るのに番号を結んでいないだけ**の人が
+     *     「フクエスにいないのに残っている方」に並んでいた（★ ラビリンス様のエステ魂で 17名）。
+     *   ★★ 同じ人が、上の一覧では「確かめられません」、下の箱では「フクエスにいない」と、
+     *     **2つの矛盾した顔で出ていた**。★ 見出しのほうが嘘になっていた。
+     *   ★ ここで隠しても手当ては消えない。★ 上の行に「◯◯と連携する」の候補として必ず出る
+     *     （★ 候補の作り方＝mediaLinkPairs と同じ物差し。文字が同じ／読みが同じ）。
+     *   ★★ 非公開の方も「フクエスに居る」に数える（★ 居るか居ないかの話であって、公開の話ではない）。
+     */
+    const nameKeys = new Set<string>();
+    for (const t of people) {
+      const n = normalizeName(t.name);
+      if (n) nameKeys.add(n);
+      const k = kanaKey(t.name);
+      if (k) nameKeys.add(k);
+    }
+    const isKnownName = (name: string) => {
+      const n = normalizeName(name);
+      if (n && nameKeys.has(n)) return true;
+      const k = kanaKey(name);
+      return k.length > 0 && nameKeys.has(k);
+    };
+    // ★ 媒体側にいて、番号も名前もこちらに無い子。★ 並びは写しの順のまま（相手の並び順）
     onlyOnMedia = known
-      ? snapshot.entries.filter((e) => !knownCast.has(e.castId)).map((e) => e.name)
+      ? snapshot.entries
+          .filter((e) => !knownCast.has(e.castId) && !isKnownName(e.name))
+          .map((e) => e.name)
       : [];
     // ★ 逆向き。★ 並びは id 昇順のまま（people は既に並べ替えてある）
     missingOnMedia = known

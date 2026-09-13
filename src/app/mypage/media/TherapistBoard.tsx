@@ -795,8 +795,12 @@ export function TherapistBoard({ salonId, onToast }: {
             </button>
           )}
 
-          {/* ★★ 候補は候補でしかない（旧 RosterLinkBoard の警告）。★ 結ぶボタンが1つでも出るときだけ出す */}
-          {kp && kp.unlinked.some((p) => p.candidates.length > 0) && (
+          {/* ★★ 候補は候補でしかない（旧 RosterLinkBoard の警告）。★ 連携するボタンが1つでも出るときだけ出す。
+              ★★★ 第317便（2026-09-13・カッキーさん）: 判定を【いま出している人】に狭めた。
+                ★ それまではサイト全体を見ていたので、「連携済み」を開いているとき——
+                  ★ 画面に候補ボタンが1つも無いのに——注意書きだけが出ていた。
+                ★ 見えている先を残さず絞り込みも数えるので、10人目より下に候補があっても出る。 */}
+          {filtered.some((t) => (unlinkedOf(t)?.candidates.length ?? 0) > 0) && (
             <div className="mt-3 border border-sky-200 bg-sky-50 px-3 py-2.5">
               <p className="text-[14px] leading-relaxed text-slate-600">
                 <b className="font-bold text-sky-700">「読みが同じ」は候補にすぎません。</b>{' '}
