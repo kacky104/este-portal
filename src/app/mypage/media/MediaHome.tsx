@@ -45,6 +45,8 @@ type Site = {
   listLastRunAt: string | null;
   fullLastRunAt: string | null;
   lastWriteOkAt: string | null;
+  /** ★ 第348便: 最後に【内容を確かめた】時刻。★ 「最終確認」に使う */
+  planCheckedAt: string | null;
   nextImportAt: string | null;
   /** ★ そのサイトへ【いま】送れるものの名前（第193便）。★ ログイン情報の画面と同じ元 */
   capabilities: string[];
@@ -503,7 +505,14 @@ export function MediaHome({ salonId, onToast }: {
                           ? (fmt(s.listLastRunAt) ? `最終確認 ${fmt(s.listLastRunAt)}` : 'まだ確認していません')
                           : s.direction === 'write'
                             // ★★★ 禁止の組み合わせが既にできているとき（第190便）は、時刻より先にそれを言う
-                            ? (dbl ?? (fmt(s.lastWriteOkAt) ? `最後の反映 ${fmt(s.lastWriteOkAt)}` : 'まだ反映していません'))
+                            // ★★★★ 【第348便】（2026-09-13・カッキーさん）: 「最後の反映」→【最終確認】。
+                            //   ★ 中身がすでに一致している枠は書き換える必要が一度も無いので、
+                            //     「まだ反映していません」のまま止まって見えた（★ 実際は毎周ちゃんと確かめている）。
+                            //   ★ 逆に「最後の反映 9/2」も、11日前に見えるが変える必要が無かっただけ。
+                            //   ★★ 「確認した」はどちらの行でも必ず起きていること。★ 嘘にならず、両方に同じ言い方で出せる。
+                            //   ★ 読む向きの行（すぐ上の枝）もすでに「最終確認」（第313便）。★ 画面の言葉が1つに揃う。
+                            //   ★ 実際に書き換えた時刻は【連携の記録】に残る。★ ホームは「いま動いているか」を見る場所。
+                            ? (dbl ?? (fmt(s.planCheckedAt) ? `最終確認 ${fmt(s.planCheckedAt)}` : 'まだ確認していません'))
                             // ★★ 選んで止めているのだから、失敗のように書かない（§223）
                             : s.direction === 'off'
                               // ★ 文言は mediaOverview.offRowNote（第189便）。★ ほかが正本なら理由も言う

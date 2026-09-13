@@ -2016,6 +2016,13 @@ export async function getMediaOverview(input: { salonId: string | number }): Pro
       fullLastRunAt: string | null;
       /** 最後に反映できた時刻 */
       lastWriteOkAt: string | null;
+      /**
+       * ★★★★ 第348便: 最後に【内容を確かめた】時刻（media_work_plans.created_at）。
+       *   ★ ホームの行の「最終確認」に使う。★ 反映の前に必ず組み立てる計画の時刻なので、
+       *     一致していて書き換える必要が無かった枠でも【必ず入る】。
+       *   ★ 向きを変えると計画は消える（setMediaLinkMode）ので、そのときは null に戻る。
+       */
+      planCheckedAt: string | null;
       /** ★ 次の取り込み。分からない・止まっているときは null */
       nextImportAt: string | null;
       /**
@@ -2057,6 +2064,20 @@ export async function getMediaOverview(input: { salonId: string | number }): Pro
     .order('created_at', { ascending: false })
     .limit(200);
 
+  // ★★★★ 【第348便】（2026-09-13・カッキーさん）: 【最終確認】の時刻。
+  //   ★ フクエスは反映する前に必ず相手の内容を読んで計画を組み立て、その時刻をここに残している
+  //     （★ 試し打ちでも実弾でも、自動でも手動でも残る・relayFlow の planWork が upsert）。
+  //   ★★ なぜ要るか: それまでホームの行は「最後の反映」（write_work の ok）だけを見ていた。
+  //     ★ 中身がすでに一致している枠は【一度も書き換える必要が無い】ので、
+  //       いつまでも「まだ反映していません」と出て、止まっているように見えていた。
+  //     ★ 逆に「最後の反映 9/2」も、11日前に見えるが【変える必要が無かっただけ】。
+  //   ★★★ 「確認した」はどちらの行でも【必ず起きていること】。★ 嘘にならず、両方に同じ言い方で出せる。
+  //   ★ 枠ごとに問い合わせを分けない（枠が増えるほど往復が増える形にしない）。
+  const { data: plans } = await svc
+    .from('media_work_plans')
+    .select('provider, slot, created_at')
+    .eq('salon_id', salonId);
+
   const { count: therapistCount } = await svc
     .from('therapists')
     .select('id', { count: 'exact', head: true })
@@ -2084,6 +2105,15 @@ export async function getMediaOverview(input: { salonId: string | number }): Pro
     if (!writeOkOf.has(k)) writeOkOf.set(k, String(a.created_at));   // 新しい順なので最初が最新
   }
 
+  // ★ 第348便: 最終確認の時刻。★ media_work_plans は 店舗×媒体×枠 で1件（上書き）なので、そのまま入れる
+  const planCheckedOf = new Map<string, string>();
+  for (const pl of (plans ?? []) as Array<{ provider?: unknown; slot?: unknown; created_at?: unknown }>) {
+    const at = pl.created_at;
+    if (typeof at === 'string' && at.length > 0) {
+      planCheckedOf.set(key(String(pl.provider), Number(pl.slot ?? 1)), at);
+    }
+  }
+
   // ★ 取り込みの枠と、ログイン情報だけある枠の【両方】を出す。
   //   ★ 片方しか無い状態は普通にある（読むだけの店は鍵を持たない／登録しただけで向き未決定）。
   const keys = new Set<string>([...(sources ?? []).map((s) => key(String(s.provider), Number(s.slot ?? 1))), ...credOf.keys()]);
@@ -2095,6 +2125,8 @@ export async function getMediaOverview(input: { salonId: string | number }): Pro
     canSwitch: boolean; autoOn: boolean; hasCredential: boolean; needsConsent: boolean;
     lastVerifiedAt: string | null;
     listLastRunAt: string | null; fullLastRunAt: string | null; lastWriteOkAt: string | null;
+    /** ★ 第348便: 最後に【内容を確かめた】時刻（media_work_plans.created_at） */
+    planCheckedAt: string | null;
     nextImportAt: string | null;
     capabilities: string[];
   }> = [];
@@ -2155,6 +2187,7 @@ export async function getMediaOverview(input: { salonId: string | number }): Pro
       listLastRunAt,
       fullLastRunAt,
       lastWriteOkAt: writeOkOf.get(k) ?? null,
+      planCheckedAt: planCheckedOf.get(k) ?? null,
       nextImportAt: next ? next.toISOString() : null,
       // ★ ログイン情報の画面と同じ元（第193便）。★ 知らない種別は capabilityLabel が空にするので落とす
       capabilities: (() => {
