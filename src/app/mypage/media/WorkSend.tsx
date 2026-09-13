@@ -48,10 +48,13 @@ const keyOf = (p: string, s: number) => p + '#' + s;
  *   ★ 即ヒメ（駅ちか）と即セラ（エステ魂）は、どちらも【フクエスから反映なら自動】。★ 同じ形で並べる。
  *   ★ ボタンは持たない。★ ここに設定は無い、と分かることがこのカードの仕事。
  */
-function AutoNote({ title, children }: { title: string; children: React.ReactNode }) {
+function AutoNote({ title, kirari, children }: { title: string; kirari?: boolean; children: React.ReactNode }) {
   return (
     <div className="bg-white border border-slate-200 shadow-[0_1px_2px_rgba(31,35,51,0.05)] p-5 space-y-1.5">
-      <h3 className="text-[16px] font-bold text-slate-700">{title}</h3>
+      {/* ★★★ 第336便（2026-09-13・カッキーさん）: 「いま動いている」ものは見出しをキラリと光らせる。
+          ★ 光り方は globals.css の .link-live-kirari（紺→インディゴ→水色が1回通って休む）。
+          ★ 素の文字色は --lk-base（slate-800）が持つので、text-slate-700 は当てない（二重に決めない）。 */}
+      <h3 className={'text-[16px] font-bold ' + (kirari === true ? 'link-live-kirari' : 'text-slate-700')}>{title}</h3>
       {children}
     </div>
   );
@@ -661,13 +664,14 @@ export function WorkSend({ salonId, onToast }: { salonId: number | null; onToast
           ★ 見えなくなったもの: 枠の空き具合と、1人ずつ押す道。★ 枠は駅ちかの管理画面で見られる。
           ★ SokuhimeSlots.tsx は第324便で消した。 */}
       {!loading && !error && site && site.provider === 'ekichika' && site.direction === 'write' && (
-        <AutoNote title="駅ちかの即ヒメ">
+        // ★★★ 第336便: 見出し「駅ちかの即ヒメ」を消し、状態そのもの（即ヒメ自動設定中）を見出しにした。
+        //   ★ 見出しが【いま何が起きているか】を言う。★ 場所の名前（駅ちかの…）はタブで分かる。
+        <AutoNote title="即ヒメ自動設定中" kirari>
           {/* ★★★ 第329便（2026-09-13・カッキーさんの添削）: 4行を1行にした。
               ★ 「長いので店舗様は読まない」。★ 読まれない正確さより、読まれる1行を選ぶ。
               ★★ 「10分ごと」と書かない。★ 「今すぐを押しても10分待たされる」と読まれる
                 （実際は周が10分ごとに回るだけで、押した直後の周で上がる）。★ だから「数分以内」。 */}
           <p className="text-[13.5px] text-slate-500 leading-relaxed">
-            <b className="font-bold text-slate-700">即ヒメ自動設定中。</b>
             「今すぐ」のセラピストを数分以内に即ヒメにします。
           </p>
         </AutoNote>
@@ -681,10 +685,10 @@ export function WorkSend({ salonId, onToast }: { salonId: number | null; onToast
           ★ ONだけ打ってOFFは打たない（★ 60分で向こうが切る）。★ 1周で1人だけ。
           ★ 駅ちかの即ヒメは第327便で【10分ごと・1周6人まとめて】になったが、即セラは5分ごと1人のまま。 */}
       {!loading && !error && site && site.provider === 'esutama' && site.direction === 'write' && (
-        <AutoNote title="エステ魂の即セラ">
+        // ★ 第336便: 即ヒメと同じ形に揃えた（見出し＝状態・キラリ）
+        <AutoNote title="即セラ自動設定中" kirari>
           {/* ★ 第330便: 駅ちかの即ヒメと同じ1行に揃えた（カッキーさん）。★ 周の分数は書かない */}
           <p className="text-[13.5px] text-slate-500 leading-relaxed">
-            <b className="font-bold text-slate-700">即セラ自動設定中。</b>
             「今すぐ」のセラピストを数分以内に即セラにします。
           </p>
         </AutoNote>

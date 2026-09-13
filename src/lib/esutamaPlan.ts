@@ -84,7 +84,7 @@ export function planEsutamaWork(input: {
       })),
       notes: [],
       ok: false,
-      summary: 'エステ魂の名簿を読み取れなかったため、1件も送っていません',
+      summary: 'エステ魂の名簿を読み取れなかったため、1件も更新していません',
     };
   }
 
@@ -98,7 +98,7 @@ export function planEsutamaWork(input: {
     const cid = linkOf.get(t.therapistId);
     if (cid === undefined) { unlinked.push(t); continue; }
     if (onMedia.has(cid)) toUse.push({ therapistId: t.therapistId, name: t.name, castId: cid });
-    else blocked.push({ therapistId: t.therapistId, name: t.name, reason: 'not_registered', message: t.name + 'さんに結ばれているエステ魂の番号（' + cid + '）が名簿に見当たらないため送っていません。名簿画面で結び直してください' });
+    else blocked.push({ therapistId: t.therapistId, name: t.name, reason: 'not_registered', message: t.name + 'さんに結ばれているエステ魂の番号（' + cid + '）が名簿に見当たらないため更新していません。名簿画面で結び直してください' });
   }
 
   const match = planRosterWrite(input.roster, unlinked.map((t) => ({ therapistId: t.therapistId, name: t.name })));
@@ -109,7 +109,7 @@ export function planEsutamaWork(input: {
   for (const t of match.toRegister) {
     blocked.push({
       therapistId: t.therapistId, name: t.name, reason: 'not_registered',
-      message: t.name + 'さんは、エステ魂にまだ登録されていないため送っていません。エステ魂の管理画面で登録してください（こちらからの自動登録はしていません）',
+      message: t.name + 'さんは、エステ魂にまだ登録されていないため更新していません。エステ魂の管理画面で登録してください（こちらからの自動登録はしていません）',
     });
   }
 
@@ -127,7 +127,7 @@ export function planEsutamaWork(input: {
     if (!rows || rows.size === 0) {
       blocked.push({
         therapistId: u.therapistId, name: u.name, reason: 'no_fukues_rows',
-        message: u.name + 'さんは、この期間のフクエスの出勤が未入力のため送っていません（エステ魂側の表はそのままです）',
+        message: u.name + 'さんは、この期間のフクエスの出勤が未入力のため更新していません（エステ魂側の表はそのままです）',
       });
       continue;
     }
@@ -152,13 +152,13 @@ export function planEsutamaWork(input: {
 
 function buildSummary(people: EsutamaPerson[], blocked: EsutamaBlocked[], notes: string[]): string {
   if (people.length === 0) {
-    if (blocked.length > 0) return 'エステ魂へ送れる出勤がありません（' + blocked.length + '人は送れません）';
-    return 'エステ魂へ送る出勤がありません';
+    if (blocked.length > 0) return 'エステ魂で更新できる出勤がありません（' + blocked.length + '人は更新できません）';
+    return 'エステ魂で更新する出勤がありません';
   }
   const shifts = people.reduce((n, p) => n + p.days.filter((d) => d.range !== null).length, 0);
-  const parts = [people.length + '人 / 出勤' + shifts + '日ぶんをエステ魂へ送ります（1人ずつ、14日分の表を書き換えます）'];
-  if (blocked.length > 0) parts.push('★ ' + blocked.length + '人は送りません');
-  if (notes.length > 0) parts.push('★ ' + notes.length + '件は時刻を寄せた／送れませんでした');
+  const parts = [people.length + '人 / 出勤' + shifts + '日ぶんでエステ魂を更新します（1人ずつ、14日分の表を書き換えます）'];
+  if (blocked.length > 0) parts.push('★ ' + blocked.length + '人は更新しません');
+  if (notes.length > 0) parts.push('★ ' + notes.length + '件は時刻を寄せた／更新できませんでした');
   return parts.join(' / ');
 }
 

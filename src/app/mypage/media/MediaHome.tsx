@@ -446,7 +446,7 @@ export function MediaHome({ salonId, onToast }: {
                       <span className={`block text-[13px] tabular-nums ${dbl ? 'text-amber-800 font-bold' : 'text-slate-400'}`}>
                         {/* ★★ 止まっているときは、時刻より先に【止まっていること】を書く（第89便） */}
                         {s.needsConsent
-                          ? '同意の取り直しが必要です。いまは何も送っていません'
+                          ? '同意の取り直しが必要です。いまは何も更新していません'
                           : s.direction === 'read'
                           // ★ 第313便（カッキーさん）: 時刻の見出しは【最終確認】にそろえた（★ 第310便の「最後の更新」から）
                           //   （★ 「読む」はこちら側の動き。★ 店舗様から見て起きるのは、この画面の中身が新しくなること）

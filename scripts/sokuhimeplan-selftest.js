@@ -50,7 +50,9 @@ eq('既に枠に居る（生きている） → already_on', reasons(plan({ peop
 eq('空き枠が無い → no_free_slot', reasons(plan({ people: [P(1)], workingCastIds: ['101'], boxes: [B(0, { girlId: '555', sokuikuId: '1', expiresAtUnix: NOW + 600 })] })), ['no_free_slot']);
 eq('回数制で残り0 → no_remaining_count', reasons(plan({ people: [P(1)], workingCastIds: ['101'], remainingCount: 0 })), ['no_remaining_count']);
 eq('回数制で残り1 → 送る', plan({ people: [P(1)], workingCastIds: ['101'], remainingCount: 1 }).sets.length, 1);
-eq('★ 文言は店舗様の言葉（結びつけてください）', plan({ people: [P(1, { castId: null })] }).blocked[0].message.includes('セラピスト一覧で結びつけてください'), true);
+// ★★ 第338便: 画面の名前は実物（セラピスト設定）。★ 消えた画面の名前を案内しない
+eq('★ 文言は店舗様の言葉（「セラピスト設定」で連携してください）', plan({ people: [P(1, { castId: null })] }).blocked[0].message.includes('「セラピスト設定」で連携してください'), true);
+eq('★★ 消えた画面の名前（セラピスト一覧）を出さない', plan({ people: [P(1, { castId: null })] }).blocked[0].message.includes('セラピスト一覧'), false);
 
 console.log('\n── 3-b. ★★★ 回数制は残り回数を超えて押さない（第327便・まとめ押しの頭打ち）──');
 p = plan({

@@ -161,20 +161,20 @@ export function switchAskText(to: 'read' | 'write' | 'none', siteLabel: string, 
     if (to === 'write') {
       return {
         title: 'フクエスから反映しますか？',
-        body: `フクエスに入れた出勤を、${siteLabel}へ反映するようになります。送る前に、毎回内容をご確認いただきます。`,
+        body: `フクエスに入れた出勤で、${siteLabel}を更新するようになります。更新の前に、毎回内容をご確認いただきます。`,
       };
     }
     if (to === 'none') {
       return {
         title: `${siteLabel}へ反映しないようにしますか？`,
-        body: `${siteLabel}へは何も送らなくなります。フクエスに入れた出勤は、そのまま残ります。`,
+        body: `${siteLabel}は更新しなくなります。フクエスに入れた出勤は、そのまま残ります。`,
       };
     }
     // ★ 書くだけの媒体に 'read' は出てこない（switchChoices が出さない）。
     //   ★ それでも来たときに、読み取れるように読める文を返さない。★ 事実を書く
     return {
-      title: `${siteLabel}へは、送ることしかできません`,
-      body: `${siteLabel}の内容をフクエスへ読み取ることはできません。このサイトへは送るだけです。`,
+      title: `${siteLabel}は、更新することしかできません`,
+      body: `${siteLabel}の内容をフクエスへ読み取ることはできません。このサイトは更新するだけです。`,
     };
   }
   if (to === 'read') {
@@ -183,7 +183,7 @@ export function switchAskText(to: 'read' | 'write' | 'none', siteLabel: string, 
     //   ★ 出勤だけ書くと、写メ日記は送り続けると読める。
     return {
       title: `${siteLabel}から反映しますか？`,
-      body: `${siteLabel}に入れた出勤を、フクエスが読み取るようになります。フクエスから各サイトへは、出勤も写メ日記も送らなくなります。`,
+      body: `${siteLabel}に入れた出勤を、フクエスが読み取るようになります。フクエスから各サイトへは、出勤の更新も写メ日記の投稿もしなくなります。`,
     };
   }
   if (to === 'write') {
@@ -198,7 +198,7 @@ export function switchAskText(to: 'read' | 'write' | 'none', siteLabel: string, 
   //   ★ 見出しを一括ボタン（「どのサイトにも反映しない」）と同じ言葉にしない。★ 押した範囲が違う。
   return {
     title: `${siteLabel}へ反映しないようにしますか？`,
-    body: `${siteLabel}へは送らず、${siteLabel}からの取り込みもしません。フクエスに入れた出勤は、そのまま残ります。`,
+    body: `${siteLabel}は更新せず、${siteLabel}からの取り込みもしません。フクエスに入れた出勤は、そのまま残ります。`,
   };
 }
 
@@ -412,8 +412,8 @@ export function homeChoiceNote(siteLabel: string): string {
  */
 export function sendOnlyChoiceNote(siteLabel: string): string {
   const where = typeof siteLabel === 'string' && siteLabel.length > 0 ? siteLabel : 'このサイト';
-  return `${where}へは送るだけです。`
-    + `「${switchLabel('none', where)}」を選ぶと、${where}へは何も送りません。`;
+  return `${where}は更新するだけです。`
+    + `「${switchLabel('none', where)}」を選ぶと、${where}は更新しません。`;
 }
 
 /**
@@ -431,14 +431,14 @@ export function sendOnlyChoiceNote(siteLabel: string): string {
 export function switchDoneText(to: 'read' | 'write' | 'none', siteLabel: string, provider: string): string {
   // ★★★ 書くだけの媒体。★ 取り込みに触れない
   if (!canReadProvider(provider)) {
-    if (to === 'write') return `フクエスから${siteLabel}へ反映するようにしました。送る前に、毎回内容をご確認いただきます`;
+    if (to === 'write') return `フクエスから${siteLabel}へ反映するようにしました。更新の前に、毎回内容をご確認いただきます`;
     if (to === 'none') return `${siteLabel}へは反映しないようにしました。フクエスに入れた出勤は、そのまま残ります`;
-    return `${siteLabel}へは、送ることしかできません`;
+    return `${siteLabel}は、更新することしかできません`;
   }
-  if (to === 'read') return `${siteLabel}から反映するようにしました。フクエスからは送りません`;
+  if (to === 'read') return `${siteLabel}から反映するようにしました。フクエスからは更新しません`;
   if (to === 'write') return `フクエスから反映するようにしました。${siteLabel}からの取り込みは止まります`;
   // ★★★ 第192便: 「どのサイトへも」を消した（switchAskText('none') と対）。★ 変わったのはこの枠だけ
-  return `${siteLabel}へは反映しないようにしました。${siteLabel}へは送らず、${siteLabel}からの取り込みもしません`;
+  return `${siteLabel}へは反映しないようにしました。${siteLabel}は更新せず、${siteLabel}からの取り込みもしません`;
 }
 
 /**
@@ -624,10 +624,14 @@ export function bulkPlan(sites: ReadonlyArray<BulkSite>, to: BulkTarget): BulkPl
  *   ★★ 第331便で【一致していれば送らなくても自動にできる】ようになったので、
  *     「1回送ったあとは」だけだと、一致していて送れない店舗は詰んでいると読めてしまう。
  *   ★ 出しどころは2つ（出勤を更新 の帯／「フクエスから反映」に切り替える確認）。★ 2か所でずらさない。
+ *   ★★★★ 第337便（2026-09-13・カッキーさん）: 画面の名前（「出勤を更新」）を文中に書くのをやめた。
+ *     ★ 「「出勤を更新」で内容をご確認ください」と書くと、店舗様はこの画面から
+ *       **その名前のボタンを探す**。★ 画面の名前とボタンの名前を混ぜない。
+ *     ★ 代わりに【押すボタンの名前そのもの】を書く（「内容を確かめる」）。★ 探す先が一致する。
  *   ★★★★ 第333便: 「送る」→「更新」（カッキーさん）。★ 店舗様から見れば、していることはサイトの更新。
  */
 export const WORK_FIRST_APPROVAL_NOTE =
-  'まず「出勤を更新」で内容をご確認ください。更新するか、いまの内容と一致していれば、そのあと自動にできます。';
+  'まず「内容を確かめる」を押してください。変わるところがあれば更新し、無ければそのままで、自動にできるようになります。';
 
 /** ★ 一括ボタンに書く文字（★ 行き先の状態を名前にする・第90便の作法）。 */
 export function bulkLabel(to: BulkTarget): { label: string; sub: string } {
@@ -665,13 +669,13 @@ export function bulkAskText(plan: BulkPlan): { title: string; body: string } {
       // ★ 第208便: 「押しただけでは自動にならない」を先に言う（カッキーさんの問い・2026-09-07 17:1x）
       body: `フクエスに入れた出勤を、${names}へ反映するようになります。${WORK_FIRST_APPROVAL_NOTE}`
         + (fromRead.length > 0 ? `${fromRead}からの取り込みは止まります。` : '')
-        + '写メ日記もフクエスで書いたものを送ります。'
+        + '写メ日記も、フクエスで書いたものを投稿します。'
         + skipNote,
     };
   }
   return {
     title: 'どのサイトにも反映しないようにしますか？',
-    body: `出勤はフクエスにだけ入ります。${names}へは送らなくなります。`
+    body: `出勤はフクエスにだけ入ります。${names}は更新しなくなります。`
       + (fromRead.length > 0 ? `${fromRead}からの取り込みも止まります。` : 'どのサイトからも取り込みません。')
       + '写メ日記もフクエスの中だけになります。'
       + skipNote,
@@ -700,7 +704,7 @@ export function bulkDoneText(r: BulkResult): string {
     return `${head}${r.stoppedAt.label}で止まりました：${r.stoppedAt.error}`;
   }
   if (r.changed.length === 0) return '変えるところはありませんでした';
-  if (r.to === 'write') return `フクエスから${changed}へ反映するようにしました。送る前に、毎回内容をご確認いただきます`;
+  if (r.to === 'write') return `フクエスから${changed}へ反映するようにしました。更新の前に、毎回内容をご確認いただきます`;
   return `どのサイトにも反映しないようにしました（${changed}）。フクエスに入れた出勤は、そのまま残ります`;
 }
 
@@ -779,7 +783,7 @@ export const CREDENTIAL_PAUSE_WHEN =
  *     ★ 残った設定を見張りが読んで、止まりとして毎日届けることになる（§223・第87便）。
  */
 export const CREDENTIAL_PAUSE_NOT_FOR_STOPPING =
-  'もう送りたくないだけのときは、こちらではありません。'
+  'もう更新したくないだけのときは、こちらではありません。'
   + '媒体連携のホームで「反映しない」をお選びください。';
 
 /**
@@ -809,14 +813,14 @@ export function credentialPauseAskText(
   if (to === 'pause') {
     return {
       title: `${siteLabel}へのログインを一時停止しますか？`,
-      body: `フクエスは${siteLabel}の管理画面に入らなくなり、出勤も写メ日記も送りません。`
+      body: `フクエスは${siteLabel}の管理画面に入らなくなり、出勤の更新も写メ日記の投稿もしません。`
         + (canRead === true ? `${siteLabel}からの取り込みは、これまでどおり続きます。` : '')
         + 'パスワードを直したら、いつでも再開できます。',
     };
   }
   return {
     title: `${siteLabel}へのログインを再開しますか？`,
-    body: `フクエスが${siteLabel}の管理画面に入るようになり、次の反映から送ります。`,
+    body: `フクエスが${siteLabel}の管理画面に入るようになり、次の反映から更新します。`,
   };
 }
 
@@ -828,10 +832,10 @@ export function credentialPauseDoneText(
   to: 'pause' | 'resume', siteLabel: string, canRead: boolean,
 ): string {
   if (to === 'pause') {
-    return `${siteLabel}へのログインを一時停止しました。出勤も写メ日記も送りません`
+    return `${siteLabel}へのログインを一時停止しました。出勤の更新も写メ日記の投稿もしません`
       + (canRead === true ? `（${siteLabel}からの取り込みは続きます）` : '');
   }
-  return `${siteLabel}へのログインを再開しました。次の反映から送ります`;
+  return `${siteLabel}へのログインを再開しました。次の反映から更新します`;
 }
 
 /**
@@ -839,7 +843,7 @@ export function credentialPauseDoneText(
  *   ★ ボタンには状態を書かない代わりに、状態はここで言い切る。
  */
 export function credentialPausedNotice(siteLabel: string): string {
-  return `いま${siteLabel}へのログインを一時停止しています。この枠へは何も送りません。`;
+  return `いま${siteLabel}へのログインを一時停止しています。この枠では何も更新しません。`;
 }
 
 // ───────────────────────── 送信ボタンの状態（第58便） ─────────────────────────

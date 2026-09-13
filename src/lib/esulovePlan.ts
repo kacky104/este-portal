@@ -80,7 +80,7 @@ export function planEsuloveWork(input: {
       })),
       notes: [],
       ok: false,
-      summary: 'エステラブの名簿を読み取れなかったため、1件も送っていません',
+      summary: 'エステラブの名簿を読み取れなかったため、1件も更新していません',
     };
   }
 
@@ -103,7 +103,7 @@ export function planEsuloveWork(input: {
       name: t.name,
       reason: 'not_registered',
       message:
-        t.name + 'さんは、エステラブにまだ登録されていないため送っていません。' +
+        t.name + 'さんは、エステラブにまだ登録されていないため更新していません。' +
         'エステラブの管理画面で登録してください（こちらからの自動登録はしていません）',
     });
   }
@@ -144,16 +144,16 @@ export function planEsuloveWork(input: {
 function buildSummary(rows: EsuloveWorkRow[], blocked: EsuloveBlocked[], notes: string[]): string {
   if (rows.length === 0) {
     // ★ 0件のときに「変更なし」と言わない。なぜ0件かを言う
-    if (blocked.length > 0) return 'エステラブへ送れる出勤がありません（' + blocked.length + '人は送れません）';
-    return 'エステラブへ送る出勤がありません';
+    if (blocked.length > 0) return 'エステラブで更新できる出勤がありません（' + blocked.length + '人は更新できません）';
+    return 'エステラブで更新する出勤がありません';
   }
   const people = new Set(rows.map((r) => r.castId)).size;
   const days = new Set(rows.map((r) => r.day)).size;
-  const parts = [people + '人 / ' + days + '日ぶん（' + rows.length + '枠）を送ります'];
-  if (blocked.length > 0) parts.push('★ ' + blocked.length + '人は送りません');
-  if (notes.length > 0) parts.push('★ ' + notes.length + '件は時刻を寄せた／送れませんでした');
+  const parts = [people + '人 / ' + days + '日ぶん（' + rows.length + '枠）を更新します'];
+  if (blocked.length > 0) parts.push('★ ' + blocked.length + '人は更新しません');
+  if (notes.length > 0) parts.push('★ ' + notes.length + '件は時刻を寄せた／更新できませんでした');
   // ★★ 片方向であることを必ず言う。黙って「反映しました」と言わない
-  parts.push('※ 出勤のある日だけを送ります。お休みにした日はエステラブ側に残ります');
+  parts.push('※ 出勤のある日だけを更新します。お休みにした日はエステラブ側に残ります');
   return parts.join(' / ');
 }
 

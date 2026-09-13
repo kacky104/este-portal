@@ -138,11 +138,11 @@ eq('★ 「各サイトへ送るようにする」は使わない',
 // ★★ 1回押すだけで変わる。★ だから【止まるほう】を押した直後に必ず言う
 eq('★★ write へ → 止まるのは取り込み',
    v.switchDoneText('write', '駅ちか', EKI).includes('取り込みは止まります'), true);
-eq('★★ read へ → 送らないことを言う',
-   v.switchDoneText('read', '駅ちか', EKI).includes('フクエスからは送りません'), true);
+eq('★★ read へ → 更新しないことを言う',
+   v.switchDoneText('read', '駅ちか', EKI).includes('フクエスからは更新しません'), true);
 // ★★★ 第192便: 「どのサイトへも」と書かない。★ この枠しか変わらないのに全体のように書いていた（嘘）
-eq('★★★ none へ → その媒体へ送らないことと取り込まないことの両方を言う',
-   v.switchDoneText('none', '駅ちか', EKI).includes('駅ちかへは送らず')
+eq('★★★ none へ → その媒体を更新しないことと取り込まないことの両方を言う',
+   v.switchDoneText('none', '駅ちか', EKI).includes('駅ちかは更新せず')
    && v.switchDoneText('none', '駅ちか', EKI).includes('駅ちかからの取り込みもしません'), true);
 eq('★★★ none へ → 「どのサイトへも」と書かない（第192便）',
    v.switchDoneText('none', '駅ちか', EKI).includes('どのサイト'), false);
@@ -185,16 +185,16 @@ eq('★★ 問いは必ず「？」で終わる',
 // ★★★ 押す前の本文には【止まるほう】を必ず書く。★ 押したあとの文と対にする
 eq('★★★ write の本文は取り込みが止まると書く',
    v.switchAskText('write', '駅ちか', EKI).body.includes('取り込みは止まります'), true);
-eq('★★★ read の本文は送らなくなると書く',
-   v.switchAskText('read', '駅ちか', EKI).body.includes('送らなくなります'), true);
+eq('★★★ read の本文は更新しなくなると書く',
+   v.switchAskText('read', '駅ちか', EKI).body.includes('しなくなります'), true);
 eq('★★★ none の本文は両方とも止まると書く（★ その媒体の範囲で）',
-   v.switchAskText('none', '駅ちか', EKI).body.includes('駅ちかへは送らず')
+   v.switchAskText('none', '駅ちか', EKI).body.includes('駅ちかは更新せず')
    && v.switchAskText('none', '駅ちか', EKI).body.includes('駅ちかからの取り込みもしません'), true);
 eq('★★★ 1枠の none の本文に「どのサイト」と書かない（第192便）',
    v.switchAskText('none', '駅ちか', EKI).body.includes('どのサイト'), false);
 // ★★ 第192便: read の本文は写メ日記も送らないと書く（カッキーさんの方針）
-eq('★★ read の本文は「写メ日記も」送らなくなると書く（第192便）',
-   v.switchAskText('read', '駅ちか', EKI).body.includes('出勤も写メ日記も送らなくなります'), true);
+eq('★★ read の本文は「写メ日記も」止まると書く（第192便・第335便で言い方を更新／投稿に）',
+   v.switchAskText('read', '駅ちか', EKI).body.includes('出勤の更新も写メ日記の投稿もしなくなります'), true);
 eq('★ どの行き先でも本文が空にならない',
    ['read', 'write', 'none'].every((m) => v.switchAskText(m, '駅ちか', EKI).body.length > 0), true);
 
@@ -274,8 +274,8 @@ eq('★ どの行き先でも空にならない',
      v.switchAskText(m, 'エステ魂', LOVE).body.length > 0
      && v.switchDoneText(m, 'エステ魂', LOVE).length > 0), true);
 // ★★★ 'read' が来ても、読み取れるように読める文を返さない
-eq('★★★ read の問いは「送ることしかできません」',
-   v.switchAskText('read', 'エステ魂', LOVE).title.includes('送ることしかできません'), true);
+eq('★★★ read の問いは「更新することしかできません」',
+   v.switchAskText('read', 'エステ魂', LOVE).title.includes('更新することしかできません'), true);
 
 console.log('\n── 5-4. ★★★ ボタンの下の1行を、媒体で分ける（第111便）──');
 // ★★★ homeChoiceNote は「◯◯とフクエスのどちらか一方」と書く。
@@ -444,8 +444,8 @@ const donePw = v.credentialPauseDoneText('pause', SITE, false);
 const doneR = v.credentialPauseDoneText('resume', SITE, true);
 
 // ★★ 止まるほうを、どちらにも書く（引き継ぎメモの作法）
-eq('★★ 問いに「送りません」が入る', askP.body.indexOf('送りません') >= 0, true);
-eq('★★ 押したあとにも「送りません」が入る', doneP.indexOf('送りません') >= 0, true);
+eq('★★ 問いに「投稿もしません」が入る', askP.body.indexOf('出勤の更新も写メ日記の投稿もしません') >= 0, true);
+eq('★★ 押したあとにも「投稿もしません」が入る', doneP.indexOf('出勤の更新も写メ日記の投稿もしません') >= 0, true);
 // ★★★ 止まらないほう（取り込み）も、どちらにも書く。★ 書かないと全部止まったと思われる
 eq('★★★ 読める媒体なら、問いに取り込みが続くと書く', askP.body.indexOf('取り込み') >= 0, true);
 eq('★★★ 読める媒体なら、押したあとにも取り込みが続くと書く', doneP.indexOf('取り込み') >= 0, true);
@@ -459,11 +459,11 @@ eq('★★ 読めない媒体でも食い違わない',
    (askPw.body.indexOf('取り込み') >= 0) === (donePw.indexOf('取り込み') >= 0), true);
 
 console.log('  再開のほう');
-eq('★ 再開の問いに「次の反映から送ります」', askR.body.indexOf('次の反映から送ります') >= 0, true);
-eq('★ 再開の結果にも「次の反映から送ります」', doneR.indexOf('次の反映から送ります') >= 0, true);
-// ★ 再開で止まるものは無い。★ 「送りません」と書かない
-eq('★★ 再開の文に「送りません」を出さない',
-   askR.body.indexOf('送りません') >= 0 || doneR.indexOf('送りません') >= 0, false);
+eq('★ 再開の問いに「次の反映から更新します」', askR.body.indexOf('次の反映から更新します') >= 0, true);
+eq('★ 再開の結果にも「次の反映から更新します」', doneR.indexOf('次の反映から更新します') >= 0, true);
+// ★ 再開で止まるものは無い。★ 「しません」と書かない
+eq('★★ 再開の文に「しません」を出さない',
+   askR.body.indexOf('しません') >= 0 || doneR.indexOf('しません') >= 0, false);
 
 console.log('  ★★★ 「連携を停止」と書かない（第87便で消した言い方）');
 const ALL = [
@@ -499,8 +499,8 @@ eq('★★★ 戻し方（ログインを再開）を書く',
 
 console.log('  ★ 止めているあいだ、状態は文で言い切る');
 eq('★ 媒体名が入る', v.credentialPausedNotice(SITE).indexOf(SITE) >= 0, true);
-eq('★ 「何も送りません」と言い切る',
-   v.credentialPausedNotice(SITE).indexOf('何も送りません') >= 0, true);
+eq('★ 「何も更新しません」と言い切る',
+   v.credentialPausedNotice(SITE).indexOf('何も更新しません') >= 0, true);
 
 console.log('\n── 取り込んだ日記の印（第98便） ──');
 eq('印は「◯◯から反映」', v.importedDiaryLabel('駅ちか'), '駅ちかから反映');
@@ -775,16 +775,19 @@ console.log('\n── ★★★ 第192便: ホームを「3つの設定」にす
   eq('★★★ write の本文: 鍵が無い枠は名前を出して「変わりません」', v.bulkAskText(pW).body.includes('エステラブはログイン情報が無いので変わりません'), true);
   // ★ 第208便: 「毎回内容をご確認」は WORK_FIRST_APPROVAL_NOTE（最初の1回は確かめてから／そのあと自動にできる）に置き換えた
   eq('★ write の本文: 一括では自動にしない（「自動にします」と書かない）', v.bulkAskText(pW).body.includes('自動にします'), false);
-  eq('★★ 第205便: write の本文は写メ日記もフクエスで書いたものを送ると言う', v.bulkAskText(pW).body.includes('写メ日記もフクエスで書いたものを送ります'), true);
+  eq('★★ 第205便: write の本文は写メ日記もフクエスで書いたものを投稿すると言う', v.bulkAskText(pW).body.includes('写メ日記も、フクエスで書いたものを投稿します'), true);
   eq('★★ 第208便: write の本文は「最初の1回は確かめてから送る／そのあと自動にできる」と言う', v.bulkAskText(pW).body.includes(v.WORK_FIRST_APPROVAL_NOTE), true);
-  eq('★ 第333便: その文は「出勤を更新」（画面の名前）と「自動」を含む', /出勤を更新/.test(v.WORK_FIRST_APPROVAL_NOTE) && /自動/.test(v.WORK_FIRST_APPROVAL_NOTE), true);
+  // ★★★ 第337便: 画面の名前（「出勤を更新」）は書かない。★ 押すボタンの名前（「内容を確かめる」）を書く。
+  //   ★ 画面の名前を書くと、店舗様はその名前のボタンを画面から探す（カッキーさんの指摘）。
+  eq('★ 第337便: その文は「内容を確かめる」（ボタンの名前）と「自動」を含む', /内容を確かめる/.test(v.WORK_FIRST_APPROVAL_NOTE) && /自動/.test(v.WORK_FIRST_APPROVAL_NOTE), true);
+  eq('★★ 第337便: 画面の名前「出勤を更新」は書かない（ボタンだと思わせない）', /出勤を更新/.test(v.WORK_FIRST_APPROVAL_NOTE), false);
   const pW2 = v.bulkPlan([EK({ direction: 'off' }), S({ direction: 'off' })], 'write');
   eq('★ 駅ちかが read でなければ「取り込みは止まります」と書かない（止まらないものを止めると書かない）',
      v.bulkAskText(pW2).body.includes('取り込み'), false);
 
   const pN = v.bulkPlan([EK({ direction: 'read' }), S({ direction: 'write' })], 'none');
   eq('★★★ none の問いの見出しはボタンの文字で始まる', v.bulkAskText(pN).title.startsWith(v.bulkLabel('none').label), true);
-  eq('★★★ none の本文: 送らなくなる枠の名前', v.bulkAskText(pN).body.includes('駅ちか・エステ魂へは送らなくなります'), true);
+  eq('★★★ none の本文: 更新しなくなる枠の名前', v.bulkAskText(pN).body.includes('駅ちか・エステ魂は更新しなくなります'), true);
   eq('★★★ none の本文: 駅ちかからの取り込みも止まると必ず書く', v.bulkAskText(pN).body.includes('駅ちかからの取り込みも止まります'), true);
   const pN2 = v.bulkPlan([S({ direction: 'write' })], 'none');
   eq('★★ none の本文: 取り込んでいない店でも「どのサイトからも取り込みません」と言い切る', v.bulkAskText(pN2).body.includes('どのサイトからも取り込みません'), true);
@@ -799,7 +802,7 @@ console.log('\n── ★★★ 第192便: ホームを「3つの設定」にす
   // ★★★ 押したあとの文: どこまで変わったかを言う
   const ch = (labels) => labels.map((l, i) => ({ provider: 'p' + i, slot: 1, label: l }));
   eq('★ write: 全部通った', v.bulkDoneText({ to: 'write', changed: ch(['駅ちか', 'エステ魂']), skipped: [], stoppedAt: null }),
-     'フクエスから駅ちか・エステ魂へ反映するようにしました。送る前に、毎回内容をご確認いただきます');
+     'フクエスから駅ちか・エステ魂へ反映するようにしました。更新の前に、毎回内容をご確認いただきます');
   eq('★ none: 全部通った', v.bulkDoneText({ to: 'none', changed: ch(['駅ちか', 'エステ魂']), skipped: [], stoppedAt: null }),
      'どのサイトにも反映しないようにしました（駅ちか・エステ魂）。フクエスに入れた出勤は、そのまま残ります');
   eq('★★★ 途中で止まった: どこまで変わったか＋どこで＋理由',

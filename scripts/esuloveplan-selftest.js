@@ -34,7 +34,7 @@ const plan = (o) => p.planEsuloveWork(Object.assign({
   eq('全員が送れない扱い', r.blocked.length, 2);
   eq('理由は unknown', r.blocked[0].reason, 'unknown');
   eq('★ 「0件」ではなく「読み取れなかった」と言う',
-    r.summary, 'エステラブの名簿を読み取れなかったため、1件も送っていません');
+    r.summary, 'エステラブの名簿を読み取れなかったため、1件も更新していません');
 }
 
 // ── ふつうに送れる ──
@@ -78,7 +78,7 @@ const plan = (o) => p.planEsuloveWork(Object.assign({
   ] });
   eq('送れる人は送る', r.rows.length, 1);
   eq('送れない人も返す', r.blocked.length, 1);
-  eq('内訳を1行で言う', /1人 \/ 1日ぶん（1枠）を送ります \/ ★ 1人は送りません/.test(r.summary), true);
+  eq('内訳を1行で言う', /1人 \/ 1日ぶん（1枠）を更新します \/ ★ 1人は更新しません/.test(r.summary), true);
 }
 
 // ── ★★ 休みは送らない（この版）──
@@ -107,10 +107,10 @@ const plan = (o) => p.planEsuloveWork(Object.assign({
 }
 
 // ── 0件のときに「変更なし」と言わない ──
-eq('相手も出勤も無ければ、そう言う', plan({ shifts: [] }).summary, 'エステラブへ送る出勤がありません');
+eq('相手も出勤も無ければ、そう言う', plan({ shifts: [] }).summary, 'エステラブで更新する出勤がありません');
 eq('送れない人が居るときは、その数を言う',
   plan({ therapists: [T(9, 'ひまり')], shifts: [S(9, '2026-08-31', '20:00', '03:00')] }).summary,
-  'エステラブへ送れる出勤がありません（1人は送れません）');
+  'エステラブで更新できる出勤がありません（1人は更新できません）');
 
 // ★ 使わない入力は受け取らない（渡せば効くと誤解されないため）
 eq('★ planEsuloveWork は shopId を受け取らない',

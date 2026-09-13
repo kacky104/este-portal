@@ -376,17 +376,19 @@ export function buildWorkPlan(input: {
     notes.push({
       kind: 'unmapped_therapist',
       count: unmapped.size,
+      // ★★★★ 第338便（2026-09-13・カッキーさん）: 「駅ちかの番号（castId）」は【こちら側の言葉】。
+      //   ★ 店舗様には意味が分からない。★ 何が足りないかと、どこで直すかだけを言う。
       detail:
         unmapped.size +
-        '名は、この掲載枠での駅ちかの番号（castId）が分からないため駅ちかへ出せません。' +
-        '駅ちか側にその方が載っていない可能性があります',
+        '名は駅ちかと連携していないため更新できません。「セラピスト設定」で連携してください',
     });
   }
   if (notOnPage.size > 0) {
     notes.push({
       kind: 'unmapped_therapist',
       count: notOnPage.size,
-      detail: notOnPage.size + '名は番号は分かりますが、いま駅ちかの出勤表に居ないため触れません',
+      // ★ 第338便: 「番号は分かりますが」も内部の話。★ 起きていることだけを言う
+      detail: notOnPage.size + '名は、いま駅ちかの出勤表に出ていないため更新できません',
     });
   }
 
@@ -398,7 +400,7 @@ export function buildWorkPlan(input: {
       kind: 'no_schedule',
       detail:
         'フクエス側に、この7日ぶんの出勤が1件も入っていません。' +
-        '0件を「全員お休み」として送ると駅ちかの出勤が消えるため、送りません',
+        '0件を「全員お休み」として更新すると駅ちかの出勤が消えるため、更新しません',
     });
   }
 
@@ -548,11 +550,11 @@ export function buildWorkPlan(input: {
       kind: 'too_many_fields',
       count: fields.length,
       detail:
-        '送信項目が ' +
+        '更新する項目が ' +
         fields.length +
         '件で上限 ' +
         limit +
-        '件を超えます。超えた分は相手側で黙って捨てられ、出勤が消えるため送りません',
+        '件を超えます。超えた分は相手側で黙って捨てられ、出勤が消えるため更新しません',
     });
   }
 
@@ -567,7 +569,7 @@ export function buildWorkPlan(input: {
         count: changes.length,
         detail:
           '変更が ' + changes.length + '件（対象 ' + cells + '枠）と大きいため、' +
-          '自動では送りません。画面で内容をご確認のうえ承認してください',
+          '自動では更新しません。画面で内容をご確認のうえ承認してください',
       });
     }
   }
@@ -660,6 +662,7 @@ export function summarizePlan(plan: WorkPlan): {
   }
   return {
     detail,
-    summary: '駅ちかへ反映できる状態です（変更 ' + plan.changes.length + '件・' + plan.sent.length + '名ぶんを送ります）',
+    // ★ 第334便: 「送ります」→「更新します」（カッキーさん）。★ 画面（出勤を更新）と言葉を揃える
+    summary: '駅ちかへ反映できる状態です（変更 ' + plan.changes.length + '件・' + plan.sent.length + '名ぶんを更新します）',
   };
 }
