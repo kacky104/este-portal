@@ -10,8 +10,8 @@ import {
   sortByReading,
 } from '@/lib/glossaryParse';
 import { GlossaryExplorer } from './GlossaryExplorer';
-import { GlossaryCardGrid, toCardData } from './GlossaryCard';
-import { KanaNav } from './KanaNav';
+import { toCardData } from './GlossaryCard';
+import { KanaBrowser } from './KanaBrowser';
 import { GlossaryNotice } from './GlossaryNotice';
 import { GlossaryCta } from './GlossaryCta';
 import styles from './glossary.module.css';
@@ -21,7 +21,9 @@ import styles from './glossary.module.css';
 // ★ 語は src/content/glossary/*.md（DB 不使用・静的生成）。読み取りは src/app/lib/glossary.ts。
 // ★ 第352便のリデザイン（2026-09-13・カッキーさんの指示書）:
 //     - ヒーロー（白→淡ピンクのカード・検索欄つき）→ 五十音ナビ（白い横長カード・PC は sticky）
-//       → 五十音順（行ごとのカード）→ 注意文 → コラム導線 → 店舗検索 CTA
+//       → 行ごとのカード → 注意文 → コラム導線 → 店舗検索 CTA
+//     ★ 第361便（カッキーさんの指示）: 五十音ナビを【絞り込み】に変えた（「か」→ か行だけ）。
+//       あわせて「五十音順」の見出しバーを外した。ナビと一覧は KanaBrowser（Client）が持つ。
 //     ★ 第353便（カッキーさんの指示）で「業態・お店の種類」の節と「重要」バッジを外した。
 //       一覧は【五十音順の1本】だけ。カテゴリのキー（frontmatter の category）はデータとしては残る。
 //     - 検索（用語名・読み・説明文）は GlossaryExplorer（Client）。検索中は「検索結果」1本に。
@@ -59,7 +61,6 @@ export default function GlossaryHubPage() {
   const rows = [...KANA_ROWS, KANA_ROW_OTHER]
     .map((row) => ({ row, id: KANA_ROW_IDS[row], items: sorted.filter((m) => kanaRow(m.reading) === row) }))
     .filter((r) => r.items.length > 0);
-  const rowsWithItems = rows.map((r) => r.row);
 
   const setJsonLd = {
     '@context': 'https://schema.org/',
@@ -77,37 +78,15 @@ export default function GlossaryHubPage() {
   );
 
   // 検索語が空のときに出す一覧（サーバー描画）。GlossaryExplorer が browse として受け取る。
-  const browse = (
-    <>
-      <KanaNav rowsWithItems={rowsWithItems} />
-
-      {all.length === 0 ? (
-        <p className={`${styles.empty} ${styles.section}`}>用語集は準備中です。</p>
-      ) : (
-        /* 五十音順（★ 第353便でカテゴリ別の節を外し、一覧はこの1本だけになった） */
-        <section className={styles.section} aria-labelledby="glossary-kana-heading">
-          <h2 id="glossary-kana-heading" className={styles.h2}>
-            <span className={styles.h2Bar} aria-hidden="true" />
-            <span className={styles.h2Icon}>
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                <path d="M4 7h16M4 12h10M4 17h7" />
-              </svg>
-            </span>
-            五十音順
-          </h2>
-          {rows.map((r) => (
-            <div key={r.row} className={styles.rowGroup}>
-              <h3 id={`row-${r.id}`} className={styles.h3}>
-                <span className={styles.rowLabel} aria-hidden="true" />
-                {r.row === KANA_ROW_OTHER ? KANA_ROW_OTHER : `${r.row}行`}
-              </h3>
-              <GlossaryCardGrid items={r.items} dense />
-            </div>
-          ))}
-        </section>
-      )}
-    </>
-  );
+  // ★ 第361便: 五十音ナビと一覧は KanaBrowser（Client）が持つ。
+  //   「か」を押したら【か行だけ】を出す絞り込みになった。最初に描かれる HTML は絞り込みなし＝全行。
+  //   「五十音順」の見出しバーは第361便で外した（一覧はナビのすぐ下から始まる）。
+  const browse =
+    all.length === 0 ? (
+      <p className={`${styles.empty} ${styles.section}`}>用語集は準備中です。</p>
+    ) : (
+      <KanaBrowser rows={rows} />
+    );
 
   return (
     <main className={styles.page}>

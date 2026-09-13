@@ -1,11 +1,12 @@
 import Link from 'next/link';
 import Image from 'next/image';
+import type { CSSProperties } from 'react';
 import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import { extractArticleHeadings, TOC_MIN_HEADINGS, type ArticleHeading } from '@/app/lib/articleToc';
 import { buildBreadcrumbJsonLd, buildFaqPageJsonLd, toJsonLdString } from '@/app/lib/jsonLd';
 import { getAllGlossaryMeta, getGlossaryEntry } from '@/app/lib/glossary';
-import { GLOSSARY_CATEGORIES, KANA_ROW_IDS, kanaRow } from '@/lib/glossaryParse';
+import { GLOSSARY_CATEGORIES, KANA_ROW_IDS, kanaRow, titleEmWidth } from '@/lib/glossaryParse';
 import { ArticleBody } from '@/app/column/ArticleBody';
 import { ArticleToc } from '@/app/column/ArticleToc';
 import { GlossaryCardGrid, toCardData } from '../GlossaryCard';
@@ -95,6 +96,12 @@ export default async function GlossaryTermPage({ params }: { params: Promise<{ s
   if (related.length > 0) headings.push({ id: 'related', text: '関連する用語' });
   const showToc = headings.length >= TOC_MIN_HEADINGS;
 
+  // ★ 第361便: h1 を1行に収めるための「文字幅（em）」。
+  //   日本語（漢字・かな・全角記号）は1文字＝1em、半角英数は約0.5em で数える。
+  //   CSS 側が font-size = 入る幅 ÷ この数 にする（glossary.module.css の .termTitle）。
+  const h1Text = `メンズエステの「${meta.term}」とは？`;
+  const titleEm = titleEmWidth(h1Text);
+
   // 「か行の用語一覧へ戻る」。★ 健全店に決め打ちせず、読みから行を出す（どの語でも効く）。
   const row = kanaRow(meta.reading);
   const rowId = KANA_ROW_IDS[row] ?? 'other';
@@ -153,8 +160,14 @@ export default async function GlossaryTermPage({ params }: { params: Promise<{ s
 
             {/* h1 に「メンズエステの」を前置き（第350便）。title には「メンズエステ」が入っているが h1 に
                 無かった。一般的な検索（メンズエステ ○○ とは）への一致を h1 側でも揃える。 */}
-            <h1 id="glossary-term-title" className={styles.termTitle}>
-              メンズエステの「{meta.term}」とは？
+            {/* ★ 第361便: --term-title-em を渡すと、CSS が「入る幅 ÷ em 数」で字の大きさを決める。
+                スマホで2行になっていた見出しが1行に収まる（長すぎる語は 18px で止めて折り返す）。 */}
+            <h1
+              id="glossary-term-title"
+              className={styles.termTitle}
+              style={{ '--term-title-em': titleEm } as CSSProperties}
+            >
+              {h1Text}
             </h1>
             <p className={styles.termReading}>読み: {meta.reading}</p>
 

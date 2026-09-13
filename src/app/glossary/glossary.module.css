@@ -63,17 +63,8 @@
   height: 26px;
   background: linear-gradient(180deg, var(--glossary-accent) 0%, var(--glossary-accent-dark) 100%);
 }
-.h2Icon {
-  flex-shrink: 0;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 36px;
-  height: 36px;
-  background: var(--glossary-accent-soft);
-  color: var(--glossary-accent);
-}
-.h2Icon svg { width: 18px; height: 18px; }
+/* ★ .h2Icon（見出し左の四角いアイコン）は第361便で削除。
+   使っていたのは「五十音順」の見出しだけで、その見出し自体を外したため。 */
 
 .h3 {
   scroll-margin-top: 88px;
@@ -303,9 +294,45 @@
 }
 .kanaBtnDisabled:hover { background: #fafafa; border-color: #ececf1; }
 
+/* ── 絞り込み中の帯（第361便） ──
+   五十音ナビで行を選んでいるあいだだけ出る。いま何で絞っているかと、解除の入口。 */
+.filterBar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 12px;
+  margin-top: 12px;
+  padding: 10px 14px;
+  border: 1px solid var(--glossary-line);
+  background: var(--glossary-accent-soft);
+}
+.filterText {
+  margin: 0;
+  font-size: 14px;
+  color: var(--glossary-text);
+}
+.filterText strong { color: var(--glossary-accent-dark); font-weight: 800; }
+.filterClear {
+  min-height: 32px;
+  padding: 0 12px;
+  border: 1.5px solid var(--glossary-accent);
+  background: var(--glossary-white);
+  color: var(--glossary-accent-dark);
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+}
+.filterClear:hover { background: var(--glossary-accent); color: var(--glossary-white); }
+.filterClear:focus-visible { outline: 3px solid var(--glossary-accent); outline-offset: 2px; }
+
 /* ── セクション ── */
 .section { margin-top: 40px; }
 @media (min-width: 1024px) { .section { margin-top: 64px; } }
+/* 五十音順の一覧。★ 第361便で「五十音順」の見出しバーを外したので、ナビ（と絞り込みの帯）の
+   すぐ続きとして少し詰める。他の節（.section）と違う間隔になるのはこの節だけ。 */
+.rowsSection { margin-top: 28px; }
+@media (min-width: 1024px) { .rowsSection { margin-top: 36px; } }
 .rowGroup { margin-top: 24px; }
 .rowGroup:first-of-type { margin-top: 0; }
 
@@ -562,7 +589,9 @@
 .termHeroMark svg { width: 100%; height: 100%; }
 @media (max-width: 480px) { .termHeroMark { width: 96px; height: 96px; } }
 
-.termHeroInner { position: relative; z-index: 1; }
+/* ★ 第361便: h1 を1行に収めるため、この箱を「コンテナ」にする。
+   100cqw ＝ この箱の中身の幅（termHero の padding を引いたあとの、文字が置ける幅）。 */
+.termHeroInner { position: relative; z-index: 1; container-type: inline-size; }
 
 .termBadge {
   display: inline-flex;
@@ -580,13 +609,29 @@
 .termBadge:hover { background: var(--glossary-accent-soft); border-color: var(--glossary-accent); }
 .termBadge:focus-visible { outline: 3px solid var(--glossary-accent); outline-offset: 2px; }
 
+/* ★★★ 第361便（カッキーさんの指示）: スマホで h1 が2行になるのをやめ、字の大きさで1行に収める。
+   ── しくみ ──
+   h1 の文字列「メンズエステの「{用語}」とは？」の幅は、日本語の文字が1文字＝1em なので
+   【文字数からそのまま計算できる】。その em 数をサーバーが --term-title-em として渡し、
+   「入る幅 ÷ em 数」を font-size にする。つまり font-size をその語の長さに合わせて決める。
+   ・100cqw … .termHeroInner の中身の幅（＝文字が置ける幅）。画面幅ではなく箱の幅なので、
+              ページやカードの padding が変わっても計算がずれない。
+   ・--term-title-em … サーバーが渡す。安全側に少しだけ大きめ（下の page.tsx を参照）。
+   ・上限 46px … これまでと同じ。PC の見た目は変えない。
+   ・下限 18px … 用語が長すぎて1行に入らないときは、字を小さくし続けずにここで止めて折り返す。
+                 （読めない大きさにしてまで1行にはしない）
+   ★ white-space: nowrap は付けない。下限に当たったときに横スクロールが出ないようにするため。 */
 .termTitle {
   margin: 12px 0 0;
-  font-size: clamp(28px, 7vw, 46px);
+  font-size: clamp(18px, calc(100cqw / var(--term-title-em, 16)), 46px);
   line-height: 1.25;
   font-weight: 900;
   color: var(--glossary-ink);
   overflow-wrap: anywhere;
+}
+/* コンテナクエリ単位が使えない古いブラウザ向けの保険（第352便までと同じ式に落ちる）。 */
+@supports not (width: 1cqw) {
+  .termTitle { font-size: clamp(28px, 7vw, 46px); }
 }
 .termReading {
   margin: 8px 0 0;

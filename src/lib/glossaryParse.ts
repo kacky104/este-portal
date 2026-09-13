@@ -211,6 +211,29 @@ export function parseGlossaryFile(raw: string, fileSlug: string): ParsedGlossary
   };
 }
 
+// ── 見出しの文字幅（第361便） ─────────────────────────────────────────────
+
+/**
+ * 文字列の幅を「em」で数える。★ 用語ページの h1 を1行に収めるために使う。
+ *
+ * ★ なぜ数えられるか: 日本語のフォントでは漢字・かな・全角記号は【1文字＝1em】で、
+ *   字の形や太さが変わっても送り幅は変わらない。半角英数・半角記号はおよそ 0.5em。
+ *   だから文字列を見ただけで「何em分の幅になるか」が分かる。
+ * ★ 返す値は安全側に少し大きめ（+2% と +0.15em）。見積もりが小さすぎると1行に入らず折り返してしまう
+ *   ので、ほんの少し余裕を持たせて「必ず収まる」側に倒す。
+ * ★ CSS は font-size = 入る幅 ÷ この値 にする（glossary.module.css の .termTitle）。
+ */
+export function titleEmWidth(text: string): number {
+  let em = 0;
+  for (const ch of text) {
+    const code = ch.codePointAt(0) ?? 0;
+    // 半角（ASCII と半角カナ）はおよそ 0.5em、それ以外（全角）は 1em
+    em += code <= 0x00ff || (code >= 0xff61 && code <= 0xff9f) ? 0.5 : 1;
+  }
+  if (em <= 0) return 1;
+  return Math.round((em * 1.02 + 0.15) * 100) / 100;
+}
+
 // ── 本文の画像の間引き ────────────────────────────────────────────────────
 
 // 行全体が1枚の画像（![alt](/path)）のときだけ対象にする。行内の文章に混ざった画像は触らない。

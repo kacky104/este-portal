@@ -1,35 +1,35 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import { KANA_ROWS, KANA_ROW_IDS } from '@/lib/glossaryParse';
+import { KANA_ROWS, KANA_ROW_OTHER } from '@/lib/glossaryParse';
 import styles from './glossary.module.css';
 
-// 五十音ナビ（/glossary のリデザイン・第352便）。
-// ★ 行の id は既存のまま（#row-a … #row-wa）。外から #row-ka で来ても同じ場所に着く。
-// ★ 「選択中」は URL の hash（#row-ka）で判定する。サーバー描画では選択なし、
-//   クライアントで hash を読んで色を付ける（hashchange で追従）。
-// ★ 語が無い行は aria-disabled。リンクにせず、押しても何も起きないことをカーソルでも示す。
+// 五十音ナビ（/glossary・第352便で新設・第361便で「絞り込み」に変更）。
+//
+// ★ 第361便（カッキーさんの指示）: 「か」を押したら【か行だけ】を出す。
+//   第352便では #row-ka へ飛ぶだけのリンクだったが、いまは押した行だけを表示する絞り込みになった。
+//   ★ このファイルは見た目だけを持つ。押されたときに何をするかは KanaBrowser が決める。
+// ★ 行の id（row-a … row-wa）は変えていない。用語ページの「さ行の用語一覧へ戻る」（/glossary#row-sa）
+//   から来たときも、KanaBrowser が hash を読んでその行に絞る。
+// ★ 語が無い行は押せない（aria-disabled・破線・カーソルでも示す）。
 
-export function KanaNav({ rowsWithItems, sticky = true }: { rowsWithItems: string[]; sticky?: boolean }) {
-  const [active, setActive] = useState<string | null>(null);
+export function KanaNav({
+  rowsWithItems,
+  selected,
+  onSelect,
+  sticky = true,
+}: {
+  rowsWithItems: string[];
+  /** 選択中の行（'か' など）。未選択は null＝すべて表示 */
+  selected: string | null;
+  onSelect: (row: string) => void;
+  sticky?: boolean;
+}) {
   const has = new Set(rowsWithItems);
 
-  useEffect(() => {
-    const read = () => {
-      const h = window.location.hash.replace(/^#row-/, '');
-      const row = Object.keys(KANA_ROW_IDS).find((k) => KANA_ROW_IDS[k] === h) ?? null;
-      setActive(row);
-    };
-    read();
-    window.addEventListener('hashchange', read);
-    return () => window.removeEventListener('hashchange', read);
-  }, []);
-
   return (
-    <nav aria-label="五十音で探す" className={sticky ? `${styles.kanaCard} ${styles.kanaCardSticky}` : styles.kanaCard}>
+    <nav aria-label="五十音で絞り込む" className={sticky ? `${styles.kanaCard} ${styles.kanaCardSticky}` : styles.kanaCard}>
       <ul className={styles.kanaList}>
         {[...KANA_ROWS].map((row) => {
-          const id = KANA_ROW_IDS[row];
           if (!has.has(row)) {
             return (
               <li key={row}>
@@ -43,21 +43,29 @@ export function KanaNav({ rowsWithItems, sticky = true }: { rowsWithItems: strin
               </li>
             );
           }
-          const isActive = active === row;
+          const isActive = selected === row;
           return (
             <li key={row}>
-              <a
-                href={`#row-${id}`}
+              <button
+                type="button"
                 className={isActive ? `${styles.kanaBtn} ${styles.kanaBtnActive}` : styles.kanaBtn}
-                aria-current={isActive ? 'location' : undefined}
-                aria-label={`${row}行の用語へ`}
+                aria-pressed={isActive}
+                aria-controls="glossary-kana-rows"
+                // 押すと絞り込み、もう一度押すと解除（どちらも同じボタン）
+                aria-label={isActive ? `${row}行の絞り込みを解除` : `${row}行だけを表示`}
+                onClick={() => onSelect(row)}
               >
                 {row}
-              </a>
+              </button>
             </li>
           );
         })}
       </ul>
     </nav>
   );
+}
+
+/** 行の見出しに出す文字（「か行」／「その他」）。★ ナビと一覧で同じ言い方にそろえる。 */
+export function kanaRowLabel(row: string): string {
+  return row === KANA_ROW_OTHER ? KANA_ROW_OTHER : `${row}行`;
 }

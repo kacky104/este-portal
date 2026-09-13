@@ -149,6 +149,23 @@ eq('16 画像の無い本文 → そのまま', m.stripMissingImages('段落。\
   eq('17 外部URLの画像 → exists を呼ばず残す', [out, calls], ['![外部](https://example.com/x.png)\n\n文。', []]);
 }
 
+// ── 17b titleEmWidth（第361便・h1 を1行に収める計算） ──
+{
+  // 「メンズエステの「施術範囲」とは？」＝ 全角16文字 → 16em ＋ 安全分
+  eq('17b 全角16文字 → 16em に少しだけ余裕', m.titleEmWidth('メンズエステの「施術範囲」とは？'), Math.round((16 * 1.02 + 0.15) * 100) / 100);
+  eq('17c 全角15文字（健全店）', m.titleEmWidth('メンズエステの「健全店」とは？'), Math.round((15 * 1.02 + 0.15) * 100) / 100);
+  eq('17d 半角は 0.5em', m.titleEmWidth('abcd'), Math.round((2 * 1.02 + 0.15) * 100) / 100);
+  eq('17e 空文字 → 1（0で割らない）', m.titleEmWidth(''), 1);
+  // ★ 用語が長いほど大きい値＝font-size が小さくなる、という向きであること
+  eq('17f 長い語のほうが大きい値になる',
+    m.titleEmWidth('メンズエステの「アロマオイルトリートメント」とは？') > m.titleEmWidth('メンズエステの「健全店」とは？'), true);
+  // ★ 実際に1行に収まるか（430px 幅・カードの padding を引いた 358px で検算）
+  {
+    const fit = 358 / m.titleEmWidth('メンズエステの「施術範囲」とは？');
+    eq('17g 430px 幅で 施術範囲 は下限18px より大きい font-size で1行に入る', fit >= 18 && fit <= 46, true);
+  }
+}
+
 // ── 18 resolveRelated ──
 eq('18 存在する slug だけ・元の順・自分自身は除く・重複は1つ',
   m.resolveRelated('kenzen-ten', ['mens-esthe', 'kenzen-ten', 'sejutsu-hani', 'nai', 'mens-esthe'], new Set(['kenzen-ten', 'mens-esthe', 'sejutsu-hani'])),
